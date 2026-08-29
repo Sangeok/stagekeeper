@@ -2,6 +2,9 @@
 // 서비스는 GitHub에 접속하지 않으므로(스펙 §3.1) 검증이 아니라 형식 해석만 한다 — 실재 여부는 확인하지 않는다.
 export type RepoRef = { owner: string; repo: string };
 
+// 고르기 목록의 한 줄. 서버가 채워 넘긴다 - Client Component는 @/server를 import할 수 없다(fsd.md).
+export type RepoOption = { name: string; defaultBranch: string };
+
 // GitHub 계정·저장소 이름에 허용되는 모양. 점으로 끝나는 이름은 받지 않는다.
 const SEGMENT = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
 
