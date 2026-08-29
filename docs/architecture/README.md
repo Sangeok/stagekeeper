@@ -43,9 +43,10 @@ stagekeeper/
 - [ADR-0001](../ADR/0001-adopt-feature-sliced-design.md): 이 구조를 선택한
   이유와 받아들인 trade-off
 - [CONTEXT.md](../../CONTEXT.md): 구현과 독립적인 Stagekeeper 도메인 용어
-
-Phase 0·1에서 추가할 `sources.md`, `invariants.md`, `protocol.md`, `rationale.md`는
-활성 제안서가 소유한다. 그 문서가 생기면 이 인덱스에 연결한다.
+- [sources.md](./sources.md): 원재료 매핑 — ApcH(`de25a1c`)의 무엇이 어디로 왔나
+- [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
+- [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
+- [rationale.md](./rationale.md): 규칙이 무엇을 겪고 생겼는지 — 골든 diff와 첫 스모크 요약
 
 ## 반드시 지키는 규칙
 
