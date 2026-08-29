@@ -1,23 +1,39 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { CreateProjectState } from "../model/create-project-state";
+import { parseRepoUrl, slugFromRepo } from "../model/repo-url";
 
 // 서버 액션은 route가 prop으로 넘긴다 — "use client" 파일은 *.server를 import할 수 없다(fsd.md).
 type Props = {
   action: (prev: CreateProjectState, form: FormData) => Promise<CreateProjectState>;
   mcpUrl: string;
+  defaultOwner: string; // 로그인한 GitHub 계정. 이미 아는 값을 다시 타이핑시키지 않는다
 };
 
-const FIELDS = [
-  { name: "slug", label: "slug", hint: "주소가 된다: /p/<slug>. 소문자·숫자·하이픈 2~40자", required: true },
-  { name: "name", label: "이름", hint: "비우면 slug를 쓴다", required: false },
-  { name: "owner", label: "GitHub owner", hint: "예: Sangeok", required: true },
-  { name: "repo", label: "GitHub repo", hint: "예: ApcH", required: true },
-  { name: "branch", label: "브랜치", hint: "비우면 main", required: false },
-];
-
-export function NewProjectForm({ action, mcpUrl }: Props) {
+export function NewProjectForm({ action, mcpUrl, defaultOwner }: Props) {
   const [state, formAction, pending] = useActionState(action, {} as CreateProjectState);
+  const [owner, setOwner] = useState(defaultOwner);
+  const [repo, setRepo] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [pasteError, setPasteError] = useState<string | null>(null);
+
+  // 붙여넣은 주소에서 owner·repo를 채운다. slug는 사용자가 직접 고치기 전까지만 따라간다.
+  const applyPaste = (value: string) => {
+    if (value.trim() === "") {
+      setPasteError(null);
+      return;
+    }
+    const ref = parseRepoUrl(value);
+    if (!ref) {
+      setPasteError("GitHub 저장소 주소로 읽지 못했습니다. 아래 칸을 직접 채워도 됩니다");
+      return;
+    }
+    setPasteError(null);
+    setOwner(ref.owner);
+    setRepo(ref.repo);
+    if (!slugTouched) setSlug(slugFromRepo(ref.repo));
+  };
 
   if (state.token && state.slug) {
     return (
@@ -41,20 +57,73 @@ export function NewProjectForm({ action, mcpUrl }: Props) {
 
   return (
     <form action={formAction} className="space-y-4">
-      {FIELDS.map((f) => (
-        <label key={f.name} className="block space-y-1">
-          <span className="text-sm font-medium">
-            {f.label}
-            {f.required ? " *" : ""}
-          </span>
-          <input
-            name={f.name}
-            required={f.required}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-          />
-          <span className="block text-xs text-zinc-500">{f.hint}</span>
-        </label>
-      ))}
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">저장소 주소 붙여넣기</span>
+        <input
+          type="text"
+          inputMode="url"
+          placeholder="https://github.com/owner/repo"
+          onChange={(event) => applyPaste(event.target.value)}
+          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+        <span className="block text-xs text-zinc-500">
+          붙여넣으면 아래 칸이 채워집니다. 서비스가 GitHub에 접속하지는 않습니다 — 주소를 읽기만 합니다.
+        </span>
+        {pasteError ? <span className="block text-xs text-amber-700">{pasteError}</span> : null}
+      </label>
+
+      <hr className="border-zinc-200" />
+
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">slug *</span>
+        <input
+          name="slug"
+          required
+          value={slug}
+          onChange={(event) => {
+            setSlug(event.target.value);
+            setSlugTouched(true);
+          }}
+          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+        <span className="block text-xs text-zinc-500">주소가 된다: /p/&lt;slug&gt;. 소문자·숫자·하이픈 2~40자</span>
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">이름</span>
+        <input name="name" className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+        <span className="block text-xs text-zinc-500">비우면 slug를 쓴다</span>
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">GitHub owner *</span>
+        <input
+          name="owner"
+          required
+          value={owner}
+          onChange={(event) => setOwner(event.target.value)}
+          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+        <span className="block text-xs text-zinc-500">기본값은 로그인한 GitHub 계정</span>
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">GitHub repo *</span>
+        <input
+          name="repo"
+          required
+          value={repo}
+          onChange={(event) => setRepo(event.target.value)}
+          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <label className="block space-y-1">
+        <span className="text-sm font-medium">브랜치</span>
+        <input name="branch" className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
+        <span className="block text-xs text-zinc-500">비우면 main</span>
+      </label>
+
       {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
       <button
         type="submit"
