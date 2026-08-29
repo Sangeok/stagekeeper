@@ -1,5 +1,6 @@
 "use client";
 import { useActionState, useState } from "react";
+import { TokenReveal } from "@/fsd/entities/project-token";
 import type { CreateProjectState } from "../model/create-project-state";
 import { parseRepoUrl, slugFromRepo, type RepoOption } from "../model/repo-url";
 
@@ -65,23 +66,9 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
     return (
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">프로젝트를 만들었습니다</h2>
-        <p className="text-sm text-zinc-600">
-          아래 토큰은 <strong>지금 한 번만</strong> 보입니다. 서비스는 해시만 저장합니다.
-        </p>
-        <code className="block break-all rounded-md bg-zinc-100 p-3 font-mono text-sm">{state.token}</code>
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-zinc-700">
-          <li>
-            이 값을 환경변수 <code className="font-mono">HARNESS_TOKEN</code>으로 저장합니다.
-          </li>
-          <li>
-            MCP 서버 URL은 <code className="font-mono">{mcpUrl}</code>입니다.
-          </li>
-          <li>
-            연결할 저장소에서 <code className="font-mono">/harness:init</code>을 실행합니다.
-          </li>
-        </ol>
-        <a className="inline-block text-sm underline" href={`/p/${state.slug}/tokens`}>
-          토큰 페이지로 이동
+        <TokenReveal token={state.token} mcpUrl={mcpUrl} />
+        <a className="inline-block text-sm underline" href={`/p/${state.slug}`}>
+          /p/{state.slug} 로 이동
         </a>
       </section>
     );
