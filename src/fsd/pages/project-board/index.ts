@@ -1,3 +1,5 @@
+export { ProjectBoardPage } from "./ui/project-board-page";
+export type { BoardActions } from "./ui/project-board-page";
 export { buildBriefing, daysOnBoard, firstSentence, isOverBudget, FIELD_BUDGET } from "./model/briefing";
 export type { Briefing, SpeechItem, TeamMember, Tone } from "./model/briefing";
 export { deriveJourney } from "./model/journey";
