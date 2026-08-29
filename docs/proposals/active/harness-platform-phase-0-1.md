@@ -1966,10 +1966,10 @@ npx prisma migrate status
 | T1.12가 이식하는 gate UI 3파일의 임포트 실측 | `cn`(gate-card-lock:5) · `sonner`의 `toast`(button:5, reject:5) · `Button`(button:7) | **셋 다 어느 태스크도 제공하지 않았다** — `cn`은 T1.13 소유라 T1.12↔T1.13 **순환**, `sonner`는 설치 목록에 없음, `Button`은 아무도 안 만듦. 셋 다 T1.12에서 해소 |
 | 독립 교차검토(신규 컨텍스트 리뷰어, 판정 비공개로 반증 지시) | **ISSUES 3건** — 절 수 오기(위 행에서 교정) · T1.13→T1.12 `gate.ts` 의존 누락(교정) · SKILL frontmatter `name` 불일치(교정) | 세 건 다 이 문서에 반영됨. 리뷰어가 독립 확증하지 못한 것: tsx 별칭 해석·`next build`·라이브 마이그레이션(라이브 셋업 필요) |
 | `templates.test.mjs`의 `tools()` 파서를 ApcH 7개 정의에 실제 실행 | 7/7 정확히 파싱(pm `[Edit,Read]` … admin-dev `[…,Skill,…]`) | T1.15 `tools:` 계약 검사가 실물에서 동작함 |
-| `npm test` | Not run yet | 목표 52 |
-| `npm run test:web` | Not run yet | |
-| `npm run check` | Not run yet | |
-| T1.17 스모크 | Not run yet | Phase 1 완료 기준 |
+| `npm test` | **53/53 pass** (2026-08-30) | core 44 + plugin/templates 3 + plugin/bin 6. Verification Plan의 53과 일치 |
+| `npm run test:web` | **73/73 pass** (2026-08-30) | board-rules 12 + auth base 2 + mcp 4 + 이식 모델 55(journey 11·sprites 15·briefing 29) |
+| `npm run check` | **exit 0** (2026-08-30) | eslint + `verify:fsd` + `tsc --noEmit` + 아키텍처 13/13 + `check-plugin-lib`. `npm run build`도 exit 0 — 라우트 11개 |
+| T1.17 스모크 | **미실행 — 사전 조건 대기** | 라이브 Neon `DATABASE_URL` · GitHub OAuth 앱 · 빈 GitHub 저장소 · 두 번째 GitHub 계정(Step 5b)이 있어야 시작된다. T1.6 마이그레이션도 `migrate diff`로 SQL만 생성했고 적용은 대기 |
 
 ## Risks and Rollback
 
