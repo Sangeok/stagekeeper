@@ -43,3 +43,6 @@ next-env.d.ts
 # harness
 nul
 /src/generated/
+
+# .env.example은 커밋한다(위 .env* 규칙의 예외)
+!.env.example
