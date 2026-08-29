@@ -10,15 +10,19 @@ type Props = {
   defaultOwner: string; // 로그인한 GitHub 계정. 이미 아는 값을 다시 타이핑시키지 않는다
 };
 
+const FIELD_CLASS = "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm";
+
 export function NewProjectForm({ action, mcpUrl, defaultOwner }: Props) {
   const [state, formAction, pending] = useActionState(action, {} as CreateProjectState);
   const [owner, setOwner] = useState(defaultOwner);
   const [repo, setRepo] = useState("");
   const [slug, setSlug] = useState("");
+  const [branch, setBranch] = useState("main");
   const [slugTouched, setSlugTouched] = useState(false);
+  // 붙여넣기로 정해지지 않는 것이 있을 때만 폼을 편다. 평소에는 칸 하나만 보인다.
+  const [editing, setEditing] = useState(false);
   const [pasteError, setPasteError] = useState<string | null>(null);
 
-  // 붙여넣은 주소에서 owner·repo를 채운다. slug는 사용자가 직접 고치기 전까지만 따라간다.
   const applyPaste = (value: string) => {
     if (value.trim() === "") {
       setPasteError(null);
@@ -26,7 +30,8 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner }: Props) {
     }
     const ref = parseRepoUrl(value);
     if (!ref) {
-      setPasteError("GitHub 저장소 주소로 읽지 못했습니다. 아래 칸을 직접 채워도 됩니다");
+      setPasteError("주소로 읽지 못했습니다. 아래에서 직접 채워 주세요");
+      setEditing(true);
       return;
     }
     setPasteError(null);
@@ -55,83 +60,86 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner }: Props) {
     );
   }
 
+  const ready = slug !== "" && owner !== "" && repo !== "";
+
   return (
     <form action={formAction} className="space-y-4">
       <label className="block space-y-1">
-        <span className="text-sm font-medium">저장소 주소 붙여넣기</span>
+        <span className="text-sm font-medium">연결할 저장소 주소</span>
         <input
           type="text"
           inputMode="url"
+          autoFocus
           placeholder="https://github.com/owner/repo"
           onChange={(event) => applyPaste(event.target.value)}
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-        />
-        <span className="block text-xs text-zinc-500">
-          붙여넣으면 아래 칸이 채워집니다. 서비스가 GitHub에 접속하지는 않습니다 — 주소를 읽기만 합니다.
-        </span>
-        {pasteError ? <span className="block text-xs text-amber-700">{pasteError}</span> : null}
-      </label>
-
-      <hr className="border-zinc-200" />
-
-      <label className="block space-y-1">
-        <span className="text-sm font-medium">slug *</span>
-        <input
-          name="slug"
-          required
-          value={slug}
-          onChange={(event) => {
-            setSlug(event.target.value);
-            setSlugTouched(true);
-          }}
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-        />
-        <span className="block text-xs text-zinc-500">주소가 된다: /p/&lt;slug&gt;. 소문자·숫자·하이픈 2~40자</span>
-      </label>
-
-      <label className="block space-y-1">
-        <span className="text-sm font-medium">이름</span>
-        <input name="name" className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-        <span className="block text-xs text-zinc-500">비우면 slug를 쓴다</span>
-      </label>
-
-      <label className="block space-y-1">
-        <span className="text-sm font-medium">GitHub owner *</span>
-        <input
-          name="owner"
-          required
-          value={owner}
-          onChange={(event) => setOwner(event.target.value)}
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
-        />
-        <span className="block text-xs text-zinc-500">기본값은 로그인한 GitHub 계정</span>
-      </label>
-
-      <label className="block space-y-1">
-        <span className="text-sm font-medium">GitHub repo *</span>
-        <input
-          name="repo"
-          required
-          value={repo}
-          onChange={(event) => setRepo(event.target.value)}
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+          className={FIELD_CLASS}
         />
       </label>
 
-      <label className="block space-y-1">
-        <span className="text-sm font-medium">브랜치</span>
-        <input name="branch" className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-        <span className="block text-xs text-zinc-500">비우면 main</span>
-      </label>
+      {pasteError ? <p className="text-sm text-amber-700">{pasteError}</p> : null}
+
+      {ready && !editing ? (
+        <div className="flex items-start justify-between gap-3 rounded-md bg-zinc-50 px-3 py-2 text-sm">
+          <p className="space-x-2">
+            <span className="font-mono">
+              {owner}/{repo}
+            </span>
+            <span className="text-zinc-500">· {branch}</span>
+            <span className="text-zinc-500">· 주소 /p/{slug}</span>
+          </p>
+          <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-xs text-zinc-500 underline">
+            고치기
+          </button>
+        </div>
+      ) : null}
+
+      {/* 접혀 있어도 값은 폼과 함께 전송된다 — hidden은 제출을 막지 않는다. */}
+      <div hidden={ready && !editing} className="space-y-4 border-l-2 border-zinc-200 pl-4">
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">GitHub owner *</span>
+          <input name="owner" required value={owner} onChange={(e) => setOwner(e.target.value)} className={FIELD_CLASS} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">GitHub repo *</span>
+          <input name="repo" required value={repo} onChange={(e) => setRepo(e.target.value)} className={FIELD_CLASS} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">브랜치</span>
+          <input name="branch" value={branch} onChange={(e) => setBranch(e.target.value)} className={FIELD_CLASS} />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">주소(slug) *</span>
+          <input
+            name="slug"
+            required
+            value={slug}
+            onChange={(event) => {
+              setSlug(event.target.value);
+              setSlugTouched(true);
+            }}
+            className={FIELD_CLASS}
+          />
+          <span className="block text-xs text-zinc-500">/p/&lt;slug&gt; 가 된다. 소문자·숫자·하이픈 2~40자</span>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium">표시 이름</span>
+          <input name="name" placeholder={repo || "비우면 slug를 쓴다"} className={FIELD_CLASS} />
+        </label>
+      </div>
 
       {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
+
       <button
         type="submit"
-        disabled={pending}
-        className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+        disabled={pending || !ready}
+        className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
       >
         {pending ? "만드는 중…" : "프로젝트 만들기"}
       </button>
+
+      <p className="text-xs text-zinc-500">
+        서비스는 이 저장소에 접속하지 않습니다 — 주소를 읽어 링크를 만드는 데만 씁니다.
+      </p>
     </form>
   );
 }
