@@ -1,6 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-import { TokenReveal } from "./token-reveal";
+import { TokenReveal } from "@/fsd/entities/project-token";
 
 // 서버 액션은 route가 prop으로 넘긴다 — "use client" 파일은 *.server를 import할 수 없다(fsd.md).
 type Props = { issue: (label: string) => Promise<{ token: string }>; mcpUrl: string };
