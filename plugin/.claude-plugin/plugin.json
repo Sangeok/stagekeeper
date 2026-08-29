@@ -1,0 +1,6 @@
+{
+  "name": "harness",
+  "description": "사람이 게이트를 쥐는 에이전트 개발 파이프라인 — 하니스 서비스에 저장소를 연결한다",
+  "version": "0.1.0",
+  "author": { "name": "Sangeok" }
+}
