@@ -4,7 +4,7 @@ import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { requireMember } from "@/server/auth/guard";
 import * as board from "@/server/pipeline/board";
 
-const REASON_MESSAGE: Record<string, string> = { stale: "보드가 이미 바뀌었습니다. 새로고침 후 다시 시도하세요" };
+const REASON_MESSAGE: Record<string, string> = { stale: "The board changed. Refresh and try again." };
 const message = (reason: string) => REASON_MESSAGE[reason] ?? reason;
 
 export async function humanTransition(slug: string, key: string, to: string, result: string | undefined, expectedUpdatedAt: string): Promise<ActionResult<void>> {

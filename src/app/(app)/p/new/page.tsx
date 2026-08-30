@@ -12,7 +12,7 @@ export default async function Page() {
   const repos = await listPublicRepos(user.login);
   return (
     <main className="mx-auto w-full max-w-xl space-y-6 px-4 py-10">
-      <h1 className="text-2xl font-semibold">새 프로젝트</h1>
+      <h1 className="text-2xl font-semibold">New project</h1>
       <NewProjectForm action={createProject} mcpUrl={mcpUrl()} defaultOwner={user.login} repos={repos} />
     </main>
   );

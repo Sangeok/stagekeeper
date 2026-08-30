@@ -226,7 +226,7 @@ function PixelRoomBackdrop() {
 // 파일명 나열은 제거하고 개수만 남긴다(백로그 요구 5). 항목별 링크는 카드로 이동했다.
 function DeskReports({ reports }: { reports: ReportDoc[] }) {
   if (reports.length === 0) return null;
-  return <p className="text-center text-[10px] text-zinc-500">기록 {reports.length}건</p>;
+  return <p className="text-center text-[10px] text-zinc-500">{reports.length} {reports.length === 1 ? "report" : "reports"}</p>;
 }
 
 // 반응형: 폰 2열 격자 → 데스크톱 가로 flex-wrap, 가로 스크롤 없음.
@@ -240,7 +240,7 @@ export function PixelOffice({
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-mono text-sm tracking-widest text-zinc-500">
-        사무실
+        Team
       </h2>
       <div className="relative overflow-hidden rounded-2xl border border-zinc-200">
         <PixelRoomBackdrop />

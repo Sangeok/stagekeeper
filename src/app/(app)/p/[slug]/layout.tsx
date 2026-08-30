@@ -2,10 +2,10 @@ import Link from "next/link";
 import { requireMember } from "@/server/auth/guard";
 
 const TABS = [
-  { href: "", label: "보드" },
-  { href: "/inbox", label: "결재함" },
-  { href: "/backlog", label: "백로그" },
-  { href: "/tokens", label: "토큰" },
+  { href: "", label: "Board" },
+  { href: "/inbox", label: "Inbox" },
+  { href: "/backlog", label: "Backlog" },
+  { href: "/tokens", label: "Tokens" },
 ];
 
 // 탭 셸용 호출이다. 인가는 각 page와 서버 액션이 자기 requireMember로 한다.

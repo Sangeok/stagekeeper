@@ -19,7 +19,7 @@ export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }
   return (
     <div className="space-y-4 rounded-md border border-zinc-300 p-4">
       <p className="text-sm text-zinc-600">
-        이 토큰은 <strong>지금 한 번만</strong> 보입니다. 서비스는 해시만 저장합니다.
+        This is the only time the token is shown. Stagekeeper stores a hash, not the token.
       </p>
 
       <div className="flex items-start gap-2">
@@ -29,15 +29,15 @@ export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }
           onClick={() => copy("token", token)}
           className="shrink-0 rounded-md border border-zinc-300 px-3 py-2 text-xs"
         >
-          {copied === "token" ? "복사됨" : "복사"}
+          {copied === "token" ? "Copied" : "Copy"}
         </button>
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-medium">1. 연결할 저장소를 여는 셸에 넣습니다</p>
+        <p className="text-sm font-medium">1. Set it in the shell you&apos;ll open the repo from</p>
         <p className="text-xs text-zinc-500">
-          저장소 파일이 아니라 셸 환경변수입니다. 생성될 <code className="font-mono">.mcp.json</code>은 값이 아니라{" "}
-          <code className="font-mono">{"${HARNESS_TOKEN}"}</code> 참조만 담기 때문에, 커밋해도 토큰이 새지 않습니다.
+          It&apos;s a shell variable, not a file in the repo. The generated <code className="font-mono">.mcp.json</code>{" "}
+          references <code className="font-mono">{"${HARNESS_TOKEN}"}</code>, so committing it doesn&apos;t leak the token.
         </p>
         {connectCommands(token).map((entry) => (
           <div key={entry.kind} className="flex items-center gap-2">
@@ -48,17 +48,17 @@ export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }
               onClick={() => copy(entry.kind, entry.command)}
               className="shrink-0 rounded-md border border-zinc-300 px-3 py-1.5 text-xs"
             >
-              {copied === entry.kind ? "복사됨" : "복사"}
+              {copied === entry.kind ? "Copied" : "Copy"}
             </button>
           </div>
         ))}
       </div>
 
       <div className="space-y-1">
-        <p className="text-sm font-medium">2. 그 셸에서 저장소를 열고 연결합니다</p>
+        <p className="text-sm font-medium">2. Open the repo from that shell and run</p>
         <code className="block rounded-md bg-zinc-100 px-3 py-2 font-mono text-xs">/harness:init</code>
         <p className="text-xs text-zinc-500">
-          MCP 서버 URL은 <code className="font-mono">{mcpUrl}</code>입니다.
+          MCP server URL: <code className="font-mono">{mcpUrl}</code>
         </p>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import { statusLabel } from "@/fsd/entities/board-item";
+
 export type TimelineEvent = {
   at: Date;
   actor: string;
@@ -33,21 +35,21 @@ export function BoardItemPage({ item }: { item: BoardItemView }) {
         </p>
         <h1 className="text-2xl font-semibold">{item.title}</h1>
         <p className="text-sm text-zinc-600">
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">{item.status}</span>
-          <span className="ml-2 text-xs text-zinc-500">{stamp(item.proposedOn)} 선정</span>
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">{statusLabel(item.status)}</span>
+          <span className="ml-2 font-mono text-xs text-zinc-500">Proposed {stamp(item.proposedOn)}</span>
         </p>
       </header>
 
       <dl className="space-y-3 text-sm">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">증거</dt>
+          <dt className="text-xs uppercase tracking-wide text-zinc-500">Evidence</dt>
           <dd className="whitespace-pre-wrap">{item.reason}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">결과</dt>
+          <dt className="text-xs uppercase tracking-wide text-zinc-500">Result</dt>
           <dd>
             {item.results.length === 0 ? (
-              <span className="text-zinc-400">아직 없음</span>
+              <span className="text-zinc-400">None yet</span>
             ) : (
               <ol className="list-decimal space-y-1 pl-5">
                 {item.results.map((r, i) => (
@@ -58,14 +60,14 @@ export function BoardItemPage({ item }: { item: BoardItemView }) {
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">검증</dt>
-          <dd>{item.validation ?? <span className="text-zinc-400">검증 전</span>}</dd>
+          <dt className="text-xs uppercase tracking-wide text-zinc-500">Validation</dt>
+          <dd>{item.validation ?? <span className="text-zinc-400">No validation yet</span>}</dd>
         </div>
       </dl>
 
       {item.docs.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">문서</h2>
+          <h2 className="text-sm font-semibold">Documents</h2>
           <ul className="space-y-1 text-sm">
             {item.docs.map((doc) => (
               <li key={doc.href}>
@@ -80,14 +82,14 @@ export function BoardItemPage({ item }: { item: BoardItemView }) {
       ) : null}
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold">이력</h2>
+        <h2 className="text-sm font-semibold">History</h2>
         <ol className="space-y-1 text-sm">
           {item.events.map((e, i) => (
             <li key={i} className="flex flex-wrap gap-2">
               <span className="font-mono text-xs text-zinc-500">{stamp(e.at)}</span>
-              <span className="text-xs text-zinc-500">{e.actor}</span>
-              <span>
-                {e.from ?? "—"} → {e.to ?? "폐기"}
+              <span className="font-mono text-xs text-zinc-500">{e.actor}</span>
+              <span className="font-mono text-xs">
+                {e.from ?? "—"} → {e.to ?? "discarded"}
               </span>
               {e.note ? <span className="text-xs text-zinc-500">({e.note})</span> : null}
             </li>

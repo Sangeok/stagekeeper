@@ -44,7 +44,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
     }
     const ref = parseRepoUrl(value);
     if (!ref) {
-      setPasteError("주소로 읽지 못했습니다. 「고치기」로 직접 채울 수 있습니다");
+      setPasteError("That doesn't look like a GitHub repository URL. Use Edit to fill in the fields.");
       return;
     }
     setPasteError(null);
@@ -65,10 +65,10 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
   if (state.token && state.slug) {
     return (
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">프로젝트를 만들었습니다</h2>
+        <h2 className="text-lg font-semibold">Project created</h2>
         <TokenReveal token={state.token} mcpUrl={mcpUrl} />
         <a className="inline-block text-sm underline" href={`/p/${state.slug}`}>
-          /p/{state.slug} 로 이동
+          Open /p/{state.slug}
         </a>
       </section>
     );
@@ -86,21 +86,21 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
               {owner}/{repo}
             </span>
             <span className="text-zinc-500">· {branch}</span>
-            <span className="text-zinc-500">· 주소 /p/{slug}</span>
+            <span className="font-mono text-zinc-500">· /p/{slug}</span>
           </p>
           <span className="flex shrink-0 gap-3 text-xs text-zinc-500">
             <button type="button" onClick={() => setEditing((value) => !value)} className="underline">
-              {editing ? "접기" : "고치기"}
+              {editing ? "Collapse" : "Edit"}
             </button>
             <button type="button" onClick={reset} className="underline">
-              다시 고르기
+              Start over
             </button>
           </span>
         </div>
       ) : manual ? (
         <div className="space-y-1">
           <label className="block space-y-1">
-            <span className="text-sm font-medium">저장소 주소</span>
+            <span className="text-sm font-medium">Repository URL</span>
             <input
               type="text"
               inputMode="url"
@@ -112,28 +112,28 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
           </label>
           {repos.length > 0 ? (
             <button type="button" onClick={() => setManual(false)} className="text-xs text-zinc-500 underline">
-              내 저장소 목록에서 고르기
+              Pick from my repositories
             </button>
           ) : (
             <span className="block text-xs text-zinc-500">
-              저장소 목록을 불러오지 못했습니다. 주소를 붙여넣어 주세요
+              Couldn&apos;t load your repositories. Paste a URL.
             </span>
           )}
         </div>
       ) : (
         <div className="space-y-2">
-          <span className="block text-sm font-medium">연결할 저장소</span>
+          <span className="block text-sm font-medium">Repository</span>
           <input
             type="search"
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={`${repos.length}개 중에서 찾기`}
+            placeholder={`Search ${repos.length} repositories`}
             className={FIELD_CLASS}
           />
           <ul className="max-h-64 divide-y divide-zinc-100 overflow-y-auto rounded-md border border-zinc-200">
             {matches.length === 0 ? (
-              <li className="px-3 py-3 text-sm text-zinc-500">이름이 맞는 저장소가 없습니다</li>
+              <li className="px-3 py-3 text-sm text-zinc-500">No repository matches.</li>
             ) : (
               matches.map((option) => (
                 <li key={option.name}>
@@ -150,9 +150,9 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
             )}
           </ul>
           <p className="text-xs text-zinc-500">
-            비공개 저장소는 목록에 없습니다.{" "}
+            Private repositories aren&apos;t listed.{" "}
             <button type="button" onClick={() => setManual(true)} className="underline">
-              주소를 직접 붙여넣기
+              Paste a URL instead
             </button>
           </p>
         </div>
@@ -163,7 +163,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
       {/* 접혀 있어도 값은 폼과 함께 전송된다 — hidden은 제출을 막지 않는다. */}
       <div hidden={!editing} className="space-y-4 border-l-2 border-zinc-200 pl-4">
         <label className="block space-y-1">
-          <span className="text-sm font-medium">GitHub owner *</span>
+          <span className="text-sm font-medium">GitHub owner</span>
           <input
             name="owner"
             required
@@ -173,7 +173,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">GitHub repo *</span>
+          <span className="text-sm font-medium">GitHub repo</span>
           <input
             name="repo"
             required
@@ -183,7 +183,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">브랜치</span>
+          <span className="text-sm font-medium">Branch</span>
           <input
             name="branch"
             value={branch}
@@ -192,7 +192,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">주소(slug) *</span>
+          <span className="text-sm font-medium">URL slug</span>
           <input
             name="slug"
             required
@@ -203,11 +203,11 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
             }}
             className={FIELD_CLASS}
           />
-          <span className="block text-xs text-zinc-500">/p/&lt;slug&gt; 가 된다. 소문자·숫자·하이픈 2~40자</span>
+          <span className="block text-xs text-zinc-500">Becomes /p/&lt;slug&gt;. Lowercase letters, numbers, and dashes, 2–40 characters.</span>
         </label>
         <label className="block space-y-1">
-          <span className="text-sm font-medium">표시 이름</span>
-          <input name="name" placeholder={repo || "비우면 slug를 쓴다"} className={FIELD_CLASS} />
+          <span className="text-sm font-medium">Display name</span>
+          <input name="name" placeholder={repo || "Defaults to the slug"} className={FIELD_CLASS} />
         </label>
       </div>
 
@@ -218,10 +218,10 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
         disabled={pending || !chosen}
         className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
       >
-        {pending ? "만드는 중…" : "프로젝트 만들기"}
+        {pending ? "Creating…" : "Create project"}
       </button>
 
-      <p className="text-xs text-zinc-500">서비스는 저장소 내용을 읽지 않습니다 — 이름과 기본 브랜치만 봅니다.</p>
+      <p className="text-xs text-zinc-500">Stagekeeper doesn&apos;t read the repository. It only uses the name and the default branch.</p>
     </form>
   );
 }

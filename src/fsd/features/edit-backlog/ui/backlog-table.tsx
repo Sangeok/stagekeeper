@@ -27,9 +27,9 @@ export function BacklogTable({ slug, rows, remove }: Props) {
         <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500">
           <tr>
             <th className="py-2">key</th>
-            <th className="py-2">제목</th>
-            <th className="py-2">영역</th>
-            <th className="py-2">보드 상태</th>
+            <th className="py-2">Title</th>
+            <th className="py-2">Area</th>
+            <th className="py-2">Board status</th>
             <th className="py-2" />
           </tr>
         </thead>
@@ -47,12 +47,12 @@ export function BacklogTable({ slug, rows, remove }: Props) {
                 {row.status ? (
                   <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">{row.status}</span>
                 ) : (
-                  <span className="text-xs text-zinc-400">보드에 없음</span>
+                  <span className="text-xs text-zinc-400">Not on board</span>
                 )}
               </td>
               <td className="py-2 text-right">
                 {row.removedAt ? (
-                  <span className="text-xs">제거됨</span>
+                  <span className="text-xs">Removed</span>
                 ) : (
                   <button
                     type="button"
@@ -65,7 +65,7 @@ export function BacklogTable({ slug, rows, remove }: Props) {
                     }
                     className="rounded-md border border-zinc-300 px-3 py-1 text-xs disabled:opacity-50"
                   >
-                    제거
+                    Remove
                   </button>
                 )}
               </td>

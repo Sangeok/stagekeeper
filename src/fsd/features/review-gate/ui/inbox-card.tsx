@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
+import { statusLabel } from "@/fsd/entities/board-item";
 import { gateTargetFor, rejectActionsFor, resumeTargetsFor } from "../model/gate-source";
-import { holdResultLine, type RejectAction } from "../model/gate-text";
+import { holdResultLine, resumeLabel, resumeToast, type RejectAction } from "../model/gate-text";
 import type { DiscardAction, InboxItem, TransitionAction } from "../model/inbox-item";
 import { GateCardLock } from "./gate-card-lock";
 import { GateTransitionButton } from "./gate-transition-button";
@@ -13,11 +14,15 @@ import { RejectActions } from "./reject-actions";
 
 type Props = { item: InboxItem; transition: TransitionAction; discard: DiscardAction };
 
+// 요약 예산. 서버가 새 값은 거부하지만, 이미 들어온 값의 초과 표시는 화면 몫이다.
+const FIELD_BUDGET = 150;
+
 export function InboxCard({ item, transition, discard }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const gateTo = gateTargetFor(item.status);
   const resumeTargets = resumeTargetsFor(item.status);
+  const overBudget = item.reason.length > FIELD_BUDGET || item.results.some((r) => r.length > FIELD_BUDGET);
 
   const reject = (action: RejectAction) => {
     if (action === "discard") return discard(item.key, item.updatedAt);
@@ -32,7 +37,7 @@ export function InboxCard({ item, transition, discard }: Props) {
         toast.error(result.error);
         return;
       }
-      toast.success(`${to}로 재개했습니다.`);
+      toast.success(resumeToast(to, item.key));
       router.refresh();
     });
   };
@@ -47,35 +52,50 @@ export function InboxCard({ item, transition, discard }: Props) {
             </p>
             <h3 className="font-medium">{item.title}</h3>
           </div>
-          <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs">{item.status}</span>
+          <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs">{statusLabel(item.status)}</span>
         </header>
 
         <dl className="space-y-1 text-sm">
           <div className="flex gap-2">
-            <dt className="shrink-0 text-zinc-500">증거</dt>
+            <dt className="shrink-0 text-zinc-500">Evidence</dt>
             <dd>{item.reason}</dd>
           </div>
           {item.results.length > 0 ? (
             <div className="flex gap-2">
-              <dt className="shrink-0 text-zinc-500">결과</dt>
+              <dt className="shrink-0 text-zinc-500">Result</dt>
               <dd>{item.results.join(" ")}</dd>
             </div>
           ) : null}
           <div className="flex gap-2">
-            <dt className="shrink-0 text-zinc-500">검증</dt>
-            <dd>
+            <dt className="shrink-0 text-zinc-500">Validation</dt>
+            <dd className="flex flex-wrap items-center gap-1.5">
               {item.validation ? (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">{item.validation}</span>
+                <span title={item.validation} className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">
+                  Verified
+                </span>
               ) : (
-                <span className="text-xs text-zinc-400">검증 전</span>
+                <span
+                  title="No independent validation has been recorded. Approving now means implementing an unverified plan."
+                  className="rounded-full border border-red-700 px-2 py-0.5 text-xs text-red-700"
+                >
+                  No validation yet
+                </span>
               )}
+              {overBudget ? (
+                <span
+                  title="This summary is over 150 characters. Move the details to docs/agents/."
+                  className="rounded-full border border-zinc-300 px-2 py-0.5 text-xs text-zinc-500"
+                >
+                  Over 150 characters
+                </span>
+              ) : null}
             </dd>
           </div>
           {item.planUrl ? (
             <div className="flex gap-2">
-              <dt className="shrink-0 text-zinc-500">계획서</dt>
+              <dt className="shrink-0 text-zinc-500">Plan</dt>
               <dd>
-                <a href={item.planUrl} className="text-xs underline" target="_blank" rel="noreferrer">
+                <a href={item.planUrl} className="font-mono text-xs underline" target="_blank" rel="noreferrer">
                   {item.planPath}
                 </a>
               </dd>
@@ -83,42 +103,45 @@ export function InboxCard({ item, transition, discard }: Props) {
           ) : null}
         </dl>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {resumeTargets.map((to) => (
+              <button
+                key={to}
+                type="button"
+                disabled={isPending}
+                onClick={() => resume(to)}
+                className="rounded-md border border-zinc-300 px-3 py-1 text-xs disabled:opacity-60"
+              >
+                {resumeLabel(to)}
+              </button>
+            ))}
+          </div>
           {gateTo ? (
             <GateTransitionButton
-              label={gateTo}
+              to={gateTo}
+              itemKey={item.key}
               commit={() => transition(item.key, gateTo, undefined, item.updatedAt)}
             />
           ) : null}
-          {resumeTargets.map((to) => (
-            <button
-              key={to}
-              type="button"
-              disabled={isPending}
-              onClick={() => resume(to)}
-              className="rounded-md border border-zinc-300 px-3 py-1 text-xs disabled:opacity-60"
-            >
-              {to}로 재개
-            </button>
-          ))}
         </div>
 
         <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} />
 
         <details className="text-xs text-zinc-600">
-          <summary className="cursor-pointer text-zinc-500">이 결정이 무엇을 지시하나</summary>
+          <summary className="cursor-pointer text-zinc-500">What this decision does</summary>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
-              <strong>계획지시</strong>: 담당 dev가 계획서를 씁니다. <strong>구현승인</strong>: 담당 dev가 코드를 고칩니다.
+              <strong>Request plan</strong>: dev writes a plan. <strong>Approve implementation</strong>: dev changes the code.
             </li>
             <li>
-              <strong>검증</strong> 칩이 있으면 무편집 클린 패스가 나온 것이고, 없으면 「검증 전」입니다.
+              <strong>Verified</strong> means an independent pass found nothing to change. Without it, the plan is unverified.
             </li>
-            <li>되돌리기는 검증 기록을 지웁니다.</li>
-            <li>폐기는 되돌릴 수 없습니다.</li>
+            <li>Sending back clears the validation record.</li>
+            <li>Discard can&apos;t be undone.</li>
           </ul>
           <p className="mt-2">
-            더 알고 싶으면 저장소의 <code className="font-mono">docs/architecture/protocol.md</code>를 보세요.
+            More in the repo: <code className="font-mono">docs/architecture/protocol.md</code>
           </p>
         </details>
       </article>

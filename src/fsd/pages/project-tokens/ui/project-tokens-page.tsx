@@ -15,12 +15,12 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-8 px-4 py-10">
       <section className="space-y-2">
-        <h1 className="text-2xl font-semibold">토큰</h1>
+        <h1 className="text-2xl font-semibold">Tokens</h1>
         <p className="text-sm text-zinc-600">
-          에이전트는 이 토큰으로만 서비스에 붙습니다. 게이트·백로그 편집 도구는 토큰에 없습니다 — 웹 전용입니다.
+          Agents connect with a token. A token can&apos;t approve or edit the backlog — those are web only.
         </p>
         <p className="text-sm text-zinc-600">
-          MCP 서버 URL: <code className="font-mono">{mcpUrl}</code>
+          MCP server URL: <code className="font-mono">{mcpUrl}</code>
         </p>
       </section>
 
@@ -29,10 +29,10 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
       <table className="w-full text-left text-sm">
         <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500">
           <tr>
-            <th className="py-2">label</th>
-            <th className="py-2">발급</th>
-            <th className="py-2">상태</th>
-            <th className="py-2">참조값</th>
+            <th className="py-2">Label</th>
+            <th className="py-2">Issued</th>
+            <th className="py-2">Status</th>
+            <th className="py-2">Reference</th>
             <th className="py-2" />
           </tr>
         </thead>
@@ -40,14 +40,14 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
           {tokens.map((t) => (
             <tr key={t.id}>
               <td className="py-2">{t.label}</td>
-              <td className="py-2">{day(t.createdAt)}</td>
-              <td className="py-2">{t.revokedAt ? `폐기 ${day(t.revokedAt)}` : "사용 중"}</td>
+              <td className="py-2 font-mono text-xs">{day(t.createdAt)}</td>
+              <td className="py-2">{t.revokedAt ? `Revoked ${day(t.revokedAt)}` : "Active"}</td>
               <td className="py-2 font-mono text-xs text-zinc-500">token:{t.id}</td>
               <td className="py-2 text-right">
                 {t.revokedAt ? null : (
                   <form action={revoke.bind(null, t.id)}>
                     <button type="submit" className="rounded-md border border-zinc-300 px-3 py-1 text-xs">
-                      폐기
+                      Revoke
                     </button>
                   </form>
                 )}

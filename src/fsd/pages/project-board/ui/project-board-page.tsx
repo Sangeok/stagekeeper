@@ -1,11 +1,11 @@
 "use client";
-// 도장·반려 버튼이 서버 액션을 감싼 콜백을 받으므로 이 트리는 Client Component다
+// 게이트·반려 버튼이 서버 액션을 감싼 콜백을 받으므로 이 트리는 Client Component다
 // (함수 prop은 Server Component에서 직렬화되지 않는다). 서버 전용 모듈은 여기서 import하지 않는다.
 
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import type { DocLink } from "@/fsd/entities/board-item";
+import { statusLabel, type DocLink } from "@/fsd/entities/board-item";
 import type { ReportDoc } from "@/fsd/entities/report";
 import {
   GateCardLock,
@@ -65,40 +65,38 @@ export function ProjectBoardPage({
 function BudgetFlag() {
   return (
     <span
-      title="보드 요약이 150자를 넘습니다 — 상세는 docs/agents/ 로 옮기세요"
+      title="This summary is over 150 characters. Move the details to docs/agents/."
       className="shrink-0 rounded border border-amber-600/50 px-1 text-[10px] leading-4 text-amber-600"
     >
-      150자 초과
+      Over 150 characters
     </span>
   );
 }
 
-// 부서(countersign) 표식. 검증 클린 패스면 실선 active 칩, 아직이면 점선 hold 칩.
-// 판정은 메인 루프가 클린 패스일 때만 `검증:` 필드를 써서 전달한다(보드 안내 규약).
-// 검토대기 항목에서만 렌더한다(승인대기는 계획이 없어 판정이 없다).
+// 검증 표식. 기록이 있으면 조용한 칩(에이전트가 남긴 것), 없으면 위험 윤곽 — 위험은 부재에 있다.
+// in_review 항목에서만 렌더한다(proposed는 계획이 없어 판정이 없다).
 function ValidationMark({ validation }: { validation: string | null }) {
   if (validation !== null) {
     return (
       <span
         title={validation}
-        className="shrink-0 rounded border border-sky-600/60 bg-sky-600/10 px-1 text-[10px] leading-4 text-sky-700"
+        className="shrink-0 rounded border border-zinc-300 bg-zinc-100 px-1 text-[10px] leading-4 text-zinc-600"
       >
-        검증 통과
+        Verified
       </span>
     );
   }
   return (
     <span
-      title="아직 검증 클린 패스 기록이 없습니다 — 승인 전 확인하세요"
-      className="shrink-0 rounded border border-dashed border-amber-600/60 px-1 text-[10px] leading-4 text-amber-600"
+      title="No independent validation has been recorded. Approving now means implementing an unverified plan."
+      className="shrink-0 rounded border border-red-700 px-1 text-[10px] leading-4 text-red-700"
     >
-      검증 전
+      No validation yet
     </span>
   );
 }
 
 // 항목 카드에서 그 항목의 실재하는 문서(계획서·행위자 기록)로 가는 링크. 없으면 렌더 안 함.
-// 계획서=청색(--active), 보고서=회색. 클릭하면 내부 뷰어 라우트로 이동한다(GitHub 이탈 없음).
 function DocLinks({ docs }: { docs: DocLink[] }) {
   if (docs.length === 0) return null;
   return (
@@ -127,20 +125,17 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
+// Phase D에서 turn banner가 대신한다 — 그때까지는 문구만 영문.
 function BriefingHeader({ briefing }: { briefing: Briefing }) {
   return (
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p className="font-mono text-sm tracking-widest text-zinc-500">
-          파이프라인 브리핑
-        </p>
-        <h1 className="font-mono text-3xl text-zinc-900">
-          {briefing.today}
-        </h1>
+        <p className="font-mono text-sm tracking-widest text-zinc-500">Board</p>
+        <h1 className="font-mono text-3xl text-zinc-900">{briefing.today}</h1>
         <p className="mt-1 text-sm text-zinc-500">
           {briefing.pendingCount > 0
-            ? `결정 대기 ${briefing.pendingCount}건`
-            : "결정 대기 없음"}
+            ? `${briefing.pendingCount} ${briefing.pendingCount === 1 ? "item needs" : "items need"} your decision`
+            : "Nothing needs your decision"}
         </p>
       </div>
     </header>
@@ -161,13 +156,8 @@ function InboxZone({
       <OwnerBanner pendingCount={pendingCount} />
       {items.length === 0 ? (
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center">
-          <p className="font-mono text-base text-zinc-900">
-            결재함이 비었습니다.
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            지금 당신의 결정을 기다리는 항목이 없습니다. 팀 현황과 최근 보고는
-            아래에 있습니다.
-          </p>
+          <p className="font-mono text-base text-zinc-900">Nothing needs your approval.</p>
+          <p className="mt-1 text-sm text-zinc-500">Team status and recent activity are below.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -181,7 +171,7 @@ function InboxZone({
 }
 
 function InboxCard({ item, actions }: { item: SpeechItem; actions: BoardActions }) {
-  // 라벨=찍힐 status. item.status는 string | null → null이면 버튼 없음.
+  // 목적지 status. item.status는 string | null → null이면 버튼 없음.
   const gateTo = item.status === null ? null : gateTargetFor(item.status);
   const rejectActions =
     item.status === null ? [] : rejectActionsFor(item.status);
@@ -208,9 +198,9 @@ function InboxCard({ item, actions }: { item: SpeechItem; actions: BoardActions 
       <p className="mt-3 text-lg text-amber-800">{item.line}</p>
       {journey !== null && <JourneyStepper journey={journey} />}
       <GateCardLock>
-        <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="mt-3 flex items-start justify-between gap-2">
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-            {item.id} · {item.status}
+            <span className="font-mono">{item.id}</span> · {statusLabel(item.status)}
             {item.status === "in_review" && (
               <ValidationMark validation={item.validation} />
             )}
@@ -218,7 +208,8 @@ function InboxCard({ item, actions }: { item: SpeechItem; actions: BoardActions 
           </p>
           {gateTo !== null && (
             <GateTransitionButton
-              label={gateTo}
+              to={gateTo}
+              itemKey={item.id}
               commit={() => actions.transition(item.id, gateTo, undefined, expectedUpdatedAt)}
             />
           )}
@@ -230,9 +221,7 @@ function InboxCard({ item, actions }: { item: SpeechItem; actions: BoardActions 
       <DocLinks docs={item.docs} />
       {item.detail && (
         <details className="mt-3 border-t border-amber-700/20 pt-2">
-          <summary className="cursor-pointer text-xs text-zinc-500">
-            근거 보기
-          </summary>
+          <summary className="cursor-pointer text-xs text-zinc-500">Show evidence</summary>
           <p className="mt-2 text-sm whitespace-pre-wrap text-zinc-500">
             {item.detail}
           </p>
@@ -245,9 +234,9 @@ function InboxCard({ item, actions }: { item: SpeechItem; actions: BoardActions 
 function FeedZone({ items }: { items: SpeechItem[] }) {
   return (
     <section className="flex flex-col gap-1">
-      <SectionLabel>보고</SectionLabel>
+      <SectionLabel>Activity</SectionLabel>
       {items.length === 0 ? (
-        <p className="text-sm text-zinc-500">아직 보고가 없습니다.</p>
+        <p className="text-sm text-zinc-500">No activity yet.</p>
       ) : (
         <div>
           {items.map((item) => (
@@ -267,7 +256,7 @@ function FeedZone({ items }: { items: SpeechItem[] }) {
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5 text-xs text-zinc-500">
                   {item.overBudget && <BudgetFlag />}
-                  {item.status}
+                  {statusLabel(item.status)}
                 </span>
               </summary>
               {item.detail && (
