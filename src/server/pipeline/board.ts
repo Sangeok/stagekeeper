@@ -59,8 +59,8 @@ export async function propose(projectId: string, input: { key: string; agent: st
     });
     if (!d.ok || !backlog) return fail(d.ok ? "no such backlog item" : d.reason);
     const item = await tx.boardItem.create({
-      data: { projectId, backlogItemId: backlog.id, agent: input.agent, status: "승인대기", reason: input.reason,
-        events: { create: { from: null, to: "승인대기", actor: "agent", actorId: actorRef } } },
+      data: { projectId, backlogItemId: backlog.id, agent: input.agent, status: "proposed", reason: input.reason,
+        events: { create: { from: null, to: "proposed", actor: "agent", actorId: actorRef } } },
     });
     return { ok: true as const, item };
   }, { isolationLevel: "Serializable" });

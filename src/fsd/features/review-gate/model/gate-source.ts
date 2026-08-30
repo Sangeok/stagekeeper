@@ -19,8 +19,8 @@ export function resumeTargetsFor(status: string): string[] {
 
 export function rejectActionsFor(status: string): RejectAction[] {
   const actions: RejectAction[] = [];
-  if (findRule("human", status, "계획지시")?.kind === "bounce") actions.push("bounce");
-  if (findRule("human", status, "보류") !== null) actions.push("hold");
+  if (findRule("human", status, "planning")?.kind === "bounce") actions.push("bounce");
+  if (findRule("human", status, "on_hold") !== null) actions.push("hold");
   if (canDiscard(status)) actions.push("discard");
   return actions;
 }

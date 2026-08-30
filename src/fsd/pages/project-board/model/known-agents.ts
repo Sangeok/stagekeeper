@@ -1,5 +1,6 @@
 // 순수. 발화 주체의 정체성. ApcH pages/pipeline/model/known-agents.ts(de25a1c) 이식.
 // 다른 점: roster(= Workspace.agent[])가 프로젝트마다 다르므로 고정 상수 ROSTER_AGENT_IDS를 인자로 바꿨다.
+// 역할 라벨은 product-copy.md §6.
 
 export type AgentIdentity = {
   id: string;
@@ -10,23 +11,23 @@ export type AgentIdentity = {
 
 // 고정 4역만 남긴다 — 워크스페이스 dev는 프로젝트의 harness.json이 정한다.
 const ROSTER: Record<string, AgentIdentity> = {
-  pm: { id: "pm", handle: "PM", role: "선정·발주", emoji: "📋" },
+  pm: { id: "pm", handle: "PM", role: "Selection", emoji: "📋" },
   "plan-verifier": {
     id: "plan-verifier",
     handle: "plan-verifier",
-    role: "계획 검증",
+    role: "Plan verification",
     emoji: "🔬",
   },
   "doc-auditor": {
     id: "doc-auditor",
     handle: "doc-auditor",
-    role: "문서 감사",
+    role: "Doc audit",
     emoji: "🔍",
   },
   "feature-scout": {
     id: "feature-scout",
     handle: "feature-scout",
-    role: "기능 조사",
+    role: "Feature scouting",
     emoji: "🧭",
   },
 };
@@ -45,11 +46,11 @@ export function identityFor(
     if (known !== undefined) return known;
     // 워크스페이스 에이전트는 일반 개발 정체성을 받는다(고정 dev별 identity는 프로젝트마다 다르다).
     if (roster.includes(agentId)) {
-      return { id: agentId, handle: agentId, role: "개발", emoji: "🛠️" };
+      return { id: agentId, handle: agentId, role: "Development", emoji: "🛠️" };
     }
-    return { id: agentId, handle: agentId, role: "에이전트", emoji: "" };
+    return { id: agentId, handle: agentId, role: "Agent", emoji: "" };
   }
-  return { id: "system", handle: "시스템", role: "미지정", emoji: "•" };
+  return { id: "system", handle: "System", role: "Unassigned", emoji: "•" };
 }
 
 export function initialOf(identity: AgentIdentity): string {

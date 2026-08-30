@@ -9,7 +9,7 @@ type Row = { status: string; agent: string; reason: string; results: string[]; v
   backlogItem: { key: string; title: string; area: string } };
 
 export function toBoardItem(r: Row): BoardItem {
-  return { checked: r.status === "완료", id: r.backlogItem.key, title: r.backlogItem.title, agent: r.agent, area: r.backlogItem.area,
+  return { checked: r.status === "done", id: r.backlogItem.key, title: r.backlogItem.title, agent: r.agent, area: r.backlogItem.area,
     status: r.status, reason: r.reason, result: r.results.length ? r.results.join(" ") : null, validation: r.validation };
 }
 

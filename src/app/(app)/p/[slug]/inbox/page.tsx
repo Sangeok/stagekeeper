@@ -5,7 +5,7 @@ import { prisma } from "@/server/db";
 import { latestBoard } from "@/server/pipeline/board";
 
 // 사람이 손댈 수 있는 상태만 결재함에 올린다. 판정은 packages/core의 상태 기계가 한다.
-const INBOX_STATUSES = new Set(["승인대기", "검토대기", "보류"]);
+const INBOX_STATUSES = new Set(["proposed", "in_review", "on_hold"]);
 
 export default async function Page({ params }: PageProps<"/p/[slug]/inbox">) {
   const { slug } = await params;

@@ -32,7 +32,7 @@ export type SpeechItem = {
 export type TeamMember = {
   identity: AgentIdentity;
   state: string;
-  heldId: string | null; // 책상이 들고 있는 항목 ID(칩 표시용). 없으면 null
+  heldId: string | null; // 팀 줄이 들고 있는 항목 ID(칩 표시용). 없으면 null
   tone: Tone;
 };
 export type Briefing = {
@@ -48,7 +48,7 @@ type DatedItem = BoardItem & { sectionDate: string };
 function flatten(sections: BoardSection[]): DatedItem[] {
   // 보드는 최신 섹션이 위다. 같은 ID가 여러 섹션에 있으면 **가장 위(최신) 행만
   // 유효**하고 아래 행은 이력이다(보드·pm 공유 규칙). 이력 행이 계산에 끼면
-  // 끝난 항목의 옛 승인대기 행이 결재함에 유령으로 되살아나므로 첫 등장만 남긴다.
+  // 끝난 항목의 옛 proposed 행이 결재 목록에 유령으로 되살아나므로 첫 등장만 남긴다.
   const seen = new Set<string>();
   const out: DatedItem[] = [];
   for (const s of sections) {
@@ -78,9 +78,11 @@ export function daysOnBoard(sectionDate: string, today: Date): number | null {
   return diff < 0 ? 0 : diff;
 }
 
-function nthDay(sectionDate: string, today: Date): number | null {
+// "1 day" / "N days". 오늘 올라온 것(0일)과 날짜를 못 읽는 섹션은 빈 문자열 — 문장에 붙이지 않는다.
+function dayTag(sectionDate: string, today: Date): string {
   const days = daysOnBoard(sectionDate, today);
-  return days === null ? null : days + 1;
+  if (days === null || days === 0) return "";
+  return days === 1 ? "1 day" : `${days} days`;
 }
 
 export function firstSentence(text: string): string {
@@ -96,15 +98,17 @@ function summarize(item: BoardItem): string | null {
   return src === null ? null : firstSentence(src);
 }
 
+// 줄 조각을 " · "로 잇는다. 빈 조각은 빠진다 — 날짜 태그가 없을 때 " · " 가 남지 않게.
+const join = (...parts: string[]) => parts.filter((p) => p !== "").join(" · ");
+
 function inboxSpeech(
   item: DatedItem,
   today: Date,
   resolveDocs: (id: string) => DocLink[],
   roster: readonly string[],
 ): SpeechItem {
-  const n = nthDay(item.sectionDate, today);
-  const dayTag = n === null ? "" : `${n}일째 `;
-  if (item.status === "승인대기") {
+  const days = dayTag(item.sectionDate, today);
+  if (item.status === "proposed") {
     return {
       key: item.id,
       id: item.id,
@@ -112,7 +116,7 @@ function inboxSpeech(
       status: item.status,
       validation: null,
       speaker: identityFor("pm", roster),
-      line: `${item.id}, ${dayTag}계획 지시를 기다립니다.`,
+      line: join(item.id, "waiting for a plan request", days),
       detail: item.reason,
       overBudget: isOverBudget(item.reason),
       docs: resolveDocs(item.id),
@@ -120,14 +124,14 @@ function inboxSpeech(
     };
   }
   return {
-    // 검토대기
+    // in_review
     key: item.id,
     id: item.id,
     title: item.title,
     status: item.status,
     validation: item.validation,
     speaker: identityFor(item.agent, roster),
-    line: `${item.id} 계획서를 올렸습니다 — ${dayTag}검토 대기 중입니다.`,
+    line: join(item.id, "plan submitted", days === "" ? "in review" : `in review for ${days}`),
     detail: item.result ?? item.reason,
     overBudget: isOverBudget(item.result) || isOverBudget(item.reason),
     docs: resolveDocs(item.id),
@@ -135,7 +139,7 @@ function inboxSpeech(
   };
 }
 
-/** 보드 `근거`·`결과` 요약 예산. 상세는 docs/agents/<행위자>/ 로 간다. */
+/** 보드 evidence·result 요약 예산. 상세는 docs/agents/<행위자>/ 로 간다. */
 export const FIELD_BUDGET = 150;
 
 /** 필드 전체 길이로 잰다 — 첫 문장이 아니다. */
@@ -144,10 +148,10 @@ export function isOverBudget(text: string | null): boolean {
 }
 
 const FEED_TONE: Record<string, Tone> = {
-  계획지시: "active",
-  구현승인: "active",
-  완료: "done",
-  보류: "hold",
+  planning: "active",
+  implementing: "active",
+  done: "done",
+  on_hold: "hold",
 };
 
 function feedSpeech(
@@ -160,23 +164,23 @@ function feedSpeech(
     item.status === null ? "muted" : (FEED_TONE[item.status] ?? "muted");
   let line: string;
   switch (item.status) {
-    case "계획지시":
-      line = `${item.id} 계획을 작성하고 있습니다.`;
+    case "planning":
+      line = join(item.id, "writing the plan");
       break;
-    case "구현승인":
-      line = `${item.id} 구현에 착수했습니다.`;
+    case "implementing":
+      line = join(item.id, "implementing");
       break;
-    case "완료":
-      line = `${item.id} · ${summarize(item) ?? "완료했습니다."}`;
+    case "done":
+      line = join(item.id, summarize(item) ?? "Done");
       break;
-    case "보류":
-      line = `${item.id} · ${summarize(item) ?? "보류했습니다."}`;
+    case "on_hold":
+      line = join(item.id, summarize(item) ?? "On hold");
       break;
     default:
-      line = `${item.id} · ${summarize(item) ?? item.title}`;
+      line = join(item.id, summarize(item) ?? item.title);
   }
   const detail =
-    item.status === "계획지시" || item.status === "구현승인"
+    item.status === "planning" || item.status === "implementing"
       ? item.reason
       : (item.result ?? item.reason);
   return {
@@ -199,42 +203,41 @@ function teamState(
   items: DatedItem[],
 ): { state: string; heldId: string | null; tone: Tone } {
   if (agentId === "pm") {
-    const pending = items.filter((it) => it.status === "승인대기").length;
+    const pending = items.filter((it) => it.status === "proposed").length;
     return pending > 0
-      ? { state: `${pending}건 결재 요청 중`, heldId: null, tone: "pending" }
-      : { state: "새 선정 없음", heldId: null, tone: "muted" };
+      ? { state: `${pending} awaiting your approval`, heldId: null, tone: "pending" }
+      : { state: "No new proposals", heldId: null, tone: "muted" };
   }
   if (agentId === "plan-verifier") {
     // plan-verifier는 보드 `agent:` 필드에 등장하지 않는다(런북 4단계에서 메인 루프가
     // 디스패치하는 독립 검증자). 그래서 pm처럼 보드에서 파생하는 특별 분기가 필요하다.
-    // 파생 규칙(백로그 요구 3): 검토대기 항목 = 검증 대상 계획서. 하나라도 있으면
-    // "검증 중"(그 계획서가 heldId), 없으면 "대기 중". items는 이미 dedupe된 최신 행이며
-    // find는 보드 순서(최신 섹션 우선) 첫 검토대기를 준다 — 미결 2건 제한상 보통 ≤1건이라
-    // admin/web-dev 책상의 heldId(.find) 패턴과 동형이다.
-    const review = items.find((it) => it.status === "검토대기");
+    // 파생 규칙: in_review 항목 = 검증 대상 계획서. 하나라도 있으면 "Verifying"(그 계획서가 heldId),
+    // 없으면 "Idle". items는 이미 dedupe된 최신 행이며 find는 보드 순서(최신 섹션 우선) 첫 in_review를 준다.
+    const review = items.find((it) => it.status === "in_review");
     return review !== undefined
-      ? { state: "검증 중", heldId: review.id, tone: "active" }
-      : { state: "대기 중", heldId: null, tone: "muted" };
+      ? { state: `Verifying ${review.id}`, heldId: review.id, tone: "active" }
+      : { state: "Idle", heldId: null, tone: "muted" };
   }
   const mine = items.filter((it) => it.agent === agentId);
-  const review = mine.find((it) => it.status === "검토대기");
+  const review = mine.find((it) => it.status === "in_review");
   if (review !== undefined)
-    return { state: "검토 요청 중", heldId: review.id, tone: "pending" };
+    return { state: "Awaiting review", heldId: review.id, tone: "pending" };
   const working = mine.find(
-    (it) => it.status === "계획지시" || it.status === "구현승인",
+    (it) => it.status === "planning" || it.status === "implementing",
   );
   if (working !== undefined)
-    return { state: "작업 중", heldId: working.id, tone: "active" };
-  const held = mine.find((it) => it.status === "보류");
-  if (held !== undefined) return { state: "보류", heldId: held.id, tone: "hold" };
-  const done = mine.find((it) => it.status === "완료");
+    return { state: `Working on ${working.id}`, heldId: working.id, tone: "active" };
+  const held = mine.find((it) => it.status === "on_hold");
+  if (held !== undefined) return { state: "On hold", heldId: held.id, tone: "hold" };
+  const done = mine.find((it) => it.status === "done");
   if (done !== undefined)
-    return { state: "최근 완료", heldId: done.id, tone: "done" };
-  return { state: "대기 중", heldId: null, tone: "muted" };
+    return { state: "Recently done", heldId: done.id, tone: "done" };
+  return { state: "Idle", heldId: null, tone: "muted" };
 }
 
+// "Aug 15" — UTC 기준(daysOnBoard와 같은 시계).
 function formatToday(today: Date): string {
-  return `${today.getUTCMonth() + 1}월 ${today.getUTCDate()}일`;
+  return today.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 // 항목 ID → 실재하는 문서 링크. docs 인자가 없으면(뷰어 밖 호출) 항상 빈 배열이라
