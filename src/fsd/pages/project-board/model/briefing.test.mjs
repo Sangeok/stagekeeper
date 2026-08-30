@@ -206,7 +206,7 @@ describe("buildBriefing", () => {
 
 describe("identityFor / initialOf", () => {
   it("returns roster identity for known ids", () => {
-    assert.deepEqual(identityFor("pm"), { id: "pm", handle: "PM", role: "Selection", emoji: "📋" });
+    assert.deepEqual(identityFor("pm"), { id: "pm", handle: "pm", role: "Selection", emoji: "📋" });
     assert.equal(identityFor("admin-dev", ROSTER).emoji, "🛠️");
     assert.deepEqual(identityFor("backend-dev", ROSTER), { id: "backend-dev", handle: "backend-dev", role: "Development", emoji: "🛠️" });
     assert.deepEqual(identityFor("plan-verifier"), { id: "plan-verifier", handle: "plan-verifier", role: "Plan verification", emoji: "🔬" });

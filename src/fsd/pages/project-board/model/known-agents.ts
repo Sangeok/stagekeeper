@@ -11,7 +11,7 @@ export type AgentIdentity = {
 
 // 고정 4역만 남긴다 — 워크스페이스 dev는 프로젝트의 harness.json이 정한다.
 const ROSTER: Record<string, AgentIdentity> = {
-  pm: { id: "pm", handle: "PM", role: "Selection", emoji: "📋" },
+  pm: { id: "pm", handle: "pm", role: "Selection", emoji: "📋" },
   "plan-verifier": {
     id: "plan-verifier",
     handle: "plan-verifier",

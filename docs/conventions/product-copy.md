@@ -8,7 +8,7 @@ Scope: web UI, server-action errors, MCP tool descriptions, generated agent temp
 `/harness:init` skill, generator console output. **Docs under `docs/` and code comments stay
 in Korean** — that is the team's working language. Only what is *shown* is English.
 
-Status: draft for review (2026-08-30). Approved terms from `CONTEXT.md` are used as-is:
+Status: approved 2026-08-30 — bundle 1 (language) and bundle 2 (design v4) implemented; §5–§7 describe the v4 screens. Approved terms from `CONTEXT.md` are used as-is:
 Project · Workspace · Backlog item · Board item · Gate · Agent · Validation · Evidence ·
 Result · Acceptance.
 
@@ -74,13 +74,31 @@ The label is what the screen shows.
 
 Pending labels while the request is in flight: "Requesting…", "Approving…", "Discarding…".
 
-**Next-step hint** (shown next to the gate button, before you press it):
+**Next-step hint** (under the gate button, before you press it):
 
-- Request plan → "Then run dev in Claude Code. It writes the plan."
-- Approve implementation → "Then run dev in Claude Code. It changes the code."
+- Request plan → "dev writes a plan. Nothing changes in the code yet."
+- Approve implementation → "Approving lets dev change code. Then you run dev in Claude Code."
+- Approve implementation with no validation record → the button recedes from filled to outline
+  and the hint turns risk-red: "This approves an unverified plan. Run plan-verifier in Claude
+  Code first."
 
-**Hold note** written into `result` when you put an item on hold (≤150 chars):
-`On hold by owner (2026-08-30). Not discarded — still in the backlog. Resume to Planning or Implementing.`
+**Notes.** Send back and Put on hold take an optional note. It lands in `result` with a prefix,
+so the input is capped at 150 minus the prefix:
+
+- Send back → `Sent back: <note>` (139 chars). Field **Note to dev** (optional), hint "dev reads
+  this before rewriting the plan. Up to 139 characters." Empty note → no result line.
+- Put on hold → `On hold by owner (2026-08-30): <note>` (119 chars). Field **Note** (optional),
+  hint "Why it's parked. Shows on the card until you resume. Up to 119 characters." Empty note →
+  `On hold by owner (2026-08-30). Not discarded — still in the backlog. Resume to Planning or Implementing.`
+
+**Resume.** The primary button goes back to where the item stopped (the `from` of the hold
+event): **Resume implementation** if it was implementing, otherwise **Resume planning**. The other
+target is a text link, "Resume planning instead" / "Resume implementation instead". Hint under
+the buttons, by primary: implementation → "Picks up where it stopped. Resuming planning instead
+clears the validation and dev rewrites the plan." · planning from proposed → "dev writes the
+plan. Resuming implementation instead skips the approval gate." · planning otherwise → "dev
+rewrites the plan; the validation is cleared. Resuming implementation instead skips the approval
+gate."
 
 ### Agent transitions (MCP)
 
@@ -109,27 +127,50 @@ The screen judges by presence alone — if it exists, the item shows **Verified*
 | `<title>` | Stagekeeper |
 | meta description | Agent development pipeline with human approval gates. |
 | `<html lang>` | `en` |
-| App header | Stagekeeper |
+| App header | **Stagekeeper** / `harness-smoke` ▾ — menu: the other projects · All projects · New project. Right: GitHub login, mono |
 | Project tabs | Board · Inbox · Backlog · Tokens |
 | Sign-in page | Sign in with GitHub to continue. — button **Continue with GitHub** |
 
 ## 5. Turn banner (top of every project tab)
 
+A 2px bar at the very top of the viewport carries the turn as a color: you = `--mine`, agents =
+ink, nothing or setting up = hairline. Under the header, **Board and Inbox show the full banner**;
+Backlog, Tokens and item pages show a **one-line strip** with the same words.
+
 | Owner | Headline | Detail |
 | --- | --- | --- |
-| you | **Waiting on you** | FEAT-01 needs a plan request / FEAT-01 is ready for your approval / 2 items need your decision |
-| agents | **Agents are working** | FEAT-01 · writing the plan / FEAT-01 · implementing / FEAT-01 · being verified |
-| nobody | **Nothing open** | Pick the next item from the backlog |
+| you | **Waiting on you** | FEAT-01 needs a plan request / FEAT-01 is ready for your approval / FEAT-04 needs verification before approval. Several: "2 items need a plan request" · "2 plans are ready for your approval" · "2 plans need verification", joined with " · " |
+| you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
+| agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for FEAT-01 / dev is implementing FEAT-01 |
+| nobody | **Nothing open** | Pick the next item from the backlog, or run pm in Claude Code to pick for you. — button **Open backlog** |
+| first run | **Set up in four steps** | the checklist below |
 
 Rules: one item → name it; several → count them. `on_hold` items never own the banner — the
-banner is about who moves next, and nothing moves while on hold.
+banner is about who moves next, and nothing moves while on hold. An `in_review` item without a
+validation record is still yours: it needs the verifier run first. Actions: **Open inbox** on
+Board and in the strip when it's your turn; on Inbox the banner drops the detail line — the cards
+say it.
+
+**Next, in Claude Code** — a box under the banner with the exact line to give your session, with
+**Copy**. One line per item that waits on the terminal:
+
+- planning → `Continue the runbook for FEAT-01: step 3 — dev writes the plan.`
+- in_review without validation → `Continue the runbook for FEAT-01: step 4 — verify the plan.`
+- implementing → `Continue the runbook for FEAT-01: step 6 — dev implements.`
+
+**First run** (no board rows yet) — **Set up in four steps**: 1 Token issued "Shown once when
+you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Connect the
+repository "Open it in Claude Code with the token set, run `/harness:init`, restart, approve the
+server." (chip **Not connected yet**) · 3 Add a backlog item "Key, title, area, and the evidence
+— what you observed and what you confirmed in the code." (link Backlog) · 4 Run pm in Claude
+Code "It picks up to two items from the backlog and puts them here for your approval." Strip:
+"Setting up · Step 3 of 4 — Add a backlog item."
 
 ## 6. Board
 
-Sections: (turn banner) · **Needs you** (decision cards) · **Activity** (the feed) · **Team**
-(the demoted pixel row). The old three-line header (briefing / date / decisions pending) is gone.
+Board is status only: (turn banner) · **Activity** · **Team**. Decision cards live on Inbox.
+Activity rows link to the item page and end with the state chip.
 
-**Needs you — empty:** "Nothing needs your approval."
 **Activity — empty:** "No activity yet."
 
 **Activity lines** (one per item, generated):
@@ -145,15 +186,19 @@ Sections: (turn banner) · **Needs you** (decision cards) · **Activity** (the f
 
 Day count reads "1 day" / "2 days"; omitted on day 0.
 
-**Decision card** (same component on Board and Inbox):
+**Decision card** (Inbox only):
 
-- Header: `FEAT-01` · `dev` — title
-- Fields: **Evidence** · **Result** · **Validation** · **Plan** (link)
-- Validation chip: **Verified** (quiet; tooltip = the full record) / **No validation yet**
-  (risk outline; tooltip "No independent validation has been recorded. Approving now means
-  implementing an unverified plan.")
-- Over-budget badge: **Over 150 characters** — tooltip "This summary is over 150 characters.
-  Move the details to docs/agents/."
+- Header: `FEAT-01 · README.md` (key · area, mono) — title — status line **Proposed** · pm,
+  2 days ago / **In review** · dev submitted a plan 3 days ago / **On hold** · since Aug 28 · was
+  Implementing. Relative time reads "today" · "1 day ago" · "N days ago".
+- Gate 1 (proposed): **Evidence** row → **Request plan** + hint (§3).
+- Gate 2 (in_review): plan row — **Verified** (quiet chip; tooltip = the full record) or **No
+  validation yet** (risk chip; tooltip "No independent validation has been recorded. Approving
+  now means implementing an unverified plan.") · path · commit — then **Read the plan ↗** ·
+  **Approve implementation** + hint. **Evidence and result** collapsed.
+- On hold: **Your note** row → Resume buttons (§3).
+- Over-budget badge after the status line: **Over 150 characters** — tooltip "This summary is
+  over 150 characters. Move the details to docs/agents/."
 - Help (collapsed): **What this decision does**
   - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code.
   - **Verified** means an independent pass found nothing to change. Without it, the plan is unverified.
@@ -161,34 +206,35 @@ Day count reads "1 day" / "2 days"; omitted on day 0.
   - Discard can't be undone.
   - More in the repo: `docs/architecture/protocol.md`
 
-**More actions** panel (was "반려"): toggle **More actions** / **Hide actions**. Items: Send
-back · Put on hold · Discard. Discard confirm: "This can't be undone. Discard FEAT-01?" —
-**Cancel** · **Discard**.
+**More actions** — toggle **More actions** / **Hide actions**, then a row of text actions:
+Send back · Put on hold · Discard (risk). Send back and Put on hold open the note field under the
+row (§3). Discard confirm: "This can't be undone. Discard FEAT-01?" — **Cancel** · **Discard**.
 
-**Journey stepper** (7 stages): Proposed · Plan requested · Plan · Verified · Approved ·
-Implemented · Accepted. Caption: "Now **Plan requested** · *Your turn* · Next Plan". Waiting
-labels by actor: pm "Selecting" · you "Your turn" · dev "In progress" · verifier "Verifying" ·
-main loop "Accepting". `aria-label`: "Pipeline progress".
+**Journey stepper** — not on the board since design v4. The 7-stage model (Proposed · Plan
+requested · Plan · Verified · Approved · Implemented · Accepted; waiting labels pm "Selecting" ·
+you "Your turn" · dev "In progress" · verifier "Verifying" · main loop "Accepting") stays in
+`deriveJourney` for the item page.
 
-**Team row** — states: pm "2 awaiting your approval" / "No new proposals" · verifier
-"Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on FEAT-06" / "On hold" /
-"Recently done" / "Idle". Report count: "3 reports". Roles: pm "Selection" · dev "Development"
+**Team row** — one dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
+"No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on
+FEAT-06" / "On hold" / "Recently done" / "Idle". Roles: pm "Selection" · dev "Development"
 · plan-verifier "Plan verification" · doc-auditor "Doc audit" · feature-scout "Feature
 scouting" · unknown "Agent" · none "Unassigned".
 
 ## 7. Inbox
 
-- Title **Inbox**. Intro: "Only you can move items to the next step. Agents can't — their
-  token has no approve tool."
+- No title of its own — the turn banner is the headline. The Inbox tab carries a count badge
+  while decisions are open.
 - Empty: "Nothing to decide."
-- Cards are the decision card above. `on_hold` items show **Resume planning** / **Resume
-  implementation** instead of a gate button.
+- Order: gate 2 (in_review) first, then gate 1 (proposed), then on_hold.
+- Cards are the decision card above (§6).
 
 ## 8. Backlog
 
 - Title **Backlog**. Toggle **Show removed** / **Hide removed**.
 - Table: Key · Title · Area · Board status. Cells: state label, or "Not on board"; "Removed".
-  Row action **Remove**.
+  Row action **Remove**. Empty: "No backlog items yet. Add the first one below."
+
 - Form: **Add backlog item** / **Edit FEAT-01**. Fields **Key** (placeholder `FEAT-01`) ·
   **Title** · **Area** (placeholder `src/server/pipeline`) · **Evidence**. Evidence hint:
   "Split it in two: what you observed, and what you confirmed in the code." Buttons **Add** ·
@@ -204,7 +250,8 @@ scouting" · unknown "Agent" · none "Unassigned".
 - New token: label **Label** (placeholder `laptop`), button **Issue token** / "Issuing…". Error:
   "Couldn't issue the token. Try again."
 - Table: Label · Issued · Status · Reference. Status "Active" / "Revoked 2026-08-30".
-  Reference `token:cmte…`. Row action **Revoke**.
+  Reference `token:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
+
 
 **Token reveal** (after issuing, and after creating a project):
 

@@ -1,16 +1,22 @@
 // src/app/login/page.tsx
+import { Button } from "@/fsd/shared/ui/button";
 import { signIn } from "@/server/auth";
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
+    <main className="flex min-h-screen items-center justify-center px-5">
       <form
-        action={async () => { "use server"; await signIn("github", { redirectTo: "/" }); }}
-        className="w-full max-w-sm space-y-6 text-center"
+        action={async () => {
+          "use server";
+          await signIn("github", { redirectTo: "/" });
+        }}
+        className="flex w-full max-w-sm flex-col items-center gap-6 text-center"
       >
-        <h1 className="text-2xl font-semibold">Stagekeeper</h1>
-        <p className="text-sm text-zinc-600">Sign in with GitHub to continue.</p>
-        <button type="submit" className="w-full rounded-md bg-black px-4 py-2 text-sm text-white">Continue with GitHub</button>
+        <h1 className="type-display">Stagekeeper</h1>
+        <p className="text-sm text-quiet">Sign in with GitHub to continue.</p>
+        <Button variant="mine" type="submit" className="w-full">
+          Continue with GitHub
+        </Button>
       </form>
     </main>
   );

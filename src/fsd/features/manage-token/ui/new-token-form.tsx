@@ -1,6 +1,9 @@
 "use client";
 import { useState, useTransition } from "react";
+
 import { TokenReveal } from "@/fsd/entities/project-token";
+import { Button } from "@/fsd/shared/ui/button";
+import { Field, Input } from "@/fsd/shared/ui/field";
 
 // 서버 액션은 route가 prop으로 넘긴다 — "use client" 파일은 *.server를 import할 수 없다(fsd.md).
 type Props = { issue: (label: string) => Promise<{ token: string }>; mcpUrl: string };
@@ -11,7 +14,7 @@ export function NewTokenForm({ issue, mcpUrl }: Props) {
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -27,15 +30,14 @@ export function NewTokenForm({ issue, mcpUrl }: Props) {
         }}
         className="flex items-end gap-2"
       >
-        <label className="flex-1 space-y-1">
-          <span className="text-sm font-medium">Label</span>
-          <input name="label" placeholder="laptop" className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
-        </label>
-        <button type="submit" disabled={pending} className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-50">
+        <Field label="Label" className="flex-1">
+          <Input name="label" placeholder="laptop" />
+        </Field>
+        <Button variant="mine" type="submit" disabled={pending}>
           {pending ? "Issuing…" : "Issue token"}
-        </button>
+        </Button>
       </form>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? <p className="text-sm text-risk">{error}</p> : null}
       {token ? <TokenReveal token={token} mcpUrl={mcpUrl} /> : null}
     </div>
   );

@@ -1,6 +1,10 @@
 "use client";
+import Link from "next/link";
 import { useActionState, useState } from "react";
+
 import { TokenReveal } from "@/fsd/entities/project-token";
+import { Button } from "@/fsd/shared/ui/button";
+import { Field, Input } from "@/fsd/shared/ui/field";
 import type { CreateProjectState } from "../model/create-project-state";
 import { parseRepoUrl, slugFromRepo, type RepoOption } from "../model/repo-url";
 
@@ -12,7 +16,7 @@ type Props = {
   repos: RepoOption[]; // 로그인 계정의 공개 저장소. 비공개는 여기 없다 — 그때는 주소를 붙여넣는다
 };
 
-const FIELD_CLASS = "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm";
+const TEXT_BUTTON = "text-xs text-quiet underline underline-offset-2";
 
 export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
   const [state, formAction, pending] = useActionState(action, {} as CreateProjectState);
@@ -64,12 +68,12 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
 
   if (state.token && state.slug) {
     return (
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Project created</h2>
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold tracking-tight">Project created</h2>
         <TokenReveal token={state.token} mcpUrl={mcpUrl} />
-        <a className="inline-block text-sm underline" href={`/p/${state.slug}`}>
+        <Link className="self-start text-sm underline underline-offset-2" href={`/p/${state.slug}`}>
           Open /p/{state.slug}
-        </a>
+        </Link>
       </section>
     );
   }
@@ -78,122 +82,97 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
   const matches = needle === "" ? repos : repos.filter((option) => option.name.toLowerCase().includes(needle));
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="flex flex-col gap-4">
       {chosen ? (
-        <div className="flex items-start justify-between gap-3 rounded-md bg-zinc-50 px-3 py-2 text-sm">
-          <p className="space-x-2">
+        <div className="flex items-start justify-between gap-3 rounded-md bg-field px-3 py-2 text-sm">
+          <p className="flex flex-wrap gap-x-2">
             <span className="font-mono">
               {owner}/{repo}
             </span>
-            <span className="text-zinc-500">· {branch}</span>
-            <span className="font-mono text-zinc-500">· /p/{slug}</span>
+            <span className="text-quiet">· {branch}</span>
+            <span className="font-mono text-quiet">· /p/{slug}</span>
           </p>
-          <span className="flex shrink-0 gap-3 text-xs text-zinc-500">
-            <button type="button" onClick={() => setEditing((value) => !value)} className="underline">
+          <span className="flex shrink-0 gap-3">
+            <button type="button" onClick={() => setEditing((value) => !value)} className={TEXT_BUTTON}>
               {editing ? "Collapse" : "Edit"}
             </button>
-            <button type="button" onClick={reset} className="underline">
+            <button type="button" onClick={reset} className={TEXT_BUTTON}>
               Start over
             </button>
           </span>
         </div>
       ) : manual ? (
-        <div className="space-y-1">
-          <label className="block space-y-1">
-            <span className="text-sm font-medium">Repository URL</span>
-            <input
+        <div className="flex flex-col gap-1">
+          <Field label="Repository URL">
+            <Input
               type="text"
               inputMode="url"
               autoFocus
               placeholder="https://github.com/owner/repo"
               onChange={(event) => applyPaste(event.target.value)}
-              className={FIELD_CLASS}
             />
-          </label>
+          </Field>
           {repos.length > 0 ? (
-            <button type="button" onClick={() => setManual(false)} className="text-xs text-zinc-500 underline">
+            <button type="button" onClick={() => setManual(false)} className={`self-start ${TEXT_BUTTON}`}>
               Pick from my repositories
             </button>
           ) : (
-            <span className="block text-xs text-zinc-500">
-              Couldn&apos;t load your repositories. Paste a URL.
-            </span>
+            <span className="text-xs text-quiet">Couldn&apos;t load your repositories. Paste a URL.</span>
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          <span className="block text-sm font-medium">Repository</span>
-          <input
-            type="search"
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Search ${repos.length} repositories`}
-            className={FIELD_CLASS}
-          />
-          <ul className="max-h-64 divide-y divide-zinc-100 overflow-y-auto rounded-md border border-zinc-200">
+        <div className="flex flex-col gap-2">
+          <Field label="Repository">
+            <Input
+              type="search"
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={`Search ${repos.length} repositories`}
+            />
+          </Field>
+          <ul className="max-h-64 overflow-y-auto rounded-lg border border-rule bg-paper">
             {matches.length === 0 ? (
-              <li className="px-3 py-3 text-sm text-zinc-500">No repository matches.</li>
+              <li className="px-3 py-3 text-sm text-quiet">No repository matches.</li>
             ) : (
               matches.map((option) => (
-                <li key={option.name}>
+                <li key={option.name} className="border-b border-rule last:border-b-0">
                   <button
                     type="button"
                     onClick={() => pick(option)}
-                    className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-zinc-50"
+                    className="flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-field"
                   >
                     <span className="font-mono">{option.name}</span>
-                    <span className="shrink-0 text-xs text-zinc-500">{option.defaultBranch}</span>
+                    <span className="shrink-0 font-mono text-xs text-quiet">{option.defaultBranch}</span>
                   </button>
                 </li>
               ))
             )}
           </ul>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-quiet">
             Private repositories aren&apos;t listed.{" "}
-            <button type="button" onClick={() => setManual(true)} className="underline">
+            <button type="button" onClick={() => setManual(true)} className="underline underline-offset-2">
               Paste a URL instead
             </button>
           </p>
         </div>
       )}
 
-      {pasteError ? <p className="text-sm text-amber-700">{pasteError}</p> : null}
+      {pasteError ? <p className="text-sm text-risk">{pasteError}</p> : null}
 
       {/* 접혀 있어도 값은 폼과 함께 전송된다 — hidden은 제출을 막지 않는다. */}
-      <div hidden={!editing} className="space-y-4 border-l-2 border-zinc-200 pl-4">
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">GitHub owner</span>
-          <input
-            name="owner"
-            required
-            value={owner}
-            onChange={(event) => setOwner(event.target.value)}
-            className={FIELD_CLASS}
-          />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">GitHub repo</span>
-          <input
-            name="repo"
-            required
-            value={repo}
-            onChange={(event) => setRepo(event.target.value)}
-            className={FIELD_CLASS}
-          />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Branch</span>
-          <input
-            name="branch"
-            value={branch}
-            onChange={(event) => setBranch(event.target.value)}
-            className={FIELD_CLASS}
-          />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">URL slug</span>
-          <input
+      <div hidden={!editing} className="flex flex-col gap-4 border-l-2 border-rule pl-4">
+        <Field label="GitHub owner">
+          <Input name="owner" required value={owner} onChange={(event) => setOwner(event.target.value)} />
+        </Field>
+        <Field label="GitHub repo">
+          <Input name="repo" required value={repo} onChange={(event) => setRepo(event.target.value)} />
+        </Field>
+        <Field label="Branch">
+          <Input name="branch" value={branch} onChange={(event) => setBranch(event.target.value)} />
+        </Field>
+        <Field label="URL slug" hint="Becomes /p/<slug>. Lowercase letters, numbers, and dashes, 2–40 characters.">
+          <Input
             name="slug"
             required
             value={slug}
@@ -201,27 +180,22 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
               setSlug(event.target.value);
               setSlugTouched(true);
             }}
-            className={FIELD_CLASS}
           />
-          <span className="block text-xs text-zinc-500">Becomes /p/&lt;slug&gt;. Lowercase letters, numbers, and dashes, 2–40 characters.</span>
-        </label>
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Display name</span>
-          <input name="name" placeholder={repo || "Defaults to the slug"} className={FIELD_CLASS} />
-        </label>
+        </Field>
+        <Field label="Display name">
+          <Input name="name" placeholder={repo || "Defaults to the slug"} />
+        </Field>
       </div>
 
-      {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
+      {state.error ? <p className="text-sm text-risk">{state.error}</p> : null}
 
-      <button
-        type="submit"
-        disabled={pending || !chosen}
-        className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-      >
-        {pending ? "Creating…" : "Create project"}
-      </button>
+      <div>
+        <Button variant="mine" type="submit" disabled={pending || !chosen}>
+          {pending ? "Creating…" : "Create project"}
+        </Button>
+      </div>
 
-      <p className="text-xs text-zinc-500">Stagekeeper doesn&apos;t read the repository. It only uses the name and the default branch.</p>
+      <p className="text-xs text-quiet">Stagekeeper doesn&apos;t read the repository. It only uses the name and the default branch.</p>
     </form>
   );
 }

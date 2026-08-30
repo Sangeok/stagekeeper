@@ -1,4 +1,6 @@
 import { statusLabel } from "@/fsd/entities/board-item";
+import { Chip } from "@/fsd/shared/ui/chip";
+import { SectionLabel } from "@/fsd/shared/ui/section-label";
 
 export type TimelineEvent = {
   at: Date;
@@ -28,28 +30,28 @@ const stamp = (d: Date) => d.toISOString().slice(0, 16).replace("T", " ");
 
 export function BoardItemPage({ item }: { item: BoardItemView }) {
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-8 px-4 py-10">
-      <header className="space-y-1">
-        <p className="font-mono text-xs text-zinc-500">
+    <>
+      <header className="flex flex-col gap-1">
+        <p className="font-mono text-xs text-quiet">
           {item.key} · {item.agent} · {item.area}
         </p>
-        <h1 className="text-2xl font-semibold">{item.title}</h1>
-        <p className="text-sm text-zinc-600">
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">{statusLabel(item.status)}</span>
-          <span className="ml-2 font-mono text-xs text-zinc-500">Proposed {stamp(item.proposedOn)}</span>
+        <h1 className="text-2xl font-semibold tracking-tight">{item.title}</h1>
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <Chip tone="done">{statusLabel(item.status)}</Chip>
+          <span className="font-mono text-xs text-quiet">Proposed {stamp(item.proposedOn)}</span>
         </p>
       </header>
 
-      <dl className="space-y-3 text-sm">
+      <dl className="flex flex-col gap-4 text-sm">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">Evidence</dt>
+          <dt className="mb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-quiet">Evidence</dt>
           <dd className="whitespace-pre-wrap">{item.reason}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">Result</dt>
+          <dt className="mb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-quiet">Result</dt>
           <dd>
             {item.results.length === 0 ? (
-              <span className="text-zinc-400">None yet</span>
+              <span className="text-quiet">None yet</span>
             ) : (
               <ol className="list-decimal space-y-1 pl-5">
                 {item.results.map((r, i) => (
@@ -60,42 +62,48 @@ export function BoardItemPage({ item }: { item: BoardItemView }) {
           </dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-zinc-500">Validation</dt>
-          <dd>{item.validation ?? <span className="text-zinc-400">No validation yet</span>}</dd>
+          <dt className="mb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-quiet">Validation</dt>
+          <dd>
+            {item.validation ?? (
+              <Chip tone="risk" title="No independent validation has been recorded.">
+                No validation yet
+              </Chip>
+            )}
+          </dd>
         </div>
       </dl>
 
       {item.docs.length > 0 ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold">Documents</h2>
-          <ul className="space-y-1 text-sm">
+        <section>
+          <SectionLabel>Documents</SectionLabel>
+          <ul className="flex flex-col gap-1 text-sm">
             {item.docs.map((doc) => (
-              <li key={doc.href}>
-                <a href={doc.href} target="_blank" rel="noreferrer" className="underline">
-                  {doc.label}
+              <li key={doc.href} className="flex flex-wrap items-baseline gap-2">
+                <a href={doc.href} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                  {doc.label} ↗
                 </a>
-                <span className="ml-2 font-mono text-xs text-zinc-500">{doc.path}</span>
+                <span className="font-mono text-xs text-quiet">{doc.path}</span>
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold">History</h2>
-        <ol className="space-y-1 text-sm">
+      <section>
+        <SectionLabel>History</SectionLabel>
+        <ol className="rounded-lg border border-rule bg-paper">
           {item.events.map((e, i) => (
-            <li key={i} className="flex flex-wrap gap-2">
-              <span className="font-mono text-xs text-zinc-500">{stamp(e.at)}</span>
-              <span className="font-mono text-xs text-zinc-500">{e.actor}</span>
+            <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule px-3.5 py-2 text-sm last:border-b-0">
+              <span className="font-mono text-xs text-quiet">{stamp(e.at)}</span>
+              <span className="font-mono text-xs text-quiet">{e.actor}</span>
               <span className="font-mono text-xs">
                 {e.from ?? "—"} → {e.to ?? "discarded"}
               </span>
-              {e.note ? <span className="text-xs text-zinc-500">({e.note})</span> : null}
+              {e.note ? <span className="text-xs text-quiet">({e.note})</span> : null}
             </li>
           ))}
         </ol>
       </section>
-    </main>
+    </>
   );
 }

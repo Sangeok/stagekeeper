@@ -2,6 +2,11 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
+import { statusLabel } from "@/fsd/entities/board-item";
+import { Button } from "@/fsd/shared/ui/button";
+import { Chip } from "@/fsd/shared/ui/chip";
+import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
+
 export type BacklogRow = {
   key: string;
   title: string;
@@ -21,41 +26,42 @@ export function BacklogTable({ slug, rows, remove }: Props) {
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="space-y-2">
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500">
+    <div className="flex flex-col gap-2">
+      {error ? <p className="text-sm text-risk">{error}</p> : null}
+      <Table>
+        <thead>
           <tr>
-            <th className="py-2">key</th>
-            <th className="py-2">Title</th>
-            <th className="py-2">Area</th>
-            <th className="py-2">Board status</th>
-            <th className="py-2" />
+            <Th>Key</Th>
+            <Th>Title</Th>
+            <Th>Area</Th>
+            <Th>Board status</Th>
+            <Th />
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100">
+        <tbody>
+          {rows.length === 0 ? (
+            <Tr>
+              <Td colSpan={5} className="text-quiet">
+                No backlog items yet. Add the first one below.
+              </Td>
+            </Tr>
+          ) : null}
           {rows.map((row) => (
-            <tr key={row.key} className={row.removedAt ? "text-zinc-400" : undefined}>
-              <td className="py-2 font-mono text-xs">{row.key}</td>
-              <td className="py-2">
+            <Tr key={row.key} className={row.removedAt ? "text-quiet" : undefined}>
+              <Td className="font-mono text-xs">{row.key}</Td>
+              <Td>
                 <Link href={`/p/${slug}/backlog?edit=${row.key}`} className="hover:underline">
                   {row.title}
                 </Link>
-              </td>
-              <td className="py-2 text-xs text-zinc-500">{row.area}</td>
-              <td className="py-2">
-                {row.status ? (
-                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">{row.status}</span>
-                ) : (
-                  <span className="text-xs text-zinc-400">Not on board</span>
-                )}
-              </td>
-              <td className="py-2 text-right">
+              </Td>
+              <Td className="font-mono text-xs text-quiet">{row.area}</Td>
+              <Td>{row.status ? <Chip tone="done">{statusLabel(row.status)}</Chip> : <span className="text-xs text-quiet">Not on board</span>}</Td>
+              <Td className="text-right">
                 {row.removedAt ? (
                   <span className="text-xs">Removed</span>
                 ) : (
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
                     disabled={pending}
                     onClick={() =>
                       startTransition(async () => {
@@ -63,16 +69,15 @@ export function BacklogTable({ slug, rows, remove }: Props) {
                         setError(result.error ?? null);
                       })
                     }
-                    className="rounded-md border border-zinc-300 px-3 py-1 text-xs disabled:opacity-50"
                   >
                     Remove
-                  </button>
+                  </Button>
                 )}
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }

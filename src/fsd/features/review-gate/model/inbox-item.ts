@@ -5,6 +5,7 @@ import type { ActionResult } from "@/fsd/shared/api/result";
 export type InboxItem = {
   key: string;
   title: string;
+  area: string;
   agent: string;
   status: string;
   reason: string;
@@ -12,6 +13,10 @@ export type InboxItem = {
   validation: string | null;
   planPath: string | null;
   planUrl: string | null;
+  planCommit: string | null;
+  proposedOn: string; // ISO
+  statusSince: string; // ISO. 지금 status로 바뀐 전이 이벤트의 시각(없으면 updatedAt)
+  heldFrom: string | null; // on_hold 직전 status — 주 Resume 버튼이 여기서 정해진다
   updatedAt: string; // ISO. 낙관적 잠금(CAS)에 그대로 돌려보낸다
 };
 

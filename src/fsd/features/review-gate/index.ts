@@ -4,6 +4,9 @@ export { RejectActions } from "./ui/reject-actions";
 export { GateCardLock, LockedChip } from "./ui/gate-card-lock";
 export { isGateSource, gateTargetFor, rejectActionsFor, resumeTargetsFor } from "./model/gate-source";
 export {
+  NOTE_LIMIT,
+  UNVERIFIED_HINT,
+  bounceResultLine,
   gateActionLabel,
   gateLockLabel,
   gateNextActionHint,
@@ -13,7 +16,9 @@ export {
   rejectLabel,
   rejectLockLabel,
   rejectToast,
+  resumeHint,
   resumeLabel,
+  resumePrimaryFor,
   resumeToast,
 } from "./model/gate-text";
 export type { CardLock, RejectAction } from "./model/gate-text";

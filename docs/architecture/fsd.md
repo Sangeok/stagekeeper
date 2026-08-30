@@ -18,10 +18,10 @@ kernel이므로 FSD layer가 아니다.
 | Layer | 책임 | Stagekeeper 후보 | 아래로 import 가능 |
 | --- | --- | --- | --- |
 | `pages` | 라우터에 연결할 완전한 화면 | `project-list`, `project-board`, `project-inbox`, `project-backlog`, `project-tokens`, `board-item` | widgets, features, entities, shared |
-| `widgets` | 여러 화면에서 재사용하거나 화면 안에서 독립적인 큰 블록 | `project-nav`, `board-workspace`, `inbox-list` | features, entities, shared |
+| `widgets` | 여러 화면에서 재사용하거나 화면 안에서 독립적인 큰 블록 | `app-header`, `turn-banner`(현재) · 후보 `inbox-list` | features, entities, shared |
 | `features` | 사용자가 가치 있다고 인식하는 동작 | `create-project`, `manage-token`, `edit-backlog`, `review-gate` | entities, shared |
 | `entities` | 도메인 명사, 표시와 안정적인 모델 | `project`, `backlog-item`, `board-item`, `workspace`, `report` | shared |
-| `shared` | 제품 도메인을 모르는 기반 | `ui`, `api`, `lib`, `config`, `routes` | shared 내부 |
+| `shared` | 제품 도메인을 모르는 기반 | `ui`(button·chip·field·card·code·table·section-label·copy-button — unit별 파일), `api`, `lib`(class-name·relative-time), `config`, `routes` | shared 내부 |
 
 후보 이름은 확정 디렉터리 목록이 아니다. 기능을 만들 때 실제 책임이 생긴
 slice만 추가한다. 예를 들어 한 page에서만 쓰는 보드 UI는 재사용 가능성을
