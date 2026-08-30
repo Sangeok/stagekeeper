@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./src/*"],
+      "@harness/core/*": ["./packages/core/*"]
     }
   },
   "include": [

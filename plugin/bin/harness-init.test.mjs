@@ -1,0 +1,72 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));
+const APCH = readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8");
+const run = (root, ...args) => {
+  try { return { code: 0, out: execFileSync("node", [BIN, "--root", root, "--server", "https://h.example", ...args], { encoding: "utf8" }) }; }
+  catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; }
+};
+const fresh = (cfg = APCH) => { const root = mkdtempSync(join(tmpdir(), "harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
+
+describe("harness-init (v2)", () => {
+  it("materializes agents, docs, runbook, .mcp.json, lock — and no state files", () => {
+    const root = fresh();
+    const r = run(root);
+    assert.equal(r.code, 0, r.out);
+    for (const p of ["CLAUDE.md", ".mcp.json", "harness.lock.json", "docs/plans/README.md", "docs/plans/template.md", "docs/plans/verification-paths.md",
+      "docs/agents/README.md", ".claude/agents/pm.md", ".claude/agents/plan-verifier.md", ".claude/agents/doc-auditor.md", ".claude/agents/feature-scout.md",
+      ".claude/agents/web-dev.md", ".claude/agents/admin-dev.md", ".claude/agents/backend-dev.md"]) assert.ok(existsSync(join(root, p)), `missing ${p}`);
+    for (const p of ["PROJECT_BOARD.md", "TASK_BACKLOG.md", "docs/release-checks.md", "scripts"]) assert.ok(!existsSync(join(root, p)), `unexpected ${p}`);
+    const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
+    assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
+    assert.equal(mcp.mcpServers.harness.headers.Authorization, "Bearer ${HARNESS_TOKEN}");
+    assert.doesNotMatch(readFileSync(join(root, ".claude/agents/backend-dev.md"), "utf8"), /\{\{/);
+    const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
+    assert.equal(lock.version, 1);
+    assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files)); // 병합 파일은 잠그지 않는다
+  });
+  it("merges .mcp.json, preserving other servers", () => {
+    const root = fresh();
+    writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: { notion: { url: "https://mcp.notion.com/mcp" } } }));
+    assert.equal(run(root).code, 0);
+    const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
+    assert.equal(mcp.mcpServers.notion.url, "https://mcp.notion.com/mcp");
+    assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
+  });
+  it("second run: unchanged files rewritten, user-edited file skipped", () => {
+    const root = fresh();
+    assert.equal(run(root).code, 0);
+    writeFileSync(join(root, ".claude/agents/pm.md"), "edited by user\n");
+    const r = run(root);
+    assert.equal(r.code, 0);
+    assert.match(r.out, /skip\(modified\): \.claude\/agents\/pm\.md/);
+    assert.equal(readFileSync(join(root, ".claude/agents/pm.md"), "utf8"), "edited by user\n");
+  });
+  it("refuses unknown existing generated-path files without --adopt; adopt replaces", () => {
+    const root = fresh();
+    mkdirSync(join(root, "docs/agents"), { recursive: true });
+    writeFileSync(join(root, "docs/agents/README.md"), "theirs\n");
+    const r = run(root);
+    assert.equal(r.code, 3);
+    assert.match(r.out, /refuse: docs\/agents\/README\.md/);
+    assert.ok(!existsSync(join(root, "harness.lock.json")));
+    assert.equal(run(root, "--adopt").code, 0);
+    assert.notEqual(readFileSync(join(root, "docs/agents/README.md"), "utf8"), "theirs\n");
+  });
+  it("omits feature-scout when config has no scout", () => {
+    const root = fresh(JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] }));
+    assert.equal(run(root).code, 0);
+    assert.ok(!existsSync(join(root, ".claude/agents/feature-scout.md")));
+    assert.ok(existsSync(join(root, ".claude/agents/dev.md")));
+  });
+  it("exit 1 with the field path on bad config", () => {
+    const root = fresh(JSON.stringify({ version: 2 }));
+    const r = run(root); assert.equal(r.code, 1); assert.match(r.out, /version/);
+  });
+});

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "project": { "owner": "Sangeok", "repo": "ApcH", "branch": "dev", "name": "ApcH" },
+  "language": "en",
+  "workspaces": [
+    {
+      "id": "web",
+      "path": "apps/web",
+      "agent": "web-dev",
+      "verify": ["npm run check -w apps/web", "npm test -w apps/web"],
+      "knowledge": "apps/web/CLAUDE.md",
+      "readOnly": ["packages/db/**"]
+    },
+    {
+      "id": "admin",
+      "path": "apps/admin",
+      "agent": "admin-dev",
+      "verify": ["npm run check -w apps/admin", "npm test -w apps/admin", "npm run verify:fsd:final -w apps/admin"],
+      "knowledge": "apps/admin/CLAUDE.md",
+      "readOnly": ["packages/db/**"]
+    },
+    {
+      "id": "backend",
+      "path": "apps/backend",
+      "agent": "backend-dev",
+      "verify": ["python -m unittest discover -s apps/backend -p \"test_*.py\"", "python -m py_compile apps/backend/main.py"],
+      "knowledge": "apps/backend/CLAUDE.md",
+      "readOnly": ["apps/backend/asd/**", "apps/backend/requirements.txt"]
+    }
+  ],
+  "executor": { "kind": "local" },
+  "release": { "baseUrl": "https://admin.a-pch.com", "auth": "verifier" },
+  "scout": { "question": "유저가 ApcH로 자기만의 영상을 만들어, 유튜브에 올려서, 가치로 연결하려면 무엇이 더 필요한가." }
+}

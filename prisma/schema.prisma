@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String          @id @default(cuid())
+  githubId  Int             @unique
+  login     String
+  createdAt DateTime        @default(now())
+  members   ProjectMember[]
+}
+
+model Project {
+  id           String          @id @default(cuid())
+  slug         String          @unique   // URL: /p/apch
+  name         String
+  owner        String                    // GitHub owner
+  repo         String
+  branch       String
+  language     String          @default("ko")
+  executorKind String          @default("local")   // local | routine
+  commandIssue Int?
+  createdAt    DateTime        @default(now())
+  members      ProjectMember[]
+  tokens       ProjectToken[]
+  workspaces   Workspace[]
+  backlog      BacklogItem[]
+  board        BoardItem[]
+  commands     Command[]
+}
+
+model ProjectMember {
+  projectId String
+  userId    String
+  role      String   @default("owner")
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([projectId, userId])
+}
+
+model ProjectToken {
+  id        String    @id @default(cuid())
+  projectId String
+  hash      String    @unique   // sha256(plain). 평문은 저장하지 않는다
+  label     String
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Workspace {                      // harness.json.workspaces 의 사본 (project_sync)
+  id        String   @id @default(cuid())
+  projectId String
+  wsId      String
+  path      String
+  agent     String
+  verify    String[]
+  knowledge String?
+  readOnly  String[]
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@unique([projectId, agent])
+}
+
+model BacklogItem {
+  id        String      @id @default(cuid())
+  projectId String
+  key       String                       // FEAT-28
+  title     String
+  area      String
+  source    String                       // 관측/진단 분리 규칙은 화면 도움말
+  createdAt DateTime    @default(now())
+  removedAt DateTime?                    // 완료 시 서버가 채움
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  board     BoardItem[]
+  @@unique([projectId, key])
+}
+
+model BoardItem {                        // 같은 backlog 항목이 여러 번 올라올 수 있다(보류 후 재선정). 최신 = proposedOn 최대
+  id            String            @id @default(cuid())
+  projectId     String
+  backlogItemId String
+  agent         String
+  status        String                    // transitions.mjs STATUSES
+  reason        String                    // 근거 ≤150
+  results       String[]                  // 결과 ≤150, 누적(ApcH 결과: 두 줄 누적 규칙)
+  validation    String?                   // 검증: — 검토대기에서만, 되돌리기 시 null
+  planPath      String?
+  planCommit    String?
+  proposedOn    DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  discardedAt   DateTime?                 // 폐기(사람). 행은 남긴다 — 이벤트가 감사 로그(불변식 8)
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  backlogItem   BacklogItem       @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
+  events        TransitionEvent[]
+  reports       Report[]
+  @@index([projectId, status])
+}
+
+model TransitionEvent {                  // 감사 로그 (불변식 8)
+  id          String    @id @default(cuid())
+  boardItemId String
+  from        String?
+  to          String?                    // null = 폐기
+  actor       String                     // human | agent
+  actorId     String?                    // userId 또는 tokenId
+  note        String?
+  at          DateTime  @default(now())
+  boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id          String    @id @default(cuid())
+  boardItemId String
+  actor       String                     // web-dev | main-loop | …
+  path        String                     // docs/agents/<actor>/<ID>.md
+  commit      String
+  at          DateTime  @default(now())
+  boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+}
+
+model Command {                          // 명령 원장 (Phase 3에서 소비)
+  id        String    @id @default(cuid())
+  projectId String
+  kind      String                       // pipeline-run | pm-select | audit-run | scout-run | <agent>-work
+  body      String                       // 서버가 roster에서 생성 (불변식 3)
+  status    String    @default("queued") // queued | acked | done
+  createdAt DateTime  @default(now())
+  ackedAt   DateTime?
+  doneAt    DateTime?
+  summary   String?
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}

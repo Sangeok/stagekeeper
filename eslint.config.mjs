@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 생성물 — 손으로 고치지 않는다
+    "src/generated/**",   // prisma generate 산출물
+    "plugin/lib/**",      // packages/core 복사본(원본만 린트한다)
   ]),
 ]);
 

@@ -1,0 +1,7 @@
+{
+  "name": "stagekeeper-local",
+  "owner": { "name": "Sangeok" },
+  "plugins": [
+    { "name": "harness", "source": "./plugin", "description": "Connect a repository to Stagekeeper — an agent pipeline where you approve each step." }
+  ]
+}
