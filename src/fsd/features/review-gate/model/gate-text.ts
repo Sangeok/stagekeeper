@@ -21,8 +21,8 @@ export function rejectLockLabel(action: RejectAction): string {
 // ApcH 원본은 "파이프라인 실행을 눌러"라고 안내하지만 그 버튼은 Phase 3(명령 원장)이고
 // Phase 1의 실행기는 local이다 — 다음 단계를 미는 것은 웹 버튼이 아니라 사용자의 Claude Code 세션이다.
 const GATE_NEXT_HINT: Record<string, string> = {
-  계획지시: "이제 Claude Code에서 런북대로 담당 dev를 디스패치하면 계획서를 씁니다.",
-  구현승인: "이제 Claude Code에서 담당 dev를 디스패치하면 구현합니다.",
+  planning: "이제 Claude Code에서 런북대로 담당 dev를 디스패치하면 계획서를 씁니다.",
+  implementing: "이제 Claude Code에서 담당 dev를 디스패치하면 구현합니다.",
 };
 export function gateNextActionHint(to: string): string {
   return Object.hasOwn(GATE_NEXT_HINT, to)

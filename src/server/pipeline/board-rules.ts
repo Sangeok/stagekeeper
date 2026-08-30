@@ -42,7 +42,7 @@ export function decideTransition(row: RowSnapshot, actor: Actor, to: string, res
     status: to,
     results: result ? [...row.results, result] : row.results,
     validation: rule.clearsValidation ? null : row.validation,
-    completes: to === "완료",
+    completes: to === "done",
   } };
 }
 
@@ -51,11 +51,11 @@ export function decideDiscard(status: string): Decision<null> {
 }
 
 export function decideValidation(status: string, text: string): Decision<null> {
-  if (!canRecordValidation(status)) return { ok: false, reason: `validation only in 검토대기 (now ${status})` };
+  if (!canRecordValidation(status)) return { ok: false, reason: `validation only in in_review (now ${status})` };
   const bad = checkText("validation", text);
   return bad ? { ok: false, reason: bad } : { ok: true, value: null };
 }
 
 export function decidePlanSubmit(status: string): Decision<null> {
-  return status === "계획지시" ? { ok: true, value: null } : { ok: false, reason: `plan_submit only in 계획지시 (now ${status})` };
+  return status === "planning" ? { ok: true, value: null } : { ok: false, reason: `plan_submit only in planning (now ${status})` };
 }

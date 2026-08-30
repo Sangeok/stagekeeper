@@ -190,9 +190,9 @@ function InboxCard({ item, actions }: { item: SpeechItem; actions: BoardActions 
   const reject = (action: RejectAction) => {
     if (action === "discard") return actions.discard(item.id, expectedUpdatedAt);
     if (action === "hold") {
-      return actions.transition(item.id, "보류", holdResultLine(new Date()), expectedUpdatedAt);
+      return actions.transition(item.id, "on_hold", holdResultLine(new Date()), expectedUpdatedAt);
     }
-    return actions.transition(item.id, "계획지시", undefined, expectedUpdatedAt);
+    return actions.transition(item.id, "planning", undefined, expectedUpdatedAt);
   };
   return (
     <article className="rounded-2xl border border-amber-700/40 bg-amber-50 p-4">
@@ -211,7 +211,7 @@ function InboxCard({ item, actions }: { item: SpeechItem; actions: BoardActions 
         <div className="mt-3 flex items-center justify-between gap-2">
           <p className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
             {item.id} · {item.status}
-            {item.status === "검토대기" && (
+            {item.status === "in_review" && (
               <ValidationMark validation={item.validation} />
             )}
             {item.overBudget && <BudgetFlag />}

@@ -21,8 +21,8 @@ export function InboxCard({ item, transition, discard }: Props) {
 
   const reject = (action: RejectAction) => {
     if (action === "discard") return discard(item.key, item.updatedAt);
-    if (action === "hold") return transition(item.key, "보류", holdResultLine(new Date()), item.updatedAt);
-    return transition(item.key, "계획지시", undefined, item.updatedAt);
+    if (action === "hold") return transition(item.key, "on_hold", holdResultLine(new Date()), item.updatedAt);
+    return transition(item.key, "planning", undefined, item.updatedAt);
   };
 
   const resume = (to: string) => {
