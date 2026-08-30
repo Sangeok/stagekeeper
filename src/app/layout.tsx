@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fragment_Mono, Schibsted_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// 사람이 읽는 글은 Schibsted Grotesk(가변 서체라 weight 지정 없음), 기계가 만든 식별자는 Fragment Mono(400뿐).
+const sans = Schibsted_Grotesk({
+  variable: "--font-schibsted",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const mono = Fragment_Mono({
+  variable: "--font-fragment",
   subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -20,14 +22,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+    <html lang="en" className={`${sans.variable} ${mono.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col bg-ground text-ink">
         {children}
-        {/* 도장·반려 피드백은 toast로 나간다 — 마운트가 없으면 조용히 아무것도 안 보인다. */}
-        <Toaster />
+        {/* 게이트·되돌리기 피드백은 toast로 나간다 — 마운트가 없으면 조용히 아무것도 안 보인다. */}
+        <Toaster theme="system" />
       </body>
     </html>
   );

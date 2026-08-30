@@ -35,7 +35,8 @@ export type TransitionPatch = { status: string; results: string[]; validation: s
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
   const rule = findRule(actor, row.status, to) as Rule | null;
   if (!rule) return { ok: false, reason: `not allowed: ${actor} ${row.status} → ${to}` };
-  if (rule.requiresResult) { const bad = checkText("result", result); if (bad) return { ok: false, reason: bad }; }
+  // 필수든 선택이든, 온 result는 150자 예산을 지킨다(되돌리기 노트가 선택 result로 들어온다).
+  if (rule.requiresResult || result !== undefined) { const bad = checkText("result", result); if (bad) return { ok: false, reason: bad }; }
   if (rule.requiresPlan && !row.planPath) return { ok: false, reason: "plan_submit first" };
   if (rule.requiresReport && row.reportCount === 0) return { ok: false, reason: "report_submit first" };
   return { ok: true, value: {

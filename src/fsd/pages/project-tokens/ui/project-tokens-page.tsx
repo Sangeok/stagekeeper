@@ -1,4 +1,7 @@
 import { NewTokenForm } from "@/fsd/features/manage-token";
+import { Button } from "@/fsd/shared/ui/button";
+import { Code } from "@/fsd/shared/ui/code";
+import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 
 export type TokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null };
 
@@ -13,49 +16,56 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 
 export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-8 px-4 py-10">
-      <section className="space-y-2">
-        <h1 className="text-2xl font-semibold">Tokens</h1>
-        <p className="text-sm text-zinc-600">
+    <>
+      <section className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Tokens</h1>
+        <p className="text-sm text-quiet">
           Agents connect with a token. A token can&apos;t approve or edit the backlog — those are web only.
         </p>
-        <p className="text-sm text-zinc-600">
-          MCP server URL: <code className="font-mono">{mcpUrl}</code>
+        <p className="text-sm text-quiet">
+          MCP server URL: <Code className="text-ink">{mcpUrl}</Code>
         </p>
       </section>
 
       <NewTokenForm issue={issue} mcpUrl={mcpUrl} />
 
-      <table className="w-full text-left text-sm">
-        <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500">
+      <Table>
+        <thead>
           <tr>
-            <th className="py-2">Label</th>
-            <th className="py-2">Issued</th>
-            <th className="py-2">Status</th>
-            <th className="py-2">Reference</th>
-            <th className="py-2" />
+            <Th>Label</Th>
+            <Th>Issued</Th>
+            <Th>Status</Th>
+            <Th>Reference</Th>
+            <Th />
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100">
+        <tbody>
+          {tokens.length === 0 ? (
+            <Tr>
+              <Td colSpan={5} className="text-quiet">
+                No tokens yet. Issue one above.
+              </Td>
+            </Tr>
+          ) : null}
           {tokens.map((t) => (
-            <tr key={t.id}>
-              <td className="py-2">{t.label}</td>
-              <td className="py-2 font-mono text-xs">{day(t.createdAt)}</td>
-              <td className="py-2">{t.revokedAt ? `Revoked ${day(t.revokedAt)}` : "Active"}</td>
-              <td className="py-2 font-mono text-xs text-zinc-500">token:{t.id}</td>
-              <td className="py-2 text-right">
+            <Tr key={t.id} className={t.revokedAt ? "text-quiet" : undefined}>
+              <Td>{t.label}</Td>
+              <Td className="font-mono text-xs">{day(t.createdAt)}</Td>
+              <Td>{t.revokedAt ? `Revoked ${day(t.revokedAt)}` : "Active"}</Td>
+              <Td className="font-mono text-xs text-quiet">token:{t.id}</Td>
+              <Td className="text-right">
                 {t.revokedAt ? null : (
                   <form action={revoke.bind(null, t.id)}>
-                    <button type="submit" className="rounded-md border border-zinc-300 px-3 py-1 text-xs">
+                    <Button size="sm" type="submit">
                       Revoke
-                    </button>
+                    </Button>
                   </form>
                 )}
-              </td>
-            </tr>
+              </Td>
+            </Tr>
           ))}
         </tbody>
-      </table>
-    </main>
+      </Table>
+    </>
   );
 }

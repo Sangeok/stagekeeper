@@ -19,6 +19,20 @@ export async function latestBoard(projectId: string, openOnly = false, db: Db = 
   return openOnly ? rows.filter((r) => isOpen(r.status)) : rows;
 }
 
+// 결재함용: 최신 행 + 최근 이벤트 몇 개. 상태 줄("dev submitted a plan 3 days ago")과 보류 전 상태("was Implementing")를
+// 이벤트에서 읽는다 — BoardItem에는 "언제 이 status가 됐나"가 없다.
+export async function latestBoardWithEvents(projectId: string) {
+  return prisma.boardItem.findMany({
+    where: { projectId, discardedAt: null },
+    orderBy: { proposedOn: "desc" },
+    distinct: ["backlogItemId"],
+    include: {
+      backlogItem: { select: { key: true, title: true, area: true } },
+      events: { orderBy: { at: "desc" }, take: 8, select: { from: true, to: true, at: true } },
+    },
+  });
+}
+
 async function latestRow(db: Db, projectId: string, key: string) {
   return db.boardItem.findFirst({
     where: { projectId, discardedAt: null, backlogItem: { key } },

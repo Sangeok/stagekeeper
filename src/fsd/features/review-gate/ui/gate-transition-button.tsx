@@ -5,24 +5,22 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import type { ActionResult } from "@/fsd/shared/api/result";
-import { gateActionLabel, gateLockLabel, gateNextActionHint, gatePendingLabel, gateToast } from "../model/gate-text";
+import { Button } from "@/fsd/shared/ui/button";
+import { gateActionLabel, gateLockLabel, gatePendingLabel, gateToast } from "../model/gate-text";
 import { LockedChip, useGateCardLock } from "./gate-card-lock";
 
 // 게이트 버튼. 라벨은 목적지 status에서 온다(Request plan / Approve implementation).
-// 다음에 무슨 일이 생기는지는 누르기 전에 버튼 옆에서 말한다 — 토스트는 이미 누른 뒤다.
-const BUTTON_CLASS =
-  "rounded-sm border-2 border-amber-700 bg-amber-50 px-2.5 py-1 text-xs font-medium " +
-  "tracking-wide text-amber-800 shadow-[1px_1px_0_0_theme(colors.amber.700)] transition-transform " +
-  "hover:-translate-y-px active:translate-y-0 active:shadow-none disabled:opacity-60";
-
+// 검증 기록이 없으면 채움에서 윤곽으로 물러선다(variant) — 결과 문장은 카드가 버튼 아래에서 말한다.
 export function GateTransitionButton({
   to,
   itemKey,
   commit,
+  variant = "mine",
 }: {
   to: string;
   itemKey: string;
   commit: () => Promise<ActionResult<void>>;
+  variant?: "mine" | "mine-outline";
 }) {
   const router = useRouter();
   const { lock, setLock } = useGateCardLock();
@@ -36,18 +34,15 @@ export function GateTransitionButton({
         return;
       }
       toast.success(gateToast(to, itemKey));
-      setLock({ label: gateLockLabel(to), marker: "bg-amber-700" });
+      setLock({ label: gateLockLabel(to), tone: "mine" });
       router.refresh();
     });
   };
 
   if (lock !== null) return <LockedChip lock={lock} />;
   return (
-    <span className="flex flex-col items-end gap-1">
-      <button type="button" disabled={isPending} onClick={handleClick} className={BUTTON_CLASS}>
-        {isPending ? gatePendingLabel(to) : gateActionLabel(to)}
-      </button>
-      <span className="text-right text-xs text-zinc-500">{gateNextActionHint(to)}</span>
-    </span>
+    <Button variant={variant} disabled={isPending} onClick={handleClick}>
+      {isPending ? gatePendingLabel(to) : gateActionLabel(to)}
+    </Button>
   );
 }

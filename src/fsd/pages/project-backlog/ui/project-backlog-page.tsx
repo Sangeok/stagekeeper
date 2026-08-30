@@ -13,18 +13,18 @@ type Props = {
 
 export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, update, remove }: Props) {
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-10">
+    <>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Backlog</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Backlog</h1>
         <Link
           href={includeRemoved ? `/p/${slug}/backlog` : `/p/${slug}/backlog?removed=1`}
-          className="text-sm underline"
+          className="text-xs text-quiet underline underline-offset-2"
         >
           {includeRemoved ? "Hide removed" : "Show removed"}
         </Link>
       </div>
       <BacklogTable slug={slug} rows={rows} remove={remove} />
       {editing ? <BacklogForm action={update} item={editing} /> : <BacklogForm action={add} />}
-    </main>
+    </>
   );
 }

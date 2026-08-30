@@ -1,5 +1,6 @@
 import { NewProjectForm } from "@/fsd/features/create-project";
 import { createProject } from "@/fsd/features/create-project/index.server";
+import { AppHeader } from "@/fsd/widgets/app-header";
 import { requireUser } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { listPublicRepos } from "@/server/github";
@@ -11,9 +12,12 @@ export default async function Page() {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { login: true } });
   const repos = await listPublicRepos(user.login);
   return (
-    <main className="mx-auto w-full max-w-xl space-y-6 px-4 py-10">
-      <h1 className="text-2xl font-semibold">New project</h1>
-      <NewProjectForm action={createProject} mcpUrl={mcpUrl()} defaultOwner={user.login} repos={repos} />
-    </main>
+    <>
+      <AppHeader login={user.login} />
+      <main className="mx-auto flex w-full max-w-[800px] flex-col gap-8 px-5 pt-9 pb-14">
+        <h1 className="text-2xl font-semibold tracking-tight">New project</h1>
+        <NewProjectForm action={createProject} mcpUrl={mcpUrl()} defaultOwner={user.login} repos={repos} />
+      </main>
+    </>
   );
 }
