@@ -61,4 +61,5 @@
 - 프리미티브: `src/fsd/shared/ui/{button,chip,field,card,code,table,section-label,copy-button}.tsx`
 - 턴 배너·bar·Next 상자: `src/fsd/widgets/turn-banner/`
 - 셸 머리·탭: `src/fsd/widgets/app-header/`
+- 공개 랜딩(`/`): `src/fsd/pages/landing/` — 맨 위 bar는 헤어라인(차례가 없다), 파란 것은 논지 둘째 줄·CTA·데모 안쪽뿐
 - 검토 mock(승인판): 대화 아티팩트 "Stagekeeper Design Mock" v4-approved

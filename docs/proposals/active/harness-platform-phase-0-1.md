@@ -82,6 +82,7 @@ related:
 | C11 | `harness-init` 기본 서버 `https://harness.a-pch.com` | 기본값 없음 — `--server` 또는 `HARNESS_SERVER` 필수 | 스펙 Q1(도메인) 미결. 잘못된 기본값이 저장소에 박히는 것을 막는다 |
 | C12 | §9 plan-verifier `tools:`에 `Skill` 없음 | `Skill` 포함 | 정의 본문 1단계가 `reconciling-proposals-with-codebase` 스킬 로드를 요구(ApcH 원본도 `Skill` 보유) |
 | C13 | 스킬 디렉터리 `plugin/skills/harness-init/`, 설치는 로컬 marketplace | 디렉터리 **`plugin/skills/init/`**, 설치는 **`claude --plugin-dir`**(+ 선택적 `marketplace.json`) | 문서 확인: `skills/` 아래 스킬의 호출 이름은 **폴더 이름**이라 `harness-init/`면 명령이 `/harness:harness-init`이 된다 — 스펙이 도처에서 쓰는 `/harness:init`이 되려면 폴더가 `init`이어야 한다. 또 `claude plugin marketplace add <경로>`는 그 경로에 `.claude-plugin/marketplace.json`을 요구하는데 어느 태스크도 만들지 않았다 |
+| C15 | 상태 식별자 한국어(승인대기·계획지시·검토대기·구현승인·완료·보류), 화면·템플릿 한국어(`templates/ko/`), 루트 `/` = 프로젝트 목록 | **영문 식별자** `proposed·planning·in_review·implementing·done·on_hold`(마이그레이션 `20260830070954_english_status_identifiers`), 보이는 문자열 전부 영어·템플릿 `templates/en/`만, **공개 랜딩 `/`** + 목록 **`/projects`**, 디자인 토큰 v4(`docs/conventions/design.md`) | 사용자 결정(2026-08-30): 제품은 영어로 서비스한다. 문구의 출처는 `docs/conventions/product-copy.md`. 이 제안서 본문의 한국어 상태명·`/` 목록 서술은 작성 시점 기록이다 |
 | C14 | `src/fsd/**` 경로를 이 제안서가 자유롭게 정함 | **저장소의 승인된 FSD 아키텍처를 따른다** — 아래 「C14 상세」 | 이 제안서 작성 뒤 저장소가 FSD를 채택했다(ADR-0001, `docs/architecture/{README,fsd,verification}.md`, `scripts/verify-fsd-boundaries.mjs`). `AGENTS.md`: "proposals describe future work and **do not override accepted architecture**". 게다가 `npm run lint`가 경계 검사를 돌리므로 정렬하지 않으면 **첫날부터 lint가 깨진다** |
 
 ### C14 상세 — 승인된 FSD 아키텍처에 맞춘 경로·public API
@@ -172,6 +173,7 @@ related:
 - 상태(보드·백로그·게이트·명령·이력)의 진실은 서비스 DB. 사용자 저장소에 보드·백로그 md를 두지 않는다.
 - 코드 인접 산출물(`docs/plans/<ID>.md`, `docs/agents/<행위자>/<ID>.md`)만 저장소.
 - 게이트①②·반려·재개는 웹 로그인 사용자만. MCP 토큰에는 그 도구가 없다.
+- 사용자·에이전트에게 **보이는** 문자열은 영어(상태 식별자 포함). 문서(`docs/`)와 코드 주석은 한국어(C15).
 - 에이전트 권한은 정의 파일 `tools:`로 강제(pm은 파일 도구 0).
 - `packages/core`·`plugin/bin`·`plugin/lib`는 의존성 0.
 - ApcH 불변식 8개(스펙 §3.2) 보존.

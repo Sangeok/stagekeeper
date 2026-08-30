@@ -15,7 +15,7 @@ export function AppHeader({
   return (
     <header className="border-b border-rule">
       <div className="mx-auto flex w-full max-w-[800px] items-center gap-2.5 px-5 py-3">
-        <Link href="/" className="font-semibold tracking-[-0.01em]">
+        <Link href="/projects" className="font-semibold tracking-[-0.01em]">
           Stagekeeper
         </Link>
         {project !== undefined ? (
@@ -52,7 +52,7 @@ function ProjectSwitcher({ current, projects }: { current: HeaderProject; projec
         ))}
         {others.length > 0 ? <li aria-hidden="true" className="my-1 border-t border-rule" /> : null}
         <li>
-          <Link href="/" className="block px-3 py-1.5 hover:bg-field">
+          <Link href="/projects" className="block px-3 py-1.5 hover:bg-field">
             All projects
           </Link>
         </li>

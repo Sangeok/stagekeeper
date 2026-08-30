@@ -129,7 +129,8 @@ The screen judges by presence alone — if it exists, the item shows **Verified*
 | `<html lang>` | `en` |
 | App header | **Stagekeeper** / `harness-smoke` ▾ — menu: the other projects · All projects · New project. Right: GitHub login, mono |
 | Project tabs | Board · Inbox · Backlog · Tokens |
-| Sign-in page | Sign in with GitHub to continue. — button **Continue with GitHub** |
+| Sign-in page | Sign in with GitHub to continue. — button **Continue with GitHub**. After sign-in: `/projects` |
+| Landing `/` header | **Stagekeeper** · right: **Sign in** (signed in: **Open projects**) |
 
 ## 5. Turn banner (top of every project tab)
 
@@ -267,7 +268,7 @@ scouting" · unknown "Agent" · none "Unassigned".
 
 ## 10. Projects
 
-- List: title **Projects**, button **New project**. Empty: "No projects yet. Connect a
+- List at `/projects`: title **Projects**, button **New project**. Empty: "No projects yet. Connect a
   repository to get a board, a backlog, and an inbox."
 - **New project**
   - Picker: **Repository** · search placeholder "Search 20 repositories" · empty "No
@@ -452,15 +453,17 @@ both). Below: each file's title, its section headings, and the sentences that se
   — and to approve the `harness` server when `/mcp` shows Pending approval." · "Leave the
   commit to the user."
 
-## 16. Landing (reviewed here, built in bundle 3)
+## 16. Landing — public `/` (built 2026-08-30, landing-v2)
 
 - Headline: **Your agents build. You approve each step.**
 - Paragraph: "Stagekeeper runs plan → verify → implement → accept with your own Claude Code.
   Agents read, propose, and report. Only you move an item to the next step — the agent token
   has no such tool."
-- CTA: **Continue with GitHub** (signed in: **Open projects**)
+- CTA: **Continue with GitHub** (signed in: **Open projects**). No sub-line under the CTA — `/harness:init` is taught on the token screen.
+- Demo beside the thesis: a static gate-2 inbox card, caption "Your inbox when a plan is ready for you."
 - "One cycle": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved · 6 Implemented
-  · 7 Accepted — "Steps 2 and 5 are yours. Nothing else asks for you."
+  · 7 Accepted — only steps 2 and 5 carry a "you" tag; no other actor names — "Steps 2 and 5 are
+  yours. Nothing else asks for you."
 - Three facts (not slogans):
   - **Only you can approve.** The agent token can't request a plan or approve
     implementation. The tool isn't registered — there's nothing to misuse.
@@ -481,4 +484,4 @@ Mark anything that reads wrong here; it gets fixed in this file first, then in c
 - [ ] Forms and errors (§8–10)
 - [ ] MCP descriptions (§13) — agents read these
 - [ ] Template tone (§14)
-- [ ] Landing (§16)
+- [x] Landing (§16) — landing-v2 approved 2026-08-30
