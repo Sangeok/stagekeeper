@@ -9,7 +9,7 @@ const cfg = parseHarnessConfig(readFileSync(new URL("../../examples/apch/harness
 describe("vars", () => {
   it("roster table has one row per workspace in order", () => {
     const v = buildVars(cfg);
-    assert.match(v.roster_table, /^\| agent 값 \| 담당 영역 \|\n\| --- \| --- \|\n/);
+    assert.match(v.roster_table, /^\| agent \| owns \|\n\| --- \| --- \|\n/);
     assert.match(v.roster_table, /\| `web-dev` \| `apps\/web\/\*\*` \|\n\| `admin-dev` \| `apps\/admin\/\*\*` \|\n\| `backend-dev` \| `apps\/backend\/\*\*` \|$/);
     assert.equal(v.roster_names, "`web-dev`·`admin-dev`·`backend-dev`");
     assert.equal(v.board_branch, "dev");
@@ -18,7 +18,7 @@ describe("vars", () => {
     const v = buildWorkspaceVars(cfg, cfg.workspaces[2]);
     assert.equal(v.ws.agent, "backend-dev");
     assert.equal(v.ws.verify_block, "```bash\npython -m unittest discover -s apps/backend -p \"test_*.py\"\npython -m py_compile apps/backend/main.py\n```");
-    assert.equal(v.ws.verify_result_line, "검증: python -m unittest discover -s apps/backend -p \"test_*.py\" <결과> / python -m py_compile apps/backend/main.py <결과>");
+    assert.equal(v.ws.verify_result_line, "Verification: python -m unittest discover -s apps/backend -p \"test_*.py\" <result> / python -m py_compile apps/backend/main.py <result>");
     assert.equal(v.ws.read_only_list, "- `apps/backend/asd/**`\n- `apps/backend/requirements.txt`");
     assert.equal(v.ws.out_of_scope_list, "- `apps/web/**`\n- `apps/admin/**`");
     assert.equal(v.ws.knowledge, "apps/backend/CLAUDE.md");
@@ -27,7 +27,7 @@ describe("vars", () => {
     const one = parseHarnessConfig({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
       workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
     const v = buildWorkspaceVars(one, one.workspaces[0]);
-    assert.equal(v.ws.read_only_list, "없음"); assert.equal(v.ws.out_of_scope_list, "없음");
-    assert.equal(v.ws.knowledge, "(없음 — 워크스페이스 지식 문서가 아직 없다. 계획서에 그 사실을 적는다)");
+    assert.equal(v.ws.read_only_list, "none"); assert.equal(v.ws.out_of_scope_list, "none");
+    assert.equal(v.ws.knowledge, "(none — this workspace has no knowledge doc yet. Say so in the plan)");
   });
 });

@@ -16,10 +16,10 @@ describe("parseHarnessConfig", () => {
     assert.equal(c.release.baseUrl, "https://admin.a-pch.com");
     assert.equal(c.release.auth, "verifier");
   });
-  it("defaults: language ko, executor local, release null, scout null, name=repo", () => {
+  it("defaults: language en, executor local, release null, scout null, name=repo", () => {
     const c = parseHarnessConfig({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
       workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
-    assert.equal(c.language, "ko");
+    assert.equal(c.language, "en");
     assert.equal(c.executor.kind, "local");
     assert.equal(c.executor.commandIssue, null);
     assert.equal(c.release, null);
@@ -31,7 +31,7 @@ describe("parseHarnessConfig", () => {
   it("rejects wrong version", () => assert.throws(() => parseHarnessConfig({ ...base(), version: 2 }), /version/));
   it("rejects empty workspaces", () => assert.throws(() => parseHarnessConfig({ ...base(), workspaces: [] }), /workspaces/));
   it("rejects bad agent id", () => { const b = base(); b.workspaces[0].agent = "Web Dev"; assert.throws(() => parseHarnessConfig(b), /agent/); });
-  it("rejects duplicate agent", () => { const b = base(); b.workspaces.push({ ...b.workspaces[0], id: "x" }); assert.throws(() => parseHarnessConfig(b), /중복/); });
+  it("rejects duplicate agent", () => { const b = base(); b.workspaces.push({ ...b.workspaces[0], id: "x" }); assert.throws(() => parseHarnessConfig(b), /duplicate/); });
   it("rejects empty verify", () => { const b = base(); b.workspaces[0].verify = []; assert.throws(() => parseHarnessConfig(b), /verify/); });
   it("routine executor requires commandIssue", () => assert.throws(() => parseHarnessConfig({ ...base(), executor: { kind: "routine" } }), /commandIssue/));
   it("rejects unknown executor kind", () => assert.throws(() => parseHarnessConfig({ ...base(), executor: { kind: "hosted" } }), /executor.kind/));

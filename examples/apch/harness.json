@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": { "owner": "Sangeok", "repo": "ApcH", "branch": "dev", "name": "ApcH" },
-  "language": "ko",
+  "language": "en",
   "workspaces": [
     {
       "id": "web",

@@ -7,7 +7,7 @@ import { renderTemplate } from "../../packages/core/render.mjs";
 import { buildVars, buildWorkspaceVars } from "../../packages/core/vars.mjs";
 
 const cfg = parseHarnessConfig(readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8"));
-const tpl = (rel) => readFileSync(new URL(`./ko/${rel}`, import.meta.url), "utf8");
+const tpl = (rel) => readFileSync(new URL(`./en/${rel}`, import.meta.url), "utf8");
 const tools = (md) => (/^tools:\s*(.+)$/m.exec(md)?.[1] ?? "").split(",").map((s) => s.trim()).filter(Boolean).sort();
 const MCP = (...t) => t.map((x) => `mcp__harness__${x}`);
 

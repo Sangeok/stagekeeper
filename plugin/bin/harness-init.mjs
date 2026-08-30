@@ -22,10 +22,10 @@ const RUNBOOK_START = "<!-- harness:runbook:start -->", RUNBOOK_END = "<!-- harn
 
 let config;
 try { config = parseHarnessConfig(readFileSync(CONFIG, "utf8")); }
-catch (e) { console.log(`설정 오류: ${e.message}`); process.exit(1); }
+catch (e) { console.log(`Config error: ${e.message}`); process.exit(1); }
 
 // 서비스 URL에 기본값을 두지 않는다 — 잘못된 호스트가 저장소에 박히면 조용히 다른 서비스를 가리킨다.
-if (!SERVER) { console.log("서버 URL 필요: --server <url> 또는 HARNESS_SERVER (웹 토큰 페이지에 표시된 값)"); process.exit(1); }
+if (!SERVER) { console.log("Server URL required: pass --server <url> or set HARNESS_SERVER (shown on the web Tokens page)"); process.exit(1); }
 
 const lang = config.language;
 const tpl = (rel) => readFileSync(join(TPL, rel), "utf8");
@@ -49,7 +49,7 @@ const plan = planWrites({ targets, existing, lock, adopt: ADOPT });
 
 for (const p of plan.refuse) console.log(`refuse: ${p}`);
 for (const p of plan.skipModified) console.log(`skip(modified): ${p}`);
-if (plan.refuse.length) { console.log("기존 파일과 충돌 — --adopt로 받아들이거나 파일을 치운 뒤 다시 실행"); process.exit(3); }
+if (plan.refuse.length) { console.log("Conflicts with existing files. Rerun with --adopt to take them over, or move them out of the way."); process.exit(3); }
 
 const write = (p, content) => { if (DRY) return; mkdirSync(dirname(join(ROOT, p)), { recursive: true }); writeFileSync(join(ROOT, p), content); };
 for (const p of plan.write) { console.log(`write: ${p}`); write(p, targets[p].content); }
