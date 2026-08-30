@@ -443,8 +443,8 @@ both). Below: each file's title, its section headings, and the sentences that se
   "Server URL required: pass --server <url> or set HARNESS_SERVER (shown on the web Tokens
   page)" · "Conflicts with existing files. Rerun with --adopt to take them over, or move them
   out of the way." · `write:` · `skip(modified):` · `refuse:` · `done: write 8 · skip 0`
-- `plugin.json` description: "Connect a repository to Stagekeeper — an agent pipeline where you
-  approve each step."
+- `plugin.json` description: "Connect a repository to Stagekeeper — an agent pipeline whose
+  rules you set."
 - `marketplace.json` description: same.
 - `SKILL.md` (`/harness:init`): description "Connect this repository to Stagekeeper: write
   harness.json, generate agents and conventions, register .mcp.json, sync the roster." Steps
@@ -455,22 +455,41 @@ both). Below: each file's title, its section headings, and the sentences that se
 
 ## 16. Landing — public `/` (built 2026-08-30, landing-v2)
 
-- Headline: **Your agents build. You approve each step.**
-- Paragraph: "Stagekeeper runs plan → verify → implement → accept with your own Claude Code.
-  Agents read, propose, and report. Only you move an item to the next step — the agent token
-  has no such tool."
+- Headline: **Your agents build. You set the rules.** (one line each — a longer second line
+  wraps to three and strands a fragment)
+- Paragraph: "Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the
+  state, the ledger, and the gates. Agents propose, plan, and report — they can't grant
+  themselves permission."
 - CTA: **Continue with GitHub** (signed in: **Open projects**). No sub-line under the CTA — `/harness:init` is taught on the token screen.
 - Demo beside the thesis: a static gate-2 inbox card, caption "Your inbox when a plan is ready for you."
-- "One cycle": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved · 6 Implemented
-  · 7 Accepted — only steps 2 and 5 carry a "you" tag; no other actor names — "Steps 2 and 5 are
-  yours. Nothing else asks for you."
+- "The cycle you'll run": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·
+  6 Implemented · 7 Accepted — only steps 2 and 5 carry a "you" tag; no other actor names —
+  "Two of these stop for you today — 2 and 5. The rest you run in your own Claude Code."
+  The section is titled for the **runbook**, not the service: only 2 and 5 are transitions the
+  server enforces as human-only. 4 (validation) is recorded but not required before approval,
+  and 7 (acceptance) has no status, field or tool at all — it is the five checks the owner
+  reproduces by hand."
 - Three facts (not slogans):
-  - **Only you can approve.** The agent token can't request a plan or approve
-    implementation. The tool isn't registered — there's nothing to misuse.
+  - **Agents can't approve themselves.** Gate moves and the settings behind them are web-only.
+    The agent token has neither — not by policy text, by the toolset.
   - **No pass without a record.** An item shows Verified only when an independent pass wrote
     one. Otherwise it says so.
   - **State in one place, files in yours.** The board lives in Stagekeeper. Plans and reports
     are committed next to the code, in your repository.
+
+**Claims we don't make here, and why** (checked against the code 2026-08-30):
+
+- Not "you approve each step" / "only you can approve" — the server enforces exactly two
+  human-only transitions out of four. Gates are also planned to become a per-project setting,
+  so any copy that counts them, or promises a human at every step, is written to expire.
+- Not "nothing else asks for you" — the runbook has the owner dispatch agents at 1, 3, 6 and 8,
+  run their own verification round at 4, and reproduce the five acceptance checks by hand at 7.
+  The product's own turn banner hands you a "Next, in Claude Code" line at 3, 4 and 6.
+- Not "the tool isn't registered" — `board_transition` *is* in `AGENT_TOOL_NAMES`; what stops an
+  agent gate move is the rule table (`not allowed: agent proposed → planning`), plus the absence
+  of any gate-only tool and of every settings tool.
+- What survives a gate becoming optional: agents can't change their own permissions, no status
+  claim without a record, state here and files in your repository.
 
 ---
 
