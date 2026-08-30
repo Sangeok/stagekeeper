@@ -2,6 +2,6 @@
   "name": "stagekeeper-local",
   "owner": { "name": "Sangeok" },
   "plugins": [
-    { "name": "harness", "source": "./plugin", "description": "사람이 게이트를 쥐는 에이전트 개발 파이프라인 — 저장소를 하니스 서비스에 연결한다" }
+    { "name": "harness", "source": "./plugin", "description": "Connect a repository to Stagekeeper — an agent pipeline where you approve each step." }
   ]
 }
