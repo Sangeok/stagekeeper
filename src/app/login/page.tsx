@@ -1,6 +1,7 @@
 // src/app/login/page.tsx
 import { Button } from "@/fsd/shared/ui/button";
 import { signIn } from "@/server/auth";
+import { AFTER_SIGN_IN } from "@/server/auth/config.base";
 
 export default function LoginPage() {
   return (
@@ -8,7 +9,7 @@ export default function LoginPage() {
       <form
         action={async () => {
           "use server";
-          await signIn("github", { redirectTo: "/" });
+          await signIn("github", { redirectTo: AFTER_SIGN_IN });
         }}
         className="flex w-full max-w-sm flex-col items-center gap-6 text-center"
       >

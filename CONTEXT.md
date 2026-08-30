@@ -45,3 +45,21 @@ _Avoid_: 증거, 상태
 에이전트의 보고를 대신 믿지 않고 변경·검증·기록을 직접 재현해 완료를 받아들이는
 사람의 확인.
 _Avoid_: 구현승인, 검증
+
+## States
+
+보드 항목의 상태. **식별자**는 DB에 저장되고 MCP가 돌려주며 템플릿이 참조하는 값이고,
+**라벨**은 화면이 보여주는 영어 낱말이다(제품은 영어로 서비스한다 — `docs/conventions/product-copy.md`).
+유일한 출처는 `packages/core/transitions.mjs`의 `STATUSES`; 라벨은
+`src/fsd/entities/board-item/model/status-label.ts` 한 곳.
+
+| 식별자 | 라벨 | 뜻 | 여기서 여는 사람 동작 |
+| --- | --- | --- | --- |
+| `proposed` | Proposed | pm이 올렸다. 계획 요청(게이트①)을 기다린다 | Request plan · Put on hold · Discard |
+| `planning` | Planning | 계획을 요청했다. dev가 계획서를 쓴다 | — (에이전트 차례) |
+| `in_review` | In review | 계획서가 제출됐다. 검증과 승인(게이트②)을 기다린다 | Approve implementation · Send back · Put on hold · Discard |
+| `implementing` | Implementing | 구현을 승인했다. dev가 코드를 바꾼다 | — (에이전트 차례) |
+| `done` | Done | 끝났고 인수됐다 | — |
+| `on_hold` | On hold | 멈춰 있다. 재개하면 이어진다 | Resume planning · Resume implementation |
+
+_Avoid_: 한국어 상태명(승인대기·계획지시·검토대기·구현승인·완료·보류 — v1/ApcH 시절의 이름), 라벨을 식별자 자리에 쓰기
