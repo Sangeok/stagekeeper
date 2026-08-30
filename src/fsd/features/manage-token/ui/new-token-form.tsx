@@ -21,18 +21,18 @@ export function NewTokenForm({ issue, mcpUrl }: Props) {
               setToken((await issue(label)).token);
               setError(null);
             } catch {
-              setError("토큰을 발급하지 못했습니다.");
+              setError("Couldn't issue the token. Try again.");
             }
           });
         }}
         className="flex items-end gap-2"
       >
         <label className="flex-1 space-y-1">
-          <span className="text-sm font-medium">새 토큰 label</span>
+          <span className="text-sm font-medium">Label</span>
           <input name="label" placeholder="laptop" className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm" />
         </label>
         <button type="submit" disabled={pending} className="rounded-md bg-black px-4 py-2 text-sm text-white disabled:opacity-50">
-          {pending ? "발급 중…" : "새 토큰"}
+          {pending ? "Issuing…" : "Issue token"}
         </button>
       </form>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}

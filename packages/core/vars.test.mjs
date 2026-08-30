@@ -23,7 +23,7 @@ describe("vars", () => {
     assert.equal(v.ws.out_of_scope_list, "- `apps/web/**`\n- `apps/admin/**`");
     assert.equal(v.ws.knowledge, "apps/backend/CLAUDE.md");
   });
-  it("empty lists render as '없음'", () => {
+  it("empty lists render as 'none'", () => {
     const one = parseHarnessConfig({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
       workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
     const v = buildWorkspaceVars(one, one.workspaces[0]);

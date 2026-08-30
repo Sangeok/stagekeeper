@@ -22,7 +22,7 @@ export function JourneyStepper({ journey }: { journey: JourneyView }) {
   return (
     <div className="mt-3">
       {/* 레일: 노드 + 연결선. 단계 라벨은 노드 아래(sm↑에서만). */}
-      <ol className="flex items-start" aria-label="파이프라인 여정">
+      <ol className="flex items-start" aria-label="Pipeline progress">
         {journey.stages.map((stage, i) => (
           <li
             key={stage.key}
@@ -66,7 +66,7 @@ export function JourneyStepper({ journey }: { journey: JourneyView }) {
       {/* 캡션(항상): 지금 <현재> · [대기 낱말] · 다음 <다음>. 폰에서 라벨을 대신해 낱말을 나른다. */}
       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
         <span>
-          지금 <span className={cn("font-medium", whoText)}>{journey.currentLabel}</span>
+          Now <span className={cn("font-medium", whoText)}>{journey.currentLabel}</span>
         </span>
         <span
           className={cn(
@@ -78,7 +78,7 @@ export function JourneyStepper({ journey }: { journey: JourneyView }) {
           {journey.waitingLabel}
         </span>
         {journey.nextLabel !== null && (
-          <span className="text-zinc-400">· 다음 {journey.nextLabel}</span>
+          <span className="text-zinc-400">· Next {journey.nextLabel}</span>
         )}
       </p>
     </div>

@@ -12,10 +12,10 @@ export async function addBacklogItem(slug: string, _prev: BacklogFormState, form
   const { projectId } = await requireMember(slug);
   const key = field(form, "key");
   const title = field(form, "title");
-  if (!BACKLOG_KEY_RE.test(key)) return { error: "key: 대문자-숫자 형식이어야 한다 (예: FEAT-01)" };
-  if (!title) return { error: "제목은 필수" };
+  if (!BACKLOG_KEY_RE.test(key)) return { error: "Key must look like FEAT-01: capital letters, a dash, a number." };
+  if (!title) return { error: "Title is required." };
   if (await prisma.backlogItem.findUnique({ where: { projectId_key: { projectId, key } } })) {
-    return { error: `이미 있는 key: ${key}` };
+    return { error: `${key} already exists.` };
   }
   await prisma.backlogItem.create({
     data: { projectId, key, title, area: field(form, "area"), source: field(form, "source") },
@@ -29,12 +29,12 @@ export async function updateBacklogItem(
 ): Promise<BacklogFormState> {
   const { projectId } = await requireMember(slug);
   const title = field(form, "title");
-  if (!title) return { error: "제목은 필수" };
+  if (!title) return { error: "Title is required." };
   const updated = await prisma.backlogItem.updateMany({
     where: { projectId, key },
     data: { title, area: field(form, "area"), source: field(form, "source") },
   });
-  if (updated.count === 0) return { error: `없는 항목: ${key}` };
+  if (updated.count === 0) return { error: `${key} doesn't exist.` };
   revalidatePath(`/p/${slug}/backlog`);
   return { done: true };
 }
@@ -44,13 +44,13 @@ export async function removeBacklogItem(slug: string, key: string): Promise<Back
   const { projectId } = await requireMember(slug);
   const open = await latestBoard(projectId, true);
   if (open.some((row) => row.backlogItem.key === key)) {
-    return { error: "보드에 미결 행이 있어 제거할 수 없다" };
+    return { error: `${key} is open on the board. Finish or discard it before removing.` };
   }
   const removed = await prisma.backlogItem.updateMany({
     where: { projectId, key, removedAt: null },
     data: { removedAt: new Date() },
   });
-  if (removed.count === 0) return { error: `없는 항목: ${key}` };
+  if (removed.count === 0) return { error: `${key} doesn't exist.` };
   revalidatePath(`/p/${slug}/backlog`);
   return { done: true };
 }

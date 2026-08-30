@@ -5,20 +5,23 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import type { ActionResult } from "@/fsd/shared/api/result";
-import { GATE_LOCK_LABEL, gateNextActionHint } from "../model/gate-text";
+import { gateActionLabel, gateLockLabel, gateNextActionHint, gatePendingLabel, gateToast } from "../model/gate-text";
 import { LockedChip, useGateCardLock } from "./gate-card-lock";
 
-// 도장. ApcH의 shadcn Button과 테마 토큰은 이 저장소에 없으므로 평범한 button + Tailwind로 옮겼다.
-const STAMP_BUTTON_CLASS =
+// 게이트 버튼. 라벨은 목적지 status에서 온다(Request plan / Approve implementation).
+// 다음에 무슨 일이 생기는지는 누르기 전에 버튼 옆에서 말한다 — 토스트는 이미 누른 뒤다.
+const BUTTON_CLASS =
   "rounded-sm border-2 border-amber-700 bg-amber-50 px-2.5 py-1 text-xs font-medium " +
   "tracking-wide text-amber-800 shadow-[1px_1px_0_0_theme(colors.amber.700)] transition-transform " +
   "hover:-translate-y-px active:translate-y-0 active:shadow-none disabled:opacity-60";
 
 export function GateTransitionButton({
-  label,
+  to,
+  itemKey,
   commit,
 }: {
-  label: string;
+  to: string;
+  itemKey: string;
   commit: () => Promise<ActionResult<void>>;
 }) {
   const router = useRouter();
@@ -32,16 +35,19 @@ export function GateTransitionButton({
         toast.error(result.error);
         return;
       }
-      toast.success(`${label}로 넘겼습니다. ${gateNextActionHint(label)}`);
-      setLock({ label: GATE_LOCK_LABEL, marker: "bg-amber-700" });
+      toast.success(gateToast(to, itemKey));
+      setLock({ label: gateLockLabel(to), marker: "bg-amber-700" });
       router.refresh();
     });
   };
 
   if (lock !== null) return <LockedChip lock={lock} />;
   return (
-    <button type="button" disabled={isPending} onClick={handleClick} className={STAMP_BUTTON_CLASS}>
-      {isPending ? "찍는 중..." : label}
-    </button>
+    <span className="flex flex-col items-end gap-1">
+      <button type="button" disabled={isPending} onClick={handleClick} className={BUTTON_CLASS}>
+        {isPending ? gatePendingLabel(to) : gateActionLabel(to)}
+      </button>
+      <span className="text-right text-xs text-zinc-500">{gateNextActionHint(to)}</span>
+    </span>
   );
 }

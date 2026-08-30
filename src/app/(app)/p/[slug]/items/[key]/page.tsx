@@ -15,9 +15,9 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
 
   const blob = (path: string) => `https://github.com/${project.owner}/${project.repo}/blob/${project.branch}/${path}`;
   const docs: ItemDoc[] = [];
-  if (row.planPath) docs.push({ label: "계획서", path: row.planPath, href: blob(row.planPath) });
+  if (row.planPath) docs.push({ label: "Plan", path: row.planPath, href: blob(row.planPath) });
   for (const report of row.reports) {
-    docs.push({ label: `${report.actor} 기록`, path: report.path, href: blob(report.path) });
+    docs.push({ label: `${report.actor} report`, path: report.path, href: blob(report.path) });
   }
 
   return (

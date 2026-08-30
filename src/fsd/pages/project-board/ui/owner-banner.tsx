@@ -3,8 +3,8 @@ import { gridToRects } from "../model/sprites";
 export function OwnerBanner({ pendingCount }: { pendingCount: number }) {
   const subtitle =
     pendingCount > 0
-      ? `결재 ${pendingCount}건이 도장을 기다립니다`
-      : "지금 도장을 기다리는 결재가 없습니다";
+      ? `${pendingCount} ${pendingCount === 1 ? "item needs" : "items need"} your approval`
+      : "Nothing needs your approval";
   const docRects = gridToRects(
     ["..wwwww..", ".wwwwwww.", ".wwwwwww.", "wwwwwwwww", "wwwwwwwww"],
     {},
@@ -70,7 +70,7 @@ export function OwnerBanner({ pendingCount }: { pendingCount: number }) {
           className="text-sm leading-tight font-bold"
           style={{ fontFamily: "ui-monospace, monospace", color: "#2b2420" }}
         >
-          당신의 책상
+          Needs you
         </p>
         <p
           className="text-xs leading-snug"

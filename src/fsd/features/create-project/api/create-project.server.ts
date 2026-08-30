@@ -12,10 +12,10 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
   const { userId } = await requireUser();
   const s = (k: string) => String(form.get(k) ?? "").trim();
   const slug = s("slug"), owner = s("owner"), repo = s("repo"), branch = s("branch") || "main", name = s("name") || slug;
-  if (!SLUG_RE.test(slug)) return { error: "slug: 소문자·숫자·하이픈, 2~40자" };
-  if (RESERVED_SLUGS.has(slug)) return { error: `예약된 slug: ${slug}` };
-  if (!owner || !repo) return { error: "GitHub owner/repo는 필수" };
-  if (await prisma.project.findUnique({ where: { slug } })) return { error: `이미 있는 slug: ${slug}` };
+  if (!SLUG_RE.test(slug)) return { error: "Slug must be 2–40 lowercase letters, numbers, or dashes." };
+  if (RESERVED_SLUGS.has(slug)) return { error: `'${slug}' is reserved.` };
+  if (!owner || !repo) return { error: "GitHub owner and repo are required." };
+  if (await prisma.project.findUnique({ where: { slug } })) return { error: `'${slug}' is already taken.` };
   const { plain, hash } = newToken();
   await prisma.project.create({
     data: { slug, name, owner, repo, branch, members: { create: { userId, role: "owner" } }, tokens: { create: { hash, label: "initial" } } },
