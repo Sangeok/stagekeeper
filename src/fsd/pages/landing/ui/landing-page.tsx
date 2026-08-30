@@ -20,8 +20,8 @@ const CYCLE: { n: number; label: string; you?: true }[] = [
 
 const FACTS = [
   {
-    title: "Only you can approve.",
-    body: "The agent token can't request a plan or approve implementation. The tool isn't registered — there's nothing to misuse.",
+    title: "Agents can't approve themselves.",
+    body: "Gate moves and the settings behind them are web-only. The agent token has neither — not by policy text, by the toolset.",
   },
   {
     title: "No pass without a record.",
@@ -61,11 +61,11 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
             <h1 className="text-[clamp(34px,4.2vw,54px)] leading-[1.02] font-semibold tracking-[-0.03em] text-balance">
               Your agents build.
               <br />
-              <span className="text-mine">You approve each step.</span>
+              <span className="text-mine">You set the rules.</span>
             </h1>
             <p className="mt-[22px] max-w-[52ch] text-[17px] leading-[26px] text-quiet">
-              Stagekeeper runs plan → verify → implement → accept with your own Claude Code. Agents read, propose, and
-              report. Only you move an item to the next step — the agent token has no such tool.
+              Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and
+              the gates. Agents propose, plan, and report — they can&apos;t grant themselves permission.
             </p>
             <div className="mt-[30px]">
               {signedIn ? (
@@ -88,7 +88,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
         </section>
 
         <section className="border-t border-rule py-11">
-          <h2 className="mb-[22px] text-[11px] font-medium uppercase leading-4 tracking-[0.06em] text-quiet">One cycle</h2>
+          <h2 className="mb-[22px] text-[11px] font-medium uppercase leading-4 tracking-[0.06em] text-quiet">The cycle you&apos;ll run</h2>
           <ol className="grid gap-3.5 md:grid-cols-7 md:gap-0">
             {CYCLE.map((step) => (
               <li
@@ -112,7 +112,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
               </li>
             ))}
           </ol>
-          <p className="mt-[26px] text-[15px]">Steps 2 and 5 are yours. Nothing else asks for you.</p>
+          <p className="mt-[26px] text-[15px]">Two of these stop for you today — 2 and 5. The rest you run in your own Claude Code.</p>
         </section>
 
         <section className="grid gap-7 border-t border-rule pt-11 md:grid-cols-3 md:gap-8">
