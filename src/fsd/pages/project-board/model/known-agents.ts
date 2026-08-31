@@ -42,7 +42,8 @@ export function identityFor(
   roster: readonly string[] = [],
 ): AgentIdentity {
   if (agentId !== null) {
-    const known = ROSTER[agentId]; // noUncheckedIndexedAccess: AgentIdentity | undefined
+    // ROSTER는 고정 4역만 담는다 — 워크스페이스 dev·미지 id는 여기 없어서 런타임에 undefined다.
+    const known = ROSTER[agentId];
     if (known !== undefined) return known;
     // 워크스페이스 에이전트는 일반 개발 정체성을 받는다(고정 dev별 identity는 프로젝트마다 다르다).
     if (roster.includes(agentId)) {

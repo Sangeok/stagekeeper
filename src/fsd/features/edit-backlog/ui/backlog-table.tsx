@@ -6,6 +6,7 @@ import { statusLabel } from "@/fsd/entities/board-item";
 import { Button } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
+import type { RemoveBacklogAction } from "../model/backlog-form-state";
 
 export type BacklogRow = {
   key: string;
@@ -18,7 +19,7 @@ export type BacklogRow = {
 type Props = {
   slug: string;
   rows: BacklogRow[];
-  remove: (key: string) => Promise<{ error?: string }>;
+  remove: RemoveBacklogAction;
 };
 
 export function BacklogTable({ slug, rows, remove }: Props) {

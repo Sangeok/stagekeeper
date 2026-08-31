@@ -493,6 +493,53 @@ both). Below: each file's title, its section headings, and the sentences that se
 
 ---
 
+## 17. Error pages
+
+Uncaught failures only. Everything the product can explain — a rule violation, a stale board, a
+missing item — comes back as a reason (§12) and never reaches these pages.
+
+These are the one place §1's "errors name the problem and the fix" does not apply, and that is
+deliberate: an error boundary cannot tell a failed page load from a failed action, and
+`board.transition` commits before it revalidates, so it cannot know whether the write landed.
+Naming a cause here would mean guessing. Say what is certain, then give the way out. Do not
+"improve" these into specific sentences.
+
+### Inbox card — `src/fsd/features/review-gate/ui/inbox-card-boundary.tsx`
+
+One card failed; the rest of the queue stays on screen. This is the one error surface that *can*
+name a cause, because reaching it means a decision was in flight on this item.
+
+> `FEAT-01`
+> The decision wasn&apos;t recorded. Try again.
+
+Button: **Try again**
+
+### Project tab — `src/app/(app)/p/[slug]/error.tsx`
+
+The tab content failed; the turn banner, header and tabs survive. Still vague on purpose: the
+Inbox is covered by the card boundary above, but the Backlog Remove button is not, so this page
+still catches both loads and actions.
+
+> **Something went wrong.**
+> Try again. If you were approving or sending something back, open the Inbox to check whether it
+> went through.
+
+Button: **Try again**
+
+The conditional clause is what keeps this true on every tab — it applies itself only when a
+decision was in flight.
+
+### App shell — `src/app/(app)/error.tsx`
+
+The project layout itself failed, so the header and tabs are gone too. Give one way back.
+
+> **Something went wrong.**
+> Try again, or go back to your projects.
+
+Button: **Try again** · link: **All projects**
+
+---
+
 ## Review notes
 
 Mark anything that reads wrong here; it gets fixed in this file first, then in code.
@@ -504,3 +551,4 @@ Mark anything that reads wrong here; it gets fixed in this file first, then in c
 - [ ] MCP descriptions (§13) — agents read these
 - [ ] Template tone (§14)
 - [x] Landing (§16) — landing-v2 approved 2026-08-30
+- [ ] Error pages (§17) — added 2026-08-31 with the two boundaries

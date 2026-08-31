@@ -4,32 +4,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/fsd/shared/lib/class-name";
+import { activeProjectTab, type ProjectTabId, projectPath } from "@/fsd/shared/routes/project";
 import { ButtonLink } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { Code } from "@/fsd/shared/ui/code";
 import { HEADLINE, type SetupStep, type Turn } from "../model/turn";
 import { NextStepBox } from "./next-step";
 
-type Tab = "board" | "inbox" | "backlog" | "tokens" | "other";
+// 탭이 아닌 프로젝트 하위 경로(항목 상세 등)에서는 null이다.
+type Tab = ProjectTabId | null;
 
 // 레이아웃은 경로를 모른다 — 어느 탭인지는 여기서 읽는다. Board·Inbox에서는 크게, 나머지에서는 한 줄 스트립.
-function tabOf(pathname: string, base: string): Tab {
-  if (pathname === base) return "board";
-  if (pathname.startsWith(`${base}/inbox`)) return "inbox";
-  if (pathname.startsWith(`${base}/backlog`)) return "backlog";
-  if (pathname.startsWith(`${base}/tokens`)) return "tokens";
-  return "other";
-}
-
 export function TurnBanner({ turn, slug }: { turn: Turn; slug: string }) {
-  const base = `/p/${slug}`;
-  const tab = tabOf(usePathname(), base);
-  const full = tab === "board" || tab === "inbox";
-  return full ? <FullBanner turn={turn} tab={tab} base={base} /> : <CompactBanner turn={turn} tab={tab} base={base} />;
+  const base = projectPath(slug);
+  const tab = activeProjectTab(usePathname(), slug);
+  const isFullBanner = tab === "board" || tab === "inbox";
+  return isFullBanner ? <FullBanner turn={turn} tab={tab} base={base} /> : <CompactBanner turn={turn} tab={tab} base={base} />;
 }
 
 function FullBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string }) {
-  if (turn.kind === "setup") return <SetupList steps={turn.steps} base={base} />;
+  if (turn.kind === "setup") return <SetupList steps={turn.steps} current={turn.current} base={base} />;
 
   const headline = HEADLINE[turn.kind];
   return (
@@ -62,33 +56,44 @@ function FullBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string })
   );
 }
 
-function CompactBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string }) {
-  const mine = turn.kind === "mine";
-  let detail: string;
-  let action: { href: string; label: string } | null = null;
-  if (turn.kind === "setup") {
-    const step = turn.steps[turn.current - 1];
-    detail = step === undefined ? "" : `Step ${turn.current} of 4 — ${step.title}.`;
-  } else if (turn.kind === "mine") {
-    detail = turn.why === null ? turn.detail : `${turn.detail} · pm is blocked until you clear one`;
-    action = { href: `${base}/inbox`, label: "Open inbox →" };
-  } else if (turn.kind === "theirs") {
-    detail = turn.detail;
-  } else {
-    detail = turn.detail;
-    if (tab !== "backlog") action = { href: `${base}/backlog`, label: "Open backlog →" };
+type CompactView = { detail: string; action: { href: string; label: string } | null };
+
+// 한 줄 스트립이 무엇을 말하고 어디로 보낼지 — kind마다 한 갈래씩, 마크업과 분리해서 읽는다.
+function compactView(turn: Turn, tab: Tab, base: string): CompactView {
+  switch (turn.kind) {
+    case "setup": {
+      const step = turn.steps[turn.current - 1];
+      return { detail: step === undefined ? "" : `Step ${turn.current} of 4 — ${step.title}.`, action: null };
+    }
+    case "mine":
+      return {
+        detail: turn.why === null ? turn.detail : `${turn.detail} · pm is blocked until you clear one`,
+        action: { href: `${base}/inbox`, label: "Open inbox →" },
+      };
+    case "theirs":
+      return { detail: turn.detail, action: null };
+    case "none":
+      return {
+        detail: turn.detail,
+        action: tab === "backlog" ? null : { href: `${base}/backlog`, label: "Open backlog →" },
+      };
   }
+}
+
+function CompactBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string }) {
+  const isMyTurn = turn.kind === "mine";
+  const { detail, action } = compactView(turn, tab, base);
   return (
     <div
       className={cn(
         "flex flex-wrap items-baseline gap-x-2.5 gap-y-1 rounded-lg border px-3.5 py-2.5 text-sm",
-        mine ? "border-mine-soft bg-mine-soft" : "border-rule bg-paper",
+        isMyTurn ? "border-mine-soft bg-mine-soft" : "border-rule bg-paper",
       )}
     >
-      <b className={cn("font-medium", mine && "text-mine")}>{turn.kind === "setup" ? "Setting up" : HEADLINE[turn.kind]}</b>
+      <b className={cn("font-medium", isMyTurn && "text-mine")}>{turn.kind === "setup" ? "Setting up" : HEADLINE[turn.kind]}</b>
       <span className="text-quiet">{detail}</span>
       {action !== null ? (
-        <Link href={action.href} className={cn("ml-auto", mine ? "text-mine" : "text-ink")}>
+        <Link href={action.href} className={cn("ml-auto", isMyTurn ? "text-mine" : "text-ink")}>
           {action.label}
         </Link>
       ) : null}
@@ -97,14 +102,14 @@ function CompactBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string
 }
 
 // 첫 방문 체크리스트. 단계 1–3은 데이터에서 판정되고, 4는 첫 항목이 보드에 오르면 끝난다.
-function SetupList({ steps, base }: { steps: SetupStep[]; base: string }) {
-  const current = steps.findIndex((s) => !s.done);
+// current는 deriveTurn이 이미 정한 1-based 값 — 여기서 다시 계산하지 않는다.
+function SetupList({ steps, current, base }: { steps: SetupStep[]; current: number; base: string }) {
   return (
     <section className="flex flex-col gap-2">
       <h1 className="type-display">{HEADLINE.setup}</h1>
       <ol className="mt-2 flex flex-col border-t border-rule">
         {steps.map((step, i) => {
-          const isCurrent = i === current;
+          const isCurrent = i === current - 1;
           return (
             <li
               key={step.key}

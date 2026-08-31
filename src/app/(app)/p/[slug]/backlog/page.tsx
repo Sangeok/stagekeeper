@@ -20,7 +20,7 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
       rows={items.map(({ key, title, area, status, removedAt }) => ({ key, title, area, status, removedAt }))}
       editing={editing ? { key: editing.key, title: editing.title, area: editing.area, source: editing.source } : undefined}
       add={addBacklogItem.bind(null, slug)}
-      update={editKey ? updateBacklogItem.bind(null, slug, editKey) : addBacklogItem.bind(null, slug)}
+      update={editKey ? updateBacklogItem.bind(null, slug, editKey) : undefined}
       remove={removeBacklogItem.bind(null, slug)}
     />
   );

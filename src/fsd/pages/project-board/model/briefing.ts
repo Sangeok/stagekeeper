@@ -1,3 +1,4 @@
+import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
 import {
   docLinksForItem,
   type BoardItem,
@@ -66,7 +67,7 @@ export function daysOnBoard(sectionDate: string, today: Date): number | null {
   if (!m) return null;
   const y = m[1],
     mo = m[2],
-    d = m[3]; // 각각 string | undefined
+    d = m[3]; // 방어적: 정규식이 매치했으므로 세 그룹은 항상 존재한다
   if (y === undefined || mo === undefined || d === undefined) return null;
   const start = Date.UTC(Number(y), Number(mo) - 1, Number(d));
   const now = Date.UTC(
@@ -139,8 +140,9 @@ function inboxSpeech(
   };
 }
 
-/** 보드 evidence·result 요약 예산. 상세는 docs/agents/<행위자>/ 로 간다. */
-export const FIELD_BUDGET = 150;
+/** 보드 evidence·result 요약 예산. 상세는 docs/agents/<행위자>/ 로 간다.
+ *  값의 유일한 출처는 서버가 실제로 거부에 쓰는 packages/core의 TEXT_LIMIT이다. */
+export const FIELD_BUDGET = TEXT_LIMIT;
 
 /** 필드 전체 길이로 잰다 — 첫 문장이 아니다. */
 export function isOverBudget(text: string | null): boolean {
@@ -198,26 +200,29 @@ function feedSpeech(
   };
 }
 
-function teamState(
-  agentId: string,
-  items: DatedItem[],
-): { state: string; heldId: string | null; tone: Tone } {
-  if (agentId === "pm") {
-    const pending = items.filter((it) => it.status === "proposed").length;
-    return pending > 0
-      ? { state: `${pending} awaiting your approval`, heldId: null, tone: "pending" }
-      : { state: "No new proposals", heldId: null, tone: "muted" };
-  }
-  if (agentId === "plan-verifier") {
-    // plan-verifier는 보드 `agent:` 필드에 등장하지 않는다(런북 4단계에서 메인 루프가
-    // 디스패치하는 독립 검증자). 그래서 pm처럼 보드에서 파생하는 특별 분기가 필요하다.
-    // 파생 규칙: in_review 항목 = 검증 대상 계획서. 하나라도 있으면 "Verifying"(그 계획서가 heldId),
-    // 없으면 "Idle". items는 이미 dedupe된 최신 행이며 find는 보드 순서(최신 섹션 우선) 첫 in_review를 준다.
-    const review = items.find((it) => it.status === "in_review");
-    return review !== undefined
-      ? { state: `Verifying ${review.id}`, heldId: review.id, tone: "active" }
-      : { state: "Idle", heldId: null, tone: "muted" };
-  }
+type TeamState = { state: string; heldId: string | null; tone: Tone };
+
+// pm은 보드에서 일하지 않는다 — 올려둔 제안이 몇 건 대기 중인지로 말한다.
+function pmState(items: DatedItem[]): TeamState {
+  const pending = items.filter((it) => it.status === "proposed").length;
+  return pending > 0
+    ? { state: `${pending} awaiting your approval`, heldId: null, tone: "pending" }
+    : { state: "No new proposals", heldId: null, tone: "muted" };
+}
+
+// plan-verifier는 보드 `agent:` 필드에 등장하지 않는다(런북 4단계에서 메인 루프가
+// 디스패치하는 독립 검증자). 그래서 pm처럼 보드에서 파생하는 특별 분기가 필요하다.
+// 파생 규칙: in_review 항목 = 검증 대상 계획서. 하나라도 있으면 "Verifying"(그 계획서가 heldId),
+// 없으면 "Idle". items는 이미 dedupe된 최신 행이며 find는 보드 순서(최신 섹션 우선) 첫 in_review를 준다.
+function verifierState(items: DatedItem[]): TeamState {
+  const review = items.find((it) => it.status === "in_review");
+  return review !== undefined
+    ? { state: `Verifying ${review.id}`, heldId: review.id, tone: "active" }
+    : { state: "Idle", heldId: null, tone: "muted" };
+}
+
+// 일반 에이전트는 자기 항목만 본다. 우선순위: 검토 대기 → 작업 중 → 보류 → 최근 완료 → 유휴.
+function workerState(agentId: string, items: DatedItem[]): TeamState {
   const mine = items.filter((it) => it.agent === agentId);
   const review = mine.find((it) => it.status === "in_review");
   if (review !== undefined)
@@ -233,6 +238,12 @@ function teamState(
   if (done !== undefined)
     return { state: "Recently done", heldId: done.id, tone: "done" };
   return { state: "Idle", heldId: null, tone: "muted" };
+}
+
+function teamState(agentId: string, items: DatedItem[]): TeamState {
+  if (agentId === "pm") return pmState(items);
+  if (agentId === "plan-verifier") return verifierState(items);
+  return workerState(agentId, items);
 }
 
 // "Aug 15" — UTC 기준(daysOnBoard와 같은 시계).

@@ -10,14 +10,17 @@ type Row = { status: string; agent: string; reason: string; results: string[]; v
 
 export function toBoardItem(r: Row): BoardItem {
   return { checked: r.status === "done", id: r.backlogItem.key, title: r.backlogItem.title, agent: r.agent, area: r.backlogItem.area,
-    status: r.status, reason: r.reason, result: r.results.length ? r.results.join(" ") : null, validation: r.validation };
+    status: r.status, reason: r.reason, result: r.results.length > 0 ? r.results.join(" ") : null, validation: r.validation };
 }
 
 export function toBoardSections(rows: Row[]): BoardSection[] {
   const byDay = new Map<string, BoardItem[]>();
   for (const r of [...rows].sort((a, b) => b.proposedOn.getTime() - a.proposedOn.getTime())) {
     const day = r.proposedOn.toISOString().slice(0, 10);
-    (byDay.get(day) ?? byDay.set(day, []).get(day)!).push(toBoardItem(r));
+    const item = toBoardItem(r);
+    const dayItems = byDay.get(day);
+    if (dayItems === undefined) byDay.set(day, [item]);
+    else dayItems.push(item);
   }
   return [...byDay].map(([heading, items]) => ({ heading, items }));
 }

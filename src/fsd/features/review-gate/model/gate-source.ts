@@ -17,6 +17,12 @@ export function resumeTargetsFor(status: string): string[] {
   return STATUSES.filter((to: string) => findRule("human", status, to)?.kind === "resume");
 }
 
+// 결재함에 오르는 status = 게이트가 열려 있거나(승인 대기) 재개할 수 있는 것.
+// 화이트리스트를 두 벌로 만들지 않으려고 여기서도 상태 기계에서 파생한다.
+export function needsHumanDecision(status: string): boolean {
+  return isGateSource(status) || resumeTargetsFor(status).length > 0;
+}
+
 export function rejectActionsFor(status: string): RejectAction[] {
   const actions: RejectAction[] = [];
   if (findRule("human", status, "planning")?.kind === "bounce") actions.push("bounce");

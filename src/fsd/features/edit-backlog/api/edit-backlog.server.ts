@@ -1,5 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { projectPath } from "@/fsd/shared/routes/project";
+import { Prisma } from "@/generated/prisma/client";
 import { requireMember } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { latestBoard } from "@/server/pipeline/board";
@@ -17,10 +19,18 @@ export async function addBacklogItem(slug: string, _prev: BacklogFormState, form
   if (await prisma.backlogItem.findUnique({ where: { projectId_key: { projectId, key } } })) {
     return { error: `${key} already exists.` };
   }
-  await prisma.backlogItem.create({
-    data: { projectId, key, title, area: field(form, "area"), source: field(form, "source") },
-  });
-  revalidatePath(`/p/${slug}/backlog`);
+  try {
+    await prisma.backlogItem.create({
+      data: { projectId, key, title, area: field(form, "area"), source: field(form, "source") },
+    });
+  } catch (error) {
+    // 위 findUnique 이후에 같은 key가 먼저 들어갔을 때 — 같은 답을 준다.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { error: `${key} already exists.` };
+    }
+    throw error;
+  }
+  revalidatePath(projectPath(slug, "/backlog"));
   return { done: true };
 }
 
@@ -35,7 +45,7 @@ export async function updateBacklogItem(
     data: { title, area: field(form, "area"), source: field(form, "source") },
   });
   if (updated.count === 0) return { error: `${key} doesn't exist.` };
-  revalidatePath(`/p/${slug}/backlog`);
+  revalidatePath(projectPath(slug, "/backlog"));
   return { done: true };
 }
 
@@ -51,6 +61,6 @@ export async function removeBacklogItem(slug: string, key: string): Promise<Back
     data: { removedAt: new Date() },
   });
   if (removed.count === 0) return { error: `${key} doesn't exist.` };
-  revalidatePath(`/p/${slug}/backlog`);
+  revalidatePath(projectPath(slug, "/backlog"));
   return { done: true };
 }
