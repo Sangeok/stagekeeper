@@ -123,6 +123,14 @@ model Report {
   boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
 }
 
+model Template {                         // 에이전트·규약 템플릿 원문. 플러그인에 동봉하지 않고 서버가 인증된 요청에만 내려준다
+  lang      String                       // harness.json.language
+  path      String                       // agents/pm.md · agents/dev.md · docs/plans/README.md · CLAUDE.runbook.md
+  body      String                       // 자리표시자({{...}})가 든 원문. 렌더는 사용자 쪽에서 한다
+  updatedAt DateTime @updatedAt
+  @@id([lang, path])
+}
+
 model Command {                          // 명령 원장 (Phase 3에서 소비)
   id        String    @id @default(cuid())
   projectId String

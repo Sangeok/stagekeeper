@@ -2,14 +2,36 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));
 const APCH = readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8");
+
+// 템플릿 원문은 저장소에 없다 — 서버가 인증된 요청에만 내려준다. 여기서 검증하는 것은 생성기의 동작
+// (무엇을 쓰고·건너뛰고·거부하는가)이지 템플릿 내용이 아니므로, 최소 픽스처를 로컬 우회로로 물린다.
+const TPL_DIR = mkdtempSync(join(tmpdir(), "harness-tpl-"));
+for (const [rel, body] of Object.entries({
+  "docs/plans/README.md": "# Plans — {{project.name}}\n",
+  "docs/plans/template.md": "# Plan\n",
+  "docs/plans/verification-paths.md": "# Verification paths\n",
+  "docs/agents/README.md": "# Agents\n{{roster_table}}\n",
+  "agents/pm.md": "---\nname: pm\n---\nroster {{roster_names}}\n",
+  "agents/plan-verifier.md": "---\nname: plan-verifier\n---\n",
+  "agents/doc-auditor.md": "---\nname: doc-auditor\n---\n",
+  "agents/feature-scout.md": "---\nname: feature-scout\n---\n{{scout.question}}\n",
+  "agents/dev.md": "---\nname: {{ws.agent}}\n---\nowns {{ws.path}}\n{{ws.verify_block}}\n",
+  "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\n",
+})) {
+  const full = join(TPL_DIR, "en", rel);
+  mkdirSync(dirname(full), { recursive: true });
+  writeFileSync(full, body);
+}
+
 const run = (root, ...args) => {
-  try { return { code: 0, out: execFileSync("node", [BIN, "--root", root, "--server", "https://h.example", ...args], { encoding: "utf8" }) }; }
+  const env = { ...process.env, HARNESS_TEMPLATES_DIR: TPL_DIR };
+  try { return { code: 0, out: execFileSync("node", [BIN, "--root", root, "--server", "https://h.example", ...args], { encoding: "utf8", env }) }; }
   catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; }
 };
 const fresh = (cfg = APCH) => { const root = mkdtempSync(join(tmpdir(), "harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };

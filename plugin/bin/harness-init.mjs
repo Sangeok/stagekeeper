@@ -4,7 +4,6 @@
 // 종료코드: 0 완료 · 1 설정 오류 · 3 refuse(기존 파일과 충돌, 아무것도 쓰지 않음)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseHarnessConfig } from "../lib/config.mjs";
 import { buildLock, planWrites } from "../lib/manifest.mjs";
 import { renderTemplate } from "../lib/render.mjs";
@@ -17,7 +16,9 @@ const CONFIG = join(ROOT, opt("--config", "harness.json"));
 const SERVER = (opt("--server", process.env.HARNESS_SERVER) ?? "").replace(/\/$/, "");
 const ADOPT = args.includes("--adopt");
 const DRY = args.includes("--dry-run");
-const TPL = join(dirname(fileURLToPath(import.meta.url)), "..", "templates");
+// 템플릿은 플러그인에 동봉하지 않는다 — 서버가 인증된 요청에만 내려준다.
+// HARNESS_TEMPLATES_DIR는 개발·테스트에서 로컬 원본을 쓰기 위한 우회로다.
+const TPL_DIR = process.env.HARNESS_TEMPLATES_DIR;
 const RUNBOOK_START = "<!-- harness:runbook:start -->", RUNBOOK_END = "<!-- harness:runbook:end -->";
 
 let config;
@@ -28,18 +29,41 @@ catch (e) { console.log(`Config error: ${e.message}`); process.exit(1); }
 if (!SERVER) { console.log("Server URL required: pass --server <url> or set HARNESS_SERVER (shown on the web Tokens page)"); process.exit(1); }
 
 const lang = config.language;
-const tpl = (rel) => readFileSync(join(TPL, rel), "utf8");
+
+let fetched = null;
+if (!TPL_DIR) {
+  const token = process.env.HARNESS_TOKEN;
+  if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
+  const url = `${SERVER}/api/templates?lang=${encodeURIComponent(lang)}`;
+  let res;
+  try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
+  catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
+  if (!res.ok) {
+    const reason = await res.json().then((b) => b.error).catch(() => res.statusText);
+    console.log(`Templates unavailable (${res.status}): ${reason}`);
+    process.exit(1);
+  }
+  fetched = await res.json();
+}
+
+// rel은 언어를 뺀 경로다 — 서버는 lang으로 갈라 주고, 로컬 원본은 <dir>/<lang>/<rel>에 있다.
+const tpl = (rel) => {
+  if (TPL_DIR) return readFileSync(join(TPL_DIR, lang, rel), "utf8");
+  const body = fetched[rel];
+  if (body === undefined) { console.log(`Template missing on server: ${lang}/${rel}`); process.exit(1); }
+  return body;
+};
 const vars = buildVars(config);
 const targets = {};
 const add = (path, template, content) => { targets[path] = { template, content }; };
 
 for (const d of ["plans/README.md", "plans/template.md", "plans/verification-paths.md", "agents/README.md"])
-  add(`docs/${d}`, `${lang}/docs/${d}`, renderTemplate(tpl(`${lang}/docs/${d}`), vars));
+  add(`docs/${d}`, `${lang}/docs/${d}`, renderTemplate(tpl(`docs/${d}`), vars));
 for (const a of ["pm", "plan-verifier", "doc-auditor"])
-  add(`.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, renderTemplate(tpl(`${lang}/agents/${a}.md`), vars));
-if (config.scout) add(".claude/agents/feature-scout.md", `${lang}/agents/feature-scout.md`, renderTemplate(tpl(`${lang}/agents/feature-scout.md`), vars));
+  add(`.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, renderTemplate(tpl(`agents/${a}.md`), vars));
+if (config.scout) add(".claude/agents/feature-scout.md", `${lang}/agents/feature-scout.md`, renderTemplate(tpl("agents/feature-scout.md"), vars));
 for (const ws of config.workspaces)
-  add(`.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, renderTemplate(tpl(`${lang}/agents/dev.md`), buildWorkspaceVars(config, ws)));
+  add(`.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, renderTemplate(tpl("agents/dev.md"), buildWorkspaceVars(config, ws)));
 
 const existing = {};
 for (const p of Object.keys(targets)) existing[p] = existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), "utf8") : null;
@@ -55,7 +79,7 @@ const write = (p, content) => { if (DRY) return; mkdirSync(dirname(join(ROOT, p)
 for (const p of plan.write) { console.log(`write: ${p}`); write(p, targets[p].content); }
 
 // 런북: 마커 사이 절만 우리 것. 병합 파일이라 lock에 넣지 않는다.
-const runbookBlock = `${RUNBOOK_START}\n${renderTemplate(tpl(`${lang}/CLAUDE.runbook.md`), vars)}\n${RUNBOOK_END}`;
+const runbookBlock = `${RUNBOOK_START}\n${renderTemplate(tpl("CLAUDE.runbook.md"), vars)}\n${RUNBOOK_END}`;
 const runbookPath = join(ROOT, "CLAUDE.md");
 let runbook = existsSync(runbookPath) ? readFileSync(runbookPath, "utf8") : "";
 const s = runbook.indexOf(RUNBOOK_START), e = runbook.indexOf(RUNBOOK_END);
