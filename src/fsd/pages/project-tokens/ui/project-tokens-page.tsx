@@ -1,4 +1,5 @@
 import { NewTokenForm } from "@/fsd/features/manage-token";
+import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";
 import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
@@ -8,7 +9,7 @@ export type TokenRow = { id: string; label: string; createdAt: Date; revokedAt: 
 type Props = {
   mcpUrl: string;
   tokens: TokenRow[];
-  issue: (label: string) => Promise<{ token: string }>;
+  issue: (label: string) => Promise<ActionResult<{ token: string }>>;
   revoke: (tokenId: string) => Promise<void>;
 };
 

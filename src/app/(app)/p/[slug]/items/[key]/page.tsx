@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { blobHref } from "@/fsd/entities/board-item";
 import { BoardItemPage, type ItemDoc } from "@/fsd/pages/board-item";
 import { requireMember } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
@@ -13,7 +14,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
   ]);
   if (!row) notFound();
 
-  const blob = (path: string) => `https://github.com/${project.owner}/${project.repo}/blob/${project.branch}/${path}`;
+  const blob = (path: string) => blobHref(project, path);
   const docs: ItemDoc[] = [];
   if (row.planPath) docs.push({ label: "Plan", path: row.planPath, href: blob(row.planPath) });
   for (const report of row.reports) {

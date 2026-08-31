@@ -2,11 +2,12 @@
 import { useState, useTransition } from "react";
 
 import { TokenReveal } from "@/fsd/entities/project-token";
+import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 
 // 서버 액션은 route가 prop으로 넘긴다 — "use client" 파일은 *.server를 import할 수 없다(fsd.md).
-type Props = { issue: (label: string) => Promise<{ token: string }>; mcpUrl: string };
+type Props = { issue: (label: string) => Promise<ActionResult<{ token: string }>>; mcpUrl: string };
 
 export function NewTokenForm({ issue, mcpUrl }: Props) {
   const [token, setToken] = useState<string | null>(null);
@@ -21,7 +22,13 @@ export function NewTokenForm({ issue, mcpUrl }: Props) {
           const label = String(new FormData(event.currentTarget).get("label") ?? "");
           startTransition(async () => {
             try {
-              setToken((await issue(label)).token);
+              // requireMember는 여전히 throw하므로 try/catch는 남긴다.
+              const result = await issue(label);
+              if (!result.success) {
+                setError(result.error);
+                return;
+              }
+              setToken(result.data.token);
               setError(null);
             } catch {
               setError("Couldn't issue the token. Try again.");

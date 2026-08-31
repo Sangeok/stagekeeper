@@ -19,6 +19,7 @@ export type SetupStep = {
 export type NextStep = { key: string; line: string };
 
 export type Turn =
+  // current는 1-based다 — steps[current - 1]이 지금 단계.
   | { kind: "setup"; steps: SetupStep[]; current: number }
   | { kind: "mine"; count: number; detail: string; why: string | null; next: NextStep[] }
   | { kind: "theirs"; detail: string; next: NextStep[] }
@@ -34,7 +35,7 @@ export const HEADLINE: Record<Turn["kind"], string> = {
 const NONE_DETAIL = "Pick the next item from the backlog, or run pm in Claude Code to pick for you.";
 const BLOCKED_WHY = "pm can't propose anything new until you clear one.";
 
-function setupSteps(setup: SetupState, hasBoardRows: boolean): SetupStep[] {
+function setupSteps(setup: SetupState): SetupStep[] {
   return [
     {
       key: "token",
@@ -58,13 +59,14 @@ function setupSteps(setup: SetupState, hasBoardRows: boolean): SetupStep[] {
       key: "pm",
       title: "Run pm in Claude Code",
       detail: "It picks up to two items from the backlog and puts them here for your approval.",
-      done: hasBoardRows,
+      // 이 목록은 보드가 비어 있을 때만 만들어진다 — 그래서 마지막 단계는 아직 끝날 수 없다.
+      done: false,
     },
   ];
 }
 
-// 여럿이면 세고, 하나면 이름을 부른다(§5 규칙).
-function count(n: number, one: string, many: string): string {
+// 여럿이면 세고, 하나면 이름을 부른다(§5 규칙). 수가 아니라 문구를 돌려준다.
+function countPhrase(n: number, one: string, many: string): string {
   return n === 1 ? one : many.replace("{n}", String(n));
 }
 
@@ -74,13 +76,13 @@ function mineDetail(pending: TurnItem[]): string {
   const proposed = pending.filter((i) => i.status === "proposed");
   const parts: string[] = [];
   if (verified.length > 0) {
-    parts.push(count(verified.length, `${verified[0]?.key} is ready for your approval`, "{n} plans are ready for your approval"));
+    parts.push(countPhrase(verified.length, `${verified[0]?.key} is ready for your approval`, "{n} plans are ready for your approval"));
   }
   if (unverified.length > 0) {
-    parts.push(count(unverified.length, `${unverified[0]?.key} needs verification before approval`, "{n} plans need verification"));
+    parts.push(countPhrase(unverified.length, `${unverified[0]?.key} needs verification before approval`, "{n} plans need verification"));
   }
   if (proposed.length > 0) {
-    parts.push(count(proposed.length, `${proposed[0]?.key} needs a plan request`, "{n} items need a plan request"));
+    parts.push(countPhrase(proposed.length, `${proposed[0]?.key} needs a plan request`, "{n} items need a plan request"));
   }
   return parts.join(" · ");
 }
@@ -110,7 +112,7 @@ function nextSteps(items: TurnItem[]): NextStep[] {
 
 export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn {
   if (items.length === 0) {
-    const steps = setupSteps(setup, false);
+    const steps = setupSteps(setup);
     const firstOpen = steps.findIndex((s) => !s.done);
     return { kind: "setup", steps, current: (firstOpen === -1 ? steps.length - 1 : firstOpen) + 1 };
   }

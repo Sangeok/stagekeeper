@@ -5,6 +5,13 @@
 export type DocKind = "plan" | "report";
 export type DocLink = { label: string; href: string; kind: DocKind };
 
+// 저장소 문서의 실제 주소. 라우트마다 템플릿을 다시 쓰면 화면마다 다른 링크가 나온다.
+export type RepoRef = { owner: string; repo: string; branch: string };
+
+export function blobHref(repo: RepoRef, path: string): string {
+  return `https://github.com/${repo.owner}/${repo.repo}/blob/${repo.branch}/${path}`;
+}
+
 export function planDocHref(id: string): string {
   return `/pipeline/docs/plans/${id}`;
 }

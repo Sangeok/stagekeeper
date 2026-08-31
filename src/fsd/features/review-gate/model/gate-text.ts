@@ -1,5 +1,6 @@
 // 사람 동작의 낱말. 버튼은 동사, 성공 뒤 칩은 결과, 토스트는 같은 낱말을 잇는다(product-copy.md §3).
 // ApcH transition-pipeline-gate/model/transitions.ts(de25a1c)에서 문구·칩 재료만 옮겼고 은유(도장)는 버렸다.
+import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
 
 // 카드 잠금 표식: 게이트·되돌리기 성공 뒤 버튼 자리를 대신하는 비상호작용 칩의 재료.
 export type CardLock = { label: string; tone: "mine" | "risk" | "done" };
@@ -93,12 +94,14 @@ function isoDay(today: Date): string {
   return `${today.getUTCFullYear()}-${pad2(today.getUTCMonth() + 1)}-${pad2(today.getUTCDate())}`;
 }
 
-// 노트는 result 줄에 접두어와 함께 들어가므로(≤150자) 입력 상한은 접두어만큼 줄어든다.
+// 노트는 result 줄에 접두어와 함께 들어가므로(≤TEXT_LIMIT) 입력 상한은 접두어만큼 줄어든다.
+// 접두어는 holdResultLine이 실제로 만드는 것에서 파생한다 — 문구를 고쳐도 상한이 따라온다.
 const BOUNCE_PREFIX = "Sent back: ";
-const HOLD_PREFIX_LENGTH = "On hold by owner (2026-01-01): ".length;
+const holdPrefix = (date: string) => `On hold by owner (${date}): `;
+const HOLD_PREFIX_LENGTH = holdPrefix("2026-01-01").length;
 export const NOTE_LIMIT: Record<"bounce" | "hold", number> = {
-  bounce: 150 - BOUNCE_PREFIX.length,
-  hold: 150 - HOLD_PREFIX_LENGTH,
+  bounce: TEXT_LIMIT - BOUNCE_PREFIX.length,
+  hold: TEXT_LIMIT - HOLD_PREFIX_LENGTH,
 };
 
 // 되돌릴 때 dev가 읽을 노트. 비어 있으면 result를 남기지 않는다.
@@ -114,5 +117,5 @@ export function holdResultLine(today: Date, note = ""): string {
   if (text === "") {
     return `On hold by owner (${date}). Not discarded — still in the backlog. Resume to Planning or Implementing.`;
   }
-  return `On hold by owner (${date}): ${text}`;
+  return `${holdPrefix(date)}${text}`;
 }

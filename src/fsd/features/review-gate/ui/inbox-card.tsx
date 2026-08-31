@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
 import { statusLabel } from "@/fsd/entities/board-item";
 import { agoLabel, shortDate } from "@/fsd/shared/lib/relative-time";
 import { Button, ExternalButtonLink } from "@/fsd/shared/ui/button";
@@ -24,29 +25,35 @@ import {
 } from "../model/gate-text";
 import type { DiscardAction, InboxItem, TransitionAction } from "../model/inbox-item";
 import { GateCardLock } from "./gate-card-lock";
+import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
 import { RejectActions } from "./reject-actions";
 
 type Props = { item: InboxItem; now: string; transition: TransitionAction; discard: DiscardAction };
 
-// 요약 예산. 서버가 새 값은 거부하지만, 이미 들어온 값의 초과 표시는 화면 몫이다.
-const FIELD_BUDGET = 150;
-
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
 export function InboxCard({ item, now, transition, discard }: Props) {
   const gateTo = gateTargetFor(item.status);
-  const unverified = item.status === "in_review" && item.validation === null;
-  const overBudget = item.reason.length > FIELD_BUDGET || item.results.some((r) => r.length > FIELD_BUDGET);
+  const isProposed = item.status === "proposed";
+  const isInReview = item.status === "in_review";
+  const isOnHold = item.status === "on_hold";
+  const isUnverified = isInReview && item.validation === null;
+  // 서버가 새 값은 거부하지만(TEXT_LIMIT), 이미 들어온 값의 초과 표시는 화면 몫이다.
+  const isOverBudget = item.reason.length > TEXT_LIMIT || item.results.some((r) => r.length > TEXT_LIMIT);
 
   const reject = (action: RejectAction, note: string) => {
     if (action === "discard") return discard(item.key, item.updatedAt);
-    if (action === "hold") return transition(item.key, "on_hold", holdResultLine(new Date(now), note), item.updatedAt);
-    return transition(item.key, "planning", bounceResultLine(note), item.updatedAt);
+    // 기록에 남는 날짜라 렌더 시각(now)이 아니라 누른 시각을 쓴다 — 탭을 오래 열어두면 어제 날짜가 박힌다.
+    if (action === "hold") {
+      return transition({ key: item.key, to: "on_hold", result: holdResultLine(new Date(), note), expectedUpdatedAt: item.updatedAt });
+    }
+    return transition({ key: item.key, to: "planning", result: bounceResultLine(note), expectedUpdatedAt: item.updatedAt });
   };
 
   return (
-    <GateCardLock>
-      <article className={cardClass(gateTo !== null)}>
+    <InboxCardBoundary itemKey={item.key}>
+      <GateCardLock>
+        <article className={cardClass(gateTo !== null)}>
         <header className="flex flex-col gap-[3px]">
           <p className="font-mono text-xs text-quiet">
             {item.key} · {item.area}
@@ -54,44 +61,44 @@ export function InboxCard({ item, now, transition, discard }: Props) {
           <h3 className="text-[17px] leading-6 font-medium tracking-[-0.01em]">{item.title}</h3>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-quiet">
             <StatusLine item={item} now={now} />
-            {overBudget ? (
-              <Chip tone="done" title="This summary is over 150 characters. Move the details to docs/agents/.">
-                Over 150 characters
+            {isOverBudget ? (
+              <Chip tone="done" title={`This summary is over ${TEXT_LIMIT} characters. Move the details to docs/agents/.`}>
+                Over {TEXT_LIMIT} characters
               </Chip>
             ) : null}
           </p>
         </header>
 
-        {item.status === "in_review" ? <PlanRow item={item} /> : null}
-        {item.status === "proposed" ? <Kv label="Evidence">{item.reason}</Kv> : null}
-        {item.status === "on_hold" ? <Kv label="Your note">{item.results[item.results.length - 1] ?? item.reason}</Kv> : null}
+        {isInReview ? <PlanRow item={item} /> : null}
+        {isProposed ? <Kv label="Evidence">{item.reason}</Kv> : null}
+        {isOnHold ? <Kv label="Your note">{item.results[item.results.length - 1] ?? item.reason}</Kv> : null}
 
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            {item.status === "in_review" && item.planUrl !== null ? (
+            {isInReview && item.planUrl !== null ? (
               <ExternalButtonLink href={item.planUrl}>Read the plan ↗</ExternalButtonLink>
             ) : null}
             {gateTo !== null ? (
               <GateTransitionButton
                 to={gateTo}
                 itemKey={item.key}
-                variant={unverified ? "mine-outline" : "mine"}
-                commit={() => transition(item.key, gateTo, undefined, item.updatedAt)}
+                variant={isUnverified ? "mine-outline" : "mine"}
+                commit={() => transition({ key: item.key, to: gateTo, expectedUpdatedAt: item.updatedAt })}
               />
             ) : null}
-            {item.status === "on_hold" ? <ResumeButtons item={item} transition={transition} /> : null}
+            {isOnHold ? <ResumeButtons item={item} transition={transition} /> : null}
           </div>
           {gateTo !== null ? (
-            <p className={unverified ? "text-xs text-risk" : "text-xs text-quiet"}>
-              {unverified ? UNVERIFIED_HINT : gateNextActionHint(gateTo)}
+            <p className={isUnverified ? "text-xs text-risk" : "text-xs text-quiet"}>
+              {isUnverified ? UNVERIFIED_HINT : gateNextActionHint(gateTo)}
             </p>
           ) : null}
-          {item.status === "on_hold" ? (
+          {isOnHold ? (
             <p className="text-xs text-quiet">{resumeHint(resumePrimaryFor(item.heldFrom), item.heldFrom)}</p>
           ) : null}
         </div>
 
-        {item.status === "in_review" ? (
+        {isInReview ? (
           <details className="text-xs text-quiet">
             <summary className="cursor-pointer">Evidence and result</summary>
             <div className="mt-2">
@@ -121,8 +128,9 @@ export function InboxCard({ item, now, transition, discard }: Props) {
             More in the repo: <Code>docs/architecture/protocol.md</Code>
           </p>
         </details>
-      </article>
-    </GateCardLock>
+        </article>
+      </GateCardLock>
+    </InboxCardBoundary>
   );
 }
 
@@ -189,7 +197,8 @@ function Kv({ label, children }: { label: string; children: ReactNode }) {
 }
 
 // 보류 카드: 멈춘 자리로 돌아가는 버튼 하나가 주(主). 다른 쪽은 텍스트 링크.
-function ResumeButtons({ item, transition }: { item: InboxItem; transition: TransitionAction }) {
+// 서버 액션은 moveItem으로 받는다 — 바로 아래 React의 startTransition과 이름이 겹치지 않게.
+function ResumeButtons({ item, transition: moveItem }: { item: InboxItem; transition: TransitionAction }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const targets = resumeTargetsFor(item.status);
@@ -198,7 +207,7 @@ function ResumeButtons({ item, transition }: { item: InboxItem; transition: Tran
 
   const resume = (to: string) => {
     startTransition(async () => {
-      const result = await transition(item.key, to, undefined, item.updatedAt);
+      const result = await moveItem({ key: item.key, to, expectedUpdatedAt: item.updatedAt });
       if (!result.success) {
         toast.error(result.error);
         return;

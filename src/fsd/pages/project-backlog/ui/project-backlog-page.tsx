@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { BacklogForm, BacklogTable, type BacklogFormState, type BacklogRow } from "@/fsd/features/edit-backlog";
+import { BacklogForm, BacklogTable, type BacklogFormAction, type BacklogRow, type RemoveBacklogAction } from "@/fsd/features/edit-backlog";
 
 type Props = {
   slug: string;
   rows: BacklogRow[];
   includeRemoved: boolean;
   editing?: { key: string; title: string; area: string; source: string };
-  add: (prev: BacklogFormState, form: FormData) => Promise<BacklogFormState>;
-  update: (prev: BacklogFormState, form: FormData) => Promise<BacklogFormState>;
-  remove: (key: string) => Promise<{ error?: string }>;
+  add: BacklogFormAction;
+  // 편집할 항목이 있을 때만 온다 — 없을 때 add로 대신 채우면 "수정"이 조용히 새 항목을 만든다.
+  update?: BacklogFormAction;
+  remove: RemoveBacklogAction;
 };
 
 export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, update, remove }: Props) {
@@ -24,7 +25,7 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, u
         </Link>
       </div>
       <BacklogTable slug={slug} rows={rows} remove={remove} />
-      {editing ? <BacklogForm action={update} item={editing} /> : <BacklogForm action={add} />}
+      {editing && update ? <BacklogForm action={update} item={editing} /> : <BacklogForm action={add} />}
     </>
   );
 }

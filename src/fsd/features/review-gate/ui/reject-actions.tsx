@@ -35,7 +35,7 @@ export function RejectActions({
 }) {
   const router = useRouter();
   const { lock, setLock } = useGateCardLock();
-  const [open, setOpen] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [panel, setPanel] = useState<RejectAction | null>(null);
   const [note, setNote] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -57,7 +57,7 @@ export function RejectActions({
   };
 
   const toggle = () => {
-    setOpen((value) => !value);
+    setIsPanelOpen((value) => !value);
     setPanel(null);
     setNote("");
   };
@@ -70,9 +70,9 @@ export function RejectActions({
   return (
     <div className="flex flex-col gap-2">
       <button type="button" onClick={toggle} className="self-start text-xs text-quiet underline underline-offset-2">
-        {open ? "Hide actions" : "More actions"}
+        {isPanelOpen ? "Hide actions" : "More actions"}
       </button>
-      {open ? (
+      {isPanelOpen ? (
         <>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {actions.map((action) => (

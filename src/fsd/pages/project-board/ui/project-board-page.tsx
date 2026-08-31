@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
 import { statusLabel } from "@/fsd/entities/board-item";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Chip } from "@/fsd/shared/ui/chip";
@@ -38,20 +39,20 @@ function lineWithoutKey(item: SpeechItem): string {
 }
 
 function ActivityRow({ slug, item }: { slug: string; item: SpeechItem }) {
-  const quiet = item.tone === "done" || item.tone === "hold" || item.tone === "muted";
+  const isQuiet = item.tone === "done" || item.tone === "hold" || item.tone === "muted";
   return (
     <Link
       href={`/p/${slug}/items/${item.id}`}
       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-rule px-3.5 py-2.5 last:border-b-0 hover:bg-field"
     >
-      <span className={cn("text-sm", quiet && "text-quiet")}>
+      <span className={cn("text-sm", isQuiet && "text-quiet")}>
         <span className="mr-2.5 font-mono text-xs">{item.id}</span>
         {lineWithoutKey(item)}
       </span>
       <span className="flex items-center gap-1.5">
         {item.overBudget ? (
-          <Chip tone="done" title="This summary is over 150 characters. Move the details to docs/agents/.">
-            Over 150 characters
+          <Chip tone="done" title={`This summary is over ${TEXT_LIMIT} characters. Move the details to docs/agents/.`}>
+            Over {TEXT_LIMIT} characters
           </Chip>
         ) : null}
         <Chip tone="done">{statusLabel(item.status)}</Chip>

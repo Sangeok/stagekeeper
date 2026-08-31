@@ -80,7 +80,7 @@ export function deriveJourney(
     state: i < idx ? "done" : i === idx ? "current" : "upcoming",
   }));
 
-  const current = stages[idx]; // idx는 1..5이라 항상 존재하지만 noUncheckedIndexedAccess 보정
+  const current = stages[idx]; // 방어적: idx는 1..5라 stages에 항상 존재한다
   if (current === undefined) return null;
   const next = stages[idx + 1]; // JourneyStage | undefined(마지막이면 없음)
 

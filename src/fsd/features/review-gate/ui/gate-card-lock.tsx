@@ -15,8 +15,11 @@ type GateCardLockValue = {
 
 const GateCardLockContext = createContext<GateCardLockValue | null>(null);
 
+// Provider 밖에서 쓰면 잠금이 조용히 사라진다(같은 결정을 두 번 보낼 수 있다) — 조용히 무너지지 말고 터진다.
 export function useGateCardLock(): GateCardLockValue {
-  return useContext(GateCardLockContext) ?? { lock: null, setLock: () => undefined };
+  const value = useContext(GateCardLockContext);
+  if (value === null) throw new Error("useGateCardLock must be used inside <GateCardLock>");
+  return value;
 }
 
 export function GateCardLock({ children }: { children: ReactNode }) {
