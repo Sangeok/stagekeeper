@@ -60,9 +60,10 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
     .filter((row) => needsHumanDecision(row.status))
     .sort((a, b) => (INBOX_SORT[a.status] ?? 9) - (INBOX_SORT[b.status] ?? 9))
     .map((row) => {
-      // 이벤트는 최신순. 지금 status로 바뀐 전이(검증 기록 같은 same-status 이벤트는 제외)의 시각.
+      // 이벤트는 최신순. 지금 status로 바뀐 전이(검증·plan·report 같은 same-status 이벤트는 제외)의 시각.
+      // 쿼리(latestBoardWithEvents)가 note 없는 전이만 주지만, 여기서도 같은 가드를 둔다 — 모델이 쿼리 형에 매이지 않게.
       const became = row.events.find((e) => e.to === row.status && e.from !== e.to);
-      const held = row.status === "on_hold" ? row.events.find((e) => e.to === "on_hold") : undefined;
+      const held = row.status === "on_hold" ? row.events.find((e) => e.to === "on_hold" && e.from !== e.to) : undefined;
       return {
         key: row.backlogItem.key,
         title: row.backlogItem.title,

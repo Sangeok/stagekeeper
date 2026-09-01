@@ -18,13 +18,17 @@
 | `board_get` | `{key}` | 최신 보드 행 + 전이 이벤트 + 보고 | dev·plan-verifier·main-loop | 1 |
 | `board_propose` | `{key, agent, reason}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
 | `board_transition` | `{key, to, result?}` | 에이전트 허용 전이만(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit` 선행 필수. `done`은 백로그 항목 자동 제거 | dev | 1 |
-| `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 | dev | 1 |
-| `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 | dev·main-loop | 1 |
+| `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다 | dev·main-loop | 1 |
+| `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록) | dev·main-loop | 1 |
 | `validation_record` | `{key, text}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움 | main-loop | 1 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 
 **등록되지 않은 것(웹 전용):** 게이트 승인(`proposed→planning`, `in_review→implementing`), 되돌리기, 보류(사람), 폐기, 재개, 백로그 편집·삭제, 명령 생성, 토큰 발급.
+
+증거 제출 3종(`plan_submit`·`report_submit`·`validation_record`)은 모두 same-status
+`TransitionEvent`(note `plan`·`report`·`validation`, actorId = 호출 토큰)를 남긴다 —
+원장 = 감사 로그(불변식 8). 클린 사이클의 원장은 정확히 8건이다.
 
 ## 상태 기계
 
@@ -46,7 +50,8 @@
 
 부수 규칙: 폐기는 `proposed`·`in_review`에서만(행은 남고 `discardedAt`이 찍힌다) ·
 미결(`done`·`on_hold`가 아닌 것)이 2건이면 새로 올리지 않는다 · `validation` 기록은
-`in_review`에서만 · `reason`·`result`·`validation`은 각 150자(선택 `result`도 같다).
+`in_review`에서만 · `plan_submit`은 `planning`·`in_review`에서만 · `report_submit`은
+`in_review`·`implementing`·`done`에서만 · `reason`·`result`·`validation`은 각 150자(선택 `result`도 같다).
 
 식별자·라벨의 대응은 `CONTEXT.md` 「States」. 한국어 상태명(승인대기 등)은 v1/ApcH 시절
 이름이며 이 저장소의 DB·MCP·템플릿에는 없다.
@@ -60,7 +65,8 @@
 
 `done` 기록은 재현 검증 후에 받아들인다. 다섯 다 에이전트의 보고가 아니라 **직접 본 것**이어야 한다.
 
-1. 변경 파일 목록 ↔ 계획서 「고칠 파일」
+1. 변경 파일 목록 ↔ 계획서 「고칠 파일」 — 행위자 기록(`docs/agents/<행위자>/<항목ID>.md`)은
+   규약상 같은 커밋에 함께 들어가므로 대조에서 제외한다
 2. diff ↔ 계획서 「구현 스케치」
 3. 검증 명령 직접 재실행
 4. 백로그에서 그 항목이 제거됐는지 확인 — v2에서는 서버가 `removedAt`을 채우므로

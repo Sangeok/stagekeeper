@@ -315,7 +315,8 @@ are terse on purpose — agents parse them.
 | `plan_submit first` · `report_submit first` | — |
 | `cannot discard from implementing` | — |
 | `validation only in in_review (now planning)` | — |
-| `plan_submit only in planning (now in_review)` | — |
+| `plan_submit only in planning or in_review (now done)` | — |
+| `report_submit only in in_review, implementing, or done (now proposed)` | — |
 | `no such board item: FEAT-9` | — |
 
 `checkText` (core): `reason: must not be empty` · `reason: must be 150 characters or fewer (got 163)`.
@@ -338,8 +339,8 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `board_get` | Latest board item with its transition history and reports. |
 | `board_propose` | pm: create a `proposed` item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, or the key is already open. |
 | `board_transition` | Agent transitions only: planning → in_review (after plan_submit), implementing → done (after report_submit), → on_hold (result required). Gates are not here. |
-| `plan_submit` | Record where the plan is (path and commit). Only in `planning`. |
-| `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). |
+| `plan_submit` | Record where the plan is (path and commit). Only in `planning` or `in_review` — re-call after review edits so the approved commit is recorded. |
+| `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters. |
 
 ## 14. Generated templates (`plugin/templates/en/`)
