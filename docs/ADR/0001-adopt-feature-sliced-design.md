@@ -105,7 +105,7 @@ Negative / trade-offs:
 
 - 현재 규칙: `docs/architecture/README.md`, `docs/architecture/fsd.md`
 - 제품 설계: `docs/investigations/active/harness-platform.md`
-- 실행 제안서: `docs/proposals/active/harness-platform-phase-0-1.md`
+- 실행 제안서: `docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md`
 - 재검토 trigger: backend가 독립 배포되어야 하거나, FSD root가 둘 이상 필요해질
   때 새 ADR로 이 결정을 재검토한다.
 

@@ -7,13 +7,15 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 
 ## 현재 상태
 
-2026-08-29 기준 저장소는 create-next-app 스캐폴드(`app/`)와 설계 문서만 있는
-구현 전 단계다. 목표 구조는 아래와 같지만, 승인 대기 중인 Phase 0·1 제안서가
-실행되기 전에는 `src/`, `packages/core/`, `plugin/`이 아직 없을 수 있다.
+2026-09-01 기준 Phase 0·1이 구현·검증 완료된 상태다(스모크 인수:
+`docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md`). 아래 구조가
+실제 저장소와 일치하며, `npm run verify:fsd`·`npm run test:architecture`가 경계를
+강제한다. `plugin/templates/`는 의도적으로 git 미추적이다 — 원본은 별도 private
+저장소(`Sangeok/harness-templates`), 배포는 DB(`Template` 테이블) 경유.
 
-Next.js는 루트 `app/`과 `src/app/`이 동시에 있으면 `src/app/`을 무시한다. 따라서
-마이그레이션 전에는 새 `src/app/`을 따로 만들지 않는다. Phase 0에서 기존
-`app/`을 통째로 `src/app/`으로 옮긴 뒤 목표 구조를 적용한다.
+루트 `app/`은 Phase 0에서 `src/app/`으로 이동 완료됐다. Next.js는 루트 `app/`과
+`src/app/`이 동시에 있으면 `src/app/`을 무시하므로 루트 `app/`을 다시 만들지
+않는다 — 검사기가 동시 존재를 실패로 잡는다.
 
 ```text
 stagekeeper/

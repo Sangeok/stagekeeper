@@ -12,7 +12,7 @@ last-executed-at: '2026-09-01'
 tested-revision: 'stagekeeper d2c7da0→a147260 / harness-smoke 73261bb→3bf56c7'
 owners: ['Sangeok']
 related:
-  - 'docs/proposals/active/harness-platform-phase-0-1.md'
+  - 'docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md'
   - 'docs/investigations/active/harness-platform.md'
 primary-area: 'pipeline'
 observed-environments: ['Windows 11 · Node 22.13.1 · next dev(localhost:3000) · Neon Postgres(us-east-2)']
@@ -54,7 +54,7 @@ follow-up: ['F6 — project_sync가 language를 동기화하지 않음(백로그
 
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 우선순위/해석 | 확인 기준 |
 | ------- | ----------------------- | --------- | ------------- | --------- |
-| R1 | `docs/proposals/active/harness-platform-phase-0-1.md` Goal | Phase 1 완료 기준 | MUST | 빈 저장소 1개 연결 · 항목 1건이 웹 게이트 2회를 거쳐 `완료` · 에이전트 토큰에 게이트 도구 부재를 실측 |
+| R1 | `docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md` Goal | Phase 1 완료 기준 | MUST | 빈 저장소 1개 연결 · 항목 1건이 웹 게이트 2회를 거쳐 `완료` · 에이전트 토큰에 게이트 도구 부재를 실측 |
 | R2 | 같은 문서 T1.17 Step 5 | 웹·저장소 최종 상태 | MUST | `완료` · `검증:` 기록 · 이벤트 8건 이상 · 백로그에서 제거 · 저장소 산출물 3종 · 트리 청결 |
 | R3 | 같은 문서 T1.17 Step 5b / Verification Plan 「인가 격리」 | 인가 경계 | MUST | 4행 전부. 하나라도 기대와 다르면 Phase 1 미완 |
 | R4 | `docs/architecture/protocol.md` 「인수 다섯 조건」 | 인수 | MUST | 다섯 조건을 **직접 재현**(에이전트 보고를 믿지 않음) |

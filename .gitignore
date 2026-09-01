@@ -47,5 +47,5 @@ nul
 # .env.example은 커밋한다(위 .env* 규칙의 예외)
 !.env.example
 
-# 에이전트 템플릿 — 공개 저장소에 두지 않는다. 원본은 별도 private 저장소, 배포는 DB 경유
+# 에이전트 템플릿 — 공개 저장소에 두지 않는다. 원본은 별도 private 저장소(Sangeok/harness-templates), 배포는 DB 경유
 /plugin/templates/
