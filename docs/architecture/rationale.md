@@ -70,8 +70,12 @@ dev의 도구 목록은 스펙 §9가 정한 그대로 지킨다(도구 추가�
 ## 첫 스모크 — Phase 1 완료 기준 실측
 
 2026-08-30, 빈 저장소 `Sangeok/harness-smoke` 한 바퀴. 실행·판정 기록은
-[phase-1-smoke-acceptance](../test-reports/active/phase-1-smoke-acceptance.md)에 있다.
+[phase-1-smoke-acceptance](../test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md)에 있다.
 여기에는 그 실행이 **무엇을 증명했는지**만 적는다.
+
+재실행 2026-09-01 — 원장 일관성 계약(`a147260`)으로 전 구간을 반복해 `pass`, `completed/`로 이동.
+추가로 증명된 것: 증거 제출 3종이 원장에 남고 승인 대상 커밋이 기록과 일치하는 것이 실제
+사이클에서 성립하며, 서브에이전트 `tools:` 제한이 개별 MCP 도구 단위로 동작한다.
 
 **설계가 증명한 것 셋.**
 

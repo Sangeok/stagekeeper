@@ -1971,7 +1971,7 @@ npx prisma migrate status
 | `npm test` | **53/53 pass** (2026-08-30) | core 44 + plugin/templates 3 + plugin/bin 6. Verification Plan의 53과 일치 |
 | `npm run test:web` | **73/73 pass** (2026-08-30) | board-rules 12 + auth base 2 + mcp 4 + 이식 모델 55(journey 11·sprites 15·briefing 29) |
 | `npm run check` | **exit 0** (2026-08-30) | eslint + `verify:fsd` + `tsc --noEmit` + 아키텍처 13/13 + `check-plugin-lib`. `npm run build`도 exit 0 — 라우트 11개 |
-| T1.17 스모크 | **미실행 — 사전 조건 대기** | 라이브 Neon `DATABASE_URL` · GitHub OAuth 앱 · 빈 GitHub 저장소 · 두 번째 GitHub 계정(Step 5b)이 있어야 시작된다. T1.6 마이그레이션도 `migrate diff`로 SQL만 생성했고 적용은 대기 |
+| T1.17 스모크 | **1차 2026-08-30 blocked(T8 잔여) → 재실행 2026-09-01 전체 pass** | 판정·증거: docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md — T8 4행·F1~F5 닫힘, Phase 1 완료 기준 충족 |
 
 ## Risks and Rollback
 
