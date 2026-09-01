@@ -21,9 +21,9 @@ export const prismaToolDeps: ToolDeps = {
   boardGet: (projectId, key) => board.getWithHistory(projectId, key),
   propose: (projectId, input, actorRef) => board.propose(projectId, input, actorRef),
   transition: (projectId, input, actorRef) => board.transition(projectId, input, "agent", actorRef),
-  submitPlan: (projectId, input) => board.submitPlan(projectId, input),
-  submitReport: (projectId, input) => board.submitReport(projectId, input),
-  recordValidation: (projectId, input) => board.recordValidation(projectId, input),
+  submitPlan: (projectId, input, actorRef) => board.submitPlan(projectId, input, actorRef),
+  submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
+  recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),
 };
 
 // 토큰 조회도 여기 둔다 — route.ts가 Prisma를 직접 부르면 adapter가 데이터 접근을 떠안는다.

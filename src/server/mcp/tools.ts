@@ -20,9 +20,9 @@ export type ToolDeps = {
   boardGet(projectId: string, key: string): Promise<unknown | null>;
   propose(projectId: string, input: { key: string; agent: string; reason: string }, actorRef: string): Promise<ToolResult<unknown>>;
   transition(projectId: string, input: { key: string; to: string; result?: string }, actorRef: string): Promise<ToolResult<unknown>>;
-  submitPlan(projectId: string, input: { key: string; path: string; commit: string }): Promise<ToolResult<unknown>>;
-  submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string }): Promise<ToolResult<unknown>>;
-  recordValidation(projectId: string, input: { key: string; text: string }): Promise<ToolResult<unknown>>;
+  submitPlan(projectId: string, input: { key: string; path: string; commit: string }, actorRef: string): Promise<ToolResult<unknown>>;
+  submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string }, actorRef: string): Promise<ToolResult<unknown>>;
+  recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ToolResult<unknown>>;
 };
 
 type Ctx = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
@@ -75,16 +75,16 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const { projectId, actorRef } = scope(ctx as Ctx);
     return unwrap(await deps.transition(projectId, args, actorRef));
   });
-  server.registerTool("plan_submit", { description: "Record where the plan is (path and commit). Only in planning.", inputSchema: z.object({ key: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx) => {
-    const { projectId } = scope(ctx as Ctx);
-    return unwrap(await deps.submitPlan(projectId, args));
+  server.registerTool("plan_submit", { description: "Record where the plan is (path and commit). Only in planning or in_review — re-call after review edits so the approved commit is recorded.", inputSchema: z.object({ key: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx) => {
+    const { projectId, actorRef } = scope(ctx as Ctx);
+    return unwrap(await deps.submitPlan(projectId, args, actorRef));
   });
-  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit).", inputSchema: z.object({ key: z.string(), actor: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx) => {
-    const { projectId } = scope(ctx as Ctx);
-    return unwrap(await deps.submitReport(projectId, args));
+  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in in_review, implementing, or done.", inputSchema: z.object({ key: z.string(), actor: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx) => {
+    const { projectId, actorRef } = scope(ctx as Ctx);
+    return unwrap(await deps.submitReport(projectId, args, actorRef));
   });
   server.registerTool("validation_record", { description: "main-loop: record a clean validation pass. Only in in_review, 150 characters or fewer.", inputSchema: z.object({ key: z.string(), text: z.string() }) }, async (args, ctx) => {
-    const { projectId } = scope(ctx as Ctx);
-    return unwrap(await deps.recordValidation(projectId, args));
+    const { projectId, actorRef } = scope(ctx as Ctx);
+    return unwrap(await deps.recordValidation(projectId, args, actorRef));
   });
 }

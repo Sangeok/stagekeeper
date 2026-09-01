@@ -2,7 +2,7 @@ import "server-only";
 import { isOpen } from "@harness/core/transitions.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
-import { decideDiscard, decidePlanSubmit, decidePropose, decideTransition, decideValidation, type Actor } from "./board-rules";
+import { decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, type Actor } from "./board-rules";
 
 export type BoardResult<T> = { ok: true; item: T } | { ok: false; reason: string };
 const fail = (reason: string): BoardResult<never> => ({ ok: false, reason });
@@ -19,8 +19,9 @@ export async function latestBoard(projectId: string, openOnly = false, db: Db = 
   return openOnly ? rows.filter((r) => isOpen(r.status)) : rows;
 }
 
-// 결재함용: 최신 행 + 최근 이벤트 몇 개. 상태 줄("dev submitted a plan 3 days ago")과 보류 전 상태("was Implementing")를
-// 이벤트에서 읽는다 — BoardItem에는 "언제 이 status가 됐나"가 없다.
+// 결재함용: 최신 행 + 최근 전이 몇 개. 상태 줄("dev submitted a plan 3 days ago")과 보류 전 상태("was Implementing")를
+// 이벤트에서 읽는다 — BoardItem에는 "언제 이 status가 됐나"가 없다. note 있는 이벤트(validation·plan·report·discard)는
+// 전이가 아니므로 제외한다 — 증거 제출이 쌓여도 진짜 전이가 take 창 밖으로 밀리지 않는다.
 export async function latestBoardWithEvents(projectId: string) {
   return prisma.boardItem.findMany({
     where: { projectId, discardedAt: null },
@@ -28,7 +29,7 @@ export async function latestBoardWithEvents(projectId: string) {
     distinct: ["backlogItemId"],
     include: {
       backlogItem: { select: { key: true, title: true, area: true } },
-      events: { orderBy: { at: "desc" }, take: 8, select: { from: true, to: true, at: true } },
+      events: { where: { note: null }, orderBy: { at: "desc" }, take: 8, select: { from: true, to: true, at: true } },
     },
   });
 }
@@ -121,32 +122,40 @@ export async function discard(projectId: string, key: string, userId: string, ex
   });
 }
 
-export async function recordValidation(projectId: string, input: { key: string; text: string }) {
+// 증거 제출 3종(validation·plan·report)은 전부 same-status 이벤트(note로 구분, actorId = 호출 토큰)를
+// 원장에 남긴다 — 원장 = 감사 로그(불변식 8). 클린 사이클의 이벤트는 정확히 8건이 된다.
+export async function recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string) {
   return prisma.$transaction(async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
     const d = decideValidation(row.status, input.text);
     if (!d.ok) return fail(d.reason);
     const item = await tx.boardItem.update({ where: { id: row.id }, data: { validation: input.text } });
-    await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", note: "validation" } });
+    await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "validation" } });
     return { ok: true as const, item };
   });
 }
 
-export async function submitPlan(projectId: string, input: { key: string; path: string; commit: string }) {
+export async function submitPlan(projectId: string, input: { key: string; path: string; commit: string }, actorRef: string) {
   return prisma.$transaction(async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
     const d = decidePlanSubmit(row.status);
     if (!d.ok) return fail(d.reason);
     const item = await tx.boardItem.update({ where: { id: row.id }, data: { planPath: input.path, planCommit: input.commit } });
+    await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "plan" } });
     return { ok: true as const, item };
   });
 }
 
-export async function submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string }) {
-  const row = await latestRow(prisma, projectId, input.key);
-  if (!row) return fail(`no such board item: ${input.key}`);
-  const report = await prisma.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit } });
-  return { ok: true as const, item: report };
+export async function submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string }, actorRef: string) {
+  return prisma.$transaction(async (tx) => {
+    const row = await latestRow(tx, projectId, input.key);
+    if (!row) return fail(`no such board item: ${input.key}`);
+    const d = decideReportSubmit(row.status);
+    if (!d.ok) return fail(d.reason);
+    const report = await tx.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit } });
+    await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "report" } });
+    return { ok: true as const, item: report };
+  });
 }
