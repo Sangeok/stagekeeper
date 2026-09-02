@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "draft"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-09-02"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "Sangeok"
+approved-at: "2026-09-03"
+approval-scope: "전체(묶음 1~5, 30건). 제품 결정 4건은 착수 시 확인 완료"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -411,8 +411,9 @@ fsd.md:143의 자체 규칙("가장 작은 leaf만 Client Component")과 어긋�
 
 - 승인 전. 묶음 단위(1~5) 승인 또는 제외가 가능하다. 묶음 3·4는 MCP 계약과 공개 API를 건드리므로
   묶음 1·2보다 파급이 크다.
-- **묶음 3(F13·F26·F30)을 승인하면 MCP 계약이 바뀐다.** 스펙상 계약 변경은 스모크를 낡게 하므로,
-  계약 변경은 몰아서 하고 그 뒤 스모크를 한 번만 도는 기존 원칙을 따를지 결정이 필요하다.
+- ~~묶음 3을 승인하면 MCP 계약이 바뀐다~~ — **작성 시점의 오판이었다.** 도구 핸들러는 `text()`로
+  `JSON.stringify`할 뿐이라 `ToolDeps`·`ServerResult`·`Caller`·`RuleKind`는 전부 컴파일 타임 전용이다.
+  에이전트가 받는 JSON은 같은 쿼리에서 나오므로 **와이어 계약은 바뀌지 않고 스모크 판정도 낡지 않는다.**
 - F2의 `entities/report` 존치/삭제, F3의 개별-대-합산 판정, F6의 뱃지 의미(넓게 vs `gateCount`로
   개명), F22의 공유 오류 줄 위치는 **제품 결정**이라 실행자가 임의로 정하면 안 된다.
 
@@ -464,9 +465,7 @@ npm run verify:fsd  # 이동·배럴 변경이 있는 묶음 4·5에서 단계�
 
 잔여 리스크:
 
-- **묶음 3은 MCP 계약을 바꾼다.** Phase 1 스모크 판정(`2026-09-01-phase-1-smoke-acceptance.md`)이
-  낡을 수 있다. 계약 변경을 몰아서 하고 스모크를 한 번만 도는 기존 원칙과 충돌하지 않게 순서를
-  정해야 한다.
+- ~~묶음 3은 MCP 계약을 바꾼다~~ — 정정: 타입 전용 변경이라 와이어 계약과 스모크 판정에 영향이 없다.
 - **F14는 로그인 경로다.** 회귀하면 전원 로그인 불가다. 검증은 실계정 로그인으로만 가능하다.
 - **F5의 `not-found.tsx` 배치**가 틀리면 404에서 셸이 사라지거나, 반대로 레이아웃이 렌더될 수 없는
   경로에서 오류가 난다. 두 위치 모두 실제 404로 확인해야 한다.
