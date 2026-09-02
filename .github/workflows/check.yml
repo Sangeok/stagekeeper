@@ -9,15 +9,19 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      # prisma.config.ts resolves env("DATABASE_URL") eagerly, so every prisma
+      # command needs a value. Generating the client never opens a connection,
+      # so this placeholder is enough and no secret belongs here.
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       # src/generated/prisma is gitignored, and tsc --noEmit needs the client types.
-      # The datasource has no url, so this needs no database and no secret.
       - run: npm run db:generate
       - run: npm run check
       - run: npm test
