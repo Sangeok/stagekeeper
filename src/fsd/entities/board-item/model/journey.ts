@@ -1,8 +1,10 @@
-// 순수 함수. board.ts/reporting.ts와 같은 이유로 임포트가 없다(journey.test.mjs로 덮인다).
+// 검증 판정은 entities/board-item 하나에서 온다 — 배너·카드·스테퍼가 같은 답을 쓰게(journey.test.mjs로 덮인다).
 // 보드 status(+검증 판정)로 "파이프라인 여정 7단계 중 지금 어디인지"를 결정적으로 매핑한다.
 // 진행 중(proposed·planning·in_review·implementing)만 여정 위치가 있다 — done(종결)·on_hold(중단)·null은
 // 여정 밖이라 매핑이 없다(null 반환). 보드 데이터만으로는 done의 "인수됨"(메인 루프 몫)도, on_hold의
 // "어느 단계에서 멈췄나"도 결정할 수 없어(결과 줄은 산문이라 구조가 아니다) 여정 밖으로 뺀다.
+import { isPlanVerified } from "./verification";
+
 export type StageState = "done" | "current" | "upcoming";
 export type JourneyActor = "pm" | "user" | "agent" | "verifier" | "loop";
 
@@ -58,7 +60,7 @@ function currentIndexFor(
     case "planning":
       return 2; // 계획서 — 담당 dev 작업
     case "in_review":
-      return validation !== null ? 4 : 3; // 검증 통과→게이트② : 검증 중
+      return isPlanVerified(status, validation) ? 4 : 3; // 검증 통과→게이트② : 검증 중
     case "implementing":
       return 5; // 구현 — 담당 dev 작업
     default:

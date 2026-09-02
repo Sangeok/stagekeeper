@@ -8,7 +8,9 @@ export type RepoRef = { owner: string; repo: string };
 export type RepoOption = { name: string; defaultBranch: string };
 
 // GitHub 계정·저장소 이름에 허용되는 모양. 점으로 끝나는 이름은 받지 않는다.
-const SEGMENT = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
+// 서버 액션도 이걸 쓴다 — 붙여넣기 경로만 걸러내면 수동 입력으로 아무 문자열이나 들어와
+// 저장된 뒤 blobHref가 영영 깨진 링크를 만든다(slug와 같은 규칙: 규칙은 한 벌이다).
+export const SEGMENT = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
 
 // 각 패턴은 1번이 owner, 2번이 repo다. tsconfig target이 ES2017이라 named group은 쓰지 않는다.
 const PATTERNS = [

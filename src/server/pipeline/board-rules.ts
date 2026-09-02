@@ -5,8 +5,13 @@ import { canDiscard, canPropose, canRecordValidation, checkText, findRule } from
 export type Actor = "human" | "agent";
 export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string };
 
+// kind는 화면이 읽는 어휘다 — review-gate/model/gate-source.ts가 "gate"·"resume"·"bounce"로
+// 무엇을 보여줄지 정한다. string으로 두면 그쪽 비교가 오타여도 컴파일이 통과하고 분류만 조용히
+// 어긋난다. 값의 출처는 packages/core/transitions.mjs의 RULES 표다.
+export type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done";
+
 type Rule = {
-  from: string; to: string; actor: Actor; kind: string;
+  from: string; to: string; actor: Actor; kind: RuleKind;
   requiresResult?: boolean; requiresPlan?: boolean; requiresReport?: boolean; clearsValidation?: boolean;
 };
 

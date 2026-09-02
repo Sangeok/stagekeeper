@@ -16,14 +16,13 @@ type Tab = ProjectTabId | null;
 
 // 레이아웃은 경로를 모른다 — 어느 탭인지는 여기서 읽는다. Board·Inbox에서는 크게, 나머지에서는 한 줄 스트립.
 export function TurnBanner({ turn, slug }: { turn: Turn; slug: string }) {
-  const base = projectPath(slug);
   const tab = activeProjectTab(usePathname(), slug);
   const isFullBanner = tab === "board" || tab === "inbox";
-  return isFullBanner ? <FullBanner turn={turn} tab={tab} base={base} /> : <CompactBanner turn={turn} tab={tab} base={base} />;
+  return isFullBanner ? <FullBanner turn={turn} tab={tab} slug={slug} /> : <CompactBanner turn={turn} tab={tab} slug={slug} />;
 }
 
-function FullBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string }) {
-  if (turn.kind === "setup") return <SetupList steps={turn.steps} current={turn.current} base={base} />;
+function FullBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string }) {
+  if (turn.kind === "setup") return <SetupList steps={turn.steps} current={turn.current} slug={slug} />;
 
   const headline = HEADLINE[turn.kind];
   return (
@@ -40,14 +39,14 @@ function FullBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string })
       {turn.kind === "mine" || turn.kind === "theirs" ? <NextStepBox steps={turn.next} /> : null}
       {turn.kind === "mine" && tab !== "inbox" ? (
         <div className="mt-1">
-          <ButtonLink variant="mine" href={`${base}/inbox`}>
+          <ButtonLink variant="mine" href={projectPath(slug, "/inbox")}>
             Open inbox
           </ButtonLink>
         </div>
       ) : null}
       {turn.kind === "none" ? (
         <div className="mt-1">
-          <ButtonLink variant="quiet" href={`${base}/backlog`}>
+          <ButtonLink variant="quiet" href={projectPath(slug, "/backlog")}>
             Open backlog
           </ButtonLink>
         </div>
@@ -59,7 +58,7 @@ function FullBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string })
 type CompactView = { detail: string; action: { href: string; label: string } | null };
 
 // 한 줄 스트립이 무엇을 말하고 어디로 보낼지 — kind마다 한 갈래씩, 마크업과 분리해서 읽는다.
-function compactView(turn: Turn, tab: Tab, base: string): CompactView {
+function compactView(turn: Turn, tab: Tab, slug: string): CompactView {
   switch (turn.kind) {
     case "setup": {
       const step = turn.steps[turn.current - 1];
@@ -68,21 +67,21 @@ function compactView(turn: Turn, tab: Tab, base: string): CompactView {
     case "mine":
       return {
         detail: turn.why === null ? turn.detail : `${turn.detail} · pm is blocked until you clear one`,
-        action: { href: `${base}/inbox`, label: "Open inbox →" },
+        action: { href: projectPath(slug, "/inbox"), label: "Open inbox →" },
       };
     case "theirs":
       return { detail: turn.detail, action: null };
     case "none":
       return {
         detail: turn.detail,
-        action: tab === "backlog" ? null : { href: `${base}/backlog`, label: "Open backlog →" },
+        action: tab === "backlog" ? null : { href: projectPath(slug, "/backlog"), label: "Open backlog →" },
       };
   }
 }
 
-function CompactBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string }) {
+function CompactBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string }) {
   const isMyTurn = turn.kind === "mine";
-  const { detail, action } = compactView(turn, tab, base);
+  const { detail, action } = compactView(turn, tab, slug);
   return (
     <div
       className={cn(
@@ -103,7 +102,7 @@ function CompactBanner({ turn, tab, base }: { turn: Turn; tab: Tab; base: string
 
 // 첫 방문 체크리스트. 단계 1–3은 데이터에서 판정되고, 4는 첫 항목이 보드에 오르면 끝난다.
 // current는 deriveTurn이 이미 정한 1-based 값 — 여기서 다시 계산하지 않는다.
-function SetupList({ steps, current, base }: { steps: SetupStep[]; current: number; base: string }) {
+function SetupList({ steps, current, slug }: { steps: SetupStep[]; current: number; slug: string }) {
   return (
     <section className="flex flex-col gap-2">
       <h1 className="type-display">{HEADLINE.setup}</h1>
@@ -139,7 +138,7 @@ function SetupList({ steps, current, base }: { steps: SetupStep[]; current: numb
                   )}
                 </small>
               </span>
-              <SetupAside step={step} base={base} />
+              <SetupAside step={step} slug={slug} />
             </li>
           );
         })}
@@ -148,9 +147,9 @@ function SetupList({ steps, current, base }: { steps: SetupStep[]; current: numb
   );
 }
 
-function SetupAside({ step, base }: { step: SetupStep; base: string }) {
-  if (step.key === "token") return <StepLink href={`${base}/tokens`}>Tokens</StepLink>;
-  if (step.key === "backlog") return <StepLink href={`${base}/backlog`}>Backlog</StepLink>;
+function SetupAside({ step, slug }: { step: SetupStep; slug: string }) {
+  if (step.key === "token") return <StepLink href={projectPath(slug, "/tokens")}>Tokens</StepLink>;
+  if (step.key === "backlog") return <StepLink href={projectPath(slug, "/backlog")}>Backlog</StepLink>;
   if (step.key === "connect" && !step.done) return <Chip tone="done">Not connected yet</Chip>;
   return <span />;
 }

@@ -1,25 +1,14 @@
 import { notFound } from "next/navigation";
-import { blobHref } from "@/fsd/entities/board-item";
-import { BoardItemPage, type ItemDoc } from "@/fsd/pages/board-item";
+import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
 import { requireMember } from "@/server/auth/guard";
-import { prisma } from "@/server/db";
 import { getWithHistory } from "@/server/pipeline/board";
+import { loadRepoRef } from "@/server/project";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]">) {
   const { slug, key } = await params;
   const { projectId } = await requireMember(slug);
-  const [project, row] = await Promise.all([
-    prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { owner: true, repo: true, branch: true } }),
-    getWithHistory(projectId, key),
-  ]);
+  const [project, row] = await Promise.all([loadRepoRef(projectId), getWithHistory(projectId, key)]);
   if (!row) notFound();
-
-  const blob = (path: string) => blobHref(project, path);
-  const docs: ItemDoc[] = [];
-  if (row.planPath) docs.push({ label: "Plan", path: row.planPath, href: blob(row.planPath) });
-  for (const report of row.reports) {
-    docs.push({ label: `${report.actor} report`, path: report.path, href: blob(report.path) });
-  }
 
   return (
     <BoardItemPage
@@ -33,7 +22,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
         results: row.results,
         validation: row.validation,
         proposedOn: row.proposedOn,
-        docs,
+        docs: toItemDocs(row, project),
         events: row.events.map((e) => ({ at: e.at, actor: e.actor, from: e.from, to: e.to, note: e.note })),
       }}
     />

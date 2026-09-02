@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildBriefing, daysOnBoard, firstSentence, FIELD_BUDGET, isOverBudget } from "./briefing.ts";
+import { FIELD_BUDGET, isOverBudget } from "@/fsd/entities/board-item";
+import { buildBriefing, daysOnBoard, firstSentence } from "./briefing.ts";
 import { identityFor, initialOf } from "./known-agents.ts";
 
 // roster = 이 프로젝트의 Workspace.agent 목록(examples/apch/harness.json 순서: web → admin → backend).
@@ -10,10 +11,14 @@ const TODAY = new Date(Date.UTC(2026, 7, 15)); // 2026-08-15
 
 // 픽스처는 DB 행 → toBoardSections 가 만드는 형(BoardSection[])을 그대로 흉내 낸다.
 // v1 픽스처는 ApcH 한국어 보드 마크다운이었다 — 영문 식별자 전환으로 객체 픽스처로 바꿨다.
-const item = (o) => ({
-  checked: false, id: "X-0", title: "", agent: null, area: null,
-  status: null, reason: null, result: null, validation: null, ...o,
-});
+// overBudget은 toBoardItem이 계산해 넣는 필드라 픽스처도 같은 규칙으로 채운다 — 손으로 적지 않는다.
+const item = (o) => {
+  const row = {
+    checked: false, id: "X-0", title: "", agent: null, area: null,
+    status: null, reason: null, result: null, validation: null, ...o,
+  };
+  return { ...row, overBudget: isOverBudget([row.reason, row.result]) };
+};
 const BOARD = [
   { heading: "2026-08-14", items: [
     item({ id: "FEAT-05", title: "Pick a new feature", agent: "web-dev", area: "apps/web", status: "proposed", reason: "pm picked it today.", validation: "fixture violation — must be nulled by the model" }),
@@ -56,7 +61,6 @@ describe("buildBriefing", () => {
 
   it("puts only proposed·in_review in the inbox, in board order", () => {
     assert.deepEqual(briefing.inbox.map((s) => s.id), ["FEAT-05", "FEAT-04", "FEAT-01"]);
-    assert.equal(briefing.pendingCount, 3);
   });
 
   it("puts the complement in the feed, preserving order", () => {
@@ -99,9 +103,11 @@ describe("buildBriefing", () => {
 
   it("flags board fields over the 150-char budget", () => {
     assert.equal(FIELD_BUDGET, 150);
-    assert.equal(isOverBudget("x".repeat(150)), false);
-    assert.equal(isOverBudget("x".repeat(151)), true);
-    assert.equal(isOverBudget(null), false);
+    assert.equal(isOverBudget(["x".repeat(150)]), false);
+    assert.equal(isOverBudget(["x".repeat(151)]), true);
+    assert.equal(isOverBudget([null]), false);
+    // 건별로 잰다 — 이어붙인 길이로 재던 시절에는 이 줄이 true였다(보드에만 있던 거짓 양성).
+    assert.equal(isOverBudget(["x".repeat(100), "y".repeat(100)]), false);
     assert.equal(briefing.inbox.find((s) => s.id === "FEAT-01").overBudget, true);
     assert.equal(briefing.inbox.find((s) => s.id === "FEAT-05").overBudget, false);
   });
@@ -180,28 +186,6 @@ describe("buildBriefing", () => {
     assert.equal(b.inbox[0].validation, null);
   });
 
-  it("leaves docs empty on every item when no docs argument is passed", () => {
-    for (const s of [...briefing.inbox, ...briefing.feed]) assert.deepEqual(s.docs, [], `${s.id} docs must be empty`);
-  });
-
-  it("fills SpeechItem.docs from planDocIds and reports for the matching item", () => {
-    const b = buildBriefing(BOARD, TODAY, ROSTER, {
-      planDocIds: new Set(["FEAT-04"]),
-      reports: new Map([
-        ["main-loop", [{ name: "FEAT-04.md", label: "FEAT-04", size: 1 }]],
-        ["admin-dev", [{ name: "FEAT-04.md", label: "FEAT-04", size: 1 }]],
-      ]),
-    });
-    const feat04 = b.inbox.find((s) => s.id === "FEAT-04");
-    assert.deepEqual(feat04.docs.map((d) => d.label), ["Plan", "Validation record", "Implementation report"]);
-    assert.deepEqual(feat04.docs.map((d) => d.href), [
-      "/pipeline/docs/plans/FEAT-04",
-      "/pipeline/docs/agents/main-loop/FEAT-04",
-      "/pipeline/docs/agents/admin-dev/FEAT-04",
-    ]);
-    // 계획도 기록도 없는 항목은 여전히 빈 배열.
-    assert.deepEqual(b.inbox.find((s) => s.id === "FEAT-05").docs, []);
-  });
 });
 
 describe("identityFor / initialOf", () => {

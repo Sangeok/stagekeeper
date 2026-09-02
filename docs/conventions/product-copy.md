@@ -242,7 +242,8 @@ scouting" · unknown "Agent" · none "Unassigned".
   **Save** · "Saving…".
 - Errors: "Key must look like FEAT-01: capital letters, a dash, a number." · "Title is
   required." · "FEAT-01 already exists." · "FEAT-01 doesn't exist." · "FEAT-01 is open on the
-  board. Finish or discard it before removing."
+  board. Finish or discard it before removing." · "Couldn't remove it. Try again." (uncaught
+  failure, shown under the row — the tab error page no longer swallows it)
 
 ## 9. Tokens
 
@@ -283,7 +284,8 @@ scouting" · unknown "Agent" · none "Unassigned".
     repository. It only uses the name and the default branch."
   - Success: **Project created** + token reveal + link "Open /p/mathgic"
   - Errors: "Slug must be 2–40 lowercase letters, numbers, or dashes." · "'new' is reserved." ·
-    "GitHub owner and repo are required." · "'mathgic' is already taken."
+    "GitHub owner and repo are required." · "GitHub owner and repo must be GitHub names —
+    letters, numbers, dots, dashes, underscores." · "'mathgic' is already taken."
 
 ## 11. Item detail
 
@@ -511,15 +513,15 @@ One card failed; the rest of the queue stays on screen. This is the one error su
 name a cause, because reaching it means a decision was in flight on this item.
 
 > `FEAT-01`
-> The decision wasn&apos;t recorded. Try again.
+> The decision wasn't recorded. Try again.
 
 Button: **Try again**
 
 ### Project tab — `src/app/(app)/p/[slug]/error.tsx`
 
-The tab content failed; the turn banner, header and tabs survive. Still vague on purpose: the
-Inbox is covered by the card boundary above, but the Backlog Remove button is not, so this page
-still catches both loads and actions.
+The tab content failed; the turn banner, header and tabs survive. Still vague on purpose: it catches page loads as
+well as actions, and cannot tell them apart. The two action surfaces below it now handle their
+own failures — the Inbox card boundary, and the Backlog Remove button inline since 2026-09-03.
 
 > **Something went wrong.**
 > Try again. If you were approving or sending something back, open the Inbox to check whether it
@@ -538,6 +540,25 @@ The project layout itself failed, so the header and tabs are gone too. Give one 
 > Try again, or go back to your projects.
 
 Button: **Try again** · link: **All projects**
+
+### Not found — `src/app/(app)/not-found.tsx`
+
+The project is unknown, or it is not yours. `requireMember` answers both the same way on purpose,
+so the copy does not separate them either. This fires from the project layout, so the shell is gone.
+
+> **Not found.**
+> That page doesn't exist, or it isn't yours.
+
+Link: **All projects**
+
+### Not found, inside a project — `src/app/(app)/p/[slug]/not-found.tsx`
+
+An item key that is not on this board. The turn banner, header and tabs survive, so the way back
+is already on screen and the page adds no link. No cause is named: a discarded item and one that
+never existed look the same from here.
+
+> **Not found.**
+> That item isn't on this board.
 
 ---
 

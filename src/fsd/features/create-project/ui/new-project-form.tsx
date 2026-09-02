@@ -3,9 +3,10 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { TokenReveal } from "@/fsd/entities/project-token";
+import { projectPath } from "@/fsd/shared/routes/project";
 import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
-import type { CreateProjectState } from "../model/create-project-state";
+import { IDLE, type CreateProjectState } from "../model/create-project-state";
 import { SLUG_HINT } from "../model/project-slug";
 import { parseRepoUrl, slugFromRepo, type RepoOption } from "../model/repo-url";
 
@@ -20,7 +21,7 @@ type Props = {
 const TEXT_BUTTON = "text-xs text-quiet underline underline-offset-2";
 
 export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, formAction, pending] = useActionState(action, IDLE);
   const [owner, setOwner] = useState(defaultOwner);
   const [repo, setRepo] = useState("");
   const [slug, setSlug] = useState("");
@@ -33,6 +34,17 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
   const [pasteError, setPasteError] = useState<string | null>(null);
 
   const isRepoChosen = slug !== "" && owner !== "" && repo !== "";
+
+  // 모드를 바꿀 때는 그 모드에만 속한 상태를 함께 비운다. 예전에는 붙여넣기 오류가
+  // picker 화면까지 따라와서, 지금 보는 화면과 무관한 문구가 남아 있었다.
+  const showPicker = () => {
+    setIsManualEntry(false);
+    setPasteError(null);
+  };
+  const showManualEntry = () => {
+    setIsManualEntry(true);
+    setQuery("");
+  };
 
   const pick = (option: RepoOption) => {
     setOwner(defaultOwner);
@@ -65,14 +77,17 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
     setOwner(defaultOwner);
     setSlugTouched(false);
     setIsEditing(false);
+    // 다시 고를 때 이전 검색어와 오류가 남아 있으면 "처음부터"가 아니다.
+    setQuery("");
+    setPasteError(null);
   };
 
-  if (state.token && state.slug) {
+  if (state.status === "created") {
     return (
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold tracking-tight">Project created</h2>
         <TokenReveal token={state.token} mcpUrl={mcpUrl} />
-        <Link className="self-start text-sm underline underline-offset-2" href={`/p/${state.slug}`}>
+        <Link className="self-start text-sm underline underline-offset-2" href={projectPath(state.slug)}>
           Open /p/{state.slug}
         </Link>
       </section>
@@ -111,7 +126,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
             />
           </Field>
           {repos.length > 0 ? (
-            <button type="button" onClick={() => setIsManualEntry(false)} className={`self-start ${TEXT_BUTTON}`}>
+            <button type="button" onClick={showPicker} className={`self-start ${TEXT_BUTTON}`}>
               Pick from my repositories
             </button>
           ) : (
@@ -124,7 +139,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
           query={query}
           setQuery={setQuery}
           pick={pick}
-          pasteInstead={() => setIsManualEntry(true)}
+          pasteInstead={showManualEntry}
         />
       )}
 
@@ -157,7 +172,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
         </Field>
       </div>
 
-      {state.error ? <p className="text-sm text-risk">{state.error}</p> : null}
+      {state.status === "error" ? <p className="text-sm text-risk">{state.error}</p> : null}
 
       <div>
         <Button variant="mine" type="submit" disabled={pending || !isRepoChosen}>

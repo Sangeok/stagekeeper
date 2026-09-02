@@ -1,5 +1,6 @@
 import { addBacklogItem, removeBacklogItem, updateBacklogItem } from "@/fsd/features/edit-backlog/index.server";
 import { ProjectBacklogPage } from "@/fsd/pages/project-backlog";
+import { readBacklogQuery } from "@/fsd/shared/routes/project";
 import { requireMember } from "@/server/auth/guard";
 import { backlogWithStatus } from "@/server/pipeline/board";
 
@@ -8,9 +9,9 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
   const query = await searchParams;
   const { projectId } = await requireMember(slug);
 
-  const includeRemoved = query.removed === "1";
+  // 질의 키와 인코딩은 링크를 만드는 쪽과 같은 모듈에서 온다(shared/routes/project.ts).
+  const { includeRemoved, editKey } = readBacklogQuery(query);
   const items = await backlogWithStatus(projectId, includeRemoved);
-  const editKey = typeof query.edit === "string" ? query.edit : undefined;
   const editing = items.find((item) => item.key === editKey);
 
   return (

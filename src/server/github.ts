@@ -29,8 +29,11 @@ export async function listPublicRepos(login: string): Promise<PublicRepo[]> {
       });
     }
     return repos;
-  } catch {
+  } catch (error) {
     // 목록은 편의 기능이다. GitHub가 답하지 않아도 붙여넣기로 등록할 수 있어야 한다.
+    // 다만 조용히 삼키지는 않는다 — 장애나 rate-limit이면 화면은 "Couldn't load your
+    // repositories."만 말하고, 그 이유는 로그에만 남는다(error.tsx들과 같은 규칙).
+    console.error(error);
     return [];
   }
 }
