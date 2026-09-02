@@ -1,23 +1,23 @@
 ---
-status: 'active'
-stage: 'blocked'
-result: null
+status: 'completed'
+stage: null
+result: 'pass'
 report-kind: 'acceptance'
 report-size: 'standard'
 test-levels: ['end-to-end', 'contract', 'manual']
 test-tools: ['node --test', 'MCP JSON-RPC over HTTP', 'git', 'prisma', 'curl']
 created-at: '2026-08-30'
-completed-at: null
-last-executed-at: '2026-08-30'
-tested-revision: 'stagekeeper d2c7da0 / harness-smoke 73261bb'
+completed-at: '2026-09-01'
+last-executed-at: '2026-09-01'
+tested-revision: 'stagekeeper d2c7da0→a147260 / harness-smoke 73261bb→3bf56c7'
 owners: ['Sangeok']
 related:
-  - 'docs/proposals/active/harness-platform-phase-0-1.md'
+  - 'docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md'
   - 'docs/investigations/active/harness-platform.md'
 primary-area: 'pipeline'
 observed-environments: ['Windows 11 · Node 22.13.1 · next dev(localhost:3000) · Neon Postgres(us-east-2)']
-test-summary: null
-follow-up: []
+test-summary: '1차 2026-08-30(blocked: T8 잔여) + 재실행 2026-09-01 전 구간 — required 전부 pass, F1~F5 닫힘, 신규 F6(low)'
+follow-up: ['F6 — project_sync가 language를 동기화하지 않음(백로그 후보)', '리허설 프로젝트 mathgic 삭제 권장']
 ---
 
 # Phase 1 스모크 인수 — 빈 저장소 한 바퀴
@@ -54,7 +54,7 @@ follow-up: []
 
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 우선순위/해석 | 확인 기준 |
 | ------- | ----------------------- | --------- | ------------- | --------- |
-| R1 | `docs/proposals/active/harness-platform-phase-0-1.md` Goal | Phase 1 완료 기준 | MUST | 빈 저장소 1개 연결 · 항목 1건이 웹 게이트 2회를 거쳐 `완료` · 에이전트 토큰에 게이트 도구 부재를 실측 |
+| R1 | `docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md` Goal | Phase 1 완료 기준 | MUST | 빈 저장소 1개 연결 · 항목 1건이 웹 게이트 2회를 거쳐 `완료` · 에이전트 토큰에 게이트 도구 부재를 실측 |
 | R2 | 같은 문서 T1.17 Step 5 | 웹·저장소 최종 상태 | MUST | `완료` · `검증:` 기록 · 이벤트 8건 이상 · 백로그에서 제거 · 저장소 산출물 3종 · 트리 청결 |
 | R3 | 같은 문서 T1.17 Step 5b / Verification Plan 「인가 격리」 | 인가 경계 | MUST | 4행 전부. 하나라도 기대와 다르면 Phase 1 미완 |
 | R4 | `docs/architecture/protocol.md` 「인수 다섯 조건」 | 인수 | MUST | 다섯 조건을 **직접 재현**(에이전트 보고를 믿지 않음) |
@@ -202,4 +202,83 @@ R2의 "이벤트 8건 이상"은 이번 실행에서 **기준 자체가 어긋�
 - [x] 민감정보 검토를 실제 수행했고 비밀값이 남지 않았다.
 - [x] 발견 사항은 추적 위치로 연결했다.
 - [x] 본문과 front matter가 모순되지 않는다.
-- [ ] 완료 보고서 고정 — 해당 없음(`active`, T8 잔여).
+- [x] 완료 보고서 고정 — 재실행 2026-09-01 전체 pass, completed로 이동.
+
+---
+
+## 재실행 2026-09-01 — 최종 계약으로 전 구간
+
+1차 실행 이후 계약이 세 번 바뀌었다(영어 상태 식별자 `95cb61e` · 템플릿 서버 배포
+`3d1f608` · 원장 일관성 PR #4 `a147260`). 재실행은 머지된 `main a147260`에서 빈 저장소
+사이클 전 구간(FEAT-02)을 다시 돌았고, 1차의 BLOCKED(T8 행1·2)와 발견 F1~F5를 모두
+닫는다. 실행 주체: 소유자 위임("스모크 재실행은 너가해")으로 Claude Code 세션이 조작 —
+게이트 클릭·백로그 등록은 소유자 세션 쿠키로 웹 경로를 그대로 탔고, 게이트 이벤트의
+`actorId`는 동일한 User id다.
+
+### 방법의 이탈 둘 (판정 전에 읽을 것)
+
+1. **T8 행1·2의 "두 번째 GitHub 계정"을 DB 생성 사용자 + 민팅 세션으로 대체했다.**
+   OAuth 신원 발급 경로는 1차 실행이 검증했으므로, 인가 경계(세션 uid → 멤버십 검사)를
+   실제 두 번째 userId(`smoke-second`, githubId 999000111, 멤버십 0)로 시험했다.
+   실계정으로의 순수 재확인을 원하면 그 두 행만 다시 돌리면 된다.
+2. **런북 8단계(doc-auditor)는 1차와 같은 근거로 범위 제외** — 사이클 완료 판정에
+   관여하지 않는다.
+
+### 판정 갱신
+
+| ID | 1차 | 재실행 | 근거 |
+| --- | --- | --- | --- |
+| T1/T9 | PASS | PASS | 생성기 ko→en 업그레이드: dry-run 후 `write 8 · skip 0`, 런북 마커 교체, `.mcp.json` 병합 보존, lock 갱신. 템플릿은 서버 `/api/templates`에서 수신(`3d1f608` 경로 첫 실측). E14 |
+| T2 | PASS | PASS | **실제 Claude Code 클라이언트 세션에서** `mcp__harness__*` 정확히 11개, 게이트·백로그 편집·토큰 발급 도구 부재. E15 |
+| T3 | PASS | PASS | `in_review`에서 에이전트 `board_transition({to:"implementing"})` → `not allowed: agent in_review → implementing`, 상태 무변경. E16 |
+| T4 | PASS | PASS | 게이트 2건이 `human` + User id로 원장에 기록. E17 |
+| T5 | PASS | PASS | `plan_submit`/`report_submit` 선행 강제 유지 + **제출 자체가 이벤트로 남는다**. E17 |
+| T6 | PASS | PASS | `done` · `clean pass (2026-09-01, 2 rounds, no edits)` · `removedAt` 서버 기록 · 산출물 3종 · 트리 청결. E17/E18 |
+| T6b | FAIL(informational) | **PASS** | 이벤트 10건(클린 최소 8 + `in_review` plan 재제출 1 + `in_review` 보고 1) — "8건 이상" 기준을 계약이 충족한다. **F1 닫힘**. E17 |
+| T7 | PASS | PASS | 다섯 조건 직접 재현. ②는 스케치 13줄 ↔ diff 추가분 **바이트 일치**, ①은 protocol.md의 행위자 기록 제외 문구로 판정(**F2 닫힘**). E18 |
+| T8 | BLOCKED | **PASS** (이탈 1 참조) | 행1: 비멤버 인증 사용자가 `/p/harness-smoke`·`/inbox`·`/items/FEAT-01` 전부 404, 자기 `/projects`는 200(세션 정상 증명) · 행2: 캡처한 게이트 서버 액션을 비멤버로 재생 → **HTTP 404 + NEXT_NOT_FOUND**, 소유자 대조군은 200 + `not allowed: human planning → planning`(404가 상태 거부가 아니라 인가 차단임을 구분) · 행3: 같은 key `FEAT-01`이 토큰별로 다른 행(`done/f982304` vs `in_review/live-check-commit-2`), 백로그 교차 노출 0 · 행4: 미인증 4경로 전부 `307 → /login`. E19 |
+| T10 | PASS | (1차 유효) | 토큰 수명 코드 무변경 — 재실행 생략. |
+| T11 | PASS | PASS | 라운드1 결함 2건(문서 위생) → 편집·커밋 `b72a941` → **`plan_submit` 재호출** → 무편집 독립 2라운드 0결함. E20 |
+
+### 1차 발견 F1~F5 종결
+
+| ID | 상태 | 근거 |
+| --- | --- | --- |
+| F1 | **닫힘** | 증거 제출 3종 전부 same-status 이벤트(note `plan`·`report`·`validation`, actorId). 클린 경로 8건이 계약이 됐고 이번 사이클은 10건. E17 |
+| F2 | **닫힘** | protocol.md 인수 조건 ①에 행위자 기록 제외가 명문화됐고, T7이 그 문구로 판정했다. |
+| F3 | **닫힘** | 검증 라운드가 계획서를 고친 뒤 `plan_submit`을 재호출해 `planCommit = b72a941` = 게이트②에서 소유자가 본 커밋. 결재함 카드가 그 커밋을 표시했다(1차의 FEAT-01은 이 재호출이 없어 어긋났었다). E17/E20 |
+| F4 | **닫힘** | 스모크 저장소 **안**의 Claude Code 세션들로 전 사이클 수행: `--plugin-dir` 로드, `/harness:init` 스킬 가시, `.mcp.json`의 `${HARNESS_TOKEN}` 확장, 프로젝트 MCP 승인(`enableAllProjectMcpServers`), 서브에이전트 디스패치. **서브에이전트 `tools:` 제한이 개별 MCP 도구 단위로 동작** — dev 컨텍스트에 정확히 dev.md의 5개(`backlog_get`·`board_get`·`board_transition`·`plan_submit`·`report_submit`)만 존재, `board_propose`·`validation_record`·Task 부재. 스펙 §Risks의 문서 공백이 실측으로 닫혔다. E15/E20 |
+| F5 | **닫힘** | 미결 0 상태에서 roster 밖 `ops` → `agent not in roster: ops`, 151자 근거 → `reason: must be 150 characters or fewer (got 151)`. E16 |
+
+### 신규 발견
+
+| ID | 심각도 | 발견 사항 | 추적 위치 | 재검증 조건 |
+| --- | --- | --- | --- | --- |
+| F6 | low | **`project_sync`가 `language`를 동기화하지 않는다.** `harness.json`은 `en`으로 바뀌었는데 DB `Project.language`는 `ko`로 잔류(클라이언트 세션이 발견). 템플릿 수신은 생성기가 harness.json의 값으로 직접 요청하므로 현재 실해는 없지만, 두 곳이 어긋난 채 남는다 | 백로그 후보 — `project_sync`가 language를 함께 upsert하거나 Project.language를 제거 | 계약 결정 후 |
+
+### 증거 등록부 (재실행분)
+
+| ID | 종류 | 안전하게 정리한 증거 또는 참조 |
+| --- | --- | --- |
+| E14 | 생성기 | dry-run·실행 모두 `write 8 · skip 0`(ko 생성본 위 en 재생성) · `CLAUDE.md (runbook replaced)` · `.mcp.json (harness merged)` · 커밋 `7d845ac` |
+| E15 | 클라이언트 세션(연결) | 도구 11 = `AGENT_TOOL_NAMES` · `/harness:init` 가시 · `project_get` slug/roster · `project_sync {"synced":1}` — 세션 로그는 스크래치패드 `smoke-s2-client-session.log` |
+| E16 | 거부 실측 | F5 두 분기 · 게이트② 시도 거부와 상태 무변경 |
+| E17 | 원장 read-back | 이벤트 10건 전원 actorId(`token:…`/User id): `—→proposed` · `proposed→planning(human)` · `planning(plan)` · `planning→in_review` · `in_review(plan)` · `in_review(validation)` · `in_review(report)` · `in_review→implementing(human)` · `implementing(report)` · `implementing→done` / `planCommit b72a941` / reports `main-loop@608566e`·`dev@3bf56c7` |
+| E18 | 인수 재현 | ① 변경 파일 `README.md` = 계획서 「고칠 파일」(행위자 기록 제외) ② 스케치↔diff 13줄 바이트 일치 ③ `node --test` exit 0 직접 재실행 ④ `removedAt 2026-09-01T13:09:28Z`, open 백로그 빈 목록 ⑤ 기록 3종(107·47·102줄) 실재 · `git status --porcelain` 빈 출력 |
+| E19 | 인가 격리 | 행1 `404×3` + 자기 `/projects` 200 · 행2 비멤버 404(NEXT_NOT_FOUND) vs 소유자 200(상태 거부) · 행3 교차 조회 격리 · 행4 `307×4` |
+| E20 | 검증 라운드 | 라운드1 결함 2(경로4 루트 열거 · 경로1 인용 행) → `b72a941` 커밋·재제출 → 라운드2(자체 무편집)·라운드3(독립 plan-verifier 무편집) 0결함, 무편집은 `git status`로 직접 확인 — `docs/agents/main-loop/FEAT-02.md` |
+
+### 테스트 데이터와 정리 (재실행분)
+
+| 리소스 | 변경 | 최종 상태 |
+| --- | --- | --- |
+| `Sangeok/harness-smoke` | 커밋 5개 추가(`7d845ac`~`3bf56c7`), 푸시됨 | 판정 근거 — 보존 |
+| 프로젝트 `harness-smoke` | FEAT-02 사이클 1회(행 1·이벤트 10·보고 2), `language` drift(F6) | 보존 |
+| User `smoke-second` | T8용 생성(멤버십 0) | 판정 근거 — 보존, 정리 시 삭제 가능 |
+| 프로젝트 `mathgic` | 원장 수정 라이브 체크 잔여(`in_review`, 테스트 값) | 1차 권고대로 삭제 가능 |
+
+### 결론 (재실행)
+
+required 전부 `PASS`. `fail > blocked > pass` 규칙으로 전체 **`pass`** — 이 보고서를
+`completed/`로 옮기고 Phase 1 완료 기준(제안서 Goal·T1.17)을 충족한 것으로 판정한다.
+남은 후속은 F6(백로그 후보)과 mathgic 정리뿐이며 둘 다 완료 기준에 관여하지 않는다.

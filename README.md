@@ -12,7 +12,7 @@
 - [FSD 규칙](./docs/architecture/fsd.md)
 - [시스템 개요](./docs/architecture/system-overview.md)
 - [도메인 용어](./CONTEXT.md)
-- [활성 Phase 0·1 제안서](./docs/proposals/active/harness-platform-phase-0-1.md)
+- [완료된 Phase 0·1 제안서](./docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md)
 
 ## 로컬 확인
 

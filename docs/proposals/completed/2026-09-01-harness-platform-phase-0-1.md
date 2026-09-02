@@ -1,14 +1,14 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
-status: "pending"
-stage: "awaiting-approval"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-08-29"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "Sangeok"
+approved-at: "2026-08-30"
+approval-scope: "전체(Phase 0·1) — PR #1·#2 머지로 승인 갈음, front matter는 사후 기록"
+completed-at: "2026-09-01"
+verification-summary: "check·test 스위트 전부 통과, 스모크 인수 2회(1차 blocked → 재실행 pass) — docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -1971,7 +1971,7 @@ npx prisma migrate status
 | `npm test` | **53/53 pass** (2026-08-30) | core 44 + plugin/templates 3 + plugin/bin 6. Verification Plan의 53과 일치 |
 | `npm run test:web` | **73/73 pass** (2026-08-30) | board-rules 12 + auth base 2 + mcp 4 + 이식 모델 55(journey 11·sprites 15·briefing 29) |
 | `npm run check` | **exit 0** (2026-08-30) | eslint + `verify:fsd` + `tsc --noEmit` + 아키텍처 13/13 + `check-plugin-lib`. `npm run build`도 exit 0 — 라우트 11개 |
-| T1.17 스모크 | **미실행 — 사전 조건 대기** | 라이브 Neon `DATABASE_URL` · GitHub OAuth 앱 · 빈 GitHub 저장소 · 두 번째 GitHub 계정(Step 5b)이 있어야 시작된다. T1.6 마이그레이션도 `migrate diff`로 SQL만 생성했고 적용은 대기 |
+| T1.17 스모크 | **1차 2026-08-30 blocked(T8 잔여) → 재실행 2026-09-01 전체 pass** | 판정·증거: docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md — T8 4행·F1~F5 닫힘, Phase 1 완료 기준 충족 |
 
 ## Risks and Rollback
 
@@ -1999,11 +1999,11 @@ npx prisma migrate status
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD (Phase 2 제안서 링크)
+- completed-at: 2026-09-01
+- verification-summary: check exit 0 · core 50/50 · web 87/87 · templates 3/3 · 스모크 인수 재실행 전체 pass(T8 4행·F1~F5 닫힘, 신규 F6 low)
+- implementation PR/commit: PR #1·#2(Phase 0·1 본체) · #3(frontend clean-code) · #4(원장 일관성) · #5(스모크 재실행·마감)
+- changed files summary: src/(app·fsd·server·generated) 신설, packages/core 8모듈, plugin(생성기·스킬·lib·템플릿), prisma 스키마·마이그레이션 3, docs 골격 — 상세는 각 PR
+- remaining follow-up: 배포(Vercel·도메인, 스펙 Q1) → Phase 2 별도 제안서 · F6(project_sync language 미동기화 — 다음 계약 변경 묶음에 합류) · T8 행1·2 실계정 재확인(선택)
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
