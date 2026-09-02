@@ -4,7 +4,31 @@
 // on_hold만 남은 프로젝트가 "뱃지 0인데 카드가 보이는" 상태였다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { isGateSource, needsHumanDecision, pendingInboxCount } from "./gate-source";
+import { STATUSES, findRule } from "@harness/core/transitions.mjs";
+import { isGateSource, needsHumanDecision, pendingInboxCount, type RuleKind } from "./gate-source";
+
+// RuleKind는 여기와 src/server/pipeline/board-rules.ts 두 곳에 있다 — FSD와 서버가 서로를
+// import할 수 없어서다. 이 테스트가 두 목록과 packages/core의 RULES를 묶어 둔다:
+// RULES에 새 kind가 생기면 여기서 깨지고, 그때 두 곳을 함께 고치게 된다.
+const DECLARED: RuleKind[] = ["gate", "bounce", "hold", "resume", "plan", "done"];
+
+describe("RuleKind", () => {
+  it("covers every kind the state machine actually produces", () => {
+    const seen = new Set<string>();
+    for (const actor of ["human", "agent"]) {
+      for (const from of STATUSES as string[]) {
+        for (const to of STATUSES as string[]) {
+          const kind = findRule(actor, from, to)?.kind;
+          if (typeof kind === "string") seen.add(kind);
+        }
+      }
+    }
+    assert.ok(seen.size > 0, "state machine produced no rules — the walk is wrong, not the union");
+    for (const kind of seen) {
+      assert.ok(DECLARED.includes(kind as RuleKind), `RULES has kind "${kind}" that RuleKind does not declare`);
+    }
+  });
+});
 
 describe("pendingInboxCount", () => {
   it("counts the same statuses the inbox list renders", () => {

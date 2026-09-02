@@ -20,7 +20,9 @@ export const prismaToolDeps: ToolDeps = {
   boardList: (projectId, open) => board.latestBoard(projectId, open),
   boardGet: (projectId, key) => board.getWithHistory(projectId, key),
   propose: (projectId, input, actorRef) => board.propose(projectId, input, actorRef),
-  transition: (projectId, input, actorRef) => board.transition(projectId, input, "agent", actorRef),
+  // 에이전트에는 화면이 없다 — CAS 토큰은 board.transition이 트랜잭션 안에서 방금 읽은
+  // row.updatedAt으로 채운다. Caller 유니온이 그 사실을 타입으로 못박는다.
+  transition: (projectId, input, actorRef) => board.transition(projectId, input, { actor: "agent", actorRef }),
   submitPlan: (projectId, input, actorRef) => board.submitPlan(projectId, input, actorRef),
   submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
   recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),

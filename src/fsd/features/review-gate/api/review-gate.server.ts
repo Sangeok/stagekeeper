@@ -21,7 +21,7 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
   const { userId, projectId } = await requireMember(slug);
   const expected = parseExpected(input.expectedUpdatedAt);
   if (expected === null) return failure(message("stale"));
-  const r = await board.transition(projectId, { key, to, result, expectedUpdatedAt: expected }, "human", userId);
+  const r = await board.transition(projectId, { key, to, result }, { actor: "human", actorRef: userId, expectedUpdatedAt: expected });
   if (!r.ok) return failure(message(r.reason));
   revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox"));
   return success(); // ApcH result.ts의 무인자 오버로드 = ActionResult<void>
@@ -31,7 +31,7 @@ export async function discardItem(slug: string, key: string, expectedUpdatedAt: 
   const { userId, projectId } = await requireMember(slug);
   const expected = parseExpected(expectedUpdatedAt);
   if (expected === null) return failure(message("stale"));
-  const r = await board.discard(projectId, key, userId, expected);
+  const r = await board.discard(projectId, { key, userId, expectedUpdatedAt: expected });
   if (!r.ok) return failure(message(r.reason));
   revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox"));
   return success(); // ApcH result.ts의 무인자 오버로드 = ActionResult<void>
