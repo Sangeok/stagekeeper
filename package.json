@@ -9,7 +9,7 @@
     "lint": "eslint && node scripts/verify-fsd-boundaries.mjs",
     "verify:fsd": "node scripts/verify-fsd-boundaries.mjs",
     "test:architecture": "node --test scripts/verify-fsd-boundaries.test.mjs",
-    "check": "npm run lint && tsc --noEmit && npm run test:architecture && node scripts/check-plugin-lib.mjs",
+    "check": "npm run lint && next typegen && tsc --noEmit && npm run test:architecture && node scripts/check-plugin-lib.mjs",
     "test": "node --test \"packages/core/*.test.mjs\" \"plugin/bin/*.test.mjs\"",
     "test:web": "node --import tsx --test \"src/**/*.test.mjs\" \"src/**/*.test.ts\"",
     "test:templates": "node --test \"plugin/templates/*.test.mjs\"",
