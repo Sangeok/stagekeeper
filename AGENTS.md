@@ -32,3 +32,18 @@ Run `npm run verify:fsd`, `npm run test:architecture`, and the relevant lint, ty
 test, and build commands before completing a code change. Do not suppress an
 architecture error without documenting and approving the exception in
 `docs/architecture/verification.md`.
+
+## Branching and pull requests
+
+`dev` is the integration branch; `main` is the release branch and holds only
+commits that were already green on `dev`.
+
+- Branch from `dev`, named `harness/<topic>`. Open the pull request against `dev`:
+  `gh pr create --base dev`. The repository default branch is `main`, so without
+  `--base` the pull request targets the wrong branch.
+- A pull request into `dev` merges only when the `check` workflow is green.
+- Promote `dev` to `main` by fast-forward only:
+  `git switch main && git merge --ff-only dev && git push origin main`.
+  Do not merge `dev` into `main` through the GitHub UI: that merge commit lands on
+  `main` alone, and every release after it needs a back-merge to repair the split.
+- Do not commit directly to `dev` or `main`.
