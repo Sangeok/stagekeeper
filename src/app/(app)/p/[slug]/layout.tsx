@@ -1,6 +1,6 @@
 import { AppHeader, ProjectTabs } from "@/fsd/widgets/app-header";
 import { loadHeaderProjects, loadHeaderUser } from "@/fsd/widgets/app-header/index.server";
-import { TurnBanner, TurnBar, pendingCount } from "@/fsd/widgets/turn-banner";
+import { TurnBanner, TurnBar } from "@/fsd/widgets/turn-banner";
 import { loadTurn } from "@/fsd/widgets/turn-banner/index.server";
 import { requireMember } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
@@ -11,7 +11,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
   const { slug } = await params;
   const { userId, projectId } = await requireMember(slug);
 
-  const [project, user, projects, turn] = await Promise.all([
+  const [project, user, projects, { turn, inboxCount }] = await Promise.all([
     prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { slug: true, name: true } }),
     loadHeaderUser(userId),
     loadHeaderProjects(userId),
@@ -22,7 +22,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
     <div className="flex flex-1 flex-col">
       <TurnBar turn={turn} />
       <AppHeader login={user.login} project={project} projects={projects} />
-      <ProjectTabs slug={slug} pendingCount={pendingCount(turn)} />
+      <ProjectTabs slug={slug} pendingCount={inboxCount} />
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-8 px-5 pt-9 pb-14">
         <TurnBanner turn={turn} slug={slug} />
         {children}

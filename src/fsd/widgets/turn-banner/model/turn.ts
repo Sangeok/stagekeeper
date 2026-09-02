@@ -142,8 +142,3 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
 
   return { kind: "none", detail: NONE_DETAIL };
 }
-
-// Inbox 탭 배지에 쓰는 수. 결정 카드가 있을 때만 0이 아니다.
-export function pendingCount(turn: Turn): number {
-  return turn.kind === "mine" ? turn.count : 0;
-}

@@ -23,6 +23,13 @@ export function needsHumanDecision(status: string): boolean {
   return isGateSource(status) || resumeTargetsFor(status).length > 0;
 }
 
+// Inbox 탭 뱃지의 유일한 출처 — 목록에 실제로 오르는 카드 수와 같은 술어로 센다.
+// 배너는 여기서 갈라진다: on_hold는 배너를 소유하지 않는다(product-copy.md §5).
+// 뱃지는 목록을 따른다(§7: 순서가 gate2 · gate1 · on_hold).
+export function pendingInboxCount(statuses: readonly string[]): number {
+  return statuses.filter(needsHumanDecision).length;
+}
+
 export function rejectActionsFor(status: string): RejectAction[] {
   const actions: RejectAction[] = [];
   if (findRule("human", status, "planning")?.kind === "bounce") actions.push("bounce");

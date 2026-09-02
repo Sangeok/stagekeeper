@@ -1,11 +1,4 @@
-import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
-import {
-  docLinksForItem,
-  type BoardItem,
-  type BoardSection,
-  type DocLink,
-} from "@/fsd/entities/board-item";
-import type { ReportDoc } from "@/fsd/entities/report";
+import type { BoardItem, BoardSection } from "@/fsd/entities/board-item";
 import { isGateSource } from "@/fsd/features/review-gate";
 import {
   identityFor,
@@ -26,8 +19,6 @@ export type SpeechItem = {
   detail: string | null;
   /** 보드 필드가 150자 예산을 넘었나. 넘치면 화면이 표시한다(보드 안내 블록의 기록 규칙). */
   overBudget: boolean;
-  /** 이 항목의 실재하는 문서 링크(계획서·행위자 기록). docs 인자를 안 주면 빈 배열. */
-  docs: DocLink[];
   tone: Tone;
 };
 export type TeamMember = {
@@ -38,7 +29,6 @@ export type TeamMember = {
 };
 export type Briefing = {
   today: string;
-  pendingCount: number;
   inbox: SpeechItem[];
   team: TeamMember[];
   feed: SpeechItem[];
@@ -105,7 +95,6 @@ const join = (...parts: string[]) => parts.filter((p) => p !== "").join(" · ");
 function inboxSpeech(
   item: DatedItem,
   today: Date,
-  resolveDocs: (id: string) => DocLink[],
   roster: readonly string[],
 ): SpeechItem {
   const days = dayTag(item.sectionDate, today);
@@ -119,8 +108,7 @@ function inboxSpeech(
       speaker: identityFor("pm", roster),
       line: join(item.id, "waiting for a plan request", days),
       detail: item.reason,
-      overBudget: isOverBudget(item.reason),
-      docs: resolveDocs(item.id),
+      overBudget: item.overBudget,
       tone: "pending",
     };
   }
@@ -134,19 +122,9 @@ function inboxSpeech(
     speaker: identityFor(item.agent, roster),
     line: join(item.id, "plan submitted", days === "" ? "in review" : `in review for ${days}`),
     detail: item.result ?? item.reason,
-    overBudget: isOverBudget(item.result) || isOverBudget(item.reason),
-    docs: resolveDocs(item.id),
+    overBudget: item.overBudget,
     tone: "pending",
   };
-}
-
-/** 보드 evidence·result 요약 예산. 상세는 docs/agents/<행위자>/ 로 간다.
- *  값의 유일한 출처는 서버가 실제로 거부에 쓰는 packages/core의 TEXT_LIMIT이다. */
-export const FIELD_BUDGET = TEXT_LIMIT;
-
-/** 필드 전체 길이로 잰다 — 첫 문장이 아니다. */
-export function isOverBudget(text: string | null): boolean {
-  return text !== null && text.length > FIELD_BUDGET;
 }
 
 const FEED_TONE: Record<string, Tone> = {
@@ -158,7 +136,6 @@ const FEED_TONE: Record<string, Tone> = {
 
 function feedSpeech(
   item: DatedItem,
-  resolveDocs: (id: string) => DocLink[],
   roster: readonly string[],
 ): SpeechItem {
   const speaker = identityFor(item.agent, roster);
@@ -194,8 +171,7 @@ function feedSpeech(
     speaker,
     line,
     detail,
-    overBudget: isOverBudget(item.reason) || isOverBudget(item.result),
-    docs: resolveDocs(item.id),
+    overBudget: item.overBudget,
     tone,
   };
 }
@@ -251,50 +227,24 @@ function formatToday(today: Date): string {
   return today.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-// 항목 ID → 실재하는 문서 링크. docs 인자가 없으면(뷰어 밖 호출) 항상 빈 배열이라
-// 기존 소비자와 SpeechItem 단언이 깨지지 않는다. 카드별 추가 요청은 없다 — reports·planDocIds는
-// page-load당 한 번씩만 읽고, 이 리졸버는 이미 받은 인메모리 집합만 조회한다.
-function docResolver(
-  docs?: {
-    planDocIds: ReadonlySet<string>;
-    reports: ReadonlyMap<string, ReportDoc[]>;
-  },
-): (id: string) => DocLink[] {
-  if (docs === undefined) return () => [];
-  return (id) => {
-    const agentsWithDoc = new Set(
-      [...docs.reports]
-        .filter(([, l]) => l.some((r) => r.name === `${id}.md`))
-        .map(([a]) => a),
-    );
-    return docLinksForItem(id, docs.planDocIds.has(id), agentsWithDoc);
-  };
-}
-
 export function buildBriefing(
   sections: BoardSection[],
   today: Date,
   roster: readonly string[],
-  docs?: {
-    planDocIds: ReadonlySet<string>;
-    reports: ReadonlyMap<string, ReportDoc[]>;
-  },
 ): Briefing {
   const items = flatten(sections);
-  const resolveDocs = docResolver(docs);
   const inbox = items
     .filter((it) => it.status !== null && isGateSource(it.status))
-    .map((it) => inboxSpeech(it, today, resolveDocs, roster));
+    .map((it) => inboxSpeech(it, today, roster));
   const feed = items
     .filter((it) => it.status === null || !isGateSource(it.status))
-    .map((it) => feedSpeech(it, resolveDocs, roster));
+    .map((it) => feedSpeech(it, roster));
   const team = rosterOrder(roster).map((id) => {
     const { state, heldId, tone } = teamState(id, items);
     return { identity: identityFor(id, roster), state, heldId, tone };
   });
   return {
     today: formatToday(today),
-    pendingCount: inbox.length,
     inbox,
     team,
     feed,

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { blobHref } from "@/fsd/entities/board-item";
-import { BoardItemPage, type ItemDoc } from "@/fsd/pages/board-item";
+import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
 import { requireMember } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { getWithHistory } from "@/server/pipeline/board";
@@ -14,13 +13,6 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
   ]);
   if (!row) notFound();
 
-  const blob = (path: string) => blobHref(project, path);
-  const docs: ItemDoc[] = [];
-  if (row.planPath) docs.push({ label: "Plan", path: row.planPath, href: blob(row.planPath) });
-  for (const report of row.reports) {
-    docs.push({ label: `${report.actor} report`, path: report.path, href: blob(report.path) });
-  }
-
   return (
     <BoardItemPage
       item={{
@@ -33,7 +25,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
         results: row.results,
         validation: row.validation,
         proposedOn: row.proposedOn,
-        docs,
+        docs: toItemDocs(row, project),
         events: row.events.map((e) => ({ at: e.at, actor: e.actor, from: e.from, to: e.to, note: e.note })),
       }}
     />

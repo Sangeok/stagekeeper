@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { deriveTurn, nextStepLine, pendingCount, type TurnItem } from "./turn";
+import { deriveTurn, nextStepLine, type TurnItem } from "./turn";
 
 const ready = { tokenIssued: true, rosterSynced: true, backlogCount: 2 };
 const item = (key: string, status: string, validation: string | null = null, agent = "dev"): TurnItem => ({
@@ -46,7 +46,6 @@ describe("deriveTurn — mine", () => {
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-03 is ready for your approval · 2 items need a plan request");
     assert.equal(turn.count, 3);
-    assert.equal(pendingCount(turn), 3);
   });
   it("treats an unverified plan as yours, with the verify step as the next line", () => {
     const turn = deriveTurn([item("FEAT-04", "in_review", null)], ready);
@@ -76,10 +75,10 @@ describe("deriveTurn — theirs and none", () => {
       ],
     );
   });
+  // on_hold는 배너를 소유하지 않는다(product-copy.md §5) — 결재함 목록과 탭 뱃지는 다르다.
   it("is none when only done and on_hold remain", () => {
     const turn = deriveTurn([item("FEAT-01", "done"), item("FEAT-05", "on_hold")], ready);
     assert.equal(turn.kind, "none");
-    assert.equal(pendingCount(turn), 0);
   });
 });
 

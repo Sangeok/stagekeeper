@@ -34,6 +34,17 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
 
   const isRepoChosen = slug !== "" && owner !== "" && repo !== "";
 
+  // 모드를 바꿀 때는 그 모드에만 속한 상태를 함께 비운다. 예전에는 붙여넣기 오류가
+  // picker 화면까지 따라와서, 지금 보는 화면과 무관한 문구가 남아 있었다.
+  const showPicker = () => {
+    setIsManualEntry(false);
+    setPasteError(null);
+  };
+  const showManualEntry = () => {
+    setIsManualEntry(true);
+    setQuery("");
+  };
+
   const pick = (option: RepoOption) => {
     setOwner(defaultOwner);
     setRepo(option.name);
@@ -65,6 +76,9 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
     setOwner(defaultOwner);
     setSlugTouched(false);
     setIsEditing(false);
+    // 다시 고를 때 이전 검색어와 오류가 남아 있으면 "처음부터"가 아니다.
+    setQuery("");
+    setPasteError(null);
   };
 
   if (state.token && state.slug) {
@@ -111,7 +125,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
             />
           </Field>
           {repos.length > 0 ? (
-            <button type="button" onClick={() => setIsManualEntry(false)} className={`self-start ${TEXT_BUTTON}`}>
+            <button type="button" onClick={showPicker} className={`self-start ${TEXT_BUTTON}`}>
               Pick from my repositories
             </button>
           ) : (
@@ -124,7 +138,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
           query={query}
           setQuery={setQuery}
           pick={pick}
-          pasteInstead={() => setIsManualEntry(true)}
+          pasteInstead={showManualEntry}
         />
       )}
 

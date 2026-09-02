@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
-import { statusLabel } from "@/fsd/entities/board-item";
+import { OverBudgetChip, statusLabel } from "@/fsd/entities/board-item";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
@@ -50,11 +49,7 @@ function ActivityRow({ slug, item }: { slug: string; item: SpeechItem }) {
         {lineWithoutKey(item)}
       </span>
       <span className="flex items-center gap-1.5">
-        {item.overBudget ? (
-          <Chip tone="done" title={`This summary is over ${TEXT_LIMIT} characters. Move the details to docs/agents/.`}>
-            Over {TEXT_LIMIT} characters
-          </Chip>
-        ) : null}
+        {item.overBudget ? <OverBudgetChip /> : null}
         <Chip tone="done">{statusLabel(item.status)}</Chip>
       </span>
     </Link>

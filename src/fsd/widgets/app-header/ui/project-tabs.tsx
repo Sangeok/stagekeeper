@@ -7,7 +7,8 @@ import { cn } from "@/fsd/shared/lib/class-name";
 import { activeProjectTab, PROJECT_TABS, projectPath } from "@/fsd/shared/routes/project";
 
 // 활성 탭은 ink 밑줄 — 색은 사람 차례에만 쓰니 탭은 색을 갖지 않는다. Inbox 배지만 mine.
-// 배지 수는 결재 대기 건수다(pendingCount) — 인박스 카드 수와 같지 않을 수 있다.
+// 배지 수 = 결재함 목록의 카드 수(review-gate의 pendingInboxCount). 배너 수와는 다르다 —
+// 배너는 on_hold를 세지 않는다(product-copy.md §5), 목록과 배지는 센다(§7).
 export function ProjectTabs({ slug, pendingCount }: { slug: string; pendingCount: number }) {
   const active = activeProjectTab(usePathname(), slug);
   return (
