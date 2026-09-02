@@ -6,7 +6,7 @@ import { TokenReveal } from "@/fsd/entities/project-token";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
-import type { CreateProjectState } from "../model/create-project-state";
+import { IDLE, type CreateProjectState } from "../model/create-project-state";
 import { SLUG_HINT } from "../model/project-slug";
 import { parseRepoUrl, slugFromRepo, type RepoOption } from "../model/repo-url";
 
@@ -21,7 +21,7 @@ type Props = {
 const TEXT_BUTTON = "text-xs text-quiet underline underline-offset-2";
 
 export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
-  const [state, formAction, pending] = useActionState(action, {});
+  const [state, formAction, pending] = useActionState(action, IDLE);
   const [owner, setOwner] = useState(defaultOwner);
   const [repo, setRepo] = useState("");
   const [slug, setSlug] = useState("");
@@ -82,7 +82,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
     setPasteError(null);
   };
 
-  if (state.token && state.slug) {
+  if (state.status === "created") {
     return (
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold tracking-tight">Project created</h2>
@@ -172,7 +172,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
         </Field>
       </div>
 
-      {state.error ? <p className="text-sm text-risk">{state.error}</p> : null}
+      {state.status === "error" ? <p className="text-sm text-risk">{state.error}</p> : null}
 
       <div>
         <Button variant="mine" type="submit" disabled={pending || !isRepoChosen}>

@@ -3,7 +3,7 @@
 // 진행 중(proposed·planning·in_review·implementing)만 여정 위치가 있다 — done(종결)·on_hold(중단)·null은
 // 여정 밖이라 매핑이 없다(null 반환). 보드 데이터만으로는 done의 "인수됨"(메인 루프 몫)도, on_hold의
 // "어느 단계에서 멈췄나"도 결정할 수 없어(결과 줄은 산문이라 구조가 아니다) 여정 밖으로 뺀다.
-import { isPlanVerified } from "@/fsd/entities/board-item";
+import { isPlanVerified } from "./verification";
 
 export type StageState = "done" | "current" | "upcoming";
 export type JourneyActor = "pm" | "user" | "agent" | "verifier" | "loop";

@@ -135,6 +135,9 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
   );
 }
 
+// cardClass의 첫 인자는 "사람의 결정을 기다리는 카드"라는 뜻이다 — 호출부에서 true만 보면 알 수 없다.
+const IS_DECISION_CARD = true;
+
 // 실제 Inbox 카드(게이트②)와 같은 프리미티브로 그린 정적 데모. 눌리지 않는다.
 // 이 데모는 실제 Inbox 화면에 대한 약속이라, 문구가 제품과 갈라지면 랜딩이 거짓말이 된다.
 // 탭 목록과 상태 라벨은 소유 모듈에서 직접 가져온다. 나머지 셋은 값을 그대로 적되 출처를 밝힌다:
@@ -162,7 +165,7 @@ function InboxDemo() {
       </div>
       <div className="flex flex-col gap-3.5 px-4 pt-5 pb-4">
         <p className="text-[26px] leading-[1.05] font-semibold tracking-[-0.025em] text-mine">Waiting on you</p>
-        <div className={cardClass(true, "gap-2.5 px-4 pt-4 pb-3.5")}>
+        <div className={cardClass(IS_DECISION_CARD, "gap-2.5 px-4 pt-4 pb-3.5")}>
           <div>
             <p className="font-mono text-xs text-quiet">FEAT-01 · README.md</p>
             <p className="text-base leading-[22px] font-medium tracking-[-0.01em]">Add an install section to the README</p>

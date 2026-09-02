@@ -75,7 +75,8 @@ export async function propose(projectId: string, input: { key: string; agent: st
   return prisma.$transaction(async (tx) => {
     const backlog = await tx.backlogItem.findUnique({ where: { projectId_key: { projectId, key: input.key } } });
     const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
-    const open = await latestBoard(projectId, true, tx);
+    const openOnly = true;
+    const open = await latestBoard(projectId, openOnly, tx);
     const d = decidePropose({
       backlogExists: !!backlog && backlog.removedAt === null,
       hasOpenRow: !!backlog && open.some((r) => r.backlogItemId === backlog.id),

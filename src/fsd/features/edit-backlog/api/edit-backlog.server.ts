@@ -31,7 +31,7 @@ export async function addBacklogItem(slug: string, _prev: BacklogFormState, form
     throw error;
   }
   revalidatePath(projectPath(slug, "/backlog"));
-  return { done: true };
+  return {};
 }
 
 export async function updateBacklogItem(
@@ -46,13 +46,14 @@ export async function updateBacklogItem(
   });
   if (updated.count === 0) return { error: `${key} doesn't exist.` };
   revalidatePath(projectPath(slug, "/backlog"));
-  return { done: true };
+  return {};
 }
 
 // 제거는 removedAt 표기다 — 행은 남는다. 미결 보드 항목이 있으면 거부한다.
 export async function removeBacklogItem(slug: string, key: string): Promise<BacklogFormState> {
   const { projectId } = await requireMember(slug);
-  const open = await latestBoard(projectId, true);
+  const openOnly = true;
+  const open = await latestBoard(projectId, openOnly);
   if (open.some((row) => row.backlogItem.key === key)) {
     return { error: `${key} is open on the board. Finish or discard it before removing.` };
   }
@@ -62,5 +63,5 @@ export async function removeBacklogItem(slug: string, key: string): Promise<Back
   });
   if (removed.count === 0) return { error: `${key} doesn't exist.` };
   revalidatePath(projectPath(slug, "/backlog"));
-  return { done: true };
+  return {};
 }

@@ -6,3 +6,5 @@ export { STATUS_LABEL, statusLabel } from "./model/status-label";
 export { FIELD_BUDGET, isOverBudget } from "./model/text-budget";
 export { OverBudgetChip } from "./ui/over-budget-chip";
 export { isPlanUnverified, isPlanVerified } from "./model/verification";
+export { deriveJourney } from "./model/journey";
+export type { JourneyActor, JourneyStage, JourneyView, StageState } from "./model/journey";
