@@ -1,6 +1,7 @@
 // 순수. 보드의 최신 행들로 "지금 누구 차례인가"를 정한다 — 모든 프로젝트 탭 위에 놓이는 배너의 유일한 출처.
 // 문구는 docs/conventions/product-copy.md §5. 판정은 packages/core의 상태 기계에서 파생한다.
 import { canPropose, isOpen } from "@harness/core/transitions.mjs";
+import { isPlanUnverified, isPlanVerified } from "@/fsd/entities/board-item";
 import { isGateSource } from "@/fsd/features/review-gate";
 
 export type TurnItem = { key: string; status: string; agent: string; validation: string | null };
@@ -71,8 +72,8 @@ function countPhrase(n: number, one: string, many: string): string {
 }
 
 function mineDetail(pending: TurnItem[]): string {
-  const verified = pending.filter((i) => i.status === "in_review" && i.validation !== null);
-  const unverified = pending.filter((i) => i.status === "in_review" && i.validation === null);
+  const verified = pending.filter((i) => isPlanVerified(i.status, i.validation));
+  const unverified = pending.filter((i) => isPlanUnverified(i.status, i.validation));
   const proposed = pending.filter((i) => i.status === "proposed");
   const parts: string[] = [];
   if (verified.length > 0) {
@@ -93,7 +94,7 @@ export function nextStepLine(item: TurnItem): string | null {
     case "planning":
       return `Continue the runbook for ${item.key}: step 3 — ${item.agent} writes the plan.`;
     case "in_review":
-      return item.validation === null ? `Continue the runbook for ${item.key}: step 4 — verify the plan.` : null;
+      return isPlanUnverified(item.status, item.validation) ? `Continue the runbook for ${item.key}: step 4 — verify the plan.` : null;
     case "implementing":
       return `Continue the runbook for ${item.key}: step 6 — ${item.agent} implements.`;
     default:

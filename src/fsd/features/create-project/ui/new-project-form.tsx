@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { TokenReveal } from "@/fsd/entities/project-token";
+import { projectPath } from "@/fsd/shared/routes/project";
 import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 import type { CreateProjectState } from "../model/create-project-state";
@@ -86,7 +87,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold tracking-tight">Project created</h2>
         <TokenReveal token={state.token} mcpUrl={mcpUrl} />
-        <Link className="self-start text-sm underline underline-offset-2" href={`/p/${state.slug}`}>
+        <Link className="self-start text-sm underline underline-offset-2" href={projectPath(state.slug)}>
           Open /p/{state.slug}
         </Link>
       </section>

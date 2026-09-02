@@ -1,5 +1,6 @@
 import type { BoardItem, BoardSection } from "@/fsd/entities/board-item";
 import { isGateSource } from "@/fsd/features/review-gate";
+import { daysBetween } from "@/fsd/shared/lib/relative-time";
 import {
   identityFor,
   rosterOrder,
@@ -52,6 +53,8 @@ function flatten(sections: BoardSection[]): DatedItem[] {
   return out;
 }
 
+// 섹션 제목(YYYY-MM-DD)만 해석하고, 날짜 차이는 shared의 daysBetween에 맡긴다 —
+// 예전에는 UTC 자정 계산과 음수 절단을 여기서 다시 구현하고 86_400_000을 손으로 적었다.
 export function daysOnBoard(sectionDate: string, today: Date): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(sectionDate);
   if (!m) return null;
@@ -59,14 +62,7 @@ export function daysOnBoard(sectionDate: string, today: Date): number | null {
     mo = m[2],
     d = m[3]; // 방어적: 정규식이 매치했으므로 세 그룹은 항상 존재한다
   if (y === undefined || mo === undefined || d === undefined) return null;
-  const start = Date.UTC(Number(y), Number(mo) - 1, Number(d));
-  const now = Date.UTC(
-    today.getUTCFullYear(),
-    today.getUTCMonth(),
-    today.getUTCDate(),
-  );
-  const diff = Math.floor((now - start) / 86_400_000);
-  return diff < 0 ? 0 : diff;
+  return daysBetween(new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d))), today);
 }
 
 // "1 day" / "N days". 오늘 올라온 것(0일)과 날짜를 못 읽는 섹션은 빈 문자열 — 문장에 붙이지 않는다.

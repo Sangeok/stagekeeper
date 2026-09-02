@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { OverBudgetChip, isOverBudget, statusLabel } from "@/fsd/entities/board-item";
+import { OverBudgetChip, isOverBudget, isPlanUnverified, isPlanVerified, statusLabel } from "@/fsd/entities/board-item";
 import { agoLabel, shortDate } from "@/fsd/shared/lib/relative-time";
 import { Button, ExternalButtonLink } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
@@ -36,7 +36,7 @@ export function InboxCard({ item, now, transition, discard }: Props) {
   const isProposed = item.status === "proposed";
   const isInReview = item.status === "in_review";
   const isOnHold = item.status === "on_hold";
-  const isUnverified = isInReview && item.validation === null;
+  const isUnverified = isPlanUnverified(item.status, item.validation);
   // 서버가 새 값은 거부하지만(TEXT_LIMIT), 이미 들어온 값의 초과 표시는 화면 몫이다.
   // 재는 기준은 보드와 같은 한 곳(entities/board-item)에서 온다 — 두 화면이 어긋나지 않게.
   const overBudget = isOverBudget([item.reason, ...item.results]);
@@ -163,8 +163,9 @@ function StatusLine({ item, now }: { item: InboxItem; now: string }) {
 function PlanRow({ item }: { item: InboxItem }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-field px-3 py-2.5 text-xs">
-      {item.validation !== null ? (
-        <Chip tone="record" title={item.validation}>
+      {/* 술어를 함수로 뺐으므로 여기서 validation이 non-null로 좁혀지지 않는다 — title 값만 보정한다. */}
+      {isPlanVerified(item.status, item.validation) ? (
+        <Chip tone="record" title={item.validation ?? undefined}>
           Verified
         </Chip>
       ) : (

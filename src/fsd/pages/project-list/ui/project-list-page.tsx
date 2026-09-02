@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { projectPath } from "@/fsd/shared/routes/project";
 import { ButtonLink } from "@/fsd/shared/ui/button";
 
 export type ProjectSummary = { slug: string; name: string; owner: string; repo: string };
@@ -19,7 +20,7 @@ export function ProjectListPage({ projects }: { projects: ProjectSummary[] }) {
         <ul className="rounded-lg border border-rule bg-paper">
           {projects.map((p) => (
             <li key={p.slug} className="border-b border-rule last:border-b-0">
-              <Link href={`/p/${p.slug}`} className="flex flex-wrap items-baseline gap-3 px-3.5 py-3 hover:bg-field">
+              <Link href={projectPath(p.slug)} className="flex flex-wrap items-baseline gap-3 px-3.5 py-3 hover:bg-field">
                 <span className="font-medium">{p.name}</span>
                 <span className="font-mono text-xs text-quiet">
                   {p.owner}/{p.repo}

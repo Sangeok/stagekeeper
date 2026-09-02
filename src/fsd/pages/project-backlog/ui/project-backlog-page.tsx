@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BacklogForm, BacklogTable, type BacklogFormAction, type BacklogRow, type RemoveBacklogAction } from "@/fsd/features/edit-backlog";
+import { backlogHref } from "@/fsd/shared/routes/project";
 
 type Props = {
   slug: string;
@@ -18,7 +19,7 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, u
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Backlog</h1>
         <Link
-          href={includeRemoved ? `/p/${slug}/backlog` : `/p/${slug}/backlog?removed=1`}
+          href={backlogHref(slug, { includeRemoved: !includeRemoved })}
           className="text-xs text-quiet underline underline-offset-2"
         >
           {includeRemoved ? "Hide removed" : "Show removed"}

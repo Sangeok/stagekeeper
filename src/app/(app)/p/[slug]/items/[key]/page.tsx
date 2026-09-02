@@ -1,16 +1,13 @@
 import { notFound } from "next/navigation";
 import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
 import { requireMember } from "@/server/auth/guard";
-import { prisma } from "@/server/db";
 import { getWithHistory } from "@/server/pipeline/board";
+import { loadRepoRef } from "@/server/project";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]">) {
   const { slug, key } = await params;
   const { projectId } = await requireMember(slug);
-  const [project, row] = await Promise.all([
-    prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { owner: true, repo: true, branch: true } }),
-    getWithHistory(projectId, key),
-  ]);
+  const [project, row] = await Promise.all([loadRepoRef(projectId), getWithHistory(projectId, key)]);
   if (!row) notFound();
 
   return (

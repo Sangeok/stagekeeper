@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { projectPath } from "@/fsd/shared/routes/project";
+
 export type HeaderProject = { slug: string; name: string };
 
 // 셸 머리. Server Component에서 그려도 되게 hook이 없다 — 프로젝트 전환은 <details>로 연다.
@@ -45,7 +47,7 @@ function ProjectSwitcher({ current, projects }: { current: HeaderProject; projec
       <ul className="absolute left-0 top-full z-40 mt-1 min-w-52 rounded-lg border border-rule bg-paper py-1 text-sm">
         {others.map((p) => (
           <li key={p.slug}>
-            <Link href={`/p/${p.slug}`} className="block px-3 py-1.5 font-mono text-[13px] hover:bg-field">
+            <Link href={projectPath(p.slug)} className="block px-3 py-1.5 font-mono text-[13px] hover:bg-field">
               {p.name}
             </Link>
           </li>

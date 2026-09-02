@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { statusLabel } from "@/fsd/entities/board-item";
 import { Chip } from "@/fsd/shared/ui/chip";
+import { backlogHref } from "@/fsd/shared/routes/project";
 import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 import type { RemoveBacklogAction } from "../model/backlog-form-state";
 import { RemoveBacklogButton } from "./remove-backlog-button";
@@ -47,7 +48,7 @@ export function BacklogTable({ slug, rows, remove }: Props) {
             <Tr key={row.key} className={row.removedAt ? "text-quiet" : undefined}>
               <Td className="font-mono text-xs">{row.key}</Td>
               <Td>
-                <Link href={`/p/${slug}/backlog?edit=${row.key}`} className="hover:underline">
+                <Link href={backlogHref(slug, { edit: row.key })} className="hover:underline">
                   {row.title}
                 </Link>
               </Td>

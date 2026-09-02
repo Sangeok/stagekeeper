@@ -3,6 +3,7 @@ import Link from "next/link";
 import { OverBudgetChip, statusLabel } from "@/fsd/entities/board-item";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Chip } from "@/fsd/shared/ui/chip";
+import { itemPath } from "@/fsd/shared/routes/project";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
 import type { Briefing, SpeechItem, TeamMember } from "../model/briefing";
 
@@ -41,7 +42,7 @@ function ActivityRow({ slug, item }: { slug: string; item: SpeechItem }) {
   const isQuiet = item.tone === "done" || item.tone === "hold" || item.tone === "muted";
   return (
     <Link
-      href={`/p/${slug}/items/${item.id}`}
+      href={itemPath(slug, item.id)}
       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-rule px-3.5 py-2.5 last:border-b-0 hover:bg-field"
     >
       <span className={cn("text-sm", isQuiet && "text-quiet")}>
