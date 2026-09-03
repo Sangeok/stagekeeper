@@ -1,5 +1,7 @@
 // deps.ts — ToolDeps의 Prisma 구현 + 토큰 검증 바인딩. 도구 본문은 tools.ts, 저장 규칙은 pipeline/board.ts.
 import "server-only";
+import { agentNext } from "@/server/agents/next";
+import { prismaNextDeps } from "@/server/agents/runs";
 import { prisma } from "@/server/db";
 import * as board from "@/server/pipeline/board";
 import { makeVerifyToken } from "./auth";
@@ -26,6 +28,7 @@ export const prismaToolDeps: ToolDeps = {
   submitPlan: (projectId, input, actorRef) => board.submitPlan(projectId, input, actorRef),
   submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
   recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),
+  agentNext: (projectId, tokenId, input) => agentNext(prismaNextDeps, { projectId, tokenId }, input),
 };
 
 // 토큰 조회도 여기 둔다 — route.ts가 Prisma를 직접 부르면 adapter가 데이터 접근을 떠안는다.
