@@ -1,6 +1,6 @@
 ---
 status: 'active'
-stage: 'planned'
+stage: 'running'
 result: null
 report-kind: 'acceptance'
 report-size: 'standard'
@@ -8,7 +8,7 @@ test-levels: ['end-to-end', 'contract', 'manual']
 test-tools: ['Claude Code', 'node --test', 'MCP JSON-RPC over HTTP', 'git', 'prisma', 'transcript parser(scratch)']
 created-at: '2026-09-03'
 completed-at: null
-last-executed-at: null
+last-executed-at: '2026-09-03'
 tested-revision: 'stagekeeper de7dcda(dev) / private templates 9818dec(파일 방식)·d27e614(스텁 방식) / harness-smoke f925fbd 기준'
 owners: ['Sangeok']
 related:
@@ -107,16 +107,18 @@ Phase 4의 에이전트 전달 방식(파일은 스텁, 단계 본문은 `agent_
   `readOnly: ["docs/spec/greet-cli.md"]`), `language: "en"`, `executor.kind: "local"`,
   scout 미설정. Run B는 `.mcp.json`으로 `harness` MCP 서버 연결, Run A도 같은
   `.mcp.json`(파일 방식도 `board_get`·`plan_submit`·`report_submit`은 MCP다)
-- Environment limitations: 초안 작성 시점에 포트 3000은 다른 프로젝트의 `next dev`가
-  잡고 있고 stagekeeper 서버는 떠 있지 않다. 그래서 C5(Run B 스텁 서버 재생성)와
-  `project_sync`가 아직 안 돌았다. 서버 기동은 사용자 몫이다
+- Environment limitations: 초안 작성 시점에는 포트 3000을 다른 프로젝트의 `next dev`가
+  잡고 있어 C5와 `project_sync`를 미뤘다. 사용자가 그 서버를 내린 뒤 stagekeeper
+  `next dev`를 띄워(2026-09-03) 둘 다 마쳤다. 그 외 제한 없음
 
 ## Preconditions and Test Data
 
 - Preconditions: 사용자 `Sangeok`의 플랜이 `max`(DB read-back), `Template` 테이블에
   `en` 11행(`d27e614`, 2026-09-03T05:43Z 시드), `harness-smoke` 세 브랜치와 worktree,
   웹 프로젝트 `g1-file`·`g1-stub`(각각 `FEAT-03` 1건 + 토큰 1개), 서버 기동 후
-  두 프로젝트에 `project_sync({ workspaces, language: "en" })` 완료
+  두 프로젝트에 `project_sync({ workspaces, language: "en" })` 완료 — 전부 충족
+  (2026-09-03, sync는 `{"synced":1}` × 2, read-back으로 roster `dev(.)`·readOnly·knowledge·
+  verify와 `language en` 확인, `agent_next` 원장 0건)
 - Test data plan: 백로그 항목 `FEAT-03` "greet CLI: add an --upper flag"(area `src`,
   근거는 관찰/코드 확인/원하는 결과 세 문단). 예상 최종 상태: 두 프로젝트 모두
   `FEAT-03`이 `done`, 각 브랜치에 계획서·검증 기록·보고서·구현 커밋
@@ -172,7 +174,7 @@ Phase 4의 에이전트 전달 방식(파일은 스텁, 단계 본문은 `agent_
 | C2 | T3/T5/T6/T8 | `informational` | `g1-transcript.mjs <transcript dir>` | 세션·서브에이전트 요약 | Not run yet | `NOT RUN` |
 | C3 | R3/T6 | `required` | `git diff g1-base..<최종 커밋> -- docs/spec/greet-cli.md` (두 브랜치) | 빈 출력 | Not run yet | `NOT RUN` |
 | C4 | R4/T7 | `required` | 두 브랜치의 `docs/agents/dev/FEAT-03.md`에서 `^#{1,3} ` 줄만 뽑아 diff | 빈 출력 | Not run yet | `NOT RUN` |
-| C5 | 준비/T2 | `required` | `harness-smoke-stub`에서 `HARNESS_TOKEN=<g1-stub> harness-init.mjs --root . --server http://localhost:3000` 뒤 `git status --porcelain` | `plan: max` · 빈 출력(서버 배포본 = 우회로 산출물) | 서버 미기동으로 대기 | `NOT RUN` |
+| C5 | 준비/T2 | `required` | `harness-smoke-stub`에서 `HARNESS_TOKEN=<g1-stub> harness-init.mjs --root . --server http://localhost:3000` 뒤 `git status --porcelain` | `plan: max` · 빈 출력(서버 배포본 = 우회로 산출물) | `plan: max` · `done: write 8 · skip 0`. 생성된 10개 파일 전부 HEAD `4dd56af`와 **바이트 동일**(md5, `git diff --numstat` 빈 출력). status에는 5개가 떴으나 체크아웃 CRLF ↔ 서버 LF의 EOL 상태 차이뿐이라 `git checkout --`로 되돌려 빈 출력. E3 | `PASS` |
 | C6 | R0/T1/T2 | `required` | `node --test` (두 최종 트리) | exit 0, `--upper` 케이스 포함 | Not run yet | `NOT RUN` |
 | C7 | R0/T1/T2 | `informational` | `git status --porcelain` (두 worktree) | 빈 출력 | Not run yet | `NOT RUN` |
 
