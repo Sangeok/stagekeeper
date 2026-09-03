@@ -20,4 +20,16 @@ describe("agent-scoped MCP tools", () => {
     await assert.rejects(() => handlers.project_get({}, { http: {} }), /unauthenticated/);
     await assert.rejects(() => handlers.board_propose({ key: "X-1", agent: "dev", reason: "r" }, {}), /unauthenticated/);
   });
+  it("project_sync hands language through to the deps — absent stays undefined", async () => {
+    const calls = [];
+    const handlers = {};
+    registerTools({ registerTool: (name, _meta, fn) => { handlers[name] = fn; } }, {
+      projectSync: async (projectId, workspaces, language) => { calls.push({ projectId, workspaces, language }); return workspaces.length; },
+    });
+    const ctx = { http: { authInfo: { extra: { projectId: "p1", tokenId: "t1" } } } };
+    const ws = [{ id: "web", path: "apps/web", agent: "dev", verify: ["npm test"], knowledge: null, readOnly: [] }];
+    await handlers.project_sync({ workspaces: ws, language: "ko" }, ctx);
+    await handlers.project_sync({ workspaces: ws }, ctx);
+    assert.deepEqual(calls.map((c) => [c.projectId, c.language]), [["p1", "ko"], ["p1", undefined]]);
+  });
 });

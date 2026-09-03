@@ -1,12 +1,13 @@
 // 에이전트 토큰 스코프의 MCP 도구. 스펙 §5가 계약이다.
 // 게이트·반려·백로그 편집·토큰 발급 도구는 여기 없다(D8) — 웹 전용이며 등록 자체가 없다.
 import type { McpServer } from "@modelcontextprotocol/server";
+import { NOTE_MAX, OUTCOMES, type NextInput, type NextOutput } from "@/server/agents/next";
 import type { ServerResult } from "@/server/result";
 import { z } from "zod";
 
 export const AGENT_TOOL_NAMES = [
   "project_get", "project_sync", "backlog_list", "backlog_get", "board_list", "board_get",
-  "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record",
+  "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next",
 ] as const;
 
 export type WorkspaceInput = { id: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] };
@@ -34,7 +35,7 @@ export type BoardDetailView = BoardRowView & {
 
 export type ToolDeps = {
   projectGet(projectId: string): Promise<ProjectView>;
-  projectSync(projectId: string, workspaces: WorkspaceInput[]): Promise<number>;
+  projectSync(projectId: string, workspaces: WorkspaceInput[], language?: string): Promise<number>;
   backlogList(projectId: string, includeRemoved: boolean): Promise<BacklogWithStatusView[]>;
   backlogGet(projectId: string, key: string): Promise<BacklogView | null>;
   boardList(projectId: string, open: boolean): Promise<BoardRowView[]>;
@@ -44,6 +45,7 @@ export type ToolDeps = {
   submitPlan(projectId: string, input: { key: string; path: string; commit: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
+  agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
 };
 
 type Ctx = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
@@ -55,7 +57,7 @@ function scope(ctx: Ctx) {
   const extra = ctx.http?.authInfo?.extra;
   const projectId = extra?.projectId, tokenId = extra?.tokenId;
   if (typeof projectId !== "string" || typeof tokenId !== "string") throw new Error("unauthenticated");
-  return { projectId, actorRef: `token:${tokenId}` };
+  return { projectId, tokenId, actorRef: `token:${tokenId}` };
 }
 
 const workspace = z.object({ id: z.string(), path: z.string(), agent: z.string(), verify: z.array(z.string()), knowledge: z.string().nullable(), readOnly: z.array(z.string()) });
@@ -66,9 +68,9 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const { projectId } = scope(ctx);
     return text(await deps.projectGet(projectId));
   });
-  server.registerTool("project_sync", { description: "Push harness.json.workspaces to the service. Updates the roster.", inputSchema: z.object({ workspaces: z.array(workspace) }) }, async ({ workspaces }, ctx: Ctx) => {
+  server.registerTool("project_sync", { description: "Push harness.json.workspaces (and language) to the service. Updates the roster; agent_next serves steps in that language.", inputSchema: z.object({ workspaces: z.array(workspace), language: z.string().optional() }) }, async ({ workspaces, language }, ctx: Ctx) => {
     const { projectId } = scope(ctx);
-    return text({ synced: await deps.projectSync(projectId, workspaces) });
+    return text({ synced: await deps.projectSync(projectId, workspaces, language) });
   });
   server.registerTool("backlog_list", { description: "Backlog items with each item's latest board status.", inputSchema: z.object({ includeRemoved: z.boolean().optional() }) }, async ({ includeRemoved }, ctx: Ctx) => {
     const { projectId } = scope(ctx);
@@ -107,5 +109,10 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
   server.registerTool("validation_record", { description: "main-loop: record a clean validation pass. Only in in_review, 150 characters or fewer.", inputSchema: z.object({ key: z.string(), text: z.string() }) }, async (args, ctx: Ctx) => {
     const { projectId, actorRef } = scope(ctx);
     return unwrap(await deps.recordValidation(projectId, args, actorRef));
+  });
+  // 단계 본문은 이 도구로만 나간다(agents/next.ts). 스텁이 "첫 호출은 agent_next"라고 말하는 그 도구다.
+  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional() }) }, async (args, ctx: Ctx) => {
+    const { projectId, tokenId } = scope(ctx);
+    return unwrap(await deps.agentNext(projectId, tokenId, args));
   });
 }

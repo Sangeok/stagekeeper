@@ -112,6 +112,7 @@ export async function transition(
     if (u.count === 0) return fail("stale");
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: d.value.status, actor: caller.actor, actorId: caller.actorRef } });
     if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date() } });
+    if (!isOpen(d.value.status)) await closeRuns(tx, projectId, input.key);
     return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }) };
   });
 }
@@ -131,8 +132,15 @@ export async function discard(projectId: string, input: { key: string; userId: s
     });
     if (u.count === 0) return fail("stale");
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: null, actor: "human", actorId: input.userId, note: "discard" } });
+    await closeRuns(tx, projectId, input.key);
     return { ok: true as const, item: null };
   });
+}
+
+// 항목이 쉬거나(done·on_hold) 폐기되면 그 항목을 걷던 agent_next 커서(AgentRun)는 같은 트랜잭션에서 닫힌다.
+// 남겨 두면 dev가 report·hold 뒤에 보내는 ok가 옛 커서를 계속 밀고, 되살아난 항목을 옛 단계에서 이어 걷는다.
+function closeRuns(tx: Db, projectId: string, key: string) {
+  return tx.agentRun.updateMany({ where: { projectId, key, closedAt: null }, data: { closedAt: new Date() } });
 }
 
 // 증거 제출 3종(validation·plan·report)은 전부 same-status 이벤트(note로 구분, actorId = 호출 토큰)를

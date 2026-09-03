@@ -13,6 +13,18 @@ model User {
   login     String
   createdAt DateTime        @default(now())
   members   ProjectMember[]
+  subscription Subscription?
+}
+
+model Subscription {                   // 플랜은 사용자에 붙고 프로젝트는 소유자의 플랜을 따른다. 행이 없으면 free. 결제 경로 없음 — plan:grant 스크립트가 쓴다
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  plan      String                     // entitlement.mjs PLANS
+  source    String   @default("manual")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Project {
@@ -32,6 +44,7 @@ model Project {
   backlog      BacklogItem[]
   board        BoardItem[]
   commands     Command[]
+  runs         AgentRun[]
 }
 
 model ProjectMember {
@@ -142,4 +155,34 @@ model Command {                          // 명령 원장 (Phase 3에서 소비)
   doneAt    DateTime?
   summary   String?
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model AgentRun {                         // agent_next 커서 — (project, agent, key)당 열린 run 하나. 단계 본문은 이 커서가 가리키는 것만 나간다
+  id        String         @id @default(cuid())
+  projectId String
+  agent     String
+  key       String?                      // 항목에 묶인 에이전트(dev)만. pm·감사 에이전트는 null
+  tokenId   String                       // 연 토큰 — 호출 제한의 단위
+  stepId    String                       // 지금 서 있는 단계. 전진은 이 값이 그대로일 때만(CAS)
+  refused   Int            @default(0)   // 이 run에서 "열리지 않은 단계" 거부 횟수 — 10회에 경고
+  openedAt  DateTime       @default(now())
+  closedAt  DateTime?                    // done 도달, 또는 항목이 done/on_hold/폐기될 때 board.ts가 닫는다
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  steps     AgentRunStep[]
+
+  @@index([projectId, agent, key, closedAt])
+  @@index([tokenId])
+}
+
+model AgentRunStep {                     // 원장 — 에이전트가 outcome을 실어 부른 호출 전부(전진했든 거부됐든). 호출 제한은 이 행 수로 센다
+  id      String   @id @default(cuid())
+  runId   String
+  stepId  String
+  outcome String                         // ok | blocked | failed
+  note    String?
+  at      DateTime @default(now())
+  run     AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, at])
+  @@index([at])
 }

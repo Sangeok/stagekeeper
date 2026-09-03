@@ -11,7 +11,7 @@
 | 도구 | 입력 | 효과 | 누가 | Phase |
 | --- | --- | --- | --- | --- |
 | `project_get` | — | 프로젝트·roster·워크스페이스 | 전부 | 1 |
-| `project_sync` | `{workspaces[]}` (= `harness.json.workspaces`) | 워크스페이스 upsert(roster 갱신) | init 스킬 | 1 |
+| `project_sync` | `{workspaces[], language?}` (= `harness.json`의 `workspaces`·`language`) | 워크스페이스 upsert(roster 갱신) · `Project.language` 갱신(`agent_next`가 단계를 찾는 언어) | init 스킬 | 1 · 4 |
 | `backlog_list` | `{includeRemoved?}` | 백로그 항목 + 최신 보드 status | pm·dev·doc-auditor | 1 |
 | `backlog_get` | `{key}` | 항목 1건(`source` 전문) | dev | 1 |
 | `board_list` | `{open?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
@@ -21,6 +21,7 @@
 | `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다 | dev·main-loop | 1 |
 | `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록) | dev·main-loop | 1 |
 | `validation_record` | `{key, text}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움 | main-loop | 1 |
+| `agent_next` | `{agent, key?, outcome?, note?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). 플랜 밖 에이전트·잠긴 프로젝트도 거부 | 전부 | 4 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 
@@ -28,7 +29,9 @@
 
 증거 제출 3종(`plan_submit`·`report_submit`·`validation_record`)은 모두 same-status
 `TransitionEvent`(note `plan`·`report`·`validation`, actorId = 호출 토큰)를 남긴다 —
-원장 = 감사 로그(불변식 8). 클린 사이클의 원장은 정확히 8건이다.
+원장 = 감사 로그(불변식 8). 클린 사이클의 원장은 정확히 8건이다. `agent_next`의 원장은 따로다 —
+`AgentRun`(에이전트·항목별 커서)과 `AgentRunStep`(outcome이 실린 호출 전부, 거부 포함)이며
+`TransitionEvent`에는 남기지 않는다.
 
 ## 상태 기계
 
