@@ -446,6 +446,15 @@ both). Below: each file's title, its section headings, and the sentences that se
   "Server URL required: pass --server <url> or set HARNESS_SERVER (shown on the web Tokens
   page)" · "Conflicts with existing files. Rerun with --adopt to take them over, or move them
   out of the way." · `write:` · `skip(modified):` · `refuse:` · `done: write 8 · skip 0`
+- `harness-init.mjs`, plan (Phase 4): `plan: free` (one line, before any write) ·
+  `skip(plan): .claude/agents/plan-verifier.md (not on the free plan)` — the server did not send
+  that agent; the file is not written and drops out of the lock · "workspace cap reached on the
+  free plan (1): harness.json has 3 workspaces. project_sync would refuse — drop workspaces or
+  upgrade the plan on the web." (exit 1, nothing written; the first clause is
+  `capReason(plan, axis)` from `packages/core/entitlement.mjs`, the one source for cap wording)
+  · "Unexpected /api/templates response (no `templates` key): plugin and server are out of
+  step — update the harness plugin." (a pre-Phase-4 server; exit 1) · "Template missing on
+  server: en/agents/pm.md"
 - `plugin.json` description: "Connect a repository to Stagekeeper — an agent pipeline whose
   rules you set."
 - `marketplace.json` description: same.
@@ -454,7 +463,9 @@ both). Below: each file's title, its section headings, and the sentences that se
   keep today's seven; wording: "Ask one question at a time." · "Show the dry run and get a yes
   before writing." · "Tell the user to restart Claude Code — .mcp.json is read at session start
   — and to approve the `harness` server when `/mcp` shows Pending approval." · "Leave the
-  commit to the user."
+  commit to the user." Phase 4 adds: step 5 passes `{ workspaces, language }` to
+  `project_sync`; a closing paragraph says the agent files are **stubs** whose step bodies
+  arrive through `agent_next`, and that an already-connected project reruns `/harness:init`.
 
 ## 16. Landing — public `/` (built 2026-08-30, landing-v2)
 

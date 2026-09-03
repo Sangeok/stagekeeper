@@ -13,6 +13,13 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 강제한다. `plugin/templates/`는 의도적으로 git 미추적이다 — 원본은 별도 private
 저장소(`Sangeok/harness-templates`), 배포는 DB(`Template` 테이블) 경유.
 
+Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 않는다. `/api/templates`는
+플랜에 맞춰 잘라 낸 것만 준다 — 에이전트 파일은 첫 `## step:` 앞의 **스텁**, 플랜 밖 보고
+에이전트는 제외, Free는 `CLAUDE.runbook.free.md`가 런북 자리에 들어간다. 단계 본문은
+`agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/core/deliver.mjs`
+하나가 정하고, 서버(`src/server/templates.ts`)와 생성기(`plugin/bin/harness-init.mjs`의
+로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/core/entitlement.mjs`.
+
 루트 `app/`은 Phase 0에서 `src/app/`으로 이동 완료됐다. Next.js는 루트 `app/`과
 `src/app/`이 동시에 있으면 `src/app/`을 무시하므로 루트 `app/`을 다시 만들지
 않는다 — 검사기가 동시 존재를 실패로 잡는다.

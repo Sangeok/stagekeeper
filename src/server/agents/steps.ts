@@ -1,7 +1,8 @@
 // 순수. DB·프레임워크 없음. 에이전트 템플릿(private 저장소의 마크다운)을 "파일로 내려가는 스텁"과
 // "agent_next가 한 번에 하나씩 주는 단계"로 나눈다. 형식은 이 파일이 유일한 정의다:
 //
-//   (첫 `## step:` 앞까지 = 스텁. frontmatter 포함, 그대로 .claude/agents/<x>.md 가 된다)
+//   (첫 `## step:` 앞까지 = 스텁. frontmatter 포함, 그대로 .claude/agents/<x>.md 가 된다.
+//    경계 정규식과 자르기는 packages/core/deliver.mjs — /api/templates가 같은 경계로 스텁을 내려준다)
 //   ## step:<id>   requires: <req>, <req>
 //   (본문)
 //   next: <id|done> [| <id> …] — 필수, 한 줄. `a | b`면 requires가 맞는 첫 후보로 간다(보드 상태로 갈라지는 자리 — dev start)
@@ -11,6 +12,7 @@
 // 지시어는 이 셋(+ 제목의 requires:)뿐이다. 모르는 지시어·중복 id·없는 id 참조·모르는 requires 값은
 // 예외로 던진다 — 서빙 중 500이 아니라 시드 시점에 걸리게 하려는 것이다(seed-templates.ts가 먼저 파싱한다).
 // 단계가 하나도 없는 본문(runbook·docs 템플릿)은 stub = 본문 전체, steps = [] 로 그대로 통과한다.
+import { STEP_HEADING, stubOf } from "@harness/core/deliver.mjs";
 import { STATUSES } from "@harness/core/transitions.mjs";
 
 // requires: 어휘. 보드 상태 이름은 항목(key)의 최신 상태, 나머지 둘은 파생 조건이다:
@@ -34,7 +36,7 @@ export class TemplateFormatError extends Error {
   constructor(message: string) { super(message); this.name = "TemplateFormatError"; }
 }
 
-const HEADING = /^## step:(\S+)(.*)$/;
+const HEADING = STEP_HEADING;
 const ID = /^[a-z][a-z0-9-]*$/;
 const DIRECTIVE = /^(next|on failed|on blocked|requires|on [a-z-]+):\s*(.*)$/;
 
@@ -43,7 +45,7 @@ export function splitTemplate(body: string): ParsedTemplate {
   const first = lines.findIndex((l) => HEADING.test(l));
   if (first < 0) return { stub: body, steps: [] };
 
-  const stub = lines.slice(0, first).join("\n").trimEnd() + "\n";
+  const stub = stubOf(body);
   const steps: Step[] = [];
   let cur: (Omit<Step, "next" | "body"> & { next?: string[]; lines: string[] }) | null = null;
   let fenced = false;

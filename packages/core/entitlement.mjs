@@ -26,6 +26,14 @@ export function withinLimit(plan, axis, count) {
   return count <= limitsFor(plan)[axis];
 }
 
+// 상한 문구의 단일 출처 — 프로젝트 잠금 사유, project_sync 거부, 생성기 중단, 백로그 추가 거부가 같은 문장으로 시작한다.
+// 뒤에 붙는 설명("; this project is locked")은 부르는 쪽이 단다.
+const AXIS_NOUN = { projects: "project", workspaces: "workspace", backlog: "backlog" };
+export function capReason(plan, axis) {
+  if (!AXES.includes(axis)) throw new Error(`unknown axis: ${axis}`);
+  return `${AXIS_NOUN[axis]} cap reached on the ${plan} plan (${limitsFor(plan)[axis]})`;
+}
+
 // 상한을 넘는 프로젝트는 잠긴다 — 활성은 createdAt 오름차순 앞 N개(동률은 id). 행은 지우지 않는다.
 export function activeProjectIds(projects, plan) {
   const n = limitsFor(plan).projects;

@@ -18,17 +18,28 @@ them to issue one on the web at `/p/<slug>/tokens` and stop).
    Tokens page, minus /api/mcp> --dry-run`. Show the files it would write and get a yes before
    writing. **There is no default server URL** — without it the generator stops
    (`HARNESS_SERVER` works too). If the output has `refuse:` lines, ask whether to `--adopt`.
-3. Run it for real. Report the `write:` and `skip(modified):` lines as they are.
+3. Run it for real. Report the `plan:`, `write:`, `skip(modified):` and `skip(plan):` lines as
+   they are. `skip(plan):` means the project's plan does not include that agent — the server did
+   not send it; the user upgrades on the web and reruns. If the run stops with
+   `workspace cap reached on the <plan> plan`, nothing was written: `harness.json` names more
+   workspaces than the plan allows — drop some or upgrade, then rerun.
 4. `.mcp.json` now exists, so tell the user to **restart Claude Code** (`.mcp.json` is read at
    session start only). After the restart, if `/mcp` shows `harness` as `⏸ Pending approval`,
    that's the one-time approval for a project-scoped MCP server — the user has to approve it.
    If they declined, `claude mcp reset-project-choices` resets it. Then confirm
    `mcp__harness__project_get` works — skipping this step makes `project_get` look like it's
    failing for no reason.
-5. Pass `harness.json.workspaces` to `mcp__harness__project_sync` as is — that's what creates
-   the roster on the web board.
+5. Pass `harness.json.workspaces` and `harness.json.language` (default `en`) to
+   `mcp__harness__project_sync` as `{ workspaces, language }` — that's what creates the roster on
+   the web board, and the language is what `agent_next` serves steps in.
 6. Check that the knowledge doc named in each generated `.claude/agents/<ws>-dev.md` exists.
    If it doesn't, draft one with the user (structure, commands, pitfalls).
 7. Show `git status` and leave the commit to the user. Suggested message: `chore: connect to Stagekeeper`.
+
+The generated `.claude/agents/*.md` are **stubs**: role, tools, and the first instruction. The
+step bodies stay on the server and arrive one at a time through `mcp__harness__agent_next`.
+Do not try to "complete" a stub by hand. A project connected before this change reruns
+`/harness:init` to switch: lock-managed files are overwritten (user-edited ones are skipped
+as `skip(modified):` — tell the user those keep the old full body until they drop the edit).
 
 Not done here: creating backlog items (web), gate transitions, committing, printing the token value.

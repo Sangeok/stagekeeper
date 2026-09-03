@@ -2,7 +2,7 @@
 // packages/core/entitlement.mjs 하나가 갖고, 여기는 그 함수에 넣을 행을 DB에서 찾아 올 뿐이다.
 // 플랜은 사용자에 붙고(Subscription, 행 없음 = free) 프로젝트는 소유자(ProjectMember.role = "owner")의 플랜을 따른다.
 import "server-only";
-import { DEFAULT_PLAN, activeProjectIds, isPlan, limitsFor } from "@harness/core/entitlement.mjs";
+import { DEFAULT_PLAN, activeProjectIds, capReason, isPlan, limitsFor } from "@harness/core/entitlement.mjs";
 import { prisma } from "@/server/db";
 
 export type Plan = "free" | "pro" | "max";
@@ -39,5 +39,5 @@ export async function projectAccess(projectId: string): Promise<ProjectAccess> {
     select: { project: { select: { id: true, createdAt: true } } },
   });
   if (activeProjectIds(owned.map((m) => m.project), plan).has(projectId)) return { plan, locked: false };
-  return { plan, locked: true, reason: `project cap reached on the ${plan} plan (${limitsFor(plan).projects}); this project is locked` };
+  return { plan, locked: true, reason: `${capReason(plan, "projects")}; this project is locked` };
 }

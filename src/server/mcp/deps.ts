@@ -9,12 +9,17 @@ import type { ToolDeps } from "./tools";
 
 export const prismaToolDeps: ToolDeps = {
   projectGet: (projectId) => prisma.project.findUniqueOrThrow({ where: { id: projectId }, include: { workspaces: true } }),
-  projectSync: async (projectId, workspaces) => {
-    await prisma.$transaction(workspaces.map((w) => prisma.workspace.upsert({
+  // language는 harness.json의 값 — Project.language는 스키마 기본값이 ko라 웹에서 쓰는 곳이 없다.
+  // 여기서 받아 두어야 agent_next가 스텁과 같은 언어의 단계를 찾는다(runs.ts의 ko→en 되돌림은 그때까지의 안전망).
+  projectSync: async (projectId, workspaces, language) => {
+    await prisma.$transaction([
+      ...(language === undefined ? [] : [prisma.project.update({ where: { id: projectId }, data: { language } })]),
+      ...workspaces.map((w) => prisma.workspace.upsert({
       where: { projectId_agent: { projectId, agent: w.agent } },
       create: { projectId, wsId: w.id, path: w.path, agent: w.agent, verify: w.verify, knowledge: w.knowledge, readOnly: w.readOnly },
       update: { wsId: w.id, path: w.path, verify: w.verify, knowledge: w.knowledge, readOnly: w.readOnly },
-    })));
+    })),
+    ]);
     return workspaces.length;
   },
   backlogList: (projectId, includeRemoved) => board.backlogWithStatus(projectId, includeRemoved),

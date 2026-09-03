@@ -35,7 +35,7 @@ export type BoardDetailView = BoardRowView & {
 
 export type ToolDeps = {
   projectGet(projectId: string): Promise<ProjectView>;
-  projectSync(projectId: string, workspaces: WorkspaceInput[]): Promise<number>;
+  projectSync(projectId: string, workspaces: WorkspaceInput[], language?: string): Promise<number>;
   backlogList(projectId: string, includeRemoved: boolean): Promise<BacklogWithStatusView[]>;
   backlogGet(projectId: string, key: string): Promise<BacklogView | null>;
   boardList(projectId: string, open: boolean): Promise<BoardRowView[]>;
@@ -68,9 +68,9 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const { projectId } = scope(ctx);
     return text(await deps.projectGet(projectId));
   });
-  server.registerTool("project_sync", { description: "Push harness.json.workspaces to the service. Updates the roster.", inputSchema: z.object({ workspaces: z.array(workspace) }) }, async ({ workspaces }, ctx: Ctx) => {
+  server.registerTool("project_sync", { description: "Push harness.json.workspaces (and language) to the service. Updates the roster; agent_next serves steps in that language.", inputSchema: z.object({ workspaces: z.array(workspace), language: z.string().optional() }) }, async ({ workspaces, language }, ctx: Ctx) => {
     const { projectId } = scope(ctx);
-    return text({ synced: await deps.projectSync(projectId, workspaces) });
+    return text({ synced: await deps.projectSync(projectId, workspaces, language) });
   });
   server.registerTool("backlog_list", { description: "Backlog items with each item's latest board status.", inputSchema: z.object({ includeRemoved: z.boolean().optional() }) }, async ({ includeRemoved }, ctx: Ctx) => {
     const { projectId } = scope(ctx);

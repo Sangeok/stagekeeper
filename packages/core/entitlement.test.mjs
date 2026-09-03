@@ -11,6 +11,7 @@ import {
   activeProjectIds,
   allowsAgent,
   historyCutoff,
+  capReason,
 } from "./entitlement.mjs";
 
 const DAY = 86_400_000;
@@ -121,6 +122,19 @@ describe("entitlement", () => {
       const roster = Array.from({ length: 50 }, (_, i) => `dev${i}`);
       assert.equal(allowsAgent("max", "dev49", roster), true);
       assert.equal(allowsAgent("max", "stranger", roster), false);
+    });
+  });
+
+  describe("capReason", () => {
+    it("names the axis, the plan, and the limit — one sentence every wall reuses", () => {
+      assert.equal(capReason("free", "projects"), "project cap reached on the free plan (1)");
+      assert.equal(capReason("free", "workspaces"), "workspace cap reached on the free plan (1)");
+      assert.equal(capReason("free", "backlog"), "backlog cap reached on the free plan (10)");
+      assert.equal(capReason("pro", "projects"), "project cap reached on the pro plan (5)");
+    });
+
+    it("rejects an unknown axis", () => {
+      assert.throws(() => capReason("free", "agents"), /unknown axis/);
     });
   });
 
