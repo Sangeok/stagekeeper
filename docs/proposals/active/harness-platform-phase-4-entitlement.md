@@ -1,12 +1,12 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
 status: "pending"
-stage: "draft"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-09-03"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "Sangeok"
+approved-at: "2026-09-03"
+approval-scope: "Batch A·B(T4.1~T4.5) + G1 — 대화 승인, front matter는 사후 기록. C·D는 G1 결과를 본 뒤 따로 승인"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -397,20 +397,20 @@ next: done
 
 확인한 항목:
 
-- [ ] 앱 진입점과 라우팅 경계 — `(app)/billing` 추가, 기존 경로 변경 없음
-- [ ] 정적 `import` / `export from` — FSD 공개 API(`index.server.ts`)로만 참조, `verify:fsd`로 확인
-- [ ] barrel export(`index.ts`) 경유 참조 — `app-header`·`billing` 슬라이스 공개 API 갱신
-- [ ] 테스트와 스크립트 참조 — `tools.test.mjs`(등록 목록), `harness-init.test.mjs`(응답 형태), `check-plugin-lib`(entitlement 동기화), `seed-templates.ts`
-- [ ] 타입 선언 영향 — `ToolDeps`·`ProjectView`에 필드 추가(좁은 계약이 넓은 Prisma 행을 받는 방향은 유지)
-- [ ] 런타임 side effect — `agent_next`가 쓰는 `AgentRunStep`이 원장에 추가된다. `TransitionEvent`에는 손대지 않으므로 불변식 8의 "클린 사이클 8건"은 유지
-- [ ] API·외부 SDK 영향 — MCP 도구 1종 추가, `/api/templates` 응답 형태 변경(위), mcp-handler 401 사유 전달은 실측
-- [ ] dynamic `import()`·`public/` 자산·localStorage — 해당 없음
+- [ ] 앱 진입점과 라우팅 경계 — `(app)/billing` 추가, 기존 경로 변경 없음 (T4.10에서. A·B는 라우트를 더하지 않았다)
+- [x] 정적 `import` / `export from` — FSD 공개 API(`index.server.ts`)로만 참조, `verify:fsd`로 확인 (A·B: 통과, 2026-09-03. `billing`은 T4.10에서 다시)
+- [ ] barrel export(`index.ts`) 경유 참조 — `app-header`·`billing` 슬라이스 공개 API 갱신 (T4.10·T4.11에서)
+- [x] 테스트와 스크립트 참조 — `tools.test.mjs`(등록 목록), `harness-init.test.mjs`(응답 형태), `check-plugin-lib`(entitlement 동기화), `seed-templates.ts` (전부 갱신됨. `check-plugin-lib`는 `deliver.mjs`도 본다)
+- [x] 타입 선언 영향 — `ToolDeps`·`ProjectView`에 필드 추가(좁은 계약이 넓은 Prisma 행을 받는 방향은 유지) (`ToolDeps`에 `agentNext`·`projectSync(…, language?)`. `ProjectView`는 바뀌지 않았다 — language는 `agent_next`가 서버에서 읽는다)
+- [x] 런타임 side effect — `agent_next`가 쓰는 `AgentRunStep`이 원장에 추가된다. `TransitionEvent`에는 손대지 않으므로 불변식 8의 "클린 사이클 8건"은 유지 (T4.4: `runs.ts`는 `AgentRun`·`AgentRunStep`만 쓴다. 기존 전이 테스트 그대로 통과)
+- [x] API·외부 SDK 영향 — MCP 도구 1종 추가, `/api/templates` 응답 형태 변경(위), mcp-handler 401 사유 전달은 실측 (도구·응답 형태는 T4.4·T4.5에서. 401 사유가 클라이언트에 보이는지는 G1에서 잰다)
+- [x] dynamic `import()`·`public/` 자산·localStorage — 해당 없음
 
 ## Approval
 
 승인 메모:
 
-- 승인 전.
+- 2026-09-03 A·B·G1 승인(대화). 실행 결과: A·B 완료 → PR #8(`harness/phase-4-entitlement-core` → `dev`). C·D는 G1 뒤에 승인한다.
 - 승인은 A·B·G1까지와 C·D를 나눠 줄 수 있다. G1 결과를 본 뒤 C·D를 승인하는 편이 안전하다(스텁 방식이 실패하면 벽·접점의 문구도 달라진다).
 - 이 문서의 파일명은 README 규약대로 날짜 접두 없이 `active/harness-platform-phase-4-entitlement.md`다(대화에서 언급한 `2026-09-03-…`은 `completed/`로 옮길 때 붙는다).
 
@@ -506,12 +506,12 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
-- [ ] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다. (승인 전)
+- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
 - [x] `proposal-size`는 `small` 또는 `standard`만 사용했고, standard 강제 조건에 해당하는 작업을 small로 낮추지 않았다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
-- [ ] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다. (실행 시 체크)
+- [ ] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다. (A·B 범위는 확인, 2026-09-03. 라우팅·barrel은 D 착수 시)
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (실행 전)
 - [x] 잔여 리스크를 명시했다.
