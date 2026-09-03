@@ -14,6 +14,7 @@
     "test:web": "node --import tsx --test \"src/**/*.test.mjs\" \"src/**/*.test.ts\"",
     "test:templates": "node --test \"plugin/templates/*.test.mjs\"",
     "seed:templates": "node --import tsx scripts/seed-templates.ts",
+    "plan:grant": "node --import tsx scripts/grant-plan.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "sync:plugin-lib": "node scripts/sync-plugin-lib.mjs"

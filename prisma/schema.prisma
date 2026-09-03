@@ -13,6 +13,18 @@ model User {
   login     String
   createdAt DateTime        @default(now())
   members   ProjectMember[]
+  subscription Subscription?
+}
+
+model Subscription {                   // 플랜은 사용자에 붙고 프로젝트는 소유자의 플랜을 따른다. 행이 없으면 free. 결제 경로 없음 — plan:grant 스크립트가 쓴다
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  plan      String                     // entitlement.mjs PLANS
+  source    String   @default("manual")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Project {
