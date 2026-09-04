@@ -1,15 +1,17 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { newToken } from "@harness/core/token.mjs";
-import { type ActionResult, success } from "@/fsd/shared/api/result";
+import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { projectPath } from "@/fsd/shared/routes/project";
-import { requireMember } from "@/server/auth/guard";
+import { requireMember, requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 
 // 평문은 이 반환값에만 존재한다. 서비스는 sha256 해시만 저장한다.
 // 실패는 review-gate와 같은 ActionResult로 돌려준다 — 같은 layer에서 실패 규약이 두 벌이 되지 않게.
 export async function issueToken(slug: string, label: string): Promise<ActionResult<{ token: string }>> {
-  const { projectId } = await requireMember(slug);
+  const w = await requireProjectWrite(slug);
+  if (!w.ok) return failure(w.reason);
+  const { projectId } = w;
   const { plain, hash } = newToken();
   await prisma.projectToken.create({ data: { projectId, hash, label: label.trim() || "token" } });
   revalidatePath(projectPath(slug, "/tokens"));

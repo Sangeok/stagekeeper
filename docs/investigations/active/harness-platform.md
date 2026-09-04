@@ -84,9 +84,31 @@
 | (P3) 명령 원장·루틴 협조, 배포 확인 원장 자동 마감 | 사용자 세션 없이 깨어나는 것은 원장이 서비스에 있어야 |
 | (P4) 팀 멤버·역할 | 로컬 파일엔 사람이 하나뿐이다 |
 
-**무료로 두는 것:** 플러그인 저장소(템플릿·생성기·스킬 — 공개해도 서비스 없이는 보드가 없다), 프로토콜 문서. 스킬을 베껴 가도 서비스는 못 베낀다는 구조가 해자다.
+**무료로 두는 것:** 생성기·스킬·**에이전트 스텁**과 프로토콜 문서. 공개해도 서비스 없이는 보드가 없다.
 
-**과금 단위(기본값, §12 Q7):** 사용자당 월 구독 + 프로젝트 수 상한(예: Free 1 · Pro 5 · Team 무제한+멤버). 실행 횟수로 계량하지 않는다 — 실행은 우리 비용이 아니고, 계량하면 사용자가 파이프라인을 덜 돌린다. 결제는 ApcH가 이미 쓰는 **Polar**(`apps/web` `/dashboard/billing`·웹훅 경험 재사용). 미구독·만료 시: 읽기(웹)는 허용, MCP 토큰은 401, 결재함 잠금 — 데이터는 지우지 않는다.
+**공개하지 않는 것(2026-09-03 정정):** **에이전트 템플릿의 단계 본문**. 이것은 파일로 내려가지 않는다 —
+원문은 private 저장소에 있고 배포는 DB(`Template`) 경유이며, 서브에이전트는 `agent_next`로
+**지금 할 한 단계만** 받는다. "스킬을 베껴도 서비스는 못 베낀다"는 논리가 본문에는 맞지 않는다 —
+본문을 베끼면 로컬 파일 파이프라인이 그대로 서기 때문이다. 본문이 서비스의 실체다.
+
+**과금 단위(Phase 4에서 확정, 2026-09-03):** 사용자당 월 구독. 플랜은 **Free(영구) / Pro / Max**이고,
+상한은 프로젝트 하나가 아니라 **5축**이다 — 프로젝트 · 워크스페이스(dev)/프로젝트 · 백로그 항목/프로젝트 ·
+이력 창 · 에이전트 종류. 표는 `packages/core/entitlement.mjs`의 `LIMITS` 하나에서 나오고
+`/billing` 화면이 그것을 렌더한다(표와 코드가 어긋날 수 없게).
+
+| | Free(영구) | Pro | Max |
+| --- | --- | --- | --- |
+| 프로젝트 | 1 | 5 | 무제한 |
+| 워크스페이스(dev) / 프로젝트 | 1 | 10 | 무제한 |
+| 백로그 항목 / 프로젝트 | 10 | 무제한 | 무제한 |
+| 이력 창(전이·보고 **조회**) | 최근 30일 | 전체 | 전체 |
+| 에이전트 | `pm` + dev×1 + `feature-scout` | 5종 전부 | 5종 전부 |
+
+**멤버는 플랜 축이 아니다** — 팀 멤버·역할은 4.3의 별도 기능이다(v2가 적었던 "Team" 플랜은 팔 것이
+멤버뿐이라 성립하지 않았다. 개인 사용자에게 Pro 위가 필요하고 그 차이는 무제한이다).
+실행 횟수로 계량하지 않는다 — 실행은 우리 비용이 아니고, 계량하면 사용자가 파이프라인을 덜 돌린다.
+플랜은 **사용자**에 붙고 프로젝트는 **소유자의 플랜**을 따른다(`Subscription` 행이 없으면 Free).
+결제는 아직 없다 — `Subscription`은 스크립트로 넣고, 화면에 결제 버튼·링크가 없다(C3).
 
 ## 3. 아키텍처
 
@@ -151,9 +173,14 @@
 | `CLAUDE.md` | 런북 | `templates/ko/CLAUDE.runbook.md` | 마커 절만 삽입·교체 |
 | `docs/plans/README.md`, `template.md`, `verification-paths.md` | 규약 | `templates/ko/docs/plans/*` | |
 | `docs/agents/README.md` | 규약 | `templates/ko/docs/agents/README.md` | 행위자 표는 roster에서 |
-| `.claude/agents/pm.md`, `plan-verifier.md`, `doc-auditor.md` | 에이전트 | `templates/ko/agents/*` | `tools:`에 MCP 도구명 |
+| `.claude/agents/pm.md`, `plan-verifier.md`, `doc-auditor.md` | 에이전트 **스텁** | `templates/<lang>/agents/*`의 첫 `## step:` 앞부분 | 역할·굳은 규칙·구동 규칙만. `tools:`에 `mcp__harness__agent_next` 포함. **절차 본문은 서버에 남는다**(Phase 4) |
 | `.claude/agents/feature-scout.md` | 에이전트 | 〃 | `scout.question` 있을 때만 |
 | `.claude/agents/<ws.agent>.md` × N | 에이전트 | `templates/ko/agents/dev.md` | workspace마다 |
+
+**에이전트 파일은 스텁이다(Phase 4).** 위 `.claude/agents/*.md`는 역할·굳은 규칙·구동 규칙까지만 담고,
+절차의 단계 본문은 저장소에 내려오지 않는다. 서브에이전트는 `mcp__harness__agent_next`로 지금 할
+한 단계를 받아 수행하고 `outcome`과 함께 다시 부른다. 플랜이 허용하지 않는 보고 에이전트의 파일은
+애초에 쓰이지 않는다(`skip(plan):`).
 
 **없어진 것(v1 대비):** `PROJECT_BOARD.md`, `TASK_BACKLOG.md`, `docs/release-checks.md`, `scripts/release-verify/`, `.claude/skills/release-verify/`.
 
@@ -174,6 +201,7 @@
 | `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 | dev |
 | `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 | dev·main-loop |
 | `validation_record` | `{key, text}` | `검증:` — **`검토대기`일 때만**. 되돌리기 시 서버가 지움 | main-loop |
+| `agent_next` | `{agent, key?, outcome?, note?}` | 에이전트 템플릿의 **다음 단계 하나**. 단계 본문은 이 도구로만 나간다 — 파일은 스텁이다. 보드 상태가 단계의 `requires`와 다르면 거부하고 자리에 머문다. 플랜 밖 에이전트·잠긴 프로젝트도 거부 | 전부 (Phase 4) |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) |
 
@@ -1141,8 +1169,9 @@ description: 이 저장소를 하니스 서비스에 연결한다 — harness.js
 
 | # | 태스크 |
 | --- | --- |
-| 4.1 | **구독**: Polar 상품(Free/Pro/Team) + 웹훅 → `Subscription` 테이블(userId·plan·status·currentPeriodEnd). ApcH `apps/web` Polar 웹훅 핸들러·서명 검증 이식 |
-| 4.2 | **권한 게이트**: 프로젝트 생성 시 플랜 상한 검사, MCP 인증에 구독 상태 검사(미구독·만료 → 401 + 사유), 결재함 잠금 칩. 데이터는 보존 |
+| 4.1a | **구독 모델만**(이 단계에서 완료): `Subscription` 테이블 + **수동 부여**(스크립트). 결제 경로 없음 — 화면에 결제 버튼·링크가 없다. 상한과 본문 보호는 결제 없이도 완성된다 |
+| 4.1b | **Polar 결제**(이후 별도 제안서): Polar 상품 + 웹훅 → `Subscription` 갱신. ApcH `apps/web` 웹훅 핸들러·서명 검증 이식. 가격은 상품과 함께 정한다 |
+| 4.2 | **권한 게이트**: 프로젝트 생성·백로그 추가·`project_sync`에 상한 검사, **상한 초과 프로젝트 잠금**, 결재함 잠금 칩·목록 배지·레이아웃 배너. 데이터는 하나도 지우지 않는다(플랜을 올리면 그대로 열린다). Free가 영구라 "미구독" 상태는 없다 — 잠김의 사유는 상한 초과다. **잠금은 MCP 인증이 아니라 도구 층에서 건다**: `mcp-handler 2.1.1`의 `withMcpAuth`는 `verifyToken`의 거부 사유를 응답에 실을 수 없어(2026-09-04 실측) 인증에서 막으면 에이전트가 이유를 알 길이 없다. 그래서 인증은 통과시키고 상태를 바꾸는 도구를 사유와 함께 거부하며, `project_get`은 잠긴 프로젝트에서도 `{locked, reason}`을 답한다 |
 | 4.3 | 팀: 멤버 초대·역할(owner/member) — 게이트는 owner만(불변식 4의 "누가") |
 | 4.4 | GitHub App(비공개 저장소의 계획서·기록 본문 읽기), 토큰 폐기·재발급 UI |
 | 4.5 | 플러그인 marketplace 저장소(공개), README·온보딩 문서(가입 → 프로젝트 등록 → `/harness:init` → 첫 사이클) |
@@ -1166,8 +1195,8 @@ description: 이 저장소를 하니스 서비스에 연결한다 — harness.js
 | Q4 | ApcH 백로그 FEAT-27 이관 표기(백로그 편집은 승인 필요) | `source`에 "→ harness Phase 3.4" 한 줄 |
 | Q5 | 언어 ko만 | 예 |
 | Q6 | 루틴 트리거(Phase 3) — cron 폴링 vs 이슈 코멘트 webhook | Phase 3 계획서에서 실측 후 |
-| Q7 | 과금 단위·플랜(§2.1) — 사용자당 월 구독 + 프로젝트 상한, 결제 Polar | Free 1 · Pro 5 · Team 무제한+멤버. 가격은 Phase 4 계획서에서 |
-| Q8 | 플러그인 저장소 공개 여부 | 공개(서비스 없이는 무의미하므로 해자에 영향 없음) |
+| Q7 | 과금 단위·플랜(§2.1) — 사용자당 월 구독 | **확정(2026-09-03)**: Free / Pro / Max, 상한 5축(§2.1 표). "Team"은 폐기 — 멤버는 4.3의 기능이지 플랜 축이 아니다. 가격·결제는 Polar 상품과 함께 이후 제안서 |
+| Q8 | 플러그인 저장소 공개 여부 | **부분 공개(2026-09-03 정정)**: 생성기·스킬·스텁은 공개, **에이전트 단계 본문은 비공개**(private 저장소 + DB 배포). 본문까지 공개하면 로컬 파일 파이프라인이 그대로 선다 |
 
 ## 13. 리스크·미확인·롤백
 

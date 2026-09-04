@@ -1,14 +1,14 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-03"
 approved-by: "Sangeok"
 approved-at: "2026-09-03"
-approval-scope: "Batch A·B(T4.1~T4.5) + G1 — 대화 승인, front matter는 사후 기록. C·D는 G1 결과를 본 뒤 따로 승인"
-completed-at: null
-verification-summary: null
+approval-scope: "Batch A·B(T4.1~T4.5) + G1 — 대화 승인. C·D는 G1 결과(2026-09-04, FAIL)를 본 뒤 소유자가 R4·R5를 관찰 항목으로 낮추며 대화로 승인"
+completed-at: "2026-09-04"
+verification-summary: "npm test 86/86 · test:web 150/150 · check pass(lint·tsc·architecture 13/13·verify:fsd·plugin/lib in sync). G1 실측은 FAIL(보고 형식·토큰 +9.5%)이며 소유자가 그 둘을 관찰 항목으로 낮추고 착수를 승인했다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -315,52 +315,54 @@ next: done
 | ④ | 보고 형식 | `docs/agents/<actor>/<KEY>.md`가 파일 방식과 같은 절 구성 |
 | ⑤ | 토큰 | 트랜스크립트 토큰 사용량이 파일 방식 이하 |
 
-전부 통과하면 Batch C. 하나라도 실패하면: 실패한 단계의 분기를 쓰거나 단계를 합친 뒤 **같은 항목으로 재실측**. 그동안 파일 방식으로 되돌리는 스위치는 만들지 않는다 — 배포 DB에 옛 본문을 시드하지 않으면 사용자는 어차피 스텁을 받는다. 결과는 `docs/test-reports/`에 남긴다.
+전부 통과하면 Batch C. 하나라도 실패하면: 실패한 단계의 분기를 쓰거나 단계를 합친 뒤 **같은 항목으로 재실측**. **실측 결과(2026-09-04): ①②③ 통과, ④⑤ 실패 → 소유자가 ④⑤를 관찰 항목으로 낮추고 재실측 없이 Batch C 착수를 승인**(보고서 참조; F1 토큰 왕복·F2 제목 형식은 후속). 그동안 파일 방식으로 되돌리는 스위치는 만들지 않는다 — 배포 DB에 옛 본문을 시드하지 않으면 사용자는 어차피 스텁을 받는다. 결과는 `docs/test-reports/`에 남긴다.
 
 ### Batch C — 벽
 
 #### T4.6 `report_submit` 벽 (스펙 불변식 8 · 선행: T4.4, G1)
 
-- [ ] `submitReport`: `actor`가 roster(고정 4종 + `workspaces[].agent`)에 없으면 거부. 항목이 `implementing`일 때 (project, key, actor)에 `AgentRunStep{stepId:"verify", outcome:"ok"}`가 없으면 거부(사유: "verify step not recorded"). `in_review`(main-loop 검증 라운드 보고)·`done`(인수 기록)에서는 verify 선행을 요구하지 않는다 — 예외는 actor 이름이 아니라 **상태**로 건다(이름 위장으로 못 지나간다). **T4.3에서 생긴 주의:** dev `hold` 단계는 verify가 `failed`/`blocked`로 끝난 뒤(또는 implement에서 verify 없이 막힌 뒤) `implementing` 상태에서 `report_submit`을 부른다. 벽을 "`verify`/`ok`"로 걸면 홀드 보고가 막힌다. 후보: (a) 벽을 "같은 run에 `verify` 기록이 있다(outcome 불문)"로 두고 implement에서 막힌 경우는 `on_hold` 전이 직전이므로 예외, (b) `AgentRun.stepId === "hold"`면 통과. 착수 때 G1 원장을 보고 고른다.
-- [ ] `src/server/pipeline/board-rules.ts`(순수)에 판정 추가 + 테스트.
+- [x] `submitReport`: `actor`가 roster(고정 4종 + `workspaces[].agent`)에 없으면 거부. 항목이 `implementing`일 때 (project, key, actor)에 `AgentRunStep{stepId:"verify", outcome:"ok"}`가 없으면 거부(사유: "verify step not recorded"). `in_review`(main-loop 검증 라운드 보고)·`done`(인수 기록)에서는 verify 선행을 요구하지 않는다 — 예외는 actor 이름이 아니라 **상태**로 건다(이름 위장으로 못 지나간다). **T4.3에서 생긴 주의:** dev `hold` 단계는 verify가 `failed`/`blocked`로 끝난 뒤(또는 implement에서 verify 없이 막힌 뒤) `implementing` 상태에서 `report_submit`을 부른다. 벽을 "`verify`/`ok`"로 걸면 홀드 보고가 막힌다. 후보: (a) 벽을 "같은 run에 `verify` 기록이 있다(outcome 불문)"로 두고 implement에서 막힌 경우는 `on_hold` 전이 직전이므로 예외, (b) `AgentRun.stepId === "hold"`면 통과. **(a)를 고른다** — G1의 클린 사이클에서는 hold·거부가 0건이라(원장 4개 run 전부 `refused=0`, 모든 outcome `ok`) 실측이 어느 쪽도 밀어주지 않았다. 그래서 설계 근거로 고른다: (a)는 "이 run에서 verify를 시도했다"는 불변식을 커서 위치와 무관하게 표현하고, 단계 이름이 바뀌어도 깨지지 않으며, 이름 기반 예외를 만들지 않는다. (b)는 `AgentRun.stepId`(커서)에 결합해 단계 기계가 바뀌면 같이 흔들린다.
+- [x] `src/server/pipeline/board-rules.ts`(순수)에 판정 추가 + 테스트.
 
 #### T4.7 생성·추가·동기화 상한 (스펙 4.2 · 선행: T4.2)
 
-- [ ] `createProject`: `requireUser` 뒤 소유 프로젝트 수 ≥ `LIMITS[plan].projects`면 `{error: "<플랜>은 프로젝트 N개까지 — Pro에서 열립니다"}`. 상한 검사와 생성은 한 트랜잭션(미결 상한과 같은 이유, `board.ts:71` 주석).
-- [ ] `addBacklogItem`: 미제거 항목 수로 같은 검사.
-- [ ] `prismaToolDeps.projectSync`: `workspaces.length > limits.workspaces`면 `{ok:false, reason}` — 도구 응답에 사유.
-- [ ] 각 서버 액션 테스트(`src/fsd/features/*/api/*.test.ts`가 있으면 거기, 없으면 board-rules 식 순수 판정 함수로 뽑아 테스트).
+- [x] `createProject`: `requireUser` 뒤 소유 프로젝트 수 ≥ `LIMITS[plan].projects`면 `{error: "<플랜>은 프로젝트 N개까지 — Pro에서 열립니다"}`. 상한 검사와 생성은 한 트랜잭션(미결 상한과 같은 이유, `board.ts:71` 주석).
+- [x] `addBacklogItem`: 미제거 항목 수로 같은 검사.
+- [x] `prismaToolDeps.projectSync`: `workspaces.length > limits.workspaces`면 `{ok:false, reason}` — 도구 응답에 사유.
+- [x] 각 서버 액션 테스트(`src/fsd/features/*/api/*.test.ts`가 있으면 거기, 없으면 board-rules 식 순수 판정 함수로 뽑아 테스트).
 
 #### T4.8 프로젝트 잠금 (스펙 4.2 · 선행: T4.2)
 
-- [ ] `guard.ts`: `requireProjectWrite(slug)` = `requireMember` + `projectAccess(...).locked`면 오류 반환(리다이렉트가 아니라 폼 오류 — 화면은 읽기 상태로 남는다). 쓰기 서버 액션(`edit-backlog`·`review-gate`·`manage-token`)이 이걸 쓴다.
-- [ ] `makeVerifyToken`: 토큰 조회 뒤 `projectAccess` — 잠김이면 `undefined`(mcp-handler가 401). **사유 전달 가능 여부는 실측**: mcp-handler 2.1.1이 `verifyToken`의 거부 사유를 응답에 싣는 방법이 없으면, 401은 그대로 두고 `project_get`을 잠긴 프로젝트에서도 허용해 `{locked: true, reason}`을 돌려주는 것으로 사유를 전달한다. 어느 쪽이었는지 Verification Results에 적는다.
-- [ ] 결재함(`src/fsd/pages/project-inbox`): 잠긴 프로젝트면 승인 버튼 대신 잠금 칩 + 사유.
-- [ ] 프로젝트 목록(`project-list`)·프로젝트 레이아웃: 잠긴 프로젝트 표시(배지) + 상단 배너 한 줄.
+- [x] `guard.ts`: `requireProjectWrite(slug)` = `requireMember` + `projectAccess(...).locked`면 오류 반환(리다이렉트가 아니라 폼 오류 — 화면은 읽기 상태로 남는다). 쓰기 서버 액션(`edit-backlog`·`review-gate`·`manage-token`)이 이걸 쓴다.
+- [x] `makeVerifyToken`: 토큰 조회 뒤 `projectAccess` — 잠김이면 `undefined`(mcp-handler가 401). **사유 전달 가능 여부는 실측**: mcp-handler 2.1.1이 `verifyToken`의 거부 사유를 응답에 싣는 방법이 없으면, 401은 그대로 두고 `project_get`을 잠긴 프로젝트에서도 허용해 `{locked: true, reason}`을 돌려주는 것으로 사유를 전달한다. 어느 쪽이었는지 Verification Results에 적는다.
+- [x] 결재함(`src/fsd/pages/project-inbox`): 잠긴 프로젝트면 승인 버튼 대신 잠금 칩 + 사유.
+- [x] 프로젝트 목록(`project-list`)·프로젝트 레이아웃: 잠긴 프로젝트 표시(배지) + 상단 배너 한 줄.
+
+- [x] 구현 기록(2026-09-04). 체크리스트와 다른 점: ① **`report_submit`의 행위자 집합에 `main-loop`을 더했다.** 체크리스트는 "고정 4종 + `workspaces[].agent`"였지만 `main-loop`은 `.claude/agents` 정의가 없으면서도 **보고 행위자다** — 검증 라운드 기록과 인수 기록을 낸다(`protocol.md`의 `report_submit` 행, 템플릿 `docs/agents/README.md`의 행위자 표, G1 Run B 원장의 `main-loop` 보고). 빼면 런북 7단계가 막힌다. ② **T4.8의 잠금을 인증이 아니라 도구 층에 걸었다.** 체크리스트 첫 줄은 `makeVerifyToken`에서 `undefined`를 돌려 401을 내는 것이었으나, 같은 항목이 요구한 실측 결과 mcp-handler 2.1.1은 **401에 사유를 실을 수 없다**. 인증에서 막으면 에이전트는 이유도 모르고 `project_get`으로 물어볼 수도 없어, 체크리스트가 예비로 적어 둔 대체 경로(=`project_get`이 `{locked, reason}`을 답한다)조차 성립하지 않는다. 그래서 인증은 통과시키고 상태를 바꾸는 도구 5종 + `project_sync`를 `guardLocked`로 막았다(읽기는 열어 둔다). ③ **`latestBoardWithEvents`에는 `since` 인자를 두지 않았다.** 체크리스트는 두 함수에 다 넣으라 했으나 결재함은 창 없이 읽어야 하고, 넘기지 않는 규율보다 **넘길 수 없는 형**이 세다 — 창을 받는 건 `getWithHistory` 하나다. ④ 상한 문구는 새 `capError(plan, axis, currentCount)`가 `capReason`을 감싸 한 곳에서 나온다. 상한 검사와 생성은 한 트랜잭션이다(동시 요청이 둘 다 "여유 있음"을 읽는 것을 막는다). ⑤ 잘린 이력 한 줄은 `hasHistoryBefore`가 **실제로 밀려난 행이 있을 때만** 띄운다. ⑥ `revokeToken`은 잠겨도 막지 않는다 — 잠금은 "더 만들지 못한다"이지 "샌 토큰을 못 막는다"가 아니다. ⑦ 테스트: `board-rules.test.mjs` 벽 6건(행위자·verify 선행·상태 우선순위), `entitlement.test.mjs` `capError` 4건, `tools.test.mjs` 잠금 3건.
 
 #### T4.9 이력 창 (선행: T4.2)
 
-- [ ] `getWithHistory`·`latestBoardWithEvents`에 `since?: Date` 인자. 호출 지점 중 **항목 화면(`board-item`)과 `board_get`만** `historyCutoff(plan)`을 넘긴다. 결재함은 창 없이 읽는다 — 게이트 판단(검증 기록 유무)이 창에 가려지면 안 된다. `report_submit` 벽의 verify 조회는 `AgentRunStep`을 보므로 창의 영향을 받지 않는다.
-- [ ] 항목 화면에 "30일보다 오래된 이력은 Pro에서 열립니다" 한 줄(잘린 경우에만).
+- [x] `getWithHistory`·`latestBoardWithEvents`에 `since?: Date` 인자. 호출 지점 중 **항목 화면(`board-item`)과 `board_get`만** `historyCutoff(plan)`을 넘긴다. 결재함은 창 없이 읽는다 — 게이트 판단(검증 기록 유무)이 창에 가려지면 안 된다. `report_submit` 벽의 verify 조회는 `AgentRunStep`을 보므로 창의 영향을 받지 않는다.
+- [x] 항목 화면에 "30일보다 오래된 이력은 Pro에서 열립니다" 한 줄(잘린 경우에만).
 
 ### Batch D — 접점·문서
 
 #### T4.10 `/billing` (선행: T4.2)
 
-- [ ] `src/app/(app)/billing/page.tsx` → `src/fsd/pages/billing`(FSD: pages 슬라이스, 공개 API `index.server.ts`). 내용: 현재 플랜, 매트릭스 표(T4.1 `LIMITS`에서 렌더 — 표와 코드가 어긋나지 않게), "가격·결제는 준비 중" 한 줄. 버튼 없음.
-- [ ] `src/fsd/shared/routes`에 `billing` 경로 추가.
+- [x] `src/app/(app)/billing/page.tsx` → `src/fsd/pages/billing`(FSD: pages 슬라이스, 공개 API `index.server.ts`). 내용: 현재 플랜, 매트릭스 표(T4.1 `LIMITS`에서 렌더 — 표와 코드가 어긋나지 않게), "가격·결제는 준비 중" 한 줄. 버튼 없음.
+- [x] `src/fsd/shared/routes`에 `billing` 경로 추가.
 
 #### T4.11 문구·배지 (선행: T4.7, T4.8, T4.10)
 
-- [ ] 상한 오류 문구는 한 곳(`src/fsd/shared/lib/entitlement-copy.ts`)에서 — 프로젝트 생성·백로그 추가·`project_sync` 사유·잠금 배너가 같은 문장을 쓴다.
-- [ ] `app-header`: `loadHeaderUser`에 플랜 추가, 배지(`Free`/`Pro`/`Max`) → `/billing` 링크.
-- [ ] `npm run verify:fsd`·`npm run test:architecture` 통과.
+- [x] 상한 오류 문구는 한 곳(`src/fsd/shared/lib/entitlement-copy.ts`)에서 — 프로젝트 생성·백로그 추가·`project_sync` 사유·잠금 배너가 같은 문장을 쓴다.
+- [x] `app-header`: `loadHeaderUser`에 플랜 추가, 배지(`Free`/`Pro`/`Max`) → `/billing` 링크.
+- [x] `npm run verify:fsd`·`npm run test:architecture` 통과.
 
 #### T4.12 스펙·아키텍처 문서 (선행: 전부)
 
-- [ ] 스펙 §2.1·Q7·Q8·Phase 4 표·§4·§5를 §"스펙 대비 변경점" C1~C6대로 고친다. Phase 4 표는 4.1을 "4.1a `Subscription`·수동 부여(이 제안서)" / "4.1b Polar(이후)"로 나눈다.
-- [ ] `docs/architecture/system-overview.md`: 에이전트 본문의 위치(DB·서버 렌더), `AgentRun` 원장. `docs/architecture/invariants.md`: "보고는 verify 기록 뒤" 한 줄.
-- [ ] 이 문서를 `completed/`로 옮기며 `2026-MM-DD-` 접두를 붙인다(README 규약).
+- [x] 스펙 §2.1·Q7·Q8·Phase 4 표·§4·§5를 §"스펙 대비 변경점" C1~C6대로 고친다. Phase 4 표는 4.1을 "4.1a `Subscription`·수동 부여(이 제안서)" / "4.1b Polar(이후)"로 나눈다.
+- [x] `docs/architecture/system-overview.md`: 에이전트 본문의 위치(DB·서버 렌더), `AgentRun` 원장. `docs/architecture/invariants.md`: "보고는 verify 기록 뒤" 한 줄.
+- [x] 이 문서를 `completed/`로 옮기며 `2026-MM-DD-` 접두를 붙인다(README 규약).
 
 ## Affected Files
 
@@ -397,9 +399,9 @@ next: done
 
 확인한 항목:
 
-- [ ] 앱 진입점과 라우팅 경계 — `(app)/billing` 추가, 기존 경로 변경 없음 (T4.10에서. A·B는 라우트를 더하지 않았다)
+- [x] 앱 진입점과 라우팅 경계 — `(app)/billing` 추가, 기존 경로 변경 없음 (T4.10 완료 2026-09-04. 경로 상수는 `shared/routes/billing.ts` 한 곳)
 - [x] 정적 `import` / `export from` — FSD 공개 API(`index.server.ts`)로만 참조, `verify:fsd`로 확인 (A·B: 통과, 2026-09-03. `billing`은 T4.10에서 다시)
-- [ ] barrel export(`index.ts`) 경유 참조 — `app-header`·`billing` 슬라이스 공개 API 갱신 (T4.10·T4.11에서)
+- [x] barrel export(`index.ts`) 경유 참조 — `billing` 슬라이스 공개 API 신설, `app-header`는 `index.server.ts`의 `loadHeaderUser`가 plan을 함께 싣는다 (2026-09-04, `verify:fsd` 통과)
 - [x] 테스트와 스크립트 참조 — `tools.test.mjs`(등록 목록), `harness-init.test.mjs`(응답 형태), `check-plugin-lib`(entitlement 동기화), `seed-templates.ts` (전부 갱신됨. `check-plugin-lib`는 `deliver.mjs`도 본다)
 - [x] 타입 선언 영향 — `ToolDeps`·`ProjectView`에 필드 추가(좁은 계약이 넓은 Prisma 행을 받는 방향은 유지) (`ToolDeps`에 `agentNext`·`projectSync(…, language?)`. `ProjectView`는 바뀌지 않았다 — language는 `agent_next`가 서버에서 읽는다)
 - [x] 런타임 side effect — `agent_next`가 쓰는 `AgentRunStep`이 원장에 추가된다. `TransitionEvent`에는 손대지 않으므로 불변식 8의 "클린 사이클 8건"은 유지 (T4.4: `runs.ts`는 `AgentRun`·`AgentRunStep`만 쓴다. 기존 전이 테스트 그대로 통과)
@@ -458,10 +460,15 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 | `npm run test:architecture` | Batch A: 13/13 pass (2026-09-03) | `check`에 포함 |
 | `npx prisma migrate status` | Batch A: "Database schema is up to date" (2026-09-03) | `20260903040038_subscription` 적용 |
 | `npm run test:templates` | Not run yet | |
+| Batch C: `npm test` | 86/86 pass (2026-09-04) | core `capError` 4건 포함 |
+| Batch C: `npm run test:web` | 146/146 pass (2026-09-04) | board-rules 벽 6건 · MCP 잠금 3건 포함 |
+| Batch C: `npm run check` | pass (2026-09-04) | lint · tsc · architecture 13/13 · plugin/lib in sync |
+| Batch D(T4.10·T4.11): `npm run test:web` | 150/150 pass (2026-09-04) | entitlement-copy 4건 · 벽 문구 회귀 포함 |
+| Batch D(T4.10·T4.11): `npm run check` | pass (2026-09-04) | verify:fsd 포함 |
 | `npm run build` | Not run yet | |
-| G1 비교 실측 | Not run yet | 결과 보고서 경로를 여기 적는다 |
+| G1 비교 실측 | **FAIL**, 소유자 수용 후 착수 (2026-09-04) | `docs/test-reports/completed/2026-09-04-phase-4-g1-stub-vs-file-acceptance.md`. ①②③ PASS(스텁 서브 4종 전부 첫 호출 `agent_next`, 두 방식 다 verify가 보고보다 앞, readOnly 무변경) · ④⑤ FAIL(보고서 제목 계층·문구 상이; 스텁 합계 토큰 10.24M vs 파일 9.35M, **+9.5%** — 원인은 `agent_next` 왕복, 생성 토큰만은 스텁이 근소히 적음). 소유자가 ④⑤를 차단 기준에서 관찰 항목으로 낮추고 F1·F2 추적을 조건으로 Batch C 착수를 승인 |
 | Free 벽 실측 | Not run yet | |
-| mcp-handler 401 사유 전달 | Not run yet | 가능/불가와 채택한 경로 |
+| mcp-handler 401 사유 전달 | **불가** (2026-09-04 실측) | `withMcpAuth`가 `verifyToken`의 예외를 삼키고 `"Invalid token"`으로, `undefined`는 `"No authorization provided"`로 고정한다(`node_modules/mcp-handler/dist/index.js:155-163`). 사유 채널이 없다 → **대체 경로 채택**: 인증은 통과시키고 도구 층에서 사유와 함께 거부하며, `project_get`이 잠긴 프로젝트에서도 `{locked, reason}`을 답한다 |
 
 ## Risks and Rollback
 
@@ -486,11 +493,25 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD (Polar·가격·랜딩 가격표 → 후속 제안서)
+- completed-at: 2026-09-04
+- verification-summary: npm test 86/86 · test:web 150/150 · check pass(lint·tsc·architecture 13/13·verify:fsd·plugin/lib in sync). G1 실측은 FAIL(보고 형식·토큰 +9.5%)이며 소유자가 그 둘을 관찰 항목으로 낮추고 착수를 승인했다.
+- implementation PR/commit: 브랜치 `harness/phase-4-g1` — Batch A·B는 PR #8(`de7dcda`),
+  이후 `c44bfdd`(Batch C) · `34c132d`(T4.10·T4.11) · 본 커밋(T4.12).
+- changed files summary: `packages/core`(entitlement·deliver·capError) · `src/server`(board-rules 벽,
+  board·deps·tools 배선, guard, entitlement) · `src/fsd`(billing 슬라이스, entitlement-copy,
+  app-header 배지, 결재함 칩·목록 배지·레이아웃 배너, board-item 잘림 안내) · `plugin`(생성기·init 스킬) ·
+  문서(스펙 C1~C6, architecture 2종, product-copy, 시험 보고서).
+- remaining follow-up:
+  - **Polar 결제·가격·랜딩 가격표** → 후속 제안서(스펙 Phase 4.1b).
+  - **F1(G1)** 스텁 방식이 사이클당 토큰을 ~9.5% 더 쓴다 — 원인은 `agent_next` 왕복.
+    단계 병합으로 줄일 수 있다. 시험 보고서 참조.
+  - **F2(G1)** 파일 방식과 스텁 방식의 보고서 제목 계층·문구가 다르다 — private 템플릿에서 제목을 고정한다.
+  - **UI 실물 확인 미수행.** `/billing`·플랜 배지·잠금 칩·목록 배지·레이아웃 배너·이력 잘림 안내는
+    타입과 테스트만 통과했고 화면으로 보지 않았다(잠긴 프로젝트·Free 계정을 만들어야 보인다).
+  - **마이그레이션.** Phase 4 이전에 init한 프로젝트는 통짜 본문 파일을 들고 있어 `agent_next`를 부르지
+    않으므로 `report_submit` 벽에 걸린다. 거부 문구가 `/harness:init` 재실행을 안내하지만,
+    미리 알리는 장치는 없다.
+  - `npm run build`·`npm run test:templates` 미실행(build는 dev 서버와 `.next`를 공유).
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -511,9 +532,9 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
-- [ ] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다. (A·B 범위는 확인, 2026-09-03. 라우팅·barrel은 D 착수 시)
+- [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다. (A·B 2026-09-03, C·D 2026-09-04 — `tsc`·`verify:fsd`·`test:architecture` 통과. 화면 실물 확인은 미수행 — Completion Notes의 follow-up)
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (실행 전)
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (코드 검증은 신규 실패 없음. G1 실측의 R4·R5 실패는 신규이며 시험 보고서에 F1·F2로 분리해 남겼다)
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
-- [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다. (해당 없음 — 닫힘이 아니라 완료)

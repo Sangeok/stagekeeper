@@ -4,6 +4,7 @@ import { decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, dec
 
 const base = { backlogExists: true, hasOpenRow: false, openCount: 0, roster: ["web-dev", "admin-dev"], agent: "web-dev", reason: "evidence" };
 const row = (o = {}) => ({ status: "planning", planPath: null, reportCount: 0, results: [], validation: null, ...o });
+const rs = (o = {}) => ({ status: "done", actor: "web-dev", roster: ["web-dev", "admin-dev"], hasVerifyStep: false, ...o });
 
 describe("decidePropose", () => {
   it("rejects when 2 items are open", () => assert.match(decidePropose({ ...base, openCount: 2 }).reason, /max 2/));
@@ -57,7 +58,42 @@ describe("discard / validation / plan_submit / report_submit", () => {
     for (const s of ["proposed", "implementing", "done", "on_hold"]) assert.equal(decidePlanSubmit(s).ok, false, s);
   });
   it("report_submit only in in_review·implementing·done", () => {
-    for (const s of ["in_review", "implementing", "done"]) assert.equal(decideReportSubmit(s).ok, true, s);
-    for (const s of ["proposed", "planning", "on_hold"]) assert.equal(decideReportSubmit(s).ok, false, s);
+    // 상태 축만 본다 — verify 벽은 아래 describe에서 따로 잰다.
+    for (const s of ["in_review", "implementing", "done"]) assert.equal(decideReportSubmit(rs({ status: s, hasVerifyStep: true })).ok, true, s);
+    for (const s of ["proposed", "planning", "on_hold"]) assert.equal(decideReportSubmit(rs({ status: s, hasVerifyStep: true })).ok, false, s);
+  });
+});
+
+// T4.6 벽. 상태로 걸고 이름으로 걸지 않는다 — implementing에서만 verify 선행을 요구한다.
+describe("decideReportSubmit — actor and the verify wall", () => {
+  it("accepts the fixed report agents, the workspace devs, and main-loop", () => {
+    for (const a of ["pm", "plan-verifier", "doc-auditor", "feature-scout", "web-dev", "admin-dev", "main-loop"]) {
+      assert.equal(decideReportSubmit(rs({ status: "done", actor: a })).ok, true, a);
+    }
+  });
+  it("rejects an actor that is neither a report agent, a workspace dev, nor main-loop", () => {
+    assert.match(decideReportSubmit(rs({ status: "done", actor: "ops" })).reason, /unknown reporter: ops/);
+    assert.match(decideReportSubmit(rs({ status: "done", actor: "dev" })).reason, /unknown reporter: dev/);
+  });
+  it("implementing needs a verify record from the same actor", () => {
+    assert.match(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: false })).reason, /verify step not recorded/);
+    // 문구가 원인과 다음 행동까지 말한다 — Phase 4 이전 프로젝트가 이 벽에 걸리는 흔한 경우다.
+    const why = decideReportSubmit(rs({ status: "implementing", hasVerifyStep: false, actor: "web-dev" })).reason;
+    assert.match(why, /web-dev/);
+    assert.match(why, /agent_next/);
+    assert.match(why, /harness:init/);
+    assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
+  });
+  it("the wall is outcome-agnostic — a failed verify still lets the hold report through", () => {
+    // 후보 (a): "같은 (project, actor, key)에 verify 기록이 있다(outcome 불문)".
+    // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다.
+    assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
+  });
+  it("in_review and done do not require verify — the round log and the acceptance record", () => {
+    assert.equal(decideReportSubmit(rs({ status: "in_review", actor: "main-loop", hasVerifyStep: false })).ok, true);
+    assert.equal(decideReportSubmit(rs({ status: "done", actor: "main-loop", hasVerifyStep: false })).ok, true);
+  });
+  it("the status check runs before the actor check", () => {
+    assert.match(decideReportSubmit(rs({ status: "planning", actor: "ops" })).reason, /only in in_review/);
   });
 });

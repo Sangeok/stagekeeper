@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { type PlanId, planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import { billingPath } from "@/fsd/shared/routes/billing";
 import { projectPath } from "@/fsd/shared/routes/project";
 
 export type HeaderProject = { slug: string; name: string };
@@ -9,10 +11,12 @@ export function AppHeader({
   login,
   project,
   projects = [],
+  plan,
 }: {
   login: string;
   project?: HeaderProject;
   projects?: HeaderProject[];
+  plan?: PlanId;
 }) {
   return (
     <header className="border-b border-rule">
@@ -28,7 +32,18 @@ export function AppHeader({
             <ProjectSwitcher current={project} projects={projects} />
           </>
         ) : null}
-        <span className="ml-auto font-mono text-xs text-quiet">{login}</span>
+        {/* 플랜 배지. 상한에 걸렸을 때 어디를 봐야 하는지가 머리에서 늘 보이게 한다. */}
+        {plan !== undefined ? (
+          <Link
+            href={billingPath()}
+            className="ml-auto rounded-full border border-rule px-2 py-0.5 text-xs text-quiet hover:bg-field"
+          >
+            {planLabel(plan)}
+          </Link>
+        ) : null}
+        <span className={plan === undefined ? "ml-auto font-mono text-xs text-quiet" : "font-mono text-xs text-quiet"}>
+          {login}
+        </span>
       </div>
     </header>
   );

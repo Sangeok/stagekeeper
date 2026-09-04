@@ -35,6 +35,13 @@ Stagekeeper는 사람이 승인 게이트를 소유하고 에이전트가 계획
 사람 전용 게이트는 프롬프트 관례가 아니라 서버의 도구 집합과 전이 규칙으로
 강제한다. FSD 폴더 구조는 이 보안 경계를 대체하지 않는다.
 
+**에이전트 정의는 스텁으로 물질화된다(Phase 4).** 플러그인이 사용자 저장소에 쓰는
+`.claude/agents/*.md`는 역할·굳은 규칙·구동 규칙까지이고, 절차의 단계 본문은
+서버에 남는다. 서브에이전트는 `mcp__harness__agent_next`로 지금 할 한 단계를 받아
+수행하고 `outcome`과 함께 다시 부른다 — 커서는 `AgentRun`이고 호출마다
+`AgentRunStep` 한 줄이 남는다. 무엇을 내려줄지는 `packages/core/deliver.mjs` 하나가
+정하고, 서버와 생성기의 로컬 우회로가 같은 함수를 쓴다.
+
 ## 데이터와 규칙의 소유권
 
 | 대상 | 단일 소유 위치 | 이유 |
@@ -46,6 +53,9 @@ Stagekeeper는 사람이 승인 게이트를 소유하고 에이전트가 계획
 | URL과 Next.js lifecycle | `src/app` | framework adapter이자 composition root |
 | 계획서·행위자 상세 기록 | 연결된 사용자 저장소 | 코드 변경과 함께 검토되는 산출물 |
 | 워크스페이스·검증 명령 | 사용자 저장소의 `harness.json` | 코드와 함께 변하는 코드 인접 설정 |
+| **에이전트 절차의 단계 본문** | Postgres(`Template`) — 원문은 private 저장소 | 본문이 서비스의 실체다. 파일로 내려가면 로컬 파이프라인이 그대로 선다 |
+| **에이전트가 지금 서 있는 단계** | Postgres(`AgentRun`·`AgentRunStep`) | 커서가 서버에 있어야 단계 열거를 막고 감사가 남는다 |
+| 플랜과 상한 | `packages/core/entitlement.mjs`의 `LIMITS` | 웹 화면·MCP·생성기가 같은 표로 판정하고 `/billing`이 그것을 렌더 |
 
 ## 최상위 의존성
 

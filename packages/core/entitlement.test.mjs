@@ -1,18 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  PLANS,
-  DEFAULT_PLAN,
-  LIMITS,
-  REPORT_AGENTS,
-  isPlan,
-  limitsFor,
-  withinLimit,
-  activeProjectIds,
-  allowsAgent,
-  historyCutoff,
-  capReason,
-} from "./entitlement.mjs";
+import { DEFAULT_PLAN, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, capError, capReason, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
 
 const DAY = 86_400_000;
 
@@ -149,5 +137,24 @@ describe("entitlement", () => {
       assert.equal(historyCutoff("pro", now), null);
       assert.equal(historyCutoff("max", now), null);
     });
+  });
+});
+
+describe("capError", () => {
+  it("free: the first project is fine, the second is not", () => {
+    assert.equal(capError("free", "projects", 0), null);
+    assert.match(capError("free", "projects", 1), /project cap reached on the free plan \(1\)\. Upgrade the plan to add more\./);
+  });
+  it("free backlog stops at 10", () => {
+    assert.equal(capError("free", "backlog", 9), null);
+    assert.match(capError("free", "backlog", 10), /backlog cap reached on the free plan \(10\)/);
+  });
+  it("pro and max leave the unlimited axes open", () => {
+    assert.equal(capError("pro", "backlog", 10_000), null);
+    assert.equal(capError("max", "projects", 10_000), null);
+    assert.match(capError("pro", "projects", 5), /project cap reached on the pro plan \(5\)/);
+  });
+  it("shares its wording with capReason", () => {
+    assert.ok(capError("free", "workspaces", 1).startsWith(capReason("free", "workspaces")));
   });
 });

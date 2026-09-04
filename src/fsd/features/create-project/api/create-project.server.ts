@@ -1,8 +1,10 @@
 "use server";
+import { capError } from "@harness/core/entitlement.mjs";
 import { newToken } from "@harness/core/token.mjs";
 import { Prisma } from "@/generated/prisma/client";
 import { requireUser } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
+import { planForUser } from "@/server/entitlement";
 import type { CreateProjectState } from "../model/create-project-state";
 import { RESERVED_SLUGS, SLUG_ERROR, SLUG_RE } from "../model/project-slug";
 import { SEGMENT } from "../model/repo-url";
@@ -28,10 +30,20 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
   }
   if (await prisma.project.findUnique({ where: { slug } })) return { status: "error", error: `'${slug}' is already taken.` };
   const { plain, hash } = newToken();
+  const plan = await planForUser(userId);
   try {
-    await prisma.project.create({
-      data: { slug, name, owner, repo, branch, members: { create: { userId, role: "owner" } }, tokens: { create: { hash, label: "initial" } } },
+    // 상한 검사와 생성은 한 트랜잭션이다 — 따로 두면 동시에 온 두 요청이 둘 다 "아직 여유 있음"을
+    // 읽고 둘 다 만든다(board.ts:71의 미결 상한과 같은 이유).
+    const capped = await prisma.$transaction(async (tx) => {
+      const owned = await tx.projectMember.count({ where: { userId, role: "owner" } });
+      const capMsg = capError(plan, "projects", owned);
+      if (capMsg) return capMsg;
+      await tx.project.create({
+        data: { slug, name, owner, repo, branch, members: { create: { userId, role: "owner" } }, tokens: { create: { hash, label: "initial" } } },
+      });
+      return null;
     });
+    if (capped) return { status: "error", error: capped };
   } catch (error) {
     // 위 findUnique 이후에 다른 요청이 같은 slug를 먼저 넣었을 때 — 같은 답을 준다.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

@@ -60,12 +60,30 @@ export async function backlogWithStatus(projectId: string, includeRemoved: boole
   return items.map((i) => ({ ...i, status: status.get(i.id) ?? null }));
 }
 
-export async function getWithHistory(projectId: string, key: string) {
+// since는 **조회 창**이다 — 저장은 언제나 전부 한다(historyCutoff의 계약). null/undefined면 창이 없다.
+// 창을 넘기는 곳은 항목 화면과 board_get 둘뿐이다. **결재함(latestBoardWithEvents)은 창을 받지 않는다** —
+// 게이트 판단이 검증 기록의 유무로 갈리는데 창에 가려지면 조용히 틀린 판단이 된다. 그래서 그쪽에는
+// 인자 자체를 두지 않는다(넘기지 않는 규율보다 못 넘기는 형이 세다).
+export async function getWithHistory(projectId: string, key: string, since?: Date | null) {
+  const at = since ? { gte: since } : undefined;
   return prisma.boardItem.findFirst({
     where: { projectId, discardedAt: null, backlogItem: { key } },
     orderBy: { proposedOn: "desc" },
-    include: { backlogItem: true, events: { orderBy: { at: "asc" } }, reports: { orderBy: { at: "asc" } } },
+    include: {
+      backlogItem: true,
+      events: { where: at && { at }, orderBy: { at: "asc" } },
+      reports: { where: at && { at }, orderBy: { at: "asc" } },
+    },
   });
+}
+
+// 창 밖으로 밀려난 이력이 실제로 있는가 — 항목 화면의 "잘렸다" 한 줄은 이게 true일 때만 뜬다.
+export async function hasHistoryBefore(projectId: string, key: string, since: Date): Promise<boolean> {
+  const older = await prisma.transitionEvent.findFirst({
+    where: { at: { lt: since }, boardItem: { projectId, discardedAt: null, backlogItem: { key } } },
+    select: { id: true },
+  });
+  return older !== null;
 }
 
 // 미결 상한(2)은 "세고 나서 만든다" — READ COMMITTED에서는 두 호출자가 같은 수를 읽고 둘 다 만들 수 있다.
@@ -173,7 +191,16 @@ export async function submitReport(projectId: string, input: { key: string; acto
   return prisma.$transaction(async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
-    const d = decideReportSubmit(row.status);
+    // 벽에 필요한 사실 둘. roster는 이름 검사에, verify 원장은 implementing의 선행 검사에 쓴다.
+    // verify 조회는 status가 implementing일 때만 한다 — 나머지 상태에선 결과를 쓰지 않으므로 왕복을 아낀다.
+    const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
+    const hasVerifyStep =
+      row.status === "implementing" &&
+      (await tx.agentRunStep.findFirst({
+        where: { stepId: "verify", run: { projectId, agent: input.actor, key: input.key } },
+        select: { id: true },
+      })) !== null;
+    const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep });
     if (!d.ok) return fail(d.reason);
     const report = await tx.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "report" } });
