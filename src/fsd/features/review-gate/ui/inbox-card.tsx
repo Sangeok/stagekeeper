@@ -28,10 +28,13 @@ import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
 import { RejectActions } from "./reject-actions";
 
-type Props = { item: InboxItem; now: string; transition: TransitionAction; discard: DiscardAction };
+type Props = { item: InboxItem; now: string; transition: TransitionAction; discard: DiscardAction; lockedReason?: string };
 
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
-export function InboxCard({ item, now, transition, discard }: Props) {
+export function InboxCard({ item, now, transition, discard, lockedReason }: Props) {
+  // 잠긴 프로젝트에서는 게이트를 열 수 없다. 버튼을 지우고 사유를 보여 준다 — 서버 액션도
+  // 같은 문장으로 거부하므로(requireProjectWrite), 눌러 보고 알게 되는 대신 미리 안다.
+  const locked = lockedReason !== undefined;
   const gateTo = gateTargetFor(item.status);
   const isProposed = item.status === "proposed";
   const isInReview = item.status === "in_review";
@@ -74,7 +77,10 @@ export function InboxCard({ item, now, transition, discard }: Props) {
             {isInReview && item.planUrl !== null ? (
               <ExternalButtonLink href={item.planUrl}>Read the plan ↗</ExternalButtonLink>
             ) : null}
-            {gateTo !== null ? (
+            {locked ? (
+              <span className="rounded-full border border-line px-3 py-1 text-xs text-quiet">Locked</span>
+            ) : null}
+            {gateTo !== null && !locked ? (
               <GateTransitionButton
                 to={gateTo}
                 itemKey={item.key}
@@ -82,14 +88,15 @@ export function InboxCard({ item, now, transition, discard }: Props) {
                 commit={() => transition({ key: item.key, to: gateTo, expectedUpdatedAt: item.updatedAt })}
               />
             ) : null}
-            {isOnHold ? <ResumeButtons item={item} transition={transition} /> : null}
+            {isOnHold && !locked ? <ResumeButtons item={item} transition={transition} /> : null}
           </div>
-          {gateTo !== null ? (
+          {locked ? <p className="text-xs text-risk">{lockedReason}</p> : null}
+          {gateTo !== null && !locked ? (
             <p className={isUnverified ? "text-xs text-risk" : "text-xs text-quiet"}>
               {isUnverified ? UNVERIFIED_HINT : gateNextActionHint(gateTo)}
             </p>
           ) : null}
-          {isOnHold ? (
+          {isOnHold && !locked ? (
             <p className="text-xs text-quiet">{resumeHint(resumePrimaryFor(item.heldFrom), item.heldFrom)}</p>
           ) : null}
         </div>

@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { projectPath } from "@/fsd/shared/routes/project";
-import { requireMember } from "@/server/auth/guard";
+import { requireProjectWrite } from "@/server/auth/guard";
 import * as board from "@/server/pipeline/board";
 import type { TransitionInput } from "../model/inbox-item";
 
@@ -18,7 +18,9 @@ const parseExpected = (iso: string): Date | null => {
 
 export async function humanTransition(slug: string, input: TransitionInput): Promise<ActionResult<void>> {
   const { key, to, result } = input;
-  const { userId, projectId } = await requireMember(slug);
+  const w = await requireProjectWrite(slug);
+  if (!w.ok) return failure(message(w.reason));
+  const { userId, projectId } = w;
   const expected = parseExpected(input.expectedUpdatedAt);
   if (expected === null) return failure(message("stale"));
   const r = await board.transition(projectId, { key, to, result }, { actor: "human", actorRef: userId, expectedUpdatedAt: expected });
@@ -28,7 +30,9 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
 }
 
 export async function discardItem(slug: string, key: string, expectedUpdatedAt: string): Promise<ActionResult<void>> {
-  const { userId, projectId } = await requireMember(slug);
+  const w = await requireProjectWrite(slug);
+  if (!w.ok) return failure(message(w.reason));
+  const { userId, projectId } = w;
   const expected = parseExpected(expectedUpdatedAt);
   if (expected === null) return failure(message("stale"));
   const r = await board.discard(projectId, { key, userId, expectedUpdatedAt: expected });

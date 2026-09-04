@@ -34,6 +34,12 @@ export function capReason(plan, axis) {
   return `${AXIS_NOUN[axis]} cap reached on the ${plan} plan (${limitsFor(plan)[axis]})`;
 }
 
+// 추가 전 검사 한 줄. 상한 안이면 null, 넘으면 사용자에게 그대로 보일 문장 — 문구는 capReason 하나에서 나온다.
+// currentCount는 **지금 있는 수**다(추가하려는 1은 여기서 더한다). project_sync처럼 "N개로 맞춘다"는 withinLimit을 직접 쓴다.
+export function capError(plan, axis, currentCount) {
+  return withinLimit(plan, axis, currentCount + 1) ? null : `${capReason(plan, axis)}. Upgrade the plan to add more.`;
+}
+
 // 상한을 넘는 프로젝트는 잠긴다 — 활성은 createdAt 오름차순 앞 N개(동률은 id). 행은 지우지 않는다.
 export function activeProjectIds(projects, plan) {
   const n = limitsFor(plan).projects;

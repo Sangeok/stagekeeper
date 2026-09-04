@@ -3,7 +3,7 @@ import Link from "next/link";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { ButtonLink } from "@/fsd/shared/ui/button";
 
-export type ProjectSummary = { slug: string; name: string; owner: string; repo: string };
+export type ProjectSummary = { slug: string; name: string; owner: string; repo: string; locked?: boolean };
 
 export function ProjectListPage({ projects }: { projects: ProjectSummary[] }) {
   return (
@@ -25,6 +25,10 @@ export function ProjectListPage({ projects }: { projects: ProjectSummary[] }) {
                 <span className="font-mono text-xs text-quiet">
                   {p.owner}/{p.repo}
                 </span>
+                {/* 잠긴 프로젝트도 목록에 남는다 — 행을 지우지 않고 배지로 알린다. 플랜을 올리면 그대로 열린다. */}
+                {p.locked ? (
+                  <span className="rounded-full border border-line px-2 py-0.5 text-xs text-quiet">Locked</span>
+                ) : null}
               </Link>
             </li>
           ))}

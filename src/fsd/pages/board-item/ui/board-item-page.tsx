@@ -24,6 +24,8 @@ export type BoardItemView = {
   proposedOn: Date;
   docs: ItemDoc[];
   events: TimelineEvent[];
+  // 창 밖으로 밀린 이력이 있을 때만 true — 창이 없는 플랜에서는 언제나 false다.
+  historyTruncated?: boolean;
 };
 
 const stamp = (d: Date) => d.toISOString().slice(0, 16).replace("T", " ");
@@ -103,6 +105,9 @@ export function BoardItemPage({ item }: { item: BoardItemView }) {
             </li>
           ))}
         </ol>
+        {item.historyTruncated ? (
+          <p className="mt-2 text-xs text-quiet">History older than 30 days opens on Pro.</p>
+        ) : null}
       </section>
     </>
   );
