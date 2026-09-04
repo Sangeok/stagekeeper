@@ -62,6 +62,9 @@ next: done
 // implement에서 verify 없이 report로 가려는 템플릿 — verify-ok 검사가 그래프가 아니라 서버 규칙임을 본다.
 const SHORTCUT = DEV.replace("next: verify\non blocked: hold", "next: report\non blocked: hold");
 
+// 라우터 단계(start)를 지운 dev — 서버가 열리는 첫 단계를 골라야 한다.
+const DEV_NOSTART = DEV.replace(/## step:start\n[\s\S]*?\n\n(?=## step:plan)/, "");
+
 const VARS: Record<string, Record<string, unknown>> = {
   "web-dev": { ws: { agent: "web-dev", knowledge: "apps/web/CLAUDE.md", verify_block: "```bash\nnpm test\n```" }, roster_table: "| web-dev |" },
   pm: { roster_table: "| web-dev |" },
@@ -73,6 +76,7 @@ type Rec = { runId: string; stepId: string; outcome: Outcome; note: string | nul
 type Opts = {
   plan?: "free" | "pro" | "max"; locked?: string; roster?: string[]; templates?: Record<string, string>;
   board?: Record<string, string>; openCount?: number; recent?: number; verifiedElsewhere?: boolean;
+  itemAgent?: Record<string, string>;
 };
 
 const SCOPE = { projectId: "p1", tokenId: "t1" };
@@ -97,6 +101,7 @@ function harness(opts: Opts = {}) {
       return r;
     },
     boardStatus: async (_p, key) => board[key] ?? null,
+    itemAgent: async (_p, key) => opts.itemAgent?.[key] ?? null,
     openCount: async () => opts.openCount ?? 0,
     verifyOk: async (_p, agent, key) => opts.verifiedElsewhere === true
       || records.some((rec) => rec.stepId === "verify" && rec.outcome === "ok"
@@ -316,5 +321,47 @@ describe("agentNext — gates before any step is served", () => {
     } finally { console.warn = orig; }
     assert.equal(warned.length, 1);
     assert.match(warned[0], /run1.*10 refusals/);
+  });
+});
+
+describe("opening a run picks the first step that is open", () => {
+  const noStart = (board: Record<string, string>) => harness({ board, templates: { "agents/dev.md": DEV_NOSTART } });
+
+  it("routes to plan or implement by the board status — no router step needed", async () => {
+    assert.equal(step(await noStart({ "FEAT-1": "planning" }).call(dev())).step, "plan");
+    assert.equal(step(await noStart({ "FEAT-1": "implementing" }).call(dev())).step, "implement");
+  });
+
+  it("refuses and opens no run when nothing is open", async () => {
+    const h = noStart({ "FEAT-1": "proposed" });
+    const r = await h.call(dev());
+    assert.equal(r.ok, false);
+    assert.match(r.reason, /not open/);
+    // 커서를 남기면 다음 호출이 그 자리에서 다시 판정하지 못한다.
+    assert.equal(h.runs.length, 0);
+  });
+
+  it("leaves templates whose first step has no requires exactly as they were", async () => {
+    assert.equal(step(await harness().call({ agent: "pm" })).step, "start");
+    assert.equal(step(await harness({ board: { "FEAT-1": "planning" } }).call(dev())).step, "start");
+  });
+});
+
+describe("item ownership", () => {
+  it("refuses a key that belongs to another agent", async () => {
+    const h = harness({ roster: ["web-dev", "api-dev"], board: { "FEAT-1": "planning" }, itemAgent: { "FEAT-1": "api-dev" } });
+    const r = await h.call(dev());
+    assert.equal(r.ok, false);
+    assert.match(r.reason, /api-dev/);
+    assert.equal(h.runs.length, 0);
+  });
+
+  it("allows the agent the item is assigned to", async () => {
+    const h = harness({ board: { "FEAT-1": "planning" }, itemAgent: { "FEAT-1": "web-dev" } });
+    assert.equal(step(await h.call(dev())).step, "start");
+  });
+
+  it("says nothing about ownership for a keyless agent", async () => {
+    assert.equal(step(await harness({ itemAgent: { "FEAT-1": "api-dev" } }).call({ agent: "pm" })).step, "start");
   });
 });

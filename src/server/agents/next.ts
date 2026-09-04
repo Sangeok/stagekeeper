@@ -40,6 +40,7 @@ export type NextDeps = {
   openRun(projectId: string, agent: string, key: string | null): Promise<RunRow | null>;
   createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<RunRow>;
   boardStatus(projectId: string, key: string): Promise<string | null>; // 폐기되지 않은 최신 행의 상태
+  itemAgent(projectId: string, key: string): Promise<string | null>; // 그 행에 배정된 에이전트. 행이 없으면 null
   openCount(projectId: string): Promise<number>;
   verifyOk(projectId: string, agent: string, key: string | null): Promise<boolean>; // 같은 (project, agent, key)의 어느 run이든 verify/ok 기록
   record(runId: string, step: { stepId: string; outcome: Outcome; note: string | null }): Promise<void>;
@@ -54,6 +55,16 @@ const ok = <T>(item: T): ServerResult<T> => ({ ok: true, item });
 const needsKey = (parsed: ParsedTemplate) =>
   parsed.steps.some((s) => s.requires.some((r) => STATUSES.includes(r) || r === "verify-ok"));
 
+// 새 run이 시작할 수 있는 단계. **실패 분기 전용 단계는 뺀다** — hold처럼 `on failed:`/`on blocked:`로만
+// 닿는 단계는 보통 requires가 없어서, 순서 훑기에 그냥 두면 어떤 보드 상태에서도 열리는 만능 입구가
+// 된다(항목이 proposed인데 hold로 run이 열린다). 실패 분기는 그 실패를 겪은 run만 들어가는 곳이다.
+// `next:`로도 닿는 단계는 정상 경로의 일부이므로 남는다(pm의 report가 그렇다).
+const entrySteps = (parsed: ParsedTemplate): Step[] => {
+  const viaNext = new Set(parsed.steps.flatMap((s) => s.next));
+  const viaFailure = new Set(parsed.steps.flatMap((s) => [s.onFailed, s.onBlocked].filter((x) => x !== undefined)));
+  return parsed.steps.filter((s) => !(viaFailure.has(s.id) && !viaNext.has(s.id)));
+};
+
 export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput): Promise<ServerResult<NextOutput>> {
   const { projectId, tokenId } = scope;
   const { agent } = input;
@@ -64,6 +75,13 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const roster = await deps.roster(projectId);
   if (!REPORT_AGENTS.includes(agent) && !roster.includes(agent)) return fail(`unknown agent: ${agent}`);
   if (!allowsAgent(access.plan, agent, roster)) return fail(`agent \`${agent}\` is not on the ${access.plan} plan`);
+  // 항목 소유 검사. 예전에는 dev 템플릿의 라우터 단계가 board_get으로 보고 스스로 확인했다 —
+  // 프롬프트가 아니라 서버가 강제한다(불변식 4와 같은 방향). 행이 없으면 여기서 말하지 않는다:
+  // requires 판정이 `not open`으로 더 정확히 설명한다.
+  if (key !== null) {
+    const owner = await deps.itemAgent(projectId, key);
+    if (owner !== null && owner !== agent) return fail(`item ${key} belongs to \`${owner}\`, not \`${agent}\``);
+  }
   if ((await deps.recentSteps(tokenId, new Date(Date.now() - RATE_LIMIT.windowMs))) >= RATE_LIMIT.calls) {
     return fail(`rate limit: ${RATE_LIMIT.calls} calls per ${RATE_LIMIT.windowMs / 60_000} minutes per token`);
   }
@@ -90,9 +108,22 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const run = await deps.openRun(projectId, agent, key);
   if (!run) {
     if (input.outcome) return ok({ done: true });
-    const first = parsed.steps[0];
-    await deps.createRun(scope, agent, key, first.id);
-    return serve(first);
+    // **열리는 첫 단계**로 연다. 예전에는 언제나 steps[0]이라, 보드 상태로 갈라지는 에이전트(dev)는
+    // 상태를 읽고 스스로 분기하는 라우터 단계를 따로 둬야 했다 — 그 단계는 일을 하나도 하지 않으면서
+    // 왕복 하나(약 63,000 토큰, G1 실측)를 썼다. 판정은 전진 때 쓰는 것과 같은 requires다.
+    // 첫 단계에 requires가 없는 템플릿(pm·plan-verifier·doc-auditor·feature-scout)은 동작이 같다.
+    const facts = new Facts(deps, projectId, agent, key, false);
+    const unmet: string[] = [];
+    for (const candidate of entrySteps(parsed)) {
+      const missing = await facts.unmet(candidate.requires);
+      if (missing.length === 0) {
+        await deps.createRun(scope, agent, key, candidate.id);
+        return serve(candidate);
+      }
+      unmet.push(`step \`${candidate.id}\` opens when ${missing.join(" and ")}`);
+    }
+    // 열린 단계가 없으면 **run을 만들지 않는다** — 커서를 남기면 다음 호출이 그 자리에 갇힌다.
+    return fail(`not open: ${unmet.join("; ")}`);
   }
 
   const current = findStep(parsed, run.stepId);
