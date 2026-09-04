@@ -1,14 +1,14 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-03"
 approved-by: "Sangeok"
 approved-at: "2026-09-03"
-approval-scope: "Batch A·B(T4.1~T4.5) + G1 — 대화 승인, front matter는 사후 기록. C·D는 G1 결과를 본 뒤 따로 승인"
-completed-at: null
-verification-summary: null
+approval-scope: "Batch A·B(T4.1~T4.5) + G1 — 대화 승인. C·D는 G1 결과(2026-09-04, FAIL)를 본 뒤 소유자가 R4·R5를 관찰 항목으로 낮추며 대화로 승인"
+completed-at: "2026-09-04"
+verification-summary: "npm test 86/86 · test:web 150/150 · check pass(lint·tsc·architecture 13/13·verify:fsd·plugin/lib in sync). G1 실측은 FAIL(보고 형식·토큰 +9.5%)이며 소유자가 그 둘을 관찰 항목으로 낮추고 착수를 승인했다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -360,9 +360,9 @@ next: done
 
 #### T4.12 스펙·아키텍처 문서 (선행: 전부)
 
-- [ ] 스펙 §2.1·Q7·Q8·Phase 4 표·§4·§5를 §"스펙 대비 변경점" C1~C6대로 고친다. Phase 4 표는 4.1을 "4.1a `Subscription`·수동 부여(이 제안서)" / "4.1b Polar(이후)"로 나눈다.
-- [ ] `docs/architecture/system-overview.md`: 에이전트 본문의 위치(DB·서버 렌더), `AgentRun` 원장. `docs/architecture/invariants.md`: "보고는 verify 기록 뒤" 한 줄.
-- [ ] 이 문서를 `completed/`로 옮기며 `2026-MM-DD-` 접두를 붙인다(README 규약).
+- [x] 스펙 §2.1·Q7·Q8·Phase 4 표·§4·§5를 §"스펙 대비 변경점" C1~C6대로 고친다. Phase 4 표는 4.1을 "4.1a `Subscription`·수동 부여(이 제안서)" / "4.1b Polar(이후)"로 나눈다.
+- [x] `docs/architecture/system-overview.md`: 에이전트 본문의 위치(DB·서버 렌더), `AgentRun` 원장. `docs/architecture/invariants.md`: "보고는 verify 기록 뒤" 한 줄.
+- [x] 이 문서를 `completed/`로 옮기며 `2026-MM-DD-` 접두를 붙인다(README 규약).
 
 ## Affected Files
 
@@ -399,9 +399,9 @@ next: done
 
 확인한 항목:
 
-- [ ] 앱 진입점과 라우팅 경계 — `(app)/billing` 추가, 기존 경로 변경 없음 (T4.10에서. A·B는 라우트를 더하지 않았다)
+- [x] 앱 진입점과 라우팅 경계 — `(app)/billing` 추가, 기존 경로 변경 없음 (T4.10 완료 2026-09-04. 경로 상수는 `shared/routes/billing.ts` 한 곳)
 - [x] 정적 `import` / `export from` — FSD 공개 API(`index.server.ts`)로만 참조, `verify:fsd`로 확인 (A·B: 통과, 2026-09-03. `billing`은 T4.10에서 다시)
-- [ ] barrel export(`index.ts`) 경유 참조 — `app-header`·`billing` 슬라이스 공개 API 갱신 (T4.10·T4.11에서)
+- [x] barrel export(`index.ts`) 경유 참조 — `billing` 슬라이스 공개 API 신설, `app-header`는 `index.server.ts`의 `loadHeaderUser`가 plan을 함께 싣는다 (2026-09-04, `verify:fsd` 통과)
 - [x] 테스트와 스크립트 참조 — `tools.test.mjs`(등록 목록), `harness-init.test.mjs`(응답 형태), `check-plugin-lib`(entitlement 동기화), `seed-templates.ts` (전부 갱신됨. `check-plugin-lib`는 `deliver.mjs`도 본다)
 - [x] 타입 선언 영향 — `ToolDeps`·`ProjectView`에 필드 추가(좁은 계약이 넓은 Prisma 행을 받는 방향은 유지) (`ToolDeps`에 `agentNext`·`projectSync(…, language?)`. `ProjectView`는 바뀌지 않았다 — language는 `agent_next`가 서버에서 읽는다)
 - [x] 런타임 side effect — `agent_next`가 쓰는 `AgentRunStep`이 원장에 추가된다. `TransitionEvent`에는 손대지 않으므로 불변식 8의 "클린 사이클 8건"은 유지 (T4.4: `runs.ts`는 `AgentRun`·`AgentRunStep`만 쓴다. 기존 전이 테스트 그대로 통과)
@@ -493,11 +493,25 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD (Polar·가격·랜딩 가격표 → 후속 제안서)
+- completed-at: 2026-09-04
+- verification-summary: npm test 86/86 · test:web 150/150 · check pass(lint·tsc·architecture 13/13·verify:fsd·plugin/lib in sync). G1 실측은 FAIL(보고 형식·토큰 +9.5%)이며 소유자가 그 둘을 관찰 항목으로 낮추고 착수를 승인했다.
+- implementation PR/commit: 브랜치 `harness/phase-4-g1` — Batch A·B는 PR #8(`de7dcda`),
+  이후 `c44bfdd`(Batch C) · `34c132d`(T4.10·T4.11) · 본 커밋(T4.12).
+- changed files summary: `packages/core`(entitlement·deliver·capError) · `src/server`(board-rules 벽,
+  board·deps·tools 배선, guard, entitlement) · `src/fsd`(billing 슬라이스, entitlement-copy,
+  app-header 배지, 결재함 칩·목록 배지·레이아웃 배너, board-item 잘림 안내) · `plugin`(생성기·init 스킬) ·
+  문서(스펙 C1~C6, architecture 2종, product-copy, 시험 보고서).
+- remaining follow-up:
+  - **Polar 결제·가격·랜딩 가격표** → 후속 제안서(스펙 Phase 4.1b).
+  - **F1(G1)** 스텁 방식이 사이클당 토큰을 ~9.5% 더 쓴다 — 원인은 `agent_next` 왕복.
+    단계 병합으로 줄일 수 있다. 시험 보고서 참조.
+  - **F2(G1)** 파일 방식과 스텁 방식의 보고서 제목 계층·문구가 다르다 — private 템플릿에서 제목을 고정한다.
+  - **UI 실물 확인 미수행.** `/billing`·플랜 배지·잠금 칩·목록 배지·레이아웃 배너·이력 잘림 안내는
+    타입과 테스트만 통과했고 화면으로 보지 않았다(잠긴 프로젝트·Free 계정을 만들어야 보인다).
+  - **마이그레이션.** Phase 4 이전에 init한 프로젝트는 통짜 본문 파일을 들고 있어 `agent_next`를 부르지
+    않으므로 `report_submit` 벽에 걸린다. 거부 문구가 `/harness:init` 재실행을 안내하지만,
+    미리 알리는 장치는 없다.
+  - `npm run build`·`npm run test:templates` 미실행(build는 dev 서버와 `.next`를 공유).
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -518,9 +532,9 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
-- [ ] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다. (A·B 범위는 확인, 2026-09-03. 라우팅·barrel은 D 착수 시)
+- [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다. (A·B 2026-09-03, C·D 2026-09-04 — `tsc`·`verify:fsd`·`test:architecture` 통과. 화면 실물 확인은 미수행 — Completion Notes의 follow-up)
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (실행 전)
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (코드 검증은 신규 실패 없음. G1 실측의 R4·R5 실패는 신규이며 시험 보고서에 F1·F2로 분리해 남겼다)
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
-- [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다. (해당 없음 — 닫힘이 아니라 완료)

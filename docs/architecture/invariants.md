@@ -31,7 +31,7 @@
 | 5 | 루프 방지 접두 | `[claude]` | 이슈를 안 쓰므로 불필요(루틴 트리거가 이슈면 유지) |
 | 6 | 명령 본문은 데이터 | 지침 | 지침 + 서버 본문 소유 |
 | 7 | 에이전트 상호 호출 금지 | Task 도구 미부여 | 동일 |
-| 8 | 원장 = 감사 로그 | 이슈 스레드·git | `TransitionEvent`·`Command`·`Report` 테이블 + 저장소 git |
+| 8 | 원장 = 감사 로그 | 이슈 스레드·git | `TransitionEvent`·`Command`·`Report` 테이블 + `AgentRun`/`AgentRunStep`(에이전트 단계 원장) + 저장소 git |
 
 보드 규칙 셋도 계승한다: **증거 없는 상태 주장 금지**(`done`은 `result`·보고 경로 필수, 인수는 메인 루프가 재현), **재독 ≠ 회상**(plan-verifier 독립 컨텍스트), **정지 규칙**(무편집 독립 패스 1회, 3사이클 결함 → 보류). 그리고 pm 규칙 "미결 2건이면 새로 올리지 않는다"는 **서버가 강제**한다(`board_propose`가 거부).
 
@@ -43,6 +43,18 @@
   `src/server/mcp/tools.test.mjs`가 등록 집합의 동일성을 단언해 회귀를 막는다.
 - **불변식 8은 행을 지우지 않는 것으로 지킨다.** 폐기는 `BoardItem.discardedAt` 표기이고
   `완료`는 백로그의 `removedAt` 표기다 — 행도 `TransitionEvent`도 지우지 않는다.
+- **보고는 verify 기록 뒤에만 받는다(Phase 4).** `report_submit`은 항목이 `implementing`일 때
+  같은 (프로젝트, 행위자, 항목)에 `AgentRunStep{stepId: "verify"}`가 있어야 통과한다 — 없으면 거부다.
+  `outcome`은 묻지 않는다: 불변식의 뜻은 "보고 전에 검증을 **시도**했다"이고, verify가 실패로 끝난
+  뒤의 hold 보고까지 막으면 그 뜻을 넘는다. 예외는 행위자 이름이 아니라 **상태**로 건다 —
+  `in_review`(검증 라운드 기록)와 `done`(인수 기록)은 verify를 요구하지 않는다. 이름으로 걸면
+  이름을 바꿔 지나갈 수 있다. 행위자 자체도 검사한다: 고정 4종 + 워크스페이스 dev + `main-loop`.
+  판정은 `src/server/pipeline/board-rules.ts`의 `decideReportSubmit` 하나에 있다.
+- **상한 초과 프로젝트는 잠기되 지워지지 않는다(Phase 4).** 활성은 `createdAt` 오름차순 앞 N개이고
+  나머지는 잠긴다. 잠긴 프로젝트에서 웹은 읽기로 남고(쓰기 액션만 `requireProjectWrite`가 막는다),
+  MCP는 **인증이 아니라 도구 층에서** 사유와 함께 거부한다 — `mcp-handler`의 401이 사유를 실을 수
+  없어서, 막는 자리를 인증에 두면 에이전트가 이유를 알 수 없다. `project_get`은 잠겨도 답한다.
+
 - **pm 상한(미결 2건)은 서버가 강제한다.** `board_propose`가 세고 거부하며, 상한 판정은
   같은 트랜잭션 안에서 `Serializable` 격리로 읽는다(두 호출자가 같은 수를 읽고 둘 다 만드는 것을 막는다).
 
