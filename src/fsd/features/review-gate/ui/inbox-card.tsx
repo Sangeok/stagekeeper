@@ -28,13 +28,14 @@ import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
 import { RejectActions } from "./reject-actions";
 
-type Props = { item: InboxItem; now: string; transition: TransitionAction; discard: DiscardAction; lockedReason?: string };
+type Props = { item: InboxItem; now: string; transition: TransitionAction; discard: DiscardAction; locked?: boolean };
 
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
-export function InboxCard({ item, now, transition, discard, lockedReason }: Props) {
-  // 잠긴 프로젝트에서는 게이트를 열 수 없다. 버튼을 지우고 사유를 보여 준다 — 서버 액션도
-  // 같은 문장으로 거부하므로(requireProjectWrite), 눌러 보고 알게 되는 대신 미리 안다.
-  const locked = lockedReason !== undefined;
+export function InboxCard({ item, now, transition, discard, locked = false }: Props) {
+  // 잠긴 프로젝트에서는 아무 결정도 내릴 수 없다. 게이트·재개·반려·폐기를 모두 감추고 칩만 남긴다 —
+  // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
+  // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
+  // 카드마다 반복하면 같은 문장이 장 수만큼 늘어난다.
   const gateTo = gateTargetFor(item.status);
   const isProposed = item.status === "proposed";
   const isInReview = item.status === "in_review";
@@ -90,7 +91,6 @@ export function InboxCard({ item, now, transition, discard, lockedReason }: Prop
             ) : null}
             {isOnHold && !locked ? <ResumeButtons item={item} transition={transition} /> : null}
           </div>
-          {locked ? <p className="text-xs text-risk">{lockedReason}</p> : null}
           {gateTo !== null && !locked ? (
             <p className={isUnverified ? "text-xs text-risk" : "text-xs text-quiet"}>
               {isUnverified ? UNVERIFIED_HINT : gateNextActionHint(gateTo)}
@@ -111,7 +111,7 @@ export function InboxCard({ item, now, transition, discard, lockedReason }: Prop
           </details>
         ) : null}
 
-        <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} />
+        {locked ? null : <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} />}
 
         <details className="text-xs text-quiet">
           <summary className="cursor-pointer">What this decision does</summary>

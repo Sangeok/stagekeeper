@@ -16,7 +16,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/inbox">) {
       now={new Date().toISOString()}
       transition={humanTransition.bind(null, slug)}
       discard={discardItem.bind(null, slug)}
-      lockedReason={access.locked ? access.reason : undefined}
+      locked={access.locked}
     />
   );
 }
