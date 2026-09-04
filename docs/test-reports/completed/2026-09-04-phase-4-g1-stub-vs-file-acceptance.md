@@ -1,5 +1,5 @@
 ---
-status: 'active'
+status: 'completed'
 stage: 'complete'
 result: 'fail'
 report-kind: 'acceptance'
@@ -7,7 +7,7 @@ report-size: 'standard'
 test-levels: ['end-to-end', 'contract', 'manual']
 test-tools: ['Claude Code', 'node --test', 'MCP JSON-RPC over HTTP', 'git', 'prisma', 'transcript parser(scratch)']
 created-at: '2026-09-03'
-completed-at: null
+completed-at: '2026-09-04'
 last-executed-at: '2026-09-04'
 tested-revision: 'stagekeeper de7dcda(dev) / private templates 9818dec(파일 방식)·d27e614(스텁 방식) / harness-smoke f925fbd 기준'
 owners: ['Sangeok']
@@ -17,7 +17,9 @@ related:
 primary-area: 'pipeline/agent-delivery'
 observed-environments: ['Windows 11 · Node 22.13.1 · Claude Code · next dev(localhost:3000) · Neon Postgres(us-east-2)']
 test-summary: 'R0·R1·R2·R3 PASS(스텁 전달 동작·안전 검증), R4·R5 FAIL(보고 형식 상이·토큰 +9.5%) → 전체 FAIL. Batch C 착수 여부는 사용자 결정.'
-follow-up: []
+follow-up:
+  - 'F1 스텁 토큰 +9.5%(agent_next 왕복 오버헤드) — 제안서 §G1 ⑤, 완화 여지는 단계 병합'
+  - 'F2 보고서 제목 계층·문구 상이 — 제안서 §G1 ④, private 템플릿에서 제목 고정'
 ---
 
 # Phase 4 G1 — 스텁 방식 vs 파일 방식 비교 실측
@@ -31,8 +33,11 @@ Phase 4의 에이전트 전달 방식(파일은 스텁, 단계 본문은 `agent_
 쓰거나 단계를 합친 뒤 **같은 항목으로 재실측**한다. 파일 방식으로 되돌리는 스위치는
 만들지 않는다.
 
-현재는 준비 단계다. 실행 두 번(Run A·Run B)은 사용자가 Claude Code 세션에서
-직접 돌리고, 원장·트랜스크립트 판독은 이 보고서가 맡는다.
+**측정 결과는 FAIL이다** — R4(보고 형식)와 R5(토큰)가 사전 등록 기준을 벗어났다.
+그러나 **소유자 결정은 착수(2026-09-04)**: 실패한 둘은 안전이 아니라 비용·형식이고,
+전달 방식의 핵심 베팅(R1 첫 호출·R2 검증 선행·R3 readOnly)은 전부 통과했다. 그래서
+R4·R5를 **차단 기준에서 관찰 항목으로 낮추고** F1·F2를 후속으로 추적하며 Batch C에
+착수한다. 이 문단은 판정을 덮지 않는다 — 측정은 FAIL로 남고 결정만 따로 적는다.
 
 ## Scope and Criteria
 
@@ -222,11 +227,12 @@ Run B(스텁 방식)는 `harness-smoke-stub` 브랜치 `g1-stub` 세션 `8fc0c8d
 - Remaining uncertainty: R5의 절대치는 두 실행의 검증 라운드 수 차이로 잡음이 있다.
   다만 코드 없는 pm 서브가 stub에서 2.7배라 방향(스텁이 더 비쌈)은 확고하다.
   R4가 템플릿 지시 탓인지 에이전트 재량 탓인지는 템플릿 본문 대조로 더 좁힐 수 있다.
-- Rerun decision: 사전 합의는 "하나라도 실패 → Batch C 미착수, 수정 후 재실측". 실패가
-  안전이 아닌 비용·형식이므로 세 갈래를 사용자에게 올린다 — (a) F1·F2를 기록으로 남기고
-  R4·R5를 완화해 Batch C 착수, (b) 스텁의 `agent_next` 왕복을 줄이거나 보고 템플릿의
-  제목을 고정한 뒤 같은 항목으로 재실측, (c) 현 상태 수용하되 비용을 감수. 결정은
-  사용자 몫이다.
+- Rerun decision: **재실측하지 않는다.** 사전 합의는 "하나라도 실패 → Batch C 미착수,
+  수정 후 재실측"이었으나, 소유자가 2026-09-04에 (a)를 골랐다 — R4·R5를 차단 기준에서
+  관찰 항목으로 낮추고 F1·F2를 후속으로 추적하며 Batch C에 착수. 근거는 실패 둘이
+  안전이 아니라 비용(+9.5%)과 제목 형식이고, 안전·정확성 기준이 전부 통과했다는 점이다.
+  F1은 단계 병합으로, F2는 private 템플릿의 제목 고정으로 각각 닫을 수 있으며 둘 다
+  이 게이트 밖의 후속 작업이다.
 
 ## Review Checklist
 

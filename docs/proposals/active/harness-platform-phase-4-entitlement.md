@@ -315,13 +315,13 @@ next: done
 | ④ | 보고 형식 | `docs/agents/<actor>/<KEY>.md`가 파일 방식과 같은 절 구성 |
 | ⑤ | 토큰 | 트랜스크립트 토큰 사용량이 파일 방식 이하 |
 
-전부 통과하면 Batch C. 하나라도 실패하면: 실패한 단계의 분기를 쓰거나 단계를 합친 뒤 **같은 항목으로 재실측**. 그동안 파일 방식으로 되돌리는 스위치는 만들지 않는다 — 배포 DB에 옛 본문을 시드하지 않으면 사용자는 어차피 스텁을 받는다. 결과는 `docs/test-reports/`에 남긴다.
+전부 통과하면 Batch C. 하나라도 실패하면: 실패한 단계의 분기를 쓰거나 단계를 합친 뒤 **같은 항목으로 재실측**. **실측 결과(2026-09-04): ①②③ 통과, ④⑤ 실패 → 소유자가 ④⑤를 관찰 항목으로 낮추고 재실측 없이 Batch C 착수를 승인**(보고서 참조; F1 토큰 왕복·F2 제목 형식은 후속). 그동안 파일 방식으로 되돌리는 스위치는 만들지 않는다 — 배포 DB에 옛 본문을 시드하지 않으면 사용자는 어차피 스텁을 받는다. 결과는 `docs/test-reports/`에 남긴다.
 
 ### Batch C — 벽
 
 #### T4.6 `report_submit` 벽 (스펙 불변식 8 · 선행: T4.4, G1)
 
-- [ ] `submitReport`: `actor`가 roster(고정 4종 + `workspaces[].agent`)에 없으면 거부. 항목이 `implementing`일 때 (project, key, actor)에 `AgentRunStep{stepId:"verify", outcome:"ok"}`가 없으면 거부(사유: "verify step not recorded"). `in_review`(main-loop 검증 라운드 보고)·`done`(인수 기록)에서는 verify 선행을 요구하지 않는다 — 예외는 actor 이름이 아니라 **상태**로 건다(이름 위장으로 못 지나간다). **T4.3에서 생긴 주의:** dev `hold` 단계는 verify가 `failed`/`blocked`로 끝난 뒤(또는 implement에서 verify 없이 막힌 뒤) `implementing` 상태에서 `report_submit`을 부른다. 벽을 "`verify`/`ok`"로 걸면 홀드 보고가 막힌다. 후보: (a) 벽을 "같은 run에 `verify` 기록이 있다(outcome 불문)"로 두고 implement에서 막힌 경우는 `on_hold` 전이 직전이므로 예외, (b) `AgentRun.stepId === "hold"`면 통과. 착수 때 G1 원장을 보고 고른다.
+- [ ] `submitReport`: `actor`가 roster(고정 4종 + `workspaces[].agent`)에 없으면 거부. 항목이 `implementing`일 때 (project, key, actor)에 `AgentRunStep{stepId:"verify", outcome:"ok"}`가 없으면 거부(사유: "verify step not recorded"). `in_review`(main-loop 검증 라운드 보고)·`done`(인수 기록)에서는 verify 선행을 요구하지 않는다 — 예외는 actor 이름이 아니라 **상태**로 건다(이름 위장으로 못 지나간다). **T4.3에서 생긴 주의:** dev `hold` 단계는 verify가 `failed`/`blocked`로 끝난 뒤(또는 implement에서 verify 없이 막힌 뒤) `implementing` 상태에서 `report_submit`을 부른다. 벽을 "`verify`/`ok`"로 걸면 홀드 보고가 막힌다. 후보: (a) 벽을 "같은 run에 `verify` 기록이 있다(outcome 불문)"로 두고 implement에서 막힌 경우는 `on_hold` 전이 직전이므로 예외, (b) `AgentRun.stepId === "hold"`면 통과. **(a)를 고른다** — G1의 클린 사이클에서는 hold·거부가 0건이라(원장 4개 run 전부 `refused=0`, 모든 outcome `ok`) 실측이 어느 쪽도 밀어주지 않았다. 그래서 설계 근거로 고른다: (a)는 "이 run에서 verify를 시도했다"는 불변식을 커서 위치와 무관하게 표현하고, 단계 이름이 바뀌어도 깨지지 않으며, 이름 기반 예외를 만들지 않는다. (b)는 `AgentRun.stepId`(커서)에 결합해 단계 기계가 바뀌면 같이 흔들린다.
 - [ ] `src/server/pipeline/board-rules.ts`(순수)에 판정 추가 + 테스트.
 
 #### T4.7 생성·추가·동기화 상한 (스펙 4.2 · 선행: T4.2)
@@ -459,7 +459,7 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 | `npx prisma migrate status` | Batch A: "Database schema is up to date" (2026-09-03) | `20260903040038_subscription` 적용 |
 | `npm run test:templates` | Not run yet | |
 | `npm run build` | Not run yet | |
-| G1 비교 실측 | Not run yet | 결과 보고서 경로를 여기 적는다 |
+| G1 비교 실측 | **FAIL**, 소유자 수용 후 착수 (2026-09-04) | `docs/test-reports/completed/2026-09-04-phase-4-g1-stub-vs-file-acceptance.md`. ①②③ PASS(스텁 서브 4종 전부 첫 호출 `agent_next`, 두 방식 다 verify가 보고보다 앞, readOnly 무변경) · ④⑤ FAIL(보고서 제목 계층·문구 상이; 스텁 합계 토큰 10.24M vs 파일 9.35M, **+9.5%** — 원인은 `agent_next` 왕복, 생성 토큰만은 스텁이 근소히 적음). 소유자가 ④⑤를 차단 기준에서 관찰 항목으로 낮추고 F1·F2 추적을 조건으로 Batch C 착수를 승인 |
 | Free 벽 실측 | Not run yet | |
 | mcp-handler 401 사유 전달 | Not run yet | 가능/불가와 채택한 경로 |
 
