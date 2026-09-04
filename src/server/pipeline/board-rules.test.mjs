@@ -77,6 +77,11 @@ describe("decideReportSubmit — actor and the verify wall", () => {
   });
   it("implementing needs a verify record from the same actor", () => {
     assert.match(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: false })).reason, /verify step not recorded/);
+    // 문구가 원인과 다음 행동까지 말한다 — Phase 4 이전 프로젝트가 이 벽에 걸리는 흔한 경우다.
+    const why = decideReportSubmit(rs({ status: "implementing", hasVerifyStep: false, actor: "web-dev" })).reason;
+    assert.match(why, /web-dev/);
+    assert.match(why, /agent_next/);
+    assert.match(why, /harness:init/);
     assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
   });
   it("the wall is outcome-agnostic — a failed verify still lets the hold report through", () => {

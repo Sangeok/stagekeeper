@@ -103,6 +103,17 @@ export function decideReportSubmit(i: ReportSubmitInput): Decision<null> {
     return { ok: false, reason: `report_submit only in in_review, implementing, or done (now ${i.status})` };
   }
   if (!knownReporter(i.actor, i.roster)) return { ok: false, reason: `unknown reporter: ${i.actor}` };
-  if (i.status === "implementing" && !i.hasVerifyStep) return { ok: false, reason: "verify step not recorded" };
+  // 문구가 원인까지 말한다. 이 벽에 걸리는 흔한 경우는 "검증을 건너뛴 에이전트"가 아니라
+  // **Phase 4 이전에 init한 프로젝트**다 — 통짜 본문 파일을 그대로 들고 있으면 agent_next를 부르지 않아
+  // 원장에 verify가 남지 않는다. 그 사용자에게 필요한 다음 행동은 재검증이 아니라 /harness:init 재실행이다.
+  if (i.status === "implementing" && !i.hasVerifyStep) {
+    return {
+      ok: false,
+      reason:
+        `verify step not recorded for \`${i.actor}\` on this item` +
+        " — record the verify step through agent_next before reporting." +
+        " If the agent files still carry full step bodies, rerun /harness:init to get stubs.",
+    };
+  }
   return { ok: true, value: null };
 }

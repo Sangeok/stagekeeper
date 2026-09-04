@@ -349,14 +349,14 @@ next: done
 
 #### T4.10 `/billing` (선행: T4.2)
 
-- [ ] `src/app/(app)/billing/page.tsx` → `src/fsd/pages/billing`(FSD: pages 슬라이스, 공개 API `index.server.ts`). 내용: 현재 플랜, 매트릭스 표(T4.1 `LIMITS`에서 렌더 — 표와 코드가 어긋나지 않게), "가격·결제는 준비 중" 한 줄. 버튼 없음.
-- [ ] `src/fsd/shared/routes`에 `billing` 경로 추가.
+- [x] `src/app/(app)/billing/page.tsx` → `src/fsd/pages/billing`(FSD: pages 슬라이스, 공개 API `index.server.ts`). 내용: 현재 플랜, 매트릭스 표(T4.1 `LIMITS`에서 렌더 — 표와 코드가 어긋나지 않게), "가격·결제는 준비 중" 한 줄. 버튼 없음.
+- [x] `src/fsd/shared/routes`에 `billing` 경로 추가.
 
 #### T4.11 문구·배지 (선행: T4.7, T4.8, T4.10)
 
-- [ ] 상한 오류 문구는 한 곳(`src/fsd/shared/lib/entitlement-copy.ts`)에서 — 프로젝트 생성·백로그 추가·`project_sync` 사유·잠금 배너가 같은 문장을 쓴다.
-- [ ] `app-header`: `loadHeaderUser`에 플랜 추가, 배지(`Free`/`Pro`/`Max`) → `/billing` 링크.
-- [ ] `npm run verify:fsd`·`npm run test:architecture` 통과.
+- [x] 상한 오류 문구는 한 곳(`src/fsd/shared/lib/entitlement-copy.ts`)에서 — 프로젝트 생성·백로그 추가·`project_sync` 사유·잠금 배너가 같은 문장을 쓴다.
+- [x] `app-header`: `loadHeaderUser`에 플랜 추가, 배지(`Free`/`Pro`/`Max`) → `/billing` 링크.
+- [x] `npm run verify:fsd`·`npm run test:architecture` 통과.
 
 #### T4.12 스펙·아키텍처 문서 (선행: 전부)
 
@@ -463,6 +463,8 @@ npm run build               # dev 서버를 내린 뒤 (.next 공유)
 | Batch C: `npm test` | 86/86 pass (2026-09-04) | core `capError` 4건 포함 |
 | Batch C: `npm run test:web` | 146/146 pass (2026-09-04) | board-rules 벽 6건 · MCP 잠금 3건 포함 |
 | Batch C: `npm run check` | pass (2026-09-04) | lint · tsc · architecture 13/13 · plugin/lib in sync |
+| Batch D(T4.10·T4.11): `npm run test:web` | 150/150 pass (2026-09-04) | entitlement-copy 4건 · 벽 문구 회귀 포함 |
+| Batch D(T4.10·T4.11): `npm run check` | pass (2026-09-04) | verify:fsd 포함 |
 | `npm run build` | Not run yet | |
 | G1 비교 실측 | **FAIL**, 소유자 수용 후 착수 (2026-09-04) | `docs/test-reports/completed/2026-09-04-phase-4-g1-stub-vs-file-acceptance.md`. ①②③ PASS(스텁 서브 4종 전부 첫 호출 `agent_next`, 두 방식 다 verify가 보고보다 앞, readOnly 무변경) · ④⑤ FAIL(보고서 제목 계층·문구 상이; 스텁 합계 토큰 10.24M vs 파일 9.35M, **+9.5%** — 원인은 `agent_next` 왕복, 생성 토큰만은 스텁이 근소히 적음). 소유자가 ④⑤를 차단 기준에서 관찰 항목으로 낮추고 F1·F2 추적을 조건으로 Batch C 착수를 승인 |
 | Free 벽 실측 | Not run yet | |

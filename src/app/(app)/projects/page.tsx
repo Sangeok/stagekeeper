@@ -24,7 +24,7 @@ export default async function Page() {
   const isLocked = (m: (typeof members)[number]) => m.role === "owner" && !active.has(m.project.id);
   return (
     <>
-      <AppHeader login={user.login} />
+      <AppHeader login={user.login} plan={user.plan} />
       <ProjectListPage projects={members.map((m) => ({ ...m.project, locked: isLocked(m) }))} />
     </>
   );

@@ -23,7 +23,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
   return (
     <div className="flex flex-1 flex-col">
       <TurnBar turn={turn} />
-      <AppHeader login={user.login} project={project} projects={projects} />
+      <AppHeader login={user.login} project={project} projects={projects} plan={user.plan} />
       <ProjectTabs slug={slug} pendingCount={inboxCount} />
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-8 px-5 pt-9 pb-14">
         {/* 잠금 배너 한 줄. 화면은 읽기 상태로 남는다 — 쓰기만 requireProjectWrite가 막는다. */}
