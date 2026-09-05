@@ -78,7 +78,11 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   // 항목 소유 검사. 예전에는 dev 템플릿의 라우터 단계가 board_get으로 보고 스스로 확인했다 —
   // 프롬프트가 아니라 서버가 강제한다(불변식 4와 같은 방향). 행이 없으면 여기서 말하지 않는다:
   // requires 판정이 `not open`으로 더 정확히 설명한다.
-  if (key !== null) {
+  //
+  // **roster의 워크스페이스 에이전트에만 건다.** 보드 행의 agent는 언제나 dev이고, 보고 에이전트는
+  // 그 항목을 **검사하러** key를 들고 온다(plan-verifier의 단계가 requires: in_review라 key가 필수다).
+  // 모든 key 호출에 걸면 검증자가 통째로 막힌다 — 소유는 "누가 이 일을 하느냐"이지 "누가 볼 수 있느냐"가 아니다.
+  if (key !== null && roster.includes(agent)) {
     const owner = await deps.itemAgent(projectId, key);
     if (owner !== null && owner !== agent) return fail(`item ${key} belongs to \`${owner}\`, not \`${agent}\``);
   }

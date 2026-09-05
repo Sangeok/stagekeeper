@@ -63,6 +63,20 @@ next: done
 const SHORTCUT = DEV.replace("next: verify\non blocked: hold", "next: report\non blocked: hold");
 
 // 라우터 단계(start)를 지운 dev — 서버가 열리는 첫 단계를 골라야 한다.
+const PV = `---
+name: plan-verifier
+---
+Stub.
+
+## step:read   requires: in_review
+Read the plan.
+next: report
+
+## step:report
+Report.
+next: done
+`;
+
 const DEV_NOSTART = DEV.replace(/## step:start\n[\s\S]*?\n\n(?=## step:plan)/, "");
 
 const VARS: Record<string, Record<string, unknown>> = {
@@ -359,6 +373,15 @@ describe("item ownership", () => {
   it("allows the agent the item is assigned to", async () => {
     const h = harness({ board: { "FEAT-1": "planning" }, itemAgent: { "FEAT-1": "web-dev" } });
     assert.equal(step(await h.call(dev())).step, "start");
+  });
+
+  it("does not fence report agents out of an item they inspect", async () => {
+    // plan-verifier는 key를 쓰지만(단계가 requires: in_review) 항목의 소유자가 아니다 —
+    // 소유자는 언제나 워크스페이스 dev다. 소유 검사를 모든 key 호출에 걸면 검증자가 통째로 막힌다.
+    const h = harness({ board: { "FEAT-1": "in_review" }, itemAgent: { "FEAT-1": "web-dev" },
+      templates: { "agents/dev.md": DEV, "agents/plan-verifier.md": PV } });
+    const r = await h.call({ agent: "plan-verifier", key: "FEAT-1" });
+    assert.ok(r.ok, r.ok ? "" : r.reason);
   });
 
   it("says nothing about ownership for a keyless agent", async () => {

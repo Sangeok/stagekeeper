@@ -150,7 +150,7 @@ doc-auditor·feature-scout)은 지금과 **완전히 같게** 동작한다.
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
 | `npm test` | 86/86 pass (2026-09-05) | |
-| `npm run test:web` | 156/156 pass (2026-09-05) | next.test.ts 개방 라우팅 3건 · 소유 3건 포함 |
+| `npm run test:web` | 157/157 pass (2026-09-05) | next.test.ts 개방 라우팅 3건 · 소유 4건(plan-verifier 회귀 포함) |
 | `npm run check` | pass (2026-09-05) | lint · tsc · architecture · plugin/lib in sync |
 | `npm run test:templates` | 9/9 pass (2026-09-05) | dev 기대 그래프에서 start 제거 |
 
@@ -168,6 +168,12 @@ doc-auditor·feature-scout)은 지금과 **완전히 같게** 동작한다.
 - verification-summary: npm test 86/86 · test:web 156/156 · check pass · test:templates 9/9. dev는 6단계 7호출에서 5단계 6호출이 됐고, 파견당 왕복 1회(사이클당 2회, 약 126,000 토큰)가 준다. 스텁은 바이트 동일해 사용자 저장소는 영향이 없다.
 - implementation: 브랜치 `harness/agent-next-open-routing`. private 템플릿은 별도 저장소
   (`Sangeok/harness-templates`)에 따로 커밋했다.
+- **소유 검사를 처음엔 너무 넓게 걸었다 — `plan-verifier`를 막았다.** `key`가 있는 **모든** 호출에
+  걸었는데, `plan-verifier`는 단계가 `requires: in_review`라 key가 필수이면서 항목의 소유자는 아니다
+  (소유자는 언제나 워크스페이스 dev). G1 원장의 `run plan-verifier/FEAT-03`이 그 증거다. 안전성 분석에
+  "key를 쓰지만 보드 행의 agent가 아닌 호출자"를 위험으로 적어 두고 `main-loop`만 확인하다 놓쳤다.
+  회귀 테스트로 재현한 뒤 검사를 **roster의 워크스페이스 에이전트에만** 걸도록 좁혔다 — 소유는
+  "누가 이 일을 하느냐"이지 "누가 볼 수 있느냐"가 아니다.
 - **설계에 없던 것 하나를 테스트가 잡았다 — 실패 분기 전용 단계.** 순서대로 훑기만 하면 `hold`처럼
   `requires`가 없고 `on failed:`·`on blocked:`로만 닿는 단계가 **어떤 보드 상태에서도 열리는 만능
   입구**가 된다. 실제로 항목이 `proposed`인데 `hold`로 run이 열렸다. 세션을 실패 분기에서 시작할
