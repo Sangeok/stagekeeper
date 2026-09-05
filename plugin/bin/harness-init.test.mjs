@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { deliverable } from "../lib/deliver.mjs";
@@ -41,7 +41,7 @@ const BASE_ENV = { ...process.env };
 for (const k of ["HARNESS_TEMPLATES_DIR", "HARNESS_TOKEN", "HARNESS_PLAN", "HARNESS_SERVER"]) delete BASE_ENV[k];
 const argv = (root, server, args) => [BIN, "--root", root, "--server", server, ...args];
 const runWith = (env, root, server, ...args) => {
-  try { return { code: 0, out: execFileSync("node", argv(root, server, args), { encoding: "utf8", env: { ...BASE_ENV, ...env } }) }; }
+  try { return { code: 0, out: execFileSync("node", argv(root, server, args), { encoding: "utf8", stdio: "pipe", env: { ...BASE_ENV, ...env } }) }; }
   catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; }
 };
 // 가짜 서버가 같은 프로세스에 있으면 동기 spawn은 교착이다(응답을 줄 이벤트 루프가 막힌다) — 그 경우만 비동기로.
@@ -52,6 +52,14 @@ const run = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root,
 const runFree = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR, HARNESS_PLAN: "free" }, root, "https://h.example", ...args);
 const fresh = (cfg = APCH) => { const root = mkdtempSync(join(tmpdir(), "harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
 const ONE_WS = JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }], scout: { question: "q" } });
+
+// 오류 뒤의 새 파일과 기존 내용 변경을 모두 잡도록 테스트 저장소 전체를 비교한다.
+const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: true, withFileTypes: true })
+  .filter((entry) => entry.isFile())
+  .map((entry) => {
+    const fullPath = join(entry.parentPath ?? entry.path, entry.name);
+    return [relative(root, fullPath), readFileSync(fullPath, "utf8")];
+  }));
 
 // 가짜 /api/templates — 응답 본문 하나를 정해 두고 받은 요청을 기록한다.
 const withServer = async (body, fn) => {
@@ -134,6 +142,119 @@ describe("harness-init (v2)", () => {
     const r = run(root); assert.equal(r.code, 1); assert.match(r.out, /version/);
   });
 
+  for (const agent of ["pm", "plan-verifier", "doc-auditor", "feature-scout"]) {
+    it(`rejects reserved workspace agent ${agent} without writing`, () => {
+      const config = JSON.parse(ONE_WS);
+      config.workspaces[0].agent = agent;
+      const root = fresh(JSON.stringify(config));
+      const before = snapshot(root);
+      const result = run(root);
+      assert.equal(result.code, 1, result.out);
+      assert.match(result.out, /workspaces\[0\]\.agent: reserved report agent/);
+      assert.deepEqual(snapshot(root), before);
+    });
+  }
+  it("rejects a readOnly typo without dropping the restriction or writing files", () => {
+    const config = JSON.parse(ONE_WS);
+    config.workspaces[0].readOnly = "src/generated/**";
+    const root = fresh(JSON.stringify(config));
+    const before = snapshot(root);
+    const result = run(root);
+    assert.equal(result.code, 1, result.out);
+    assert.match(result.out, /workspaces\[0\]\.readOnly/);
+    assert.deepEqual(snapshot(root), before);
+  });
+
+  describe("prepare before writing", () => {
+    for (const content of ["{", "null", "[]", '{"mcpServers":[]}', '{"mcpServers":null}']) {
+      it(`leaves the repository untouched for malformed MCP input ${content}`, () => {
+        const root = fresh(ONE_WS);
+        writeFileSync(join(root, ".mcp.json"), content);
+        writeFileSync(join(root, "CLAUDE.md"), "Owner instructions\n");
+        const before = snapshot(root);
+        const result = run(root);
+        assert.equal(result.code, 1, result.out);
+        assert.match(result.out, /Initialization error:.*\.mcp\.json/);
+        assert.doesNotMatch(result.out, /^write:/m);
+        assert.deepEqual(snapshot(root), before);
+        writeFileSync(join(root, ".mcp.json"), "{}");
+        assert.equal(run(root).code, 0); // 입력 수정 후 adopt 없이 재실행할 수 있다.
+      });
+    }
+    it("preserves generated files and the old lock when an update cannot prepare MCP", () => {
+      const root = fresh(ONE_WS);
+      assert.equal(run(root).code, 0);
+      const config = JSON.parse(ONE_WS);
+      config.project.name = "Changed name";
+      writeFileSync(join(root, "harness.json"), JSON.stringify(config));
+      writeFileSync(join(root, ".mcp.json"), "{");
+      const before = snapshot(root);
+      assert.equal(run(root).code, 1);
+      assert.deepEqual(snapshot(root), before);
+      writeFileSync(join(root, ".mcp.json"), "{}");
+      const result = run(root);
+      assert.equal(result.code, 0, result.out);
+      assert.doesNotMatch(result.out, /skip\(modified\)|refuse:/);
+      assert.match(readFileSync(join(root, "docs/plans/README.md"), "utf8"), /Changed name/);
+    });
+    it("rejects a malformed lock before changing generated files", () => {
+      const root = fresh(ONE_WS);
+      writeFileSync(join(root, "harness.lock.json"), '{"version":1,"files":[]}');
+      const before = snapshot(root);
+      const result = run(root);
+      assert.equal(result.code, 1, result.out);
+      assert.match(result.out, /harness\.lock\.json/);
+      assert.deepEqual(snapshot(root), before);
+    });
+    for (const [label, runbook] of [["missing", undefined], ["unresolved variable", "{{unknown.value}}"]]) {
+      it(`does not write any targets for a ${label} runbook`, async () => {
+        const body = deliverable(ROWS, "pro");
+        body.templates["CLAUDE.runbook.md"] = runbook;
+        await withServer(body, async (server) => {
+          const root = fresh(ONE_WS);
+          const before = snapshot(root);
+          const result = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
+          assert.equal(result.code, 1, result.out);
+          assert.match(result.out, /Template missing|template var missing/);
+          assert.doesNotMatch(result.out, /^write:/m);
+          assert.deepEqual(snapshot(root), before);
+        });
+      });
+    }
+  });
+
+  describe("runbook dry-run", () => {
+    const start = "<!-- harness:runbook:start -->";
+    const end = "<!-- harness:runbook:end -->";
+    for (const [label, existing, operation] of [
+      ["no markers", "Owner rules\n", "inserted"],
+      ["both markers", `Owner rules\n${start}\nold block\n${end}\nTail\n`, "replaced"],
+      ["start only", `Owner rules\n${start}\nold block\n`, "inserted"],
+    ]) {
+      it(`previews the same merge it applies with ${label}`, () => {
+        const root = fresh(ONE_WS);
+        writeFileSync(join(root, "CLAUDE.md"), existing);
+        const before = snapshot(root);
+        const preview = run(root, "--dry-run");
+        assert.equal(preview.code, 0, preview.out);
+        assert.deepEqual(snapshot(root), before);
+        assert.ok(preview.out.includes(`write: CLAUDE.md (runbook ${operation})`));
+        const applied = run(root);
+        assert.equal(applied.code, 0, applied.out);
+        assert.equal(applied.out, preview.out);
+        const merged = readFileSync(join(root, "CLAUDE.md"), "utf8");
+        assert.match(merged, /^Owner rules/);
+        assert.match(merged, /full pipeline/);
+        if (operation === "replaced") {
+          assert.doesNotMatch(merged, /old block/);
+          assert.match(merged, /Tail\n$/);
+        } else {
+          assert.ok(merged.startsWith(existing));
+        }
+      });
+    }
+  });
+
   describe("plan", () => {
     it("free: report agents outside the plan are skipped, the free runbook lands in CLAUDE.md", () => {
       const root = fresh(ONE_WS);
@@ -166,6 +287,41 @@ describe("harness-init (v2)", () => {
   });
 
   describe("/api/templates", () => {
+    const invalidResponses = [
+      ["missing agents", (body) => { delete body.entitlement.agents; }],
+      ["string agents", (body) => { body.entitlement.agents = "pm"; }],
+      ["non-string agent", (body) => { body.entitlement.agents = [null]; }],
+      ["unknown plan", (body) => { body.entitlement.plan = "gold"; }],
+      ["array templates", (body) => { body.templates = []; }],
+      ["non-string template", (body) => { body.templates["docs/plans/README.md"] = {}; }],
+      ["null runbook", (body) => { body.templates["CLAUDE.runbook.md"] = null; }],
+    ];
+    for (const [label, invalidate] of invalidResponses) {
+      it(`rejects ${label} with a clear response error and no writes`, async () => {
+        const body = deliverable(ROWS, "pro");
+        invalidate(body);
+        await withServer(body, async (server) => {
+          const root = fresh(ONE_WS);
+          const before = snapshot(root);
+          const result = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
+          assert.equal(result.code, 1, result.out);
+          assert.match(result.out, /Unexpected .*response|Unexpected template body/);
+          assert.doesNotMatch(result.out, /TypeError|^write:/m);
+          assert.deepEqual(snapshot(root), before);
+        });
+      });
+    }
+    it("accepts unconsumed extension fields, roles, and templates", async () => {
+      const body = deliverable(ROWS, "pro");
+      body.entitlement.agents = [...body.entitlement.agents, "future-reporter"];
+      body.entitlement.future = { value: 1 };
+      body.templates["future-format"] = { value: 1 };
+      body.future = true;
+      await withServer(body, async (server) => {
+        const result = await runAsync({ HARNESS_TOKEN: "t-test" }, fresh(ONE_WS), server);
+        assert.equal(result.code, 0, result.out);
+      });
+    });
     it("uses the fetched templates and entitlement; sends the token and language", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
         const root = fresh(ONE_WS);

@@ -32,6 +32,27 @@ describe("parseHarnessConfig", () => {
   it("rejects empty workspaces", () => assert.throws(() => parseHarnessConfig({ ...base(), workspaces: [] }), /workspaces/));
   it("rejects bad agent id", () => { const b = base(); b.workspaces[0].agent = "Web Dev"; assert.throws(() => parseHarnessConfig(b), /agent/); });
   it("rejects duplicate agent", () => { const b = base(); b.workspaces.push({ ...b.workspaces[0], id: "x" }); assert.throws(() => parseHarnessConfig(b), /duplicate/); });
+  for (const agent of ["pm", "plan-verifier", "doc-auditor", "feature-scout"]) {
+    it(`rejects reserved report agent ${agent}`, () => {
+      const input = base();
+      input.workspaces[0].agent = agent;
+      assert.throws(() => parseHarnessConfig(input), /workspaces\[0\]\.agent: reserved report agent/);
+    });
+  }
+  for (const readOnly of ["src/generated/**", null, {}, [null], [""]]) {
+    it(`rejects invalid readOnly ${JSON.stringify(readOnly)}`, () => {
+      const input = base();
+      input.workspaces[0].readOnly = readOnly;
+      assert.throws(() => parseHarnessConfig(input), /workspaces\[0\]\.readOnly/);
+    });
+  }
+  for (const readOnly of [undefined, [], ["src/generated/**"]]) {
+    it(`preserves valid readOnly ${JSON.stringify(readOnly)}`, () => {
+      const input = base();
+      input.workspaces[0].readOnly = readOnly;
+      assert.deepEqual(parseHarnessConfig(input).workspaces[0].readOnly, readOnly ?? []);
+    });
+  }
   it("rejects empty verify", () => { const b = base(); b.workspaces[0].verify = []; assert.throws(() => parseHarnessConfig(b), /verify/); });
   it("routine executor requires commandIssue", () => assert.throws(() => parseHarnessConfig({ ...base(), executor: { kind: "routine" } }), /commandIssue/));
   it("rejects unknown executor kind", () => assert.throws(() => parseHarnessConfig({ ...base(), executor: { kind: "hosted" } }), /executor.kind/));
