@@ -10,8 +10,8 @@ primary-area: "pipeline/agent-delivery"
 observed-environments: ["Windows 11 · Node 22.13.1 · Claude Code 2.1.260 · Neon Postgres(us-east-2)"]
 conclusion-summary: "스텁 방식의 토큰 초과는 agent_next 왕복이 원인이 맞다(왕복 하나 ≈ 63,000 토큰, 호출 수 = 단계 수 + 1). 그러나 대부분의 단계는 게이트·막힘 경로·T4.6 벽이 읽는 증거라 합칠 수 없다. 안전하게 줄일 수 있었던 것은 pm의 서두 단계 하나뿐이며, 나머지 초과는 구조적이다."
 follow-up:
-  - "새 run을 열 때 requires가 맞는 첫 단계로 여는 서버 변경을 하면 dev의 라우터 단계를 없애 사이클당 2왕복을 더 줄일 수 있다 — run 개방 의미가 바뀌므로 별도 제안서"
-  - "이번 변경의 실측 재확인은 G1급 재실행이 필요해 하지 않았다"
+  - "[닫힘 2026-09-05] 새 run을 열 때 requires가 맞는 첫 단계로 여는 서버 변경 — 제안서 docs/proposals/completed/2026-09-05-agent-next-open-routing.md로 실행. dev 라우터 단계 제거, 소유 검사 서버 이관"
+  - "[열림] 절감치 실측 재확인 — G1급 재실행이 필요해 하지 않았다. 추정치(왕복당 약 63,000 토큰)에 근거한다"
 ---
 
 # `agent_next` 왕복 비용 — G1의 F1 추적

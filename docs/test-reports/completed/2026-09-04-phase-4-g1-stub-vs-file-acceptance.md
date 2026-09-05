@@ -18,8 +18,8 @@ primary-area: 'pipeline/agent-delivery'
 observed-environments: ['Windows 11 · Node 22.13.1 · Claude Code · next dev(localhost:3000) · Neon Postgres(us-east-2)']
 test-summary: 'R0·R1·R2·R3 PASS(스텁 전달 동작·안전 검증), R4·R5 FAIL(보고 형식 상이·토큰 +9.5%) → 전체 FAIL. Batch C 착수 여부는 사용자 결정.'
 follow-up:
-  - 'F1 스텁 토큰 +9.5%(agent_next 왕복 오버헤드) — 제안서 §G1 ⑤, 완화 여지는 단계 병합'
-  - 'F2 보고서 제목 계층·문구 상이 — 제안서 §G1 ④, private 템플릿에서 제목 고정'
+  - '[닫힘 2026-09-05] F1 스텁 토큰 +9.5%(agent_next 왕복 오버헤드) — 조사(docs/investigations/completed/2026-09-04-agent-next-round-trip-cost.md)로 원인 확정 후 두 번 줄였다: pm 서두 단계 병합(harness-templates cbfad29), dev 라우터 단계 제거(같은 저장소 606bcdd + 서버 라우팅). 나머지는 구조적'
+  - '[닫힘 2026-09-05] F2 보고서 제목 계층·문구 상이 — private 템플릿 dev.md의 report 단계에 절 구조를 고정(harness-templates 242ecba). 추가 전용 규칙에 맞춰 시도마다 ## Implementation <날짜> + ### 하위 절'
 ---
 
 # Phase 4 G1 — 스텁 방식 vs 파일 방식 비교 실측
