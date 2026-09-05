@@ -26,6 +26,11 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run test:web
+      # The production build catches what tsc --noEmit cannot: route collection,
+      # server/client boundaries, static generation. The DATABASE_URL placeholder
+      # above is enough — every route is server-rendered on demand, so the build
+      # opens no connection, and it was verified to run without a .env file.
+      - run: npm run build
       # npm run test:templates stays local: plugin/templates/ is not in this
       # repository (origin Sangeok/harness-templates), so the runner has no files
       # to test.
