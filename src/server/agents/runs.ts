@@ -39,6 +39,13 @@ export const prismaNextDeps: NextDeps = {
     });
     return row?.status ?? null;
   },
+  // 소유 검사용. boardStatus와 같은 행(폐기 안 된 최신 행)을 본다 — 두 판정이 다른 행을 보면 안 된다.
+  itemAgent: async (projectId, key) => {
+    const row = await prisma.boardItem.findFirst({
+      where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { agent: true },
+    });
+    return row?.agent ?? null;
+  },
   openCount: async (projectId) => (await latestBoard(projectId, true)).length,
   verifyOk: async (projectId, agent, key) =>
     (await prisma.agentRunStep.findFirst({ where: { stepId: "verify", outcome: "ok", run: { projectId, agent, key } }, select: { id: true } })) !== null,
