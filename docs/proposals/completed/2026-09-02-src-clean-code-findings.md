@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-02"
 approved-by: "Sangeok"
 approved-at: "2026-09-03"
 approval-scope: "전체(묶음 1~5, 30건). 제품 결정 4건은 착수 시 확인 완료"
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-02"
+verification-summary: "PR #7(2026-09-02 머지, 61파일 +1230/-349)이 30건 중 29건을 반영했다. 남은 F24는 권고문이 "세 번째 소비자가 생기면 추출"로 조건을 달아 둔 Consider라 조건 미충족으로 보류된 상태다. 2026-09-05 코드 대조로 확인했다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -391,8 +391,8 @@ fsd.md:143의 자체 규칙("가장 작은 leaf만 Client Component")과 어긋�
       `AuthInfo` 실제 형태를 설치된 `.d.mts`로 확인(F13). `packages/core`의 `kind` 어휘 확인(F12).
 - [x] 테스트와 스크립트 참조 — `src` 내 테스트 11개(87 케이스)를 렌즈가 범위에 포함했다.
       `journey.test.mjs`는 F20의 이동 대상과 함께 움직여야 한다.
-- [ ] dynamic `import()` 또는 lazy loading — 이번 발견 중 해당 없음. 실행 시 재확인.
-- [ ] 정적 자산 URL 또는 `public` 직접 접근 가능성 — 해당 없음.
+- [x] dynamic `import()` 또는 lazy loading — 해당 없음(실행 후 재확인).
+- [x] 정적 자산 URL 또는 `public` 직접 접근 가능성 — 해당 없음.
 - [x] 런타임 side effect 또는 초기화 코드 — F14는 Auth.js `jwt` 콜백 내부, F13은 MCP 도구 등록
       시점이다. 둘 다 요청 경로에서 실행되므로 실행 시 실계정 로그인과 도구 호출로 확인해야 한다.
 - [x] API, 외부 SDK 영향 — F13·F26·F30이 MCP 계약을 건드린다. **계약이 바뀌면 스모크 판정이
@@ -409,8 +409,8 @@ fsd.md:143의 자체 규칙("가장 작은 leaf만 Client Component")과 어긋�
 
 승인 메모:
 
-- 승인 전. 묶음 단위(1~5) 승인 또는 제외가 가능하다. 묶음 3·4는 MCP 계약과 공개 API를 건드리므로
-  묶음 1·2보다 파급이 크다.
+- **2026-09-03 전체 승인**(묶음 1~5, 30건). 제품 결정 4건은 착수 시 확인했다(front matter의
+  `approval-scope`). 실행은 PR #7 하나로 묶여 2026-09-02에 머지됐다.
 - ~~묶음 3을 승인하면 MCP 계약이 바뀐다~~ — **작성 시점의 오판이었다.** 도구 핸들러는 `text()`로
   `JSON.stringify`할 뿐이라 `ToolDeps`·`ServerResult`·`Caller`·`RuleKind`는 전부 컴파일 타임 전용이다.
   에이전트가 받는 JSON은 같은 쿼리에서 나오므로 **와이어 계약은 바뀌지 않고 스모크 판정도 낡지 않는다.**
@@ -451,7 +451,8 @@ npm run verify:fsd  # 이동·배럴 변경이 있는 묶음 4·5에서 단계�
 
 ## Verification Results
 
-아직 실행 전이다. 아래는 이 **리뷰 자체**의 근거 확인 결과다(코드 변경 없음).
+실행 완료(PR #7, 2026-09-02 머지). 아래 표의 앞 네 줄은 **리뷰 시점의 기준선**이고,
+마지막 줄이 실행 결과다. 문서가 오래 `active`에 남아 있었으나 코드는 그때 이미 바뀌어 있었다.
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
@@ -459,7 +460,7 @@ npm run verify:fsd  # 이동·배럴 변경이 있는 묶음 4·5에서 단계�
 | `npm test` | 50 pass / 0 fail | 기준선 |
 | `npm run test:web` | 87 pass / 0 fail | 기준선 |
 | 근거 대조 (grep) | 일치 | `as Ctx` 11 · `validation` 6개소 · `not-found.tsx` 부재 · `deriveJourney` 소비자 0 · `DAY_MS` 미export · over-budget 술어 2벌 · 뱃지/인박스 술어 불일치 |
-| 제안 변경 검증 | Not run yet | 실행 후 위 4개 명령 |
+| 제안 변경 검증 | **반영 확인 (2026-09-05)** | 30건을 코드에 직접 대조: 반영 29 · 보류 1(F24) · 미반영 0. 대조 시점 `main` = `be2066c` |
 
 ## Risks and Rollback
 
@@ -482,13 +483,33 @@ npm run verify:fsd  # 이동·배럴 변경이 있는 묶음 4·5에서 단계�
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+- completed-at: 2026-09-02 (실행일. **문서 종결은 2026-09-05**로 늦었다 — 아래 참조)
+- verification-summary: PR #7(2026-09-02 머지, 61파일 +1230/-349)이 30건 중 29건을 반영했다. 남은 F24는 권고문이 "세 번째 소비자가 생기면 추출"로 조건을 달아 둔 Consider라 조건 미충족으로 보류된 상태다. 2026-09-05 코드 대조로 확인했다.
+- implementation PR/commit: PR #7 `refactor(web,server): the accepted five-lens findings, all 30`,
+  2026-09-02 머지. 61파일 +1230/-349.
+- changed files summary: `src/app` 라우트 4개 + `not-found.tsx` 2개 신설 · `src/fsd`의
+  `review-gate`·`board-item`·`shared/routes`·`shared/lib` · `src/server`의 `board.ts`·
+  `board-rules.ts`·`mcp/tools.ts`·`mcp/deps.ts`·`result.ts`.
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+**대조 결과(2026-09-05).** 30건을 코드에 하나씩 맞춰 봤다.
+
+- **반영 29건.** 근거 표본: `as Ctx` 캐스팅 11→0(F13·F26), `not-found.tsx` 2개 신설(F5),
+  `journey.ts`가 `entities/board-item/model/`로 이동(F20), `ServerResult<T>` 단일 정본(F30).
+- **보류 1건 — F24(토큰 검증 복제).** 미반영이 아니라 **조건 미충족**이다. 권고문이
+  "세 번째 소비자가 생기면 그때 추출"로 조건을 달았고 소비자는 아직 둘(`templates.ts`·
+  `mcp/auth.ts`)이다. 세 번째가 생기면 `findValidToken`을 뽑는다.
+- **권고와 다르게 간 2건(문제는 해소).** F7은 술어를 권고한 `gate-source.ts`가 아니라 더 하위인
+  `entities/board-item`에 뒀다 — 세 레이어가 다 닿아 오히려 낫다. F21은 안전하게 import되는 것만
+  가져오고 Client 배럴을 끌어와야 하는 문구는 권고가 허용한 대체안(출처 주석)을 택했다.
+
+**이 문서가 늦게 닫힌 것 자체가 기록할 만한 일이다.** 코드는 2026-09-02에 바뀌었는데 문서는
+2026-09-05까지 `active/`에 `pending`으로, 본문에 "아직 실행 전이다"라고 적힌 채 남았다.
+그동안 남은 작업을 셀 때마다 미착수로 집계됐고, 새로 읽는 사람이 **이미 고친 30건을 다시 고치려
+들 위험**이 있었다. 원인은 실행을 별도 PR로 내면서 문서 갱신이 그 PR에 들어가지 않은 것이다.
+Phase 4 제안서는 배치마다 체크박스와 Verification Results를 같이 갱신해 이 문제가 없었다 —
+**실행 PR에 문서 갱신을 같이 담는 것**이 이 저장소에서 통하는 방식이다.
+
+- remaining follow-up: F24(세 번째 토큰 소비자가 생기면 `findValidToken` 추출). 그 외 없음.
 
 ## Review Checklist
 
@@ -505,4 +526,4 @@ npm run verify:fsd  # 이동·배럴 변경이 있는 묶음 4·5에서 단계�
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 기준선이 전부 통과이므로 신규 실패 판별 기준을 명시했다.
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서 항목 — 실행 후 갱신.
+- [x] 완료 문서 항목 — 갱신 완료(2026-09-05).
