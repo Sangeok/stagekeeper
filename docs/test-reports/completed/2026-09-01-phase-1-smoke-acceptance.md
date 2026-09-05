@@ -17,7 +17,7 @@ related:
 primary-area: 'pipeline'
 observed-environments: ['Windows 11 · Node 22.13.1 · next dev(localhost:3000) · Neon Postgres(us-east-2)']
 test-summary: '1차 2026-08-30(blocked: T8 잔여) + 재실행 2026-09-01 전 구간 — required 전부 pass, F1~F5 닫힘, 신규 F6(low)'
-follow-up: ['F6 — project_sync가 language를 동기화하지 않음(백로그 후보)', '리허설 프로젝트 mathgic 삭제 권장']
+follow-up: ['[닫힘 2026-09-03] F6 — project_sync가 language를 동기화하지 않음. Phase 4 T4.5에서 project_sync가 {workspaces, language}를 받아 Project.language를 갱신하도록 닫혔다', '[닫힘 2026-09-01] 리허설 프로젝트 mathgic 삭제 — 완료']
 ---
 
 # Phase 1 스모크 인수 — 빈 저장소 한 바퀴
