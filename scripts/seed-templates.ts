@@ -1,12 +1,10 @@
 // 로컬 템플릿 원본을 DB로 올린다. 원본은 공개 저장소에 없으므로(.gitignore) 이 스크립트는 손으로 돌린다.
 // 사용: npm run seed:templates [-- --dir plugin/templates]
 // top-level await을 쓰지 않는다 — package.json에 type:module이 없어 tsx가 CJS로 변환한다.
-import "dotenv/config";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../src/generated/prisma/client";
 import { splitTemplate } from "../src/server/agents/steps";
+import { withPrisma } from "./lib/prisma";
 
 const args = process.argv.slice(2);
 const opt = (n: string, d: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
@@ -24,9 +22,8 @@ function walk(dir: string): string[] {
 }
 
 async function main() {
-  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
-  let total = 0;
-  try {
+  const total = await withPrisma(async (prisma) => {
+    let count = 0;
     for (const lang of readdirSync(DIR).filter((n) => isLangDir(DIR, n))) {
       const root = join(DIR, lang);
       for (const file of walk(root)) {
@@ -41,12 +38,11 @@ async function main() {
           update: { body },
         });
         console.log(`seed: ${lang}/${path}${steps === null ? "" : ` (${steps} steps)`}`);
-        total += 1;
+        count += 1;
       }
     }
-  } finally {
-    await prisma.$disconnect();
-  }
+    return count;
+  });
   console.log(`done: ${total} templates`);
 }
 
