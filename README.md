@@ -18,7 +18,7 @@
 
 ```powershell
 npm run dev
-npm run lint
+npm run check      # CI와 같은 게이트 — 복사본 동기화 검사 · lint · 타입 · 아키텍처 테스트
 npm run verify:fsd
 npm run test:architecture
 npm run build

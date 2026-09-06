@@ -48,6 +48,7 @@ stagekeeper/
 ├── packages/core/           # 런타임 의존성 없는 순수 규칙·프로토콜
 ├── plugin/                  # 사용자 저장소에 설치되는 Claude Code 플러그인
 ├── prisma/                  # DB schema와 migration
+├── scripts/                 # 저장소 검사·복사본 동기화·수동 운영 스크립트 (앱 런타임 아님, verification.md)
 └── docs/architecture/       # 현재 문서
 ```
 
@@ -57,7 +58,7 @@ stagekeeper/
   최상위 모듈의 관계
 - [fsd.md](./fsd.md): FSD layer·slice·segment, import 방향, public API,
   Next.js Server/Client 경계
-- [verification.md](./verification.md): 자동 경계 검사와 리뷰 체크리스트
+- [verification.md](./verification.md): 자동 경계 검사, 저장소 스크립트 목록, 리뷰 체크리스트
 - [ADR-0001](../ADR/0001-adopt-feature-sliced-design.md): 이 구조를 선택한
   이유와 받아들인 trade-off
 - [CONTEXT.md](../../CONTEXT.md): 구현과 독립적인 Stagekeeper 도메인 용어
@@ -104,8 +105,8 @@ stagekeeper/
 바꾸기 전에는 `node_modules/next/dist/docs/`의 해당 버전 문서도 읽는다.
 
 ```powershell
+npm run check      # CI와 같은 게이트 — 복사본 동기화 검사 · lint · 타입 · 아키텍처 테스트
 npm run verify:fsd
-npm run lint
 npm run test:architecture
 ```
 
