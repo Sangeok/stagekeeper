@@ -8,7 +8,7 @@ Scope: web UI, server-action errors, MCP tool descriptions, generated agent temp
 `/harness:init` skill, generator console output. **Docs under `docs/` and code comments stay
 in Korean** — that is the team's working language. Only what is *shown* is English.
 
-Status: approved 2026-08-30 — bundle 1 (language) and bundle 2 (design v4) implemented; §5–§7 describe the v4 screens. Approved terms from `CONTEXT.md` are used as-is:
+Status: approved 2026-08-30 — bundle 1 (language) and bundle 2 (design v4) implemented; §5–§7 describe the v4 screens. Approved 2026-09-07 — acceptance, reopen, and handoff (§3, §5, §6, §11–§14, §16). Approved terms from `CONTEXT.md` are used as-is:
 Project · Workspace · Backlog item · Board item · Gate · Agent · Validation · Evidence ·
 Result · Acceptance.
 
@@ -57,7 +57,7 @@ The label is what the screen shows.
 | `planning` | Planning | You requested a plan. dev is writing it |
 | `in_review` | In review | The plan is submitted. Waiting for validation and your approval |
 | `implementing` | Implementing | You approved. dev is changing code |
-| `done` | Done | Finished and accepted |
+| `done` | Done | dev reported it finished. Accepted once the acceptance record is in (§3, Acceptance record) |
 | `on_hold` | On hold | Parked. Resume to continue |
 
 ### Human actions
@@ -71,8 +71,10 @@ The label is what the screen shows.
 | discard | Discard | Discarded | Discarded FEAT-01. This can't be undone. |
 | `on_hold → planning` | Resume planning | — | Resumed · FEAT-01 is planning |
 | `on_hold → implementing` | Resume implementation | — | Resumed · FEAT-01 is implementing |
+| `done → implementing` | Reopen implementation | — | Reopened · FEAT-01 is implementing |
+| `done → planning` | Reopen planning | — | Reopened · FEAT-01 is planning |
 
-Pending labels while the request is in flight: "Requesting…", "Approving…", "Discarding…".
+Pending labels while the request is in flight: "Requesting…", "Approving…", "Discarding…", "Reopening…".
 
 **Next-step hint** (under the gate button, before you press it):
 
@@ -82,14 +84,17 @@ Pending labels while the request is in flight: "Requesting…", "Approving…", 
   and the hint turns risk-red: "This approves an unverified plan. Run plan-verifier in Claude
   Code first."
 
-**Notes.** Send back and Put on hold take an optional note. It lands in `result` with a prefix,
-so the input is capped at 150 minus the prefix:
+**Notes.** Send back and Put on hold take an optional note; Reopen requires one. The note lands in
+`result` with a prefix, so the input is capped at 150 minus the prefix:
 
 - Send back → `Sent back: <note>` (139 chars). Field **Note to dev** (optional), hint "dev reads
   this before rewriting the plan. Up to 139 characters." Empty note → no result line.
 - Put on hold → `On hold by owner (2026-08-30): <note>` (119 chars). Field **Note** (optional),
   hint "Why it's parked. Shows on the card until you resume. Up to 119 characters." Empty note →
   `On hold by owner (2026-08-30). Not discarded — still in the backlog. Resume to Planning or Implementing.`
+- Reopen → `Reopened: <note>` (140 chars). Field **Note to dev** (required), hint "Which acceptance
+  check failed. dev reads this before picking the item back up. Up to 140 characters." Submitted
+  empty: "Add a note — which check failed."
 
 **Resume.** The primary button goes back to where the item stopped (the `from` of the hold
 event): **Resume implementation** if it was implementing, otherwise **Resume planning**. The other
@@ -100,6 +105,13 @@ plan. Resuming implementation instead skips the approval gate." · planning othe
 rewrites the plan; the validation is cleared. Resuming implementation instead skips the approval
 gate."
 
+**Reopen.** Item page only (§11), only while the item is `done`. Primary **Reopen implementation**;
+the other target is a text link, "Reopen planning instead". Hint by primary: implementation → "dev
+fixes the code against the same plan. Reopening planning instead clears the validation and dev
+rewrites the plan." · planning → "dev rewrites the plan; the validation is cleared. Gate 2 runs
+again." Reopening puts the backlog entry back and clears the acceptance record, if there was one.
+Agents can't reopen.
+
 ### Agent transitions (MCP)
 
 | Transition | Tool call |
@@ -107,16 +119,27 @@ gate."
 | `planning → in_review` | `plan_submit` then `board_transition({ to: "in_review" })` |
 | `implementing → done` | `report_submit` then `board_transition({ to: "done", result })` |
 | `planning / implementing → on_hold` | `board_transition({ to: "on_hold", result })` |
+| `done` (no transition) | `report_submit({ actor: "main-loop" })` — the acceptance record (below) |
 
 ### Validation record
 
 `validation_record` accepts free text ≤150 chars, only in `in_review`. The main loop writes it
-**only after a no-edit independent pass**. Format:
+**only after a no-edit independent pass**, and the server refuses it until a plan-verifier pass is
+on record after the last `plan_submit` (§12). Format:
 
 `clean pass (YYYY-MM-DD, N rounds, no edits)`
 
 The screen judges by presence alone — if it exists, the item shows **Verified**; if not,
 **No validation yet**. Writing it without a clean pass is a false pass.
+
+### Acceptance record
+
+`report_submit` with `actor: "main-loop"` while the item is `done` is the acceptance record; the
+server marks the item accepted at that moment. The five checks (§14, runbook step 7) are still
+reproduced by hand — the record is where they were written up, at `docs/agents/main-loop/<KEY>.md`.
+Until it is in, the item is still yours: the banner says so (§5) and the item page offers Reopen
+(§11). The state label stays **Done** either way; the record shows under Documents as
+**Acceptance record**.
 
 ---
 
@@ -140,7 +163,7 @@ Backlog, Tokens and item pages show a **one-line strip** with the same words.
 
 | Owner | Headline | Detail |
 | --- | --- | --- |
-| you | **Waiting on you** | FEAT-01 needs a plan request / FEAT-01 is ready for your approval / FEAT-04 needs verification before approval. Several: "2 items need a plan request" · "2 plans are ready for your approval" · "2 plans need verification", joined with " · " |
+| you | **Waiting on you** | FEAT-01 needs a plan request / FEAT-01 is ready for your approval / FEAT-04 needs verification before approval / FEAT-02 needs acceptance / FEAT-01 is waiting for your commit. Several: "2 items need a plan request" · "2 plans are ready for your approval" · "2 plans need verification" · "2 items need acceptance" · "2 items are waiting for your commit", joined with " · " |
 | you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
 | agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for FEAT-01 / dev is implementing FEAT-01 |
 | nobody | **Nothing open** | Pick the next item from the backlog, or run pm in Claude Code to pick for you. — button **Open backlog** |
@@ -148,7 +171,10 @@ Backlog, Tokens and item pages show a **one-line strip** with the same words.
 
 Rules: one item → name it; several → count them. `on_hold` items never own the banner — the
 banner is about who moves next, and nothing moves while on hold. An `in_review` item without a
-validation record is still yours: it needs the verifier run first. Actions: **Open inbox** on
+validation record is still yours: it needs the verifier run first. A `done` item without an
+acceptance record is yours too: accept it or reopen it. An item whose dev stopped for a commit (a
+handoff, §13 `agent_next`) is yours whatever its state — commit, then tell the session to continue.
+Actions: **Open inbox** on
 Board and in the strip when it's your turn; on Inbox the banner drops the detail line — the cards
 say it.
 
@@ -158,6 +184,11 @@ say it.
 - planning → `Continue the runbook for FEAT-01: step 3 — dev writes the plan.`
 - in_review without validation → `Continue the runbook for FEAT-01: step 4 — verify the plan.`
 - implementing → `Continue the runbook for FEAT-01: step 6 — dev implements.`
+- done without an acceptance record → `Continue the runbook for FEAT-01: step 7 — accept.`
+- handoff (any state; listed before the state line) → `Commit docs/plans/FEAT-01.md, then continue the runbook for FEAT-01 — dev resumes.`
+  The path is whatever dev put in the handoff note, shown whole; without a note: "Commit the
+  prepared file, then …". The note is agent text — it renders in this mono box only, never in the
+  headline or the detail line.
 
 **First run** (no board rows yet) — **Set up in four steps**: 1 Token issued "Shown once when
 you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Connect the
@@ -196,13 +227,17 @@ Day count reads "1 day" / "2 days"; omitted on day 0.
 - Gate 2 (in_review): plan row — **Verified** (quiet chip; tooltip = the full record) or **No
   validation yet** (risk chip; tooltip "No independent validation has been recorded. Approving
   now means implementing an unverified plan.") · path · commit — then **Read the plan ↗** ·
-  **Approve implementation** + hint. **Evidence and result** collapsed.
+  **Approve implementation** + hint. **Evidence and result** collapsed. **Read the plan ↗** opens the
+  plan at the recorded commit — that commit is what you approve. If you edit the plan after the
+  validation, commit it and have the session re-call `plan_submit`; an edit that isn't on record
+  isn't approved.
 - On hold: **Your note** row → Resume buttons (§3).
 - Over-budget badge after the status line: **Over 150 characters** — tooltip "This summary is
   over 150 characters. Move the details to docs/agents/."
 - Help (collapsed): **What this decision does**
   - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code.
   - **Verified** means an independent pass found nothing to change. Without it, the plan is unverified.
+  - **Approve implementation** approves the plan at the commit shown on the card.
   - Sending back clears the validation record.
   - Discard can't be undone.
   - More in the repo: `docs/architecture/protocol.md`
@@ -214,7 +249,8 @@ row (§3). Discard confirm: "This can't be undone. Discard FEAT-01?" — **Cance
 **Journey stepper** — not on the board since design v4. The 7-stage model (Proposed · Plan
 requested · Plan · Verified · Approved · Implemented · Accepted; waiting labels pm "Selecting" ·
 you "Your turn" · dev "In progress" · verifier "Verifying" · main loop "Accepting") stays in
-`deriveJourney` for the item page.
+`deriveJourney` for the item page. Accepted is current while a `done` item has no acceptance
+record (waiting "Accepting"); once the record is in, the journey is complete.
 
 **Team row** — one dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
 "No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on
@@ -291,13 +327,17 @@ scouting" · unknown "Agent" · none "Unassigned".
 
 - Header: `FEAT-01` · `dev` · `README.md` — title — state chip — "Proposed 2026-08-30 01:49"
 - **Evidence** · **Result** ("None yet") · **Validation** ("No validation yet")
-- **Documents**: "Plan" · "dev report" · "main-loop report" — path in mono
+- **Documents**: "Plan" · "dev report" · "main-loop report" — path in mono. Plan opens the recorded
+  commit; each report opens its own commit
+- **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · **Note to
+  dev** (required) — copy in §3
 - **History**: `01:49:14` `agent` `— → proposed` · `01:52:09` `human` `proposed → planning` ·
   discard renders as `→ discarded`
 
 Document link labels (reused on the board): plan "Plan"; reports by actor — main-loop
-"Validation record" · dev "Implementation report" · doc-auditor "Audit report" · feature-scout
-"Scouting report" · other "Report".
+"Validation record", or "Acceptance record" for the report that accepted the item · dev
+"Implementation report" · doc-auditor "Audit report" · feature-scout "Scouting report" · other
+"Report".
 
 ---
 
@@ -317,11 +357,14 @@ are terse on purpose — agents parse them.
 | `plan_submit first` · `report_submit first` | — |
 | `cannot discard from implementing` | — |
 | `validation only in in_review (now planning)` | — |
+| `no plan-verifier pass recorded after the last plan_submit — dispatch plan-verifier, then record the validation` | — |
+| `not allowed: agent done → implementing` (reopen is web only) | — |
 | `plan_submit only in planning or in_review (now done)` | — |
 | `report_submit only in in_review, implementing, or done (now proposed)` | — |
 | `no such board item: FEAT-9` | — |
 
 `checkText` (core): `reason: must not be empty` · `reason: must be 150 characters or fewer (got 163)`.
+The Reopen form checks its note before sending, so `result: must not be empty` doesn't reach the web.
 
 `harness.json` parse errors (core `config.mjs`, prefixed `harness.json <path>:`): "must be a
 non-empty string" · "must be an object" · "only version 1 is supported" · "required" · "at
@@ -342,8 +385,9 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `board_propose` | pm: create a `proposed` item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, or the key is already open. |
 | `board_transition` | Agent transitions only: planning → in_review (after plan_submit), implementing → done (after report_submit), → on_hold (result required). Gates are not here. |
 | `plan_submit` | Record where the plan is (path and commit). Only in `planning` or `in_review` — re-call after review edits so the approved commit is recorded. |
-| `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. |
-| `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters. |
+| `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
+| `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
+| `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok \| blocked \| failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Repeat until done: true. A refusal says which board state opens the step. |
 
 ## 14. Generated templates (`plugin/templates/en/`)
 
@@ -376,6 +420,12 @@ both). Below: each file's title, its section headings, and the sentences that se
   workspace doesn't widen what you may change. Put the item on hold and stop."
 - "Submit the plan before moving to in_review — the server refuses the other order."
 - "Bash is read-only and verify-only. No installs, no migrations, no git reset."
+- "Before you implement, compare the plan on disk with the approved commit: `git diff --quiet
+  <planCommit> -- docs/plans/<KEY>.md`. If they differ, the owner edited it after approval — send
+  `blocked` with 'plan on disk differs from the approved commit <sha7>; commit and re-submit, or
+  reopen'."
+- "When you can't commit, send `agent_next` with `outcome: "handoff"` and the file's path as the
+  note, then stop. The owner commits and tells the session to continue; you pick up the same step."
 - "You committed the report and the code. Then `report_submit`, then `board_transition` to
   done with a result under 150 characters. The backlog entry is removed by the server, not by you."
 - Output block: `Plan: [FEAT-01] title → docs/plans/FEAT-01.md — in_review | on_hold` ·
@@ -418,15 +468,20 @@ both). Below: each file's title, its section headings, and the sentences that se
 - Sections: Document map · Agents · The cycle (run by the main loop) · Rules
 - Cycle: 1 pm proposes · 2 **Gate 1** — you request the plan in the web inbox · 3 dev writes
   the plan, submits it, moves to in_review · 4 main loop verifies (catalog paths → independent
-  pass → `validation_record` only on a clean pass) · 5 **Gate 2** — you approve implementation
-  · 6 dev implements, reports, moves to done · 7 main loop accepts — **five acceptance checks**,
-  reproduced by hand · 8 doc-auditor / feature-scout
+  pass → `validation_record` only on a clean pass; the server refuses it until plan-verifier's pass
+  is on record for the current plan) · 5 **Gate 2** — you approve implementation · 6 dev
+  implements, reports, moves to done · 7 main loop accepts — **five acceptance checks**, reproduced
+  by hand, written up in `docs/agents/main-loop/<KEY>.md`, committed, and recorded with
+  `report_submit`; a failed check → Reopen on the item page · 8 doc-auditor / feature-scout
 - Acceptance checks: "Changed files ↔ the plan's 'Files to change'. Diff ↔ 'Implementation
   sketch'. Run the verify command yourself. Confirm the backlog entry is gone. Open the report
   the result points to."
 - Rules: "Only the main loop dispatches agents. Agents never call each other." · "Commit plans,
   reports, and code. Nothing else — the board isn't in the repo." · "Only you open the gates.
-  No agent and no main loop does it for you; the agent token doesn't have the tool."
+  No agent and no main loop does it for you; the agent token doesn't have the tool." · "Gate 2
+  approves the commit on the card. If you edit the plan after the validation, commit it and have
+  the session re-call `plan_submit` — an edit that isn't on record isn't approved." · "When an
+  agent can't commit, it records a handoff and stops. Commit, then tell the session to continue."
 
 ### `docs/plans/README.md` · `docs/plans/template.md` · `docs/plans/verification-paths.md` · `docs/agents/README.md`
 
@@ -438,7 +493,8 @@ both). Below: each file's title, its section headings, and the sentences that se
 - verification-paths: "Nine paths. Pick by trigger, not by taste. When in doubt, include it —
   one path costs less than one round."
 - agents/README: "Reports are append-only. Plans are overwritten. A plan is the current
-  contract; a report is a record."
+  contract; a report is a record." · "A handoff is a recorded pause, not a status: the run stays
+  on its step until the owner commits."
 
 ## 15. Generator, skill, plugin manifest
 
@@ -481,8 +537,8 @@ both). Below: each file's title, its section headings, and the sentences that se
   "Two of these stop for you today — 2 and 5. The rest you run in your own Claude Code."
   The section is titled for the **runbook**, not the service: only 2 and 5 are transitions the
   server enforces as human-only. 4 (validation) is recorded but not required before approval,
-  and 7 (acceptance) has no status, field or tool at all — it is the five checks the owner
-  reproduces by hand."
+  and 7 (acceptance) has no status of its own — it is the five checks the owner reproduces by
+  hand, then records with `report_submit`."
 - Three facts (not slogans):
   - **Agents can't approve themselves.** Gate moves and the settings behind them are web-only.
     The agent token has neither — not by policy text, by the toolset.
@@ -498,7 +554,8 @@ both). Below: each file's title, its section headings, and the sentences that se
   so any copy that counts them, or promises a human at every step, is written to expire.
 - Not "nothing else asks for you" — the runbook has the owner dispatch agents at 1, 3, 6 and 8,
   run their own verification round at 4, and reproduce the five acceptance checks by hand at 7.
-  The product's own turn banner hands you a "Next, in Claude Code" line at 3, 4 and 6.
+  The product's own turn banner hands you a "Next, in Claude Code" line at 3, 4, 6 and 7, and
+  whenever an agent stops for your commit.
 - Not "the tool isn't registered" — `board_transition` *is* in `AGENT_TOOL_NAMES`; what stops an
   agent gate move is the rule table (`not allowed: agent proposed → planning`), plus the absence
   of any gate-only tool and of every settings tool.
@@ -585,3 +642,4 @@ Mark anything that reads wrong here; it gets fixed in this file first, then in c
 - [ ] Template tone (§14)
 - [x] Landing (§16) — landing-v2 approved 2026-08-30
 - [ ] Error pages (§17) — added 2026-08-31 with the two boundaries
+- [x] Acceptance, reopen, handoff (§3, §5, §6, §11–§14, §16) — approved 2026-09-07

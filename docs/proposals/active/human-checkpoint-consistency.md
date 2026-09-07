@@ -971,10 +971,11 @@ export function toItemDocs(row: DocSource, repo: RepoRef): ItemDoc[] {
 | `packages/core/transitions.mjs` · `transitions.test.mjs` | update | reopen 규칙 2행. `"nothing leaves done"` 테스트 교체 | low — 규칙 추가, 기존 전이 불변 |
 | `plugin/lib/transitions.mjs` | update(sync) | `npm run sync:plugin-lib`. `check`가 드리프트를 잡는다 | none |
 | `prisma/schema.prisma` + `prisma/migrations/<ts>_board_item_accepted_at` | update | `acceptedAt DateTime?` nullable additive | low — 기존 행은 null, 읽기 경로는 null 허용 |
+| `prisma/migrations/<ts>_board_item_accepted_at_backfill` | add (2026-09-07 승인) | `UPDATE "BoardItem" SET "acceptedAt" = "updatedAt" WHERE status = 'done' AND "acceptedAt" IS NULL` — 열 이전의 `done`은 손으로 인수된 것 | low — 데이터만, 되돌리려면 그 행들의 `acceptedAt`을 null로 |
 | `src/server/pipeline/board-rules.ts` · `board-rules.test.mjs` | update | `TransitionPatch.reopens`, `decideValidation` 입력 객체, `decideReportSubmit` 반환값, `RuleKind` | medium — 판정 함수 3개의 시그니처 |
 | `src/server/pipeline/board.ts` | update | `transition`(reopen 처리), `recordValidation`(벽), `submitReport`(acceptedAt) | medium — 트랜잭션 안 쓰기 추가 |
 | `src/server/agents/next.ts` · `next.test.ts` | update | `OUTCOMES` + handoff 분기 | low — 조기 반환, 다른 경로 불변 |
-| `src/server/mcp/tools.ts` | update | `agent_next` 설명 문구. `inputSchema`는 `z.enum(OUTCOMES)`라 자동 | none |
+| `src/server/mcp/tools.ts` | update | `agent_next` 설명 문구. `inputSchema`는 `z.enum(OUTCOMES)`라 자동. 카피 승인으로 `report_submit`·`validation_record` 설명에 한 구절씩 추가 | none |
 | `src/fsd/features/review-gate/model/gate-source.ts` · `gate-source.test.ts` | update | `RuleKind`·`DECLARED`에 `reopen` | low — 테스트가 강제 |
 | `src/fsd/features/review-gate/model/inbox-item.ts` | update | `planUrl`에 `planCommit` | low |
 | `src/fsd/features/review-gate/model/gate-text.ts` | update | Reopen 라벨·토스트(카피 승인 뒤) | low |
@@ -1002,9 +1003,10 @@ MCP JSON 계약(`tools.ts` `BoardItemView`)은 손대지 않는다 — Prisma �
   거부하므로 템플릿이 분기를 만들 수 없다. 옛 스텁(outcome 없이 멈춤)은 서버가 거부하지 않는다 — 점진 전환 가능.
 - **검증 벽**: 거부가 늘어나는 방향이다. 지금 `validation_record`를 쓰는 유일한 경로(런북 4단계)는 이미
   plan-verifier 디스패치를 전제하므로 정상 흐름은 통과한다. Free는 거부되지만 Free 런북이 애초에 기록을 쓰지 않는다.
-- **마이그레이션**: nullable 열 추가뿐. 기존 행 전부 null → "인수 대기"로 읽힌다 — 이미 `done`인 항목이 배너에
-  "accept it"로 올라온다. 실측 저장소(`harness-smoke`)의 `done` 항목 수만큼 한 번 뜬다; 인수 보고를 사후 제출하거나
-  그대로 두어도 된다. 잔여 리스크에 적는다.
+- **마이그레이션**: nullable 열 추가 + 백필. 백필 없이는 기존 행 전부 null → "인수 대기"로 읽혀, 이미 `done`인 과거 항목
+  전부가 배너에 "needs acceptance"로 영원히 올라온다(실측 저장소 `harness-smoke`의 FEAT-01·02·04). 그래서
+  `20260907054533_board_item_accepted_at_backfill`이 열 이전의 `done` 행에 `updatedAt`을 인수 시각으로 채운다 —
+  런북 7단계대로 손으로 인수됐지만 서버 기록이 없던 항목이다. 이후 `done`은 main-loop의 `report_submit`이 찍는다.
 - **링크**: 커밋 링크는 push 전 404 — 브랜치 링크도 마찬가지였다. 나빠지는 경우 없음.
 
 확인한 항목:
@@ -1028,7 +1030,12 @@ MCP JSON 계약(`tools.ts` `BoardItemView`)은 손대지 않는다 — Prisma �
   - A-4 journey: 스테퍼를 렌더하는 코드는 만들지 않고 `currentIndexFor` 매핑만 고친다.
   - C: `in_review`인데 `note:"plan"` 이벤트가 없는 행은 "어느 verify ok든"으로 통과시킨다(거부로 바꾸지 않는다).
   - D: 승인 대상 = 기록된 `planCommit`. 디스크의 계획서가 아니다.
-- 웹 문구(배너·Reopen 라벨·토스트)는 코드 전에 `product-copy.md` 갱신안으로 먼저 보여 준다(§1 규칙, 작업 방식) — 아직 열려 있다.
+- 웹 문구(배너·Reopen 라벨·토스트)는 코드 전에 `product-copy.md` 갱신안으로 먼저 보여 준다(§1 규칙, 작업 방식).
+  → 2026-09-07 카피 덱 승인(`product-copy.md` §3·§5·§6·§11–§14·§16). 함께 확정: `handoff.note`는 통째로 mono
+  박스에만 그린다 · §13의 `report_submit`·`validation_record` 설명에 인수 기록·검증 벽 한 구절씩(`tools.ts` 문자열 2개,
+  제안 범위 밖 추가) · 핸드오프 터미널 줄은 "Commit <path>, then continue the runbook for <KEY> — dev resumes." 형식.
+- 2026-09-07 추가 승인: **`acceptedAt` 백필 마이그레이션**. 열이 생기기 전에 `done`이 된 행은 손으로 인수된 것이라
+  `updatedAt`을 인수 시각으로 채운다 — 아니면 Phase 4 배너가 과거 항목 전부를 "needs acceptance"로 올린다.
 
 ## Execution Plan
 
@@ -1038,8 +1045,9 @@ MCP JSON 계약(`tools.ts` `BoardItemView`)은 손대지 않는다 — Prisma �
    떼어 올 수 있다. 검증: `npm test`, `npm run test:web`, `npm run check`.
 2. **Phase 2 — 서버 저장**: `schema.prisma` + `npm run db:migrate -- --name board_item_accepted_at`(로컬, `DATABASE_URL` 필요),
    `board.ts` 셋, `next.ts` handoff, `tools.ts` 문구. 검증: `npm run test:web`, `npm run check`.
-3. **Phase 3 — 문서·템플릿**: `protocol.md`·`invariants.md`·`CONTEXT.md`·`product-copy.md`(문구 승인 포함),
-   private 템플릿 4종 + `templates.test.mjs`, `npm run seed:templates`. 검증: `npm run test:templates`.
+3. **Phase 3 — 문서·템플릿**: `product-copy.md` 갱신안 먼저(승인 게이트) → `protocol.md`·`invariants.md`·`CONTEXT.md` →
+   private 템플릿 4종 + `templates.test.mjs` → `npm run seed:templates`. 백필 마이그레이션도 여기서(승인 뒤 추가). 검증:
+   `npm run test:templates`, `npm run test:web`, `npm run check`.
 4. **Phase 4 — 웹** (정적 mock → 승인 → 구현): 배너, 항목 상세 Reopen, 커밋 링크·라벨, journey. 검증: `npm run test:web`,
    `npm run check`, Playwright 스크린샷 자체 평가.
 5. **Phase 5 — 사이클 회귀 실측** (2026-09-06 보고서와 같은 형식): 핸드오프 → 배너 "Waiting on you" · verifier 전
@@ -1180,15 +1188,21 @@ describe("deriveTurn — handoff and acceptance", () => {
 | --- | --- | --- |
 | `npm test` | Phase 1 (2026-09-07): 123/123 pass · Phase 2: 123/123 | transitions reopen 테스트 포함 |
 | `npm run test:web` | Phase 1 (2026-09-07): 159/159 pass (기준 157 + 신규 3 − 교체 1) · Phase 2: 160/160 (next handoff 1건 추가) | board-rules 신규 3건(reopen · validation 벽 · accepts) · gate-source DECLARED · next handoff. turn · journey · item-docs는 Phase 4에서 |
-| `npm run check` | Phase 1 (2026-09-07): exit 0, 기존 lint 경고 1건(`planForUser` unused)만 · Phase 2: exit 0, 같은 경고 1건 | plugin/lib in sync |
+| `npm run check` | Phase 1 (2026-09-07): exit 0, 기존 lint 경고 1건(`planForUser` unused)만 · Phase 2: exit 0, 같은 경고 1건 · Phase 3: exit 0, 같은 경고 1건 | plugin/lib in sync |
+| `npm run test:templates` | Phase 3 (2026-09-07): 16/16 pass — 핸드오프 테스트 3건이 outcome `handoff` 계약으로 바뀜, dev 스텁 108줄(상한 110) | 재시드 전 실행 |
+| `npm run db:migrate` (backfill) | Phase 3 (2026-09-07): `20260907054533_board_item_accepted_at_backfill` 적용됨 | 로컬 `.env`의 Neon DB |
+| `npm run seed:templates` | Phase 3 (2026-09-07): 실행됨 — 결과는 아래 실행 메모 | 템플릿 4종 변경 뒤 |
 | `npm run db:migrate -- --name board_item_accepted_at` | Phase 2 (2026-09-07): 적용됨 — `prisma/migrations/20260907050756_board_item_accepted_at/migration.sql` (`ALTER TABLE "BoardItem" ADD COLUMN "acceptedAt" TIMESTAMP(3)`) | 로컬 `.env`의 `DATABASE_URL`(Neon)에 적용. 비대화형 셸에서도 동작했다 |
+
+Phase 3 실행 메모(2026-09-07): 카피 덱을 `product-copy.md`에 먼저 적어 승인받고 코드·문서·템플릿을 그에 맞췄다. `protocol.md`에
+「게이트②가 승인하는 것」·「커밋 핸드오프」 절과 인수 기록 단락을 더했고, `invariants.md` 「이 저장소가 특히 지키는 것」에 두 줄,
+`CONTEXT.md` `done` 행을 고쳤다. private 템플릿은 stub 줄 예산(110) 때문에 dev.md의 핸드오프 문단 둘을 하나로 합쳤다.
 
 Phase 2 실행 메모(2026-09-07): `migrate dev` 뒤에도 `tsc`가 `acceptedAt`을 몰랐다(`board.ts` 두 곳 TS2353). `npm run db:generate`를 따로 돌리자 통과 —
 Phase 5 실측 전 배포·체크아웃 절차에 "migrate 뒤 generate"를 넣어야 한다. `src/generated/prisma`는 git 밖이라 diff에는 보이지 않는다.
 
 Phase 1 실행 메모(2026-09-07): 제안서의 grounded test 한 줄이 틀려 있었다 — `decideTransition(row({ status: "implementing" }), "human", "on_hold", "x")`는
 사람 규칙이 없어 `value`가 undefined다. `in_review`로 고쳤다(위 Verification Plan과 실제 테스트 파일 모두). 코드 쪽 결함은 아니다.
-| `npm run test:templates` | Not run yet | 재시드 전 |
 | 사이클 회귀 실측 | Not run yet | `docs/test-reports/active/`에 별도 기록 |
 
 ## Risks and Rollback
@@ -1211,15 +1225,6 @@ Phase 1 실행 메모(2026-09-07): 제안서의 grounded test 한 줄이 틀려 
 - Phase 1·2: 커밋 되돌리기. 마이그레이션은 nullable 열이라 되돌리지 않고 두어도 무해하다(원하면 `prisma migrate` 역마이그레이션 1건).
 - Phase 3: private 템플릿을 이전 커밋으로 되돌리고 `npm run seed:templates`. 사용자 저장소의 스텁은 `/harness:init` 재실행.
 - Phase 4: 커밋 되돌리기. 데이터 영향 없음.
-
-## Open Questions
-
-<!-- doc-validation-skip -->
-
-- **[B-2 · 문구]** 배너 디테일·터미널 줄·Reopen 라벨·토스트 — `product-copy.md` 갱신안을 코드 전에 보여 주고 승인받는다. 위 코드의 문자열은 후보다.
-- **[B-2 · note 길이]** `NOTE_MAX = 500`인 note를 배너 `CodeBlock`에 그대로 그릴지, 경로처럼 보이는 첫 토큰만 그릴지.
-
-<!-- doc-validation-restore -->
 
 ## Completion or Closure Notes
 

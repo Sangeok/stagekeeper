@@ -126,13 +126,13 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (locked) return locked;
     return unwrap(await deps.submitPlan(projectId, args, actorRef));
   });
-  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in in_review, implementing, or done.", inputSchema: z.object({ key: z.string(), actor: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ key: z.string(), actor: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx: Ctx) => {
     const { projectId, actorRef } = scope(ctx);
     const locked = await guardLocked(deps, projectId);
     if (locked) return locked;
     return unwrap(await deps.submitReport(projectId, args, actorRef));
   });
-  server.registerTool("validation_record", { description: "main-loop: record a clean validation pass. Only in in_review, 150 characters or fewer.", inputSchema: z.object({ key: z.string(), text: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("validation_record", { description: "main-loop: record a clean validation pass. Only in in_review, 150 characters or fewer, and only after a plan-verifier pass is on record for the current plan.", inputSchema: z.object({ key: z.string(), text: z.string() }) }, async (args, ctx: Ctx) => {
     const { projectId, actorRef } = scope(ctx);
     const locked = await guardLocked(deps, projectId);
     if (locked) return locked;

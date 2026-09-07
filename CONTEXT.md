@@ -59,7 +59,7 @@ _Avoid_: 구현승인, 검증
 | `planning` | Planning | 계획을 요청했다. dev가 계획서를 쓴다 | — (에이전트 차례) |
 | `in_review` | In review | 계획서가 제출됐다. 검증과 승인(게이트②)을 기다린다 | Approve implementation · Send back · Put on hold · Discard |
 | `implementing` | Implementing | 구현을 승인했다. dev가 코드를 바꾼다 | — (에이전트 차례) |
-| `done` | Done | 끝났고 인수됐다 | — |
+| `done` | Done | dev가 끝났다고 보고했다. 인수 기록(`acceptedAt`, main-loop의 `report_submit`)이 오면 인수된 것이다. 인수에서 결함이 나오면 사람이 되돌린다 | Reopen implementation · Reopen planning |
 | `on_hold` | On hold | 멈춰 있다. 재개하면 이어진다 | Resume planning · Resume implementation |
 
 _Avoid_: 한국어 상태명(승인대기·계획지시·검토대기·구현승인·완료·보류 — v1/ApcH 시절의 이름), 라벨을 식별자 자리에 쓰기
