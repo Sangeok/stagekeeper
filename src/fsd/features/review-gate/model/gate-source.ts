@@ -26,6 +26,12 @@ export function resumeTargetsFor(status: string): string[] {
   return STATUSES.filter((to: string) => ruleKind("human", status, to) === "resume");
 }
 
+// 되돌리기(reopen)로 갈 수 있는 status들 — done에서 돌아가는 사람 전이. 항목 상세만 쓴다:
+// 결재함 자격(needsHumanDecision)에는 세지 않는다 — 세면 모든 done이 영원히 결재함에 남는다.
+export function reopenTargetsFor(status: string): string[] {
+  return STATUSES.filter((to: string) => ruleKind("human", status, to) === "reopen");
+}
+
 // 결재함에 오르는 status = 게이트가 열려 있거나(승인 대기) 재개할 수 있는 것.
 // 화이트리스트를 두 벌로 만들지 않으려고 여기서도 상태 기계에서 파생한다.
 export function needsHumanDecision(status: string): boolean {

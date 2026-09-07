@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
-import { projectPath } from "@/fsd/shared/routes/project";
+import { itemPath, projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import * as board from "@/server/pipeline/board";
 import type { TransitionInput } from "../model/inbox-item";
@@ -25,7 +25,8 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
   if (expected === null) return failure(message("stale"));
   const r = await board.transition(projectId, { key, to, result }, { actor: "human", actorRef: userId, expectedUpdatedAt: expected });
   if (!r.ok) return failure(message(r.reason));
-  revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox"));
+  // 되돌리기(reopen)는 항목 상세에서 오므로 그 경로도 새로 그린다.
+  revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox")); revalidatePath(itemPath(slug, key));
   return success(); // ApcH result.ts의 무인자 오버로드 = ActionResult<void>
 }
 

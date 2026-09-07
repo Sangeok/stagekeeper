@@ -59,13 +59,29 @@ describe("deriveJourney — 전 status 매핑", () => {
     assert.deepEqual(v.stages.map((s) => s.state), ["done", "done", "done", "done", "done", "current", "upcoming"]);
   });
 
-  it("done·on_hold·null·미지 status → 모두 null(여정 밖·미렌더)", () => {
-    // done을 build(5)로, on_hold를 어느 단계로 매핑하는 오구현을 잡는다.
-    assert.equal(deriveJourney("done", null), null);
+  it("on_hold·null·미지 status → 모두 null(여정 밖·미렌더)", () => {
+    // on_hold를 어느 단계로 매핑하는 오구현을 잡는다. done은 아래 describe — 인수 기록으로 갈린다.
     assert.equal(deriveJourney("on_hold", null), null);
     assert.equal(deriveJourney(null, null), null);
     assert.equal(deriveJourney("verified", null), null);
     assert.equal(deriveJourney("검토대기", null), null); // 옛 한글 식별자는 상태가 아니다
+  });
+});
+
+describe("deriveJourney — done 이분(인수 기록으로 갈린다)", () => {
+  it("인수 전 done → Accepted(6), loop Accepting, next 없음, 앞 여섯은 done", () => {
+    const v = deriveJourney("done", null, false);
+    assert.equal(v.currentIndex, 6);
+    assert.equal(v.currentLabel, "Accepted");
+    assert.equal(v.waitingActor, "loop");
+    assert.equal(v.waitingLabel, "Accepting");
+    assert.equal(v.nextLabel, null);
+    assert.deepEqual(v.stages.map((s) => s.state), ["done", "done", "done", "done", "done", "done", "current"]);
+  });
+  it("인수된 done → null(종결); accepted 인자의 기본값은 false", () => {
+    assert.equal(deriveJourney("done", null, true), null);
+    assert.equal(deriveJourney("done", null).currentIndex, 6);
+    assert.equal(deriveJourney("done", "clean pass", true), null); // 검증 기록은 done의 판정에 끼지 않는다
   });
 });
 

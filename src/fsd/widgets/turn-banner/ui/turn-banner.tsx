@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/fsd/shared/lib/class-name";
-import { activeProjectTab, type ProjectTabId, projectPath } from "@/fsd/shared/routes/project";
+import { activeProjectTab, itemPath, type ProjectTabId, projectPath } from "@/fsd/shared/routes/project";
 import { ButtonLink } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { Code } from "@/fsd/shared/ui/code";
-import { HEADLINE, type SetupStep, type Turn } from "../model/turn";
+import { HEADLINE, type SetupStep, type Turn, type TurnTarget } from "../model/turn";
 import { NextStepBox } from "./next-step";
 
 // 탭이 아닌 프로젝트 하위 경로(항목 상세 등)에서는 null이다.
@@ -16,9 +16,31 @@ type Tab = ProjectTabId | null;
 
 // 레이아웃은 경로를 모른다 — 어느 탭인지는 여기서 읽는다. Board·Inbox에서는 크게, 나머지에서는 한 줄 스트립.
 export function TurnBanner({ turn, slug }: { turn: Turn; slug: string }) {
-  const tab = activeProjectTab(usePathname(), slug);
+  const pathname = usePathname();
+  const tab = activeProjectTab(pathname, slug);
   const isFullBanner = tab === "board" || tab === "inbox";
-  return isFullBanner ? <FullBanner turn={turn} tab={tab} slug={slug} /> : <CompactBanner turn={turn} tab={tab} slug={slug} />;
+  return isFullBanner ? (
+    <FullBanner turn={turn} tab={tab} slug={slug} />
+  ) : (
+    <CompactBanner turn={turn} tab={tab} slug={slug} pathname={pathname} />
+  );
+}
+
+// 내 차례의 버튼. 결재함에 카드가 있으면 Inbox(mine), 인수·핸드오프뿐이면 그 항목 페이지(quiet) — 어디로 갈지는
+// 모델(TurnTarget)이 정했고 여기는 모양만 고른다.
+function OpenTargetLink({ open, slug }: { open: TurnTarget; slug: string }) {
+  if (open.kind === "inbox") {
+    return (
+      <ButtonLink variant="mine" href={projectPath(slug, "/inbox")}>
+        Open inbox
+      </ButtonLink>
+    );
+  }
+  return (
+    <ButtonLink variant="quiet" href={itemPath(slug, open.key)}>
+      Open {open.key}
+    </ButtonLink>
+  );
 }
 
 function FullBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string }) {
@@ -39,9 +61,7 @@ function FullBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string })
       {turn.kind === "mine" || turn.kind === "theirs" ? <NextStepBox steps={turn.next} /> : null}
       {turn.kind === "mine" && tab !== "inbox" ? (
         <div className="mt-1">
-          <ButtonLink variant="mine" href={projectPath(slug, "/inbox")}>
-            Open inbox
-          </ButtonLink>
+          <OpenTargetLink open={turn.open} slug={slug} />
         </div>
       ) : null}
       {turn.kind === "none" ? (
@@ -57,8 +77,15 @@ function FullBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string })
 
 type CompactView = { detail: string; action: { href: string; label: string } | null };
 
+// 내 차례 스트립의 링크. 항목 페이지로 가는 링크는 그 항목 자신의 페이지에서는 없다(§5) — 이미 거기다.
+function compactAction(open: TurnTarget, slug: string, pathname: string): CompactView["action"] {
+  if (open.kind === "inbox") return { href: projectPath(slug, "/inbox"), label: "Open inbox →" };
+  const href = itemPath(slug, open.key);
+  return pathname === href ? null : { href, label: `Open ${open.key} →` };
+}
+
 // 한 줄 스트립이 무엇을 말하고 어디로 보낼지 — kind마다 한 갈래씩, 마크업과 분리해서 읽는다.
-function compactView(turn: Turn, tab: Tab, slug: string): CompactView {
+function compactView(turn: Turn, tab: Tab, slug: string, pathname: string): CompactView {
   switch (turn.kind) {
     case "setup": {
       const step = turn.steps[turn.current - 1];
@@ -67,7 +94,7 @@ function compactView(turn: Turn, tab: Tab, slug: string): CompactView {
     case "mine":
       return {
         detail: turn.why === null ? turn.detail : `${turn.detail} · pm is blocked until you clear one`,
-        action: { href: projectPath(slug, "/inbox"), label: "Open inbox →" },
+        action: compactAction(turn.open, slug, pathname),
       };
     case "theirs":
       return { detail: turn.detail, action: null };
@@ -79,9 +106,9 @@ function compactView(turn: Turn, tab: Tab, slug: string): CompactView {
   }
 }
 
-function CompactBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string }) {
+function CompactBanner({ turn, tab, slug, pathname }: { turn: Turn; tab: Tab; slug: string; pathname: string }) {
   const isMyTurn = turn.kind === "mine";
-  const { detail, action } = compactView(turn, tab, slug);
+  const { detail, action } = compactView(turn, tab, slug, pathname);
   return (
     <div
       className={cn(

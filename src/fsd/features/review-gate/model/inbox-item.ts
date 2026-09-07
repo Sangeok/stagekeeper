@@ -74,7 +74,8 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
         results: row.results,
         validation: row.validation,
         planPath: row.planPath,
-        planUrl: row.planPath === null ? null : blobHref(repo, row.planPath),
+        // 게이트②가 승인하는 것은 기록된 커밋이다 — 링크도 그 커밋을 연다(브랜치 HEAD는 제출 전에만).
+        planUrl: row.planPath === null ? null : blobHref(repo, row.planPath, row.planCommit),
         planCommit: row.planCommit,
         proposedOn: row.proposedOn.toISOString(),
         statusSince: (became?.at ?? row.updatedAt).toISOString(),

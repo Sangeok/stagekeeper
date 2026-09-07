@@ -1,8 +1,10 @@
 // 검증 판정은 entities/board-item 하나에서 온다 — 배너·카드·스테퍼가 같은 답을 쓰게(journey.test.mjs로 덮인다).
 // 보드 status(+검증 판정)로 "파이프라인 여정 7단계 중 지금 어디인지"를 결정적으로 매핑한다.
-// 진행 중(proposed·planning·in_review·implementing)만 여정 위치가 있다 — done(종결)·on_hold(중단)·null은
-// 여정 밖이라 매핑이 없다(null 반환). 보드 데이터만으로는 done의 "인수됨"(메인 루프 몫)도, on_hold의
-// "어느 단계에서 멈췄나"도 결정할 수 없어(결과 줄은 산문이라 구조가 아니다) 여정 밖으로 뺀다.
+// 진행 중(proposed·planning·in_review·implementing)과 인수 대기(done, 기록 없음)만 여정 위치가 있다 —
+// 인수된 done(종결)·on_hold(중단)·null은 여정 밖이라 매핑이 없다(null 반환). on_hold는 "어느 단계에서
+// 멈췄나"를 보드 데이터만으로 결정할 수 없어(결과 줄은 산문이라 구조가 아니다) 여정 밖으로 뺀다.
+// done의 "인수됨"은 acceptedAt(main-loop의 report_submit)에서 온다 — 호출자가 accepted로 넘긴다.
+import { isAwaitingAcceptance } from "./acceptance";
 import { isPlanVerified } from "./verification";
 
 export type StageState = "done" | "current" | "upcoming";
@@ -48,11 +50,13 @@ const WAITING_LABEL: Record<JourneyActor, string> = {
   loop: "Accepting",
 };
 
-// status(+검증 판정) → 현재 단계 인덱스. 진행 중 넷만 매핑되고 나머지는 null.
+// status(+검증 판정, 인수 여부) → 현재 단계 인덱스. 진행 중 넷과 인수 대기 done만 매핑되고 나머지는 null.
 // in_review 이분: 검증 기록이 있으면 검증 통과 → 게이트②(당신 대기), 없으면 검증 중.
+// done 이분: 인수 기록이 없으면 Accepted 단계 current(메인 루프 대기), 있으면 종결(여정 밖).
 function currentIndexFor(
   status: string | null,
   validation: string | null,
+  accepted: boolean,
 ): number | null {
   switch (status) {
     case "proposed":
@@ -63,16 +67,19 @@ function currentIndexFor(
       return isPlanVerified(status, validation) ? 4 : 3; // 검증 통과→게이트② : 검증 중
     case "implementing":
       return 5; // 구현 — 담당 dev 작업
+    case "done":
+      return isAwaitingAcceptance(status, accepted) ? 6 : null; // 인수 대기 : 종결
     default:
-      return null; // done·on_hold·null·기타 → 여정 밖(스테퍼 없음)
+      return null; // on_hold·null·기타 → 여정 밖(스테퍼 없음)
   }
 }
 
 export function deriveJourney(
   status: string | null,
   validation: string | null,
+  accepted = false,
 ): JourneyView | null {
-  const idx = currentIndexFor(status, validation);
+  const idx = currentIndexFor(status, validation, accepted);
   if (idx === null) return null;
 
   const stages: JourneyStage[] = JOURNEY_STAGES.map((s, i) => ({
@@ -82,7 +89,7 @@ export function deriveJourney(
     state: i < idx ? "done" : i === idx ? "current" : "upcoming",
   }));
 
-  const current = stages[idx]; // 방어적: idx는 1..5라 stages에 항상 존재한다
+  const current = stages[idx]; // 방어적: idx는 1..6이라 stages에 항상 존재한다
   if (current === undefined) return null;
   const next = stages[idx + 1]; // JourneyStage | undefined(마지막이면 없음)
 

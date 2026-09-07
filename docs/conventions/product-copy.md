@@ -175,8 +175,10 @@ validation record is still yours: it needs the verifier run first. A `done` item
 acceptance record is yours too: accept it or reopen it. An item whose dev stopped for a commit (a
 handoff, §13 `agent_next`) is yours whatever its state — commit, then tell the session to continue.
 Actions: **Open inbox** on
-Board and in the strip when it's your turn; on Inbox the banner drops the detail line — the cards
-say it.
+Board and in the strip when it's your turn and the Inbox has cards; on Inbox the banner drops the
+detail line — the cards say it. When your turn is only acceptance or a handoff (nothing on the
+Inbox), the button is **Open FEAT-02** (quiet) and goes to that item's page — several such items →
+the first one; on that item's own page the strip shows no action.
 
 **Next, in Claude Code** — a box under the banner with the exact line to give your session, with
 **Copy**. One line per item that waits on the terminal:
@@ -185,7 +187,8 @@ say it.
 - in_review without validation → `Continue the runbook for FEAT-01: step 4 — verify the plan.`
 - implementing → `Continue the runbook for FEAT-01: step 6 — dev implements.`
 - done without an acceptance record → `Continue the runbook for FEAT-01: step 7 — accept.`
-- handoff (any state; listed before the state line) → `Commit docs/plans/FEAT-01.md, then continue the runbook for FEAT-01 — dev resumes.`
+- handoff (any state; listed before the state line) → `Commit docs/plans/FEAT-01.md, then continue the runbook for FEAT-01.`
+  (No trailing "— dev resumes": the line overflowed the box, and the detail line already says who resumes.)
   The path is whatever dev put in the handoff note, shown whole; without a note: "Commit the
   prepared file, then …". The note is agent text — it renders in this mono box only, never in the
   headline or the detail line.
@@ -325,12 +328,14 @@ scouting" · unknown "Agent" · none "Unassigned".
 
 ## 11. Item detail
 
-- Header: `FEAT-01` · `dev` · `README.md` — title — state chip — "Proposed 2026-08-30 01:49"
+- Header: `FEAT-01` · `dev` · `README.md` — title — state chip — "Proposed 2026-08-30 01:49" ·
+  "Accepted 2026-09-06 16:10" once the acceptance record is in
 - **Evidence** · **Result** ("None yet") · **Validation** ("No validation yet")
 - **Documents**: "Plan" · "dev report" · "main-loop report" — path in mono. Plan opens the recorded
   commit; each report opens its own commit
-- **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · **Note to
-  dev** (required) — copy in §3
+- **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · hint (§3).
+  Pressing either replaces that row with **Note to dev** (required) · the confirm button named for
+  the chosen action · "Cancel" — never two buttons with the same name on screen
 - **History**: `01:49:14` `agent` `— → proposed` · `01:52:09` `human` `proposed → planning` ·
   discard renders as `→ discarded`
 

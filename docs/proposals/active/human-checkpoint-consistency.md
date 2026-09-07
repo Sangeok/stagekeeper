@@ -1049,7 +1049,8 @@ MCP JSON 계약(`tools.ts` `BoardItemView`)은 손대지 않는다 — Prisma �
    private 템플릿 4종 + `templates.test.mjs` → `npm run seed:templates`. 백필 마이그레이션도 여기서(승인 뒤 추가). 검증:
    `npm run test:templates`, `npm run test:web`, `npm run check`.
 4. **Phase 4 — 웹** (정적 mock → 승인 → 구현): 배너, 항목 상세 Reopen, 커밋 링크·라벨, journey. 검증: `npm run test:web`,
-   `npm run check`, Playwright 스크린샷 자체 평가.
+   `npm run check`, Playwright 스크린샷 자체 평가. 실행: mock 렌더 자평에서 나온 결정 셋(버튼 목적지 · Accepted 시각 · 핸드오프 줄)을
+   카피에 먼저 적고 코드로 옮겼다 — 실행 메모 참조.
 5. **Phase 5 — 사이클 회귀 실측** (2026-09-06 보고서와 같은 형식): 핸드오프 → 배너 "Waiting on you" · verifier 전
    `validation_record` 거부 → verifier 뒤 통과 · 인수 보고 → `acceptedAt` · Reopen → 백로그 복원. `docs/test-reports/active/`에 기록.
 
@@ -1187,12 +1188,19 @@ describe("deriveTurn — handoff and acceptance", () => {
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
 | `npm test` | Phase 1 (2026-09-07): 123/123 pass · Phase 2: 123/123 | transitions reopen 테스트 포함 |
-| `npm run test:web` | Phase 1 (2026-09-07): 159/159 pass (기준 157 + 신규 3 − 교체 1) · Phase 2: 160/160 (next handoff 1건 추가) | board-rules 신규 3건(reopen · validation 벽 · accepts) · gate-source DECLARED · next handoff. turn · journey · item-docs는 Phase 4에서 |
-| `npm run check` | Phase 1 (2026-09-07): exit 0, 기존 lint 경고 1건(`planForUser` unused)만 · Phase 2: exit 0, 같은 경고 1건 · Phase 3: exit 0, 같은 경고 1건 | plugin/lib in sync |
+| `npm run test:web` | Phase 1 (2026-09-07): 159/159 pass (기준 157 + 신규 3 − 교체 1) · Phase 2: 160/160 (next handoff 1건 추가) · Phase 4: 170/170 (journey done 2건 · reopenTargetsFor · inbox planUrl · item-docs 3건 · turn 4건, 기존 2건 갱신) | board-rules 신규 3건(reopen · validation 벽 · accepts) · gate-source DECLARED · next handoff. turn · journey · item-docs는 Phase 4에서 |
+| `npm run check` | Phase 1 (2026-09-07): exit 0, 기존 lint 경고 1건(`planForUser` unused)만 · Phase 2: exit 0, 같은 경고 1건 · Phase 3: exit 0, 같은 경고 1건 · Phase 4: exit 0, 같은 경고 1건 | plugin/lib in sync |
 | `npm run test:templates` | Phase 3 (2026-09-07): 16/16 pass — 핸드오프 테스트 3건이 outcome `handoff` 계약으로 바뀜, dev 스텁 108줄(상한 110) | 재시드 전 실행 |
 | `npm run db:migrate` (backfill) | Phase 3 (2026-09-07): `20260907054533_board_item_accepted_at_backfill` 적용됨 | 로컬 `.env`의 Neon DB |
 | `npm run seed:templates` | Phase 3 (2026-09-07): 실행됨 — 결과는 아래 실행 메모 | 템플릿 4종 변경 뒤 |
 | `npm run db:migrate -- --name board_item_accepted_at` | Phase 2 (2026-09-07): 적용됨 — `prisma/migrations/20260907050756_board_item_accepted_at/migration.sql` (`ALTER TABLE "BoardItem" ADD COLUMN "acceptedAt" TIMESTAMP(3)`) | 로컬 `.env`의 `DATABASE_URL`(Neon)에 적용. 비대화형 셸에서도 동작했다 |
+
+Phase 4 실행 메모(2026-09-07): 정적 mock을 먼저 그려 승인받았다(아티팩트 "Stagekeeper Phase 4 Mock"). mock을 렌더해 보고 셋을
+바꿨다 — (1) 인수·핸드오프만 있는 차례에는 "Open inbox" 대신 그 항목 페이지로 가는 "Open <KEY>"(Inbox가 비어 "Nothing to decide."로
+가지 않게; `TurnTarget`) (2) 항목 상세 헤더에 "Accepted <시각>" (3) 핸드오프 터미널 줄에서 "— dev resumes" 꼬리 제거(박스 폭 초과).
+Reopen 블록은 주 버튼 + 링크 → 누르면 노트 칸 + 확인 버튼 + Cancel로 바뀌는 형(같은 라벨 버튼 둘 방지). 셋 다 `product-copy.md`에 먼저 적었다.
+journey는 `deriveJourney(status, validation, accepted)`로 done을 이분한다 — 렌더하는 화면은 여전히 없다.
+실제 화면 대조는 dev 서버가 옛 Prisma 클라이언트(acceptedAt 이전)를 물고 있어 재시작 뒤에 한다.
 
 Phase 3 실행 메모(2026-09-07): 카피 덱을 `product-copy.md`에 먼저 적어 승인받고 코드·문서·템플릿을 그에 맞췄다. `protocol.md`에
 「게이트②가 승인하는 것」·「커밋 핸드오프」 절과 인수 기록 단락을 더했고, `invariants.md` 「이 저장소가 특히 지키는 것」에 두 줄,

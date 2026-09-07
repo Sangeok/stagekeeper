@@ -4,13 +4,14 @@
 import { blobHref, orderReportActors, reportDocLabel, type RepoRef } from "@/fsd/entities/board-item";
 import type { ItemDoc } from "../ui/board-item-page";
 
-type ReportRow = { actor: string; path: string };
-type DocSource = { planPath: string | null; reports: readonly ReportRow[] };
+type ReportRow = { actor: string; path: string; commit: string; at: Date };
+type DocSource = { planPath: string | null; planCommit: string | null; acceptedAt: Date | null; reports: readonly ReportRow[] };
 
 export function toItemDocs(row: DocSource, repo: RepoRef): ItemDoc[] {
   const docs: ItemDoc[] = [];
   if (row.planPath !== null) {
-    docs.push({ label: "Plan", path: row.planPath, href: blobHref(repo, row.planPath) });
+    // 게이트②가 승인하는 것은 기록된 커밋이다 — 링크도 그 커밋을 연다.
+    docs.push({ label: "Plan", path: row.planPath, href: blobHref(repo, row.planPath, row.planCommit) });
   }
 
   // 한 행위자가 여러 번 보고할 수 있다 — 묶되 버리지 않는다.
@@ -22,7 +23,9 @@ export function toItemDocs(row: DocSource, repo: RepoRef): ItemDoc[] {
   }
   for (const actor of orderReportActors(new Set(byActor.keys()))) {
     for (const report of byActor.get(actor) ?? []) {
-      docs.push({ label: reportDocLabel(actor), path: report.path, href: blobHref(repo, report.path) });
+      // main-loop의 보고는 둘이다: in_review의 검증 라운드 기록과 done의 인수 기록. acceptedAt 이후의 것이 인수 기록이다.
+      const isAcceptance = row.acceptedAt !== null && report.at.getTime() >= row.acceptedAt.getTime();
+      docs.push({ label: reportDocLabel(actor, isAcceptance), path: report.path, href: blobHref(repo, report.path, report.commit) });
     }
   }
   return docs;
