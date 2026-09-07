@@ -249,11 +249,8 @@ Day count reads "1 day" / "2 days"; omitted on day 0.
 Send back · Put on hold · Discard (risk). Send back and Put on hold open the note field under the
 row (§3). Discard confirm: "This can't be undone. Discard FEAT-01?" — **Cancel** · **Discard**.
 
-**Journey stepper** — not on the board since design v4. The 7-stage model (Proposed · Plan
-requested · Plan · Verified · Approved · Implemented · Accepted; waiting labels pm "Selecting" ·
-you "Your turn" · dev "In progress" · verifier "Verifying" · main loop "Accepting") stays in
-`deriveJourney` for the item page. Accepted is current while a `done` item has no acceptance
-record (waiting "Accepting"); once the record is in, the journey is complete.
+**Journey stepper** — removed with the design v4 board (`deriveJourney` deleted; the 7-stage
+model is in git history).
 
 **Team row** — one dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
 "No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on

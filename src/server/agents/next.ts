@@ -32,7 +32,7 @@ const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만
 export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string };
 export type NextOutput = { step: string; instruction: string; done: false } | { done: true };
 export type Scope = { projectId: string; tokenId: string };
-export type RunRow = { id: string; stepId: string };
+type RunRow = { id: string; stepId: string };
 
 export type NextDeps = {
   access(projectId: string): Promise<ProjectAccess>;

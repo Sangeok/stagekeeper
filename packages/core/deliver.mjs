@@ -4,8 +4,8 @@ import { REPORT_AGENTS, limitsFor } from "./entitlement.mjs";
 
 // 단계 제목. 이 줄 앞까지가 스텁이다 — src/server/agents/steps.ts의 파서가 같은 정규식을 쓴다(경계의 정의는 여기 하나).
 export const STEP_HEADING = /^## step:(\S+)(.*)$/;
-export const RUNBOOK = "CLAUDE.runbook.md";
-export const RUNBOOK_FREE = "CLAUDE.runbook.free.md"; // Free 판. 키로는 나가지 않고 RUNBOOK 자리에 들어간다
+const RUNBOOK = "CLAUDE.runbook.md";
+const RUNBOOK_FREE = "CLAUDE.runbook.free.md"; // Free 판. 키로는 나가지 않고 RUNBOOK 자리에 들어간다
 
 // 첫 단계 제목 앞까지. 단계가 없는 본문(runbook·docs)은 그대로.
 export function stubOf(body) {

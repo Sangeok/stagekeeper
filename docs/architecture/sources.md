@@ -9,9 +9,9 @@ Stagekeeper의 규칙·템플릿·화면은 대부분 ApcH에서 실측 검증�
 | ApcH 경로 | 새 위치 | 변환 |
 | --- | --- | --- |
 | `apps/admin/src/fsd/features/transition-pipeline-gate/model/transitions.ts` | `packages/core/transitions.mjs` | 승인·반려 화이트리스트를 **행위자(human/agent) 차원**으로 확장. md 편집 로직은 버림 |
-| `apps/admin/src/fsd/entities/pipeline/model/board.ts` + test | `packages/core/board-md.mjs` | 임포트 전용 |
+| `apps/admin/src/fsd/entities/pipeline/model/board.ts` + test | 제거됨(`a9b4bf2`에서 복구) | 임포트 전용. Phase 2 착수 전까지 소비자가 없어 걷어냈다 |
 | `apps/admin/src/fsd/features/run-pipeline-command/model/{commands,run-plan,progress}.ts` | `apps/web/src/server/pipeline/commands.ts` (P3) | 명령 본문을 roster에서 생성, 원장은 DB |
-| `apps/admin/src/fsd/pages/pipeline/model/{journey,briefing,desk-commands,sprites}.ts` + `ui/**` | `apps/web/src/fsd/pages/pipeline/` | `BoardItem` 입력을 DB 행으로. 거의 무변경 |
+| `apps/admin/src/fsd/pages/pipeline/model/{journey,briefing,desk-commands,sprites}.ts` + `ui/**` | `apps/web/src/fsd/pages/pipeline/` | `BoardItem` 입력을 DB 행으로. 거의 무변경. journey 제거(`a9b4bf2`) |
 | `apps/admin/src/fsd/features/transition-pipeline-gate/{ui,api}/**` | `apps/web/src/fsd/features/gate/` | contents API 커밋 → DB 트랜잭션. sha 낙관적 잠금 → `updatedAt` 비교 |
 | `apps/admin/src/fsd/entities/{repo-doc,agent-report}/**` | `apps/web/src/fsd/entities/repo-doc/` (P4) | 계획서 본문은 GitHub raw/GitHub App으로 읽기 |
 | `apps/admin/src/server/auth/{config,guard,...}` | `apps/web/src/server/auth/` | Google+`ADMIN_EMAILS` → GitHub OAuth + 프로젝트 멤버십 |
