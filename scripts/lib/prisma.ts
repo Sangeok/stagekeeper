@@ -1,4 +1,6 @@
 // 스크립트용 Prisma 부트스트랩. src/server/db.ts는 server-only라 스크립트에서 import할 수 없다.
+// Not for app code under src/** — this exits the process when DATABASE_URL is missing
+// and builds a fresh client per call instead of reusing one. App code uses src/server/db.ts.
 // top-level await을 쓰지 않는다 — package.json에 type:module이 없어 tsx가 CJS로 변환한다.
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
