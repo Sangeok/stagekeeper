@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-07"
 approved-by: "HamSangEok"
 approved-at: "2026-09-07"
 approval-scope: "A~D 전부, Phase 1~5. Open Questions의 권고안을 결정으로 포함"
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-07"
+verification-summary: "npm test 112/112 · npm run test:web 153/153 · npm run check exit 0(기존 lint 경고 1건) · npm run test:templates 16/16 · 마이그레이션 2건 적용 · 사이클 회귀 실측 PASS(docs/test-reports/completed/2026-09-07-human-checkpoint-cycle-regression.md, 필수 10항목 통과, 실행 중 결함 2건 수정)"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -1195,6 +1195,12 @@ describe("deriveTurn — handoff and acceptance", () => {
 | `npm run seed:templates` | Phase 3 (2026-09-07): 실행됨 — 결과는 아래 실행 메모 | 템플릿 4종 변경 뒤 |
 | `npm run db:migrate -- --name board_item_accepted_at` | Phase 2 (2026-09-07): 적용됨 — `prisma/migrations/20260907050756_board_item_accepted_at/migration.sql` (`ALTER TABLE "BoardItem" ADD COLUMN "acceptedAt" TIMESTAMP(3)`) | 로컬 `.env`의 `DATABASE_URL`(Neon)에 적용. 비대화형 셸에서도 동작했다 |
 
+Phase 5 실행 메모(2026-09-07): 에이전트 대신 사람이 MCP 도구를 직접 불러(JSON-RPC over HTTP) 한 사이클을 돌렸다 — 서버 규칙·원장·웹은
+실제이고 템플릿 지시 준수는 확인 밖이다(보고서 follow-up). 네 항목 전부 PASS. 잡은 것 둘: 승인된 카피 §6의 도움말 문장이 `inbox-card.tsx`에
+옮겨지지 않았던 것(F-A), Inbox 탭에서 인수·핸드오프뿐인 차례가 "Waiting on you" 아래에 "Nothing to decide."만 남기던 것(F-B — 카드가 없는
+차례는 디테일 줄과 항목 버튼을 유지하도록 `turn-banner.tsx` 수정, 카피 §5 한 줄). dev 서버는 옛 Prisma 클라이언트를 물고 있어 재시작이
+필요했다 — 배포 절차에 "migrate → generate → 재시작"을 둘 것.
+
 dev 머지 메모(2026-09-07): PR #19(dead-code 제거)를 머지하며 A-4를 폐기했다. #19가 `journey.ts`·`journey.test.mjs`를
 지웠고(81d6858 "아무도 부르지 않는 여정 스테퍼를 걷어낸다"), 이 제안서 스스로 스테퍼를 렌더하지 않는다고 적었으므로(위 A-4)
 소비자 없는 코드의 매핑을 갱신하는 셈이었다 — 삭제를 받아들였다. `isAwaitingAcceptance`는 `acceptance.ts`에 남는다:
@@ -1219,7 +1225,7 @@ Phase 5 실측 전 배포·체크아웃 절차에 "migrate 뒤 generate"를 넣�
 
 Phase 1 실행 메모(2026-09-07): 제안서의 grounded test 한 줄이 틀려 있었다 — `decideTransition(row({ status: "implementing" }), "human", "on_hold", "x")`는
 사람 규칙이 없어 `value`가 undefined다. `in_review`로 고쳤다(위 Verification Plan과 실제 테스트 파일 모두). 코드 쪽 결함은 아니다.
-| 사이클 회귀 실측 | Not run yet | `docs/test-reports/active/`에 별도 기록 |
+| 사이클 회귀 실측 | Phase 5 (2026-09-07): PASS — 인수·핸드오프·검증 벽·Reopen 4항목 + 부수 6항목 | `docs/test-reports/completed/2026-09-07-human-checkpoint-cycle-regression.md`. 실행 중 결함 2건(F-A 카드 도움말 문장 누락, F-B Inbox 탭 배너) 발견·수정 |
 
 ## Risks and Rollback
 
@@ -1248,11 +1254,16 @@ Phase 1 실행 메모(2026-09-07): 제안서의 grounded test 한 줄이 틀려 
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: front matter 참조
+- verification-summary: front matter 참조
+- implementation PR/commit: PR #20(`harness/human-checkpoint-consistency` → `dev`). 커밋 `c253dbb`(Phase 1·2) · `0322308`(Phase 3) ·
+  `06bead4`(Phase 4) · `3eccc7f`(dev 머지) · `aa683a2`(머지 메모) · Phase 5 수정 2건은 이 문서 이동과 같은 커밋. private 템플릿
+  `Sangeok/harness-templates@59b6ffd`.
+- changed files summary: 순수 규칙(`transitions.mjs`·`board-rules.ts`·`gate-source.ts`), 서버(`board.ts`·`next.ts`·`tools.ts`·스키마
+  `acceptedAt` + 백필 마이그레이션), 문서(`protocol.md`·`invariants.md`·`CONTEXT.md`·`product-copy.md`), 템플릿 4종, 웹(배너 모델·
+  로더·UI, Reopen 액션, 항목 상세, 문서 링크·라벨, 인수 술어).
+- remaining follow-up: 에이전트 실행으로 템플릿 지시(handoff outcome · 7단계 인수 보고 · B-1 planCommit 대조) 준수 확인 — 다음 템플릿
+  변경 사이클에서. 기존 프로젝트는 `/harness:init` 재실행으로 새 스텁을 받는다. `AUTH_SECRET` 교체 권고(실측 중 쿠키 노출).
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -1268,7 +1279,7 @@ Phase 1 실행 메모(2026-09-07): 제안서의 grounded test 한 줄이 틀려 
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
-- [ ] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다. (승인 전)
+- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다. (승인 기록 유지, stage는 완료로 null)
 - [x] `proposal-size`는 `small` 또는 `standard`만 사용했고, standard 강제 조건에 해당하는 작업을 small로 낮추지 않았다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
@@ -1277,5 +1288,5 @@ Phase 1 실행 메모(2026-09-07): 제안서의 grounded test 한 줄이 틀려 
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다. (해당 없음)
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다. (해당 없음)

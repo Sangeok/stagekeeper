@@ -178,7 +178,8 @@ Actions: **Open inbox** on
 Board and in the strip when it's your turn and the Inbox has cards; on Inbox the banner drops the
 detail line — the cards say it. When your turn is only acceptance or a handoff (nothing on the
 Inbox), the button is **Open FEAT-02** (quiet) and goes to that item's page — several such items →
-the first one; on that item's own page the strip shows no action.
+the first one; on that item's own page the strip shows no action. On the Inbox tab such a turn keeps its
+detail line and the **Open FEAT-02** button — no card says it there ("Nothing to decide.").
 
 **Next, in Claude Code** — a box under the banner with the exact line to give your session, with
 **Copy**. One line per item that waits on the terminal:
