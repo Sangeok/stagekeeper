@@ -12,7 +12,7 @@ export const LIMITS = {
   pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS },
   max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS },
 };
-export const AXES = ["projects", "workspaces", "backlog"];
+const AXES = ["projects", "workspaces", "backlog"];
 
 export function isPlan(x) { return PLANS.includes(x); }
 export function limitsFor(plan) {

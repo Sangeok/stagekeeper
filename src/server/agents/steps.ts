@@ -18,7 +18,7 @@ import { STATUSES } from "@harness/core/transitions.mjs";
 // requires: 어휘. 보드 상태 이름은 항목(key)의 최신 상태, 나머지 둘은 파생 조건이다:
 //   verify-ok   — 같은 (프로젝트, agent, key)에 `verify` 단계 ok 기록이 있다
 //   can-propose — 프로젝트의 미결 항목이 2개 미만이다 (transitions.mjs canPropose)
-export const DERIVED_REQUIREMENTS = ["verify-ok", "can-propose"] as const;
+const DERIVED_REQUIREMENTS = ["verify-ok", "can-propose"] as const;
 export const REQUIREMENTS: readonly string[] = [...STATUSES, ...DERIVED_REQUIREMENTS];
 export const DONE = "done"; // next: 의 종결 값. 단계 id로는 쓸 수 없다
 
