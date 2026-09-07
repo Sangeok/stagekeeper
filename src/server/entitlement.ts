@@ -2,11 +2,10 @@
 // packages/core/entitlement.mjs 하나가 갖고, 여기는 그 함수에 넣을 행을 DB에서 찾아 올 뿐이다.
 // 플랜은 사용자에 붙고(Subscription, 행 없음 = free) 프로젝트는 소유자(ProjectMember.role = "owner")의 플랜을 따른다.
 import "server-only";
-import { DEFAULT_PLAN, activeProjectIds, capReason, isPlan, limitsFor } from "@harness/core/entitlement.mjs";
+import { DEFAULT_PLAN, activeProjectIds, capReason, isPlan } from "@harness/core/entitlement.mjs";
 import { prisma } from "@/server/db";
 
 export type Plan = "free" | "pro" | "max";
-export type Limits = ReturnType<typeof limitsFor>;
 export type ProjectAccess = { plan: Plan; locked: false } | { plan: Plan; locked: true; reason: string };
 
 export async function planForUser(userId: string): Promise<Plan> {
@@ -23,10 +22,6 @@ async function ownerOf(projectId: string): Promise<string | null> {
 export async function planForProject(projectId: string): Promise<Plan> {
   const userId = await ownerOf(projectId);
   return userId ? planForUser(userId) : DEFAULT_PLAN;
-}
-
-export async function limitsForProject(projectId: string): Promise<Limits> {
-  return limitsFor(await planForProject(projectId));
 }
 
 // 잠김: 소유자가 가진 프로젝트를 createdAt 순으로 세어 플랜 상한 밖이면 잠긴다. 행은 그대로 — 플랜을 올리면 다시 열린다.
