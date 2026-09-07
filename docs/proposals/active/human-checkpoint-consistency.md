@@ -1187,13 +1187,21 @@ describe("deriveTurn — handoff and acceptance", () => {
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `npm test` | Phase 1 (2026-09-07): 123/123 pass · Phase 2: 123/123 | transitions reopen 테스트 포함 |
-| `npm run test:web` | Phase 1 (2026-09-07): 159/159 pass (기준 157 + 신규 3 − 교체 1) · Phase 2: 160/160 (next handoff 1건 추가) · Phase 4: 170/170 (journey done 2건 · reopenTargetsFor · inbox planUrl · item-docs 3건 · turn 4건, 기존 2건 갱신) | board-rules 신규 3건(reopen · validation 벽 · accepts) · gate-source DECLARED · next handoff. turn · journey · item-docs는 Phase 4에서 |
+| `npm test` | Phase 1 (2026-09-07): 123/123 pass · Phase 2: 123/123 · dev 머지 후: 112/112 | transitions reopen 테스트 포함 |
+| `npm run test:web` | Phase 1 (2026-09-07): 159/159 pass (기준 157 + 신규 3 − 교체 1) · Phase 2: 160/160 (next handoff 1건 추가) · Phase 4: 170/170 (journey done 2건 · reopenTargetsFor · inbox planUrl · item-docs 3건 · turn 4건, 기존 2건 갱신) · dev 머지 후: 153/153 | board-rules 신규 3건(reopen · validation 벽 · accepts) · gate-source DECLARED · next handoff. turn · journey · item-docs는 Phase 4에서 |
 | `npm run check` | Phase 1 (2026-09-07): exit 0, 기존 lint 경고 1건(`planForUser` unused)만 · Phase 2: exit 0, 같은 경고 1건 · Phase 3: exit 0, 같은 경고 1건 · Phase 4: exit 0, 같은 경고 1건 | plugin/lib in sync |
 | `npm run test:templates` | Phase 3 (2026-09-07): 16/16 pass — 핸드오프 테스트 3건이 outcome `handoff` 계약으로 바뀜, dev 스텁 108줄(상한 110) | 재시드 전 실행 |
 | `npm run db:migrate` (backfill) | Phase 3 (2026-09-07): `20260907054533_board_item_accepted_at_backfill` 적용됨 | 로컬 `.env`의 Neon DB |
 | `npm run seed:templates` | Phase 3 (2026-09-07): 실행됨 — 결과는 아래 실행 메모 | 템플릿 4종 변경 뒤 |
 | `npm run db:migrate -- --name board_item_accepted_at` | Phase 2 (2026-09-07): 적용됨 — `prisma/migrations/20260907050756_board_item_accepted_at/migration.sql` (`ALTER TABLE "BoardItem" ADD COLUMN "acceptedAt" TIMESTAMP(3)`) | 로컬 `.env`의 `DATABASE_URL`(Neon)에 적용. 비대화형 셸에서도 동작했다 |
+
+dev 머지 메모(2026-09-07): PR #19(dead-code 제거)를 머지하며 A-4를 폐기했다. #19가 `journey.ts`·`journey.test.mjs`를
+지웠고(81d6858 "아무도 부르지 않는 여정 스테퍼를 걷어낸다"), 이 제안서 스스로 스테퍼를 렌더하지 않는다고 적었으므로(위 A-4)
+소비자 없는 코드의 매핑을 갱신하는 셈이었다 — 삭제를 받아들였다. `isAwaitingAcceptance`는 `acceptance.ts`에 남는다:
+`turn.ts`가 배럴로 쓴다. 배럴 3종은 #19의 "실제 소비자만 공개한다"를 병합 후 상태에 다시 적용해
+`ReopenActions`·`isAwaitingAcceptance`만 남기고 `needsHumanDecision`·`toInboxItems`·`TransitionInput`·`deriveTurn`·
+`nextStepLine`·`HEADLINE`을 닫았다(모두 슬라이스 안에서 상대경로로만 쓰인다). `board-rules.ts`의 `RuleKind`는 export를
+닫되 `"reopen"`은 유지했다. 위 검증표의 감소분(test:web 170→153, test 123→112)은 #19가 지운 테스트 때문이지 회귀가 아니다.
 
 Phase 4 실행 메모(2026-09-07): 정적 mock을 먼저 그려 승인받았다(아티팩트 "Stagekeeper Phase 4 Mock"). mock을 렌더해 보고 셋을
 바꿨다 — (1) 인수·핸드오프만 있는 차례에는 "Open inbox" 대신 그 항목 페이지로 가는 "Open <KEY>"(Inbox가 비어 "Nothing to decide."로
