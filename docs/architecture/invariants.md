@@ -33,7 +33,7 @@
 | 7 | 에이전트 상호 호출 금지 | Task 도구 미부여 | 동일 |
 | 8 | 원장 = 감사 로그 | 이슈 스레드·git | `TransitionEvent`·`Command`·`Report` 테이블 + `AgentRun`/`AgentRunStep`(에이전트 단계 원장) + 저장소 git |
 
-보드 규칙 셋도 계승한다: **증거 없는 상태 주장 금지**(`done`은 `result`·보고 경로 필수, 인수는 메인 루프가 재현), **재독 ≠ 회상**(plan-verifier 독립 컨텍스트), **정지 규칙**(무편집 독립 패스 1회, 3사이클 결함 → 보류). 그리고 pm 규칙 "미결 2건이면 새로 올리지 않는다"는 **서버가 강제**한다(`board_propose`가 거부).
+보드 규칙 셋도 계승한다: **증거 없는 상태 주장 금지**(`done`은 `result`·보고 경로 필수, 인수는 메인 루프가 재현하고 `report_submit`으로 기록한다), **재독 ≠ 회상**(plan-verifier 독립 컨텍스트), **정지 규칙**(무편집 독립 패스 1회, 3사이클 결함 → 보류). 그리고 pm 규칙 "미결 2건이면 새로 올리지 않는다"는 **서버가 강제**한다(`board_propose`가 거부).
 
 ## 이 저장소가 특히 지키는 것
 
@@ -43,6 +43,14 @@
   `src/server/mcp/tools.test.mjs`가 등록 집합의 동일성을 단언해 회귀를 막는다.
 - **불변식 8은 행을 지우지 않는 것으로 지킨다.** 폐기는 `BoardItem.discardedAt` 표기이고
   `완료`는 백로그의 `removedAt` 표기다 — 행도 `TransitionEvent`도 지우지 않는다.
+- **인수 실패도 행을 지우지 않는다.** `done`에서 되돌리는 reopen(사람만, 사유 필수)은 전이 이벤트로
+  남고, 백로그 `removedAt`과 `acceptedAt`을 되돌린다. `done`은 "dev가 끝났다고 보고했다"이고 인수는
+  `acceptedAt`(`done`에서 `main-loop`의 `report_submit`)이다 — 상태가 아니라 증거의 유무다,
+  `validation`이 상태가 아닌 것과 같은 이유로.
+- **검증 기록도 verify 원장 뒤에만 받는다.** `validation_record`는 마지막 `plan_submit` 뒤에
+  (프로젝트, `plan-verifier`, 항목)의 `AgentRunStep{stepId: "verify", outcome: "ok"}`가 있어야 통과한다 —
+  `report_submit` 벽과 대칭이며 "기록 전에 독립 패스를 **시도**했다"를 원장으로 증명한다. 결함 유무의
+  판정은 여전히 메인 루프의 것이다(verify ok = 경로를 다 돌렸다, ≠ 결함 0). 판정은 `decideValidation` 하나.
 - **보고는 verify 기록 뒤에만 받는다(Phase 4).** `report_submit`은 항목이 `implementing`일 때
   같은 (프로젝트, 행위자, 항목)에 `AgentRunStep{stepId: "verify"}`가 있어야 통과한다 — 없으면 거부다.
   `outcome`은 묻지 않는다: 불변식의 뜻은 "보고 전에 검증을 **시도**했다"이고, verify가 실패로 끝난

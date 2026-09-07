@@ -6,3 +6,4 @@ export { statusLabel } from "./model/status-label";
 export { FIELD_BUDGET, isOverBudget } from "./model/text-budget";
 export { OverBudgetChip } from "./ui/over-budget-chip";
 export { isPlanUnverified, isPlanVerified } from "./model/verification";
+export { isAwaitingAcceptance } from "./model/acceptance";

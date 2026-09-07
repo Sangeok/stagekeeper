@@ -255,6 +255,23 @@ describe("agentNext — routing", () => {
   });
 });
 
+describe("agentNext — handoff", () => {
+  it("records the pause, stays on the step, and the next outcome-less call resumes the same step", async () => {
+    const h = harness({ board: { "FEAT-1": "planning" } });
+    await h.call(dev());
+    step(await h.call(dev({ outcome: "ok" })));                                   // start → plan
+    const paused = step(await h.call(dev({ outcome: "handoff", note: "docs/plans/FEAT-1.md" })));
+    assert.equal(paused.step, "plan");
+    assert.equal(paused.instruction, "(handoff recorded — you are still on `plan`; after the commit, call again without outcome)\n\nPlan it as web-dev.");
+    assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "plan", outcome: "handoff", note: "docs/plans/FEAT-1.md" });
+    assert.equal(h.runs[0].stepId, "plan");
+    assert.equal(h.runs[0].refused, 0);                                            // 거부가 아니다
+    const resumed = step(await h.call(dev()));
+    assert.equal(resumed.step, "plan");
+    assert.equal(resumed.instruction, "Plan it as web-dev.");
+  });
+});
+
 describe("agentNext — run lifecycle", () => {
   it("after done: a call without outcome opens a fresh run; a call with outcome gets {done: true} and opens nothing", async () => {
     const h = harness({ board: { "FEAT-1": "planning" } });

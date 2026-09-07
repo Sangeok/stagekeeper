@@ -7,7 +7,7 @@ import type { RejectAction } from "./gate-text";
 // src/server/pipeline/board-rules.ts의 RuleKind다 — FSD는 @/server를, 서버는 FSD를 import할 수
 // 없어 타입을 한 곳에 둘 수 없다. 대신 두 목록이 RULES와 어긋나면 gate-source.test.ts가 깨진다.
 // 이 형이 없으면 아래 비교가 그냥 string 비교라, 오타가 컴파일을 통과하고 분류만 조용히 어긋난다.
-export type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done";
+export type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done" | "reopen";
 
 const ruleKind = (actor: string, from: string, to: string): RuleKind | null =>
   (findRule(actor, from, to)?.kind ?? null) as RuleKind | null;
@@ -24,6 +24,12 @@ export function gateTargetFor(status: string): string | null {
 // 재개(보류에서 돌아가기)로 갈 수 있는 status들.
 export function resumeTargetsFor(status: string): string[] {
   return STATUSES.filter((to: string) => ruleKind("human", status, to) === "resume");
+}
+
+// 되돌리기(reopen)로 갈 수 있는 status들 — done에서 돌아가는 사람 전이. 항목 상세만 쓴다:
+// 결재함 자격(needsHumanDecision)에는 세지 않는다 — 세면 모든 done이 영원히 결재함에 남는다.
+export function reopenTargetsFor(status: string): string[] {
+  return STATUSES.filter((to: string) => ruleKind("human", status, to) === "reopen");
 }
 
 // 결재함에 오르는 status = 게이트가 열려 있거나(승인 대기) 재개할 수 있는 것.

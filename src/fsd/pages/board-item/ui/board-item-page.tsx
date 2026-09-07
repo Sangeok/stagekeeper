@@ -1,4 +1,5 @@
 import { statusLabel } from "@/fsd/entities/board-item";
+import { ReopenActions, type TransitionAction } from "@/fsd/features/review-gate";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
 
@@ -22,6 +23,8 @@ export type BoardItemView = {
   results: string[];
   validation: string | null;
   proposedOn: Date;
+  acceptedAt: Date | null; // 인수 기록(main-loop의 report_submit in done). null이면 배너가 "needs acceptance"라 한다
+  updatedAt: string; // ISO. 되돌리기(reopen)의 낙관적 잠금 토큰
   docs: ItemDoc[];
   events: TimelineEvent[];
   // 창 밖으로 밀린 이력이 있을 때만 true — 창이 없는 플랜에서는 언제나 false다.
@@ -30,7 +33,8 @@ export type BoardItemView = {
 
 const stamp = (d: Date) => d.toISOString().slice(0, 16).replace("T", " ");
 
-export function BoardItemPage({ item }: { item: BoardItemView }) {
+// transition은 라우트가 slug를 bind해서 넘긴 사람 전이 액션(review-gate). 이 페이지는 되돌리기(reopen)에만 쓴다.
+export function BoardItemPage({ item, transition }: { item: BoardItemView; transition: TransitionAction }) {
   return (
     <>
       <header className="flex flex-col gap-1">
@@ -41,6 +45,7 @@ export function BoardItemPage({ item }: { item: BoardItemView }) {
         <p className="flex flex-wrap items-center gap-2 text-sm">
           <Chip tone="done">{statusLabel(item.status)}</Chip>
           <span className="font-mono text-xs text-quiet">Proposed {stamp(item.proposedOn)}</span>
+          {item.acceptedAt !== null ? <span className="font-mono text-xs text-quiet">Accepted {stamp(item.acceptedAt)}</span> : null}
         </p>
       </header>
 
@@ -90,6 +95,9 @@ export function BoardItemPage({ item }: { item: BoardItemView }) {
           </ul>
         </section>
       ) : null}
+
+      {/* done에서만 그려진다(reopenTargetsFor) — Documents를 읽고 결정하는 순서라 그 아래, History 위(product-copy.md §11). */}
+      <ReopenActions itemKey={item.key} status={item.status} updatedAt={item.updatedAt} transition={transition} />
 
       <section>
         <SectionLabel>History</SectionLabel>

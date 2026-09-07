@@ -5,8 +5,10 @@
 // 저장소 문서의 실제 주소. 라우트마다 템플릿을 다시 쓰면 화면마다 다른 링크가 나온다.
 export type RepoRef = { owner: string; repo: string; branch: string };
 
-export function blobHref(repo: RepoRef, path: string): string {
-  return `https://github.com/${repo.owner}/${repo.repo}/blob/${repo.branch}/${path}`;
+// ref가 있으면 그 커밋을 연다 — 게이트②가 승인하는 것은 planCommit이고, 보고도 자기 커밋이 있다.
+// 없을 때만 브랜치 HEAD(계획서가 아직 제출 전인 경우)다.
+export function blobHref(repo: RepoRef, path: string, ref: string | null = null): string {
+  return `https://github.com/${repo.owner}/${repo.repo}/blob/${ref ?? repo.branch}/${path}`;
 }
 
 // 고정 역할의 보고 라벨. 워크스페이스 dev는 roster가 프로젝트마다 달라 여기 열거하지 않고 기본 라벨을 받는다.
@@ -16,8 +18,12 @@ const REPORT_LABEL: Record<string, string> = {
   "feature-scout": "Scouting report",
 };
 const DEV_REPORT_LABEL = "Implementation report";
+// main-loop의 보고는 둘이다 — in_review의 검증 라운드 기록과 done의 인수 기록. 어느 쪽인지는 호출자가
+// acceptedAt으로 가른다(item-docs.ts): 이 파일은 라벨만 소유하고 판정 재료(시각)는 갖지 않는다.
+const ACCEPTANCE_LABEL = "Acceptance record";
 
-export function reportDocLabel(actor: string): string {
+export function reportDocLabel(actor: string, isAcceptance = false): string {
+  if (actor === "main-loop" && isAcceptance) return ACCEPTANCE_LABEL;
   return REPORT_LABEL[actor] ?? DEV_REPORT_LABEL;
 }
 

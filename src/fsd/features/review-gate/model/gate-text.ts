@@ -66,7 +66,32 @@ export function resumeHint(primary: string, heldFrom: string | null): string {
   return "dev rewrites the plan; the validation is cleared. Resuming implementation instead skips the approval gate.";
 }
 
-// 되돌리기·보류·폐기.
+// 되돌리기(reopen) — done에서 돌아가는 두 목적지. 주 버튼은 구현(계획은 유효하고 코드가 틀린 경우)이다.
+// 힌트는 고른 목적지가 무엇을 하는지 말한다(product-copy.md §3).
+const REOPEN: Record<string, string> = {
+  planning: "Reopen planning",
+  implementing: "Reopen implementation",
+};
+export function reopenLabel(to: string): string {
+  return REOPEN[to] ?? `Reopen as ${to}`;
+}
+export function reopenPendingLabel(): string {
+  return "Reopening…";
+}
+export function reopenToast(to: string, key: string): string {
+  return `Reopened · ${key} is ${to === "planning" ? "planning" : "implementing"}`;
+}
+export function reopenPrimaryFor(targets: readonly string[]): string {
+  return targets.includes("implementing") ? "implementing" : (targets[0] ?? "implementing");
+}
+export function reopenHint(to: string): string {
+  if (to === "planning") return "dev rewrites the plan; the validation is cleared. Gate 2 runs again.";
+  return "dev fixes the code against the same plan. Reopening planning instead clears the validation and dev rewrites the plan.";
+}
+// 노트가 비었을 때 폼이 보이는 문장 — 서버의 "result: must not be empty"는 여기 닿지 않는다(§12).
+export const REOPEN_NOTE_REQUIRED = "Add a note — which check failed.";
+
+// 보류·되돌리기·폐기(Inbox의 보조 동작).
 const REJECT: Record<RejectAction, { label: string; pending: string; lock: string }> = {
   bounce: { label: "Send back", pending: "Sending back…", lock: "Sent back" },
   hold: { label: "Put on hold", pending: "Putting on hold…", lock: "On hold" },
@@ -99,10 +124,18 @@ function isoDay(today: Date): string {
 const BOUNCE_PREFIX = "Sent back: ";
 const holdPrefix = (date: string) => `On hold by owner (${date}): `;
 const HOLD_PREFIX_LENGTH = holdPrefix("2026-01-01").length;
-export const NOTE_LIMIT: Record<"bounce" | "hold", number> = {
+const REOPEN_PREFIX = "Reopened: ";
+export const NOTE_LIMIT: Record<"bounce" | "hold" | "reopen", number> = {
   bounce: TEXT_LIMIT - BOUNCE_PREFIX.length,
   hold: TEXT_LIMIT - HOLD_PREFIX_LENGTH,
+  reopen: TEXT_LIMIT - REOPEN_PREFIX.length,
 };
+
+// 되돌릴 때 dev가 읽을 노트 — 필수다. 비어 있으면 null이고 폼이 막는다(서버에 닿지 않는다).
+export function reopenResultLine(note: string): string | null {
+  const text = note.trim();
+  return text === "" ? null : `${REOPEN_PREFIX}${text}`;
+}
 
 // 되돌릴 때 dev가 읽을 노트. 비어 있으면 result를 남기지 않는다.
 export function bounceResultLine(note: string): string | undefined {

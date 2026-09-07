@@ -3,7 +3,7 @@ import { isOpen } from "@harness/core/transitions.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import type { ServerResult } from "@/server/result";
-import { decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation } from "./board-rules";
+import { PLAN_VERIFIER, decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation } from "./board-rules";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -125,11 +125,14 @@ export async function transition(
     const expected = caller.actor === "human" ? caller.expectedUpdatedAt : row.updatedAt;
     const u = await tx.boardItem.updateMany({
       where: { id: row.id, updatedAt: expected },
-      data: { status: d.value.status, results: d.value.results, validation: d.value.validation },
+      // reopen이면 인수 표시를 지운다 — 돌아간 항목은 다시 인수돼야 한다. 다른 전이는 이 열을 건드리지 않는다(undefined).
+      data: { status: d.value.status, results: d.value.results, validation: d.value.validation, acceptedAt: d.value.reopens ? null : undefined },
     });
     if (u.count === 0) return fail("stale");
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: d.value.status, actor: caller.actor, actorId: caller.actorRef } });
     if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date() } });
+    // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
+    if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null } });
     if (!isOpen(d.value.status)) await closeRuns(tx, projectId, input.key);
     return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }) };
   });
@@ -167,7 +170,17 @@ export async function recordValidation(projectId: string, input: { key: string; 
   return prisma.$transaction(async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
-    const d = decideValidation(row.status, input.text);
+    // 벽의 재료: 마지막 plan_submit 시각과, 그 뒤의 plan-verifier verify ok. 조회는 in_review일 때만 한다 — 다른 상태는 첫 검사가 거부한다.
+    const lastPlan = row.status === "in_review"
+      ? await tx.transitionEvent.findFirst({ where: { boardItemId: row.id, note: "plan" }, orderBy: { at: "desc" }, select: { at: true } })
+      : null;
+    const verifierPassedAfterPlan =
+      row.status === "in_review" &&
+      (await tx.agentRunStep.findFirst({
+        where: { stepId: "verify", outcome: "ok", ...(lastPlan ? { at: { gt: lastPlan.at } } : {}), run: { projectId, agent: PLAN_VERIFIER, key: input.key } },
+        select: { id: true },
+      })) !== null;
+    const d = decideValidation({ status: row.status, text: input.text, verifierPassedAfterPlan });
     if (!d.ok) return fail(d.reason);
     const item = await tx.boardItem.update({ where: { id: row.id }, data: { validation: input.text } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "validation" } });
@@ -204,6 +217,8 @@ export async function submitReport(projectId: string, input: { key: string; acto
     if (!d.ok) return fail(d.reason);
     const report = await tx.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "report" } });
+    // 인수 기록이면 항목에 표시한다 — 배너·항목 상세·journey가 이 열 하나로 "인수됐나"를 읽는다.
+    if (d.value.accepts) await tx.boardItem.update({ where: { id: row.id }, data: { acceptedAt: report.at } });
     return { ok: true as const, item: report };
   });
 }

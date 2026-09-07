@@ -42,14 +42,26 @@ describe("decideTransition", () => {
     const s = decideTransition(row({ status: "on_hold", validation: "clean pass" }), "human", "implementing", undefined);
     assert.equal(s.ok, true); assert.equal(s.value.validation, "clean pass");
   });
+  it("reopen: human only, needs a result, sets reopens; planning also clears validation", () => {
+    const r = row({ status: "done", validation: "clean pass", results: ["shipped"] });
+    assert.equal(decideTransition(r, "agent", "implementing", "x").ok, false);
+    assert.match(decideTransition(r, "human", "implementing", undefined).reason, /empty/);
+    const back = decideTransition(r, "human", "implementing", "acceptance check 3 failed");
+    assert.equal(back.ok, true); assert.equal(back.value.reopens, true); assert.equal(back.value.completes, false);
+    assert.equal(back.value.validation, "clean pass"); assert.deepEqual(back.value.results, ["shipped", "acceptance check 3 failed"]);
+    assert.equal(decideTransition(r, "human", "planning", "plan was wrong").value.validation, null);
+    assert.equal(decideTransition(row({ status: "in_review" }), "human", "on_hold", "x").value.reopens, false); // hold는 사람 규칙이지만 reopen이 아니다
+  });
 });
 
 describe("discard / validation / plan_submit / report_submit", () => {
   it("discard only from proposed·in_review", () => { assert.equal(decideDiscard("in_review").ok, true); assert.equal(decideDiscard("implementing").ok, false); });
-  it("validation only in in_review and within 150", () => {
-    assert.equal(decideValidation("in_review", "clean pass").ok, true);
-    assert.equal(decideValidation("implementing", "x").ok, false);
-    assert.equal(decideValidation("in_review", "x".repeat(151)).ok, false);
+  it("validation needs a plan-verifier pass after the last plan_submit", () => {
+    const v = (o = {}) => decideValidation({ status: "in_review", text: "clean pass", verifierPassedAfterPlan: true, ...o });
+    assert.equal(v().ok, true);
+    assert.match(v({ verifierPassedAfterPlan: false }).reason, /plan-verifier/);
+    assert.match(v({ status: "implementing" }).reason, /only in in_review/); // 상태 검사가 먼저다
+    assert.match(v({ text: "x".repeat(151) }).reason, /150/);
   });
   it("plan_submit in planning and in_review only", () => {
     // in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신(F3) — 승인 대상이 기록에 남는다.
@@ -95,5 +107,10 @@ describe("decideReportSubmit — actor and the verify wall", () => {
   });
   it("the status check runs before the actor check", () => {
     assert.match(decideReportSubmit(rs({ status: "planning", actor: "ops" })).reason, /only in in_review/);
+  });
+  it("report_submit marks acceptance only for main-loop in done", () => {
+    assert.equal(decideReportSubmit(rs({ actor: "main-loop" })).value.accepts, true);
+    assert.equal(decideReportSubmit(rs({ actor: "web-dev" })).value.accepts, false);
+    assert.equal(decideReportSubmit(rs({ status: "in_review", actor: "main-loop" })).value.accepts, false);
   });
 });

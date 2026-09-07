@@ -5,12 +5,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { STATUSES, findRule } from "@harness/core/transitions.mjs";
-import { isGateSource, needsHumanDecision, pendingInboxCount, type RuleKind } from "./gate-source";
+import { isGateSource, needsHumanDecision, pendingInboxCount, reopenTargetsFor, type RuleKind } from "./gate-source";
 
 // RuleKind는 여기와 src/server/pipeline/board-rules.ts 두 곳에 있다 — FSD와 서버가 서로를
 // import할 수 없어서다. 이 테스트가 두 목록과 packages/core의 RULES를 묶어 둔다:
 // RULES에 새 kind가 생기면 여기서 깨지고, 그때 두 곳을 함께 고치게 된다.
-const DECLARED: RuleKind[] = ["gate", "bounce", "hold", "resume", "plan", "done"];
+const DECLARED: RuleKind[] = ["gate", "bounce", "hold", "resume", "plan", "done", "reopen"];
 
 describe("RuleKind", () => {
   it("covers every kind the state machine actually produces", () => {
@@ -27,6 +27,14 @@ describe("RuleKind", () => {
     for (const kind of seen) {
       assert.ok(DECLARED.includes(kind as RuleKind), `RULES has kind "${kind}" that RuleKind does not declare`);
     }
+  });
+});
+
+describe("reopenTargetsFor", () => {
+  it("done reopens to planning or implementing; nothing else reopens; done is still not an inbox card", () => {
+    assert.deepEqual(reopenTargetsFor("done"), ["planning", "implementing"]);
+    for (const s of ["proposed", "planning", "in_review", "implementing", "on_hold"]) assert.deepEqual(reopenTargetsFor(s), [], s);
+    assert.equal(needsHumanDecision("done"), false); // Inbox 자격은 gate·resume뿐 — 모든 done이 결재함에 남지 않게
   });
 });
 

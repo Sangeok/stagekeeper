@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { historyCutoff } from "@harness/core/entitlement.mjs";
+import { humanTransition } from "@/fsd/features/review-gate/index.server";
 import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
 import { requireMember } from "@/server/auth/guard";
 import { planForProject } from "@/server/entitlement";
@@ -27,10 +28,13 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
         results: row.results,
         validation: row.validation,
         proposedOn: row.proposedOn,
+        acceptedAt: row.acceptedAt,
+        updatedAt: row.updatedAt.toISOString(),
         docs: toItemDocs(row, project),
         events: row.events.map((e) => ({ at: e.at, actor: e.actor, from: e.from, to: e.to, note: e.note })),
         historyTruncated: truncated,
       }}
+      transition={humanTransition.bind(null, slug)}
     />
   );
 }

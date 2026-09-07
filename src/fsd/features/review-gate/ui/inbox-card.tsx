@@ -124,6 +124,9 @@ export function InboxCard({ item, now, transition, discard, locked = false }: Pr
               <b className="font-medium text-ink">Verified</b> means an independent pass found nothing to change. Without it,
               the plan is unverified.
             </li>
+            <li>
+              <b className="font-medium text-ink">Approve implementation</b> approves the plan at the commit shown on the card.
+            </li>
             <li>Sending back clears the validation record.</li>
             <li>Discard can&apos;t be undone.</li>
           </ul>
