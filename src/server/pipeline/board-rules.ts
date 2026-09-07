@@ -9,7 +9,7 @@ export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string }
 // kind는 화면이 읽는 어휘다 — review-gate/model/gate-source.ts가 "gate"·"resume"·"bounce"로
 // 무엇을 보여줄지 정한다. string으로 두면 그쪽 비교가 오타여도 컴파일이 통과하고 분류만 조용히
 // 어긋난다. 값의 출처는 packages/core/transitions.mjs의 RULES 표다.
-export type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done";
+type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done";
 
 type Rule = {
   from: string; to: string; actor: Actor; kind: RuleKind;
@@ -78,7 +78,7 @@ const REPORT_SUBMIT_STATUSES = new Set(["in_review", "implementing", "done"]);
 // main-loop은 .claude/agents 정의가 없는 디스패처지만 **보고 행위자다** — 검증 라운드 기록과 인수 기록을
 // 낸다(protocol.md의 report_submit 행, 템플릿 docs/agents/README.md의 행위자 표). roster(Workspace.agent)에도
 // REPORT_AGENTS에도 없으므로 여기서 따로 더한다. 빼면 런북 7단계의 인수 등록이 막힌다.
-export const MAIN_LOOP = "main-loop";
+const MAIN_LOOP = "main-loop";
 const knownReporter = (actor: string, roster: readonly string[]) =>
   actor === MAIN_LOOP || REPORT_AGENTS.includes(actor) || roster.includes(actor);
 

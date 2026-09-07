@@ -3,7 +3,7 @@ import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "rea
 import { cn } from "@/fsd/shared/lib/class-name";
 
 // 입력칸 하나 = 레이블 · 칸 · 도움말. 안내는 placeholder가 아니라 도움말에 둔다(입력하면 placeholder는 사라진다).
-export const INPUT_CLASS =
+const INPUT_CLASS =
   "w-full rounded-md border border-edge bg-paper px-2.5 py-[7px] text-sm leading-5 text-ink " +
   "placeholder:text-quiet disabled:opacity-50";
 

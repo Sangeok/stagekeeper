@@ -7,7 +7,7 @@ import {
   type AgentIdentity,
 } from "./known-agents";
 
-export type Tone = "pending" | "active" | "done" | "hold" | "muted";
+type Tone = "pending" | "active" | "done" | "hold" | "muted";
 
 export type SpeechItem = {
   key: string;
