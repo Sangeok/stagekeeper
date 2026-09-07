@@ -27,8 +27,14 @@ describe("transitions", () => {
     assert.equal(findRule("human", "on_hold", "implementing").kind, "resume");
     assert.equal(findRule("human", "proposed", "planning").clearsValidation, undefined);
   });
-  it("nothing leaves done; unknown statuses rejected", () => {
-    for (const s of STATUSES) assert.equal(findRule("human", "done", s), null);
+  it("done leaves only by a human reopen with a reason; agents never leave done", () => {
+    const back = findRule("human", "done", "implementing");
+    assert.equal(back.kind, "reopen"); assert.equal(back.requiresResult, true); assert.equal(back.clearsValidation, undefined);
+    const replan = findRule("human", "done", "planning");
+    assert.equal(replan.kind, "reopen"); assert.equal(replan.requiresResult, true); assert.equal(replan.clearsValidation, true);
+    for (const s of ["proposed", "in_review", "done", "on_hold"]) assert.equal(findRule("human", "done", s), null, s);
+    for (const s of STATUSES) assert.equal(findRule("agent", "done", s), null, s);
+    assert.equal(isOpen("done"), false);
     assert.equal(findRule("human", "__proto__", "planning"), null);
     assert.equal(findRule("agent", "planning", "toString"), null);
     assert.equal(findRule("human", "승인대기", "planning"), null); // 옛 한글 식별자는 더 이상 상태가 아니다

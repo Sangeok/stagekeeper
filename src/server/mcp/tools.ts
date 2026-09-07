@@ -139,7 +139,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     return unwrap(await deps.recordValidation(projectId, args, actorRef));
   });
   // 단계 본문은 이 도구로만 나간다(agents/next.ts). 스텁이 "첫 호출은 agent_next"라고 말하는 그 도구다.
-  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional() }) }, async (args, ctx: Ctx) => {
     const { projectId, tokenId } = scope(ctx);
     return unwrap(await deps.agentNext(projectId, tokenId, args));
   });

@@ -15,6 +15,10 @@ const RULES = [
   { from: "in_review", to: "on_hold", actor: "human", kind: "hold", requiresResult: true },
   { from: "on_hold", to: "planning", actor: "human", kind: "resume", clearsValidation: true },
   { from: "on_hold", to: "implementing", actor: "human", kind: "resume" },
+  // 사람 — 인수 실패의 출구. done은 "dev가 끝났다고 보고했다"이지 인수가 아니다(인수 = acceptedAt).
+  // 사유 필수. 백로그 복원(removedAt = null)과 acceptedAt = null은 board.ts가 같은 트랜잭션에서 한다.
+  { from: "done", to: "implementing", actor: "human", kind: "reopen", requiresResult: true },
+  { from: "done", to: "planning", actor: "human", kind: "reopen", requiresResult: true, clearsValidation: true },
   // 에이전트(MCP 토큰) — dev A-4·B-6
   { from: "planning", to: "in_review", actor: "agent", kind: "plan", requiresPlan: true },
   { from: "planning", to: "on_hold", actor: "agent", kind: "hold", requiresResult: true },

@@ -9,7 +9,7 @@ export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string }
 // kind는 화면이 읽는 어휘다 — review-gate/model/gate-source.ts가 "gate"·"resume"·"bounce"로
 // 무엇을 보여줄지 정한다. string으로 두면 그쪽 비교가 오타여도 컴파일이 통과하고 분류만 조용히
 // 어긋난다. 값의 출처는 packages/core/transitions.mjs의 RULES 표다.
-export type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done";
+export type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done" | "reopen";
 
 type Rule = {
   from: string; to: string; actor: Actor; kind: RuleKind;
@@ -36,7 +36,8 @@ export function decidePropose(i: ProposeInput): Decision<null> {
   return bad ? { ok: false, reason: bad } : { ok: true, value: null };
 }
 
-export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean };
+// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board.ts).
+export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean };
 
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
   const rule = findRule(actor, row.status, to) as Rule | null;
@@ -50,6 +51,7 @@ export function decideTransition(row: RowSnapshot, actor: Actor, to: string, res
     results: result ? [...row.results, result] : row.results,
     validation: rule.clearsValidation ? null : row.validation,
     completes: to === "done",
+    reopens: rule.kind === "reopen",
   } };
 }
 
@@ -57,10 +59,26 @@ export function decideDiscard(status: string): Decision<null> {
   return canDiscard(status) ? { ok: true, value: null } : { ok: false, reason: `cannot discard from ${status}` };
 }
 
-export function decideValidation(status: string, text: string): Decision<null> {
-  if (!canRecordValidation(status)) return { ok: false, reason: `validation only in in_review (now ${status})` };
-  const bad = checkText("validation", text);
-  return bad ? { ok: false, reason: bad } : { ok: true, value: null };
+export const PLAN_VERIFIER = "plan-verifier";
+
+export type ValidationInput = {
+  status: string;
+  text: string;
+  // 같은 (project, plan-verifier, key)에 stepId "verify"·outcome "ok" 원장 행이 **마지막 plan_submit 뒤에** 있는가.
+  verifierPassedAfterPlan: boolean;
+};
+
+// 불변식 8의 벽, report_submit과 대칭. "기록 전에 독립 패스를 시도했다"를 원장으로 증명한다 — 결함 유무의 판정은
+// 여전히 메인 루프의 것이다(verify ok = 경로를 다 돌렸다, ≠ 결함 0). Free는 plan-verifier가 플랜 밖이라 자연히
+// 거부된다 — Free 런북이 말하는 "no validation record"와 같은 결과다.
+export function decideValidation(i: ValidationInput): Decision<null> {
+  if (!canRecordValidation(i.status)) return { ok: false, reason: `validation only in in_review (now ${i.status})` };
+  const bad = checkText("validation", i.text);
+  if (bad) return { ok: false, reason: bad };
+  if (!i.verifierPassedAfterPlan) {
+    return { ok: false, reason: "no plan-verifier pass recorded after the last plan_submit — dispatch plan-verifier, then record the validation" };
+  }
+  return { ok: true, value: null };
 }
 
 // in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — planCommit이 승인 대상(HEAD)을 가리키게 한다(F3).
@@ -98,7 +116,11 @@ export type ReportSubmitInput = {
 // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다. outcome을 ok로 좁히면
 // 그 보고가 막힌다. 불변식의 뜻은 "보고 전에 검증을 시도했다"이고, 그건 커서(AgentRun.stepId)에
 // 결합하지 않고도 원장 한 줄로 표현된다.
-export function decideReportSubmit(i: ReportSubmitInput): Decision<null> {
+// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board.ts의 acceptedAt 쓰기가
+// "report_submit의 숨은 부수효과"가 아니라 "판정의 결과"가 된다(decideTransition의 completes와 같은 자리).
+export type ReportSubmitPatch = { accepts: boolean };
+
+export function decideReportSubmit(i: ReportSubmitInput): Decision<ReportSubmitPatch> {
   if (!REPORT_SUBMIT_STATUSES.has(i.status)) {
     return { ok: false, reason: `report_submit only in in_review, implementing, or done (now ${i.status})` };
   }
@@ -115,5 +137,5 @@ export function decideReportSubmit(i: ReportSubmitInput): Decision<null> {
         " If the agent files still carry full step bodies, rerun /harness:init to get stubs.",
     };
   }
-  return { ok: true, value: null };
+  return { ok: true, value: { accepts: i.status === "done" && i.actor === MAIN_LOOP } };
 }

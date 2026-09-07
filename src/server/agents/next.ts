@@ -8,6 +8,8 @@
 //                   후보의 requires가 전부 맞아야 열린다. 하나도 안 열리면 거부(문구 고정)하고 자리에 머문다
 //                   목적지가 done이면 run을 닫고 {done: true}. 열린 run이 없는데 outcome이 오면 {done: true}
 //                   (dev의 report·hold는 board_transition으로 항목을 옮긴 뒤 ok를 보낸다 — 그 사이 서버가 run을 닫았다)
+//   outcome handoff → 커밋 권한이 없어 멈췄다. 원장에 남기고 **같은 단계를 돌려준다** — 전진도 분기도 없다.
+//                   재개는 outcome 없는 호출. 배너가 열린 run의 마지막 원장 행으로 "당신 차례"를 읽는다
 //
 // 지키는 것: 단계 본문은 커서가 가리키는 그것만 렌더한다. 전진은 CAS(stepId가 그대로일 때만)라 같은 호출이
 // 두 번 와도 두 단계를 넘지 않는다. 열리지 않은 단계를 거듭 두드리면 refused가 쌓여 경고하고, 원장 행 수가
@@ -19,7 +21,8 @@ import type { ProjectAccess } from "@/server/entitlement";
 import type { ServerResult } from "@/server/result";
 import { DONE, TemplateFormatError, findStep, splitTemplate, type ParsedTemplate, type Step } from "./steps";
 
-export const OUTCOMES = ["ok", "blocked", "failed"] as const;
+// handoff: 커밋 권한이 없어 멈췄다 — 전진·분기 없이 원장에 남고 자리에 머문다. 배너가 이 행을 읽는다.
+export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 export const NOTE_MAX = 500;
 export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 }; // 토큰당, 원장 행(outcome 실은 호출) 기준
@@ -141,6 +144,12 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const outcome = input.outcome;
   const note = input.note ?? null;
   await deps.record(run.id, { stepId: current.id, outcome, note });
+
+  // 핸드오프는 라우팅이 아니다 — 원장에 "멈춤"을 남기고 같은 단계를 돌려준다. 템플릿의 `on handoff:`는
+  // steps.ts가 모르는 지시어로 거부하므로 분기 경로가 생길 수 없다. 재개는 outcome 없는 호출이다.
+  if (outcome === "handoff") {
+    return serve(current, `(handoff recorded — you are still on \`${current.id}\`; after the commit, call again without outcome)\n\n`);
+  }
 
   const candidates = outcome === "ok" ? current.next : outcome === "failed" ? [current.onFailed] : [current.onBlocked];
   const routed = candidates.filter((c): c is string => c !== undefined);

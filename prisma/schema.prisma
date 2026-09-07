@@ -102,6 +102,7 @@ model BoardItem {                        // 같은 backlog 항목이 여러 번 
   reason        String                    // 근거 ≤150
   results       String[]                  // 결과 ≤150, 누적(ApcH 결과: 두 줄 누적 규칙)
   validation    String?                   // 검증: — 검토대기에서만, 되돌리기 시 null
+  acceptedAt    DateTime?                 // 인수: done에서 main-loop의 report_submit이 찍는다. reopen 시 null
   planPath      String?
   planCommit    String?
   proposedOn    DateTime          @default(now())
@@ -178,7 +179,7 @@ model AgentRunStep {                     // 원장 — 에이전트가 outcome�
   id      String   @id @default(cuid())
   runId   String
   stepId  String
-  outcome String                         // ok | blocked | failed
+  outcome String                         // ok | blocked | failed | handoff
   note    String?
   at      DateTime @default(now())
   run     AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
