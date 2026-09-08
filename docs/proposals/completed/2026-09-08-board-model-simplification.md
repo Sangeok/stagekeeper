@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-07"
 approved-by: "Sangeok"
 approved-at: "2026-09-07"
 approval-scope: "QG-01·QG-02·QG-03과 명시된 연관 문서·테스트 수정, 검증 후 commit·push 및 check 통과 뒤 dev PR 병합"
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-08"
+verification-summary: "QG-01·02·03 구현 완료. verify:fsd·check(architecture 19/19)·npm test(112/112)·test:web(147/147)·Turbopack build 통과. 보드 테스트 30/30, 변경 전후 HTML 112개 동일, 목록 HTML·삭제/타입 구조·범위 검사 통과. 초기 sandbox 포트 차단은 권한 확장 및 Turbopack 캐시 재생성으로 해소."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -30,8 +30,9 @@ Activity·Team의 표시 순서, 문구, 링크, 색상, 글자 수 초과 표�
 새 기능·새 추상화·DB 변경 없이 기존 구현을 줄이는 제안이다.
 
 이 문서는 앞선 리뷰에서 채택된 QG-01·QG-02·QG-03을 구현 가능한 단일 범위로 구체화한다.
-브랜치 생성·문서 작성·코드베이스 대조를 마쳤고, 사용자의 구현 요청에 따라 아래 범위를 수행한다.
-실제 코드 변경과 검증 결과는 완료 기록에 별도로 남긴다.
+세 finding을 구현하고 로컬 필수 검증을 마쳤다. 구현 커밋은 `eab1f4c`다.
+아래 Proposal·Tasks·Verification Plan은 승인된 실행 계획 기록이며, 실제 수행 결과는 Verification Results와
+Completion or Closure Notes에 남긴다. PR 병합은 원격 check가 통과한 뒤 진행한다.
 
 ## Goal
 
@@ -347,7 +348,7 @@ private 템플릿 import 목록에도 이번 웹 모델은 없지만, 이를 새
 
 ### Phase BSIM: 화면 동작을 유지하는 간소화
 
-- status: Proposed
+- status: Complete
 - satisfies: REQ-BSIM-001, REQ-BSIM-002, REQ-BSIM-003, REQ-BSIM-004
 - preserves: INV-BSIM-001
 - governed-by: CON-BSIM-001, CON-BSIM-002
@@ -403,7 +404,7 @@ PR을 만들 때 base는 `dev`다. 체크가 초록이 되기 전 병합하지 �
 - category: unit / rendered component body
 - verifies: REQ-BSIM-001, REQ-BSIM-002, REQ-BSIM-003
 - destination: 기존 `src/fsd/pages/project-board/model/briefing.test.mjs` 개편.
-- state: Planned. 구현 후 검증은 미실행이며, 대조 중 실행한 **변경 전** 테스트·HTML 확인은 결과 표에 구분한다.
+- state: Executed. 보드 테스트 30/30 및 변경 전후 HTML 112개 비교 통과. 대조 중 실행한 변경 전 결과와 구분한다.
 
 fixture를 `heading/items` 대신 `BoardRow[]`로 바꾼다. key별 최신 행 하나만 두고 명시적인
 `Date`·`reason`·`results[]`·`agent`·문자열 status를 사용한다. 생산자와 마찬가지로 날짜 내림차순으로 둔다.
@@ -447,7 +448,7 @@ fixture를 `heading/items` 대신 `BoardRow[]`로 바꾼다. key별 최신 행 �
 - category: source/contract review
 - verifies: REQ-BSIM-004
 - destination: `projects/page.tsx`, `app-header.server.ts`, `src/server/entitlement.ts` 및 기존 core entitlement 테스트.
-- state: Planned.
+- state: Executed. user.plan 배선·owner 조건·정책 코드 불변 확인, core 테스트 및 목록 HTML 검증 통과.
 
 페이지 diff에서 별도 플랜 호출/import/변수가 없어졌고, 헤더와 `activeProjectIds`가 둘 다 `user.plan`을
 쓰는지 확인한다. owner 필터·생성 순서·잠김 배지·잠긴 프로젝트 링크가 동일해야 한다.
@@ -463,7 +464,7 @@ Subscription 없음/알 수 없는 plan은 기존 `planForUser`의 free fallback
 - category: rendered body / source review / architecture / type / lint / build
 - verifies: REQ-BSIM-001, REQ-BSIM-002, REQ-BSIM-003, REQ-BSIM-004
 - destination: 기존 npm 게이트 및 두 route·보드 UI diff.
-- state: Planned.
+- state: Executed. FSD·lint·type·아키텍처·build, 최종 HTML, 삭제/타입 구조 및 scope guard 통과.
 
 UI diff에서 빈 상태, key span, 링크, statusLabel, OverBudgetChip, tone 명암과 Team agent/state가 유지되는지
 확인한다. `tone`을 없애거나 `Chip tone="done"`을 교정하는 변경을 섞지 않는다.
@@ -611,7 +612,33 @@ JS
 | 최초 SDD 의미 검토 | Executed, 작성 당시 | 이후 INV-1~7 대조에서 발견한 검증·import 계약 보완은 아래 Reconciliation 기록 참고 |
 | 기존 보드·날짜 테스트 / 기존 entitlement 테스트 | Executed, 변경 전 | `TSX_DISABLE_CACHE=1 node --import tsx --test --test-reporter=dot src/fsd/pages/project-board/model/briefing.test.mjs src/fsd/shared/lib/relative-time.test.ts` 및 `node --test --test-reporter=dot packages/core/entitlement.test.mjs` exit 0 |
 | 기존 보드·목록의 정적 HTML 렌더 | Executed, 변경 전 | DB 없이 react-dom/server로 href·문구·gate 우선·빈 요약의 key 이중 표시·Free 배지·Locked 링크를 단언. 제안한 최종 코드의 통과 결과는 아님 |
-| VFY-BSIM-01 / VFY-BSIM-02 / VFY-BSIM-03의 구현 후 검증 | Not executed | 제품 코드 미구현. 새 계약·새 HTML 테스트·전체 빌드의 통과 결과는 아직 없음 |
+| VFY-BSIM-01 / VFY-BSIM-02 / VFY-BSIM-03의 구현 후 검증 | Executed | 아래 구현 검증 결과 참조 |
+
+구현 검증(2026-09-08, 코드 `eab1f4c`, 로컬 Node `v26.4.0`):
+
+| 검증 | 기준선 | 구현 후 |
+| --- | --- | --- |
+| `npm run db:generate` | 통과 | build에서 재생성 통과 |
+| `npm run verify:fsd` | 통과 | 통과 |
+| `npm run check` | 통과, architecture 19/19 | 통과, architecture 19/19. lint·Next typegen·tsc 포함 |
+| `npm test` | 112/112 통과 | 112/112 통과 |
+| `npm run test:web` | 142/142 통과 | 147/147 통과 |
+| 보드 `briefing.test.mjs` | 25개 기존 테스트 | 30/30 통과, 그중 실제 UI HTML 검증 6개 |
+| `npm run build` | sandbox 포트 차단으로 초기 실패 | 캐시 분리 후 기본 Turbopack 빌드 통과. 정적 페이지 10/10 및 모든 route 수집 |
+| VFY-BSIM-03의 목록 HTML 명령 | 대조 단계 통과 | Free/Pro/Max 배지·활성/잠긴 프로젝트 링크 통과 |
+| VFY-BSIM-03의 AST/파일 부재 검사·삭제 심볼 검색 | 변경 전에는 삭제 대상 존재 | 파일 2개 부재, 새 입력/출력 타입 구조 통과, 제거 심볼 참조 0건 |
+| 변경 전후 보드 HTML 비교 | 변경 전 112개 사례를 임시 JSON에 보관 | 6개 상태+unknown × 날짜 4개 × 결과 형태 4개의 HTML이 바이트 동일 |
+| 범위·공백 검사 | 사용자 변경 없음 | 지정 12개 경로와 제안서만 변경, `git diff --check` 통과 |
+
+초기 환경 실패와 해소: sandbox 안의 `npm test`는 로컬 테스트 서버 12건에서 `listen EPERM`이 발생했다.
+권한 확장 후 112/112로 통과했다. Turbopack도 PostCSS 평가 포트에서 같은 오류를 냈고,
+권한 확장만으로는 실패가 남았다. 실행 중인 Next 서버/빌드가 없음을 확인한 뒤 생성 캐시
+`.next/cache/turbopack`을 임시 디렉터리로 옮겨 새 캐시로 재빌드하자 기본 `npm run build`가 통과했다.
+애플리케이션 설정·의존성 변경이나 Webpack 대체는 하지 않았다.
+
+브라우저 픽셀/실제 OAuth·DB 검증은 실행하지 않았다. 이번 변경은 DB 없는 실제 컴포넌트 HTML과
+원래 HTML의 바이트 비교로 표시 보존을 확인했고, 변경되지 않는 서버·정책·layout은 scope guard로 확인했다.
+원격 Node 22 검증은 push 후 PR의 check로 확인하며, 녹색이 되기 전에는 dev에 병합하지 않는다.
 
 ## Risks and Rollback
 
@@ -636,9 +663,17 @@ UTC 달력일 대신 24시간 차이를 쓰는 것, 결과를 합친 뒤 예산�
 
 ## Completion or Closure Notes
 
-미실행. 완료 시 실제 변경 파일, 구현 커밋/PR, VFY별 명령·결과, 삭제·대체한 테스트의 이유,
-미실행 확인과 잔여 리스크를 기록한다. 코드와 검증이 완료된 뒤 metadata를 갱신하고
-`completed/YYYY-MM-DD-board-model-simplification.md`로 이동한다.
+완료일은 front matter에 기록했다. 구현 커밋 `eab1f4c`는 승인된 제안서, 보드 입력·출력과 UI·route,
+중복 플랜 조회, 직접 연관 문서 변경을 포함한다. 브랜치는 `harness/board-model-simplification`, PR base는 `dev`다.
+
+- `briefing.ts`는 248줄에서 122줄로 줄었다. 날짜 섹션 adapter 31줄과 identity 모듈 60줄을 삭제했다.
+- 렌더링에 쓰지 않던 출력·계산을 없애고 key와 본문을 분리했다. 화면의 순서·문구·클래스·링크·예산 판정은 유지했다.
+- `firstSentence` 4개 테스트를 유지했다. 옛 섹션/null 입력, 발화자·identity·미사용 필드 단언은 제거하거나
+  실제 DB 형태의 동작 검증으로 대체했다. 모델 20개와 실제 UI HTML 6개를 포함해 보드 테스트는 25→30개,
+  전체 웹 테스트는 142→147개가 됐다. 수를 맞추기 위한 보충 테스트는 만들지 않았다.
+- 정책·인가·CAS·감사 원장·스키마·의존성·전역 스타일·layout은 변경하지 않았다.
+- 승인 범위에서 기능적 편차나 미해결 신규 실패는 없다. 환경 실패와 실제 실행하지 않은 검증은 위 결과에 구분했다.
+- 이 문서는 `completed/2026-09-08-board-model-simplification.md`로 이동해 수행 기록으로 보존한다.
 
 ## Reconciliation 기록
 
@@ -665,4 +700,4 @@ bounded evidence를 응답의 Minimal Replay Anchor / Durable Receipt로 남긴�
 - [x] 삭제/보존 심볼의 현재 소유자·공개 경로·변경 후 소비자·검증 목적지를 정했다.
 - [x] 필수 검증이 순수 모델뿐 아니라 최종 보드/목록 HTML과 이전 파일 부재·새 계약 존재까지 확인하도록 보완했다.
 - [x] 문서 추적성 strict 검사와 최초 의미 검토 결과를 현재 구현의 검증 결과와 구분했다.
-- [ ] 제품 구현·회귀 검증·완료 처리는 아직 실행하지 않았다.
+- [x] 제품 구현·로컬 회귀 검증·완료 기록을 마쳤다. dev 병합은 원격 check 통과 뒤 수행한다.
