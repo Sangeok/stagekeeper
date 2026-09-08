@@ -5,11 +5,11 @@ import { cn } from "@/fsd/shared/lib/class-name";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { itemPath } from "@/fsd/shared/routes/project";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
-import type { Briefing, SpeechItem, TeamMember } from "../model/briefing";
+import type { ActivityItem, Briefing, TeamMember } from "../model/briefing";
 
 // Board는 상태 전용이다: (레이아웃의 턴 배너) · Activity · Team. 결정 카드는 Inbox에만 있다.
 export function ProjectBoardPage({ slug, briefing }: { slug: string; briefing: Briefing }) {
-  const rows = [...briefing.inbox, ...briefing.feed];
+  const rows = briefing.activity;
   return (
     <>
       <section>
@@ -32,22 +32,16 @@ export function ProjectBoardPage({ slug, briefing }: { slug: string; briefing: B
   );
 }
 
-// 발화 줄은 "KEY · …"로 시작한다 — 키는 mono로 따로 놓으니 본문에서는 뗀다.
-function lineWithoutKey(item: SpeechItem): string {
-  const prefix = `${item.id} · `;
-  return item.line.startsWith(prefix) ? item.line.slice(prefix.length) : item.line;
-}
-
-function ActivityRow({ slug, item }: { slug: string; item: SpeechItem }) {
+function ActivityRow({ slug, item }: { slug: string; item: ActivityItem }) {
   const isQuiet = item.tone === "done" || item.tone === "hold" || item.tone === "muted";
   return (
     <Link
-      href={itemPath(slug, item.id)}
+      href={itemPath(slug, item.key)}
       className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-rule px-3.5 py-2.5 last:border-b-0 hover:bg-field"
     >
       <span className={cn("text-sm", isQuiet && "text-quiet")}>
-        <span className="mr-2.5 font-mono text-xs">{item.id}</span>
-        {lineWithoutKey(item)}
+        <span className="mr-2.5 font-mono text-xs">{item.key}</span>
+        {item.line}
       </span>
       <span className="flex items-center gap-1.5">
         {item.overBudget ? <OverBudgetChip /> : null}
@@ -62,8 +56,8 @@ function TeamRow({ team }: { team: TeamMember[] }) {
   return (
     <div className="flex flex-wrap gap-x-[22px] gap-y-1.5 text-xs text-quiet">
       {team.map((member) => (
-        <span key={member.identity.id} className="inline-flex items-baseline gap-1.5">
-          <b className="font-mono font-normal text-ink">{member.identity.handle}</b>
+        <span key={member.agent} className="inline-flex items-baseline gap-1.5">
+          <b className="font-mono font-normal text-ink">{member.agent}</b>
           {member.state}
         </span>
       ))}

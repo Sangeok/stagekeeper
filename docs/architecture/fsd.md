@@ -84,7 +84,7 @@ import { BoardItemCard } from "@/fsd/entities/board-item";
 import { ReviewGateButton } from "@/fsd/features/review-gate";
 
 // Bad: 다른 slice의 내부 구조에 결합
-import { toBoardItem } from "@/fsd/entities/board-item/model/board-item";
+import { statusLabel } from "@/fsd/entities/board-item/model/status-label";
 
 // Good: 같은 slice 내부는 상대 경로
 import { gateLabel } from "../model/gate-text";
