@@ -182,10 +182,14 @@ Activity rows link to the item page and end with the state chip.
 | `in_review` | FEAT-04 · plan submitted · in review for 2 days |
 | `planning` | FEAT-06 · writing the plan |
 | `implementing` | FEAT-07 · implementing |
-| `done` | FEAT-02 · *(first sentence of result, or "Done")* |
-| `on_hold` | FEAT-03 · *(first sentence of result, or "On hold")* |
+| `done` | FEAT-02 · *(first sentence of joined results, or reason when results are empty)* |
+| `on_hold` | FEAT-03 · *(first sentence of joined results, or reason when results are empty)* |
 
 Day count reads "1 day" / "2 days"; omitted on day 0.
+
+Results are joined with one space in recorded order before taking the first sentence. An empty
+results array falls back to reason. If the selected summary is blank, the existing row repeats
+the item key in the body as well as the key label; it does not replace it with "Done" or "On hold".
 
 **Decision card** (Inbox only):
 
@@ -218,7 +222,8 @@ model is in git history).
 "No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on
 FEAT-06" / "On hold" / "Recently done" / "Idle". Roles: pm "Selection" · dev "Development"
 · plan-verifier "Plan verification" · doc-auditor "Doc audit" · feature-scout "Feature
-scouting" · unknown "Agent" · none "Unassigned".
+scouting" · unknown "Agent" · none "Unassigned". These role names are terminology, not fields
+rendered in the Team row; the row shows only the agent handle and its state.
 
 ## 7. Inbox
 

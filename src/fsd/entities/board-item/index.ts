@@ -1,5 +1,3 @@
-export { toBoardSections } from "./model/board-item";
-export type { BoardItem, BoardSection } from "./model/board-item";
 export { blobHref, orderReportActors, reportDocLabel } from "./model/doc-link";
 export type { RepoRef } from "./model/doc-link";
 export { statusLabel } from "./model/status-label";

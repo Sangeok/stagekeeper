@@ -1,4 +1,3 @@
-import { toBoardSections } from "@/fsd/entities/board-item";
 import { ProjectBoardPage, buildBriefing } from "@/fsd/pages/project-board";
 import { requireMember } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
@@ -14,7 +13,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]">) {
   ]);
 
   const roster = workspaces.map((w) => w.agent);
-  const briefing = buildBriefing(toBoardSections(rows), new Date(), roster);
+  const briefing = buildBriefing(rows, new Date(), roster);
 
   return <ProjectBoardPage slug={slug} briefing={briefing} />;
 }
