@@ -6,6 +6,7 @@ import { SectionLabel } from "@/fsd/shared/ui/section-label";
 export type TimelineEvent = {
   at: Date;
   actor: string;
+  channel: string | null; // human 행만: "web" | "session". 세션에서 연 게이트는 History에 "session"이 붙는다(product-copy §11)
   from: string | null;
   to: string | null;
   note: string | null;
@@ -105,7 +106,7 @@ export function BoardItemPage({ item, transition }: { item: BoardItemView; trans
           {item.events.map((e, i) => (
             <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule px-3.5 py-2 text-sm last:border-b-0">
               <span className="font-mono text-xs text-quiet">{stamp(e.at)}</span>
-              <span className="font-mono text-xs text-quiet">{e.actor}</span>
+              <span className="font-mono text-xs text-quiet">{e.channel === "session" ? `${e.actor} · session` : e.actor}</span>
               <span className="font-mono text-xs">
                 {e.from ?? "—"} → {e.to ?? "discarded"}
               </span>
