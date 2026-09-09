@@ -15,7 +15,7 @@
 | `backlog_list` | `{includeRemoved?}` | 백로그 항목 + 최신 보드 status | pm·dev·doc-auditor | 1 |
 | `backlog_get` | `{key}` | 항목 1건(`source` 전문) | dev | 1 |
 | `board_list` | `{open?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
-| `board_get` | `{key}` | 최신 보드 행 + 전이 이벤트 + 보고 | dev·plan-verifier·main-loop | 1 |
+| `board_get` | `{key}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·main-loop | 1 |
 | `board_propose` | `{key, agent, reason}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
 | `board_transition` | `{key, to, result?}` | 에이전트 허용 전이만(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit` 선행 필수. `done`은 백로그 항목 자동 제거 | dev | 1 |
 | `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
@@ -25,13 +25,38 @@
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 
-**등록되지 않은 것(웹 전용):** 게이트 승인(`proposed→planning`, `in_review→implementing`), 되돌리기, 보류(사람), 폐기, 재개, 재열기(`done→…`), 백로그 편집·삭제, 명령 생성, 토큰 발급.
+**에이전트 서버에 등록되지 않은 것:** 게이트 승인(`proposed→planning`, `in_review→implementing` — 소유자 서버 `harness_owner`의 `gate_approve`에만 있다), 되돌리기, 보류(사람), 폐기, 재개, 재열기(`done→…`), 백로그 편집·삭제, 명령 생성, 토큰 발급. 게이트 승인을 뺀 나머지는 소유자 서버에도 없다 — 웹 전용이다.
 
 증거 제출 3종(`plan_submit`·`report_submit`·`validation_record`)은 모두 same-status
 `TransitionEvent`(note `plan`·`report`·`validation`, actorId = 호출 토큰)를 남긴다 —
-원장 = 감사 로그(불변식 8). 클린 사이클의 원장은 정확히 8건이다. `agent_next`의 원장은 따로다 —
+원장 = 감사 로그(불변식 8). `TransitionEvent.channel`은 사람 행에만 `web` | `session`이 실린다(에이전트 행은
+null). 클린 사이클의 원장은 정확히 8건이다. `agent_next`의 원장은 따로다 —
 `AgentRun`(에이전트·항목별 커서)과 `AgentRunStep`(outcome이 실린 호출 전부, 거부 포함)이며
 `TransitionEvent`에는 남기지 않는다.
+
+## MCP 도구 계약 — 소유자 토큰 스코프
+
+서버 이름 `harness_owner`, 엔드포인트 `/api/mcp/owner` — 에이전트 서버(`/api/mcp`)와 **다른 엔드포인트, 다른
+검증기**다. Claude Code에서 보이는 이름은 `mcp__harness_owner__<tool>`. 소유자 토큰(`ho_`)은 프로젝트가 아니라
+**사용자**에 묶이고(`OwnerToken.userId`) 이 엔드포인트에서만 받는다 — 에이전트 토큰은 여기서 401, 소유자 토큰은
+에이전트 서버에서 401. 에이전트 서버의 등록 집합은 그대로다(`src/server/mcp/tools.test.mjs`의 WEB_ONLY 가드).
+
+| 도구 | 입력 | 효과 | 누가 | Phase |
+| --- | --- | --- | --- | --- |
+| `gate_approve` | `{key, to: planning\|implementing, planCommit?}` | 사람 게이트 전이(actor human, channel session). `→ implementing`은 validation 필수 + `planCommit` 일치. 응답 `{item, next: {action: "dispatch", agent, key, step: 3\|6}}` — 세션은 그 턴에 dev를 디스패치한다 | 소유자 토큰 | 5 |
+
+호출마다 도구 층에서 멤버십(`ProjectMember`) → 잠금 → 플랜(`sessionApprovals` — Free는 웹 전용) 순으로 검사한다.
+거부 사유(`isError`; `product-copy.md` §12에 같은 문장):
+`not a member of this project — the owner token no longer opens gates here; revoke it on the Tokens tab` ·
+`session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` ·
+`not a gate: in_review → planning — a session opens gates only; send back, hold, reopen, and discard are web only` ·
+`no validation record — a session approves implementation only after plan-verifier's pass is recorded; approve in the Inbox to override` ·
+`planCommit required — state the commit you are approving (board_get shows it)` ·
+`planCommit mismatch: the board records 3f2a9c1`.
+판정은 `src/server/pipeline/board-rules.ts`의 `decideSessionGate` 하나이고, 쓰기는 웹 게이트와 같은
+`board.transition`(actor `human`, actorRef = 사용자, `channel: "session"`)이다 — 원장 행은 웹 게이트와 같은 모양에
+`channel`만 다르다. 세션 채널은 웹보다 전제가 하나 더 붙는다(게이트②의 검증 기록·`planCommit` 일치); 웹 Inbox는
+그 전제 없이 승인할 수 있다.
 
 ## 상태 기계
 
