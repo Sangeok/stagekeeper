@@ -25,6 +25,11 @@ from that reference, then stop before step 1. After installation, rerun this pre
    Tokens page, minus /api/mcp> --dry-run`. Show the files it would write and get a yes before
    writing. **There is no default server URL** — without it the generator stops
    (`HARNESS_SERVER` works too). If the output has `refuse:` lines, ask whether to `--adopt`.
+   Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If it is set, the user issued an
+   **owner token** on the web Tokens tab (it lets their own session open gates): add `--owner` to
+   both the dry run and the real run — the generator writes a second server, `harness_owner`,
+   that references `${HARNESS_OWNER_TOKEN}`. If it is not set, do not add the flag and do not ask
+   for the token. Never print the token value.
 3. Run it for real. Report the `plan:`, `write:`, `skip(modified):` and `skip(plan):` lines as
    they are. `skip(plan):` means the project's plan does not include that agent — the server did
    not send it; the user upgrades on the web and reruns. If the run stops with
@@ -35,7 +40,10 @@ from that reference, then stop before step 1. After installation, rerun this pre
    that's the one-time approval for a project-scoped MCP server — the user has to approve it.
    If they declined, `claude mcp reset-project-choices` resets it. Then confirm
    `mcp__harness__project_get` works — skipping this step makes `project_get` look like it's
-   failing for no reason.
+   failing for no reason. With `--owner`, `/mcp` also lists `harness_owner`; approve it the same
+   way, and confirm `mcp__harness_owner__gate_approve` is listed. If the shell later lacks
+   `HARNESS_OWNER_TOKEN`, Claude Code keeps the other servers, shows a missing-variable warning for
+   `harness_owner` only, and that server fails to connect until the variable is exported again.
 5. Pass `harness.json.workspaces` and `harness.json.language` (default `en`) to
    `mcp__harness__project_sync` as `{ workspaces, language }` — that's what creates the roster on
    the web board, and the language is what `agent_next` serves steps in.
@@ -52,4 +60,4 @@ Do not try to "complete" a stub by hand. A project connected before this change 
 `/harness:init` to switch: lock-managed files are overwritten (user-edited ones are skipped
 as `skip(modified):` — tell the user those keep the old full body until they drop the edit).
 
-Not done here: creating backlog items (web), gate transitions, committing, printing the token value.
+Not done here: creating backlog items (web), gate transitions (web, or the owner's own session with an owner token — never this skill), committing, printing the token value.

@@ -23,7 +23,7 @@ const CYCLE: { n: number; label: string; you?: true }[] = [
 const FACTS = [
   {
     title: "Agents can't approve themselves.",
-    body: "Gate moves and the settings behind them are web-only. The agent token has neither — not by policy text, by the toolset.",
+    body: "Gate moves are yours — in the Inbox, or from your own session with an owner token. The agent token has neither the gate nor the settings — not by policy text, by the toolset.",
   },
   {
     title: "No pass without a record.",

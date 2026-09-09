@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // harness.json을 읽어 에이전트 정의·규약 문서·런북 절·.mcp.json을 사용자 저장소에 물질화한다. 보드·백로그는 서비스 DB에 있으므로 만들지 않는다.
 // 에이전트 파일은 스텁이다 — 단계 본문은 서버에만 있고 agent_next가 한 번에 하나씩 준다. 무엇이 내려오는지는 플랜이 정한다.
-// 사용: node harness-init.mjs [--config harness.json] [--root .] [--server <url>] [--adopt] [--dry-run]
+// 사용: node harness-init.mjs [--config harness.json] [--root .] [--server <url>] [--adopt] [--owner] [--dry-run]
 // 종료코드: 0 완료 · 1 설정 오류 · 3 refuse(기존 파일과 충돌, 아무것도 쓰지 않음)
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -31,6 +31,8 @@ async function init() {
   const SERVER = (opt("--server", process.env.HARNESS_SERVER) ?? "").replace(/\/$/, "");
   const ADOPT = args.includes("--adopt");
   const DRY = args.includes("--dry-run");
+  // --owner: 소유자 토큰용 서버(harness_owner)를 .mcp.json에 더한다. 값은 ${HARNESS_OWNER_TOKEN} 참조뿐 — 에이전트 토큰과 같은 규칙.
+  const OWNER = args.includes("--owner");
   // 템플릿은 플러그인에 동봉하지 않는다 — 서버가 인증된 요청에만 내려준다.
   // HARNESS_TEMPLATES_DIR는 개발·테스트에서 로컬 원본을 쓰기 위한 우회로다. 그때 플랜은 HARNESS_PLAN(기본 max)이 정한다 —
   // 서버가 없으니 무엇을 내려줄지도 여기서 같은 규칙(lib/deliver.mjs)으로 정한다.
@@ -142,7 +144,11 @@ async function init() {
   const hasMcpFile = existsSync(mcpPath);
   const mcp = hasMcpFile ? readJsonObject(mcpPath) : {};
   if (mcp.mcpServers !== undefined && !isRecord(mcp.mcpServers)) throw new Error(".mcp.json mcpServers: must be an object");
-  mcp.mcpServers = { ...(mcp.mcpServers ?? {}), harness: { type: "http", url: `${SERVER}/api/mcp`, headers: { Authorization: "Bearer ${HARNESS_TOKEN}" } } };
+  mcp.mcpServers = {
+    ...(mcp.mcpServers ?? {}),
+    harness: { type: "http", url: `${SERVER}/api/mcp`, headers: { Authorization: "Bearer ${HARNESS_TOKEN}" } },
+    ...(OWNER ? { harness_owner: { type: "http", url: `${SERVER}/api/mcp/owner`, headers: { Authorization: "Bearer ${HARNESS_OWNER_TOKEN}" } } } : {}),
+  };
   const mcpContent = JSON.stringify(mcp, null, 2) + "\n";
 
   const nextLock = buildLock(Object.fromEntries(writes.write.map((p) => [p, targets[p]])));

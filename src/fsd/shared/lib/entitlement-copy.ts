@@ -34,6 +34,7 @@ export function planMatrix(): PlanRow[] {
       }),
     },
     { label: "Report agents", values: cell((p) => limitsFor(p).agents.join(", ")) },
+    { label: "Session approvals", values: cell((p) => (limitsFor(p).sessionApprovals ? "Yes" : "Web only")) },
   ];
 }
 

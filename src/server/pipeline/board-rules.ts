@@ -139,3 +139,32 @@ export function decideReportSubmit(i: ReportSubmitInput): Decision<ReportSubmitP
   }
   return { ok: true, value: { accepts: i.status === "done" && i.actor === MAIN_LOOP } };
 }
+
+// 세션 채널의 게이트. 웹 게이트보다 전제가 하나 더 붙는다 — 판단의 일부를 세션(Claude)이 하므로 서버가 더 본다.
+//  ① kind가 gate인 사람 전이만. bounce·hold·resume·reopen·discard는 세션에 없다(웹 전용).
+//  ② 게이트②(→ implementing)는 검증 기록이 있어야 하고, 호출이 planCommit을 명시해 기록과 같아야 한다 —
+//     "무엇을 승인하는지"를 세션이 말하게 하고 서버가 대조한다. 웹은 카드가 그 커밋을 보여 주므로 이 검사가 없다.
+export type SessionGateInput = {
+  status: string;
+  to: string;
+  validation: string | null;
+  planCommit: string | null;
+  claimedPlanCommit: string | undefined;
+};
+
+export function decideSessionGate(i: SessionGateInput): Decision<null> {
+  const rule = findRule("human", i.status, i.to) as Rule | null;
+  if (!rule || rule.kind !== "gate") {
+    return { ok: false, reason: `not a gate: ${i.status} → ${i.to} — a session opens gates only; send back, hold, reopen, and discard are web only` };
+  }
+  if (i.to === "implementing") {
+    if (i.validation === null) {
+      return { ok: false, reason: "no validation record — a session approves implementation only after plan-verifier's pass is recorded; approve in the Inbox to override" };
+    }
+    if (i.claimedPlanCommit === undefined) return { ok: false, reason: "planCommit required — state the commit you are approving (board_get shows it)" };
+    if (i.planCommit === null || i.claimedPlanCommit !== i.planCommit) {
+      return { ok: false, reason: `planCommit mismatch: the board records ${i.planCommit ?? "none"}` };
+    }
+  }
+  return { ok: true, value: null };
+}

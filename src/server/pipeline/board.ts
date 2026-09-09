@@ -3,7 +3,7 @@ import { isOpen } from "@harness/core/transitions.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import type { ServerResult } from "@/server/result";
-import { PLAN_VERIFIER, decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation } from "./board-rules";
+import { PLAN_VERIFIER, decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideSessionGate, decideTransition, decideValidation } from "./board-rules";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -13,8 +13,10 @@ type Db = PrismaClient | Prisma.TransactionClient;
 // updatedAt을 반드시 보내야 하고, 화면이 없는 MCP 에이전트는 이 트랜잭션에서 방금 읽은
 // row.updatedAt으로 CAS한다. 예전에는 expectedUpdatedAt이 actor와 무관하게 optional이라,
 // 사람 경로를 새로 만들면서 빼먹어도 컴파일이 통과하고 잠금만 조용히 꺼졌다.
+// channel: 사람이 어디서 눌렀나. 규칙에는 영향이 없고 원장·화면 표시에만 쓴다. 웹 액션은 "web", 소유자 토큰 MCP는 "session".
+export type Channel = "web" | "session";
 export type Caller =
-  | { actor: "human"; actorRef: string; expectedUpdatedAt: Date }
+  | { actor: "human"; actorRef: string; channel: Channel; expectedUpdatedAt: Date }
   | { actor: "agent"; actorRef: string };
 
 // 항목별 최신 행 = backlogItemId마다 proposedOn 최대. 폐기 행은 없는 것으로 친다.
@@ -129,7 +131,11 @@ export async function transition(
       data: { status: d.value.status, results: d.value.results, validation: d.value.validation, acceptedAt: d.value.reopens ? null : undefined },
     });
     if (u.count === 0) return fail("stale");
-    await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: d.value.status, actor: caller.actor, actorId: caller.actorRef } });
+    // 채널은 사람 행에만 — 웹인지 세션인지. 에이전트 행은 null(이전 행과 같은 모양).
+    await tx.transitionEvent.create({ data: {
+      boardItemId: row.id, from: row.status, to: d.value.status, actor: caller.actor, actorId: caller.actorRef,
+      channel: caller.actor === "human" ? caller.channel : null,
+    } });
     if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date() } });
     // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
     if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null } });
@@ -152,10 +158,22 @@ export async function discard(projectId: string, input: { key: string; userId: s
       data: { discardedAt: new Date() },
     });
     if (u.count === 0) return fail("stale");
-    await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: null, actor: "human", actorId: input.userId, note: "discard" } });
+    await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: null, actor: "human", actorId: input.userId, channel: "web", note: "discard" } });
     await closeRuns(tx, projectId, input.key);
     return { ok: true as const, item: null };
   });
+}
+
+// 세션 채널의 게이트 하나. 판정은 decideSessionGate → decideTransition(웹과 같은 규칙), 쓰기는 transition — 웹과 같은 행을 남긴다.
+// CAS 토큰은 화면이 없으므로 방금 읽은 row.updatedAt이다. 읽기와 전이 사이에 보드가 움직였으면 transition이 stale로 거부한다.
+export async function sessionGate(projectId: string, input: { key: string; to: string; planCommit?: string }, userId: string) {
+  const row = await latestRow(prisma, projectId, input.key);
+  if (!row) return fail(`no such board item: ${input.key}`);
+  const d = decideSessionGate({
+    status: row.status, to: input.to, validation: row.validation, planCommit: row.planCommit, claimedPlanCommit: input.planCommit,
+  });
+  if (!d.ok) return fail(d.reason);
+  return transition(projectId, { key: input.key, to: input.to }, { actor: "human", actorRef: userId, channel: "session", expectedUpdatedAt: row.updatedAt });
 }
 
 // 항목이 쉬거나(done·on_hold) 폐기되면 그 항목을 걷던 agent_next 커서(AgentRun)는 같은 트랜잭션에서 닫힌다.

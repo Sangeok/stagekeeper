@@ -23,7 +23,7 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
   const { userId, projectId } = w;
   const expected = parseExpected(input.expectedUpdatedAt);
   if (expected === null) return failure(message("stale"));
-  const r = await board.transition(projectId, { key, to, result }, { actor: "human", actorRef: userId, expectedUpdatedAt: expected });
+  const r = await board.transition(projectId, { key, to, result }, { actor: "human", actorRef: userId, channel: "web", expectedUpdatedAt: expected });
   if (!r.ok) return failure(message(r.reason));
   // 되돌리기(reopen)는 항목 상세에서 오므로 그 경로도 새로 그린다.
   revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox")); revalidatePath(itemPath(slug, key));

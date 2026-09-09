@@ -16,7 +16,7 @@ Stagekeeper는 사람이 승인 게이트를 소유하고 에이전트가 계획
         ▼
 [Application Services / src/server] ─────► [Postgres]
         ▲                                      상태의 진실
-        │ MCP over HTTP, project token
+        │ MCP over HTTP, project token (+ owner token, /api/mcp/owner)
 [사용자의 Claude Code]
         ▲
         │ 로컬 설치·생성
@@ -29,6 +29,7 @@ Stagekeeper는 사람이 승인 게이트를 소유하고 에이전트가 계획
 | --- | --- | --- |
 | 웹 사용자 | 프로젝트·백로그 관리, 계획/구현 게이트, 반려·재개 | 에이전트 역할로 증거를 대신 작성 |
 | Claude Code 에이전트 | MCP로 항목 조회·제안·보고·허용된 상태 전이 | 사람 전용 게이트 전이 |
+| 소유자 토큰(사용자의 세션) | 게이트①·② 전이(세션 채널) | 되돌리기·보류·Reopen·폐기·백로그 편집 |
 | Stagekeeper 서버 | 인증·인가, 상태 기계, 동시성, 감사 이벤트 강제 | 사용자의 Claude 실행 |
 | 플러그인 | 에이전트 정의·템플릿·MCP 연결을 사용자 저장소에 물질화 | 서비스 상태의 원본 보관 |
 

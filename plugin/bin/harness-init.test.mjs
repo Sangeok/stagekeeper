@@ -92,6 +92,17 @@ describe("harness-init (v2)", () => {
     assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files)); // 병합 파일은 잠그지 않는다
     assert.match(r.out, /^plan: max$/m); // 우회로의 기본 플랜
   });
+  it("--owner adds the owner server next to harness, referencing HARNESS_OWNER_TOKEN; without it nothing is added", () => {
+    const withOwner = fresh();
+    assert.equal(run(withOwner, "--owner").code, 0);
+    const mcp = JSON.parse(readFileSync(join(withOwner, ".mcp.json"), "utf8"));
+    assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
+    assert.equal(mcp.mcpServers.harness_owner.url, "https://h.example/api/mcp/owner");
+    assert.equal(mcp.mcpServers.harness_owner.headers.Authorization, "Bearer ${HARNESS_OWNER_TOKEN}");
+    const plain = fresh();
+    assert.equal(run(plain).code, 0);
+    assert.equal(JSON.parse(readFileSync(join(plain, ".mcp.json"), "utf8")).mcpServers.harness_owner, undefined);
+  });
   it("agent files are stubs — no step body reaches disk", () => {
     const root = fresh();
     assert.equal(run(root).code, 0);

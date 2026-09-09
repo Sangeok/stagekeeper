@@ -14,6 +14,7 @@ model User {
   createdAt DateTime        @default(now())
   members   ProjectMember[]
   subscription Subscription?
+  ownerTokens  OwnerToken[]
 }
 
 model Subscription {                   // 플랜은 사용자에 붙고 프로젝트는 소유자의 플랜을 따른다. 행이 없으면 free. 결제 경로 없음 — plan:grant 스크립트가 쓴다
@@ -45,6 +46,7 @@ model Project {
   board        BoardItem[]
   commands     Command[]
   runs         AgentRun[]
+  ownerTokens  OwnerToken[]
 }
 
 model ProjectMember {
@@ -64,6 +66,19 @@ model ProjectToken {
   createdAt DateTime  @default(now())
   revokedAt DateTime?
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model OwnerToken {                       // 사람 자격. 소유자가 자기 Claude Code 세션에 물려 게이트를 연다(/api/mcp/owner).
+  id        String    @id @default(cuid()) // ProjectToken과 표가 다르다 — 서로의 엔드포인트에서 접두(ho_/hs_)로 먼저 떨어진다
+  projectId String
+  userId    String                        // 발급한 사람. 게이트 이벤트의 actorId가 이 값이다 — 웹에서 눌렀을 때와 같은 사람
+  hash      String    @unique             // sha256(plain). 평문은 저장하지 않는다
+  label     String
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([projectId, userId])
 }
 
 model Workspace {                      // harness.json.workspaces 의 사본 (project_sync)
@@ -122,6 +137,7 @@ model TransitionEvent {                  // 감사 로그 (불변식 8)
   to          String?                    // null = 폐기
   actor       String                     // human | agent
   actorId     String?                    // userId 또는 tokenId
+  channel     String?                    // human 행만: web | session. agent 행과 이 열 이전의 행은 null
   note        String?
   at          DateTime  @default(now())
   boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)

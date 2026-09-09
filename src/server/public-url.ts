@@ -6,3 +6,8 @@ function publicUrl(): string {
 export function mcpUrl(): string {
   return `${publicUrl()}/api/mcp`;
 }
+
+// 소유자 토큰용 서버. 생성기(--owner)가 .mcp.json에 쓰는 주소와 같아야 한다 — `${SERVER}/api/mcp/owner`.
+export function ownerMcpUrl(): string {
+  return `${publicUrl()}/api/mcp/owner`;
+}
