@@ -6,8 +6,9 @@
 import { templatesFor } from "@/server/templates";
 
 export async function GET(request: Request) {
-  const lang = new URL(request.url).searchParams.get("lang") ?? "en";
-  const result = await templatesFor(request.headers.get("authorization"), lang);
+  const language = new URL(request.url).searchParams.get("lang") ?? "en";
+  const authorizationHeader = request.headers.get("authorization");
+  const result = await templatesFor(authorizationHeader, language);
   return result.ok
     ? Response.json({ templates: result.templates, entitlement: result.entitlement })
     : Response.json({ error: result.reason }, { status: result.status });
