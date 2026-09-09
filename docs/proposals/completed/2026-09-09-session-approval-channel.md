@@ -1651,9 +1651,9 @@ curl -s -X POST "$HARNESS_SERVER/api/mcp" -H "Authorization: Bearer $HARNESS_TOK
 
 - completed-at: front matter 참조
 - verification-summary: front matter 참조
-- implementation PR/commit: 브랜치 `harness/session-approval-channel`(`dev`에서 분기). 이 문서를 `completed/`로 옮기는 시점에는
-  **미커밋** — 커밋과 PR(`--base dev`)은 소유자 요청 시. private 템플릿 저장소(`plugin/templates`, nested)의 변경 3파일
-  (`en/CLAUDE.runbook.md`·`en/CLAUDE.runbook.free.md`·`templates.test.mjs`)도 같이 미커밋이다.
+- implementation PR/commit: PR #23(`harness/session-approval-channel` → `dev`). 커밋 `8268ba0`(Phase 1) · `4a58864`(Phase 2) ·
+  `93b580a`(Phase 3) · `a9a743a`(Phase 4) · `33edd0a`(Phase 5, 이 문서의 완료 이동 포함). private 템플릿 저장소
+  `Sangeok/harness-templates@8b6ff08`(런북 두 판 + `templates.test.mjs`). 이 줄은 PR을 연 뒤 별도 커밋으로 적었다.
 - changed files summary: 순수 규칙·스키마(`token.mjs` 종류 `ho_`·`entitlement.mjs` `sessionApprovals`·`plugin/lib` 동기화·`schema.prisma`
   `OwnerToken`/`TransitionEvent.channel` + 마이그레이션·`board-rules.ts` `decideSessionGate`), 서버(`auth.ts` 소유자 검증기·`board.ts`
   `Channel`/`sessionGate`·`review-gate.server.ts` `channel: "web"`·`owner-tools.ts`·`owner-deps.ts`·`app/api/mcp/owner/route.ts`·
