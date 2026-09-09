@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_PLAN, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, capError, capReason, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
+import { DEFAULT_PLAN, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, allowsSessionApprovals, capError, capReason, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
 
 const DAY = 86_400_000;
 
@@ -156,5 +156,10 @@ describe("capError", () => {
   });
   it("shares its wording with capReason", () => {
     assert.ok(capError("free", "workspaces", 1).startsWith(capReason("free", "workspaces")));
+  });
+  it("session approvals: free is web only, pro and max may approve from a session", () => {
+    assert.equal(allowsSessionApprovals("free"), false);
+    assert.equal(allowsSessionApprovals("pro"), true);
+    assert.equal(allowsSessionApprovals("max"), true);
   });
 });

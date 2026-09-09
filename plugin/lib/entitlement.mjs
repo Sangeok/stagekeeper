@@ -8,9 +8,9 @@ export const UNLIMITED = Infinity;
 export const REPORT_AGENTS = ["pm", "plan-verifier", "doc-auditor", "feature-scout"];
 
 export const LIMITS = {
-  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout"] },
-  pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS },
-  max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS },
+  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout"], sessionApprovals: false },
+  pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true },
+  max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true },
 };
 const AXES = ["projects", "workspaces", "backlog"];
 
@@ -57,4 +57,9 @@ export function allowsAgent(plan, agent, roster) {
 export function historyCutoff(plan, now) {
   const days = limitsFor(plan).historyDays;
   return days === null ? null : new Date(now.getTime() - days * 86_400_000);
+}
+
+// 소유자 토큰 발급(웹)과 gate_approve(MCP)가 같은 판정을 쓴다.
+export function allowsSessionApprovals(plan) {
+  return limitsFor(plan).sessionApprovals;
 }

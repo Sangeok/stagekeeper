@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation } from "./board-rules.ts";
+import { decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideSessionGate, decideTransition, decideValidation } from "./board-rules.ts";
 
 const base = { backlogExists: true, hasOpenRow: false, openCount: 0, roster: ["web-dev", "admin-dev"], agent: "web-dev", reason: "evidence" };
 const row = (o = {}) => ({ status: "planning", planPath: null, reportCount: 0, results: [], validation: null, ...o });
@@ -112,5 +112,28 @@ describe("decideReportSubmit — actor and the verify wall", () => {
     assert.equal(decideReportSubmit(rs({ actor: "main-loop" })).value.accepts, true);
     assert.equal(decideReportSubmit(rs({ actor: "web-dev" })).value.accepts, false);
     assert.equal(decideReportSubmit(rs({ status: "in_review", actor: "main-loop" })).value.accepts, false);
+  });
+});
+
+describe("decideSessionGate — the session channel's extra wall", () => {
+  const g = (o = {}) => decideSessionGate({ status: "in_review", to: "implementing", validation: "clean pass", planCommit: "3f2a9c1", claimedPlanCommit: "3f2a9c1", ...o });
+  it("opens gate 1 and gate 2 when the wall holds", () => {
+    assert.equal(decideSessionGate({ status: "proposed", to: "planning", validation: null, planCommit: null, claimedPlanCommit: undefined }).ok, true);
+    assert.equal(g().ok, true);
+  });
+  it("refuses every non-gate human transition", () => {
+    for (const [status, to] of [["in_review", "planning"], ["in_review", "on_hold"], ["on_hold", "implementing"], ["done", "implementing"]]) {
+      assert.match(decideSessionGate({ status, to, validation: "v", planCommit: "c", claimedPlanCommit: "c" }).reason, /not a gate/, `${status}→${to}`);
+    }
+    assert.match(decideSessionGate({ status: "proposed", to: "implementing", validation: null, planCommit: null, claimedPlanCommit: undefined }).reason, /not a gate/);
+  });
+  it("gate 2 needs a validation record and a matching planCommit", () => {
+    assert.match(g({ validation: null }).reason, /no validation record/);
+    assert.match(g({ claimedPlanCommit: undefined }).reason, /planCommit required/);
+    assert.match(g({ claimedPlanCommit: "0000000" }).reason, /planCommit mismatch: the board records 3f2a9c1/);
+    assert.match(g({ planCommit: null }).reason, /the board records none/);
+  });
+  it("gate 1 ignores validation and planCommit", () => {
+    assert.equal(decideSessionGate({ status: "proposed", to: "planning", validation: null, planCommit: null, claimedPlanCommit: "anything" }).ok, true);
   });
 });
