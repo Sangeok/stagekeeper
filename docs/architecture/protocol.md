@@ -4,6 +4,21 @@
 한곳에 둔다. 왜 이래야 하는지는 [invariants.md](./invariants.md), 어디서 왔는지는
 [sources.md](./sources.md)에 있다.
 
+## 템플릿 다운로드 — `GET /api/templates`
+
+`/harness:init`은 `Authorization: Bearer <에이전트 토큰>`과 `lang` 쿼리(생략 시 `en`)로
+템플릿을 요청한다. 서버는 토큰 인증 → 프로젝트 접근 확인 → 언어별 템플릿 조회 순으로
+처리한다. 인증이나 접근 확인에 실패하면 템플릿을 조회하지 않는다.
+
+| 상태 | 의미 |
+| --- | --- |
+| `200` | `{ templates, entitlement: { plan, agents } }`. 에이전트는 스텁, 보고 에이전트·런북은 플랜에 맞춰 제공 |
+| `401` | 에이전트 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음 |
+| `403` | 인증은 성공했지만 프로젝트가 플랜 상한으로 잠김. 응답의 `error`에 잠금 사유 보존 |
+| `404` | 요청한 언어의 템플릿이 없음 |
+
+위 4xx 응답은 `{ error: string }`이다. MCP 도구의 `isError` 응답과 별개의 HTTP 계약이다.
+
 ## MCP 도구 계약 — 에이전트 토큰 스코프
 
 서버 이름 `harness`. Claude Code에서 보이는 이름은 `mcp__harness__<tool>`. 도구명은 밑줄(점 금지 — 클라이언트 정규화 회피).
