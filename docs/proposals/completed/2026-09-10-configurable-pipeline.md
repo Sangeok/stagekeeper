@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-09"
 approved-by: "HamSangEok"
 approved-at: "2026-09-10"
 approval-scope: "본문 §A–§H 전체와 Execution Plan 1–6. 구현 후 dev로 PR."
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-10"
+verification-summary: "npm test 134/134 · npm run test:web 217/217 · npm run test:templates 18/18 · npm run check exit 0 · npm run verify:fsd 통과 · 마이그레이션 20260910044819_pipeline_version_and_run 적용(migrate status up to date) · seed:templates 10 · 잔존 검사 3명령 0행 · JSON-RPC 스모크 24/24 · build 건너뜀(dev 서버 실행 중, CI check 통과) · Pipeline 탭·백로그 올리기 수동 실측 미실행(follow-up)"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -1904,11 +1904,23 @@ test -e plugin/templates/en/CLAUDE.runbook.free.md && echo "free runbook file st
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: front matter 참조
+- verification-summary: front matter 참조
+- implementation PR/commit: PR #26(`harness/configurable-pipeline` → `dev`, 머지 `9bee0f2`). 커밋 `f7587f5`(core+스키마) ·
+  `38f17b6`(서버+MCP) · `7fb6404`(웹) · `08adc26`(문서·카피) · `bbca21b`(레일·백로그 올리기 UI와 결함 둘) · `c37fdc0`(이 문서).
+  private 템플릿 저장소 `Sangeok/harness-templates@0f3ffbe`(런북 8단계 제거 · Free 런북 삭제 · dev·pm·plans README · `templates.test.mjs`).
+  이 문서의 완료 이동은 별도 PR이다.
+- changed files summary: 순수 규칙·스키마(`packages/core/pipeline.mjs` 신규 + 테스트 · `entitlement.mjs` `pipelineEdit`/`dispatches`/30일 창 ·
+  `transitions.mjs` `actor: "pipeline"` 행 둘 · `deliver.mjs` Free 런북 치환 제거 · `plugin/lib` 동기화 · `schema.prisma` `PipelineVersion`·`PipelineRun`
+  + 마이그레이션), 서버(`src/server/pipeline/run-rules.ts`·`run.ts` 신규 · `board.ts` `gate`·`advanceRun`·`resetRun`·`advancePipeline`·`closeRun` ·
+  `mcp/tools.ts` `pipeline_next` · `mcp/deps.ts` · `mcp/owner-tools.ts` 입력 `to`→`gate` · `owner-deps.ts`), 웹(`features/edit-pipeline` ·
+  `features/propose-item` · `pages/project-pipeline` · `entities/pipeline` 신규 4슬라이스, `review-gate`의 `isAtGate`·게이트 id 라벨 ·
+  `turn-banner`의 노드 기반 판정 · `board-briefing`의 그래프 기반 team · 항목 상세 History), 플러그인·템플릿(`skills/init/SKILL.md` · 런북 · dev·pm ·
+  plans README), 문서(`protocol.md`·`invariants.md`·`system-overview.md`·`product-copy.md` §5·§6·§7·§8·§11·§12·§13·§14·§16·새 §18 Pipeline tab).
+  테스트 추가: `pipeline.test.mjs`·`rail-state.test.ts` 신규, `gate-source`·`inbox-item`·`turn`·`briefing`·`entitlement-copy`·`templates` 갱신.
+- remaining follow-up: (1) dev 서버 재시작 — 마이그레이션 뒤 Prisma 클라이언트를 다시 읽어야 한다. (2) 프로젝트마다 `pipeline_next({})`를
+  한 번 호출 — 마이그레이션 전부터 열려 있던 항목은 런이 없어 그전까지 Inbox 게이트 카드와 배너에 안 잡힌다(Risks의 마이그레이션 문단).
+  (3) Pipeline 탭 레일과 백로그 "Put on the board"의 수동 실측 — 순수 규칙과 서버 액션은 테스트로 덮였지만 화면 조작은 없다.
 
 ## Review Checklist
 
@@ -1925,5 +1937,5 @@ test -e plugin/templates/en/CLAUDE.runbook.free.md && echo "free runbook file st
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (실패 없음 — 일곱 명령 전부 green)
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다. (해당 없음)
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다. (미실행 실측은 follow-up으로 명시)
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다. (해당 없음)
