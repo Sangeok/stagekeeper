@@ -1,4 +1,4 @@
-import { discardItem, humanTransition, loadInboxItems } from "@/fsd/features/review-gate/index.server";
+import { approveGate, discardItem, humanTransition, loadInboxItems } from "@/fsd/features/review-gate/index.server";
 import { ProjectInboxPage } from "@/fsd/pages/project-inbox";
 import { requireMember } from "@/server/auth/guard";
 import { projectAccess } from "@/server/entitlement";
@@ -15,6 +15,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/inbox">) {
       items={items}
       now={new Date().toISOString()}
       transition={humanTransition.bind(null, slug)}
+      approve={approveGate.bind(null, slug)}
       discard={discardItem.bind(null, slug)}
       locked={access.locked}
     />

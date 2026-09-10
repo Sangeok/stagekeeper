@@ -64,8 +64,8 @@ The label is what the screen shows.
 
 | Transition | Button | Chip after success | Toast |
 | --- | --- | --- | --- |
-| `proposed → planning` (gate 1) | **Request plan** | Plan requested | Plan requested · FEAT-01 |
-| `in_review → implementing` (gate 2) | **Approve implementation** | Approved | Implementation approved · FEAT-01 |
+| `proposed → planning` (`before-plan`) | **Request plan** | Plan requested | Plan requested · FEAT-01 |
+| `in_review → implementing` (`before-implement`) | **Approve implementation** | Approved | Implementation approved · FEAT-01 |
 | `in_review → planning` | Send back | Sent back | Sent back to planning · FEAT-01 |
 | `→ on_hold` | Put on hold | On hold | Put on hold · FEAT-01 |
 | discard | Discard | Discarded | Discarded FEAT-01. This can't be undone. |
@@ -108,8 +108,8 @@ gate."
 **Reopen.** Item page only (§11), only while the item is `done`. Primary **Reopen implementation**;
 the other target is a text link, "Reopen planning instead". Hint by primary: implementation → "dev
 fixes the code against the same plan. Reopening planning instead clears the validation and dev
-rewrites the plan." · planning → "dev rewrites the plan; the validation is cleared. Gate 2 runs
-again." Reopening puts the backlog entry back and clears the acceptance record, if there was one.
+rewrites the plan." · planning → "dev rewrites the plan; the validation is cleared. The item walks the
+pipeline again from plan." Reopening puts the backlog entry back and clears the acceptance record, if there was one.
 Agents can't reopen.
 
 ### Agent transitions (MCP)
@@ -135,7 +135,7 @@ The screen judges by presence alone — if it exists, the item shows **Verified*
 ### Acceptance record
 
 `report_submit` with `actor: "main-loop"` while the item is `done` is the acceptance record; the
-server marks the item accepted at that moment. The five checks (§14, runbook step 7) are still
+server marks the item accepted at that moment. The five checks (§14, the acceptance checks) are still
 reproduced by hand — the record is where they were written up, at `docs/agents/main-loop/<KEY>.md`.
 Until it is in, the item is still yours: the banner says so (§5) and the item page offers Reopen
 (§11). The state label stays **Done** either way; the record shows under Documents as
@@ -163,17 +163,25 @@ Backlog, Tokens and item pages show a **one-line strip** with the same words.
 
 | Owner | Headline | Detail |
 | --- | --- | --- |
-| you | **Waiting on you** | FEAT-01 needs a plan request / FEAT-01 is ready for your approval / FEAT-04 needs verification before approval / FEAT-02 needs acceptance / FEAT-01 is waiting for your commit. Several: "2 items need a plan request" · "2 plans are ready for your approval" · "2 plans need verification" · "2 items need acceptance" · "2 items are waiting for your commit", joined with " · " |
+| you | **Waiting on you** | FEAT-01 is ready for your approval / FEAT-04 needs verification before approval / FEAT-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 needs acceptance / FEAT-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 plans need verification" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items need acceptance" · "2 items are waiting for your commit", joined with " · " |
 | you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
-| agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for FEAT-01 / dev is implementing FEAT-01 |
+| agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for FEAT-01 / the plan for FEAT-01 is being verified / dev is implementing FEAT-01 |
 | nobody | **Nothing open** | Pick the next item from the backlog, or run pm in Claude Code to pick for you. — button **Open backlog** |
 | first run | **Set up in four steps** | the checklist below |
 
-Rules: one item → name it; several → count them. `on_hold` items never own the banner — the
-banner is about who moves next, and nothing moves while on hold. An `in_review` item without a
-validation record is still yours: it needs the verifier run first. A `done` item without an
-acceptance record is yours too: accept it or reopen it. An item whose dev stopped for a commit (a
-handoff, §13 `agent_next`) is yours whatever its state — commit, then tell the session to continue.
+Rules: one item → name it; several → count them. Your turn is where the item's pipeline run
+stands, not what its status is: an item is yours when the run waits at a gate, when it needs
+acceptance, or when it waits for your commit. The first three categories are gates, named by gate
+id — `before-implement` splits on whether a validation is recorded, `before-plan` asks for a plan
+request, and every other gate reads "FEAT-06 is waiting before Verify". `on_hold` items never own
+the banner — the banner is about who moves next, and nothing moves while on hold. An `in_review`
+item without a validation record is **theirs** when the graph has a Verify node: the session's own
+round and plan-verifier are still ahead. Without that node the run waits at `before-implement` and
+the item is yours, as "needs verification before approval". A `done` item without an acceptance
+record is yours too: accept it or reopen it — unless the graph puts a gate before Accept, in which
+case the banner names the gate instead, so one item asks for one thing. An item whose dev stopped
+for a commit (a handoff, §13 `agent_next`) is yours whatever its state — commit, then tell the
+session to continue.
 Actions: **Open inbox** on
 Board and in the strip when it's your turn and the Inbox has cards; on Inbox the banner drops the
 detail line — the cards say it. When your turn is only acceptance or a handoff (nothing on the
@@ -184,11 +192,16 @@ detail line and the **Open FEAT-02** button — no card says it there ("Nothing 
 **Next, in Claude Code** — a box under the banner with the exact line to give your session, with
 **Copy**. One line per item that waits on the terminal:
 
-- planning → `Continue the runbook for FEAT-01: step 3 — dev writes the plan.`
-- in_review without validation → `Continue the runbook for FEAT-01: step 4 — verify the plan.`
-- implementing → `Continue the runbook for FEAT-01: step 6 — dev implements.`
-- done without an acceptance record → `Continue the runbook for FEAT-01: step 7 — accept.`
-- handoff (any state; listed before the state line) → `Commit docs/plans/FEAT-01.md, then continue the runbook for FEAT-01.`
+The line names the **node** the run stands on, not a step number — the runbook has no numbers,
+and `pipeline_next` hands the session the same node.
+
+- plan → `Continue the pipeline for FEAT-01: plan — dev writes the plan.`
+- verify → `Continue the pipeline for FEAT-01: verify — verify the plan.`
+- implement → `Continue the pipeline for FEAT-01: implement — dev implements.`
+- accept → `Continue the pipeline for FEAT-01: accept — accept.`
+- doc-audit → `Continue the pipeline for FEAT-01: doc-audit — doc-auditor audits.`
+- scout → `Continue the pipeline for FEAT-01: scout — feature-scout scouts.`
+- handoff (any node; listed before the node line) → `Commit docs/plans/FEAT-01.md, then continue the pipeline for FEAT-01.`
   (No trailing "— dev resumes": the line overflowed the box, and the detail line already says who resumes.)
   The path is whatever dev put in the handoff note, shown whole; without a note: "Commit the
   prepared file, then …". The note is agent text — it renders in this mono box only, never in the
@@ -199,7 +212,8 @@ you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Co
 repository "Open it in Claude Code with the token set, run `/harness:init`, restart, approve the
 server." (chip **Not connected yet**) · 3 Add a backlog item "Key, title, area, and the evidence
 — what you observed and what you confirmed in the code." (link Backlog) · 4 Run pm in Claude
-Code "It picks up to two items from the backlog and puts them here for your approval." Strip:
+Code "It picks up to two items from the backlog and puts them here for your approval." — a
+pipeline with no Propose node says "Put an item on the board from the Backlog tab" instead. Strip:
 "Setting up · Step 3 of 4 — Add a backlog item."
 
 ## 6. Board
@@ -257,7 +271,13 @@ row (§3). Discard confirm: "This can't be undone. Discard FEAT-01?" — **Cance
 **Journey stepper** — removed with the design v4 board (`deriveJourney` deleted; the 7-stage
 model is in git history).
 
-**Team row** — one dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
+**Team row** — the agents the current pipeline dispatches, in graph order. pm appears when the
+graph has a Propose node, plan-verifier with Verify, doc-auditor with Doc audit, feature-scout
+with Scout; the workspace roster (dev and friends) appears once, for Plan and Implement. Accept
+dispatches nobody — the main loop runs it. The default pipeline has no feature-scout, and the Free
+default has no plan-verifier or doc-auditor either.
+
+One dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
 "No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on
 FEAT-06" / "On hold" / "Recently done" / "Idle". Roles: pm "Selection" · dev "Development"
 · plan-verifier "Plan verification" · doc-auditor "Doc audit" · feature-scout "Feature
@@ -269,14 +289,27 @@ rendered in the Team row; the row shows only the agent handle and its state.
 - No title of its own — the turn banner is the headline. The Inbox tab carries a count badge
   while decisions are open.
 - Empty: "Nothing to decide."
-- Order: gate 2 (in_review) first, then gate 1 (proposed), then on_hold.
-- Cards are the decision card above (§6).
+- Order: `before-implement` (in_review) first, then `before-plan` (proposed), then on_hold.
+- Cards are the decision card above (§6). A card appears when the item's pipeline run waits at a
+  gate — not because of its status. A graph with that gate removed shows no card there.
+- Gates that are not a state boundary (`before-verify` · `before-accept` · `before-doc-audit` ·
+  `before-scout`) also make cards. Their button says **Continue to …**, the status does not change,
+  and the "What this decision does" list adds: "**Continue** moves the item to the next node;
+  nothing changes on the board."
+- The unverified-plan warning belongs to `before-implement` only. At `before-verify` an unverified
+  plan is the normal state, so the card shows **No validation yet** in a neutral tone and no risk chip.
 
 ## 8. Backlog
 
 - Title **Backlog**. Toggle **Show removed** / **Hide removed**.
 - Table: Key · Title · Area · Board status. Cells: state label, or "Not on board"; "Removed".
-  Row action **Remove**. Empty: "No backlog items yet. Add the first one below."
+  Row action **Remove**, and **Put on the board** on rows that are not on the board yet. Empty:
+  "No backlog items yet. Add the first one below."
+- **Put on the board** opens a small form on the row: the assignee (a select over the workspace
+  roster) and the evidence (default "owner", 150 characters). Toast on success:
+  "Put on the board · FEAT-01". The server's own sentences are shown as they are
+  ("open items: 2 (max 2)"), and a write that loses the race says
+  "The board changed. Refresh and try again."
 
 - Form: **Add backlog item** / **Edit FEAT-01**. Fields **Key** (placeholder `FEAT-01`) ·
   **Title** · **Area** (placeholder `src/server/pipeline`) · **Evidence**. Evidence hint:
@@ -370,6 +403,10 @@ rendered in the Team row; the row shows only the agent handle and its state.
 - **History**: `01:49:14` `agent` `— → proposed` · `01:52:09` `human` `proposed → planning` ·
   a gate opened from the owner's session reads `human · session` (`TransitionEvent.channel`;
   web rows stay plain `human`, agent rows carry no channel) · discard renders as `→ discarded`
+- A boundary the pipeline crossed on its own — the graph has no gate there — is written by
+  `pipeline`, and the row reads `pipeline · auto`. A gate the owner opened carries the gate in its
+  note, rendered as `gate · before Implement`; a gate that is not a state boundary leaves that row
+  alone, with the same from and to
 
 Document link labels (reused on the board): plan "Plan"; reports by actor — main-loop
 "Validation record", or "Acceptance record" for the report that accepted the item · dev
@@ -401,10 +438,26 @@ are terse on purpose — agents parse them.
 | `no such board item: FEAT-9` | — |
 | `not a member of this project — the owner token no longer opens gates here; revoke it on the Tokens tab` (owner server, `gate_approve`) | — |
 | `session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` (owner server) | — |
-| `not a gate: in_review → planning — a session opens gates only; send back, hold, reopen, and discard are web only` (owner server) | — |
+| `not a gate: <id>` (owner server · web gate) | — |
+| `not waiting at before-implement — the item is at before-plan` (owner server · web gate) | — |
+| `not allowed: human planning → implementing` (boundary gate whose status does not match) | — |
 | `no validation record — a session approves implementation only after plan-verifier's pass is recorded; approve in the Inbox to override` (owner server) | — |
 | `planCommit required — state the commit you are approving (board_get shows it)` (owner server) | — |
 | `planCommit mismatch: the board records 3f2a9c1` (owner server) | — |
+| `gates open through board.gate, not a transition: proposed → planning` (a client that still sends a gate as a plain transition) | — |
+| `dispatch cap reached on the free plan (60). Upgrade the plan to add more. Counted over the last 30 days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.` (`agent_next`, run 개설) | — |
+| `graph must have nodes and gates` (pipeline save) | shown as is |
+| `a node appears twice` | shown as is |
+| `unknown node: verifyy` | shown as is |
+| `accept can't be removed` | shown as is |
+| `verify is not on the free plan` | shown as is |
+| `nodes before accept must keep the order propose · plan · verify · implement · accept` | shown as is |
+| `only doc-audit and scout may follow accept` | shown as is |
+| `a gate appears twice` | shown as is |
+| `gate before-scout has no node after it` | shown as is |
+| — (pipeline save, plan) | Pipeline editing opens on Pro. The default pipeline stays as is. |
+| — (pipeline save, race) | The pipeline changed. Refresh and try again. |
+| — (put on the board, race) | The board changed. Refresh and try again. |
 
 `checkText` (core): `reason: must not be empty` · `reason: must be 150 characters or fewer (got 163)`.
 The Reopen form checks its note before sending, so `result: must not be empty` doesn't reach the web.
@@ -430,21 +483,34 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `plan_submit` | Record where the plan is (path and commit). Only in `planning` or `in_review` — re-call after review edits so the approved commit is recorded. |
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
+| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is pm's turn (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · the dispatch cap sentence). With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap`, `accept`, or `done`. |
 | `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok \| blocked \| failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:
 
 | Tool | Description |
 | --- | --- |
-| `gate_approve` | Owner only: open a gate — proposed → planning (Request plan) or in_review → implementing (Approve implementation). Approving implementation needs a validation record and the planCommit from board_get. Returns the item and next: the dev to dispatch and the runbook step (3 or 6) — dispatch it in the same turn. Send back, hold, reopen, and discard stay web only. |
+| `gate_approve` | Owner only: open the gate the item is waiting at — pass the gate id from `pipeline_next` (`before-plan`, `before-implement`, `before-verify`, `before-accept`, `before-doc-audit`, `before-scout`). `before-implement` needs a validation record and the planCommit from board_get. Returns the item and next — act on next in the same turn. Send back, hold, reopen, and discard stay web only. |
 
-Response: `{ item, next: { action: "dispatch", agent: <the item's dev>, key, step: 3 | 6 } }` —
-`next` is built by the tool from the transitioned row; the runbook's "Approving from this session"
-tells the session what to do with it.
+Response: `{ item, next }` where `next` has the same shape as a `pipeline_next` answer — there is no
+runbook step number, because the runbook has no numbers. `next` comes from the pipeline's own cursor
+after the gate opened; the runbook's "Approving from this session" tells the session what to do with it.
+
+**`dispatch` hints** — one sentence per node, the same text `pipeline_next` returns:
+
+| node | hint |
+| --- | --- |
+| `propose` | Dispatch pm with no key. It proposes at most one item per run. |
+| `plan` | Dispatch with the item key. One item per dispatch. |
+| `verify` | Run your own verification round first (paths from docs/plans/verification-paths.md, reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record. |
+| `implement` | Dispatch with the item key. It reports and moves the item to done itself. |
+| `doc-audit` | Dispatch doc-auditor with no key; append its report to docs/agents/doc-auditor/audit-log.md yourself. |
+| `scout` | Dispatch feature-scout with no key — only when harness.json.scout is configured (init writes that agent only then); otherwise take the Scout node off the Pipeline tab. Append its report to docs/agents/feature-scout/scouting-log.md yourself. |
 
 ## 14. Generated templates (`plugin/templates/en/`)
 
-Nine files. Same structure and the same `tools:` contract as today (the snapshot test enforces
+Eight files — the Free runbook variant is gone; the pipeline graph carries the plan difference now.
+Same structure and the same `tools:` contract as today (the snapshot test enforces
 both). Below: each file's title, its section headings, and the sentences that set the tone.
 
 ### `agents/pm.md`
@@ -634,7 +700,8 @@ both). Below: each file's title, its section headings, and the sentences that se
   and 7 (acceptance) has no status of its own — it is the five checks the owner reproduces by
   hand, then records with `report_submit`."
 - Three facts (not slogans):
-  - **Agents can't approve themselves.** Gate moves are yours — in the Inbox, or from your own
+  - **Agents can't approve themselves.** Gates are where you put them — you decide how many and
+  where, on the Pipeline tab. Opening one is yours — in the Inbox, or from your own
     session with an owner token. The agent token has neither the gate nor the settings — not by
     policy text, by the toolset.
   - **No pass without a record.** An item shows Verified only when an independent pass wrote
@@ -724,6 +791,25 @@ never existed look the same from here.
 > That item isn't on this board.
 
 ---
+
+## 18. Pipeline tab
+
+- Title **Pipeline**. Version line: "Version 3 · saved 2 days ago · applies to items proposed from
+  now on."
+- The rail is one row of node cards in graph order. Node names: **Propose** · **Plan** · **Verify** ·
+  **Implement** · **Accept** · **Doc audit** · **Scout**.
+- A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
+  boundary has no gate, small text between the cards says "auto → planning".
+- Each edge carries a **+** that inserts a gate, or puts back a node the graph does not have
+  (a removed optional node, or the opt-in Scout). A node card's menu offers **Remove** for optional
+  nodes and gates, and the two tail nodes offer **Swap**.
+- A button is disabled with the server's own reason — the rail runs the same `validateGraph` the
+  save action does, so the wording in §12 is what the user sees.
+- Zero gates is allowed, and saving warns first: "No gate: agents run this item end to end without
+  you. Reopen and discard stay on the web."
+- Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is."
+- Scout is opt-in: "Scout runs only with harness.json.scout — add it here when that is set."
+- **Read as text** is a `<details>` that renders the graph as a numbered list, in cursor order.
 
 ## Review notes
 

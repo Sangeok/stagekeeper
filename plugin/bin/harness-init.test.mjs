@@ -26,7 +26,6 @@ const FIXTURES = {
   "agents/feature-scout.md": "---\nname: feature-scout\n---\n{{scout.question}}\n\n## step:start\nscout step body\n",
   "agents/dev.md": "---\nname: {{ws.agent}}\n---\nowns {{ws.path}}\n{{ws.verify_block}}\n\n## step:implement requires: implementing\ndev step body\n",
   "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\nfull pipeline\n",
-  "CLAUDE.runbook.free.md": "## Harness\nbranch {{board_branch}}\nfree pipeline\n",
 };
 const TPL_DIR = mkdtempSync(join(tmpdir(), "harness-tpl-"));
 for (const [rel, body] of Object.entries(FIXTURES)) {
@@ -267,7 +266,7 @@ describe("harness-init (v2)", () => {
   });
 
   describe("plan", () => {
-    it("free: report agents outside the plan are skipped, the free runbook lands in CLAUDE.md", () => {
+    it("free: report agents outside the plan are skipped, the same runbook lands in CLAUDE.md", () => {
       const root = fresh(ONE_WS);
       const r = runFree(root);
       assert.equal(r.code, 0, r.out);
@@ -278,8 +277,7 @@ describe("harness-init (v2)", () => {
         assert.match(r.out, new RegExp(`^skip\\(plan\\): \\.claude/agents/${a}\\.md \\(not on the free plan\\)$`, "m"));
       }
       const runbook = readFileSync(join(root, "CLAUDE.md"), "utf8");
-      assert.match(runbook, /free pipeline/);
-      assert.doesNotMatch(runbook, /full pipeline/);
+      assert.match(runbook, /full pipeline/); // 런북은 한 판이다 — 플랜 차이는 그래프가 진다(deliver.mjs)
       const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
       assert.ok(!(".claude/agents/plan-verifier.md" in lock.files));
     });

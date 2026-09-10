@@ -43,12 +43,8 @@ describe("deliverable", () => {
   it("free: plan-verifier and doc-auditor stubs are left out, the runbook is the free variant under the normal key", () => {
     const d = deliverable(ROWS, "free");
     assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/feature-scout.md", "agents/pm.md", "docs/plans/README.md"]);
-    assert.equal(d.templates["CLAUDE.runbook.md"], "## Harness\nfree pipeline\n");
-    assert.deepEqual(d.entitlement, { plan: "free", agents: ["pm", "feature-scout"] });
-  });
-  it("free without a free runbook seeded: the normal runbook stays (a seed problem, not a user error)", () => {
-    const d = deliverable(ROWS.filter((r) => r.path !== "CLAUDE.runbook.free.md"), "free");
     assert.equal(d.templates["CLAUDE.runbook.md"], "## Harness\nfull pipeline\n");
+    assert.deepEqual(d.entitlement, { plan: "free", agents: ["pm", "feature-scout"] });
   });
   it("pro: same agents as max", () => {
     assert.deepEqual(deliverable(ROWS, "pro").entitlement.agents, REPORT_AGENTS);

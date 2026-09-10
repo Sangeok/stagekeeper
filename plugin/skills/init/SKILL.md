@@ -60,4 +60,4 @@ Do not try to "complete" a stub by hand. A project connected before this change 
 `/harness:init` to switch: lock-managed files are overwritten (user-edited ones are skipped
 as `skip(modified):` — tell the user those keep the old full body until they drop the edit).
 
-Not done here: creating backlog items (web), gate transitions (web, or the owner's own session with an owner token — never this skill), committing, printing the token value.
+Not done here: creating backlog items (web), gate transitions (web, or the owner's own session with an owner token, or the server where the Pipeline tab has no gate — never this skill), committing, printing the token value.

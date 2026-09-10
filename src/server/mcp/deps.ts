@@ -6,6 +6,7 @@ import { prismaNextDeps } from "@/server/agents/runs";
 import { prisma } from "@/server/db";
 import { planForProject, projectAccess } from "@/server/entitlement";
 import * as board from "@/server/pipeline/board";
+import { headFor, nextFor } from "@/server/pipeline/run";
 import { makeVerifyToken } from "./auth";
 import type { ToolDeps } from "./tools";
 
@@ -36,7 +37,8 @@ export const prismaToolDeps: ToolDeps = {
   boardList: (projectId, open) => board.latestBoard(projectId, open),
   boardGet: async (projectId, key) =>
     board.getWithHistory(projectId, key, historyCutoff(await planForProject(projectId), new Date())),
-  propose: (projectId, input, actorRef) => board.propose(projectId, input, actorRef),
+  // pm은 에이전트 토큰으로 올린다. 웹의 "Put on the board"는 같은 board.propose를 human·web으로 부른다(§E.7).
+  propose: (projectId, input, actorRef) => board.propose(projectId, input, { actor: "agent", actorRef }),
   // 에이전트에는 화면이 없다 — CAS 토큰은 board.transition이 트랜잭션 안에서 방금 읽은
   // row.updatedAt으로 채운다. Caller 유니온이 그 사실을 타입으로 못박는다.
   transition: (projectId, input, actorRef) => board.transition(projectId, input, { actor: "agent", actorRef }),
@@ -44,6 +46,22 @@ export const prismaToolDeps: ToolDeps = {
   submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
   recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),
   agentNext: (projectId, tokenId, input) => agentNext(prismaNextDeps, { projectId, tokenId }, input),
+  // pipeline_next의 조립은 여기다 — run.ts는 board.ts를 import하지 않으므로 미결 목록을 스스로 읽지 못한다(§D.1).
+  // 항목마다 지연 전진을 먼저 돌린다: doc-audit·scout의 완료(에이전트 run 닫힘)는 보드 쓰기를 지나지 않는다.
+  pipelineNext: async (projectId, key) => {
+    if (key !== undefined) {
+      await board.advancePipeline(projectId, key);
+      return { ok: true as const, item: await nextFor(prisma, projectId, key) };
+    }
+    const openOnly = true;
+    const open = await board.latestBoard(projectId, openOnly);
+    const items = [];
+    for (const row of open) {
+      await board.advancePipeline(projectId, row.backlogItem.key);
+      items.push(await nextFor(prisma, projectId, row.backlogItem.key));
+    }
+    return { ok: true as const, item: { head: await headFor(prisma, projectId, open.length), items } };
+  },
   access: (projectId) => projectAccess(projectId),
 };
 

@@ -2,6 +2,7 @@
 // 액션 형도 여기 둔다 — route가 slug를 bind해서 prop으로 넘긴다(fsd.md 「Server와 Client 경계」).
 import { blobHref, type RepoRef } from "@/fsd/entities/board-item";
 import type { ActionResult } from "@/fsd/shared/api/result";
+import { isGateId } from "@harness/core/pipeline.mjs";
 import { needsHumanDecision } from "./gate-source";
 
 export type InboxItem = {
@@ -10,6 +11,7 @@ export type InboxItem = {
   area: string;
   agent: string;
   status: string;
+  gate: string | null; // 런이 서 있는 게이트 — 카드는 gate !== null일 때 게이트 버튼을 그린다(§E.2)
   reason: string;
   results: string[];
   validation: string | null;
@@ -35,6 +37,9 @@ export type TransitionAction = (input: TransitionInput) => Promise<ActionResult<
 
 export type DiscardAction = (key: string, expectedUpdatedAt: string) => Promise<ActionResult<void>>;
 
+// 게이트 승인 액션 — 게이트 id로 부른다(§E.2 배선).
+export type GateAction = (input: { key: string; gate: string; expectedUpdatedAt: string }) => Promise<ActionResult<void>>;
+
 // 표시 순서: 파이프라인 깊은 것부터 — 게이트②(in_review) → 게이트①(proposed) → 보류.
 // 결재함에 오를 자격(needsHumanDecision)과 달리 이건 순수한 표시 규칙이다.
 const INBOX_SORT: Record<string, number> = { in_review: 0, proposed: 1, on_hold: 2 };
@@ -53,11 +58,13 @@ type BoardRow = {
   updatedAt: Date;
   backlogItem: { key: string; title: string; area: string };
   events: { at: Date; from: string | null; to: string | null }[];
+  run: { node: string; closedAt: Date | null } | null; // latestBoardWithEvents의 include run
 };
 
 export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxItem[] {
+  const gateOf = (row: BoardRow) => (row.run && row.run.closedAt === null && isGateId(row.run.node) ? row.run.node : null);
   return rows
-    .filter((row) => needsHumanDecision(row.status))
+    .filter((row) => needsHumanDecision({ status: row.status, gate: gateOf(row) }))
     .sort((a, b) => (INBOX_SORT[a.status] ?? 9) - (INBOX_SORT[b.status] ?? 9))
     .map((row) => {
       // 이벤트는 최신순. 지금 status로 바뀐 전이(검증·plan·report 같은 same-status 이벤트는 제외)의 시각.
@@ -70,6 +77,7 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
         area: row.backlogItem.area,
         agent: row.agent,
         status: row.status,
+        gate: gateOf(row),
         reason: row.reason,
         results: row.results,
         validation: row.validation,

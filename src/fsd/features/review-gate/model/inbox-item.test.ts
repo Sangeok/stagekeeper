@@ -19,6 +19,8 @@ const boardRow = (overrides: object) => ({
   updatedAt: at("2026-08-31T12:00:00Z"),
   backlogItem: { key: "FEAT-01", title: "t", area: "src" },
   events: [] as { at: Date; from: string | null; to: string | null }[],
+  // 카드 여부는 런의 커서가 정한다 — 기본 그래프의 in_review는 검증 뒤 before-implement에 선다(§E.2).
+  run: { node: "before-implement", closedAt: null } as { node: string; closedAt: Date | null } | null,
   ...overrides,
 });
 
@@ -47,7 +49,7 @@ describe("toInboxItems", () => {
     assert.equal(item.statusSince, "2026-08-30T09:00:00.000Z");
   });
 
-  it("planUrl opens the recorded commit, not the branch — that commit is what gate 2 approves", () => {
+  it("planUrl opens the recorded commit, not the branch — that commit is what `before-implement` approves", () => {
     const [item] = toInboxItems([boardRow({ planPath: "docs/plans/FEAT-01.md", planCommit: "b72a941" })], repo);
     assert.ok(item);
     assert.equal(item.planUrl, "https://github.com/o/r/blob/b72a941/docs/plans/FEAT-01.md");

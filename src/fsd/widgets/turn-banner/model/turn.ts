@@ -2,7 +2,8 @@
 // 문구는 docs/conventions/product-copy.md §5. 판정은 packages/core의 상태 기계에서 파생한다.
 import { canPropose, isOpen } from "@harness/core/transitions.mjs";
 import { isAwaitingAcceptance, isPlanUnverified, isPlanVerified } from "@/fsd/entities/board-item";
-import { isGateSource, pendingInboxCount } from "@/fsd/features/review-gate";
+import { gateLabel } from "@/fsd/entities/pipeline";
+import { pendingInboxCount } from "@/fsd/features/review-gate";
 
 // 열린 run의 마지막 원장 행이 handoff — dev가 커밋을 기다리며 멈춰 있다. note는 dev가 적은 파일 경로(에이전트 텍스트).
 export type TurnHandoff = { step: string; note: string | null };
@@ -14,10 +15,12 @@ export type TurnItem = {
   validation: string | null;
   accepted: boolean; // done이고 acceptedAt이 있다
   handoff: TurnHandoff | null;
+  gate: string | null; // 런이 서 있는 게이트 id
+  node: string | null; // 런이 서 있는 노드
 };
 
 // 첫 방문 체크리스트의 재료. 보드에 행이 하나도 없을 때만 쓰인다.
-export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; backlogCount: number };
+export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; backlogCount: number; hasPropose: boolean }; // §E.3
 
 export type SetupStep = {
   key: "token" | "connect" | "backlog" | "pm";
@@ -85,12 +88,19 @@ function countPhrase(n: number, one: string, many: string): string {
   return n === 1 ? one : many.replace("{n}", String(n));
 }
 
-// 부류 순서는 §5: 승인 준비 → 검증 필요 → 계획 요청 → 인수 → 커밋. 한 항목이 두 부류에 들 수 있다(있는 그대로 센다).
+// 부류 순서는 §5: 승인 준비 → 검증 필요 → 계획 요청 → 그 밖의 게이트 → 인수 → 커밋.
+// 게이트 부류는 **게이트 id**로 나눈다 — 그래프가 게이트를 어디든 놓을 수 있어서 상태만으로는 무슨 결정을 기다리는지 모른다.
+// 이름 없는 게이트가 한 부류도 없으면 배너가 빈 상세 줄을 낸다 — 그래서 elsewhere가 남은 것을 전부 말한다.
 function mineDetail(pending: TurnItem[]): string {
-  const verified = pending.filter((i) => isPlanVerified(i.status, i.validation));
-  const unverified = pending.filter((i) => isPlanUnverified(i.status, i.validation));
-  const proposed = pending.filter((i) => i.status === "proposed");
-  const accepting = pending.filter((i) => isAwaitingAcceptance(i.status, i.accepted));
+  const gated = pending.filter((i) => i.gate !== null);
+  const atImplement = gated.filter((i) => i.gate === "before-implement");
+  const verified = atImplement.filter((i) => isPlanVerified(i.status, i.validation));
+  const unverified = atImplement.filter((i) => isPlanUnverified(i.status, i.validation));
+  const proposed = gated.filter((i) => i.gate === "before-plan");
+  const named = new Set<TurnItem>([...verified, ...unverified, ...proposed]);
+  const elsewhere = gated.filter((i) => !named.has(i));
+  // 게이트에 선 항목은 그 게이트로 말한다 — before-accept에서 "인수 필요"를 거듭 말하지 않는다.
+  const accepting = pending.filter((i) => i.gate === null && isAwaitingAcceptance(i.status, i.accepted));
   const handoffs = pending.filter((i) => i.handoff !== null);
   const parts: string[] = [];
   if (verified.length > 0) {
@@ -102,6 +112,10 @@ function mineDetail(pending: TurnItem[]): string {
   if (proposed.length > 0) {
     parts.push(countPhrase(proposed.length, `${proposed[0]?.key} needs a plan request`, "{n} items need a plan request"));
   }
+  if (elsewhere.length > 0) {
+    const first = elsewhere[0];
+    parts.push(countPhrase(elsewhere.length, `${first?.key} is waiting ${gateLabel(first?.gate ?? "")}`, "{n} items are waiting at a gate"));
+  }
   if (accepting.length > 0) {
     parts.push(countPhrase(accepting.length, `${accepting[0]?.key} needs acceptance`, "{n} items need acceptance"));
   }
@@ -111,25 +125,24 @@ function mineDetail(pending: TurnItem[]): string {
   return parts.join(" · ");
 }
 
-// 런북(CLAUDE.runbook.md)의 단계 번호로 말한다 — 세션은 그 문서를 이미 읽고 있다.
+// 터미널 줄은 노드로 말한다 — 런북에 단계 번호가 없다. 세션은 pipeline_next로 같은 노드를 받는다.
+const NODE_LINE: Record<string, (item: TurnItem) => string> = {
+  plan: (i) => `${i.agent} writes the plan`,
+  verify: () => "verify the plan",
+  implement: (i) => `${i.agent} implements`,
+  accept: () => "accept",
+  "doc-audit": () => "doc-auditor audits",
+  scout: () => "feature-scout scouts",
+};
 export function nextStepLine(item: TurnItem): string | null {
   // 핸드오프가 상태보다 먼저다 — planning/implementing이어도 지금 움직일 사람은 소유자다.
   // note는 dev가 적은 경로(에이전트 텍스트)라 이 줄(mono 박스)에만 들어가고 산문에는 섞이지 않는다.
   if (item.handoff !== null) {
-    return `Commit ${item.handoff.note ?? "the prepared file"}, then continue the runbook for ${item.key}.`;
+    return `Commit ${item.handoff.note ?? "the prepared file"}, then continue the pipeline for ${item.key}.`;
   }
-  switch (item.status) {
-    case "planning":
-      return `Continue the runbook for ${item.key}: step 3 — ${item.agent} writes the plan.`;
-    case "in_review":
-      return isPlanUnverified(item.status, item.validation) ? `Continue the runbook for ${item.key}: step 4 — verify the plan.` : null;
-    case "implementing":
-      return `Continue the runbook for ${item.key}: step 6 — ${item.agent} implements.`;
-    case "done":
-      return isAwaitingAcceptance(item.status, item.accepted) ? `Continue the runbook for ${item.key}: step 7 — accept.` : null;
-    default:
-      return null;
-  }
+  if (item.gate !== null || item.node === null) return null; // 게이트는 터미널 줄이 없다 — 결정은 Inbox나 세션의 것
+  const line = NODE_LINE[item.node];
+  return line === undefined ? null : `Continue the pipeline for ${item.key}: ${item.node} — ${line(item)}.`;
 }
 
 function nextSteps(items: TurnItem[]): NextStep[] {
@@ -149,12 +162,12 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
   }
 
   // 당신 차례 = 게이트가 열린 것 + 인수를 기다리는 것 + 커밋을 기다리는 것. on_hold는 여전히 배너를 소유하지 않는다.
-  const pending = items.filter((i) => isGateSource(i.status) || isAwaitingAcceptance(i.status, i.accepted) || i.handoff !== null);
+  const pending = items.filter((i) => i.gate !== null || isAwaitingAcceptance(i.status, i.accepted) || i.handoff !== null);
   const first = pending[0];
   if (first !== undefined) {
     const openCount = items.filter((i) => isOpen(i.status)).length;
     // 결재함 자격은 review-gate가 센다(gate·resume) — 카드가 하나라도 있으면 Inbox, 없으면 첫 항목의 페이지.
-    const open: TurnTarget = pendingInboxCount(items.map((i) => i.status)) > 0 ? { kind: "inbox" } : { kind: "item", key: first.key };
+    const open: TurnTarget = pendingInboxCount(items.map((i) => ({ status: i.status, gate: i.gate }))) > 0 ? { kind: "inbox" } : { kind: "item", key: first.key };
     return {
       kind: "mine",
       count: pending.length,
@@ -165,12 +178,12 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     };
   }
 
-  const working = items.filter((i) => i.status === "planning" || i.status === "implementing");
+  const working = items.filter((i) => i.gate === null && (i.node === "plan" || i.node === "verify" || i.node === "implement"));
   if (working.length > 0) {
     return {
       kind: "theirs",
       detail: working
-        .map((w) => (w.status === "planning" ? `${w.agent} is writing the plan for ${w.key}` : `${w.agent} is implementing ${w.key}`))
+        .map((w) => (w.node === "plan" ? `${w.agent} is writing the plan for ${w.key}` : w.node === "verify" ? `the plan for ${w.key} is being verified` : `${w.agent} is implementing ${w.key}`))
         .join(" · "),
       next: nextSteps(working),
     };

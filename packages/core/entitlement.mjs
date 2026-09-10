@@ -8,11 +8,13 @@ export const UNLIMITED = Infinity;
 export const REPORT_AGENTS = ["pm", "plan-verifier", "doc-auditor", "feature-scout"];
 
 export const LIMITS = {
-  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout"], sessionApprovals: false },
-  pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true },
-  max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true },
+  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout"], sessionApprovals: false, pipelineEdit: false, dispatches: 60 },
+  pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: 600 },
+  max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: UNLIMITED },
 };
-const AXES = ["projects", "workspaces", "backlog"];
+const AXES = ["projects", "workspaces", "backlog", "dispatches"];
+// dispatches 축의 창. historyDays처럼 롤링 창이다 — 달력 경계가 없어 시간대 문제가 없고, 오래된 run이 빠지며 상한이 조금씩 풀린다.
+export const DISPATCH_WINDOW_DAYS = 30;
 
 export function isPlan(x) { return PLANS.includes(x); }
 export function limitsFor(plan) {
@@ -28,7 +30,7 @@ export function withinLimit(plan, axis, count) {
 
 // 상한 문구의 단일 출처 — 프로젝트 잠금 사유, project_sync 거부, 생성기 중단, 백로그 추가 거부가 같은 문장으로 시작한다.
 // 뒤에 붙는 설명("; this project is locked")은 부르는 쪽이 단다.
-const AXIS_NOUN = { projects: "project", workspaces: "workspace", backlog: "backlog" };
+const AXIS_NOUN = { projects: "project", workspaces: "workspace", backlog: "backlog", dispatches: "dispatch" };
 export function capReason(plan, axis) {
   if (!AXES.includes(axis)) throw new Error(`unknown axis: ${axis}`);
   return `${AXIS_NOUN[axis]} cap reached on the ${plan} plan (${limitsFor(plan)[axis]})`;
@@ -62,4 +64,9 @@ export function historyCutoff(plan, now) {
 // 소유자 토큰 발급(웹)과 gate_approve(MCP)가 같은 판정을 쓴다.
 export function allowsSessionApprovals(plan) {
   return limitsFor(plan).sessionApprovals;
+}
+
+// 디스패치 창의 시작 — 이 시각 이후에 열린 AgentRun을 센다. historyCutoff와 같은 모양(플랜 무관, 창 상수 하나).
+export function dispatchCutoff(now) {
+  return new Date(now.getTime() - DISPATCH_WINDOW_DAYS * 86_400_000);
 }

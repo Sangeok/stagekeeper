@@ -37,15 +37,16 @@
 | `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
 | `validation_record` | `{key, text}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
 | `agent_next` | `{agent, key?, outcome?, note?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·잠긴 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
+| `pipeline_next` | `{key?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다 | main-loop | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 
-**에이전트 서버에 등록되지 않은 것:** 게이트 승인(`proposed→planning`, `in_review→implementing` — 소유자 서버 `harness_owner`의 `gate_approve`에만 있다), 되돌리기, 보류(사람), 폐기, 재개, 재열기(`done→…`), 백로그 편집·삭제, 명령 생성, 토큰 발급. 게이트 승인을 뺀 나머지는 소유자 서버에도 없다 — 웹 전용이다.
+**에이전트 서버에 등록되지 않은 것:** 게이트 승인(그래프의 어느 게이트든 — 소유자 서버 `harness_owner`의 `gate_approve`에만 있다), 그래프 편집(웹 전용), 되돌리기, 보류(사람), 폐기, 재개, 재열기(`done→…`), 백로그 편집·삭제, 명령 생성, 토큰 발급. 게이트 승인을 뺀 나머지는 소유자 서버에도 없다 — 웹 전용이다.
 
 증거 제출 3종(`plan_submit`·`report_submit`·`validation_record`)은 모두 same-status
 `TransitionEvent`(note `plan`·`report`·`validation`, actorId = 호출 토큰)를 남긴다 —
 원장 = 감사 로그(불변식 8). `TransitionEvent.channel`은 사람 행에만 `web` | `session`이 실린다(에이전트 행은
-null). 클린 사이클의 원장은 정확히 8건이다. `agent_next`의 원장은 따로다 —
+null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트① · `plan` · `in_review` · `validation` · 게이트② · `report` · `done` · 인수 `report`). `agent_next`의 원장은 따로다 —
 `AgentRun`(에이전트·항목별 커서)과 `AgentRunStep`(outcome이 실린 호출 전부, 거부 포함)이며
 `TransitionEvent`에는 남기지 않는다.
 
@@ -58,20 +59,22 @@ null). 클린 사이클의 원장은 정확히 8건이다. `agent_next`의 원�
 
 | 도구 | 입력 | 효과 | 누가 | Phase |
 | --- | --- | --- | --- | --- |
-| `gate_approve` | `{key, to: planning\|implementing, planCommit?}` | 사람 게이트 전이(actor human, channel session). `→ implementing`은 validation 필수 + `planCommit` 일치. 응답 `{item, next: {action: "dispatch", agent, key, step: 3\|6}}` — 세션은 그 턴에 dev를 디스패치한다 | 소유자 토큰 | 5 |
+| `gate_approve` | `{key, gate, planCommit?}` | 사람 게이트 전이(actor human, channel session). `→ implementing`은 validation 필수 + `planCommit` 일치. 응답 `{item, next: {action: "dispatch", agent, key, step: 3\|6}}` — 세션은 그 턴에 dev를 디스패치한다 | 소유자 토큰 | 5 |
 
 호출마다 도구 층에서 멤버십(`ProjectMember`) → 잠금 → 플랜(`sessionApprovals` — Free는 웹 전용) 순으로 검사한다.
 거부 사유(`isError`; `product-copy.md` §12에 같은 문장):
 `not a member of this project — the owner token no longer opens gates here; revoke it on the Tokens tab` ·
 `session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` ·
-`not a gate: in_review → planning — a session opens gates only; send back, hold, reopen, and discard are web only` ·
+`not a gate: <id>` · `not waiting at <id> — the item is at <cursor>` ·
 `no validation record — a session approves implementation only after plan-verifier's pass is recorded; approve in the Inbox to override` ·
 `planCommit required — state the commit you are approving (board_get shows it)` ·
 `planCommit mismatch: the board records 3f2a9c1`.
-판정은 `src/server/pipeline/board-rules.ts`의 `decideSessionGate` 하나이고, 쓰기는 웹 게이트와 같은
-`board.transition`(actor `human`, actorRef = 사용자, `channel: "session"`)이다 — 원장 행은 웹 게이트와 같은 모양에
-`channel`만 다르다. 세션 채널은 웹보다 전제가 하나 더 붙는다(게이트②의 검증 기록·`planCommit` 일치); 웹 Inbox는
-그 전제 없이 승인할 수 있다.
+판정은 `src/server/pipeline/board-rules.ts`의 `decideGate` 하나이고 — 웹 Inbox와 세션이 같이 쓴다 — 쓰기는
+`board.gate`다: 경계 게이트(`before-plan`·`before-implement`)는 사람 전이(`transitionIn`)가 원장이고, 그 밖의 게이트는
+같은 상태의 이벤트(note `gate:<id>`)가 원장이다. actor `human`, actorRef = 사용자, `channel: "session"` — 원장 행은
+웹 게이트와 같은 모양에 `channel`만 다르다. 세션 채널은 웹보다 전제가 하나 더 붙는다(`before-implement`의 검증
+기록·`planCommit` 일치); 웹 Inbox는 그 전제 없이 승인할 수 있다. 게이트는 런의 커서가 그 자리에 서 있어야 열린다 —
+그래프가 그 게이트를 뺐으면 열 게이트 자체가 없다.
 
 ## 상태 기계
 
@@ -81,6 +84,8 @@ null). 클린 사이클의 원장은 정확히 8건이다. `agent_next`의 원�
 | --- | --- | --- | --- | --- |
 | `proposed` | `planning` | human | gate | — |
 | `in_review` | `implementing` | human | gate | — |
+| `proposed` | `planning` | pipeline | auto | 그래프에 `before-plan` 게이트가 **없을 때만**. 판정은 `pipeline.mjs`의 `advance` |
+| `in_review` | `implementing` | pipeline | auto | 그래프에 `before-implement` 게이트가 **없을 때만** |
 | `in_review` | `planning` | human | bounce | 검증 기록을 지운다. 선택 `result`(되돌리기 노트 `Sent back: …`) |
 | `proposed` | `on_hold` | human | hold | `result` 필수 |
 | `in_review` | `on_hold` | human | hold | `result` 필수 |
@@ -100,6 +105,28 @@ null). 클린 사이클의 원장은 정확히 8건이다. `agent_next`의 원�
 
 식별자·라벨의 대응은 `CONTEXT.md` 「States」. 한국어 상태명(승인대기 등)은 v1/ApcH 시절
 이름이며 이 저장소의 DB·MCP·템플릿에는 없다.
+
+## 파이프라인 그래프
+
+순서의 단일 출처는 `packages/core/pipeline.mjs`와 그 프로젝트의 `PipelineVersion` 행이다. 런북에는 순서가 없다.
+
+- **카탈로그.** 비게이트 노드 7종이 골격 순서다: `propose` · `plan` · `verify` · `implement` · `accept` ·
+  `doc-audit` · `scout`. `plan`·`implement`·`accept`는 못 뺀다. `doc-audit`·`scout`는 `accept` 뒤 꼬리이고 서로
+  순서를 바꿀 수 있다. `scout`는 opt-in이다 — `harness.json.scout`이 있어야 도는 에이전트인데 서버는 그 설정을
+  모르므로 어느 플랜의 기본 그래프에도 없다.
+- **게이트는 노드가 아니라 간선이다.** id는 `before-<kind>` — 그 노드 **앞** 간선. 간선당 하나이므로 "연속 2개"가
+  없다. `propose`는 머리라 `before-propose`도 없다.
+- **경계 게이트 둘.** `before-plan`(`proposed → planning`)과 `before-implement`(`in_review → implementing`)는 승인이
+  상태 전이까지 한다. 나머지 게이트는 같은 상태의 이벤트만 남긴다.
+- **커서.** `sequence(graph)`가 걷는 순서를 준다(노드마다 그 앞 게이트 → 노드). `PipelineRun.node`가 지금 선 자리이고
+  `enteredAt`이 그 자리에 선 시각이다 — 게이트 승인과 에이전트 run 닫힘은 이 시각부터(`>=`)의 것만 센다.
+- **노드 완료는 증거로만 판정한다**(`nodeDone`): `plan`은 `in_review` 이후 · `verify`는 검증 기록 · `implement`는
+  `done` · `accept`는 `acceptedAt` · `doc-audit`·`scout`는 커서가 들어온 뒤 그 에이전트의 run이 닫힘.
+- **사람이 상태를 되돌리면** 커서는 `cursorForStatus`가 말하는 자리로 간다. `on_hold`는 커서를 그대로 두고 잠든다.
+- **버전 고정.** 그래프는 저장마다 새 `PipelineVersion` 행이 되고 항목은 시작 시점 버전에 고정된다. 새 버전은 그
+  뒤에 올라온 항목부터 적용된다.
+- **상한 계수 자리는 `AgentRun` 개설**이다 — 서버가 "이 에이전트가 실제로 시작했다"를 관측하는 유일한 지점이고,
+  파이프라인을 거치지 않고 손으로 디스패치한 run도 같은 자리를 지난다. 창은 롤링 30일이다.
 
 ## 보드 기록 규약
 

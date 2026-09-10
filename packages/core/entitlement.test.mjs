@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_PLAN, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, allowsSessionApprovals, capError, capReason, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
+import { DEFAULT_PLAN, DISPATCH_WINDOW_DAYS, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, allowsSessionApprovals, capError, capReason, dispatchCutoff, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
 
 const DAY = 86_400_000;
 
@@ -161,5 +161,30 @@ describe("capError", () => {
     assert.equal(allowsSessionApprovals("free"), false);
     assert.equal(allowsSessionApprovals("pro"), true);
     assert.equal(allowsSessionApprovals("max"), true);
+  });
+});
+
+// 파이프라인 축 둘 — 편집 가능 여부는 불리언이고, 디스패치는 롤링 창을 가진 수 축이다.
+describe("pipeline axes", () => {
+  it("only Pro and Max may edit the graph", () => {
+    assert.equal(LIMITS.free.pipelineEdit, false);
+    assert.equal(LIMITS.pro.pipelineEdit, true);
+    assert.equal(LIMITS.max.pipelineEdit, true);
+  });
+  it("dispatches is a capped axis on free and pro, unlimited on max", () => {
+    assert.equal(withinLimit("free", "dispatches", 60), true);
+    assert.equal(withinLimit("free", "dispatches", 61), false);
+    assert.equal(withinLimit("pro", "dispatches", 600), true);
+    assert.equal(withinLimit("pro", "dispatches", 601), false);
+    assert.equal(withinLimit("max", "dispatches", 10_000), true);
+  });
+  it("the refusal sentence comes from capReason, like every other axis", () => {
+    assert.equal(capReason("free", "dispatches"), "dispatch cap reached on the free plan (60)");
+  });
+  it("dispatchCutoff is a rolling window of DISPATCH_WINDOW_DAYS, plan-independent", () => {
+    assert.equal(DISPATCH_WINDOW_DAYS, 30);
+    const now = new Date("2026-09-10T12:00:00Z");
+    assert.ok(dispatchCutoff(now) < now);
+    assert.equal(now.getTime() - dispatchCutoff(now).getTime(), DISPATCH_WINDOW_DAYS * DAY);
   });
 });

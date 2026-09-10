@@ -14,7 +14,7 @@
 // 지키는 것: 단계 본문은 커서가 가리키는 그것만 렌더한다. 전진은 CAS(stepId가 그대로일 때만)라 같은 호출이
 // 두 번 와도 두 단계를 넘지 않는다. 열리지 않은 단계를 거듭 두드리면 refused가 쌓여 경고하고, 원장 행 수가
 // 토큰당 호출 제한에 걸린다 — 보드 상태를 바꿔가며 본문을 긁어 모으는 값이 비싸진다.
-import { REPORT_AGENTS, allowsAgent } from "@harness/core/entitlement.mjs";
+import { DISPATCH_WINDOW_DAYS, REPORT_AGENTS, allowsAgent, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
 import { renderTemplate } from "@harness/core/render.mjs";
 import { STATUSES, canPropose } from "@harness/core/transitions.mjs";
 import type { ProjectAccess } from "@/server/entitlement";
@@ -40,6 +40,7 @@ export type NextDeps = {
   template(projectId: string, path: string): Promise<string | null>; // 프로젝트 언어의 템플릿 본문(없으면 en)
   vars(projectId: string, agent: string): Promise<Record<string, unknown>>;
   recentSteps(tokenId: string, since: Date): Promise<number>;
+  recentRuns(projectId: string, since: Date): Promise<number>;
   openRun(projectId: string, agent: string, key: string | null): Promise<RunRow | null>;
   createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<RunRow>;
   boardStatus(projectId: string, key: string): Promise<string | null>; // 폐기되지 않은 최신 행의 상태
@@ -115,6 +116,10 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const run = await deps.openRun(projectId, agent, key);
   if (!run) {
     if (input.outcome) return ok({ done: true });
+    // 디스패치 상한(지난 30일에 연 run 수) — run **개설**에서만 센다. 재개(열린 run의 outcome 없는 호출)는 세지 않는다: 컴팩션·재시작 복구가 비싸지면 안 된다.
+    const used = await deps.recentRuns(projectId, dispatchCutoff(new Date()));
+    const capMsg = capError(access.plan, "dispatches", used);
+    if (capMsg) return fail(`${capMsg} Counted over the last ${DISPATCH_WINDOW_DAYS} days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.`);
     // **열리는 첫 단계**로 연다. 예전에는 언제나 steps[0]이라, 보드 상태로 갈라지는 에이전트(dev)는
     // 상태를 읽고 스스로 분기하는 라우터 단계를 따로 둬야 했다 — 그 단계는 일을 하나도 하지 않으면서
     // 왕복 하나(약 63,000 토큰, G1 실측)를 썼다. 판정은 전진 때 쓰는 것과 같은 requires다.

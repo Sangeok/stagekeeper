@@ -2,5 +2,5 @@
 // InboxCard 안에서만 쓰이므로 상대 경로로 남긴다 — 공개하면 provider 없이 쓰는 길이 열린다.
 export { InboxCard } from "./ui/inbox-card";
 export { ReopenActions } from "./ui/reopen-actions";
-export { isGateSource, pendingInboxCount } from "./model/gate-source";
-export type { DiscardAction, InboxItem, TransitionAction } from "./model/inbox-item";
+export { isAtGate, pendingInboxCount } from "./model/gate-source";
+export type { DiscardAction, GateAction, InboxItem, TransitionAction } from "./model/inbox-item";

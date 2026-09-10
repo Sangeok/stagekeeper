@@ -6,9 +6,12 @@ const STATUS_SET = new Set(STATUSES);
 export const TEXT_LIMIT = 150;
 
 const RULES = [
-  // 사람(웹 로그인)만 — 게이트
+  // 사람(웹 로그인 또는 소유자 토큰)만 — 게이트
   { from: "proposed", to: "planning", actor: "human", kind: "gate" },
   { from: "in_review", to: "implementing", actor: "human", kind: "gate" },
+  // 파이프라인 — 그래프에 그 자리의 게이트가 **없을 때만** 서버가 넘는다(pipeline.mjs advance). 사람 게이트와 같은 경계.
+  { from: "proposed", to: "planning", actor: "pipeline", kind: "auto" },
+  { from: "in_review", to: "implementing", actor: "pipeline", kind: "auto" },
   // 사람 — 되돌리기·보류·재개 (ApcH REJECT_TRANSITIONS + 보드 안내 블록 재개 규칙)
   { from: "in_review", to: "planning", actor: "human", kind: "bounce", clearsValidation: true },
   { from: "proposed", to: "on_hold", actor: "human", kind: "hold", requiresResult: true },
