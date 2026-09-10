@@ -131,6 +131,10 @@ export function InboxCard({ item, now, transition, approve, discard, locked = fa
               <b className="font-medium text-ink">Approve implementation</b> approves the plan at the commit shown on the card.
             </li>
             <li>
+              <b className="font-medium text-ink">Read the plan</b> opens that commit on GitHub. If it 404s, the commit is
+              still local — push the branch and reload.
+            </li>
+            <li>
               <b className="font-medium text-ink">Continue</b> moves the item to the next node; nothing changes on the board.
             </li>
             <li>Sending back clears the validation record.</li>

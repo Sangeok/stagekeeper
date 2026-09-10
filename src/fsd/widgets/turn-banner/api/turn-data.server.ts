@@ -36,6 +36,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     if (since === undefined || !handoffIsLive(last.at, since)) continue;
     handoffs.set(run.key, { step: run.stepId, note: last.note });
   }
+  const dispatched = new Set(openRuns.map((r) => r.key).filter((k): k is string => k !== null));
   const cursor = new Map(pipelineRuns.map((r) => [r.boardItemId, r.node]));
   const items = rows.map((r) => {
     const at = cursor.get(r.id) ?? null;
@@ -48,6 +49,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
       handoff: handoffs.get(r.backlogItem.key) ?? null,
       gate: at !== null && isGateId(at) ? at : null,
       node: at !== null && !isGateId(at) ? at : null,
+      dispatched: dispatched.has(r.backlogItem.key),
     };
   });
 

@@ -165,7 +165,7 @@ Backlog, Tokens and item pages show a **one-line strip** with the same words.
 | --- | --- | --- |
 | you | **Waiting on you** | FEAT-01 is ready for your approval / FEAT-04 needs verification before approval / FEAT-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 needs acceptance / FEAT-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 plans need verification" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items need acceptance" · "2 items are waiting for your commit", joined with " · " |
 | you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
-| agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for FEAT-01 / the plan for FEAT-01 is being verified / dev is implementing FEAT-01 |
+| agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for FEAT-01 / the plan for FEAT-01 is being verified / dev is implementing FEAT-01. **Nobody dispatched yet:** "FEAT-01 is waiting for dev" · "FEAT-04 is waiting for verification" — opening a gate moves the item, it does not start an agent |
 | nobody | **Nothing open** | Pick the next item from the backlog, or run pm in Claude Code to pick for you. — button **Open backlog** |
 | first run | **Set up in four steps** | the checklist below |
 
@@ -260,6 +260,8 @@ the item key in the body as well as the key label; it does not replace it with "
   - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code.
   - **Verified** means an independent pass found nothing to change. Without it, the plan is unverified.
   - **Approve implementation** approves the plan at the commit shown on the card.
+  - **Read the plan** opens that commit on GitHub. If it 404s, the commit is still local — push the
+    branch and reload.
   - Sending back clears the validation record.
   - Discard can't be undone.
   - More in the repo: `docs/architecture/protocol.md`
@@ -426,6 +428,7 @@ are terse on purpose — agents parse them.
 | `no such backlog item (or removed)` | — |
 | `already open` | — |
 | `open items: 2 (max 2)` | — |
+| `the backlog has nothing to pick — add an item on the Backlog tab` (pipeline_next head) | — |
 | `agent not in roster: ops` | — |
 | `not allowed: agent proposed → planning` | — |
 | `plan_submit first` · `report_submit first` | — |
@@ -483,7 +486,7 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `plan_submit` | Record where the plan is (path and commit). Only in `planning` or `in_review` — re-call after review edits so the approved commit is recorded. |
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
-| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is pm's turn (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · the dispatch cap sentence). With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap`, `accept`, or `done`. |
+| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is pm's turn (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "the backlog has nothing to pick — add an item on the Backlog tab" · the dispatch cap sentence). `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
 | `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok \| blocked \| failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:

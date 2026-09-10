@@ -8,7 +8,7 @@ export type PipelineNext =
   | { key: string; node: string; version: number; action: "wait"; on: "gate"; gate: string; boundary: { from: string; to: string } | null; planCommit: string | null }
   | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }  // 커밋 핸드오프(배너와 같은 판정)
   | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string }
-  | { key: string; node: string; version: number; action: "accept" }                           // main-loop 본인이 인수 5조건을 재현한다
+  | { key: string; node: string; version: number; action: "accept"; hint: string }                           // main-loop 본인이 인수 5조건을 재현한다
   | { key: string; node: string | null; version: number; action: "done" };
 
 // run.ts(nextFor)가 읽어 넘기는 사실. 어느 질의로 읽는지는 아래 "판정 순서" 문단.
@@ -26,6 +26,7 @@ export type NextInput = {
 // dispatch의 hint — 그 노드에서 지켜야 할 한 문장. product-copy.md §13에 같은 문장.
 export const HINT: Record<string, string> = {
   propose: "Dispatch pm with no key. It proposes at most one item per run.",
+  accept: "You run this one — reproduce the five acceptance checks yourself, write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }).",
   plan: "Dispatch with the item key. One item per dispatch.",
   verify: "Run your own verification round first (paths from docs/plans/verification-paths.md, reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
   implement: "Dispatch with the item key. It reports and moves the item to done itself.",
@@ -46,7 +47,8 @@ export function decideNext(i: NextInput): PipelineNext {
   if (i.node === null) return { key, node: null, version, action: "done" };
   const node = i.node;
   if (isGateId(node)) return { key, node, version, action: "wait", on: "gate", gate: node, boundary: boundaryOf(node), planCommit: i.planCommit };
-  if (node === "accept") return { key, node, version, action: "accept" };
+  // accept만 hint가 없었다 — 메인 루프가 에이전트 없이 직접 하는 유일한 동작인데 안내가 안 붙었다(실측).
+  if (node === "accept") return { key, node, version, action: "accept", hint: HINT.accept ?? "" };
   if (i.handoff !== null) return { key, node, version, action: "wait", on: "handoff", note: i.handoff.note };
   const agent = node === "plan" || node === "implement" ? i.agent : (NODE_AGENT as Record<string, string | undefined>)[node];
   if (agent === undefined) return { key, node, version, action: "done" };
@@ -60,6 +62,7 @@ export type PipelineOverview = { head: HeadNext; items: PipelineNext[] };
 export type HeadInput = {
   hasPropose: boolean;   // 현재 버전의 nodes에 propose가 있는가
   openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
+  availableBacklog: number; // 아직 보드에 안 올라간 백로그 항목 수 — pm이 고를 수 있는 것
   capReason: string | null; // capError(plan, "dispatches", recentRuns) — decideNext와 같은 수
 };
 
@@ -67,6 +70,9 @@ export type HeadInput = {
 export function decideHead(i: HeadInput): HeadNext {
   if (!i.hasPropose) return { action: "none", reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" };
   if (!canPropose(i.openCount)) return { action: "none", reason: `open items: ${i.openCount} (max 2)` };
+  // 백로그가 비었으면 pm을 부를 이유가 없다. 예전에는 계속 "dispatch pm"이라 답해,
+  // 고를 것이 없다는 걸 알자고 디스패치를 하나 썼다 — 디스패치는 월 상한에 계수된다(실측).
+  if (i.availableBacklog === 0) return { action: "none", reason: "the backlog has nothing to pick — add an item on the Backlog tab" };
   if (i.capReason !== null) return { action: "none", reason: i.capReason };
   return { action: "dispatch", agent: "pm", hint: HINT.propose };
 }
