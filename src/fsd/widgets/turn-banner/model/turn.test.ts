@@ -83,6 +83,33 @@ describe("deriveTurn — mine", () => {
     assert.equal(turn.why, null);
     assert.deepEqual(turn.next, []); // 게이트는 터미널 줄이 없다 — 결정은 Inbox나 세션의 것
   });
+  it("a gate the five categories do not name still says where the item stands", () => {
+    // 그래프가 게이트를 어디든 놓을 수 있으므로 상태로 부류를 나누면 before-verify·before-doc-audit에
+    // 선 항목은 상세 줄에서 사라진다 — 배너가 "Waiting on you"만 내고 이유를 안 말하게 된다.
+    const atVerify: TurnItem = { ...item("FEAT-06", "in_review", null), gate: "before-verify", node: "before-verify" };
+    const turn = deriveTurn([atVerify], ready);
+    if (turn.kind !== "mine") assert.fail(turn.kind);
+    assert.equal(turn.detail, "FEAT-06 is waiting before Verify");
+
+    const atDocAudit: TurnItem = { ...accepted("FEAT-07"), gate: "before-doc-audit", node: "before-doc-audit" };
+    const tail = deriveTurn([atDocAudit], ready);
+    if (tail.kind !== "mine") assert.fail(tail.kind);
+    assert.equal(tail.detail, "FEAT-07 is waiting before Doc audit");
+
+    const both = deriveTurn([atVerify, atDocAudit], ready);
+    if (both.kind !== "mine") assert.fail(both.kind);
+    assert.equal(both.detail, "2 items are waiting at a gate");
+  });
+
+  it("an acceptance gate says the gate, not the acceptance, so one item asks for one thing", () => {
+    const atAccept: TurnItem = { ...item("FEAT-08", "done"), gate: "before-accept", node: "before-accept" };
+    const turn = deriveTurn([atAccept], ready);
+    if (turn.kind !== "mine") assert.fail(turn.kind);
+    assert.equal(turn.detail, "FEAT-08 is waiting before Accept");
+    // 게이트가 없는 그래프에서는 그대로 인수를 청한다.
+    assert.equal((deriveTurn([item("FEAT-08", "done")], ready) as { detail: string }).detail, "FEAT-08 needs acceptance");
+  });
+
   it("on_hold never owns the banner", () => {
     const turn = deriveTurn([item("FEAT-05", "on_hold"), item("FEAT-01", "proposed")], ready);
     if (turn.kind !== "mine") assert.fail(turn.kind);

@@ -60,6 +60,25 @@ describe("rail-state", () => {
     if (r.ok) assert.deepEqual(r.graph.nodes.slice(-2), ["scout", "doc-audit"]);
   });
 
+  it("keeps a swapped tail when another node is added back", () => {
+    // addNode가 전체를 골격 순서로 다시 세우면 방금 바꿔 둔 꼬리 순서가 조용히 풀린다.
+    const withScout = addNode(pro(), "scout", "pro");
+    assert.ok(withScout.ok);
+    if (!withScout.ok) return;
+    const swapped = swapTail(withScout.graph, "pro");
+    assert.ok(swapped.ok);
+    if (!swapped.ok) return;
+    const trimmed = removeNode(swapped.graph, "verify", "pro");
+    assert.ok(trimmed.ok);
+    if (!trimmed.ok) return;
+    const r = addNode(trimmed.graph, "verify", "pro");
+    assert.equal(r.ok, true);
+    if (r.ok) {
+      assert.deepEqual(r.graph.nodes.slice(-2), ["scout", "doc-audit"]);
+      assert.deepEqual(r.graph.nodes.slice(0, 5), ["propose", "plan", "verify", "implement", "accept"]);
+    }
+  });
+
   it("removes a gate without touching the nodes", () => {
     const r = removeGate(pro(), "before-plan", "pro");
     assert.equal(r.ok, true);

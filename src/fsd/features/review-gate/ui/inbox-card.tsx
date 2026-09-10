@@ -175,7 +175,7 @@ function StatusLine({ item, now }: { item: InboxItem; now: string }) {
   if (item.gate !== null) {
     return (
       <span>
-        {label} · waiting at {gateLabel(item.gate)}
+        {label} · waiting {gateLabel(item.gate)}
       </span>
     );
   }

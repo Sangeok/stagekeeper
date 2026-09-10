@@ -2,6 +2,7 @@
 // 문구는 docs/conventions/product-copy.md §5. 판정은 packages/core의 상태 기계에서 파생한다.
 import { canPropose, isOpen } from "@harness/core/transitions.mjs";
 import { isAwaitingAcceptance, isPlanUnverified, isPlanVerified } from "@/fsd/entities/board-item";
+import { gateLabel } from "@/fsd/entities/pipeline";
 import { pendingInboxCount } from "@/fsd/features/review-gate";
 
 // 열린 run의 마지막 원장 행이 handoff — dev가 커밋을 기다리며 멈춰 있다. note는 dev가 적은 파일 경로(에이전트 텍스트).
@@ -87,12 +88,19 @@ function countPhrase(n: number, one: string, many: string): string {
   return n === 1 ? one : many.replace("{n}", String(n));
 }
 
-// 부류 순서는 §5: 승인 준비 → 검증 필요 → 계획 요청 → 인수 → 커밋. 한 항목이 두 부류에 들 수 있다(있는 그대로 센다).
+// 부류 순서는 §5: 승인 준비 → 검증 필요 → 계획 요청 → 그 밖의 게이트 → 인수 → 커밋.
+// 게이트 부류는 **게이트 id**로 나눈다 — 그래프가 게이트를 어디든 놓을 수 있어서 상태만으로는 무슨 결정을 기다리는지 모른다.
+// 이름 없는 게이트가 한 부류도 없으면 배너가 빈 상세 줄을 낸다 — 그래서 elsewhere가 남은 것을 전부 말한다.
 function mineDetail(pending: TurnItem[]): string {
-  const verified = pending.filter((i) => isPlanVerified(i.status, i.validation));
-  const unverified = pending.filter((i) => isPlanUnverified(i.status, i.validation));
-  const proposed = pending.filter((i) => i.status === "proposed");
-  const accepting = pending.filter((i) => isAwaitingAcceptance(i.status, i.accepted));
+  const gated = pending.filter((i) => i.gate !== null);
+  const atImplement = gated.filter((i) => i.gate === "before-implement");
+  const verified = atImplement.filter((i) => isPlanVerified(i.status, i.validation));
+  const unverified = atImplement.filter((i) => isPlanUnverified(i.status, i.validation));
+  const proposed = gated.filter((i) => i.gate === "before-plan");
+  const named = new Set<TurnItem>([...verified, ...unverified, ...proposed]);
+  const elsewhere = gated.filter((i) => !named.has(i));
+  // 게이트에 선 항목은 그 게이트로 말한다 — before-accept에서 "인수 필요"를 거듭 말하지 않는다.
+  const accepting = pending.filter((i) => i.gate === null && isAwaitingAcceptance(i.status, i.accepted));
   const handoffs = pending.filter((i) => i.handoff !== null);
   const parts: string[] = [];
   if (verified.length > 0) {
@@ -103,6 +111,10 @@ function mineDetail(pending: TurnItem[]): string {
   }
   if (proposed.length > 0) {
     parts.push(countPhrase(proposed.length, `${proposed[0]?.key} needs a plan request`, "{n} items need a plan request"));
+  }
+  if (elsewhere.length > 0) {
+    const first = elsewhere[0];
+    parts.push(countPhrase(elsewhere.length, `${first?.key} is waiting ${gateLabel(first?.gate ?? "")}`, "{n} items are waiting at a gate"));
   }
   if (accepting.length > 0) {
     parts.push(countPhrase(accepting.length, `${accepting[0]?.key} needs acceptance`, "{n} items need acceptance"));
