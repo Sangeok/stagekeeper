@@ -1,4 +1,5 @@
 import { statusLabel } from "@/fsd/entities/board-item";
+import { gateLabel } from "@/fsd/entities/pipeline";
 import { ReopenActions, type TransitionAction } from "@/fsd/features/review-gate";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
@@ -33,6 +34,16 @@ export type BoardItemView = {
 };
 
 const stamp = (d: Date) => d.toISOString().slice(0, 16).replace("T", " ");
+
+// 행위자 표기 — human은 채널(session)만 덧붙이고, pipeline은 언제나 "auto"(게이트 없는 경계를 서버가 넘었다). agent는 그대로.
+function actorLabel(e: TimelineEvent): string {
+  if (e.actor === "pipeline") return "pipeline · auto";
+  return e.channel === "session" ? `${e.actor} · session` : e.actor;
+}
+// note는 증거 종류(plan · report · validation · discard) 또는 비경계 게이트(gate:<id>). 게이트는 사람 말로 푼다.
+function noteLabel(note: string): string {
+  return note.startsWith("gate:") ? `gate · ${gateLabel(note.slice("gate:".length))}` : note;
+}
 
 // transition은 라우트가 slug를 bind해서 넘긴 사람 전이 액션(review-gate). 이 페이지는 되돌리기(reopen)에만 쓴다.
 export function BoardItemPage({ item, transition }: { item: BoardItemView; transition: TransitionAction }) {
@@ -106,11 +117,11 @@ export function BoardItemPage({ item, transition }: { item: BoardItemView; trans
           {item.events.map((e, i) => (
             <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule px-3.5 py-2 text-sm last:border-b-0">
               <span className="font-mono text-xs text-quiet">{stamp(e.at)}</span>
-              <span className="font-mono text-xs text-quiet">{e.channel === "session" ? `${e.actor} · session` : e.actor}</span>
+              <span className="font-mono text-xs text-quiet">{actorLabel(e)}</span>
               <span className="font-mono text-xs">
                 {e.from ?? "—"} → {e.to ?? "discarded"}
               </span>
-              {e.note ? <span className="text-xs text-quiet">({e.note})</span> : null}
+              {e.note ? <span className="text-xs text-quiet">({noteLabel(e.note)})</span> : null}
             </li>
           ))}
         </ol>

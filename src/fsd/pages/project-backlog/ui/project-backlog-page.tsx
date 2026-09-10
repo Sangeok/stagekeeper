@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BacklogForm, BacklogTable, type BacklogFormAction, type BacklogRow, type RemoveBacklogAction } from "@/fsd/features/edit-backlog";
+import { ProposeButton, type ProposeAction } from "@/fsd/features/propose-item";
 import { backlogHref } from "@/fsd/shared/routes/project";
 
 type Props = {
@@ -11,9 +12,11 @@ type Props = {
   // 편집할 항목이 있을 때만 온다 — 없을 때 add로 대신 채우면 "수정"이 조용히 새 항목을 만든다.
   update?: BacklogFormAction;
   remove: RemoveBacklogAction;
+  propose: ProposeAction;
+  roster: string[];
 };
 
-export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, update, remove }: Props) {
+export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, update, remove, propose, roster }: Props) {
   return (
     <>
       <div className="flex items-center justify-between">
@@ -25,7 +28,7 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, u
           {includeRemoved ? "Hide removed" : "Show removed"}
         </Link>
       </div>
-      <BacklogTable slug={slug} rows={rows} remove={remove} />
+      <BacklogTable slug={slug} rows={rows} remove={remove} renderAction={(row) => <ProposeButton itemKey={row.key} roster={roster} propose={propose} />} />
       {editing && update ? <BacklogForm action={update} item={editing} /> : <BacklogForm action={add} />}
     </>
   );

@@ -19,6 +19,8 @@ const boardRow = (overrides: object) => ({
   updatedAt: at("2026-08-31T12:00:00Z"),
   backlogItem: { key: "FEAT-01", title: "t", area: "src" },
   events: [] as { at: Date; from: string | null; to: string | null }[],
+  // 카드 여부는 런의 커서가 정한다 — 기본 그래프의 in_review는 검증 뒤 before-implement에 선다(§E.2).
+  run: { node: "before-implement", closedAt: null } as { node: string; closedAt: Date | null } | null,
   ...overrides,
 });
 

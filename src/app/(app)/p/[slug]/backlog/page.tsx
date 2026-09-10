@@ -1,7 +1,9 @@
 import { addBacklogItem, removeBacklogItem, updateBacklogItem } from "@/fsd/features/edit-backlog/index.server";
+import { proposeItem } from "@/fsd/features/propose-item/index.server";
 import { ProjectBacklogPage } from "@/fsd/pages/project-backlog";
 import { readBacklogQuery } from "@/fsd/shared/routes/project";
 import { requireMember } from "@/server/auth/guard";
+import { prisma } from "@/server/db";
 import { backlogWithStatus } from "@/server/pipeline/board";
 
 export default async function Page({ params, searchParams }: PageProps<"/p/[slug]/backlog">) {
@@ -11,7 +13,10 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
 
   // 질의 키와 인코딩은 링크를 만드는 쪽과 같은 모듈에서 온다(shared/routes/project.ts).
   const { includeRemoved, editKey } = readBacklogQuery(query);
-  const items = await backlogWithStatus(projectId, includeRemoved);
+  const [items, workspaces] = await Promise.all([
+    backlogWithStatus(projectId, includeRemoved),
+    prisma.workspace.findMany({ where: { projectId }, orderBy: { wsId: "asc" }, select: { agent: true } }),
+  ]);
   const editing = items.find((item) => item.key === editKey);
 
   return (
@@ -23,6 +28,8 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
       add={addBacklogItem.bind(null, slug)}
       update={editKey ? updateBacklogItem.bind(null, slug, editKey) : undefined}
       remove={removeBacklogItem.bind(null, slug)}
+      propose={proposeItem.bind(null, slug)}
+      roster={workspaces.map((w) => w.agent)}
     />
   );
 }

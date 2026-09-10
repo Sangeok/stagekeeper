@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { statusLabel } from "@/fsd/entities/board-item";
 import { Chip } from "@/fsd/shared/ui/chip";
@@ -19,11 +20,13 @@ type Props = {
   slug: string;
   rows: BacklogRow[];
   remove: RemoveBacklogAction;
+  // §E.7 — pages 층이 채우는 슬롯(propose-item). 같은 layer의 다른 slice를 여기서 import하지 않는다.
+  renderAction?: (row: BacklogRow) => ReactNode;
 };
 
 // 서버 컴포넌트다 — 상호작용하는 조각은 마지막 열의 RemoveBacklogButton 하나뿐이고,
 // 실패 문구도 그 행 아래에 붙는다(표 상단 공유 줄이 아니라).
-export function BacklogTable({ slug, rows, remove }: Props) {
+export function BacklogTable({ slug, rows, remove, renderAction }: Props) {
   return (
     <div className="flex flex-col gap-2">
       <Table>
@@ -58,7 +61,10 @@ export function BacklogTable({ slug, rows, remove }: Props) {
                 {row.removedAt ? (
                   <span className="text-xs">Removed</span>
                 ) : (
-                  <RemoveBacklogButton itemKey={row.key} remove={remove} />
+                  <>
+                    {row.status === null && renderAction ? renderAction(row) : null}
+                    <RemoveBacklogButton itemKey={row.key} remove={remove} />
+                  </>
                 )}
               </Td>
             </Tr>

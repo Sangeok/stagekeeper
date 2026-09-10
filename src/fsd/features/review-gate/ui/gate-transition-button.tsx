@@ -12,12 +12,12 @@ import { LockedChip, useGateCardLock } from "./gate-card-lock";
 // 게이트 버튼. 라벨은 목적지 status에서 온다(Request plan / Approve implementation).
 // 검증 기록이 없으면 채움에서 윤곽으로 물러선다(variant) — 결과 문장은 카드가 버튼 아래에서 말한다.
 export function GateTransitionButton({
-  to,
+  gate,
   itemKey,
   commit,
   variant = "mine",
 }: {
-  to: string;
+  gate: string;
   itemKey: string;
   commit: () => Promise<ActionResult<void>>;
   variant?: "mine" | "mine-outline";
@@ -33,8 +33,8 @@ export function GateTransitionButton({
         toast.error(result.error);
         return;
       }
-      toast.success(gateToast(to, itemKey));
-      setLock({ label: gateLockLabel(to), tone: "mine" });
+      toast.success(gateToast(gate, itemKey));
+      setLock({ label: gateLockLabel(gate), tone: "mine" });
       router.refresh();
     });
   };
@@ -42,7 +42,7 @@ export function GateTransitionButton({
   if (lock !== null) return <LockedChip lock={lock} />;
   return (
     <Button variant={variant} disabled={isPending} onClick={handleClick}>
-      {isPending ? gatePendingLabel(to) : gateActionLabel(to)}
+      {isPending ? gatePendingLabel(gate) : gateActionLabel(gate)}
     </Button>
   );
 }

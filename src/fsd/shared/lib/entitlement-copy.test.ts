@@ -26,3 +26,18 @@ describe("entitlement-copy", () => {
     assert.equal(planLabel("max"), "Max");
   });
 });
+
+// 파이프라인 축 둘이 표에 줄로 선다 — 값은 LIMITS에서 읽으므로 표와 코드가 어긋날 수 없다.
+describe("planMatrix — pipeline rows", () => {
+  it("shows who may edit the graph", () => {
+    const row = planMatrix().find((r) => r.label === "Pipeline editing");
+    assert.ok(row);
+    assert.deepEqual(row.values, { free: "Default only", pro: "Yes", max: "Yes" });
+  });
+  it("shows the dispatch cap with its window in the label", () => {
+    const row = planMatrix().find((r) => r.label.startsWith("Agent dispatches per "));
+    assert.ok(row, "the dispatch row is missing");
+    assert.equal(row.label, "Agent dispatches per 30 days");
+    assert.deepEqual(row.values, { free: "60", pro: "600", max: "Unlimited" });
+  });
+});

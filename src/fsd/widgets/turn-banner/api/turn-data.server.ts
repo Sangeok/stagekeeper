@@ -1,28 +1,27 @@
 import "server-only";
 
+import { isGateId } from "@harness/core/pipeline.mjs";
 import { pendingInboxCount } from "@/fsd/features/review-gate";
 import { prisma } from "@/server/db";
 import { latestBoard } from "@/server/pipeline/board";
+import { currentVersion } from "@/server/pipeline/run";
 import { deriveTurn, type Turn } from "../model/turn";
 
-// 배너와 탭 뱃지는 같은 행에서 나오지만 같은 수가 아니다 — 뱃지는 review-gate가 소유하는
-// 결재함 자격으로 세고(on_hold 포함), 배너는 on_hold를 세지 않는다(product-copy.md §5).
-// 두 값을 한 번의 읽기로 내보내 셸이 같은 행을 두 번 읽지 않게 한다.
 export type TurnData = { turn: Turn; inboxCount: number };
 
-// 배너가 무엇을 근거로 판정하는지는 이 위젯이 안다 — 읽기도 여기서 한다.
-// 체크리스트 단계를 더하거나 바꿀 때 model/turn.ts와 이 파일만 함께 고치면 된다.
+// §E.3: latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다. hasPropose는 현재 버전의 nodes에서.
 export async function loadTurn(projectId: string): Promise<TurnData> {
-  const [rows, tokenCount, workspaceCount, backlogCount, openRuns] = await Promise.all([
+  const [rows, tokenCount, workspaceCount, backlogCount, openRuns, pipelineRuns, version] = await Promise.all([
     latestBoard(projectId),
     prisma.projectToken.count({ where: { projectId, revokedAt: null } }),
     prisma.workspace.count({ where: { projectId } }),
     prisma.backlogItem.count({ where: { projectId, removedAt: null } }),
-    // 핸드오프 판정 재료: 항목에 묶인 열린 run의 **마지막** 원장 행. handoff면 dev가 커밋을 기다리며 멈춰 있다.
     prisma.agentRun.findMany({
       where: { projectId, closedAt: null, key: { not: null } },
       select: { key: true, stepId: true, steps: { orderBy: { at: "desc" }, take: 1, select: { outcome: true, note: true } } },
     }),
+    prisma.pipelineRun.findMany({ where: { closedAt: null, boardItem: { projectId } }, select: { boardItemId: true, node: true } }),
+    currentVersion(prisma, projectId),
   ]);
 
   const handoffs = new Map<string, { step: string; note: string | null }>();
@@ -30,17 +29,23 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     const last = run.steps[0];
     if (run.key !== null && last?.outcome === "handoff") handoffs.set(run.key, { step: run.stepId, note: last.note });
   }
-  const items = rows.map((r) => ({
-    key: r.backlogItem.key,
-    status: r.status,
-    agent: r.agent,
-    validation: r.validation,
-    accepted: r.acceptedAt !== null,
-    handoff: handoffs.get(r.backlogItem.key) ?? null,
-  }));
+  const cursor = new Map(pipelineRuns.map((r) => [r.boardItemId, r.node]));
+  const items = rows.map((r) => {
+    const at = cursor.get(r.id) ?? null;
+    return {
+      key: r.backlogItem.key,
+      status: r.status,
+      agent: r.agent,
+      validation: r.validation,
+      accepted: r.acceptedAt !== null,
+      handoff: handoffs.get(r.backlogItem.key) ?? null,
+      gate: at !== null && isGateId(at) ? at : null,
+      node: at !== null && !isGateId(at) ? at : null,
+    };
+  });
 
   return {
-    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0, backlogCount }),
-    inboxCount: pendingInboxCount(items.map((i) => i.status)),
+    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0, backlogCount, hasPropose: version.nodes.includes("propose") }),
+    inboxCount: pendingInboxCount(items.map((i) => ({ status: i.status, gate: i.gate }))),
   };
 }

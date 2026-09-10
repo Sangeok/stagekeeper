@@ -10,7 +10,8 @@ import { Button, ExternalButtonLink } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { Code } from "@/fsd/shared/ui/code";
-import { gateTargetFor, rejectActionsFor, resumeTargetsFor } from "../model/gate-source";
+import { gateLabel } from "@/fsd/entities/pipeline";
+import { rejectActionsFor, resumeTargetsFor } from "../model/gate-source";
 import {
   UNVERIFIED_HINT,
   bounceResultLine,
@@ -22,25 +23,27 @@ import {
   resumeToast,
   type RejectAction,
 } from "../model/gate-text";
-import type { DiscardAction, InboxItem, TransitionAction } from "../model/inbox-item";
+import type { DiscardAction, GateAction, InboxItem, TransitionAction } from "../model/inbox-item";
 import { GateCardLock } from "./gate-card-lock";
 import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
 import { RejectActions } from "./reject-actions";
 
-type Props = { item: InboxItem; now: string; transition: TransitionAction; discard: DiscardAction; locked?: boolean };
+type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; locked?: boolean };
 
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
-export function InboxCard({ item, now, transition, discard, locked = false }: Props) {
+export function InboxCard({ item, now, transition, approve, discard, locked = false }: Props) {
   // 잠긴 프로젝트에서는 아무 결정도 내릴 수 없다. 게이트·재개·반려·폐기를 모두 감추고 칩만 남긴다 —
   // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
   // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
   // 카드마다 반복하면 같은 문장이 장 수만큼 늘어난다.
-  const gateTo = gateTargetFor(item.status);
+  const gate = item.gate; // 런이 서 있는 게이트 — 카드 판정의 출처(§E.2)
+  const atImplement = gate === "before-implement";
   const isProposed = item.status === "proposed";
   const isInReview = item.status === "in_review";
   const isOnHold = item.status === "on_hold";
-  const isUnverified = isPlanUnverified(item.status, item.validation);
+  // 검증 안 된 계획의 경고는 before-implement에서만 — before-verify의 in_review는 검증 전이 정상이다(§E.2)
+  const isUnverified = atImplement && isPlanUnverified(item.status, item.validation);
   // 서버가 새 값은 거부하지만(TEXT_LIMIT), 이미 들어온 값의 초과 표시는 화면 몫이다.
   // 재는 기준은 보드와 같은 한 곳(entities/board-item)에서 온다 — 두 화면이 어긋나지 않게.
   const overBudget = isOverBudget([item.reason, ...item.results]);
@@ -57,7 +60,7 @@ export function InboxCard({ item, now, transition, discard, locked = false }: Pr
   return (
     <InboxCardBoundary itemKey={item.key}>
       <GateCardLock>
-        <article className={cardClass(gateTo !== null)}>
+        <article className={cardClass(gate !== null)}>
         <header className="flex flex-col gap-[3px]">
           <p className="font-mono text-xs text-quiet">
             {item.key} · {item.area}
@@ -69,7 +72,7 @@ export function InboxCard({ item, now, transition, discard, locked = false }: Pr
           </p>
         </header>
 
-        {isInReview ? <PlanRow item={item} /> : null}
+        {isInReview ? <PlanRow item={item} atImplement={atImplement} /> : null}
         {isProposed ? <Kv label="Evidence">{item.reason}</Kv> : null}
         {isOnHold ? <Kv label="Your note">{item.results[item.results.length - 1] ?? item.reason}</Kv> : null}
 
@@ -81,19 +84,19 @@ export function InboxCard({ item, now, transition, discard, locked = false }: Pr
             {locked ? (
               <span className="rounded-full border border-line px-3 py-1 text-xs text-quiet">Locked</span>
             ) : null}
-            {gateTo !== null && !locked ? (
+            {gate !== null && !locked ? (
               <GateTransitionButton
-                to={gateTo}
+                gate={gate}
                 itemKey={item.key}
                 variant={isUnverified ? "mine-outline" : "mine"}
-                commit={() => transition({ key: item.key, to: gateTo, expectedUpdatedAt: item.updatedAt })}
+                commit={() => approve({ key: item.key, gate, expectedUpdatedAt: item.updatedAt })}
               />
             ) : null}
             {isOnHold && !locked ? <ResumeButtons item={item} transition={transition} /> : null}
           </div>
-          {gateTo !== null && !locked ? (
+          {gate !== null && !locked ? (
             <p className={isUnverified ? "text-xs text-risk" : "text-xs text-quiet"}>
-              {isUnverified ? UNVERIFIED_HINT : gateNextActionHint(gateTo)}
+              {isUnverified ? UNVERIFIED_HINT : gateNextActionHint(gate)}
             </p>
           ) : null}
           {isOnHold && !locked ? (
@@ -126,6 +129,9 @@ export function InboxCard({ item, now, transition, discard, locked = false }: Pr
             </li>
             <li>
               <b className="font-medium text-ink">Approve implementation</b> approves the plan at the commit shown on the card.
+            </li>
+            <li>
+              <b className="font-medium text-ink">Continue</b> moves the item to the next node; nothing changes on the board.
             </li>
             <li>Sending back clears the validation record.</li>
             <li>Discard can&apos;t be undone.</li>
@@ -166,11 +172,18 @@ function StatusLine({ item, now }: { item: InboxItem; now: string }) {
       </span>
     );
   }
+  if (item.gate !== null) {
+    return (
+      <span>
+        {label} · waiting at {gateLabel(item.gate)}
+      </span>
+    );
+  }
   return <span>{label}</span>;
 }
 
 // 게이트②에서 읽을 것은 계획서다: 검증 여부(부재가 위험) · 경로 · 커밋.
-function PlanRow({ item }: { item: InboxItem }) {
+function PlanRow({ item, atImplement }: { item: InboxItem; atImplement: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-field px-3 py-2.5 text-xs">
       {/* 술어를 함수로 뺐으므로 여기서 validation이 non-null로 좁혀지지 않는다 — title 값만 보정한다. */}
@@ -179,7 +192,7 @@ function PlanRow({ item }: { item: InboxItem }) {
           Verified
         </Chip>
       ) : (
-        <Chip tone="risk" title="No independent validation has been recorded. Approving now means implementing an unverified plan.">
+        <Chip tone={atImplement ? "risk" : "done"} title={atImplement ? "No independent validation has been recorded. Approving now means implementing an unverified plan." : "Not verified yet — the verification node comes next."}>
           No validation yet
         </Chip>
       )}

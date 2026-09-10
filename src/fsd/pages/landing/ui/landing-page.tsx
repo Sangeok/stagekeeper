@@ -23,7 +23,7 @@ const CYCLE: { n: number; label: string; you?: true }[] = [
 const FACTS = [
   {
     title: "Agents can't approve themselves.",
-    body: "Gate moves are yours — in the Inbox, or from your own session with an owner token. The agent token has neither the gate nor the settings — not by policy text, by the toolset.",
+    body: "Gates are where you put them — you decide how many and where, on the Pipeline tab. Opening one is yours, in the Inbox or from your own session with an owner token. The agent token has neither the gate nor the settings — not by policy text, by the toolset.",
   },
   {
     title: "No pass without a record.",
@@ -142,8 +142,8 @@ const IS_DECISION_CARD = true;
 // 이 데모는 실제 Inbox 화면에 대한 약속이라, 문구가 제품과 갈라지면 랜딩이 거짓말이 된다.
 // 탭 목록과 상태 라벨은 소유 모듈에서 직접 가져온다. 나머지 셋은 값을 그대로 적되 출처를 밝힌다:
 //   "Waiting on you"  = widgets/turn-banner/model/turn.ts 의 HEADLINE.mine
-//   "Approve implementation"                = features/review-gate/model/gate-text.ts GATE_ACTION.implementing.label
-//   "Approving lets dev change code. …"     = 같은 파일 GATE_ACTION.implementing.hint
+//   "Approve implementation"                = features/review-gate/model/gate-text.ts GATE_ACTION["before-implement"].label
+//   "Approving lets dev change code. …"     = 같은 파일 GATE_ACTION["before-implement"].hint
 // 두 barrel(turn-banner·review-gate)이 Client Component를 포함하고 있어, 공개 페이지인 랜딩이
 // 그것을 모듈 그래프로 끌어오지 않게 한 선택이다. 세 문구를 바꿀 때는 여기도 함께 본다.
 function InboxDemo() {

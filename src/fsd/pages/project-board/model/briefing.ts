@@ -1,5 +1,5 @@
 import { isOverBudget } from "@/fsd/entities/board-item";
-import { isGateSource } from "@/fsd/features/review-gate";
+import { NODE_AGENT } from "@harness/core/pipeline.mjs";
 import { daysBetween } from "@/fsd/shared/lib/relative-time";
 
 type BoardRow = {
@@ -9,6 +9,7 @@ type BoardRow = {
   results: readonly string[];
   proposedOn: Date;
   backlogItem: { key: string };
+  gate: string | null; // 런이 서 있는 게이트 — 카드 판정의 재료(§E.4)
 };
 type Tone = "pending" | "active" | "done" | "hold" | "muted";
 
@@ -108,15 +109,18 @@ export function buildBriefing(
   rows: readonly BoardRow[],
   today: Date,
   roster: readonly string[],
+  nodes: readonly string[],
 ): Briefing {
   const gateItems: ActivityItem[] = [];
   const otherItems: ActivityItem[] = [];
   for (const row of rows) {
     const item = activityItem(row, today);
-    if (isGateSource(row.status)) gateItems.push(item);
+    if (row.gate !== null) gateItems.push(item);
     else otherItems.push(item);
   }
-  const team = ["pm", ...roster, "plan-verifier", "doc-auditor", "feature-scout"]
-    .map((agent) => ({ agent, state: teamState(agent, rows) }));
+  // 현재 그래프의 노드가 디스패치하는 에이전트만, 그래프 순서로 — plan·implement는 roster(항목의 dev), accept는 main-loop(디스패치 아님).
+  const agentsOf = (kind: string): readonly string[] =>
+    kind === "plan" || kind === "implement" ? roster : ((NODE_AGENT as Record<string, string | undefined>)[kind] ? [(NODE_AGENT as Record<string, string>)[kind]] : []);
+  const team = [...new Set(nodes.flatMap(agentsOf))].map((agent) => ({ agent, state: teamState(agent, rows) }));
   return { activity: [...gateItems, ...otherItems], team };
 }

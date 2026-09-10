@@ -7,39 +7,69 @@ export type CardLock = { label: string; tone: "mine" | "risk" | "done" };
 
 export type RejectAction = "bounce" | "hold" | "discard";
 
-// 게이트 — 목적지 status가 키다(gateTargetFor가 돌려주는 값). hint는 누르기 전에 버튼 아래서 결과를 말한다.
+// 게이트 — **게이트 id**가 키다(런의 커서가 서 있는 자리, pipeline.mjs의 before-<kind>).
+// 상태가 아니라 그래프가 게이트를 정하므로 목적지 status로는 카드를 못 그린다(§E.1).
+// hint는 누르기 전에 버튼 아래서 결과를 말한다.
 const GATE_ACTION: Record<string, { label: string; pending: string; lock: string; toast: string; hint: string }> = {
-  planning: {
+  "before-plan": {
     label: "Request plan",
     pending: "Requesting…",
     lock: "Plan requested",
     toast: "Plan requested",
     hint: "dev writes a plan. Nothing changes in the code yet.",
   },
-  implementing: {
+  "before-verify": {
+    label: "Continue to verification",
+    pending: "Continuing…",
+    lock: "Continued",
+    toast: "Continued to verification",
+    hint: "The main loop verifies the plan; plan-verifier runs an independent pass.",
+  },
+  "before-implement": {
     label: "Approve implementation",
     pending: "Approving…",
     lock: "Approved",
     toast: "Implementation approved",
     hint: "Approving lets dev change code. Then you run dev in Claude Code.",
   },
+  "before-accept": {
+    label: "Continue to acceptance",
+    pending: "Continuing…",
+    lock: "Continued",
+    toast: "Continued to acceptance",
+    hint: "The main loop reproduces the five acceptance checks.",
+  },
+  "before-doc-audit": {
+    label: "Continue to doc audit",
+    pending: "Continuing…",
+    lock: "Continued",
+    toast: "Continued to doc audit",
+    hint: "doc-auditor checks whether the docs still match the code.",
+  },
+  "before-scout": {
+    label: "Continue to scouting",
+    pending: "Continuing…",
+    lock: "Continued",
+    toast: "Continued to scouting",
+    hint: "feature-scout researches outside and proposes features.",
+  },
 };
 
-export function gateActionLabel(to: string): string {
-  return GATE_ACTION[to]?.label ?? `Move to ${to}`;
+export function gateActionLabel(gate: string): string {
+  return GATE_ACTION[gate]?.label ?? `Move past ${gate}`;
 }
-export function gatePendingLabel(to: string): string {
-  return GATE_ACTION[to]?.pending ?? "Moving…";
+export function gatePendingLabel(gate: string): string {
+  return GATE_ACTION[gate]?.pending ?? "Moving…";
 }
-export function gateLockLabel(to: string): string {
-  return GATE_ACTION[to]?.lock ?? "Done";
+export function gateLockLabel(gate: string): string {
+  return GATE_ACTION[gate]?.lock ?? "Done";
 }
-export function gateToast(to: string, key: string): string {
-  return `${GATE_ACTION[to]?.toast ?? "Moved"} · ${key}`;
+export function gateToast(gate: string, key: string): string {
+  return `${GATE_ACTION[gate]?.toast ?? "Moved"} · ${key}`;
 }
 // 누르기 전에 보여 준다 — 누른 뒤 토스트로 말하면 이미 늦다.
-export function gateNextActionHint(to: string): string {
-  return GATE_ACTION[to]?.hint ?? "Then continue in Claude Code.";
+export function gateNextActionHint(gate: string): string {
+  return GATE_ACTION[gate]?.hint ?? "Then continue in Claude Code.";
 }
 // 검증 기록이 없는 in_review를 승인하려 할 때. 버튼은 윤곽으로 물러서고 이 문장이 빨갛다.
 export const UNVERIFIED_HINT = "This approves an unverified plan. Run plan-verifier in Claude Code first.";
@@ -85,7 +115,7 @@ export function reopenPrimaryFor(targets: readonly string[]): string {
   return targets.includes("implementing") ? "implementing" : (targets[0] ?? "implementing");
 }
 export function reopenHint(to: string): string {
-  if (to === "planning") return "dev rewrites the plan; the validation is cleared. Gate 2 runs again.";
+  if (to === "planning") return "dev rewrites the plan; the validation is cleared. The item walks the pipeline again from plan.";
   return "dev fixes the code against the same plan. Reopening planning instead clears the validation and dev rewrites the plan.";
 }
 // 노트가 비었을 때 폼이 보이는 문장 — 서버의 "result: must not be empty"는 여기 닿지 않는다(§12).

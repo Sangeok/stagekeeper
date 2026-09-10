@@ -4,7 +4,7 @@
 // 이유는 경계다 — 그 문장을 만드는 곳에는 서버 액션(src/fsd)뿐 아니라 MCP 도구(src/server)와 생성기(plugin)도
 // 있는데, src/server는 FSD 슬라이스를 import할 수 없다. 세 층이 다 닿는 자리는 packages/core 하나뿐이라
 // 문장은 거기 두고, 여기는 **화면에만 필요한 말**(플랜 이름·축 이름·무제한 표기·안내 문구)을 맡는다.
-import { LIMITS, PLANS, UNLIMITED, limitsFor } from "@harness/core/entitlement.mjs";
+import { DISPATCH_WINDOW_DAYS, LIMITS, PLANS, UNLIMITED, limitsFor } from "@harness/core/entitlement.mjs";
 
 export type PlanId = "free" | "pro" | "max";
 
@@ -35,6 +35,8 @@ export function planMatrix(): PlanRow[] {
     },
     { label: "Report agents", values: cell((p) => limitsFor(p).agents.join(", ")) },
     { label: "Session approvals", values: cell((p) => (limitsFor(p).sessionApprovals ? "Yes" : "Web only")) },
+    { label: "Pipeline editing", values: cell((p) => (limitsFor(p).pipelineEdit ? "Yes" : "Default only")) },
+    { label: `Agent dispatches per ${DISPATCH_WINDOW_DAYS} days`, values: cell((p) => count(limitsFor(p).dispatches)) },
   ];
 }
 
