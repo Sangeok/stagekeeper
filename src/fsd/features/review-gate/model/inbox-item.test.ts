@@ -49,7 +49,7 @@ describe("toInboxItems", () => {
     assert.equal(item.statusSince, "2026-08-30T09:00:00.000Z");
   });
 
-  it("planUrl opens the recorded commit, not the branch — that commit is what gate 2 approves", () => {
+  it("planUrl opens the recorded commit, not the branch — that commit is what `before-implement` approves", () => {
     const [item] = toInboxItems([boardRow({ planPath: "docs/plans/FEAT-01.md", planCommit: "b72a941" })], repo);
     assert.ok(item);
     assert.equal(item.planUrl, "https://github.com/o/r/blob/b72a941/docs/plans/FEAT-01.md");

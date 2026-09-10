@@ -61,7 +61,7 @@ async function latestRow(db: Db, projectId: string, key: string) {
   });
 }
 
-// 세션 채널이 CAS 토큰으로 쓸 updatedAt을 읽는다 — 지금 sessionGate가 트랜잭션 밖에서 하던 일이고,
+// 세션 채널이 CAS 토큰으로 쓸 updatedAt을 읽는다 — 지금 세션 게이트가 트랜잭션 밖에서 하던 일이고,
 // owner-deps.ts가 board.gate를 부르기 직전에 쓴다(§D.2).
 export function latestRowFor(projectId: string, key: string) {
   return latestRow(prisma, projectId, key);

@@ -15,7 +15,7 @@ const ruleKind = (actor: string, from: string, to: string): RuleKind | null =>
 // 카드의 판정 재료 — 상태와, 런이 서 있는 게이트(없으면 null). 게이트 여부는 상태 기계가 아니라 그래프(런)가 말한다.
 export type GateRow = { status: string; gate: string | null };
 
-// 이 항목이 게이트에서 기다리는가. 옛 isGateSource(status)를 대체한다 — 상태만으로는 "게이트를 뺐다"를 알 수 없다.
+// 이 항목이 게이트에서 기다리는가. 상태 기반 판정을 대체한다 — 상태만으로는 "게이트를 뺐다"를 알 수 없다.
 export function isAtGate(row: GateRow): boolean {
   return row.gate !== null;
 }
