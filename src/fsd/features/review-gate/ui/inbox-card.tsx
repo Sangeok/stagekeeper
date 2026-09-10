@@ -153,7 +153,7 @@ function StatusLine({ item, now }: { item: InboxItem; now: string }) {
   if (item.status === "proposed") {
     return (
       <span>
-        {label} · pm, {agoLabel(new Date(item.proposedOn), today)}
+        {label} · {item.proposedBy}, {agoLabel(new Date(item.proposedOn), today)}
       </span>
     );
   }

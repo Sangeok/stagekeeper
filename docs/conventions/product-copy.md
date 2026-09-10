@@ -243,7 +243,7 @@ the item key in the body as well as the key label; it does not replace it with "
 **Decision card** (Inbox only):
 
 - Header: `FEAT-01 · README.md` (key · area, mono) — title — status line **Proposed** · pm,
-  2 days ago / **In review** · dev submitted a plan 3 days ago / **On hold** · since Aug 28 · was
+  2 days ago (or **Proposed** · you, today when you put it on the board yourself from the Backlog) / **In review** · dev submitted a plan 3 days ago / **On hold** · since Aug 28 · was
   Implementing. Relative time reads "today" · "1 day ago" · "N days ago".
 - Gate 1 (proposed): **Evidence** row → **Request plan** + hint (§3).
 - Gate 2 (in_review): plan row — **Verified** (quiet chip; tooltip = the full record) or **No
