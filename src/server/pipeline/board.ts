@@ -5,7 +5,7 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import type { ServerResult } from "@/server/result";
 import { ensureRun, nextFor, readFacts, type Graph } from "./run";
-import { PLAN_VERIFIER, decideDiscard, decidePlanSubmit, decidePropose, decideGate, decideReportSubmit, decideTransition, decideValidation } from "./board-rules";
+import { decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, PLAN_VERIFIER } from "./board-rules";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -156,6 +156,10 @@ export async function transitionIn(
 ) {
   const row = await latestRow(tx, projectId, input.key);
   if (!row) return fail(`no such board item: ${input.key}`);
+  // 이미 그 상태다. 한 노드가 호출 여럿으로 이뤄져 있어 순서가 어긋나면(증거 제출이 전이까지 한 뒤
+  // 템플릿이 전이를 또 부른다) 여기서 에러가 나면 에이전트가 멈춘다. 상태는 요청한 그대로이므로
+  // 무해한 성공으로 둔다. 결과를 실은 호출은 기록할 것이 있으므로 그대로 판정으로 보낸다.
+  if (isNoopTransition(row.status, input.to, input.result)) return { ok: true as const, item: row };
   const d = decideTransition(
     { status: row.status, planPath: row.planPath, reportCount: row._count.reports, results: row.results, validation: row.validation },
     caller.actor, input.to, input.result,
@@ -180,7 +184,10 @@ export async function transitionIn(
   if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date() } });
   // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
   if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null } });
-  if (!isOpen(d.value.status)) await closeRuns(tx, projectId, input.key);
+  // 상태가 바뀌면 옛 상태에서 하던 일은 끝났다. 열린 run을 두면 에이전트의 단계 커서가 파이프라인
+  // 커서와 어긋나, 다음 디스패치에서 지난 단계 본문이 다시 나온다(실측). 다음 호출이 새 run을
+  // 그 상태가 여는 단계에서 연다 — verifyOk는 run을 가리지 않으므로 검증 벽은 그대로다.
+  await closeRuns(tx, projectId, input.key);
   // 파이프라인 커서 — 사람의 되돌리기·보류·재개·reopen은 자리를 다시 잡고, 나머지는 앞으로 간다. pipeline 자신의 전이는
   // advanceRun 안에서 왔으므로 재귀하지 않는다(caller.actor === "pipeline"이면 건너뛴다).
   if (caller.actor !== "pipeline") {
@@ -290,6 +297,15 @@ export async function submitPlan(projectId: string, input: { key: string; path: 
     if (!d.ok) return fail(d.reason);
     const item = await tx.boardItem.update({ where: { id: row.id }, data: { planPath: input.path, planCommit: input.commit } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "plan" } });
+    // 계획서가 올라왔으면 검토 대기로 넘긴다. 예전에는 에이전트가 board_transition을 따로 불러야 했고,
+    // 빠뜨리면 항목이 planning에 남아 dev가 다시 디스패치됐다. 상태 기계의 `planning → in_review`
+    // (actor agent, requiresPlan) 규칙 그대로다 — 방금 쓴 계획서가 그 전제를 채운다.
+    // 재제출(in_review에서 다시 부르는 경우)은 넘길 곳이 없으므로 기록만 한다.
+    if (row.status === "planning") {
+      const t = await transitionIn(tx, projectId, { key: input.key, to: "in_review" }, { actor: "agent", actorRef });
+      if (!t.ok) return t;
+      return { ok: true as const, item: t.item };
+    }
     return { ok: true as const, item };
   });
 }

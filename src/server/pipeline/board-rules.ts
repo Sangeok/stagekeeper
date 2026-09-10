@@ -85,6 +85,13 @@ export function decideValidation(i: ValidationInput): Decision<null> {
 
 // in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — planCommit이 승인 대상(HEAD)을 가리키게 한다(F3).
 const PLAN_SUBMIT_STATUSES = new Set(["planning", "in_review"]);
+// 이미 요청한 상태다. 한 노드가 호출 여럿으로 이뤄져 있어 순서가 어긋날 수 있으므로(plan_submit이
+// 전이까지 한 뒤 템플릿이 board_transition을 또 부른다) 에러 대신 무해한 성공으로 둔다.
+// 결과를 실은 호출은 기록할 것이 있으므로 제외한다 — 그건 판정을 거쳐야 한다.
+export function isNoopTransition(status: string, to: string, result?: string): boolean {
+  return status === to && result === undefined;
+}
+
 export function decidePlanSubmit(status: string): Decision<null> {
   return PLAN_SUBMIT_STATUSES.has(status)
     ? { ok: true, value: null }
