@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decideDiscard, decidePlanSubmit, decidePropose, decideGate, decideReportSubmit, decideTransition, decideValidation } from "./board-rules.ts";
+import { decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition } from "./board-rules.ts";
 
 const base = { backlogExists: true, hasOpenRow: false, openCount: 0, roster: ["web-dev", "admin-dev"], agent: "web-dev", reason: "evidence" };
 const row = (o = {}) => ({ status: "planning", planPath: null, reportCount: 0, results: [], validation: null, ...o });
@@ -149,5 +149,22 @@ describe("decideGate — 웹과 세션이 같이 쓰는 게이트 판정", () =>
     const r = decideGate({ gate: "before-verify", cursor: "before-verify", status: "in_review", validation: null, planCommit: null, claimedPlanCommit: undefined, channel: "session" });
     assert.equal(r.ok, true);
     assert.equal(r.value.boundary, null);
+  });
+});
+
+// 한 노드가 호출 여러으로 이뤄져 있어서 순서가 어긋나면 에이전트가 멈추던 자리다(실측).
+describe("isNoopTransition", () => {
+  it("is a no-op when the item is already in the requested status", () => {
+    // plan_submit이 전이까지 한 뒤 템플릿이 board_transition을 또 부르는 경우.
+    assert.equal(isNoopTransition("in_review", "in_review", undefined), true);
+  });
+
+  it("is not a no-op when the call carries a result — that has something to record", () => {
+    assert.equal(isNoopTransition("done", "done", "shipped it"), false);
+  });
+
+  it("is not a no-op for a real move", () => {
+    assert.equal(isNoopTransition("planning", "in_review", undefined), false);
+    assert.equal(isNoopTransition("implementing", "done", undefined), false);
   });
 });
