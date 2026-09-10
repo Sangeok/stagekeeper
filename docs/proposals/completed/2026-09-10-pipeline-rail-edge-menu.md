@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "awaiting-approval"
+status: "completed"
+stage: null
 proposal-size: "small"
 created-at: "2026-09-10"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "HamSangEok"
+approved-at: "2026-09-10"
+approval-scope: "본문 전체와 Execution Plan 1–4. 제안서와 같은 브랜치에서 구현해 한 PR로 올린다."
+completed-at: "2026-09-10"
+verification-summary: "npm run check exit 0 · npm run test:web 224/224 · npm run verify:fsd 통과 · npm test 134/134 · npm run test:templates 18/18 · 브라우저 실측으로 레일 카드 좌표 불변(166·272·166·284px 그대로) 확인 · build 건너뜀(dev 서버 실행 중)"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -126,7 +126,7 @@ Pipeline 탭 레일에서 간선의 `+`를 열면 그 간선이 30px에서 208px
 
 승인 메모:
 
-- 승인 전.
+- 소유자가 제안서를 읽고 그 자리에서 구현까지 승인했다(2026-09-10). 제안서·승인·구현이 한 PR에 함께 올라간다 — 문서 하나와 파일 하나라 나눠 얻는 것이 없다.
 
 ## Execution Plan
 
@@ -154,10 +154,21 @@ Pipeline 탭 레일에서 간선의 `+`를 열면 그 간선이 30px에서 208px
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `npm run check` | Not run yet | |
-| `npm run test:web` | Not run yet | |
-| `npm run verify:fsd` | Not run yet | |
-| 브라우저 실측 | Not run yet | |
+| `npm run check` | PASS | exit 0, architecture 19/19 |
+| `npm run test:web` | PASS 224/224 | 새 테스트는 없다 — 순수 규칙이 아니라 렌더 위치만 바뀌었다 |
+| `npm run verify:fsd` | PASS | |
+| `npm test` · `npm run test:templates` | PASS 134/134 · 18/18 | 회귀 확인 |
+| 브라우저 실측 | PASS | 아래 |
+
+브라우저 실측(bounding box로 재보았다):
+
+- `+` 개폐 전후 레일 행의 높이와 각 그룹 폭이 같다 — 166 · 272 · 166 · 284 · 166 · 166px. 열어도 카드가
+  밀리지 않는다(페이지가 길어져 세로 스크롤바가 생기면 전체가 8px 같이 옴긴다 — 레일 내부 간격은 그대로다).
+- 패널은 레일 아래에 잘리지 않고 통째로 보인다. 제목은 그 간선을 말한다(`BEFORE PROPOSE`).
+- 비활성 사유가 그대로 보인다: `gate before-propose has no node after it`.
+- 한 번에 하나만 열린다. 다른 `+`를 누르면 그쪽으로 옴기고, 같은 것을 다시 누르면 닫힌다.
+- 열린 간선의 `+`는 눌린 상태로 보이고 `aria-expanded`가 붙는다.
+- 항목을 고르면 그래프가 바뀌고 패널은 닫힌다. Discard changes로 되돌렸다 — 저장된 그래프는 건드리지 않았다.
 
 ## Risks and Rollback
 
@@ -171,23 +182,26 @@ Pipeline 탭 레일에서 간선의 `+`를 열면 그 간선이 30px에서 208px
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: front matter 참조
+- verification-summary: front matter 참조
+- implementation PR/commit: PR #29(`harness/pipeline-rail-edge-menu` → `dev`). 제안서·승인·구현·완료가 한 브랜치에 있다.
+- changed files summary: `src/fsd/features/edit-pipeline/ui/pipeline-rail.tsx`(`EdgeSlot`에서 `<details>`를 걷어내고 `+`를
+  여는 스위치로만 둔다. `PipelineRail`이 `openEdge` 상태와 `movesFor`를 갖고 레일 아래에 패널 하나를 그린다),
+  `docs/conventions/product-copy.md` §18(간선 `+` 문장).
+- remaining follow-up: 없다. 다만 패널이 레일에서 멀어진다는 Risks의 항목은 그대로 남는다 — 제목이 간선을 말하므로
+  실측에서 문제가 되지 않았다.
 
 ## Review Checklist
 
 - [x] 모든 `{placeholder}`를 처리했다.
-- [x] `status`는 `pending`이고 위치는 `active/`다.
-- [x] `stage`는 `awaiting-approval`이고 승인 기록은 비어 있다.
+- [x] `status`는 `completed`이고 위치는 `completed/`다.
+- [x] `stage`는 `null`이고 승인 기록은 front matter에 채워져 있다.
 - [x] `proposal-size`는 `small`이고 standard 강제 조건에 걸리지 않는다.
 - [x] 변경 범위와 제외 범위가 명확하다.
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 import, barrel export, 라우팅, side effect를 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (실행 전)
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. (실패 없음)
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서라면 완료 기록이 갱신되어 있다. (해당 없음)
+- [x] 완료 문서라면 완료 기록이 갱신되어 있다.
 - [ ] 닫힌 문서라면 닫힘 기록이 일치한다. (해당 없음)

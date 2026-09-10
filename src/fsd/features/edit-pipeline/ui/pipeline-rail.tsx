@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, gateId } from "@harness/core/pipeline.mjs";
 import { gateLabel, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import type { ActionResult } from "@/fsd/shared/api/result";
+import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { addNode, insertGate, removeGate, removeNode, swapTail, type Graph, type Step } from "../model/rail-state";
@@ -31,15 +32,26 @@ type Move = { label: string; step: Step };
 // 국소 상태는 { nodes, gates } 하나뿐이고 저장 전에는 서버에 아무것도 가지 않는다(§E.6).
 export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
   const [state, setState] = useState<Graph>(graph);
+  // 지금 메뉴가 열린 간선(그 뒤 노드의 kind). 메뉴는 레일 밖 한 자리에만 그린다 — 간선 안에 두면
+  // 열릴 때 그 열이 넓어져 뒤 카드를 밀고, 띄우면 가로 스크롤 컨테이너에 잘린다(overflow-x: auto는
+  // overflow-y를 visible로 둘 수 없다). 덤으로 한 번에 하나만 열린다.
+  const [openEdge, setOpenEdge] = useState<string | null>(null);
   const [confirmingNoGate, setConfirmingNoGate] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const dirty = JSON.stringify(state) !== JSON.stringify(graph);
   const missing = KINDS.filter((k) => !state.nodes.includes(k));
 
+  // 그 간선에서 할 수 있는 것 — 사유는 core의 validateGraph가 쓴 문장 그대로다.
+  const movesFor = (kind: string): Move[] => [
+    { label: "Add gate", step: insertGate(state, gateId(kind), plan) },
+    ...missing.map((k) => ({ label: `Add ${nodeLabel(k)}`, step: addNode(state, k, plan) })),
+  ];
+
   const apply = (step: Step) => {
     if (!step.ok) return;
     setState(step.graph);
+    setOpenEdge(null);
     setConfirmingNoGate(false);
   };
 
@@ -70,12 +82,9 @@ export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
               gate={state.gates.includes(gateId(kind)) ? gateId(kind) : null}
               boundary={BOUNDARIES[gateId(kind)] ?? null}
               editable={editable}
-              moves={[
-                { label: "Add gate", step: insertGate(state, gateId(kind), plan) },
-                ...missing.map((k) => ({ label: `Add ${nodeLabel(k)}`, step: addNode(state, k, plan) })),
-              ]}
+              open={openEdge === kind}
+              onToggle={() => setOpenEdge((at) => (at === kind ? null : kind))}
               onRemoveGate={() => apply(removeGate(state, gateId(kind), plan))}
-              onPick={apply}
             />
             <NodeCard
               kind={kind}
@@ -90,6 +99,27 @@ export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
           </div>
         ))}
       </div>
+
+      {openEdge === null ? null : (
+        <div className="flex w-64 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
+          <p className="px-1.5 pb-1 text-[11px] uppercase leading-4 tracking-[0.06em] text-quiet">
+            {gateLabel(gateId(openEdge))}
+          </p>
+          {movesFor(openEdge).map((move) => (
+            <div key={move.label} className="flex flex-col">
+              <button
+                type="button"
+                disabled={!editable || !move.step.ok}
+                className="rounded px-1.5 py-1 text-left text-xs hover:bg-field disabled:opacity-50"
+                onClick={() => apply(move.step)}
+              >
+                {move.label}
+              </button>
+              {move.step.ok ? null : <span className="px-1.5 text-[11px] text-quiet">{move.step.reason}</span>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {state.gates.length === 0 ? (
         <p className="text-xs text-risk">
@@ -125,20 +155,21 @@ export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
 }
 
 // 노드 앞 간선. 게이트가 있으면 그 카드, 없으면 자동 경계 안내와 "+".
+// "+"는 여는 스위치일 뿐이고 메뉴 자체는 레일 밖에 있다 — 그래서 이 칸의 너비는 열려도 그대로다.
 function EdgeSlot({
   gate,
   boundary,
   editable,
-  moves,
+  open,
+  onToggle,
   onRemoveGate,
-  onPick,
 }: {
   gate: string | null;
   boundary: { from: string; to: string } | null;
   editable: boolean;
-  moves: Move[];
+  open: boolean;
+  onToggle: () => void;
   onRemoveGate: () => void;
-  onPick: (step: Step) => void;
 }) {
   if (gate !== null) {
     return (
@@ -161,25 +192,17 @@ function EdgeSlot({
   return (
     <div className="flex flex-col items-center justify-center gap-1">
       {boundary ? <span className="text-[11px] text-quiet">auto → {boundary.to}</span> : null}
-      {/* 메뉴는 자리를 차지한다 — 레일이 가로로 스크롤하므로 띄우면 잘려 안 보인다. 열면 그 간선이 잠깐 넓어진다. */}
-      <details>
-        <summary className="cursor-pointer list-none rounded-md border border-rule px-2 py-1 text-center text-xs text-quiet">+</summary>
-        <div className="mt-1 flex w-52 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
-          {moves.map((move) => (
-            <div key={move.label} className="flex flex-col">
-              <button
-                type="button"
-                disabled={!editable || !move.step.ok}
-                className="rounded px-1.5 py-1 text-left text-xs hover:bg-field disabled:opacity-50"
-                onClick={() => onPick(move.step)}
-              >
-                {move.label}
-              </button>
-              {move.step.ok ? null : <span className="px-1.5 text-[11px] text-quiet">{move.step.reason}</span>}
-            </div>
-          ))}
-        </div>
-      </details>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className={cn(
+          "rounded-md border px-2 py-1 text-center text-xs",
+          open ? "border-mine bg-mine-soft text-mine" : "border-rule text-quiet",
+        )}
+      >
+        +
+      </button>
     </div>
   );
 }

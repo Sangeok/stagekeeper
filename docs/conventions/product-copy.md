@@ -800,8 +800,11 @@ never existed look the same from here.
   **Implement** · **Accept** · **Doc audit** · **Scout**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
   boundary has no gate, small text between the cards says "auto → planning".
-- Each edge carries a **+** that inserts a gate, or puts back a node the graph does not have
-  (a removed optional node, or the opt-in Scout). A node card's menu offers **Remove** for optional
+- Each edge carries a **+**. It opens one panel **below the rail** — never inside the edge, which
+  would widen it and shove the rest of the row sideways. The panel is titled with the edge
+  ("before Plan"), only one is open at a time, and the **+** it belongs to is shown pressed. It
+  inserts a gate, or puts back a node the graph does not have (a removed optional node, or the
+  opt-in Scout). Choosing anything closes it. A node card's menu offers **Remove** for optional
   nodes and gates, and the two tail nodes offer **Swap**.
 - A button is disabled with the server's own reason — the rail runs the same `validateGraph` the
   save action does, so the wording in §12 is what the user sees.
