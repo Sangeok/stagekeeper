@@ -93,8 +93,13 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
 }
 
 // key 없는 호출의 머리 — 미결 수는 deps.ts가 latestBoard로 세어 넘긴다(§D.1; run.ts는 board.ts를 import하지 않는다)
-export async function headFor(db: Db, projectId: string, openCount: number): Promise<HeadNext> {
+export async function headFor(db: Db, projectId: string, openCount: number, availableBacklog: number): Promise<HeadNext> {
   const version = await currentVersion(db, projectId);
   const capMsg = capError(await planForProject(projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date())));
-  return decideHead({ hasPropose: version.nodes.includes("propose"), openCount, capReason: capMsg ? `${capMsg} — counted over the last ${DISPATCH_WINDOW_DAYS} days` : null });
+  return decideHead({
+    hasPropose: version.nodes.includes("propose"),
+    openCount,
+    availableBacklog,
+    capReason: capMsg ? `${capMsg} — counted over the last ${DISPATCH_WINDOW_DAYS} days` : null,
+  });
 }

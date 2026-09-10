@@ -63,7 +63,7 @@ export const prismaToolDeps: ToolDeps = {
       await board.advancePipeline(projectId, key);
       items.push(await nextFor(prisma, projectId, key));
     }
-    return { ok: true as const, item: { head: await headFor(prisma, projectId, open.length), items } };
+    return { ok: true as const, item: { head: await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId)), items } };
   },
   access: (projectId) => projectAccess(projectId),
 };

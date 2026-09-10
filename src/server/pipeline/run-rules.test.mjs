@@ -33,24 +33,45 @@ describe("decideNext (H.4)", () => {
     assert.equal(decideNext({ ...base, node: "doc-audit", status: "done" }).agent, "doc-auditor");
     assert.equal(decideNext({ ...base, node: "propose", status: "proposed" }).agent, "pm");
   });
-  it("HINT has the six sentences and verify mentions validation_record", () => {
-    assert.deepEqual(Object.keys(HINT).sort(), ["doc-audit", "implement", "plan", "propose", "scout", "verify"]);
+  it("HINT covers every node the pipeline can stop on, accept included", () => {
+    // accept만 빠져 있었다 — 메인 루프가 에이전트 없이 직접 하는 유일한 동작인데 안내가 없었다(실측).
+    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "implement", "plan", "propose", "scout", "verify"]);
     assert.match(HINT.verify, /validation_record/);
+    assert.match(HINT.accept, /report_submit/);
+  });
+
+  it("accept carries its hint like every other answer", () => {
+    const r = decideNext({ ...base, node: "accept", status: "done" });
+    assert.equal(r.action, "accept");
+    assert.equal(r.hint, HINT.accept);
   });
 });
 
 describe("decideHead (H.4)", () => {
   it("no propose node → none with the Backlog-tab reason", () => {
-    const r = decideHead({ hasPropose: false, openCount: 0, capReason: null });
+    const r = decideHead({ hasPropose: false, openCount: 0, availableBacklog: 3, capReason: null });
     assert.equal(r.action, "none");
     assert.match(r.reason, /Backlog tab/);
   });
   it("two open items → none with the pm sentence", () => {
-    assert.deepEqual(decideHead({ hasPropose: true, openCount: 2, capReason: null }), { action: "none", reason: "open items: 2 (max 2)" });
+    assert.deepEqual(decideHead({ hasPropose: true, openCount: 2, availableBacklog: 3, capReason: null }), { action: "none", reason: "open items: 2 (max 2)" });
   });
   it("the cap → none with its sentence; otherwise dispatch pm with HINT.propose", () => {
-    assert.equal(decideHead({ hasPropose: true, openCount: 1, capReason: "dispatch cap reached on the free plan (60)" }).reason, "dispatch cap reached on the free plan (60)");
-    assert.deepEqual(decideHead({ hasPropose: true, openCount: 1, capReason: null }), { action: "dispatch", agent: "pm", hint: HINT.propose });
+    assert.equal(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, capReason: "dispatch cap reached on the free plan (60)" }).reason, "dispatch cap reached on the free plan (60)");
+    assert.deepEqual(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, capReason: null }), { action: "dispatch", agent: "pm", hint: HINT.propose });
+  });
+
+  it("an empty backlog rests instead of dispatching pm at nothing", () => {
+    // 예전에는 백로그가 비어도 계속 "dispatch pm"이었다. 고를 것이 없다는 걸 알자고 디스패치를 하나 썼고,
+    // 그 디스패치는 월 상한에 계수된다(실측).
+    const r = decideHead({ hasPropose: true, openCount: 0, availableBacklog: 0, capReason: null });
+    assert.equal(r.action, "none");
+    assert.match(r.reason, /backlog has nothing to pick/);
+  });
+
+  it("the open-items rule still wins over an empty backlog — the owner clears one first", () => {
+    const r = decideHead({ hasPropose: true, openCount: 2, availableBacklog: 0, capReason: null });
+    assert.equal(r.reason, "open items: 2 (max 2)");
   });
 });
 

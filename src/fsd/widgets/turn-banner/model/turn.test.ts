@@ -23,6 +23,7 @@ const item = (key: string, status: string, validation: string | null = null, age
   validation,
   accepted: false,
   handoff: null,
+  dispatched: true, // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다
   ...cursorFor(status, validation),
 });
 // 인수까지 끝난 항목은 꼬리 노드를 지나 런이 닫힌다 — 커서가 없으니 터미널 줄도 없다(§D.1의 done).
@@ -118,6 +119,21 @@ describe("deriveTurn — mine", () => {
 });
 
 describe("deriveTurn — theirs and none", () => {
+  it("does not claim an agent is working when nobody was dispatched yet", () => {
+    // 게이트를 열자마자 status는 planning이 되지만 세션을 돌리기 전까지 아무도 그 일을 하고 있지 않다(실측).
+    const turn = deriveTurn([{ ...item("FEAT-01", "planning"), dispatched: false }], ready);
+    if (turn.kind !== "theirs") assert.fail(turn.kind);
+    assert.equal(turn.detail, "FEAT-01 is waiting for dev");
+    // 할 일은 그대로 터미널 줄이 준다.
+    assert.deepEqual(turn.next.map((n) => n.line), ["Continue the pipeline for FEAT-01: plan — dev writes the plan."]);
+  });
+
+  it("says the verify node is waiting on verification, not on an agent name", () => {
+    const turn = deriveTurn([{ ...item("FEAT-04", "in_review", null), dispatched: false }], ready);
+    if (turn.kind !== "theirs") assert.fail(turn.kind);
+    assert.equal(turn.detail, "FEAT-04 is waiting for verification");
+  });
+
   it("lists what agents are doing with the runbook line to continue", () => {
     const turn = deriveTurn([item("FEAT-01", "implementing"), item("FEAT-02", "planning", null, "web-dev")], ready);
     assert.equal(turn.kind, "theirs");

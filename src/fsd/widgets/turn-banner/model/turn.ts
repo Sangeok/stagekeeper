@@ -17,6 +17,7 @@ export type TurnItem = {
   handoff: TurnHandoff | null;
   gate: string | null; // 런이 서 있는 게이트 id
   node: string | null; // 런이 서 있는 노드
+  dispatched: boolean; // 이 항목으로 열린 에이전트 run이 있는가 — 없으면 아무도 아직 시작하지 않았다
 };
 
 // 첫 방문 체크리스트의 재료. 보드에 행이 하나도 없을 때만 쓰인다.
@@ -182,8 +183,18 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
   if (working.length > 0) {
     return {
       kind: "theirs",
+      // 디스패치되지 않은 항목을 "하고 있다"고 말하면 사실이 아니다. 게이트를 열자마자 그 상태가 된다(실측) —
+      // 사람이 세션을 돌리기 전까지는 아무도 그 일을 하고 있지 않다. 아래 "Next, in Claude Code" 줄이 할 일을 준다.
       detail: working
-        .map((w) => (w.node === "plan" ? `${w.agent} is writing the plan for ${w.key}` : w.node === "verify" ? `the plan for ${w.key} is being verified` : `${w.agent} is implementing ${w.key}`))
+        .map((w) =>
+          !w.dispatched
+            ? `${w.key} is waiting for ${w.node === "verify" ? "verification" : w.agent}`
+            : w.node === "plan"
+              ? `${w.agent} is writing the plan for ${w.key}`
+              : w.node === "verify"
+                ? `the plan for ${w.key} is being verified`
+                : `${w.agent} is implementing ${w.key}`,
+        )
         .join(" · "),
       next: nextSteps(working),
     };

@@ -79,6 +79,17 @@ export function latestRowFor(projectId: string, key: string) {
   return latestRow(prisma, projectId, key);
 }
 
+// pm이 지금 고를 수 있는 백로그 항목 수. 제거되지 않았고, 지금 보드에 미결로 올라 있지도 않은 것.
+// head가 이걸 안 보면 빈 백로그에도 "dispatch pm"이라 답해 디스패치를 헛쓴다(월 상한에 계수된다).
+export async function availableBacklogCount(projectId: string): Promise<number> {
+  const [items, board] = await Promise.all([
+    prisma.backlogItem.findMany({ where: { projectId, removedAt: null }, select: { id: true } }),
+    latestBoard(projectId, true),
+  ]);
+  const onBoard = new Set(board.map((r) => r.backlogItemId));
+  return items.filter((i) => !onBoard.has(i.id)).length;
+}
+
 export async function backlogWithStatus(projectId: string, includeRemoved: boolean) {
   const [items, board] = await Promise.all([
     prisma.backlogItem.findMany({ where: { projectId, ...(includeRemoved ? {} : { removedAt: null }) }, orderBy: { createdAt: "asc" } }),
