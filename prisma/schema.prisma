@@ -47,6 +47,7 @@ model Project {
   commands     Command[]
   runs         AgentRun[]
   ownerTokens  OwnerToken[]
+  pipelineVersions PipelineVersion[]
 }
 
 model ProjectMember {
@@ -127,6 +128,7 @@ model BoardItem {                        // 같은 backlog 항목이 여러 번 
   backlogItem   BacklogItem       @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
   events        TransitionEvent[]
   reports       Report[]
+  run           PipelineRun?
   @@index([projectId, status])
 }
 
@@ -135,7 +137,7 @@ model TransitionEvent {                  // 감사 로그 (불변식 8)
   boardItemId String
   from        String?
   to          String?                    // null = 폐기
-  actor       String                     // human | agent
+  actor       String                     // human | agent | pipeline
   actorId     String?                    // userId 또는 tokenId
   channel     String?                    // human 행만: web | session. agent 행과 이 열 이전의 행은 null
   note        String?
@@ -202,4 +204,28 @@ model AgentRunStep {                     // 원장 — 에이전트가 outcome�
 
   @@index([runId, at])
   @@index([at])
+}
+
+model PipelineVersion {                  // 프로젝트의 그래프. 저장마다 새 행 — 항목은 시작 시점 버전에 고정된다(원장 = 감사 로그)
+  id        String   @id @default(cuid())
+  projectId String
+  version   Int                          // 1부터. 현재 = 프로젝트의 최대 version
+  nodes     String[]                     // pipeline.mjs NODE_KINDS의 부분열
+  gates     String[]                     // before-<kind>
+  createdAt DateTime @default(now())
+  createdBy String                       // userId. 기본 그래프를 서버가 물질화했으면 "pipeline"
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  runs      PipelineRun[]
+  @@unique([projectId, version])
+}
+
+model PipelineRun {                      // 항목의 커서 — "지금 어느 노드(또는 어느 게이트 앞)에 서 있나". BoardItem당 하나
+  id          String          @id @default(cuid())
+  boardItemId String          @unique
+  versionId   String
+  node        String                     // NODE_KINDS 또는 before-<kind>. 끝나면 마지막 노드 그대로 두고 closedAt
+  enteredAt   DateTime        @default(now())   // 이 node에 선 시각 — 게이트 승인·에이전트 run 닫힘은 이 시각부터(>=)의 것만 센다
+  closedAt    DateTime?
+  boardItem   BoardItem       @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+  version     PipelineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade) // 이 스키마의 다른 관계와 같이. 없으면 Prisma 기본 Restrict라 프로젝트 삭제(Project → PipelineVersion 캐스케이드)가 막힌다
 }

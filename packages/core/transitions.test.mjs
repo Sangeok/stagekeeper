@@ -8,6 +8,11 @@ describe("transitions", () => {
     assert.equal(findRule("human", "in_review", "implementing").kind, "gate");
     assert.equal(findRule("agent", "proposed", "planning"), null);
     assert.equal(findRule("agent", "in_review", "implementing"), null);
+    // 파이프라인 — 게이트와 같은 경계 둘만. "게이트가 없을 때만"은 상태 기계가 아니라 그래프가 정한다(pipeline.mjs advance).
+    assert.equal(findRule("pipeline", "proposed", "planning").kind, "auto");
+    assert.equal(findRule("pipeline", "in_review", "implementing").kind, "auto");
+    assert.equal(findRule("pipeline", "planning", "in_review"), null);
+    assert.equal(findRule("pipeline", "in_review", "planning"), null);
   });
   it("agent transitions and their prerequisites", () => {
     const plan = findRule("agent", "planning", "in_review");
