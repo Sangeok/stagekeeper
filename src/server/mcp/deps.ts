@@ -55,10 +55,13 @@ export const prismaToolDeps: ToolDeps = {
     }
     const openOnly = true;
     const open = await board.latestBoard(projectId, openOnly);
+    // 미결 항목 + 런이 아직 열린 항목. 둘째가 없으면 인수까지 끝난 항목의 꼬리 노드가 개요에 안 잡힌다.
+    // head의 수는 여전히 **미결**만 센다 — canPropose는 pm의 미결 2건 규칙이지 꼬리 순회와 무관하다.
+    const keys = [...new Set([...open.map((r) => r.backlogItem.key), ...(await board.walkingKeys(projectId))])];
     const items = [];
-    for (const row of open) {
-      await board.advancePipeline(projectId, row.backlogItem.key);
-      items.push(await nextFor(prisma, projectId, row.backlogItem.key));
+    for (const key of keys) {
+      await board.advancePipeline(projectId, key);
+      items.push(await nextFor(prisma, projectId, key));
     }
     return { ok: true as const, item: { head: await headFor(prisma, projectId, open.length), items } };
   },

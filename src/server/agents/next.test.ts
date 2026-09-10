@@ -279,8 +279,12 @@ describe("agentNext — run lifecycle", () => {
     await h.call(dev());
     step(await h.call(dev({ outcome: "ok" })));                                  // start → plan
     assert.deepEqual(await h.call(dev({ outcome: "ok" })), { ok: true, item: { done: true } });
-    // dev의 report·hold는 board_transition 뒤에 ok를 보낸다 — 그 호출이 run을 열면 start로 되돌아간다
-    assert.deepEqual(await h.call(dev({ outcome: "ok" })), { ok: true, item: { done: true } });
+    // dev의 report·hold는 board_transition 뒤에 ok를 보낸다 — 그 호출이 run을 열면 start로 되돌아간다.
+    // 열린 run이 없는 채 outcome이 오면 done에 note가 붙는다 — 그 done은 "이 run이 끝났다"이지
+    // "이 항목이 끝났다"가 아니기 때문이다(실측에서 메인 루프가 항목을 두고 넘어갔다).
+    const closed = await h.call(dev({ outcome: "ok" }));
+    assert.equal(closed.ok && closed.item.done, true);
+    assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /not necessarily the item/);
     assert.equal(h.runs.length, 1);
     assert.equal(step(await h.call(dev())).step, "start");
     assert.equal(h.runs.length, 2);
@@ -290,7 +294,9 @@ describe("agentNext — run lifecycle", () => {
     await h.call(dev());
     step(await h.call(dev({ outcome: "ok" })));
     h.runs[0].closedAt = new Date();                                           // board.transition이 닫은 것과 같다
-    assert.deepEqual(await h.call(dev({ outcome: "ok" })), { ok: true, item: { done: true } });
+    const closed = await h.call(dev({ outcome: "ok" }));
+    assert.equal(closed.ok && closed.item.done, true);
+    assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /call again without outcome/i);
     assert.equal(step(await h.call(dev())).step, "start");
   });
   it("a concurrent advance loses the CAS and is told to re-read", async () => {

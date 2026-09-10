@@ -4,7 +4,7 @@ import { BOUNDARY, NODE_AGENT, cursorForStatus, defaultGraph, isGateId, sequence
 import { DISPATCH_WINDOW_DAYS, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client"; // Prisma는 값 — P2002 검사에 쓴다(edit-backlog.server.ts와 같은 import)
 import { planForProject } from "@/server/entitlement";
-import { decideHead, decideNext, type HeadNext, type PipelineNext } from "./run-rules";
+import { decideHead, decideNext, handoffIsLive, type HeadNext, type PipelineNext } from "./run-rules";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 // 유니크 충돌 — 동시 생성의 진 쪽. create-project.server.ts·edit-backlog.server.ts의 같은 검사와 같은 모양.
@@ -83,7 +83,7 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
     ? null
     : await db.agentRun.findFirst({ where: { projectId, key, closedAt: null }, orderBy: { openedAt: "desc" }, include: { steps: { orderBy: { at: "desc" }, take: 1 } } });
   const last = open?.steps[0];
-  const handoff = last?.outcome === "handoff" ? { note: last.note } : null;
+  const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
   const dispatches = node !== null && (node === "plan" || node === "implement" || (NODE_AGENT as Record<string, string | undefined>)[node] !== undefined);
   const capMsg = dispatches ? capError(await planForProject(projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date()))) : null;
   return decideNext({
