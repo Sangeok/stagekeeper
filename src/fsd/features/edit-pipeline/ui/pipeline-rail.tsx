@@ -62,9 +62,10 @@ export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-stretch gap-2">
+      {/* 한 줄이다 — 접히면 순서가 끊겨 읽히지 않는다. 넘치면 가로로 스크롤한다(product-copy.md §18). */}
+      <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
         {state.nodes.map((kind, index) => (
-          <div key={kind} className="flex items-stretch gap-2">
+          <div key={kind} className="flex shrink-0 items-stretch gap-2">
             <EdgeSlot
               gate={state.gates.includes(gateId(kind)) ? gateId(kind) : null}
               boundary={BOUNDARIES[gateId(kind)] ?? null}
@@ -160,9 +161,10 @@ function EdgeSlot({
   return (
     <div className="flex flex-col items-center justify-center gap-1">
       {boundary ? <span className="text-[11px] text-quiet">auto → {boundary.to}</span> : null}
-      <details className="relative">
-        <summary className="cursor-pointer list-none rounded-md border border-rule px-2 py-1 text-xs text-quiet">+</summary>
-        <div className="absolute left-0 z-10 mt-1 flex w-64 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
+      {/* 메뉴는 자리를 차지한다 — 레일이 가로로 스크롤하므로 띄우면 잘려 안 보인다. 열면 그 간선이 잠깐 넓어진다. */}
+      <details>
+        <summary className="cursor-pointer list-none rounded-md border border-rule px-2 py-1 text-center text-xs text-quiet">+</summary>
+        <div className="mt-1 flex w-52 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
           {moves.map((move) => (
             <div key={move.label} className="flex flex-col">
               <button

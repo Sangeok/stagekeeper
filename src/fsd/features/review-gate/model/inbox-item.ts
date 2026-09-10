@@ -18,6 +18,7 @@ export type InboxItem = {
   planPath: string | null;
   planUrl: string | null;
   planCommit: string | null;
+  proposedBy: "you" | "pm"; // 제안 이벤트의 actor — 웹에서 올리면 사람이다(§E.7)
   proposedOn: string; // ISO
   statusSince: string; // ISO. 지금 status로 바뀐 전이 이벤트의 시각(없으면 updatedAt)
   heldFrom: string | null; // on_hold 직전 status — 주 Resume 버튼이 여기서 정해진다
@@ -57,7 +58,7 @@ type BoardRow = {
   proposedOn: Date;
   updatedAt: Date;
   backlogItem: { key: string; title: string; area: string };
-  events: { at: Date; from: string | null; to: string | null }[];
+  events: { at: Date; from: string | null; to: string | null; actor: string }[];
   run: { node: string; closedAt: Date | null } | null; // latestBoardWithEvents의 include run
 };
 
@@ -71,6 +72,9 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
       // 쿼리(latestBoardWithEvents)가 note 없는 전이만 주지만, 여기서도 같은 가드를 둔다 — 모델이 쿼리 형에 매이지 않게.
       const became = row.events.find((e) => e.to === row.status && e.from !== e.to);
       const held = row.status === "on_hold" ? row.events.find((e) => e.to === "on_hold" && e.from !== e.to) : undefined;
+      // 올린 사람 — 첫 이벤트(— → proposed)의 actor다. 에이전트가 올렸으면 계약상 pm이고,
+      // 사람이면 백로그에서 직접 올린 소유자다. 이벤트 창(take: 8)을 벗어난 오래된 항목은 pm으로 둔다.
+      const opened = row.events.find((e) => e.from === null && e.to === "proposed");
       return {
         key: row.backlogItem.key,
         title: row.backlogItem.title,
@@ -85,6 +89,7 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
         // 게이트②가 승인하는 것은 기록된 커밋이다 — 링크도 그 커밋을 연다(브랜치 HEAD는 제출 전에만).
         planUrl: row.planPath === null ? null : blobHref(repo, row.planPath, row.planCommit),
         planCommit: row.planCommit,
+        proposedBy: opened?.actor === "human" ? ("you" as const) : ("pm" as const),
         proposedOn: row.proposedOn.toISOString(),
         statusSince: (became?.at ?? row.updatedAt).toISOString(),
         heldFrom: held?.from ?? null,

@@ -47,7 +47,7 @@ export async function latestBoardWithEvents(projectId: string) {
     distinct: ["backlogItemId"],
     include: {
       backlogItem: { select: { key: true, title: true, area: true } },
-      events: { where: { note: null }, orderBy: { at: "desc" }, take: 8, select: { from: true, to: true, at: true } },
+      events: { where: { note: null }, orderBy: { at: "desc" }, take: 8, select: { from: true, to: true, at: true, actor: true } },
       run: { select: { node: true, closedAt: true } },
     },
   });
