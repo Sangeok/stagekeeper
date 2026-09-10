@@ -33,6 +33,13 @@ export const HINT: Record<string, string> = {
   scout: "Dispatch feature-scout with no key — only when harness.json.scout is configured (init writes that agent only then); otherwise take the Scout node off the Pipeline tab. Append its report to docs/agents/feature-scout/scouting-log.md yourself.",
 };
 
+// 핸드오프가 아직 살아 있는가. 원장의 마지막 단계만 보면 안 된다 — 소유자가 커밋하고 에이전트가 이어서
+// 계획서나 보고를 제출하면 보드 행이 갱신되지만, 그 단계 행은 `handoff`인 채로 남는다. 그 상태에서
+// "그 파일을 커밋하라"를 계속 답하면 이미 커밋한 파일을 다시 커밋하라고 소유자에게 말하게 된다(실측).
+// 그래서 멈춘 시각이 항목의 마지막 쓰기보다 뒤일 때만 살아 있다고 본다. 틀리는 쪽은 안전하다 —
+// 살아 있는 핸드오프를 숨기면 에이전트가 다시 디스패치돼 핸드오프를 다시 남긴다.
+export const handoffIsLive = (steppedAt: Date, itemUpdatedAt: Date): boolean => steppedAt.getTime() > itemUpdatedAt.getTime();
+
 // 판정 순서: 런 닫힘 → 게이트 → accept → handoff → cap → dispatch. 에이전트 없는 노드는 있을 수 없지만(accept는 위에서 끝난다) 방어로 done.
 export function decideNext(i: NextInput): PipelineNext {
   const { key, version } = i;

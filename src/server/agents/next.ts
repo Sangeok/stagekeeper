@@ -6,7 +6,7 @@
 //   outcome 없음  → 지금 단계를 다시 준다(컴팩션·재시작 복구). run이 없으면 첫 단계로 새 run을 연다
 //   outcome 있음  → 템플릿 지시어대로 전진한다. ok = next: 후보 순서, failed = on failed:, blocked = on blocked:
 //                   후보의 requires가 전부 맞아야 열린다. 하나도 안 열리면 거부(문구 고정)하고 자리에 머문다
-//                   목적지가 done이면 run을 닫고 {done: true}. 열린 run이 없는데 outcome이 오면 {done: true}
+//                   목적지가 done이면 run을 닫고 {done: true}. 열린 run이 없는데 outcome이 오면 {done: true} + 그게 무슨 뜻인지 설명하는 note
 //                   (dev의 report·hold는 board_transition으로 항목을 옮긴 뒤 ok를 보낸다 — 그 사이 서버가 run을 닫았다)
 //   outcome handoff → 커밋 권한이 없어 멈췄다. 원장에 남기고 **같은 단계를 돌려준다** — 전진도 분기도 없다.
 //                   재개는 outcome 없는 호출. 배너가 열린 run의 마지막 원장 행으로 "당신 차례"를 읽는다
@@ -30,7 +30,7 @@ export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 conso
 const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만 쓴다
 
 export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string };
-export type NextOutput = { step: string; instruction: string; done: false } | { done: true };
+export type NextOutput = { step: string; instruction: string; done: false } | { done: true; note?: string };
 export type Scope = { projectId: string; tokenId: string };
 type RunRow = { id: string; stepId: string };
 
@@ -115,7 +115,10 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
 
   const run = await deps.openRun(projectId, agent, key);
   if (!run) {
-    if (input.outcome) return ok({ done: true });
+    // 열린 run이 없는데 outcome이 왔다. 마지막 단계의 ok를 두 번 보낸 것일 수도, 이미 닫힌 run에 대고
+    // 다음 노드의 일을 보내려는 것일 수도 있다. 둘을 여기서 구분할 수 없으므로 **무엇을 뜻하는지 말한다** —
+    // 맨 `{done: true}`는 "이 항목이 끝났다"로 읽혀서, 다음 노드가 남았는데도 항목을 두고 넘어가게 된다(실측).
+    if (input.outcome) return ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });
     // 디스패치 상한(지난 30일에 연 run 수) — run **개설**에서만 센다. 재개(열린 run의 outcome 없는 호출)는 세지 않는다: 컴팩션·재시작 복구가 비싸지면 안 된다.
     const used = await deps.recentRuns(projectId, dispatchCutoff(new Date()));
     const capMsg = capError(access.plan, "dispatches", used);

@@ -40,6 +40,18 @@ export async function latestBoard(projectId: string, openOnly = false, db: Db = 
 // 결재함용: 최신 행 + 최근 전이 몇 개. 상태 줄("dev submitted a plan 3 days ago")과 보류 전 상태("was Implementing")를
 // 이벤트에서 읽는다 — BoardItem에는 "언제 이 status가 됐나"가 없다. note 있는 이벤트(validation·plan·report·discard)는
 // 전이가 아니므로 제외한다 — 증거 제출이 쌓여도 진짜 전이가 take 창 밖으로 밀리지 않는다.
+// 파이프라인이 아직 걷고 있는 항목의 key. 미결(isOpen)과 다르다 — 인수까지 끝난 done 항목도 꼬리 노드
+// (doc-audit·scout)를 남겨 두고 런이 열려 있다. 개요(pipeline_next({}))가 미결만 훑으면 그 꼬리는 영영 디스패치되지 않는다(실측).
+// latestBoard는 board_list의 JSON이기도 해서 include를 더하지 않고 따로 읽는다(§E.3과 같은 이유).
+export async function walkingKeys(projectId: string): Promise<string[]> {
+  const runs = await prisma.pipelineRun.findMany({
+    where: { closedAt: null, boardItem: { projectId, discardedAt: null } },
+    select: { boardItem: { select: { status: true, backlogItem: { select: { key: true } } } } },
+  });
+  // on_hold는 커서가 잠든다 — 깨우지 않는다(배너와 같은 규칙).
+  return runs.filter((r) => r.boardItem.status !== "on_hold").map((r) => r.boardItem.backlogItem.key);
+}
+
 export async function latestBoardWithEvents(projectId: string) {
   return prisma.boardItem.findMany({
     where: { projectId, discardedAt: null },

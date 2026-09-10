@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HINT, decideHead, decideNext } from "./run-rules.ts";
+import { HINT, decideHead, decideNext, handoffIsLive } from "./run-rules.ts";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, capReason: null };
 
@@ -51,5 +51,34 @@ describe("decideHead (H.4)", () => {
   it("the cap → none with its sentence; otherwise dispatch pm with HINT.propose", () => {
     assert.equal(decideHead({ hasPropose: true, openCount: 1, capReason: "dispatch cap reached on the free plan (60)" }).reason, "dispatch cap reached on the free plan (60)");
     assert.deepEqual(decideHead({ hasPropose: true, openCount: 1, capReason: null }), { action: "dispatch", agent: "pm", hint: HINT.propose });
+  });
+});
+
+// 실측에서 나온 것: dev가 멈춘 뒤 소유자가 커밋하고 에이전트가 계획서를 제출했는데도
+// 파이프라인이 "그 파일을 커밋하라"를 계속 답했다. 원장의 마지막 단계만 보면 그렇게 된다.
+describe("handoffIsLive", () => {
+  const at = (iso) => new Date(iso);
+
+  it("is live while the item has not moved since the agent stopped", () => {
+    assert.equal(handoffIsLive(at("2026-09-11T10:00:00Z"), at("2026-09-11T09:59:00Z")), true);
+  });
+
+  it("is stale once the item is written after the stop — the commit already happened", () => {
+    // plan_submit·report_submit·validation·전이가 전부 보드 행을 갱신한다.
+    assert.equal(handoffIsLive(at("2026-09-11T10:00:00Z"), at("2026-09-11T10:00:01Z")), false);
+  });
+
+  it("is stale at the same instant — ties go to the board, which is the newer fact", () => {
+    assert.equal(handoffIsLive(at("2026-09-11T10:00:00Z"), at("2026-09-11T10:00:00Z")), false);
+  });
+
+  it("a stale handoff never reaches decideNext, so the node dispatches instead of waiting", () => {
+    const live = decideNext({ ...base, node: "plan", handoff: { note: "docs/plans/FEAT-01.md" } });
+    assert.equal(live.action, "wait");
+    assert.equal(live.on, "handoff");
+    // nextFor가 handoffIsLive로 거른 뒤의 모양 — handoff가 null이면 디스패치로 돌아간다.
+    const stale = decideNext({ ...base, node: "plan", handoff: null });
+    assert.equal(stale.action, "dispatch");
+    assert.equal(stale.agent, "web-dev");
   });
 });
