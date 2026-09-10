@@ -103,7 +103,7 @@ describe("templatesFor", () => {
     assert.deepEqual(calls, { tokenHashes: [tokenHash], projectIds: [tokenRecord.projectId], languages: ["ko"] });
   });
 
-  it("returns the free plan's allowed stubs and runbook after authentication", async () => {
+  it("returns the free plan's allowed stubs and the one runbook after authentication", async () => {
     const { templatesFor, calls } = setup({ access: { plan: "free", locked: false } });
 
     const result = await templatesFor(authorizationHeader, "ko");
@@ -114,7 +114,8 @@ describe("templatesFor", () => {
         "agents/dev.md": agentStub,
         "agents/pm.md": agentStub,
         "agents/feature-scout.md": agentStub,
-        "CLAUDE.runbook.md": "Free runbook",
+        // 런북은 한 판이다 — 플랜 차이(검증자·감사자 유무)는 파이프라인 그래프가 진다(deliver.mjs).
+        "CLAUDE.runbook.md": "Full runbook",
         "docs/plans/README.md": "Plan documentation",
       },
       entitlement: { plan: "free", agents: ["pm", "feature-scout"] },

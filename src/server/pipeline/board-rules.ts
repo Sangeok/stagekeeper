@@ -1,15 +1,16 @@
 // 순수. DB·프레임워크 없음. transitions.mjs의 규칙을 "이 행에 이 요청을 적용해도 되는가"로 번역한다.
 // MCP 도구와 웹 액션이 같은 함수를 부르므로 판정이 한 곳에만 있다.
 import { REPORT_AGENTS } from "@harness/core/entitlement.mjs";
+import { boundaryOf, gateId, isGateId } from "@harness/core/pipeline.mjs";
 import { canDiscard, canPropose, canRecordValidation, checkText, findRule } from "@harness/core/transitions.mjs";
 
-export type Actor = "human" | "agent";
+export type Actor = "human" | "agent" | "pipeline";
 export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string };
 
 // kind는 화면이 읽는 어휘다 — review-gate/model/gate-source.ts가 "gate"·"resume"·"bounce"로
 // 무엇을 보여줄지 정한다. string으로 두면 그쪽 비교가 오타여도 컴파일이 통과하고 분류만 조용히
 // 어긋난다. 값의 출처는 packages/core/transitions.mjs의 RULES 표다.
-type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done" | "reopen";
+type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done" | "reopen" | "auto";
 
 type Rule = {
   from: string; to: string; actor: Actor; kind: RuleKind;
@@ -37,7 +38,7 @@ export function decidePropose(i: ProposeInput): Decision<null> {
 }
 
 // reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board.ts).
-export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean };
+export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean; kind: RuleKind };
 
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
   const rule = findRule(actor, row.status, to) as Rule | null;
@@ -52,6 +53,7 @@ export function decideTransition(row: RowSnapshot, actor: Actor, to: string, res
     validation: rule.clearsValidation ? null : row.validation,
     completes: to === "done",
     reopens: rule.kind === "reopen",
+    kind: rule.kind,
   } };
 }
 
@@ -140,24 +142,30 @@ export function decideReportSubmit(i: ReportSubmitInput): Decision<ReportSubmitP
   return { ok: true, value: { accepts: i.status === "done" && i.actor === MAIN_LOOP } };
 }
 
-// 세션 채널의 게이트. 웹 게이트보다 전제가 하나 더 붙는다 — 판단의 일부를 세션(Claude)이 하므로 서버가 더 본다.
-//  ① kind가 gate인 사람 전이만. bounce·hold·resume·reopen·discard는 세션에 없다(웹 전용).
-//  ② 게이트②(→ implementing)는 검증 기록이 있어야 하고, 호출이 planCommit을 명시해 기록과 같아야 한다 —
-//     "무엇을 승인하는지"를 세션이 말하게 하고 서버가 대조한다. 웹은 카드가 그 커밋을 보여 주므로 이 검사가 없다.
-export type SessionGateInput = {
+// 게이트 판정 — 웹과 세션이 같이 쓴다. 런의 커서가 그 게이트에 서 있어야 하고(그래프가 진실), 경계 게이트면 상태도 맞아야 한다.
+// 세션 채널은 전제가 하나 더 붙는다(before-implement의 검증 기록·planCommit 일치). 웹은 카드가 커밋을 보여 주므로 그 검사가 없다.
+export type GateInput = {
+  gate: string;                    // before-<kind>
+  cursor: string | null;           // PipelineRun.node. null이면 런이 닫혔다
   status: string;
-  to: string;
   validation: string | null;
   planCommit: string | null;
   claimedPlanCommit: string | undefined;
+  channel: "web" | "session";
 };
+export type GatePatch = { boundary: { from: string; to: string } | null };
 
-export function decideSessionGate(i: SessionGateInput): Decision<null> {
-  const rule = findRule("human", i.status, i.to) as Rule | null;
-  if (!rule || rule.kind !== "gate") {
-    return { ok: false, reason: `not a gate: ${i.status} → ${i.to} — a session opens gates only; send back, hold, reopen, and discard are web only` };
+export function decideGate(i: GateInput): Decision<GatePatch> {
+  if (!isGateId(i.gate)) return { ok: false, reason: `not a gate: ${i.gate}` };
+  if (i.cursor !== i.gate) {
+    return { ok: false, reason: `not waiting at ${i.gate} — the item is at ${i.cursor ?? "the end of the pipeline"}` };
   }
-  if (i.to === "implementing") {
+  const boundary = boundaryOf(i.gate);
+  if (boundary !== null) {
+    const rule = findRule("human", i.status, boundary.to) as Rule | null;
+    if (!rule || rule.kind !== "gate" || i.status !== boundary.from) return { ok: false, reason: `not allowed: human ${i.status} → ${boundary.to}` };
+  }
+  if (i.channel === "session" && i.gate === gateId("implement")) {
     if (i.validation === null) {
       return { ok: false, reason: "no validation record — a session approves implementation only after plan-verifier's pass is recorded; approve in the Inbox to override" };
     }
@@ -166,5 +174,5 @@ export function decideSessionGate(i: SessionGateInput): Decision<null> {
       return { ok: false, reason: `planCommit mismatch: the board records ${i.planCommit ?? "none"}` };
     }
   }
-  return { ok: true, value: null };
+  return { ok: true, value: { boundary } };
 }

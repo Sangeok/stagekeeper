@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const AGENT_TOOL_NAMES = [
   "project_get", "project_sync", "backlog_list", "backlog_get", "board_list", "board_get",
-  "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next",
+  "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next",
 ] as const;
 
 export type WorkspaceInput = { id: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] };
@@ -47,6 +47,8 @@ export type ToolDeps = {
   submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
   agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
+  // §D.1 — 런 보장 → 지연 전진(board.advancePipeline) → run.nextFor. key 없음이면 { head, items }.
+  pipelineNext(projectId: string, key: string | undefined): Promise<ServerResult<unknown>>;
   access(projectId: string): Promise<ProjectAccess>;
 };
 
@@ -139,6 +141,13 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     return unwrap(await deps.recordValidation(projectId, args, actorRef));
   });
   // 단계 본문은 이 도구로만 나간다(agents/next.ts). 스텁이 "첫 호출은 agent_next"라고 말하는 그 도구다.
+  // §D.1 pipeline_next — 항목 하나(key) 또는 열린 항목 전부의 다음 일. 지연 전진을 하므로 잠긴 프로젝트에서는 guardLocked로 거부한다.
+  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate, accept, or done. Advances the pipeline cursor where the graph allows.", inputSchema: z.object({ key: z.string().optional() }) }, async ({ key }, ctx: Ctx) => {
+    const { projectId } = scope(ctx);
+    const locked = await guardLocked(deps, projectId);
+    if (locked) return locked;
+    return unwrap(await deps.pipelineNext(projectId, key));
+  });
   server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional() }) }, async (args, ctx: Ctx) => {
     const { projectId, tokenId } = scope(ctx);
     return unwrap(await deps.agentNext(projectId, tokenId, args));

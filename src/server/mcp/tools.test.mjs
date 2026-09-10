@@ -35,6 +35,18 @@ describe("agent-scoped MCP tools", () => {
     await handlers.project_sync({ workspaces: ws }, ctx);
     assert.deepEqual(calls.map((c) => [c.projectId, c.language]), [["p1", "ko"], ["p1", undefined]]);
   });
+  it("pipeline_next hands the key (or none) through to the deps", async () => {
+    const calls = [];
+    const handlers = {};
+    registerTools({ registerTool: (name, _meta, fn) => { handlers[name] = fn; } }, {
+      access: async () => open,
+      pipelineNext: async (projectId, key) => { calls.push([projectId, key]); return { ok: true, item: key ? { key, node: "plan", version: 1, action: "dispatch", agent: "dev", hint: "h" } : { head: null, items: [] } }; },
+    });
+    const one = await handlers.pipeline_next({ key: "X-1" }, ctx);
+    await handlers.pipeline_next({}, ctx);
+    assert.deepEqual(calls, [["p1", "X-1"], ["p1", undefined]]);
+    assert.equal(JSON.parse(one.content[0].text).action, "dispatch");
+  });
 });
 
 // T4.8. 잠금은 인증이 아니라 도구 층에서 건다 — mcp-handler 2.1.1의 401은 사유를 실을 수 없다.
@@ -56,6 +68,7 @@ describe("locked projects", () => {
       ["report_submit", { key: "X-1", actor: "dev", path: "p", commit: "c" }],
       ["validation_record", { key: "X-1", text: "clean" }],
       ["project_sync", { workspaces: ws }],
+      ["pipeline_next", { key: "X-1" }],
     ];
     for (const [name, args] of calls) {
       const r = await h[name](args, ctx);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideSessionGate, decideTransition, decideValidation } from "./board-rules.ts";
+import { decideDiscard, decidePlanSubmit, decidePropose, decideGate, decideReportSubmit, decideTransition, decideValidation } from "./board-rules.ts";
 
 const base = { backlogExists: true, hasOpenRow: false, openCount: 0, roster: ["web-dev", "admin-dev"], agent: "web-dev", reason: "evidence" };
 const row = (o = {}) => ({ status: "planning", planPath: null, reportCount: 0, results: [], validation: null, ...o });
@@ -115,25 +115,39 @@ describe("decideReportSubmit — actor and the verify wall", () => {
   });
 });
 
-describe("decideSessionGate — the session channel's extra wall", () => {
-  const g = (o = {}) => decideSessionGate({ status: "in_review", to: "implementing", validation: "clean pass", planCommit: "3f2a9c1", claimedPlanCommit: "3f2a9c1", ...o });
-  it("opens gate 1 and gate 2 when the wall holds", () => {
-    assert.equal(decideSessionGate({ status: "proposed", to: "planning", validation: null, planCommit: null, claimedPlanCommit: undefined }).ok, true);
-    assert.equal(g().ok, true);
+describe("decideGate — 웹과 세션이 같이 쓰는 게이트 판정", () => {
+  const g = (o = {}) => decideGate({
+    gate: "before-implement", cursor: "before-implement", status: "in_review",
+    validation: "clean pass", planCommit: "3f2a9c1", claimedPlanCommit: "3f2a9c1", channel: "session", ...o,
   });
-  it("refuses every non-gate human transition", () => {
-    for (const [status, to] of [["in_review", "planning"], ["in_review", "on_hold"], ["on_hold", "implementing"], ["done", "implementing"]]) {
-      assert.match(decideSessionGate({ status, to, validation: "v", planCommit: "c", claimedPlanCommit: "c" }).reason, /not a gate/, `${status}→${to}`);
-    }
-    assert.match(decideSessionGate({ status: "proposed", to: "implementing", validation: null, planCommit: null, claimedPlanCommit: undefined }).reason, /not a gate/);
+  it("런의 커서가 그 게이트에 서 있어야 한다 — 게이트 여부는 그래프가 말한다", () => {
+    assert.match(g({ cursor: "before-plan" }).reason, /not waiting at before-implement — the item is at before-plan/);
+    assert.match(g({ cursor: null }).reason, /the item is at the end of the pipeline/);
   });
-  it("gate 2 needs a validation record and a matching planCommit", () => {
+  it("게이트 id가 아니면 거부한다", () => {
+    assert.match(g({ gate: "planning", cursor: "planning" }).reason, /not a gate: planning/);
+  });
+  it("경계 게이트는 상태도 맞아야 한다", () => {
+    assert.match(g({ status: "planning" }).reason, /not allowed: human planning → implementing/);
+  });
+  it("before-plan은 검증도 planCommit도 묻지 않는다", () => {
+    const r = decideGate({ gate: "before-plan", cursor: "before-plan", status: "proposed", validation: null, planCommit: null, claimedPlanCommit: undefined, channel: "web" });
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.value.boundary, { from: "proposed", to: "planning" });
+  });
+  it("before-implement 세션은 검증 기록과 planCommit 일치를 요구한다", () => {
     assert.match(g({ validation: null }).reason, /no validation record/);
     assert.match(g({ claimedPlanCommit: undefined }).reason, /planCommit required/);
     assert.match(g({ claimedPlanCommit: "0000000" }).reason, /planCommit mismatch: the board records 3f2a9c1/);
     assert.match(g({ planCommit: null }).reason, /the board records none/);
   });
-  it("gate 1 ignores validation and planCommit", () => {
-    assert.equal(decideSessionGate({ status: "proposed", to: "planning", validation: null, planCommit: null, claimedPlanCommit: "anything" }).ok, true);
+  it("before-implement 웹은 검증 없이도 통과한다 — 카드가 커밋을 보여 준다", () => {
+    assert.equal(g({ channel: "web", validation: null, claimedPlanCommit: undefined }).ok, true);
+    assert.deepEqual(g().value.boundary, { from: "in_review", to: "implementing" });
+  });
+  it("비경계 게이트는 boundary가 null이고 상태를 묻지 않는다", () => {
+    const r = decideGate({ gate: "before-verify", cursor: "before-verify", status: "in_review", validation: null, planCommit: null, claimedPlanCommit: undefined, channel: "session" });
+    assert.equal(r.ok, true);
+    assert.equal(r.value.boundary, null);
   });
 });

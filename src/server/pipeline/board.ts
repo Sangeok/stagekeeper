@@ -1,9 +1,11 @@
 import "server-only";
+import { advance, cursorForStatus } from "@harness/core/pipeline.mjs";
 import { isOpen } from "@harness/core/transitions.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import type { ServerResult } from "@/server/result";
-import { PLAN_VERIFIER, decideDiscard, decidePlanSubmit, decidePropose, decideReportSubmit, decideSessionGate, decideTransition, decideValidation } from "./board-rules";
+import { ensureRun, nextFor, readFacts, type Graph } from "./run";
+import { PLAN_VERIFIER, decideDiscard, decidePlanSubmit, decidePropose, decideGate, decideReportSubmit, decideTransition, decideValidation } from "./board-rules";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -17,7 +19,12 @@ type Db = PrismaClient | Prisma.TransactionClient;
 export type Channel = "web" | "session";
 export type Caller =
   | { actor: "human"; actorRef: string; channel: Channel; expectedUpdatedAt: Date }
-  | { actor: "agent"; actorRef: string };
+  | { actor: "agent"; actorRef: string }
+  // 그래프에 게이트가 없는 경계를 서버가 넘을 때. CAS는 agent처럼 방금 읽은 row.updatedAt. actorRef = "pipeline:<versionId>".
+  | { actor: "pipeline"; actorRef: string };
+
+// 누가 올렸나 — pm(agent 토큰) 또는 소유자(웹 "Put on the board"). 행·이벤트 모양은 같고 actor·channel만 다르다.
+export type Proposer = { actor: "agent"; actorRef: string } | { actor: "human"; actorRef: string; channel: Channel };
 
 // 항목별 최신 행 = backlogItemId마다 proposedOn 최대. 폐기 행은 없는 것으로 친다.
 export async function latestBoard(projectId: string, openOnly = false, db: Db = prisma) {
@@ -41,6 +48,7 @@ export async function latestBoardWithEvents(projectId: string) {
     include: {
       backlogItem: { select: { key: true, title: true, area: true } },
       events: { where: { note: null }, orderBy: { at: "desc" }, take: 8, select: { from: true, to: true, at: true } },
+      run: { select: { node: true, closedAt: true } },
     },
   });
 }
@@ -51,6 +59,12 @@ async function latestRow(db: Db, projectId: string, key: string) {
     orderBy: { proposedOn: "desc" },
     include: { backlogItem: true, _count: { select: { reports: true } } },
   });
+}
+
+// 세션 채널이 CAS 토큰으로 쓸 updatedAt을 읽는다 — 지금 sessionGate가 트랜잭션 밖에서 하던 일이고,
+// owner-deps.ts가 board.gate를 부르기 직전에 쓴다(§D.2).
+export function latestRowFor(projectId: string, key: string) {
+  return latestRow(prisma, projectId, key);
 }
 
 export async function backlogWithStatus(projectId: string, includeRemoved: boolean) {
@@ -91,7 +105,7 @@ export async function hasHistoryBefore(projectId: string, key: string, since: Da
 // 미결 상한(2)은 "세고 나서 만든다" — READ COMMITTED에서는 두 호출자가 같은 수를 읽고 둘 다 만들 수 있다.
 // 스펙이 이 상한을 서버 강제로 규정하므로(불변식·pm 규칙) 이 트랜잭션만 Serializable로 올린다.
 // 충돌 시 Postgres가 40001로 실패시키고, 도구는 그 오류를 그대로 반환한다(에이전트는 다시 부르면 된다).
-export async function propose(projectId: string, input: { key: string; agent: string; reason: string }, actorRef: string) {
+export async function propose(projectId: string, input: { key: string; agent: string; reason: string }, by: Proposer) {
   return prisma.$transaction(async (tx) => {
     const backlog = await tx.backlogItem.findUnique({ where: { projectId_key: { projectId, key: input.key } } });
     const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
@@ -105,43 +119,58 @@ export async function propose(projectId: string, input: { key: string; agent: st
     if (!d.ok || !backlog) return fail(d.ok ? "no such backlog item" : d.reason);
     const item = await tx.boardItem.create({
       data: { projectId, backlogItemId: backlog.id, agent: input.agent, status: "proposed", reason: input.reason,
-        events: { create: { from: null, to: "proposed", actor: "agent", actorId: actorRef } } },
+        events: { create: { from: null, to: "proposed", actor: by.actor, actorId: by.actorRef, channel: by.actor === "human" ? by.channel : null } } },
     });
-    return { ok: true as const, item };
+    // 런은 항목과 같은 트랜잭션에서 머리에 선다. 게이트 없는 before-plan이면 여기서 바로 planning으로 넘는다.
+    await ensureRun(tx, projectId, item.id, "proposed", true);
+    await advanceRun(tx, projectId, input.key);
+    return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: item.id } }) };
   }, { isolationLevel: "Serializable" });
+}
+
+export async function transitionIn(
+  tx: Db, projectId: string, input: { key: string; to: string; result?: string }, caller: Caller, opts: { viaGate: boolean } = { viaGate: false },
+) {
+  const row = await latestRow(tx, projectId, input.key);
+  if (!row) return fail(`no such board item: ${input.key}`);
+  const d = decideTransition(
+    { status: row.status, planPath: row.planPath, reportCount: row._count.reports, results: row.results, validation: row.validation },
+    caller.actor, input.to, input.result,
+  );
+  if (!d.ok) return fail(d.reason);
+  // 사람 게이트 행은 board.gate를 거쳐야 한다(런 커서·decideGate의 전제) — §C.7 viaGate
+  if (d.value.kind === "gate" && !opts.viaGate) return fail(`gates open through board.gate, not a transition: ${row.status} → ${input.to}`);
+  // 낙관적 잠금(ApcH sha 잠금의 대응물). 가드를 비우면 두 에이전트가 같은 행을 동시에 읽고
+  // 둘 다 전이해 이벤트가 둘, `결과:`가 두 번 누적된다. 어느 값을 쓰는지는 Caller가 정한다.
+  const expected = caller.actor === "human" ? caller.expectedUpdatedAt : row.updatedAt;
+  const u = await tx.boardItem.updateMany({
+    where: { id: row.id, updatedAt: expected },
+    // reopen이면 인수 표시를 지운다 — 돌아간 항목은 다시 인수돼야 한다. 다른 전이는 이 열을 건드리지 않는다(undefined).
+    data: { status: d.value.status, results: d.value.results, validation: d.value.validation, acceptedAt: d.value.reopens ? null : undefined },
+  });
+  if (u.count === 0) return fail("stale");
+  // 채널은 사람 행에만 — 웹인지 세션인지. 에이전트 행은 null(이전 행과 같은 모양).
+  await tx.transitionEvent.create({ data: {
+    boardItemId: row.id, from: row.status, to: d.value.status, actor: caller.actor, actorId: caller.actorRef,
+    channel: caller.actor === "human" ? caller.channel : null,
+  } });
+  if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date() } });
+  // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
+  if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null } });
+  if (!isOpen(d.value.status)) await closeRuns(tx, projectId, input.key);
+  // 파이프라인 커서 — 사람의 되돌리기·보류·재개·reopen은 자리를 다시 잡고, 나머지는 앞으로 간다. pipeline 자신의 전이는
+  // advanceRun 안에서 왔으므로 재귀하지 않는다(caller.actor === "pipeline"이면 건너뛴다).
+  if (caller.actor !== "pipeline") {
+    if (["bounce", "hold", "resume", "reopen"].includes(d.value.kind)) await resetRun(tx, projectId, input.key, d.value.status);
+    else await advanceRun(tx, projectId, input.key);
+  }
+  return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }) };
 }
 
 export async function transition(
   projectId: string, input: { key: string; to: string; result?: string }, caller: Caller,
 ) {
-  return prisma.$transaction(async (tx) => {
-    const row = await latestRow(tx, projectId, input.key);
-    if (!row) return fail(`no such board item: ${input.key}`);
-    const d = decideTransition(
-      { status: row.status, planPath: row.planPath, reportCount: row._count.reports, results: row.results, validation: row.validation },
-      caller.actor, input.to, input.result,
-    );
-    if (!d.ok) return fail(d.reason);
-    // 낙관적 잠금(ApcH sha 잠금의 대응물). 가드를 비우면 두 에이전트가 같은 행을 동시에 읽고
-    // 둘 다 전이해 이벤트가 둘, `결과:`가 두 번 누적된다. 어느 값을 쓰는지는 Caller가 정한다.
-    const expected = caller.actor === "human" ? caller.expectedUpdatedAt : row.updatedAt;
-    const u = await tx.boardItem.updateMany({
-      where: { id: row.id, updatedAt: expected },
-      // reopen이면 인수 표시를 지운다 — 돌아간 항목은 다시 인수돼야 한다. 다른 전이는 이 열을 건드리지 않는다(undefined).
-      data: { status: d.value.status, results: d.value.results, validation: d.value.validation, acceptedAt: d.value.reopens ? null : undefined },
-    });
-    if (u.count === 0) return fail("stale");
-    // 채널은 사람 행에만 — 웹인지 세션인지. 에이전트 행은 null(이전 행과 같은 모양).
-    await tx.transitionEvent.create({ data: {
-      boardItemId: row.id, from: row.status, to: d.value.status, actor: caller.actor, actorId: caller.actorRef,
-      channel: caller.actor === "human" ? caller.channel : null,
-    } });
-    if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date() } });
-    // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
-    if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null } });
-    if (!isOpen(d.value.status)) await closeRuns(tx, projectId, input.key);
-    return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }) };
-  });
+  return prisma.$transaction((tx) => transitionIn(tx, projectId, input, caller));
 }
 
 // 폐기는 사람 전용이다. key·userId처럼 인접한 string 인자를 나열하면 순서를 바꿔도 컴파일되고
@@ -160,20 +189,38 @@ export async function discard(projectId: string, input: { key: string; userId: s
     if (u.count === 0) return fail("stale");
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: null, actor: "human", actorId: input.userId, channel: "web", note: "discard" } });
     await closeRuns(tx, projectId, input.key);
+    await closeRun(tx, row.id);
     return { ok: true as const, item: null };
   });
 }
 
-// 세션 채널의 게이트 하나. 판정은 decideSessionGate → decideTransition(웹과 같은 규칙), 쓰기는 transition — 웹과 같은 행을 남긴다.
-// CAS 토큰은 화면이 없으므로 방금 읽은 row.updatedAt이다. 읽기와 전이 사이에 보드가 움직였으면 transition이 stale로 거부한다.
-export async function sessionGate(projectId: string, input: { key: string; to: string; planCommit?: string }, userId: string) {
-  const row = await latestRow(prisma, projectId, input.key);
-  if (!row) return fail(`no such board item: ${input.key}`);
-  const d = decideSessionGate({
-    status: row.status, to: input.to, validation: row.validation, planCommit: row.planCommit, claimedPlanCommit: input.planCommit,
+// 게이트 하나를 연다. 경계 게이트면 사람 전이(transition)가 원장이고, 아니면 같은 상태의 이벤트(note "gate:<id>")가 원장이다.
+// 둘 다 뒤에 advanceRun — 다음 노드(대개 dispatch)로 커서가 간다. 응답의 next는 pipeline_next와 같은 모양(§D.1).
+export async function gate(
+  projectId: string, input: { key: string; gate: string; planCommit?: string }, caller: Extract<Caller, { actor: "human" }>,
+) {
+  return prisma.$transaction(async (tx) => {
+    const row = await latestRow(tx, projectId, input.key);
+    if (!row) return fail(`no such board item: ${input.key}`);
+    const run = await ensureRun(tx, projectId, row.id, row.status, false);
+    const d = decideGate({
+      gate: input.gate, cursor: run.closedAt ? null : run.node, status: row.status, validation: row.validation,
+      planCommit: row.planCommit, claimedPlanCommit: input.planCommit, channel: caller.channel,
+    });
+    if (!d.ok) return fail(d.reason);
+    if (d.value.boundary !== null) {
+      const t = await transitionIn(tx, projectId, { key: input.key, to: d.value.boundary.to }, caller, { viaGate: true }); // transition의 tx 판 — 같은 CAS·같은 이벤트. 게이트 행은 여기서만 지난다
+      if (!t.ok) return t;
+    } else {
+      const u = await tx.boardItem.updateMany({ where: { id: row.id, updatedAt: caller.expectedUpdatedAt }, data: { updatedAt: new Date() } }); // CAS + 토큰 갱신을 명시한다(빈 data의 @updatedAt 자동 갱신에 기대지 않는다)
+      if (u.count === 0) return fail("stale");
+      await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "human", actorId: caller.actorRef, channel: caller.channel, note: `gate:${input.gate}` } });
+      await advanceRun(tx, projectId, input.key);
+    }
+    // 응답은 ServerResult<{ item, next }> — result.ts의 한 형 그대로다(§D.2 OwnerToolDeps.gate의 형이고, gate_approve의 text(r.item)이 { item, next }를 낸다).
+    // next를 ok 가지에 나란히 얹으면 fail()의 ServerResult<never>와 합쳐져 호출처가 r.next를 좁혀 읽지 못한다(tsc: "Property 'next' does not exist on type '{ ok: true; item: never; }'").
+    return { ok: true as const, item: { item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }), next: await nextFor(tx, projectId, input.key) } };
   });
-  if (!d.ok) return fail(d.reason);
-  return transition(projectId, { key: input.key, to: input.to }, { actor: "human", actorRef: userId, channel: "session", expectedUpdatedAt: row.updatedAt });
 }
 
 // 항목이 쉬거나(done·on_hold) 폐기되면 그 항목을 걷던 agent_next 커서(AgentRun)는 같은 트랜잭션에서 닫힌다.
@@ -202,6 +249,7 @@ export async function recordValidation(projectId: string, input: { key: string; 
     if (!d.ok) return fail(d.reason);
     const item = await tx.boardItem.update({ where: { id: row.id }, data: { validation: input.text } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "validation" } });
+    await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item };
   });
 }
@@ -237,6 +285,45 @@ export async function submitReport(projectId: string, input: { key: string; acto
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "report" } });
     // 인수 기록이면 항목에 표시한다 — 배너·항목 상세·journey가 이 열 하나로 "인수됐나"를 읽는다.
     if (d.value.accepts) await tx.boardItem.update({ where: { id: row.id }, data: { acceptedAt: report.at } });
+    await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item: report };
   });
+}
+
+// 파이프라인 커서를 옮기는 자리. 판정은 packages/core/pipeline.mjs의 advance·cursorForStatus이고
+// 여기는 그 결과를 같은 트랜잭션 안에서 쓴다(§C.2·§C.3).
+export async function advanceRun(tx: Db, projectId: string, key: string) {
+  const row = await latestRow(tx, projectId, key);
+  if (!row) return;
+  const run = await ensureRun(tx, projectId, row.id, row.status, false);
+  if (run.closedAt) return;
+  const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
+  const facts = await readFacts(tx, projectId, row, run);
+  const a = advance(graph, run.node, facts) as { cursor: string | null; entered: string[]; transitions: { from: string; to: string }[] };
+  for (const bd of a.transitions) {
+    const t = await transitionIn(tx, projectId, { key, to: bd.to }, { actor: "pipeline", actorRef: `pipeline:${run.version.id}` });
+    if (!t.ok) return; // updatedAt CAS에 진 쪽 — 다음 호출이 다시 읽는다(§C.8)
+  }
+  if (a.cursor === run.node && a.entered.length === 0) return;
+  await tx.pipelineRun.updateMany({
+    where: { id: run.id, node: run.node },
+    data: { node: a.cursor ?? run.node, enteredAt: new Date(), closedAt: a.cursor === null ? new Date() : undefined },
+  });
+}
+
+export async function resetRun(tx: Db, projectId: string, key: string, status: string) {
+  const row = await latestRow(tx, projectId, key);
+  if (!row) return;
+  const run = await ensureRun(tx, projectId, row.id, row.status, false);
+  const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
+  const node = cursorForStatus(graph, status) as string | null;
+  await tx.pipelineRun.update({ where: { id: run.id }, data: { node: node ?? run.node, enteredAt: new Date(), closedAt: null } });
+}
+
+export function advancePipeline(projectId: string, key: string) {
+  return prisma.$transaction((tx) => advanceRun(tx, projectId, key));
+}
+
+function closeRun(tx: Db, boardItemId: string) {
+  return tx.pipelineRun.updateMany({ where: { boardItemId, closedAt: null }, data: { closedAt: new Date() } });
 }

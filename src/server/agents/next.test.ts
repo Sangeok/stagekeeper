@@ -90,7 +90,7 @@ type Rec = { runId: string; stepId: string; outcome: Outcome; note: string | nul
 type Opts = {
   plan?: "free" | "pro" | "max"; locked?: string; roster?: string[]; templates?: Record<string, string>;
   board?: Record<string, string>; openCount?: number; recent?: number; verifiedElsewhere?: boolean;
-  itemAgent?: Record<string, string>;
+  itemAgent?: Record<string, string>; recentRuns?: number;
 };
 
 const SCOPE = { projectId: "p1", tokenId: "t1" };
@@ -108,6 +108,7 @@ function harness(opts: Opts = {}) {
     template: async (_p, path) => templates[path] ?? null,
     vars: async (_p, agent) => VARS[agent],
     recentSteps: async () => opts.recent ?? records.length,
+    recentRuns: async () => opts.recentRuns ?? 0,
     openRun: async (_p, agent, key) => runs.filter((r) => r.agent === agent && r.key === key && !r.closedAt).at(-1) ?? null,
     createRun: async (scope, agent, key, stepId) => {
       const r: Run = { id: `run${++seq}`, agent, key, stepId, closedAt: null, refused: 0, tokenId: scope.tokenId };
@@ -403,5 +404,25 @@ describe("item ownership", () => {
 
   it("says nothing about ownership for a keyless agent", async () => {
     assert.equal(step(await harness({ itemAgent: { "FEAT-1": "api-dev" } }).call({ agent: "pm" })).step, "start");
+  });
+});
+
+describe("agentNext — dispatch cap (H.5)", () => {
+  it("refuses to open a run at the plan's 30-day cap, naming the window; opens nothing", async () => {
+    const h = harness({ plan: "free", recentRuns: 60 });
+    const reason = refused(await h.call({ agent: "pm" }));
+    assert.match(reason, /^dispatch cap reached on the free plan \(60\)/);
+    assert.match(reason, /last 30 days/);
+    assert.equal(h.runs.length, 0);
+  });
+  it("opens the 60th run on free and never caps max", async () => {
+    step(await harness({ plan: "free", recentRuns: 59 }).call({ agent: "pm" }));
+    step(await harness({ plan: "max", recentRuns: 10_000 }).call({ agent: "pm" }));
+  });
+  it("resuming an open run does not consult the cap", async () => {
+    const h = harness();
+    step(await h.call(dev()));
+    h.deps.recentRuns = async () => { throw new Error("recentRuns consulted on resume"); };
+    step(await h.call(dev()));
   });
 });
