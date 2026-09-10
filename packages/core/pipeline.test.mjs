@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_GATES, NODE_KINDS, advance, cursorForStatus, defaultGraph, gateId, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
+import { advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, gateId, NODE_KINDS, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
 
 const full = { nodes: [...NODE_KINDS], gates: [...DEFAULT_GATES] };
 const facts = (o = {}) => ({ status: "proposed", validation: null, accepted: false, approvedGates: [], closedAgents: [], ...o });
@@ -85,5 +85,25 @@ describe("advance", () => {
     assert.equal(nodeDone("plan", facts({ status: "in_review" })), true);
     assert.equal(nodeDone("accept", facts({ status: "done" })), false);
     assert.equal(nodeDone("doc-audit", facts({ closedAgents: ["doc-auditor"] })), true);
+  });
+});
+
+describe("dispatcherFor", () => {
+  it("names the agent that actually turns the node", () => {
+    // 화면이 "지금 이 일을 하는 run이 열려 있나"를 물을 때 쓴다.
+    assert.equal(dispatcherFor("plan", "web-dev"), "web-dev");
+    assert.equal(dispatcherFor("implement", "web-dev"), "web-dev");
+    assert.equal(dispatcherFor("verify", "web-dev"), "plan-verifier");
+    assert.equal(dispatcherFor("propose", "web-dev"), "pm");
+    assert.equal(dispatcherFor("doc-audit", "web-dev"), "doc-auditor");
+    assert.equal(dispatcherFor("scout", "web-dev"), "feature-scout");
+  });
+
+  it("accept dispatches nobody — the main loop runs it", () => {
+    assert.equal(dispatcherFor("accept", "web-dev"), null);
+  });
+
+  it("is not the item's dev outside plan and implement, so a stale dev run cannot pass for verification", () => {
+    assert.notEqual(dispatcherFor("verify", "web-dev"), "web-dev");
   });
 });

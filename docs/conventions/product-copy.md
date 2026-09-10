@@ -229,8 +229,8 @@ Activity rows link to the item page and end with the state chip.
 | --- | --- |
 | `proposed` | FEAT-05 · waiting for a plan request · 2 days |
 | `in_review` | FEAT-04 · plan submitted · in review for 2 days |
-| `planning` | FEAT-06 · writing the plan |
-| `implementing` | FEAT-07 · implementing |
+| `planning` | FEAT-06 · writing the plan — **before dispatch:** FEAT-06 · waiting for dev (quiet tone) |
+| `implementing` | FEAT-07 · implementing — **before dispatch:** FEAT-07 · waiting for dev (quiet tone) |
 | `done` | FEAT-02 · *(first sentence of joined results, or reason when results are empty)* |
 | `on_hold` | FEAT-03 · *(first sentence of joined results, or reason when results are empty)* |
 
@@ -273,6 +273,10 @@ row (§3). Discard confirm: "This can't be undone. Discard FEAT-01?" — **Cance
 **Journey stepper** — removed with the design v4 board (`deriveJourney` deleted; the 7-stage
 model is in git history).
 
+"Before dispatch" means the item's node has no open run for the agent that turns it. Opening a gate
+moves the item; it does not start an agent. Until someone runs the session, nothing is happening —
+the banner, the Activity line and the Team row all say so rather than claiming work in progress.
+
 **Team row** — the agents the current pipeline dispatches, in graph order. pm appears when the
 graph has a Propose node, plan-verifier with Verify, doc-auditor with Doc audit, feature-scout
 with Scout; the workspace roster (dev and friends) appears once, for Plan and Implement. Accept
@@ -281,7 +285,8 @@ default has no plan-verifier or doc-auditor either.
 
 One dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
 "No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on
-FEAT-06" / "On hold" / "Recently done" / "Idle". Roles: pm "Selection" · dev "Development"
+FEAT-06" (only once its run is open; before that "Ready for FEAT-06") / "On hold" / "Recently
+done" / "Idle". Roles: pm "Selection" · dev "Development"
 · plan-verifier "Plan verification" · doc-auditor "Doc audit" · feature-scout "Feature
 scouting" · unknown "Agent" · none "Unassigned". These role names are terminology, not fields
 rendered in the Team row; the row shows only the agent handle and its state.

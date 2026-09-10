@@ -10,6 +10,7 @@ type BoardRow = {
   proposedOn: Date;
   backlogItem: { key: string };
   gate: string | null; // 런이 서 있는 게이트 — 카드 판정의 재료(§E.4)
+  dispatched: boolean; // 이 항목으로 열린 에이전트 run이 있는가 — 배너와 같은 사실(turn.ts)
 };
 type Tone = "pending" | "active" | "done" | "hold" | "muted";
 
@@ -62,10 +63,16 @@ function activityItem(row: BoardRow, today: Date): ActivityItem {
         tone: "pending",
       };
     }
+    // 게이트를 열자마자 이 상태가 된다. 사람이 세션을 돌리기 전까지 아무도 그 일을 하고 있지 않다 —
+    // 배너와 같은 판정을 쓴다. tone도 pending이다: 보드에서 움직이는 것처럼 보이면 안 된다.
     case "planning":
-      return { ...item, line: "writing the plan", tone: "active" };
+      return row.dispatched
+        ? { ...item, line: "writing the plan", tone: "active" }
+        : { ...item, line: `waiting for ${row.agent}`, tone: "pending" };
     case "implementing":
-      return { ...item, line: "implementing", tone: "active" };
+      return row.dispatched
+        ? { ...item, line: "implementing", tone: "active" }
+        : { ...item, line: `waiting for ${row.agent}`, tone: "pending" };
     case "done":
       return { ...item, line: summaryLine(row), tone: "done" };
     case "on_hold":
@@ -90,8 +97,11 @@ function verifierState(rows: readonly BoardRow[]): string {
 function workerState(agent: string, rows: readonly BoardRow[]): string {
   const mine = rows.filter((row) => row.agent === agent);
   if (mine.some((row) => row.status === "in_review")) return "Awaiting review";
-  const working = mine.find((row) => row.status === "planning" || row.status === "implementing");
+  const working = mine.find((row) => (row.status === "planning" || row.status === "implementing") && row.dispatched);
   if (working) return `Working on ${working.backlogItem.key}`;
+  // 디스패치 전이면 그 사람은 일하는 중이 아니라 불리기를 기다린다.
+  const queued = mine.find((row) => row.status === "planning" || row.status === "implementing");
+  if (queued) return `Ready for ${queued.backlogItem.key}`;
   if (mine.some((row) => row.status === "on_hold")) return "On hold";
   if (mine.some((row) => row.status === "done")) return "Recently done";
   return "Idle";
