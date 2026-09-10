@@ -199,7 +199,7 @@ export async function discard(projectId: string, input: { key: string; userId: s
 export async function gate(
   projectId: string, input: { key: string; gate: string; planCommit?: string }, caller: Extract<Caller, { actor: "human" }>,
 ) {
-  return prisma.$transaction(async (tx) => {
+  const written = await prisma.$transaction(async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
     const run = await ensureRun(tx, projectId, row.id, row.status, false);
@@ -217,10 +217,15 @@ export async function gate(
       await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "human", actorId: caller.actorRef, channel: caller.channel, note: `gate:${input.gate}` } });
       await advanceRun(tx, projectId, input.key);
     }
-    // 응답은 ServerResult<{ item, next }> — result.ts의 한 형 그대로다(§D.2 OwnerToolDeps.gate의 형이고, gate_approve의 text(r.item)이 { item, next }를 낸다).
-    // next를 ok 가지에 나란히 얹으면 fail()의 ServerResult<never>와 합쳐져 호출처가 r.next를 좁혀 읽지 못한다(tsc: "Property 'next' does not exist on type '{ ok: true; item: never; }'").
-    return { ok: true as const, item: { item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }), next: await nextFor(tx, projectId, input.key) } };
+    return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }) };
   });
+  if (!written.ok) return written;
+  // next는 **커밋 뒤에** 읽는다. 조언이지 쓰기의 일부가 아니라 원자성이 필요 없고, 트랜잭션 안에 두면
+  // nextFor의 질의 예닐곱이 쓰기 뒤에 붙어 원격 DB에서 Prisma의 5초 대화형 트랜잭션 한도를 넘긴다
+  // (실측 5450ms — 게이트가 통째로 롤백돼 소유자가 웹에서 게이트를 못 열었다).
+  // 응답은 ServerResult<{ item, next }>다. next를 ok 가지에 나란히 얹으면 fail()의 ServerResult<never>와
+  // 합쳐져 호출처가 r.next를 좁혀 읽지 못한다(tsc: "Property 'next' does not exist on type '{ ok: true; item: never; }'").
+  return { ok: true as const, item: { item: written.item, next: await nextFor(prisma, projectId, input.key) } };
 }
 
 // 항목이 쉬거나(done·on_hold) 폐기되면 그 항목을 걷던 agent_next 커서(AgentRun)는 같은 트랜잭션에서 닫힌다.
