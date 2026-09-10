@@ -5,14 +5,14 @@ import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
 import { requireMember } from "@/server/auth/guard";
 import { planForProject } from "@/server/entitlement";
 import { getWithHistory, hasHistoryBefore } from "@/server/pipeline/board";
-import { loadRepoRef } from "@/server/project";
+import { loadProjectRepository } from "@/server/project";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]">) {
   const { slug, key } = await params;
   const { projectId } = await requireMember(slug);
   // 이력 창은 플랜이 정한다. 저장은 전부 하고 조회만 자른다 — 잘린 경우에만 화면이 그 사실을 알린다.
   const cutoff = historyCutoff(await planForProject(projectId), new Date());
-  const [project, row] = await Promise.all([loadRepoRef(projectId), getWithHistory(projectId, key, cutoff)]);
+  const [project, row] = await Promise.all([loadProjectRepository(projectId), getWithHistory(projectId, key, cutoff)]);
   if (!row) notFound();
   const truncated = cutoff !== null && (await hasHistoryBefore(projectId, key, cutoff));
 
