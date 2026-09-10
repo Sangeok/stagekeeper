@@ -9,6 +9,10 @@ export const REQUIRED_NODES = ["plan", "implement", "accept"]; // 못 뺀다 —
 export const TAIL_NODES = ["doc-audit", "scout"];               // accept 뒤. 서로 순서를 바꿀 수 있다
 // 노드가 디스패치하는 에이전트. plan·implement는 항목의 dev(BoardItem.agent), accept는 main-loop 본인(디스패치 아님).
 export const NODE_AGENT = { propose: "pm", verify: "plan-verifier", "doc-audit": "doc-auditor", scout: "feature-scout" };
+// 그 노드를 실제로 도는 에이전트. plan·implement는 항목의 dev고 그 밖은 고정이다. accept는 디스패치가 없어 null.
+// "지금 이 일을 하는 run이 열려 있나"를 묻는 화면이 이걸 쓴다 — 항목에 아무 run이나 열려 있는 것과 다르다.
+export const dispatcherFor = (node, itemAgent) =>
+  node === "plan" || node === "implement" ? itemAgent : (NODE_AGENT[node] ?? null);
 export const GATE_PREFIX = "before-";
 export const gateId = (kind) => `${GATE_PREFIX}${kind}`;
 export const isGateId = (id) => typeof id === "string" && id.startsWith(GATE_PREFIX);

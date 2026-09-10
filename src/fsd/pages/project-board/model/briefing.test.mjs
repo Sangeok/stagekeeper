@@ -19,6 +19,8 @@ const row = ({ key = "X-0", ...fields } = {}) => ({
   backlogItem: { key },
   // 기본 그래프에서 그 상태가 서는 자리 — 게이트 여부는 상태 기계가 아니라 런의 커서가 말한다(§E.4).
   gate: { proposed: "before-plan", in_review: "before-implement" }[fields.status ?? "proposed"] ?? null,
+  // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다.
+  dispatched: true,
   ...fields,
 });
 
@@ -188,6 +190,22 @@ describe("buildBriefing", () => {
     const briefing = buildBriefing([row({ key: "M-1", status: "planning", agent: "mobile-dev" })], TODAY, ["mobile-dev"], NODE_KINDS);
     assert.equal(briefing.team[1].agent, "mobile-dev");
     assert.equal(briefing.team[1].state, "Working on M-1");
+  });
+
+  it("does not claim work is happening before anyone was dispatched", () => {
+    // 게이트를 열자마자 status는 planning이 된다. 사람이 세션을 돌리기 전까지는
+    // 아무도 계획서를 쓰고 있지 않다(실측). 보드도 배너와 같은 판정을 써야 한다.
+    const rows = [row({ key: "N-1", agent: "web-dev", status: "planning", gate: null, dispatched: false })];
+    const briefing = buildBriefing(rows, TODAY, ["web-dev"], NODE_KINDS);
+    assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "waiting for web-dev", tone: "pending" }]);
+    assert.equal(briefing.team.find((t) => t.agent === "web-dev").state, "Ready for N-1");
+  });
+
+  it("says the agent is working once a run is open", () => {
+    const rows = [row({ key: "N-1", agent: "web-dev", status: "planning", gate: null, dispatched: true })];
+    const briefing = buildBriefing(rows, TODAY, ["web-dev"], NODE_KINDS);
+    assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "writing the plan", tone: "active" }]);
+    assert.equal(briefing.team.find((t) => t.agent === "web-dev").state, "Working on N-1");
   });
 
   it("does not change rows, result arrays, dates, or the roster", () => {
