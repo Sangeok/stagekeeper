@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "draft"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-09-11"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "HamSangEok"
+approved-at: "2026-09-11"
+approval-scope: "감지는 init 보고 방식, 알림은 pipeline_next 응답 하나. 웹 배너는 범위 밖."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -254,7 +254,7 @@ export type PipelineOverview = {
 
 승인 메모:
 
-- 승인 전. 설계 결정 둘은 확정됐다 — 감지는 init이 서버에 보고하는 방식, 알림 위치는
+- 승인됨. 설계 결정 둘은 확정됐다 — 감지는 init이 서버에 보고하는 방식, 알림 위치는
   `pipeline_next` 응답 하나다(웹 배너는 이번 범위 밖).
 
 ## Execution Plan
@@ -299,12 +299,26 @@ npm run verify:fsd
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `npm test` | Not run yet | 137 + 신규 |
-| `npm run test:web` | Not run yet | 238 + 신규 |
-| `npm run test:templates` | Not run yet | 18 + 신규 |
-| `npm run check` | Not run yet | exit 0 기대 |
-| `npm run verify:fsd` | Not run yet | pass 기대 |
-| `harness-smoke` init 재실행 | Not run yet | 런북 사이클 절이 교체되는지 |
+| `npm test` | 147/147 pass | 기준선 137 + 런북 순수 7 + init 3 |
+| `npm run test:web` | 243/243 pass | 기준선 238 + runbook-query 5 |
+| `npm run test:templates` | 18/18 pass | 변동 없음 |
+| `npm run check` | exit 0 | `plugin-lib --check`가 새 복사본을 확인 |
+| `npm run verify:fsd` | pass | |
+| `harness-smoke` init 재실행 | pass | 아래 실측 |
+
+신규 실패 없음. 기존 실패도 없었다.
+
+실측 한 바퀴(2026-09-11, dev 서버 재시작 후):
+
+1. 마이그레이션 직후 `Project.runbookVersion`이 `null`이다.
+2. `pipeline_next`(key 없음)가 `runbook: { stale: true, note }`를 싣는다. 문구는 위와 같다.
+3. `--dry-run`으로 init을 돌린다 → 아무것도 안 쓰고, DB는 여전히 `null`이다.
+4. init을 실제로 돌린다 → `write: CLAUDE.md (runbook replaced)`, DB가 `356e3b4fcb81`이 된다.
+5. `pipeline_next`를 다시 부른다 → `runbook` 필드가 없다. 나머지 응답은 4번 전과 같다.
+
+그리고 이 사이클의 doc-auditor가 보고한 mismatch 세 개가 init 재실행으로 전부 사라졌다
+(`harness-smoke@a646bf9`): 사이클이 `pipeline_next` 판으로, 인수 검사 5가 `board_get` 판으로,
+`feature-scout`에 scout 조건이 붙었다.
 
 ## Risks and Rollback
 
