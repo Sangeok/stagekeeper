@@ -8,6 +8,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { deliverable } from "../lib/deliver.mjs";
 import { REPORT_AGENTS } from "../lib/entitlement.mjs";
+import { runbookVersion } from "../lib/runbook.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));
 const APCH = readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8");
@@ -61,12 +62,18 @@ const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: tru
   }));
 
 // 가짜 /api/templates — 응답 본문 하나를 정해 두고 받은 요청을 기록한다.
-const withServer = async (body, fn) => {
+// postStatus: 런북 보고(POST /api/runbook)에 돌려줄 상태. 기본 200.
+const withServer = async (body, fn, { postStatus = 200 } = {}) => {
   const seen = [];
   const server = createServer((req, res) => {
-    seen.push({ url: req.url, authorization: req.headers.authorization });
-    res.setHeader("content-type", "application/json");
-    res.end(JSON.stringify(body));
+    let raw = "";
+    req.on("data", (chunk) => { raw += chunk; });
+    req.on("end", () => {
+      seen.push({ url: req.url, method: req.method, authorization: req.headers.authorization, body: raw || null });
+      res.setHeader("content-type", "application/json");
+      if (req.method === "POST") { res.statusCode = postStatus; res.end(JSON.stringify({ ok: postStatus < 400 })); return; }
+      res.end(JSON.stringify(body));
+    });
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   try { return await fn(`http://127.0.0.1:${server.address().port}`, seen); }
@@ -336,11 +343,48 @@ describe("harness-init (v2)", () => {
         const root = fresh(ONE_WS);
         const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
         assert.equal(r.code, 0, r.out);
-        assert.deepEqual(seen, [{ url: "/api/templates?lang=en", authorization: "Bearer t-test" }]);
+        assert.deepEqual(seen.map(({ url, method }) => ({ url, method })), [
+          { url: "/api/templates?lang=en", method: "GET" },
+          { url: "/api/runbook", method: "POST" },
+        ]);
+        assert.deepEqual(new Set(seen.map((r) => r.authorization)), new Set(["Bearer t-test"]));
         assert.match(r.out, /^plan: pro$/m);
         for (const a of REPORT_AGENTS) assert.ok(existsSync(join(root, `.claude/agents/${a}.md`)), a);
         assert.doesNotMatch(readFileSync(join(root, ".claude/agents/pm.md"), "utf8"), /## step:/);
         assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
+      });
+    });
+    // 저장소에 심은 런북이 어느 판인지 서버가 알아야 pipeline_next가 표류를 말할 수 있다.
+    it("reports the runbook version it just planted, with the same token", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, fresh(ONE_WS), server);
+        assert.equal(r.code, 0, r.out);
+        const post = seen.find((row) => row.method === "POST");
+        assert.ok(post, "no report was sent");
+        assert.equal(post.url, "/api/runbook");
+        assert.equal(post.authorization, "Bearer t-test");
+        assert.deepEqual(JSON.parse(post.body), { version: runbookVersion(FIXTURES["CLAUDE.runbook.md"]) });
+        assert.doesNotMatch(r.out, /not recorded/);
+      });
+    });
+    // 보고가 실패해도 파일은 이미 옳다. 판정이 "낡음"으로 기울 뿐이라 중단할 이유가 없다.
+    it("a refused report leaves init successful and says so in one line", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
+        const root = fresh(ONE_WS);
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
+        assert.equal(r.code, 0, r.out);
+        assert.match(r.out, /^note: runbook version not recorded \(500\)/m);
+        assert.ok(seen.some((row) => row.method === "POST"));
+        assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
+      }, { postStatus: 500 });
+    });
+    it("--dry-run writes nothing and reports nothing", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
+        const root = fresh(ONE_WS);
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server, "--dry-run");
+        assert.equal(r.code, 0, r.out);
+        assert.deepEqual(seen.filter((row) => row.method === "POST"), []);
+        assert.ok(!existsSync(join(root, "CLAUDE.md")));
       });
     });
     it("refuses the pre-Phase-4 flat response — plugin and server out of step", async () => {

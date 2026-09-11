@@ -10,6 +10,7 @@ import { deliverable } from "../lib/deliver.mjs";
 import { capReason, isPlan, withinLimit } from "../lib/entitlement.mjs";
 import { buildLock, planWrites } from "../lib/manifest.mjs";
 import { renderTemplate } from "../lib/render.mjs";
+import { runbookVersion } from "../lib/runbook.mjs";
 import { buildVars, buildWorkspaceVars } from "../lib/vars.mjs";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -168,6 +169,22 @@ async function init() {
   write(".mcp.json", mcpContent);
   write("harness.lock.json", lockContent);
   console.log(`done: write ${writes.write.length} · skip ${writes.skipModified.length}`);
+
+  // 심은 런북이 어느 판인지 서버에 남긴다 — pipeline_next가 이것으로 표류를 말한다(제안서 "저장소 런북").
+  // 쓴 뒤에 보낸다: 파일이 진실이고 보고는 그 사본이다. 실패해도 중단하지 않는다 —
+  // 보고가 없으면 판정은 "낡음"으로 기울고, 그쪽이 안전한 방향이다.
+  // --dry-run은 아무것도 쓰지 않았고, 로컬 우회로(TPL_DIR)는 서버도 토큰도 없다.
+  if (!DRY && !TPL_DIR) {
+    const note = (why) => console.log(`note: runbook version not recorded (${why}) — the session will report the runbook as out of date until the next run`);
+    try {
+      const res = await fetch(`${SERVER}/api/runbook`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${process.env.HARNESS_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ version: runbookVersion(tpl("CLAUDE.runbook.md")) }),
+      });
+      if (!res.ok) note(res.status);
+    } catch (e) { note(e.message); }
+  }
 }
 
 try { await init(); }

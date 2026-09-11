@@ -142,7 +142,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
   });
   // 단계 본문은 이 도구로만 나간다(agents/next.ts). 스텁이 "첫 호출은 agent_next"라고 말하는 그 도구다.
   // §D.1 pipeline_next — 항목 하나(key) 또는 열린 항목 전부의 다음 일. 지연 전진을 하므로 잠긴 프로젝트에서는 guardLocked로 거부한다.
-  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate, accept, or done. Advances the pipeline cursor where the graph allows.", inputSchema: z.object({ key: z.string().optional() }) }, async ({ key }, ctx: Ctx) => {
+  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate, accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when this repository's CLAUDE.md was generated from an older template.", inputSchema: z.object({ key: z.string().optional() }) }, async ({ key }, ctx: Ctx) => {
     const { projectId } = scope(ctx);
     const locked = await guardLocked(deps, projectId);
     if (locked) return locked;

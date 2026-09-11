@@ -6,7 +6,9 @@ import { prismaNextDeps } from "@/server/agents/runs";
 import { prisma } from "@/server/db";
 import { planForProject, projectAccess } from "@/server/entitlement";
 import * as board from "@/server/pipeline/board";
+import { RUNBOOK_STALE_NOTE } from "@/server/pipeline/run-rules";
 import { headFor, nextFor } from "@/server/pipeline/run";
+import { runbookStale } from "@/server/runbook";
 import { makeVerifyToken } from "./auth";
 import type { ToolDeps } from "./tools";
 
@@ -63,7 +65,10 @@ export const prismaToolDeps: ToolDeps = {
       await board.advancePipeline(projectId, key);
       items.push(await nextFor(prisma, projectId, key));
     }
-    return { ok: true as const, item: { head: await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId)), items } };
+    const head = await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId));
+    // 런북 표류는 프로젝트 단위라 key 없는 개요에만 싣는다. 낡지 않았으면 필드 자체를 내지 않는다.
+    const stale = await runbookStale(projectId);
+    return { ok: true as const, item: { head, items, ...(stale ? { runbook: { stale: true as const, note: RUNBOOK_STALE_NOTE } } : {}) } };
   },
   access: (projectId) => projectAccess(projectId),
 };

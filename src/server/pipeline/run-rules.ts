@@ -58,7 +58,15 @@ export function decideNext(i: NextInput): PipelineNext {
 
 // key 없는 pipeline_next의 머리 — pm을 디스패치할 차례인가. none이면 사유가 실린다(null은 사유를 못 싣는다).
 export type HeadNext = { action: "dispatch"; agent: "pm"; hint: string } | { action: "none"; reason: string };
-export type PipelineOverview = { head: HeadNext; items: PipelineNext[] };
+
+// 저장소의 런북이 현재 템플릿과 다를 때만 실린다 — 정상 응답은 이 필드가 아예 없다.
+// init이 심은 판의 해시를 서버가 갖고 있고(POST /api/runbook), 판정은 packages/core/runbook.mjs에 있다.
+// 세션이 매 턴 부르는 것이 key 없는 개요라 여기에 싣는다. product-copy.md §13에 같은 문장.
+export const RUNBOOK_STALE_NOTE =
+  "This repository's runbook does not match the current template, or its version was never recorded. "
+  + "Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md.";
+
+export type PipelineOverview = { head: HeadNext; items: PipelineNext[]; runbook?: { stale: true; note: string } };
 export type HeadInput = {
   hasPropose: boolean;   // 현재 버전의 nodes에 propose가 있는가
   openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
