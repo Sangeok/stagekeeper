@@ -86,7 +86,8 @@ FEAT-03·04·05·06 네 사이클의 계획서·보고·인수 기록이 전부 
 포함 범위:
 
 - 런북: 메인 루프가 게이트를 알리기 전에 그 커밋이 원격에 있는지 확인하고, 없으면 푸시를
-  요청하게 한다.
+  요청하게 한다. 함께 `git show <planCommit>:<planPath>`를 건네 소유자가 푸시를 기다리지
+  않고도 **승인 대상 커밋의 원문**을 읽게 한다. 세션이 계획서를 요약하지는 않는다.
 - 게이트 2 카드: 링크가 푸시된 커밋을 필요로 한다는 것을 한 줄로 말한다.
 - 항목 페이지 Documents: 같은 한 줄.
 - product-copy §7·§11.
@@ -109,8 +110,12 @@ FEAT-03·04·05·06 네 사이클의 계획서·보고·인수 기록이 전부 
 
 > Before you name the gate, check that the commit the card will link is on the remote:
 > `git fetch` then `git branch -r --contains <planCommit>`. If nothing comes back, say so and
-> ask the owner to push first — the card's **Read the plan ↗** opens that commit on GitHub and
-> 404s until it is pushed. Pushing is the owner's job; a pipeline step never grants it.
+> ask the owner to push — the card's **Read the plan ↗** opens that commit on GitHub and 404s
+> until it is pushed. Give them `git show <planCommit>:<planPath>` as well, so they can read
+> exactly what they would be approving without waiting for the push. Print nothing of your own
+> about the plan: the owner is reviewing it independently, and a summary from the session that
+> wrote and verified it is that session grading itself. Pushing is the owner's job; a pipeline
+> step never grants it.
 
 틀리는 방향이 안전하다. 원격 추적 ref가 낡아서 "없다"고 말할 수는 있어도, 그 답이 시키는
 행동(푸시)은 해로운 적이 없다.
@@ -176,6 +181,12 @@ FEAT-03·04·05·06 네 사이클의 계획서·보고·인수 기록이 전부 
 **계획서 본문을 서비스에 저장한다.** 링크 의존을 통째로 없애지만, "저장소가 내용을 갖고
 서비스가 상태를 갖는다"는 구조를 뒤집는다. 어느 쪽이 진실인지 두 곳이 갈릴 수 있다.
 이 제안의 범위가 아니다.
+
+**카드에서 로컬 경로를 일급으로 올린다.** 검토했고 안 한다. 웹 페이지는 `file://`를 열 수
+없어서 경로는 누를 수 없는 텍스트로 남는다 — 무게를 바꿔도 소유자는 어차피 편집기로 옮겨
+가야 한다. 더 큰 문제는 버전이다. 게이트 2가 승인하는 것은 특정 커밋인데 디스크의 파일은
+그것과 다를 수 있고, 경로를 올리면 승인 대상이 아닌 판을 읽으라고 부추긴다. 같은 필요를
+위 `git show <planCommit>:<planPath>`가 정확한 판으로 채운다. 그래서 카드는 건드리지 않는다.
 
 **GitHub App(Phase 4).** 서버가 확실히 아는 유일한 길이고, `github.ts:5-7`이 이미 그리로
 미뤄 두었다. 저장소 목록의 비공개 누락도 같이 풀린다. 크기가 이 제안과 다르므로 별도
