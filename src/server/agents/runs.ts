@@ -54,6 +54,19 @@ export const prismaNextDeps: NextDeps = {
   openCount: async (projectId) => (await latestBoard(projectId, true)).length,
   verifyOk: async (projectId, agent, key) =>
     (await prisma.agentRunStep.findFirst({ where: { stepId: "verify", outcome: "ok", run: { projectId, agent, key } }, select: { id: true } })) !== null,
+  // 닫힌 run의 마지막 한 줄을 위해서만 읽는다 — 그 run이 선 단계에 이미 종료 outcome이 있으면 next.ts가 거른다.
+  lastClosedRun: async (projectId, agent, key) => {
+    const run = await prisma.agentRun.findFirst({
+      where: { projectId, agent, key, closedAt: { not: null } },
+      orderBy: { closedAt: "desc" },
+      select: { id: true, stepId: true },
+    });
+    if (!run) return null;
+    const steps = await prisma.agentRunStep.findMany({
+      where: { runId: run.id, stepId: run.stepId }, select: { outcome: true },
+    });
+    return { ...run, stepOutcomes: steps.map((s) => s.outcome) };
+  },
   record: async (runId, step) => { await prisma.agentRunStep.create({ data: { runId, ...step } }); },
   advance: async (runId, from, to) => {
     const u = await prisma.agentRun.updateMany({
