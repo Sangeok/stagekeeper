@@ -1,4 +1,4 @@
-import { statusLabel } from "@/fsd/entities/board-item";
+import { DOC_LINK_NOTE, statusLabel } from "@/fsd/entities/board-item";
 import { gateLabel } from "@/fsd/entities/pipeline";
 import { ReopenActions, type TransitionAction } from "@/fsd/features/review-gate";
 import { Chip } from "@/fsd/shared/ui/chip";
@@ -105,6 +105,8 @@ export function BoardItemPage({ item, transition }: { item: BoardItemView; trans
               </li>
             ))}
           </ul>
+          {/* 링크 셋은 전부 기록된 커밋을 가리킨다 — 푸시 전이면 넷 다 404다(인박스 카드와 같은 문장). */}
+          <p className="mt-1.5 text-xs text-quiet">{DOC_LINK_NOTE}</p>
         </section>
       ) : null}
 

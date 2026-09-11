@@ -11,6 +11,12 @@ export function blobHref(repo: RepoRef, path: string, ref: string | null = null)
   return `https://github.com/${repo.owner}/${repo.repo}/blob/${ref ?? repo.branch}/${path}`;
 }
 
+// blobHref가 만드는 주소는 **기록된 커밋**을 가리킨다. 그 커밋이 원격에 없으면 조용히 404다 —
+// 푸시는 규칙상 소유자만 하는데(런북 "A pipeline step never grants commit or push permission")
+// 화면이 그 조건을 말하지 않아, 네 사이클의 게이트 2가 죽은 링크였다(실측). 링크를 내미는 자리는
+// 이 문장을 함께 낸다. product-copy.md §7 · §11에 같은 문장.
+export const DOC_LINK_NOTE = "Opens the recorded commit on GitHub. If it 404s, that commit is not pushed yet.";
+
 // 고정 역할의 보고 라벨. 워크스페이스 dev는 roster가 프로젝트마다 달라 여기 열거하지 않고 기본 라벨을 받는다.
 const REPORT_LABEL: Record<string, string> = {
   "main-loop": "Validation record",

@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "draft"
+stage: "approved"
 proposal-size: "small"
 created-at: "2026-09-11"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "HamSangEok"
+approved-at: "2026-09-11"
+approval-scope: "아는 자리(메인 루프)에 확인을 두는 선까지. GitHub App은 범위 밖."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -165,8 +165,8 @@ FEAT-03·04·05·06 네 사이클의 계획서·보고·인수 기록이 전부 
 
 승인 메모:
 
-- 승인 전. 결정할 것은 하나다 — 이 제안대로 "아는 자리에 확인을 두는" 선에서 멈출지,
-  아니면 서버가 직접 알게 하는 GitHub App까지 이번에 열지.
+- 승인됨. 아는 자리에 확인을 두는 선까지다. GitHub App은 열지 않는다 — 서버가 알게 돼도
+  해결책은 똑같이 "소유자가 푸시한다"이고, 이 제안의 1번이 그것을 더 일찍 알린다.
 
 ## Alternatives
 
@@ -224,12 +224,26 @@ npm run verify:fsd
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `npm test` | Not run yet | 147 유지 기대 |
-| `npm run test:web` | Not run yet | 251 + 신규 |
-| `npm run test:templates` | Not run yet | 22 + 1 |
-| `npm run check` | Not run yet | exit 0 기대 |
-| `npm run verify:fsd` | Not run yet | pass 기대 |
-| 게이트 2 카드 실측 | Not run yet | 문장이 보이는지 |
+| `npm test` | 147/147 pass | 변동 없음 |
+| `npm run test:web` | 248/248 pass | 이 브랜치의 기준선은 248이다(#38 미머지) |
+| `npm run test:templates` | 23/23 pass | 22 + 게이트 문장 고정 1 |
+| `npm run check` | exit 0 | |
+| `npm run verify:fsd` | pass | 문구를 entity가 소유해 두 소비자가 같은 문장을 쓴다 |
+| 게이트 2 카드 실측 | pass | 아래 |
+| 항목 페이지 실측 | pass | 아래 |
+
+신규 실패 없음.
+
+실측(2026-09-11, `harness-smoke`):
+
+- 항목 페이지 FEAT-06의 Documents 목록 아래에 문장이 한 번 렌더된다.
+- 게이트 2 카드를 실제로 만들어 확인했다. FEAT-07을 백로그에 올리고, 게이트 1을 열고,
+  계획서를 쓰고, 검증 라운드를 돌려 `validation_record`까지 넣었다. 카드의 계획서 행이
+  `Verified · docs/plans/FEAT-07.md · c828d28` 아래 줄에 문장을 낸다.
+- 그 검증 라운드에서 경로 1이 계획서의 결함 하나를 잡았다. `.claude/agents/dev.md`가
+  A-4를 담고 있다고 썼는데 그 파일은 스텁이라 `## step:` 본문이 0건이다. 고치고 재제출했다.
+- 런북 표류 감지도 같이 울렸다. 템플릿을 리시드해 해시가 바뀌었고 `pipeline_next`가
+  `runbook: { stale: true }`를 실었다. 의도한 동작이다.
 
 ## Risks and Rollback
 
