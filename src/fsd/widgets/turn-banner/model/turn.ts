@@ -179,7 +179,11 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     };
   }
 
-  const working = items.filter((i) => i.gate === null && (i.node === "plan" || i.node === "verify" || i.node === "implement"));
+  // 보류한 항목은 커서를 멈춘 자리에 둔 채 런이 열려 있다(board.ts resetRun) — 재개가 그 자리를 이어받기
+  // 위해서다. 그래서 노드만 보면 "작업 중"이 된다(실측: on_hold인 FEAT-07에 "waiting for dev"가 떴다).
+  // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board.ts:52) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
+  const working = items.filter((i) => i.status !== "on_hold" && i.gate === null
+    && (i.node === "plan" || i.node === "verify" || i.node === "implement"));
   if (working.length > 0) {
     return {
       kind: "theirs",

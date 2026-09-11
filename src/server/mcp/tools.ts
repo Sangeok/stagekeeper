@@ -116,13 +116,13 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (locked) return locked;
     return unwrap(await deps.propose(projectId, args, actorRef));
   });
-  server.registerTool("board_transition", { description: "Agent transitions only: planning → in_review (after plan_submit), implementing → done (after report_submit), → on_hold (result required). Gates are not here.", inputSchema: z.object({ key: z.string(), to: z.string(), result: z.string().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("board_transition", { description: "Agent transitions only: implementing → done (after report_submit), → on_hold (result required). plan_submit already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here.", inputSchema: z.object({ key: z.string(), to: z.string(), result: z.string().optional() }) }, async (args, ctx: Ctx) => {
     const { projectId, actorRef } = scope(ctx);
     const locked = await guardLocked(deps, projectId);
     if (locked) return locked;
     return unwrap(await deps.transition(projectId, args, actorRef));
   });
-  server.registerTool("plan_submit", { description: "Record where the plan is (path and commit). Only in planning or in_review — re-call after review edits so the approved commit is recorded.", inputSchema: z.object({ key: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("plan_submit", { description: "Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing.", inputSchema: z.object({ key: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx: Ctx) => {
     const { projectId, actorRef } = scope(ctx);
     const locked = await guardLocked(deps, projectId);
     if (locked) return locked;
