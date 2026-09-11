@@ -22,6 +22,8 @@ describe("vars", () => {
     assert.equal(v.ws.read_only_list, "- `apps/backend/asd/**`\n- `apps/backend/requirements.txt`");
     assert.equal(v.ws.out_of_scope_list, "- `apps/web/**`\n- `apps/admin/**`");
     assert.equal(v.ws.knowledge, "apps/backend/CLAUDE.md");
+    // 값이 문장을 통째로 든다 — 템플릿이 백틱으로 감싸면 없을 때 파일 이름처럼 읽힌다(F3 실측).
+    assert.equal(v.ws.knowledge_line, "Your workspace knowledge doc is `apps/backend/CLAUDE.md` — read it before you write.");
   });
   it("empty lists render as 'none'", () => {
     const one = parseHarnessConfig({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
@@ -29,5 +31,8 @@ describe("vars", () => {
     const v = buildWorkspaceVars(one, one.workspaces[0]);
     assert.equal(v.ws.read_only_list, "none"); assert.equal(v.ws.out_of_scope_list, "none");
     assert.equal(v.ws.knowledge, "(none — this workspace has no knowledge doc yet. Say so in the plan)");
+    assert.equal(v.ws.knowledge_line, "This workspace has no knowledge doc. Say so in the plan rather than inventing its conventions.");
+    // 없을 때는 경로처럼 보이는 조각이 남으면 안 된다 — 백틱도 괄호 경로도 없다.
+    assert.doesNotMatch(v.ws.knowledge_line, /`/);
   });
 });

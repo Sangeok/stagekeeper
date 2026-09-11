@@ -534,6 +534,9 @@ both). Below: each file's title, its section headings, and the sentences that se
 - "Two open items means no new proposal today. The server enforces the same cap — you count
   first so you can explain instead of being refused."
 - "Keep the reason under 150 characters. Once written, don't change it."
+- "Picking is choosing, not proposing. `board_propose` belongs to the next step — don't call
+  it here." The `start` step ends with keys chosen and nothing written to the board; without
+  that line its outcome reads the same as `propose`'s and the agent proposes a step early.
 - Output: "Proposed today: 1. [FEAT-01] title (agent: dev) — reason / Request the plan in the
   web inbox and dev will write it." · "N items are still open, so nothing was proposed today."
 
@@ -549,6 +552,11 @@ both). Below: each file's title, its section headings, and the sentences that se
   workspace doesn't widen what you may change. Put the item on hold and stop."
 - "Submit the plan before moving to in_review — the server refuses the other order."
 - "Bash is read-only and verify-only. No installs, no migrations, no git reset."
+- The knowledge doc is named by one variable that carries its own sentence, `{{ws.knowledge_line}}`:
+  "Your workspace knowledge doc is `<path>` — read it before you write." when there is one, and
+  "This workspace has no knowledge doc. Say so in the plan rather than inventing its conventions."
+  when there is not. The template never wraps it in backticks — a sentence inside backticks reads
+  as a filename, and the agent goes looking for a file called "(none — …)".
 - "Before you implement, compare the plan on disk with the approved commit: `git diff --quiet
   <planCommit> -- docs/plans/<KEY>.md`. If they differ, the owner edited it after approval — send
   `blocked` with 'plan on disk differs from the approved commit <sha7>; commit and re-submit, or
@@ -614,9 +622,12 @@ both). Below: each file's title, its section headings, and the sentences that se
   implements, reports, moves to done · 7 main loop accepts — **five acceptance checks**, reproduced
   by hand, written up in `docs/agents/main-loop/<KEY>.md`, committed, and recorded with
   `report_submit`; a failed check → Reopen on the item page · 8 doc-auditor / feature-scout
-- Acceptance checks: "Changed files ↔ the plan's 'Files to change'. Diff ↔ 'Implementation
-  sketch'. Run the verify command yourself. Confirm the backlog entry is gone. Open the report
-  the result points to."
+- Acceptance checks: "Changed files ↔ the plan's 'Files to change' — plus
+  `docs/agents/<actor>/<KEY>.md`, which the agent is told to commit with the code and which no
+  plan ever lists; anything else outside the table fails the check. Diff ↔ 'Implementation
+  sketch'. Run the verify command yourself. Confirm the backlog entry is gone. Read the report
+  records from `board_get`, check the `path` and `commit`, and open that file — `result` is a
+  summary, not the report location."
 - Approving from this session (not in the free runbook — Free is web only): "Only when the owner
   issued an owner token on the web Tokens tab and the `harness_owner` server is connected
   (`mcp__harness_owner__gate_approve` is listed). Otherwise gates are web only — say so and stop."
@@ -646,6 +657,9 @@ both). Below: each file's title, its section headings, and the sentences that se
   Tests · Out-of-scope dependencies · Alternatives
 - "Every sentence in Current behavior needs a file:line. Re-read the line right before you cite it."
 - "Files to change is a contract: nothing outside it gets touched. If you need more, put the item on hold."
+- Markdown targets: "Fence your before/after with four tildes (`~~~~markdown`) so the inner
+  fence survives." Three backticks around a block that already contains three backticks
+  closes early and the plan renders broken.
 - verification-paths: "Nine paths. Pick by trigger, not by taste. When in doubt, include it —
   one path costs less than one round."
 - agents/README: "Reports are append-only. Plans are overwritten. A plan is the current
