@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { OverBudgetChip, isOverBudget, isPlanUnverified, isPlanVerified, statusLabel } from "@/fsd/entities/board-item";
+import { DOC_LINK_NOTE, OverBudgetChip, isOverBudget, isPlanUnverified, isPlanVerified, statusLabel } from "@/fsd/entities/board-item";
 import { agoLabel, shortDate } from "@/fsd/shared/lib/relative-time";
 import { Button, ExternalButtonLink } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
@@ -207,6 +207,8 @@ function PlanRow({ item, atImplement }: { item: InboxItem; atImplement: boolean 
           <span className="font-mono">{item.planCommit.slice(0, 7)}</span>
         </>
       ) : null}
+      {/* 링크를 내미는 자리가 그 조건도 말한다 — 커밋이 푸시되지 않았으면 404다. w-full로 줄을 나눈다. */}
+      {item.planUrl !== null ? <span className="w-full text-quiet">{DOC_LINK_NOTE}</span> : null}
     </div>
   );
 }

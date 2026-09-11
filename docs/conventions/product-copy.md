@@ -251,6 +251,9 @@ the item key in the body as well as the key label; it does not replace it with "
   now means implementing an unverified plan.") · path · commit — then **Read the plan ↗** ·
   **Approve implementation** + hint. **Evidence and result** collapsed. **Read the plan ↗** opens the
   plan at the recorded commit — that commit is what you approve. If you edit the plan after the
+  recorded commit, and under the path/commit row: "Opens the recorded commit on GitHub. If it
+  404s, that commit is not pushed yet." Pushing is the owner's job and no pipeline step grants
+  it, so the link can point at a commit that only exists locally.
   validation, commit it and have the session re-call `plan_submit`; an edit that isn't on record
   isn't approved.
 - On hold: **Your note** row → Resume buttons (§3).
@@ -405,7 +408,9 @@ rendered in the Team row; the row shows only the agent handle and its state.
   "Accepted 2026-09-06 16:10" once the acceptance record is in
 - **Evidence** · **Result** ("None yet") · **Validation** ("No validation yet")
 - **Documents**: "Plan" · "dev report" · "main-loop report" — path in mono. Plan opens the recorded
-  commit; each report opens its own commit
+  commit; each report opens its own commit. Under the list, the same sentence as §7: "Opens the
+  recorded commit on GitHub. If it 404s, that commit is not pushed yet." The string lives once, in
+  `entities/board-item/model/doc-link.ts`
 - **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · hint (§3).
   Pressing either replaces that row with **Note to dev** (required) · the confirm button named for
   the chosen action · "Cancel" — never two buttons with the same name on screen
