@@ -38,6 +38,7 @@ model Project {
   language     String          @default("ko")
   executorKind String          @default("local")   // local | routine
   commandIssue Int?
+  runbookVersion String?                 // /harness:init이 마지막으로 심은 런북 템플릿의 해시. null = 보고된 적 없음(= 낡음으로 본다)
   createdAt    DateTime        @default(now())
   members      ProjectMember[]
   tokens       ProjectToken[]
