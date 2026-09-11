@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { AGENT_TOOL_NAMES, registerTools } from "./tools.ts";
+
+// product-copy.md §13의 행 하나. 백틱과 굵은글은 마크다운 서식이라 떼고 비교한다.
+const COPY = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
+const TICK = "`";
+const copyRow = (tool) => {
+  const head = `| ${TICK}${tool}${TICK} | `;
+  // 작업본이 CRLF일 수 있다 — 끝의 CR을 떼지 않으면 표 끝의 `|`가 안 떨어진다.
+  const line = COPY.split(/\r?\n/).find((l) => l.startsWith(head));
+  return line === undefined ? null : line.slice(head.length).trimEnd().replace(/\|$/, "").trimEnd().replaceAll(TICK, "").replaceAll("**", "");
+};
+const descriptions = () => {
+  const meta = {};
+  registerTools({ registerTool: (name, m) => { meta[name] = m; } }, {});
+  return meta;
+};
 
 // 웹 전용 — 에이전트 토큰용 서버에 절대 없어야 한다(불변식 4의 회귀 가드).
 const WEB_ONLY = ["gate_approve", "board_approve", "board_bounce", "board_hold", "board_discard", "board_resume",
@@ -17,6 +33,22 @@ describe("agent-scoped MCP tools", () => {
     assert.deepEqual([...names].sort(), [...AGENT_TOOL_NAMES].sort());
     for (const n of WEB_ONLY) assert.ok(!names.includes(n), `web-only tool registered: ${n}`);
     for (const n of names) assert.doesNotMatch(n, /\./);
+  });
+  // PR #34가 plan_submit에 전이를 합치고 product-copy는 갱신했는데 등록 문구가 따라오지 않았다.
+  // 그래서 모든 에이전트 세션이 옛 프로토콜을 읽었고, 그 문구를 인용한 계획서가 구현 직전에 막혔다(실측).
+  // 문구가 갈리는 두 도구는 product-copy를 그대로 따라야 한다.
+  it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
+    const meta = descriptions();
+    for (const tool of ["board_transition", "plan_submit"]) {
+      const expected = copyRow(tool);
+      assert.ok(expected, `no product-copy row for ${tool}`);
+      assert.equal(meta[tool].description, expected, tool);
+    }
+  });
+  it("no tool still calls planning → in_review an agent transition", () => {
+    for (const [name, m] of Object.entries(descriptions())) {
+      assert.doesNotMatch(m.description ?? "", /planning → in_review \(after plan_submit\)/, name);
+    }
   });
   it("handlers refuse calls that carry no project scope", async () => {
     const handlers = {};

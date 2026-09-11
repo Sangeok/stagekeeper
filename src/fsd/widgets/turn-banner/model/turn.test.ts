@@ -116,6 +116,16 @@ describe("deriveTurn — mine", () => {
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.count, 1);
   });
+
+  // 보류하면 resetRun이 커서를 멈춘 자리에 세워 두고 런은 열어 둔다(board.ts:368 — 재개가 그 자리를
+  // 이어받는다). 그래서 on_hold 항목은 node를 그대로 들고 있다. 상태를 안 보면 "작업 중"이 된다(실측).
+  it("a held item keeps its node but nobody is working on it", () => {
+    const held = { ...item("FEAT-05", "on_hold"), node: "implement", gate: null };
+    assert.equal(deriveTurn([held], ready).kind, "none");
+    const withGate = deriveTurn([held, item("FEAT-01", "proposed")], ready);
+    if (withGate.kind !== "mine") assert.fail(withGate.kind);
+    assert.equal(withGate.count, 1);
+  });
 });
 
 describe("deriveTurn — theirs and none", () => {
