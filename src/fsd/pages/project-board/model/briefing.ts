@@ -10,6 +10,7 @@ type BoardRow = {
   proposedOn: Date;
   backlogItem: { key: string };
   gate: string | null; // 런이 서 있는 게이트 — 카드 판정의 재료(§E.4)
+  node: string | null; // 런이 서 있는 노드. 게이트에 서 있거나 런이 닫혔으면 null
   dispatched: boolean; // 이 항목으로 열린 에이전트 run이 있는가 — 배너와 같은 사실(turn.ts)
 };
 type Tone = "pending" | "active" | "done" | "hold" | "muted";
@@ -87,10 +88,16 @@ function pmState(rows: readonly BoardRow[]): string {
   return pending > 0 ? `${pending} awaiting your approval` : "No new proposals";
 }
 
-// 검증자는 보드의 담당 agent가 아니므로 프로젝트 전체의 첫 검토 항목을 본다.
+// 검증자는 보드의 담당 agent가 아니므로 프로젝트 전체에서 verify 노드에 선 항목을 본다.
+// 상태(in_review)로 판단하면 검증 전·검증 중·검증이 끝나고 게이트에서 기다리는 동안이 전부
+// "Verifying"이 된다(실측). 자리는 상태가 아니라 런의 커서가 말한다 — workerState와 같은 규칙.
 function verifierState(rows: readonly BoardRow[]): string {
-  const review = rows.find((row) => row.status === "in_review");
-  return review ? `Verifying ${review.backlogItem.key}` : "Idle";
+  const atVerify = rows.filter((row) => row.node === "verify");
+  const working = atVerify.find((row) => row.dispatched);
+  if (working) return `Verifying ${working.backlogItem.key}`;
+  // 디스패치 전이면 그 사람은 일하는 중이 아니라 불리기를 기다린다.
+  const queued = atVerify[0];
+  return queued ? `Ready for ${queued.backlogItem.key}` : "Idle";
 }
 
 // 같은 우선순위 안에서는 서버가 반환한 최신 순서를 따른다.

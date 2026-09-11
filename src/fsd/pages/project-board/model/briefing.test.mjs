@@ -19,6 +19,8 @@ const row = ({ key = "X-0", ...fields } = {}) => ({
   backlogItem: { key },
   // 기본 그래프에서 그 상태가 서는 자리 — 게이트 여부는 상태 기계가 아니라 런의 커서가 말한다(§E.4).
   gate: { proposed: "before-plan", in_review: "before-implement" }[fields.status ?? "proposed"] ?? null,
+  // 게이트에 선 자리는 노드가 없다. 일하는 자리만 노드를 갖는다 — page.tsx가 커서에서 같은 식으로 만든다.
+  node: { planning: "plan", implementing: "implement" }[fields.status ?? "proposed"] ?? null,
   // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다.
   dispatched: true,
   ...fields,
@@ -66,7 +68,8 @@ describe("buildBriefing", () => {
     const briefing = buildBriefing(rows, TODAY, ROSTER, NODE_KINDS);
     assert.deepEqual(briefing.activity.map((item) => item.key), ["R-2", "R-1", "W-2", "W-1"]);
     assert.equal(briefing.team.find((member) => member.agent === "web-dev").state, "Working on W-2");
-    assert.equal(briefing.team.find((member) => member.agent === "plan-verifier").state, "Verifying R-2");
+    // 둘 다 게이트 2에 서 있다 — 검증자가 할 일은 남지 않았다.
+    assert.equal(briefing.team.find((member) => member.agent === "plan-verifier").state, "Idle");
   });
 
   it("keeps the six status lines and tones with the key separate from the body", () => {
@@ -142,10 +145,40 @@ describe("buildBriefing", () => {
       { agent: "web-dev", state: "Working on FEAT-07" },
       { agent: "admin-dev", state: "Awaiting review" },
       { agent: "backend-dev", state: "On hold" },
-      { agent: "plan-verifier", state: "Verifying FEAT-04" },
+      { agent: "plan-verifier", state: "Idle" },
       { agent: "doc-auditor", state: "Idle" },
       { agent: "feature-scout", state: "Idle" },
     ]);
+  });
+
+  // 상태만 보면 in_review인 동안 내내 "Verifying"이 된다 — 부르기 전에도, 끝나고 게이트에서
+  // 기다리는 동안에도. 자리는 상태가 아니라 런의 커서가 말한다(F7 실측).
+  describe("plan-verifier state follows the cursor, not the status", () => {
+    const verifierOf = (rows) =>
+      buildBriefing(rows, TODAY, ROSTER, NODE_KINDS).team.find((m) => m.agent === "plan-verifier").state;
+
+    it("is ready, not verifying, before anyone dispatched it", () => {
+      assert.equal(verifierOf([row({ key: "R-1", status: "in_review", node: "verify", gate: null, dispatched: false })]), "Ready for R-1");
+    });
+
+    it("is verifying only while its own run is open", () => {
+      assert.equal(verifierOf([row({ key: "R-1", status: "in_review", node: "verify", gate: null, dispatched: true })]), "Verifying R-1");
+    });
+
+    it("is idle once validation moved the item to the gate", () => {
+      assert.equal(verifierOf([row({ key: "R-1", status: "in_review", node: null, gate: "before-implement", dispatched: false })]), "Idle");
+    });
+
+    it("names the first item at the verify node when two are tied", () => {
+      assert.equal(verifierOf([
+        row({ key: "R-2", status: "in_review", node: "verify", gate: null, dispatched: true }),
+        row({ key: "R-1", status: "in_review", node: "verify", gate: null, dispatched: true }),
+      ]), "Verifying R-2");
+    });
+
+    it("is idle when nothing is in review", () => {
+      assert.equal(verifierOf([row({ key: "D-1", status: "done", node: null, gate: null })]), "Idle");
+    });
   });
 
   it("lists only the agents the current graph dispatches, in graph order", () => {
@@ -269,7 +302,8 @@ describe("ProjectBoardPage", () => {
     const handles = Array.from(html.matchAll(/<b\b[^>]*>([^<]+)<\/b>/g), ([, handle]) => handle);
     assert.deepEqual(handles, ["pm", ...ROSTER, "plan-verifier", "doc-auditor", "feature-scout"]);
     assert.match(html, /web-dev<\/b>Working on FEAT-07/);
-    assert.match(html, /plan-verifier<\/b>Verifying FEAT-04/);
+    // BOARD의 in_review 항목은 게이트 2에 서 있다 — 검증자는 끝났다.
+    assert.match(html, /plan-verifier<\/b>Idle/);
   });
 
   it("keeps the empty Activity message and fixed Team roles", () => {

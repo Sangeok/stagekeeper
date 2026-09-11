@@ -265,7 +265,11 @@ function closeRuns(tx: Db, projectId: string, key: string) {
 }
 
 // 증거 제출 3종(validation·plan·report)은 전부 same-status 이벤트(note로 구분, actorId = 호출 토큰)를
-// 원장에 남긴다 — 원장 = 감사 로그(불변식 8). 클린 사이클의 이벤트는 정확히 8건이 된다.
+// 원장에 남긴다 — 원장 = 감사 로그(불변식 8). 기본 그래프의 클린 사이클은 이벤트 9건이다:
+// →proposed · proposed→planning(게이트1) · planning→planning(plan) · planning→in_review ·
+// in_review→in_review(validation) · in_review→implementing(게이트2) ·
+// implementing→implementing(report) · implementing→done · done→done(report, 인수).
+// 계획서를 고쳐 재제출하면 plan 이벤트가 하나씩 더 붙는다.
 export async function recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string) {
   return prisma.$transaction(async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
