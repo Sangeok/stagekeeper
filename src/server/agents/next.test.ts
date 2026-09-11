@@ -121,6 +121,10 @@ function harness(opts: Opts = {}) {
     verifyOk: async (_p, agent, key) => opts.verifiedElsewhere === true
       || records.some((rec) => rec.stepId === "verify" && rec.outcome === "ok"
         && runs.some((r) => r.id === rec.runId && r.agent === agent && r.key === key)),
+    lastClosedRun: async (_p, agent, key) => {
+      const r = runs.filter((x) => x.agent === agent && x.key === key && x.closedAt).at(-1);
+      return r === undefined ? null : { id: r.id, stepId: r.stepId, stepOutcomes: records.filter((rec) => rec.runId === r.id && rec.stepId === r.stepId).map((rec) => rec.outcome) };
+    },
     record: async (runId, step) => { records.push({ runId, ...step }); },
     advance: async (runId, from, to) => {
       const r = runs.find((x) => x.id === runId);
@@ -297,7 +301,42 @@ describe("agentNext — run lifecycle", () => {
     const closed = await h.call(dev({ outcome: "ok" }));
     assert.equal(closed.ok && closed.item.done, true);
     assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /call again without outcome/i);
+    // 런북은 두 dev 단계 모두 마지막 지시가 agent_next(outcome)인데, 그 직전 호출이 이미 run을 닫는다.
+    // 그 마지막 말이 한 줄도 안 남으면 plan run의 원장이 통째로 빈다(실측).
+    assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "implement", outcome: "ok", note: null });
     assert.equal(step(await h.call(dev())).step, "start");
+  });
+  it("the closed run takes that last word once — a second outcome adds nothing", async () => {
+    const h = harness({ board: { "FEAT-1": "implementing" } });
+    await h.call(dev());
+    step(await h.call(dev({ outcome: "ok" })));
+    h.runs[0].closedAt = new Date();
+    await h.call(dev({ outcome: "ok", note: "first" }));
+    const after = h.records.length;
+    await h.call(dev({ outcome: "ok", note: "second" }));
+    await h.call(dev({ outcome: "failed", note: "third" }));
+    assert.equal(h.records.length, after);
+    assert.equal(h.records.at(-1)?.note, "first");
+  });
+  // handoff는 자리에 머무는 기록이라 단계를 끝내지 않는다 — 그 뒤의 ok가 이 단계의 마지막 말이다.
+  it("a handoff already on the step does not count as the last word", async () => {
+    const h = harness({ board: { "FEAT-1": "planning" } });
+    await h.call(dev());
+    step(await h.call(dev({ outcome: "ok" })));                                  // start → plan
+    await h.call(dev({ outcome: "handoff", note: "docs/plans/FEAT-1.md" }));     // 자리에 머문다
+    h.runs[0].closedAt = new Date();                                             // plan_submit이 닫았다
+    await h.call(dev({ outcome: "ok", note: "in_review" }));
+    assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "plan", outcome: "ok", note: "in_review" });
+  });
+  // 정상 경로로 done에 닿은 run은 그 단계의 ok를 이미 남겼다 — 다시 보낸 ok는 아무것도 더하지 않는다.
+  it("a run that reached done on its own does not take another row", async () => {
+    const h = harness({ board: { "FEAT-1": "planning" } });
+    await h.call(dev());
+    step(await h.call(dev({ outcome: "ok" })));
+    await h.call(dev({ outcome: "ok" }));                                        // plan → done, run 닫힘
+    const after = h.records.length;
+    await h.call(dev({ outcome: "ok" }));
+    assert.equal(h.records.length, after);
   });
   it("a concurrent advance loses the CAS and is told to re-read", async () => {
     const h = harness({ board: { "FEAT-1": "implementing" } });

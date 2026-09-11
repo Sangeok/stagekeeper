@@ -24,6 +24,8 @@ import { DONE, TemplateFormatError, findStep, splitTemplate, type ParsedTemplate
 // handoff: 커밋 권한이 없어 멈췄다 — 전진·분기 없이 원장에 남고 자리에 머문다. 배너가 이 행을 읽는다.
 export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
+// 단계를 끝내는 outcome. handoff는 자리에 머무는 기록이라 여기 없다 — 그 뒤의 ok가 그 단계의 마지막 말이다.
+const TERMINAL: readonly string[] = ["ok", "blocked", "failed"];
 export const NOTE_MAX = 500;
 export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 }; // 토큰당, 원장 행(outcome 실은 호출) 기준
 export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
@@ -47,6 +49,8 @@ export type NextDeps = {
   itemAgent(projectId: string, key: string): Promise<string | null>; // 그 행에 배정된 에이전트. 행이 없으면 null
   openCount(projectId: string): Promise<number>;
   verifyOk(projectId: string, agent: string, key: string | null): Promise<boolean>; // 같은 (project, agent, key)의 어느 run이든 verify/ok 기록
+  // 이미 닫힌 마지막 run과, 그 run이 선 단계에 남은 outcome들. 닫힌 run의 마지막 한 줄을 받기 위해서만 쓴다.
+  lastClosedRun(projectId: string, agent: string, key: string | null): Promise<{ id: string; stepId: string; stepOutcomes: string[] } | null>;
   record(runId: string, step: { stepId: string; outcome: Outcome; note: string | null }): Promise<void>;
   advance(runId: string, from: string, to: string | null): Promise<boolean>; // CAS. to === null 이면 닫는다. 어긋나면 false
   refused(runId: string): Promise<number>; // 거부 횟수를 올리고 그 값을 준다
@@ -118,7 +122,21 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     // 열린 run이 없는데 outcome이 왔다. 마지막 단계의 ok를 두 번 보낸 것일 수도, 이미 닫힌 run에 대고
     // 다음 노드의 일을 보내려는 것일 수도 있다. 둘을 여기서 구분할 수 없으므로 **무엇을 뜻하는지 말한다** —
     // 맨 `{done: true}`는 "이 항목이 끝났다"로 읽혀서, 다음 노드가 남았는데도 항목을 두고 넘어가게 된다(실측).
-    if (input.outcome) return ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });
+    if (input.outcome) {
+      // 런북은 dev의 두 단계 모두 마지막 지시가 agent_next(outcome)인데, 그 직전 호출(plan_submit /
+      // board_transition)이 이미 run을 닫는다. 그래서 그 마지막 말이 원장에 한 줄도 안 남아, plan run의
+      // 원장이 통째로 비었다(실측). 닫힌 run이라도 **그 단계의 마지막 말 한 줄**은 받는다.
+      // 단계당 한 번뿐이다 — 이미 끝낸 단계에 대고 계속 보내면 아무것도 더하지 않는다.
+      // 어느 run에 붙는가: 가장 최근에 닫힌 것. 정상 순서에서는 방금 그 단계를 걷던 run이다.
+      // 그 뒤 같은 key로 새 run이 열리고 닫힌 다음에 늦은 outcome이 오면 뒤엣것에 붙는다 —
+      // 호출이 자기 단계를 말하지 않으므로 서버가 더 정확히 가를 수 없다. 드문 순서이고, 틀려도
+      // 원장에 한 줄이 더 생길 뿐 커서는 움직이지 않는다.
+      const last = await deps.lastClosedRun(projectId, agent, key);
+      if (last && !last.stepOutcomes.some((o) => TERMINAL.includes(o))) {
+        await deps.record(last.id, { stepId: last.stepId, outcome: input.outcome, note: input.note ?? null });
+      }
+      return ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });
+    }
     // 디스패치 상한(지난 30일에 연 run 수) — run **개설**에서만 센다. 재개(열린 run의 outcome 없는 호출)는 세지 않는다: 컴팩션·재시작 복구가 비싸지면 안 된다.
     const used = await deps.recentRuns(projectId, dispatchCutoff(new Date()));
     const capMsg = capError(access.plan, "dispatches", used);
