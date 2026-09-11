@@ -37,6 +37,9 @@ describe("decideNext (H.4)", () => {
     // accept만 빠져 있었다 — 메인 루프가 에이전트 없이 직접 하는 유일한 동작인데 안내가 없었다(실측).
     assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "implement", "plan", "propose", "scout", "verify"]);
     assert.match(HINT.verify, /validation_record/);
+    // 경로 목록을 어디에 남기라는 말이 없어서 다섯 사이클 동안 한 번도 안 남았다(F6 실측).
+    assert.match(HINT.verify, /verification-paths\.md/);
+    assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);
     assert.match(HINT.accept, /report_submit/);
   });
 

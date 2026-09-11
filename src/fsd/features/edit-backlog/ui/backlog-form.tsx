@@ -30,7 +30,10 @@ export function BacklogForm({ action, item }: Props) {
       <Field label="Area">
         <Input name="area" defaultValue={item?.area} placeholder="src/server/pipeline" />
       </Field>
-      <Field label="Evidence" hint={SOURCE_HELP}>
+      {/* "Evidence"는 보드 항목의 근거(board.reason)에 붙는 승인 용어다(CONTEXT.md). 백로그의 이 칸은
+          다른 필드이므로 같은 이름을 쓰면 소유자가 인박스에서 자기가 쓴 글을 본다고 착각한다(실측).
+          열 이름·MCP backlog_get·SOURCE_HELP가 모두 source라 화면도 그 이름을 쓴다. */}
+      <Field label="Source" hint={SOURCE_HELP}>
         <Textarea name="source" rows={3} defaultValue={item?.source} />
       </Field>
       {state.error ? <p className="text-sm text-risk">{state.error}</p> : null}

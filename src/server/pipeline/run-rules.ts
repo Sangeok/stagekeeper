@@ -28,7 +28,7 @@ export const HINT: Record<string, string> = {
   propose: "Dispatch pm with no key. It proposes at most one item per run.",
   accept: "You run this one — reproduce the five acceptance checks yourself, write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }).",
   plan: "Dispatch with the item key. One item per dispatch.",
-  verify: "Run your own verification round first (paths from docs/plans/verification-paths.md, reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
+  verify: "Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
   implement: "Dispatch with the item key. It reports and moves the item to done itself.",
   "doc-audit": "Dispatch doc-auditor with no key; append its report to docs/agents/doc-auditor/audit-log.md yourself.",
   scout: "Dispatch feature-scout with no key — only when harness.json.scout is configured (init writes that agent only then); otherwise take the Scout node off the Pipeline tab. Append its report to docs/agents/feature-scout/scouting-log.md yourself.",

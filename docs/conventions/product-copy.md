@@ -319,8 +319,10 @@ rendered in the Team row; the row shows only the agent handle and its state.
   "The board changed. Refresh and try again."
 
 - Form: **Add backlog item** / **Edit FEAT-01**. Fields **Key** (placeholder `FEAT-01`) ·
-  **Title** · **Area** (placeholder `src/server/pipeline`) · **Evidence**. Evidence hint:
-  "Split it in two: what you observed, and what you confirmed in the code." Buttons **Add** ·
+  **Title** · **Area** (placeholder `src/server/pipeline`) · **Source**. Source hint:
+  "Split it in two: what you observed, and what you confirmed in the code." The label is
+  **Source**, not **Evidence**: **Evidence** is the board item's reason (§7, §11), a different
+  field, and one word on two fields makes the owner read pm's sentence as their own. Buttons **Add** ·
   **Save** · "Saving…".
 - Errors: "Key must look like FEAT-01: capital letters, a dash, a number." · "Title is
   required." · "FEAT-01 already exists." · "FEAT-01 doesn't exist." · "FEAT-01 is open on the
