@@ -22,7 +22,7 @@ export function NewTokenForm({ issue, mcpUrl }: Props) {
           const label = String(new FormData(event.currentTarget).get("label") ?? "");
           startTransition(async () => {
             try {
-              // requireMember는 여전히 throw하므로 try/catch는 남긴다.
+              // requireProjectOwner는 여전히 throw하므로 try/catch는 남긴다.
               const result = await issue(label);
               if (!result.success) {
                 setError(result.error);

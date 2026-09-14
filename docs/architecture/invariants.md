@@ -69,10 +69,15 @@
   `in_review`(검증 라운드 기록)와 `done`(인수 기록)은 verify를 요구하지 않는다. 이름으로 걸면
   이름을 바꿔 지나갈 수 있다. 행위자 자체도 검사한다: 고정 4종 + 워크스페이스 dev + `main-loop`.
   판정은 `src/server/pipeline/board-rules.ts`의 `decideReportSubmit` 하나에 있다.
-- **상한 초과 프로젝트는 잠기되 지워지지 않는다(Phase 4).** 활성은 `createdAt` 오름차순 앞 N개이고
-  나머지는 잠긴다. 잠긴 프로젝트에서 웹은 읽기로 남고(쓰기 액션만 `requireProjectWrite`가 막는다),
-  MCP는 **인증이 아니라 도구 층에서** 사유와 함께 거부한다 — `mcp-handler`의 401이 사유를 실을 수
-  없어서, 막는 자리를 인증에 두면 에이전트가 이유를 알 수 없다. `project_get`은 잠겨도 답한다.
+- **사용 목록은 저장된 정확한 집합이다.** Project.available이 실제 권한 상태이며 매 조회마다 오래된 N개를
+  계산하지 않는다. downgrade는 현재 목록에서 사용자 선택·에이전트 활동·sync·등록 순서로 줄이고,
+  upgrade는 목록을 보존한다. 등록 상한은 전체 소유 프로젝트를 센다.
+- **선택되지 않은 프로젝트의 연결은 보존한다.** 웹 읽기와 사용 선택·token revoke를 허용하며 그 밖의
+  쓰기는 거부한다. agent MCP는 project_get만 허용하고 다른 읽기/쓰기·templates/runbook을 같은 이유로
+  거부한다. 이미 access를 통과한 in-flight 요청은 완료될 수 있다. 선택 변경은 token·Workspace·run·cursor를
+  삭제·폐기·종료하지 않는다. page GET은 기본 PipelineVersion도 생성하지 않는다.
+- **목록·플랜·원장은 함께 바뀐다.** 변경된 집합과 단조 증가 version/event는 하나의 transaction으로
+  저장하고 stale 요청은 zero-write다. 이미 selected인 target이라도 오래된 version은 stale다.
 
 - **pm 상한(미결 2건)은 서버가 강제한다.** `board_propose`가 세고 거부하며, 상한 판정은
   같은 트랜잭션 안에서 `Serializable` 격리로 읽는다(두 호출자가 같은 수를 읽고 둘 다 만드는 것을 막는다).

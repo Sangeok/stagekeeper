@@ -2,15 +2,16 @@ import { notFound } from "next/navigation";
 import { historyCutoff } from "@harness/core/entitlement.mjs";
 import { humanTransition } from "@/fsd/features/review-gate/index.server";
 import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
-import { requireMember } from "@/server/auth/guard";
-import { planForProject } from "@/server/entitlement";
+import { requireProjectOwner } from "@/server/auth/guard";
+import { planForProject, projectAccess } from "@/server/entitlement";
 import { getWithHistory, hasHistoryBefore } from "@/server/pipeline/board";
 import { loadProjectRepository } from "@/server/project";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]">) {
   const { slug, key } = await params;
-  const { projectId } = await requireMember(slug);
+  const { projectId } = await requireProjectOwner(slug);
   // 이력 창은 플랜이 정한다. 저장은 전부 하고 조회만 자른다 — 잘린 경우에만 화면이 그 사실을 알린다.
+  const access = await projectAccess(projectId);
   const cutoff = historyCutoff(await planForProject(projectId), new Date());
   const [project, row] = await Promise.all([loadProjectRepository(projectId), getWithHistory(projectId, key, cutoff)]);
   if (!row) notFound();
@@ -18,6 +19,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
 
   return (
     <BoardItemPage
+      canWrite={access.available}
       item={{
         key: row.backlogItem.key,
         title: row.backlogItem.title,

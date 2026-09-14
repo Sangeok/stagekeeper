@@ -1,31 +1,31 @@
 import { allowsPipelineEdit } from "@harness/core/pipeline.mjs";
 import { savePipeline } from "@/fsd/features/edit-pipeline/index.server";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
-import { requireMember } from "@/server/auth/guard";
+import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { planForProject } from "@/server/entitlement";
-import { currentVersion } from "@/server/pipeline/run";
+import { projectAccess } from "@/server/entitlement";
+import { loadCurrentVersionView } from "@/server/pipeline/run";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) {
   const { slug } = await params;
-  const { projectId } = await requireMember(slug);
+  const { projectId } = await requireProjectOwner(slug);
 
-  // 현재 버전은 없으면 여기서 물질화된다 — 첫 방문이 곧 version 1이다(§C.1).
-  const [version, plan, workspaces] = await Promise.all([
-    currentVersion(prisma, projectId),
-    planForProject(projectId),
+  const [version, access, workspaces] = await Promise.all([
+    loadCurrentVersionView(prisma, projectId),
+    projectAccess(projectId),
     prisma.workspace.findMany({ where: { projectId }, orderBy: { wsId: "asc" }, select: { agent: true } }),
   ]);
 
   return (
     <ProjectPipelinePage
-      graph={{ nodes: version.nodes, gates: version.gates }}
-      version={version.version}
-      savedAt={version.createdAt}
+      graph={version.graph}
+      version={version.persisted?.version ?? null}
+      savedAt={version.persisted?.createdAt ?? null}
       now={new Date()}
-      plan={plan}
+      plan={access.plan}
       roster={workspaces.map((w) => w.agent)}
-      editable={allowsPipelineEdit(plan)}
+      editable={access.available && allowsPipelineEdit(access.plan)}
+      unavailableReason={access.available ? undefined : access.reason}
       save={savePipeline.bind(null, slug)}
     />
   );

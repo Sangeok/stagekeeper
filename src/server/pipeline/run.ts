@@ -3,7 +3,7 @@ import "server-only";
 import { BOUNDARY, NODE_AGENT, cursorForStatus, defaultGraph, isGateId, sequence } from "@harness/core/pipeline.mjs";
 import { DISPATCH_WINDOW_DAYS, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client"; // Prisma는 값 — P2002 검사에 쓴다(edit-backlog.server.ts와 같은 import)
-import { planForProject } from "@/server/entitlement";
+import { readProjectPlanIn } from "@/server/project-access-query";
 import { decideHead, decideNext, handoffIsLive, type HeadNext, type PipelineNext } from "./run-rules";
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -16,10 +16,10 @@ export type Facts = { status: string; validation: string | null; accepted: boole
 
 // 현재 버전 = 프로젝트의 최대 version. 없으면 기본 그래프를 version 1로 물질화한다. 두 호출자가 동시에 처음 만나면
 // @@unique([projectId, version])가 한쪽을 P2002로 막는다 — 그쪽은 다시 읽는다(§C.8).
-export async function currentVersion(db: Db, projectId: string) {
+export async function ensureCurrentVersion(db: Db, projectId: string) {
   const row = await db.pipelineVersion.findFirst({ where: { projectId }, orderBy: { version: "desc" } });
   if (row) return row;
-  const graph = defaultGraph(await planForProject(projectId));
+  const graph = defaultGraph(await readProjectPlanIn(db, projectId));
   try {
     return await db.pipelineVersion.create({ data: { projectId, version: 1, nodes: graph.nodes, gates: graph.gates, createdBy: "pipeline" } });
   } catch (e) {
@@ -28,12 +28,18 @@ export async function currentVersion(db: Db, projectId: string) {
   }
 }
 
+export async function loadCurrentVersionView(db: Db, projectId: string): Promise<{ graph: Graph; persisted: { id: string; version: number; createdAt: Date } | null }> {
+  const row = await db.pipelineVersion.findFirst({ where: { projectId }, orderBy: { version: "desc" } });
+  if (row) return { graph: { nodes: row.nodes, gates: row.gates }, persisted: { id: row.id, version: row.version, createdAt: row.createdAt } };
+  return { graph: defaultGraph(await readProjectPlanIn(db, projectId)), persisted: null };
+}
+
 // 항목의 런. 없으면 만든다 — 새 항목(status proposed, 이벤트 1건)은 머리에서, 마이그레이션 전 항목은 상태가 말하는 자리에서.
 // boardItemId @unique라 동시 생성은 한쪽만 이긴다 — 진 쪽은 다시 읽는다.
 export async function ensureRun(db: Db, projectId: string, boardItemId: string, status: string, fresh: boolean): Promise<RunRow> {
   const found = await db.pipelineRun.findUnique({ where: { boardItemId }, include: { version: true } });
   if (found) return found;
-  const version = await currentVersion(db, projectId);
+  const version = await ensureCurrentVersion(db, projectId);
   const graph: Graph = { nodes: version.nodes, gates: version.gates };
   const node = (fresh ? sequence(graph)[0] : cursorForStatus(graph, status)) ?? sequence(graph)[0];
   try {
@@ -68,9 +74,9 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: R
 }
 
 async function recentRuns(db: Db, projectId: string, since: Date) {
-  const owner = await db.projectMember.findFirst({ where: { projectId, role: "owner" }, select: { userId: true } });
-  if (!owner) return 0;
-  return db.agentRun.count({ where: { openedAt: { gte: since }, project: { members: { some: { userId: owner.userId, role: "owner" } } } } });
+  const owner = await db.project.findUnique({ where: { id: projectId }, select: { ownerUserId: true } });
+  if (!owner?.ownerUserId) return 0;
+  return db.agentRun.count({ where: { openedAt: { gte: since }, project: { ownerUserId: owner.ownerUserId } } });
 }
 
 export async function nextFor(db: Db, projectId: string, key: string): Promise<PipelineNext> {
@@ -85,7 +91,7 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
   const last = open?.steps[0];
   const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
   const dispatches = node !== null && (node === "plan" || node === "implement" || (NODE_AGENT as Record<string, string | undefined>)[node] !== undefined);
-  const capMsg = dispatches ? capError(await planForProject(projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date()))) : null;
+  const capMsg = dispatches ? capError(await readProjectPlanIn(db, projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date()))) : null;
   return decideNext({
     key, version: run.version.version, node, status: row.status, planCommit: row.planCommit, agent: row.agent, handoff,
     capReason: capMsg ? `${capMsg} — counted over the last ${DISPATCH_WINDOW_DAYS} days` : null,
@@ -94,8 +100,8 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
 
 // key 없는 호출의 머리 — 미결 수는 deps.ts가 latestBoard로 세어 넘긴다(§D.1; run.ts는 board.ts를 import하지 않는다)
 export async function headFor(db: Db, projectId: string, openCount: number, availableBacklog: number): Promise<HeadNext> {
-  const version = await currentVersion(db, projectId);
-  const capMsg = capError(await planForProject(projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date())));
+  const version = await ensureCurrentVersion(db, projectId);
+  const capMsg = capError(await readProjectPlanIn(db, projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date())));
   return decideHead({
     hasPropose: version.nodes.includes("propose"),
     openCount,

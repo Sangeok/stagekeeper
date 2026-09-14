@@ -12,9 +12,11 @@ model User {
   githubId  Int             @unique
   login     String
   createdAt DateTime        @default(now())
-  members   ProjectMember[]
   subscription Subscription?
   ownerTokens  OwnerToken[]
+  projectAvailabilityVersion Int @default(0)
+  ownedProjects Project[] @relation("ProjectOwner")
+  projectAvailabilityEvents ProjectAvailabilityEvent[]
 }
 
 model Subscription {                   // 플랜은 사용자에 붙고 프로젝트는 소유자의 플랜을 따른다. 행이 없으면 free. 결제 경로 없음 — plan:grant 스크립트가 쓴다
@@ -32,7 +34,6 @@ model Project {
   id           String          @id @default(cuid())
   slug         String          @unique   // URL: /p/apch
   name         String
-  owner        String                    // GitHub owner
   repo         String
   branch       String
   language     String          @default("ko")
@@ -40,7 +41,6 @@ model Project {
   commandIssue Int?
   runbookVersion String?                 // /harness:init이 마지막으로 심은 런북 템플릿의 해시. null = 보고된 적 없음(= 낡음으로 본다)
   createdAt    DateTime        @default(now())
-  members      ProjectMember[]
   tokens       ProjectToken[]
   workspaces   Workspace[]
   backlog      BacklogItem[]
@@ -49,15 +49,33 @@ model Project {
   runs         AgentRun[]
   ownerTokens  OwnerToken[]
   pipelineVersions PipelineVersion[]
+  ownerUserId   String
+  repoOwner     String
+  available     Boolean   @default(true)
+  lastSelectedAt DateTime?
+  lastSyncedAt  DateTime?
+  ownerUser     User      @relation("ProjectOwner", fields: [ownerUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([ownerUserId, available])
 }
 
-model ProjectMember {
-  projectId String
-  userId    String
-  role      String   @default("owner")
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  @@id([projectId, userId])
+model ProjectAvailabilityEvent {
+  id                  String   @id @default(cuid())
+  ownerUserId         String
+  version             Int
+  actor               String
+  reason              String
+  fromPlan            String?
+  toPlan              String?
+  addedProjectIds     String[]
+  removedProjectIds   String[]
+  availableProjectIds String[]
+  basis               String?
+  at                   DateTime @default(now())
+  ownerUser            User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, version])
+  @@index([ownerUserId, at])
 }
 
 model ProjectToken {

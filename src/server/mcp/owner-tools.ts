@@ -14,8 +14,8 @@ export type OwnerToolDeps = {
   // 게이트를 연 뒤의 행과 다음 일(pipeline_next와 같은 모양) — 런북 단계 번호는 없다. 런북에 번호가 없다.
   gate(projectId: string, userId: string, input: { key: string; gate: string; planCommit?: string }): Promise<ServerResult<{ item: { agent: string; status: string }; next: PipelineNext }>>;
   access(projectId: string): Promise<ProjectAccess>;
-  // 지금 이 사람이 이 프로젝트의 멤버인가. 토큰 행의 userId는 발급 시점의 사실이라 호출마다 다시 본다 — 웹의 requireMember와 같은 판정.
-  member(projectId: string, userId: string): Promise<boolean>;
+  // 지금 이 사람이 이 프로젝트의 소유자인가. 토큰 행의 userId는 발급 시점의 사실이라 호출마다 다시 본다 — 웹의 requireProjectOwner와 같은 판정.
+  owner(projectId: string, userId: string): Promise<boolean>;
 };
 
 type Ctx = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
@@ -35,11 +35,11 @@ export function registerOwnerTools(server: McpServer, deps: OwnerToolDeps) {
     inputSchema: z.object({ key: z.string(), gate: z.string(), planCommit: z.string().optional() }),
   }, async (args, ctx: Ctx) => {
     const { projectId, userId } = scope(ctx);
-    // 인가는 목적지에서, 호출마다. 토큰이 살아 있어도 멤버가 아니면 거부 — 웹 게이트가 requireMember를 매번 부르는 것과 같다.
-    if (!(await deps.member(projectId, userId))) return fail("not a member of this project — the owner token no longer opens gates here; revoke it on the Tokens tab");
-    // 잠금·플랜은 인증이 아니라 도구 층에서 — tools.ts의 guardLocked와 같은 이유(401은 사유를 못 싣는다).
+    // 인가는 목적지에서, 호출마다. 토큰이 살아 있어도 소유자가 아니면 거부 — 웹 게이트가 requireProjectOwner를 매번 부르는 것과 같다.
+    if (!(await deps.owner(projectId, userId))) return fail("not the owner of this project");
+    // 잠금·플랜은 인증이 아니라 도구 층에서 — tools.ts의 guardUnavailable와 같은 이유(401은 사유를 못 싣는다).
     const access = await deps.access(projectId);
-    if (access.locked) return fail(access.reason);
+    if (!access.available) return fail(access.reason);
     if (!allowsSessionApprovals(access.plan)) return fail(`session approvals are not on the ${access.plan} plan — approve in the Inbox, or upgrade the plan`);
     const r = await deps.gate(projectId, userId, args);
     if (!r.ok) return fail(r.reason);

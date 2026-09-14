@@ -4,6 +4,7 @@ import { ProposeButton, type ProposeAction } from "@/fsd/features/propose-item";
 import { backlogHref } from "@/fsd/shared/routes/project";
 
 type Props = {
+  canWrite: boolean;
   slug: string;
   rows: BacklogRow[];
   includeRemoved: boolean;
@@ -16,7 +17,7 @@ type Props = {
   roster: string[];
 };
 
-export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, update, remove, propose, roster }: Props) {
+export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, update, remove, propose, roster, canWrite }: Props) {
   return (
     <>
       <div className="flex items-center justify-between">
@@ -28,8 +29,8 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, u
           {includeRemoved ? "Hide removed" : "Show removed"}
         </Link>
       </div>
-      <BacklogTable slug={slug} rows={rows} remove={remove} renderAction={(row) => <ProposeButton itemKey={row.key} roster={roster} propose={propose} />} />
-      {editing && update ? <BacklogForm action={update} item={editing} /> : <BacklogForm action={add} />}
+      <BacklogTable canWrite={canWrite} slug={slug} rows={rows} remove={remove} renderAction={canWrite ? (row) => <ProposeButton itemKey={row.key} roster={roster} propose={propose} /> : undefined} />
+      {canWrite ? editing && update ? <BacklogForm action={update} item={editing} /> : <BacklogForm action={add} /> : null}
     </>
   );
 }

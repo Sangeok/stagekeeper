@@ -29,10 +29,10 @@ import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
 import { RejectActions } from "./reject-actions";
 
-type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; locked?: boolean };
+type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite?: boolean };
 
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
-export function InboxCard({ item, now, transition, approve, discard, locked = false }: Props) {
+export function InboxCard({ item, now, transition, approve, discard, canWrite = true }: Props) {
   // 잠긴 프로젝트에서는 아무 결정도 내릴 수 없다. 게이트·재개·반려·폐기를 모두 감추고 칩만 남긴다 —
   // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
   // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
@@ -81,10 +81,10 @@ export function InboxCard({ item, now, transition, approve, discard, locked = fa
             {isInReview && item.planUrl !== null ? (
               <ExternalButtonLink href={item.planUrl}>Read the plan ↗</ExternalButtonLink>
             ) : null}
-            {locked ? (
-              <span className="rounded-full border border-line px-3 py-1 text-xs text-quiet">Locked</span>
+            {!canWrite ? (
+              <span className="rounded-full border border-line px-3 py-1 text-xs text-quiet">Not selected</span>
             ) : null}
-            {gate !== null && !locked ? (
+            {gate !== null && canWrite ? (
               <GateTransitionButton
                 gate={gate}
                 itemKey={item.key}
@@ -92,14 +92,14 @@ export function InboxCard({ item, now, transition, approve, discard, locked = fa
                 commit={() => approve({ key: item.key, gate, expectedUpdatedAt: item.updatedAt })}
               />
             ) : null}
-            {isOnHold && !locked ? <ResumeButtons item={item} transition={transition} /> : null}
+            {isOnHold && canWrite ? <ResumeButtons item={item} transition={transition} /> : null}
           </div>
-          {gate !== null && !locked ? (
+          {gate !== null && canWrite ? (
             <p className={isUnverified ? "text-xs text-risk" : "text-xs text-quiet"}>
               {isUnverified ? UNVERIFIED_HINT : gateNextActionHint(gate)}
             </p>
           ) : null}
-          {isOnHold && !locked ? (
+          {isOnHold && canWrite ? (
             <p className="text-xs text-quiet">{resumeHint(resumePrimaryFor(item.heldFrom), item.heldFrom)}</p>
           ) : null}
         </div>
@@ -114,7 +114,7 @@ export function InboxCard({ item, now, transition, approve, discard, locked = fa
           </details>
         ) : null}
 
-        {locked ? null : <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} />}
+        {!canWrite ? null : <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} />}
 
         <details className="text-xs text-quiet">
           <summary className="cursor-pointer">What this decision does</summary>

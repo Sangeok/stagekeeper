@@ -46,7 +46,7 @@ function noteLabel(note: string): string {
 }
 
 // transition은 라우트가 slug를 bind해서 넘긴 사람 전이 액션(review-gate). 이 페이지는 되돌리기(reopen)에만 쓴다.
-export function BoardItemPage({ item, transition }: { item: BoardItemView; transition: TransitionAction }) {
+export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemView; transition: TransitionAction; canWrite: boolean }) {
   return (
     <>
       <header className="flex flex-col gap-1">
@@ -111,7 +111,7 @@ export function BoardItemPage({ item, transition }: { item: BoardItemView; trans
       ) : null}
 
       {/* done에서만 그려진다(reopenTargetsFor) — Documents를 읽고 결정하는 순서라 그 아래, History 위(product-copy.md §11). */}
-      <ReopenActions itemKey={item.key} status={item.status} updatedAt={item.updatedAt} transition={transition} />
+      {canWrite ? <ReopenActions itemKey={item.key} status={item.status} updatedAt={item.updatedAt} transition={transition} /> : null}
 
       <section>
         <SectionLabel>History</SectionLabel>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-// requireMember는 비멤버와 없는 slug를 똑같이 notFound()로 답한다(guard.ts) — 그 호출은
+// requireProjectOwner는 비멤버와 없는 slug를 똑같이 notFound()로 답한다(guard.ts) — 그 호출은
 // p/[slug]/layout.tsx 안에서 일어나므로, 그 레이아웃 안쪽의 not-found는 렌더될 수 없다.
 // not-found는 자기 세그먼트의 layout 안에서 그려지기 때문이다
 // (node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/not-found.md).

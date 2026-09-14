@@ -35,7 +35,7 @@ function setup(options: Options = {}) {
     },
     projectAccess: async (projectId) => {
       calls.projectIds.push(projectId);
-      return options.access ?? { plan: "pro", locked: false };
+      return options.access ?? { plan: "pro", available: true };
     },
     findTemplatesByLanguage: async (language) => {
       calls.languages.push(language);
@@ -86,7 +86,7 @@ describe("templatesFor", () => {
 
   it("returns 403 and the lock reason for a valid token without loading templates", async () => {
     const reason = "project cap reached on the free plan (1); this project is locked";
-    const { templatesFor, calls } = setup({ access: { plan: "free", locked: true, reason } });
+    const { templatesFor, calls } = setup({ access: { plan: "free", available: false, code: "not-selected", reason } });
 
     const result = await templatesFor(authorizationHeader, "en");
 
@@ -104,7 +104,7 @@ describe("templatesFor", () => {
   });
 
   it("returns the free plan's allowed stubs and the one runbook after authentication", async () => {
-    const { templatesFor, calls } = setup({ access: { plan: "free", locked: false } });
+    const { templatesFor, calls } = setup({ access: { plan: "free", available: true } });
 
     const result = await templatesFor(authorizationHeader, "ko");
 
@@ -125,7 +125,7 @@ describe("templatesFor", () => {
 
   for (const plan of ["pro", "max"] as const) {
     it(`returns all report agents as stubs and the full runbook on ${plan}`, async () => {
-      const { templatesFor } = setup({ access: { plan, locked: false } });
+      const { templatesFor } = setup({ access: { plan, available: true } });
 
       const result = await templatesFor(authorizationHeader, "en");
 

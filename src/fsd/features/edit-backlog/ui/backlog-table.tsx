@@ -12,11 +12,13 @@ export type BacklogRow = {
   key: string;
   title: string;
   area: string;
+  source: string;
   status: string | null;
   removedAt: Date | null;
 };
 
 type Props = {
+  canWrite: boolean;
   slug: string;
   rows: BacklogRow[];
   remove: RemoveBacklogAction;
@@ -26,7 +28,7 @@ type Props = {
 
 // 서버 컴포넌트다 — 상호작용하는 조각은 마지막 열의 RemoveBacklogButton 하나뿐이고,
 // 실패 문구도 그 행 아래에 붙는다(표 상단 공유 줄이 아니라).
-export function BacklogTable({ slug, rows, remove, renderAction }: Props) {
+export function BacklogTable({ slug, rows, remove, renderAction, canWrite }: Props) {
   return (
     <div className="flex flex-col gap-2">
       <Table>
@@ -43,7 +45,7 @@ export function BacklogTable({ slug, rows, remove, renderAction }: Props) {
           {rows.length === 0 ? (
             <Tr>
               <Td colSpan={5} className="text-quiet">
-                No backlog items yet. Add the first one below.
+                {canWrite ? "No backlog items yet. Add the first one below." : "No backlog items yet."}
               </Td>
             </Tr>
           ) : null}
@@ -51,21 +53,21 @@ export function BacklogTable({ slug, rows, remove, renderAction }: Props) {
             <Tr key={row.key} className={row.removedAt ? "text-quiet" : undefined}>
               <Td className="font-mono text-xs">{row.key}</Td>
               <Td>
-                <Link href={backlogHref(slug, { edit: row.key })} className="hover:underline">
+                {canWrite ? <Link href={backlogHref(slug, { edit: row.key })} className="hover:underline">
                   {row.title}
-                </Link>
+                </Link> : <details><summary className="cursor-pointer">{row.title}</summary><p className="mt-2 text-xs text-quiet">Source</p><p className="whitespace-pre-wrap">{row.source}</p></details>}
               </Td>
               <Td className="font-mono text-xs text-quiet">{row.area}</Td>
               <Td>{row.status ? <Chip tone="done">{statusLabel(row.status)}</Chip> : <span className="text-xs text-quiet">Not on board</span>}</Td>
               <Td className="text-right">
                 {row.removedAt ? (
                   <span className="text-xs">Removed</span>
-                ) : (
+                ) : canWrite ? (
                   <>
                     {row.status === null && renderAction ? renderAction(row) : null}
                     <RemoveBacklogButton itemKey={row.key} remove={remove} />
                   </>
-                )}
+                ) : null}
               </Td>
             </Tr>
           ))}

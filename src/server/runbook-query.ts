@@ -31,8 +31,8 @@ export function makeRecordRunbook(deps: RunbookDeps): RecordRunbook {
     if (!tokenRecord || tokenRecord.revokedAt) return { ok: false, status: 401, reason: "invalid or revoked token" };
 
     const access = await deps.projectAccess(tokenRecord.projectId);
-    // 잠긴 프로젝트는 템플릿도 못 받는다. 받지도 못한 판을 기록으로 남기지 않는다.
-    if (access.locked) return { ok: false, status: 403, reason: access.reason };
+    // 선택되지 않은 프로젝트는 템플릿도 못 받는다. 받지도 못한 판을 기록으로 남기지 않는다.
+    if (!access.available) return { ok: false, status: 403, reason: access.reason };
 
     const version = versionOf(body);
     if (version === null) return { ok: false, status: 400, reason: "version must be 12 lowercase hex characters" };

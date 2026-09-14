@@ -15,9 +15,8 @@ export const prismaOwnerToolDeps: OwnerToolDeps = {
     return board.gate(projectId, input, { actor: "human", actorRef: userId, channel: "session", expectedUpdatedAt: row.updatedAt });
   },
   access: (projectId) => projectAccess(projectId),
-  // ProjectMember의 복합 키(@@id([projectId, userId]) → projectId_userId). 행이 있으면 멤버다 — role은 묻지 않는다(웹 requireMember와 같다).
-  member: async (projectId, userId) =>
-    (await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId, userId } }, select: { userId: true } })) !== null,
+  owner: async (projectId, userId) =>
+    (await prisma.project.findFirst({ where: { id: projectId, ownerUserId: userId }, select: { id: true } })) !== null,
 };
 
 export const verifyOwnerToken = makeVerifyOwnerToken((hash) =>
