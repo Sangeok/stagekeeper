@@ -14,10 +14,22 @@
 | --- | --- |
 | `200` | `{ templates, entitlement: { plan, agents } }`. 에이전트는 스텁, 보고 에이전트·런북은 플랜에 맞춰 제공 |
 | `401` | 에이전트 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음 |
-| `403` | 인증은 성공했지만 프로젝트가 플랜 상한으로 잠김. 응답의 `error`에 잠금 사유 보존 |
+| `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존 |
 | `404` | 요청한 언어의 템플릿이 없음 |
 
 위 4xx 응답은 `{ error: string }`이다. MCP 도구의 `isError` 응답과 별개의 HTTP 계약이다.
+
+## 프로젝트 사용 상태
+
+`project_get`은 기존 repository owner 키를 보존하고 `available: true` 또는 `available: false, reason`을
+추가한다. ownerUserId/repoOwner/선택·sync 시각은 공개 body에 노출하지 않는다. 소유권 무결성 오류라면
+프로젝트 상세 없이 error만 응답한다. selected-out에서 나머지 12개 agent 도구는 domain query 전에 거부한다.
+
+공통 사유: `This project is not selected for use. Open Stagekeeper → Projects and choose “Use this project”.`
+토큰 인증은 유지하며 다른 도구나 templates/runbook 접근으로 우회할 수 없다.
+`project_sync` 성공은 Workspace/language/lastSyncedAt을 같은 transaction에 저장한다. 거부·실패는 모두 불변이다.
+`POST /api/runbook`은 같은 access 이후 12자리 소문자 hex version을 검사한다. 실패 상태는 401/403/400,
+성공 body는 `{ ok: true }`다. 이 요청은 lastSyncedAt을 변경하지 않는다.
 
 ## MCP 도구 계약 — 에이전트 토큰 스코프
 
@@ -36,7 +48,7 @@
 | `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
 | `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
 | `validation_record` | `{key, text}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
-| `agent_next` | `{agent, key?, outcome?, note?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·잠긴 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
+| `agent_next` | `{agent, key?, outcome?, note?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
 | `pipeline_next` | `{key?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다 | main-loop | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
@@ -61,9 +73,9 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 | --- | --- | --- | --- | --- |
 | `gate_approve` | `{key, gate, planCommit?}` | 사람 게이트 전이(actor human, channel session). `→ implementing`은 validation 필수 + `planCommit` 일치. 응답 `{item, next: {action: "dispatch", agent, key, step: 3\|6}}` — 세션은 그 턴에 dev를 디스패치한다 | 소유자 토큰 | 5 |
 
-호출마다 도구 층에서 멤버십(`ProjectMember`) → 잠금 → 플랜(`sessionApprovals` — Free는 웹 전용) 순으로 검사한다.
+호출마다 도구 층에서 직접 소유권(ownerUserId) → 사용 가능 여부 → 플랜(`sessionApprovals` — Free는 웹 전용) 순으로 검사한다.
 거부 사유(`isError`; `product-copy.md` §12에 같은 문장):
-`not a member of this project — the owner token no longer opens gates here; revoke it on the Tokens tab` ·
+`not the owner of this project` ·
 `session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` ·
 `not a gate: <id>` · `not waiting at <id> — the item is at <cursor>` ·
 `no validation record — a session approves implementation only after plan-verifier's pass is recorded; approve in the Inbox to override` ·

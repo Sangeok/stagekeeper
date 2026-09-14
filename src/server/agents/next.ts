@@ -79,7 +79,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const key = input.key ?? null;
 
   const access = await deps.access(projectId);
-  if (access.locked) return fail(access.reason);
+  if (!access.available) return fail(access.reason);
   const roster = await deps.roster(projectId);
   if (!REPORT_AGENTS.includes(agent) && !roster.includes(agent)) return fail(`unknown agent: ${agent}`);
   if (!allowsAgent(access.plan, agent, roster)) return fail(`agent \`${agent}\` is not on the ${access.plan} plan`);

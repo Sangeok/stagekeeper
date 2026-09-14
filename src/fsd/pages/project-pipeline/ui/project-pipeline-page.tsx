@@ -6,8 +6,9 @@ import { SectionLabel } from "@/fsd/shared/ui/section-label";
 
 type Props = {
   graph: Graph;
-  version: number;
-  savedAt: Date;
+  version: number | null;
+  savedAt: Date | null;
+  unavailableReason?: string;
   now: Date;
   plan: string;
   roster: string[];
@@ -17,17 +18,17 @@ type Props = {
 
 // 파이프라인 탭. 그래프는 서버 소유이고 이 화면은 그것을 그리고 고친다 — 문구는 product-copy.md §18.
 // 저장한 버전은 지금 열려 있는 항목을 옮기지 않는다: 런은 자기가 시작한 버전을 끝까지 쓴다(§C.1).
-export function ProjectPipelinePage({ graph, version, savedAt, now, plan, roster, editable, save }: Props) {
+export function ProjectPipelinePage({ graph, version, savedAt, now, plan, roster, editable, save, unavailableReason }: Props) {
   return (
     <>
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
         <p className="text-xs text-quiet">
-          Version {version} · saved {agoLabel(savedAt, now)} · applies to items proposed from now on.
+          {version !== null && savedAt !== null ? `Version ${version} · saved ${agoLabel(savedAt, now)} · applies to items proposed from now on.` : "Default pipeline · not saved yet"}
         </p>
       </div>
 
-      <PipelineRail graph={graph} plan={plan} roster={roster} editable={editable} save={save} />
+      <PipelineRail key={`${version ?? "default"}:${plan}:${editable}`} graph={graph} plan={plan} roster={roster} editable={editable} save={save} unavailableReason={unavailableReason} />
 
       <section>
         <SectionLabel>Read as text</SectionLabel>

@@ -384,6 +384,19 @@ rendered in the Team row; the row shows only the agent handle and its state.
 
 ## 10. Projects
 
+- Availability: **Available** / **Not selected**. Count: `1 / 1 available`, `3 / 5 available`, or
+  `3 available · unlimited`. **Use this project** is a sibling of the project link.
+- Spare slot: add immediately. Full Free: confirm the existing project. Full Pro: **Replace a project**,
+  **Choose a project**, then **Use {target} instead** / **Cancel**. Pending: **Updating…**.
+- Replacement confirmation shows open board-item and agent-run counts. Explain: data, tokens, and run cursors
+  are kept; requests already approved may finish, but new agent requests and web changes will stop.
+- Stale: `Your project list changed. Review the latest selection and try again.` Refresh the list and clear
+  confirmation; never automatically choose a replacement or fill slots after an upgrade.
+- Selected-out pages keep read-only data, including full backlog Source text and token revoke. They hide
+  mutation forms and execution instructions. Empty copy must not point at an absent form.
+- Recovery: `This project is not selected for use. Open Stagekeeper → Projects and choose “Use this project”.`
+  Integrity failure: `Project ownership is unavailable.` Neither is a token-authentication failure.
+
 - List at `/projects`: title **Projects**, button **New project**. Empty: "No projects yet. Connect a
   repository to get a board, a backlog, and an inbox."
 - **New project**
@@ -451,7 +464,7 @@ are terse on purpose — agents parse them.
 | `plan_submit only in planning or in_review (now done)` | — |
 | `report_submit only in in_review, implementing, or done (now proposed)` | — |
 | `no such board item: FEAT-9` | — |
-| `not a member of this project — the owner token no longer opens gates here; revoke it on the Tokens tab` (owner server, `gate_approve`) | — |
+| `not the owner of this project` (owner server, `gate_approve`) | — |
 | `session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` (owner server) | — |
 | `not a gate: <id>` (owner server · web gate) | — |
 | `not waiting at before-implement — the item is at before-plan` (owner server · web gate) | — |
@@ -524,7 +537,8 @@ after the gate opened; the runbook's "Approving from this session" tells the ses
 
 ## 14. Generated templates (`plugin/templates/en/`)
 
-Eight files — the Free runbook variant is gone; the pipeline graph carries the plan difference now.
+The paths below define the English template contract; private corpus completeness is verified separately.
+The Free runbook variant is gone; the pipeline graph carries the plan difference now.
 Same structure and the same `tools:` contract as today (the snapshot test enforces
 both). Below: each file's title, its section headings, and the sentences that set the tone.
 
@@ -802,7 +816,7 @@ Button: **Try again** · link: **All projects**
 
 ### Not found — `src/app/(app)/not-found.tsx`
 
-The project is unknown, or it is not yours. `requireMember` answers both the same way on purpose,
+The project is unknown, or it is not yours. `requireProjectOwner` answers both the same way on purpose,
 so the copy does not separate them either. This fires from the project layout, so the shell is gone.
 
 > **Not found.**
@@ -825,6 +839,8 @@ never existed look the same from here.
 
 - Title **Pipeline**. Version line: "Version 3 · saved 2 days ago · applies to items proposed from
   now on."
+- Without a persisted version: `Default pipeline · not saved yet`. Reading the page never creates a version.
+- A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max.
 - The rail is one row of node cards in graph order. Node names: **Propose** · **Plan** · **Verify** ·
   **Implement** · **Accept** · **Doc audit** · **Scout**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a

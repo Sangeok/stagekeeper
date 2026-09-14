@@ -122,13 +122,13 @@ export { reviewGate } from "./api/review-gate.server";
 ```tsx
 // src/app/(app)/p/[slug]/page.tsx
 import { ProjectBoardPage } from "@/fsd/pages/project-board";
-import { requireMember } from "@/server/auth/guard";
+import { requireProjectOwner } from "@/server/auth/guard";
 import { getProjectBoard } from "@/server/pipeline/queries";
 
 export default async function Page({ params }: PageProps<"/p/[slug]">) {
   const { slug } = await params;
-  const member = await requireMember(slug);
-  const board = await getProjectBoard(member.projectId);
+  const owner = await requireProjectOwner(slug);
+  const board = await getProjectBoard(owner.projectId);
 
   return <ProjectBoardPage board={board} />;
 }

@@ -16,10 +16,5 @@ export async function loadHeaderUser(userId: string): Promise<{ login: string; p
 
 // 프로젝트 전환 목록. 만든 순서가 곧 표시 순서다.
 export async function loadHeaderProjects(userId: string): Promise<HeaderProject[]> {
-  const memberships = await prisma.projectMember.findMany({
-    where: { userId },
-    select: { project: { select: { slug: true, name: true } } },
-    orderBy: { project: { createdAt: "asc" } },
-  });
-  return memberships.map((m) => m.project);
+  return prisma.project.findMany({ where: { ownerUserId: userId }, select: { slug: true, name: true }, orderBy: { createdAt: "asc" } });
 }

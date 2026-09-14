@@ -1,6 +1,7 @@
 // 사용자에게 플랜을 붙인다. 결제 경로가 없는 동안 Subscription 행을 쓰는 유일한 길이다 — 손으로 돌린다.
 // 사용: npm run plan:grant -- <github login> <free|pro|max> [note]
 import { PLANS, isPlan } from "../packages/core/entitlement.mjs";
+import { changeUserPlan } from "../src/server/project-availability-service";
 import { withPrisma } from "./lib/prisma";
 
 const [login, plan, ...rest] = process.argv.slice(2);
@@ -16,15 +17,13 @@ async function main() {
     const users = await prisma.user.findMany({ where: { login }, select: { id: true, githubId: true } });
     if (users.length !== 1) {
       console.error(users.length === 0 ? `no user with login ${login} — sign in on the web once first` : `ambiguous login ${login}: githubIds ${users.map((u) => u.githubId).join(", ")}`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
-    const row = await prisma.subscription.upsert({
-      where: { userId: users[0].id },
-      create: { userId: users[0].id, plan, source: "manual", note },
-      update: { plan, source: "manual", note },
-    });
+    const row = await changeUserPlan(prisma, { userId: users[0].id, plan, note });
+    console.info("project-availability:plan-change", { userId: users[0].id, plan: row.plan, version: row.version });
     console.log(`granted: ${login} -> ${row.plan}${note ? ` (${note})` : ""}`);
   });
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch(() => { console.error("Plan change failed; no automatic replay. Check the current plan and project list before retrying."); process.exitCode = 1; });

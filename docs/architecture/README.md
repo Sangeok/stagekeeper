@@ -15,7 +15,7 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 
 Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 않는다. `/api/templates`는
 플랜에 맞춰 잘라 낸 것만 준다 — 에이전트 파일은 첫 `## step:` 앞의 **스텁**, 플랜 밖 보고
-에이전트는 제외, Free는 `CLAUDE.runbook.free.md`가 런북 자리에 들어간다. 단계 본문은
+에이전트는 제외한다. 런북은 단일 `CLAUDE.runbook.md`이며 예전 Free variant는 배포하지 않는다. 단계 본문은
 `agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/core/deliver.mjs`
 하나가 정하고, 서버(`src/server/templates.ts`)와 생성기(`plugin/bin/harness-init.mjs`의
 로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/core/entitlement.mjs`.
@@ -25,9 +25,15 @@ Phase 4는 2026-09-04에 완료됐다(제안서:
 플랜은 Free/Pro/Max이고 상한은 5축이다 — 프로젝트·워크스페이스·백로그·이력 창·에이전트.
 서버가 세우는 벽 셋: `report_submit`은 `implementing`에서 verify 원장을 요구하고,
 생성·추가·동기화는 상한을 넘으면 `capReason`의 문장으로 거부하며, 상한 초과 프로젝트는
-**잠기되 지워지지 않는다**(웹은 읽기로 남고 MCP는 도구 층에서 사유와 함께 거부한다 —
-`mcp-handler`의 401이 사유를 실을 수 없어서다). 이력 창은 조회만 자르고 저장은 전부 한다.
+**선택되지 않은 상태로 보존된다**. 사용 가능 집합은 `Project.available`이며 소유자는 직접
+`Project.ownerUserId`로 연결된다. 웹 읽기·사용 선택·토큰 폐기는 유지하고, agent MCP는 `project_get`만
+허용한다. 이력 창은 조회만 자르고 저장은 전부 한다.
 결제는 없다 — `Subscription`은 수동 부여이고 `/billing`은 읽기 전용이다.
+
+D2 코드는 플랜 변경·등록·사용 선택을 Serializable transaction으로 처리하고 변경된 목록의 version과
+event를 함께 저장한다. upgrade는 기존 목록을 유지하고 downgrade만 현재 목록을 줄인다.
+legacy ProjectMember와 Project.owner는 D3 rollback shadow로만 유지한다. 이 코드의 운영 배포에는
+D1 DB/backfill 확인과 private template 검증이 선행되어야 한다. 로컬 구현·unit 통과는 그 증거가 아니다.
 
 루트 `app/`은 Phase 0에서 `src/app/`으로 이동 완료됐다. Next.js는 루트 `app/`과
 `src/app/`이 동시에 있으면 `src/app/`을 무시하므로 루트 `app/`을 다시 만들지

@@ -7,6 +7,7 @@ import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 export type TokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null };
 
 type Props = {
+  issueAllowed: boolean;
   mcpUrl: string;
   tokens: TokenRow[];
   issue: (label: string) => Promise<ActionResult<{ token: string }>>;
@@ -63,7 +64,7 @@ function TokenTable({ tokens, revoke, reference, empty }: { tokens: TokenRow[]; 
   );
 }
 
-export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, ownerTokens, ownerAllowed, issueOwner, revokeOwner }: Props) {
+export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, ownerTokens, ownerAllowed, issueOwner, revokeOwner, issueAllowed }: Props) {
   return (
     <>
       <section className="flex flex-col gap-1">
@@ -78,9 +79,9 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, 
         </p>
       </section>
 
-      <NewTokenForm issue={issue} mcpUrl={mcpUrl} />
+      {issueAllowed ? <NewTokenForm issue={issue} mcpUrl={mcpUrl} /> : null}
 
-      <TokenTable tokens={tokens} revoke={revoke} reference="token" empty="No tokens yet. Issue one above." />
+      <TokenTable tokens={tokens} revoke={revoke} reference="token" empty={issueAllowed ? "No tokens yet. Issue one above." : "No tokens yet."} />
 
       <section className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">Owner token</h2>
@@ -95,9 +96,9 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, 
 
       {ownerAllowed ? (
         <NewOwnerTokenForm issue={issueOwner} ownerMcpUrl={ownerMcpUrl} />
-      ) : (
+      ) : issueAllowed ? (
         <p className="text-sm text-quiet">Owner tokens open on Pro. Approve in the Inbox for now.</p>
-      )}
+      ) : null}
 
       {/* Free에는 위에 발급 폼이 없으므로 "Issue one above"를 가리킬 수 없다 — 문구를 플랜에 맞춘다. 표 자체는 남긴다: 플랜이 내려간 뒤에도 남은 토큰을 폐기할 수 있어야 한다. */}
       <TokenTable

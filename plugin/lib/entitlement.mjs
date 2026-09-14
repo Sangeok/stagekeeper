@@ -42,11 +42,104 @@ export function capError(plan, axis, currentCount) {
   return withinLimit(plan, axis, currentCount + 1) ? null : `${capReason(plan, axis)}. Upgrade the plan to add more.`;
 }
 
-// 상한을 넘는 프로젝트는 잠긴다 — 활성은 createdAt 오름차순 앞 N개(동률은 id). 행은 지우지 않는다.
+// D2 이전 rollback 호환 정책. D3에서 제거한다.
 export function activeProjectIds(projects, plan) {
   const n = limitsFor(plan).projects;
   const sorted = [...projects].sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return new Set(sorted.slice(0, n).map((p) => p.id));
+}
+
+const timestamp = (value, field) => {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) throw new Error(`${field} must be a valid Date`);
+  return value.getTime();
+};
+
+const nullableTimestamp = (value, field) => value === null ? null : timestamp(value, field);
+
+const compareNullableDesc = (left, right) => {
+  if (left === null) return right === null ? 0 : 1;
+  if (right === null) return -1;
+  return right - left;
+};
+
+const compareId = (left, right) => left < right ? -1 : left > right ? 1 : 0;
+
+/**
+ * @typedef {object} AvailabilityCandidate
+ * @property {string} id
+ * @property {Date | null} lastSelectedAt
+ * @property {Date | null} lastAgentActivityAt
+ * @property {Date | null} lastSyncedAt
+ * @property {Date} createdAt
+ */
+
+// D1의 준비 snapshot 정렬. 기존 activeProjectIds는 D2 cutover까지 runtime 판정으로 유지한다.
+/**
+ * @param {AvailabilityCandidate[]} candidates
+ * @param {number} limit
+ * @returns {Set<string>}
+ */
+export function availableProjectIds(candidates, limit) {
+  if (!Array.isArray(candidates)) throw new Error("candidates must be an array");
+  if (limit !== Infinity && (!Number.isSafeInteger(limit) || limit < 0)) {
+    throw new Error("limit must be a non-negative safe integer or Infinity");
+  }
+
+  const ids = new Set();
+  const normalized = candidates.map((candidate) => {
+    if (candidate === null || typeof candidate !== "object") throw new Error("candidate must be an object");
+    if (typeof candidate.id !== "string" || candidate.id.length === 0) throw new Error("candidate id must be a non-empty string");
+    if (ids.has(candidate.id)) throw new Error(`duplicate candidate id: ${candidate.id}`);
+    ids.add(candidate.id);
+
+    return {
+      id: candidate.id,
+      lastSelectedAt: nullableTimestamp(candidate.lastSelectedAt, "lastSelectedAt"),
+      lastAgentActivityAt: nullableTimestamp(candidate.lastAgentActivityAt, "lastAgentActivityAt"),
+      lastSyncedAt: nullableTimestamp(candidate.lastSyncedAt, "lastSyncedAt"),
+      createdAt: timestamp(candidate.createdAt, "createdAt"),
+    };
+  });
+
+  if (limit === Infinity) return new Set(normalized.map((candidate) => candidate.id));
+
+  const sorted = normalized.sort((left, right) =>
+    compareNullableDesc(left.lastSelectedAt, right.lastSelectedAt)
+    || compareNullableDesc(left.lastAgentActivityAt, right.lastAgentActivityAt)
+    || compareNullableDesc(left.lastSyncedAt, right.lastSyncedAt)
+    || right.createdAt - left.createdAt
+    || compareId(left.id, right.id),
+  );
+  return new Set(sorted.slice(0, limit).map((candidate) => candidate.id));
+}
+
+/** @param {AvailabilityCandidate[]} candidates @param {ReadonlySet<string>} selected @param {boolean} trimmed */
+export function availabilityBasis(candidates, selected, trimmed) {
+  if (!trimmed) return null;
+  const kept = candidates.filter((p) => selected.has(p.id));
+  if (kept.some((p) => p.lastSelectedAt !== null)) return "user-selection";
+  if (kept.some((p) => p.lastAgentActivityAt !== null)) return "recent-agent-activity";
+  if (kept.some((p) => p.lastSyncedAt !== null)) return "recent-project-sync";
+  return "recent-registration";
+}
+
+/** @param {{fromPlan: string, toPlan: string, currentIds: string[], candidates: AvailabilityCandidate[]}} input */
+export function availabilityAfterPlanChange({ fromPlan, toPlan, currentIds, candidates }) {
+  const fromLimit = limitsFor(fromPlan).projects;
+  const toLimit = limitsFor(toPlan).projects;
+  const all = availableProjectIds(candidates, Infinity);
+  if (new Set(currentIds).size !== currentIds.length || all.size !== currentIds.length || currentIds.some((id) => !all.has(id))) {
+    throw new Error("availability candidates must match the current set");
+  }
+  const trimmed = toLimit < fromLimit && all.size > toLimit;
+  const selected = trimmed ? availableProjectIds(candidates, toLimit) : all;
+  return {
+    changed: trimmed,
+    addedProjectIds: /** @type {string[]} */ ([]),
+    removedProjectIds: currentIds.filter((id) => !selected.has(id)).sort(),
+    availableProjectIds: [...selected].sort(),
+    basis: availabilityBasis(candidates, selected, trimmed),
+  };
 }
 
 // roster는 wsId 순으로 정렬된 Workspace.agent[]. 플랜을 내린 뒤 남은 초과 워크스페이스는 뒤에서부터 닫힌다.

@@ -37,6 +37,13 @@ Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트
 사람 전용 게이트는 프롬프트 관례가 아니라 서버의 도구 집합과 전이 규칙으로
 강제한다. FSD 폴더 구조는 이 보안 경계를 대체하지 않는다.
 
+개인 프로젝트는 한 사용자에게 직접 귀속된다. `project-access-query`가 직접 소유권과 저장된
+사용 가능 상태를 읽고 entitlement facade를 통해 웹/MCP/템플릿/런북에 같은 판정을 제공한다.
+`project-availability-service`는 등록·플랜·사용 목록의 원자적 변경과 원장을 소유한다.
+선택되지 않은 프로젝트는 웹 읽기·사용 선택·토큰 폐기와 agent MCP project_get만 허용한다.
+repoOwner는 GitHub 계정이며 외부 owner DTO로 변환한다. ProjectMember/legacy owner는 D3 전까지
+등록 시 함께 쓰는 rollback shadow이고 권한 조회에는 사용하지 않는다.
+
 **에이전트 정의는 스텁으로 물질화된다(Phase 4).** 플러그인이 사용자 저장소에 쓰는
 `.claude/agents/*.md`는 역할·굳은 규칙·구동 규칙까지이고, 절차의 단계 본문은
 서버에 남는다. 서브에이전트는 `mcp__harness__agent_next`로 지금 할 한 단계를 받아

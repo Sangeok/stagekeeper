@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { AGENT_TOOL_NAMES, registerTools } from "./tools.ts";
+import { NOT_SELECTED_REASON } from "../project-access-query.ts";
 
 // product-copy.md §13의 행 하나. 백틱과 굵은글은 마크다운 서식이라 떼고 비교한다.
 const COPY = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
@@ -24,7 +25,7 @@ const WEB_ONLY = ["gate_approve", "board_approve", "board_bounce", "board_hold",
 
 const ctx = { http: { authInfo: { extra: { projectId: "p1", tokenId: "t1" } } } };
 const ws = [{ id: "web", path: "apps/web", agent: "dev", verify: ["npm test"], knowledge: null, readOnly: [] }];
-const open = { plan: "max", locked: false };
+const open = { plan: "max", available: true };
 
 describe("agent-scoped MCP tools", () => {
   it("registers exactly the §5 Phase-1 agent scope, underscore names only", () => {
@@ -82,8 +83,8 @@ describe("agent-scoped MCP tools", () => {
 });
 
 // T4.8. 잠금은 인증이 아니라 도구 층에서 건다 — mcp-handler 2.1.1의 401은 사유를 실을 수 없다.
-describe("locked projects", () => {
-  const locked = { plan: "free", locked: true, reason: "project cap reached on the free plan (1); this project is locked" };
+describe("not-selected projects", () => {
+  const locked = { plan: "free", available: false, code: "not-selected", reason: NOT_SELECTED_REASON };
   const handlersWith = (extra = {}) => {
     const h = {};
     registerTools({ registerTool: (name, _meta, fn) => { h[name] = fn; } }, { access: async () => locked, ...extra });
@@ -101,11 +102,12 @@ describe("locked projects", () => {
       ["validation_record", { key: "X-1", text: "clean" }],
       ["project_sync", { workspaces: ws }],
       ["pipeline_next", { key: "X-1" }],
+      ["backlog_list", {}], ["backlog_get", { key: "X-1" }], ["board_list", {}], ["board_get", { key: "X-1" }], ["agent_next", { agent: "dev" }],
     ];
     for (const [name, args] of calls) {
       const r = await h[name](args, ctx);
       assert.equal(r.isError, true, name);
-      assert.match(body(r).error, /this project is locked/, name);
+      assert.equal(body(r).error, NOT_SELECTED_REASON, name);
     }
   });
 
@@ -113,13 +115,43 @@ describe("locked projects", () => {
     const h = handlersWith({ projectGet: async () => ({ id: "p1", slug: "s", workspaces: [] }) });
     const r = await h.project_get({}, ctx);
     assert.notEqual(r.isError, true);
-    assert.equal(body(r).locked, true);
-    assert.match(body(r).reason, /this project is locked/);
+    assert.equal(body(r).available, false);
+    assert.equal(body(r).reason, NOT_SELECTED_REASON);
   });
 
   it("an unlocked project passes through untouched", async () => {
     const h = handlersWith({ access: async () => open, projectGet: async () => ({ id: "p1", slug: "s", workspaces: [] }) });
     const r = await h.project_get({}, ctx);
-    assert.equal(body(r).locked, undefined);
+    assert.equal(body(r).available, true);
+  });
+
+  it("returns only an error on an integrity failure without fetching project details", async () => {
+    const h = handlersWith({
+      access: async () => ({ plan: "free", available: false, code: "integrity", reason: "Project ownership is unavailable." }),
+      projectGet: async () => { throw new Error("project detail must not be fetched"); },
+    });
+    const result = await h.project_get({}, ctx);
+    assert.equal(result.isError, true);
+    assert.deepEqual(body(result), { error: "Project ownership is unavailable." });
+  });
+
+  it("serializes every legacy project and workspace field without D1 shadow fields", async () => {
+    const project = {
+      id: "p1", slug: "s", name: "Stagekeeper", owner: "octocat", repo: "stagekeeper", branch: "main",
+      language: "ko", executorKind: "local", commandIssue: null, runbookVersion: null,
+      createdAt: new Date("2026-09-13T00:00:00Z"),
+      workspaces: [{
+        id: "w1", projectId: "p1", wsId: "web", path: "apps/web", agent: "dev",
+        verify: ["npm test", "npm run build"], knowledge: null, readOnly: ["docs/**"],
+      }],
+    };
+    const h = handlersWith({ access: async () => open, projectGet: async () => project });
+
+    const r = await h.project_get({}, ctx);
+
+    assert.deepEqual(body(r), { ...project, createdAt: "2026-09-13T00:00:00.000Z", available: true });
+    assert.equal("ownerUserId" in body(r), false);
+    assert.equal("repoOwner" in body(r), false);
+    assert.equal(body(r).available, true);
   });
 });

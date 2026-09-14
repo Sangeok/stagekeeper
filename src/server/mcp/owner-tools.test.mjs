@@ -27,8 +27,8 @@ describe("owner-scoped MCP tools", () => {
   it("hands key, gate, planCommit and the user to the deps, and returns { item, next } — no runbook step (H.6)", async () => {
     const calls = [];
     const h = handlersWith({
-      member: async () => true,
-      access: async () => ({ plan: "pro", locked: false }),
+      owner: async () => true,
+      access: async () => ({ plan: "pro", available: true }),
       gate: async (projectId, userId, input) => { calls.push({ projectId, userId, input }); return { ok: true, item: { item: { agent: "web-dev", status: "implementing" }, next } }; },
     });
     const r = await h.gate_approve({ key: "X-1", gate: "before-implement", planCommit: "3f2a9c1" }, ctx);
@@ -38,28 +38,28 @@ describe("owner-scoped MCP tools", () => {
     assert.equal(body(r).next.step, undefined);
   });
   it("a refused gate carries no next", async () => {
-    const h = handlersWith({ member: async () => true, access: async () => ({ plan: "pro", locked: false }), gate: async () => ({ ok: false, reason: "not waiting at before-implement — the item is at verify" }) });
+    const h = handlersWith({ owner: async () => true, access: async () => ({ plan: "pro", available: true }), gate: async () => ({ ok: false, reason: "not waiting at before-implement — the item is at verify" }) });
     const r = await h.gate_approve({ key: "X-1", gate: "before-implement", planCommit: "0000000" }, ctx);
     assert.equal(r.isError, true);
     assert.match(body(r).error, /not waiting at/);
     assert.equal(body(r).next, undefined);
   });
   it("refuses on a locked project and on a plan without session approvals", async () => {
-    const locked = handlersWith({ member: async () => true, access: async () => ({ plan: "free", locked: true, reason: "project cap reached on the free plan (1); this project is locked" }) });
+    const locked = handlersWith({ owner: async () => true, access: async () => ({ plan: "free", available: false, code: "not-selected", reason: "project cap reached on the free plan (1); this project is locked" }) });
     assert.match(body(await locked.gate_approve({ key: "X-1", gate: "before-plan" }, ctx)).error, /this project is locked/);
-    const free = handlersWith({ member: async () => true, access: async () => ({ plan: "free", locked: false }), gate: async () => { throw new Error("must not be called"); } });
+    const free = handlersWith({ owner: async () => true, access: async () => ({ plan: "free", available: true }), gate: async () => { throw new Error("must not be called"); } });
     assert.match(body(await free.gate_approve({ key: "X-1", gate: "before-plan" }, ctx)).error, /not on the free plan/);
   });
-  it("refuses a caller who is no longer a member — before lock, plan, or gate are consulted", async () => {
+  it("refuses a caller who is no longer a owner — before lock, plan, or gate are consulted", async () => {
     const seen = [];
     const h = handlersWith({
-      member: async (projectId, userId) => { seen.push(["member", projectId, userId]); return false; },
+      owner: async (projectId, userId) => { seen.push(["owner", projectId, userId]); return false; },
       access: async () => { throw new Error("must not be called"); },
       gate: async () => { throw new Error("must not be called"); },
     });
     const r = await h.gate_approve({ key: "X-1", gate: "before-plan" }, ctx);
     assert.equal(r.isError, true);
-    assert.match(body(r).error, /not a member of this project/);
-    assert.deepEqual(seen, [["member", "p1", "u1"]]);
+    assert.match(body(r).error, /not the owner of this project/);
+    assert.deepEqual(seen, [["owner", "p1", "u1"]]);
   });
 });

@@ -23,7 +23,7 @@ function setup(options: Options = {}) {
       seenHashes.push(hash);
       return options.tokenRecord === undefined ? tokenRecord : options.tokenRecord;
     },
-    projectAccess: async () => options.access ?? { plan: "pro", locked: false },
+    projectAccess: async () => options.access ?? { plan: "pro", available: true },
     saveRunbookVersion: async (projectId, value) => { saved.push({ projectId, version: value }); },
   };
   return { recordRunbook: makeRecordRunbook(deps), saved, seenHashes };
@@ -57,7 +57,7 @@ describe("recordRunbook", () => {
 
   // 잠긴 프로젝트는 템플릿도 못 받는다. 받지도 못한 판을 기록으로 남기지 않는다.
   it("refuses a locked project without writing, preserving the reason", async () => {
-    const { recordRunbook, saved } = setup({ access: { plan: "free", locked: true, reason: "project cap reached" } });
+    const { recordRunbook, saved } = setup({ access: { plan: "free", available: false, code: "not-selected", reason: "project cap reached" } });
     const result = await recordRunbook(authorizationHeader, { version });
     assert.deepEqual(result, { ok: false, status: 403, reason: "project cap reached" });
     assert.deepEqual(saved, []);

@@ -46,8 +46,14 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
 | `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
 | `seed-templates.ts` | `npm run seed:templates [-- --dir <dir>]` | private 템플릿을 바꾼 뒤, 로컬에서 | `plugin/templates/<lang>/**/*.md`를 `Template` 테이블에 upsert. `agents/*`는 저장 전 파싱 |
-| `grant-plan.ts` | `npm run plan:grant -- <login> <free\|pro\|max> [note]` | 플랜을 붙일 때, 로컬에서 | `Subscription` upsert. 결제 경로가 없는 동안 유일한 쓰기 경로 |
+| `grant-plan.ts` | `npm run plan:grant -- <login> <free\|pro\|max> [note]` | 플랜을 붙일 때, 로컬에서 | availability service를 통한 plan/set/version/event atomic change |
 | `lib/prisma.ts` | (헬퍼) | — | DB 스크립트의 Prisma 부트스트랩. `DATABASE_URL`이 없으면 exit 2 |
+| `check-project-ownership.ts` | `npm run check:project-ownership` | D1 migration 적용 전 | legacy 소유권을 read-only snapshot으로 검사. 불일치가 있으면 exit 1 |
+| `backfill-project-availability.ts` | `npm run backfill:project-availability [-- --check]` | D1 snapshot 확인 | D2 operational --apply는 연결 전 exit 2. dry-run/check의 lifecycle-started는 실패 |
+| `project-availability-migration.test.ts` | `npm run test:project-availability` | CI마다 | D1 정렬·소유권·백필·CLI 계약의 DB 없는 회귀 검사 |
+| `rehearse-project-availability.ts` | `npm run test:project-availability:db -- --allow-fixtures` | 빈 격리 PostgreSQL에서 수동 | D1 migration·backfill·등록·응답·rollback rehearsal. `IPA_REHEARSAL_DATABASE_URL` 필수 |
+| `project-availability-runtime.test.ts` | `npm run test:project-availability` → check | CI마다 | direct ownership 경계·legacy query/implicit full Project projection 금지·D1 apply 폐기 검사 |
+| `rehearse-project-availability-d2.ts` | `npm run test:project-availability:d2:db -- --allow-fixtures` | 빈 격리 PostgreSQL에서 수동 | `IPA_D2_REHEARSAL_DATABASE_URL` 필수. D1 child fixture 뒤 실제 service의 concurrency/rollback/access/cursor 검사. 실패 DB 보존, 연결·child 정리 |
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
 

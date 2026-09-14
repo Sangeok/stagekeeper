@@ -1,6 +1,27 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_PLAN, DISPATCH_WINDOW_DAYS, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, allowsSessionApprovals, capError, capReason, dispatchCutoff, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
+import { availabilityAfterPlanChange, availabilityBasis } from "./entitlement.mjs";
+
+describe("availability after a plan change", () => {
+  const a = { id: "a", lastSelectedAt: null, lastAgentActivityAt: new Date(0), lastSyncedAt: null, createdAt: new Date(0) };
+  const b = { ...a, id: "b", lastAgentActivityAt: null, createdAt: new Date(10) };
+  it("trims only the supplied current set, with activity before registration", () => {
+    const result = availabilityAfterPlanChange({ fromPlan: "pro", toPlan: "free", currentIds: ["b", "a"], candidates: [b, a] });
+    assert.deepEqual(result, { changed: true, addedProjectIds: [], removedProjectIds: ["b"], availableProjectIds: ["a"], basis: "recent-agent-activity" });
+  });
+  it("keeps the exact set on upgrade and under-cap downgrade", () => {
+    for (const [fromPlan, toPlan] of [["free", "max"], ["max", "pro"], ["pro", "pro"]]) {
+      assert.deepEqual(availabilityAfterPlanChange({ fromPlan, toPlan, currentIds: ["a"], candidates: [a] }).availableProjectIds, ["a"]);
+    }
+    assert.equal(availabilityBasis([a], new Set(["a"]), false), null);
+  });
+  it("rejects mismatched candidates even for an upgrade without mutating inputs", () => {
+    const candidates = [a, b]; const before = structuredClone(candidates);
+    assert.throws(() => availabilityAfterPlanChange({ fromPlan: "free", toPlan: "max", currentIds: ["a"], candidates }), /match/);
+    assert.deepEqual(candidates, before);
+  });
+});
+import { DEFAULT_PLAN, DISPATCH_WINDOW_DAYS, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, allowsSessionApprovals, availableProjectIds, capError, capReason, dispatchCutoff, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
 
 const DAY = 86_400_000;
 
@@ -61,29 +82,64 @@ describe("entitlement", () => {
     it("free keeps the oldest one regardless of input order", () => {
       assert.deepEqual(activeProjectIds(projects, "free"), new Set(["a"]));
     });
-
     it("pro and max keep everything under the cap", () => {
       assert.deepEqual(activeProjectIds(projects, "pro"), new Set(["a", "b", "c"]));
       assert.deepEqual(activeProjectIds(projects, "max"), new Set(["a", "b", "c"]));
     });
-
     it("pro locks the sixth and later", () => {
       const seven = Array.from({ length: 7 }, (_, i) => ({ id: `p${i}`, createdAt: new Date(t0.getTime() + i * DAY) }));
       assert.deepEqual(activeProjectIds(seven, "pro"), new Set(["p0", "p1", "p2", "p3", "p4"]));
     });
-
     it("ties on createdAt break by id", () => {
-      const tied = [
-        { id: "z", createdAt: t0 },
-        { id: "m", createdAt: t0 },
-      ];
-      assert.deepEqual(activeProjectIds(tied, "free"), new Set(["m"]));
+      assert.deepEqual(activeProjectIds([{ id: "z", createdAt: t0 }, { id: "m", createdAt: t0 }], "free"), new Set(["m"]));
+    });
+    it("does not mutate the input", () => {
+      const copy = [...projects]; activeProjectIds(projects, "free"); assert.deepEqual(projects, copy);
+    });
+  });
+
+  describe("availableProjectIds", () => {
+    const date = (day) => new Date(`2026-01-${String(day).padStart(2, "0")}T00:00:00Z`);
+    const candidate = (id, overrides = {}) => ({
+      id,
+      lastSelectedAt: null,
+      lastAgentActivityAt: null,
+      lastSyncedAt: null,
+      createdAt: date(1),
+      ...overrides,
     });
 
-    it("does not mutate the input", () => {
-      const copy = [...projects];
-      activeProjectIds(projects, "free");
-      assert.deepEqual(projects, copy);
+    it("orders candidates by selection, agent activity, sync, creation, then id", () => {
+      const candidates = [
+        candidate("create", { createdAt: date(5) }),
+        candidate("sync", { lastSyncedAt: date(2) }),
+        candidate("agent", { lastAgentActivityAt: date(3) }),
+        candidate("selected", { lastSelectedAt: date(4) }),
+      ];
+      assert.deepEqual(availableProjectIds(candidates, 3), new Set(["selected", "agent", "sync"]));
+    });
+
+    it("treats epoch zero as a real timestamp and null as missing", () => {
+      const candidates = [candidate("missing"), candidate("epoch", { lastSyncedAt: new Date(0) })];
+      assert.deepEqual(availableProjectIds(candidates, 1), new Set(["epoch"]));
+    });
+
+    it("returns empty for zero, all candidates for Infinity, and does not mutate inputs", () => {
+      const candidates = [candidate("b", { createdAt: date(2) }), candidate("a")];
+      const before = candidates.map((item) => ({ ...item }));
+      assert.deepEqual(availableProjectIds(candidates, 0), new Set());
+      assert.deepEqual(availableProjectIds(candidates, Infinity), new Set(["b", "a"]));
+      assert.deepEqual(candidates, before);
+    });
+
+    it("rejects duplicate ids, invalid dates, and invalid limits", () => {
+      assert.throws(() => availableProjectIds([candidate("same"), candidate("same")], 1), /duplicate candidate id/);
+      assert.throws(() => availableProjectIds([candidate("bad", { createdAt: new Date("invalid") })], 1), /createdAt/);
+      assert.throws(() => availableProjectIds([candidate("bad", { lastSelectedAt: undefined })], 1), /lastSelectedAt/);
+      assert.throws(() => availableProjectIds([], -1), /limit/);
+      assert.throws(() => availableProjectIds([], 1.5), /limit/);
+      assert.throws(() => availableProjectIds(null, 1), /candidates/);
+      assert.throws(() => availableProjectIds([null], 1), /candidate must be an object/);
     });
   });
 

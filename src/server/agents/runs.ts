@@ -5,6 +5,7 @@ import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
 import { latestBoard } from "@/server/pipeline/board";
 import type { NextDeps } from "./next";
+import { repositoryOwner } from "../project-access-query";
 import { serverVars } from "./vars";
 
 const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기본 "ko")에 템플릿이 없으면 여기로
@@ -22,15 +23,15 @@ export const prismaNextDeps: NextDeps = {
   vars: async (projectId, agent) => {
     const project = await prisma.project.findUniqueOrThrow({
       where: { id: projectId },
-      select: { owner: true, repo: true, branch: true, name: true, workspaces: { orderBy: { wsId: "asc" } } },
+      select: { repoOwner: true, repo: true, branch: true, name: true, workspaces: { orderBy: { wsId: "asc" } } },
     });
-    return serverVars(project, project.workspaces, agent);
+    return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent);
   },
   recentSteps: (tokenId, since) => prisma.agentRunStep.count({ where: { at: { gte: since }, run: { tokenId } } }),
   recentRuns: async (projectId, since) => {
-    const owner = await prisma.projectMember.findFirst({ where: { projectId, role: "owner" }, select: { userId: true } });
-    if (!owner) return 0;
-    return prisma.agentRun.count({ where: { openedAt: { gte: since }, project: { members: { some: { userId: owner.userId, role: "owner" } } } } });
+    const owner = await prisma.project.findUnique({ where: { id: projectId }, select: { ownerUserId: true } });
+    if (!owner?.ownerUserId) return 0;
+    return prisma.agentRun.count({ where: { openedAt: { gte: since }, project: { ownerUserId: owner.ownerUserId } } });
   },
   // 같은 (project, agent, key)에 열린 run이 둘일 수는 있다(부분 유니크 인덱스 없음) — 최신 것을 커서로 본다.
   openRun: (projectId, agent, key) => prisma.agentRun.findFirst({

@@ -4,7 +4,7 @@ import { allowsSessionApprovals } from "@harness/core/entitlement.mjs";
 import { newToken } from "@harness/core/token.mjs";
 import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { projectPath } from "@/fsd/shared/routes/project";
-import { requireMember, requireProjectWrite } from "@/server/auth/guard";
+import { requireProjectOwner, requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { planForProject } from "@/server/entitlement";
 
@@ -22,7 +22,7 @@ export async function issueToken(slug: string, label: string): Promise<ActionRes
 
 // 폼 action으로 직접 쓰여 반환값을 버린다 — 그래서 ActionResult가 아니다.
 export async function revokeToken(slug: string, tokenId: string): Promise<void> {
-  const { projectId } = await requireMember(slug);
+  const { projectId } = await requireProjectOwner(slug);
   await prisma.projectToken.updateMany({ where: { id: tokenId, projectId }, data: { revokedAt: new Date() } });
   revalidatePath(projectPath(slug, "/tokens"));
 }
@@ -41,7 +41,7 @@ export async function issueOwnerToken(slug: string, label: string): Promise<Acti
 
 // 자기 것만 폐기한다 — where에 userId가 들어간다.
 export async function revokeOwnerToken(slug: string, tokenId: string): Promise<void> {
-  const { projectId, userId } = await requireMember(slug);
+  const { projectId, userId } = await requireProjectOwner(slug);
   await prisma.ownerToken.updateMany({ where: { id: tokenId, projectId, userId }, data: { revokedAt: new Date() } });
   revalidatePath(projectPath(slug, "/tokens"));
 }

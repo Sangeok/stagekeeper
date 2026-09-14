@@ -13,6 +13,7 @@ import { addNode, insertGate, removeGate, removeNode, swapTail, type Graph, type
 export type SavePipelineAction = (graph: Graph) => Promise<ActionResult<void>>;
 
 type Props = {
+  unavailableReason?: string;
   graph: Graph;
   plan: string;
   roster: string[];
@@ -30,7 +31,7 @@ type Move = { label: string; step: Step };
 
 // 레일. 노드 카드 한 줄, 노드 앞 간선마다 게이트 카드나 "+", 카드에 Remove·Swap.
 // 국소 상태는 { nodes, gates } 하나뿐이고 저장 전에는 서버에 아무것도 가지 않는다(§E.6).
-export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
+export function PipelineRail({ graph, plan, roster, editable, save, unavailableReason }: Props) {
   const [state, setState] = useState<Graph>(graph);
   // 지금 메뉴가 열린 간선(그 뒤 노드의 kind). 메뉴는 레일 밖 한 자리에만 그린다 — 간선 안에 두면
   // 열릴 때 그 열이 넓어져 뒤 카드를 밀고, 띄우면 가로 스크롤 컨테이너에 잘린다(overflow-x: auto는
@@ -127,13 +128,13 @@ export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
         </p>
       ) : null}
       {editable ? null : (
-        <p className="text-xs text-quiet">Pipeline editing opens on Pro. The default pipeline stays as is.</p>
+        <p className="text-xs text-quiet">{unavailableReason ?? "Pipeline editing opens on Pro. The default pipeline stays as is."}</p>
       )}
       {state.nodes.includes("scout") ? null : (
         <p className="text-xs text-quiet">Scout runs only with harness.json.scout — add it here when that is set.</p>
       )}
 
-      <div className="flex items-center gap-3">
+      {editable ? <div className="flex items-center gap-3">
         <Button variant="mine" disabled={!editable || !dirty || pending} onClick={onSave}>
           {pending ? "Saving…" : confirmingNoGate ? "Save without a gate" : "Save"}
         </Button>
@@ -149,7 +150,7 @@ export function PipelineRail({ graph, plan, roster, editable, save }: Props) {
             Discard changes
           </button>
         ) : null}
-      </div>
+      </div> : null}
     </div>
   );
 }
@@ -178,21 +179,21 @@ function EdgeSlot({
           <Chip tone="mine">Gate · you</Chip>
           <span className="text-sm font-medium">{gateLabel(gate)}</span>
         </div>
-        <button
+        {editable ? <button
           type="button"
           disabled={!editable}
           className="self-start text-xs text-quiet underline underline-offset-2 disabled:opacity-50"
           onClick={onRemoveGate}
         >
           Remove
-        </button>
+        </button> : null}
       </div>
     );
   }
   return (
     <div className="flex flex-col items-center justify-center gap-1">
       {boundary ? <span className="text-[11px] text-quiet">auto → {boundary.to}</span> : null}
-      <button
+      {editable ? <button
         type="button"
         aria-expanded={open}
         onClick={onToggle}
@@ -202,7 +203,7 @@ function EdgeSlot({
         )}
       >
         +
-      </button>
+      </button> : null}
     </div>
   );
 }
@@ -234,7 +235,7 @@ function NodeCard({
         <span className="text-sm font-medium">{nodeLabel(kind)}</span>
         <span className="text-[11px] text-quiet">{kind === "accept" ? "the main loop" : agent === "" ? "nobody yet" : agent}</span>
       </div>
-      {removable || swappable ? (
+      {editable && (removable || swappable) ? (
         <div className="flex gap-2">
           {removable ? (
             <button
@@ -257,9 +258,8 @@ function NodeCard({
             </button>
           ) : null}
         </div>
-      ) : (
-        <span className="text-[11px] text-quiet">{first ? "start" : "required"}</span>
-      )}
+      ) : null}
+      {!removable && !swappable ? <span className="text-[11px] text-quiet">{first ? "start" : "required"}</span> : null}
     </div>
   );
 }

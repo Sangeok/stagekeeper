@@ -9,15 +9,21 @@
     "lint": "eslint && node scripts/verify-fsd-boundaries.mjs",
     "verify:fsd": "node scripts/verify-fsd-boundaries.mjs",
     "test:architecture": "node --test \"scripts/*.test.mjs\"",
-    "check": "node scripts/plugin-lib.mjs --check && npm run lint && next typegen && tsc --noEmit && npm run test:architecture",
+    "check": "node scripts/plugin-lib.mjs --check && npm run lint && next typegen && tsc --noEmit && npm run test:architecture && npm run test:project-availability",
     "test": "node --test \"packages/core/*.test.mjs\" \"plugin/bin/*.test.mjs\"",
     "test:web": "node --import tsx --test \"src/**/*.test.mjs\" \"src/**/*.test.ts\"",
     "test:templates": "node --import tsx --test \"plugin/templates/*.test.mjs\"",
     "seed:templates": "node --import tsx scripts/seed-templates.ts",
     "plan:grant": "node --import tsx scripts/grant-plan.ts",
+    "check:project-ownership": "node --import tsx scripts/check-project-ownership.ts",
+    "backfill:project-availability": "node --import tsx scripts/backfill-project-availability.ts",
     "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
-    "sync:plugin-lib": "node scripts/plugin-lib.mjs"
+    "sync:plugin-lib": "node scripts/plugin-lib.mjs",
+    "test:project-availability": "node --import tsx --test \"scripts/project-availability*.test.ts\"",
+    "test:project-availability:d2:db": "node --import tsx scripts/rehearse-project-availability-d2.ts",
+    "test:project-availability:db": "node --import tsx scripts/rehearse-project-availability.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",

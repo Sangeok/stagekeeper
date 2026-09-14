@@ -29,8 +29,8 @@ export function makeTemplatesFor(deps: TemplateDeps): TemplatesFor {
     }
 
     const access = await deps.projectAccess(tokenRecord.projectId);
-    // 토큰 인증은 성공했다. 플랜 상한으로 잠긴 프로젝트는 403으로 거부하며 사유를 보존한다.
-    if (access.locked) {
+    // 토큰 인증은 성공했다. 선택되지 않은 프로젝트는 403으로 거부하며 사유를 보존한다.
+    if (!access.available) {
       return { ok: false, status: 403, reason: access.reason };
     }
 
