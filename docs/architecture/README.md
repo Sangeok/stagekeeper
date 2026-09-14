@@ -32,8 +32,10 @@ Phase 4는 2026-09-04에 완료됐다(제안서:
 
 D2 코드는 플랜 변경·등록·사용 선택을 Serializable transaction으로 처리하고 변경된 목록의 version과
 event를 함께 저장한다. upgrade는 기존 목록을 유지하고 downgrade만 현재 목록을 줄인다.
-legacy ProjectMember와 Project.owner는 D3 rollback shadow로만 유지한다. 이 코드의 운영 배포에는
-D1 DB/backfill 확인과 private template 검증이 선행되어야 한다. 로컬 구현·unit 통과는 그 증거가 아니다.
+최종 개인 프로젝트 모델에는 ProjectMember와 legacy Project.owner가 없다. `ownerUserId`와 `repoOwner`는
+필수이고 사용자 삭제는 소유 프로젝트를 cascade한다. 외부 harness.json·MCP·template의 repository
+owner 이름은 adapter가 유지한다. D3 cleanup 운영 배포에는 D2 운영 인수와 backup/복구 rehearsal이
+선행되어야 한다. 로컬 구현·unit 통과는 그 증거가 아니다.
 
 루트 `app/`은 Phase 0에서 `src/app/`으로 이동 완료됐다. Next.js는 루트 `app/`과
 `src/app/`이 동시에 있으면 `src/app/`을 무시하므로 루트 `app/`을 다시 만들지

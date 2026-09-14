@@ -48,12 +48,12 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `seed-templates.ts` | `npm run seed:templates [-- --dir <dir>]` | private 템플릿을 바꾼 뒤, 로컬에서 | `plugin/templates/<lang>/**/*.md`를 `Template` 테이블에 upsert. `agents/*`는 저장 전 파싱 |
 | `grant-plan.ts` | `npm run plan:grant -- <login> <free\|pro\|max> [note]` | 플랜을 붙일 때, 로컬에서 | availability service를 통한 plan/set/version/event atomic change |
 | `lib/prisma.ts` | (헬퍼) | — | DB 스크립트의 Prisma 부트스트랩. `DATABASE_URL`이 없으면 exit 2 |
-| `check-project-ownership.ts` | `npm run check:project-ownership` | D1 migration 적용 전 | legacy 소유권을 read-only snapshot으로 검사. 불일치가 있으면 exit 1 |
-| `backfill-project-availability.ts` | `npm run backfill:project-availability [-- --check]` | D1 snapshot 확인 | D2 operational --apply는 연결 전 exit 2. dry-run/check의 lifecycle-started는 실패 |
-| `project-availability-migration.test.ts` | `npm run test:project-availability` | CI마다 | D1 정렬·소유권·백필·CLI 계약의 DB 없는 회귀 검사 |
-| `rehearse-project-availability.ts` | `npm run test:project-availability:db -- --allow-fixtures` | 빈 격리 PostgreSQL에서 수동 | D1 migration·backfill·등록·응답·rollback rehearsal. `IPA_REHEARSAL_DATABASE_URL` 필수 |
-| `project-availability-runtime.test.ts` | `npm run test:project-availability` → check | CI마다 | direct ownership 경계·legacy query/implicit full Project projection 금지·D1 apply 폐기 검사 |
-| `rehearse-project-availability-d2.ts` | `npm run test:project-availability:d2:db -- --allow-fixtures` | 빈 격리 PostgreSQL에서 수동 | `IPA_D2_REHEARSAL_DATABASE_URL` 필수. D1 child fixture 뒤 실제 service의 concurrency/rollback/access/cursor 검사. 실패 DB 보존, 연결·child 정리 |
+| `check-project-ownership-cleanup.ts` | `npm run check:project-ownership:cleanup -- --pre\|--post` | D3 cleanup 전후 | catalog·직접 owner·exact set·event를 read-only snapshot으로 검사 |
+| `project-availability-cleanup.test.ts` | `npm run test:project-availability` | CI마다 | cleanup facts, SQL, CLI/receipt와 보존 계약의 DB 없는 회귀 검사 |
+| `project-availability-runtime.test.ts` | `npm run test:project-availability` → check | CI마다 | Member/legacy owner/old policy 부재, final schema/generated client와 폐기 script 검사 |
+| `rehearse-project-availability-d3.ts` | `npm run test:project-availability:d3:db -- --allow-fixtures --baseline <commit>` | 서로 다른 빈 격리 PostgreSQL 두 개에서 수동 | 고정 D2 artifact → cleanup → D3 등록 → 보상 migration → D2 smoke. 두 전용 URL 필수 |
+| `restore-project-ownership-shadow.ts` | `npm run restore:project-ownership:shadow -- [--check\|--apply --backup-receipt <path>]` | 승인된 D3 복구 | 전용 URL·receipt·migration checksum을 검사하고 고정 보상 migration bundle을 적용 |
+| `recovery/individual-project-availability-d3/restore-d2-shadow.sql` | 위 복구 CLI | D3 commit 뒤 D2 호환 복구 | 현재 direct owner에서 legacy shadow를 transaction으로 재구성. 일반 migration path에는 없음 |
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
 

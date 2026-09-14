@@ -21,7 +21,7 @@ describe("availability after a plan change", () => {
     assert.deepEqual(candidates, before);
   });
 });
-import { DEFAULT_PLAN, DISPATCH_WINDOW_DAYS, LIMITS, PLANS, REPORT_AGENTS, activeProjectIds, allowsAgent, allowsSessionApprovals, availableProjectIds, capError, capReason, dispatchCutoff, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
+import { DEFAULT_PLAN, DISPATCH_WINDOW_DAYS, LIMITS, PLANS, REPORT_AGENTS, allowsAgent, allowsSessionApprovals, availableProjectIds, capError, capReason, dispatchCutoff, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
 
 const DAY = 86_400_000;
 
@@ -68,33 +68,6 @@ describe("entitlement", () => {
 
     it("rejects an unknown axis", () => {
       assert.throws(() => withinLimit("free", "members", 1), /unknown axis: members/);
-    });
-  });
-
-  describe("activeProjectIds", () => {
-    const t0 = new Date("2026-01-01T00:00:00Z");
-    const projects = [
-      { id: "c", createdAt: new Date(t0.getTime() + 2 * DAY) },
-      { id: "a", createdAt: t0 },
-      { id: "b", createdAt: new Date(t0.getTime() + DAY) },
-    ];
-
-    it("free keeps the oldest one regardless of input order", () => {
-      assert.deepEqual(activeProjectIds(projects, "free"), new Set(["a"]));
-    });
-    it("pro and max keep everything under the cap", () => {
-      assert.deepEqual(activeProjectIds(projects, "pro"), new Set(["a", "b", "c"]));
-      assert.deepEqual(activeProjectIds(projects, "max"), new Set(["a", "b", "c"]));
-    });
-    it("pro locks the sixth and later", () => {
-      const seven = Array.from({ length: 7 }, (_, i) => ({ id: `p${i}`, createdAt: new Date(t0.getTime() + i * DAY) }));
-      assert.deepEqual(activeProjectIds(seven, "pro"), new Set(["p0", "p1", "p2", "p3", "p4"]));
-    });
-    it("ties on createdAt break by id", () => {
-      assert.deepEqual(activeProjectIds([{ id: "z", createdAt: t0 }, { id: "m", createdAt: t0 }], "free"), new Set(["m"]));
-    });
-    it("does not mutate the input", () => {
-      const copy = [...projects]; activeProjectIds(projects, "free"); assert.deepEqual(projects, copy);
     });
   });
 

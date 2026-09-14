@@ -36,7 +36,7 @@ function transactionWithOwnedCount(owned: number): {
 }
 
 describe("registerProjectIn", () => {
-  it("writes legacy ownership, direct ownership, availability, and the initial token together", async () => {
+  it("writes direct ownership, availability, and the initial token without legacy shadows", async () => {
     const { calls, transaction } = transactionWithOwnedCount(0);
 
     const result = await registerProjectIn(transaction, input);
@@ -46,7 +46,6 @@ describe("registerProjectIn", () => {
     assert.deepEqual(calls[0]?.data, {
       slug: "stagekeeper",
       name: "Stagekeeper",
-      owner: "octocat",
       repoOwner: "octocat",
       repo: "stagekeeper",
       branch: "main",
@@ -54,7 +53,6 @@ describe("registerProjectIn", () => {
       lastSelectedAt: null,
       lastSyncedAt: null,
       ownerUser: { connect: { id: "user-1" } },
-      members: { create: { userId: "user-1", role: "owner" } },
       tokens: { create: { hash: "hash", label: "initial" } },
     });
   });

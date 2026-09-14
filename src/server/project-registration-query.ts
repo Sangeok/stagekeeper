@@ -25,7 +25,6 @@ export async function registerProjectIn(
     data: {
       slug: input.slug,
       name: input.name,
-      owner: input.owner,
       repoOwner: input.owner,
       repo: input.repo,
       branch: input.branch,
@@ -33,7 +32,6 @@ export async function registerProjectIn(
       lastSelectedAt: null,
       lastSyncedAt: null,
       ownerUser: { connect: { id: input.userId } },
-      members: { create: { userId: input.userId, role: "owner" } },
       tokens: { create: { hash: input.initialTokenHash, label: "initial" } },
     },
   });

@@ -42,13 +42,6 @@ export function capError(plan, axis, currentCount) {
   return withinLimit(plan, axis, currentCount + 1) ? null : `${capReason(plan, axis)}. Upgrade the plan to add more.`;
 }
 
-// D2 이전 rollback 호환 정책. D3에서 제거한다.
-export function activeProjectIds(projects, plan) {
-  const n = limitsFor(plan).projects;
-  const sorted = [...projects].sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return new Set(sorted.slice(0, n).map((p) => p.id));
-}
-
 const timestamp = (value, field) => {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) throw new Error(`${field} must be a valid Date`);
   return value.getTime();
@@ -73,7 +66,7 @@ const compareId = (left, right) => left < right ? -1 : left > right ? 1 : 0;
  * @property {Date} createdAt
  */
 
-// D1의 준비 snapshot 정렬. 기존 activeProjectIds는 D2 cutover까지 runtime 판정으로 유지한다.
+// 저장된 사용 목록을 만들 때 쓰는 정렬 규칙.
 /**
  * @param {AvailabilityCandidate[]} candidates
  * @param {number} limit
