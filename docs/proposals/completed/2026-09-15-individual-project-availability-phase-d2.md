@@ -1,20 +1,20 @@
 ---
-status: "pending"
-stage: "blocked"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-14"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "HamSangEok"
+approved-at: "2026-09-14"
+approval-scope: "D2 로컬 구현(PR #42), D1 DB exit 뒤 runtime 운영 전환, 브라우저 인수용 임시 데이터(Free 하향·테스트 프로젝트 등록·삭제·max 복구), private template 테스트 fixture 수정"
+completed-at: "2026-09-15"
+verification-summary: "runtime은 PR #42로 dev에 merge되어 2026-09-14 D1 DB exit 직후부터 direct owner/available을 읽는다. 2026-09-15 실제 DB에서 등록→Free 하향(자동 선택 근거 안내)→선택되지 않은 프로젝트의 배너·읽기 전용·Source 읽기·revoke만→교체 확인·확정→복귀를 브라우저로 확인, event v2~v5 기록. private corpus 10파일에 옛 용어 없음, templates test 23/23. 미실행: 두 세션 stale, Pro 교체 선택, direct POST 거부, 뒤로 가기 갱신, project_sync 시각, 격리 DB concurrency runner"
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/individual-project-availability.md"
-  - "docs/proposals/active/individual-project-availability-phase-d1.md"
+  - "docs/proposals/completed/2026-09-15-individual-project-availability.md"
+  - "docs/proposals/completed/2026-09-15-individual-project-availability-phase-d1.md"
 ---
 
 # 개인 프로젝트 사용 목록 — Phase D2 상세 계획
@@ -22,10 +22,11 @@ related:
 - Drafting mode: PHASE_PLAN
 - Selected Phase: D2 — Atomic server policy and user workflow cutover
 - Risk: HIGH-RISK
-- Phase completion / deployment readiness: **BLOCKED** — D1 실제 DB exit evidence와 private template corpus 확인이 없음
+- Phase completion / deployment readiness: **Completed with recorded gaps** — D1 DB exit(2026-09-14)와 private
+  corpus 확인(2026-09-15)으로 두 entry blocker 해소. 브라우저 인수는 부분 실행. 아래 "D2 운영 전환·인수 기록" 참조
 - Local implementation: 사용자가 후속 코드 수정을 승인하여 D2 로컬 코드·자동 검증을 수행함. 아래 실행 기록 참조
-- Authoritative source: [부모 SDD](./individual-project-availability.md)
-- Predecessor plan: [Phase D1 상세 계획](./individual-project-availability-phase-d1.md)
+- Authoritative source: [부모 SDD](./2026-09-15-individual-project-availability.md)
+- Predecessor plan: [Phase D1 상세 계획](./2026-09-15-individual-project-availability-phase-d1.md)
 - Parent snapshot: SHA-256 `907dd11b40f405f56e58e30ca9815d9e0d8a1b3f918d8fd7eed279b22925a26d`
 - D1 plan snapshot: SHA-256 `583d3f51324deefa5edeb5ce9dfe5ea12fd7137ab3b9d4702ac33de471fb2607`
 - Evidence baseline: `harness/individual-project-availability-d1@0eef5cb777e6ff6f4343cd2d4a1a9c03f4eac70b`, 2026-09-14
@@ -326,7 +327,7 @@ model을 사용한다. feature가 page나 create-project feature를 import하지
 
 ## Phase D2
 
-- Parent boundary: [Phase D2](./individual-project-availability.md#phase-d2-atomic-server-policy-and-user-workflow-cutover)
+- Parent boundary: [Phase D2](./2026-09-15-individual-project-availability.md#phase-d2-atomic-server-policy-and-user-workflow-cutover)
 - satisfies: REQ-IPA-001, REQ-IPA-002, REQ-IPA-003, REQ-IPA-004, REQ-IPA-005, REQ-IPA-006, REQ-IPA-007, REQ-IPA-008, REQ-IPA-009, REQ-IPA-010, REQ-IPA-011, REQ-IPA-012, REQ-IPA-013, REQ-IPA-014, REQ-IPA-016
 - preserves: INV-IPA-002, INV-IPA-003, INV-IPA-004, INV-IPA-005, INV-IPA-006, INV-IPA-007
 - governed-by: CON-IPA-001, CON-IPA-002, CON-IPA-003, CON-IPA-004, CON-IPA-005, CON-IPA-006, CON-IPA-007
@@ -599,7 +600,11 @@ UI limit은 `number | null`이며 null은 Max 무제한이다. availability 조�
 
 project 내부 selected-out banner는 같은 `UseProjectControl`과 read model을 재사용한다. 문구는 다음과 같다.
 
-> This project is not selected for use. You can view it, but changes and agent tools are off.
+> This project is not selected for use. Open Stagekeeper → Projects and choose “Use this project”.
+
+(2026-09-15 정정: 최초 계획은 "You can view it, but changes and agent tools are off."였으나 구현(`7e1678d`)은
+MCP 거부 사유와 같은 한 문장을 `NOT_SELECTED_REASON`으로 통일하고 `product-copy.md` §10 Recovery에 현재
+계약으로 기록했다. 브라우저 인수에서 이 계획서만 옛 문장을 갖고 있는 것을 발견해 현재 계약에 맞췄다.)
 
 선택되지 않은 상태에서는 TurnBar/TurnBanner의 실행 지시를 숨기되 Inbox count와 read-only 데이터는
 보존한다. Backlog add/edit/remove/propose, Inbox decision, item reopen, pipeline edit, token issue를 그리지
@@ -745,10 +750,10 @@ seed는 현재 행별 upsert이므로 batch 전체가 atomic하다고 가정하�
 ## Verification Detail
 
 Canonical verifiers:
-[VFY-IPA-D2-01](./individual-project-availability.md#vfy-ipa-d2-01-순수-selection-policy),
-[VFY-IPA-D2-02](./individual-project-availability.md#vfy-ipa-d2-02-plan과-selection-transaction),
-[VFY-IPA-D2-03](./individual-project-availability.md#vfy-ipa-d2-03-웹mcp-permission-matrix),
-[VFY-IPA-D2-04](./individual-project-availability.md#vfy-ipa-d2-04-프로젝트-선택-ux).
+[VFY-IPA-D2-01](./2026-09-15-individual-project-availability.md#vfy-ipa-d2-01-순수-selection-policy),
+[VFY-IPA-D2-02](./2026-09-15-individual-project-availability.md#vfy-ipa-d2-02-plan과-selection-transaction),
+[VFY-IPA-D2-03](./2026-09-15-individual-project-availability.md#vfy-ipa-d2-03-웹mcp-permission-matrix),
+[VFY-IPA-D2-04](./2026-09-15-individual-project-availability.md#vfy-ipa-d2-04-프로젝트-선택-ux).
 
 ### Verification detail for VFY-IPA-D2-01
 
@@ -878,9 +883,10 @@ finally에서 child 종료를 기다린 뒤 listener/client/pool과 자신이 �
 | parent + D1 + D2 standard traceability | PASS | 3 files, TASK 12, REQ phase/task·verifier coverage 16/16 |
 | selected-Phase semantic review | 개선 반영; entry 증거 미확인 | D2 7 Tasks의 owner/VFY, lifecycle, permission, artifact, rollback 검토. clean pass 증거 아님 |
 | D2 implementation unit/build | PASS | 후속 코드 구현 요청으로 실행. 아래 로컬 구현 기록 참조 |
-| D1 isolated PostgreSQL rehearsal | Not executed | 환경 변수/DB 없음, D2 entry blocker |
-| target DB preflight/backfill check | Not executed | 운영 권한·접속 없음 |
-| private template inventory/tests | Not executed | corpus absent, BLK-IPA-D2-01 |
+| D1 isolated PostgreSQL rehearsal | Replaced (2026-09-14) | 격리 DB 없음. 실제 DB single-transaction rehearsal(ROLLBACK)로 대체. D1 문서 운영 적용 기록 |
+| target DB preflight/backfill check | PASS (2026-09-14) | D1 migration + backfill SQL 적용, `--pre` issue 0. D1 문서 운영 적용 기록 |
+| private template inventory/tests | PASS (2026-09-15) | corpus 10 en 파일 본문에 Member/locked/oldest 없음. `templates.test.mjs` fixture `locked:false`→`available:true`, 23/23. DB Template 행 10개 hash 동일, seed 불필요 |
+| 실제 DB 브라우저 protocol | PASS 부분 (2026-09-15) | 아래 "D2 운영 전환·인수 기록" |
 
 Strict validator는 선택하지 않는다. explicit bundle의 부모가 D1/D3까지 포함한 broad graph이고 현재 D2가
 entry blocker를 가진 pending plan이므로 strict 결과를 D2 readiness filter로 사용할 수 없다. standard bundle
@@ -888,28 +894,30 @@ validation과 D2 satisfies→VFY semantic coverage를 별도로 사용한다.
 
 ## Definition of Done / Handoff
 
-- [ ] D1 actual DB exit evidence와 private template inventory가 entry gate를 통과함.
-- [ ] direct owner/available만 runtime에서 읽고 legacy membership/owner read가 CI에서 0임.
-- [ ] registration/plan/select/sync transaction과 event/version invariant가 actual DB에서 통과함.
-- [ ] available count가 모든 성공 commit에서 plan cap 이하이고 owner project가 있으면 1개 이상 available.
-- [ ] upgrade는 excluded project를 추가하지 않고 downgrade는 current set만 trim함.
-- [ ] user selection은 확인된 target/replacement만 바꾸고 stale/invalid는 zero-write.
-- [ ] old-version already-selected도 stale이며 spare/Max는 replacement를 제거하지 않음.
-- [ ] 읽기 snapshot은 plan/set/version/event를 섞지 않고 모든 writer의 bounded retry가 검증됨.
-- [ ] 모든 project page GET이 selected-out에서 hidden write 0임.
-- [ ] selected-out 백로그 Source 전문과 removed 행 읽기가 폼 제거 뒤에도 보존됨.
-- [ ] web/MCP/owner MCP/templates/runbook permission matrix가 같은 reason과 예외를 사용함.
-- [ ] selected-out 전후 token/workspace/run/pipeline cursor 보존과 재개가 확인됨.
-- [ ] `/projects`와 internal banner의 count/status/Use/impact/stale UX가 manual protocol을 통과함.
-- [ ] plan-only reset, remount 뒤 stale toast, 하위 탭/뒤로 가기 갱신과 unsaved/read-only pipeline을 검증함.
-- [ ] version이 그대로인 stale도 refresh transition 종료 뒤 수동 재선택으로 복구됨.
-- [ ] 실제 DB 검증이 production access/sync helper를 실행하며 테스트 전용 SQL로 대체하지 않음.
-- [ ] repoOwner가 외부 owner key로만 mapping되고 breaking rename 없음.
-- [ ] old D1 writer/in-flight drain → 마지막 catch-up/check → apply retirement 순서가 입증됨.
-- [ ] D1 runner의 고정 baseline과 D2 caller signature, 새 test의 실제 수집/실행을 검증함.
-- [ ] architecture/CONTEXT/product-copy/private templates가 runtime과 일치함.
-- [ ] D2 build hash, migration/backfill snapshot, event examples, manual evidence와 rollback 상태를 기록함.
-- [ ] D3는 별도 approval 전 시작하지 않음.
+2026-09-15 판정. "unit"은 injected test만, "live"는 실제 DB·브라우저 관측을 뜻한다.
+
+- [x] D1 actual DB exit evidence와 private template inventory가 entry gate를 통과함. (2026-09-14 / 09-15)
+- [x] direct owner/available만 runtime에서 읽고 legacy membership/owner read가 CI에서 0임. (`project-availability-runtime.test.ts`, D3 이후 schema 자체에 없음)
+- [x] registration/plan/select transaction과 event/version invariant — live: 등록 v2, 하향 v3, 선택 v4·v5가 각각 version 1 증가·event 1개. sync는 unit만.
+- [x] available count ≤ cap, owner project ≥1 available — live Free 하향 뒤 `1 / 1 available`, `--post` 검사 cap 위반 0.
+- [x] upgrade 보존/downgrade trim — live: max→free에서 활동 있는 harness-smoke 유지, 근거 `recent agent activity`; free→max 복귀 시 set 불변(version 그대로 5). unit: 나머지 조합.
+- [x] user selection의 target/replacement 한정 변경 — live Free 교체 2회. stale/invalid zero-write는 unit만.
+- [ ] old-version already-selected stale, spare/Max replacement 무시 — unit만.
+- [ ] 읽기 snapshot 격리와 bounded retry — unit만. 격리 DB concurrency runner 미실행.
+- [x] project page GET의 hidden write 0 — live: selected-out 5개 탭을 연 전후 `--post` preserved fingerprint가 선택 event 외 변화 없음(PipelineVersion 3 유지).
+- [x] selected-out 백로그 Source 전문·removed 행 읽기 — live로 확인(제거된 FEAT-01 행 details 열어 원문 표시).
+- [x] permission matrix의 공통 reason — unit(`tools.test.mjs`, `owner-tools.test.mjs`, templates/runbook query tests). live MCP 호출은 하지 않았다.
+- [x] selected-out 전후 token 17/workspace 1/run 21 보존과 재개 — live count 동일, 재선택 뒤 Turn 화면 복귀.
+- [x] `/projects`·배너의 count/status/Use/impact — live. **stale은 미관측**(두 세션 필요).
+- [ ] plan-only reset, remount 뒤 toast, 하위 탭/뒤로 가기 갱신 — 미관측. unsaved/read-only pipeline은 live 확인.
+- [ ] 같은 version stale 복구 — 미관측.
+- [ ] production access/sync helper의 실제 DB 실행 — 격리 runner 미실행. runtime 자체가 실제 DB에서 helper를 실행한 것으로 대체.
+- [x] repoOwner → 외부 owner key mapping — unit + live 목록의 `Sangeok/harness-smoke` 표시.
+- [x] old writer drain → catch-up → retirement — 서버를 끈 상태에서 D1 backfill → D3까지 적용해 writer overlap 구간이 없었다.
+- [ ] D1 runner 고정 baseline/D2 caller — runner는 D3에서 삭제되어 해당 없음.
+- [x] architecture/CONTEXT/product-copy/private templates가 runtime과 일치함. (계획서 602행 문구만 이번에 정정)
+- [x] evidence 기록 — 아래 운영 전환·인수 기록.
+- [x] D3는 별도 approval 뒤 시작 — 같은 세션에서 D3 적용을 별도로 승인받았다.
 
 ## Rollout / Observability / Rollback
 
@@ -950,7 +958,8 @@ Next 16 Server Action ID는 deploy 사이에 바뀔 수 있다. old client actio
 
 ## Readiness / Approval
 
-- Verdict: **BLOCKED**.
+- Verdict: **BLOCKED** (2026-09-14 작성 시점) → **Completed with recorded gaps** (2026-09-15). 아래 두 blocker는
+  해소됐고, 미관측 항목은 DoD와 운영 전환·인수 기록에 남겼다.
 - Current entry blockers: D1 actual DB exit evidence 부재, BLK-IPA-D2-01 private template corpus 부재.
 - User decision required: 없음. 제품 정책은 부모에서 확정됐고 현재 필요한 것은 predecessor/external artifact evidence다.
 - Local code authority: 후속 사용자 요청으로 코드·현재 코드 문서·로컬 검증이 승인됨.
@@ -1030,17 +1039,69 @@ evidence 항목이며 미정 제품 정책으로 사용하지 않는다.
   private 모든 언어/body/seed 및 D1 운영 exit evidence. 이 항목 전에는 Phase 완료나 배포 가능을 주장하지 않는다.
 - D1 schema와 additive migration, 부모·D1 proposal은 이 구현에서 변경하지 않았다. 기존 사용자 변경을 보존했다.
 
+## D2 운영 전환·인수 기록 — 2026-09-14/15
+
+### 운영 전환
+
+D2 runtime 코드는 D1·D3와 함께 PR #42(`dev@2128881`)에 있다. 2026-09-14 14:21~14:23Z에 dev 서버가 꺼진 상태로
+D1 migration → backfill → D3 migration을 적용했으므로, D2 runtime이 실제 DB를 읽은 첫 시점부터 schema는
+최종(D3) 상태였다. D1 shadow만 있는 구간에서 D2 코드가 돈 적은 없다. 적용 뒤 `npm run db:generate`로 로컬
+client를 재생성했다(이전 생성물은 `ProjectMember`가 남고 event model이 없는 옛 것이었다).
+
+### private template corpus (BLK-IPA-D2-01)
+
+`plugin/templates`는 별도 git 저장소(`fd50763`)로 로컬에 있었다. en 파일 10개(`agents/{pm,dev,plan-verifier,
+doc-auditor,feature-scout}.md`, `CLAUDE.runbook.md`, `docs/agents/README.md`, `docs/plans/{README,template,
+verification-paths}.md`) 본문에 Member/locked/oldest 문구 없음. 실패하던 것은 `templates.test.mjs:49`의 가짜
+access 응답 `{ plan: "pro", locked: false }`뿐이라 `{ plan: "pro", available: true }`로 고쳤다
+(`npm run test:templates` 16/23 → 23/23). DB `Template` 행 10개는 원본과 LF 정규화 후 hash가 같아 seed하지
+않았다. DB에만 있는 `en/CLAUDE.runbook.free.md` 행은 `deliver.mjs`가 건너뛴다. 이 fixture 수정은 private
+저장소에서 아직 commit되지 않았다.
+
+### 브라우저 인수 (2026-09-15, 로컬 dev 서버 + `neondb`)
+
+사용자 1명(max, 프로젝트 1개)뿐이라 선택되지 않은 상태를 만들려고 임시 데이터를 넣고 끝난 뒤 되돌렸다.
+인증은 `AUTH_SECRET`으로 만든 세션 쿠키를 한 번만 응답하는 로컬 페이지로 심었다(값은 파일로만, 끝나고 삭제).
+
+| 단계 | 관측 | event |
+| --- | --- | --- |
+| `/p/new`에서 `codingTest` 등록 | `/projects` `2 available · unlimited`, 둘 다 Available | v2 `registration` |
+| `npm run plan:grant -- Sangeok free` | `1 / 1 available`; 안내 "After your plan changed, these projects remained available: harness-smoke. Selection basis: recent agent activity."; codingtest `Not selected` + `Use this project` | v3 `plan-downgrade` |
+| `/p/codingtest/backlog` | 배너 + `1 / 1 available` + Use 버튼; 백로그 추가 폼 없음, `No backlog items yet.` | — |
+| Use → 확인창 | "harness-smoke will no longer be selected. 0 open board items · 0 open agent runs. Data, tokens, and run cursors are kept. …" / `Use codingtest instead` / `Cancel` | — |
+| 확정 | 새로고침 없이 같은 화면이 Setting up 배너·추가 폼으로 바뀜; `lastSelectedAt` 기록 | v4 `use-project` |
+| `/p/harness-smoke/backlog?removed=1` | 배너; 제거된 행 9개 읽기, FEAT-01 details 열면 `Source` 원문(줄바꿈 포함); 편집 링크 없음 | — |
+| `/p/harness-smoke/tokens` | 발급 폼 없음; 활성 토큰 3개에 `Revoke`만; owner 토큰 발급 없음 | — |
+| `/p/harness-smoke/pipeline` | +/Remove/Swap/Save 없음; 레일 아래 선택 사유 표시(플랜 문구와 구분) | — |
+| 배너 Use → `Use harness-smoke instead` | Turn 화면(`Nothing open`)으로 복귀, 플랜 문구 `Pipeline editing opens on Pro`로 전환 | v5 `use-project` |
+| `npm run plan:grant -- Sangeok max` | set 불변, version 5 유지 | (없음, plan-only) |
+| codingtest 삭제 (guard 있는 1회성 SQL, SHA-256 `09e94291…`) | `--post` ok, preserved `17809152…`; `/projects` 1개 Available | — |
+
+전 구간에서 harness-smoke의 ProjectToken 17, AgentRun 21, Workspace 1이 유지됐다. 서버 로그에는
+`project-availability:not-selected {projectId}`와 `project-availability:plan-change`만 남았다.
+
+인수에서 찾은 것과 처리:
+
+- `/projects` 행의 배지가 `Not selected` 행에서만 가운데로 밀림 → closeout PR에서 배지·Use 버튼을 한 묶음으로.
+- 프로젝트 배너의 `Use this project` 버튼이 배너 폭으로 늘어남(모든 탭) → 같은 PR에서 `self-start`.
+- 이 계획서 602행의 배너 문구가 구현과 다름 → 위에서 정정.
+- 파이프라인의 사유 두 번 표시, 토큰 소개 문구는 계획·현재 계약대로라 결함 아님.
+
+### 미관측 (잔여 리스크)
+
+두 세션 stale·같은 version stale 복구, Pro 교체 대상 선택, direct POST 거부, 하위 탭/뒤로 가기 갱신,
+plan-only 확인창 reset, `project_sync`의 `lastSyncedAt`, live MCP 호출 body, 격리 DB concurrency runner.
+사용자가 Pro이거나 두 브라우저를 쓰는 시점에 확인한다.
+
 ## Completion or Closure Notes
 
-현재 `pending/blocked`다. 완료 후에만 아래 값을 실제 evidence로 채운다.
-
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- D1 entry evidence: TBD
-- private template inventory/seed evidence: TBD
-- D3 handoff: TBD
+- completed-at: 2026-09-15
+- verification-summary: front matter 참조.
+- implementation PR/commit: `7e1678d` (PR #42). 인수 후 수정과 이 기록은 `harness/ipa-closeout` PR.
+- changed files summary: 부모 SDD Completion 절 참조.
+- D1 entry evidence: D1 문서 운영 적용 기록 (2026-09-14).
+- private template inventory/seed evidence: 위 corpus 절. seed 없음, test fixture 1줄 수정(private 저장소 미commit).
+- D3 handoff: 같은 세션에서 D3 cleanup까지 적용. D3 문서 운영 적용 기록 참조.
 
 취소 시에는 closed-at/by/reason, partially deployed code/data/template 상태와 rollback 필요 사항을 기록하고
 completed 경로로 이동한다.
@@ -1057,7 +1118,7 @@ completed 경로로 이동한다.
 - [x] concurrency, stale, retry, in-flight, partial deploy, rollback limitation을 다뤘다.
 - [x] Business/delete/pause/billing/cache/D3 cleanup을 제외했다.
 - [x] planned/executed/not-executed evidence를 구분했다.
-- [ ] D1 actual DB entry evidence — 미완료.
-- [ ] private template corpus inventory/tests — 미완료.
+- [x] D1 actual DB entry evidence — 2026-09-14 대상 DB 적용.
+- [x] private template corpus inventory/tests — 2026-09-15 확인, 23/23.
 - [x] Phase D2 local code implementation — 후속 사용자 요청으로 승인·실행.
-- [ ] Phase D2 운영 전환/완료 승인 — DB·private template·브라우저 evidence 미완료.
+- [x] Phase D2 운영 전환/완료 승인 — DB 적용·브라우저 인수(부분)·잔여 리스크 기록으로 완료 처리.

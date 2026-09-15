@@ -45,7 +45,8 @@ export function UseProjectControl({ targetId, model, action }: Props) {
 
   return (
     <div className="flex flex-col gap-2 text-sm">
-      {!confirming ? <Button size="sm" disabled={pending} onClick={() => full ? setConfirming(true) : send()}>
+      {/* self-start: 프로젝트 배너(세로 flex) 안에서 버튼이 배너 폭으로 늘어나지 않게. 확인 패널은 그대로 넓게 둔다. */}
+      {!confirming ? <Button size="sm" className="self-start" disabled={pending} onClick={() => full ? setConfirming(true) : send()}>
         {pending ? "Updating…" : "Use this project"}
       </Button> : (
         <div className="flex flex-col gap-3 rounded-lg border border-rule p-3">

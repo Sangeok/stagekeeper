@@ -37,8 +37,11 @@ export function ProjectListPage({ model, useProject }: { model: ProjectListModel
                   {p.repoOwner}/{p.repo}
                 </span>
               </Link>
-              <span className="text-xs text-quiet">{p.available ? "Available" : "Not selected"}</span>
-              <UseProjectControl key={selectionControlKey(p.id, model)} targetId={p.id} model={model} action={useProject} />
+              {/* 배지와 Use 버튼은 한 묶음 — 행이 justify-between이라 따로 두면 배지가 행 가운데로 밀린다. */}
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-quiet">{p.available ? "Available" : "Not selected"}</span>
+                <UseProjectControl key={selectionControlKey(p.id, model)} targetId={p.id} model={model} action={useProject} />
+              </div>
             </li>
           ))}
         </ul>

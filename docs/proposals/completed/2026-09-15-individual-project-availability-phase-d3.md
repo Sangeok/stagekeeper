@@ -1,21 +1,21 @@
 ---
-status: "pending"
-stage: "blocked"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-14"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "HamSangEok"
+approved-at: "2026-09-14"
+approval-scope: "D3 로컬 구현(PR #42)과 대상 DB neondb의 cleanup migration 적용. 별도 DB 보상 migration·backup restore rehearsal은 1인·1프로젝트 규모를 이유로 생략하고 drop 대상 백업 + 실제 DB single-transaction rehearsal(ROLLBACK)로 대체하는 것을 함께 승인"
+completed-at: "2026-09-15"
+verification-summary: "2026-09-14 14:23Z cleanup migration(e872686839…) 적용. --pre/--post 모두 issue 0, preserved 17 table 지문 동일(7ad7bca5…), ProjectMember/legacy owner 부재, owner NOT NULL·DELETE CASCADE, migrate status up to date(12), generated client 17 models. 미실행: 별도 DB 보상 migration·backup restore·lock/timeout/history failure fixture"
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/individual-project-availability.md"
-  - "docs/proposals/active/individual-project-availability-phase-d1.md"
-  - "docs/proposals/active/individual-project-availability-phase-d2.md"
+  - "docs/proposals/completed/2026-09-15-individual-project-availability.md"
+  - "docs/proposals/completed/2026-09-15-individual-project-availability-phase-d1.md"
+  - "docs/proposals/completed/2026-09-15-individual-project-availability-phase-d2.md"
 ---
 
 # 개인 프로젝트 사용 목록 — Phase D3 상세 계획
@@ -23,10 +23,11 @@ related:
 - Drafting mode: PHASE_PLAN
 - Selected Phase: D3 — Remove Member and legacy owner storage
 - Risk: HIGH-RISK
-- Phase completion / deployment readiness: **BLOCKED** — D2 운영·DB·브라우저 인수와 D3 복구 증거 미확보
+- Phase completion / deployment readiness: **Completed** — 대상 DB cleanup 적용 2026-09-14. 복구 증거는 drop 대상
+  백업과 실제 DB rehearsal로 축소 승인. 아래 "D3 운영 적용 기록" 참조
 - Local implementation: 후속 사용자 요청으로 D3 코드·schema·migration·검증 도구를 구현함. 아래 실행 기록 참조
-- Authoritative source: [부모 SDD](./individual-project-availability.md)
-- Predecessors: [D1 계획](./individual-project-availability-phase-d1.md), [D2 계획 및 구현 기록](./individual-project-availability-phase-d2.md)
+- Authoritative source: [부모 SDD](./2026-09-15-individual-project-availability.md)
+- Predecessors: [D1 계획](./2026-09-15-individual-project-availability-phase-d1.md), [D2 계획 및 구현 기록](./2026-09-15-individual-project-availability-phase-d2.md)
 - D2 source baseline: `harness/individual-project-availability-d1@7e1678d3b4a66040618b25702541ab0315bdf639`, 2026-09-14
 - D2 migration content-set SHA-256: `d6b6cbbead279990d95b4dfd25d58f6cd053b661b122e7f4a533a312658a73dd`
 - Parent/D1/D2 SHA-256: 각각 `907dd11b40f405f56e58e30ca9815d9e0d8a1b3f918d8fd7eed279b22925a26d`,
@@ -101,6 +102,9 @@ D2 기록의 154 core/plugin tests, 273 web tests, check 및 Webpack build 통�
   첫 owner 선택, Member 삭제, D1 ranking 재적용으로 통과시키지 않는다.
 - D2 배포 artifact/복구 증거가 없으면 D3 운영 전환은 BLOCKED다. 후속 사용자 승인으로 로컬 구현은
   수행했지만 migration 적용·운영 전환 권한은 부여되지 않았다.
+- (2026-09-14 해소) 사용자가 D1→backfill→D3 rehearsal 결과를 본 뒤 대상 DB 적용을 승인했다. BLK-IPA-D3-01은
+  "drop 대상 백업 + 실제 DB single-transaction rehearsal(ROLLBACK)"로 축소해 승인됐고, 별도 DB 보상 migration·
+  backup restore는 1인·1프로젝트 규모를 이유로 생략했다. 부모 SDD Approval 절 참조.
 
 ## Scope / Inventory
 
@@ -146,6 +150,7 @@ D1/D2 script는 D2 commit `7e1678d3b4a66040618b25702541ab0315bdf639`에서 재�
 `/private/tmp/stagekeeper-d3-retired-scripts-20260914.tgz`에도 임시 보관했다(SHA-256
 `06bf07d99c0fd54983e3de9765f17fdd894e15f6d32effd7e2841706937ea297`). 이 임시 파일은 휘발성 보조본이며
 Git commit을 대신하지 않는다. D2 commit push 확인 뒤 제거할 수 있다.
+(2026-09-15: D2 commit은 PR #42로 `origin/dev`에 있다. 위 archive는 이전 작업 환경의 임시 파일이며 더 필요 없다.)
 현재 repo에는 old generated Member 타입을 요구하는 실행 코드를 남기거나 TypeScript exclude로 숨기지 않는다.
 
 ### 보존·검증 표면
@@ -460,8 +465,8 @@ backup/restore 결과, compensation migration 경로, 수행자/시각과 실패
 
 ## Verification Detail
 
-Canonical verifiers는 부모 [VFY-IPA-D3-01](./individual-project-availability.md#vfy-ipa-d3-01-memberlegacy-owner-제거-검사)과
-[VFY-IPA-D3-02](./individual-project-availability.md#vfy-ipa-d3-02-전체-회귀와-복구)다.
+Canonical verifiers는 부모 [VFY-IPA-D3-01](./2026-09-15-individual-project-availability.md#vfy-ipa-d3-01-memberlegacy-owner-제거-검사)과
+[VFY-IPA-D3-02](./2026-09-15-individual-project-availability.md#vfy-ipa-d3-02-전체-회귀와-복구)다.
 
 ### Verification detail for VFY-IPA-D3-01
 
@@ -546,8 +551,8 @@ Turbopack 권한 오류 재현 시 Webpack fallback은 별도 증거로 기록�
 
 ## Readiness / Verification Results / DoD
 
-- Verdict: **BLOCKED**. D2 실제 exit와 BLK-IPA-D3-01이 미해소다.
-- Local implementation: 완료. 운영 전환과 Phase 완료는 아래 미실행 검증 때문에 BLOCKED다.
+- Verdict: **BLOCKED** (2026-09-14 작성 시점) → **Completed** (2026-09-15). 아래 미실행 항목은 잔여 리스크로 기록.
+- Local implementation: 완료. 운영 적용은 2026-09-14 14:23Z. 아래 "D3 운영 적용 기록" 참조.
 - 새 제품 정책 결정: 없음. required Cascade는 부모 최종 모델을 따른다. 운영 DB/backup/artifact 정보는
   실행 입력이며 확인되기 전 실제 drop·복구 실행을 하지 않는다.
 - 문서 검증: 부모+D1+D2+D3의 standard traceability와 D3 Task/VFY 의미·경로·명령 구조를 확인한다.
@@ -569,20 +574,25 @@ Turbopack 권한 오류 재현 시 Webpack fallback은 별도 증거로 기록�
 | `npm run check` | PASS | architecture 19 tests와 cleanup 14 tests 포함 |
 | `npm run build -- --webpack` | PASS | 기본 Turbopack의 기존 local-port EPERM 때문에 Webpack production build 사용; 설정은 변경하지 않음 |
 | D3 runner guard | PASS — 전용 URL 둘이 없으면 fixture 전 exit 2 | 실제 PostgreSQL suite가 아님 |
-| 실제 D3 DB/backup/private/browser | Not executed | 전용 DB·D2 artifact·backup/corpus 없음 |
+| 실제 D3 DB/backup/private/browser | Not executed (문서 작성 시점) | 전용 DB·D2 artifact·backup/corpus 없음 |
+| 대상 DB cleanup 적용 + `--pre`/`--post` (2026-09-14) | PASS | 아래 운영 적용 기록. issue 0, preserved 지문 동일 |
+| 실제 DB single-transaction rehearsal (2026-09-14) | PASS | D1→backfill→D3 후 ROLLBACK, 16 table 지문 동일, catalog 원복 |
+| 별도 DB 보상 migration·backup restore (2026-09-15) | Not executed | 두 번째 PostgreSQL 없음. 잔여 리스크 |
 
 완료 조건:
 
-- [ ] D2 exit, 고정 artifact, 복구 담당자·backup/실제 restore 증거가 승인됨.
-- [ ] DROP 이전 전체 무결성·catalog·값 snapshot 검사 통과.
-- [x] 로컬 schema/generated에서 required owner/repo와 Cascade가 정의되고 Member/legacy owner가 사라짐.
+2026-09-15 판정.
+
+- [x] D2 exit, 고정 artifact 승인 — PR #42(`2128881`). backup은 drop 대상 파일로 축소 승인, 실제 restore 재현은 없음.
+- [x] DROP 이전 전체 무결성·catalog·값 snapshot 검사 통과 — `--pre` issue 0, schema `a4abfbe6…`, preserved `7ad7bca5…`.
+- [x] 로컬 schema/generated에서 required owner/repo와 Cascade가 정의되고 Member/legacy owner가 사라짐. (적용 후 재생성 17 models)
 - [x] shadow registration/old policy/legacy CLI·child 의존성이 제거되고 D3 검증으로 이전됨.
-- [ ] 사용 목록·version·event·token·Workspace·run·cursor 전체 보존과 D2 권한/UX 회귀 통과.
-- [ ] D2 보상 복원과 별도 DB backup restore를 실제로 재현함.
-- [ ] DDL commit/Prisma 이력 실패와 wrapper/child lock 경계를 검증하고 안전한 재시도/no-op을 확인함.
-- [ ] baseline source/client/alias 격리와 두 실제 DB의 격리를 입증하고 helper/SQL 판정이 일치함.
-- [ ] current contracts·generated outputs·CI와 배포 artifact가 동일한 최종 모델을 가리킴.
-- [ ] 결과/실패·복구 상태를 기록하고 실제 Phase 완료 승인 뒤에만 completed로 이동함.
+- [x] 사용 목록·version·event·token·Workspace·run·cursor 보존 — `--post` preserved 지문 = `--pre`. D2 권한/UX 회귀는 unit 전체 + 브라우저 부분(D2 문서).
+- [ ] D2 보상 복원과 별도 DB backup restore 재현 — 미실행.
+- [ ] DDL commit/Prisma 이력 실패·lock 경계 fixture — 미실행. 실제 적용은 1초 안에 finished, rolled_back null.
+- [ ] baseline source/client/alias 격리와 두 DB 격리 입증 — runner 미실행. helper와 SQL 판정 일치는 unit(`project-availability-cleanup.test.ts`)만.
+- [x] current contracts·generated outputs·CI·배포 artifact가 동일한 최종 모델 — `npm run check`, `db:generate`, dev 코드 = 적용 코드.
+- [x] 결과/복구 상태 기록 후 completed 이동 — 아래 운영 적용 기록, 부모 Approval 절.
 
 ## Reconciliation 기록 — 2026-09-14
 
@@ -616,8 +626,40 @@ Turbopack 권한 오류 재현 시 Webpack fallback은 별도 증거로 기록�
 - 실제 DB가 없어 migration SQL 실행, lock/timeout·Prisma history failure, compensation/backup restore는 실행하지 않았다.
 - 삭제된 D1/D2 script는 위 D2 commit에서 복구 가능하며 임시 archive도 push 완료 전까지 유지한다.
 
+## D3 운영 적용 기록 — 2026-09-14
+
+환경과 적용 전 상태, 백업, rehearsal은 D1 문서 운영 적용 기록과 같다(같은 세션, 같은 DB, 서버 꺼짐).
+
+| # | 단계 | 결과 |
+| --- | --- | --- |
+| 1~3 | D1 migration → backfill → `--pre` | D1 문서 참조. `--pre` ok, issues 0, preserved `7ad7bca56d33d5e71278e059b553b7f45a1872280e32fb0137941c840fc56826` |
+| 4 | `node node_modules/prisma/build/index.js migrate deploy` | `20260914090000_remove_individual_project_ownership_shadow` 적용. `_prisma_migrations` checksum `e872686839151cc1d6239a46f5a87593780c1b4fc4019054ee7c3e13fbaa5169`(파일 SHA-256과 동일), 14:23:18.873Z–14:23:19.842Z, rolled_back null, applied_steps 1 |
+| 5 | `check:project-ownership:cleanup -- --post` | ok, issues 0, schemaFingerprint `ba738a1289111f7d9fbe22c9fc8c782e5ebefef71601af2eb71cdb5983b5d62f`, preserved 지문 3과 동일 |
+| 6 | `migrate status` | `Database schema is up to date!` (12 migrations) |
+| 7 | `npm run db:generate` | 17 models; `models/ProjectMember.ts` 없음, `internal/class.ts`에 ProjectMember 0건 |
+| 8 | 새 client read-only smoke | Project 1 available, owner set, tokens 17 / runs 21 / workspaces 1, User version 1, event 1 |
+
+적용 후 catalog(`--post`가 읽은 값): `ProjectMember` table 없음, `Project.owner` 열 없음, `ownerUserId`/`repoOwner`
+NOT NULL, `Project_ownerUserId_fkey` DELETE CASCADE / UPDATE CASCADE, `Project_ownerUserId_available_idx`와
+`ProjectAvailabilityEvent_ownerUserId_version_key` 유지, event 배열 3열 NOT NULL.
+
+이후 D2 브라우저 인수(2026-09-15)에서 등록·하향·선택·삭제가 최종 schema 위에서 실행됐고 마지막 `--post`도
+issue 0이었다(preserved `17809152…`, 선택 event 4개가 추가된 상태).
+
+### 미실행
+
+- 별도 DB에서 보상 migration(`restore-d2-shadow.sql`) 적용과 D2 artifact smoke. receipt 없음.
+- backup restore 재현. 확보한 것은 drop 대상 값의 JSON 백업뿐이다.
+- lock contention / statement timeout / Prisma history failure fixture, 두 DB 격리 runner.
+- 이 항목들은 두 번째 PostgreSQL이 생기면 `test:project-availability:d3:db -- --allow-fixtures --baseline 7e1678d3b4a66040618b25702541ab0315bdf639`로 실행한다.
+
 ## Completion or Closure Notes
 
-현재 pending/blocked다. 실행 후 완료일, PR/commit, 실제 migration 경로·checksum, VFY별 결과,
-pre/post/restore evidence와 배포·복구 상태를 기록한다. 취소 시에는 closed metadata와 이미 반영된
-schema/data 유무 및 필요한 복구 작업을 적는다. 문서 작성만으로 이 값을 완료 처리하지 않는다.
+- completed-at: 2026-09-15
+- verification-summary: front matter 참조.
+- implementation PR/commit: `10d7f30` (PR #42). 이 기록은 `harness/ipa-closeout` PR.
+- migration 경로·checksum: 위 4번 행.
+- VFY별 결과: VFY-IPA-D3-01 — 정적 검사·generated·catalog 통과. VFY-IPA-D3-02 — 보존·최종 schema 등록/선택은
+  live 통과, 복구·격리·failure fixture는 미실행(부모 EV-IPA-D3-02).
+- 배포·복구 상태: 적용 완료, 복구 필요 없음. 복구가 필요해지면 위 백업 파일과 `restore-project-ownership-shadow.ts`
+  계약대로 receipt를 먼저 만든다.
