@@ -1,19 +1,19 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "small"
 created-at: "2026-09-11"
 approved-by: "HamSangEok"
 approved-at: "2026-09-11"
 approval-scope: "아는 자리(메인 루프)에 확인을 두는 선까지. GitHub App은 범위 밖."
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-11"
+verification-summary: "npm test 147/147, test:web 248/248, test:templates 23/23, check exit 0, verify:fsd pass. harness-smoke에서 게이트 2 카드와 항목 페이지에 문장이 한 번씩 렌더되는 것을 실측(2026-09-11)"
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/runbook-drift.md"
+  - "docs/proposals/completed/2026-09-11-runbook-drift.md"
 ---
 
 # 푸시되지 않은 커밋을 가리키는 링크
@@ -264,11 +264,26 @@ npm run verify:fsd
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: GitHub App 제안서
+- completed-at: 2026-09-11. 문서 이동은 2026-09-15에 했다.
+- verification-summary: 위 Verification Results. 다섯 명령이 전부 통과했고 신규 실패는 없다.
+  `harness-smoke`에서 게이트 2 카드와 항목 페이지의 문장을 실측했다.
+- implementation PR/commit: 제안서는 PR #39(`6e80c8e`, `4403c28`). 구현은 PR #40
+  (`harness/doc-link-note` → `dev`, merge `e0df536`, 커밋 `e19ee2a`). 런북 확인 문장과 테스트
+  고정은 비공개 저장소 `Sangeok/harness-templates@fd50763`에 있다. `main`에는 `dev`
+  fast-forward로 반영됐다.
+- changed files summary: `entities/board-item/model/doc-link.ts`의 `DOC_LINK_NOTE`와
+  `entities/board-item/index.ts` export, `inbox-card.tsx`, `board-item-page.tsx`,
+  `product-copy.md` §6 · §11. 비공개 저장소는 `en/CLAUDE.runbook.md`와 `templates.test.mjs`.
+- 계획과 달라진 점:
+  - 문장을 두 화면이 각자 쓰지 않고 entity 한 곳이 소유한다. Affected Files 표에 없던
+    `doc-link.ts`와 `index.ts`가 그래서 늘었다.
+  - 카드 문장은 product-copy §7이 아니라 §6에 기록됐다. §7은 카드 정의를 §6에 두고 가리키므로
+    자리는 맞다.
+- 2026-09-15 문서 정정: PR #40이 §6에 문장을 넣을 때 기존 문장 "If you edit the plan after the
+  validation, …" 가운데에 끼워 넣어 두 문장이 섞였다. 기존 문장을 복원하고 새 문장을 그 뒤에
+  두었다. §11과 `doc-link.ts` 주석이 가리키던 §7도 §6으로 고쳤다.
+- remaining follow-up: GitHub App 제안서. 서버가 커밋 도달 가능성을 아는 유일한 길이다. 1번
+  확인은 세션이 지시를 따라야 동작한다(Risks 참조).
 
 ## Review Checklist
 
@@ -283,4 +298,4 @@ npm run verify:fsd
 - [x] 검증 명령과 성공 기준이 있다.
 - [x] 기존 실패와 신규 실패를 구분하는 기준선을 적었다.
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서 항목 — 아직 pending이다.
+- [x] 완료 문서 항목 — 2026-09-15에 채우고 `completed/`로 옮겼다.

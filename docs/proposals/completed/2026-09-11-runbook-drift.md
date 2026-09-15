@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-11"
 approved-by: "HamSangEok"
 approved-at: "2026-09-11"
 approval-scope: "감지는 init 보고 방식, 알림은 pipeline_next 응답 하나. 웹 배너는 범위 밖."
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-11"
+verification-summary: "npm test 147/147, test:web 243/243, test:templates 18/18, check exit 0, verify:fsd pass. harness-smoke에서 init 재실행 전에는 pipeline_next가 runbook 필드를 싣고, 재실행 뒤에는 필드가 사라지는 것을 실측(2026-09-11)"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -341,11 +341,22 @@ npm run verify:fsd
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-09-11. 문서 이동은 2026-09-15에 했다.
+- verification-summary: 위 Verification Results. 다섯 명령이 전부 통과했고 신규 실패는 없다.
+  `harness-smoke` 실측으로 `runbook` 필드가 낡은 상태에서만 나오고 init 재실행 뒤 사라지는 것을
+  확인했다.
+- implementation PR/commit: PR #35(`harness/runbook-drift` → `dev`, merge `31830b5`). 구현은
+  `f5eba7c`, 검증 결과 기록은 `a667f43`이다. 런북 템플릿 문단은 비공개 저장소
+  `Sangeok/harness-templates@98ef8a9`에 있다. `main`에는 `dev` fast-forward로 반영됐다.
+- changed files summary: Affected Files 표와 같다. `packages/core/runbook.mjs`와 테스트,
+  `plugin/lib/runbook.mjs` 복사본, `prisma/schema.prisma`와
+  `20260911011905_project_runbook_version`, `src/server/runbook-query.ts`·`runbook.ts`와 테스트,
+  `src/app/api/runbook/route.ts`, `run-rules.ts`·`mcp/deps.ts`·`mcp/tools.ts`,
+  `plugin/bin/harness-init.mjs`와 테스트, `product-copy.md` §13.
+- 이후 변경: 개인 프로젝트 사용 목록 작업(PR #42, `7e1678d`)이 `runbook-query.ts`의 접근 판정을
+  `access.available` 모양으로 바꿨다. 선택되지 않은 프로젝트의 보고는 403이다.
+- remaining follow-up: 손으로 고친 런북 블록은 감지하지 않는다(Risks 참조). 웹 화면 알림은
+  승인 범위 밖이라 열지 않았다. 필요해지면 별도 제안서로 연다.
 
 ## Review Checklist
 
@@ -360,4 +371,4 @@ npm run verify:fsd
 - [x] 검증 명령과 성공 기준이 있다.
 - [x] 기존 실패와 신규 실패를 구분하는 기준선을 적었다.
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서 항목 — 아직 pending이다.
+- [x] 완료 문서 항목 — 2026-09-15에 채우고 `completed/`로 옮겼다.
