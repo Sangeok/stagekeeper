@@ -1,19 +1,19 @@
 ---
-status: "pending"
-stage: "awaiting-approval"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-13"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "HamSangEok"
+approved-at: "2026-09-14"
+approval-scope: "D1 로컬 구현(PR #42)과 대상 DB neondb의 additive migration·소유권 backfill 적용. 격리 rehearsal DB 없이 실제 DB single-transaction rehearsal(ROLLBACK)로 대체하는 것을 함께 승인"
+completed-at: "2026-09-15"
+verification-summary: "2026-09-14 대상 DB에 D1 migration(e9ae81e4…) 적용, backfill SQL commit, D3 --pre 검사 issue 0. ownerUserId/repoOwner null 0, User version 1, migration-backfill event 1. 보존 16 table 값 지문 전후 동일. 격리 DB runner·MCP body live 비교·code rollback smoke는 미실행"
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/individual-project-availability.md"
+  - "docs/proposals/completed/2026-09-15-individual-project-availability.md"
 ---
 
 # 개인 프로젝트 사용 목록 — Phase D1 상세 계획
@@ -21,12 +21,13 @@ related:
 - Drafting mode: PHASE_PLAN
 - Selected Phase: D1 — Additive ownership and availability foundation
 - Risk / reconciliation profile: HIGH-RISK
-- Implementation readiness: CONDITIONALLY READY — 구현·격리 검증 계획은 구체화됨. 대상 DB 적용은 아래 실행 조건 충족 필요
-- Authoritative source: [부모 SDD](./individual-project-availability.md)
+- Implementation readiness: **Completed** — 코드 `7e1678d`(PR #42), 대상 DB 적용 2026-09-14. 아래 "D1 운영 적용 기록" 참조
+- Authoritative source: [부모 SDD](./2026-09-15-individual-project-availability.md)
 - Parent snapshot: SHA-256 `907dd11b40f405f56e58e30ca9815d9e0d8a1b3f918d8fd7eed279b22925a26d`
 - Evidence baseline: `dev@0eef5cb777e6ff6f4343cd2d4a1a9c03f4eac70b`, 2026-09-13.
   조사 시작 시 부모와 D1 proposal 두 파일이 untracked였다. 부모는 읽기 전용으로 보존한다.
-- Authority: 현재 요청은 D1 문서 검증·개선이다. 아래 코드는 구현 지시이며 구현 결과가 아니다.
+- Authority: 최초 요청은 D1 문서 검증·개선이었다. 본문의 코드 절은 구현 지시로 쓰였고, 실제 결과는
+  운영 적용 기록 절에만 있다. 계획과 다르게 실행한 부분도 그 절에 적었다.
 
 ## Summary
 
@@ -164,7 +165,7 @@ PipelineVersion, PipelineRun, **ProjectAvailabilityEvent**다. 파일 수를 기
 
 ## Phase D1
 
-- Parent boundary: [Phase D1](./individual-project-availability.md#phase-d1-additive-ownership-and-availability-foundation)
+- Parent boundary: [Phase D1](./2026-09-15-individual-project-availability.md#phase-d1-additive-ownership-and-availability-foundation)
 - satisfies: REQ-IPA-015
 - preserves: INV-IPA-004, INV-IPA-006
 - governed-by: CON-IPA-002, CON-IPA-003, CON-IPA-006
@@ -502,8 +503,8 @@ scripts/*.test.ts는 기존 CI wildcard에 수집되지 않으므로 package.jso
 ## Verification Detail
 
 Canonical definitions:
-[VFY-IPA-D1-01](./individual-project-availability.md#vfy-ipa-d1-01-소유권-migration-rehearsal),
-[VFY-IPA-D1-02](./individual-project-availability.md#vfy-ipa-d1-02-기존-availability-결과-비교).
+[VFY-IPA-D1-01](./2026-09-15-individual-project-availability.md#vfy-ipa-d1-01-소유권-migration-rehearsal),
+[VFY-IPA-D1-02](./2026-09-15-individual-project-availability.md#vfy-ipa-d1-02-기존-availability-결과-비교).
 
 ### Verification detail for VFY-IPA-D1-01
 
@@ -576,20 +577,27 @@ CI에는 해당 corpus가 없고 D1은 template를 수정하지 않으므로 자
 
 ## Definition of Done / Handoff
 
-- [ ] 모든 Core 파일과 named symbol의 import/export가 Inventory대로 해소됨.
-- [ ] `node scripts/plugin-lib.mjs --check` exit 0, entitlement 복사본의 새 export와 기존 export 보존.
-- [ ] D1 schema/model 생성물이 최신이며 기존 열·relation·index와 external owner 계약 유지.
-- [ ] preflight 정상, additive apply 성공, dual-write 배포 후 old writer 교체 완료.
-- [ ] 전체 preflight·사용자별 dry-run/check는 일관된 read-only snapshot; 동시 등록 false-positive 없음.
-- [ ] 최신 --check에서 ownerUserId/repoOwner null·불일치 0, 원하는 available 집합 일치.
-- [ ] 새 등록·플랜 변경 뒤 marker skip 없이 catch-up 가능; 동일 재실행은 no-op.
-- [ ] 기존 row의 PK별 값·ID·커서·배열 순서 보존 및 failure rollback 검증.
-- [ ] MCP 최종 JSON을 T04 규칙으로 baseline과 비교: Workspace 행 집합·필드 배열 순서 보존, 새 field 없음.
-- [ ] 로컬 unit suite가 CI check에서도 수집됨; type/build/FSD와 DB rehearsal 통과.
-- [ ] 기존 activeProjectIds/projectAccess/guard/tool 동작이 바뀌지 않았음.
-- [ ] D1 snapshot의 event/version/asOf·실제 migration 경로·명령 결과·배포 build hash 보고.
-- [ ] D2 진입 전 fresh catch-up·writer 전환·D1 도구 중단이 필요하다고 인계.
-- [ ] 코드를 되돌렸을 때 legacy access 동작을 확인. 별도 D2/D3 실행은 하지 않음.
+2026-09-15 판정. 체크 없는 항목은 실행하지 않았거나 계획과 달리 적용되지 않은 것이다.
+
+- [x] 모든 Core 파일과 named symbol의 import/export가 Inventory대로 해소됨. (PR #42, `npm run check`)
+- [x] `node scripts/plugin-lib.mjs --check` exit 0, entitlement 복사본의 새 export와 기존 export 보존. (`check` 첫 단계)
+- [x] D1 schema/model 생성물이 최신이며 기존 열·relation·index와 external owner 계약 유지. (적용 후 `db:generate`)
+- [x] preflight 정상, additive apply 성공. — dual-write 배포 후 old writer 교체 단계는 **없었다**: D1~D3 코드가
+  한 PR로 merge됐고 DB는 dev 서버가 꺼진 상태에서 D1→backfill→D3를 2분 안에 적용했다. old writer가
+  D1 schema를 쓴 구간 자체가 없다.
+- [x] 전체 preflight는 하나의 read-only RepeatableRead snapshot. 동시 등록은 서버가 꺼져 있어 발생하지 않았다.
+- [x] `--pre` 검사에서 ownerUserId/repoOwner null·불일치 0, available 집합 = 전체(under-cap).
+- [ ] marker skip 없는 catch-up / 동일 재실행 no-op — 해당 없음. D1 CLI는 D2 commit에서 `--apply`를 거부하도록
+  폐기됐고 D3 commit에서 삭제됐다. backfill은 아래 기록의 1회성 SQL로 수행했다.
+- [x] 기존 row 보존 및 failure rollback — 실제 DB single-transaction rehearsal(ROLLBACK)에서 16 table 값 지문
+  전후 동일, `--pre`/`--post`의 preserved fingerprint 동일.
+- [ ] MCP 최종 JSON baseline 비교 — `project-query.test.ts` unit fixture만. live DB body 비교는 하지 않았다.
+- [x] unit suite CI 수집, type/build/FSD 통과. — 격리 DB runner(`rehearse-project-availability.ts`)는 실행하지
+  않았고 D3 commit에서 삭제됐다. 실제 DB rehearsal로 대체.
+- [ ] activeProjectIds/projectAccess/guard 동작 불변 — 해당 없음. D3까지 함께 적용되어 old policy는 제거됐다.
+- [x] snapshot event/version/asOf·migration 경로·명령 결과 보고. (아래 기록)
+- [x] D2 진입 전 catch-up·writer 전환 — cutover 시점에 source drift 없음(등록·플랜 변경 0).
+- [ ] 코드 rollback smoke — 실행하지 않았다. D3까지 적용된 뒤라 D1 code rollback 경로는 더 이상 유효하지 않다.
 
 ## Readiness / Blockers / Approval
 
@@ -604,6 +612,9 @@ CI에는 해당 corpus가 없고 D1은 template를 수정하지 않으므로 자
 - SQL·rehearsal 결과·대상 DB 적용 승인은 부모 Approval Gate에 따른다. 문서 검증 통과는 코드 변경,
   DB 적용 또는 다음 Phase 시작 권한을 부여하지 않는다.
 - 부모와 현재 변경 내용의 기술적 충돌을 발견하면 이 문서에서 제품 정책을 바꾸지 않는다.
+- (2026-09-14 해소) BLK-IPA-D1-01: 대상 DB read-only 조회로 owner 정확히 1·일반 member 0·상한 초과 0 확인.
+  격리 rehearsal DB는 없었고, 실제 DB에서 D1→backfill→D3를 한 transaction으로 실행한 뒤 ROLLBACK하는
+  rehearsal로 대체했다. 이 대체는 사용자가 결과를 본 뒤 승인했다.
 
 부모의 D1 completion wording은 D1 준비 데이터에 한정해 해석한다. 실제 owner-only 접근은 D2/D3이고
 부모 EV-IPA-D1-01의 REQ-IPA-016 prose 참조는 실행 증거가 아니므로 D1 완료 주장에 쓰지 않는다.
@@ -661,6 +672,102 @@ permission denied/exit 126이었고, `node scripts/plugin-lib.mjs --check`는
 - strict mode: 실행하지 않음. 부모가 후속 D2/D3 requirement까지 포함하므로 D1 실행 준비도를
   기계적으로 판단하는 입력으로 적절하지 않다.
 - source가 바뀌면 이전 문서 검증 결과는 현재 readiness 근거로 사용하지 않는다.
+
+## D1 운영 적용 기록 — 2026-09-14
+
+환경: Neon PostgreSQL 18.6, database `neondb`(host `ep-shy-butterfly-…`), 코드 `dev@2128881`(PR #42 merge),
+Prisma 7.10.0. dev 서버는 꺼진 상태였다(유지보수 창과 동일). 모든 값은 마스킹하거나 hash로만 남긴다.
+
+### 적용 전 상태 (read-only 조회)
+
+| 항목 | 값 |
+| --- | --- |
+| User / Project / ProjectMember | 1 / 1 / 1 (role owner) |
+| 일반 member, owner 수 ≠ 1인 project | 0 / 0 |
+| Subscription | 1 (max), 상한 초과 owner 0 |
+| 보존 대상 row | AgentRun 21, AgentRunStep 59, BacklogItem 9, BoardItem 9, PipelineRun 6, PipelineVersion 3, ProjectToken 17, Report 13, Template 11, TransitionEvent 69, Workspace 1, OwnerToken 0, Command 0 |
+| migration 이력 | 10개 (`20260911011905_project_runbook_version`까지) |
+
+백업: drop 대상만(ProjectMember 행, `Project.owner` 값, `_prisma_migrations`, 전체 table row count)
+`C:\Users\hamso\stagekeeper-backups\neondb-pre-ipa-20260914.json`, SHA-256
+`0ee3100e89c1ae10bf418a376ec16020c7029b4e735da05df268b9b4a81e7e7a`. 전체 논리 백업은 token hash가 파일로
+떨어진다는 이유로 도구 권한이 거부해 범위를 좁혔다. Neon branch snapshot은 CLI가 없어 만들지 않았다.
+
+### 계획과 다르게 실행한 것
+
+- **D1 backfill CLI를 쓰지 않았다.** `backfill-project-availability.ts`는 D2 commit(`7e1678d`)에서 `--apply`를
+  거부하도록 폐기됐고 D3 commit(`10d7f30`)에서 삭제됐다. 계획의 "D1 도구로 apply → D2 배포 → D3" 순서를 그대로
+  돌릴 수 있는 commit이 없어, 아래 1회성 SQL을 작성해 실제 DB rehearsal로 검증한 뒤 적용했다.
+- **격리 rehearsal DB(`IPA_REHEARSAL_DATABASE_URL`)를 쓰지 않았다.** 두 번째 PostgreSQL이 없었다. 대신 실제
+  DB에서 D1 migration SQL → backfill SQL → D3 migration SQL을 한 transaction으로 실행하고 ROLLBACK했다.
+  결과: 세 단계 모두 성공, 보존 16 table(D1 추가 열·D3 삭제 열 제외) 값 지문 전·중·후 동일
+  (`27433306965c05af…`), 소유자 매핑이 legacy owner member/`Project.owner`와 일치, ROLLBACK 후 catalog 원복.
+  rehearsal script SHA-256 `5098305b0f465724a61ed7891bb3d8053e0f368214fbe9985d19cdd60cd31abf`.
+- **`migrate deploy`를 두 번 나눠 실행했다.** 대기 migration이 D1·D3 둘이라 한 번에 돌리면 backfill이
+  들어갈 틈이 없고 D3의 `RAISE EXCEPTION`이 난다. D3 폴더를 잠시 밖으로 옮기고 D1만 적용한 뒤 되돌렸다
+  (`git status` 깨끗함 확인).
+
+### 적용 순서와 결과
+
+| # | 단계 | 결과 |
+| --- | --- | --- |
+| 1 | `node node_modules/prisma/build/index.js migrate deploy` (D3 폴더 제외) | `20260913090000_add_individual_project_availability_foundation` 적용. `_prisma_migrations` checksum `e9ae81e4336f098a77d249e3dc179567b4b75d76aa2e3cd099e8cdd364a21bd9`, 14:21:55–14:21:57Z, rolled_back null |
+| 2 | backfill SQL commit (아래) | Project 1: ownerUserId ← owner member, repoOwner ← `Project.owner`, available true, lastSelectedAt/lastSyncedAt null. User version 0→1. event v1 `system`/`migration-backfill`, fromPlan=toPlan=`max`, added/removed `[]`, available `[project]`, basis null |
+| 3 | `check:project-ownership:cleanup -- --pre` | `ok: true`, issues 0, schemaFingerprint `a4abfbe6…`, preservedDataFingerprint `7ad7bca56d33d5e7…` |
+| 4~6 | D3 적용·검사·재생성 | D3 문서 운영 적용 기록 참조. `--post`의 preservedDataFingerprint는 3과 동일 |
+
+### 적용한 backfill SQL
+
+SHA-256 `ed5af14b33614ff1647f91b519c036105ff51d69555fc899bc79014fabacbf3f`. `project-availability-migration.ts@7e1678d`의
+under-cap 경로만 옮긴 것이다. 행 수가 1이 아니거나, 이미 채워진 흔적이 있거나, 상한을 넘는 owner가 있으면
+`RAISE EXCEPTION`으로 거부한다. over-cap ranking은 구현하지 않았다(대상 DB에 해당 사용자가 없었다).
+
+```sql
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
+LOCK TABLE "Project", "ProjectAvailabilityEvent", "ProjectMember", "Subscription", "User" IN SHARE ROW EXCLUSIVE MODE;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM "Project" p LEFT JOIN "ProjectMember" m ON m."projectId" = p.id
+    GROUP BY p.id HAVING count(m."userId") <> 1 OR count(*) FILTER (WHERE m.role = 'owner') <> 1
+  ) THEN RAISE EXCEPTION 'backfill refused: a project does not have exactly one owner member and no other members'; END IF;
+  IF EXISTS (SELECT 1 FROM "Project" WHERE "ownerUserId" IS NOT NULL OR "repoOwner" IS NOT NULL
+             OR "lastSelectedAt" IS NOT NULL OR "lastSyncedAt" IS NOT NULL OR NOT available)
+     OR EXISTS (SELECT 1 FROM "ProjectAvailabilityEvent")
+     OR EXISTS (SELECT 1 FROM "User" WHERE "projectAvailabilityVersion" <> 0)
+  THEN RAISE EXCEPTION 'backfill refused: availability lifecycle already started'; END IF;
+  IF EXISTS (
+    SELECT 1 FROM "ProjectMember" m LEFT JOIN "Subscription" s ON s."userId" = m."userId"
+    WHERE m.role = 'owner' GROUP BY m."userId", s.plan
+    HAVING count(*) > CASE WHEN s.plan = 'max' THEN 2147483647 WHEN s.plan = 'pro' THEN 5 ELSE 1 END
+  ) THEN RAISE EXCEPTION 'backfill refused: an owner is over the plan cap and needs ranking'; END IF;
+END $$;
+
+UPDATE "Project" p SET "ownerUserId" = m."userId", "repoOwner" = p.owner
+FROM "ProjectMember" m WHERE m."projectId" = p.id AND m.role = 'owner';
+
+UPDATE "User" u SET "projectAvailabilityVersion" = 1
+WHERE EXISTS (SELECT 1 FROM "Project" p WHERE p."ownerUserId" = u.id);
+
+INSERT INTO "ProjectAvailabilityEvent"
+  (id, "ownerUserId", version, actor, reason, "fromPlan", "toPlan", "addedProjectIds", "removedProjectIds", "availableProjectIds", basis)
+SELECT gen_random_uuid()::text, u.id, 1, 'system', 'migration-backfill', np.plan, np.plan,
+       ARRAY[]::text[], ARRAY[]::text[],
+       ARRAY(SELECT p.id FROM "Project" p WHERE p."ownerUserId" = u.id ORDER BY p.id), NULL
+FROM "User" u LEFT JOIN "Subscription" s ON s."userId" = u.id
+CROSS JOIN LATERAL (SELECT CASE WHEN s.plan IN ('free', 'pro', 'max') THEN s.plan ELSE 'free' END AS plan) np
+WHERE u."projectAvailabilityVersion" = 1;
+COMMIT;
+```
+
+### 미실행
+
+- 격리 DB fixture runner(owner 0/2·member·barrier·두 연결 동시 등록·SIGINT). 실제 DB에는 그런 데이터가 없었고
+  runner는 D3에서 삭제됐다.
+- MCP `project_get` live body 비교, code rollback smoke.
 
 ## 고위험 검증 재현 기준
 
@@ -869,5 +976,11 @@ permission denied/exit 126이었고, `node scripts/plugin-lib.mjs --check`는
 
 ## Completion or Closure Notes
 
-현재 pending이다. 구현 후에만 실제 완료일·검증 요약·PR/commit·migration 증거와 D2 인계를 채운다.
-취소하는 경우에도 닫힘 사유와 남은 schema/data 상태를 실제 결과로 기록한다.
+- completed-at: 2026-09-15
+- verification-summary: front matter 참조.
+- implementation PR/commit: `7e1678d` (PR #42). 이 문서의 완료 기록은 `harness/ipa-closeout` PR.
+- migration 증거: `20260913090000_add_individual_project_availability_foundation`, checksum
+  `e9ae81e4336f098a77d249e3dc179567b4b75d76aa2e3cd099e8cdd364a21bd9`, 2026-09-14 14:21Z. backfill SQL SHA-256
+  `ed5af14b33614ff1647f91b519c036105ff51d69555fc899bc79014fabacbf3f`.
+- D2 인계: 같은 세션에서 D3까지 이어서 적용됐다. D2 문서 운영 전환 기록 참조.
+- 계획 대비 편차와 미실행 항목: 위 "D1 운영 적용 기록" 절.

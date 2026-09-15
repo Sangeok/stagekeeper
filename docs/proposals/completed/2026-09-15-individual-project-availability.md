@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "awaiting-approval"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-12"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "HamSangEok"
+approved-at: "2026-09-14"
+approval-scope: "Phase D1~D3 로컬 구현(PR #42), 대상 DB(neondb) D1 additive migration·backfill·D3 cleanup 적용, D2 브라우저 인수용 임시 데이터 생성·복구. 세션에서 단계별로 승인"
+completed-at: "2026-09-15"
+verification-summary: "D1/D3 migration이 대상 DB에 적용되고 pre/post cleanup 검사 issue 0, 보존 17 table 값 지문 동일. D2 runtime은 PR #42로 dev에 merge, Free 하향·교체·읽기 전용·복귀를 실제 DB에서 브라우저로 확인. 격리 DB concurrency/복구 rehearsal, 두 세션 stale, Pro 교체, direct POST는 미실행(잔여 리스크)"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -21,10 +21,12 @@ related:
 - Risk: HIGH-RISK
 - Drafting mode: WHOLE_SDD
 - Design status: Complete
-- Implementation readiness: Phase D1 `CONDITIONALLY READY` — 대상 DB 무결성 preflight 통과 필요
+- Implementation readiness: **Completed** — D1~D3 코드는 `dev@2128881`(PR #42), 대상 DB는 2026-09-14에
+  D1 additive → backfill → D3 cleanup 순서로 적용. 잔여 검증 gap은 아래 Completion 절 참조
 - Requested output language: Korean
 - Evidence baseline: `/Users/hamsangeok/Desktop/git/stagekeeper`, `dev@0eef5cb`, 작성 전 working tree clean, 2026-09-12 읽기 전용 조사
-- Authority: 이 proposal 문서만 작성. 구현·마이그레이션·계약 문서 수정은 승인 후 별도 작업
+- Authority: 이 proposal 문서만 작성. 구현·마이그레이션·계약 문서 수정은 승인 후 별도 작업.
+  (실행 결과는 각 Phase 문서의 운영 기록 절과 아래 Execution Evidence에 있다)
 
 ## Summary
 
@@ -617,6 +619,8 @@ rollback shadow로 보존하는 것이다.
 - unblock requirement: 모든 대상 환경에서 owner 정확히 1·일반 Member 0 preflight 결과를 보관한다.
 - owner: implementation/operations owner
 - stop condition: 한 행이라도 조건을 어기면 backfill과 schema cutover를 시작하지 않는다.
+- resolution (2026-09-14): 대상 DB `neondb` read-only 조회 — User 1, Project 1, ProjectMember 1(owner), 일반
+  member 0, owner 수 ≠ 1인 project 0, plan max 상한 초과 0. D1 문서 운영 기록 참조.
 
 ### BLK-IPA-D2-01: private template corpus의 용어 확인
 
@@ -627,6 +631,9 @@ rollback shadow로 보존하는 것이다.
 - unblock requirement: private template 원본과 tests에서 Member, locked, project owner 문구를 검색하고 필요한 변경을 D2 범위에 포함한다.
 - owner: template repository owner
 - stop condition: corpus 확인 없이 D2의 copy/contract cutover를 완료 처리하지 않는다.
+- resolution (2026-09-15): private corpus(`plugin/templates`, 별도 저장소 `fd50763`)의 en 파일 10개 전체를
+  검색 — 본문에 Member/locked/oldest 문구 없음. `templates.test.mjs`의 fixture만 옛 `locked:false`를 써서
+  `available:true`로 고침(23/23 통과). DB Template 행 10개는 원본과 hash 동일, seed 불필요.
 
 ### BLK-IPA-D3-01: destructive cleanup 복구 증거
 
@@ -637,12 +644,16 @@ rollback shadow로 보존하는 것이다.
 - unblock requirement: ownerUserId→legacy owner membership 재구성 rehearsal과 대상 DB backup/restore 위치를 기록한다.
 - owner: implementation/operations owner
 - stop condition: 복구 rehearsal과 backup 증거 없이 D3 migration을 실행하지 않는다.
+- resolution (2026-09-14, 부분): drop 대상(`ProjectMember` 1행, `Project.owner` 1값, migration 이력, 전체 row count)을
+  로컬 파일로 백업하고, 실제 대상 DB에서 D1→backfill→D3를 한 transaction으로 실행 뒤 ROLLBACK하는 rehearsal로
+  보존·복원 가능성을 확인한 뒤 적용했다. **별도 DB에서의 보상 migration 실행과 backup restore는 하지 않았다.**
+  사용자 1명·프로젝트 1개 규모라 이 범위로 승인했다(D3 문서 운영 기록 참조).
 
 ## Phase Map
 
 ### Phase D1: Additive ownership and availability foundation
 
-- status: Proposed
+- status: Completed — 코드 `7e1678d`(PR #42), 대상 DB 적용 2026-09-14
 - split rationale: 새 구조를 추가·backfill하되 런타임을 바꾸지 않아 데이터 검증과 rollback을 독립적으로 확인한다.
 - predecessor artifacts: 이 SDD 승인, BLK-IPA-D1-01 preflight
 - entry criteria: 대상 DB owner 무결성 통과, clean migration rehearsal DB 준비
@@ -661,7 +672,7 @@ rollback shadow로 보존하는 것이다.
 
 ### Phase D2: Atomic server policy and user workflow cutover
 
-- status: Proposed
+- status: Completed with recorded gaps — 코드 `7e1678d`(PR #42), 운영 전환 2026-09-14, 브라우저 인수 2026-09-15
 - split rationale: exact set이 없는 UI나 UI가 없는 새 access gate를 배포하지 않도록 서버 정책·action·UI·현재 계약 문서를 한 cutover로 묶는다.
 - predecessor artifacts: Phase D1 exit evidence, private template corpus 확인
 - entry criteria: 새 schema backfill 완료, D1 rollback 가능, D2 copy 확정
@@ -680,7 +691,7 @@ rollback shadow로 보존하는 것이다.
 
 ### Phase D3: Remove Member and legacy owner storage
 
-- status: Proposed
+- status: Completed — 코드 `10d7f30`(PR #42), 대상 DB cleanup 적용 2026-09-14
 - split rationale: 되돌리기 어려운 drop을 새 경로가 실측된 뒤 분리 실행한다.
 - predecessor artifacts: Phase D2 운영·회귀 evidence, BLK-IPA-D3-01 복구 evidence
 - entry criteria: legacy read 0건 정적 검사, shadow write 일치 검사, backup과 역 migration rehearsal
@@ -807,8 +818,10 @@ npm run test:architecture
 | SDD traceability validator | PASS (standard) | canonical ID·관계·REQ coverage 통과 |
 | strict traceability diagnostic | PASS | 승인 전 문서이므로 readiness 근거가 아닌 추가 구조 진단으로만 실행 |
 | semantic review checklist | PASS with recorded gates | HIGH-RISK lifecycle·permission·migration·rollback 검토; BLK와 stop condition은 유지 |
-| 구현 test/build/migration 명령 | Not run yet | 문서 작성만 승인됨 |
-| live DB preflight | Not run yet | BLK-IPA-D1-01; 구현 전 대상 환경에서 필요 |
+| 구현 test/build/migration 명령 | PASS (2026-09-15, `harness/ipa-closeout`) | `npm test`, `npm run test:web` 277, `npm run test:templates` 23, `npm run check`, `npm run build`. 명령별 결과는 D2 문서 운영 전환 기록 |
+| live DB preflight | PASS (2026-09-14) | BLK-IPA-D1-01 resolution. read-only 조회와 `check:project-ownership:cleanup -- --pre` issue 0 |
+| live DB migration apply | PASS (2026-09-14) | D1 `e9ae81e4…`, D3 `e872686839…` 모두 `_prisma_migrations`에 finished, rolled_back null. `migrate status` up to date(12) |
+| 실제 DB 수동 시나리오 | PASS 부분 (2026-09-15) | Free 하향·교체·읽기 전용·복귀·event v1~v5 확인. 두 세션 stale·Pro 교체·direct POST·격리 DB concurrency는 미실행 |
 
 ## Allowed / Forbidden Files
 
@@ -876,6 +889,10 @@ MCP project_get 결과를 D3 전 snapshot과 비교한다.
 
 - 승인 전. 승인 범위는 Phase별로 분리한다. 전체 SDD 승인은 D1 실행만 자동 승인하지 않으며,
   각 Phase의 entry evidence와 상세 plan을 별도로 승인해야 한다.
+- 실제 승인 경로(2026-09-13~15): D1·D2·D3 상세 plan과 로컬 구현은 각 문서 작성 세션에서 승인됐고 PR #42로
+  `dev`에 merge됐다. 대상 DB 적용은 2026-09-14 세션에서 리허설 결과를 본 뒤 "승인"으로, D2 브라우저 인수용
+  임시 데이터(플랜 하향·테스트 프로젝트 등록·삭제)는 2026-09-15에 "진행"으로 승인됐다.
+  격리 DB rehearsal 두 개와 backup restore는 1인·1프로젝트 규모를 이유로 생략을 함께 승인했다.
 
 ## Execution Plan
 
@@ -920,7 +937,13 @@ MCP project_get 결과를 D3 전 snapshot과 비교한다.
 | EV-IPA-SDD-01 | Executed | `python3 /Users/hamsangeok/.codex/skills/write-sdd-spec/scripts/validate_sdd_traceability.py docs/proposals/active/individual-project-availability.md` | `dev@0eef5cb`, 2026-09-12 | PASS; REQ phase/task·verifier coverage 16/16 | SDD structure | canonical ID graph |
 | EV-IPA-SDD-02 | Executed | semantic review checklist | `dev@0eef5cb`, 2026-09-12 | PASS with three explicit implementation gates; unresolved product decision 없음 | SDD semantics | HIGH-RISK design |
 | EV-IPA-SDD-03 | Executed | traceability validator `--strict` diagnostic | `dev@0eef5cb`, 2026-09-12 | PASS; awaiting-approval 문서의 readiness 근거로 사용하지 않음 | SDD structure diagnostic | canonical ID graph |
-| EV-IPA-D1-01 | Not executed | live DB ownership preflight | target DB unresolved | implementation authority 없음 | VFY-IPA-D1-01 | REQ-IPA-015, REQ-IPA-016 |
+| EV-IPA-D1-01 | Executed | live DB ownership preflight (read-only 조회 + D1→backfill→D3 single-transaction rehearsal with ROLLBACK) | `neondb` PostgreSQL 18.6, `dev@2128881`, 2026-09-14 | PASS; owner 1/member 0, 보존 16 table 지문 전후 동일, catalog 원복 확인 | VFY-IPA-D1-01 | REQ-IPA-015, REQ-IPA-016 |
+| EV-IPA-D1-02 | Executed | D1 additive migration + backfill SQL apply, `check:project-ownership:cleanup -- --pre` | 같은 DB, 2026-09-14 14:21Z | PASS; ownerUserId/repoOwner null 0, version 1, event v1 `migration-backfill`, issue 0 | VFY-IPA-D1-01, VFY-IPA-D1-02 | REQ-IPA-015 |
+| EV-IPA-D2-01 | Executed | core/service/permission/UI unit suites (`npm test`, `npm run test:web`, `npm run test:templates`, `npm run check`) | `harness/ipa-closeout`, 2026-09-15 | PASS; 277 web, 23 templates | VFY-IPA-D2-01, VFY-IPA-D2-02, VFY-IPA-D2-03 | REQ-IPA-001~014, 016 |
+| EV-IPA-D2-02 | Executed (partial) | 실제 DB 브라우저 protocol: 등록, `plan:grant free`, 하향 안내, selected-out 배너/읽기 전용, 교체 확인·확정, 복귀, `plan:grant max`, 임시 프로젝트 삭제 | 로컬 dev 서버 + `neondb`, 2026-09-15 | PASS for exercised paths; event v2 registration, v3 plan-downgrade, v4·v5 use-project. 두 세션 stale, Pro 교체 선택, direct POST, 뒤로 가기 갱신, `project_sync` 시각은 미관측 | VFY-IPA-D2-02, VFY-IPA-D2-04 | REQ-IPA-004, 007~011, 013, 014 |
+| EV-IPA-D2-03 | Not executed | 격리 PostgreSQL concurrency/rollback runner | 두 번째 DB 없음 | 잔여 리스크로 기록 | VFY-IPA-D2-02 | REQ-IPA-012, INV-IPA-007 |
+| EV-IPA-D3-01 | Executed | D3 cleanup migration apply, `check:project-ownership:cleanup -- --post`, `migrate status`, `db:generate` | 같은 DB, 2026-09-14 14:23Z | PASS; ProjectMember/legacy owner 부재, NOT NULL·CASCADE, 보존 지문 pre=post, generated 17 models | VFY-IPA-D3-01, VFY-IPA-D3-02 | REQ-IPA-015, REQ-IPA-016, INV-IPA-001 |
+| EV-IPA-D3-02 | Not executed | 별도 DB 보상 migration·backup restore rehearsal (`test:project-availability:d3:db`, `restore:project-ownership:shadow`) | 전용 DB 두 개 없음 | 잔여 리스크로 기록; drop 대상 백업 파일만 확보 | VFY-IPA-D3-02 | BLK-IPA-D3-01 |
 
 ## Next Phase Approval Gate
 
@@ -933,11 +956,23 @@ SQL, backfill/rollback rehearsal과 D1 상세 plan을 함께 검토해 명시적
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: Business/Organization/member model은 별도 SDD
+- completed-at: 2026-09-15
+- verification-summary: front matter 참조. 명령별·단계별 결과는 D1/D2/D3 문서의 운영 기록 절.
+- implementation PR/commit: PR #42 (`7e1678d` D1+D2, `10d7f30` D3, merge `2128881`); closeout PR
+  (`harness/ipa-closeout`: `/projects` 배지·Use 버튼 묶음, 배너 버튼 폭, 문서 완료 기록).
+- changed files summary: schema + migration 2개(`20260913090000_*`, `20260914090000_*`), core entitlement,
+  server access/availability/registration/sync query·service, guard, MCP tools/owner tools, templates/runbook
+  query, FSD project-list·select-project-for-use·manage-token·edit-backlog·edit-pipeline, `/projects`와
+  `/p/[slug]/*` route, cleanup/recovery scripts, current architecture·product-copy 문서.
+- DB 상태: `neondb`에 12 migration 적용, User 1(version 5), Project 1(available, lastSelectedAt set),
+  ProjectAvailabilityEvent 5, ProjectToken 17, AgentRun 21 보존. 임시 테스트 프로젝트는 삭제됨.
+- remaining follow-up:
+  - Business/Organization/member model은 별도 SDD.
+  - 격리 DB concurrency·복구 rehearsal(EV-IPA-D2-03, EV-IPA-D3-02)은 두 번째 PostgreSQL이 생기면 실행한다.
+    그 전까지 D3 복구는 `stagekeeper-backups/neondb-pre-ipa-20260914.json`의 drop 대상 값과 보상 SQL에 의존한다.
+  - 두 세션 stale·Pro 교체 선택·direct POST 거부·뒤로 가기 갱신은 사용자가 Pro 플랜이거나 두 브라우저를 쓸 때 확인한다.
+  - DB에 남은 legacy `Template` 행 `en/CLAUDE.runbook.free.md`는 `deliver.mjs`가 건너뛰므로 영향 없음. 지우려면 별도 결정.
+  - 비공개 템플릿 저장소의 `templates.test.mjs` 수정은 그 저장소에서 아직 commit되지 않았다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -958,5 +993,5 @@ SQL, backfill/rollback rehearsal과 D1 상세 plan을 함께 검토해 명시적
 - [x] REQ→Phase→VFY 추적과 planned/not-executed evidence를 구분했다.
 - [x] Business, 결제, 삭제, pause, client cache와 외부 config rename을 제외했다.
 - [x] 문서 작성 범위에서 구현·live DB·test 결과를 통과했다고 주장하지 않았다.
-- [ ] Phase D1 실행 승인 — 아직 승인 전이다.
-- [ ] 구현 완료 항목 — 아직 pending이다.
+- [x] Phase D1 실행 승인 — 2026-09-14 대상 DB 적용 승인.
+- [x] 구현 완료 항목 — D1~D3 코드 merge, DB 적용, D2 인수(부분). 미실행 검증은 Execution Evidence와 follow-up에 기록.
