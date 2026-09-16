@@ -1,19 +1,3 @@
-// next.ts — agent_next의 규칙. DB·프레임워크 없음: 사실을 묻고 기록하는 일은 NextDeps로 받는다(runs.ts가 Prisma로 채운다).
-//
-// 에이전트는 템플릿 본문을 파일로 받지 않는다. 스텁(파일)이 "첫 호출은 agent_next"라고만 말하고, 여기가 단계를
-// 한 번에 하나씩 준다. 커서는 AgentRun(project, agent, key)이고, outcome을 실은 호출마다 AgentRunStep 한 줄을 남긴다.
-//
-//   outcome 없음  → 지금 단계를 다시 준다(컴팩션·재시작 복구). run이 없으면 첫 단계로 새 run을 연다
-//   outcome 있음  → 템플릿 지시어대로 전진한다. ok = next: 후보 순서, failed = on failed:, blocked = on blocked:
-//                   후보의 requires가 전부 맞아야 열린다. 하나도 안 열리면 거부(문구 고정)하고 자리에 머문다
-//                   목적지가 done이면 run을 닫고 {done: true}. 열린 run이 없는데 outcome이 오면 {done: true} + 그게 무슨 뜻인지 설명하는 note
-//                   (dev의 report·hold는 board_transition으로 항목을 옮긴 뒤 ok를 보낸다 — 그 사이 서버가 run을 닫았다)
-//   outcome handoff → 커밋 권한이 없어 멈췄다. 원장에 남기고 **같은 단계를 돌려준다** — 전진도 분기도 없다.
-//                   재개는 outcome 없는 호출. 배너가 열린 run의 마지막 원장 행으로 "당신 차례"를 읽는다
-//
-// 지키는 것: 단계 본문은 커서가 가리키는 그것만 렌더한다. 전진은 CAS(stepId가 그대로일 때만)라 같은 호출이
-// 두 번 와도 두 단계를 넘지 않는다. 열리지 않은 단계를 거듭 두드리면 refused가 쌓여 경고하고, 원장 행 수가
-// 토큰당 호출 제한에 걸린다 — 보드 상태를 바꿔가며 본문을 긁어 모으는 값이 비싸진다.
 import { DISPATCH_WINDOW_DAYS, REPORT_AGENTS, allowsAgent, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
 import { renderTemplate } from "@harness/core/render.mjs";
 import { STATUSES, canPropose } from "@harness/core/transitions.mjs";
@@ -24,17 +8,22 @@ import { DONE, TemplateFormatError, findStep, splitTemplate, type ParsedTemplate
 // handoff: 커밋 권한이 없어 멈췄다 — 전진·분기 없이 원장에 남고 자리에 머문다. 배너가 이 행을 읽는다.
 export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
-// 단계를 끝내는 outcome. handoff는 자리에 머무는 기록이라 여기 없다 — 그 뒤의 ok가 그 단계의 마지막 말이다.
-const TERMINAL: readonly string[] = ["ok", "blocked", "failed"];
+
 export const NOTE_MAX = 500;
 export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 }; // 토큰당, 원장 행(outcome 실은 호출) 기준
 export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
 const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만 쓴다
 
-export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string };
-export type NextOutput = { step: string; instruction: string; done: false } | { done: true; note?: string };
+export type Receipt = { runId: string; revision: number; stepId: string };
+export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt };
+export type NextOutput = { step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string };
 export type Scope = { projectId: string; tokenId: string };
-type RunRow = { id: string; stepId: string };
+export type RunRow = { id: string; stepId: string; revision: number; closedAt: Date | null };
+export type OutcomeCommit = {
+  scope: Scope; agent: string; key: string | null; receipt: Receipt; outcome: Outcome; note: string | null;
+  destination: { kind: "stay"; refused: boolean } | { kind: "step"; stepId: string } | { kind: "done" } | { kind: "closed"; allowTerminal: boolean } | { kind: "retired"; run: RunRow };
+};
+export type CommitResult = { kind: "accepted"; run: RunRow; refused: number } | { kind: "stale" } | { kind: "closed" };
 
 export type NextDeps = {
   access(projectId: string): Promise<ProjectAccess>;
@@ -49,11 +38,9 @@ export type NextDeps = {
   itemAgent(projectId: string, key: string): Promise<string | null>; // 그 행에 배정된 에이전트. 행이 없으면 null
   openCount(projectId: string): Promise<number>;
   verifyOk(projectId: string, agent: string, key: string | null): Promise<boolean>; // 같은 (project, agent, key)의 어느 run이든 verify/ok 기록
-  // 이미 닫힌 마지막 run과, 그 run이 선 단계에 남은 outcome들. 닫힌 run의 마지막 한 줄을 받기 위해서만 쓴다.
-  lastClosedRun(projectId: string, agent: string, key: string | null): Promise<{ id: string; stepId: string; stepOutcomes: string[] } | null>;
-  record(runId: string, step: { stepId: string; outcome: Outcome; note: string | null }): Promise<void>;
-  advance(runId: string, from: string, to: string | null): Promise<boolean>; // CAS. to === null 이면 닫는다. 어긋나면 false
-  refused(runId: string): Promise<number>; // 거부 횟수를 올리고 그 값을 준다
+  runByReceipt(projectId: string, agent: string, key: string | null, runId: string): Promise<RunRow | null>;
+  commitOutcome(input: OutcomeCommit): Promise<CommitResult>;
+  closeRun(run: RunRow): Promise<void>;
 };
 
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -112,98 +99,88 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   if (needsKey(parsed) && key === null) return fail(`agent \`${agent}\` needs a key`);
   if (!needsKey(parsed) && key !== null) return fail(`agent \`${agent}\` takes no key`);
 
-  const serve = async (step: Step, prefix = ""): Promise<ServerResult<NextOutput>> => {
+  const serve = async (run: RunRow, step: Step, prefix = ""): Promise<ServerResult<NextOutput>> => {
     const vars = await deps.vars(projectId, agent);
-    return ok({ step: step.id, instruction: prefix + renderTemplate(step.body, vars), done: false });
+    const missing = await new Facts(deps, projectId, agent, key, false).unmet(step.requires);
+    if (missing.length) return fail(`not open: step \`${step.id}\` opens when ${missing.join(" and ")}`);
+    return ok({ step: step.id, instruction: prefix + renderTemplate(step.body, vars), done: false,
+      receipt: { runId: run.id, revision: run.revision, stepId: run.stepId } });
   };
-
-  const run = await deps.openRun(projectId, agent, key);
+  const finished = (): ServerResult<NextOutput> => ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });
+  if (input.outcome && (!input.receipt || typeof input.receipt.runId !== "string" || !input.receipt.runId
+      || typeof input.receipt.stepId !== "string" || !input.receipt.stepId || !Number.isInteger(input.receipt.revision)
+      || input.receipt.revision < 0 || input.receipt.revision > 2147483647)) {
+    return fail("receipt required: call again without outcome and send the returned receipt. If your stub is outdated, run /harness:init again.");
+  }
+  const run = input.outcome
+    ? await deps.runByReceipt(projectId, agent, key, input.receipt!.runId)
+    : await deps.openRun(projectId, agent, key);
   if (!run) {
-    // 열린 run이 없는데 outcome이 왔다. 마지막 단계의 ok를 두 번 보낸 것일 수도, 이미 닫힌 run에 대고
-    // 다음 노드의 일을 보내려는 것일 수도 있다. 둘을 여기서 구분할 수 없으므로 **무엇을 뜻하는지 말한다** —
-    // 맨 `{done: true}`는 "이 항목이 끝났다"로 읽혀서, 다음 노드가 남았는데도 항목을 두고 넘어가게 된다(실측).
-    if (input.outcome) {
-      // 런북은 dev의 두 단계 모두 마지막 지시가 agent_next(outcome)인데, 그 직전 호출(plan_submit /
-      // board_transition)이 이미 run을 닫는다. 그래서 그 마지막 말이 원장에 한 줄도 안 남아, plan run의
-      // 원장이 통째로 비었다(실측). 닫힌 run이라도 **그 단계의 마지막 말 한 줄**은 받는다.
-      // 단계당 한 번뿐이다 — 이미 끝낸 단계에 대고 계속 보내면 아무것도 더하지 않는다.
-      // 어느 run에 붙는가: 가장 최근에 닫힌 것. 정상 순서에서는 방금 그 단계를 걷던 run이다.
-      // 그 뒤 같은 key로 새 run이 열리고 닫힌 다음에 늦은 outcome이 오면 뒤엣것에 붙는다 —
-      // 호출이 자기 단계를 말하지 않으므로 서버가 더 정확히 가를 수 없다. 드문 순서이고, 틀려도
-      // 원장에 한 줄이 더 생길 뿐 커서는 움직이지 않는다.
-      const last = await deps.lastClosedRun(projectId, agent, key);
-      if (last && !last.stepOutcomes.some((o) => TERMINAL.includes(o))) {
-        await deps.record(last.id, { stepId: last.stepId, outcome: input.outcome, note: input.note ?? null });
-      }
-      return ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });
-    }
-    // 디스패치 상한(지난 30일에 연 run 수) — run **개설**에서만 센다. 재개(열린 run의 outcome 없는 호출)는 세지 않는다: 컴팩션·재시작 복구가 비싸지면 안 된다.
+    if (input.outcome) return fail("this receipt does not belong to this call's run; call again without outcome");
     const used = await deps.recentRuns(projectId, dispatchCutoff(new Date()));
     const capMsg = capError(access.plan, "dispatches", used);
     if (capMsg) return fail(`${capMsg} Counted over the last ${DISPATCH_WINDOW_DAYS} days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.`);
-    // **열리는 첫 단계**로 연다. 예전에는 언제나 steps[0]이라, 보드 상태로 갈라지는 에이전트(dev)는
-    // 상태를 읽고 스스로 분기하는 라우터 단계를 따로 둬야 했다 — 그 단계는 일을 하나도 하지 않으면서
-    // 왕복 하나(약 63,000 토큰, G1 실측)를 썼다. 판정은 전진 때 쓰는 것과 같은 requires다.
-    // 첫 단계에 requires가 없는 템플릿(pm·plan-verifier·doc-auditor·feature-scout)은 동작이 같다.
     const facts = new Facts(deps, projectId, agent, key, false);
     const unmet: string[] = [];
     for (const candidate of entrySteps(parsed)) {
       const missing = await facts.unmet(candidate.requires);
-      if (missing.length === 0) {
-        await deps.createRun(scope, agent, key, candidate.id);
-        return serve(candidate);
-      }
+      if (!missing.length) return serve(await deps.createRun(scope, agent, key, candidate.id), candidate);
       unmet.push(`step \`${candidate.id}\` opens when ${missing.join(" and ")}`);
     }
-    // 열린 단계가 없으면 **run을 만들지 않는다** — 커서를 남기면 다음 호출이 그 자리에 갇힌다.
     return fail(`not open: ${unmet.join("; ")}`);
   }
-
   const current = findStep(parsed, run.stepId);
-  if (!current) {
-    // 템플릿이 run 도중에 바뀌었다(시드). 커서가 가리킬 곳이 없으니 닫고 처음부터 다시 걷게 한다.
-    await deps.advance(run.id, run.stepId, null);
-    return fail(`the template changed under this run; call again without outcome to start over`);
-  }
-  if (!input.outcome) return serve(current);
-
-  const outcome = input.outcome;
-  const note = input.note ?? null;
-  await deps.record(run.id, { stepId: current.id, outcome, note });
-
-  // 핸드오프는 라우팅이 아니다 — 원장에 "멈춤"을 남기고 같은 단계를 돌려준다. 템플릿의 `on handoff:`는
-  // steps.ts가 모르는 지시어로 거부하므로 분기 경로가 생길 수 없다. 재개는 outcome 없는 호출이다.
-  if (outcome === "handoff") {
-    return serve(current, `(handoff recorded — you are still on \`${current.id}\`; after the commit, call again without outcome)\n\n`);
-  }
-
-  const candidates = outcome === "ok" ? current.next : outcome === "failed" ? [current.onFailed] : [current.onBlocked];
-  const routed = candidates.filter((c): c is string => c !== undefined);
-  if (routed.length === 0) {
-    return serve(current, `(${outcome} recorded; this step has no \`on ${outcome}:\` route — you are still on \`${current.id}\`)\n\n`);
-  }
-
-  // requires 판정. 지금 보고하는 단계도 사실로 친다 — verify를 ok로 보내는 그 호출에서 report의 verify-ok가 선다.
-  const facts = new Facts(deps, projectId, agent, key, current.id === "verify" && outcome === "ok");
-  const unmet: string[] = [];
-  for (const id of routed) {
-    if (id === DONE) {
-      if (!(await deps.advance(run.id, current.id, null))) return stale();
-      return ok({ done: true });
+  if (!input.outcome) {
+    if (!current) {
+      await deps.closeRun(run);
+      return fail("the template changed under this run; call again without outcome to start over");
     }
-    const target = findStep(parsed, id)!; // splitTemplate이 참조를 검증했다
-    const missing = await facts.unmet(target.requires);
-    if (missing.length === 0) {
-      if (!(await deps.advance(run.id, current.id, target.id))) return stale();
-      return serve(target);
+    return serve(run, current);
+  }
+  const receipt = input.receipt!;
+  let destination: OutcomeCommit["destination"] = { kind: "stay", refused: false };
+  let target = current;
+  let refusal: string | undefined;
+  if (!current && !run.closedAt) {
+    destination = { kind: "retired", run };
+  } else if (run.closedAt) {
+    destination = { kind: "closed", allowTerminal: !!current && input.outcome !== "handoff" };
+  } else if (current && input.outcome !== "handoff") {
+    const candidates = input.outcome === "ok" ? current.next
+      : input.outcome === "failed" ? [current.onFailed] : [current.onBlocked];
+    const routed = candidates.filter((id): id is string => id !== undefined);
+    const facts = new Facts(deps, projectId, agent, key, current.id === "verify" && input.outcome === "ok");
+    const unmet: string[] = [];
+    for (const id of routed) {
+      if (id === DONE) { destination = { kind: "done" }; break; }
+      const candidate = findStep(parsed, id)!;
+      const missing = await facts.unmet(candidate.requires);
+      if (!missing.length) { target = candidate; destination = { kind: "step", stepId: id }; break; }
+      unmet.push(`step \`${id}\` opens when ${missing.join(" and ")}`);
     }
-    unmet.push(`step \`${target.id}\` opens when ${missing.join(" and ")}`);
+    if (routed.length && destination.kind === "stay") {
+      destination = { kind: "stay", refused: true };
+      refusal = `not open: ${unmet.join("; ")}`;
+    }
   }
-  const count = await deps.refused(run.id);
-  if (count === REFUSAL_WARN_AT) {
-    console.warn(`agent_next: run ${run.id} (${projectId} ${agent}${key ? " " + key : ""}) hit ${count} refusals at step \`${current.id}\``);
+  let committed: CommitResult;
+  try {
+    committed = await deps.commitOutcome({ scope, agent, key, receipt, outcome: input.outcome, note: input.note ?? null, destination });
+  } catch {
+    console.error("agent_next: outcome transaction failed", { runId: run.id, stepId: receipt.stepId });
+    return fail("could not record the outcome; call again without outcome to see the current step");
   }
-  return fail(`not open: ${unmet.join("; ")}`);
+  if (committed.kind === "stale") return stale();
+  if (committed.kind === "closed" || destination.kind === "closed" || destination.kind === "retired") return finished();
+  if (committed.refused === REFUSAL_WARN_AT && destination.kind === "stay" && destination.refused) {
+    console.warn(`agent_next: run ${run.id} (${projectId} ${agent}${key ? " " + key : ""}) hit ${committed.refused} refusals at step \`${run.stepId}\``);
+  }
+  if (refusal) return fail(refusal);
+  if (destination.kind === "done") return ok({ done: true });
+  const prefix = input.outcome === "handoff"
+    ? `(handoff recorded — you are still on \`${target!.id}\`; after the commit, call again without outcome)\n\n`
+    : destination.kind === "stay" ? `(${input.outcome} recorded; this step has no \`on ${input.outcome}:\` route — you are still on \`${target!.id}\`)\n\n` : "";
+  return serve(committed.run, target!, prefix);
 }
 
 const stale = () => fail("stale: the run moved under this call — call again without outcome to see the current step");

@@ -2,6 +2,7 @@
 // (templates.ts와 같은 갈래).
 import "server-only";
 import { RUNBOOK_TEMPLATE, runbookIsStale } from "@harness/core/runbook.mjs";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
 import { makeRecordRunbook } from "./runbook-query";
@@ -21,10 +22,10 @@ export const recordRunbook = makeRecordRunbook({
 
 // 이 프로젝트의 저장소에 심긴 런북이 낡았는가. 판정 자체는 packages/core에 있다.
 // 언어별 행을 전부 읽는다 — 어느 언어의 현재 원문과도 안 맞으면 낡은 것이다(언어를 저장하지 않는 이유).
-export async function runbookStale(projectId: string): Promise<boolean> {
+export async function runbookStale(projectId: string, db: PrismaClient = prisma): Promise<boolean> {
   const [project, rows] = await Promise.all([
-    prisma.project.findUnique({ where: { id: projectId }, select: { runbookVersion: true } }),
-    prisma.template.findMany({ where: { path: RUNBOOK_TEMPLATE }, select: { body: true } }),
+    db.project.findUnique({ where: { id: projectId }, select: { runbookVersion: true } }),
+    db.template.findMany({ where: { path: RUNBOOK_TEMPLATE }, select: { body: true } }),
   ]);
   return runbookIsStale(project?.runbookVersion ?? null, rows.map((row) => row.body));
 }

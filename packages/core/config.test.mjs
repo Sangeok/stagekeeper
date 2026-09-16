@@ -62,3 +62,22 @@ describe("parseHarnessConfig", () => {
   });
   it("rejects unknown release.auth", () => assert.throws(() => parseHarnessConfig({ ...base(), release: { baseUrl: "https://x", auth: "oauth" } }), /release.auth/));
 });
+
+it("normalized workspace validation preserves semantic order and raw knowledge compatibility", async () => {
+  const { validateWorkspaceSemantics: validateWorkspaces } = await import("./workspaces.mjs");
+  const valid = { id: "web", path: ".", agent: "dev", verify: ["npm test"], knowledge: null, readOnly: [] };
+  assert.deepEqual(validateWorkspaces([valid]), [valid]);
+  for (const [input, expected] of [
+    [[], /at least one workspace/],
+    [[{ ...valid, agent: "pm", verify: [] }], /reserved report agent/],
+    [[valid, { ...valid, id: "" }], /duplicate agent/],
+    [[{ ...valid, id: "", verify: [] }], /verify/],
+    [[{ ...valid, id: "", readOnly: null }], /readOnly/],
+    [[{ ...valid, verify: [""], knowledge: "" }], /verify\[0\]/],
+    [[{ ...valid, knowledge: "", readOnly: [""] }], /knowledge/],
+  ]) assert.throws(() => validateWorkspaces(input), expected);
+  const rawConfig = { version: 1, project: { owner: "a", repo: "b", branch: "main" }, workspaces: [valid] };
+  assert.throws(() => parseHarnessConfig(rawConfig), /knowledge/);
+  const raw = { ...valid }; delete raw.knowledge; delete raw.readOnly;
+  assert.deepEqual(parseHarnessConfig({ ...rawConfig, workspaces: [raw] }).workspaces, [valid]);
+});

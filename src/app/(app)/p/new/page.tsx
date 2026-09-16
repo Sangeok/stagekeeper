@@ -16,7 +16,7 @@ export default async function Page() {
       <AppHeader login={user.login} plan={user.plan} />
       <main className="mx-auto flex w-full max-w-[800px] flex-col gap-8 px-5 pt-9 pb-14">
         <h1 className="text-2xl font-semibold tracking-tight">New project</h1>
-        <NewProjectForm action={createProject} mcpUrl={mcpUrl()} defaultOwner={user.login} repos={repos} />
+        <NewProjectForm action={createProject} mcpUrl={mcpUrl()} defaultOwner={user.login} repos={repos.ok ? repos.repos : []} repoLoadFailed={!repos.ok} />
       </main>
     </>
   );

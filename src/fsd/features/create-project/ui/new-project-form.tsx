@@ -15,12 +15,13 @@ type Props = {
   action: (prev: CreateProjectState, form: FormData) => Promise<CreateProjectState>;
   mcpUrl: string;
   defaultOwner: string;
+  repoLoadFailed: boolean;
   repos: RepoOption[]; // 로그인 계정의 공개 저장소. 비공개는 여기 없다 — 그때는 주소를 붙여넣는다
 };
 
 const TEXT_BUTTON = "text-xs text-quiet underline underline-offset-2";
 
-export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
+export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFailed }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE);
   const [owner, setOwner] = useState(defaultOwner);
   const [repo, setRepo] = useState("");
@@ -130,7 +131,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos }: Props) {
               Pick from my repositories
             </button>
           ) : (
-            <span className="text-xs text-quiet">Couldn&apos;t load your repositories. Paste a URL.</span>
+            <span className="text-xs text-quiet">{repoLoadFailed ? "Couldn't load your repositories. Paste a URL." : "No public repositories found. Paste a URL."}</span>
           )}
         </div>
       ) : (
