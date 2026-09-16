@@ -48,7 +48,7 @@
 | `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
 | `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
 | `validation_record` | `{key, text}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
-| `agent_next` | `{agent, key?, outcome?, note?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
+| `agent_next` | `{agent, key?, outcome?, note?, receipt?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
 | `pipeline_next` | `{key?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다 | main-loop | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
@@ -59,7 +59,7 @@
 `TransitionEvent`(note `plan`·`report`·`validation`, actorId = 호출 토큰)를 남긴다 —
 원장 = 감사 로그(불변식 8). `TransitionEvent.channel`은 사람 행에만 `web` | `session`이 실린다(에이전트 행은
 null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트① · `plan` · `in_review` · `validation` · 게이트② · `report` · `done` · 인수 `report`). `agent_next`의 원장은 따로다 —
-`AgentRun`(에이전트·항목별 커서)과 `AgentRunStep`(outcome이 실린 호출 전부, 거부 포함)이며
+`AgentRun`(에이전트·항목별 커서)과 `AgentRunStep`(범위가 확인된 outcome의 수락·거절 감사 기록)이며
 `TransitionEvent`에는 남기지 않는다.
 
 ## MCP 도구 계약 — 소유자 토큰 스코프
@@ -172,9 +172,9 @@ docs/plans/<항목ID>.md`), 다르면 `blocked`로 멈춘다.
 
 ### 커밋 핸드오프
 
-에이전트가 커밋 권한이 없어 멈추면 `agent_next({ outcome: "handoff", note: <준비된 파일 경로> })`를
-보내고 멈춘다. 서버는 `AgentRunStep` 한 행만 남기고 같은 단계를 돌려준다 — 전진도 분기도 없다. 배너는
-열린 run의 **마지막** 원장 행이 handoff면 소유자 차례로 세고, 그 경로를 터미널 줄에 보여 준다. 소유자가
+에이전트가 커밋 권한이 없어 멈추면 `agent_next({ outcome: "handoff", receipt, note: <준비된 파일 경로> })`를
+보내고 멈춘다. 서버는 수락한 `AgentRunStep`과 revision 증가를 함께 저장하고, requires가 여전히 맞으면 같은 단계를 돌려준다. 전진·분기·refused 증가는 없다. 배너는
+열린 run의 **마지막 수락/이전** 원장 행이 handoff면 소유자 차례로 세고, 그 경로를 터미널 줄에 보여 준다. 소유자가
 커밋한 뒤 세션이 outcome 없이 다시 부르면 그 단계가 이어진다. 옛 스텁(outcome 없이 멈추는 것)도 그대로
 동작한다 — 서버가 침묵할 뿐 거부하지 않는다.
 
@@ -222,3 +222,15 @@ v2에서는 `validation_record`가 `in_review`에서만 받고, 되돌리기·�
 5. 테스트
 6. 범위 밖 의존
 7. 대안
+
+## Execution receipts and board writes
+
+Every outcome (ok, blocked, failed, handoff) requires the unchanged receipt from a prior step response. Calls without outcome remain read/resume calls. The server checks project, agent and key before auditing; unknown or foreign run IDs share one error and produce no ledger row.
+
+A successful compare-and-swap on run ID, revision, step and closed state rotates revision and atomically records the accepted outcome and cursor/refusal changes. In-scope stale attempts record accepted:false; they never satisfy verification or drive handoff UI. Legacy accepted:null rows remain evidence. Rate limits use callerTokenId, falling back to the run opener only for legacy rows. All returned step bodies recheck requires.
+
+A board-closed run may accept one final terminal outcome for its matching receipt and existing template step, unless an accepted/legacy terminal outcome already exists there. It changes revision but preserves closedAt. Closed-run responses are done:true with guidance for the next query; handoff and template-removed steps cannot be final terminal evidence.
+
+Board mutations claim id, updatedAt, observed status and discardedAt:null before evidence/event writes. Human callers retain their supplied updatedAt token; agent/pipeline callers use the transaction read. Every write uses max(now, prior updatedAt + 1ms). Any later failure rolls back all earlier writes.
+
+project_sync shares normalized workspace validation with the config parser. It reads the stored roster and validates the union inside a Serializable transaction before upserts. Omitted workspaces remain stored; P2034 returns a retry instruction without partial writes.

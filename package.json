@@ -22,7 +22,9 @@
     "db:migrate": "prisma migrate dev",
     "sync:plugin-lib": "node scripts/plugin-lib.mjs",
     "test:project-availability": "node --import tsx --test \"scripts/project-availability*.test.ts\"",
-    "test:project-availability:d3:db": "node --import tsx scripts/rehearse-project-availability-d3.ts"
+    "test:project-availability:d3:db": "node --import tsx scripts/rehearse-project-availability-d3.ts",
+    "test:server": "node --import ./tests/server/register-server-only.mjs --import tsx --test \"tests/server/*.test.ts\"",
+    "test:server:integration": "node scripts/test-server-integration.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",

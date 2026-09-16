@@ -14,14 +14,37 @@ it("updates sync time without a language and never writes after access or cap re
         findUnique: async () => ({ ownerUserId: "u", repoOwner: "repo", available, ownerUser: { subscription: { plan: "free" } } }),
         update: async (args: unknown) => { writes.push(args); },
       },
-      workspace: { upsert: async (args: unknown) => { writes.push(args); } },
+      workspace: { findMany: async () => [], upsert: async (args: unknown) => { writes.push(args); } },
     } as unknown as Prisma.TransactionClient) } as TransactionHost;
-    const result = await syncProject(client, { projectId: "p", workspaces: [], clock: () => at });
+    const valid = { id: "a", agent: "a", path: ".", knowledge: null, verify: ["npm test"], readOnly: [] };
+    const result = await syncProject(client, { projectId: "p", workspaces: [valid], clock: () => at });
     assert.equal(result.ok, available);
-    assert.deepEqual(writes, available ? [{ where: { id: "p" }, data: { lastSyncedAt: at } }] : []);
+    assert.equal(writes.length, available ? 2 : 0);
+    if (available) assert.deepEqual(writes[0], { where: { id: "p" }, data: { lastSyncedAt: at } });
     writes.length = 0;
-    const w = { id: "a", agent: "a", path: ".", knowledge: null, verify: [], readOnly: [] };
+    const w = { id: "a", agent: "a", path: ".", knowledge: null, verify: ["npm test"], readOnly: [] };
     assert.equal((await syncProject(client, { projectId: "p", workspaces: [w, { ...w, agent: "b" }] })).ok, false);
     assert.deepEqual(writes, []);
   }
+});
+
+it("caps the stored union, permits updates at the cap, and reports serialization conflicts", async () => {
+  const writes: unknown[] = [];
+  let conflict = false;
+  const client = { $transaction: async (run: (tx: Prisma.TransactionClient) => Promise<unknown>, options: { isolationLevel?: string }) => {
+    if (conflict && options.isolationLevel === "Serializable") throw { code: "P2034" };
+    return run({
+      $executeRaw: async () => 0,
+      project: { findUnique: async () => ({ ownerUserId: "u", repoOwner: "repo", available: true, ownerUser: { subscription: { plan: "free" } } }), update: async (args: unknown) => { writes.push(args); } },
+      workspace: { findMany: async () => [{ agent: "dev" }], upsert: async (args: unknown) => { writes.push(args); } },
+    } as unknown as Prisma.TransactionClient);
+  } } as TransactionHost;
+  const valid = { id: "web", path: ".", agent: "dev", verify: ["npm test"], knowledge: null, readOnly: [] };
+  const run = (agent: string) => syncProject(client, { projectId: "p", workspaces: [{ ...valid, agent }] });
+  assert.equal((await run("other")).ok, false);
+  assert.equal(writes.length, 0);
+  assert.equal((await run("dev")).ok, true);
+  assert.equal(writes.length, 2);
+  conflict = true;
+  assert.deepEqual(await run("dev"), { ok: false, reason: "workspace sync conflicted; retry project_sync" });
 });

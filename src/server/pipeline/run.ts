@@ -87,7 +87,7 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
   // 열린 dev run의 마지막 원장 행 — turn-data.server.ts의 agentRun.findMany와 같은 판정을 서버가 따로 갖는다(§D.1)
   const open = node === null || isGateId(node) || node === "accept"
     ? null
-    : await db.agentRun.findFirst({ where: { projectId, key, closedAt: null }, orderBy: { openedAt: "desc" }, include: { steps: { orderBy: { at: "desc" }, take: 1 } } });
+    : await db.agentRun.findFirst({ where: { projectId, key, closedAt: null }, orderBy: { openedAt: "desc" }, include: { steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, orderBy: { at: "desc" }, take: 1 } } });
   const last = open?.steps[0];
   const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
   const dispatches = node !== null && (node === "plan" || node === "implement" || (NODE_AGENT as Record<string, string | undefined>)[node] !== undefined);
