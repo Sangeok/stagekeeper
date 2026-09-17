@@ -57,6 +57,7 @@ stagekeeper/
 ├── plugin/                  # 사용자 저장소에 설치되는 Claude Code 플러그인
 ├── prisma/                  # DB schema와 migration
 ├── scripts/                 # 저장소 검사·복사본 동기화·수동 운영 스크립트 (앱 런타임 아님, verification.md)
+├── tests/server/            # 서버 전용 bootstrap·교차 모듈 테스트, integration/은 격리 PostgreSQL 필요
 └── docs/architecture/       # 현재 문서
 ```
 

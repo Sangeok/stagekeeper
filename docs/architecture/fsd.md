@@ -170,7 +170,7 @@ Route Handler도 같은 원칙으로 transport만 담당하고 `src/server`의 u
 - 일반 파일과 폴더는 kebab-case를 사용한다.
 - React symbol은 PascalCase, hook symbol은 `use...` camelCase를 사용하되 파일은
   `project-card.tsx`, `use-project-filter.ts`처럼 쓴다.
-- 테스트는 대상 옆에 `<name>.test.ts(x)`로 둔다.
+- 일반 단위 테스트는 대상 옆에 `<name>.test.ts(x)`로 둔다. 서버 전용 bootstrap이나 실제 DB를 사용하는 교차 모듈 테스트는 `tests/server/`에 두며, PostgreSQL 테스트는 그 아래 `integration/`으로 구분한다.
 - Next.js 예약 파일(`page.tsx`, `layout.tsx`, `route.ts`, `loading.tsx`,
   `error.tsx`, `not-found.tsx`, `default.tsx`)은 framework 이름을 그대로 쓴다.
 - `temp.ts`, `helpers.ts`, `types.ts` 같은 맥락 없는 이름은 피한다. `types.ts`는

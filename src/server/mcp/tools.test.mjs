@@ -40,7 +40,7 @@ describe("agent-scoped MCP tools", () => {
   // 문구가 갈리는 두 도구는 product-copy를 그대로 따라야 한다.
   it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
-    for (const tool of ["board_transition", "plan_submit"]) {
+    for (const tool of ["board_transition", "plan_submit", "agent_next"]) {
       const expected = copyRow(tool);
       assert.ok(expected, `no product-copy row for ${tool}`);
       assert.equal(meta[tool].description, expected, tool);
@@ -154,4 +154,19 @@ describe("not-selected projects", () => {
     assert.equal("repoOwner" in body(r), false);
     assert.equal(body(r).available, true);
   });
+});
+
+it("MCP receipt schema rejects invalid revisions and retains the complete receipt", () => {
+  const schema = descriptions().agent_next.inputSchema;
+  const base = { agent: "dev", outcome: "ok", receipt: { runId: "r", stepId: "verify", revision: 1 } };
+  assert.deepEqual(schema.parse(base), base);
+  for (const revision of [-1, 0.5, 2147483648]) assert.equal(schema.safeParse({ ...base, receipt: { ...base.receipt, revision } }).success, false);
+});
+it("invalid normalized workspaces never reach projectSync", async () => {
+  const handlers = {};
+  let calls = 0;
+  registerTools({ registerTool: (name, _meta, handler) => { handlers[name] = handler; } }, { access: async () => open, projectSync: async () => { calls++; } });
+  const result = await handlers.project_sync({ workspaces: [{ ...ws[0], verify: [] }] }, ctx);
+  assert.equal(result.isError, true);
+  assert.equal(calls, 0);
 });

@@ -72,7 +72,7 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: R
     where: { projectId, closedAt: { not: null }, ...(bound
       ? { pipelineRunId: run.id, pipelineEntryId: run.entryId }
       : { pipelineRunId: null, openedAt: { gte: run.enteredAt } }) },
-    include: { steps: { select: { stepId: true, outcome: true } }, reports: { where: { boardItemId: row.id } } },
+    include: { steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, select: { stepId: true, outcome: true } }, reports: { where: { boardItemId: row.id } } },
   });
   const item = row.agent && row.backlogItem ? { agent: row.agent, backlogItem: row.backlogItem }
     : await db.boardItem.findUniqueOrThrow({ where: { id: row.id }, select: { agent: true, backlogItem: { select: { key: true } } } });
@@ -118,7 +118,7 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
   const open = node === null || isGateId(node) || node === "accept"
     ? null
     : await db.agentRun.findFirst({ where: { projectId, agent: dispatcherFor(node, row.agent) ?? "", key: ["plan", "implement", "verify"].includes(node) ? key : null, closedAt: null,
-      pipelineRunId: run.version.format === SLOT_FORMAT ? run.id : null, pipelineEntryId: run.version.format === SLOT_FORMAT ? run.entryId : null }, orderBy: { openedAt: "desc" }, include: { steps: { orderBy: { at: "desc" }, take: 1 } } });
+      pipelineRunId: run.version.format === SLOT_FORMAT ? run.id : null, pipelineEntryId: run.version.format === SLOT_FORMAT ? run.entryId : null }, orderBy: { openedAt: "desc" }, include: { steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, orderBy: { at: "desc" }, take: 1 } } });
   const last = open?.steps[0];
   const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
   const dispatches = node !== null && dispatcherFor(node, row.agent) !== null;

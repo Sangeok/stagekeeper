@@ -199,12 +199,13 @@ model Command {                          // 명령 원장 (Phase 3에서 소비)
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
-model AgentRun {                         // agent_next 커서 — (project, agent, key)당 열린 run 하나. 단계 본문은 이 커서가 가리키는 것만 나간다
+model AgentRun {                         // 같은 (project, agent, key)의 여러 열린 run 중 최신 openedAt을 공유 커서로 고른다
   id        String         @id @default(cuid())
   projectId String
   agent     String
   key       String?                      // 항목에 묶인 에이전트(dev)만. pm·감사 에이전트는 null
-  tokenId   String                       // 연 토큰 — 호출 제한의 단위
+  tokenId   String                       // run 개설자. 실제 호출자는 AgentRunStep.callerTokenId
+  revision  Int            @default(0)
   stepId    String                       // 지금 서 있는 단계. 전진은 이 값이 그대로일 때만(CAS)
   refused   Int            @default(0)   // 이 run에서 "열리지 않은 단계" 거부 횟수 — 10회에 경고
   openedAt  DateTime       @default(now())
@@ -221,16 +222,20 @@ model AgentRun {                         // agent_next 커서 — (project, agen
   @@index([tokenId])
 }
 
-model AgentRunStep {                     // 원장 — 에이전트가 outcome을 실어 부른 호출 전부(전진했든 거부됐든). 호출 제한은 이 행 수로 센다
+model AgentRunStep {                     // 수락(true), 거절 감사(false), 이전 원장(null). 거절은 실행 증거가 아니다
   id      String   @id @default(cuid())
   runId   String
   stepId  String
   outcome String                         // ok | blocked | failed | handoff
   note    String?
+  callerTokenId String?                  // 폐기된 토큰도 감사 기록을 보존하므로 FK를 두지 않는다
+  receiptRevision Int?
+  accepted Boolean?
   at      DateTime @default(now())
   run     AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId, at])
+  @@index([callerTokenId, at])
   @@index([at])
 }
 

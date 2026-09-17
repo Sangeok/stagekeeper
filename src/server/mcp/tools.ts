@@ -4,6 +4,9 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { NOTE_MAX, OUTCOMES, type NextInput, type NextOutput } from "@/server/agents/next";
 import type { ProjectAccess } from "@/server/entitlement";
 import type { ServerResult } from "@/server/result";
+import { validateWorkspaceSemantics } from "@harness/core/workspaces.mjs";
+import type { BacklogView, BacklogWithStatusView } from "./views";
+export type { BacklogView, BacklogWithStatusView } from "./views";
 import { z } from "zod";
 
 export const AGENT_TOOL_NAMES = [
@@ -19,10 +22,9 @@ export type WorkspaceInput = { id: string; path: string; agent: string; verify: 
 // 깨졌다. Prisma 타입을 직접 import하지 않는 건 inbox-item.ts의 BoardRow와 같은 이유다.
 export type ProjectView = {
   id: string; slug: string; name: string; owner: string; repo: string; branch: string; language: string;
-  workspaces: { wsId: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] }[];
+  executorKind: string; commandIssue: number | null; runbookVersion: string | null; createdAt: Date;
+  workspaces: { id: string; projectId: string; wsId: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] }[];
 };
-export type BacklogView = { id: string; key: string; title: string; area: string; source: string; removedAt: Date | null };
-export type BacklogWithStatusView = BacklogView & { status: string | null };
 // board_propose는 방금 만든 행만 돌려준다 — backlogItem을 include하지 않는다(board.ts propose).
 export type BoardItemView = {
   id: string; agent: string; status: string; reason: string; results: string[]; validation: string | null;
@@ -86,6 +88,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const { projectId } = scope(ctx);
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;
+    try { validateWorkspaceSemantics(workspaces); } catch (error) { return fail(error instanceof Error ? error.message : "invalid workspaces"); }
     const synced = await deps.projectSync(projectId, workspaces, language);
     return synced.ok ? text({ synced: synced.item }) : fail(synced.reason);
   });
@@ -153,7 +156,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.pipelineNext(projectId, key));
   });
-  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), entry: z.object({ runId: z.string(), entryId: z.string(), slotId: z.string() }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(2147483647), stepId: z.string().min(1) }).optional() }) }, async (args, ctx: Ctx) => {
     const { projectId, tokenId } = scope(ctx);
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;

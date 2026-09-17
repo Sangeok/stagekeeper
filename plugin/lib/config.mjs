@@ -1,7 +1,6 @@
 // 순수. harness.json → 정규화된 설정. 실패는 필드 경로가 붙은 Error 하나로.
-import { REPORT_AGENTS } from "./entitlement.mjs";
+import { validateWorkspaceSemantics } from "./workspaces.mjs";
 
-const AGENT_ID_RE = /^[a-z][a-z0-9-]*$/;
 const EXECUTORS = new Set(["local", "routine"]);
 const RELEASE_AUTH = new Set(["none", "verifier"]);
 
@@ -19,23 +18,9 @@ export function parseHarnessConfig(input) {
     name: p.name === undefined ? p.repo : str(p.name, "project.name"),
   };
   const language = raw.language === undefined ? "en" : str(raw.language, "language");
-  if (!Array.isArray(raw.workspaces) || raw.workspaces.length === 0) fail("workspaces", "at least one workspace");
-  const seen = new Set();
-  const workspaces = raw.workspaces.map((w, i) => {
-    const at = `workspaces[${i}]`;
-    const agent = str(w.agent, `${at}.agent`);
-    if (!AGENT_ID_RE.test(agent)) fail(`${at}.agent`, "must start with a lowercase letter and use only lowercase letters, digits, and dashes");
-    if (REPORT_AGENTS.includes(agent)) fail(`${at}.agent`, `reserved report agent: ${agent}`);
-    if (seen.has(agent)) fail(`${at}.agent`, `duplicate agent: ${agent}`);
-    seen.add(agent);
-    if (!Array.isArray(w.verify) || w.verify.length === 0) fail(`${at}.verify`, "at least one verify command");
-    if (w.readOnly !== undefined && !Array.isArray(w.readOnly)) fail(`${at}.readOnly`, "must be an array of paths");
-    return {
-      id: str(w.id, `${at}.id`), path: str(w.path, `${at}.path`), agent,
-      verify: w.verify.map((c, j) => str(c, `${at}.verify[${j}]`)),
-      knowledge: w.knowledge === undefined ? null : str(w.knowledge, `${at}.knowledge`),
-      readOnly: (w.readOnly ?? []).map((r, j) => str(r, `${at}.readOnly[${j}]`)),
-    };
+  const workspaces = validateWorkspaceSemantics(raw.workspaces, {
+    normalizeKnowledge: (value, path) => value === undefined ? null : str(value, path),
+    normalizeReadOnly: (value) => value === undefined ? [] : value,
   });
   const e = raw.executor === undefined ? { kind: "local" } : raw.executor;
   if (!EXECUTORS.has(e.kind)) fail("executor.kind", "local | routine");

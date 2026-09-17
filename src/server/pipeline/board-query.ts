@@ -49,7 +49,9 @@ async function inProjectTransaction<Result>(projectId: string, work: (tx: Prisma
     await tx.$queryRaw`SELECT "id" FROM "Project" WHERE "id" = ${projectId} FOR UPDATE`;
     const access = await readProjectAccessIn(tx, projectId);
     if (!access.available) throw new BoardRejection(access.reason);
-    return work(tx);
+    const result = await work(tx);
+    if (isRejection(result)) throw new BoardRejection(result.reason);
+    return result;
   }, { timeout: BOARD_TRANSACTION_TIMEOUT_MS, ...options });
 }
 async function latestBoard(projectId: string, openOnly = false, db: Db = prisma) {
@@ -143,13 +145,15 @@ async function getWithHistory(projectId: string, key: string, since?: Date | nul
 }
 
 // 창 밖으로 밀려난 이력이 실제로 있는가 — 항목 화면의 "잘렸다" 한 줄은 이게 true일 때만 뜬다.
-async function hasHistoryBefore(projectId: string, key: string, since: Date): Promise<boolean> {
-  const older = await prisma.transitionEvent.findFirst({
-    where: { at: { lt: since }, boardItem: { projectId, discardedAt: null, backlogItem: { key } } },
-    select: { id: true },
-  });
-  return older !== null;
-}
+  async function hasHistoryBefore(projectId: string, boardItemId: string, since: Date | null): Promise<boolean> {
+    if (since === null) return false;
+    const row = await prisma.boardItem.findFirst({
+      where: { id: boardItemId, projectId, discardedAt: null, OR: [
+        { events: { some: { at: { lt: since } } } }, { reports: { some: { at: { lt: since } } } },
+      ] }, select: { id: true },
+    });
+    return row !== null;
+  }
 
 // 미결 상한(2)은 "세고 나서 만든다" — READ COMMITTED에서는 두 호출자가 같은 수를 읽고 둘 다 만들 수 있다.
 // 스펙이 이 상한을 서버 강제로 규정하므로(불변식·pm 규칙) 이 트랜잭션만 Serializable로 올린다.
@@ -202,9 +206,9 @@ async function transitionIn(
   // 둘 다 전이해 이벤트가 둘, `결과:`가 두 번 누적된다. 어느 값을 쓰는지는 Caller가 정한다.
   const expected = caller.actor === "human" ? caller.expectedUpdatedAt : row.updatedAt;
   const u = await tx.boardItem.updateMany({
-    where: { id: row.id, updatedAt: expected },
+    where: { id: row.id, updatedAt: expected, status: row.status, discardedAt: null },
     // reopen이면 인수 표시를 지운다 — 돌아간 항목은 다시 인수돼야 한다. 다른 전이는 이 열을 건드리지 않는다(undefined).
-    data: { status: d.value.status, results: d.value.results, validation: d.value.validation, acceptedAt: d.value.reopens ? null : undefined },
+    data: { updatedAt: nextTimestamp(row.updatedAt), status: d.value.status, results: d.value.results, validation: d.value.validation, acceptedAt: d.value.reopens ? null : undefined },
   });
   if (u.count === 0) throw new BoardRejection("stale");
   // 채널은 사람 행에만 — 웹인지 세션인지. 에이전트 행은 null(이전 행과 같은 모양).
@@ -244,8 +248,8 @@ async function discard(projectId: string, input: { key: string; userId: string; 
     const d = decideDiscard(row.status);
     if (!d.ok) throw new BoardRejection(d.reason);
     const u = await tx.boardItem.updateMany({
-      where: { id: row.id, updatedAt: input.expectedUpdatedAt },
-      data: { discardedAt: new Date() },
+      where: { id: row.id, updatedAt: input.expectedUpdatedAt, status: row.status, discardedAt: null },
+      data: { discardedAt: new Date(), updatedAt: nextTimestamp(row.updatedAt) },
     });
     if (u.count === 0) throw new BoardRejection("stale");
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: null, actor: "human", actorId: input.userId, channel: "web", note: "discard" } });
@@ -277,7 +281,7 @@ async function gate(
       const t = await transitionIn(tx, projectId, { key: input.key, to: d.value.boundary.to }, caller, { viaGate: true, gateEntry: input.gateEntry }); // transition의 tx 판 — 같은 CAS·같은 이벤트. 게이트 행은 여기서만 지난다
       if (!t.ok) throw new BoardRejection(t.reason);
     } else {
-      const u = await tx.boardItem.updateMany({ where: { id: row.id, updatedAt: caller.expectedUpdatedAt }, data: { updatedAt: new Date() } }); // CAS + 토큰 갱신을 명시한다(빈 data의 @updatedAt 자동 갱신에 기대지 않는다)
+      const u = await tx.boardItem.updateMany({ where: { id: row.id, updatedAt: caller.expectedUpdatedAt, status: row.status, discardedAt: null }, data: { updatedAt: nextTimestamp(row.updatedAt) } }); // CAS + 토큰 갱신을 명시한다(빈 data의 @updatedAt 자동 갱신에 기대지 않는다)
       if (u.count === 0) throw new BoardRejection("stale");
       await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "human", actorId: caller.actorRef, channel: caller.channel, note: `gate:${input.gate}` } });
       await advanceRun(tx, projectId, input.key, input.gateEntry);
@@ -321,12 +325,13 @@ async function recordValidation(projectId: string, input: { key: string; text: s
     const verifierPassedAfterPlan =
       row.status === "in_review" &&
       (await tx.agentRunStep.findFirst({
-        where: { stepId: "verify", outcome: "ok", ...(lastPlan ? { at: { gt: lastPlan.at } } : {}), run: { projectId, agent: PLAN_VERIFIER, key: input.key, ...verifierBinding } },
+        where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", ...(lastPlan ? { at: { gt: lastPlan.at } } : {}), run: { projectId, agent: PLAN_VERIFIER, key: input.key, ...verifierBinding } },
         select: { id: true },
       })) !== null;
     const d = decideValidation({ status: row.status, text: input.text, verifierPassedAfterPlan });
     if (!d.ok) throw new BoardRejection(d.reason);
-    const item = await tx.boardItem.update({ where: { id: row.id }, data: { validation: input.text } });
+    await claim(tx, row, { validation: input.text });
+    const item = await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "validation" } });
     await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item };
@@ -339,7 +344,8 @@ async function submitPlan(projectId: string, input: { key: string; path: string;
     if (!row) return fail(`no such board item: ${input.key}`);
     const d = decidePlanSubmit(row.status);
     if (!d.ok) throw new BoardRejection(d.reason);
-    const item = await tx.boardItem.update({ where: { id: row.id }, data: { planPath: input.path, planCommit: input.commit } });
+    await claim(tx, row, { planPath: input.path, planCommit: input.commit });
+    const item = await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "plan" } });
     // 계획서가 올라왔으면 검토 대기로 넘긴다. 예전에는 에이전트가 board_transition을 따로 불러야 했고,
     // 빠뜨리면 항목이 planning에 남아 dev가 다시 디스패치됐다. 상태 기계의 `planning → in_review`
@@ -364,7 +370,7 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
     const hasVerifyStep =
       row.status === "implementing" &&
       (await tx.agentRunStep.findFirst({
-        where: { stepId: "verify", run: { projectId, agent: input.actor, key: input.key } },
+        where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", run: { projectId, agent: input.actor, key: input.key } },
         select: { id: true },
       })) !== null;
     const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep });
@@ -373,10 +379,14 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
       const agentRun = await tx.agentRun.findUnique({ where: { id: input.runId }, include: { pipelineRun: true } });
       if (!agentRun || agentRun.projectId !== projectId || agentRun.agent !== input.actor || agentRun.key !== input.key || agentRun.closedAt || (agentRun.pipelineRun && (agentRun.pipelineRun.boardItemId !== row.id || agentRun.pipelineRun.closedAt || agentRun.pipelineRun.entryId !== agentRun.pipelineEntryId))) throw new BoardRejection("stale report run");
     }
+    await claim(tx, row, {});
     const report = await tx.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit, agentRunId: input.runId, isAcceptance: d.value.accepts } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "report" } });
     // 인수 기록이면 항목에 표시한다 — 배너·항목 상세·journey가 이 열 하나로 "인수됐나"를 읽는다.
-    if (d.value.accepts) await tx.boardItem.update({ where: { id: row.id }, data: { acceptedAt: report.at } });
+    if (d.value.accepts) {
+      const claimed = await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } });
+      await claim(tx, claimed, { acceptedAt: report.at });
+    }
     await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item: report };
   });
@@ -422,5 +432,17 @@ function closeRun(tx: Db, boardItemId: string) {
   return tx.pipelineRun.updateMany({ where: { boardItemId, closedAt: null }, data: { closedAt: new Date() } });
 }
 
-return { latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), advancePipeline: reportFailure(advancePipeline) };
+return { transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), advancePipeline: reportFailure(advancePipeline) };
+}
+
+function isRejection(value: unknown): value is { ok: false; reason: string } {
+  return typeof value === "object" && value !== null && "ok" in value && value.ok === false && "reason" in value && typeof value.reason === "string";
+}
+function nextTimestamp(previous: Date): Date { return new Date(Math.max(Date.now(), previous.getTime() + 1)); }
+async function claim(tx: Db, row: { id: string; status: string; updatedAt: Date }, data: Prisma.BoardItemUpdateManyMutationInput): Promise<void> {
+  const result = await tx.boardItem.updateMany({
+    where: { id: row.id, updatedAt: row.updatedAt, status: row.status, discardedAt: null },
+    data: { ...data, updatedAt: nextTimestamp(row.updatedAt) },
+  });
+  if (result.count !== 1) throw new BoardRejection("stale");
 }

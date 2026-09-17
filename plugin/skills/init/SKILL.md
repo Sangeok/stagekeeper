@@ -61,3 +61,7 @@ Do not try to "complete" a stub by hand. A project connected before this change 
 as `skip(modified):` — tell the user those keep the old full body until they drop the edit).
 
 Not done here: creating backlog items (web), gate transitions (web, or the owner's own session with an owner token, or the server where the Pipeline tab has no gate — never this skill), committing, printing the token value.
+
+Receipt protocol: every agent outcome now sends the unchanged `receipt` returned by `agent_next`. Re-run init to refresh managed stubs; preserve `skip(modified)` files and explain that their owner must reconcile the receipt instructions. Never overwrite user edits.
+
+The CLI workspace-count check is only a preflight. `project_sync` also counts the union with the stored roster (omitted agents are retained); a resulting-roster cap refusal writes nothing. A workspace sync conflict asks for a retry.

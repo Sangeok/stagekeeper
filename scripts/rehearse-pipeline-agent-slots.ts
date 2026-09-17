@@ -56,7 +56,7 @@ async function main() {
       template: async () => "## step:start\nRead.\nnext: done\n", vars: async () => ({}),
       recentSteps: async () => 0, recentRuns: async () => 0, openRun: unavailable, createRun: unavailable,
       boardStatus: unavailable, itemAgent: async () => "web-dev", openCount: async () => 0,
-      verifyOk: unavailable, lastClosedRun: unavailable, record: unavailable, advance: unavailable, refused: unavailable,
+      verifyOk: unavailable, runByReceipt: unavailable, closeRun: unavailable, commitOutcome: unavailable,
     };
     base.withCursor = cursorTransaction(db, base);
     await db.agentRun.createMany({ data: Array.from({ length: 59 }, () => ({ projectId: p1.id, agent: "historical", tokenId: "fixture", stepId: "report", closedAt: new Date() })) });

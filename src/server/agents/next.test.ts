@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { RATE_LIMIT, REFUSAL_WARN_AT, agentNext, type NextDeps, type NextInput, type Outcome } from "./next";
+import { RATE_LIMIT, REFUSAL_WARN_AT, agentNext, type NextDeps, type NextInput, type Outcome, type Receipt } from "./next";
 
 // dev.md의 축소판 — 그래프는 같고 본문만 짧다. 실제 템플릿은 private 저장소에 있어 CI에는 없다(templates.test.mjs가 따로 본다).
 const DEV = `---
@@ -85,7 +85,7 @@ const VARS: Record<string, Record<string, unknown>> = {
   "plan-verifier": { roster_table: "| web-dev |" },
 };
 
-type Run = { id: string; agent: string; key: string | null; stepId: string; closedAt: Date | null; refused: number; tokenId: string };
+type Run = { revision: number; id: string; agent: string; key: string | null; stepId: string; closedAt: Date | null; refused: number; tokenId: string };
 type Rec = { runId: string; stepId: string; outcome: Outcome; note: string | null };
 type Opts = {
   plan?: "free" | "pro" | "max"; locked?: string; roster?: string[]; templates?: Record<string, string>;
@@ -98,6 +98,7 @@ const SCOPE = { projectId: "p1", tokenId: "t1" };
 function harness(opts: Opts = {}) {
   const runs: Run[] = [];
   const records: Rec[] = [];
+  const rejected: Rec[] = [];
   const board = opts.board ?? {};
   const templates = opts.templates ?? { "agents/dev.md": DEV, "agents/pm.md": PM };
   let seq = 0;
@@ -111,7 +112,7 @@ function harness(opts: Opts = {}) {
     recentRuns: async () => opts.recentRuns ?? 0,
     openRun: async (_p, agent, key) => runs.filter((r) => r.agent === agent && r.key === key && !r.closedAt).at(-1) ?? null,
     createRun: async (scope, agent, key, stepId) => {
-      const r: Run = { id: `run${++seq}`, agent, key, stepId, closedAt: null, refused: 0, tokenId: scope.tokenId };
+      const r: Run = { revision: 0, id: `run${++seq}`, agent, key, stepId, closedAt: null, refused: 0, tokenId: scope.tokenId };
       runs.push(r);
       return { ok: true, item: r };
     },
@@ -121,21 +122,33 @@ function harness(opts: Opts = {}) {
     verifyOk: async (_p, agent, key) => opts.verifiedElsewhere === true
       || records.some((rec) => rec.stepId === "verify" && rec.outcome === "ok"
         && runs.some((r) => r.id === rec.runId && r.agent === agent && r.key === key)),
-    lastClosedRun: async (_p, agent, key) => {
-      const r = runs.filter((x) => x.agent === agent && x.key === key && x.closedAt).at(-1);
-      return r === undefined ? null : { id: r.id, stepId: r.stepId, stepOutcomes: records.filter((rec) => rec.runId === r.id && rec.stepId === r.stepId).map((rec) => rec.outcome) };
+    runByReceipt: async (_p, agent, key, id) => { const r = runs.find((r) => r.id === id && r.agent === agent && r.key === key); return r ? { ...r } : null; },
+    closeRun: async (run) => { const r = runs.find((r) => r.id === run.id)!; r.closedAt = new Date(); },
+    commitOutcome: async ({ receipt, outcome, note, destination }) => {
+      const r = runs.find((r) => r.id === receipt.runId)!;
+      if (destination.kind === "retired") {
+        if (r.revision === destination.run.revision && r.stepId === destination.run.stepId) r.closedAt = new Date();
+        rejected.push({ runId: r.id, stepId: receipt.stepId, outcome, note });
+        return { kind: r.closedAt ? "closed" : "stale" };
+      }
+      const accepted = r.revision === receipt.revision && r.stepId === receipt.stepId
+        && (destination.kind === "closed" ? !!r.closedAt && destination.allowTerminal
+          && !records.some((rec) => rec.runId === r.id && rec.stepId === r.stepId && ["ok", "blocked", "failed"].includes(rec.outcome)) : !r.closedAt);
+      if (!accepted) { rejected.push({ runId: r.id, stepId: receipt.stepId, outcome, note }); return { kind: r.closedAt ? "closed" : "stale" }; }
+      records.push({ runId: r.id, stepId: receipt.stepId, outcome, note });
+      r.revision++;
+      if (destination.kind === "step") r.stepId = destination.stepId;
+      if (destination.kind === "done") r.closedAt = new Date();
+      if (destination.kind === "stay" && destination.refused) r.refused++;
+      return { kind: "accepted", run: { ...r }, refused: r.refused };
     },
-    record: async (runId, step) => { records.push({ runId, ...step }); },
-    advance: async (runId, from, to) => {
-      const r = runs.find((x) => x.id === runId);
-      if (!r || r.stepId !== from || r.closedAt) return false;
-      if (to === null) r.closedAt = new Date(); else r.stepId = to;
-      return true;
-    },
-    refused: async (runId) => ++runs.find((x) => x.id === runId)!.refused,
   };
-  const call = (input: NextInput) => agentNext(deps, SCOPE, input);
-  return { call, runs, records, board, deps };
+  const call = (input: NextInput) => {
+    const r = runs.filter((r) => r.agent === input.agent && r.key === (input.key ?? null)).at(-1);
+    const receipt = input.receipt ?? (r ? { runId: r.id, revision: r.revision, stepId: r.stepId } : undefined);
+    return agentNext(deps, SCOPE, { ...input, receipt });
+  };
+  return { call, runs, records, rejected, board, deps };
 }
 
 const dev = (extra: Partial<NextInput> = {}): NextInput => ({ agent: "web-dev", key: "FEAT-1", ...extra });
@@ -143,7 +156,7 @@ const dev = (extra: Partial<NextInput> = {}): NextInput => ({ agent: "web-dev", 
 function step(r: Awaited<ReturnType<typeof agentNext>>) {
   assert.ok(r.ok, r.ok ? "" : r.reason);
   assert.equal(r.item.done, false);
-  return r.item as { step: string; instruction: string; done: false };
+  return r.item as { step: string; instruction: string; done: false; receipt: Receipt };
 }
 function refused(r: Awaited<ReturnType<typeof agentNext>>) {
   assert.ok(!r.ok, "expected a refusal");
@@ -306,7 +319,7 @@ describe("agentNext — run lifecycle", () => {
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "implement", outcome: "ok", note: null });
     assert.equal(step(await h.call(dev())).step, "start");
   });
-  it("the closed run takes that last word once — a second outcome adds nothing", async () => {
+  it("the closed run takes that last word once — later outcomes add rejected audit only", async () => {
     const h = harness({ board: { "FEAT-1": "implementing" } });
     await h.call(dev());
     step(await h.call(dev({ outcome: "ok" })));
@@ -317,6 +330,7 @@ describe("agentNext — run lifecycle", () => {
     await h.call(dev({ outcome: "failed", note: "third" }));
     assert.equal(h.records.length, after);
     assert.equal(h.records.at(-1)?.note, "first");
+    assert.equal(h.rejected.length, 2);
   });
   // handoff는 자리에 머무는 기록이라 단계를 끝내지 않는다 — 그 뒤의 ok가 이 단계의 마지막 말이다.
   it("a handoff already on the step does not count as the last word", async () => {
@@ -329,7 +343,7 @@ describe("agentNext — run lifecycle", () => {
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "plan", outcome: "ok", note: "in_review" });
   });
   // 정상 경로로 done에 닿은 run은 그 단계의 ok를 이미 남겼다 — 다시 보낸 ok는 아무것도 더하지 않는다.
-  it("a run that reached done on its own does not take another row", async () => {
+  it("a run that reached done takes only rejected audit rows on replay", async () => {
     const h = harness({ board: { "FEAT-1": "planning" } });
     await h.call(dev());
     step(await h.call(dev({ outcome: "ok" })));
@@ -341,8 +355,8 @@ describe("agentNext — run lifecycle", () => {
   it("a concurrent advance loses the CAS and is told to re-read", async () => {
     const h = harness({ board: { "FEAT-1": "implementing" } });
     await h.call(dev());
-    const advance = h.deps.advance;
-    h.deps.advance = async (runId, from, to) => { await advance(runId, from, to); return false; };
+    const commit = h.deps.commitOutcome;
+    h.deps.commitOutcome = async (input) => { await commit(input); return { kind: "stale" }; };
     assert.match(refused(await h.call(dev({ outcome: "ok" }))), /^stale:/);
   });
   it("runs are keyed by (agent, key): two items, two independent cursors", async () => {
@@ -460,7 +474,7 @@ describe("agentNext — dispatch cap (H.5)", () => {
   });
   it("serves the actual reused run's step rather than the proposed entry step", async () => {
     const h = harness();
-    h.deps.createRun = async () => ({ ok: true, item: { id: "reused", stepId: "pick" } });
+    h.deps.createRun = async () => ({ ok: true, item: { id: "reused", stepId: "pick", revision: 0, closedAt: null } });
     assert.equal(step(await h.call({ agent: "pm" })).step, "pick");
   });
   it("refuses to open a run at the plan's 30-day cap, naming the window; opens nothing", async () => {
@@ -480,4 +494,74 @@ describe("agentNext — dispatch cap (H.5)", () => {
     h.deps.recentRuns = async () => { throw new Error("recentRuns consulted on resume"); };
     step(await h.call(dev()));
   });
+});
+
+it("requires a receipt for every outcome, including handoff", async () => {
+  const h = harness();
+  await h.call(dev());
+  for (const outcome of ["ok", "failed", "blocked", "handoff"] as const) {
+    assert.match(refused(await agentNext(h.deps, SCOPE, dev({ outcome }))), /receipt required/);
+  }
+  assert.equal(h.records.length + h.rejected.length, 0);
+});
+it("one receipt can advance at most once, including concurrent requests", async () => {
+  const h = harness({ board: { "FEAT-1": "implementing" } });
+  const { receipt } = step(await h.call(dev()));
+  const results = await Promise.all([h.call(dev({ outcome: "ok", receipt })), h.call(dev({ outcome: "ok", receipt }))]);
+  assert.equal(results.filter((r) => r.ok).length, 1);
+  assert.equal(h.records.length, 1);
+  assert.equal(h.rejected.length, 1);
+  assert.equal(h.runs[0].revision, 1);
+});
+it("handoff rotates the receipt and stale retries do not become evidence", async () => {
+  const h = harness();
+  const first = step(await h.call(dev()));
+  const second = step(await h.call(dev({ outcome: "handoff", receipt: first.receipt })));
+  assert.equal(second.receipt.revision, first.receipt.revision + 1);
+  assert.match(refused(await h.call(dev({ outcome: "ok", receipt: first.receipt }))), /stale/);
+  assert.equal(h.records.length, 1);
+  assert.equal(h.rejected.length, 1);
+});
+it("rejects unknown and cross-agent receipts without ledger writes", async () => {
+  const h = harness();
+  const { receipt } = step(await h.call(dev()));
+  const unknown = refused(await h.call(dev({ outcome: "ok", receipt: { ...receipt, runId: "unknown" } })));
+  const other = refused(await h.call({ agent: "pm", outcome: "ok", receipt }));
+  assert.equal(unknown, other);
+  assert.equal(h.records.length + h.rejected.length, 0);
+});
+it("rechecks can-propose before returning an already open PM step", async () => {
+  const h = harness();
+  await h.call({ agent: "pm" });
+  await h.call({ agent: "pm", outcome: "ok" });
+  await h.call({ agent: "pm", outcome: "ok" });
+  h.deps.openCount = async () => 2;
+  assert.match(refused(await h.call({ agent: "pm" })), /not open/);
+  assert.match(refused(await h.call({ agent: "pm", outcome: "handoff" })), /not open/);
+});
+
+it("template removal closes the run with rejected audit, never terminal evidence", async () => {
+  const h = harness();
+  const { receipt } = step(await h.call(dev()));
+  h.deps.template = async () => DEV_NOSTART;
+  assert.equal((await h.call(dev({ outcome: "ok", receipt }))).ok, true);
+  assert.ok(h.runs[0].closedAt);
+  assert.equal(h.records.length, 0);
+  assert.equal(h.rejected.length, 1);
+});
+it("a failed retirement transaction does not close the run", async () => {
+  const h = harness();
+  const { receipt } = step(await h.call(dev()));
+  h.deps.template = async () => DEV_NOSTART;
+  h.deps.commitOutcome = async () => { throw new Error("failed"); };
+  assert.match(refused(await h.call(dev({ outcome: "ok", receipt }))), /could not record/);
+  assert.equal(h.runs[0].closedAt, null);
+  assert.equal(h.records.length + h.rejected.length, 0);
+});
+
+it("checks requires after asynchronous render-variable reads", async () => {
+  const h = harness({ board: { "FEAT-1": "implementing" }, templates: { "agents/dev.md": DEV_NOSTART } });
+  assert.equal(step(await h.call(dev())).step, "implement");
+  h.deps.vars = async () => { h.board["FEAT-1"] = "planning"; return VARS["web-dev"]; };
+  assert.match(refused(await h.call(dev())), /not open/);
 });

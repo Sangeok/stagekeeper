@@ -42,6 +42,9 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
 | `verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
+| `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
+| `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
+| `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `verify-fsd-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
 | `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
@@ -91,9 +94,8 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 
 ## 마이그레이션 주의
 
-현재 루트 `app/`은 초기 스캐폴드다. 승인된 Phase 0 작업이 이를 `src/app/`으로
-이동하기 전까지 검사기는 루트 `app/`을 허용한다. 단, 두 위치가 동시에 생기면
-Next.js가 `src/app/`을 무시하므로 즉시 실패한다.
+라우트 이동은 완료되어 현재 진입점은 `src/app/`이다. 루트 `app/`을 함께 만들면
+Next.js가 `src/app/`을 무시하므로 검사기가 즉시 실패시킨다.
 
 활성 Phase 0·1 제안서에는 작성 시점의 deep import 예시가 남아 있을 수 있다.
 그 제안서를 구현할 때는 이 문서가 최신 architecture source of truth이며, public

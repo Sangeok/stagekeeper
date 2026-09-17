@@ -59,11 +59,11 @@
   `acceptedAt`(`done`에서 `main-loop`의 `report_submit`)이다 — 상태가 아니라 증거의 유무다,
   `validation`이 상태가 아닌 것과 같은 이유로.
 - **검증 기록도 verify 원장 뒤에만 받는다.** `validation_record`는 마지막 `plan_submit` 뒤에
-  (프로젝트, `plan-verifier`, 항목)의 `AgentRunStep{stepId: "verify", outcome: "ok"}`가 있어야 통과한다 —
+  (프로젝트, `plan-verifier`, 항목)의 `AgentRunStep{stepId: "verify", outcome: "ok"}` 중 수락된 행(`accepted:true`) 또는 이전 원장(`accepted:null`)이 있어야 통과한다 —
   `report_submit` 벽과 대칭이며 "기록 전에 독립 패스를 **시도**했다"를 원장으로 증명한다. 결함 유무의
   판정은 여전히 메인 루프의 것이다(verify ok = 경로를 다 돌렸다, ≠ 결함 0). 판정은 `decideValidation` 하나.
 - **보고는 verify 기록 뒤에만 받는다(Phase 4).** `report_submit`은 항목이 `implementing`일 때
-  같은 (프로젝트, 행위자, 항목)에 `AgentRunStep{stepId: "verify"}`가 있어야 통과한다 — 없으면 거부다.
+  같은 (프로젝트, 행위자, 항목)에 `AgentRunStep{stepId: "verify"}` 중 수락된 행 또는 이전 원장이 있어야 통과한다 — 거절 감사(`accepted:false`)만 있으면 거부다.
   `outcome`은 묻지 않는다: 불변식의 뜻은 "보고 전에 검증을 **시도**했다"이고, verify가 실패로 끝난
   뒤의 hold 보고까지 막으면 그 뜻을 넘는다. 예외는 행위자 이름이 아니라 **상태**로 건다 —
   `in_review`(검증 라운드 기록)와 `done`(인수 기록)은 verify를 요구하지 않는다. 이름으로 걸면

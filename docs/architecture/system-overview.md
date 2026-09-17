@@ -48,8 +48,10 @@ legacy 구조를 읽거나 쓰지 않는다.
 **에이전트 정의는 스텁으로 물질화된다(Phase 4).** 플러그인이 사용자 저장소에 쓰는
 `.claude/agents/*.md`는 역할·굳은 규칙·구동 규칙까지이고, 절차의 단계 본문은
 서버에 남는다. 서브에이전트는 `mcp__harness__agent_next`로 지금 할 한 단계를 받아
-수행하고 `outcome`과 함께 다시 부른다 — 커서는 `AgentRun`이고 호출마다
-`AgentRunStep` 한 줄이 남는다. 무엇을 내려줄지는 `packages/core/deliver.mjs` 하나가
+수행하고 `outcome`과 반환받은 `receipt`를 함께 보낸다. 커서는 `AgentRun`이며
+범위가 확인된 outcome 시도마다 `AgentRunStep`에 수락/거절 감사 기록을 남긴다.
+수락 기록과 커서 revision 갱신은 원자적이고, 거절 기록은 단계 증거가 아니다.
+무엇을 내려줄지는 `packages/core/deliver.mjs` 하나가
 정하고, 서버와 생성기의 로컬 우회로가 같은 함수를 쓴다.
 
 ## 데이터와 규칙의 소유권

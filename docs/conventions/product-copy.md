@@ -402,7 +402,7 @@ rendered in the Team row; the row shows only the agent handle and its state.
   - Picker: **Repository** · search placeholder "Search 20 repositories" · empty "No
     repository matches." · footnote "Private repositories aren't listed. **Paste a URL** instead."
   - Paste mode: **Repository URL** (placeholder `https://github.com/owner/repo`) · link **Pick
-    from my repositories** · fallback "Couldn't load your repositories. Paste a URL." · parse
+    from my repositories** · failure "Couldn't load your repositories. Paste a URL."; successful empty list "No public repositories found. Paste a URL." · parse
     error "That doesn't look like a GitHub repository URL. Use Edit to fill in the fields."
   - Summary line: `Sangeok/mathgic` · `master` · `/p/mathgic` — **Edit** / **Collapse** · **Start over**
   - Fields: GitHub owner · GitHub repo · Branch · URL slug (hint "Becomes /p/<slug>. Lowercase
@@ -511,7 +511,7 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
 | `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is pm's turn (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "the backlog has nothing to pick — add an item on the Backlog tab" · the dispatch cap sentence). `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
-| `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok \| blocked \| failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Repeat until done: true. A refusal says which board state opens the step. |
+| `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:
 
@@ -579,7 +579,7 @@ both). Below: each file's title, its section headings, and the sentences that se
   <planCommit> -- docs/plans/<KEY>.md`. If they differ, the owner edited it after approval — send
   `blocked` with 'plan on disk differs from the approved commit <sha7>; commit and re-submit, or
   reopen'."
-- "When you can't commit, send `agent_next` with `outcome: "handoff"` and the file's path as the
+- "When you can't commit, send `agent_next` with `outcome: "handoff"`, the current `receipt`, and the file's path as the
   note, then stop. The owner commits and tells the session to continue; you pick up the same step."
 - "You committed the report and the code. Then `report_submit`, then `board_transition` to
   done with a result under 150 characters. The backlog entry is removed by the server, not by you."
@@ -871,3 +871,12 @@ Mark anything that reads wrong here; it gets fixed in this file first, then in c
 - [x] Landing (§16) — landing-v2 approved 2026-08-30
 - [ ] Error pages (§17) — added 2026-08-31 with the two boundaries
 - [x] Acceptance, reopen, handoff (§3, §5, §6, §11–§14, §16) — approved 2026-09-07
+
+### Execution receipt errors
+
+- Missing receipt: "receipt required: call again without outcome and send the returned receipt. If your stub is outdated, run /harness:init again."
+- Scope mismatch: "this receipt does not belong to this call's run; call again without outcome"
+- Transaction failure: "could not record the outcome; call again without outcome to see the current step"
+- Workspace conflict: "workspace sync conflicted; retry project_sync"
+
+Each outcome counts against its actual caller token, including in-scope rejected attempts. Query-only calls produce no outcome ledger row.

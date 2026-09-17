@@ -15,7 +15,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
   const cutoff = historyCutoff(await planForProject(projectId), new Date());
   const [project, row] = await Promise.all([loadProjectRepository(projectId), getWithHistory(projectId, key, cutoff)]);
   if (!row) notFound();
-  const truncated = cutoff !== null && (await hasHistoryBefore(projectId, key, cutoff));
+  const truncated = cutoff !== null && (await hasHistoryBefore(projectId, row.id, cutoff));
 
   return (
     <BoardItemPage

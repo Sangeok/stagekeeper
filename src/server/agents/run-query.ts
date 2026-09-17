@@ -1,11 +1,14 @@
 import { allowsAgent, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
 import { dispatcherFor, SLOT_FORMAT } from "@harness/core/pipeline.mjs";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccessIn } from "../project-access-query";
-import type { NextDeps, NextInput, NextOutput, Scope } from "./next";
+import type { NextDeps, NextInput, NextOutput, Scope, OutcomeCommit, CommitResult } from "./next";
 import type { ServerResult } from "../result";
 
 class StaleCursor extends Error {}
+class CursorRollback extends Error {
+  constructor(readonly result: ServerResult<NextOutput>) { super("Outcome transaction must roll back"); }
+}
 // Bound execution validates and locks several rows before appending its outcome.
 // Give remote DB round trips the same bounded budget as board mutations.
 const CURSOR_TRANSACTION_TIMEOUT_MS = 15_000;
@@ -25,6 +28,8 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((r) => r.agent);
         if (!allowsAgent(access.plan, input.agent, roster)) return { ok: false, reason: `agent is not on the ${access.plan} plan` };
         const entry = input.entry;
+        const receipt = input.receipt;
+        if (input.outcome && !receipt) throw new StaleCursor();
         let closedTerminal = false;
         if (entry) {
           await tx.$queryRaw`SELECT "id" FROM "PipelineRun" WHERE "id" = ${entry.runId} FOR UPDATE`;
@@ -34,11 +39,11 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           if (latest?.id !== pipeline.boardItemId || dispatcherFor(entry.slotId, pipeline.boardItem.agent) !== input.agent) throw new StaleCursor();
           const expectedKey = ["plan", "implement", "verify"].includes(entry.slotId) ? pipeline.boardItem.backlogItem.key : null;
           if (key !== expectedKey) throw new StaleCursor();
-          if (input.outcome && (!input.agentRunId || !input.stepId)) throw new StaleCursor();
-          if (input.outcome && input.agentRunId) {
-            const prior = await tx.agentRun.findUnique({ where: { id: input.agentRunId } });
+          if (input.outcome && (input.agentRunId !== undefined && input.agentRunId !== receipt!.runId || input.stepId !== undefined && input.stepId !== receipt!.stepId)) throw new StaleCursor();
+          if (input.outcome) {
+            const prior = await tx.agentRun.findUnique({ where: { id: receipt!.runId } });
             closedTerminal = ["ok", "failed", "blocked"].includes(input.outcome) && !!prior?.closedAt && prior.projectId === projectId && prior.agent === input.agent && prior.key === key
-              && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && prior.stepId === input.stepId
+              && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && prior.stepId === receipt!.stepId && prior.revision === receipt!.revision
               && ((prior.stepId === "plan" && entry.slotId === "plan" && pipeline.boardItem.status === "in_review")
                 || (prior.stepId === "hold" && pipeline.boardItem.status === "on_hold"));
             if (closedTerminal && prior?.closedAt) {
@@ -57,12 +62,14 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         const binding = { pipelineRunId: entry?.runId ?? null, pipelineEntryId: entry?.entryId ?? null };
         const where = { projectId, agent: input.agent, key, ...binding };
         let open = await tx.agentRun.findFirst({ where: { ...where, closedAt: null }, orderBy: { openedAt: "desc" } });
-        let selectedId = closedTerminal ? input.agentRunId : open?.id;
+        const claimedRun = input.outcome ? await tx.agentRun.findFirst({ where: { ...where, id: receipt!.runId } }) : open;
+        let selectedId = claimedRun?.id;
         if (selectedId) {
           await tx.$queryRaw`SELECT "id" FROM "AgentRun" WHERE "id" = ${selectedId} FOR UPDATE`;
           if (!closedTerminal) open = await tx.agentRun.findFirst({ where: { ...where, id: selectedId, closedAt: null } });
         }
-        if (entry && input.outcome && !closedTerminal && (!open || open.id !== input.agentRunId || open.stepId !== input.stepId)) throw new StaleCursor();
+        if (entry && input.outcome && !closedTerminal && (!open || open.id !== receipt!.runId || open.stepId !== receipt!.stepId || open.revision !== receipt!.revision)) throw new StaleCursor();
+        let outcomeRollback = false;
         const deps: NextDeps = {
           ...base,
           withCursor: undefined,
@@ -79,26 +86,56 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           },
           boardStatus: async (_project, itemKey) => (await tx.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key: itemKey } }, orderBy: { proposedOn: "desc" }, select: { status: true } }))?.status ?? null,
           openCount: async () => (await tx.boardItem.findMany({ where: { projectId, discardedAt: null }, distinct: ["backlogItemId"], orderBy: { proposedOn: "desc" }, select: { status: true } })).filter((r) => !["done", "on_hold"].includes(r.status)).length,
-          verifyOk: async () => await tx.agentRunStep.findFirst({ where: { stepId: "verify", outcome: "ok", run: entry ? { id: selectedId ?? "" } : where }, select: { id: true } }) !== null,
-          lastClosedRun: async () => {
-            const run = await tx.agentRun.findFirst({ where: { ...where, ...(entry ? { id: input.agentRunId ?? "" } : {}), closedAt: { not: null } }, orderBy: { closedAt: "desc" }, include: { steps: true } });
-            if (!run || (entry && !closedTerminal)) return null;
-            return { id: run.id, stepId: run.stepId, stepOutcomes: run.steps.filter((s) => s.stepId === run.stepId).map((s) => s.outcome) };
+          verifyOk: async () => await tx.agentRunStep.findFirst({ where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", run: entry ? { id: selectedId ?? "" } : where }, select: { id: true } }) !== null,
+          runByReceipt: (_project, _agent, _key, runId) => tx.agentRun.findFirst({ where: { ...where, id: runId } }),
+          closeRun: async (run) => {
+            await tx.agentRun.updateMany({ where: { id: run.id, revision: run.revision, stepId: run.stepId, closedAt: null }, data: { closedAt: new Date() } });
           },
-          record: async (runId, step) => { await tx.agentRunStep.create({ data: { runId, ...step } }); },
-          advance: async (runId, from, to) => {
-            const changed = await tx.agentRun.updateMany({ where: { id: runId, stepId: from, closedAt: null }, data: to === null ? { closedAt: new Date() } : { stepId: to } });
-            if (!changed.count) throw new StaleCursor();
-            return true;
+          commitOutcome: async (commit) => {
+            try {
+              const committed = await commitRunOutcome(tx, commit);
+              if (entry && committed.kind !== "accepted") outcomeRollback = true;
+              return committed;
+            } catch (error) {
+              outcomeRollback = true;
+              throw error;
+            }
           },
-          refused: async (runId) => (await tx.agentRun.update({ where: { id: runId }, data: { refused: { increment: 1 } }, select: { refused: true } })).refused,
         };
         const result = await work(deps);
+        if (outcomeRollback) throw new CursorRollback(result.ok ? stale() : result);
         return result.ok && entry ? { ok: true, item: { ...result.item, entry, agentRunId: selectedId } } : result;
       }, { timeout: CURSOR_TRANSACTION_TIMEOUT_MS });
     } catch (error) {
+      if (error instanceof CursorRollback) return error.result;
       if (error instanceof StaleCursor) return stale();
       throw error;
     }
   };
+}
+
+export async function commitRunOutcome(tx: Prisma.TransactionClient, { scope, agent, key, receipt, outcome, note, destination }: OutcomeCommit): Promise<CommitResult> {
+  const closed = destination.kind === "closed";
+  const retired = destination.kind === "retired";
+  const expected = retired ? destination.run : receipt;
+  const terminalAllowed = !closed || destination.allowTerminal;
+  const claimed = await tx.agentRun.updateMany({
+    where: {
+      id: receipt.runId, projectId: scope.projectId, agent, key, revision: expected.revision, stepId: expected.stepId,
+      closedAt: closed ? { not: null } : null,
+      ...(terminalAllowed ? {} : { id: { in: [] } }),
+      ...(closed ? { steps: { none: { stepId: receipt.stepId, outcome: { in: ["ok", "blocked", "failed"] }, OR: [{ accepted: true }, { accepted: null }] } } } : {}),
+    },
+    data: {
+      ...(retired ? { closedAt: new Date() } : { revision: { increment: 1 } }),
+      ...(destination.kind === "step" ? { stepId: destination.stepId } : {}),
+      ...(destination.kind === "done" ? { closedAt: new Date() } : {}),
+      ...(destination.kind === "stay" && destination.refused ? { refused: { increment: 1 } } : {}),
+    },
+  });
+  await tx.agentRunStep.create({ data: { runId: receipt.runId, stepId: receipt.stepId, outcome, note,
+    callerTokenId: scope.tokenId, receiptRevision: receipt.revision, accepted: !retired && claimed.count === 1 } });
+  const run = await tx.agentRun.findUniqueOrThrow({ where: { id: receipt.runId }, select: { id: true, stepId: true, revision: true, closedAt: true, refused: true } });
+  if (!claimed.count || retired) return { kind: run.closedAt ? "closed" : "stale" };
+  return { kind: "accepted", run, refused: run.refused };
 }
