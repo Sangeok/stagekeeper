@@ -17,8 +17,8 @@ describe("transitions", () => {
   it("agent transitions and their prerequisites", () => {
     const plan = findRule("agent", "planning", "in_review");
     assert.equal(plan.kind, "plan"); assert.equal(plan.requiresPlan, true);
-    const done = findRule("agent", "implementing", "done");
-    assert.equal(done.kind, "done"); assert.equal(done.requiresResult, true); assert.equal(done.requiresReport, true);
+    const done = findRule("pipeline", "implementing", "done");
+    assert.equal(done.kind, "auto"); assert.equal(done.requiresResult, true); assert.equal(done.requiresReport, true);
     assert.equal(findRule("agent", "planning", "on_hold").requiresResult, true);
     assert.equal(findRule("agent", "implementing", "on_hold").requiresResult, true);
     assert.equal(findRule("human", "implementing", "done"), null); // done은 검증을 거친 에이전트만

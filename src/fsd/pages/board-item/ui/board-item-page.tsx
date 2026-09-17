@@ -91,6 +91,7 @@ export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemV
           </dd>
         </div>
       </dl>
+      {item.status === "done" ? <p className="text-xs text-quiet">The implementation span is complete. Acceptance is recorded separately after the five checks.</p> : null}
 
       {item.docs.length > 0 ? (
         <section>

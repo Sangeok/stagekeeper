@@ -12,7 +12,7 @@ export const OWNER_TOOL_NAMES = ["gate_approve"] as const;
 
 export type OwnerToolDeps = {
   // 게이트를 연 뒤의 행과 다음 일(pipeline_next와 같은 모양) — 런북 단계 번호는 없다. 런북에 번호가 없다.
-  gate(projectId: string, userId: string, input: { key: string; gate: string; planCommit?: string }): Promise<ServerResult<{ item: { agent: string; status: string }; next: PipelineNext }>>;
+  gate(projectId: string, userId: string, input: { key: string; gate: string; planCommit?: string; gateEntry?: { runId: string; entryId: string } }): Promise<ServerResult<{ item: { agent: string; status: string }; next: PipelineNext }>>;
   access(projectId: string): Promise<ProjectAccess>;
   // 지금 이 사람이 이 프로젝트의 소유자인가. 토큰 행의 userId는 발급 시점의 사실이라 호출마다 다시 본다 — 웹의 requireProjectOwner와 같은 판정.
   owner(projectId: string, userId: string): Promise<boolean>;
@@ -32,7 +32,7 @@ function scope(ctx: Ctx) {
 export function registerOwnerTools(server: McpServer, deps: OwnerToolDeps) {
   server.registerTool("gate_approve", {
     description: "Owner only: open the gate the item is waiting at — pass the gate id from pipeline_next (before-plan, before-implement, before-verify, before-accept, before-doc-audit, before-scout). before-implement needs a validation record and the planCommit from board_get. Returns the item and next — act on next in the same turn. Send back, hold, reopen, and discard stay web only.",
-    inputSchema: z.object({ key: z.string(), gate: z.string(), planCommit: z.string().optional() }),
+    inputSchema: z.object({ key: z.string(), gate: z.string(), planCommit: z.string().optional(), gateEntry: z.object({ runId: z.string(), entryId: z.string() }).optional() }),
   }, async (args, ctx: Ctx) => {
     const { projectId, userId } = scope(ctx);
     // 인가는 목적지에서, 호출마다. 토큰이 살아 있어도 소유자가 아니면 거부 — 웹 게이트가 requireProjectOwner를 매번 부르는 것과 같다.

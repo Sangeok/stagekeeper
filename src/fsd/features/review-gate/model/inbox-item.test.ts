@@ -2,10 +2,19 @@
 // 쿼리(latestBoardWithEvents)가 note 없는 전이만 주지만, 모델 자신도 같은 가드를 갖는다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { toInboxItems } from "./inbox-item";
+import { toInboxItems, gateCardKey } from "./inbox-item";
 
 const repo = { owner: "o", repo: "r", branch: "main" };
 const at = (iso: string) => new Date(iso);
+
+it("card identity distinguishes entries and pipeline runs even when clocks are equal", () => {
+  const [item] = toInboxItems([boardRow({})], repo);
+  const bound = { ...item, format: "slots-v1", gateEntry: { runId: "run", entryId: "entry" } };
+  assert.equal(gateCardKey(bound), gateCardKey({ ...bound, updatedAt: "changed" }));
+  assert.notEqual(gateCardKey(bound), gateCardKey({ ...bound, gateEntry: { runId: "run", entryId: "next" } }));
+  assert.notEqual(gateCardKey(bound), gateCardKey({ ...bound, gateEntry: { runId: "new-run", entryId: "entry" } }));
+  assert.notEqual(gateCardKey(item), gateCardKey({ ...item, updatedAt: "changed" }));
+});
 
 const boardRow = (overrides: object) => ({
   status: "in_review",

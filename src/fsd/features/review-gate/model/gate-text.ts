@@ -1,6 +1,7 @@
 // 사람 동작의 낱말. 버튼은 동사, 성공 뒤 칩은 결과, 토스트는 같은 낱말을 잇는다(product-copy.md §3).
 // ApcH transition-pipeline-gate/model/transitions.ts(de25a1c)에서 문구·칩 재료만 옮겼고 은유(도장)는 버렸다.
 import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
+import { gateKind, slotAgent } from "@harness/core/pipeline.mjs";
 
 // 카드 잠금 표식: 게이트·되돌리기 성공 뒤 버튼 자리를 대신하는 비상호작용 칩의 재료.
 export type CardLock = { label: string; tone: "mine" | "risk" | "done" };
@@ -55,21 +56,25 @@ const GATE_ACTION: Record<string, { label: string; pending: string; lock: string
   },
 };
 
+function gateAction(gate: string) {
+  const agent = slotAgent(gateKind(gate));
+  return GATE_ACTION[gate] ?? (agent === "doc-auditor" ? GATE_ACTION["before-doc-audit"] : agent === "feature-scout" ? GATE_ACTION["before-scout"] : undefined);
+}
 export function gateActionLabel(gate: string): string {
-  return GATE_ACTION[gate]?.label ?? `Move past ${gate}`;
+  return gateAction(gate)?.label ?? `Move past ${gate}`;
 }
 export function gatePendingLabel(gate: string): string {
-  return GATE_ACTION[gate]?.pending ?? "Moving…";
+  return gateAction(gate)?.pending ?? "Moving…";
 }
 export function gateLockLabel(gate: string): string {
-  return GATE_ACTION[gate]?.lock ?? "Done";
+  return gateAction(gate)?.lock ?? "Done";
 }
 export function gateToast(gate: string, key: string): string {
-  return `${GATE_ACTION[gate]?.toast ?? "Moved"} · ${key}`;
+  return `${gateAction(gate)?.toast ?? "Moved"} · ${key}`;
 }
 // 누르기 전에 보여 준다 — 누른 뒤 토스트로 말하면 이미 늦다.
 export function gateNextActionHint(gate: string): string {
-  return GATE_ACTION[gate]?.hint ?? "Then continue in Claude Code.";
+  return gateAction(gate)?.hint ?? "Then continue in Claude Code.";
 }
 // 검증 기록이 없는 in_review를 승인하려 할 때. 버튼은 윤곽으로 물러서고 이 문장이 빨갛다.
 export const UNVERIFIED_HINT = "This approves an unverified plan. Run plan-verifier in Claude Code first.";

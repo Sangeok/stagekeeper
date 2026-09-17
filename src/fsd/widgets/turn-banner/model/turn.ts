@@ -1,3 +1,4 @@
+import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline.mjs";
 // 순수. 보드의 최신 행들로 "지금 누구 차례인가"를 정한다 — 모든 프로젝트 탭 위에 놓이는 배너의 유일한 출처.
 // 문구는 docs/conventions/product-copy.md §5. 판정은 packages/core의 상태 기계에서 파생한다.
 import { canPropose, isOpen } from "@harness/core/transitions.mjs";
@@ -142,7 +143,8 @@ export function nextStepLine(item: TurnItem): string | null {
     return `Commit ${item.handoff.note ?? "the prepared file"}, then continue the pipeline for ${item.key}.`;
   }
   if (item.gate !== null || item.node === null) return null; // 게이트는 터미널 줄이 없다 — 결정은 Inbox나 세션의 것
-  const line = NODE_LINE[item.node];
+  const agent = slotAgent(item.node);
+  const line = NODE_LINE[item.node] ?? (agent ? () => `${agent} runs ${item.node}` : undefined);
   return line === undefined ? null : `Continue the pipeline for ${item.key}: ${item.node} — ${line(item)}.`;
 }
 
@@ -183,7 +185,7 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
   // 위해서다. 그래서 노드만 보면 "작업 중"이 된다(실측: on_hold인 FEAT-07에 "waiting for dev"가 떴다).
   // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board.ts:52) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
   const working = items.filter((i) => i.status !== "on_hold" && i.gate === null
-    && (i.node === "plan" || i.node === "verify" || i.node === "implement"));
+    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || PROJECT_AGENTS.includes(slotAgent(i.node))));
   if (working.length > 0) {
     return {
       kind: "theirs",
@@ -192,12 +194,12 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
       detail: working
         .map((w) =>
           !w.dispatched
-            ? `${w.key} is waiting for ${w.node === "verify" ? "verification" : w.agent}`
+            ? `${w.key} is waiting for ${w.node === "verify" ? "verification" : dispatcherFor(w.node, w.agent)}`
             : w.node === "plan"
               ? `${w.agent} is writing the plan for ${w.key}`
               : w.node === "verify"
                 ? `the plan for ${w.key} is being verified`
-                : `${w.agent} is implementing ${w.key}`,
+                : w.node === "implement" ? `${w.agent} is implementing ${w.key}` : `${slotAgent(w.node)} is working on ${w.key}`,
         )
         .join(" · "),
       next: nextSteps(working),

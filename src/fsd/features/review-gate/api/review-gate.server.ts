@@ -31,12 +31,12 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
 }
 
 // §E.2 게이트 승인 — 게이트 id로. 서버 층의 잠금은 board.transitionIn의 viaGate 거부가 맡는다(§C.7).
-export async function approveGate(slug: string, input: { key: string; gate: string; expectedUpdatedAt: string }): Promise<ActionResult<void>> {
+export async function approveGate(slug: string, input: { key: string; gate: string; gateEntry?: { runId: string; entryId: string }; expectedUpdatedAt: string }): Promise<ActionResult<void>> {
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(message(w.reason));
   const expected = parseExpected(input.expectedUpdatedAt);
   if (expected === null) return failure(message("stale"));
-  const r = await board.gate(w.projectId, { key: input.key, gate: input.gate }, { actor: "human", actorRef: w.userId, channel: "web", expectedUpdatedAt: expected });
+  const r = await board.gate(w.projectId, { key: input.key, gate: input.gate, gateEntry: input.gateEntry }, { actor: "human", actorRef: w.userId, channel: "web", expectedUpdatedAt: expected });
   if (!r.ok) return failure(message(r.reason));
   revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox")); revalidatePath(itemPath(slug, input.key));
   return success();

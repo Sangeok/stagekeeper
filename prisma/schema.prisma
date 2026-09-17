@@ -165,13 +165,17 @@ model TransitionEvent {                  // 감사 로그 (불변식 8)
 }
 
 model Report {
+  isAcceptance Boolean?                  // 제출 당시 인수 보고 여부. null은 목적을 복원하지 못한 기존 행
   id          String    @id @default(cuid())
   boardItemId String
+  agentRunId  String?
   actor       String                     // web-dev | main-loop | …
   path        String                     // docs/agents/<actor>/<ID>.md
   commit      String
   at          DateTime  @default(now())
   boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+  agentRun    AgentRun? @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
+  @@index([agentRunId])
 }
 
 model Template {                         // 에이전트·규약 템플릿 원문. 플러그인에 동봉하지 않고 서버가 인증된 요청에만 내려준다
@@ -207,7 +211,12 @@ model AgentRun {                         // agent_next 커서 — (project, agen
   closedAt  DateTime?                    // done 도달, 또는 항목이 done/on_hold/폐기될 때 board.ts가 닫는다
   project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   steps     AgentRunStep[]
+  pipelineRunId String?
+  pipelineEntryId String?
+  pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: Cascade)
+  reports Report[]
 
+  @@index([projectId, pipelineRunId, pipelineEntryId, agent, closedAt], map: "AgentRun_pipeline_entry_dispatch_idx")
   @@index([projectId, agent, key, closedAt])
   @@index([tokenId])
 }
@@ -231,6 +240,7 @@ model PipelineVersion {                  // 프로젝트의 그래프. 저장마
   version   Int                          // 1부터. 현재 = 프로젝트의 최대 version
   nodes     String[]                     // pipeline.mjs NODE_KINDS의 부분열
   gates     String[]                     // before-<kind>
+  format    String?
   createdAt DateTime @default(now())
   createdBy String                       // userId. 기본 그래프를 서버가 물질화했으면 "pipeline"
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -242,6 +252,8 @@ model PipelineRun {                      // 항목의 커서 — "지금 어느 
   id          String          @id @default(cuid())
   boardItemId String          @unique
   versionId   String
+  entryId     String?
+  agentRuns   AgentRun[]
   node        String                     // NODE_KINDS 또는 before-<kind>. 끝나면 마지막 노드 그대로 두고 closedAt
   enteredAt   DateTime        @default(now())   // 이 node에 선 시각 — 게이트 승인·에이전트 run 닫힘은 이 시각부터(>=)의 것만 센다
   closedAt    DateTime?

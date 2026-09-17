@@ -4,13 +4,34 @@ import { HINT, decideHead, decideNext, handoffIsLive } from "./run-rules.ts";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, capReason: null };
 
+it("resumable item and standalone PM runs bypass only the dispatch cap", () => {
+  assert.equal(decideNext({ ...base, node: "implement", capReason: "full", hasResumableRun: true }).action, "dispatch");
+  assert.equal(decideNext({ ...base, node: "before-implement", capReason: "full", hasResumableRun: true }).on, "gate");
+  assert.equal(decideNext({ ...base, node: "implement", capReason: "full", hasResumableRun: true, handoff: { note: "commit" } }).on, "handoff");
+  const head = { hasPropose: true, openCount: 1, availableBacklog: 1, capReason: "full", hasResumablePmRun: true };
+  assert.equal(decideHead(head).action, "dispatch");
+  assert.equal(decideHead({ ...head, availableBacklog: 0 }).action, "none");
+  assert.equal(decideHead({ ...head, openCount: 2 }).action, "none");
+  assert.equal(decideHead({ ...head, hasPropose: false }).action, "none");
+});
+
+it("slots-v1 dispatches and gates preserve the supplied execution identities", () => {
+  const entry = { runId: "pipeline", entryId: "epoch", slotId: "doc-auditor#2" };
+  const dispatched = decideNext({ ...base, node: entry.slotId, format: "slots-v1", entry });
+  assert.equal(dispatched.agent, "doc-auditor");
+  assert.deepEqual(dispatched.entry, entry);
+  assert.equal(dispatched.hint, HINT["doc-audit"]);
+  const gated = decideNext({ ...base, node: "before-doc-auditor#2", format: "slots-v1", entry });
+  assert.deepEqual(gated.gateEntry, { runId: entry.runId, entryId: entry.entryId });
+});
+
 describe("decideNext (H.4)", () => {
   it("a closed run is done", () => {
     assert.deepEqual(decideNext({ ...base, node: null }), { key: "FEAT-01", node: null, version: 2, action: "done" });
   });
   it("a gate waits — boundary gates carry the boundary, others null", () => {
     assert.deepEqual(decideNext({ ...base, node: "before-plan", status: "proposed" }),
-      { key: "FEAT-01", node: "before-plan", version: 2, action: "wait", on: "gate", gate: "before-plan", boundary: { from: "proposed", to: "planning" }, planCommit: null });
+      { key: "FEAT-01", node: "before-plan", version: 2, action: "wait", on: "gate", format: null, gate: "before-plan", boundary: { from: "proposed", to: "planning" }, planCommit: null });
     assert.equal(decideNext({ ...base, node: "before-verify", status: "in_review", planCommit: "3f2a9c1" }).boundary, null);
     assert.equal(decideNext({ ...base, node: "before-verify", status: "in_review", planCommit: "3f2a9c1" }).planCommit, "3f2a9c1");
   });
@@ -28,7 +49,7 @@ describe("decideNext (H.4)", () => {
     assert.match(r.reason, /last 30 days/);
   });
   it("plan and implement dispatch the item's dev; doc-audit dispatches doc-auditor; hint comes from HINT", () => {
-    assert.deepEqual(decideNext({ ...base, node: "plan" }), { key: "FEAT-01", node: "plan", version: 2, action: "dispatch", agent: "web-dev", hint: HINT.plan });
+    assert.deepEqual(decideNext({ ...base, node: "plan" }), { key: "FEAT-01", node: "plan", version: 2, action: "dispatch", format: null, agent: "web-dev", hint: HINT.plan });
     assert.equal(decideNext({ ...base, node: "implement", status: "implementing" }).agent, "web-dev");
     assert.equal(decideNext({ ...base, node: "doc-audit", status: "done" }).agent, "doc-auditor");
     assert.equal(decideNext({ ...base, node: "propose", status: "proposed" }).agent, "pm");

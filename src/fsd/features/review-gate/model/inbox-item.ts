@@ -5,7 +5,10 @@ import type { ActionResult } from "@/fsd/shared/api/result";
 import { isGateId } from "@harness/core/pipeline.mjs";
 import { needsHumanDecision } from "./gate-source";
 
+export type GateEntry = { runId: string; entryId: string };
 export type InboxItem = {
+  format?: string | null;
+  gateEntry?: GateEntry;
   key: string;
   title: string;
   area: string;
@@ -39,7 +42,7 @@ export type TransitionAction = (input: TransitionInput) => Promise<ActionResult<
 export type DiscardAction = (key: string, expectedUpdatedAt: string) => Promise<ActionResult<void>>;
 
 // 게이트 승인 액션 — 게이트 id로 부른다(§E.2 배선).
-export type GateAction = (input: { key: string; gate: string; expectedUpdatedAt: string }) => Promise<ActionResult<void>>;
+export type GateAction = (input: { key: string; gate: string; gateEntry?: GateEntry; expectedUpdatedAt: string }) => Promise<ActionResult<void>>;
 
 // 표시 순서: 파이프라인 깊은 것부터 — 게이트②(in_review) → 게이트①(proposed) → 보류.
 // 결재함에 오를 자격(needsHumanDecision)과 달리 이건 순수한 표시 규칙이다.
@@ -59,7 +62,7 @@ type BoardRow = {
   updatedAt: Date;
   backlogItem: { key: string; title: string; area: string };
   events: { at: Date; from: string | null; to: string | null; actor: string }[];
-  run: { node: string; closedAt: Date | null } | null; // latestBoardWithEvents의 include run
+  run: { id?: string; entryId?: string | null; version?: { format: string | null }; node: string; closedAt: Date | null } | null; // latestBoardWithEvents의 include run
 };
 
 export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxItem[] {
@@ -82,6 +85,8 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
         agent: row.agent,
         status: row.status,
         gate: gateOf(row),
+        format: row.run?.version?.format ?? null,
+        ...(row.run?.version?.format === "slots-v1" && row.run.id && row.run.entryId ? { gateEntry: { runId: row.run.id, entryId: row.run.entryId } } : {}),
         reason: row.reason,
         results: row.results,
         validation: row.validation,
@@ -96,4 +101,8 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
         updatedAt: row.updatedAt.toISOString(),
       };
     });
+}
+
+export function gateCardKey(item: InboxItem): string {
+  return JSON.stringify(item.gate && item.format === "slots-v1" && item.gateEntry ? [item.key, item.gate, item.gateEntry.runId, item.gateEntry.entryId] : [item.key, item.gate, item.updatedAt]);
 }

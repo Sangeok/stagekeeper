@@ -30,7 +30,7 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, u
         </Link>
       </div>
       <BacklogTable canWrite={canWrite} slug={slug} rows={rows} remove={remove} renderAction={canWrite ? (row) => <ProposeButton itemKey={row.key} roster={roster} propose={propose} /> : undefined} />
-      {canWrite ? editing && update ? <BacklogForm action={update} item={editing} /> : <BacklogForm action={add} /> : null}
+      {canWrite ? editing && update ? <BacklogForm key={editing.key} action={update} item={editing} /> : <BacklogForm key="new" action={add} /> : null}
     </>
   );
 }

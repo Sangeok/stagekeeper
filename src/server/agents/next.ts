@@ -20,6 +20,7 @@ import { STATUSES, canPropose } from "@harness/core/transitions.mjs";
 import type { ProjectAccess } from "@/server/entitlement";
 import type { ServerResult } from "@/server/result";
 import { DONE, TemplateFormatError, findStep, splitTemplate, type ParsedTemplate, type Step } from "./steps";
+import type { PipelineEntry } from "../pipeline/run-query";
 
 // handoff: 커밋 권한이 없어 멈췄다 — 전진·분기 없이 원장에 남고 자리에 머문다. 배너가 이 행을 읽는다.
 export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
@@ -31,12 +32,13 @@ export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 }; // 토큰당, �
 export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
 const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만 쓴다
 
-export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string };
-export type NextOutput = { step: string; instruction: string; done: false } | { done: true; note?: string };
+export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
+export type NextOutput = ({ step: string; instruction: string; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string };
 export type Scope = { projectId: string; tokenId: string };
-type RunRow = { id: string; stepId: string };
+export type RunRow = { id: string; stepId: string };
 
 export type NextDeps = {
+  withCursor?(scope: Scope, input: NextInput, key: string | null, work: (deps: NextDeps) => Promise<ServerResult<NextOutput>>): Promise<ServerResult<NextOutput>>;
   access(projectId: string): Promise<ProjectAccess>;
   roster(projectId: string): Promise<string[]>; // Workspace.agent[] — wsId 순
   template(projectId: string, path: string): Promise<string | null>; // 프로젝트 언어의 템플릿 본문(없으면 en)
@@ -44,7 +46,7 @@ export type NextDeps = {
   recentSteps(tokenId: string, since: Date): Promise<number>;
   recentRuns(projectId: string, since: Date): Promise<number>;
   openRun(projectId: string, agent: string, key: string | null): Promise<RunRow | null>;
-  createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<RunRow>;
+  createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<ServerResult<RunRow>>;
   boardStatus(projectId: string, key: string): Promise<string | null>; // 폐기되지 않은 최신 행의 상태
   itemAgent(projectId: string, key: string): Promise<string | null>; // 그 행에 배정된 에이전트. 행이 없으면 null
   openCount(projectId: string): Promise<number>;
@@ -77,6 +79,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const { projectId, tokenId } = scope;
   const { agent } = input;
   const key = input.key ?? null;
+  if (input.entry && !deps.withCursor) return fail("bound execution requires the cursor transaction adapter");
 
   const access = await deps.access(projectId);
   if (!access.available) return fail(access.reason);
@@ -112,11 +115,13 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   if (needsKey(parsed) && key === null) return fail(`agent \`${agent}\` needs a key`);
   if (!needsKey(parsed) && key !== null) return fail(`agent \`${agent}\` takes no key`);
 
+  // Template and rendering inputs are fetched before the short write transaction.
+  const vars = await deps.vars(projectId, agent);
   const serve = async (step: Step, prefix = ""): Promise<ServerResult<NextOutput>> => {
-    const vars = await deps.vars(projectId, agent);
-    return ok({ step: step.id, instruction: prefix + renderTemplate(step.body, vars), done: false });
+    return ok({ step: step.id, instruction: prefix + step.body, done: false });
   };
 
+  const execute = async (deps: NextDeps): Promise<ServerResult<NextOutput>> => {
   const run = await deps.openRun(projectId, agent, key);
   if (!run) {
     // 열린 run이 없는데 outcome이 왔다. 마지막 단계의 ok를 두 번 보낸 것일 수도, 이미 닫힌 run에 대고
@@ -150,8 +155,11 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     for (const candidate of entrySteps(parsed)) {
       const missing = await facts.unmet(candidate.requires);
       if (missing.length === 0) {
-        await deps.createRun(scope, agent, key, candidate.id);
-        return serve(candidate);
+        const created = await deps.createRun(scope, agent, key, candidate.id);
+        if (!created.ok) return created;
+        const actual = findStep(parsed, created.item.stepId);
+        if (!actual) return fail("the template changed under this run");
+        return serve(actual);
       }
       unmet.push(`step \`${candidate.id}\` opens when ${missing.join(" and ")}`);
     }
@@ -204,6 +212,10 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     console.warn(`agent_next: run ${run.id} (${projectId} ${agent}${key ? " " + key : ""}) hit ${count} refusals at step \`${current.id}\``);
   }
   return fail(`not open: ${unmet.join("; ")}`);
+  };
+  const result = await (deps.withCursor ? deps.withCursor(scope, input, key, execute) : execute(deps));
+  if (result.ok && !result.item.done) return ok({ ...result.item, instruction: renderTemplate(result.item.instruction, vars) });
+  return result;
 }
 
 const stale = () => fail("stale: the run moved under this call — call again without outcome to see the current step");

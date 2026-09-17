@@ -7,6 +7,9 @@ import { latestBoard } from "@/server/pipeline/board";
 import type { NextDeps } from "./next";
 import { repositoryOwner } from "../project-access-query";
 import { serverVars } from "./vars";
+import { cursorTransaction } from "./run-query";
+
+const cursorOnly = async (): Promise<never> => { throw new Error("Run writes require cursorTransaction"); };
 
 const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기본 "ko")에 템플릿이 없으면 여기로
 
@@ -37,8 +40,7 @@ export const prismaNextDeps: NextDeps = {
   openRun: (projectId, agent, key) => prisma.agentRun.findFirst({
     where: { projectId, agent, key, closedAt: null }, orderBy: { openedAt: "desc" }, select: { id: true, stepId: true },
   }),
-  createRun: ({ projectId, tokenId }, agent, key, stepId) =>
-    prisma.agentRun.create({ data: { projectId, tokenId, agent, key, stepId }, select: { id: true, stepId: true } }),
+  createRun: cursorOnly,
   boardStatus: async (projectId, key) => {
     const row = await prisma.boardItem.findFirst({
       where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { status: true },
@@ -68,14 +70,8 @@ export const prismaNextDeps: NextDeps = {
     });
     return { ...run, stepOutcomes: steps.map((s) => s.outcome) };
   },
-  record: async (runId, step) => { await prisma.agentRunStep.create({ data: { runId, ...step } }); },
-  advance: async (runId, from, to) => {
-    const u = await prisma.agentRun.updateMany({
-      where: { id: runId, stepId: from, closedAt: null },
-      data: to === null ? { closedAt: new Date() } : { stepId: to },
-    });
-    return u.count > 0;
-  },
-  refused: async (runId) =>
-    (await prisma.agentRun.update({ where: { id: runId }, data: { refused: { increment: 1 } }, select: { refused: true } })).refused,
+  record: cursorOnly,
+  advance: cursorOnly,
+  refused: cursorOnly,
 };
+prismaNextDeps.withCursor = cursorTransaction(prisma, prismaNextDeps);

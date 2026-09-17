@@ -66,6 +66,22 @@ describe("toItemDocs", () => {
     assert.deepEqual(docs.map((d) => d.path), ["docs/agents/dev/FEAT-02.md", "docs/agents/dev/FEAT-02-2.md"]);
   });
 
+  it("keeps the acceptance label after reopen clears acceptedAt", () => {
+    const docs = toItemDocs({ planPath: null, planCommit: null, acceptedAt: null, reports: [
+      { ...report("main-loop", "docs/reports/acceptance.md"), isAcceptance: true },
+      { ...report("main-loop", "docs/reports/validation.md"), isAcceptance: false },
+    ] }, repo);
+    assert.deepEqual(docs.map((doc) => doc.label), ["Acceptance record", "Validation record"]);
+  });
+
+  it("preserves earlier acceptance purposes after a later acceptance", () => {
+    const docs = toItemDocs({ planPath: null, planCommit: null, acceptedAt: at("2026-09-07T15:00:00Z"), reports: [
+      { ...report("main-loop", "docs/reports/first.md"), isAcceptance: true },
+      { ...report("main-loop", "docs/reports/validation.md", "0000000", "2026-09-08T15:00:00Z"), isAcceptance: false },
+    ] }, repo);
+    assert.deepEqual(docs.map((doc) => doc.label), ["Acceptance record", "Validation record"]);
+  });
+
   it("is empty when there is no plan and no report", () => {
     assert.deepEqual(toItemDocs({ planPath: null, planCommit: null, acceptedAt: null, reports: [] }, repo), []);
   });

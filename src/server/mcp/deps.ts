@@ -35,7 +35,8 @@ export const prismaToolDeps: ToolDeps = {
   // 항목마다 지연 전진을 먼저 돌린다: doc-audit·scout의 완료(에이전트 run 닫힘)는 보드 쓰기를 지나지 않는다.
   pipelineNext: async (projectId, key) => {
     if (key !== undefined) {
-      await board.advancePipeline(projectId, key);
+      const advanced = await board.advancePipeline(projectId, key);
+      if (advanced && !advanced.ok) return advanced;
       return { ok: true as const, item: await nextFor(prisma, projectId, key) };
     }
     const openOnly = true;
@@ -45,7 +46,8 @@ export const prismaToolDeps: ToolDeps = {
     const keys = [...new Set([...open.map((r) => r.backlogItem.key), ...(await board.walkingKeys(projectId))])];
     const items = [];
     for (const key of keys) {
-      await board.advancePipeline(projectId, key);
+      const advanced = await board.advancePipeline(projectId, key);
+      if (advanced && !advanced.ok) return advanced;
       items.push(await nextFor(prisma, projectId, key));
     }
     const head = await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId));

@@ -5,6 +5,39 @@ import { advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, g
 const full = { nodes: [...NODE_KINDS], gates: [...DEFAULT_GATES] };
 const facts = (o = {}) => ({ status: "proposed", validation: null, accepted: false, approvedGates: [], closedAgents: [], ...o });
 
+describe("slot execution isolation", () => {
+  const graph = { nodes: ["doc-auditor", "plan", "feature-scout", "verify", "implement", "doc-auditor#2", "accept", "feature-scout#2"], gates: ["before-accept"] };
+  it("accepts repeated project agents in each span without changing defaults", () => {
+    assert.equal(validateGraph(graph, "pro").ok, true);
+    assert.equal(dispatcherFor("doc-auditor#2", "dev"), "doc-auditor");
+    assert.equal(dispatcherFor("feature-scout#22", "dev"), "feature-scout");
+    assert.equal(validateGraph(graph, "free").ok, false);
+  });
+  it("rejects malformed ids, anchor suffixes, mixed aliases, and invalid anchors", () => {
+    for (const id of ["doc-auditor#1", "doc-auditor#0", "doc-auditor#-2", "doc-auditor#2.5", "doc-auditor#02", "doc-audit#2", "plan#2", "before-plan", "", null]) {
+      assert.equal(validateGraph({ nodes: [id, "plan", "implement", "accept"], gates: [] }, "max").ok, false, String(id));
+    }
+    assert.equal(validateGraph({ nodes: ["doc-audit", ...graph.nodes], gates: [] }, "max").ok, false);
+    assert.equal(validateGraph({ nodes: ["plan", "implement", "accept", "propose"], gates: [] }, "max").ok, false);
+  });
+  it("does not consume completion from the previous entry", () => {
+    const result = advance(graph, "implement", facts({ format: "slots-v1", status: "implementing", implementationComplete: true, slotComplete: true }));
+    assert.equal(result.cursor, "doc-auditor#2");
+    assert.deepEqual(result.transitions, []);
+    assert.deepEqual(result.entered, ["doc-auditor#2"]);
+  });
+  it("records done at the end of the implementation span, before acceptance approval", () => {
+    const result = advance(graph, "doc-auditor#2", facts({ format: "slots-v1", status: "implementing", slotComplete: true }));
+    assert.equal(result.cursor, "before-accept");
+    assert.deepEqual(result.transitions, [{ from: "implementing", to: "done" }]);
+    assert.equal(nodeDone("accept", facts({ status: "done" })), false);
+  });
+  it("a board status or another closed agent does not complete a bound slot", () => {
+    assert.equal(nodeDone("implement", facts({ format: "slots-v1", status: "done" })), false);
+    assert.equal(nodeDone("doc-auditor#2", facts({ format: "slots-v1", closedAgents: ["doc-auditor"] })), false);
+  });
+});
+
 describe("defaultGraph", () => {
   it("free has no verify or doc-audit; pro and max have every node but scout; gates are the two boundaries", () => {
     assert.deepEqual(defaultGraph("free").nodes, ["propose", "plan", "implement", "accept"]);

@@ -1,11 +1,13 @@
 // src/server/pipeline/run-rules.ts — 순수. DB·프레임워크 없음(board-rules.ts와 같은 층). run.ts가 읽은 사실로 pipeline_next의 답 하나를 정한다.
-import { NODE_AGENT, boundaryOf, isGateId } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, slotAgent, boundaryOf, isGateId } from "@harness/core/pipeline.mjs";
 import { canPropose } from "@harness/core/transitions.mjs";
 
 // 응답 — 항목 하나의 다음 일. 세션은 이 값을 읽고 그 턴에 행동한다(런북 "The cycle").
+import type { PipelineEntry, GateEntry } from "./run-query";
+
 export type PipelineNext =
-  | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string }  // 그 에이전트를 key와 함께 디스패치. hint = 그 노드에서 지켜야 할 한 문장
-  | { key: string; node: string; version: number; action: "wait"; on: "gate"; gate: string; boundary: { from: string; to: string } | null; planCommit: string | null }
+  | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string; format: string | null; entry?: PipelineEntry }  // 그 에이전트를 key와 함께 디스패치. hint = 그 노드에서 지켜야 할 한 문장
+  | { key: string; node: string; version: number; action: "wait"; on: "gate"; gate: string; boundary: { from: string; to: string } | null; planCommit: string | null; format: string | null; gateEntry?: GateEntry }
   | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }  // 커밋 핸드오프(배너와 같은 판정)
   | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string }
   | { key: string; node: string; version: number; action: "accept"; hint: string }                           // main-loop 본인이 인수 5조건을 재현한다
@@ -14,6 +16,9 @@ export type PipelineNext =
 // run.ts(nextFor)가 읽어 넘기는 사실. 어느 질의로 읽는지는 아래 "판정 순서" 문단.
 export type NextInput = {
   key: string;
+  format?: string | null;
+  entry?: PipelineEntry;
+  hasResumableRun?: boolean;
   version: number;                          // PipelineRun.version.version
   node: string | null;                      // PipelineRun.node. null이면 런이 닫혔다
   status: string;
@@ -29,7 +34,7 @@ export const HINT: Record<string, string> = {
   accept: "You run this one — reproduce the five acceptance checks yourself, write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }).",
   plan: "Dispatch with the item key. One item per dispatch.",
   verify: "Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
-  implement: "Dispatch with the item key. It reports and moves the item to done itself.",
+  implement: "Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate.",
   "doc-audit": "Dispatch doc-auditor with no key; append its report to docs/agents/doc-auditor/audit-log.md yourself.",
   scout: "Dispatch feature-scout with no key — only when harness.json.scout is configured (init writes that agent only then); otherwise take the Scout node off the Pipeline tab. Append its report to docs/agents/feature-scout/scouting-log.md yourself.",
 };
@@ -46,14 +51,14 @@ export function decideNext(i: NextInput): PipelineNext {
   const { key, version } = i;
   if (i.node === null) return { key, node: null, version, action: "done" };
   const node = i.node;
-  if (isGateId(node)) return { key, node, version, action: "wait", on: "gate", gate: node, boundary: boundaryOf(node), planCommit: i.planCommit };
+  if (isGateId(node)) return { key, node, version, action: "wait", on: "gate", gate: node, boundary: boundaryOf(node), planCommit: i.planCommit, format: i.format ?? null, ...(i.entry ? { gateEntry: { runId: i.entry.runId, entryId: i.entry.entryId } } : {}) };
   // accept만 hint가 없었다 — 메인 루프가 에이전트 없이 직접 하는 유일한 동작인데 안내가 안 붙었다(실측).
   if (node === "accept") return { key, node, version, action: "accept", hint: HINT.accept ?? "" };
   if (i.handoff !== null) return { key, node, version, action: "wait", on: "handoff", note: i.handoff.note };
-  const agent = node === "plan" || node === "implement" ? i.agent : (NODE_AGENT as Record<string, string | undefined>)[node];
-  if (agent === undefined) return { key, node, version, action: "done" };
-  if (i.capReason !== null) return { key, node, version, action: "wait", on: "cap", reason: i.capReason };
-  return { key, node, version, action: "dispatch", agent, hint: HINT[node] ?? "" };
+  const agent = dispatcherFor(node, i.agent);
+  if (agent === null) return { key, node, version, action: "done" };
+  if (i.capReason !== null && !i.hasResumableRun) return { key, node, version, action: "wait", on: "cap", reason: i.capReason };
+  return { key, node, version, action: "dispatch", agent, hint: hintFor(node), format: i.format ?? null, ...(i.entry ? { entry: i.entry } : {}) };
 }
 
 // key 없는 pipeline_next의 머리 — pm을 디스패치할 차례인가. none이면 사유가 실린다(null은 사유를 못 싣는다).
@@ -67,7 +72,13 @@ export const RUNBOOK_STALE_NOTE =
   + "Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md.";
 
 export type PipelineOverview = { head: HeadNext; items: PipelineNext[]; runbook?: { stale: true; note: string } };
+export function hintFor(node: string): string {
+  const agent = slotAgent(node);
+  return HINT[node] ?? (agent === "doc-auditor" ? HINT["doc-audit"] : agent === "feature-scout" ? HINT.scout : "");
+}
+
 export type HeadInput = {
+  hasResumablePmRun?: boolean;
   hasPropose: boolean;   // 현재 버전의 nodes에 propose가 있는가
   openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
   availableBacklog: number; // 아직 보드에 안 올라간 백로그 항목 수 — pm이 고를 수 있는 것
@@ -81,6 +92,6 @@ export function decideHead(i: HeadInput): HeadNext {
   // 백로그가 비었으면 pm을 부를 이유가 없다. 예전에는 계속 "dispatch pm"이라 답해,
   // 고를 것이 없다는 걸 알자고 디스패치를 하나 썼다 — 디스패치는 월 상한에 계수된다(실측).
   if (i.availableBacklog === 0) return { action: "none", reason: "the backlog has nothing to pick — add an item on the Backlog tab" };
-  if (i.capReason !== null) return { action: "none", reason: i.capReason };
+  if (i.capReason !== null && !i.hasResumablePmRun) return { action: "none", reason: i.capReason };
   return { action: "dispatch", agent: "pm", hint: HINT.propose };
 }
