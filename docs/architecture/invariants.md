@@ -49,13 +49,13 @@
 - **게이트가 없는 자리의 전이는 서버가 actor `pipeline`으로 넘고 원장에 남긴다.** 불변식 4의 판별 기준은
   그대로다: 게이트가 **있으면** 사람만 연다. 게이트를 뺀 것은 소유자의 그래프 편집(웹, `PipelineVersion.createdBy`)
   이고, 자동 전이 행은 `actorId`에 버전 id를 실어 어느 그래프가 넘겼는지 읽힌다. 서버가 쓰려면 두 조건이 다
-  맞아야 한다 — 상태 기계에 `pipeline` 행이 있고(경계 둘뿐), 그래프에 그 자리의 게이트가 없어야 한다.
+  맞아야 한다 — 상태 기계의 경계 전이가 허용되고 그래프에 그 자리의 게이트가 없어야 한다. 구현 구간 종료는 별도로, 현재 고정 그래프와 결합 실행 증거를 확인한 뒤 pipeline이 done을 기록한다.
 - **인수는 노드에서 못 뺀다.** 증거 없는 상태 주장 금지가 사는 자리다 — `accept`가 빠지면 `acceptedAt` 없이
   파이프라인이 끝나는 경로가 생긴다. `validateGraph`가 저장 시점에 막는다.
 - **불변식 8은 행을 지우지 않는 것으로 지킨다.** 폐기는 `BoardItem.discardedAt` 표기이고
   `완료`는 백로그의 `removedAt` 표기다 — 행도 `TransitionEvent`도 지우지 않는다.
 - **인수 실패도 행을 지우지 않는다.** `done`에서 되돌리는 reopen(사람만, 사유 필수)은 전이 이벤트로
-  남고, 백로그 `removedAt`과 `acceptedAt`을 되돌린다. `done`은 "dev가 끝났다고 보고했다"이고 인수는
+  남고, 백로그 `removedAt`과 `acceptedAt`을 되돌린다. `done`은 "구현 구간의 결합 실행 증거를 서버가 확인했다"이고 인수는
   `acceptedAt`(`done`에서 `main-loop`의 `report_submit`)이다 — 상태가 아니라 증거의 유무다,
   `validation`이 상태가 아닌 것과 같은 이유로.
 - **검증 기록도 verify 원장 뒤에만 받는다.** `validation_record`는 마지막 `plan_submit` 뒤에

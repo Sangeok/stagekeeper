@@ -28,10 +28,10 @@ describe("decideTransition", () => {
   });
   it("done needs a report and a result; result accumulates; completes flag set", () => {
     const r = row({ status: "implementing", results: ["first result"] });
-    assert.match(decideTransition(r, "agent", "done", "finished").reason, /report_submit/);
-    const d = decideTransition({ ...r, reportCount: 1 }, "agent", "done", "finished");
+    assert.match(decideTransition(r, "pipeline", "done", "finished").reason, /report_submit/);
+    const d = decideTransition({ ...r, reportCount: 1 }, "pipeline", "done", "finished");
     assert.equal(d.ok, true); assert.deepEqual(d.value.results, ["first result", "finished"]); assert.equal(d.value.completes, true);
-    assert.match(decideTransition({ ...r, reportCount: 1 }, "agent", "done", "").reason, /empty/);
+    assert.match(decideTransition({ ...r, reportCount: 1 }, "pipeline", "done", "").reason, /empty/);
   });
   it("bounce clears validation; resume to implementing keeps it; hold needs result", () => {
     const r = row({ status: "in_review", validation: "clean pass" });

@@ -8,11 +8,12 @@ import { latestBoard } from "@/server/pipeline/board";
 import type { NextDeps } from "./next";
 import { repositoryOwner } from "../project-access-query";
 import { serverVars } from "./vars";
+import { cursorTransaction, commitRunOutcome } from "./run-query";
 
 const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기본 "ko")에 템플릿이 없으면 여기로
 
 export function createNextDeps(db: PrismaClient): NextDeps {
-  return {
+  const deps: NextDeps = {
     access: (projectId) => readProjectAccess(db, projectId),
     roster: async (projectId) =>
       (await db.workspace.findMany({ where: { projectId }, orderBy: { wsId: "asc" }, select: { agent: true } })).map((w) => w.agent),
@@ -39,8 +40,7 @@ export function createNextDeps(db: PrismaClient): NextDeps {
     openRun: (projectId, agent, key) => db.agentRun.findFirst({
       where: { projectId, agent, key, closedAt: null }, orderBy: { openedAt: "desc" }, select: { id: true, stepId: true, revision: true, closedAt: true },
     }),
-    createRun: ({ projectId, tokenId }, agent, key, stepId) =>
-      db.agentRun.create({ data: { projectId, tokenId, agent, key, stepId }, select: { id: true, stepId: true, revision: true, closedAt: true } }),
+    createRun: async () => { throw new Error("Run creation requires cursorTransaction"); },
     boardStatus: async (projectId, key) => {
       const row = await db.boardItem.findFirst({
         where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { status: true },
@@ -64,32 +64,10 @@ export function createNextDeps(db: PrismaClient): NextDeps {
     closeRun: async (run) => {
       await db.agentRun.updateMany({ where: { id: run.id, revision: run.revision, stepId: run.stepId, closedAt: null }, data: { closedAt: new Date() } });
     },
-    commitOutcome: ({ scope, agent, key, receipt, outcome, note, destination }) => db.$transaction(async (tx) => {
-      const closed = destination.kind === "closed";
-      const retired = destination.kind === "retired";
-      const expected = retired ? destination.run : receipt;
-      const terminalAllowed = !closed || destination.allowTerminal;
-      const claimed = await tx.agentRun.updateMany({
-        where: {
-          id: receipt.runId, projectId: scope.projectId, agent, key, revision: expected.revision, stepId: expected.stepId,
-          closedAt: closed ? { not: null } : null,
-          ...(terminalAllowed ? {} : { id: { in: [] } }),
-          ...(closed ? { steps: { none: { stepId: receipt.stepId, outcome: { in: ["ok", "blocked", "failed"] }, OR: [{ accepted: true }, { accepted: null }] } } } : {}),
-        },
-        data: {
-          ...(retired ? { closedAt: new Date() } : { revision: { increment: 1 } }),
-          ...(destination.kind === "step" ? { stepId: destination.stepId } : {}),
-          ...(destination.kind === "done" ? { closedAt: new Date() } : {}),
-          ...(destination.kind === "stay" && destination.refused ? { refused: { increment: 1 } } : {}),
-        },
-      });
-      await tx.agentRunStep.create({ data: { runId: receipt.runId, stepId: receipt.stepId, outcome, note,
-        callerTokenId: scope.tokenId, receiptRevision: receipt.revision, accepted: !retired && claimed.count === 1 } });
-      const run = await tx.agentRun.findUniqueOrThrow({ where: { id: receipt.runId }, select: { id: true, stepId: true, revision: true, closedAt: true, refused: true } });
-      if (!claimed.count || retired) return { kind: run.closedAt ? "closed" : "stale" };
-      return { kind: "accepted", run, refused: run.refused };
-    }),
+    commitOutcome: (input) => db.$transaction((tx) => commitRunOutcome(tx, input)),
   };
+  deps.withCursor = cursorTransaction(db, deps);
+  return deps;
 }
 
 export const prismaNextDeps = createNextDeps(prisma);

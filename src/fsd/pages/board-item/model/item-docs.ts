@@ -4,7 +4,7 @@
 import { blobHref, orderReportActors, reportDocLabel, type RepoRef } from "@/fsd/entities/board-item";
 import type { ItemDoc } from "../ui/board-item-page";
 
-type ReportRow = { actor: string; path: string; commit: string; at: Date };
+type ReportRow = { actor: string; path: string; commit: string; at: Date; isAcceptance?: boolean | null };
 type DocSource = { planPath: string | null; planCommit: string | null; acceptedAt: Date | null; reports: readonly ReportRow[] };
 
 export function toItemDocs(row: DocSource, repo: RepoRef): ItemDoc[] {
@@ -23,8 +23,9 @@ export function toItemDocs(row: DocSource, repo: RepoRef): ItemDoc[] {
   }
   for (const actor of orderReportActors(new Set(byActor.keys()))) {
     for (const report of byActor.get(actor) ?? []) {
-      // main-loop의 보고는 둘이다: in_review의 검증 라운드 기록과 done의 인수 기록. acceptedAt 이후의 것이 인수 기록이다.
-      const isAcceptance = row.acceptedAt !== null && report.at.getTime() >= row.acceptedAt.getTime();
+      // Submission purpose survives reopen and later acceptances. Unrecoverable legacy
+      // rows retain the old fallback while the current acceptance is still known.
+      const isAcceptance = report.isAcceptance ?? (row.acceptedAt !== null && report.at.getTime() >= row.acceptedAt.getTime());
       docs.push({ label: reportDocLabel(actor, isAcceptance), path: report.path, href: blobHref(repo, report.path, report.commit) });
     }
   }

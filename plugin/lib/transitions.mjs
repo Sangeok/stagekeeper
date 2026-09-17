@@ -25,7 +25,7 @@ const RULES = [
   // 에이전트(MCP 토큰) — dev A-4·B-6
   { from: "planning", to: "in_review", actor: "agent", kind: "plan", requiresPlan: true },
   { from: "planning", to: "on_hold", actor: "agent", kind: "hold", requiresResult: true },
-  { from: "implementing", to: "done", actor: "agent", kind: "done", requiresResult: true, requiresReport: true },
+  { from: "implementing", to: "done", actor: "pipeline", kind: "auto", requiresResult: true, requiresReport: true },
   { from: "implementing", to: "on_hold", actor: "agent", kind: "hold", requiresResult: true },
 ];
 

@@ -1,5 +1,5 @@
 import { isOverBudget } from "@/fsd/entities/board-item";
-import { NODE_AGENT } from "@harness/core/pipeline.mjs";
+import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline.mjs";
 import { daysBetween } from "@/fsd/shared/lib/relative-time";
 
 type BoardRow = {
@@ -45,6 +45,7 @@ function summaryLine(row: BoardRow): string {
 }
 
 function activityItem(row: BoardRow, today: Date): ActivityItem {
+  if (row.node && PROJECT_AGENTS.includes(slotAgent(row.node)) && row.status !== "on_hold") return { key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slotAgent(row.node)} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
   const item = {
     key: row.backlogItem.key,
     status: row.status,
@@ -115,6 +116,10 @@ function workerState(agent: string, rows: readonly BoardRow[]): string {
 }
 
 function teamState(agent: string, rows: readonly BoardRow[]): string {
+  if (PROJECT_AGENTS.includes(agent)) {
+    const current = rows.find((row) => row.node && dispatcherFor(row.node, row.agent) === agent && row.status !== "on_hold");
+    return current ? `${current.dispatched ? "Working on" : "Ready for"} ${current.backlogItem.key}` : "Idle";
+  }
   if (agent === "pm") return pmState(rows);
   if (agent === "plan-verifier") return verifierState(rows);
   return workerState(agent, rows);
@@ -137,7 +142,7 @@ export function buildBriefing(
   }
   // 현재 그래프의 노드가 디스패치하는 에이전트만, 그래프 순서로 — plan·implement는 roster(항목의 dev), accept는 main-loop(디스패치 아님).
   const agentsOf = (kind: string): readonly string[] =>
-    kind === "plan" || kind === "implement" ? roster : ((NODE_AGENT as Record<string, string | undefined>)[kind] ? [(NODE_AGENT as Record<string, string>)[kind]] : []);
+    kind === "plan" || kind === "implement" ? roster : (slotAgent(kind) ? [slotAgent(kind)!] : []);
   const team = [...new Set(nodes.flatMap(agentsOf))].map((agent) => ({ agent, state: teamState(agent, rows) }));
   return { activity: [...gateItems, ...otherItems], team };
 }

@@ -107,3 +107,7 @@ src/server ─X─► src/fsd
 현재 저장소는 단일 Next.js package다. `packages/core`와 `plugin`은 별도 npm
 workspace가 아니라 같은 저장소의 배포 재료다. 서버 endpoint가 크게 늘거나
 독립 배포가 필요해질 때만 backend package 분리를 새 ADR로 검토한다.
+
+## 슬롯 실행 저장 경계
+
+`pipeline/run-query.ts`, `pipeline/board-query.ts`, `agents/run-query.ts`는 주입된 Prisma client를 사용한다. 운영 singleton 연결은 기존 run.ts·board.ts·runs.ts 어댑터가 맡는다. slots-v1은 entry별 실행과 보고서를 결합하며, owner 행 잠금 아래 개설 상한을 지킨다. 기존 null 형식은 별도 호환 경로로 읽는다. 사용자 정의 역할과 Workspace 스키마 확장은 포함하지 않는다.

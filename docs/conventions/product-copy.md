@@ -506,7 +506,7 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `board_list` | Latest board item per backlog item. `open: true` → only open ones. |
 | `board_get` | Latest board item with its transition history and reports. |
 | `board_propose` | pm: create a `proposed` item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, or the key is already open. |
-| `board_transition` | Agent transitions only: implementing → done (after report_submit), → on_hold (result required). `plan_submit` already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here. |
+| `board_transition` | Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. `plan_submit` already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here. |
 | `plan_submit` | Record where the plan is (path and commit) **and** move the item to `in_review`, in one transaction. Only in `planning` or `in_review` — re-call after review edits so the approved commit is recorded; a re-call from `in_review` records the commit and moves nothing. |
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
@@ -530,7 +530,7 @@ after the gate opened; the runbook's "Approving from this session" tells the ses
 | `propose` | Dispatch pm with no key. It proposes at most one item per run. |
 | `plan` | Dispatch with the item key. One item per dispatch. |
 | `verify` | Run your own verification round first (paths from docs/plans/verification-paths.md, reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record. |
-| `implement` | Dispatch with the item key. It reports and moves the item to done itself. |
+| `implement` | Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate. |
 | `doc-audit` | Dispatch doc-auditor with no key; append its report to docs/agents/doc-auditor/audit-log.md yourself. |
 | `scout` | Dispatch feature-scout with no key — only when harness.json.scout is configured (init writes that agent only then); otherwise take the Scout node off the Pipeline tab. Append its report to docs/agents/feature-scout/scouting-log.md yourself. |
 

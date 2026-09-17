@@ -5,6 +5,7 @@ import { agoLabel } from "@/fsd/shared/lib/relative-time";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
 
 type Props = {
+  format?: string | null;
   graph: Graph;
   version: number | null;
   savedAt: Date | null;
@@ -18,7 +19,7 @@ type Props = {
 
 // 파이프라인 탭. 그래프는 서버 소유이고 이 화면은 그것을 그리고 고친다 — 문구는 product-copy.md §18.
 // 저장한 버전은 지금 열려 있는 항목을 옮기지 않는다: 런은 자기가 시작한 버전을 끝까지 쓴다(§C.1).
-export function ProjectPipelinePage({ graph, version, savedAt, now, plan, roster, editable, save, unavailableReason }: Props) {
+export function ProjectPipelinePage({ graph, format, version, savedAt, now, plan, roster, editable, save, unavailableReason }: Props) {
   return (
     <>
       <div className="flex flex-col gap-1">
@@ -31,6 +32,7 @@ export function ProjectPipelinePage({ graph, version, savedAt, now, plan, roster
       <PipelineRail key={`${version ?? "default"}:${plan}:${editable}`} graph={graph} plan={plan} roster={roster} editable={editable} save={save} unavailableReason={unavailableReason} />
 
       <section>
+        <p className="text-xs text-quiet">Execution format: {format ?? "legacy"}. Implementation span completion and acceptance are separate.</p>
         <SectionLabel>Read as text</SectionLabel>
         <details className="text-sm">
           <summary className="cursor-pointer text-xs text-quiet underline underline-offset-2">

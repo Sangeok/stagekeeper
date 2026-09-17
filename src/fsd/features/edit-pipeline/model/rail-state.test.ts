@@ -3,9 +3,26 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defaultGraph } from "@harness/core/pipeline.mjs";
-import { addNode, insertGate, removeGate, removeNode, swapTail } from "./rail-state";
+import { addNode, addSlot, moveSlot, insertGate, removeGate, removeNode, swapTail } from "./rail-state";
 
 const pro = () => defaultGraph("pro") as { nodes: string[]; gates: string[] };
+
+it("repeating, moving and deleting slots preserve other identities and attached gates", () => {
+  const first = addSlot({ nodes: ["doc-audit", "plan", "implement", "accept"], gates: ["before-doc-audit"] }, "doc-auditor", "accept", "pro");
+  assert.ok(first.ok);
+  assert.deepEqual(first.graph.gates, ["before-doc-auditor"]);
+  assert.ok(first.graph.nodes.includes("doc-auditor#2"));
+  const moved = moveSlot(first.graph, "doc-auditor", "implement", "pro");
+  assert.ok(moved.ok);
+  assert.deepEqual(moved.graph.nodes, ["plan", "doc-auditor", "implement", "doc-auditor#2", "accept"]);
+  const deleted = removeNode(moved.graph, "doc-auditor", "pro");
+  assert.ok(deleted.ok);
+  assert.ok(deleted.graph.nodes.includes("doc-auditor#2"));
+  assert.deepEqual(deleted.graph.gates, []);
+  const restored = addNode({ ...deleted.graph, nodes: [...deleted.graph.nodes] }, "verify", "pro");
+  assert.ok(restored.ok);
+  assert.ok(restored.graph.nodes.includes("doc-auditor#2"), "restoring an anchor must not discard free slots");
+});
 
 describe("rail-state", () => {
   it("inserts a gate on an edge that has a node after it", () => {

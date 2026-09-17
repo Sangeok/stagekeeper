@@ -39,11 +39,15 @@ export async function readProjectPlanIn(db: Prisma.TransactionClient, projectId:
 export async function readProjectAccess(client: TransactionHost, projectId: string): Promise<ProjectAccess> {
   return client.$transaction(async (tx) => {
     await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+    return readProjectAccessIn(tx, projectId);
+  }, READ_OPTIONS);
+}
+
+export async function readProjectAccessIn(tx: Prisma.TransactionClient, projectId: string): Promise<ProjectAccess> {
     const project = await readProjectFactsIn(tx, projectId);
     if (!project?.ownerUserId || !project.ownerUser || project.repoOwner === null) {
       return { plan: DEFAULT_PLAN, available: false, code: "integrity", reason: OWNERSHIP_UNAVAILABLE_REASON };
     }
     const plan = normalizePlan(project.ownerUser.subscription?.plan);
     return project.available ? { plan, available: true } : { plan, available: false, code: "not-selected", reason: NOT_SELECTED_REASON };
-  }, READ_OPTIONS);
 }

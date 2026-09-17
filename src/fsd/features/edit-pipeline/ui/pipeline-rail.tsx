@@ -2,13 +2,13 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, gateId } from "@harness/core/pipeline.mjs";
+import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, slotAgent, gateId } from "@harness/core/pipeline.mjs";
 import { gateLabel, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
-import { addNode, insertGate, removeGate, removeNode, swapTail, type Graph, type Step } from "../model/rail-state";
+import { addNode, addSlot, moveSlot, insertGate, removeGate, removeNode, swapTail, type Graph, type Step } from "../model/rail-state";
 
 export type SavePipelineAction = (graph: Graph) => Promise<ActionResult<void>>;
 
@@ -41,11 +41,13 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
   const [pending, startTransition] = useTransition();
 
   const dirty = JSON.stringify(state) !== JSON.stringify(graph);
-  const missing = KINDS.filter((k) => !state.nodes.includes(k));
+  const missing = KINDS.filter((k) => !PROJECT_AGENTS.includes(slotAgent(k)) && !state.nodes.includes(k));
 
   // 그 간선에서 할 수 있는 것 — 사유는 core의 validateGraph가 쓴 문장 그대로다.
   const movesFor = (kind: string): Move[] => [
     { label: "Add gate", step: insertGate(state, gateId(kind), plan) },
+    ...PROJECT_AGENTS.map((agent: string) => ({ label: `Add ${agent} here`, step: addSlot(state, agent, kind, plan) })),
+    ...state.nodes.filter((id) => PROJECT_AGENTS.includes(slotAgent(id))).map((id) => ({ label: `Move ${id} here`, step: moveSlot(state, id, kind, plan) })),
     ...missing.map((k) => ({ label: `Add ${nodeLabel(k)}`, step: addNode(state, k, plan) })),
   ];
 
@@ -122,9 +124,20 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
         </div>
       )}
 
+      {editable ? <div className="flex flex-wrap gap-3 text-xs">
+        {PROJECT_AGENTS.map((agent: string) => {
+          const step = addSlot(state, agent, null, plan);
+          return <button key={agent} type="button" disabled={!step.ok} onClick={() => apply(step)}>Add {agent} at end</button>;
+        })}
+        {state.nodes.filter((id) => PROJECT_AGENTS.includes(slotAgent(id))).map((id) => {
+          const step = moveSlot(state, id, null, plan);
+          return <button key={id} type="button" disabled={!step.ok} onClick={() => apply(step)}>Move {id} to end</button>;
+        })}
+      </div> : null}
+
       {state.gates.length === 0 ? (
         <p className="text-xs text-risk">
-          No gate: agents run this item end to end without you. Reopen and discard stay on the web.
+          No gate: plan and implementation start without your approval. Acceptance is still required. Reopen and discard stay on the web.
         </p>
       ) : null}
       {editable ? null : (

@@ -44,11 +44,11 @@
 | `board_list` | `{open?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
 | `board_get` | `{key}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·main-loop | 1 |
 | `board_propose` | `{key, agent, reason}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
-| `board_transition` | `{key, to, result?}` | 에이전트 허용 전이만(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit` 선행 필수. `done`은 백로그 항목 자동 제거 | dev | 1 |
+| `board_transition` | `{key, to, result?}` | 에이전트는 planning·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev | 1 |
 | `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
-| `report_submit` | `{key, actor, path, commit}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
+| `report_submit` | `{key, actor, path, commit, runId?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
 | `validation_record` | `{key, text}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
-| `agent_next` | `{agent, key?, outcome?, note?, receipt?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
+| `agent_next` | `{agent, key?, outcome?, note?, entry?, agentRunId?, stepId?, receipt?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
 | `pipeline_next` | `{key?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다 | main-loop | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
@@ -107,7 +107,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 | `done` | `planning` | human | reopen | `result` 필수. 검증 기록도 지운다. 복원은 위와 같다 |
 | `planning` | `in_review` | agent | plan | `plan_submit` 선행 |
 | `planning` | `on_hold` | agent | hold | `result` 필수 |
-| `implementing` | `done` | agent | done | `report_submit` 선행 · `result` 필수 |
+| `implementing` | `done` | pipeline | auto | 현재 실행의 구현 구간 완료 · 결합 보고서 · 고정 result 필수 |
 | `implementing` | `on_hold` | agent | hold | `result` 필수 |
 
 부수 규칙: 폐기는 `proposed`·`in_review`에서만(행은 남고 `discardedAt`이 찍힌다) ·
@@ -122,23 +122,14 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 
 순서의 단일 출처는 `packages/core/pipeline.mjs`와 그 프로젝트의 `PipelineVersion` 행이다. 런북에는 순서가 없다.
 
-- **카탈로그.** 비게이트 노드 7종이 골격 순서다: `propose` · `plan` · `verify` · `implement` · `accept` ·
-  `doc-audit` · `scout`. `plan`·`implement`·`accept`는 못 뺀다. `doc-audit`·`scout`는 `accept` 뒤 꼬리이고 서로
-  순서를 바꿀 수 있다. `scout`는 opt-in이다 — `harness.json.scout`이 있어야 도는 에이전트인데 서버는 그 설정을
-  모르므로 어느 플랜의 기본 그래프에도 없다.
-- **게이트는 노드가 아니라 간선이다.** id는 `before-<kind>` — 그 노드 **앞** 간선. 간선당 하나이므로 "연속 2개"가
-  없다. `propose`는 머리라 `before-propose`도 없다.
-- **경계 게이트 둘.** `before-plan`(`proposed → planning`)과 `before-implement`(`in_review → implementing`)는 승인이
-  상태 전이까지 한다. 나머지 게이트는 같은 상태의 이벤트만 남긴다.
-- **커서.** `sequence(graph)`가 걷는 순서를 준다(노드마다 그 앞 게이트 → 노드). `PipelineRun.node`가 지금 선 자리이고
-  `enteredAt`이 그 자리에 선 시각이다 — 게이트 승인과 에이전트 run 닫힘은 이 시각부터(`>=`)의 것만 센다.
-- **노드 완료는 증거로만 판정한다**(`nodeDone`): `plan`은 `in_review` 이후 · `verify`는 검증 기록 · `implement`는
-  `done` · `accept`는 `acceptedAt` · `doc-audit`·`scout`는 커서가 들어온 뒤 그 에이전트의 run이 닫힘.
-- **사람이 상태를 되돌리면** 커서는 `cursorForStatus`가 말하는 자리로 간다. `on_hold`는 커서를 그대로 두고 잠든다.
-- **버전 고정.** 그래프는 저장마다 새 `PipelineVersion` 행이 되고 항목은 시작 시점 버전에 고정된다. 새 버전은 그
-  뒤에 올라온 항목부터 적용된다.
-- **상한 계수 자리는 `AgentRun` 개설**이다 — 서버가 "이 에이전트가 실제로 시작했다"를 관측하는 유일한 지점이고,
-  파이프라인을 거치지 않고 손으로 디스패치한 run도 같은 자리를 지난다. 창은 롤링 30일이다.
+- **앵커와 슬롯.** plan·implement·accept는 각각 한 번이며 순서가 고정된다. propose는 선택이며 맨 앞, verify는 선택이며 plan과 implement 사이다. doc-auditor·feature-scout는 앵커 사이에 반복 배치할 수 있다. 첫 생성은 접미가 없고 이후 #2, #3 등을 배정한다. 이동·다른 슬롯 삭제로 기존 ID를 바꾸지 않는다. doc-audit·scout는 기존 별칭이며 편집 정규화는 연결 게이트도 함께 옮긴다. 기본 그래프와 scout opt-in은 보존한다.
+- **게이트.** before-<slotId>는 해당 슬롯 앞 간선이다. before-propose는 없다. before-plan과 before-implement만 승인이 상태 전이를 함께 수행한다. 나머지는 same-status 감사 이벤트다. 새 형식의 승인은 읽어 둔 gateEntry(runId, entryId)를 그대로 제출해야 하며 잠긴 현재 회차에서 한 번만 소비된다. 과거 이벤트나 같은 timestamp는 재승인 근거가 아니다.
+- **버전과 회차.** 새 PipelineVersion.format은 slots-v1, 기존 행은 null이다. 항목은 시작한 버전에 고정된다. PipelineRun.entryId는 진입·reset마다 새로 생성한다. 기존 행의 nodes/gates를 backfill하지 않는다. 알 수 없는 형식은 거부한다. GET은 버전을 생성하지 않는다.
+- **실행 결합.** 새 dispatch 응답의 entry={runId,entryId,slotId}는 PipelineRun을 식별한다. agent_next는 이 entry에 결합하고 응답에 실제 agentRunId와 receipt={runId,revision,stepId}를 준다. 모든 outcome은 응답 receipt를 그대로 제출하며, 결합 실행은 entry도 함께 제출한다. agentRunId·stepId는 선택적 호환 필드이며 제출하면 receipt와 일치해야 한다. 현재 회차·단계·revision이 다르면 쓰기 전에 거부한다. 프로젝트 에이전트는 entry가 있어도 key를 생략한다. 항목 생성 전 PM은 결합 없는 실행이다.
+- **완료 증거.** plan_submit은 planning→in_review를 같은 transaction에서 처리한다. verify는 validation_record로 완료한다. implement는 같은 AgentRun의 verify/ok, 결합 Report, 정상 report/ok 종료가 모두 필요하다. hold 보고는 완료가 아니다. 프로젝트 슬롯은 정확한 entry의 닫힌 AgentRun으로 완료한다. 다음 슬롯 진입에서는 이전 슬롯의 사실을 재사용하지 않는다.
+- **구간 종료와 인수.** 구현 구간의 마지막 슬롯을 지난 뒤, before-accept를 기다리기 전에 서버가 pipeline:<versionId>로 done을 기록하고 result에 "Implementation span completed."를 추가한다. agent의 done 전이는 없다. accept는 acceptedAt이라는 별도 증거이며 생략할 수 없다. 인수 뒤 슬롯도 계속 진행한다.
+- **저장과 상한.** 실제 run 개설은 소유자 User→PipelineRun→AgentRun 순서의 잠금 아래 fresh access·plan·소유자 전체 rolling 30일 수를 확인하고 생성한다. 열린 실행 재개는 계수하지 않는다. 단계 기록과 커서 CAS는 같은 짧은 transaction이고 템플릿·변수 렌더는 밖에서 한다. 실패 CAS는 원장까지 rollback한다. 계획 제출/hold로 닫힌 정확한 실행의 마지막 terminal outcome만 한 번 보충할 수 있다.
+- **보고 식별자.** report_submit.runId는 AgentRun ID다. entry.runId와 혼동하지 않는다. 결합 없는 기존 보고도 감사 행으로 남지만 새 형식의 성공 증거는 아니다. 삭제 관계는 PipelineRun→AgentRun cascade, AgentRun→Report 참조 set-null이다.
 
 ## 보드 기록 규약
 
@@ -157,6 +148,9 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
    웹 백로그 화면이나 `backlog_list`로 확인한다
 5. `결과`가 가리키는 상세 기록(`docs/agents/<행위자>/<항목ID>.md`)의 실재 확인
 
+보고서의 제출 당시 인수 여부는 `Report.isAcceptance`에 저장한다. 재개나 이후 인수가 과거 보고서의 종류를 바꾸지 않는다.
+기존 main-loop 보고서는 같은 트랜잭션의 report 감사 이벤트로 목적을 복원하며, 복원하지 못한 행은 null이다.
+
 인수 기록은 `report_submit({ actor: "main-loop" })`으로 서버에 남긴다(`done`에서). 서버는 그 시각을
 `BoardItem.acceptedAt`에 적고, 그때까지 항목은 배너에서 소유자 차례로 센다. 다섯 조건은 여전히 사람이
 직접 재현하며, 기록은 그 결과를 적은 `docs/agents/main-loop/<항목ID>.md`다. 조건이 하나라도 깨지면
@@ -173,7 +167,7 @@ docs/plans/<항목ID>.md`), 다르면 `blocked`로 멈춘다.
 ### 커밋 핸드오프
 
 에이전트가 커밋 권한이 없어 멈추면 `agent_next({ outcome: "handoff", receipt, note: <준비된 파일 경로> })`를
-보내고 멈춘다. 서버는 수락한 `AgentRunStep`과 revision 증가를 함께 저장하고, requires가 여전히 맞으면 같은 단계를 돌려준다. 전진·분기·refused 증가는 없다. 배너는
+보내고 멈춘다. 서버는 수락한 `AgentRunStep`과 revision 증가를 함께 저장하고, requires가 여전히 맞으면 같은 단계를 돌려준다 — 전진·분기·refused 증가는 없다. 배너는
 열린 run의 **마지막 수락/이전** 원장 행이 handoff면 소유자 차례로 세고, 그 경로를 터미널 줄에 보여 준다. 소유자가
 커밋한 뒤 세션이 outcome 없이 다시 부르면 그 단계가 이어진다. 옛 스텁(outcome 없이 멈추는 것)도 그대로
 동작한다 — 서버가 침묵할 뿐 거부하지 않는다.
@@ -227,7 +221,7 @@ v2에서는 `validation_record`가 `in_review`에서만 받고, 되돌리기·�
 
 Every outcome (ok, blocked, failed, handoff) requires the unchanged receipt from a prior step response. Calls without outcome remain read/resume calls. The server checks project, agent and key before auditing; unknown or foreign run IDs share one error and produce no ledger row.
 
-A successful compare-and-swap on run ID, revision, step and closed state rotates revision and atomically records the accepted outcome and cursor/refusal changes. In-scope stale attempts record accepted:false; they never satisfy verification or drive handoff UI. Legacy accepted:null rows remain evidence. Rate limits use callerTokenId, falling back to the run opener only for legacy rows. All returned step bodies recheck requires.
+A successful compare-and-swap on run ID, revision, step and closed state rotates revision and atomically records the accepted outcome and cursor/refusal changes. Standalone/legacy in-scope stale attempts record accepted:false; stale bound slot entries return without a ledger write; they never satisfy verification or drive handoff UI. Legacy accepted:null rows remain evidence. Rate limits use callerTokenId, falling back to the run opener only for legacy rows. All returned step bodies recheck requires.
 
 A board-closed run may accept one final terminal outcome for its matching receipt and existing template step, unless an accepted/legacy terminal outcome already exists there. It changes revision but preserves closedAt. Closed-run responses are done:true with guidance for the next query; handoff and template-removed steps cannot be final terminal evidence.
 

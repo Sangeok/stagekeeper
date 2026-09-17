@@ -23,7 +23,7 @@ import {
   resumeToast,
   type RejectAction,
 } from "../model/gate-text";
-import type { DiscardAction, GateAction, InboxItem, TransitionAction } from "../model/inbox-item";
+import { gateCardKey, type DiscardAction, type GateAction, type InboxItem, type TransitionAction } from "../model/inbox-item";
 import { GateCardLock } from "./gate-card-lock";
 import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
@@ -59,7 +59,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite = 
 
   return (
     <InboxCardBoundary itemKey={item.key}>
-      <GateCardLock>
+      <GateCardLock key={gateCardKey(item)}>
         <article className={cardClass(gate !== null)}>
         <header className="flex flex-col gap-[3px]">
           <p className="font-mono text-xs text-quiet">
@@ -89,7 +89,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite = 
                 gate={gate}
                 itemKey={item.key}
                 variant={isUnverified ? "mine-outline" : "mine"}
-                commit={() => approve({ key: item.key, gate, expectedUpdatedAt: item.updatedAt })}
+                commit={() => approve({ key: item.key, gate, gateEntry: item.gateEntry, expectedUpdatedAt: item.updatedAt })}
               />
             ) : null}
             {isOnHold && canWrite ? <ResumeButtons item={item} transition={transition} /> : null}

@@ -9,10 +9,20 @@ export const REQUIRED_NODES = ["plan", "implement", "accept"]; // 못 뺀다 —
 export const TAIL_NODES = ["doc-audit", "scout"];               // accept 뒤. 서로 순서를 바꿀 수 있다
 // 노드가 디스패치하는 에이전트. plan·implement는 항목의 dev(BoardItem.agent), accept는 main-loop 본인(디스패치 아님).
 export const NODE_AGENT = { propose: "pm", verify: "plan-verifier", "doc-audit": "doc-auditor", scout: "feature-scout" };
+export const SLOT_FORMAT = "slots-v1";
+export const PROJECT_AGENTS = ["doc-auditor", "feature-scout"];
+// Slot identity is deliberately separate from agent identity. Legacy aliases are
+// accepted only without a suffix; anchors are never repeatable.
+export function slotAgent(slot) {
+  if (typeof slot !== "string") return null;
+  if (Object.hasOwn(NODE_AGENT, slot)) return NODE_AGENT[slot];
+  const match = /^(doc-auditor|feature-scout)(?:#([2-9]|[1-9][0-9]+))?$/.exec(slot);
+  return match ? match[1] : null;
+}
 // 그 노드를 실제로 도는 에이전트. plan·implement는 항목의 dev고 그 밖은 고정이다. accept는 디스패치가 없어 null.
 // "지금 이 일을 하는 run이 열려 있나"를 묻는 화면이 이걸 쓴다 — 항목에 아무 run이나 열려 있는 것과 다르다.
 export const dispatcherFor = (node, itemAgent) =>
-  node === "plan" || node === "implement" ? itemAgent : (NODE_AGENT[node] ?? null);
+  node === "plan" || node === "implement" ? itemAgent : slotAgent(node);
 export const GATE_PREFIX = "before-";
 export const gateId = (kind) => `${GATE_PREFIX}${kind}`;
 export const isGateId = (id) => typeof id === "string" && id.startsWith(GATE_PREFIX);
@@ -27,8 +37,8 @@ export const DEFAULT_GATES = [gateId("plan"), gateId("implement")]; // 지금의
 
 // 이 플랜에서 쓸 수 있는 노드인가 — 노드의 에이전트가 플랜의 보고 에이전트 집합에 있어야 한다. 에이전트 없는 노드는 언제나.
 export function nodeAllowed(plan, kind) {
-  const agent = NODE_AGENT[kind];
-  return agent === undefined || limitsFor(plan).agents.includes(agent);
+  const agent = slotAgent(kind);
+  return agent === null || limitsFor(plan).agents.includes(agent);
 }
 // harness.json에 달린 노드 — 서버가 설정을 모르므로 기본 그래프에 넣지 않는다(Pipeline 탭에서 넣는다). 지금은 scout 하나.
 export const OPT_IN_NODES = ["scout"];
@@ -42,16 +52,19 @@ export function allowsPipelineEdit(plan) { return limitsFor(plan).pipelineEdit; 
 export function validateGraph(graph, plan) {
   const { nodes, gates } = graph ?? {};
   if (!Array.isArray(nodes) || !Array.isArray(gates)) return { ok: false, reason: "graph must have nodes and gates" };
+  if (![...nodes, ...gates].every((id) => typeof id === "string")) return { ok: false, reason: "slot and gate ids must be strings" };
   if (new Set(nodes).size !== nodes.length) return { ok: false, reason: "a node appears twice" };
-  for (const k of nodes) if (!NODE_KINDS.includes(k)) return { ok: false, reason: `unknown node: ${k}` };
+  for (const k of nodes) if (!NODE_KINDS.includes(k) && !PROJECT_AGENTS.includes(slotAgent(k))) return { ok: false, reason: `unknown node: ${k}` };
   for (const k of REQUIRED_NODES) if (!nodes.includes(k)) return { ok: false, reason: `${k} can't be removed` };
   for (const k of nodes) if (!nodeAllowed(plan, k)) return { ok: false, reason: `${k} is not on the ${plan} plan` };
-  // 순서: accept까지는 골격의 부분열, 그 뒤는 꼬리 노드만(순서 자유).
-  const acceptAt = nodes.indexOf("accept");
-  const head = nodes.slice(0, acceptAt + 1), tail = nodes.slice(acceptAt + 1);
-  const headOrder = head.map((k) => NODE_KINDS.indexOf(k));
-  if (headOrder.some((n, i) => i > 0 && n <= headOrder[i - 1])) return { ok: false, reason: "nodes before accept must keep the order propose · plan · verify · implement · accept" };
-  if (tail.some((k) => !TAIL_NODES.includes(k))) return { ok: false, reason: "only doc-audit and scout may follow accept" };
+  const planAt = nodes.indexOf("plan"), implementAt = nodes.indexOf("implement"), acceptAt = nodes.indexOf("accept");
+  if (!(planAt < implementAt && implementAt < acceptAt)) return { ok: false, reason: "anchors must keep the order plan · implement · accept" };
+  if (nodes.includes("propose") && nodes[0] !== "propose") return { ok: false, reason: "propose must be first" };
+  if (nodes.includes("verify") && !(planAt < nodes.indexOf("verify") && nodes.indexOf("verify") < implementAt)) return { ok: false, reason: "verify must be between plan and implement" };
+  for (const [alias, agent] of [["doc-audit", "doc-auditor"], ["scout", "feature-scout"]]) {
+    const slots = nodes.filter((id) => slotAgent(id) === agent);
+    if (slots.includes(alias) && slots.length > 1) return { ok: false, reason: `don't mix ${alias} with ${agent} slots` };
+  }
   if (new Set(gates).size !== gates.length) return { ok: false, reason: "a gate appears twice" };
   for (const g of gates) {
     const k = gateKind(g);
@@ -85,15 +98,17 @@ export function cursorForStatus(graph, status) {
 //   propose: 행이 있다(런이 있다는 뜻) · plan: 계획서가 제출돼 in_review 이후다 · verify: 검증 기록 · implement: done
 //   accept: acceptedAt · doc-audit/scout: 커서가 들어온 뒤 그 에이전트의 run이 닫혔다
 export function nodeDone(kind, facts) {
+  if (facts.format === SLOT_FORMAT) {
+    if (kind === "implement") return facts.implementationComplete === true;
+    if (PROJECT_AGENTS.includes(slotAgent(kind))) return facts.slotComplete === true;
+  }
   switch (kind) {
     case "propose": return true;
     case "plan": return ["in_review", "implementing", "done"].includes(facts.status);
     case "verify": return facts.validation !== null;
-    case "implement": return facts.status === "done";
+    case "implement": return facts.status === "done" || facts.implementationComplete === true;
     case "accept": return facts.accepted;
-    case "doc-audit": return facts.closedAgents.includes("doc-auditor");
-    case "scout": return facts.closedAgents.includes("feature-scout");
-    default: return false;
+    default: return facts.closedAgents.includes(slotAgent(kind));
   }
 }
 // 커서 전진의 순수 판정. cursor에서 시작해 끝난 노드·승인된 게이트를 넘고, 게이트 없는 경계는 자동 전이로 넘는다.
@@ -115,6 +130,19 @@ export function advance(graph, cursor, facts) {
     }
     const next = nextAfter(graph, at);
     if (next !== null) entered.push(next);
+    // Facts belong to the entry we read. Never consume them for another slot.
+    if (facts.format === SLOT_FORMAT) {
+      const boundary = boundaryOf(gateId(next));
+      if (boundary && status === boundary.from && !graph.gates.includes(gateId(next))) transitions.push(boundary);
+      if ((next === "accept" || next === gateId("accept")) && status === "implementing") {
+        transitions.push({ from: "implementing", to: "done" });
+      }
+      return { cursor: next, entered, transitions };
+    }
+    if ((next === "accept" || next === gateId("accept")) && status === "implementing" && facts.implementationComplete) {
+      transitions.push({ from: "implementing", to: "done" });
+      status = "done";
+    }
     at = next;
   }
 }

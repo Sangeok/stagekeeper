@@ -114,7 +114,7 @@ function harness(opts: Opts = {}) {
     createRun: async (scope, agent, key, stepId) => {
       const r: Run = { revision: 0, id: `run${++seq}`, agent, key, stepId, closedAt: null, refused: 0, tokenId: scope.tokenId };
       runs.push(r);
-      return r;
+      return { ok: true, item: r };
     },
     boardStatus: async (_p, key) => board[key] ?? null,
     itemAgent: async (_p, key) => opts.itemAgent?.[key] ?? null,
@@ -467,6 +467,16 @@ describe("item ownership", () => {
 });
 
 describe("agentNext — dispatch cap (H.5)", () => {
+  it("propagates an atomic opener failure without serving an instruction", async () => {
+    const h = harness();
+    h.deps.createRun = async () => ({ ok: false, reason: "last slot was consumed" });
+    assert.deepEqual(await h.call({ agent: "pm" }), { ok: false, reason: "last slot was consumed" });
+  });
+  it("serves the actual reused run's step rather than the proposed entry step", async () => {
+    const h = harness();
+    h.deps.createRun = async () => ({ ok: true, item: { id: "reused", stepId: "pick", revision: 0, closedAt: null } });
+    assert.equal(step(await h.call({ agent: "pm" })).step, "pick");
+  });
   it("refuses to open a run at the plan's 30-day cap, naming the window; opens nothing", async () => {
     const h = harness({ plan: "free", recentRuns: 60 });
     const reason = refused(await h.call({ agent: "pm" }));
@@ -551,6 +561,7 @@ it("a failed retirement transaction does not close the run", async () => {
 
 it("checks requires after asynchronous render-variable reads", async () => {
   const h = harness({ board: { "FEAT-1": "implementing" }, templates: { "agents/dev.md": DEV_NOSTART } });
+  assert.equal(step(await h.call(dev())).step, "implement");
   h.deps.vars = async () => { h.board["FEAT-1"] = "planning"; return VARS["web-dev"]; };
   assert.match(refused(await h.call(dev())), /not open/);
 });

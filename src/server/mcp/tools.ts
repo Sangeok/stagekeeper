@@ -46,7 +46,7 @@ export type ToolDeps = {
   propose(projectId: string, input: { key: string; agent: string; reason: string }, actorRef: string): Promise<ServerResult<BoardItemView>>;
   transition(projectId: string, input: { key: string; to: string; result?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitPlan(projectId: string, input: { key: string; path: string; commit: string }, actorRef: string): Promise<ServerResult<unknown>>;
-  submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string }, actorRef: string): Promise<ServerResult<unknown>>;
+  submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
   agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
   // §D.1 — 런 보장 → 지연 전진(board.advancePipeline) → run.nextFor. key 없음이면 { head, items }.
@@ -124,7 +124,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.propose(projectId, args, actorRef));
   });
-  server.registerTool("board_transition", { description: "Agent transitions only: implementing → done (after report_submit), → on_hold (result required). plan_submit already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here.", inputSchema: z.object({ key: z.string(), to: z.string(), result: z.string().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("board_transition", { description: "Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. plan_submit already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here.", inputSchema: z.object({ key: z.string(), to: z.string(), result: z.string().optional() }) }, async (args, ctx: Ctx) => {
     const { projectId, actorRef } = scope(ctx);
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;
@@ -136,7 +136,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.submitPlan(projectId, args, actorRef));
   });
-  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ key: z.string(), actor: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ key: z.string(), actor: z.string(), path: z.string(), commit: z.string(), runId: z.string().optional() }) }, async (args, ctx: Ctx) => {
     const { projectId, actorRef } = scope(ctx);
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;
@@ -156,7 +156,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.pipelineNext(projectId, key));
   });
-  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(2147483647), stepId: z.string().min(1) }).optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(2147483647), stepId: z.string().min(1) }).optional() }) }, async (args, ctx: Ctx) => {
     const { projectId, tokenId } = scope(ctx);
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;
