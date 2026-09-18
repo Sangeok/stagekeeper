@@ -683,10 +683,15 @@ front matter `verification-summary`는 승인·완료 처리 시점에 채운다
 - **디스패치 상한의 재개 면제가 문서에 없다.** `decideNext`·`decideHead`가
   `hasResumableRun`·`hasResumablePmRun`이면 상한을 건너뛴다(`run-rules.ts`). PostgreSQL 인수의
   E1 출력이 `cap resume`를 검증했다고 말하므로 **동작은 확인됐고 문구만 없다.**
-- **`board-query.ts`의 단위 테스트가 얇다.** 410줄 모듈에 `board-query.test.ts`는 36줄·테스트
-  1건("failed approval rolls back lazy PipelineRun materialization")이다. 게이트 회차 소비와
-  구간 종료는 E2E·PostgreSQL이 덮지만 **둘 다 상시 CI가 아니다** — E2E driver는 Temp의 임시
-  스크립트이고 rehearsal은 전용 빈 DB를 요구한다. 회귀를 잡는 자리가 저장소 안에 없다.
+- **회귀를 잡는 자리는 있으나 CI에 없고, 구간 종료는 그 자리에도 없다.** `tests/server/integration/`의
+  다섯 파일이 실제 PostgreSQL에 붙어 돈다 — `board.test.ts`가 `transition`·`discard`·`gate`의 stale CAS와
+  이벤트 실패 롤백을, `agent-runs.test.ts`가 receipt 1회 전진·CAS 패자의 refused 미소비·감사 실패
+  롤백을 고정한다. 다만 **`check.yml`은 `check`·`test`·`test:web`·`build`만 돌린다** —
+  `test:server`와 `test:server:integration`은 `TEST_DATABASE_URL`(`stagekeeper_test_*`이고
+  `DATABASE_URL`과 달라야 한다)을 요구해 손으로만 돈다. E2E와 PostgreSQL 인수도 CI가 아니다.
+  남은 공백은 **구간 종료(actor `pipeline`의 done)가 통합 스위트에 없다**는 것이다. `board.test.ts`의
+  게이트 케이스는 `updatedAt` CAS의 낡음을 잠그지 entry 정체성을 잠그지 않는다 — 그쪽은
+  `board-query.test.ts`(132줄·5건, PR #47)가 단위로 덮는다.
 - **private 템플릿 저장소 반영 증거가 없다.** `plugin/templates/`는 `.gitignore`로 무시되고
   정본은 별도 private 저장소다. 서비스 DB는 재시드됐으나 정본에 반영됐는지는 이 저장소에서
   확인할 수 없다.
@@ -695,11 +700,14 @@ front matter `verification-summary`는 승인·완료 처리 시점에 채운다
 
 ### 처리 순서
 
-1. `product-copy.md` §12·§18 갱신
-2. 상한 재개 면제를 `product-copy.md`에 기록
-3. 게이트 회차 소비·구간 종료를 저장소 안의 상시 테스트로 고정
-4. private 템플릿 저장소 반영 확인
-5. 승인 절차 — front matter와 DoD
+`product-copy.md` §12·§18 갱신과 상한 재개 면제 기록, 게이트 회차 소비·구간 종료의 단위 고정은
+PR #47(`e3af7fb`)에서 닫혔다. 남은 것:
+
+1. 구간 종료(actor `pipeline`의 done)를 `tests/server/integration/`에 더한다 — 지금 그 경로를
+   실제 DB로 지나는 케이스가 없다
+2. `test:server`·`test:server:integration`의 CI 편입 — 통합 쪽은 테스트 DB 자격이 필요해 별도 판단이다
+3. private 템플릿 저장소 반영 확인
+4. 승인 절차 — front matter와 DoD
 
 ## Risks and Rollback
 
