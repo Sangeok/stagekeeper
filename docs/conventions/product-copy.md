@@ -474,12 +474,15 @@ are terse on purpose — agents parse them.
 | `gates open through board.gate, not a transition: proposed → planning` (a client that still sends a gate as a plain transition) | — |
 | `dispatch cap reached on the free plan (60). Upgrade the plan to add more. Counted over the last 30 days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.` (`agent_next`, run 개설) | — |
 | `graph must have nodes and gates` (pipeline save) | shown as is |
+| `slot and gate ids must be strings` | shown as is |
 | `a node appears twice` | shown as is |
 | `unknown node: verifyy` | shown as is |
 | `accept can't be removed` | shown as is |
 | `verify is not on the free plan` | shown as is |
-| `nodes before accept must keep the order propose · plan · verify · implement · accept` | shown as is |
-| `only doc-audit and scout may follow accept` | shown as is |
+| `anchors must keep the order plan · implement · accept` | shown as is |
+| `propose must be first` | shown as is |
+| `verify must be between plan and implement` | shown as is |
+| `don't mix doc-audit with doc-auditor slots` | shown as is |
 | `a gate appears twice` | shown as is |
 | `gate before-scout has no node after it` | shown as is |
 | — (pipeline save, plan) | Pipeline editing opens on Pro. The default pipeline stays as is. |
@@ -510,7 +513,7 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `plan_submit` | Record where the plan is (path and commit) **and** move the item to `in_review`, in one transaction. Only in `planning` or `in_review` — re-call after review edits so the approved commit is recorded; a re-call from `in_review` records the commit and moves nothing. |
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
-| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is pm's turn (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "the backlog has nothing to pick — add an item on the Backlog tab" · the dispatch cap sentence). `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
+| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is pm's turn (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "the backlog has nothing to pick — add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — pm's own run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
 | `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:
@@ -840,20 +843,28 @@ never existed look the same from here.
   now on."
 - Without a persisted version: `Default pipeline · not saved yet`. Reading the page never creates a version.
 - A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max.
-- The rail is one row of node cards in graph order. Node names: **Propose** · **Plan** · **Verify** ·
-  **Implement** · **Accept** · **Doc audit** · **Scout**.
+- The rail is one row of node cards in graph order. Anchor names: **Propose** · **Plan** ·
+  **Verify** · **Implement** · **Accept**. Repeatable project-agent slots read **Doc audit** and
+  **Scout**, and a repeat keeps its suffix — **Doc audit #2**, **Scout #3**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
   boundary has no gate, small text between the cards says "auto → planning".
 - Each edge carries a **+**. It opens one panel **below the rail** — never inside the edge, which
   would widen it and shove the rest of the row sideways. The panel is titled with the edge
   ("before Plan"), only one is open at a time, and the **+** it belongs to is shown pressed. It
-  inserts a gate, or puts back a node the graph does not have (a removed optional node, or the
-  opt-in Scout). Choosing anything closes it. A node card's menu offers **Remove** for optional
-  nodes and gates, and the two tail nodes offer **Swap**.
+  offers **Add gate**, **Add doc-auditor here** / **Add feature-scout here**, **Move `<id>` here**
+  for each project-agent slot already on the rail, and **Add `<Node>`** for an optional node the
+  graph does not have (a removed one, or the opt-in Scout). Choosing anything closes it.
+- Below the rail, a row of text buttons appends or relocates without picking an edge:
+  **Add doc-auditor at end** / **Add feature-scout at end**, and **Move `<id>` to end** for each
+  project-agent slot. The row is present only while editing.
+- A node card's menu offers **Remove** for optional nodes; a gate card carries its own **Remove**.
+  **Swap** appears only for the legacy `doc-audit`/`scout` pair when both are on the rail — new
+  slots are reordered with **Move**, not Swap.
 - A button is disabled with the server's own reason — the rail runs the same `validateGraph` the
   save action does, so the wording in §12 is what the user sees.
-- Zero gates is allowed, and saving warns first: "No gate: agents run this item end to end without
-  you. Reopen and discard stay on the web."
+- Zero gates is allowed, and saving warns first: "No gate: plan and implementation start without
+  your approval. Acceptance is still required. Reopen and discard stay on the web." The Save
+  button reads **Save without a gate** until it is pressed a second time.
 - Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is."
 - Scout is opt-in: "Scout runs only with harness.json.scout — add it here when that is set."
 - **Read as text** is a `<details>` that renders the graph as a numbered list, in cursor order.

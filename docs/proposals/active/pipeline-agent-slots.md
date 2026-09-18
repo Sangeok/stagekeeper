@@ -618,109 +618,88 @@ node.exe --import tsx scripts/rehearse-pipeline-agent-slots.ts --allow-fixtures
 
 ## Verification Results
 
-2026-09-16 문서 reconciliation 중 실행한 **변경 전 코드 기준**이며 Core 구현 결과는 아니다.
+두 시점의 관측이다. 첫 표는 2026-09-16 문서 reconciliation 중 **변경 전 코드**에서,
+둘째 표는 2026-09-18 **`ce19203` 커밋 뒤**에 실행했다.
+
+변경 전 (2026-09-16):
 
 | 명령 | 관측 | 의미 |
 | --- | --- | --- |
 | npm.cmd run check | exit 0 | 복사본·lint/FSD·typegen/tsc·architecture·availability 통과 |
-| npm.cmd test | exit 0, 149/149 | 현행 core/plugin 기준 |
-| npm.cmd run test:web | exit 0, 277/277 | 현행 frontend/server 기준 |
-| npm.cmd run test:templates | exit 1, 16 pass / 8 fail | private fixture는 receipt/commitOutcome을 가정하나 현재 엔진은 record/advance를 요구: deps.record is not a function. §F/실행1/V8의 의존 불일치 |
-| npm.cmd run verify:fsd | exit 0 | 현행 FSD |
-| npm.cmd run test:architecture | exit 0, 19/19 | 현행 검증기 |
+| npm.cmd test | exit 0, 149/149 | 당시 core/plugin 기준 |
+| npm.cmd run test:web | exit 0, 277/277 | 당시 frontend/server 기준 |
+| npm.cmd run test:templates | exit 1, 16 pass / 8 fail | private fixture가 receipt/commitOutcome을 가정: deps.record is not a function |
+| npm.cmd run verify:fsd | exit 0 | 당시 FSD |
+| npm.cmd run test:architecture | exit 0, 19/19 | 당시 검증기 |
 
-build·DB migration/seed·운영 API/수동 사이클은 이번에 실행하지 않았다.
-구현 수용에서는 V1–V9·실DB/실화면 증거로 갱신하고 기존8실패도 합격 조건에서 면제하지 않는다.
-front matter verification-summary는 구현 완료까지 null이다.
+구현 후 (2026-09-18, `ce19203`):
 
-## 구현 표류 — 2026-09-17 검토
+| 명령 | 관측 | 의미 |
+| --- | --- | --- |
+| npm run check | exit 0 | lint/FSD·typegen·tsc·architecture·availability 포함 |
+| npm test | 156/156 pass | |
+| npm run test:web | 306/306 pass | |
+| npm run test:templates | 25/25 pass | 위 8실패가 닫혔다 |
 
-1단계가 브랜치 `harness/pipeline-agent-slots-reconcile`에 **미커밋 작업 트리**로 구현돼 있다
-(수정 31파일 + 신규 5묶음). 아래는 코드를 읽고 검사를 돌려 확인한 것이며, 앱을 띄워
-사이클을 돌린 결과는 아니다. 문서는 아직 `stage: draft`인데 코드가 먼저 들어왔다.
+`npm run build`·실제 앱 사이클·PostgreSQL 통합은 별도 보고서에 있다 —
+[E2E](../../test-reports/completed/2026-09-17-pipeline-agent-slots-e2e.md)(17시나리오 PASS, build exit 0)와
+[PostgreSQL 인수](../../test-reports/completed/2026-09-17-pipeline-agent-slots-postgresql-acceptance.md)(7항목 PASS).
+두 보고서의 `tested-revision`은 기준 commit이고 검증 대상은 당시 미커밋 working tree다.
+front matter `verification-summary`는 승인·완료 처리 시점에 채운다.
 
-### 1. 템플릿이 배포되지 않았다 — 지금 돌리면 깨진다
+## 구현 현황 — 2026-09-18 재검토
 
-`transitions.mjs`에서 `implementing → done`의 actor가 `agent` → `pipeline`으로 **교체**됐다.
-그래서 dev가 `board_transition({ to: "done" })`를 부르면 `not allowed: agent implementing → done`이다.
+1단계(Core)는 `ce19203 feat: support repeated pipeline agent slots`로 커밋됐고 작업 트리는
+깨끗하다. 문서는 아직 `stage: draft`(미승인)다. 이 절은 커밋 이후 상태를 다시 확인한 기록이며,
+직전 검토에서 열려 있던 항목 중 무엇이 닫혔고 무엇이 남았는지를 적는다.
 
-`plugin/templates/`의 파일은 이미 새 계약에 맞게 고쳐져 있다 — `agents/dev.md:269`가
-*"Do not call board_transition to done"*, `:268`이 `report_submit(..., runId: agentRunId)`,
-`CLAUDE.runbook.md:166`에 slots-v1 문단. 문제는 **그 변경이 아무 데도 반영되지 않았다는 것**이다.
+### 닫힌 것
 
-- `.gitignore:51`이 `/plugin/templates/`를 무시한다 → `git status`·`git diff`에 안 보인다
-- 정본은 별도 private 저장소(`Sangeok/harness-templates`)인데 그쪽에 아무것도 가지 않았다
-- 서버가 내려주는 것은 `Template` 테이블이고, `npm run seed:templates` 전까지 **옛 판**이다
+- **템플릿 배포.** 서비스 DB의 public 스키마를 초기화하고 `prisma migrate deploy`로 13개
+  migration을 적용한 뒤 `scripts/seed-templates.ts`가 `done: 10 templates`로 끝났다
+  (PostgreSQL 인수 보고서 E2). 같은 과정에서 **기존 사용자·프로젝트·토큰·플랜이 삭제**됐다 —
+  소유자는 다시 로그인하고 프로젝트·토큰을 만들어야 한다.
+- **아키텍처 문서.** `protocol.md`의 「파이프라인 그래프」 절을 앵커·슬롯·게이트·버전/회차·
+  실행 결합·완료 증거·구간 종료로 다시 썼고, 상태 기계 표의 `implementing → done`을
+  `pipeline | auto`로, `agent_next`에 `entry?`·`agentRunId?`·`stepId?`를, `report_submit`에
+  `runId?`를 반영했다. `invariants.md`의 "경계 둘뿐"과 `done`의 뜻도 고쳤다.
+- **실행 증거.** 실제 앱 Playwright E2E 17시나리오와 PostgreSQL 통합 7항목이 통과했다.
+  게이트 회차 소비(E07·E10·T5), 반복 슬롯(E04), 구간 종료(E09·E10), 재개(E12),
+  무게이트(E12a·E12b)가 실제 경로로 확인됐다.
+- **E2E가 미수정으로 남긴 F2·F3.** 같은 커밋이 `backlog-form.tsx`·`backlog-form-state.ts`·
+  `item-docs.ts`를 고쳤다 — 그 보고서의 "미수정" 기술이 이제 낡았다.
 
-즉 이 작업 트리를 잃으면 템플릿 변경이 사라지고, 지금 에이전트를 디스패치하면 옛 지시를 받는다.
+### 남은 것
 
-`docs/agents/README.md`만 옛 `receipt` 어휘로 남아 다섯 에이전트 파일과 어긋난다.
-
-### 2. 아키텍처 문서가 계약을 틀리게 적고 있다
-
-`docs/architecture/protocol.md`에 `slots-v1`·`entry`·`gateEntry` 출현이 **0회**다. AGENTS.md는
-`docs/architecture/`를 현재 구조의 source of truth로 규정한다. 낡은 곳:
-
-- 상태 기계 표의 `implementing | done | agent | done` — actor가 `pipeline`으로 바뀌었다
-- `board_transition` 행이 아직 `implementing → done`을 한다고 적혀 있다
-- 게이트 id가 `before-<kind>`뿐이다 — 이제 `before-doc-auditor#2`가 가능하다
-- `agent_next`·`gate_approve`·`report_submit`의 새 입력(`entry`·`agentRunId`·`stepId`·
-  `gateEntry`·`runId`)이 도구 표에 없다
-
-`invariants.md`도 한 줄이 거짓이 됐다 — *"상태 기계에 `pipeline` 행이 있고(**경계 둘뿐**)"*.
-이제 셋이다.
-
-### 3. `product-copy.md`가 사용자에게 보이는 문구를 틀리게 적고 있다
-
-§12는 이 문자열들이 "shown as is"라고 규정한다.
-
-- 삭제된 사유 둘이 481·482줄에 남아 있다 — `nodes before accept must keep the order …`,
-  `only doc-audit and scout may follow accept`
-- 새 사유 다섯이 **0건** — `slot and gate ids must be strings` · `anchors must keep the order
-  plan · implement · accept` · `propose must be first` · `verify must be between plan and
-  implement` · `don't mix <alias> with <agent> slots`
-
-§18(Pipeline tab)도 낡았다. "노드 이름 7종", "꼬리 둘이 Swap"이라고 적혀 있으나 레일은 이제
-`Add <agent> here` · `Move <id> here`를 내놓고(`pipeline-rail.tsx:49-50`) 슬롯이 반복될 수 있다.
-무게이트 경고 문구도 코드에서 바뀌었는데 §18은 옛 문장을 인용한다.
-
-### 4. 검증되지 않은 이음매 — slots-v1의 게이트
-
-`readFacts`가 bound 모드에서 `approvedGates: []`를 **항상** 돌려주고(`run-query.ts:79`),
-게이트 통과는 `advanceRun`의 `approval` 인자를 주입할 때만 일어난다(`board-query.ts:378`).
-예전에는 `TransitionEvent`에서 다시 유도해 멱등했다 — **승인의 진실이 원장에서 호출
-파라미터로 옮겨갔다.** 불변식 8("원장 = 감사 로그")과 결이 다르다.
-
-그리고 **slots-v1에서 게이트를 지나는 테스트가 없다.** 새 테스트 블록은 `approvedGates`를
-한 번도 세우지 않는다(`pipeline.test.mjs`). 먼저 시험할 자리다.
-
-### 5. 이 제안서와 다르게 간 곳
-
-제안서가 미승인 draft이므로 위반은 아니다. 다만 **문서를 코드에 맞춰야 한다.**
-
-| 제안서 | 실제 |
-| --- | --- |
-| `PipelineVersion` 무변경, 마이그레이션은 `Workspace.role` 하나 | `PipelineVersion.format` · `PipelineRun.entryId` · `AgentRun.pipelineRunId`/`pipelineEntryId` · `Report.agentRunId` 추가 |
-| 결정 #7 — 슬롯 완료는 `Report` 행으로 통일 | 구현 완료만 Report 기준, 프로젝트 슬롯은 엔트리 바인딩된 run 닫힘 |
-| §D — `REPORT_SUBMIT_STATUSES` 확장 | **미적용** (여전히 `in_review`·`implementing`·`done`) |
-| 슬롯 id는 에이전트 이름 + `#n` | `doc-auditor`·`feature-scout`로 한정 (1단계 범위로는 타당) |
-| (없음) | `board.ts`·`run.ts`를 `*-query.ts`로 DI 추출 — 제안서에 없던 리팩터링 |
-| `Workspace.role` · harness.json `role` | **미구현 — 2단계이므로 맞다** |
-
-### 6. 조용한 동작 변경
-
-`decideNext`·`decideHead`가 `hasResumableRun`·`hasResumablePmRun`이면 디스패치 상한을
-건너뛴다(`run-rules.ts`). 재개는 새 디스패치가 아니므로 타당하지만, **플랜 상한의 동작
-변경인데 `product-copy.md`에 기록이 없다.**
+- **`product-copy.md` §12가 사용자에게 보이는 문구를 틀리게 적는다.** §12는 이 문자열들이
+  "shown as is"라고 규정하는데, `validateGraph`에서 삭제된 사유 둘(`nodes before accept must
+  keep the order …`, `only doc-audit and scout may follow accept`)이 그대로 남아 있고,
+  새 사유 다섯(`slot and gate ids must be strings` · `anchors must keep the order plan ·
+  implement · accept` · `propose must be first` · `verify must be between plan and implement` ·
+  `don't mix <alias> with <agent> slots`)은 한 건도 없다.
+- **`product-copy.md` §18(Pipeline tab)이 옛 레일을 설명한다.** "노드 이름 7종", "꼬리 둘이
+  Swap"이라고 적혀 있으나 레일은 `Add <agent> here`·`Move <id> here`를 내놓고 슬롯이 반복된다.
+  무게이트 경고 문장도 코드에서 바뀌었다.
+- **디스패치 상한의 재개 면제가 문서에 없다.** `decideNext`·`decideHead`가
+  `hasResumableRun`·`hasResumablePmRun`이면 상한을 건너뛴다(`run-rules.ts`). PostgreSQL 인수의
+  E1 출력이 `cap resume`를 검증했다고 말하므로 **동작은 확인됐고 문구만 없다.**
+- **`board-query.ts`의 단위 테스트가 얇다.** 410줄 모듈에 `board-query.test.ts`는 36줄·테스트
+  1건("failed approval rolls back lazy PipelineRun materialization")이다. 게이트 회차 소비와
+  구간 종료는 E2E·PostgreSQL이 덮지만 **둘 다 상시 CI가 아니다** — E2E driver는 Temp의 임시
+  스크립트이고 rehearsal은 전용 빈 DB를 요구한다. 회귀를 잡는 자리가 저장소 안에 없다.
+- **private 템플릿 저장소 반영 증거가 없다.** `plugin/templates/`는 `.gitignore`로 무시되고
+  정본은 별도 private 저장소다. 서비스 DB는 재시드됐으나 정본에 반영됐는지는 이 저장소에서
+  확인할 수 없다.
+- **DoD 14항목이 전부 미체크**이고 `Review Checklist` 마지막 줄도 미체크다. 승인 전이므로
+  당연하지만, 위 증거로 채울 수 있는 항목과 그렇지 않은 항목의 구분은 승인자가 한다.
 
 ### 처리 순서
 
-1. `npm run seed:templates` 실행 + 템플릿 변경을 private 저장소에 반영 (§1)
-2. `protocol.md`·`invariants.md` 갱신 (§2)
-3. `product-copy.md` §12·§18 갱신 (§3)
-4. slots-v1 게이트 테스트 추가 (§4)
-5. 이 제안서의 §B·§D·§E를 실제 구현에 맞춰 개정 (§5)
-6. cap 우회를 `product-copy.md`에 기록 (§6)
+1. `product-copy.md` §12·§18 갱신
+2. 상한 재개 면제를 `product-copy.md`에 기록
+3. 게이트 회차 소비·구간 종료를 저장소 안의 상시 테스트로 고정
+4. private 템플릿 저장소 반영 확인
+5. 승인 절차 — front matter와 DoD
 
 ## Risks and Rollback
 
@@ -758,8 +737,11 @@ front matter verification-summary는 구현 완료까지 null이다.
 
 ## Completion or Closure Notes
 
-구현 미착수. completed/closed 날짜·구현 PR·잔여 follow-up은 현재 해당 없음.
-문서 reconciliation 완료를 구현 완료로 기록하지 않는다. pending/draft를 유지한다.
+1단계(Core)는 `ce19203`으로 커밋됐고 작업 트리는 깨끗하다. 다만 **문서는 미승인**이다 —
+front matter의 `approved-by`·`approved-at`·`approval-scope`가 비어 있고 `stage`는 `draft`다.
+`status`는 `pending`을 유지하며 `active/`에 둔다.
+남은 항목은 「구현 현황 — 2026-09-18 재검토」의 처리 순서에 있다. `completed/`로 옮기는 것은
+승인과 그 항목들의 종료 뒤다. 구현 커밋의 존재를 승인으로 기록하지 않는다.
 
 ## Review Checklist
 
