@@ -1,6 +1,6 @@
 ---
 status: "pending"
-stage: "draft"
+stage: "awaiting-approval"
 proposal-size: "standard"
 created-at: "2026-09-19"
 approved-by: null
@@ -461,7 +461,7 @@ npm run test:server:integration   # TEST_DATABASE_URL 필요
 - [x] 모든 `{placeholder}`를 처리했고, 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
 - [x] `status`는 `pending`을 사용했다.
 - [x] 문서 위치와 `status`가 일치한다(`active/` · `pending`).
-- [x] `stage`는 `draft`이고 승인 기록은 비어 있다.
+- [x] `stage`는 `awaiting-approval`이고 승인 기록은 비어 있다.
 - [x] `proposal-size`는 `standard`이며 마이그레이션·API 계약·5개 초과 파일 조건에 해당한다.
 - [x] 승인 기록은 front matter를 단일 기준으로 쓰고 본문에는 조건과 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다. 쓰는 역할과 사용자 정의 대본을 명시적으로 제외했다.
