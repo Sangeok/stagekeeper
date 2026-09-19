@@ -729,7 +729,12 @@ both). Below: each file's title, its section headings, and the sentences that se
   keep today's seven; wording: "Ask one question at a time." · "Show the dry run and get a yes
   before writing." · "Tell the user to restart Claude Code — .mcp.json is read at session start
   — and to approve the `harness` server when `/mcp` shows Pending approval." · "Leave the
-  commit to the user." Phase 4 adds: step 5 passes `{ workspaces, language }` to
+  commit to the user." Step 6 says what the knowledge doc is for before it asks where to put it:
+  "The workspace's dev agent is told to read it before it writes a plan, and doc-auditor audits
+  it right after the backlog. Without one, every plan has to say the workspace has no knowledge
+  doc instead of following the conventions you already have." The drafted file opens with one
+  line naming who reads it and why, so it isn't mistaken for documentation written for people.
+  Phase 4 adds: step 5 passes `{ workspaces, language }` to
   `project_sync`; a closing paragraph says the agent files are **stubs** whose step bodies
   arrive through `agent_next`, and that an already-connected project reruns `/harness:init`.
   Session approvals add, in step 2: "Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If
