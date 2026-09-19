@@ -48,7 +48,13 @@ from that reference, then stop before step 1. After installation, rerun this pre
    `mcp__harness__project_sync` as `{ workspaces, language }` — that's what creates the roster on
    the web board, and the language is what `agent_next` serves steps in.
 6. Check that the knowledge doc named in each generated `.claude/agents/<ws>-dev.md` exists.
-   If it doesn't, draft one with the user (structure, commands, pitfalls).
+   Say what the knowledge doc is for before you ask where to put it: the workspace's dev agent
+   is told to read it before it writes a plan, and doc-auditor audits it right after the
+   backlog. Without one, every plan has to say the workspace has no knowledge doc instead of
+   following the conventions the user already has.
+   If it doesn't exist, draft one with the user (structure, commands, pitfalls). Open the file
+   with one line naming who reads it and why — whoever finds it later should not mistake it for
+   documentation written for people.
 7. Show `git status` and leave the commit to the user. Suggested message: `chore: connect to Stagekeeper`.
    Include the resolved verification-skill path and the owner-supplied version/commit (or the
    package checksum when it has no version). Initialization is complete only after the
