@@ -23,7 +23,7 @@ Claude Code 슬래시 명령이다. 플러그인이 세션에 없으면 Claude C
 
 ```powershell
 claude plugin marketplace add Sangeok/stagekeeper
-claude plugin install harness@stagekeeper
+claude plugin install harness@stagekeeper-local
 claude plugin list      # harness가 보이면 설치된 것
 ```
 
