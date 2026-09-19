@@ -1,6 +1,6 @@
 ---
 status: "pending"
-stage: "draft"
+stage: "awaiting-approval"
 proposal-size: "standard"
 created-at: "2026-09-16"
 approved-by: null
@@ -650,7 +650,7 @@ front matter `verification-summary`는 승인·완료 처리 시점에 채운다
 ## 구현 현황 — 2026-09-18 재검토
 
 1단계(Core)는 `ce19203 feat: support repeated pipeline agent slots`로 커밋됐고 작업 트리는
-깨끗하다. 문서는 아직 `stage: draft`(미승인)다. 이 절은 커밋 이후 상태를 다시 확인한 기록이며,
+깨끗하다. 문서는 `stage: awaiting-approval`(승인 요청, 아직 미승인)이다. 이 절은 커밋 이후 상태를 다시 확인한 기록이며,
 직전 검토에서 열려 있던 항목 중 무엇이 닫혔고 무엇이 남았는지를 적는다.
 
 ### 닫힌 것
@@ -746,7 +746,8 @@ PR #47(`e3af7fb`)에서 닫혔다. 남은 것:
 ## Completion or Closure Notes
 
 1단계(Core)는 `ce19203`으로 커밋됐고 작업 트리는 깨끗하다. 다만 **문서는 미승인**이다 —
-front matter의 `approved-by`·`approved-at`·`approval-scope`가 비어 있고 `stage`는 `draft`다.
+front matter의 `approved-by`·`approved-at`·`approval-scope`가 비어 있다. `stage`는
+`awaiting-approval`이다 — README의 정의상 "검토와 승인 요청이 가능한 상태"이지 승인이 아니다.
 `status`는 `pending`을 유지하며 `active/`에 둔다.
 남은 항목은 「구현 현황 — 2026-09-18 재검토」의 처리 순서에 있다. `completed/`로 옮기는 것은
 승인과 그 항목들의 종료 뒤다. 구현 커밋의 존재를 승인으로 기록하지 않는다.
