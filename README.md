@@ -14,6 +14,26 @@
 - [도메인 용어](./CONTEXT.md)
 - [완료된 Phase 0·1 제안서](./docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md)
 
+## 플러그인 설치
+
+저장소를 Stagekeeper에 연결하는 `/harness:init`은 이 저장소의 `plugin/`이 제공하는
+Claude Code 슬래시 명령이다. 플러그인이 세션에 없으면 Claude Code는
+`Unknown command: /harness:init`만 내고 멈춘다 — 토큰과는 별개 경로라 토큰을
+넣어도 해결되지 않는다.
+
+```powershell
+claude plugin marketplace add Sangeok/stagekeeper
+claude plugin install harness@stagekeeper-local
+claude plugin list      # harness가 보이면 설치된 것
+```
+
+한 세션만 시험하려면 설치 없이 불러올 수도 있다. 이때는 `/harness:init` 뒤 재시작할 때
+같은 플래그를 다시 줘야 한다.
+
+```powershell
+claude --plugin-dir <stagekeeper 경로>/plugin
+```
+
 ## 로컬 확인
 
 ```powershell

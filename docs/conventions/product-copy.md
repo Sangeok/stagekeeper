@@ -346,12 +346,28 @@ rendered in the Team row; the row shows only the agent handle and its state.
 
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
 >
-> **1. Set it in the shell you'll open the repo from**
-> It's a shell variable, not a file in the repo. The generated `.mcp.json` references
-> `${HARNESS_TOKEN}`, so committing it doesn't leak the token.
+> **1. Install the Stagekeeper plugin in Claude Code**
+> `/harness:init` comes from the plugin. Install it once — it stays available in every repository.
+> `claude plugin marketplace add Sangeok/stagekeeper` · `claude plugin install harness@stagekeeper-local` — **Copy** / "Copied"
+> Already installed? `claude plugin list` shows `harness`.
+>
+> **2. Set the token in the terminal that will start Claude Code**
+> Claude Code reads this environment variable when it starts. A repository `.env` file is not
+> loaded for this connection. The generated `.mcp.json` references `${HARNESS_TOKEN}`, so
+> committing it doesn't leak the token.
 > PowerShell `$env:HARNESS_TOKEN = "hs_…"` · bash / zsh `export HARNESS_TOKEN="hs_…"` — **Copy** / "Copied"
 >
-> **2. Open the repo from that shell and run** `/harness:init`
+> **3. Start Claude Code in this repository**
+> From the same terminal, change to the repository directory and start Claude Code.
+> `claude`
+>
+> **4. Enter this in the Claude Code prompt**
+> `/harness:init`
+> This is a Claude Code slash command, not a terminal command.
+>
+> **5. Restart Claude Code and approve the server**
+> After init finishes, restart Claude Code from the same terminal. In Claude Code, run `/mcp`
+> and approve `harness` if it is pending.
 > MCP server URL: `http://…/api/mcp`
 
 **Owner token** (second section of the same page, under the agent-token table):
