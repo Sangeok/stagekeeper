@@ -16,3 +16,15 @@ export function connectCommands(token: string, variable: string = AGENT_TOKEN_VA
     { kind: "posix", label: "bash · zsh", command: `export ${variable}="${token}"` },
   ];
 }
+
+// 플러그인 설치 명령. `/harness:init`은 플러그인이 주는 슬래시 명령이라 토큰보다 **먼저** 깔려 있어야 한다 —
+// 안 깔린 세션에서는 Claude Code가 "Unknown command: /harness:init"만 내고 우리 코드는 한 줄도 돌지 않는다.
+// 그래서 막을 수 있는 자리가 이 화면뿐이다. source는 공개 저장소라 머신별 경로가 필요 없고,
+// stagekeeper-local은 .claude-plugin/marketplace.json의 name이다(설치 후 그 이름으로 등록된다).
+export const PLUGIN_MARKETPLACE = "Sangeok/stagekeeper";
+export const PLUGIN_ID = "harness@stagekeeper-local";
+
+export const installCommands: readonly string[] = [
+  `claude plugin marketplace add ${PLUGIN_MARKETPLACE}`,
+  `claude plugin install ${PLUGIN_ID}`,
+];

@@ -1,7 +1,7 @@
 import { Card } from "@/fsd/shared/ui/card";
 import { Code, CodeBlock } from "@/fsd/shared/ui/code";
 import { CopyButton } from "@/fsd/shared/ui/copy-button";
-import { connectCommands } from "../model/connect-command";
+import { connectCommands, installCommands } from "../model/connect-command";
 
 // 발급 직후 평문을 한 번만 보여 준다. 새로고침하면 사라진다 — 서비스는 해시만 저장한다.
 // create-project와 manage-token 둘 다 이 화면이 필요해서 entity에 둔다(같은 layer끼리는 import할 수 없다).
@@ -16,10 +16,27 @@ export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium">1. Set it in the shell you&apos;ll open the repo from</p>
+        <p className="text-sm font-medium">1. Install the Stagekeeper plugin in Claude Code</p>
         <p className="text-xs text-quiet">
-          It&apos;s a shell variable, not a file in the repo. The generated <Code>.mcp.json</Code> references{" "}
-          <Code>{"${HARNESS_TOKEN}"}</Code>, so committing it doesn&apos;t leak the token.
+          <Code>/harness:init</Code> comes from the plugin. Install it once — it stays available in every repository.
+        </p>
+        {installCommands.map((command) => (
+          <div key={command} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <CodeBlock className="truncate">{command}</CodeBlock>
+            <CopyButton text={command} />
+          </div>
+        ))}
+        <p className="text-xs text-quiet">
+          Already installed? <Code>claude plugin list</Code> shows <Code>harness</Code>.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-medium">2. Set the token in the terminal that will start Claude Code</p>
+        <p className="text-xs text-quiet">
+          Claude Code reads this environment variable when it starts. A repository <Code>.env</Code> file is not loaded
+          for this connection. The generated <Code>.mcp.json</Code> references <Code>{"${HARNESS_TOKEN}"}</Code>, so
+          committing it doesn&apos;t leak the token.
         </p>
         {connectCommands(token).map((entry) => (
           <div key={entry.kind} className="grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-2">
@@ -31,8 +48,25 @@ export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }
       </div>
 
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium">2. Open the repo from that shell and run</p>
+        <p className="text-sm font-medium">3. Start Claude Code in this repository</p>
+        <p className="text-xs text-quiet">
+          From the same terminal, change to the repository directory and start Claude Code.
+        </p>
+        <CodeBlock>claude</CodeBlock>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">4. Enter this in the Claude Code prompt</p>
         <CodeBlock>/harness:init</CodeBlock>
+        <p className="text-xs text-quiet">This is a Claude Code slash command, not a terminal command.</p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">5. Restart Claude Code and approve the server</p>
+        <p className="text-xs text-quiet">
+          After init finishes, restart Claude Code from the same terminal. In Claude Code, run <Code>/mcp</Code> and
+          approve <Code>harness</Code> if it is pending.
+        </p>
         <p className="text-xs text-quiet">
           MCP server URL: <Code>{mcpUrl}</Code>
         </p>
