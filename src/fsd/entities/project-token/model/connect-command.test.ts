@@ -29,7 +29,7 @@ describe("installCommands", () => {
   it("adds the marketplace before installing the plugin from it", () => {
     assert.deepEqual([...installCommands], [
       "claude plugin marketplace add Sangeok/stagekeeper",
-      "claude plugin install harness@stagekeeper-local",
+      "claude plugin install harness@stagekeeper",
     ]);
   });
 

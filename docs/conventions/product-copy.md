@@ -348,7 +348,7 @@ rendered in the Team row; the row shows only the agent handle and its state.
 >
 > **1. Install the Stagekeeper plugin in Claude Code**
 > `/harness:init` comes from the plugin. Install it once — it stays available in every repository.
-> `claude plugin marketplace add Sangeok/stagekeeper` · `claude plugin install harness@stagekeeper-local` — **Copy** / "Copied"
+> `claude plugin marketplace add Sangeok/stagekeeper` · `claude plugin install harness@stagekeeper` — **Copy** / "Copied"
 > Already installed? `claude plugin list` shows `harness`.
 >
 > **2. Set the token in the terminal that will start Claude Code**
