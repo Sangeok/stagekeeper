@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/init-fewer-questions.md"
+  - "docs/proposals/completed/2026-09-20-init-fewer-questions.md"
   - "docs/proposals/completed/2026-09-15-individual-project-availability.md"
   - "docs/proposals/completed/2026-09-09-session-approval-channel.md"
   - "docs/architecture/protocol.md"
@@ -26,7 +26,7 @@ related:
 
 ## Summary
 
-`/harness:init`의 질문은 [init-fewer-questions](./init-fewer-questions.md)로 7~9 → 1이 됐지만,
+`/harness:init`의 질문은 [init-fewer-questions](../completed/2026-09-20-init-fewer-questions.md)로 7~9 → 1이 됐지만,
 **질문 이전의 설정**은 그대로다. 프로젝트마다 웹에서 토큰을 발급하고, 셸에 `HARNESS_TOKEN`을
 넣고, 저장소마다 `.mcp.json`을 쓰고 재시작·승인한다.
 
@@ -835,7 +835,7 @@ B-1·C 행은 착수하지 않았으므로 그대로 `Not run yet`이다.
 - **C의 자동 등록은 소유를 검증하지 않는다.** 현재 웹 폼과 같은 신뢰 수준이며 악화는 아니지만,
   개선도 아니다.
 - **A의 200 경로는 실물 검증 전이다.** `/api/project`의 200이 아직 한 번도 실행된 적 없다는
-  [init-fewer-questions](./init-fewer-questions.md)의 잔여 항목과 같은 성격이다.
+  [init-fewer-questions](../completed/2026-09-20-init-fewer-questions.md)의 잔여 항목과 같은 성격이다.
 
 롤백 방법:
 
