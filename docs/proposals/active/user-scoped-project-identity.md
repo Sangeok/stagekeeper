@@ -7,7 +7,7 @@ approved-by: "user (conversation)"
 approved-at: "2026-09-20"
 approval-scope: "A(Execution Plan 1~7) 구현. B-1은 세 선택지 중 결정 전까지 착수 금지, B-2는 배포 부재로 실행 불가, C는 A가 녹색이 된 뒤 별도 판단. 커밋·푸시·PR은 별도 지시."
 completed-at: null
-verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. 미실행: test:server:integration(격리 DB 부재, templates·agent-runs 갱신이 미검증으로 들어감) · hu_ 수동 연결 1회 · A-9 화면 실사용. B-1·B-2·C 미착수."
+verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · hu_ 수동 연결 1회 · 발급·폐기 액션. B-1·B-2·C 미착수."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -787,7 +787,7 @@ B-1·C 행은 착수하지 않았으므로 그대로 `Not run yet`이다.
 | `npm run test:server:integration` | **미실행** | `TEST_DATABASE_URL` 부재 — 기존 제약. **`templates.test.ts`·`agent-runs.test.ts` 갱신이 미실행인 채로 들어간다** |
 | **마이그레이션 적용** | **적용 완료** | `20260920000000_user_scoped_tokens` **1건만** 적용됐다(`migrate status`로 다른 미적용 건이 없음을 먼저 확인 — `deploy`는 대기 중인 것을 **전부** 적용하므로). 대상이 격리 DB가 아니라 라이브 `neondb`라, 같은 DDL을 `COMMIT` 대신 `ROLLBACK`으로 끝내는 사본으로 먼저 리허설했다(성공 = 표 이름 충돌 없음 + `User.id` FK 타입 호환). 적용 뒤 표·인덱스 3종·`ON DELETE CASCADE` FK·`OwnerToken` 보존을 프로브로 확인했고 `migrate status`가 `Database schema is up to date!`다. **`migrate dev`는 쓰지 않았다** — drift를 만나면 DB reset을 제안하기 때문이다 |
 | 수동: `hu_`로 실제 연결 1회 | **미실행** | 마이그레이션이 적용돼 이제 **실행 가능해졌다**(전에는 표가 없어 불가능했다). 그래도 **A의 200 경로는 아직 한 번도 실제로 지나간 적이 없다** — 토큰 발급이 선행돼야 하고 평문은 출력하지 않는다 |
-| 수동: A-9 화면(`/settings/tokens`) 실사용 | **1차 실행 → 500. 원인 규명 완료 — 코드 결함이 아니다** | 세션 쿠키를 민팅해 서버 렌더를 호출한 결과 500이었다. 원인은 `src/server/db.ts:12`의 `globalThis` memoize다 — dev 서버(9-19 기동)가 `UserToken` **이전** generated client 인스턴스를 들고 있어 `prisma.userToken`이 undefined이고 `TypeError: Cannot read properties of undefined (reading 'findMany')`로 떨어진다. **라우트는 정상 컴파일된 뒤 던졌고**(`settings/tokens/page.js`가 요청 시각에 생성됨), 같은 요청에서 `/projects`는 200이며 머리의 `/settings/tokens` 링크까지 렌더됐다. **재시작 뒤 재검증 대기.** 발급·폐기 **액션**은 여전히 한 번도 실행되지 않았다(자동 시험 없음 — 저장소 관례상 서버 액션 시험 선례 0건) |
+| 수동: A-9 화면(`/settings/tokens`) 실사용 | **통과** (dev 서버 재기동 후) | 세션 쿠키를 민팅해 서버 렌더를 호출했다. **1차는 500**이었고 원인은 `src/server/db.ts:12`의 `globalThis` memoize였다 — 9-19에 뜬 dev 서버가 `UserToken` **이전** generated client 인스턴스를 들고 있어 `prisma.userToken`이 undefined였다(`TypeError: … reading 'findMany'`). 라우트는 정상 컴파일된 뒤 던진 것이었다. **코드를 한 줄도 고치지 않고** 서버만 새로 띄우자(마이그레이션·client 재생성 이후 기동) **200**이 나왔다: `h1 Tokens` · intro 문구 · 전환 안내 · 빈 표 문구 · Issue 버튼 · MCP URL 모두 확인, 오류 마커 없음. 같은 실행에서 `/projects`도 200이고 머리의 `/settings/tokens` 링크가 렌더된다(**진입점 확인** — "링크를 안 걸면 화면이 있어도 없다"의 반대 증거). 발급·폐기 **액션**은 여전히 미실행이다 — 화면 렌더와는 별개이고 자동 시험도 없다(저장소 관례상 서버 액션 시험 선례 0건) |
 | 수동: init 재실행 2회(같은 저장소) | Not run yet | C의 멱등성 — C 미착수 |
 | B-1 옛 이름 부재 `grep`(이 저장소) | Not run yet | B-1 미착수 |
 | B-1 옛 이름 부재 `grep`(`harness-templates`) | Not run yet | B-1 미착수 |
