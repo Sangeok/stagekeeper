@@ -733,7 +733,13 @@ both). Below: each file's title, its section headings, and the sentences that se
   keep today's seven; wording: "Ask one question at a time." · "Show the dry run and get a yes
   before writing." · "Tell the user to restart Claude Code — .mcp.json is read at session start
   — and to approve the `harness` server when `/mcp` shows Pending approval." · "Leave the
-  commit to the user." Phase 4 adds: step 5 passes `{ workspaces, language }` to
+  commit to the user." Step 6 says a knowledge doc is optional and offers one instead of
+  requiring it: "The workspace's dev agent is told to read one before it writes a plan, and
+  doc-auditor audits it right after the backlog; without one, every plan says the workspace has
+  no knowledge doc instead of following conventions you already have." Generation succeeds
+  either way, so the cost is named, not enforced. A drafted doc opens with one line naming who
+  reads it and why, so it isn't mistaken for documentation written for people.
+  Phase 4 adds: step 5 passes `{ workspaces, language }` to
   `project_sync`; a closing paragraph says the agent files are **stubs** whose step bodies
   arrive through `agent_next`, and that an already-connected project reruns `/harness:init`.
   Session approvals add, in step 2: "Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If

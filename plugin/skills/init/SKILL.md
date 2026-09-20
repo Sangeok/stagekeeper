@@ -68,7 +68,9 @@ from that reference, then stop before step 1. After installation, rerun this pre
    already has. That is a real cost, not a failure: generation succeeds either way (the template
    renders a "no knowledge doc" line). Offer to draft one now (structure, commands, pitfalls) or
    to leave it for the first plan — do not require it to finish init. If the user wants one, add
-   its path to that workspace's `knowledge` and rerun init.
+   its path to that workspace's `knowledge` and rerun init. Open a drafted doc with one line
+   naming who reads it and why — whoever finds it later should not mistake it for documentation
+   written for people.
 7. Show `git status` and leave the commit to the user. Suggested message: `chore: connect to Stagekeeper`.
    Include the resolved verification-skill path and the owner-supplied version/commit (or the
    package checksum when it has no version). Initialization is complete only after the
