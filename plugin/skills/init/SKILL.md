@@ -27,14 +27,25 @@ If it is missing or incompatible, report the missing requirement and the install
 from that reference, then stop before step 1. After installation, rerun this preflight.
 
 1. If there's no `harness.json`, **do not interview the user.** Build one draft and show it once.
-   - `project`: run `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --print-project`. It writes
-     nothing and needs no `harness.json`. Use the `owner`·`repo`·`branch`·`name`·`slug` it prints —
-     the user already typed these on the web. **Write `slug` into the draft even though it is
-     optional**: it is the only thing a user token (`hu_`) has to name the project with, and a
-     repository connected without it has to rerun this command before one will work.
-     **Do not guess them from `git remote -v`**: the
-     repository registered on the web is the truth, and the local checkout can differ. If it
-     fails with `no /api/project` the server predates this route — only then fall back to asking.
+   - `project`: **which command depends on the token in the shell.** Check the prefix of
+     `$HARNESS_TOKEN` once and pick one — they print the same five fields
+     (`owner`·`repo`·`branch`·`name`·`slug`), so the rest of this step is identical either way.
+     - `hs_` (**project token** — it already knows its project):
+       `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --print-project`. It writes nothing and
+       needs no `harness.json`. **Do not guess the values from `git remote -v`**: the repository
+       registered on the web is the truth, and the local checkout can differ. If it fails with
+       `no /api/project` the server predates that route — only then fall back to asking.
+     - `hu_` (**user token** — there may be no project yet):
+       `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --register`. It reads `origin` and the
+       current branch from git and registers the repository, **or returns the existing project
+       when it is already registered** — rerunning is safe and creates nothing the second time.
+       If it says the server has no `/api/projects`, that server predates this route; fall back
+       to asking. Do **not** run `--register` with an `hs_` token — it answers 401 and tells you
+       to use `--print-project`.
+
+     **Write `slug` into the draft even though it is optional**: it is the only thing a user
+     token (`hu_`) has to name the project with, and a repository connected without it has to
+     rerun this command before one will work.
    - `workspaces`: read `package.json` scripts and the test runner to propose `path` ·
      `<name>-dev` · verify commands. Derive `id` from the agent name (`web-dev` → `web`).
      **This is the one thing only the user knows** — agent names are the roster's unique key,

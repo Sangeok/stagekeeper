@@ -7,7 +7,7 @@ approved-by: "user (conversation)"
 approved-at: "2026-09-20"
 approval-scope: "A(Execution Plan 1~7) 구현. B-1은 세 선택지 중 결정 전까지 착수 금지, B-2는 배포 부재로 실행 불가, C는 A가 녹색이 된 뒤 별도 판단. 커밋·푸시·PR은 별도 지시."
 completed-at: null
-verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). hu_는 /api/mcp에 실호출해 initialize 200 · 내 슬러그 성공 · PROJECT_REQUIRED · NOT_YOURS · 폐기 후 401을 실물로 확인했다(토큰은 삭제, 전후 0행). CI check(PR #55)는 build 포함 success. 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · REST 3종의 hu_ 경로 · 발급·폐기 서버 액션. B-1·B-2·C 미착수."
+verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). hu_는 /api/mcp에 실호출해 initialize 200 · 내 슬러그 성공 · PROJECT_REQUIRED · NOT_YOURS · 폐기 후 401을 실물로 확인했다(토큰은 삭제, 전후 0행). CI check(PR #55)는 build 포함 success. C-1(POST /api/projects)과 C-2(생성기 --register · SKILL 토큰 분기)는 구현·시험 완료 — test 176/176, test:web 369/369. 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · REST 3종의 hu_ 경로 · 발급·폐기 서버 액션 · C의 동시성 판정((g)(i)) · init 재실행 수동 인수. C-3(셸 설정)은 사용자 머신 설정이라 미착수, B-1·B-2도 미착수."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -677,6 +677,17 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
 7. **A** 문서: `protocol.md` 입력 열 13행, `invariants.md:75-78`.
 8. **C** `POST /api/projects`(조회·생성을 한 `withAvailabilityTransaction` 안에), init의
    `git remote` 등록, 셸 설정 수행.
+   - **C-1 완료** — 라우트 + `project-registration.ts`(hu_ 전용 `resolveUserScope`) +
+     `registerProjectResultIn`(멱등 조회를 **트랜잭션 안에서**) + `project-slug-rule.ts`.
+     **슬러그를 트랜잭션 안에서 미리 고른다** — 제안서 초안은 "P2002가 나면 조회로 되돌아가
+     기존 행을 돌려준다"였으나 그러면 **다른 사용자**가 그 슬러그를 쥔 경우 남의 프로젝트를
+     돌려주게 된다(`Project.slug`는 전역 유니크다). 그래서 충돌을 미리 피하고 P2002는 최후 재시도로만 둔다.
+   - **C-2 완료** — 생성기 `--register`(git `origin`·현재 브랜치 → `POST /api/projects`,
+     출력 모양은 `--print-project`와 동일) + `SKILL.md` step 1의 토큰 접두 분기
+     (`hs_` → `--print-project`, `hu_` → `--register`). `--print-project`에 끼워 넣지 않았다 —
+     그 모드의 계약이 "아무것도 쓰지 않는다"인데 서버에 행을 만들면 거짓이 된다.
+   - **C-3 미착수** — 셸 설정 수행은 사용자 머신의 설정 파일을 건드리므로 대상·방식을 받고 시작한다.
+     `product-copy.md` §9의 2·5단계 재작성도 여기에 묶여 있다(복사할 명령이 사라져야 참이 되는 문구다).
 9. **B-1 — 승인 대기 중이며 여기서 멈춘다.** Approval의 세 선택지 중 하나가 정해지기 전에는
    시작하지 않는다. "실행"으로 정해지면 순서는 이렇다:
    1. `Sangeok/harness-templates`에서 템플릿 9개 + `templates.test.mjs` = **10개 파일 44곳**의
@@ -725,6 +736,11 @@ grep -rn "mcp__harness__" \
   내 프로젝트 → 성공, (c) `hu_` + 남의 슬러그 → `not the owner of this project`,
   (d) `hu_` + `project` 누락 → 거부, (e) 주체 없음 → `/unauthenticated/` throw 유지,
   (f) `ho_` → 에이전트 서버에서 401.
+- **C 단언의 현재 상태(2026-09-20)**: (g) **구조만 고정됨** — 주입 시험이 재등록에 `create`가
+  0회임을 단언하지만 동시성은 아니다. (h) **완료** — `resolveUserScope` 시험이 `hu_` 부재 401을
+  고정하고 **`hs_`도 401**임을 함께 못박는다(두 해석기를 나중에 "통합"하면 프로젝트 토큰으로 새
+  프로젝트를 만들 수 있게 되므로). (i) **미검증** — 상한 문구 경로는 기존 시험이 덮지만 동시 경쟁은 아니다.
+  (j) **완료** — 다른 저장소가 같은 이름을 쥐면 접미사를 붙인다. 원문 계약은 아래와 같았다:
 - **새로 추가할 단언(C — `POST /api/projects`)**: (g) 같은 `(owner, repo)`로 두 번 호출 →
   프로젝트가 **하나**만 생기고 두 번 다 같은 슬러그를 돌려준다(멱등성), (h) `hu_` 없이 호출 →
   401, (i) 상한이 찬 사용자 → `capError` 문구로 거부, (j) 슬러그 자동 생성이 기존 슬러그와
@@ -792,7 +808,8 @@ B-1·C 행은 착수하지 않았으므로 그대로 `Not run yet`이다.
 | **마이그레이션 적용** | **적용 완료** | `20260920000000_user_scoped_tokens` **1건만** 적용됐다(`migrate status`로 다른 미적용 건이 없음을 먼저 확인 — `deploy`는 대기 중인 것을 **전부** 적용하므로). 대상이 격리 DB가 아니라 라이브 `neondb`라, 같은 DDL을 `COMMIT` 대신 `ROLLBACK`으로 끝내는 사본으로 먼저 리허설했다(성공 = 표 이름 충돌 없음 + `User.id` FK 타입 호환). 적용 뒤 표·인덱스 3종·`ON DELETE CASCADE` FK·`OwnerToken` 보존을 프로브로 확인했고 `migrate status`가 `Database schema is up to date!`다. **`migrate dev`는 쓰지 않았다** — drift를 만나면 DB reset을 제안하기 때문이다 |
 | 수동: `hu_`로 실제 MCP 연결 1회 | **통과** | 임시 `hu_`를 발급해 `/api/mcp`에 JSON-RPC로 실호출했다(`initialize` → `notifications/initialized` → `tools/call`). **`initialize`가 200** — 검증기의 `hu_` 분기가 단위 시험이 아니라 실제 요청에서 동작한다. `project_get`으로 (b) 내 슬러그 → 성공(올바른 프로젝트 반환) · (d) `project` 누락 → `project required: add project.slug to harness.json (rerun /harness:init once to write it)` · (c) 남의 슬러그 → `not the owner of this project`를 **실물로** 확인했고, 폐기 후 같은 토큰은 401이다. 토큰은 끝나고 삭제했다(전후 `UserToken` 0행, 평문은 프로세스 밖으로 내보내지 않았다). **범위: MCP만이다** — REST 3종의 `hu_` 경로는 여전히 단위 시험뿐이고, 발급·폐기 **서버 액션**도 미실행이다(이 검증은 액션이 쓰는 것과 같은 `newToken("user")` + `userToken.create`를 직접 불렀다) |
 | 수동: A-9 화면(`/settings/tokens`) 실사용 | **통과** (dev 서버 재기동 후) | 세션 쿠키를 민팅해 서버 렌더를 호출했다. **1차는 500**이었고 원인은 `src/server/db.ts:12`의 `globalThis` memoize였다 — 9-19에 뜬 dev 서버가 `UserToken` **이전** generated client 인스턴스를 들고 있어 `prisma.userToken`이 undefined였다(`TypeError: … reading 'findMany'`). 라우트는 정상 컴파일된 뒤 던진 것이었다. **코드를 한 줄도 고치지 않고** 서버만 새로 띄우자(마이그레이션·client 재생성 이후 기동) **200**이 나왔다: `h1 Tokens` · intro 문구 · 전환 안내 · 빈 표 문구 · Issue 버튼 · MCP URL 모두 확인, 오류 마커 없음. 같은 실행에서 `/projects`도 200이고 머리의 `/settings/tokens` 링크가 렌더된다(**진입점 확인** — "링크를 안 걸면 화면이 있어도 없다"의 반대 증거). 발급·폐기 **액션**은 여전히 미실행이다 — 화면 렌더와는 별개이고 자동 시험도 없다(저장소 관례상 서버 액션 시험 선례 0건) |
-| 수동: init 재실행 2회(같은 저장소) | Not run yet | C의 멱등성 — C 미착수 |
+| C-1·C-2 자동 시험 | **통과** | `npm test` **176/176**(생성기 `--register` 6건 신규: 등록·이미 등록됨(200)·`hs_` 401 안내·404·origin 없음·GitHub 아님) · `npm run test:web` **369/369**(`registerProjectResultIn` 멱등/접미사/토큰 미생성 4건 + `resolveUserScope` 4건 + 슬러그 규칙 11건) |
+| 수동: init 재실행 2회(같은 저장소) | **미실행** | 멱등성의 **구조**는 주입 시험이 고정했다(재등록에 `create` 0회). 실제 두 프로세스 경쟁은 격리 DB가 필요하다 |
 | B-1 옛 이름 부재 `grep`(이 저장소) | Not run yet | B-1 미착수 |
 | B-1 옛 이름 부재 `grep`(`harness-templates`) | Not run yet | B-1 미착수 |
 | 수동: `npm run seed:templates` | Not run yet | B-1에서만 필요 |
