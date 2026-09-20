@@ -49,3 +49,8 @@ nul
 
 # 에이전트 템플릿 — 공개 저장소에 두지 않는다. 원본은 별도 private 저장소(Sangeok/harness-templates), 배포는 DB 경유
 /plugin/templates/
+
+# Playwright MCP가 남기는 로컬 산출물(console-*.log · page-*.yml). 저장소 루트에 timestamp로 쌓인다.
+# 작업 기록이지 소스가 아니고, 화면 내용이 그대로 들어 있어 커밋하면 안 된다.
+# 이 줄이 없던 동안에는 `git add -A`가 그 파일들을 전부 stage했다 — 커밋마다 pathspec으로 빼야 했다.
+/.playwright-mcp/
