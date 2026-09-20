@@ -374,6 +374,13 @@ rendered in the Team row; the row shows only the agent handle and its state.
 2단계의 서버 줄은 **base**다 — 화면이 보여 주는 `…/api/mcp`가 아니다. 그 값이 셸에 있으면
 `/harness:init`이 주소를 묻지 않는다(`public-url.ts`의 `serverUrl()`과 `mcpUrl()`은 같은 출처에서 나온다).
 
+**사용자 토큰으로 옮기기 전 안내** — 이 페이지가 발급하는 것은 프로젝트 토큰(`hs_`)이라 저장소마다
+하나씩 필요하다. 계정 단위 토큰(`hu_`)은 한 번만 발급해 모든 저장소에서 쓴다. 다만 이미 연결된
+저장소의 `harness.json`에는 `project.slug`가 없을 수 있고, `hu_`에는 프로젝트를 가리킬 다른 값이
+없으므로 모든 호출이 `project required: add project.slug to harness.json (rerun /harness:init once
+to write it)`로 떨어진다. **`hu_`를 쓰기 전에 `/harness:init`을 한 번 다시 돌려 슬러그를 심는다.**
+`hs_`는 슬러그가 있든 없든 그대로 동작한다.
+
 **Owner token** (second section of the same page, under the agent-token table):
 
 - Heading **Owner token**. Intro: "An owner token lets your own Claude Code session open gates
@@ -400,6 +407,24 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > **2. Rerun the connection from that shell, then restart Claude Code** `/harness:init`
 > With the variable set, init adds the `harness_owner` server to `.mcp.json`. Approve it when
 > `/mcp` asks. Owner MCP server URL: `http://…/api/mcp/owner`
+
+**Account tokens** — `/settings/tokens`. 프로젝트 밖의 계정 단위 경로이고 `/billing`이 그 선례다.
+`/p/[slug]/tokens`와 **별개 화면**이며 그쪽은 이번 변경이 건드리지 않는다 — `tokens`는 `PROJECT_TABS`의
+한 탭이라, 계정 단위 자격을 거기에 두면 프로젝트 수만큼 중복 표시된다.
+
+- Title **Tokens**. Intro: "A user token connects every repository you own from one shell. It says
+  who you are, not which project — the project comes from `harness.json`'s `project.slug`."
+- 전환 안내 한 줄: "Already connected a repository? Rerun `/harness:init` once there before you use
+  this token — an older `harness.json` has no slug, and without one there is nothing to name the
+  project with." · "MCP server URL: `http://…/api/mcp`"
+- New token: label **Label** (placeholder `laptop`), button **Issue token** / "Issuing…". Error:
+  "Couldn't issue the token. Try again."
+- Table: Label · Issued · Status · Reference. Status "Active" / "Revoked 2026-08-30".
+  Reference `user:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
+- 발급 직후의 노출은 프로젝트 토큰과 **같은 화면**이다(`TokenReveal`). 셸 변수 이름도 `HARNESS_TOKEN`으로
+  같다 — 생성기가 `.mcp.json`에 쓰는 참조가 하나이기 때문이다. 1회 노출 규약은 토큰 종류와 무관하다.
+- 진입점은 머리(`AppHeader`)의 **Tokens** 링크다. `(app)` 셸에는 내비게이션이 없어, 링크를 걸지 않으면
+  주소를 직접 치는 사람만 닿는다.
 
 ## 10. Projects
 
@@ -483,7 +508,8 @@ are terse on purpose — agents parse them.
 | `plan_submit only in planning or in_review (now done)` | — |
 | `report_submit only in in_review, implementing, or done (now proposed)` | — |
 | `no such board item: FEAT-9` | — |
-| `not the owner of this project` (owner server, `gate_approve`) | — |
+| `not the owner of this project` (owner server `gate_approve` · **agent server와 REST 3종**: `hu_` 토큰이 남의 슬러그를 가리킬 때. 없는 슬러그도 같은 문장이다 — 존재 여부를 흘리지 않는다) | — |
+| `project required: add project.slug to harness.json (rerun /harness:init once to write it)` (agent server · REST 3종: `hu_` 토큰인데 `project`가 없을 때. `hs_`에는 나오지 않는다) | — |
 | `session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` (owner server) | — |
 | `not a gate: <id>` (owner server · web gate) | — |
 | `not waiting at before-implement — the item is at before-plan` (owner server · web gate) | — |

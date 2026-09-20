@@ -10,6 +10,7 @@ import { createBoardService } from "@/server/pipeline/board";
 import { RUNBOOK_STALE_NOTE } from "@/server/pipeline/run-rules";
 import { headFor, nextFor } from "@/server/pipeline/run";
 import { runbookStale } from "@/server/runbook";
+import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
 import { makeVerifyToken } from "./auth";
 import { loadProjectView } from "./project-query";
 import { syncProject } from "./project-sync-query";
@@ -38,7 +39,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
     submitPlan: (projectId, input, actorRef) => board.submitPlan(projectId, input, actorRef),
     submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
     recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),
-    agentNext: (projectId, tokenId, input) => agentNext(prismaNextDeps, { projectId, tokenId }, input),
+    agentNext: (projectId, tokenId, input, userScoped) => agentNext(prismaNextDeps, { projectId, tokenId, userScoped }, input),
     // pipeline_next의 조립은 여기다 — run.ts는 board.ts를 import하지 않으므로 미결 목록을 스스로 읽지 못한다(§D.1).
     // 항목마다 지연 전진을 먼저 돌린다: doc-audit·scout의 완료(에이전트 run 닫힘)는 보드 쓰기를 지나지 않는다.
     pipelineNext: async (projectId, key) => {
@@ -62,11 +63,15 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
       return { ok: true as const, item: { head, items, ...(stale ? { runbook: { stale: true as const, note: RUNBOOK_STALE_NOTE } } : {}) } };
     },
     access: (projectId) => readProjectAccess(prisma, projectId),
+    // 술어는 user-scope-query.ts 한 곳에 있다 — REST 세 경로도 같은 것을 쓴다.
+    projectFor: (slug, userId) => projectForUser(slug, userId, prisma),
   };
 }
 export const prismaToolDeps = createToolDeps(defaultDb);
 
 // 토큰 조회도 여기 둔다 — route.ts가 Prisma를 직접 부르면 adapter가 데이터 접근을 떠안는다.
-export const verifyProjectToken = makeVerifyToken((hash) =>
-  defaultDb.projectToken.findUnique({ where: { hash }, select: { id: true, projectId: true, revokedAt: true } }),
+// 두 번째 인자가 hu_ 경로다. 접두로 먼저 갈리므로 둘 중 하나만 조회한다.
+export const verifyProjectToken = makeVerifyToken(
+  (hash) => defaultDb.projectToken.findUnique({ where: { hash }, select: { id: true, projectId: true, revokedAt: true } }),
+  (hash) => findUserTokenByHash(hash, defaultDb),
 );

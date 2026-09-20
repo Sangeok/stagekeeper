@@ -6,15 +6,19 @@
 
 ## 템플릿 다운로드 — `GET /api/templates`
 
-`/harness:init`은 `Authorization: Bearer <에이전트 토큰>`과 `lang` 쿼리(생략 시 `en`)로
-템플릿을 요청한다. 서버는 토큰 인증 → 프로젝트 접근 확인 → 언어별 템플릿 조회 순으로
-처리한다. 인증이나 접근 확인에 실패하면 템플릿을 조회하지 않는다.
+`/harness:init`은 `Authorization: Bearer <토큰>`과 `lang` 쿼리(생략 시 `en`)로 템플릿을 요청한다.
+서버는 토큰 인증 → **프로젝트 확정** → 프로젝트 접근 확인 → 언어별 템플릿 조회 순으로 처리한다.
+인증이나 접근 확인에 실패하면 템플릿을 조회하지 않는다.
+
+**토큰 두 종류를 받는다.** 에이전트 토큰(`hs_`)은 프로젝트를 스스로 알고 있어 쿼리 인자가 필요 없다 —
+보내도 무시된다. 사용자 토큰(`hu_`)은 사람에게만 묶이므로 `?project=<slug>`가 **필수**이고, 서버는
+호출마다 그 슬러그가 호출자 소유인지 확인한다(`ownerUserId` 일치). 소유자 토큰(`ho_`)은 여기서도 거부한다.
 
 | 상태 | 의미 |
 | --- | --- |
 | `200` | `{ templates, entitlement: { plan, agents } }`. 에이전트는 스텁, 보고 에이전트·런북은 플랜에 맞춰 제공 |
-| `401` | 에이전트 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음 |
-| `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존 |
+| `401` | 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음. **`hu_`인데 `?project=`가 없으면 여기다** — `project required: add project.slug to harness.json (rerun /harness:init once to write it)` |
+| `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존. **`hu_`가 남의 슬러그를 가리키면 `not the owner of this project`** — 없는 슬러그도 같은 문장이다 |
 | `404` | 요청한 언어의 템플릿이 없음 |
 
 위 4xx 응답은 `{ error: string }`이다. MCP 도구의 `isError` 응답과 별개의 HTTP 계약이다.
@@ -23,13 +27,20 @@
 
 `/harness:init`이 `harness.json` 초안의 `project` 블록을 채울 때 `Authorization: Bearer <에이전트 토큰>`으로
 요청한다. 서버는 토큰 인증 → 프로젝트 접근 확인 → 정체 조회 순으로 처리한다. 인증이나 접근 확인에
-실패하면 프로젝트를 조회하지 않는다. 쿼리 인자가 없고 프로젝트 식별자도 받지 않는다 —
-`projectId`는 토큰에서만 나오므로 다른 프로젝트를 가리킬 입력이 없다.
+실패하면 프로젝트를 조회하지 않는다.
+
+**토큰 종류에 따라 이 경로의 뜻이 뒤집힌다.** `hs_`는 쿼리 인자 없이 "이 토큰은 어느 프로젝트냐"를 묻고,
+`hu_`는 `?project=<slug>`로 "이 프로젝트를 확인해 달라"를 묻는다. 첫 연결에는 `harness.json`이 없어
+슬러그도 없다 — 그 경로는 `git remote` 기반 조회·등록이 채운다.
+
+**예전에 여기 있던 보안 속성은 의도적으로 제거됐다.** `projectId`가 토큰에서만 나오던 동안에는
+다른 프로젝트를 가리킬 **입력 자체가 없었다**. 이제 입력이 있고, 그 자리를 호출마다의 `ownerUserId`
+일치 검사가 대신한다 — 구조적 불가능에서 검사로 내려온 것이다(`gate_approve`가 이미 쓰는 판정과 같다).
 
 | 상태 | 의미 |
 | --- | --- |
-| `200` | `{ project: { owner, repo, branch, name } }`. **`language`는 담지 않는다** — 그 값을 `harness.json`으로 옮기면 템플릿 요청이 없는 언어를 물어 404가 된다 |
-| `401` | 에이전트 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음 |
+| `200` | `{ project: { owner, repo, branch, name, slug } }`. `slug`는 `harness.json`의 `project.slug`가 되어 이후 `hu_` 호출이 프로젝트를 지목하는 데 쓴다. **`language`는 담지 않는다** — 그 값을 `harness.json`으로 옮기면 템플릿 요청이 없는 언어를 물어 404가 된다 |
+| `401` | 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음. **`hu_`인데 `?project=`가 없으면 여기다**(`project required: …`) |
 | `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존 |
 
 언어에 매이지 않으므로 `404`가 없다. 구버전 서버에는 이 경로 자체가 없어 플러그인이 404를 받고,
@@ -45,27 +56,38 @@
 토큰 인증은 유지하며 다른 도구나 templates/runbook 접근으로 우회할 수 없다.
 `project_sync` 성공은 Workspace/language/lastSyncedAt을 같은 transaction에 저장한다. 거부·실패는 모두 불변이다.
 `POST /api/runbook`은 같은 access 이후 12자리 소문자 hex version을 검사한다. 실패 상태는 401/403/400,
-성공 body는 `{ ok: true }`다. 이 요청은 lastSyncedAt을 변경하지 않는다.
+성공 body는 `{ ok: true }`다. 이 요청은 lastSyncedAt을 변경하지 않는다. 이 경로에는 쿼리 문자열이 없으므로
+`hu_`는 프로젝트를 **본문**으로 준다(`{ version, project }`) — 없으면 401(`project required: …`)이다.
 
 ## MCP 도구 계약 — 에이전트 토큰 스코프
 
 서버 이름 `harness`. Claude Code에서 보이는 이름은 `mcp__harness__<tool>`. 도구명은 밑줄(점 금지 — 클라이언트 정규화 회피).
 
+**프로젝트는 토큰이 아니라 인자에서 온다.** 아래 13개 도구 전부가 선택 입력 `project`(슬러그)를 받는다.
+`hs_`는 토큰이 프로젝트를 알고 있어 이 값을 보지 않으므로 **기존 호출이 그대로 통한다**. `hu_`는 이 값이
+**필수**다 — 없으면 `project required: add project.slug to harness.json (rerun /harness:init once to write it)`,
+호출자 소유가 아니면 `not the owner of this project`로 거부한다(없는 슬러그도 같은 문장이다).
+판정은 `src/server/mcp/tools.ts`의 `scope()` 한 곳이고, 소유자 서버는 `hu_`를 받지 않는다.
+
+`agent_next`의 호출 한도(`RATE_LIMIT`)는 `hs_`면 토큰당, `hu_`면 **토큰×프로젝트당**이다 —
+`hu_` 하나가 여러 프로젝트에 쓰이므로 분모에 프로젝트를 걸지 않으면 오늘의 "프로젝트당 60회/10분"이
+사람당으로 조용히 쪼개진다.
+
 | 도구 | 입력 | 효과 | 누가 | Phase |
 | --- | --- | --- | --- | --- |
-| `project_get` | — | 프로젝트·roster·워크스페이스 | 전부 | 1 |
-| `project_sync` | `{workspaces[], language?}` (= `harness.json`의 `workspaces`·`language`) | 워크스페이스 upsert(roster 갱신) · `Project.language` 갱신(`agent_next`가 단계를 찾는 언어) | init 스킬 | 1 · 4 |
-| `backlog_list` | `{includeRemoved?}` | 백로그 항목 + 최신 보드 status | pm·dev·doc-auditor | 1 |
-| `backlog_get` | `{key}` | 항목 1건(`source` 전문) | dev | 1 |
-| `board_list` | `{open?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
-| `board_get` | `{key}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·main-loop | 1 |
-| `board_propose` | `{key, agent, reason}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
-| `board_transition` | `{key, to, result?}` | 에이전트는 planning·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev | 1 |
-| `plan_submit` | `{key, path, commit}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
-| `report_submit` | `{key, actor, path, commit, runId?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
-| `validation_record` | `{key, text}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
-| `agent_next` | `{agent, key?, outcome?, note?, entry?, agentRunId?, stepId?, receipt?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
-| `pipeline_next` | `{key?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다 | main-loop | 2 |
+| `project_get` | `{project?}` | 프로젝트·roster·워크스페이스 | 전부 | 1 |
+| `project_sync` | `{workspaces[], language?, project?}` (= `harness.json`의 `workspaces`·`language`) | 워크스페이스 upsert(roster 갱신) · `Project.language` 갱신(`agent_next`가 단계를 찾는 언어) | init 스킬 | 1 · 4 |
+| `backlog_list` | `{includeRemoved?, project?}` | 백로그 항목 + 최신 보드 status | pm·dev·doc-auditor | 1 |
+| `backlog_get` | `{key, project?}` | 항목 1건(`source` 전문) | dev | 1 |
+| `board_list` | `{open?, project?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
+| `board_get` | `{key, project?}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·main-loop | 1 |
+| `board_propose` | `{key, agent, reason, project?}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
+| `board_transition` | `{key, to, result?, project?}` | 에이전트는 planning·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev | 1 |
+| `plan_submit` | `{key, path, commit, project?}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
+| `report_submit` | `{key, actor, path, commit, runId?, project?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
+| `validation_record` | `{key, text, project?}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
+| `agent_next` | `{agent, key?, outcome?, note?, entry?, agentRunId?, stepId?, receipt?, project?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
+| `pipeline_next` | `{key?, project?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다 | main-loop | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 

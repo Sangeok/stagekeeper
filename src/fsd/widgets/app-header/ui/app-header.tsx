@@ -3,6 +3,7 @@ import Link from "next/link";
 import { type PlanId, planLabel } from "@/fsd/shared/lib/entitlement-copy";
 import { billingPath } from "@/fsd/shared/routes/billing";
 import { projectPath } from "@/fsd/shared/routes/project";
+import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
 
 export type HeaderProject = { slug: string; name: string };
 
@@ -32,18 +33,22 @@ export function AppHeader({
             <ProjectSwitcher current={project} projects={projects} />
           </>
         ) : null}
+        {/* 계정 단위 토큰 화면의 유일한 진입점. (app) 셸에는 내비게이션이 없어서, 여기에 링크를 걸지
+            않으면 /settings/tokens는 주소를 직접 치는 사람만 닿을 수 있다 — 화면이 있어도 없는 것과 같다.
+            프로젝트 안팎 어디서나 보여야 하므로 프로젝트 전환기가 아니라 머리에 둔다. */}
+        <Link href={userTokensPath()} className="ml-auto text-xs text-quiet hover:text-ink">
+          Tokens
+        </Link>
         {/* 플랜 배지. 상한에 걸렸을 때 어디를 봐야 하는지가 머리에서 늘 보이게 한다. */}
         {plan !== undefined ? (
           <Link
             href={billingPath()}
-            className="ml-auto rounded-full border border-rule px-2 py-0.5 text-xs text-quiet hover:bg-field"
+            className="rounded-full border border-rule px-2 py-0.5 text-xs text-quiet hover:bg-field"
           >
             {planLabel(plan)}
           </Link>
         ) : null}
-        <span className={plan === undefined ? "ml-auto font-mono text-xs text-quiet" : "font-mono text-xs text-quiet"}>
-          {login}
-        </span>
+        <span className="font-mono text-xs text-quiet">{login}</span>
       </div>
     </header>
   );

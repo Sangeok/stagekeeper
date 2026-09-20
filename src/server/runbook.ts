@@ -5,6 +5,7 @@ import { RUNBOOK_TEMPLATE, runbookIsStale } from "@harness/core/runbook.mjs";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
+import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
 import { makeRecordRunbook } from "./runbook-query";
 
 export type { RunbookResult } from "./runbook-query";
@@ -14,6 +15,9 @@ export const recordRunbook = makeRecordRunbook({
     where: { hash },
     select: { revokedAt: true, projectId: true },
   }),
+  // hu_ 갈래. 이 둘을 주지 않으면 hu_는 존재하지 않는 것처럼 거부된다(rest-scope.ts).
+  findUserTokenByHash,
+  projectFor: projectForUser,
   projectAccess,
   saveRunbookVersion: async (projectId, version) => {
     await prisma.project.update({ where: { id: projectId }, data: { runbookVersion: version } });

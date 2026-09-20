@@ -151,3 +151,81 @@ describe("templatesFor", () => {
     await assert.rejects(templatesFor(authorizationHeader, "en"), (error) => error === databaseError);
   });
 });
+
+// hu_ — 프로젝트가 토큰이 아니라 ?project=<slug>에서 온다. 위 hs_ 단언은 한 줄도 바뀌지 않는다.
+describe("templatesFor with a user token", () => {
+  const user = newToken("user");
+  const userHeader = `Bearer ${user.plain}`;
+  const userRecord: { userId: string; revokedAt: Date | null } = { userId: "user1", revokedAt: null };
+
+  function userSetup(options: { userRecord?: typeof userRecord | null; projectId?: string | null } = {}) {
+    const calls: { slugs: [string, string][]; projectIds: string[]; languages: string[] } = {
+      slugs: [], projectIds: [], languages: [],
+    };
+    const deps: TemplateDeps = {
+      // hs_ 조회는 접두에서 이미 갈렸으므로 닿으면 안 된다.
+      findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
+      findUserTokenByHash: async () => (options.userRecord === undefined ? userRecord : options.userRecord),
+      projectFor: async (slug, userId) => {
+        calls.slugs.push([slug, userId]);
+        return options.projectId === undefined ? "project-1" : options.projectId;
+      },
+      projectAccess: async (projectId) => { calls.projectIds.push(projectId); return { plan: "pro", available: true }; },
+      findTemplatesByLanguage: async (language) => { calls.languages.push(language); return templateRows; },
+    };
+    return { templatesFor: makeTemplatesFor(deps), calls };
+  }
+
+  it("resolves the project from a slug the caller owns", async () => {
+    const { templatesFor, calls } = userSetup();
+
+    const result = await templatesFor(userHeader, "en", "mine");
+
+    assert.ok(result.ok);
+    assert.deepEqual(calls.slugs, [["mine", "user1"]]);
+    assert.deepEqual(calls.projectIds, ["project-1"]);
+  });
+
+  // 슬러그 없는 옛 harness.json이 이 오류의 주된 원인이다 — 문장이 고치는 법을 들고 있어야 한다.
+  it("returns 401 naming the fix when no project is given, without looking anything up", async () => {
+    const { templatesFor, calls } = userSetup();
+
+    const result = await templatesFor(userHeader, "en");
+
+    assert.equal(result.ok, false);
+    assert.equal(result.ok === false && result.status, 401);
+    assert.match(result.ok === false ? result.reason : "", /^project required: add project\.slug to harness\.json/);
+    assert.deepEqual(calls, { slugs: [], projectIds: [], languages: [] });
+  });
+
+  it("returns 403 for a slug the caller does not own, without checking access or loading templates", async () => {
+    const { templatesFor, calls } = userSetup({ projectId: null });
+
+    const result = await templatesFor(userHeader, "en", "theirs");
+
+    assert.deepEqual(result, { ok: false, status: 403, reason: "not the owner of this project" });
+    assert.deepEqual(calls.projectIds, []);
+    assert.deepEqual(calls.languages, []);
+  });
+
+  it("returns 401 for an unknown or revoked user token without resolving the slug", async () => {
+    for (const record of [null, { userId: "user1", revokedAt: new Date() }]) {
+      const { templatesFor, calls } = userSetup({ userRecord: record });
+
+      const result = await templatesFor(userHeader, "en", "mine");
+
+      assert.deepEqual(result, { ok: false, status: 401, reason: "invalid or revoked token" });
+      assert.deepEqual(calls.slugs, []);
+    }
+  });
+
+  // hu_를 주입하지 않은 배포에서는 hu_가 아예 존재하지 않는 것처럼 굴어야 한다.
+  it("refuses the token outright where the hu_ lookups are not injected", async () => {
+    const { templatesFor, calls } = setup();
+
+    const result = await templatesFor(userHeader, "en", "mine");
+
+    assert.deepEqual(result, { ok: false, status: 401, reason: "bearer token required" });
+    assert.deepEqual(calls, { tokenHashes: [], projectIds: [], languages: [] });
+  });
+});

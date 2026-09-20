@@ -39,8 +39,12 @@ for (const winner of [0, 1]) {
       assert.deepEqual(after.steps.map((step) => step.accepted).sort(), [false, true]);
       assert.ok(after.steps.every((step) => step.callerTokenId === "caller" && step.receiptRevision === 0));
       // 원장 두 줄 모두 실제 호출자에게 계수되고, run을 연 토큰에는 하나도 붙지 않는다.
-      assert.equal(await createNextDeps(a).recentSteps("caller", new Date(0)), 2);
-      assert.equal(await createNextDeps(a).recentSteps("opener", new Date(0)), 0);
+      // null은 hs_의 분모다(토큰 전체) — A-10 뒤에도 이 수가 그대로여야 한다.
+      assert.equal(await createNextDeps(a).recentSteps("caller", null, new Date(0)), 2);
+      assert.equal(await createNextDeps(a).recentSteps("opener", null, new Date(0)), 0);
+      // hu_의 분모는 토큰×프로젝트다: 같은 두 줄이 이 프로젝트에서만 세어지고, 남의 프로젝트에서는 0이다.
+      assert.equal(await createNextDeps(a).recentSteps("caller", f.projectId, new Date(0)), 2);
+      assert.equal(await createNextDeps(a).recentSteps("caller", "another-project", new Date(0)), 0);
       // 거절 행은 증거가 아니다 — verify ok 조회가 그 줄을 세지 않는다.
       assert.equal(await createNextDeps(a).verifyOk(f.projectId, "dev", f.key), true);
     } finally {

@@ -5,14 +5,29 @@ import { hashToken, parseBearer } from "@harness/core/token.mjs";
 
 export type TokenRow = { id: string; projectId: string; revokedAt: Date | null } | null;
 export type OwnerTokenRow = { id: string; projectId: string; userId: string; revokedAt: Date | null } | null;
+export type UserTokenRow = { id: string; userId: string; revokedAt: Date | null } | null;
 
-export function makeVerifyToken(findByHash: (hash: string) => Promise<TokenRow>) {
+// 에이전트 서버는 두 자격을 받는다. hs_는 프로젝트를 알고, hu_는 사람만 안다 —
+// 프로젝트는 도구 인자로 오고 scope()가 호출마다 ownerUserId로 인가한다.
+// 접두가 먼저 갈리므로 표 조회는 해당하는 한 곳만 간다. ho_는 어느 쪽 파싱도 통과하지 못한다.
+export function makeVerifyToken(
+  findByHash: (hash: string) => Promise<TokenRow>,
+  findUserByHash?: (hash: string) => Promise<UserTokenRow>,
+) {
   return async (_req: Request, bearer?: string): Promise<AuthInfo | undefined> => {
-    const plain = parseBearer(bearer ? `Bearer ${bearer}` : null);
-    if (!plain) return undefined;
-    const row = await findByHash(hashToken(plain));
-    if (!row || row.revokedAt) return undefined;
-    return { token: plain, scopes: ["agent"], clientId: row.projectId, extra: { projectId: row.projectId, tokenId: row.id } };
+    const header = bearer ? `Bearer ${bearer}` : null;
+    const plain = parseBearer(header);
+    if (plain) {
+      const row = await findByHash(hashToken(plain));
+      if (!row || row.revokedAt) return undefined;
+      return { token: plain, scopes: ["agent"], clientId: row.projectId, extra: { projectId: row.projectId, tokenId: row.id } };
+    }
+    // hu_. clientId는 프로젝트가 없으므로 토큰 id다 — 소비자는 없지만 값을 비워 두지 않는다(A-2).
+    const userPlain = findUserByHash ? parseBearer(header, "user") : null;
+    if (!userPlain) return undefined;
+    const userRow = await findUserByHash!(hashToken(userPlain));
+    if (!userRow || userRow.revokedAt) return undefined;
+    return { token: userPlain, scopes: ["agent"], clientId: userRow.id, extra: { userId: userRow.userId, tokenId: userRow.id } };
   };
 }
 

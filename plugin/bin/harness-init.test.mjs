@@ -361,7 +361,8 @@ describe("harness-init (v2)", () => {
   });
 
   describe("--print-project", () => {
-    const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "dev", name: "stagekeeper" };
+    // slug까지 싣는다 — 스킬이 harness.json 초안의 project.slug를 이 값으로 채운다(A-8).
+    const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "dev", name: "stagekeeper", slug: "stagekeeper" };
     // harness.json이 없는 첫 연결에서 쓰는 모드다 — 설정을 읽지 않고, 아무것도 쓰지 않는다.
     const emptyRoot = () => mkdtempSync(join(tmpdir(), "harness-empty-"));
 

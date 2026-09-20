@@ -1,13 +1,13 @@
 ---
-status: "pending"
+status: "completed"
 stage: "approved"
 proposal-size: "standard"
 created-at: "2026-09-20"
 approved-by: "user (conversation)"
 approved-at: "2026-09-20"
 approval-scope: "D-1~D-5를 권장값으로 확정하고 서버·생성기·웹·스킬·문서 구현. 격리 DB 통합 검증과 수동 연결 인수(질문 수)는 후속. 커밋·푸시·PR 제외."
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-20"
+verification-summary: "구현은 PR #53(머지 4cc86c5 · 구현 커밋 52c7d5d)으로 dev에 들어갔다 — 20개 파일 +1213/−36. 실측: check 통과 · test 165/165 · test:web 327/327 · build 통과(라우트 표에 ƒ /api/project 수집) · test:server 2/2. 미검증 2건(격리 DB 통합검증 · 수동 연결 인수)을 남긴 채 닫는다 — 둘 다 이 환경이 제공할 수 없는 환경 의존 검증이라 Completion Notes의 ③④로 이월했다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -24,6 +24,25 @@ related:
 ---
 
 # init이 묻는 질문 줄이기 — 서버가 아는 것은 서버에서 받고, 사람만 아는 것만 묻는다
+
+> **이후 변경으로 무효가 된 항목** (2026-09-20 닫으면서 추가)
+>
+> 이 제안이 만든 `GET /api/project`를 [user-scoped-project-identity](../active/user-scoped-project-identity.md)의
+> A-7이 확장했다. 그래서 아래 진술들은 **더 이상 현재 코드의 사실이 아니다** — 당시 판단의
+> 기록으로만 읽어야 한다. 현재 HTTP 계약의 소유 문서는 `docs/architecture/protocol.md`다.
+>
+> - **"프로젝트 식별자를 입력으로 받지 않는다 · IDOR 표면이 없다"** (§1 본문, Safety Analysis의
+>   인증·인가 항목, Risks, Review Checklist). A-7이 `?project=<slug>`를 더해 **바로 그 입력을
+>   만들었다.** 대체 방어는 호출마다의 `ownerUserId` 일치 검사이며, 구조적 불가능에서 검사로
+>   내려온 하락이라는 점을 그쪽 제안서가 자기 리스크 1번으로 명시한다.
+> - **`ProjectIdentity`가 네 필드라는 것** (§1의 타입 선언, `--print-project` 예시 출력,
+>   `harness.json` 초안 예시). 지금은 `slug`가 더해져 다섯이다 — 사용자 토큰(`hu_`)이
+>   프로젝트를 지목하는 유일한 값이다.
+> - **후속 ①("`harness.json`의 `project` 선택 필드화")은 재검토가 필요하다.** 중복을 없애려면
+>   `project`를 지워야 하는데, `hu_`는 `project.slug`가 로컬에 있어야 동작한다. 두 방향이 부딪힌다.
+>
+> 나머지 본문은 그대로 유효하다 — 질문 수 감축, 서버 URL 3순위·정규화, 그리고 `language`를
+> 옮기지 않는다는 판단(그 근거 사슬은 지금도 참이다).
 
 ## Summary
 
@@ -260,6 +279,9 @@ export type ProjectIdentityDeps = {
 **객체 수준 권한이 구조적으로 보장된다.** 이 엔드포인트는 프로젝트 식별자를 입력으로
 받지 않는다 — `projectId`는 오직 토큰 해시 조회에서 나온다(`templates.ts:10-13`과 같은
 방식). 따라서 다른 프로젝트를 가리킬 입력 자체가 없고, IDOR 표면이 생기지 않는다.
+
+> **무효** — A-7이 `?project=<slug>`를 더해 이 속성을 의도적으로 제거했다. 문서 첫머리의
+> 「이후 변경으로 무효가 된 항목」 참조.
 읽기 전용(GET)이라 쓰기·멱등성·동시성 고려 대상도 아니다.
 
 조회는 필요한 네 열만 select한다 — `repoOwner`·`repo`·`branch`·`name`.
@@ -402,6 +424,8 @@ export function serverCommands(serverUrl: string): ConnectCommand[] {
       403을 먼저 거른 뒤에만 정체를 조립한다. 프로젝트 식별자를 입력으로 받지 않으므로
       (projectId는 토큰 해시 조회에서만 나온다) 객체 수준 권한이 구조적으로 보장되고
       IDOR 표면이 없다. 단위 테스트가 `calls` 비교로 호출 순서를 고정한다.
+      **→ 뒷부분(식별자 부재·IDOR 무)은 A-7 이후 무효다.** 401/401/403 순서와 `calls` 고정은
+      지금도 유효하다. 문서 첫머리의 「이후 변경으로 무효가 된 항목」 참조.
 - [x] **상태 변경 없음** — GET 읽기 전용이다. 멱등성·중복 제출·부분 실패·동시성 항목은
       쓰기가 없으므로 해당 없음(증거: 제안된 코드에 write/mutation이 없다).
 - [x] API 계약 — `/api/templates` 응답은 **바뀌지 않는다.** 따라서 생성기의 응답 검증
@@ -651,12 +675,31 @@ npm run test:server        # tests/server/*.test.ts — 서버 변경 시 로컬
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD — ① `harness.json`의 `project` 선택 필드화
-  ② `Project.language` 기본값·fallback 정리
+- completed-at: 2026-09-20
+- verification-summary: `npm run check` 통과 · `npm test` 165/165 · `npm run test:web` 327/327 ·
+  `npm run build` 통과(라우트 표에 `ƒ /api/project` 수집 확인) · `npm run test:server` 2/2.
+  미검증 2건은 아래 ③④로 이월했다.
+- implementation PR/commit: PR #53(머지 커밋 `4cc86c5`), 구현 커밋 `52c7d5d`
+  "feat(init): ask once — serve project identity and recover the server URL"
+- changed files summary: 20개 파일 +1213/−36. 서버 3 신규(`project-identity-query.ts` ·
+  `project-identity.ts` · `app/api/project/route.ts`)와 단위 시험 11건, 생성기
+  (`harness-init.mjs`의 URL 3순위·꼬리 정규화·비던지는 `.mcp.json` 회수·`--print-project`)와
+  시험 9건, 웹(`public-url.ts`의 `serverUrl()` · `connect-command.ts`의 `serverCommands` ·
+  `TokenReveal` 2단계 + 호출부 5), 문서 3(`SKILL.md` step 1·2·6 · `protocol.md`의 새 계약 절 ·
+  `product-copy.md` §9).
+- remaining follow-up:
+  ① `harness.json`의 `project` 선택 필드화 — **재검토 필요.** `hu_`가 `project.slug`에
+     의존하게 되어 중복 제거 방향과 부딪힌다(문서 첫머리 참조).
+  ② `Project.language` 기본값·fallback 정리 — DB 기본 `ko` · 시드 `en` ·
+     `/api/templates`에 fallback 없음 · `agent_next`만 fallback 보유.
+  ③ 격리 DB에서 `npm run test:server:integration` — `TEST_DATABASE_URL`이 없어 **미실행**.
+     `src-server-clean-code-findings.md`·`user-scoped-project-identity.md`와 **같은 블로커**를
+     공유하므로 격리 DB가 생기면 함께 인수하는 편이 낫다.
+  ④ 수동 연결 인수 — **미실행.** 빈 저장소에서 질문 수를 센다(목표 1회, 충돌 시 2회,
+     재연결 0회)와 생성된 `harness.json`에 `language` 키가 없는지 확인. 실서버와 새로 발급한
+     토큰이 필요하다. 이 항목이 없으면 이 제안의 **핵심 목표(질문 7~9 → 1)에 증거가 없다.**
+- 닫은 근거: 구현이 `dev`에 머지됐고 남은 것은 이 환경이 제공할 수 없는 환경 의존 검증뿐이라,
+  `active/`에 두면 "아직 착수하지 않은 일"로 읽힌다. ③④는 위 목록으로 이월해 추적한다.
 
 ## Implementation Results — 2026-09-20
 
@@ -701,8 +744,10 @@ npm run test:server        # tests/server/*.test.ts — 서버 변경 시 로컬
 ## Review Checklist
 
 - [x] 모든 `{placeholder}`를 처리했고, 완료 전용 `TBD` 외에는 현재 상태에 맞게 적었다.
-- [x] `status`는 `pending`이고 위치는 `active/`다.
-- [x] `stage`는 `draft`다.
+- [x] `status`는 `completed`이고 위치는 `completed/`다(2026-09-20 닫음). 작성 시점에는
+      `pending`·`active/`였다.
+- [x] `stage`는 `approved`다. (작성 시점의 이 줄은 `draft`라고 적혀 있었으나 front matter는
+      승인과 함께 `approved`로 올라갔다 — 닫으면서 정정했다.)
 - [x] `proposal-size`는 `standard`이며 새 인증 라우트와 파일 수에 근거한다.
 - [x] 승인 기록은 front matter를 단일 기준으로 하고 본문에는 조건과 재검토 근거만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다 — `/api/templates`와 `language` 정책을 명시적으로

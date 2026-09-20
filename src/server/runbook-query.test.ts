@@ -74,3 +74,50 @@ describe("recordRunbook", () => {
     }
   });
 });
+
+// hu_ — 이 경로에는 쿼리 문자열이 없어 프로젝트를 **본문**으로 받는다(A-7).
+describe("recordRunbook with a user token", () => {
+  const user = newToken("user");
+  const userHeader = `Bearer ${user.plain}`;
+
+  function userSetup(options: { projectId?: string | null } = {}) {
+    const saved: { projectId: string; version: string }[] = [];
+    const slugs: [string, string][] = [];
+    const deps: RunbookDeps = {
+      findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
+      findUserTokenByHash: async () => ({ userId: "user1", revokedAt: null }),
+      projectFor: async (slug, userId) => {
+        slugs.push([slug, userId]);
+        return options.projectId === undefined ? "project-1" : options.projectId;
+      },
+      projectAccess: async () => ({ plan: "pro", available: true }),
+      saveRunbookVersion: async (projectId, value) => { saved.push({ projectId, version: value }); },
+    };
+    return { recordRunbook: makeRecordRunbook(deps), saved, slugs };
+  }
+
+  it("takes the project from the body and stores the version against it", async () => {
+    const { recordRunbook, saved, slugs } = userSetup();
+    assert.deepEqual(await recordRunbook(userHeader, { version, project: "mine" }), { ok: true });
+    assert.deepEqual(slugs, [["mine", "user1"]]);
+    assert.deepEqual(saved, [{ projectId: "project-1", version }]);
+  });
+
+  it("refuses a body with no project, naming the fix, without writing", async () => {
+    for (const body of [{ version }, { version, project: "" }, { version, project: 7 }]) {
+      const { recordRunbook, saved, slugs } = userSetup();
+      const result = await recordRunbook(userHeader, body);
+      assert.equal(result.ok === false && result.status, 401);
+      assert.match(result.ok === false ? result.reason : "", /^project required: add project\.slug to harness\.json/);
+      assert.deepEqual(slugs, []);
+      assert.deepEqual(saved, []);
+    }
+  });
+
+  it("refuses a project the caller does not own without writing", async () => {
+    const { recordRunbook, saved } = userSetup({ projectId: null });
+    const result = await recordRunbook(userHeader, { version, project: "theirs" });
+    assert.deepEqual(result, { ok: false, status: 403, reason: "not the owner of this project" });
+    assert.deepEqual(saved, []);
+  });
+});
