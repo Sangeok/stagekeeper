@@ -351,12 +351,12 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > `claude plugin marketplace add Sangeok/stagekeeper` · `claude plugin install harness@stagekeeper-local` — **Copy** / "Copied"
 > Already installed? `claude plugin list` shows `harness`.
 >
-> **2. Set the token and the server in the terminal that will start Claude Code**
-> Claude Code reads these environment variables when it starts. A repository `.env` file is not
+> **2. Set the token in the terminal that will start Claude Code**
+> Claude Code reads this environment variable when it starts. A repository `.env` file is not
 > loaded for this connection. The generated `.mcp.json` references `${HARNESS_TOKEN}`, so
 > committing it doesn't leak the token.
 > PowerShell `$env:HARNESS_TOKEN = "hs_…"` · bash / zsh `export HARNESS_TOKEN="hs_…"` — **Copy** / "Copied"
-> PowerShell `$env:HARNESS_SERVER = "http://…"` · bash / zsh `export HARNESS_SERVER="http://…"` — **Copy** / "Copied"
+> You don't need to set the server address — `/harness:init` does that for you.
 >
 > **3. Start Claude Code in this repository**
 > From the same terminal, change to the repository directory and start Claude Code.
@@ -371,8 +371,15 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > and approve `harness` if it is pending.
 > MCP server URL: `http://…/api/mcp`
 
-2단계의 서버 줄은 **base**다 — 화면이 보여 주는 `…/api/mcp`가 아니다. 그 값이 셸에 있으면
-`/harness:init`이 주소를 묻지 않는다(`public-url.ts`의 `serverUrl()`과 `mcpUrl()`은 같은 출처에서 나온다).
+**서버 줄이 2단계에서 빠진 이유**(C-3). `/harness:init`이 `HARNESS_SERVER`를 직접 설정한다 —
+비밀이 아니므로 에이전트가 대신해도 잃는 것이 없고, 복사 한 번이 사라진다. 그 값은 **base**이지
+화면이 보여 주는 `…/api/mcp`가 아니다(`public-url.ts`의 `serverUrl()`과 `mcpUrl()`은 같은 출처다).
+
+**토큰 줄은 그대로 둔다 — 의도적이다.** 에이전트가 값을 받아 `setx`를 대신 실행하면 설정이 0회가
+되지만, 두 군데서 나빠진다: 붙여넣은 값이 세션 transcript에 남고, `setx HARNESS_TOKEN <값>`은
+명령줄에 실려 셸 히스토리에도 남는다. 지금 방식은 토큰이 에이전트 문맥에 **아예 들어오지 않는다**.
+`SKILL.md`의 "Never print the token value"와도 같은 방향이다. 그래서 토큰 설정은 **머신당 1회**로
+남기고, 스킬은 발급 페이지를 열어 주고 히스토리에 안 남는 입력 방법을 안내하는 데까지만 한다.
 
 **사용자 토큰으로 옮기기 전 안내** — 이 페이지가 발급하는 것은 프로젝트 토큰(`hs_`)이라 저장소마다
 하나씩 필요하다. 계정 단위 토큰(`hu_`)은 한 번만 발급해 모든 저장소에서 쓴다. 다만 이미 연결된

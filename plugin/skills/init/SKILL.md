@@ -6,8 +6,23 @@ description: Connect this repository to Stagekeeper — write harness.json, gene
 # harness:init
 
 Precondition: the user has created the project on the web and has a token. The token must be
-in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"` — if it's missing, tell
-them to issue one on the web at `/p/<slug>/tokens` and stop).
+in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).
+
+**Set up what is not a secret yourself; hand back only the token.**
+
+- `HARNESS_SERVER` — **you persist it, do not print a command to copy.** Windows:
+  `setx HARNESS_SERVER "<base>"`. POSIX: append `export HARNESS_SERVER="<base>"` to the login
+  profile, **only if that line is not already there** — init is rerun routinely and a second
+  copy is noise. The base is the web address without `/api/mcp`. Both take effect in the *next*
+  shell, which is why step 4 restarts.
+- `HARNESS_TOKEN` — **do not take the value into this conversation.** Open the issue page for
+  them (`/settings/tokens` for a user token, `/p/<slug>/tokens` for a project token) and say
+  plainly why you are not doing this part: anything pasted into the chat lands in the session
+  transcript, and `setx HARNESS_TOKEN <value>` would additionally leave it in shell history.
+  Tell them a history-safe way — on PowerShell read it into a variable first
+  (`$t = Read-Host -AsSecureString`, convert, then `setx`), on POSIX edit the profile file
+  directly rather than typing an `export` at the prompt. Then stop until
+  `test -n "$HARNESS_TOKEN"` passes. Never print the token value.
 
 Two kinds of token work here. A **project token** (`hs_`) carries the project itself — one per
 repository. A **user token** (`hu_`) carries only who the user is, so one token works in every
