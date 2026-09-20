@@ -351,11 +351,12 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > `claude plugin marketplace add Sangeok/stagekeeper` · `claude plugin install harness@stagekeeper-local` — **Copy** / "Copied"
 > Already installed? `claude plugin list` shows `harness`.
 >
-> **2. Set the token in the terminal that will start Claude Code**
-> Claude Code reads this environment variable when it starts. A repository `.env` file is not
+> **2. Set the token and the server in the terminal that will start Claude Code**
+> Claude Code reads these environment variables when it starts. A repository `.env` file is not
 > loaded for this connection. The generated `.mcp.json` references `${HARNESS_TOKEN}`, so
 > committing it doesn't leak the token.
 > PowerShell `$env:HARNESS_TOKEN = "hs_…"` · bash / zsh `export HARNESS_TOKEN="hs_…"` — **Copy** / "Copied"
+> PowerShell `$env:HARNESS_SERVER = "http://…"` · bash / zsh `export HARNESS_SERVER="http://…"` — **Copy** / "Copied"
 >
 > **3. Start Claude Code in this repository**
 > From the same terminal, change to the repository directory and start Claude Code.
@@ -369,6 +370,9 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > After init finishes, restart Claude Code from the same terminal. In Claude Code, run `/mcp`
 > and approve `harness` if it is pending.
 > MCP server URL: `http://…/api/mcp`
+
+2단계의 서버 줄은 **base**다 — 화면이 보여 주는 `…/api/mcp`가 아니다. 그 값이 셸에 있으면
+`/harness:init`이 주소를 묻지 않는다(`public-url.ts`의 `serverUrl()`과 `mcpUrl()`은 같은 출처에서 나온다).
 
 **Owner token** (second section of the same page, under the agent-token table):
 

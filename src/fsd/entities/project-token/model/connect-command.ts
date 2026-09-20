@@ -9,6 +9,16 @@ export type ConnectCommand = { kind: ShellKind; label: string; command: string }
 
 export const AGENT_TOKEN_VARIABLE = "HARNESS_TOKEN";
 export const OWNER_TOKEN_VARIABLE = "HARNESS_OWNER_TOKEN";
+// 서버 URL도 토큰과 같은 셸에 산다. 이 줄이 없으면 /harness:init이 URL을 물을 수밖에 없다 —
+// 화면은 주소를 보여 주면서 셸로 옮기는 길을 주지 않았다.
+export const SERVER_VARIABLE = "HARNESS_SERVER";
+
+export function serverCommands(serverUrl: string): ConnectCommand[] {
+  return [
+    { kind: "powershell", label: "PowerShell", command: `$env:${SERVER_VARIABLE} = "${serverUrl}"` },
+    { kind: "posix", label: "bash · zsh", command: `export ${SERVER_VARIABLE}="${serverUrl}"` },
+  ];
+}
 
 export function connectCommands(token: string, variable: string = AGENT_TOKEN_VARIABLE): ConnectCommand[] {
   return [

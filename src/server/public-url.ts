@@ -3,6 +3,12 @@ function publicUrl(): string {
   return (process.env.HARNESS_PUBLIC_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
+// 생성기가 받는 값. 토큰 페이지가 보여 주는 mcpUrl()과 한 출처에서 나오므로 어긋날 수 없다 —
+// 사용자가 이 값을 HARNESS_SERVER로 셸에 넣으면 init이 서버 URL을 묻지 않는다.
+export function serverUrl(): string {
+  return publicUrl();
+}
+
 export function mcpUrl(): string {
   return `${publicUrl()}/api/mcp`;
 }

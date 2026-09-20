@@ -4,7 +4,7 @@ import { AppHeader } from "@/fsd/widgets/app-header";
 import { loadHeaderUser } from "@/fsd/widgets/app-header/index.server";
 import { requireUser } from "@/server/auth/guard";
 import { listPublicRepos } from "@/server/github";
-import { mcpUrl } from "@/server/public-url";
+import { mcpUrl, serverUrl } from "@/server/public-url";
 
 export default async function Page() {
   const { userId } = await requireUser();
@@ -16,7 +16,7 @@ export default async function Page() {
       <AppHeader login={user.login} plan={user.plan} />
       <main className="mx-auto flex w-full max-w-[800px] flex-col gap-8 px-5 pt-9 pb-14">
         <h1 className="text-2xl font-semibold tracking-tight">New project</h1>
-        <NewProjectForm action={createProject} mcpUrl={mcpUrl()} defaultOwner={user.login} repos={repos.ok ? repos.repos : []} repoLoadFailed={!repos.ok} />
+        <NewProjectForm action={createProject} mcpUrl={mcpUrl()} serverUrl={serverUrl()} defaultOwner={user.login} repos={repos.ok ? repos.repos : []} repoLoadFailed={!repos.ok} />
       </main>
     </>
   );

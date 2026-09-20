@@ -48,6 +48,11 @@ const runWith = (env, root, server, ...args) => {
 const runAsync = (env, root, server, ...args) => new Promise((resolve) =>
   execFile("node", argv(root, server, args), { encoding: "utf8", env: { ...BASE_ENV, ...env } },
     (e, stdout, stderr) => resolve({ code: e ? e.code : 0, out: String(stdout) + String(stderr) })));
+// --server를 아예 주지 않는 실행. 서버 URL 출처 순서를 시험하려면 argv에서 그 인자가 빠져야 한다.
+const runBare = (env, root, ...args) => {
+  try { return { code: 0, out: execFileSync("node", [BIN, "--root", root, ...args], { encoding: "utf8", stdio: "pipe", env: { ...BASE_ENV, ...env } }) }; }
+  catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; }
+};
 const run = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root, "https://h.example", ...args);
 const runFree = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR, HARNESS_PLAN: "free" }, root, "https://h.example", ...args);
 const fresh = (cfg = APCH) => { const root = mkdtempSync(join(tmpdir(), "harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
@@ -63,7 +68,8 @@ const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: tru
 
 // 가짜 /api/templates — 응답 본문 하나를 정해 두고 받은 요청을 기록한다.
 // postStatus: 런북 보고(POST /api/runbook)에 돌려줄 상태. 기본 200.
-const withServer = async (body, fn, { postStatus = 200 } = {}) => {
+// project: GET /api/project가 줄 정체. projectStatus 404는 그 경로가 없는 구버전 서버다.
+const withServer = async (body, fn, { postStatus = 200, project = null, projectStatus = 200 } = {}) => {
   const seen = [];
   const server = createServer((req, res) => {
     let raw = "";
@@ -71,6 +77,12 @@ const withServer = async (body, fn, { postStatus = 200 } = {}) => {
     req.on("end", () => {
       seen.push({ url: req.url, method: req.method, authorization: req.headers.authorization, body: raw || null });
       res.setHeader("content-type", "application/json");
+      // 엔드포인트가 둘이 됐다 — url로 가르지 않으면 --print-project가 템플릿 본문을 받는다.
+      if (req.url?.startsWith("/api/project")) {
+        res.statusCode = projectStatus;
+        res.end(JSON.stringify(projectStatus === 200 ? { project } : { error: "not found" }));
+        return;
+      }
       if (req.method === "POST") { res.statusCode = postStatus; res.end(JSON.stringify({ ok: postStatus < 400 })); return; }
       res.end(JSON.stringify(body));
     });
@@ -299,6 +311,91 @@ describe("harness-init (v2)", () => {
     it("unknown HARNESS_PLAN is a config error", () => {
       const r = runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR, HARNESS_PLAN: "gold" }, fresh(ONE_WS), "https://h.example");
       assert.equal(r.code, 1); assert.match(r.out, /HARNESS_PLAN/);
+    });
+  });
+
+  describe("서버 URL 출처", () => {
+    // C11: 기본값은 없다. 세 출처가 모두 비면 지금까지와 같은 문장으로 멈추고 아무것도 쓰지 않는다.
+    // 이 분기는 그동안 자동 테스트가 없었다(모든 실행이 --server를 넘겼다).
+    it("exits 1 and writes nothing when no source supplies a server URL", () => {
+      const root = fresh(ONE_WS);
+      const before = snapshot(root);
+      const r = runBare({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root);
+      assert.equal(r.code, 1, r.out);
+      assert.match(r.out, /Server URL required/);
+      assert.deepEqual(snapshot(root), before);
+    });
+
+    it("recovers the server from an existing .mcp.json when no flag or env gives one", () => {
+      const root = fresh(ONE_WS);
+      writeFileSync(join(root, ".mcp.json"), JSON.stringify({
+        mcpServers: { harness: { type: "http", url: "https://recovered.example/api/mcp" } },
+      }));
+      const r = runBare({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root);
+      assert.equal(r.code, 0, r.out);
+      const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
+      assert.equal(mcp.mcpServers.harness.url, "https://recovered.example/api/mcp");
+    });
+
+    // 토큰 페이지는 `<base>/api/mcp`를 보여 준다. 그대로 넘겨도 꼬리가 겹치지 않아야 한다.
+    for (const given of ["https://h.example/api/mcp", "https://h.example/api/mcp/", "https://h.example/api/mcp/owner"]) {
+      it(`normalizes ${given} to the base URL`, () => {
+        const root = fresh(ONE_WS);
+        const r = runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root, given);
+        assert.equal(r.code, 0, r.out);
+        const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
+        assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
+      });
+    }
+
+    // 깨진 .mcp.json은 회수에 실패해도 던지지 않는다 — 그래도 URL이 없으면 멈춘다.
+    it("does not throw on an unreadable .mcp.json while recovering, and says so", () => {
+      const root = fresh(ONE_WS);
+      writeFileSync(join(root, ".mcp.json"), "{");
+      const r = runBare({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root);
+      assert.equal(r.code, 1, r.out);
+      assert.match(r.out, /Server URL required/);
+      assert.match(r.out, /\.mcp\.json could not be read/);
+      assert.doesNotMatch(r.out, /Initialization error/);
+    });
+  });
+
+  describe("--print-project", () => {
+    const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "dev", name: "stagekeeper" };
+    // harness.json이 없는 첫 연결에서 쓰는 모드다 — 설정을 읽지 않고, 아무것도 쓰지 않는다.
+    const emptyRoot = () => mkdtempSync(join(tmpdir(), "harness-empty-"));
+
+    it("prints the identity without harness.json and writes nothing", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server) => {
+        const root = emptyRoot();
+        const before = snapshot(root);
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server, "--print-project");
+        assert.equal(r.code, 0, r.out);
+        assert.deepEqual(JSON.parse(r.out.trim()), identity);
+        assert.deepEqual(snapshot(root), before);
+        assert.ok(!existsSync(join(root, ".mcp.json")));
+      }, { project: identity });
+    });
+
+    // language를 실으면 harness.json이 ?lang=ko를 만들어 첫 연결이 404가 된다.
+    it("carries no language key", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server) => {
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, emptyRoot(), server, "--print-project");
+        assert.equal(r.code, 0, r.out);
+        assert.ok(!("language" in JSON.parse(r.out.trim())));
+      }, { project: identity });
+    });
+
+    // 구버전 서버에는 이 경로가 없다. 그 사실을 말하고 실패하면 스킬이 지금까지처럼 물어서 진행한다(D-4).
+    it("says the server has no /api/project when it answers 404", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server) => {
+        const root = emptyRoot();
+        const before = snapshot(root);
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server, "--print-project");
+        assert.equal(r.code, 1, r.out);
+        assert.match(r.out, /no \/api\/project/);
+        assert.deepEqual(snapshot(root), before);
+      }, { projectStatus: 404 });
     });
   });
 
