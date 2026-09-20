@@ -452,7 +452,7 @@ B는 **두 조각이고 막는 것이 서로 다르다.** B-1을 막는 것은 �
 `mcp__harness_owner__`에 걸리지 않는다 — 실측 확인). 실제 대상을 **패턴별로 나눠** 전수 조사한
 결과는 이렇다.
 
-**(1) 이 저장소 안 (5개 문서 + 1개 스킬, 에이전트 이름 14곳):** `protocol.md:52` ·
+**(1) 이 저장소 안 (5개 문서 + 1개 스킬, 에이전트 이름 23곳):** `protocol.md:52` ·
 `rationale.md:40` · `system-overview.md:50` · `product-copy.md:40` ·
 **`docs/investigations/active/harness-platform.md:176,181,189,322,1128,1129,1206`**(7곳) ·
 `plugin/skills/init/SKILL.md:57,63,80`(3곳).
@@ -465,7 +465,7 @@ B는 **두 조각이고 막는 것이 서로 다르다.** B-1을 막는 것은 �
 `protocol.md:52`와 **같은 문장**으로 도구 이름 규칙을 못박으며 `:322`는 생성되는 `tools:` 예시를,
 `:1128-1129`는 init 절차를 적어 둔다. B-1은 이 일곱 곳을 전부 거짓으로 만든다.
 
-**(2) 다른 저장소 (템플릿 9개 = 29곳, 시험 1개 = 4곳).** `plugin/templates/`는 **이
+**(2) 다른 저장소 (템플릿 9개 + 시험 1개 = 10개 파일 44곳).** `plugin/templates/`는 **이
 저장소의 파일이 아니다** — `.gitignore:50-51`이 제외하고(`git ls-files plugin/templates/` = 0),
 `plugin/templates/.git`의 remote는 `Sangeok/harness-templates.git`인 **별도 private 저장소**다.
 에이전트 이름 대상: `agents/dev.md`(10) · `agents/pm.md`(5) · `agents/doc-auditor.md`(3) ·
@@ -593,7 +593,7 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
 | `docs/architecture/{rationale,system-overview}.md` | update | 도구 이름 `rationale.md:40` · `system-overview.md:50`(B-1) | low — 문서 |
 | `docs/investigations/active/harness-platform.md` | update | **v2 스펙 본문 — 두 시점에 손댄다.** **A-2에서 `:920`**(`clientId: row.projectId`를 싣는 검증기 코드)에 `hu_` 분기를 반영한다 — **B-1 승인과 무관하다.** B-1이 실행될 때 추가로 `:189` 도구 이름 규칙·`:322` 생성 `tools:` 예시·`:1128-1129` init 절차·`:176,181,1206` | medium — 스펙 문서라 코드와 어긋나면 상위 규범이 틀린다. **A만 하고 `:920`을 빼면 스펙이 코드와 반대를 말한다** |
 | `docs/proposals/active/agent-role-catalog.md` | update | `:246-247`이 새 에이전트의 `tools:`를 `mcp__harness__*`로 지정한다 — B-1과 충돌하는 **활성 제안서** | medium — 제안서 간 조율 |
-| **`Sangeok/harness-templates` (별도 저장소)** | update | 템플릿 9개(에이전트 이름 29곳) + `templates.test.mjs`(4곳: `:18,165,184,286`). **`CLAUDE.runbook.md:129`와 `templates.test.mjs:177,187`은 소유자 이름이라 유지**(B-1) | **high** — 이 저장소의 PR로 처리 불가 |
+| **`Sangeok/harness-templates` (별도 저장소)** | update | 템플릿 9개 + `templates.test.mjs` = **10개 파일 44곳**(2026-09-20 실측). **`CLAUDE.runbook.md:129`와 `templates.test.mjs:177,187`은 소유자 이름이라 유지**(B-1) | **high** — 별도 PR이 필요하다(이 저장소의 PR에 담을 수 없다). 작업 자체는 가능하다: `plugin/templates/`가 로컬 작업트리이고 remote가 그 저장소다. **다만 착수 전에 그 저장소가 깨끗한지 확인할 것** — 2026-09-20 기준 `harness/server-clean-code` 브랜치에서 **8개 파일이 미커밋 상태**였고, 그 위에 44곳 일괄 변경을 얹으면 두 작업이 엉킨다 |
 | **DB `Template` 표** | reseed | `npm run seed:templates` 수동 실행 없이는 템플릿 변경이 전달되지 않는다 | **high** — 배포 절차, 자동화 없음 |
 
 ## Safety Analysis
@@ -679,8 +679,10 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
    `git remote` 등록, 셸 설정 수행.
 9. **B-1 — 승인 대기 중이며 여기서 멈춘다.** Approval의 세 선택지 중 하나가 정해지기 전에는
    시작하지 않는다. "실행"으로 정해지면 순서는 이렇다:
-   1. `Sangeok/harness-templates`에서 템플릿 9개(29곳) + `templates.test.mjs`(`:18,165,184,286`)의
-      **에이전트** 도구 이름 변경 — `CLAUDE.runbook.md:129`·`templates.test.mjs:177,187`은 건드리지 않는다
+   1. `Sangeok/harness-templates`에서 템플릿 9개 + `templates.test.mjs` = **10개 파일 44곳**의
+      **에이전트** 도구 이름 변경 — `CLAUDE.runbook.md:129`·`templates.test.mjs:177,187`은 건드리지 않는다.
+      **착수 전에 그 저장소가 깨끗한지 먼저 본다**(2026-09-20에는 8개 파일이 미커밋이었다) —
+      진행 중인 작업 위에 일괄 변경을 얹으면 되돌리기 어렵게 엉킨다
    2. 이 저장소에서 `plugin/.mcp.json` 생성(**`harness` 하나만**), 생성기의 `harness` 항목 쓰기
       중단(`--owner` 경로는 유지), `SKILL.md`·문서 5종
       (`protocol`·`rationale`·`system-overview`·`product-copy`·`investigations/harness-platform`)·
@@ -753,8 +755,10 @@ grep -rn "mcp__harness__" \
   `packages/core/deliver.test.mjs:6,21`, `src/server/agents/{next,steps}.test.ts`의 스텁 fixture.
   앞의 것은 **별도 저장소**에 있다.
 - **B-1의 옛 이름 부재 확인(신규 존재 확인만으로는 부족하다).** 에이전트 이름이 **19개 파일
-  51곳**·두 저장소·DB에 흩어져 있어 **일부만 바꾸고 끝내는 것**이 가장 흔한 실패다(내역: 이 저장소
-  문서·스킬 14곳 + fixture 4곳, 별도 저장소 33곳 = 51). 위 `grep`이 **아무것도 출력하지
+  71곳**·두 저장소·DB에 흩어져 있어 **일부만 바꾸고 끝내는 것**이 가장 흔한 실패다(2026-09-20 실측
+  내역: 이 저장소 27곳 = 문서·스킬 23 + fixture 4, 별도 저장소 44곳 = 71. **파일 수 19는 맞았고
+  occurrence만 늘었다** — 처음 셀 때 이후 템플릿이 자라서일 가능성이 크니, 착수 시점에 **다시 센다**).
+  위 `grep`이 **아무것도 출력하지
   않아야** 통과다. 각 경로의 기대 판정은 이렇다.
 
   | 경로 | 판정 |
@@ -825,6 +829,10 @@ B-1·C 행은 착수하지 않았으므로 그대로 `Not run yet`이다.
   10개 파일 — 템플릿 9 + 시험 1)과 DB(수동 재시드)에 걸쳐 있고, 이미 연결된 저장소의 `skip(modified)` 스텁은 옛
   이름을 계속 들고 있다. 완화책이 "같은 커밋으로 고친다"가 될 수 없다는 것이 이 항목의 요지다 —
   Approval의 결정 사항으로 올렸다.
+  **접근성은 막힌 곳이 아니다**(2026-09-20 확인): `plugin/templates/`는 로컬 작업트리이고 remote가
+  그 저장소이며 권한도 있다. 실제 블로커는 **그 저장소의 상태**다 — 확인 시점에 `harness/server-clean-code`
+  브랜치에서 **8개 파일이 미커밋**이었다(다른 활성 제안서의 진행 중 작업으로 보인다). 그 작업이
+  정리되기 전에 44곳 일괄 이름 변경을 얹으면 두 작업이 엉켜 되돌리기 어려워진다.
 - **`agent-role-catalog.md`(활성 제안서)와 충돌한다.** `:246-247`이 새 에이전트의 `tools:`를
   `mcp__harness__*`로 지정한다. B-1을 하면 두 제안서 중 하나가 먼저 상대를 갱신해야 한다.
 - **B-1의 이득이 소유자 토큰 사용자에게는 부분적이다.** `harness_owner`는 조건부여야 해서
