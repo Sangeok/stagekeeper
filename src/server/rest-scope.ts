@@ -50,3 +50,24 @@ export async function resolveRestScope(
   if (projectId === null) return { ok: false, status: 403, reason: NOT_YOURS };
   return { ok: true, projectId };
 }
+
+// 사람만 식별한다. 프로젝트를 **아직 만들기 전**인 경로(POST /api/projects)가 쓴다.
+//
+// resolveRestScope를 확장하지 않는 이유가 둘이다.
+// 1. 그쪽은 반환 계약이 `{ projectId }`라 프로젝트가 없는 호출을 표현할 수 없고,
+//    슬러그가 없으면 PROJECT_REQUIRED로 떨어진다(위 :46) — 등록 경로에는 정확히 반대다.
+// 2. **hs_를 받으면 안 된다.** 프로젝트 토큰으로 새 프로젝트를 만드는 것은 말이 안 되고,
+//    resolveRestScope는 hs_를 첫 가지로 통과시킨다. 여기서는 hu_만 통과한다.
+export type UserScope = { ok: true; userId: string } | { ok: false; status: 401; reason: string };
+
+export async function resolveUserScope(
+  findUserTokenByHash: (hash: string) => Promise<{ userId: string; revokedAt: Date | null } | null>,
+  authorizationHeader: string | null,
+): Promise<UserScope> {
+  const plain = parseBearer(authorizationHeader, "user");
+  // hs_·ho_·형식 오류·헤더 없음이 모두 여기로 떨어진다. DB는 건드리지 않는다.
+  if (!plain) return { ok: false, status: 401, reason: "user token required" };
+  const row = await findUserTokenByHash(hashToken(plain));
+  if (!row || row.revokedAt) return { ok: false, status: 401, reason: "invalid or revoked token" };
+  return { ok: true, userId: row.userId };
+}

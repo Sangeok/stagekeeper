@@ -69,7 +69,8 @@ const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: tru
 // 가짜 /api/templates — 응답 본문 하나를 정해 두고 받은 요청을 기록한다.
 // postStatus: 런북 보고(POST /api/runbook)에 돌려줄 상태. 기본 200.
 // project: GET /api/project가 줄 정체. projectStatus 404는 그 경로가 없는 구버전 서버다.
-const withServer = async (body, fn, { postStatus = 200, project = null, projectStatus = 200 } = {}) => {
+// registered/registerStatus: POST /api/projects(C의 등록)가 줄 응답. 201 = 새로 만듦, 200 = 기존 것.
+const withServer = async (body, fn, { postStatus = 200, project = null, projectStatus = 200, registered = null, registerStatus = 201 } = {}) => {
   const seen = [];
   const server = createServer((req, res) => {
     let raw = "";
@@ -77,6 +78,13 @@ const withServer = async (body, fn, { postStatus = 200, project = null, projectS
     req.on("end", () => {
       seen.push({ url: req.url, method: req.method, authorization: req.headers.authorization, body: raw || null });
       res.setHeader("content-type", "application/json");
+      // **/api/projects가 /api/project보다 먼저다.** startsWith("/api/project")는 "/api/projects"도
+      // 삼키므로, 순서를 뒤집으면 등록 호출이 정체 스텁을 받아 시험이 녹색인 채 아무것도 증명하지 않는다.
+      if (req.url?.startsWith("/api/projects")) {
+        res.statusCode = registerStatus;
+        res.end(JSON.stringify(registerStatus < 400 ? { project: registered } : { error: "registration refused" }));
+        return;
+      }
       // 엔드포인트가 둘이 됐다 — url로 가르지 않으면 --print-project가 템플릿 본문을 받는다.
       if (req.url?.startsWith("/api/project")) {
         res.statusCode = projectStatus;
@@ -397,6 +405,87 @@ describe("harness-init (v2)", () => {
         assert.match(r.out, /no \/api\/project/);
         assert.deepEqual(snapshot(root), before);
       }, { projectStatus: 404 });
+    });
+  });
+
+  // C — 첫 연결에서 git이 아는 것으로 프로젝트를 등록한다. 사용자 토큰(hu_) 전용 모드다.
+  describe("--register", () => {
+    const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "main", name: "stagekeeper", slug: "stagekeeper" };
+    // 진짜 git 저장소를 만든다 — 테스트 전용 우회 플래그를 두면 정작 git을 읽는 경로가 검증되지 않는다.
+    // 커밋이 없어도 `git branch --show-current`는 기본 브랜치 이름을 낸다(2026-09-20 실측).
+    // 그래서 이 픽스처는 **분리된 HEAD 분기(branch 생략)를 타지 않는다** — 그쪽은 미검증으로 남는다.
+    const gitRoot = (remote = "git@github.com:Sangeok/stagekeeper.git") => {
+      const root = mkdtempSync(join(tmpdir(), "harness-git-"));
+      execFileSync("git", ["init", "-q"], { cwd: root, stdio: "ignore" });
+      if (remote) execFileSync("git", ["remote", "add", "origin", remote], { cwd: root, stdio: "ignore" });
+      return root;
+    };
+
+    it("registers what git knows, prints the identity, and writes nothing", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
+        const root = gitRoot();
+        const before = snapshot(root);
+        const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, root, server, "--register");
+        assert.equal(r.code, 0, r.out);
+        // --print-project와 같은 모양이어야 스킬의 초안 경로가 하나로 유지된다.
+        assert.deepEqual(JSON.parse(r.out.trim()), identity);
+        const call = seen.find((s) => s.url?.startsWith("/api/projects"));
+        assert.ok(call, "must POST to /api/projects");
+        assert.equal(call.method, "POST");
+        assert.equal(call.authorization, "Bearer hu_test");
+        assert.deepEqual(JSON.parse(call.body), { owner: "Sangeok", repo: "stagekeeper", branch: "main" });
+        assert.deepEqual(snapshot(root), before, "--register must not write files");
+      }, { registered: identity });
+    });
+
+    // 재실행이 정상 흐름이다. 서버가 (owner, repo)로 멱등 처리해 200을 주면 새 프로젝트가 아니다 —
+    // 이게 깨지면 init을 다시 돌릴 때마다 <repo>-2가 생긴다.
+    it("accepts the 200 that means the repository was already registered", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server) => {
+        const root = gitRoot();
+        const before = snapshot(root);
+        const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, root, server, "--register");
+        assert.equal(r.code, 0, r.out);
+        assert.deepEqual(JSON.parse(r.out.trim()), identity);
+        assert.deepEqual(snapshot(root), before);
+      }, { registered: identity, registerStatus: 200 });
+    });
+
+    // 401은 대개 프로젝트 토큰을 쓴 경우다 — 그 토큰은 이 경로를 지나지 않는다.
+    it("points an hs_ token at --print-project when the server refuses with 401", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server) => {
+        const r = await runAsync({ HARNESS_TOKEN: "hs_test" }, gitRoot(), server, "--register");
+        assert.equal(r.code, 1, r.out);
+        assert.match(r.out, /user token/);
+        assert.match(r.out, /--print-project/);
+      }, { registerStatus: 401 });
+    });
+
+    it("says the server has no /api/projects when it answers 404", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server) => {
+        const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, gitRoot(), server, "--register");
+        assert.equal(r.code, 1, r.out);
+        assert.match(r.out, /no \/api\/projects/);
+      }, { registerStatus: 404 });
+    });
+
+    // git이 답을 못 주면 서버를 부르지 않는다 — 스킬이 사용자에게 물어서 진행한다.
+    it("stops before calling the server when there is no origin remote", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
+        const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, gitRoot(null), server, "--register");
+        assert.equal(r.code, 1, r.out);
+        assert.match(r.out, /No git remote 'origin'/);
+        assert.equal(seen.filter((s) => s.url?.startsWith("/api/projects")).length, 0);
+      }, { registered: identity });
+    });
+
+    it("stops when the origin remote is not a GitHub repository", async () => {
+      await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
+        const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, gitRoot("https://gitlab.com/a/b.git"), server, "--register");
+        assert.equal(r.code, 1, r.out);
+        assert.match(r.out, /Could not read owner\/repo/);
+        assert.equal(seen.filter((s) => s.url?.startsWith("/api/projects")).length, 0);
+      }, { registered: identity });
     });
   });
 

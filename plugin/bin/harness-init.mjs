@@ -3,9 +3,11 @@
 // 에이전트 파일은 스텁이다 — 단계 본문은 서버에만 있고 agent_next가 한 번에 하나씩 준다. 무엇이 내려오는지는 플랜이 정한다.
 // 사용: node harness-init.mjs [--config harness.json] [--root .] [--server <url>] [--adopt] [--owner] [--dry-run] [--print-project]
 // 종료코드: 0 완료 · 1 설정 오류 · 3 refuse(기존 파일과 충돌, 아무것도 쓰지 않음)
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { parseHarnessConfig } from "../lib/config.mjs";
+import { parseRepoUrl } from "../lib/repo-url.mjs";
 import { deliverable } from "../lib/deliver.mjs";
 import { capReason, isPlan, withinLimit } from "../lib/entitlement.mjs";
 import { buildLock, planWrites } from "../lib/manifest.mjs";
@@ -53,6 +55,11 @@ async function init() {
   const OWNER = args.includes("--owner");
   // --print-project: 쓰기 없이 프로젝트 정체만 출력한다. harness.json이 없어도 동작해야 하므로 설정 파싱을 건너뛴다.
   const PRINT_PROJECT = args.includes("--print-project");
+  // --register: git remote로 프로젝트를 등록(또는 이미 있으면 조회)하고 정체를 출력한다.
+  // **사용자 토큰(hu_) 전용**이다 — 프로젝트 토큰은 이미 자기 프로젝트를 알고 있으므로 --print-project를 쓴다.
+  // --print-project에 끼워 넣지 않는 이유: 그 모드의 계약은 "아무것도 쓰지 않는다"이고, 토큰 종류에 따라
+  // 서버에 행을 만드는 동작을 그 이름 아래 숨기면 계약이 거짓이 된다.
+  const REGISTER = args.includes("--register");
   // 템플릿은 플러그인에 동봉하지 않는다 — 서버가 인증된 요청에만 내려준다.
   // HARNESS_TEMPLATES_DIR는 개발·테스트에서 로컬 원본을 쓰기 위한 우회로다. 그때 플랜은 HARNESS_PLAN(기본 max)이 정한다 —
   // 서버가 없으니 무엇을 내려줄지도 여기서 같은 규칙(lib/deliver.mjs)으로 정한다.
@@ -94,6 +101,50 @@ async function init() {
       process.exit(1);
     }
     // language는 담기지 않는다 — harness.json에 옮기면 ?lang=ko로 템플릿 요청이 404가 된다.
+    console.log(JSON.stringify(body.project));
+    return;
+  }
+
+  // 첫 연결에는 harness.json도 프로젝트도 없다. git이 아는 것(origin·현재 브랜치)으로 등록한다.
+  // 서버가 (owner, repo)로 멱등 처리하므로 재실행은 새 프로젝트를 만들지 않고 기존 것을 돌려준다.
+  if (REGISTER) {
+    const token = process.env.HARNESS_TOKEN;
+    if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
+    const git = (gitArgs) => {
+      try { return execFileSync("git", gitArgs, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
+      catch { return ""; }
+    };
+    const remote = git(["remote", "get-url", "origin"]);
+    if (!remote) { console.log("No git remote 'origin' here — ask for owner and repo instead."); process.exit(1); }
+    const ref = parseRepoUrl(remote);
+    if (!ref) { console.log(`Could not read owner/repo from the 'origin' remote (${remote}) — ask for them instead.`); process.exit(1); }
+    // 분리된 HEAD면 빈 문자열이다. 그때는 보내지 않고 서버 기본값(main)에 맡긴다.
+    const branch = git(["branch", "--show-current"]);
+    const url = `${SERVER}/api/projects`;
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ owner: ref.owner, repo: ref.repo, ...(branch ? { branch } : {}) }),
+      });
+    } catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
+    if (!res.ok) {
+      const reason = await res.json().then((b) => b.error).catch(() => res.statusText);
+      // 401은 대개 프로젝트 토큰(hs_)을 쓴 경우다 — 그 토큰은 등록 경로를 지나지 않는다.
+      console.log(res.status === 401
+        ? `Registration needs a user token (hu_): ${reason}. With a project token (hs_) use --print-project instead.`
+        : res.status === 404
+          ? "Registration unavailable (404): this server has no /api/projects — ask for owner/repo/branch instead."
+          : `Registration failed (${res.status}): ${reason}`);
+      process.exit(1);
+    }
+    const body = await res.json().catch(() => null);
+    if (!isRecord(body) || !isRecord(body.project)) {
+      console.log("Unexpected /api/projects response (no project object): plugin and server are out of step — update the harness plugin.");
+      process.exit(1);
+    }
+    // --print-project와 **같은 모양**을 낸다(owner·repo·branch·name·slug) — 스킬의 초안 경로가 하나로 유지된다.
     console.log(JSON.stringify(body.project));
     return;
   }
