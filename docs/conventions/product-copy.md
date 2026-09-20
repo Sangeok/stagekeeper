@@ -351,11 +351,12 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > `claude plugin marketplace add Sangeok/stagekeeper` · `claude plugin install harness@stagekeeper-local` — **Copy** / "Copied"
 > Already installed? `claude plugin list` shows `harness`.
 >
-> **2. Set the token in the terminal that will start Claude Code**
-> Claude Code reads this environment variable when it starts. A repository `.env` file is not
+> **2. Set the token and the server in the terminal that will start Claude Code**
+> Claude Code reads these environment variables when it starts. A repository `.env` file is not
 > loaded for this connection. The generated `.mcp.json` references `${HARNESS_TOKEN}`, so
 > committing it doesn't leak the token.
 > PowerShell `$env:HARNESS_TOKEN = "hs_…"` · bash / zsh `export HARNESS_TOKEN="hs_…"` — **Copy** / "Copied"
+> PowerShell `$env:HARNESS_SERVER = "http://…"` · bash / zsh `export HARNESS_SERVER="http://…"` — **Copy** / "Copied"
 >
 > **3. Start Claude Code in this repository**
 > From the same terminal, change to the repository directory and start Claude Code.
@@ -369,6 +370,9 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > After init finishes, restart Claude Code from the same terminal. In Claude Code, run `/mcp`
 > and approve `harness` if it is pending.
 > MCP server URL: `http://…/api/mcp`
+
+2단계의 서버 줄은 **base**다 — 화면이 보여 주는 `…/api/mcp`가 아니다. 그 값이 셸에 있으면
+`/harness:init`이 주소를 묻지 않는다(`public-url.ts`의 `serverUrl()`과 `mcpUrl()`은 같은 출처에서 나온다).
 
 **Owner token** (second section of the same page, under the agent-token table):
 
@@ -729,11 +733,12 @@ both). Below: each file's title, its section headings, and the sentences that se
   keep today's seven; wording: "Ask one question at a time." · "Show the dry run and get a yes
   before writing." · "Tell the user to restart Claude Code — .mcp.json is read at session start
   — and to approve the `harness` server when `/mcp` shows Pending approval." · "Leave the
-  commit to the user." Step 6 says what the knowledge doc is for before it asks where to put it:
-  "The workspace's dev agent is told to read it before it writes a plan, and doc-auditor audits
-  it right after the backlog. Without one, every plan has to say the workspace has no knowledge
-  doc instead of following the conventions you already have." The drafted file opens with one
-  line naming who reads it and why, so it isn't mistaken for documentation written for people.
+  commit to the user." Step 6 says a knowledge doc is optional and offers one instead of
+  requiring it: "The workspace's dev agent is told to read one before it writes a plan, and
+  doc-auditor audits it right after the backlog; without one, every plan says the workspace has
+  no knowledge doc instead of following conventions you already have." Generation succeeds
+  either way, so the cost is named, not enforced. A drafted doc opens with one line naming who
+  reads it and why, so it isn't mistaken for documentation written for people.
   Phase 4 adds: step 5 passes `{ workspaces, language }` to
   `project_sync`; a closing paragraph says the agent files are **stubs** whose step bodies
   arrive through `agent_next`, and that an already-connected project reruns `/harness:init`.

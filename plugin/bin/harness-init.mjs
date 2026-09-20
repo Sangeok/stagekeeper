@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // harness.json을 읽어 에이전트 정의·규약 문서·런북 절·.mcp.json을 사용자 저장소에 물질화한다. 보드·백로그는 서비스 DB에 있으므로 만들지 않는다.
 // 에이전트 파일은 스텁이다 — 단계 본문은 서버에만 있고 agent_next가 한 번에 하나씩 준다. 무엇이 내려오는지는 플랜이 정한다.
-// 사용: node harness-init.mjs [--config harness.json] [--root .] [--server <url>] [--adopt] [--owner] [--dry-run]
+// 사용: node harness-init.mjs [--config harness.json] [--root .] [--server <url>] [--adopt] [--owner] [--dry-run] [--print-project]
 // 종료코드: 0 완료 · 1 설정 오류 · 3 refuse(기존 파일과 충돌, 아무것도 쓰지 않음)
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
@@ -24,16 +24,35 @@ function readJsonObject(path) {
   return value;
 }
 
+// 웹 토큰 페이지는 `<base>/api/mcp`를 보여 주는데 생성기는 base를 받는다. 그대로 붙여넣어도
+// `.../api/mcp/api/mcp`가 되지 않도록 꼬리를 떼고, 끝 슬래시도 지운다. owner 쪽이 더 기므로 먼저 본다.
+const normalizeServer = (value) => (value ?? "")
+  .replace(/\/api\/mcp\/owner\/?$/, "")
+  .replace(/\/api\/mcp\/?$/, "")
+  .replace(/\/$/, "");
+
+// 이미 연결된 저장소는 답이 .mcp.json에 있다. **이 읽기는 던지지 않는다** — 권위 있는 파싱은
+// 쓰기 준비 단계에 그대로 두어 기존 오류 문장과 종료코드를 보존한다(harness-init.test.mjs의 malformed 입력 시험).
+function recoverServerFromMcp(path) {
+  if (!existsSync(path)) return { url: null, unreadable: false };
+  try {
+    const value = JSON.parse(readFileSync(path, "utf8"));
+    const url = value?.mcpServers?.harness?.url;
+    return { url: typeof url === "string" ? url : null, unreadable: false };
+  } catch { return { url: null, unreadable: true }; }
+}
+
 async function init() {
   const args = process.argv.slice(2);
   const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
   const ROOT = opt("--root", ".");
   const CONFIG = join(ROOT, opt("--config", "harness.json"));
-  const SERVER = (opt("--server", process.env.HARNESS_SERVER) ?? "").replace(/\/$/, "");
   const ADOPT = args.includes("--adopt");
   const DRY = args.includes("--dry-run");
   // --owner: 소유자 토큰용 서버(harness_owner)를 .mcp.json에 더한다. 값은 ${HARNESS_OWNER_TOKEN} 참조뿐 — 에이전트 토큰과 같은 규칙.
   const OWNER = args.includes("--owner");
+  // --print-project: 쓰기 없이 프로젝트 정체만 출력한다. harness.json이 없어도 동작해야 하므로 설정 파싱을 건너뛴다.
+  const PRINT_PROJECT = args.includes("--print-project");
   // 템플릿은 플러그인에 동봉하지 않는다 — 서버가 인증된 요청에만 내려준다.
   // HARNESS_TEMPLATES_DIR는 개발·테스트에서 로컬 원본을 쓰기 위한 우회로다. 그때 플랜은 HARNESS_PLAN(기본 max)이 정한다 —
   // 서버가 없으니 무엇을 내려줄지도 여기서 같은 규칙(lib/deliver.mjs)으로 정한다.
@@ -41,12 +60,47 @@ async function init() {
   const LOCAL_PLAN = process.env.HARNESS_PLAN ?? "max";
   const RUNBOOK_START = "<!-- harness:runbook:start -->", RUNBOOK_END = "<!-- harness:runbook:end -->";
 
+  // 서비스 URL에 기본값을 두지 않는다 — 잘못된 호스트가 저장소에 박히면 조용히 다른 서비스를 가리킨다(C11).
+  // 출처 순서: --server > HARNESS_SERVER > 기존 .mcp.json. 늘어난 출처는 전부 사용자가 직접 넣은 값이다.
+  const mcpPath = join(ROOT, ".mcp.json");
+  const recovered = recoverServerFromMcp(mcpPath);
+  const SERVER = normalizeServer(opt("--server", process.env.HARNESS_SERVER) ?? recovered.url ?? "");
+  if (!SERVER) {
+    const note = recovered.unreadable ? " (.mcp.json could not be read)" : "";
+    console.log(`Server URL required: pass --server <url> or set HARNESS_SERVER (shown on the web Tokens page)${note}`);
+    process.exit(1);
+  }
+
+  // 쓰기 없는 모드. harness.json을 읽지 않으므로 첫 연결에서도 쓸 수 있다 —
+  // 스킬은 이 값으로 harness.json 초안의 project 블록을 채운다(추측하지 않는다).
+  if (PRINT_PROJECT) {
+    const token = process.env.HARNESS_TOKEN;
+    if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
+    const url = `${SERVER}/api/project`;
+    let res;
+    try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
+    catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
+    if (!res.ok) {
+      const reason = await res.json().then((b) => b.error).catch(() => res.statusText);
+      // 404는 구버전 서버다 — 이 경로가 아직 없다. 스킬은 지금까지처럼 사용자에게 물어서 진행한다.
+      console.log(res.status === 404
+        ? `Project identity unavailable (404): this server has no /api/project — ask for owner/repo/branch instead.`
+        : `Project identity unavailable (${res.status}): ${reason}`);
+      process.exit(1);
+    }
+    const body = await res.json().catch(() => null);
+    if (!isRecord(body) || !isRecord(body.project)) {
+      console.log("Unexpected /api/project response (no project object): plugin and server are out of step — update the harness plugin.");
+      process.exit(1);
+    }
+    // language는 담기지 않는다 — harness.json에 옮기면 ?lang=ko로 템플릿 요청이 404가 된다.
+    console.log(JSON.stringify(body.project));
+    return;
+  }
+
   let config;
   try { config = parseHarnessConfig(readFileSync(CONFIG, "utf8")); }
   catch (e) { console.log(`Config error: ${e.message}`); process.exit(1); }
-
-  // 서비스 URL에 기본값을 두지 않는다 — 잘못된 호스트가 저장소에 박히면 조용히 다른 서비스를 가리킨다.
-  if (!SERVER) { console.log("Server URL required: pass --server <url> or set HARNESS_SERVER (shown on the web Tokens page)"); process.exit(1); }
 
   const lang = config.language;
 
@@ -141,7 +195,7 @@ async function init() {
     : (runbook ? runbook.replace(/\s*$/, "\n\n") : "") + runbookBlock + "\n";
 
   // .mcp.json: harness 서버 항목만 병합 — 사용자의 다른 MCP 서버를 보존한다. 토큰은 환경변수 참조로만.
-  const mcpPath = join(ROOT, ".mcp.json");
+  // 여기가 권위 있는 파싱이다 — 위 회수 읽기는 던지지 않으므로 깨진 입력의 오류 문장·종료코드가 지금과 같다.
   const hasMcpFile = existsSync(mcpPath);
   const mcp = hasMcpFile ? readJsonObject(mcpPath) : {};
   if (mcp.mcpServers !== undefined && !isRecord(mcp.mcpServers)) throw new Error(".mcp.json mcpServers: must be an object");

@@ -1,11 +1,12 @@
 import { Card } from "@/fsd/shared/ui/card";
 import { Code, CodeBlock } from "@/fsd/shared/ui/code";
 import { CopyButton } from "@/fsd/shared/ui/copy-button";
-import { connectCommands, installCommands } from "../model/connect-command";
+import { connectCommands, installCommands, serverCommands } from "../model/connect-command";
 
 // 발급 직후 평문을 한 번만 보여 준다. 새로고침하면 사라진다 — 서비스는 해시만 저장한다.
 // create-project와 manage-token 둘 다 이 화면이 필요해서 entity에 둔다(같은 layer끼리는 import할 수 없다).
-export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }) {
+// serverUrl은 base다(mcpUrl에서 /api/mcp를 뺀 것) — 둘 다 public-url.ts의 같은 출처에서 나온다.
+export function TokenReveal({ token, mcpUrl, serverUrl }: { token: string; mcpUrl: string; serverUrl: string }) {
   return (
     <Card className="gap-4">
       <p className="text-sm text-quiet">This is the only time the token is shown. Stagekeeper stores a hash, not the token.</p>
@@ -32,14 +33,22 @@ export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium">2. Set the token in the terminal that will start Claude Code</p>
+        <p className="text-sm font-medium">2. Set the token and the server in the terminal that will start Claude Code</p>
         <p className="text-xs text-quiet">
-          Claude Code reads this environment variable when it starts. A repository <Code>.env</Code> file is not loaded
+          Claude Code reads these environment variables when it starts. A repository <Code>.env</Code> file is not loaded
           for this connection. The generated <Code>.mcp.json</Code> references <Code>{"${HARNESS_TOKEN}"}</Code>, so
           committing it doesn&apos;t leak the token.
         </p>
         {connectCommands(token).map((entry) => (
           <div key={entry.kind} className="grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-2">
+            <span className="text-xs text-quiet">{entry.label}</span>
+            <CodeBlock className="truncate">{entry.command}</CodeBlock>
+            <CopyButton text={entry.command} />
+          </div>
+        ))}
+        {/* 서버 주소도 같은 셸에 둔다 — 이 줄이 없으면 /harness:init이 주소를 되묻는다. */}
+        {serverCommands(serverUrl).map((entry) => (
+          <div key={`server-${entry.kind}`} className="grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-2">
             <span className="text-xs text-quiet">{entry.label}</span>
             <CodeBlock className="truncate">{entry.command}</CodeBlock>
             <CopyButton text={entry.command} />

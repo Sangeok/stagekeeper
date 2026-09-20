@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { OWNER_TOKEN_VARIABLE, PLUGIN_ID, PLUGIN_MARKETPLACE, connectCommands, installCommands } from "./connect-command";
+import { OWNER_TOKEN_VARIABLE, PLUGIN_ID, PLUGIN_MARKETPLACE, SERVER_VARIABLE, connectCommands, installCommands, serverCommands } from "./connect-command";
 
 describe("connectCommands", () => {
   it("gives one runnable line per shell, with the token inlined", () => {
@@ -21,6 +21,28 @@ describe("connectCommands", () => {
     assert.equal(owner[0]?.command, '$env:HARNESS_OWNER_TOKEN = "ho_abc"');
     assert.equal(owner[1]?.command, 'export HARNESS_OWNER_TOKEN="ho_abc"');
     for (const entry of connectCommands("hs_abc")) assert.match(entry.command, /HARNESS_TOKEN=|HARNESS_TOKEN =/);
+  });
+});
+
+describe("serverCommands", () => {
+  // 토큰 줄과 같은 모양이어야 한다 — 사용자는 2단계에서 이미 셸에 붙여넣고 있다.
+  it("gives one runnable line per shell, with the base URL inlined", () => {
+    const commands = serverCommands("https://example.test");
+    assert.deepEqual(commands.map((c) => c.kind), ["powershell", "posix"]);
+    assert.equal(commands[0]?.command, '$env:HARNESS_SERVER = "https://example.test"');
+    assert.equal(commands[1]?.command, 'export HARNESS_SERVER="https://example.test"');
+  });
+
+  // 생성기가 읽는 변수 이름이다(harness-init.mjs). 이름이 갈리면 init이 서버 URL을 다시 묻는다.
+  it("names the variable the generator reads", () => {
+    assert.equal(SERVER_VARIABLE, "HARNESS_SERVER");
+    for (const entry of serverCommands("https://example.test")) assert.match(entry.command, /HARNESS_SERVER/);
+  });
+
+  // 화면이 보여 주는 것은 `<base>/api/mcp`지만 셸에 넣는 것은 base다. 생성기가 꼬리를 떼 주긴 하지만
+  // 웹이 처음부터 base를 주는 것이 이 줄의 요점이다.
+  it("carries the base URL, not the displayed MCP URL", () => {
+    for (const entry of serverCommands("https://example.test")) assert.doesNotMatch(entry.command, /\/api\/mcp/);
   });
 });
 
