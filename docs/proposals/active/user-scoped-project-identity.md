@@ -784,6 +784,7 @@ B-1·C 행은 착수하지 않았으므로 그대로 `Not run yet`이다.
 | `npm run test` | **165/165 pass** | 토큰 접두 분리 · `config.mjs` 슬러그 · 생성기 `--print-project` fixture |
 | `npm run test:templates` | **25/25 pass** | A는 도구 이름을 바꾸지 않는다. `{{project.slug}}`가 새 템플릿 변수로 새지 않았음을 함께 확인했다 |
 | `npm run test:server` | **2/2 pass** | 예상대로 A와 무관했다 |
+| CI `check` 워크플로 (PR #55) | **success** | `npm ci` · `db:generate` · `check` · `test` · `test:web` · **`build`** 전부 녹색(run `35513082679`). **`npm run build`는 로컬에서 돌리지 않았으므로 이 행이 유일한 증거다** — `tsc --noEmit`이 잡지 못하는 빌드 시점 문제(새 라우트의 타입 수집, client/server 경계)가 없음을 확인한 자리다 |
 | `npm run test:server:integration` | **미실행** | `TEST_DATABASE_URL` 부재 — 기존 제약. **`templates.test.ts`·`agent-runs.test.ts` 갱신이 미실행인 채로 들어간다** |
 | **마이그레이션 적용** | **적용 완료** | `20260920000000_user_scoped_tokens` **1건만** 적용됐다(`migrate status`로 다른 미적용 건이 없음을 먼저 확인 — `deploy`는 대기 중인 것을 **전부** 적용하므로). 대상이 격리 DB가 아니라 라이브 `neondb`라, 같은 DDL을 `COMMIT` 대신 `ROLLBACK`으로 끝내는 사본으로 먼저 리허설했다(성공 = 표 이름 충돌 없음 + `User.id` FK 타입 호환). 적용 뒤 표·인덱스 3종·`ON DELETE CASCADE` FK·`OwnerToken` 보존을 프로브로 확인했고 `migrate status`가 `Database schema is up to date!`다. **`migrate dev`는 쓰지 않았다** — drift를 만나면 DB reset을 제안하기 때문이다 |
 | 수동: `hu_`로 실제 연결 1회 | **미실행** | 마이그레이션이 적용돼 이제 **실행 가능해졌다**(전에는 표가 없어 불가능했다). 그래도 **A의 200 경로는 아직 한 번도 실제로 지나간 적이 없다** — 토큰 발급이 선행돼야 하고 평문은 출력하지 않는다 |
