@@ -9,6 +9,16 @@ Precondition: the user has created the project on the web and has a token. The t
 in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"` — if it's missing, tell
 them to issue one on the web at `/p/<slug>/tokens` and stop).
 
+Two kinds of token work here. A **project token** (`hs_`) carries the project itself — one per
+repository. A **user token** (`hu_`) carries only who the user is, so one token works in every
+repository from one shell; the project then comes from `harness.json`'s `project.slug`.
+
+**Before switching an already-connected repository to a user token, rerun `/harness:init` once.**
+An older `harness.json` has no `project.slug`, and a `hu_` token has nothing else to name the
+project with — every call refuses with `project required: add project.slug to harness.json (rerun
+/harness:init once to write it)`. Rerunning writes the slug. An `hs_` token keeps working either
+way, with or without the slug.
+
 Before creating or updating any repository files, complete the external verification-skill
 preflight in [references/reconciliation-contract.md](references/reconciliation-contract.md).
 The project owner supplies the approved skill package; harness does not bundle or download
@@ -18,8 +28,11 @@ from that reference, then stop before step 1. After installation, rerun this pre
 
 1. If there's no `harness.json`, **do not interview the user.** Build one draft and show it once.
    - `project`: run `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --print-project`. It writes
-     nothing and needs no `harness.json`. Use the `owner`·`repo`·`branch`·`name` it prints —
-     the user already typed these on the web. **Do not guess them from `git remote -v`**: the
+     nothing and needs no `harness.json`. Use the `owner`·`repo`·`branch`·`name`·`slug` it prints —
+     the user already typed these on the web. **Write `slug` into the draft even though it is
+     optional**: it is the only thing a user token (`hu_`) has to name the project with, and a
+     repository connected without it has to rerun this command before one will work.
+     **Do not guess them from `git remote -v`**: the
      repository registered on the web is the truth, and the local checkout can differ. If it
      fails with `no /api/project` the server predates this route — only then fall back to asking.
    - `workspaces`: read `package.json` scripts and the test runner to propose `path` ·

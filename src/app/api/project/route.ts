@@ -8,7 +8,10 @@
 import { projectIdentityFor } from "@/server/project-identity";
 
 export async function GET(request: Request) {
-  const result = await projectIdentityFor(request.headers.get("authorization"));
+  // ?project=<slug>는 hu_ 전용이다. hs_는 "이 토큰은 어느 프로젝트냐"를 묻고,
+  // hu_는 같은 경로로 "이 프로젝트를 확인해 달라"를 묻는다 — 슬러그가 없으면 물을 대상이 없다.
+  const project = new URL(request.url).searchParams.get("project");
+  const result = await projectIdentityFor(request.headers.get("authorization"), project);
   return result.ok
     ? Response.json({ project: result.project })
     : Response.json({ error: result.reason }, { status: result.status });

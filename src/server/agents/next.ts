@@ -11,14 +11,18 @@ export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
 export const NOTE_MAX = 500;
-export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 }; // 토큰당, 원장 행(outcome 실은 호출) 기준
+// 원장 행(outcome 실은 호출) 기준. 분모는 hs_면 토큰당, hu_면 토큰×프로젝트당이다 —
+// hu_ 한 개가 여러 프로젝트에 쓰이므로, 프로젝트를 안 걸면 오늘의 "프로젝트당 60회"가 조용히 쪼개진다(A-10).
+export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 };
 export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
 const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만 쓴다
 
 export type Receipt = { runId: string; revision: number; stepId: string };
 export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
 export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string };
-export type Scope = { projectId: string; tokenId: string };
+// userScoped: 주체가 hu_라 프로젝트가 토큰이 아니라 인자에서 왔다는 뜻. 한도 집계의 분모를
+// 좁히는 데만 쓴다(A-10) — hs_는 토큰이 곧 프로젝트라 생략하고, 생략하면 오늘과 같은 집계다.
+export type Scope = { projectId: string; tokenId: string; userScoped?: boolean };
 export type RunRow = { id: string; stepId: string; revision: number; closedAt: Date | null };
 export type OutcomeCommit = {
   scope: Scope; agent: string; key: string | null; receipt: Receipt; outcome: Outcome; note: string | null;
@@ -32,7 +36,8 @@ export type NextDeps = {
   roster(projectId: string): Promise<string[]>; // Workspace.agent[] — wsId 순
   template(projectId: string, path: string): Promise<string | null>; // 프로젝트 언어의 템플릿 본문(없으면 en)
   vars(projectId: string, agent: string): Promise<Record<string, unknown>>;
-  recentSteps(tokenId: string, since: Date): Promise<number>;
+  // projectId가 null이면 토큰 전체를 센다(hs_ — 토큰이 곧 프로젝트다). 값이 있으면 그 프로젝트로 좁힌다(hu_).
+  recentSteps(tokenId: string, projectId: string | null, since: Date): Promise<number>;
   recentRuns(projectId: string, since: Date): Promise<number>;
   openRun(projectId: string, agent: string, key: string | null): Promise<RunRow | null>;
   createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<ServerResult<RunRow>>;
@@ -84,7 +89,9 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     const owner = await deps.itemAgent(projectId, key);
     if (owner !== null && owner !== agent) return fail(`item ${key} belongs to \`${owner}\`, not \`${agent}\``);
   }
-  if ((await deps.recentSteps(tokenId, new Date(Date.now() - RATE_LIMIT.windowMs))) >= RATE_LIMIT.calls) {
+  // hs_에는 null을 넘긴다 — 토큰이 곧 프로젝트라 좁힐 것이 없고, 쿼리도 오늘 그대로다.
+  const rateScope = scope.userScoped === true ? projectId : null;
+  if ((await deps.recentSteps(tokenId, rateScope, new Date(Date.now() - RATE_LIMIT.windowMs))) >= RATE_LIMIT.calls) {
     return fail(`rate limit: ${RATE_LIMIT.calls} calls per ${RATE_LIMIT.windowMs / 60_000} minutes per token`);
   }
 

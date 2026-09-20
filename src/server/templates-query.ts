@@ -1,34 +1,32 @@
-// 토큰 → 프로젝트 접근 → 템플릿 조회. DB 작업을 주입받아 인증 실패 시 조회가 차단되는지 검증한다.
+// 주체 판정 → 프로젝트 접근 → 템플릿 조회. DB 작업을 주입받아 인증 실패 시 조회가 차단되는지 검증한다.
+// 주체 판정은 rest-scope.ts가 한다 — hs_는 토큰이 프로젝트를 알고, hu_는 ?project=<slug>로 받는다.
 // 배포할 본문(에이전트 스텁·플랜별 에이전트·Free runbook)은 deliverable이 결정한다.
 import { deliverable } from "@harness/core/deliver.mjs";
-import { hashToken, parseBearer } from "@harness/core/token.mjs";
 import type { Plan, ProjectAccess } from "./entitlement";
+import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
 
 export type TemplateResult =
   | { ok: true; templates: Record<string, string>; entitlement: { plan: Plan; agents: string[] } }
   | { ok: false; status: 401 | 403 | 404; reason: string };
 
-export type TemplateDeps = {
-  findTokenByHash(hash: string): Promise<{ projectId: string; revokedAt: Date | null } | null>;
+export type TemplateDeps = RestTokenDeps & {
   projectAccess(projectId: string): Promise<ProjectAccess>;
   findTemplatesByLanguage(language: string): Promise<{ path: string; body: string }[]>;
 };
 
-type TemplatesFor = (authorizationHeader: string | null, language: string) => Promise<TemplateResult>;
+// project는 hu_ 전용이다. hs_는 토큰이 이미 알고 있으므로 넘겨도 무시된다 — 기존 호출이 그대로 통한다.
+type TemplatesFor = (
+  authorizationHeader: string | null,
+  language: string,
+  project?: string | null,
+) => Promise<TemplateResult>;
 
 export function makeTemplatesFor(deps: TemplateDeps): TemplatesFor {
-  return async function templatesFor(authorizationHeader, language) {
-    const rawToken = parseBearer(authorizationHeader);
-    if (!rawToken) {
-      return { ok: false, status: 401, reason: "bearer token required" };
-    }
+  return async function templatesFor(authorizationHeader, language, project = null) {
+    const scope = await resolveRestScope(deps, authorizationHeader, project);
+    if (!scope.ok) return scope;
 
-    const tokenRecord = await deps.findTokenByHash(hashToken(rawToken));
-    if (!tokenRecord || tokenRecord.revokedAt) {
-      return { ok: false, status: 401, reason: "invalid or revoked token" };
-    }
-
-    const access = await deps.projectAccess(tokenRecord.projectId);
+    const access = await deps.projectAccess(scope.projectId);
     // 토큰 인증은 성공했다. 선택되지 않은 프로젝트는 403으로 거부하며 사유를 보존한다.
     if (!access.available) {
       return { ok: false, status: 403, reason: access.reason };

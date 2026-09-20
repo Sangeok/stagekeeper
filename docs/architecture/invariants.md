@@ -76,6 +76,9 @@
   쓰기는 거부한다. agent MCP는 project_get만 허용하고 다른 읽기/쓰기·templates/runbook을 같은 이유로
   거부한다. 이미 access를 통과한 in-flight 요청은 완료될 수 있다. 선택 변경은 token·Workspace·run·cursor를
   삭제·폐기·종료하지 않는다. page GET은 기본 PipelineVersion도 생성하지 않는다.
+  **이 판정은 프로젝트가 정해진 뒤에 온다.** 사용자 토큰(`hu_`)은 프로젝트를 도구 인자·쿼리로 받으므로
+  순서가 소유 확인(`ownerUserId`) → 사용 가능 여부다 — 남의 프로젝트는 잠금 사유가 아니라
+  `not the owner of this project`로 떨어지고, 그래서 잠금 사유가 남의 프로젝트 존재를 알리는 창구가 되지 않는다.
 - **목록·플랜·원장은 함께 바뀐다.** 변경된 집합과 단조 증가 version/event는 하나의 transaction으로
   저장하고 stale 요청은 zero-write다. 이미 selected인 target이라도 오래된 version은 stale다.
 

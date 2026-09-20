@@ -156,6 +156,75 @@ describe("not-selected projects", () => {
   });
 });
 
+// hu_ — 프로젝트가 토큰이 아니라 인자에서 온다. 인가는 scope() 한 곳에서 호출마다 일어난다.
+describe("user-scoped tokens resolve the project from the argument", () => {
+  const userCtx = { http: { authInfo: { extra: { userId: "user1", tokenId: "usr1" } } } };
+  const body = (r) => JSON.parse(r.content[0].text);
+  const handlersWith = (extra = {}) => {
+    const h = {};
+    registerTools({ registerTool: (name, _meta, fn) => { h[name] = fn; } }, { access: async () => open, ...extra });
+    return h;
+  };
+
+  it("(b) a slug the user owns resolves, and projectFor sees the slug and the user", async () => {
+    const seen = [];
+    const h = handlersWith({
+      projectFor: async (slug, userId) => { seen.push([slug, userId]); return "p1"; },
+      backlogList: async (projectId) => [{ projectId }],
+    });
+    const r = await h.backlog_list({ project: "mine" }, userCtx);
+    assert.notEqual(r.isError, true);
+    assert.deepEqual(seen, [["mine", "user1"]]);
+    assert.deepEqual(body(r), [{ projectId: "p1" }]);
+  });
+
+  it("(c) someone else's slug is refused with the owner wording, and no domain query runs", async () => {
+    const h = handlersWith({
+      projectFor: async () => null,
+      backlogList: async () => { throw new Error("must not query a project the user does not own"); },
+    });
+    const r = await h.backlog_list({ project: "theirs" }, userCtx);
+    assert.equal(r.isError, true);
+    assert.equal(body(r).error, "not the owner of this project");
+  });
+
+  it("(d) a missing project argument is refused and says how to fix it", async () => {
+    const h = handlersWith({ projectFor: async () => { throw new Error("must not look up without a slug"); } });
+    const r = await h.backlog_list({}, userCtx);
+    assert.equal(r.isError, true);
+    assert.match(body(r).error, /^project required: add project\.slug to harness\.json/);
+  });
+
+  it("every state-changing tool goes through the same gate", async () => {
+    const h = handlersWith({ projectFor: async () => null });
+    const calls = [
+      ["board_propose", { key: "X-1", agent: "dev", reason: "r" }],
+      ["board_transition", { key: "X-1", to: "in_review" }],
+      ["plan_submit", { key: "X-1", path: "p", commit: "c" }],
+      ["report_submit", { key: "X-1", actor: "dev", path: "p", commit: "c" }],
+      ["validation_record", { key: "X-1", text: "clean" }],
+      ["project_sync", { workspaces: ws }],
+      ["pipeline_next", { key: "X-1" }],
+      ["backlog_get", { key: "X-1" }], ["board_list", {}], ["board_get", { key: "X-1" }],
+      ["agent_next", { agent: "dev" }], ["project_get", {}],
+    ];
+    for (const [name, args] of calls) {
+      const r = await h[name]({ ...args, project: "theirs" }, userCtx);
+      assert.equal(r.isError, true, name);
+      assert.equal(body(r).error, "not the owner of this project", name);
+    }
+  });
+
+  it("(a) an agent token never consults projectFor — the hs_ branch returns first", async () => {
+    const h = handlersWith({
+      projectFor: async () => { throw new Error("hs_ must not resolve a slug"); },
+      backlogList: async (projectId) => [{ projectId }],
+    });
+    const r = await h.backlog_list({ project: "ignored" }, ctx);
+    assert.deepEqual(body(r), [{ projectId: "p1" }]);
+  });
+});
+
 it("MCP receipt schema rejects invalid revisions and retains the complete receipt", () => {
   const schema = descriptions().agent_next.inputSchema;
   const base = { agent: "dev", outcome: "ok", receipt: { runId: "r", stepId: "verify", revision: 1 } };

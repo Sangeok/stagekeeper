@@ -913,11 +913,21 @@ const handler = createMcpHandler((server) => {
 }, {}, { basePath: "/api/mcp" });
 
 const authed = withMcpAuth(handler, async (_req, bearer) => {
-  const plain = parseBearer(bearer ? `Bearer ${bearer}` : null);
-  if (!plain) return undefined;
-  const row = await prisma.projectToken.findUnique({ where: { hash: hashToken(plain) } });
-  if (!row || row.revokedAt) return undefined;
-  return { token: plain, scopes: ["agent"], clientId: row.projectId, extra: { projectId: row.projectId, tokenId: row.id } };
+  const header = bearer ? `Bearer ${bearer}` : null;
+  // hs_ — 토큰이 프로젝트를 안다. 첫 가지라 이 경로의 동작은 그대로다.
+  const plain = parseBearer(header);
+  if (plain) {
+    const row = await prisma.projectToken.findUnique({ where: { hash: hashToken(plain) } });
+    if (!row || row.revokedAt) return undefined;
+    return { token: plain, scopes: ["agent"], clientId: row.projectId, extra: { projectId: row.projectId, tokenId: row.id } };
+  }
+  // hu_ — 사람 자격. 프로젝트를 모르므로 도구 인자(`project`)로 받고, 호출마다 ownerUserId로 인가한다.
+  // clientId에 실을 프로젝트가 없으므로 토큰 id를 싣는다 — 소비자는 없지만 값을 비워 두지 않는다.
+  const userPlain = parseBearer(header, "user");
+  if (!userPlain) return undefined;
+  const userRow = await prisma.userToken.findUnique({ where: { hash: hashToken(userPlain) } });
+  if (!userRow || userRow.revokedAt) return undefined;
+  return { token: userPlain, scopes: ["agent"], clientId: userRow.id, extra: { userId: userRow.userId, tokenId: userRow.id } };
 }, { required: true });
 
 export { authed as GET, authed as POST, authed as DELETE };

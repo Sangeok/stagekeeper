@@ -30,7 +30,15 @@ export function createNextDeps(db: PrismaClient): NextDeps {
       });
       return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent);
     },
-    recentSteps: (tokenId, since) => db.agentRunStep.count({ where: { at: { gte: since }, OR: [{ callerTokenId: tokenId }, { callerTokenId: null, run: { tokenId } }] } }),
+    // projectId가 null이면 오늘과 같은 쿼리다(hs_). 값이 있으면 run의 프로젝트로 좁힌다(hu_ — A-10).
+    // 바로 아래 recentRuns가 이미 소유자 단위로 범위를 거는 것과 같은 방향이다.
+    recentSteps: (tokenId, projectId, since) => db.agentRunStep.count({
+      where: {
+        at: { gte: since },
+        OR: [{ callerTokenId: tokenId }, { callerTokenId: null, run: { tokenId } }],
+        ...(projectId === null ? {} : { run: { projectId } }),
+      },
+    }),
     recentRuns: async (projectId, since) => {
       const owner = await db.project.findUnique({ where: { id: projectId }, select: { ownerUserId: true } });
       if (!owner?.ownerUserId) return 0;

@@ -5,7 +5,11 @@ const bullets = (xs) => (xs.length === 0 ? "none" : xs.map((x) => `- \`${x}\``).
 export function buildVars(config) {
   const rows = config.workspaces.map((w) => `| \`${w.agent}\` | \`${w.path}/**\` |`).join("\n");
   return {
-    project: config.project,
+    // config.project를 통째로 넘기지 않는다 — 넘기면 여기에 더해지는 필드가 전부 템플릿 변수가 된다.
+    // project.slug가 그 예다: 연결용 값(어느 프로젝트에 말을 거느냐)이지 에이전트가 읽을 내용이 아니고,
+    // 서버 쪽 serverVars(src/server/agents/vars.ts)는 DB 행에서 이 네 개만 만든다. 둘이 어긋나면
+    // 스텁(클라이언트 렌더)과 단계 본문(서버 렌더)이 다른 값을 본다.
+    project: { owner: config.project.owner, repo: config.project.repo, branch: config.project.branch, name: config.project.name },
     board_branch: config.project.branch,
     roster_table: `| agent | owns |\n| --- | --- |\n${rows}`,
     roster_names: config.workspaces.map((w) => `\`${w.agent}\``).join("·"),

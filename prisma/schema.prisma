@@ -14,6 +14,7 @@ model User {
   createdAt DateTime        @default(now())
   subscription Subscription?
   ownerTokens  OwnerToken[]
+  userTokens   UserToken[]
   projectAvailabilityVersion Int @default(0)
   ownedProjects Project[] @relation("ProjectOwner")
   projectAvailabilityEvents ProjectAvailabilityEvent[]
@@ -99,6 +100,17 @@ model OwnerToken {                       // 사람 자격. 소유자가 자기 C
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([projectId, userId])
+}
+
+model UserToken {                        // 사람 자격. OwnerToken에서 projectId만 뺀 모양이다 — 프로젝트는 도구 인자로 온다.
+  id        String    @id @default(cuid()) // 접두 hu_. 에이전트 서버(/api/mcp)에서 hs_와 함께 통과하고, 소유자 서버는 받지 않는다.
+  userId    String                        // 발급한 사람. 프로젝트 인가는 호출마다 Project.ownerUserId와 대조한다
+  hash      String    @unique             // sha256(plain). 평문은 저장하지 않는다
+  label     String
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
 }
 
 model Workspace {                      // harness.json.workspaces 의 사본 (project_sync)
