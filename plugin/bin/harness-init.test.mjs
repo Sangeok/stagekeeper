@@ -412,11 +412,18 @@ describe("harness-init (v2)", () => {
   describe("--register", () => {
     const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "main", name: "stagekeeper", slug: "stagekeeper" };
     // 진짜 git 저장소를 만든다 — 테스트 전용 우회 플래그를 두면 정작 git을 읽는 경로가 검증되지 않는다.
-    // 커밋이 없어도 `git branch --show-current`는 기본 브랜치 이름을 낸다(2026-09-20 실측).
-    // 그래서 이 픽스처는 **분리된 HEAD 분기(branch 생략)를 타지 않는다** — 그쪽은 미검증으로 남는다.
+    //
+    // **`-b main`을 반드시 준다.** 기본 브랜치 이름은 환경마다 다르다: 이 저장소를 개발한 머신은
+    // `init.defaultBranch=main`이라 `main`이 나왔지만 CI 러너는 그 설정이 없어 `master`가 나왔고,
+    // 그래서 아래 branch 단언이 CI에서만 깨졌다(2026-09-20). 기대값을 "실제로 읽은 값"으로 바꾸는
+    // 방식은 쓰지 않는다 — 그러면 시험이 자기가 만든 값을 자기가 확인하는 꼴이라 branch가 실제로
+    // 서버에 전달되는지를 증명하지 못한다.
+    //
+    // 커밋이 없어도 `git branch --show-current`는 그 이름을 낸다. 그래서 이 픽스처는
+    // **분리된 HEAD 분기(branch 생략)를 타지 않는다** — 그쪽은 미검증으로 남는다.
     const gitRoot = (remote = "git@github.com:Sangeok/stagekeeper.git") => {
       const root = mkdtempSync(join(tmpdir(), "harness-git-"));
-      execFileSync("git", ["init", "-q"], { cwd: root, stdio: "ignore" });
+      execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root, stdio: "ignore" });
       if (remote) execFileSync("git", ["remote", "add", "origin", remote], { cwd: root, stdio: "ignore" });
       return root;
     };
