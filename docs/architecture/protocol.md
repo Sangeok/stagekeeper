@@ -19,6 +19,22 @@
 
 위 4xx 응답은 `{ error: string }`이다. MCP 도구의 `isError` 응답과 별개의 HTTP 계약이다.
 
+## 프로젝트 정체 — `GET /api/project`
+
+`/harness:init`이 `harness.json` 초안의 `project` 블록을 채울 때 `Authorization: Bearer <에이전트 토큰>`으로
+요청한다. 서버는 토큰 인증 → 프로젝트 접근 확인 → 정체 조회 순으로 처리한다. 인증이나 접근 확인에
+실패하면 프로젝트를 조회하지 않는다. 쿼리 인자가 없고 프로젝트 식별자도 받지 않는다 —
+`projectId`는 토큰에서만 나오므로 다른 프로젝트를 가리킬 입력이 없다.
+
+| 상태 | 의미 |
+| --- | --- |
+| `200` | `{ project: { owner, repo, branch, name } }`. **`language`는 담지 않는다** — 그 값을 `harness.json`으로 옮기면 템플릿 요청이 없는 언어를 물어 404가 된다 |
+| `401` | 에이전트 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음 |
+| `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존 |
+
+언어에 매이지 않으므로 `404`가 없다. 구버전 서버에는 이 경로 자체가 없어 플러그인이 404를 받고,
+그때는 사용자에게 `owner`·`repo`·`branch`를 물어 진행한다. 위 4xx 응답은 `{ error: string }`이다.
+
 ## 프로젝트 사용 상태
 
 `project_get`은 기존 repository owner 키를 보존하고 `available: true` 또는 `available: false, reason`을

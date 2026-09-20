@@ -14,6 +14,7 @@ import { parseRepoUrl, slugFromRepo, type RepoOption } from "../model/repo-url";
 type Props = {
   action: (prev: CreateProjectState, form: FormData) => Promise<CreateProjectState>;
   mcpUrl: string;
+  serverUrl: string;
   defaultOwner: string;
   repoLoadFailed: boolean;
   repos: RepoOption[]; // 로그인 계정의 공개 저장소. 비공개는 여기 없다 — 그때는 주소를 붙여넣는다
@@ -21,7 +22,7 @@ type Props = {
 
 const TEXT_BUTTON = "text-xs text-quiet underline underline-offset-2";
 
-export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFailed }: Props) {
+export function NewProjectForm({ action, mcpUrl, serverUrl, defaultOwner, repos, repoLoadFailed }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE);
   const [owner, setOwner] = useState(defaultOwner);
   const [repo, setRepo] = useState("");
@@ -87,7 +88,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
     return (
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold tracking-tight">Project created</h2>
-        <TokenReveal token={state.token} mcpUrl={mcpUrl} />
+        <TokenReveal token={state.token} mcpUrl={mcpUrl} serverUrl={serverUrl} />
         <Link className="self-start text-sm underline underline-offset-2" href={projectPath(state.slug)}>
           Open /p/{state.slug}
         </Link>

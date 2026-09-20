@@ -9,6 +9,8 @@ export type TokenRow = { id: string; label: string; createdAt: Date; revokedAt: 
 type Props = {
   issueAllowed: boolean;
   mcpUrl: string;
+  // 화면에 보이는 것은 mcpUrl이고, 셸로 옮기는 것은 base인 serverUrl이다. 출처는 하나다(public-url.ts).
+  serverUrl: string;
   tokens: TokenRow[];
   issue: (label: string) => Promise<ActionResult<{ token: string }>>;
   revoke: (tokenId: string) => Promise<void>;
@@ -64,7 +66,7 @@ function TokenTable({ tokens, revoke, reference, empty }: { tokens: TokenRow[]; 
   );
 }
 
-export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, ownerTokens, ownerAllowed, issueOwner, revokeOwner, issueAllowed }: Props) {
+export function ProjectTokensPage({ mcpUrl, serverUrl, tokens, issue, revoke, ownerMcpUrl, ownerTokens, ownerAllowed, issueOwner, revokeOwner, issueAllowed }: Props) {
   return (
     <>
       <section className="flex flex-col gap-1">
@@ -79,7 +81,7 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, 
         </p>
       </section>
 
-      {issueAllowed ? <NewTokenForm issue={issue} mcpUrl={mcpUrl} /> : null}
+      {issueAllowed ? <NewTokenForm issue={issue} mcpUrl={mcpUrl} serverUrl={serverUrl} /> : null}
 
       <TokenTable tokens={tokens} revoke={revoke} reference="token" empty={issueAllowed ? "No tokens yet. Issue one above." : "No tokens yet."} />
 

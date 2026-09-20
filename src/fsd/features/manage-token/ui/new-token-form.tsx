@@ -7,9 +7,9 @@ import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 
 // 서버 액션은 route가 prop으로 넘긴다 — "use client" 파일은 *.server를 import할 수 없다(fsd.md).
-type Props = { issue: (label: string) => Promise<ActionResult<{ token: string }>>; mcpUrl: string };
+type Props = { issue: (label: string) => Promise<ActionResult<{ token: string }>>; mcpUrl: string; serverUrl: string };
 
-export function NewTokenForm({ issue, mcpUrl }: Props) {
+export function NewTokenForm({ issue, mcpUrl, serverUrl }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -45,7 +45,7 @@ export function NewTokenForm({ issue, mcpUrl }: Props) {
         </Button>
       </form>
       {error ? <p className="text-sm text-risk">{error}</p> : null}
-      {token ? <TokenReveal token={token} mcpUrl={mcpUrl} /> : null}
+      {token ? <TokenReveal token={token} mcpUrl={mcpUrl} serverUrl={serverUrl} /> : null}
     </div>
   );
 }

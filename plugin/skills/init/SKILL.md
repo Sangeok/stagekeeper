@@ -16,15 +16,30 @@ it. Check the actual resolved skill and its supporting files, not just its name 
 If it is missing or incompatible, report the missing requirement and the installation path
 from that reference, then stop before step 1. After installation, rerun this preflight.
 
-1. If there's no `harness.json`, ask **one question at a time** and write it: repository
-   `owner/repo` and branch (guess from `git remote -v` and `git branch --show-current`, then
-   just confirm), workspaces (path · `<name>-dev` · verify commands — read `package.json`
-   scripts and the test runner to suggest candidates), knowledge doc path, `scout.question`
-   (optional).
-2. Run `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --server <the MCP URL from the web
-   Tokens page, minus /api/mcp> --dry-run`. Show the files it would write and get a yes before
-   writing. **There is no default server URL** — without it the generator stops
-   (`HARNESS_SERVER` works too). If the output has `refuse:` lines, ask whether to `--adopt`.
+1. If there's no `harness.json`, **do not interview the user.** Build one draft and show it once.
+   - `project`: run `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --print-project`. It writes
+     nothing and needs no `harness.json`. Use the `owner`·`repo`·`branch`·`name` it prints —
+     the user already typed these on the web. **Do not guess them from `git remote -v`**: the
+     repository registered on the web is the truth, and the local checkout can differ. If it
+     fails with `no /api/project` the server predates this route — only then fall back to asking.
+   - `workspaces`: read `package.json` scripts and the test runner to propose `path` ·
+     `<name>-dev` · verify commands. Derive `id` from the agent name (`web-dev` → `web`).
+     **This is the one thing only the user knows** — agent names are the roster's unique key,
+     so a wrong one leaves an orphan row on the server. Everything else you fill in.
+   - Leave `knowledge`, `scout`, and `readOnly` **out of the draft and do not ask** — all three
+     are optional in the schema and the generated files read correctly without them.
+   - **Never write `language`.** The default (`en`) is the seeded template language; copying the
+     project's stored language into `harness.json` makes the template fetch ask for a language
+     that has no templates, and init fails with 404.
+   - Show the finished draft once, take corrections, then write it.
+2. Run `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --dry-run`. **Do not ask for the server
+   URL first** — the generator resolves it in order: `--server`, then `HARNESS_SERVER`, then the
+   `harness` entry in an existing `.mcp.json`. Ask for the URL from the web Tokens page only when
+   it stops with `Server URL required`; a pasted value may keep its `/api/mcp` tail, which the
+   generator strips. **There is still no default server URL** — without a source it stops.
+   Show the files it would write **together with the draft from step 1** and take one yes for
+   both. If the output has `refuse:` lines, ask whether to `--adopt` — that is the only second
+   question, and a clean repository never reaches it.
    Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If it is set, the user issued an
    **owner token** on the web Tokens tab (it lets their own session open gates): add `--owner` to
    both the dry run and the real run — the generator writes a second server, `harness_owner`,
@@ -47,8 +62,13 @@ from that reference, then stop before step 1. After installation, rerun this pre
 5. Pass `harness.json.workspaces` and `harness.json.language` (default `en`) to
    `mcp__harness__project_sync` as `{ workspaces, language }` — that's what creates the roster on
    the web board, and the language is what `agent_next` serves steps in.
-6. Check that the knowledge doc named in each generated `.claude/agents/<ws>-dev.md` exists.
-   If it doesn't, draft one with the user (structure, commands, pitfalls).
+6. Knowledge docs are **optional** — say so, then offer. The workspace's dev agent is told to read
+   one before it writes a plan, and doc-auditor audits it right after the backlog; without one,
+   every plan says the workspace has no knowledge doc instead of following conventions the user
+   already has. That is a real cost, not a failure: generation succeeds either way (the template
+   renders a "no knowledge doc" line). Offer to draft one now (structure, commands, pitfalls) or
+   to leave it for the first plan — do not require it to finish init. If the user wants one, add
+   its path to that workspace's `knowledge` and rerun init.
 7. Show `git status` and leave the commit to the user. Suggested message: `chore: connect to Stagekeeper`.
    Include the resolved verification-skill path and the owner-supplied version/commit (or the
    package checksum when it has no version). Initialization is complete only after the
