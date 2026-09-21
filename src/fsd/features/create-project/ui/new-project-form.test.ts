@@ -6,7 +6,7 @@ import { NewProjectForm } from "./new-project-form";
 
 it("renders different copy for empty success and failure while preserving URL entry", () => {
   const render = (repoLoadFailed: boolean) => renderToStaticMarkup(createElement(NewProjectForm, {
-    action: async () => ({ status: "idle" as const }), mcpUrl: "https://example.test/api/mcp", serverUrl: "https://example.test", defaultOwner: "user", repos: [], repoLoadFailed,
+    action: async () => ({ status: "idle" as const }), mcpUrl: "https://example.test/api/mcp", defaultOwner: "user", repos: [], repoLoadFailed,
   }));
   assert.match(render(false), /No public repositories found\. Paste a URL\./);
   assert.doesNotMatch(render(false), /load your repositories/);

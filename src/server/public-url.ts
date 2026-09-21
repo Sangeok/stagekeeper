@@ -3,12 +3,9 @@ function publicUrl(): string {
   return (process.env.HARNESS_PUBLIC_URL ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
-// 생성기가 받는 값. 토큰 페이지가 보여 주는 mcpUrl()과 한 출처에서 나오므로 어긋날 수 없다 —
-// 사용자가 이 값을 HARNESS_SERVER로 셸에 넣으면 init이 서버 URL을 묻지 않는다.
-export function serverUrl(): string {
-  return publicUrl();
-}
-
+// 토큰 화면이 보여 주는 주소. 스킬이 서버 주소를 물을 때 사용자가 이 값을 그대로 붙여넣는다 —
+// `/api/mcp` 꼬리는 생성기가 뗀다(harness-init.mjs의 normalizeServer). base를 따로 내보내던 serverUrl()은
+// 화면의 HARNESS_SERVER 줄과 함께 없앴다: 그 변수는 /harness:init이 직접 설정한다.
 export function mcpUrl(): string {
   return `${publicUrl()}/api/mcp`;
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { copyLock } from "@/fsd/shared/lib/copy-lock";
 import { deriveTurn, nextStepLine, type TurnItem } from "./turn";
 
 const ready = { tokenIssued: true, rosterSynced: true, backlogCount: 2, hasPropose: true };
@@ -217,5 +218,16 @@ describe("nextStepLine", () => {
     assert.equal(nextStepLine(item("FEAT-01", "proposed")), null);
     assert.equal(nextStepLine(item("FEAT-01", "in_review", "clean pass")), null);
     assert.equal(nextStepLine(accepted("FEAT-01")), null);
+  });
+});
+
+// 첫 실행 2단계의 문장은 product-copy.md §5의 잠금 블록 그대로다. 배너는 이 값을 그대로 그린다
+// (`/harness:init`만 Code로 감싼다) — 같은 문장을 JSX에 한 번 더 적어 두었던 자리가 "approve the server"를 들고 남았었다.
+describe("the first-run connect step", () => {
+  it("reads exactly as product-copy.md §5 locks it", () => {
+    const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false, backlogCount: 0, hasPropose: true });
+    assert.equal(turn.kind, "setup");
+    const connect = turn.kind === "setup" ? turn.steps.find((step) => step.key === "connect") : undefined;
+    assert.deepEqual([connect?.detail], copyLock("turn-banner-connect"));
   });
 });

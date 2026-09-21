@@ -46,6 +46,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `verify-fsd-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
+| `retired-copy.test.mjs` | `npm run test:architecture` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
 | `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
 | `seed-templates.ts` | `npm run seed:templates [-- --dir <dir>]` | private 템플릿을 바꾼 뒤, 로컬에서 | `plugin/templates/<lang>/**/*.md`를 `Template` 테이블에 upsert. `agents/*`는 저장 전 파싱 |
@@ -60,6 +61,27 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
 
+## 문구 잠금
+
+`docs/conventions/product-copy.md`는 "코드는 이 파일에서 나온다"고 선언하지만 강제가 없어 두 번 어긋났다 —
+§13(PR #34)과 §9(2026-09-21: 문서·스킬만 고친 커밋 `a766a0e`·`6871680`이 화면 다섯 군데를 두고 갔다).
+아래 시험이 그 절들을 코드에 묶는다. 전부 `npm run test:web`(CI)에서 돈다.
+
+| 잠금 | 문서의 자리 | 시험 | 묶는 대상 |
+| --- | --- | --- | --- |
+| §13 표의 행 | `board_transition`·`plan_submit`·`agent_next` | `src/server/mcp/tools.test.mjs` | MCP 도구 설명(글자 일치) |
+| `token-reveal-shared`·`-project`·`-user` | §9 Token reveal | `src/fsd/entities/project-token/ui/token-reveal.test.ts` | `TokenReveal`(hs_·hu_ 각각 렌더) |
+| `owner-token-reveal` | §9 Owner token reveal | 같은 파일 | `OwnerTokenReveal` |
+| `turn-banner-connect` | §5 First run | `src/fsd/widgets/turn-banner/model/turn.test.ts` | 모델의 `detail`(글자 일치) — 배너는 그 값을 그린다 |
+
+읽는 법과 블록 규칙(한 줄 = 한 단위, 줄바꿈 금지)은 `src/fsd/shared/lib/copy-lock.ts`와 product-copy.md 머리의
+"Copy-lock blocks"에 있다. 화면 잠금은 **포함 검사**다: 블록의 모든 줄이 화면에 있는지만 본다. 그래서
+
+- 문서만 고친 경우, 화면 문장을 고친 경우는 잡는다.
+- 화면에 문서에 없는 문장을 **더한** 경우는 못 잡는다.
+- 문서와 화면이 **같이 틀린** 경우는 못 잡는다 — `retired-copy.test.mjs`가 그 틈을 맡는데, 옛 표현을 사람이 등록해야 안다.
+- `claude`처럼 짧은 단위는 어디서든 맞으므로 지키는 힘이 없다. 지키는 것은 문장이다.
+
 ## 변경 전 체크리스트
 
 - [ ] [README.md](./README.md)와 [fsd.md](./fsd.md)를 읽었다.
@@ -67,6 +89,9 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 - [ ] 새 코드의 owner layer와 slice를 한 문장으로 설명할 수 있다.
 - [ ] 새 slice가 필요하지 않다면 실제 사용처에 코로케이션했다.
 - [ ] DB/인증/MCP/보안 경계를 `src/fsd`에 넣지 않았다.
+- [ ] 연결 방식·도구 계약처럼 **사용자에게 말해 둔 사실**을 바꾸면, 옛 방식을 말하는 표현을
+  `scripts/retired-copy.test.mjs`의 `RETIRED`에 더했다. product-copy.md만 고치는 커밋은 없다 — 잠금 블록을
+  고치면 화면이 같은 커밋에 따라온다.
 
 ## 리뷰 체크리스트
 
