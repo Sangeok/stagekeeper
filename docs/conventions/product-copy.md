@@ -8,6 +8,16 @@ Scope: web UI, server-action errors, MCP tool descriptions, generated agent temp
 `/harness:init` skill, generator console output. **Docs under `docs/` and code comments stay
 in Korean** — that is the team's working language. Only what is *shown* is English.
 
+**Copy-lock blocks.** A blockquote between `<!-- copy-lock:<id> -->` and `<!-- /copy-lock -->` is
+read by a test, which renders the screen and fails unless every line of the block is on it
+(`src/fsd/shared/lib/copy-lock.ts`; ids and their tests are listed in
+`docs/architecture/verification.md`). Inside a block: **one line is one unit — do not hard-wrap**;
+` · ` separates units on a line; backticks and `**` are formatting and are ignored; the trailing
+`— **Copy** / "Copied"` note is ignored; `hs_…`, `hu_…`, `ho_…` and `http://…` are the values
+the test renders with. Changing a locked line means changing the screen in the same commit —
+that is the point. The blocks exist because this file was twice updated without the code
+following (§13 in PR #34, §9 on 2026-09-21).
+
 Status: approved 2026-08-30 — bundle 1 (language) and bundle 2 (design v4) implemented; §5–§7 describe the v4 screens. Approved 2026-09-07 — acceptance, reopen, and handoff (§3, §5, §6, §11–§14, §16). Approved terms from `CONTEXT.md` are used as-is:
 Project · Workspace · Backlog item · Board item · Gate · Agent · Validation · Evidence ·
 Result · Acceptance.
@@ -209,12 +219,19 @@ and `pipeline_next` hands the session the same node.
 
 **First run** (no board rows yet) — **Set up in four steps**: 1 Token issued "Shown once when
 you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Connect the
-repository "Open it in Claude Code with the token set, run `/harness:init`, restart, approve the
-server." (chip **Not connected yet**) · 3 Add a backlog item "Key, title, area, and the evidence
+repository — the detail line is the lock block below (chip **Not connected yet**) · 3 Add a
+backlog item "Key, title, area, and the evidence
 — what you observed and what you confirmed in the code." (link Backlog) · 4 Run pm in Claude
 Code "It picks up to two items from the backlog and puts them here for your approval." — a
 pipeline with no Propose node says "Put an item on the board from the Backlog tab" instead. Strip:
 "Setting up · Step 3 of 4 — Add a backlog item."
+
+Step 2's detail line. It stops at `/harness:init` on purpose — the restart and the connection
+check are the skill's to say (§15), so the web does not repeat them and cannot fall behind them.
+
+<!-- copy-lock:turn-banner-connect -->
+> Open it in Claude Code with the token set and run `/harness:init`. It connects the repository and tells you when to restart.
+<!-- /copy-lock -->
 
 ## 6. Board
 
@@ -342,8 +359,11 @@ rendered in the Team row; the row shows only the agent handle and its state.
   Reference `token:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 
 
-**Token reveal** (after issuing, and after creating a project):
+**Token reveal** (after issuing, and after creating a project). One component, `TokenReveal`.
+Steps 1 and 4 are the same for every token; steps 2 and 3 depend on the token kind. The three
+blocks below are copy-locked (see "Copy-lock blocks" at the top of this file).
 
+<!-- copy-lock:token-reveal-shared -->
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
 >
 > **1. Install the Stagekeeper plugin in Claude Code**
@@ -351,35 +371,67 @@ rendered in the Team row; the row shows only the agent handle and its state.
 > `claude plugin marketplace add Sangeok/stagekeeper` · `claude plugin install harness@stagekeeper-local` — **Copy** / "Copied"
 > Already installed? `claude plugin list` shows `harness`.
 >
+> **4. Enter this in the Claude Code prompt**
+> `/harness:init`
+> This is a Claude Code slash command, not a terminal command. It connects the repository and tells you when to restart Claude Code.
+> If it asks for the server address, give it this: `http://…/api/mcp`
+<!-- /copy-lock -->
+
+Project token (`hs_`) — `/p/[slug]/tokens` and the screen after creating a project. "user token"
+in the last line of step 2 links to `/settings/tokens`.
+
+<!-- copy-lock:token-reveal-project -->
 > **2. Set the token in the terminal that will start Claude Code**
-> Claude Code reads this environment variable when it starts. A repository `.env` file is not
-> loaded for this connection. The MCP registration stores only a `${HARNESS_TOKEN}` reference,
-> never the value, so nothing on disk leaks the token.
+> Claude Code reads this environment variable when it starts. A repository `.env` file is not loaded for this connection. The MCP registration stores only a `${HARNESS_TOKEN}` reference, never the value.
 > PowerShell `$env:HARNESS_TOKEN = "hs_…"` · bash / zsh `export HARNESS_TOKEN="hs_…"` — **Copy** / "Copied"
-> You don't need to set the server address — `/harness:init` does that for you.
+> This lasts only in this terminal. A new terminal needs the token again, and it can't be shown again — issue another on the Tokens tab, or use a user token to set one once for every repository.
 >
 > **3. Start Claude Code in this repository**
 > From the same terminal, change to the repository directory and start Claude Code.
 > `claude`
+<!-- /copy-lock -->
+
+User token (`hu_`) — `/settings/tokens`. The PowerShell and Git Bash lines ask for the token and
+carry no value; only the macOS · Linux line shows it, because it goes into a file, not a prompt.
+
+<!-- copy-lock:token-reveal-user -->
+> **2. Save the token once for this machine**
+> Copy the command for your shell and run it. When it asks, copy the token above and paste it, then press Enter. The token stays hidden as you paste.
+> The token is saved to your user environment variables as plain text, so every new terminal has it. It stays out of your shell history. The MCP registration stores only a `${HARNESS_TOKEN}` reference, never the value. A repository `.env` file is not loaded for this connection.
+> PowerShell `$t = Read-Host "HARNESS_TOKEN" -AsSecureString; $p = [Net.NetworkCredential]::new("", $t).Password; [Environment]::SetEnvironmentVariable("HARNESS_TOKEN", $p, "User"); $env:HARNESS_TOKEN = $p` — **Copy** / "Copied"
+> Git Bash `read -rsp "HARNESS_TOKEN: " t && setx HARNESS_TOKEN "$t" >/dev/null && export HARNESS_TOKEN="$t"; unset t` — **Copy** / "Copied"
+> macOS · Linux — add this line to `~/.zshrc` or `~/.bashrc` in an editor, then open a new terminal.
+> `export HARNESS_TOKEN="hu_…"` — **Copy** / "Copied"
 >
-> **4. Enter this in the Claude Code prompt**
-> `/harness:init`
-> This is a Claude Code slash command, not a terminal command.
->
-> **5. Restart Claude Code and approve the server**
-> After init finishes, restart Claude Code from the same terminal. In Claude Code, run `/mcp`
-> and approve `harness` if it is pending.
-> MCP server URL: `http://…/api/mcp`
+> **3. Start Claude Code in this repository**
+> Change to the repository directory and start Claude Code.
+> `claude`
+<!-- /copy-lock -->
+
+**5단계("Restart Claude Code and approve the server")를 없앤 이유**(2026-09-22). 웹이 필요한 것은
+`/harness:init`을 치기 **전까지**다. 그 뒤의 재시작·연결 확인은 스킬이 그 자리에서 말한다(§15).
+같은 사실을 두 곳에 적어 두었더니 사용자 범위 등록으로 바뀐 날(`6871680`) 스킬은 따라오고 이 화면은
+"approve the server"를 그대로 들고 있었다 — 사용자 범위 서버에는 승인 프롬프트가 없다. 고치는 대신
+지웠다: 적는 곳이 줄면 어긋날 곳도 준다. 재시작이 온다는 예고 한 문장만 4단계에 남긴다.
 
 **서버 줄이 2단계에서 빠진 이유**(C-3). `/harness:init`이 `HARNESS_SERVER`를 직접 설정한다 —
 비밀이 아니므로 에이전트가 대신해도 잃는 것이 없고, 복사 한 번이 사라진다. 그 값은 **base**이지
-화면이 보여 주는 `…/api/mcp`가 아니다(`public-url.ts`의 `serverUrl()`과 `mcpUrl()`은 같은 출처다).
+화면이 보여 주는 `…/api/mcp`가 아니다(`public-url.ts`의 `mcpUrl()`과 같은 출처다). 주소 자체는
+4단계에 남긴다 — 출처가 하나도 없으면 생성기가 `Server URL required`로 멈추고 스킬이 이 화면의
+값을 물어 오기 때문이다(`/api/mcp` 꼬리는 생성기가 뗀다).
 
-**토큰 줄은 그대로 둔다 — 의도적이다.** 에이전트가 값을 받아 `setx`를 대신 실행하면 설정이 0회가
-되지만, 두 군데서 나빠진다: 붙여넣은 값이 세션 transcript에 남고, `setx HARNESS_TOKEN <값>`은
-명령줄에 실려 셸 히스토리에도 남는다. 지금 방식은 토큰이 에이전트 문맥에 **아예 들어오지 않는다**.
-`SKILL.md`의 "Never print the token value"와도 같은 방향이다. 그래서 토큰 설정은 **머신당 1회**로
-남기고, 스킬은 발급 페이지를 열어 주고 히스토리에 안 남는 입력 방법을 안내하는 데까지만 한다.
+**토큰은 종류에 따라 다르게 둔다 — 의도적이다**(2026-09-22). 변수 `HARNESS_TOKEN`은 머신에 하나인데
+`hs_`는 저장소마다 값이 다르다. 그래서 `hs_`를 머신 전역에 영구 저장하면 **두 번째 저장소를 연결하는
+순간 첫 번째의 토큰을 덮어쓴다.** `hs_`를 "Claude Code를 띄우는 그 터미널"에 두는 지금 방식은 이 점에서
+일관된다 — 터미널 하나 = 저장소 하나 = 토큰 하나. (원래 적힌 이유는 "설정에는 참조만 남긴다"였고
+`connect-command.ts` 머리 주석이 그것이다. 저장소별 분리를 의도했다는 기록은 없다 — 결과가 그렇다.) 대가는 새 터미널에서 토큰이 사라지는
+것이고, 토큰은 다시 볼 수 없으므로 화면이 그 사실을 미리 말하고 `hu_`로 안내한다.
+"머신당 1회"는 `hu_`의 것이다: 저장소를 가로지르는 토큰이라 전역 저장이 성립한다. 영구 저장은 어떤
+방식이든 값을 평문으로 디스크에 둔다(Windows는 사용자 환경변수, macOS·Linux는 셸 프로필) — 이를
+받아들이고 화면에 그대로 적는다. 대신 값이 **셸 히스토리와 채팅에는 남지 않게** 한다: 명령은 값을
+싣지 않고 입력을 받는다. 에이전트가 값을 받아 대신 저장하지 않는 것은 그대로다 — 붙여넣은 값이 세션
+transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"와 같은 방향이다.
+남은 빈틈: `hs_`의 `export HARNESS_TOKEN="hs_…"`은 값이 셸 히스토리에 남는다. 이번에 고치지 않았다.
 
 **사용자 토큰으로 옮기기 전 안내** — 이 페이지가 발급하는 것은 프로젝트 토큰(`hs_`)이라 저장소마다
 하나씩 필요하다. 계정 단위 토큰(`hu_`)은 한 번만 발급해 모든 저장소에서 쓴다. 다만 이미 연결된
@@ -402,18 +454,21 @@ to write it)`로 떨어진다. **`hu_`를 쓰기 전에 `/harness:init`을 한 �
   (Free — there is no form above to point at; the table stays so a leftover token can still be
   revoked after a downgrade).
 
-**Owner token reveal** (after issuing):
+**Owner token reveal** (after issuing). Copy-locked. 문장은 2026-09-21 그대로이고 줄바꿈만 풀었다 —
+잠금 블록은 한 줄이 한 단위다.
 
+<!-- copy-lock:owner-token-reveal -->
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
 >
 > **1. Set it in the same shell as your agent token**
-> It's yours, not the project's. The MCP registration stores only a `${HARNESS_OWNER_TOKEN}`
-> reference; agents never see the value.
+> It's yours, not the project's. The MCP registration stores only a `${HARNESS_OWNER_TOKEN}` reference; agents never see the value.
 > PowerShell `$env:HARNESS_OWNER_TOKEN = "ho_…"` · bash / zsh `export HARNESS_OWNER_TOKEN="ho_…"` — **Copy** / "Copied"
 >
-> **2. Rerun the connection from that shell, then restart Claude Code** `/harness:init`
-> With the variable set, init registers a `harness_owner` server once per machine. There is no
-> approval prompt — user-scope servers load on their own. Owner MCP server URL: `http://…/api/mcp/owner`
+> **2. Rerun the connection from that shell, then restart Claude Code**
+> `/harness:init`
+> With the variable set, init registers a `harness_owner` server once per machine. There is no approval prompt — user-scope servers load on their own.
+> Owner MCP server URL: `http://…/api/mcp/owner`
+<!-- /copy-lock -->
 
 **Account tokens** — `/settings/tokens`. 프로젝트 밖의 계정 단위 경로이고 `/billing`이 그 선례다.
 `/p/[slug]/tokens`와 **별개 화면**이며 그쪽은 이번 변경이 건드리지 않는다 — `tokens`는 `PROJECT_TABS`의
@@ -428,8 +483,10 @@ to write it)`로 떨어진다. **`hu_`를 쓰기 전에 `/harness:init`을 한 �
   "Couldn't issue the token. Try again."
 - Table: Label · Issued · Status · Reference. Status "Active" / "Revoked 2026-08-30".
   Reference `user:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
-- 발급 직후의 노출은 프로젝트 토큰과 **같은 화면**이다(`TokenReveal`). 셸 변수 이름도 `HARNESS_TOKEN`으로
+- 발급 직후의 노출은 프로젝트 토큰과 **같은 컴포넌트**다(`TokenReveal`). 셸 변수 이름도 `HARNESS_TOKEN`으로
   같다 — MCP 등록에 들어가는 참조가 하나이기 때문이다. 1회 노출 규약은 토큰 종류와 무관하다.
+  **2·3단계만 다르다** — `hu_`는 머신에 한 번 영구 저장하고 `hs_`는 그 터미널에만 둔다(위 Token reveal의
+  두 잠금 블록과 그 아래 근거).
 - 진입점은 머리(`AppHeader`)의 **Tokens** 링크다. `(app)` 셸에는 내비게이션이 없어, 링크를 걸지 않으면
   주소를 직접 치는 사람만 닿는다.
 
@@ -778,13 +835,27 @@ both). Below: each file's title, its section headings, and the sentences that se
   arrive through `agent_next`, and that an already-connected project reruns `/harness:init`.
   Session approvals add, in step 2: "Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If
   it is set, the user issued an **owner token** on the web Tokens tab (it lets their own session
-  open gates): add `--owner` to both the dry run and the real run — the generator writes a second
-  server, `harness_owner`, that references `${HARNESS_OWNER_TOKEN}`. If it is not set, do not add
-  the flag and do not ask for the token. Never print the token value." — and in step 4: "With
-  `--owner`, `/mcp` also lists `harness_owner`; approve it the same way, and confirm
-  `mcp__harness_owner__gate_approve` is listed. If the shell later lacks `HARNESS_OWNER_TOKEN`,
-  Claude Code keeps the other servers, shows a missing-variable warning for `harness_owner` only,
-  and that server fails to connect until the variable is exported again." The closing "Not done
+  open gates). Remember that answer for step 4 — **do not pass `--owner`**: the generator no
+  longer writes any server, so the flag has no job and only prints a note saying where the owner
+  server moved. If it is not set, do not ask for the token. Never print the token value." — and
+  in step 4: "If `HARNESS_OWNER_TOKEN` was set in step 2, register the owner server the same way:
+  `harness_owner` at `<base>/api/mcp/owner` referencing `${HARNESS_OWNER_TOKEN}`. Skip it
+  otherwise — a registered server with no variable just fails to connect." (2026-09-22: 이 문단은
+  `--owner`가 서버를 쓰던 때의 문장을 그대로 들고 있었다 — 같은 절의 `harness-init.mjs --owner`
+  항목·`SKILL.md`와 어긋났다.)
+  The token guidance splits by kind (2026-09-22, §9의 근거와 같다): "A **user token** (`hu_`) is
+  saved once per machine" with a history-safe prompt; "A **project token** (`hs_`) belongs to one
+  repository — keep it in the terminal that starts Claude Code. Do not save it machine-wide:
+  `HARNESS_TOKEN` is one variable, and a second repository's token would overwrite this one."
+  The skill points at the page that issued the token for the exact commands rather than composing
+  its own, and: "**Never read the token out of a repository `.env` file**, even when one is sitting
+  there." — 2026-09-21 실사용에서 에이전트가 `.env`의 값으로 우회했다가, 재시작 뒤 MCP가 그 파일을
+  읽지 않아 끊기는 경로를 사용자에게 안내했다. 생성기와 MCP 등록은 프로세스 환경만 읽는다.
+  Step 4's restart line adds, for a project token: "**With a project token (`hs_`), say "restart from this
+  same terminal."** That token lives only in the terminal that started this session; a new terminal starts
+  Claude Code without it and the server fails to connect." — 웹의 5단계를 지우면서 "from the same terminal"도
+  같이 사라졌다. `hs_`에는 그 조건이 여전히 참이므로 재시작을 말하는 곳(스킬)이 넘겨받는다.
+  The closing "Not done
   here" line: "gate transitions (web, or the owner's own session with an owner token — never this
   skill)".
 
