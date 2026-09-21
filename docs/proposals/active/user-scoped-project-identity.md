@@ -731,8 +731,13 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
      `harness-platform.md`(D7 `:52`, 파일표 `:172`, `:154,162,249`)를 갱신한다.
      `connect-command.ts:2-5`와 `public-url.ts:16`은 **주석만** 낡는다(동작 무변).
    - **(3-f)** `harness-init.test.mjs`의 `.mcp.json` 단언(32줄)을 재작성한다.
-   - **구현 시 실측할 미지수**: 같은 이름이 이미 있을 때 `claude mcp add`가 덮어쓰는지 실패하는지.
-     (3-a)는 `claude mcp get`을 선행해 우회하지만, 우회는 답이 아니라 방어다.
+   - **(3-a의 전제 — 2026-09-21 실측)** 같은 이름이 이미 있으면 `claude mcp add`는 **덮어쓰지 않고
+     실패한다**(`... already exists in user config`, exit 1). 기존 항목은 **손대지 않은 채 남는다**.
+     귀결이 둘이다. ① `claude mcp get harness` 선행 확인은 방어가 아니라 **필수**다 — 없으면 init
+     재실행이 매번 exit 1로 실패하고, init은 routine하게 재실행되는 명령이다. ② **서버 URL이
+     바뀌면 재등록만으로 고쳐지지 않는다** — 저장된 URL을 읽어 비교하고, 다르면
+     `claude mcp remove harness -s user` 후 다시 add해야 한다. 그냥 add하면 **옛 주소가 조용히
+     남는다**(실패는 보이지만 고쳐지지는 않는다).
 
    **실행하지 않는 1번(개명) 절차 — 기록용:**
    1. `Sangeok/harness-templates`에서 템플릿 9개 + `templates.test.mjs` = **10개 파일 44곳**의
