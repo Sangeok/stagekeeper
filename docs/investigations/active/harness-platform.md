@@ -962,6 +962,10 @@ ApcH admin의 화면을 이식한다. 데이터 입력만 md 파서에서 DB 조
 
 **생성기 `plugin/bin/harness-init.mjs`** — v1과의 차이: 보드·백로그·원장·스크립트를 만들지 않고, `.mcp.json`을 **병합**한다.
 
+> **이 절의 서술과 아래 인용은 2026-09-21 이전 판이다 — 현행 코드가 아니다.**
+> B-1 선택지 3 이후 생성기는 `.mcp.json`을 **쓰지 않는다**(이미 있으면 `harness`·`harness_owner`를
+> 걷어내고 다른 서버는 보존한다). 인용은 당시 기록이라 그대로 둔다 — 현행은 저장소의 실제 파일을 보라.
+
 - [ ] **Step 1: 테스트**
 
 ```js
@@ -1042,6 +1046,10 @@ describe("harness-init (v2)", () => {
 - [ ] **Step 2: 실패 확인** → FAIL
 - [ ] **Step 3: 구현**
 
+> **인용: 2026-09-21 이전 판이다.** 아래는 당시 구현 원문이고 현행이 아니다 — 지금 생성기는
+> `.mcp.json`을 쓰지 않고, 이미 있으면 우리 항목만 걷어내며, 해석된 주소를 `server:` 줄로 출력한다.
+> 현행은 `plugin/bin/harness-init.mjs`를 보라.
+
 ```js
 #!/usr/bin/env node
 // harness.json을 읽어 에이전트 정의·규약 문서·런북 절·.mcp.json을 사용자 저장소에 물질화한다. 보드·백로그는 서비스 DB에 있으므로 만들지 않는다.
@@ -1121,6 +1129,10 @@ console.log(`done: write ${plan.write.length} · skip ${plan.skipModified.length
 
 - [ ] **Step 4: 통과** — `npm run sync:plugin-lib && node --test plugin/bin/harness-init.test.mjs` → PASS 6. 미정의 변수 오류면 템플릿으로.
 - [ ] **Step 5: `plugin/skills/harness-init/SKILL.md`**
+
+> **인용: 2026-09-21 이전 판이다.** 아래는 당시 스킬 원문이고 현행이 아니다 — 4단계의
+> `.mcp.json` 생성과 재시작 승인은 **사용자 범위 등록**(`claude mcp add --scope user`)으로 대체됐고,
+> 승인 프롬프트는 사라졌다. 현행은 `plugin/skills/init/SKILL.md`를 보라.
 
 ```markdown
 ---
