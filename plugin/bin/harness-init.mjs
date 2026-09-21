@@ -51,8 +51,13 @@ async function init() {
   const CONFIG = join(ROOT, opt("--config", "harness.json"));
   const ADOPT = args.includes("--adopt");
   const DRY = args.includes("--dry-run");
-  // --owner: 소유자 토큰용 서버(harness_owner)를 .mcp.json에 더한다. 값은 ${HARNESS_OWNER_TOKEN} 참조뿐 — 에이전트 토큰과 같은 규칙.
-  const OWNER = args.includes("--owner");
+  // --owner는 더 이상 생성기의 일이 아니다(B-1 선택지 3) — 소유자 서버도 사용자 범위에 등록되고,
+  // 그 판단은 스킬이 `HARNESS_OWNER_TOKEN` 유무로 직접 한다. 이 플래그는 생성기가 파일을 썼기
+  // 때문에 있었을 뿐이다. **조용히 무시하지는 않는다**: 옛 스킬이 그대로 넘길 수 있고, 알려지지 않은
+  // 인자는 소리 없이 버려져 사용자가 소유자 서버를 잃고도 모르게 된다.
+  if (args.includes("--owner")) {
+    console.log("note: --owner no longer writes a server here — the skill registers harness_owner at user scope when HARNESS_OWNER_TOKEN is set");
+  }
   // --print-project: 쓰기 없이 프로젝트 정체만 출력한다. harness.json이 없어도 동작해야 하므로 설정 파싱을 건너뛴다.
   const PRINT_PROJECT = args.includes("--print-project");
   // --register: git remote로 프로젝트를 등록(또는 이미 있으면 조회)하고 정체를 출력한다.
@@ -245,17 +250,19 @@ async function init() {
     ? runbook.slice(0, startIndex) + runbookBlock + runbook.slice(endIndex + RUNBOOK_END.length)
     : (runbook ? runbook.replace(/\s*$/, "\n\n") : "") + runbookBlock + "\n";
 
-  // .mcp.json: harness 서버 항목만 병합 — 사용자의 다른 MCP 서버를 보존한다. 토큰은 환경변수 참조로만.
-  // 여기가 권위 있는 파싱이다 — 위 회수 읽기는 던지지 않으므로 깨진 입력의 오류 문장·종료코드가 지금과 같다.
+  // .mcp.json: 서버를 **더 이상 여기 쓰지 않는다**(B-1 선택지 3 — 사용자 범위에 머신당 1회 등록한다).
+  // 읽기는 남는다. 두 가지 이유다: ① 여기가 권위 있는 파싱이고(위 회수 읽기는 던지지 않으므로 깨진
+  // 입력의 오류 문장·종료코드가 지금과 같다), ② 이미 연결된 저장소에서 옛 항목을 **걷어내야** 한다 —
+  // 범위 우선순위가 `local > project > user`라, 남겨 두면 저장소 항목이 사용자 범위를 계속 이긴다.
   const hasMcpFile = existsSync(mcpPath);
   const mcp = hasMcpFile ? readJsonObject(mcpPath) : {};
   if (mcp.mcpServers !== undefined && !isRecord(mcp.mcpServers)) throw new Error(".mcp.json mcpServers: must be an object");
-  mcp.mcpServers = {
-    ...(mcp.mcpServers ?? {}),
-    harness: { type: "http", url: `${SERVER}/api/mcp`, headers: { Authorization: "Bearer ${HARNESS_TOKEN}" } },
-    ...(OWNER ? { harness_owner: { type: "http", url: `${SERVER}/api/mcp/owner`, headers: { Authorization: "Bearer ${HARNESS_OWNER_TOKEN}" } } } : {}),
-  };
-  const mcpContent = JSON.stringify(mcp, null, 2) + "\n";
+  const stale = isRecord(mcp.mcpServers)
+    ? ["harness", "harness_owner"].filter((name) => Object.hasOwn(mcp.mcpServers, name))
+    : [];
+  for (const name of stale) delete mcp.mcpServers[name];
+  // 걷어낼 게 없으면 손대지 않는다 — 남의 .mcp.json을 매 실행 재기록하면 잡음이고 `write:` 줄도 거짓이 된다.
+  const mcpContent = stale.length ? JSON.stringify(mcp, null, 2) + "\n" : null;
 
   const nextLock = buildLock(Object.fromEntries(writes.write.map((p) => [p, targets[p]])));
   for (const p of writes.skipModified) nextLock.files[p] = lock.files[p];
@@ -270,10 +277,20 @@ async function init() {
   for (const path of writes.write) { console.log(`write: ${path}`); write(path, targets[path].content); }
   console.log(`write: CLAUDE.md (runbook ${hasReplaceableRunbookBlock ? "replaced" : "inserted"})`);
   write("CLAUDE.md", runbook);
-  console.log(`write: .mcp.json (harness ${hasMcpFile ? "merged" : "created"})`);
-  write(".mcp.json", mcpContent);
+  if (mcpContent !== null) {
+    console.log(`write: .mcp.json (removed ${stale.join(", ")} — the server is registered once per machine at user scope)`);
+    write(".mcp.json", mcpContent);
+    // 지운 항목이 **서버 URL의 출처이기도 했다면**, 이 저장소의 마지막 기록이 방금 사라진 것이다.
+    // 생성기는 사용자 범위 설정을 읽지 않으므로(3-a의 원칙) 보완하지 않고 알린다 — 스킬이 HARNESS_SERVER를 심는다.
+    if (stale.includes("harness") && !opt("--server", process.env.HARNESS_SERVER)) {
+      console.log(`note: that entry was also this repository's only record of the server URL — make sure HARNESS_SERVER is set (${SERVER}) or pass --server on the next run`);
+    }
+  }
   write("harness.lock.json", lockContent);
   console.log(`done: write ${writes.write.length} · skip ${writes.skipModified.length}`);
+  // 스킬이 `claude mcp add`에 넘길 주소. 출처 순서(--server > HARNESS_SERVER > .mcp.json)와 꼬리
+  // 정규화가 생성기 안에만 있으므로, 여기서 알려 주지 않으면 스킬은 등록할 주소를 알 길이 없다.
+  console.log(`server: ${SERVER}`);
 
   // 심은 런북이 어느 판인지 서버에 남긴다 — pipeline_next가 이것으로 표류를 말한다(제안서 "저장소 런북").
   // 쓴 뒤에 보낸다: 파일이 진실이고 보고는 그 사본이다. 실패해도 중단하지 않는다 —

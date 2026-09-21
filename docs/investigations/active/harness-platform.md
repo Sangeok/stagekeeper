@@ -20,7 +20,7 @@
 | 웹 | 선택, 투영·도장 | **제품 본체**, 필수 |
 | 사용자의 Claude ↔ 상태 | 파일 읽기·쓰기 | **MCP 도구 호출** |
 | 게이트 강제 | 프롬프트 문구(이중 방어) | **서버 코드** — 에이전트 토큰엔 게이트 도구가 없음 |
-| 물질화되는 것 | 보드·백로그·에이전트·규약·스크립트 | 에이전트·규약·`.mcp.json` (보드·백로그 없음) |
+| 물질화되는 것 | 보드·백로그·에이전트·규약·스크립트 | 에이전트·규약 (보드·백로그 없음. MCP 연결은 파일이 아니라 사용자 범위 등록이다) |
 | 제 쪽 책임 | GitHub 토큰만 | 사용자 보드·백로그·이력 보관, 서비스 가용성 |
 
 ## Global Constraints
@@ -47,9 +47,9 @@
 | D2 | **하니스의 집을 새 저장소로 옮긴다.** ApcH에서는 하니스 자체를 고치는 항목을 더 만들지 않는다. FEAT-27은 새 프로젝트의 일 | 두 벌이 갈라지는 것을 막는다 |
 | D3 | **ApcH는 건드리지 않고 첫 테넌트로 붙인다.** ApcH 정의는 *읽어서* 추출한다 | 사용자 지시 |
 | D4 | **진실은 서비스 DB.** 보드·백로그·게이트·명령 원장·실행 이력 | 웹이 제품이려면 웹이 진실을 가져야 한다(v1 폐기 사유) |
-| D5 | **코드 인접 산출물만 저장소에**: 계획서·행위자 기록·에이전트 정의·`harness.json`·`.mcp.json` | `파일:줄` 검증, 클라우드 루틴이 저장소만 clone |
+| D5 | **코드 인접 산출물만 저장소에**: 계획서·행위자 기록·에이전트 정의·`harness.json` | `파일:줄` 검증, 클라우드 루틴이 저장소만 clone |
 | D6 | **웹이 제품이고 필수.** 대시보드가 아니라 본체 | 사용자 지적: md를 봐야 하면 웹의 의미가 없다 |
-| D7 | **사용자의 Claude는 MCP로 접속.** 플러그인이 `.mcp.json`을 놓고, 에이전트는 파일 대신 MCP 도구로 상태를 읽고 쓴다 | Claude Code의 표준 외부 연결. 설치 없이 원격 HTTP로 붙고 도구가 Claude에 직접 보인다 |
+| D7 | **사용자의 Claude는 MCP로 접속.** 서버는 **사용자 범위에 머신당 1회** 등록되고(B-1 선택지 3), 에이전트는 파일 대신 MCP 도구로 상태를 읽고 쓴다 | Claude Code의 표준 외부 연결. 저장소마다의 `.mcp.json`·재시작 승인이 없고 도구 이름도 `mcp__harness__*` 그대로다 |
 | D8 | **게이트는 서버가 강제.** 에이전트 토큰용 MCP 서버에 게이트·반려 도구를 등록하지 않는다 | 불변식 4를 문서에서 코드로 |
 | D9 | **에이전트는 템플릿 + `harness.json` 파라미터로 저장소에 생성.** 플러그인은 에이전트를 직접 싣지 않는다 | 보드 `agent`가 bare name, 플러그인 에이전트는 네임스페이스·최하위 우선순위, 클라우드 자동 설치 미확인 |
 | D10 | **실행기 분리**: `local`(사용자 Claude Code) 먼저, `routine`(사용자 계정 claude.ai 루틴)은 Phase 3, `hosted`는 범위 밖 | 되돌리기 쉬운 결정 |
@@ -65,7 +65,7 @@
 | --- | --- | --- |
 | P1 **웹** | 프로젝트 등록·토큰 발급, 백로그 편집, 보드·결재함(게이트)·여정·진행, 계획서·기록 뷰어, (Phase 3) 실행 지시 | GitHub 로그인, 항목 작성, 도장 |
 | P2 **MCP 서버** | `/api/mcp` — 에이전트용 도구 세트(§5). 프로젝트 토큰으로 인증 | 없음(플러그인이 연결) |
-| P3 **플러그인** | `/harness:init`(에이전트·규약·`.mcp.json` 생성), `/harness:upgrade`, (Phase 3) `verify-plan`·`setup-routines` | `claude plugin install` + `/harness:init` |
+| P3 **플러그인** | `/harness:init`(에이전트·규약 생성 + MCP 서버를 사용자 범위에 등록), `/harness:upgrade`, (Phase 3) `verify-plan`·`setup-routines` | `claude plugin install` + `/harness:init` |
 
 **제공하지 않는 것:** 토큰, 실행 인프라, 코드 실행, 호스팅 러너.
 
@@ -119,7 +119,7 @@
        ▲ MCP 도구 호출 (Bearer 프로젝트 토큰)                ▲ 웹 로그인(GitHub OAuth) — 게이트·반려·백로그 편집
 [사용자의 Claude Code / (Phase 3) 사용자 루틴]                [사용자(사람)]
        ▲ clone · commit · push
-[사용자 저장소]  코드 · docs/plans/ · docs/agents/ · .claude/agents/(생성) · harness.json · .mcp.json
+[사용자 저장소]  코드 · docs/plans/ · docs/agents/ · .claude/agents/(생성) · harness.json
 ```
 
 서비스와 사용자의 Claude는 MCP로만 만난다. 서비스는 저장소를 쓰지 않는다(Phase 4 GitHub App은 **읽기** 전용 — 계획서 본문 표시).
@@ -151,7 +151,7 @@
 | 행위자 기록 `docs/agents/<행위자>/<ID>.md` | 저장소 | 코드 인접·append-only |
 | 에이전트 정의 `.claude/agents/*.md` | 저장소(생성물) | D9 |
 | `harness.json`(워크스페이스·검증 명령) | 저장소 | D11 — 코드와 함께 바뀜 |
-| `.mcp.json` | 저장소(생성물) | 연결 설정 |
+| MCP 등록 | 사용자 범위(머신당 1회) | 연결 설정. 저장소별로 다른 서버가 필요할 때만 `.mcp.json`으로 덮어쓴다 |
 | 검증 카탈로그·계획서 템플릿·기록 규약 | 저장소(생성물) | 에이전트가 읽는 규약 |
 | 배포 확인 원장 | DB (Phase 3) | 자동 마감 루틴이 REST/MCP로 닫음 |
 
@@ -159,7 +159,7 @@
 
 | kind | 트리거 | 실행 주체 | 상태 접근 | Phase |
 | --- | --- | --- | --- | --- |
-| `local` | 사용자가 Claude Code에서 런북대로 디스패치 | 사용자 세션 | MCP(`.mcp.json` + `HARNESS_TOKEN`) | 1 |
+| `local` | 사용자가 Claude Code에서 런북대로 디스패치 | 사용자 세션 | MCP(사용자 범위 등록 + `HARNESS_TOKEN`) | 1 |
 | `routine` | 명령 원장 폴링(cron) 또는 GitHub 이벤트 | 사용자 계정 claude.ai 루틴 | MCP(환경변수 토큰) + 허용 도메인에 서비스 호스트 | 3 |
 | `hosted` | — | — | — | 범위 밖 |
 
@@ -169,7 +169,7 @@
 | --- | --- | --- | --- |
 | `harness.json` | 코드 인접 설정(사용자 소유) | init 인터뷰 | §6. lock 대상 아님 |
 | `harness.lock.json` | 잠금 | 생성기 | 생성 파일별 `{template, hash}` |
-| `.mcp.json` | 연결 | 생성기 | `mcpServers.harness`만 **병합**(다른 서버 보존). lock 대상 아님 |
+| `.mcp.json` | 연결(레거시·선택) | 생성기 | 더 이상 쓰지 않는다. 이미 있으면 `harness`·`harness_owner`만 **걷어내고**(범위 우선순위가 project > user라 남기면 계속 이긴다) 다른 서버는 보존한다. lock 대상 아님 |
 | `CLAUDE.md` | 런북 | `templates/ko/CLAUDE.runbook.md` | 마커 절만 삽입·교체 |
 | `docs/plans/README.md`, `template.md`, `verification-paths.md` | 규약 | `templates/ko/docs/plans/*` | |
 | `docs/agents/README.md` | 규약 | `templates/ko/docs/agents/README.md` | 행위자 표는 roster에서 |
@@ -246,7 +246,7 @@
 }
 ```
 
-값은 전부 ApcH 실측(`.claude/agents/web-dev.md` B-5, `admin-dev.md:147-149`, `backend-dev.md:162-163`, 각 「읽기만 가능」, `run.mjs:11`). `executor.commandIssue`는 `routine`일 때만(Phase 3). 서버 URL은 `harness.json`이 아니라 `.mcp.json`에 있다.
+값은 전부 ApcH 실측(`.claude/agents/web-dev.md` B-5, `admin-dev.md:147-149`, `backend-dev.md:162-163`, 각 「읽기만 가능」, `run.mjs:11`). `executor.commandIssue`는 `routine`일 때만(Phase 3). 서버 URL은 `harness.json`이 아니라 셸의 `HARNESS_SERVER`와 사용자 범위 MCP 등록에 있다.
 
 ## 7. 저장소 레이아웃 (새 프로젝트)
 
