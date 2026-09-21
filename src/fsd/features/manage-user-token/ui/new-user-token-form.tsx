@@ -7,12 +7,13 @@ import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 
 // 서버 액션은 route가 prop으로 넘긴다 — "use client" 파일은 *.server를 import할 수 없다(fsd.md).
-type Props = { issue: (label: string) => Promise<ActionResult<{ token: string }>>; mcpUrl: string; serverUrl: string };
+type Props = { issue: (label: string) => Promise<ActionResult<{ token: string }>>; mcpUrl: string };
 
-// 노출 화면은 프로젝트 토큰과 **같은 것**을 쓴다(entities/project-token의 TokenReveal).
+// 노출 화면은 프로젝트 토큰과 **같은 컴포넌트**를 쓴다(entities/project-token의 TokenReveal).
 // 1회 노출 규약은 토큰 종류와 무관하고, 셸 변수 이름도 HARNESS_TOKEN으로 같다 —
-// 생성기가 .mcp.json에 쓰는 참조가 `${HARNESS_TOKEN}` 하나이기 때문이다.
-export function NewUserTokenForm({ issue, mcpUrl, serverUrl }: Props) {
+// 사용자 범위 MCP 등록에 들어가는 참조가 `${HARNESS_TOKEN}` 하나이기 때문이다.
+// 2·3단계는 그 컴포넌트가 접두(hu_)를 보고 바꾼다: 이 토큰은 머신에 한 번 영구 저장한다.
+export function NewUserTokenForm({ issue, mcpUrl }: Props) {
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -48,7 +49,7 @@ export function NewUserTokenForm({ issue, mcpUrl, serverUrl }: Props) {
         </Button>
       </form>
       {error ? <p className="text-sm text-risk">{error}</p> : null}
-      {token ? <TokenReveal token={token} mcpUrl={mcpUrl} serverUrl={serverUrl} /> : null}
+      {token ? <TokenReveal token={token} mcpUrl={mcpUrl} /> : null}
     </div>
   );
 }

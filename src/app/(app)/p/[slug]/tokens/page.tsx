@@ -4,7 +4,7 @@ import { issueOwnerToken, issueToken, revokeOwnerToken, revokeToken } from "@/fs
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
-import { mcpUrl, ownerMcpUrl, serverUrl } from "@/server/public-url";
+import { mcpUrl, ownerMcpUrl } from "@/server/public-url";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/tokens">) {
   const { slug } = await params;
@@ -19,7 +19,6 @@ export default async function Page({ params }: PageProps<"/p/[slug]/tokens">) {
   return (
     <ProjectTokensPage
       mcpUrl={mcpUrl()}
-      serverUrl={serverUrl()}
       tokens={tokens}
       issue={issueToken.bind(null, slug)}
       revoke={revokeToken.bind(null, slug)}

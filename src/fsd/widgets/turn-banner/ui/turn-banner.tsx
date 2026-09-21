@@ -157,13 +157,7 @@ function SetupList({ steps, current, slug }: { steps: SetupStep[]; current: numb
               <span className={cn(isCurrent && "font-medium text-mine")}>
                 {step.title}
                 <small className="block text-xs font-normal text-quiet">
-                  {step.key === "connect" ? (
-                    <>
-                      Open it in Claude Code with the token set, run <Code>/harness:init</Code>, restart, approve the server.
-                    </>
-                  ) : (
-                    step.detail
-                  )}
+                  <DetailText text={step.detail} />
                 </small>
               </span>
               <SetupAside step={step} slug={slug} />
@@ -172,6 +166,22 @@ function SetupList({ steps, current, slug }: { steps: SetupStep[]; current: numb
         })}
       </ol>
     </section>
+  );
+}
+
+// 문장은 모델의 `detail` 하나다 — 여기서는 슬래시 명령만 Code로 감싼다. 같은 문장을 JSX에 한 번 더 적어 두었더니
+// 그 사본이 "approve the server"를 들고 남았다(product-copy.md §5의 잠금 블록, turn.test.ts).
+const SLASH_COMMAND = "/harness:init";
+
+function DetailText({ text }: { text: string }) {
+  const [before, ...rest] = text.split(SLASH_COMMAND);
+  if (rest.length === 0) return <>{text}</>;
+  return (
+    <>
+      {before}
+      <Code>{SLASH_COMMAND}</Code>
+      {rest.join(SLASH_COMMAND)}
+    </>
   );
 }
 

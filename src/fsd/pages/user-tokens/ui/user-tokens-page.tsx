@@ -8,8 +8,6 @@ export type UserTokenRow = { id: string; label: string; createdAt: Date; revoked
 
 type Props = {
   mcpUrl: string;
-  // 화면에 보이는 것은 mcpUrl이고, 셸로 옮기는 것은 base인 serverUrl이다. 출처는 하나다(public-url.ts).
-  serverUrl: string;
   tokens: UserTokenRow[];
   issue: (label: string) => Promise<ActionResult<{ token: string }>>;
   revoke: (tokenId: string) => Promise<void>;
@@ -19,7 +17,7 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 
 // project-tokens의 표와 같은 모양이지만 그쪽 파일 안에 있는 것을 가져오지 않는다 —
 // 같은 layer의 다른 slice는 import할 수 없고(fsd), 그 화면은 이번 변경이 건드리지 않는다.
-export function UserTokensPage({ mcpUrl, serverUrl, tokens, issue, revoke }: Props) {
+export function UserTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
   return (
     <>
       <section className="flex flex-col gap-1">
@@ -39,7 +37,7 @@ export function UserTokensPage({ mcpUrl, serverUrl, tokens, issue, revoke }: Pro
         </p>
       </section>
 
-      <NewUserTokenForm issue={issue} mcpUrl={mcpUrl} serverUrl={serverUrl} />
+      <NewUserTokenForm issue={issue} mcpUrl={mcpUrl} />
 
       <Table>
         <thead>
