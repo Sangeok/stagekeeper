@@ -66,7 +66,7 @@ function setupSteps(setup: SetupState): SetupStep[] {
     {
       key: "connect",
       title: "Connect the repository",
-      detail: "Open it in Claude Code with the token set, run /harness:init, restart, approve the server.",
+      detail: "Open it in Claude Code with the token set and run /harness:init. It connects the repository and tells you when to restart.",
       done: setup.rosterSynced,
     },
     {

@@ -19,14 +19,27 @@ in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).
   them (`/settings/tokens` for a user token, `/p/<slug>/tokens` for a project token) and say
   plainly why you are not doing this part: anything pasted into the chat lands in the session
   transcript, and `setx HARNESS_TOKEN <value>` would additionally leave it in shell history.
-  Tell them a history-safe way — on PowerShell read it into a variable first
-  (`$t = Read-Host -AsSecureString`, convert, then `setx`), on POSIX edit the profile file
-  directly rather than typing an `export` at the prompt. Then stop until
+  The page that issued the token shows the exact commands — point them there rather than
+  composing your own. **Where the token goes depends on its kind**, below. Then stop until
   `test -n "$HARNESS_TOKEN"` passes. Never print the token value.
 
 Two kinds of token work here. A **project token** (`hs_`) carries the project itself — one per
 repository. A **user token** (`hu_`) carries only who the user is, so one token works in every
 repository from one shell; the project then comes from `harness.json`'s `project.slug`.
+
+- A **user token** (`hu_`) is saved once per machine. Tell them a history-safe way — on
+  PowerShell read it into a variable first (`$t = Read-Host -AsSecureString`, convert, then
+  `[Environment]::SetEnvironmentVariable(..., "User")`), on Git Bash `read -rs` then `setx`, on
+  macOS or Linux edit the profile file directly rather than typing an `export` at the prompt.
+  Say plainly that this stores the value as plain text in their user environment.
+- A **project token** (`hs_`) belongs to one repository — keep it in the terminal that starts
+  Claude Code. **Do not save it machine-wide**: `HARNESS_TOKEN` is one variable, and a second
+  repository's token would overwrite this one. The cost is that a new terminal has no token, and
+  the token cannot be shown again; if they want to set it once, that is what a user token is for.
+- **Never read the token out of a repository `.env` file**, even when one is sitting there. The
+  generator and the MCP registration read the process environment only, so a run that "works"
+  off `.env` stops working at the restart in step 4 — and the user is left with two tokens that
+  disagree.
 
 **Before switching an already-connected repository to a user token, rerun `/harness:init` once.**
 An older `harness.json` has no `project.slug`, and a `hu_` token has nothing else to name the
@@ -114,6 +127,10 @@ from that reference, then stop before step 1. After installation, rerun this pre
    Then tell the user to **restart Claude Code** and confirm `mcp__harness__project_get` works
    (and `mcp__harness_owner__gate_approve` when the owner server was registered) — skipping the
    confirmation makes a later `project_get` look like it is failing for no reason.
+   **With a project token (`hs_`), say "restart from this same terminal."** That token lives only
+   in the terminal that started this session; a new terminal starts Claude Code without it and the
+   server fails to connect. The web page no longer says this — it stops at `/harness:init` — so
+   this is the only place the user hears it. A saved user token (`hu_`) works from any terminal.
    A repository that must talk to a *different* server keeps its own `.mcp.json`: project scope
    outranks user scope, so that file stays the deliberate per-repo override.
 5. Pass `harness.json.workspaces` and `harness.json.language` (default `en`) to
