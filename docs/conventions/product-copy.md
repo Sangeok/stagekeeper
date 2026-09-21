@@ -353,8 +353,8 @@ rendered in the Team row; the row shows only the agent handle and its state.
 >
 > **2. Set the token in the terminal that will start Claude Code**
 > Claude Code reads this environment variable when it starts. A repository `.env` file is not
-> loaded for this connection. The generated `.mcp.json` references `${HARNESS_TOKEN}`, so
-> committing it doesn't leak the token.
+> loaded for this connection. The MCP registration stores only a `${HARNESS_TOKEN}` reference,
+> never the value, so nothing on disk leaks the token.
 > PowerShell `$env:HARNESS_TOKEN = "hs_…"` · bash / zsh `export HARNESS_TOKEN="hs_…"` — **Copy** / "Copied"
 > You don't need to set the server address — `/harness:init` does that for you.
 >
@@ -407,13 +407,13 @@ to write it)`로 떨어진다. **`hu_`를 쓰기 전에 `/harness:init`을 한 �
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
 >
 > **1. Set it in the same shell as your agent token**
-> It's yours, not the project's. The generated `.mcp.json` references `${HARNESS_OWNER_TOKEN}`;
-> agents never see the value.
+> It's yours, not the project's. The MCP registration stores only a `${HARNESS_OWNER_TOKEN}`
+> reference; agents never see the value.
 > PowerShell `$env:HARNESS_OWNER_TOKEN = "ho_…"` · bash / zsh `export HARNESS_OWNER_TOKEN="ho_…"` — **Copy** / "Copied"
 >
 > **2. Rerun the connection from that shell, then restart Claude Code** `/harness:init`
-> With the variable set, init adds the `harness_owner` server to `.mcp.json`. Approve it when
-> `/mcp` asks. Owner MCP server URL: `http://…/api/mcp/owner`
+> With the variable set, init registers a `harness_owner` server once per machine. There is no
+> approval prompt — user-scope servers load on their own. Owner MCP server URL: `http://…/api/mcp/owner`
 
 **Account tokens** — `/settings/tokens`. 프로젝트 밖의 계정 단위 경로이고 `/billing`이 그 선례다.
 `/p/[slug]/tokens`와 **별개 화면**이며 그쪽은 이번 변경이 건드리지 않는다 — `tokens`는 `PROJECT_TABS`의
@@ -429,7 +429,7 @@ to write it)`로 떨어진다. **`hu_`를 쓰기 전에 `/harness:init`을 한 �
 - Table: Label · Issued · Status · Reference. Status "Active" / "Revoked 2026-08-30".
   Reference `user:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 - 발급 직후의 노출은 프로젝트 토큰과 **같은 화면**이다(`TokenReveal`). 셸 변수 이름도 `HARNESS_TOKEN`으로
-  같다 — 생성기가 `.mcp.json`에 쓰는 참조가 하나이기 때문이다. 1회 노출 규약은 토큰 종류와 무관하다.
+  같다 — MCP 등록에 들어가는 참조가 하나이기 때문이다. 1회 노출 규약은 토큰 종류와 무관하다.
 - 진입점은 머리(`AppHeader`)의 **Tokens** 링크다. `(app)` 셸에는 내비게이션이 없어, 링크를 걸지 않으면
   주소를 직접 치는 사람만 닿는다.
 
@@ -755,17 +755,18 @@ both). Below: each file's title, its section headings, and the sentences that se
   · "Unexpected /api/templates response (no `templates` key): plugin and server are out of
   step — update the harness plugin." (a pre-Phase-4 server; exit 1) · "Template missing on
   server: en/agents/pm.md"
-- `harness-init.mjs --owner` (session approvals): adds a second server to `.mcp.json`,
-  `harness_owner` → `<server>/api/mcp/owner` with `Authorization: Bearer ${HARNESS_OWNER_TOKEN}`.
-  Without the flag `.mcp.json` is exactly what it was — no owner entry, no prompt for it.
+- `harness-init.mjs --owner` (session approvals): **no longer writes a server.** It prints where
+  the owner server moved — the skill registers `harness_owner` → `<server>/api/mcp/owner` with
+  `Authorization: Bearer ${HARNESS_OWNER_TOKEN}` at user scope when the variable is set. The note
+  exists so an older skill still passing the flag cannot cost the user the owner server silently.
 - `plugin.json` description: "Connect a repository to Stagekeeper — an agent pipeline whose
   rules you set."
 - `marketplace.json` description: same.
 - `SKILL.md` (`/harness:init`): description "Connect this repository to Stagekeeper: write
-  harness.json, generate agents and conventions, register .mcp.json, sync the roster." Steps
-  keep today's seven; wording: "Ask one question at a time." · "Show the dry run and get a yes
-  before writing." · "Tell the user to restart Claude Code — .mcp.json is read at session start
-  — and to approve the `harness` server when `/mcp` shows Pending approval." · "Leave the
+  harness.json, generate agents and conventions, register the MCP server once per machine, sync
+  the roster." Steps keep today's seven; wording: "Ask one question at a time." · "Show the dry
+  run and get a yes before writing." · "Tell the user to restart Claude Code — the registration is
+  read at session start. There is no approval prompt: user-scope servers load on their own." · "Leave the
   commit to the user." Step 6 says a knowledge doc is optional and offers one instead of
   requiring it: "The workspace's dev agent is told to read one before it writes a plan, and
   doc-auditor audits it right after the backlog; without one, every plan says the workspace has
