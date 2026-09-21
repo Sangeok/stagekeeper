@@ -2,17 +2,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { OWNER_TOKEN_VARIABLE, PLUGIN_ID, PLUGIN_MARKETPLACE, SERVER_VARIABLE, connectCommands, installCommands, serverCommands } from "./connect-command";
+import { TOKEN_KINDS } from "@harness/core/token.mjs";
+import { OWNER_TOKEN_VARIABLE, PLUGIN_ID, PLUGIN_MARKETPLACE, connectCommands, installCommands, profileLine, saveCommands, tokenKind } from "./connect-command";
 
 describe("connectCommands", () => {
   it("gives one runnable line per shell, with the token inlined", () => {
     const commands = connectCommands("hs_abc");
     assert.deepEqual(commands.map((c) => c.kind), ["powershell", "posix"]);
+    assert.deepEqual(commands.map((c) => c.label), ["PowerShell", "bash / zsh"]);
     assert.equal(commands[0]?.command, '$env:HARNESS_TOKEN = "hs_abc"');
     assert.equal(commands[1]?.command, 'export HARNESS_TOKEN="hs_abc"');
   });
 
-  it("names the variable the generator writes into .mcp.json", () => {
+  it("names the variable the MCP registration references", () => {
     for (const entry of connectCommands("hs_abc")) assert.match(entry.command, /HARNESS_TOKEN/);
   });
 
@@ -24,25 +26,38 @@ describe("connectCommands", () => {
   });
 });
 
-describe("serverCommands", () => {
-  // 토큰 줄과 같은 모양이어야 한다 — 사용자는 2단계에서 이미 셸에 붙여넣고 있다.
-  it("gives one runnable line per shell, with the base URL inlined", () => {
-    const commands = serverCommands("https://example.test");
-    assert.deepEqual(commands.map((c) => c.kind), ["powershell", "posix"]);
-    assert.equal(commands[0]?.command, '$env:HARNESS_SERVER = "https://example.test"');
-    assert.equal(commands[1]?.command, 'export HARNESS_SERVER="https://example.test"');
+// 서버 주소를 셸로 옮기는 줄은 없앴다 — /harness:init이 HARNESS_SERVER를 직접 설정한다(product-copy.md §9).
+describe("tokenKind", () => {
+  // 화면은 접두로 종류를 읽는다. 접두의 출처는 packages/core/token.mjs 하나다 — 그 모듈은 node:crypto를 끌고 와서
+  // 클라이언트 번들에 넣을 수 없으므로 여기서는 문자열로 다시 적고, 이 시험이 둘을 묶는다.
+  it("reads the kind off the prefix packages/core issues", () => {
+    assert.equal(tokenKind(`${TOKEN_KINDS.user}abc`), "user");
+    assert.equal(tokenKind(`${TOKEN_KINDS.agent}abc`), "project");
+  });
+});
+
+describe("saveCommands", () => {
+  // hu_만 머신 전역에 저장한다. hs_는 저장소마다 값이 달라 두 번째 저장소가 첫 번째를 덮어쓴다.
+  it("gives one line per Windows shell that persists the variable and sets it in this shell too", () => {
+    const commands = saveCommands();
+    assert.deepEqual(commands.map((c) => c.kind), ["powershell", "gitbash"]);
+    assert.ok(commands[0]!.command.includes('[Environment]::SetEnvironmentVariable("HARNESS_TOKEN", $p, "User")'));
+    assert.ok(commands[0]!.command.endsWith("$env:HARNESS_TOKEN = $p"));
+    assert.ok(commands[1]!.command.includes('setx HARNESS_TOKEN "$t"'));
+    assert.ok(commands[1]!.command.includes('export HARNESS_TOKEN="$t"'));
   });
 
-  // 생성기가 읽는 변수 이름이다(harness-init.mjs). 이름이 갈리면 init이 서버 URL을 다시 묻는다.
-  it("names the variable the generator reads", () => {
-    assert.equal(SERVER_VARIABLE, "HARNESS_SERVER");
-    for (const entry of serverCommands("https://example.test")) assert.match(entry.command, /HARNESS_SERVER/);
+  // 값을 싣지 않고 입력을 받는다 — 그래서 인자가 없다. 셸 히스토리에 남는 것은 이 줄뿐이다.
+  it("asks for the token instead of carrying it", () => {
+    const [powershell, gitbash] = saveCommands();
+    assert.match(powershell!.command, /Read-Host "HARNESS_TOKEN" -AsSecureString/);
+    assert.match(gitbash!.command, /^read -rsp /);
+    assert.match(gitbash!.command, /; unset t$/);
+    for (const entry of saveCommands()) assert.doesNotMatch(entry.command, /h[sou]_/);
   });
 
-  // 화면이 보여 주는 것은 `<base>/api/mcp`지만 셸에 넣는 것은 base다. 생성기가 꼬리를 떼 주긴 하지만
-  // 웹이 처음부터 base를 주는 것이 이 줄의 요점이다.
-  it("carries the base URL, not the displayed MCP URL", () => {
-    for (const entry of serverCommands("https://example.test")) assert.doesNotMatch(entry.command, /\/api\/mcp/);
+  it("gives the profile line for macOS and Linux, with the token inlined — it goes into a file, not a prompt", () => {
+    assert.equal(profileLine("hu_abc"), 'export HARNESS_TOKEN="hu_abc"');
   });
 });
 
