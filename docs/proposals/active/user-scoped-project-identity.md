@@ -7,7 +7,7 @@ approved-by: "user (conversation)"
 approved-at: "2026-09-20"
 approval-scope: "A(Execution Plan 1~7) 구현. B-1은 2026-09-21에 선택지 3(사용자 범위 등록)으로 결정됐다 — 개명 0곳이고 이 저장소 하나로 닫힌다, B-2는 배포 부재로 실행 불가, C는 A가 녹색이 된 뒤 별도 판단. 커밋·푸시·PR은 별도 지시."
 completed-at: null
-verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). hu_는 /api/mcp에 실호출해 initialize 200 · 내 슬러그 성공 · PROJECT_REQUIRED · NOT_YOURS · 폐기 후 401을 실물로 확인했다(토큰은 삭제, 전후 0행). CI check(PR #55)는 build 포함 success. C-1(POST /api/projects)과 C-2(생성기 --register · SKILL 토큰 분기)는 구현·시험 완료 — test 176/176, test:web 369/369, CI check(PR #57) success(1차는 픽스처가 git 기본 브랜치를 환경에서 물려받아 CI에서만 실패했고, git init -b main으로 고정해 해소). REST 3종(/api/templates·/api/runbook·/api/project)의 hu_ 경로도 실토큰으로 확인했다 — 성공·PROJECT_REQUIRED·NOT_YOURS에 hs_ 회귀까지 15개 단언, runbook은 쓰기라 원값을 복원했다. 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · 발급·폐기 서버 액션 · C의 동시성 판정((g)(i)) · init 재실행 수동 인수. C-3(셸 설정)은 **제안서보다 좁게 완료**했다 — HARNESS_SERVER는 에이전트가 직접 설정하고, 토큰은 값을 받지 않는다(붙여넣으면 transcript에, setx는 셸 히스토리에 남는다). 그래서 '프로젝트마다 0회'는 달성하고 토큰은 '머신당 1회'로 남는다. 제안서가 목표한 '설정 0회'를 원하면 그 맞교환을 명시적으로 승인해야 한다 — 미결 결정이다. B-1·B-2는 미착수."
+verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). hu_는 /api/mcp에 실호출해 initialize 200 · 내 슬러그 성공 · PROJECT_REQUIRED · NOT_YOURS · 폐기 후 401을 실물로 확인했다(토큰은 삭제, 전후 0행). CI check(PR #55)는 build 포함 success. C-1(POST /api/projects)과 C-2(생성기 --register · SKILL 토큰 분기)는 구현·시험 완료 — test 176/176, test:web 369/369, CI check(PR #57) success(1차는 픽스처가 git 기본 브랜치를 환경에서 물려받아 CI에서만 실패했고, git init -b main으로 고정해 해소). REST 3종(/api/templates·/api/runbook·/api/project)의 hu_ 경로도 실토큰으로 확인했다 — 성공·PROJECT_REQUIRED·NOT_YOURS에 hs_ 회귀까지 15개 단언, runbook은 쓰기라 원값을 복원했다. 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · 발급·폐기 서버 액션 · C의 동시성 판정((g)(i)) · init 재실행 수동 인수. C-3(셸 설정)은 **제안서보다 좁게 완료**했다 — HARNESS_SERVER는 에이전트가 직접 설정하고, 토큰은 값을 받지 않는다(붙여넣으면 transcript에, setx는 셸 히스토리에 남는다). 그래서 '프로젝트마다 0회'는 달성하고 토큰은 '머신당 1회'로 남는다. 제안서가 목표한 '설정 0회'를 원하면 그 맞교환을 명시적으로 승인해야 한다 — 미결 결정이다. B-1은 2026-09-21에 선택지 3(사용자 범위 등록)으로 구현·머지됐다(PR #66) — 개명 0곳이고 이 저장소 하나로 닫혔다. B-2는 배포 부재로 여전히 미착수다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -883,8 +883,10 @@ grep -rn "mcp__harness__" \
 아직 실행 전이면 `Not run yet`으로 둔다. 아래는 **A(Execution Plan 1~7) 구현 직후**의 실측(2026-09-20)에
 **2026-09-21의 후속 검증**을 더한 것이다 — REST 3종의 `hu_` 경로 · A-10 범위 쿼리의 생성 SQL ·
 B-1 선택지 3의 실현 가능성.
-**C-1·C-2는 완료**라 해당 행이 통과다. **B-1은 여전히 미착수다** — B-1의 통과 행은 실행이 아니라
-**선택지 3이 가능한지**를 확인한 것이고, 개명은 이 저장소에서도 템플릿 저장소에서도 **한 곳도 하지 않았다**.
+**C-1·C-2는 완료**다. **B-1도 2026-09-21에 선택지 3으로 구현·머지됐다**(PR #66) — 다만 **개명은
+이 저장소에서도 템플릿 저장소에서도 한 곳도 하지 않았다.** 그래서 선택지 1의 개명을 전제한 행들은
+`Not run yet`이 아니라 **해당 없음**이다: 실행될 날이 오지 않는 검사를 미실행으로 적어 두면
+영원히 빚처럼 남는다.
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
@@ -904,9 +906,10 @@ B-1 선택지 3의 실현 가능성.
 | 수동: REST 3종의 `hu_` 경로 | **통과** | 임시 `hu_`로 `/api/project`·`/api/templates`·`/api/runbook`에 실호출했다(**15개 단언 전부 ok**). 셋 다 내 슬러그 → **200**, `project` 누락 → 401 `PROJECT_REQUIRED`, 남의 슬러그 → 403 `not the owner of this project`. **`hs_` 회귀도 함께 확인**했다(`project` 인자 없이 200, 같은 프로젝트) — "`hs_` 경로는 한 줄도 바뀌지 않는다"는 주장을 실물로 받친 자리다. `/api/runbook`은 **쓰기**라 원래 `runbookVersion`을 읽어 두고 검증 뒤 되돌렸다(`null` → 값 → `null`); 임시 `hu_`·`hs_` 토큰도 삭제했다. **MCP 검증이 이것을 대신하지 못한다** — 그쪽은 `scope()`, 이쪽은 `resolveRestScope`로 다른 코드다. 덤으로 `/api/templates`가 200이라 라이브 DB에 `en` 템플릿이 시드돼 있음도 확인됐다 |
 | 수동: A-10 범위 쿼리의 생성 SQL | **통과** | `recentSteps`의 `hu_` 분기는 **단위 시험이 원리상 닿지 못한다** — `next.test.ts:578`이 그 함수를 배열 필터로 통째로 대체해 Prisma가 한 번도 불리지 않는다. 시험이 증명하는 건 "프로젝트로 거른다면 맞다"는 전제이지 전제 자체가 아니다. 그래서 쿼리 로깅을 켜 **생성 SQL을 직접 비교**했다. 우려는 `OR` 안쪽 `run: { tokenId }`와 최상위 `run: { projectId }`가 **같은 키**라 뒤엣것이 삼켜지는 것이었고, 삼켜지면 사용자 토큰의 rate limit이 프로젝트를 넘어 샌다 — A-10이 막으려던 바로 그 표면이다. 결과: Prisma는 **별도 별칭으로 조인**한다(`LEFT JOIN AgentRun j1 … AND ("j1"."projectId" = $4)`). projectId 술어가 범위 없는 쪽 0회 · 있는 쪽 1회 — **필터는 적용된다.** 곁가지로 `j1.id IS NOT NULL`이 `hs_`/`hu_`의 집계 대상을 가를 뻔했으나 `AgentRunStep.runId`가 non-nullable이라(`schema.prisma:239`) 항상 참이다. **격리 DB 없이 닫혔다** — SQL 생성은 데이터와 무관해 `AgentRunStep` 0행에서도 판정된다. 먼저 시도한 개수 대조는 **0행이라 공허했다**(대조군이 필터 적용 여부를 못 가른다) |
 | 수동: B-1 선택지 3(사용자 범위 등록) | **통과** | 가짜 변수·가짜 URL(`127.0.0.1:9`)·임시 이름으로 `claude mcp add --transport http --scope user`를 **실제로 실행**해 확인하고 즉시 제거했다(설정 잔여 0행, 진짜 토큰은 쓰지 않았다). ① `-s/--scope`에 `local\|user\|project`가 실재한다. ② 저장된 헤더가 `Authorization: Bearer ${HARNESS_PROBE_FAKE}` — **`${VAR}`가 글자 그대로 남는다**(설정 파일 직접 `grep`으로 교차 확인). 즉 토큰이 정지 상태로 저장되지 않아 `.mcp.json` 계약(`harness-init.mjs:255`)과 **같은 보안 성질**이다. ③ 승인 프롬프트는 사용자 범위에 걸리지 않는다(저장소 `.mcp.json`에만 적용). ④ 이름은 `mcp__harness__*`로 보존된다 — 플러그인 경유만 `mcp__plugin_…__*`이고, 이는 이 세션의 실제 도구 목록(`mcp__plugin_context7_context7__*`)으로도 확인된다. **함정: 헤더를 큰따옴표로 쓰면 셸이 먼저 치환해 평문이 저장된다** — 작은따옴표 필수 |
-| B-1 옛 이름 부재 `grep`(이 저장소) | Not run yet | B-1 미착수 |
-| B-1 옛 이름 부재 `grep`(`harness-templates`) | Not run yet | B-1 미착수 |
-| 수동: `npm run seed:templates` | Not run yet | B-1에서만 필요 |
+| 수동: 선택지 3의 **생성기→스킬 절차 인수** | **통과** | 임시 이름으로 8단계를 끝까지 돌렸다(끝나고 제거, 설정 잔여 0). ① 생성기 exit 0 → ② **`server:` 줄을 기계적으로 파싱**(`grep '^server: ' \| sed`)해 `https://h.example`를 얻었다 — 사람이 눈으로 읽는 게 아니라 **스킬이 파싱할 모양인지**를 본 자리다. 생성기가 `/api/mcp` 꼬리를 떼므로 스킬이 다시 붙인다 → ③ 없는 이름에 `get`은 명확히 실패 → ④ **작은따옴표** `add` 성공 → ⑤ 저장 형태가 `Authorization: Bearer ${HARNESS_TOKEN}`(**참조이지 평문이 아니다**) → ⑥ 다른 주소로 `add`는 `already exists`(exit 1) → ⑦ `remove` 후 `add`로 주소가 **실제로** 바뀌었다(`https://other.example/api/mcp`) — `SKILL.md` 4단계가 지시하는 분기이고 **절차로서는 이때 처음 실행됐다** → ⑧ 정리 후 잔여 0. **남은 것**: 진짜 `harness` 이름 · 실제 토큰 · 재시작 후 `project_get`. 그건 영구 등록이라 사용자 승인이 필요하다 |
+| B-1 옛 이름 부재 `grep`(이 저장소) | **해당 없음** | 선택지 3은 개명하지 않는다 — 이 검사는 선택지 1 전용이었다 |
+| B-1 옛 이름 부재 `grep`(`harness-templates`) | **해당 없음** | 선택지 3은 그 저장소를 건드리지 않는다 — `.mcp.json`을 한 번도 언급하지 않음을 실측했다 |
+| 수동: `npm run seed:templates` | **해당 없음** | DB 재시드는 선택지 1(개명)의 비용이었다. 선택지 3은 템플릿을 한 글자도 바꾸지 않으므로 필요 없다 |
 
 구현 중 계획서 자체에서 찾은 것(모두 반영했다):
 
