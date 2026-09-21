@@ -758,6 +758,15 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
        보고서 F4·T8")도 그대로 둔다 — 그 실행에 대해서는 여전히 참이다.
      **규칙: 이 문서에서 고칠 것은 규범 진술이지 인용된 과거가 아니다.**
    - **(3-f)** `harness-init.test.mjs`의 `.mcp.json` 단언(32줄)을 재작성한다.
+   - **(3-h) 배포 경로 — 계획에서 빠졌던 항목이다(실사용 시도에서 드러났다).** 구현이 `dev`에
+     머무는 한 사용자에게 도달하지 않는다. 마켓플레이스 `stagekeeper-local`의 source가
+     **`GitHub (Sangeok/stagekeeper)`**이고, `claude plugin marketplace add`에는 브랜치·ref를
+     고르는 선택지가 **없다**(`--claudeai`·`--scope`·`--sparse`뿐). 따라서 기본 브랜치 `main`을 받으며,
+     **`dev` → `main` ff-only 승격이 전달의 전제**다. 그리고 `plugin/.claude-plugin/plugin.json`의
+     **버전을 올려야 한다**(`0.2.0` → `0.3.0`) — 제안서 `:719`가 선택지 1 절차에서 이미 지적한 것인데
+     선택지 3 계획에서 누락했다. 사용자 쪽 갱신 순서는
+     `claude plugin marketplace update stagekeeper-local` → `claude plugin update harness@stagekeeper-local`
+     → **재시작**(도움말이 "restart required to apply"라고 명시한다).
    - **(3-g) `--owner`는 생성기에서 사라진다 — CLI 계약 변경이다.** 그 플래그는 생성기가
      `.mcp.json`을 썼기 때문에 존재했고, 쓰기가 없어지면 할 일이 없다. 소유자 서버도 사용자 범위에
      등록되며, 그 판단은 스킬이 `HARNESS_OWNER_TOKEN` 유무로 직접 한다(이미 `SKILL.md:82`가 그렇게
