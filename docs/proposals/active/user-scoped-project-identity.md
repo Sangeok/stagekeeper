@@ -5,7 +5,7 @@ proposal-size: "standard"
 created-at: "2026-09-20"
 approved-by: "user (conversation)"
 approved-at: "2026-09-20"
-approval-scope: "A(Execution Plan 1~7) 구현. B-1은 세 선택지 중 결정 전까지 착수 금지, B-2는 배포 부재로 실행 불가, C는 A가 녹색이 된 뒤 별도 판단. 커밋·푸시·PR은 별도 지시."
+approval-scope: "A(Execution Plan 1~7) 구현. B-1은 2026-09-21에 선택지 3(사용자 범위 등록)으로 결정됐다 — 개명 0곳이고 이 저장소 하나로 닫힌다, B-2는 배포 부재로 실행 불가, C는 A가 녹색이 된 뒤 별도 판단. 커밋·푸시·PR은 별도 지시."
 completed-at: null
 verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). hu_는 /api/mcp에 실호출해 initialize 200 · 내 슬러그 성공 · PROJECT_REQUIRED · NOT_YOURS · 폐기 후 401을 실물로 확인했다(토큰은 삭제, 전후 0행). CI check(PR #55)는 build 포함 success. C-1(POST /api/projects)과 C-2(생성기 --register · SKILL 토큰 분기)는 구현·시험 완료 — test 176/176, test:web 369/369, CI check(PR #57) success(1차는 픽스처가 git 기본 브랜치를 환경에서 물려받아 CI에서만 실패했고, git init -b main으로 고정해 해소). REST 3종(/api/templates·/api/runbook·/api/project)의 hu_ 경로도 실토큰으로 확인했다 — 성공·PROJECT_REQUIRED·NOT_YOURS에 hs_ 회귀까지 15개 단언, runbook은 쓰기라 원값을 복원했다. 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · 발급·폐기 서버 액션 · C의 동시성 판정((g)(i)) · init 재실행 수동 인수. C-3(셸 설정)은 **제안서보다 좁게 완료**했다 — HARNESS_SERVER는 에이전트가 직접 설정하고, 토큰은 값을 받지 않는다(붙여넣으면 transcript에, setx는 셸 히스토리에 남는다). 그래서 '프로젝트마다 0회'는 달성하고 토큰은 '머신당 1회'로 남는다. 제안서가 목표한 '설정 0회'를 원하면 그 맞교환을 명시적으로 승인해야 한다 — 미결 결정이다. B-1·B-2는 미착수."
 closed-at: null
@@ -41,7 +41,8 @@ related:
 
 **A+C의 도착점**은 프로젝트마다 남는 일이 `/harness:init` 한 번과 워크스페이스 확인, 그리고
 재시작·`/mcp` 승인뿐이고 **토큰·URL 설정은 0**이다. **완전한 "프로젝트마다 0회"는 B-1이
-필요하고, B-1은 승인 대기 중이다**(Approval) — 비용이 이 저장소 밖에 걸쳐 있기 때문이다.
+필요하고, B-1은 2026-09-21에 선택지 3(사용자 범위 등록)으로 결정됐다**(Approval) — "비용이 이
+저장소 밖에 걸쳐 있다"는 우려는 **선택지 1에만** 해당했고, 3번은 이 저장소 하나로 닫힌다.
 
 A는 새 패턴을 만들지 않는다. `gate_approve`가 이미 호출마다 `ownerUserId`로 소유를 확인하고
 (`src/server/mcp/owner-tools.ts:38-39`, `protocol.md:92`), 웹은 `requireProjectOwner`로 같은
@@ -51,8 +52,9 @@ A는 새 패턴을 만들지 않는다. `gate_approve`가 이미 호출마다 `o
 
 - 프로젝트 정체의 출처를 **토큰 → 도구 인자**로 옮긴다. 토큰은 "누구냐"만 말한다.
 - 사용자 단위 토큰(`hu_`)을 도입해 **토큰 발급·설정을 머신당 1회**로 만든다.
-- *(B-1, 승인 대기)* 플러그인이 MCP 서버를 선언해 **저장소마다의 `.mcp.json`·재시작·승인을
-  없앤다**. 이 목표만 조건부다 — 비용이 이 저장소 밖에 걸쳐 있어 Approval의 결정을 따른다.
+- *(B-1, 2026-09-21 결정: 선택지 3)* **저장소마다의 `.mcp.json`·재시작·승인을 없앤다.** 목표는
+  그대로이고 **수단이 바뀌었다** — 플러그인이 서버를 선언하는 대신 **사용자 범위로 머신당 1회**
+  등록한다. 도구 이름이 안 바뀌므로 저장소 밖 비용이 사라진다.
 - 에이전트가 프로젝트 등록과 셸 변수 설정을 **직접 수행**한다 — 명령을 화면에 띄워 사용자에게
   복사시키지 않는다.
 - 기존 `hs_` 토큰으로 연결된 저장소는 **변경 없이 계속 동작**한다.
@@ -162,8 +164,9 @@ owner: async (projectId, userId) =>
 
 - **A**: `UserToken`(`hu_`) 신설, MCP 검증기 확장, `scope()`의 프로젝트 해석·소유 인가,
   도구 13종 입력에 `project` 추가, REST 3종의 사용자 토큰 수용, `harness.json`에 `project.slug`.
-- **B-1**(승인 대기): `plugin/.mcp.json` 신설(**`harness` 하나만** — `harness_owner`는 조건부여야
-  해서 넣을 수 없다), 생성기는 `harness` 항목 쓰기 중단(`--owner`일 때만 `harness_owner`를 쓴다),
+- **B-1**(2026-09-21 결정: **선택지 3**): `plugin/.mcp.json`은 **만들지 않는다** — 그것은 선택지 1의
+  수단이었다. 대신 스킬이 `claude mcp add --scope user`로 머신당 1회 등록하고,
+  생성기는 `harness` 항목 쓰기를 중단한다(`--owner`일 때만 `harness_owner`를 쓴다),
   **에이전트 도구 이름 변경 — 이 저장소 + `Sangeok/harness-templates`(별도 저장소) + DB 재시드**.
 - **B-2**(배포 뒤): 서버 URL 기본값.
 - **C**: `POST /api/projects`(사용자 토큰 인증, 조회·생성을 한 Serializable 트랜잭션에) 신설,
@@ -411,7 +414,8 @@ B는 **두 조각이고 막는 것이 서로 다르다.** B-1을 막는 것은 �
 (비용이 이 저장소 밖에 있다 — Approval), B-2를 막는 것은 **배포의 부재**다. 둘을 한 덩어리로
 승인하거나 보류하면 안 된다.
 
-**B-1 — 기술적으로는 지금 가능하지만 비용이 크다(승인 필요, Approval 참조).**
+**B-1 선택지 1 — 기술적으로는 가능하지만 비용이 크다. 2026-09-21에 채택되지 않았다(Approval 참조).**
+아래 분석은 그 비용이 실제로 얼마인지의 기록이자, 선택지 3이 그것을 어떻게 피하는지의 근거다.
 `plugin/.mcp.json`(루트, 자동 발견), 기본값 없이. **선언하는 서버는 `harness` 하나뿐이다:**
 
 ```json
@@ -584,7 +588,7 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
 | 사용자 토큰 발급·폐기 액션(신규) | **create** | 기존 넷은 `requireProjectWrite(slug)`+`projectId`+`projectPath`로 **구조상 프로젝트에 묶여 있다**(`manage-token.server.ts:14,18,19`). `hu_`에는 셋 다 없다 — `requireUser` 기반으로 새로 만든다 | **high** — 인증 경계 |
 | 새 페이지의 진입점(머리 배지 또는 `/projects` 링크) | update | `(app)/layout.tsx`는 셸만 그리고 내비가 없다 — 링크를 걸지 않으면 화면이 있어도 도달 불가 | low |
 | `src/fsd/{features/manage-token,pages/project-tokens}` | **keep** | 프로젝트 토큰·소유자 토큰 화면은 그대로 둔다 — 이번 변경이 건드리지 않는다 | none |
-| `plugin/.mcp.json` | create | B-1의 서버 선언 — **`harness` 하나만**. `harness_owner`는 조건부여야 하므로 제외(`owner/route.ts:9` required + Pro 게이트). 기본값을 쓰지 않으므로 **C11 예외가 필요 없다** — 그 예외는 B-2에서만 필요하다 | medium — **B-1 승인 전에는 만들지 않는다** |
+| `plugin/.mcp.json` | **만들지 않음** | 선택지 1의 수단이었고 2026-09-21에 **선택지 3**으로 결정돼 이 파일은 생기지 않는다. (당시 설계 기록: `harness` 하나만 선언하고 `harness_owner`는 조건부라 제외 — `owner/route.ts:9` required + Pro 게이트. 기본값을 안 쓰므로 C11 예외도 불필요했다.) | none — 3번은 플러그인 선언을 쓰지 않는다 |
 | `plugin/bin/harness-init.mjs` | update | `.mcp.json` 쓰기 중단, 슬러그 전달, 등록 호출 | medium |
 | `plugin/skills/init/SKILL.md` | update | **A-8 전환 안내**(`hu_` 발급 전 init 1회 재실행으로 슬러그 심기) + 설정 수행 지시 + B-1일 때 **에이전트** 도구 이름 `:57,63,80`만 변경(`:59`는 소유자라 유지) | medium — 전환 안내가 없으면 `hu_` 사용자가 `PROJECT_REQUIRED`에 막힌다 |
 | `plugin/.claude-plugin/plugin.json` | update | 버전 상승(설치본이 갱신되려면 필수) | low |
@@ -705,8 +709,32 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
      **귀결: "프로젝트마다 0회"는 달성하고 토큰은 "머신당 1회"로 남는다** — 제안서의 "설정 0회"
      보다 약하지만, 토큰을 대화에 통과시키는 대가를 치르지 않는다. 0회를 원하면 그 맞교환을
      명시적으로 승인해야 한다. `product-copy.md` §9의 2단계에서 서버 줄을 빼고 그 근거를 적었다.
-9. **B-1 — 승인 대기 중이며 여기서 멈춘다.** Approval의 세 선택지 중 하나가 정해지기 전에는
-   시작하지 않는다. "실행"으로 정해지면 순서는 이렇다:
+9. **B-1 — 2026-09-21에 선택지 3(사용자 범위 등록)으로 결정됐다.** 도구 이름을 바꾸지 않으므로
+   아래 "실행하지 않는 1번 절차"는 기록으로만 남긴다. 검증 근거는 Verification Results의
+   해당 행에 있다. **3번의 절차는 이렇다.**
+   - **(3-a)** 스킬이 `claude mcp add --transport http --scope user harness <SERVER>/api/mcp -H 'Authorization: Bearer ${HARNESS_TOKEN}'`을 **머신당 1회** 수행한다.
+     헤더는 **작은따옴표**여야 한다 — 큰따옴표면 셸이 먼저 치환해 평문이 설정 파일에 저장된다.
+     **생성기가 아니라 스킬이 한다**: 생성기의 계약은 "이 저장소에 파일을 물질화한다"이고 머신
+     전역 설정을 바꾸면 그 계약이 거짓이 된다. C-3에서 `HARNESS_SERVER`를 에이전트가 직접
+     설정한 것과 같은 결이다.
+   - **(3-b)** 생성기가 `.mcp.json`에 `harness`를 쓰지 않는다. 다만 그 파일은 서버 URL의 **최후
+     출처**이기도 했으므로(`recoverServerFromMcp`, `harness-init.mjs:38-45`) 대체가 필요하다 —
+     `claude mcp get harness`의 `URL:` 줄이 같은 역할을 한다(프로브에서 파싱 가능함을 확인했다).
+   - **(3-c)** 이미 연결된 저장소는 **깨지지 않는다.** 범위 우선순위가 `local > project > user`라
+     기존 `.mcp.json`이 계속 이긴다. 그래서 3번의 이득도 자동으로 오지 않는다 — 재실행 시
+     `harness`(`--owner`였다면 `harness_owner`도) 항목만 **제거**하고 다른 서버는 보존한다.
+     **이 제거는 검토 대상이다**: `.mcp.json`은 lock 대상이 아닌 병합 파일이라, 항목을 빼는 것은
+     지금까지 없던 종류의 연산이다.
+   - **(3-d)** 저장소마다 다른 서버를 가리켜야 하면 그 저장소에만 `.mcp.json`을 남긴다 — 우선순위가
+     그대로 **덮어쓰기 탈출구**가 된다. "머신당 URL 하나"라는 제약의 해소책이다.
+   - **(3-e)** `SKILL.md` 2·3·4단계(재시작·`/mcp` 승인)와 `product-copy.md`(`:356,410,415,432,758,760,765,767`)·
+     `harness-platform.md`(D7 `:52`, 파일표 `:172`, `:154,162,249`)를 갱신한다.
+     `connect-command.ts:2-5`와 `public-url.ts:16`은 **주석만** 낡는다(동작 무변).
+   - **(3-f)** `harness-init.test.mjs`의 `.mcp.json` 단언(32줄)을 재작성한다.
+   - **구현 시 실측할 미지수**: 같은 이름이 이미 있을 때 `claude mcp add`가 덮어쓰는지 실패하는지.
+     (3-a)는 `claude mcp get`을 선행해 우회하지만, 우회는 답이 아니라 방어다.
+
+   **실행하지 않는 1번(개명) 절차 — 기록용:**
    1. `Sangeok/harness-templates`에서 템플릿 9개 + `templates.test.mjs` = **10개 파일 44곳**의
       **에이전트** 도구 이름 변경 — `CLAUDE.runbook.md:129`·`templates.test.mjs:177,187`은 건드리지 않는다.
       **착수 전에 그 저장소가 깨끗한지 먼저 본다**(2026-09-20에는 8개 파일이 미커밋이었다) —
@@ -720,8 +748,11 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
    5. 이미 연결된 저장소에 재실행 안내(`skip(modified)` 스텁은 옛 이름을 유지한다)
 10. **B-2(서버 URL 기본값)는 배포가 생기기 전까지 실행하지 않는다.**
 
-각 단계는 독립 커밋으로 둔다. **A(1~7)가 녹색이 되기 전에는 C를 시작하지 않고, B-1은 A·C와
-무관하게 승인 이후에만 시작한다** — B-1은 이 저장소 하나로 닫히지 않기 때문이다.
+각 단계는 독립 커밋으로 둔다. **A(1~7)가 녹색이 되기 전에는 C를 시작하지 않는다.**
+B-1은 2026-09-21에 선택지 3으로 결정됐고, **A와 무관하지 않다** — 머신 하나에 서버를 한 번 거는
+것은 토큰이 저장소를 가로지를 때만 성립하므로 `hu_`(A)가 전제다(`hs_`로는 불가능하다).
+그리고 **선택지 1과 달리 3번은 이 저장소 하나로 닫힌다**: `plugin/templates/`는 `.mcp.json`을
+한 번도 언급하지 않으므로(실측) 별도 저장소도, DB 재시드도 필요 없다.
 
 ## Verification Plan
 
