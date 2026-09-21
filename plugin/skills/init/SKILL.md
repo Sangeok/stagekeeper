@@ -1,6 +1,6 @@
 ---
 name: init
-description: Connect this repository to Stagekeeper — write harness.json, generate the agent definitions and conventions, register .mcp.json, sync the roster. Use when the user says "connect to Stagekeeper" or "/harness:init".
+description: Connect this repository to Stagekeeper — write harness.json, generate the agent definitions and conventions, register the MCP server once per machine, sync the roster. Use when the user says "connect to Stagekeeper" or "/harness:init".
 ---
 
 # harness:init
@@ -80,24 +80,42 @@ from that reference, then stop before step 1. After installation, rerun this pre
    both. If the output has `refuse:` lines, ask whether to `--adopt` — that is the only second
    question, and a clean repository never reaches it.
    Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If it is set, the user issued an
-   **owner token** on the web Tokens tab (it lets their own session open gates): add `--owner` to
-   both the dry run and the real run — the generator writes a second server, `harness_owner`,
-   that references `${HARNESS_OWNER_TOKEN}`. If it is not set, do not add the flag and do not ask
-   for the token. Never print the token value.
+   **owner token** on the web Tokens tab (it lets their own session open gates). Remember that
+   answer for step 4 — **do not pass `--owner`**: the generator no longer writes any server, so the
+   flag has no job and only prints a note saying where the owner server moved. If it is not set,
+   do not ask for the token. Never print the token value.
 3. Run it for real. Report the `plan:`, `write:`, `skip(modified):` and `skip(plan):` lines as
    they are. `skip(plan):` means the project's plan does not include that agent — the server did
    not send it; the user upgrades on the web and reruns. If the run stops with
    `workspace cap reached on the <plan> plan`, nothing was written: `harness.json` names more
    workspaces than the plan allows — drop some or upgrade, then rerun.
-4. `.mcp.json` now exists, so tell the user to **restart Claude Code** (`.mcp.json` is read at
-   session start only). After the restart, if `/mcp` shows `harness` as `⏸ Pending approval`,
-   that's the one-time approval for a project-scoped MCP server — the user has to approve it.
-   If they declined, `claude mcp reset-project-choices` resets it. Then confirm
-   `mcp__harness__project_get` works — skipping this step makes `project_get` look like it's
-   failing for no reason. With `--owner`, `/mcp` also lists `harness_owner`; approve it the same
-   way, and confirm `mcp__harness_owner__gate_approve` is listed. If the shell later lacks
-   `HARNESS_OWNER_TOKEN`, Claude Code keeps the other servers, shows a missing-variable warning for
-   `harness_owner` only, and that server fails to connect until the variable is exported again.
+   **Keep the `server:` line from the output** — it is the resolved base URL and step 4 needs it.
+   Only the generator knows it: the source order (`--server` → `HARNESS_SERVER` → an existing
+   `.mcp.json`) and the tail normalization both live there. If the run also prints
+   `note: that entry was also this repository's only record of the server URL`, the generator just
+   removed the last per-repo copy of the address — make sure `HARNESS_SERVER` holds it (step 0
+   persists it) so the next rerun does not stop with `Server URL required`.
+4. **Register the server once per machine — you do this, do not print a command to copy.** The
+   generator writes no `.mcp.json`; the server lives in the user-scope MCP config instead, so one
+   registration serves every repository and **there is no per-project approval prompt**. Use the
+   base URL from step 3's `server:` line.
+   - Check first: `claude mcp get harness`. This is **required, not defensive** — adding a name
+     that already exists fails with `already exists in user config` (exit 1) and changes nothing,
+     and init is rerun routinely.
+   - Absent → add it. **Single quotes around the header**, or the shell expands the variable before
+     the CLI sees it and the token is written into the config as plaintext:
+     `claude mcp add --transport http --scope user harness <base>/api/mcp -H 'Authorization: Bearer ${HARNESS_TOKEN}'`
+   - Present but pointing at a different URL → `claude mcp remove harness -s user`, then add.
+     Re-adding alone does not update it; the old address would silently stay.
+   - If `HARNESS_OWNER_TOKEN` was set in step 2, register the owner server the same way:
+     `harness_owner` at `<base>/api/mcp/owner` referencing `${HARNESS_OWNER_TOKEN}`. Skip it
+     otherwise — a registered server with no variable just fails to connect.
+
+   Then tell the user to **restart Claude Code** and confirm `mcp__harness__project_get` works
+   (and `mcp__harness_owner__gate_approve` when the owner server was registered) — skipping the
+   confirmation makes a later `project_get` look like it is failing for no reason.
+   A repository that must talk to a *different* server keeps its own `.mcp.json`: project scope
+   outranks user scope, so that file stays the deliberate per-repo override.
 5. Pass `harness.json.workspaces` and `harness.json.language` (default `en`) to
    `mcp__harness__project_sync` as `{ workspaces, language }` — that's what creates the roster on
    the web board, and the language is what `agent_next` serves steps in.

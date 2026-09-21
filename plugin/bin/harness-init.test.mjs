@@ -101,33 +101,37 @@ const withServer = async (body, fn, { postStatus = 200, project = null, projectS
 };
 
 describe("harness-init (v2)", () => {
-  it("materializes agents, docs, runbook, .mcp.json, lock — and no state files", () => {
+  // .mcp.json은 더 이상 생성물이 아니다(B-1 선택지 3) — 서버는 사용자 범위에 머신당 1회 등록된다.
+  // 그래서 "없어야 할 것" 쪽으로 옮겼고, 해석된 주소는 stdout의 `server:` 줄이 알려 준다.
+  it("materializes agents, docs, runbook, lock — no state files and no .mcp.json", () => {
     const root = fresh();
     const r = run(root);
     assert.equal(r.code, 0, r.out);
-    for (const p of ["CLAUDE.md", ".mcp.json", "harness.lock.json", "docs/plans/README.md", "docs/plans/template.md", "docs/plans/verification-paths.md",
+    for (const p of ["CLAUDE.md", "harness.lock.json", "docs/plans/README.md", "docs/plans/template.md", "docs/plans/verification-paths.md",
       "docs/agents/README.md", ".claude/agents/pm.md", ".claude/agents/plan-verifier.md", ".claude/agents/doc-auditor.md", ".claude/agents/feature-scout.md",
       ".claude/agents/web-dev.md", ".claude/agents/admin-dev.md", ".claude/agents/backend-dev.md"]) assert.ok(existsSync(join(root, p)), `missing ${p}`);
-    for (const p of ["PROJECT_BOARD.md", "TASK_BACKLOG.md", "docs/release-checks.md", "scripts"]) assert.ok(!existsSync(join(root, p)), `unexpected ${p}`);
-    const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
-    assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
-    assert.equal(mcp.mcpServers.harness.headers.Authorization, "Bearer ${HARNESS_TOKEN}");
+    for (const p of ["PROJECT_BOARD.md", "TASK_BACKLOG.md", "docs/release-checks.md", "scripts", ".mcp.json"]) assert.ok(!existsSync(join(root, p)), `unexpected ${p}`);
+    assert.match(r.out, /^server: https:\/\/h\.example$/m); // 스킬이 claude mcp add에 넘길 주소
+    assert.doesNotMatch(r.out, /write: \.mcp\.json/); // 걷어낼 게 없으면 손대지 않는다
     assert.doesNotMatch(readFileSync(join(root, ".claude/agents/backend-dev.md"), "utf8"), /\{\{/);
     const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
     assert.equal(lock.version, 1);
     assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files)); // 병합 파일은 잠그지 않는다
     assert.match(r.out, /^plan: max$/m); // 우회로의 기본 플랜
   });
-  it("--owner adds the owner server next to harness, referencing HARNESS_OWNER_TOKEN; without it nothing is added", () => {
+  // --owner는 생성기에서 사라졌다(3-g). 조용히 무시하면 옛 스킬이 계속 넘길 때 사용자가 소유자
+  // 서버를 잃고도 모르므로, 어디로 옮겼는지 알리고 파일은 만들지 않는다.
+  it("--owner no longer writes a server: it says where the owner server moved, and writes no .mcp.json", () => {
     const withOwner = fresh();
-    assert.equal(run(withOwner, "--owner").code, 0);
-    const mcp = JSON.parse(readFileSync(join(withOwner, ".mcp.json"), "utf8"));
-    assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
-    assert.equal(mcp.mcpServers.harness_owner.url, "https://h.example/api/mcp/owner");
-    assert.equal(mcp.mcpServers.harness_owner.headers.Authorization, "Bearer ${HARNESS_OWNER_TOKEN}");
+    const r = run(withOwner, "--owner");
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /^note: --owner no longer writes a server here/m);
+    assert.match(r.out, /harness_owner at user scope when HARNESS_OWNER_TOKEN is set/);
+    assert.ok(!existsSync(join(withOwner, ".mcp.json")), "unexpected .mcp.json");
     const plain = fresh();
-    assert.equal(run(plain).code, 0);
-    assert.equal(JSON.parse(readFileSync(join(plain, ".mcp.json"), "utf8")).mcpServers.harness_owner, undefined);
+    const p = run(plain);
+    assert.equal(p.code, 0, p.out);
+    assert.doesNotMatch(p.out, /--owner no longer writes/); // 플래그를 안 주면 안내도 없다
   });
   it("agent files are stubs — no step body reaches disk", () => {
     const root = fresh();
@@ -140,13 +144,24 @@ describe("harness-init (v2)", () => {
     assert.match(readFileSync(join(root, ".claude/agents/web-dev.md"), "utf8"), /^name: web-dev$/m);
     assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
   });
-  it("merges .mcp.json, preserving other servers", () => {
+  // 범위 우선순위가 local > project > user라, 저장소 항목을 남겨 두면 사용자 범위를 계속 이긴다.
+  // 그래서 우리 항목만 걷어내고 남의 서버는 보존한다.
+  it("removes our entries from .mcp.json, preserving other servers", () => {
     const root = fresh();
-    writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: { notion: { url: "https://mcp.notion.com/mcp" } } }));
-    assert.equal(run(root).code, 0);
+    writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: {
+      notion: { url: "https://mcp.notion.com/mcp" },
+      harness: { type: "http", url: "https://h.example/api/mcp" },
+      harness_owner: { type: "http", url: "https://h.example/api/mcp/owner" },
+    } }));
+    const r = run(root);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /write: \.mcp\.json \(removed harness, harness_owner —/); // 복수형 경로
     const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
     assert.equal(mcp.mcpServers.notion.url, "https://mcp.notion.com/mcp");
-    assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
+    assert.equal(mcp.mcpServers.harness, undefined);
+    assert.equal(mcp.mcpServers.harness_owner, undefined);
+    // --server를 줬으므로 폴백 파괴 경고는 뜨지 않는다.
+    assert.doesNotMatch(r.out, /only record of the server URL/);
   });
   it("second run: unchanged files rewritten, user-edited file skipped", () => {
     const root = fresh();
@@ -334,25 +349,30 @@ describe("harness-init (v2)", () => {
       assert.deepEqual(snapshot(root), before);
     });
 
-    it("recovers the server from an existing .mcp.json when no flag or env gives one", () => {
+    // 회수는 그대로지만 같은 실행에서 그 항목을 지운다 — 즉 이 저장소의 마지막 URL 기록이 사라진다.
+    // 생성기는 사용자 범위 설정을 읽지 않으므로(3-a) 보완하지 않고 **알린다**.
+    it("recovers the server from an existing .mcp.json, then removes that entry and says so", () => {
       const root = fresh(ONE_WS);
       writeFileSync(join(root, ".mcp.json"), JSON.stringify({
         mcpServers: { harness: { type: "http", url: "https://recovered.example/api/mcp" } },
       }));
       const r = runBare({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root);
       assert.equal(r.code, 0, r.out);
+      assert.match(r.out, /^server: https:\/\/recovered\.example$/m); // 지워질 파일에서 읽어 정규화했다
+      assert.match(r.out, /only record of the server URL — make sure HARNESS_SERVER is set \(https:\/\/recovered\.example\)/);
       const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
-      assert.equal(mcp.mcpServers.harness.url, "https://recovered.example/api/mcp");
+      assert.equal(mcp.mcpServers.harness, undefined);
     });
 
     // 토큰 페이지는 `<base>/api/mcp`를 보여 준다. 그대로 넘겨도 꼬리가 겹치지 않아야 한다.
+    // 관측 지점이 `.mcp.json`에서 stdout의 `server:` 줄로 옮겨졌다(B-1 선택지 3) — 그 값이 이제
+    // 스킬을 거쳐 `claude mcp add`에 그대로 들어가므로, 꼬리가 남으면 `/api/mcp/api/mcp`가 된다.
     for (const given of ["https://h.example/api/mcp", "https://h.example/api/mcp/", "https://h.example/api/mcp/owner"]) {
       it(`normalizes ${given} to the base URL`, () => {
         const root = fresh(ONE_WS);
         const r = runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root, given);
         assert.equal(r.code, 0, r.out);
-        const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
-        assert.equal(mcp.mcpServers.harness.url, "https://h.example/api/mcp");
+        assert.match(r.out, /^server: https:\/\/h\.example$/m);
       });
     }
 
