@@ -741,7 +741,7 @@ both). Below: each file's title, its section headings, and the sentences that se
   next action in the runbook's words with the key and, for gate 2, the recorded `planCommit`:
   "FEAT-01 is in review and verified — waiting for your approval of implementation at commit
   3f2a9c1 (step 5)." · "Never state a status you did not read in this turn. If a tool fails, say
-  so and stop." The free runbook has the same section without the validation clause.
+  so and stop."
 - Cycle: 1 pm proposes · 2 **Gate 1** — you request the plan in the web inbox, or, with an owner
   token, by telling this session ("request the plan for FEAT-01" — see *Approving from this
   session*) · 3 dev writes
@@ -759,7 +759,7 @@ both). Below: each file's title, its section headings, and the sentences that se
   sketch'. Run the verify command yourself. Confirm the backlog entry is gone. Read the report
   records from `board_get`, check the `path` and `commit`, and open that file — `result` is a
   summary, not the report location."
-- Approving from this session (not in the free runbook — Free is web only): "Only when the owner
+- Approving from this session (Free is web only — owner tokens open on Pro): "Only when the owner
   issued an owner token on the web Tokens tab and the `harness_owner` server is connected
   (`mcp__harness_owner__gate_approve` is listed). Otherwise gates are web only — say so and stop."
   · "Call `gate_approve` **only** on an explicit sentence from the owner in this conversation that

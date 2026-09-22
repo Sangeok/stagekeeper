@@ -40,7 +40,9 @@ describe("deliverable", () => {
     assert.equal(d.templates["docs/plans/README.md"], "# Plans\n");
     assert.deepEqual(d.entitlement, { plan: "max", agents: REPORT_AGENTS });
   });
-  it("free: plan-verifier and doc-auditor stubs are left out, the runbook is the free variant under the normal key", () => {
+  // 이름이 단언과 반대였다: free도 **전체 런북**을 받는다(:46이 그것을 확인한다). 옛 free 변형은
+  // ROWS에 시드돼 있어도 deliverable이 걸러낸다 — 플랜 차이는 런북이 아니라 그래프가 진다.
+  it("free: plan-verifier and doc-auditor stubs are left out; the runbook is the single full one, not a free variant", () => {
     const d = deliverable(ROWS, "free");
     assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/feature-scout.md", "agents/pm.md", "docs/plans/README.md"]);
     assert.equal(d.templates["CLAUDE.runbook.md"], "## Harness\nfull pipeline\n");
