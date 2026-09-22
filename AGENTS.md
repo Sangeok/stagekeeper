@@ -46,4 +46,13 @@ commits that were already green on `dev`.
   `git switch main && git merge --ff-only dev && git push origin main`.
   Do not merge `dev` into `main` through the GitHub UI: that merge commit lands on
   `main` alone, and every release after it needs a back-merge to repair the split.
+- **`dev` must never be the head of a pull request.** Besides the split above, this
+  repository has `deleteBranchOnMerge` enabled, so merging a PR whose head is `dev`
+  deletes `dev` — and the next session then branches from a stale local `origin/dev`
+  that still reports itself up to date, which is how work gets built on a base that no
+  longer exists. `git ls-remote --heads origin` is the authoritative check; recreate the
+  branch with `git push origin main:dev` if it has already been deleted.
+- Feature branches are deleted automatically when their pull request merges
+  (`deleteBranchOnMerge` is on). That is intended — it keeps `harness/<topic>` branches
+  from piling up — and `gh pr merge` needs no `--delete-branch`.
 - Do not commit directly to `dev` or `main`.

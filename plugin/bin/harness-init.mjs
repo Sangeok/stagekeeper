@@ -240,7 +240,9 @@ async function init() {
   if (writes.refuse.length) { console.log("Conflicts with existing files. Rerun with --adopt to take them over, or move them out of the way."); process.exit(3); }
 
   // 모든 읽기·검증·렌더·병합을 끝낸 뒤 기록한다. 입력 오류가 생성물만 남기고 lock을 누락시키지 않게 한다.
-  // 런북: 마커 사이 절만 우리 것. 병합 파일이라 lock에 넣지 않는다. Free 플랜이면 서버가 이 키에 free 변형을 담아 준다.
+  // 런북: 마커 사이 절만 우리 것. 병합 파일이라 lock에 넣지 않는다. **런북은 플랜과 무관하게 한 판이다** —
+  // 옛 `CLAUDE.runbook.free.md`는 지웠고, DB 행이 남아 있어도 `deliver.mjs`가 내려보내지 않는다.
+  // 플랜 차이는 런북 텍스트가 아니라 파이프라인 그래프가 담는다(free에는 verify·doc-audit 노드가 없다).
   const runbookBlock = `${RUNBOOK_START}\n${renderTemplate(tpl("CLAUDE.runbook.md"), vars)}\n${RUNBOOK_END}`;
   const runbookPath = join(ROOT, "CLAUDE.md");
   let runbook = existsSync(runbookPath) ? readFileSync(runbookPath, "utf8") : "";

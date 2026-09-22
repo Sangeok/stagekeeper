@@ -1,6 +1,7 @@
 // 주체 판정 → 프로젝트 접근 → 템플릿 조회. DB 작업을 주입받아 인증 실패 시 조회가 차단되는지 검증한다.
 // 주체 판정은 rest-scope.ts가 한다 — hs_는 토큰이 프로젝트를 알고, hu_는 ?project=<slug>로 받는다.
-// 배포할 본문(에이전트 스텁·플랜별 에이전트·Free runbook)은 deliverable이 결정한다.
+// 배포할 본문(에이전트 스텁·플랜별 보고 에이전트)은 deliverable이 결정한다. 런북은 한 판이고,
+// 옛 `CLAUDE.runbook.free.md` 행이 DB에 남아 있어도 deliverable이 걸러낸다.
 import { deliverable } from "@harness/core/deliver.mjs";
 import type { Plan, ProjectAccess } from "./entitlement";
 import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
