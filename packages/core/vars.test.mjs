@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { parseHarnessConfig } from "./config.mjs";
-import { buildVars, buildWorkspaceVars } from "./vars.mjs";
+import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "./vars.mjs";
 
 const cfg = parseHarnessConfig(readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8"));
 
@@ -34,5 +34,16 @@ describe("vars", () => {
     assert.equal(v.ws.knowledge_line, "This workspace has no knowledge doc. Say so in the plan rather than inventing its conventions.");
     // 없을 때는 경로처럼 보이는 조각이 남으면 안 된다 — 백틱도 괄호 경로도 없다.
     assert.doesNotMatch(v.ws.knowledge_line, /`/);
+  });
+  it("report table has one row per delivered agent, in order, with that agent's own description", () => {
+    const table = buildReportTable([{ name: "pm", description: "Picks work." }, { name: "feature-scout", description: "Researches." }]);
+    assert.equal(table, "| agent | does |\n| --- | --- |\n| `pm` | Picks work. |\n| `feature-scout` | Researches. |");
+    assert.equal(buildReportTable([]), "none");
+  });
+  it("templateDescription reads the frontmatter line and refuses a template without one", () => {
+    assert.equal(templateDescription("---\nname: pm\ndescription: Picks work. Never reads code.\ntools: x\n---\n# Role\n", "en/agents/pm.md"), "Picks work. Never reads code.");
+    assert.equal(templateDescription("---\r\nname: pm\r\ndescription: Picks work.\r\n---\r\n", "pm"), "Picks work."); // autocrlf 체크아웃
+    // 본문의 description: 은 frontmatter가 아니다 — 없는 것으로 친다.
+    assert.throws(() => templateDescription("---\nname: pm\n---\ndescription: not here\n", "en/agents/pm.md"), /^Error: en\/agents\/pm\.md: no description in frontmatter$/);
   });
 });

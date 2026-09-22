@@ -35,7 +35,8 @@ ApcH 원본 `.claude/agents/{web,admin,backend}-dev.md`와 대조했다(2026-08-
    템플릿에서 빼고 규칙만 남겼다. 사례는 이 문서가 받는다.
 2. **knowledge 이동** — `apps/web/CLAUDE.md` 같은 고정 경로가 `{{ws.knowledge}}`로 바뀌었다.
    워크스페이스에 지식 문서가 없으면 `vars.mjs`가 "없음 — …계획서에 그 사실을 적는다"를 넣는다.
-3. **변수 형식** — 담당 표는 `{{roster_table}}`, 검증 명령은 `{{ws.verify_block}}`,
+3. **변수 형식** — 담당 표는 `{{roster_table}}`, 보고 에이전트 표는 `{{report_table}}`(내려간
+   에이전트의 frontmatter description으로 생성 — 런북이 없는 에이전트를 시키지 않게), 검증 명령은 `{{ws.verify_block}}`,
    읽기 전용·범위 밖 목록은 `{{ws.read_only_list}}`·`{{ws.out_of_scope_list}}`로 생성된다.
 4. **수단 치환** — 보드·백로그 파일 읽기·쓰기가 전부 `mcp__harness__*` 호출이 됐고,
    `B-7`(백로그에서 항목 제거)은 서버가 하므로 절차에서 사라졌다. `tools:`에 MCP 도구 5개가 붙었다.
