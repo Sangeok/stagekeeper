@@ -1,13 +1,13 @@
 ---
-status: "pending"
+status: "completed"
 stage: "approved"
 proposal-size: "standard"
 created-at: "2026-09-20"
 approved-by: "user (conversation)"
 approved-at: "2026-09-20"
 approval-scope: "A(Execution Plan 1~7) 구현. B-1은 2026-09-21에 선택지 3(사용자 범위 등록)으로 결정됐다 — 개명 0곳이고 이 저장소 하나로 닫힌다, B-2는 배포 부재로 실행 불가, C는 A가 녹색이 된 뒤 별도 판단. 커밋·푸시·PR은 별도 지시."
-completed-at: null
-verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). hu_는 /api/mcp에 실호출해 initialize 200 · 내 슬러그 성공 · PROJECT_REQUIRED · NOT_YOURS · 폐기 후 401을 실물로 확인했다(토큰은 삭제, 전후 0행). CI check(PR #55)는 build 포함 success. C-1(POST /api/projects)과 C-2(생성기 --register · SKILL 토큰 분기)는 구현·시험 완료 — test 176/176, test:web 369/369, CI check(PR #57) success(1차는 픽스처가 git 기본 브랜치를 환경에서 물려받아 CI에서만 실패했고, git init -b main으로 고정해 해소). REST 3종(/api/templates·/api/runbook·/api/project)의 hu_ 경로도 실토큰으로 확인했다 — 성공·PROJECT_REQUIRED·NOT_YOURS에 hs_ 회귀까지 15개 단언, runbook은 쓰기라 원값을 복원했다. 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · 발급·폐기 서버 액션 · C의 동시성 판정((g)(i)) · init 재실행 수동 인수. C-3(셸 설정)은 **제안서보다 좁게 완료**했다 — HARNESS_SERVER는 에이전트가 직접 설정하고, 토큰은 값을 받지 않는다(붙여넣으면 transcript에, setx는 셸 히스토리에 남는다). 그래서 '프로젝트마다 0회'는 달성하고 토큰은 '머신당 1회'로 남는다. 제안서가 목표한 '설정 0회'를 원하면 그 맞교환을 명시적으로 승인해야 한다 — 미결 결정이다. B-1은 2026-09-21에 선택지 3(사용자 범위 등록)으로 구현·머지됐다(PR #66) — 개명 0곳이고 이 저장소 하나로 닫혔다. B-2는 배포 부재로 여전히 미착수다."
+completed-at: "2026-09-22"
+verification-summary: "A(Execution Plan 1~7) 구현 완료, 게이트 전부 녹색 — check pass · test:web 350/350(+14) · test 165/165 · test:templates 25/25 · test:server 2/2. 마이그레이션 20260920000000 리허설 후 적용 완료. A-9 화면(/settings/tokens)은 세션 쿠키 민팅으로 200 렌더와 헤더 진입점까지 확인했다(1차 500은 dev 서버의 globalThis 캐시 client였고 코드 수정 없이 재기동으로 해소). hu_는 /api/mcp에 실호출해 initialize 200 · 내 슬러그 성공 · PROJECT_REQUIRED · NOT_YOURS · 폐기 후 401을 실물로 확인했다(토큰은 삭제, 전후 0행). CI check(PR #55)는 build 포함 success. C-1(POST /api/projects)과 C-2(생성기 --register · SKILL 토큰 분기)는 구현·시험 완료 — test 176/176, test:web 369/369, CI check(PR #57) success(1차는 픽스처가 git 기본 브랜치를 환경에서 물려받아 CI에서만 실패했고, git init -b main으로 고정해 해소). REST 3종(/api/templates·/api/runbook·/api/project)의 hu_ 경로도 실토큰으로 확인했다 — 성공·PROJECT_REQUIRED·NOT_YOURS에 hs_ 회귀까지 15개 단언, runbook은 쓰기라 원값을 복원했다. 미실행: test:server:integration(격리 DB 부재 — templates·agent-runs 갱신이 미검증으로 들어감) · 발급·폐기 서버 액션 · C의 동시성 판정((g)(i)) · init 재실행 수동 인수. C-3(셸 설정)은 **제안서보다 좁게 완료**했다 — HARNESS_SERVER는 에이전트가 직접 설정하고, 토큰은 값을 받지 않는다(붙여넣으면 transcript에, setx는 셸 히스토리에 남는다). 그래서 '프로젝트마다 0회'는 달성하고 토큰은 '머신당 1회'로 남는다. 제안서가 목표한 '설정 0회'를 원하면 그 맞교환을 명시적으로 승인해야 한다 — 미결 결정이다. B-1은 2026-09-21에 선택지 3(사용자 범위 등록)으로 구현·머지됐다(PR #66) — 개명 0곳이고 이 저장소 하나로 닫혔다. **2026-09-22 `mathgic`에서 실사용 인수까지 통과했다**(PR #72): `.mcp.json` 미생성 · `server:` 줄 출력 · 진짜 `harness` 이름으로 사용자 범위 등록·연결(재시작 불필요) · `harness_owner` 올바르게 생략 · `project_sync` 성공(보드에 `web-dev` 로스터 생성 — 조건이 요구한 `project_get`보다 강한 증거다). 전달 경로는 플러그인 0.3.0 상승 + `main` 승격이 전제였고(3-h), 실사용이 웹 문구 드리프트와 토큰 배치 문제를 드러내 별도 작업으로 이어졌다(3-i). B-2는 배포 부재로 여전히 미착수다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -1002,23 +1002,68 @@ B-1 선택지 3의 실현 가능성.
 
 완료 기록(`status: "completed"`일 때 작성):
 
-> 앞마당의 `verification-summary`는 **A 구간만**의 실측으로 이미 채워져 있다(2026-09-20) —
-> 이 문서가 아직 `pending`인 것은 B-1·B-2·C가 남아서다. 아래 목록은 그 셋까지 닫고
-> `status: "completed"`로 바꿀 때 쓰는 **최종** 기록이라 여전히 TBD다. 두 값은 범위가 다르다.
+- **completed-at**: 2026-09-22
+- **verification-summary**: 앞마당 참조 — A·C·B-1을 모두 담도록 갱신했다(B-1의 실사용 인수 포함).
+- **implementation PR/commit**: A = PR #55 · C-1·C-2 = #57 · 검증 기록 = #62(REST `hu_`)·#63(A-10 생성 SQL) ·
+  B-1 = #64(선택지 3 검증)·#65(결정·계획)·**#66(구현)**·#67(절차 인수)·#68(인용 주석)·#69(플러그인 0.3.0) ·
+  실사용 인수 = #72.
+- **changed files summary**: 서버(`scope`·검증기·REST 3종·`agents/{next,runs}`) · 웹(`/settings/tokens`) ·
+  생성기(`harness-init.mjs` — `.mcp.json` 쓰기 중단, 우리 항목 제거, `server:` 출력) · 스킬(`SKILL.md` 2·3·4단계) ·
+  마이그레이션 1건(`UserToken`) · 문서(`protocol`·`rationale`·`system-overview`·`product-copy`·`harness-platform`).
+- **remaining follow-up**: ① `test:server:integration`(격리 DB 부재) ② 발급·폐기 **서버 액션**(자동 시험 선례 0건)
+  ③ C의 동시성 판정 (g)(i)(격리 DB 필요) ④ init 재실행 수동 인수 ⑤ **B-2**(배포가 생기기 전까지 실행 불가)
+  ⑥ **플랜 게이팅 결함 — 이 제안서 밖으로 넘긴다**(아래 Implementation Results 참조).
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+## Implementation Results — 2026-09-22
+
+### 실행 범위와 상태
+
+A(Execution Plan 1~7) · C(C-1·C-2·C-3) · **B-1(선택지 3)** 완료. B-2만 남았고 그것은 **일이 없어서가 아니라
+전제가 없어서**다 — 이 저장소에 배포가 없어 가리킬 호스트가 생기기 전에는 실행할 수 없다.
+
+B-1은 세 선택지 중 **3번(사용자 범위 MCP 등록)**으로 결정됐다. 1번(개명)이었다면 두 저장소 67곳 + DB 재시드 +
+이미 연결된 저장소의 옛 스텁 처리였고, 그 착수는 `plugin/templates/`의 미커밋 작업에 막혀 있었다. 3번은
+**개명 0곳**이고 이 저장소 하나로 닫힌다 — `plugin/templates/`가 `.mcp.json`을 한 번도 언급하지 않음을 실측해
+확인했다. 다만 3번은 **A가 전제**다: 머신당 서버 1개는 토큰이 저장소를 가로지를 때만 성립하고, 그게 `hu_`다.
+
+### 구현 중 드러난 것
+
+- **계획이 자기모순이었다.** 초안 3-b는 "생성기가 `claude mcp get`을 읽어 URL을 얻는다"였는데, 이는 3-a가
+  정한 원칙(생성기는 파일만 물질화하고 머신 설정은 스킬이 건드린다)과 정면으로 어긋났다. 구현 전에 철회하고,
+  대신 **생성기가 해석된 주소를 `server:` 줄로 출력**하게 했다 — 스킬이 등록 주소를 알 유일한 경로였다.
+- **제거가 URL 기록도 함께 없앤다**(3-c-2). `.mcp.json`의 `harness` 항목은 서버 URL의 최후 폴백이기도 해서,
+  같은 실행에서 읽고 지우면 이후 재실행이 `Server URL required`로 멈춘다. 보완하지 않고 **알리게** 했다.
+- **`--owner`는 할 일이 없어졌다**(3-g). 조용히 무시하면 옛 스킬이 넘길 때 사용자가 소유자 서버를 잃고도
+  모르므로, 어디로 옮겼는지 출력한다.
+- **전달 경로가 계획에 없었다**(3-h). 구현이 `dev`에 머무는 한 사용자에게 도달하지 않는다 — 마켓플레이스가
+  기본 브랜치를 받고 브랜치 선택지가 없어 `main` 승격이 전제였고, 플러그인 버전도 올려야 했다.
+- **검증 기법**: 격리 DB 없이도 닫히는 것이 있었다. A-10의 범위 쿼리는 단위 시험이 함수를 통째로 목으로
+  갈아끼워 검증되지 않았는데, **생성 SQL 대조**로 행 0개에서 판정했다(#63). 반대로 개수 대조는 빈 표에서
+  공허했다 — `ALL CHECKS PASSED`가 아무것도 증명하지 못한 사례다.
+
+### 남은 검증과 인수
+
+① `test:server:integration` ② 발급·폐기 서버 액션 ③ C의 동시성 (g)(i) ④ init 재실행 수동 인수 — 넷 다
+**격리 DB 또는 자동 시험 선례의 부재**라는 환경 제약이고, 이 제안 때문에 생긴 것이 아니다.
+
+### 이 제안서 밖으로 넘기는 결함 — 런북의 하드코딩된 report-only 표
+
+2026-09-22 `mathgic` 실사용에서 드러났다. 런북 템플릿은 `{{roster_table}}`을 쓰지만(`:23`), 그 아래
+**"Report only:" 표는 `pm`·`doc-auditor`·`feature-scout`·`plan-verifier` 네 행을 하드코딩**한다.
+`free` 플랜은 `agents: ["pm", "feature-scout"]`이므로(`entitlement.mjs:11`) **`doc-auditor`·`plan-verifier`
+두 행이 거짓**이고, 생성되지도 않은 에이전트를 런북이 시킨다. `feature-scout` 행만 산문으로 조건을 달아 둔
+것을 보면 조건성은 인지했으나 게이팅이 아니라 말로 처리한 것이다.
+**고칠 파일은 `plugin/templates/en/CLAUDE.runbook.md`로 별도 private 저장소에 있고, 그 워크트리는
+`harness/server-clean-code`에서 미커밋 8개 파일을 들고 있다** — 그 위에 얹으면 두 작업이 엉킨다(`:703`의 경고).
+그래서 이 제안서에서 고치지 않고 넘긴다.
 
 ## Review Checklist
 
 - [x] 모든 `{placeholder}`를 처리했고, 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
-- [x] `status`는 `pending`을 사용했다.
-- [x] 문서 위치(`active/`)와 `status`(`pending`)가 일치한다.
-- [x] `stage`는 pending 문서에서만 사용했고 `draft`다.
-- [x] `stage`가 `approved`가 아니므로 승인 metadata는 `null`로 두었다.
+- [x] `status`는 `completed`다(2026-09-22 닫음). 작성 시점에는 `pending`이었다.
+- [x] 문서 위치(`completed/`)와 `status`(`completed`)가 일치한다.
+- [x] `stage`는 `approved`다 — 2026-09-20에 승인받았다. (이 줄은 템플릿의 `draft` 전제가 남아 있어 승인 이후 줄곧 거짓이었고, 닫으면서 바로잡았다.)
+- [x] `stage`가 `approved`이므로 승인 metadata(`approved-by`·`approved-at`)를 채웠다. (앞줄과 같은 이유로 거짓이던 것을 닫으면서 바로잡았다.)
 - [x] `proposal-size`는 `standard`이며 강제 조건(인증·마이그레이션·API 계약·5파일 초과)에 해당한다.
 - [x] 승인 기록은 front matter를 단일 기준으로 쓰고, 본문에는 승인 조건만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.

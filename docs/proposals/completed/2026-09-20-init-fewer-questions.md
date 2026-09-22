@@ -27,7 +27,7 @@ related:
 
 > **이후 변경으로 무효가 된 항목** (2026-09-20 닫으면서 추가)
 >
-> 이 제안이 만든 `GET /api/project`를 [user-scoped-project-identity](../active/user-scoped-project-identity.md)의
+> 이 제안이 만든 `GET /api/project`를 [user-scoped-project-identity](./2026-09-22-user-scoped-project-identity.md)의
 > A-7이 확장했다. 그래서 아래 진술들은 **더 이상 현재 코드의 사실이 아니다** — 당시 판단의
 > 기록으로만 읽어야 한다. 현재 HTTP 계약의 소유 문서는 `docs/architecture/protocol.md`다.
 >
