@@ -9,11 +9,11 @@ import { dirname, join, relative } from "node:path";
 import { parseHarnessConfig } from "../lib/config.mjs";
 import { parseRepoUrl } from "../lib/repo-url.mjs";
 import { deliverable } from "../lib/deliver.mjs";
-import { capReason, isPlan, withinLimit } from "../lib/entitlement.mjs";
+import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/entitlement.mjs";
 import { buildLock, planWrites } from "../lib/manifest.mjs";
 import { renderTemplate } from "../lib/render.mjs";
 import { runbookVersion } from "../lib/runbook.mjs";
-import { buildVars, buildWorkspaceVars } from "../lib/vars.mjs";
+import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "../lib/vars.mjs";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -206,7 +206,16 @@ async function init() {
     if (typeof body !== "string") throw new Error(`Unexpected template body: ${lang}/${rel} must be a string`);
     return body;
   };
-  const vars = buildVars(config);
+  // 보고 에이전트는 플랜이 허용하는 것만 — 플랜 밖 에이전트는 서버가 내려주지도 않는다. 이미 디스크에 있는 옛 파일은 건드리지 않고 lock에서만 빠진다.
+  // feature-scout는 scout를 설정한 저장소에만 간다. **내려가는 목록이 런북의 "Report only" 표(report_table)도 정한다** —
+  // 표와 파일이 같은 목록에서 나와야 런북이 없는 에이전트를 시키지 않는다(2026-09-22 mathgic: free 런북이 하드코딩된 네 행을 들고 있었다).
+  const wanted = REPORT_AGENTS.filter((a) => a !== "feature-scout" || config.scout);
+  const delivered = wanted.filter((a) => agents.includes(a));
+  for (const a of wanted) if (!agents.includes(a)) console.log(`skip(plan): .claude/agents/${a}.md (not on the ${plan} plan)`);
+  const vars = {
+    ...buildVars(config),
+    report_table: buildReportTable(delivered.map((a) => ({ name: a, description: templateDescription(tpl(`agents/${a}.md`), `${lang}/agents/${a}.md`) }))),
+  };
   const targets = {};
   const add = (path, template, content) => {
     if (Object.hasOwn(targets, path)) throw new Error(`Duplicate generated path: ${path}`);
@@ -215,13 +224,7 @@ async function init() {
 
   for (const d of ["plans/README.md", "plans/template.md", "plans/verification-paths.md", "agents/README.md"])
     add(`docs/${d}`, `${lang}/docs/${d}`, renderTemplate(tpl(`docs/${d}`), vars));
-  // 보고 에이전트는 플랜이 허용하는 것만 — 플랜 밖 에이전트는 서버가 내려주지도 않는다. 이미 디스크에 있는 옛 파일은 건드리지 않고 lock에서만 빠진다.
-  const report = (a) => {
-    if (agents.includes(a)) add(`.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, renderTemplate(tpl(`agents/${a}.md`), vars));
-    else console.log(`skip(plan): .claude/agents/${a}.md (not on the ${plan} plan)`);
-  };
-  for (const a of ["pm", "plan-verifier", "doc-auditor"]) report(a);
-  if (config.scout) report("feature-scout");
+  for (const a of delivered) add(`.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, renderTemplate(tpl(`agents/${a}.md`), vars));
   for (const ws of config.workspaces)
     add(`.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, renderTemplate(tpl("agents/dev.md"), buildWorkspaceVars(config, ws)));
 

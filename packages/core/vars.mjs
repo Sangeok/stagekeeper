@@ -18,6 +18,27 @@ export function buildVars(config) {
   };
 }
 
+// 런북의 "Report only" 표. 행은 **실제로 내려간** 보고 에이전트만이다 — 플랜 밖 에이전트는 서버가 내려주지
+// 않고(deliver.mjs), scout 없는 저장소의 feature-scout는 생성기가 쓰지 않는다(harness-init.mjs). 파일이 없는
+// 에이전트가 표에 있으면 런북이 없는 에이전트를 시킨다 — 2026-09-22 mathgic 실사용에서 free 런북이 하드코딩된
+// doc-auditor·plan-verifier 행을 들고 있었다. 문구는 각 에이전트 파일의 frontmatter description이다: 런북이
+// 따로 설명하면 둘이 어긋난다. buildVars에 넣지 않는다 — 입력이 config가 아니라 내려온 템플릿이고, 서버
+// 쌍둥이(src/server/agents/vars.ts)는 런북을 렌더하지 않으므로 이 변수를 모른다.
+export function buildReportTable(agents) {
+  if (agents.length === 0) return "none";
+  const rows = agents.map((a) => `| \`${a.name}\` | ${a.description} |`).join("\n");
+  return `| agent | does |\n| --- | --- |\n${rows}`;
+}
+
+// 에이전트 템플릿 frontmatter의 description 한 줄. 없으면 던진다 — 표에 빈 칸이 조용히 들어가는 것보다 init이
+// 멈추는 편이 싸다(private 시험이 템플릿마다 있음을 먼저 잡는다). \r?\n: autocrlf 체크아웃은 CRLF다.
+export function templateDescription(body, name) {
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body);
+  const match = frontmatter && /^description:\s*(.+?)\s*$/m.exec(frontmatter[1]);
+  if (!match) throw new Error(`${name}: no description in frontmatter`);
+  return match[1];
+}
+
 export function buildWorkspaceVars(config, ws) {
   const others = config.workspaces.filter((w) => w.agent !== ws.agent).map((w) => `${w.path}/**`);
   return {

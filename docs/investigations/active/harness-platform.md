@@ -624,7 +624,7 @@ export function latestItemById(sections, id) {
 - `parseHarnessConfig(jsonOrObject)` → `{version, project, language, workspaces[], executor, release|null, scout|null}` (실패: `Error("harness.json <경로>: <사유>")`)
 - `renderTemplate(text, vars)` — `{{a.b}}` 치환, 미정의 throw
 - `hashOf(text)`, `planWrites({targets, existing, lock, adopt})`, `buildLock(targets)`
-- `buildVars(config)`, `buildWorkspaceVars(config, ws)` — `roster_table`·`roster_names`·`board_branch`·`ws.verify_block`·`ws.verify_result_line`·`ws.read_only_list`·`ws.out_of_scope_list`·`ws.knowledge`
+- `buildVars(config)`, `buildWorkspaceVars(config, ws)` — `roster_table`·`roster_names`·`board_branch`·`ws.verify_block`·`ws.verify_result_line`·`ws.read_only_list`·`ws.out_of_scope_list`·`ws.knowledge`; `buildReportTable(agents)`·`templateDescription(body, name)` — 생성기가 **내려간** 보고 에이전트의 frontmatter description으로 `report_table`을 만든다(런북 전용, 2026-09-22)
 
 - [ ] 복사·테스트·커밋 `feat(core): config, render, manifest, vars (from v1, verified)`
 

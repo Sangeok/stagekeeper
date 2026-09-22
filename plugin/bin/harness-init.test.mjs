@@ -21,12 +21,13 @@ const FIXTURES = {
   "docs/plans/template.md": "# Plan\n",
   "docs/plans/verification-paths.md": "# Verification paths\n",
   "docs/agents/README.md": "# Agents\n{{roster_table}}\n",
-  "agents/pm.md": "---\nname: pm\n---\nroster {{roster_names}}\n\n## step:start\npm step body\nnext: done\n",
-  "agents/plan-verifier.md": "---\nname: plan-verifier\n---\n\n## step:start\nverifier step body\n",
-  "agents/doc-auditor.md": "---\nname: doc-auditor\n---\n\n## step:start\nauditor step body\n",
-  "agents/feature-scout.md": "---\nname: feature-scout\n---\n{{scout.question}}\n\n## step:start\nscout step body\n",
+  // 보고 에이전트의 description은 런북 report_table의 행이 된다 — 없으면 생성기가 멈춘다(아래 "no frontmatter description").
+  "agents/pm.md": "---\nname: pm\ndescription: Picks work.\n---\nroster {{roster_names}}\n\n## step:start\npm step body\nnext: done\n",
+  "agents/plan-verifier.md": "---\nname: plan-verifier\ndescription: Verifies plans.\n---\n\n## step:start\nverifier step body\n",
+  "agents/doc-auditor.md": "---\nname: doc-auditor\ndescription: Audits docs.\n---\n\n## step:start\nauditor step body\n",
+  "agents/feature-scout.md": "---\nname: feature-scout\ndescription: Scouts features.\n---\n{{scout.question}}\n\n## step:start\nscout step body\n",
   "agents/dev.md": "---\nname: {{ws.agent}}\n---\nowns {{ws.path}}\n{{ws.verify_block}}\n\n## step:implement requires: implementing\ndev step body\n",
-  "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\nfull pipeline\n",
+  "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\nfull pipeline\n\nReport only:\n\n{{report_table}}\n",
 };
 const TPL_DIR = mkdtempSync(join(tmpdir(), "harness-tpl-"));
 for (const [rel, body] of Object.entries(FIXTURES)) {
@@ -188,6 +189,8 @@ describe("harness-init (v2)", () => {
     assert.equal(run(root).code, 0);
     assert.ok(!existsSync(join(root, ".claude/agents/feature-scout.md")));
     assert.ok(existsSync(join(root, ".claude/agents/dev.md")));
+    // 파일이 안 가면 런북 표에도 없다 — 표와 파일은 같은 목록에서 나온다.
+    assert.doesNotMatch(readFileSync(join(root, "CLAUDE.md"), "utf8"), /feature-scout/);
   });
   it("exit 1 with the field path on bad config", () => {
     const root = fresh(JSON.stringify({ version: 2 }));
@@ -258,6 +261,22 @@ describe("harness-init (v2)", () => {
       assert.match(result.out, /harness\.lock\.json/);
       assert.deepEqual(snapshot(root), before);
     });
+    // 표의 문구는 에이전트 frontmatter에서 온다. 없으면 빈 칸을 조용히 내보내지 않고 멈춘다 — 아무것도 쓰지 않은 채.
+    it("does not write any targets when a delivered report agent has no frontmatter description", async () => {
+      const body = deliverable(ROWS, "pro");
+      const stub = body.templates["agents/doc-auditor.md"];
+      assert.match(stub, /description: Audits docs\./);
+      body.templates["agents/doc-auditor.md"] = stub.replace("description: Audits docs.\n", "");
+      await withServer(body, async (server) => {
+        const root = fresh(ONE_WS);
+        const before = snapshot(root);
+        const result = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
+        assert.equal(result.code, 1, result.out);
+        assert.match(result.out, /agents\/doc-auditor\.md: no description in frontmatter/);
+        assert.doesNotMatch(result.out, /^write:/m);
+        assert.deepEqual(snapshot(root), before);
+      });
+    });
     for (const [label, runbook] of [["missing", undefined], ["unresolved variable", "{{unknown.value}}"]]) {
       it(`does not write any targets for a ${label} runbook`, async () => {
         const body = deliverable(ROWS, "pro");
@@ -308,6 +327,12 @@ describe("harness-init (v2)", () => {
   });
 
   describe("plan", () => {
+    it("pro: the runbook's report table lists every delivered report agent in the generator's order, with its own description", () => {
+      const root = fresh(); // APCH: scout 설정됨 — 넷 다 내려간다
+      assert.equal(run(root).code, 0);
+      assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"),
+        /\| agent \| does \|\n\| --- \| --- \|\n\| `pm` \| Picks work\. \|\n\| `plan-verifier` \| Verifies plans\. \|\n\| `doc-auditor` \| Audits docs\. \|\n\| `feature-scout` \| Scouts features\. \|\n/);
+    });
     it("free: report agents outside the plan are skipped, the same runbook lands in CLAUDE.md", () => {
       const root = fresh(ONE_WS);
       const r = runFree(root);
@@ -320,6 +345,9 @@ describe("harness-init (v2)", () => {
       }
       const runbook = readFileSync(join(root, "CLAUDE.md"), "utf8");
       assert.match(runbook, /full pipeline/); // 런북은 한 판이다 — 플랜 차이는 그래프가 진다(deliver.mjs)
+      // 한 판이지만 표는 내려간 파일과 같은 목록에서 나온다 — free 런북이 배달되지 않은 둘을 시키지 않는다(2026-09-22 mathgic).
+      assert.match(runbook, /\| `pm` \| Picks work\. \|\n\| `feature-scout` \| Scouts features\. \|/);
+      assert.doesNotMatch(runbook, /plan-verifier|doc-auditor/);
       const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
       assert.ok(!(".claude/agents/plan-verifier.md" in lock.files));
     });
