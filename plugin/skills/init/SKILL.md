@@ -65,7 +65,7 @@ from that reference, then stop before step 1. After installation, rerun this pre
        `no /api/project` the server predates that route — only then fall back to asking.
      - `hu_` (**user token** — there may be no project yet):
        `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --register`. It reads `origin` and the
-       current branch from git and registers the repository, **or returns the existing project
+       repository's default branch from git and registers the repository, **or returns the existing project
        when it is already registered** — rerunning is safe and creates nothing the second time.
        If it says the server has no `/api/projects`, that server predates this route; fall back
        to asking. Do **not** run `--register` with an `hs_` token — it answers 401 and tells you
@@ -149,6 +149,9 @@ from that reference, then stop before step 1. After installation, rerun this pre
    Include the resolved verification-skill path and the owner-supplied version/commit (or the
    package checksum when it has no version). Initialization is complete only after the
    preflight and connection checks have passed; file generation alone is not completion.
+   Commit these files on the branch you are on. They reach the default branch when this branch
+   merges, and every branch cut after that has them; branches cut before it don't, as with any
+   file. Do not tell the user to switch branches before committing.
 
 The generated `.claude/agents/*.md` are **stubs**: role, tools, and the first instruction. The
 step bodies stay on the server and arrive one at a time through `mcp__harness__agent_next`.

@@ -2,6 +2,7 @@
 // (templates-query.ts와 같은 모양 — 두 경로가 같은 주체 판정을 쓴다).
 // hu_는 프로젝트를 **본문**으로 받는다: 이 경로에는 쿼리 문자열이 없고, route는 배선만 하므로
 // 꺼내는 일도 여기서 한다(versionOf와 같은 자리).
+import { isRunbookVersion } from "@harness/core/runbook.mjs";
 import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
 import type { ProjectAccess } from "./entitlement";
 
@@ -12,9 +13,6 @@ export type RunbookDeps = RestTokenDeps & {
   saveRunbookVersion(projectId: string, version: string): Promise<void>;
 };
 
-// runbookVersion이 내는 모양 그대로. 여기서 막지 않으면 아무 문자열이나 열에 앉아 영원히 "현재"가 된다.
-const VERSION = /^[0-9a-f]{12}$/;
-
 const fieldOf = (body: unknown, key: "version" | "project"): string | null => {
   if (typeof body !== "object" || body === null) return null;
   const value = (body as Record<string, unknown>)[key];
@@ -23,7 +21,8 @@ const fieldOf = (body: unknown, key: "version" | "project"): string | null => {
 
 const versionOf = (body: unknown): string | null => {
   const value = fieldOf(body, "version");
-  return value !== null && VERSION.test(value) ? value : null;
+  // 모양 규칙은 개요의 runbook 입력과 같은 것을 쓴다(packages/core/runbook.mjs).
+  return isRunbookVersion(value) ? value : null;
 };
 
 // hu_ 전용. 빈 문자열은 슬러그가 아니므로 없는 것으로 친다 — PROJECT_REQUIRED가 고치는 법을 말한다.

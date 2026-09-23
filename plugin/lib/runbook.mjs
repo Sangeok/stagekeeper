@@ -10,6 +10,12 @@ export function runbookVersion(body) {
   return createHash("sha256").update(body).digest("hex").slice(0, 12);
 }
 
+// runbookVersion이 내는 모양 그대로(12자리 소문자 hex). 보고 경로(POST /api/runbook)와 개요의 runbook 입력이
+// 같은 규칙을 쓴다 — 여기서 막지 않으면 아무 문자열이나 열에 앉아 영원히 "현재"가 된다.
+export function isRunbookVersion(value) {
+  return typeof value === "string" && /^[0-9a-f]{12}$/.test(value);
+}
+
 // bodies = 지금 서버가 가진 모든 언어의 런북 원문. 언어를 따로 저장하지 않는 이유는
 // "어느 언어의 현재 원문과도 안 맞으면 낡은 것"이 언어를 몰라도 성립하기 때문이다.
 // stored === null(보고된 적 없음)과 bodies가 빈 경우는 둘 다 "맞다는 근거가 없다"로 본다 —
