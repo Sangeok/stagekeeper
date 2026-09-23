@@ -23,7 +23,7 @@ export function RemoveBacklogButton({ itemKey, remove }: { itemKey: string; remo
           startTransition(async () => {
             try {
               const result = await remove(itemKey);
-              setError(result.error ?? null);
+              setError(result.status === "error" ? result.error : null);
             } catch {
               setError("Couldn't remove it. Try again.");
             }

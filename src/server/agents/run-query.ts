@@ -28,8 +28,10 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((r) => r.agent);
         if (!allowsAgent(access.plan, input.agent, roster)) return { ok: false, reason: `agent is not on the ${access.plan} plan` };
         const entry = input.entry;
-        const receipt = input.receipt;
-        if (input.outcome && !receipt) throw new StaleCursor();
+        // outcome이 있는 호출은 영수증을 함께 싣는다(agentNext가 먼저 검증했다). claim은 그 영수증이고 outcome이 없으면 null —
+        // 아래 분기는 claim으로 하므로 영수증이 있다는 전제를 컴파일러가 안다.
+        const claim = input.outcome ? input.receipt ?? null : null;
+        if (input.outcome && !claim) throw new StaleCursor();
         let closedTerminal = false;
         if (entry) {
           await tx.$queryRaw`SELECT "id" FROM "PipelineRun" WHERE "id" = ${entry.runId} FOR UPDATE`;
@@ -39,13 +41,18 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           if (latest?.id !== pipeline.boardItemId || dispatcherFor(entry.slotId, pipeline.boardItem.agent) !== input.agent) throw new StaleCursor();
           const expectedKey = ["plan", "implement", "verify"].includes(entry.slotId) ? pipeline.boardItem.backlogItem.key : null;
           if (key !== expectedKey) throw new StaleCursor();
-          if (input.outcome && (input.agentRunId !== undefined && input.agentRunId !== receipt!.runId || input.stepId !== undefined && input.stepId !== receipt!.stepId)) throw new StaleCursor();
-          if (input.outcome) {
-            const prior = await tx.agentRun.findUnique({ where: { id: receipt!.runId } });
-            closedTerminal = ["ok", "failed", "blocked"].includes(input.outcome) && !!prior?.closedAt && prior.projectId === projectId && prior.agent === input.agent && prior.key === key
-              && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && prior.stepId === receipt!.stepId && prior.revision === receipt!.revision
+          if (claim && (input.agentRunId !== undefined && input.agentRunId !== claim.runId || input.stepId !== undefined && input.stepId !== claim.stepId)) throw new StaleCursor();
+          if (input.outcome && claim) {
+            const prior = await tx.agentRun.findUnique({ where: { id: claim.runId } });
+            // 재전송 수락 판정. 이미 닫힌 run에 같은 종결 outcome이 다시 오면(응답 유실 뒤 재시도) 거부하지 않고 받는다.
+            // 영수증이 가리키는 run이 이 프로젝트·에이전트·항목·파이프라인 항목·스텝·리비전의 것인가:
+            const receiptMatchesPriorRun = prior !== null && prior.projectId === projectId && prior.agent === input.agent && prior.key === key
+              && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && prior.stepId === claim.stepId && prior.revision === claim.revision;
+            // 그 run이 닫혔고, 닫은 스텝의 결과가 보드에 이미 반영돼 있는가(plan 제출 → in_review, 보류 → on_hold):
+            const priorStepIsRecordedTerminal = !!prior?.closedAt
               && ((prior.stepId === "plan" && entry.slotId === "plan" && pipeline.boardItem.status === "in_review")
                 || (prior.stepId === "hold" && pipeline.boardItem.status === "on_hold"));
+            closedTerminal = ["ok", "failed", "blocked"].includes(input.outcome) && receiptMatchesPriorRun && priorStepIsRecordedTerminal;
             if (closedTerminal && prior?.closedAt) {
               closedTerminal = await tx.transitionEvent.findFirst({ where: {
                 boardItemId: pipeline.boardItemId,
@@ -62,13 +69,13 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         const binding = { pipelineRunId: entry?.runId ?? null, pipelineEntryId: entry?.entryId ?? null };
         const where = { projectId, agent: input.agent, key, ...binding };
         let open = await tx.agentRun.findFirst({ where: { ...where, closedAt: null }, orderBy: { openedAt: "desc" } });
-        const claimedRun = input.outcome ? await tx.agentRun.findFirst({ where: { ...where, id: receipt!.runId } }) : open;
+        const claimedRun = claim ? await tx.agentRun.findFirst({ where: { ...where, id: claim.runId } }) : open;
         let selectedId = claimedRun?.id;
         if (selectedId) {
           await tx.$queryRaw`SELECT "id" FROM "AgentRun" WHERE "id" = ${selectedId} FOR UPDATE`;
           if (!closedTerminal) open = await tx.agentRun.findFirst({ where: { ...where, id: selectedId, closedAt: null } });
         }
-        if (entry && input.outcome && !closedTerminal && (!open || open.id !== receipt!.runId || open.stepId !== receipt!.stepId || open.revision !== receipt!.revision)) throw new StaleCursor();
+        if (entry && claim && !closedTerminal && (!open || open.id !== claim.runId || open.stepId !== claim.stepId || open.revision !== claim.revision)) throw new StaleCursor();
         let outcomeRollback = false;
         const deps: NextDeps = {
           ...base,

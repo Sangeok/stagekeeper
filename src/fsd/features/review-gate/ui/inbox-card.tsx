@@ -1,38 +1,35 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useTransition, type ReactNode } from "react";
-import { toast } from "sonner";
+import type { ReactNode } from "react";
 
 import { DOC_LINK_NOTE, OverBudgetChip, isOverBudget, isPlanUnverified, isPlanVerified, statusLabel } from "@/fsd/entities/board-item";
 import { agoLabel, shortDate } from "@/fsd/shared/lib/relative-time";
-import { Button, ExternalButtonLink } from "@/fsd/shared/ui/button";
+import { ExternalButtonLink } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { Code } from "@/fsd/shared/ui/code";
 import { gateLabel } from "@/fsd/entities/pipeline";
-import { rejectActionsFor, resumeTargetsFor } from "../model/gate-source";
+import { rejectActionsFor } from "../model/gate-source";
 import {
   UNVERIFIED_HINT,
   bounceResultLine,
   gateNextActionHint,
   holdResultLine,
   resumeHint,
-  resumeLabel,
   resumePrimaryFor,
-  resumeToast,
   type RejectAction,
 } from "../model/gate-text";
-import { gateCardKey, type DiscardAction, type GateAction, type InboxItem, type TransitionAction } from "../model/inbox-item";
+import { gateCardKey, slotGateEntry, type DiscardAction, type GateAction, type InboxItem, type TransitionAction } from "../model/inbox-item";
 import { GateCardLock } from "./gate-card-lock";
 import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
 import { RejectActions } from "./reject-actions";
+import { ResumeButtons } from "./resume-buttons";
 
-type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite?: boolean };
+type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite: boolean };
 
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
-export function InboxCard({ item, now, transition, approve, discard, canWrite = true }: Props) {
+export function InboxCard({ item, now, transition, approve, discard, canWrite }: Props) {
   // 잠긴 프로젝트에서는 아무 결정도 내릴 수 없다. 게이트·재개·반려·폐기를 모두 감추고 칩만 남긴다 —
   // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
   // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
@@ -60,7 +57,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite = 
   return (
     <InboxCardBoundary itemKey={item.key}>
       <GateCardLock key={gateCardKey(item)}>
-        <article className={cardClass(gate !== null)}>
+        <article className={cardClass({ decision: gate !== null })}>
         <header className="flex flex-col gap-[3px]">
           <p className="font-mono text-xs text-quiet">
             {item.key} · {item.area}
@@ -82,14 +79,14 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite = 
               <ExternalButtonLink href={item.planUrl}>Read the plan ↗</ExternalButtonLink>
             ) : null}
             {!canWrite ? (
-              <span className="rounded-full border border-line px-3 py-1 text-xs text-quiet">Not selected</span>
+              <span className="rounded-full border border-rule px-3 py-1 text-xs text-quiet">Not selected</span>
             ) : null}
             {gate !== null && canWrite ? (
               <GateTransitionButton
                 gate={gate}
                 itemKey={item.key}
                 variant={isUnverified ? "mine-outline" : "mine"}
-                commit={() => approve({ key: item.key, gate, gateEntry: item.gateEntry, expectedUpdatedAt: item.updatedAt })}
+                commit={() => approve({ key: item.key, gate, gateEntry: slotGateEntry(item) ?? undefined, expectedUpdatedAt: item.updatedAt })}
               />
             ) : null}
             {isOnHold && canWrite ? <ResumeButtons item={item} transition={transition} /> : null}
@@ -114,7 +111,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite = 
           </details>
         ) : null}
 
-        {!canWrite ? null : <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} />}
+        {canWrite ? <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} /> : null}
 
         <details className="text-xs text-quiet">
           <summary className="cursor-pointer">What this decision does</summary>
@@ -219,46 +216,5 @@ function Kv({ label, children }: { label: string; children: ReactNode }) {
       <dt className="text-quiet">{label}</dt>
       <dd className="text-ink">{children}</dd>
     </dl>
-  );
-}
-
-// 보류 카드: 멈춘 자리로 돌아가는 버튼 하나가 주(主). 다른 쪽은 텍스트 링크.
-// 서버 액션은 moveItem으로 받는다 — 바로 아래 React의 startTransition과 이름이 겹치지 않게.
-function ResumeButtons({ item, transition: moveItem }: { item: InboxItem; transition: TransitionAction }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const targets = resumeTargetsFor(item.status);
-  const primary = resumePrimaryFor(item.heldFrom);
-  const secondary = targets.find((to) => to !== primary);
-
-  const resume = (to: string) => {
-    startTransition(async () => {
-      const result = await moveItem({ key: item.key, to, expectedUpdatedAt: item.updatedAt });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success(resumeToast(to, item.key));
-      router.refresh();
-    });
-  };
-
-  if (!targets.includes(primary)) return null;
-  return (
-    <>
-      <Button variant="mine-outline" disabled={isPending} onClick={() => resume(primary)}>
-        {resumeLabel(primary)}
-      </Button>
-      {secondary !== undefined ? (
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={() => resume(secondary)}
-          className="text-sm text-ink underline underline-offset-2 disabled:opacity-50"
-        >
-          {resumeLabel(secondary)} instead
-        </button>
-      ) : null}
-    </>
   );
 }

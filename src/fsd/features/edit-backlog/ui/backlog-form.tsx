@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
 import { Field, Input, Textarea } from "@/fsd/shared/ui/field";
-import { SOURCE_HELP, type BacklogFormAction, type BacklogFormState } from "../model/backlog-form-state";
+import { IDLE, SOURCE_HELP, type BacklogFormAction, type BacklogFormState } from "../model/backlog-form-state";
 
 type Props = {
   action: BacklogFormAction;
@@ -20,9 +20,9 @@ export function BacklogForm({ action, item }: Props) {
     const next = await action(prev, form);
     // React resets uncontrolled fields even when an action returns a validation error.
     // Keep the draft on failure; only a successful addition starts a blank draft.
-    if (!next.error && !isEditing) setValues(emptyValues);
+    if (next.status !== "error" && !isEditing) setValues(emptyValues);
     return next;
-  }, {});
+  }, IDLE);
 
   return (
     <form action={formAction} className={cardClass()}>
@@ -44,7 +44,7 @@ export function BacklogForm({ action, item }: Props) {
       <Field label="Source" hint={SOURCE_HELP}>
         <Textarea name="source" rows={3} value={values.source} onChange={(e) => setValues({ ...values, source: e.target.value })} disabled={pending} />
       </Field>
-      {state.error ? <p className="text-sm text-risk">{state.error}</p> : null}
+      {state.status === "error" ? <p className="text-sm text-risk">{state.error}</p> : null}
       <div>
         <Button variant="mine" type="submit" disabled={pending}>
           {pending ? "Saving…" : isEditing ? "Save" : "Add"}

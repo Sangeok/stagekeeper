@@ -11,7 +11,7 @@ it("shows availability counts and a separate Use button while preserving the pro
     { id: "b", slug: "bbb", name: "BBB", repoOwner: "repo", repo: "bbb", available: false, openItems: 1, openRuns: 2 },
   ] };
   const html = renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: { refresh() {} } },
-    createElement(ProjectListPage, { model, useProject: async () => ({ status: "success" }) })));
+    createElement(ProjectListPage, { model, action: async () => ({ status: "success" }) })));
   assert.match(html, /1 \/ 1 available/); assert.match(html, /Not selected/); assert.match(html, /Use this project/);
   assert.match(html, /href="\/p\/bbb"/);
   for (const anchor of html.matchAll(/<a\b[^>]*>[\s\S]*?<\/a>/g)) assert.doesNotMatch(anchor[0], /<button/);
@@ -23,7 +23,7 @@ it("keeps the availability badge and the Use control together at the row end", (
     { id: "b", slug: "bbb", name: "BBB", repoOwner: "repo", repo: "bbb", available: false, openItems: 1, openRuns: 2 },
   ] };
   const html = renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: { refresh() {} } },
-    createElement(ProjectListPage, { model, useProject: async () => ({ status: "success" }) })));
+    createElement(ProjectListPage, { model, action: async () => ({ status: "success" }) })));
   // 배지와 버튼은 링크 뒤의 한 묶음이다 — 행이 justify-between이라 따로 두면 배지가 가운데로 밀린다.
   const rows = [...html.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/g)].map((m) => m[1]);
   assert.equal(rows.length, 2);

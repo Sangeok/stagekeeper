@@ -7,13 +7,14 @@ import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { planForProject } from "@/server/entitlement";
+import { PIPELINE_EDIT_PLAN_GATE } from "../model/plan-gate";
 export async function savePipeline(slug: string, graph: { nodes: string[]; gates: string[] }): Promise<ActionResult<void>> {
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(w.reason);
   const plan = await planForProject(w.projectId);
-  if (!allowsPipelineEdit(plan)) return failure("Pipeline editing opens on Pro. The default pipeline stays as is.");
-  const v = validateGraph(graph, plan) as { ok: boolean; reason?: string };
-  if (!v.ok) return failure(v.reason ?? "invalid");
+  if (!allowsPipelineEdit(plan)) return failure(PIPELINE_EDIT_PLAN_GATE);
+  const v = validateGraph(graph, plan);
+  if (!v.ok) return failure(v.reason);
   const latest = await prisma.pipelineVersion.findFirst({ where: { projectId: w.projectId }, orderBy: { version: "desc" }, select: { version: true } });
   try {
     await prisma.pipelineVersion.create({ data: { projectId: w.projectId, version: (latest?.version ?? 0) + 1, nodes: graph.nodes, gates: graph.gates, createdBy: w.userId, format: SLOT_FORMAT } });

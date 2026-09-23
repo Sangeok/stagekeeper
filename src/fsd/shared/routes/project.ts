@@ -17,6 +17,10 @@ export function projectPath(slug: string, segment: ProjectTabSegment = ""): stri
   return `/p/${slug}${segment}`;
 }
 
+// 모든 프로젝트의 탭 셸(src/app/(app)/p/[slug]/layout.tsx)을 다시 그리게 하는 revalidatePath 대상 — 라우트 파일의
+// 경로 그대로여야 하고 두 번째 인자는 "layout"이다. 라우트가 옮겨지면 여기만 고친다.
+export const PROJECT_LAYOUT_REVALIDATE_PATH = "/(app)/p/[slug]";
+
 // 항목 상세는 탭이 아니라 탭 아래의 경로다 — 탭 목록에 넣지 않고 이름 있는 빌더로 둔다.
 export function itemPath(slug: string, key: string): string {
   return `${projectPath(slug)}/items/${key}`;

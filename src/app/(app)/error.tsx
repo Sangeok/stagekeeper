@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 
 import { Button } from "@/fsd/shared/ui/button";
+import { projectsPath } from "@/fsd/shared/routes/projects";
 
 // p/[slug]/error.tsx는 자기 형제인 p/[slug]/layout.tsx의 예외를 받지 못한다. 그 레이아웃은
 // 프로젝트 화면을 열 때마다 DB를 읽으므로(findUniqueOrThrow 둘 포함) 실행 빈도가 가장 높다 —
@@ -23,7 +24,7 @@ export default function Error({ error, retry }: { error: Error & { digest?: stri
         <Button variant="mine" onClick={() => retry()}>
           Try again
         </Button>
-        <Link href="/projects" className="text-sm underline underline-offset-2">
+        <Link href={projectsPath()} className="text-sm underline underline-offset-2">
           All projects
         </Link>
       </div>

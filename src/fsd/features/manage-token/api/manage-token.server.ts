@@ -7,6 +7,7 @@ import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectOwner, requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { planForProject } from "@/server/entitlement";
+import { OWNER_TOKEN_PLAN_GATE } from "../model/plan-gate";
 
 // 평문은 이 반환값에만 존재한다. 서비스는 sha256 해시만 저장한다.
 // 실패는 review-gate와 같은 ActionResult로 돌려준다 — 같은 layer에서 실패 규약이 두 벌이 되지 않게.
@@ -32,7 +33,7 @@ export async function issueOwnerToken(slug: string, label: string): Promise<Acti
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(w.reason);
   const { projectId, userId } = w;
-  if (!allowsSessionApprovals(await planForProject(projectId))) return failure("Owner tokens open on Pro. Approve in the Inbox for now.");
+  if (!allowsSessionApprovals(await planForProject(projectId))) return failure(OWNER_TOKEN_PLAN_GATE);
   const { plain, hash } = newToken("owner");
   await prisma.ownerToken.create({ data: { projectId, userId, hash, label: label.trim() || "session" } });
   revalidatePath(projectPath(slug, "/tokens"));

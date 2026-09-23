@@ -7,7 +7,7 @@
 // import할 수 없다(verify-fsd-boundaries.mjs의 server/no-fsd-import). 그래서 값이 두 벌이 된다.
 // 규칙을 바꿀 때는 **두 곳을 함께** 고쳐야 한다: 여기와 src/fsd/features/create-project/model/project-slug.ts.
 // 아래 상수는 그 파일과 같은 값이어야 하며, 다르면 웹 폼이 받는 슬러그와 에이전트가 만드는
-// 슬러그가 갈린다.
+// 슬러그가 갈린다. project-slug-rule-sync.test.ts가 두 파일의 상수 텍스트를 대조한다.
 export const SLUG_MAX = 40;
 export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
 

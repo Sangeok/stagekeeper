@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { projectsPath } from "@/fsd/shared/routes/projects";
 
 // requireProjectOwner는 비멤버와 없는 slug를 똑같이 notFound()로 답한다(guard.ts) — 그 호출은
 // p/[slug]/layout.tsx 안에서 일어나므로, 그 레이아웃 안쪽의 not-found는 렌더될 수 없다.
@@ -12,7 +13,7 @@ export default function NotFound() {
       <h1 className="text-2xl font-semibold tracking-tight">Not found.</h1>
       <p className="text-sm text-quiet">That page doesn&apos;t exist, or it isn&apos;t yours.</p>
       <p className="mt-1">
-        <Link href="/projects" className="text-sm underline underline-offset-2">
+        <Link href={projectsPath()} className="text-sm underline underline-offset-2">
           All projects
         </Link>
       </p>

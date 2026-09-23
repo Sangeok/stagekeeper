@@ -3,6 +3,7 @@ import Link from "next/link";
 import { statusLabel } from "@/fsd/entities/board-item";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { PROJECT_TABS } from "@/fsd/shared/routes/project";
+import { projectsPath } from "@/fsd/shared/routes/projects";
 import { ButtonLink, buttonClass } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
 import { Chip } from "@/fsd/shared/ui/chip";
@@ -44,7 +45,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
             Stagekeeper
           </Link>
           {signedIn ? (
-            <Link href="/projects" className="text-sm underline underline-offset-[3px]">
+            <Link href={projectsPath()} className="text-sm underline underline-offset-[3px]">
               Open projects
             </Link>
           ) : (
@@ -71,7 +72,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
             </p>
             <div className="mt-[30px]">
               {signedIn ? (
-                <ButtonLink variant="mine" href="/projects" className="px-4 py-[9px] text-[15px] leading-[22px]">
+                <ButtonLink variant="mine" href={projectsPath()} className="px-4 py-[9px] text-[15px] leading-[22px]">
                   Open projects
                 </ButtonLink>
               ) : (
@@ -135,9 +136,6 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
   );
 }
 
-// cardClass의 첫 인자는 "사람의 결정을 기다리는 카드"라는 뜻이다 — 호출부에서 true만 보면 알 수 없다.
-const IS_DECISION_CARD = true;
-
 // 실제 Inbox 카드(게이트②)와 같은 프리미티브로 그린 정적 데모. 눌리지 않는다.
 // 이 데모는 실제 Inbox 화면에 대한 약속이라, 문구가 제품과 갈라지면 랜딩이 거짓말이 된다.
 // 탭 목록과 상태 라벨은 소유 모듈에서 직접 가져온다. 나머지 셋은 값을 그대로 적되 출처를 밝힌다:
@@ -145,7 +143,8 @@ const IS_DECISION_CARD = true;
 //   "Approve implementation"                = features/review-gate/model/gate-text.ts GATE_ACTION["before-implement"].label
 //   "Approving lets dev change code. …"     = 같은 파일 GATE_ACTION["before-implement"].hint
 // 두 barrel(turn-banner·review-gate)이 Client Component를 포함하고 있어, 공개 페이지인 랜딩이
-// 그것을 모듈 그래프로 끌어오지 않게 한 선택이다. 세 문구를 바꿀 때는 여기도 함께 본다.
+// 그것을 모듈 그래프로 끌어오지 않게 한 선택이다. 세 문구는 product-copy.md §16의 copy-lock:landing-demo가
+// 이 화면에 묶는다(landing-page.test.ts) — 문서의 문장을 바꾸면 여기도 바꿔야 시험이 통과한다.
 function InboxDemo() {
   return (
     <div aria-hidden="true" className="overflow-hidden rounded-[10px] border border-rule bg-ground md:mt-1.5">
@@ -165,7 +164,7 @@ function InboxDemo() {
       </div>
       <div className="flex flex-col gap-3.5 px-4 pt-5 pb-4">
         <p className="text-[26px] leading-[1.05] font-semibold tracking-[-0.025em] text-mine">Waiting on you</p>
-        <div className={cardClass(IS_DECISION_CARD, "gap-2.5 px-4 pt-4 pb-3.5")}>
+        <div className={cardClass({ decision: true, className: "gap-2.5 px-4 pt-4 pb-3.5" })}>
           <div>
             <p className="font-mono text-xs text-quiet">FEAT-01 · README.md</p>
             <p className="text-base leading-[22px] font-medium tracking-[-0.01em]">Add an install section to the README</p>

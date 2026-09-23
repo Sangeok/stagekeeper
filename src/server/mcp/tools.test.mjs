@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { AGENT_TOOL_NAMES, registerTools } from "./tools.ts";
 import { NOT_SELECTED_REASON } from "../project-access-query.ts";
+import { REVISION_MAX } from "../agents/next.ts";
 
 // product-copy.md §13의 행 하나. 백틱과 굵은글은 마크다운 서식이라 떼고 비교한다.
 const COPY = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
@@ -92,18 +93,26 @@ describe("not-selected projects", () => {
   };
   const body = (r) => JSON.parse(r.content[0].text);
 
-  it("refuses the state-changing tools with the lock reason", async () => {
+  // 등록된 도구 전부에서 허용 목록만 뺀 집합을 돈다 — 손으로 쓴 목록이면 게이트를 빼먹은 새 도구가 통과한다.
+  // project_get은 의도적인 예외다(아래 시험): 잠금 사유를 에이전트에게 전하는 유일한 통로다.
+  const ANSWERS_WHEN_LOCKED = new Set(["project_get"]);
+  const ARGS = {
+    board_propose: { key: "X-1", agent: "dev", reason: "r" },
+    board_transition: { key: "X-1", to: "in_review" },
+    plan_submit: { key: "X-1", path: "p", commit: "c" },
+    report_submit: { key: "X-1", actor: "dev", path: "p", commit: "c" },
+    validation_record: { key: "X-1", text: "clean" },
+    project_sync: { workspaces: ws },
+    pipeline_next: { key: "X-1" },
+    backlog_get: { key: "X-1" },
+    board_get: { key: "X-1" },
+    agent_next: { agent: "dev" },
+  };
+
+  it("refuses every agent tool but project_get with the lock reason", async () => {
     const h = handlersWith();
-    const calls = [
-      ["board_propose", { key: "X-1", agent: "dev", reason: "r" }],
-      ["board_transition", { key: "X-1", to: "in_review" }],
-      ["plan_submit", { key: "X-1", path: "p", commit: "c" }],
-      ["report_submit", { key: "X-1", actor: "dev", path: "p", commit: "c" }],
-      ["validation_record", { key: "X-1", text: "clean" }],
-      ["project_sync", { workspaces: ws }],
-      ["pipeline_next", { key: "X-1" }],
-      ["backlog_list", {}], ["backlog_get", { key: "X-1" }], ["board_list", {}], ["board_get", { key: "X-1" }], ["agent_next", { agent: "dev" }],
-    ];
+    const calls = AGENT_TOOL_NAMES.filter((name) => !ANSWERS_WHEN_LOCKED.has(name)).map((name) => [name, ARGS[name] ?? {}]);
+    assert.ok(calls.length > 0);
     for (const [name, args] of calls) {
       const r = await h[name](args, ctx);
       assert.equal(r.isError, true, name);
@@ -229,7 +238,8 @@ it("MCP receipt schema rejects invalid revisions and retains the complete receip
   const schema = descriptions().agent_next.inputSchema;
   const base = { agent: "dev", outcome: "ok", receipt: { runId: "r", stepId: "verify", revision: 1 } };
   assert.deepEqual(schema.parse(base), base);
-  for (const revision of [-1, 0.5, 2147483648]) assert.equal(schema.safeParse({ ...base, receipt: { ...base.receipt, revision } }).success, false);
+  assert.equal(schema.safeParse({ ...base, receipt: { ...base.receipt, revision: REVISION_MAX } }).success, true);
+  for (const revision of [-1, 0.5, REVISION_MAX + 1]) assert.equal(schema.safeParse({ ...base, receipt: { ...base.receipt, revision } }).success, false);
 });
 it("invalid normalized workspaces never reach projectSync", async () => {
   const handlers = {};

@@ -1,25 +1,25 @@
 import Link from "next/link";
 
 import { projectPath } from "@/fsd/shared/routes/project";
+import { newProjectPath } from "@/fsd/shared/routes/projects";
 import { ButtonLink } from "@/fsd/shared/ui/button";
-import { UseProjectControl, selectionControlKey, type ProjectSelectionModel, type SelectProjectAction } from "@/fsd/features/select-project-for-use";
+import { UseProjectControl, availabilityLabel, selectionControlKey, type ProjectSelectionModel, type SelectProjectAction } from "@/fsd/features/select-project-for-use";
 
 export type ProjectListModel = Omit<ProjectSelectionModel, "projects"> & {
   login: string;
-  availableCount: number;
   projects: (ProjectSelectionModel["projects"][number] & { slug: string; repoOwner: string; repo: string })[];
   notice: { basis: string | null; availableProjectIds: string[]; at: string } | null;
 };
 
-export function ProjectListPage({ model, useProject }: { model: ProjectListModel; useProject: SelectProjectAction }) {
+export function ProjectListPage({ model, action }: { model: ProjectListModel; action: SelectProjectAction }) {
   const { projects } = model;
   return (
     <main className="mx-auto flex w-full max-w-[800px] flex-col gap-8 px-5 pt-9 pb-14">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-quiet">{model.limit === null ? `${model.availableCount} available · unlimited` : `${model.availableCount} / ${model.limit} available`}</p>
+          <p className="text-sm text-quiet">{availabilityLabel(model)}</p>
         </div>
-        <ButtonLink variant="mine" href="/p/new">
+        <ButtonLink variant="mine" href={newProjectPath()}>
           New project
         </ButtonLink>
       </div>
@@ -40,7 +40,7 @@ export function ProjectListPage({ model, useProject }: { model: ProjectListModel
               {/* 배지와 Use 버튼은 한 묶음 — 행이 justify-between이라 따로 두면 배지가 행 가운데로 밀린다. */}
               <div className="flex items-center gap-3">
                 <span className="text-xs text-quiet">{p.available ? "Available" : "Not selected"}</span>
-                <UseProjectControl key={selectionControlKey(p.id, model)} targetId={p.id} model={model} action={useProject} />
+                <UseProjectControl key={selectionControlKey(p.id, model)} targetId={p.id} model={model} action={action} />
               </div>
             </li>
           ))}

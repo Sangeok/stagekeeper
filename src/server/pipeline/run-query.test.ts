@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { readFacts, type RunRow } from "./run-query";
+import { readFacts, type PipelineRunRow } from "./run-query";
 
-const cursor: RunRow = { id: "pipeline", node: "implement", entryId: "entry", enteredAt: new Date(100), closedAt: null, version: { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: [] } };
+const cursor: PipelineRunRow = { id: "pipeline", node: "implement", entryId: "entry", enteredAt: new Date(100), closedAt: null, version: { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: [] } };
 const row = { id: "item", status: "implementing", validation: null, acceptedAt: null };
 it("success requires the same run's normal report close, verify/ok and bound report", async () => {
   for (const [stepId, verified, reported, expected] of [["report", true, true, true], ["hold", true, true, false], ["report", false, true, false], ["report", true, false, false]] as const) {

@@ -868,6 +868,15 @@ both). Below: each file's title, its section headings, and the sentences that se
   themselves permission."
 - CTA: **Continue with GitHub** (signed in: **Open projects**). No sub-line under the CTA — `/harness:init` is taught on the token screen.
 - Demo beside the thesis: a static gate-2 inbox card, caption "Your inbox when a plan is ready for you."
+  The card repeats three product lines by value — the banner headline (§5), the gate-2 button and its
+  hint (§7). The demo is a promise about the real Inbox, so they are locked to the landing page:
+
+<!-- copy-lock:landing-demo -->
+> Waiting on you
+> Approve implementation
+> Approving lets dev change code. Then you run dev in Claude Code.
+<!-- /copy-lock -->
+
 - "The cycle you'll run": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·
   6 Implemented · 7 Accepted — only steps 2 and 5 carry a "you" tag; no other actor names —
   "Two of these stop for you today — 2 and 5. The rest you run in your own Claude Code."
