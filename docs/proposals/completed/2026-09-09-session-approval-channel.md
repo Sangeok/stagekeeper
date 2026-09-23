@@ -18,7 +18,7 @@ related:
   - "docs/architecture/system-overview.md"
   - "docs/conventions/product-copy.md"
   - "docs/proposals/completed/2026-09-07-human-checkpoint-consistency.md"
-  - "docs/proposals/active/src-server-clean-code-findings.md"
+  - "docs/proposals/completed/2026-09-23-src-server-clean-code-findings.md"
 ---
 
 # 세션 승인 채널 — 소유자 토큰으로 Claude Code 세션에서 게이트를 열고, 웹과 같은 기록을 남긴다

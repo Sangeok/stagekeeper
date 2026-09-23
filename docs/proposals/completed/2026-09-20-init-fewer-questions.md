@@ -15,7 +15,7 @@ owners: []
 related:
   - "docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md"
   - "docs/proposals/active/agent-role-catalog.md"
-  - "docs/proposals/active/src-server-clean-code-findings.md"
+  - "docs/proposals/completed/2026-09-23-src-server-clean-code-findings.md"
   - "docs/architecture/protocol.md"
   - "docs/architecture/system-overview.md"
   - "docs/architecture/verification.md"

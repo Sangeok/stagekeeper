@@ -21,7 +21,7 @@ related:
   - "docs/proposals/completed/2026-09-09-session-approval-channel.md"
   - "docs/proposals/completed/2026-09-05-agent-next-open-routing.md"
   - "docs/proposals/completed/2026-09-04-harness-platform-phase-4-entitlement.md"
-  - "docs/proposals/active/src-server-clean-code-findings.md"
+  - "docs/proposals/completed/2026-09-23-src-server-clean-code-findings.md"
 ---
 
 # 설정 가능한 파이프라인 — 사이클을 런북 문서에서 서버의 그래프로 옮기고, 게이트와 서브에이전트 구성을 사용자가 정한다
