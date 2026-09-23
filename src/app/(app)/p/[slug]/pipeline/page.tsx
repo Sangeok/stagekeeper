@@ -4,27 +4,27 @@ import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
+import { loadProjectRoster } from "@/server/project";
 import { loadCurrentVersionView } from "@/server/pipeline/run";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) {
   const { slug } = await params;
   const { projectId } = await requireProjectOwner(slug);
 
-  const [version, access, workspaces] = await Promise.all([
+  const [version, access, roster] = await Promise.all([
     loadCurrentVersionView(prisma, projectId),
     projectAccess(projectId),
-    prisma.workspace.findMany({ where: { projectId }, orderBy: { wsId: "asc" }, select: { agent: true } }),
+    loadProjectRoster(prisma, projectId),
   ]);
 
   return (
     <ProjectPipelinePage
       graph={version.graph}
       format={version.format}
-      version={version.persisted?.version ?? null}
-      savedAt={version.persisted?.createdAt ?? null}
+      saved={version.persisted ? { version: version.persisted.version, at: version.persisted.createdAt } : undefined}
       now={new Date()}
       plan={access.plan}
-      roster={workspaces.map((w) => w.agent)}
+      roster={roster}
       editable={access.available && allowsPipelineEdit(access.plan)}
       unavailableReason={access.available ? undefined : access.reason}
       save={savePipeline.bind(null, slug)}

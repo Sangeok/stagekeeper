@@ -14,10 +14,20 @@ export const NOTE_MAX = 500;
 // 원장 행(outcome 실은 호출) 기준. 분모는 hs_면 토큰당, hu_면 토큰×프로젝트당이다 —
 // hu_ 한 개가 여러 프로젝트에 쓰이므로, 프로젝트를 안 걸면 오늘의 "프로젝트당 60회"가 조용히 쪼개진다(A-10).
 export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 };
+// 영수증 revision의 상한 — AgentRun.revision은 Postgres Int(int4)다. MCP 입력 스키마(tools.ts)도 같은 값을 쓴다.
+export const REVISION_MAX = 2_147_483_647;
 export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
 const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만 쓴다
 
 export type Receipt = { runId: string; revision: number; stepId: string };
+
+// MCP 입력 스키마(tools.ts의 agent_next receipt)와 같은 규칙 — 이 함수는 스키마를 거치지 않는 호출자도 받는다.
+export function isWellFormedReceipt(receipt: Receipt | undefined): receipt is Receipt {
+  return receipt !== undefined
+    && typeof receipt.runId === "string" && receipt.runId !== ""
+    && typeof receipt.stepId === "string" && receipt.stepId !== ""
+    && Number.isInteger(receipt.revision) && receipt.revision >= 0 && receipt.revision <= REVISION_MAX;
+}
 export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
 export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string };
 // userScoped: 주체가 hu_라 프로젝트가 토큰이 아니라 인자에서 왔다는 뜻. 한도 집계의 분모를
@@ -118,16 +128,21 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
         receipt: { runId: run.id, revision: run.revision, stepId: run.stepId } });
     };
     const finished = (): ServerResult<NextOutput> => ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });
-    if (input.outcome && (!input.receipt || typeof input.receipt.runId !== "string" || !input.receipt.runId
-        || typeof input.receipt.stepId !== "string" || !input.receipt.stepId || !Number.isInteger(input.receipt.revision)
-        || input.receipt.revision < 0 || input.receipt.revision > 2147483647)) {
-      return fail("receipt required: call again without outcome and send the returned receipt. If your stub is outdated, run /harness:init again.");
+    // outcome이 있으면 온전한 영수증이 함께 와야 한다. claim은 그 영수증이고 outcome이 없으면 null —
+    // 아래 분기는 claim으로 하므로 영수증이 있다는 전제를 컴파일러가 안다.
+    const { outcome } = input;
+    let claim: Receipt | null = null;
+    if (outcome) {
+      if (!isWellFormedReceipt(input.receipt)) {
+        return fail("receipt required: call again without outcome and send the returned receipt. If your stub is outdated, run /harness:init again.");
+      }
+      claim = input.receipt;
     }
-    const run = input.outcome
-      ? await deps.runByReceipt(projectId, agent, key, input.receipt!.runId)
+    const run = claim
+      ? await deps.runByReceipt(projectId, agent, key, claim.runId)
       : await deps.openRun(projectId, agent, key);
     if (!run) {
-      if (input.outcome) return fail("this receipt does not belong to this call's run; call again without outcome");
+      if (claim) return fail("this receipt does not belong to this call's run; call again without outcome");
       const used = await deps.recentRuns(projectId, dispatchCutoff(new Date()));
       const capMsg = capError(access.plan, "dispatches", used);
       if (capMsg) return fail(`${capMsg} Counted over the last ${DISPATCH_WINDOW_DAYS} days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.`);
@@ -147,26 +162,26 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
       return fail(`not open: ${unmet.join("; ")}`);
     }
     const current = findStep(parsed, run.stepId);
-    if (!input.outcome) {
+    if (!outcome || !claim) {
       if (!current) {
         await deps.closeRun(run);
         return fail("the template changed under this run; call again without outcome to start over");
       }
       return serve(run, current);
     }
-    const receipt = input.receipt!;
+    const receipt = claim;
     let destination: OutcomeCommit["destination"] = { kind: "stay", refused: false };
     let target = current;
     let refusal: string | undefined;
     if (!current && !run.closedAt) {
       destination = { kind: "retired", run };
     } else if (run.closedAt) {
-      destination = { kind: "closed", allowTerminal: !!current && input.outcome !== "handoff" };
-    } else if (current && input.outcome !== "handoff") {
-      const candidates = input.outcome === "ok" ? current.next
-        : input.outcome === "failed" ? [current.onFailed] : [current.onBlocked];
+      destination = { kind: "closed", allowTerminal: !!current && outcome !== "handoff" };
+    } else if (current && outcome !== "handoff") {
+      const candidates = outcome === "ok" ? current.next
+        : outcome === "failed" ? [current.onFailed] : [current.onBlocked];
       const routed = candidates.filter((id): id is string => id !== undefined);
-      const facts = new Facts(deps, projectId, agent, key, current.id === "verify" && input.outcome === "ok");
+      const facts = new Facts(deps, projectId, agent, key, current.id === "verify" && outcome === "ok");
       const unmet: string[] = [];
       for (const id of routed) {
         if (id === DONE) { destination = { kind: "done" }; break; }
@@ -182,9 +197,9 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     }
     let committed: CommitResult;
     try {
-      committed = await deps.commitOutcome({ scope, agent, key, receipt, outcome: input.outcome, note: input.note ?? null, destination });
-    } catch {
-      console.error("agent_next: outcome transaction failed", { runId: run.id, stepId: receipt.stepId });
+      committed = await deps.commitOutcome({ scope, agent, key, receipt, outcome, note: input.note ?? null, destination });
+    } catch (error) {
+      console.error("agent_next: outcome transaction failed", { runId: run.id, stepId: receipt.stepId, error });
       return fail("could not record the outcome; call again without outcome to see the current step");
     }
     if (committed.kind === "stale") return stale();
@@ -194,9 +209,9 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     }
     if (refusal) return fail(refusal);
     if (destination.kind === "done") return ok({ done: true });
-    const prefix = input.outcome === "handoff"
+    const prefix = outcome === "handoff"
       ? `(handoff recorded — you are still on \`${target!.id}\`; after the commit, call again without outcome)\n\n`
-      : destination.kind === "stay" ? `(${input.outcome} recorded; this step has no \`on ${input.outcome}:\` route — you are still on \`${target!.id}\`)\n\n` : "";
+      : destination.kind === "stay" ? `(${outcome} recorded; this step has no \`on ${outcome}:\` route — you are still on \`${target!.id}\`)\n\n` : "";
     return serve(committed.run, target!, prefix);
   };
   const result = await (deps.withCursor ? deps.withCursor(scope, input, key, execute) : execute(deps));

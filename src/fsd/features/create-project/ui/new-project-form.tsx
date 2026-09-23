@@ -21,6 +21,15 @@ type Props = {
 
 const TEXT_BUTTON = "text-xs text-quiet underline underline-offset-2";
 
+// 화면은 셋 중 하나다. 수동 입력은 저장소가 파싱돼도 입력란을 유지하고 파싱 결과를 그 아래에 보여 준다 —
+// 파싱은 한 글자짜리 repo 이름에도 맞으므로, 파싱 결과로 입력란을 바꾸면 주소를 타이핑하는 도중
+// (`…/acme/h`) 입력란이 사라졌다.
+export type FormMode = "manual" | "chosen" | "picker";
+export function formMode(isManualEntry: boolean, isRepoChosen: boolean): FormMode {
+  if (isManualEntry) return "manual";
+  return isRepoChosen ? "chosen" : "picker";
+}
+
 export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFailed }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE);
   const [owner, setOwner] = useState(defaultOwner);
@@ -33,8 +42,10 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
   // 목록이 비면(비공개만 있거나 GitHub가 답하지 않으면) 붙여넣기가 유일한 길이다.
   const [isManualEntry, setIsManualEntry] = useState(repos.length === 0);
   const [pasteError, setPasteError] = useState<string | null>(null);
+  const [urlText, setUrlText] = useState("");
 
   const isRepoChosen = slug !== "" && owner !== "" && repo !== "";
+  const mode = formMode(isManualEntry, isRepoChosen);
 
   // 모드를 바꿀 때는 그 모드에만 속한 상태를 함께 비운다. 예전에는 붙여넣기 오류가
   // picker 화면까지 따라와서, 지금 보는 화면과 무관한 문구가 남아 있었다.
@@ -78,10 +89,31 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
     setOwner(defaultOwner);
     setSlugTouched(false);
     setIsEditing(false);
-    // 다시 고를 때 이전 검색어와 오류가 남아 있으면 "처음부터"가 아니다.
+    // 다시 고를 때 이전 검색어·주소와 오류가 남아 있으면 "처음부터"가 아니다.
     setQuery("");
+    setUrlText("");
     setPasteError(null);
   };
+
+  const chosenSummary = (
+    <div className="flex items-start justify-between gap-3 rounded-md bg-field px-3 py-2 text-sm">
+      <p className="flex flex-wrap gap-x-2">
+        <span className="font-mono">
+          {owner}/{repo}
+        </span>
+        <span className="text-quiet">· {branch}</span>
+        <span className="font-mono text-quiet">· /p/{slug}</span>
+      </p>
+      <span className="flex shrink-0 gap-3">
+        <button type="button" onClick={() => setIsEditing((value) => !value)} className={TEXT_BUTTON}>
+          {isEditing ? "Collapse" : "Edit"}
+        </button>
+        <button type="button" onClick={reset} className={TEXT_BUTTON}>
+          Start over
+        </button>
+      </span>
+    </div>
+  );
 
   if (state.status === "created") {
     return (
@@ -97,25 +129,9 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      {isRepoChosen ? (
-        <div className="flex items-start justify-between gap-3 rounded-md bg-field px-3 py-2 text-sm">
-          <p className="flex flex-wrap gap-x-2">
-            <span className="font-mono">
-              {owner}/{repo}
-            </span>
-            <span className="text-quiet">· {branch}</span>
-            <span className="font-mono text-quiet">· /p/{slug}</span>
-          </p>
-          <span className="flex shrink-0 gap-3">
-            <button type="button" onClick={() => setIsEditing((value) => !value)} className={TEXT_BUTTON}>
-              {isEditing ? "Collapse" : "Edit"}
-            </button>
-            <button type="button" onClick={reset} className={TEXT_BUTTON}>
-              Start over
-            </button>
-          </span>
-        </div>
-      ) : isManualEntry ? (
+      {mode === "chosen" ? (
+        chosenSummary
+      ) : mode === "manual" ? (
         <div className="flex flex-col gap-1">
           <Field label="Repository URL">
             <Input
@@ -123,9 +139,14 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
               inputMode="url"
               autoFocus
               placeholder="https://github.com/owner/repo"
-              onChange={(event) => applyPaste(event.target.value)}
+              value={urlText}
+              onChange={(event) => {
+                setUrlText(event.target.value);
+                applyPaste(event.target.value);
+              }}
             />
           </Field>
+          {isRepoChosen ? chosenSummary : null}
           {repos.length > 0 ? (
             <button type="button" onClick={showPicker} className={`self-start ${TEXT_BUTTON}`}>
               Pick from my repositories

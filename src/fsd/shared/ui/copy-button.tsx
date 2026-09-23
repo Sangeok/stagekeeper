@@ -26,8 +26,11 @@ export function CopyButton({
         try {
           await navigator.clipboard.writeText(text);
           setCopied(true);
-        } catch {
+        } catch (error) {
+          // 사용자에게는 선택 가능한 텍스트가 fallback이다(위 주석). 원인(비보안 origin, 권한 거부)은 콘솔에 남긴다 —
+          // 복사할 텍스트는 로그에 싣지 않는다(토큰일 수 있다).
           setCopied(false);
+          console.error("clipboard write failed", error);
         }
       }}
     >

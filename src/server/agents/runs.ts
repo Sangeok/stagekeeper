@@ -7,6 +7,7 @@ import { readProjectAccess } from "../project-access-query";
 import { latestBoard } from "@/server/pipeline/board";
 import type { NextDeps } from "./next";
 import { repositoryOwner } from "../project-access-query";
+import { loadProjectRoster } from "../project";
 import { serverVars } from "./vars";
 import { cursorTransaction, commitRunOutcome } from "./run-query";
 
@@ -15,8 +16,7 @@ const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기�
 export function createNextDeps(db: PrismaClient): NextDeps {
   const deps: NextDeps = {
     access: (projectId) => readProjectAccess(db, projectId),
-    roster: async (projectId) =>
-      (await db.workspace.findMany({ where: { projectId }, orderBy: { wsId: "asc" }, select: { agent: true } })).map((w) => w.agent),
+    roster: (projectId) => loadProjectRoster(db, projectId),
     template: async (projectId, path) => {
       const { language } = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { language: true } });
       const find = (lang: string) => db.template.findUnique({ where: { lang_path: { lang, path } }, select: { body: true } });

@@ -1,4 +1,4 @@
-import { NewOwnerTokenForm, NewTokenForm } from "@/fsd/features/manage-token";
+import { NewOwnerTokenForm, NewTokenForm, OWNER_TOKEN_PLAN_GATE } from "@/fsd/features/manage-token";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";
@@ -97,7 +97,7 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, 
       {ownerAllowed ? (
         <NewOwnerTokenForm issue={issueOwner} ownerMcpUrl={ownerMcpUrl} />
       ) : issueAllowed ? (
-        <p className="text-sm text-quiet">Owner tokens open on Pro. Approve in the Inbox for now.</p>
+        <p className="text-sm text-quiet">{OWNER_TOKEN_PLAN_GATE}</p>
       ) : null}
 
       {/* Free에는 위에 발급 폼이 없으므로 "Issue one above"를 가리킬 수 없다 — 문구를 플랜에 맞춘다. 표 자체는 남긴다: 플랜이 내려간 뒤에도 남은 토큰을 폐기할 수 있어야 한다. */}

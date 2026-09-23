@@ -45,7 +45,8 @@ function summaryLine(row: BoardRow): string {
 }
 
 function activityItem(row: BoardRow, today: Date): ActivityItem {
-  if (row.node && PROJECT_AGENTS.includes(slotAgent(row.node)) && row.status !== "on_hold") return { key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slotAgent(row.node)} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
+  const slot = slotAgent(row.node);
+  if (slot !== null && PROJECT_AGENTS.includes(slot) && row.status !== "on_hold") return { key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slot} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
   const item = {
     key: row.backlogItem.key,
     status: row.status,
@@ -141,8 +142,11 @@ export function buildBriefing(
     else otherItems.push(item);
   }
   // 현재 그래프의 노드가 디스패치하는 에이전트만, 그래프 순서로 — plan·implement는 roster(항목의 dev), accept는 main-loop(디스패치 아님).
-  const agentsOf = (kind: string): readonly string[] =>
-    kind === "plan" || kind === "implement" ? roster : (slotAgent(kind) ? [slotAgent(kind)!] : []);
+  const agentsOf = (kind: string): readonly string[] => {
+    if (kind === "plan" || kind === "implement") return roster;
+    const agent = slotAgent(kind);
+    return agent !== null ? [agent] : [];
+  };
   const team = [...new Set(nodes.flatMap(agentsOf))].map((agent) => ({ agent, state: teamState(agent, rows) }));
   return { activity: [...gateItems, ...otherItems], team };
 }

@@ -73,6 +73,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `token-reveal-shared`·`-project`·`-user` | §9 Token reveal | `src/fsd/entities/project-token/ui/token-reveal.test.ts` | `TokenReveal`(hs_·hu_ 각각 렌더) |
 | `owner-token-reveal` | §9 Owner token reveal | 같은 파일 | `OwnerTokenReveal` |
 | `turn-banner-connect` | §5 First run | `src/fsd/widgets/turn-banner/model/turn.test.ts` | 모델의 `detail`(글자 일치) — 배너는 그 값을 그린다 |
+| `landing-demo` | §16 Landing (데모 카드) | `src/fsd/pages/landing/ui/landing-page.test.ts` | `LandingPage`의 데모 카드가 값으로 적은 제품 문장 셋 |
 
 읽는 법과 블록 규칙(한 줄 = 한 단위, 줄바꿈 금지)은 `src/fsd/shared/lib/copy-lock.ts`와 product-copy.md 머리의
 "Copy-lock blocks"에 있다. 화면 잠금은 **포함 검사**다: 블록의 모든 줄이 화면에 있는지만 본다. 그래서

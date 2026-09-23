@@ -3,6 +3,7 @@ import Link from "next/link";
 import { type PlanId, planLabel } from "@/fsd/shared/lib/entitlement-copy";
 import { billingPath } from "@/fsd/shared/routes/billing";
 import { projectPath } from "@/fsd/shared/routes/project";
+import { newProjectPath, projectsPath } from "@/fsd/shared/routes/projects";
 import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
 
 export type HeaderProject = { slug: string; name: string };
@@ -22,7 +23,7 @@ export function AppHeader({
   return (
     <header className="border-b border-rule">
       <div className="mx-auto flex w-full max-w-[800px] items-center gap-2.5 px-5 py-3">
-        <Link href="/projects" className="font-semibold tracking-[-0.01em]">
+        <Link href={projectsPath()} className="font-semibold tracking-[-0.01em]">
           Stagekeeper
         </Link>
         {project !== undefined ? (
@@ -74,12 +75,12 @@ function ProjectSwitcher({ current, projects }: { current: HeaderProject; projec
         ))}
         {others.length > 0 ? <li aria-hidden="true" className="my-1 border-t border-rule" /> : null}
         <li>
-          <Link href="/projects" className="block px-3 py-1.5 hover:bg-field">
+          <Link href={projectsPath()} className="block px-3 py-1.5 hover:bg-field">
             All projects
           </Link>
         </li>
         <li>
-          <Link href="/p/new" className="block px-3 py-1.5 hover:bg-field">
+          <Link href={newProjectPath()} className="block px-3 py-1.5 hover:bg-field">
             New project
           </Link>
         </li>

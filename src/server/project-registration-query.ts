@@ -25,6 +25,8 @@ export type RegisterProjectResult =
   | { status: "existing"; projectId: string; slug: string }
   | { status: "capped"; reason: string };
 
+// 좁은 형태 — 상한 문구를 돌려주고 null이면 성공이다(src/server의 다른 결과 계약과 극성이 반대다).
+// D3 리허설 스크립트(scripts/rehearse-project-availability-d3.ts) 전용으로 남아 있다 — 새 호출자는 registerProjectResultIn.
 export async function registerProjectIn(
   transaction: Prisma.TransactionClient,
   input: RegisterProjectInput,
@@ -33,8 +35,7 @@ export async function registerProjectIn(
   return result.status === "capped" ? result.reason : null;
 }
 
-// 위 함수의 넓은 형태. 기존 호출자(웹 폼)는 "상한 문구 또는 null"만 필요하므로 registerProjectIn을
-// 그대로 쓰고, 등록 라우트는 멱등 결과까지 봐야 하므로 이쪽을 쓴다.
+// 위 함수의 넓은 형태. 웹 폼과 등록 라우트가 쓴다 — 웹 폼은 capped만 거부로 보고, 등록 라우트는 멱등 결과까지 본다.
 export async function registerProjectResultIn(
   transaction: Prisma.TransactionClient,
   input: RegisterProjectInput,

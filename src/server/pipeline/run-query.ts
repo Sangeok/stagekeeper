@@ -10,9 +10,9 @@ type Db = PrismaClient | Prisma.TransactionClient;
 export type Graph = { nodes: string[]; gates: string[] }; // core는 JS라 타입을 주지 않는다 — 여기가 서버 쪽 정의
 export type PipelineEntry = { runId: string; entryId: string; slotId: string };
 export type GateEntry = { runId: string; entryId: string };
-export type RunRow = { id: string; node: string; entryId: string | null; enteredAt: Date; closedAt: Date | null; version: { id: string; version: number; format: string | null; nodes: string[]; gates: string[] } };
+export type PipelineRunRow = { id: string; node: string; entryId: string | null; enteredAt: Date; closedAt: Date | null; version: { id: string; version: number; format: string | null; nodes: string[]; gates: string[] } };
 // advance()에 넣는 사실. 읽는 곳은 readFacts 하나(§C.2의 표).
-export type Facts = { status: string; validation: string | null; accepted: boolean; approvedGates: string[]; closedAgents: string[]; format: string | null; slotComplete: boolean; implementationComplete: boolean };
+export type PipelineFacts = { status: string; validation: string | null; accepted: boolean; approvedGates: string[]; closedAgents: string[]; format: string | null; slotComplete: boolean; implementationComplete: boolean };
 
 // 현재 버전 = 프로젝트의 최대 version. 없으면 기본 그래프를 version 1로 물질화한다. 두 호출자가 동시에 처음 만나면
 // @@unique([projectId, version])가 한쪽을 P2002로 막는다 — 그쪽은 다시 읽는다(§C.8).
@@ -39,7 +39,7 @@ export async function loadCurrentVersionView(db: Db, projectId: string): Promise
 
 // 항목의 런. 없으면 만든다 — 새 항목(status proposed, 이벤트 1건)은 머리에서, 마이그레이션 전 항목은 상태가 말하는 자리에서.
 // boardItemId @unique라 동시 생성은 한쪽만 이긴다 — 진 쪽은 다시 읽는다.
-export async function ensureRun(db: Db, projectId: string, boardItemId: string, status: string, fresh: boolean): Promise<RunRow> {
+export async function ensureRun(db: Db, projectId: string, boardItemId: string, status: string, fresh: boolean): Promise<PipelineRunRow> {
   const found = await db.pipelineRun.findUnique({ where: { boardItemId }, include: { version: true } });
   if (found) return found;
   const version = await ensureCurrentVersion(db, projectId);
@@ -56,7 +56,7 @@ export async function ensureRun(db: Db, projectId: string, boardItemId: string, 
 type RowFacts = { id: string; status: string; validation: string | null; acceptedAt: Date | null; agent?: string; backlogItem?: { key: string } };
 const NODE_AGENTS = ["doc-auditor", "feature-scout"];
 
-export async function readFacts(db: Db, projectId: string, row: RowFacts, run: RunRow): Promise<Facts> {
+export async function readFacts(db: Db, projectId: string, row: RowFacts, run: PipelineRunRow): Promise<PipelineFacts> {
   if (run.version.format !== null && run.version.format !== SLOT_FORMAT) throw new Error("Unsupported pipeline format; update the compatible bundle.");
   if (run.version.format === SLOT_FORMAT && !run.entryId) throw new Error("Missing pipeline entry; refresh pipeline_next.");
   const bound = run.version.format === SLOT_FORMAT;

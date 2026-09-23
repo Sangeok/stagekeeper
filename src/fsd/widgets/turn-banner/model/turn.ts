@@ -2,9 +2,8 @@ import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline
 // 순수. 보드의 최신 행들로 "지금 누구 차례인가"를 정한다 — 모든 프로젝트 탭 위에 놓이는 배너의 유일한 출처.
 // 문구는 docs/conventions/product-copy.md §5. 판정은 packages/core의 상태 기계에서 파생한다.
 import { canPropose, isOpen } from "@harness/core/transitions.mjs";
-import { isAwaitingAcceptance, isPlanUnverified, isPlanVerified } from "@/fsd/entities/board-item";
+import { isAwaitingAcceptance, isPlanUnverified, isPlanVerified, pendingInboxCount } from "@/fsd/entities/board-item";
 import { gateLabel } from "@/fsd/entities/pipeline";
-import { pendingInboxCount } from "@/fsd/features/review-gate";
 
 // 열린 run의 마지막 원장 행이 handoff — dev가 커밋을 기다리며 멈춰 있다. note는 dev가 적은 파일 경로(에이전트 텍스트).
 export type TurnHandoff = { step: string; note: string | null };
@@ -22,7 +21,7 @@ export type TurnItem = {
 };
 
 // 첫 방문 체크리스트의 재료. 보드에 행이 하나도 없을 때만 쓰인다.
-export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; backlogCount: number; hasPropose: boolean }; // §E.3
+export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; backlogCount: number }; // §E.3
 
 export type SetupStep = {
   key: "token" | "connect" | "backlog" | "pm";
@@ -127,6 +126,17 @@ function mineDetail(pending: TurnItem[]): string {
   return parts.join(" · ");
 }
 
+// "에이전트 차례" 배너의 항목 한 줄. 디스패치 전이면 누구를 기다리는지, 디스패치 뒤면 누가 무엇을 하는지.
+function workingLine(w: TurnItem): string {
+  if (!w.dispatched) return `${w.key} is waiting for ${w.node === "verify" ? "verification" : dispatcherFor(w.node, w.agent)}`;
+  switch (w.node) {
+    case "plan": return `${w.agent} is writing the plan for ${w.key}`;
+    case "verify": return `the plan for ${w.key} is being verified`;
+    case "implement": return `${w.agent} is implementing ${w.key}`;
+    default: return `${slotAgent(w.node)} is working on ${w.key}`;
+  }
+}
+
 // 터미널 줄은 노드로 말한다 — 런북에 단계 번호가 없다. 세션은 pipeline_next로 같은 노드를 받는다.
 const NODE_LINE: Record<string, (item: TurnItem) => string> = {
   plan: (i) => `${i.agent} writes the plan`,
@@ -184,24 +194,18 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
   // 보류한 항목은 커서를 멈춘 자리에 둔 채 런이 열려 있다(board.ts resetRun) — 재개가 그 자리를 이어받기
   // 위해서다. 그래서 노드만 보면 "작업 중"이 된다(실측: on_hold인 FEAT-07에 "waiting for dev"가 떴다).
   // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board.ts:52) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
+  const isProjectSlot = (node: string | null) => {
+    const agent = slotAgent(node);
+    return agent !== null && PROJECT_AGENTS.includes(agent);
+  };
   const working = items.filter((i) => i.status !== "on_hold" && i.gate === null
-    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || PROJECT_AGENTS.includes(slotAgent(i.node))));
+    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || isProjectSlot(i.node)));
   if (working.length > 0) {
     return {
       kind: "theirs",
       // 디스패치되지 않은 항목을 "하고 있다"고 말하면 사실이 아니다. 게이트를 열자마자 그 상태가 된다(실측) —
       // 사람이 세션을 돌리기 전까지는 아무도 그 일을 하고 있지 않다. 아래 "Next, in Claude Code" 줄이 할 일을 준다.
-      detail: working
-        .map((w) =>
-          !w.dispatched
-            ? `${w.key} is waiting for ${w.node === "verify" ? "verification" : dispatcherFor(w.node, w.agent)}`
-            : w.node === "plan"
-              ? `${w.agent} is writing the plan for ${w.key}`
-              : w.node === "verify"
-                ? `the plan for ${w.key} is being verified`
-                : w.node === "implement" ? `${w.agent} is implementing ${w.key}` : `${slotAgent(w.node)} is working on ${w.key}`,
-        )
-        .join(" · "),
+      detail: working.map(workingLine).join(" · "),
       next: nextSteps(working),
     };
   }

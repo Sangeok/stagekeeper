@@ -1,41 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 
-import { ProjectBoardPage } from "../ui/project-board-page.tsx";
 import { buildBriefing, firstSentence } from "./briefing.ts";
+import { BOARD, ROSTER, TODAY, row } from "./briefing.fixture.mjs";
 import { NODE_KINDS, defaultGraph } from "@harness/core/pipeline.mjs";
-
-const ROSTER = ["web-dev", "admin-dev", "backend-dev"];
-const TODAY = new Date("2026-08-15T00:01:00Z");
-
-const row = ({ key = "X-0", ...fields } = {}) => ({
-  agent: "web-dev",
-  status: "proposed",
-  reason: "Observed evidence.",
-  results: [],
-  proposedOn: new Date("2026-08-14T23:59:00Z"),
-  backlogItem: { key },
-  // 기본 그래프에서 그 상태가 서는 자리 — 게이트 여부는 상태 기계가 아니라 런의 커서가 말한다(§E.4).
-  gate: { proposed: "before-plan", in_review: "before-implement" }[fields.status ?? "proposed"] ?? null,
-  // 게이트에 선 자리는 노드가 없다. 일하는 자리만 노드를 갖는다 — page.tsx가 커서에서 같은 식으로 만든다.
-  node: { planning: "plan", implementing: "implement" }[fields.status ?? "proposed"] ?? null,
-  // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다.
-  dispatched: true,
-  ...fields,
-});
-
-// latestBoard가 반환하는 순서와 형태: 항목별 최신 행 하나, proposedOn 내림차순.
-const BOARD = [
-  row({ key: "FEAT-05", status: "proposed", reason: "pm picked it today." }),
-  row({ key: "FEAT-04", status: "in_review", agent: "admin-dev", results: ["Draft plan done."] }),
-  row({ key: "FEAT-06", status: "planning", agent: "admin-dev" }),
-  row({ key: "FEAT-07", status: "implementing" }),
-  row({ key: "FEAT-02", status: "done", results: ["Shipped the fix. Verified in prod."] }),
-  row({ key: "FEAT-03", status: "on_hold", agent: "backend-dev", results: ["Owner decision — waiting on the API."] }),
-  row({ key: "FEAT-01", status: "proposed", agent: "backend-dev", reason: "x".repeat(151), proposedOn: new Date("2026-08-02T12:00:00Z") }),
-];
 
 describe("firstSentence", () => {
   it("cuts at the first terminator followed by space or end", () => {
@@ -251,66 +219,5 @@ describe("buildBriefing", () => {
     const before = structuredClone({ rows, roster });
     buildBriefing(rows, TODAY, roster, NODE_KINDS);
     assert.deepEqual({ rows, roster }, before);
-  });
-});
-
-const renderBoard = (rows = BOARD, roster = ROSTER) =>
-  renderToStaticMarkup(createElement(ProjectBoardPage, {
-    slug: "sample", briefing: buildBriefing(rows, TODAY, roster, NODE_KINDS),
-  }));
-
-const activityLinks = (html) => Array.from(
-  html.matchAll(/<a\b[^>]*href="(\/p\/sample\/items\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/g),
-  ([, href, body]) => ({ href, body }),
-);
-
-describe("ProjectBoardPage", () => {
-  it("renders the model order, item links, separate keys and status labels", () => {
-    const links = activityLinks(renderBoard());
-    assert.deepEqual(links.map((link) => link.href),
-      ["FEAT-05", "FEAT-04", "FEAT-01", "FEAT-06", "FEAT-07", "FEAT-02", "FEAT-03"].map((key) => "/p/sample/items/" + key));
-    assert.match(links[0].body, />FEAT-05<\/span>waiting for a plan request · 1 day/);
-    assert.match(links[1].body, />In review<\/span>/);
-    assert.match(links[5].body, />Done<\/span>/);
-  });
-
-  it("keeps active rows dark and done or held rows quiet", () => {
-    const links = activityLinks(renderBoard());
-    assert.match(links[3].body, /<span class="text-sm">/);
-    assert.match(links[5].body, /<span class="text-sm text-quiet">/);
-    assert.match(links[6].body, /<span class="text-sm text-quiet">/);
-  });
-
-  it("shows the over-budget badge and tooltip only for an over-budget row", () => {
-    const links = activityLinks(renderBoard());
-    assert.doesNotMatch(links[0].body, /Over 150 characters/);
-    assert.match(links[2].body, /Over 150 characters/);
-    assert.match(links[2].body, /title="This summary is over 150 characters. Move the details to docs\/agents\/."/);
-  });
-
-  it("preserves a key written inside result text and the empty-summary display", () => {
-    const links = activityLinks(renderBoard([
-      row({ key: "K-1", status: "done", results: ["K-1 · Updated board.ts. More."] }),
-      row({ key: "E-1", status: "done", reason: "" }),
-    ]));
-    assert.match(links[0].body, />K-1<\/span>K-1 · Updated board.ts\./);
-    assert.match(links[1].body, />E-1<\/span>E-1/);
-  });
-
-  it("renders Team handles and their states in the model order", () => {
-    const html = renderBoard();
-    const handles = Array.from(html.matchAll(/<b\b[^>]*>([^<]+)<\/b>/g), ([, handle]) => handle);
-    assert.deepEqual(handles, ["pm", ...ROSTER, "plan-verifier", "doc-auditor", "feature-scout"]);
-    assert.match(html, /web-dev<\/b>Working on FEAT-07/);
-    // BOARD의 in_review 항목은 게이트 2에 서 있다 — 검증자는 끝났다.
-    assert.match(html, /plan-verifier<\/b>Idle/);
-  });
-
-  it("keeps the empty Activity message and fixed Team roles", () => {
-    const html = renderBoard([], []);
-    assert.match(html, />Activity<\/h2>/);
-    assert.match(html, /No activity yet\./);
-    assert.match(html, />Team<\/h2>/);
-    assert.match(html, /pm<\/b>No new proposals/);
   });
 });

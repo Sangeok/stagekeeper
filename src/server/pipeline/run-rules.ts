@@ -14,7 +14,7 @@ export type PipelineNext =
   | { key: string; node: string | null; version: number; action: "done" };
 
 // run.ts(nextFor)가 읽어 넘기는 사실. 어느 질의로 읽는지는 아래 "판정 순서" 문단.
-export type NextInput = {
+export type PipelineNextInput = {
   key: string;
   format?: string | null;
   entry?: PipelineEntry;
@@ -47,7 +47,7 @@ export const HINT: Record<string, string> = {
 export const handoffIsLive = (steppedAt: Date, itemUpdatedAt: Date): boolean => steppedAt.getTime() > itemUpdatedAt.getTime();
 
 // 판정 순서: 런 닫힘 → 게이트 → accept → handoff → cap → dispatch. 에이전트 없는 노드는 있을 수 없지만(accept는 위에서 끝난다) 방어로 done.
-export function decideNext(i: NextInput): PipelineNext {
+export function decideNext(i: PipelineNextInput): PipelineNext {
   const { key, version } = i;
   if (i.node === null) return { key, node: null, version, action: "done" };
   const node = i.node;

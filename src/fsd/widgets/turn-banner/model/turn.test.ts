@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { copyLock } from "@/fsd/shared/lib/copy-lock";
 import { deriveTurn, nextStepLine, type TurnItem } from "./turn";
 
-const ready = { tokenIssued: true, rosterSynced: true, backlogCount: 2, hasPropose: true };
+const ready = { tokenIssued: true, rosterSynced: true, backlogCount: 2 };
 // 커서는 기본 Pro 그래프(propose · before-plan · plan · verify · before-implement · implement · accept · doc-audit)에서
 // 그 상태가 서는 자리다. in_review는 검증 기록이 있어야 before-implement로 넘어간다 — 없으면 아직 verify 노드다.
 const cursorFor = (status: string, validation: string | null): { gate: string | null; node: string | null } => {
@@ -36,7 +36,7 @@ const handoff = (key: string, note: string | null, status = "planning", agent = 
 
 describe("deriveTurn — setup", () => {
   it("shows the checklist while the board is empty, pointing at the first undone step", () => {
-    const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false, backlogCount: 0, hasPropose: true });
+    const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false, backlogCount: 0 });
     assert.equal(turn.kind, "setup");
     if (turn.kind !== "setup") return;
     assert.equal(turn.current, 2);
@@ -225,7 +225,7 @@ describe("nextStepLine", () => {
 // (`/harness:init`만 Code로 감싼다) — 같은 문장을 JSX에 한 번 더 적어 두었던 자리가 "approve the server"를 들고 남았었다.
 describe("the first-run connect step", () => {
   it("reads exactly as product-copy.md §5 locks it", () => {
-    const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false, backlogCount: 0, hasPropose: true });
+    const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false, backlogCount: 0 });
     assert.equal(turn.kind, "setup");
     const connect = turn.kind === "setup" ? turn.steps.find((step) => step.key === "connect") : undefined;
     assert.deepEqual([connect?.detail], copyLock("turn-banner-connect"));

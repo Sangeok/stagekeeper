@@ -402,7 +402,7 @@ async function advanceRun(tx: Db, projectId: string, key: string, approval?: Gat
   const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
   const facts = await readFacts(tx, projectId, row, run);
   if (approval && approval.runId === run.id && approval.entryId === run.entryId) facts.approvedGates = [run.node];
-  const a = advance(graph, run.node, facts) as { cursor: string | null; entered: string[]; transitions: { from: string; to: string }[] };
+  const a = advance(graph, run.node, facts);
   for (const bd of a.transitions) {
     const t = await transitionIn(tx, projectId, { key, to: bd.to, ...(bd.to === "done" ? { result: "Implementation span completed." } : {}) }, { actor: "pipeline", actorRef: `pipeline:${run.version.id}` });
     if (!t.ok) throw new BoardRejection(t.reason); // updatedAt CAS에 진 쪽 — 다음 호출이 다시 읽는다(§C.8)
@@ -420,7 +420,7 @@ async function resetRun(tx: Db, projectId: string, key: string, status: string) 
   if (!row) return;
   const run = await ensureRun(tx, projectId, row.id, row.status, false);
   const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
-  const node = cursorForStatus(graph, status) as string | null;
+  const node = cursorForStatus(graph, status);
   await tx.pipelineRun.update({ where: { id: run.id }, data: { node: node ?? run.node, entryId: run.version.format === SLOT_FORMAT ? randomUUID() : null, enteredAt: new Date(), closedAt: null } });
 }
 

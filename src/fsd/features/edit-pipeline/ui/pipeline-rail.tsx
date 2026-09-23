@@ -2,13 +2,14 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, slotAgent, gateId } from "@harness/core/pipeline.mjs";
+import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId } from "@harness/core/pipeline.mjs";
 import { gateLabel, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
-import { addNode, addSlot, moveSlot, insertGate, removeGate, removeNode, swapTail, type Graph, type Step } from "../model/rail-state";
+import { PIPELINE_EDIT_PLAN_GATE } from "../model/plan-gate";
+import { addNode, addSlot, isProjectSlot, moveSlot, insertGate, removeGate, removeNode, swapTail, type Graph, type Step } from "../model/rail-state";
 
 export type SavePipelineAction = (graph: Graph) => Promise<ActionResult<void>>;
 
@@ -20,11 +21,6 @@ type Props = {
   editable: boolean;
   save: SavePipelineAction;
 };
-
-const BOUNDARIES = BOUNDARY as Record<string, { from: string; to: string } | undefined>;
-const KINDS = NODE_KINDS as string[];
-const REQUIRED = REQUIRED_NODES as string[];
-const TAIL = TAIL_NODES as string[];
 
 // 조작 하나 = 결과 그래프이거나 사유다. 사유는 core의 validateGraph가 쓴 문장 그대로라 저장 실패와 같은 말을 한다.
 type Move = { label: string; step: Step };
@@ -41,17 +37,18 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
   const [pending, startTransition] = useTransition();
 
   const dirty = JSON.stringify(state) !== JSON.stringify(graph);
-  const missing = KINDS.filter((k) => !PROJECT_AGENTS.includes(slotAgent(k)) && !state.nodes.includes(k));
+  const missing = NODE_KINDS.filter((k) => !isProjectSlot(k) && !state.nodes.includes(k));
 
   // 그 간선에서 할 수 있는 것 — 사유는 core의 validateGraph가 쓴 문장 그대로다.
   const movesFor = (kind: string): Move[] => [
     { label: "Add gate", step: insertGate(state, gateId(kind), plan) },
     ...PROJECT_AGENTS.map((agent: string) => ({ label: `Add ${agent} here`, step: addSlot(state, agent, kind, plan) })),
-    ...state.nodes.filter((id) => PROJECT_AGENTS.includes(slotAgent(id))).map((id) => ({ label: `Move ${id} here`, step: moveSlot(state, id, kind, plan) })),
+    ...state.nodes.filter(isProjectSlot).map((id) => ({ label: `Move ${id} here`, step: moveSlot(state, id, kind, plan) })),
     ...missing.map((k) => ({ label: `Add ${nodeLabel(k)}`, step: addNode(state, k, plan) })),
   ];
 
-  const apply = (step: Step) => {
+  // 거부된 Step은 적용하지 않는다 — 버튼이 그 Step으로 이미 잠겨 있어서 여기까지 오지 않는 것이 정상이다.
+  const applyIfValid = (step: Step) => {
     if (!step.ok) return;
     setState(step.graph);
     setOpenEdge(null);
@@ -83,21 +80,23 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
           <div key={kind} className="flex shrink-0 items-stretch gap-2">
             <EdgeSlot
               gate={state.gates.includes(gateId(kind)) ? gateId(kind) : null}
-              boundary={BOUNDARIES[gateId(kind)] ?? null}
+              boundary={BOUNDARY[gateId(kind)] ?? null}
               editable={editable}
               open={openEdge === kind}
               onToggle={() => setOpenEdge((at) => (at === kind ? null : kind))}
-              onRemoveGate={() => apply(removeGate(state, gateId(kind), plan))}
+              removeGateStep={removeGate(state, gateId(kind), plan)}
+              onApply={applyIfValid}
             />
             <NodeCard
               kind={kind}
               roster={roster}
               editable={editable}
               first={index === 0}
-              removable={!REQUIRED.includes(kind)}
-              swappable={TAIL.includes(kind) && state.nodes.filter((k) => TAIL.includes(k)).length === 2}
-              onRemove={() => apply(removeNode(state, kind, plan))}
-              onSwap={() => apply(swapTail(state, plan))}
+              removable={!REQUIRED_NODES.includes(kind)}
+              swappable={TAIL_NODES.includes(kind) && state.nodes.filter((k) => TAIL_NODES.includes(k)).length === 2}
+              removeStep={removeNode(state, kind, plan)}
+              swapStep={swapTail(state, plan)}
+              onApply={applyIfValid}
             />
           </div>
         ))}
@@ -112,9 +111,9 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
             <div key={move.label} className="flex flex-col">
               <button
                 type="button"
-                disabled={!editable || !move.step.ok}
+                disabled={!move.step.ok}
                 className="rounded px-1.5 py-1 text-left text-xs hover:bg-field disabled:opacity-50"
-                onClick={() => apply(move.step)}
+                onClick={() => applyIfValid(move.step)}
               >
                 {move.label}
               </button>
@@ -127,11 +126,11 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
       {editable ? <div className="flex flex-wrap gap-3 text-xs">
         {PROJECT_AGENTS.map((agent: string) => {
           const step = addSlot(state, agent, null, plan);
-          return <button key={agent} type="button" disabled={!step.ok} onClick={() => apply(step)}>Add {agent} at end</button>;
+          return <button key={agent} type="button" disabled={!step.ok} onClick={() => applyIfValid(step)}>Add {agent} at end</button>;
         })}
-        {state.nodes.filter((id) => PROJECT_AGENTS.includes(slotAgent(id))).map((id) => {
+        {state.nodes.filter(isProjectSlot).map((id) => {
           const step = moveSlot(state, id, null, plan);
-          return <button key={id} type="button" disabled={!step.ok} onClick={() => apply(step)}>Move {id} to end</button>;
+          return <button key={id} type="button" disabled={!step.ok} onClick={() => applyIfValid(step)}>Move {id} to end</button>;
         })}
       </div> : null}
 
@@ -141,14 +140,14 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
         </p>
       ) : null}
       {editable ? null : (
-        <p className="text-xs text-quiet">{unavailableReason ?? "Pipeline editing opens on Pro. The default pipeline stays as is."}</p>
+        <p className="text-xs text-quiet">{unavailableReason ?? PIPELINE_EDIT_PLAN_GATE}</p>
       )}
       {state.nodes.includes("scout") ? null : (
         <p className="text-xs text-quiet">Scout runs only with harness.json.scout — add it here when that is set.</p>
       )}
 
       {editable ? <div className="flex items-center gap-3">
-        <Button variant="mine" disabled={!editable || !dirty || pending} onClick={onSave}>
+        <Button variant="mine" disabled={!dirty || pending} onClick={onSave}>
           {pending ? "Saving…" : confirmingNoGate ? "Save without a gate" : "Save"}
         </Button>
         {dirty ? (
@@ -176,14 +175,16 @@ function EdgeSlot({
   editable,
   open,
   onToggle,
-  onRemoveGate,
+  removeGateStep,
+  onApply,
 }: {
   gate: string | null;
   boundary: { from: string; to: string } | null;
   editable: boolean;
   open: boolean;
   onToggle: () => void;
-  onRemoveGate: () => void;
+  removeGateStep: Step;
+  onApply: (step: Step) => void;
 }) {
   if (gate !== null) {
     return (
@@ -194,9 +195,10 @@ function EdgeSlot({
         </div>
         {editable ? <button
           type="button"
-          disabled={!editable}
+          disabled={!removeGateStep.ok}
+          title={removeGateStep.ok ? undefined : removeGateStep.reason}
           className="self-start text-xs text-quiet underline underline-offset-2 disabled:opacity-50"
-          onClick={onRemoveGate}
+          onClick={() => onApply(removeGateStep)}
         >
           Remove
         </button> : null}
@@ -229,8 +231,9 @@ function NodeCard({
   first,
   removable,
   swappable,
-  onRemove,
-  onSwap,
+  removeStep,
+  swapStep,
+  onApply,
 }: {
   kind: string;
   roster: string[];
@@ -238,8 +241,9 @@ function NodeCard({
   first: boolean;
   removable: boolean;
   swappable: boolean;
-  onRemove: () => void;
-  onSwap: () => void;
+  removeStep: Step;
+  swapStep: Step;
+  onApply: (step: Step) => void;
 }) {
   const agent = nodeAgentLabel(kind, roster);
   return (
@@ -253,9 +257,10 @@ function NodeCard({
           {removable ? (
             <button
               type="button"
-              disabled={!editable}
+              disabled={!removeStep.ok}
+              title={removeStep.ok ? undefined : removeStep.reason}
               className="text-xs text-quiet underline underline-offset-2 disabled:opacity-50"
-              onClick={onRemove}
+              onClick={() => onApply(removeStep)}
             >
               Remove
             </button>
@@ -263,9 +268,10 @@ function NodeCard({
           {swappable ? (
             <button
               type="button"
-              disabled={!editable}
+              disabled={!swapStep.ok}
+              title={swapStep.ok ? undefined : swapStep.reason}
               className="text-xs text-quiet underline underline-offset-2 disabled:opacity-50"
-              onClick={onSwap}
+              onClick={() => onApply(swapStep)}
             >
               Swap
             </button>

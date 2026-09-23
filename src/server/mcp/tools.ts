@@ -1,7 +1,7 @@
 // 에이전트 토큰 스코프의 MCP 도구. 스펙 §5가 계약이다.
 // 게이트·반려·백로그 편집·토큰 발급 도구는 여기 없다(D8) — 웹 전용이며 등록 자체가 없다.
 import type { McpServer } from "@modelcontextprotocol/server";
-import { NOTE_MAX, OUTCOMES, type NextInput, type NextOutput } from "@/server/agents/next";
+import { NOTE_MAX, OUTCOMES, REVISION_MAX, type NextInput, type NextOutput } from "@/server/agents/next";
 import type { ProjectAccess } from "@/server/entitlement";
 import type { ServerResult } from "@/server/result";
 import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/scope-copy";
@@ -208,7 +208,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.pipelineNext(projectId, args.key));
   });
-  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(2147483647), stepId: z.string().min(1) }).optional(), ...project }) }, async (args, ctx: Ctx) => {
+  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(REVISION_MAX), stepId: z.string().min(1) }).optional(), ...project }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, tokenId, userScoped } = s;
