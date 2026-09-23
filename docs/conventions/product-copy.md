@@ -774,7 +774,10 @@ both). Below: each file's title, its section headings, and the sentences that se
   wait for another instruction; the owner just gave it." · "Send back, put on hold, reopen,
   discard: web only."
 - Rules: "Only the main loop dispatches agents. Agents never call each other." · "Commit plans,
-  reports, and code. Nothing else — the board isn't in the repo." · "Only you open the gates.
+  reports, and code. Nothing else — the board isn't in the repo.
+  Commit on the branch you are working on — the server records commits by SHA, not by branch." ·
+  "A recorded commit is evidence — don't rewrite it. Merge a feature branch through a pull
+  request, or keep the branch." · "Only you open the gates.
   In the web inbox, or by telling your own session when you hold an owner token — no agent and
   no unprompted main loop does it for you. The agent token doesn't have the tool." · "Gate 2
   approves the commit on the card. If you edit the plan after the validation, commit it and have
