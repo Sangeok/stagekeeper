@@ -30,7 +30,7 @@ export const recordRunbook = makeRecordRunbook({
 // reported = 부르는 세션이 자기 CLAUDE.md에서 읽어 넘긴 판. 모양이 맞으면 그것으로만 판정한다 — 저장값은
 // "마지막으로 init한 곳"의 판이라 브랜치마다 다른 CLAUDE.md를 가리지 못한다. 넘겨받은 판은 저장하지 않는다:
 // 브랜치마다 다를 수 있는 값을 프로젝트 하나에 쓰면 같은 문제가 다시 생긴다. 없거나 모양이 틀리면
-// 판을 적지 않은 옛 런북의 세션이므로 저장값으로 판정한다(docs/proposals/active/init-any-branch.md C-3).
+// 판을 적지 않은 옛 런북의 세션이므로 저장값으로 판정한다(docs/proposals/completed/2026-09-24-init-any-branch.md C-3).
 export async function runbookStale(projectId: string, db: PrismaClient = prisma, reported?: string): Promise<boolean> {
   const rows = await db.template.findMany({ where: { path: RUNBOOK_TEMPLATE }, select: { body: true } });
   const bodies = rows.map((row) => row.body);
