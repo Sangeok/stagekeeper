@@ -52,7 +52,8 @@ export type ToolDeps = {
   // userScoped는 한도 집계의 분모에만 쓴다(A-10) — hu_는 한 토큰이 여러 프로젝트에 걸친다.
   agentNext(projectId: string, tokenId: string, input: NextInput, userScoped: boolean): Promise<ServerResult<NextOutput>>;
   // §D.1 — 런 보장 → 지연 전진(board.advancePipeline) → run.nextFor. key 없음이면 { head, items }.
-  pipelineNext(projectId: string, key: string | undefined): Promise<ServerResult<unknown>>;
+  // runbook = 부르는 세션의 CLAUDE.md에 적힌 판. key 없는 개요의 표류 판정에만 쓴다(runbook.ts runbookStale).
+  pipelineNext(projectId: string, key: string | undefined, runbook?: string): Promise<ServerResult<unknown>>;
   access(projectId: string): Promise<ProjectAccess>;
   // hu_ 전용. 슬러그가 그 사용자의 프로젝트일 때만 id를 준다 — guard.ts:17·owner-deps.ts:19와 같은 쿼리.
   projectFor(slug: string, userId: string): Promise<string | null>;
@@ -200,13 +201,14 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
   });
   // 단계 본문은 이 도구로만 나간다(agents/next.ts). 스텁이 "첫 호출은 agent_next"라고 말하는 그 도구다.
   // §D.1 pipeline_next — 항목 하나(key) 또는 열린 항목 전부의 다음 일. 지연 전진을 하므로 선택되지 않은 프로젝트에서는 guardUnavailable로 거부한다.
-  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate, accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when this repository's CLAUDE.md was generated from an older template.", inputSchema: z.object({ ...project, key: z.string().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate, accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when the runbook version you pass (or, without one, the version the last init reported) is older than the current template.", inputSchema: z.object({ ...project, key: z.string().optional(), runbook: z.string().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId } = s;
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;
-    return unwrap(await deps.pipelineNext(projectId, args.key));
+    // runbook의 모양은 여기서 재지 않는다 — 틀린 값 때문에 호출 자체가 실패하면 안 된다. 판정 쪽이 무시한다.
+    return unwrap(await deps.pipelineNext(projectId, args.key, args.runbook));
   });
   server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(REVISION_MAX), stepId: z.string().min(1) }).optional(), ...project }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);

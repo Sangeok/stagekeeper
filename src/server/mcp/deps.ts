@@ -42,7 +42,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
     agentNext: (projectId, tokenId, input, userScoped) => agentNext(prismaNextDeps, { projectId, tokenId, userScoped }, input),
     // pipeline_next의 조립은 여기다 — run.ts는 board.ts를 import하지 않으므로 미결 목록을 스스로 읽지 못한다(§D.1).
     // 항목마다 지연 전진을 먼저 돌린다: doc-audit·scout의 완료(에이전트 run 닫힘)는 보드 쓰기를 지나지 않는다.
-    pipelineNext: async (projectId, key) => {
+    pipelineNext: async (projectId, key, runbook) => {
       if (key !== undefined) {
         await board.advancePipeline(projectId, key);
         return { ok: true as const, item: await nextFor(prisma, projectId, key) };
@@ -58,8 +58,9 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
         items.push(await nextFor(prisma, projectId, key));
       }
       const head = await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId));
-      // 런북 표류는 프로젝트 단위라 key 없는 개요에만 싣는다. 낡지 않았으면 필드 자체를 내지 않는다.
-      const stale = await runbookStale(projectId, prisma);
+      // 런북 표류는 key 없는 개요에만 싣는다. 낡지 않았으면 필드 자체를 내지 않는다.
+      // 세션이 자기 CLAUDE.md의 판을 넘기면 그 checkout 기준으로, 아니면 마지막 init이 보고한 판으로 판정한다.
+      const stale = await runbookStale(projectId, prisma, runbook);
       return { ok: true as const, item: { head, items, ...(stale ? { runbook: { stale: true as const, note: RUNBOOK_STALE_NOTE } } : {}) } };
     },
     access: (projectId) => readProjectAccess(prisma, projectId),

@@ -110,21 +110,31 @@ async function init() {
     return;
   }
 
-  // 첫 연결에는 harness.json도 프로젝트도 없다. git이 아는 것(origin·현재 브랜치)으로 등록한다.
+  // 첫 연결에는 harness.json도 프로젝트도 없다. git이 아는 것(origin·저장소의 기본 브랜치)으로 등록한다.
   // 서버가 (owner, repo)로 멱등 처리하므로 재실행은 새 프로젝트를 만들지 않고 기존 것을 돌려준다.
   if (REGISTER) {
     const token = process.env.HARNESS_TOKEN;
     if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
-    const git = (gitArgs) => {
-      try { return execFileSync("git", gitArgs, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); }
+    const git = (gitArgs, opts = {}) => {
+      try { return execFileSync("git", gitArgs, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], ...opts }).trim(); }
       catch { return ""; }
     };
     const remote = git(["remote", "get-url", "origin"]);
     if (!remote) { console.log("No git remote 'origin' here — ask for owner and repo instead."); process.exit(1); }
     const ref = parseRepoUrl(remote);
     if (!ref) { console.log(`Could not read owner/repo from the 'origin' remote (${remote}) — ask for them instead.`); process.exit(1); }
-    // 분리된 HEAD면 빈 문자열이다. 그때는 보내지 않고 서버 기본값(main)에 맡긴다.
-    const branch = git(["branch", "--show-current"]);
+    // 등록하는 것은 **저장소의 기본 브랜치**다 — 웹 등록 폼(GitHub의 default_branch)과 같은 값. 사용자는 대개
+    // 쓰던 기능 브랜치에서 init하므로 현재 브랜치를 보내면 그 브랜치가 프로젝트에 박힌다.
+    // 1) 로컬 기호 참조: clone한 저장소에는 있다. `git init` 뒤 remote를 붙인 저장소에는 없다.
+    // 2) origin에 묻기: 자격 증명 프롬프트로 멈추지 않게 GIT_TERMINAL_PROMPT=0, 매달리지 않게 10초.
+    //    SSH 키 암호는 ssh가 터미널에서 직접 물을 수 있어 이 변수로 막히지 않는다 — 그때는 제한 시간 뒤 3)으로 간다.
+    // 3) 현재 브랜치(예전 동작). 분리된 HEAD면 빈 문자열이고, 그때는 보내지 않아 서버 기본값(main)에 맡긴다.
+    // 어느 단계로 떨어져도 알리는 줄은 내지 않는다 — 출력은 JSON 한 줄이고 스킬이 그것을 읽는다.
+    const fromSymref = git(["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]).replace(/^origin\//, "");
+    const fromRemote = fromSymref ? "" : (/^ref: refs\/heads\/(.+)\tHEAD$/m.exec(
+      git(["ls-remote", "--symref", "origin", "HEAD"], { env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, timeout: 10_000 }),
+    )?.[1] ?? "");
+    const branch = fromSymref || fromRemote || git(["branch", "--show-current"]);
     const url = `${SERVER}/api/projects`;
     let res;
     try {
@@ -246,7 +256,13 @@ async function init() {
   // 런북: 마커 사이 절만 우리 것. 병합 파일이라 lock에 넣지 않는다. **런북은 플랜과 무관하게 한 판이다** —
   // 옛 `CLAUDE.runbook.free.md`는 지웠고, DB 행이 남아 있어도 `deliver.mjs`가 내려보내지 않는다.
   // 플랜 차이는 런북 텍스트가 아니라 파이프라인 그래프가 담는다(free에는 verify·doc-audit 노드가 없다).
-  const runbookBlock = `${RUNBOOK_START}\n${renderTemplate(tpl("CLAUDE.runbook.md"), vars)}\n${RUNBOOK_END}`;
+  // 런북은 자기 판을 본문에 적는다({{runbook_version}}) — 세션이 그 값을 pipeline_next에 넘겨, 서버가
+  // "마지막으로 init한 브랜치"가 아니라 이 checkout의 CLAUDE.md로 표류를 판정하게 한다. 해시는 치환 전 원문에서
+  // 뽑으므로 순환이 없다. CRLF는 LF로 맞춘 뒤 뽑는다: DB는 seed가 LF로 정규화한 본문을 가지는데
+  // (scripts/seed-templates.ts), 로컬 템플릿 모드(TPL_DIR)는 autocrlf 작업본을 그대로 읽기 때문이다.
+  // 서버에 보고하는 판도 같은 값이다(아래 POST /api/runbook).
+  const runbookVersionNow = runbookVersion(tpl("CLAUDE.runbook.md").replace(/\r\n/g, "\n"));
+  const runbookBlock = `${RUNBOOK_START}\n${renderTemplate(tpl("CLAUDE.runbook.md"), { ...vars, runbook_version: runbookVersionNow })}\n${RUNBOOK_END}`;
   const runbookPath = join(ROOT, "CLAUDE.md");
   let runbook = existsSync(runbookPath) ? readFileSync(runbookPath, "utf8") : "";
   const startIndex = runbook.indexOf(RUNBOOK_START), endIndex = runbook.indexOf(RUNBOOK_END);
@@ -307,7 +323,7 @@ async function init() {
       const res = await fetch(`${SERVER}/api/runbook`, {
         method: "POST",
         headers: { Authorization: `Bearer ${process.env.HARNESS_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ version: runbookVersion(tpl("CLAUDE.runbook.md")) }),
+        body: JSON.stringify({ version: runbookVersionNow }),
       });
       if (!res.ok) note(res.status);
     } catch (e) { note(e.message); }

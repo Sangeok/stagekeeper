@@ -69,16 +69,19 @@ describe("agent-scoped MCP tools", () => {
     await handlers.project_sync({ workspaces: ws }, ctx);
     assert.deepEqual(calls.map((c) => [c.projectId, c.language]), [["p1", "ko"], ["p1", undefined]]);
   });
-  it("pipeline_next hands the key (or none) through to the deps", async () => {
+  it("pipeline_next hands the key (or none) and the runbook version (or none) through to the deps", async () => {
     const calls = [];
     const handlers = {};
     registerTools({ registerTool: (name, _meta, fn) => { handlers[name] = fn; } }, {
       access: async () => open,
-      pipelineNext: async (projectId, key) => { calls.push([projectId, key]); return { ok: true, item: key ? { key, node: "plan", version: 1, action: "dispatch", agent: "dev", hint: "h" } : { head: null, items: [] } }; },
+      pipelineNext: async (projectId, key, runbook) => { calls.push([projectId, key, runbook]); return { ok: true, item: key ? { key, node: "plan", version: 1, action: "dispatch", agent: "dev", hint: "h" } : { head: null, items: [] } }; },
     });
     const one = await handlers.pipeline_next({ key: "X-1" }, ctx);
     await handlers.pipeline_next({}, ctx);
-    assert.deepEqual(calls, [["p1", "X-1"], ["p1", undefined]]);
+    // 세션이 자기 CLAUDE.md의 판을 넘긴다. 모양은 여기서 재지 않는다 — 틀린 값도 호출은 성공하고 판정 쪽이 무시한다.
+    await handlers.pipeline_next({ runbook: "a85859257e4c" }, ctx);
+    await handlers.pipeline_next({ runbook: "not-a-version" }, ctx);
+    assert.deepEqual(calls, [["p1", "X-1", undefined], ["p1", undefined, undefined], ["p1", undefined, "a85859257e4c"], ["p1", undefined, "not-a-version"]]);
     assert.equal(JSON.parse(one.content[0].text).action, "dispatch");
   });
 });

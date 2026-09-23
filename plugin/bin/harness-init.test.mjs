@@ -27,7 +27,8 @@ const FIXTURES = {
   "agents/doc-auditor.md": "---\nname: doc-auditor\ndescription: Audits docs.\n---\n\n## step:start\nauditor step body\n",
   "agents/feature-scout.md": "---\nname: feature-scout\ndescription: Scouts features.\n---\n{{scout.question}}\n\n## step:start\nscout step body\n",
   "agents/dev.md": "---\nname: {{ws.agent}}\n---\nowns {{ws.path}}\n{{ws.verify_block}}\n\n## step:implement requires: implementing\ndev step body\n",
-  "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\nfull pipeline\n\nReport only:\n\n{{report_table}}\n",
+  // 런북은 자기 판을 적는다 — 세션이 그 값을 pipeline_next에 넘긴다(아래 "reports the runbook version it just planted").
+  "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\nversion {{runbook_version}}\nfull pipeline\n\nReport only:\n\n{{report_table}}\n",
 };
 const TPL_DIR = mkdtempSync(join(tmpdir(), "harness-tpl-"));
 for (const [rel, body] of Object.entries(FIXTURES)) {
@@ -461,19 +462,29 @@ describe("harness-init (v2)", () => {
     const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "main", name: "stagekeeper", slug: "stagekeeper" };
     // 진짜 git 저장소를 만든다 — 테스트 전용 우회 플래그를 두면 정작 git을 읽는 경로가 검증되지 않는다.
     //
-    // **`-b main`을 반드시 준다.** 기본 브랜치 이름은 환경마다 다르다: 이 저장소를 개발한 머신은
-    // `init.defaultBranch=main`이라 `main`이 나왔지만 CI 러너는 그 설정이 없어 `master`가 나왔고,
-    // 그래서 아래 branch 단언이 CI에서만 깨졌다(2026-09-20). 기대값을 "실제로 읽은 값"으로 바꾸는
-    // 방식은 쓰지 않는다 — 그러면 시험이 자기가 만든 값을 자기가 확인하는 꼴이라 branch가 실제로
-    // 서버에 전달되는지를 증명하지 못한다.
+    // 등록하는 것은 **저장소의 기본 브랜치**다(현재 브랜치가 아니다). 그래서 픽스처의 현재 브랜치는
+    // `feature`, 기호 참조 refs/remotes/origin/HEAD는 `origin/main`으로 **서로 다르게** 둔다 — 같으면
+    // 어느 쪽을 읽었는지 시험이 가리지 못한다. 브랜치 이름은 늘 명시한다: `init.defaultBranch`가 환경마다
+    // 달라(개발 머신 main, CI 러너 master) 이름을 git에 맡겼더니 branch 단언이 CI에서만 깨졌다(2026-09-20).
     //
-    // 커밋이 없어도 `git branch --show-current`는 그 이름을 낸다. 그래서 이 픽스처는
-    // **분리된 HEAD 분기(branch 생략)를 타지 않는다** — 그쪽은 미검증으로 남는다.
-    const gitRoot = (remote = "git@github.com:Sangeok/stagekeeper.git") => {
+    // 기호 참조를 기본으로 넣는 이유: 없으면 등록이 `git ls-remote origin`으로 넘어가 기본 origin
+    // (git@github.com:…)에 실제로 접속한다. 기호 참조 없는 경로는 아래 시험들이 로컬 origin으로 따로 탄다.
+    const IDENTITY = ["-c", "user.name=harness-test", "-c", "user.email=harness-test@example.invalid"];
+    const gitRoot = (remote = "git@github.com:Sangeok/stagekeeper.git", { symref = "main" } = {}) => {
       const root = mkdtempSync(join(tmpdir(), "harness-git-"));
-      execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root, stdio: "ignore" });
+      execFileSync("git", ["init", "-q", "-b", "feature"], { cwd: root, stdio: "ignore" });
       if (remote) execFileSync("git", ["remote", "add", "origin", remote], { cwd: root, stdio: "ignore" });
+      if (remote && symref) execFileSync("git", ["symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${symref}`], { cwd: root, stdio: "ignore" });
       return root;
+    };
+    // origin을 **상대 경로**로 둔다. 등록은 origin을 GitHub owner/repo로 해석하지 못하면 기본 브랜치를 찾기 전에
+    // 멈추는데, 호스트 없는 짧은 형태(`fixture/stagekeeper.git`)는 해석되고 git에게는 작업 디렉터리 기준의 로컬
+    // 경로다. 커밋은 신원을 명령에 준다 — CI 워크플로에는 git 신원을 설정하는 단계가 없다.
+    const bareOrigin = (root, defaultBranch) => {
+      const seed = mkdtempSync(join(tmpdir(), "harness-seed-"));
+      execFileSync("git", ["init", "-q", "-b", defaultBranch], { cwd: seed, stdio: "ignore" });
+      execFileSync("git", [...IDENTITY, "commit", "-q", "--allow-empty", "-m", "init"], { cwd: seed, stdio: "ignore" });
+      execFileSync("git", ["clone", "-q", "--bare", seed, join(root, "fixture", "stagekeeper.git")], { stdio: "ignore" });
     };
 
     it("registers what git knows, prints the identity, and writes nothing", async () => {
@@ -488,9 +499,40 @@ describe("harness-init (v2)", () => {
         assert.ok(call, "must POST to /api/projects");
         assert.equal(call.method, "POST");
         assert.equal(call.authorization, "Bearer hu_test");
+        // 현재 브랜치는 feature다 — main이 왔다면 기호 참조(저장소의 기본 브랜치)를 읽은 것이다.
         assert.deepEqual(JSON.parse(call.body), { owner: "Sangeok", repo: "stagekeeper", branch: "main" });
         assert.deepEqual(snapshot(root), before, "--register must not write files");
       }, { registered: identity });
+    });
+
+    // 기호 참조 없는 경로 셋. `git init` 뒤 remote를 붙인 저장소에는 refs/remotes/origin/HEAD가 없다(흔하다).
+    const registerBody = async (root) => {
+      let body;
+      await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
+        const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, root, server, "--register");
+        assert.equal(r.code, 0, r.out);
+        // 어느 경로로 떨어져도 출력은 JSON 한 줄이다 — 스킬이 그것을 읽는다.
+        assert.deepEqual(JSON.parse(r.out.trim()), identity);
+        body = JSON.parse(seen.find((s) => s.url?.startsWith("/api/projects")).body);
+      }, { registered: identity });
+      return body;
+    };
+    it("asks origin for its default branch when there is no local symref", async () => {
+      const root = gitRoot("fixture/stagekeeper.git", { symref: null });
+      bareOrigin(root, "master");
+      const before = snapshot(root);
+      assert.deepEqual(await registerBody(root), { owner: "fixture", repo: "stagekeeper", branch: "master" });
+      assert.deepEqual(snapshot(root), before, "--register must not write files");
+    });
+    it("falls back to the current branch when origin cannot answer", async () => {
+      const root = gitRoot("missing/stagekeeper.git", { symref: null });
+      assert.deepEqual(await registerBody(root), { owner: "missing", repo: "stagekeeper", branch: "feature" });
+    });
+    it("sends no branch from a detached HEAD when nothing else answers — the server picks its default", async () => {
+      const root = gitRoot("missing/stagekeeper.git", { symref: null });
+      execFileSync("git", [...IDENTITY, "commit", "-q", "--allow-empty", "-m", "init"], { cwd: root, stdio: "ignore" });
+      execFileSync("git", ["checkout", "-q", "--detach"], { cwd: root, stdio: "ignore" });
+      assert.deepEqual(await registerBody(root), { owner: "missing", repo: "stagekeeper" });
     });
 
     // 재실행이 정상 흐름이다. 서버가 (owner, repo)로 멱등 처리해 200을 주면 새 프로젝트가 아니다 —
@@ -597,16 +639,37 @@ describe("harness-init (v2)", () => {
       });
     });
     // 저장소에 심은 런북이 어느 판인지 서버가 알아야 pipeline_next가 표류를 말할 수 있다.
-    it("reports the runbook version it just planted, with the same token", async () => {
+    // 런북 본문에도 같은 판을 적는다 — 세션이 그 값을 pipeline_next에 넘겨, 서버가 "마지막으로 init한 브랜치"가
+    // 아니라 이 checkout의 CLAUDE.md로 표류를 판정한다.
+    it("reports the runbook version it just planted, with the same token, and writes it into the runbook", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
-        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, fresh(ONE_WS), server);
+        const root = fresh(ONE_WS);
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
         assert.equal(r.code, 0, r.out);
         const post = seen.find((row) => row.method === "POST");
         assert.ok(post, "no report was sent");
         assert.equal(post.url, "/api/runbook");
         assert.equal(post.authorization, "Bearer t-test");
-        assert.deepEqual(JSON.parse(post.body), { version: runbookVersion(FIXTURES["CLAUDE.runbook.md"]) });
+        const version = runbookVersion(FIXTURES["CLAUDE.runbook.md"]);
+        assert.deepEqual(JSON.parse(post.body), { version });
+        const planted = readFileSync(join(root, "CLAUDE.md"), "utf8");
+        assert.match(planted, new RegExp(`^version ${version}$`, "m"));
+        assert.doesNotMatch(planted, /\{\{runbook_version\}\}/);
         assert.doesNotMatch(r.out, /not recorded/);
+      });
+    });
+    // DB의 본문은 seed가 LF로 맞춘다. CRLF 본문을 받아도 판은 LF 본문의 판이어야 한다 — 아니면 로컬 템플릿
+    // 모드(autocrlf 작업본)로 심은 런북은 늘 낡았다고 판정된다.
+    it("versions a CRLF runbook body as its LF form, in the report and in the planted runbook", async () => {
+      const body = deliverable(ROWS, "pro");
+      body.templates["CLAUDE.runbook.md"] = FIXTURES["CLAUDE.runbook.md"].replace(/\n/g, "\r\n");
+      await withServer(body, async (server, seen) => {
+        const root = fresh(ONE_WS);
+        const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
+        assert.equal(r.code, 0, r.out);
+        const version = runbookVersion(FIXTURES["CLAUDE.runbook.md"]);
+        assert.deepEqual(JSON.parse(seen.find((row) => row.method === "POST").body), { version });
+        assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), new RegExp(`^version ${version}\\r?$`, "m"));
       });
     });
     // 보고가 실패해도 파일은 이미 옳다. 판정이 "낡음"으로 기울 뿐이라 중단할 이유가 없다.
