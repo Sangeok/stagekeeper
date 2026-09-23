@@ -897,7 +897,7 @@ grep -rn "mcp__harness__" \
   `plugin/templates/`는 별도 저장소이므로 그 확인은 **그 저장소에서 따로** 돌린다 — 이 저장소의
   CI는 그 경로를 보지 않는다(`.gitignore:50-51`).
 - **기존 실패와 신규 실패의 구분**: `npm run test:server:integration`은 `TEST_DATABASE_URL`이 없어
-  현재 실행 불가다([src-server-clean-code-findings](./src-server-clean-code-findings.md)가 같은
+  현재 실행 불가다([src-server-clean-code-findings](./2026-09-23-src-server-clean-code-findings.md)가 같은
   제약을 7곳에서 기록한다). 이 제안 때문에 생긴 실패가 아니며, 격리 DB가 생기기 전까지
   "미실행"으로 기록한다.
 

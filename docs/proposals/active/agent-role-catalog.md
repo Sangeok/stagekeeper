@@ -14,7 +14,7 @@ closed-reason: null
 owners: []
 related:
   - "docs/proposals/active/pipeline-agent-slots.md"
-  - "docs/proposals/active/src-server-clean-code-findings.md"
+  - "docs/proposals/completed/2026-09-23-src-server-clean-code-findings.md"
   - "docs/proposals/completed/2026-09-10-configurable-pipeline.md"
   - "docs/architecture/invariants.md"
   - "docs/architecture/protocol.md"

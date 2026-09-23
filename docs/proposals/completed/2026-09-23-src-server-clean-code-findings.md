@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-07"
 approved-by: "user (conversation)"
 approved-at: "2026-09-16"
 approval-scope: "E1–E6 코드·스키마·테스트·private 템플릿·문서 구현. 실제 DB 검증은 사용자 요청으로 후속 진행. 운영 migration·seed·배포 제외."
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-23"
+verification-summary: "E1~E5 구현이 PR #45(60070e0)로 dev·main에 들어갔다. 통과: check · build · test 151 · test:web 290 · test:architecture 21 · test:server 2 · private test:templates 24(2026-09-16 기록). **미실행인 채로 완료 처리했다(2026-09-23 사용자 지시)**: test:server:integration(격리 DB의 TEST_DATABASE_URL 없음 — suite는 작성됐고 타입·린트만 통과), D3 복구 리허설(빈 격리 PostgreSQL 두 개 필요), A1~A5 실제 route·브라우저·배포 인수. 이 셋은 Completion or Closure Notes의 remaining follow-up으로 넘긴다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -684,15 +684,19 @@ volatile-non-replayable: 운영 DB 격리/내용, 실제 배포 Template, 외부
 
 ## Completion or Closure Notes
 
-이 제안서는 구현 승인 후 pending / approved로 유지한다. 후속 구현의 완료 조건(DoD)은 아래 Review Checklist의 "구현 완료 조건(DoD)" 목록 전부다. 실제 DB 검증과 배포 인수가 남아 있으므로 completed로 이동하지 않는다. 승인 근거는 2026-09-16 사용자의 실제 코드 수정 요청이다.
+2026-09-16 구현 뒤에는 실제 DB 검증과 배포 인수가 남아 있어 pending / approved로 두었다. 2026-09-23 사용자 지시로 completed로 옮긴다. **Review Checklist의 DoD를 모두 채워서 옮기는 것이 아니다.** 아래 remaining follow-up의 검증은 실행하지 않았고, 통과했다고 주장하지 않는다. 이 문서에서 코드로 할 일은 끝났고, 남은 것은 격리 DB와 배포 환경이 있어야 하는 검증뿐이다. 그래서 실행 대기 제안서가 아니라 수행 기록으로 둔다. `user-scoped-project-identity`도 같은 방식으로 `test:server:integration`을 미실행으로 적은 채 완료됐다.
 
-완료 기록(`status: "completed"`일 때 작성):
+완료 기록:
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-09-23
+- verification-summary: front matter 참조. 명령별 결과는 Verification Results의 명령 표가 단일 기준이다.
+- implementation PR/commit: PR #45(`harness/server-clean-code`, 구현 커밋 `60070e0`). private 템플릿 변경은 별도 저장소에 있다.
+- changed files summary: 48개 파일, +2330/−645. 추가형 migration과 격리 DB 실행기(E1), receipt에 묶인 outcome 원장(E2), 보드 writer CAS(E3), 공통 workspace 의미 검증과 합집합 상한(E4), 잘림 판정·MCP DTO·GitHub 빈 목록 구분(E5), 문서와 private 템플릿(E6). 자세한 내용은 Implementation Results.
+- remaining follow-up(미실행 — 통과로 읽지 않는다):
+  - `npm run test:server:integration`을 격리 PostgreSQL(`TEST_DATABASE_URL`)에서 실행하고, T02/T03/T05/T07/T10의 전체 경쟁·경계 매트릭스와 대조한다. 지금 suite에는 대표 시나리오만 있다.
+  - 빈 격리 DB 두 개로 D3 복구 리허설을 실행한다. 복구 migration(20260914093000)이 이름이 뒤인 20260915090000 뒤에 적용되는지를 아직 검증하지 않았다.
+  - A1~A5: 실제 템플릿 route·브라우저·배포 순서 인수(추가 열 적용 → 새 writer/증거 필터 → private seed → managed init)를 한다.
+  - 롤백 제한은 그대로다. 거절 원장을 증거로 읽는 구버전 writer로 되돌리지 않는다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
