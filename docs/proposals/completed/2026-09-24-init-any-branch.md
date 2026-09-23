@@ -1,19 +1,19 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-24"
 approved-by: "HamSangEok"
 approved-at: "2026-09-24"
 approval-scope: "A·B·C 전부. 이번 실행은 stagekeeper 쪽(Execution Plan 1~6, dev 병합까지). 플러그인 전달·템플릿·재시드(7~9)는 별도 지시"
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-24"
+verification-summary: "npm test 185·test:server 5·test:templates 28·test:web 386·check 통과, CI check 통과, 되돌림으로 새 시험의 결함 탐지 확인. 플러그인 0.3.3 전달, 런북 판 1f9c76be15cf 재시드·DB 대조. mathgic(test 브랜치) init 재실행: 런북에 판 표기, 개요 호출 둘이 판 전달, 실제 DB에서 새 판=최신·옛 판=stale 판정, 브랜치 이동 안내 없음"
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/runbook-branch-neutral-commits.md"
+  - "docs/proposals/completed/2026-09-24-runbook-branch-neutral-commits.md"
   - "docs/proposals/completed/2026-09-11-runbook-drift.md"
   - "docs/architecture/protocol.md"
   - "docs/conventions/product-copy.md"
@@ -439,7 +439,17 @@ npm run check
 아니라 같은 행의 "The field is absent when the runbook is current." 뒤에 넣었다. 앞의 자리는 "— the note reads …"로
 이어지는 한 문장의 중간이라, 그 자리에 넣으면 문장이 깨진다. 내용은 C-4와 같다.
 
-미실행: 7단계(플러그인 전달), 8단계(템플릿·재시드), 9단계(mathgic 확인). 이번 지시 범위는 dev 병합까지다.
+6~9단계(2026-09-24):
+
+| 단계 | 결과 | 비고 |
+| --- | --- | --- |
+| 6. PR·승격 | 병합·승격 | stagekeeper #81(CI `check` 통과 — 신원을 명령에 준 fixture 커밋이 CI 러너에서도 동작) → `dev` 병합 `06b8c65` → `main` fast-forward(`00d1198..06b8c65`) |
+| 7. 플러그인 전달 | 0.3.3 | `installed_plugins.json`: `harness@stagekeeper-local` user scope `0.3.3`, commit `06b8c65`. 설치본 `harness-init.mjs`에 새 코드(`runbook_version`, `ls-remote`)가 있음 |
+| 8. 템플릿·재시드 | DB 판 `1f9c76be15cf` | 분기 전 저장소 판·DB 판 `a85859257e4c` 일치 확인. harness-templates #3(`63e40a0`, 병합 `b92dc8e`), `test:templates` 28 통과. 재시드 전 플러그인 0.3.3 + 새 템플릿으로 로컬 init(CRLF 작업본): 판 표기 `1f9c76be15cf` = LF 해시, 개요 호출 둘이 같은 판, 남은 `{{` 없음. 런북만 부분 재시드(`done: 1 templates`, 갱신 행 하나) |
+| 8. 서버 판정(실 DB, 읽기 전용) | 의도대로 | mathgic에 새 판 전달 → 최신. 옛 판 `a85859257e4c` 전달 → stale. 전달 없음(재실행 전 저장값 `bfcb46d9b376`) → stale |
+| 9. mathgic init | 충족 | `test` 브랜치에서 새 세션 init. `CLAUDE.md`에 `runbook version \`1f9c76be15cf\``, `pipeline_next({ runbook: "1f9c76be15cf" })` 두 곳, 남은 `{{` 없음. 저장값이 `1f9c76be15cf`로 갱신되어 전달 유무와 관계없이 최신 판정. 등록 브랜치는 기존 `master` 그대로(재등록은 바꾸지 않음). init 안내에 브랜치 이동 권유 없음 |
+
+B(`--register`)는 mathgic에서 확인되지 않는다(`hs_` 토큰 → `--print-project`). 근거는 시험 4개와 되돌림 확인이다.
 
 ## Risks and Rollback
 
@@ -469,11 +479,16 @@ npm run check
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-09-24
+- verification-summary: front matter와 Verification Results 참조.
+- implementation PR/commit: stagekeeper #81(`4e75f7f`, 병합 `06b8c65`, `main` 승격) · harness-templates #3(`63e40a0`, 병합 `b92dc8e`).
+- changed files summary: stagekeeper 14개 + 새 시험 1개(Affected Files 표 그대로)와 이 제안서. harness-templates
+  `en/CLAUDE.runbook.md`·`templates.test.mjs`.
+- remaining follow-up:
+  - B를 실제 저장소로 확인하는 일은 남았다. 아직 등록하지 않은 저장소에서 `hu_` 토큰으로, 기능 브랜치에서 첫 init을 한다.
+  - 세션이 런북의 판을 실제로 `pipeline_next`에 넘기는지는 실제 사이클에서 확인한다(잔여 리스크).
+  - 기존 프로젝트는 init을 다시 돌리기 전까지 stale 안내를 받는다(의도된 동작).
+  - harness-templates PR #1(`harness/server-clean-code` → `main`)은 아직 OPEN이다. 이 변경은 그 위에 쌓여 있다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 

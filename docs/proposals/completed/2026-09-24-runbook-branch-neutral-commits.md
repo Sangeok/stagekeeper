@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "small"
 created-at: "2026-09-24"
 approved-by: "HamSangEok"
 approved-at: "2026-09-24"
 approval-scope: "결함 수정과 예방 규칙 둘 다 — 런북 템플릿·템플릿 시험(harness-templates), product-copy 계약(stagekeeper). 커밋·PR·재시드는 별도 지시"
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-24"
+verification-summary: "test:templates 27·npm test 180·check 통과, 옛 문장 복원 시 새 시험 실패 확인. 재시드 DB 판 a85859257e4c 대조. 이 문구를 담은 후속 판 1f9c76be15cf로 mathgic(test 브랜치)에서 init 재실행 — CLAUDE.md에 'The branch is' 없음, 'Commit on the branch you are working on' 있음"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -328,7 +328,9 @@ npm run check
 | 계약 동기화 `rg` | 기준 충족 (2026-09-24) | `Commit on the branch you are working on`: product-copy.md:778, CLAUDE.runbook.md:147. `rg "The branch is" plugin/templates/en`, `rg "board_branch" plugin/templates/en`: 결과 없음 |
 | 새 런북 판 | `a85859257e4c` | 작업 트리 `en/CLAUDE.runbook.md`의 LF sha256 앞 12자. 7단계 재시드 뒤 DB 판이 이 값이어야 한다(커밋 전 값이므로 커밋 후 1단계 명령으로 다시 확인) |
 
-미실행: 6단계(PR), 7단계(재시드), 8단계(mathgic init)와 "배포 확인" 기준. 커밋·PR·DB 쓰기는 소유자 지시가 있을 때 한다.
+| 6단계 PR | 병합 (2026-09-24) | stagekeeper #80(`dev`, CI `check` 통과) → `main` fast-forward 승격(`00d1198`). harness-templates #2(`harness/server-clean-code`, 병합 `4609bf3`) |
+| 7단계 재시드 | DB 판 `a85859257e4c` (2026-09-24) | 런북 한 파일만 부분 재시드(`done: 1 templates`). 갱신된 행은 `en/CLAUDE.runbook.md` 하나. 저장소 판과 DB 판 대조 일치 |
+| 8단계·배포 확인 | 충족 (2026-09-24) | 후속 제안 `2026-09-24-init-any-branch`가 이 문구 위에 판 표기를 더해 `1f9c76be15cf`로 다시 재시드했다. 그 판으로 mathgic(`test` 브랜치)에서 `/harness:init`을 재실행한 결과, `CLAUDE.md`에 "The branch is"가 없고 "Commit on the branch you are working on"이 있다. `pipeline_next`의 stale 안내도 사라졌다. init 안내에서도 "master로 옮겨 커밋하라"는 말이 사라졌다 |
 
 ## Risks and Rollback
 
@@ -351,11 +353,16 @@ npm run check
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-09-24
+- verification-summary: front matter와 Verification Results 참조.
+- implementation PR/commit: stagekeeper #80(`4dadb06`, 병합 `00d1198`) · harness-templates #2(`3ea3645`, 병합 `4609bf3`).
+- changed files summary: harness-templates `en/CLAUDE.runbook.md`(Rules 문단), `templates.test.mjs`(시험 1개). stagekeeper
+  `docs/conventions/product-copy.md`(Rules 계약)와 이 제안서.
+- remaining follow-up:
+  - init을 기본 브랜치가 아닌 곳에서 해도 맞게 동작하게 하는 일은 `2026-09-24-init-any-branch`로 이어졌고 완료됐다.
+  - `doc-link.ts:8-9`·`inbox-item.ts:94`의 낡은 주석과 도달하지 않는 `blobHref` 대체 경로 정리는 남았다(제외 범위).
+  - product-copy §`CLAUDE.runbook.md`의 다른 낡은 부분(단계 번호, "Free is web only")도 남았다(제외 범위).
+  - harness-templates PR #1(`harness/server-clean-code` → `main`)은 아직 OPEN이다. 이 변경은 그 위에 쌓여 있다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 

@@ -4,7 +4,7 @@ import { runbookVersion } from "../../packages/core/runbook.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 import { runbookStale } from "../../src/server/runbook";
 
-// 판정 표(docs/proposals/active/init-any-branch.md C-3): 세션이 넘긴 판이 있으면 그것으로만, 없거나 모양이
+// 판정 표(docs/proposals/completed/2026-09-24-init-any-branch.md C-3): 세션이 넘긴 판이 있으면 그것으로만, 없거나 모양이
 // 틀리면 마지막 init이 보고한 저장값으로. 넘겨받은 판은 저장하지 않는다 — 이 가짜 DB에는 쓰기 메서드가 없다.
 const CURRENT = "# {{project.name}} — pipeline runbook\ncurrent\n";
 const OLDER = "# {{project.name}} — pipeline runbook\nolder\n";
