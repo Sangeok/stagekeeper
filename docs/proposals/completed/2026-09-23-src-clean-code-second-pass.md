@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-23"
 approved-by: "Sangeok"
 approved-at: "2026-09-23"
 approval-scope: "묶음 1~5 전부(F01~F42)를 브랜치 harness/src-clean-code-second-pass 하나에서. 제품 결정은 모두 권고안 — ① F01 입력란 유지 + 파싱 결과 표시, ② F03 인라인 오류, ③ F02 border-rule, ④ F15 canWrite 필수, ⑤ F17 주석 정정까지(파생 통일 안 함), ⑥ F10 product-copy.md 잠금 블록 추가, ⑦ F39 hasPropose 삭제, ⑧ F41 첫 호출 로그 + fallback 유지, ⑨ F21 packages/core/pipeline.d.mts 추가, ⑪ F42 1단계만. 커밋·PR은 요청 시."
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-23"
+verification-summary: "42건 전부(F42는 1단계) PR #76(구현 커밋 55424bc, 머지 67b48ff)으로 dev에 들어갔다. CI check(55424bc) 녹색 — check 25·17, npm test 180, test:web 386(기준선 380 + 새 시험 6), npm run build; 빌드 로그에 F41 오설정 로그 0회. 로컬: npm run check exit 0, test:server 2, NUL 0, F21 선언 적용 탐침 실패 확인. 화면: F01 재현 불가(:3100), F04는 편집 레일 렌더로, F07 배너는 실제 DB 읽기 렌더로 확인. 미실행: test:server:integration(TEST_DATABASE_URL 없음; 이 변경의 원장 경로는 diff 대조로 동작 동일)."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -941,7 +941,7 @@ npm run verify:fsd    # 이동·배럴 변경이 있는 묶음 2·3에서 단계
 
 ## Verification Results
 
-구현은 2026-09-23 브랜치 `harness/src-clean-code-second-pass`(베이스 `b416d14`)에서 했다 — 표 끝의 "구현" 행들.
+구현은 2026-09-23 브랜치 `harness/src-clean-code-second-pass`(베이스 `b416d14`)에서 했고 PR #76으로 `dev`에 머지됐다 — 표 끝의 "구현"·"CI" 행들.
 아래 표의 앞 세 줄은 **리뷰 시점의 기준선**이다.
 
 | 명령 | 결과 | 비고 |
@@ -972,7 +972,7 @@ npm run verify:fsd    # 이동·배럴 변경이 있는 묶음 2·3에서 단계
 | 화면 — F04 | 렌더로 확인(브라우저 아님) | DB의 유일한 사용자가 Free라 편집 레일이 화면에 안 나온다 — 구독을 바꾸지 않고 `PipelineRail`을 `editable`·다운그레이드 그래프(free + doc-audit·scout)로 렌더: 거부될 Remove(게이트)·Swap·scout Remove는 `disabled`에 `title="doc-audit is not on the free plan"`, 그래프를 되살리는 doc-audit Remove만 활성 |
 | 화면 — 나머지 탭 | 200, 서버 로그·콘솔 오류 0 | `/p/mathgic`·`/backlog`(F24·F28)·`/pipeline`(F06 로스터, F09 문장, F28 "not saved yet")·`/inbox`(F15)·`/tokens`(F09)·`/projects`(F07 라벨 `1 / 1 available`, F11 `/p/new` 링크)·`/`(F10 데모 문장, F11 링크). F07의 잠금 배너 자체는 잠긴 프로젝트가 없어 화면에서 보지 못했다 |
 | 미실행 — `test:server:integration` | 실행 안 함 | `TEST_DATABASE_URL` 없음. F06(`loadProjectRoster(db, …)`는 코드로 확인)·F20·F40의 원장 경로는 단위 시험(`agents/next.test.ts`·`agents/run-query.test.ts`)만 통과 |
-| 미실행 — `npm run build` | 로컬 실행 안 함 | CI `check`가 PR에서 돌린다. F41 로그가 CI 빌드 로그에 찍히지 않는지는 PR에서 본다 |
+| CI — PR #76 `check` (run 35859477924, `55424bc`) | 통과 | `npm ci` · `db:generate` · `npm run check`(25/25 · 17/17) · `npm test` 180/180 · `npm run test:web` 386/386 · `npm run build`. 빌드 로그(4812줄)에 `HARNESS_PUBLIC_URL is not set` 0회 — F41 로그가 모듈 로드가 아니라 첫 호출에 있다. `npm run build`는 로컬에서 돌리지 않았다 |
 
 구현 중 문서와 달라진 점(전부 동작 보존 또는 문서가 허용한 범위 안):
 
@@ -1037,11 +1037,11 @@ npm run verify:fsd    # 이동·배럴 변경이 있는 묶음 2·3에서 단계
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-09-23
+- verification-summary: front matter 참조. 명령별 결과는 Verification Results의 표가 단일 기준이다.
+- implementation PR/commit: PR #76(`harness/src-clean-code-second-pass`, 구현 커밋 `55424bc`, 머지 `67b48ff`). 묶음별 PR 대신 한 PR에 묶음 1~5를 담았다(승인 메모).
+- changed files summary: 80개 — `src/` 76개(새 파일 11: 배너·엔티티 게이트 모델·플랜 문장 상수 둘·`resume-buttons`·`shared/routes/projects`·시험 넷과 보드 fixture), `packages/core/pipeline.d.mts`, `docs/conventions/product-copy.md`(§16 잠금 블록), `docs/architecture/verification.md`(잠금 표 행), 이 문서.
+- remaining follow-up: F42 2·3단계(제품 결정 ⑪), F30 래퍼 삭제(D3 리허설 스크립트와 함께), F06 후속(머리·토큰 읽기를 슬라이스 server adapter로), F36 후속(`query`·`pasteError`를 쓰는 블록으로), F23 후속(`scopedTool` 래퍼), 슬롯 경로 `closedTerminal` 참 갈래의 자동 시험(Risks의 기존 공백), 격리 DB 통합 시험 실행.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -1053,11 +1053,10 @@ npm run verify:fsd    # 이동·배럴 변경이 있는 묶음 2·3에서 단계
 
 ## Review Checklist
 
-- [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
-- [x] `status`는 `pending`을 사용했다.
-- [x] 문서 위치(`active/`)와 `status`(`pending`)가 일치한다.
-- [x] `stage`는 pending 문서에서만 사용했다.
-- [x] `stage`가 `approved`이고 승인 3필드(`approved-by`·`approved-at`·`approval-scope`)가 채워져 있다.
+- [x] 모든 `{placeholder}`를 처리했고, 닫힘 전용 `TBD` 외에는 완료 상태에 맞게 갱신했다.
+- [x] `status`는 `completed`이고 `stage`는 `null`이다.
+- [x] 문서 위치(`completed/2026-09-23-…`)와 `status`(`completed`)가 일치한다.
+- [x] 승인 3필드(`approved-by`·`approved-at`·`approval-scope`)는 승인 기록으로 남긴다.
 - [x] `proposal-size`는 `standard`이며 강제 조건(라우팅·인가·barrel export·서버 공개 표면·5개 이상 파일)에 해당한다.
 - [x] 승인 기록은 front matter를 단일 기준으로 쓰고, 본문에는 조건과 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
@@ -1066,5 +1065,5 @@ npm run verify:fsd    # 이동·배럴 변경이 있는 묶음 2·3에서 단계
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 기준선이 전부 통과이므로 신규 실패 판별 기준을 명시했다.
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서 항목 — pending이라 해당 없음.
-- [ ] 닫힌 문서 항목 — pending이라 해당 없음.
+- [x] 완료 문서 항목 — `completed-at`·`verification-summary`·완료 기록·실제 검증 결과(CI 포함)와 문서와 달라진 점을 적었다.
+- [ ] 닫힌 문서 항목 — 완료 문서라 해당 없음.
