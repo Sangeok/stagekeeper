@@ -27,7 +27,8 @@ export function UserTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
         <p className="text-sm text-quiet">
           A user token connects every repository you own from one shell. It says who you are, not which project — the
           project comes from <Code className="text-ink">harness.json</Code>&apos;s{" "}
-          <Code className="text-ink">project.slug</Code>.
+          <Code className="text-ink">project.slug</Code>. You save it once on each machine, and it works until you
+          revoke it.
         </p>
         <p className="text-sm text-quiet">
           Already connected a repository? Rerun <Code className="text-ink">/harness:init</Code> once there before you use

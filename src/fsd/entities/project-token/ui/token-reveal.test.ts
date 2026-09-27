@@ -31,6 +31,8 @@ describe("TokenReveal follows product-copy.md §9", () => {
   // 같은 컴포넌트가 두 종류를 그린다 — 한쪽 문장이 다른 쪽에 새면 hs_를 머신 전역에 저장하라고 말하게 된다.
   it("keeps each kind's step 2 to itself", () => {
     assert.doesNotMatch(visibleText(reveal("hs_…")), /Save the token once for this machine/);
+    // hs_도 폐기 전까지 유효하지만 값이 그 터미널에만 있어 새 터미널에서는 새 토큰이 필요하다 — 이 약속은 hu_의 것이다.
+    assert.doesNotMatch(visibleText(reveal("hs_…")), /you don't need a new token/);
     assert.doesNotMatch(visibleText(reveal("hu_…")), /This lasts only in this terminal/);
   });
 
