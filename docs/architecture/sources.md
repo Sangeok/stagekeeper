@@ -19,10 +19,10 @@ Stagekeeper의 규칙·템플릿·화면은 대부분 ApcH에서 실측 검증�
 | `.claude/agents/{web,admin,backend}-dev.md` | `templates/ko/agents/dev.md` | §9 매핑표. 골격/파라미터 분리(v1 §7 규칙 유지) |
 | `.claude/agents/plan-verifier.md` | `templates/ko/agents/plan-verifier.md` | 브리핑에 `board_get` 허용. 무편집 규칙 그대로 |
 | `.claude/agents/doc-auditor.md` | `templates/ko/agents/doc-auditor.md` | 백로그 읽기 → `backlog_list`. 보드는 여전히 보지 않음 |
-| `.claude/agents/feature-scout.md` | `templates/ko/agents/feature-scout.md` | 보고만. `backlog_add`는 주지 않는다(제안은 사람이 등록) |
+| `.claude/agents/feature-scout.md` | `templates/ko/agents/feature-scout.md` | 근거 있는 항목 최대 3건을 `backlog_add`로 등록. 거절 기억은 `backlog_list(includeRemoved)`로 읽고 나머지는 보고 |
 | `CLAUDE.md` 런북 | `templates/ko/CLAUDE.runbook.md` | 9단계 절차의 "보드 갱신·커밋"을 MCP 호출로. 문서 지도 갱신 |
 | `PROJECT_BOARD.md` 안내 블록 | `docs/protocol.md` + 웹 화면 도움말 | **템플릿 아님** — 규칙은 서버 코드와 도움말로 |
-| `TASK_BACKLOG.md` 머리말(관측/진단 분리 등) | 웹 백로그 편집 폼의 도움말 + `docs/protocol.md` | |
+| `TASK_BACKLOG.md` 머리말(관측/진단 분리 등) | scout source 형식 + `protocol.md`(사람 폼은 자유 입력) | |
 | `docs/plans/{README,template}.md`, `verification-paths.md`, `docs/agents/README.md` | `templates/ko/docs/` | 실증 산문 → `docs/rationale.md` |
 | `docs/release-checks.md` + `scripts/release-verify/*` + `.claude/skills/release-verify` | P3 — `ReleaseCheck` 테이블 + `scripts/release-verify` REST 버전 | `ledger.mjs` 판정 로직은 그대로, 입출력만 REST |
 | `docs/proposals/active/remote-agent-pipeline-generalization.md` | `docs/invariants.md`·`docs/rationale.md` | §3.2 표 |

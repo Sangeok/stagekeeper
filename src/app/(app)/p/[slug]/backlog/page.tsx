@@ -27,9 +27,9 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
       slug={slug}
       canWrite={access.available}
       includeRemoved={includeRemoved}
-      rows={items.map(({ key, title, area, source, status, removedAt }) => ({ key, title, area, source, status, removedAt }))}
+      rows={items.map(({ key, title, area, source, status, removedAt, type, addedBy, removedReason }) => ({ key, title, area, source, status, removedAt, type, addedBy, removedReason }))}
       editing={editing ? {
-        item: { key: editing.key, title: editing.title, area: editing.area, source: editing.source },
+        item: { key: editing.key, title: editing.title, area: editing.area, source: editing.source, type: editing.type },
         update: updateBacklogItem.bind(null, slug, editing.key),
       } : undefined}
       add={addBacklogItem.bind(null, slug)}

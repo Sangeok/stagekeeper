@@ -217,9 +217,9 @@ async function init() {
     return body;
   };
   // 보고 에이전트는 플랜이 허용하는 것만 — 플랜 밖 에이전트는 서버가 내려주지도 않는다. 이미 디스크에 있는 옛 파일은 건드리지 않고 lock에서만 빠진다.
-  // feature-scout는 scout를 설정한 저장소에만 간다. **내려가는 목록이 런북의 "Report only" 표(report_table)도 정한다** —
+  // feature-scout는 기본 질문으로 항상 생성한다. **내려가는 목록이 런북의 "Report agents" 표(report_table)도 정한다** —
   // 표와 파일이 같은 목록에서 나와야 런북이 없는 에이전트를 시키지 않는다(2026-09-22 mathgic: free 런북이 하드코딩된 네 행을 들고 있었다).
-  const wanted = REPORT_AGENTS.filter((a) => a !== "feature-scout" || config.scout);
+  const wanted = REPORT_AGENTS;
   const delivered = wanted.filter((a) => agents.includes(a));
   for (const a of wanted) if (!agents.includes(a)) console.log(`skip(plan): .claude/agents/${a}.md (not on the ${plan} plan)`);
   const vars = {

@@ -22,7 +22,7 @@ const descriptions = () => {
 
 // 웹 전용 — 에이전트 토큰용 서버에 절대 없어야 한다(불변식 4의 회귀 가드).
 const WEB_ONLY = ["gate_approve", "board_approve", "board_bounce", "board_hold", "board_discard", "board_resume",
-  "backlog_add", "backlog_update", "backlog_remove", "token_issue", "command_create"];
+  "backlog_update", "backlog_remove", "token_issue", "command_create"];
 
 const ctx = { http: { authInfo: { extra: { projectId: "p1", tokenId: "t1" } } } };
 const ws = [{ id: "web", path: "apps/web", agent: "dev", verify: ["npm test"], knowledge: null, readOnly: [] }];
@@ -41,7 +41,7 @@ describe("agent-scoped MCP tools", () => {
   // 문구가 갈리는 두 도구는 product-copy를 그대로 따라야 한다.
   it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
-    for (const tool of ["board_transition", "plan_submit", "agent_next"]) {
+    for (const tool of ["board_transition", "plan_submit", "agent_next", "backlog_add"]) {
       const expected = copyRow(tool);
       assert.ok(expected, `no product-copy row for ${tool}`);
       assert.equal(meta[tool].description, expected, tool);
@@ -251,4 +251,30 @@ it("invalid normalized workspaces never reach projectSync", async () => {
   const result = await handlers.project_sync({ workspaces: [{ ...ws[0], verify: [] }] }, ctx);
   assert.equal(result.isError, true);
   assert.equal(calls, 0);
+});
+
+it("backlog_add requires the scout payload and strips any client-assigned key", async () => {
+  const meta = descriptions();
+  const input = { runId: "run", title: "problem", area: "src", source: "Evidence: our hole", type: "fix" };
+  for (const field of Object.keys(input)) {
+    const missing = { ...input }; delete missing[field];
+    assert.equal(meta.backlog_add.inputSchema.safeParse(missing).success, false, field);
+  }
+  assert.equal(meta.backlog_add.inputSchema.safeParse({ ...input, type: "bug" }).success, false);
+  assert.deepEqual(meta.backlog_add.inputSchema.parse({ ...input, key: "FORGED-1" }), input);
+  assert.equal(meta.plan_submit.inputSchema.safeParse({ key: "K", path: "p", commit: "c" }).success, true);
+  assert.equal(meta.plan_submit.inputSchema.safeParse({ key: "K", path: "p", commit: "c", type: "bug" }).success, false);
+  const calls = [];
+  const handlers = {};
+  registerTools({ registerTool: (name, _meta, fn) => { handlers[name] = fn; } }, {
+    access: async () => open,
+    projectFor: async (slug, user) => slug === "owned" && user === "u" ? "p2" : null,
+    backlogAdd: async (projectId, payload) => { calls.push([projectId, payload]); return { ok: true, item: { key: "ITEM-01" } }; },
+  });
+  assert.deepEqual(JSON.parse((await handlers.backlog_add(input, ctx)).content[0].text), { key: "ITEM-01" });
+  const user = { http: { authInfo: { extra: { userId: "u", tokenId: "t" } } } };
+  assert.equal((await handlers.backlog_add(input, user)).isError, true);
+  assert.equal((await handlers.backlog_add({ ...input, project: "foreign" }, user)).isError, true);
+  assert.equal((await handlers.backlog_add({ ...input, project: "owned" }, user)).isError, undefined);
+  assert.deepEqual(calls.map(([projectId]) => projectId), ["p1", "p2"]);
 });

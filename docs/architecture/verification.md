@@ -69,7 +69,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 
 | 잠금 | 문서의 자리 | 시험 | 묶는 대상 |
 | --- | --- | --- | --- |
-| §13 표의 행 | `board_transition`·`plan_submit`·`agent_next` | `src/server/mcp/tools.test.mjs` | MCP 도구 설명(글자 일치) |
+| §13 표의 행 | `board_transition`·`plan_submit`·`agent_next`·`backlog_add` | `src/server/mcp/tools.test.mjs` | MCP 도구 설명(글자 일치) |
 | `token-reveal-shared`·`-project`·`-user` | §9 Token reveal | `src/fsd/entities/project-token/ui/token-reveal.test.ts` | `TokenReveal`(hs_·hu_ 각각 렌더) |
 | `owner-token-reveal` | §9 Owner token reveal | 같은 파일 | `OwnerTokenReveal` |
 | `turn-banner-connect` | §5 First run | `src/fsd/widgets/turn-banner/model/turn.test.ts` | 모델의 `detail`(글자 일치) — 배너는 그 값을 그린다 |

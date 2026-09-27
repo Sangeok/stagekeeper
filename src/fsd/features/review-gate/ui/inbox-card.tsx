@@ -60,7 +60,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
         <article className={cardClass({ decision: gate !== null })}>
         <header className="flex flex-col gap-[3px]">
           <p className="font-mono text-xs text-quiet">
-            {item.key} · {item.area}
+            {item.key} · {item.area || "—"} {item.type ? <Chip tone="done">{item.type}</Chip> : null}
           </p>
           <h3 className="text-[17px] leading-6 font-medium tracking-[-0.01em]">{item.title}</h3>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-quiet">
@@ -135,7 +135,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
               <b className="font-medium text-ink">Continue</b> moves the item to the next node; nothing changes on the board.
             </li>
             <li>Sending back clears the validation record.</li>
-            <li>Discard can&apos;t be undone.</li>
+            <li>Discard can&apos;t be undone. At Proposed it also takes the item out of the backlog, so pm can&apos;t pick it again; at In review the item stays in the backlog.</li>
           </ul>
           <p className="mt-2">
             More in the repo: <Code>docs/architecture/protocol.md</Code>

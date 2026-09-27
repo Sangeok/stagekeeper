@@ -7,14 +7,14 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma as defaultDb } from "@/server/db";
 import { readProjectAccess } from "@/server/project-access-query";
 import { createBoardService } from "@/server/pipeline/board";
-import { RUNBOOK_STALE_NOTE } from "@/server/pipeline/run-rules";
+import { RUNBOOK_STALE_NOTE, scoutNodePending } from "@/server/pipeline/run-rules";
 import { headFor, nextFor } from "@/server/pipeline/run";
 import { runbookStale } from "@/server/runbook";
 import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
 import { makeVerifyToken } from "./auth";
 import { loadProjectView } from "./project-query";
 import { syncProject } from "./project-sync-query";
-import { backlogView, backlogWithStatusView } from "./views";
+import { backlogView, backlogWithStatusView, boardWithBacklogView } from "./views";
 import type { ToolDeps } from "./tools";
 
 export function createToolDeps(prisma: PrismaClient): ToolDeps {
@@ -23,19 +23,27 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
   return {
     projectGet: (projectId) => loadProjectView((args) => prisma.project.findUniqueOrThrow(args), projectId),
     projectSync: (projectId, workspaces, language) => syncProject(prisma, { projectId, workspaces, language }),
+    backlogAdd: (projectId, input) => board.addBacklog(projectId, { title: input.title, area: input.area, source: input.source,
+      type: input.type, addedBy: "feature-scout", addedByRunId: input.runId }),
     backlogList: async (projectId, includeRemoved) => (await board.backlogWithStatus(projectId, includeRemoved)).map(backlogWithStatusView),
     backlogGet: async (projectId, key) => {
       const row = await prisma.backlogItem.findUnique({ where: { projectId_key: { projectId, key } } });
       return row === null ? null : backlogView(row);
     },
     boardList: (projectId, open) => board.latestBoard(projectId, open),
-    boardGet: async (projectId, key) =>
-      board.getWithHistory(projectId, key, historyCutoff((await readProjectAccess(prisma, projectId)).plan, new Date())),
+    boardGet: async (projectId, key) => {
+      const row = await board.getWithHistory(projectId, key, historyCutoff((await readProjectAccess(prisma, projectId)).plan, new Date()));
+      return row === null ? null : boardWithBacklogView(row);
+    },
     // pm은 에이전트 토큰으로 올린다. 웹의 "Put on the board"는 같은 board.propose를 human·web으로 부른다(§E.7).
     propose: (projectId, input, actorRef) => board.propose(projectId, input, { actor: "agent", actorRef }),
     // 에이전트에는 화면이 없다 — CAS 토큰은 board.transition이 트랜잭션 안에서 방금 읽은
     // row.updatedAt으로 채운다. Caller 유니온이 그 사실을 타입으로 못박는다.
-    transition: (projectId, input, actorRef) => board.transition(projectId, input, { actor: "agent", actorRef }),
+    transition: async (projectId, input, actorRef) => {
+      const result = await board.transition(projectId, input, { actor: "agent", actorRef });
+      return result.ok && result.item.backlogItem !== undefined
+        ? { ok: true, item: boardWithBacklogView({ ...result.item, backlogItem: result.item.backlogItem }) } : result;
+    },
     submitPlan: (projectId, input, actorRef) => board.submitPlan(projectId, input, actorRef),
     submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
     recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),
@@ -57,7 +65,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
         await board.advancePipeline(projectId, key);
         items.push(await nextFor(prisma, projectId, key));
       }
-      const head = await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId));
+      const head = await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId), scoutNodePending(items));
       // 런북 표류는 key 없는 개요에만 싣는다. 낡지 않았으면 필드 자체를 내지 않는다.
       // 세션이 자기 CLAUDE.md의 판을 넘기면 그 checkout 기준으로, 아니면 마지막 init이 보고한 판으로 판정한다.
       const stale = await runbookStale(projectId, prisma, runbook);

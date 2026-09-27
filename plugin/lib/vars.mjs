@@ -2,6 +2,8 @@
 // 사용자·에이전트에게 보이는 문자열은 영문이다(docs/conventions/product-copy.md).
 const bullets = (xs) => (xs.length === 0 ? "none" : xs.map((x) => `- \`${x}\``).join("\n"));
 
+export const DEFAULT_SCOUT_QUESTION = "What should change next in this repository — a defect you can point to in the code, or a feature its users need — and what is the evidence?";
+
 export function buildVars(config) {
   const rows = config.workspaces.map((w) => `| \`${w.agent}\` | \`${w.path}/**\` |`).join("\n");
   return {
@@ -13,13 +15,13 @@ export function buildVars(config) {
     board_branch: config.project.branch,
     roster_table: `| agent | owns |\n| --- | --- |\n${rows}`,
     roster_names: config.workspaces.map((w) => `\`${w.agent}\``).join("·"),
-    scout: config.scout ?? { question: "" },
+    scout: config.scout ?? { question: DEFAULT_SCOUT_QUESTION },
     release: config.release ?? { baseUrl: "", auth: "none" },
   };
 }
 
-// 런북의 "Report only" 표. 행은 **실제로 내려간** 보고 에이전트만이다 — 플랜 밖 에이전트는 서버가 내려주지
-// 않고(deliver.mjs), scout 없는 저장소의 feature-scout는 생성기가 쓰지 않는다(harness-init.mjs). 파일이 없는
+// 런북의 "Report agents" 표. 행은 **실제로 내려간** 보고 에이전트만이다 — 플랜 밖 에이전트는 서버가 내려주지
+// 않고(deliver.mjs), feature-scout는 scout 설정 없이도 생성한다(harness-init.mjs). 파일이 없는
 // 에이전트가 표에 있으면 런북이 없는 에이전트를 시킨다 — 2026-09-22 mathgic 실사용에서 free 런북이 하드코딩된
 // doc-auditor·plan-verifier 행을 들고 있었다. 문구는 각 에이전트 파일의 frontmatter description이다: 런북이
 // 따로 설명하면 둘이 어긋난다. buildVars에 넣지 않는다 — 입력이 config가 아니라 내려온 템플릿이고, 서버

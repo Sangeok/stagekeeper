@@ -7,6 +7,7 @@ import { dirname, join, relative } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { deliverable } from "../lib/deliver.mjs";
+import { DEFAULT_SCOUT_QUESTION } from "../lib/vars.mjs";
 import { REPORT_AGENTS } from "../lib/entitlement.mjs";
 import { runbookVersion } from "../lib/runbook.mjs";
 
@@ -185,13 +186,14 @@ describe("harness-init (v2)", () => {
     assert.equal(run(root, "--adopt").code, 0);
     assert.notEqual(readFileSync(join(root, "docs/agents/README.md"), "utf8"), "theirs\n");
   });
-  it("omits feature-scout when config has no scout", () => {
+  it("writes feature-scout with the default question when config has no scout", () => {
     const root = fresh(JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] }));
     assert.equal(run(root).code, 0);
-    assert.ok(!existsSync(join(root, ".claude/agents/feature-scout.md")));
+    assert.ok(existsSync(join(root, ".claude/agents/feature-scout.md")));
+    assert.ok(readFileSync(join(root, ".claude/agents/feature-scout.md"), "utf8").includes(DEFAULT_SCOUT_QUESTION));
     assert.ok(existsSync(join(root, ".claude/agents/dev.md")));
-    // 파일이 안 가면 런북 표에도 없다 — 표와 파일은 같은 목록에서 나온다.
-    assert.doesNotMatch(readFileSync(join(root, "CLAUDE.md"), "utf8"), /feature-scout/);
+    // The file and report table use the same delivered agent list.
+    assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /feature-scout/);
   });
   it("exit 1 with the field path on bad config", () => {
     const root = fresh(JSON.stringify({ version: 2 }));

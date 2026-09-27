@@ -21,10 +21,10 @@ export type TurnItem = {
 };
 
 // 첫 방문 체크리스트의 재료. 보드에 행이 하나도 없을 때만 쓰인다.
-export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; backlogCount: number }; // §E.3
+export type SetupState = { tokenIssued: boolean; rosterSynced: boolean }; // §E.3
 
 export type SetupStep = {
-  key: "token" | "connect" | "backlog" | "pm";
+  key: "token" | "connect" | "run";
   title: string;
   detail: string;
   done: boolean;
@@ -45,13 +45,13 @@ export type Turn =
   | { kind: "none"; detail: string };
 
 export const HEADLINE: Record<Turn["kind"], string> = {
-  setup: "Set up in four steps",
+  setup: "Set up in three steps",
   mine: "Waiting on you",
   theirs: "Agents are working",
   none: "Nothing open",
 };
 
-const NONE_DETAIL = "Pick the next item from the backlog, or run pm in Claude Code to pick for you.";
+const NONE_DETAIL = "Pick the next item from the backlog, or run the pipeline in Claude Code — when the backlog is empty, feature-scout looks for items to add.";
 const BLOCKED_WHY = "pm can't propose anything new until you clear one.";
 
 function setupSteps(setup: SetupState): SetupStep[] {
@@ -69,15 +69,9 @@ function setupSteps(setup: SetupState): SetupStep[] {
       done: setup.rosterSynced,
     },
     {
-      key: "backlog",
-      title: "Add a backlog item",
-      detail: "Key, title, area, and the evidence — what you observed and what you confirmed in the code.",
-      done: setup.backlogCount > 0,
-    },
-    {
-      key: "pm",
-      title: "Run pm in Claude Code",
-      detail: "It picks up to two items from the backlog and puts them here for your approval.",
+      key: "run",
+      title: "Run the pipeline in Claude Code",
+      detail: "feature-scout reads the code and adds up to three backlog items; pm puts up to two on the board for your approval. With no Propose node, put one on the board from the Backlog tab.",
       // 이 목록은 보드가 비어 있을 때만 만들어진다 — 그래서 마지막 단계는 아직 끝날 수 없다.
       done: false,
     },

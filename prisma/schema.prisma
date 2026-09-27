@@ -129,12 +129,17 @@ model Workspace {                      // harness.json.workspaces 의 사본 (pr
 model BacklogItem {
   id        String      @id @default(cuid())
   projectId String
-  key       String                       // FEAT-28
+  key       String                       // ITEM-01 (existing keys remain immutable)
   title     String
   area      String
-  source    String                       // 관측/진단 분리 규칙은 화면 도움말
+  source    String                       // Scout evidence follows the template contract
   createdAt DateTime    @default(now())
-  removedAt DateTime?                    // 완료 시 서버가 채움
+  removedAt DateTime?
+  type      String?                      // feat | fix | refactor | docs
+  typeSetBy String?                      // owner | feature-scout | dev, null when type is null
+  addedBy   String      @default("owner")
+  addedByRunId String?                   // Audit identity, no FK; removed writes still count
+  removedReason String?                  // done | owner | discarded, null while live
   project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   board     BoardItem[]
   @@unique([projectId, key])

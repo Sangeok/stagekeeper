@@ -16,6 +16,13 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // where: web = src/fsd·src/app의 보이는 문구, skill = plugin/skills의 SKILL.md, locks = product-copy.md의 잠금 블록.
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
+  ...[
+    /Scout runs only with harness\.json\.scout/,
+    /Add a backlog item|Run pm in Claude Code|Set up in four steps/,
+    /run pm in Claude Code to pick for you/,
+    /Key must look like FEAT-01/,
+    /the backlog is web only/,
+  ].map((pattern) => ({ pattern, where: ["web"], since: "2026-09-26", why: "scout fills the backlog and the server assigns keys" })),
   {
     pattern: /approve the server|run \/mcp and approve/i,
     where: ["web", "skill", "locks"],

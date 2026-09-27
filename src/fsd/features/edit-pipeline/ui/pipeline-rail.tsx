@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId } from "@harness/core/pipeline.mjs";
+import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId, slotAgent } from "@harness/core/pipeline.mjs";
 import { gateLabel, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { cn } from "@/fsd/shared/lib/class-name";
@@ -142,8 +142,8 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
       {editable ? null : (
         <p className="text-xs text-quiet">{unavailableReason ?? PIPELINE_EDIT_PLAN_GATE}</p>
       )}
-      {state.nodes.includes("scout") ? null : (
-        <p className="text-xs text-quiet">Scout runs only with harness.json.scout — add it here when that is set.</p>
+      {state.nodes.some((node) => slotAgent(node) === "feature-scout") ? null : (
+        <p className="text-xs text-quiet">Scout also runs on its own when nothing is left to pick. Add it here to scout after each accepted item.</p>
       )}
 
       {editable ? <div className="flex items-center gap-3">

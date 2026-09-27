@@ -71,8 +71,7 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, 
         <h1 className="text-2xl font-semibold tracking-tight">Tokens</h1>
         {/* "those are web only"는 이 페이지 아래에 소유자 토큰 절이 생기면서 거짓이 된다 — 승인은 Inbox 또는 소유자 토큰, 백로그 편집만 웹 전용. */}
         <p className="text-sm text-quiet">
-          Agents connect with a token. An agent token can&apos;t approve or edit the backlog — approving is yours, in the
-          Inbox or with an owner token below; the backlog is web only.
+          Agents connect with a token. An agent token can&apos;t approve gates or edit and remove backlog items — approving is yours, in the Inbox or with an owner token below. feature-scout can add up to three backlog items a run.
         </p>
         <p className="text-sm text-quiet">
           MCP server URL: <Code className="text-ink">{mcpUrl}</Code>
