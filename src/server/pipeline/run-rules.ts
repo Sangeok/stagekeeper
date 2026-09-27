@@ -36,7 +36,8 @@ export const HINT: Record<string, string> = {
   verify: "Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
   implement: "Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate.",
   "doc-audit": "Dispatch doc-auditor with no key; append its report to docs/agents/doc-auditor/audit-log.md yourself.",
-  scout: "Dispatch feature-scout with no key — only when harness.json.scout is configured (init writes that agent only then); otherwise take the Scout node off the Pipeline tab. Append its report to docs/agents/feature-scout/scouting-log.md yourself.",
+  scoutHead: "Dispatch feature-scout with no key. It adds up to three backlog items it has evidence for. Append its report to docs/agents/feature-scout/scouting-log.md yourself, then call pipeline_next again.",
+  scout: "Dispatch feature-scout with no key; it adds up to three items it has evidence for to the backlog. Append its report to docs/agents/feature-scout/scouting-log.md yourself.",
 };
 
 // 핸드오프가 아직 살아 있는가. 원장의 마지막 단계만 보면 안 된다 — 소유자가 커밋하고 에이전트가 이어서
@@ -61,8 +62,8 @@ export function decideNext(i: PipelineNextInput): PipelineNext {
   return { key, node, version, action: "dispatch", agent, hint: hintFor(node), format: i.format ?? null, ...(i.entry ? { entry: i.entry } : {}) };
 }
 
-// key 없는 pipeline_next의 머리 — pm을 디스패치할 차례인가. none이면 사유가 실린다(null은 사유를 못 싣는다).
-export type HeadNext = { action: "dispatch"; agent: "pm"; hint: string } | { action: "none"; reason: string };
+// key 없는 pipeline_next의 머리 — 빈 백로그는 scout가 채우고 후보가 있으면 pm이 고른다.
+export type HeadNext = { action: "dispatch"; agent: "pm" | "feature-scout"; hint: string } | { action: "none"; reason: string };
 
 // 저장소의 런북이 현재 템플릿과 다를 때만 실린다 — 정상 응답은 이 필드가 아예 없다.
 // init이 심은 판의 해시를 서버가 갖고 있고(POST /api/runbook), 판정은 packages/core/runbook.mjs에 있다.
@@ -79,19 +80,29 @@ export function hintFor(node: string): string {
 
 export type HeadInput = {
   hasResumablePmRun?: boolean;
+  hasResumableScoutRun?: boolean;
+  scoutedSinceChange: boolean;
+  scoutNodePending: boolean;
   hasPropose: boolean;   // 현재 버전의 nodes에 propose가 있는가
   openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
   availableBacklog: number; // 아직 보드에 안 올라간 백로그 항목 수 — pm이 고를 수 있는 것
   capReason: string | null; // capError(plan, "dispatches", recentRuns) — decideNext와 같은 수
 };
 
-// 판정 순서: propose 노드 없음 → 미결 2건(canPropose — pm 규칙과 같은 문장) → 상한 → dispatch pm.
+export function scoutNodePending(items: PipelineNext[]): boolean {
+  return items.some((item) => item.action === "dispatch" && item.agent === "feature-scout");
+}
+
+// Open limit first, then fill an empty backlog once per change, then propose.
 export function decideHead(i: HeadInput): HeadNext {
-  if (!i.hasPropose) return { action: "none", reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" };
   if (!canPropose(i.openCount)) return { action: "none", reason: `open items: ${i.openCount} (max 2)` };
-  // 백로그가 비었으면 pm을 부를 이유가 없다. 예전에는 계속 "dispatch pm"이라 답해,
-  // 고를 것이 없다는 걸 알자고 디스패치를 하나 썼다 — 디스패치는 월 상한에 계수된다(실측).
-  if (i.availableBacklog === 0) return { action: "none", reason: "the backlog has nothing to pick — add an item on the Backlog tab" };
+  if (i.availableBacklog === 0) {
+    if (i.scoutNodePending) return { action: "none", reason: "a Scout node in items dispatches feature-scout — that run looks for items to add" };
+    if (i.scoutedSinceChange) return { action: "none", reason: "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" };
+    if (i.capReason !== null && !i.hasResumableScoutRun) return { action: "none", reason: i.capReason };
+    return { action: "dispatch", agent: "feature-scout", hint: HINT.scoutHead };
+  }
+  if (!i.hasPropose) return { action: "none", reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" };
   if (i.capReason !== null && !i.hasResumablePmRun) return { action: "none", reason: i.capReason };
   return { action: "dispatch", agent: "pm", hint: HINT.propose };
 }

@@ -9,7 +9,7 @@ type Props = {
   rows: BacklogRow[];
   includeRemoved: boolean;
   // 편집할 항목과 그 수정 액션은 함께 온다 — 항목만 있고 add로 대신 채우면 "수정"이 조용히 새 항목을 만든다.
-  editing?: { item: { key: string; title: string; area: string; source: string }; update: BacklogFormAction };
+  editing?: { item: { key: string; title: string; area: string; source: string; type: string | null }; update: BacklogFormAction };
   add: BacklogFormAction;
   remove: RemoveBacklogAction;
   propose: ProposeAction;

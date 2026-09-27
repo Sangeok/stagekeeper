@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { allowsSessionApprovals } from "@harness/core/entitlement.mjs";
-import { readProjectAccessIn } from "../project-access-query";
+import { allowsSessionApprovals, capError } from "@harness/core/entitlement.mjs";
+import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/backlog.mjs";
+import { readProjectAccessIn, readProjectPlanIn } from "../project-access-query";
 import { advance, cursorForStatus, SLOT_FORMAT } from "@harness/core/pipeline.mjs";
 import { isOpen } from "@harness/core/transitions.mjs";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient, type BoardItem, type BacklogItem } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
 import { ensureRun, nextFor, readFacts, type Graph, type GateEntry } from "./run-query";
 import { decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, PLAN_VERIFIER } from "./board-rules";
@@ -54,12 +55,82 @@ async function inProjectTransaction<Result>(projectId: string, work: (tx: Prisma
     return result;
   }, { timeout: BOARD_TRANSACTION_TIMEOUT_MS, ...options });
 }
+// Both writers share the owner -> project locks with run closure and plan changes.
+async function addBacklog(projectId: string, input: {
+  title: string; area: string; source: string; type: string | null;
+  addedBy: "owner" | "feature-scout"; addedByRunId: string | null;
+}): Promise<ServerResult<{ key: string }>> {
+  if (!input.title.trim()) return fail("Title is required.");
+  return inProjectTransaction(projectId, async (tx) => {
+    if (input.addedByRunId !== null) {
+      const run = await tx.agentRun.findFirst({ where: {
+        id: input.addedByRunId, projectId, agent: "feature-scout", closedAt: null,
+      }, select: { id: true } });
+      if (!run) return fail("backlog_add needs an open feature-scout run");
+    }
+    const plan = await readProjectPlanIn(tx, projectId);
+    const live = await tx.backlogItem.count({ where: { projectId, removedAt: null } });
+    const capMsg = capError(plan, "backlog", live);
+    if (capMsg) return fail(capMsg);
+    if (input.addedByRunId !== null) {
+      const written = await tx.backlogItem.count({ where: { projectId, addedByRunId: input.addedByRunId } });
+      if (written >= SCOUT_ITEMS_PER_RUN) return fail("this run already added 3 items");
+    }
+    const keys = await tx.backlogItem.findMany({ where: { projectId }, select: { key: true } });
+    const key = nextItemKey(keys.map((row) => row.key));
+    const type = toItemType(input.type);
+    await tx.backlogItem.create({ data: {
+      ...input, title: input.title.trim(), projectId, key, type, typeSetBy: type === null ? null : input.addedBy,
+    } });
+    return { ok: true, item: { key } };
+  });
+}
+
+async function updateBacklog(projectId: string, key: string, input: {
+  title: string; area: string; source: string; type: string | null; typeBefore: string | null;
+}): Promise<ServerResult<null>> {
+  if (!input.title.trim()) return fail("Title is required.");
+  const type = toItemType(input.type);
+  const typeBefore = toItemType(input.typeBefore);
+  const changed = type !== typeBefore;
+  const updated = await prisma.backlogItem.updateMany({
+    where: { projectId, key, ...(changed ? { type: typeBefore } : {}) },
+    data: { title: input.title.trim(), area: input.area, source: input.source,
+      ...(changed ? { type, typeSetBy: type === null ? null : "owner" } : {}) },
+  });
+  if (updated.count === 0) {
+    const exists = await prisma.backlogItem.findUnique({ where: { projectId_key: { projectId, key } }, select: { id: true } });
+    return fail(exists ? "The item changed. Refresh and try again." : `${key} doesn't exist.`);
+  }
+  return { ok: true, item: null };
+}
+
+async function removeBacklog(projectId: string, key: string): Promise<ServerResult<null>> {
+  try {
+    return await inProjectTransaction(projectId, async (tx) => {
+      const open = await latestBoard(projectId, true, tx);
+      if (open.some((row) => row.backlogItem.key === key)) {
+        return fail(`${key} is open on the board. Finish or discard it before removing.`);
+      }
+      const removed = await tx.backlogItem.updateMany({ where: { projectId, key, removedAt: null },
+        data: { removedAt: new Date(), removedReason: "owner" } });
+      if (removed.count === 0) return fail(`${key} doesn't exist.`);
+      return { ok: true, item: null };
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      return fail("The item changed. Refresh and try again.");
+    }
+    throw error;
+  }
+}
+
 async function latestBoard(projectId: string, openOnly = false, db: Db = prisma) {
   const rows = await db.boardItem.findMany({
     where: { projectId, discardedAt: null },
     orderBy: { proposedOn: "desc" },
     distinct: ["backlogItemId"],
-    include: { backlogItem: { select: { key: true, title: true, area: true } } },
+    include: { backlogItem: { select: { key: true, title: true, area: true, type: true } } },
   });
   return openOnly ? rows.filter((r) => isOpen(r.status)) : rows;
 }
@@ -85,7 +156,7 @@ async function latestBoardWithEvents(projectId: string) {
     orderBy: { proposedOn: "desc" },
     distinct: ["backlogItemId"],
     include: {
-      backlogItem: { select: { key: true, title: true, area: true } },
+      backlogItem: { select: { key: true, title: true, area: true, type: true } },
       events: { where: { note: null }, orderBy: { at: "desc" }, take: 8, select: { from: true, to: true, at: true, actor: true } },
       run: { select: { id: true, entryId: true, node: true, closedAt: true, version: { select: { format: true } } } },
     },
@@ -108,7 +179,7 @@ function latestRowFor(projectId: string, key: string) {
 }
 
 // pm이 지금 고를 수 있는 백로그 항목 수. 제거되지 않았고, 지금 보드에 미결로 올라 있지도 않은 것.
-// head가 이걸 안 보면 빈 백로그에도 "dispatch pm"이라 답해 디스패치를 헛쓴다(월 상한에 계수된다).
+// 후보가 없으면 head는 scout의 마지막 보고와 백로그 변화 시각으로 새 정찰 여부를 정한다.
 async function availableBacklogCount(projectId: string): Promise<number> {
   const [items, board] = await Promise.all([
     prisma.backlogItem.findMany({ where: { projectId, removedAt: null }, select: { id: true } }),
@@ -183,7 +254,7 @@ async function propose(projectId: string, input: { key: string; agent: string; r
 
 async function transitionIn(
   tx: Db, projectId: string, input: { key: string; to: string; result?: string }, caller: Caller, opts: { viaGate: boolean; gateEntry?: GateEntry } = { viaGate: false },
-) {
+): Promise<ServerResult<BoardItem & { backlogItem?: BacklogItem }>> {
   const row = await latestRow(tx, projectId, input.key);
   if (!row) return fail(`no such board item: ${input.key}`);
   // 이미 그 상태다. 한 노드가 호출 여럿으로 이뤄져 있어 순서가 어긋나면(증거 제출이 전이까지 한 뒤
@@ -216,9 +287,9 @@ async function transitionIn(
     boardItemId: row.id, from: row.status, to: d.value.status, actor: caller.actor, actorId: caller.actorRef,
     channel: caller.actor === "human" ? caller.channel : null,
   } });
-  if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date() } });
+  if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date(), removedReason: "done" } });
   // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
-  if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null } });
+  if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null, removedReason: null } });
   // 상태가 바뀌면 옛 상태에서 하던 일은 끝났다. 열린 run을 두면 에이전트의 단계 커서가 파이프라인
   // 커서와 어긋나, 다음 디스패치에서 지난 단계 본문이 다시 나온다(실측). 다음 호출이 새 run을
   // 그 상태가 여는 단계에서 연다 — verifyOk는 run을 가리지 않으므로 검증 벽은 그대로다.
@@ -255,6 +326,7 @@ async function discard(projectId: string, input: { key: string; userId: string; 
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: null, actor: "human", actorId: input.userId, channel: "web", note: "discard" } });
     await closeRuns(tx, projectId, input.key);
     await closeRun(tx, row.id);
+    if (row.status === "proposed") await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date(), removedReason: "discarded" } });
     return { ok: true as const, item: null };
   });
 }
@@ -338,12 +410,24 @@ async function recordValidation(projectId: string, input: { key: string; text: s
   });
 }
 
-async function submitPlan(projectId: string, input: { key: string; path: string; commit: string }, actorRef: string) {
+async function submitPlan(projectId: string, input: { key: string; path: string; commit: string; type?: string }, actorRef: string) {
   return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
     const d = decidePlanSubmit(row.status);
     if (!d.ok) throw new BoardRejection(d.reason);
+    const type = toItemType(input.type);
+    let typeKept: "owner" | undefined;
+    if (type !== null) {
+      const updated = await tx.backlogItem.updateMany({ where: { id: row.backlogItemId, AND: [
+        { OR: [{ typeSetBy: null }, { typeSetBy: { not: "owner" } }] },
+        { OR: [{ type: null }, { type: { not: type } }] },
+      ] }, data: { type, typeSetBy: "dev" } });
+      if (updated.count === 0) {
+        const current = await tx.backlogItem.findUniqueOrThrow({ where: { id: row.backlogItemId } });
+        if (current.typeSetBy === "owner" && current.type !== type) typeKept = "owner";
+      }
+    }
     await claim(tx, row, { planPath: input.path, planCommit: input.commit });
     const item = await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "plan" } });
@@ -354,9 +438,9 @@ async function submitPlan(projectId: string, input: { key: string; path: string;
     if (row.status === "planning") {
       const t = await transitionIn(tx, projectId, { key: input.key, to: "in_review" }, { actor: "agent", actorRef });
       if (!t.ok) throw new BoardRejection(t.reason);
-      return { ok: true as const, item: t.item };
+      return { ok: true as const, item: { ...t.item, ...(typeKept ? { typeKept } : {}) } };
     }
-    return { ok: true as const, item };
+    return { ok: true as const, item: { ...item, ...(typeKept ? { typeKept } : {}) } };
   });
 }
 
@@ -432,7 +516,7 @@ function closeRun(tx: Db, boardItemId: string) {
   return tx.pipelineRun.updateMany({ where: { boardItemId, closedAt: null }, data: { closedAt: new Date() } });
 }
 
-return { transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), advancePipeline: reportFailure(advancePipeline) };
+return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), advancePipeline: reportFailure(advancePipeline) };
 }
 
 function isRejection(value: unknown): value is { ok: false; reason: string } {

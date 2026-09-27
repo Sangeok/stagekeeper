@@ -50,7 +50,7 @@
 
 `project_get`은 기존 repository owner 키를 보존하고 `available: true` 또는 `available: false, reason`을
 추가한다. ownerUserId/repoOwner/선택·sync 시각은 공개 body에 노출하지 않는다. 소유권 무결성 오류라면
-프로젝트 상세 없이 error만 응답한다. selected-out에서 나머지 12개 agent 도구는 domain query 전에 거부한다.
+프로젝트 상세 없이 error만 응답한다. selected-out에서 나머지 13개 agent 도구는 domain query 전에 거부한다.
 
 공통 사유: `This project is not selected for use. Open Stagekeeper → Projects and choose “Use this project”.`
 토큰 인증은 유지하며 다른 도구나 templates/runbook 접근으로 우회할 수 없다.
@@ -63,7 +63,7 @@
 
 서버 이름 `harness`. Claude Code에서 보이는 이름은 `mcp__harness__<tool>`. 도구명은 밑줄(점 금지 — 클라이언트 정규화 회피).
 
-**프로젝트는 토큰이 아니라 인자에서 온다.** 아래 13개 도구 전부가 선택 입력 `project`(슬러그)를 받는다.
+**프로젝트는 토큰이 아니라 인자에서 온다.** 아래 14개 도구 전부가 선택 입력 `project`(슬러그)를 받는다.
 `hs_`는 토큰이 프로젝트를 알고 있어 이 값을 보지 않으므로 **기존 호출이 그대로 통한다**. `hu_`는 이 값이
 **필수**다 — 없으면 `project required: add project.slug to harness.json (rerun /harness:init once to write it)`,
 호출자 소유가 아니면 `not the owner of this project`로 거부한다(없는 슬러그도 같은 문장이다).
@@ -77,17 +77,18 @@
 | --- | --- | --- | --- | --- |
 | `project_get` | `{project?}` | 프로젝트·roster·워크스페이스 | 전부 | 1 |
 | `project_sync` | `{workspaces[], language?, project?}` (= `harness.json`의 `workspaces`·`language`) | 워크스페이스 upsert(roster 갱신) · `Project.language` 갱신(`agent_next`가 단계를 찾는 언어) | init 스킬 | 1 · 4 |
-| `backlog_list` | `{includeRemoved?, project?}` | 백로그 항목 + 최신 보드 status | pm·dev·doc-auditor | 1 |
+| `backlog_list` | `{includeRemoved?, project?}` | 백로그 항목 + 최신 보드 status | pm·dev·doc-auditor·feature-scout | 1 |
+| `backlog_add` | `{runId, title, area, source, type, project?}` | 서버가 ITEM-NN 발급. 열린 feature-scout run만, run당 누적 3건·플랜의 live 상한. 반환 `{key}` | feature-scout | 1 |
 | `backlog_get` | `{key, project?}` | 항목 1건(`source` 전문) | dev | 1 |
 | `board_list` | `{open?, project?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
 | `board_get` | `{key, project?}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·main-loop | 1 |
 | `board_propose` | `{key, agent, reason, project?}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
 | `board_transition` | `{key, to, result?, project?}` | 에이전트는 planning·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev | 1 |
-| `plan_submit` | `{key, path, commit, project?}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
+| `plan_submit` | `{key, path, commit, type?, project?}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
 | `report_submit` | `{key, actor, path, commit, runId?, project?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
 | `validation_record` | `{key, text, project?}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
 | `agent_next` | `{agent, key?, outcome?, note?, entry?, agentRunId?, stepId?, receipt?, project?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
-| `pipeline_next` | `{key?, runbook?, project?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다. `runbook`(12자리 소문자 hex)이 있으면 key 없는 개요의 `runbook` 필드는 그 판이 현재 템플릿과 다를 때만 실린다. 없거나 모양이 틀리면 마지막 init이 보고한 판(`Project.runbookVersion`)으로 판정한다. 넘겨받은 판은 저장하지 않는다 | main-loop | 2 |
+| `pipeline_next` | `{key?, runbook?, project?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 후보가 없으면 feature-scout, 있으면 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm"|"feature-scout", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다. `runbook`(12자리 소문자 hex)이 있으면 key 없는 개요의 `runbook` 필드는 그 판이 현재 템플릿과 다를 때만 실린다. 없거나 모양이 틀리면 마지막 init이 보고한 판(`Project.runbookVersion`)으로 판정한다. 넘겨받은 판은 저장하지 않는다 | main-loop | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 
@@ -141,7 +142,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 | `in_review` | `on_hold` | human | hold | `result` 필수 |
 | `on_hold` | `planning` | human | resume | 검증 기록을 지운다 |
 | `on_hold` | `implementing` | human | resume | — |
-| `done` | `implementing` | human | reopen | `result` 필수. `acceptedAt`을 지우고 백로그 `removedAt`을 복원한다(상한은 세지 않는다 — 복원이지 추가가 아니다) |
+| `done` | `implementing` | human | reopen | `result` 필수. `acceptedAt`을 지우고 백로그 `removedAt`·`removedReason`을 모두 null로 복원한다(상한은 세지 않는다 — 복원이지 추가가 아니다) |
 | `done` | `planning` | human | reopen | `result` 필수. 검증 기록도 지운다. 복원은 위와 같다 |
 | `planning` | `in_review` | agent | plan | `plan_submit` 선행 |
 | `planning` | `on_hold` | agent | hold | `result` 필수 |
@@ -235,13 +236,39 @@ v2에서는 `validation_record`가 `in_review`에서만 받고, 되돌리기·�
 
 ### 백로그 작성 규칙
 
-출처: ApcH `TASK_BACKLOG.md` 머리말. 웹 백로그 폼 도움말도 같은 규칙을 말한다.
+사람은 Title만 필수다. Area·Source·Type은 선택이고 Source는 자유롭게 쓴다.
+scout는 Title·Area·Source·Type을 모두 채운다. Area는 roster 안의 workspace 경로이며,
+새 기능이라 아직 파일이 없어도 workspace는 있어야 한다. 담당이 없으면 보고서에만 남긴다.
+pm은 빈 area에서 워크스페이스가 하나면 그 dev, 여럿이면 title/source로 배정하며
+reason에 `area unset — guessed`를 적는다. 저장된 area는 고치지 않는다.
 
-- `area`는 **실제 코드 경로**여야 한다. pm은 코드를 읽지 않고 이 값을 그대로 보드로
-  옮기므로, 여기가 틀리면 보드도 틀린다.
-- 증거(`source`)에는 **관측**(무엇이 보였나)과 **진단(코드 확정)**(어디가 원인인가)을
-  나눠 적는다. 아직 확정하지 못한 것은 「추정」이라고 밝힌다.
-- 보드에 올라가는 것만으로는 제거하지 않는다. `done` 전이 시점에 서버가 제거한다.
+scout source의 첫 줄은 `Evidence: competitor` / `Evidence: users ask` / `Evidence: our hole`.
+competitor는 URL과 왜 이 사용자에게 필요한지, users ask는 요청자·출처,
+our hole은 관측과 코드 확정을 구분한 `file:line`을 적는다. `Effect:`와 `Cost:`를 덧붙인다.
+자기 문장으로 확인한 사실을 쓰고 외부 문장은 복사하지 않는다. 서버는 이 문장 형식을 검사하지 않는다.
+
+- Key는 모든 추가 경로에서 기존·제거된 ITEM 숫자 suffix의 최대값+1을 발급한다.
+  최소 두 자리이며 99 다음은 ITEM-100. 기존 FEAT 등의 key는 바꾸지 않는다.
+- `type`은 feat/fix/refactor/docs 또는 null. `addedBy`는 owner/feature-scout.
+  공개 backlog 응답(중첩 응답 포함)은 type·addedBy·removedReason을 보이고 내부
+  `typeSetBy`·`addedByRunId`는 내보내지 않는다.
+- 사람의 type 변경은 읽어 둔 `typeBefore`에 대한 CAS이고, 제목만 고친 저장은 type 작성자를 바꾸지 않는다.
+  비우면 type/typeSetBy 모두 null. `plan_submit`의 선택 type은 빈 값·에이전트 값을 채우거나
+  바꾸되 owner 값은 보존한다. 다를 때만 응답에 `typeKept: "owner"`가 실린다.
+  제출할 type의 근거는 커밋 전 계획서에 쓰며 응답을 받고 계획서를 다시 고치지 않는다.
+- `backlog_add`는 `User → Project` 잠금 안에서 run 소속·열림, 누적 3건(제거분 포함),
+  플랜 상한을 검사하고 key를 발급한다. 닫힌·타 프로젝트·다른 agent run은
+  `backlog_add needs an open feature-scout run`, 누적 초과는 `this run already added 3 items`.
+  토큰은 agent 정체를 인증하지 않으며 열린 scout run이 권한 근거다.
+- 보드에 올리는 것만으로 제거하지 않는다. 완료는 `removedReason: done`, 사람 제거는 owner,
+  Proposed 폐기는 discarded. In review 폐기는 백로그를 유지한다. 제거 시 removedAt도 함께 찍으며
+  살아 있는 행의 removedReason은 null이다. 재열기는 두 열을 모두 null로 한다.
+- head는 미결 2건을 먼저 검사한다. 후보가 없을 때 Scout 노드가 이미 dispatch 중이면 head는 쉰다.
+  마지막 추가·제거 시각 뒤 report/ok 수락 원장과 함께 닫힌 scout run이 있으면 다시 부르지 않는다.
+  그래프에 묶인 scout 완료도 이 판정에 포함하며, 도중 닫힌 run은 포함하지 않는다.
+  후보가 있으면 Propose 노드 여부와 dispatch 상한을 본다. head scout는 Propose 노드 없이도 돈다.
+  dispatch 상한에서도 선택된 agent의 열린 단독 run은 재개할 수 있다. 그래프 슬롯 run은 head가 이어받지 않는다.
+  head scout는 entry 없이 receipt만 사용하고, 그래프 Scout는 기존 slot 결합 규칙을 따른다.
 
 ## 계획서 절 일곱
 

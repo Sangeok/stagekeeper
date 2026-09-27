@@ -1,17 +1,18 @@
 // 에이전트 토큰 스코프의 MCP 도구. 스펙 §5가 계약이다.
-// 게이트·반려·백로그 편집·토큰 발급 도구는 여기 없다(D8) — 웹 전용이며 등록 자체가 없다.
+// 게이트·반려·백로그 편집·삭제·토큰 발급 도구는 여기 없다. 백로그 추가만 feature-scout가 한다.
 import type { McpServer } from "@modelcontextprotocol/server";
 import { NOTE_MAX, OUTCOMES, REVISION_MAX, type NextInput, type NextOutput } from "@/server/agents/next";
 import type { ProjectAccess } from "@/server/entitlement";
 import type { ServerResult } from "@/server/result";
 import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/scope-copy";
+import { ITEM_TYPES } from "@harness/core/backlog.mjs";
 import { validateWorkspaceSemantics } from "@harness/core/workspaces.mjs";
 import type { BacklogView, BacklogWithStatusView } from "./views";
 export type { BacklogView, BacklogWithStatusView } from "./views";
 import { z } from "zod";
 
 export const AGENT_TOOL_NAMES = [
-  "project_get", "project_sync", "backlog_list", "backlog_get", "board_list", "board_get",
+  "project_get", "project_sync", "backlog_list", "backlog_get", "backlog_add", "board_list", "board_get",
   "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next",
 ] as const;
 
@@ -31,7 +32,7 @@ export type BoardItemView = {
   id: string; agent: string; status: string; reason: string; results: string[]; validation: string | null;
   planPath: string | null; planCommit: string | null; proposedOn: Date; updatedAt: Date;
 };
-export type BoardRowView = BoardItemView & { backlogItem: { key: string; title: string; area: string } };
+export type BoardRowView = BoardItemView & { backlogItem: { key: string; title: string; area: string; type: string | null } };
 export type BoardDetailView = BoardRowView & {
   events: { from: string | null; to: string | null; actor: string; actorId: string | null; note: string | null; at: Date }[];
   reports: { actor: string; path: string; commit: string; at: Date }[];
@@ -40,13 +41,14 @@ export type BoardDetailView = BoardRowView & {
 export type ToolDeps = {
   projectGet(projectId: string): Promise<ProjectView>;
   projectSync(projectId: string, workspaces: WorkspaceInput[], language?: string): Promise<ServerResult<number>>;
+  backlogAdd(projectId: string, input: { runId: string; title: string; area: string; source: string; type: string }): Promise<ServerResult<{ key: string }>>;
   backlogList(projectId: string, includeRemoved: boolean): Promise<BacklogWithStatusView[]>;
   backlogGet(projectId: string, key: string): Promise<BacklogView | null>;
   boardList(projectId: string, open: boolean): Promise<BoardRowView[]>;
   boardGet(projectId: string, key: string): Promise<BoardDetailView | null>;
   propose(projectId: string, input: { key: string; agent: string; reason: string }, actorRef: string): Promise<ServerResult<BoardItemView>>;
   transition(projectId: string, input: { key: string; to: string; result?: string }, actorRef: string): Promise<ServerResult<unknown>>;
-  submitPlan(projectId: string, input: { key: string; path: string; commit: string }, actorRef: string): Promise<ServerResult<unknown>>;
+  submitPlan(projectId: string, input: { key: string; path: string; commit: string; type?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
   // userScoped는 한도 집계의 분모에만 쓴다(A-10) — hu_는 한 토큰이 여러 프로젝트에 걸친다.
@@ -125,6 +127,16 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const synced = await deps.projectSync(projectId, workspaces, language);
     return synced.ok ? text({ synced: synced.item }) : fail(synced.reason);
   });
+  server.registerTool("backlog_add", {
+    description: "feature-scout: add one backlog item you have evidence for. The server assigns the key (ITEM-NN). Pass runId = the runId of the receipt your current agent_next step returned. At most 3 per run, and never an item the owner removed or discarded (backlog_list includeRemoved shows them). After a failed or timed-out call, check backlog_list before calling again.",
+    inputSchema: z.object({ ...project, runId: z.string().min(1), title: z.string().min(1), area: z.string().min(1), source: z.string().min(1), type: z.enum(ITEM_TYPES) }),
+  }, async (args, ctx: Ctx) => {
+    const s = await scope(args, ctx, deps);
+    if (!s.ok) return fail(s.reason);
+    const unavailable = await guardUnavailable(deps, s.projectId);
+    if (unavailable) return unavailable;
+    return unwrap(await deps.backlogAdd(s.projectId, args));
+  });
   server.registerTool("backlog_list", { description: "Backlog items with each item's latest board status.", inputSchema: z.object({ ...project, includeRemoved: z.boolean().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
@@ -175,7 +187,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.transition(projectId, args, actorRef));
   });
-  server.registerTool("plan_submit", { description: "Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing.", inputSchema: z.object({ ...project, key: z.string(), path: z.string(), commit: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("plan_submit", { description: "Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing. Optional type (feat, fix, refactor, docs) fills an empty type or revises an agent-set type; an owner-set type is preserved (typeKept: owner when it differs).", inputSchema: z.object({ ...project, key: z.string(), path: z.string(), commit: z.string(), type: z.enum(ITEM_TYPES).optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;

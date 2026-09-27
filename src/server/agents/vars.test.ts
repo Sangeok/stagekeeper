@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { parseHarnessConfig } from "@harness/core/config.mjs";
-import { buildVars, buildWorkspaceVars } from "@harness/core/vars.mjs";
+import { DEFAULT_SCOUT_QUESTION, buildVars, buildWorkspaceVars } from "@harness/core/vars.mjs";
 
 import { serverVars, type WorkspaceRow } from "./vars";
 
@@ -19,12 +19,12 @@ const rows: WorkspaceRow[] = cfg.workspaces.map((w: Ws) => ({
 describe("serverVars", () => {
   it("a workspace agent gets buildWorkspaceVars for its row", () => {
     for (const ws of cfg.workspaces) {
-      const expected = { ...buildWorkspaceVars(cfg, ws), scout: { question: "" }, release: { baseUrl: "", auth: "none" } };
+      const expected = { ...buildWorkspaceVars(cfg, ws), scout: { question: DEFAULT_SCOUT_QUESTION }, release: { baseUrl: "", auth: "none" } };
       assert.deepEqual(serverVars(project, rows, ws.agent), expected, ws.agent);
     }
   });
   it("a report agent gets buildVars — roster from the rows, scout and release at their defaults", () => {
-    const expected = { ...buildVars(cfg), scout: { question: "" }, release: { baseUrl: "", auth: "none" } };
+    const expected = { ...buildVars(cfg), scout: { question: DEFAULT_SCOUT_QUESTION }, release: { baseUrl: "", auth: "none" } };
     assert.deepEqual(serverVars(project, rows, "pm"), expected);
     assert.equal("ws" in serverVars(project, rows, "plan-verifier"), false);
   });

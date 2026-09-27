@@ -92,7 +92,7 @@ function compactView(turn: Turn, tab: Tab, slug: string, pathname: string): Comp
   switch (turn.kind) {
     case "setup": {
       const step = turn.steps[turn.current - 1];
-      return { detail: step === undefined ? "" : `Step ${turn.current} of 4 — ${step.title}.`, action: null };
+      return { detail: step === undefined ? "" : `Step ${turn.current} of ${turn.steps.length} — ${step.title}.`, action: null };
     }
     case "mine":
       return {
@@ -130,7 +130,7 @@ function CompactBanner({ turn, tab, slug, pathname }: { turn: Turn; tab: Tab; sl
   );
 }
 
-// 첫 방문 체크리스트. 단계 1–3은 데이터에서 판정되고, 4는 첫 항목이 보드에 오르면 끝난다.
+// 첫 방문 체크리스트. 마지막 단계는 첫 항목이 보드에 오르면 끝난다.
 // current는 deriveTurn이 이미 정한 1-based 값 — 여기서 다시 계산하지 않는다.
 function SetupList({ steps, current, slug }: { steps: SetupStep[]; current: number; slug: string }) {
   return (
@@ -189,7 +189,6 @@ function DetailText({ text }: { text: string }) {
 
 function SetupAside({ step, slug }: { step: SetupStep; slug: string }) {
   if (step.key === "token") return <StepLink href={projectPath(slug, "/tokens")}>Tokens</StepLink>;
-  if (step.key === "backlog") return <StepLink href={projectPath(slug, "/backlog")}>Backlog</StepLink>;
   if (step.key === "connect" && !step.done) return <Chip tone="done">Not connected yet</Chip>;
   return <span />;
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HINT, decideHead, decideNext, handoffIsLive } from "./run-rules.ts";
+import { HINT, decideHead, decideNext, handoffIsLive, scoutNodePending } from "./run-rules.ts";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, capReason: null };
 
@@ -56,7 +56,7 @@ describe("decideNext (H.4)", () => {
   });
   it("HINT covers every node the pipeline can stop on, accept included", () => {
     // accept만 빠져 있었다 — 메인 루프가 에이전트 없이 직접 하는 유일한 동작인데 안내가 없었다(실측).
-    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "implement", "plan", "propose", "scout", "verify"]);
+    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "implement", "plan", "propose", "scout", "scoutHead", "verify"]);
     assert.match(HINT.verify, /validation_record/);
     // 경로 목록을 어디에 남기라는 말이 없어서 다섯 사이클 동안 한 번도 안 남았다(F6 실측).
     assert.match(HINT.verify, /verification-paths\.md/);
@@ -83,14 +83,6 @@ describe("decideHead (H.4)", () => {
   it("the cap → none with its sentence; otherwise dispatch pm with HINT.propose", () => {
     assert.equal(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, capReason: "dispatch cap reached on the free plan (60)" }).reason, "dispatch cap reached on the free plan (60)");
     assert.deepEqual(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, capReason: null }), { action: "dispatch", agent: "pm", hint: HINT.propose });
-  });
-
-  it("an empty backlog rests instead of dispatching pm at nothing", () => {
-    // 예전에는 백로그가 비어도 계속 "dispatch pm"이었다. 고를 것이 없다는 걸 알자고 디스패치를 하나 썼고,
-    // 그 디스패치는 월 상한에 계수된다(실측).
-    const r = decideHead({ hasPropose: true, openCount: 0, availableBacklog: 0, capReason: null });
-    assert.equal(r.action, "none");
-    assert.match(r.reason, /backlog has nothing to pick/);
   });
 
   it("the open-items rule still wins over an empty backlog — the owner clears one first", () => {
@@ -126,4 +118,27 @@ describe("handoffIsLive", () => {
     assert.equal(stale.action, "dispatch");
     assert.equal(stale.agent, "web-dev");
   });
+});
+
+it("an empty backlog scouts once per change, with no duplicate graph dispatch and no Propose prerequisite", () => {
+  const input = { hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, capReason: null };
+  assert.deepEqual(decideHead(input), { action: "dispatch", agent: "feature-scout", hint: HINT.scoutHead });
+  assert.match(decideHead({ ...input, scoutedSinceChange: true }).reason, /already looked/);
+  assert.match(decideHead({ ...input, scoutNodePending: true }).reason, /Scout node/);
+  assert.equal(decideHead({ ...input, hasPropose: false }).agent, "feature-scout");
+  assert.equal(decideHead({ ...input, hasPropose: false, openCount: 2 }).reason, "open items: 2 (max 2)");
+  assert.equal(decideHead({ ...input, availableBacklog: 1 }).agent, "pm");
+  assert.equal(decideHead({ ...input, capReason: "full", hasResumablePmRun: true }).reason, "full");
+  assert.equal(decideHead({ ...input, capReason: "full", hasResumableScoutRun: true }).agent, "feature-scout");
+  assert.equal(decideHead({ ...input, capReason: "full", hasResumableScoutRun: true, scoutedSinceChange: true }).action, "none");
+  assert.equal(decideHead({ ...input, capReason: "full", availableBacklog: 1, hasResumableScoutRun: true }).reason, "full");
+  assert.doesNotMatch(HINT.scout, /only when harness\.json\.scout is configured/);
+  assert.match(HINT.scoutHead, /scouting-log/);
+});
+it("only an actual feature-scout dispatch suppresses a duplicate head dispatch", () => {
+  assert.equal(scoutNodePending([]), false);
+  assert.equal(scoutNodePending([decideNext({ ...base, node: "feature-scout#2" })]), true);
+  assert.equal(scoutNodePending([decideNext({ ...base, node: "scout" })]), true);
+  assert.equal(scoutNodePending([decideNext({ ...base, node: "scout", capReason: "full" })]), false);
+  assert.equal(scoutNodePending([decideNext({ ...base, node: "plan" })]), false);
 });

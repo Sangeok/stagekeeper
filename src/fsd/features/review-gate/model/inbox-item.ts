@@ -11,6 +11,7 @@ export type InboxItem = {
   gateEntry?: GateEntry;
   key: string;
   title: string;
+  type: string | null;
   area: string;
   agent: string;
   status: string;
@@ -60,7 +61,7 @@ type BoardRow = {
   planCommit: string | null;
   proposedOn: Date;
   updatedAt: Date;
-  backlogItem: { key: string; title: string; area: string };
+  backlogItem: { key: string; title: string; area: string; type: string | null };
   events: { at: Date; from: string | null; to: string | null; actor: string }[];
   run: { id?: string; entryId?: string | null; version?: { format: string | null }; node: string; closedAt: Date | null } | null; // latestBoardWithEvents의 include run
 };
@@ -81,6 +82,7 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
       return {
         key: row.backlogItem.key,
         title: row.backlogItem.title,
+        type: row.backlogItem.type,
         area: row.backlogItem.area,
         agent: row.agent,
         status: row.status,

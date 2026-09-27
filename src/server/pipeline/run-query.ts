@@ -131,10 +131,22 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
 }
 
 // key 없는 호출의 머리 — 미결 수는 deps.ts가 latestBoard로 세어 넘긴다(§D.1; run.ts는 board.ts를 import하지 않는다)
-export async function headFor(db: Db, projectId: string, openCount: number, availableBacklog: number): Promise<HeadNext> {
+export async function headFor(db: Db, projectId: string, openCount: number, availableBacklog: number, scoutNodePending: boolean): Promise<HeadNext> {
   const version = await ensureCurrentVersion(db, projectId);
   const capMsg = capError(await readProjectPlanIn(db, projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date())));
+  const [lastScout, backlogChange, resumableScout] = await Promise.all([
+    db.agentRun.findFirst({ where: { projectId, agent: "feature-scout", key: null, closedAt: { not: null },
+      steps: { some: { stepId: "report", outcome: "ok", OR: [{ accepted: true }, { accepted: null }] } },
+    }, orderBy: { closedAt: "desc" }, select: { closedAt: true } }),
+    db.backlogItem.aggregate({ where: { projectId }, _max: { createdAt: true, removedAt: true } }),
+    db.agentRun.findFirst({ where: { projectId, agent: "feature-scout", key: null,
+      pipelineRunId: null, pipelineEntryId: null, closedAt: null }, select: { id: true } }),
+  ]);
+  const changedAt = Math.max(backlogChange._max.createdAt?.getTime() ?? 0, backlogChange._max.removedAt?.getTime() ?? 0);
   return decideHead({
+    scoutNodePending,
+    hasResumableScoutRun: resumableScout !== null,
+    scoutedSinceChange: lastScout?.closedAt !== null && lastScout?.closedAt !== undefined && lastScout.closedAt.getTime() > changedAt,
     hasPropose: version.nodes.includes("propose"),
     openCount,
     availableBacklog,

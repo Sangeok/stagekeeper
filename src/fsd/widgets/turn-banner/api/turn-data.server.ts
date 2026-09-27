@@ -11,11 +11,10 @@ export type TurnData = { turn: Turn; inboxCount: number };
 
 // §E.3: latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다.
 export async function loadTurn(projectId: string): Promise<TurnData> {
-  const [rows, tokenCount, workspaceCount, backlogCount, openRuns, pipelineRuns] = await Promise.all([
+  const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns] = await Promise.all([
     latestBoard(projectId),
     prisma.projectToken.count({ where: { projectId, revokedAt: null } }),
     prisma.workspace.count({ where: { projectId } }),
-    prisma.backlogItem.count({ where: { projectId, removedAt: null } }),
     prisma.agentRun.findMany({
       where: { projectId, closedAt: null },
       select: { pipelineRunId: true, pipelineEntryId: true, key: true, agent: true, stepId: true, steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, orderBy: { at: "desc" }, take: 1, select: { outcome: true, note: true, at: true } } },
@@ -63,7 +62,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
   });
 
   return {
-    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0, backlogCount }),
+    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0 }),
     inboxCount: pendingInboxCount(items.map((i) => ({ status: i.status, gate: i.gate }))),
   };
 }

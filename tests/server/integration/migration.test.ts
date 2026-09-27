@@ -60,3 +60,61 @@ it("the additive migration applies to the real agent_run tables and preserves le
     }, { maxWait: 10000, timeout: 60000 }), /rollback migration fixtures/);
   } finally { await db.$disconnect(); }
 });
+
+
+it("backlog authorship migrates the original tables and reconciles old-writer removals idempotently", async () => {
+  const { connections } = await import("./support");
+  const pool = connections(1); const [db] = pool.all;
+  const schema = `backlog_migration_${randomUUID().replace(/-/g, "")}`;
+  const migration = statementsOf("20260926134848_backlog_authorship").filter((sql) =>
+    !/^(BEGIN|COMMIT)$/i.test(sql.replace(/--[^\n]*/g, "").trim()));
+  const backfill = migration.find((sql) => /WITH latest AS/.test(sql)); assert.ok(backfill);
+  try {
+    await assert.rejects(db.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+      await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
+      for (const sql of statementsOf("20260829143353_init")) await tx.$executeRawUnsafe(sql);
+      await tx.$executeRawUnsafe(`INSERT INTO "Project" (id, slug, name, owner, repo, branch) VALUES ('p','p','p','o','r','main')`);
+      const keys = ["done", "owner", "live", "discarded", "reopen", "hold-remove", "owner-done", "latest-discarded"];
+      for (const key of keys) {
+        await tx.$executeRaw`INSERT INTO "BacklogItem" (id, "projectId", key, title, area, source, "removedAt")
+          VALUES (${key}, 'p', ${key}, ${key}, '', '', ${key === "live" ? null : new Date("2026-01-01")})`;
+        if (["done", "reopen", "hold-remove", "latest-discarded"].includes(key)) {
+          await tx.$executeRaw`INSERT INTO "BoardItem" (id, "projectId", "backlogItemId", agent, status, reason, "updatedAt", "proposedOn")
+            VALUES (${key}, 'p', ${key}, 'dev', 'done', '', ${new Date("2026-01-01")}, ${new Date("2026-01-01")})`;
+        }
+      }
+      await tx.$executeRawUnsafe(`INSERT INTO "BoardItem" (id,"projectId","backlogItemId",agent,status,reason,"updatedAt","proposedOn","discardedAt")
+        VALUES ('ignored','p','latest-discarded','dev','in_review','', '2026-02-01','2026-02-01','2026-02-01')`);
+      for (const sql of migration) await tx.$executeRawUnsafe(sql);
+      const rows = await tx.$queryRawUnsafe<{ id: string; addedBy: string; type: null; typeSetBy: null; addedByRunId: null; removedReason: string | null }[]>(
+        'SELECT id,"addedBy",type,"typeSetBy","addedByRunId","removedReason" FROM "BacklogItem" ORDER BY id');
+      for (const row of rows) {
+        assert.equal(row.addedBy, "owner"); assert.equal(row.type, null); assert.equal(row.typeSetBy, null); assert.equal(row.addedByRunId, null);
+        assert.equal(row.removedReason, row.id === "live" ? null : ["done", "reopen", "hold-remove", "latest-discarded"].includes(row.id) ? "done" : "owner");
+      }
+      await tx.$executeRawUnsafe(backfill);
+      assert.deepEqual(await tx.$queryRawUnsafe('SELECT id,"addedBy",type,"typeSetBy","addedByRunId","removedReason" FROM "BacklogItem" ORDER BY id'), rows);
+      await tx.$executeRawUnsafe(`UPDATE "BacklogItem" SET "removedReason"='discarded' WHERE id='discarded'`);
+      await tx.$executeRawUnsafe(`UPDATE "BacklogItem" SET "removedAt"=NULL WHERE id='reopen'`);
+      await tx.$executeRawUnsafe(`UPDATE "BoardItem" SET status='on_hold' WHERE id='hold-remove'`);
+      await tx.$executeRawUnsafe(`UPDATE "BacklogItem" SET "removedAt"='2026-02-01' WHERE id='hold-remove'`);
+      await tx.$executeRawUnsafe(`INSERT INTO "BoardItem" (id,"projectId","backlogItemId",agent,status,reason,"updatedAt") VALUES ('new-done','p','owner-done','dev','done','', '2026-02-01')`);
+      // Rehearse the post-drain lock order and normalize in the same transaction.
+      const started = performance.now();
+      await tx.$queryRawUnsafe('SELECT id FROM "User" ORDER BY id FOR UPDATE');
+      await tx.$queryRawUnsafe('SELECT id FROM "Project" ORDER BY id FOR UPDATE');
+      await tx.$executeRawUnsafe(backfill);
+      const reasons = await tx.$queryRawUnsafe<{ id: string; removedReason: string | null }[]>('SELECT id,"removedReason" FROM "BacklogItem" ORDER BY id');
+      assert.deepEqual(Object.fromEntries(reasons.map((row) => [row.id, row.removedReason])), {
+        done: "done", owner: "owner", live: null, discarded: "discarded", reopen: null, "hold-remove": "owner", "owner-done": "done", "latest-discarded": "done",
+      });
+      await tx.$executeRawUnsafe(backfill);
+      assert.deepEqual(await tx.$queryRawUnsafe('SELECT id,"removedReason" FROM "BacklogItem" ORDER BY id'), reasons);
+      console.log(`Backlog post-drain normalization rehearsal: ${(performance.now() - started).toFixed(1)}ms (8 fixture rows)`);
+      throw new Error("rollback backlog migration fixtures");
+    }, { maxWait: 10000, timeout: 60000 }), /rollback backlog migration fixtures/);
+    const schemas = await db.$queryRaw<{ nspname: string }[]>`SELECT nspname FROM pg_namespace WHERE nspname = ${schema}`;
+    assert.equal(schemas.length, 0, "fixture transaction must not leak a schema");
+  } finally { await pool.disconnect(); }
+});

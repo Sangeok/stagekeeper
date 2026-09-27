@@ -166,7 +166,7 @@ function InboxDemo() {
         <p className="text-[26px] leading-[1.05] font-semibold tracking-[-0.025em] text-mine">Waiting on you</p>
         <div className={cardClass({ decision: true, className: "gap-2.5 px-4 pt-4 pb-3.5" })}>
           <div>
-            <p className="font-mono text-xs text-quiet">FEAT-01 · README.md</p>
+            <p className="font-mono text-xs text-quiet">ITEM-01 · README.md</p>
             <p className="text-base leading-[22px] font-medium tracking-[-0.01em]">Add an install section to the README</p>
             <p className="text-xs text-quiet">
               <b className="font-medium text-ink">{statusLabel("in_review")}</b> · dev submitted a plan 3 days ago
@@ -174,7 +174,7 @@ function InboxDemo() {
           </div>
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 rounded-md bg-field px-2.5 py-2 text-xs">
             <Chip tone="record">Verified</Chip>
-            <span className="font-mono">docs/plans/FEAT-01.md</span>
+            <span className="font-mono">docs/plans/ITEM-01.md</span>
             <span className="font-mono text-quiet">669476a</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">

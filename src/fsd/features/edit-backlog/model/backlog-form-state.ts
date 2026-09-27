@@ -10,8 +10,5 @@ export const IDLE: BacklogFormState = { status: "idle" };
 export type BacklogFormAction = (prev: BacklogFormState, form: FormData) => Promise<BacklogFormState>;
 export type RemoveBacklogAction = (key: string) => Promise<BacklogFormState>;
 
-// 백로그 항목 key 형식 — 프로젝트 안에서 유일해야 한다.
-export const BACKLOG_KEY_RE = /^[A-Z]+-\d+$/;
-
-// 증거 작성 규칙(protocol.md). 폼 도움말과 같은 문구를 쓴다.
-export const SOURCE_HELP = "Split it in two: what you observed, and what you confirmed in the code.";
+// 사람용 안내. Scout의 증거 형식은 템플릿과 protocol.md가 정의한다.
+export const SOURCE_HELP = "What you want and why. Leave the code to the agents.";

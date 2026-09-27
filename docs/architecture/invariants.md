@@ -38,9 +38,11 @@
 ## 이 저장소가 특히 지키는 것
 
 - **불변식 4는 코드로 강제한다.** 게이트(그래프의 어느 게이트든)·
-  되돌리기·보류·폐기·재개·백로그 편집·토큰 발급 도구는 **에이전트 토큰용 MCP 서버에
+  되돌리기·보류·폐기·재개·백로그 편집·삭제·토큰 발급 도구는 **에이전트 토큰용 MCP 서버에
   등록되지 않는다.** 프롬프트 문구가 아니라 도구 부재가 1차 방어선이고,
   `src/server/mcp/tools.test.mjs`가 등록 집합의 동일성을 단언해 회귀를 막는다.
+  백로그 추가만 feature-scout의 열린 run에 허용하고 run당 누적 3건으로 제한한다.
+  `plan_submit`은 type이 비었거나 에이전트가 정한 경우만 고치며 사람이 정한 type은 보존한다.
 - **세션 채널의 게이트는 자격이 다르고 엔드포인트가 다르다.** 소유자 토큰(`ho_`)은 사용자에 묶이고
   `/api/mcp/owner`에서만 받는다. 에이전트 서버의 도구 집합은 그대로다. 세션 채널은 웹보다 전제가 하나 더
   붙는다 — `before-implement`에 검증 기록과 `planCommit` 일치. 불변식 4의 판별 기준("그 경로를 실행할 수 있는 주체가
@@ -53,9 +55,10 @@
 - **인수는 노드에서 못 뺀다.** 증거 없는 상태 주장 금지가 사는 자리다 — `accept`가 빠지면 `acceptedAt` 없이
   파이프라인이 끝나는 경로가 생긴다. `validateGraph`가 저장 시점에 막는다.
 - **불변식 8은 행을 지우지 않는 것으로 지킨다.** 폐기는 `BoardItem.discardedAt` 표기이고
-  `완료`는 백로그의 `removedAt` 표기다 — 행도 `TransitionEvent`도 지우지 않는다.
+  백로그 제거는 `removedAt`과 `removedReason`으로 남긴다(`done`·`owner`·`discarded`).
+  Proposed 폐기는 백로그도 제거하며 In review 폐기는 백로그를 유지한다. 행도 `TransitionEvent`도 지우지 않는다.
 - **인수 실패도 행을 지우지 않는다.** `done`에서 되돌리는 reopen(사람만, 사유 필수)은 전이 이벤트로
-  남고, 백로그 `removedAt`과 `acceptedAt`을 되돌린다. `done`은 "구현 구간의 결합 실행 증거를 서버가 확인했다"이고 인수는
+  남고, 백로그 `removedAt`·`removedReason`과 `acceptedAt`을 되돌린다. `done`은 "구현 구간의 결합 실행 증거를 서버가 확인했다"이고 인수는
   `acceptedAt`(`done`에서 `main-loop`의 `report_submit`)이다 — 상태가 아니라 증거의 유무다,
   `validation`이 상태가 아닌 것과 같은 이유로.
 - **검증 기록도 verify 원장 뒤에만 받는다.** `validation_record`는 마지막 `plan_submit` 뒤에

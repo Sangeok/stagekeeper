@@ -3,7 +3,7 @@
 // 실제 SQL을 그대로 실행하고 사이에 대기만 끼운다.
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../../../src/generated/prisma/client";
+import { PrismaClient, type Prisma } from "../../../src/generated/prisma/client";
 import { prisma as singleton } from "../../../src/server/db";
 
 export function testDatabaseUrl(): string {
@@ -103,3 +103,43 @@ export const failingEvent = (db: PrismaClient, message: string): PrismaClient =>
 
 export const failingAudit = (db: PrismaClient, message: string): PrismaClient =>
   db.$extends({ query: { agentRunStep: { create() { throw new Error(message); } } } }) as unknown as PrismaClient;
+
+export const afterProjectRead = (db: PrismaClient, hook: Hook): PrismaClient =>
+  db.$extends({ query: { project: { async findUniqueOrThrow({ args, query }) {
+    const row = await query(args);
+    await hook();
+    return row;
+  } } } }) as unknown as PrismaClient;
+
+export const afterBoardList = (db: PrismaClient, hook: Hook): PrismaClient =>
+  db.$extends({ query: { boardItem: { async findMany({ args, query }) {
+    const rows = await query(args);
+    await hook();
+    return rows;
+  } } } }) as unknown as PrismaClient;
+
+export const afterBacklogCount = (db: PrismaClient, hook: (where: Prisma.BacklogItemWhereInput | undefined) => Promise<void>): PrismaClient =>
+  db.$extends({ query: { backlogItem: { async count({ args, query }) {
+    const count = await query(args);
+    await hook(args.where);
+    return count;
+  } } } }) as unknown as PrismaClient;
+
+// A one-shot gate, released in finally even when the expected query never arrives.
+export function checkpoint() {
+  let notify!: () => void;
+  let release!: () => void;
+  const entered = new Promise<void>((resolve) => { notify = resolve; });
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  let first = true;
+  return {
+    hook: async () => { if (!first) return; first = false; notify(); await released; },
+    entered: async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([entered, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("query checkpoint did not arrive")), 8000); })]);
+      } finally { clearTimeout(timer); }
+    },
+    release,
+  };
+}
