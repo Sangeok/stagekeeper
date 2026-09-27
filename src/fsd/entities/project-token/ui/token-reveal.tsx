@@ -106,6 +106,9 @@ function SaveUserToken({ token }: { token: string }) {
         of your shell history. The MCP registration stores only a <Code>{"${HARNESS_TOKEN}"}</Code> reference, never the
         value. A repository <Code>.env</Code> file is not loaded for this connection.
       </p>
+      <p className="text-xs text-quiet">
+        It works until you revoke it — you don&apos;t need a new token when you restart Claude Code or your computer.
+      </p>
       {saveCommands().map((entry) => (
         <CommandRow key={entry.kind} entry={entry} wrap />
       ))}

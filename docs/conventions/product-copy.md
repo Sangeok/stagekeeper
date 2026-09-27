@@ -399,6 +399,7 @@ carry no value; only the macOS · Linux line shows it, because it goes into a fi
 > **2. Save the token once for this machine**
 > Copy the command for your shell and run it. When it asks, copy the token above and paste it, then press Enter. The token stays hidden as you paste.
 > The token is saved to your user environment variables as plain text, so every new terminal has it. It stays out of your shell history. The MCP registration stores only a `${HARNESS_TOKEN}` reference, never the value. A repository `.env` file is not loaded for this connection.
+> It works until you revoke it — you don't need a new token when you restart Claude Code or your computer.
 > PowerShell `$t = Read-Host "HARNESS_TOKEN" -AsSecureString; $p = [Net.NetworkCredential]::new("", $t).Password; [Environment]::SetEnvironmentVariable("HARNESS_TOKEN", $p, "User"); $env:HARNESS_TOKEN = $p` — **Copy** / "Copied"
 > Git Bash `read -rsp "HARNESS_TOKEN: " t && setx HARNESS_TOKEN "$t" >/dev/null && export HARNESS_TOKEN="$t"; unset t` — **Copy** / "Copied"
 > macOS · Linux — add this line to `~/.zshrc` or `~/.bashrc` in an editor, then open a new terminal.
@@ -433,6 +434,14 @@ carry no value; only the macOS · Linux line shows it, because it goes into a fi
 싣지 않고 입력을 받는다. 에이전트가 값을 받아 대신 저장하지 않는 것은 그대로다 — 붙여넣은 값이 세션
 transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"와 같은 방향이다.
 남은 빈틈: `hs_`의 `export HARNESS_TOKEN="hs_…"`은 값이 셸 히스토리에 남는다. 이번에 고치지 않았다.
+
+**`hu_` 화면이 토큰의 수명을 말하는 이유**(2026-09-27). 화면은 "머신당 한 번 저장"만 말하고 토큰이 언제까지
+유효한지는 말하지 않았다. `hs_`를 쓰던 사용자가 새 터미널에서 Claude Code를 다시 띄워 401을 겪은 뒤 "재시작할
+때마다 토큰을 새로 발급받아야 하냐"고 물었다 — 빈칸이 실제 질문이 됐다. 토큰에는 만료가 없다: 표에 만료 열이
+없고(`prisma/schema.prisma:82` `ProjectToken`, `:105` `UserToken` — `revokedAt`뿐이다), 조회도 `revokedAt`만
+본다(`src/server/user-scope-query.ts:18`). 그래서 `hu_` 2단계와 계정 화면 머리에 "폐기할 때까지 유효하다"를
+적는다. "새 토큰이 필요 없다"는 `hu_`에만 쓴다 — `hs_`도 폐기 전까지 유효하지만 값이 그 터미널에만 있어서 새
+터미널에서는 새 토큰이 필요하다(`token-reveal.test.ts`가 새지 않음을 본다).
 
 **사용자 토큰으로 옮기기 전 안내** — 이 페이지가 발급하는 것은 프로젝트 토큰(`hs_`)이라 저장소마다
 하나씩 필요하다. 계정 단위 토큰(`hu_`)은 한 번만 발급해 모든 저장소에서 쓴다. 다만 이미 연결된
@@ -476,7 +485,8 @@ to write it)`로 떨어진다. **`hu_`를 쓰기 전에 `/harness:init`을 한 �
 한 탭이라, 계정 단위 자격을 거기에 두면 프로젝트 수만큼 중복 표시된다.
 
 - Title **Tokens**. Intro: "A user token connects every repository you own from one shell. It says
-  who you are, not which project — the project comes from `harness.json`'s `project.slug`."
+  who you are, not which project — the project comes from `harness.json`'s `project.slug`. You save
+  it once on each machine, and it works until you revoke it."
 - 전환 안내 한 줄: "Already connected a repository? Rerun `/harness:init` once there before you use
   this token — an older `harness.json` has no slug, and without one there is nothing to name the
   project with." · "MCP server URL: `http://…/api/mcp`"
