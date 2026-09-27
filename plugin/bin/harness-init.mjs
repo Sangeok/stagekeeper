@@ -169,6 +169,13 @@ async function init() {
   catch (e) { console.log(`Config error: ${e.message}`); process.exit(1); }
 
   const lang = config.language;
+  const token = process.env.HARNESS_TOKEN;
+  // 사용자 토큰은 저장소마다 프로젝트를 보내야 한다. 로컬 템플릿 모드는 인증을 사용하지 않는다.
+  const projectScope = token?.startsWith("hu_") ? config.project.slug : null;
+  if (!TPL_DIR && token?.startsWith("hu_") && !projectScope?.trim()) {
+    console.log("Config error: a user token (hu_) requires harness.json project.slug. Run /harness:init with the updated plugin to recover the registered slug while preserving the existing configuration.");
+    process.exit(1);
+  }
 
   // templates: rel → 본문(에이전트는 스텁, 플랜 밖 에이전트는 없음). entitlement: { plan, agents } — 이 플랜이 허용하는 보고 에이전트.
   let templates, entitlement;
@@ -179,9 +186,10 @@ async function init() {
       .map((d) => { const full = join(d.parentPath ?? d.path, d.name); return { path: relative(dir, full).split("\\").join("/"), body: readFileSync(full, "utf8") }; });
     ({ templates, entitlement } = deliverable(rows, LOCAL_PLAN));
   } else {
-    const token = process.env.HARNESS_TOKEN;
     if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
-    const url = `${SERVER}/api/templates?lang=${encodeURIComponent(lang)}`;
+    const url = new URL(`${SERVER}/api/templates`);
+    url.searchParams.set("lang", lang);
+    if (projectScope) url.searchParams.set("project", projectScope);
     let res;
     try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
     catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
@@ -318,14 +326,17 @@ async function init() {
   // 보고가 없으면 판정은 "낡음"으로 기울고, 그쪽이 안전한 방향이다.
   // --dry-run은 아무것도 쓰지 않았고, 로컬 우회로(TPL_DIR)는 서버도 토큰도 없다.
   if (!DRY && !TPL_DIR) {
-    const note = (why) => console.log(`note: runbook version not recorded (${why}) — the session will report the runbook as out of date until the next run`);
+    const note = (why) => console.log(`note: runbook version not recorded (${why}) — resolve the reported error, then rerun /harness:init to record it`);
     try {
       const res = await fetch(`${SERVER}/api/runbook`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${process.env.HARNESS_TOKEN}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ version: runbookVersionNow }),
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ version: runbookVersionNow, ...(projectScope ? { project: projectScope } : {}) }),
       });
-      if (!res.ok) note(res.status);
+      if (!res.ok) {
+        const reason = await res.json().then((body) => body?.error).catch(() => null);
+        note(`${res.status}${typeof reason === "string" ? `: ${reason}` : ""}`);
+      }
     } catch (e) { note(e.message); }
   }
 }

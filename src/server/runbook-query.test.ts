@@ -108,7 +108,7 @@ describe("recordRunbook with a user token", () => {
       const { recordRunbook, saved, slugs } = userSetup();
       const result = await recordRunbook(userHeader, body);
       assert.equal(result.ok === false && result.status, 401);
-      assert.match(result.ok === false ? result.reason : "", /^project required: add project\.slug to harness\.json/);
+      assert.match(result.ok === false ? result.reason : "", /^project required: send harness\.json project\.slug as project/);
       assert.deepEqual(slugs, []);
       assert.deepEqual(saved, []);
     }

@@ -41,11 +41,18 @@ repository from one shell; the project then comes from `harness.json`'s `project
   off `.env` stops working at the restart in step 4 — and the user is left with two tokens that
   disagree.
 
-**Before switching an already-connected repository to a user token, rerun `/harness:init` once.**
-An older `harness.json` has no `project.slug`, and a `hu_` token has nothing else to name the
-project with — every call refuses with `project required: add project.slug to harness.json (rerun
-/harness:init once to write it)`. Rerunning writes the slug. An `hs_` token keeps working either
-way, with or without the slug.
+**A user token (`hu_`) requires both configuration and request scope.** The repository's
+`harness.json` must contain `project.slug`, and every project-scoped REST or
+`mcp__harness__*` request must send that value as `project`. The generator sends it for
+template fetches and runbook-version reports; this skill sends it for its MCP calls.
+A project token (`hs_`) still works without a slug.
+
+If an older `hu_` configuration has no slug, recover it in step 1 before generation or
+project-scoped MCP calls. Slug recovery remains optional for `hs_`.
+If a valid slug is already present but a request says `project required`, inspect the
+caller: it has not sent the project scope. Update the harness plugin and reload the
+skill when using an older version; for a direct MCP call, include `project` explicitly.
+Repeating the same unscoped request or merely rerunning an older init does not fix it.
 
 Before creating or updating any repository files, complete the external verification-skill
 preflight in [references/reconciliation-contract.md](references/reconciliation-contract.md).
@@ -71,9 +78,10 @@ from that reference, then stop before step 1. After installation, rerun this pre
        to asking. Do **not** run `--register` with an `hs_` token — it answers 401 and tells you
        to use `--print-project`.
 
-     **Write `slug` into the draft even though it is optional**: it is the only thing a user
-     token (`hu_`) has to name the project with, and a repository connected without it has to
-     rerun this command before one will work.
+     Write a valid returned `slug` into the draft. A user token requires a verified slug
+     before project-scoped requests; never invent one from the repository name. If the
+     server cannot return it, obtain the exact registered identity from the owner.
+     An `hs_` identity obtained through the documented legacy fallback may omit it.
    - `workspaces`: read `package.json` scripts and the test runner to propose `path` ·
      `<name>-dev` · verify commands. Derive `id` from the agent name (`web-dev` → `web`).
      **This is the one thing only the user knows** — agent names are the roster's unique key,
@@ -84,6 +92,25 @@ from that reference, then stop before step 1. After installation, rerun this pre
      project's stored language into `harness.json` makes the template fetch ask for a language
      that has no templates, and init fails with 404.
    - Show the finished draft once, take corrections, then write it.
+   If `harness.json` already exists, preserve it. If `project.slug` is missing:
+   - With `hu_`, recover a verified slug before generation or project-scoped MCP calls.
+     Parse `origin` using the rules in the plugin's `lib/repo-url.mjs`, then compare its
+     owner/repo with the configured `project.owner`/`project.repo` before running
+     `--register`. Resolve any mismatch explicitly before registration; do not register
+     a different repository or silently replace the configured project identity.
+     Run `--register`, confirm its returned owner/repo matches the configuration, and
+     require a valid returned slug. Missing or conflicting identity blocks this recovery.
+   - With `hs_`, slug recovery is optional. Use `--print-project` if recovering it.
+     If the server reports the documented missing `/api/project` route (404), or returns
+     a matching legacy identity without a slug, preserve the configuration and continue
+     omitting `project` from requests. A returned owner/repo mismatch still requires
+     explicit resolution before continuing. Never invent a slug.
+   - When recovery succeeds, show the proposed addition, take corrections, and add only
+     `project.slug`. Preserve every other field, including workspaces, agent names,
+     branch, language, knowledge, scout, and readOnly. Do not rebuild or globally replace
+     the existing configuration.
+   If a slug already exists, retain it; do not register or replace it merely because a
+   request omitted `project`.
 2. Run `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --dry-run`. **Do not ask for the server
    URL first** — the generator resolves it in order: `--server`, then `HARNESS_SERVER`, then the
    `harness` entry in an existing `.mcp.json`. Ask for the URL from the web Tokens page only when
@@ -124,18 +151,25 @@ from that reference, then stop before step 1. After installation, rerun this pre
      `harness_owner` at `<base>/api/mcp/owner` referencing `${HARNESS_OWNER_TOKEN}`. Skip it
      otherwise — a registered server with no variable just fails to connect.
 
-   Then tell the user to **restart Claude Code** and confirm `mcp__harness__project_get` works
-   (and `mcp__harness_owner__gate_approve` when the owner server was registered) — skipping the
-   confirmation makes a later `project_get` look like it is failing for no reason.
+   Then tell the user to **restart Claude Code**. Read `harness.json.project.slug` and
+   confirm the connection with `mcp__harness__project_get({ project: slug })`.
+   Only an `hs_` configuration that still has no slug may omit `project`; a `hu_`
+   configuration must complete slug recovery first. Check that the returned project
+   matches the configured owner/repo before continuing. If the owner server was
+   registered, confirm its connection and tool availability without opening a gate.
+   Skipping these checks can leave generation complete while MCP access still fails.
    **With a project token (`hs_`), say "restart from this same terminal."** That token lives only
    in the terminal that started this session; a new terminal starts Claude Code without it and the
    server fails to connect. The web page no longer says this — it stops at `/harness:init` — so
    this is the only place the user hears it. A saved user token (`hu_`) works from any terminal.
    A repository that must talk to a *different* server keeps its own `.mcp.json`: project scope
    outranks user scope, so that file stays the deliberate per-repo override.
-5. Pass `harness.json.workspaces` and `harness.json.language` (default `en`) to
-   `mcp__harness__project_sync` as `{ workspaces, language }` — that's what creates the roster on
-   the web board, and the language is what `agent_next` serves steps in.
+5. Read the current `harness.json` and call `mcp__harness__project_sync` with
+   `{ project: slug, workspaces, language }`, using `project.slug`, `workspaces`, and
+   `language` (default `en`) from that file. Only an `hs_` configuration without a slug
+   may omit `project`; never issue an unscoped call with `hu_`.
+   This creates the roster on the web board, and the language determines the steps
+   served by `agent_next`. Confirm the sync succeeds before declaring init complete.
 6. Knowledge docs are **optional** — say so, then offer. The workspace's dev agent is told to read
    one before it writes a plan, and doc-auditor audits it right after the backlog; without one,
    every plan says the workspace has no knowledge doc instead of following conventions the user
@@ -153,14 +187,21 @@ from that reference, then stop before step 1. After installation, rerun this pre
    merges, and every branch cut after that has them; branches cut before it don't, as with any
    file. Do not tell the user to switch branches before committing.
 
-The generated `.claude/agents/*.md` are **stubs**: role, tools, and the first instruction. The
-step bodies stay on the server and arrive one at a time through `mcp__harness__agent_next`.
-Do not try to "complete" a stub by hand. A project connected before this change reruns
-`/harness:init` to switch: lock-managed files are overwritten (user-edited ones are skipped
-as `skip(modified):` — tell the user those keep the old full body until they drop the edit).
+The generated `.claude/agents/*.md` are **stubs**: role, tools, and the first instruction.
+The step bodies stay on the server and arrive one at a time through
+`mcp__harness__agent_next`. Do not try to "complete" a stub by hand.
+
+After updating the plugin and server templates, rerun `/harness:init` to refresh the
+managed runbook and stubs. The runbook must pass its configured project slug when
+delegating; every stub must include that project scope in its first `agent_next` call
+and subsequent MCP calls, including resume and outcome submission. Outcomes also send
+the unchanged `receipt` returned by `agent_next`.
+
+Preserve every `skip(modified):` file. Report those paths and explain that their owner
+must reconcile the project-scope and receipt instructions while keeping their edits.
+Do not use `--adopt` or overwrite a modified file just to force this refresh, and do not
+claim skipped stubs were updated.
 
 Not done here: creating backlog items (web, or feature-scout when the pipeline runs), gate transitions (web, or the owner's own session with an owner token, or the server where the Pipeline tab has no gate — never this skill), committing, printing the token value.
-
-Receipt protocol: every agent outcome now sends the unchanged `receipt` returned by `agent_next`. Re-run init to refresh managed stubs; preserve `skip(modified)` files and explain that their owner must reconcile the receipt instructions. Never overwrite user edits.
 
 The CLI workspace-count check is only a preflight. `project_sync` also counts the union with the stored roster (omitted agents are retained); a resulting-roster cap refusal writes nothing. A workspace sync conflict asks for a retry.

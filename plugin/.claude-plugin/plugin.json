@@ -1,6 +1,6 @@
 {
   "name": "harness",
   "description": "Connect a repository to Stagekeeper — an agent pipeline whose rules you set.",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "author": { "name": "Sangeok" }
 }

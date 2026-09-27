@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { AGENT_TOOL_NAMES, registerTools } from "./tools.ts";
+import { AGENT_TOOL_NAMES, PROJECT_REQUIRED, registerTools } from "./tools.ts";
 import { NOT_SELECTED_REASON } from "../project-access-query.ts";
 import { REVISION_MAX } from "../agents/next.ts";
 
@@ -35,6 +35,16 @@ describe("agent-scoped MCP tools", () => {
     assert.deepEqual([...names].sort(), [...AGENT_TOOL_NAMES].sort());
     for (const n of WEB_ONLY) assert.ok(!names.includes(n), `web-only tool registered: ${n}`);
     for (const n of names) assert.doesNotMatch(n, /\./);
+  });
+  it("every tool advertises where project comes from and when it is required", () => {
+    for (const [name, meta] of Object.entries(descriptions())) {
+      const field = meta.inputSchema.shape.project;
+      assert.ok(field.isOptional(), `${name}: hs_ compatibility`);
+      assert.match(field.description, /harness.json project.slug/, name);
+      assert.match(field.description, /Required on every call.*hu_/, name);
+      assert.match(field.description, /ignored.*hs_/, name);
+    }
+    assert.ok(COPY.includes(PROJECT_REQUIRED), "product-copy must document the actual missing-scope error");
   });
   // PR #34가 plan_submit에 전이를 합치고 product-copy는 갱신했는데 등록 문구가 따라오지 않았다.
   // 그래서 모든 에이전트 세션이 옛 프로토콜을 읽었고, 그 문구를 인용한 계획서가 구현 직전에 막혔다(실측).
@@ -204,7 +214,39 @@ describe("user-scoped tokens resolve the project from the argument", () => {
     const h = handlersWith({ projectFor: async () => { throw new Error("must not look up without a slug"); } });
     const r = await h.backlog_list({}, userCtx);
     assert.equal(r.isError, true);
-    assert.match(body(r).error, /^project required: add project\.slug to harness\.json/);
+    assert.match(body(r).error, /^project required: send harness\.json project\.slug as project/);
+  });
+
+  it("every registered tool rejects a missing project before accessing domain data", async () => {
+    const h = handlersWith({
+      access: async () => { throw new Error("must not access without scope"); },
+      projectFor: async () => { throw new Error("must not resolve without scope"); },
+    });
+    for (const name of AGENT_TOOL_NAMES) {
+      const result = await h[name]({}, userCtx);
+      assert.equal(result.isError, true, name);
+      assert.equal(body(result).error, PROJECT_REQUIRED, name);
+    }
+  });
+
+  it("scopes init sync, pipeline dispatch, and agent resume/outcomes on every call", async () => {
+    const calls = [];
+    const h = handlersWith({
+      projectFor: async (slug, userId) => { assert.equal(userId, "user1"); return slug === "mine" ? "p1" : "p2"; },
+      projectSync: async (id) => { calls.push(["sync", id]); return { ok: true, item: ws.length }; },
+      pipelineNext: async (id) => { calls.push(["pipeline", id]); return { ok: true, item: {} }; },
+      agentNext: async (id, tokenId, input, userScoped) => {
+        assert.equal(tokenId, "usr1"); assert.equal(userScoped, true);
+        calls.push([input.outcome ?? "resume", id]);
+        return { ok: true, item: { done: true } };
+      },
+    });
+    for (const project of ["mine", "another"]) {
+      const args = { project, agent: "dev", workspaces: ws };
+      for (const name of ["project_sync", "pipeline_next", "agent_next"]) assert.notEqual((await h[name](args, userCtx)).isError, true);
+      assert.notEqual((await h.agent_next({ ...args, outcome: "ok", receipt: { runId: "run", revision: 0, stepId: "verify" } }, userCtx)).isError, true);
+    }
+    assert.deepEqual(calls, ["p1", "p2"].flatMap((id) => ["sync", "pipeline", "resume", "ok"].map((name) => [name, id])));
   });
 
   it("every state-changing tool goes through the same gate", async () => {

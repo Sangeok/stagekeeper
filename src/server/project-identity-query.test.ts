@@ -170,7 +170,7 @@ describe("projectIdentityFor with a user token", () => {
     const result = await projectIdentityFor(userHeader);
 
     assert.equal(result.ok === false && result.status, 401);
-    assert.match(result.ok === false ? result.reason : "", /^project required: add project\.slug to harness\.json/);
+    assert.match(result.ok === false ? result.reason : "", /^project required: send harness\.json project\.slug as project/);
     assert.deepEqual(calls, { slugs: [], projectIds: [], identityIds: [] });
   });
 
