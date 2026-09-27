@@ -17,7 +17,7 @@
 | 상태 | 의미 |
 | --- | --- |
 | `200` | `{ templates, entitlement: { plan, agents } }`. 에이전트는 스텁, 보고 에이전트·런북은 플랜에 맞춰 제공 |
-| `401` | 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음. **`hu_`인데 `?project=`가 없으면 여기다** — `project required: add project.slug to harness.json (rerun /harness:init once to write it)` |
+| `401` | 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음. **`hu_`인데 `?project=`가 없으면 여기다** — `project required: send harness.json project.slug as project on every request. If the slug is missing, recover it with /harness:init; if it is already set, update the harness plugin or include project in the MCP call.` |
 | `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존. **`hu_`가 남의 슬러그를 가리키면 `not the owner of this project`** — 없는 슬러그도 같은 문장이다 |
 | `404` | 요청한 언어의 템플릿이 없음 |
 
@@ -65,9 +65,32 @@
 
 **프로젝트는 토큰이 아니라 인자에서 온다.** 아래 14개 도구 전부가 선택 입력 `project`(슬러그)를 받는다.
 `hs_`는 토큰이 프로젝트를 알고 있어 이 값을 보지 않으므로 **기존 호출이 그대로 통한다**. `hu_`는 이 값이
-**필수**다 — 없으면 `project required: add project.slug to harness.json (rerun /harness:init once to write it)`,
+**필수**다 — 없으면 `project required: send harness.json project.slug as project on every request. If the slug is missing, recover it with /harness:init; if it is already set, update the harness plugin or include project in the MCP call.`,
 호출자 소유가 아니면 `not the owner of this project`로 거부한다(없는 슬러그도 같은 문장이다).
 판정은 `src/server/mcp/tools.ts`의 `scope()` 한 곳이고, 소유자 서버는 `hu_`를 받지 않는다.
+
+클라이언트의 프로젝트 출처는 현재 checkout의 `harness.json.project.slug`다. init 생성기는 템플릿 쿼리와
+런북 보고 본문에 이를 전달하며, `hu_`에 slug가 없으면 네트워크·파일 쓰기 전에 중단한다. init 스킬의
+`project_get`·`project_sync`도 같은 값을 보낸다. 런북의 메인 루프가 파일에서 읽고 에이전트 briefing에
+전달한다. 파일 도구가 없는 PM도 첫 `agent_next`부터 이를 사용할 수 있어야 한다. 모든 에이전트는
+첫 호출·재개·outcome·보고에 같은 `project`를 넣는다. slug 없는 `hs_`는 메인 루프가 그 호환 경로를
+명시한 경우에만 인자를 생략한다. `harness_owner`의 소유자 토큰 계약은 별개다.
+
+MCP의 공통 `project` 필드 설명은 `hu_`에서 매 호출 필수라는 점과 설정 출처를 명시한다. `optional`은
+`hs_` 하위호환을 위한 스키마이며, 사용자 토큰의 요구사항을 완화하지 않는다.
+
+이 경계의 회귀 검사는 `src/server/harness-init.test.ts`다. 실제 CLI를 로컬 HTTP 서버와 연결하고
+`makeTemplatesFor`·`makeRecordRunbook`의 실제 인증·스코프 코드를 실행한다. DB IO만 대체하며
+`npm run test:web`을 통해 CI에서 검사한다. 토큰 하나로 두 checkout을 연결하는 경우, 플랜별 첫 생성·재실행,
+slug 누락, `hs_` 호환, dry-run 무쓰기, 타 프로젝트 거부를 포함한다. private 템플릿 검사는
+`npm run test:templates`로 런북·모든 스텁·단계·안내 문서의 호출 예시와 플랜별 배포 결과를 확인한다.
+
+플러그인과 템플릿은 별도 배포 단위다. `plugin/.claude-plugin/plugin.json`의 버전을 올린 플러그인을
+배포하는 것만으로 DB의 `Template` 본문이 바뀌지 않는다. private 템플릿 저장소의 변경도 반영하고
+검증한 원본을 `npm run seed:templates`로 대상 DB에 게시해야 한다. 이후 사용자 플러그인을 업데이트하고
+init을 재실행해 런북과 관리 스텁을 갱신한다. 새 템플릿 변수는 추가하지 않아 구버전 렌더러와도 호환된다.
+`skip(modified)` 파일은 보존하고 별도 조정 대상으로 알린다. 운영 완료는 실제 응답 본문과 생성물의
+프로젝트 전달 지침, `project_get`·`project_sync` 성공까지 확인한 뒤 판단한다.
 
 `agent_next`의 호출 한도(`RATE_LIMIT`)는 `hs_`면 토큰당, `hu_`면 **토큰×프로젝트당**이다 —
 `hu_` 하나가 여러 프로젝트에 쓰이므로 분모에 프로젝트를 걸지 않으면 오늘의 "프로젝트당 60회/10분"이

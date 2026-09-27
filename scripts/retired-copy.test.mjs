@@ -16,6 +16,12 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // where: web = src/fsd·src/app의 보이는 문구, skill = plugin/skills의 SKILL.md, locks = product-copy.md의 잠금 블록.
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
+  {
+    pattern: /Rerunning writes the slug|project_sync.{0,20}as \{ workspaces, language \}/,
+    where: ["skill"],
+    since: "2026-09-28",
+    why: "hu_ needs an existing-config recovery path and project on every request, not only a stored slug",
+  },
   ...[
     /Scout runs only with harness\.json\.scout/,
     /Add a backlog item|Run pm in Claude Code|Set up in four steps/,

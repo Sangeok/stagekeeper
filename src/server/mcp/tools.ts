@@ -102,7 +102,7 @@ async function scope(args: { project?: unknown }, ctx: Ctx, deps: ToolDeps): Pro
 const workspace = z.object({ id: z.string(), path: z.string(), agent: z.string(), verify: z.array(z.string()), knowledge: z.string().nullable(), readOnly: z.array(z.string()) });
 
 // hu_가 프로젝트를 지목하는 자리. hs_는 토큰이 알고 있으므로 optional이다 — 기존 호출이 그대로 통한다.
-const project = { project: z.string().optional() };
+const project = { project: z.string().optional().describe("Project slug from harness.json project.slug. Required on every call with a user token (hu_); ignored for a project token (hs_). Keep the same project on resume and outcome calls.") };
 
 export function registerTools(server: McpServer, deps: ToolDeps) {
   // inputSchema를 비워서라도 넣는다 — 콜백 인자 형이 항상 (args, ctx)로 고정된다.

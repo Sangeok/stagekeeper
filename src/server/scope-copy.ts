@@ -5,7 +5,6 @@
 // 문장이 갈리면 같은 거절이 창구마다 달리 읽힌다.
 export const NOT_YOURS = "not the owner of this project";
 
-// 슬러그가 아예 없는 옛 harness.json이 이 오류의 주된 원인이다(A-8) — 고치는 법을 문장에 담는다.
-// hu_ 사용자에게 전환 경로를 알려 주는 유일한 런타임 창구다.
+// 서버는 요청만 본다. 로컬 설정 누락과 클라이언트의 전달 누락을 혼동하지 않는다.
 export const PROJECT_REQUIRED =
-  "project required: add project.slug to harness.json (rerun /harness:init once to write it)";
+  "project required: send harness.json project.slug as project on every request. If the slug is missing, recover it with /harness:init; if it is already set, update the harness plugin or include project in the MCP call.";

@@ -445,9 +445,9 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 
 **사용자 토큰으로 옮기기 전 안내** — 이 페이지가 발급하는 것은 프로젝트 토큰(`hs_`)이라 저장소마다
 하나씩 필요하다. 계정 단위 토큰(`hu_`)은 한 번만 발급해 모든 저장소에서 쓴다. 다만 이미 연결된
-저장소의 `harness.json`에는 `project.slug`가 없을 수 있고, `hu_`에는 프로젝트를 가리킬 다른 값이
-없으므로 모든 호출이 `project required: add project.slug to harness.json (rerun /harness:init once
-to write it)`로 떨어진다. **`hu_`를 쓰기 전에 `/harness:init`을 한 번 다시 돌려 슬러그를 심는다.**
+저장소의 `harness.json`에는 `project.slug`가 없을 수 있다. **최신 플러그인으로 `/harness:init`을 실행해
+기존 설정은 보존하고 누락된 slug를 복구한다.** 설정에 값이 있어도 요청의 `project`로 보내지 않으면
+같은 오류가 난다. 이때는 설정을 다시 만들지 말고 호출 인자 또는 오래된 플러그인을 고친다.
 `hs_`는 슬러그가 있든 없든 그대로 동작한다.
 
 **Owner token** (second section of the same page, under the agent-token table):
@@ -587,7 +587,7 @@ are terse on purpose — agents parse them.
 | `report_submit only in in_review, implementing, or done (now proposed)` | — |
 | `no such board item: FEAT-9` | — |
 | `not the owner of this project` (owner server `gate_approve` · **agent server와 REST 3종**: `hu_` 토큰이 남의 슬러그를 가리킬 때. 없는 슬러그도 같은 문장이다 — 존재 여부를 흘리지 않는다) | — |
-| `project required: add project.slug to harness.json (rerun /harness:init once to write it)` (agent server · REST 3종: `hu_` 토큰인데 `project`가 없을 때. `hs_`에는 나오지 않는다) | — |
+| `project required: send harness.json project.slug as project on every request. If the slug is missing, recover it with /harness:init; if it is already set, update the harness plugin or include project in the MCP call.` (agent server · REST 3종: `hu_` 토큰인데 `project`가 없을 때. `hs_`에는 나오지 않는다) | — |
 | `session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` (owner server) | — |
 | `not a gate: <id>` (owner server · web gate) | — |
 | `not waiting at before-implement — the item is at before-plan` (owner server · web gate) | — |
@@ -664,6 +664,12 @@ after the gate opened; the runbook's "Approving from this session" tells the ses
 | `scout` | Dispatch feature-scout with no key; it adds up to three items it has evidence for to the backlog. Append its report to docs/agents/feature-scout/scouting-log.md yourself. |
 
 ## 14. Generated templates (`plugin/templates/en/`)
+
+Project scope: the main loop reads `harness.json.project.slug`, sends it as `project` in every
+`mcp__harness__*` call, and includes it in every agent briefing. Every stub uses the briefing's
+project on first, resume, outcome, and report calls. Missing scope stops dispatch; only an
+explicitly confirmed legacy `hs_` connection without a slug may omit it. PM keeps its MCP-only
+tool set. No new template variable is required, so older renderers can still render the corpus.
 
 The paths below define the English template contract; private corpus completeness is verified separately.
 The Free runbook variant is gone; the pipeline graph carries the plan difference now.
@@ -802,7 +808,7 @@ both). Below: each file's title, its section headings, and the sentences that se
   approves the commit on the card. If you edit the plan after the validation, commit it and have
   the session re-call `plan_submit` — an edit that isn't on record isn't approved." · "When an
   agent can't commit, it records a handoff and stops. Commit, then tell the session to continue."
-- Runbook version: every overview call is `pipeline_next({ runbook: "{{runbook_version}}" })`, and
+- Runbook version: every overview call is `pipeline_next({ project, runbook: "{{runbook_version}}" })`, and
   the out-of-date rule adds "This document is runbook version `{{runbook_version}}`; every overview
   call in it sends that version, so the answer is about this checkout's copy, not about whichever
   branch last ran init."
@@ -856,7 +862,7 @@ both). Below: each file's title, its section headings, and the sentences that se
   no knowledge doc instead of following conventions you already have." Generation succeeds
   either way, so the cost is named, not enforced. A drafted doc opens with one line naming who
   reads it and why, so it isn't mistaken for documentation written for people.
-  Phase 4 adds: step 5 passes `{ workspaces, language }` to
+  Step 5 passes `{ project: slug, workspaces, language }` to
   `project_sync`; a closing paragraph says the agent files are **stubs** whose step bodies
   arrive through `agent_next`, and that an already-connected project reruns `/harness:init`.
   Session approvals add, in step 2: "Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If
