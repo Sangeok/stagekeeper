@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-import { DOC_LINK_NOTE, OverBudgetChip, isOverBudget, isPlanUnverified, isPlanVerified, statusLabel } from "@/fsd/entities/board-item";
+import { DOC_LINK_NOTE, NotVerifiedChip, OverBudgetChip, isOverBudget, isPlanVerified, statusLabel } from "@/fsd/entities/board-item";
 import { agoLabel, shortDate } from "@/fsd/shared/lib/relative-time";
 import { ExternalButtonLink } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
@@ -11,7 +11,6 @@ import { Code } from "@/fsd/shared/ui/code";
 import { gateLabel } from "@/fsd/entities/pipeline";
 import { rejectActionsFor } from "../model/gate-source";
 import {
-  UNVERIFIED_HINT,
   bounceResultLine,
   gateNextActionHint,
   holdResultLine,
@@ -35,12 +34,9 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
   // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
   // 카드마다 반복하면 같은 문장이 장 수만큼 늘어난다.
   const gate = item.gate; // 런이 서 있는 게이트 — 카드 판정의 출처(§E.2)
-  const atImplement = gate === "before-implement";
   const isProposed = item.status === "proposed";
   const isInReview = item.status === "in_review";
   const isOnHold = item.status === "on_hold";
-  // 검증 안 된 계획의 경고는 before-implement에서만 — before-verify의 in_review는 검증 전이 정상이다(§E.2)
-  const isUnverified = atImplement && isPlanUnverified(item.status, item.validation);
   // 서버가 새 값은 거부하지만(TEXT_LIMIT), 이미 들어온 값의 초과 표시는 화면 몫이다.
   // 재는 기준은 보드와 같은 한 곳(entities/board-item)에서 온다 — 두 화면이 어긋나지 않게.
   const overBudget = isOverBudget([item.reason, ...item.results]);
@@ -69,7 +65,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
           </p>
         </header>
 
-        {isInReview ? <PlanRow item={item} atImplement={atImplement} /> : null}
+        {isInReview ? <PlanRow item={item} /> : null}
         {isProposed ? <Kv label="Evidence">{item.reason}</Kv> : null}
         {isOnHold ? <Kv label="Your note">{item.results[item.results.length - 1] ?? item.reason}</Kv> : null}
 
@@ -85,17 +81,12 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
               <GateTransitionButton
                 gate={gate}
                 itemKey={item.key}
-                variant={isUnverified ? "mine-outline" : "mine"}
                 commit={() => approve({ key: item.key, gate, gateEntry: slotGateEntry(item) ?? undefined, expectedUpdatedAt: item.updatedAt })}
               />
             ) : null}
             {isOnHold && canWrite ? <ResumeButtons item={item} transition={transition} /> : null}
           </div>
-          {gate !== null && canWrite ? (
-            <p className={isUnverified ? "text-xs text-risk" : "text-xs text-quiet"}>
-              {isUnverified ? UNVERIFIED_HINT : gateNextActionHint(gate)}
-            </p>
-          ) : null}
+          {gate !== null && canWrite ? <p className="text-xs text-quiet">{gateNextActionHint(gate)}</p> : null}
           {isOnHold && canWrite ? (
             <p className="text-xs text-quiet">{resumeHint(resumePrimaryFor(item.heldFrom), item.heldFrom)}</p>
           ) : null}
@@ -121,8 +112,8 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
               <b className="font-medium text-ink">Approve implementation</b>: dev changes the code.
             </li>
             <li>
-              <b className="font-medium text-ink">Verified</b> means an independent pass found nothing to change. Without it,
-              the plan is unverified.
+              <b className="font-medium text-ink">Verified</b> means an independent pass found nothing to change. Without one,
+              the card shows <b className="font-medium text-ink">Not verified</b>.
             </li>
             <li>
               <b className="font-medium text-ink">Approve implementation</b> approves the plan at the commit shown on the card.
@@ -183,8 +174,8 @@ function StatusLine({ item, now }: { item: InboxItem; now: string }) {
   return <span>{label}</span>;
 }
 
-// 게이트②에서 읽을 것은 계획서다: 검증 여부(부재가 위험) · 경로 · 커밋.
-function PlanRow({ item, atImplement }: { item: InboxItem; atImplement: boolean }) {
+// 게이트②에서 읽을 것은 계획서다: 검증 여부 · 경로 · 커밋. 검증 여부는 정보일 뿐 경고가 아니다(design.md 규칙 2).
+function PlanRow({ item }: { item: InboxItem }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-field px-3 py-2.5 text-xs">
       {/* 술어를 함수로 뺐으므로 여기서 validation이 non-null로 좁혀지지 않는다 — title 값만 보정한다. */}
@@ -193,9 +184,7 @@ function PlanRow({ item, atImplement }: { item: InboxItem; atImplement: boolean 
           Verified
         </Chip>
       ) : (
-        <Chip tone={atImplement ? "risk" : "done"} title={atImplement ? "No independent validation has been recorded. Approving now means implementing an unverified plan." : "Not verified yet — the verification node comes next."}>
-          No validation yet
-        </Chip>
+        <NotVerifiedChip verifyIsNext={item.gate === "before-verify"} />
       )}
       {item.planPath !== null ? <span className="font-mono">{item.planPath}</span> : null}
       {item.planCommit !== null ? (

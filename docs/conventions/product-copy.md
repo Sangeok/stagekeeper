@@ -90,9 +90,9 @@ Pending labels while the request is in flight: "Requesting…", "Approving…", 
 
 - Request plan → "dev writes a plan. Nothing changes in the code yet."
 - Approve implementation → "Approving lets dev change code. Then you run dev in Claude Code."
-- Approve implementation with no validation record → the button recedes from filled to outline
-  and the hint turns risk-red: "This approves an unverified plan. Run plan-verifier in Claude
-  Code first."
+  The same filled button and the same hint whether or not a validation is recorded — verification
+  is the owner's choice (the pipeline's Verify node), so its absence is not a warning. The plan row
+  says which it is (§6).
 
 **Notes.** Send back and Put on hold take an optional note; Reopen requires one. The note lands in
 `result` with a prefix, so the input is capped at 150 minus the prefix:
@@ -140,7 +140,8 @@ on record after the last `plan_submit` (§12). Format:
 `clean pass (YYYY-MM-DD, N rounds, no edits)`
 
 The screen judges by presence alone — if it exists, the item shows **Verified**; if not,
-**No validation yet**. Writing it without a clean pass is a false pass.
+**Not verified**. Both are quiet: no record is information, not a risk. Writing it without a clean
+pass is a false pass.
 
 ### Acceptance record
 
@@ -173,7 +174,7 @@ Backlog, Tokens and item pages show a **one-line strip** with the same words.
 
 | Owner | Headline | Detail |
 | --- | --- | --- |
-| you | **Waiting on you** | ITEM-01 is ready for your approval / FEAT-04 needs verification before approval / ITEM-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 needs acceptance / ITEM-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 plans need verification" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items need acceptance" · "2 items are waiting for your commit", joined with " · " |
+| you | **Waiting on you** | ITEM-01 is ready for your approval / ITEM-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 needs acceptance / ITEM-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items need acceptance" · "2 items are waiting for your commit", joined with " · " |
 | you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
 | agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for ITEM-01 / the plan for ITEM-01 is being verified / dev is implementing ITEM-01. **Nobody dispatched yet:** "ITEM-01 is waiting for dev" · "FEAT-04 is waiting for verification" — opening a gate moves the item, it does not start an agent |
 | nobody | **Nothing open** | Pick the next item from the backlog, or run the pipeline in Claude Code — when the backlog is empty, feature-scout looks for items to add. — button **Open backlog** |
@@ -182,12 +183,13 @@ Backlog, Tokens and item pages show a **one-line strip** with the same words.
 Rules: one item → name it; several → count them. Your turn is where the item's pipeline run
 stands, not what its status is: an item is yours when the run waits at a gate, when it needs
 acceptance, or when it waits for your commit. The first three categories are gates, named by gate
-id — `before-implement` splits on whether a validation is recorded, `before-plan` asks for a plan
-request, and every other gate reads "FEAT-06 is waiting before Verify". `on_hold` items never own
-the banner — the banner is about who moves next, and nothing moves while on hold. An `in_review`
+id — `before-implement` is "ready for your approval" whether or not a validation is recorded,
+`before-plan` asks for a plan request, and every other gate reads "FEAT-06 is waiting before
+Verify". `on_hold` items never own the banner — the banner is about who moves next, and nothing
+moves while on hold. An `in_review`
 item without a validation record is **theirs** when the graph has a Verify node: the session's own
 round and plan-verifier are still ahead. Without that node the run waits at `before-implement` and
-the item is yours, as "needs verification before approval". A `done` item without an acceptance
+the item is yours, ready for your approval like any other. A `done` item without an acceptance
 record is yours too: accept it or reopen it — unless the graph puts a gate before Accept, in which
 case the banner names the gate instead, so one item asks for one thing. An item whose dev stopped
 for a commit (a handoff, §13 `agent_next`) is yours whatever its state — commit, then tell the
@@ -262,9 +264,8 @@ the item key in the body as well as the key label; it does not replace it with "
   2 days ago (or **Proposed** · you, today when you put it on the board yourself from the Backlog) / **In review** · dev submitted a plan 3 days ago / **On hold** · since Aug 28 · was
   Implementing. Relative time reads "today" · "1 day ago" · "N days ago".
 - Gate 1 (proposed): **Evidence** row → **Request plan** + hint (§3).
-- Gate 2 (in_review): plan row — **Verified** (quiet chip; tooltip = the full record) or **No
-  validation yet** (risk chip; tooltip "No independent validation has been recorded. Approving
-  now means implementing an unverified plan.") · path · commit — then **Read the plan ↗** ·
+- Gate 2 (in_review): plan row — **Verified** (quiet chip; tooltip = the full record) or **Not
+  verified** (quiet chip; tooltip "No independent validation is on record.") · path · commit — then **Read the plan ↗** ·
   **Approve implementation** + hint. **Evidence and result** collapsed. **Read the plan ↗** opens the
   plan at the recorded commit — that commit is what you approve. If you edit the plan after the
   validation, commit it and have the session re-call `plan_submit`; an edit that isn't on record
@@ -276,7 +277,7 @@ the item key in the body as well as the key label; it does not replace it with "
   over 150 characters. Move the details to docs/agents/."
 - Help (collapsed): **What this decision does**
   - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code.
-  - **Verified** means an independent pass found nothing to change. Without it, the plan is unverified.
+  - **Verified** means an independent pass found nothing to change. Without one, the card shows **Not verified**.
   - **Approve implementation** approves the plan at the commit shown on the card.
   - **Read the plan** opens that commit on GitHub. If it 404s, the commit is still local — push the
     branch and reload.
@@ -321,8 +322,10 @@ rendered in the Team row; the row shows only the agent handle and its state.
   `before-scout`) also make cards. Their button says **Continue to …**, the status does not change,
   and the "What this decision does" list adds: "**Continue** moves the item to the next node;
   nothing changes on the board."
-- The unverified-plan warning belongs to `before-implement` only. At `before-verify` an unverified
-  plan is the normal state, so the card shows **No validation yet** in a neutral tone and no risk chip.
+- No gate warns about a missing validation — whether to verify is the owner's choice, made in the
+  pipeline (a Verify node or none). Every card without a record shows the same quiet **Not
+  verified** chip; only its tooltip differs: at `before-verify` "The Verify step comes next.",
+  elsewhere "No independent validation is on record."
 
 The decision card header also shows the backlog type (feat/fix/refactor/docs) when set.
 
@@ -538,7 +541,8 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 
 - Header: `ITEM-01` · `dev` · `README.md` — title — state chip — "Proposed 2026-08-30 01:49" ·
   "Accepted 2026-09-06 16:10" once the acceptance record is in
-- **Evidence** · **Result** ("None yet") · **Validation** ("No validation yet")
+- **Evidence** · **Result** ("None yet") · **Validation** (the record, or a quiet **Not verified**
+  chip — tooltip "No independent validation is on record.")
 - **Documents**: "Plan" · "dev report" · "main-loop report" — path in mono. Plan opens the recorded
   commit; each report opens its own commit. Under the list, the same sentence as §6: "Opens the
   recorded commit on GitHub. If it 404s, that commit is not pushed yet." The string lives once, in

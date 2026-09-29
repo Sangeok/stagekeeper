@@ -2,8 +2,9 @@ export { DOC_LINK_NOTE, blobHref, orderReportActors, reportDocLabel } from "./mo
 export type { RepoRef } from "./model/doc-link";
 export { statusLabel } from "./model/status-label";
 export { FIELD_BUDGET, isOverBudget } from "./model/text-budget";
+export { NotVerifiedChip } from "./ui/not-verified-chip";
 export { OverBudgetChip } from "./ui/over-budget-chip";
-export { isPlanUnverified, isPlanVerified } from "./model/verification";
+export { isPlanVerified } from "./model/verification";
 export { isAwaitingAcceptance } from "./model/acceptance";
 export { isAtGate, needsHumanDecision, pendingInboxCount, resumeTargetsFor } from "./model/inbox-gate";
 export type { GateRow } from "./model/inbox-gate";

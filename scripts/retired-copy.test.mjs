@@ -17,6 +17,12 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
   {
+    pattern: /No validation yet|needs verification before approval|plans need verification|an unverified plan|Run plan-verifier in Claude Code first/,
+    where: ["web", "skill", "locks"],
+    since: "2026-09-29",
+    why: "verification is the owner's choice (a Verify node or none) — a missing record reads Not verified, never a warning",
+  },
+  {
     pattern: /Rerunning writes the slug|project_sync.{0,20}as \{ workspaces, language \}/,
     where: ["skill"],
     since: "2026-09-28",

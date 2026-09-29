@@ -7,6 +7,7 @@ import { deriveTurn, nextStepLine, type TurnItem } from "./turn";
 const ready = { tokenIssued: true, rosterSynced: true };
 // 커서는 기본 Pro 그래프(propose · before-plan · plan · verify · before-implement · implement · accept · doc-audit)에서
 // 그 상태가 서는 자리다. in_review는 검증 기록이 있어야 before-implement로 넘어간다 — 없으면 아직 verify 노드다.
+// 배너는 검증 기록 자체를 읽지 않는다 — 기록은 여기서 커서 자리를 정하는 데만 쓴다.
 const cursorFor = (status: string, validation: string | null): { gate: string | null; node: string | null } => {
   switch (status) {
     case "proposed": return { gate: "before-plan", node: "before-plan" };
@@ -21,7 +22,6 @@ const item = (key: string, status: string, validation: string | null = null, age
   key,
   status,
   agent,
-  validation,
   accepted: false,
   handoff: null,
   dispatched: true, // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다
@@ -76,14 +76,22 @@ describe("deriveTurn — mine", () => {
     assert.equal(turn.detail, "the plan for FEAT-04 is being verified");
     assert.deepEqual(turn.next, [{ key: "FEAT-04", line: "Continue the pipeline for FEAT-04: verify — verify the plan." }]);
   });
-  it("without a verify node the same item waits at before-implement, and that is yours", () => {
-    // Free 기본 그래프에는 verify가 없다 — 커서가 곧 게이트라 검증 필요 부류가 그대로 말한다(§E.3).
+  it("without a verify node the same item waits at before-implement, ready for approval like a verified one", () => {
+    // Free 기본 그래프에는 verify가 없다 — 커서가 곧 게이트다. 검증은 사용자가 파이프라인으로 고르는 것이라
+    // 기록이 없다고 해서 배너가 "검증이 필요하다"고 재촉하지 않는다(design.md 규칙 2).
     const atGate: TurnItem = { ...item("FEAT-04", "in_review", null), gate: "before-implement", node: "before-implement" };
     const turn = deriveTurn([atGate], ready);
     if (turn.kind !== "mine") assert.fail(turn.kind);
-    assert.equal(turn.detail, "FEAT-04 needs verification before approval");
+    assert.equal(turn.detail, "FEAT-04 is ready for your approval");
     assert.equal(turn.why, null);
     assert.deepEqual(turn.next, []); // 게이트는 터미널 줄이 없다 — 결정은 Inbox나 세션의 것
+  });
+  it("counts verified and unverified plans at before-implement as one approval category", () => {
+    const unverified: TurnItem = { ...item("FEAT-04", "in_review", null), gate: "before-implement", node: "before-implement" };
+    const turn = deriveTurn([item("FEAT-03", "in_review", "clean pass"), unverified], ready);
+    if (turn.kind !== "mine") assert.fail(turn.kind);
+    assert.equal(turn.detail, "2 plans are ready for your approval");
+    assert.equal(turn.count, 2);
   });
   it("a gate the five categories do not name still says where the item stands", () => {
     // 그래프가 게이트를 어디든 놓을 수 있으므로 상태로 부류를 나누면 before-verify·before-doc-audit에

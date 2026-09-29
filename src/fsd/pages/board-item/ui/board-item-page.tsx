@@ -1,4 +1,4 @@
-import { DOC_LINK_NOTE, statusLabel } from "@/fsd/entities/board-item";
+import { DOC_LINK_NOTE, NotVerifiedChip, statusLabel } from "@/fsd/entities/board-item";
 import { gateLabel } from "@/fsd/entities/pipeline";
 import { ReopenActions, type TransitionAction } from "@/fsd/features/review-gate";
 import { Chip } from "@/fsd/shared/ui/chip";
@@ -83,11 +83,7 @@ export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemV
         <div>
           <dt className="mb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-quiet">Validation</dt>
           <dd>
-            {item.validation ?? (
-              <Chip tone="risk" title="No independent validation has been recorded.">
-                No validation yet
-              </Chip>
-            )}
+            {item.validation ?? <NotVerifiedChip />}
           </dd>
         </div>
       </dl>

@@ -76,8 +76,6 @@ export function gateToast(gate: string, key: string): string {
 export function gateNextActionHint(gate: string): string {
   return gateAction(gate)?.hint ?? "Then continue in Claude Code.";
 }
-// 검증 기록이 없는 in_review를 승인하려 할 때. 버튼은 윤곽으로 물러서고 이 문장이 빨갛다.
-export const UNVERIFIED_HINT = "This approves an unverified plan. Run plan-verifier in Claude Code first.";
 
 // 재개 — on_hold에서 돌아가는 두 목적지. 주 버튼은 멈춘 자리(heldFrom)로 돌아가는 쪽이다.
 const RESUME: Record<string, string> = {
