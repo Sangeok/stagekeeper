@@ -2,7 +2,7 @@ import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline
 // 순수. 보드의 최신 행들로 "지금 누구 차례인가"를 정한다 — 모든 프로젝트 탭 위에 놓이는 배너의 유일한 출처.
 // 문구는 docs/conventions/product-copy.md §5. 판정은 packages/core의 상태 기계에서 파생한다.
 import { canPropose, isOpen } from "@harness/core/transitions.mjs";
-import { isAwaitingAcceptance, isPlanUnverified, isPlanVerified, pendingInboxCount } from "@/fsd/entities/board-item";
+import { isAwaitingAcceptance, pendingInboxCount } from "@/fsd/entities/board-item";
 import { gateLabel } from "@/fsd/entities/pipeline";
 
 // 열린 run의 마지막 원장 행이 handoff — dev가 커밋을 기다리며 멈춰 있다. note는 dev가 적은 파일 경로(에이전트 텍스트).
@@ -12,7 +12,6 @@ export type TurnItem = {
   key: string;
   status: string;
   agent: string;
-  validation: string | null;
   accepted: boolean; // done이고 acceptedAt이 있다
   handoff: TurnHandoff | null;
   gate: string | null; // 런이 서 있는 게이트 id
@@ -83,26 +82,22 @@ function countPhrase(n: number, one: string, many: string): string {
   return n === 1 ? one : many.replace("{n}", String(n));
 }
 
-// 부류 순서는 §5: 승인 준비 → 검증 필요 → 계획 요청 → 그 밖의 게이트 → 인수 → 커밋.
+// 부류 순서는 §5: 승인 준비 → 계획 요청 → 그 밖의 게이트 → 인수 → 커밋.
 // 게이트 부류는 **게이트 id**로 나눈다 — 그래프가 게이트를 어디든 놓을 수 있어서 상태만으로는 무슨 결정을 기다리는지 모른다.
 // 이름 없는 게이트가 한 부류도 없으면 배너가 빈 상세 줄을 낸다 — 그래서 elsewhere가 남은 것을 전부 말한다.
 function mineDetail(pending: TurnItem[]): string {
   const gated = pending.filter((i) => i.gate !== null);
-  const atImplement = gated.filter((i) => i.gate === "before-implement");
-  const verified = atImplement.filter((i) => isPlanVerified(i.status, i.validation));
-  const unverified = atImplement.filter((i) => isPlanUnverified(i.status, i.validation));
+  // 검증 기록 유무로 나누지 않는다 — 검증은 사용자가 파이프라인으로 고르는 것이라 부재가 따로 할 일을 만들지 않는다(design.md 규칙 2).
+  const approvals = gated.filter((i) => i.gate === "before-implement" && i.status === "in_review");
   const proposed = gated.filter((i) => i.gate === "before-plan");
-  const named = new Set<TurnItem>([...verified, ...unverified, ...proposed]);
+  const named = new Set<TurnItem>([...approvals, ...proposed]);
   const elsewhere = gated.filter((i) => !named.has(i));
   // 게이트에 선 항목은 그 게이트로 말한다 — before-accept에서 "인수 필요"를 거듭 말하지 않는다.
   const accepting = pending.filter((i) => i.gate === null && isAwaitingAcceptance(i.status, i.accepted));
   const handoffs = pending.filter((i) => i.handoff !== null);
   const parts: string[] = [];
-  if (verified.length > 0) {
-    parts.push(countPhrase(verified.length, `${verified[0]?.key} is ready for your approval`, "{n} plans are ready for your approval"));
-  }
-  if (unverified.length > 0) {
-    parts.push(countPhrase(unverified.length, `${unverified[0]?.key} needs verification before approval`, "{n} plans need verification"));
+  if (approvals.length > 0) {
+    parts.push(countPhrase(approvals.length, `${approvals[0]?.key} is ready for your approval`, "{n} plans are ready for your approval"));
   }
   if (proposed.length > 0) {
     parts.push(countPhrase(proposed.length, `${proposed[0]?.key} needs a plan request`, "{n} items need a plan request"));

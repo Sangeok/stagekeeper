@@ -52,7 +52,6 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
       key: r.backlogItem.key,
       status: r.status,
       agent: r.agent,
-      validation: r.validation,
       accepted: r.acceptedAt !== null,
       handoff: isSlotRun ? slotHandoff : handoffs.get(r.backlogItem.key) ?? null,
       gate: at !== null && isGateId(at) ? at : null,
