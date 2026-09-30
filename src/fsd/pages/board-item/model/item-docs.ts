@@ -1,7 +1,7 @@
 // 항목 상세가 보여줄 문서 목록. 라벨과 순서는 entities/board-item 하나가 소유한다 —
 // 예전에는 라우트가 "Plan"·"<actor> report"를 직접 지어서, 라벨 주인이 "Validation record"라
 // 부르는 문서를 화면은 "main-loop report"라 부르고 정렬도 없었다.
-import { blobHref, orderReportActors, reportDocLabel, type RepoRef } from "@/fsd/entities/board-item";
+import { blobHref, orderReportActors, reportDocLabel, reportIsAcceptance, type RepoRef } from "@/fsd/entities/board-item";
 import type { ItemDoc } from "../ui/board-item-page";
 
 type ReportRow = { actor: string; path: string; commit: string; at: Date; isAcceptance?: boolean | null };
@@ -25,7 +25,7 @@ export function toItemDocs(row: DocSource, repo: RepoRef): ItemDoc[] {
     for (const report of byActor.get(actor) ?? []) {
       // Submission purpose survives reopen and later acceptances. Unrecoverable legacy
       // rows retain the old fallback while the current acceptance is still known.
-      const isAcceptance = report.isAcceptance ?? (row.acceptedAt !== null && report.at.getTime() >= row.acceptedAt.getTime());
+      const isAcceptance = reportIsAcceptance(report, row.acceptedAt);
       docs.push({ label: reportDocLabel(actor, isAcceptance), path: report.path, href: blobHref(repo, report.path, report.commit) });
     }
   }

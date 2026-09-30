@@ -1,17 +1,9 @@
-import { DOC_LINK_NOTE, NotVerifiedChip, statusLabel } from "@/fsd/entities/board-item";
-import { gateLabel } from "@/fsd/entities/pipeline";
+import { DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
 import { ReopenActions, type TransitionAction } from "@/fsd/features/review-gate";
+import { HistoryList, toHistoryRows, HISTORY_TRUNCATED_NOTE, type HistoryEventInput, type HistoryReportInput } from "@/fsd/widgets/history-feed";
+import { utcMinute } from "@/fsd/shared/lib/relative-time";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
-
-export type TimelineEvent = {
-  at: Date;
-  actor: string;
-  channel: string | null; // human 행만: "web" | "session". 세션에서 연 게이트는 History에 "session"이 붙는다(product-copy §11)
-  from: string | null;
-  to: string | null;
-  note: string | null;
-};
 
 export type ItemDoc = { label: string; path: string; href: string };
 
@@ -28,22 +20,12 @@ export type BoardItemView = {
   acceptedAt: Date | null; // 인수 기록(main-loop의 report_submit in done). null이면 배너가 "needs acceptance"라 한다
   updatedAt: string; // ISO. 되돌리기(reopen)의 낙관적 잠금 토큰
   docs: ItemDoc[];
-  events: TimelineEvent[];
+  events: HistoryEventInput[];
+  reports: HistoryReportInput[];
+  repo: RepoRef;
   // 창 밖으로 밀린 이력이 있을 때만 true — 창이 없는 플랜에서는 언제나 false다.
   historyTruncated?: boolean;
 };
-
-const stamp = (d: Date) => d.toISOString().slice(0, 16).replace("T", " ");
-
-// 행위자 표기 — human은 채널(session)만 덧붙이고, pipeline은 언제나 "auto"(게이트 없는 경계를 서버가 넘었다). agent는 그대로.
-function actorLabel(e: TimelineEvent): string {
-  if (e.actor === "pipeline") return "pipeline · auto";
-  return e.channel === "session" ? `${e.actor} · session` : e.actor;
-}
-// note는 증거 종류(plan · report · validation · discard) 또는 비경계 게이트(gate:<id>). 게이트는 사람 말로 푼다.
-function noteLabel(note: string): string {
-  return note.startsWith("gate:") ? `gate · ${gateLabel(note.slice("gate:".length))}` : note;
-}
 
 // transition은 라우트가 slug를 bind해서 넘긴 사람 전이 액션(review-gate). 이 페이지는 되돌리기(reopen)에만 쓴다.
 export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemView; transition: TransitionAction; canWrite: boolean }) {
@@ -56,8 +38,8 @@ export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemV
         <h1 className="text-2xl font-semibold tracking-tight">{item.title}</h1>
         <p className="flex flex-wrap items-center gap-2 text-sm">
           <Chip tone="done">{statusLabel(item.status)}</Chip>
-          <span className="font-mono text-xs text-quiet">Proposed {stamp(item.proposedOn)}</span>
-          {item.acceptedAt !== null ? <span className="font-mono text-xs text-quiet">Accepted {stamp(item.acceptedAt)}</span> : null}
+          <span className="font-mono text-xs text-quiet">Proposed {utcMinute(item.proposedOn)}</span>
+          {item.acceptedAt !== null ? <span className="font-mono text-xs text-quiet">Accepted {utcMinute(item.acceptedAt)}</span> : null}
         </p>
       </header>
 
@@ -112,20 +94,9 @@ export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemV
 
       <section>
         <SectionLabel>History</SectionLabel>
-        <ol className="rounded-lg border border-rule bg-paper">
-          {item.events.map((e, i) => (
-            <li key={i} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-rule px-3.5 py-2 text-sm last:border-b-0">
-              <span className="font-mono text-xs text-quiet">{stamp(e.at)}</span>
-              <span className="font-mono text-xs text-quiet">{actorLabel(e)}</span>
-              <span className="font-mono text-xs">
-                {e.from ?? "—"} → {e.to ?? "discarded"}
-              </span>
-              {e.note ? <span className="text-xs text-quiet">({noteLabel(e.note)})</span> : null}
-            </li>
-          ))}
-        </ol>
+        <HistoryList rows={toHistoryRows(item.events, item.reports, { repo: item.repo, order: "asc" })} showReportNote={false} />
         {item.historyTruncated ? (
-          <p className="mt-2 text-xs text-quiet">History older than 30 days opens on Pro.</p>
+          <p className="mt-2 text-xs text-quiet">{HISTORY_TRUNCATED_NOTE}</p>
         ) : null}
       </section>
     </>

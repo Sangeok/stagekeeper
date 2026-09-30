@@ -84,7 +84,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
               )}
             </div>
           </div>
-          <div>
+          <div className="min-w-0">
             <InboxDemo />
             <p className="mt-2.5 text-center text-xs text-quiet">Your inbox when a plan is ready for you.</p>
           </div>
@@ -149,14 +149,14 @@ function InboxDemo() {
   return (
     <div aria-hidden="true" className="overflow-hidden rounded-[10px] border border-rule bg-ground md:mt-1.5">
       <div className="h-0.5 bg-mine" />
-      <div className="flex gap-[18px] border-b border-rule px-4 pt-2.5 text-[13px] text-quiet">
+      <div className="flex gap-[18px] overflow-x-auto overflow-y-hidden border-b border-rule px-4 pt-2.5 text-[13px] whitespace-nowrap text-quiet">
         {PROJECT_TABS.map((tab) =>
           tab.id === "inbox" ? (
-            <span key={tab.id} className="-mb-px inline-flex items-center gap-1.5 border-b-2 border-ink pb-2 font-medium text-ink">
+            <span key={tab.id} className="inline-flex shrink-0 items-center gap-1.5 border-b-2 border-ink pb-2 font-medium text-ink">
               {tab.label} <span className="rounded-full bg-mine px-1.5 font-mono text-[11px] leading-4 text-on-mine">1</span>
             </span>
           ) : (
-            <span key={tab.id} className="pb-2">
+            <span key={tab.id} className="shrink-0 pb-2">
               {tab.label}
             </span>
           ),

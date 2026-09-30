@@ -2,6 +2,11 @@
 
 const DAY_MS = 86_400_000;
 
+// 항목 머리와 이력 행은 시간대 변환 없이 같은 UTC 분을 보여 준다.
+export function utcMinute(date: Date): string {
+  return date.toISOString().slice(0, 16).replace("T", " ");
+}
+
 function utcDay(date: Date): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }

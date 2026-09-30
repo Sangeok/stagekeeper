@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { agoLabel, daysBetween, shortDate } from "./relative-time";
+import { agoLabel, daysBetween, shortDate, utcMinute } from "./relative-time";
 
 const d = (iso: string) => new Date(iso);
+
+it("formats history timestamps as UTC minutes across date boundaries", () => {
+  assert.equal(utcMinute(d("2026-10-01T00:05:59.999+09:00")), "2026-09-30 15:05");
+  assert.equal(utcMinute(d("2026-12-31T23:59:59.999Z")), "2026-12-31 23:59");
+});
 
 describe("daysBetween", () => {
   it("counts UTC calendar days, not 24h blocks", () => {

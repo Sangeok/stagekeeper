@@ -74,6 +74,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `owner-token-reveal` | §9 Owner token reveal | 같은 파일 | `OwnerTokenReveal` |
 | `turn-banner-connect` | §5 First run | `src/fsd/widgets/turn-banner/model/turn.test.ts` | 모델의 `detail`(글자 일치) — 배너는 그 값을 그린다 |
 | `landing-demo` | §16 Landing (데모 카드) | `src/fsd/pages/landing/ui/landing-page.test.ts` | `LandingPage`의 데모 카드가 값으로 적은 제품 문장 셋 |
+| `history-tab` | §19 History tab | `src/fsd/pages/project-history/ui/project-history-page.test.ts` | Items 빈 상태·상태별 행·펼친/빈 상세, Events key/all 빈 상태와 중간 페이지. 독립 커서·보기 전환·링크 목적지 검사 |
 
 읽는 법과 블록 규칙(한 줄 = 한 단위, 줄바꿈 금지)은 `src/fsd/shared/lib/copy-lock.ts`와 product-copy.md 머리의
 "Copy-lock blocks"에 있다. 화면 잠금은 **포함 검사**다: 블록의 모든 줄이 화면에 있는지만 본다. 그래서
