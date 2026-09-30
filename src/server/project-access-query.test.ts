@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { Prisma } from "@/generated/prisma/client";
-import { readProjectAccess, READ_OPTIONS, NOT_SELECTED_REASON, type TransactionHost } from "./project-access-query";
+import { readProjectAccess, READ_OPTIONS, NOT_SELECTED_REASON, DISCONNECTED_REASON, type TransactionHost } from "./project-access-query";
 
 it("reads access in a read-only snapshot and fails closed for missing direct ownership", async () => {
   for (const row of [null, { ownerUserId: null }, { ownerUserId: "u", ownerUser: null }, { ownerUserId: "u", repoOwner: null, ownerUser: {} }]) {
@@ -14,6 +14,18 @@ it("reads access in a read-only snapshot and fails closed for missing direct own
     const result = await readProjectAccess(client, "p");
     assert.equal(result.available, false); if (!result.available) assert.equal(result.code, "integrity");
     assert.deepEqual(order, ["read-only", "query"]);
+  }
+});
+
+it("returns the precise disconnected reason, and rejects inconsistent disconnected availability", async () => {
+  for (const available of [false, true]) {
+    const client = { $transaction: async (run: (tx: Prisma.TransactionClient) => Promise<unknown>) => run({
+      $executeRaw: async () => 0,
+      project: { findUnique: async () => ({ ownerUserId: "u", repoOwner: "github", available, disconnectedAt: new Date(), ownerUser: { subscription: { plan: "pro" } } }) },
+    } as unknown as Prisma.TransactionClient) } as TransactionHost;
+    const result = await readProjectAccess(client, "p");
+    assert.equal(result.available, false);
+    if (!result.available) { assert.equal(result.code, available ? "integrity" : "disconnected"); if (!available) assert.equal(result.reason, DISCONNECTED_REASON); }
   }
 });
 

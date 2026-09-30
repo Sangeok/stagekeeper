@@ -135,6 +135,15 @@ from that reference, then stop before step 1. After installation, rerun this pre
    `note: that entry was also this repository's only record of the server URL`, the generator just
    removed the last per-repo copy of the address — make sure `HARNESS_SERVER` holds it (step 0
    persists it) so the next rerun does not stop with `Server URL required`.
+   If identity, registration, or templates is refused with 401/403/409, stop at the reported
+   error. Do not fall back to manual registration or another project; only the documented
+   missing-route 404 supports legacy identity recovery. A disconnected repository requires
+   explicit web reconnection. Its revoked `hs_`/`ho_` credentials need replacement; `hu_`
+   remains valid. Never infer disconnection from a status code alone.
+   If generation prints `stop: server access was refused after file generation`, preserve
+   the files already written and stop before steps 4 and 5. Runbook reporting is best effort,
+   so the generator may exit successfully despite that refusal; file generation alone does
+   not establish an active connection or complete init.
 4. **Register the server once per machine — you do this, do not print a command to copy.** The
    generator writes no `.mcp.json`; the server lives in the user-scope MCP config instead, so one
    registration serves every repository and **there is no per-project approval prompt**. Use the

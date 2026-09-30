@@ -4,6 +4,7 @@
 export const PLANS = ["free", "pro", "max"];
 export const DEFAULT_PLAN = "free"; // Subscription 행이 없는 사용자
 export const UNLIMITED = Infinity;
+export const OWNER_TOKEN_PLAN_GATE = "Owner tokens open on Pro. Approve in the Inbox for now.";
 // 고정 4역. 워크스페이스 dev는 roster(Workspace.agent[])가 정하고, 그 수는 `workspaces` 축이 막는다.
 export const REPORT_AGENTS = ["pm", "plan-verifier", "doc-auditor", "feature-scout"];
 

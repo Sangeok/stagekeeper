@@ -22,10 +22,11 @@ function transactionWithOwnedCount(owned: number): {
     calls,
     // The double implements only operations exercised by registration, not Prisma's fluent client.
     transaction: {
+      $queryRaw: async () => [],
       user: { findUniqueOrThrow: async () => ({ login: "test", projectAvailabilityVersion: 0, subscription: null }), updateMany: async () => ({ count: 1 }) },
       projectAvailabilityEvent: { create: async () => ({}) },
       project: {
-        findMany: async () => Array.from({ length: owned }, (_, i) => ({ id: `old-${i}`, ownerUserId: input.userId, repoOwner: "octocat", available: true })),
+        findMany: async () => Array.from({ length: owned }, (_, i) => ({ id: `old-${i}`, ownerUserId: input.userId, repoOwner: "octocat", repo: `old-${i}`, available: true })),
         create: async (args: Prisma.ProjectCreateArgs) => {
           calls.push(args);
           return { id: "new-project" };
@@ -74,9 +75,10 @@ describe("registerProjectIn", () => {
 // 여기서 고정하는 것은 **멱등 조회가 트랜잭션 안에서 일어난다는 구조**다 — 주입된 트랜잭션
 // 하나로만 조회·생성이 이뤄지는지, 그리고 재등록에 생성이 아예 없는지.
 describe("registerProjectResultIn — agent registration", () => {
-  const owned = (rows: { slug: string; repo: string }[]) => {
+  const owned = (rows: { slug: string; repo: string; repoOwner?: string; disconnectedAt?: Date }[]) => {
     const calls: { creates: Prisma.ProjectCreateArgs[]; slugQueries: unknown[] } = { creates: [], slugQueries: [] };
     const transaction = {
+      $queryRaw: async () => [],
       user: { findUniqueOrThrow: async () => ({ login: "test", projectAvailabilityVersion: 0, subscription: { plan: "max" } }), updateMany: async () => ({ count: 1 }) },
       projectAvailabilityEvent: { create: async () => ({}) },
       project: {
@@ -86,7 +88,7 @@ describe("registerProjectResultIn — agent registration", () => {
             calls.slugQueries.push(args.where.slug);
             return rows.map((r) => ({ slug: r.slug }));
           }
-          return rows.map((r, i) => ({ id: `p-${i}`, slug: r.slug, ownerUserId: "user-1", repoOwner: "octocat", repo: r.repo, available: true }));
+          return rows.map((r, i) => ({ id: `p-${i}`, slug: r.slug, ownerUserId: "user-1", repoOwner: r.repoOwner ?? "octocat", repo: r.repo, available: !r.disconnectedAt, disconnectedAt: r.disconnectedAt ?? null }));
         },
         create: async (args: Prisma.ProjectCreateArgs) => { calls.creates.push(args); return { id: "new-project" }; },
       },
@@ -95,6 +97,17 @@ describe("registerProjectResultIn — agent registration", () => {
   };
 
   const agentInput = { userId: "user-1", owner: "octocat", repo: "stagekeeper", branch: "main" };
+
+  it("returns case-insensitive disconnected identity before slug lookup and reports every legacy failure as a string", async () => {
+    const { calls, transaction } = owned([{ slug: "actual-slug", repoOwner: "OctoCat", repo: "StageKeeper", disconnectedAt: new Date() }]);
+    assert.deepEqual(await registerProjectResultIn(transaction, agentInput), { status: "disconnected", slug: "actual-slug", reason: "This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository." });
+    assert.match(await registerProjectIn(transaction, input) ?? "", /This repository is disconnected/);
+    assert.equal(calls.creates.length, 0); assert.equal(calls.slugQueries.length, 0);
+    const duplicate = owned([{ slug: "one", repo: "stagekeeper" }, { slug: "two", repo: "StageKeeper" }]);
+    assert.deepEqual(await registerProjectResultIn(duplicate.transaction, agentInput), { status: "integrity", reason: "Project ownership is unavailable." });
+    assert.equal(await registerProjectIn(duplicate.transaction, input), "Project ownership is unavailable.");
+    assert.equal(duplicate.calls.creates.length, 0); assert.equal(duplicate.calls.slugQueries.length, 0);
+  });
 
   // (g) 같은 저장소 재등록. **생성이 한 번도 일어나면 안 된다** — 이게 무너지면 init 재실행이
   // <repo>-2를 만들어 조용히 두 번째 프로젝트가 생긴다.

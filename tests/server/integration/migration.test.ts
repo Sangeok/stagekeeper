@@ -1,9 +1,109 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { it } from "node:test";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../../src/generated/prisma/client";
+import { PRESERVED_TABLES, readCleanupFactsIn } from "../../../scripts/lib/project-ownership-cleanup";
+import { testDatabaseUrl } from "./support";
+
+type PgConnection = { connect(): Promise<void>; end(): Promise<void>; query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }> };
+const { Client }: { Client: new (options: { connectionString: string }) => PgConnection } = createRequire(import.meta.url)("pg");
+
+it("replays all 17 prior SQL files whole on one connection and adds RDC without changing populated rows", async () => {
+  const db = new Client({ connectionString: testDatabaseUrl() });
+  const schema = `rdc_migration_${randomUUID().replace(/-/g, "")}`;
+  const catalog = new PrismaClient({ adapter: new PrismaPg({ connectionString: testDatabaseUrl(), options: `-c search_path=${schema}` }) });
+  const capability = async () => (await catalog.$transaction((tx) => readCleanupFactsIn(tx, "pre"))).connectionCapability;
+  await db.connect();
+  const previousPath = (await db.query("SHOW search_path")).rows[0].search_path;
+  try {
+    await db.query(`CREATE SCHEMA "${schema}"`);
+    await db.query(`SET search_path TO "${schema}"`);
+    const directory = new URL("../../../prisma/migrations/", import.meta.url);
+    const names = readdirSync(directory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+    const old = names.filter((name) => name < "20260927000000_repository_disconnection");
+    assert.equal(old.length, 17);
+    for (const name of old) await db.query(readFileSync(new URL(`${name}/migration.sql`, directory), "utf8"));
+    assert.equal(await capability(), "legacy");
+    assert.equal((await db.query("SELECT current_schema() AS name")).rows[0].name, schema);
+    // Insert only after replaying D3. Latest Prisma queries would ask for the new
+    // columns before they exist; SQL describes the actual previous schema.
+    await db.query(`
+      INSERT INTO "User" (id,"githubId",login,"projectAvailabilityVersion") VALUES ('u',-1,'owner',1);
+      INSERT INTO "Subscription" (id,"userId",plan,"updatedAt") VALUES ('s','u','pro',CURRENT_TIMESTAMP);
+      INSERT INTO "Project" (id,slug,name,"repoOwner",repo,branch,"ownerUserId") VALUES ('p','p','preserved','owner','repo','main','u');
+      INSERT INTO "ProjectAvailabilityEvent" (id,"ownerUserId",version,actor,reason,"toPlan","addedProjectIds","removedProjectIds","availableProjectIds") VALUES ('e','u',1,'user','registration','pro',ARRAY['p'],ARRAY[]::text[],ARRAY['p']);
+      INSERT INTO "ProjectToken" (id,"projectId",hash,label) VALUES ('hs','p','hs-hash','agent');
+      INSERT INTO "OwnerToken" (id,"projectId","userId",hash,label) VALUES ('ho','p','u','ho-hash','owner');
+      INSERT INTO "UserToken" (id,"userId",hash,label) VALUES ('hu','u','hu-hash','account');
+      INSERT INTO "Workspace" (id,"projectId","wsId",path,agent,verify,"readOnly") VALUES ('w','p','app','.','dev',ARRAY['npm test'],ARRAY[]::text[]);
+      INSERT INTO "BacklogItem" (id,"projectId",key,title,area,source) VALUES ('b','p','K-1','preserved','app','test');
+      INSERT INTO "BoardItem" (id,"projectId","backlogItemId",agent,status,reason,results,"updatedAt") VALUES ('i','p','b','dev','in_review','preserved',ARRAY['result'],CURRENT_TIMESTAMP);
+      INSERT INTO "TransitionEvent" (id,"boardItemId",actor,"to",note) VALUES ('te','i','human','in_review','preserved');
+      INSERT INTO "PipelineVersion" (id,"projectId",version,nodes,gates,"createdBy") VALUES ('v','p',1,ARRAY['plan','dev'],ARRAY['before-plan'],'u');
+      INSERT INTO "PipelineRun" (id,"boardItemId","versionId",node) VALUES ('pr','i','v','plan');
+      INSERT INTO "AgentRun" (id,"projectId",agent,key,"tokenId","stepId","pipelineRunId","pipelineEntryId") VALUES ('ar','p','dev','K-1','hs','verify','pr','entry');
+      INSERT INTO "AgentRunStep" (id,"runId","stepId",outcome,note,"callerTokenId","receiptRevision",accepted) VALUES ('as','ar','verify','ok','preserved','hs',0,true);
+      INSERT INTO "Report" (id,"boardItemId",actor,path,commit,"agentRunId","isAcceptance") VALUES ('r','i','dev','r.md','1234567','ar',false);
+      INSERT INTO "Command" (id,"projectId",kind,body) VALUES ('c','p','test','preserved');
+      INSERT INTO "Template" (lang,path,body,"updatedAt") VALUES ('en','test.md','preserved',CURRENT_TIMESTAMP);
+    `);
+    const tables = [...PRESERVED_TABLES, "UserToken"];
+    assert.equal(new Set(tables).size, 18);
+    const snapshot = async () => {
+      const result: Record<string, unknown> = {};
+      for (const table of tables) {
+        const expression = table === "Project" ? "to_jsonb(t) - 'disconnectedAt'" : table === "ProjectAvailabilityEvent" ? "to_jsonb(t) - 'targetProjectId'" : "to_jsonb(t)";
+        result[table] = (await db.query(`SELECT ${expression} AS row FROM "${table}" t ORDER BY (${expression})::text`)).rows;
+      }
+      return result;
+    };
+    const before = await snapshot();
+    for (const table of tables) assert.ok((before[table] as unknown[]).length > 0, `${table} must be populated`);
+    const indexesBefore = (await db.query(`SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = current_schema() ORDER BY indexname`)).rows;
+    const fksBefore = (await db.query(`SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE connamespace = current_schema()::regnamespace AND contype = 'f' ORDER BY conname`)).rows;
+    await db.query(readFileSync(new URL("20260927000000_repository_disconnection/migration.sql", directory), "utf8"));
+    assert.equal(await capability(), "complete");
+    assert.deepEqual(await snapshot(), before);
+    assert.equal((await db.query('SELECT "disconnectedAt" FROM "Project"')).rows[0].disconnectedAt, null);
+    assert.equal((await db.query('SELECT "targetProjectId" FROM "ProjectAvailabilityEvent"')).rows[0].targetProjectId, null);
+    const columns = (await db.query(`SELECT table_name, column_name, is_nullable, column_default, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND column_name IN ('disconnectedAt','targetProjectId') ORDER BY column_name`)).rows;
+    assert.deepEqual(columns.map((row) => [row.column_name, row.is_nullable, row.column_default, row.data_type]), [["disconnectedAt", "YES", null, "timestamp without time zone"], ["targetProjectId", "YES", null, "text"]]);
+    const indexesAfter = (await db.query(`SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = current_schema() ORDER BY indexname`)).rows;
+    assert.deepEqual(indexesAfter.filter((row) => row.indexname !== "Project_ownerUserId_disconnectedAt_idx"), indexesBefore);
+    assert.equal(indexesAfter.length, indexesBefore.length + 1);
+    assert.deepEqual((await db.query(`SELECT conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE connamespace = current_schema()::regnamespace AND contype = 'f' ORDER BY conname`)).rows, fksBefore);
+    await db.query("BEGIN"); await db.query("SAVEPOINT bad_connection");
+    await assert.rejects(db.query('UPDATE "Project" SET "disconnectedAt" = CURRENT_TIMESTAMP WHERE id=\'p\''), /Project_disconnected_available_check/);
+    await db.query("ROLLBACK TO SAVEPOINT bad_connection"); await db.query("RELEASE SAVEPOINT bad_connection");
+    await db.query('UPDATE "Project" SET "disconnectedAt" = CURRENT_TIMESTAMP, available = false WHERE id=\'p\'');
+    await db.query("ROLLBACK");
+    assert.deepEqual(await snapshot(), before);
+    await db.query('DROP INDEX "Project_ownerUserId_disconnectedAt_idx"');
+    assert.equal(await capability(), "partial");
+    await db.query('CREATE INDEX "Project_ownerUserId_disconnectedAt_idx" ON "Project" ("repoOwner", "disconnectedAt")');
+    assert.equal(await capability(), "partial", "index name alone is insufficient");
+    await db.query('DROP INDEX "Project_ownerUserId_disconnectedAt_idx"; CREATE INDEX "Project_ownerUserId_disconnectedAt_idx" ON "Project" ("ownerUserId", "disconnectedAt")');
+    await db.query('ALTER TABLE "Project" DROP CONSTRAINT "Project_disconnected_available_check"; ALTER TABLE "Project" ADD CONSTRAINT "Project_disconnected_available_check" CHECK ("disconnectedAt" IS NULL OR available = false) NOT VALID');
+    assert.equal(await capability(), "partial", "unvalidated checks must fail closed");
+    await db.query('ALTER TABLE "Project" VALIDATE CONSTRAINT "Project_disconnected_available_check"');
+    assert.equal(await capability(), "complete");
+    await db.query('ALTER TABLE "ProjectAvailabilityEvent" DROP COLUMN "targetProjectId"');
+    assert.equal(await capability(), "partial");
+    await db.query('ALTER TABLE "ProjectAvailabilityEvent" ADD COLUMN "targetProjectId" TEXT DEFAULT \'wrong\'');
+    assert.equal(await capability(), "partial", "incorrect defaults must fail closed");
+    await db.query('ALTER TABLE "ProjectAvailabilityEvent" ALTER COLUMN "targetProjectId" DROP DEFAULT; UPDATE "ProjectAvailabilityEvent" SET "targetProjectId" = NULL');
+    assert.equal(await capability(), "complete");
+  } finally {
+    await catalog.$disconnect();
+    await db.query("ROLLBACK");
+    await db.query("SELECT set_config('search_path', $1, false)", [previousPath]);
+    await db.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+    await db.end();
+  }
+});
 
 // fixture는 실제 migration이 만든 표 그대로여야 한다. 최신 schema에 옛 모양 데이터를 넣는 시험으로 대체하지 않는다.
 const statementsOf = (migration: string) =>

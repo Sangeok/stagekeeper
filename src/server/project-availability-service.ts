@@ -11,6 +11,20 @@ export function hasErrorCode(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+// Prisma's PostgreSQL adapter reports conflicts from FOR UPDATE as P2010,
+// while delegate writes use P2034. Retry only the two transaction SQL states.
+function isRawTransactionConflict(error: unknown): boolean {
+  if (!isRecord(error) || error.code !== "P2010" || !isRecord(error.meta)) return false;
+  const adapter = error.meta.driverAdapterError;
+  const cause = isRecord(adapter) ? adapter.cause : undefined;
+  const sqlState = isRecord(cause) ? cause.originalCode : error.meta.code;
+  return sqlState === "40001" || sqlState === "40P01";
+}
+
 export async function withAvailabilityTransaction<T>(
   client: TransactionHost,
   run: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -18,7 +32,7 @@ export async function withAvailabilityTransaction<T>(
   for (let attempt = 0; ; attempt += 1) {
     try { return await client.$transaction(run, WRITE_OPTIONS); }
     catch (error) {
-      if (!(error instanceof AvailabilityConflict) && !hasErrorCode(error, "P2034")) throw error;
+      if (!(error instanceof AvailabilityConflict) && !hasErrorCode(error, "P2034") && !isRawTransactionConflict(error)) throw error;
       if (attempt === 2) throw new AvailabilityConflict();
       await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
     }
@@ -27,9 +41,9 @@ export async function withAvailabilityTransaction<T>(
 
 export const OWNED_PROJECT_SELECT = {
   id: true, slug: true, name: true, repoOwner: true, repo: true, ownerUserId: true,
-  available: true, lastSelectedAt: true, lastSyncedAt: true, createdAt: true,
+  available: true, disconnectedAt: true, lastSelectedAt: true, lastSyncedAt: true, createdAt: true,
 } as const satisfies Prisma.ProjectSelect;
-type OwnedProject = Prisma.ProjectGetPayload<{ select: typeof OWNED_PROJECT_SELECT }>;
+export type OwnedProject = Prisma.ProjectGetPayload<{ select: typeof OWNED_PROJECT_SELECT }>;
 export type OwnerAvailability = {
   userId: string; login: string; version: number; plan: Plan; projects: OwnedProject[];
 };
@@ -41,15 +55,27 @@ export async function readOwnerAvailabilityIn(tx: Prisma.TransactionClient, user
   const projects = await tx.project.findMany({ where: { ownerUserId: userId }, select: OWNED_PROJECT_SELECT, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
   const plan = normalizePlan(user.subscription?.plan);
   const count = projects.filter((p) => p.available).length;
-  if (projects.some((p) => p.ownerUserId !== userId || p.repoOwner === null) || (projects.length > 0 && count === 0) || count > limitsFor(plan).projects) {
+  if (projects.some((p) => p.ownerUserId !== userId || p.repoOwner === null || (p.disconnectedAt != null && p.available)) || count > limitsFor(plan).projects) {
     throw new ProjectIntegrityError();
   }
   return { userId, login: user.login, version: user.projectAvailabilityVersion, plan, projects };
 }
 
+// Writers share this lock. Read-only snapshots must never acquire it.
+export async function lockProjectOwnerIn(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+}
+
+export function findOwnedRepository(projects: readonly OwnedProject[], owner: string, repo: string): OwnedProject | undefined {
+  const matches = projects.filter((p) => p.repoOwner.toLowerCase() === owner.toLowerCase() && p.repo.toLowerCase() === repo.toLowerCase());
+  if (matches.length > 1) throw new ProjectIntegrityError();
+  return matches[0];
+}
+
 type AvailabilityChange = {
   actor: "user" | "system";
-  reason: "registration" | "use-project" | "plan-downgrade";
+  reason: "registration" | "use-project" | "plan-downgrade" | "disconnect-project" | "reconnect-project";
+  targetProjectId?: string;
   toPlan: Plan;
   addedProjectIds: string[]; removedProjectIds: string[]; availableProjectIds: string[];
   basis: string | null;
@@ -68,6 +94,7 @@ export async function appendAvailabilityEventIn(
   await tx.projectAvailabilityEvent.create({ data: {
     ownerUserId: owner.userId, version, actor: change.actor, reason: change.reason,
     fromPlan: owner.plan, toPlan: change.toPlan, basis: change.basis,
+    targetProjectId: change.targetProjectId,
     addedProjectIds: [...change.addedProjectIds].sort(), removedProjectIds: [...change.removedProjectIds].sort(),
     availableProjectIds: [...change.availableProjectIds].sort(),
   } });
@@ -81,6 +108,7 @@ export async function changeUserPlan(
   if (!isPlan(input.plan)) throw new Error("Invalid plan.");
   const toPlan = normalizePlan(input.plan);
   return withAvailabilityTransaction(client, async (tx) => {
+    await lockProjectOwnerIn(tx, input.userId);
     const owner = await readOwnerAvailabilityIn(tx, input.userId);
     const current = owner.projects.filter((p) => p.available);
     const runs = await tx.agentRun.findMany({
@@ -126,11 +154,13 @@ export async function selectProjectForUse(client: TransactionHost, input: Select
   }
   try {
     return await withAvailabilityTransaction(client, async (tx): Promise<SelectProjectResult> => {
+      await lockProjectOwnerIn(tx, input.userId);
       const owner = await readOwnerAvailabilityIn(tx, input.userId);
       const target = owner.projects.find((p) => p.id === input.targetProjectId);
       const replacement = owner.projects.find((p) => p.id === input.replacementProjectId);
       if (!target || (input.replacementProjectId !== undefined && !replacement)) return { status: "error", code: "not-found", reason: "Project not found." };
       if (owner.version !== input.expectedVersion) return { status: "stale", currentVersion: owner.version };
+      if (target.disconnectedAt != null || replacement?.disconnectedAt != null) return { status: "error", code: "invalid-input", reason: "Reconnect the repository in Projects before selecting it for use." };
       const current = owner.projects.filter((p) => p.available).map((p) => p.id);
       if (target.available) return { status: "success", version: owner.version, availableProjectIds: current.sort(), changed: false };
       const full = current.length >= limitsFor(owner.plan).projects;
@@ -156,8 +186,8 @@ export async function selectProjectForUse(client: TransactionHost, input: Select
 }
 
 export type ProjectAvailabilityView = {
-  userId: string; login: string; plan: Plan; limit: number | null; version: number; availableCount: number;
-  projects: { id: string; slug: string; name: string; repoOwner: string; repo: string; available: boolean; openItems: number; openRuns: number }[];
+  userId: string; login: string; plan: Plan; limit: number | null; version: number; connectedCount: number; availableCount: number;
+  projects: { id: string; slug: string; name: string; repoOwner: string; repo: string; available: boolean; disconnectedAt: string | null; openItems: number; openRuns: number }[];
   notice: { basis: string | null; availableProjectIds: string[]; at: string } | null;
 };
 export async function loadProjectAvailability(client: TransactionHost, userId: string): Promise<ProjectAvailabilityView> {
@@ -173,8 +203,10 @@ export async function loadProjectAvailability(client: TransactionHost, userId: s
     const limit = limitsFor(owner.plan).projects;
     return {
       userId, login: owner.login, plan: owner.plan, limit: Number.isFinite(limit) ? limit : null, version: owner.version,
+      connectedCount: owner.projects.filter((p) => p.disconnectedAt == null).length,
       availableCount: owner.projects.filter((p) => p.available).length,
       projects: owner.projects.map((p) => ({ id: p.id, slug: p.slug, name: p.name, repoOwner: repositoryOwner(p.repoOwner), repo: p.repo, available: p.available,
+        disconnectedAt: p.disconnectedAt?.toISOString() ?? null,
         openItems: board.filter((b) => b.projectId === p.id && isOpen(b.status)).length,
         openRuns: runs.find((r) => r.projectId === p.id)?._count._all ?? 0,
       })),

@@ -3,4 +3,5 @@
 export { InboxCard } from "./ui/inbox-card";
 export { ReopenActions } from "./ui/reopen-actions";
 export { isAtGate, pendingInboxCount } from "./model/gate-source";
-export type { DiscardAction, GateAction, InboxItem, TransitionAction } from "./model/inbox-item";
+export { inboxReadOnlyLabel } from "./model/inbox-item";
+export type { DiscardAction, GateAction, InboxItem, InboxReadOnlyLabel, TransitionAction } from "./model/inbox-item";

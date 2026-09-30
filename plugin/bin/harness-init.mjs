@@ -17,6 +17,17 @@ import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } 
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
+async function responseFailure(res, server, token) {
+  const body = await res.json().catch(() => null);
+  const reason = typeof body?.error === "string" ? body.error : res.statusText;
+  // The server supplies this path only for an owned, disconnected repository.
+  const reconnect = typeof body?.reconnectPath === "string" && /^\/p\/[^/?#]+$/.test(body.reconnectPath)
+    ? ` Reconnect on the web: ${server}${body.reconnectPath}.` : "";
+  const credential = res.status === 401
+    ? ` If this project was disconnected, reconnect on the web${token?.startsWith("hu_") ? "." : " and issue a new project token."}` : "";
+  return `${reason}${reconnect}${credential}`;
+}
+
 function readJsonObject(path) {
   const text = readFileSync(path, "utf8");
   let value;
@@ -93,7 +104,7 @@ async function init() {
     try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
     catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
     if (!res.ok) {
-      const reason = await res.json().then((b) => b.error).catch(() => res.statusText);
+      const reason = await responseFailure(res, SERVER, token);
       // 404는 구버전 서버다 — 이 경로가 아직 없다. 스킬은 지금까지처럼 사용자에게 물어서 진행한다.
       console.log(res.status === 404
         ? `Project identity unavailable (404): this server has no /api/project — ask for owner/repo/branch instead.`
@@ -145,7 +156,7 @@ async function init() {
       });
     } catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
     if (!res.ok) {
-      const reason = await res.json().then((b) => b.error).catch(() => res.statusText);
+      const reason = await responseFailure(res, SERVER, token);
       // 401은 대개 프로젝트 토큰(hs_)을 쓴 경우다 — 그 토큰은 등록 경로를 지나지 않는다.
       console.log(res.status === 401
         ? `Registration needs a user token (hu_): ${reason}. With a project token (hs_) use --print-project instead.`
@@ -194,7 +205,7 @@ async function init() {
     try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
     catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
     if (!res.ok) {
-      const reason = await res.json().then((b) => b.error).catch(() => res.statusText);
+      const reason = await responseFailure(res, SERVER, token);
       console.log(`Templates unavailable (${res.status}): ${reason}`);
       process.exit(1);
     }
@@ -334,8 +345,11 @@ async function init() {
         body: JSON.stringify({ version: runbookVersionNow, ...(projectScope ? { project: projectScope } : {}) }),
       });
       if (!res.ok) {
-        const reason = await res.json().then((body) => body?.error).catch(() => null);
-        note(`${res.status}${typeof reason === "string" ? `: ${reason}` : ""}`);
+        const reason = await responseFailure(res, SERVER, token);
+        note(`${res.status}: ${reason}`);
+        if ([401, 403, 409].includes(res.status)) {
+          console.log("stop: server access was refused after file generation. Keep the generated files; resolve the reported error before MCP registration, project_sync, or declaring init complete.");
+        }
       }
     } catch (e) { note(e.message); }
   }

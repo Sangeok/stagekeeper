@@ -11,6 +11,7 @@ import { runbookVersion } from "@harness/core/runbook.mjs";
 import type { Plan } from "./entitlement";
 import { makeTemplatesFor } from "./templates-query";
 import { makeRecordRunbook } from "./runbook-query";
+import { DISCONNECTED_REASON, NOT_SELECTED_REASON, type ProjectAccess } from "./project-access-query";
 
 const CLI = fileURLToPath(new URL("../../plugin/bin/harness-init.mjs", import.meta.url));
 const RUNBOOK = "# Runbook\nversion {{runbook_version}}\n{{report_table}}\n";
@@ -53,15 +54,18 @@ async function service(t: TestContext, plan: Plan = "free") {
   const requests: { path: string; project: unknown }[] = [];
   const scopes: string[] = [];
   let templateQueries = 0;
+  let access: ProjectAccess = { plan, available: true };
+  let disconnectAfterTemplates = false;
+  let agentRevoked = false;
   const deps = {
-    findTokenByHash: async (hash: string) => hash === agent.hash ? { projectId: "legacy", revokedAt: null } : null,
+    findTokenByHash: async (hash: string) => hash === agent.hash ? { projectId: "legacy", revokedAt: agentRevoked ? new Date() : null } : null,
     findUserTokenByHash: async (hash: string) => hash === user.hash ? { userId: "user", revokedAt: null } : null,
     projectFor: async (slug: string, userId: string) => {
       scopes.push(slug);
       return userId === "user" && ["mathgic", "another"].includes(slug) ? slug : null;
     },
-    projectAccess: async () => ({ plan, available: true as const }),
-    findTemplatesByLanguage: async () => { templateQueries++; return rows; },
+    projectAccess: async () => access,
+    findTemplatesByLanguage: async () => { templateQueries++; if (disconnectAfterTemplates) access = { plan, available: false, code: "disconnected", reason: DISCONNECTED_REASON }; return rows; },
     saveRunbookVersion: async (projectId: string, version: string) => { saved.push({ projectId, version }); },
   };
   const templatesFor = makeTemplatesFor(deps), recordRunbook = makeRecordRunbook(deps);
@@ -96,10 +100,45 @@ async function service(t: TestContext, plan: Plan = "free") {
   t.after(() => new Promise<void>((done, reject) => server.close((error) => error ? reject(error) : done())));
   const address = server.address();
   assert.ok(address && typeof address !== "string");
-  return { url: `http://127.0.0.1:${address.port}`, user: user.plain, agent: agent.plain, saved, requests, scopes, templateQueries: () => templateQueries };
+  return { url: `http://127.0.0.1:${address.port}`, user: user.plain, agent: agent.plain, saved, requests, scopes, templateQueries: () => templateQueries,
+    setAccess: (value: ProjectAccess) => { access = value; }, revokeAgent: () => { agentRevoked = true; },
+    disconnectAfterTemplates: () => { disconnectAfterTemplates = true; },
+  };
 }
 
 describe("init against the REST project-scope contract", () => {
+  it("uses the same hu_ across connection, disconnection and reconnection without denied template IO or writes", async (t) => {
+    const s = await service(t); const root = checkout(t, "mathgic");
+    assert.equal((await run(root, s.url, s.user)).code, 0);
+    const saved = s.saved.length; const queries = s.templateQueries();
+    s.setAccess({ plan: "free", available: false, code: "disconnected", reason: DISCONNECTED_REASON });
+    for (const args of [[], ["--dry-run"]]) {
+      const deniedRoot = checkout(t, "mathgic"); const result = await run(deniedRoot, s.url, s.user, ...args);
+      assert.equal(result.code, 1); assert.ok(result.output.includes(DISCONNECTED_REASON));
+      assert.deepEqual(readdirSync(deniedRoot), ["harness.json"]);
+    }
+    assert.equal(s.templateQueries(), queries); assert.equal(s.saved.length, saved);
+    s.setAccess({ plan: "free", available: true });
+    assert.equal((await run(root, s.url, s.user)).code, 0); assert.equal(s.saved.length, saved + 1);
+    assert.equal(s.requests.at(-2)?.project, "mathgic"); assert.equal(s.requests.at(-1)?.project, "mathgic");
+  });
+  it("keeps files already generated when runbook access is refused and tells init to stop", async (t) => {
+    const s = await service(t); const root = checkout(t, "mathgic"); s.disconnectAfterTemplates();
+    const result = await run(root, s.url, s.user);
+    assert.equal(result.code, 0, "runbook reporting remains best effort");
+    assert.ok(result.output.includes(DISCONNECTED_REASON)); assert.match(result.output, /stop: server access was refused after file generation/);
+    assert.ok(existsSync(join(root, "CLAUDE.md"))); assert.equal(s.saved.length, 0);
+    assert.deepEqual(s.requests.map((r) => r.path), ["/api/templates", "/api/runbook"]);
+  });
+  it("keeps not-selected refusals distinct and offers only conditional guidance on revoked hs_", async (t) => {
+    const s = await service(t); const root = checkout(t, "mathgic");
+    s.setAccess({ plan: "free", available: false, code: "not-selected", reason: NOT_SELECTED_REASON });
+    const locked = await run(root, s.url, s.user); assert.equal(locked.code, 1);
+    assert.ok(locked.output.includes(NOT_SELECTED_REASON)); assert.ok(!locked.output.includes(DISCONNECTED_REASON));
+    s.revokeAgent(); const revoked = await run(root, s.url, s.agent);
+    assert.equal(revoked.code, 1); assert.match(revoked.output, /401.*If this project was disconnected/);
+    assert.match(revoked.output, /issue a new project token/); assert.deepEqual(readdirSync(root), ["harness.json"]);
+  });
   for (const plan of ["free", "pro", "max"] as const) {
     it(`initializes and refreshes a hu_ checkout on ${plan}, recording its runbook each time`, async (t) => {
       const s = await service(t, plan), root = checkout(t, "mathgic");

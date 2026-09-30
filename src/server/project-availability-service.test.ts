@@ -18,6 +18,7 @@ function fixture(plan: string, projects = [project("a"), project("b", false)]) {
       options.push(option);
       const before = structuredClone(state);
       const tx = {
+        $queryRaw: async () => [],
         user: {
           findUniqueOrThrow: async () => ({ login: "test", projectAvailabilityVersion: state.version, subscription: { plan: state.plan } }),
           updateMany: async ({ where }: { where: { projectAvailabilityVersion: number } }) => {
@@ -47,6 +48,25 @@ function fixture(plan: string, projects = [project("a"), project("b", false)]) {
 }
 
 describe("project availability transactions", () => {
+  it("retries raw PostgreSQL lock conflicts in current adapter and legacy Prisma metadata, but propagates unrelated SQL errors", async () => {
+    for (const sqlState of ["40001", "40P01"]) for (const meta of [
+      { code: sqlState },
+      { driverAdapterError: { cause: { originalCode: sqlState, kind: "TransactionWriteConflict" } } },
+    ]) {
+      let calls = 0;
+      const client = { $transaction: async () => { if (++calls === 1) throw { code: "P2010", meta }; return "committed"; } } as unknown as TransactionHost;
+      assert.equal(await withAvailabilityTransaction(client, async () => "unused"), "committed");
+      assert.equal(calls, 2);
+    }
+    let calls = 0;
+    const unrelated = { $transaction: async () => { calls++; throw { code: "P2010", meta: { driverAdapterError: { cause: { originalCode: "42P01" } } } }; } } as unknown as TransactionHost;
+    await assert.rejects(withAvailabilityTransaction(unrelated, async () => "unused"));
+    assert.equal(calls, 1);
+    calls = 0;
+    const exhausted = { $transaction: async () => { calls++; throw { code: "P2010", meta: { code: "40001" } }; } } as unknown as TransactionHost;
+    await assert.rejects(withAvailabilityTransaction(exhausted, async () => "unused"), AvailabilityConflict);
+    assert.equal(calls, 3);
+  });
   it("replaces the confirmed Free project and writes one exact event", async () => {
     const f = fixture("free");
     const result = await selectProjectForUse(f.client, { userId: "u", targetProjectId: "b", replacementProjectId: "a", expectedVersion: 7 });
@@ -89,8 +109,10 @@ describe("project availability transactions", () => {
     assert.equal(f.state().events[0].reason, "plan-downgrade"); assert.equal(f.state().projects[2].available, false);
     assert.deepEqual(f.state().projects[0].lastSelectedAt, a.lastSelectedAt);
   });
-  it("rejects impossible empty/over-cap state instead of silently repairing it", async () => {
-    for (const projects of [[project("a", false)], [project("a"), project("b")]]) {
+  it("allows an empty selection but rejects an over-cap state instead of repairing it", async () => {
+    const empty = fixture("free", [project("a", false)]);
+    assert.equal((await selectProjectForUse(empty.client, { userId: "u", targetProjectId: "a", expectedVersion: 7 })).status, "success");
+    for (const projects of [[project("a"), project("b")]]) {
       const f = fixture("free", projects); const before = structuredClone(f.state());
       const result = await selectProjectForUse(f.client, { userId: "u", targetProjectId: "a", expectedVersion: 7 });
       assert.equal(result.status, "error"); assert.deepEqual(f.state(), before);

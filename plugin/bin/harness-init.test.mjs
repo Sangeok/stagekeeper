@@ -73,7 +73,7 @@ const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: tru
 // postStatus: 런북 보고(POST /api/runbook)에 돌려줄 상태. 기본 200.
 // project: GET /api/project가 줄 정체. projectStatus 404는 그 경로가 없는 구버전 서버다.
 // registered/registerStatus: POST /api/projects(C의 등록)가 줄 응답. 201 = 새로 만듦, 200 = 기존 것.
-const withServer = async (body, fn, { postStatus = 200, project = null, projectStatus = 200, registered = null, registerStatus = 201 } = {}) => {
+const withServer = async (body, fn, { postStatus = 200, postError = null, project = null, projectStatus = 200, registered = null, registerStatus = 201, registerError = null, templateStatus = 200 } = {}) => {
   const seen = [];
   const server = createServer((req, res) => {
     let raw = "";
@@ -85,7 +85,7 @@ const withServer = async (body, fn, { postStatus = 200, project = null, projectS
       // 삼키므로, 순서를 뒤집으면 등록 호출이 정체 스텁을 받아 시험이 녹색인 채 아무것도 증명하지 않는다.
       if (req.url?.startsWith("/api/projects")) {
         res.statusCode = registerStatus;
-        res.end(JSON.stringify(registerStatus < 400 ? { project: registered } : { error: "registration refused" }));
+        res.end(JSON.stringify(registerStatus < 400 ? { project: registered } : registerError ?? { error: "registration refused" }));
         return;
       }
       // 엔드포인트가 둘이 됐다 — url로 가르지 않으면 --print-project가 템플릿 본문을 받는다.
@@ -94,7 +94,8 @@ const withServer = async (body, fn, { postStatus = 200, project = null, projectS
         res.end(JSON.stringify(projectStatus === 200 ? { project } : { error: "not found" }));
         return;
       }
-      if (req.method === "POST") { res.statusCode = postStatus; res.end(JSON.stringify({ ok: postStatus < 400 })); return; }
+      if (req.method === "POST") { res.statusCode = postStatus; res.end(JSON.stringify(postError ?? { ok: postStatus < 400 })); return; }
+      res.statusCode = templateStatus;
       res.end(JSON.stringify(body));
     });
   });
@@ -550,6 +551,16 @@ describe("harness-init (v2)", () => {
       }, { registered: identity, registerStatus: 200 });
     });
 
+    it("preserves the disconnected registration reason and owned reconnect URL without generating files", async () => {
+      const root = gitRoot(); const before = snapshot(root);
+      await withServer({}, async (server) => {
+        const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, root, server, "--register");
+        assert.equal(r.code, 1); assert.match(r.out, /This repository is disconnected/);
+        assert.ok(r.out.includes(`${server}/p/preserved`)); assert.doesNotMatch(r.out, /ask for owner\/repo/);
+        assert.deepEqual(snapshot(root), before);
+      }, { registerStatus: 409, registerError: { error: "This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.", reconnectPath: "/p/preserved" } });
+    });
+
     // 401은 대개 프로젝트 토큰을 쓴 경우다 — 그 토큰은 이 경로를 지나지 않는다.
     it("points an hs_ token at --print-project when the server refuses with 401", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server) => {
@@ -680,7 +691,7 @@ describe("harness-init (v2)", () => {
         const root = fresh(ONE_WS);
         const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
         assert.equal(r.code, 0, r.out);
-        assert.match(r.out, /^note: runbook version not recorded \(500\)/m);
+        assert.match(r.out, /^note: runbook version not recorded \(500: Internal Server Error\)/m);
         assert.ok(seen.some((row) => row.method === "POST"));
         assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
       }, { postStatus: 500 });
