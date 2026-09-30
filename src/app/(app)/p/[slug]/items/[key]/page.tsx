@@ -33,7 +33,10 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
         acceptedAt: row.acceptedAt,
         updatedAt: row.updatedAt.toISOString(),
         docs: toItemDocs(row, project),
-        events: row.events.map((e) => ({ at: e.at, actor: e.actor, channel: e.channel, from: e.from, to: e.to, note: e.note })),
+        events: row.events.map((e) => ({ id: e.id, at: e.at, actor: e.actor, channel: e.channel, from: e.from, to: e.to, note: e.note })),
+        reports: row.reports.map((r) => ({ id: r.id, at: r.at, actor: r.actor, path: r.path, commit: r.commit,
+          isAcceptance: r.isAcceptance, acceptedAt: row.acceptedAt })),
+        repo: project,
         historyTruncated: truncated,
       }}
       transition={humanTransition.bind(null, slug)}

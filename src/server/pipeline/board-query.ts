@@ -8,6 +8,8 @@ import { Prisma, type PrismaClient, type BoardItem, type BacklogItem } from "@/g
 import type { ServerResult } from "@/server/result";
 import { ensureRun, nextFor, readFacts, type Graph, type GateEntry } from "./run-query";
 import { decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, PLAN_VERIFIER } from "./board-rules";
+import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryRecord, type HistoryView } from "./history-page";
+import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -225,6 +227,65 @@ async function getWithHistory(projectId: string, key: string, since?: Date | nul
     });
     return row !== null;
   }
+
+async function projectHistory(projectId: string, options: {
+  view: HistoryView; since: Date | null; before: HistoryCursor | null; limit?: number; key?: string;
+}): Promise<{ rows: HistoryRecord[]; next: HistoryCursor | null }> {
+  const { view, since, before, limit = 50 } = options;
+  if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError("History limit must be a positive safe integer.");
+  const window = since === null ? {} : { at: { gte: since } };
+  const boardItem = { projectId, ...(options.key === undefined ? {} : { backlogItem: { key: options.key } }) };
+  const [events, reports] = await Promise.all([
+    prisma.transitionEvent.findMany({
+      where: { boardItem, AND: [eventWhere(view), window, afterCursor("event", before)] },
+      orderBy: [{ at: "desc" }, { id: "desc" }], take: limit + 1,
+      select: { id: true, at: true, boardItemId: true, actor: true, channel: true, from: true, to: true, note: true,
+        boardItem: { select: { backlogItem: { select: { key: true } } } } },
+    }),
+    prisma.report.findMany({
+      where: { boardItem, AND: [window, afterCursor("report", before)] },
+      orderBy: [{ at: "desc" }, { id: "desc" }], take: limit + 1,
+      select: { id: true, at: true, boardItemId: true, actor: true, path: true, commit: true, isAcceptance: true,
+        boardItem: { select: { acceptedAt: true, backlogItem: { select: { key: true } } } } },
+    }),
+  ]);
+  return mergeHistoryPage(
+    events.map(({ boardItem, ...event }) => ({ ...event, source: "event", key: boardItem.backlogItem.key })),
+    reports.map(({ boardItem, ...report }) => ({ ...report, source: "report", key: boardItem.backlogItem.key, acceptedAt: boardItem.acceptedAt })),
+    limit,
+  );
+}
+
+async function projectHistoryItems(projectId: string, options: HistoryItemsOptions) {
+  const limit = options.limit ?? 50;
+  const records = await prisma.$queryRaw<HistoryItemRecord[]>(historyItemsQuery(projectId, options));
+  const rows = records.slice(0, limit);
+  const last = rows.at(-1);
+  return { rows, next: records.length > limit && last ? { at: last.at, id: last.id } : null };
+}
+
+async function hasProjectHistoryBefore(projectId: string, view: HistoryView, since: Date | null): Promise<boolean> {
+  if (since === null) return false;
+  const [event, report] = await Promise.all([
+    prisma.transitionEvent.findFirst({
+      where: { boardItem: { projectId }, at: { lt: since }, AND: [eventWhere(view)] }, select: { id: true },
+    }),
+    prisma.report.findFirst({ where: { boardItem: { projectId }, at: { lt: since } }, select: { id: true } }),
+  ]);
+  return event !== null || report !== null;
+}
+
+async function currentRoundIds(projectId: string, keys: readonly string[]): Promise<Map<string, string>> {
+  if (keys.length === 0) return new Map();
+  const rows = await prisma.boardItem.findMany({
+    where: { projectId, discardedAt: null, backlogItem: { key: { in: [...new Set(keys)] } } },
+    orderBy: { proposedOn: "desc" },
+    select: { id: true, backlogItem: { select: { key: true } } },
+  });
+  const current = new Map<string, string>();
+  for (const row of rows) if (!current.has(row.backlogItem.key)) current.set(row.backlogItem.key, row.id);
+  return current;
+}
 
 // 미결 상한(2)은 "세고 나서 만든다" — READ COMMITTED에서는 두 호출자가 같은 수를 읽고 둘 다 만들 수 있다.
 // 스펙이 이 상한을 서버 강제로 규정하므로(불변식·pm 규칙) 이 트랜잭션만 Serializable로 올린다.
@@ -516,7 +577,7 @@ function closeRun(tx: Db, boardItemId: string) {
   return tx.pipelineRun.updateMany({ where: { boardItemId, closedAt: null }, data: { closedAt: new Date() } });
 }
 
-return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), advancePipeline: reportFailure(advancePipeline) };
+return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, projectHistory, projectHistoryItems, hasProjectHistoryBefore, currentRoundIds, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), advancePipeline: reportFailure(advancePipeline) };
 }
 
 function isRejection(value: unknown): value is { ok: false; reason: string } {

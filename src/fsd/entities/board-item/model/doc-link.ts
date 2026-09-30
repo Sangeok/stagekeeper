@@ -24,9 +24,12 @@ const REPORT_LABEL: Record<string, string> = {
   "feature-scout": "Scouting report",
 };
 const DEV_REPORT_LABEL = "Implementation report";
-// main-loop의 보고는 둘이다 — in_review의 검증 라운드 기록과 done의 인수 기록. 어느 쪽인지는 호출자가
-// acceptedAt으로 가른다(item-docs.ts): 이 파일은 라벨만 소유하고 판정 재료(시각)는 갖지 않는다.
+// 제출 당시 목적이 기록되지 않은 옛 행만 그 회차의 현재 인수 시각으로 판정한다.
 const ACCEPTANCE_LABEL = "Acceptance record";
+
+export function reportIsAcceptance(report: { at: Date; isAcceptance?: boolean | null }, acceptedAt: Date | null): boolean {
+  return report.isAcceptance ?? (acceptedAt !== null && report.at.getTime() >= acceptedAt.getTime());
+}
 
 export function reportDocLabel(actor: string, isAcceptance = false): string {
   if (actor === "main-loop" && isAcceptance) return ACCEPTANCE_LABEL;

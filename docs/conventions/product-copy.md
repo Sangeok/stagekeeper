@@ -162,7 +162,7 @@ Until it is in, the item is still yours: the banner says so (§5) and the item p
 | meta description | Agent development pipeline with human approval gates. |
 | `<html lang>` | `en` |
 | App header | **Stagekeeper** / `harness-smoke` ▾ — menu: the other projects · All projects · New project. Right: GitHub login, mono |
-| Project tabs | Board · Inbox · Backlog · Tokens |
+| Project tabs | Board · Inbox · Backlog · Pipeline · History · Tokens |
 | Sign-in page | Sign in with GitHub to continue. — button **Continue with GitHub**. After sign-in: `/projects` |
 | Landing `/` header | **Stagekeeper** · right: **Sign in** (signed in: **Open projects**) |
 
@@ -170,7 +170,8 @@ Until it is in, the item is still yours: the banner says so (§5) and the item p
 
 A 2px bar at the very top of the viewport carries the turn as a color: you = `--mine`, agents =
 ink, nothing or setting up = hairline. Under the header, **Board and Inbox show the full banner**;
-Backlog, Tokens and item pages show a **one-line strip** with the same words.
+Backlog, Pipeline, History, Tokens and item pages show a **one-line strip** with the same words.
+Selected-out projects keep their selection recovery banner and show no turn strip.
 
 | Owner | Headline | Detail |
 | --- | --- | --- |
@@ -543,25 +544,29 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
   "Accepted 2026-09-06 16:10" once the acceptance record is in
 - **Evidence** · **Result** ("None yet") · **Validation** (the record, or a quiet **Not verified**
   chip — tooltip "No independent validation is on record.")
-- **Documents**: "Plan" · "dev report" · "main-loop report" — path in mono. Plan opens the recorded
+- **Documents**: "Plan" · "Implementation report" · "Validation record" / "Acceptance record" — path in mono. Plan opens the recorded
   commit; each report opens its own commit. Under the list, the same sentence as §6: "Opens the
   recorded commit on GitHub. If it 404s, that commit is not pushed yet." The string lives once, in
   `entities/board-item/model/doc-link.ts`
 - **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · hint (§3).
   Pressing either replaces that row with **Note to dev** (required) · the confirm button named for
   the chosen action · "Cancel" — never two buttons with the same name on screen
-- **History**: `01:49:14` `agent` `— → proposed` · `01:52:09` `human` `proposed → planning` ·
+- **History**: `2026-08-30 01:49` `agent` `— → proposed` · `2026-08-30 01:52` `human` `proposed → planning` ·
   a gate opened from the owner's session reads `human · session` (`TransitionEvent.channel`;
   web rows stay plain `human`, agent rows carry no channel) · discard renders as `→ discarded`
 - A boundary the pipeline crossed on its own — the graph has no gate there — is written by
   `pipeline`, and the row reads `pipeline · auto`. A gate the owner opened carries the gate in its
-  note, rendered as `gate · before Implement`; a gate that is not a state boundary leaves that row
-  alone, with the same from and to
+  note, rendered as `gate · before Implement`. Same-state rows show **Plan submitted**, **Validation recorded**,
+  or `gate · <gate label>` instead of a repeated-state arrow. Unknown notes keep the original transition and note.
+- Report rows use the same labels as Documents, the stored submitter and a seven-character commit link.
+  The report's own recorded commit opens on GitHub. Duplicate `report` transition events are omitted.
+  Item History is oldest first, with the same row presentation as the project History tab; its key column is omitted.
+  All timestamps are UTC minutes. The GitHub link note remains once below Documents.
 
 Document link labels (reused on the board): plan "Plan"; reports by actor — main-loop
 "Validation record", or "Acceptance record" for the report that accepted the item · dev
 "Implementation report" · doc-auditor "Audit report" · feature-scout "Scouting report" · other
-"Report".
+"Implementation report".
 
 ---
 
@@ -1045,6 +1050,62 @@ never existed look the same from here.
 - Scout graph slots are opt-in. When no Scout slot exists (aliases and numbered slots count):
   "Scout also runs on its own when nothing is left to pick. Add it here to scout after each accepted item."
 - **Read as text** is a `<details>` that renders the graph as a numbered list, in cursor order.
+
+## 19. History tab
+
+**Items** is the default view. Each item appears once, showing its key, title, latest round's status (or
+Discarded) and **Last activity** in UTC. Items are ordered by their latest stored event/report, with 50
+items per page. Items with history include done, held, discarded and removed backlog items. Backlog items
+without recorded board activity do not appear here.
+
+An item row expands its newest-first event/report history, including past and discarded rounds. The
+expanded history reads 50 events per page independently of item pagination. **View current item** opens
+the current non-discarded round when one exists. Item detail still opens only the current round.
+
+**Events** opens the existing project event feed. All board rounds are included, including past and discarded
+rounds and removed backlog items; 50 events per page. A key links to item detail only when that record belongs
+to its current non-discarded round. Other keys are quiet text.
+
+In Events, **Key events** is the default filter; **All** includes the remaining transitions. Both omit duplicate `report` events
+because the Report record supplies the row. The inclusion rules are:
+
+| Source | Condition | Included records |
+| --- | --- | --- |
+| Report | All | Implementation report · Validation record · Acceptance record · Audit report · Scouting report |
+| TransitionEvent | actor = human | Human decisions, including propose, gates, hold, resume, discard and reopen |
+| TransitionEvent | note = validation | Validation recorded |
+| TransitionEvent | to = done or on_hold | Implementation completion and agent holds |
+
+Report rows show their stored actor and `<label> · <commit>`. Transition actors stay `human`, `human · session`,
+`agent` or `pipeline · auto`. Same-state labels follow §11. Time is `YYYY-MM-DD HH:MM` in UTC.
+Free reads the last 30 days; Pro and Max read all stored history. The cutoff note appears only when the chosen
+view has older records. Report links show the GitHub note once, only when at least one report is on the page.
+
+Items/Events links reset both cursors and close any expanded item. Event filters and Show all reset event
+pagination. Expanding/collapsing keeps the item-list cursor; Older events/Newest events keep the item and
+list page. Older preserves the view/filter and closes item details; Newest returns to its first page.
+Newest remains available on an empty past page. A normal new navigation or refresh reads current data;
+an already open page or browser back/forward restoration does not promise an immediate update.
+
+<!-- copy-lock:history-tab -->
+> **Items** · **Events**
+> No item history yet.
+> **Last activity** · **Discarded**
+> Includes past and discarded rounds.
+> **View current item**
+> No events on this page.
+> **Older events →** · **← Newest events**
+> **Key events** · **All**
+> No key events yet.
+> **Show all**
+> Nothing has happened yet.
+> **Older →** · **← Newest**
+> History older than 30 days opens on Pro.
+> Opens the recorded commit on GitHub. If it 404s, that commit is not pushed yet.
+<!-- /copy-lock -->
+
+The lock covers item-empty, populated/expanded/empty-detail and event key-empty/all-empty/middle-page cases.
+Each case checks its own absent copy and link destinations; mutually exclusive empty messages do not appear together.
 
 ## Review notes
 
