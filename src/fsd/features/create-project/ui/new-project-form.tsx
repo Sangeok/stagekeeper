@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactElement } from "react";
 
 import { TokenReveal } from "@/fsd/entities/project-token";
 import { projectPath } from "@/fsd/shared/routes/project";
@@ -28,6 +28,19 @@ export type FormMode = "manual" | "chosen" | "picker";
 export function formMode(isManualEntry: boolean, isRepoChosen: boolean): FormMode {
   if (isManualEntry) return "manual";
   return isRepoChosen ? "chosen" : "picker";
+}
+
+type CompletedRegistration = Extract<CreateProjectState, { status: "created" | "existing" | "disconnected" }>;
+
+export function ProjectRegistrationResult({ state, mcpUrl }: { state: CompletedRegistration; mcpUrl: string }): ReactElement {
+  const heading = state.status === "created" ? "Project created" : state.status === "existing" ? "Project already connected" : "Repository disconnected";
+  return <section className="flex flex-col gap-4">
+    <h2 className="text-lg font-semibold tracking-tight">{heading}</h2>
+    {state.status === "created" ? <TokenReveal token={state.token} mcpUrl={mcpUrl} /> : <p className="text-sm text-quiet">{state.status === "disconnected"
+      ? "Your data is preserved. Open the project and choose Reconnect repository."
+      : "Use the existing project. No new token was created."}</p>}
+    <Link className="self-start text-sm underline underline-offset-2" href={projectPath(state.slug)}>Open /p/{state.slug}</Link>
+  </section>;
 }
 
 export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFailed }: Props) {
@@ -115,17 +128,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
     </div>
   );
 
-  if (state.status === "created") {
-    return (
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold tracking-tight">Project created</h2>
-        <TokenReveal token={state.token} mcpUrl={mcpUrl} />
-        <Link className="self-start text-sm underline underline-offset-2" href={projectPath(state.slug)}>
-          Open /p/{state.slug}
-        </Link>
-      </section>
-    );
-  }
+  if (state.status === "created" || state.status === "existing" || state.status === "disconnected") return <ProjectRegistrationResult state={state} mcpUrl={mcpUrl} />;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">

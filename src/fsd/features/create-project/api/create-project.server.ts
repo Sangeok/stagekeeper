@@ -3,11 +3,12 @@ import { newToken } from "@harness/core/token.mjs";
 import { Prisma } from "@/generated/prisma/client";
 import { requireUser } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { withAvailabilityTransaction } from "@/server/project-availability-service";
+import { AvailabilityConflict, withAvailabilityTransaction } from "@/server/project-availability-service";
 import { registerProjectResultIn } from "@/server/project-registration-query";
 import type { CreateProjectState } from "../model/create-project-state";
 import { RESERVED_SLUGS, SLUG_ERROR, SLUG_RE } from "../model/project-slug";
 import { SEGMENT } from "../model/repo-url";
+import { toCreateProjectState } from "../model/create-project-result";
 
 const field = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
@@ -28,7 +29,6 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
   if (!SEGMENT.test(owner) || !SEGMENT.test(repo)) {
     return { status: "error", error: "GitHub owner and repo must be GitHub names — letters, numbers, dots, dashes, underscores." };
   }
-  if (await prisma.project.findUnique({ where: { slug }, select: { id: true } })) return { status: "error", error: `'${slug}' is already taken.` };
   const { plain, hash } = newToken();
   try {
     // 상한 검사와 생성은 한 트랜잭션이다 — 따로 두면 동시에 온 두 요청이 둘 다 "아직 여유 있음"을
@@ -42,15 +42,14 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
       branch,
       initialTokenHash: hash,
     }));
-    if (result.status === "capped") return { status: "error", error: result.reason };
+    return toCreateProjectState(result, plain);
   } catch (error) {
-    // 위 findUnique 이후에 다른 요청이 같은 slug를 먼저 넣었을 때 — 같은 답을 준다.
+    if (error instanceof AvailabilityConflict) return { status: "error", error: error.message };
+    // 전역 slug의 저장 경쟁은 현재 Prisma adapter의 두 metadata 형태를 모두 처리한다.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
       && JSON.stringify(error.meta?.target ?? error.meta?.driverAdapterError ?? "").includes("slug")) {
       return { status: "error", error: `'${slug}' is already taken.` };
     }
     throw error;
   }
-  console.info("project-availability:registration", { userId });
-  return { status: "created", slug, token: plain }; // 평문은 이 응답에만 존재한다. 저장하지 않는다.
 }

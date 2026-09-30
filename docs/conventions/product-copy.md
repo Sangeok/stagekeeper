@@ -520,6 +520,23 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 - Recovery: `This project is not selected for use. Open Stagekeeper → Projects and choose “Use this project”.`
   Integrity failure: `Project ownership is unavailable.` Neither is a token-authentication failure.
 
+- Connection groups: **Connected** / **Disconnected**, with a separate `0 / 1 connected` count
+  (`unlimited` for Max). Only connected projects have **Use this project**.
+  Empty Connected: `No connected repositories. Connect a new repository or reconnect a preserved project below.`
+  Empty Disconnected: `No disconnected repositories.`
+- **Disconnect repository** / **Reconnect repository** open a confirmation with **Cancel**; pending is **Updating…**.
+  Disconnect shows `{n} open board items · {n} open agent runs.` and explains retained read-only data,
+  revoked hs_/ho_, retained hu_, stopped new requests, already approved requests, and local Claude Code continuing.
+  Reconnect shows connected/cap counts, preserved data/settings, retained hu_, and issuing new hs_/ho_.
+- Success: `Repository disconnected` / `Repository reconnected`.
+  Stale: `Your project list changed. Review the latest connection details and try again.`
+  Unknown response: `Couldn't confirm the result. Refresh to check the latest repository connection.`
+  Both close confirmation and refresh; neither resubmits automatically.
+- Disabled: `Repository connection changes are temporarily unavailable.`
+  Recovery: `This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.`
+  The current detail title/tabs/History remain visible. Inbox read-only badges are **Disconnected**,
+  **Not selected**, or **Read only**, matching the access reason; mutation controls and execution guidance are hidden.
+
 - List at `/projects`: title **Projects**, button **New project**. Empty: "No projects yet. Connect a
   repository to get a board, a backlog, and an inbox."
 - **New project**
@@ -534,6 +551,8 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
   - Button **Create project** / "Creating…". Footnote: "Stagekeeper doesn't read the
     repository. It only uses the name and the default branch."
   - Success: **Project created** + token reveal + link "Open /p/mathgic"
+  - Existing: **Project already connected** + `Use the existing project. No new token was created.` + link using the stored slug, without token reveal.
+  - Disconnected existing: **Repository disconnected** + `Your data is preserved. Open the project and choose Reconnect repository.` + stored-slug link, without token reveal.
   - Errors: "Slug must be 2–40 lowercase letters, numbers, or dashes." · "'new' is reserved." ·
     "GitHub owner and repo are required." · "GitHub owner and repo must be GitHub names —
     letters, numbers, dots, dashes, underscores." · "'mathgic' is already taken."

@@ -45,6 +45,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
+| `rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale·flag=false와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
 | `verify-fsd-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `retired-copy.test.mjs` | `npm run test:architecture` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
@@ -60,6 +61,32 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `recovery/individual-project-availability-d3/restore-d2-shadow.sql` | 위 복구 CLI | D3 commit 뒤 D2 호환 복구 | 현재 direct owner에서 legacy shadow를 transaction으로 재구성. 일반 migration path에는 없음 |
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
+
+## 저장소 연결 해제 검증
+
+`npm run test:server:integration`은 전체 이전 SQL 체인을 격리 schema에서 재생하고 18개 테이블의
+채운 데이터를 보존하는 additive migration, catalog capability의 일부 적용 거부, 실제 REST/MCP,
+User 잠금 경쟁과 rollback을 검사한다. 경쟁 시험은 첫 writer의 실제 User 잠금을 유지한 채 두 번째가
+잠금 SQL을 시도한 것을 확인하고 풀어 준다. raw lock의 P2010/40001·40P01과 delegate P2034는 같은
+최대 3회 transaction 재시도 경계를 사용한다.
+
+```powershell
+# TEST_DATABASE_URL은 stagekeeper_test_*이며 .env의 DATABASE_URL과 별도인 격리 DB.
+npm run test:server:integration
+npm run build
+$env:RDC_CHECK_ACTION_MANIFEST = 'true'
+npm run test:server
+Remove-Item Env:RDC_CHECK_ACTION_MANIFEST
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-repository-disconnection.ts --transport-loss
+# 화면 확인은 --interactive. Enter 또는 http://127.0.0.1:55439/finish로 서버/fixture를 정리한다.
+```
+
+AST와 새 build manifest는 loader가 원격 action이 아니며 두 mutation만 등록됨을 확인한다.
+실제 POST는 같은 action ID·본문·Origin/Host의 소유자 성공 대조군으로 유효한 transport를 먼저 증명한다.
+리허설은 부모 DB 분리 검사를 통과한 뒤 child의 DATABASE_URL/TEST_DATABASE_URL만 테스트 DB로 맞춘다.
+운영 활성화의 BLK-RDC-01/02는 로컬 통과로 해소되지 않는다. 절차는
+[repository-disconnection.md](./repository-disconnection.md), 실행 기록은
+[검증 보고서](../test-reports/active/2026-09-27-repository-disconnection.md)를 따른다.
 
 ## 문구 잠금
 

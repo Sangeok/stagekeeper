@@ -7,7 +7,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
-import { repositoryOwner } from "@/server/project-access-query";
+import { DISCONNECTED_REASON, ProjectIntegrityError, repositoryOwner } from "@/server/project-access-query";
 import { AvailabilityConflict, withAvailabilityTransaction } from "@/server/project-availability-service";
 import { registerProjectResultIn } from "./project-registration-query";
 import { REPO_SEGMENT } from "./project-slug-rule";
@@ -19,7 +19,7 @@ import { findUserTokenByHash } from "./user-scope-query";
 // 생성기가 git에서 읽은 값과 서버 값을 반씩 섞게 되어, 웹에서 이름을 바꾼 프로젝트가 어긋난다.
 export type RegisterProjectResponse =
   | { ok: true; created: boolean; project: { owner: string; repo: string; branch: string; name: string; slug: string } }
-  | { ok: false; status: 400 | 401 | 403 | 409; reason: string };
+  | { ok: false; status: 400 | 401 | 403 | 409; reason: string; reconnectSlug?: string };
 
 const field = (body: unknown, key: string): string | null => {
   if (typeof body !== "object" || body === null) return null;
@@ -61,21 +61,25 @@ export async function registerProject(
     try {
       const result = await withAvailabilityTransaction(prisma, (tx) => registerProjectResultIn(tx, input));
       if (result.status === "capped") return { ok: false, status: 403, reason: result.reason };
+      if (result.status === "integrity") return { ok: false, status: 409, reason: result.reason };
+      if (result.status === "disconnected") return { ok: false, status: 409, reason: result.reason, reconnectSlug: result.slug };
       // 트랜잭션 밖의 읽기 하나. branch는 OWNED_PROJECT_SELECT에 없어 스냅샷에서 꺼낼 수 없다.
       const row = await prisma.project.findUnique({
         where: { id: result.projectId },
-        select: { repoOwner: true, repo: true, branch: true, name: true, slug: true },
+        select: { repoOwner: true, repo: true, branch: true, name: true, slug: true, disconnectedAt: true },
       });
       if (!row) return { ok: false, status: 409, reason: "the project vanished while registering — try again" };
+      if (row.disconnectedAt != null) return { ok: false, status: 409, reason: DISCONNECTED_REASON, reconnectSlug: row.slug };
       return {
         ok: true,
         created: result.status === "created",
         project: { owner: repositoryOwner(row.repoOwner), repo: row.repo, branch: row.branch, name: row.name, slug: row.slug },
       };
     } catch (error) {
+      if (error instanceof ProjectIntegrityError) return { ok: false, status: 409, reason: error.message };
       if (error instanceof AvailabilityConflict) return { ok: false, status: 409, reason: error.message };
       const collided = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
-        && JSON.stringify(error.meta?.target ?? "").includes("slug");
+        && JSON.stringify(error.meta?.target ?? error.meta?.driverAdapterError ?? "").includes("slug");
       if (!collided || attempt === 1) throw error;
     }
   }

@@ -6,6 +6,13 @@ import { isGateId } from "@harness/core/pipeline.mjs";
 import { needsHumanDecision } from "./gate-source";
 
 export type GateEntry = { runId: string; entryId: string };
+export type InboxReadOnlyLabel = "Disconnected" | "Not selected" | "Read only";
+
+export function inboxReadOnlyLabel(access: { available: boolean; code?: "disconnected" | "not-selected" | "integrity" }): InboxReadOnlyLabel {
+  if (!access.available && access.code === "disconnected") return "Disconnected";
+  if (!access.available && access.code === "not-selected") return "Not selected";
+  return "Read only";
+}
 export type InboxItem = {
   format?: string | null;
   gateEntry?: GateEntry;

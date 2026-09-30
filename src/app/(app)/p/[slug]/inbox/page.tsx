@@ -1,4 +1,5 @@
 import { approveGate, discardItem, humanTransition, loadInboxItems } from "@/fsd/features/review-gate/index.server";
+import { inboxReadOnlyLabel } from "@/fsd/features/review-gate";
 import { ProjectInboxPage } from "@/fsd/pages/project-inbox";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { projectAccess } from "@/server/entitlement";
@@ -18,6 +19,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/inbox">) {
       approve={approveGate.bind(null, slug)}
       discard={discardItem.bind(null, slug)}
       canWrite={access.available}
+      readOnlyLabel={inboxReadOnlyLabel(access)}
     />
   );
 }

@@ -18,7 +18,7 @@
 | --- | --- |
 | `200` | `{ templates, entitlement: { plan, agents } }`. 에이전트는 스텁, 보고 에이전트·런북은 플랜에 맞춰 제공 |
 | `401` | 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음. **`hu_`인데 `?project=`가 없으면 여기다** — `project required: send harness.json project.slug as project on every request. If the slug is missing, recover it with /harness:init; if it is already set, update the harness plugin or include project in the MCP call.` |
-| `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존. **`hu_`가 남의 슬러그를 가리키면 `not the owner of this project`** — 없는 슬러그도 같은 문장이다 |
+| `403` | 인증은 성공했지만 프로젝트가 해제되었거나 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존. **`hu_`가 남의 슬러그를 가리키면 `not the owner of this project`** — 없는 슬러그도 같은 문장이다 |
 | `404` | 요청한 언어의 템플릿이 없음 |
 
 위 4xx 응답은 `{ error: string }`이다. MCP 도구의 `isError` 응답과 별개의 HTTP 계약이다.
@@ -41,7 +41,7 @@
 | --- | --- |
 | `200` | `{ project: { owner, repo, branch, name, slug } }`. `slug`는 `harness.json`의 `project.slug`가 되어 이후 `hu_` 호출이 프로젝트를 지목하는 데 쓴다. **`language`는 담지 않는다** — 그 값을 `harness.json`으로 옮기면 템플릿 요청이 없는 언어를 물어 404가 된다 |
 | `401` | 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음. **`hu_`인데 `?project=`가 없으면 여기다**(`project required: …`) |
-| `403` | 인증은 성공했지만 프로젝트가 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존 |
+| `403` | 인증은 성공했지만 프로젝트가 해제되었거나 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존 |
 
 언어에 매이지 않으므로 `404`가 없다. 구버전 서버에는 이 경로 자체가 없어 플러그인이 404를 받고,
 그때는 사용자에게 `owner`·`repo`·`branch`를 물어 진행한다. 위 4xx 응답은 `{ error: string }`이다.
@@ -54,10 +54,33 @@
 
 공통 사유: `This project is not selected for use. Open Stagekeeper → Projects and choose “Use this project”.`
 토큰 인증은 유지하며 다른 도구나 templates/runbook 접근으로 우회할 수 없다.
+연결 해제는 별도 상태다. 유효한 hu_로 자기 프로젝트를 지정해도 `project_get`을 포함한 agent 14개와
+owner `gate_approve`가 domain 호출 전에 `{ error }`만 반환한다. 정확한 사유는
+`This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.`다.
+인증 → 호출자 프로젝트 범위 → 접근 상태 → domain 순서를 유지한다. 해제 시 폐기된 hs_/ho_는 일반 401로
+거부하며 해제 사유나 repository 정보를 노출하지 않는다. hu_의 소유 범위 조회에서 해제된 행을 숨기지 않는다.
 `project_sync` 성공은 Workspace/language/lastSyncedAt을 같은 transaction에 저장한다. 거부·실패는 모두 불변이다.
 `POST /api/runbook`은 같은 access 이후 12자리 소문자 hex version을 검사한다. 실패 상태는 401/403/400,
 성공 body는 `{ ok: true }`다. 이 요청은 lastSyncedAt을 변경하지 않는다. 이 경로에는 쿼리 문자열이 없으므로
 `hu_`는 프로젝트를 **본문**으로 준다(`{ version, project }`) — 없으면 401(`project required: …`)이다.
+
+## 저장소 등록·연결 전이
+
+`POST /api/projects`는 hu_ 인증과 동일 소유자 repository의 대소문자 비교를 transaction 안에서 수행한다.
+연결된 기존 repo는 저장된 실제 slug를 반환하고 새 행이나 토큰을 만들지 않는다. 해제된 기존 repo는
+409 `{ error: <해제 사유>, reconnectPath: "/p/<실제 slug>" }`로 웹 재연결을 안내한다. cap·무결성 등
+다른 실패는 `{ error }`만 반환한다. 중복 repo가 2개 이상이면 임의로 하나를 골라 URL을 노출하지 않는다.
+새 등록 한도는 연결된 개수다. 다운그레이드로 초과한 연결 기록은 보존한다.
+
+disconnect/reconnect는 bearer REST/MCP가 아니라 requireUser로 인증한 웹 Server Action 두 개다.
+입력은 targetProjectId와 expectedVersion이며 userId는 세션에서만 얻는다. 최신 버전의 반복은 no-op,
+오래된 버전은 no-op 전에 stale이다. 서버 스위치가 꺼져도 기존 해제 상태의 접근 차단은 유지한다.
+웹 상세 7개 GET과 History는 소유자의 보존 기록 조회 경로다. 전체 계약은
+[repository-disconnection.md](./repository-disconnection.md)를 따른다.
+
+플러그인 0.3.6은 응답의 실제 사유와 소유자 reconnectPath를 보존한다. 401/403/409를 offline이나 404
+호환 경로로 우회하지 않는다. templates 거부는 파일 생성 전에 중단하고, 이미 허용된 파일 생성 뒤
+runbook 거부는 생성 파일을 보존하되 후속 MCP 등록·sync·성공 보고를 중단하도록 경고한다.
 
 ## MCP 도구 계약 — 에이전트 토큰 스코프
 

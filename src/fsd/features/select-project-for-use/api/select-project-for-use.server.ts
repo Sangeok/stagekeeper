@@ -11,7 +11,7 @@ const inputSchema = z.object({ targetProjectId: z.string().min(1), replacementPr
 
 export async function loadProjectSelection(userId: string): Promise<ProjectSelectionModel> {
   const view = await loadProjectAvailability(userId);
-  return { plan: view.plan, limit: view.limit, version: view.version, availableCount: view.availableCount, projects: view.projects };
+  return { plan: view.plan, limit: view.limit, version: view.version, availableCount: view.availableCount, projects: view.projects.filter((p) => p.disconnectedAt === null) };
 }
 
 export async function selectProject(input: z.input<typeof inputSchema>): Promise<SelectProjectState> {

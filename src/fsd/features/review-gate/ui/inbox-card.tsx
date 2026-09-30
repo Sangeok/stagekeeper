@@ -18,17 +18,17 @@ import {
   resumePrimaryFor,
   type RejectAction,
 } from "../model/gate-text";
-import { gateCardKey, slotGateEntry, type DiscardAction, type GateAction, type InboxItem, type TransitionAction } from "../model/inbox-item";
+import { gateCardKey, slotGateEntry, type DiscardAction, type GateAction, type InboxItem, type InboxReadOnlyLabel, type TransitionAction } from "../model/inbox-item";
 import { GateCardLock } from "./gate-card-lock";
 import { InboxCardBoundary } from "./inbox-card-boundary";
 import { GateTransitionButton } from "./gate-transition-button";
 import { RejectActions } from "./reject-actions";
 import { ResumeButtons } from "./resume-buttons";
 
-type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite: boolean };
+type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite: boolean; readOnlyLabel?: InboxReadOnlyLabel };
 
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
-export function InboxCard({ item, now, transition, approve, discard, canWrite }: Props) {
+export function InboxCard({ item, now, transition, approve, discard, canWrite, readOnlyLabel = "Not selected" }: Props) {
   // 잠긴 프로젝트에서는 아무 결정도 내릴 수 없다. 게이트·재개·반려·폐기를 모두 감추고 칩만 남긴다 —
   // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
   // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
@@ -75,7 +75,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
               <ExternalButtonLink href={item.planUrl}>Read the plan ↗</ExternalButtonLink>
             ) : null}
             {!canWrite ? (
-              <span className="rounded-full border border-rule px-3 py-1 text-xs text-quiet">Not selected</span>
+              <span className="rounded-full border border-rule px-3 py-1 text-xs text-quiet">{readOnlyLabel}</span>
             ) : null}
             {gate !== null && canWrite ? (
               <GateTransitionButton
@@ -104,7 +104,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
 
         {canWrite ? <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} /> : null}
 
-        <details className="text-xs text-quiet">
+        {canWrite ? <details className="text-xs text-quiet">
           <summary className="cursor-pointer">What this decision does</summary>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
@@ -131,7 +131,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite }:
           <p className="mt-2">
             More in the repo: <Code>docs/architecture/protocol.md</Code>
           </p>
-        </details>
+        </details> : null}
         </article>
       </GateCardLock>
     </InboxCardBoundary>

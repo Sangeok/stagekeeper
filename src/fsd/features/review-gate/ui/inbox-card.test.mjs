@@ -4,13 +4,23 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { InboxCard } from "./inbox-card.tsx";
+import { inboxReadOnlyLabel } from "../model/inbox-item.ts";
 
-const render = (item) => {
+const render = (item, props = {}) => {
   const action = async () => ({ success: true });
   return renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: { refresh() {} } },
     createElement(InboxCard, { item, now: item.updatedAt,
-      transition: action, approve: action, discard: action, canWrite: true })));
+      transition: action, approve: action, discard: action, canWrite: true, ...props })));
 };
+
+it("uses the precise readonly label and hides every write control and execution guidance", () => {
+  for (const [code, label] of [["disconnected", "Disconnected"], ["not-selected", "Not selected"], ["integrity", "Read only"]]) {
+    const html = render(inReview("before-implement", null), { canWrite: false, readOnlyLabel: inboxReadOnlyLabel({ available: false, code }) });
+    assert.ok(html.includes(`>${label}</span>`));
+    for (const other of ["Disconnected", "Not selected", "Read only"].filter((value) => value !== label)) assert.ok(!html.includes(`>${other}</span>`));
+    assert.doesNotMatch(html, /Approve implementation|Request plan|Continue<|Send back|Discard|Resume|Approving lets dev|run dev in Claude Code/);
+  }
+});
 
 const inReview = (gate, validation) => ({ key: "ITEM-02", title: "Replay the trick steps", type: "feat", area: "component/",
   agent: "web-dev", status: "in_review", gate, reason: "Users asked for it", results: [], validation,

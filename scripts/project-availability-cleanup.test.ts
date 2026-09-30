@@ -26,6 +26,16 @@ function facts(mode: "pre" | "post"): CleanupFacts {
 }
 
 describe("validateCleanupFacts", () => {
+  it("permits zero availability only with the complete RDC capability and keeps partial states fail closed", () => {
+    const input = facts("post"); input.projects[0].available = false; input.latestEvents[0].availableProjectIds = [];
+    assert.ok(validateCleanupFacts(input).some((issue) => issue.code === "empty-available-set"));
+    input.connectionCapability = "complete"; input.projects[0].disconnectedAt = new Date();
+    assert.deepEqual(validateCleanupFacts(input), []);
+    input.connectionCapability = "partial";
+    assert.ok(validateCleanupFacts(input).some((issue) => issue.code === "repository-connection-schema-partial"));
+    input.connectionCapability = "complete"; input.projects[0].available = true; input.latestEvents[0].availableProjectIds = ["project"];
+    assert.ok(validateCleanupFacts(input).some((issue) => issue.code === "disconnected-project-available"));
+  });
   it("accepts exact D2 pre-cleanup and D3 post-cleanup states", () => {
     assert.deepEqual(validateCleanupFacts(facts("pre")), []);
     assert.deepEqual(validateCleanupFacts(facts("post")), []);

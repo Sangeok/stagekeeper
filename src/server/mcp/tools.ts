@@ -112,7 +112,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const { projectId } = s;
     // 선택되지 않은 프로젝트에서도 답한다 — 401이 사유를 못 실으므로 사유를 알 수 있는 유일한 창구다.
     const access = await deps.access(projectId);
-    if (!access.available && access.code === "integrity") return fail(access.reason);
+    if (!access.available && access.code !== "not-selected") return fail(access.reason);
     const project = await deps.projectGet(projectId);
     return text(access.available ? { ...project, available: true } : { ...project, available: false, reason: access.reason });
   });

@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-29"
 approved-by: "요청자 (현재 대화)"
 approved-at: "2026-09-30"
 approval-scope: "Core와 §G 구현 및 2026-09-30 후속 요청: Items 기본 보기, ITEM별 요약/펼침, 독립 페이지네이션"
-completed-at: null
-verification-summary: null
+completed-at: "2026-09-30"
+verification-summary: "History 탭과 Items 기본 보기·항목별 요약/펼침·독립 페이지네이션 구현 완료. check, verify:fsd, architecture 25, core 187, web 442, server 13, 실제 PostgreSQL 통합 37 및 production build 통과. 격리 DB·합성 서명 세션의 production 브라우저에서 목록/상세 페이지, 인가, Free HTML/RSC, 모바일 탐색 검증. PR #87의 check 성공 후 dev에 머지됨. 실제 GitHub OAuth, 선택 제외 프로젝트의 브라우저 접근, 전체 오류/retry 인수는 미실행 후속 점검으로 남김."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -21,6 +21,14 @@ related:
 ---
 
 # 프로젝트 History 탭 — 감사 로그를 프로젝트 단위로 읽는다
+
+## 완료 기록의 기준
+
+2026-09-30에 승인된 구현을 완료하고 [PR #87](https://github.com/Sangeok/stagekeeper/pull/87)을
+CI `check` 성공 후 `dev`에 머지했다. 이 문서는 구현 및 수행한 검증의 완료 기록이다.
+최초 검증 계획의 모든 수동 인수가 통과했다는 의미는 아니며, 미실행 인수는 아래 결과와 후속 점검에 구분한다.
+아래 최초 설계·검증 계획·Definition of Done은 판단 근거로 보존하고, 실제 구현 중 달라진 범위와 결과는
+후속 승인 및 Verification Results를 따른다.
 
 ## 2026-09-30 후속 승인 — 항목별 보기
 
@@ -39,7 +47,7 @@ related:
 - 요약·상세 모두 기존 요금제 cutoff를 적용한다. 오래된 이력만 있는 항목은 Free 목록에 나타나지 않으며 잘림 안내는 남긴다.
 - 신규 및 기존 실제 PostgreSQL 통합 시험 37개, 프로덕션 앱의 합성 시험 세션·DB 브라우저 탐색을 통과했다.
   상세 결과·화면·정리는 [후속 검증 보고서](../../test-reports/completed/2026-09-30-history-items-regression.md)를 따른다.
-  실제 GitHub OAuth 로그인과 원래 V7의 전체 오류/retry 인수는 이번 검증 범위에 포함하지 않았으므로 최초 제안서 상태는 pending이다.
+  실제 GitHub OAuth 로그인과 원래 V7의 전체 오류/retry 인수는 미실행이며 아래 후속 점검에 남긴다.
 
 ## Summary
 
@@ -515,7 +523,7 @@ rg -n 'HistoryList|toHistoryRows|HISTORY_TRUNCATED_NOTE|HistoryEventInput|Histor
 ```
 
 검색만으로 export·로컬 인수 식 제거·의미 보존을 증명하지 않는다. 위 공개 API 표와 V5 시험·diff로 함께 확인한다.
-이 문서의 `TBD`는 완료/닫힘 후 기록란에만 남긴다. 문구·화면의 구현 승인과 검토 기록은 Approval에 둔다.
+문구·화면의 구현 승인과 검토 기록은 Approval에 두고, 완료 후 실제 결과는 아래 기록에 남긴다.
 
 ## Definition of Done
 
@@ -525,21 +533,23 @@ rg -n 'HistoryList|toHistoryRows|HISTORY_TRUNCATED_NOTE|HistoryEventInput|Histor
 - 위젯 생성 뒤 V3·V4 재검증과 V7의 앱 DB·OAuth 소유자 일치, 별도 fixture 준비·정리·플랜 복원을 확인했다.
 - 공용 함수·위젯의 공개 export/소비자·옛 구현 제거와 Documents·Reopen·MCP·스키마 불변을 확인했다.
 - 탭·규약·copy-lock을 함께 반영했고 좁은 화면에서도 전 탭에 접근한다. 묶음 0 승인 내용을 반영했다.
-- DB·브라우저 시험 미실행을 완료로 표시하지 않는다. pending 상태는 실제 구현·검증 완료 전까지 유지한다.
+- DB·브라우저 시험 미실행을 통과로 표시하지 않는다. 실제 수행 결과와 남은 인수는 아래 완료 기록에서 구분한다.
 
 ## Verification Results
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| V1 | Pass | check(lint·typegen·tsc·아키텍처), verify:fsd, test 187개, test:web 437개, test:server 10개, production build |
+| V1 | Pass | check(lint·typegen·tsc·아키텍처·availability), verify:fsd, architecture 25개, test 187개, test:web 442개, test:server 13개, production build. PR #87 CI check 성공 |
 | V2·V5·V8 | Pass | 순수 커서·행 모델·두 화면 렌더·공개 API·문구 잠금·옛 구현 제거. 모바일 탭 스크롤의 세로 넘침과 랜딩 grid 폭도 렌더 후 수정 |
-| V3·V4 | Partial / DB Not run | DB 없는 조회 조합과 실제 cutoff 시험 통과. 격리 PostgreSQL 통합 시험은 작성·타입 검사 완료, TEST_DATABASE_URL 없음 |
-| V6 | Partial | 실제 route 본문을 격리 실행해 guard 실패 시 조회 중단·owner id 전달·검색값 처리 검증. 실제 서버 미로그인 redirect 확인. 로그인 owner/타인/선택 제외 접근은 미실행 |
-| V7 | Partial / authenticated E2E Not run | 실제 컴포넌트와 build CSS의 정적 fixture를 360/800px·라이트/다크로 검토. 실제 DB·OAuth 세션·HTML/RSC 조회 창·오류 retry는 미실행 |
+| V3·V4 | Pass | 실제 격리 PostgreSQL 통합 시험 37개 통과. 기존 이벤트 조회·중복 제거·커서·요금제 창 및 신규 ITEM 집계·폐기/과거 회차·프로젝트 격리 확인 |
+| V6 | Partial | route 계약 시험 통과. 격리 DB·합성 서명 세션의 production 앱에서 소유자 조회, 미로그인 redirect, 타인/없는 프로젝트 404 확인. 선택 제외 프로젝트의 브라우저 접근은 미실행 |
+| V7 | Partial | production 앱에서 Items 50→6, 상세 50→17→50, 보기/필터 전환, Free HTML/RSC의 오래된 이력 제외, 360px dark 키보드 및 800px light 화면 검증. 실제 GitHub OAuth와 최초 계획의 전체 오류/retry 인수는 미실행 |
 
-이번 요청에서 사용자는 시험 환경이 없으며 가능한 자동 검증을 진행하도록 답했다.
-자세한 실행 근거·정리·잔여 항목은 [검증 보고서](../../test-reports/completed/2026-09-30-project-history-tab-regression.md)에 있다.
-Core 코드는 구현했으나 V3·V4·V6·V7의 실제 환경 인수가 남아 있으므로 `completed`로 바꾸지 않는다.
+초기에는 시험 환경이 없어 DB·인가 렌더 검증을 수행하지 못했다.
+[초기 보고서](../../test-reports/completed/2026-09-30-project-history-tab-regression.md)는 그 시점의 `blocked` 기록으로 보존한다.
+이후 임시 PostgreSQL과 별도 production 앱을 마련해 검증한 최종 근거·화면·정리는
+[후속 보고서](../../test-reports/completed/2026-09-30-history-items-regression.md)에 있다.
+인가 렌더는 합성 서명 세션으로 수행했으며 실제 OAuth 로그인 인수와 구분한다.
 
 ## Risks and Rollback
 
@@ -561,18 +571,12 @@ Core 코드는 구현했으나 V3·V4·V6·V7의 실제 환경 인수가 남아 
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+완료 기록:
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-09-30
+- verification-summary: 위 Verification Results와 후속 보고서 참조. 자동 검사·실제 DB·production 앱 검증 완료, V6·V7의 미실행 범위는 별도 기록.
+- implementation PR/commit: [PR #87](https://github.com/Sangeok/stagekeeper/pull/87), 구현 `d0c10779a7323bc854692b367783bdf1db949f3d`, dev 머지 `139f05b7c6747f66d9256a2bf081f8867a9f5f71` (2026-09-30).
+- changed files summary: 서버의 프로젝트 이벤트/ITEM 조회·커서, History route, FSD 공용 History 위젯 및 두 화면, 탭·제품 문구, 단위/서버/DB 시험과 검증 보고서.
+- remaining follow-up: 실제 GitHub OAuth 로그인 및 그 소유자와 fixture의 일치, 선택 제외 프로젝트의 브라우저 접근, 최초 V7의 전체 오류/retry·플랜 전환/복원 인수. 미실행 항목을 통과로 계산하지 않는다. 운영 규모의 조회 계획·성능 및 기존 공용 헤더의 좁은 화면 넘침도 후속 점검 대상이다.
 
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+닫힘 기록: 해당 없음(구현 완료).

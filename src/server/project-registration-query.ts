@@ -1,6 +1,7 @@
 import { capError } from "@harness/core/entitlement.mjs";
 import type { Prisma } from "@/generated/prisma/client";
-import { appendAvailabilityEventIn, readOwnerAvailabilityIn } from "./project-availability-service";
+import { appendAvailabilityEventIn, findOwnedRepository, lockProjectOwnerIn, readOwnerAvailabilityIn, type OwnerAvailability } from "./project-availability-service";
+import { DISCONNECTED_REASON, ProjectIntegrityError } from "./project-access-query";
 import { availableSlug, slugCandidate } from "./project-slug-rule";
 
 export type RegisterProjectInput = {
@@ -23,24 +24,38 @@ export type RegisterProjectResult =
   | { status: "created"; projectId: string; slug: string }
   // 같은 (ownerUserId, repoOwner, repo)가 이미 있다. 생성하지 않고 그것을 돌려준다.
   | { status: "existing"; projectId: string; slug: string }
+  | { status: "disconnected"; slug: string; reason: string }
+  | { status: "integrity"; reason: string }
   | { status: "capped"; reason: string };
 
-// 좁은 형태 — 상한 문구를 돌려주고 null이면 성공이다(src/server의 다른 결과 계약과 극성이 반대다).
+// 호환 adapter — created/existing이면 null, 그 밖에는 해당 실패 사유를 돌려준다.
 // D3 리허설 스크립트(scripts/rehearse-project-availability-d3.ts) 전용으로 남아 있다 — 새 호출자는 registerProjectResultIn.
 export async function registerProjectIn(
   transaction: Prisma.TransactionClient,
   input: RegisterProjectInput,
 ): Promise<string | null> {
   const result = await registerProjectResultIn(transaction, input);
-  return result.status === "capped" ? result.reason : null;
+  return result.status === "created" || result.status === "existing" ? null : result.reason;
 }
 
-// 위 함수의 넓은 형태. 웹 폼과 등록 라우트가 쓴다 — 웹 폼은 capped만 거부로 보고, 등록 라우트는 멱등 결과까지 본다.
+// 웹 action과 등록 route가 모든 discriminated 결과를 매핑한다. 기존/해제된 repository에는 새 행이나 token을 만들지 않는다.
 export async function registerProjectResultIn(
   transaction: Prisma.TransactionClient,
   input: RegisterProjectInput,
 ): Promise<RegisterProjectResult> {
-  const owner = await readOwnerAvailabilityIn(transaction, input.userId);
+  await lockProjectOwnerIn(transaction, input.userId);
+  let owner: OwnerAvailability;
+  // A business failure may be returned only before the first write.
+  try {
+    owner = await readOwnerAvailabilityIn(transaction, input.userId);
+    const existing = findOwnedRepository(owner.projects, input.owner, input.repo);
+    if (existing) return existing.disconnectedAt != null
+      ? { status: "disconnected", slug: existing.slug, reason: DISCONNECTED_REASON }
+      : { status: "existing", projectId: existing.id, slug: existing.slug };
+  } catch (error) {
+    if (error instanceof ProjectIntegrityError) return { status: "integrity", reason: error.message };
+    throw error;
+  }
 
   // **멱등성.** 같은 저장소를 다시 등록하면 새로 만들지 않고 기존 행을 돌려준다 —
   // /harness:init의 재실행은 정상 흐름이고(런북 갱신·플랜 변경), 이 조회가 없으면
@@ -49,12 +64,9 @@ export async function registerProjectResultIn(
   // **추가 쿼리가 아니다.** readOwnerAvailabilityIn이 이미 같은 트랜잭션·같은 스냅샷에서
   // 그 사용자의 모든 프로젝트를 OWNED_PROJECT_SELECT로 읽어 두었고 거기 repoOwner·repo가 있다.
   // 스키마에 @@unique([ownerUserId, repoOwner, repo])가 없으므로 트랜잭션 **밖** 조회는
-  // 무방비 read-then-create 경쟁이 된다 — Serializable 안에 있어야 두 번째 요청이 P2034로
-  // 직렬화 실패 후 재시도해 첫 요청이 만든 행을 본다.
-  const existing = owner.projects.find((p) => p.repoOwner === input.owner && p.repo === input.repo);
-  if (existing) return { status: "existing", projectId: existing.id, slug: existing.slug };
-
-  const capMessage = capError(owner.plan, "projects", owner.projects.length);
+  // 무방비 read-then-create 경쟁이 된다 — User 잠금과 Serializable 전체 재시도로
+  // 두 번째 요청이 첫 요청의 커밋을 보고 기존 행을 반환한다.
+  const capMessage = capError(owner.plan, "projects", owner.projects.filter((p) => p.disconnectedAt == null).length);
   if (capMessage) return { status: "capped", reason: capMessage };
 
   // 슬러그를 여기서 고른다 — 같은 Serializable 트랜잭션 안이라 "고른 뒤 만들기 전에 채이는" 창이 없다.

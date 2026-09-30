@@ -40,7 +40,12 @@ Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트
 개인 프로젝트는 한 사용자에게 직접 귀속된다. `project-access-query`가 직접 소유권과 저장된
 사용 가능 상태를 읽고 entitlement facade를 통해 웹/MCP/템플릿/런북에 같은 판정을 제공한다.
 `project-availability-service`는 등록·플랜·사용 목록의 원자적 변경과 원장을 소유한다.
-선택되지 않은 프로젝트는 웹 읽기·사용 선택·토큰 폐기와 agent MCP project_get만 허용한다.
+`project-connection-service`는 데이터 보존형 연결 해제·웹 재연결을, `project-token-service`는 잠금 안의
+새 credential 발급을 소유한다. 세 writer는 등록·플랜·사용 선택과 같은 User 행 잠금을 공유한다.
+연결된 미선택 프로젝트는 웹 읽기·사용 선택·토큰 폐기·연결 해제와 agent MCP project_get을 허용한다.
+해제된 프로젝트는 등록 상한을 점유하지 않고 소유자에게 읽기 전용으로 남는다. hs_/ho_는 폐기하고
+hu_는 보존하며 project_get을 포함한 새 연동 요청을 차단한다. 재연결은 기존 id/slug/데이터를 복원하는
+명시적 웹 동작이다. 상세 계약과 활성화 순서는 [repository-disconnection.md](./repository-disconnection.md)를 따른다.
 repoOwner는 GitHub 계정이며 외부 owner DTO로 변환한다. 개인 프로젝트의 ProjectMember와 legacy owner
 storage는 제거됐다. 복구가 필요하면 검토된 D2 보상 migration과 고정 artifact를 사용하며 일반 runtime은
 legacy 구조를 읽거나 쓰지 않는다.

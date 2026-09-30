@@ -22,6 +22,7 @@ export type CleanupProject = {
   repoOwner: string | null;
   legacyOwner: string | null;
   available: boolean;
+  disconnectedAt?: Date | null;
 };
 export type CleanupUser = { id: string; version: number; plan: string | null };
 export type CleanupMember = { projectId: string; userId: string; role: string };
@@ -36,6 +37,7 @@ export type CleanupFacts = {
   latestEvents: CleanupEvent[];
   eventArraysContainNull: boolean;
   migration: CleanupMigrationState;
+  connectionCapability?: "legacy" | "complete" | "partial";
 };
 export type CleanupIssue = { code: string; ref?: string };
 export type CleanupReport = {
@@ -46,12 +48,13 @@ export type CleanupReport = {
   preservedDataFingerprint: string;
   issues: CleanupIssue[];
   migration: CleanupMigrationState;
+  connectionCapability?: "legacy" | "complete" | "partial";
 };
 
 type TransactionHost = Pick<PrismaClient, "$transaction">;
 const ref = (value: string): string => createHash("sha256").update(value).digest("hex").slice(0, 12);
 const sorted = (values: readonly string[]): string[] => [...values].sort();
-const PRESERVED_TABLES = ["User", "Subscription", "Project", "ProjectAvailabilityEvent", "ProjectToken", "OwnerToken", "Workspace", "BacklogItem", "BoardItem", "TransitionEvent", "Report", "Template", "Command", "AgentRun", "AgentRunStep", "PipelineVersion", "PipelineRun"] as const;
+export const PRESERVED_TABLES = ["User", "Subscription", "Project", "ProjectAvailabilityEvent", "ProjectToken", "OwnerToken", "Workspace", "BacklogItem", "BoardItem", "TransitionEvent", "Report", "Template", "Command", "AgentRun", "AgentRunStep", "PipelineVersion", "PipelineRun"] as const;
 
 function catalogFingerprint(catalog: CleanupCatalog): string {
   return createHash("sha256").update(JSON.stringify(catalog)).digest("hex");
@@ -74,6 +77,10 @@ export function validateCleanupFacts(facts: CleanupFacts): CleanupIssue[] {
   if (!c.eventVersionUnique) issues.push({ code: "event-version-unique-missing" });
   if (facts.mode === "post" && c.eventArraysNullable) issues.push({ code: "event-arrays-nullable" });
   if (facts.eventArraysContainNull) issues.push({ code: "event-array-null" });
+  if (facts.connectionCapability === "partial") issues.push({ code: "repository-connection-schema-partial" });
+  if (facts.connectionCapability === "complete") {
+    for (const project of facts.projects) if (project.disconnectedAt != null && project.available) issues.push({ code: "disconnected-project-available", ref: ref(project.id) });
+  }
 
   const projectsByOwner = new Map<string, CleanupProject[]>();
   for (const project of facts.projects) {
@@ -104,7 +111,7 @@ export function validateCleanupFacts(facts: CleanupFacts): CleanupIssue[] {
     const available = owned.filter((project) => project.available).map((project) => project.id);
     const normalizedPlan = user.plan === "pro" || user.plan === "max" ? user.plan : "free";
     const cap = normalizedPlan === "free" ? 1 : normalizedPlan === "pro" ? 5 : Infinity;
-    if (owned.length > 0 && available.length === 0) issues.push({ code: "empty-available-set", ref: ref(user.id) });
+    if (facts.connectionCapability !== "complete" && owned.length > 0 && available.length === 0) issues.push({ code: "empty-available-set", ref: ref(user.id) });
     if (available.length > cap) issues.push({ code: "available-over-cap", ref: ref(user.id) });
     const event = facts.latestEvents.find((candidate) => candidate.ownerUserId === user.id);
     if (!event) {
@@ -132,6 +139,33 @@ type BoolRow = { value: boolean };
 type NullableRow = { columnName: string; nullable: "YES" | "NO" };
 type RuleRow = { deleteRule: string; updateRule: string };
 
+async function readConnectionCapabilityIn(tx: Prisma.TransactionClient): Promise<"legacy" | "complete" | "partial"> {
+  const columns = await tx.$queryRaw<Array<{ table: string; name: string; nullable: string; defaultValue: string | null; type: string }>>`
+    SELECT table_name AS "table", column_name AS name, is_nullable AS nullable, column_default AS "defaultValue", data_type AS type
+    FROM information_schema.columns WHERE table_schema = current_schema()
+    AND ((table_name = 'Project' AND column_name = 'disconnectedAt') OR (table_name = 'ProjectAvailabilityEvent' AND column_name = 'targetProjectId'))`;
+  const checks = await tx.$queryRaw<Array<{ definition: string; validated: boolean }>>`
+    SELECT pg_get_constraintdef(c.oid) AS definition, c.convalidated AS validated FROM pg_constraint c
+    JOIN pg_namespace n ON n.oid = c.connamespace
+    WHERE n.nspname = current_schema() AND c.conrelid = '"Project"'::regclass AND c.conname = 'Project_disconnected_available_check' AND c.contype = 'c'`;
+  const indexes = await tx.$queryRaw<Array<{ columns: string[]; valid: boolean; unique: boolean; predicate: string | null; expressions: string | null; keys: number; attributes: number }>>`
+    SELECT ARRAY(SELECT a.attname::text FROM unnest(i.indkey) WITH ORDINALITY k(attnum, ord)
+      JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum ORDER BY k.ord) AS columns,
+      i.indisvalid AS valid, i.indisunique AS "unique", pg_get_expr(i.indpred, i.indrelid) AS predicate,
+      pg_get_expr(i.indexprs, i.indrelid) AS expressions, i.indnkeyatts AS keys, i.indnatts AS attributes
+    FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid JOIN pg_namespace n ON n.oid = idx.relnamespace
+    WHERE n.nspname = current_schema() AND idx.relname = 'Project_ownerUserId_disconnectedAt_idx' AND i.indrelid = '"Project"'::regclass`;
+  if (columns.length === 0 && checks.length === 0 && indexes.length === 0) return "legacy";
+  const project = columns.find((c) => c.table === "Project" && c.name === "disconnectedAt");
+  const event = columns.find((c) => c.table === "ProjectAvailabilityEvent" && c.name === "targetProjectId");
+  const check = checks[0]; const index = indexes[0];
+  return columns.length === 2 && project?.nullable === "YES" && project.defaultValue === null && project.type === "timestamp without time zone"
+    && event?.nullable === "YES" && event.defaultValue === null && event.type === "text"
+    && checks.length === 1 && check.validated && check.definition.replace(/[\s()"]/g, "").toLowerCase() === "checkdisconnectedatisnulloravailable=false"
+    && indexes.length === 1 && index.valid && !index.unique && index.predicate === null && index.expressions === null && index.keys === 2 && index.attributes === 2
+    && JSON.stringify(index.columns) === JSON.stringify(["ownerUserId", "disconnectedAt"]) ? "complete" : "partial";
+}
+
 export async function readCleanupFactsIn(transaction: Prisma.TransactionClient, mode: CleanupMode): Promise<CleanupFacts> {
   const [memberTable, legacyOwnerColumn, nullability, eventArrayNullability, rules, availabilityIndex, eventVersionUnique] = await Promise.all([
     transaction.$queryRaw<BoolRow[]>`SELECT to_regclass('"ProjectMember"') IS NOT NULL AS value`,
@@ -144,6 +178,7 @@ export async function readCleanupFactsIn(transaction: Prisma.TransactionClient, 
   ]);
   const hasMember = memberTable[0]?.value === true;
   const hasLegacyOwner = legacyOwnerColumn[0]?.value === true;
+  const connectionCapability = await readConnectionCapabilityIn(transaction);
   if ((mode === "pre" && (!hasMember || !hasLegacyOwner)) || (mode === "post" && (hasMember || hasLegacyOwner))) {
     return { mode, catalog: {
       memberTable: hasMember, legacyOwnerColumn: hasLegacyOwner,
@@ -152,11 +187,13 @@ export async function readCleanupFactsIn(transaction: Prisma.TransactionClient, 
       eventArraysNullable: eventArrayNullability.some((row) => row.nullable !== "NO") || eventArrayNullability.length !== 3,
       ownerDeleteRule: rules[0]?.deleteRule ?? null, ownerUpdateRule: rules[0]?.updateRule ?? null,
       availabilityIndex: availabilityIndex[0]?.value === true, eventVersionUnique: eventVersionUnique[0]?.value === true,
-    }, projects: [], users: [], members: [], latestEvents: [], eventArraysContainNull: false, migration: null };
+    }, projects: [], users: [], members: [], latestEvents: [], eventArraysContainNull: false, migration: null, connectionCapability };
   }
   const projects = hasLegacyOwner
     ? await transaction.$queryRaw<CleanupProject[]>`SELECT id, "ownerUserId", "repoOwner", owner AS "legacyOwner", available FROM "Project"`
-    : await transaction.$queryRaw<CleanupProject[]>`SELECT id, "ownerUserId", "repoOwner", NULL::text AS "legacyOwner", available FROM "Project"`;
+    : connectionCapability === "complete"
+      ? await transaction.$queryRaw<CleanupProject[]>`SELECT id, "ownerUserId", "repoOwner", NULL::text AS "legacyOwner", available, "disconnectedAt" FROM "Project"`
+      : await transaction.$queryRaw<CleanupProject[]>`SELECT id, "ownerUserId", "repoOwner", NULL::text AS "legacyOwner", available FROM "Project"`;
   const users = await transaction.$queryRaw<CleanupUser[]>`SELECT u.id, u."projectAvailabilityVersion" AS version, s.plan FROM "User" u LEFT JOIN "Subscription" s ON s."userId" = u.id`;
   const members = hasMember
     ? await transaction.$queryRaw<CleanupMember[]>`SELECT "projectId", "userId", role FROM "ProjectMember"`
@@ -176,7 +213,7 @@ export async function readCleanupFactsIn(transaction: Prisma.TransactionClient, 
     eventArraysNullable: eventArrayNullability.some((row) => row.nullable !== "NO") || eventArrayNullability.length !== 3,
     ownerDeleteRule: rules[0]?.deleteRule ?? null, ownerUpdateRule: rules[0]?.updateRule ?? null,
     availabilityIndex: availabilityIndex[0]?.value === true, eventVersionUnique: eventVersionUnique[0]?.value === true,
-  }, projects, users, members, latestEvents, eventArraysContainNull: eventArrayNulls[0]?.value === true, migration: migrations[0] ?? null };
+  }, projects, users, members, latestEvents, eventArraysContainNull: eventArrayNulls[0]?.value === true, migration: migrations[0] ?? null, connectionCapability };
 }
 
 export async function preservedDataFingerprintIn(transaction: Prisma.TransactionClient): Promise<string> {
@@ -197,5 +234,5 @@ export async function inspectOwnershipCleanup(client: TransactionHost, mode: Cle
     return { facts: await readCleanupFactsIn(transaction, mode), preservedDataFingerprint: await preservedDataFingerprintIn(transaction) };
   }, CLEANUP_READ_OPTIONS);
   const issues = validateCleanupFacts(facts);
-  return { ok: issues.length === 0, mode, asOf: new Date().toISOString(), schemaFingerprint: catalogFingerprint(facts.catalog), preservedDataFingerprint, issues, migration: facts.migration };
+  return { ok: issues.length === 0, mode, asOf: new Date().toISOString(), schemaFingerprint: catalogFingerprint(facts.catalog), preservedDataFingerprint, issues, migration: facts.migration, connectionCapability: facts.connectionCapability };
 }

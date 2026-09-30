@@ -74,8 +74,8 @@
   판정은 `src/server/pipeline/board-rules.ts`의 `decideReportSubmit` 하나에 있다.
 - **사용 목록은 저장된 정확한 집합이다.** Project.available이 실제 권한 상태이며 매 조회마다 오래된 N개를
   계산하지 않는다. downgrade는 현재 목록에서 사용자 선택·에이전트 활동·sync·등록 순서로 줄이고,
-  upgrade는 목록을 보존한다. 등록 상한은 전체 소유 프로젝트를 센다.
-- **선택되지 않은 프로젝트의 연결은 보존한다.** 웹 읽기와 사용 선택·token revoke를 허용하며 그 밖의
+  upgrade는 목록을 보존한다. 등록·재연결 상한은 연결된 프로젝트만 센다. 연결 해제 뒤 0개 연결·0개 사용 가능도 정상이다.
+- **연결된 미선택 프로젝트의 연결은 보존한다.** 웹 읽기와 사용 선택·token revoke·연결 해제를 허용하며 그 밖의
   쓰기는 거부한다. agent MCP는 project_get만 허용하고 다른 읽기/쓰기·templates/runbook을 같은 이유로
   거부한다. 이미 access를 통과한 in-flight 요청은 완료될 수 있다. 선택 변경은 token·Workspace·run·cursor를
   삭제·폐기·종료하지 않는다. page GET은 기본 PipelineVersion도 생성하지 않는다.
@@ -84,6 +84,15 @@
   `not the owner of this project`로 떨어지고, 그래서 잠금 사유가 남의 프로젝트 존재를 알리는 창구가 되지 않는다.
 - **목록·플랜·원장은 함께 바뀐다.** 변경된 집합과 단조 증가 version/event는 하나의 transaction으로
   저장하고 stale 요청은 zero-write다. 이미 selected인 target이라도 오래된 version은 stale다.
+- **연결 해제는 데이터 삭제가 아니다.** `disconnectedAt`이 있으면 DB CHECK로 `available=false`를 강제한다.
+  마지막 연결도 해제할 수 있고 프로젝트·소유권·하위 기록과 소유자의 상세 7개 GET을 보존한다.
+  History의 Items·항목 펼침·Events·cursor·플랜 기간 제한은 그대로 적용하며 GET은 쓰지 않는다.
+  해당 프로젝트의 유효 hs_/ho_만 원자적으로 폐기한다. hu_·다른 프로젝트 토큰·기존 폐기 시각은 보존한다.
+  재연결은 기존 id/slug/설정을 사용하며 토큰을 부활시키지 않는다. 에이전트·등록·init은 자동 재연결하지 않는다.
+- **연결과 credential writer는 User를 먼저 잠근다.** 등록·플랜·사용 선택·연결 전이·발급의 Serializable
+  transaction은 같은 소유자 잠금을 공유한다. owner/version/repository 중복 검사는 쓰기 전에 수행하고,
+  event/CAS 실패는 transaction 밖까지 전파하여 rollback한다. 읽기 전용 조회에는 이 잠금을 넣지 않는다.
+  동일 소유자의 대소문자 repository 중복은 임의 선택 없이 무결성 오류로 거부한다.
 
 - **pm 상한(미결 2건)은 서버가 강제한다.** `board_propose`가 세고 거부하며, 상한 판정은
   같은 트랜잭션 안에서 `Serializable` 격리로 읽는다(두 호출자가 같은 수를 읽고 둘 다 만드는 것을 막는다).

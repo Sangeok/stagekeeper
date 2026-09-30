@@ -11,13 +11,13 @@ completed-at: '2026-09-30'
 last-executed-at: '2026-09-30T12:52:36+09:00'
 tested-revision: '53817b0ab8cdd025c9d6f14e1bd9c53360db8e6c + working tree; source/test SHA256 95f71245fdb4031e933db768946575ccf33df120ac7f27974110f328eadbffd6'
 owners: ['user:Sangeok']
-related: ['docs/proposals/active/project-history-tab.md']
+related: ['docs/proposals/completed/2026-09-30-project-history-tab.md']
 primary-area: 'project/history'
 observed-environments:
   - 'local | source and component fixture | Windows / Node 22.13.1 / Next.js 16.3.3 / headless Chrome | synthetic fixture'
   - 'local | production HTTP request | Next.js 16.3.3 | anonymous'
 test-summary: 'blocked: History 탭 구현 회귀 검증 — 자동 검사와 컴포넌트 화면 검토 통과, 격리 DB·로그인 인수 환경 없음'
-follow-up: ['docs/proposals/active/project-history-tab.md']
+follow-up: ['docs/proposals/completed/2026-09-30-project-history-tab.md']
 ---
 
 # Project History Tab Regression
@@ -26,12 +26,12 @@ follow-up: ['docs/proposals/active/project-history-tab.md']
 
 History 탭, 두 원천의 커서 조회, 공용 이력 위젯과 항목 상세 연결을 구현한 작업 트리를 검증했다.
 가능한 로컬 검사는 끝났으나 실제 PostgreSQL 결과와 로그인 사용자의 응답 본문은 검증하지 못했다.
-따라서 이 보고서는 현재 실행의 기록으로 완료하고, 제안서는 `pending`으로 남긴다.
+따라서 이 초기 실행 시점에는 보고서만 완료하고 제안서는 `pending`으로 남겼다. 이후 검증 및 완료 이동은 Conclusion의 후속 기록을 따른다.
 사용자는 별도 시험 환경이 없으며 가능한 자동 검증을 진행하도록 답했다.
 
 ## Scope and Criteria
 
-기준은 [제안서](../../proposals/active/project-history-tab.md)의 D1–D8 및 V1–V8이다.
+기준은 [제안서](../../proposals/completed/2026-09-30-project-history-tab.md)의 D1–D8 및 V1–V8이다.
 포함 범위는 읽기 전용 History, 항목 상세 이력, 여섯 탭, 랜딩 데모와 회귀 검사다.
 운영 데이터 변경, 배포, 스키마·인덱스·요금제 변경은 포함하지 않는다.
 
@@ -108,7 +108,7 @@ History 탭, 두 원천의 커서 조회, 공용 이력 위젯과 항목 상세 
 
 | ID | 구분 | 발견 사항·Evidence | 추적 위치·재검증 조건 |
 | --- | --- | --- | --- |
-| F1 | 필수 인수 차단 | 실제 DB·로그인 응답 검증 미실행 — E8 | [제안서 V3·V4·V6·V7](../../proposals/active/project-history-tab.md#verification-plan). 격리 DB·OAuth 준비 후 새 보고서에서 실행 |
+| F1 | 필수 인수 차단 | 실제 DB·로그인 응답 검증 미실행 — E8 | [제안서 V3·V4·V6·V7](../../proposals/completed/2026-09-30-project-history-tab.md#verification-plan). 격리 DB·OAuth 준비 후 새 보고서에서 실행 |
 | F2 | 기존 범위 밖 UI | `app-header.tsx`의 사용자 이름 영역이 360px에서 약 7px 넘침 — E2·E6 | 이 보고서의 T9 기록. 공용 헤더 반응형 개선 범위에서 사용자 이름 길이별 재검토; 이 작업에서 해당 파일 변경 없음 |
 | F3 | 수정 완료 | 여섯 탭 추가 시 세로 scrollbar와 랜딩 grid 확장 발견 — E6 | 탭의 음수 margin 제거·세로 넘침 차단·landing grid 자식 `min-w-0` 적용 후 재렌더 확인 |
 
@@ -122,6 +122,10 @@ History 탭, 두 원천의 커서 조회, 공용 이력 위젯과 항목 상세 
 | 증거 | 정제한 PNG 4개만 저장소에 추가 | 의도한 검증 산출물 |
 
 ## Conclusion
+
+이 결론은 초기 실행 시점의 기록이다. 이후 실제 DB 및 합성 서명 세션의 production 앱 검증을 수행한
+[후속 보고서](./2026-09-30-history-items-regression.md)가 추가되었고, 구현은 CI 통과 후 PR #87로 머지됐다.
+제안서는 완료 기록으로 이동했으며 실제 GitHub OAuth·전체 오류/retry 등 미실행 인수는 후속 점검으로 남아 있다.
 
 필수 T3·T8의 `NOT RUN` 때문에 전체 인수 판정은 `blocked`다. 자동 검사 결과와 정적 화면 검토는 구현을 검토할 근거이며 실제 DB·로그인 E2E의 대체 증거가 아니다.
 F1 환경이 마련되면 제안서의 격리·정리 절차에 따라 다시 검증한다. 현재 실행은 문서화까지 끝났으며 구현 코드와 제안서는 작업 트리에 남긴다.
