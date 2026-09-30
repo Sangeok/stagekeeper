@@ -4,7 +4,7 @@ result: 'pass'
 report-kind: 'regression'
 created-at: '2026-09-30'
 completed-at: '2026-09-30'
-related: ['docs/proposals/active/project-history-tab.md', 'docs/conventions/product-copy.md']
+related: ['docs/proposals/completed/2026-09-30-project-history-tab.md', 'docs/conventions/product-copy.md']
 primary-area: 'project/history'
 ---
 
