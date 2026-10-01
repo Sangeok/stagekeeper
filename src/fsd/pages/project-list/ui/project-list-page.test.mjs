@@ -3,6 +3,8 @@ import { it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
+import { connectionControlKey } from "@/fsd/features/manage-project-connection";
+import { selectionControlKey } from "@/fsd/features/select-project-for-use";
 import { ProjectListPage } from "./project-list-page.tsx";
 
 const project = (id, extra = {}) => ({ id, slug: id.repeat(3), name: id.toUpperCase().repeat(3), repoOwner: "repo", repo: id.repeat(3), branch: "main",
@@ -34,6 +36,12 @@ it("lets the whole identity block open the project and keeps every control outsi
   assert.ok(text.includes("3 open items")); assert.ok(text.includes("1 open agent run"));
   assert.match(html, /<button\b[^>]*aria-label="More actions for AAA"/);
   assert.doesNotMatch(text, /Disconnect repository/);
+});
+
+it("keys the two controls on a connected row apart for the same target, version and plan", () => {
+  // 두 컨트롤은 한 <li>의 형제라 key가 겹치면 React가 짝을 잘못 맞춘다 — 판·요금제가 바뀔 때 상태를 비우는 key의 목적이 깨진다.
+  const model = { ...base, projects: [project("a")] };
+  assert.notEqual(selectionControlKey("a", model), connectionControlKey("a", model));
 });
 
 it("keeps the primary New project button while a slot is free and says when nothing is open", () => {

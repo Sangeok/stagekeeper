@@ -10,8 +10,9 @@ export type ProjectConnectionAction = (input: { targetProjectId: string; expecte
 export const STALE_CONNECTION_MESSAGE = "Your project list changed. Review the latest connection details and try again.";
 export const UNKNOWN_CONNECTION_MESSAGE = "Couldn't confirm the result. Refresh to check the latest repository connection.";
 
+// "connection:" 접두사는 같은 행의 형제인 사용 선택 컨트롤 key(select-project-for-use)와 겹치지 않게 한다.
 export function connectionControlKey(targetId: string, model: ProjectConnectionModel): string {
-  return `${targetId}:${model.version}:${model.plan}`;
+  return `connection:${targetId}:${model.version}:${model.plan}`;
 }
 
 // 재연결 버튼을 미리 막는 이유. 서버도 같은 연결 수 상한으로 거부하지만, 확인 창까지 연 뒤에 거부를 보이지 않는다.
