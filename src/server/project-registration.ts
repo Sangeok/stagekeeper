@@ -68,7 +68,7 @@ export async function registerProject(
       if (result.status === "capped") return { ok: false, status: 403, reason: result.reason };
       if (result.status === "integrity") return { ok: false, status: 409, reason: result.reason };
       if (result.status === "disconnected") return { ok: false, status: 409, reason: result.reason, reconnectSlug: result.slug };
-      // 트랜잭션 밖의 읽기 하나. branch는 OWNED_PROJECT_SELECT에 없어 스냅샷에서 꺼낼 수 없다.
+      // 트랜잭션 밖의 읽기 하나. 결과는 projectId뿐이라 응답에 실을 행(slug·branch·해제 여부)을 다시 읽는다.
       const row = await prisma.project.findUnique({
         where: { id: result.projectId },
         select: { repoOwner: true, repo: true, branch: true, name: true, slug: true, disconnectedAt: true },

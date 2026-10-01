@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { availabilityLabel, selectionControlKey, selectionIsFull, type ProjectSelectionModel } from "./select-project-state";
+import { availabilityLabel, replacementSummary, selectionControlKey, selectionIsFull, type ProjectSelectionModel } from "./select-project-state";
+
+it("names what the replaced project still has open, singular for one", () => {
+  assert.equal(replacementSummary({ name: "A", openItems: 1, openRuns: 1 }), "A will no longer be selected. 1 open board item · 1 open agent run.");
+  assert.equal(replacementSummary({ name: "B", openItems: 3, openRuns: 0 }), "B will no longer be selected. 3 open board items · 0 open agent runs.");
+});
 
 it("writes the availability count the way product-copy §10 does", () => {
   assert.equal(availabilityLabel({ availableCount: 1, limit: 1 }), "1 / 1 available");

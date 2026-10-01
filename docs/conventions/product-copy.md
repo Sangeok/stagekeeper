@@ -507,12 +507,30 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 
 ## 10. Projects
 
-- Availability: **Available** / **Not selected**. Count: `1 / 1 available`, `3 / 5 available`, or
-  `3 available · unlimited`. **Use this project** is a sibling of the project link.
+- Summary: one line under the title counts **connected** repositories against the plan, because that number
+  decides whether a new repository can be connected: `1 of 1 repository connected on the Free plan.` ·
+  `3 of 5 repositories connected on the Pro plan.` · `7 repositories connected on the Max plan.` · after a
+  downgrade `5 repositories connected. The Free plan allows 1.` Full but not over adds
+  `To connect another, disconnect one or compare plans.` (**compare plans** links to `/billing`), and
+  **New project** drops from the filled button to the quiet one. No separate available/connected counts here.
+- Rows: name, `owner/repo` and the branch are the project link; beside it the open counts `3 open items` ·
+  `1 open agent run` (singular for one), or `Nothing open`. In-use rows carry no status word — every row is
+  in use until a downgrade leaves some **Not selected**.
+- Not selected rows sit below a boundary row `Not selected, so read only.` and each has **Use this project**
+  (outline button), a sibling of the project link. A notice above the list explains them, one sentence per line:
+  `After your plan changed, {names} stayed in use, chosen by {basis}.` (basis: your earlier selection · the most
+  recent agent activity · the most recent sync · the most recent connection; the clause is dropped when unknown,
+  and the whole sentence when there was no plan-change notice) ·
+  `{n} of your connected repositories are not selected, so they are read only. The {Plan} plan allows {limit} in use.`
+  (no allowance sentence on Max) · `Choose Use this project to change which repositories are in use.` and, when over
+  the limit, ` A new repository needs a free slot, so disconnect the ones you no longer need.`
+- Locked project banner (project pages): reason line, then the availability count `1 / 1 available`,
+  `3 / 5 available`, or `3 available · unlimited`, then **Use this project**.
 - Spare slot: add immediately. Full Free: confirm the existing project. Full Pro: **Replace a project**,
   **Choose a project**, then **Use {target} instead** / **Cancel**. Pending: **Updating…**.
-- Replacement confirmation shows open board-item and agent-run counts. Explain: data, tokens, and run cursors
-  are kept; requests already approved may finish, but new agent requests and web changes will stop.
+- Replacement confirmation: `{name} will no longer be selected. {n} open board items · {n} open agent runs.`
+  (singular for one), then: data, tokens, and run cursors are kept; requests already approved may finish, but new
+  agent requests and web changes will stop.
 - Stale: `Your project list changed. Review the latest selection and try again.` Refresh the list and clear
   confirmation; never automatically choose a replacement or fill slots after an upgrade.
 - Selected-out pages keep read-only data, including full backlog Source text and token revoke. They hide
@@ -520,19 +538,25 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 - Recovery: `This project is not selected for use. Open Stagekeeper → Projects and choose “Use this project”.`
   Integrity failure: `Project ownership is unavailable.` Neither is a token-authentication failure.
 
-- Connection groups: **Connected** / **Disconnected**, with a separate `0 / 1 connected` count
-  (`unlimited` for Max). Only connected projects have **Use this project**.
+- Connection groups: the **Connected** / **Disconnected** headings appear only when a disconnected repository
+  exists; an empty Disconnected group is not shown. Only connected projects have **Use this project**.
   Empty Connected: `No connected repositories. Connect a new repository or reconnect a preserved project below.`
-  Empty Disconnected: `No disconnected repositories.`
-- **Disconnect repository** / **Reconnect repository** open a confirmation with **Cancel**; pending is **Updating…**.
-  Disconnect shows `{n} open board items · {n} open agent runs.` and explains retained read-only data,
-  revoked hs_/ho_, retained hu_, stopped new requests, already approved requests, and local Claude Code continuing.
-  Reconnect shows connected/cap counts, preserved data/settings, retained hu_, and issuing new hs_/ho_.
+- Connected rows keep disconnect in a ⋯ menu (accessible name `More actions for {name}`) with one item
+  **Disconnect repository…**. The confirmation is `Disconnect {owner}/{repo}?` ·
+  `Project tokens (hs_/ho_) are revoked. Your data stays readable, and hu_ keeps working.` · **Disconnect repository**
+  (risk button) / **Cancel**, and below the buttons
+  `New requests stop. Approved ones may finish, and local Claude Code keeps running.` The open counts are already
+  on the row and are not repeated. Pending is **Updating…**.
+- Disconnected rows show `Disconnected {YYYY-MM-DD}` and **Reconnect repository** (outline button). Without a free
+  slot it is disabled beside `No free slot. The {Plan} plan allows {n} connected repositories.` (singular for one).
+  The confirmation shows connected/cap counts, preserved data/settings, retained hu_, and issuing new hs_/ho_,
+  with **Reconnect repository** / **Cancel**; pending is **Updating…**.
 - Success: `Repository disconnected` / `Repository reconnected`.
   Stale: `Your project list changed. Review the latest connection details and try again.`
   Unknown response: `Couldn't confirm the result. Refresh to check the latest repository connection.`
   Both close confirmation and refresh; neither resubmits automatically.
-- Disabled: `Repository connection changes are temporarily unavailable.`
+- Disabled: the ⋯ menu item is disabled with `Temporarily unavailable.` (the item already names the action);
+  **Reconnect repository** is disabled with `Repository connection changes are temporarily unavailable.`
   Recovery: `This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.`
   The current detail title/tabs/History remain visible. Inbox read-only badges are **Disconnected**,
   **Not selected**, or **Read only**, matching the access reason; mutation controls and execution guidance are hidden.
