@@ -14,6 +14,16 @@ it("keeps required labels structural when editing is unavailable", () => {
   assert.doesNotMatch(html, /<button/);
   assert.match(html, /Not selected/);
 });
+it("says on hover what each gate card means, on read-only plans too", () => {
+  const graph = { nodes: ["propose", "plan", "implement", "accept"], gates: ["before-plan", "before-implement"] };
+  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, graph, editable: false }));
+  // 칩이 아니라 카드 전체(바깥 div)에 붙는다 — 카드 어디에 올려도 보여야 한다.
+  const titles = [...html.matchAll(/<div[^>]*\btitle="([^"]*)"[^>]*>(?:(?!<\/div>).)*?Gate · you/gs)].map((m) => m[1]);
+  assert.deepEqual(titles, [
+    "The item waits here until you press Request plan in the Inbox. dev writes a plan. Nothing changes in the code yet.",
+    "The item waits here until you press Approve implementation in the Inbox. Approving lets dev change code. Then you run dev in Claude Code.",
+  ]);
+});
 it("retains optional Remove and Swap actions on an editable graph", () => {
   const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, editable: true }));
   assert.match(html, />Remove<\/button>/); assert.match(html, />Swap<\/button>/);

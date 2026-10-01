@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId } from "@harness/core/pipeline.mjs";
-import { gateLabel, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
+import { gateLabel, gateTooltip, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";
@@ -182,9 +182,10 @@ function EdgeSlot({
   removeGateStep: Step;
   onApply: (step: Step) => void;
 }) {
+  // 툴팁은 칩이 아니라 카드 전체에 건다 — 무엇을 뜻하는지 묻는 곳은 카드다. 비활성 Remove는 자기 사유가 우선한다(§18).
   if (gate !== null) {
     return (
-      <div className="flex min-w-[132px] flex-col justify-between gap-2 rounded-lg border border-edge bg-mine-soft px-3 py-2.5">
+      <div title={gateTooltip(gate)} className="flex min-w-[132px] flex-col justify-between gap-2 rounded-lg border border-edge bg-mine-soft px-3 py-2.5">
         <div className="flex flex-col items-start gap-1">
           <Chip tone="mine">Gate · you</Chip>
           <span className="text-sm font-medium">{gateLabel(gate)}</span>

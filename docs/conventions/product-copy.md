@@ -1077,6 +1077,13 @@ never existed look the same from here.
   **Scout**, and a repeat keeps its suffix — **Doc audit #2**, **Scout #3**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
   boundary has no gate, small text between the cards says "auto → planning".
+- Hovering anywhere on a gate card shows what that gate means, as the browser tooltip:
+  "The item waits here until you press `<button>` in the Inbox. `<hint>`" — the gate's own Inbox
+  button and its next-step hint (§3, §7), so the two screens use the same words. A repeated slot
+  (**Doc audit #2**, **Scout #3**) uses its original slot's words. For example, before Plan: "The
+  item waits here until you press Request plan in the Inbox. dev writes a plan. Nothing changes in
+  the code yet." A disabled **Remove** on the card keeps its own tooltip, the reason it can't be
+  removed. Edge text, the **+** panel, and **Read as text** carry no gate tooltip.
 - Each edge carries a **+**. It opens one panel **below the rail** — never inside the edge, which
   would widen it and shove the rest of the row sideways. The panel is titled with the edge
   ("before Plan"), only one is open at a time, and the **+** it belongs to is shown pressed. It

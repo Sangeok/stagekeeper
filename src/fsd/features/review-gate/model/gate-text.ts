@@ -1,7 +1,10 @@
 // 사람 동작의 낱말. 버튼은 동사, 성공 뒤 칩은 결과, 토스트는 같은 낱말을 잇는다(product-copy.md §3).
 // ApcH transition-pipeline-gate/model/transitions.ts(de25a1c)에서 문구·칩 재료만 옮겼고 은유(도장)는 버렸다.
 import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
-import { gateKind, slotAgent } from "@harness/core/pipeline.mjs";
+import { gateCopyId } from "@/fsd/entities/pipeline";
+
+// 버튼 이름과 누르기 전 힌트는 Pipeline 레일의 게이트 툴팁도 쓰므로 entities/pipeline에 있다. 이름은 그대로 잇는다.
+export { gateActionLabel, gateActionHint as gateNextActionHint } from "@/fsd/entities/pipeline";
 
 // 카드 잠금 표식: 게이트·되돌리기 성공 뒤 버튼 자리를 대신하는 비상호작용 칩의 재료.
 export type CardLock = { label: string; tone: "mine" | "risk" | "done" };
@@ -10,71 +13,25 @@ export type RejectAction = "bounce" | "hold" | "discard";
 
 // 게이트 — **게이트 id**가 키다(런의 커서가 서 있는 자리, pipeline.mjs의 before-<kind>).
 // 상태가 아니라 그래프가 게이트를 정하므로 목적지 status로는 카드를 못 그린다(§E.1).
-// hint는 누르기 전에 버튼 아래서 결과를 말한다.
-const GATE_ACTION: Record<string, { label: string; pending: string; lock: string; toast: string; hint: string }> = {
-  "before-plan": {
-    label: "Request plan",
-    pending: "Requesting…",
-    lock: "Plan requested",
-    toast: "Plan requested",
-    hint: "dev writes a plan. Nothing changes in the code yet.",
-  },
-  "before-verify": {
-    label: "Continue to verification",
-    pending: "Continuing…",
-    lock: "Continued",
-    toast: "Continued to verification",
-    hint: "The main loop verifies the plan; plan-verifier runs an independent pass.",
-  },
-  "before-implement": {
-    label: "Approve implementation",
-    pending: "Approving…",
-    lock: "Approved",
-    toast: "Implementation approved",
-    hint: "Approving lets dev change code. Then you run dev in Claude Code.",
-  },
-  "before-accept": {
-    label: "Continue to acceptance",
-    pending: "Continuing…",
-    lock: "Continued",
-    toast: "Continued to acceptance",
-    hint: "The main loop reproduces the five acceptance checks.",
-  },
-  "before-doc-audit": {
-    label: "Continue to doc audit",
-    pending: "Continuing…",
-    lock: "Continued",
-    toast: "Continued to doc audit",
-    hint: "doc-auditor checks whether the docs still match the code.",
-  },
-  "before-scout": {
-    label: "Continue to scouting",
-    pending: "Continuing…",
-    lock: "Continued",
-    toast: "Continued to scouting",
-    hint: "feature-scout researches outside and proposes features.",
-  },
+// 누르는 중·잠금 칩·토스트 — 버튼을 누른 뒤의 낱말이라 이 slice에만 있다.
+const GATE_FEEDBACK: Record<string, { pending: string; lock: string; toast: string }> = {
+  "before-plan": { pending: "Requesting…", lock: "Plan requested", toast: "Plan requested" },
+  "before-verify": { pending: "Continuing…", lock: "Continued", toast: "Continued to verification" },
+  "before-implement": { pending: "Approving…", lock: "Approved", toast: "Implementation approved" },
+  "before-accept": { pending: "Continuing…", lock: "Continued", toast: "Continued to acceptance" },
+  "before-doc-audit": { pending: "Continuing…", lock: "Continued", toast: "Continued to doc audit" },
+  "before-scout": { pending: "Continuing…", lock: "Continued", toast: "Continued to scouting" },
 };
 
-function gateAction(gate: string) {
-  const agent = slotAgent(gateKind(gate));
-  return GATE_ACTION[gate] ?? (agent === "doc-auditor" ? GATE_ACTION["before-doc-audit"] : agent === "feature-scout" ? GATE_ACTION["before-scout"] : undefined);
-}
-export function gateActionLabel(gate: string): string {
-  return gateAction(gate)?.label ?? `Move past ${gate}`;
-}
+const gateFeedback = (gate: string) => GATE_FEEDBACK[gateCopyId(gate)];
 export function gatePendingLabel(gate: string): string {
-  return gateAction(gate)?.pending ?? "Moving…";
+  return gateFeedback(gate)?.pending ?? "Moving…";
 }
 export function gateLockLabel(gate: string): string {
-  return gateAction(gate)?.lock ?? "Done";
+  return gateFeedback(gate)?.lock ?? "Done";
 }
 export function gateToast(gate: string, key: string): string {
-  return `${gateAction(gate)?.toast ?? "Moved"} · ${key}`;
-}
-// 누르기 전에 보여 준다 — 누른 뒤 토스트로 말하면 이미 늦다.
-export function gateNextActionHint(gate: string): string {
-  return gateAction(gate)?.hint ?? "Then continue in Claude Code.";
+  return `${gateFeedback(gate)?.toast ?? "Moved"} · ${key}`;
 }
 
 // 재개 — on_hold에서 돌아가는 두 목적지. 주 버튼은 멈춘 자리(heldFrom)로 돌아가는 쪽이다.
