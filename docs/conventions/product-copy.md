@@ -623,6 +623,7 @@ are terse on purpose — agents parse them.
 | `no validation record — a session approves implementation only after plan-verifier's pass is recorded; approve in the Inbox to override` (owner server) | — |
 | `planCommit required — state the commit you are approving (board_get shows it)` (owner server) | — |
 | `planCommit mismatch: the board records 3f2a9c1` (owner server) | — |
+| `The gate approval was recorded, but next advice could not be loaded. Call pipeline_next with the item key; do not retry gate_approve.` (owner server, confirmed commit followed by advice failure) | — |
 | `gates open through board.gate, not a transition: proposed → planning` (a client that still sends a gate as a plain transition) | — |
 | `dispatch cap reached on the free plan (60). Upgrade the plan to add more. Counted over the last 30 days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.` (`agent_next`, run 개설) | — |
 | `graph must have nodes and gates` (pipeline save) | shown as is |
@@ -673,11 +674,16 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 
 | Tool | Description |
 | --- | --- |
-| `gate_approve` | Owner only: open the gate the item is waiting at — pass the gate id from `pipeline_next` (`before-plan`, `before-implement`, `before-verify`, `before-accept`, `before-doc-audit`, `before-scout`). `before-implement` needs a validation record and the planCommit from board_get. Returns the item and next — act on next in the same turn. Send back, hold, reopen, and discard stay web only. |
+| `gate_approve` | Owner only: open the gate the item is waiting at — pass the gate id from `pipeline_next` (`before-plan`, `before-implement`, `before-verify`, `before-accept`, `before-doc-audit`, `before-scout`). `before-implement` needs a validation record and the planCommit from board_get. Returns the item and next — act on next in the same turn. Send back, hold, reopen, and discard stay web only. If next advice fails after approval, the error says the gate approval was recorded. Call pipeline_next with the item key; do not retry gate_approve. |
 
 Response: `{ item, next }` where `next` has the same shape as a `pipeline_next` answer — there is no
 runbook step number, because the runbook has no numbers. `next` comes from the pipeline's own cursor
 after the gate opened; the runbook's "Approving from this session" tells the session what to do with it.
+
+If advice fails after a confirmed approval, the response is `isError:true` with text JSON `{ error }`
+using the exact §12 recorded-approval reason. There is no fabricated `next`. Read `pipeline_next`
+with the item key; do not repeat `gate_approve`. A mutation exception or an unknown commit outcome
+does not use this recorded-approval reason.
 
 **`dispatch` hints** — one sentence per node, the same text `pipeline_next` returns:
 
@@ -984,11 +990,12 @@ Naming a cause here would mean guessing. Say what is certain, then give the way 
 
 ### Inbox card — `src/fsd/features/review-gate/ui/inbox-card-boundary.tsx`
 
-One card failed; the rest of the queue stays on screen. This is the one error surface that *can*
-name a cause, because reaching it means a decision was in flight on this item.
+One card failed; the rest of the queue stays on screen. Child rendering and action/response failures
+both reach this boundary, so it cannot determine whether a decision was recorded. Try again
+re-fetches the latest Inbox state; it does not replay the mutation.
 
 > `ITEM-01`
-> The decision wasn't recorded. Try again.
+> This card couldn't be loaded. Try again to check the latest Inbox state.
 
 Button: **Try again**
 

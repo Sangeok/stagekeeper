@@ -11,6 +11,7 @@ import { createBoardService, currentRoundIds, hasProjectHistoryBefore, projectHi
 import * as cursorModule from "../../src/server/pipeline/history-page";
 import * as itemCursorModule from "../../src/server/pipeline/history-items";
 import { afterCursor, eventWhere } from "../../src/server/pipeline/history-page";
+import { readHistoryQuery } from "../../src/fsd/pages/project-history/model/history-navigation";
 
 type PageInput = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 type PageOutput = ReactElement<{
@@ -46,7 +47,7 @@ it("the actual route stops before reads on auth failure and derives scope only f
   const options: { view: string; since: Date | null; before: unknown }[] = [];
   const page = isolatedHistoryRoute({
     "@harness/core/entitlement.mjs": { historyCutoff },
-    "@/fsd/pages/project-history": { ProjectHistoryPage: () => null },
+    "@/fsd/pages/project-history": { ProjectHistoryPage: () => null, readHistoryQuery },
     "@/server/auth/guard": { requireProjectOwner: async (slug: string) => {
       calls.push("guard"); assert.equal(slug, "sample"); if (rejectAccess) throw denied; return { projectId: "owned" };
     } },
@@ -206,7 +207,7 @@ it("defaults to item summaries, ignores malformed cursors and fetches only an ex
   const detailOptions: { key: string; view: string; since: Date | null; before: cursorModule.HistoryCursor | null }[] = [];
   const route = isolatedHistoryRoute({
     "@harness/core/entitlement.mjs": { historyCutoff },
-    "@/fsd/pages/project-history": { ProjectHistoryPage: () => null },
+    "@/fsd/pages/project-history": { ProjectHistoryPage: () => null, readHistoryQuery },
     "@/server/auth/guard": { requireProjectOwner: async () => {
       calls.push("guard"); if (!authorized) throw denied; return { projectId: "owned" };
     } },

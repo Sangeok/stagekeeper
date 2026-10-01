@@ -156,7 +156,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 
 | 도구 | 입력 | 효과 | 누가 | Phase |
 | --- | --- | --- | --- | --- |
-| `gate_approve` | `{key, gate, planCommit?}` | 사람 게이트 전이(actor human, channel session). `→ implementing`은 validation 필수 + `planCommit` 일치. 응답 `{item, next: {action: "dispatch", agent, key, step: 3\|6}}` — 세션은 그 턴에 dev를 디스패치한다 | 소유자 토큰 | 5 |
+| `gate_approve` | `{key, gate, planCommit?, gateEntry?: {runId, entryId}}` | 사람 게이트 전이(actor human, channel session). `→ implementing`은 validation 필수 + `planCommit` 일치. slots-v1은 현재 gateEntry가 필요하다. 정상 응답 `{item, next: PipelineNext}`에는 런북 단계 번호가 없다. 세션은 next를 같은 턴에 수행한다 | 소유자 토큰 | 5 |
 
 호출마다 도구 층에서 직접 소유권(ownerUserId) → 사용 가능 여부 → 플랜(`sessionApprovals` — Free는 웹 전용) 순으로 검사한다.
 거부 사유(`isError`; `product-copy.md` §12에 같은 문장):
@@ -172,6 +172,12 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 웹 게이트와 같은 모양에 `channel`만 다르다. 세션 채널은 웹보다 전제가 하나 더 붙는다(`before-implement`의 검증
 기록·`planCommit` 일치); 웹 Inbox는 그 전제 없이 승인할 수 있다. 게이트는 런의 커서가 그 자리에 서 있어야 열린다 —
 그래프가 그 게이트를 뺐으면 열 게이트 자체가 없다.
+
+공통 `board.gate`는 transaction의 저장 결과만 반환한다. MCP adapter가 성공 mutation 뒤에
+조언을 조회하며, advice 실패는 `isError:true`/text JSON `{error}`로 이미 승인됐음을 안내한다.
+이때 `pipeline_next`를 항목 key로 읽고 `gate_approve`를 재시도하지 않는다. 정확한 reason은
+product-copy §12를 따른다. mutation 예외·commit 확인 실패는 원래 예외를 전파하며 저장 완료나
+rollback을 단정하지 않는다. 웹은 advice를 조회하지 않고 성공 저장 뒤 경로를 재검증한다.
 
 ## 상태 기계
 

@@ -9,6 +9,7 @@ import { Field, Input } from "@/fsd/shared/ui/field";
 import { IDLE, type CreateProjectState } from "../model/create-project-state";
 import { SLUG_HINT } from "../model/project-slug";
 import { parseRepoUrl, slugFromRepo, type RepoOption } from "../model/repo-url";
+import { selectedRepository, type RepositorySelection } from "../model/repository-selection";
 
 // 서버 액션과 저장소 목록은 route가 prop으로 넘긴다 — "use client" 파일은 *.server·@/server를 import할 수 없다(fsd.md).
 type Props = {
@@ -45,8 +46,8 @@ export function ProjectRegistrationResult({ state, mcpUrl }: { state: CompletedR
 
 export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFailed }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE);
-  const [owner, setOwner] = useState(defaultOwner);
-  const [repo, setRepo] = useState("");
+  const [selection, setSelection] = useState<RepositorySelection>(repos.length === 0
+    ? { source: "url", url: "" } : { source: "picker", repository: null });
   const [slug, setSlug] = useState("");
   const [branch, setBranch] = useState("main");
   const [slugTouched, setSlugTouched] = useState(false);
@@ -54,58 +55,54 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
   const [query, setQuery] = useState("");
   // 목록이 비면(비공개만 있거나 GitHub가 답하지 않으면) 붙여넣기가 유일한 길이다.
   const [isManualEntry, setIsManualEntry] = useState(repos.length === 0);
-  const [pasteError, setPasteError] = useState<string | null>(null);
   const [urlText, setUrlText] = useState("");
 
-  const isRepoChosen = slug !== "" && owner !== "" && repo !== "";
+  const repository = selectedRepository(selection);
+  const owner = selection.source === "direct" ? selection.owner : repository?.owner ?? "";
+  const repo = selection.source === "direct" ? selection.repo : repository?.repo ?? "";
+  const pasteError = selection.source === "url" && selection.url.trim() !== "" && repository === null
+    ? "That doesn't look like a GitHub repository URL. Use Edit to fill in the fields." : null;
+  const isRepoChosen = slug !== "" && repository !== null;
   const mode = formMode(isManualEntry, isRepoChosen);
 
   // 모드를 바꿀 때는 그 모드에만 속한 상태를 함께 비운다. 예전에는 붙여넣기 오류가
   // picker 화면까지 따라와서, 지금 보는 화면과 무관한 문구가 남아 있었다.
   const showPicker = () => {
     setIsManualEntry(false);
-    setPasteError(null);
+    setSelection({ source: "picker", repository: null });
   };
   const showManualEntry = () => {
     setIsManualEntry(true);
     setQuery("");
+    applyPaste(urlText);
   };
 
   const pick = (option: RepoOption) => {
-    setOwner(defaultOwner);
-    setRepo(option.name);
+    setSelection({ source: "picker", repository: { owner: defaultOwner, repo: option.name } });
     setBranch(option.defaultBranch);
     if (!slugTouched) setSlug(slugFromRepo(option.name));
-    setPasteError(null);
   };
 
   const applyPaste = (value: string) => {
-    if (value.trim() === "") {
-      setPasteError(null);
-      return;
-    }
+    setSelection({ source: "url", url: value });
     const ref = parseRepoUrl(value);
-    if (!ref) {
-      setPasteError("That doesn't look like a GitHub repository URL. Use Edit to fill in the fields.");
-      return;
-    }
-    setPasteError(null);
-    setOwner(ref.owner);
-    setRepo(ref.repo);
-    if (!slugTouched) setSlug(slugFromRepo(ref.repo));
+    if (ref && !slugTouched) setSlug(slugFromRepo(ref.repo));
+  };
+
+  const toggleEditing = () => {
+    if (!isEditing) setSelection({ source: "direct", owner: owner || defaultOwner, repo });
+    setIsEditing((value) => !value);
   };
 
   const reset = () => {
-    setRepo("");
+    setSelection(isManualEntry ? { source: "url", url: "" } : { source: "picker", repository: null });
     setSlug("");
     setBranch("main");
-    setOwner(defaultOwner);
     setSlugTouched(false);
     setIsEditing(false);
     // 다시 고를 때 이전 검색어·주소와 오류가 남아 있으면 "처음부터"가 아니다.
     setQuery("");
     setUrlText("");
-    setPasteError(null);
   };
 
   const chosenSummary = (
@@ -118,7 +115,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
         <span className="font-mono text-quiet">· /p/{slug}</span>
       </p>
       <span className="flex shrink-0 gap-3">
-        <button type="button" onClick={() => setIsEditing((value) => !value)} className={TEXT_BUTTON}>
+        <button type="button" onClick={toggleEditing} className={TEXT_BUTTON}>
           {isEditing ? "Collapse" : "Edit"}
         </button>
         <button type="button" onClick={reset} className={TEXT_BUTTON}>
@@ -150,6 +147,9 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
             />
           </Field>
           {isRepoChosen ? chosenSummary : null}
+          {!isRepoChosen ? <button type="button" onClick={toggleEditing} className={`self-start ${TEXT_BUTTON}`}>
+            {isEditing ? "Collapse" : "Edit"}
+          </button> : null}
           {repos.length > 0 ? (
             <button type="button" onClick={showPicker} className={`self-start ${TEXT_BUTTON}`}>
               Pick from my repositories
@@ -173,10 +173,10 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
       {/* 접혀 있어도 값은 폼과 함께 전송된다 — hidden은 제출을 막지 않는다. */}
       <div hidden={!isEditing} className="flex flex-col gap-4 border-l-2 border-rule pl-4">
         <Field label="GitHub owner">
-          <Input name="owner" required value={owner} onChange={(event) => setOwner(event.target.value)} />
+          <Input name="owner" required value={owner} onChange={(event) => setSelection({ source: "direct", owner: event.target.value, repo })} />
         </Field>
         <Field label="GitHub repo">
-          <Input name="repo" required value={repo} onChange={(event) => setRepo(event.target.value)} />
+          <Input name="repo" required value={repo} onChange={(event) => setSelection({ source: "direct", owner, repo: event.target.value })} />
         </Field>
         <Field label="Branch">
           <Input name="branch" value={branch} onChange={(event) => setBranch(event.target.value)} />

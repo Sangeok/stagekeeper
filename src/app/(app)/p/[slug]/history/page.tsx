@@ -1,5 +1,5 @@
 import { historyCutoff } from "@harness/core/entitlement.mjs";
-import { ProjectHistoryPage } from "@/fsd/pages/project-history";
+import { ProjectHistoryPage, readHistoryQuery } from "@/fsd/pages/project-history";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { planForProject } from "@/server/entitlement";
 import { currentRoundIds, hasProjectHistoryBefore, projectHistory, projectHistoryItems } from "@/server/pipeline/board";
@@ -11,11 +11,10 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
   const { slug } = await params;
   const { projectId } = await requireProjectOwner(slug);
   const cutoff = historyCutoff(await planForProject(projectId), new Date());
-  const query = await searchParams;
-  // Preserve old event-view bookmarks while making a plain /history request the item overview.
-  const mode = query.mode === "events" || (query.mode === undefined && (query.view === "key" || query.view === "all")) ? "events" : "items";
+  const query = readHistoryQuery(await searchParams);
+  const { mode, view } = query;
   if (mode === "items") {
-    const before = parseHistoryItemCursor(typeof query.before === "string" ? query.before : undefined);
+    const before = parseHistoryItemCursor(query.before);
     const [page, truncated, repo] = await Promise.all([
       projectHistoryItems(projectId, { since: cutoff, before }),
       cutoff === null ? false : hasProjectHistoryBefore(projectId, "all", cutoff),
@@ -24,7 +23,7 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
     const item = typeof query.item === "string" ? page.rows.find(row => row.key === query.item) : undefined;
     let expanded = null;
     if (item) {
-      const itemBefore = parseHistoryCursor(typeof query.itemBefore === "string" ? query.itemBefore : undefined);
+      const itemBefore = parseHistoryCursor(query.itemBefore);
       const [history, currentRounds] = await Promise.all([
         projectHistory(projectId, { key: item.key, view: "all", since: cutoff, before: itemBefore }),
         currentRoundIds(projectId, [item.key]),
@@ -37,8 +36,7 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
       before={before === null ? null : formatHistoryItemCursor(before)} hasBefore={before !== null}
       nextCursor={page.next === null ? null : formatHistoryItemCursor(page.next)} historyTruncated={truncated} />;
   }
-  const view = query.view === "all" ? "all" : "key";
-  const before = parseHistoryCursor(typeof query.before === "string" ? query.before : undefined);
+  const before = parseHistoryCursor(query.before);
   const [page, truncated, repo] = await Promise.all([
     projectHistory(projectId, { view, since: cutoff, before }),
     cutoff === null ? false : hasProjectHistoryBefore(projectId, view, cutoff),

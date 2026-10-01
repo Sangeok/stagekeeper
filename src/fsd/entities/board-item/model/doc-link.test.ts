@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { blobHref, reportDocLabel, reportIsAcceptance } from "./doc-link";
+import { blobHref, reportDocLabel, reportIsAcceptance, orderReportActors } from "./doc-link";
 
 it("preserves explicit submission purpose after reopen or a later acceptance", () => {
   const at = new Date("2026-09-01T00:00:00.000Z");
@@ -13,6 +13,13 @@ it("preserves explicit submission purpose after reopen or a later acceptance", (
     assert.equal(reportIsAcceptance({ at, isAcceptance }, later), false);
     assert.equal(reportIsAcceptance({ at, isAcceptance }, null), false);
   }
+});
+
+it("keeps prototype-shaped workspace actors as implementation reports in deterministic role order", () => {
+  const actors = ["constructor", "toString", "__proto__", "hasOwnProperty"];
+  for (const actor of actors) assert.equal(reportDocLabel(actor), "Implementation report");
+  assert.deepEqual(orderReportActors(new Set(["feature-scout", "main-loop", "doc-auditor", "z-dev", ...actors])),
+    ["main-loop", ...["z-dev", ...actors].sort(), "doc-auditor", "feature-scout"]);
 });
 
 it("keeps report labels and recorded-commit links owned by the entity", () => {

@@ -31,7 +31,7 @@ function scope(ctx: Ctx) {
 
 export function registerOwnerTools(server: McpServer, deps: OwnerToolDeps) {
   server.registerTool("gate_approve", {
-    description: "Owner only: open the gate the item is waiting at — pass the gate id from pipeline_next (before-plan, before-implement, before-verify, before-accept, before-doc-audit, before-scout). before-implement needs a validation record and the planCommit from board_get. Returns the item and next — act on next in the same turn. Send back, hold, reopen, and discard stay web only.",
+    description: "Owner only: open the gate the item is waiting at — pass the gate id from pipeline_next (before-plan, before-implement, before-verify, before-accept, before-doc-audit, before-scout). before-implement needs a validation record and the planCommit from board_get. Returns the item and next — act on next in the same turn. Send back, hold, reopen, and discard stay web only. If next advice fails after approval, the error says the gate approval was recorded. Call pipeline_next with the item key; do not retry gate_approve.",
     inputSchema: z.object({ key: z.string(), gate: z.string(), planCommit: z.string().optional(), gateEntry: z.object({ runId: z.string(), entryId: z.string() }).optional() }),
   }, async (args, ctx: Ctx) => {
     const { projectId, userId } = scope(ctx);

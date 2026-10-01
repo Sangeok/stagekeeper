@@ -6,7 +6,7 @@ import { advance, cursorForStatus, SLOT_FORMAT } from "@harness/core/pipeline.mj
 import { isOpen } from "@harness/core/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
-import { ensureRun, nextFor, readFacts, type Graph, type GateEntry } from "./run-query";
+import { ensureRun, readFacts, type Graph, type GateEntry } from "./run-query";
 import { decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, PLAN_VERIFIER } from "./board-rules";
 import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryRecord, type HistoryView } from "./history-page";
 import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
@@ -393,11 +393,11 @@ async function discard(projectId: string, input: { key: string; userId: string; 
 }
 
 // 게이트 하나를 연다. 경계 게이트면 사람 전이(transition)가 원장이고, 아니면 같은 상태의 이벤트(note "gate:<id>")가 원장이다.
-// 둘 다 뒤에 advanceRun — 다음 노드(대개 dispatch)로 커서가 간다. 응답의 next는 pipeline_next와 같은 모양(§D.1).
+// 둘 다 뒤에 advanceRun — 다음 노드(대개 dispatch)로 커서가 간다. 응답은 저장 결과이며 조언은 MCP adapter가 조회한다.
 async function gate(
   projectId: string, input: { key: string; gate: string; planCommit?: string; gateEntry?: GateEntry }, caller: Extract<Caller, { actor: "human" }>,
-) {
-  const written = await inProjectTransaction(projectId, async (tx) => {
+): Promise<ServerResult<BoardItem>> {
+  return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
     const run = await ensureRun(tx, projectId, row.id, row.status, false);
@@ -421,13 +421,6 @@ async function gate(
     }
     return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } }) };
   });
-  if (!written.ok) return written;
-  // next는 **커밋 뒤에** 읽는다. 조언이지 쓰기의 일부가 아니라 원자성이 필요 없고, 트랜잭션 안에 두면
-  // nextFor의 질의 예닐곱이 쓰기 뒤에 붙어 원격 DB에서 Prisma의 5초 대화형 트랜잭션 한도를 넘긴다
-  // (실측 5450ms — 게이트가 통째로 롤백돼 소유자가 웹에서 게이트를 못 열었다).
-  // 응답은 ServerResult<{ item, next }>다. next를 ok 가지에 나란히 얹으면 fail()의 ServerResult<never>와
-  // 합쳐져 호출처가 r.next를 좁혀 읽지 못한다(tsc: "Property 'next' does not exist on type '{ ok: true; item: never; }'").
-  return { ok: true as const, item: { item: written.item, next: await nextFor(prisma, projectId, input.key) } };
 }
 
 // 항목이 쉬거나(done·on_hold) 폐기되면 그 항목을 걷던 agent_next 커서(AgentRun)는 같은 트랜잭션에서 닫힌다.

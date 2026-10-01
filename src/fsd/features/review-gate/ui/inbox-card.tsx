@@ -1,6 +1,4 @@
-"use client";
-
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 import { DOC_LINK_NOTE, NotVerifiedChip, OverBudgetChip, isOverBudget, isPlanVerified, statusLabel } from "@/fsd/entities/board-item";
 import { agoLabel, shortDate } from "@/fsd/shared/lib/relative-time";
@@ -9,26 +7,30 @@ import { cardClass } from "@/fsd/shared/ui/card";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { Code } from "@/fsd/shared/ui/code";
 import { gateLabel } from "@/fsd/entities/pipeline";
-import { rejectActionsFor } from "../model/gate-source";
 import {
-  bounceResultLine,
   gateNextActionHint,
-  holdResultLine,
   resumeHint,
   resumePrimaryFor,
-  type RejectAction,
 } from "../model/gate-text";
 import { gateCardKey, slotGateEntry, type DiscardAction, type GateAction, type InboxItem, type InboxReadOnlyLabel, type TransitionAction } from "../model/inbox-item";
 import { GateCardLock } from "./gate-card-lock";
 import { InboxCardBoundary } from "./inbox-card-boundary";
-import { GateTransitionButton } from "./gate-transition-button";
-import { RejectActions } from "./reject-actions";
+import { InboxApproveControl, InboxRejectControl } from "./inbox-card-controls";
 import { ResumeButtons } from "./resume-buttons";
 
 type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite: boolean; readOnlyLabel?: InboxReadOnlyLabel };
 
 // 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
-export function InboxCard({ item, now, transition, approve, discard, canWrite, readOnlyLabel = "Not selected" }: Props) {
+export function InboxCard(props: Props): ReactElement {
+  return <InboxCardBoundary itemKey={props.item.key}>
+    <GateCardLock key={gateCardKey(props.item)}>
+      <InboxCardContent {...props} />
+    </GateCardLock>
+  </InboxCardBoundary>;
+}
+
+// JSX 자식으로 남겨야 정적 표시의 오류도 카드별 경계 아래에서 처리된다.
+function InboxCardContent({ item, now, transition, approve, discard, canWrite, readOnlyLabel = "Not selected" }: Props): ReactElement {
   // 잠긴 프로젝트에서는 아무 결정도 내릴 수 없다. 게이트·재개·반려·폐기를 모두 감추고 칩만 남긴다 —
   // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
   // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
@@ -41,18 +43,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite, r
   // 재는 기준은 보드와 같은 한 곳(entities/board-item)에서 온다 — 두 화면이 어긋나지 않게.
   const overBudget = isOverBudget([item.reason, ...item.results]);
 
-  const reject = (action: RejectAction, note: string) => {
-    if (action === "discard") return discard(item.key, item.updatedAt);
-    // 기록에 남는 날짜라 렌더 시각(now)이 아니라 누른 시각을 쓴다 — 탭을 오래 열어두면 어제 날짜가 박힌다.
-    if (action === "hold") {
-      return transition({ key: item.key, to: "on_hold", result: holdResultLine(new Date(), note), expectedUpdatedAt: item.updatedAt });
-    }
-    return transition({ key: item.key, to: "planning", result: bounceResultLine(note), expectedUpdatedAt: item.updatedAt });
-  };
-
   return (
-    <InboxCardBoundary itemKey={item.key}>
-      <GateCardLock key={gateCardKey(item)}>
         <article className={cardClass({ decision: gate !== null })}>
         <header className="flex flex-col gap-[3px]">
           <p className="font-mono text-xs text-quiet">
@@ -78,11 +69,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite, r
               <span className="rounded-full border border-rule px-3 py-1 text-xs text-quiet">{readOnlyLabel}</span>
             ) : null}
             {gate !== null && canWrite ? (
-              <GateTransitionButton
-                gate={gate}
-                itemKey={item.key}
-                commit={() => approve({ key: item.key, gate, gateEntry: slotGateEntry(item) ?? undefined, expectedUpdatedAt: item.updatedAt })}
-              />
+              <InboxApproveControl input={{ key: item.key, gate, gateEntry: slotGateEntry(item) ?? undefined, expectedUpdatedAt: item.updatedAt }} approve={approve} />
             ) : null}
             {isOnHold && canWrite ? <ResumeButtons item={item} transition={transition} /> : null}
           </div>
@@ -102,7 +89,7 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite, r
           </details>
         ) : null}
 
-        {canWrite ? <RejectActions id={item.key} actions={rejectActionsFor(item.status)} reject={reject} /> : null}
+        {canWrite ? <InboxRejectControl item={{ key: item.key, status: item.status, updatedAt: item.updatedAt }} transition={transition} discard={discard} /> : null}
 
         {canWrite ? <details className="text-xs text-quiet">
           <summary className="cursor-pointer">What this decision does</summary>
@@ -133,8 +120,6 @@ export function InboxCard({ item, now, transition, approve, discard, canWrite, r
           </p>
         </details> : null}
         </article>
-      </GateCardLock>
-    </InboxCardBoundary>
   );
 }
 

@@ -17,6 +17,12 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
   {
+    pattern: /The decision wasn(?:'|&apos;|&#39;|&#x27;)t recorded/,
+    where: ["web"],
+    since: "2026-10-01",
+    why: "the Inbox boundary catches rendering and action failures and cannot determine the commit outcome",
+  },
+  {
     pattern: /No validation yet|needs verification before approval|plans need verification|an unverified plan|Run plan-verifier in Claude Code first/,
     where: ["web", "skill", "locks"],
     since: "2026-09-29",
@@ -76,6 +82,12 @@ export function shownText(source) {
     .replace(/\{"\s*"\}/g, " ")
     .replace(/\s+/g, " ");
 }
+
+it("rejects the retired commit claim in literal and all supported JSX apostrophe forms", () => {
+  for (const apostrophe of ["'", "&apos;", "&#39;", "&#x27;"]) {
+    assert.equal(findRetired([{ where: "web", path: "fixture.tsx", text: shownText(`<p>The decision wasn${apostrophe}t recorded. Try again.</p>`) }]).length, 1);
+  }
+});
 
 export function lockBlocks(copy) {
   return [...copy.matchAll(/<!-- copy-lock:[\w-]+ -->([\s\S]*?)<!-- \/copy-lock -->/g)].map((m) => m[1]).join("\n").replaceAll("`", "");

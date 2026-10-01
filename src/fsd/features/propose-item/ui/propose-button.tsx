@@ -2,13 +2,12 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { FIELD_BUDGET } from "@/fsd/entities/board-item";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 
 export type ProposeAction = (input: { key: string; agent: string; reason: string }) => Promise<ActionResult<void>>;
-
-const REASON_MAX = 150;
 
 // 백로그 행에서 항목을 직접 보드에 올린다 — pm을 부르지 않고. 사유 문구는 서버의 것을 그대로 보여 준다
 // ("open items: 2 (max 2)" 등). 실패를 이 행 아래에 붙이는 것은 RemoveBacklogButton과 같은 이유다(§E.7).
@@ -45,7 +44,7 @@ export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; r
         </select>
       </Field>
       <Field label="Evidence" className="w-56" hint="Why this one, now.">
-        <Input value={reason} maxLength={REASON_MAX} disabled={pending} onChange={(e) => setReason(e.target.value)} />
+        <Input value={reason} maxLength={FIELD_BUDGET} disabled={pending} onChange={(e) => setReason(e.target.value)} />
       </Field>
       <div className="flex gap-2">
         <Button
