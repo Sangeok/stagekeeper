@@ -9,6 +9,12 @@ const at = (iso: string) => new Date(iso);
 const report = (actor: string, path: string, commit = "0000000", iso = "2026-09-06T14:00:00Z") => ({ actor, path, commit, at: at(iso) });
 
 describe("toItemDocs", () => {
+  it("keeps every constructor actor report and its recorded commit in Documents", () => {
+    const docs = toItemDocs({ planPath: null, planCommit: null, acceptedAt: null,
+      reports: [report("constructor", "docs/first.md", "1111111"), report("constructor", "docs/second.md", "2222222")] }, repo);
+    assert.deepEqual(docs.map(doc => doc.label), ["Implementation report", "Implementation report"]);
+    assert.deepEqual(docs.map(doc => doc.href), ["https://github.com/Sangeok/harness-smoke/blob/1111111/docs/first.md", "https://github.com/Sangeok/harness-smoke/blob/2222222/docs/second.md"]);
+  });
   it("labels and orders reports the way the entity declares; the plan opens its recorded commit", () => {
     const docs = toItemDocs(
       {

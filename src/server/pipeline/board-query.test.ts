@@ -5,9 +5,38 @@ import { createBoardQueries } from "./board-query";
 
 type Tx = Parameters<ReturnType<typeof createBoardQueries>["advanceRun"]>[0];
 const asTx = (fake: object): Tx => fake as unknown as Tx;
-// advanceRun/transitionIn take the transaction client, so these exercise the real
-// seam without faking gate()'s post-commit nextFor read.
+// advanceRun/transitionIn은 실제 transaction seam을 사용한다. gate의 조언은 별도의 MCP adapter 책임이다.
 const client = {} as PrismaClient;
+
+it("gate returns only the saved row, preserving commit and unknown-commit exception boundaries", async () => {
+  for (const outcome of ["success", "precommit", "commit-unknown"] as const) {
+    const original = new Error(outcome); let events = 0; let moves = 0; let committed = false;
+    const row = { id: "item", status: "done", validation: null, acceptedAt: null, updatedAt: new Date(0), backlogItemId: "backlog", agent: "dev", backlogItem: { key: "KEY" }, _count: { reports: 1 } };
+    const version = { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: ["before-accept"] };
+    const run = { id: "pipeline", node: "before-accept", entryId: "entry", enteredAt: new Date(0), closedAt: null, version };
+    const tx = {
+      $queryRaw: async () => [],
+      project: { findUnique: async () => ({ ownerUserId: "owner", repoOwner: "repo", available: true, disconnectedAt: null, ownerUser: { subscription: { plan: "pro" } } }), findUniqueOrThrow: async () => ({ ownerUserId: "owner" }) },
+      boardItem: { findFirst: async () => row, findUniqueOrThrow: async () => row, updateMany: async () => ({ count: 1 }) },
+      transitionEvent: { create: async () => { if (outcome === "precommit") throw original; events++; return { at: new Date(1) }; } },
+      pipelineRun: { findUnique: async () => run, updateMany: async () => { moves++; return { count: 1 }; } },
+    };
+    // 모형의 commit 확인 유실은 저장을 되돌리지 않는다. 실제 network 장애 시험과 구분한다.
+    const db = { $transaction: async (work: (transaction: typeof tx) => Promise<unknown>) => {
+      try {
+        const result = await work(tx); committed = true;
+        if (outcome === "commit-unknown") throw original;
+        return result;
+      } catch (error) { if (!committed) { events = 0; moves = 0; } throw error; }
+    } } as unknown as PrismaClient;
+    const promise = createBoardQueries(db).gate("project", { key: "KEY", gate: "before-accept", gateEntry: { runId: "pipeline", entryId: "entry" } },
+      { actor: "human", actorRef: "owner", channel: "web", expectedUpdatedAt: row.updatedAt });
+    if (outcome === "success") assert.deepEqual(await promise, { ok: true, item: row });
+    else await assert.rejects(promise, error => error === original);
+    assert.equal(committed, outcome !== "precommit");
+    assert.equal(events, committed ? 1 : 0); assert.equal(moves, committed ? 1 : 0);
+  }
+});
 
 it("a matching gateEntry is the only thing that opens the cursor's gate", async () => {
   // readFacts returns approvedGates: [] for every slots-v1 run; advanceRun injects the

@@ -4,6 +4,27 @@ type HistoryLocation = {
   mode?: "items" | "events"; view?: "key" | "all"; before?: string | null; item?: string; itemBefore?: string;
 };
 
+type QueryValue = string | string[] | undefined;
+export type HistoryQuery = {
+  mode: "items" | "events";
+  view: "key" | "all";
+  before: string | undefined;
+  item: string | undefined;
+  itemBefore: string | undefined;
+};
+
+const scalar = (value: QueryValue): string | undefined => typeof value === "string" ? value : undefined;
+
+export function readHistoryQuery(query: Record<string, QueryValue>): HistoryQuery {
+  return {
+    mode: query.mode === "events" || (query.mode === undefined && (query.view === "key" || query.view === "all")) ? "events" : "items",
+    view: query.view === "all" ? "all" : "key",
+    before: scalar(query.before),
+    item: scalar(query.item),
+    itemBefore: scalar(query.itemBefore),
+  };
+}
+
 export function historyHref(slug: string, location: HistoryLocation = {}): string {
   const query = new URLSearchParams();
   if (location.mode === "events") {

@@ -3,17 +3,15 @@ import "server-only";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
 import * as board from "@/server/pipeline/board";
+import { nextFor } from "@/server/pipeline/run";
 import { makeVerifyOwnerToken } from "./auth";
+import { createOwnerGate } from "./owner-gate";
 import type { OwnerToolDeps } from "./owner-tools";
 
 export const prismaOwnerToolDeps: OwnerToolDeps = {
   // 세션 채널의 게이트. 화면이 없으므로 CAS 토큰은 방금 읽은 row.updatedAt이다 — 읽기와 쓰기 사이에
   // 보드가 움직였으면 board.gate가 stale로 거부한다(§C.7).
-  gate: async (projectId, userId, input) => {
-    const row = await board.latestRowFor(projectId, input.key);
-    if (!row) return { ok: false as const, reason: `no such board item: ${input.key}` };
-    return board.gate(projectId, input, { actor: "human", actorRef: userId, channel: "session", expectedUpdatedAt: row.updatedAt });
-  },
+  gate: createOwnerGate({ latestRow: board.latestRowFor, gate: board.gate, advice: (projectId, key) => nextFor(prisma, projectId, key) }),
   access: (projectId) => projectAccess(projectId),
   owner: async (projectId, userId) =>
     (await prisma.project.findFirst({ where: { id: projectId, ownerUserId: userId }, select: { id: true } })) !== null,

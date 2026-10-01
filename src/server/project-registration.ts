@@ -10,7 +10,7 @@ import { prisma } from "@/server/db";
 import { DISCONNECTED_REASON, ProjectIntegrityError, repositoryOwner } from "@/server/project-access-query";
 import { AvailabilityConflict, withAvailabilityTransaction } from "@/server/project-availability-service";
 import { registerProjectResultIn } from "./project-registration-query";
-import { REPO_SEGMENT } from "./project-slug-rule";
+import { REPO_SEGMENT, RESERVED_SLUGS, SLUG_RE } from "./project-slug-rule";
 import { resolveUserScope } from "./rest-scope";
 import { findUserTokenByHash } from "./user-scope-query";
 
@@ -45,13 +45,18 @@ export async function registerProject(
     return { ok: false, status: 400, reason: "owner and repo must be GitHub names — letters, numbers, dots, dashes, underscores" };
   }
 
+  const slug = field(body, "slug") ?? undefined;
+  if (slug !== undefined && (!SLUG_RE.test(slug) || RESERVED_SLUGS.has(slug))) {
+    return { ok: false, status: 400, reason: "slug must be 2–40 lowercase letters, numbers, or dashes, start with a letter or number, and not be reserved" };
+  }
+
   const input = {
     userId: scope.userId,
     owner,
     repo,
     branch,
     name: field(body, "name") ?? undefined,
-    slug: field(body, "slug") ?? undefined,
+    slug,
   };
 
   // P2002는 여기까지 오면 안 된다 — 슬러그를 트랜잭션 안에서 고르기 때문이다. 그래도 났다면

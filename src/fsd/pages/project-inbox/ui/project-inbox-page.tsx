@@ -1,4 +1,5 @@
-import { GateAction, InboxCard, type DiscardAction, type InboxItem, type InboxReadOnlyLabel, type TransitionAction } from "@/fsd/features/review-gate";
+import type { GateAction, DiscardAction, InboxItem, InboxReadOnlyLabel, TransitionAction } from "@/fsd/features/review-gate";
+import { InboxCard } from "@/fsd/features/review-gate/index.server";
 
 type Props = { items: InboxItem[]; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite: boolean; readOnlyLabel?: InboxReadOnlyLabel };
 

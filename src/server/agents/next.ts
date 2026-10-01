@@ -65,7 +65,7 @@ const ok = <T>(item: T): ServerResult<T> => ({ ok: true, item });
 
 // 템플릿이 보드 상태로 단계를 가르면 항목에 묶인 에이전트다 — key가 있어야 그 상태를 볼 수 있다.
 const needsKey = (parsed: ParsedTemplate) =>
-  parsed.steps.some((s) => s.requires.some((r) => STATUSES.includes(r) || r === "verify-ok"));
+  parsed.steps.some((s) => s.requires.some((r) => STATUSES.some(status => status === r) || r === "verify-ok"));
 
 // 새 run이 시작할 수 있는 단계. **실패 분기 전용 단계는 뺀다** — hold처럼 `on failed:`/`on blocked:`로만
 // 닿는 단계는 보통 requires가 없어서, 순서 훑기에 그냥 두면 어떤 보드 상태에서도 열리는 만능 입구가

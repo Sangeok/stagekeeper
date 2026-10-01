@@ -46,6 +46,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale·flag=false와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
+| `rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
 | `verify-fsd-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `retired-copy.test.mjs` | `npm run test:architecture` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
@@ -87,6 +88,29 @@ AST와 새 build manifest는 loader가 원격 action이 아니며 두 mutation�
 운영 활성화의 BLK-RDC-01/02는 로컬 통과로 해소되지 않는다. 절차는
 [repository-disconnection.md](./repository-disconnection.md), 실행 기록은
 [검증 보고서](../test-reports/active/2026-09-27-repository-disconnection.md)를 따른다.
+
+## src 클린코드 3차 인수
+
+```powershell
+# 별도 stagekeeper_test_* DB를 먼저 준비한다. 운영 URL과 다른 DB여야 한다.
+npm run test:server:integration
+npm run build
+$env:SRC_CHECK_INBOX_MANIFEST = 'true'
+$env:RDC_CHECK_ACTION_MANIFEST = 'true'
+npm run test:server
+Remove-Item Env:SRC_CHECK_INBOX_MANIFEST
+Remove-Item Env:RDC_CHECK_ACTION_MANIFEST
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-src-clean-code.ts --render-faults
+```
+
+리허설 중 `http://127.0.0.1:55452/owner`는 fixture 세션으로 실제 Inbox를 연다.
+`/fixture?mode=form&picker`, `/fixture?mode=copy`는 실제 컴포넌트의 입력·비동기 상태 시험이다.
+이 화면의 action/clipboard는 시험 double이며 실제 DB 등록은 `/p/new`에서 별도 확인한다.
+브라우저에서 `/arm/before`, `/arm/after`, `/arm/pause`, `/arm/normal`, `/release`로 transport를 제어한다.
+렌더 오류는 `/server-fail/true`, `/wrapper-fail/true`, `/loader-fail/true`로 켜고 각각 `false`로 해제한다.
+시험 후 `/finish`를 호출한 뒤 fresh build와 manifest 검사를 다시 실행한다.
+생성 산출물의 일시 계측이나 브라우저 응답 계측을 애플리케이션 소스·배포에 포함하지 않는다.
+범위·방법·실행 판정은 [3차 인수 보고서](../test-reports/completed/2026-10-01-src-clean-code-third-pass-regression.md)에 기록한다.
 
 ## 문구 잠금
 

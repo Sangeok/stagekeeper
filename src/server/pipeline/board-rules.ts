@@ -2,20 +2,10 @@
 // MCP 도구와 웹 액션이 같은 함수를 부르므로 판정이 한 곳에만 있다.
 import { REPORT_AGENTS } from "@harness/core/entitlement.mjs";
 import { boundaryOf, gateId, isGateId } from "@harness/core/pipeline.mjs";
-import { canDiscard, canPropose, canRecordValidation, checkText, findRule } from "@harness/core/transitions.mjs";
+import { canDiscard, canPropose, canRecordValidation, checkText, findRule, type RuleKind } from "@harness/core/transitions.mjs";
 
 export type Actor = "human" | "agent" | "pipeline";
 export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string };
-
-// kind는 화면이 읽는 어휘다 — review-gate/model/gate-source.ts가 "gate"·"resume"·"bounce"로
-// 무엇을 보여줄지 정한다. string으로 두면 그쪽 비교가 오타여도 컴파일이 통과하고 분류만 조용히
-// 어긋난다. 값의 출처는 packages/core/transitions.mjs의 RULES 표다.
-type RuleKind = "gate" | "bounce" | "hold" | "resume" | "plan" | "done" | "reopen" | "auto";
-
-type Rule = {
-  from: string; to: string; actor: Actor; kind: RuleKind;
-  requiresResult?: boolean; requiresPlan?: boolean; requiresReport?: boolean; clearsValidation?: boolean;
-};
 
 export type RowSnapshot = { status: string; planPath: string | null; reportCount: number; results: string[]; validation: string | null };
 
@@ -41,7 +31,7 @@ export function decidePropose(i: ProposeInput): Decision<null> {
 export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean; kind: RuleKind };
 
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
-  const rule = findRule(actor, row.status, to) as Rule | null;
+  const rule = findRule(actor, row.status, to);
   if (!rule) return { ok: false, reason: `not allowed: ${actor} ${row.status} → ${to}` };
   // 필수든 선택이든, 온 result는 150자 예산을 지킨다(되돌리기 노트가 선택 result로 들어온다).
   if (rule.requiresResult || result !== undefined) { const bad = checkText("result", result); if (bad) return { ok: false, reason: bad }; }
@@ -169,7 +159,7 @@ export function decideGate(i: GateInput): Decision<GatePatch> {
   }
   const boundary = boundaryOf(i.gate);
   if (boundary !== null) {
-    const rule = findRule("human", i.status, boundary.to) as Rule | null;
+    const rule = findRule("human", i.status, boundary.to);
     if (!rule || rule.kind !== "gate" || i.status !== boundary.from) return { ok: false, reason: `not allowed: human ${i.status} → ${boundary.to}` };
   }
   if (i.channel === "session" && i.gate === gateId("implement")) {

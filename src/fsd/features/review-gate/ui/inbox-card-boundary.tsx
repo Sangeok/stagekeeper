@@ -10,13 +10,13 @@ import { Button } from "@/fsd/shared/ui/button";
 // catchError는 redirect()·notFound()를 삼키지 않고, retry()는 경계 밖 Client 상태를 보존한다
 // (node_modules/next/dist/docs/01-app/03-api-reference/04-functions/catchError.md).
 //
-// 여기서는 사용자가 이 항목에 결정을 시도했다는 걸 알 수 있으므로 상위 경계와 달리 원인을 말한다.
+// 하위 렌더와 action/응답 실패를 모두 받으므로 저장 여부나 실패 원인을 단정하지 않는다.
 // 문구는 product-copy.md §17.
 function InboxCardErrorFallback({ itemKey }: { itemKey: string }, { retry }: ErrorInfo) {
   return (
     <article className={cardClass()}>
       <p className="font-mono text-xs text-quiet">{itemKey}</p>
-      <p className="text-sm">The decision wasn&apos;t recorded. Try again.</p>
+      <p className="text-sm">This card couldn&apos;t be loaded. Try again to check the latest Inbox state.</p>
       <div>
         <Button variant="mine" onClick={() => retry()}>
           Try again

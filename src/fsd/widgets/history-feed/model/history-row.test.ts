@@ -66,3 +66,10 @@ it("sorts by time, source and ordinal id with ascending exactly the reverse, wit
   assert.deepEqual(toHistoryRows(events, reports, { repo, order: "asc" }).map(r => r.id), desc.map(r => r.id).reverse());
   assert.deepEqual(events.map(e => e.id), ["c1", "c9", "c0"]);
 });
+it("keeps a constructor actor report with its implementation label and recorded commit in History", () => {
+  const result = rows([], [report({ actor: "constructor" })]);
+  assert.equal(result[0].actor, "constructor"); assert.equal(result[0].text, "Implementation report");
+  assert.equal(result[0].source, "report");
+  if (result[0].source !== "report") assert.fail("expected the recorded report");
+  assert.equal(result[0].href, "https://github.com/owner/repo/blob/abcdef123456/docs/r.md");
+});

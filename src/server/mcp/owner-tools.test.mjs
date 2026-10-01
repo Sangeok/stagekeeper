@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { readFileSync } from "node:fs";
 import { OWNER_TOOL_NAMES, registerOwnerTools } from "./owner-tools.ts";
+import { APPROVED_ADVICE_FAILURE, createOwnerGate } from "./owner-gate.ts";
 import { AGENT_TOOL_NAMES } from "./tools.ts";
 
 const ctx = { http: { authInfo: { extra: { projectId: "p1", userId: "u1", ownerTokenId: "o1" } } } };
@@ -11,6 +13,26 @@ const handlersWith = (deps) => {
   return h;
 };
 const next = { key: "X-1", node: "implement", version: 2, action: "dispatch", agent: "web-dev", hint: "Dispatch with the item key. One item per dispatch." };
+
+it("locks the complete registered owner metadata and actual advice error body to canonical copy", async () => {
+  const copy = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
+  const ownerCopy = copy.slice(copy.indexOf("**Owner server**"));
+  const row = ownerCopy.split(/\r?\n/).find(line => line.startsWith("| `gate_approve` |"));
+  assert.ok(row);
+  let metadata; let handler; let writes = 0;
+  const item = { id: "written", agent: "dev", status: "done", reason: "preserved" };
+  registerOwnerTools({ registerTool: (_name, meta, fn) => { metadata = meta; handler = fn; } }, {
+    owner: async () => true, access: async () => ({ plan: "pro", available: true }),
+    gate: createOwnerGate({ latestRow: async () => ({ updatedAt: new Date(0) }), gate: async () => { writes++; return { ok: true, item }; },
+      advice: async () => { throw new Error("private database failure"); } }),
+  });
+  assert.equal(metadata.description, row.split("|")[2].replaceAll("`", "").replaceAll("**", "").trim());
+  const result = await handler({ key: "X-1", gate: "before-accept" }, ctx);
+  assert.equal(writes, 1); assert.equal(result.isError, true);
+  assert.deepEqual(body(result), { error: APPROVED_ADVICE_FAILURE });
+  assert.ok(copy.slice(copy.indexOf("## 12."), copy.indexOf("## 13.")).includes(`\`${APPROVED_ADVICE_FAILURE}\``));
+  assert.ok(!result.content[0].text.includes("private")); assert.equal(body(result).next, undefined);
+});
 
 describe("owner-scoped MCP tools", () => {
   it("registers exactly gate_approve — and none of the agent tools (pipeline_next included)", () => {
