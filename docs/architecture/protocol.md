@@ -214,6 +214,9 @@ rollback을 단정하지 않는다. 웹은 advice를 조회하지 않고 성공 
 순서의 단일 출처는 `packages/core/pipeline.mjs`와 그 프로젝트의 `PipelineVersion` 행이다. 런북에는 순서가 없다.
 
 - **앵커와 슬롯.** plan·implement·accept는 각각 한 번이며 순서가 고정된다. propose는 선택이며 맨 앞, verify는 선택이며 plan과 implement 사이다. doc-auditor·feature-scout는 앵커 사이에 반복 배치할 수 있다. 첫 생성은 접미가 없고 이후 #2, #3 등을 배정한다. 이동·다른 슬롯 삭제로 기존 ID를 바꾸지 않는다. doc-audit·scout는 기존 별칭이며 편집 정규화는 연결 게이트도 함께 옮긴다. 기본 그래프와 scout opt-in은 보존한다.
+- **자동 발굴.** `Project.autoScoutEnabled`는 빈 후보 백로그를 채우는 head scout의 소유자 설정이며 기본값은 true다. Pipeline 탭 시작 부분에 조건부 Scout를 표시하고 Free·Pro·Max 모두 켜거나 끌 수 있다. 항목 그래프의 편집 권한·버전과 독립적이며 변경은 즉시 적용한다. 후보가 없고 꺼져 있으면 head는 `Automatic scouting is off. Add a backlog item, or turn it on in the Pipeline tab.`을 반환한다. 후보가 있으면 pm의 기존 규칙을 따른다.
+- **자동 발굴 중단.** 웹 action은 세션 소유자와 프로젝트 쓰기 접근을 검사하고 `User → Project` 잠금 안에서 설정 저장과 열린 독립 Scout run 종료를 함께 수행한다. 꺼진 동안 독립 Scout `agent_next`는 단계·새 run을 주지 않고, 종료된 run의 `backlog_add`는 거부한다. 이미 전달된 로컬 지시 자체를 취소하지는 않는다. entry에 묶인 Scout 슬롯과 다른 에이전트는 유지한다. 레거시(format=null) 항목의 Scout는 독립 run과 구별되지 않으므로 실제 커서가 Scout에 있을 때 그 공유 run을 보존하고 호출을 허용한다. 레거시 슬롯이 없을 때는 일반 중단 규칙을 적용한다.
+- **자동 발굴 배포.** 먼저 `20261001000000_automatic_scout_control` migration을 적용한 뒤 새 서버를 배포한다. 기존 프로젝트는 true로 유지되고 이전 서버는 추가 컬럼을 무시한다. 새 서버는 컬럼을 읽으므로 migration 없이 실행할 수 없다. 되돌릴 때는 이전 서버로 돌아가고 컬럼을 남긴다. 운영 DB 변경은 별도 배포 작업으로 수행하며 개발·인수 시험은 격리 DB만 사용한다.
 - **게이트.** before-<slotId>는 해당 슬롯 앞 간선이다. before-propose는 없다. before-plan과 before-implement만 승인이 상태 전이를 함께 수행한다. 나머지는 same-status 감사 이벤트다. 새 형식의 승인은 읽어 둔 gateEntry(runId, entryId)를 그대로 제출해야 하며 잠긴 현재 회차에서 한 번만 소비된다. 과거 이벤트나 같은 timestamp는 재승인 근거가 아니다.
 - **버전과 회차.** 새 PipelineVersion.format은 slots-v1, 기존 행은 null이다. 항목은 시작한 버전에 고정된다. PipelineRun.entryId는 진입·reset마다 새로 생성한다. 기존 행의 nodes/gates를 backfill하지 않는다. 알 수 없는 형식은 거부한다. GET은 버전을 생성하지 않는다.
 - **실행 결합.** 새 dispatch 응답의 entry={runId,entryId,slotId}는 PipelineRun을 식별한다. agent_next는 이 entry에 결합하고 응답에 실제 agentRunId와 receipt={runId,revision,stepId}를 준다. 모든 outcome은 응답 receipt를 그대로 제출하며, 결합 실행은 entry도 함께 제출한다. agentRunId·stepId는 선택적 호환 필드이며 제출하면 receipt와 일치해야 한다. 현재 회차·단계·revision이 다르면 쓰기 전에 거부한다. 프로젝트 에이전트는 entry가 있어도 key를 생략한다. 항목 생성 전 PM은 결합 없는 실행이다.
@@ -316,6 +319,7 @@ our hole은 관측과 코드 확정을 구분한 `file:line`을 적는다. `Effe
   Proposed 폐기는 discarded. In review 폐기는 백로그를 유지한다. 제거 시 removedAt도 함께 찍으며
   살아 있는 행의 removedReason은 null이다. 재열기는 두 열을 모두 null로 한다.
 - head는 미결 2건을 먼저 검사한다. 후보가 없을 때 Scout 노드가 이미 dispatch 중이면 head는 쉰다.
+  그 다음 자동 발굴 설정을 검사하며 꺼져 있으면 사람이 백로그를 추가하도록 안내한다.
   마지막 추가·제거 시각 뒤 report/ok 수락 원장과 함께 닫힌 scout run이 있으면 다시 부르지 않는다.
   그래프에 묶인 scout 완료도 이 판정에 포함하며, 도중 닫힌 run은 포함하지 않는다.
   후보가 있으면 Propose 노드 여부와 dispatch 상한을 본다. head scout는 Propose 노드 없이도 돈다.

@@ -1,6 +1,6 @@
 import { sequence } from "@harness/core/pipeline.mjs";
 import { gateLabel, nodeLabel } from "@/fsd/entities/pipeline";
-import { PipelineRail, type Graph, type SavePipelineAction } from "@/fsd/features/edit-pipeline";
+import { AutomaticScoutControl, PipelineRail, type Graph, type SavePipelineAction, type SaveAutomaticScoutAction } from "@/fsd/features/edit-pipeline";
 import { agoLabel } from "@/fsd/shared/lib/relative-time";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
 
@@ -15,11 +15,14 @@ type Props = {
   roster: string[];
   editable: boolean;
   save: SavePipelineAction;
+  autoScoutEnabled: boolean;
+  canChangeAutoScout: boolean;
+  saveAutoScout: SaveAutomaticScoutAction;
 };
 
 // 파이프라인 탭. 그래프는 서버 소유이고 이 화면은 그것을 그리고 고친다 — 문구는 product-copy.md §18.
 // 저장한 버전은 지금 열려 있는 항목을 옮기지 않는다: 런은 자기가 시작한 버전을 끝까지 쓴다(§C.1).
-export function ProjectPipelinePage({ graph, format, saved, now, plan, roster, editable, save, unavailableReason }: Props) {
+export function ProjectPipelinePage({ graph, format, saved, now, plan, roster, editable, save, unavailableReason, autoScoutEnabled, canChangeAutoScout, saveAutoScout }: Props) {
   return (
     <>
       <div className="flex flex-col gap-1">
@@ -29,6 +32,9 @@ export function ProjectPipelinePage({ graph, format, saved, now, plan, roster, e
         </p>
       </div>
 
+      <AutomaticScoutControl enabled={autoScoutEnabled} writable={canChangeAutoScout} save={saveAutoScout} unavailableReason={unavailableReason} />
+
+      <SectionLabel>Item pipeline</SectionLabel>
       <PipelineRail key={`${saved?.version ?? "default"}:${plan}:${editable}`} graph={graph} plan={plan} roster={roster} editable={editable} save={save} unavailableReason={unavailableReason} />
 
       <section>
@@ -38,6 +44,7 @@ export function ProjectPipelinePage({ graph, format, saved, now, plan, roster, e
           <summary className="cursor-pointer text-xs text-quiet underline underline-offset-2">
             The same pipeline in cursor order
           </summary>
+          <p className="mt-2 text-xs text-quiet">Before picking an item: {autoScoutEnabled ? "Scout when no backlog items are available." : "automatic scouting is off; add a backlog item to continue."}</p>
           <ol className="mt-2 flex flex-col gap-1 text-sm">
             {sequence(graph).map((id, index) => (
               <li key={id} className="flex gap-2">

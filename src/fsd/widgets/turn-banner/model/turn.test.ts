@@ -35,6 +35,15 @@ const handoff = (key: string, note: string | null, status = "planning", agent = 
 });
 
 describe("deriveTurn — setup", () => {
+  it("directs owners to add backlog items when automatic scouting is off", () => {
+    const setup = { ...ready, autoScoutEnabled: false };
+    const first = deriveTurn([], setup);
+    assert.equal(first.kind, "setup");
+    if (first.kind === "setup") assert.match(first.steps[2].detail, /Automatic scouting is off.*Backlog tab/);
+    const idle = deriveTurn([accepted("DONE")], setup);
+    assert.equal(idle.kind, "none");
+    if (idle.kind === "none") assert.match(idle.detail, /Automatic scouting is off.*Pipeline tab/);
+  });
   it("shows the checklist while the board is empty, pointing at the first undone step", () => {
     const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false });
     assert.equal(turn.kind, "setup");

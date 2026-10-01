@@ -11,6 +11,7 @@ export const TAIL_NODES = ["doc-audit", "scout"];               // accept ë’¤. ì
 export const NODE_AGENT = { propose: "pm", verify: "plan-verifier", "doc-audit": "doc-auditor", scout: "feature-scout" };
 export const SLOT_FORMAT = "slots-v1";
 export const PROJECT_AGENTS = ["doc-auditor", "feature-scout"];
+export const AUTO_SCOUT_DISABLED_REASON = "Automatic scouting is off. Add a backlog item, or turn it on in the Pipeline tab.";
 // Slot identity is deliberately separate from agent identity. Legacy aliases are
 // accepted only without a suffix; anchors are never repeatable.
 export function slotAgent(slot) {

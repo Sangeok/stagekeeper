@@ -1096,10 +1096,20 @@ never existed look the same from here.
 - Zero gates is allowed, and saving warns first: "No gate: plan and implementation start without
   your approval. Acceptance is still required. Reopen and discard stay on the web." The Save
   button reads **Save without a gate** until it is pressed a second time.
-- Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is."
-- Scout graph slots are opt-in. When no Scout slot exists (aliases and numbered slots count):
-  "Scout also runs on its own when nothing is left to pick. Add it here to scout after each accepted item."
+- The conditional Scout section appears before the item rail on every plan, including Free.
+  Eyebrow **Before picking an item** · title **Scout** · handle `feature-scout` · switch **Automatic scouting**, **On** / **Off** / **Saving…**.
+  Intro: "When no backlog items are available, feature-scout looks for up to three items to add before pm picks work."
+  On: "Runs once after the backlog changes, when there is room on the board. Turning it off stops the current automatic scout run and further additions."
+  Off: "Automatic scouting is off. Add an item on the Backlog tab to continue."
+  Footer: "Changes take effect immediately. Scout slots in the item pipeline below follow their saved order."
+  Unavailable projects show a disabled switch and the project recovery reason. Saves happen immediately, separately from the item graph Save button.
+  Success: **Automatic scouting on** / **Automatic scouting off**. A lost response refreshes the server state and says "The setting may have changed. Refresh to check before trying again." It does not retry the mutation.
+- The rail is labelled **Item pipeline**. Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is." Automatic scouting can still be changed on Free.
+- Scout graph slots are opt-in and run in their saved positions independently of automatic scouting.
 - **Read as text** is a `<details>` that renders the graph as a numbered list, in cursor order.
+  Before the list: "Before picking an item: Scout when no backlog items are available." or "Before picking an item: automatic scouting is off; add a backlog item to continue."
+  When automatic scouting is off, the shared Nothing open detail reads "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab."
+  The first-run checklist appends "Then run the pipeline in Claude Code, or put the item on the board from the Backlog tab." to that off detail.
 
 ## 19. History tab
 

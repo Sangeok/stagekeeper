@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { allowsSessionApprovals, capError } from "@harness/core/entitlement.mjs";
 import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/backlog.mjs";
 import { readProjectAccessIn, readProjectPlanIn } from "../project-access-query";
-import { advance, cursorForStatus, SLOT_FORMAT } from "@harness/core/pipeline.mjs";
+import { advance, cursorForStatus, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { hasActiveLegacyScoutSlot } from "../automatic-scout";
 import { isOpen } from "@harness/core/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
@@ -67,8 +68,10 @@ async function addBacklog(projectId: string, input: {
     if (input.addedByRunId !== null) {
       const run = await tx.agentRun.findFirst({ where: {
         id: input.addedByRunId, projectId, agent: "feature-scout", closedAt: null,
-      }, select: { id: true } });
+      }, select: { id: true, pipelineRunId: true, pipelineEntryId: true, project: { select: { autoScoutEnabled: true } } } });
       if (!run) return fail("backlog_add needs an open feature-scout run");
+      if (run.pipelineRunId === null && run.pipelineEntryId === null && !run.project.autoScoutEnabled
+        && !await hasActiveLegacyScoutSlot(tx, projectId)) return fail(AUTO_SCOUT_DISABLED_REASON);
     }
     const plan = await readProjectPlanIn(tx, projectId);
     const live = await tx.backlogItem.count({ where: { projectId, removedAt: null } });

@@ -1,5 +1,5 @@
 // src/server/pipeline/run-rules.ts — 순수. DB·프레임워크 없음(board-rules.ts와 같은 층). run.ts가 읽은 사실로 pipeline_next의 답 하나를 정한다.
-import { dispatcherFor, slotAgent, boundaryOf, isGateId } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import { canPropose } from "@harness/core/transitions.mjs";
 
 // 응답 — 항목 하나의 다음 일. 세션은 이 값을 읽고 그 턴에 행동한다(런북 "The cycle").
@@ -79,6 +79,7 @@ export function hintFor(node: string): string {
 }
 
 export type HeadInput = {
+  autoScoutEnabled: boolean;
   hasResumablePmRun?: boolean;
   hasResumableScoutRun?: boolean;
   scoutedSinceChange: boolean;
@@ -98,6 +99,7 @@ export function decideHead(i: HeadInput): HeadNext {
   if (!canPropose(i.openCount)) return { action: "none", reason: `open items: ${i.openCount} (max 2)` };
   if (i.availableBacklog === 0) {
     if (i.scoutNodePending) return { action: "none", reason: "a Scout node in items dispatches feature-scout — that run looks for items to add" };
+    if (!i.autoScoutEnabled) return { action: "none", reason: AUTO_SCOUT_DISABLED_REASON };
     if (i.scoutedSinceChange) return { action: "none", reason: "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" };
     if (i.capReason !== null && !i.hasResumableScoutRun) return { action: "none", reason: i.capReason };
     return { action: "dispatch", agent: "feature-scout", hint: HINT.scoutHead };
