@@ -20,6 +20,7 @@ export function replacementSummary(project: Pick<ProjectChoice, "name" | "openIt
   return `${project.name} will no longer be selected. ${countNoun(project.openItems, "open board item")} · ${countNoun(project.openRuns, "open agent run")}.`;
 }
 
+// "selection:" 접두사는 같은 행의 형제인 연결 관리 컨트롤 key(manage-project-connection)와 겹치지 않게 한다.
 export function selectionControlKey(targetId: string, model: ProjectSelectionModel): string {
-  return `${targetId}:${model.version}:${model.plan}`;
+  return `selection:${targetId}:${model.version}:${model.plan}`;
 }
