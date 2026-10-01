@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-24"
 approved-by: "user (conversation)"
 approved-at: "2026-09-26"
 approval-scope: "이 문서를 바탕으로 서버·웹·core·plugin·중첩 템플릿 저장소와 문서를 로컬 구현하고 검증. 2026-09-27 후속 요청으로 커밋·푸시와 dev 대상 PR, 독립 템플릿 저장소의 연계 PR까지 포함. 운영 배포·머지는 제외."
-completed-at: null
-verification-summary: "로컬 구현 완료. check·build 통과, core/plugin 187·web 391·server 5·DB 통합 25·templates 28개 통과. Edge 폼 검증 10개 통과. 운영 배포와 설치된 Claude Code 실사용 사이클은 미실행."
+completed-at: "2026-10-01"
+verification-summary: "Execution Plan 1~8 구현 완료. 본체 PR #83과 템플릿 PR #4는 2026-09-27 병합됨. 2026-09-26 check·build, core/plugin 187·web 391·server 5·DB 통합 25·templates 28개, Edge 폼 10개 통과. 2026-10-01 관련 회귀 시험 166개 재통과. 사용자 요청에 따라 구현 완료 기준으로 completed 처리하며, 운영 배포·설치된 Claude Code 사이클·인증된 앱의 전체 HTTP 검증은 미검증 후속 작업으로 남김."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -622,11 +622,11 @@ function setupSteps(setup: SetupState): SetupStep[] {
 
 승인 메모:
 
-- 사용자 요청에 따라 로컬 구현을 진행했다. 실제 배포와 설치된 플러그인의 실사용 검증이 남아 있으므로 문서는 `active/`에 유지한다.
+- 사용자 요청에 따라 로컬 구현을 진행했고, 본체와 독립 템플릿 저장소의 PR도 병합됐다. 2026-10-01 후속 요청에 따라 Execution Plan 1~8의 구현 완료를 기준으로 `completed/`에 기록한다. 운영 배포와 Execution Plan 9의 실사용 검증, 인증된 앱의 전체 HTTP 검증은 후속 작업으로 남긴다.
 
 ## Execution Plan
 
-각 단계는 독립적으로 검증할 수 있다. 브랜치는 `harness/agent-filled-backlog`, PR은 `--base dev`.
+아래는 구현 당시의 실행 절차다. 1~8은 구현 완료됐고, 9는 후속 실사용 검증으로 남았다. 구현 브랜치는 `harness/agent-filled-backlog`였으며 본체 PR은 `dev`를 대상으로 병합됐다.
 
 product-copy의 문장은 그 문장을 쓰는 코드를 바꾸는 단계에서, 같은 커밋으로 먼저 고친다(§9 Tokens, `docs/architecture/verification.md:93-95`). 특히 3단계는 `plan_submit`의 등록 설명과 product-copy §13 행을 함께 고쳐야 한다 — `tools.test.mjs:42-48`이 두 문장의 글자 일치를 단언하므로, 따로 고치면 3단계에서 그 시험이 실패한다. 아키텍처 문서 가운데 불변식 4의 코드 강제 목록(`invariants.md:40-43` — §4가 `WEB_ONLY`와 함께 "이 두 곳을 고치지 않고 구현하면 안 된다"고 한 곳)과 `protocol.md`의 도구 표는 `WEB_ONLY`에서 `backlog_add`를 빼는 3단계에서 함께 고친다. 나머지 아키텍처 문서와, 코드가 따라오지 않는 product-copy 절은 8단계에서 고친다.
 
@@ -646,7 +646,7 @@ product-copy의 문장은 그 문장을 쓰는 코드를 바꾸는 단계에서,
    - 검증: `turn.test.ts`, `backlog-table.test.mjs`, `inbox-item.test.ts`, `pipeline-rail.test.mjs`(Scout 안내의 표시 조건), 실화면(백로그 탭, 빈 보드 배너, 인박스 카드). 백로그 탭에서는 편집 폼의 배선을 따로 본다 — `typeBefore` 숨은 입력은 폼 렌더 시험이 없고(`edit-backlog/ui`의 시험은 `backlog-table.test.mjs`뿐이다) 통합 시험은 서비스(`updateBacklog`)만 부르므로, 빠져도 시험이 녹색이다. 빠지면 `typeBefore`가 `null`로 와서 type이 있는 항목의 모든 편집이 "The item changed. Refresh and try again."으로 끝난다. 그래서 type이 채워진 항목(scout 또는 사람)의 제목만 고쳐 저장이 성공하고 `typeSetBy`가 그대로인지, type을 바꾸면 `typeSetBy: "owner"`가 되는지 실화면과 DB로 확인한다. 같은 폼에서 type을 바꿔 성공한 뒤 제목만 다시 저장해도 성공해야 한다. 별도 세션의 dev type 변경 후 클라이언트 refresh로 서버 props만 갱신해도 초안의 `typeBefore`는 그대로여야 하며, 그 초안에서 다른 type으로 저장하면 충돌하고 제목·area·source도 쓰이지 않아야 한다. 충돌 뒤 전체 새로고침으로 최신 값이 보이고 재편집·저장할 수 있어야 한다.
 8. **문서와 예시 key**: 앞 단계에서 코드와 함께 고치지 않은 문서 — invariants(불변식 8 설명), system-overview, protocol(나머지 행과 백로그 작성 규칙), sources, rationale, product-copy(§6 Team row처럼 코드가 따라오지 않는 절), `RETIRED` 추가, 그리고 `FEAT-01` → `ITEM-01`.
    - 검증: `npm run test:architecture`(`retired-copy.test.mjs` 포함), copy-lock 블록 대조.
-9. **실사용 한 바퀴**: 판을 올린 플러그인이 설치된 뒤(scout 설정이 없는 저장소에서 `/harness:init`이 `.claude/agents/feature-scout.md`를 쓰는지로 확인한다), 빈 백로그 프로젝트에서 `/harness:init` → `pipeline_next` → scout 디스패치 → 백로그 1~3건 → pm → 인박스 게이트①.
+9. **후속 실사용 한 바퀴(미검증)**: 판을 올린 플러그인이 설치된 뒤(scout 설정이 없는 저장소에서 `/harness:init`이 `.claude/agents/feature-scout.md`를 쓰는지로 확인한다), 빈 백로그 프로젝트에서 `/harness:init` → `pipeline_next` → scout 디스패치 → 백로그 1~3건 → pm → 인박스 게이트①.
 
 ## Verification Plan
 
@@ -758,11 +758,11 @@ it("a Scout node dispatch in the same overview holds the head's scout", () => {
 | 실제 BacklogForm의 Edge 검증 | PASS | 격리 컴포넌트와 제어 가능한 action으로 10개 시나리오. 실제 인증·HTTP 서버 액션·DB를 연결한 브라우저 검증은 아님 |
 | 루트·`plugin/templates`의 `git diff --check` | PASS | 두 저장소 모두 확인 |
 
-검증 일자: 2026-09-26. 루트와 중첩 템플릿 저장소 모두 `harness/agent-filled-backlog` 브랜치에서 제출한다. 본체 PR의 base는 `dev`다. 템플릿 저장소에는 `dev`가 없으므로, 선행 PR #1의 `harness/server-clean-code`를 base로 하여 이번 변경만 별도 검토한다. 템플릿 제출은 [harness-templates PR #4](https://github.com/Sangeok/harness-templates/pull/4), 커밋 `6fb7586`이다. 새 마이그레이션은 `20260926134848_backlog_authorship`이다. 운영 DB에는 적용하지 않았다.
+위 전체 검증의 실행 일자: 2026-09-26. 루트와 중첩 템플릿 저장소 모두 `harness/agent-filled-backlog` 브랜치에서 제출했다. 본체 [PR #83](https://github.com/Sangeok/stagekeeper/pull/83)(구현 `75083a8`, 머지 `bad4d58`)은 `dev`를 대상으로 2026-09-27 병합됐다. 템플릿 저장소에는 `dev`가 없어 선행 PR #1의 `harness/server-clean-code`를 base로 제출한 [harness-templates PR #4](https://github.com/Sangeok/harness-templates/pull/4)(구현 `6fb7586`, 머지 `171a1bf`)도 같은 날 병합됐다. 새 마이그레이션은 `20260926134848_backlog_authorship`이다. 위 검증 당시 운영 DB에는 적용하지 않았으며, 이번 완료 정리에서도 운영 적용 여부는 직접 확인하지 않았다.
 
 구현 범위:
 
-- Execution Plan 1~8의 코드·템플릿·문서를 반영했다. `backlog_add`, 자동 key, 작성자·type·제거 사유, type의 사람 우선권, head scout, 기본 scout 생성, 3단계 안내와 검토 화면이 포함된다. 플러그인 버전은 `0.3.4`이다.
+- Execution Plan 1~8의 코드·템플릿·문서를 반영했다. `backlog_add`, 자동 key, 작성자·type·제거 사유, type의 사람 우선권, head scout, 기본 scout 생성, 3단계 안내와 검토 화면이 포함된다. 구현 당시 플러그인 버전은 `0.3.4`였다.
 - 실제 DB 시험은 두 연결로 추가 상한과 run당 3건을 경쟁시키고, 제거 대 제안 및 run 종료 대 추가의 양쪽 순서를 고정해 검증한다. 폐기·완료·재열기, type CAS와 트랜잭션 롤백, 중첩 응답의 내부 필드 제외, head 보고 시각과 슬롯 scout 중복 방지도 통과했다.
 - 백필 시험은 기존 스키마의 8개 fixture 행에서 옛 writer의 재열기·보류 후 제거를 재현하고 재정합 및 멱등성을 확인했다. `User → Project` 잠금 후 재정합은 마지막 실행에서 3.1ms였다. 이는 작은 격리 fixture의 측정치이며 운영 writer 종료·운영 규모 잠금 대기를 검증한 결과가 아니다.
 - Edge에서 자동 key 입력 제거, type 연속 저장, 같은 key의 props refresh 시 초안·`typeBefore` 유지, 제목만 저장, 충돌 및 재시도, 전체 재마운트로 최신 값 복구, type 비우기, 추가 후 초기화, 저장 중 비활성화를 확인했다. 최초 실행에서 React의 자동 form reset이 실패 뒤 select를 비우는 결함을 발견해 native reset listener로 고쳤고 10개 모두 재통과했다.
@@ -771,9 +771,14 @@ it("a Scout node dispatch in the same overview holds the head's scout", () => {
 
 로그는 `%TEMP%/stagekeeper-backlog-final-{check,web,integration,integration-detail}.log`, `%TEMP%/stagekeeper-backlog-{core,server,templates,build-native}.log`에 남겼다. Edge fixture·실행 스크립트·결과는 `%TEMP%/stagekeeper-backlog-browser/`에 있다. 임시 브라우저 도구는 프로젝트 의존성에 추가하지 않았다.
 
-남은 배포·실사용 확인:
+2026-10-01 완료 확인:
 
-1. 두 저장소의 PR을 검토·머지한 뒤 §1의 순서대로 운영 migration, 서버 전환, 옛 writer 종료 후 재정합, 템플릿 재시드, 플러그인 전달을 수행한다. `plugin/templates`는 루트에서 무시되는 독립 저장소라 루트 커밋만으로 전달되지 않는다.
+- 현재 코드와 두 저장소의 병합 기록을 대조했다. core의 key·type 정책 및 plugin init 시험 65개, head·MCP·응답 투영·백로그 표·첫 실행 배너·인박스 카드 시험 71개, 템플릿 시험 30개를 다시 실행해 총 166개 모두 통과했다.
+- 위 2026-09-26의 전체 check·build·DB 통합·Edge 폼 검증은 이번에 재실행하지 않았다. 운영 환경과 설치된 Claude Code도 직접 확인하지 않았다.
+
+후속 배포·실사용 확인:
+
+1. 두 저장소의 PR 병합은 완료됐다. §1의 순서대로 운영 migration, 서버 전환, 옛 writer 종료 후 재정합, 템플릿 재시드, 플러그인 전달을 확인한다. `plugin/templates`는 루트에서 무시되는 독립 저장소라 루트 커밋만으로 전달되지 않는다.
 2. 설치된 새 플러그인으로 `/harness:init` → scout 작성 → pm → 게이트①까지 실제 Claude Code 사이클을 확인한다(Execution Plan 9). dev의 type 근거가 실제 계획 커밋과 제출 본문에 일치하는지도 그 환경에서 확인한다. 템플릿 계약 시험의 통과로 모델의 실제 수행을 대신하지 않는다.
 3. 인증된 앱에서 백로그 편집·충돌·재로딩과 인박스·배너의 전체 HTTP 경로를 확인한다. 현재 서비스의 실제 DB 시험과 브라우저 컴포넌트 시험은 각각 통과했지만 두 경로를 연결한 실사용 검증은 남아 있다.
 
@@ -801,21 +806,15 @@ it("a Scout node dispatch in the same overview holds the head's scout", () => {
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+완료 기록:
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-01
+- verification-summary: Execution Plan 1~8의 구현 및 로컬 검증 완료. 2026-09-26 전체 검증과 2026-10-01 관련 회귀 시험 166개 통과 기록은 위 Verification Results 참조. 사용자 요청에 따라 구현 완료 기준으로 문서를 완료 처리했다.
+- implementation PR/commit: 본체 [PR #83](https://github.com/Sangeok/stagekeeper/pull/83), 구현 `75083a8`, dev 머지 `bad4d58`; 템플릿 [PR #4](https://github.com/Sangeok/harness-templates/pull/4), 구현 `6fb7586`, 머지 `171a1bf`. 두 PR 모두 2026-09-27 병합됐다.
+- changed files summary: BacklogItem 스키마와 백필 migration, core/plugin의 자동 key·type·기본 scout, 서버 백로그 서비스·MCP backlog_add·head 판정·제거 사유·type 우선권, 웹 폼·표·인박스·3단계 안내, 독립 scout/pm/dev/계획서/런북 템플릿, 아키텍처·제품 문구 및 회귀 시험.
+- remaining follow-up: 운영 migration·서버 전환·재정합·템플릿 재시드·플러그인 전달 확인, 설치된 Claude Code의 init → scout → pm → 게이트① 사이클과 실제 계획 커밋/type 근거 확인, 인증된 앱의 백로그 편집·충돌·재로딩 및 인박스·배너 전체 HTTP 검증. 미검증 항목을 통과로 계산하지 않는다.
 
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+닫힘 기록: 해당 없음(구현 완료).
 
 <!-- doc-validation-skip -->
 ## Open Questions
@@ -826,7 +825,7 @@ it("a Scout node dispatch in the same overview holds the head's scout", () => {
 
 ## Review Checklist
 
-- [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
+- [x] 모든 `{placeholder}`를 처리했고, 완료 metadata와 수행 기록을 현재 상태에 맞게 갱신했다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
@@ -839,5 +838,5 @@ it("a Scout node dispatch in the same overview holds the head's scout", () => {
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 검증 실패와 수정 후 결과, 환경 제약으로 미실행한 검증을 구분했다.
 - [x] 잔여 리스크를 명시했다.
-- [ ] 완료 문서라면 … (해당 없음)
+- [x] 완료 문서의 metadata·PR/커밋·변경 요약을 채웠고, 미검증 배포·실사용 항목은 후속 작업으로 명시했다.
 - [ ] 닫힌 문서라면 … (해당 없음)

@@ -12,7 +12,7 @@ last-executed-at: "2026-09-30"
 tested-revision: "7a43fd56465d9f6a597bcf9c45e8cc8805364359 + harness/repository-disconnection working tree"
 source-test-sha256: "491ba8c8b13fe127bca07f4953e5d0f30daa1786f2a572e1aff2dd13a3004bea"
 owners: []
-related: ["docs/proposals/active/2026-09-27-repository-disconnection.md", "docs/architecture/repository-disconnection.md"]
+related: ["docs/proposals/completed/2026-10-01-repository-disconnection.md", "docs/architecture/repository-disconnection.md"]
 test-summary: "자동·격리 DB·실제 Next transport 통과. 실제 브라우저 인수 미실행과 운영 BLK-RDC-01/02로 전체 완료 보류."
 ---
 
@@ -23,9 +23,10 @@ test-summary: "자동·격리 DB·실제 Next transport 통과. 실제 브라우
 연결 해제·명시적 재연결·등록 한도 반환·토큰 폐기·보존된 웹 읽기·CLI 안내를 구현했다.
 로컬 자동 검사와 실제 PostgreSQL/Next transport는 통과했다. 실제 브라우저의 클릭·키보드·두 탭 화면
 인수는 실행하지 못했으므로 전체 인수 완료는 보류한다. 운영 활성화는 BLK-RDC-01/02 미해결로 차단한다.
-제안서는 active/pending으로 유지한다. 이 보고서는 운영 배포 승인이나 운영 데이터 검증 증거가 아니다.
+제안서는 2026-10-01 사용자 요청에 따라 코드 구현 완료 기록으로 completed에 보관한다.
+이 보고서는 미실행 수동 인수의 후속 검증을 위해 active/pending으로 유지하며, 운영 배포 승인이나 운영 데이터 검증 증거가 아니다.
 
-- 기준: [제안서](../../proposals/active/2026-09-27-repository-disconnection.md)의 REQ-RDC-001–014 및 V-SERVICE–V-MIGRATION.
+- 기준: [구현 완료 기록](../../proposals/completed/2026-10-01-repository-disconnection.md)의 REQ-RDC-001–014 및 V-SERVICE–V-MIGRATION.
 - 환경: Windows PowerShell, Node 22.13.1, Next.js 16.3.3, React 19.2.8, Prisma 7.10.0, PostgreSQL 18.4.
 - DB: 루프백 전용 `stagekeeper_test_rdc`. 기존 runner의 DB명과 운영 URL host/port/database 분리 검사를
   유지했다. child 프로세스만 DATABASE_URL/TEST_DATABASE_URL을 테스트 DB로 맞췄다. 공유 `.env`는 수정하지 않았다.

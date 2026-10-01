@@ -1,13 +1,17 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 risk: "high"
 created-at: "2026-09-27"
 approved-by: "user (conversation; product decisions and local implementation)"
 approved-at: "2026-09-30"
 approval-scope: "제품 정책 및 RDC1–RDC3 로컬 코드 수정·검증·출시 절차 작성. 후속 요청으로 구현 변경의 커밋·feature branch 푸시·dev 대상 PR 생성 승인. 운영 DB 변경·배포·활성화·PR 병합은 포함하지 않음."
-completed-at: null
+completed-at: "2026-10-01"
+verification-summary: "RDC1–RDC3의 코드·migration·운영 검사·출시 절차 구현 완료. 구현 커밋 3add350은 PR #89로 dev에 병합됨. 자동 검사·격리 PostgreSQL·실제 Next transport 통과 기록과 2026-10-01 관련 단위 시험 22개 통과를 확인. 사용자 요청에 따라 구현 완료 기록으로 종료하며, 브라우저·실제 init 수동 인수와 BLK-RDC-01/02 운영 활성화 증거는 후속 점검으로 유지."
+closed-at: null
+closed-by: null
+closed-reason: null
 owners: []
 related:
   - "docs/proposals/completed/2026-09-15-individual-project-availability.md"
@@ -18,6 +22,25 @@ related:
 ---
 
 # 저장소 연결 해제와 재연결
+
+## Completion or Closure Notes
+
+연결 해제·명시적 재연결·등록 한도 반환·토큰 폐기·읽기 보존·UI·CLI·migration과 운영 검사 구현을 완료했다.
+구현 커밋 `3add350`은 [PR #89](https://github.com/Sangeok/stagekeeper/pull/89)로 `dev`에 병합됐다
+(merge commit `02f86cb`, 2026-09-30). 2026-10-01 사용자의 구현 완료 처리 요청에 따라 이 제안서를
+`completed` 수행 기록으로 정리했다. 현재 계약은 `docs/architecture/repository-disconnection.md`가 소유한다.
+
+아래 최초 설계·Task·검증 계획과 완료 조건은 판단 근거로 보존한다. 실제 수행 결과와 이 문서의 완료 범위는
+이 절 및 구현·검증 기록을 따른다. 코드 구현과 수행한 자동·DB·Next 검증의 완료를 기록하며,
+미실행 수동 인수나 운영 활성화의 통과를 뜻하지 않는다.
+
+- 브라우저의 연결 관리 클릭·키보드·두 탭 stale·응답 유실 후 화면 갱신과 실제 `/harness:init` 수동 인수는
+  [검증 보고서](../../test-reports/active/2026-09-27-repository-disconnection.md)의 후속 검증으로 남긴다.
+- BLK-RDC-01/02의 운영 데이터·backup 복원·전체 writer drain·호환 배포·설치본 버전 증거는 별도 운영 작업이다.
+  기본 `PROJECT_CONNECTION_WRITES_ENABLED=false`와 기존 활성화 조건을 유지한다.
+- 2026-10-01 현재 `dev`의 연결 service·접근·등록·확인 UI/model 관련 단위 시험 22개가 모두 통과했다.
+  2026-10-01 [후속 회귀 보고서](../../test-reports/completed/2026-10-01-src-clean-code-third-pass-regression.md)에도
+  실제 연결 action·일곱 상세 GET·History와 DB 회귀 통과가 기록되어 있다.
 
 ## 목표와 결정 기록
 
@@ -918,7 +941,7 @@ DB 검사에서는 information_schema/pg_constraint로 nullability·CHECK·index
 
 ### Phase RDC3: 통합 검증과 출시 준비
 
-- status: Validation incomplete; 자동·격리 DB·실제 Next transport 검증과 출시 절차 작성은 완료했으나 브라우저 인수는 미실행이다. 실제 운영 활성화는 별도 배포 작업이다.
+- status: Implementation complete; 통합 검증 코드·자동·격리 DB·실제 Next transport 검증과 출시 절차 작성 완료. 브라우저·실제 init 수동 인수는 검증 보고서의 후속 작업이며, 실제 운영 활성화는 별도 배포 작업이다.
 - entry criteria: RDC1/RDC2 전체 검증 가능, 격리 PostgreSQL 준비.
 - satisfies: REQ-RDC-001, REQ-RDC-002, REQ-RDC-003, REQ-RDC-004, REQ-RDC-005, REQ-RDC-006, REQ-RDC-007, REQ-RDC-008, REQ-RDC-009, REQ-RDC-010, REQ-RDC-011, REQ-RDC-012, REQ-RDC-013, REQ-RDC-014
 - preserves: INV-RDC-001, INV-RDC-002, INV-RDC-003, INV-RDC-004, INV-RDC-005
@@ -1157,7 +1180,10 @@ core의 상한·플랜 정책 수치는 변경하지 않는다. 구현 리뷰에
 연결을 일괄 복구하거나 revokedAt을 되돌리는 방식의 rollback은 금지한다.
 데이터 복원이 필요하면 폐기된 자격증명과 해제 감사 기록까지 과거로 되돌리지 않는 별도 복구 절차를 적용한다.
 
-## 완료 조건과 문서 검증 범위
+## 최초 완료 조건과 문서 검증 범위
+
+아래는 최초 전체 인수 목표와 구현 전 문서 검증 기록이다. 구현 완료 처리의 범위와 남은 수동 인수·운영 작업은
+위 Completion or Closure Notes를 따른다. 미실행 항목을 통과로 바꾸거나 운영 활성화 조건을 완화하지 않는다.
 
 - REQ 14개가 해당 Phase·Task·V-SERVICE/V-ACCESS/V-DATABASE/V-UI-PLUGIN/V-MIGRATION 및 위 artifact map의 실제 목적지에서 검증되어야 한다.
 - RDC1–RDC3는 모두 필수 Core다. 소유권·두 종류의 개수·토큰 세 종류·동시성·0개·재연결·초기화·UI 갱신 중 일부를 후속 작업으로 넘겨 완료 처리하지 않는다.
@@ -1198,7 +1224,7 @@ runner의 환경 전달은 이전 대조에서 합성 URL과 실행하지 않는
 | --- | --- |
 | 코드/계약·runtime 대조 | I-STATE–I-KEEP, 명명된 route/action/registry, 설치된 Next·mcp-handler, schema/manifest/package scripts 읽기 |
 | 생성 전 점검 | I-NEW의 신규 경로 부재·부모 존재·공용 API 목적지 확인. 파일 생성은 구현 작업 |
-| 문서 추적성 | `python C:/Users/hamso/.codex/skills/write-sdd-spec/scripts/validate_sdd_traceability.py --strict docs/proposals/active/2026-09-27-repository-disconnection.md`로 최신 저장본 검사 |
+| 문서 추적성 | `python C:/Users/hamso/.codex/skills/write-sdd-spec/scripts/validate_sdd_traceability.py --strict docs/proposals/completed/2026-10-01-repository-disconnection.md`로 최신 저장본 검사 |
 | 실행하지 않은 제품 검증 | 제품 test/build, Prisma generation/migration, 운영 DB/API, 실제 브라우저 동작·plugin 배포. 전부 후속 구현 검증 대상 |
 | 남는 운영 증거 | BLK-RDC-01/02. 코어 설계 누락을 이 blocker로 넘기지 않음 |
 
