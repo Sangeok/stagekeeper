@@ -40,7 +40,7 @@ export async function withAvailabilityTransaction<T>(
 }
 
 export const OWNED_PROJECT_SELECT = {
-  id: true, slug: true, name: true, repoOwner: true, repo: true, ownerUserId: true,
+  id: true, slug: true, name: true, repoOwner: true, repo: true, branch: true, ownerUserId: true,
   available: true, disconnectedAt: true, lastSelectedAt: true, lastSyncedAt: true, createdAt: true,
 } as const satisfies Prisma.ProjectSelect;
 export type OwnedProject = Prisma.ProjectGetPayload<{ select: typeof OWNED_PROJECT_SELECT }>;
@@ -187,7 +187,7 @@ export async function selectProjectForUse(client: TransactionHost, input: Select
 
 export type ProjectAvailabilityView = {
   userId: string; login: string; plan: Plan; limit: number | null; version: number; connectedCount: number; availableCount: number;
-  projects: { id: string; slug: string; name: string; repoOwner: string; repo: string; available: boolean; disconnectedAt: string | null; openItems: number; openRuns: number }[];
+  projects: { id: string; slug: string; name: string; repoOwner: string; repo: string; branch: string; available: boolean; disconnectedAt: string | null; openItems: number; openRuns: number }[];
   notice: { basis: string | null; availableProjectIds: string[]; at: string } | null;
 };
 export async function loadProjectAvailability(client: TransactionHost, userId: string): Promise<ProjectAvailabilityView> {
@@ -205,7 +205,7 @@ export async function loadProjectAvailability(client: TransactionHost, userId: s
       userId, login: owner.login, plan: owner.plan, limit: Number.isFinite(limit) ? limit : null, version: owner.version,
       connectedCount: owner.projects.filter((p) => p.disconnectedAt == null).length,
       availableCount: owner.projects.filter((p) => p.available).length,
-      projects: owner.projects.map((p) => ({ id: p.id, slug: p.slug, name: p.name, repoOwner: repositoryOwner(p.repoOwner), repo: p.repo, available: p.available,
+      projects: owner.projects.map((p) => ({ id: p.id, slug: p.slug, name: p.name, repoOwner: repositoryOwner(p.repoOwner), repo: p.repo, branch: p.branch, available: p.available,
         disconnectedAt: p.disconnectedAt?.toISOString() ?? null,
         openItems: board.filter((b) => b.projectId === p.id && isOpen(b.status)).length,
         openRuns: runs.find((r) => r.projectId === p.id)?._count._all ?? 0,
