@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { HINT, decideHead, decideNext, handoffIsLive, scoutNodePending } from "./run-rules.ts";
+import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, capReason: null };
 
@@ -121,7 +122,7 @@ describe("handoffIsLive", () => {
 });
 
 it("an empty backlog scouts once per change, with no duplicate graph dispatch and no Propose prerequisite", () => {
-  const input = { hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, capReason: null };
+  const input = { autoScoutEnabled: true, hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, capReason: null };
   assert.deepEqual(decideHead(input), { action: "dispatch", agent: "feature-scout", hint: HINT.scoutHead });
   assert.match(decideHead({ ...input, scoutedSinceChange: true }).reason, /already looked/);
   assert.match(decideHead({ ...input, scoutNodePending: true }).reason, /Scout node/);
@@ -141,4 +142,14 @@ it("only an actual feature-scout dispatch suppresses a duplicate head dispatch",
   assert.equal(scoutNodePending([decideNext({ ...base, node: "scout" })]), true);
   assert.equal(scoutNodePending([decideNext({ ...base, node: "scout", capReason: "full" })]), false);
   assert.equal(scoutNodePending([decideNext({ ...base, node: "plan" })]), false);
+});
+
+it("turning automatic scouting off waits for manual backlog input while PM and configured Scout slots keep working", () => {
+  const input = { autoScoutEnabled: false, hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, capReason: null };
+  assert.deepEqual(decideHead(input), { action: "none", reason: AUTO_SCOUT_DISABLED_REASON });
+  assert.deepEqual(decideHead({ ...input, hasResumableScoutRun: true }), { action: "none", reason: AUTO_SCOUT_DISABLED_REASON });
+  assert.equal(decideHead({ ...input, availableBacklog: 1 }).agent, "pm");
+  assert.equal(decideNext({ ...base, node: "feature-scout#2" }).agent, "feature-scout");
+  assert.match(decideHead({ ...input, scoutNodePending: true }).reason, /Scout node/);
+  assert.equal(decideHead({ ...input, autoScoutEnabled: true }).agent, "feature-scout");
 });

@@ -1,7 +1,8 @@
 import { allowsAgent, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
-import { dispatcherFor, SLOT_FORMAT } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccessIn } from "../project-access-query";
+import { hasActiveLegacyScoutSlot } from "../automatic-scout";
 import type { NextDeps, NextInput, NextOutput, Scope, OutcomeCommit, CommitResult } from "./next";
 import type { ServerResult } from "../result";
 
@@ -28,6 +29,10 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((r) => r.agent);
         if (!allowsAgent(access.plan, input.agent, roster)) return { ok: false, reason: `agent is not on the ${access.plan} plan` };
         const entry = input.entry;
+        if (input.agent === "feature-scout" && !entry && key === null) {
+          const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } });
+          if (!project.autoScoutEnabled && !await hasActiveLegacyScoutSlot(tx, projectId)) return { ok: false, reason: AUTO_SCOUT_DISABLED_REASON };
+        }
         // outcome이 있는 호출은 영수증을 함께 싣는다(agentNext가 먼저 검증했다). claim은 그 영수증이고 outcome이 없으면 null —
         // 아래 분기는 claim으로 하므로 영수증이 있다는 전제를 컴파일러가 안다.
         const claim = input.outcome ? input.receipt ?? null : null;

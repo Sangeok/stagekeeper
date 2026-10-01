@@ -1,5 +1,5 @@
 import { allowsPipelineEdit } from "@harness/core/pipeline.mjs";
-import { savePipeline } from "@/fsd/features/edit-pipeline/index.server";
+import { saveAutomaticScout, savePipeline } from "@/fsd/features/edit-pipeline/index.server";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
@@ -11,10 +11,11 @@ export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) 
   const { slug } = await params;
   const { projectId } = await requireProjectOwner(slug);
 
-  const [version, access, roster] = await Promise.all([
+  const [version, access, roster, project] = await Promise.all([
     loadCurrentVersionView(prisma, projectId),
     projectAccess(projectId),
     loadProjectRoster(prisma, projectId),
+    prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } }),
   ]);
 
   return (
@@ -28,6 +29,9 @@ export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) 
       editable={access.available && allowsPipelineEdit(access.plan)}
       unavailableReason={access.available ? undefined : access.reason}
       save={savePipeline.bind(null, slug)}
+      autoScoutEnabled={project.autoScoutEnabled}
+      canChangeAutoScout={access.available}
+      saveAutoScout={saveAutomaticScout.bind(null, slug)}
     />
   );
 }

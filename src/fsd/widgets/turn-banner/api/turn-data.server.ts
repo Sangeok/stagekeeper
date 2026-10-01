@@ -11,7 +11,7 @@ export type TurnData = { turn: Turn; inboxCount: number };
 
 // §E.3: latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다.
 export async function loadTurn(projectId: string): Promise<TurnData> {
-  const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns] = await Promise.all([
+  const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns, project] = await Promise.all([
     latestBoard(projectId),
     prisma.projectToken.count({ where: { projectId, revokedAt: null } }),
     prisma.workspace.count({ where: { projectId } }),
@@ -20,6 +20,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
       select: { pipelineRunId: true, pipelineEntryId: true, key: true, agent: true, stepId: true, steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, orderBy: { at: "desc" }, take: 1, select: { outcome: true, note: true, at: true } } },
     }),
     prisma.pipelineRun.findMany({ where: { closedAt: null, boardItem: { projectId } }, select: { id: true, entryId: true, version: { select: { format: true } }, boardItemId: true, node: true } }),
+    prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } }),
   ]);
 
   // 에이전트가 멈췄다는 사실은 원장에 남지만, 소유자가 커밋하고 에이전트가 이어가면 그 행은 그대로 남는다.
@@ -61,7 +62,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
   });
 
   return {
-    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0 }),
+    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0, autoScoutEnabled: project.autoScoutEnabled }),
     inboxCount: pendingInboxCount(items.map((i) => ({ status: i.status, gate: i.gate }))),
   };
 }

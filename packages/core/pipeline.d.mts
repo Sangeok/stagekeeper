@@ -27,6 +27,7 @@ export const TAIL_NODES: string[];
 export const NODE_AGENT: Readonly<Record<string, string>>;
 export const SLOT_FORMAT: "slots-v1";
 export const PROJECT_AGENTS: string[];
+export const AUTO_SCOUT_DISABLED_REASON: string;
 export function slotAgent(slot: unknown): string | null;
 export function dispatcherFor(node: string | null, itemAgent: string): string | null;
 export const GATE_PREFIX: "before-";

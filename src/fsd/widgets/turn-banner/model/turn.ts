@@ -20,7 +20,7 @@ export type TurnItem = {
 };
 
 // 첫 방문 체크리스트의 재료. 보드에 행이 하나도 없을 때만 쓰인다.
-export type SetupState = { tokenIssued: boolean; rosterSynced: boolean }; // §E.3
+export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; autoScoutEnabled?: boolean }; // §E.3
 
 export type SetupStep = {
   key: "token" | "connect" | "run";
@@ -51,6 +51,7 @@ export const HEADLINE: Record<Turn["kind"], string> = {
 };
 
 const NONE_DETAIL = "Pick the next item from the backlog, or run the pipeline in Claude Code — when the backlog is empty, feature-scout looks for items to add.";
+const SCOUT_OFF_DETAIL = "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab.";
 const BLOCKED_WHY = "pm can't propose anything new until you clear one.";
 
 function setupSteps(setup: SetupState): SetupStep[] {
@@ -70,7 +71,9 @@ function setupSteps(setup: SetupState): SetupStep[] {
     {
       key: "run",
       title: "Run the pipeline in Claude Code",
-      detail: "feature-scout reads the code and adds up to three backlog items; pm puts up to two on the board for your approval. With no Propose node, put one on the board from the Backlog tab.",
+      detail: setup.autoScoutEnabled === false
+        ? `${SCOUT_OFF_DETAIL} Then run the pipeline in Claude Code, or put the item on the board from the Backlog tab.`
+        : "feature-scout reads the code and adds up to three backlog items; pm puts up to two on the board for your approval. With no Propose node, put one on the board from the Backlog tab.",
       // 이 목록은 보드가 비어 있을 때만 만들어진다 — 그래서 마지막 단계는 아직 끝날 수 없다.
       done: false,
     },
@@ -199,5 +202,5 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     };
   }
 
-  return { kind: "none", detail: NONE_DETAIL };
+  return { kind: "none", detail: setup.autoScoutEnabled === false ? SCOUT_OFF_DETAIL : NONE_DETAIL };
 }
