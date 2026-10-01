@@ -34,7 +34,7 @@ D2 코드는 플랜 변경·등록·사용 선택을 Serializable transaction으
 event를 함께 저장한다. upgrade는 기존 목록을 유지하고 downgrade만 현재 목록을 줄인다.
 저장소 연결 해제·재연결도 같은 소유자 잠금과 version/event 경계에서 처리한다. 해제는 프로젝트와
 이력을 읽기 전용으로 보존하며 hs_/ho_를 폐기한다. hu_는 유지하고 다시 연결할 때 기존 프로젝트를
-복원한다. 신규 연결 변경은 서버 스위치를 정확히 true로 설정할 때만 허용된다.
+복원한다. 연결 해제·재연결은 별도 기능 스위치 없이 소유자의 웹 세션에서 사용할 수 있다.
 최종 개인 프로젝트 모델에는 ProjectMember와 legacy Project.owner가 없다. `ownerUserId`와 `repoOwner`는
 필수이고 사용자 삭제는 소유 프로젝트를 cascade한다. 외부 harness.json·MCP·template의 repository
 owner 이름은 adapter가 유지한다. D3 cleanup 운영 배포에는 D2 운영 인수와 backup/복구 rehearsal이
@@ -77,7 +77,7 @@ stagekeeper/
 - [sources.md](./sources.md): 원재료 매핑 — ApcH(`de25a1c`)의 무엇이 어디로 왔나
 - [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
-- [repository-disconnection.md](./repository-disconnection.md): 연결 상태·토큰·읽기 보존 계약과 운영 활성화·복구 절차
+- [repository-disconnection.md](./repository-disconnection.md): 연결 상태·토큰·읽기 보존 계약과 운영 배포·복구 절차
 - [rationale.md](./rationale.md): 규칙이 무엇을 겪고 생겼는지 — 골든 diff와 첫 스모크 요약
 
 ## 반드시 지키는 규칙

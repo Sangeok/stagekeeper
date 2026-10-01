@@ -9,7 +9,7 @@ export type ProjectConnectionInput = { userId: string; targetProjectId: string; 
 export type ProjectConnectionResult =
   | { status: "success"; changed: boolean; version: number }
   | { status: "stale"; currentVersion: number }
-  | { status: "error"; code: "invalid-input" | "not-found" | "capped" | "integrity" | "conflict" | "disabled"; reason: string };
+  | { status: "error"; code: "invalid-input" | "not-found" | "capped" | "integrity" | "conflict"; reason: string };
 
 export async function disconnectProject(client: TransactionHost, input: ProjectConnectionInput): Promise<ProjectConnectionResult> {
   return changeConnection(client, input, "disconnect");

@@ -555,9 +555,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
   Stale: `Your project list changed. Review the latest connection details and try again.`
   Unknown response: `Couldn't confirm the result. Refresh to check the latest repository connection.`
   Both close confirmation and refresh; neither resubmits automatically.
-- Disabled: the ⋯ menu item is disabled with `Temporarily unavailable.` (the item already names the action);
-  **Reconnect repository** is disabled with `Repository connection changes are temporarily unavailable.`
-  Recovery: `This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.`
+- Recovery: `This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.`
   The current detail title/tabs/History remain visible. Inbox read-only badges are **Disconnected**,
   **Not selected**, or **Read only**, matching the access reason; mutation controls and execution guidance are hidden.
 
