@@ -1,6 +1,6 @@
 # 저장소 연결 해제와 재연결
 
-현재 구현 계약과 운영 배포 절차다. 설계 근거는 [최초 제안서](../proposals/active/2026-09-27-repository-disconnection.md), 최초 실행 증거는 [검증 보고서](../test-reports/active/2026-09-27-repository-disconnection.md)에 둔다. 2026-10-01 사용자 결정으로 기능 스위치를 제거했다. 과거 기록의 스위치 정책보다 이 문서의 현재 계약을 따른다.
+현재 구현 계약과 운영 배포 절차다. 설계 근거는 [구현 완료 기록](../proposals/completed/2026-10-01-repository-disconnection.md), 최초 실행 증거는 [검증 보고서](../test-reports/active/2026-09-27-repository-disconnection.md)에 둔다. 2026-10-01 사용자 결정으로 기능 스위치를 제거했다. 과거 기록의 스위치 정책보다 이 문서의 현재 계약을 따른다.
 
 ## 상태와 권한
 
