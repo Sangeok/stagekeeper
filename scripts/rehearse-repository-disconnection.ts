@@ -34,9 +34,9 @@ async function main(): Promise<void> {
     server.kill(); await stopped; server = undefined;
   }
 
-  async function start(enabled: boolean): Promise<void> {
+  async function start(): Promise<void> {
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
-      env: { ...process.env, DATABASE_URL: url, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true", PROJECT_CONNECTION_WRITES_ENABLED: String(enabled) },
+      env: { ...process.env, DATABASE_URL: url, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true" },
       stdio: "ignore", windowsHide: true,
     });
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
     // The same body includes a spoofed client userId. The valid owner's control
     // first proves action ID, argument encoding and CSRF headers are correct.
     const body = JSON.stringify([{ targetProjectId: owner.projectId, expectedVersion: 1, userId: owner.userId }]);
-    await start(true);
+    await start();
     const success = await post(disconnectId, body, ownedCookie);
     assert.equal(success.status, 200); assert.match(success.text, /"status":"success"/);
     assert.ok((await db.project.findUniqueOrThrow({ where: { id: owner.projectId } })).disconnectedAt);
@@ -226,7 +226,7 @@ async function main(): Promise<void> {
         const beta = await db.project.findFirstOrThrow({ where: { ownerUserId: owner.userId, name: "RDC Beta" } });
         assert.match((await post(disconnectId, JSON.stringify([{ targetProjectId: beta.id, expectedVersion: versionBefore + 1 }]), ownedCookie, undefined, proxyOrigin)).text, /"status":"success"/);
         const empty = (await readonlyGet("/projects")).replace(/<!--.*?-->/g, "");
-        assert.ok(empty.includes("0 / 5 connected")); assert.ok(empty.includes("No connected repositories."));
+        assert.ok(empty.includes("0 of 5 repositories connected on the Pro plan.")); assert.ok(empty.includes("No connected repositories."));
         assert.match((await post(reconnectId, JSON.stringify([{ targetProjectId: owner.projectId, expectedVersion: versionBefore + 2 }]), ownedCookie, undefined, proxyOrigin)).text, /"status":"success"/);
         assert.equal((await db.project.findUniqueOrThrow({ where: { id: owner.projectId } })).disconnectedAt, null);
         assert.ok((await db.projectToken.findUniqueOrThrow({ where: { hash: hs.hash } })).revokedAt);
@@ -241,14 +241,7 @@ async function main(): Promise<void> {
       bridge.closeAllConnections(); await new Promise<void>((resolve) => bridge!.close(() => resolve())); bridge = undefined;
       proxy.closeAllConnections(); await new Promise<void>((resolve) => proxy!.close(() => resolve())); proxy = undefined;
     }
-    await stop(); await start(false);
-    const beforeDisabled = await state();
-    const currentVersion = (await db.user.findUniqueOrThrow({ where: { id: owner.userId } })).projectAvailabilityVersion;
-    const disabled = await post(disconnectId, JSON.stringify([{ targetProjectId: owner.projectId, expectedVersion: currentVersion }]), ownedCookie);
-    assert.equal(disabled.status, 200); assert.match(disabled.text, /temporarily unavailable/); assert.deepEqual(await state(), beforeDisabled);
-    const projects = await fetch(`${origin}/projects`, { headers: { cookie: ownedCookie } });
-    assert.ok((await projects.text()).includes("Repository connection changes are temporarily unavailable."));
-    console.log("RDC real Next actions: owner/foreign/no-session/bearer/spoof/stale/flag=false passed; 7 owner detail routes + History modes/cursors are read-only and isolated.");
+    console.log("RDC real Next actions: owner/foreign/no-session/bearer/spoof/stale passed without a connection feature flag; 7 owner detail routes + History modes/cursors are read-only and isolated.");
   } finally {
     if (bridge) { bridge.closeAllConnections(); await new Promise<void>((resolve) => bridge!.close(() => resolve())); }
     if (proxy) { proxy.closeAllConnections(); await new Promise<void>((resolve) => proxy!.close(() => resolve())); }

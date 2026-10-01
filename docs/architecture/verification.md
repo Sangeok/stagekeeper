@@ -45,7 +45,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
-| `rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale·flag=false와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
+| `rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 별도 기능 설정 없이 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
 | `rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
 | `verify-fsd-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `retired-copy.test.mjs` | `npm run test:architecture` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
@@ -85,9 +85,10 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 AST와 새 build manifest는 loader가 원격 action이 아니며 두 mutation만 등록됨을 확인한다.
 실제 POST는 같은 action ID·본문·Origin/Host의 소유자 성공 대조군으로 유효한 transport를 먼저 증명한다.
 리허설은 부모 DB 분리 검사를 통과한 뒤 child의 DATABASE_URL/TEST_DATABASE_URL만 테스트 DB로 맞춘다.
-운영 활성화의 BLK-RDC-01/02는 로컬 통과로 해소되지 않는다. 절차는
-[repository-disconnection.md](./repository-disconnection.md), 실행 기록은
-[검증 보고서](../test-reports/active/2026-09-27-repository-disconnection.md)를 따른다.
+연결 해제·재연결은 별도 기능 설정 없이 제공한다. 운영 DB·배포의 실제 상태는 로컬 통과로 증명되지 않는다.
+현재 배포 절차는 [repository-disconnection.md](./repository-disconnection.md)를 따른다.
+[최초 검증 보고서](../test-reports/active/2026-09-27-repository-disconnection.md)의 스위치 검증은 당시 정책의 기록이다.
+스위치 제거 이후의 자동·실제 Next·브라우저 검증은 [상시 제공 검증 보고서](../test-reports/completed/2026-10-01-repository-connection-always-enabled.md)에 기록한다.
 
 ## src 클린코드 3차 인수
 

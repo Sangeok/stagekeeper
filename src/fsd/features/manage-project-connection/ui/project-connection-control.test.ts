@@ -9,7 +9,7 @@ type Props = { children?: unknown; disabled?: boolean; onClick?: () => void; rol
 type Node = { type: unknown; props: Props };
 const MORE = "More actions for Alpha";
 const model: ProjectConnectionModel = {
-  version: 4, plan: "free", limit: 1, connectedCount: 1, writesEnabled: true,
+  version: 4, plan: "free", limit: 1, connectedCount: 1,
   projects: [{ id: "a", name: "Alpha", repoOwner: "owner", repo: "repo", disconnectedAt: null, openItems: 2, openRuns: 1 }],
 };
 const disconnectedModel = (connectedCount: number, extra: Partial<ProjectConnectionModel> = {}): ProjectConnectionModel =>
@@ -87,29 +87,24 @@ it("keeps disconnect behind the More menu and confirms it with a risk button", (
   ui.click(MORE);
   assert.ok(hasMenu(ui.render())); assert.equal(ui.button(MORE).props["aria-expanded"], true);
   assert.equal(ui.button("Disconnect repository…").props.role, "menuitem");
+  assert.ok(!ui.button("Disconnect repository…").props.disabled);
   ui.click("Disconnect repository…");
   assert.equal(hasMenu(ui.render()), false); assert.ok(hasSection(ui.render()));
   // ⋯가 사라지면 그 행의 열린 수가 옆 행들과 다른 자리로 밀린다.
   assert.ok(ui.find(MORE));
   assert.equal(ui.button("Disconnect repository").props.variant, "risk");
+  assert.equal(ui.button("Disconnect repository").props.disabled, false);
   const text = ui.text();
   for (const line of ["Disconnect owner/repo?", "Project tokens (hs_/ho_) are revoked. Your data stays readable, and hu_ keeps working.",
     "New requests stop. Approved ones may finish, and local Claude Code keeps running."]) assert.ok(text.includes(line), line);
   assert.equal(text.includes("open board items"), false);
 });
 
-it("cancel and disabled controls never invoke a mutation", async () => {
+it("cancel closes the confirmation without invoking a mutation", () => {
   let calls = 0; const action: ProjectConnectionAction = async () => { calls++; return { status: "success" }; };
   const ui = harness(action);
   ui.click(MORE); ui.click("Disconnect repository…"); ui.click("Cancel");
   assert.equal(hasSection(ui.render()), false);
-  assert.equal(calls, 0);
-  const disabled = harness(action, { ...model, writesEnabled: false });
-  disabled.click(MORE);
-  assert.equal(disabled.button("Disconnect repository…").props.disabled, true);
-  assert.ok(disabled.text().includes("Temporarily unavailable."));
-  disabled.click("Disconnect repository…"); await disabled.settle();
-  assert.equal(hasSection(disabled.render()), false);
   assert.equal(calls, 0);
 });
 
@@ -145,9 +140,20 @@ it("reconnect waits for a free slot and says why before anything is submitted", 
   const max = harness(async () => ({ status: "success" }), disconnectedModel(9, { plan: "max", limit: null }));
   assert.equal(max.button("Reconnect repository").props.disabled, false);
   assert.equal(max.text().includes("No free slot"), false);
-  const off = harness(async () => ({ status: "success" }), disconnectedModel(0, { writesEnabled: false }));
-  assert.equal(off.button("Reconnect repository").props.disabled, true);
-  assert.ok(off.text().includes("Repository connection changes are temporarily unavailable."));
+});
+
+it("reconnect with a free slot submits once and resets the confirmation", async () => {
+  let calls = 0; let submitted: unknown;
+  const ui = harness(async (input) => { calls++; submitted = input; return { status: "success" }; }, disconnectedModel(0));
+  assert.equal(ui.button("Reconnect repository").props.disabled, false);
+  ui.click("Reconnect repository");
+  assert.ok(hasSection(ui.render()));
+  assert.equal(ui.button("Reconnect repository").props.disabled, false);
+  ui.click("Reconnect repository"); await ui.settle();
+  assert.equal(calls, 1);
+  assert.equal(JSON.stringify(submitted), JSON.stringify({ targetProjectId: "a", expectedVersion: 4 }));
+  assert.equal(hasSection(ui.render()), false);
+  assert.equal(ui.notifications[0].message, "Repository reconnected");
 });
 
 it("stale and committed-but-unconfirmed responses close the panel, refresh once and never resubmit", async () => {
