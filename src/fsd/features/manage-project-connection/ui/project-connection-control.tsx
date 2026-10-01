@@ -64,9 +64,8 @@ export function ProjectConnectionControl({ targetId, model, disconnect, reconnec
         onClick={() => setMenuOpen(!menuOpen)}
         className="inline-flex size-[30px] items-center justify-center rounded-md border border-transparent text-base leading-none text-quiet hover:border-rule hover:bg-field hover:text-ink aria-expanded:border-rule aria-expanded:bg-field aria-expanded:text-ink disabled:opacity-50">⋯</button>
       {menuOpen ? <div role="menu" className="absolute top-full right-0 z-10 mt-1 flex min-w-56 flex-col rounded-lg border border-edge bg-paper p-1 text-sm">
-        <button ref={itemRef} type="button" role="menuitem" disabled={!model.writesEnabled} onClick={() => { setMenuOpen(false); setConfirming(true); }}
-          className="rounded px-2.5 py-2 text-left hover:bg-field disabled:cursor-default disabled:text-quiet disabled:hover:bg-transparent">Disconnect repository…</button>
-        {!model.writesEnabled ? <p className="px-2.5 pb-2 text-xs text-quiet">Temporarily unavailable.</p> : null}
+        <button ref={itemRef} type="button" role="menuitem" onClick={() => { setMenuOpen(false); setConfirming(true); }}
+          className="rounded px-2.5 py-2 text-left hover:bg-field">Disconnect repository…</button>
       </div> : null}
     </div>
   );
@@ -84,7 +83,7 @@ export function ProjectConnectionControl({ targetId, model, disconnect, reconnec
           <p>Project tokens (hs_/ho_) are revoked. Your data stays readable, and hu_ keeps working.</p>
         </>}
         <div className="flex gap-2">
-          <Button size="sm" variant={disconnected ? "mine" : "risk"} disabled={busy || !model.writesEnabled} onClick={send}>{busy ? "Updating…" : label}</Button>
+          <Button size="sm" variant={disconnected ? "mine" : "risk"} disabled={busy} onClick={send}>{busy ? "Updating…" : label}</Button>
           <Button size="sm" disabled={busy} onClick={reset} autoFocus>Cancel</Button>
         </div>
         {!disconnected ? <p className="text-xs text-quiet">New requests stop. Approved ones may finish, and local Claude Code keeps running.</p> : null}

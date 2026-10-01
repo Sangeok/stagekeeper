@@ -6,14 +6,13 @@ import { projectsPath } from "@/fsd/shared/routes/projects";
 import { requireUser } from "@/server/auth/guard";
 import { loadProjectAvailability } from "@/server/project-availability";
 import { disconnectProject, reconnectProject } from "@/server/project-connection";
-import { projectConnectionWritesEnabled } from "@/server/project-connection-config";
 import type { ProjectConnectionAction, ProjectConnectionModel, ProjectConnectionState } from "../model/project-connection-state";
 
 const inputSchema = z.object({ targetProjectId: z.string().min(1), expectedVersion: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) });
 
 export async function loadProjectConnection(userId: string): Promise<ProjectConnectionModel> {
   const view = await loadProjectAvailability(userId);
-  return { plan: view.plan, limit: view.limit, version: view.version, connectedCount: view.connectedCount, projects: view.projects, writesEnabled: projectConnectionWritesEnabled() };
+  return { plan: view.plan, limit: view.limit, version: view.version, connectedCount: view.connectedCount, projects: view.projects };
 }
 
 export async function disconnectRepository(input: Parameters<ProjectConnectionAction>[0]): Promise<ProjectConnectionState> {

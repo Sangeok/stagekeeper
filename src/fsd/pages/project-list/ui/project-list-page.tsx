@@ -11,7 +11,7 @@ import { activityLines, connectionSummary, NOT_SELECTED_BOUNDARY, selectionNotic
 
 export type ProjectListModel = Omit<ProjectSelectionModel, "projects"> & {
   login: string;
-  connectedCount: number; writesEnabled: boolean;
+  connectedCount: number;
   projects: (ProjectSelectionModel["projects"][number] & { slug: string; repoOwner: string; repo: string; branch: string; disconnectedAt: string | null })[];
   notice: { basis: string | null; availableProjectIds: string[]; at: string } | null;
 };

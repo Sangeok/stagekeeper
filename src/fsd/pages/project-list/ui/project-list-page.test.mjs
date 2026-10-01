@@ -7,7 +7,7 @@ import { ProjectListPage } from "./project-list-page.tsx";
 
 const project = (id, extra = {}) => ({ id, slug: id.repeat(3), name: id.toUpperCase().repeat(3), repoOwner: "repo", repo: id.repeat(3), branch: "main",
   disconnectedAt: null, available: true, openItems: 0, openRuns: 0, ...extra });
-const base = { login: "owner", plan: "free", limit: 1, version: 3, availableCount: 1, connectedCount: 1, writesEnabled: true, notice: null };
+const base = { login: "owner", plan: "free", limit: 1, version: 3, availableCount: 1, connectedCount: 1, notice: null };
 const action = async () => ({ status: "success" });
 const render = (model) => renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: { refresh() {} } },
   createElement(ProjectListPage, { model, action, disconnect: action, reconnect: action })));
