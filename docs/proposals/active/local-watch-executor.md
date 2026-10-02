@@ -83,7 +83,7 @@ related:
 
 선택 근거:
 
-- 21개 구현·시험·문서 산출물을 다룬다(아래 Affected Files). 제안서 자체의 이번 수정은 별도다.
+- 22개 구현·시험·문서 산출물을 다룬다(아래 Affected Files). 제안서 자체의 이번 수정은 별도다.
 - 새 런타임 동작이 생긴다. 백그라운드 스크립트가 서버를 주기적으로 부르고, 이 clone의 git 디렉터리에
   잠금·정책 파일을 쓴다.
 - 문구 계약(`docs/conventions/product-copy.md`)과 프로토콜 문서가 바뀐다.
@@ -92,7 +92,7 @@ related:
 ## Current State
 
 이 절과 Before/After 스케치는 제안 검증 당시의 코드 관측 기록이다. 실제 구현은 최신 dev
-6c363d0 위에서 주석 정리를 보존해 적용하며, 최종 실행 근거와 미실행 인수 항목은 구현 보고서에 둔다.
+495bd22 위에서 주석 정리와 토큰 관리 변경을 보존해 적용하며, 최종 실행 근거와 미실행 인수 항목은 구현 보고서에 둔다.
 
 ### 2026-10-02 기존 관측 기록 — mathgic ITEM-01
 
@@ -130,10 +130,10 @@ related:
   그래서 스크립트가 서버 변경 없이 "세션이 움직일 일"을 판정할 수 있다.
 - 호출 한도는 `agent_next`에만 걸린다(`src/server/agents/next.ts:16`, `:104`). `pipeline_next`를 주기적으로
   불러도 세션의 디스패치 한도를 쓰지 않는다.
-- 제안 검증 당시 별도 미커밋 토큰 관리 작업 트리의 MCP 인증은 유효한 미폐기 credential을 받아들이면 토큰 사용 기록 query도 기다렸다
+- 최종 구현 기준 origin/dev(495bd22)의 MCP 인증은 유효한 미폐기 credential을 받아들이면 토큰 사용 기록 query도 기다린다
   (`src/server/mcp/auth.ts`, `deps.ts`, `src/server/token-usage-query.ts`). 60초 조건은 행 변경만 줄이며
   DB 왕복을 없애지 않는다. domain 거부도 이미 받아들인 credential의 기록을 취소하지 않는다.
-  최종 구현 기준 origin/dev(6c363d0)에는 해당 사용 기록 변경이 아직 없으며 이 PR에 가져오지 않는다. 감시가 인증을 추가 구현하거나 우회하지 않으며, 실측은 실제 배포된 인증 query를 포함한다.
+  이 인증 변경은 토큰 관리 PR #99로 dev에 반영된 기반 동작이며 watch PR의 추가 변경이 아니다. 감시가 인증을 추가 구현하거나 우회하지 않으며, 실측은 실제 배포된 인증 query를 포함한다.
 - `pipeline_next`는 읽기 도구이지만 doc-audit·scout 완료에 대해 지연 전진을 한다
   (`docs/architecture/protocol.md:137`). 감시 스크립트가 부르면 세션이 부를 때와 같은 전진이 조금
   먼저 일어날 뿐이다.
@@ -763,8 +763,10 @@ After:
             </li>
 ```
 
-**`plugin/.claude-plugin/plugin.json`** — 현재 `"version": "0.3.6"`을 `"0.4.0"`으로 올린다. 새 스킬이 생기므로
+**`plugin/.claude-plugin/plugin.json`** — 현재 `"version": "0.3.7"`을 `"0.4.0"`으로 올린다. 새 스킬이 생기므로
 minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새 판을 받는다.
+최신 dev의 `src/fsd/entities/project-token/ui/token-reveal.test.ts`는 init 안내가 배포되는
+plugin 판을 0.3.7로 잠근다. 이 기대값도 0.4.0으로 갱신하고 실제 init 안내 본문 검사는 유지한다.
 
 ### 문서 수정
 
@@ -813,7 +815,8 @@ minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새
 | `plugin/bin/harness-watch.mjs` | add | 감시·checkout 런북 판 추출 | medium — 주기 호출·파일 쓰기(Risks) |
 | `plugin/bin/harness-watch.test.mjs` | add | `npm test`가 `plugin/bin/*.test.mjs`를 돈다 | none |
 | `plugin/skills/watch/SKILL.md` | add | 사용자 진입점 | medium — 동작이 모델의 지시 준수에 기댄다 |
-| `plugin/.claude-plugin/plugin.json` | update | 판 0.3.6 → 0.4.0 | low |
+| `plugin/.claude-plugin/plugin.json` | update | 판 0.3.7 → 0.4.0 | low |
+| `src/fsd/entities/project-token/ui/token-reveal.test.ts` | update | 기존 init 배포 판 기대값 0.3.7 → 0.4.0, 안내 본문 검사는 유지 | none |
 | `src/fsd/widgets/turn-banner/model/turn.ts` | update | `deriveTurn`의 `next`, `WATCH_LINE` | low — 소비자는 `api/turn-data.server.ts:65` 하나(역검색) |
 | `src/fsd/widgets/turn-banner/model/turn.test.ts` | update | 시험 추가 | none |
 | `src/fsd/widgets/turn-banner/ui/next-step.tsx` | update | 감시 안내 줄 | low — 소비자는 `turn-banner.tsx:64` |
@@ -978,7 +981,7 @@ npm test가, src/**/*.test.mjs/ts는 test:web이 실행한다. 테스트는 fixt
 | V9 | 실제 메인 대화 background·완료/idle 재무장/stop, policy/ownership/stale runbook, 다른 item의 wait, plugin 경로 치환 | Phase 3 보고서. dummy server + 지원 tool 세션으로 observable task/query 순서와 policy 적용 확인. 셸 plugin-root 환경변수 없이 SKILL 본문의 실제 CLI/reference 경로가 해석됨. permission/commit handoff는 소유자 입력 전 제출/재무장 없음. 도구 비활성 환경은 시작 실패 |
 | V10 | mine의 acceptance+미시작 plan, handoff+미시작 implement, gate+verify, 반복 project slots, on_hold | turn.test.ts. pending→working 입력 순서/한 item 한 줄. count/detail/why/open 유지; setup/none/theirs 기존 결과 유지. WATCH_LINE과 copyLock(turn-banner-watch) 일치 |
 | V11 | 실제 본문·명령 Code·Copy payload·빈 상자·읽기 전용·문서의 툴팁 예시 | next-step.test.mjs의 renderToStaticMarkup(기존 client context 패턴 이용), inbox-card.test.mjs의 기존 render helper, gate-copy.test.ts/pipeline-rail.test.mjs. WATCH_LINE은 명령 Code 하나로 렌더; steps:[]는 HTML/안내 모두 없음; before-plan의 새 hint/도움말 본문 존재; read-only에서 실행 안내 없음. product-copy §3의 hint·§18의 before Plan 툴팁 예시와 최종 렌더/기대 문장이 일치하며 해당 두 자리의 이전 힌트는 남지 않음 |
-| V12 | core→lib, plugin manifest/marketplace precedence, skill 발견, 문서 잠금 registry, 경계 보존 | plugin-lib --check + JSON.parse manifest/marketplace 구조 검사 + 실제 설치 파일과 /harness:watch 로딩. manifest name=harness/version=0.4.0; marketplace name=stagekeeper-local/source=./plugin이며 version override가 없음. npm check/verify:fsd/test:architecture 및 diff로 server/Prisma/templates/init/marketplace의 무변경 확인 |
+| V12 | core→lib, plugin manifest/marketplace precedence, skill 발견, 문서 잠금 registry, 경계 보존 | plugin-lib --check + JSON.parse manifest/marketplace 구조 검사 + 실제 설치 파일과 /harness:watch 로딩. manifest name=harness/version=0.4.0; token-reveal.test.ts의 init 배포 판 기대값도 0.4.0이며 실제 안내 본문 검사는 유지. marketplace name=stagekeeper-local/source=./plugin이며 version override가 없음. npm check/verify:fsd/test:architecture 및 diff로 server/Prisma/templates/init/marketplace의 무변경 확인 |
 | V13 | mathgic gate→work→agent_next 성공 receipt, 110분 idle와 재무장, 확인 창/비용/세션 종료 | 명명된 보고서. 성공 기준의 로컬 시각과 gate event/task/receipt id, actual plugin/tool 판, HTTP/모델 호출 수, stop 뒤 새 요청 없음(기존 in-flight 서버 효과는 취소 보장 밖). 휴대폰 push·2단계 실행·다른 기기 잠금은 성공 주장 밖 |
 
 fixture/cleanup: 부모 HARNESS_TOKEN/HARNESS_SERVER/HARNESS_OWNER_TOKEN과 dotenv 자동 로딩을
@@ -990,6 +993,7 @@ child/server 종료 뒤 절대 경로가 자기 tmp root 안인지 검증한다.
 오염시키지 않게 한다. core parser는 정규화 정책 외 IO를 갖지 않는다.
 
 현재 두 문구 기대값(gate-copy.test.ts, pipeline-rail.test.mjs)만 새 문장으로 갱신한다.
+plugin 판 상승에 따라 token-reveal.test.ts의 배포 판 기대값은 0.4.0으로 갱신한다.
 다른 기존 기대값을 맞춰 회귀를 숨기지 않는다. 신규 렌더/상태 시험은 V10/V11의 요구를 추가한다.
 
 ### 최종 산출물과 의존성
@@ -1004,7 +1008,7 @@ child/server 종료 뒤 절대 경로가 자기 tmp root 안인지 검증한다.
 
 ### Definition of Done
 
-- 21개 산출물이 inventory와 일치하고 외부 skill·설정·정체·도구 전제가 검사된다.
+- 22개 산출물이 inventory와 일치하고 외부 skill·설정·정체·도구 전제가 검사된다.
   plugin root는 스킬 본문 치환으로 해결되며 셸 환경변수 없이 CLI/reference가 동작한다.
 - 총 46자 token과 checkout 판 추출을 실제 request/무쓰기 경계로 검증한다. 같은 판의 반복과
   소유자 hash를 구분하고 충돌/손상은 거부하며 legacy 판 생략·stale 경고는 보존한다.

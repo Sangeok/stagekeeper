@@ -97,7 +97,7 @@ export async function registerProjectResultIn(
       ownerUser: { connect: { id: input.userId } },
       ...(input.initialTokenHash === undefined
         ? {}
-        : { tokens: { create: { hash: input.initialTokenHash, label: "initial" } } }),
+        : { tokens: { create: { hash: input.initialTokenHash, label: "initial", usageTrackingStartedAt: new Date() } } }),
     },
   });
   await appendAvailabilityEventIn(transaction, { owner, change: {

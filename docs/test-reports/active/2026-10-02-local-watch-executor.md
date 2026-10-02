@@ -5,19 +5,21 @@ Date: 2026-10-02. Proposal: [local-watch-executor](../../proposals/active/local-
 ## Scope and basis
 
 - Initial base: `origin/dev` at `03876dd24fab12c63542b4565f087b79a877f7ef`.
-- Final PR base: `6c363d0fa364c0456491bba6f56ac7cc21a3f4df`, after the comment-cleanup
-  and watch-proposal PRs merged. Rebase preserved cleaned code comments and applied the
-  current approved proposal's ownership/path/runbook corrections; token-management
-  application changes are still outside this PR.
+- Final PR base: `495bd22a89f1eeb2bef12d09a60fe89a8eff46b9`, after the comment-cleanup,
+  watch-proposal and token-management PRs merged. The earlier rebase onto `6c363d0`
+  preserved cleaned code comments; updating the feature branch to final dev retains
+  token-management application changes and resolves only the plugin-version conflict.
+  Token-management application changes are not additions made by the watch PR.
 - Branch: `harness/local-watch-executor`; isolated checkout with its own dependencies,
   Next output and generated Prisma client. Original token-management work is preserved.
 - Implements Stage 1 only: pure core, CLI, main-conversation watch skill, UI guidance,
   plugin version 0.4.0 and contract documentation. Stage 2 remains design only.
-- Base plugin is 0.3.6; 0.3.7 and token-usage tracking existed in an unrelated dirty
-  checkout during proposal review and are not copied into this PR.
+- Final base plugin is 0.3.7; token-usage tracking is now accepted dev behavior from
+  PR #99. Every accepted credential still awaits its usage-record query; the 60-second
+  row-update condition does not remove that DB round trip from watch polling.
 - Server, Prisma schema/migrations, MCP tool registration, init, private templates,
   marketplace, package dependencies and scripts are unchanged.
-- No merge, release promotion, production API/DB call, template seed, plugin update
+- No PR merge, release promotion, production API/DB call, template seed, plugin update
   or paid Claude conversation was performed for this implementation.
 
 ## Automated verification
@@ -56,14 +58,26 @@ Its minimal package revealed the existing transitive `workspaces → entitlement
 dependency; the fixture and skill/proposal artifact preflight now name both modules.
 All fixed local error reasons observed by child-process tests match product-copy §15.
 
-Final validation on the rebased PR source: `npm test` **254/254 PASS**, `test:web`
+Validation after rebasing onto `6c363d0`: `npm test` **254/254 PASS**, `test:web`
 **512/512 PASS**, `check` PASS (lint/typegen/typecheck, architecture **26/26**,
 project-availability **18/18**), and production build PASS. The unchanged existing
 lint warning remains the only warning. Scope preflight confirms exactly the 21
 implementation targets plus the proposal itself, byte-equal
 core/lib modules, manifest 0.4.0, marketplace source/version precedence, exact skill
 description and both §3/§18 hints. Preserved server/Prisma/init/templates/marketplace
-and dependency/script surfaces have no diff against the final PR base.
+and dependency/script surfaces have no diff against that PR base.
+
+Latest-dev validation after updating to `495bd22`: `npm test` **254/254 PASS**,
+`test:web` **526/526 PASS**, `check` PASS (lint/typegen/typecheck, architecture **26/26**,
+project-availability **18/18**), and production build PASS. The existing lint warning
+remains the only warning; the changed token-reveal test also passes targeted lint.
+The first web rerun exposed the newly merged init-package test's exact 0.3.7 version
+expectation. It now expects 0.4.0 while retaining every init-guidance body assertion;
+this one-line update is included in the proposal inventory and V12 destination.
+Scope preflight confirms exactly **22 implementation targets plus the proposal**,
+byte-equal core/lib, manifest 0.4.0, and no additional server/Prisma/init/templates/
+marketplace/dependency changes against final dev. The merged token-usage behavior is
+the accepted base; no DB integration or production cost observation was performed.
 
 Browser fixture bundling succeeded using actual components and the production CSS, but
 Computer Use returned no available browser (`apps:[]`, `browsers:[]`). No visual/clipboard

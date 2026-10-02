@@ -44,6 +44,9 @@ describe("registerProjectIn", () => {
 
     assert.equal(result, null);
     assert.equal(calls.length, 1);
+    const initial = calls[0]?.data.tokens?.create;
+    assert.ok(initial && !Array.isArray(initial));
+    assert.ok(initial.usageTrackingStartedAt instanceof Date);
     assert.deepEqual(calls[0]?.data, {
       slug: "stagekeeper",
       name: "Stagekeeper",
@@ -54,7 +57,7 @@ describe("registerProjectIn", () => {
       lastSelectedAt: null,
       lastSyncedAt: null,
       ownerUser: { connect: { id: "user-1" } },
-      tokens: { create: { hash: "hash", label: "initial" } },
+      tokens: { create: { hash: "hash", label: "initial", usageTrackingStartedAt: initial.usageTrackingStartedAt } },
     });
   });
 
