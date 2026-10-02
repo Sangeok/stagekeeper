@@ -31,8 +31,7 @@ function reportFailure<Args extends unknown[], Result>(action: (...args: Args) =
 
 // 낙관적 잠금(CAS) 토큰을 누가 들고 있는지는 행위자에 달려 있다. 화면은 자기가 읽은
 // updatedAt을 반드시 보내야 하고, 화면이 없는 MCP 에이전트는 이 트랜잭션에서 방금 읽은
-// row.updatedAt으로 CAS한다. 예전에는 expectedUpdatedAt이 actor와 무관하게 optional이라,
-// 사람 경로를 새로 만들면서 빼먹어도 컴파일이 통과하고 잠금만 조용히 꺼졌다.
+// row.updatedAt으로 CAS한다.
 // channel: 사람이 어디서 눌렀나. 규칙에는 영향이 없고 원장·화면 표시에만 쓴다. 웹 액션은 "web", 소유자 토큰 MCP는 "session".
 export type Channel = "web" | "session";
 export type Caller =
@@ -141,7 +140,7 @@ async function latestBoard(projectId: string, openOnly = false, db: Db = prisma)
 }
 
 // 파이프라인이 아직 걷고 있는 항목의 key. 미결(isOpen)과 다르다 — 인수까지 끝난 done 항목도 꼬리 노드
-// (doc-audit·scout)를 남겨 두고 런이 열려 있다. 개요(pipeline_next({}))가 미결만 훑으면 그 꼬리는 영영 디스패치되지 않는다(실측).
+// (doc-audit·scout)를 남겨 두고 런이 열려 있다. 개요(pipeline_next({}))가 미결만 훑으면 그 꼬리는 영영 디스패치되지 않는다.
 async function walkingKeys(projectId: string): Promise<string[]> {
   const runs = await prisma.pipelineRun.findMany({
     where: { closedAt: null, boardItem: { projectId, discardedAt: null } },
@@ -154,7 +153,7 @@ async function walkingKeys(projectId: string): Promise<string[]> {
 // 결재함용: 최신 행 + 최근 전이 몇 개. 상태 줄("dev submitted a plan 3 days ago")과 보류 전 상태("was Implementing")를
 // 이벤트에서 읽는다 — BoardItem에는 "언제 이 status가 됐나"가 없다. note 있는 이벤트(validation·plan·report·discard)는
 // 전이가 아니므로 제외한다 — 증거 제출이 쌓여도 진짜 전이가 take 창 밖으로 밀리지 않는다.
-// latestBoard는 board_list의 JSON이기도 해서 include를 더하지 않고 따로 읽는다(§E.3과 같은 이유).
+// latestBoard는 board_list의 JSON이기도 해서 include를 더하지 않고 따로 읽는다.
 async function latestBoardWithEvents(projectId: string) {
   return prisma.boardItem.findMany({
     where: { projectId, discardedAt: null },
@@ -178,7 +177,7 @@ async function latestRow(db: Db, projectId: string, key: string) {
 }
 
 // 세션 채널이 CAS 토큰으로 쓸 updatedAt을 읽는다 — 지금 세션 게이트가 트랜잭션 밖에서 하던 일이고,
-// owner-deps.ts가 board.gate를 부르기 직전에 쓴다(§D.2).
+// owner-deps.ts가 board.gate를 부르기 직전에 쓴다.
 function latestRowFor(projectId: string, key: string) {
   return latestRow(prisma, projectId, key);
 }
@@ -335,9 +334,9 @@ async function transitionIn(
     caller.actor, input.to, input.result,
   );
   if (!d.ok) throw new BoardRejection(d.reason);
-  // 사람 게이트 행은 board.gate를 거쳐야 한다(런 커서·decideGate의 전제) — §C.7 viaGate
+  // 사람 게이트 행은 board.gate를 거쳐야 한다(런 커서·decideGate의 전제)
   if (d.value.kind === "gate" && !opts.viaGate) return fail(`gates open through board.gate, not a transition: ${row.status} → ${input.to}`);
-  // 낙관적 잠금(ApcH sha 잠금의 대응물). 가드를 비우면 두 에이전트가 같은 행을 동시에 읽고
+  // 낙관적 잠금. 가드를 비우면 두 에이전트가 같은 행을 동시에 읽고
   // 둘 다 전이해 이벤트가 둘, `결과:`가 두 번 누적된다. 어느 값을 쓰는지는 Caller가 정한다.
   const expected = caller.actor === "human" ? caller.expectedUpdatedAt : row.updatedAt;
   const u = await tx.boardItem.updateMany({
@@ -355,7 +354,7 @@ async function transitionIn(
   // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
   if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null, removedReason: null } });
   // 상태가 바뀌면 옛 상태에서 하던 일은 끝났다. 열린 run을 두면 에이전트의 단계 커서가 파이프라인
-  // 커서와 어긋나, 다음 디스패치에서 지난 단계 본문이 다시 나온다(실측). 다음 호출이 새 run을
+  // 커서와 어긋나, 다음 디스패치에서 지난 단계 본문이 다시 나온다. 다음 호출이 새 run을
   // 그 상태가 여는 단계에서 연다 — verifyOk는 run을 가리지 않으므로 검증 벽은 그대로다.
   await closeRuns(tx, projectId, input.key, transitionEvent.at);
   // 파이프라인 커서 — 사람의 되돌리기·보류·재개·reopen은 자리를 다시 잡고, 나머지는 앞으로 간다. pipeline 자신의 전이는
@@ -488,8 +487,8 @@ async function submitPlan(projectId: string, input: { key: string; path: string;
     await claim(tx, row, { planPath: input.path, planCommit: input.commit });
     const item = await tx.boardItem.findUniqueOrThrow({ where: { id: row.id } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "plan" } });
-    // 계획서가 올라왔으면 검토 대기로 넘긴다. 예전에는 에이전트가 board_transition을 따로 불러야 했고,
-    // 빠뜨리면 항목이 planning에 남아 dev가 다시 디스패치됐다. 상태 기계의 `planning → in_review`
+    // 계획서가 올라왔으면 검토 대기로 넘긴다.
+    // 상태 기계의 `planning → in_review`
     // (actor agent, requiresPlan) 규칙 그대로다 — 방금 쓴 계획서가 그 전제를 채운다.
     // 재제출(in_review에서 다시 부르는 경우)은 넘길 곳이 없으므로 기록만 한다.
     if (row.status === "planning") {
@@ -534,7 +533,7 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
 }
 
 // 파이프라인 커서를 옮기는 자리. 판정은 packages/core/pipeline.mjs의 advance·cursorForStatus이고
-// 여기는 그 결과를 같은 트랜잭션 안에서 쓴다(§C.2·§C.3).
+// 여기는 그 결과를 같은 트랜잭션 안에서 쓴다.
 async function advanceRun(tx: Db, projectId: string, key: string, approval?: GateEntry) {
   const row = await latestRow(tx, projectId, key);
   if (!row) return;
@@ -546,7 +545,7 @@ async function advanceRun(tx: Db, projectId: string, key: string, approval?: Gat
   const a = advance(graph, run.node, facts);
   for (const bd of a.transitions) {
     const t = await transitionIn(tx, projectId, { key, to: bd.to, ...(bd.to === "done" ? { result: "Implementation span completed." } : {}) }, { actor: "pipeline", actorRef: `pipeline:${run.version.id}` });
-    if (!t.ok) throw new BoardRejection(t.reason); // updatedAt CAS에 진 쪽 — 다음 호출이 다시 읽는다(§C.8)
+    if (!t.ok) throw new BoardRejection(t.reason); // updatedAt CAS에 진 쪽 — 다음 호출이 다시 읽는다
   }
   if (a.cursor === run.node && a.entered.length === 0) return;
   const moved = await tx.pipelineRun.updateMany({

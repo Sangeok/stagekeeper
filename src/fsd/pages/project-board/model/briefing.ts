@@ -9,7 +9,7 @@ type BoardRow = {
   results: readonly string[];
   proposedOn: Date;
   backlogItem: { key: string };
-  gate: string | null; // 런이 서 있는 게이트 — 카드 판정의 재료(§E.4)
+  gate: string | null; // 런이 서 있는 게이트 — 카드 판정의 재료
   node: string | null; // 런이 서 있는 노드. 게이트에 서 있거나 런이 닫혔으면 null
   dispatched: boolean; // 이 항목으로 열린 에이전트 run이 있는가 — 배너와 같은 사실(turn.ts)
 };
@@ -40,7 +40,7 @@ export function firstSentence(text: string): string {
 
 function summaryLine(row: BoardRow): string {
   const source = row.results.length > 0 ? row.results.join(" ") : row.reason;
-  // 빈 요약은 기존 화면처럼 key를 본문에도 표시한다.
+  // 빈 요약은 key를 본문에도 표시한다.
   return firstSentence(source) || row.backlogItem.key;
 }
 
@@ -92,7 +92,7 @@ function pmState(rows: readonly BoardRow[]): string {
 
 // 검증자는 보드의 담당 agent가 아니므로 프로젝트 전체에서 verify 노드에 선 항목을 본다.
 // 상태(in_review)로 판단하면 검증 전·검증 중·검증이 끝나고 게이트에서 기다리는 동안이 전부
-// "Verifying"이 된다(실측). 자리는 상태가 아니라 런의 커서가 말한다 — workerState와 같은 규칙.
+// "Verifying"이 된다. 자리는 상태가 아니라 런의 커서가 말한다 — workerState와 같은 규칙.
 function verifierState(rows: readonly BoardRow[]): string {
   const atVerify = rows.filter((row) => row.node === "verify");
   const working = atVerify.find((row) => row.dispatched);

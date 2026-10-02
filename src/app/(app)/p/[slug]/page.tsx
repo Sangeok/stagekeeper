@@ -16,7 +16,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]">) {
     prisma.pipelineRun.findMany({ where: { closedAt: null, boardItem: { projectId } }, select: { boardItemId: true, node: true } }),
     // 열린 에이전트 run이 없으면 아무도 그 일을 하고 있지 않다. 배너(turn-data.server.ts)와 다른 점: 배너는
     // slots-v1 버전에서 run이 이 파이프라인 항목(pipelineRunId·pipelineEntryId·agent)에 묶여 있어야 "하고 있다"로
-    // 보고, 보드는 모든 버전을 key·agent로만 본다 — 느슨한 쪽이다. 이 차이는 의도로 남겨 둔다(2026-09-23 결정).
+    // 보고, 보드는 모든 버전을 key·agent로만 본다 — 느슨한 쪽이다. 이 차이는 의도로 남겨 둔다.
     prisma.agentRun.findMany({ where: { projectId, closedAt: null, key: { not: null } }, select: { key: true, agent: true } }),
     loadCurrentVersionView(prisma, projectId),
   ]);

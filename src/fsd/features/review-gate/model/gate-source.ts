@@ -1,5 +1,4 @@
 // 어떤 사람 전이가 열려 있는지는 packages/core의 상태 기계 하나로만 판정한다.
-// ApcH의 GATE_TRANSITIONS·rejectActionsFor 화이트리스트를 대체한다 — 표가 두 벌이 되지 않게.
 import { STATUSES, canDiscard, findRule, type RuleKind } from "@harness/core/transitions.mjs";
 import type { RejectAction } from "./gate-text";
 

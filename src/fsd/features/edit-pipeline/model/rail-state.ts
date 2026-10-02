@@ -1,5 +1,5 @@
 // 레일 조작의 순수 규칙. 조작마다 결과 그래프를 validateGraph에 통과시키고, 막히면 그 사유를 그대로 돌려준다 —
-// 화면은 규칙을 다시 구현하지 않고 버튼을 비활성으로 두면서 서버와 같은 문장을 보여 준다(§E.6).
+// 화면은 규칙을 다시 구현하지 않고 버튼을 비활성으로 두면서 서버와 같은 문장을 보여 준다.
 import { TAIL_NODES, PROJECT_AGENTS, slotAgent, gateKind, gateId, validateGraph } from "@harness/core/pipeline.mjs";
 
 export type Graph = { nodes: string[]; gates: string[] };

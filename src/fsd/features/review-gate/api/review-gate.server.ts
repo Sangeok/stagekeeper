@@ -27,10 +27,10 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
   if (!r.ok) return failure(message(r.reason));
   // 되돌리기(reopen)는 항목 상세에서 오므로 그 경로도 새로 그린다.
   revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox")); revalidatePath(itemPath(slug, key));
-  return success(); // ApcH result.ts의 무인자 오버로드 = ActionResult<void>
+  return success();
 }
 
-// §E.2 게이트 승인 — 게이트 id로. 서버 층의 잠금은 board.transitionIn의 viaGate 거부가 맡는다(§C.7).
+// 게이트 승인 — 게이트 id로. 서버 층의 잠금은 board.transitionIn의 viaGate 거부가 맡는다.
 export async function approveGate(slug: string, input: { key: string; gate: string; gateEntry?: { runId: string; entryId: string }; expectedUpdatedAt: string }): Promise<ActionResult<void>> {
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(message(w.reason));
@@ -51,5 +51,5 @@ export async function discardItem(slug: string, key: string, expectedUpdatedAt: 
   const r = await board.discard(projectId, { key, userId, expectedUpdatedAt: expected });
   if (!r.ok) return failure(message(r.reason));
   revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox"));
-  return success(); // ApcH result.ts의 무인자 오버로드 = ActionResult<void>
+  return success();
 }

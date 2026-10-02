@@ -1,4 +1,4 @@
-// src/app/api/projects/route.ts — /harness:init이 저장소를 등록하는 곳(C).
+// /harness:init이 저장소를 등록하는 곳.
 // route는 배선만 한다. 인증·검증·트랜잭션은 @/server/project-registration에 있다
 // (system-overview.md: "Route Handler와 page는 직접 정책을 재구현하지 않고 src/server를 호출한다").
 //

@@ -13,7 +13,7 @@ export const authConfigBase = {
   session: { strategy: "jwt", maxAge: 60 * 60 * 8 },
   pages: { signIn: "/login" },
   callbacks: {
-    // matcher가 /login을 포함하므로 미인증 /login은 true(무한 리다이렉트 방지 — ApcH config.edge 주석과 같은 이유).
+    // matcher가 /login을 포함하므로 미인증 /login은 true(무한 리다이렉트 방지).
     // 랜딩은 로그인해도 머문다 — CTA가 "Open projects"로 바뀔 뿐이다.
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;

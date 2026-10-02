@@ -156,7 +156,7 @@ model BoardItem {                        // 같은 backlog 항목이 여러 번 
   agent         String
   status        String                    // transitions.mjs STATUSES
   reason        String                    // 근거 ≤150
-  results       String[]                  // 결과 ≤150, 누적(ApcH 결과: 두 줄 누적 규칙)
+  results       String[]                  // 결과 ≤150, 누적
   validation    String?                   // 검증: — in_review에서만, 되돌리기 시 null
   acceptedAt    DateTime?                 // 인수: done에서 main-loop의 report_submit이 찍는다. reopen 시 null
   planPath      String?

@@ -21,7 +21,7 @@ type Props = {
 };
 
 // 파이프라인 탭. 그래프는 서버 소유이고 이 화면은 그것을 그리고 고친다 — 문구는 product-copy.md §18.
-// 저장한 버전은 지금 열려 있는 항목을 옮기지 않는다: 런은 자기가 시작한 버전을 끝까지 쓴다(§C.1).
+// 저장한 버전은 지금 열려 있는 항목을 옮기지 않는다: 런은 자기가 시작한 버전을 끝까지 쓴다.
 export function ProjectPipelinePage({ graph, format, saved, now, plan, roster, editable, save, unavailableReason, autoScoutEnabled, canChangeAutoScout, saveAutoScout }: Props) {
   return (
     <>

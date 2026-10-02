@@ -1,4 +1,4 @@
-// runs.ts — NextDeps의 Prisma 구현. 규칙은 next.ts, 저장은 여기. 항목이 쉬거나 폐기될 때 run을 닫는 쪽은
+// NextDeps의 Prisma 구현. 규칙은 next.ts, 저장은 여기. 항목이 쉬거나 폐기될 때 run을 닫는 쪽은
 // board-query.ts(closeRuns)다 — 보드 트랜잭션 안에서 일어나야 하므로.
 import "server-only";
 import { prisma } from "@/server/db";
@@ -30,7 +30,7 @@ export function createNextDeps(db: PrismaClient): NextDeps {
       });
       return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent);
     },
-    // projectId가 null이면 오늘과 같은 쿼리다(hs_). 값이 있으면 run의 프로젝트로 좁힌다(hu_ — A-10).
+    // projectId가 null이면 토큰 전체를 센다(hs_). 값이 있으면 run의 프로젝트로 좁힌다(hu_).
     // 바로 아래 recentRuns가 이미 소유자 단위로 범위를 거는 것과 같은 방향이다.
     recentSteps: (tokenId, projectId, since) => db.agentRunStep.count({
       where: {

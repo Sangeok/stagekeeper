@@ -73,7 +73,7 @@ export function decideValidation(i: ValidationInput): Decision<null> {
   return { ok: true, value: null };
 }
 
-// in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — planCommit이 승인 대상(HEAD)을 가리키게 한다(F3).
+// in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — planCommit이 승인 대상(HEAD)을 가리키게 한다.
 const PLAN_SUBMIT_STATUSES = new Set(["planning", "in_review"]);
 // 이미 요청한 상태다. 한 노드가 호출 여럿으로 이뤄져 있어 순서가 어긋날 수 있으므로(plan_submit이
 // 전이까지 한 뒤 템플릿이 board_transition을 또 부른다) 에러 대신 무해한 성공으로 둔다.
@@ -111,7 +111,7 @@ export type ReportSubmitInput = {
 //  ① 행위자: 아무 이름이나 보고 파일을 심을 수 없다. 고정 4종 + 워크스페이스 dev + main-loop만.
 //  ② 검증 선행: implementing(구현 보고)에서만 verify 기록을 요구한다. in_review(검증 라운드 기록)와
 //     done(인수 기록)은 요구하지 않는다 — 예외를 **상태**로 걸어야 이름 위장으로 못 지나간다.
-// verify를 outcome 불문으로 보는 이유(후보 (a), G1에서 hold 사례가 0건이라 설계 근거로 택함):
+// verify를 outcome 불문으로 보는 이유:
 // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다. outcome을 ok로 좁히면
 // 그 보고가 막힌다. 불변식의 뜻은 "보고 전에 검증을 시도했다"이고, 그건 커서(AgentRun.stepId)에
 // 결합하지 않고도 원장 한 줄로 표현된다.

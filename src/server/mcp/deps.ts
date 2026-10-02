@@ -1,4 +1,4 @@
-// deps.ts — ToolDeps의 Prisma 구현 + 토큰 검증 바인딩. 도구 본문은 tools.ts, 저장 규칙은 pipeline/board.ts.
+// ToolDeps의 Prisma 구현 + 토큰 검증 바인딩. 도구 본문은 tools.ts, 저장 규칙은 pipeline/board.ts.
 import { historyCutoff } from "@harness/core/entitlement.mjs";
 import "server-only";
 import { agentNext } from "@/server/agents/next";
@@ -35,7 +35,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
       const row = await board.getWithHistory(projectId, key, historyCutoff((await readProjectAccess(prisma, projectId)).plan, new Date()));
       return row === null ? null : boardWithBacklogView(row);
     },
-    // pm은 에이전트 토큰으로 올린다. 웹의 "Put on the board"는 같은 board.propose를 human·web으로 부른다(§E.7).
+    // pm은 에이전트 토큰으로 올린다. 웹의 "Put on the board"는 같은 board.propose를 human·web으로 부른다.
     propose: (projectId, input, actorRef) => board.propose(projectId, input, { actor: "agent", actorRef }),
     // 에이전트에는 화면이 없다 — CAS 토큰은 board.transition이 트랜잭션 안에서 방금 읽은
     // row.updatedAt으로 채운다. Caller 유니온이 그 사실을 타입으로 못박는다.
@@ -48,7 +48,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
     submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
     recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),
     agentNext: (projectId, tokenId, input, userScoped) => agentNext(prismaNextDeps, { projectId, tokenId, userScoped }, input),
-    // pipeline_next의 조립은 여기다 — run.ts는 board.ts를 import하지 않으므로 미결 목록을 스스로 읽지 못한다(§D.1).
+    // pipeline_next의 조립은 여기다 — run.ts는 board.ts를 import하지 않으므로 미결 목록을 스스로 읽지 못한다.
     // 항목마다 지연 전진을 먼저 돌린다: doc-audit·scout의 완료(에이전트 run 닫힘)는 보드 쓰기를 지나지 않는다.
     pipelineNext: async (projectId, key, runbook) => {
       if (key !== undefined) {

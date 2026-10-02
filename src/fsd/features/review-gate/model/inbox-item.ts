@@ -22,14 +22,14 @@ export type InboxItem = {
   area: string;
   agent: string;
   status: string;
-  gate: string | null; // 런이 서 있는 게이트 — 카드는 gate !== null일 때 게이트 버튼을 그린다(§E.2)
+  gate: string | null; // 런이 서 있는 게이트 — 카드는 gate !== null일 때 게이트 버튼을 그린다
   reason: string;
   results: string[];
   validation: string | null;
   planPath: string | null;
   planUrl: string | null;
   planCommit: string | null;
-  proposedBy: "you" | "pm"; // 제안 이벤트의 actor — 웹에서 올리면 사람이다(§E.7)
+  proposedBy: "you" | "pm"; // 제안 이벤트의 actor — 웹에서 올리면 사람이다
   proposedOn: string; // ISO
   statusSince: string; // ISO. 지금 status로 바뀐 전이 이벤트의 시각(없으면 updatedAt)
   heldFrom: string | null; // on_hold 직전 status — 주 Resume 버튼이 여기서 정해진다
@@ -49,7 +49,7 @@ export type TransitionAction = (input: TransitionInput) => Promise<ActionResult<
 
 export type DiscardAction = (key: string, expectedUpdatedAt: string) => Promise<ActionResult<void>>;
 
-// 게이트 승인 액션 — 게이트 id로 부른다(§E.2 배선).
+// 게이트 승인 액션 — 게이트 id로 부른다.
 export type GateAction = (input: { key: string; gate: string; gateEntry?: GateEntry; expectedUpdatedAt: string }) => Promise<ActionResult<void>>;
 
 // 표시 순서: 파이프라인 깊은 것부터 — 게이트②(in_review) → 게이트①(proposed) → 보류.

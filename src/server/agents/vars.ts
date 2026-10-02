@@ -1,4 +1,4 @@
-// vars.ts — DB 행 → 템플릿 변수. 순수.
+// DB 행 → 템플릿 변수. 순수.
 // 스텁은 플러그인이 harness.json으로 렌더하고(buildVars/buildWorkspaceVars), 단계 본문은 서버가 렌더한다.
 // 둘이 같은 값을 보도록 여기서 Project·Workspace 행을 config 모양으로 되돌려 같은 함수에 넣는다.
 // scout·release는 DB에 없다 — 단계 본문은 그 변수를 쓰지 않으므로(templates.test.mjs가 지킨다) 기본값으로 둔다.

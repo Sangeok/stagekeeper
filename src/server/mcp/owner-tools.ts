@@ -1,4 +1,4 @@
-// owner-tools.ts — 소유자 토큰 스코프의 MCP 도구. 에이전트 서버(tools.ts)와 **다른 엔드포인트**(/api/mcp/owner)에 산다.
+// 소유자 토큰 스코프의 MCP 도구. 에이전트 서버(tools.ts)와 **다른 엔드포인트**(/api/mcp/owner)에 산다.
 // 그쪽 등록 집합은 그대로다 — tools.test.mjs의 WEB_ONLY 가드(불변식 4)가 계속 "게이트 도구 없음"을 단언한다.
 // 여기 도구는 `gate_approve` 하나다 — 그래프의 어느 게이트든 연다. 되돌리기·보류·재개·Reopen·폐기·백로그 편집·토큰 발급은 여전히 웹 전용이다.
 import { allowsSessionApprovals } from "@harness/core/entitlement.mjs";
@@ -11,7 +11,7 @@ import { z } from "zod";
 export const OWNER_TOOL_NAMES = ["gate_approve"] as const;
 
 export type OwnerToolDeps = {
-  // 게이트를 연 뒤의 행과 다음 일(pipeline_next와 같은 모양) — 런북 단계 번호는 없다. 런북에 번호가 없다.
+  // 게이트를 연 뒤의 행과 다음 일(pipeline_next와 같은 모양) — 런북 단계 번호는 없다.
   gate(projectId: string, userId: string, input: { key: string; gate: string; planCommit?: string; gateEntry?: { runId: string; entryId: string } }): Promise<ServerResult<{ item: { agent: string; status: string }; next: PipelineNext }>>;
   access(projectId: string): Promise<ProjectAccess>;
   // 지금 이 사람이 이 프로젝트의 소유자인가. 토큰 행의 userId는 발급 시점의 사실이라 호출마다 다시 본다 — 웹의 requireProjectOwner와 같은 판정.

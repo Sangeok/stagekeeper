@@ -12,7 +12,7 @@ export type Outcome = (typeof OUTCOMES)[number];
 
 export const NOTE_MAX = 500;
 // 원장 행(outcome 실은 호출) 기준. 분모는 hs_면 토큰당, hu_면 토큰×프로젝트당이다 —
-// hu_ 한 개가 여러 프로젝트에 쓰이므로, 프로젝트를 안 걸면 오늘의 "프로젝트당 60회"가 조용히 쪼개진다(A-10).
+// hu_ 한 개가 여러 프로젝트에 쓰이므로, 프로젝트를 안 걸면 "프로젝트당 60회"가 조용히 쪼개진다.
 export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 };
 // 영수증 revision의 상한 — AgentRun.revision은 Postgres Int(int4)다. MCP 입력 스키마(tools.ts)도 같은 값을 쓴다.
 export const REVISION_MAX = 2_147_483_647;
@@ -31,7 +31,7 @@ export function isWellFormedReceipt(receipt: Receipt | undefined): receipt is Re
 export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
 export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string };
 // userScoped: 주체가 hu_라 프로젝트가 토큰이 아니라 인자에서 왔다는 뜻. 한도 집계의 분모를
-// 좁히는 데만 쓴다(A-10) — hs_는 토큰이 곧 프로젝트라 생략하고, 생략하면 오늘과 같은 집계다.
+// 좁히는 데만 쓴다 — hs_는 토큰이 곧 프로젝트라 생략한다.
 export type Scope = { projectId: string; tokenId: string; userScoped?: boolean };
 export type RunRow = { id: string; stepId: string; revision: number; closedAt: Date | null };
 export type OutcomeCommit = {
@@ -88,7 +88,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const roster = await deps.roster(projectId);
   if (!REPORT_AGENTS.includes(agent) && !roster.includes(agent)) return fail(`unknown agent: ${agent}`);
   if (!allowsAgent(access.plan, agent, roster)) return fail(`agent \`${agent}\` is not on the ${access.plan} plan`);
-  // 항목 소유 검사. 예전에는 dev 템플릿의 라우터 단계가 board_get으로 보고 스스로 확인했다 —
+  // 항목 소유 검사.
   // 프롬프트가 아니라 서버가 강제한다(불변식 4와 같은 방향). 행이 없으면 여기서 말하지 않는다:
   // requires 판정이 `not open`으로 더 정확히 설명한다.
   //
@@ -99,7 +99,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     const owner = await deps.itemAgent(projectId, key);
     if (owner !== null && owner !== agent) return fail(`item ${key} belongs to \`${owner}\`, not \`${agent}\``);
   }
-  // hs_에는 null을 넘긴다 — 토큰이 곧 프로젝트라 좁힐 것이 없고, 쿼리도 오늘 그대로다.
+  // hs_에는 null을 넘긴다 — 토큰이 곧 프로젝트라 좁힐 것이 없다.
   const rateScope = scope.userScoped === true ? projectId : null;
   if ((await deps.recentSteps(tokenId, rateScope, new Date(Date.now() - RATE_LIMIT.windowMs))) >= RATE_LIMIT.calls) {
     return fail(`rate limit: ${RATE_LIMIT.calls} calls per ${RATE_LIMIT.windowMs / 60_000} minutes per token`);
