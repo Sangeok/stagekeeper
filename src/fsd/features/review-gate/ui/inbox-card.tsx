@@ -96,7 +96,8 @@ function InboxCardContent({ item, now, transition, approve, discard, canWrite, r
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
               <b className="font-medium text-ink">Request plan</b>: dev writes a plan.{" "}
-              <b className="font-medium text-ink">Approve implementation</b>: dev changes the code.
+              <b className="font-medium text-ink">Approve implementation</b>: dev changes the code. Neither starts dev —
+              your Claude Code session does.
             </li>
             <li>
               <b className="font-medium text-ink">Verified</b> means an independent pass found nothing to change. Without one,

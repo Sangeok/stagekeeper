@@ -5,7 +5,7 @@ import { describe, it } from "node:test";
 
 import { gateTooltip } from "./gate-copy";
 
-const PLAN = "The item waits here until you press Request plan in the Inbox. dev writes a plan. Nothing changes in the code yet.";
+const PLAN = "The item waits here until you press Request plan in the Inbox. Requesting lets dev write a plan. Then you run dev in Claude Code. Nothing changes in the code yet.";
 const IMPLEMENT = "The item waits here until you press Approve implementation in the Inbox. Approving lets dev change code. Then you run dev in Claude Code.";
 const VERIFY = "The item waits here until you press Continue to verification in the Inbox. The main loop verifies the plan; plan-verifier runs an independent pass.";
 const ACCEPT = "The item waits here until you press Continue to acceptance in the Inbox. The main loop reproduces the five acceptance checks.";

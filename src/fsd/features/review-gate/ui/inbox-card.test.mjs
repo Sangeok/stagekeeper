@@ -36,8 +36,16 @@ it("shows classification at the gate and explains the two discard outcomes", () 
   const html = render(item);
   assert.match(html, />fix<\/span>/);
   assert.match(html, /Request plan/);
+  assert.match(html, /Requesting lets dev write a plan\. Then you run dev in Claude Code\. Nothing changes in the code yet\./);
+  assert.match(html, /Neither starts dev — your Claude Code session does\./);
   assert.match(html, /At Proposed it also takes the item out of the backlog/);
   assert.match(html, /at In review the item stays in the backlog/);
+});
+
+it("hides the new before-plan hint and help when the card is read-only", () => {
+  const item = { ...inReview("before-plan", null), status: "proposed" };
+  const html = render(item, { canWrite: false, readOnlyLabel: "Disconnected" });
+  assert.doesNotMatch(html, /Requesting lets dev|Neither starts dev|your Claude Code session does/);
 });
 
 // 검증은 사용자가 고르는 것이다 — 기록이 없어도 카드는 경고하지 않는다(design.md 규칙 2).
