@@ -1,7 +1,7 @@
 // 파이프라인 런의 저장과 사실 읽기. 판정은 packages/core/pipeline.mjs. board.ts를 import하지 않는다.
 import { randomUUID } from "node:crypto";
 import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, cursorForStatus, defaultGraph, isGateId, sequence } from "@harness/core/pipeline.mjs";
-import { DISPATCH_WINDOW_DAYS, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
+import { readProjectUsageCapIn } from "../account-usage-query";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client"; // Prisma는 값 — P2002 검사에 쓴다(edit-backlog.server.ts와 같은 import)
 import { readProjectPlanIn } from "@/server/project-access-query";
 import { decideHead, decideNext, handoffIsLive, type HeadNext, type PipelineNext } from "./run-rules";
@@ -102,12 +102,6 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: P
   return { ...completion, status: row.status, validation: row.validation, accepted: row.acceptedAt !== null, approvedGates, closedAgents: closed.map((r) => r.agent) };
 }
 
-async function recentRuns(db: Db, projectId: string, since: Date) {
-  const owner = await db.project.findUnique({ where: { id: projectId }, select: { ownerUserId: true } });
-  if (!owner?.ownerUserId) return 0;
-  return db.agentRun.count({ where: { openedAt: { gte: since }, project: { ownerUserId: owner.ownerUserId } } });
-}
-
 export async function nextFor(db: Db, projectId: string, key: string): Promise<PipelineNext> {
   const row = await db.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" } });
   if (!row) throw new Error(`no such board item: ${key}`); // 도구 층이 먼저 거른다
@@ -122,18 +116,18 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
   const last = open?.steps[0];
   const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
   const dispatches = node !== null && dispatcherFor(node, row.agent) !== null;
-  const capMsg = dispatches ? capError(await readProjectPlanIn(db, projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date()))) : null;
+  const cap = dispatches ? await readProjectUsageCapIn(db, projectId) : null;
   return decideNext({
     key, version: run.version.version, node, status: row.status, planCommit: row.planCommit, agent: row.agent, handoff, hasResumableRun: open !== null,
     format: run.version.format, entry: run.entryId ? { runId: run.id, entryId: run.entryId, slotId: run.node } : undefined,
-    capReason: capMsg ? `${capMsg} — counted over the last ${DISPATCH_WINDOW_DAYS} days` : null,
+    cap,
   });
 }
 
 // key 없는 호출의 머리 — 미결 수는 deps.ts가 latestBoard로 세어 넘긴다(run.ts는 board.ts를 import하지 않는다)
 export async function headFor(db: Db, projectId: string, openCount: number, availableBacklog: number, scoutNodePending: boolean): Promise<HeadNext> {
   const version = await ensureCurrentVersion(db, projectId);
-  const capMsg = capError(await readProjectPlanIn(db, projectId), "dispatches", await recentRuns(db, projectId, dispatchCutoff(new Date())));
+  const cap = await readProjectUsageCapIn(db, projectId);
   const [lastScout, backlogChange, resumableScout, project] = await Promise.all([
     db.agentRun.findFirst({ where: { projectId, agent: "feature-scout", key: null, closedAt: { not: null },
       steps: { some: { stepId: "report", outcome: "ok", OR: [{ accepted: true }, { accepted: null }] } },
@@ -153,6 +147,6 @@ export async function headFor(db: Db, projectId: string, openCount: number, avai
     openCount,
     availableBacklog,
     hasResumablePmRun: await db.agentRun.findFirst({ where: { projectId, agent: "pm", key: null, pipelineRunId: null, pipelineEntryId: null, closedAt: null }, select: { id: true } }) !== null,
-    capReason: capMsg ? `${capMsg} — counted over the last ${DISPATCH_WINDOW_DAYS} days` : null,
+    cap,
   });
 }

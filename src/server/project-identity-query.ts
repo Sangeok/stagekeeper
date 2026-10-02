@@ -8,6 +8,7 @@
 // 그 경로는 git remote 기반 등록(--register)가 채운다.
 import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
 import type { ProjectAccess } from "./entitlement";
+import type { RequestRateFailure, RestRateFailure } from "./result";
 import { OWNERSHIP_UNAVAILABLE_REASON, repositoryOwner } from "./project-access-query";
 
 // slug는 harness.json의 project.slug가 된다 — hu_ 호출이 프로젝트를 지목하는 유일한 값이다.
@@ -15,9 +16,10 @@ export type ProjectIdentity = { owner: string; repo: string; branch: string; nam
 
 export type ProjectIdentityResult =
   | { ok: true; project: ProjectIdentity }
-  | { ok: false; status: 401 | 403; reason: string };
+  | { ok: false; status: 401 | 403; reason: string; code?: never } | RestRateFailure;
 
 export type ProjectIdentityDeps = RestTokenDeps & {
+  requestLimit(projectId: string): Promise<RequestRateFailure | null>;
   projectAccess(projectId: string): Promise<ProjectAccess>;
   findProjectIdentity(projectId: string): Promise<{ repoOwner: string | null; repo: string; branch: string; name: string; slug: string } | null>;
 };
@@ -38,6 +40,8 @@ export function makeProjectIdentityFor(deps: ProjectIdentityDeps): ProjectIdenti
       return { ok: false, status: 403, reason: access.reason };
     }
 
+    const limited = await deps.requestLimit(scope.projectId);
+    if (limited) return { ...limited, status: 429 };
     const row = await deps.findProjectIdentity(scope.projectId);
     // access가 통과했으면 소유권은 이미 확인됐다. 그 사이에 사라진 경우만 여기로 온다.
     if (!row) {

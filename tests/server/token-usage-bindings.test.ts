@@ -19,7 +19,7 @@ type Handler = (request: Request) => Promise<Response>;
 type Verifier = ReturnType<typeof auth.makeVerifyToken>;
 const plainObject = (value: unknown) => JSON.parse(JSON.stringify(value));
 
-function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: boolean; recordFailure?: boolean; lookupFailure?: boolean } = {}) {
+function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: boolean; recordFailure?: boolean; lookupFailure?: boolean; expired?: boolean } = {}) {
   const require = createRequire(import.meta.url);
   const usage: { kind: string; args: unknown }[] = [];
   const reads: unknown[] = [];
@@ -28,7 +28,7 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
     findUnique: async (args: { where: { hash: string }; select: unknown }) => {
       reads.push(args); if (options.lookupFailure) throw new Error("credential lookup failed");
       if (options.unknown || args.where.hash !== tokens[kind].hash) return null;
-      return { id: `${kind}-id`, projectId: "p", userId: "u", revokedAt: options.revoked ? new Date() : null };
+      return { id: `${kind}-id`, projectId: "p", userId: "u", expiresAt: options.expired ? new Date(0) : null, revokedAt: options.revoked ? new Date() : null };
     },
     updateMany: async (args: unknown) => { usage.push({ kind, args: plainObject(args) }); if (options.recordFailure) throw new Error("private storage error"); return { count: 1 }; },
   });
@@ -42,7 +42,7 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
   };
   const common: Record<string, unknown> = {
     "server-only": {}, "@/server/db": { prisma }, "./db": { prisma },
-    "./token-usage-query": usageQuery, "./auth": auth, "./rest-scope": restScope,
+    "./token-usage-query": usageQuery, "./request-rate": { limitProjectRequest: async () => null, limitAccountRequest: async () => null }, "../request-rate": { limitProjectRequest: async () => null }, "../request-rate-limit": { consumeProjectRequestBudget: async () => null }, "@/server/result": require(resolve("src/server/result.ts")), "./auth": auth, "./rest-scope": restScope,
     "./templates-query": templatesQuery, "./project-identity-query": identityQuery, "./runbook-query": runbookQuery,
     "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": access,
     "@/server/entitlement": { projectAccess: async () => options.unavailable ? { available: false, reason: "not selected" } : { available: true, plan: "pro" } },
@@ -138,7 +138,7 @@ it("REST routes record valid credentials before 401/403/body errors and never re
       }
     } finally { console.warn = original; }
   }
-  for (const options of [{ revoked: true }, { unknown: true }]) {
+  for (const options of [{ revoked: true }, { unknown: true }, { expired: true }]) {
     const f = fixture(options);
     for (const [path, method] of [["templates", "GET"], ["project", "GET"], ["runbook", "POST"], ["projects", "POST"], ["mcp", "GET"], ["mcp/owner", "POST"]] as const) {
       const route = f.load<Record<"GET" | "POST", Handler>>(`src/app/api/${path}/route.ts`);

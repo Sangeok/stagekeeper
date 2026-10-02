@@ -38,8 +38,9 @@ it("at the dispatch cap only a matching unbound scout can resume the empty head"
   try {
     f = await fixture(db);
     await db.agentRun.createMany({ data: Array.from({ length: 60 }, (_, i) => ({ projectId: f!.projectId, agent: "pm", tokenId: `cap-${i}`, stepId: "report", closedAt: new Date() })) });
+    await db.user.update({ where: { id: f.userId }, data: { usageWindowStartedAt: new Date(), usageRunCount: 20 } });
     const read = () => headFor(db, f!.projectId, 0, 0, false);
-    const capped = await read(); assert.equal(capped.action, "none"); if (capped.action === "none") assert.match(capped.reason, /dispatch cap/);
+    const capped = await read(); assert.equal(capped.action, "none"); if (capped.action === "none") assert.match(capped.reason, /Usage limit reached/);
     const pm = await db.agentRun.create({ data: { projectId: f.projectId, agent: "pm", tokenId: "t", stepId: "start" } });
     assert.equal((await read()).action, "none", "PM cannot resume as scout");
     const version = await db.pipelineVersion.findFirstOrThrow({ where: { projectId: f.projectId } });

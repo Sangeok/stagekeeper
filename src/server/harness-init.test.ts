@@ -12,6 +12,7 @@ import type { Plan } from "./entitlement";
 import { makeTemplatesFor } from "./templates-query";
 import { makeRecordRunbook } from "./runbook-query";
 import { DISCONNECTED_REASON, NOT_SELECTED_REASON, type ProjectAccess } from "./project-access-query";
+import { failureBody, type RequestRateFailure } from "./result";
 
 const CLI = fileURLToPath(new URL("../../plugin/bin/harness-init.mjs", import.meta.url));
 const RUNBOOK = "# Runbook\nversion {{runbook_version}}\n{{report_table}}\n";
@@ -57,9 +58,11 @@ async function service(t: TestContext, plan: Plan = "free") {
   let access: ProjectAccess = { plan, available: true };
   let disconnectAfterTemplates = false;
   let agentRevoked = false;
+  let rateLimited = false;
   const deps = {
-    findTokenByHash: async (hash: string) => hash === agent.hash ? { id: "agent-token", projectId: "legacy", revokedAt: agentRevoked ? new Date() : null } : null,
-    findUserTokenByHash: async (hash: string) => hash === user.hash ? { id: "user-token", userId: "user", revokedAt: null } : null,
+    requestLimit: async (): Promise<RequestRateFailure | null> => rateLimited ? { ok: false, code: "RATE_LIMITED", reason: "Request limit reached.", retryAfterSec: 23 } : null,
+    findTokenByHash: async (hash: string) => hash === agent.hash ? { id: "agent-token", projectId: "legacy", expiresAt: null, revokedAt: agentRevoked ? new Date() : null } : null,
+    findUserTokenByHash: async (hash: string) => hash === user.hash ? { id: "user-token", userId: "user", expiresAt: null, revokedAt: null } : null,
     projectFor: async (slug: string, userId: string) => {
       scopes.push(slug);
       return userId === "user" && ["mathgic", "another"].includes(slug) ? slug : null;
@@ -78,7 +81,8 @@ async function service(t: TestContext, plan: Plan = "free") {
         requests.push({ path: url.pathname, project: url.searchParams.get("project") });
         const result = await templatesFor(header, url.searchParams.get("lang") ?? "en", url.searchParams.get("project"));
         res.statusCode = result.ok ? 200 : result.status;
-        res.end(JSON.stringify(result.ok ? { templates: result.templates, entitlement: result.entitlement } : { error: result.reason }));
+        if (!result.ok && result.code === "RATE_LIMITED") res.setHeader("Retry-After", String(result.retryAfterSec));
+        res.end(JSON.stringify(result.ok ? { templates: result.templates, entitlement: result.entitlement } : failureBody(result)));
       } else if (url.pathname === "/api/runbook" && req.method === "POST") {
         let raw = "";
         for await (const chunk of req) raw += chunk;
@@ -86,7 +90,8 @@ async function service(t: TestContext, plan: Plan = "free") {
         requests.push({ path: url.pathname, project: body.project ?? null });
         const result = await recordRunbook(header, body);
         res.statusCode = result.ok ? 200 : result.status;
-        res.end(JSON.stringify(result.ok ? { ok: true } : { error: result.reason }));
+        if (!result.ok && result.code === "RATE_LIMITED") res.setHeader("Retry-After", String(result.retryAfterSec));
+        res.end(JSON.stringify(result.ok ? { ok: true } : failureBody(result)));
       } else {
         res.statusCode = 404;
         res.end(JSON.stringify({ error: "unexpected route" }));
@@ -103,10 +108,18 @@ async function service(t: TestContext, plan: Plan = "free") {
   return { url: `http://127.0.0.1:${address.port}`, user: user.plain, agent: agent.plain, saved, requests, scopes, templateQueries: () => templateQueries,
     setAccess: (value: ProjectAccess) => { access = value; }, revokeAgent: () => { agentRevoked = true; },
     disconnectAfterTemplates: () => { disconnectAfterTemplates = true; },
+    limitRequests: () => { rateLimited = true; },
   };
 }
 
 describe("init against the REST project-scope contract", () => {
+  it("real REST rate metadata reaches CLI guidance without immediate retry or template writes", async (t) => {
+    const s = await service(t); s.limitRequests(); const root = checkout(t, "mathgic");
+    const response = await run(root, s.url, s.user); assert.equal(response.code, 1);
+    assert.match(response.output, /Wait 23 seconds/); assert.equal(s.requests.length, 1);
+    assert.equal(s.templateQueries(), 0); assert.equal(s.saved.length, 0);
+    assert.deepEqual(readdirSync(root), ["harness.json"]); assert.ok(!response.output.includes(s.user));
+  });
   it("uses the same hu_ across connection, disconnection and reconnection without denied template IO or writes", async (t) => {
     const s = await service(t); const root = checkout(t, "mathgic");
     assert.equal((await run(root, s.url, s.user)).code, 0);

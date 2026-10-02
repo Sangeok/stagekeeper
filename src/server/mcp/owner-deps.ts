@@ -1,6 +1,7 @@
 // OwnerToolDeps의 Prisma 구현 + 소유자 토큰 검증 바인딩. 도구 본문은 owner-tools.ts, 저장 규칙은 pipeline/board.ts.
 import "server-only";
 import { recordTokenUsage } from "../token-usage";
+import { limitProjectRequest } from "../request-rate";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
 import * as board from "@/server/pipeline/board";
@@ -10,6 +11,7 @@ import { createOwnerGate } from "./owner-gate";
 import type { OwnerToolDeps } from "./owner-tools";
 
 export const prismaOwnerToolDeps: OwnerToolDeps = {
+  requestLimit: limitProjectRequest,
   // 세션 채널의 게이트. 화면이 없으므로 CAS 토큰은 방금 읽은 row.updatedAt이다 — 읽기와 쓰기 사이에
   // 보드가 움직였으면 board.gate가 stale로 거부한다.
   gate: createOwnerGate({ latestRow: board.latestRowFor, gate: board.gate, advice: (projectId, key) => nextFor(prisma, projectId, key) }),
@@ -19,6 +21,6 @@ export const prismaOwnerToolDeps: OwnerToolDeps = {
 };
 
 export const verifyOwnerToken = makeVerifyOwnerToken((hash) =>
-  prisma.ownerToken.findUnique({ where: { hash }, select: { id: true, projectId: true, userId: true, revokedAt: true } }),
+  prisma.ownerToken.findUnique({ where: { hash }, select: { id: true, projectId: true, userId: true, revokedAt: true, expiresAt: true } }),
   recordTokenUsage,
 );

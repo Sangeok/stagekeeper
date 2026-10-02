@@ -9,7 +9,7 @@ export function OwnerTokenReveal({ token, ownerMcpUrl }: { token: string; ownerM
   return (
     <Card className="gap-4">
       <p className="text-sm text-quiet">This is the only time the token is shown. Stagekeeper stores a hash, not the token.</p>
-      <p className="text-xs text-quiet">This token stays valid until you revoke it. Restarting a terminal or Claude Code does not expire it.</p>
+      <p className="text-xs text-quiet">This token stays valid until you revoke it or its chosen expiry is reached. Restarting a terminal or Claude Code does not expire it.</p>
       <p className="text-xs text-quiet">Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.</p>
       <p className="text-xs text-quiet">If you did not save the token, issue a new one and revoke the old token when you no longer use it.</p>
 

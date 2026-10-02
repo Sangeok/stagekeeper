@@ -1,1 +1,1 @@
-export { issueOwnerToken, issueToken, revokeOwnerToken, revokeToken } from "./api/manage-token.server";
+export { issueOwnerToken, issueToken, revokeOwnerToken, revokeToken, renameToken, renameOwnerToken } from "./api/manage-token.server";

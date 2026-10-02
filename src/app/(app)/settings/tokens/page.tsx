@@ -1,4 +1,4 @@
-import { issueUserToken, revokeUserToken } from "@/fsd/features/manage-user-token/index.server";
+import { issueUserToken, revokeUserToken, renameUserToken } from "@/fsd/features/manage-user-token/index.server";
 import { UserTokensPage } from "@/fsd/pages/user-tokens";
 import { AppHeader } from "@/fsd/widgets/app-header";
 import { loadHeaderUser } from "@/fsd/widgets/app-header/index.server";
@@ -14,7 +14,7 @@ export default async function Page() {
     loadHeaderUser(userId),
     prisma.userToken.findMany({
       where: { userId },
-      select: { id: true, label: true, createdAt: true, revokedAt: true, lastUsedAt: true, usageTrackingStartedAt: true },
+      select: { id: true, label: true, createdAt: true, revokedAt: true, expiresAt: true, lastUsedAt: true, usageTrackingStartedAt: true },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -26,6 +26,8 @@ export default async function Page() {
         tokens={tokens}
         issue={issueUserToken}
         revoke={revokeUserToken}
+        rename={renameUserToken}
+        at={new Date()}
       />
     </>
   );

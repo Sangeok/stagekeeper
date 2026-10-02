@@ -6,6 +6,7 @@
 // 그 값을 harness.json으로 옮기면 /api/templates가 ?lang=ko로 404를 준다.
 // 언어 질의가 없으므로 404 상태도 없다: 401(토큰) · 403(선택되지 않음)뿐이다.
 import { projectIdentityFor } from "@/server/project-identity";
+import { restFailureResponse } from "@/server/result";
 
 export async function GET(request: Request) {
   // ?project=<slug>는 hu_ 전용이다. hs_는 "이 토큰은 어느 프로젝트냐"를 묻고,
@@ -14,5 +15,5 @@ export async function GET(request: Request) {
   const result = await projectIdentityFor(request.headers.get("authorization"), project);
   return result.ok
     ? Response.json({ project: result.project })
-    : Response.json({ error: result.reason }, { status: result.status });
+    : restFailureResponse(result);
 }

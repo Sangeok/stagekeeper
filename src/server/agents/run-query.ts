@@ -1,4 +1,6 @@
-import { allowsAgent, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
+import { allowsAgent } from "@harness/core/entitlement.mjs";
+import { readAccountUsageIn, usageLimitFailure } from "../account-usage-query";
+import { readDatabaseClockIn } from "../database-clock";
 import { dispatcherFor, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccessIn } from "../project-access-query";
@@ -86,13 +88,17 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           ...base,
           withCursor: undefined,
           openRun: async () => closedTerminal ? null : open,
-          recentRuns: (_project, since) => tx.agentRun.count({ where: { project: { ownerUserId: owner.ownerUserId }, openedAt: { gte: since } } }),
+          usageCap: async () => usageLimitFailure(await readAccountUsageIn(tx, owner.ownerUserId)),
           createRun: async (_scope, agent, itemKey, stepId) => {
             if (open) return { ok: true, item: open };
-            const count = await tx.agentRun.count({ where: { project: { ownerUserId: owner.ownerUserId }, openedAt: { gte: dispatchCutoff(new Date()) } } });
-            const reason = capError(access.plan, "dispatches", count);
-            if (reason) return { ok: false, reason };
-            const item = await tx.agentRun.create({ data: { projectId, tokenId, agent, key: itemKey, stepId, ...binding } });
+            const at = await readDatabaseClockIn(tx);
+            const usage = await readAccountUsageIn(tx, owner.ownerUserId, at);
+            const cap = usageLimitFailure(usage);
+            if (cap) return cap;
+            await tx.user.update({ where: { id: owner.ownerUserId }, data: {
+              usageWindowStartedAt: usage.startedAt ?? at, usageRunCount: usage.used + 1,
+            } });
+            const item = await tx.agentRun.create({ data: { projectId, tokenId, agent, key: itemKey, stepId, openedAt: at, ...binding } });
             selectedId = item.id;
             return { ok: true, item };
           },

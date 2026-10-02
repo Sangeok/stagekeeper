@@ -3,7 +3,8 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { NOTE_MAX, OUTCOMES, REVISION_MAX, type NextInput, type NextOutput } from "@/server/agents/next";
 import type { ProjectAccess } from "@/server/entitlement";
-import type { ServerResult } from "@/server/result";
+import type { ServerResult, ServerFailure, RequestRateFailure } from "@/server/result";
+import { failureBody } from "@/server/result";
 import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/scope-copy";
 import { ITEM_TYPES } from "@harness/core/backlog.mjs";
 import { validateWorkspaceSemantics } from "@harness/core/workspaces.mjs";
@@ -38,6 +39,7 @@ export type BoardDetailView = BoardRowView & {
 };
 
 export type ToolDeps = {
+  requestLimit(projectId: string): Promise<RequestRateFailure | null>;
   projectGet(projectId: string): Promise<ProjectView>;
   projectSync(projectId: string, workspaces: WorkspaceInput[], language?: string): Promise<ServerResult<number>>;
   backlogAdd(projectId: string, input: { runId: string; title: string; area: string; source: string; type: string }): Promise<ServerResult<{ key: string }>>;
@@ -50,8 +52,7 @@ export type ToolDeps = {
   submitPlan(projectId: string, input: { key: string; path: string; commit: string; type?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
-  // userScoped는 한도 집계의 분모에만 쓴다 — hu_는 한 토큰이 여러 프로젝트에 걸친다.
-  agentNext(projectId: string, tokenId: string, input: NextInput, userScoped: boolean): Promise<ServerResult<NextOutput>>;
+  agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
   // 런 보장 → 지연 전진(board.advancePipeline) → run.nextFor. key 없음이면 { head, items }.
   // runbook = 부르는 세션의 CLAUDE.md에 적힌 판. key 없는 개요의 표류 판정에만 쓴다(runbook.ts runbookStale).
   pipelineNext(projectId: string, key: string | undefined, runbook?: string): Promise<ServerResult<unknown>>;
@@ -62,13 +63,17 @@ export type ToolDeps = {
 
 type Ctx = { http?: { authInfo?: { extra?: Record<string, unknown> } } };
 const text = (v: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(v) }] });
-const fail = (reason: string) => ({ content: [{ type: "text" as const, text: JSON.stringify({ error: reason }) }], isError: true });
-const unwrap = <T,>(r: ServerResult<T>) => (r.ok ? text(r.item) : fail(r.reason));
+const fail = (failure: string | ServerFailure) => ({ content: [{ type: "text" as const, text: JSON.stringify(
+  typeof failure === "string" ? { error: failure } : failureBody(failure),
+) }], isError: true });
+const unwrap = <T,>(r: ServerResult<T>) => (r.ok ? text(r.item) : fail(r));
 
 // 인증은 유지해야 project_get으로 복구 방법을 안내할 수 있다.
 const guardUnavailable = async (deps: ToolDeps, projectId: string) => {
   const access = await deps.access(projectId);
-  return !access.available ? fail(access.reason) : null;
+  if (!access.available) return fail(access.reason);
+  const limited = await deps.requestLimit(projectId);
+  return limited ? fail(limited) : null;
 };
 
 // 거부 문구는 product-copy.md §12가 단일 출처이고, 코드 쪽 출처는 scope-copy.ts다 —
@@ -77,7 +82,7 @@ const guardUnavailable = async (deps: ToolDeps, projectId: string) => {
 export { NOT_YOURS, PROJECT_REQUIRED };
 
 type Scoped =
-  | { ok: true; projectId: string; tokenId: string; actorRef: string; userScoped: boolean }
+  | { ok: true; projectId: string; tokenId: string; actorRef: string }
   | { ok: false; reason: string };
 
 // 프로젝트를 정하는 유일한 자리. hs_는 토큰이 알고,
@@ -89,13 +94,13 @@ async function scope(args: { project?: unknown }, ctx: Ctx, deps: ToolDeps): Pro
   const tokenId = extra?.tokenId;
   if (typeof tokenId !== "string") throw new Error("unauthenticated");
   if (typeof extra?.projectId === "string") {
-    return { ok: true, projectId: extra.projectId, tokenId, actorRef: `token:${tokenId}`, userScoped: false };
+    return { ok: true, projectId: extra.projectId, tokenId, actorRef: `token:${tokenId}` };
   }
   if (typeof extra?.userId !== "string") throw new Error("unauthenticated");
   if (typeof args?.project !== "string") return { ok: false, reason: PROJECT_REQUIRED };
   const projectId = await deps.projectFor(args.project, extra.userId);
   if (projectId === null) return { ok: false, reason: NOT_YOURS };
-  return { ok: true, projectId, tokenId, actorRef: `token:${tokenId}`, userScoped: true };
+  return { ok: true, projectId, tokenId, actorRef: `token:${tokenId}` };
 }
 
 const workspace = z.object({ id: z.string(), path: z.string(), agent: z.string(), verify: z.array(z.string()), knowledge: z.string().nullable(), readOnly: z.array(z.string()) });
@@ -112,6 +117,8 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     // 선택되지 않은 프로젝트에서도 답한다 — 401이 사유를 못 실으므로 사유를 알 수 있는 유일한 창구다.
     const access = await deps.access(projectId);
     if (!access.available && access.code !== "not-selected") return fail(access.reason);
+    const limited = await deps.requestLimit(projectId);
+    if (limited) return fail(limited);
     const project = await deps.projectGet(projectId);
     return text(access.available ? { ...project, available: true } : { ...project, available: false, reason: access.reason });
   });
@@ -224,9 +231,9 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
   server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(REVISION_MAX), stepId: z.string().min(1) }).optional(), ...project }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
-    const { projectId, tokenId, userScoped } = s;
+    const { projectId, tokenId } = s;
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;
-    return unwrap(await deps.agentNext(projectId, tokenId, args, userScoped));
+    return unwrap(await deps.agentNext(projectId, tokenId, args));
   });
 }

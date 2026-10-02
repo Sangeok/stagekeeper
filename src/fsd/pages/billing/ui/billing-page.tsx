@@ -1,8 +1,11 @@
+import type { ReactElement } from "react";
 import { BILLING_NOTE, PLAN_IDS, type PlanId, planLabel, planMatrix } from "@/fsd/shared/lib/entitlement-copy";
 
 // 플랜 화면. 읽기 전용이다 — 결제가 없으므로 버튼도 없다.
 // 표는 LIMITS에서 렌더한다(entitlement-copy.planMatrix): 코드의 상한과 화면의 표가 어긋날 수 없게.
-export function BillingPage({ plan }: { plan: PlanId }) {
+type UsageView = { kind: "limited"; percent: number; resetAt: string | null } | { kind: "unlimited" } | { kind: "unavailable" };
+
+export function BillingPage({ plan, usage }: { plan: PlanId; usage: UsageView }): ReactElement {
   const rows = planMatrix();
   return (
     <main className="mx-auto flex w-full max-w-[800px] flex-col gap-8 px-5 pt-9 pb-14">
@@ -12,6 +15,18 @@ export function BillingPage({ plan }: { plan: PlanId }) {
           You are on <span className="font-medium text-ink">{planLabel(plan)}</span>.
         </p>
       </div>
+
+      <section aria-labelledby="account-usage-heading" className="flex flex-col gap-3 border-y border-rule py-5">
+        <h2 id="account-usage-heading" className="font-medium">Account usage</h2>
+        {usage.kind === "limited" ? <>
+          <p className="text-2xl font-semibold">{usage.percent}% used</p>
+          <progress aria-label="Account usage" value={usage.percent} max={100} className="h-2 w-full accent-ink" />
+          {usage.percent === 100 && usage.resetAt ? <p className="text-sm text-quiet">
+            New runs available at <time dateTime={usage.resetAt}>{usage.resetAt.slice(0, 16).replace("T", " ")} UTC</time>.
+          </p> : null}
+        </> : <p className="text-xl font-medium">{usage.kind === "unlimited" ? "Unlimited" : "Usage unavailable. Refresh to try again."}</p>}
+        <p className="text-sm text-quiet">Shared across your projects and tokens. A 5-hour window starts with the first new run. Usage is shown as of this page load.</p>
+      </section>
 
       <section className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">

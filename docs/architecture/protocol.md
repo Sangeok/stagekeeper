@@ -7,7 +7,7 @@
 ## 템플릿 다운로드 — `GET /api/templates`
 
 `/harness:init`은 `Authorization: Bearer <토큰>`과 `lang` 쿼리(생략 시 `en`)로 템플릿을 요청한다.
-서버는 토큰 인증 → **프로젝트 확정** → 프로젝트 접근 확인 → 언어별 템플릿 조회 순으로 처리한다.
+서버는 토큰 인증 → **프로젝트 확정** → 프로젝트 접근 확인 → 단기 요청 제한 → 언어별 템플릿 조회 순으로 처리한다.
 인증이나 접근 확인에 실패하면 템플릿을 조회하지 않는다.
 
 **토큰 두 종류를 받는다.** 에이전트 토큰(`hs_`)은 프로젝트를 스스로 알고 있어 쿼리 인자가 필요 없다 —
@@ -20,13 +20,14 @@
 | `401` | 토큰 누락·형식 오류·미등록·폐기. 소유자 토큰도 허용하지 않음. **`hu_`인데 `?project=`가 없으면 여기다** — `project required: send harness.json project.slug as project on every request. If the slug is missing, recover it with /harness:init; if it is already set, update the harness plugin or include project in the MCP call.` |
 | `403` | 인증은 성공했지만 프로젝트가 해제되었거나 선택되지 않았거나 소유권이 불완전함. 응답의 `error`에 사유 보존. **`hu_`가 남의 슬러그를 가리키면 `not the owner of this project`** — 없는 슬러그도 같은 문장이다 |
 | `404` | 요청한 언어의 템플릿이 없음 |
+| `429` | 계정 또는 프로젝트의 10분 요청 한도 도달. `{ error, code: "RATE_LIMITED", retryAfterSec }`와 `Retry-After` 정수 초 |
 
-위 4xx 응답은 `{ error: string }`이다. MCP 도구의 `isError` 응답과 별개의 HTTP 계약이다.
+401/403/404는 `{ error: string }`이고, 429는 위 제한 metadata를 포함한다. 만료 토큰도 폐기 토큰과 같은 401이다. MCP 도구의 `isError` 응답과 별개의 HTTP 계약이다.
 
 ## 프로젝트 정체 — `GET /api/project`
 
 `/harness:init`이 `harness.json` 초안의 `project` 블록을 채울 때 `Authorization: Bearer <에이전트 토큰>`으로
-요청한다. 서버는 토큰 인증 → 프로젝트 접근 확인 → 정체 조회 순으로 처리한다. 인증이나 접근 확인에
+요청한다. 서버는 토큰 인증 → 프로젝트 접근 확인 → 단기 요청 제한 → 정체 조회 순으로 처리한다. 인증이나 접근 확인에
 실패하면 프로젝트를 조회하지 않는다.
 
 **토큰 종류에 따라 이 경로의 뜻이 뒤집힌다.** `hs_`는 쿼리 인자 없이 "이 토큰은 어느 프로젝트냐"를 묻고,
@@ -60,7 +61,7 @@ owner `gate_approve`가 domain 호출 전에 `{ error }`만 반환한다. 정확
 인증 → 호출자 프로젝트 범위 → 접근 상태 → domain 순서를 유지한다. 해제 시 폐기된 hs_/ho_는 일반 401로
 거부하며 해제 사유나 repository 정보를 노출하지 않는다. hu_의 소유 범위 조회에서 해제된 행을 숨기지 않는다.
 `project_sync` 성공은 Workspace/language/lastSyncedAt을 같은 transaction에 저장한다. 거부·실패는 모두 불변이다.
-`POST /api/runbook`은 같은 access 이후 12자리 소문자 hex version을 검사한다. 실패 상태는 401/403/400,
+`POST /api/runbook`은 같은 access와 단기 요청 제한 이후 12자리 소문자 hex version을 검사한다. 실패 상태는 401/403/400/429,
 성공 body는 `{ ok: true }`다. 이 요청은 lastSyncedAt을 변경하지 않는다. 이 경로에는 쿼리 문자열이 없으므로
 `hu_`는 프로젝트를 **본문**으로 준다(`{ version, project }`) — 없으면 401(`project required: …`)이다.
 
@@ -69,7 +70,7 @@ owner `gate_approve`가 domain 호출 전에 `{ error }`만 반환한다. 정확
 `POST /api/projects`는 hu_ 인증과 동일 소유자 repository의 대소문자 비교를 transaction 안에서 수행한다.
 연결된 기존 repo는 저장된 실제 slug를 반환하고 새 행이나 토큰을 만들지 않는다. 해제된 기존 repo는
 409 `{ error: <해제 사유>, reconnectPath: "/p/<실제 slug>" }`로 웹 재연결을 안내한다. cap·무결성 등
-다른 실패는 `{ error }`만 반환한다. 중복 repo가 2개 이상이면 임의로 하나를 골라 URL을 노출하지 않는다.
+다른 도메인 실패는 `{ error }`만 반환한다. 등록은 인증 후 계정 단기 한도만 집계하고, 429는 제한 metadata와 Retry-After를 포함한다. 중복 repo가 2개 이상이면 임의로 하나를 골라 URL을 노출하지 않는다.
 새 등록 한도는 연결된 개수다. 다운그레이드로 초과한 연결 기록은 보존한다.
 
 disconnect/reconnect는 bearer REST/MCP가 아니라 requireUser로 인증한 웹 Server Action 두 개다.
@@ -115,9 +116,26 @@ init을 재실행해 런북과 관리 스텁을 갱신한다. 새 템플릿 변�
 `skip(modified)` 파일은 보존하고 별도 조정 대상으로 알린다. 운영 완료는 실제 응답 본문과 생성물의
 프로젝트 전달 지침, `project_get`·`project_sync` 성공까지 확인한 뒤 판단한다.
 
-`agent_next`의 호출 한도(`RATE_LIMIT`)는 `hs_`면 토큰당, `hu_`면 **토큰×프로젝트당**이다 —
-`hu_` 하나가 여러 프로젝트에 쓰이므로 분모에 프로젝트를 걸지 않으면 오늘의 "프로젝트당 60회/10분"이
-사람당으로 조용히 쪼개진다.
+실제 보호 요청은 계정 1,200회·프로젝트 300회/10분으로 제한한다. 각 subject의 첫 허용 요청이
+구간을 시작한다. 14개 agent 도구·owner `gate_approve`·네 REST 경로에 인증/소유 범위/공통
+접근·owner 플랜 판정 뒤 한 번 적용한다. 등록은 계정만 센다. SDK schema 거부·초기화·목록·
+접근 거부는 제외하고 이후 도메인 실패는 센다. selected-out의 허용된 `project_get`도 센다.
+DB의 account → project 잠금 아래 함께 증가하며 거부 시 생성/reset/증가를 모두 rollback한다.
+REST 429는 `{error, code:"RATE_LIMITED", retryAfterSec}`와 `Retry-After`를 반환하고 MCP는 같은
+JSON을 `isError:true`의 text content에 담는다. init은 자동 재시도하지 않는다. runbook 보고 429는
+이미 생성한 파일을 보존하고 대기 안내와 exit 1을 반환한다. 기존 runbook 401/403은 exit 0을 유지한다.
+
+제품 사용량은 별도로 소유 계정 전체의 **새 AgentRun**을 첫 커밋부터 5시간 동안 센다.
+Free 20회·Pro 100회·Max 무제한이며 Max도 저장 counter를 유지한다. User 잠금과 생성 transaction
+안에서 DB UTC 시각을 읽고 counter·anchor·run을 함께 저장한다. 기존 run 재개·완료는 소진 후에도
+가능하다. rollback은 집계되지 않고 커밋 뒤 실패·종료·삭제는 환급하지 않는다. 만료된 구간은 읽기에서
+0%로 해석하고 다음 신규 run에서 다시 시작한다. `/billing`은 plan과 퍼센트를 같은 snapshot으로 읽는다.
+`USAGE_LIMIT_REACHED`에는 `resetAt`을 전달하며 30일 History 조회 정책은 그대로 유지한다.
+
+hs_/ho_/hu_는 선택적 `expiresAt`이 null이면 무기한이고 `at >= expiresAt`이면 인증 거부한다.
+credential 조회 뒤 한 번 캡처한 `at`을 유효성 판정과 awaited lastUsed recorder에 함께 쓴다.
+MCP `AuthInfo.expiresAt`의 초 단위 재검사는 사용하지 않는다. 다음 HTTP 요청은 다시 인증한다.
+이름 변경은 label만 수정하며 프로젝트 토큰은 User 잠금 뒤 최신 가용성을 확인한다.
 
 | 도구 | 입력 | 효과 | 누가 | Phase |
 | --- | --- | --- | --- | --- |

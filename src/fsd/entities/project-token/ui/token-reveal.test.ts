@@ -10,12 +10,12 @@ import { TokenReveal } from "./token-reveal";
 it("ships the public init reuse guidance through the bumped plugin package", () => {
   const skill = readFileSync("plugin/skills/init/SKILL.md", "utf8").replace(/\s+/g, " ");
   assert.match(skill, /set the same token again from secure storage/);
-  assert.match(skill, /token stays valid until revoked/);
+  assert.match(skill, /token stays valid until revoked or its chosen expiry/);
   assert.match(skill, /Never ask for the token in chat or commit it to the repository/);
   assert.match(skill, /Do not save it machine-wide/i);
   const plugin = JSON.parse(readFileSync("plugin/.claude-plugin/plugin.json", "utf8"));
   const marketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"));
-  assert.equal(plugin.version, "0.4.0");
+  assert.equal(plugin.version, "0.4.1");
   assert.ok(marketplace.plugins.some((entry: { name: string; source: string }) => entry.name === plugin.name && entry.source === "./plugin"));
 });
 

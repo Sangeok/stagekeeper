@@ -7,7 +7,7 @@ import { makeRecordRunbook, type RunbookDeps } from "./runbook-query";
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;
-const tokenRecord = { id: "agent-token", projectId: "project-1", revokedAt: null };
+const tokenRecord = { id: "agent-token", projectId: "project-1", expiresAt: null, revokedAt: null };
 const version = runbookVersion("# runbook\n");
 
 type Options = {
@@ -19,6 +19,7 @@ function setup(options: Options = {}) {
   const saved: { projectId: string; version: string }[] = [];
   const seenHashes: string[] = [];
   const deps: RunbookDeps = {
+      requestLimit: async () => null,
     findTokenByHash: async (hash) => {
       seenHashes.push(hash);
       return options.tokenRecord === undefined ? tokenRecord : options.tokenRecord;
@@ -47,7 +48,7 @@ describe("recordRunbook", () => {
   });
 
   it("refuses an unknown or revoked token without writing", async () => {
-    for (const record of [null, { id: "agent-token", projectId: "project-1", revokedAt: new Date() }]) {
+    for (const record of [null, { id: "agent-token", projectId: "project-1", expiresAt: null, revokedAt: new Date() }]) {
       const { recordRunbook, saved } = setup({ tokenRecord: record });
       const result = await recordRunbook(authorizationHeader, { version });
       assert.deepEqual(result, { ok: false, status: 401, reason: "invalid or revoked token" });
@@ -84,8 +85,9 @@ describe("recordRunbook with a user token", () => {
     const saved: { projectId: string; version: string }[] = [];
     const slugs: [string, string][] = [];
     const deps: RunbookDeps = {
+      requestLimit: async () => null,
       findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
-      findUserTokenByHash: async () => ({ id: "user-token", userId: "user1", revokedAt: null }),
+      findUserTokenByHash: async () => ({ id: "user-token", userId: "user1", expiresAt: null, revokedAt: null }),
       projectFor: async (slug, userId) => {
         slugs.push([slug, userId]);
         return options.projectId === undefined ? "project-1" : options.projectId;

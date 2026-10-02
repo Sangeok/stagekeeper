@@ -5,10 +5,12 @@
 import { isRunbookVersion } from "@harness/core/runbook.mjs";
 import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
 import type { ProjectAccess } from "./entitlement";
+import type { RequestRateFailure, RestRateFailure } from "./result";
 
-export type RunbookResult = { ok: true } | { ok: false; status: 400 | 401 | 403; reason: string };
+export type RunbookResult = { ok: true } | { ok: false; status: 400 | 401 | 403; reason: string; code?: never } | RestRateFailure;
 
 export type RunbookDeps = RestTokenDeps & {
+  requestLimit(projectId: string): Promise<RequestRateFailure | null>;
   projectAccess(projectId: string): Promise<ProjectAccess>;
   saveRunbookVersion(projectId: string, version: string): Promise<void>;
 };
@@ -42,6 +44,8 @@ export function makeRecordRunbook(deps: RunbookDeps): RecordRunbook {
     // 선택되지 않은 프로젝트는 템플릿도 못 받는다. 받지도 못한 판을 기록으로 남기지 않는다.
     if (!access.available) return { ok: false, status: 403, reason: access.reason };
 
+    const limited = await deps.requestLimit(scope.projectId);
+    if (limited) return { ...limited, status: 429 };
     const version = versionOf(body);
     if (version === null) return { ok: false, status: 400, reason: "version must be 12 lowercase hex characters" };
 

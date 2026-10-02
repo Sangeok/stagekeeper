@@ -3,13 +3,13 @@ import { describe, it } from "node:test";
 import { HINT, decideHead, decideNext, handoffIsLive, scoutNodePending } from "./run-rules.ts";
 import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 
-const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, capReason: null };
+const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, cap: null };
 
 it("resumable item and standalone PM runs bypass only the dispatch cap", () => {
-  assert.equal(decideNext({ ...base, node: "implement", capReason: "full", hasResumableRun: true }).action, "dispatch");
-  assert.equal(decideNext({ ...base, node: "before-implement", capReason: "full", hasResumableRun: true }).on, "gate");
-  assert.equal(decideNext({ ...base, node: "implement", capReason: "full", hasResumableRun: true, handoff: { note: "commit" } }).on, "handoff");
-  const head = { hasPropose: true, openCount: 1, availableBacklog: 1, capReason: "full", hasResumablePmRun: true };
+  assert.equal(decideNext({ ...base, node: "implement", cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumableRun: true }).action, "dispatch");
+  assert.equal(decideNext({ ...base, node: "before-implement", cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumableRun: true }).on, "gate");
+  assert.equal(decideNext({ ...base, node: "implement", cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumableRun: true, handoff: { note: "commit" } }).on, "handoff");
+  const head = { hasPropose: true, openCount: 1, availableBacklog: 1, cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumablePmRun: true };
   assert.equal(decideHead(head).action, "dispatch");
   assert.equal(decideHead({ ...head, availableBacklog: 0 }).action, "none");
   assert.equal(decideHead({ ...head, openCount: 2 }).action, "none");
@@ -44,10 +44,11 @@ describe("decideNext (H.4)", () => {
       { key: "FEAT-01", node: "plan", version: 2, action: "wait", on: "handoff", note: "docs/plans/FEAT-01.md" });
   });
   it("the cap waits with its sentence", () => {
-    const r = decideNext({ ...base, node: "plan", capReason: "dispatch cap reached on the free plan (60) — counted over the last 30 days" });
+    const r = decideNext({ ...base, node: "plan", cap: { ok: false, reason: "Usage limit reached.", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" } });
     assert.equal(r.action, "wait");
     assert.equal(r.on, "cap");
-    assert.match(r.reason, /last 30 days/);
+    assert.equal(r.code, "USAGE_LIMIT_REACHED");
+    assert.equal(r.resetAt, "2026-10-02T05:00:00.000Z");
   });
   it("plan and implement dispatch the item's dev; doc-audit dispatches doc-auditor; hint comes from HINT", () => {
     assert.deepEqual(decideNext({ ...base, node: "plan" }), { key: "FEAT-01", node: "plan", version: 2, action: "dispatch", format: null, agent: "web-dev", hint: HINT.plan });
@@ -74,20 +75,20 @@ describe("decideNext (H.4)", () => {
 
 describe("decideHead (H.4)", () => {
   it("no propose node → none with the Backlog-tab reason", () => {
-    const r = decideHead({ hasPropose: false, openCount: 0, availableBacklog: 3, capReason: null });
+    const r = decideHead({ hasPropose: false, openCount: 0, availableBacklog: 3, cap: null });
     assert.equal(r.action, "none");
     assert.match(r.reason, /Backlog tab/);
   });
   it("two open items → none with the pm sentence", () => {
-    assert.deepEqual(decideHead({ hasPropose: true, openCount: 2, availableBacklog: 3, capReason: null }), { action: "none", reason: "open items: 2 (max 2)" });
+    assert.deepEqual(decideHead({ hasPropose: true, openCount: 2, availableBacklog: 3, cap: null }), { action: "none", reason: "open items: 2 (max 2)" });
   });
   it("the cap → none with its sentence; otherwise dispatch pm with HINT.propose", () => {
-    assert.equal(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, capReason: "dispatch cap reached on the free plan (60)" }).reason, "dispatch cap reached on the free plan (60)");
-    assert.deepEqual(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, capReason: null }), { action: "dispatch", agent: "pm", hint: HINT.propose });
+    assert.equal(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, cap: { ok: false, reason: "Usage limit reached.", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" } }).reason, "Usage limit reached.");
+    assert.deepEqual(decideHead({ hasPropose: true, openCount: 1, availableBacklog: 3, cap: null }), { action: "dispatch", agent: "pm", hint: HINT.propose });
   });
 
   it("the open-items rule still wins over an empty backlog — the owner clears one first", () => {
-    const r = decideHead({ hasPropose: true, openCount: 2, availableBacklog: 0, capReason: null });
+    const r = decideHead({ hasPropose: true, openCount: 2, availableBacklog: 0, cap: null });
     assert.equal(r.reason, "open items: 2 (max 2)");
   });
 });
@@ -122,17 +123,17 @@ describe("handoffIsLive", () => {
 });
 
 it("an empty backlog scouts once per change, with no duplicate graph dispatch and no Propose prerequisite", () => {
-  const input = { autoScoutEnabled: true, hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, capReason: null };
+  const input = { autoScoutEnabled: true, hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, cap: null };
   assert.deepEqual(decideHead(input), { action: "dispatch", agent: "feature-scout", hint: HINT.scoutHead });
   assert.match(decideHead({ ...input, scoutedSinceChange: true }).reason, /already looked/);
   assert.match(decideHead({ ...input, scoutNodePending: true }).reason, /Scout node/);
   assert.equal(decideHead({ ...input, hasPropose: false }).agent, "feature-scout");
   assert.equal(decideHead({ ...input, hasPropose: false, openCount: 2 }).reason, "open items: 2 (max 2)");
   assert.equal(decideHead({ ...input, availableBacklog: 1 }).agent, "pm");
-  assert.equal(decideHead({ ...input, capReason: "full", hasResumablePmRun: true }).reason, "full");
-  assert.equal(decideHead({ ...input, capReason: "full", hasResumableScoutRun: true }).agent, "feature-scout");
-  assert.equal(decideHead({ ...input, capReason: "full", hasResumableScoutRun: true, scoutedSinceChange: true }).action, "none");
-  assert.equal(decideHead({ ...input, capReason: "full", availableBacklog: 1, hasResumableScoutRun: true }).reason, "full");
+  assert.equal(decideHead({ ...input, cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumablePmRun: true }).reason, "full");
+  assert.equal(decideHead({ ...input, cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumableScoutRun: true }).agent, "feature-scout");
+  assert.equal(decideHead({ ...input, cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumableScoutRun: true, scoutedSinceChange: true }).action, "none");
+  assert.equal(decideHead({ ...input, cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, availableBacklog: 1, hasResumableScoutRun: true }).reason, "full");
   assert.doesNotMatch(HINT.scout, /only when harness\.json\.scout is configured/);
   assert.match(HINT.scoutHead, /scouting-log/);
 });
@@ -140,12 +141,12 @@ it("only an actual feature-scout dispatch suppresses a duplicate head dispatch",
   assert.equal(scoutNodePending([]), false);
   assert.equal(scoutNodePending([decideNext({ ...base, node: "feature-scout#2" })]), true);
   assert.equal(scoutNodePending([decideNext({ ...base, node: "scout" })]), true);
-  assert.equal(scoutNodePending([decideNext({ ...base, node: "scout", capReason: "full" })]), false);
+  assert.equal(scoutNodePending([decideNext({ ...base, node: "scout", cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" } })]), false);
   assert.equal(scoutNodePending([decideNext({ ...base, node: "plan" })]), false);
 });
 
 it("turning automatic scouting off waits for manual backlog input while PM and configured Scout slots keep working", () => {
-  const input = { autoScoutEnabled: false, hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, capReason: null };
+  const input = { autoScoutEnabled: false, hasPropose: true, openCount: 0, availableBacklog: 0, scoutedSinceChange: false, scoutNodePending: false, cap: null };
   assert.deepEqual(decideHead(input), { action: "none", reason: AUTO_SCOUT_DISABLED_REASON });
   assert.deepEqual(decideHead({ ...input, hasResumableScoutRun: true }), { action: "none", reason: AUTO_SCOUT_DISABLED_REASON });
   assert.equal(decideHead({ ...input, availableBacklog: 1 }).agent, "pm");

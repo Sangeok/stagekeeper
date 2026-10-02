@@ -4,12 +4,13 @@ import { canPropose } from "@harness/core/transitions.mjs";
 
 // 응답 — 항목 하나의 다음 일. 세션은 이 값을 읽고 그 턴에 행동한다(런북 "The cycle").
 import type { PipelineEntry, GateEntry } from "./run-query";
+import type { UsageLimitFailure } from "../result";
 
 export type PipelineNext =
   | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string; format: string | null; entry?: PipelineEntry }  // 그 에이전트를 key와 함께 디스패치. hint = 그 노드에서 지켜야 할 한 문장
   | { key: string; node: string; version: number; action: "wait"; on: "gate"; gate: string; boundary: { from: string; to: string } | null; planCommit: string | null; format: string | null; gateEntry?: GateEntry }
   | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }  // 커밋 핸드오프(배너와 같은 판정)
-  | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string }
+  | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string; code: "USAGE_LIMIT_REACHED"; resetAt: string }
   | { key: string; node: string; version: number; action: "accept"; hint: string }                           // main-loop 본인이 인수 5조건을 재현한다
   | { key: string; node: string | null; version: number; action: "done" };
 
@@ -25,7 +26,7 @@ export type PipelineNextInput = {
   planCommit: string | null;
   agent: string;                            // BoardItem.agent — plan·implement 노드가 디스패치하는 dev
   handoff: { note: string | null } | null;  // 열린 dev run의 마지막 원장 행이 handoff면 그 note
-  capReason: string | null;                 // capError(plan, "dispatches", recentRuns) — 상한을 넘었으면 그 문장
+  cap: UsageLimitFailure | null;
 };
 
 // dispatch의 hint — 그 노드에서 지켜야 할 한 문장. product-copy.md §13에 같은 문장.
@@ -58,12 +59,14 @@ export function decideNext(i: PipelineNextInput): PipelineNext {
   if (i.handoff !== null) return { key, node, version, action: "wait", on: "handoff", note: i.handoff.note };
   const agent = dispatcherFor(node, i.agent);
   if (agent === null) return { key, node, version, action: "done" };
-  if (i.capReason !== null && !i.hasResumableRun) return { key, node, version, action: "wait", on: "cap", reason: i.capReason };
+  if (i.cap !== null && !i.hasResumableRun) return { key, node, version, action: "wait", on: "cap", reason: i.cap.reason, code: i.cap.code, resetAt: i.cap.resetAt };
   return { key, node, version, action: "dispatch", agent, hint: hintFor(node), format: i.format ?? null, ...(i.entry ? { entry: i.entry } : {}) };
 }
 
 // key 없는 pipeline_next의 머리 — 빈 백로그는 scout가 채우고 후보가 있으면 pm이 고른다.
-export type HeadNext = { action: "dispatch"; agent: "pm" | "feature-scout"; hint: string } | { action: "none"; reason: string };
+export type HeadNext = { action: "dispatch"; agent: "pm" | "feature-scout"; hint: string }
+  | { action: "none"; reason: string; code?: never }
+  | ({ action: "none" } & Omit<UsageLimitFailure, "ok">);
 
 // 저장소의 런북이 현재 템플릿과 다를 때만 실린다 — 정상 응답은 이 필드가 아예 없다.
 // init이 심은 판의 해시를 서버가 갖고 있고(POST /api/runbook), 판정은 packages/core/runbook.mjs에 있다.
@@ -87,7 +90,7 @@ export type HeadInput = {
   hasPropose: boolean;   // 현재 버전의 nodes에 propose가 있는가
   openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
   availableBacklog: number; // 아직 보드에 안 올라간 백로그 항목 수 — pm이 고를 수 있는 것
-  capReason: string | null; // capError(plan, "dispatches", recentRuns) — decideNext와 같은 수
+  cap: UsageLimitFailure | null;
 };
 
 export function scoutNodePending(items: PipelineNext[]): boolean {
@@ -101,10 +104,10 @@ export function decideHead(i: HeadInput): HeadNext {
     if (i.scoutNodePending) return { action: "none", reason: "a Scout node in items dispatches feature-scout — that run looks for items to add" };
     if (!i.autoScoutEnabled) return { action: "none", reason: AUTO_SCOUT_DISABLED_REASON };
     if (i.scoutedSinceChange) return { action: "none", reason: "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" };
-    if (i.capReason !== null && !i.hasResumableScoutRun) return { action: "none", reason: i.capReason };
+    if (i.cap !== null && !i.hasResumableScoutRun) return { action: "none", reason: i.cap.reason, code: i.cap.code, resetAt: i.cap.resetAt };
     return { action: "dispatch", agent: "feature-scout", hint: HINT.scoutHead };
   }
   if (!i.hasPropose) return { action: "none", reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" };
-  if (i.capReason !== null && !i.hasResumablePmRun) return { action: "none", reason: i.capReason };
+  if (i.cap !== null && !i.hasResumablePmRun) return { action: "none", reason: i.cap.reason, code: i.cap.code, resetAt: i.cap.resetAt };
   return { action: "dispatch", agent: "pm", hint: HINT.propose };
 }

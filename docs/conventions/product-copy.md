@@ -374,11 +374,22 @@ All tables include **Last used**: `YYYY-MM-DD HH:mm UTC`, **Never used** ("No au
 A recorded time takes precedence; both null fields mean Unknown, only tracking start means Never used.
 "Usage reflects recorded authentication, not task completion." Revoked rows retain their usage record.
 
+All three issuance forms add **Expires at (UTC)** with "YYYY-MM-DD HH:mm. Leave blank for no expiry."
+Use a plain text input with placeholder `YYYY-MM-DD HH:mm`; interpret it as UTC. Do not use a browser-localized calendar input. Invalid formats, nonexistent dates and non-future timestamps show "Choose a future expiry in UTC, or leave it blank for no expiry."
+After issuing, show **No expiry** or `Expires at YYYY-MM-DD HH:mm UTC`.
+Validation: "Choose a future expiry in UTC, or leave it blank for no expiry."
+Each token kind has **Active tokens** and **Ended tokens** lists. Empty lists say
+"No active tokens." / "No ended tokens." Existing no-token issuance guidance remains.
+Expiry cells show UTC minutes or **No expiry**. Revocation takes precedence over expiry in Status.
+Name editing uses **Save name** / "Saving…", requires a nonempty name, and changes no credential fields.
+Unknown save outcome: "Could not save the name. The list will be refreshed."
+Selected-out/disconnected project lists hide issuance and rename and keep individual Revoke.
+
 
 - Title **Tokens**. Intro: "Agents connect with a token. An agent token can't approve gates or edit and remove backlog items — approving is yours, in the Inbox or with an owner token below. feature-scout can add up to three backlog items a run." · "MCP server URL: `http://…/api/mcp`"
 - New token: label **Token name** (placeholder `personal laptop, CI`), button **Issue token** / "Issuing…". Error:
   "Couldn't issue the token. Try again."
-- Table: Token name · Issued · Last used · Status · Reference. Status "Active" / "Revoked 2026-08-30".
+- Table: Token name · Issued · Last used · Expires · Status · Reference. Status "Active" / "Expired" / "Revoked 2026-08-30".
   Reference `token:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 
 
@@ -388,7 +399,7 @@ blocks below are copy-locked (see "Copy-lock blocks" at the top of this file).
 
 <!-- copy-lock:token-reveal-shared -->
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
-> This token stays valid until you revoke it. Restarting a terminal or Claude Code does not expire it.
+> This token stays valid until you revoke it or its chosen expiry is reached. Restarting a terminal or Claude Code does not expire it.
 > Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.
 > If you did not save the token, issue a new one and revoke the old token when you no longer use it.
 >
@@ -461,12 +472,7 @@ carry no value; only the macOS · Linux line shows it, because it goes into a fi
 transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"와 같은 방향이다.
 남은 빈틈: `hs_`의 `export HARNESS_TOKEN="hs_…"`은 값이 셸 히스토리에 남는다. 이번에 고치지 않았다.
 
-**`hu_` 화면이 토큰의 수명을 말하는 이유**(2026-09-27). 화면은 "머신당 한 번 저장"만 말하고 토큰이 언제까지
-유효한지는 말하지 않았다. `hs_`를 쓰던 사용자가 새 터미널에서 Claude Code를 다시 띄워 401을 겪은 뒤 "재시작할
-때마다 토큰을 새로 발급받아야 하냐"고 물었다 — 빈칸이 실제 질문이 됐다. 토큰에는 만료가 없다: 표에 만료 열이
-없고(`prisma/schema.prisma:82` `ProjectToken`, `:105` `UserToken` — `revokedAt`뿐이다), 조회도 `revokedAt`만
-본다(`src/server/user-scope-query.ts:18`). 그래서 `hu_` 2단계와 계정 화면 머리에 "폐기할 때까지 유효하다"를
-적는다. `hs_`와 `ho_`도 폐기 전까지 유효하다. 새 터미널에서는 안전하게 보관한 같은 값을 다시 설정한다. 값을 보관하지 않았다면 새 토큰을 발급하고 사용하지 않는 이전 토큰을 개별 폐기한다.
+**Token lifetime (2026-10-02).** All three token kinds now have optional expiry. Existing tokens remain without expiry; newly issued tokens default to no expiry. Restarting a shell does not expire a token. Reuse a securely saved value while it is active.
 
 **사용자 토큰으로 옮기기 전 안내** — 이 페이지가 발급하는 것은 프로젝트 토큰(`hs_`)이라 저장소마다
 하나씩 필요하다. 계정 단위 토큰(`hu_`)은 한 번만 발급해 모든 저장소에서 쓴다. 다만 이미 연결된
@@ -494,7 +500,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 
 <!-- copy-lock:owner-token-reveal -->
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
-> This token stays valid until you revoke it. Restarting a terminal or Claude Code does not expire it.
+> This token stays valid until you revoke it or its chosen expiry is reached. Restarting a terminal or Claude Code does not expire it.
 > Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.
 > If you did not save the token, issue a new one and revoke the old token when you no longer use it.
 >
@@ -515,13 +521,13 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 
 - Title **Tokens**. Intro: "A user token connects every repository you own from one shell. It says
   who you are, not which project — the project comes from `harness.json`'s `project.slug`. You save
-  it once on each machine, and it works until you revoke it."
+  it once on each machine, and it works until you revoke it or its chosen expiry is reached."
 - 전환 안내 한 줄: "Already connected a repository? Rerun `/harness:init` once there before you use
   this token — an older `harness.json` has no slug, and without one there is nothing to name the
   project with." · "MCP server URL: `http://…/api/mcp`"
 - New token: label **Token name** (placeholder `personal laptop, CI`), button **Issue token** / "Issuing…". Error:
   "Couldn't issue the token. Try again."
-- Table: Token name · Issued · Last used · Status · Reference. Status "Active" / "Revoked 2026-08-30".
+- Table: Token name · Issued · Last used · Expires · Status · Reference. Status "Active" / "Expired" / "Revoked 2026-08-30".
   Reference `user:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 - 발급 직후의 노출은 프로젝트 토큰과 **같은 컴포넌트**다(`TokenReveal`). 셸 변수 이름도 `HARNESS_TOKEN`으로
   같다 — MCP 등록에 들어가는 참조가 하나이기 때문이다. 1회 노출 규약은 토큰 종류와 무관하다.
@@ -672,7 +678,8 @@ are terse on purpose — agents parse them.
 | `planCommit mismatch: the board records 3f2a9c1` (owner server) | — |
 | `The gate approval was recorded, but next advice could not be loaded. Call pipeline_next with the item key; do not retry gate_approve.` (owner server, confirmed commit followed by advice failure) | — |
 | `gates open through board.gate, not a transition: proposed → planning` (a client that still sends a gate as a plain transition) | — |
-| `dispatch cap reached on the free plan (60). Upgrade the plan to add more. Counted over the last 30 days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.` (`agent_next`, run 개설) | — |
+| `Usage limit reached. New runs are available at <UTC ISO>.` (`USAGE_LIMIT_REACHED`, `resetAt`) | — |
+| `Request limit reached. Retry after <seconds> seconds.` (`RATE_LIMITED`, `retryAfterSec`; REST 429 also sends `Retry-After`) | — |
 | `graph must have nodes and gates` (pipeline save) | shown as is |
 | `slot and gate ids must be strings` | shown as is |
 | `a node appears twice` | shown as is |
@@ -959,7 +966,7 @@ both). Below: each file's title, its section headings, and the sentences that se
   The token guidance splits by kind (2026-09-22, §9의 근거와 같다): "A **user token** (`hu_`) is
   saved once per machine" with a history-safe prompt; "A **project token** (`hs_`) belongs to one
   repository — keep it in the terminal that starts Claude Code. Do not save it machine-wide:
-  `HARNESS_TOKEN` is one variable, and a second repository's token would overwrite this one." Reuse a securely saved value in a new terminal; tokens stay valid until revoked. If the value was not saved, issue a replacement and revoke unused old tokens. Never ask for the token in chat.
+  `HARNESS_TOKEN` is one variable, and a second repository's token would overwrite this one." Reuse a securely saved value in a new terminal; tokens stay valid until revoked or their chosen expiry is reached. If the value was not saved, issue a replacement and revoke unused old tokens. Never ask for the token in chat.
   The skill points at the page that issued the token for the exact commands rather than composing
   its own, and: "**Never read the token out of a repository `.env` file**, even when one is sitting
   there." — 2026-09-21 실사용에서 에이전트가 `.env`의 값으로 우회했다가, 재시작 뒤 MCP가 그 파일을
