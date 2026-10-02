@@ -159,7 +159,7 @@
 
 | kind | 트리거 | 실행 주체 | 상태 접근 | Phase |
 | --- | --- | --- | --- | --- |
-| `local` | 사용자가 Claude Code에서 런북대로 디스패치 | 사용자 세션 | MCP(사용자 범위 등록 + `HARNESS_TOKEN`) | 1 |
+| `local` | 사용자가 Claude Code에서 런북대로 디스패치(`/harness:watch`면 감시 스크립트가 그 세션을 깨운다) | 사용자 세션 | MCP(사용자 범위 등록 + `HARNESS_TOKEN`) | 1 |
 | `routine` | 명령 원장 폴링(cron) 또는 GitHub 이벤트 | 사용자 계정 claude.ai 루틴 | MCP(환경변수 토큰) + 허용 도메인에 서비스 호스트 | 3 |
 | `hosted` | — | — | — | 범위 밖 |
 

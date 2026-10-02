@@ -1,4 +1,4 @@
-// src/server/pipeline/run-rules.ts — 순수. DB·프레임워크 없음(board-rules.ts와 같은 층). run.ts가 읽은 사실로 pipeline_next의 답 하나를 정한다.
+// 순수. DB·프레임워크 없음(board-rules.ts와 같은 층). run.ts가 읽은 사실로 pipeline_next의 답 하나를 정한다.
 import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import { canPropose } from "@harness/core/transitions.mjs";
 
@@ -43,7 +43,7 @@ export const HINT: Record<string, string> = {
 
 // 핸드오프가 아직 살아 있는가. 원장의 마지막 단계만 보면 안 된다 — 소유자가 커밋하고 에이전트가 이어서
 // 계획서나 보고를 제출하면 보드 행이 갱신되지만, 그 단계 행은 `handoff`인 채로 남는다. 그 상태에서
-// "그 파일을 커밋하라"를 계속 답하면 이미 커밋한 파일을 다시 커밋하라고 소유자에게 말하게 된다(실측).
+// "그 파일을 커밋하라"를 계속 답하면 이미 커밋한 파일을 다시 커밋하라고 소유자에게 말하게 된다.
 // 그래서 멈춘 시각이 항목의 마지막 쓰기보다 뒤일 때만 살아 있다고 본다. 틀리는 쪽은 안전하다 —
 // 살아 있는 핸드오프를 숨기면 에이전트가 다시 디스패치돼 핸드오프를 다시 남긴다.
 export const handoffIsLive = (steppedAt: Date, itemUpdatedAt: Date): boolean => steppedAt.getTime() > itemUpdatedAt.getTime();
@@ -54,7 +54,7 @@ export function decideNext(i: PipelineNextInput): PipelineNext {
   if (i.node === null) return { key, node: null, version, action: "done" };
   const node = i.node;
   if (isGateId(node)) return { key, node, version, action: "wait", on: "gate", gate: node, boundary: boundaryOf(node), planCommit: i.planCommit, format: i.format ?? null, ...(i.entry ? { gateEntry: { runId: i.entry.runId, entryId: i.entry.entryId } } : {}) };
-  // accept만 hint가 없었다 — 메인 루프가 에이전트 없이 직접 하는 유일한 동작인데 안내가 안 붙었다(실측).
+  // accept는 메인 루프가 에이전트 없이 직접 하는 유일한 동작이라 hint를 따로 단다.
   if (node === "accept") return { key, node, version, action: "accept", hint: HINT.accept ?? "" };
   if (i.handoff !== null) return { key, node, version, action: "wait", on: "handoff", note: i.handoff.note };
   const agent = dispatcherFor(node, i.agent);

@@ -2,8 +2,8 @@
 // 토큰은 파일이 아니라 **Claude Code를 띄우는 셸의 환경변수**에 산다 — MCP 등록에는
 // `${HARNESS_TOKEN}` 참조만 들어가기 때문이다. 값을 설정에 박으면 그 설정을 읽을 수 있는 모두가
 // 그 프로젝트의 보드를 쓰게 된다.
-// 서버는 이제 저장소의 .mcp.json이 아니라 **사용자 범위에 머신당 1회** 등록된다(스킬이 수행한다) —
-// 그래도 참조만 저장된다는 규칙은 같다. 소유자 토큰은 변수명만 다르다(HARNESS_OWNER_TOKEN).
+// 서버는 **사용자 범위에 머신당 1회** 등록된다(스킬이 수행한다) —
+// 등록에도 참조만 저장된다. 소유자 토큰은 변수명만 다르다(HARNESS_OWNER_TOKEN).
 //
 // 토큰을 **어디에 두느냐는 종류가 정한다**(product-copy.md §9의 근거). 변수는 머신에 하나인데 hs_는
 // 저장소마다 값이 다르다 — 머신 전역에 저장하면 두 번째 저장소가 첫 번째를 덮어쓴다. 그래서 hs_·ho_는
@@ -33,7 +33,6 @@ export function connectCommands(token: string, variable: string = AGENT_TOKEN_VA
 
 // hu_를 머신에 한 번 저장한다. **값을 싣지 않고 입력을 받는다** — 그래서 인자가 없고, 셸 히스토리에 남는 것은
 // 이 줄뿐이다. 영구 저장과 함께 지금 셸에도 넣으므로 새 터미널을 열 필요가 없다.
-// 두 줄 모두 2026-09-22에 더미 변수로 저장·현재 셸 반영을 실측했다(입력 프롬프트 자체는 비대화형이라 못 쳤다).
 export function saveCommands(variable: string = AGENT_TOKEN_VARIABLE): ConnectCommand[] {
   return [
     {

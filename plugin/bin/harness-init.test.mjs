@@ -72,7 +72,7 @@ const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: tru
 // 가짜 /api/templates — 응답 본문 하나를 정해 두고 받은 요청을 기록한다.
 // postStatus: 런북 보고(POST /api/runbook)에 돌려줄 상태. 기본 200.
 // project: GET /api/project가 줄 정체. projectStatus 404는 그 경로가 없는 구버전 서버다.
-// registered/registerStatus: POST /api/projects(C의 등록)가 줄 응답. 201 = 새로 만듦, 200 = 기존 것.
+// registered/registerStatus: POST /api/projects가 줄 응답. 201 = 새로 만듦, 200 = 기존 것.
 const withServer = async (body, fn, { postStatus = 200, postError = null, project = null, projectStatus = 200, registered = null, registerStatus = 201, registerError = null, templateStatus = 200, rateAt = () => null } = {}) => {
   const seen = [];
   const server = createServer((req, res) => {
@@ -109,8 +109,8 @@ const withServer = async (body, fn, { postStatus = 200, postError = null, projec
 };
 
 describe("harness-init (v2)", () => {
-  // .mcp.json은 더 이상 생성물이 아니다(B-1 선택지 3) — 서버는 사용자 범위에 머신당 1회 등록된다.
-  // 그래서 "없어야 할 것" 쪽으로 옮겼고, 해석된 주소는 stdout의 `server:` 줄이 알려 준다.
+  // .mcp.json은 더 이상 생성물이 아니다 — 서버는 사용자 범위에 머신당 1회 등록된다.
+  // 해석된 주소는 stdout의 `server:` 줄이 알려 준다.
   it("materializes agents, docs, runbook, lock — no state files and no .mcp.json", () => {
     const root = fresh();
     const r = run(root);
@@ -127,7 +127,7 @@ describe("harness-init (v2)", () => {
     assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files)); // 병합 파일은 잠그지 않는다
     assert.match(r.out, /^plan: max$/m); // 우회로의 기본 플랜
   });
-  // --owner는 생성기에서 사라졌다(3-g). 조용히 무시하면 옛 스킬이 계속 넘길 때 사용자가 소유자
+  // --owner는 생성기에서 사라졌다. 조용히 무시하면 옛 스킬이 계속 넘길 때 사용자가 소유자
   // 서버를 잃고도 모르므로, 어디로 옮겼는지 알리고 파일은 만들지 않는다.
   it("--owner no longer writes a server: it says where the owner server moved, and writes no .mcp.json", () => {
     const withOwner = fresh();
@@ -353,7 +353,7 @@ describe("harness-init (v2)", () => {
       }
       const runbook = readFileSync(join(root, "CLAUDE.md"), "utf8");
       assert.match(runbook, /full pipeline/); // 런북은 한 판이다 — 플랜 차이는 그래프가 진다(deliver.mjs)
-      // 한 판이지만 표는 내려간 파일과 같은 목록에서 나온다 — free 런북이 배달되지 않은 둘을 시키지 않는다(2026-09-22 mathgic).
+      // 한 판이지만 표는 내려간 파일과 같은 목록에서 나온다 — free 런북이 배달되지 않은 둘을 시키지 않는다.
       assert.match(runbook, /\| `pm` \| Picks work\. \|\n\| `feature-scout` \| Scouts features\. \|/);
       assert.doesNotMatch(runbook, /plan-verifier|doc-auditor/);
       const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
@@ -374,8 +374,7 @@ describe("harness-init (v2)", () => {
   });
 
   describe("서버 URL 출처", () => {
-    // C11: 기본값은 없다. 세 출처가 모두 비면 지금까지와 같은 문장으로 멈추고 아무것도 쓰지 않는다.
-    // 이 분기는 그동안 자동 테스트가 없었다(모든 실행이 --server를 넘겼다).
+    // 기본값은 없다. 세 출처가 모두 비면 멈추고 아무것도 쓰지 않는다.
     it("exits 1 and writes nothing when no source supplies a server URL", () => {
       const root = fresh(ONE_WS);
       const before = snapshot(root);
@@ -386,7 +385,7 @@ describe("harness-init (v2)", () => {
     });
 
     // 회수는 그대로지만 같은 실행에서 그 항목을 지운다 — 즉 이 저장소의 마지막 URL 기록이 사라진다.
-    // 생성기는 사용자 범위 설정을 읽지 않으므로(3-a) 보완하지 않고 **알린다**.
+    // 생성기는 사용자 범위 설정을 읽지 않으므로 보완하지 않고 **알린다**.
     it("recovers the server from an existing .mcp.json, then removes that entry and says so", () => {
       const root = fresh(ONE_WS);
       writeFileSync(join(root, ".mcp.json"), JSON.stringify({
@@ -401,8 +400,8 @@ describe("harness-init (v2)", () => {
     });
 
     // 토큰 페이지는 `<base>/api/mcp`를 보여 준다. 그대로 넘겨도 꼬리가 겹치지 않아야 한다.
-    // 관측 지점이 `.mcp.json`에서 stdout의 `server:` 줄로 옮겨졌다(B-1 선택지 3) — 그 값이 이제
-    // 스킬을 거쳐 `claude mcp add`에 그대로 들어가므로, 꼬리가 남으면 `/api/mcp/api/mcp`가 된다.
+    // stdout의 `server:` 줄 값이 스킬을 거쳐 `claude mcp add`에 그대로 들어가므로,
+    // 꼬리가 남으면 `/api/mcp/api/mcp`가 된다.
     for (const given of ["https://h.example/api/mcp", "https://h.example/api/mcp/", "https://h.example/api/mcp/owner"]) {
       it(`normalizes ${given} to the base URL`, () => {
         const root = fresh(ONE_WS);
@@ -425,7 +424,7 @@ describe("harness-init (v2)", () => {
   });
 
   describe("--print-project", () => {
-    // slug까지 싣는다 — 스킬이 harness.json 초안의 project.slug를 이 값으로 채운다(A-8).
+    // slug까지 싣는다 — 스킬이 harness.json 초안의 project.slug를 이 값으로 채운다.
     const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "dev", name: "stagekeeper", slug: "stagekeeper" };
     // harness.json이 없는 첫 연결에서 쓰는 모드다 — 설정을 읽지 않고, 아무것도 쓰지 않는다.
     const emptyRoot = () => mkdtempSync(join(tmpdir(), "harness-empty-"));
@@ -451,7 +450,7 @@ describe("harness-init (v2)", () => {
       }, { project: identity });
     });
 
-    // 구버전 서버에는 이 경로가 없다. 그 사실을 말하고 실패하면 스킬이 지금까지처럼 물어서 진행한다(D-4).
+    // 구버전 서버에는 이 경로가 없다. 그 사실을 말하고 실패하면 스킬이 물어서 진행한다.
     it("says the server has no /api/project when it answers 404", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server) => {
         const root = emptyRoot();
@@ -464,7 +463,7 @@ describe("harness-init (v2)", () => {
     });
   });
 
-  // C — 첫 연결에서 git이 아는 것으로 프로젝트를 등록한다. 사용자 토큰(hu_) 전용 모드다.
+  // 첫 연결에서 git이 아는 것으로 프로젝트를 등록한다. 사용자 토큰(hu_) 전용 모드다.
   describe("--register", () => {
     const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "main", name: "stagekeeper", slug: "stagekeeper" };
     // 진짜 git 저장소를 만든다 — 테스트 전용 우회 플래그를 두면 정작 git을 읽는 경로가 검증되지 않는다.
@@ -472,7 +471,7 @@ describe("harness-init (v2)", () => {
     // 등록하는 것은 **저장소의 기본 브랜치**다(현재 브랜치가 아니다). 그래서 픽스처의 현재 브랜치는
     // `feature`, 기호 참조 refs/remotes/origin/HEAD는 `origin/main`으로 **서로 다르게** 둔다 — 같으면
     // 어느 쪽을 읽었는지 시험이 가리지 못한다. 브랜치 이름은 늘 명시한다: `init.defaultBranch`가 환경마다
-    // 달라(개발 머신 main, CI 러너 master) 이름을 git에 맡겼더니 branch 단언이 CI에서만 깨졌다(2026-09-20).
+    // 달라(개발 머신 main, CI 러너 master) 이름을 git에 맡겼더니 branch 단언이 CI에서만 깨졌다.
     //
     // 기호 참조를 기본으로 넣는 이유: 없으면 등록이 `git ls-remote origin`으로 넘어가 기본 origin
     // (git@github.com:…)에 실제로 접속한다. 기호 참조 없는 경로는 아래 시험들이 로컬 origin으로 따로 탄다.

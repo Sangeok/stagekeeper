@@ -1,4 +1,4 @@
-// src/app/login/page.tsx
+
 import { Button } from "@/fsd/shared/ui/button";
 import { signIn } from "@/server/auth";
 import { AFTER_SIGN_IN } from "@/server/auth/config.base";

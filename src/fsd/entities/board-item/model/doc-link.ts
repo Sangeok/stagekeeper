@@ -1,5 +1,4 @@
-// ApcH entities/repo-doc/model/doc-location.ts(de25a1c) 이식 — 항목 문서의 주소·라벨·순서.
-// slug 라우팅(locationFromSlug·isWhitelistedDocPath)은 문서 뷰어의 것이라 Phase 1 범위 밖이다.
+// 항목 문서의 주소·라벨·순서.
 // 라벨은 product-copy.md §11. **이 파일이 라벨과 순서의 유일한 소유자다** — 화면이 직접 짓지 않는다.
 
 // 저장소 문서의 실제 주소. 라우트마다 템플릿을 다시 쓰면 화면마다 다른 링크가 나온다.
@@ -13,7 +12,7 @@ export function blobHref(repo: RepoRef, path: string, ref: string | null = null)
 
 // blobHref가 만드는 주소는 **기록된 커밋**을 가리킨다. 그 커밋이 원격에 없으면 조용히 404다 —
 // 푸시는 규칙상 소유자만 하는데(런북 "A pipeline step never grants commit or push permission")
-// 화면이 그 조건을 말하지 않아, 네 사이클의 게이트 2가 죽은 링크였다(실측). 링크를 내미는 자리는
+// 화면이 그 조건을 말하지 않으면 죽은 링크로 보인다. 링크를 내미는 자리는
 // 이 문장을 함께 낸다. product-copy.md §6(게이트 2 카드) · §11에 같은 문장.
 export const DOC_LINK_NOTE = "Opens the recorded commit on GitHub. If it 404s, that commit is not pushed yet.";
 

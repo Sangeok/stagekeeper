@@ -64,7 +64,7 @@ describe("discard / validation / plan_submit / report_submit", () => {
     assert.match(v({ text: "x".repeat(151) }).reason, /150/);
   });
   it("plan_submit in planning and in_review only", () => {
-    // in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신(F3) — 승인 대상이 기록에 남는다.
+    // in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — 승인 대상이 기록에 남는다.
     assert.equal(decidePlanSubmit("planning").ok, true);
     assert.equal(decidePlanSubmit("in_review").ok, true);
     for (const s of ["proposed", "implementing", "done", "on_hold"]) assert.equal(decidePlanSubmit(s).ok, false, s);
@@ -76,7 +76,7 @@ describe("discard / validation / plan_submit / report_submit", () => {
   });
 });
 
-// T4.6 벽. 상태로 걸고 이름으로 걸지 않는다 — implementing에서만 verify 선행을 요구한다.
+// 벽. 상태로 걸고 이름으로 걸지 않는다 — implementing에서만 verify 선행을 요구한다.
 describe("decideReportSubmit — actor and the verify wall", () => {
   it("accepts the fixed report agents, the workspace devs, and main-loop", () => {
     for (const a of ["pm", "plan-verifier", "doc-auditor", "feature-scout", "web-dev", "admin-dev", "main-loop"]) {
@@ -97,7 +97,7 @@ describe("decideReportSubmit — actor and the verify wall", () => {
     assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
   });
   it("the wall is outcome-agnostic — a failed verify still lets the hold report through", () => {
-    // 후보 (a): "같은 (project, actor, key)에 verify 기록이 있다(outcome 불문)".
+    // "같은 (project, actor, key)에 verify 기록이 있다(outcome 불문)".
     // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다.
     assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
   });
@@ -152,7 +152,7 @@ describe("decideGate — 웹과 세션이 같이 쓰는 게이트 판정", () =>
   });
 });
 
-// 한 노드가 호출 여러으로 이뤄져 있어서 순서가 어긋나면 에이전트가 멈추던 자리다(실측).
+// 한 노드가 호출 여러으로 이뤄져 있어서 순서가 어긋나면 에이전트가 멈추던 자리다.
 describe("isNoopTransition", () => {
   it("is a no-op when the item is already in the requested status", () => {
     // plan_submit이 전이까지 한 뒤 템플릿이 board_transition을 또 부르는 경우.

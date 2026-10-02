@@ -15,7 +15,7 @@ it("ships the public init reuse guidance through the bumped plugin package", () 
   assert.match(skill, /Do not save it machine-wide/i);
   const plugin = JSON.parse(readFileSync("plugin/.claude-plugin/plugin.json", "utf8"));
   const marketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"));
-  assert.equal(plugin.version, "0.3.8");
+  assert.equal(plugin.version, "0.4.1");
   assert.ok(marketplace.plugins.some((entry: { name: string; source: string }) => entry.name === plugin.name && entry.source === "./plugin"));
 });
 
@@ -30,8 +30,6 @@ function assertLocked(ids: readonly string[], html: string) {
   }
 }
 
-// 2026-09-21: product-copy.md §9가 두 번 고쳐지는 동안(a766a0e · 6871680 — 문서와 스킬만 건드린 커밋)
-// 이 화면은 `.mcp.json`·서버 줄·"approve the server"를 그대로 들고 있었다. 아래 잠금이 그때 있었다면 떨어졌다.
 describe("TokenReveal follows product-copy.md §9", () => {
   it("a project token (hs_) shows the shared steps and the project steps", () => {
     assertLocked(["token-reveal-shared", "token-reveal-project"], reveal("hs_…"));

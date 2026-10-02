@@ -300,7 +300,7 @@ describe("agentNext — run lifecycle", () => {
     assert.deepEqual(await h.call(dev({ outcome: "ok" })), { ok: true, item: { done: true } });
     // dev의 report·hold는 board_transition 뒤에 ok를 보낸다 — 그 호출이 run을 열면 start로 되돌아간다.
     // 열린 run이 없는 채 outcome이 오면 done에 note가 붙는다 — 그 done은 "이 run이 끝났다"이지
-    // "이 항목이 끝났다"가 아니기 때문이다(실측에서 메인 루프가 항목을 두고 넘어갔다).
+    // "이 항목이 끝났다"가 아니기 때문이다.
     const closed = await h.call(dev({ outcome: "ok" }));
     assert.equal(closed.ok && closed.item.done, true);
     assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /not necessarily the item/);
@@ -317,7 +317,7 @@ describe("agentNext — run lifecycle", () => {
     assert.equal(closed.ok && closed.item.done, true);
     assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /call again without outcome/i);
     // 런북은 두 dev 단계 모두 마지막 지시가 agent_next(outcome)인데, 그 직전 호출이 이미 run을 닫는다.
-    // 그 마지막 말이 한 줄도 안 남으면 plan run의 원장이 통째로 빈다(실측).
+    // 그 마지막 말이 한 줄도 안 남으면 plan run의 원장이 통째로 빈다.
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "implement", outcome: "ok", note: null });
     assert.equal(step(await h.call(dev())).step, "start");
   });

@@ -8,7 +8,7 @@ import { ButtonLink, buttonClass } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
 import { Chip } from "@/fsd/shared/ui/chip";
 
-// 공개 랜딩(landing-v2, 2026-08-30 승인). 문구는 product-copy.md §16. Server Component — 상호작용은 CTA 폼뿐이다.
+// 공개 랜딩. 문구는 product-copy.md §16. Server Component — 상호작용은 CTA 폼뿐이다.
 // 히어로의 볼드니스는 문장 하나(둘째 줄만 --mine)와 실제 Inbox 카드 한 장에만 있다. 슬로건·그라디언트·모션 없음.
 
 const CYCLE: { n: number; label: string; you?: true }[] = [

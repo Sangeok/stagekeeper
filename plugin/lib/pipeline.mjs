@@ -1,6 +1,6 @@
-// packages/core/pipeline.mjs — 순수. import는 entitlement.mjs뿐.
+// 순수. import는 entitlement.mjs뿐.
 // 파이프라인 그래프 — "이 프로젝트에서 항목이 어느 노드를 어떤 순서로 지나고, 어디서 사람이 멈추는가"의 단일 출처.
-// 서버(run.ts)가 커서를 옮길 때, 웹(edit-pipeline)이 레일을 그릴 때, 저장 액션이 검증할 때 같은 함수를 쓴다.
+// 서버(board-query.ts·run-query.ts)가 커서를 옮기거나 세울 때, 웹(edit-pipeline)이 레일을 그릴 때, 저장 액션이 검증할 때 같은 함수를 쓴다.
 import { limitsFor } from "./entitlement.mjs";
 
 // 비게이트 노드 7종, 골격 순서. 게이트는 노드가 아니라 간선(before-<kind>)이다.

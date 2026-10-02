@@ -48,7 +48,7 @@ function FullBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string })
 
   const headline = HEADLINE[turn.kind];
   // Inbox에서는 카드가 바로 아래 있으니 세부 줄을 되풀이하지 않는다 — 카드가 있을 때만. 인수·핸드오프뿐인 차례는
-  // 카드가 없어("Nothing to decide.") 배너가 세부 줄과 항목 링크를 지녀야 한다(2026-09-07 사이클 실측 F-B).
+  // 카드가 없어("Nothing to decide.") 배너가 세부 줄과 항목 링크를 지녀야 한다.
   // 세부 줄과 항목 링크는 이 한 판정으로 함께 숨고 함께 나온다.
   const inboxCardsAreBelow = turn.kind === "mine" && tab === "inbox" && turn.open.kind === "inbox";
   return (

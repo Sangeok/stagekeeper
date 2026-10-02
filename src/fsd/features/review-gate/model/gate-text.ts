@@ -1,5 +1,4 @@
 // 사람 동작의 낱말. 버튼은 동사, 성공 뒤 칩은 결과, 토스트는 같은 낱말을 잇는다(product-copy.md §3).
-// ApcH transition-pipeline-gate/model/transitions.ts(de25a1c)에서 문구·칩 재료만 옮겼고 은유(도장)는 버렸다.
 import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
 import { gateCopyId } from "@/fsd/entities/pipeline";
 
@@ -12,7 +11,7 @@ export type CardLock = { label: string; tone: "mine" | "risk" | "done" };
 export type RejectAction = "bounce" | "hold" | "discard";
 
 // 게이트 — **게이트 id**가 키다(런의 커서가 서 있는 자리, pipeline.mjs의 before-<kind>).
-// 상태가 아니라 그래프가 게이트를 정하므로 목적지 status로는 카드를 못 그린다(§E.1).
+// 상태가 아니라 그래프가 게이트를 정하므로 목적지 status로는 카드를 못 그린다.
 // 누르는 중·잠금 칩·토스트 — 버튼을 누른 뒤의 낱말이라 이 slice에만 있다.
 const GATE_FEEDBACK: Record<string, { pending: string; lock: string; toast: string }> = {
   "before-plan": { pending: "Requesting…", lock: "Plan requested", toast: "Plan requested" },

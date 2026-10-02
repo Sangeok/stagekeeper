@@ -52,7 +52,7 @@ it("the templates route answers with real bodies, the lock reason, and auth fail
     assert.equal(ok.status, 200);
     assert.deepEqual(await ok.json(), expected);
 
-    // hu_ + ?project=<slug>: 같은 본문이다. 프로젝트가 토큰이 아니라 인자에서 왔을 뿐이다(A-7).
+    // hu_ + ?project=<slug>: 같은 본문이다. 프로젝트가 토큰이 아니라 인자에서 왔을 뿐이다.
     const scoped = await request(`Bearer ${user.plain}`, lang, id);
     assert.equal(scoped.status, 200);
     assert.deepEqual(await scoped.json(), expected);
@@ -72,7 +72,7 @@ it("the templates route answers with real bodies, the lock reason, and auth fail
     assert.equal(missing.status, 404);
     assert.deepEqual(await missing.json(), { error: `no templates for language: ${lang}-absent` });
 
-    // 마지막 둘이 A-7이 더한 것이다: 슬러그 없는 hu_와 모르는 hu_. 둘 다 401이다.
+    // 마지막 둘은 슬러그 없는 hu_와 모르는 hu_다. 둘 다 401이다.
     for (const header of [null, `Bearer ${newToken().plain}`, `Bearer ${newToken("owner").plain}`,
       `Bearer ${user.plain}`, `Bearer ${newToken("user").plain}`]) {
       const denied = await request(header);

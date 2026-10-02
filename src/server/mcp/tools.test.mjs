@@ -46,8 +46,6 @@ describe("agent-scoped MCP tools", () => {
     }
     assert.ok(COPY.includes(PROJECT_REQUIRED), "product-copy must document the actual missing-scope error");
   });
-  // PR #34가 plan_submit에 전이를 합치고 product-copy는 갱신했는데 등록 문구가 따라오지 않았다.
-  // 그래서 모든 에이전트 세션이 옛 프로토콜을 읽었고, 그 문구를 인용한 계획서가 구현 직전에 막혔다(실측).
   // 문구가 갈리는 두 도구는 product-copy를 그대로 따라야 한다.
   it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
@@ -96,7 +94,7 @@ describe("agent-scoped MCP tools", () => {
   });
 });
 
-// T4.8. 잠금은 인증이 아니라 도구 층에서 건다 — mcp-handler 2.1.1의 401은 사유를 실을 수 없다.
+// 잠금은 인증이 아니라 도구 층에서 건다 — mcp-handler 2.1.1의 401은 사유를 실을 수 없다.
 describe("not-selected projects", () => {
   const locked = { plan: "free", available: false, code: "not-selected", reason: NOT_SELECTED_REASON };
   const handlersWith = (extra = {}) => {

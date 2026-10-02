@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { copyLock } from "@/fsd/shared/lib/copy-lock";
-import { deriveTurn, nextStepLine, type TurnItem } from "./turn";
+import { WATCH_LINE, deriveTurn, nextStepLine, type TurnItem } from "./turn";
 
 const ready = { tokenIssued: true, rosterSynced: true };
 // 커서는 기본 Pro 그래프(propose · before-plan · plan · verify · before-implement · implement · accept · doc-audit)에서
@@ -27,7 +27,7 @@ const item = (key: string, status: string, validation: string | null = null, age
   dispatched: true, // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다
   ...cursorFor(status, validation),
 });
-// 인수까지 끝난 항목은 꼬리 노드를 지나 런이 닫힌다 — 커서가 없으니 터미널 줄도 없다(§D.1의 done).
+// 인수까지 끝난 항목은 꼬리 노드를 지나 런이 닫힌다 — 커서가 없으니 터미널 줄도 없다.
 const accepted = (key: string): TurnItem => ({ ...item(key, "done"), accepted: true, gate: null, node: null });
 const handoff = (key: string, note: string | null, status = "planning", agent = "web-dev"): TurnItem => ({
   ...item(key, status, null, agent),
@@ -135,8 +135,8 @@ describe("deriveTurn — mine", () => {
     assert.equal(turn.count, 1);
   });
 
-  // 보류하면 resetRun이 커서를 멈춘 자리에 세워 두고 런은 열어 둔다(board.ts:368 — 재개가 그 자리를
-  // 이어받는다). 그래서 on_hold 항목은 node를 그대로 들고 있다. 상태를 안 보면 "작업 중"이 된다(실측).
+  // 보류하면 resetRun이 커서를 멈춘 자리에 세워 두고 런은 열어 둔다(board-query.ts resetRun — 재개가 그 자리를
+  // 이어받는다). 그래서 on_hold 항목은 node를 그대로 들고 있다. 상태를 안 보면 "작업 중"이 된다.
   it("a held item keeps its node but nobody is working on it", () => {
     const held = { ...item("FEAT-05", "on_hold"), node: "implement", gate: null };
     assert.equal(deriveTurn([held], ready).kind, "none");
@@ -148,7 +148,7 @@ describe("deriveTurn — mine", () => {
 
 describe("deriveTurn — theirs and none", () => {
   it("does not claim an agent is working when nobody was dispatched yet", () => {
-    // 게이트를 열자마자 status는 planning이 되지만 세션을 돌리기 전까지 아무도 그 일을 하고 있지 않다(실측).
+    // 게이트를 열자마자 status는 planning이 되지만 세션을 돌리기 전까지 아무도 그 일을 하고 있지 않다.
     const turn = deriveTurn([{ ...item("FEAT-01", "planning"), dispatched: false }], ready);
     if (turn.kind !== "theirs") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-01 is waiting for dev");
@@ -236,6 +236,43 @@ describe("nextStepLine", () => {
     assert.equal(nextStepLine(item("FEAT-01", "in_review", "clean pass")), null);
     assert.equal(nextStepLine(accepted("FEAT-01")), null);
   });
+});
+
+describe("terminal steps while waiting on the owner", () => {
+  it("keeps acceptance first and includes an unstarted plan without changing the owner's turn", () => {
+    const turn = deriveTurn([item("ITEM-02", "done"), { ...item("ITEM-01", "planning"), dispatched: false }], ready);
+    if (turn.kind !== "mine") assert.fail(turn.kind);
+    assert.equal(turn.count, 1);
+    assert.equal(turn.detail, "ITEM-02 needs acceptance");
+    assert.equal(turn.why, null);
+    assert.deepEqual(turn.open, { kind: "item", key: "ITEM-02" });
+    assert.deepEqual(turn.next, [
+      { key: "ITEM-02", line: "Continue the pipeline for ITEM-02: accept — accept." },
+      { key: "ITEM-01", line: "Continue the pipeline for ITEM-01: plan — dev writes the plan." },
+    ]);
+  });
+  it("does not duplicate a handoff's node and includes the other unstarted implement step", () => {
+    const turn = deriveTurn([handoff("ITEM-02", "docs/plans/ITEM-02.md"), { ...item("ITEM-01", "implementing"), dispatched: false }], ready);
+    if (turn.kind !== "mine") assert.fail(turn.kind);
+    assert.deepEqual(turn.next, [
+      { key: "ITEM-02", line: "Commit docs/plans/ITEM-02.md, then continue the pipeline for ITEM-02." },
+      { key: "ITEM-01", line: "Continue the pipeline for ITEM-01: implement — dev implements." },
+    ]);
+    assert.equal(turn.count, 1);
+  });
+  it("keeps a gate's inbox destination and includes verification/repeated project slots, excluding held items", () => {
+    const gate = item("GATE", "proposed");
+    const verifier = item("VERIFY", "in_review");
+    const slot = { ...accepted("SCOUT"), node: "feature-scout#2", dispatched: false };
+    const held = { ...item("HELD", "on_hold"), node: "plan" };
+    const turn = deriveTurn([gate, verifier, slot, held], ready);
+    if (turn.kind !== "mine") assert.fail(turn.kind);
+    assert.deepEqual(turn.open, { kind: "inbox" });
+    assert.equal(turn.count, 1);
+    assert.deepEqual(turn.next.map((step) => step.key), ["VERIFY", "SCOUT"]);
+    assert.match(turn.next[1].line, /feature-scout/);
+  });
+  it("locks the watch sentence to product-copy", () => assert.deepEqual([WATCH_LINE], copyLock("turn-banner-watch")));
 });
 
 // 첫 실행 2단계의 문장은 product-copy.md §5의 잠금 블록 그대로다. 배너는 이 값을 그대로 그린다

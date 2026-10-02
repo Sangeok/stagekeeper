@@ -93,7 +93,7 @@ describe("projectIdentityFor", () => {
     assert.deepEqual(calls, { tokenHashes: [tokenHash], projectIds: [tokenRecord.projectId], identityIds: [] });
   });
 
-  // slug까지 다섯이다 — 그 값이 harness.json의 project.slug가 되어 hu_ 호출이 프로젝트를 지목한다(A-8).
+  // slug까지 다섯이다 — 그 값이 harness.json의 project.slug가 되어 hu_ 호출이 프로젝트를 지목한다.
   it("returns the five identity fields — and no language — after authentication", async () => {
     const { projectIdentityFor, calls } = setup();
 
@@ -129,7 +129,7 @@ describe("projectIdentityFor", () => {
 });
 
 // hu_ — 이 경로의 뜻이 뒤집힌다. hs_는 "이 토큰은 어느 프로젝트냐"를 묻고,
-// hu_는 ?project=<slug>로 "이 프로젝트를 확인해 달라"를 묻는다(A-7).
+// hu_는 ?project=<slug>로 "이 프로젝트를 확인해 달라"를 묻는다.
 describe("projectIdentityFor with a user token", () => {
   const user = newToken("user");
   const userHeader = `Bearer ${user.plain}`;
@@ -165,7 +165,7 @@ describe("projectIdentityFor with a user token", () => {
     assert.deepEqual(calls.identityIds, ["project-1"]);
   });
 
-  // 첫 연결에는 harness.json이 없어 슬러그도 없다 — 그 경로는 C가 git remote로 채운다.
+  // 첫 연결에는 harness.json이 없어 슬러그도 없다 — 그 경로는 --register가 git remote로 채운다.
   it("returns 401 naming the fix when no project is given", async () => {
     const { projectIdentityFor, calls } = userSetup();
 

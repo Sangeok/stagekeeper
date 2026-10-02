@@ -9,7 +9,7 @@ import { deriveTurn, type Turn } from "../model/turn";
 
 export type TurnData = { turn: Turn; inboxCount: number };
 
-// §E.3: latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다.
+// latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다.
 export async function loadTurn(projectId: string): Promise<TurnData> {
   const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns, project] = await Promise.all([
     latestBoard(projectId),
@@ -35,7 +35,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     handoffs.set(run.key, { step: run.stepId, note: last.note });
   }
   // "열린 run이 있다"로는 부족하다. dev가 닫히지 않은 채 항목이 verify로 넘어가면
-  // 아무도 검증하지 않는데 "being verified"가 된다(실측). 그 노드를 도는 에이전트로 좁힌다.
+  // 아무도 검증하지 않는데 "being verified"가 된다. 그 노드를 도는 에이전트로 좁힌다.
   // key와 agent를 잇는 구분자는 NUL(\u0000)이다 — src/app/(app)/p/[slug]/page.tsx의 보드 파생과 같은 값이어야 한다.
   const running = new Set(openRuns.filter((r) => r.key !== null).map((r) => `${r.key}\u0000${r.agent}`));
   const cursor = new Map(pipelineRuns.map((r) => [r.boardItemId, r.node]));

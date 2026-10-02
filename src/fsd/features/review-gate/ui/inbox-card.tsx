@@ -35,7 +35,7 @@ function InboxCardContent({ item, now, transition, approve, discard, canWrite, r
   // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
   // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
   // 카드마다 반복하면 같은 문장이 장 수만큼 늘어난다.
-  const gate = item.gate; // 런이 서 있는 게이트 — 카드 판정의 출처(§E.2)
+  const gate = item.gate; // 런이 서 있는 게이트 — 카드 판정의 출처
   const isProposed = item.status === "proposed";
   const isInReview = item.status === "in_review";
   const isOnHold = item.status === "on_hold";
@@ -96,7 +96,8 @@ function InboxCardContent({ item, now, transition, approve, discard, canWrite, r
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
               <b className="font-medium text-ink">Request plan</b>: dev writes a plan.{" "}
-              <b className="font-medium text-ink">Approve implementation</b>: dev changes the code.
+              <b className="font-medium text-ink">Approve implementation</b>: dev changes the code. Neither starts dev —
+              your Claude Code session does.
             </li>
             <li>
               <b className="font-medium text-ink">Verified</b> means an independent pass found nothing to change. Without one,

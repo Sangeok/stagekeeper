@@ -4,7 +4,7 @@ import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 
-// guard.ts:17·owner-deps.ts:19와 같은 술어. 없는 슬러그와 남의 프로젝트를 같은 null로 답한다 —
+// guard.ts:17·owner-deps.ts의 owner와 같은 술어. 없는 슬러그와 남의 프로젝트를 같은 null로 답한다 —
 // 호출부가 그 null을 하나의 문장(NOT_YOURS)으로 바꾸므로 존재 여부가 새지 않는다.
 export async function projectForUser(slug: string, userId: string, db: PrismaClient = prisma): Promise<string | null> {
   const row = await db.project.findFirst({ where: { slug, ownerUserId: userId }, select: { id: true } });

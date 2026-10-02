@@ -5,13 +5,13 @@
 //
 // hu_에서는 이 경로의 뜻이 뒤집힌다: hs_는 "이 토큰은 어느 프로젝트냐"를 묻고,
 // hu_는 ?project=<slug>로 "이 프로젝트를 확인해 달라"를 묻는다. 첫 연결에는 슬러그가 없으므로
-// 그 경로는 C(git remote 기반 조회·등록)가 채운다.
+// 그 경로는 git remote 기반 등록(--register)가 채운다.
 import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
 import type { ProjectAccess } from "./entitlement";
 import type { RequestRateFailure, RestRateFailure } from "./result";
 import { OWNERSHIP_UNAVAILABLE_REASON, repositoryOwner } from "./project-access-query";
 
-// slug는 harness.json의 project.slug가 된다 — hu_ 호출이 프로젝트를 지목하는 유일한 값이다(A-8).
+// slug는 harness.json의 project.slug가 된다 — hu_ 호출이 프로젝트를 지목하는 유일한 값이다.
 export type ProjectIdentity = { owner: string; repo: string; branch: string; name: string; slug: string };
 
 export type ProjectIdentityResult =
@@ -28,7 +28,7 @@ type ProjectIdentityFor = (authorizationHeader: string | null, project?: string 
 
 export function makeProjectIdentityFor(deps: ProjectIdentityDeps): ProjectIdentityFor {
   return async function projectIdentityFor(authorizationHeader, project = null) {
-    // 주체 판정은 rest-scope.ts 한 곳이다 — hs_(hs_ 접두)가 첫 가지라 기존 동작이 그대로다.
+    // 주체 판정은 rest-scope.ts 한 곳이다.
     // hu_를 받지 않는 주입에서는 hu_가 존재하지 않는 것처럼 동작한다.
     const scope = await resolveRestScope(deps, authorizationHeader, project);
     if (!scope.ok) return scope;

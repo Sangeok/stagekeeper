@@ -41,7 +41,7 @@ related:
 - 조사일: 2026-10-02.
 - 기준 커밋: `03876dd24fab12c63542b4565f087b79a877f7ef`.
 - 최초 작성 브랜치: `harness/token-management-ux`; 원격 `dev`의 실재 여부를 확인하고 `git fetch origin dev` 후 `origin/dev`에서 생성했다.
-- 구현 브랜치: `harness/account-usage-token-management`. 위 기준 커밋에서 구현했고 원격 `dev`의 실재와 기준이 유지되는 것을 확인했다.
+- 구현 브랜치: `harness/account-usage-token-management`. 위 기준 커밋에서 구현했다. PR 생성 후 `dev`가 `6c363d0fa364c0456491bba6f56ac7cc21a3f4df`로 전진하여 별도 `harness/token-management-ux-pr-sync` worktree에서 통합했다. 공유 작업 폴더에 새로 생긴 account usage 작업은 그대로 보존했다.
 - 현재 실행 범위는 front matter의 승인 기록을 따른다. 소스 구현·격리 DB 검증·commit·dev PR이 대상이며 운영 DB·배포·병합은 수행하지 않는다.
 - 기존 미추적 문서 `account-usage-and-token-management.md`, `local-watch-executor.md`, `non-behavioral-comment-cleanup.md`는 사용자 작업으로 보존하며 이 제안서의 변경 범위에서 제외한다.
 - 현재 architecture의 source of truth는 [architecture/README.md](../../architecture/README.md)와 관련 문서다. 이 제안서의 미래 설계가 현재 계약을 자동으로 대체하지 않는다.
@@ -536,8 +536,9 @@ npm run build
 | `npm run build` | PASS. sandbox의 Google font 다운로드 제한 이후 네트워크가 허용된 실행에서 production build를 완료했다. |
 | V-BROWSER: 실제 production 앱 | 격리 DB와 임시 인증 fixture를 사용하는 실제 Next production 서버를 Edge headless에서 검증했다. desktop 1440px / mobile 390px의 hint·표·링크·사용 상태·키보드 발급/복사/폐기, 서버 재조회 후 UTC 표시, Free owner 잔여 토큰·unavailable/disconnected 제한, 프로젝트 생성의 신규/기존 분기를 확인했다. |
 | V-BROWSER: 재사용 / 증거 경계 | 동일하게 발급한 `hs_` 값으로 독립 HTTP 요청 2회를 보내 인증 성공과 추가 발급 0행을 확인했다. 이는 credential 재사용 인수이며 실제 두 OS 터미널이나 Claude Code 연결을 실행한 증거는 아니다. 스크린샷은 평문 reveal을 제외한 화면만 저장했고 토큰·쿠키·DB URL은 보고서에 넣지 않았다. |
-| 시험 정리 / 변경 범위 | VM·console·DB 연결은 finally로 복원하고 임시 브라우저·Next 서버·fixture·PostgreSQL host도 인수 후 종료했다. 기존 사용자 proposal 3개는 수정하거나 커밋하지 않는다. `git diff --check` PASS. |
+| 시험 정리 / 변경 범위 | VM·console·DB 연결은 finally로 복원하고 임시 브라우저·Next 서버·fixture·PostgreSQL host도 인수 후 종료했다. 기존 사용자 proposal 3개의 로컬 작성본은 구현 commit에서 제외했다. `dev`에서 별도로 추가된 local-watch 문서를 통합하면서 로컬 원본을 임시 보관 후 동일 blob hash로 복원했다. `git diff --check` PASS. |
 | SDD strict traceability | 완료 경로에서 strict validator PASS. REQ 9 / INV 5 / CON 3 / TASK 5, phase/task와 verifier coverage 모두 9/9. |
+| 최신 `dev` 통합 검증 | 격리 worktree에 독립 dependency/client를 준비하고 `check`, core 188, web 518, server 32(새 production manifest opt-in), production build, strict traceability를 다시 실행해 모두 PASS. 충돌 marker가 없고 dev 대비 변경은 승인된 토큰 UX 파일 54개뿐이다. |
 
 브라우저 증거는 로컬 임시 artifact `tokenux-browser-result.json`, `tokenux-project-desktop.png`, `tokenux-project-mobile.png`, `tokenux-user-mobile.png`로 확인했다. 시험 fixture의 입력 누락·플랜 설정·credential 형식 가정으로 발생한 초기 harness 실패는 수정 후 실제 앱 인수를 통과했다. 운영 데이터를 바꾸거나 실패한 시험을 통과로 바꾸는 제품 수정은 하지 않았다.
 
@@ -546,6 +547,8 @@ npm run build
 COPY와 USAGE의 TASK 5개를 구현했고 요구사항 9개를 위 verifier와 실행 결과로 확인했다. 완료 기록으로 이 문서를 `completed/2026-10-02-token-management-ux.md`로 이동한다. 이름은 기존 `label` 메타데이터이고, 기존 토큰의 수명·종류·권한·개별 폐기·평문 1회 노출 계약을 보존한다. 사용 기록은 부가 인증 기록이며 기존 토큰의 과거 기록을 backfill하지 않는다.
 
 승인 범위에 따라 feature branch를 commit/push하고 `dev` 대상 PR을 작성한다. 병합은 `check` green 이후 별도 작업이며 운영 migration·배포·공개 plugin 게시도 실행하지 않았다. 운영에서는 DB 확장 선행과 구버전 worker 처리 종료를 확인해야 한다. 롤백 시 추가 열과 기록 데이터는 보존한다.
+
+최신 `dev` 통합은 다른 대화에서 진행 중인 account usage 변경과 섞이지 않도록 격리 worktree에서 수행했다. 충돌은 `rest-scope.ts`의 주석 정리와 새 recorder 호출이 겹친 부분이며, 최신 주석과 인증 직후 기록을 함께 유지한다. 공유 작업 폴더의 현재 브랜치·작성 중인 코드·제안서는 바꾸지 않는다.
 
 ## Completion Conditions
 

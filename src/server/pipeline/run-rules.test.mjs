@@ -57,10 +57,10 @@ describe("decideNext (H.4)", () => {
     assert.equal(decideNext({ ...base, node: "propose", status: "proposed" }).agent, "pm");
   });
   it("HINT covers every node the pipeline can stop on, accept included", () => {
-    // accept만 빠져 있었다 — 메인 루프가 에이전트 없이 직접 하는 유일한 동작인데 안내가 없었다(실측).
+    // accept는 메인 루프가 에이전트 없이 직접 하는 유일한 동작이라 hint를 따로 단다.
     assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "implement", "plan", "propose", "scout", "scoutHead", "verify"]);
     assert.match(HINT.verify, /validation_record/);
-    // 경로 목록을 어디에 남기라는 말이 없어서 다섯 사이클 동안 한 번도 안 남았다(F6 실측).
+    // verify hint는 경로 목록을 남길 자리를 말한다.
     assert.match(HINT.verify, /verification-paths\.md/);
     assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);
     assert.match(HINT.accept, /report_submit/);
@@ -93,7 +93,7 @@ describe("decideHead (H.4)", () => {
   });
 });
 
-// 실측에서 나온 것: dev가 멈춘 뒤 소유자가 커밋하고 에이전트가 계획서를 제출했는데도
+// dev가 멈춘 뒤 소유자가 커밋하고 에이전트가 계획서를 제출했는데도
 // 파이프라인이 "그 파일을 커밋하라"를 계속 답했다. 원장의 마지막 단계만 보면 그렇게 된다.
 describe("handoffIsLive", () => {
   const at = (iso) => new Date(iso);

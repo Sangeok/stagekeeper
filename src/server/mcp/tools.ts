@@ -20,15 +20,14 @@ export const AGENT_TOOL_NAMES = [
 export type WorkspaceInput = { id: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] };
 
 // 에이전트가 JSON으로 받는 최소 계약. Prisma 행은 이보다 넓고, 넓은 쪽은 좁은 쪽에 대입된다 —
-// 그래서 여기에 적힌 필드가 board.ts의 select/include에서 빠지면 deps.ts가 컴파일에서 걸린다.
-// 예전에는 전부 unknown이라, 쿼리에서 필드가 사라져도 타입은 아무 말이 없고 프로토콜만 조용히
-// 깨졌다. Prisma 타입을 직접 import하지 않는 건 inbox-item.ts의 BoardRow와 같은 이유다.
+// 그래서 여기에 적힌 필드가 board-query.ts의 select/include에서 빠지면 deps.ts가 컴파일에서 걸린다.
+// Prisma 타입을 직접 import하지 않는 건 inbox-item.ts의 BoardRow와 같은 이유다.
 export type ProjectView = {
   id: string; slug: string; name: string; owner: string; repo: string; branch: string; language: string;
   executorKind: string; commandIssue: number | null; runbookVersion: string | null; createdAt: Date;
   workspaces: { id: string; projectId: string; wsId: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] }[];
 };
-// board_propose는 방금 만든 행만 돌려준다 — backlogItem을 include하지 않는다(board.ts propose).
+// board_propose는 방금 만든 행만 돌려준다 — backlogItem을 include하지 않는다(board-query.ts propose).
 export type BoardItemView = {
   id: string; agent: string; status: string; reason: string; results: string[]; validation: string | null;
   planPath: string | null; planCommit: string | null; proposedOn: Date; updatedAt: Date;
@@ -54,11 +53,11 @@ export type ToolDeps = {
   submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
   agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
-  // §D.1 — 런 보장 → 지연 전진(board.advancePipeline) → run.nextFor. key 없음이면 { head, items }.
+  // 런 보장 → 지연 전진(board.advancePipeline) → run.nextFor. key 없음이면 { head, items }.
   // runbook = 부르는 세션의 CLAUDE.md에 적힌 판. key 없는 개요의 표류 판정에만 쓴다(runbook.ts runbookStale).
   pipelineNext(projectId: string, key: string | undefined, runbook?: string): Promise<ServerResult<unknown>>;
   access(projectId: string): Promise<ProjectAccess>;
-  // hu_ 전용. 슬러그가 그 사용자의 프로젝트일 때만 id를 준다 — guard.ts:17·owner-deps.ts:19와 같은 쿼리.
+  // hu_ 전용. 슬러그가 그 사용자의 프로젝트일 때만 id를 준다 — guard.ts:17·owner-deps.ts의 owner와 같은 쿼리.
   projectFor(slug: string, userId: string): Promise<string | null>;
 };
 
@@ -86,7 +85,7 @@ type Scoped =
   | { ok: true; projectId: string; tokenId: string; actorRef: string }
   | { ok: false; reason: string };
 
-// 프로젝트를 정하는 유일한 자리. hs_는 토큰이 알고(기존 경로 — 분기의 첫 가지라 동작이 그대로다),
+// 프로젝트를 정하는 유일한 자리. hs_는 토큰이 알고,
 // hu_는 인자로 받아 호출마다 ownerUserId로 인가한다(owner-tools.ts:38과 같은 판정).
 // **미인증은 계속 throw한다** — 주체가 아예 없다는 뜻이고 tools.test.mjs가 그걸 단언한다.
 // "내 것이 아니다"는 throw가 아니라 fail()이다: 섞으면 남의 프로젝트가 500이 된다.
@@ -106,7 +105,7 @@ async function scope(args: { project?: unknown }, ctx: Ctx, deps: ToolDeps): Pro
 
 const workspace = z.object({ id: z.string(), path: z.string(), agent: z.string(), verify: z.array(z.string()), knowledge: z.string().nullable(), readOnly: z.array(z.string()) });
 
-// hu_가 프로젝트를 지목하는 자리. hs_는 토큰이 알고 있으므로 optional이다 — 기존 호출이 그대로 통한다.
+// hu_가 프로젝트를 지목하는 자리. hs_는 토큰이 알고 있으므로 optional이다.
 const project = { project: z.string().optional().describe("Project slug from harness.json project.slug. Required on every call with a user token (hu_); ignored for a project token (hs_). Keep the same project on resume and outcome calls.") };
 
 export function registerTools(server: McpServer, deps: ToolDeps) {
@@ -219,7 +218,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     return unwrap(await deps.recordValidation(projectId, args, actorRef));
   });
   // 단계 본문은 이 도구로만 나간다(agents/next.ts). 스텁이 "첫 호출은 agent_next"라고 말하는 그 도구다.
-  // §D.1 pipeline_next — 항목 하나(key) 또는 열린 항목 전부의 다음 일. 지연 전진을 하므로 선택되지 않은 프로젝트에서는 guardUnavailable로 거부한다.
+  // pipeline_next — 항목 하나(key) 또는 열린 항목 전부의 다음 일. 지연 전진을 하므로 선택되지 않은 프로젝트에서는 guardUnavailable로 거부한다.
   server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate, accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when the runbook version you pass (or, without one, the version the last init reported) is older than the current template.", inputSchema: z.object({ ...project, key: z.string().optional(), runbook: z.string().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);

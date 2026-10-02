@@ -76,7 +76,7 @@ describe("recordRunbook", () => {
   });
 });
 
-// hu_ — 이 경로에는 쿼리 문자열이 없어 프로젝트를 **본문**으로 받는다(A-7).
+// hu_ — 이 경로에는 쿼리 문자열이 없어 프로젝트를 **본문**으로 받는다.
 describe("recordRunbook with a user token", () => {
   const user = newToken("user");
   const userHeader = `Bearer ${user.plain}`;

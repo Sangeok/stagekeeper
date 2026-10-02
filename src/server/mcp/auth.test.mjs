@@ -64,7 +64,7 @@ describe("makeVerifyToken", () => {
   });
 });
 
-// hu_ — 사람만 알고 프로젝트는 모른다. 위 hs_ 단언은 그대로 통과해야 한다(A-2의 (o)).
+// hu_ — 사람만 알고 프로젝트는 모른다. 위 hs_ 단언은 그대로 통과해야 한다.
 describe("makeVerifyToken with a user token", () => {
   const agent = newToken();
   const user = newToken("user");

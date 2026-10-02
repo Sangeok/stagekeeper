@@ -1,4 +1,4 @@
-// auth.ts — withMcpAuth의 verifyToken. 토큰 조회를 주입받아 DB 없이 테스트한다.
+// withMcpAuth의 verifyToken. 토큰 조회를 주입받아 DB 없이 테스트한다.
 // 두 검증기는 서로의 토큰을 받지 않는다 — parseBearer의 접두 검사가 표를 조회하기 전에 거른다.
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { hashToken, parseBearer } from "@harness/core/token.mjs";
@@ -37,7 +37,7 @@ export function makeVerifyToken(
       await tryRecordTokenUsage(recordUsage, "agent", row.id, at);
       return { token: plain, scopes: ["agent"], clientId: row.projectId, extra: { projectId: row.projectId, tokenId: row.id } };
     }
-    // hu_. clientId는 프로젝트가 없으므로 토큰 id다 — 소비자는 없지만 값을 비워 두지 않는다(A-2).
+    // hu_. clientId는 프로젝트가 없으므로 토큰 id다 — 소비자는 없지만 값을 비워 두지 않는다.
     const userPlain = findUserByHash ? parseBearer(header, "user") : null;
     if (!userPlain) return undefined;
     const userRow = await findCredential(findUserByHash!, hashToken(userPlain));

@@ -1,4 +1,4 @@
-// owner-tools.ts — 소유자 토큰 스코프의 MCP 도구. 에이전트 서버(tools.ts)와 **다른 엔드포인트**(/api/mcp/owner)에 산다.
+// 소유자 토큰 스코프의 MCP 도구. 에이전트 서버(tools.ts)와 **다른 엔드포인트**(/api/mcp/owner)에 산다.
 // 그쪽 등록 집합은 그대로다 — tools.test.mjs의 WEB_ONLY 가드(불변식 4)가 계속 "게이트 도구 없음"을 단언한다.
 // 여기 도구는 `gate_approve` 하나다 — 그래프의 어느 게이트든 연다. 되돌리기·보류·재개·Reopen·폐기·백로그 편집·토큰 발급은 여전히 웹 전용이다.
 import { allowsSessionApprovals } from "@harness/core/entitlement.mjs";

@@ -152,11 +152,49 @@ MCP `AuthInfo.expiresAt`의 초 단위 재검사는 사용하지 않는다. 다�
 | `report_submit` | `{key, actor, path, commit, runId?, project?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
 | `validation_record` | `{key, text, project?}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
 | `agent_next` | `{agent, key?, outcome?, note?, entry?, agentRunId?, stepId?, receipt?, project?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
-| `pipeline_next` | `{key?, runbook?, project?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 후보가 없으면 feature-scout, 있으면 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm"|"feature-scout", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다. `runbook`(12자리 소문자 hex)이 있으면 key 없는 개요의 `runbook` 필드는 그 판이 현재 템플릿과 다를 때만 실린다. 없거나 모양이 틀리면 마지막 init이 보고한 판(`Project.runbookVersion`)으로 판정한다. 넘겨받은 판은 저장하지 않는다 | main-loop | 2 |
+| `pipeline_next` | `{key?, runbook?, project?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 후보가 없으면 feature-scout, 있으면 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm"|"feature-scout", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`) · `accept` · `done` 여섯 가지다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다. `runbook`(12자리 소문자 hex)이 있으면 key 없는 개요의 `runbook` 필드는 그 판이 현재 템플릿과 다를 때만 실린다. 없거나 모양이 틀리면 마지막 init이 보고한 판(`Project.runbookVersion`)으로 판정한다. 넘겨받은 판은 저장하지 않는다 | main-loop · harness-watch | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 
 **에이전트 서버에 등록되지 않은 것:** 게이트 승인(그래프의 어느 게이트든 — 소유자 서버 `harness_owner`의 `gate_approve`에만 있다), 그래프 편집(웹 전용), 되돌리기, 보류(사람), 폐기, 재개, 재열기(`done→…`), 백로그 편집·삭제, 명령 생성, 토큰 발급. 게이트 승인을 뺀 나머지는 소유자 서버에도 없다 — 웹 전용이다.
+
+## 로컬 세션 감시 — `/harness:watch`
+
+실행 주체는 사용자가 연 Claude Code 메인 대화다. 플러그인 CLI는 시작할 때 `project_get`으로
+owner/repo(대소문자 정규화)·설정 slug·available:true를 확인하고, 이후 key 없는
+`pipeline_next`만 폴링한다. 총 46자 hs_/hu_만 허용하며 ho_는 거부한다. hu_의 project.slug는
+모든 요청에 전달하고, slug 없는 hs_만 legacy 생략을 허용한다. 서버 기본값·dotenv fallback·
+redirect 추적은 없다. 서버 도구 집합·인증·사용 기록·DB를 감시 구현에서 바꾸지 않는다.
+
+checkout CLAUDE.md의 init 관리 runbook start/end marker 사이에서만 12자리 소문자 hex 판을
+읽는다. 같은 선언/인자 값의 반복은 허용하고 다른 판·손상된 선언·marker 누락/역순/중복은
+네트워크와 상태 쓰기 전에 거부한다. 판 없는 legacy는 runbook을 생략하고 서버 stale 경고를
+보존한다. 생성 파일을 해시하거나 private 템플릿·init을 수정하지 않는다.
+
+폴링은 모델을 부르지 않지만 overview 조립·인증과 기존 지연 전진을 실행할 수 있다. 실패/취소
+응답도 서버 쓰기 완료 가능성이 있으므로 rollback이나 zero-write를 주장하지 않는다.
+work/idle 통지 이후 세션은 저장된 정책과 현재 소유권을 확인하며 work에는 fresh overview를
+다시 읽는다. propose:no는 head만 제외하고 항목의 feature-scout 슬롯은 유지한다. 각 새 행동과
+재무장 전에 소유권을 확인하고 fresh hint/format/entry 및 AgentRun receipt를 그대로 사용한다.
+한 항목의 gate/handoff/cap가 다른 ready 항목을 가리지 않는다. 감시가 gate를 자동으로 열거나
+push하지 않으며 commit:no의 acceptance/report는 소유자의 실제 commit·명시적 재개를 기다린다.
+
+상태는 realpath로 확인한 공통 Git 디렉터리의 harness/에 있다. mkdir guard로 짧은 동기 파일
+구간을 직렬화하고 정책을 먼저·잠금을 commit 지점으로 원자 교체한다. session/poller nonce를
+응답 뒤·cleanup 때에도 다시 확인하여 이전 응답이 새 소유자를 덮어쓰지 못한다. 각 session의
+poller는 하나이며 ESRCH만 죽음 증거로 쓴다. work/idle은 session을 보존하고 poller만 해제한다.
+stop은 root/session만으로 자기 상태를 해제하며 config/token/server 부재에도 실행할 수 있다.
+손상 상태·abandoned guard는 force도 우회하지 않는다. 12시간 만료도 owner 확인 후 force가 필요하다.
+로컬 잠금은 다른 clone/기기·수동 세션을 잠그거나 이미 실행된 agent/in-flight 요청을 취소하지 않는다.
+
+기본 interval=60초, deadline=110분, request timeout=20초, body 한도=1MiB다. fetch/body/sleep/guard
+대기는 deadline에 묶이며 최대 1초마다 로컬 소유권을 확인한다. 5연속 전송 실패는 error; 정상
+overview가 실패 수를 초기화한다. 같은 비어 있지 않은 작업 집합의 세 번째 work 반환은 stuck이고
+빈 관측·작업 identity 변화는 반복 수를 초기화한다. check/HTTP 재시도는 작업 반복 수가 아니다.
+이 지표는 AgentRun 내부 진전 watchdog이 아니다.
+
+실제 메인 대화의 완료 통지·재무장, 설치된 skill/CLI/lib 본문과 장시간 latency/비용/권한 창은
+[검증 보고서](../test-reports/active/2026-10-02-local-watch-executor.md)에서 자동 시험과 별도로 인수한다.
 
 증거 제출 3종(`plan_submit`·`report_submit`·`validation_record`)은 모두 same-status
 `TransitionEvent`(note `plan`·`report`·`validation`, actorId = 호출 토큰)를 남긴다 —

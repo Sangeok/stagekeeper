@@ -153,7 +153,7 @@ describe("templatesFor", () => {
   });
 });
 
-// hu_ — 프로젝트가 토큰이 아니라 ?project=<slug>에서 온다. 위 hs_ 단언은 한 줄도 바뀌지 않는다.
+// hu_ — 프로젝트가 토큰이 아니라 ?project=<slug>에서 온다.
 describe("templatesFor with a user token", () => {
   const user = newToken("user");
   const userHeader = `Bearer ${user.plain}`;

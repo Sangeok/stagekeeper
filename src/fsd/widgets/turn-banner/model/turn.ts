@@ -20,7 +20,7 @@ export type TurnItem = {
 };
 
 // 첫 방문 체크리스트의 재료. 보드에 행이 하나도 없을 때만 쓰인다.
-export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; autoScoutEnabled?: boolean }; // §E.3
+export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; autoScoutEnabled?: boolean };
 
 export type SetupStep = {
   key: "token" | "connect" | "run";
@@ -159,6 +159,9 @@ function nextSteps(items: TurnItem[]): NextStep[] {
   return out;
 }
 
+// Ready terminal work must remain visible while the owner handles a gate or commit.
+export const WATCH_LINE = "Or leave /harness:watch running in that session — it continues ready steps and waits for your gates and commits.";
+
 export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn {
   if (items.length === 0) {
     const steps = setupSteps(setup);
@@ -168,6 +171,15 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
 
   // 당신 차례 = 게이트가 열린 것 + 인수를 기다리는 것 + 커밋을 기다리는 것. on_hold는 여전히 배너를 소유하지 않는다.
   const pending = items.filter((i) => i.gate !== null || isAwaitingAcceptance(i.status, i.accepted) || i.handoff !== null);
+  // 보류한 항목은 커서를 멈춘 자리에 둔 채 런이 열려 있다(board-query.ts resetRun) — 재개가 그 자리를 이어받기
+  // 위해서다. 그래서 노드만 보면 "작업 중"이 된다.
+  // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board-query.ts walkingKeys) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
+  const isProjectSlot = (node: string | null) => {
+    const agent = slotAgent(node);
+    return agent !== null && PROJECT_AGENTS.includes(agent);
+  };
+  const working = items.filter((i) => !pending.includes(i) && i.status !== "on_hold" && i.gate === null
+    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || isProjectSlot(i.node)));
   const first = pending[0];
   if (first !== undefined) {
     const openCount = items.filter((i) => isOpen(i.status)).length;
@@ -178,24 +190,15 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
       count: pending.length,
       detail: mineDetail(pending),
       why: canPropose(openCount) ? null : BLOCKED_WHY,
-      next: nextSteps(pending),
+      next: nextSteps([...pending, ...working]),
       open,
     };
   }
 
-  // 보류한 항목은 커서를 멈춘 자리에 둔 채 런이 열려 있다(board.ts resetRun) — 재개가 그 자리를 이어받기
-  // 위해서다. 그래서 노드만 보면 "작업 중"이 된다(실측: on_hold인 FEAT-07에 "waiting for dev"가 떴다).
-  // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board.ts:52) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
-  const isProjectSlot = (node: string | null) => {
-    const agent = slotAgent(node);
-    return agent !== null && PROJECT_AGENTS.includes(agent);
-  };
-  const working = items.filter((i) => i.status !== "on_hold" && i.gate === null
-    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || isProjectSlot(i.node)));
   if (working.length > 0) {
     return {
       kind: "theirs",
-      // 디스패치되지 않은 항목을 "하고 있다"고 말하면 사실이 아니다. 게이트를 열자마자 그 상태가 된다(실측) —
+      // 디스패치되지 않은 항목을 "하고 있다"고 말하면 사실이 아니다. 게이트를 열자마자 그 상태가 된다 —
       // 사람이 세션을 돌리기 전까지는 아무도 그 일을 하고 있지 않다. 아래 "Next, in Claude Code" 줄이 할 일을 준다.
       detail: working.map(workingLine).join(" · "),
       next: nextSteps(working),

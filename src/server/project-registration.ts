@@ -43,7 +43,7 @@ export async function registerProject(
   const owner = field(body, "owner");
   const repo = field(body, "repo");
   // branch는 형식을 재지 않는다 — git 브랜치 이름은 `release/1.0`처럼 슬래시를 담을 수 있어
-  // SEGMENT로 재면 정상 브랜치를 막는다(create-project.server.ts:26-27과 같은 판단).
+  // SEGMENT로 재면 정상 브랜치를 막는다(create-project.server.ts의 branch 판단과 같은 판단).
   const branch = field(body, "branch") ?? "main";
   if (!owner || !repo) return { ok: false, status: 400, reason: "owner and repo are required" };
   if (!REPO_SEGMENT.test(owner) || !REPO_SEGMENT.test(repo)) {

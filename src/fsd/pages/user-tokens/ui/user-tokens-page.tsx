@@ -25,7 +25,7 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 export function UserTokensPage({ mcpUrl, tokens, issue, revoke, rename, at }: Props): ReactElement {
   return (
     // billing-page.tsx와 같은 컨테이너. 프로젝트 화면은 p/[slug]/layout.tsx가 주지만 이 경로는 그 밖에 있다 —
-    // 없으면 본문이 창 너비 전체에 왼쪽 끝부터 깔린다(2026-09-22 렌더 확인에서 발견, dev에도 있던 것).
+    // 없으면 본문이 창 너비 전체에 왼쪽 끝부터 깔린다.
     <main className="mx-auto flex w-full max-w-[800px] flex-col gap-8 px-5 pt-9 pb-14">
       <section className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Tokens</h1>

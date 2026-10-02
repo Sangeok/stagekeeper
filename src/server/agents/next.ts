@@ -81,7 +81,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const roster = await deps.roster(projectId);
   if (!REPORT_AGENTS.includes(agent) && !roster.includes(agent)) return fail(`unknown agent: ${agent}`);
   if (!allowsAgent(access.plan, agent, roster)) return fail(`agent \`${agent}\` is not on the ${access.plan} plan`);
-  // 항목 소유 검사. 예전에는 dev 템플릿의 라우터 단계가 board_get으로 보고 스스로 확인했다 —
+  // 항목 소유 검사.
   // 프롬프트가 아니라 서버가 강제한다(불변식 4와 같은 방향). 행이 없으면 여기서 말하지 않는다:
   // requires 판정이 `not open`으로 더 정확히 설명한다.
   //
