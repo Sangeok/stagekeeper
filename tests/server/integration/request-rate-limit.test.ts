@@ -87,6 +87,14 @@ it("admits the agreed four-project, four-session 10-minute burst without false l
     assert.equal(windows.find((row) => row.scope === "account")?.count, 992);
     assert.ok(windows.filter((row) => row.scope === "project").every((row) => row.count === 248));
     console.log(`Request budget load rehearsal: 992 allowed, ${Math.round(elapsedMs)}ms total, ${Math.round(elapsedMs / 992 * 100) / 100}ms amortized/request (local DB).`);
+    // Latest dev adds watch: four sessions per project, each with one startup
+    // project_get and ten polls at the default 60-second interval.
+    for (const projectId of projects) for (let call = 0; call < 44; call++) {
+      assert.equal(await consumeProjectRequestBudget(db, projectId), null);
+    }
+    const withWatch = await db.requestRateWindow.findMany({ where: { ownerUserId: userId } });
+    assert.equal(withWatch.find((row) => row.scope === "account")?.count, 1168);
+    assert.ok(withWatch.filter((row) => row.scope === "project").every((row) => row.count === 292));
   } finally { await cleanup(db, userId); await pool.disconnect(); }
 });
 

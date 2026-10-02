@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-02"
 approved-by: "user"
 approved-at: "2026-10-02"
 approval-scope: "USAGE·TOKEN·RATE 코드 구현, 검증, commit 및 dev 대상 PR. RATE 수치는 리허설 후 프로젝트 300회·계정 1,200회/10분으로 사용자 확정. 운영 migration·배포·병합 제외."
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-02"
+verification-summary: "check·build PASS; core/CLI 264, web 529, fresh manifest 포함 server 35, private templates 30 PASS; 격리 PostgreSQL migration·전체 integration PASS; 실제 Next HTTP·브라우저·응답 유실·1,168회 부하 인수 PASS. 운영 배포 제외."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -382,7 +382,7 @@ BLK-RATE-01은 해소되었고 현재 구현 차단 사항은 없다. 아래 과
 | `src/server/account-usage-query.ts`, `src/server/account-usage-query.test.ts`, `src/server/account-usage.ts`(신규 제안) | snapshot·writer helper·production binder | runtime DB와 단위 시험 분리 |
 | `src/server/agents/next.ts`, `src/server/agents/runs.ts`, `src/server/agents/run-query.ts`, `src/server/agents/next.test.ts`, `src/server/agents/run-query.test.ts` | quota 연결·old limiter 제거 | User 잠금·resume·receipt/CAS 유지 |
 | `src/server/pipeline/run-query.ts`, `src/server/pipeline/run-rules.ts`, `src/server/pipeline/run-query.test.ts`, `src/server/pipeline/run-rules.test.mjs` | cap DTO/resetAt | 값이 head/item/승인 후 next까지 전달됨 |
-| `src/server/request-rate-limit.ts`, `src/server/request-rate-limit.test.ts`(신규 제안) | 주입 가능한 limiter factory | 없는 행 경쟁·부분 commit 금지 |
+| `src/server/request-rate-limit.ts`, `src/server/request-rate.ts`, `src/server/database-clock.ts`, `tests/server/integration/request-rate-limit.test.ts` | DB 주입 limiter와 production binder | 없는 행 경쟁·부분 commit 금지·UTC clock |
 | `src/server/result.ts`, `src/server/mcp/tools.ts`, `src/server/mcp/owner-tools.ts`, `src/server/mcp/tools.test.mjs`, `src/server/mcp/owner-tools.test.mjs` | typed failure 및 callback 집계 | metadata serializer·15개 callback 한 번씩 |
 | `src/server/mcp/auth.ts`, `src/server/mcp/deps.ts`, `src/server/mcp/owner-deps.ts`, `src/server/mcp/auth.test.mjs` | 만료·recorder·limiter wiring | stateless wrapper 유지, 고정된 진단 |
 | `src/server/rest-scope.ts`, `src/server/rest-scope.test.ts`, `src/server/user-scope-query.ts` | expiresAt/id·내부 scope | 공개 project JSON과 분리 |
@@ -404,7 +404,7 @@ BLK-RATE-01은 해소되었고 현재 구현 차단 사항은 없다. 아래 과
 | `src/fsd/features/manage-token/ui/token-names.test.ts`, `src/fsd/features/manage-user-token/ui/token-name.test.ts`(미커밋 기존) | 발급 form markup 시험 확장 | 기존 이름 설명 유지·UTC 만료 입력 확인 |
 | `src/fsd/features/create-project/api/create-project.server.ts` | initial writer 필요 시 조정 | 이미 있는 repo/plaintext 재표시 없음 |
 | `plugin/bin/harness-init.mjs`, `plugin/bin/harness-init.test.mjs`, `plugin/skills/init/SKILL.md`, `plugin/.claude-plugin/plugin.json` | 429/부분 완료 안내·patch version | 등록/생성 성공 여부 구분 |
-| `tests/server/token-usage-bindings.test.ts`, `tests/server/token-issuance-bindings.test.ts`(미커밋 기존), `tests/server/token-management-bindings.test.ts`, `tests/server/account-usage-bindings.test.ts`(신규 제안) | 기존 production/issuer/route binder 확장·새 rename/snapshot binder | 일반 test:web에서 DB 모듈 import 금지 검증 |
+| `tests/server/token-usage-bindings.test.ts`, `tests/server/token-issuance-bindings.test.ts`, `tests/server/account-usage-bindings.test.ts`, `scripts/rehearse-account-usage-and-tokens.ts` | 기존 production/issuer/route binder 및 실제 rename/snapshot 경계 | 일반 test:web에서 DB 모듈 import 금지·실제 Server Action 세션 확인 |
 | `tests/server/integration/agent-runs.test.ts`, `tests/server/integration/migration.test.ts`, `tests/server/integration/head.test.ts`, `tests/server/integration/project-registration.test.ts` | 기존 DB 시나리오 확장 | baseline fixture/receipt 유지 |
 | `tests/server/integration/token-usage.test.ts`, `tests/server/integration/token-usage-migration.test.ts`(미커밋 기존) | tracking 경합/nullable migration 회귀 재사용 | 기존 추적 값 보존·expiry 추가 대조 |
 | `tests/server/integration/account-usage.test.ts`, `tests/server/integration/token-management.test.ts`, `tests/server/integration/request-rate-limit.test.ts`(신규 제안) | 실제 동시성·migration·transport | TEST_DATABASE_URL 격리·fixture 정리 |
@@ -412,7 +412,7 @@ BLK-RATE-01은 해소되었고 현재 구현 차단 사항은 없다. 아래 과
 
 신규 파일의 parent는 기존 디렉터리이며 신규 migration의 폴더는 생성해야 한다. `신규 제안`은 현재 working tree에도 없는 목적지이고 `미커밋 기존`은 HEAD에는 없지만 저장된 재사용 대상이다. 생성물은 아래 생성 명령의 목적지다. 구현 직전에 모든 create 목적지의 collision과 선행 token UX migration/열을 다시 확인하고 충돌 시 다른 사람의 파일을 덮어쓰지 않는다. 이미 구현된 tracking을 IF NOT EXISTS로 임의 건너뛰지 않고 타입/nullable/default/기록 계약을 먼저 대조한다.
 
-보존/읽기 목적지: `src/app/api/mcp/route.ts`, `src/app/api/mcp/owner/route.ts`의 wrapper, `src/server/pipeline/run.ts`의 headFor/nextFor export, `src/server/project-access-query.ts`의 READ_OPTIONS/access, `src/server/project-availability-service.ts`의 User 잠금, `src/fsd/shared/api/result.ts`의 ActionResult, `src/fsd/shared/lib/copy-lock.ts`, `packages/core/deliver.mjs`, `.claude-plugin/marketplace.json`, `scripts/plugin-lib.mjs`, `scripts/test-server-integration.mjs`, `.github/workflows/check.yml`, `package.json`, `prisma.config.ts`, `tsconfig.json`, `next.config.ts`는 새 기능 때문에 계약을 바꾸지 않는다. `.claude-plugin/marketplace.json`의 source는 `./plugin`을 유지한다. plugin 변경을 포함하는 bundle은 구현 시 manifest의 현재 version에서 다음 patch로 올린다. 조사 시 HEAD는 0.3.6, working tree는 선행 UX의 0.3.7이므로 그것을 포함하면 다음 patch는 0.3.8이다. 선행 변경을 되돌리거나 같은 version을 재사용하지 않는다. 게시/배포는 수행하지 않는다.
+보존/읽기 목적지: `src/app/api/mcp/route.ts`, `src/app/api/mcp/owner/route.ts`의 wrapper, `src/server/pipeline/run.ts`의 headFor/nextFor export, `src/server/project-access-query.ts`의 READ_OPTIONS/access, `src/server/project-availability-service.ts`의 User 잠금, `src/fsd/shared/api/result.ts`의 ActionResult, `src/fsd/shared/lib/copy-lock.ts`, `packages/core/deliver.mjs`, `.claude-plugin/marketplace.json`, `scripts/plugin-lib.mjs`, `scripts/test-server-integration.mjs`, `.github/workflows/check.yml`, `package.json`, `prisma.config.ts`, `tsconfig.json`, `next.config.ts`는 새 기능 때문에 계약을 바꾸지 않는다. `.claude-plugin/marketplace.json`의 source는 `./plugin`을 유지한다. 최초 구현은 선행 UX의 0.3.7 다음 0.3.8이었으나, 최종 dev의 watch 0.4.0을 반영하여 최종 patch는 0.4.1이다. watch 기능을 되돌리거나 같은 version을 재사용하지 않는다. 게시/배포는 수행하지 않는다.
 
 billing의 기존 `AppHeader`/`loadHeaderUser`는 `src/fsd/widgets/app-header/index.ts`, `src/fsd/widgets/app-header/index.server.ts`의 public API를 유지한다. 소유 파일 `src/fsd/widgets/app-header/ui/app-header.tsx`, `src/fsd/widgets/app-header/api/app-header.server.ts`는 보존하고 route가 plan 값을 조합한다. V-USAGE-UI의 route binding과 최종 header/table markup에서 이를 검증한다.
 
@@ -525,7 +525,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - satisfies: REQ-RATE-001, REQ-RATE-002, REQ-RATE-003
 - preserves: INV-ACCOUNT-001, INV-RUN-001, INV-AUTH-001, INV-TOKEN-001
 - governed-by: CON-ARCH-001, CON-DATA-001, CON-SCOPE-001, CON-VERIFY-001
-- implementation destination: RATE migration, request-rate-limit factory, result.ts/15 MCP callback serializer, 네 REST result/query/service/route, agents old limiter plumbing, plugin init/공개 안내/patch manifest, protocol/product-copy. 정확한 경로는 Affected Files 표를 따른다.
+- implementation destination: RATE migration, request-rate-limit service, result.ts/15 MCP callback serializer, 네 REST result/query/service/route, agents old limiter plumbing, plugin init/공개 안내/patch manifest, protocol/product-copy. 정확한 경로는 Affected Files 표를 따른다.
 - verification destination: V-RATE-BOUNDARY, V-RATE-DB, V-RATE-CLIENT, V-CROSS-CHECK.
 - depends on: BLK-RATE-01, TASK-USAGE-01, TASK-TOKEN-01
 - stop condition: 수치 미확정·실제 callback 누락·중복 집계·원자적 경합 검증 실패이면 활성화하지 않는다.
@@ -540,7 +540,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - destination: `packages/core/entitlement.test.mjs`, `packages/core/usage-window.test.mjs`(신규 제안), `src/server/agents/next.test.ts`, `src/server/agents/run-query.test.ts`, `src/server/pipeline/run-rules.test.mjs`, `src/server/pipeline/run-query.test.ts`, `src/fsd/shared/lib/entitlement-copy.test.ts`, `src/server/mcp/tools.test.mjs`.
 - verifies: REQ-USAGE-001, REQ-USAGE-002, REQ-USAGE-004, REQ-USAGE-005, REQ-USAGE-006, REQ-USAGE-007
 - expected observation: 종료 직전/정각, idle 조회, Free/Pro 마지막 자리·Max, 기존 run 재개·다음 run 대기, 플랜 변경을 고정 시각으로 검증한다. 실제 MCP text JSON에서 product 실패의 code/resetAt·숫자 미노출을 검사한다. pipeline head/items/owner 승인 후 next에 metadata가 보존되고 일반 none 사유에는 없음을 검증한다. 30일 dispatch 함수·소비자 제거와 historyDays 보존은 양방향으로 확인한다.
-- state: Planned
+- state: Passed
 
 ### V-USAGE-DB
 
@@ -550,7 +550,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - setup/fixture: 별도 `stagekeeper_test_*` PostgreSQL, 동일 user의 두 프로젝트·서로 다른 토큰, 실제 row-lock barrier.
 - expected observation: Free 같은 프로젝트 19→20, Pro 두 available 프로젝트 99→100 경쟁에서 하나만 신규 생성, 첫 저장 rollback 시 다른 요청 성공, 첫 실행 rollback 시 anchor 없음, DB clock 경계 대기 후 새 구간, 응답 유실 재조회 미과금, 커밋된 run의 instruction 실패 시 1회 유지, 플랜/availability 경합, Max 내부 count·다운그레이드, 재진입 보존을 확인한다. 채운 이전 데이터에서 신규 열/CHECK와 기존 행/FK/이력을 actual catalog와 full rows로 대조하고 고의 count 손상 거부·읽기 무쓰기를 검증한다.
 - preserved regression: project-connection 시험의 `createNextDeps(...).recentRuns(...)` 호출은 제거하고 실제 신규 실행으로 채운 계정 구간을 검사한다. 프로젝트 해제·다른 프로젝트 등록·재연결·플랜 변경으로 anchor/count가 초기화되지 않으며 기존 실행 원장도 보존된다.
-- state: Planned
+- state: Passed
 
 ### V-USAGE-UI
 
@@ -558,7 +558,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - destination: 신규 `src/fsd/pages/billing/ui/billing-page.test.ts`, 기존 `src/fsd/shared/lib/entitlement-copy.test.ts`, 신규 `tests/server/account-usage-bindings.test.ts`, 실제 `/billing` 수동 프로토콜.
 - verifies: REQ-USAGE-006
 - expected observation: 0%·중간·100%의 native progress 의미, reset 시각, Max Unlimited, 원시 횟수 미노출, unavailable 표시를 최종 HTML로 검사한다. fixture의 두 사용자 세션으로 별도 percent를 조회하고 route에 client userId 입력이 없음을 확인한다. 추가 snapshot 실패 주입에서는 로그인 redirect와 이미 읽은 plan을 유지하고 사용량 영역만 unavailable가 된다. 기존 header 로딩 자체의 실패는 삼키지 않는다. full reload와 서버 재조회, 뒤로 가기/다른 탭, 좁은 화면을 확인하며 장기 cache/timer 부재를 검증한다. 성공 시 헤더/플랜 표와 percent는 같은 snapshot의 plan이다.
-- state: Planned
+- state: Passed
 
 ### V-TOKEN-AUTH
 
@@ -567,7 +567,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - verifies: REQ-TOKEN-001, REQ-TOKEN-002, REQ-TOKEN-005, REQ-TOKEN-006
 - expected observation: 세 접두 × 허용/거부 endpoint, 미등록/폐기/만료 1ms 전/정각/이후/null expiry, REST user 등록을 검증한다. 실제 설치 withMcpAuth/createMcpHandler의 메모리 Request에서 만료 전 첫 인증을 recorder로 지연해도 기존 처리를 유지하고, 다음 요청은 401·callback 미호출·record 미기록임을 확인한다. auth/recorder가 같은 `at`을 쓰고 AuthInfo 초 단위 필드로 조기 거부하지 않음을 검사한다. recorder 지연·rejection·logger 실패는 원 credential 조회 실패와 분리하고 출력에 header/hash/원시 예외가 없는지 검사한다.
 - preserved regression: 실제 REST factory를 사용하는 harness-init mock HTTP 시험의 null-expiry hs_/hu_ 인증·slug/plan/접근 거부·파일 보존을 유지하고 만료 credential의 후속 거부를 확인한다. 기존 project-connection binding 시험은 expiry가 발급 service에 전달됨과 현재 세션 userId 사용·직접 create 금지를 함께 검사한다.
-- state: Planned
+- state: Passed
 
 ### V-TOKEN-DB
 
@@ -576,23 +576,23 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - verifies: REQ-TOKEN-001, REQ-TOKEN-002, REQ-TOKEN-003, REQ-TOKEN-005, REQ-TOKEN-006
 - expected observation: tracking 적용 전 rows의 nullable 초기값, 적용 후 기존 사용 시각/표식 보존과 expiry null, 신규 발급의 lastUsedAt null·tracking/선택 expiry 설정, initial writer와 기존 repo/재연결/hu 등록의 무발급, 동일 token 사용 시각 단조성·60초 경계를 확인한다. 만료 전 `at`의 지연 저장은 허용되지만 만료 정각/이후 `at`은 zero-write이고 폐기가 먼저 커밋되면 지연 저장도 zero-write다. recorder 오류·지연, label trim/빈 값·타인 거부·종료 token rename 미재활성화, selected-out/disconnected 거부와 기존 revoke 허용, 해제/플랜 변경과의 User 잠금 경합을 검증한다. rename으로 hash/expiry/count/availability version/event/lastSyncedAt이 바뀌지 않는다.
 - preserved regression: project-connection의 유효 credential fixture와 이미 접근 검사를 통과한 runbook 요청의 완료·후속 disconnected 거부, 두 token issuer와 해제의 잠금 순서별 폐기/무발급 검사를 유지한다.
-- state: Planned
+- state: Passed
 
 ### V-TOKEN-UI
 
 - category: UI / accessibility / contract
-- destination: 기존 `src/fsd/entities/project-token/ui/token-reveal.test.ts`, `src/fsd/entities/project-token/ui/token-usage.test.ts`, `src/fsd/pages/project-tokens/ui/project-tokens-page.test.ts`, `src/fsd/pages/user-tokens/ui/user-tokens-page.test.ts`, `src/fsd/features/manage-token/ui/token-names.test.ts`, `src/fsd/features/manage-user-token/ui/token-name.test.ts`, `tests/server/token-usage-bindings.test.ts`, `tests/server/token-issuance-bindings.test.ts`; 신규 `tests/server/token-management-bindings.test.ts`; 실제 세 종류 토큰 화면/프로젝트 생성 reveal 수동 프로토콜.
+- destination: 기존 `src/fsd/entities/project-token/ui/token-reveal.test.ts`, `src/fsd/entities/project-token/ui/token-usage.test.ts`, `src/fsd/pages/project-tokens/ui/project-tokens-page.test.ts`, `src/fsd/pages/user-tokens/ui/user-tokens-page.test.ts`, `src/fsd/features/manage-token/ui/token-names.test.ts`, `src/fsd/features/manage-user-token/ui/token-name.test.ts`, `tests/server/token-usage-bindings.test.ts`, `tests/server/token-issuance-bindings.test.ts`; `scripts/rehearse-account-usage-and-tokens.ts`; 실제 세 종류 토큰 화면/프로젝트 생성 reveal 수동 프로토콜.
 - verifies: REQ-TOKEN-001, REQ-TOKEN-003, REQ-TOKEN-004, REQ-TOKEN-005, REQ-TOKEN-006
 - expected observation: UTC 입력→ISO 전달·null 기본·invalid/현재 시각 거부, Unknown/Never used/UTC 시각, Active와 Revoked/Expired의 경계를 full markup으로 검사한다. 실제 브라우저에서 세 종류 각각 발급→rename→실패→재조회→개별 revoke 순서, 종료 token rename, 사용 불가 프로젝트의 rename 부재와 revoke 유지, 좁은 화면/스크린리더 label을 확인한다. 응답 유실은 목록에 생성 token이 있지만 비밀 복원이 없는 상태를 확인하며 재발급은 다른 토큰을 폐기하지 않는다. server action binder는 current session ID 사용·타인/무세션 거부와 public API를 대조한다.
-- state: Planned
+- state: Passed
 
 ### V-RATE-BOUNDARY
 
 - category: unit / contract / security
-- destination: 신규 `src/server/request-rate-limit.test.ts`, 기존 `src/server/mcp/tools.test.mjs`, `src/server/mcp/owner-tools.test.mjs`, `src/server/rest-scope.test.ts`, 세 REST `project-identity-query.test.ts`/`templates-query.test.ts`/`runbook-query.test.ts`, `tests/server/project-connection-bindings.test.ts`, `tests/server/project-registration.test.ts`; 최종 HTTP route는 V-RATE-DB에서 검사한다.
+- destination: `tests/server/integration/request-rate-limit.test.ts`, `scripts/rehearse-account-usage-and-tokens.ts`, 기존 `src/server/mcp/tools.test.mjs`, `src/server/mcp/owner-tools.test.mjs`, `src/server/rest-scope.test.ts`, 세 REST `project-identity-query.test.ts`/`templates-query.test.ts`/`runbook-query.test.ts`, `tests/server/project-connection-bindings.test.ts`, `tests/server/project-registration.test.ts`; 최종 HTTP route도 함께 검사한다.
 - verifies: REQ-RATE-001, REQ-RATE-002, REQ-RATE-003
 - expected observation: 명시된 15개 callback 전체를 호출하여 scope/access 뒤 limiter 한 번, agent/개별 cap/도메인 검증 실패도 한 번, 내부 advice/transaction retry에 추가 집계 없음, 공통 접근/owner plan 거부와 SDK schema/초기화 제외를 확인한다. hu 계정 전체·hs/ho 같은 owner 집계, selected-out get, 기존 401/403 reason/성공 body를 보존한다. MCP text JSON의 RATE_LIMITED와 product code를 구분하고 raw 사용량/ownerUserId 누출이 없다. old RATE_LIMIT/recentSteps 제거, callerTokenId/receipt ledger 보존을 확인한다.
-- state: Planned
+- state: Passed
 
 ### V-RATE-DB
 
@@ -600,7 +600,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - destination: `tests/server/integration/request-rate-limit.test.ts`(신규 제안), 확정 수치를 적용한 실제 클라이언트 요청 시퀀스 리허설.
 - verifies: REQ-RATE-001, REQ-RATE-002
 - expected observation: 최초 빈 budget 행 및 마지막 자리에서 복수 client/token 경쟁, 계정/project 한쪽 소진 시 다른 쪽 insert/reset/count rollback, 서로 다른 종료 시각의 최댓값 Retry-After, 경계·재시작·FK cascade·DB 실패를 증명한다. projectId=null인 project scope, subjectId 불일치, 음수 count를 actual CHECK가 거부함을 확인한다. 실제 네 REST route의 429 body/header와 기존 성공/거부/reconnect body, MCP 최종 content를 검사하고 거부가 도메인/AgentRun/제품 구간을 만들지 않는다. BLK-RATE-01의 구현 전 측정/확정 근거를 입력으로 삼아 정상 10분 peak·동시 세션에서 잘못 차단하지 않는지와 DB 왕복 지연을 재검증한다.
-- state: Planned — BLK-RATE-01 해소 필요
+- state: Passed
 
 ### V-RATE-CLIENT
 
@@ -609,7 +609,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - verifies: REQ-RATE-003
 - expected observation: print-project/register/templates/runbook 네 fetch 각각의 429에서 retry 정보를 본문까지 검사하고 즉시 재요청이 없음을 확인한다. runbook 429는 생성된 파일 전체 바이트를 보존하고 버전 미기록+대기+비정상 exit code로 표시한다. 기존 401/403/409, local templates와 dry-run의 무네트워크, 정상 runbook/stub/manifest 생성은 유지한다. public SKILL/CLI 안내와 plugin.json의 patch version, marketplace의 source를 parser로 대조한다. 플러그인 배포 version과 생성 runbook의 본문 hash/lock format version은 별개이며 동시에 바꾸지 않는다. 게시 여부를 통과 근거로 쓰지 않는다. 평문/header 출력 없음도 확인한다.
 - preserved regression: harness-init의 기존 runbook 401/403은 파일을 유지하고 후속 작업 중단을 안내하는 best-effort exit 0 계약을 유지한다. 새 429의 비정상 exit와 구분하며 mock HTTP serializer도 429 metadata를 누락하지 않게 갱신한다.
-- state: Planned
+- state: Passed
 
 ### V-CROSS-CHECK
 
@@ -617,7 +617,7 @@ private Template 재게시, 기존 HTML 자산/전역 stylesheet, 새로운 HTTP
 - destination: 아래 기존 npm 명령, protocol/product-copy 및 retired-copy 검토.
 - verifies: REQ-USAGE-005, REQ-USAGE-006, REQ-TOKEN-002, REQ-TOKEN-004, REQ-RATE-003
 - expected observation: FSD/public API와 server/client 경계, 생성 Prisma 타입, core/plugin 바이트 동기화, Next route 수집, copy locks·관련 회귀 검증이 모두 통과한다. 이 검증은 DB 동시성·실제 브라우저·부하 검증을 대체하지 않는다.
-- state: Planned
+- state: Passed
 
 후속 구현에서 실행할 기존 명령:
 
@@ -655,7 +655,7 @@ npm run build
 
 실행 승인과 범위의 단일 출처는 front matter다. 전체 USAGE·TOKEN·RATE 코드, 검증, commit, dev 대상 PR을 수행한다. 별도 private 테스트 fixture 변경은 사용자가 main 대상 PR을 승인했다. 운영 migration·배포·PR 병합은 이번 범위가 아니다.
 
-문서 개선 완료 기준: 합의 정책과 현재 코드 차이, 정확한 inventory/public API/final artifact 목적지, failed-result와 rollback의 차이, 경합/실패/만료 lifecycle, Phase–Task–검증 연결, downstream blocker, rollout/복구 조건을 기록한다. strict 구조 검증과 목적지/링크/working tree 확인 후 최신 저장본을 편집 없이 INV-1~6 재대조한다. BLK-RATE-01을 숨기지 않으며 이 상태에서 전체 implementation clean pass나 INV-7 통과를 주장하지 않는다.
+구현 이전 문서 개선 완료 기준: 합의 정책과 현재 코드 차이, 정확한 inventory/public API/final artifact 목적지, failed-result와 rollback의 차이, 경합/실패/만료 lifecycle, Phase–Task–검증 연결, downstream blocker, rollout/복구 조건을 기록한다. strict 구조 검증과 목적지/링크/working tree 확인 후 최신 저장본을 편집 없이 INV-1~6 재대조한다. 당시 BLK-RATE-01을 숨기지 않으며 수치 미정 상태에서 전체 implementation clean pass나 INV-7 통과를 주장하지 않는다. 후속 수치 확정과 구현 결과는 아래 완료 기록에 연결한다.
 
 후속 구현 완료 기준: 각 요구의 계획 verifier에 실제 실행 증거를 붙이고 BLK-RATE-01을 해소한다. raw 사용 횟수 미노출, 단일 계정 quota, 모든 expiry 경로, old limiter/30일 cap 제거를 확인하며 관련 계약을 함께 갱신한다. 당시 승인 범위 밖의 Phase로 자동 확대하지 않는다.
 
@@ -665,14 +665,14 @@ npm run build
 | --- | --- | --- | --- |
 | EV-DOC-BASE | Historical, Executed | remote heads 확인, `git fetch origin dev`, branch 생성, HEAD/dirty tree 조사 | 앞선 문서 작성에서 기준 커밋의 새 harness 브랜치 생성. 기존 미추적 제안서 세 개 보존 대상 확인 |
 | EV-CODE-BASE | Historical, 기존 코드만 | `node --import tsx --test packages/core/token.test.mjs src/server/mcp/auth.test.mjs src/server/project-token-service.test.ts src/server/agents/next.test.ts` | 앞선 코드 조사에서 64 tests / 13 suites 통과. 이번 미커밋 tracking 코드나 제안한 새 기능의 증거가 아니며 이후 구현은 별도 검증 필요 |
-| EV-DOC-STRICT | Executed, 편집 pass | `python C:/Users/hamso/.codex/skills/write-sdd-spec/scripts/validate_sdd_traceability.py --strict docs/proposals/active/account-usage-and-token-management.md` | PASS. REQ 16/16이 Phase/Task와 verifier에 연결됨. 최신 저장본의 무편집 재검증은 보고 시 별도로 확인한다. 구조 검증은 의미·코드·보안 검증을 대신하지 않는다 |
+| EV-DOC-STRICT | Historical, 편집 pass | `python C:/Users/hamso/.codex/skills/write-sdd-spec/scripts/validate_sdd_traceability.py --strict docs/proposals/active/account-usage-and-token-management.md` | 당시 PASS. REQ 16/16이 Phase/Task와 verifier에 연결됨. 구조 검증은 의미·코드·보안 검증을 대신하지 않는다. 완료 경로의 최종 검증은 아래 EV-DOC-FINAL에 기록 |
 | EV-DOC-HYGIENE | Historical, Executed | 최초 문서의 상대 링크·공백·미완성 표기·사용자 파일 해시·git 상태 검사 | 최초 링크 6개 정상, tracked source diff 없음. 검토 후반에는 다른 작업의 tracking source/migration 변경이 생겼으므로 현재 workspace 전체 불변을 주장하지 않는다. 이 검토의 쓰기는 이 문서에만 수행했다 |
 | EV-MCP-RUNTIME | Historical, 당시 설치 버전 | 설치 dist/index.mjs 대조 및 DB 없는 메모리 Request 2개 | 첫 요청 200·도구 호출, verifier 거부로 바뀐 둘째 요청 401·도구 미호출, verifier 총 2회. live server·DB·실제 token 없이 요청별 검증을 확인했으며 새 expiry 구현 시험은 아님 |
 | EV-REPEAT-TOKEN | Historical, 앞선 반복 검토 | Node/tsx로 recorder·MCP auth·REST scope·entity/two-page 시험, server-only bootstrap으로 token-issuance/token-usage binder 시험 | 22 + 5 = 27 tests 통과. 당시 tracking/목록/발급·여섯 인증 연결의 재사용 근거이며 새 expiry/rename/quota 및 실제 DB 검증은 아님 |
 | EV-REPEAT-MCP | Historical, 앞선 반복 검토의 설치 버전 | DB/네트워크 없는 withMcpAuth Request probe, Date.now는 finally에서 원복 | 만료 전 verifier를 수락하고 recorder 대기 중 시각을 넘기면 AuthInfo.expiresAt 없이 첫 요청 200, 다음 요청 401, verifier 2회/handler 1회. expiry 초 내림 필드를 넣으면 만료 전에도 401. 설치 wrapper 의미의 증거이며 제품 만료 구현 통과는 아님 |
 | EV-CLOSURE-REGRESSION | Historical, 앞선 반복 검토 | `node --import tsx --test src/server/harness-init.test.ts`; `node --import ./tests/server/register-server-only.mjs --import tsx --test tests/server/project-connection-bindings.test.ts` | 13 + 4 = 17 tests 통과. 당시 기존 REST→CLI 동작·발급/session binding·전체 disconnected callback 계약의 기준선이며 이번 문서 검사에서 재실행하지 않음. 새 expiry/5시간 quota/429 구현이나 DB 시험 통과는 아님 |
 | EV-RECON-INVENTORY | Executed, 편집 pass | literal 목적지/parent/collision, relative link, package script, tsconfig path, manifest/marketplace JSON, generated 파일 목록, `node scripts/plugin-lib.mjs --check` | 명령 정의·경로·생성 책임을 대조하고 현재 plugin/lib in sync 확인. 선행 tracking 목적지 생성은 재사용 대상으로 반영. product build/generation/integration의 실행 결과는 아님 |
-| EV-RATE-DECISION | Accepted | 사용자 답변: 측정 후 확정하도록 유지 | 수치를 임의 확정하지 않고 BLK-RATE-01 및 RATE 구현 차단을 유지 |
+| EV-RATE-DECISION | Historical, 당시 Accepted | 사용자 답변: 측정 후 확정하도록 유지 | 당시 수치를 임의 확정하지 않고 BLK-RATE-01 및 RATE 구현 차단을 유지. 이후 EV-RATE-BASELINE으로 측정·사용자 확정 완료 |
 | EV-SOURCE-RELOCATION | Observed, 이번 반복 검토 | 선행 제안의 완료 metadata·이동 경로·공유 계약 및 현재 코드 대조 | 검토 중 선행 문서가 completed로 이동하여 끊어진 front matter/본문 참조를 갱신하고 완료된 tracking 재사용 조건을 반영. 그 문서의 구현 인수 결과를 이번 실행 결과로 전용하지 않음 |
 | EV-IMPLEMENTATION | Historical, 당시 Not executed | 문서 전용 요청 당시 V-USAGE-POLICY부터 V-CROSS-CHECK까지 | 당시 신규 테스트·migration·브라우저·부하·build는 미실행. 아래 후속 구현 결과로 대체 |
 
@@ -689,3 +689,27 @@ Reconciliation Pass State (구현 이전 반복 검토의 편집 pass 이력):
 - Status: clean pass not completed
 
 후속 결과에는 변경 파일/커밋, 요구별 verifier·명령·결과, 미실행과 편차, blocker 상태, 사용자 변경 보존, 운영 검증의 한계를 보고한다. 실행 승인과 증거가 생기기 전에는 이 문서를 completed로 이동하거나 제품 구현 완료로 기록하지 않는다.
+
+## Completion or Closure Notes / 구현 완료 기록
+
+초기 구현은 `d29d722`이고 최신 원격 dev `0aec9ab`를 `b01a200`으로 반영했다. dev에 먼저 병합된 선행 token UX·주석 정리·watch 기능을 보존했으며 최종 plugin patch는 0.4.1이다. User의 5시간 counter, 세 종류 토큰의 nullable expiry, RequestRateWindow migration을 추가했고 기존 tracking migration은 재사용했다. 이름 변경 실패 시 실제 저장된 이름으로 입력을 복원한다. 기본 날짜 입력기의 한국어 표시 문제는 사용자가 선택한 고정 UTC 텍스트 형식으로 해결했다.
+
+| 실행 근거 | 명령·목적지 | 실제 결과와 범위 |
+| --- | --- | --- |
+| EV-USAGE | V-USAGE-POLICY/DB/UI; account-usage 및 billing 시험 | Free 19→20와 Pro 99→100을 두 실제 DB 연결·User 잠금 barrier로 검증. 잠금 대기 중 5시간 경계를 넘긴 뒤 회복, run 저장 rollback, 저장 후 instruction 실패의 과금 유지, 삭제 후 미환급, 재개 무과금, Max 다운그레이드·readonly 조회 통과. billing의 세션별 snapshot·헤더/표 플랜 일치·부가 조회 실패 fallback·auth/header 예외 보존 통과 |
+| EV-TOKEN | V-TOKEN-AUTH/DB/UI; token-management·tracking migration·production binder·Next HTTP | 세 종류 발급/rename/revoke, label만 변경, 타인·빈 이름·사용 불가 프로젝트 거부, 종료 credential 미재활성화, 해제 경합 양순서 통과. 만료 1ms 전/정각/이후 및 캡처 시각 recorder 지연을 검사. 기존 전체 row/FK/index/이력과 nullable 초기값 보존. 실제 여섯 인증 경로에서 만료 401·미기록 확인 |
+| EV-RATE-BASELINE | `node --import tsx scripts/rehearse-request-rate-baseline.ts` | fixture callback burst 59회 + 별도 CLI 3회 = 세션 62, 프로젝트 248, 계정 992 가정. 사용자 300/1,200 확정. 운영 peak 측정은 아님 |
+| EV-RATE | V-RATE-BOUNDARY/DB/CLIENT; request-rate-limit 통합 시험 | 최초 없는 budget 경쟁·마지막 자리·다른 budget insert/reset/increment rollback·긴 Retry-After·DB 실패·CHECK/FK 통과. 확정 부하 992회와 최신 dev의 네 watch 세션/프로젝트(각 시작 1 + 기본 60초 poll 10) 추가 176회를 모두 허용. 프로젝트 292/계정 1,168. 992회 본 부하의 로컬 DB 평균 약 4.8ms/요청이며 운영 지연을 의미하지 않음 |
+| EV-HTTP | `scripts/rehearse-account-usage-and-tokens.ts` | 최신 production build의 실제 Server Action에서 세 종류 발급·rename·타인/무세션·빈 이름·폐기/종료 rename 검증. 실제 네 REST와 두 MCP endpoint의 RATE JSON·Retry-After, 15개 callback 각 1회 집계와 도메인 실패 집계, SDK 초기화/list/schema·타인 scope 제외 검증. Free/Pro/Max/만료된 사용량 HTML snapshot 확인 |
+| EV-BROWSER | 격리 loopback Next·Playwright; interactive fixture | 세 종류 발급→rename→실패 시 이름 복원→응답 유실 후 실제 이름 재조회→개별 revoke 통과. UTC 형식과 날짜 rollover 거부. 발급 커밋 뒤 잘린 RSC 응답에서도 목록을 다시 읽고 새로고침으로 비밀을 복원하지 않음. 390px 화면과 progress 접근성 label 확인. 마지막 병합 build에서 발급 응답 유실 및 agent/owner 흐름 재확인 |
+| EV-CROSS | `npm run check`, `npm test`, `npm run test:web`, `npm run build` | FSD·lint·typegen·tsc·architecture·project availability·core/plugin 동기화 통과. core/CLI 264, web 529 통과. 기존 clean-code browser fixture의 unused 변수 경고 1개는 유지하며 신규 lint 오류/경고 없음 |
+| EV-SERVER | fresh build 후 SRC_CHECK_INBOX_MANIFEST/RDC_CHECK_ACTION_MANIFEST=true, `npm run test:server` | 35/35 통과, skip 없음. 일반 실행에서 제외되는 fresh manifest 검사를 명시적으로 활성화 |
+| EV-INTEGRATION | 격리 TEST_DATABASE_URL, `npm run test:server:integration` | 전체 migration deploy와 직렬 integration 통과. watch 부하 추가 후 request-rate-limit 5개도 별도 통과. 운영 DATABASE_URL과 분리된 stagekeeper_test_*만 사용 |
+| EV-PRIVATE | `npm run test:templates`; private commit `95ace9d`, [PR #6](https://github.com/Sangeok/harness-templates/pull/6) | 30/30 통과. NextDeps fixture의 recentSteps/recentRuns를 usageCap으로 바꾼 3줄만 수정. 사용자 승인으로 별도 main 대상 PR 생성. template 본문·seed·재게시 변경 없음 |
+| EV-DOC-FINAL | strict validator; `docs/proposals/completed/2026-10-02-account-usage-and-token-management.md` | 완료 경로에서 REQ 16/16 Phase–Task–verifier 연결 PASS. 상대 링크·공백 확인. 다른 두 active proposal의 원본 해시 일치 확인 |
+
+최종 편차: 구체 factory 이름 대신 작은 DB 주입 함수와 binder를 사용했다. rename 별도 binder 테스트 파일을 늘리는 대신 기존 issuance/usage binder와 실제 Next Server Action 리허설에서 검증했다. DB clock은 PostgreSQL 세션 시간대와 Prisma 변환의 차이를 피하도록 UTC timestamp를 반환한다. 제품 퍼센트는 정수 한도에서 부동소수점 내림 오류가 나지 않게 `used * 100 / limit` 순서로 계산한다. 새 라이브러리·cron·Redis·전역 store·polling은 추가하지 않았다.
+
+BLK-RATE-01 및 구현 차단 사항은 해소했다. 코드와 검증 완료 범위에서 문서를 completed로 이동한다. 운영 배포·혼합 writer/drain·과거 expiry 미검증 bundle로의 rollback·운영 트래픽 측정은 이 완료 기록이 승인하거나 검증하지 않는다. 별도 배포 담당자는 위 Risks and Rollback 조건을 적용해야 한다.
+
+사용자 소유의 다른 active proposal 원본은 별도로 보관하고 byte 단위로 복원했다. 최신 dev에서 local-watch-executor.md가 새로 tracked가 되어 로컬 원본과 차이가 생겼지만 그 로컬 차이는 이번 commit/PR에 포함하지 않는다. non-behavioral-comment-cleanup.md 원본도 보존한다. 다른 proposal의 승인·상태를 이번 기능의 근거로 변경하지 않는다.
