@@ -1,5 +1,5 @@
 // 레일 버튼의 활성/비활성 근거. 각 조작은 결과 그래프를 validateGraph에 통과시켜야만 ok를 돌려주므로,
-// 화면은 규칙을 다시 구현하지 않고 이유를 그대로 보여 준다(§E.6).
+// 화면은 규칙을 다시 구현하지 않고 이유를 그대로 보여 준다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defaultGraph } from "@harness/core/pipeline.mjs";

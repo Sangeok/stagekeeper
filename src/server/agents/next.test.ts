@@ -99,7 +99,7 @@ function harness(opts: Opts = {}) {
   const runs: Run[] = [];
   const records: Rec[] = [];
   const rejected: Rec[] = [];
-  // 한도 집계가 무엇을 분모로 받았는지. hs_는 null, hu_는 프로젝트다(A-10).
+  // 한도 집계가 무엇을 분모로 받았는지. hs_는 null, hu_는 프로젝트다.
   const rateCalls: [string, string | null][] = [];
   const scope = opts.scope ?? SCOPE;
   const board = opts.board ?? {};
@@ -301,7 +301,7 @@ describe("agentNext — run lifecycle", () => {
     assert.deepEqual(await h.call(dev({ outcome: "ok" })), { ok: true, item: { done: true } });
     // dev의 report·hold는 board_transition 뒤에 ok를 보낸다 — 그 호출이 run을 열면 start로 되돌아간다.
     // 열린 run이 없는 채 outcome이 오면 done에 note가 붙는다 — 그 done은 "이 run이 끝났다"이지
-    // "이 항목이 끝났다"가 아니기 때문이다(실측에서 메인 루프가 항목을 두고 넘어갔다).
+    // "이 항목이 끝났다"가 아니기 때문이다.
     const closed = await h.call(dev({ outcome: "ok" }));
     assert.equal(closed.ok && closed.item.done, true);
     assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /not necessarily the item/);
@@ -318,7 +318,7 @@ describe("agentNext — run lifecycle", () => {
     assert.equal(closed.ok && closed.item.done, true);
     assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /call again without outcome/i);
     // 런북은 두 dev 단계 모두 마지막 지시가 agent_next(outcome)인데, 그 직전 호출이 이미 run을 닫는다.
-    // 그 마지막 말이 한 줄도 안 남으면 plan run의 원장이 통째로 빈다(실측).
+    // 그 마지막 말이 한 줄도 안 남으면 plan run의 원장이 통째로 빈다.
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "implement", outcome: "ok", note: null });
     assert.equal(step(await h.call(dev())).step, "start");
   });
@@ -562,7 +562,7 @@ it("a failed retirement transaction does not close the run", async () => {
   assert.equal(h.records.length + h.rejected.length, 0);
 });
 
-// A-10. hs_는 토큰이 곧 프로젝트라 분모가 사실상 "프로젝트당"이었다. hu_ 하나가 여러 프로젝트에
+// hs_는 토큰이 곧 프로젝트라 분모가 사실상 "프로젝트당"이었다. hu_ 하나가 여러 프로젝트에
 // 쓰이므로, 분모에 프로젝트를 걸지 않으면 그 의미가 조용히 "사람당"으로 바뀐다.
 describe("agentNext — the rate-limit denominator", () => {
   it("(m) an agent-token scope passes no project: the denominator is the whole token, as today", async () => {
@@ -585,7 +585,7 @@ describe("agentNext — the rate-limit denominator", () => {
     other.deps.recentSteps = counter;
     step(await other.call({ agent: "pm" })); // 같은 토큰, 다른 프로젝트 — 열려 있어야 한다
 
-    // 프로젝트를 안 걸면(오늘의 집계) 같은 원장이 pB까지 가득 찬 것으로 읽힌다. 그게 A-10이 막는 것이다.
+    // 프로젝트를 안 걸면 같은 원장이 pB까지 가득 찬 것으로 읽힌다.
     assert.equal(await counter("u1", null), RATE_LIMIT.calls);
     assert.equal(await counter("u1", "pB"), 0);
   });

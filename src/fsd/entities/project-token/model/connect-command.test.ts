@@ -26,7 +26,7 @@ describe("connectCommands", () => {
   });
 });
 
-// 서버 주소를 셸로 옮기는 줄은 없앴다 — /harness:init이 HARNESS_SERVER를 직접 설정한다(product-copy.md §9).
+// /harness:init이 HARNESS_SERVER를 직접 설정한다(product-copy.md §9).
 describe("tokenKind", () => {
   // 화면은 접두로 종류를 읽는다. 접두의 출처는 packages/core/token.mjs 하나다 — 그 모듈은 node:crypto를 끌고 와서
   // 클라이언트 번들에 넣을 수 없으므로 여기서는 문자열로 다시 적고, 이 시험이 둘을 묶는다.

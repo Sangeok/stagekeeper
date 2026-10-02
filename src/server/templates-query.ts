@@ -15,7 +15,7 @@ export type TemplateDeps = RestTokenDeps & {
   findTemplatesByLanguage(language: string): Promise<{ path: string; body: string }[]>;
 };
 
-// project는 hu_ 전용이다. hs_는 토큰이 이미 알고 있으므로 넘겨도 무시된다 — 기존 호출이 그대로 통한다.
+// project는 hu_ 전용이다. hs_는 토큰이 이미 알고 있으므로 넘겨도 무시된다.
 type TemplatesFor = (
   authorizationHeader: string | null,
   language: string,

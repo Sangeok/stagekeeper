@@ -1,4 +1,4 @@
-// guard.ts — DAL. page·서버 액션이 각자 부른다(레이아웃 한 번으로 대신하지 않는다 — T1.10 주석).
+// DAL. page·서버 액션이 각자 부른다(레이아웃 한 번으로 대신하지 않는다).
 import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/server/db";

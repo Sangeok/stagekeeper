@@ -1,6 +1,4 @@
-// 항목 상세가 보여줄 문서 목록. 라벨과 순서는 entities/board-item 하나가 소유한다 —
-// 예전에는 라우트가 "Plan"·"<actor> report"를 직접 지어서, 라벨 주인이 "Validation record"라
-// 부르는 문서를 화면은 "main-loop report"라 부르고 정렬도 없었다.
+// 항목 상세가 보여줄 문서 목록. 라벨과 순서는 entities/board-item 하나가 소유한다.
 import { blobHref, orderReportActors, reportDocLabel, reportIsAcceptance, type RepoRef } from "@/fsd/entities/board-item";
 import type { ItemDoc } from "../ui/board-item-page";
 

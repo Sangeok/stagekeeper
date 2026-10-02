@@ -1,6 +1,5 @@
-// 폐기된 표현 가드. 연결 방식이 바뀌면 옛 방식을 말하는 문장이 어딘가에 남는다 — 2026-09-21에 서버 등록이
-// 저장소별 `.mcp.json`에서 사용자 범위로 옮겨 갔을 때, 웹 화면 다섯 군데와 product-copy.md 자신의 두 절이
-// "approve the server"·"generated .mcp.json"을 들고 남았다. 잠금 시험(src/fsd/shared/lib/copy-lock.ts)은 문서와
+// 폐기된 표현 가드. 연결 방식이 바뀌면 옛 방식을 말하는 문장이 어딘가에 남는다.
+// 잠금 시험(src/fsd/shared/lib/copy-lock.ts)은 문서와
 // 화면이 **같은지**만 보므로 둘이 같이 틀리면 통과한다. 이 시험은 그 틈을 막는다: 보이는 문구 어디에도 옛 표현이 없어야 한다.
 //
 // **모델을 바꾸는 PR이 여기에 한 줄을 더한다**(docs/architecture/verification.md의 체크리스트). 더하지 않으면 이 시험은

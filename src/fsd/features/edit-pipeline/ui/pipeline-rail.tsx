@@ -26,7 +26,7 @@ type Props = {
 type Move = { label: string; step: Step };
 
 // 레일. 노드 카드 한 줄, 노드 앞 간선마다 게이트 카드나 "+", 카드에 Remove·Swap.
-// 국소 상태는 { nodes, gates } 하나뿐이고 저장 전에는 서버에 아무것도 가지 않는다(§E.6).
+// 국소 상태는 { nodes, gates } 하나뿐이고 저장 전에는 서버에 아무것도 가지 않는다.
 export function PipelineRail({ graph, plan, roster, editable, save, unavailableReason }: Props) {
   const [state, setState] = useState<Graph>(graph);
   // 지금 메뉴가 열린 간선(그 뒤 노드의 kind). 메뉴는 레일 밖 한 자리에만 그린다 — 간선 안에 두면

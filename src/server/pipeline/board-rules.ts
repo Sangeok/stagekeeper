@@ -27,7 +27,7 @@ export function decidePropose(i: ProposeInput): Decision<null> {
   return bad ? { ok: false, reason: bad } : { ok: true, value: null };
 }
 
-// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board.ts).
+// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board-query.ts transitionIn).
 export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean; kind: RuleKind };
 
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
@@ -73,7 +73,7 @@ export function decideValidation(i: ValidationInput): Decision<null> {
   return { ok: true, value: null };
 }
 
-// in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — planCommit이 승인 대상(HEAD)을 가리키게 한다(F3).
+// in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — planCommit이 승인 대상(HEAD)을 가리키게 한다.
 const PLAN_SUBMIT_STATUSES = new Set(["planning", "in_review"]);
 // 이미 요청한 상태다. 한 노드가 호출 여럿으로 이뤄져 있어 순서가 어긋날 수 있으므로(plan_submit이
 // 전이까지 한 뒤 템플릿이 board_transition을 또 부른다) 에러 대신 무해한 성공으로 둔다.
@@ -94,7 +94,7 @@ const REPORT_SUBMIT_STATUSES = new Set(["in_review", "implementing", "done"]);
 
 // main-loop은 .claude/agents 정의가 없는 디스패처지만 **보고 행위자다** — 검증 라운드 기록과 인수 기록을
 // 낸다(protocol.md의 report_submit 행, 템플릿 docs/agents/README.md의 행위자 표). roster(Workspace.agent)에도
-// REPORT_AGENTS에도 없으므로 여기서 따로 더한다. 빼면 런북 7단계의 인수 등록이 막힌다.
+// REPORT_AGENTS에도 없으므로 여기서 따로 더한다. 빼면 런북 accept 단계의 인수 등록이 막힌다.
 const MAIN_LOOP = "main-loop";
 const knownReporter = (actor: string, roster: readonly string[]) =>
   actor === MAIN_LOOP || REPORT_AGENTS.includes(actor) || roster.includes(actor);
@@ -111,11 +111,11 @@ export type ReportSubmitInput = {
 //  ① 행위자: 아무 이름이나 보고 파일을 심을 수 없다. 고정 4종 + 워크스페이스 dev + main-loop만.
 //  ② 검증 선행: implementing(구현 보고)에서만 verify 기록을 요구한다. in_review(검증 라운드 기록)와
 //     done(인수 기록)은 요구하지 않는다 — 예외를 **상태**로 걸어야 이름 위장으로 못 지나간다.
-// verify를 outcome 불문으로 보는 이유(후보 (a), G1에서 hold 사례가 0건이라 설계 근거로 택함):
+// verify를 outcome 불문으로 보는 이유:
 // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다. outcome을 ok로 좁히면
 // 그 보고가 막힌다. 불변식의 뜻은 "보고 전에 검증을 시도했다"이고, 그건 커서(AgentRun.stepId)에
 // 결합하지 않고도 원장 한 줄로 표현된다.
-// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board.ts의 acceptedAt 쓰기가
+// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board-query.ts의 acceptedAt 쓰기가
 // "report_submit의 숨은 부수효과"가 아니라 "판정의 결과"가 된다(decideTransition의 completes와 같은 자리).
 export type ReportSubmitPatch = { accepts: boolean };
 

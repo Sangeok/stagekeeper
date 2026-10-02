@@ -1,4 +1,4 @@
-// src/app/api/templates/route.ts — /harness:init이 템플릿을 받아가는 곳.
+// /harness:init이 템플릿을 받아가는 곳.
 // route는 배선만 한다. 인증·조회는 @/server/templates에 있다
 // (system-overview.md: "Route Handler와 page는 직접 정책을 재구현하지 않고 src/server를 호출한다").
 // Route Handler는 기본적으로 캐시되지 않는다 — 토큰마다 응답이 갈리므로 그대로 둔다.

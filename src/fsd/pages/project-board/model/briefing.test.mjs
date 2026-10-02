@@ -120,7 +120,7 @@ describe("buildBriefing", () => {
   });
 
   // 상태만 보면 in_review인 동안 내내 "Verifying"이 된다 — 부르기 전에도, 끝나고 게이트에서
-  // 기다리는 동안에도. 자리는 상태가 아니라 런의 커서가 말한다(F7 실측).
+  // 기다리는 동안에도. 자리는 상태가 아니라 런의 커서가 말한다.
   describe("plan-verifier state follows the cursor, not the status", () => {
     const verifierOf = (rows) =>
       buildBriefing(rows, TODAY, ROSTER, NODE_KINDS).team.find((m) => m.agent === "plan-verifier").state;
@@ -195,7 +195,7 @@ describe("buildBriefing", () => {
 
   it("does not claim work is happening before anyone was dispatched", () => {
     // 게이트를 열자마자 status는 planning이 된다. 사람이 세션을 돌리기 전까지는
-    // 아무도 계획서를 쓰고 있지 않다(실측). 보드도 배너와 같은 판정을 써야 한다.
+    // 아무도 계획서를 쓰고 있지 않다. 보드도 배너와 같은 판정을 써야 한다.
     const rows = [row({ key: "N-1", agent: "web-dev", status: "planning", gate: null, dispatched: false })];
     const briefing = buildBriefing(rows, TODAY, ["web-dev"], NODE_KINDS);
     assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "waiting for web-dev", tone: "pending" }]);

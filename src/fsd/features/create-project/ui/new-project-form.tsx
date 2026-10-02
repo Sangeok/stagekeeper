@@ -65,8 +65,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
   const isRepoChosen = slug !== "" && repository !== null;
   const mode = formMode(isManualEntry, isRepoChosen);
 
-  // 모드를 바꿀 때는 그 모드에만 속한 상태를 함께 비운다. 예전에는 붙여넣기 오류가
-  // picker 화면까지 따라와서, 지금 보는 화면과 무관한 문구가 남아 있었다.
+  // 모드를 바꿀 때는 그 모드에만 속한 상태를 함께 비운다.
   const showPicker = () => {
     setIsManualEntry(false);
     setSelection({ source: "picker", repository: null });

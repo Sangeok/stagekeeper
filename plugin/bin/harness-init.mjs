@@ -62,7 +62,7 @@ async function init() {
   const CONFIG = join(ROOT, opt("--config", "harness.json"));
   const ADOPT = args.includes("--adopt");
   const DRY = args.includes("--dry-run");
-  // --owner는 더 이상 생성기의 일이 아니다(B-1 선택지 3) — 소유자 서버도 사용자 범위에 등록되고,
+  // --owner는 더 이상 생성기의 일이 아니다 — 소유자 서버도 사용자 범위에 등록되고,
   // 그 판단은 스킬이 `HARNESS_OWNER_TOKEN` 유무로 직접 한다. 이 플래그는 생성기가 파일을 썼기
   // 때문에 있었을 뿐이다. **조용히 무시하지는 않는다**: 옛 스킬이 그대로 넘길 수 있고, 알려지지 않은
   // 인자는 소리 없이 버려져 사용자가 소유자 서버를 잃고도 모르게 된다.
@@ -83,7 +83,7 @@ async function init() {
   const LOCAL_PLAN = process.env.HARNESS_PLAN ?? "max";
   const RUNBOOK_START = "<!-- harness:runbook:start -->", RUNBOOK_END = "<!-- harness:runbook:end -->";
 
-  // 서비스 URL에 기본값을 두지 않는다 — 잘못된 호스트가 저장소에 박히면 조용히 다른 서비스를 가리킨다(C11).
+  // 서비스 URL에 기본값을 두지 않는다 — 잘못된 호스트가 저장소에 박히면 조용히 다른 서비스를 가리킨다.
   // 출처 순서: --server > HARNESS_SERVER > 기존 .mcp.json. 늘어난 출처는 전부 사용자가 직접 넣은 값이다.
   const mcpPath = join(ROOT, ".mcp.json");
   const recovered = recoverServerFromMcp(mcpPath);
@@ -105,7 +105,7 @@ async function init() {
     catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
     if (!res.ok) {
       const reason = await responseFailure(res, SERVER, token);
-      // 404는 구버전 서버다 — 이 경로가 아직 없다. 스킬은 지금까지처럼 사용자에게 물어서 진행한다.
+      // 404는 구버전 서버다 — 이 경로가 아직 없다. 스킬은 사용자에게 물어서 진행한다.
       console.log(res.status === 404
         ? `Project identity unavailable (404): this server has no /api/project — ask for owner/repo/branch instead.`
         : `Project identity unavailable (${res.status}): ${reason}`);
@@ -139,7 +139,7 @@ async function init() {
     // 1) 로컬 기호 참조: clone한 저장소에는 있다. `git init` 뒤 remote를 붙인 저장소에는 없다.
     // 2) origin에 묻기: 자격 증명 프롬프트로 멈추지 않게 GIT_TERMINAL_PROMPT=0, 매달리지 않게 10초.
     //    SSH 키 암호는 ssh가 터미널에서 직접 물을 수 있어 이 변수로 막히지 않는다 — 그때는 제한 시간 뒤 3)으로 간다.
-    // 3) 현재 브랜치(예전 동작). 분리된 HEAD면 빈 문자열이고, 그때는 보내지 않아 서버 기본값(main)에 맡긴다.
+    // 3) 현재 브랜치. 분리된 HEAD면 빈 문자열이고, 그때는 보내지 않아 서버 기본값(main)에 맡긴다.
     // 어느 단계로 떨어져도 알리는 줄은 내지 않는다 — 출력은 JSON 한 줄이고 스킬이 그것을 읽는다.
     const fromSymref = git(["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]).replace(/^origin\//, "");
     const fromRemote = fromSymref ? "" : (/^ref: refs\/heads\/(.+)\tHEAD$/m.exec(
@@ -237,7 +237,7 @@ async function init() {
   };
   // 보고 에이전트는 플랜이 허용하는 것만 — 플랜 밖 에이전트는 서버가 내려주지도 않는다. 이미 디스크에 있는 옛 파일은 건드리지 않고 lock에서만 빠진다.
   // feature-scout는 기본 질문으로 항상 생성한다. **내려가는 목록이 런북의 "Report agents" 표(report_table)도 정한다** —
-  // 표와 파일이 같은 목록에서 나와야 런북이 없는 에이전트를 시키지 않는다(2026-09-22 mathgic: free 런북이 하드코딩된 네 행을 들고 있었다).
+  // 표와 파일이 같은 목록에서 나와야 런북이 없는 에이전트를 시키지 않는다.
   const wanted = REPORT_AGENTS;
   const delivered = wanted.filter((a) => agents.includes(a));
   for (const a of wanted) if (!agents.includes(a)) console.log(`skip(plan): .claude/agents/${a}.md (not on the ${plan} plan)`);
@@ -290,7 +290,7 @@ async function init() {
     ? runbook.slice(0, startIndex) + runbookBlock + runbook.slice(endIndex + RUNBOOK_END.length)
     : (runbook ? runbook.replace(/\s*$/, "\n\n") : "") + runbookBlock + "\n";
 
-  // .mcp.json: 서버를 **더 이상 여기 쓰지 않는다**(B-1 선택지 3 — 사용자 범위에 머신당 1회 등록한다).
+  // .mcp.json: 서버를 **더 이상 여기 쓰지 않는다**(사용자 범위에 머신당 1회 등록한다).
   // 읽기는 남는다. 두 가지 이유다: ① 여기가 권위 있는 파싱이고(위 회수 읽기는 던지지 않으므로 깨진
   // 입력의 오류 문장·종료코드가 지금과 같다), ② 이미 연결된 저장소에서 옛 항목을 **걷어내야** 한다 —
   // 범위 우선순위가 `local > project > user`라, 남겨 두면 저장소 항목이 사용자 범위를 계속 이긴다.
@@ -321,7 +321,7 @@ async function init() {
     console.log(`write: .mcp.json (removed ${stale.join(", ")} — the server is registered once per machine at user scope)`);
     write(".mcp.json", mcpContent);
     // 지운 항목이 **서버 URL의 출처이기도 했다면**, 이 저장소의 마지막 기록이 방금 사라진 것이다.
-    // 생성기는 사용자 범위 설정을 읽지 않으므로(3-a의 원칙) 보완하지 않고 알린다 — 스킬이 HARNESS_SERVER를 심는다.
+    // 생성기는 사용자 범위 설정을 읽지 않으므로 보완하지 않고 알린다 — 스킬이 HARNESS_SERVER를 심는다.
     if (stale.includes("harness") && !opt("--server", process.env.HARNESS_SERVER)) {
       console.log(`note: that entry was also this repository's only record of the server URL — make sure HARNESS_SERVER is set (${SERVER}) or pass --server on the next run`);
     }
@@ -332,7 +332,7 @@ async function init() {
   // 정규화가 생성기 안에만 있으므로, 여기서 알려 주지 않으면 스킬은 등록할 주소를 알 길이 없다.
   console.log(`server: ${SERVER}`);
 
-  // 심은 런북이 어느 판인지 서버에 남긴다 — pipeline_next가 이것으로 표류를 말한다(제안서 "저장소 런북").
+  // 심은 런북이 어느 판인지 서버에 남긴다 — pipeline_next가 이것으로 표류를 말한다.
   // 쓴 뒤에 보낸다: 파일이 진실이고 보고는 그 사본이다. 실패해도 중단하지 않는다 —
   // 보고가 없으면 판정은 "낡음"으로 기울고, 그쪽이 안전한 방향이다.
   // --dry-run은 아무것도 쓰지 않았고, 로컬 우회로(TPL_DIR)는 서버도 토큰도 없다.

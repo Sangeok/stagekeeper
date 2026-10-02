@@ -25,14 +25,14 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
   // 형식도 서버에서 본다. 붙여넣기 경로만 SEGMENT를 통과했고 수동 입력은 무검증이었다 —
   // 그렇게 들어온 값은 저장된 뒤 모든 화면의 저장소 링크를 깨진 채로 만든다.
   // branch는 여기서 걸지 않는다 — git 브랜치 이름은 `release/1.0`처럼 슬래시를 담을 수 있어
-  // SEGMENT로 재면 정상 브랜치를 막는다. 규칙을 새로 지어내는 건 이 변경의 범위 밖이다.
+  // SEGMENT로 재면 정상 브랜치를 막는다.
   if (!SEGMENT.test(owner) || !SEGMENT.test(repo)) {
     return { status: "error", error: "GitHub owner and repo must be GitHub names — letters, numbers, dots, dashes, underscores." };
   }
   const { plain, hash } = newToken();
   try {
     // 상한 검사와 생성은 한 트랜잭션이다 — 따로 두면 동시에 온 두 요청이 둘 다 "아직 여유 있음"을
-    // 읽고 둘 다 만든다(board.ts:71의 미결 상한과 같은 이유).
+    // 읽고 둘 다 만든다(board-query.ts propose의 미결 상한과 같은 이유).
     const result = await withAvailabilityTransaction(prisma, (tx) => registerProjectResultIn(tx, {
       userId,
       slug,
