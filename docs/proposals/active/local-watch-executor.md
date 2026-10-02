@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-10-02"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user (explicit chat request)"
+approved-at: "2026-10-02"
+approval-scope: "Stage 1 implementation, verification, commit and pull request to dev; Stage 2 remains design only. Merge, release promotion and production acceptance are separate."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -83,13 +83,16 @@ related:
 
 선택 근거:
 
-- 21개 구현·시험·문서 산출물을 다룬다(아래 Affected Files). 제안서 자체의 이번 수정은 별도다.
+- 22개 구현·시험·문서 산출물을 다룬다(아래 Affected Files). 제안서 자체의 이번 수정은 별도다.
 - 새 런타임 동작이 생긴다. 백그라운드 스크립트가 서버를 주기적으로 부르고, 이 clone의 git 디렉터리에
   잠금·정책 파일을 쓴다.
 - 문구 계약(`docs/conventions/product-copy.md`)과 프로토콜 문서가 바뀐다.
 - 롤백이 단순 revert로 끝나지 않는다. 플러그인은 판 상승 뒤 사용자 쪽 업데이트가 따로 필요하다.
 
 ## Current State
+
+이 절과 Before/After 스케치는 제안 검증 당시의 코드 관측 기록이다. 실제 구현은 최신 dev
+495bd22 위에서 주석 정리와 토큰 관리 변경을 보존해 적용하며, 최종 실행 근거와 미실행 인수 항목은 구현 보고서에 둔다.
 
 ### 2026-10-02 기존 관측 기록 — mathgic ITEM-01
 
@@ -127,6 +130,10 @@ related:
   그래서 스크립트가 서버 변경 없이 "세션이 움직일 일"을 판정할 수 있다.
 - 호출 한도는 `agent_next`에만 걸린다(`src/server/agents/next.ts:16`, `:104`). `pipeline_next`를 주기적으로
   불러도 세션의 디스패치 한도를 쓰지 않는다.
+- 최종 구현 기준 origin/dev(495bd22)의 MCP 인증은 유효한 미폐기 credential을 받아들이면 토큰 사용 기록 query도 기다린다
+  (`src/server/mcp/auth.ts`, `deps.ts`, `src/server/token-usage-query.ts`). 60초 조건은 행 변경만 줄이며
+  DB 왕복을 없애지 않는다. domain 거부도 이미 받아들인 credential의 기록을 취소하지 않는다.
+  이 인증 변경은 토큰 관리 PR #99로 dev에 반영된 기반 동작이며 watch PR의 추가 변경이 아니다. 감시가 인증을 추가 구현하거나 우회하지 않으며, 실측은 실제 배포된 인증 query를 포함한다.
 - `pipeline_next`는 읽기 도구이지만 doc-audit·scout 완료에 대해 지연 전진을 한다
   (`docs/architecture/protocol.md:137`). 감시 스크립트가 부르면 세션이 부를 때와 같은 전진이 조금
   먼저 일어날 뿐이다.
@@ -146,7 +153,9 @@ related:
   - 순수 모듈은 `packages/core`에 두고 `plugin/lib`로 복사한다(`scripts/plugin-lib.mjs:5-9`).
     `npm run check`가 어긋남을 막는다. `watch.mjs`는 파일·네트워크·외부 npm 의존성을 갖지 않는다.
   - 스크립트는 `plugin/bin`에 둔다.
-  - 스킬은 `$CLAUDE_PLUGIN_ROOT/bin/...`을 부른다(`plugin/skills/init/SKILL.md:69`).
+  - 현재 init 스킬의 `$CLAUDE_PLUGIN_ROOT/bin/...` 예시는 새 watch의 경로 해석 규칙으로 복사하지
+    않는다. 새 스킬은 `${CLAUDE_PLUGIN_ROOT}`의 로딩 시 본문 치환으로 실제 설치 경로를 얻는다.
+    일반 Bash 도구의 환경변수로 제공된다고 가정하지 않는다([플러그인 공식 규칙](https://code.claude.com/docs/en/plugins-reference#where-each-variable-resolves)).
   - 서버 URL에 기본값을 두지 않는다(`plugin/bin/harness-init.mjs:86-95`).
   - `harness.json`의 `project.slug`가 사용자 토큰의 프로젝트다(`packages/core/config.mjs:21`).
 - 런북의 실행 전 외부 검증 스킬 preflight와 프로젝트 범위/실행 receipt 규칙도 유지한다.
@@ -326,16 +335,20 @@ SHA-256이다. tokenHash는 비교용이며 출력하지 않고 토큰 원문도
 중복/알 수 없는 옵션, 값 누락, 모드 충돌, force의 start 외 사용, 빈 session은 error다.
 시간값은 finite 양수이며 Number의 NaN/Infinity/0/음수를 허용하지 않는다. 기본 interval=60초,
 deadline=110분(최대 110분), request-timeout=20초(최대 20초). 작은 소수는 가짜 서버 시험에 허용한다.
-입력 오류는 네트워크·상태 파일 쓰기 전에 검출한다. root는 실제 Git 작업 트리 루트로 정규화하고
-bare repo·harness.json 부재·설정 파싱 실패를 거부한다.
+입력 오류는 네트워크·상태 파일 쓰기 전에 검출한다. 모든 모드는 root를 실제 Git 작업 트리
+루트로 정규화하고 bare repo를 거부한다. start/session/check는 harness.json 부재·설정 파싱
+실패를 거부한다. stop은 root와 session으로 공통 git dir의 상태만 확인하므로 harness.json·
+CLAUDE.md·token·server가 없거나 바뀌어도 실행 가능하다. 정책/잠금 자체가 손상되어 자기
+session을 증명할 수 없는 경우는 corrupt-state로 파일을 보존하고 수동 복구를 안내한다.
 
 전송:
 
 - URL 출처는 --server → HARNESS_SERVER이며 서비스 기본값/.env/.mcp.json fallback은 없다.
   생성기와 같이 끝의 /api/mcp/owner, /api/mcp, slash를 제거하고 http(s) URL을 파싱한다.
   URL의 userinfo·query·fragment는 거부한다. --server로 시작한 스킬은 check/재무장에도 그 값을 전달한다.
-- HARNESS_TOKEN은 프로세스 환경의 hs_/hu_ 형태만 허용한다(packages/core/token.mjs의 길이/접두 규칙).
-  ho_·기타 접두는 네트워크 전에 거부한다. hu_에는 project.slug가 필수이며 모든 request에
+- HARNESS_TOKEN은 프로세스 환경의 hs_/hu_ 형태만 허용한다. packages/core/token.mjs의 규칙대로
+  3자 접두 + 43자 base64url 본문(`[A-Za-z0-9_-]`), 총 46자다. 43자는 전체 토큰 길이가 아니다.
+  ho_·기타 접두·길이/문자 위반은 네트워크 전에 거부한다. hu_에는 project.slug가 필수이며 모든 request에
   arguments.project로 보낸다. hs_는 slug가 있으면 보내고 확인된 legacy 설정에서만 생략한다.
 - --start의 project_get은 owner/repo를 대소문자 정규화해 설정과 대조하고, slug가 있으면 정확히
   대조한다. available:false/정체 불일치/불완전 body는 잠금 쓰기 없이 중단한다. 감시 중 token이나
@@ -344,9 +357,18 @@ bare repo·harness.json 부재·설정 파싱 실패를 거부한다.
   Authorization:Bearer <token>을 설정한다. redirect:manual로 보내며 모든 3xx를 치명적 거부로 처리해
   다른 URL로 토큰을 전송하지 않는다. JSON-RPC 2.0, 고유 request id,
   method:tools/call, name:project_get 또는 pipeline_next, arguments:{project?,runbook?}를 사용한다.
-  key는 보내지 않는다. runbook은 pipeline_next에만 해당 checkout의 CLAUDE.md가 명시한 유일한
-  12자리 소문자 hex 판이 있을 때 보낸다. 후보가 여러 개거나 잘못된 판이면 config error다.
-  판이 없는 legacy 런북은 서버의 마지막 init 판에 대한 경고를 보존하고 fresh cycle에서 확인한다.
+  key는 보내지 않는다. runbook은 pipeline_next에만 아래 규칙으로 읽은 checkout 판을 보낸다.
+- 판 추출은 CLI에서 해당 root의 CLAUDE.md를 읽어 수행한다. harness-init이 쓰는
+  `<!-- harness:runbook:start -->`와 `<!-- harness:runbook:end -->` 사이만 판의 출처다.
+  관리 블록 밖의 소유자 문장·commit hash는 무시하며 렌더된 CLAUDE.md를 해시하지 않는다.
+  두 marker가 있으면 각각 정확히 하나이며 start가 end보다 앞서야 한다. 한쪽 누락·역순·중복
+  블록은 invalid-config로 네트워크·상태 쓰기 전에 거부한다.
+  블록 안의 ``This document is runbook version `<value>` `` 선언과 `runbook: "<value>"` 인자 값은
+  기존 isRunbookVersion으로 검증한다(12자리 소문자 hex). 현재 런북처럼 같은 값이 여러 번
+  나와도 하나의 판이다. 서로 다른 값·잘못된 값·손상된 판 선언은 invalid-config다.
+  판 선언이 없는 legacy 관리 블록 또는 두 marker가 모두 없는 legacy 런북은 runbook을 생략한다.
+  이때 서버의 마지막 init 판에 대한 경고를 보존하고 fresh cycle에서 확인한다. CLAUDE.md와
+  private 원본/생성기를 수정하거나 임의의 12자리 hex를 checkout 판으로 추정하지 않는다.
 - AbortController의 request timeout과 남은 deadline 중 작은 값으로 fetch와 body 읽기 모두를 제한한다.
   최대 body는 UTF-8 1MiB다. 한도를 넘으면 protocol error로 중단한다. 응답 도중 timeout/stop은
   reader.cancel/abort와 timer 정리를 수행한다. deadline은 단조 시계(performance.now)로 계산하고
@@ -454,7 +476,10 @@ SKILL.md에 반드시 담을 절과 순서:
 
 1. **Preflight.** 현재 root/harness.json/CLAUDE.md, token/server 존재(값 출력 금지), 지원 도구·판,
    실제 외부 검증 skill 패키지를 확인한다. 참조 경로는
-   $CLAUDE_PLUGIN_ROOT/skills/init/references/reconciliation-contract.md다. 이 파일을 새 스킬
+   `${CLAUDE_PLUGIN_ROOT}/skills/init/references/reconciliation-contract.md`다. `${CLAUDE_PLUGIN_ROOT}`는
+   Claude Code가 스킬 본문을 로딩할 때 치환하는 값이며 `$CLAUDE_PLUGIN_ROOT`나
+   `$env:CLAUDE_PLUGIN_ROOT`라는 셸 환경변수를 읽지 않는다. 치환된 절대 plugin root와 그 아래
+   watch CLI/lib·init reference의 존재를 확인하고 같은 root를 후속 명령에 사용한다. 이 파일을 새 스킬
    기준의 ../init로 잘못 해석하지 않는다. init의 연결·프로젝트 범위·스텁 보존 규칙을 따른다.
 2. **Start.** "May dev and the main loop commit in this repository while I watch?"와
    "Should I also start new work, or only continue items already on the board?"를 한 번 받는다.
@@ -488,23 +513,25 @@ SKILL.md에 반드시 담을 절과 순서:
 PowerShell 도구:
 
 ```powershell
-node "$env:CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --start --commit <yes|no> --propose <yes|no>
-node "$env:CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --session '<session>'
-node "$env:CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --check --session '<session>'
-node "$env:CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --stop --session '<session>'
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --start --commit <yes|no> --propose <yes|no>
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --session '<session>'
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --check --session '<session>'
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --stop --session '<session>'
 ```
 
 Bash 도구(Windows Git Bash 포함):
 
 ```bash
-node "$CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --start --commit <yes|no> --propose <yes|no>
-node "$CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --session '<session>'
-node "$CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --check --session '<session>'
-node "$CLAUDE_PLUGIN_ROOT/bin/harness-watch.mjs" --root '<absolute-checkout>' --stop --session '<session>'
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --start --commit <yes|no> --propose <yes|no>
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --session '<session>'
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --check --session '<session>'
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --stop --session '<session>'
 ```
 
-root/session은 실제 값으로 치환한다. PowerShell은 단일 따옴표를 두 번 쓰는 방식, Bash는 각
-인자를 shell-safe quote하는 방식으로 이스케이프한다. yes/no는 허용된 literal 하나이며
+plugin root는 위 본문 치환으로 얻은 실제 설치 경로, root/session은 확인한 실제 값으로 치환한다.
+예시의 <...>를 그대로 실행하지 않는다. 스킬을 쓸 때는 치환된 CLI 절대 경로 전체를 하나의
+인자로 만들어 PowerShell은 단일 따옴표를 두 번 쓰는 방식, Bash는 각 인자를 shell-safe quote하는
+방식으로 이스케이프한다. 셸 변수 재확장에 의존하지 않는다. yes/no는 허용된 literal 하나이며
 <yes|no>를 그대로 셸에 보내지 않는다. --server를 사용했으면 start/session/check에 같은 URL을
 하나의 안전하게 quote된 인자로 전달한다. stop에는 필요 없다. timeout/run_in_background는
 node CLI 플래그가 아니라 Bash/PowerShell 도구 입력에 설정한다.
@@ -736,8 +763,10 @@ After:
             </li>
 ```
 
-**`plugin/.claude-plugin/plugin.json`** — `"version": "0.3.6"`을 `"0.4.0"`으로 올린다. 새 스킬이 생기므로
+**`plugin/.claude-plugin/plugin.json`** — 현재 `"version": "0.3.7"`을 `"0.4.0"`으로 올린다. 새 스킬이 생기므로
 minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새 판을 받는다.
+최신 dev의 `src/fsd/entities/project-token/ui/token-reveal.test.ts`는 init 안내가 배포되는
+plugin 판을 0.3.7로 잠근다. 이 기대값도 0.4.0으로 갱신하고 실제 init 안내 본문 검사는 유지한다.
 
 ### 문서 수정
 
@@ -757,11 +786,16 @@ minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새
     ```
 
   - §6 도움말(`:280`): `- **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code. Neither starts dev — your Claude Code session does.`
+  - §18 Pipeline tab의 before Plan 툴팁 예시도 같은 새 힌트를 사용한다. 최종 문장은
+    `"The item waits here until you press Request plan in the Inbox. Requesting lets dev write a plan. Then you run dev in Claude Code. Nothing changes in the code yet."`다.
+    §3만 갱신하고 §18의 이전 예시를 남기지 않는다. 실제 rail 본문과 gate-copy/rail 시험의 기대값을
+    §3·§18 두 자리와 함께 대조한다.
   - §15: `/harness:watch`의 description, CLI 이벤트·위 code→reason 표와 HTTP fallback 문장,
     기본값·플랫폼별 시작/중단/실패 안내를 더한다. 파일명/명령을 제외한 표시 문구는 영어다.
 - `docs/architecture/protocol.md`의 MCP 표: `pipeline_next` 호출자를 `main-loop · harness-watch`로,
   `project_get` 호출자는 기존 `전부`를 유지한다. 표 아래 감시 절에 시작의 project_get 정체 확인,
-  hu_의 매 요청 project, checkout runbook 판 전달, key 없는 overview의 지연 전진·실패 응답 뒤
+  hu_의 매 요청 project, 총 46자 token 검증, 관리 블록의 checkout runbook 판 추출·동일 값 반복 허용·
+  충돌/손상 거부·legacy 판 생략, key 없는 overview의 지연 전진·실패 응답 뒤
   저장 여부 단정 금지, 소유자 게이트 금지, 로컬 guard/스킬 권한의 한계를 위 계약대로 적는다.
 - `docs/investigations/active/harness-platform.md` §3.4: `local` 행의 트리거를
   "사용자가 Claude Code에서 런북대로 디스패치(`/harness:watch`면 감시 스크립트가 그 세션을 깨운다)"로.
@@ -778,10 +812,11 @@ minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새
 | `packages/core/watch.mjs` | add | 순수 판정. 두 단계가 공유한다 | low — 소비자는 감시 스크립트뿐 |
 | `packages/core/watch.test.mjs` | add | `npm test`가 `packages/core/*.test.mjs`를 돈다 | none |
 | `plugin/lib/watch.mjs` | add(동기화 복사본) | `scripts/plugin-lib.mjs`가 core 모듈 전부를 복사한다 | low — 빠지면 `npm run check`가 막는다 |
-| `plugin/bin/harness-watch.mjs` | add | 감시 스크립트 | medium — 주기 호출·파일 쓰기(Risks) |
+| `plugin/bin/harness-watch.mjs` | add | 감시·checkout 런북 판 추출 | medium — 주기 호출·파일 쓰기(Risks) |
 | `plugin/bin/harness-watch.test.mjs` | add | `npm test`가 `plugin/bin/*.test.mjs`를 돈다 | none |
 | `plugin/skills/watch/SKILL.md` | add | 사용자 진입점 | medium — 동작이 모델의 지시 준수에 기댄다 |
-| `plugin/.claude-plugin/plugin.json` | update | 판 0.3.6 → 0.4.0 | low |
+| `plugin/.claude-plugin/plugin.json` | update | 판 0.3.7 → 0.4.0 | low |
+| `src/fsd/entities/project-token/ui/token-reveal.test.ts` | update | 기존 init 배포 판 기대값 0.3.7 → 0.4.0, 안내 본문 검사는 유지 | none |
 | `src/fsd/widgets/turn-banner/model/turn.ts` | update | `deriveTurn`의 `next`, `WATCH_LINE` | low — 소비자는 `api/turn-data.server.ts:65` 하나(역검색) |
 | `src/fsd/widgets/turn-banner/model/turn.test.ts` | update | 시험 추가 | none |
 | `src/fsd/widgets/turn-banner/ui/next-step.tsx` | update | 감시 안내 줄 | low — 소비자는 `turn-banner.tsx:64` |
@@ -791,7 +826,7 @@ minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새
 | `src/fsd/features/edit-pipeline/ui/pipeline-rail.test.mjs` | update | 툴팁 기대 문장(`:23`) | none |
 | `src/fsd/features/review-gate/ui/inbox-card.tsx` | update | 도움말 한 줄 | low |
 | `src/fsd/features/review-gate/ui/inbox-card.test.mjs` | update | before-plan/도움말 실제 렌더·읽기 전용 비노출 | none |
-| `docs/conventions/product-copy.md` | update | §3·§5·§6·§15 | low — 잠금 블록이 시험과 묶인다 |
+| `docs/conventions/product-copy.md` | update | §3·§5·§6·§15·§18 | low — 잠금 블록이 시험과 묶인다 |
 | `docs/architecture/protocol.md` | update | `pipeline_next` 호출자 | none |
 | `docs/investigations/active/harness-platform.md` | update | §3.4 실행기 계약 | none |
 | `docs/architecture/verification.md` | update | 새 문구 잠금 시험 등록 | none |
@@ -805,15 +840,20 @@ minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새
 - **아키텍처.** 순수 판정은 packages/core, IO는 plugin/bin, UI는 기존 FSD slice다.
   원격 명령 채널/Command 원장/routine/호스팅 실행기를 만들지 않는다. server·Prisma·MCP 등록 집합,
   소유자 endpoint, private 템플릿과 seed는 그대로다. 게이트는 인간만 열며 스킬이 자동 승인하지 않는다.
-- **자격.** 환경 token만 사용하고 ho_는 거부한다. hu_의 project는 매 요청 필수다.
+- **자격.** 환경의 총 46자 token만 사용하고 ho_는 거부한다. hu_의 project는 매 요청 필수다.
   project_get으로 시작 대상을 확인하고 설정 변경/타 프로젝트/미선택/해제는 오류 중단한다.
   HTTP 실패를 offline/template fallback이나 자동 reconnect로 우회하지 않는다.
+- **checkout 판.** CLAUDE.md의 init 관리 블록만 읽고 같은 판의 반복은 허용한다. 다른 판·손상된
+  선언/marker는 입력 오류로 중단한다. legacy 판 생략 외 추정은 하지 않으며 런북/생성기는 읽기 전용이다.
 - **경쟁·중단.** guard·session id·poller nonce로 파일 갱신을 직렬화한다. 대기/응답 뒤 및 cleanup에도
   소유권을 검사한다. work/idle은 session만 남기고, stop은 자기 session만, poller의 error/stuck은
   자기 nonce 소유를 증명할 때만 정리한다. 미등록 caller나 증명 불가 상태는 기존 파일을 지우지 않는다.
+  stop은 설정 파일·환경이 바뀌거나 없어져도 자기 session을 정리하지만 다른 소유자의 상태는 보존한다.
   다른 clone/기기/수동 세션의 AgentRun 개설과 이미 디스패치된 작업 취소는 로컬 잠금이 보장하지 않는다.
 - **비밀값·시간.** token은 argument/file/log에 쓰지 않는다. 응답은 id/schema/크기 검증 후 데이터로
   처리한다. 요청/body/sleep/deadline 모두 유한하며 abort/timer/reader를 정리한다.
+- **설치 경로.** watch 스킬 본문의 `${CLAUDE_PLUGIN_ROOT}` 치환값이 CLI/lib/reference의 출처다.
+  셸의 plugin-root 환경변수 부재를 다른 설치·현재 디렉터리·기본 경로로 우회하지 않는다.
 - **FSD provenance.** Code/CodeBlock은 shared/ui/code.tsx의 unit API → next-step.tsx에서 import한다.
   WATCH_LINE은 같은 slice model/turn.ts → ../model/turn로 import하며 외부 export를 늘리지 않는다.
   gateActionHint/gateTooltip은 entities/pipeline/model/gate-copy.ts → entities/pipeline/index.ts →
@@ -834,11 +874,11 @@ watch skill/next-step.test.mjs/보고서 목표는 현재 충돌하지 않는다
 
 승인 메모:
 
-- 승인 전
+- front matter의 승인 범위에 따라 1단계를 구현·검증하고 dev PR을 연다. merge/배포/운영 인수는 별도이며 완료로 기록하지 않는다.
 
 ## Execution Plan
 
-구현은 승인 후 별도 작업이다. 현재 요청은 이 제안서 검증·개선만 승인한다.
+2026-10-02 구현·commit·dev PR 요청으로 1단계 구현이 승인되었다. unrelated dirty 작업을 보존하기 위해 별도 worktree에서 origin/dev를 기준으로 구현한다.
 구현 시 git ls-remote --heads origin으로 dev 존재를 확인하고 origin/dev를 fetch한 뒤
 그 기준에서 harness/local-watch-executor를 만든다. PR은 gh pr create --base dev다.
 main/dev에 직접 commit하지 않으며 unrelated dirty/untracked 파일을 포함하지 않는다.
@@ -850,7 +890,9 @@ main/dev에 직접 commit하지 않으며 unrelated dirty/untracked 파일을 �
 
 ### Phase 2: 감시 스크립트
 
-- 작업: 입력/정체/전송 검증, guard와 session/poller 소유권, timeout·body 제한·재시도·정리 구현.
+- 작업: 총 46자 token·입력/정체/전송 검증, checkout 런북 관리 블록의 판 추출·검증,
+  guard와 session/poller 소유권, timeout·body 제한·재시도·정리 구현.
+  stop은 설정/환경 preflight와 분리하여 root/session만으로 소유권과 guard를 확인한다.
 - 검증: V3–V8을 실제 child process와 루프백 서버로 수행한다. 강제 인수 중 지연 응답과
   같은 session의 중복 poller는 barrier로 정확한 순서를 만들어 검사한다.
 
@@ -858,11 +900,15 @@ main/dev에 직접 commit하지 않으며 unrelated dirty/untracked 파일을 �
 
 - 작업: watch SKILL.md/폴더, plugin version 0.4.0, product-copy §15, protocol 감시 절,
   스펙 §3.4, 명명된 시험 보고서의 세션 스모크 절을 작성한다.
+  SKILL.md는 `${CLAUDE_PLUGIN_ROOT}`의 본문 치환으로 경로를 얻고 명령을 안전하게 quote한다.
+  `context: fork`나 주입 셸 명령으로 감시를 시작하지 않고 위 메인 대화 절차를 사용한다.
 - 검증: V9·V12, npm run check. 실제 대화형 세션은 다음 순서로 실행한다.
   임시 Git repo에서 `claude --plugin-dir '<absolute-stagekeeper>/plugin' --strict-mcp-config --mcp-config '<absolute-fixture-config.json>'`으로
   watch를 로드한다. 별도 MCP JSON은 mcpServers.harness:{type:"http",url:<loopback>/api/mcp,
   headers:{Authorization:"Bearer ${HARNESS_TOKEN}"}}만 등록한다. strict 플래그로 사용자/프로젝트의
   운영 harness/owner 서버를 제외하고, 환경 server/token도 loopback/dummy로 지정한다.
+  Bash/PowerShell에 CLAUDE_PLUGIN_ROOT를 따로 주입하지 않는다. 로딩된 스킬의 본문 치환값으로
+  실제 명령·init reference가 해석되는지 확인해 환경변수 가정 오류를 감추지 않는다.
   가짜 서버는 SDK의 실제 stateless handler로 initialize/tools/list/tools/call을 제공하며
   project_get·pipeline_next·agent_next·board_get·report_submit fixture만 등록한다. 상태는 메모리에만
   저장하고 실제 프로젝트/AgentRun은 만들지 않는다. fixture dev는 자기 임시 root의 확인 작업만
@@ -871,10 +917,14 @@ main/dev에 직접 commit하지 않으며 unrelated dirty/untracked 파일을 �
 
 ### Phase 4: 웹 판정과 문구
 
-- 작업: Affected Files의 UI/시험/product-copy §3·§5·§6·verification 잠금 표를 같은 commit으로 갱신.
+- 작업: Affected Files의 UI/시험/product-copy §3·§5·§6·§18·verification 잠금 표를 같은 commit으로 갱신.
 - 검증: V10·V11, npm run test:web, npm run check, verify:fsd, test:architecture, lint, build.
-  build 전에 공유 .next를 쓰는 dev/build 프로세스를 사용자가 허용한 범위에서 종료한다.
-  npm run build 자체가 dev 서버를 죽인다고 가정하지 않는다. 대상 Next.js 16.3.3의 설치 문서를 읽는다.
+  Next.js 16.3.3의 설치 문서 `node_modules/next/dist/docs/01-app/03-api-reference/06-cli/next.md`는
+  dev 출력을 `.next/dev`, production 출력을 `.next`로 분리하므로 빌드를 위해 dev 서버를 일괄
+  종료하지 않는다. 같은 checkout의 production build끼리는 직렬화한다. `npm run build`의 선행
+  `prisma generate`는 `src/generated/prisma`를 쓰므로 같은 생성 경로를 쓰는 다른 생성 작업과도
+  직렬화한다. 격리 checkout을 사용한다면 그 checkout의 의존성·생성물로 검증한다. 실제 충돌이
+  확인돼 프로세스를 멈춰야 할 때만 사용자가 허용한 범위의 정확한 대상을 종료한다.
 
 ### Phase 5: 플러그인 확인·배포와 실측
 
@@ -922,16 +972,16 @@ npm test가, src/**/*.test.mjs/ts는 test:web이 실행한다. 테스트는 fixt
 | --- | --- | --- |
 | V1 | JSON/SSE, LF/CRLF, multiple data, keepalive, 알림/다른 id, malformed/duplicate/missing result, rpc/isError | core/watch.test.mjs. 일치 응답 body 선택 또는 명시 오류. 마지막 data 선택 파서 회귀 금지 |
 | V2 | dispatch/accept/wait(gate/handoff/cap)/done, legacy/slots-v1/repeated slots, malformed head/items/version/entry/format | 같은 파일. 모든 branch 구조; propose:no는 head만 제외; 슬롯 scout는 유지; 순서와 구분자에 독립적인 서명; entry/run/version 변경과 빈 작업 reset; 1·2회 work/3회 stuck |
-| V3 | 옵션값 누락/중복/충돌/unknown, 시간값 NaN/Infinity/0/음수/최댓값, bare/비Git/불완전 config/server | CLI 시험. error 한 줄·exit1, 요청/정책/잠금 쓰기 0. root 공백 경로와 PowerShell/Bash 인자 형식 스모크 |
-| V4 | 유효한 43자 dummy hu_/hs_, slug/정체/available, owner token·잘못된 접두, environment 격리 | CLI 시험. hu_ slug를 fixture에 추가하고 fake server가 모든 arguments.project를 검증. hs_ legacy만 생략. project_get의 owner/repo/slug 불일치·미선택·해제 거부는 시작 파일 쓰기 0 |
+| V3 | 옵션값 누락/중복/충돌/unknown, 시간값 NaN/Infinity/0/음수/최댓값, bare/비Git/불완전 config/server, checkout 런북 판 | CLI 시험. 현재 init의 marker/렌더 구조로 같은 판 3회 반복·관리 블록 밖 다른 hash를 넣어 pipeline_next의 arguments.runbook이 정확한 판인지 확인. 서로 다른/잘못된 판·손상 선언·marker 한쪽 누락/역순/중복은 error 한 줄·exit1, 요청/정책/잠금 쓰기 0. 판 없는 legacy는 runbook 인자 없음과 stale 경고 보존. 다른 입력 오류도 무쓰기. plugin/root 경로의 공백·따옴표와 PowerShell/Bash 인자 형식 스모크; plugin-root 셸 환경변수가 없어도 치환된 CLI 경로가 한 인자로 전달됨 |
+| V4 | 유효한 dummy hu_/hs_(접두 3자 + 본문 43자 = 총 46자), 전체 길이 43/45/47자·잘못된 문자, slug/정체/available, owner token·잘못된 접두, environment 격리 | CLI 시험. token 형식 오류·ho_는 요청/정책/잠금 쓰기 0. hu_ slug를 fixture에 추가하고 fake server가 모든 arguments.project를 검증. hs_ legacy만 생략. project_get의 owner/repo/slug 불일치·미선택·해제 거부는 시작 파일 쓰기 0 |
 | V5 | 동시 start/force/stop, linked worktree, 동일 session 두 poller, 지연 HTTP 중 force/stop | CLI 시험. guard 승자 하나, second locked; 단독 poller; 중복 poller error가 기존 잠금 유지; 이전 응답은 replaced, 새 id/policy/hash byte 불변; 오래된 stop/cleanup은 새 소유자 무쓰기; work/idle 보존과 자기 nonce의 terminal 해제 |
-| V6 | 손상 JSON/schema/session 불일치, 12시간 만료/live PID/죽은 PID/EPERM, guard crash, binding/token 변경 | CLI 시험. 손상은 error, 권한 확대/default 복구 없음. 만료는 locked/확인된 force; live poller를 expiry로 훔치지 않음. guard fail-closed와 명시 수동 복구. 실패한 check는 기존 파일 유지, 성공 check는 반복 수 불변 |
+| V6 | 손상 JSON/schema/session 불일치, 12시간 만료/live PID/죽은 PID/EPERM, guard crash, binding/token 변경, stop의 설정 독립성 | CLI 시험. 손상은 error, 권한 확대/default 복구 없음. 만료는 locked/확인된 force; live poller를 expiry로 훔치지 않음. guard fail-closed와 명시 수동 복구. 실패한 check는 기존 파일 유지, 성공 check는 반복 수 불변. config 변경·손상·삭제 및 CLAUDE.md/token/server 부재에도 stop은 자기 session만 해제; 다른 id/손상된 상태는 보존 |
 | V7 | hung fetch/hung body, oversized body, SIGTERM, deadline 직전 응답·긴 sleep·소유권 상실 | CLI 시험. request/local-check timer/reader/poller/임시 파일 정리, deadline 이내 idle(스케줄러 허용 오차 기록), request timeout5회는 error, 1초 이내 상실 감지/abort(스케줄러·guard 허용 오차 기록), 새로운 소유자 파일 무변경 |
 | V8 | 401/403/4xx/rpc/tool errors, 408/429/5xx/연결실패, 성공 뒤 재실패, Retry-After, redirect·token 반사 | CLI 시험. 치명 오류 1회, transient 5회에서 종료·정상 응답 reset·재시도 간격; secret이 stdout/stderr/state에 없음; 영어 reason/copy 계약과 정확히 한 JSON 줄 |
-| V9 | 실제 메인 대화 background·완료/idle 재무장/stop, policy/ownership/stale runbook, 다른 item의 wait | Phase 3 보고서. dummy server + 지원 tool 세션으로 observable task/query 순서와 policy 적용 확인. permission/commit handoff는 소유자 입력 전 제출/재무장 없음. 도구 비활성 환경은 시작 실패 |
+| V9 | 실제 메인 대화 background·완료/idle 재무장/stop, policy/ownership/stale runbook, 다른 item의 wait, plugin 경로 치환 | Phase 3 보고서. dummy server + 지원 tool 세션으로 observable task/query 순서와 policy 적용 확인. 셸 plugin-root 환경변수 없이 SKILL 본문의 실제 CLI/reference 경로가 해석됨. permission/commit handoff는 소유자 입력 전 제출/재무장 없음. 도구 비활성 환경은 시작 실패 |
 | V10 | mine의 acceptance+미시작 plan, handoff+미시작 implement, gate+verify, 반복 project slots, on_hold | turn.test.ts. pending→working 입력 순서/한 item 한 줄. count/detail/why/open 유지; setup/none/theirs 기존 결과 유지. WATCH_LINE과 copyLock(turn-banner-watch) 일치 |
-| V11 | 실제 본문·명령 Code·Copy payload·빈 상자·읽기 전용 | next-step.test.mjs의 renderToStaticMarkup(기존 client context 패턴 이용), inbox-card.test.mjs의 기존 render helper, gate-copy.test.ts/pipeline-rail.test.mjs. WATCH_LINE은 명령 Code 하나로 렌더; steps:[]는 HTML/안내 모두 없음; before-plan의 새 hint/도움말 본문 존재; read-only에서 실행 안내 없음 |
-| V12 | core→lib, plugin manifest/marketplace precedence, skill 발견, 문서 잠금 registry, 경계 보존 | plugin-lib --check + JSON.parse manifest/marketplace 구조 검사 + 실제 설치 파일과 /harness:watch 로딩. manifest name=harness/version=0.4.0; marketplace name=stagekeeper-local/source=./plugin이며 version override가 없음. npm check/verify:fsd/test:architecture 및 diff로 server/Prisma/templates/init/marketplace의 무변경 확인 |
+| V11 | 실제 본문·명령 Code·Copy payload·빈 상자·읽기 전용·문서의 툴팁 예시 | next-step.test.mjs의 renderToStaticMarkup(기존 client context 패턴 이용), inbox-card.test.mjs의 기존 render helper, gate-copy.test.ts/pipeline-rail.test.mjs. WATCH_LINE은 명령 Code 하나로 렌더; steps:[]는 HTML/안내 모두 없음; before-plan의 새 hint/도움말 본문 존재; read-only에서 실행 안내 없음. product-copy §3의 hint·§18의 before Plan 툴팁 예시와 최종 렌더/기대 문장이 일치하며 해당 두 자리의 이전 힌트는 남지 않음 |
+| V12 | core→lib, plugin manifest/marketplace precedence, skill 발견, 문서 잠금 registry, 경계 보존 | plugin-lib --check + JSON.parse manifest/marketplace 구조 검사 + 실제 설치 파일과 /harness:watch 로딩. manifest name=harness/version=0.4.0; token-reveal.test.ts의 init 배포 판 기대값도 0.4.0이며 실제 안내 본문 검사는 유지. marketplace name=stagekeeper-local/source=./plugin이며 version override가 없음. npm check/verify:fsd/test:architecture 및 diff로 server/Prisma/templates/init/marketplace의 무변경 확인 |
 | V13 | mathgic gate→work→agent_next 성공 receipt, 110분 idle와 재무장, 확인 창/비용/세션 종료 | 명명된 보고서. 성공 기준의 로컬 시각과 gate event/task/receipt id, actual plugin/tool 판, HTTP/모델 호출 수, stop 뒤 새 요청 없음(기존 in-flight 서버 효과는 취소 보장 밖). 휴대폰 push·2단계 실행·다른 기기 잠금은 성공 주장 밖 |
 
 fixture/cleanup: 부모 HARNESS_TOKEN/HARNESS_SERVER/HARNESS_OWNER_TOKEN과 dotenv 자동 로딩을
@@ -943,52 +993,71 @@ child/server 종료 뒤 절대 경로가 자기 tmp root 안인지 검증한다.
 오염시키지 않게 한다. core parser는 정규화 정책 외 IO를 갖지 않는다.
 
 현재 두 문구 기대값(gate-copy.test.ts, pipeline-rail.test.mjs)만 새 문장으로 갱신한다.
+plugin 판 상승에 따라 token-reveal.test.ts의 배포 판 기대값은 0.4.0으로 갱신한다.
 다른 기존 기대값을 맞춰 회귀를 숨기지 않는다. 신규 렌더/상태 시험은 V10/V11의 요구를 추가한다.
 
 ### 최종 산출물과 의존성
 
 | 최종 산출물 | 승리하는 출처·본문 의존성 | 구현 후 검증 |
 | --- | --- | --- |
-| /harness:watch | 실제 로딩 plugin 경로의 skills/watch/SKILL.md, bin/harness-watch.mjs, lib/watch/config/token/runbook 및 transitive workspaces.mjs. marketplace source/manifest/cache 우선순위 적용 | V9·V12. 명령 발견 + 실제 설치 본문/exports + dummy server 실행. package 이름/판만 확인하지 않음 |
+| /harness:watch | 실제 로딩 plugin 경로의 skills/watch/SKILL.md, 본문 ${CLAUDE_PLUGIN_ROOT} 치환값 아래 bin/harness-watch.mjs·init reference, lib/watch/config/token/runbook 및 transitive workspaces.mjs·entitlement.mjs, 대상 checkout의 읽기 전용 CLAUDE.md 관리 블록. marketplace source/manifest/cache 우선순위 적용 | V3·V4·V9·V12. 셸 환경변수 없이 실제 CLI/reference 경로, token/checkout 판을 request 인자에서 확인하고 명령 발견 + 실제 설치 본문/exports + dummy server 실행. package 이름/판만 확인하지 않음 |
 | 로컬 감시 상태/이벤트 | 공통 git dir의 정책/잠금/guard, session·poller 소유권, HTTP 최종 응답 body | V3–V8. JSON.parse 구조·fresh 소유권·새 id 보존·stdout/exit code·abort/cleanup |
 | Board/Inbox 전체 배너의 terminal box | turn-data.server.ts→deriveTurn→TurnBanner→NextStepBox, WATCH_LINE/product-copy 잠금, Code/CodeBlock/CopyButton | V10·V11 + Phase 4 브라우저에서 Board/Inbox, 공백/긴 key·좁은 폭·Copy 실제 값. compact strip의 기존 동작과 unavailable 프로젝트의 배너 비노출 유지 |
-| Inbox before-plan hint/도움말, Pipeline tooltip | gate-copy.ts→entities public API→gate-text alias/rail, InboxCard JSX, product-copy §3/§6 | 실제 렌더 V11와 gate-copy/rail 시험; before-implement 등 다른 문구 및 read-only 비노출 보존 |
-| 계약/관측 문서 | product-copy §3/5/6/15, protocol 감시 절, spec §3.4, verification 잠금 표, 명명된 report | V9–V13 + 문서 대조. future phase와 미실행 결과를 실제 완료로 기록하지 않음 |
+| Inbox before-plan hint/도움말, Pipeline tooltip | gate-copy.ts→entities public API→gate-text alias/rail, InboxCard JSX, product-copy §3/§6/§18 | 실제 렌더 V11와 gate-copy/rail 시험 및 §18 예시 대조; before-implement 등 다른 문구 및 read-only 비노출 보존 |
+| 계약/관측 문서 | product-copy §3/5/6/15/18, protocol 감시 절, spec §3.4, verification 잠금 표, 명명된 report | V9–V13 + 문서 대조. future phase와 미실행 결과를 실제 완료로 기록하지 않음 |
 
 ### Definition of Done
 
-- 21개 산출물이 inventory와 일치하고 외부 skill·설정·정체·도구 전제가 검사된다.
+- 22개 산출물이 inventory와 일치하고 외부 skill·설정·정체·도구 전제가 검사된다.
+  plugin root는 스킬 본문 치환으로 해결되며 셸 환경변수 없이 CLI/reference가 동작한다.
+- 총 46자 token과 checkout 판 추출을 실제 request/무쓰기 경계로 검증한다. 같은 판의 반복과
+  소유자 hash를 구분하고 충돌/손상은 거부하며 legacy 판 생략·stale 경고는 보존한다.
 - V1–V13과 필수 명령이 통과하며 phase별 미실행/기존 실패/신규 실패가 보고서에서 구별된다.
 - guard 경쟁·동일 session poller·지연 응답의 force/stop·timeout·bad body·후속 cleanup을 검증한다.
+  설정/환경을 잃은 뒤에도 자기 session을 stop할 수 있고 손상/다른 소유자의 상태는 보존한다.
 - 모든 fresh cycle에 head 정책·commit 정책·현재 scope/entry/receipt/소유권을 적용한다.
-- 웹 model 및 최종 렌더/copy payload/read-only를 확인하고 §15 출력 문장·잠금 표를 동기화한다.
+- 웹 model 및 최종 렌더/copy payload/read-only를 확인하고 product-copy §3·§5·§6·§15·§18과
+  잠금 표를 동기화한다. §18의 툴팁 예시를 포함해 이전 힌트를 남기지 않는다.
 - 서버/DB/도구 집합/템플릿/init/marketplace 무변경, 자동 push/게이트 없음, 2단계 구현 없음을 확인한다.
 - green dev 인수 뒤 main fast-forward·실제 plugin 본문·실측이 끝나야 completed로 처리한다.
 
 ## Verification Results
 
-이번 작업은 제안서 대조이며 애플리케이션/watch 구현을 하지 않았다. 아래 baseline은 현재
-HEAD 03876dd24fab12c63542b4565f087b79a877f7ef의 기존 코드 결과다.
+2026-10-02의 실제 1단계 구현과 자동 검증은 [구현 보고서](../../test-reports/active/2026-10-02-local-watch-executor.md)에 기록한다. 아래 표는 제안 검증 당시의 역사적 baseline이며 새 watch 구현의 통과 증거를 대체하지 않는다. PR/운영 인수 전에는 completed로 이동하지 않는다.
+
+이번 작업은 제안서 대조이며 애플리케이션/watch 구현을 하지 않았다. 아래 baseline은
+HEAD 03876dd24fab12c63542b4565f087b79a877f7ef의 추적된 코드에서 기록한 결과다.
+이후 다른 작업의 미커밋 토큰 관리 변경이 들어온 작업 트리의 통과를 뜻하지 않는다.
+구현을 시작할 때는 최신 dev와 작업 트리를 구분해 baseline을 다시 기록한다.
 
 | 검사 | 결과 | 범위 |
 | --- | --- | --- |
-| npm test | PASS, 188/188 | 현재 core/CLI. 신규 watch 시험 아님 |
-| npm run test:web | PASS, 504/504 | 현재 웹/MCP. 제안한 렌더 변경은 아직 없음 |
-| npm run test:architecture | PASS, 26/26 | 현재 경계/동기화/문구 가드 |
-| npm run verify:fsd | PASS | 현재 FSD 경계 |
+| npm test | PASS, 188/188 | 위 HEAD의 core/CLI. 신규 watch 시험 아님 |
+| npm run test:web | PASS, 504/504 | 위 HEAD의 웹/MCP. 제안한 렌더 변경은 아직 없음 |
+| npm run test:architecture | PASS, 26/26 | 위 HEAD의 경계/동기화/문구 가드 |
+| npm run verify:fsd | PASS | 위 HEAD의 FSD 경계 |
 | 초안의 감시 code 실행(임시 파일·가짜 서버) | 결함 5건 재현 | force 중 이전 응답이 새 lock 덮어쓰기; 동일 session 두 poller 모두 work; hu_ fixture가 project를 빠뜨림; 마지막 SSE 알림이 정상 결과를 가림; 잘못된 interval/deadline이 idle로 성공 |
+| 이번 재대조의 웹 스케치 검사 | PASS | Before 네 쌍의 현재 source 일치, 임시 메모리의 After 타입 오류 0, 배너 상태 8개와 NextStepBox/InboxCard/PipelineRail 실제 렌더. 저장소 코드 변경이나 watch 구현 시험이 아님 |
+| 이번 재대조의 전송·로컬 런타임 검사 | PASS | 현재 MCP handler/도구/인증의 dummy 요청 8개로 stateless SSE·project scope·접근 거부 확인. 임시 Git/linked worktree·mkdir 배타성·rename 교체·PowerShell/Git Bash 공백/따옴표 인자 확인. 운영 호출 0 |
 | 새 구현의 V1–V13·check/lint/build·배포/실측 | Not run yet | 구현 승인 후 검증. 이번 문서 검증 결과로 대체하지 않음 |
 
 재현된 초안 전체 CLI/core/test 복사 블록은 제거하고 위 동시성·전송·판정·스킬 계약과 검증
 목적지로 교체했다. 웹 Before/After는 현재 source와 일치하며 후속 구현 스케치로 유지한다.
 완료/닫힘 전용 TBD는 lifecycle 기록이며 구현 계약의 미결 placeholder가 아니다.
 
+위 baseline·초안 결함 5건은 기존 대조 기록이다. 이번 재대조는 §18 툴팁 예시의 수정 누락,
+stop과 공통 설정 preflight의 충돌, 설치 Next.js의 dev/build 출력 분리와 맞지 않는 종료 지시,
+셸의 plugin-root 환경변수에 의존한 명령 예시를 보완했다. 해당 결정을 Phase·V3/V6/V9/V11·
+산출물 표·DoD에 반영했으며 새 watch의 동작 통과를 주장하지 않는다.
+
 ## Risks and Rollback
 
 잔여 리스크와 검증 경로:
 
-- **폴링 비용.** 기본 60초면 감시당 대략 분당 한 HTTP/DB 요청이다. 지속 요청은 DB scale-to-zero를
-  방해할 수 있다. [Neon 공식 문서 원본](https://github.com/neondatabase/website/blob/main/content/docs/introduction/scale-to-zero.md)은
+- **폴링 비용.** 기본 60초면 감시당 대략 분당 한 HTTP 요청이다. 인증의 사용 기록과 개요 조립·지연
+  전진에 여러 DB query가 필요하므로 HTTP 한 건을 DB 왕복 한 건으로 가정하지 않는다. 토큰 사용 기록의
+  60초 조건도 query를 없애지 않는다. 지속 요청은 DB scale-to-zero를 방해할 수 있다.
+  [Neon 공식 문서 원본](https://github.com/neondatabase/website/blob/main/content/docs/introduction/scale-to-zero.md)은
   기본 비활성 대기를 5분으로 설명하지만 운영 플랜/설정은 별도다. V13에서 실제 호출·compute를
   기록하고 소유자가 비용 범위를 보고 장시간 유지한다. 다른 interval 정책은 별도 변경/재검증이다.
 - **모델·도구 의존.** background 완료 통지/재무장과 실제 skill 지시 준수는 V9·V13 세션 스모크로
@@ -1043,7 +1112,7 @@ HEAD 03876dd24fab12c63542b4565f087b79a877f7ef의 기존 코드 결과다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다.
 - [x] `stage`는 pending 문서에서만 사용했다.
-- [x] `stage: "approved"`가 아니다.
+- [x] 현재 구현 요청에 따라 `stage: "approved"`이며 승인자·시각·범위가 기록되어 있다.
 - [x] `proposal-size`는 standard이고 강제 조건(5개 이상 파일, 런타임 side effect)에 해당한다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용한다.
 - [x] 변경 범위와 제외 범위가 명확하다.
@@ -1052,18 +1121,21 @@ HEAD 03876dd24fab12c63542b4565f087b79a877f7ef의 기존 코드 결과다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 현재 baseline 통과, 재현된 초안 결함, 아직 없는 새 구현의 미실행 검증을 구분했다.
 - [x] 잠금·전송·권한·중단·fresh cycle 계약을 inventory/Phase/V1–V13/산출물/DoD/롤백에 반영했다.
+- [x] 설정/환경이 없는 stop의 소유권 경계와 §18 툴팁 예시를 구현·검증·완료 조건에 반영했다.
+- [x] 설치된 Next.js의 dev/build 출력 분리와 Prisma 생성 경로를 구분해 빌드 절차를 정했다.
+- [x] plugin-root의 본문 치환·안전한 인자 전달을 명시하고 셸 환경변수 없는 검증을 계획했다.
 - [x] 잔여 리스크를 명시했다.
 
 <!-- doc-validation-skip -->
 ## Open Questions
 
-Core의 구현 계약은 위에서 결정한다. 아래는 실제 운용 검증 또는 Phase 2 이후의 입력이며
+Core의 구현 계약은 위에서 결정한다. 아래는 실제 운용 검증 또는 2단계 설계의 입력이며
 1단계 구현자가 값을 추측하거나 scope를 넓히는 근거로 사용하지 않는다.
 
 - **운용 관측:** V13에서 운영 Neon/Vercel 사용량·권한 확인 창·재무장 로그를 기록하고 장시간 운용
   비용을 소유자가 확인한다. 지원 CLI는 2.1.287부터 실제 스모크 결과로 넓힌다. 휴대폰 push는
   선택 도구이며 미지원 시 terminal 안내를 사용한다.
-- **Phase 2:** --spawn의 무인 권한 목록·worktree/로그/연속 실패/로그인 자동 시작·서버 heartbeat,
+- **2단계 설계:** --spawn의 무인 권한 목록·worktree/로그/연속 실패/로그인 자동 시작·서버 heartbeat,
   창 없이 실행할 필요와 무인 push 허용 여부는 별도 제안/승인 대상이다. 1단계의 자동 push 금지와
   서버가 Claude를 실행하지 않는 제품 경계를 이번 문서에서 변경하지 않는다.
 

@@ -4,7 +4,7 @@
 import { gateKind, slotAgent } from "@harness/core/pipeline.mjs";
 
 const GATE_COPY: Record<string, { label: string; hint: string }> = {
-  "before-plan": { label: "Request plan", hint: "dev writes a plan. Nothing changes in the code yet." },
+  "before-plan": { label: "Request plan", hint: "Requesting lets dev write a plan. Then you run dev in Claude Code. Nothing changes in the code yet." },
   "before-verify": { label: "Continue to verification", hint: "The main loop verifies the plan; plan-verifier runs an independent pass." },
   "before-implement": { label: "Approve implementation", hint: "Approving lets dev change code. Then you run dev in Claude Code." },
   "before-accept": { label: "Continue to acceptance", hint: "The main loop reproduces the five acceptance checks." },

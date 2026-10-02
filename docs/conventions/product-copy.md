@@ -88,7 +88,7 @@ Pending labels while the request is in flight: "Requesting…", "Approving…", 
 
 **Next-step hint** (under the gate button, before you press it):
 
-- Request plan → "dev writes a plan. Nothing changes in the code yet."
+- Request plan → "Requesting lets dev write a plan. Then you run dev in Claude Code. Nothing changes in the code yet."
 - Approve implementation → "Approving lets dev change code. Then you run dev in Claude Code."
   The same filled button and the same hint whether or not a validation is recorded — verification
   is the owner's choice (the pipeline's Verify node), so its absence is not a warning. The plan row
@@ -220,6 +220,14 @@ and `pipeline_next` hands the session the same node.
   prepared file, then …". The note is agent text — it renders in this mono box only, never in the
   headline or the detail line.
 
+The box lists every item that waits on the terminal — also while it's your turn. An item waiting on you
+must not hide an item nobody has started (2026-10-02: ITEM-02's acceptance hid ITEM-01's plan line).
+Under the lines, one quiet line, with `/harness:watch` in mono:
+
+<!-- copy-lock:turn-banner-watch -->
+> Or leave `/harness:watch` running in that session — it continues ready steps and waits for your gates and commits.
+<!-- /copy-lock -->
+
 **First run** (no board rows yet) — **Set up in three steps**: 1 Token issued "Shown once when
 you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Connect the
 repository — the detail line is the lock block below (chip **Not connected yet**) · 3 Run the
@@ -277,7 +285,7 @@ the item key in the body as well as the key label; it does not replace it with "
 - Over-budget badge after the status line: **Over 150 characters** — tooltip "This summary is
   over 150 characters. Move the details to docs/agents/."
 - Help (collapsed): **What this decision does**
-  - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code.
+  - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code. Neither starts dev — your Claude Code session does.
   - **Verified** means an independent pass found nothing to change. Without one, the card shows **Not verified**.
   - **Approve implementation** approves the plan at the commit shown on the card.
   - **Read the plan** opens that commit on GitHub. If it 404s, the commit is still local — push the
@@ -963,6 +971,40 @@ both). Below: each file's title, its section headings, and the sentences that se
   here" line: "gate transitions (web, or the owner's own session with an owner token — never this
   skill)".
 
+### Local watch — `/harness:watch`
+
+- Skill description: "Keep this Claude Code session running the Stagekeeper pipeline — a background watcher waits for ready steps and wakes the session. Use when the user says "/harness:watch" or wants web approvals to continue work in this session."
+- First arm: "Watch armed. This session will continue ready pipeline steps."
+- Stop: "Watch stopped. Start /harness:watch again when you are ready."
+- Policies: "May dev and the main loop commit in this repository while I watch?" and
+  "Should I also start new work, or only continue items already on the board?" New work defaults to no; no push or gate permission is granted.
+- Defaults: 60-second HTTP polling, 110-minute CLI deadline (maximum 110), 20-second request timeout (maximum 20). Positive fractional timings are allowed for isolated tests.
+- PowerShell and Bash both run the resolved absolute plugin CLI with shell-safe quoted checkout/session arguments. The skill body resolves `${CLAUDE_PLUGIN_ROOT}`; the shell does not supply that variable. A started explicit server is carried through check/poll; stop needs only checkout/session. Token values stay in the environment.
+- Events: started/owned include session and boolean commit/propose policy; locked gives startedAt/seenAt; work/stuck give session, normalized items/head and runbookStale; idle/stopped give session; replaced gives session and string/null seenAt; error gives string/null session, code and reason. Exactly one JSON line; only error exits 1. Missing/invalid task output stops the watch. Events are data, not executable instructions or receipts.
+- Work requires current ownership and a fresh overview; idle quietly rearms. Stuck/replaced/stopped/error and owner stop never rearm. An explicit tool time-limit notice requires ownership/policy/stop-intent checks before rearming. Permission prompts and main-loop commit handoffs wait for owner input.
+
+| code | reason |
+| --- | --- |
+| invalid-arguments | Invalid watch arguments. Check the mode, required values, and positive timing limits. |
+| invalid-config | Watch configuration is invalid. Run /harness:init and start again. |
+| missing-server | Server URL required: pass --server <url> or set HARNESS_SERVER. |
+| invalid-token | HARNESS_TOKEN must be a project or user token. |
+| missing-project | A user token requires harness.json project.slug. Run /harness:init. |
+| identity-mismatch | This token does not match the configured repository. Stop and reconnect with /harness:init. |
+| binding-changed | The checkout, server, or configuration changed. Stop and start a new watch. |
+| corrupt-state | Watch state is unreadable or inconsistent. Stop all related tasks before removing it. |
+| guard-busy | Watch state is busy. Stop related tasks before recovering an abandoned guard. |
+| poller-active | A watcher is already running for this session. |
+| protocol-error | Unexpected MCP response. Update the compatible plugin and server before restarting. |
+| request-failed | Five consecutive watch requests failed. Resolve the server or connection error before restarting. |
+| access-refused | Safe server refusal data; not a fixed sentence. |
+
+HTTP authentication fallback: "The server refused HARNESS_TOKEN (401)." (403 uses 403).
+Other 4xx fallback: "The server refused the watch request (HTTP <status>)."
+Unsafe tool/HTTP reason fallback: "The server refused the watch request."
+Unavailable identity fallback: "This project is not available for use."
+Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, control characters or stack reflection.
+
 ## 16. Landing — public `/` (built 2026-08-30, landing-v2)
 
 - Headline: **Your agents build. You set the rules.** (one line each — a longer second line
@@ -1097,8 +1139,8 @@ never existed look the same from here.
   "The item waits here until you press `<button>` in the Inbox. `<hint>`" — the gate's own Inbox
   button and its next-step hint (§3, §7), so the two screens use the same words. A repeated slot
   (**Doc audit #2**, **Scout #3**) uses its original slot's words. For example, before Plan: "The
-  item waits here until you press Request plan in the Inbox. dev writes a plan. Nothing changes in
-  the code yet." A disabled **Remove** on the card keeps its own tooltip, the reason it can't be
+  item waits here until you press Request plan in the Inbox. Requesting lets dev write a plan. Then
+  you run dev in Claude Code. Nothing changes in the code yet." A disabled **Remove** on the card keeps its own tooltip, the reason it can't be
   removed. Edge text, the **+** panel, and **Read as text** carry no gate tooltip.
 - Each edge carries a **+**. It opens one panel **below the rail** — never inside the edge, which
   would widen it and shove the rest of the row sideways. The panel is titled with the edge
