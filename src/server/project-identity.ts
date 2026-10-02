@@ -1,6 +1,7 @@
 // DB 연결은 서버 전용으로 유지하고, 인증·접근·조회 흐름은 project-identity-query.ts에서 DB 없이 검증한다.
 import "server-only";
 import { recordTokenUsage } from "./token-usage";
+import { limitProjectRequest } from "./request-rate";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
 import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
@@ -9,9 +10,10 @@ import { makeProjectIdentityFor } from "./project-identity-query";
 export type { ProjectIdentity, ProjectIdentityResult } from "./project-identity-query";
 
 export const projectIdentityFor = makeProjectIdentityFor({
+  requestLimit: limitProjectRequest,
   findTokenByHash: (hash) => prisma.projectToken.findUnique({
     where: { hash },
-    select: { id: true, revokedAt: true, projectId: true },
+    select: { id: true, revokedAt: true, expiresAt: true, projectId: true },
   }),
   // hu_ 갈래. 이 둘을 주지 않으면 hu_는 존재하지 않는 것처럼 거부된다(rest-scope.ts).
   findUserTokenByHash,

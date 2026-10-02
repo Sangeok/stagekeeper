@@ -1,8 +1,8 @@
-import { DISPATCH_WINDOW_DAYS, REPORT_AGENTS, allowsAgent, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";
+import { REPORT_AGENTS, allowsAgent } from "@harness/core/entitlement.mjs";
 import { renderTemplate } from "@harness/core/render.mjs";
 import { STATUSES, canPropose } from "@harness/core/transitions.mjs";
 import type { ProjectAccess } from "@/server/entitlement";
-import type { ServerResult } from "@/server/result";
+import type { ServerResult, UsageLimitFailure } from "@/server/result";
 import type { PipelineEntry } from "../pipeline/run-query";
 import { DONE, TemplateFormatError, findStep, splitTemplate, type ParsedTemplate, type Step } from "./steps";
 
@@ -11,9 +11,6 @@ export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
 export const NOTE_MAX = 500;
-// 원장 행(outcome 실은 호출) 기준. 분모는 hs_면 토큰당, hu_면 토큰×프로젝트당이다 —
-// hu_ 한 개가 여러 프로젝트에 쓰이므로, 프로젝트를 안 걸면 오늘의 "프로젝트당 60회"가 조용히 쪼개진다(A-10).
-export const RATE_LIMIT = { calls: 60, windowMs: 10 * 60_000 };
 // 영수증 revision의 상한 — AgentRun.revision은 Postgres Int(int4)다. MCP 입력 스키마(tools.ts)도 같은 값을 쓴다.
 export const REVISION_MAX = 2_147_483_647;
 export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
@@ -30,9 +27,7 @@ export function isWellFormedReceipt(receipt: Receipt | undefined): receipt is Re
 }
 export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
 export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string };
-// userScoped: 주체가 hu_라 프로젝트가 토큰이 아니라 인자에서 왔다는 뜻. 한도 집계의 분모를
-// 좁히는 데만 쓴다(A-10) — hs_는 토큰이 곧 프로젝트라 생략하고, 생략하면 오늘과 같은 집계다.
-export type Scope = { projectId: string; tokenId: string; userScoped?: boolean };
+export type Scope = { projectId: string; tokenId: string };
 export type RunRow = { id: string; stepId: string; revision: number; closedAt: Date | null };
 export type OutcomeCommit = {
   scope: Scope; agent: string; key: string | null; receipt: Receipt; outcome: Outcome; note: string | null;
@@ -46,9 +41,7 @@ export type NextDeps = {
   roster(projectId: string): Promise<string[]>; // Workspace.agent[] — wsId 순
   template(projectId: string, path: string): Promise<string | null>; // 프로젝트 언어의 템플릿 본문(없으면 en)
   vars(projectId: string, agent: string): Promise<Record<string, unknown>>;
-  // projectId가 null이면 토큰 전체를 센다(hs_ — 토큰이 곧 프로젝트다). 값이 있으면 그 프로젝트로 좁힌다(hu_).
-  recentSteps(tokenId: string, projectId: string | null, since: Date): Promise<number>;
-  recentRuns(projectId: string, since: Date): Promise<number>;
+  usageCap(projectId: string): Promise<UsageLimitFailure | null>;
   openRun(projectId: string, agent: string, key: string | null): Promise<RunRow | null>;
   createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<ServerResult<RunRow>>;
   boardStatus(projectId: string, key: string): Promise<string | null>; // 폐기되지 않은 최신 행의 상태
@@ -78,7 +71,7 @@ const entrySteps = (parsed: ParsedTemplate): Step[] => {
 };
 
 export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput): Promise<ServerResult<NextOutput>> {
-  const { projectId, tokenId } = scope;
+  const { projectId } = scope;
   const { agent } = input;
   const key = input.key ?? null;
   if (input.entry && !deps.withCursor) return fail("bound execution requires the cursor transaction adapter");
@@ -98,11 +91,6 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   if (key !== null && roster.includes(agent)) {
     const owner = await deps.itemAgent(projectId, key);
     if (owner !== null && owner !== agent) return fail(`item ${key} belongs to \`${owner}\`, not \`${agent}\``);
-  }
-  // hs_에는 null을 넘긴다 — 토큰이 곧 프로젝트라 좁힐 것이 없고, 쿼리도 오늘 그대로다.
-  const rateScope = scope.userScoped === true ? projectId : null;
-  if ((await deps.recentSteps(tokenId, rateScope, new Date(Date.now() - RATE_LIMIT.windowMs))) >= RATE_LIMIT.calls) {
-    return fail(`rate limit: ${RATE_LIMIT.calls} calls per ${RATE_LIMIT.windowMs / 60_000} minutes per token`);
   }
 
   const path = roster.includes(agent) ? "agents/dev.md" : `agents/${agent}.md`;
@@ -143,9 +131,8 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
       : await deps.openRun(projectId, agent, key);
     if (!run) {
       if (claim) return fail("this receipt does not belong to this call's run; call again without outcome");
-      const used = await deps.recentRuns(projectId, dispatchCutoff(new Date()));
-      const capMsg = capError(access.plan, "dispatches", used);
-      if (capMsg) return fail(`${capMsg} Counted over the last ${DISPATCH_WINDOW_DAYS} days; pipeline_next shows the same cap, and it frees as older runs drop out of the window.`);
+      const cap = await deps.usageCap(projectId);
+      if (cap) return cap;
       const facts = new Facts(deps, projectId, agent, key, false);
       const unmet: string[] = [];
       for (const candidate of entrySteps(parsed)) {
@@ -215,6 +202,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
     return serve(committed.run, target!, prefix);
   };
   const result = await (deps.withCursor ? deps.withCursor(scope, input, key, execute) : execute(deps));
+  if (!result.ok && result.code === "USAGE_LIMIT_REACHED") console.info("account-usage:limited");
   if (result.ok && !result.item.done) return ok({ ...result.item, instruction: renderTemplate(result.item.instruction, vars) });
   return result;
 }

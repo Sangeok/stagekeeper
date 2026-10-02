@@ -94,11 +94,11 @@ it("preserves project identity and every populated child, revokes project creden
     const otherProject = await db.project.create({ data: { ownerUserId: f.userId, slug: `${f.id}-other`, name: "other", repoOwner: f.id, repo: "other", branch: "main", available: false } });
     const oldRevocation = new Date("2026-01-01T00:00:00Z");
     await db.projectToken.createMany({ data: [
-      { projectId: f.projectId, hash: newToken().hash, label: "previously revoked", revokedAt: oldRevocation },
+      { projectId: f.projectId, hash: newToken().hash, label: "previously revoked", expiresAt: null, revokedAt: oldRevocation },
       { projectId: otherProject.id, hash: newToken().hash, label: "other repository" },
     ] });
     await db.ownerToken.createMany({ data: [
-      { projectId: f.projectId, userId: f.userId, hash: newToken("owner").hash, label: "previously revoked", revokedAt: oldRevocation },
+      { projectId: f.projectId, userId: f.userId, hash: newToken("owner").hash, label: "previously revoked", expiresAt: null, revokedAt: oldRevocation },
       { projectId: otherProject.id, userId: f.userId, hash: newToken("owner").hash, label: "other repository" },
     ] });
     const unchangedCredentials = () => Promise.all([
@@ -225,9 +225,12 @@ it("permits zero-connected plan changes/new registration and preserves account d
     f = await connectionFixture(db); const token = newToken("user");
     await db.userToken.create({ data: { userId: f.userId, hash: token.hash, label: "retained" } });
     await db.agentRun.create({ data: { projectId: f.projectId, tokenId: "audit", agent: "pm", stepId: "start" } });
+    const usageAnchor = new Date();
+    await db.user.update({ where: { id: f.userId }, data: { usageWindowStartedAt: usageAnchor, usageRunCount: 20 } });
     const record = makeRecordRunbook({
+      requestLimit: async () => null,
       findTokenByHash: async () => null,
-      findUserTokenByHash: async () => ({ id: "user-token", userId: f!.userId, revokedAt: null }),
+      findUserTokenByHash: async () => ({ id: "user-token", userId: f!.userId, expiresAt: null, revokedAt: null }),
       projectFor: async () => f!.projectId,
       projectAccess: (id) => readProjectAccess(db, id),
       saveRunbookVersion: async (id, version) => { await gate.hook(); await db.project.update({ where: { id }, data: { runbookVersion: version } }); },
@@ -243,7 +246,12 @@ it("permits zero-connected plan changes/new registration and preserves account d
     assert.deepEqual((await changeUserPlan(db, { userId: f.userId, plan: "free" })).availableProjectIds, []);
     const result = await withAvailabilityTransaction(db, (tx) => registerProjectResultIn(tx, { userId: f!.userId, owner: f!.id, repo: "second", branch: "main" }));
     assert.equal(result.status, "created"); if (result.status !== "created") throw new Error("missing second project");
-    assert.equal(await createNextDeps(db).recentRuns(result.projectId, new Date(0)), 1);
+    const cap = await createNextDeps(db).usageCap(result.projectId);
+    assert.ok(cap?.code === "USAGE_LIMIT_REACHED");
+    const retained = await db.user.findUniqueOrThrow({ where: { id: f.userId } });
+    assert.equal(retained.usageRunCount, 20);
+    assert.equal(retained.usageWindowStartedAt?.getTime(), usageAnchor.getTime());
+    assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 1);
     const full = await reconnectProject(db, { userId: f.userId, targetProjectId: f.projectId, expectedVersion: 3 });
     assert.equal(full.status === "error" && full.code, "capped");
   } finally { gate.release(); await Promise.allSettled([pending]); await cleanup(db, f?.userId); await pool.disconnect(); }

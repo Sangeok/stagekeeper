@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
-import { OWNER_TOOL_NAMES, registerOwnerTools } from "./owner-tools.ts";
+import { OWNER_TOOL_NAMES, registerOwnerTools as registerProductionOwnerTools } from "./owner-tools.ts";
 import { APPROVED_ADVICE_FAILURE, createOwnerGate } from "./owner-gate.ts";
 import { AGENT_TOOL_NAMES } from "./tools.ts";
 
@@ -85,3 +85,4 @@ describe("owner-scoped MCP tools", () => {
     assert.deepEqual(seen, [["owner", "p1", "u1"]]);
   });
 });
+const registerOwnerTools = (server, deps) => registerProductionOwnerTools(server, { requestLimit: async () => null, ...deps });

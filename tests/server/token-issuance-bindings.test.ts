@@ -10,6 +10,7 @@ import { hashToken } from "@harness/core/token.mjs";
 import * as result from "../../src/fsd/shared/api/result";
 import * as registration from "../../src/server/project-registration-query";
 import * as availability from "../../src/server/project-availability-service";
+import * as management from "../../src/server/token-management-query";
 import { Prisma } from "../../src/generated/prisma/client";
 
 const plainObject = (value: unknown) => JSON.parse(JSON.stringify(value));
@@ -38,13 +39,14 @@ it("actual user issuance and revocation preserve session scope, name defaults an
     "@/server/auth/guard": { requireUser: async () => { guards++; return { userId: "u" }; } },
     "@/server/db": { prisma: { userToken: { create: async ({ data }: { data: Record<string, unknown> }) => rows.push(data), updateMany: async (args: unknown) => revoked.push(plainObject(args)) } } },
     "@/fsd/shared/api/result": result, "@/fsd/shared/routes/user-tokens": { userTokensPath: () => "/settings/tokens" },
+    "@/server/token-management-query": management,
   });
   const action = load<typeof import("../../src/fsd/features/manage-user-token/api/manage-user-token.server")>("src/fsd/features/manage-user-token/api/manage-user-token.server.ts");
   for (const label of [" laptop ", "laptop", "  "]) {
     const response = await action.issueUserToken(label); assert.ok(response.success);
     const row = rows.at(-1)!; assert.equal(row.userId, "u"); assert.equal(row.hash, hashToken(response.data.token));
     assert.equal(row.label, label.trim() || "token"); assert.ok(row.usageTrackingStartedAt instanceof Date);
-    assert.equal("lastUsedAt" in row, false); assert.equal(JSON.stringify(row).includes(response.data.token), false);
+    assert.equal(row.expiresAt, null); assert.equal("lastUsedAt" in row, false); assert.equal(JSON.stringify(row).includes(response.data.token), false);
   }
   assert.equal(rows.length, 3); assert.equal(revoked.length, 0);
   await action.revokeUserToken("old");
@@ -84,7 +86,7 @@ it("actual web project action passes a tracked nested token only for a newly cre
 
 it("actual web list routes enforce original scopes and pass usage fields without usage writes", async () => {
   const queries: { kind: string; args: unknown }[] = []; const guards: string[] = [];
-  const token = { id: "t", label: "laptop", createdAt: new Date(), revokedAt: null, lastUsedAt: new Date(), usageTrackingStartedAt: null };
+  const token = { id: "t", label: "laptop", createdAt: new Date(), revokedAt: null, expiresAt: null, lastUsedAt: new Date(), usageTrackingStartedAt: null };
   const delegate = (kind: string) => ({ findMany: async (args: unknown) => { queries.push({ kind, args: plainObject(args) }); return [token]; }, updateMany: async () => { assert.fail("web list must not write usage"); } });
   const PageComponent = () => null;
   const noop = async () => { assert.fail("list rendering must not invoke a mutation"); };
@@ -94,8 +96,8 @@ it("actual web list routes enforce original scopes and pass usage fields without
     "@/server/entitlement": { projectAccess: async () => ({ available: true, plan: "pro" }) },
     "@/server/public-url": { mcpUrl: () => "http://example.test/api/mcp", ownerMcpUrl: () => "http://example.test/api/mcp/owner" },
     "@/fsd/pages/project-tokens": { ProjectTokensPage: PageComponent }, "@/fsd/pages/user-tokens": { UserTokensPage: PageComponent },
-    "@/fsd/features/manage-token/index.server": { issueToken: noop, issueOwnerToken: noop, revokeToken: noop, revokeOwnerToken: noop },
-    "@/fsd/features/manage-user-token/index.server": { issueUserToken: noop, revokeUserToken: noop },
+    "@/fsd/features/manage-token/index.server": { issueToken: noop, issueOwnerToken: noop, revokeToken: noop, revokeOwnerToken: noop, renameToken: noop, renameOwnerToken: noop },
+    "@/fsd/features/manage-user-token/index.server": { issueUserToken: noop, revokeUserToken: noop, renameUserToken: noop },
     "@/fsd/widgets/app-header": { AppHeader: () => null }, "@/fsd/widgets/app-header/index.server": { loadHeaderUser: async () => ({ login: "owner", plan: "pro" }) },
   });
   const projectPage = load<{ default: (input: { params: Promise<{ slug: string }> }) => Promise<ReactElement> }>("src/app/(app)/p/[slug]/tokens/page.tsx");
@@ -108,6 +110,6 @@ it("actual web list routes enforce original scopes and pass usage fields without
   assert.equal((children[1].props as { tokens: unknown[] }).tokens[0], token);
   assert.deepEqual(guards, ["mine", "user"]);
   for (const [index, kind, where] of [[0, "agent", { projectId: "p" }], [1, "owner", { projectId: "p", userId: "u" }], [2, "user", { userId: "u" }]] as const) {
-    assert.deepEqual(queries[index], { kind, args: { where, select: { id: true, label: true, createdAt: true, revokedAt: true, lastUsedAt: true, usageTrackingStartedAt: true }, orderBy: { createdAt: "desc" } } });
+    assert.deepEqual(queries[index], { kind, args: { where, select: { id: true, label: true, createdAt: true, revokedAt: true, expiresAt: true, lastUsedAt: true, usageTrackingStartedAt: true }, orderBy: { createdAt: "desc" } } });
   }
 });

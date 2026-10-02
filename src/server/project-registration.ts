@@ -6,6 +6,8 @@
 // 재등록은 기존 행을 돌려준다).
 import "server-only";
 import { recordTokenUsage } from "./token-usage";
+import { limitAccountRequest } from "./request-rate";
+import type { RestRateFailure } from "./result";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import { DISCONNECTED_REASON, ProjectIntegrityError, repositoryOwner } from "@/server/project-access-query";
@@ -20,7 +22,7 @@ import { findUserTokenByHash } from "./user-scope-query";
 // 생성기가 git에서 읽은 값과 서버 값을 반씩 섞게 되어, 웹에서 이름을 바꾼 프로젝트가 어긋난다.
 export type RegisterProjectResponse =
   | { ok: true; created: boolean; project: { owner: string; repo: string; branch: string; name: string; slug: string } }
-  | { ok: false; status: 400 | 401 | 403 | 409; reason: string; reconnectSlug?: string };
+  | { ok: false; status: 400 | 401 | 403 | 409; reason: string; reconnectSlug?: string } | (RestRateFailure & { reconnectSlug?: never });
 
 const field = (body: unknown, key: string): string | null => {
   if (typeof body !== "object" || body === null) return null;
@@ -35,6 +37,8 @@ export async function registerProject(
   // hu_만 통과한다. hs_로 새 프로젝트를 만드는 것은 말이 안 되므로 여기서 401이다.
   const scope = await resolveUserScope(findUserTokenByHash, authorizationHeader, recordTokenUsage);
   if (!scope.ok) return scope;
+  const limited = await limitAccountRequest(scope.userId);
+  if (limited) return { ...limited, status: 429 };
 
   const owner = field(body, "owner");
   const repo = field(body, "repo");

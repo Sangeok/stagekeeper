@@ -8,8 +8,8 @@ import { NOT_YOURS, PROJECT_REQUIRED } from "./scope-copy";
 it("records REST credentials before missing-slug and ownership refusals, without altering results", async () => {
   const calls: string[] = [];
   const deps = {
-    findTokenByHash: async () => ({ id: "agent-id", projectId: "p", revokedAt: null }),
-    findUserTokenByHash: async () => ({ id: "user-id", userId: "u", revokedAt: null }),
+    findTokenByHash: async () => ({ id: "agent-id", projectId: "p", expiresAt: null, revokedAt: null }),
+    findUserTokenByHash: async () => ({ id: "user-id", userId: "u", expiresAt: null, revokedAt: null }),
     projectFor: async () => { calls.push("ownership"); return null; },
     recordTokenUsage: async (kind: string, id: string) => { calls.push(`${kind}:${id}`); },
   };
@@ -27,7 +27,7 @@ it("records REST credentials before missing-slug and ownership refusals, without
 it("never records rejected REST credentials and preserves original lookup failures", async () => {
   let writes = 0;
   const recordTokenUsage = async () => { writes++; };
-  for (const row of [null, { id: "t", projectId: "p", userId: "u", revokedAt: new Date() }]) {
+  for (const row of [null, { id: "t", projectId: "p", userId: "u", expiresAt: null, revokedAt: new Date() }]) {
     const find = async () => row;
     const deps = { findTokenByHash: find, findUserTokenByHash: find, projectFor: async () => "p", recordTokenUsage };
     for (const header of [null, "Bearer malformed", `Bearer ${newToken().plain}`, `Bearer ${newToken("user").plain}`, `Bearer ${newToken("owner").plain}`]) {
@@ -47,11 +47,11 @@ it("never records rejected REST credentials and preserves original lookup failur
 // 만들 수 있게 된다.
 describe("resolveUserScope", () => {
   const user = newToken("user");
-  const rows: Record<string, { id: string; userId: string; revokedAt: Date | null }> = {
-    [user.hash]: { id: "user-token", userId: "user-1", revokedAt: null },
+  const rows: Record<string, { id: string; userId: string; revokedAt: Date | null; expiresAt: Date | null }> = {
+    [user.hash]: { id: "user-token", userId: "user-1", expiresAt: null, revokedAt: null },
   };
 
-  function setup(lookup?: (hash: string) => Promise<{ id: string; userId: string; revokedAt: Date | null } | null>) {
+  function setup(lookup?: (hash: string) => Promise<{ id: string; userId: string; revokedAt: Date | null; expiresAt: Date | null } | null>) {
     const seen: string[] = [];
     const find = lookup ?? (async (hash: string) => { seen.push(hash); return rows[hash] ?? null; });
     return { seen, resolve: (header: string | null) => resolveUserScope(find, header) };
@@ -83,7 +83,7 @@ describe("resolveUserScope", () => {
     assert.deepEqual(await resolve(`Bearer ${newToken("user").plain}`), { ok: false, status: 401, reason: "invalid or revoked token" });
     assert.equal(seen.length, 1, "an unknown token is a lookup miss, not a parse failure");
 
-    const revoked = setup(async () => ({ id: "user-token", userId: "user-1", revokedAt: new Date() }));
+    const revoked = setup(async () => ({ id: "user-token", userId: "user-1", expiresAt: null, revokedAt: new Date() }));
     assert.deepEqual(await revoked.resolve(`Bearer ${user.plain}`), { ok: false, status: 401, reason: "invalid or revoked token" });
   });
 });

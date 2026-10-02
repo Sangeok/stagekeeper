@@ -4,6 +4,7 @@
 // Route Handler는 기본적으로 캐시되지 않는다 — 토큰마다 응답이 갈리므로 그대로 둔다.
 // 응답: { templates: { <path>: <body> }, entitlement: { plan, agents } } — 생성기는 templates 키가 없으면 중단한다.
 import { templatesFor } from "@/server/templates";
+import { restFailureResponse } from "@/server/result";
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
@@ -13,5 +14,5 @@ export async function GET(request: Request) {
   const result = await templatesFor(authorizationHeader, language, params.get("project"));
   return result.ok
     ? Response.json({ templates: result.templates, entitlement: result.entitlement })
-    : Response.json({ error: result.reason }, { status: result.status });
+    : restFailureResponse(result);
 }

@@ -10,6 +10,7 @@ import { repositoryOwner } from "../project-access-query";
 import { loadProjectRoster } from "../project";
 import { serverVars } from "./vars";
 import { cursorTransaction, commitRunOutcome } from "./run-query";
+import { readProjectUsageCapIn } from "../account-usage-query";
 
 const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기본 "ko")에 템플릿이 없으면 여기로
 
@@ -30,20 +31,7 @@ export function createNextDeps(db: PrismaClient): NextDeps {
       });
       return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent);
     },
-    // projectId가 null이면 오늘과 같은 쿼리다(hs_). 값이 있으면 run의 프로젝트로 좁힌다(hu_ — A-10).
-    // 바로 아래 recentRuns가 이미 소유자 단위로 범위를 거는 것과 같은 방향이다.
-    recentSteps: (tokenId, projectId, since) => db.agentRunStep.count({
-      where: {
-        at: { gte: since },
-        OR: [{ callerTokenId: tokenId }, { callerTokenId: null, run: { tokenId } }],
-        ...(projectId === null ? {} : { run: { projectId } }),
-      },
-    }),
-    recentRuns: async (projectId, since) => {
-      const owner = await db.project.findUnique({ where: { id: projectId }, select: { ownerUserId: true } });
-      if (!owner?.ownerUserId) return 0;
-      return db.agentRun.count({ where: { openedAt: { gte: since }, project: { ownerUserId: owner.ownerUserId } } });
-    },
+    usageCap: (projectId) => db.$transaction((tx) => readProjectUsageCapIn(tx, projectId)),
     // 같은 (project, agent, key)에 열린 run이 둘일 수는 있다(부분 유니크 인덱스 없음) — 최신 것을 커서로 본다.
     openRun: (projectId, agent, key) => db.agentRun.findFirst({
       where: { projectId, agent, key, closedAt: null }, orderBy: { openedAt: "desc" }, select: { id: true, stepId: true, revision: true, closedAt: true },

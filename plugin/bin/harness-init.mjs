@@ -20,6 +20,11 @@ const isRecord = (value) => value !== null && typeof value === "object" && !Arra
 async function responseFailure(res, server, token) {
   const body = await res.json().catch(() => null);
   const reason = typeof body?.error === "string" ? body.error : res.statusText;
+  if (res.status === 429) {
+    const delay = Number.isInteger(body?.retryAfterSec) && body.retryAfterSec > 0
+      ? body.retryAfterSec : Number(res.headers.get("Retry-After"));
+    return `${reason} ${Number.isInteger(delay) && delay > 0 ? `Wait ${delay} seconds before retrying.` : "Wait before retrying."} Do not retry immediately.`;
+  }
   // The server supplies this path only for an owned, disconnected repository.
   const reconnect = typeof body?.reconnectPath === "string" && /^\/p\/[^/?#]+$/.test(body.reconnectPath)
     ? ` Reconnect on the web: ${server}${body.reconnectPath}.` : "";
@@ -347,6 +352,10 @@ async function init() {
       if (!res.ok) {
         const reason = await responseFailure(res, SERVER, token);
         note(`${res.status}: ${reason}`);
+        if (res.status === 429) {
+          console.log("stop: request limit reached after file generation. Keep the generated files and rerun /harness:init after the stated wait; the runbook version was not recorded.");
+          process.exitCode = 1;
+        }
         if ([401, 403, 409].includes(res.status)) {
           console.log("stop: server access was refused after file generation. Keep the generated files; resolve the reported error before MCP registration, project_sync, or declaring init complete.");
         }

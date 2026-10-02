@@ -15,5 +15,5 @@ export async function projectForUser(slug: string, userId: string, db: PrismaCli
 // id까지 싣는다: MCP 검증기는 그 값을 tokenId·clientId로 쓰고(auth.ts), REST는 쓰지 않는다.
 // 남는 열 하나가 두 벌의 쿼리보다 낫다 — 갈릴 자리가 없어진다.
 export function findUserTokenByHash(hash: string, db: PrismaClient = prisma) {
-  return db.userToken.findUnique({ where: { hash }, select: { id: true, revokedAt: true, userId: true } });
+  return db.userToken.findUnique({ where: { hash }, select: { id: true, revokedAt: true, expiresAt: true, userId: true } });
 }

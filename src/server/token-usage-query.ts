@@ -4,7 +4,10 @@ export type TokenUsageRecorder = (kind: TokenUsageKind, tokenId: string, at: Dat
 const USAGE_WRITE_INTERVAL_MS = 60_000;
 
 type UsageUpdate = {
-  where: { id: string; revokedAt: null; OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: Date } }] };
+  where: { id: string; revokedAt: null; AND: [
+    { OR: [{ expiresAt: null }, { expiresAt: { gt: Date } }] },
+    { OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: Date } }] },
+  ] };
   data: { lastUsedAt: Date };
 };
 type UsageDelegate = { updateMany(args: UsageUpdate): Promise<{ count: number }> };
@@ -19,7 +22,10 @@ export function makeRecordTokenUsage(db: UsageDb): TokenUsageRecorder {
       where: {
         id: tokenId,
         revokedAt: null,
-        OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: new Date(at.getTime() - USAGE_WRITE_INTERVAL_MS) } }],
+        AND: [
+          { OR: [{ expiresAt: null }, { expiresAt: { gt: at } }] },
+          { OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: new Date(at.getTime() - USAGE_WRITE_INTERVAL_MS) } }] },
+        ],
       },
       data: { lastUsedAt: at },
     });

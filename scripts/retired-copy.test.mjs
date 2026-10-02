@@ -16,6 +16,8 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // where: web = src/fsd·src/app의 보이는 문구, skill = plugin/skills의 SKILL.md, locks = product-copy.md의 잠금 블록.
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
+  { pattern: /This token stays valid until you revoke it\./, where: ["web", "skill", "locks"], since: "2026-10-02", why: "tokens now have optional expiry" },
+  { pattern: /Counted over the last 30 days|60 calls per 10 minutes per token/, where: ["web", "skill", "locks"], since: "2026-10-02", why: "account run usage and actual request windows replace both old limits" },
   {
     pattern: /This lasts only in this terminal\. A new terminal needs the token again, and it can(?:'|&apos;|&#39;|&#x27;)t be shown again — issue another on the Tokens tab, or use a user token to set one once for every repository\./,
     where: ["web", "skill", "locks"],

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { usageSnapshot } from "@harness/core/usage-window.mjs";
+import { usageLimitFailure } from "../account-usage-query";
 import { describe, it } from "node:test";
 
-import { RATE_LIMIT, REFUSAL_WARN_AT, agentNext, type NextDeps, type NextInput, type Outcome, type Receipt, type Scope } from "./next";
+import { REFUSAL_WARN_AT, agentNext, type NextDeps, type NextInput, type Outcome, type Receipt, type Scope } from "./next";
 
 // dev.md의 축소판 — 그래프는 같고 본문만 짧다. 실제 템플릿은 private 저장소에 있어 CI에는 없다(templates.test.mjs가 따로 본다).
 const DEV = `---
@@ -89,8 +91,8 @@ type Run = { revision: number; id: string; agent: string; key: string | null; st
 type Rec = { runId: string; stepId: string; outcome: Outcome; note: string | null };
 type Opts = {
   plan?: "free" | "pro" | "max"; locked?: string; roster?: string[]; templates?: Record<string, string>;
-  board?: Record<string, string>; openCount?: number; recent?: number; verifiedElsewhere?: boolean;
-  itemAgent?: Record<string, string>; recentRuns?: number; scope?: Scope;
+  board?: Record<string, string>; openCount?: number; verifiedElsewhere?: boolean;
+  itemAgent?: Record<string, string>; usageCount?: number; scope?: Scope;
 };
 
 const SCOPE: Scope = { projectId: "p1", tokenId: "t1" };
@@ -99,8 +101,6 @@ function harness(opts: Opts = {}) {
   const runs: Run[] = [];
   const records: Rec[] = [];
   const rejected: Rec[] = [];
-  // 한도 집계가 무엇을 분모로 받았는지. hs_는 null, hu_는 프로젝트다(A-10).
-  const rateCalls: [string, string | null][] = [];
   const scope = opts.scope ?? SCOPE;
   const board = opts.board ?? {};
   const templates = opts.templates ?? { "agents/dev.md": DEV, "agents/pm.md": PM };
@@ -111,8 +111,7 @@ function harness(opts: Opts = {}) {
     roster: async () => opts.roster ?? ["web-dev"],
     template: async (_p, path) => templates[path] ?? null,
     vars: async (_p, agent) => VARS[agent],
-    recentSteps: async (tokenId, projectId) => { rateCalls.push([tokenId, projectId]); return opts.recent ?? records.length; },
-    recentRuns: async () => opts.recentRuns ?? 0,
+    usageCap: async () => usageLimitFailure(usageSnapshot(plan, new Date("2026-10-02T00:00:00Z"), opts.usageCount ?? 0, new Date("2026-10-02T01:00:00Z"))),
     openRun: async (_p, agent, key) => runs.filter((r) => r.agent === agent && r.key === key && !r.closedAt).at(-1) ?? null,
     createRun: async (scope, agent, key, stepId) => {
       const r: Run = { revision: 0, id: `run${++seq}`, agent, key, stepId, closedAt: null, refused: 0, tokenId: scope.tokenId };
@@ -151,7 +150,7 @@ function harness(opts: Opts = {}) {
     const receipt = input.receipt ?? (r ? { runId: r.id, revision: r.revision, stepId: r.stepId } : undefined);
     return agentNext(deps, scope, { ...input, receipt });
   };
-  return { call, runs, records, rejected, board, deps, rateCalls };
+  return { call, runs, records, rejected, board, deps };
 }
 
 const dev = (extra: Partial<NextInput> = {}): NextInput => ({ agent: "web-dev", key: "FEAT-1", ...extra });
@@ -392,12 +391,6 @@ describe("agentNext — gates before any step is served", () => {
     assert.equal(refused(await h.call({ agent: "web-dev" })), "agent `web-dev` needs a key");
     assert.equal(refused(await h.call({ agent: "pm", key: "X-1" })), "agent `pm` takes no key");
   });
-  it("rate limit: refused once the token has recorded RATE_LIMIT.calls steps in the window", async () => {
-    const h = harness({ recent: RATE_LIMIT.calls });
-    assert.equal(refused(await h.call({ agent: "pm" })), `rate limit: ${RATE_LIMIT.calls} calls per 10 minutes per token`);
-    const ok = harness({ recent: RATE_LIMIT.calls - 1 });
-    step(await ok.call({ agent: "pm" }));
-  });
   it("a missing or step-less template is refused, not thrown", async () => {
     const none = harness({ templates: {} });
     assert.equal(refused(await none.call({ agent: "pm" })), "no template for agent `pm`");
@@ -480,21 +473,22 @@ describe("agentNext — dispatch cap (H.5)", () => {
     h.deps.createRun = async () => ({ ok: true, item: { id: "reused", stepId: "pick", revision: 0, closedAt: null } });
     assert.equal(step(await h.call({ agent: "pm" })).step, "pick");
   });
-  it("refuses to open a run at the plan's 30-day cap, naming the window; opens nothing", async () => {
-    const h = harness({ plan: "free", recentRuns: 60 });
-    const reason = refused(await h.call({ agent: "pm" }));
-    assert.match(reason, /^dispatch cap reached on the free plan \(60\)/);
-    assert.match(reason, /last 30 days/);
+  it("refuses new runs at the account cap with a typed recovery time; opens nothing", async () => {
+    const h = harness({ plan: "free", usageCount: 20 });
+    const result = await h.call({ agent: "pm" });
+    assert.ok(!result.ok && result.code === "USAGE_LIMIT_REACHED");
+    assert.equal(result.resetAt, "2026-10-02T05:00:00.000Z");
+    assert.doesNotMatch(result.reason, /20 runs|dispatch cap|30 days/);
     assert.equal(h.runs.length, 0);
   });
-  it("opens the 60th run on free and never caps max", async () => {
-    step(await harness({ plan: "free", recentRuns: 59 }).call({ agent: "pm" }));
-    step(await harness({ plan: "max", recentRuns: 10_000 }).call({ agent: "pm" }));
+  it("opens the 20th run on free and never caps max", async () => {
+    step(await harness({ plan: "free", usageCount: 19 }).call({ agent: "pm" }));
+    step(await harness({ plan: "max", usageCount: 10_000 }).call({ agent: "pm" }));
   });
   it("resuming an open run does not consult the cap", async () => {
     const h = harness();
     step(await h.call(dev()));
-    h.deps.recentRuns = async () => { throw new Error("recentRuns consulted on resume"); };
+    h.deps.usageCap = async () => { throw new Error("usageCap consulted on resume"); };
     step(await h.call(dev()));
   });
 });
@@ -560,41 +554,6 @@ it("a failed retirement transaction does not close the run", async () => {
   assert.match(refused(await h.call(dev({ outcome: "ok", receipt }))), /could not record/);
   assert.equal(h.runs[0].closedAt, null);
   assert.equal(h.records.length + h.rejected.length, 0);
-});
-
-// A-10. hs_는 토큰이 곧 프로젝트라 분모가 사실상 "프로젝트당"이었다. hu_ 하나가 여러 프로젝트에
-// 쓰이므로, 분모에 프로젝트를 걸지 않으면 그 의미가 조용히 "사람당"으로 바뀐다.
-describe("agentNext — the rate-limit denominator", () => {
-  it("(m) an agent-token scope passes no project: the denominator is the whole token, as today", async () => {
-    const h = harness();
-    step(await h.call({ agent: "pm" }));
-    assert.deepEqual(h.rateCalls, [["t1", null]]);
-  });
-
-  it("(k) filling the limit in one project leaves the same token's other project open", async () => {
-    // 원장을 토큰×프로젝트로 센다 — projectId를 받은 runs.ts가 하는 일과 같은 계산이다.
-    const ledger = Array.from({ length: RATE_LIMIT.calls }, () => ({ tokenId: "u1", projectId: "pA" }));
-    const counter = async (tokenId: string, projectId: string | null) =>
-      ledger.filter((r) => r.tokenId === tokenId && (projectId === null || r.projectId === projectId)).length;
-
-    const full = harness({ scope: { projectId: "pA", tokenId: "u1", userScoped: true } });
-    full.deps.recentSteps = counter;
-    assert.match(refused(await full.call({ agent: "pm" })), /^rate limit:/);
-
-    const other = harness({ scope: { projectId: "pB", tokenId: "u1", userScoped: true } });
-    other.deps.recentSteps = counter;
-    step(await other.call({ agent: "pm" })); // 같은 토큰, 다른 프로젝트 — 열려 있어야 한다
-
-    // 프로젝트를 안 걸면(오늘의 집계) 같은 원장이 pB까지 가득 찬 것으로 읽힌다. 그게 A-10이 막는 것이다.
-    assert.equal(await counter("u1", null), RATE_LIMIT.calls);
-    assert.equal(await counter("u1", "pB"), 0);
-  });
-
-  it("(l) the same project over the limit is refused with the wording unchanged", async () => {
-    const h = harness({ scope: { projectId: "pA", tokenId: "u1", userScoped: true }, recent: RATE_LIMIT.calls });
-    assert.equal(refused(await h.call({ agent: "pm" })), `rate limit: ${RATE_LIMIT.calls} calls per 10 minutes per token`);
-    assert.deepEqual(h.rateCalls, [["u1", "pA"]]);
-  });
 });
 
 it("checks requires after asynchronous render-variable reads", async () => {

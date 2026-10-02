@@ -36,7 +36,7 @@ repository from one shell; the project then comes from `harness.json`'s `project
   Claude Code. **Do not save it machine-wide**: `HARNESS_TOKEN` is one variable, and a second
   repository's token would overwrite this one. The environment variable lasts only in that
   terminal. In a new terminal, set the same token again from secure storage before starting
-  Claude Code. The token stays valid until revoked. Save it securely to reuse it; if it was not
+  Claude Code. The token stays valid until revoked or its chosen expiry. Save it securely to reuse it; if it was not
   saved, issue a new one and revoke the old token when no longer used. Never ask for the token
   in chat or commit it to the repository. A user token can be saved once per machine.
 - **Never read the token out of a repository `.env` file**, even when one is sitting there. The
@@ -49,6 +49,12 @@ repository from one shell; the project then comes from `harness.json`'s `project
 `mcp__harness__*` request must send that value as `project`. The generator sends it for
 template fetches and runbook-version reports; this skill sends it for its MCP calls.
 A project token (`hs_`) still works without a slug.
+
+On `RATE_LIMITED` or HTTP 429, state the returned wait and stop this attempt. Do not retry immediately
+or issue another token to bypass the wait. For runbook-report 429, keep all generated files; the
+version was not recorded, so rerun init after the wait before declaring it complete. If a gate
+approval was recorded but next advice failed, retry `pipeline_next` after the wait, not `gate_approve`.
+`USAGE_LIMIT_REACHED` is separate: new runs wait until `resetAt`; an already open run may resume.
 
 If an older `hu_` configuration has no slug, recover it in step 1 before generation or
 project-scoped MCP calls. Slug recovery remains optional for `hs_`.

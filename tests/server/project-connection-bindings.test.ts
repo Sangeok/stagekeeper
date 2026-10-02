@@ -36,8 +36,8 @@ it("exposes exactly two inline session mutations and keeps the ordinary loader b
   assert.match(source, /expectedVersion: z\.number\(\)\.int\(\)\.min\(0\)\.max\(Number\.MAX_SAFE_INTEGER\)/);
   assert.ok(!read("src/fsd/features/manage-project-connection/index.ts").includes("loadProjectConnection"));
   const tokens = read("src/fsd/features/manage-token/api/manage-token.server.ts");
-  assert.match(tokens, /await issueProjectToken\(\{ projectId, userId, label \}\)/);
-  assert.match(tokens, /await issueProjectOwnerToken\(\{ projectId, userId, label \}\)/);
+  assert.match(tokens, /await issueProjectToken\(\{ projectId, userId, label, expiresAt \}\)/);
+  assert.match(tokens, /await issueProjectOwnerToken\(\{ projectId, userId, label, expiresAt \}\)/);
   assert.doesNotMatch(tokens, /projectToken\.create|ownerToken\.create|newToken/);
 });
 
@@ -61,7 +61,7 @@ it("all 14 agent tools and the owner tool stop before any domain dependency when
   const access = async () => ({ plan: "pro" as const, available: false as const, code: "disconnected" as const, reason: DISCONNECTED_REASON });
   const domain = () => { calls++; throw new Error("disconnected domain read/write"); };
   registerTools(capture(agent), new Proxy({ access, projectFor: async () => "p" }, { get: (target, key) => key in target ? target[key as keyof typeof target] : domain }) as unknown as ToolDeps);
-  registerOwnerTools(capture(owner), { access, owner: async () => true, gate: domain } as OwnerToolDeps);
+  registerOwnerTools(capture(owner), { access, owner: async () => true, gate: domain, requestLimit: domain } as OwnerToolDeps);
   assert.deepEqual(Object.keys(agent).sort(), [...AGENT_TOOL_NAMES].sort()); assert.deepEqual(Object.keys(owner), [...OWNER_TOOL_NAMES]);
   const ctx = { http: { authInfo: { extra: { projectId: "p", userId: "u", tokenId: "t" } } } };
   for (const handler of [...Object.values(agent), ...Object.values(owner)]) {
@@ -90,7 +90,7 @@ it("retries one real Prisma slug violation in legacy/driver metadata and propaga
       "@/server/db": { prisma: { $transaction: async () => { if (++calls <= failures) throw collision(meta); return { status: "created", projectId: "p", slug: "stored" }; },
         project: { findUnique: async () => ({ repoOwner: "owner", repo: "repo", branch: "main", name: "stored", slug: "stored", disconnectedAt: null }) } } },
       "./project-registration-query": {}, "./project-slug-rule": { REPO_SEGMENT: /^[a-z]+$/ },
-      "./rest-scope": { resolveUserScope: async () => ({ ok: true, userId: "trusted" }) }, "./user-scope-query": {},
+      "./request-rate": { limitAccountRequest: async () => null }, "./rest-scope": { resolveUserScope: async () => ({ ok: true, userId: "trusted" }) }, "./user-scope-query": {},
     };
     runInNewContext(code, { exports: exported, JSON, require: (name: string) => name in deps ? deps[name] : require(name) });
     assert.ok(exported.registerProject);

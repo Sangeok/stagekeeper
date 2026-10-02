@@ -35,9 +35,9 @@ describe("planMatrix — pipeline rows", () => {
     assert.deepEqual(row.values, { free: "Default only", pro: "Yes", max: "Yes" });
   });
   it("shows the dispatch cap with its window in the label", () => {
-    const row = planMatrix().find((r) => r.label.startsWith("Agent dispatches per "));
+    const row = planMatrix().find((r) => r.label.startsWith("New agent runs per "));
     assert.ok(row, "the dispatch row is missing");
-    assert.equal(row.label, "Agent dispatches per 30 days");
-    assert.deepEqual(row.values, { free: "60", pro: "600", max: "Unlimited" });
+    assert.equal(row.label, "New agent runs per 5-hour window");
+    assert.deepEqual(row.values, { free: "20", pro: "100", max: "Unlimited" });
   });
 });

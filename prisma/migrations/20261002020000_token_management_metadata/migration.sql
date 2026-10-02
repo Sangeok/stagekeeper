@@ -1,0 +1,3 @@
+ALTER TABLE "ProjectToken" ADD COLUMN "expiresAt" TIMESTAMP(3);
+ALTER TABLE "OwnerToken" ADD COLUMN "expiresAt" TIMESTAMP(3);
+ALTER TABLE "UserToken" ADD COLUMN "expiresAt" TIMESTAMP(3);

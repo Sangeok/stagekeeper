@@ -5,12 +5,14 @@
 import { deliverable } from "@harness/core/deliver.mjs";
 import type { Plan, ProjectAccess } from "./entitlement";
 import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
+import type { RequestRateFailure, RestRateFailure } from "./result";
 
 export type TemplateResult =
   | { ok: true; templates: Record<string, string>; entitlement: { plan: Plan; agents: string[] } }
-  | { ok: false; status: 401 | 403 | 404; reason: string };
+  | { ok: false; status: 401 | 403 | 404; reason: string; code?: never } | RestRateFailure;
 
 export type TemplateDeps = RestTokenDeps & {
+  requestLimit(projectId: string): Promise<RequestRateFailure | null>;
   projectAccess(projectId: string): Promise<ProjectAccess>;
   findTemplatesByLanguage(language: string): Promise<{ path: string; body: string }[]>;
 };
@@ -33,6 +35,8 @@ export function makeTemplatesFor(deps: TemplateDeps): TemplatesFor {
       return { ok: false, status: 403, reason: access.reason };
     }
 
+    const limited = await deps.requestLimit(scope.projectId);
+    if (limited) return { ...limited, status: 429 };
     const templateRows = await deps.findTemplatesByLanguage(language);
     if (templateRows.length === 0) {
       return { ok: false, status: 404, reason: `no templates for language: ${language}` };

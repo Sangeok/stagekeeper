@@ -48,13 +48,14 @@ async function main() {
     const legacyReport = await db.report.findUniqueOrThrow({ where: { id: "legacy-report" } });
     assert.equal(legacyReport.agentRunId, null); assert.equal(legacyReport.path, "legacy.md"); assert.equal(legacyReport.commit, "legacy-commit");
     const owner = await db.user.create({ data: { githubId: 917260001, login: "pipeline-slot-rehearsal" } });
+    await db.subscription.create({ data: { userId: owner.id, plan: "pro" } });
+    await db.user.update({ where: { id: owner.id }, data: { usageWindowStartedAt: new Date(), usageRunCount: 99 } });
     const makeProject = (slug: string) => db.project.create({ data: { slug, name: slug, repo: slug, repoOwner: "fixture", branch: "main", ownerUserId: owner.id, workspaces: { create: { wsId: "web", path: ".", agent: "web-dev", verify: ["test"], readOnly: [] } } } });
     const p1 = await makeProject("slot-cap-one"), p2 = await makeProject("slot-cap-two");
     const unavailable = async (): Promise<never> => { throw new Error("A write escaped cursorTransaction"); };
     const base: NextDeps = {
-      access: async () => ({ plan: "free", available: true }), roster: async () => ["web-dev"],
-      template: async () => "## step:start\nRead.\nnext: done\n", vars: async () => ({}),
-      recentSteps: async () => 0, recentRuns: async () => 0, openRun: unavailable, createRun: unavailable,
+      access: async () => ({ plan: "pro", available: true }), roster: async () => ["web-dev"],
+      template: async () => "## step:start\nRead.\nnext: done\n", vars: async () => ({}), usageCap: async () => null, openRun: unavailable, createRun: unavailable,
       boardStatus: unavailable, itemAgent: async () => "web-dev", openCount: async () => 0,
       verifyOk: unavailable, runByReceipt: unavailable, closeRun: unavailable, commitOutcome: unavailable,
     };
@@ -64,10 +65,11 @@ async function main() {
     const openings = await Promise.all(scopes.map((scope) => agentNext(base, scope, { agent: "pm" })));
     assert.equal(openings.filter((result) => result.ok).length, 1, "only one concurrent opener may consume the last dispatch");
     assert.equal(await db.agentRun.count({ where: { project: { ownerUserId: owner.id } } }), 60);
+    assert.equal((await db.user.findUniqueOrThrow({ where: { id: owner.id } })).usageRunCount, 100);
     const winning = scopes[openings.findIndex((result) => result.ok)];
     assert.equal((await agentNext(base, winning, { agent: "pm" })).ok, true, "resume remains available at cap");
     assert.equal(await db.agentRun.count({ where: { project: { ownerUserId: owner.id } } }), 60);
-    await db.subscription.create({ data: { userId: owner.id, plan: "max" } });
+    await db.subscription.update({ where: { userId: owner.id }, data: { plan: "max" } });
 
     const version = await db.pipelineVersion.create({ data: { projectId: p1.id, version: 1, format: "slots-v1", nodes: ["plan", "implement", "doc-auditor", "accept"], gates: ["before-accept"], createdBy: owner.id } });
     const backlog = await db.backlogItem.create({ data: { projectId: p1.id, key: "SLOT-1", title: "Slot fixture", area: "web", source: "rehearsal" } });

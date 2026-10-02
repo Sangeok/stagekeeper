@@ -1,10 +1,11 @@
 import { allowsSessionApprovals, OWNER_TOKEN_PLAN_GATE } from "@harness/core/entitlement.mjs";
 import { newToken } from "@harness/core/token.mjs";
+import { parseTokenExpiry } from "@harness/core/token-validity.mjs";
 import { readProjectAccessIn, type TransactionHost } from "./project-access-query";
 import { AvailabilityConflict, lockProjectOwnerIn, withAvailabilityTransaction } from "./project-availability-service";
 import type { ServerResult } from "./result";
 
-export type IssueProjectTokenInput = { userId: string; projectId: string; label: string };
+export type IssueProjectTokenInput = { userId: string; projectId: string; label: string; expiresAt?: string | null };
 
 export async function issueProjectToken(client: TransactionHost, input: IssueProjectTokenInput): Promise<ServerResult<{ token: string }>> {
   return issue(client, input, "agent");
@@ -26,8 +27,12 @@ async function issue(client: TransactionHost, input: IssueProjectTokenInput, kin
       const access = await readProjectAccessIn(tx, project.id);
       if (!access.available) return { ok: false, reason: access.reason };
       if (kind === "owner" && !allowsSessionApprovals(access.plan)) return { ok: false, reason: OWNER_TOKEN_PLAN_GATE };
+      const at = new Date();
+      let expiresAt: Date | null;
+      try { expiresAt = parseTokenExpiry(input.expiresAt, at); }
+      catch { return { ok: false, reason: "Choose a future expiry in UTC, or leave it blank for no expiry." }; }
       const { plain, hash } = newToken(kind);
-      const data = { projectId: project.id, hash, label: input.label.trim() || (kind === "owner" ? "session" : "token"), usageTrackingStartedAt: new Date() };
+      const data = { projectId: project.id, hash, label: input.label.trim() || (kind === "owner" ? "session" : "token"), usageTrackingStartedAt: at, expiresAt };
       if (kind === "owner") await tx.ownerToken.create({ data: { ...data, userId: input.userId } });
       else await tx.projectToken.create({ data });
       return { ok: true, item: { token: plain } };

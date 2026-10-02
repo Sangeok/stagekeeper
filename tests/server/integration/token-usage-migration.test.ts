@@ -26,7 +26,7 @@ it("replays the previous schema and preserves active/revoked tokens, relations, 
     const tables = ["User", "Project", "ProjectToken", "OwnerToken", "UserToken"];
     const snapshot = async () => {
       const result: Record<string, unknown> = {};
-      for (const table of tables) result[table] = (await db.query(`SELECT to_jsonb(t) - 'lastUsedAt' - 'usageTrackingStartedAt' AS row FROM "${table}" t ORDER BY id`)).rows;
+      for (const table of tables) result[table] = (await db.query(`SELECT to_jsonb(t) - 'lastUsedAt' - 'usageTrackingStartedAt' - 'expiresAt' - 'usageWindowStartedAt' - 'usageRunCount' AS row FROM "${table}" t ORDER BY id`)).rows;
       return result;
     };
     const catalog = async () => ({
@@ -47,6 +47,17 @@ it("replays the previous schema and preserves active/revoked tokens, relations, 
     // A legacy writer that omits the added columns remains compatible after migration.
     await db.query(`INSERT INTO "ProjectToken" (id,"projectId",hash,label) VALUES ('legacy-a','p','legacy-a-hash','legacy'); INSERT INTO "OwnerToken" (id,"projectId","userId",hash,label) VALUES ('legacy-o','p','u','legacy-o-hash','legacy'); INSERT INTO "UserToken" (id,"userId",hash,label) VALUES ('legacy-u','u','legacy-u-hash','legacy')`);
     for (const table of ["ProjectToken", "OwnerToken", "UserToken"]) assert.equal((await db.query(`SELECT count(*)::int AS n FROM "${table}" WHERE "lastUsedAt" IS NULL AND "usageTrackingStartedAt" IS NULL`)).rows[0].n, 3);
+    await db.query(`INSERT INTO "AgentRun" (id,"projectId",agent,"tokenId","stepId") VALUES ('old-run','p','pm','old-token','start')`);
+    const legacyRun = (await db.query(`SELECT * FROM "AgentRun" WHERE id='old-run'`)).rows;
+    const beforeUsage = await snapshot();
+    await db.query(readFileSync(new URL("20261002010000_account_usage_window/migration.sql", directory), "utf8"));
+    await db.query(readFileSync(new URL("20261002020000_token_management_metadata/migration.sql", directory), "utf8"));
+    assert.deepEqual(await snapshot(), beforeUsage); assert.deepEqual(await catalog(), catalogBefore);
+    assert.deepEqual((await db.query(`SELECT * FROM "AgentRun" WHERE id='old-run'`)).rows, legacyRun);
+    assert.deepEqual((await db.query(`SELECT "usageWindowStartedAt","usageRunCount" FROM "User"`)).rows, [{ usageWindowStartedAt: null, usageRunCount: 0 }]);
+    for (const table of ["ProjectToken", "OwnerToken", "UserToken"]) {
+      assert.equal((await db.query(`SELECT count(*)::int AS n FROM "${table}" WHERE "expiresAt" IS NULL`)).rows[0].n, 3);
+    }
   } finally {
     await db.query("ROLLBACK"); await db.query("SELECT set_config('search_path',$1,false)", [previous]);
     await db.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`); await db.end();

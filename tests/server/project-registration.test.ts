@@ -17,7 +17,7 @@ function registrationFixture(authenticated = true) {
   const deps: Record<string, unknown> = {
     "server-only": {}, "./token-usage": { recordTokenUsage: async () => {} }, "../token-usage": { recordTokenUsage: async () => {} }, "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": access,
     "./project-slug-rule": slugRules, "./user-scope-query": {},
-    "./rest-scope": { resolveUserScope: async () => authenticated ? { ok: true, userId: "owner" } : { ok: false, status: 401, reason: "unauthenticated" } },
+    "./request-rate": { limitAccountRequest: async () => null }, "./rest-scope": { resolveUserScope: async () => authenticated ? { ok: true, userId: "owner" } : { ok: false, status: 401, reason: "unauthenticated" } },
     "@/server/project-availability-service": { withAvailabilityTransaction: async (_db: unknown, work: (tx: unknown) => Promise<unknown>) => { transactions++; return work({}); } },
     "./project-registration-query": { registerProjectResultIn: async (_tx: unknown, input: { slug?: string }) => { writes++; receivedSlug = input.slug; return { status: "created", projectId: "p" }; } },
     "@/server/db": { prisma: { project: { findUnique: async () => ({ repoOwner: "owner", repo: "repo", branch: "release/1.0", name: "Stored", slug: "stored", disconnectedAt: null }) } } },

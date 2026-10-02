@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { AGENT_TOOL_NAMES, PROJECT_REQUIRED, registerTools } from "./tools.ts";
+import { AGENT_TOOL_NAMES, PROJECT_REQUIRED, registerTools as registerProductionTools } from "./tools.ts";
 import { NOT_SELECTED_REASON } from "../project-access-query.ts";
 import { REVISION_MAX } from "../agents/next.ts";
 
@@ -235,8 +235,8 @@ describe("user-scoped tokens resolve the project from the argument", () => {
       projectFor: async (slug, userId) => { assert.equal(userId, "user1"); return slug === "mine" ? "p1" : "p2"; },
       projectSync: async (id) => { calls.push(["sync", id]); return { ok: true, item: ws.length }; },
       pipelineNext: async (id) => { calls.push(["pipeline", id]); return { ok: true, item: {} }; },
-      agentNext: async (id, tokenId, input, userScoped) => {
-        assert.equal(tokenId, "usr1"); assert.equal(userScoped, true);
+      agentNext: async (id, tokenId, input) => {
+        assert.equal(tokenId, "usr1");
         calls.push([input.outcome ?? "resume", id]);
         return { ok: true, item: { done: true } };
       },
@@ -320,3 +320,4 @@ it("backlog_add requires the scout payload and strips any client-assigned key", 
   assert.equal((await handlers.backlog_add({ ...input, project: "owned" }, user)).isError, undefined);
   assert.deepEqual(calls.map(([projectId]) => projectId), ["p1", "p2"]);
 });
+const registerTools = (server, deps) => registerProductionTools(server, { requestLimit: async () => null, ...deps });

@@ -2,12 +2,22 @@
 // 두 검증기는 서로의 토큰을 받지 않는다 — parseBearer의 접두 검사가 표를 조회하기 전에 거른다.
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { hashToken, parseBearer } from "@harness/core/token.mjs";
+import { isTokenActive } from "@harness/core/token-validity.mjs";
 import { tryRecordTokenUsage, type TokenUsageRecorder } from "../token-usage-query";
 
-export type TokenRow = { id: string; projectId: string; revokedAt: Date | null } | null;
-export type OwnerTokenRow = { id: string; projectId: string; userId: string; revokedAt: Date | null } | null;
-export type UserTokenRow = { id: string; userId: string; revokedAt: Date | null } | null;
+export type TokenRow = { id: string; projectId: string; revokedAt: Date | null; expiresAt: Date | null } | null;
+export type OwnerTokenRow = { id: string; projectId: string; userId: string; revokedAt: Date | null; expiresAt: Date | null } | null;
+export type UserTokenRow = { id: string; userId: string; revokedAt: Date | null; expiresAt: Date | null } | null;
 type TokenVerifier = (request: Request, bearer?: string) => Promise<AuthInfo | undefined>;
+
+async function findCredential<T>(lookup: (hash: string) => Promise<T>, hash: string): Promise<T> {
+  try {
+    return await lookup(hash);
+  } catch {
+    // The SDK logs verifier exceptions. Never forward the original DB error.
+    throw new Error("Token credential lookup failed");
+  }
+}
 
 // 에이전트 서버는 두 자격을 받는다. hs_는 프로젝트를 알고, hu_는 사람만 안다 —
 // 프로젝트는 도구 인자로 오고 scope()가 호출마다 ownerUserId로 인가한다.
@@ -21,17 +31,19 @@ export function makeVerifyToken(
     const header = bearer ? `Bearer ${bearer}` : null;
     const plain = parseBearer(header);
     if (plain) {
-      const row = await findByHash(hashToken(plain));
-      if (!row || row.revokedAt) return undefined;
-      await tryRecordTokenUsage(recordUsage, "agent", row.id, new Date());
+      const row = await findCredential(findByHash, hashToken(plain));
+      const at = new Date();
+      if (!row || !isTokenActive(row, at)) return undefined;
+      await tryRecordTokenUsage(recordUsage, "agent", row.id, at);
       return { token: plain, scopes: ["agent"], clientId: row.projectId, extra: { projectId: row.projectId, tokenId: row.id } };
     }
     // hu_. clientId는 프로젝트가 없으므로 토큰 id다 — 소비자는 없지만 값을 비워 두지 않는다(A-2).
     const userPlain = findUserByHash ? parseBearer(header, "user") : null;
     if (!userPlain) return undefined;
-    const userRow = await findUserByHash!(hashToken(userPlain));
-    if (!userRow || userRow.revokedAt) return undefined;
-    await tryRecordTokenUsage(recordUsage, "user", userRow.id, new Date());
+    const userRow = await findCredential(findUserByHash!, hashToken(userPlain));
+    const at = new Date();
+    if (!userRow || !isTokenActive(userRow, at)) return undefined;
+    await tryRecordTokenUsage(recordUsage, "user", userRow.id, at);
     return { token: userPlain, scopes: ["agent"], clientId: userRow.id, extra: { userId: userRow.userId, tokenId: userRow.id } };
   };
 }
@@ -41,9 +53,10 @@ export function makeVerifyOwnerToken(findByHash: (hash: string) => Promise<Owner
   return async (_req: Request, bearer?: string): Promise<AuthInfo | undefined> => {
     const plain = parseBearer(bearer ? `Bearer ${bearer}` : null, "owner");
     if (!plain) return undefined;
-    const row = await findByHash(hashToken(plain));
-    if (!row || row.revokedAt) return undefined;
-    await tryRecordTokenUsage(recordUsage, "owner", row.id, new Date());
+    const row = await findCredential(findByHash, hashToken(plain));
+    const at = new Date();
+    if (!row || !isTokenActive(row, at)) return undefined;
+    await tryRecordTokenUsage(recordUsage, "owner", row.id, at);
     return { token: plain, scopes: ["owner"], clientId: row.projectId, extra: { projectId: row.projectId, userId: row.userId, ownerTokenId: row.id } };
   };
 }

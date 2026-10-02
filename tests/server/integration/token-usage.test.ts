@@ -91,7 +91,7 @@ it("real row locks order both revocation races for every kind and keep authentic
     const gate = checkpoint(); let holding: Promise<unknown> | undefined; let pending: Promise<unknown> | undefined;
     let queries = 0; const counts: number[] = [];
     const observed = b.$extends({ query: { projectToken: { async updateMany({ args, query }) { queries++; const result = await query(args); counts.push(result.count); return result; } } } });
-    const verify = makeVerifyToken((hash) => b.projectToken.findUnique({ where: { hash }, select: { id: true, projectId: true, revokedAt: true } }), undefined, makeRecordTokenUsage(observed));
+    const verify = makeVerifyToken((hash) => b.projectToken.findUnique({ where: { hash }, select: { id: true, projectId: true, expiresAt: true, revokedAt: true } }), undefined, makeRecordTokenUsage(observed));
     try {
       holding = a.$transaction(async (tx) => { await tx.projectToken.updateMany({ where: { id: token.id }, data: { lastUsedAt: null } }); await gate.hook(); }, { timeout: 10_000 });
       await gate.entered(); let settled = false; const started = performance.now();

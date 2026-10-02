@@ -5,11 +5,13 @@
 // 201 = 새로 만들었다, 200 = 이미 있던 것을 돌려준다(멱등). init 재실행이 정상 흐름이므로
 // 후자가 오류가 아니라는 점이 이 경로의 계약이다.
 import { registerProject } from "@/server/project-registration";
+import { restFailureResponse } from "@/server/result";
 import { projectPath } from "@/fsd/shared/routes/project";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const result = await registerProject(request.headers.get("authorization"), body);
+  if (!result.ok && result.status === 429) return restFailureResponse(result);
   return result.ok
     ? Response.json({ project: result.project }, { status: result.created ? 201 : 200 })
     : Response.json({ error: result.reason, ...(result.reconnectSlug === undefined ? {} : { reconnectPath: projectPath(result.reconnectSlug) }) }, { status: result.status });

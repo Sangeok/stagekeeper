@@ -6,7 +6,7 @@ import { makeTemplatesFor, type TemplateDeps } from "./templates-query";
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;
-const tokenRecord = { id: "agent-token", projectId: "project-1", revokedAt: null };
+const tokenRecord = { id: "agent-token", projectId: "project-1", expiresAt: null, revokedAt: null };
 const agentStub = "# Agent\n";
 const agentBody = `${agentStub}\n## step:start\nPrivate instructions.\nnext: done\n`;
 const templateRows = [
@@ -29,6 +29,7 @@ function setup(options: Options = {}) {
     tokenHashes: [], projectIds: [], languages: [],
   };
   const deps: TemplateDeps = {
+      requestLimit: async () => null,
     findTokenByHash: async (hash) => {
       calls.tokenHashes.push(hash);
       return options.tokenRecord === undefined ? tokenRecord : options.tokenRecord;
@@ -156,13 +157,14 @@ describe("templatesFor", () => {
 describe("templatesFor with a user token", () => {
   const user = newToken("user");
   const userHeader = `Bearer ${user.plain}`;
-  const userRecord: { id: string; userId: string; revokedAt: Date | null } = { id: "user-token", userId: "user1", revokedAt: null };
+  const userRecord: { id: string; userId: string; revokedAt: Date | null; expiresAt: Date | null } = { id: "user-token", userId: "user1", expiresAt: null, revokedAt: null };
 
   function userSetup(options: { userRecord?: typeof userRecord | null; projectId?: string | null } = {}) {
     const calls: { slugs: [string, string][]; projectIds: string[]; languages: string[] } = {
       slugs: [], projectIds: [], languages: [],
     };
     const deps: TemplateDeps = {
+      requestLimit: async () => null,
       // hs_ 조회는 접두에서 이미 갈렸으므로 닿으면 안 된다.
       findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
       findUserTokenByHash: async () => (options.userRecord === undefined ? userRecord : options.userRecord),
@@ -209,7 +211,7 @@ describe("templatesFor with a user token", () => {
   });
 
   it("returns 401 for an unknown or revoked user token without resolving the slug", async () => {
-    for (const record of [null, { id: "user-token", userId: "user1", revokedAt: new Date() }]) {
+    for (const record of [null, { id: "user-token", userId: "user1", expiresAt: null, revokedAt: new Date() }]) {
       const { templatesFor, calls } = userSetup({ userRecord: record });
 
       const result = await templatesFor(userHeader, "en", "mine");

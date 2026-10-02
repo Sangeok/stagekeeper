@@ -10,7 +10,10 @@ it("routes each kind to an atomic, non-revoked, 60-second monotonic update witho
     const at = new Date("2026-10-02T03:04:05.678Z");
     await record(kind, "internal-id", at);
     assert.deepEqual(calls, [{ kind, args: {
-      where: { id: "internal-id", revokedAt: null, OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: new Date("2026-10-02T03:03:05.678Z") } }] },
+      where: { id: "internal-id", revokedAt: null, AND: [
+        { OR: [{ expiresAt: null }, { expiresAt: { gt: at } }] },
+        { OR: [{ lastUsedAt: null }, { lastUsedAt: { lte: new Date("2026-10-02T03:03:05.678Z") } }] },
+      ] },
       data: { lastUsedAt: at },
     } }]);
   }
