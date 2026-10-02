@@ -68,10 +68,10 @@ describe("registerProjectIn", () => {
   });
 });
 
-// C — 에이전트 등록(POST /api/projects)이 쓰는 넓은 형태.
+// 에이전트 등록(POST /api/projects)이 쓰는 넓은 형태.
 //
 // **이 시험들이 증명하지 않는 것**: (i) 상한 동시성과 실제 직렬화 경쟁. 그건 Serializable
-// 재시도와 version CAS가 걸린 경로라 격리 DB가 있어야 하고, 제안서도 그렇게 적었다.
+// 재시도와 version CAS가 걸린 경로라 격리 DB가 있어야 한다.
 // 여기서 고정하는 것은 **멱등 조회가 트랜잭션 안에서 일어난다는 구조**다 — 주입된 트랜잭션
 // 하나로만 조회·생성이 이뤄지는지, 그리고 재등록에 생성이 아예 없는지.
 describe("registerProjectResultIn — agent registration", () => {

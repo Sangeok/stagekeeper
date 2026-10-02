@@ -1,5 +1,4 @@
-// 라벨과 순서가 entities/board-item 하나에서 오는 것을 고정한다. 예전에는 라우트가
-// "main-loop report"처럼 직접 지어 붙여서, 라벨 주인(doc-link.ts)이 부르는 이름과 달랐다.
+// 라벨과 순서가 entities/board-item 하나에서 오는 것을 고정한다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { toItemDocs } from "./item-docs";

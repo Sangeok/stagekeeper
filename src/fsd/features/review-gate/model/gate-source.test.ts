@@ -1,7 +1,6 @@
 // 탭 뱃지와 배너가 같은 수가 아니라는 사실을 고정한다.
 // 뱃지는 결재함 목록과 같은 술어로 세고(on_hold 포함, product-copy.md §7),
-// 배너는 on_hold를 세지 않는다(§5). 예전에는 뱃지가 배너 쪽을 따라가서
-// on_hold만 남은 프로젝트가 "뱃지 0인데 카드가 보이는" 상태였다.
+// 배너는 on_hold를 세지 않는다(§5).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
@@ -61,7 +60,7 @@ describe("pendingInboxCount", () => {
   });
 
   it("a gate the graph removed is not a card, whatever the status says", () => {
-    // 상태만 보면 proposed는 게이트지만, 그래프가 before-plan을 빼면 카드가 아니다(§E.1).
+    // 상태만 보면 proposed는 게이트지만, 그래프가 before-plan을 빼면 카드가 아니다.
     assert.equal(needsHumanDecision({ status: "proposed", gate: null }), false);
     assert.equal(needsHumanDecision({ status: "proposed", gate: "before-plan" }), true);
     // 비경계 게이트도 카드다 — 상태 기계에는 그 자리에 사람 규칙이 없다.

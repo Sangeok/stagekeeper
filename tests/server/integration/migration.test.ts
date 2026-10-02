@@ -28,7 +28,7 @@ it("replays all 17 prior SQL files whole on one connection and adds RDC without 
     for (const name of old) await db.query(readFileSync(new URL(`${name}/migration.sql`, directory), "utf8"));
     assert.equal(await capability(), "legacy");
     assert.equal((await db.query("SELECT current_schema() AS name")).rows[0].name, schema);
-    // Insert only after replaying D3. Latest Prisma queries would ask for the new
+    // Insert only after replaying them. Latest Prisma queries would ask for the new
     // columns before they exist; SQL describes the actual previous schema.
     await db.query(`
       INSERT INTO "User" (id,"githubId",login,"projectAvailabilityVersion") VALUES ('u',-1,'owner',1);
