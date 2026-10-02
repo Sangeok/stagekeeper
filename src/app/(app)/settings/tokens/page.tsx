@@ -14,7 +14,7 @@ export default async function Page() {
     loadHeaderUser(userId),
     prisma.userToken.findMany({
       where: { userId },
-      select: { id: true, label: true, createdAt: true, revokedAt: true },
+      select: { id: true, label: true, createdAt: true, revokedAt: true, lastUsedAt: true, usageTrackingStartedAt: true },
       orderBy: { createdAt: "desc" },
     }),
   ]);

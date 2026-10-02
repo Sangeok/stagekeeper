@@ -7,7 +7,7 @@ import { makeRecordRunbook, type RunbookDeps } from "./runbook-query";
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;
-const tokenRecord = { projectId: "project-1", revokedAt: null };
+const tokenRecord = { id: "agent-token", projectId: "project-1", revokedAt: null };
 const version = runbookVersion("# runbook\n");
 
 type Options = {
@@ -47,7 +47,7 @@ describe("recordRunbook", () => {
   });
 
   it("refuses an unknown or revoked token without writing", async () => {
-    for (const record of [null, { projectId: "project-1", revokedAt: new Date() }]) {
+    for (const record of [null, { id: "agent-token", projectId: "project-1", revokedAt: new Date() }]) {
       const { recordRunbook, saved } = setup({ tokenRecord: record });
       const result = await recordRunbook(authorizationHeader, { version });
       assert.deepEqual(result, { ok: false, status: 401, reason: "invalid or revoked token" });
@@ -85,7 +85,7 @@ describe("recordRunbook with a user token", () => {
     const slugs: [string, string][] = [];
     const deps: RunbookDeps = {
       findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
-      findUserTokenByHash: async () => ({ userId: "user1", revokedAt: null }),
+      findUserTokenByHash: async () => ({ id: "user-token", userId: "user1", revokedAt: null }),
       projectFor: async (slug, userId) => {
         slugs.push([slug, userId]);
         return options.projectId === undefined ? "project-1" : options.projectId;

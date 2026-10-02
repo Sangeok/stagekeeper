@@ -17,6 +17,9 @@ export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }
   return (
     <Card className="gap-4">
       <p className="text-sm text-quiet">This is the only time the token is shown. Stagekeeper stores a hash, not the token.</p>
+      <p className="text-xs text-quiet">This token stays valid until you revoke it. Restarting a terminal or Claude Code does not expire it.</p>
+      <p className="text-xs text-quiet">Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.</p>
+      <p className="text-xs text-quiet">If you did not save the token, issue a new one and revoke the old token when you no longer use it.</p>
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
         <CodeBlock className="break-all whitespace-pre-wrap text-sm leading-5">{token}</CodeBlock>
@@ -79,8 +82,10 @@ function SetProjectToken({ token }: { token: string }) {
         <CommandRow key={entry.kind} entry={entry} />
       ))}
       <p className="text-xs text-quiet">
-        This lasts only in this terminal. A new terminal needs the token again, and it can&apos;t be shown again — issue
-        another on the Tokens tab, or use a{" "}
+        This environment variable lasts only in this terminal. In a new terminal, set the same token again from your secure storage before starting Claude Code.
+      </p>
+      <p className="text-xs text-quiet">
+        For your own machine across multiple projects, use a{" "}
         <Link href={userTokensPath()} className="underline underline-offset-2">
           user token
         </Link>{" "}

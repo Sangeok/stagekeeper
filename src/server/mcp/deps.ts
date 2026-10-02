@@ -1,6 +1,7 @@
 // ToolDeps의 Prisma 구현 + 토큰 검증 바인딩. 도구 본문은 tools.ts, 저장 규칙은 pipeline/board.ts.
 import { historyCutoff } from "@harness/core/entitlement.mjs";
 import "server-only";
+import { recordTokenUsage } from "../token-usage";
 import { agentNext } from "@/server/agents/next";
 import { createNextDeps } from "@/server/agents/runs";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -83,4 +84,5 @@ export const prismaToolDeps = createToolDeps(defaultDb);
 export const verifyProjectToken = makeVerifyToken(
   (hash) => defaultDb.projectToken.findUnique({ where: { hash }, select: { id: true, projectId: true, revokedAt: true } }),
   (hash) => findUserTokenByHash(hash, defaultDb),
+  recordTokenUsage,
 );

@@ -17,7 +17,7 @@ import { prisma } from "@/server/db";
 export async function issueUserToken(label: string): Promise<ActionResult<{ token: string }>> {
   const { userId } = await requireUser();
   const { plain, hash } = newToken("user");
-  await prisma.userToken.create({ data: { userId, hash, label: label.trim() || "token" } });
+  await prisma.userToken.create({ data: { userId, hash, label: label.trim() || "token", usageTrackingStartedAt: new Date() } });
   revalidatePath(userTokensPath());
   return success({ token: plain });
 }

@@ -1,5 +1,6 @@
 // OwnerToolDeps의 Prisma 구현 + 소유자 토큰 검증 바인딩. 도구 본문은 owner-tools.ts, 저장 규칙은 pipeline/board.ts.
 import "server-only";
+import { recordTokenUsage } from "../token-usage";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
 import * as board from "@/server/pipeline/board";
@@ -19,4 +20,5 @@ export const prismaOwnerToolDeps: OwnerToolDeps = {
 
 export const verifyOwnerToken = makeVerifyOwnerToken((hash) =>
   prisma.ownerToken.findUnique({ where: { hash }, select: { id: true, projectId: true, userId: true, revokedAt: true } }),
+  recordTokenUsage,
 );
