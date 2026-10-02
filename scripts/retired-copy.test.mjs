@@ -16,6 +16,12 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
   {
+    pattern: /This lasts only in this terminal\. A new terminal needs the token again, and it can(?:'|&apos;|&#39;|&#x27;)t be shown again — issue another on the Tokens tab, or use a user token to set one once for every repository\./,
+    where: ["web", "skill", "locks"],
+    since: "2026-10-02",
+    why: "a securely saved project token can be reused until revoked",
+  },
+  {
     pattern: /The decision wasn(?:'|&apos;|&#39;|&#x27;)t recorded/,
     where: ["web"],
     since: "2026-10-01",

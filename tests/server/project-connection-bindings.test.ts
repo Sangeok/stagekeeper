@@ -85,7 +85,7 @@ it("retries one real Prisma slug violation in legacy/driver metadata and propaga
     let calls = 0;
     const exported: { registerProject?: (header: string, body: unknown) => Promise<unknown> } = {};
     const deps: Record<string, unknown> = {
-      "server-only": {}, "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": accessQuery,
+      "server-only": {}, "./token-usage": { recordTokenUsage: async () => {} }, "../token-usage": { recordTokenUsage: async () => {} }, "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": accessQuery,
       "@/server/project-availability-service": availability,
       "@/server/db": { prisma: { $transaction: async () => { if (++calls <= failures) throw collision(meta); return { status: "created", projectId: "p", slug: "stored" }; },
         project: { findUnique: async () => ({ repoOwner: "owner", repo: "repo", branch: "main", name: "stored", slug: "stored", disconnectedAt: null }) } } },

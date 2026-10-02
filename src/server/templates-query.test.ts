@@ -6,7 +6,7 @@ import { makeTemplatesFor, type TemplateDeps } from "./templates-query";
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;
-const tokenRecord = { projectId: "project-1", revokedAt: null };
+const tokenRecord = { id: "agent-token", projectId: "project-1", revokedAt: null };
 const agentStub = "# Agent\n";
 const agentBody = `${agentStub}\n## step:start\nPrivate instructions.\nnext: done\n`;
 const templateRows = [
@@ -156,7 +156,7 @@ describe("templatesFor", () => {
 describe("templatesFor with a user token", () => {
   const user = newToken("user");
   const userHeader = `Bearer ${user.plain}`;
-  const userRecord: { userId: string; revokedAt: Date | null } = { userId: "user1", revokedAt: null };
+  const userRecord: { id: string; userId: string; revokedAt: Date | null } = { id: "user-token", userId: "user1", revokedAt: null };
 
   function userSetup(options: { userRecord?: typeof userRecord | null; projectId?: string | null } = {}) {
     const calls: { slugs: [string, string][]; projectIds: string[]; languages: string[] } = {
@@ -209,7 +209,7 @@ describe("templatesFor with a user token", () => {
   });
 
   it("returns 401 for an unknown or revoked user token without resolving the slug", async () => {
-    for (const record of [null, { userId: "user1", revokedAt: new Date() }]) {
+    for (const record of [null, { id: "user-token", userId: "user1", revokedAt: new Date() }]) {
       const { templatesFor, calls } = userSetup({ userRecord: record });
 
       const result = await templatesFor(userHeader, "en", "mine");

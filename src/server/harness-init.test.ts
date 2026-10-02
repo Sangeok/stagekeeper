@@ -58,8 +58,8 @@ async function service(t: TestContext, plan: Plan = "free") {
   let disconnectAfterTemplates = false;
   let agentRevoked = false;
   const deps = {
-    findTokenByHash: async (hash: string) => hash === agent.hash ? { projectId: "legacy", revokedAt: agentRevoked ? new Date() : null } : null,
-    findUserTokenByHash: async (hash: string) => hash === user.hash ? { userId: "user", revokedAt: null } : null,
+    findTokenByHash: async (hash: string) => hash === agent.hash ? { id: "agent-token", projectId: "legacy", revokedAt: agentRevoked ? new Date() : null } : null,
+    findUserTokenByHash: async (hash: string) => hash === user.hash ? { id: "user-token", userId: "user", revokedAt: null } : null,
     projectFor: async (slug: string, userId: string) => {
       scopes.push(slug);
       return userId === "user" && ["mathgic", "another"].includes(slug) ? slug : null;

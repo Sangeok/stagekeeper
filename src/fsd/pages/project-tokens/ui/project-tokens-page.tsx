@@ -1,10 +1,13 @@
+import Link from "next/link";
+import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
+import { TokenUsage } from "@/fsd/entities/project-token";
 import { NewOwnerTokenForm, NewTokenForm, OWNER_TOKEN_PLAN_GATE } from "@/fsd/features/manage-token";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";
 import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 
-export type TokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null };
+export type TokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null; lastUsedAt: Date | null; usageTrackingStartedAt: Date | null };
 
 type Props = {
   issueAllowed: boolean;
@@ -27,8 +30,9 @@ function TokenTable({ tokens, revoke, reference, empty }: { tokens: TokenRow[]; 
     <Table>
       <thead>
         <tr>
-          <Th>Label</Th>
+          <Th>Token name</Th>
           <Th>Issued</Th>
+          <Th>Last used</Th>
           <Th>Status</Th>
           <Th>Reference</Th>
           <Th />
@@ -37,7 +41,7 @@ function TokenTable({ tokens, revoke, reference, empty }: { tokens: TokenRow[]; 
       <tbody>
         {tokens.length === 0 ? (
           <Tr>
-            <Td colSpan={5} className="text-quiet">
+            <Td colSpan={6} className="text-quiet">
               {empty}
             </Td>
           </Tr>
@@ -46,6 +50,7 @@ function TokenTable({ tokens, revoke, reference, empty }: { tokens: TokenRow[]; 
           <Tr key={t.id} className={t.revokedAt ? "text-quiet" : undefined}>
             <Td>{t.label}</Td>
             <Td className="font-mono text-xs">{day(t.createdAt)}</Td>
+            <Td><TokenUsage lastUsedAt={t.lastUsedAt} usageTrackingStartedAt={t.usageTrackingStartedAt} /></Td>
             <Td>{t.revokedAt ? `Revoked ${day(t.revokedAt)}` : "Active"}</Td>
             <Td className="font-mono text-xs text-quiet">{reference}:{t.id}</Td>
             <Td className="text-right">
@@ -73,10 +78,14 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, ownerMcpUrl, 
         <p className="text-sm text-quiet">
           Agents connect with a token. An agent token can&apos;t approve gates or edit and remove backlog items — approving is yours, in the Inbox or with an owner token below. feature-scout can add up to three backlog items a run.
         </p>
+        <p className="text-sm text-quiet">Create separate tokens for different devices or uses. You can revoke each one independently.</p>
+        <p className="text-xs text-quiet">Usage reflects recorded authentication, not task completion.</p>
         <p className="text-sm text-quiet">
           MCP server URL: <Code className="text-ink">{mcpUrl}</Code>
         </p>
       </section>
+
+      <p className="text-sm text-quiet">A project token connects agents to this project. For your own machine across multiple projects, use a <Link href={userTokensPath()} className="underline underline-offset-2">user token</Link>.</p>
 
       {issueAllowed ? <NewTokenForm issue={issue} mcpUrl={mcpUrl} /> : null}
 

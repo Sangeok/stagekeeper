@@ -27,7 +27,7 @@ async function issue(client: TransactionHost, input: IssueProjectTokenInput, kin
       if (!access.available) return { ok: false, reason: access.reason };
       if (kind === "owner" && !allowsSessionApprovals(access.plan)) return { ok: false, reason: OWNER_TOKEN_PLAN_GATE };
       const { plain, hash } = newToken(kind);
-      const data = { projectId: project.id, hash, label: input.label.trim() || (kind === "owner" ? "session" : "token") };
+      const data = { projectId: project.id, hash, label: input.label.trim() || (kind === "owner" ? "session" : "token"), usageTrackingStartedAt: new Date() };
       if (kind === "owner") await tx.ownerToken.create({ data: { ...data, userId: input.userId } });
       else await tx.projectToken.create({ data });
       return { ok: true, item: { token: plain } };
