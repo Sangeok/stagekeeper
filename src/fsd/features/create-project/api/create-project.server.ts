@@ -32,7 +32,7 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
   const { plain, hash } = newToken();
   try {
     // 상한 검사와 생성은 한 트랜잭션이다 — 따로 두면 동시에 온 두 요청이 둘 다 "아직 여유 있음"을
-    // 읽고 둘 다 만든다(board.ts:71의 미결 상한과 같은 이유).
+    // 읽고 둘 다 만든다(board-query.ts propose의 미결 상한과 같은 이유).
     const result = await withAvailabilityTransaction(prisma, (tx) => registerProjectResultIn(tx, {
       userId,
       slug,

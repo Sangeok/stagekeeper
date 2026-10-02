@@ -157,7 +157,7 @@ model BoardItem {                        // 같은 backlog 항목이 여러 번 
   status        String                    // transitions.mjs STATUSES
   reason        String                    // 근거 ≤150
   results       String[]                  // 결과 ≤150, 누적(ApcH 결과: 두 줄 누적 규칙)
-  validation    String?                   // 검증: — 검토대기에서만, 되돌리기 시 null
+  validation    String?                   // 검증: — in_review에서만, 되돌리기 시 null
   acceptedAt    DateTime?                 // 인수: done에서 main-loop의 report_submit이 찍는다. reopen 시 null
   planPath      String?
   planCommit    String?
@@ -230,7 +230,7 @@ model AgentRun {                         // 같은 (project, agent, key)의 여�
   stepId    String                       // 지금 서 있는 단계. 전진은 이 값이 그대로일 때만(CAS)
   refused   Int            @default(0)   // 이 run에서 "열리지 않은 단계" 거부 횟수 — 10회에 경고
   openedAt  DateTime       @default(now())
-  closedAt  DateTime?                    // done 도달, 또는 항목이 done/on_hold/폐기될 때 board.ts가 닫는다
+  closedAt  DateTime?                    // done 도달, 또는 항목이 done/on_hold/폐기될 때 board-query.ts closeRuns가 닫는다
   project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   steps     AgentRunStep[]
   pipelineRunId String?

@@ -27,7 +27,7 @@ export function decidePropose(i: ProposeInput): Decision<null> {
   return bad ? { ok: false, reason: bad } : { ok: true, value: null };
 }
 
-// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board.ts).
+// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board-query.ts transitionIn).
 export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean; kind: RuleKind };
 
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
@@ -94,7 +94,7 @@ const REPORT_SUBMIT_STATUSES = new Set(["in_review", "implementing", "done"]);
 
 // main-loop은 .claude/agents 정의가 없는 디스패처지만 **보고 행위자다** — 검증 라운드 기록과 인수 기록을
 // 낸다(protocol.md의 report_submit 행, 템플릿 docs/agents/README.md의 행위자 표). roster(Workspace.agent)에도
-// REPORT_AGENTS에도 없으므로 여기서 따로 더한다. 빼면 런북 7단계의 인수 등록이 막힌다.
+// REPORT_AGENTS에도 없으므로 여기서 따로 더한다. 빼면 런북 accept 단계의 인수 등록이 막힌다.
 const MAIN_LOOP = "main-loop";
 const knownReporter = (actor: string, roster: readonly string[]) =>
   actor === MAIN_LOOP || REPORT_AGENTS.includes(actor) || roster.includes(actor);
@@ -115,7 +115,7 @@ export type ReportSubmitInput = {
 // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다. outcome을 ok로 좁히면
 // 그 보고가 막힌다. 불변식의 뜻은 "보고 전에 검증을 시도했다"이고, 그건 커서(AgentRun.stepId)에
 // 결합하지 않고도 원장 한 줄로 표현된다.
-// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board.ts의 acceptedAt 쓰기가
+// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board-query.ts의 acceptedAt 쓰기가
 // "report_submit의 숨은 부수효과"가 아니라 "판정의 결과"가 된다(decideTransition의 completes와 같은 자리).
 export type ReportSubmitPatch = { accepts: boolean };
 

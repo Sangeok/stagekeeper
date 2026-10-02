@@ -1,4 +1,4 @@
-// src/server/pipeline/run.ts — 파이프라인 런의 저장과 사실 읽기. 판정은 packages/core/pipeline.mjs. board.ts를 import하지 않는다.
+// 파이프라인 런의 저장과 사실 읽기. 판정은 packages/core/pipeline.mjs. board.ts를 import하지 않는다.
 import { randomUUID } from "node:crypto";
 import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, cursorForStatus, defaultGraph, isGateId, sequence } from "@harness/core/pipeline.mjs";
 import { DISPATCH_WINDOW_DAYS, capError, dispatchCutoff } from "@harness/core/entitlement.mjs";

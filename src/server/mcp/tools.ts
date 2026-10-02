@@ -19,7 +19,7 @@ export const AGENT_TOOL_NAMES = [
 export type WorkspaceInput = { id: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] };
 
 // 에이전트가 JSON으로 받는 최소 계약. Prisma 행은 이보다 넓고, 넓은 쪽은 좁은 쪽에 대입된다 —
-// 그래서 여기에 적힌 필드가 board.ts의 select/include에서 빠지면 deps.ts가 컴파일에서 걸린다.
+// 그래서 여기에 적힌 필드가 board-query.ts의 select/include에서 빠지면 deps.ts가 컴파일에서 걸린다.
 // 예전에는 전부 unknown이라, 쿼리에서 필드가 사라져도 타입은 아무 말이 없고 프로토콜만 조용히
 // 깨졌다. Prisma 타입을 직접 import하지 않는 건 inbox-item.ts의 BoardRow와 같은 이유다.
 export type ProjectView = {
@@ -27,7 +27,7 @@ export type ProjectView = {
   executorKind: string; commandIssue: number | null; runbookVersion: string | null; createdAt: Date;
   workspaces: { id: string; projectId: string; wsId: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] }[];
 };
-// board_propose는 방금 만든 행만 돌려준다 — backlogItem을 include하지 않는다(board.ts propose).
+// board_propose는 방금 만든 행만 돌려준다 — backlogItem을 include하지 않는다(board-query.ts propose).
 export type BoardItemView = {
   id: string; agent: string; status: string; reason: string; results: string[]; validation: string | null;
   planPath: string | null; planCommit: string | null; proposedOn: Date; updatedAt: Date;
@@ -57,7 +57,7 @@ export type ToolDeps = {
   // runbook = 부르는 세션의 CLAUDE.md에 적힌 판. key 없는 개요의 표류 판정에만 쓴다(runbook.ts runbookStale).
   pipelineNext(projectId: string, key: string | undefined, runbook?: string): Promise<ServerResult<unknown>>;
   access(projectId: string): Promise<ProjectAccess>;
-  // hu_ 전용. 슬러그가 그 사용자의 프로젝트일 때만 id를 준다 — guard.ts:17·owner-deps.ts:19와 같은 쿼리.
+  // hu_ 전용. 슬러그가 그 사용자의 프로젝트일 때만 id를 준다 — guard.ts:17·owner-deps.ts의 owner와 같은 쿼리.
   projectFor(slug: string, userId: string): Promise<string | null>;
 };
 
