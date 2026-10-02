@@ -34,8 +34,11 @@ repository from one shell; the project then comes from `harness.json`'s `project
   Say plainly that this stores the value as plain text in their user environment.
 - A **project token** (`hs_`) belongs to one repository — keep it in the terminal that starts
   Claude Code. **Do not save it machine-wide**: `HARNESS_TOKEN` is one variable, and a second
-  repository's token would overwrite this one. The cost is that a new terminal has no token, and
-  the token cannot be shown again; if they want to set it once, that is what a user token is for.
+  repository's token would overwrite this one. The environment variable lasts only in that
+  terminal. In a new terminal, set the same token again from secure storage before starting
+  Claude Code. The token stays valid until revoked. Save it securely to reuse it; if it was not
+  saved, issue a new one and revoke the old token when no longer used. Never ask for the token
+  in chat or commit it to the repository. A user token can be saved once per machine.
 - **Never read the token out of a repository `.env` file**, even when one is sitting there. The
   generator and the MCP registration read the process environment only, so a run that "works"
   off `.env` stops working at the restart in step 4 — and the user is left with two tokens that
@@ -167,10 +170,11 @@ from that reference, then stop before step 1. After installation, rerun this pre
    matches the configured owner/repo before continuing. If the owner server was
    registered, confirm its connection and tool availability without opening a gate.
    Skipping these checks can leave generation complete while MCP access still fails.
-   **With a project token (`hs_`), say "restart from this same terminal."** That token lives only
-   in the terminal that started this session; a new terminal starts Claude Code without it and the
-   server fails to connect. The web page no longer says this — it stops at `/harness:init` — so
-   this is the only place the user hears it. A saved user token (`hu_`) works from any terminal.
+   **With a project token (`hs_`), say "restart from this same terminal."**
+   The environment variable lasts only in that terminal. In a new terminal, set the same securely
+   saved token before starting Claude Code. Restarting does not expire the token. Apply the same
+   reuse and secure-storage guidance to `HARNESS_OWNER_TOKEN`, which connects only to the owner
+   server. A saved user token (`hu_`) works from any terminal.
    A repository that must talk to a *different* server keeps its own `.mcp.json`: project scope
    outranks user scope, so that file stays the deliberate per-repo override.
 5. Read the current `harness.json` and call `mcp__harness__project_sync` with

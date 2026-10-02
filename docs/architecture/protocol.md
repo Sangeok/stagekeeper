@@ -349,3 +349,11 @@ A board-closed run may accept one final terminal outcome for its matching receip
 Board mutations claim id, updatedAt, observed status and discardedAt:null before evidence/event writes. Human callers retain their supplied updatedAt token; agent/pipeline callers use the transaction read. Every write uses max(now, prior updatedAt + 1ms). Any later failure rolls back all earlier writes.
 
 project_sync shares normalized workspace validation with the config parser. It reads the stored roster and validates the union inside a Serializable transaction before upserts. Omitted workspaces remain stored; P2034 returns a retry instruction without partial writes.
+
+## 토큰 인증 사용 기록
+
+`ProjectToken`, `OwnerToken`, `UserToken`의 nullable `lastUsedAt`은 작업 완료가 아니라 등록된 미폐기 credential을 받아들인 시각이다. MCP `/api/mcp`(hs_/hu_), `/api/mcp/owner`(ho_)와 REST `/api/templates`, `/api/project`, `/api/runbook`(hs_/hu_), `/api/projects`(hu_)의 인증 직후 내부 ID로 기록한다. downstream body·project·plan·tool 거부는 이미 받아들인 credential의 기록을 취소하지 않는다. 유효 hu_의 PROJECT_REQUIRED 401도 기록한다.
+
+기록은 id·미폐기·(기존 시각 없음 또는 요청 시각보다 60초 이상 이전)의 원자적 updateMany다. 최초 기록은 즉시 저장하고 역순 요청·폐기 후 기록은 행을 바꾸지 않는다. 매 인증은 query를 await하므로 60초 조건은 행 변경만 줄이고 추가 DB 왕복·대기는 남는다. 부가 기록/진단 오류는 원래 인증 결과를 바꾸지 않으며 고정 메시지와 kind만 진단한다. 최초 인증 조회 실패는 기존대로 전파한다. 웹 목록·발급·복사·폐기는 사용 기록이 아니다.
+
+신규 writer는 발급 시 `usageTrackingStartedAt`만 설정한다. 기존 행은 backfill 없이 두 열 null이며 Unknown이다. 시작값만 있으면 Never used(추적 후 기록 없음), lastUsedAt이 있으면 UTC 분으로 표시한다. 기록은 완전한 감사나 실제 미사용 보증이 아니다. DB 확장 → 새 generated client/앱 → 구버전 worker drain 순서로 배포한다. 롤백은 nullable 열과 기록을 보존한다. 새 서버 렌더에서 목록을 갱신하며 polling·탭 간 자동 최신화는 없다.

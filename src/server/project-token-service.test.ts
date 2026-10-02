@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
+import { hashToken } from "@harness/core/token.mjs";
 import type { Prisma } from "@/generated/prisma/client";
 import type { TransactionHost } from "./project-access-query";
 import { DISCONNECTED_REASON, NOT_SELECTED_REASON } from "./project-access-query";
@@ -44,4 +45,17 @@ it("denies disconnected, not selected, foreign, and owner-token plan failures wi
   }
   const free = tokenFixture({ plan: "free" });
   assert.equal((await issueProjectOwnerToken(free.client, input)).ok, false); assert.equal(free.tokens.length, 0);
+});
+
+it("new agent and owner tokens track issuance while retaining trimmed/default/duplicate names and independent lifetimes", async () => {
+  for (const [issue, defaultLabel] of [[issueProjectToken, "token"], [issueProjectOwnerToken, "session"]] as const) {
+    const f = tokenFixture();
+    for (const label of [" laptop ", "laptop", " "]) {
+      const result = await issue(f.client, { ...input, label }); assert.ok(result.ok);
+      const saved = f.tokens.at(-1) as { label: string; usageTrackingStartedAt: Date; lastUsedAt?: Date; hash: string };
+      assert.equal(saved.label, label.trim() || defaultLabel); assert.ok(saved.usageTrackingStartedAt instanceof Date);
+      assert.equal(saved.lastUsedAt, undefined); assert.equal(saved.hash, hashToken(result.item.token));
+    }
+    assert.equal(f.tokens.length, 3);
+  }
 });

@@ -7,7 +7,7 @@ import { NOT_SELECTED_REASON, OWNERSHIP_UNAVAILABLE_REASON } from "./project-acc
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;
-const tokenRecord = { projectId: "project-1", revokedAt: null };
+const tokenRecord = { id: "agent-token", projectId: "project-1", revokedAt: null };
 const identityRow = { repoOwner: "Sangeok", repo: "stagekeeper", branch: "dev", name: "stagekeeper", slug: "stagekeeper" };
 
 type Options = {
@@ -139,7 +139,7 @@ describe("projectIdentityFor with a user token", () => {
     };
     const deps: ProjectIdentityDeps = {
       findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
-      findUserTokenByHash: async () => ({ userId: "user1", revokedAt: null }),
+      findUserTokenByHash: async () => ({ id: "user-token", userId: "user1", revokedAt: null }),
       projectFor: async (slug, userId) => {
         calls.slugs.push([slug, userId]);
         return options.projectId === undefined ? "project-1" : options.projectId;

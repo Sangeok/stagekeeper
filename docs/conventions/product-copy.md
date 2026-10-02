@@ -357,10 +357,20 @@ The decision card header also shows the backlog type (feat/fix/refactor/docs) wh
 
 ## 9. Tokens
 
+All three issue forms show: "Name the device or purpose so you can recognize this token later."
+The stored `label` remains optional, allows duplicate names, and does not change permissions.
+Before issuing: "Create separate tokens for different devices or uses. You can revoke each one independently."
+Project scope: "A project token connects agents to this project. For your own machine across multiple projects, use a user token." (`user token` links to `/settings/tokens`.)
+Account scope also states: "A user token does not replace an owner token for gate approvals."
+All tables include **Last used**: `YYYY-MM-DD HH:mm UTC`, **Never used** ("No authentication use recorded since tracking began."), or **Unknown** ("Usage before tracking began is unavailable.").
+A recorded time takes precedence; both null fields mean Unknown, only tracking start means Never used.
+"Usage reflects recorded authentication, not task completion." Revoked rows retain their usage record.
+
+
 - Title **Tokens**. Intro: "Agents connect with a token. An agent token can't approve gates or edit and remove backlog items — approving is yours, in the Inbox or with an owner token below. feature-scout can add up to three backlog items a run." · "MCP server URL: `http://…/api/mcp`"
-- New token: label **Label** (placeholder `laptop`), button **Issue token** / "Issuing…". Error:
+- New token: label **Token name** (placeholder `personal laptop, CI`), button **Issue token** / "Issuing…". Error:
   "Couldn't issue the token. Try again."
-- Table: Label · Issued · Status · Reference. Status "Active" / "Revoked 2026-08-30".
+- Table: Token name · Issued · Last used · Status · Reference. Status "Active" / "Revoked 2026-08-30".
   Reference `token:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 
 
@@ -370,6 +380,9 @@ blocks below are copy-locked (see "Copy-lock blocks" at the top of this file).
 
 <!-- copy-lock:token-reveal-shared -->
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
+> This token stays valid until you revoke it. Restarting a terminal or Claude Code does not expire it.
+> Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.
+> If you did not save the token, issue a new one and revoke the old token when you no longer use it.
 >
 > **1. Install the Stagekeeper plugin in Claude Code**
 > `/harness:init` comes from the plugin. Install it once — it stays available in every repository.
@@ -383,13 +396,14 @@ blocks below are copy-locked (see "Copy-lock blocks" at the top of this file).
 <!-- /copy-lock -->
 
 Project token (`hs_`) — `/p/[slug]/tokens` and the screen after creating a project. "user token"
-in the last line of step 2 links to `/settings/tokens`.
+in step 2 links to `/settings/tokens`.
 
 <!-- copy-lock:token-reveal-project -->
 > **2. Set the token in the terminal that will start Claude Code**
 > Claude Code reads this environment variable when it starts. A repository `.env` file is not loaded for this connection. The MCP registration stores only a `${HARNESS_TOKEN}` reference, never the value.
 > PowerShell `$env:HARNESS_TOKEN = "hs_…"` · bash / zsh `export HARNESS_TOKEN="hs_…"` — **Copy** / "Copied"
-> This lasts only in this terminal. A new terminal needs the token again, and it can't be shown again — issue another on the Tokens tab, or use a user token to set one once for every repository.
+> This environment variable lasts only in this terminal. In a new terminal, set the same token again from your secure storage before starting Claude Code.
+> For your own machine across multiple projects, use a user token to set one once for every repository.
 >
 > **3. Start Claude Code in this repository**
 > From the same terminal, change to the repository directory and start Claude Code.
@@ -431,7 +445,7 @@ carry no value; only the macOS · Linux line shows it, because it goes into a fi
 순간 첫 번째의 토큰을 덮어쓴다.** `hs_`를 "Claude Code를 띄우는 그 터미널"에 두는 지금 방식은 이 점에서
 일관된다 — 터미널 하나 = 저장소 하나 = 토큰 하나. (원래 적힌 이유는 "설정에는 참조만 남긴다"였고
 `connect-command.ts` 머리 주석이 그것이다. 저장소별 분리를 의도했다는 기록은 없다 — 결과가 그렇다.) 대가는 새 터미널에서 토큰이 사라지는
-것이고, 토큰은 다시 볼 수 없으므로 화면이 그 사실을 미리 말하고 `hu_`로 안내한다.
+것이고, 토큰은 다시 볼 수 없으므로 화면이 안전한 보관과 같은 값의 재설정을 설명한다. 값을 잃어버린 경우에만 재발급을 안내한다.
 "머신당 1회"는 `hu_`의 것이다: 저장소를 가로지르는 토큰이라 전역 저장이 성립한다. 영구 저장은 어떤
 방식이든 값을 평문으로 디스크에 둔다(Windows는 사용자 환경변수, macOS·Linux는 셸 프로필) — 이를
 받아들이고 화면에 그대로 적는다. 대신 값이 **셸 히스토리와 채팅에는 남지 않게** 한다: 명령은 값을
@@ -444,8 +458,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 때마다 토큰을 새로 발급받아야 하냐"고 물었다 — 빈칸이 실제 질문이 됐다. 토큰에는 만료가 없다: 표에 만료 열이
 없고(`prisma/schema.prisma:82` `ProjectToken`, `:105` `UserToken` — `revokedAt`뿐이다), 조회도 `revokedAt`만
 본다(`src/server/user-scope-query.ts:18`). 그래서 `hu_` 2단계와 계정 화면 머리에 "폐기할 때까지 유효하다"를
-적는다. "새 토큰이 필요 없다"는 `hu_`에만 쓴다 — `hs_`도 폐기 전까지 유효하지만 값이 그 터미널에만 있어서 새
-터미널에서는 새 토큰이 필요하다(`token-reveal.test.ts`가 새지 않음을 본다).
+적는다. `hs_`와 `ho_`도 폐기 전까지 유효하다. 새 터미널에서는 안전하게 보관한 같은 값을 다시 설정한다. 값을 보관하지 않았다면 새 토큰을 발급하고 사용하지 않는 이전 토큰을 개별 폐기한다.
 
 **사용자 토큰으로 옮기기 전 안내** — 이 페이지가 발급하는 것은 프로젝트 토큰(`hs_`)이라 저장소마다
 하나씩 필요하다. 계정 단위 토큰(`hu_`)은 한 번만 발급해 모든 저장소에서 쓴다. 다만 이미 연결된
@@ -459,7 +472,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 - Heading **Owner token**. Intro: "An owner token lets your own Claude Code session open gates
   for you. It's yours, not the project's — agents never get it. Send back, hold, reopen, and
   discard stay web only." · "Owner MCP server URL: `http://…/api/mcp/owner`"
-- New owner token (Pro and Max): label **Label** (placeholder `my laptop session`), button
+- New owner token (Pro and Max): label **Token name** (placeholder `my laptop session`), button
   **Issue owner token** / "Issuing…". Error: "Couldn't issue the token. Try again." Server
   refusal by plan: "Owner tokens open on Pro. Approve in the Inbox for now."
 - Free: no form — the same line instead, "Owner tokens open on Pro. Approve in the Inbox for now."
@@ -468,14 +481,18 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
   (Free — there is no form above to point at; the table stays so a leftover token can still be
   revoked after a downgrade).
 
-**Owner token reveal** (after issuing). Copy-locked. 문장은 2026-09-21 그대로이고 줄바꿈만 풀었다 —
+**Owner token reveal** (after issuing). Copy-locked. 재사용·보관·수명 안내를 포함한다 —
 잠금 블록은 한 줄이 한 단위다.
 
 <!-- copy-lock:owner-token-reveal -->
 > This is the only time the token is shown. Stagekeeper stores a hash, not the token.
+> This token stays valid until you revoke it. Restarting a terminal or Claude Code does not expire it.
+> Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.
+> If you did not save the token, issue a new one and revoke the old token when you no longer use it.
 >
 > **1. Set it in the same shell as your agent token**
 > It's yours, not the project's. The MCP registration stores only a `${HARNESS_OWNER_TOKEN}` reference; agents never see the value.
+> This environment variable lasts only in this terminal. In a new terminal, set the same token again from your secure storage before starting Claude Code.
 > PowerShell `$env:HARNESS_OWNER_TOKEN = "ho_…"` · bash / zsh `export HARNESS_OWNER_TOKEN="ho_…"` — **Copy** / "Copied"
 >
 > **2. Rerun the connection from that shell, then restart Claude Code**
@@ -485,7 +502,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 <!-- /copy-lock -->
 
 **Account tokens** — `/settings/tokens`. 프로젝트 밖의 계정 단위 경로이고 `/billing`이 그 선례다.
-`/p/[slug]/tokens`와 **별개 화면**이며 그쪽은 이번 변경이 건드리지 않는다 — `tokens`는 `PROJECT_TABS`의
+`/p/[slug]/tokens`와 **별개 화면**이다 — `tokens`는 `PROJECT_TABS`의
 한 탭이라, 계정 단위 자격을 거기에 두면 프로젝트 수만큼 중복 표시된다.
 
 - Title **Tokens**. Intro: "A user token connects every repository you own from one shell. It says
@@ -494,9 +511,9 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 - 전환 안내 한 줄: "Already connected a repository? Rerun `/harness:init` once there before you use
   this token — an older `harness.json` has no slug, and without one there is nothing to name the
   project with." · "MCP server URL: `http://…/api/mcp`"
-- New token: label **Label** (placeholder `laptop`), button **Issue token** / "Issuing…". Error:
+- New token: label **Token name** (placeholder `personal laptop, CI`), button **Issue token** / "Issuing…". Error:
   "Couldn't issue the token. Try again."
-- Table: Label · Issued · Status · Reference. Status "Active" / "Revoked 2026-08-30".
+- Table: Token name · Issued · Last used · Status · Reference. Status "Active" / "Revoked 2026-08-30".
   Reference `user:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 - 발급 직후의 노출은 프로젝트 토큰과 **같은 컴포넌트**다(`TokenReveal`). 셸 변수 이름도 `HARNESS_TOKEN`으로
   같다 — MCP 등록에 들어가는 참조가 하나이기 때문이다. 1회 노출 규약은 토큰 종류와 무관하다.
@@ -934,14 +951,13 @@ both). Below: each file's title, its section headings, and the sentences that se
   The token guidance splits by kind (2026-09-22, §9의 근거와 같다): "A **user token** (`hu_`) is
   saved once per machine" with a history-safe prompt; "A **project token** (`hs_`) belongs to one
   repository — keep it in the terminal that starts Claude Code. Do not save it machine-wide:
-  `HARNESS_TOKEN` is one variable, and a second repository's token would overwrite this one."
+  `HARNESS_TOKEN` is one variable, and a second repository's token would overwrite this one." Reuse a securely saved value in a new terminal; tokens stay valid until revoked. If the value was not saved, issue a replacement and revoke unused old tokens. Never ask for the token in chat.
   The skill points at the page that issued the token for the exact commands rather than composing
   its own, and: "**Never read the token out of a repository `.env` file**, even when one is sitting
   there." — 2026-09-21 실사용에서 에이전트가 `.env`의 값으로 우회했다가, 재시작 뒤 MCP가 그 파일을
   읽지 않아 끊기는 경로를 사용자에게 안내했다. 생성기와 MCP 등록은 프로세스 환경만 읽는다.
   Step 4's restart line adds, for a project token: "**With a project token (`hs_`), say "restart from this
-  same terminal."** That token lives only in the terminal that started this session; a new terminal starts
-  Claude Code without it and the server fails to connect." — 웹의 5단계를 지우면서 "from the same terminal"도
+  same terminal."** The environment variable lasts only in that terminal. In a new terminal, set the same securely saved token before starting Claude Code; a restart does not expire the token." — 웹의 5단계를 지우면서 "from the same terminal"도
   같이 사라졌다. `hs_`에는 그 조건이 여전히 참이므로 재시작을 말하는 곳(스킬)이 넘겨받는다.
   The closing "Not done
   here" line: "gate transitions (web, or the owner's own session with an owner token — never this

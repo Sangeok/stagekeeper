@@ -6,15 +6,17 @@
 // 조용히 갈릴 여지가 세 배가 되기 때문이다.
 //
 // **hu_ 갈래는 선택이다.** findUserTokenByHash·projectFor를 주입하지 않은 호출자에게는
-// hu_가 존재하지 않는 것처럼 동작한다(makeVerifyToken의 두 번째 인자와 같은 규약) —
-// 그래서 기존 주입 시험이 한 줄도 바뀌지 않고 통과한다.
+// hu_가 존재하지 않는 것처럼 동작한다(makeVerifyToken의 두 번째 인자와 같은 규약).
+// 조회 결과에는 사용 기록에 필요한 내부 토큰 ID도 포함한다.
 import { hashToken, parseBearer } from "@harness/core/token.mjs";
+import { tryRecordTokenUsage, type TokenUsageRecorder } from "./token-usage-query";
 import { NOT_YOURS, PROJECT_REQUIRED } from "./scope-copy";
 
 export type RestTokenDeps = {
-  findTokenByHash(hash: string): Promise<{ projectId: string; revokedAt: Date | null } | null>;
-  findUserTokenByHash?(hash: string): Promise<{ userId: string; revokedAt: Date | null } | null>;
+  findTokenByHash(hash: string): Promise<{ id: string; projectId: string; revokedAt: Date | null } | null>;
+  findUserTokenByHash?(hash: string): Promise<{ id: string; userId: string; revokedAt: Date | null } | null>;
   projectFor?(slug: string, userId: string): Promise<string | null>;
+  recordTokenUsage?: TokenUsageRecorder;
 };
 
 export type RestScope = { ok: true; projectId: string } | { ok: false; status: 401 | 403; reason: string };
@@ -31,6 +33,7 @@ export async function resolveRestScope(
   if (agentPlain) {
     const row = await deps.findTokenByHash(hashToken(agentPlain));
     if (!row || row.revokedAt) return { ok: false, status: 401, reason: "invalid or revoked token" };
+    await tryRecordTokenUsage(deps.recordTokenUsage, "agent", row.id, new Date());
     return { ok: true, projectId: row.projectId };
   }
 
@@ -42,6 +45,7 @@ export async function resolveRestScope(
 
   const userRow = await findUser!(hashToken(userPlain));
   if (!userRow || userRow.revokedAt) return { ok: false, status: 401, reason: "invalid or revoked token" };
+  await tryRecordTokenUsage(deps.recordTokenUsage, "user", userRow.id, new Date());
   // 토큰은 멀쩡하지만 가리킬 프로젝트가 없다. 고치는 법을 문장이 들고 있다(A-8의 전환 경로).
   if (slug === null) return { ok: false, status: 401, reason: PROJECT_REQUIRED };
 
@@ -61,13 +65,15 @@ export async function resolveRestScope(
 export type UserScope = { ok: true; userId: string } | { ok: false; status: 401; reason: string };
 
 export async function resolveUserScope(
-  findUserTokenByHash: (hash: string) => Promise<{ userId: string; revokedAt: Date | null } | null>,
+  findUserTokenByHash: (hash: string) => Promise<{ id: string; userId: string; revokedAt: Date | null } | null>,
   authorizationHeader: string | null,
+  recordUsage?: TokenUsageRecorder,
 ): Promise<UserScope> {
   const plain = parseBearer(authorizationHeader, "user");
   // hs_·ho_·형식 오류·헤더 없음이 모두 여기로 떨어진다. DB는 건드리지 않는다.
   if (!plain) return { ok: false, status: 401, reason: "user token required" };
   const row = await findUserTokenByHash(hashToken(plain));
   if (!row || row.revokedAt) return { ok: false, status: 401, reason: "invalid or revoked token" };
+  await tryRecordTokenUsage(recordUsage, "user", row.id, new Date());
   return { ok: true, userId: row.userId };
 }

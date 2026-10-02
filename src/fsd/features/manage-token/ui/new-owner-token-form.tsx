@@ -34,12 +34,12 @@ export function NewOwnerTokenForm({ issue, ownerMcpUrl }: Props) {
             }
           });
         }}
-        className="flex items-end gap-2"
+        className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-start"
       >
-        <Field label="Label" className="flex-1">
+        <Field label="Token name" hint="Name the device or purpose so you can recognize this token later." className="flex-1">
           <Input name="label" placeholder="my laptop session" />
         </Field>
-        <Button variant="mine" type="submit" disabled={pending}>
+        <Button className="sm:mt-6" variant="mine" type="submit" disabled={pending}>
           {pending ? "Issuing…" : "Issue owner token"}
         </Button>
       </form>

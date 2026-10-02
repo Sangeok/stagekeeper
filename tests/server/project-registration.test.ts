@@ -15,7 +15,7 @@ function registrationFixture(authenticated = true) {
   const require = createRequire(import.meta.url);
   const exported = {} as { registerProject: typeof RegisterProject };
   const deps: Record<string, unknown> = {
-    "server-only": {}, "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": access,
+    "server-only": {}, "./token-usage": { recordTokenUsage: async () => {} }, "../token-usage": { recordTokenUsage: async () => {} }, "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": access,
     "./project-slug-rule": slugRules, "./user-scope-query": {},
     "./rest-scope": { resolveUserScope: async () => authenticated ? { ok: true, userId: "owner" } : { ok: false, status: 401, reason: "unauthenticated" } },
     "@/server/project-availability-service": { withAvailabilityTransaction: async (_db: unknown, work: (tx: unknown) => Promise<unknown>) => { transactions++; return work({}); } },

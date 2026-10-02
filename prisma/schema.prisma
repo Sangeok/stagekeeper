@@ -90,6 +90,8 @@ model ProjectToken {
   label     String
   createdAt DateTime  @default(now())
   revokedAt DateTime?
+  lastUsedAt DateTime?
+  usageTrackingStartedAt DateTime?
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
@@ -101,6 +103,8 @@ model OwnerToken {                       // 사람 자격. 소유자가 자기 C
   label     String
   createdAt DateTime  @default(now())
   revokedAt DateTime?
+  lastUsedAt DateTime?
+  usageTrackingStartedAt DateTime?
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([projectId, userId])
@@ -113,6 +117,8 @@ model UserToken {                        // 사람 자격. OwnerToken에서 proj
   label     String
   createdAt DateTime  @default(now())
   revokedAt DateTime?
+  lastUsedAt DateTime?
+  usageTrackingStartedAt DateTime?
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId])
 }

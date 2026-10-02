@@ -5,6 +5,7 @@
 // 구현하지 않는다. 다른 점은 셋이다: hu_ 인증, 슬러그 자동 파생, 그리고 멱등(같은 저장소
 // 재등록은 기존 행을 돌려준다).
 import "server-only";
+import { recordTokenUsage } from "./token-usage";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db";
 import { DISCONNECTED_REASON, ProjectIntegrityError, repositoryOwner } from "@/server/project-access-query";
@@ -32,7 +33,7 @@ export async function registerProject(
   body: unknown,
 ): Promise<RegisterProjectResponse> {
   // hu_만 통과한다. hs_로 새 프로젝트를 만드는 것은 말이 안 되므로 여기서 401이다.
-  const scope = await resolveUserScope(findUserTokenByHash, authorizationHeader);
+  const scope = await resolveUserScope(findUserTokenByHash, authorizationHeader, recordTokenUsage);
   if (!scope.ok) return scope;
 
   const owner = field(body, "owner");

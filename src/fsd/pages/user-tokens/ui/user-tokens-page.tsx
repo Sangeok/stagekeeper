@@ -1,10 +1,11 @@
+import { TokenUsage } from "@/fsd/entities/project-token";
 import { NewUserTokenForm } from "@/fsd/features/manage-user-token";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";
 import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 
-export type UserTokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null };
+export type UserTokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null; lastUsedAt: Date | null; usageTrackingStartedAt: Date | null };
 
 type Props = {
   mcpUrl: string;
@@ -35,18 +36,23 @@ export function UserTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
           this token — an older <Code className="text-ink">harness.json</Code> has no slug, and without one there is
           nothing to name the project with.
         </p>
+        <p className="text-sm text-quiet">Create separate tokens for different devices or uses. You can revoke each one independently.</p>
+        <p className="text-xs text-quiet">Usage reflects recorded authentication, not task completion.</p>
         <p className="text-sm text-quiet">
           MCP server URL: <Code className="text-ink">{mcpUrl}</Code>
         </p>
       </section>
+
+      <p className="text-sm text-quiet">A user token does not replace an owner token for gate approvals.</p>
 
       <NewUserTokenForm issue={issue} mcpUrl={mcpUrl} />
 
       <Table>
         <thead>
           <tr>
-            <Th>Label</Th>
+            <Th>Token name</Th>
             <Th>Issued</Th>
+            <Th>Last used</Th>
             <Th>Status</Th>
             <Th>Reference</Th>
             <Th />
@@ -55,7 +61,7 @@ export function UserTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
         <tbody>
           {tokens.length === 0 ? (
             <Tr>
-              <Td colSpan={5} className="text-quiet">
+              <Td colSpan={6} className="text-quiet">
                 No tokens yet. Issue one above.
               </Td>
             </Tr>
@@ -64,6 +70,7 @@ export function UserTokensPage({ mcpUrl, tokens, issue, revoke }: Props) {
             <Tr key={t.id} className={t.revokedAt ? "text-quiet" : undefined}>
               <Td>{t.label}</Td>
               <Td className="font-mono text-xs">{day(t.createdAt)}</Td>
+              <Td><TokenUsage lastUsedAt={t.lastUsedAt} usageTrackingStartedAt={t.usageTrackingStartedAt} /></Td>
               <Td>{t.revokedAt ? `Revoked ${day(t.revokedAt)}` : "Active"}</Td>
               <Td className="font-mono text-xs text-quiet">user:{t.id}</Td>
               <Td className="text-right">

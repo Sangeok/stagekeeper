@@ -227,7 +227,7 @@ it("permits zero-connected plan changes/new registration and preserves account d
     await db.agentRun.create({ data: { projectId: f.projectId, tokenId: "audit", agent: "pm", stepId: "start" } });
     const record = makeRecordRunbook({
       findTokenByHash: async () => null,
-      findUserTokenByHash: async () => ({ userId: f!.userId, revokedAt: null }),
+      findUserTokenByHash: async () => ({ id: "user-token", userId: f!.userId, revokedAt: null }),
       projectFor: async () => f!.projectId,
       projectAccess: (id) => readProjectAccess(db, id),
       saveRunbookVersion: async (id, version) => { await gate.hook(); await db.project.update({ where: { id }, data: { runbookVersion: version } }); },
