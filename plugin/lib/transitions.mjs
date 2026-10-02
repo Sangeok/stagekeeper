@@ -12,7 +12,7 @@ const RULES = [
   // 파이프라인 — 그래프에 그 자리의 게이트가 **없을 때만** 서버가 넘는다(pipeline.mjs advance). 사람 게이트와 같은 경계.
   { from: "proposed", to: "planning", actor: "pipeline", kind: "auto" },
   { from: "in_review", to: "implementing", actor: "pipeline", kind: "auto" },
-  // 사람 — 되돌리기·보류·재개 (ApcH REJECT_TRANSITIONS + 보드 안내 블록 재개 규칙)
+  // 사람 — 되돌리기·보류·재개
   { from: "in_review", to: "planning", actor: "human", kind: "bounce", clearsValidation: true },
   { from: "proposed", to: "on_hold", actor: "human", kind: "hold", requiresResult: true },
   { from: "in_review", to: "on_hold", actor: "human", kind: "hold", requiresResult: true },
@@ -22,7 +22,7 @@ const RULES = [
   // 사유 필수. 백로그 복원(removedAt = null)과 acceptedAt = null은 board-query.ts의 transitionIn이 같은 트랜잭션에서 한다.
   { from: "done", to: "implementing", actor: "human", kind: "reopen", requiresResult: true },
   { from: "done", to: "planning", actor: "human", kind: "reopen", requiresResult: true, clearsValidation: true },
-  // 에이전트(MCP 토큰) — dev A-4·B-6
+  // 에이전트(MCP 토큰)
   { from: "planning", to: "in_review", actor: "agent", kind: "plan", requiresPlan: true },
   { from: "planning", to: "on_hold", actor: "agent", kind: "hold", requiresResult: true },
   { from: "implementing", to: "done", actor: "pipeline", kind: "auto", requiresResult: true, requiresReport: true },

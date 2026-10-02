@@ -1,5 +1,5 @@
 // 순수. /api/templates가 내려주는 집합의 규칙 — 서버(templatesFor)와 생성기의 로컬 우회로(HARNESS_TEMPLATES_DIR)가
-// 같은 함수로 같은 집합을 만든다. 본문(단계)은 서버에만 남고 파일로는 스텁만 나간다(제안서 "에이전트 전달").
+// 같은 함수로 같은 집합을 만든다. 본문(단계)은 서버에만 남고 파일로는 스텁만 나간다.
 import { REPORT_AGENTS, limitsFor } from "./entitlement.mjs";
 
 // 단계 제목. 이 줄 앞까지가 스텁이다 — src/server/agents/steps.ts의 파서가 같은 정규식을 쓴다(경계의 정의는 여기 하나).
