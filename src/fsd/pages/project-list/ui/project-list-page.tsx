@@ -6,7 +6,7 @@ import { projectPath } from "@/fsd/shared/routes/project";
 import { newProjectPath } from "@/fsd/shared/routes/projects";
 import { ButtonLink } from "@/fsd/shared/ui/button";
 import { UseProjectControl, selectionControlKey, type ProjectSelectionModel, type SelectProjectAction } from "@/fsd/features/select-project-for-use";
-import { ProjectConnectionControl, connectionControlKey, type ProjectConnectionModel, type ProjectConnectionAction } from "@/fsd/features/manage-project-connection";
+import { ProjectConnectionControl, connectionControlKey, type ProjectConnectionSummary, type ProjectConnectionAction } from "@/fsd/features/manage-project-connection";
 import { activityLines, connectionSummary, NOT_SELECTED_BOUNDARY, selectionNotice } from "../model/project-list-copy";
 
 export type ProjectListModel = Omit<ProjectSelectionModel, "projects"> & {
@@ -27,7 +27,7 @@ export function ProjectListPage({ model, action, disconnect, reconnect }: Props)
   const notSelected = connected.filter((p) => !p.available);
   const disconnected = projects.filter((p) => p.disconnectedAt !== null);
   const selection = { ...model, projects: connected };
-  const connection: ProjectConnectionModel = model;
+  const connection: ProjectConnectionSummary = { plan: model.plan, limit: model.limit, version: model.version, connectedCount: model.connectedCount };
   const summary = connectionSummary(model);
   const kept = model.notice ? { names: projects.filter((p) => model.notice?.availableProjectIds.includes(p.id)).map((p) => p.name), basis: model.notice.basis } : null;
   const notice = notSelected.length > 0
@@ -51,7 +51,7 @@ export function ProjectListPage({ model, action, disconnect, reconnect }: Props)
           {activityLines(p.openItems, p.openRuns).map((line) => <span key={line}>{line}</span>)}
         </span> : null}
         {!isDisconnected ? <UseProjectControl key={selectionControlKey(p.id, selection)} targetId={p.id} model={selection} action={action} /> : null}
-        <ProjectConnectionControl key={connectionControlKey(p.id, connection)} targetId={p.id} model={connection} disconnect={disconnect} reconnect={reconnect} />
+        <ProjectConnectionControl key={connectionControlKey(p.id, connection)} target={{ id: p.id, name: p.name, repoOwner: p.repoOwner, repo: p.repo, disconnectedAt: p.disconnectedAt }} summary={connection} disconnect={disconnect} reconnect={reconnect} />
       </li>
     );
   };

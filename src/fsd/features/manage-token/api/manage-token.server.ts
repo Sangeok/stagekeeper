@@ -20,6 +20,7 @@ export async function issueToken(slug: string, label: string, expiresAt: string 
 // 폼 action으로 직접 쓰여 반환값을 버린다 — 그래서 ActionResult가 아니다.
 export async function revokeToken(slug: string, tokenId: string): Promise<void> {
   const { projectId } = await requireProjectOwner(slug);
+  if (typeof tokenId !== "string" || !tokenId.trim()) throw new Error("Invalid token ID.");
   await prisma.projectToken.updateMany({ where: { id: tokenId, projectId }, data: { revokedAt: new Date() } });
   revalidatePath(projectPath(slug, "/tokens"));
 }
@@ -36,12 +37,14 @@ export async function issueOwnerToken(slug: string, label: string, expiresAt: st
 // 자기 것만 폐기한다 — where에 userId가 들어간다.
 export async function revokeOwnerToken(slug: string, tokenId: string): Promise<void> {
   const { projectId, userId } = await requireProjectOwner(slug);
+  if (typeof tokenId !== "string" || !tokenId.trim()) throw new Error("Invalid token ID.");
   await prisma.ownerToken.updateMany({ where: { id: tokenId, projectId, userId }, data: { revokedAt: new Date() } });
   revalidatePath(projectPath(slug, "/tokens"));
 }
 
 export async function renameToken(slug: string, tokenId: string, label: string): Promise<ActionResult<null>> {
   const { projectId, userId } = await requireProjectOwner(slug);
+  if (typeof tokenId !== "string" || !tokenId.trim()) return failure("Token not found.");
   const result = await renameProjectToken(prisma, { userId, projectId, tokenId, label, kind: "agent" });
   if (!result.ok) return failure(result.reason);
   revalidatePath(projectPath(slug, "/tokens"));
@@ -50,6 +53,7 @@ export async function renameToken(slug: string, tokenId: string, label: string):
 
 export async function renameOwnerToken(slug: string, tokenId: string, label: string): Promise<ActionResult<null>> {
   const { projectId, userId } = await requireProjectOwner(slug);
+  if (typeof tokenId !== "string" || !tokenId.trim()) return failure("Token not found.");
   const result = await renameProjectToken(prisma, { userId, projectId, tokenId, label, kind: "owner" });
   if (!result.ok) return failure(result.reason);
   revalidatePath(projectPath(slug, "/tokens"));

@@ -2,6 +2,10 @@ import "server-only";
 import { prisma } from "./db";
 import * as service from "./project-availability-service";
 
+export async function loadProjectConnection(userId: string, projectId: string): Promise<service.ProjectConnectionView> {
+  return service.loadProjectConnection(prisma, userId, projectId);
+}
+
 export async function loadProjectAvailability(userId: string): Promise<service.ProjectAvailabilityView> {
   return service.loadProjectAvailability(prisma, userId);
 }

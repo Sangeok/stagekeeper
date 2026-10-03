@@ -1,27 +1,23 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { allowsPipelineEdit, validateGraph, SLOT_FORMAT } from "@harness/core/pipeline.mjs";
-import { Prisma } from "@/generated/prisma/client";
-import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
+import { allowsPipelineEdit, validateGraph } from "@harness/core/pipeline.mjs";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { planForProject } from "@/server/entitlement";
+import { savePipelineVersion } from "@/server/pipeline/version-save-query";
 import { PIPELINE_EDIT_PLAN_GATE } from "../model/plan-gate";
-export async function savePipeline(slug: string, graph: { nodes: string[]; gates: string[] }): Promise<ActionResult<void>> {
+import { isSavePipelineInput, type SavePipelineInput, type SavePipelineResult } from "../model/pipeline-save-state";
+
+export async function savePipeline(slug: string, input: SavePipelineInput): Promise<SavePipelineResult> {
   const w = await requireProjectWrite(slug);
-  if (!w.ok) return failure(w.reason);
+  if (!w.ok) return { status: "error", reason: w.reason };
   const plan = await planForProject(w.projectId);
-  if (!allowsPipelineEdit(plan)) return failure(PIPELINE_EDIT_PLAN_GATE);
-  const v = validateGraph(graph, plan);
-  if (!v.ok) return failure(v.reason);
-  const latest = await prisma.pipelineVersion.findFirst({ where: { projectId: w.projectId }, orderBy: { version: "desc" }, select: { version: true } });
-  try {
-    await prisma.pipelineVersion.create({ data: { projectId: w.projectId, version: (latest?.version ?? 0) + 1, nodes: graph.nodes, gates: graph.gates, createdBy: w.userId, format: SLOT_FORMAT } });
-  } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return failure("The pipeline changed. Refresh and try again.");
-    throw e;
-  }
-  revalidatePath(projectPath(slug, "/pipeline"));
-  return success();
+  if (!allowsPipelineEdit(plan)) return { status: "error", reason: PIPELINE_EDIT_PLAN_GATE };
+  if (!isSavePipelineInput(input)) return { status: "error", reason: "Invalid pipeline save request." };
+  const v = validateGraph(input.graph, plan);
+  if (!v.ok) return { status: "error", reason: v.reason };
+  const result = await savePipelineVersion(prisma, { ...input, projectId: w.projectId, userId: w.userId });
+  if (result.status === "success") revalidatePath(projectPath(slug, "/pipeline"));
+  return result;
 }

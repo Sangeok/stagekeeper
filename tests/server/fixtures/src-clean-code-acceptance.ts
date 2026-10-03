@@ -1,0 +1,132 @@
+type Outcome = "success" | "error" | "stale" | "unknown";
+import { PIPELINE_STALE, PIPELINE_UNKNOWN } from "../../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
+type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void };
+type Result = { case: string; expected: string; observed: string; status: "Pass" | "Fail" };
+const tick = () => new Promise(resolve => setTimeout(resolve, 80));
+const check = (condition: unknown, message: string) => { if (!condition) throw new Error(message); };
+const buttons = (scope: ParentNode = document) => [...scope.querySelectorAll<HTMLButtonElement>("button")];
+const find = (label: string, scope: ParentNode = document) => {
+  const button = buttons(scope).find(button => button.textContent?.replace(/\s/g, "") === label.replace(/\s/g, "") || button.getAttribute("aria-label") === label);
+  if (!button) throw new Error(`Missing button: ${label}`); return button;
+};
+const click = async (label: string, scope?: ParentNode) => { find(label, scope).click(); await tick(); };
+function input(selector: string, value: string) {
+  const field = document.querySelector<HTMLInputElement>(selector); if (!field) throw new Error(`Missing input: ${selector}`);
+  field.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, value);
+  field.dispatchEvent(new Event("input", { bubbles: true })); return field;
+}
+
+export async function runAcceptance(render: (mode: string, picker?: boolean) => void, controls: Controls, cleanup: () => void): Promise<void> {
+  const results: Result[] = [];
+  const run = async (name: string, expected: string, test: () => Promise<void>) => {
+    try { await test(); results.push({ case: name, expected, observed: expected, status: "Pass" }); }
+    catch (error) { results.push({ case: name, expected, observed: error instanceof Error ? error.message : "unknown failure", status: "Fail" }); }
+    finally { cleanup(); await tick(); }
+  };
+  const mount = async (mode: string, picker = false) => { render(mode, picker); await tick(); };
+  await run("copy lifetime", "duplicate writes blocked; stale text success hidden; rejection retry and unmount settle", async () => {
+    await mount("copy"); const scope = document.querySelector("#copy")!;
+    const copy = find("Copy", scope); copy.click(); copy.click(); await tick(); check(controls.writes.length === 1, "duplicate copy");
+    await click("Change text"); controls.finishCopy(true); await tick(); check(find("Copy", scope), "stale Copied");
+    await click("Copy", scope); controls.finishCopy(false); await tick(); check(!find("Copy", scope).disabled, "retry locked");
+    await click("Copy", scope); await click("Unmount copy"); controls.finishCopy(true); await tick(); check(!document.querySelector("#copy"), "copy root retained");
+  });
+  await run("client copy matrix", "hs/hu and continue/handoff/null-note display equals clipboard for both clients; Codex has no watch", async () => {
+    await mount("copy");
+    for (const client of ["Claude Code", "Codex"]) for (const id of ["hs", "hu", "next"]) {
+      const scope = document.getElementById(id)!;
+      const radio = [...scope.querySelectorAll<HTMLInputElement>('input[type="radio"]')].find(field => field.parentElement?.textContent?.trim() === client)!;
+      radio.click(); await tick();
+      for (const button of buttons(scope).filter(button => /^(Copy|Copied)$/.test(button.textContent ?? ""))) {
+        const displayed = button.previousElementSibling?.textContent;
+        button.click(); await tick(); check(controls.writes.at(-1) === displayed, `${id}: copy differs from display`); controls.finishCopy(true); await tick();
+      }
+      if (client === "Codex") { check(!scope.textContent?.includes("harness:watch"), "Codex watch"); if (id === "next") check(scope.textContent?.includes("Commit docs/A.md"), "handoff prerequisite lost"); }
+    }
+    check(document.querySelector("#ho")?.textContent?.includes("Claude Code"), "owner token changed");
+  });
+  for (const outcome of ["success", "error", "stale", "unknown"] as const) await run(`pipeline ${outcome}`, "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome", async () => {
+    await mount("pipeline"); await click("Remove");
+    const open = buttons().find(button => button.textContent?.trim() === "+"); if (open) { open.click(); await tick(); }
+    const save = find("Save"); save.click(); save.click(); await tick();
+    check(controls.payloads.length === 1, "duplicate save"); check(find("Discard changes").disabled, "discard allowed pending");
+    check(!document.querySelector<HTMLButtonElement>('[role="switch"]')?.disabled, "scout locked with graph");
+    for (const button of buttons(document.getElementById("root")!)) if (/^(Add |Move |Remove$|Swap$)/.test(button.textContent ?? "")) check(button.disabled, "graph edit allowed pending");
+    controls.finishAction(outcome); await tick();
+    if (outcome === "success") check(!buttons().some(button => button.textContent === "Discard changes"), "success baseline dirty");
+    else if (outcome === "error") check(!find("Save").disabled, "validation retry blocked");
+    else { check(find("Save").disabled, "unsafe retry allowed"); check(find("Discard changes and reload"), "explicit reload missing"); check(document.querySelector('[role="alert"]')?.textContent === (outcome === "stale" ? PIPELINE_STALE : PIPELINE_UNKNOWN), "canonical recovery mismatch"); }
+  });
+  for (const outcome of ["error", "unknown", "success"] as const) await run(`scout ${outcome}`, "one mutation; refusal preserves state; unknown refreshes without resubmission", async () => {
+    await mount("scout"); await click("Automatic scouting"); check(find("Automatic scouting").disabled, "pending switch active");
+    controls.finishAction(outcome); await tick(); check(controls.payloads.length === 1, "scout resubmitted");
+    check(controls.refreshes === (outcome === "unknown" ? 1 : 0), "scout refresh contract");
+    if (outcome !== "success") check(document.querySelector('[role="alert"]'), "scout refusal missing");
+  });
+  await run("pipeline independent scouting", "scouting can mutate while graph save waits; graph payload keeps its submitted snapshot", async () => {
+    await mount("pipeline"); await click("Remove"); await click("Save");
+    const finishGraph = controls.finishAction; const submitted = JSON.stringify(controls.payloads[0]);
+    await click("Automatic scouting"); check(controls.payloads.length === 2 && controls.payloads[1] === false, "scouting blocked by graph save");
+    controls.finishAction("success"); await tick(); finishGraph("success"); await tick();
+    check(JSON.stringify(controls.payloads[0]) === submitted, "graph snapshot changed");
+  });
+  await run("pipeline zero gates", "zero-gate save requires explicit confirmation and submits once", async () => {
+    await mount("pipeline");
+    let gateRemove = buttons().find(button => button.textContent === "Remove" && button.parentElement?.textContent?.includes("Gate · you"));
+    while (gateRemove) { gateRemove.click(); await tick(); gateRemove = buttons().find(button => button.textContent === "Remove" && button.parentElement?.textContent?.includes("Gate · you")); }
+    await click("Save"); check(controls.payloads.length === 0, "zero gates submitted without confirmation");
+    const confirm = find("Save without a gate"); confirm.click(); confirm.click(); await tick(); check(controls.payloads.length === 1, "confirmation duplicated save");
+    check(JSON.stringify(controls.payloads[0]).includes('"gates":[]'), "zero gates not submitted"); controls.finishAction("success"); await tick();
+  });
+  await run("connection focus and reset", "menu focus/Escape/outside click; version remount clears confirmation", async () => {
+    await mount("connection"); const trigger = find("More actions for Alpha"); await click("More actions for Alpha");
+    const menu = document.querySelector<HTMLButtonElement>('[role="menuitem"]')!; check(document.activeElement === menu, "menu not focused");
+    menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await tick(); check(document.activeElement === trigger && !document.querySelector('[role="menu"]'), "Escape focus");
+    await click("More actions for Alpha"); document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); await tick(); check(!document.querySelector('[role="menu"]'), "outside click");
+    await click("More actions for Alpha"); await click("Disconnect repository…"); await click("Change version"); check(!document.querySelector('section[aria-label="Disconnect repository"]'), "confirmation survived version change");
+  });
+  await run("pipeline unmount", "late save cannot replace a new root's draft or recovery state", async () => {
+    await mount("pipeline"); await click("Remove"); await click("Save");
+    const finish = controls.finishAction;
+    await mount("pipeline"); finish("stale"); await tick();
+    check(!document.querySelector('[role="alert"]'), "old response leaked into new root");
+    await click("Remove"); check(!find("Save").disabled, "new root retained old pending lock");
+  });
+  for (const outcome of ["success", "error", "stale", "unknown"] as const) await run(`connection ${outcome}`, "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh", async () => {
+    await mount("connection"); await click("More actions for Alpha"); await click("Disconnect repository…"); await click("Disconnect repository");
+    check(find("Cancel").disabled, "pending cancel active");
+    check(JSON.stringify(controls.payloads[0]) === JSON.stringify({ targetProjectId: "a", expectedVersion: 4 }), "connection payload");
+    controls.finishAction(outcome); await tick(); check(controls.payloads.length === 1, "connection resubmitted");
+    check(controls.refreshes === (outcome === "stale" || outcome === "unknown" ? 1 : 0), "connection refresh contract");
+    check(!!document.querySelector('section[aria-label="Disconnect repository"]') === (outcome === "error"), "confirmation recovery");
+  });
+  await run("form transitions", "typing keeps focus; Edit→picker keeps editing; selection/collapse/reset and FormData remain consistent", async () => {
+    await mount("form", true); await click("Paste a URL instead");
+    const field = input('input[inputmode="url"]', "https://github.com/url-owner/url-repo"); await tick(); check(document.activeElement === field, "typing focus lost");
+    await click("Edit"); await click("Pick from my repositories");
+    check(!document.querySelector<HTMLDivElement>('div[hidden]'), "editing lost on picker");
+    await click("picked-repo release/picked"); await click("Collapse");
+    await click("Create project"); check(controls.submissions[0]?.owner === "fixture-owner" && controls.submissions[0]?.repo === "picked-repo" && controls.submissions[0]?.branch === "release/picked", "FormData selection mismatch");
+  });
+  await run("form invalid/reset", "invalid URL clears selection; manual reset clears draft; touched slug survives URL/pick", async () => {
+    await mount("form"); input('input[inputmode="url"]', "https://github.com/o/r"); await tick(); await click("Edit"); input('input[name="slug"]', "custom"); await tick();
+    input('input[inputmode="url"]', "https://github.com/o/other"); await tick(); check(document.querySelector<HTMLInputElement>('input[name="slug"]')?.value === "custom", "touched slug overwritten");
+    input('input[inputmode="url"]', "invalid"); await tick(); check(find("Create project").disabled, "old parsed repository reused");
+    input('input[inputmode="url"]', "https://github.com/o/other"); await tick(); await click("Start over"); check(document.querySelector<HTMLInputElement>('input[inputmode="url"]')?.value === "", "reset URL retained");
+  });
+  for (const outcome of ["success", "stale"] as const) await run(`resume ${outcome}`, "four-field input emits key/to/timestamp once; success refresh only", async () => {
+    await mount("resume"); await click("Resume implementation"); check(find("Resume implementation").disabled, "resume not pending");
+    check(JSON.stringify(controls.payloads[0]) === JSON.stringify({ key: "K-1", to: "implementing", expectedUpdatedAt: "2026-10-04T00:00:00Z" }), "resume payload");
+    controls.finishAction(outcome); await tick(); check(controls.refreshes === (outcome === "success" ? 1 : 0), "resume refresh");
+  });
+  for (const heldFrom of ["implementing", "planning"]) for (const to of ["implementing", "planning"]) await run(`resume ${heldFrom} to ${to}`, "primary and secondary preserve their exact destination and timestamp", async () => {
+    await mount("resume"); if (heldFrom === "planning") await click("Change held from");
+    const label = to === "planning" ? "Resume planning" : "Resume implementation";
+    await click(label + (to === heldFrom ? "" : " instead"));
+    check(JSON.stringify(controls.payloads[0]) === JSON.stringify({ key: "K-1", to, expectedUpdatedAt: "2026-10-04T00:00:00Z" }), "resume destination changed");
+    controls.finishAction("success"); await tick();
+  });
+  const output = document.createElement("pre"); output.id = "acceptance-results"; output.textContent = JSON.stringify(results, null, 2);
+  document.querySelector("#acceptance-results")?.remove(); document.body.append(output);
+  await fetch("/results", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(results) });
+}

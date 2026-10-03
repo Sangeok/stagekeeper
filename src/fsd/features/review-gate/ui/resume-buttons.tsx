@@ -10,7 +10,7 @@ import { resumeLabel, resumePrimaryFor, resumeToast } from "../model/gate-text";
 import type { InboxItem, TransitionAction } from "../model/inbox-item";
 // 보류 카드: 멈춘 자리로 돌아가는 버튼 하나가 주(主). 다른 쪽은 텍스트 링크.
 // 서버 액션은 moveItem으로 받는다 — 바로 아래 React의 startTransition과 이름이 겹치지 않게.
-export function ResumeButtons({ item, transition: moveItem }: { item: InboxItem; transition: TransitionAction }) {
+export function ResumeButtons({ item, transition: moveItem }: { item: Pick<InboxItem, "key" | "status" | "heldFrom" | "updatedAt">; transition: TransitionAction }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const targets = resumeTargetsFor(item.status);

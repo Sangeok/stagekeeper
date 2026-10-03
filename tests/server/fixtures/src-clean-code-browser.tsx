@@ -11,29 +11,78 @@ import { NewUserTokenForm } from "../../../src/fsd/features/manage-user-token/ui
 import { NewOwnerTokenForm } from "../../../src/fsd/features/manage-token/ui/new-owner-token-form";
 import { NextStepBox } from "../../../src/fsd/widgets/turn-banner/ui/next-step";
 import { InboxCardBoundary } from "../../../src/fsd/features/review-gate/ui/inbox-card-boundary";
+import { PipelineRail } from "../../../src/fsd/features/edit-pipeline/ui/pipeline-rail";
+import { AutomaticScoutControl } from "../../../src/fsd/features/edit-pipeline/ui/automatic-scout-control";
+import { ProjectConnectionControl } from "../../../src/fsd/features/manage-project-connection/ui/project-connection-control";
+import { connectionControlKey } from "../../../src/fsd/features/manage-project-connection/model/project-connection-state";
+import { ResumeButtons } from "../../../src/fsd/features/review-gate/ui/resume-buttons";
+import { defaultGraph } from "../../../packages/core/pipeline.mjs";
+import { runAcceptance } from "./src-clean-code-acceptance";
 
 const controls = {
   submissions: [] as Record<string, FormDataEntryValue>[],
   writes: [] as string[],
-  finishCopy: (_success: boolean) => {},
+  finishCopy: (success: boolean) => { void success; },
   finishRegistration: () => {},
   registration: "created" as "created" | "existing" | "disconnected",
+  payloads: [] as unknown[],
+  refreshes: 0,
+  finishAction: (outcome: "success" | "error" | "stale" | "unknown") => { void outcome; },
 };
 Object.assign(window, { fixture: controls });
-Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
+const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+const pending = new Set<() => void>();
+function installClipboard() { Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
   writeText: (text: string) => new Promise<void>((resolve, reject) => {
     controls.writes.push(text);
-    controls.finishCopy = (success: boolean) => success ? resolve() : reject(new Error("local clipboard unavailable"));
+    const finish = () => resolve(); pending.add(finish);
+    controls.finishCopy = (success: boolean) => { pending.delete(finish); if (success) resolve(); else reject(new Error("local clipboard unavailable")); };
   }),
-} });
+} }); }
+
+function action<T>(input: unknown, values: { success: T; error: T; stale: T }): Promise<T> {
+  controls.payloads.push(input);
+  return new Promise((resolve, reject) => {
+    const finish = () => resolve(values.error); pending.add(finish);
+    controls.finishAction = outcome => {
+      pending.delete(finish);
+      if (outcome === "unknown") reject(new Error("local response lost")); else resolve(values[outcome]);
+    };
+  });
+}
+
+const router = { refresh: () => { controls.refreshes++; } } as React.ContextType<typeof AppRouterContext>;
+function PipelineFixture() {
+  return <><AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />
+    <PipelineRail graph={defaultGraph("pro")} expectedVersion={3} plan="pro" roster={["dev"]} editable
+      save={input => action(input, { success: { status: "success", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
+}
+function ScoutFixture() {
+  return <AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />;
+}
+function ConnectionFixture() {
+  const [version, setVersion] = useState(4);
+  const [disconnected, setDisconnected] = useState(false);
+  const target = { id: "a", name: "Alpha", repoOwner: "owner", repo: "repo", disconnectedAt: disconnected ? "2026-10-04T00:00:00Z" : null };
+  const summary = { plan: "free" as const, version, limit: 1, connectedCount: disconnected ? 0 : 1 };
+  return <><button onClick={() => setVersion(value => value + 1)}>Change version</button><button onClick={() => setDisconnected(value => !value)}>Change connection</button>
+    <ProjectConnectionControl key={connectionControlKey(target.id, summary)} target={target} summary={summary}
+      disconnect={input => action(input, { success: { status: "success" }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })}
+      reconnect={input => action(input, { success: { status: "success" }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
+}
+function ResumeFixture() {
+  const [heldFrom, setHeldFrom] = useState("implementing");
+  return <><button onClick={() => setHeldFrom("planning")}>Change held from</button><ResumeButtons key={heldFrom} item={{ key: "K-1", status: "on_hold", heldFrom, updatedAt: "2026-10-04T00:00:00Z" }}
+    transition={input => action(input, { success: { success: true, data: undefined }, error: { success: false, error: "stale" }, stale: { success: false, error: "stale" } })} /></>;
+}
 
 function FormFixture() {
-  const picker = new URLSearchParams(location.search).has("picker");
+  const picker = new URLSearchParams(location.search).has("picker") || fixturePicker;
   return <NewProjectForm defaultOwner="fixture-owner" repoLoadFailed={false} mcpUrl="https://fixture.test/api/mcp"
     repos={picker ? [{ name: "picked-repo", defaultBranch: "release/picked" }] : []}
     action={async (_previous, data) => {
       controls.submissions.push(Object.fromEntries(data.entries()));
-      await new Promise<void>(resolve => { controls.finishRegistration = resolve; });
+      await new Promise<void>(resolve => { pending.add(resolve); controls.finishRegistration = () => { pending.delete(resolve); resolve(); }; });
       return controls.registration === "created"
         ? { status: "created", slug: "actual-slug", token: "hs_fixture-created" }
         : { status: controls.registration, slug: "actual-slug" };
@@ -49,7 +98,11 @@ function CopyFixture() {
     <section id="hs"><TokenReveal token={`hs_fixture-${text}`} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="hu"><TokenReveal token={`hu_fixture-${text}`} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="ho"><OwnerTokenReveal token={`ho_fixture-${text}`} ownerMcpUrl="https://fixture.test/api/mcp/owner" /></section>
-    <section id="next"><NextStepBox steps={[{ key: "same", line: `run-${text}` }]} /></section>
+    <section id="next"><NextStepBox steps={[
+      { kind: "handoff", key: "same", line: `Commit docs/${text}.md, then continue the pipeline for same.`, note: `docs/${text}.md` },
+      { kind: "continue", key: "ready", line: "Continue the pipeline for ready." },
+      { kind: "handoff", key: "null-note", line: "Commit the prepared file, then continue the pipeline for null-note.", note: null },
+    ]} /></section>
     <section id="new-hs"><NewTokenForm issue={async () => ({ success: true, data: { token: "hs_fixture-issued" } })} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="new-hu"><NewUserTokenForm issue={async () => ({ success: true, data: { token: "hu_fixture-issued" } })} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="new-ho"><NewOwnerTokenForm issue={async () => ({ success: true, data: { token: "ho_fixture-issued" } })} ownerMcpUrl="https://fixture.test/api/mcp/owner" /></section>
@@ -66,5 +119,27 @@ function BoundaryFixture() {
   </AppRouterContext.Provider>;
 }
 
-const mode = new URLSearchParams(location.search).get("mode");
-createRoot(document.getElementById("root")!).render(mode === "copy" ? <CopyFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />);
+let root: ReturnType<typeof createRoot> | undefined;
+let fixturePicker = false;
+function cleanupFixture() {
+  root?.unmount(); root = undefined;
+  for (const finish of pending) finish(); pending.clear();
+  if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard); else Reflect.deleteProperty(navigator, "clipboard");
+}
+function renderMode(mode: string, picker = false) {
+  cleanupFixture(); fixturePicker = picker;
+  controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0;
+  installClipboard();
+  root = createRoot(document.getElementById("root")!);
+  root.render(<AppRouterContext.Provider value={router}>{mode === "copy" ? <CopyFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+}
+const toolbar = document.createElement("div");
+const run = document.createElement("button"); run.textContent = "Run acceptance";
+run.onclick = async () => { run.disabled = true; try { await runAcceptance(renderMode, controls, cleanupFixture); } finally { run.disabled = false; } };
+const finish = document.createElement("button"); finish.textContent = "Finish";
+const finishSession = async () => { cleanupFixture(); window.removeEventListener("pagehide", cleanupFixture); await fetch("/finish"); };
+finish.onclick = finishSession;
+toolbar.append(run, finish); document.body.prepend(toolbar);
+window.addEventListener("pagehide", cleanupFixture);
+renderMode(new URLSearchParams(location.search).get("mode") ?? "form");
+if (new URLSearchParams(location.search).has("autorun")) void runAcceptance(renderMode, controls, cleanupFixture);

@@ -8,8 +8,9 @@ import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 import { IDLE, type CreateProjectState } from "../model/create-project-state";
 import { SLUG_HINT } from "../model/project-slug";
-import { parseRepoUrl, slugFromRepo, type RepoOption } from "../model/repo-url";
-import { selectedRepository, type RepositorySelection } from "../model/repository-selection";
+import type { RepoOption } from "../model/repo-url";
+import { selectedRepository } from "../model/repository-selection";
+import { initialRepositoryEntry, transitionRepositoryEntry, type RepositoryEntryEvent } from "../model/repository-entry-state";
 
 // 서버 액션과 저장소 목록은 route가 prop으로 넘긴다 — "use client" 파일은 *.server·@/server를 import할 수 없다(fsd.md).
 type Props = {
@@ -46,16 +47,11 @@ export function ProjectRegistrationResult({ state, mcpUrl }: { state: CompletedR
 
 export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFailed }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE);
-  const [selection, setSelection] = useState<RepositorySelection>(repos.length === 0
-    ? { source: "url", url: "" } : { source: "picker", repository: null });
+  const [entry, setEntry] = useState(() => initialRepositoryEntry(repos.length === 0));
+  const { selection, manual: isManualEntry, editing: isEditing, query, urlDraft: urlText } = entry;
   const [slug, setSlug] = useState("");
   const [branch, setBranch] = useState("main");
   const [slugTouched, setSlugTouched] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [query, setQuery] = useState("");
-  // 목록이 비면(비공개만 있거나 GitHub가 답하지 않으면) 붙여넣기가 유일한 길이다.
-  const [isManualEntry, setIsManualEntry] = useState(repos.length === 0);
-  const [urlText, setUrlText] = useState("");
 
   const repository = selectedRepository(selection);
   const owner = selection.source === "direct" ? selection.owner : repository?.owner ?? "";
@@ -65,44 +61,18 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
   const isRepoChosen = slug !== "" && repository !== null;
   const mode = formMode(isManualEntry, isRepoChosen);
 
-  // 모드를 바꿀 때는 그 모드에만 속한 상태를 함께 비운다.
-  const showPicker = () => {
-    setIsManualEntry(false);
-    setSelection({ source: "picker", repository: null });
+  const changeEntry = (event: RepositoryEntryEvent) => {
+    const next = transitionRepositoryEntry(entry, event, { defaultOwner, slugTouched });
+    setEntry(next.state);
+    if (next.slug !== undefined) setSlug(next.slug);
+    if (next.branch !== undefined) setBranch(next.branch);
+    if (next.resetDetails) setSlugTouched(false);
   };
-  const showManualEntry = () => {
-    setIsManualEntry(true);
-    setQuery("");
-    applyPaste(urlText);
-  };
-
-  const pick = (option: RepoOption) => {
-    setSelection({ source: "picker", repository: { owner: defaultOwner, repo: option.name } });
-    setBranch(option.defaultBranch);
-    if (!slugTouched) setSlug(slugFromRepo(option.name));
-  };
-
-  const applyPaste = (value: string) => {
-    setSelection({ source: "url", url: value });
-    const ref = parseRepoUrl(value);
-    if (ref && !slugTouched) setSlug(slugFromRepo(ref.repo));
-  };
-
-  const toggleEditing = () => {
-    if (!isEditing) setSelection({ source: "direct", owner: owner || defaultOwner, repo });
-    setIsEditing((value) => !value);
-  };
-
-  const reset = () => {
-    setSelection(isManualEntry ? { source: "url", url: "" } : { source: "picker", repository: null });
-    setSlug("");
-    setBranch("main");
-    setSlugTouched(false);
-    setIsEditing(false);
-    // 다시 고를 때 이전 검색어·주소와 오류가 남아 있으면 "처음부터"가 아니다.
-    setQuery("");
-    setUrlText("");
-  };
+  const showPicker = () => changeEntry({ type: "picker" });
+  const showManualEntry = () => changeEntry({ type: "manual" });
+  const pick = (option: RepoOption) => changeEntry({ type: "pick", option });
+  const toggleEditing = () => changeEntry({ type: "edit" });
+  const reset = () => changeEntry({ type: "reset" });
 
   const chosenSummary = (
     <div className="flex items-start justify-between gap-3 rounded-md bg-field px-3 py-2 text-sm">
@@ -140,8 +110,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
               placeholder="https://github.com/owner/repo"
               value={urlText}
               onChange={(event) => {
-                setUrlText(event.target.value);
-                applyPaste(event.target.value);
+                changeEntry({ type: "paste", value: event.target.value });
               }}
             />
           </Field>
@@ -161,7 +130,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
         <RepoPicker
           repos={repos}
           query={query}
-          setQuery={setQuery}
+          setQuery={value => changeEntry({ type: "query", value })}
           pick={pick}
           pasteInstead={showManualEntry}
         />
@@ -172,10 +141,10 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
       {/* 접혀 있어도 값은 폼과 함께 전송된다 — hidden은 제출을 막지 않는다. */}
       <div hidden={!isEditing} className="flex flex-col gap-4 border-l-2 border-rule pl-4">
         <Field label="GitHub owner">
-          <Input name="owner" required value={owner} onChange={(event) => setSelection({ source: "direct", owner: event.target.value, repo })} />
+          <Input name="owner" required value={owner} onChange={(event) => changeEntry({ type: "direct", owner: event.target.value, repo })} />
         </Field>
         <Field label="GitHub repo">
-          <Input name="repo" required value={repo} onChange={(event) => setSelection({ source: "direct", owner, repo: event.target.value })} />
+          <Input name="repo" required value={repo} onChange={(event) => changeEntry({ type: "direct", owner, repo: event.target.value })} />
         </Field>
         <Field label="Branch">
           <Input name="branch" value={branch} onChange={(event) => setBranch(event.target.value)} />

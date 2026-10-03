@@ -12,7 +12,7 @@ import { POST as ownerMcp } from "../../../src/app/api/mcp/owner/route";
 import { DISCONNECTED_REASON, readProjectAccess, type TransactionHost } from "../../../src/server/project-access-query";
 import { disconnectProject, reconnectProject } from "../../../src/server/project-connection-service";
 import { issueProjectToken, issueProjectOwnerToken } from "../../../src/server/project-token-service";
-import { changeUserPlan, selectProjectForUse, withAvailabilityTransaction } from "../../../src/server/project-availability-service";
+import { changeUserPlan, loadProjectConnection, selectProjectForUse, withAvailabilityTransaction } from "../../../src/server/project-availability-service";
 import { registerProjectResultIn } from "../../../src/server/project-registration-query";
 import { AGENT_TOOL_NAMES } from "../../../src/server/mcp/tools";
 import { createBoardService } from "../../../src/server/pipeline/board";
@@ -28,6 +28,26 @@ async function connectionFixture(db: PrismaClient): Promise<Fixture> {
   await db.projectAvailabilityEvent.create({ data: { ownerUserId: f.userId, version: 1, actor: "user", reason: "registration", toPlan: "pro", addedProjectIds: [f.projectId], removedProjectIds: [], availableProjectIds: [f.projectId] } });
   return f;
 }
+
+it("reads a narrow connection projection without changing populated owner rows", async () => {
+  const pool = connections(1); const db = pool.all[0]; let f: Fixture | undefined;
+  try {
+    f = await connectionFixture(db);
+    const disconnected = await db.project.create({ data: { ownerUserId: f.userId, slug: `${f.id}-disconnected`, name: "disconnected", repoOwner: f.id, repo: "disconnected", branch: "main", available: false, disconnectedAt: new Date("2026-10-01") } });
+    for (const [plan, limit] of [["free", 1], ["pro", 5], ["max", null]] as const) {
+      await db.subscription.update({ where: { userId: f.userId }, data: { plan } });
+      const before = await preserved(db, f);
+      const owners: unknown = await Promise.all([db.user.findUniqueOrThrow({ where: { id: f.userId } }), db.project.findMany({ where: { ownerUserId: f.userId }, orderBy: { id: "asc" } }), db.projectAvailabilityEvent.findMany({ where: { ownerUserId: f.userId } })]);
+      assert.deepEqual(await loadProjectConnection(db, f.userId, disconnected.id), {
+        target: { id: disconnected.id, name: "disconnected", repoOwner: f.id, repo: "disconnected", disconnectedAt: "2026-10-01T00:00:00.000Z" },
+        summary: { plan, limit, version: 1, connectedCount: 1 },
+      });
+      assert.equal((await loadProjectConnection(db, f.userId, "foreign")).target, null);
+      assert.deepEqual(await preserved(db, f), before);
+      assert.deepEqual(await Promise.all([db.user.findUniqueOrThrow({ where: { id: f.userId } }), db.project.findMany({ where: { ownerUserId: f.userId }, orderBy: { id: "asc" } }), db.projectAvailabilityEvent.findMany({ where: { ownerUserId: f.userId } })]), owners);
+    }
+  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+});
 
 async function preserved(db: PrismaClient, f: Fixture): Promise<unknown> {
   return Promise.all([

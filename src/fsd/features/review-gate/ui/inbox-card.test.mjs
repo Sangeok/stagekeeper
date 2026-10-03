@@ -36,8 +36,8 @@ it("shows classification at the gate and explains the two discard outcomes", () 
   const html = render(item);
   assert.match(html, />fix<\/span>/);
   assert.match(html, /Request plan/);
-  assert.match(html, /Requesting lets dev write a plan\. Then you run dev in Claude Code\. Nothing changes in the code yet\./);
-  assert.match(html, /Neither starts dev — your Claude Code session does\./);
+  assert.match(html, /Requesting lets dev write a plan\. Then continue in your coding client\. Nothing changes in the code yet\./);
+  assert.match(html, /Neither starts dev — your coding client session does\./);
   assert.match(html, /At Proposed it also takes the item out of the backlog/);
   assert.match(html, /at In review the item stays in the backlog/);
 });
@@ -45,7 +45,7 @@ it("shows classification at the gate and explains the two discard outcomes", () 
 it("hides the new before-plan hint and help when the card is read-only", () => {
   const item = { ...inReview("before-plan", null), status: "proposed" };
   const html = render(item, { canWrite: false, readOnlyLabel: "Disconnected" });
-  assert.doesNotMatch(html, /Requesting lets dev|Neither starts dev|your Claude Code session does/);
+  assert.doesNotMatch(html, /Requesting lets dev|Neither starts dev|your coding client session does/);
 });
 
 // 검증은 사용자가 고르는 것이다 — 기록이 없어도 카드는 경고하지 않는다(design.md 규칙 2).
@@ -53,7 +53,7 @@ it("approves an unverified plan with the same filled button and hint as a verifi
   const html = render(inReview("before-implement", null));
   assert.match(html, /title="No independent validation is on record\.">Not verified</);
   assert.match(html, /border-mine bg-mine text-on-mine[^"]*">Approve implementation</);
-  assert.match(html, /Approving lets dev change code\. Then you run dev in Claude Code\./);
+  assert.match(html, /Approving lets dev change code\. Then continue in your coding client\./);
   assert.doesNotMatch(html, /No validation yet|unverified plan|Run plan-verifier/);
   assert.doesNotMatch(html, /text-risk|bg-risk-soft/);
 });

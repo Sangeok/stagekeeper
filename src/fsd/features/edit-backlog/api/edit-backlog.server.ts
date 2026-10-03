@@ -23,6 +23,7 @@ export async function addBacklogItem(slug: string, _prev: BacklogFormState, form
 export async function updateBacklogItem(slug: string, key: string, _prev: BacklogFormState, form: FormData): Promise<BacklogFormState> {
   const access = await requireProjectWrite(slug);
   if (!access.ok) return { status: "error", error: access.reason };
+  if (typeof key !== "string" || !key.trim()) return { status: "error", error: "Invalid backlog key." };
   const updated = await updateBacklog(access.projectId, key, {
     title: field(form, "title"), area: field(form, "area"), source: field(form, "source"),
     type: field(form, "type"), typeBefore: field(form, "typeBefore"),
@@ -35,6 +36,7 @@ export async function updateBacklogItem(slug: string, key: string, _prev: Backlo
 export async function removeBacklogItem(slug: string, key: string): Promise<BacklogFormState> {
   const access = await requireProjectWrite(slug);
   if (!access.ok) return { status: "error", error: access.reason };
+  if (typeof key !== "string" || !key.trim()) return { status: "error", error: "Invalid backlog key." };
   const removed = await removeBacklog(access.projectId, key);
   if (!removed.ok) return { status: "error", error: removed.reason };
   revalidatePath(projectPath(slug, "/backlog"));

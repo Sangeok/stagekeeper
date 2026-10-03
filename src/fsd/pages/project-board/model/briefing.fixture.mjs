@@ -12,7 +12,7 @@ export const row = ({ key = "X-0", ...fields } = {}) => ({
   backlogItem: { key },
   // 기본 그래프에서 그 상태가 서는 자리 — 게이트 여부는 상태 기계가 아니라 런의 커서가 말한다.
   gate: { proposed: "before-plan", in_review: "before-implement" }[fields.status ?? "proposed"] ?? null,
-  // 게이트에 선 자리는 노드가 없다. 일하는 자리만 노드를 갖는다 — page.tsx가 커서에서 같은 식으로 만든다.
+  // 게이트에 선 자리는 노드가 없다. 일하는 자리만 노드를 갖는다 — project-board.server.ts loader가 커서에서 같은 식으로 만든다.
   node: { planning: "plan", implementing: "implement" }[fields.status ?? "proposed"] ?? null,
   // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다.
   dispatched: true,

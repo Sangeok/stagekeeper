@@ -4,15 +4,14 @@ import { z } from "zod";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { projectsPath } from "@/fsd/shared/routes/projects";
 import { requireUser } from "@/server/auth/guard";
-import { loadProjectAvailability } from "@/server/project-availability";
+import { loadProjectConnection as loadConnection } from "@/server/project-availability";
 import { disconnectProject, reconnectProject } from "@/server/project-connection";
-import type { ProjectConnectionAction, ProjectConnectionModel, ProjectConnectionState } from "../model/project-connection-state";
+import type { ProjectConnectionAction, ProjectConnectionTarget, ProjectConnectionSummary, ProjectConnectionState } from "../model/project-connection-state";
 
 const inputSchema = z.object({ targetProjectId: z.string().min(1), expectedVersion: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) });
 
-export async function loadProjectConnection(userId: string): Promise<ProjectConnectionModel> {
-  const view = await loadProjectAvailability(userId);
-  return { plan: view.plan, limit: view.limit, version: view.version, connectedCount: view.connectedCount, projects: view.projects };
+export async function loadProjectConnection(userId: string, projectId: string): Promise<{ target: ProjectConnectionTarget | null; summary: ProjectConnectionSummary }> {
+  return loadConnection(userId, projectId);
 }
 
 export async function disconnectRepository(input: Parameters<ProjectConnectionAction>[0]): Promise<ProjectConnectionState> {

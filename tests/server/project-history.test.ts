@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { it } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import { loadModule } from "./fixtures/load-module";
 import type { ReactElement } from "react";
 import { historyCutoff } from "../../packages/core/entitlement.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
@@ -26,6 +27,8 @@ function isolatedHistoryRoute(dependencies: Record<string, unknown>): (input: Pa
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const exported: { default?: unknown } = {};
   const require = createRequire(import.meta.url);
+  const loader = loadModule<typeof import("../../src/fsd/pages/project-history/api/project-history.server")>("src/fsd/pages/project-history/api/project-history.server.ts", { ...dependencies, "../model/history-navigation": { readHistoryQuery } });
+  dependencies["@/fsd/pages/project-history/index.server"] = loader;
   runInNewContext(code, { exports: exported, Date, require: (specifier: string) => {
     if (specifier in dependencies) return dependencies[specifier];
     if (specifier === "react/jsx-runtime") return require(specifier);

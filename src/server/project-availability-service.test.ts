@@ -1,14 +1,57 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Prisma } from "@/generated/prisma/client";
-import { changeUserPlan, selectProjectForUse, withAvailabilityTransaction, AvailabilityConflict } from "./project-availability-service";
-import type { TransactionHost } from "./project-access-query";
+import { changeUserPlan, loadProjectConnection, selectProjectForUse, withAvailabilityTransaction, AvailabilityConflict } from "./project-availability-service";
+import { ProjectIntegrityError, READ_OPTIONS, type TransactionHost } from "./project-access-query";
 
 const project = (id: string, available = true) => ({
   id, slug: id, name: id, repoOwner: "repo-owner", repo: id, ownerUserId: "u", available,
   lastSelectedAt: null as Date | null, lastSyncedAt: null as Date | null, createdAt: new Date(`2026-01-0${id === "a" ? 1 : 2}`),
 });
 type Event = { version: number; reason: string; availableProjectIds: string[]; addedProjectIds: string[]; removedProjectIds: string[] };
+
+function connectionFixture(plan: string | null, target: Omit<ReturnType<typeof project>, "repoOwner"> & { disconnectedAt: Date | null; repoOwner: string | null } = {
+  ...project("a", false), disconnectedAt: new Date("2026-10-01"), repoOwner: "repo-owner" as string | null,
+}) {
+  const calls: string[] = [];
+  const options: unknown[] = [];
+  const tx = {
+    $executeRaw: async (sql: TemplateStringsArray) => { calls.push(sql.join("")); },
+    user: { findUniqueOrThrow: async () => { calls.push("user"); return { login: "test", projectAvailabilityVersion: 7, subscription: plan === null ? null : { plan } }; } },
+    project: { findMany: async () => { calls.push("project"); return [target, { ...project("b"), disconnectedAt: null }, { ...project("c", false), disconnectedAt: null }]; } },
+  };
+  // Deliberately omit board/run/event and all write delegates at this IO boundary.
+  const client = { $transaction: async (run: (db: Prisma.TransactionClient) => Promise<unknown>, option: unknown) => {
+    options.push(option); return run(tx as unknown as Prisma.TransactionClient);
+  } } as unknown as TransactionHost;
+  return { client, calls, options };
+}
+
+describe("narrow connection snapshot", () => {
+  for (const [plan, limit] of [["free", 1], ["pro", 5], ["max", null], [null, 1]] as const) {
+    it(`returns only the target and finite ${plan ?? "default"} summary from a read-only snapshot`, async () => {
+      const f = connectionFixture(plan);
+      assert.deepEqual(await loadProjectConnection(f.client, "u", "a"), {
+        target: { id: "a", name: "a", repoOwner: "repo-owner", repo: "a", disconnectedAt: "2026-10-01T00:00:00.000Z" },
+        summary: { plan: plan ?? "free", limit, version: 7, connectedCount: 2 },
+      });
+      assert.deepEqual(f.calls, ["SET TRANSACTION READ ONLY", "user", "project"]);
+      assert.deepEqual(f.options, [READ_OPTIONS]);
+      assert.equal((await loadProjectConnection(f.client, "u", "foreign")).target, null);
+    });
+  }
+  it("preserves owner snapshot integrity checks", async () => {
+    for (const target of [
+      { ...project("a", false), disconnectedAt: new Date("2026-10-01"), repoOwner: null },
+      { ...project("a", true), disconnectedAt: new Date("2026-10-01"), repoOwner: "repo-owner" },
+    ]) {
+      const f = connectionFixture("pro", target);
+      await assert.rejects(loadProjectConnection(f.client, "u", "a"), ProjectIntegrityError);
+    }
+    const f = connectionFixture("free", { ...project("a", true), disconnectedAt: null, repoOwner: "repo-owner" });
+    await assert.rejects(loadProjectConnection(f.client, "u", "a"), ProjectIntegrityError);
+  });
+});
 
 function fixture(plan: string, projects = [project("a"), project("b", false)]) {
   let state = { plan, version: 7, projects, events: [] as Event[] };

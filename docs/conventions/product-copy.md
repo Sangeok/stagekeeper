@@ -88,8 +88,8 @@ Pending labels while the request is in flight: "Requesting…", "Approving…", 
 
 **Next-step hint** (under the gate button, before you press it):
 
-- Request plan → "Requesting lets dev write a plan. Then you run dev in Claude Code. Nothing changes in the code yet."
-- Approve implementation → "Approving lets dev change code. Then you run dev in Claude Code."
+- Request plan → "Requesting lets dev write a plan. Then continue in your coding client. Nothing changes in the code yet."
+- Approve implementation → "Approving lets dev change code. Then continue in your coding client."
   The same filled button and the same hint whether or not a validation is recorded — verification
   is the owner's choice (the pipeline's Verify node), so its absence is not a warning. The plan row
   says which it is (§6).
@@ -177,7 +177,7 @@ Selected-out projects keep their selection recovery banner and show no turn stri
 | you | **Waiting on you** | ITEM-01 is ready for your approval / ITEM-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 failed acceptance / ITEM-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items failed acceptance" · "2 items are waiting for your commit", joined with " · " |
 | you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
 | agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for ITEM-01 / the plan for ITEM-01 is being verified / dev is implementing ITEM-01 / ITEM-02 is waiting for acceptance. **Nobody dispatched yet:** "ITEM-01 is waiting for dev" · "FEAT-04 is waiting for verification" — opening a gate moves the item, it does not start an agent |
-| nobody | **Nothing open** | Pick the next item from the backlog, or run the pipeline in Claude Code — when the backlog is empty, feature-scout looks for items to add. — button **Open backlog** |
+| nobody | **Nothing open** | Pick the next item from the backlog, or run the pipeline in your coding client — when the backlog is empty, feature-scout looks for items to add. — button **Open backlog** |
 | first run | **Set up in three steps** | the checklist below |
 
 Rules: one item → name it; several → count them. Your turn is where the item's pipeline run
@@ -230,14 +230,14 @@ you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Co
 repository — the detail line is the lock block below (chip **Not connected yet**) · 3 Run the
 pipeline in Claude Code "feature-scout reads the code and adds up to three backlog items; pm
 puts up to two on the board for your approval. With no Propose node, put one on the board
-from the Backlog tab." Strip: "Setting up · Step 3 of 3 — Run the pipeline in Claude Code."
+from the Backlog tab." Strip: "Setting up · Step 3 of 3 — Run the pipeline in your coding client."
 
 
 Step 2's detail line. It stops at `/harness:init` on purpose — the restart and the connection
 check are the skill's to say (§15), so the web does not repeat them and cannot fall behind them.
 
 <!-- copy-lock:turn-banner-connect -->
-> Open it in Claude Code with the token set and run `/harness:init`. It connects the repository and tells you when to restart.
+> Open the repository in your coding client with the token set. Use `/harness:init` in Claude Code or `$harness-init` in Codex; it connects the repository and tells you the next steps.
 <!-- /copy-lock -->
 
 ## 6. Board
@@ -282,7 +282,7 @@ the item key in the body as well as the key label; it does not replace it with "
 - Over-budget badge after the status line: **Over 150 characters** — tooltip "This summary is
   over 150 characters. Move the details to docs/agents/."
 - Help (collapsed): **What this decision does**
-  - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code. Neither starts dev — your Claude Code session does.
+  - **Request plan**: dev writes a plan. **Approve implementation**: dev changes the code. Neither starts dev — your coding client session does.
   - **Verified** means an independent pass found nothing to change. Without one, the card shows **Not verified**.
   - **Approve implementation** approves the plan at the commit shown on the card.
   - **Read the plan** opens that commit on GitHub. If it 404s, the commit is still local — push the
@@ -342,7 +342,7 @@ The decision card header also shows the backlog type (feat/fix/refactor/docs) wh
   Added by: You or feature-scout. Empty Area: —. Removal: Done / Removed / Discarded
   (legacy unknown removal: Removed). Board status: state label or "Not on board".
   Row action **Remove**, and **Put on the board** on rows that are not on the board yet. Empty:
-  "No backlog items yet. Run the pipeline in Claude Code and feature-scout adds the ones it has evidence for, or add one below."
+  "No backlog items yet. Run the pipeline in your coding client and feature-scout adds the ones it has evidence for, or add one below."
 - **Put on the board** opens a small form on the row: the assignee (a select over the workspace
   roster) and the evidence (default "owner", 150 characters). Toast on success:
   "Put on the board · ITEM-01". The server's own sentences are shown as they are
@@ -360,7 +360,12 @@ The decision card header also shows the backlog type (feat/fix/refactor/docs) wh
   try again." · "ITEM-01 is open on the board. Finish or discard it before removing." ·
   "Couldn't remove it. Try again." (uncaught failure, shown under the row).
 
+Malformed backlog keys are refused with "Invalid backlog key."
+
 ## 9. Tokens
+
+Malformed token rename IDs return "Token not found."; malformed revoke IDs throw
+"Invalid token ID." on the server. Production exception text is not exposed as a UI contract.
 
 All three issue forms show: "Name the device or purpose so you can recognize this token later."
 The stored `label` remains optional, allows duplicate names, and does not change permissions.
@@ -617,7 +622,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
   commit; each report opens its own commit. Under the list, the same sentence as §6: "Opens the
   recorded commit on GitHub. If it 404s, that commit is not pushed yet." The string lives once, in
   `entities/board-item/model/doc-link.ts`
-- **Acceptance failed** (active failure, after Documents and before Reopen): `3 Verify command · 5 Report record` + UTC minute; condition names 1–5 are **Changed files** · **Diff vs sketch** · **Verify command** · **Backlog entry** · **Report record**. Note is escaped plain text. Optional committed pair: **Failure record ↗**, mono path and the existing GitHub link note. Owner button **Run acceptance again**, pending **Preparing…**. Hint: “Use this when the checks could not run — the environment, a missing push. When /harness:watch is running, the main loop runs all five checks again; otherwise continue the pipeline in Claude Code. If the code is wrong, reopen it below.” Success: “Acceptance ready to run again · ITEM-02”. Unknown response: “Couldn't confirm whether acceptance was reset. Refresh to check the current state before trying again.” Refresh before retrying; never resubmit automatically. Read-only shows the failure record without button or execution hint.
+- **Acceptance failed** (active failure, after Documents and before Reopen): `3 Verify command · 5 Report record` + UTC minute; condition names 1–5 are **Changed files** · **Diff vs sketch** · **Verify command** · **Backlog entry** · **Report record**. Note is escaped plain text. Optional committed pair: **Failure record ↗**, mono path and the existing GitHub link note. Owner button **Run acceptance again**, pending **Preparing…**. Hint: “Use this when the checks could not run — the environment, a missing push. When /harness:watch is running, the main loop runs all five checks again; otherwise use $harness-resume in Codex or continue the pipeline in Claude Code. If the code is wrong, reopen it below.” Success: “Acceptance ready to run again · ITEM-02”. Unknown response: “Couldn't confirm whether acceptance was reset. Refresh to check the current state before trying again.” Refresh before retrying; never resubmit automatically. Read-only shows the failure record without button or execution hint.
 - **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · hint (§3).
   Pressing either replaces that row with **Note to dev** (required) · the confirm button named for
   the chosen action · "Cancel" — never two buttons with the same name on screen
@@ -641,6 +646,9 @@ Document link labels (reused on the board): plan "Plan"; reports by actor — ma
 ---
 
 ## 12. Server messages
+
+Malformed pipeline graph/version inputs return "Invalid pipeline save request."
+Pipeline save recovery uses §18; other mutations retain their current refresh messages.
 
 Reasons come back from `board.ts` / `board-rules.ts` to both MCP callers and web actions. They
 are terse on purpose — agents parse them.
@@ -698,7 +706,7 @@ are terse on purpose — agents parse them.
 | `a gate appears twice` | shown as is |
 | `gate before-scout has no node after it` | shown as is |
 | — (pipeline save, plan) | Pipeline editing opens on Pro. The default pipeline stays as is. |
-| — (pipeline save, race) | The pipeline changed. Refresh and try again. |
+| — (pipeline save, race) | The pipeline changed. Your draft is still here. Discard changes and reload to edit the latest version. |
 | — (put on the board, race) | The board changed. Refresh and try again. |
 
 `checkText` (core): `reason: must not be empty` · `reason: must be 150 characters or fewer (got 163)`.
@@ -1153,7 +1161,7 @@ never existed look the same from here.
   button and its next-step hint (§3, §7), so the two screens use the same words. A repeated slot
   (**Doc audit #2**, **Scout #3**) uses its original slot's words. For example, before Plan: "The
   item waits here until you press Request plan in the Inbox. Requesting lets dev write a plan. Then
-  you run dev in Claude Code. Nothing changes in the code yet." A disabled **Remove** on the card keeps its own tooltip, the reason it can't be
+  continue in your coding client. Nothing changes in the code yet." A disabled **Remove** on the card keeps its own tooltip, the reason it can't be
   removed. Edge text, the **+** panel, and **Read as text** carry no gate tooltip.
 - Each edge carries a **+**. It opens one panel **below the rail** — never inside the edge, which
   would widen it and shove the rest of the row sideways. The panel is titled with the edge
@@ -1185,7 +1193,16 @@ never existed look the same from here.
 - **Read as text** is a `<details>` that renders the graph as a numbered list, in cursor order.
   Before the list: "Before picking an item: Scout when no backlog items are available." or "Before picking an item: automatic scouting is off; add a backlog item to continue."
   When automatic scouting is off, the shared Nothing open detail reads "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab."
-  The first-run checklist appends "Then run the pipeline in Claude Code, or put the item on the board from the Backlog tab." to that off detail.
+  The first-run checklist appends "Then run the pipeline in your coding client, or put the item on the board from the Backlog tab." to that off detail.
+
+Stale saves retain the draft and block automatic refresh or resubmission. A lost
+response does not imply rollback. The explicit recovery button reloads the current route.
+
+<!-- copy-lock:pipeline-save-recovery -->
+> The pipeline changed. Your draft is still here. Discard changes and reload to edit the latest version.
+> Couldn't confirm whether the pipeline was saved. Your draft is still here. Discard changes and reload to check the latest version.
+> **Discard changes and reload**
+<!-- /copy-lock -->
 
 ## 19. History tab
 

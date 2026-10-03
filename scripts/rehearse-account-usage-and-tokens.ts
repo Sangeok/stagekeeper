@@ -33,7 +33,7 @@ async function main(): Promise<void> {
   async function post(name: string, args: unknown[], session?: string): Promise<{ status: number; text: string }> {
     const response: Response = await fetch(`${origin}/settings/tokens`, { method: "POST", redirect: "manual", headers: {
       origin, "next-action": actionId(name), "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", ...(session ? { cookie: session } : {}),
-    }, body: JSON.stringify(args) });
+    }, body: JSON.stringify(args, (_key, value) => value === undefined ? "$undefined" : value) });
     return { status: response.status, text: await response.text() };
   }
   async function rpc(path: string, token: string, method: string, params: unknown): Promise<Response> {
@@ -72,17 +72,49 @@ async function main(): Promise<void> {
       const issued = await post(issue, [...prefix, label, expiresAt], session);
       assert.equal(issued.status, 200); assert.ok(issued.text.includes('"success":true'));
       const row: Awaited<ReturnType<typeof findToken>> = kind === "agent" ? await db.projectToken.findFirstOrThrow({where:{projectId:owner.projectId}}) : kind === "owner" ? await db.ownerToken.findFirstOrThrow({where:{projectId:owner.projectId}}) : await db.userToken.findFirstOrThrow({where:{userId:owner.userId}}); assert.equal(row.expiresAt?.toISOString(), expiresAt);
+      const sentinel = newToken(kind === "agent" ? undefined : kind);
+      if (kind === "agent") await db.projectToken.create({ data: { projectId: owner.projectId, hash: sentinel.hash, label: "sentinel" } });
+      else if (kind === "owner") await db.ownerToken.create({ data: { projectId: owner.projectId, userId: owner.userId, hash: sentinel.hash, label: "sentinel" } });
+      else await db.userToken.create({ data: { userId: owner.userId, hash: sentinel.hash, label: "sentinel" } });
+      const snapshot = () => kind === "agent" ? db.projectToken.findMany({ where: { projectId: owner!.projectId }, orderBy: { id: "asc" } }) : kind === "owner" ? db.ownerToken.findMany({ where: { projectId: owner!.projectId }, orderBy: { id: "asc" } }) : db.userToken.findMany({ where: { userId: owner!.userId }, orderBy: { id: "asc" } });
+      const beforeInvalid = await snapshot();
+      for (const invalidId of ["", " \t", undefined, null, {}, []]) {
+        const refused = await post(rename, [...prefix, invalidId, "must not apply"], session);
+        assert.ok(refused.text.includes("Token not found"));
+        const thrown = await post(revoke, [...prefix, invalidId], session);
+        assert.ok(thrown.status >= 400 || thrown.text.includes(':E{'), "production revoke must reject malformed input");
+        assert.deepEqual(await snapshot(), beforeInvalid);
+      }
       const renamed = await post(rename, [...prefix, row.id, `${kind} renamed`], session);
       assert.ok(renamed.text.includes('"success":true'));
       const read = (): ReturnType<typeof findToken> => findToken(kind, {id:row.id});
       const changed: Awaited<ReturnType<typeof findToken>> = await read(); assert.deepEqual(changed, { ...row, label: `${kind} renamed` });
       await post(rename, [...prefix, row.id, "foreign"], foreignSession); assert.deepEqual(await read(), changed);
       await post(rename, [...prefix, row.id, "anonymous"]); assert.deepEqual(await read(), changed);
+      await post(revoke, [...prefix, row.id], foreignSession); assert.deepEqual(await read(), changed);
+      await post(revoke, [...prefix, row.id]); assert.deepEqual(await read(), changed);
       const blank = await post(rename, [...prefix, row.id, " "], session); assert.ok(blank.text.includes("Enter a token name")); assert.deepEqual(await read(), changed);
       await post(revoke, [...prefix, row.id], session); assert.ok((await read()).revokedAt);
+      assert.equal((await findToken(kind, { hash: sentinel.hash })).revokedAt, null, "normal revoke touches only the selected token");
       const ended = await post(rename, [...prefix, row.id, `${kind} ended`], session); assert.ok(ended.text.includes('"success":true'));
       const markup = await get(kind === "user" ? "/settings/tokens" : `/p/${owner.id}/tokens`, session);
       assert.ok(markup.includes(`${kind} ended`) && markup.includes("Ended tokens") && markup.includes("Revoked"));
+      // Revocation remains a read-scoped recovery action on unselected,
+      // disconnected, and Free projects; account rename is independent of them.
+      for (const [available, disconnectedAt, plan] of [[false, null, "pro"], [false, new Date(), "pro"], [true, null, "free"]] as const) {
+        await db.project.update({ where: { id: owner.projectId }, data: { available, disconnectedAt } });
+        await db.subscription.update({ where: { userId: owner.userId }, data: { plan } });
+        const probe = newToken(kind === "agent" ? undefined : kind);
+        const tokenData = { hash: probe.hash, label: "recovery probe" };
+        const probeRow = kind === "agent" ? await db.projectToken.create({ data: { ...tokenData, projectId: owner.projectId } }) : kind === "owner" ? await db.ownerToken.create({ data: { ...tokenData, projectId: owner.projectId, userId: owner.userId } }) : await db.userToken.create({ data: { ...tokenData, userId: owner.userId } });
+        const named = await post(rename, [...prefix, probeRow.id, "recovery named"], session);
+        if (kind === "user" || available) assert.ok(named.text.includes('"success":true'));
+        else assert.ok(named.text.includes('"success":false'));
+        await post(revoke, [...prefix, probeRow.id], session);
+        assert.ok((await findToken(kind, { id: probeRow.id })).revokedAt);
+      }
+      await db.project.update({ where: { id: owner.projectId }, data: { available: true, disconnectedAt: null } });
+      await db.subscription.update({ where: { userId: owner.userId }, data: { plan: "pro" } });
     }
     // All six production authentication paths reject expired credentials. The
     // wrapper performs a fresh lookup even on subsequent requests.

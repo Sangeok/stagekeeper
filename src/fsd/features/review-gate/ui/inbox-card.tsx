@@ -71,7 +71,7 @@ function InboxCardContent({ item, now, transition, approve, discard, canWrite, r
             {gate !== null && canWrite ? (
               <InboxApproveControl input={{ key: item.key, gate, gateEntry: slotGateEntry(item) ?? undefined, expectedUpdatedAt: item.updatedAt }} approve={approve} />
             ) : null}
-            {isOnHold && canWrite ? <ResumeButtons item={item} transition={transition} /> : null}
+            {isOnHold && canWrite ? <ResumeButtons item={{ key: item.key, status: item.status, heldFrom: item.heldFrom, updatedAt: item.updatedAt }} transition={transition} /> : null}
           </div>
           {gate !== null && canWrite ? <p className="text-xs text-quiet">{gateNextActionHint(gate)}</p> : null}
           {isOnHold && canWrite ? (
@@ -97,7 +97,7 @@ function InboxCardContent({ item, now, transition, approve, discard, canWrite, r
             <li>
               <b className="font-medium text-ink">Request plan</b>: dev writes a plan.{" "}
               <b className="font-medium text-ink">Approve implementation</b>: dev changes the code. Neither starts dev —
-              your Claude Code session does.
+              your coding client session does.
             </li>
             <li>
               <b className="font-medium text-ink">Verified</b> means an independent pass found nothing to change. Without one,

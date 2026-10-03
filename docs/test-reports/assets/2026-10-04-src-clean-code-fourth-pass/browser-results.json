@@ -1,0 +1,152 @@
+[
+  {
+    "case": "copy lifetime",
+    "expected": "duplicate writes blocked; stale text success hidden; rejection retry and unmount settle",
+    "observed": "duplicate writes blocked; stale text success hidden; rejection retry and unmount settle",
+    "status": "Pass"
+  },
+  {
+    "case": "client copy matrix",
+    "expected": "hs/hu and continue/handoff/null-note display equals clipboard for both clients; Codex has no watch",
+    "observed": "hs/hu and continue/handoff/null-note display equals clipboard for both clients; Codex has no watch",
+    "status": "Pass"
+  },
+  {
+    "case": "pipeline success",
+    "expected": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "observed": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "status": "Pass"
+  },
+  {
+    "case": "pipeline error",
+    "expected": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "observed": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "status": "Pass"
+  },
+  {
+    "case": "pipeline stale",
+    "expected": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "observed": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "status": "Pass"
+  },
+  {
+    "case": "pipeline unknown",
+    "expected": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "observed": "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome",
+    "status": "Pass"
+  },
+  {
+    "case": "scout error",
+    "expected": "one mutation; refusal preserves state; unknown refreshes without resubmission",
+    "observed": "one mutation; refusal preserves state; unknown refreshes without resubmission",
+    "status": "Pass"
+  },
+  {
+    "case": "scout unknown",
+    "expected": "one mutation; refusal preserves state; unknown refreshes without resubmission",
+    "observed": "one mutation; refusal preserves state; unknown refreshes without resubmission",
+    "status": "Pass"
+  },
+  {
+    "case": "scout success",
+    "expected": "one mutation; refusal preserves state; unknown refreshes without resubmission",
+    "observed": "one mutation; refusal preserves state; unknown refreshes without resubmission",
+    "status": "Pass"
+  },
+  {
+    "case": "pipeline independent scouting",
+    "expected": "scouting can mutate while graph save waits; graph payload keeps its submitted snapshot",
+    "observed": "scouting can mutate while graph save waits; graph payload keeps its submitted snapshot",
+    "status": "Pass"
+  },
+  {
+    "case": "pipeline zero gates",
+    "expected": "zero-gate save requires explicit confirmation and submits once",
+    "observed": "zero-gate save requires explicit confirmation and submits once",
+    "status": "Pass"
+  },
+  {
+    "case": "connection focus and reset",
+    "expected": "menu focus/Escape/outside click; version remount clears confirmation",
+    "observed": "menu focus/Escape/outside click; version remount clears confirmation",
+    "status": "Pass"
+  },
+  {
+    "case": "pipeline unmount",
+    "expected": "late save cannot replace a new root's draft or recovery state",
+    "observed": "late save cannot replace a new root's draft or recovery state",
+    "status": "Pass"
+  },
+  {
+    "case": "connection success",
+    "expected": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "observed": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "status": "Pass"
+  },
+  {
+    "case": "connection error",
+    "expected": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "observed": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "status": "Pass"
+  },
+  {
+    "case": "connection stale",
+    "expected": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "observed": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "status": "Pass"
+  },
+  {
+    "case": "connection unknown",
+    "expected": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "observed": "pending disabled; exact CAS payload; error remains; stale/unknown reset and refresh",
+    "status": "Pass"
+  },
+  {
+    "case": "form transitions",
+    "expected": "typing keeps focus; Edit→picker keeps editing; selection/collapse/reset and FormData remain consistent",
+    "observed": "typing keeps focus; Edit→picker keeps editing; selection/collapse/reset and FormData remain consistent",
+    "status": "Pass"
+  },
+  {
+    "case": "form invalid/reset",
+    "expected": "invalid URL clears selection; manual reset clears draft; touched slug survives URL/pick",
+    "observed": "invalid URL clears selection; manual reset clears draft; touched slug survives URL/pick",
+    "status": "Pass"
+  },
+  {
+    "case": "resume success",
+    "expected": "four-field input emits key/to/timestamp once; success refresh only",
+    "observed": "four-field input emits key/to/timestamp once; success refresh only",
+    "status": "Pass"
+  },
+  {
+    "case": "resume stale",
+    "expected": "four-field input emits key/to/timestamp once; success refresh only",
+    "observed": "four-field input emits key/to/timestamp once; success refresh only",
+    "status": "Pass"
+  },
+  {
+    "case": "resume implementing to implementing",
+    "expected": "primary and secondary preserve their exact destination and timestamp",
+    "observed": "primary and secondary preserve their exact destination and timestamp",
+    "status": "Pass"
+  },
+  {
+    "case": "resume implementing to planning",
+    "expected": "primary and secondary preserve their exact destination and timestamp",
+    "observed": "primary and secondary preserve their exact destination and timestamp",
+    "status": "Pass"
+  },
+  {
+    "case": "resume planning to implementing",
+    "expected": "primary and secondary preserve their exact destination and timestamp",
+    "observed": "primary and secondary preserve their exact destination and timestamp",
+    "status": "Pass"
+  },
+  {
+    "case": "resume planning to planning",
+    "expected": "primary and secondary preserve their exact destination and timestamp",
+    "observed": "primary and secondary preserve their exact destination and timestamp",
+    "status": "Pass"
+  }
+]

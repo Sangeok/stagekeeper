@@ -48,7 +48,7 @@ export function BacklogTable({ slug, rows, renderRowActions, canWrite }: Props) 
           {rows.length === 0 ? (
             <Tr>
               <Td colSpan={7} className="text-quiet">
-                {canWrite ? "No backlog items yet. Run the pipeline in Claude Code and feature-scout adds the ones it has evidence for, or add one below." : "No backlog items yet."}
+                {canWrite ? "No backlog items yet. Run the pipeline in your coding client and feature-scout adds the ones it has evidence for, or add one below." : "No backlog items yet."}
               </Td>
             </Tr>
           ) : null}
