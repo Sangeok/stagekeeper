@@ -61,7 +61,7 @@ function FullBanner({ turn, tab, slug }: { turn: Turn; tab: Tab; slug: string })
       </h1>
       {inboxCardsAreBelow ? null : <p className="max-w-[60ch] text-sm text-quiet">{turn.detail}</p>}
       {turn.kind === "mine" && turn.why !== null ? <p className="text-xs text-quiet">{turn.why}</p> : null}
-      {turn.kind === "mine" || turn.kind === "theirs" ? <NextStepBox steps={turn.next} /> : null}
+      {turn.kind === "mine" || turn.kind === "theirs" ? <NextStepBox key={slug} steps={turn.next} /> : null}
       {turn.kind === "mine" && !inboxCardsAreBelow ? (
         <div className="mt-1">
           <OpenTargetLink open={turn.open} slug={slug} />
@@ -176,15 +176,7 @@ function SetupList({ steps, current, slug }: { steps: SetupStep[]; current: numb
 const SLASH_COMMAND = "/harness:init";
 
 function DetailText({ text }: { text: string }) {
-  const [before, ...rest] = text.split(SLASH_COMMAND);
-  if (rest.length === 0) return <>{text}</>;
-  return (
-    <>
-      {before}
-      <Code>{SLASH_COMMAND}</Code>
-      {rest.join(SLASH_COMMAND)}
-    </>
-  );
+  return <>{text.split(/(\/harness:init|\$harness-init)/).map((part, index) => part === SLASH_COMMAND || part === "$harness-init" ? <Code key={index}>{part}</Code> : part)}</>;
 }
 
 function SetupAside({ step, slug }: { step: SetupStep; slug: string }) {

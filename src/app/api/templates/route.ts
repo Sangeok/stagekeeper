@@ -11,8 +11,8 @@ export async function GET(request: Request) {
   const language = params.get("lang") ?? "en";
   const authorizationHeader = request.headers.get("authorization");
   // ?project=<slug>는 hu_ 전용이다 — hs_는 토큰이 프로젝트를 알고 있어 이 값을 보지 않는다.
-  const result = await templatesFor(authorizationHeader, language, params.get("project"));
+  const result = await templatesFor(authorizationHeader, language, params.get("project"), params.get("client"));
   return result.ok
-    ? Response.json({ templates: result.templates, entitlement: result.entitlement })
+    ? Response.json({ templates: result.templates, entitlement: result.entitlement, ...(result.runtime ? { runtime: result.runtime } : {}) })
     : restFailureResponse(result);
 }

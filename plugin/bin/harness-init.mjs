@@ -4,18 +4,23 @@
 // 사용: node harness-init.mjs [--config harness.json] [--root .] [--server <url>] [--adopt] [--owner] [--dry-run] [--print-project]
 // 종료코드: 0 완료 · 1 설정 오류 · 3 refuse(기존 파일과 충돌, 아무것도 쓰지 않음)
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { parseHarnessConfig } from "../lib/config.mjs";
 import { parseRepoUrl } from "../lib/repo-url.mjs";
 import { deliverable } from "../lib/deliver.mjs";
 import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/entitlement.mjs";
-import { buildLock, planWrites } from "../lib/manifest.mjs";
+import { mergeClientLock, planWrites } from "../lib/manifest.mjs";
 import { renderTemplate } from "../lib/render.mjs";
-import { runbookVersion } from "../lib/runbook.mjs";
+import { runbookVersion, codexRunbookVersion } from "../lib/runbook.mjs";
+import { parseClient, RUNTIME_PROTOCOL, validateCodexBundle } from "../lib/client-runtime.mjs";
+import { renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
+import { acquireInitGuard, atomicWrite, safeTarget, writeGenerated } from "../runtime/file-ownership.mjs";
+import { serverUrl } from "../runtime/mcp-client.mjs";
 import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "../lib/vars.mjs";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+const progress = { phase: "preflight", written: [] };
 
 async function responseFailure(res, server, token) {
   const body = await res.json().catch(() => null);
@@ -64,6 +69,7 @@ async function init() {
   const args = process.argv.slice(2);
   const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : d; };
   const ROOT = opt("--root", ".");
+  const CLIENT = parseClient(opt("--client", "claude"));
   const CONFIG = join(ROOT, opt("--config", "harness.json"));
   const ADOPT = args.includes("--adopt");
   const DRY = args.includes("--dry-run");
@@ -81,6 +87,12 @@ async function init() {
   // --print-project에 끼워 넣지 않는 이유: 그 모드의 계약은 "아무것도 쓰지 않는다"이고, 토큰 종류에 따라
   // 서버에 행을 만드는 동작을 그 이름 아래 숨기면 계약이 거짓이 된다.
   const REGISTER = args.includes("--register");
+  if (PRINT_PROJECT && REGISTER || REGISTER && DRY || (PRINT_PROJECT || REGISTER) && (ADOPT || DRY)) throw new Error("Conflicting init modes");
+  const known = new Set(["--root", "--config", "--server", "--client", "--adopt", "--owner", "--dry-run", "--print-project", "--register"]);
+  for (let index = 0; index < args.length; index++) {
+    if (!known.has(args[index]) || args.indexOf(args[index]) !== index) throw new Error("Unknown or duplicate init option");
+    if (["--root", "--config", "--server", "--client"].includes(args[index]) && (!args[++index] || args[index].startsWith("--"))) throw new Error("Missing init option value");
+  }
   // 템플릿은 플러그인에 동봉하지 않는다 — 서버가 인증된 요청에만 내려준다.
   // HARNESS_TEMPLATES_DIR는 개발·테스트에서 로컬 원본을 쓰기 위한 우회로다. 그때 플랜은 HARNESS_PLAN(기본 max)이 정한다 —
   // 서버가 없으니 무엇을 내려줄지도 여기서 같은 규칙(lib/deliver.mjs)으로 정한다.
@@ -91,8 +103,9 @@ async function init() {
   // 서비스 URL에 기본값을 두지 않는다 — 잘못된 호스트가 저장소에 박히면 조용히 다른 서비스를 가리킨다.
   // 출처 순서: --server > HARNESS_SERVER > 기존 .mcp.json. 늘어난 출처는 전부 사용자가 직접 넣은 값이다.
   const mcpPath = join(ROOT, ".mcp.json");
-  const recovered = recoverServerFromMcp(mcpPath);
+  const recovered = CLIENT === "claude" ? recoverServerFromMcp(mcpPath) : { url: null, unreadable: false };
   const SERVER = normalizeServer(opt("--server", process.env.HARNESS_SERVER) ?? recovered.url ?? "");
+  if (CLIENT === "codex" && SERVER) serverUrl(SERVER);
   if (!SERVER) {
     const note = recovered.unreadable ? " (.mcp.json could not be read)" : "";
     console.log(`Server URL required: pass --server <url> or set HARNESS_SERVER (shown on the web Tokens page)${note}`);
@@ -200,11 +213,12 @@ async function init() {
     const dir = join(TPL_DIR, lang);
     const rows = readdirSync(dir, { recursive: true, withFileTypes: true }).filter((d) => d.isFile())
       .map((d) => { const full = join(d.parentPath ?? d.path, d.name); return { path: relative(dir, full).split("\\").join("/"), body: readFileSync(full, "utf8") }; });
-    ({ templates, entitlement } = deliverable(rows, LOCAL_PLAN));
+    ({ templates, entitlement } = deliverable(rows, LOCAL_PLAN, CLIENT));
   } else {
     if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
     const url = new URL(`${SERVER}/api/templates`);
     url.searchParams.set("lang", lang);
+    if (CLIENT === "codex") url.searchParams.set("client", CLIENT);
     if (projectScope) url.searchParams.set("project", projectScope);
     let res;
     try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
@@ -223,6 +237,23 @@ async function init() {
       process.exit(1);
     }
     ({ templates, entitlement } = body);
+    if (CLIENT === "codex" && (body.runtime?.client !== CLIENT || body.runtime?.protocol !== RUNTIME_PROTOCOL)) throw new Error("Server does not support Codex runtime; no files generated");
+  }
+  let verifier;
+  if (CLIENT === "codex") {
+    validateCodexBundle(Object.entries(templates).map(([path, body]) => ({ path, body })), entitlement.plan);
+    verifier = verifierPackage();
+    // A local source cannot certify the remote MCP's runtime/version.
+    if (TPL_DIR) {
+      if (!token) throw new Error("HARNESS_TOKEN and a Codex-capable server are required even with local Codex templates");
+      const url = new URL(`${SERVER}/api/templates`);
+      url.searchParams.set("lang", lang); url.searchParams.set("client", CLIENT);
+      if (projectScope) url.searchParams.set("project", projectScope);
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const remote = await res.json();
+      if (!res.ok || remote.runtime?.client !== CLIENT || remote.runtime?.protocol !== RUNTIME_PROTOCOL || remote.entitlement?.plan !== entitlement.plan || typeof remote.templates?.["CODEX.runbook.md"] !== "string" || codexRunbookVersion(remote.templates["CODEX.runbook.md"]) !== codexRunbookVersion(templates["CODEX.runbook.md"])) throw new Error("Local Codex source and remote supported runtime/version/entitlement differ");
+      validateCodexBundle(Object.entries(remote.templates).map(([path, body]) => ({ path, body })), remote.entitlement.plan);
+    }
   }
   const { plan, agents } = entitlement;
   console.log(`plan: ${plan}`);
@@ -245,12 +276,13 @@ async function init() {
   // 표와 파일이 같은 목록에서 나와야 런북이 없는 에이전트를 시키지 않는다.
   const wanted = REPORT_AGENTS;
   const delivered = wanted.filter((a) => agents.includes(a));
-  for (const a of wanted) if (!agents.includes(a)) console.log(`skip(plan): .claude/agents/${a}.md (not on the ${plan} plan)`);
+  for (const a of wanted) if (!agents.includes(a)) console.log(`skip(plan): ${CLIENT === "codex" ? ".codex" : ".claude"}/agents/${a}.${CLIENT === "codex" ? "toml" : "md"} (not on the ${plan} plan)`);
   const vars = {
-    ...buildVars(config),
+    ...buildVars(config, CLIENT),
     report_table: buildReportTable(delivered.map((a) => ({ name: a, description: templateDescription(tpl(`agents/${a}.md`), `${lang}/agents/${a}.md`) }))),
   };
   const targets = {};
+  const runbookVersionNow = CLIENT === "codex" ? codexRunbookVersion(tpl("CODEX.runbook.md")) : runbookVersion(tpl("CLAUDE.runbook.md").replace(/\r\n/g, "\n"));
   const add = (path, template, content) => {
     if (Object.hasOwn(targets, path)) throw new Error(`Duplicate generated path: ${path}`);
     targets[path] = { template, content };
@@ -258,13 +290,26 @@ async function init() {
 
   for (const d of ["plans/README.md", "plans/template.md", "plans/verification-paths.md", "agents/README.md"])
     add(`docs/${d}`, `${lang}/docs/${d}`, renderTemplate(tpl(`docs/${d}`), vars));
-  for (const a of delivered) add(`.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, renderTemplate(tpl(`agents/${a}.md`), vars));
-  for (const ws of config.workspaces)
-    add(`.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, renderTemplate(tpl("agents/dev.md"), buildWorkspaceVars(config, ws)));
+  for (const a of delivered) {
+    const body = renderTemplate(tpl(`agents/${a}.md`), vars);
+    add(CLIENT === "codex" ? `.codex/agents/${a}.toml` : `.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, CLIENT === "codex" ? renderCodexRole(body, a) : body);
+  }
+  for (const ws of config.workspaces) {
+    const body = renderTemplate(tpl("agents/dev.md"), buildWorkspaceVars(config, ws, CLIENT));
+    add(CLIENT === "codex" ? `.codex/agents/${ws.agent}.toml` : `.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, CLIENT === "codex" ? renderCodexRole(body, "dev") : body);
+  }
+  if (CLIENT === "codex") {
+    add("docs/harness/codex-runbook.md", `${lang}/CODEX.runbook.md`, renderTemplate(tpl("CODEX.runbook.md"), { ...vars, runbook_version: runbookVersionNow }));
+    add("docs/harness/codex-package.json", "harness-runtime-v1/package", JSON.stringify({ client: CLIENT, protocol: RUNTIME_PROTOCOL, runbook: runbookVersionNow, language: lang, verifier }, null, 2) + "\n");
+  }
+  for (const name of Object.keys(targets)) safeTarget(ROOT, name);
+  progress.phase = "planned";
+  const releaseGuard = DRY ? () => {} : await acquireInitGuard(ROOT);
+  try {
 
   const existing = {};
   for (const p of Object.keys(targets)) existing[p] = existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), "utf8") : null;
-  const lockPath = join(ROOT, "harness.lock.json");
+  const lockPath = safeTarget(ROOT, "harness.lock.json");
   const lock = existsSync(lockPath) ? readJsonObject(lockPath) : null;
   if (lock && (lock.version !== 1 || !isRecord(lock.files)
       || !Object.values(lock.files).every((file) => isRecord(file) && typeof file.hash === "string" && typeof file.template === "string"))) {
@@ -274,7 +319,7 @@ async function init() {
 
   for (const p of writes.refuse) console.log(`refuse: ${p}`);
   for (const p of writes.skipModified) console.log(`skip(modified): ${p}`);
-  if (writes.refuse.length) { console.log("Conflicts with existing files. Rerun with --adopt to take them over, or move them out of the way."); process.exit(3); }
+  if (writes.refuse.length) { console.log("Conflicts with existing files. Rerun with --adopt to take them over, or move them out of the way."); process.exitCode = 3; return; }
 
   // 모든 읽기·검증·렌더·병합을 끝낸 뒤 기록한다. 입력 오류가 생성물만 남기고 lock을 누락시키지 않게 한다.
   // 런북: 마커 사이 절만 우리 것. 병합 파일이라 lock에 넣지 않는다. **런북은 플랜과 무관하게 한 판이다** —
@@ -285,10 +330,10 @@ async function init() {
   // 뽑으므로 순환이 없다. CRLF는 LF로 맞춘 뒤 뽑는다: DB는 seed가 LF로 정규화한 본문을 가지는데
   // (scripts/seed-templates.ts), 로컬 템플릿 모드(TPL_DIR)는 autocrlf 작업본을 그대로 읽기 때문이다.
   // 서버에 보고하는 판도 같은 값이다(아래 POST /api/runbook).
-  const runbookVersionNow = runbookVersion(tpl("CLAUDE.runbook.md").replace(/\r\n/g, "\n"));
-  const runbookBlock = `${RUNBOOK_START}\n${renderTemplate(tpl("CLAUDE.runbook.md"), { ...vars, runbook_version: runbookVersionNow })}\n${RUNBOOK_END}`;
+  const runbookBlock = CLIENT === "claude" ? `${RUNBOOK_START}\n${renderTemplate(tpl("CLAUDE.runbook.md"), { ...vars, runbook_version: runbookVersionNow })}\n${RUNBOOK_END}` : "";
   const runbookPath = join(ROOT, "CLAUDE.md");
   let runbook = existsSync(runbookPath) ? readFileSync(runbookPath, "utf8") : "";
+  if (CLIENT === "claude") existing["CLAUDE.md"] = existsSync(runbookPath) ? runbook : null;
   const startIndex = runbook.indexOf(RUNBOOK_START), endIndex = runbook.indexOf(RUNBOOK_END);
   const hasReplaceableRunbookBlock = startIndex >= 0 && endIndex > startIndex;
   runbook = hasReplaceableRunbookBlock
@@ -299,7 +344,8 @@ async function init() {
   // 읽기는 남는다. 두 가지 이유다: ① 여기가 권위 있는 파싱이고(위 회수 읽기는 던지지 않으므로 깨진
   // 입력의 오류 문장·종료코드가 지금과 같다), ② 이미 연결된 저장소에서 옛 항목을 **걷어내야** 한다 —
   // 범위 우선순위가 `local > project > user`라, 남겨 두면 저장소 항목이 사용자 범위를 계속 이긴다.
-  const hasMcpFile = existsSync(mcpPath);
+  const hasMcpFile = CLIENT === "claude" && existsSync(mcpPath);
+  if (hasMcpFile) existing[".mcp.json"] = readFileSync(mcpPath, "utf8");
   const mcp = hasMcpFile ? readJsonObject(mcpPath) : {};
   if (mcp.mcpServers !== undefined && !isRecord(mcp.mcpServers)) throw new Error(".mcp.json mcpServers: must be an object");
   const stale = isRecord(mcp.mcpServers)
@@ -309,19 +355,22 @@ async function init() {
   // 걷어낼 게 없으면 손대지 않는다 — 남의 .mcp.json을 매 실행 재기록하면 잡음이고 `write:` 줄도 거짓이 된다.
   const mcpContent = stale.length ? JSON.stringify(mcp, null, 2) + "\n" : null;
 
-  const nextLock = buildLock(Object.fromEntries(writes.write.map((p) => [p, targets[p]])));
-  for (const p of writes.skipModified) nextLock.files[p] = lock.files[p];
+  const nextLock = mergeClientLock(lock, targets, writes, CLIENT);
   const lockContent = JSON.stringify(nextLock, null, 2) + "\n";
 
   const write = (path, content) => {
     if (DRY) return;
-    const fullPath = join(ROOT, path);
-    mkdirSync(dirname(fullPath), { recursive: true });
-    writeFileSync(fullPath, content);
+    safeTarget(ROOT, path);
+    const previous = Object.hasOwn(existing, path) ? existing[path] : null;
+    if (Object.hasOwn(existing, path) && (existsSync(join(ROOT, path)) ? readFileSync(join(ROOT, path), "utf8") : null) !== previous) throw new Error(`Output changed during init: ${path}`);
+    writeGenerated(ROOT, path, content);
+    progress.written.push(path);
   };
   for (const path of writes.write) { console.log(`write: ${path}`); write(path, targets[path].content); }
-  console.log(`write: CLAUDE.md (runbook ${hasReplaceableRunbookBlock ? "replaced" : "inserted"})`);
-  write("CLAUDE.md", runbook);
+  if (CLIENT === "claude") {
+    console.log(`write: CLAUDE.md (runbook ${hasReplaceableRunbookBlock ? "replaced" : "inserted"})`);
+    write("CLAUDE.md", runbook);
+  }
   if (mcpContent !== null) {
     console.log(`write: .mcp.json (removed ${stale.join(", ")} — the server is registered once per machine at user scope)`);
     write(".mcp.json", mcpContent);
@@ -331,17 +380,19 @@ async function init() {
       console.log(`note: that entry was also this repository's only record of the server URL — make sure HARNESS_SERVER is set (${SERVER}) or pass --server on the next run`);
     }
   }
-  write("harness.lock.json", lockContent);
-  console.log(`done: write ${writes.write.length} · skip ${writes.skipModified.length}`);
+  if (!DRY) atomicWrite(safeTarget(ROOT, "harness.lock.json"), lockContent);
+  progress.phase = DRY ? "planned" : "files-written";
+  console.log(`${CLIENT === "codex" ? progress.phase : "done"}: write ${writes.write.length} · skip ${writes.skipModified.length}`);
   // 스킬이 `claude mcp add`에 넘길 주소. 출처 순서(--server > HARNESS_SERVER > .mcp.json)와 꼬리
   // 정규화가 생성기 안에만 있으므로, 여기서 알려 주지 않으면 스킬은 등록할 주소를 알 길이 없다.
   console.log(`server: ${SERVER}`);
+  } finally { releaseGuard(); }
 
   // 심은 런북이 어느 판인지 서버에 남긴다 — pipeline_next가 이것으로 표류를 말한다.
   // 쓴 뒤에 보낸다: 파일이 진실이고 보고는 그 사본이다. 실패해도 중단하지 않는다 —
   // 보고가 없으면 판정은 "낡음"으로 기울고, 그쪽이 안전한 방향이다.
   // --dry-run은 아무것도 쓰지 않았고, 로컬 우회로(TPL_DIR)는 서버도 토큰도 없다.
-  if (!DRY && !TPL_DIR) {
+  if (CLIENT === "claude" && !DRY && !TPL_DIR) {
     const note = (why) => console.log(`note: runbook version not recorded (${why}) — resolve the reported error, then rerun /harness:init to record it`);
     try {
       const res = await fetch(`${SERVER}/api/runbook`, {
@@ -367,5 +418,6 @@ async function init() {
 try { await init(); }
 catch (error) {
   console.error(`Initialization error: ${error.message}`);
+  console.error(`phase: ${progress.phase}; completed files: ${progress.written.join(", ") || "none"}; preserve these files and retry without automatic adopt`);
   process.exitCode = 1;
 }

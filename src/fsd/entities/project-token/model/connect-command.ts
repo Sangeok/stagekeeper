@@ -65,3 +65,16 @@ export const installCommands: readonly string[] = [
   `claude plugin marketplace add ${PLUGIN_MARKETPLACE}`,
   `claude plugin install ${PLUGIN_ID}`,
 ];
+
+// C0에서 실제 확인한 compatibility marketplace 형식과 Codex의 add 명령을 쓴다.
+export const codexInstallCommands: readonly string[] = [
+  `codex plugin marketplace add ${PLUGIN_MARKETPLACE}`,
+  `codex plugin add ${PLUGIN_ID}`,
+];
+
+export function codexMcpCommand(mcpUrl: string): string {
+  const url = new URL(mcpUrl);
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error("Invalid MCP URL");
+  const quoted = `'${url.href.replaceAll("'", "%27")}'`;
+  return `codex mcp add harness --url ${quoted} --bearer-token-env-var HARNESS_TOKEN`;
+}

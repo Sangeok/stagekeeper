@@ -3,13 +3,15 @@
 // 배포할 본문(에이전트 스텁·플랜별 보고 에이전트)은 deliverable이 결정한다. 런북은 한 판이고,
 // 옛 `CLAUDE.runbook.free.md` 행이 DB에 남아 있어도 deliverable이 걸러낸다.
 import { deliverable } from "@harness/core/deliver.mjs";
+import { parseClient, type Client } from "@harness/core/client-runtime.mjs";
+import { readCodexBundle } from "./client-bundle-query";
 import type { Plan, ProjectAccess } from "./entitlement";
 import { resolveRestScope, type RestTokenDeps } from "./rest-scope";
 import type { RequestRateFailure, RestRateFailure } from "./result";
 
 export type TemplateResult =
-  | { ok: true; templates: Record<string, string>; entitlement: { plan: Plan; agents: string[] } }
-  | { ok: false; status: 401 | 403 | 404; reason: string; code?: never } | RestRateFailure;
+  | { ok: true; templates: Record<string, string>; entitlement: { plan: Plan; agents: string[] }; runtime?: { client: string; protocol: string } }
+  | { ok: false; status: 400 | 401 | 403 | 404; reason: string; code?: never } | RestRateFailure;
 
 export type TemplateDeps = RestTokenDeps & {
   requestLimit(projectId: string): Promise<RequestRateFailure | null>;
@@ -22,10 +24,14 @@ type TemplatesFor = (
   authorizationHeader: string | null,
   language: string,
   project?: string | null,
+  client?: Client | string | null,
 ) => Promise<TemplateResult>;
 
 export function makeTemplatesFor(deps: TemplateDeps): TemplatesFor {
-  return async function templatesFor(authorizationHeader, language, project = null) {
+  return async function templatesFor(authorizationHeader, language, project = null, requestedClient = "claude") {
+    let client: Client;
+    try { client = parseClient(requestedClient); }
+    catch { return { ok: false, status: 400, reason: "client must be claude or codex" }; }
     const scope = await resolveRestScope(deps, authorizationHeader, project);
     if (!scope.ok) return scope;
 
@@ -37,11 +43,16 @@ export function makeTemplatesFor(deps: TemplateDeps): TemplatesFor {
 
     const limited = await deps.requestLimit(scope.projectId);
     if (limited) return { ...limited, status: 429 };
+    if (client === "codex") {
+      const bundle = await readCodexBundle(deps.findTemplatesByLanguage, language, access.plan, false);
+      if (!bundle.ok) return { ok: false, status: 404, reason: bundle.reason };
+      return { ok: true, ...deliverable(Object.entries(bundle.item.templates).map(([path, body]) => ({ path, body })), access.plan, client) };
+    }
     const templateRows = await deps.findTemplatesByLanguage(language);
     if (templateRows.length === 0) {
       return { ok: false, status: 404, reason: `no templates for language: ${language}` };
     }
 
-    return { ok: true, ...deliverable(templateRows, access.plan) };
+    return { ok: true, ...deliverable(templateRows, access.plan, client) };
   };
 }

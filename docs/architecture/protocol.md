@@ -415,6 +415,51 @@ project_sync shares normalized workspace validation with the config parser. It r
 
 신규 writer는 발급 시 `usageTrackingStartedAt`만 설정한다. 기존 행은 backfill 없이 두 열 null이며 Unknown이다. 시작값만 있으면 Never used(추적 후 기록 없음), lastUsedAt이 있으면 UTC 분으로 표시한다. 기록은 완전한 감사나 실제 미사용 보증이 아니다. DB 확장 → 새 generated client/앱 → 구버전 worker drain 순서로 배포한다. 롤백은 nullable 열과 기록을 보존한다. 새 서버 렌더에서 목록을 갱신하며 polling·탭 간 자동 최신화는 없다.
 
+## Dual-client 소스 계약
+
+2026-10-03 구현된 계약이다. 실제 Codex 모델 권한·설치·교차 클라이언트 인수 및 배포는
+[runtime 보고서](../test-reports/active/dual-client-runtime-report.md)의 required 미완료 항목이다.
+
+`GET /api/templates`, `pipeline_next`, `agent_next`의 선택적 `client`는 `claude|codex`이며
+생략은 Claude다. Codex 성공 응답은 REST body 또는 MCP `ServerResult.item`의 text JSON 내부에
+`runtime:{client:"codex",protocol:"harness-runtime-v1"}`을 포함한다. Claude의 기존 shape에는 추가하지 않는다.
+client는 원장·승인·사용량 identity나 token scope에 저장하지 않는다. 다른 유효 caller도 같은
+열린 run의 receipt와 slots-v1 entry를 재사용하며 기존 CAS·호출자 사용량 계약을 따른다.
+
+REST는 요청 언어의 완전한 entitled bundle만 전달하고 언어 fallback을 하지 않는다.
+MCP는 프로젝트 언어에 `CODEX.runbook.md` 행이 없을 때만 전체 영어 bundle로 fallback한다.
+행이 있으나 불완전하면 거부한다. bundle은 Codex 런북·dev·플랜의 보고 역할과 공통 문서 네 개이며,
+각 역할 stub과 런북에 정확히 한 개의 protocol marker가 있어야 한다. 단계는 기존 parser로 검증한다.
+`agent_next`는 모든 단계 body를 먼저 render한 뒤 cursor/outcome transaction을 시작한다.
+`pipeline_next`는 Codex bundle과 source hash를 확인한 뒤 lazy advance를 수행한다.
+
+Codex `pipeline_next`는 매 호출에 현재 raw source의 `codexRunbookVersion`을 보낸다.
+CRLF를 LF로 정규화한 치환 전 런북의 hash이며 생성 body의 hash가 아니다.
+Claude의 기존 `runbookVersion` 함수와 init/seed의 정규화·stale 판정은 유지한다.
+Codex stale/missing hash는 실행 거부이고 Claude advisory 계약은 변경하지 않는다.
+
+Codex의 keyed `wait/on:handoff`와 overview item에는 현재 열린 실행에서 얻은 선택적
+`resume:{agent,key,format,entry?,agentRunId}`를 추가한다. legacy null과 slots-v1을 구분하며,
+이 projection은 실행을 새로 열거나 handoff를 지우지 않는다. helper는 명시적 계속 요청의
+`--handoff-commit`과 현재 role/key의 준비 파일·commit을 확인한 후 같은 run에 outcome 없는 재개를 한다.
+승인 이후에는 저장된 next 조언 대신 현재 client/hash의 최신 pipeline 응답과 board 증거를 다시 읽는다.
+
+로컬 실행은 canonical common Git의 `harness/watch.json`, `watch.lock.json`, `watch.guard`를 공유한다.
+기존 binding 다섯 key는 그대로이고 새 metadata는 top-level `client`, `mode`, `lifecycle`, `children`이다.
+누락 metadata는 Claude/watch/active다. foreground start는 활성 state를 덮어쓰지 않는다.
+공통 session CLI의 stop은 token/config 없이 stopping을 기록하고 release는 stopping·poller null·children empty를 요구한다.
+Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를 정리한다. process death만으로
+미확인 turn을 정리하지 않는다. Claude host는 자신의 native role/tool 완료를 직접 확인해야 한다.
+업데이트된 watch는 `--start --managed`를 사용한다. metadata 없는 legacy stop의 즉시 정리 계약은 유지하되
+새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
+
+Codex role dispatcher는 모델 없는 effective config preflight 후 새 App Server thread를 시작한다.
+다른 inherited MCP·plugin을 끄고 shell 설정의 상속 값을 비우며 named filesystem/network policy와 도구 목록을 확인한다.
+parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package와
+winning skill path/checksum을 확인하고 다른 skill은 비활성화한다. 부모 대화·판정 목록을 전달하지 않는다.
+PM은 파일 도구가 없고 scout만 web search를 허용한다. Git metadata는 read-only이며 child commit은
+main loop/owner로 handoff한다. 실제 모델의 tool/kernel 격리 증거는 별도로 필요하다.
+
 ## Failed acceptance and owner retry
 
 `pipeline_next` at accept returns `{action:"wait", on:"acceptance", key, node:"accept", version, checks, note}` while an uncleared AcceptanceFailure exists. `board_get` includes the latest active failure even outside the History window. A main-loop report in done is refused while failed; other reporters retain their existing rules.

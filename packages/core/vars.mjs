@@ -1,12 +1,14 @@
 // 순수. config → 템플릿이 그대로 붙여 넣을 문자열들. 목록은 여기서 문자열로 만든다(render.mjs에 반복문이 없는 이유).
 // 사용자·에이전트에게 보이는 문자열은 영문이다(docs/conventions/product-copy.md).
 const bullets = (xs) => (xs.length === 0 ? "none" : xs.map((x) => `- \`${x}\``).join("\n"));
+import { clientRuntime } from "./client-runtime.mjs";
 
 export const DEFAULT_SCOUT_QUESTION = "What should change next in this repository — a defect you can point to in the code, or a feature its users need — and what is the evidence?";
 
-export function buildVars(config) {
+export function buildVars(config, client = "claude") {
   const rows = config.workspaces.map((w) => `| \`${w.agent}\` | \`${w.path}/**\` |`).join("\n");
   return {
+    runtime: clientRuntime(client),
     // config.project를 통째로 넘기지 않는다 — 넘기면 여기에 더해지는 필드가 전부 템플릿 변수가 된다.
     // project.slug가 그 예다: 연결용 값(어느 프로젝트에 말을 거느냐)이지 에이전트가 읽을 내용이 아니고,
     // 서버 쪽 serverVars(src/server/agents/vars.ts)는 DB 행에서 이 네 개만 만든다. 둘이 어긋나면
@@ -41,10 +43,10 @@ export function templateDescription(body, name) {
   return match[1];
 }
 
-export function buildWorkspaceVars(config, ws) {
+export function buildWorkspaceVars(config, ws, client = "claude") {
   const others = config.workspaces.filter((w) => w.agent !== ws.agent).map((w) => `${w.path}/**`);
   return {
-    ...buildVars(config),
+    ...buildVars(config, client),
     ws: {
       agent: ws.agent, path: ws.path,
       // 옛 템플릿 호환용. 새 템플릿은 knowledge_line을 쓴다 — 아래 이유.

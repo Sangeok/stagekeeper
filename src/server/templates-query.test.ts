@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { newToken } from "@harness/core/token.mjs";
 import { makeTemplatesFor, type TemplateDeps } from "./templates-query";
+import { COMMON_DOCS, RUNTIME_MARKER } from "@harness/core/client-runtime.mjs";
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;
@@ -47,6 +48,20 @@ function setup(options: Options = {}) {
 }
 
 describe("templatesFor", () => {
+  it("returns the final Codex REST payload while legacy defaults stay unchanged", async () => {
+    const rows = [
+      ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor"].map(role => ({ path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\nStub\n## step:x\nHidden step.\nnext: done\n` })),
+      ...COMMON_DOCS.map(path => ({ path, body: "shared" })),
+      { path: "CLAUDE.runbook.md", body: "legacy" }, { path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nsource" },
+    ];
+    const h = setup({ templateRows: rows });
+    const result = await h.templatesFor(authorizationHeader, "en", null, "codex"); assert.ok(result.ok);
+    const serialized = JSON.parse(JSON.stringify(result));
+    assert.deepEqual(serialized.runtime, { client: "codex", protocol: "harness-runtime-v1" }); assert.equal(serialized.templates["CLAUDE.runbook.md"], undefined);
+    assert.doesNotMatch(serialized.templates["agents/dev.md"], /Hidden step/);
+    const legacy = await h.templatesFor(authorizationHeader, "en"); assert.ok(legacy.ok); assert.equal(legacy.runtime, undefined);
+    const invalid = setup(); assert.deepEqual(await invalid.templatesFor(authorizationHeader, "en", null, "other"), { ok: false, status: 400, reason: "client must be claude or codex" }); assert.deepEqual(invalid.calls.tokenHashes, []);
+  });
   const invalidHeaders = [
     { name: "missing authorization", header: null },
     { name: "empty authorization", header: "" },

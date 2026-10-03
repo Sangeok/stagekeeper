@@ -50,6 +50,21 @@ it("acceptance_fail preserves scope, request budget, service failure and the com
 });
 
 describe("agent-scoped MCP tools", () => {
+  it("serializes Codex runtime inside the actual MCP text and validates client enum", async () => {
+    const handlers = {}, meta = {}, calls = [];
+    registerTools({ registerTool: (name, schema, fn) => { handlers[name] = fn; meta[name] = schema; } }, {
+      access: async () => open,
+      pipelineNext: async (projectId, key, runbook, client) => { calls.push([projectId, key, runbook, client]); return { ok: true, item: { action: "done", runtime: { client: "codex", protocol: "harness-runtime-v1" } } }; },
+    });
+    const result = await handlers.pipeline_next({ key: "X-1", runbook: "012345abcdef", client: "codex" }, ctx);
+    assert.deepEqual(calls, [["p1", "X-1", "012345abcdef", "codex"]]);
+    assert.deepEqual(JSON.parse(result.content[0].text).runtime, { client: "codex", protocol: "harness-runtime-v1" });
+    for (const name of ["pipeline_next", "agent_next"]) {
+      assert.equal(meta[name].inputSchema.shape.client.safeParse(undefined).success, true);
+      assert.equal(meta[name].inputSchema.shape.client.safeParse("codex").success, true);
+      assert.equal(meta[name].inputSchema.shape.client.safeParse("other").success, false);
+    }
+  });
   it("registers exactly the §5 Phase-1 agent scope, underscore names only", () => {
     const names = [];
     registerTools({ registerTool: (name) => { names.push(name); } }, {});

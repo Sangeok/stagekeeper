@@ -3,9 +3,10 @@
 ## 제품 경계
 
 Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트가 계획, 독립 검증, 구현,
-인수를 증거와 함께 수행하도록 조율하는 서비스다. 서비스는 Claude를 직접
-실행하지 않는다. 사용자의 Claude Code가 플러그인과 MCP를 통해 Stagekeeper에
-연결된다.
+인수를 증거와 함께 수행하도록 조율하는 서비스다. 서비스는 사용자 모델을 직접
+실행하지 않는다. 사용자의 Claude Code가 플러그인과 MCP를 통해 연결되며,
+Codex foreground 어댑터 소스도 같은 HTTP MCP·원장을 사용한다. Codex의 실제
+모델 인수와 배포는 [검증 보고서](../test-reports/active/dual-client-runtime-report.md)의 미완료 항목이다.
 
 ```text
 [브라우저의 사용자]
@@ -17,7 +18,7 @@ Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트
 [Application Services / src/server] ─────► [Postgres]
         ▲                                      상태의 진실
         │ MCP over HTTP, project token (+ owner token, /api/mcp/owner)
-[사용자의 Claude Code]
+[사용자의 Claude Code / Codex foreground 어댑터 소스]
         ▲
         │ 로컬 설치·생성
 [plugin + harness.json]
@@ -28,10 +29,10 @@ Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트
 | 주체 | 할 수 있는 일 | 할 수 없는 일 |
 | --- | --- | --- |
 | 웹 사용자 | 프로젝트·백로그 관리, 그래프의 게이트(어느 자리든), 파이프라인 편집(Pro·Max), 백로그에서 보드에 올리기, 반려·재개 | 에이전트 역할로 증거를 대신 작성 |
-| Claude Code 에이전트 | MCP로 항목 조회·제안·보고·허용된 상태 전이, feature-scout의 근거 있는 백로그 추가(run당 3건) | 사람 전용 게이트 전이 |
+| 클라이언트 역할 에이전트 | MCP로 항목 조회·제안·보고·허용된 상태 전이, feature-scout의 근거 있는 백로그 추가(run당 3건) | 사람 전용 게이트 전이 |
 | 소유자 토큰(사용자의 세션) | 그래프의 어느 게이트든 열기(세션 채널) | 되돌리기·보류·Reopen·폐기·백로그 편집·그래프 편집 |
 | 파이프라인(서버, 그래프의 자동 경계) | 게이트 없는 경계 전이(actor `pipeline`, 원장에 남는다) | 게이트가 있는 경계, 되돌리기·보류·Reopen·폐기 |
-| Stagekeeper 서버 | 인증·인가, 상태 기계, 동시성, 감사 이벤트 강제 | 사용자의 Claude 실행 |
+| Stagekeeper 서버 | 인증·인가, 상태 기계, 동시성, 감사 이벤트 강제 | 사용자 모델 실행 |
 | 플러그인 | 에이전트 정의·템플릿·MCP 연결을 사용자 저장소에 물질화 | 서비스 상태의 원본 보관 |
 
 사람 전용 게이트는 프롬프트 관례가 아니라 서버의 도구 집합과 전이 규칙으로
