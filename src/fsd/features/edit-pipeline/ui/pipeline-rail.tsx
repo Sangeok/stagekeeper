@@ -2,8 +2,8 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { BOUNDARY, NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId } from "@harness/core/pipeline.mjs";
-import { gateLabel, gateTooltip, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
+import { NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId } from "@harness/core/pipeline.mjs";
+import { autoEdgeLabel, gateLabel, gateTooltip, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";
@@ -80,7 +80,7 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
           <div key={kind} className="flex shrink-0 items-stretch gap-2">
             <EdgeSlot
               gate={state.gates.includes(gateId(kind)) ? gateId(kind) : null}
-              boundary={BOUNDARY[gateId(kind)] ?? null}
+              autoLabel={autoEdgeLabel(kind)}
               editable={editable}
               open={openEdge === kind}
               onToggle={() => setOpenEdge((at) => (at === kind ? null : kind))}
@@ -167,7 +167,7 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
 // "+"는 여는 스위치일 뿐이고 메뉴 자체는 레일 밖에 있다 — 그래서 이 칸의 너비는 열려도 그대로다.
 function EdgeSlot({
   gate,
-  boundary,
+  autoLabel,
   editable,
   open,
   onToggle,
@@ -175,7 +175,7 @@ function EdgeSlot({
   onApply,
 }: {
   gate: string | null;
-  boundary: { from: string; to: string } | null;
+  autoLabel: string | null;
   editable: boolean;
   open: boolean;
   onToggle: () => void;
@@ -204,7 +204,7 @@ function EdgeSlot({
   }
   return (
     <div className="flex flex-col items-center justify-center gap-1">
-      {boundary ? <span className="text-[11px] text-quiet">auto → {boundary.to}</span> : null}
+      {autoLabel ? <span className="text-[11px] text-quiet">{autoLabel}</span> : null}
       {editable ? <button
         type="button"
         aria-expanded={open}

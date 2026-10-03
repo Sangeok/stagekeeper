@@ -1141,7 +1141,7 @@ never existed look the same from here.
   **Verify** · **Implement** · **Accept**. Repeatable project-agent slots read **Doc audit** and
   **Scout**, and a repeat keeps its suffix — **Doc audit #2**, **Scout #3**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
-  boundary has no gate, small text between the cards says "auto → planning".
+  node has no gate, small text between the cards says “auto → planning” · “auto → implementing” · “auto → verify” · “auto → accept” · “auto → doc audit” · “auto → scout”, including “auto → doc audit #2” for repeated slots. Propose alone has no auto label.
 - Hovering anywhere on a gate card shows what that gate means, as the browser tooltip:
   "The item waits here until you press `<button>` in the Inbox. `<hint>`" — the gate's own Inbox
   button and its next-step hint (§3, §7), so the two screens use the same words. A repeated slot
