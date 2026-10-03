@@ -4,9 +4,9 @@
 import { gateKind, slotAgent } from "@harness/core/pipeline.mjs";
 
 const GATE_COPY: Record<string, { label: string; hint: string }> = {
-  "before-plan": { label: "Request plan", hint: "Requesting lets dev write a plan. Then you run dev in Claude Code. Nothing changes in the code yet." },
+  "before-plan": { label: "Request plan", hint: "Requesting lets dev write a plan. Then continue in your coding client. Nothing changes in the code yet." },
   "before-verify": { label: "Continue to verification", hint: "The main loop verifies the plan; plan-verifier runs an independent pass." },
-  "before-implement": { label: "Approve implementation", hint: "Approving lets dev change code. Then you run dev in Claude Code." },
+  "before-implement": { label: "Approve implementation", hint: "Approving lets dev change code. Then continue in your coding client." },
   "before-accept": { label: "Continue to acceptance", hint: "The main loop reproduces the five acceptance checks." },
   "before-doc-audit": { label: "Continue to doc audit", hint: "doc-auditor checks whether the docs still match the code." },
   "before-scout": { label: "Continue to scouting", hint: "feature-scout researches outside and proposes features." },
@@ -23,7 +23,7 @@ export function gateActionLabel(gate: string): string {
 }
 // 누르기 전에 보여 준다 — 누른 뒤 토스트로 말하면 이미 늦다.
 export function gateActionHint(gate: string): string {
-  return GATE_COPY[gateCopyId(gate)]?.hint ?? "Then continue in Claude Code.";
+  return GATE_COPY[gateCopyId(gate)]?.hint ?? "Then continue in your coding client.";
 }
 // 레일의 게이트 카드에 마우스를 올리면 보이는 문장 — Inbox 버튼 이름으로 두 화면을 잇는다.
 export function gateTooltip(gate: string): string {

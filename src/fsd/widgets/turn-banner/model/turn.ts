@@ -1,4 +1,5 @@
 import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline.mjs";
+import { clientRuntime } from "@harness/core/client-runtime.mjs";
 // 순수. 보드의 최신 행들로 "지금 누구 차례인가"를 정한다 — 모든 프로젝트 탭 위에 놓이는 배너의 유일한 출처.
 // 문구는 docs/conventions/product-copy.md §5. 판정은 packages/core의 상태 기계에서 파생한다.
 import { canPropose, isOpen } from "@harness/core/transitions.mjs";
@@ -31,7 +32,7 @@ export type SetupStep = {
 };
 
 // 터미널에서 이어서 할 일 — 사람이 Claude Code 세션에 그대로 건네는 한 줄.
-export type NextStep = { key: string; line: string };
+export type NextStep = { kind: "continue"; key: string; line: string } | { kind: "handoff"; key: string; line: string; note: string | null };
 
 // "내 차례" 버튼이 여는 곳. 결재함에 카드가 있으면 Inbox, 인수·핸드오프뿐이면 그 항목 페이지(§5) —
 // done과 핸드오프는 카드가 되지 않아서, Inbox로 보내면 "Nothing to decide."가 된다.
@@ -51,7 +52,7 @@ export const HEADLINE: Record<Turn["kind"], string> = {
   none: "Nothing open",
 };
 
-const NONE_DETAIL = "Pick the next item from the backlog, or run the pipeline in Claude Code — when the backlog is empty, feature-scout looks for items to add.";
+const NONE_DETAIL = "Pick the next item from the backlog, or run the pipeline in your coding client — when the backlog is empty, feature-scout looks for items to add.";
 const SCOUT_OFF_DETAIL = "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab.";
 const BLOCKED_WHY = "pm can't propose anything new until you clear one.";
 
@@ -66,14 +67,14 @@ function setupSteps(setup: SetupState): SetupStep[] {
     {
       key: "connect",
       title: "Connect the repository",
-      detail: "Open it in Claude Code with the token set and run /harness:init. It connects the repository and tells you when to restart.",
+      detail: `Open the repository in your coding client with the token set. Use ${clientRuntime("claude").init_command} in Claude Code or ${clientRuntime("codex").init_command} in Codex; it connects the repository and tells you the next steps.`,
       done: setup.rosterSynced,
     },
     {
       key: "run",
-      title: "Run the pipeline in Claude Code",
+      title: "Run the pipeline in your coding client",
       detail: setup.autoScoutEnabled === false
-        ? `${SCOUT_OFF_DETAIL} Then run the pipeline in Claude Code, or put the item on the board from the Backlog tab.`
+        ? `${SCOUT_OFF_DETAIL} Then run the pipeline in your coding client, or put the item on the board from the Backlog tab.`
         : "feature-scout reads the code and adds up to three backlog items; pm puts up to two on the board for your approval. With no Propose node, put one on the board from the Backlog tab.",
       // 이 목록은 보드가 비어 있을 때만 만들어진다 — 그래서 마지막 단계는 아직 끝날 수 없다.
       done: false,
@@ -157,13 +158,15 @@ function nextSteps(items: TurnItem[]): NextStep[] {
   const out: NextStep[] = [];
   for (const item of items) {
     const line = nextStepLine(item);
-    if (line !== null) out.push({ key: item.key, line });
+    if (line !== null) out.push(item.handoff === null
+      ? { kind: "continue", key: item.key, line }
+      : { kind: "handoff", key: item.key, line, note: item.handoff.note });
   }
   return out;
 }
 
 // Ready terminal work must remain visible while the owner handles a gate or commit.
-export const WATCH_LINE = "Or leave /harness:watch running in that session — it continues ready steps and waits for your gates and commits.";
+export const WATCH_LINE = `Or leave ${clientRuntime("claude").resume_command} running in that session — it continues ready steps and waits for your gates and commits.`;
 
 export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn {
   if (items.length === 0) {

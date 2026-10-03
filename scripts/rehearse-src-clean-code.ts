@@ -13,6 +13,7 @@ import { build } from "esbuild";
 import { validateTestDatabase } from "./test-server-integration.mjs";
 
 async function main(): Promise<void> {
+  if (process.argv.includes("--ui-only")) { await uiOnly(); return; }
   config({ quiet: true });
   const url = validateTestDatabase(process.env); const previous = process.env.DATABASE_URL;
   process.env.DATABASE_URL = url;
@@ -24,7 +25,7 @@ async function main(): Promise<void> {
   const loaderMarker = join(tmpdir(), `stagekeeper-src-loader-${randomBytes(8).toString("hex")}`);
   const secret = randomBytes(32).toString("hex"); const upstream = "http://127.0.0.1:55451";
   const browserOrigin = "http://127.0.0.1:55452";
-  let actionMode = "normal"; const actions: string[] = [];
+  let actionMode = "normal"; const actions: string[] = []; let results: unknown[] = [];
   let releaseAction = () => {};
   let finish!: () => void; const done = new Promise<void>(resolve => { finish = resolve; });
   const browserBundle = await build({ entryPoints: ["tests/server/fixtures/src-clean-code-browser.tsx"], bundle: true, write: false,
@@ -38,6 +39,10 @@ async function main(): Promise<void> {
     try {
       const path = req.url ?? "/";
       if (path === "/finish") { res.end("finished"); finish(); return; }
+      if (path === "/results") {
+        if (req.method === "POST") { const chunks = []; for await (const chunk of req) chunks.push(Buffer.from(chunk)); results = JSON.parse(Buffer.concat(chunks).toString()); console.table(results); }
+        res.setHeader("content-type", "application/json"); res.end(JSON.stringify(results)); return;
+      }
       if (path === "/fixture.js") { res.setHeader("content-type", "text/javascript"); res.end(browserBundle.outputFiles[0].contents); return; }
       if (path.startsWith("/fixture?")) { res.setHeader("content-type", "text/html"); res.end('<div id="root"></div><script>window.process={env:{}}</script><script src="/fixture.js"></script>'); return; }
       if (path.startsWith("/arm/")) { actionMode = path.slice(5); res.end("armed"); return; }
@@ -88,6 +93,7 @@ async function main(): Promise<void> {
       res.end(content);
     } catch { res.writeHead(500); res.end("local acceptance proxy failed"); }
   });
+  const interrupt = () => finish(); process.once("SIGINT", interrupt);
   try {
     if (process.argv.includes("--render-faults")) {
       // Instrument only an existing generated build, then restore its exact bytes.
@@ -135,13 +141,44 @@ async function main(): Promise<void> {
     console.log(`Browser acceptance ready: ${browserOrigin}/owner and ${browserOrigin}/fixture?mode=form`);
     await done;
   } finally {
-    releaseAction(); await new Promise<void>(resolve => proxy.close(() => resolve()));
+    process.removeListener("SIGINT", interrupt);
+    releaseAction(); proxy.closeAllConnections(); await new Promise<void>(resolve => proxy.close(() => resolve()));
     if (next && next.exitCode === null) { const stopped = new Promise<void>(resolve => next!.once("exit", () => resolve())); next.kill(); await stopped; }
     if (faultChunk) writeFileSync(faultChunk.path, faultChunk.original);
     if (existsSync(loaderMarker)) unlinkSync(loaderMarker);
     await cleanup(db, owner?.userId); await pool.disconnect();
     if (previous === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = previous;
   }
+}
+async function uiOnly(): Promise<void> {
+  const bundle = await build({ entryPoints: ["tests/server/fixtures/src-clean-code-browser.tsx"], bundle: true, write: false,
+    platform: "browser", format: "iife", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' },
+    plugins: [{ name: "fixture-links", setup(builder) {
+      builder.onResolve({ filter: /^next\/link$/ }, () => ({ path: "fixture-link", namespace: "fixture" }));
+      builder.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: 'import React from "react"; export default function Link({children,href,...props}) { return React.createElement("a",{...props,href},children) }', resolveDir: process.cwd() }));
+    } }],
+  });
+  let finish!: () => void;
+  const done = new Promise<void>(resolve => { finish = resolve; });
+  let results: unknown[] = [];
+  const server = createServer(async (req, res) => {
+    try {
+      const path = req.url ?? "/";
+      if (path === "/finish") { res.end("finished"); finish(); return; }
+      if (path === "/results") {
+        if (req.method === "POST") { const chunks = []; for await (const chunk of req) chunks.push(Buffer.from(chunk)); results = JSON.parse(Buffer.concat(chunks).toString()); console.table(results); }
+        res.setHeader("content-type", "application/json"); res.end(JSON.stringify(results)); return;
+      }
+      if (path === "/fixture.js") { res.setHeader("content-type", "text/javascript"); res.end(bundle.outputFiles[0].contents); return; }
+      res.setHeader("content-type", "text/html"); res.end('<div id="root"></div><script>window.process={env:{}}</script><script src="/fixture.js"></script>');
+    } catch (error) { res.writeHead(500); res.end("fixture request failed"); console.error(error instanceof Error ? error.message : "unknown error"); finish(); }
+  });
+  const interrupt = () => finish(); process.once("SIGINT", interrupt);
+  try {
+    await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(55452, "127.0.0.1", resolve); });
+    console.log("UI acceptance ready: http://127.0.0.1:55452/fixture?mode=copy (Run acceptance, then Finish)");
+    await done;
+  } finally { process.removeListener("SIGINT", interrupt); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 }
 void main().catch(error => {
   console.error("Local clean-code acceptance failed", error instanceof Error ? error.message.replace(/postgres(?:ql)?:\/\/\S+/g, "[database URL]") : "unknown error");

@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
 
 import { cn } from "@/fsd/shared/lib/class-name";
 import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
 import { Card } from "@/fsd/shared/ui/card";
 import { Code, CodeBlock } from "@/fsd/shared/ui/code";
 import { CopyButton } from "@/fsd/shared/ui/copy-button";
-import { RuntimeClientChoice, type RuntimeClient } from "@/fsd/shared/ui/runtime-client-choice";
+import { RuntimeClientChoice } from "@/fsd/shared/ui/runtime-client-choice";
 import { type ConnectCommand, connectCommands, installCommands, codexInstallCommands, profileLine, saveCommands, tokenKind } from "../model/connect-command";
+
+type RuntimeClient = NonNullable<Parameters<typeof clientRuntime>[0]>;
+const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));
 
 // 발급 직후 평문을 한 번만 보여 준다. 새로고침하면 사라진다 — 서비스는 해시만 저장한다.
 // create-project·manage-token·manage-user-token 셋이 이 화면을 쓴다(같은 layer끼리는 import할 수 없어 entity에 둔다).
@@ -28,10 +32,10 @@ function TokenRevealContent({ token, mcpUrl }: { token: string; mcpUrl: string }
 export function TokenRevealView({ token, mcpUrl, client, onClientChange }: { token: string; mcpUrl: string; client: RuntimeClient; onClientChange: (client: RuntimeClient) => void }) {
   const isUserToken = tokenKind(token) === "user";
   const clientName = client === "claude" ? "Claude Code" : "Codex";
-  const initCommand = client === "claude" ? "/harness:init" : "$harness-init";
+  const initCommand = clientRuntime(client).init_command;
   return (
     <Card className="gap-4">
-      <RuntimeClientChoice value={client} onChange={onClientChange} />
+      <RuntimeClientChoice value={client} options={OPTIONS} onChange={onClientChange} />
       <p className="text-sm text-quiet">This is the only time the token is shown. Stagekeeper stores a hash, not the token.</p>
       <p className="text-xs text-quiet">This token stays valid until you revoke it or its chosen expiry is reached. Restarting a terminal or {clientName} does not expire it.</p>
       <p className="text-xs text-quiet">Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.</p>

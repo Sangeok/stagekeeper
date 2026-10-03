@@ -1,21 +1,22 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { NODE_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId } from "@harness/core/pipeline.mjs";
 import { autoEdgeLabel, gateLabel, gateTooltip, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
-import type { ActionResult } from "@/fsd/shared/api/result";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { PIPELINE_EDIT_PLAN_GATE } from "../model/plan-gate";
+import { PIPELINE_STALE, PIPELINE_UNKNOWN, type SavePipelineInput, type SavePipelineResult } from "../model/pipeline-save-state";
 import { addNode, addSlot, isProjectSlot, moveSlot, insertGate, removeGate, removeNode, swapTail, type Graph, type Step } from "../model/rail-state";
 
-export type SavePipelineAction = (graph: Graph) => Promise<ActionResult<void>>;
+export type SavePipelineAction = (input: SavePipelineInput) => Promise<SavePipelineResult>;
 
 type Props = {
   unavailableReason?: string;
   graph: Graph;
+  expectedVersion?: number;
   plan: string;
   roster: string[];
   editable: boolean;
@@ -27,16 +28,27 @@ type Move = { label: string; step: Step };
 
 // 레일. 노드 카드 한 줄, 노드 앞 간선마다 게이트 카드나 "+", 카드에 Remove·Swap.
 // 국소 상태는 { nodes, gates } 하나뿐이고 저장 전에는 서버에 아무것도 가지 않는다.
-export function PipelineRail({ graph, plan, roster, editable, save, unavailableReason }: Props) {
+export function PipelineRail({ graph, expectedVersion = 0, plan, roster, editable, save, unavailableReason }: Props) {
   const [state, setState] = useState<Graph>(graph);
+  const [baseline, setBaseline] = useState({ graph, version: expectedVersion });
+  const saving = useRef(false);
+  const alive = useRef(true);
+  const recovery = useRef<"stale" | "unknown" | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
+  useEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; };
+  }, []);
   // 지금 메뉴가 열린 간선(그 뒤 노드의 kind). 메뉴는 레일 밖 한 자리에만 그린다 — 간선 안에 두면
   // 열릴 때 그 열이 넓어져 뒤 카드를 밀고, 띄우면 가로 스크롤 컨테이너에 잘린다(overflow-x: auto는
   // overflow-y를 visible로 둘 수 없다). 덤으로 한 번에 하나만 열린다.
   const [openEdge, setOpenEdge] = useState<string | null>(null);
   const [confirmingNoGate, setConfirmingNoGate] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState(false);
+  const canEdit = editable && !busy && !pending;
 
-  const dirty = JSON.stringify(state) !== JSON.stringify(graph);
+  const dirty = JSON.stringify(state) !== JSON.stringify(baseline.graph);
   const missing = NODE_KINDS.filter((k) => !isProjectSlot(k) && !state.nodes.includes(k));
 
   // 그 간선에서 할 수 있는 것 — 사유는 core의 validateGraph가 쓴 문장 그대로다.
@@ -49,26 +61,43 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
 
   // 거부된 Step은 적용하지 않는다 — 버튼이 그 Step으로 이미 잠겨 있어서 여기까지 오지 않는 것이 정상이다.
   const applyIfValid = (step: Step) => {
-    if (!step.ok) return;
+    if (!editable || saving.current || !step.ok) return;
     setState(step.graph);
     setOpenEdge(null);
     setConfirmingNoGate(false);
   };
 
   const onSave = () => {
+    if (!editable || !dirty || saving.current || recovery.current !== null) return;
     // 게이트 0개는 허용한다 — 다만 한 번은 무엇을 포기하는지 읽고 누르게 한다.
     if (state.gates.length === 0 && !confirmingNoGate) {
       setConfirmingNoGate(true);
       return;
     }
+    const snapshot = { nodes: [...state.nodes], gates: [...state.gates] };
+    saving.current = true;
+    setBusy(true);
     startTransition(async () => {
-      const result = await save(state);
-      if (!result.success) {
-        toast.error(result.error);
-        return;
+      try {
+        const result = await save({ graph: snapshot, expectedVersion: baseline.version });
+        if (!alive.current) return;
+        if (result.status === "error") toast.error(result.reason);
+        else if (result.status === "stale") {
+          recovery.current = "stale";
+          setRecoveryMessage(PIPELINE_STALE);
+        } else {
+          setBaseline({ graph: snapshot, version: result.version });
+          setConfirmingNoGate(false);
+          toast.success("Pipeline saved");
+        }
+      } catch {
+        if (!alive.current) return;
+        recovery.current = "unknown";
+        setRecoveryMessage(PIPELINE_UNKNOWN);
+      } finally {
+        saving.current = false;
+        if (alive.current) setBusy(false);
       }
-      setConfirmingNoGate(false);
-      toast.success("Pipeline saved");
     });
   };
 
@@ -81,16 +110,16 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
             <EdgeSlot
               gate={state.gates.includes(gateId(kind)) ? gateId(kind) : null}
               autoLabel={autoEdgeLabel(kind)}
-              editable={editable}
+              editable={canEdit}
               open={openEdge === kind}
-              onToggle={() => setOpenEdge((at) => (at === kind ? null : kind))}
+              onToggle={() => { if (editable && !saving.current) setOpenEdge((at) => (at === kind ? null : kind)); }}
               removeGateStep={removeGate(state, gateId(kind), plan)}
               onApply={applyIfValid}
             />
             <NodeCard
               kind={kind}
               roster={roster}
-              editable={editable}
+              editable={canEdit}
               first={index === 0}
               removable={!REQUIRED_NODES.includes(kind)}
               swappable={TAIL_NODES.includes(kind) && state.nodes.filter((k) => TAIL_NODES.includes(k)).length === 2}
@@ -111,7 +140,7 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
             <div key={move.label} className="flex flex-col">
               <button
                 type="button"
-                disabled={!move.step.ok}
+                disabled={!canEdit || !move.step.ok}
                 className="rounded px-1.5 py-1 text-left text-xs hover:bg-field disabled:opacity-50"
                 onClick={() => applyIfValid(move.step)}
               >
@@ -126,11 +155,11 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
       {editable ? <div className="flex flex-wrap gap-3 text-xs">
         {PROJECT_AGENTS.map((agent: string) => {
           const step = addSlot(state, agent, null, plan);
-          return <button key={agent} type="button" disabled={!step.ok} onClick={() => applyIfValid(step)}>Add {agent} at end</button>;
+          return <button key={agent} type="button" disabled={!canEdit || !step.ok} onClick={() => applyIfValid(step)}>Add {agent} at end</button>;
         })}
         {state.nodes.filter(isProjectSlot).map((id) => {
           const step = moveSlot(state, id, null, plan);
-          return <button key={id} type="button" disabled={!step.ok} onClick={() => applyIfValid(step)}>Move {id} to end</button>;
+          return <button key={id} type="button" disabled={!canEdit || !step.ok} onClick={() => applyIfValid(step)}>Move {id} to end</button>;
         })}
       </div> : null}
 
@@ -143,22 +172,26 @@ export function PipelineRail({ graph, plan, roster, editable, save, unavailableR
         <p className="text-xs text-quiet">{unavailableReason ?? PIPELINE_EDIT_PLAN_GATE}</p>
       )}
       {editable ? <div className="flex items-center gap-3">
-        <Button variant="mine" disabled={!dirty || pending} onClick={onSave}>
-          {pending ? "Saving…" : confirmingNoGate ? "Save without a gate" : "Save"}
+        <Button variant="mine" disabled={!dirty || !canEdit || recoveryMessage !== null} onClick={onSave}>
+          {busy || pending ? "Saving…" : confirmingNoGate ? "Save without a gate" : "Save"}
         </Button>
-        {dirty ? (
+        {dirty || recoveryMessage !== null ? (
           <button
             type="button"
             className="text-xs text-quiet underline underline-offset-2"
+            disabled={!canEdit}
             onClick={() => {
-              setState(graph);
+              if (!editable || saving.current) return;
+              if (recovery.current !== null) { window.location.reload(); return; }
+              setState(baseline.graph);
               setConfirmingNoGate(false);
             }}
           >
-            Discard changes
+            {recoveryMessage === null ? "Discard changes" : "Discard changes and reload"}
           </button>
         ) : null}
       </div> : null}
+      {recoveryMessage === null ? null : <p role="alert" className="text-xs text-risk">{recoveryMessage}</p>}
     </div>
   );
 }

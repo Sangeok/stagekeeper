@@ -190,6 +190,24 @@ export type ProjectAvailabilityView = {
   projects: { id: string; slug: string; name: string; repoOwner: string; repo: string; branch: string; available: boolean; disconnectedAt: string | null; openItems: number; openRuns: number }[];
   notice: { basis: string | null; availableProjectIds: string[]; at: string } | null;
 };
+export type ProjectConnectionView = {
+  target: { id: string; name: string; repoOwner: string; repo: string; disconnectedAt: string | null } | null;
+  summary: { plan: Plan; limit: number | null; version: number; connectedCount: number };
+};
+
+export async function loadProjectConnection(client: TransactionHost, userId: string, targetProjectId: string): Promise<ProjectConnectionView> {
+  return client.$transaction(async (tx) => {
+    await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+    const owner = await readOwnerAvailabilityIn(tx, userId);
+    const project = owner.projects.find(p => p.id === targetProjectId);
+    const limit = limitsFor(owner.plan).projects;
+    return {
+      target: project ? { id: project.id, name: project.name, repoOwner: repositoryOwner(project.repoOwner), repo: project.repo, disconnectedAt: project.disconnectedAt?.toISOString() ?? null } : null,
+      summary: { plan: owner.plan, limit: Number.isFinite(limit) ? limit : null, version: owner.version, connectedCount: owner.projects.filter(p => p.disconnectedAt === null).length },
+    };
+  }, READ_OPTIONS);
+}
+
 export async function loadProjectAvailability(client: TransactionHost, userId: string): Promise<ProjectAvailabilityView> {
   return client.$transaction(async (tx) => {
     await tx.$executeRaw`SET TRANSACTION READ ONLY`;

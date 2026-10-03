@@ -1,5 +1,6 @@
 // 사람 동작의 낱말. 버튼은 동사, 성공 뒤 칩은 결과, 토스트는 같은 낱말을 잇는다(product-copy.md §3).
 import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
+import { clientRuntime } from "@harness/core/client-runtime.mjs";
 import { gateCopyId } from "@/fsd/entities/pipeline";
 
 // 버튼 이름과 누르기 전 힌트는 Pipeline 레일의 게이트 툴팁도 쓰므로 entities/pipeline에 있다. 이름은 그대로 잇는다.
@@ -16,7 +17,7 @@ export type RejectAction = "bounce" | "hold" | "discard";
 export const ACCEPTANCE_CHECK_LABELS: Readonly<Record<number, string>> = {
   1: "Changed files", 2: "Diff vs sketch", 3: "Verify command", 4: "Backlog entry", 5: "Report record",
 };
-export const ACCEPTANCE_RETRY_HINT = "Use this when the checks could not run — the environment, a missing push. When /harness:watch is running, the main loop runs all five checks again; otherwise continue the pipeline in Claude Code. If the code is wrong, reopen it below.";
+export const ACCEPTANCE_RETRY_HINT = `Use this when the checks could not run — the environment, a missing push. When ${clientRuntime("claude").resume_command} is running, the main loop runs all five checks again; otherwise use ${clientRuntime("codex").resume_command} in Codex or continue the pipeline in Claude Code. If the code is wrong, reopen it below.`;
 export const ACCEPTANCE_RETRY_UNKNOWN = "Couldn't confirm whether acceptance was reset. Refresh to check the current state before trying again.";
 
 const GATE_FEEDBACK: Record<string, { pending: string; lock: string; toast: string }> = {

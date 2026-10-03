@@ -6,6 +6,7 @@ import type { ServerResult } from "./result";
 type RenameProjectTokenInput = { userId: string; projectId: string; tokenId: string; label: string; kind: "agent" | "owner" };
 
 export async function renameProjectToken(client: TransactionHost, input: RenameProjectTokenInput): Promise<ServerResult<null>> {
+  if (typeof input.tokenId !== "string" || !input.tokenId.trim()) return { ok: false, reason: "Token not found." };
   if (typeof input.label !== "string" || !input.label.trim()) return { ok: false, reason: "Enter a token name." };
   try {
     return await withAvailabilityTransaction(client, async (tx): Promise<ServerResult<null>> => {
@@ -26,6 +27,7 @@ export async function renameProjectToken(client: TransactionHost, input: RenameP
 }
 
 export async function renameUserToken(db: Pick<Prisma.TransactionClient, "userToken">, input: { userId: string; tokenId: string; label: string }): Promise<ServerResult<null>> {
+  if (typeof input.tokenId !== "string" || !input.tokenId.trim()) return { ok: false, reason: "Token not found." };
   if (typeof input.label !== "string" || !input.label.trim()) return { ok: false, reason: "Enter a token name." };
   const result = await db.userToken.updateMany({ where: { id: input.tokenId, userId: input.userId }, data: { label: input.label.trim() } });
   return result.count === 1 ? { ok: true, item: null } : { ok: false, reason: "Token not found." };

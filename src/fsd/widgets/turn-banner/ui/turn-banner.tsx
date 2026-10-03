@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
 
 import { cn } from "@/fsd/shared/lib/class-name";
 import { activeProjectTab, itemPath, type ProjectTabId, projectPath } from "@/fsd/shared/routes/project";
@@ -173,10 +174,16 @@ function SetupList({ steps, current, slug }: { steps: SetupStep[]; current: numb
 
 // 문장은 모델의 `detail` 하나다 — 여기서는 슬래시 명령만 Code로 감싼다. 같은 문장을 JSX에 한 번 더 적어 두었더니
 // 그 사본이 "approve the server"를 들고 남았다(product-copy.md §5의 잠금 블록, turn.test.ts).
-const SLASH_COMMAND = "/harness:init";
+const INIT_COMMANDS = CLIENTS.map(client => clientRuntime(parseClient(client)).init_command);
 
 function DetailText({ text }: { text: string }) {
-  return <>{text.split(/(\/harness:init|\$harness-init)/).map((part, index) => part === SLASH_COMMAND || part === "$harness-init" ? <Code key={index}>{part}</Code> : part)}</>;
+  let parts = [text];
+  for (const command of INIT_COMMANDS) {
+    parts = parts.flatMap(part => INIT_COMMANDS.includes(part) ? [part] : part.split(command).flatMap(
+      (piece, index) => index === 0 ? [piece] : [command, piece],
+    ));
+  }
+  return <>{parts.map((part, index) => INIT_COMMANDS.includes(part) ? <Code key={index}>{part}</Code> : part)}</>;
 }
 
 function SetupAside({ step, slug }: { step: SetupStep; slug: string }) {

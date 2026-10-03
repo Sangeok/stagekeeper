@@ -33,12 +33,14 @@ export async function issueUserToken(label: string, expiry: string | null = null
 // 자기 것만 폐기한다 — where에 userId가 들어간다.
 export async function revokeUserToken(tokenId: string): Promise<void> {
   const { userId } = await requireUser();
+  if (typeof tokenId !== "string" || !tokenId.trim()) throw new Error("Invalid token ID.");
   await prisma.userToken.updateMany({ where: { id: tokenId, userId }, data: { revokedAt: new Date() } });
   revalidatePath(userTokensPath());
 }
 
 export async function renameUserToken(tokenId: string, label: string): Promise<ActionResult<null>> {
   const { userId } = await requireUser();
+  if (typeof tokenId !== "string" || !tokenId.trim()) return failure("Token not found.");
   const result = await renameUserTokenIn(prisma, { userId, tokenId, label });
   if (!result.ok) return failure(result.reason);
   revalidatePath(userTokensPath());

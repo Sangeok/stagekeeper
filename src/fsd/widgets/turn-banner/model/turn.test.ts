@@ -103,7 +103,7 @@ describe("deriveTurn — mine", () => {
     const turn = deriveTurn([item("FEAT-04", "in_review", null)], ready);
     if (turn.kind !== "theirs") assert.fail(turn.kind);
     assert.equal(turn.detail, "the plan for FEAT-04 is being verified");
-    assert.deepEqual(turn.next, [{ key: "FEAT-04", line: "Continue the pipeline for FEAT-04: verify — verify the plan." }]);
+    assert.deepEqual(turn.next, [{ kind: "continue", key: "FEAT-04", line: "Continue the pipeline for FEAT-04: verify — verify the plan." }]);
   });
   it("without a verify node the same item waits at before-implement, ready for approval like a verified one", () => {
     // Free 기본 그래프에는 verify가 없다 — 커서가 곧 게이트다. 검증은 사용자가 파이프라인으로 고르는 것이라
@@ -207,7 +207,7 @@ describe("deriveTurn — acceptance and handoff", () => {
     const turn = deriveTurn([item("FEAT-02", "done")], ready);
     if (turn.kind !== "theirs") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-02 is waiting for acceptance");
-    assert.deepEqual(turn.next, [{ key: "FEAT-02", line: "Continue the pipeline for FEAT-02: accept — accept." }]);
+    assert.deepEqual(turn.next, [{ kind: "continue", key: "FEAT-02", line: "Continue the pipeline for FEAT-02: accept — accept." }]);
     assert.equal(deriveTurn([accepted("FEAT-02")], ready).kind, "none");
   });
   it("a handoff is yours even while the item is planning; the commit line names the prepared file", () => {
@@ -215,7 +215,7 @@ describe("deriveTurn — acceptance and handoff", () => {
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.count, 1);
     assert.equal(turn.detail, "FEAT-01 is waiting for your commit");
-    assert.deepEqual(turn.next, [{ key: "FEAT-01", line: "Commit docs/plans/FEAT-01.md, then continue the pipeline for FEAT-01." }]);
+    assert.deepEqual(turn.next, [{ kind: "handoff", key: "FEAT-01", line: "Commit docs/plans/FEAT-01.md, then continue the pipeline for FEAT-01.", note: "docs/plans/FEAT-01.md" }]);
     // note가 없는 핸드오프 — 경로 자리를 고정 문구가 채운다.
     assert.equal(nextStepLine(handoff("FEAT-01", null)), "Commit the prepared file, then continue the pipeline for FEAT-01.");
   });
@@ -267,15 +267,15 @@ describe("terminal steps while waiting on the owner", () => {
     assert.equal(turn.why, null);
     assert.deepEqual(turn.open, { kind: "item", key: "ITEM-02" });
     assert.deepEqual(turn.next, [
-      { key: "ITEM-01", line: "Continue the pipeline for ITEM-01: plan — dev writes the plan." },
+      { kind: "continue", key: "ITEM-01", line: "Continue the pipeline for ITEM-01: plan — dev writes the plan." },
     ]);
   });
   it("does not duplicate a handoff's node and includes the other unstarted implement step", () => {
     const turn = deriveTurn([handoff("ITEM-02", "docs/plans/ITEM-02.md"), { ...item("ITEM-01", "implementing"), dispatched: false }], ready);
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.deepEqual(turn.next, [
-      { key: "ITEM-02", line: "Commit docs/plans/ITEM-02.md, then continue the pipeline for ITEM-02." },
-      { key: "ITEM-01", line: "Continue the pipeline for ITEM-01: implement — dev implements." },
+      { kind: "handoff", key: "ITEM-02", line: "Commit docs/plans/ITEM-02.md, then continue the pipeline for ITEM-02.", note: "docs/plans/ITEM-02.md" },
+      { kind: "continue", key: "ITEM-01", line: "Continue the pipeline for ITEM-01: implement — dev implements." },
     ]);
     assert.equal(turn.count, 1);
   });

@@ -3,13 +3,13 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/fsd/shared/ui/button";
-import { reconnectBlock, STALE_CONNECTION_MESSAGE, UNKNOWN_CONNECTION_MESSAGE, type ProjectConnectionAction, type ProjectConnectionModel } from "../model/project-connection-state";
+import { reconnectBlock, STALE_CONNECTION_MESSAGE, UNKNOWN_CONNECTION_MESSAGE, type ProjectConnectionAction, type ProjectConnectionTarget, type ProjectConnectionSummary } from "../model/project-connection-state";
 
-type Props = { targetId: string; model: ProjectConnectionModel; disconnect: ProjectConnectionAction; reconnect: ProjectConnectionAction };
+type Props = { target: ProjectConnectionTarget; summary: ProjectConnectionSummary; disconnect: ProjectConnectionAction; reconnect: ProjectConnectionAction };
 
 // 조각(fragment)으로 돌려준다 — 목록 행(flex-wrap)에서는 여는 버튼이 행 끝에, 확인 창(order-last w-full)이 행 아래에 놓이고,
 // 배너(flex-col)에서는 위에서 아래로 쌓인다. 연결 해제는 드물고 hs_/ho_를 폐기하므로 ⋯ 메뉴 안에 둔다.
-export function ProjectConnectionControl({ targetId, model, disconnect, reconnect }: Props) {
+export function ProjectConnectionControl({ target, summary, disconnect, reconnect }: Props) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -26,19 +26,17 @@ export function ProjectConnectionControl({ targetId, model, disconnect, reconnec
     document.addEventListener("pointerdown", close);
     return () => document.removeEventListener("pointerdown", close);
   }, [menuOpen]);
-  const target = model.projects.find((p) => p.id === targetId);
-  if (!target) return null;
   const disconnected = target.disconnectedAt !== null;
   const label = disconnected ? "Reconnect repository" : "Disconnect repository";
   const busy = pending || refreshing;
-  const blocked = disconnected ? reconnectBlock(model) : null;
+  const blocked = disconnected ? reconnectBlock(summary) : null;
   const reset = () => { setConfirming(false); setError(null); };
   const refreshState = () => refresh(() => router.refresh());
   const send = () => {
     setError(null);
     start(async () => {
       try {
-        const result = await (disconnected ? reconnect : disconnect)({ targetProjectId: targetId, expectedVersion: model.version });
+        const result = await (disconnected ? reconnect : disconnect)({ targetProjectId: target.id, expectedVersion: summary.version });
         if (result.status === "error") { setError(result.reason); return; }
         reset();
         if (result.status === "stale") { toast.error(STALE_CONNECTION_MESSAGE); refreshState(); }
@@ -77,7 +75,7 @@ export function ProjectConnectionControl({ targetId, model, disconnect, reconnec
       <section aria-label={label} className="order-last flex w-full flex-col gap-3 rounded-lg border border-rule bg-paper p-3 text-sm">
         {disconnected ? <>
           <p className="font-medium">{repository}</p>
-          <p>{model.connectedCount} / {model.limit ?? "unlimited"} connected. Reconnect this project with its preserved data and settings. Your user token (hu_) still works; project tokens (hs_/ho_) must be issued again.</p>
+          <p>{summary.connectedCount} / {summary.limit ?? "unlimited"} connected. Reconnect this project with its preserved data and settings. Your user token (hu_) still works; project tokens (hs_/ho_) must be issued again.</p>
         </> : <>
           <p className="font-medium">Disconnect {repository}?</p>
           <p>Project tokens (hs_/ho_) are revoked. Your data stays readable, and hu_ keeps working.</p>

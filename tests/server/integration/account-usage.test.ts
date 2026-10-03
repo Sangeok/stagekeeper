@@ -89,7 +89,7 @@ it("uses the clock after the owner lock and does not refund committed usage when
   }
 });
 
-it("real run creation failure rolls back both the first anchor and counter; a committed instruction failure stays charged", async () => {
+it("run storage failure rolls back usage; invalid instructions are refused before charging", async () => {
   const pool = connections(1); const [db] = pool.all; let userId: string | undefined; let lang: string | undefined;
   try {
     const f = await fixture(db); userId = f.userId; lang = await templates(db, [f.projectId]);
@@ -101,10 +101,11 @@ it("real run creation failure rolls back both the first anchor and counter; a co
     assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 0);
     const deps = createNextDeps(db);
     deps.template = async () => "## step:start\n{{missing.instruction}}\nnext: done\n";
-    await assert.rejects(agentNext(deps, scope, { agent: "pm" }));
+    const refused = await agentNext(deps, scope, { agent: "pm" });
+    assert.ok(!refused.ok && refused.reason.includes("template var missing"));
     user = await db.user.findUniqueOrThrow({ where: { id: userId } });
-    const run = await db.agentRun.findFirstOrThrow({ where: { projectId: f.projectId } });
-    assert.equal(user.usageRunCount, 1); assert.equal(user.usageWindowStartedAt?.getTime(), run.openedAt.getTime());
+    assert.equal(user.usageRunCount, 0); assert.equal(user.usageWindowStartedAt, null);
+    assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 0);
   } finally {
     await cleanup(db, userId); if (lang) await db.template.deleteMany({ where: { lang } }); await pool.disconnect();
   }

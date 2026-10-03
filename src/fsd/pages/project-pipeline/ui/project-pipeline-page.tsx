@@ -35,7 +35,7 @@ export function ProjectPipelinePage({ graph, format, saved, now, plan, roster, e
       <AutomaticScoutControl enabled={autoScoutEnabled} writable={canChangeAutoScout} save={saveAutoScout} unavailableReason={unavailableReason} />
 
       <SectionLabel>Item pipeline</SectionLabel>
-      <PipelineRail key={`${saved?.version ?? "default"}:${plan}:${editable}`} graph={graph} plan={plan} roster={roster} editable={editable} save={save} unavailableReason={unavailableReason} />
+      <PipelineRail key={`${saved?.version ?? "default"}:${plan}:${editable}`} graph={graph} expectedVersion={saved?.version ?? 0} plan={plan} roster={roster} editable={editable} save={save} unavailableReason={unavailableReason} />
 
       <section>
         <p className="text-xs text-quiet">Execution format: {format ?? "legacy"}. Implementation span completion and acceptance are separate.</p>

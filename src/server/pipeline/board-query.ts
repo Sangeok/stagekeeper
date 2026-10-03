@@ -93,6 +93,7 @@ async function addBacklog(projectId: string, input: {
 async function updateBacklog(projectId: string, key: string, input: {
   title: string; area: string; source: string; type: string | null; typeBefore: string | null;
 }): Promise<ServerResult<null>> {
+  if (typeof key !== "string" || !key.trim()) return fail("Invalid backlog key.");
   if (!input.title.trim()) return fail("Title is required.");
   const type = toItemType(input.type);
   const typeBefore = toItemType(input.typeBefore);
@@ -110,6 +111,7 @@ async function updateBacklog(projectId: string, key: string, input: {
 }
 
 async function removeBacklog(projectId: string, key: string): Promise<ServerResult<null>> {
+  if (typeof key !== "string" || !key.trim()) return fail("Invalid backlog key.");
   try {
     return await inProjectTransaction(projectId, async (tx) => {
       const open = await latestBoard(projectId, true, tx);
