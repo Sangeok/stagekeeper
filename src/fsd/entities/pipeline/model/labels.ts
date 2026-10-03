@@ -1,4 +1,4 @@
-import { slotAgent, NODE_KINDS, gateKind } from "@harness/core/pipeline.mjs";
+import { slotAgent, NODE_KINDS, gateKind, gateId, boundaryOf } from "@harness/core/pipeline.mjs";
 
 const LABEL: Record<string, string> = { propose: "Propose", plan: "Plan", verify: "Verify", implement: "Implement", accept: "Accept", "doc-audit": "Doc audit", scout: "Scout" };
 export const nodeLabel = (kind: string): string => {
@@ -9,6 +9,7 @@ export const nodeLabel = (kind: string): string => {
   const suffix = kind.includes("#") ? ` ${kind.slice(kind.indexOf("#"))}` : "";
   return label + suffix;
 };
+export const autoEdgeLabel = (kind: string): string | null => kind === "propose" ? null : `auto → ${boundaryOf(gateId(kind))?.to ?? nodeLabel(kind).toLowerCase()}`;
 export const gateLabel = (id: string): string => `before ${nodeLabel(gateKind(id) ?? id)}`;
 
 // 그 노드를 도는 에이전트. plan·implement는 항목의 dev(워크스페이스 roster), 그 밖은 노드가 고정으로 부르는 에이전트다.

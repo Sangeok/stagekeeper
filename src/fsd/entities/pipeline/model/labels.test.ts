@@ -4,9 +4,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { NODE_KINDS } from "@harness/core/pipeline.mjs";
-import { gateLabel, nodeAgentLabel, nodeLabel } from "./labels";
+import { autoEdgeLabel, gateLabel, nodeAgentLabel, nodeLabel } from "./labels";
 
 const ROSTER = ["dev", "web-dev"];
+
+it("auto labels cover every non-Propose node and repeated project slots", () => {
+  assert.deepEqual((NODE_KINDS as string[]).map(autoEdgeLabel), [null, "auto → planning", "auto → verify", "auto → implementing", "auto → accept", "auto → doc audit", "auto → scout"]);
+  for (const [kind, label] of [["doc-auditor", "doc audit"], ["feature-scout", "scout"], ["doc-auditor#2", "doc audit #2"], ["feature-scout#2", "scout #2"]]) assert.equal(autoEdgeLabel(kind), `auto → ${label}`);
+});
 
 describe("nodeLabel · gateLabel", () => {
   it("names every node kind in the skeleton", () => {

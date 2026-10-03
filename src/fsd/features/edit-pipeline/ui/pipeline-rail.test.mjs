@@ -8,6 +8,17 @@ const props = {
   graph: { nodes: ["propose", "plan", "verify", "implement", "accept", "doc-audit", "scout"], gates: [] },
   plan: "pro", roster: ["dev"], save: async () => ({ success: true, data: undefined }),
 };
+
+it("ungated edges explain every automatic step including first Plan and repeated slots", () => {
+  for (const editable of [true, false]) {
+    const graph = { nodes: ["plan", "verify", "implement", "accept", "doc-auditor#2", "feature-scout#2"], gates: [] };
+    const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, graph, editable }));
+    for (const label of ["planning", "verify", "implementing", "accept", "doc audit #2", "scout #2"]) assert.ok(html.includes(`auto → ${label}`));
+    assert.equal(html.includes("+"), editable);
+  }
+  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, graph: { nodes: ["plan", "implement", "accept"], gates: ["before-accept"] }, editable: false }));
+  assert.ok(!html.includes("auto → accept")); assert.match(html, /Gate · you/);
+});
 it("keeps required labels structural when editing is unavailable", () => {
   const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, editable: false, unavailableReason: "Not selected" }));
   assert.equal([...html.matchAll(/>required<\/span>/g)].length, 3);
