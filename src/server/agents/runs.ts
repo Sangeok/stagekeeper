@@ -11,6 +11,7 @@ import { loadProjectRoster } from "../project";
 import { serverVars } from "./vars";
 import { cursorTransaction, commitRunOutcome } from "./run-query";
 import { readProjectUsageCapIn } from "../account-usage-query";
+import { resolveCodexBundle } from "../runbook";
 
 const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기본 "ko")에 템플릿이 없으면 여기로
 
@@ -18,18 +19,23 @@ export function createNextDeps(db: PrismaClient): NextDeps {
   const deps: NextDeps = {
     access: (projectId) => readProjectAccess(db, projectId),
     roster: (projectId) => loadProjectRoster(db, projectId),
-    template: async (projectId, path) => {
+    template: async (projectId, path, client) => {
+      if (client === "codex") {
+        const bundle = await resolveCodexBundle(projectId, db);
+        if (!bundle.ok) throw new Error(bundle.reason);
+        return bundle.item.templates[path] ?? null;
+      }
       const { language } = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { language: true } });
       const find = (lang: string) => db.template.findUnique({ where: { lang_path: { lang, path } }, select: { body: true } });
       const row = (await find(language)) ?? (language === TEMPLATE_FALLBACK_LANG ? null : await find(TEMPLATE_FALLBACK_LANG));
       return row?.body ?? null;
     },
-    vars: async (projectId, agent) => {
+    vars: async (projectId, agent, client) => {
       const project = await db.project.findUniqueOrThrow({
         where: { id: projectId },
         select: { repoOwner: true, repo: true, branch: true, name: true, workspaces: { orderBy: { wsId: "asc" } } },
       });
-      return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent);
+      return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent, client);
     },
     usageCap: (projectId) => db.$transaction((tx) => readProjectUsageCapIn(tx, projectId)),
     // 같은 (project, agent, key)에 열린 run이 둘일 수는 있다(부분 유니크 인덱스 없음) — 최신 것을 커서로 본다.

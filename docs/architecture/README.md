@@ -15,10 +15,17 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 
 Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 않는다. `/api/templates`는
 플랜에 맞춰 잘라 낸 것만 준다 — 에이전트 파일은 첫 `## step:` 앞의 **스텁**, 플랜 밖 보고
-에이전트는 제외한다. 런북은 단일 `CLAUDE.runbook.md`이며 예전 Free variant는 배포하지 않는다. 단계 본문은
+에이전트는 제외한다. 기본 런북은 `CLAUDE.runbook.md`이며 Codex 요청은 `CODEX.runbook.md`를 선택한다. 예전 Free variant는 배포하지 않는다. 단계 본문은
 `agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/core/deliver.mjs`
 하나가 정하고, 서버(`src/server/templates.ts`)와 생성기(`plugin/bin/harness-init.mjs`의
 로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/core/entitlement.mjs`.
+
+2026-10-03 작업 트리에는 dual-client 계약과 Codex foreground 어댑터가 구현되어 있다.
+서버 원장·승인·token 모델은 공통이고 client를 저장하지 않는다. Codex 역할은
+`plugin/runtime/codex-thread.mjs`의 fresh App Server thread와 역할별 MCP bridge로 실행한다.
+실제 모델의 권한 격리·양방향 인수·DB seed·배포는 완료되지 않았다. 이 소스 구조를
+제품 지원 인증으로 해석하지 않는다. 미완료 근거는 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md),
+실제 source 계약은 [protocol.md](./protocol.md)의 dual-client 절을 따른다.
 
 Phase 4는 2026-09-04에 완료됐다(제안서:
 `docs/proposals/completed/2026-09-04-harness-platform-phase-4-entitlement.md`).
@@ -63,7 +70,7 @@ stagekeeper/
 │   ├── server/              # 인증·파이프라인·MCP·DB application services
 │   └── generated/           # 생성 코드, 직접 수정 금지
 ├── packages/core/           # 런타임 의존성 없는 순수 규칙·프로토콜
-├── plugin/                  # 사용자 저장소에 설치되는 Claude Code 플러그인
+├── plugin/                  # Claude/Codex manifest·skill·로컬 생성/실행 helper
 ├── prisma/                  # DB schema와 migration
 ├── scripts/                 # 저장소 검사·복사본 동기화·수동 운영 스크립트 (앱 런타임 아님, verification.md)
 ├── tests/server/            # 서버 전용 bootstrap·교차 모듈 테스트, integration/은 격리 PostgreSQL 필요

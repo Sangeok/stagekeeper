@@ -11,7 +11,9 @@ import { readProjectAccess } from "@/server/project-access-query";
 import { createBoardService } from "@/server/pipeline/board";
 import { RUNBOOK_STALE_NOTE, scoutNodePending } from "@/server/pipeline/run-rules";
 import { headFor, nextFor } from "@/server/pipeline/run";
-import { runbookStale } from "@/server/runbook";
+import { runbookStale, resolveCodexBundle } from "@/server/runbook";
+import { checkCodexRunbook } from "@/server/client-bundle-query";
+import { codexHandoffView } from "@/server/codex-handoff-query";
 import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
 import { makeVerifyToken } from "./auth";
 import { loadProjectView } from "./project-query";
@@ -53,10 +55,20 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
     agentNext: (projectId, tokenId, input) => agentNext(prismaNextDeps, { projectId, tokenId }, input),
     // pipeline_next의 조립은 여기다 — run.ts는 board.ts를 import하지 않으므로 미결 목록을 스스로 읽지 못한다.
     // 항목마다 지연 전진을 먼저 돌린다: doc-audit·scout의 완료(에이전트 run 닫힘)는 보드 쓰기를 지나지 않는다.
-    pipelineNext: async (projectId, key, runbook) => {
+    pipelineNext: async (projectId, key, runbook, client) => {
+      let runtime;
+      if (client === "codex") {
+        const bundle = await resolveCodexBundle(projectId, prisma);
+        if (!bundle.ok) return bundle;
+        const error = checkCodexRunbook(bundle.item, runbook);
+        if (error) return { ok: false, reason: error };
+        runtime = bundle.item.runtime;
+      }
       if (key !== undefined) {
         await board.advancePipeline(projectId, key);
-        return { ok: true as const, item: await nextFor(prisma, projectId, key) };
+        const next = await nextFor(prisma, projectId, key);
+        const item = client === "codex" ? await codexHandoffView(prisma, projectId, next) : next;
+        return { ok: true as const, item: { ...item, ...(runtime ? { runtime } : {}) } };
       }
       const openOnly = true;
       const open = await board.latestBoard(projectId, openOnly);
@@ -66,13 +78,14 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
       const items = [];
       for (const key of keys) {
         await board.advancePipeline(projectId, key);
-        items.push(await nextFor(prisma, projectId, key));
+        const next = await nextFor(prisma, projectId, key);
+        items.push(client === "codex" ? await codexHandoffView(prisma, projectId, next) : next);
       }
       const head = await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId), scoutNodePending(items));
       // 런북 표류는 key 없는 개요에만 싣는다. 낡지 않았으면 필드 자체를 내지 않는다.
       // 세션이 자기 CLAUDE.md의 판을 넘기면 그 checkout 기준으로, 아니면 마지막 init이 보고한 판으로 판정한다.
-      const stale = await runbookStale(projectId, prisma, runbook);
-      return { ok: true as const, item: { head, items, ...(stale ? { runbook: { stale: true as const, note: RUNBOOK_STALE_NOTE } } : {}) } };
+      const stale = client === "codex" ? false : await runbookStale(projectId, prisma, runbook);
+      return { ok: true as const, item: { head, items, ...(runtime ? { runtime } : {}), ...(stale ? { runbook: { stale: true as const, note: RUNBOOK_STALE_NOTE } } : {}) } };
     },
     access: (projectId) => readProjectAccess(prisma, projectId),
     // 술어는 user-scope-query.ts 한 곳에 있다 — REST 세 경로도 같은 것을 쓴다.

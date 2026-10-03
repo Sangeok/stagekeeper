@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { parseHarnessConfig } from "../lib/config.mjs";
 import { parseBearer } from "../lib/token.mjs";
 import { isRunbookVersion } from "../lib/runbook.mjs";
-import { STUCK_AFTER, actionableWork, hasWork, nextWatchState, parseToolResponse, workSignature } from "../lib/watch.mjs";
+import { actionableWork, hasWork, nextWatchState, parseToolResponse, workSignature } from "../lib/watch.mjs";
+
+import { WatchFailure, Interrupted, gitRoot, stateFiles, readState, atomicWrite, isAlive, withGuard, replaced, matchesBinding, requireOwnership, clearState } from "../runtime/local-session.mjs";
 
 const REASONS = {
   "invalid-arguments": "Invalid watch arguments. Check the mode, required values, and positive timing limits.",
@@ -23,7 +24,6 @@ const REASONS = {
   "protocol-error": "Unexpected MCP response. Update the compatible plugin and server before restarting.",
   "request-failed": "Five consecutive watch requests failed. Resolve the server or connection error before restarting.",
 };
-const GUARD_LIMIT = 5000;
 const BODY_LIMIT = 1024 * 1024;
 const EMPTY_STATE = { lastSignature: null, repeats: 0, stuck: false };
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -31,12 +31,6 @@ const nonempty = (value) => typeof value === "string" && value.trim().length > 0
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const now = () => new Date().toISOString();
 
-class WatchFailure extends Error {
-  constructor(code, reason = REASONS[code]) { super(reason); this.code = code; }
-}
-class Interrupted extends Error {
-  constructor(event) { super(event.event); this.event = event; }
-}
 class TransientFailure extends Error {
   constructor(retryAfter = 0) { super("Transient transport failure."); this.retryAfter = retryAfter; }
 }
@@ -44,7 +38,7 @@ const fail = (code, reason) => { throw new WatchFailure(code, reason); };
 
 function parseArguments(argv) {
   const values = new Set(["root", "server", "commit", "propose", "session", "interval", "deadline", "request-timeout"]);
-  const flags = new Set(["start", "force", "check", "stop"]);
+  const flags = new Set(["start", "force", "check", "stop", "managed"]);
   const options = {};
   for (let i = 0; i < argv.length; i++) {
     const name = argv[i].startsWith("--") ? argv[i].slice(2) : "";
@@ -60,7 +54,7 @@ function parseArguments(argv) {
   const mode = options.start ? "start" : options.stop ? "stop" : options.check ? "check" : "poll";
   if (mode === "start") {
     if (options.session || !["yes", "no"].includes(options.commit) || !["yes", "no"].includes(options.propose)) fail("invalid-arguments");
-  } else if (!options.session || options.force || options.commit || options.propose) fail("invalid-arguments");
+  } else if (!options.session || options.force || options.managed || options.commit || options.propose) fail("invalid-arguments");
   if (mode !== "poll" && ["interval", "deadline", "request-timeout"].some((key) => options[key] !== undefined)) fail("invalid-arguments");
   const timing = (name, fallback, max = Infinity) => {
     const value = options[name] === undefined ? fallback : Number(options[name]);
@@ -69,15 +63,6 @@ function parseArguments(argv) {
   };
   return { ...options, mode, root: options.root ?? ".", interval: timing("interval", 60) * 1000,
     deadline: timing("deadline", 110, 110) * 60000, requestTimeout: timing("request-timeout", 20, 20) * 1000 };
-}
-
-function gitRoot(input) {
-  try {
-    const git = (...args) => execFileSync("git", ["-C", input, "rev-parse", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-    if (git("--is-bare-repository") !== "false") fail("invalid-config");
-    const root = realpathSync(git("--show-toplevel"));
-    return { root, directory: path.join(realpathSync(path.resolve(input, git("--git-common-dir"))), "harness") };
-  } catch { fail("invalid-config"); }
 }
 
 function serverUrl(input) {
@@ -129,81 +114,6 @@ function localInput(location, options) {
   return { config, runbook, token, server, binding };
 }
 
-function stateFiles(directory) {
-  return { policy: path.join(directory, "watch.json"), lock: path.join(directory, "watch.lock.json"), guard: path.join(directory, "watch.guard") };
-}
-function readJson(file) {
-  try { return JSON.parse(readFileSync(file, "utf8")); }
-  catch { fail("corrupt-state"); }
-}
-function readState(files) {
-  if (!existsSync(files.lock) && !existsSync(files.policy)) return null;
-  const lock = readJson(files.lock);
-  const policy = readJson(files.policy);
-  const binding = lock?.binding;
-  const state = lock?.state;
-  const poller = lock?.poller;
-  const validTime = (value) => nonempty(value) && Number.isFinite(Date.parse(value));
-  const validHash = (value) => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
-  if (!isObject(lock) || lock.schemaVersion !== 1 || !nonempty(lock.id)
-    || !isObject(policy) || policy.schemaVersion !== 1 || policy.session !== lock.id
-    || typeof policy.commit !== "boolean" || typeof policy.propose !== "boolean"
-    || !isObject(binding) || !nonempty(binding.root) || !nonempty(binding.server)
-    || !(binding.project === null || nonempty(binding.project)) || !validHash(binding.configHash) || !validHash(binding.tokenHash)
-    || !validTime(lock.startedAt) || !validTime(lock.seenAt) || !isObject(state)
-    || !(state.lastSignature === null || nonempty(state.lastSignature))
-    || !Number.isInteger(state.repeats) || state.repeats < 0 || typeof state.stuck !== "boolean"
-    || (state.lastSignature === null && (state.repeats !== 0 || state.stuck))
-    || state.stuck !== (state.repeats >= STUCK_AFTER)
-    || !(poller === null || (isObject(poller) && Number.isInteger(poller.pid) && poller.pid > 0 && nonempty(poller.nonce)))) fail("corrupt-state");
-  return { lock, policy };
-}
-function atomicWrite(file, value) {
-  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
-  try {
-    writeFileSync(temporary, JSON.stringify(value) + "\n", { flag: "wx", mode: 0o600 });
-    renameSync(temporary, file);
-  } finally {
-    if (existsSync(temporary)) unlinkSync(temporary);
-  }
-}
-function isAlive(pid) {
-  try { process.kill(pid, 0); return true; }
-  catch (error) { return error.code !== "ESRCH"; }
-}
-
-async function withGuard(files, action, expires = Infinity) {
-  const nonce = randomUUID();
-  const limit = Math.min(performance.now() + GUARD_LIMIT, expires);
-  const ownerPath = path.join(files.guard, "owner.json");
-  for (;;) {
-    try { mkdirSync(files.guard); break; }
-    catch (error) {
-      if (error.code !== "EEXIST") fail("corrupt-state");
-      if (performance.now() >= expires) throw new Interrupted({ event: "idle" });
-      if (performance.now() >= limit) fail("guard-busy");
-      // Abandoned guards are deliberately not stolen, even with --force.
-      await delay(Math.min(25, Math.max(1, limit - performance.now())));
-    }
-  }
-  try {
-    writeFileSync(ownerPath, JSON.stringify({ pid: process.pid, nonce }), { flag: "wx", mode: 0o600 });
-    return action();
-  } finally {
-    if (existsSync(ownerPath)) {
-      const owner = readJson(ownerPath);
-      if (owner.pid === process.pid && owner.nonce === nonce) { unlinkSync(ownerPath); rmdirSync(files.guard); }
-    }
-  }
-}
-function replaced(session, state) { return { event: "replaced", session, seenAt: state?.lock.seenAt ?? null }; }
-function matchesBinding(a, b) { return Object.keys(a).every((key) => a[key] === b[key]) && Object.keys(a).length === Object.keys(b).length; }
-function requireOwnership(state, session, binding, nonce) {
-  if (state === null || state.lock.id !== session) throw new Interrupted(replaced(session, state));
-  if (!matchesBinding(state.lock.binding, binding)) fail("binding-changed");
-  if (nonce !== undefined && state.lock.poller?.nonce !== nonce) throw new Interrupted(replaced(session, state));
-}
-function clearState(files) { unlinkSync(files.lock); unlinkSync(files.policy); }
 function cleanReason(value, token, fallback) {
   if (typeof value !== "string" || !value.trim() || value.length > 1000 || /[<>\x00-\x1f]|\bBearer\b|\b(?:hs_|hu_|ho_)[A-Za-z0-9_-]+|Authorization|\bat\s+\S+\s*\(/i.test(value)
     || (token && value.includes(token))) return fallback;
@@ -332,11 +242,12 @@ async function startWatch(files, input, options) {
   return withGuard(files, () => {
     if (!matchesBinding(input.binding, localInput({ root: input.binding.root }, options).binding)) fail("binding-changed");
     const state = readState(files);
-    if (state && !options.force) return { event: "locked", startedAt: state.lock.startedAt, seenAt: state.lock.seenAt };
+    if (state && (!options.force || state.lock.lifecycle !== undefined)) return { event: "locked", startedAt: state.lock.startedAt, seenAt: state.lock.seenAt };
     const session = randomUUID();
     const policy = { schemaVersion: 1, session, commit: options.commit === "yes", propose: options.propose === "yes" };
     atomicWrite(files.policy, policy);
-    atomicWrite(files.lock, { schemaVersion: 1, id: session, binding: input.binding, startedAt: now(), seenAt: now(), state: EMPTY_STATE, poller: null });
+    atomicWrite(files.lock, { schemaVersion: 1, id: session, binding: input.binding, startedAt: now(), seenAt: now(), state: EMPTY_STATE, poller: null,
+      ...(options.managed ? { client: "claude", mode: "watch", lifecycle: "active", children: [] } : {}) });
     return { event: "started", session, policy: { commit: policy.commit, propose: policy.propose } };
   });
 }
@@ -361,6 +272,7 @@ async function pollWatch(files, input, options) {
     await withGuard(files, () => {
       const state = readState(files);
       requireOwnership(state, session, input.binding);
+      if ((state.lock.mode ?? "watch") !== "watch" || (state.lock.client ?? "claude") !== "claude") fail("binding-changed");
       if (state.lock.poller && isAlive(state.lock.poller.pid)) fail("poller-active");
       state.lock.poller = { pid: process.pid, nonce };
       state.lock.seenAt = now();
@@ -439,7 +351,7 @@ async function pollWatch(files, input, options) {
             event = replaced(session, state);
             return;
           }
-          if (["stuck", "error", "stopped"].includes(event?.event)) clearState(files);
+          if (state.lock.lifecycle === undefined && ["stuck", "error", "stopped"].includes(event?.event)) clearState(files);
           else { state.lock.poller = null; atomicWrite(files.lock, state.lock); }
         }, Math.max(expires, performance.now() + 50));
       } catch (error) {
@@ -464,6 +376,11 @@ async function main() {
         const state = readState(files);
         if (state === null) return { event: "stopped", session: options.session };
         if (state.lock.id !== options.session) return replaced(options.session, state);
+        if (state.lock.lifecycle !== undefined) {
+          state.lock.lifecycle = "stopping";
+          atomicWrite(files.lock, state.lock);
+          return { event: "stopping", session: options.session };
+        }
         clearState(files);
         return { event: "stopped", session: options.session };
       });

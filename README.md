@@ -3,8 +3,9 @@
 사람이 승인 게이트를 쥐고 에이전트가 계획, 독립 검증, 구현, 인수를 증거와 함께
 수행하도록 조율하는 개발 파이프라인 서비스다.
 
-현재 저장소는 구현 전 스캐폴드 단계다. 제품 설계와 실행 제안서는 `docs/`에 있고,
-새 코드는 Next.js에 맞춘 Feature-Sliced Design 경계를 따른다.
+웹·MCP 서버와 Claude Code 플러그인이 구현되어 있다. Codex foreground 지원 소스와
+공통 재개 계약도 추가했으며 실제 모델 권한·교차 클라이언트 인수 및 배포는 검증 중이다.
+제품 설계와 실행 제안서는 `docs/`에 있고, 새 코드는 Next.js의 Feature-Sliced Design 경계를 따른다.
 
 ## 문서
 
@@ -33,6 +34,15 @@ claude plugin list      # harness가 보이면 설치된 것
 ```powershell
 claude --plugin-dir <stagekeeper 경로>/plugin
 ```
+
+## Codex 어댑터 소스
+
+`plugin/.codex-plugin/plugin.json`은 `$harness-init`, `$harness-run`, `$harness-resume`을
+노출한다. init은 Claude 생성물을 보존하고 Codex 역할 TOML과 별도 런북을 만든다.
+fresh 역할 실행과 공통 잠금의 사용법은 [plugin/README.md](./plugin/README.md)를 따른다.
+자동 Codex watch는 구현하지 않았다. private template은 별도 저장소 변경이므로 public
+코드만 배포해서는 지원을 활성화할 수 없다. [검증 보고서](./docs/test-reports/active/dual-client-runtime-report.md)의
+필수 host·DB·설치·인수 항목을 통과하기 전에는 제품 지원 완료로 선언하지 않는다.
 
 ## 로컬 확인
 

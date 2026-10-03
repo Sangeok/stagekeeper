@@ -46,6 +46,9 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
+| `rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
+| `rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearse-dual-client-runtime.test.ts` | 위 검사기 변경 시 명시적으로 수동 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. 현재 `npm test`/`check`의 test glob에 포함되지 않는다 |
+| `rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
 | `rehearse-automatic-scout.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-automatic-scout.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next HTTP로 Free 자동 발굴 switch 저장·재조회·잘못된 입력·타인·무세션·사용 불가 프로젝트 거부를 검증한다. 루프백 fixture만 만들고 종료 시 자기 fixture를 정리한다 |
 | `rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 별도 기능 설정 없이 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
 | `rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
@@ -53,7 +56,9 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `retired-copy.test.mjs` | `npm run test:architecture` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
 | `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
-| `seed-templates.ts` | `npm run seed:templates [-- --dir <dir>]` | private 템플릿을 바꾼 뒤, 로컬에서 | `plugin/templates/<lang>/**/*.md`를 `Template` 테이블에 upsert. `agents/*`는 저장 전 파싱 |
+| `seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증 |
+| `restore-dual-client-templates.ts` | `node --import tsx scripts/restore-dual-client-templates.ts --snapshot <private 경로>` | 승인된 template 복구 | snapshot version/hash·현재 body 전체를 먼저 대조하고 whitelist 행만 한 transaction으로 복구한다. 이전에 없던 CODEX.runbook 행만 삭제하며 외부 행을 보존한다 |
+| `lib/template-seed-query.ts`, `template-seed-query.test.ts` | `node --import tsx --test scripts/template-seed-query.test.ts` | seed/restore 변경 시 명시적으로 실행 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. 실제 DB rollback 증거가 아니며 기존 test glob 밖이다 |
 | `grant-plan.ts` | `npm run plan:grant -- <login> <free\|pro\|max> [note]` | 플랜을 붙일 때, 로컬에서 | availability service를 통한 plan/set/version/event atomic change |
 | `lib/prisma.ts` | (헬퍼) | — | DB 스크립트의 Prisma 부트스트랩. `DATABASE_URL`이 없으면 exit 2 |
 | `check-project-ownership-cleanup.ts` | `npm run check:project-ownership:cleanup -- --pre\|--post` | D3 cleanup 전후 | catalog·직접 owner·exact set·event를 read-only snapshot으로 검사 |
@@ -125,6 +130,7 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 | --- | --- | --- | --- |
 | §13 표의 행 | `board_transition`·`plan_submit`·`agent_next`·`backlog_add` | `src/server/mcp/tools.test.mjs` | MCP 도구 설명(글자 일치) |
 | `token-reveal-shared`·`-project`·`-user` | §9 Token reveal | `src/fsd/entities/project-token/ui/token-reveal.test.ts` | `TokenReveal`(hs_·hu_ 각각 렌더) |
+| `token-reveal-codex`·`-project`·`-user` | Codex 연결·재개 | 같은 파일 | 실제 Codex install/init 표시·token scope·watch 미표시; Claude 기본 잠금은 유지 |
 | `owner-token-reveal` | §9 Owner token reveal | 같은 파일 | `OwnerTokenReveal` |
 | `turn-banner-connect` | §5 First run | `src/fsd/widgets/turn-banner/model/turn.test.ts` | 모델의 `detail`(글자 일치) — 배너는 그 값을 그린다 |
 | `turn-banner-watch` | §5 Next, in Claude Code | `src/fsd/widgets/turn-banner/model/turn.test.ts`, `ui/next-step.test.mjs` | `WATCH_LINE` 글자 일치·실제 본문·명령 Code·빈 상자·Copy payload |

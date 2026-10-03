@@ -10,6 +10,11 @@ export function runbookVersion(body) {
   return createHash("sha256").update(body).digest("hex").slice(0, 12);
 }
 
+// Codex compares normalized source; the legacy Claude raw hash stays unchanged.
+export function codexRunbookVersion(body) {
+  return runbookVersion(body.replace(/\r\n/g, "\n"));
+}
+
 // runbookVersion이 내는 모양 그대로(12자리 소문자 hex). 보고 경로(POST /api/runbook)와 개요의 runbook 입력이
 // 같은 규칙을 쓴다 — 여기서 막지 않으면 아무 문자열이나 열에 앉아 영원히 "현재"가 된다.
 export function isRunbookVersion(value) {

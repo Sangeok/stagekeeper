@@ -7,6 +7,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { releaseSession, stateFiles } from "../runtime/local-session.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-watch.mjs", import.meta.url));
 const TOKEN = "hu_" + "a".repeat(43);
@@ -21,6 +22,16 @@ const BASE_ENV = { ...process.env };
 for (const key of Object.keys(BASE_ENV)) if (key.startsWith("HARNESS_") || key.startsWith("DOTENV_CONFIG_") || key === "NODE_OPTIONS" || key === "CLAUDE_PLUGIN_ROOT") delete BASE_ENV[key];
 const json = (file) => JSON.parse(readFileSync(file, "utf8"));
 const deferred = () => { let resolve; const promise = new Promise((done) => { resolve = done; }); return { promise, resolve }; };
+
+it("managed Claude watch retains stopping ownership and requires the shared release operation", async t => {
+  const f = await fixture(t), start = await f.start(["--managed"]);
+  assert.equal(json(f.lockPath).client, "claude"); assert.equal(json(f.lockPath).mode, "watch");
+  const stopped = await f.run(["--stop", "--session", start.event.session]).result;
+  assert.equal(stopped.event.event, "stopping"); assert.equal(json(f.lockPath).lifecycle, "stopping");
+  assert.equal((await f.start(["--force", "--managed"])).event.event, "locked");
+  assert.equal((await releaseSession(stateFiles(f.directory), start.event.session)).event, "released");
+  assert.equal(existsSync(f.lockPath), false);
+});
 
 async function waitFor(predicate) {
   const expires = performance.now() + 7000;
@@ -437,6 +448,8 @@ it("runs the real CLI with shell-safe plugin/root arguments containing spaces an
   const pluginRoot = path.join(f.root, "plugin's space");
   mkdirSync(path.join(pluginRoot, "bin"), { recursive: true });
   mkdirSync(path.join(pluginRoot, "lib"));
+  mkdirSync(path.join(pluginRoot, "runtime"));
+  for (const name of ["local-session", "file-ownership"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
   const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
   copyFileSync(BIN, cli);
   for (const name of ["watch", "config", "token", "runbook", "workspaces", "entitlement"]) {

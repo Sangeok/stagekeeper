@@ -1237,6 +1237,42 @@ an already open page or browser back/forward restoration does not promise an imm
 The lock covers item-empty, populated/expanded/empty-detail and event key-empty/all-empty/middle-page cases.
 Each case checks its own absent copy and link destinations; mutually exclusive empty messages do not appear together.
 
+## Codex 연결·재개 안내
+
+2026-10-03 구현: Token reveal·Next step의 로컬 selector는 Claude Code가 기본값이다.
+프로젝트나 발급 token identity가 바뀌면 선택을 초기화한다. server/token 종류·저장 계약에는 client 필드를 추가하지 않는다.
+Codex는 `$harness-init`, `$harness-run`, `$harness-resume`을 사용하며 자동 watch를 안내하지 않는다.
+아래 문구는 구현 후보의 표시 계약이며 실제 배포·권한 인수 완료를 뜻하지 않는다. 기존 Claude 잠금은 유지한다.
+
+<!-- copy-lock:token-reveal-codex -->
+> **Claude Code** · **Codex**
+> This is the only time the token is shown. Stagekeeper stores a hash, not the token.
+> This token stays valid until you revoke it or its chosen expiry is reached. Restarting a terminal or Codex does not expire it.
+> **1. Install the Stagekeeper plugin in Codex**
+> `$harness-init` comes from the plugin. Install it once — it stays available in every repository.
+> `codex plugin marketplace add Sangeok/stagekeeper`
+> `codex plugin add harness@stagekeeper-local`
+> Already installed? `codex plugin list` shows `harness`.
+> **3. Start Codex in this repository**
+> **4. Enter this in the Codex prompt**
+> `$harness-init`
+> This is a Codex skill command. It connects the repository, checks the runtime, and prepares explicit run/resume.
+> If it asks for the server address, give it this: `http://…/api/mcp`
+<!-- /copy-lock -->
+
+<!-- copy-lock:token-reveal-codex-project -->
+> **2. Set the token in the terminal that will start Codex**
+> Codex reads this environment variable when it starts. A repository `.env` file is not loaded for this connection. The MCP registration stores only a `${HARNESS_TOKEN}` reference, never the value.
+> This environment variable lasts only in this terminal. In a new terminal, set the same token again from your secure storage before starting Codex.
+> From the same terminal, change to the repository directory and start Codex.
+<!-- /copy-lock -->
+
+<!-- copy-lock:token-reveal-codex-user -->
+> **2. Save the token once for this machine**
+> It works until you revoke it — you don't need a new token when you restart Codex or your computer.
+> Change to the repository directory and start Codex.
+<!-- /copy-lock -->
+
 ## Review notes
 
 Mark anything that reads wrong here; it gets fixed in this file first, then in code.

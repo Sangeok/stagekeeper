@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { copyLock, lockFailure, missingUnits, visibleText } from "@/fsd/shared/lib/copy-lock";
 import { OwnerTokenReveal } from "./owner-token-reveal";
-import { TokenReveal } from "./token-reveal";
+import { TokenReveal, TokenRevealView } from "./token-reveal";
 
 it("ships the public init reuse guidance through the bumped plugin package", () => {
   const skill = readFileSync("plugin/skills/init/SKILL.md", "utf8").replace(/\s+/g, " ");
@@ -15,8 +15,19 @@ it("ships the public init reuse guidance through the bumped plugin package", () 
   assert.match(skill, /Do not save it machine-wide/i);
   const plugin = JSON.parse(readFileSync("plugin/.claude-plugin/plugin.json", "utf8"));
   const marketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"));
-  assert.equal(plugin.version, "0.4.1");
+  assert.equal(plugin.version, "0.5.0");
   assert.ok(marketplace.plugins.some((entry: { name: string; source: string }) => entry.name === plugin.name && entry.source === "./plugin"));
+});
+
+it("renders actual Codex install/init guidance while preserving token scope and avoiding watch claims", () => {
+  for (const token of ["hs_…", "hu_…"]) {
+    const html = renderToStaticMarkup(createElement(TokenRevealView, { token, mcpUrl: MCP_URL, client: "codex", onClientChange: () => {} }));
+    const text = visibleText(html);
+    assertLocked(["token-reveal-codex", token.startsWith("hu_") ? "token-reveal-codex-user" : "token-reveal-codex-project"], html);
+    assert.match(text, /codex plugin marketplace add Sangeok\/stagekeeper/); assert.match(text, /codex plugin add harness@stagekeeper-local/);
+    assert.match(text, /\$harness-init/); assert.match(text, /Start Codex/); assert.doesNotMatch(text, /harness:watch|automatic.*watch/);
+    assert.equal(text.includes("Save the token once for this machine"), token.startsWith("hu_"));
+  }
 });
 
 // 잠금 블록의 자리표시자와 같은 값으로 그린다(product-copy.md 머리의 "Copy-lock blocks").

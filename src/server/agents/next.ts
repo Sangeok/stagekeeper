@@ -1,5 +1,6 @@
 import { REPORT_AGENTS, allowsAgent } from "@harness/core/entitlement.mjs";
 import { renderTemplate } from "@harness/core/render.mjs";
+import { parseClient, runtimeEcho, type Client } from "@harness/core/client-runtime.mjs";
 import { STATUSES, canPropose } from "@harness/core/transitions.mjs";
 import type { ProjectAccess } from "@/server/entitlement";
 import type { ServerResult, UsageLimitFailure } from "@/server/result";
@@ -25,8 +26,8 @@ export function isWellFormedReceipt(receipt: Receipt | undefined): receipt is Re
     && typeof receipt.stepId === "string" && receipt.stepId !== ""
     && Number.isInteger(receipt.revision) && receipt.revision >= 0 && receipt.revision <= REVISION_MAX;
 }
-export type NextInput = { agent: string; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
-export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string };
+export type NextInput = { agent: string; client?: Client; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
+export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string; runtime?: ReturnType<typeof runtimeEcho> };
 export type Scope = { projectId: string; tokenId: string };
 export type RunRow = { id: string; stepId: string; revision: number; closedAt: Date | null };
 export type OutcomeCommit = {
@@ -39,8 +40,8 @@ export type NextDeps = {
   withCursor?(scope: Scope, input: NextInput, key: string | null, work: (deps: NextDeps) => Promise<ServerResult<NextOutput>>): Promise<ServerResult<NextOutput>>;
   access(projectId: string): Promise<ProjectAccess>;
   roster(projectId: string): Promise<string[]>; // Workspace.agent[] — wsId 순
-  template(projectId: string, path: string): Promise<string | null>; // 프로젝트 언어의 템플릿 본문(없으면 en)
-  vars(projectId: string, agent: string): Promise<Record<string, unknown>>;
+  template(projectId: string, path: string, client?: Client): Promise<string | null>; // Codex selects a complete bundle; Claude preserves per-file fallback.
+  vars(projectId: string, agent: string, client?: Client): Promise<Record<string, unknown>>;
   usageCap(projectId: string): Promise<UsageLimitFailure | null>;
   openRun(projectId: string, agent: string, key: string | null): Promise<RunRow | null>;
   createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<ServerResult<RunRow>>;
@@ -78,6 +79,8 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
 
   const access = await deps.access(projectId);
   if (!access.available) return fail(access.reason);
+  let client: Client;
+  try { client = parseClient(input.client); } catch { return fail("client must be claude or codex"); }
   const roster = await deps.roster(projectId);
   if (!REPORT_AGENTS.includes(agent) && !roster.includes(agent)) return fail(`unknown agent: ${agent}`);
   if (!allowsAgent(access.plan, agent, roster)) return fail(`agent \`${agent}\` is not on the ${access.plan} plan`);
@@ -94,7 +97,9 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   }
 
   const path = roster.includes(agent) ? "agents/dev.md" : `agents/${agent}.md`;
-  const body = await deps.template(projectId, path);
+  let body: string | null;
+  try { body = await deps.template(projectId, path, client); }
+  catch (error) { return fail(error instanceof Error ? error.message : "client bundle unavailable"); }
   if (body === null) return fail(`no template for agent \`${agent}\``);
   let parsed: ParsedTemplate;
   try {
@@ -107,7 +112,10 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   if (needsKey(parsed) && key === null) return fail(`agent \`${agent}\` needs a key`);
   if (!needsKey(parsed) && key !== null) return fail(`agent \`${agent}\` takes no key`);
 
-  const vars = await deps.vars(projectId, agent);
+  const vars = await deps.vars(projectId, agent, client);
+  // Validate every step before opening/advancing a cursor or charging usage.
+  try { parsed = { ...parsed, steps: parsed.steps.map(step => ({ ...step, body: renderTemplate(step.body, vars) })) }; }
+  catch (error) { return fail(`template render failed: ${error instanceof Error ? error.message : "invalid variables"}`); }
   const execute = async (deps: NextDeps): Promise<ServerResult<NextOutput>> => {
     const serve = async (run: RunRow, step: Step, prefix = ""): Promise<ServerResult<NextOutput>> => {
       const missing = await new Facts(deps, projectId, agent, key, false).unmet(step.requires);
@@ -203,7 +211,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   };
   const result = await (deps.withCursor ? deps.withCursor(scope, input, key, execute) : execute(deps));
   if (!result.ok && result.code === "USAGE_LIMIT_REACHED") console.info("account-usage:limited");
-  if (result.ok && !result.item.done) return ok({ ...result.item, instruction: renderTemplate(result.item.instruction, vars) });
+  if (result.ok && client === "codex") return ok({ ...result.item, runtime: runtimeEcho() });
   return result;
 }
 
