@@ -1,5 +1,5 @@
-import { DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
-import { ReopenActions, type TransitionAction } from "@/fsd/features/review-gate";
+import { blobHref, DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
+import { AcceptanceFailure, ReopenActions, type RetryAcceptanceAction, type TransitionAction } from "@/fsd/features/review-gate";
 import { HistoryList, toHistoryRows, HISTORY_TRUNCATED_NOTE, type HistoryEventInput, type HistoryReportInput } from "@/fsd/widgets/history-feed";
 import { utcMinute } from "@/fsd/shared/lib/relative-time";
 import { Chip } from "@/fsd/shared/ui/chip";
@@ -17,7 +17,8 @@ export type BoardItemView = {
   results: string[];
   validation: string | null;
   proposedOn: Date;
-  acceptedAt: Date | null; // 인수 기록(main-loop의 report_submit in done). null이면 배너가 "needs acceptance"라 한다
+  acceptedAt: Date | null; // 인수 기록(main-loop의 report_submit in done). 실패는 별도로 기록한다
+  acceptanceFailure: { id: string; checks: number[]; note: string; path: string | null; commit: string | null; at: Date } | null;
   updatedAt: string; // ISO. 되돌리기(reopen)의 낙관적 잠금 토큰
   docs: ItemDoc[];
   events: HistoryEventInput[];
@@ -28,7 +29,7 @@ export type BoardItemView = {
 };
 
 // transition은 라우트가 slug를 bind해서 넘긴 사람 전이 액션(review-gate). 이 페이지는 되돌리기(reopen)에만 쓴다.
-export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemView; transition: TransitionAction; canWrite: boolean }) {
+export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrite }: { slug: string; item: BoardItemView; transition: TransitionAction; retryAcceptance: RetryAcceptanceAction; canWrite: boolean }) {
   return (
     <>
       <header className="flex flex-col gap-1">
@@ -88,6 +89,19 @@ export function BoardItemPage({ item, transition, canWrite }: { item: BoardItemV
           <p className="mt-1.5 text-xs text-quiet">{DOC_LINK_NOTE}</p>
         </section>
       ) : null}
+
+      <AcceptanceFailure
+        key={JSON.stringify([slug, item.key])}
+        itemKey={item.key}
+        updatedAt={item.updatedAt}
+        canWrite={canWrite}
+        retryAcceptance={retryAcceptance}
+        failure={item.acceptanceFailure === null ? null : {
+          ...item.acceptanceFailure, at: utcMinute(item.acceptanceFailure.at),
+          href: item.acceptanceFailure.path !== null && item.acceptanceFailure.commit !== null
+            ? blobHref(item.repo, item.acceptanceFailure.path, item.acceptanceFailure.commit) : null,
+        }}
+      />
 
       {/* done에서만 그려진다(reopenTargetsFor) — Documents를 읽고 결정하는 순서라 그 아래, History 위(product-copy.md §11). */}
       {canWrite ? <ReopenActions itemKey={item.key} status={item.status} updatedAt={item.updatedAt} transition={transition} /> : null}

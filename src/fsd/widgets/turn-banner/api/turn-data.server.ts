@@ -11,7 +11,7 @@ export type TurnData = { turn: Turn; inboxCount: number };
 
 // latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다.
 export async function loadTurn(projectId: string): Promise<TurnData> {
-  const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns, project] = await Promise.all([
+  const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns, project, failures] = await Promise.all([
     latestBoard(projectId),
     prisma.projectToken.count({ where: { projectId, revokedAt: null } }),
     prisma.workspace.count({ where: { projectId } }),
@@ -21,6 +21,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     }),
     prisma.pipelineRun.findMany({ where: { closedAt: null, boardItem: { projectId } }, select: { id: true, entryId: true, version: { select: { format: true } }, boardItemId: true, node: true } }),
     prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } }),
+    prisma.acceptanceFailure.findMany({ where: { clearedAt: null, boardItem: { projectId } }, select: { boardItemId: true } }),
   ]);
 
   // 에이전트가 멈췄다는 사실은 원장에 남지만, 소유자가 커밋하고 에이전트가 이어가면 그 행은 그대로 남는다.
@@ -39,6 +40,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
   // key와 agent를 잇는 구분자는 NUL(\u0000)이다 — src/app/(app)/p/[slug]/page.tsx의 보드 파생과 같은 값이어야 한다.
   const running = new Set(openRuns.filter((r) => r.key !== null).map((r) => `${r.key}\u0000${r.agent}`));
   const cursor = new Map(pipelineRuns.map((r) => [r.boardItemId, r.node]));
+  const failedIds = new Set(failures.map((f) => f.boardItemId));
   const items = rows.map((r) => {
     const at = cursor.get(r.id) ?? null;
     const node = at !== null && !isGateId(at) ? at : null;
@@ -54,6 +56,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
       status: r.status,
       agent: r.agent,
       accepted: r.acceptedAt !== null,
+      acceptanceFailed: r.status === "done" && r.acceptedAt === null && node === "accept" && failedIds.has(r.id),
       handoff: isSlotRun ? slotHandoff : handoffs.get(r.backlogItem.key) ?? null,
       gate: at !== null && isGateId(at) ? at : null,
       node,

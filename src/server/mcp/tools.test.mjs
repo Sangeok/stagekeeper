@@ -22,11 +22,32 @@ const descriptions = () => {
 
 // 웹 전용 — 에이전트 토큰용 서버에 절대 없어야 한다(불변식 4의 회귀 가드).
 const WEB_ONLY = ["gate_approve", "board_approve", "board_bounce", "board_hold", "board_discard", "board_resume",
-  "backlog_update", "backlog_remove", "token_issue", "command_create"];
+  "retryAcceptance", "acceptance_retry", "backlog_update", "backlog_remove", "token_issue", "command_create"];
 
 const ctx = { http: { authInfo: { extra: { projectId: "p1", tokenId: "t1" } } } };
 const ws = [{ id: "web", path: "apps/web", agent: "dev", verify: ["npm test"], knowledge: null, readOnly: [] }];
 const open = { plan: "max", available: true };
+
+it("acceptance_fail preserves scope, request budget, service failure and the committed-record schema", async () => {
+  const schema = descriptions().acceptance_fail.inputSchema;
+  const input = { key: "K", checks: [3, 5], note: "missing push", path: "docs/fail.md", commit: "abc" };
+  assert.deepEqual(schema.parse(input), input);
+  for (const checks of [[], [0], [6], [1.5], ["3"], [1, 2, 3, 4, 5, 5]]) assert.equal(schema.safeParse({ ...input, checks }).success, false);
+  const calls = [];
+  for (const outcome of ["ok", "service", "unavailable", "limit"]) {
+    const h = {}; let writes = 0;
+    registerTools({ registerTool: (name, _m, fn) => { h[name] = fn; } }, {
+      requestLimit: async () => outcome === "limit" ? { code: "RATE_LIMITED", reason: "wait", retryAfterSec: 1 } : null,
+      access: async () => outcome === "unavailable" ? { available: false, reason: "locked" } : open,
+      failAcceptance: async (projectId, payload, actorRef) => { writes++; calls.push([projectId, payload, actorRef]); return outcome === "service" ? { ok: false, reason: "duplicate" } : { ok: true, item: { id: "failure" } }; },
+    });
+    const response = await h.acceptance_fail(input, ctx);
+    assert.equal(writes, outcome === "ok" || outcome === "service" ? 1 : 0);
+    assert.equal(response.isError === true, outcome !== "ok");
+    if (outcome === "ok") assert.deepEqual(JSON.parse(response.content[0].text), { id: "failure" });
+  }
+  assert.equal(calls[0][0], "p1"); assert.deepEqual(calls[0][1], input); assert.equal(calls[0][2], "token:t1");
+});
 
 describe("agent-scoped MCP tools", () => {
   it("serializes Codex runtime inside the actual MCP text and validates client enum", async () => {
@@ -47,7 +68,9 @@ describe("agent-scoped MCP tools", () => {
   it("registers exactly the §5 Phase-1 agent scope, underscore names only", () => {
     const names = [];
     registerTools({ registerTool: (name) => { names.push(name); } }, {});
-    assert.deepEqual([...names].sort(), [...AGENT_TOOL_NAMES].sort());
+    const expected = ["project_get", "project_sync", "backlog_list", "backlog_get", "backlog_add", "board_list", "board_get", "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next", "acceptance_fail"].sort();
+    assert.deepEqual([...names].sort(), expected);
+    assert.deepEqual([...AGENT_TOOL_NAMES].sort(), expected);
     for (const n of WEB_ONLY) assert.ok(!names.includes(n), `web-only tool registered: ${n}`);
     for (const n of names) assert.doesNotMatch(n, /\./);
   });
@@ -64,7 +87,7 @@ describe("agent-scoped MCP tools", () => {
   // 문구가 갈리는 두 도구는 product-copy를 그대로 따라야 한다.
   it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
-    for (const tool of ["board_transition", "plan_submit", "agent_next", "backlog_add"]) {
+    for (const tool of ["board_transition", "plan_submit", "agent_next", "backlog_add", "acceptance_fail"]) {
       const expected = copyRow(tool);
       assert.ok(expected, `no product-copy row for ${tool}`);
       assert.equal(meta[tool].description, expected, tool);
@@ -270,6 +293,7 @@ describe("user-scoped tokens resolve the project from the argument", () => {
       ["plan_submit", { key: "X-1", path: "p", commit: "c" }],
       ["report_submit", { key: "X-1", actor: "dev", path: "p", commit: "c" }],
       ["validation_record", { key: "X-1", text: "clean" }],
+      ["acceptance_fail", { key: "X-1", checks: [3], note: "failed" }],
       ["project_sync", { workspaces: ws }],
       ["pipeline_next", { key: "X-1" }],
       ["backlog_get", { key: "X-1" }], ["board_list", {}], ["board_get", { key: "X-1" }],

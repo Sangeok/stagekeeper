@@ -40,6 +40,11 @@ result's next advice is not dispatch authority: re-query next with Codex client 
 version. Do not approve gates yourself. Acceptance belongs to this main loop: reproduce all
 five original runbook checks, write/commit the acceptance section only with actual permission,
 then report_submit as main-loop. Never delegate acceptance to the implementation role.
+If any of the five acceptance checks fails, call `acceptance_fail` once with its check
+numbers and a note of at most 150 characters. Follow current commit permission for any
+optional failure record. Tell the owner and wait for their item-page retry or reopen;
+do not rerun acceptance until fresh `next` answers `accept`. This wait affects that item,
+so other ready items may continue under the same active session and policy.
 
 Before parent file writes or outcome/report submissions, check session via harness-session
 --check and require owned + active + same client and stored policy. Bound callbacks after

@@ -88,6 +88,12 @@ function validateItem(item) {
           if (item.gateEntry !== undefined) requireValue(object(item.gateEntry)
             && text(item.gateEntry.runId) && text(item.gateEntry.entryId));
           break;
+        case "acceptance":
+          requireValue(item.node === "accept" && Array.isArray(item.checks) && item.checks.length >= 1 && item.checks.length <= 5
+            && item.checks.every((check) => Number.isInteger(check) && check >= 1 && check <= 5)
+            && new Set(item.checks).size === item.checks.length && typeof item.note === "string"
+            && item.note.trim().length > 0 && item.note.length <= 150);
+          break;
         case "handoff": requireValue(nullableText(item.note)); break;
         case "cap": requireValue(typeof item.reason === "string"); break;
         default: requireValue(false);

@@ -119,8 +119,8 @@ Follow all fresh ready items and the permitted head using the current runbook:
   project slug in their briefing. Preserve exact entry identifiers and exact
   AgentRun receipts returned by `agent_next` for subsequent calls/outcomes.
 - Run main-loop verify/accept obligations yourself according to the runbook.
-  Do not replace independent verification with the watcher event.
-- A gate, handoff or cap waits **that item only**. Inspect other ready items
+  Do not replace independent verification with the watcher event. If any acceptance check fails, call `acceptance_fail` once with the failed check numbers (1–5) and a short note, then tell the owner. The item waits on acceptance until the owner runs acceptance again or reopens it on the item page. Do not rerun those checks until fresh `pipeline_next` answers `accept`. Preserve commit policy when writing any optional failure record.
+- A gate, handoff, cap or failed acceptance waits **that item only**. Inspect other ready items
   and permitted head before deciding no work remains. Do not notify the same
   waiting reason on every poll.
 

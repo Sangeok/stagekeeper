@@ -191,3 +191,7 @@ Next.js가 `src/app/`을 무시하므로 검사기가 즉시 실패시킨다.
 그 제안서를 구현할 때는 이 문서가 최신 architecture source of truth이며, public
 API를 추가하고 import를 정리한 뒤 진행한다. 사용자가 수정 중인 제안서 본문은
 이번 작업에서 덮어쓰지 않는다.
+
+## Acceptance failure rehearsal
+
+`node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-acceptance-failure.ts` uses only validated `TEST_DATABASE_URL` (stagekeeper_test_*, distinct from the parent DATABASE_URL). It exercises the actual Next owner action, authentication/read-only/stale controls and lost-response recovery. After a fresh build, `--templates` checks the entire private LF bundle through a unique test Template language, authenticated HTTP and actual init-generated managed marker/report convention/hash; the DB fixture is cleaned and generated files remain in a unique Temp directory. `--interactive` serves isolated browser lifetime fixtures and the actual item page; `/finish` cleans the fixture server and users. New production code requires the additive acceptance migration before rollout; production migration/seeding/watch installation observations are separate from local checks.

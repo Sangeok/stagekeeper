@@ -116,11 +116,14 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
   const last = open?.steps[0];
   const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
   const dispatches = node !== null && dispatcherFor(node, row.agent) !== null;
+  const acceptanceFailure = node === "accept"
+    ? await db.acceptanceFailure.findFirst({ where: { boardItemId: row.id, clearedAt: null }, select: { checks: true, note: true } })
+    : null;
   const cap = dispatches ? await readProjectUsageCapIn(db, projectId) : null;
   return decideNext({
     key, version: run.version.version, node, status: row.status, planCommit: row.planCommit, agent: row.agent, handoff, hasResumableRun: open !== null,
     format: run.version.format, entry: run.entryId ? { runId: run.id, entryId: run.entryId, slotId: run.node } : undefined,
-    cap,
+    cap, acceptanceFailure,
   });
 }
 

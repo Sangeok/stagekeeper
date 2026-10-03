@@ -45,6 +45,8 @@ export type TransitionInput = {
   expectedUpdatedAt: string;
 };
 
+export type RetryAcceptanceAction = (input: { key: string; expectedUpdatedAt: string }) => Promise<ActionResult<void>>;
+
 export type TransitionAction = (input: TransitionInput) => Promise<ActionResult<void>>;
 
 export type DiscardAction = (key: string, expectedUpdatedAt: string) => Promise<ActionResult<void>>;

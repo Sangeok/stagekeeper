@@ -4,7 +4,7 @@ import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { itemPath, projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import * as board from "@/server/pipeline/board";
-import type { TransitionInput } from "../model/inbox-item";
+import type { RetryAcceptanceAction, TransitionInput } from "../model/inbox-item";
 
 const REASON_MESSAGE: Record<string, string> = { stale: "The board changed. Refresh and try again." };
 const message = (reason: string) => REASON_MESSAGE[reason] ?? reason;
@@ -15,6 +15,17 @@ const parseExpected = (iso: string): Date | null => {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+export async function retryAcceptance(slug: string, input: Parameters<RetryAcceptanceAction>[0]): Promise<ActionResult<void>> {
+  const w = await requireProjectWrite(slug);
+  if (!w.ok) return failure(message(w.reason));
+  const expected = parseExpected(input.expectedUpdatedAt);
+  if (expected === null) return failure(message("stale"));
+  const r = await board.retryAcceptance(w.projectId, { key: input.key, userId: w.userId, expectedUpdatedAt: expected });
+  if (!r.ok) return failure(message(r.reason));
+  revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox")); revalidatePath(itemPath(slug, input.key));
+  return success();
+}
 
 export async function humanTransition(slug: string, input: TransitionInput): Promise<ActionResult<void>> {
   const { key, to, result } = input;

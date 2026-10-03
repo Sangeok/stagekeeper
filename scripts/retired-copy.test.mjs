@@ -15,6 +15,7 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // where: web = src/fsd·src/app의 보이는 문구, skill = plugin/skills의 SKILL.md, locks = product-copy.md의 잠금 블록.
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
+  { pattern: /needs acceptance|items need acceptance/, where: ["web", "skill", "locks"], since: "2026-10-03", why: "accept is the session’s turn; only a recorded failure waits for the owner" },
   { pattern: /This token stays valid until you revoke it\./, where: ["web", "skill", "locks"], since: "2026-10-02", why: "tokens now have optional expiry" },
   { pattern: /Counted over the last 30 days|60 calls per 10 minutes per token/, where: ["web", "skill", "locks"], since: "2026-10-02", why: "account run usage and actual request windows replace both old limits" },
   {

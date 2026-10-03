@@ -1,10 +1,34 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition } from "./board-rules.ts";
+import { decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition } from "./board-rules.ts";
 
 const base = { backlogExists: true, hasOpenRow: false, openCount: 0, roster: ["web-dev", "admin-dev"], agent: "web-dev", reason: "evidence" };
 const row = (o = {}) => ({ status: "planning", planPath: null, reportCount: 0, results: [], validation: null, ...o });
-const rs = (o = {}) => ({ status: "done", actor: "web-dev", roster: ["web-dev", "admin-dev"], hasVerifyStep: false, ...o });
+const rs = (o = {}) => ({ status: "done", actor: "web-dev", roster: ["web-dev", "admin-dev"], hasVerifyStep: false, acceptanceFailed: false, ...o });
+
+describe("acceptance failure and owner retry", () => {
+  const waiting = { status: "done", cursor: "accept", accepted: false, failed: false, checks: [3, 5], note: "verify could not run" };
+  it("checks the current acceptance state before recording anything", () => {
+    assert.equal(decideAcceptanceFail(waiting).ok, true);
+    for (const patch of [{ status: "implementing" }, { cursor: null }, { cursor: "before-accept" }, { cursor: "doc-audit" }, { accepted: true }, { failed: true }]) {
+      assert.equal(decideAcceptanceFail({ ...waiting, ...patch }).ok, false);
+    }
+    assert.equal(decideAcceptanceRetry({ ...waiting, failed: true }).ok, true);
+    for (const patch of [{ failed: false }, { accepted: true }, { cursor: null }, { status: "planning" }]) assert.equal(decideAcceptanceRetry({ ...waiting, failed: true, ...patch }).ok, false);
+  });
+  it("rejects malformed checks, empty/oversized notes and partial/blank record pairs", () => {
+    for (const checks of [[], [0], [6], [1, 1], [1.5], ["3"], null, [1, 2, 3, 4, 5, 5]]) assert.equal(decideAcceptanceFail({ ...waiting, checks }).ok, false);
+    for (const note of ["", "  ", "x".repeat(151), 3]) assert.equal(decideAcceptanceFail({ ...waiting, note }).ok, false);
+    for (const pair of [{ path: "a" }, { commit: "a" }, { path: " ", commit: "a" }, { path: "a", commit: "" }]) assert.equal(decideAcceptanceFail({ ...waiting, ...pair }).ok, false);
+    assert.equal(decideAcceptanceFail({ ...waiting, checks: [5, 4, 3, 2, 1], note: "x".repeat(150), path: "a.md", commit: "abc" }).ok, true);
+  });
+  it("blocks only a main-loop acceptance report while failure is active", () => {
+    assert.equal(decideReportSubmit(rs({ actor: "main-loop", acceptanceFailed: true })).ok, false);
+    assert.equal(decideReportSubmit(rs({ actor: "dev", roster: ["dev"], acceptanceFailed: true })).ok, true);
+    assert.equal(decideReportSubmit(rs({ actor: "main-loop", status: "in_review", acceptanceFailed: true })).ok, true);
+    assert.equal(decideReportSubmit(rs({ actor: "main-loop", acceptanceFailed: false })).value.accepts, true);
+  });
+});
 
 describe("decidePropose", () => {
   it("rejects when 2 items are open", () => assert.match(decidePropose({ ...base, openCount: 2 }).reason, /max 2/));

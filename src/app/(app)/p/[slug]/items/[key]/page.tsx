@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { historyCutoff } from "@harness/core/entitlement.mjs";
-import { humanTransition } from "@/fsd/features/review-gate/index.server";
+import { humanTransition, retryAcceptance } from "@/fsd/features/review-gate/index.server";
 import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { planForProject, projectAccess } from "@/server/entitlement";
@@ -19,6 +19,8 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
 
   return (
     <BoardItemPage
+      slug={slug}
+      retryAcceptance={retryAcceptance.bind(null, slug)}
       canWrite={access.available}
       item={{
         key: row.backlogItem.key,
@@ -31,6 +33,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
         validation: row.validation,
         proposedOn: row.proposedOn,
         acceptedAt: row.acceptedAt,
+        acceptanceFailure: row.acceptanceFailures[0] ?? null,
         updatedAt: row.updatedAt.toISOString(),
         docs: toItemDocs(row, project),
         events: row.events.map((e) => ({ id: e.id, at: e.at, actor: e.actor, channel: e.channel, from: e.from, to: e.to, note: e.note })),

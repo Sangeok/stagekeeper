@@ -10,6 +10,15 @@ const report = (patch: Partial<HistoryReportInput> = {}): HistoryReportInput => 
   commit: "abcdef123456", isAcceptance: false, acceptedAt: null, ...patch });
 const rows = (events: HistoryEventInput[], reports: HistoryReportInput[] = []) => toHistoryRows(events, reports, { repo, order: "desc" });
 
+it("acceptance events retain actor/channel/key linkage while labeling only same-state audit notes", () => {
+  const events = [event({ id: "failed", from: "done", to: "done", note: "acceptance-failed", boardItemId: "item", key: "K" }),
+    event({ id: "retry", actor: "human", channel: "web", from: "done", to: "done", note: "acceptance-retry", boardItemId: "item", key: "K" })];
+  const output = toHistoryRows(events, [], { repo, order: "asc", keyLinks: { slug: "project", currentRounds: new Map([["K", "item"]]) } });
+  assert.deepEqual(output.map(r => r.text).sort(), ["Acceptance failed", "Acceptance run again"].sort());
+  assert.ok(output.every(r => r.keyHref === "/p/project/items/K"));
+  assert.equal(rows([event({ from: "done", to: "implementing", note: "acceptance-retry" })])[0].text, "done → implementing");
+});
+
 it("labels evidence and gates, retains unknown notes/statuses, and suppresses duplicate report events", () => {
   for (const [note, text] of [["plan", "Plan submitted"], ["validation", "Validation recorded"],
     ["gate:before-implement", "gate · before Implement"], ["gate:future", "gate · before future"]]) {
