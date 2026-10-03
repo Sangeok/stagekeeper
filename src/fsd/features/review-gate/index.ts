@@ -1,6 +1,8 @@
 // slice 밖에서 실제로 쓰는 것만 공개한다. 문구·잠금 헬퍼와 게이트 버튼·보조 동작 패널은
 // InboxCard 안에서만 쓰이므로 상대 경로로 남긴다 — 공개하면 provider 없이 쓰는 길이 열린다.
+export { AcceptanceFailure } from "./ui/acceptance-failure";
+export type { AcceptanceFailureView } from "./ui/acceptance-failure";
 export { ReopenActions } from "./ui/reopen-actions";
 export { isAtGate, pendingInboxCount } from "./model/gate-source";
 export { inboxReadOnlyLabel } from "./model/inbox-item";
-export type { DiscardAction, GateAction, InboxItem, InboxReadOnlyLabel, TransitionAction } from "./model/inbox-item";
+export type { DiscardAction, GateAction, InboxItem, InboxReadOnlyLabel, RetryAcceptanceAction, TransitionAction } from "./model/inbox-item";

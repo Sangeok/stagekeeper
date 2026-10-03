@@ -5,6 +5,17 @@ import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, cap: null };
 
+it("failed acceptance waits ahead of handoff/cap while all other cursor decisions stay intact", () => {
+  const failure = { checks: [3, 5], note: "missing push" };
+  assert.deepEqual(decideNext({ ...base, node: "accept", status: "done", acceptanceFailure: failure, handoff: { note: "old" }, cap: { ok: false, reason: "full" } }),
+    { key: "FEAT-01", node: "accept", version: 2, action: "wait", on: "acceptance", ...failure });
+  for (const node of [null, "before-accept", "plan", "implement", "doc-auditor#2"]) {
+    assert.deepEqual(decideNext({ ...base, node, acceptanceFailure: failure }), decideNext({ ...base, node }));
+  }
+  assert.equal(decideNext({ ...base, node: "accept", acceptanceFailure: null }).action, "accept");
+  assert.match(HINT.accept, /All pass:.*report_submit.*Any fails:.*acceptance_fail.*don't reopen/);
+});
+
 it("resumable item and standalone PM runs bypass only the dispatch cap", () => {
   assert.equal(decideNext({ ...base, node: "implement", cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumableRun: true }).action, "dispatch");
   assert.equal(decideNext({ ...base, node: "before-implement", cap: { ok: false, reason: "full", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-02T05:00:00.000Z" }, hasResumableRun: true }).on, "gate");

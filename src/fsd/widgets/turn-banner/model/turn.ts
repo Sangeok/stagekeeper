@@ -12,6 +12,7 @@ export type TurnItem = {
   key: string;
   status: string;
   agent: string;
+  acceptanceFailed: boolean;
   accepted: boolean; // done이고 acceptedAt이 있다
   handoff: TurnHandoff | null;
   gate: string | null; // 런이 서 있는 게이트 id
@@ -96,8 +97,8 @@ function mineDetail(pending: TurnItem[]): string {
   const named = new Set<TurnItem>([...approvals, ...proposed]);
   const elsewhere = gated.filter((i) => !named.has(i));
   // 게이트에 선 항목은 그 게이트로 말한다 — before-accept에서 "인수 필요"를 거듭 말하지 않는다.
-  const accepting = pending.filter((i) => i.gate === null && isAwaitingAcceptance(i.status, i.accepted));
-  const handoffs = pending.filter((i) => i.handoff !== null);
+  const accepting = pending.filter((i) => i.gate === null && i.acceptanceFailed);
+  const handoffs = pending.filter((i) => !i.acceptanceFailed && i.handoff !== null);
   const parts: string[] = [];
   if (approvals.length > 0) {
     parts.push(countPhrase(approvals.length, `${approvals[0]?.key} is ready for your approval`, "{n} plans are ready for your approval"));
@@ -110,7 +111,7 @@ function mineDetail(pending: TurnItem[]): string {
     parts.push(countPhrase(elsewhere.length, `${first?.key} is waiting ${gateLabel(first?.gate ?? "")}`, "{n} items are waiting at a gate"));
   }
   if (accepting.length > 0) {
-    parts.push(countPhrase(accepting.length, `${accepting[0]?.key} needs acceptance`, "{n} items need acceptance"));
+    parts.push(countPhrase(accepting.length, `${accepting[0]?.key} failed acceptance`, "{n} items failed acceptance"));
   }
   if (handoffs.length > 0) {
     parts.push(countPhrase(handoffs.length, `${handoffs[0]?.key} is waiting for your commit`, "{n} items are waiting for your commit"));
@@ -120,6 +121,7 @@ function mineDetail(pending: TurnItem[]): string {
 
 // "에이전트 차례" 배너의 항목 한 줄. 디스패치 전이면 누구를 기다리는지, 디스패치 뒤면 누가 무엇을 하는지.
 function workingLine(w: TurnItem): string {
+  if (w.node === "accept") return `${w.key} is waiting for acceptance`;
   if (!w.dispatched) return `${w.key} is waiting for ${w.node === "verify" ? "verification" : dispatcherFor(w.node, w.agent)}`;
   switch (w.node) {
     case "plan": return `${w.agent} is writing the plan for ${w.key}`;
@@ -139,6 +141,7 @@ const NODE_LINE: Record<string, (item: TurnItem) => string> = {
   scout: () => "feature-scout scouts",
 };
 export function nextStepLine(item: TurnItem): string | null {
+  if (item.acceptanceFailed) return null;
   // 핸드오프가 상태보다 먼저다 — planning/implementing이어도 지금 움직일 사람은 소유자다.
   // note는 dev가 적은 경로(에이전트 텍스트)라 이 줄(mono 박스)에만 들어가고 산문에는 섞이지 않는다.
   if (item.handoff !== null) {
@@ -169,8 +172,8 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     return { kind: "setup", steps, current: (firstOpen === -1 ? steps.length - 1 : firstOpen) + 1 };
   }
 
-  // 당신 차례 = 게이트가 열린 것 + 인수를 기다리는 것 + 커밋을 기다리는 것. on_hold는 여전히 배너를 소유하지 않는다.
-  const pending = items.filter((i) => i.gate !== null || isAwaitingAcceptance(i.status, i.accepted) || i.handoff !== null);
+  // 당신 차례 = 게이트가 열린 것 + 인수 실패 + 커밋을 기다리는 것. on_hold는 여전히 배너를 소유하지 않는다.
+  const pending = items.filter((i) => i.gate !== null || i.acceptanceFailed || i.handoff !== null);
   // 보류한 항목은 커서를 멈춘 자리에 둔 채 런이 열려 있다(board-query.ts resetRun) — 재개가 그 자리를 이어받기
   // 위해서다. 그래서 노드만 보면 "작업 중"이 된다.
   // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board-query.ts walkingKeys) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
@@ -179,7 +182,7 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     return agent !== null && PROJECT_AGENTS.includes(agent);
   };
   const working = items.filter((i) => !pending.includes(i) && i.status !== "on_hold" && i.gate === null
-    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || isProjectSlot(i.node)));
+    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || isProjectSlot(i.node) || (i.node === "accept" && isAwaitingAcceptance(i.status, i.accepted))));
   const first = pending[0];
   if (first !== undefined) {
     const openCount = items.filter((i) => isOpen(i.status)).length;

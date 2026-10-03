@@ -1,10 +1,24 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { readFacts, type PipelineRunRow } from "./run-query";
+import { nextFor, readFacts, type PipelineRunRow } from "./run-query";
 
 const cursor: PipelineRunRow = { id: "pipeline", node: "implement", entryId: "entry", enteredAt: new Date(100), closedAt: null, version: { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: [] } };
 const row = { id: "item", status: "implementing", validation: null, acceptedAt: null };
+
+it("nextFor reads active failures only at the open accept node", async () => {
+  for (const [node, closedAt, expected] of [["accept", null, 1], ["accept", new Date(0), 0], ["before-accept", null, 0]] as const) {
+    let reads = 0;
+    const db = {
+      boardItem: { findFirst: async () => ({ ...row, status: "done", agent: "dev", planCommit: null }) },
+      pipelineRun: { findUnique: async () => ({ ...cursor, node, closedAt }) },
+      acceptanceFailure: { findFirst: async (args: unknown) => { reads++; assert.deepEqual(args, { where: { boardItemId: "item", clearedAt: null }, select: { checks: true, note: true } }); return { checks: [3], note: "failed" }; } },
+    } as unknown as PrismaClient;
+    const answer = await nextFor(db, "project", "K");
+    assert.equal(reads, expected);
+    if (expected) { assert.equal(answer.action, "wait"); assert.ok("on" in answer && answer.on === "acceptance"); }
+  }
+});
 it("success requires the same run's normal report close, verify/ok and bound report", async () => {
   for (const [stepId, verified, reported, expected] of [["report", true, true, true], ["hold", true, true, false], ["report", false, true, false], ["report", true, false, false]] as const) {
     let filter: unknown;

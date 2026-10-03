@@ -10,6 +10,20 @@ const response = (value, extra = {}) => ({ jsonrpc: "2.0", id: "ours", result: {
 const parse = (value) => parseToolResponse("application/json; charset=utf-8", JSON.stringify(value), "ours");
 const freshState = { lastSignature: null, repeats: 0, stuck: false };
 
+it("failed acceptance is an idle wait, preserving other work and rejecting malformed payloads", () => {
+  const failure = { key: "FAILED", node: "accept", version: 2, action: "wait", on: "acceptance", checks: [3, 5], note: "not pushed" };
+  const idle = actionableWork(overview([failure]), policy);
+  assert.equal(hasWork(idle), false);
+  assert.equal(workSignature(idle), null);
+  assert.deepEqual(nextWatchState({ lastSignature: "old", repeats: 3 }, null), freshState);
+  const ready = actionableWork(overview([failure, dispatch()]), policy);
+  assert.deepEqual(ready, actionableWork(overview([dispatch()]), policy));
+  assert.equal(actionableWork(overview([{ ...failure, action: "accept", hint: "all five" }]), policy).items[0].action, "accept");
+  for (const patch of [{ node: "plan" }, { checks: [] }, { checks: [0] }, { checks: [6] }, { checks: [1.5] }, { checks: [1, 1] }, { checks: ["3"] }, { checks: [1, 2, 3, 4, 5, 5] }, { note: null }, { note: "" }, { note: " " }, { note: "x".repeat(151) }]) {
+    assert.throws(() => actionableWork(overview([{ ...failure, ...patch }]), policy));
+  }
+});
+
 describe("watch MCP response parser", () => {
   it("reads the one JSON tool body", () => {
     assert.deepEqual(parse(response(overview())), { ok: true, value: overview() });

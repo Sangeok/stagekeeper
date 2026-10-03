@@ -106,3 +106,5 @@
    메인 루프 자신의 무소득 라운드는 트리거(디스패치 자격)이지 판정이 아니다.
 3. **정지 규칙.** 독립 패스가 3사이클 연속 결함을 내면 계획서 수정으로 풀리지 않는
    문제다 — `on_hold`로 보고한다. 재검증은 계획서나 그것이 인용하는 코드가 바뀌었을 때만 돌린다.
+
+- **인수 실패는 성공 Report가 아니다.** 최신 done·미인수·열린 accept에서만 AcceptanceFailure를 저장하고 중복을 거부한다. main-loop의 done report는 활성 실패가 있으면 거부한다. 소유자 웹 retry와 Reopen은 User → Project → run 잠금과 보드 CAS 아래 실패를 clearedAt으로 해제하고 감사 기록을 보존한다. retry는 cursor·acceptedAt·backlog를 바꾸지 않으며 MCP에 없다. 이벤트 예외는 전체 rollback하고 응답 유실은 저장 여부 불명이다. GET은 실패 조회로 run을 생성하지 않는다.

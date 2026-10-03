@@ -10,6 +10,7 @@ export type PipelineNext =
   | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string; format: string | null; entry?: PipelineEntry }  // 그 에이전트를 key와 함께 디스패치. hint = 그 노드에서 지켜야 할 한 문장
   | { key: string; node: string; version: number; action: "wait"; on: "gate"; gate: string; boundary: { from: string; to: string } | null; planCommit: string | null; format: string | null; gateEntry?: GateEntry }
   | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }  // 커밋 핸드오프(배너와 같은 판정)
+  | { key: string; node: string; version: number; action: "wait"; on: "acceptance"; checks: number[]; note: string }
   | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string; code: "USAGE_LIMIT_REACHED"; resetAt: string }
   | { key: string; node: string; version: number; action: "accept"; hint: string }                           // main-loop 본인이 인수 5조건을 재현한다
   | { key: string; node: string | null; version: number; action: "done" };
@@ -20,6 +21,7 @@ export type PipelineNextInput = {
   format?: string | null;
   entry?: PipelineEntry;
   hasResumableRun?: boolean;
+  acceptanceFailure?: { checks: number[]; note: string } | null;
   version: number;                          // PipelineRun.version.version
   node: string | null;                      // PipelineRun.node. null이면 런이 닫혔다
   status: string;
@@ -32,7 +34,7 @@ export type PipelineNextInput = {
 // dispatch의 hint — 그 노드에서 지켜야 할 한 문장. product-copy.md §13에 같은 문장.
 export const HINT: Record<string, string> = {
   propose: "Dispatch pm with no key. It proposes at most one item per run.",
-  accept: "You run this one — reproduce the five acceptance checks yourself, write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }).",
+  accept: "You run this one — reproduce the five acceptance checks yourself. All pass: write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }). Any fails: record it with acceptance_fail and tell the owner; don't reopen.",
   plan: "Dispatch with the item key. One item per dispatch.",
   verify: "Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
   implement: "Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate.",
@@ -55,7 +57,9 @@ export function decideNext(i: PipelineNextInput): PipelineNext {
   const node = i.node;
   if (isGateId(node)) return { key, node, version, action: "wait", on: "gate", gate: node, boundary: boundaryOf(node), planCommit: i.planCommit, format: i.format ?? null, ...(i.entry ? { gateEntry: { runId: i.entry.runId, entryId: i.entry.entryId } } : {}) };
   // accept는 메인 루프가 에이전트 없이 직접 하는 유일한 동작이라 hint를 따로 단다.
-  if (node === "accept") return { key, node, version, action: "accept", hint: HINT.accept ?? "" };
+  if (node === "accept") return i.acceptanceFailure
+    ? { key, node, version, action: "wait", on: "acceptance", checks: i.acceptanceFailure.checks, note: i.acceptanceFailure.note }
+    : { key, node, version, action: "accept", hint: HINT.accept ?? "" };
   if (i.handoff !== null) return { key, node, version, action: "wait", on: "handoff", note: i.handoff.note };
   const agent = dispatcherFor(node, i.agent);
   if (agent === null) return { key, node, version, action: "done" };

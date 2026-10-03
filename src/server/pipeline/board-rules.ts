@@ -95,7 +95,7 @@ const REPORT_SUBMIT_STATUSES = new Set(["in_review", "implementing", "done"]);
 // main-loop은 .claude/agents 정의가 없는 디스패처지만 **보고 행위자다** — 검증 라운드 기록과 인수 기록을
 // 낸다(protocol.md의 report_submit 행, 템플릿 docs/agents/README.md의 행위자 표). roster(Workspace.agent)에도
 // REPORT_AGENTS에도 없으므로 여기서 따로 더한다. 빼면 런북 accept 단계의 인수 등록이 막힌다.
-const MAIN_LOOP = "main-loop";
+export const MAIN_LOOP = "main-loop";
 const knownReporter = (actor: string, roster: readonly string[]) =>
   actor === MAIN_LOOP || REPORT_AGENTS.includes(actor) || roster.includes(actor);
 
@@ -105,6 +105,7 @@ export type ReportSubmitInput = {
   roster: readonly string[]; // Workspace.agent[]
   // 같은 (project, actor, key)에 stepId "verify" 원장 행이 있는가 — **outcome은 묻지 않는다**.
   hasVerifyStep: boolean;
+  acceptanceFailed: boolean;
 };
 
 // 불변식 8의 벽. 두 가지를 건다.
@@ -136,7 +137,41 @@ export function decideReportSubmit(i: ReportSubmitInput): Decision<ReportSubmitP
         " If the agent files still carry full step bodies, rerun /harness:init to get stubs.",
     };
   }
+  if (i.status === "done" && i.actor === MAIN_LOOP && i.acceptanceFailed) {
+    return { ok: false, reason: "acceptance failed on this item — the owner runs acceptance again or reopens it on the item page" };
+  }
   return { ok: true, value: { accepts: i.status === "done" && i.actor === MAIN_LOOP } };
+}
+
+export const ACCEPTANCE_CHECKS = [1, 2, 3, 4, 5] as const;
+type AcceptanceState = { status: string; cursor: string | null; accepted: boolean; failed: boolean };
+export type AcceptanceFailInput = AcceptanceState & {
+  checks: readonly number[]; note: string; path?: string; commit?: string;
+};
+
+export function decideAcceptanceFail(i: AcceptanceFailInput): Decision<null> {
+  if (i.status !== "done" || i.cursor !== "accept" || i.accepted) {
+    return { ok: false, reason: "acceptance_fail only while the item waits at the accept node" };
+  }
+  if (i.failed) return { ok: false, reason: "acceptance already failed — the owner runs acceptance again or reopens the item" };
+  if (!Array.isArray(i.checks) || i.checks.length < 1 || i.checks.length > ACCEPTANCE_CHECKS.length
+    || new Set(i.checks).size !== i.checks.length
+    || i.checks.some(check => !Number.isInteger(check) || check < 1 || check > ACCEPTANCE_CHECKS.length)) {
+    return { ok: false, reason: "checks: name the failed acceptance checks, 1 to 5, each once" };
+  }
+  const bad = checkText("note", i.note);
+  if (bad) return { ok: false, reason: bad };
+  const absentPair = i.path === undefined && i.commit === undefined;
+  if (!absentPair && !(typeof i.path === "string" && i.path.trim() && typeof i.commit === "string" && i.commit.trim())) {
+    return { ok: false, reason: "path and commit go together" };
+  }
+  return { ok: true, value: null };
+}
+
+export function decideAcceptanceRetry(i: AcceptanceState): Decision<null> {
+  return i.status === "done" && i.cursor === "accept" && !i.accepted && i.failed
+    ? { ok: true, value: null }
+    : { ok: false, reason: "no failed acceptance to run again" };
 }
 
 // 게이트 판정 — 웹과 세션이 같이 쓴다. 런의 커서가 그 게이트에 서 있어야 하고(그래프가 진실), 경계 게이트면 상태도 맞아야 한다.
