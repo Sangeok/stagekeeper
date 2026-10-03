@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-03T08:35:23Z"
-tested-revision: "9675a3efdaf12bb7c419d11c4164beaa55c89821"
+last-executed-at: "2026-10-03T09:56:41Z"
+tested-revision: "7d8dd35137553d429dbd57c2241424c768aa4530"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/active/codex-dual-client-support.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -133,6 +133,9 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | C14 | R2 | required | Dedicated report validate-only after append/read-back | Current report structure valid independently of runtime verdict | [E63] | PASS |
 | C15 | R2 | required | Final explicit script tests and npm run check | Protected DB runner/report phase history and all type/architecture checks | [E64] | PASS |
 | C16 | R2 | required | Final strict proposal trace and report validate-only | Saved final documents retain traceability and truthful runtime verdict | [E66] | PASS |
+| C17 | R2 | required | Full regression after latest dev integration | check/unit/web/script/private-template gates preserve both client contracts and acceptance failure handling | [E67] | PASS |
+| C18 | R2 | required | Production build after latest dev integration | Prisma generation and Next production build/type/static routes | [E68] | PASS |
+| C19 | R2 | required | Saved PR evidence trace/report validation | Strict trace and report lifecycle/evidence remain valid; runtime readiness stays unresolved | [E69] | PASS |
 
 ## Evidence Registry
 
@@ -204,6 +207,9 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E64 | Final operational/type gates | 2026-10-03T08:35:23Z; node --import tsx --test scripts/rehearse-dual-client-runtime.test.ts scripts/template-seed-query.test.ts exit 0: 30 tests, 29 pass, 0 fail, 1 Windows file-symlink privilege skip. Acceptance runner tests use injected IO; no actual DB/model command runs in them. First-acceptance report criterion omission and contradictory scope were caught and fixed; phase history works in both orders. Final npm run check exit 0: typegen/TypeScript/FSD/lint/lib sync, architecture 26 and availability 18 pass; only the existing _success warning. Application/core/plugin bodies remain unchanged since E53–E58; later operational script and DB-test sources are covered by this final check. | Inline summary; working source retained |
 | E65 | Actual DB acceptance gap | 2026-10-03T08:35:23Z; tests/server/integration/client-runtime.test.ts contains six actual PostgreSQL tests and type-compiles: legacy/slots-v1 times both client orders, preflight-before-lazy-mutation, transactional seed rollback/bounded restore. TEST_DATABASE_URL is absent, so neither test DB migration nor these tests were executed. Source SHA256 7a7dedc35811a6ad5ab4bb8f212f1579b61eeb54f1c53b1431de35a0cda007ff. New --phase acceptance requires a prepared separate dual checkout and protected stagekeeper_test_* DB, strips parent credentials, records TAP totals only and keeps actual CLI/browser/package gates NOT RUN. | Inline explicit non-execution; test source |
 | E66 | Final saved document validation | 2026-10-03 final save/read-back: strict proposal validator exit 0, REQ20 phase/task20/20 and verifier20/20. Dedicated report --validate-report-only exit 0; current active/result:null and required fail verdict retained. Public/private git diff --check pass. Structural/source validation does not release host, DB or deployment blockers. | Inline summary |
+| E67 | Committed latest-dev integration | 2026-10-03T09:55:52Z; source revision 7d8dd35137553d429dbd57c2241424c768aa4530 incorporates origin/dev a6ea1991bac069e2e7b1fa041d24739fd9c09ac6. Four conflicts resolved preserving Codex client schema and dev acceptance-failure behavior, both protocol sections and plugin 0.5.0. Codex main loop now records acceptance_fail and waits for owner retry/reopen before fresh accept. npm run db:generate/check exit 0, architecture26/availability18 pass; npm test 286 pass, test:web554 pass, private templates32 pass, explicit script tests29 pass/1 privilege skip/0 failures. Existing _success warning only. No DB migration/model or production action executed. | Commit source; inline safe local results |
+| E68 | Integrated production build | 2026-10-03 after E67 source regression; npm run build exit 0 with Prisma7.10 generation, Next16.3.3 compile/type validation, 15 static pages and complete route output. Uses current dev schema including additive acceptance failure migration but executes no migration/DB seed. | Committed source; build result only |
+| E69 | PR evidence read-back | 2026-10-03 saved PR evidence: strict proposal validator exit 0 with phase/task20/20 and verifier20/20; dedicated report validate-only exit 0; staged diff whitespace check passes. Historical candidate FAIL and required real host/DB/package NOT RUN remain intact, active/result:null retained. | Inline summary; source PR does not certify release |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -215,6 +221,8 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+The public implementation is committed in 771fd41 and integrated with latest dev in E67's revision for a PR targeting dev. The earlier uncommitted inventories describe their historical checkpoints. The separate private template repository remains at 95ace9d70b63cc8598ab229e2fe1138467f11728 with local changes; those bodies are excluded from the public PR and have not been committed, pushed or seeded. Actual installed package, owner skill execution, DB and deployment blockers remain unchanged. Unrelated existing document edits/deletions are excluded from the public commits.
 
 C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track unresolved native role isolation, actual winning package body, approved private deployment and mixed-version quiescence in [the proposal](../../proposals/active/codex-dual-client-support.md).
 
