@@ -14,7 +14,7 @@ import { z } from "zod";
 
 export const AGENT_TOOL_NAMES = [
   "project_get", "project_sync", "backlog_list", "backlog_get", "backlog_add", "board_list", "board_get",
-  "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next",
+  "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next", "acceptance_fail",
 ] as const;
 
 export type WorkspaceInput = { id: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] };
@@ -36,6 +36,7 @@ export type BoardRowView = BoardItemView & { backlogItem: { key: string; title: 
 export type BoardDetailView = BoardRowView & {
   events: { from: string | null; to: string | null; actor: string; actorId: string | null; note: string | null; at: Date }[];
   reports: { actor: string; path: string; commit: string; at: Date }[];
+  acceptanceFailures: { checks: number[]; note: string; path: string | null; commit: string | null; at: Date }[];
 };
 
 export type ToolDeps = {
@@ -51,6 +52,7 @@ export type ToolDeps = {
   transition(projectId: string, input: { key: string; to: string; result?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitPlan(projectId: string, input: { key: string; path: string; commit: string; type?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string }, actorRef: string): Promise<ServerResult<unknown>>;
+  failAcceptance(projectId: string, input: { key: string; checks: number[]; note: string; path?: string; commit?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
   agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
   // 런 보장 → 지연 전진(board.advancePipeline) → run.nextFor. key 없음이면 { head, items }.
@@ -217,9 +219,19 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.recordValidation(projectId, args, actorRef));
   });
+  server.registerTool("acceptance_fail", {
+    description: "main-loop: record a failed acceptance at the accept node — the failed checks (1–5, the runbook's five acceptance checks) and a note of 150 characters or fewer; a committed write-up's path and commit are optional, together. The item then waits for the owner, who runs acceptance again or reopens it on the item page. Don't run the checks again until pipeline_next answers accept.",
+    inputSchema: z.object({ ...project, key: z.string(), checks: z.array(z.number().int().min(1).max(5)).min(1).max(5), note: z.string(), path: z.string().optional(), commit: z.string().optional() }),
+  }, async (args, ctx: Ctx) => {
+    const s = await scope(args, ctx, deps);
+    if (!s.ok) return fail(s.reason);
+    const unavailable = await guardUnavailable(deps, s.projectId);
+    if (unavailable) return unavailable;
+    return unwrap(await deps.failAcceptance(s.projectId, args, s.actorRef));
+  });
   // 단계 본문은 이 도구로만 나간다(agents/next.ts). 스텁이 "첫 호출은 agent_next"라고 말하는 그 도구다.
   // pipeline_next — 항목 하나(key) 또는 열린 항목 전부의 다음 일. 지연 전진을 하므로 선택되지 않은 프로젝트에서는 guardUnavailable로 거부한다.
-  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate, accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when the runbook version you pass (or, without one, the version the last init reported) is older than the current template.", inputSchema: z.object({ ...project, key: z.string().optional(), runbook: z.string().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate or for the owner (including failed acceptance), accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when the runbook version you pass (or, without one, the version the last init reported) is older than the current template.", inputSchema: z.object({ ...project, key: z.string().optional(), runbook: z.string().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId } = s;

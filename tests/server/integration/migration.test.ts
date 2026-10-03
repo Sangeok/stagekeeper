@@ -11,6 +11,57 @@ import { testDatabaseUrl } from "./support";
 type PgConnection = { connect(): Promise<void>; end(): Promise<void>; query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }> };
 const { Client }: { Client: new (options: { connectionString: string }) => PgConnection } = createRequire(import.meta.url)("pg");
 
+it("replays the 23 prior migrations and adds AcceptanceFailure without changing existing rows, indexes or foreign keys", async () => {
+  const db = new Client({ connectionString: testDatabaseUrl() });
+  const schema = `acceptance_migration_${randomUUID().replace(/-/g, "")}`;
+  await db.connect();
+  try {
+    await db.query(`CREATE SCHEMA "${schema}"`); await db.query(`SET search_path TO "${schema}"`);
+    const directory = new URL("../../../prisma/migrations/", import.meta.url);
+    const previous = readdirSync(directory, { withFileTypes: true }).filter(e => e.isDirectory() && e.name < "20261003000000_acceptance_failure").map(e => e.name).sort();
+    assert.equal(previous.length, 23);
+    for (const name of previous) await db.query(readFileSync(new URL(`${name}/migration.sql`, directory), "utf8"));
+    await db.query(`
+      INSERT INTO "User" (id,"githubId",login) VALUES ('u',-2,'acceptance-owner');
+      INSERT INTO "Project" (id,slug,name,"repoOwner",repo,branch,"ownerUserId") VALUES ('p','p','preserved','owner','repo','main','u');
+      INSERT INTO "BacklogItem" (id,"projectId",key,title,area,source,"removedAt","removedReason") VALUES ('b','p','K-1','preserved','app','test',CURRENT_TIMESTAMP,'done');
+      INSERT INTO "BoardItem" (id,"projectId","backlogItemId",agent,status,reason,results,validation,"updatedAt") VALUES ('i','p','b','dev','done','preserved',ARRAY['result'],'pass',CURRENT_TIMESTAMP);
+      INSERT INTO "TransitionEvent" (id,"boardItemId",actor,"from","to") VALUES ('e','i','pipeline','implementing','done');
+      INSERT INTO "Report" (id,"boardItemId",actor,path,commit,"isAcceptance") VALUES ('r','i','dev','r.md','1234567',false);
+      INSERT INTO "PipelineVersion" (id,"projectId",version,nodes,gates,"createdBy",format) VALUES ('v','p',1,ARRAY['plan','implement','accept'],ARRAY[]::text[],'u','slots-v1');
+      INSERT INTO "PipelineRun" (id,"boardItemId","versionId",node,"entryId") VALUES ('run','i','v','accept','entry');
+    `);
+    const tables = (await db.query("SELECT tablename FROM pg_tables WHERE schemaname=current_schema() ORDER BY tablename")).rows.map(r => String(r.tablename));
+    assert.equal(tables.length, 19); assert.ok(!tables.includes("AcceptanceFailure"));
+    const snapshot = async () => {
+      const result: Record<string, unknown> = {};
+      for (const table of tables) result[table] = (await db.query(`SELECT to_jsonb(t) AS row FROM "${table}" t ORDER BY to_jsonb(t)::text`)).rows;
+      return result;
+    };
+    const before = await snapshot();
+    const indexes = (await db.query("SELECT indexname,indexdef FROM pg_indexes WHERE schemaname=current_schema() ORDER BY indexname")).rows;
+    const fks = (await db.query("SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE connamespace=current_schema()::regnamespace AND contype='f' ORDER BY conname")).rows;
+    await db.query(readFileSync(new URL("20261003000000_acceptance_failure/migration.sql", directory), "utf8"));
+    assert.deepEqual(await snapshot(), before);
+    const added = (await db.query("SELECT tablename FROM pg_tables WHERE schemaname=current_schema() ORDER BY tablename")).rows.map(r => String(r.tablename));
+    assert.deepEqual(added, [...tables, "AcceptanceFailure"].sort());
+    const afterIndexes = (await db.query("SELECT indexname,indexdef FROM pg_indexes WHERE schemaname=current_schema() ORDER BY indexname")).rows;
+    assert.deepEqual(afterIndexes.filter(r => !String(r.indexname).startsWith("AcceptanceFailure_")), indexes);
+    assert.deepEqual(afterIndexes.filter(r => String(r.indexname).startsWith("AcceptanceFailure_")).map(r => r.indexname), ["AcceptanceFailure_boardItemId_clearedAt_idx", "AcceptanceFailure_pkey"]);
+    const afterFks = (await db.query("SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE connamespace=current_schema()::regnamespace AND contype='f' ORDER BY conname")).rows;
+    assert.deepEqual(afterFks.filter(r => r.conname !== "AcceptanceFailure_boardItemId_fkey"), fks);
+    assert.match(String(afterFks.find(r => r.conname === "AcceptanceFailure_boardItemId_fkey")?.definition), /ON DELETE CASCADE/);
+    await db.query(`INSERT INTO "AcceptanceFailure" (id,"boardItemId",checks,note) VALUES ('f','i',ARRAY[3,5],'failed')`);
+    const failure = (await db.query('SELECT "path","commit","actorId","clearedAt",at FROM "AcceptanceFailure"')).rows[0];
+    for (const field of ["path", "commit", "actorId", "clearedAt"]) assert.equal(failure[field], null);
+    assert.ok(failure.at instanceof Date);
+    await db.query('DELETE FROM "BoardItem" WHERE id=\'i\'');
+    assert.equal((await db.query('SELECT count(*)::int AS count FROM "AcceptanceFailure"')).rows[0].count, 0);
+  } finally {
+    await db.query("SET search_path TO public"); await db.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`); await db.end();
+  }
+});
+
 it("replays all 17 prior SQL files whole on one connection and adds RDC without changing populated rows", async () => {
   const db = new Client({ connectionString: testDatabaseUrl() });
   const schema = `rdc_migration_${randomUUID().replace(/-/g, "")}`;

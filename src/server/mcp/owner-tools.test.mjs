@@ -38,7 +38,9 @@ describe("owner-scoped MCP tools", () => {
   it("registers exactly gate_approve — and none of the agent tools (pipeline_next included)", () => {
     const names = [];
     registerOwnerTools({ registerTool: (name) => { names.push(name); } }, {});
-    assert.deepEqual(names, [...OWNER_TOOL_NAMES]);
+    assert.deepEqual(names, ["gate_approve"]);
+    assert.deepEqual([...OWNER_TOOL_NAMES], ["gate_approve"]);
+    assert.ok(!names.includes("acceptance_fail") && !names.includes("acceptance_retry"));
     assert.ok(AGENT_TOOL_NAMES.includes("pipeline_next"));
     for (const n of AGENT_TOOL_NAMES) assert.ok(!names.includes(n), `agent tool on the owner server: ${n}`);
   });

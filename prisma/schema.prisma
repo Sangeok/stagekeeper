@@ -196,8 +196,24 @@ model BoardItem {                        // 같은 backlog 항목이 여러 번 
   backlogItem   BacklogItem       @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
   events        TransitionEvent[]
   reports       Report[]
+  acceptanceFailures AcceptanceFailure[]
   run           PipelineRun?
   @@index([projectId, status])
+}
+
+model AcceptanceFailure {
+  id          String    @id @default(cuid())
+  boardItemId String
+  checks      Int[]
+  note        String
+  path        String?
+  commit      String?
+  actorId     String?
+  at          DateTime  @default(now())
+  clearedAt   DateTime?
+  boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+
+  @@index([boardItemId, clearedAt])
 }
 
 model TransitionEvent {                  // 감사 로그 (불변식 8)

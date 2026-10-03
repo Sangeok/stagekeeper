@@ -148,8 +148,7 @@ pass is a false pass.
 `report_submit` with `actor: "main-loop"` while the item is `done` is the acceptance record; the
 server marks the item accepted at that moment. The five checks (§14, the acceptance checks) are still
 reproduced by hand — the record is where they were written up, at `docs/agents/main-loop/<KEY>.md`.
-Until it is in, the item is still yours: the banner says so (§5) and the item page offers Reopen
-(§11). The state label stays **Done** either way; the record shows under Documents as
+Until it is in, the main loop waits for acceptance. Only a recorded failure makes acceptance the owner’s turn (§5); the item page offers retry and Reopen (§11). The state label stays **Done** either way; the record shows under Documents as
 **Acceptance record**.
 
 ---
@@ -175,15 +174,14 @@ Selected-out projects keep their selection recovery banner and show no turn stri
 
 | Owner | Headline | Detail |
 | --- | --- | --- |
-| you | **Waiting on you** | ITEM-01 is ready for your approval / ITEM-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 needs acceptance / ITEM-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items need acceptance" · "2 items are waiting for your commit", joined with " · " |
+| you | **Waiting on you** | ITEM-01 is ready for your approval / ITEM-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 failed acceptance / ITEM-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items failed acceptance" · "2 items are waiting for your commit", joined with " · " |
 | you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
-| agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for ITEM-01 / the plan for ITEM-01 is being verified / dev is implementing ITEM-01. **Nobody dispatched yet:** "ITEM-01 is waiting for dev" · "FEAT-04 is waiting for verification" — opening a gate moves the item, it does not start an agent |
+| agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for ITEM-01 / the plan for ITEM-01 is being verified / dev is implementing ITEM-01 / ITEM-02 is waiting for acceptance. **Nobody dispatched yet:** "ITEM-01 is waiting for dev" · "FEAT-04 is waiting for verification" — opening a gate moves the item, it does not start an agent |
 | nobody | **Nothing open** | Pick the next item from the backlog, or run the pipeline in Claude Code — when the backlog is empty, feature-scout looks for items to add. — button **Open backlog** |
 | first run | **Set up in three steps** | the checklist below |
 
 Rules: one item → name it; several → count them. Your turn is where the item's pipeline run
-stands, not what its status is: an item is yours when the run waits at a gate, when it needs
-acceptance, or when it waits for your commit. The first three categories are gates, named by gate
+stands, not what its status is: an item is yours when the run waits at a gate, when acceptance failed, or when it waits for your commit. The first three categories are gates, named by gate
 id — `before-implement` is "ready for your approval" whether or not a validation is recorded,
 `before-plan` asks for a plan request, and every other gate reads "FEAT-06 is waiting before
 Verify". `on_hold` items never own the banner — the banner is about who moves next, and nothing
@@ -191,13 +189,12 @@ moves while on hold. An `in_review`
 item without a validation record is **theirs** when the graph has a Verify node: the session's own
 round and plan-verifier are still ahead. Without that node the run waits at `before-implement` and
 the item is yours, ready for your approval like any other. A `done` item without an acceptance
-record is yours too: accept it or reopen it — unless the graph puts a gate before Accept, in which
-case the banner names the gate instead, so one item asks for one thing. An item whose dev stopped
+record at the open accept node is the session’s turn: “ITEM-02 is waiting for acceptance”. An active failure makes it the owner’s turn: “ITEM-02 failed acceptance” / “2 items failed acceptance”. A gate before Accept still names the gate. A failed item has no terminal next-step line, including when an old handoff remains; other ready items keep their lines. An item whose dev stopped
 for a commit (a handoff, §13 `agent_next`) is yours whatever its state — commit, then tell the
 session to continue.
 Actions: **Open inbox** on
 Board and in the strip when it's your turn and the Inbox has cards; on Inbox the banner drops the
-detail line — the cards say it. When your turn is only acceptance or a handoff (nothing on the
+detail line — the cards say it. When your turn is only failed acceptance or a handoff (nothing on the
 Inbox), the button is **Open FEAT-02** (quiet) and goes to that item's page — several such items →
 the first one; on that item's own page the strip shows no action. On the Inbox tab such a turn keeps its
 detail line and the **Open FEAT-02** button — no card says it there ("Nothing to decide.").
@@ -620,6 +617,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
   commit; each report opens its own commit. Under the list, the same sentence as §6: "Opens the
   recorded commit on GitHub. If it 404s, that commit is not pushed yet." The string lives once, in
   `entities/board-item/model/doc-link.ts`
+- **Acceptance failed** (active failure, after Documents and before Reopen): `3 Verify command · 5 Report record` + UTC minute; condition names 1–5 are **Changed files** · **Diff vs sketch** · **Verify command** · **Backlog entry** · **Report record**. Note is escaped plain text. Optional committed pair: **Failure record ↗**, mono path and the existing GitHub link note. Owner button **Run acceptance again**, pending **Preparing…**. Hint: “Use this when the checks could not run — the environment, a missing push. When /harness:watch is running, the main loop runs all five checks again; otherwise continue the pipeline in Claude Code. If the code is wrong, reopen it below.” Success: “Acceptance ready to run again · ITEM-02”. Unknown response: “Couldn't confirm whether acceptance was reset. Refresh to check the current state before trying again.” Refresh before retrying; never resubmit automatically. Read-only shows the failure record without button or execution hint.
 - **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · hint (§3).
   Pressing either replaces that row with **Note to dev** (required) · the confirm button named for
   the chosen action · "Cancel" — never two buttons with the same name on screen
@@ -629,7 +627,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 - A boundary the pipeline crossed on its own — the graph has no gate there — is written by
   `pipeline`, and the row reads `pipeline · auto`. A gate the owner opened carries the gate in its
   note, rendered as `gate · before Implement`. Same-state rows show **Plan submitted**, **Validation recorded**,
-  or `gate · <gate label>` instead of a repeated-state arrow. Unknown notes keep the original transition and note.
+  **Acceptance failed**, **Acceptance run again**, or `gate · <gate label>` instead of a repeated-state arrow. Unknown notes keep the original transition and note.
 - Report rows use the same labels as Documents, the stored submitter and a seven-character commit link.
   The report's own recorded commit opens on GitHub. Duplicate `report` transition events are omitted.
   Item History is oldest first, with the same row presentation as the project History tab; its key column is omitted.
@@ -649,6 +647,13 @@ are terse on purpose — agents parse them.
 
 | Reason (unchanged unless noted) | Web message (`REASON_MESSAGE`) |
 | --- | --- |
+| `acceptance_fail only while the item waits at the accept node` | — |
+| `acceptance already failed — the owner runs acceptance again or reopens the item` | — |
+| `checks: name the failed acceptance checks, 1 to 5, each once` | — |
+| `path and commit go together` | — |
+| `no failed acceptance to run again` | — |
+| `acceptance failed on this item — the owner runs acceptance again or reopens it on the item page` | — |
+| `acceptance retry access denied` | — |
 | `stale` | The board changed. Refresh and try again. |
 | `no such backlog item (or removed)` | — |
 | `already open` | — |
@@ -720,8 +725,9 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `board_transition` | Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. `plan_submit` already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here. |
 | `plan_submit` | Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing. Optional type (feat, fix, refactor, docs) fills an empty type or revises an agent-set type; an owner-set type is preserved (typeKept: owner when it differs). |
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
+| `acceptance_fail` | main-loop: record a failed acceptance at the accept node — the failed checks (1–5, the runbook's five acceptance checks) and a note of 150 characters or fewer; a committed write-up's path and commit are optional, together. The item then waits for the owner, who runs acceptance again or reopens it on the item page. Don't run the checks again until pipeline_next answers accept. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
-| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is feature-scout's turn (no candidates) or pm's turn (candidates remain) (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "a Scout node in items dispatches feature-scout — that run looks for items to add" · "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — the selected pm or unbound feature-scout run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. Pass `runbook` — the version written in the calling checkout's `CLAUDE.md` — and the answer judges that copy; without it, the version the last init reported. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
+| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is feature-scout's turn (no candidates) or pm's turn (candidates remain) (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "a Scout node in items dispatches feature-scout — that run looks for items to add" · "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — the selected pm or unbound feature-scout run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. Pass `runbook` — the version written in the calling checkout's `CLAUDE.md` — and the answer judges that copy; without it, the version the last init reported. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap` · `acceptance`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
 | `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:
@@ -843,29 +849,29 @@ both). Below: each file's title, its section headings, and the sentences that se
 
 - Title: `{{project.name}} — pipeline runbook`. "This is the procedure. It holds no state —
   the state lives in Stagekeeper."
-- Sections: Document map · Agents · Where things stand · The cycle (run by the main loop) ·
-  Approving from this session · Rules
-- Where things stand: "When the owner asks where the work is, answer from the board, never from
-  memory." — `board_list({ open: true })` then `board_get` per open item; say per item its status,
-  the last event and when, whether a validation record exists, and **whose turn it is**; name the
-  next action in the runbook's words with the key and, for gate 2, the recorded `planCommit`:
-  "ITEM-01 is in review and verified — waiting for your approval of implementation at commit
-  3f2a9c1 (step 5)." · "Never state a status you did not read in this turn. If a tool fails, say
-  so and stop."
-- Before the numbered cycle, an empty backlog lets head dispatch feature-scout once per backlog
-  change. It adds up to three evidenced items and the main loop appends its report to
-  `docs/agents/feature-scout/scouting-log.md`, then asks `pipeline_next` again.
-- Cycle: 1 pm proposes · 2 **Gate 1** — you request the plan in the web inbox, or, with an owner
-  token, by telling this session ("request the plan for ITEM-01" — see *Approving from this
-  session*) · 3 dev writes
-  the plan, submits it, moves to in_review · 4 main loop verifies (catalog paths → independent
-  pass → `validation_record` only on a clean pass; the server refuses it until plan-verifier's pass
-  is on record for the current plan) · 5 **Gate 2** — you approve implementation in the web inbox,
-  or, with an owner token, by telling this session ("approve implementation for ITEM-01" — the
-  session states the recorded commit first) · 6 dev
-  implements, reports, moves to done · 7 main loop accepts — **five acceptance checks**, reproduced
-  by hand, written up in `docs/agents/main-loop/<KEY>.md`, committed, and recorded with
-  `report_submit`; a failed check → Reopen on the item page · 8 doc-auditor / feature-scout
+- Sections: Document map · Project scope · Agents · Where things stand · Before the cycle ·
+  The cycle (run by the main loop) · The five acceptance checks · Approving from this session · Rules · Pipeline execution identity.
+- Project scope: read this checkout's `harness.json`, use its `project.slug` in every call and briefing,
+  including after compaction. Only a confirmed legacy project-token connection without a slug may omit it.
+- Where things stand: answer from `pipeline_next({ project, runbook: "{{runbook_version}}" })`,
+  then `board_get({ project, key })` per open item. Name its status, last event/time, validation and
+  whose turn it is: `wait` names a gate, handoff, cap or failed acceptance; `accept` is the main loop's,
+  `dispatch` is an agent's. Name the node/gate and the recorded plan commit before implementation approval.
+  "Never state a status you did not read in this turn. If a tool fails, say so and stop."
+- Before the cycle: complete the external-skill preflight, respect the runbook-stale warning and
+  pass the owner's actual commit permission. A pipeline step grants no commit or push permission.
+  Record a dev handoff with its current receipt/entry; resume without outcome after permission or commit.
+- Cycle: ask `pipeline_next` for the head and every open item, act on its answer in the same turn,
+  then ask again. `dispatch` follows the named agent's hint; a gate waits for the owner and the
+  plan's recorded commit must be on the remote; a handoff waits for the owner's commit.
+  A cap waits for the server's reason/resetAt; already open runs can resume.
+  Failed acceptance waits for owner web retry or Reopen without rerunning the checks; inspect other ready work.
+  At `accept`, independently reproduce all five checks. All pass: write and commit the acceptance
+  section with actual owner permission, then `report_submit({ project, key, actor: "main-loop", path, commit })`.
+  Any fails: `acceptance_fail({ project, key, checks, note })`, tell the owner, and wait for fresh `accept`.
+  Each failed check is numbered 1–5 once, the nonempty note is at most 150 characters, and an optional
+  committed write-up supplies path and commit together. Failure is separate from Report and does not Reopen.
+  Retry keeps done and the backlog removed; Reopen restores the backlog. Fresh accept reruns all five checks.
 - Acceptance checks: "Changed files ↔ the plan's 'Files to change' — plus
   `docs/agents/<actor>/<KEY>.md`, which the agent is told to commit with the code and which no
   plan ever lists; anything else outside the table fails the check. Diff ↔ 'Implementation

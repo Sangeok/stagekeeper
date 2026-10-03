@@ -5,10 +5,10 @@ import { readProjectAccessIn, readProjectPlanIn } from "../project-access-query"
 import { advance, cursorForStatus, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import { hasActiveLegacyScoutSlot } from "../automatic-scout";
 import { isOpen } from "@harness/core/transitions.mjs";
-import { Prisma, type PrismaClient, type BoardItem, type BacklogItem } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient, type BoardItem, type BacklogItem, type AcceptanceFailure } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
 import { ensureRun, readFacts, type Graph, type GateEntry } from "./run-query";
-import { decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, PLAN_VERIFIER } from "./board-rules";
+import { decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, MAIN_LOOP, PLAN_VERIFIER } from "./board-rules";
 import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryRecord, type HistoryView } from "./history-page";
 import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
 
@@ -215,6 +215,7 @@ async function getWithHistory(projectId: string, key: string, since?: Date | nul
       backlogItem: true,
       events: { where: at && { at }, orderBy: { at: "asc" } },
       reports: { where: at && { at }, orderBy: { at: "asc" } },
+      acceptanceFailures: { where: { clearedAt: null }, orderBy: { at: "desc" }, take: 1 },
     },
   });
 }
@@ -352,7 +353,10 @@ async function transitionIn(
   } });
   if (d.value.completes) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: new Date(), removedReason: "done" } });
   // completes의 역 — 백로그로 되돌린다. 상한(backlog 축)은 세지 않는다: 추가가 아니라 복원이고, 자리는 done 직전까지 이 항목의 것이었다.
-  if (d.value.reopens) await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null, removedReason: null } });
+  if (d.value.reopens) {
+    await tx.backlogItem.update({ where: { id: row.backlogItemId }, data: { removedAt: null, removedReason: null } });
+    await tx.acceptanceFailure.updateMany({ where: { boardItemId: row.id, clearedAt: null }, data: { clearedAt: transitionEvent.at } });
+  }
   // 상태가 바뀌면 옛 상태에서 하던 일은 끝났다. 열린 run을 두면 에이전트의 단계 커서가 파이프라인
   // 커서와 어긋나, 다음 디스패치에서 지난 단계 본문이 다시 나온다. 다음 호출이 새 run을
   // 그 상태가 여는 단계에서 연다 — verifyOk는 run을 가리지 않으므로 검증 벽은 그대로다.
@@ -513,7 +517,9 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
         where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", run: { projectId, agent: input.actor, key: input.key } },
         select: { id: true },
       })) !== null;
-    const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep });
+    const acceptanceFailed = row.status === "done" && input.actor === MAIN_LOOP
+      && await tx.acceptanceFailure.findFirst({ where: { boardItemId: row.id, clearedAt: null }, select: { id: true } }) !== null;
+    const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep, acceptanceFailed });
     if (!d.ok) throw new BoardRejection(d.reason);
     if (input.runId) {
       const agentRun = await tx.agentRun.findUnique({ where: { id: input.runId }, include: { pipelineRun: true } });
@@ -529,6 +535,58 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
     }
     await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item: report };
+  });
+}
+
+async function acceptanceState(tx: Prisma.TransactionClient, projectId: string, row: BoardItem) {
+  const run = await ensureRun(tx, projectId, row.id, row.status, false);
+  if (run.version.format !== null && (run.version.format !== SLOT_FORMAT || !run.entryId)) {
+    throw new BoardRejection("Unsupported pipeline format or missing entry; update the compatible bundle.");
+  }
+  const failure = await tx.acceptanceFailure.findFirst({ where: { boardItemId: row.id, clearedAt: null }, select: { id: true } });
+  return { status: row.status, cursor: run.closedAt ? null : run.node, accepted: row.acceptedAt !== null, failed: failure !== null };
+}
+
+async function failAcceptance(projectId: string,
+  input: { key: string; checks: number[]; note: string; path?: string; commit?: string },
+  actorRef: string,
+): Promise<ServerResult<AcceptanceFailure>> {
+  return inProjectTransaction(projectId, async tx => {
+    const row = await latestRow(tx, projectId, input.key);
+    if (!row) return fail(`no such board item: ${input.key}`);
+    const decision = decideAcceptanceFail({ ...input, ...await acceptanceState(tx, projectId, row) });
+    if (!decision.ok) throw new BoardRejection(decision.reason);
+    await claim(tx, row, {});
+    const item = await tx.acceptanceFailure.create({ data: {
+      boardItemId: row.id, checks: input.checks, note: input.note, path: input.path, commit: input.commit, actorId: actorRef,
+    } });
+    await tx.transitionEvent.create({ data: {
+      boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, channel: null, note: "acceptance-failed",
+    } });
+    return { ok: true, item };
+  });
+}
+
+async function retryAcceptance(projectId: string,
+  input: { key: string; userId: string; expectedUpdatedAt: Date },
+): Promise<ServerResult<null>> {
+  return inProjectTransaction(projectId, async tx => {
+    const owner = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { ownerUserId: true } });
+    if (owner.ownerUserId !== input.userId) throw new BoardRejection("acceptance retry access denied");
+    const row = await latestRow(tx, projectId, input.key);
+    if (!row) return fail(`no such board item: ${input.key}`);
+    const decision = decideAcceptanceRetry(await acceptanceState(tx, projectId, row));
+    if (!decision.ok) throw new BoardRejection(decision.reason);
+    const claimed = await tx.boardItem.updateMany({
+      where: { id: row.id, updatedAt: input.expectedUpdatedAt, status: row.status, discardedAt: null },
+      data: { updatedAt: nextTimestamp(row.updatedAt) },
+    });
+    if (claimed.count !== 1) throw new BoardRejection("stale");
+    const event = await tx.transitionEvent.create({ data: {
+      boardItemId: row.id, from: row.status, to: row.status, actor: "human", actorId: input.userId, channel: "web", note: "acceptance-retry",
+    } });
+    await tx.acceptanceFailure.updateMany({ where: { boardItemId: row.id, clearedAt: null }, data: { clearedAt: event.at } });
+    return { ok: true, item: null };
   });
 }
 
@@ -572,7 +630,7 @@ function closeRun(tx: Db, boardItemId: string) {
   return tx.pipelineRun.updateMany({ where: { boardItemId, closedAt: null }, data: { closedAt: new Date() } });
 }
 
-return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, projectHistory, projectHistoryItems, hasProjectHistoryBefore, currentRoundIds, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), advancePipeline: reportFailure(advancePipeline) };
+return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, projectHistory, projectHistoryItems, hasProjectHistoryBefore, currentRoundIds, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), failAcceptance: reportFailure(failAcceptance), retryAcceptance: reportFailure(retryAcceptance), advancePipeline: reportFailure(advancePipeline) };
 }
 
 function isRejection(value: unknown): value is { ok: false; reason: string } {

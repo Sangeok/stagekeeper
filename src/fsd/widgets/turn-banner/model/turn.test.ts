@@ -23,15 +23,35 @@ const item = (key: string, status: string, validation: string | null = null, age
   status,
   agent,
   accepted: false,
+  acceptanceFailed: false,
   handoff: null,
   dispatched: true, // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다
   ...cursorFor(status, validation),
 });
 // 인수까지 끝난 항목은 꼬리 노드를 지나 런이 닫힌다 — 커서가 없으니 터미널 줄도 없다.
+const failed = (key: string): TurnItem => ({ ...item(key, "done"), acceptanceFailed: true });
 const accepted = (key: string): TurnItem => ({ ...item(key, "done"), accepted: true, gate: null, node: null });
 const handoff = (key: string, note: string | null, status = "planning", agent = "web-dev"): TurnItem => ({
   ...item(key, status, null, agent),
   handoff: { step: status === "planning" ? "plan" : "report", note },
+});
+
+it("failure suppresses its old handoff line and preserves other ready work and gate destination", () => {
+  const f = { ...failed("FAILED"), handoff: { step: "report", note: "old.md" } };
+  assert.equal(nextStepLine(f), null);
+  const turn = deriveTurn([f, item("READY", "planning"), item("GATE", "proposed")], ready);
+  if (turn.kind !== "mine") assert.fail(turn.kind);
+  assert.deepEqual(turn.open, { kind: "inbox" });
+  assert.deepEqual(turn.next.map(n => n.key), ["READY"]);
+  assert.equal(turn.detail, "GATE needs a plan request · FAILED failed acceptance");
+  const multiple = deriveTurn([failed("A"), failed("B")], ready);
+  if (multiple.kind !== "mine") assert.fail(multiple.kind);
+  assert.equal(multiple.detail, "2 items failed acceptance");
+  for (const dispatched of [true, false]) {
+    const turn = deriveTurn([{ ...item("A", "done"), dispatched }], ready);
+    if (turn.kind !== "theirs") assert.fail(turn.kind);
+    assert.equal(turn.detail, "A is waiting for acceptance");
+  }
 });
 
 describe("deriveTurn — setup", () => {
@@ -126,7 +146,7 @@ describe("deriveTurn — mine", () => {
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-08 is waiting before Accept");
     // 게이트가 없는 그래프에서는 그대로 인수를 청한다.
-    assert.equal((deriveTurn([item("FEAT-08", "done")], ready) as { detail: string }).detail, "FEAT-08 needs acceptance");
+    assert.equal((deriveTurn([item("FEAT-08", "done")], ready) as { detail: string }).detail, "FEAT-08 is waiting for acceptance");
   });
 
   it("on_hold never owns the banner", () => {
@@ -183,10 +203,10 @@ describe("deriveTurn — theirs and none", () => {
 });
 
 describe("deriveTurn — acceptance and handoff", () => {
-  it("done without an acceptance record is yours, with the accept node as the line; accepted done owns nothing", () => {
+  it("done at accept is the session’s turn; accepted done owns nothing", () => {
     const turn = deriveTurn([item("FEAT-02", "done")], ready);
-    if (turn.kind !== "mine") assert.fail(turn.kind);
-    assert.equal(turn.detail, "FEAT-02 needs acceptance");
+    if (turn.kind !== "theirs") assert.fail(turn.kind);
+    assert.equal(turn.detail, "FEAT-02 is waiting for acceptance");
     assert.deepEqual(turn.next, [{ key: "FEAT-02", line: "Continue the pipeline for FEAT-02: accept — accept." }]);
     assert.equal(deriveTurn([accepted("FEAT-02")], ready).kind, "none");
   });
@@ -201,30 +221,30 @@ describe("deriveTurn — acceptance and handoff", () => {
   });
   it("orders approval · acceptance · commit, and still says why pm is blocked", () => {
     const turn = deriveTurn(
-      [handoff("FEAT-01", "docs/plans/FEAT-01.md"), item("FEAT-02", "done"), item("FEAT-03", "in_review", "clean pass")],
+      [handoff("FEAT-01", "docs/plans/FEAT-01.md"), failed("FEAT-02"), item("FEAT-03", "in_review", "clean pass")],
       ready,
     );
     if (turn.kind !== "mine") assert.fail(turn.kind);
-    assert.equal(turn.detail, "FEAT-03 is ready for your approval · FEAT-02 needs acceptance · FEAT-01 is waiting for your commit");
+    assert.equal(turn.detail, "FEAT-03 is ready for your approval · FEAT-02 failed acceptance · FEAT-01 is waiting for your commit");
     assert.equal(turn.count, 3);
     assert.equal(turn.why, "pm can't propose anything new until you clear one."); // planning + in_review = 미결 2
-    assert.deepEqual(turn.next.map((n) => n.key), ["FEAT-01", "FEAT-02"]); // verified in_review는 터미널 줄이 없다
+    assert.deepEqual(turn.next.map((n) => n.key), ["FEAT-01"]); // verified in_review는 터미널 줄이 없다
   });
 });
 
 describe("deriveTurn — where the button goes", () => {
   it("opens the inbox when it has cards, the item page when the turn is only acceptance or a handoff", () => {
-    const inbox = deriveTurn([item("FEAT-03", "in_review", "clean pass"), item("FEAT-02", "done")], ready);
+    const inbox = deriveTurn([item("FEAT-03", "in_review", "clean pass"), failed("FEAT-02")], ready);
     if (inbox.kind !== "mine") assert.fail(inbox.kind);
     assert.deepEqual(inbox.open, { kind: "inbox" });
-    const page = deriveTurn([item("FEAT-02", "done"), item("FEAT-01", "implementing")], ready);
+    const page = deriveTurn([failed("FEAT-02"), item("FEAT-01", "implementing")], ready);
     if (page.kind !== "mine") assert.fail(page.kind);
     assert.deepEqual(page.open, { kind: "item", key: "FEAT-02" });
     const paused = deriveTurn([handoff("FEAT-01", "docs/plans/FEAT-01.md")], ready);
     if (paused.kind !== "mine") assert.fail(paused.kind);
     assert.deepEqual(paused.open, { kind: "item", key: "FEAT-01" });
     // on_hold는 배너를 소유하지 않지만 결재함 카드라서 버튼은 Inbox로 간다.
-    const held = deriveTurn([item("FEAT-02", "done"), item("FEAT-05", "on_hold")], ready);
+    const held = deriveTurn([failed("FEAT-02"), item("FEAT-05", "on_hold")], ready);
     if (held.kind !== "mine") assert.fail(held.kind);
     assert.deepEqual(held.open, { kind: "inbox" });
   });
@@ -239,15 +259,14 @@ describe("nextStepLine", () => {
 });
 
 describe("terminal steps while waiting on the owner", () => {
-  it("keeps acceptance first and includes an unstarted plan without changing the owner's turn", () => {
-    const turn = deriveTurn([item("ITEM-02", "done"), { ...item("ITEM-01", "planning"), dispatched: false }], ready);
+  it("keeps failed acceptance on the owner while other unstarted work remains visible", () => {
+    const turn = deriveTurn([failed("ITEM-02"), { ...item("ITEM-01", "planning"), dispatched: false }], ready);
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.count, 1);
-    assert.equal(turn.detail, "ITEM-02 needs acceptance");
+    assert.equal(turn.detail, "ITEM-02 failed acceptance");
     assert.equal(turn.why, null);
     assert.deepEqual(turn.open, { kind: "item", key: "ITEM-02" });
     assert.deepEqual(turn.next, [
-      { key: "ITEM-02", line: "Continue the pipeline for ITEM-02: accept — accept." },
       { key: "ITEM-01", line: "Continue the pipeline for ITEM-01: plan — dev writes the plan." },
     ]);
   });

@@ -140,6 +140,7 @@ it("preserves project identity and every populated child, revokes project creden
       assert.deepEqual(await denied.json(), index === 3 ? { error: DISCONNECTED_REASON, reconnectPath: `/p/${project.slug}` } : { error: DISCONNECTED_REASON });
     }
     const argumentsByTool: Record<typeof AGENT_TOOL_NAMES[number], object> = {
+      acceptance_fail: { key: f.key, checks: [3], note: "failed" },
       project_get: {}, project_sync: { workspaces: [] }, backlog_list: {}, backlog_get: { key: f.key },
       backlog_add: { runId: run.id, title: "title", area: "app", source: "evidence", type: "feat" },
       board_list: {}, board_get: { key: f.key }, board_propose: { key: f.key, agent: "dev", reason: "reason" },

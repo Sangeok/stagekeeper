@@ -24,6 +24,8 @@ export const HISTORY_TRUNCATED_NOTE = "History older than 30 days opens on Pro."
 
 function eventContent(event: HistoryEventInput): { text: string; note: string | null } {
   if (event.from === event.to) {
+    if (event.note === "acceptance-failed") return { text: "Acceptance failed", note: null };
+    if (event.note === "acceptance-retry") return { text: "Acceptance run again", note: null };
     if (event.note === "plan") return { text: "Plan submitted", note: null };
     if (event.note === "validation") return { text: "Validation recorded", note: null };
     if (event.note?.startsWith("gate:")) return { text: `gate · ${gateLabel(event.note.slice(5))}`, note: null };

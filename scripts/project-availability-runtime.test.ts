@@ -72,7 +72,7 @@ it("keeps the final Prisma schema and generated client free of membership storag
   for (const file of generated) assert.doesNotMatch(readFileSync(file, "utf8"), /ProjectMember|projectMember/);
   // 이 수는 멤버십 저장소 정책의 백스톱이다 — 위 단언들이 ProjectMember의 부재를 직접 보고,
   // 이 줄은 "생성된 모델이 조용히 늘지 않았나"를 본다. 모델을 정당하게 더하면 함께 올린다.
-  // 19 = 17 + RequestRateWindow + UserToken(사용자 단위 토큰, hu_).
+  // 20 = 17 + RequestRateWindow + UserToken + AcceptanceFailure(사용자 단위 토큰, hu_).
   const modelFiles = readdirSync("src/generated/prisma/models").filter((file) => file.endsWith(".ts"));
-  assert.equal(modelFiles.length, 19);
+  assert.equal(modelFiles.length, 20);
 });

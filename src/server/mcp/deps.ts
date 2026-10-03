@@ -49,6 +49,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
     },
     submitPlan: (projectId, input, actorRef) => board.submitPlan(projectId, input, actorRef),
     submitReport: (projectId, input, actorRef) => board.submitReport(projectId, input, actorRef),
+    failAcceptance: (projectId, input, actorRef) => board.failAcceptance(projectId, input, actorRef),
     recordValidation: (projectId, input, actorRef) => board.recordValidation(projectId, input, actorRef),
     agentNext: (projectId, tokenId, input) => agentNext(prismaNextDeps, { projectId, tokenId }, input),
     // pipeline_next의 조립은 여기다 — run.ts는 board.ts를 import하지 않으므로 미결 목록을 스스로 읽지 못한다.

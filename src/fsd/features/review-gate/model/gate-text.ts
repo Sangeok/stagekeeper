@@ -13,6 +13,12 @@ export type RejectAction = "bounce" | "hold" | "discard";
 // 게이트 — **게이트 id**가 키다(런의 커서가 서 있는 자리, pipeline.mjs의 before-<kind>).
 // 상태가 아니라 그래프가 게이트를 정하므로 목적지 status로는 카드를 못 그린다.
 // 누르는 중·잠금 칩·토스트 — 버튼을 누른 뒤의 낱말이라 이 slice에만 있다.
+export const ACCEPTANCE_CHECK_LABELS: Readonly<Record<number, string>> = {
+  1: "Changed files", 2: "Diff vs sketch", 3: "Verify command", 4: "Backlog entry", 5: "Report record",
+};
+export const ACCEPTANCE_RETRY_HINT = "Use this when the checks could not run — the environment, a missing push. When /harness:watch is running, the main loop runs all five checks again; otherwise continue the pipeline in Claude Code. If the code is wrong, reopen it below.";
+export const ACCEPTANCE_RETRY_UNKNOWN = "Couldn't confirm whether acceptance was reset. Refresh to check the current state before trying again.";
+
 const GATE_FEEDBACK: Record<string, { pending: string; lock: string; toast: string }> = {
   "before-plan": { pending: "Requesting…", lock: "Plan requested", toast: "Plan requested" },
   "before-verify": { pending: "Continuing…", lock: "Continued", toast: "Continued to verification" },
