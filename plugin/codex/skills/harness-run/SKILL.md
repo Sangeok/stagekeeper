@@ -8,6 +8,14 @@ package from this SKILL.md (three parents above this skill directory), verify it
 manifest/version and use that package's bin/harness-codex.mjs. Never assume a shell plugin-root
 variable. Legacy /harness:init recovery advice means $harness-init here.
 
+On Windows run helper tasks through the packaged `bin/harness.ps1 <task> <arguments>`
+using `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <absolute helper>`.
+Use task `codex` for harness-codex.mjs and `session` for harness-session.mjs, including all
+invocations below. Quote the helper's absolute path when it contains spaces.
+It validates and uses the included Node runtime. Never depend on a globally installed Node
+or install a missing dependency for the owner. The complete original verifier is included in
+`codex/skills/reconciling-proposals-with-codebase`; the fresh role uses its read-only staged copy.
+
 Confirm the old Claude/Codex main loop, watch and child roles have actually stopped before
 a client switch. Reuse durable server approval, never old local commit/proposal permission.
 Use the user's explicit current commit/proposal policy; ask only when it is absent.
@@ -24,8 +32,11 @@ Runtime permission failures are failed/blocked. Keep the independent verifier's 
 If the helper reports `codex-role-execution-unavailable`, stop and retain the role's filesystem
 policy and unresolved ownership. Report a Stagekeeper runtime compatibility issue. Do not
 ask the owner to install WSL, switch operating systems, log into another client or repeat
-initialization. The Windows CLI 0.160.0 root-read requirement is incompatible with the current
-root-deny role profile; native Windows compatibility remains a product release blocker.
+initialization. Windows roles retain root-deny permissions and use scoped file MCP tools.
+A complete Windows bundle adds a separately isolated snapshot command tool only after actual
+filesystem, inherited child-process and network preflight passes. It never enables the CLI's
+incompatible root-read shell backend. Snapshot writes are discarded; edit originals through
+guarded file tools and include snapshot hashes/omissions in build and test evidence.
 Do not broaden permissions or start automatic watch to work around this failure.
 
 Before verify dispatch, do your own required reconciliation round and record the selected

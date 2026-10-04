@@ -148,6 +148,9 @@ export function createRoleFiles(filesystem, agent) {
 
   return {
     tools: roleFileTools(agent),
+    // Trusted snapshot exporter only; these methods are never MCP tools.
+    permission: access,
+    resolveRead(name) { if (closed) throw new Error("Role file broker closed"); return resolveTarget(name); },
     close() { closed = true; },
     call(name, args) {
       if (closed || !names.includes(name) || !args || Array.isArray(args) || typeof args !== "object") throw new Error("Role file operation unavailable");

@@ -12,6 +12,14 @@ or verifier dependencies are Stagekeeper packaging requirements. Do not ask the 
 install WSL, another client, Node or a verifier skill manually. Stop if the installed package
 cannot supply the dependencies; do not start a watcher or claim readiness.
 
+On Windows use this package's `bin/harness.ps1 <task> <existing arguments>` through
+`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <absolute helper>`.
+Use task `watch` for harness-watch.mjs and `session` for harness-session.mjs. Translate
+every Node helper command below through this launcher on Windows and quote its path.
+The launcher validates the included Node; the policy is process-only. Use the complete
+original verifier bundled under `skills/reconciling-proposals-with-codebase`, preserving
+the actual loader/checksum checks below. A source-only checkout is not an install bundle.
+
 Read the current checkout's `harness.json`, `CLAUDE.md` and generated
 `.claude/agents/` stubs. Follow the runbook's project scope, briefing, entry,
 receipt and external verification rules. Never reconstruct server step bodies

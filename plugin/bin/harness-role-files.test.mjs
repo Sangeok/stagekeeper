@@ -126,3 +126,27 @@ it("fences native file tools with the current receipt and active owner, never fo
   } finally { await bridge.close(); }
   assert.throws(() => f.files.call("role_file_list", { path: f.root }));
 });
+
+it("discards an asynchronous local result after stop and waits for its backend to settle", async () => {
+  const receipt = { runId: "command-run", revision: 1, stepId: "inspect" };
+  let finish, entered, signal, closed = false;
+  const started = new Promise(resolve => { entered = resolve; });
+  const pending = new Promise(resolve => { finish = resolve; });
+  const backend = { tools: [{ name: "role_command_exec", inputSchema: { type: "object" } }],
+    call: async (_, __, controllerSignal) => { signal = controllerSignal; entered(); await pending; return { exitCode: 0, status: "exited", quiescent: true }; },
+    close: async () => { await pending; closed = true; } };
+  const operations = { listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name, inputSchema: { type: "object" } })),
+    checkSession: async () => ({ event: "owned", lifecycle: "active", client: "codex" }),
+    callTool: async () => ({ done: false, receipt, step: "inspect" }) };
+  const bridge = await roleBridge({}, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, backend);
+  const request = async name => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: {} } }) })).json();
+  try {
+    await request("agent_next");
+    const command = request("role_command_exec"); await started;
+    assert.ok((await request("role_command_exec")).error);
+    bridge.abort(); assert.equal(signal.aborted, true);
+    finish(); assert.ok((await command).error);
+  } finally { finish(); await bridge.close(); }
+  assert.equal(closed, true);
+});

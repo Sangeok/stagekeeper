@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative, dirname, resolve, isAbsolute } from "node:path";
 import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
 
 export const ROLE_TOOLS = {
@@ -64,7 +65,13 @@ export function readCodexRole(body, logicalRole, agent) {
   return fields;
 }
 
-export function verifierPackage(source = process.env.HARNESS_VERIFIER_SKILL_DIR ?? join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "skills/reconciling-proposals-with-codebase")) {
+function defaultVerifierDirectory() {
+  const bundled = fileURLToPath(new URL("../codex/skills/reconciling-proposals-with-codebase/", import.meta.url));
+  if (existsSync(bundled)) return bundled;
+  return process.env.HARNESS_VERIFIER_SKILL_DIR ?? join(process.env.CODEX_HOME ?? join(homedir(), ".codex"), "skills/reconciling-proposals-with-codebase");
+}
+
+export function verifierPackage(source = defaultVerifierDirectory()) {
   const root = realpathSync(source), files = [];
   if (lstatSync(source).isSymbolicLink() || !existsSync(join(root, "SKILL.md"))) throw new Error("Complete owner verifier package required");
   const visit = directory => {
