@@ -43,7 +43,8 @@ related:
 - T53–T56의 기존 NOT RUN 행은 당시 기록으로 유지한다. 2026-10-04 현재 제품 어댑터를 실제 모델로 시험해 MCP 승인 설정 결함을 수정했다. 이후 MCP 호출은 실행됐지만 허용 읽기/scratch 쓰기는 Windows sandbox의 root-read 요구로 BLOCKED다. 전체 역할 격리·verifier 인수는 미완료다.
 - `plugin/templates` 별도 private 저장소에는 수정 7개와 신규 `en/CODEX.runbook.md`가 미커밋 상태다. 운영 seed·배포는 수행하지 않았다.
 - 실제 PM 모델의 pending MCP 요청에서 stop → interrupt → interrupted → bridge/child 종료 → release를 확인했다. 종료 전 release와 동시 Claude session 시작은 거부됐다. fixture MCP를 사용했으므로 실제 두 CLI/browser 승인 재개나 혼합 버전 호스트 인수의 완료 근거가 아니다.
-- C4 자동 watch 어댑터·명령·skill은 미구현이다. 기본 파일 도구 실행을 통과하지 못했으므로 권고한 선행 인수 순서에 따라 C4 구현·110분 idle 시험을 시작하지 않았다. 승인 범위는 유지하며 호환 호스트에서 기본 인수를 먼저 재실행해야 한다.
+- 후속 진행 지시로 WSL2 Ubuntu 26.04.1과 별도 Linux 사용자/checkout을 준비했다. 동일한 CLI 0.160.0과 `:root="deny"` 정책으로 모델 없는 실제 파일 명령을 시험했다. 허용 읽기와 scratch 쓰기는 성공했고 저장소 밖 읽기·저장소/Git 메타데이터 쓰기는 차단됐다. 이 결과는 파일 명령 호스트의 제한된 통과이며 실제 모델/전체 verifier 인수의 완료가 아니다. Linux CLI는 Windows 인증 파일 복사 없이 별도로 로그인해야 한다.
+- C4 자동 watch 어댑터·명령·skill은 미구현이다. Linux 모델 없는 파일 시험은 통과했지만 실제 역할·완전한 독립 verifier·승인 재개 인수는 남아 있으므로 C4 구현·110분 idle 시험을 시작하지 않았다. 승인 범위를 유지하고 남은 기본 인수를 먼저 실행한다.
 
 ## Scope
 
@@ -69,7 +70,9 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 
 **BLK-DUAL-04:** Codex의 파일 도구 권한, watch 대상 thread/turn 재진입·취소 및 장시간 idle에 필요한 증거가 아직 부족하다. C4와 자동 watch 안내를 차단하며 기본 명시적 재개 소스의 완료를 취소하지 않는다.
 
-2026-10-04 실행: fresh thread와 pending MCP turn 취소는 직접 관찰했지만 파일 도구 실행은 차단됐다. 설치된 CLI 0.160.0의 Windows backend는 `:root` 읽기를 요구하고 현재 역할 정책은 `:root="deny"`다. [동일 버전 공식 소스](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/resolved_permissions.rs)의 `validate_elevated_filesystem_policy`와 실제 오류가 일치한다. 로컬 WSL 배포판·Docker/Podman은 없다. 전체 디스크 읽기 허용이나 전역 설정 변경으로 대체하지 않았다. 호환 호스트에서 허용 읽기/scratch 및 금지 쓰기를 직접 검증해야 C4 구현 순서로 넘어간다.
+2026-10-04 최초 실행: fresh thread와 pending MCP turn 취소는 직접 관찰했지만 Windows 파일 도구 실행은 차단됐다. 설치된 CLI 0.160.0의 Windows backend는 `:root` 읽기를 요구하고 현재 역할 정책은 `:root="deny"`다. [동일 버전 공식 소스](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/resolved_permissions.rs)의 `validate_elevated_filesystem_policy`와 실제 오류가 일치한다. 당시 로컬 WSL 배포판·Docker/Podman은 없었다. 전체 디스크 읽기 허용이나 Windows 전역 설정 변경으로 대체하지 않았다.
+
+2026-10-04 후속 실행: 사용자의 진행 지시 후 [공식 WSL 안내](https://learn.chatgpt.com/docs/windows/wsl)에 따라 WSL2 Ubuntu와 Linux 파일시스템의 별도 checkout을 준비했다. 사용자 홈에 설치된 CLI 실행 파일은 sandbox의 최소 시스템 경로 밖이라 bubblewrap에서 실행되지 않았다. 같은 hash의 CLI와 리소스를 새 Linux 배포판의 `/usr/local/lib`에 root 소유로 설치하고 `/usr/local/bin`에서 실행하자 허용 읽기/scratch와 금지 경로 시험이 통과했다. 역할 정책·커널/AppArmor 설정은 완화하지 않았다. Windows 자격 증명은 복사하지 않고 [native device 로그인](https://learn.chatgpt.com/docs/auth)을 요청했다. 실제 모델·완전한 verifier·승인 재개가 통과해야 C4 구현 순서로 넘어간다.
 
 **TASK-C4-01:** 실제 호스트 기능을 먼저 확인하고 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 watch session/정책 main-loop reuse, no-model idle, permission relay, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 구현한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
 
@@ -108,9 +111,11 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 
 ## Verification Results
 
-2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. 실제 모델의 MCP 호출과 pending stop/잠금 반납은 확인했지만 파일 도구 실행은 BLOCKED다. C4·110분 idle·양방향 승인/재개·실제 패키지·운영 배포는 미실행이다. 새 관찰·사용량·소스 hash와 기존 실패 이력은 [active runtime 보고서](../../test-reports/active/dual-client-runtime-report.md)에 함께 기록한다.
+2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. Windows 실제 모델의 MCP 호출과 pending stop/잠금 반납을 확인했고 Windows 파일 명령은 BLOCKED였다. 후속 WSL2 모델 없는 실제 파일 시험에서는 허용 읽기/scratch, 금지된 외부 읽기·저장소/Git 쓰기 차단을 확인했다. Linux 실제 모델·전체 verifier·승인 재개는 별도 로그인 후 실행해야 한다. C4·110분 idle·양방향 승인/재개·실제 패키지·운영 배포는 미실행이다. 새 관찰·사용량·소스 hash와 기존 실패 이력은 [active runtime 보고서](../../test-reports/active/dual-client-runtime-report.md)에 함께 기록한다.
 
 로컬 검증은 session 11개, core/plugin 287개, report 27개 PASS이며 Windows 파일 symlink 권한 시험 1개는 skip이다. `npm run check`, `verify:fsd`, `test:architecture`, `build`, 보고서 구조 검증과 `git diff --check`가 통과했다. 실제 기록 추가 중 발견한 CRLF append 오류도 수정해 기존 149개 실행/증거 행을 보존했다. [현재 소스 hash와 검증 기록](../../test-reports/assets/2026-10-04-codex-role-host-preflight/checks.json)은 제품 인수 통과를 대신하지 않는다.
+
+PR [#109](https://github.com/Sangeok/stagekeeper/pull/109)은 `dev` 대상으로 생성됐고 소스 커밋 `21a1d6eb66cd0e57f94cff87de14b485f321a21e`의 CI `check`가 통과했다. 같은 커밋의 Linux checkout에서도 session 11개와 report 28개가 모두 PASS이며 skip은 없다. [WSL2 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-host-preflight/observations.json)은 모델 없는 실제 파일 명령 결과, 동일 실행 파일 hash, 완전한 verifier 패키지 inventory/checksum 및 잠금 반납을 기록한다. 패키지 inventory는 verifier의 실제 실행 통과를 의미하지 않는다.
 
 ## Risks and Rollback
 

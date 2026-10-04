@@ -1,0 +1,102 @@
+{
+  "recordedAt": "2026-10-04T12:10:33.969Z",
+  "sourceRevision": "21a1d6eb66cd0e57f94cff87de14b485f321a21e",
+  "sourceSha256": {
+    "plugin/runtime/codex-thread.mjs": "25290638a0df9b9759aa9260162dd4718419b695c2a3fdbc0fb92c8b61bf4ca9"
+  },
+  "fixtureSha256": "e99615f605dbd82f7f95cc14fccf94eacebd419887ad2881b87b35d19d171bc1",
+  "host": {
+    "distribution": "Ubuntu 26.04.1 LTS",
+    "wsl": "2",
+    "kernel": "Linux 6.6.87.2-microsoft-standard-WSL2",
+    "unprivilegedUser": true,
+    "node": "v22.13.1",
+    "codex": "codex-cli 0.160.0",
+    "codexSha256": "12eb3e81114588aca3b7998f4f19e8997b056aca08e57a7ca7c8a3ec8c652aad"
+  },
+  "setup": {
+    "checkout": "Separate Git-bundle checkout in the Linux home filesystem at the recorded revision; Windows ignored files and private template working tree excluded.",
+    "credentials": "No Windows auth/config/credential copy. Native Linux device login requested separately; model authentication is not part of this observation.",
+    "verifier": {
+      "files": 8,
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6"
+    },
+    "executablePlacement": "User-local npm package initially failed because bubblewrap could not execute its binary outside the minimal readable system paths. The identical pinned binary/resources were installed root-owned under /usr/local/lib and exposed via /usr/local/bin. No role permission or kernel/AppArmor policy was widened."
+  },
+  "scope": "Actual product dispatchFreshRole config/read and sandboxed command/exec, synthetic doc-auditor role in disposable Git fixture. Fixture stops before skills/list/thread/start; no inference or role MCP calls. This proves only bounded model-free filesystem host behavior, not complete actual role/verifier/approval/watch acceptance.",
+  "effectivePolicy": {
+    "root": "deny",
+    "minimal": "read",
+    "repository": "read",
+    "scratch": "write",
+    "gitMetadata": "read",
+    "ownerCredentialHome": "deny",
+    "network": false,
+    "approval": "never"
+  },
+  "preflight": {
+    "exitCode": 0,
+    "stdout": "harness-role-execution-ready",
+    "stderr": ""
+  },
+  "probes": [
+    {
+      "name": "allowed-read",
+      "exitCode": 0,
+      "stdout": "READ_CANARY_CURRENT_1013",
+      "stderr": ""
+    },
+    {
+      "name": "forbidden-host-read",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "cat: $TEST_ROOT/protected-host-canary.txt: No such file or directory\n"
+    },
+    {
+      "name": "forbidden-git-write",
+      "exitCode": 2,
+      "stdout": "",
+      "stderr": "probe: 1: cannot create $FIXTURE/.git/forbidden-probe: Read-only file system\n"
+    },
+    {
+      "name": "allowed-scratch-write",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "name": "forbidden-repository-write",
+      "exitCode": 2,
+      "stdout": "",
+      "stderr": "probe: 1: cannot create $FIXTURE/forbidden-repo.txt: Read-only file system\n"
+    }
+  ],
+  "actualFiles": {
+    "scratchCanaryMatches": true,
+    "forbiddenRepositoryWrite": false,
+    "forbiddenGitWrite": false
+  },
+  "inference": {
+    "turnStarted": false,
+    "tokenUsage": null,
+    "remoteRoleCalls": 0
+  },
+  "cleanup": {
+    "release": "released",
+    "fixtureLocksRetained": false,
+    "childAndBridge": "Settled before release; disposable synthetic fixtures retained."
+  },
+  "tests": {
+    "session": {
+      "pass": 11,
+      "fail": 0,
+      "skip": 0
+    },
+    "runtimeReport": {
+      "pass": 28,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "verdict": "PASS for the bounded model-free Linux filesystem host probe only. Complete basic runtime acceptance and C4 remain incomplete."
+}

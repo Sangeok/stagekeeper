@@ -8,12 +8,12 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-04T11:56:29.121Z"
-tested-revision: "6837fe73e802e8c833c335b1dc740acccf814975"
+last-executed-at: "2026-10-04T12:10:33.969Z"
+tested-revision: "21a1d6eb66cd0e57f94cff87de14b485f321a21e"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
-observed-environments: ["local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner"]
+observed-environments: ["local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
 test-summary: "fail: dual-client runtime — required runtime gates remain unresolved"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
@@ -23,6 +23,8 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-04 WSL2 follow-up: the unchanged root-deny policy now passes bounded model-free read/scratch/protected-path probes on a dedicated Linux checkout. Session 11/11 and report 28/28 regressions pass. No inference was started; native Linux login, full actual verifier/approved resumption and C4 remain pending. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json). Earlier Windows blockers and historical verdicts remain valid for their recorded host/revision.
 
 2026-10-04 actual current-adapter trials: per-tool MCP approval defect fixed; MCP execution and pending PM stop/common-lock exclusion observed. Windows 0.160.0 cannot execute the unchanged root-deny file policy, so basic host acceptance remains BLOCKED and C4 is NOT IMPLEMENTED. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) records projected diagnostics, source hashes and 66048 reported tokens. Full DB/browser/installed-package/verifier and mixed-version acceptance remain open.
 
@@ -136,6 +138,9 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T64 | R3 | informational | Actual pending PM MCP cancellation and duplicate start | Preserve lock until terminal turn, refuse duplicate client, then release | [E76] | PASS |
 | T65 | R3 | required | C4 prerequisite and automatic watch | Functional basic host acceptance precedes C4 implementation and 110-minute idle trial | [E77] | NOT IMPLEMENTED |
 | T66 | R1 | informational | Final source/report regression and build | No source regression; immutable historical evidence and truthful active lifecycle | [E78] | PASS |
+| T67 | R3 | informational | WSL2 unchanged-policy functional filesystem probe | Allowed read/scratch write execute; protected read and repository/Git writes fail | [E79] | PASS |
+| T68 | R3 | informational | WSL2 current-source session/report regression | Session ownership and report tests pass on native Linux | [E80] | PASS |
+| T69 | R3 | required | WSL2 actual model/full verifier and C4 prerequisite | Authenticated actual model/full verifier and approved resumption precede C4 | [E81] | BLOCKED |
 
 ## Commands and Static Checks
 
@@ -245,6 +250,9 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E76 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Actual model on 2026-10-04T11:48:55.423Z: pending agent_next observed, children 1; simultaneous Claude start locked with same session and unchanged commit/propose false policy. Stop → early release quiescence-required → turn/interrupt after 381ms → turn/completed interrupted → pending HTTP closed → children 0 → release. No outcome submission after stop. Reported tokens 4621. This is fixture-MCP/current-Codex evidence, not actual Claude host or mixed-version handoff acceptance. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) | Inline; no raw log retained |
 | E77 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; NOT IMPLEMENTED: basic filesystem host gate is blocked, so C4 runner/command/skill and actual 110-minute idle/resumption trial were not started. Local WSL distribution and Docker/Podman are unavailable. User authorization remains recorded; no permission widening, global setup, or automatic-watch guidance substituted for evidence. | Inline; no raw log retained |
 | E78 | C0 command/fixture | 2026-10-04T11:56:29.121Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Session tests 11 PASS; npm test 287 PASS; npm run check PASS (architecture26/project-availability18; lint clean); explicit FSD/architecture PASS; build PASS. Actual report append exposed CRLF evidence-table corruption, fixed by normalizing parsed section text; report tests 27 PASS/1 Windows file-symlink privilege skip/0 failures and final check PASS. Dedicated report structure and git diff --check PASS. [Final source hashes and checks](../assets/2026-10-04-codex-role-host-preflight/checks.json). No new model, DB, package or C4 trial in these commands. | Inline; no raw log retained |
+| E79 | Actual WSL2 model-free host | 2026-10-04T12:10:33.969Z; revision 21a1d6eb66cd0e57f94cff87de14b485f321a21e; Actual unchanged product adapter on Ubuntu 26.04.1/WSL2 with native Codex 0.160.0, unprivileged user: preflight/read/scratch write exit 0; out-of-repository synthetic canary read exit 1; repository and Git metadata writes exit 2, read-only filesystem. Scratch contents match; forbidden files absent. Root deny and approval never unchanged. Same binary moved into minimal readable system tools after user-local executable was hidden by bubblewrap. No model turn or remote role call; owned children/bridge ended, locks released. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json) | Inline; no raw log retained |
+| E80 | Actual WSL2 model-free host | 2026-10-04T12:10:33.969Z; revision 21a1d6eb66cd0e57f94cff87de14b485f321a21e; Linux checkout at 21a1d6eb66cd0e57f94cff87de14b485f321a21e: npm ci completed; session 11/11 and report 28/28 pass, zero skips. The Linux report symlink case ran. These are regression tests, not actual winning role/full verifier/CLI approval/watch acceptance. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json) | Inline; no raw log retained |
+| E81 | Actual WSL2 model-free host | 2026-10-04T12:10:33.969Z; revision 21a1d6eb66cd0e57f94cff87de14b485f321a21e; Native Linux CLI is separately awaiting device login; Windows credentials were not copied. Model-free filesystem probes passed but actual role inference/full independent verifier and approved CLI resumption remain unexecuted. C4 runner/skill and 110-minute idle trial remain NOT IMPLEMENTED; authorization persists. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json) | Inline; no raw log retained |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -256,6 +264,8 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+The WSL2 system executable resolves the earlier Linux package-placement failure without granting additional role access. Model-free filesystem host behavior is now observed on Linux; full role/verifier and approved resumption remain prerequisites. No global Windows configuration, credential copy, production seed, or C4 implementation occurred.
 
 Current run: MCP tool approvals are bounded to the existing role allowlist with default prompt; request escalation still refused. The file-role command preflight now fails before inference on the unsupported host. Actual PM pending MCP stop was observed but does not clear BLK-DUAL-01/02/03/05 or watch BLK-DUAL-04. Compatible host basic acceptance is the next dependency; C4 remains authorized but unimplemented. Earlier scope statements below describe their own historical runs.
 
@@ -282,6 +292,8 @@ Owned disposable roots retain non-secret fixture source/configuration and synthe
 An earlier writer implementation left its own draft when Windows handle/path dev values differed. After that writer ended, its valid draft was explicitly recovered; the fixed writer compares the actual file identity and never takes over an existing draft automatically. Tests cover failed rename, an unrelated successor temporary file, external report modification and immutable completed-campaign preflight. Current own .tmp is absent after atomic rename/read-back. Tests remove only their explicitly checked owned temporary roots; C0 evidence roots are retained. Required failure history is preserved rather than rewritten as PASS; a future successful alternative must follow explicit report lifecycle/evidence rules.
 
 ## Conclusion
+
+Latest decision: remain active/result:null. Bounded WSL2 filesystem behavior passed; actual authenticated role/verifier and approved resumption have not been run. C4 remains unimplemented. Prior required failures are preserved and are not cleared by this narrower PASS.
 
 Current decision: preserve active/result:null. Actual MCP execution/cancellation evidence is partial; Windows functional filesystem gate remains blocked. C4 and the 110-minute idle experiment were not performed. A compatible host must pass the unchanged-role basic acceptance before proceeding.
 
