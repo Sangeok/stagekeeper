@@ -46,7 +46,7 @@ if ($text.Contains($old)) {
 
 Push-Location $source
 try {
-  & .\vcbuild.bat release x64 nosign notest
+  & .\vcbuild.bat release x64
   if ($LASTEXITCODE -ne 0) { throw 'Node source build failed' }
 } finally { Pop-Location }
 $runtime = Join-Path $buildPath 'runtime'
