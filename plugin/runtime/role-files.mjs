@@ -64,15 +64,20 @@ export function createRoleFiles(filesystem, agent) {
       }
     }
     if (access(target) === "deny" || (write && access(target) !== "write")) throw new Error("File permission refused");
-    let current = parsed.root;
+    let current = parsed.root, existing = parsed.root;
     for (const segment of target.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
       current = path.join(current, segment);
       try {
         const stat = lstatSync(current, { bigint: true });
-        if (stat.isSymbolicLink() || canonical(realpathSync(current)) !== canonical(current)) throw new Error("File alias refused");
+        if (stat.isSymbolicLink()) throw new Error("File alias refused");
         if (stat.isFile() && stat.nlink !== 1n) throw new Error("Hard-linked file refused");
+        existing = current;
       } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
+    // Resolve the complete existing chain once; resolving every prefix repeats
+    // its ancestors for each dependency file. No path/permission result is cached:
+    // callers recheck before and after IO, including aliases above the policy root.
+    if (canonical(realpathSync(existing)) !== canonical(existing)) throw new Error("File alias refused");
     return target;
   }
 

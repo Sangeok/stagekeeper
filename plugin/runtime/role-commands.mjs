@@ -32,10 +32,11 @@ export function installedWindowsRuntime(directory = bundlePath) {
 
 export async function snapshotRepository(root, destination, fileBroker, signal) {
   const hashes = [], omitted = []; let bytes = 0, count = 0, omittedCount = 0;
+  const buffer = Buffer.alloc(1024 * 1024);
   const started = Date.now();
   async function visit(directory, relative = "") {
     signal?.throwIfAborted();
-    if (Date.now() - started > 120000) throw new Error("Snapshot preparation deadline exceeded");
+    if (Date.now() - started > 300000) throw new Error("Snapshot preparation deadline exceeded");
     fileBroker.resolveRead(directory);
     const entries = (await readdir(directory)).sort();
     for (const name of entries) {
@@ -50,7 +51,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
       try {
         output = await open(target, "wx", 0o600);
         if (identity(await input.stat({ bigint: true })) !== identity(before)) throw new Error("Snapshot file changed while opening");
-        const buffer = Buffer.alloc(1024 * 1024); let length = 0;
+        let length = 0;
         while (true) {
           signal?.throwIfAborted();
           const { bytesRead } = await input.read(buffer, 0, buffer.length, null); if (!bytesRead) break;
