@@ -45,6 +45,60 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     }
     check(document.querySelector("#ho")?.textContent?.includes("Claude Code"), "owner token changed");
   });
+  await run("owner client selection", "Codex owner display equals copied token-free registration; Claude remains available; selection creates no mutations", async () => {
+    await mount("copy");
+    const scope = document.getElementById("ho")!;
+    const select = async (client: string) => {
+      const field = [...scope.querySelectorAll<HTMLInputElement>('input[type="radio"]')].find(field => field.parentElement?.textContent?.trim() === client)!;
+      field.click(); await tick();
+    };
+    check(scope.textContent?.includes("/harness:init"), "Claude owner default missing");
+    await select("Codex");
+    const code = [...scope.querySelectorAll("code")].find(code => code.textContent?.startsWith("codex mcp add"))!;
+    check(code?.textContent === "codex mcp add harness_owner --url 'https://fixture.test/api/mcp/owner' --bearer-token-env-var HARNESS_OWNER_TOKEN", "owner registration differs");
+    check(!scope.textContent?.includes("/harness:init"), "Codex incorrectly uses Claude init");
+    check(!code.textContent.includes("ho_fixture"), "registration contains token");
+    find("Copy", code.parentElement!).click(); await tick();
+    check(controls.writes.at(-1) === code.textContent, "owner copy differs");
+    controls.finishCopy(true); await tick();
+    await select("Claude Code");
+    check(scope.textContent?.includes("/harness:init") && !scope.textContent?.includes("codex mcp add"), "Claude owner recovery missing");
+    check(controls.payloads.length === 0 && controls.submissions.length === 0 && controls.refreshes === 0, "selection caused a mutation");
+  });
+  await run("owner identity reset", "changing only owner URL or token resets to Claude and subsequent Codex registration uses the new URL", async () => {
+    await mount("copy");
+    const scope = document.getElementById("ho")!;
+    const radios = () => [...scope.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+    radios()[1].click(); await tick();
+    await click("Change owner URL");
+    check(radios()[0].checked, "owner URL did not reset client");
+    radios()[1].click(); await tick();
+    check(scope.textContent?.includes("--url 'https://second.fixture.test/api/mcp/owner'"), "owner URL is stale");
+    await click("Change text");
+    check(radios()[0].checked && scope.textContent?.includes("ho_fixture-B"), "new owner token did not reset client");
+  });
+  await run("banner client lifecycle", "setup and next share selection across view and tab changes; project change resets to Claude", async () => {
+    await mount("turn");
+    const scope = document.getElementById("turn")!;
+    const radios = () => [...scope.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+    check(radios()[0].checked && scope.textContent?.includes("/harness:init"), "setup default missing");
+    radios()[1].click(); await tick();
+    check(scope.textContent?.includes("$harness-init") && !scope.textContent?.includes("/harness:init"), "setup guidance not selected");
+    await click("Show work");
+    check(radios()[1].checked && scope.textContent?.includes("$harness-resume"), "setup selection lost on work");
+    for (const button of buttons(scope).filter(button => button.textContent === "Copy")) {
+      const displayed = button.previousElementSibling?.textContent;
+      button.click(); await tick(); check(controls.writes.at(-1) === displayed, "banner copy differs"); controls.finishCopy(true); await tick();
+    }
+    check(!scope.textContent?.includes("/harness:watch"), "Codex banner advertises watch");
+    await click("Show compact tab"); check(radios().length === 0, "compact banner expanded");
+    await click("Show board tab"); check(radios()[1].checked, "tab navigation lost selection");
+    await click("Show inbox tab"); check(radios()[1].checked, "inbox navigation lost selection");
+    await click("Change banner project"); check(radios()[0].checked && scope.textContent?.includes("/harness:watch"), "project did not reset selection");
+    radios()[1].click(); await tick(); await click("Show setup");
+    check(radios()[1].checked && scope.textContent?.includes("$harness-init"), "work selection lost on setup");
+    check(controls.payloads.length === 0 && controls.submissions.length === 0 && controls.refreshes === 0, "banner choice caused a mutation");
+  });
   for (const outcome of ["success", "error", "stale", "unknown"] as const) await run(`pipeline ${outcome}`, "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome", async () => {
     await mount("pipeline"); await click("Remove");
     const open = buttons().find(button => button.textContent?.trim() === "+"); if (open) { open.click(); await tick(); }

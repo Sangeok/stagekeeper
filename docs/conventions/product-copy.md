@@ -240,6 +240,19 @@ check are the skill's to say (§15), so the web does not repeat them and cannot 
 > Open the repository in your coding client with the token set. Use `/harness:init` in Claude Code or `$harness-init` in Codex; it connects the repository and tells you the next steps.
 <!-- /copy-lock -->
 
+The server setup detail above remains neutral. The banner selects one of the following
+display details using its local coding-client choice. The same choice drives next-step
+commands, survives setup/work changes and tab navigation within a project, and resets to
+Claude when the project slug changes.
+
+<!-- copy-lock:turn-banner-connect-claude -->
+> Open the repository in Claude Code with the token set. Use `/harness:init`; it connects the repository and tells you the next steps.
+<!-- /copy-lock -->
+
+<!-- copy-lock:turn-banner-connect-codex -->
+> Open the repository in Codex with the token set. Use `$harness-init`; it connects the repository and tells you the next steps.
+<!-- /copy-lock -->
+
 ## 6. Board
 
 Board is status only: (turn banner) · **Activity** · **Team**. Decision cards live on Inbox.
@@ -515,6 +528,27 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
 > `/harness:init`
 > With the variable set, init registers a `harness_owner` server once per machine. There is no approval prompt — user-scope servers load on their own.
 > Owner MCP server URL: `http://…/api/mcp/owner`
+<!-- /copy-lock -->
+
+Owner token reveal also defaults to Claude and offers a local Codex choice. A new token
+or owner MCP URL resets the choice to Claude. Choosing a client only changes the displayed
+instructions; it does not register an MCP server or change token permissions. Codex
+registers the owner connection explicitly from the terminal, because `$harness-init`
+registers only the agent connection. The command contains the environment variable name
+and the quoted owner URL, never the token value.
+
+<!-- copy-lock:owner-token-reveal-codex -->
+> This is the only time the token is shown. Stagekeeper stores a hash, not the token.
+> This token stays valid until you revoke it or its chosen expiry is reached. Restarting a terminal or Codex does not expire it.
+> Save the token in a secure secret store if you want to reuse it. Do not paste it into a chat or commit it to your repository.
+> If you did not save the token, issue a new one and revoke the old token when you no longer use it.
+> **1. Set it in the same shell as your agent token**
+> It's yours, not the project's. The MCP registration stores only a `${HARNESS_OWNER_TOKEN}` reference; agents never see the value.
+> This environment variable lasts only in this terminal. In a new terminal, set the same token again from your secure storage before starting Codex.
+> PowerShell `$env:HARNESS_OWNER_TOKEN = "ho_…"` · bash / zsh `export HARNESS_OWNER_TOKEN="ho_…"` — **Copy** / "Copied"
+> **2. Register the owner connection from that shell, then restart Codex**
+> Run this in the terminal that will start Codex. It registers only the owner connection and stores the environment variable name, never the token value.
+> Owner approvals use this connection in the main session. Independent role sessions do not load it.
 <!-- /copy-lock -->
 
 **Account tokens** — `/settings/tokens`. 프로젝트 밖의 계정 단위 경로이고 `/billing`이 그 선례다.

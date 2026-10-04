@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { copyLock, lockFailure, missingUnits, visibleText } from "@/fsd/shared/lib/copy-lock";
-import { OwnerTokenReveal } from "./owner-token-reveal";
+import { OwnerTokenReveal, OwnerTokenRevealView } from "./owner-token-reveal";
 import { TokenReveal, TokenRevealView } from "./token-reveal";
 
 it("ships the public init reuse guidance through the bumped plugin package", () => {
@@ -67,6 +67,14 @@ describe("TokenReveal follows product-copy.md §9", () => {
 });
 
 describe("OwnerTokenReveal follows product-copy.md §9", () => {
+  it("shows the Codex owner connection without implying init registers it", () => {
+    const html = renderToStaticMarkup(createElement(OwnerTokenRevealView, { token: "ho_…", ownerMcpUrl: "http://fixture.test/api/mcp/owner", client: "codex", onClientChange: () => {} }));
+    assertLocked(["owner-token-reveal-codex"], html);
+    const text = visibleText(html);
+    assert.match(text, /codex mcp add harness_owner --url 'http:\/\/fixture.test\/api\/mcp\/owner' --bearer-token-env-var HARNESS_OWNER_TOKEN/);
+    assert.doesNotMatch(text, /\/harness:init|\$harness-init|harness:watch/);
+  });
+
   it("shows the owner block", () => {
     const html = renderToStaticMarkup(createElement(OwnerTokenReveal, { token: "ho_…", ownerMcpUrl: "http://…/api/mcp/owner" }));
     assertLocked(["owner-token-reveal"], html);
