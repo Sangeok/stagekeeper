@@ -62,7 +62,7 @@ function activityItem(row: BoardRow, today: Date): ActivityItem {
       const days = dayTag(row.proposedOn, today);
       return {
         ...item,
-        line: days === "" ? "plan submitted · in review" : `plan submitted · in review for ${days}`,
+        line: days === "" ? "plan submitted · in review" : `plan submitted · proposed ${days} ago`,
         tone: "pending",
       };
     }
@@ -94,7 +94,7 @@ function pmState(rows: readonly BoardRow[]): string {
 // 상태(in_review)로 판단하면 검증 전·검증 중·검증이 끝나고 게이트에서 기다리는 동안이 전부
 // "Verifying"이 된다. 자리는 상태가 아니라 런의 커서가 말한다 — workerState와 같은 규칙.
 function verifierState(rows: readonly BoardRow[]): string {
-  const atVerify = rows.filter((row) => row.node === "verify");
+  const atVerify = rows.filter((row) => row.node === "verify" && row.status !== "on_hold");
   const working = atVerify.find((row) => row.dispatched);
   if (working) return `Verifying ${working.backlogItem.key}`;
   // 디스패치 전이면 그 사람은 일하는 중이 아니라 불리기를 기다린다.

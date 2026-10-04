@@ -1,6 +1,6 @@
 import { approveGate, discardItem, humanTransition, loadInboxItems } from "@/fsd/features/review-gate/index.server";
 import { inboxReadOnlyLabel } from "@/fsd/features/review-gate";
-import { ProjectInboxPage } from "@/fsd/pages/project-inbox";
+import { ProjectInboxPage } from "@/fsd/pages/project-inbox/index.server";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { projectAccess } from "@/server/entitlement";
 

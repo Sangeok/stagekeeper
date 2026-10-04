@@ -7,6 +7,15 @@ import { toInboxItems, gateCardKey } from "./inbox-item";
 const repo = { owner: "o", repo: "r", branch: "main" };
 const at = (iso: string) => new Date(iso);
 
+it("Inbox plan destinations retain raw reserved path/ref data without query or fragment", () => {
+  const path = "docs/#?% 한글.md";
+  const [item] = toInboxItems([boardRow({ planPath: path, planCommit: "commit/#?%" })], { ...repo, branch: "feature/branch" });
+  assert.ok(item?.planUrl);
+  const url = new URL(item.planUrl);
+  assert.equal(url.hash, ""); assert.equal(url.search, "");
+  assert.equal(url.pathname.split("/").map(decodeURIComponent).join("/"), `/o/r/blob/commit/#?%/${path}`);
+});
+
 it("card identity distinguishes entries and pipeline runs even when clocks are equal", () => {
   const [item] = toInboxItems([boardRow({})], repo);
   const bound = { ...item, format: "slots-v1", gateEntry: { runId: "run", entryId: "entry" } };

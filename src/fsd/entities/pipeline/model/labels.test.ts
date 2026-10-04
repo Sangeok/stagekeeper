@@ -8,6 +8,13 @@ import { autoEdgeLabel, gateLabel, nodeAgentLabel, nodeLabel } from "./labels";
 
 const ROSTER = ["dev", "web-dev"];
 
+it("unknown and inherited keys remain strings in node and auto-edge labels", () => {
+  for (const kind of ["constructor", "toString", "__proto__", "unknown"]) {
+    assert.equal(nodeLabel(kind), kind);
+    assert.equal(autoEdgeLabel(kind), `auto → ${kind.toLowerCase()}`);
+  }
+});
+
 it("auto labels cover every non-Propose node and repeated project slots", () => {
   assert.deepEqual((NODE_KINDS as string[]).map(autoEdgeLabel), [null, "auto → planning", "auto → verify", "auto → implementing", "auto → accept", "auto → doc audit", "auto → scout"]);
   for (const [kind, label] of [["doc-auditor", "doc audit"], ["feature-scout", "scout"], ["doc-auditor#2", "doc audit #2"], ["feature-scout#2", "scout #2"]]) assert.equal(autoEdgeLabel(kind), `auto → ${label}`);

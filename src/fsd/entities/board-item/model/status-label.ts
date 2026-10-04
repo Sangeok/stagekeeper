@@ -12,5 +12,5 @@ export const STATUS_LABEL: Record<string, string> = {
 // 보드에 없는 백로그 항목은 null이다. 모르는 식별자는 그대로 보여 준다 — 숨기면 디버깅이 늦어진다.
 export function statusLabel(status: string | null): string {
   if (status === null) return "Not on board";
-  return STATUS_LABEL[status] ?? status;
+  return Object.prototype.hasOwnProperty.call(STATUS_LABEL, status) ? STATUS_LABEL[status] : status;
 }

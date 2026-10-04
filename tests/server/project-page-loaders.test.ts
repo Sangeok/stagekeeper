@@ -5,9 +5,49 @@ import ts from "typescript";
 import { buildBriefing } from "../../src/fsd/pages/project-board/model/briefing";
 import { loadModule } from "./fixtures/load-module";
 import { manifestEntries } from "./fixtures/action-manifest";
+import { SLOT_FORMAT } from "@harness/core/pipeline.mjs";
 
 const boardPath = "src/fsd/pages/project-board/api/project-board.server.ts";
 const historyPath = "src/fsd/pages/project-history/api/project-history.server.ts";
+
+it("Board loader queries all open project runs and binds only null-key project slots to the current entry", async () => {
+  const at = new Date("2026-10-04T00:00:00Z");
+  const row = { id: "item", agent: "dev", status: "implementing", reason: "Evidence", results: [], proposedOn: at, backlogItem: { key: "KEY" } };
+  const base = { key: null as string | null, agent: "doc-auditor", pipelineRunId: "run", pipelineEntryId: "entry", projectId: "owned", closedAt: null as Date | null };
+  const cases = [
+    { label: "bound", agent: base, expected: true },
+    { label: "other pipeline", agent: { ...base, pipelineRunId: "other" }, expected: false },
+    { label: "other entry", agent: { ...base, pipelineEntryId: "other" }, expected: false },
+    { label: "other dispatcher", agent: { ...base, agent: "feature-scout" }, expected: false },
+    { label: "missing binding", agent: { ...base, pipelineEntryId: null }, expected: false },
+    { label: "other project", agent: { ...base, projectId: "foreign" }, expected: false },
+    { label: "closed", agent: { ...base, closedAt: at }, expected: false },
+    { label: "legacy null key", agent: base, format: null, expected: false },
+    { label: "missing current entry", agent: base, entryId: null, expected: false },
+    { label: "gate", agent: base, node: "before-doc-auditor#2", expected: false },
+    { label: "accept", agent: base, node: "accept", expected: false },
+    { label: "no pipeline", agent: base, noPipeline: true, expected: false },
+    { label: "no execution", noExecution: true, agent: base, expected: false },
+    ...[null, SLOT_FORMAT].map(format => ({ label: `loose keyed ${format}`, format, agent: { ...base, key: "KEY", pipelineRunId: "other", pipelineEntryId: "other" }, expected: true })),
+  ];
+  for (const example of cases) {
+    const pipeline = { id: "run", boardItemId: "item", entryId: "entryId" in example ? example.entryId : "entry", version: { format: "format" in example ? example.format : SLOT_FORMAT }, node: "node" in example ? example.node : "doc-auditor#2" };
+    const deps = {
+      "../model/briefing": { buildBriefing }, "@/server/pipeline/board": { latestBoard: async () => [row] },
+      "@/server/db": { prisma: {
+        pipelineRun: { findMany: async (query: unknown) => { assert.deepEqual(JSON.parse(JSON.stringify(query)), { where: { closedAt: null, boardItem: { projectId: "owned" } }, select: { id: true, entryId: true, version: { select: { format: true } }, boardItemId: true, node: true } }); return "noPipeline" in example ? [] : [pipeline]; } },
+        agentRun: { findMany: async (query: unknown) => { assert.deepEqual(JSON.parse(JSON.stringify(query)), { where: { projectId: "owned", closedAt: null }, select: { key: true, agent: true, pipelineRunId: true, pipelineEntryId: true } }); return "noExecution" in example || example.agent.projectId !== "owned" || example.agent.closedAt !== null ? [] : [example.agent]; } },
+      } },
+      "@/server/project": { loadProjectRoster: async () => ["dev"] },
+      "@/server/pipeline/run": { loadCurrentVersionView: async () => ({ graph: { nodes: ["plan", "implement", "accept", "doc-auditor#2"] } }) },
+    };
+    const loader = loadModule<typeof import("../../src/fsd/pages/project-board/api/project-board.server")>(boardPath, deps);
+    const output = await loader.loadProjectBoard("owned", at);
+    assert.equal(output.activity[0].tone === "active", example.expected, example.label);
+    const state = output.team.find(member => member.agent === "doc-auditor")?.state;
+    assert.equal(state?.startsWith("Working on"), example.expected, example.label);
+  }
+});
 
 it("actual Board loader keeps loose key/agent dispatch and maps a gate separately", async () => {
   const at = new Date("2026-10-04T00:00:00Z");

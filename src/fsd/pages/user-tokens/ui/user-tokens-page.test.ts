@@ -17,6 +17,8 @@ it("renders account scope, all usage states and seven-column empty layout", () =
   assert.equal((html.match(/<th(?:\s|>)/g) ?? []).length, 14);
   for (const text of [/Unknown/, /Never used/, /2026-10-02 03:04 UTC/, /user:used/, /Revoked/, /does not replace an owner token/, /Create separate tokens/]) assert.match(html, text);
   assert.equal((html.match(/>Revoke</g) ?? []).length, 2);
+  assert.equal((html.match(/<h2 /g) ?? []).length, 2);
+  assert.equal((html.match(/>Save name</g) ?? []).length, 3);
   const empty = renderToStaticMarkup(createElement(UserTokensPage, { ...props, tokens: [] }));
   assert.match(empty, /colSpan="7"|colspan="7"/);
 });

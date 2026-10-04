@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { statusLabel } from "@/fsd/entities/board-item";
+import { gateActionLabel, gateActionHint } from "@/fsd/entities/pipeline";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { PROJECT_TABS } from "@/fsd/shared/routes/project";
 import { projectsPath } from "@/fsd/shared/routes/projects";
@@ -178,10 +179,10 @@ function InboxDemo() {
             <span className="font-mono text-quiet">669476a</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-            <span className={buttonClass("mine")}>Approve implementation</span>
+            <span className={buttonClass("mine")}>{gateActionLabel("before-implement")}</span>
             <span className="text-xs text-quiet underline underline-offset-2">Read the plan ↗</span>
           </div>
-          <p className="text-xs text-quiet">Approving lets dev change code. Then you run dev in Claude Code.</p>
+          <p className="text-xs text-quiet">{gateActionHint("before-implement")}</p>
         </div>
       </div>
     </div>

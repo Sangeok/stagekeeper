@@ -1,15 +1,14 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
-import { isTokenActive } from "@harness/core/token-validity.mjs";
 import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
-import { TokenUsage, TokenStatus, TokenExpiry } from "@/fsd/entities/project-token";
+import type { TokenRow as EntityTokenRow } from "@/fsd/entities/project-token";
+import { TokenTable } from "@/fsd/entities/project-token/index.server";
 import { NewOwnerTokenForm, NewTokenForm, RenameTokenForm, OWNER_TOKEN_PLAN_GATE } from "@/fsd/features/manage-token";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";
-import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 
-export type TokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null; expiresAt: Date | null; lastUsedAt: Date | null; usageTrackingStartedAt: Date | null };
+export type TokenRow = EntityTokenRow;
 
 type Props = {
   issueAllowed: boolean;
@@ -27,61 +26,6 @@ type Props = {
   revokeOwner: (tokenId: string) => Promise<void>;
   renameOwner: (tokenId: string, label: string) => Promise<ActionResult<null>>;
 };
-
-const day = (d: Date) => d.toISOString().slice(0, 10);
-
-function TokenTable({ tokens, revoke, rename, at, reference, empty }: { tokens: TokenRow[]; revoke: (tokenId: string) => Promise<void>; rename: Props["rename"] | null; at: Date; reference: string; empty: string }) {
-  return (
-    <div className="flex flex-col gap-4">
-    {[true, false].map((active) => (
-      <section key={String(active)} className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">{active ? "Active tokens" : "Ended tokens"}</h3>
-        <Table>
-          <thead>
-            <tr>
-              <Th>Token name</Th>
-              <Th>Issued</Th>
-              <Th>Last used</Th>
-              <Th>Expires</Th>
-              <Th>Status</Th>
-              <Th>Reference</Th>
-              <Th />
-            </tr>
-          </thead>
-          <tbody>
-            {!tokens.some((t) => isTokenActive(t, at) === active) ? (
-              <Tr>
-                <Td colSpan={7} className="text-quiet">
-                  {active ? tokens.length === 0 ? empty : "No active tokens." : "No ended tokens."}
-                </Td>
-              </Tr>
-            ) : null}
-            {tokens.filter((t) => isTokenActive(t, at) === active).map((t) => (
-              <Tr key={t.id} className={!active ? "text-quiet" : undefined}>
-                <Td>{rename ? <RenameTokenForm label={t.label} rename={rename.bind(null, t.id)} /> : t.label}</Td>
-                <Td className="font-mono text-xs">{day(t.createdAt)}</Td>
-                <Td><TokenUsage lastUsedAt={t.lastUsedAt} usageTrackingStartedAt={t.usageTrackingStartedAt} /></Td>
-                <Td><TokenExpiry expiresAt={t.expiresAt} /></Td>
-                <Td><TokenStatus revokedAt={t.revokedAt} expiresAt={t.expiresAt} at={at} />{t.revokedAt ? ` ${day(t.revokedAt)}` : null}</Td>
-                <Td className="font-mono text-xs text-quiet">{reference}:{t.id}</Td>
-                <Td className="text-right">
-                  {t.revokedAt ? null : (
-                    <form action={revoke.bind(null, t.id)}>
-                      <Button size="sm" type="submit">
-                        Revoke
-                      </Button>
-                    </form>
-                  )}
-                </Td>
-              </Tr>
-            ))}
-          </tbody>
-        </Table>
-      </section>
-    ))}
-    </div>
-  );
-}
 
 export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, rename, renameOwner, at, ownerMcpUrl, ownerTokens, ownerAllowed, issueOwner, revokeOwner, issueAllowed }: Props): ReactElement {
   return (
@@ -103,7 +47,10 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, rename, renam
 
       {issueAllowed ? <NewTokenForm issue={issue} mcpUrl={mcpUrl} /> : null}
 
-      <TokenTable tokens={tokens} revoke={revoke} rename={issueAllowed ? rename : null} at={at} reference="token" empty={issueAllowed ? "No tokens yet. Issue one above." : "No tokens yet."} />
+      <TokenTable tokens={tokens} at={at} reference="token" headingLevel={3}
+        empty={issueAllowed ? "No tokens yet. Issue one above." : "No tokens yet."}
+        renderName={(row) => issueAllowed ? <RenameTokenForm label={row.label} rename={rename.bind(null, row.id)} /> : row.label}
+        renderRevoke={(row) => <form action={revoke.bind(null, row.id)}><Button size="sm" type="submit">Revoke</Button></form>} />
 
       <section className="flex flex-col gap-1">
         <h2 className="text-lg font-semibold tracking-tight">Owner token</h2>
@@ -125,8 +72,9 @@ export function ProjectTokensPage({ mcpUrl, tokens, issue, revoke, rename, renam
       {/* Free에는 위에 발급 폼이 없으므로 "Issue one above"를 가리킬 수 없다 — 문구를 플랜에 맞춘다. 표 자체는 남긴다: 플랜이 내려간 뒤에도 남은 토큰을 폐기할 수 있어야 한다. */}
       <TokenTable
         tokens={ownerTokens}
-        revoke={revokeOwner}
-        rename={issueAllowed ? renameOwner : null}
+        headingLevel={3}
+        renderName={(row) => issueAllowed ? <RenameTokenForm label={row.label} rename={renameOwner.bind(null, row.id)} /> : row.label}
+        renderRevoke={(row) => <form action={revokeOwner.bind(null, row.id)}><Button size="sm" type="submit">Revoke</Button></form>}
         at={at}
         reference="owner"
         empty={ownerAllowed ? "No owner tokens yet. Issue one above." : "No owner tokens."}

@@ -26,6 +26,7 @@ it("renders active and ended seven-column tables, scopes and recorded usage whil
   assert.match(html, /Unknown/); assert.match(html, /Never used/); assert.match(html, /2026-10-02 03:04 UTC/);
   assert.match(html, /owner:old-owner/); assert.match(html, /Revoked/);
   assert.equal((html.match(/>Revoke</g) ?? []).length, 2);
+  assert.equal((html.match(/<h3 /g) ?? []).length, 4);
 });
 
 it("keeps Free owner revocation and hides issue forms for unavailable projects", () => {
@@ -33,10 +34,11 @@ it("keeps Free owner revocation and hides issue forms for unavailable projects",
     const html = renderToStaticMarkup(createElement(ProjectTokensPage, {
       issueAllowed, ownerAllowed: false, issue, issueOwner: issue, revoke, revokeOwner: revoke, rename: async () => ({ success: true as const, data: null }), renameOwner: async () => ({ success: true as const, data: null }), at: new Date("2026-10-02T06:00:00Z"),
       mcpUrl: "http://example.test/api/mcp", ownerMcpUrl: "http://example.test/api/mcp/owner",
-      tokens: [], ownerTokens: [row("leftover")],
+      tokens: [], ownerTokens: [row("leftover", { expiresAt: new Date("2026-10-01T00:00:00Z") })],
     }));
     assert.match(html, /colSpan="7"|colspan="7"/); assert.match(html, />Revoke</);
     assert.doesNotMatch(html, /Issue owner token/);
     if (!issueAllowed) assert.doesNotMatch(html, /Issue token|Issue one above/);
+    assert.equal(html.includes("Save name"), issueAllowed, "owner rename follows project availability, including Free");
   }
 });

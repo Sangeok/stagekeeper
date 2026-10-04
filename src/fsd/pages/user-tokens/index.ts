@@ -1,1 +1,1 @@
-export { UserTokensPage, type UserTokenRow } from "./ui/user-tokens-page";
+export type { UserTokenRow } from "./ui/user-tokens-page";

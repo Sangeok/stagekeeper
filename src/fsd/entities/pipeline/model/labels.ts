@@ -2,7 +2,7 @@ import { slotAgent, NODE_KINDS, gateKind, gateId, boundaryOf } from "@harness/co
 
 const LABEL: Record<string, string> = { propose: "Propose", plan: "Plan", verify: "Verify", implement: "Implement", accept: "Accept", "doc-audit": "Doc audit", scout: "Scout" };
 export const nodeLabel = (kind: string): string => {
-  if (LABEL[kind]) return LABEL[kind];
+  if (Object.prototype.hasOwnProperty.call(LABEL, kind)) return LABEL[kind];
   const agent = slotAgent(kind);
   if (agent === null) return kind;
   const label = agent === "doc-auditor" ? "Doc audit" : agent === "feature-scout" ? "Scout" : kind;
