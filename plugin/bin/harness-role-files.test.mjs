@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { linkSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRoleFiles, roleFileToolNames } from "../runtime/role-files.mjs";
@@ -60,6 +60,14 @@ it("refuses linked, binary, oversized and ambiguous Windows files with no token 
   assert.throws(() => f.files.call("role_file_write", { path: path.join(alias, "missing/new.txt"), content: "FORBIDDEN", expectedHash: null }));
   const aliasedPolicy = createRoleFiles({ ":root": "deny", [alias]: "write" }, "web-dev");
   assert.throws(() => aliasedPolicy.call("role_file_read", { path: path.join(alias, "outside.txt") }));
+  const nativeResolver = realpathSync.native;
+  try {
+    // An OS canonical spelling may preserve a mounted path. Real on-disk ancestor
+    // metadata must still refuse its junction, including a new write destination.
+    realpathSync.native = target => target;
+    assert.throws(() => aliasedPolicy.call("role_file_read", { path: path.join(alias, "outside.txt") }));
+    assert.throws(() => aliasedPolicy.call("role_file_write", { path: path.join(alias, "missing/new.txt"), content: "FORBIDDEN", expectedHash: null }));
+  } finally { realpathSync.native = nativeResolver; }
   aliasedPolicy.close();
   assert.equal(readFileSync(path.join(f.base, "outside.txt"), "utf8"), "OUTSIDE_CANARY");
   assert.throws(() => f.files.call("role_command_exec", { command: "anything" }));

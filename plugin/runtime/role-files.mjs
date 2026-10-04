@@ -64,17 +64,12 @@ export function createRoleFiles(filesystem, agent) {
       }
     }
     if (access(target) === "deny" || (write && access(target) !== "write")) throw new Error("File permission refused");
-    // The native resolver validates the entire existing chain in one OS call.
-    // Require its exact canonical spelling, then check the leaf type/link
-    // policy. A differing spelling (including Windows short names) takes the
-    // explicit ancestor checks below; no authority or path result is cached.
+    // Resolve once through the OS, but always inspect every ancestor's alias/link
+    // metadata: a canonical spelling alone is not a reparse-point authority check.
+    // Differing spellings (including Windows short names) get the JS fallback.
+    let nativeExact = false;
     try {
-      if (canonical(realpathSync.native(target)) === canonical(target)) {
-        const stat = lstatSync(target, { bigint: true });
-        if (stat.isSymbolicLink()) throw new Error("File alias refused");
-        if (stat.isFile() && stat.nlink !== 1n) throw new Error("Hard-linked file refused");
-        return target;
-      }
+      nativeExact = canonical(realpathSync.native(target)) === canonical(target);
     } catch (error) { if (error.code !== "ENOENT") throw error; }
     let current = parsed.root, existing = parsed.root;
     for (const segment of target.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
@@ -89,7 +84,7 @@ export function createRoleFiles(filesystem, agent) {
     // Resolve the complete existing chain once; resolving every prefix repeats
     // its ancestors for each dependency file. No path/permission result is cached:
     // callers recheck before and after IO, including aliases above the policy root.
-    if (canonical(realpathSync(existing)) !== canonical(existing)) throw new Error("File alias refused");
+    if (!nativeExact && canonical(realpathSync(existing)) !== canonical(existing)) throw new Error("File alias refused");
     return target;
   }
 
