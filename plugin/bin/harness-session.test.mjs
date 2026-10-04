@@ -4,14 +4,14 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
 import { dispatchBinding } from "./harness-codex.mjs";
-import { AppServer, childEnvironment, rolePermissions, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution } from "../runtime/codex-thread.mjs";
-import { ROLE_TOOLS, readCodexRole, renderCodexRole } from "../runtime/codex-agent.mjs";
+import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution } from "../runtime/codex-thread.mjs";
+import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
 
 function fixture() {
@@ -107,18 +107,49 @@ it("refuses modified role policies including owner tools, duplicate sections and
 
 it("neutralizes inherited servers/plugins/environment without copying their values and checks the effective policy", () => {
   const url = "http://127.0.0.1:1/capability", filesystem = { ":root": "deny", ":minimal": "read" };
-  const inherited = inheritedPolicyOverrides({ mcp_servers: { harness_owner: { bearer_token: "owner-secret" } }, plugins: { "other@market": { enabled: true } }, shell_environment_policy: { set: { HARNESS_OWNER_TOKEN: "parent-secret" } } }, url, ROLE_TOOLS["doc-auditor"]).join("\n");
+  const inherited = inheritedPolicyOverrides({ mcp_servers: { harness_owner: { bearer_token: "owner-secret" } }, plugins: { "other@market": { enabled: true } }, shell_environment_policy: { set: { HARNESS_OWNER_TOKEN: "parent-secret", PATH: "/private/parent-tools", Path: "/private/alias-tools" } } }, url, ROLE_TOOLS["doc-auditor"]).join("\n");
   assert.doesNotMatch(inherited, /owner-secret|parent-secret/);
   assert.match(inherited, /"harness_owner"=\{enabled=false\}/); assert.match(inherited, /"HARNESS_OWNER_TOKEN"=""/);
+  assert.doesNotMatch(inherited, /private\/parent-tools|private\/alias-tools/);
+  assert.ok(inherited.includes(`"PATH"=${JSON.stringify(roleCommandPath())}`));
+  assert.ok(inherited.includes(`"Path"=${JSON.stringify(roleCommandPath())}`));
   const config = { agents: { enabled: false }, approval_policy: "never", default_permissions: "harness-role", web_search: "disabled", project_doc_max_bytes: 0,
     features: { multi_agent: false, apps: false, hooks: false, memories: false, goals: false, code_mode: { enabled: false }, shell_tool: true, unified_exec: false },
     mcp_servers: { harness_owner: { enabled: false }, harness: { enabled: true, url, enabled_tools: ROLE_TOOLS["doc-auditor"], default_tools_approval_mode: "prompt", tools: Object.fromEntries(ROLE_TOOLS["doc-auditor"].map(name => [name, { approval_mode: "approve" }])), bearer_token_env_var: "HARNESS_ROLE_CAPABILITY" } }, plugins: { other: { enabled: false } },
-    permissions: { "harness-role": { extends: ":read-only", filesystem: { ...filesystem, glob_scan_max_depth: null }, network: { enabled: false } } }, shell_environment_policy: { inherit: "none", set: { HARNESS_OWNER_TOKEN: "" } } };
+    permissions: { "harness-role": { extends: ":read-only", filesystem: { ...filesystem, glob_scan_max_depth: null }, network: { enabled: false } } }, shell_environment_policy: { inherit: "none", set: { PATH: roleCommandPath(), HARNESS_OWNER_TOKEN: "" } } };
   assert.doesNotThrow(() => assertRolePolicy(config, filesystem, url, "doc-auditor"));
   assert.throws(() => assertRolePolicy({ ...config, sandbox_mode: "workspace-write" }, filesystem, url, "doc-auditor"));
+  for (const value of [undefined, "", "/private/parent-tools"]) {
+    const changed = structuredClone(config); changed.shell_environment_policy.set.PATH = value;
+    assert.throws(() => assertRolePolicy(changed, filesystem, url, "doc-auditor"));
+  }
   for (const mutate of [value => { value.mcp_servers.harness_owner.enabled = true; }, value => { value.permissions["harness-role"].filesystem["C:/extra"] = "write"; }, value => { value.features.multi_agent = true; }, value => { value.shell_environment_policy.set.HARNESS_OWNER_TOKEN = "secret"; }, value => { value.mcp_servers.harness.http_headers = { Authorization: "secret" }; }, value => { value.permissions["harness-role"].network.enabled = true; }, value => { value.mcp_servers.harness.default_tools_approval_mode = "approve"; }, value => { value.mcp_servers.harness.tools.agent_next.approval_mode = "prompt"; }, value => { value.mcp_servers.harness.tools.gate_approve = { approval_mode: "approve" }; }]) {
     const changed = structuredClone(config); mutate(changed); assert.throws(() => assertRolePolicy(changed, filesystem, url, "doc-auditor"));
   }
+});
+
+it("resolves POSIX read commands with only the fixed system PATH and no parent credentials", { skip: process.platform === "win32" }, () => {
+  const output = execFileSync("/bin/sh", ["-c", 'printf READ_CANARY | cat; test -z "${HARNESS_OWNER_TOKEN:-}"'], { encoding: "utf8", env: { PATH: roleCommandPath() } });
+  assert.equal(output, "READ_CANARY");
+  assert.equal(roleCommandPath("linux"), "/usr/local/bin:/usr/bin:/bin");
+  assert.ok(roleCommandPath("win32").split(";").every(directory => path.win32.isAbsolute(directory)));
+});
+
+it("copies the complete verifier into scratch without copying credential siblings or permitting a changed package", () => {
+  const owner = mkdtempSync(path.join(tmpdir(), "harness-verifier-owner-"));
+  const packageRoot = path.join(owner, "skills/reconciling-proposals-with-codebase"), scratch = mkdtempSync(path.join(tmpdir(), "harness-verifier-stage-"));
+  mkdirSync(path.join(packageRoot, "references"), { recursive: true });
+  writeFileSync(path.join(owner, "auth.json"), "credential-sibling-canary");
+  writeFileSync(path.join(packageRoot, "SKILL.md"), "---\nname: reconciling-proposals-with-codebase\n---\n[Required resource](references/required.md)\n");
+  writeFileSync(path.join(packageRoot, "references/required.md"), "Complete supporting instructions");
+  const expected = verifierPackage(packageRoot), staged = stageVerifierPackage(expected, scratch);
+  assert.equal(staged.checksum, expected.checksum); assert.equal(staged.files, 2);
+  assert.ok(staged.path.startsWith(scratch + path.sep));
+  assert.equal(readFileSync(path.join(path.dirname(staged.path), "references/required.md"), "utf8"), "Complete supporting instructions");
+  assert.equal(existsSync(path.join(path.dirname(staged.path), "auth.json")), false);
+  assert.throws(() => stageVerifierPackage(expected, scratch));
+  writeFileSync(path.join(packageRoot, "references/required.md"), "Changed after init");
+  assert.throws(() => stageVerifierPackage(expected, mkdtempSync(path.join(tmpdir(), "harness-verifier-changed-"))), /changed while staging/);
 });
 
 it("requires actual sandbox execution without replacing named permissions or starting a model", async () => {

@@ -43,8 +43,9 @@ related:
 - T53–T56의 기존 NOT RUN 행은 당시 기록으로 유지한다. 2026-10-04 현재 제품 어댑터를 실제 모델로 시험해 MCP 승인 설정 결함을 수정했다. 이후 MCP 호출은 실행됐지만 허용 읽기/scratch 쓰기는 Windows sandbox의 root-read 요구로 BLOCKED다. 전체 역할 격리·verifier 인수는 미완료다.
 - `plugin/templates` 별도 private 저장소에는 수정 7개와 신규 `en/CODEX.runbook.md`가 미커밋 상태다. 운영 seed·배포는 수행하지 않았다.
 - 실제 PM 모델의 pending MCP 요청에서 stop → interrupt → interrupted → bridge/child 종료 → release를 확인했다. 종료 전 release와 동시 Claude session 시작은 거부됐다. fixture MCP를 사용했으므로 실제 두 CLI/browser 승인 재개나 혼합 버전 호스트 인수의 완료 근거가 아니다.
-- 후속 진행 지시로 WSL2 Ubuntu 26.04.1과 별도 Linux 사용자/checkout을 준비했다. 동일한 CLI 0.160.0과 `:root="deny"` 정책으로 모델 없는 실제 파일 명령을 시험했다. 허용 읽기와 scratch 쓰기는 성공했고 저장소 밖 읽기·저장소/Git 메타데이터 쓰기는 차단됐다. 이 결과는 파일 명령 호스트의 제한된 통과이며 실제 모델/전체 verifier 인수의 완료가 아니다. Linux CLI는 Windows 인증 파일 복사 없이 별도로 로그인해야 한다.
-- C4 자동 watch 어댑터·명령·skill은 미구현이다. Linux 모델 없는 파일 시험은 통과했지만 실제 역할·완전한 독립 verifier·승인 재개 인수는 남아 있으므로 C4 구현·110분 idle 시험을 시작하지 않았다. 승인 범위를 유지하고 남은 기본 인수를 먼저 실행한다.
+- 후속 진행 지시로 WSL2 Ubuntu 26.04.1과 별도 Linux 사용자/checkout을 준비했다. CLI 0.160.0에 native ChatGPT 로그인을 완료했고 Windows 인증 파일은 복사하지 않았다. 실제 모델 시험에서 PATH 제거로 읽기 명령이 실패하고, owner `.codex` 안의 스킬은 목록에 나타나도 읽지 못하는 결함을 발견했다. 고정 시스템 PATH와 checksum을 검증한 완전한 스킬의 읽기 전용 scratch 복사본으로 수정했다. root deny·인증 디렉터리 차단·network/approval 정책은 유지했다.
+- 수정 후 bounded 실제 역할의 읽기/scratch 쓰기, 실제 private working-source verifier의 네 검증 경로, 모델 없는 staged skill·외부 경로·저장소/Git 권한 경계가 통과했다. verifier는 시험 제안서의 설명 불일치 1건을 찾아냈고, 그 시험 문서만 수정한 별도 fresh 실행에서 0 defects를 반환했다. 이 결과는 현재 C4 문서나 운영 winning package를 검증한 결과가 아니다. Linux native pending turn도 종료 전 반납·중복 시작을 거부하고 interrupt/실제 종료 후 자신의 잠금을 반납했다.
+- C4 자동 watch 어댑터·명령·skill은 미구현이다. 실제 양방향 CLI/browser 승인 재개와 혼합 호스트 인수가 남아 있어 C4 구현·110분 idle 시험을 시작하지 않았다. Linux Claude 2.1.288 설치는 완료했으며 당시 auth status는 none이었다. 별도 native 로그인을 요청했고, 승인 원장 시험용 격리 DB를 준비한다. 승인 범위를 유지하고 남은 기본 인수를 먼저 실행한다.
 
 ## Scope
 
@@ -74,6 +75,8 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 
 2026-10-04 후속 실행: 사용자의 진행 지시 후 [공식 WSL 안내](https://learn.chatgpt.com/docs/windows/wsl)에 따라 WSL2 Ubuntu와 Linux 파일시스템의 별도 checkout을 준비했다. 사용자 홈에 설치된 CLI 실행 파일은 sandbox의 최소 시스템 경로 밖이라 bubblewrap에서 실행되지 않았다. 같은 hash의 CLI와 리소스를 새 Linux 배포판의 `/usr/local/lib`에 root 소유로 설치하고 `/usr/local/bin`에서 실행하자 허용 읽기/scratch와 금지 경로 시험이 통과했다. 역할 정책·커널/AppArmor 설정은 완화하지 않았다. Windows 자격 증명은 복사하지 않고 [native device 로그인](https://learn.chatgpt.com/docs/auth)을 요청했다. 실제 모델·완전한 verifier·승인 재개가 통과해야 C4 구현 순서로 넘어간다.
 
+2026-10-04 로그인 후 실행: 실제 모델은 MCP를 호출했지만 `inherit="none"` 셸의 PATH가 없어 `cat` 읽기가 실패했다. 상속 PATH를 전달하지 않고 고정 시스템 도구 경로를 설정했으며 POSIX preflight에 `cat` 경로 확인을 추가했다. 실제 전체 verifier는 owner 스킬을 읽지 못해 네 경로를 NOT RUN/blocked로 올바르게 보고했다. 원본 패키지 8개 파일만 scratch에 복사하고 원본·복사본 checksum과 파일 수를 재검증해, 이 하위 경로를 읽기 전용으로 제한했다. 실제 loader의 정확한 staged 경로만 활성화한 새 모델은 baseline·정확한 계획 sketch의 scratch destination·import/export·citation/최종 reread를 실행했다. 발견한 시험 문서 결함과 수정 후 별도 0-defect 실행, kernel write 거부 및 pending stop 증거는 [WSL 역할 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/observations.json)에 보존한다. 실제 승인 재개·혼합 CLI/host와 패키지 인수는 이 bounded 통과로 대체하지 않는다.
+
 **TASK-C4-01:** 실제 호스트 기능을 먼저 확인하고 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 watch session/정책 main-loop reuse, no-model idle, permission relay, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 구현한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
 
 **TASK-C4-02 / E12:** 실제 thread/turn/session에서 110분 no-model idle, 작업 발견·재진입·gate 대기/승인·handoff·auth/cap/permission·stop/interrupt·늦은 이벤트·ownership 상실 후 rearm 없음과 Claude watch 회귀를 시험한다. latency·poll/model 호출 수·종료 이유를 기록한다. pending stop은 실제 종료 확인 전 잠금과 ownership을 유지해야 하며 확인 실패 시 잠금을 보존한다. E10의 watch 안내는 관찰한 호스트·버전·방식에 한정한다.
@@ -89,6 +92,7 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 | active runtime 보고서와 최종 watch 보고서 | revision·직접 관찰·정리 결과 기록 | medium — 증거 범위 과장 방지 |
 | `plugin/bin/harness-session.test.mjs`, `plugin/codex/skills/harness-run/SKILL.md`, `docs/architecture/protocol.md` | 실제 실행 preflight·역할 MCP 승인 정책의 회귀와 사용 지침 | high — 허용 도구 실행과 권한 경계 |
 | `scripts/rehearse-dual-client-runtime.ts` 및 test | 실제 기록 추가 중 발견한 CRLF 보고서 append 오류 수정 | medium — 기존 증거 행 보존 |
+| `plugin/bin/harness-watch.test.mjs` | 전체 검증에서 드러난 cold-process HTTP 연결 시간과 응답 timeout 시험의 경계 수정 | low — five-retry/cleanup 단언은 유지 |
 
 ## Safety Analysis
 
@@ -111,11 +115,15 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 
 ## Verification Results
 
-2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. Windows 실제 모델의 MCP 호출과 pending stop/잠금 반납을 확인했고 Windows 파일 명령은 BLOCKED였다. 후속 WSL2 모델 없는 실제 파일 시험에서는 허용 읽기/scratch, 금지된 외부 읽기·저장소/Git 쓰기 차단을 확인했다. Linux 실제 모델·전체 verifier·승인 재개는 별도 로그인 후 실행해야 한다. C4·110분 idle·양방향 승인/재개·실제 패키지·운영 배포는 미실행이다. 새 관찰·사용량·소스 hash와 기존 실패 이력은 [active runtime 보고서](../../test-reports/active/dual-client-runtime-report.md)에 함께 기록한다.
+2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. 최초 Windows 단계에서는 MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. Windows 실제 모델의 MCP 호출과 pending stop/잠금 반납을 확인했고 Windows 파일 명령은 BLOCKED였다. 후속 WSL2 모델 없는 실제 파일 시험에서는 허용 읽기/scratch, 금지된 외부 읽기·저장소/Git 쓰기 차단을 확인했다. 당시 별도 Linux 로그인과 실제 모델/전체 verifier는 미실행이었다. 로그인 후의 추가 관찰은 아래에 구분하고 기존 실패 이력은 보존한다.
+
+로그인 후 단계에서는 PATH와 verifier 패키지 접근 결함을 실제 모델로 재현·수정했다. 실제 bounded 역할 및 private working-source verifier의 네 경로·실제 결함 탐지·별도 clean-fixture 최종 reread, staged package kernel 권한과 Linux native pending stop이 통과했다. actual App Server token 합계와 phase별 runtime/role/package hash, 원본 문서 불변·receipt·cleanup 범위는 [WSL 역할 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/observations.json)에 기록한다. CLI token 합계는 서버 사용량 횟수나 금액이 아니다. Windows source와 Linux 실행 runtime hash가 일치한다. 초기 PATH 실패와 skill blocked도 삭제하지 않는다.
+
+최종 Windows session은 12 PASS/1 POSIX skip, Linux session은 13 PASS다. 전체 core/plugin은 Windows 288 PASS/1 POSIX skip, Linux 289 PASS/0 skip이며 `npm run check`와 `build`가 통과했다. 초기 전체 및 단독 watch response-timeout 시험은 50ms 안에 HTTP listener까지 도착하지 않은 요청 때문에 실패했다. 시험의 요청 제한을 200ms로 바꾸고 five-retry/cleanup 단언을 유지한 뒤 targeted/전체 시험이 통과했다. [최종 검증 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/checks.json)은 동일 source hash와 native verifier TAP 관찰 범위도 보존한다. 과거 검증 횟수는 아래에 당시 기록으로 유지한다. C4·110분 idle·실제 양방향 CLI/browser 승인·설치된 winning package·운영 배포는 완료되지 않았다. 새 관찰·사용량·소스 hash와 기존 실패 이력은 [active runtime 보고서](../../test-reports/active/dual-client-runtime-report.md)에 함께 기록한다.
 
 로컬 검증은 session 11개, core/plugin 287개, report 27개 PASS이며 Windows 파일 symlink 권한 시험 1개는 skip이다. `npm run check`, `verify:fsd`, `test:architecture`, `build`, 보고서 구조 검증과 `git diff --check`가 통과했다. 실제 기록 추가 중 발견한 CRLF append 오류도 수정해 기존 149개 실행/증거 행을 보존했다. [현재 소스 hash와 검증 기록](../../test-reports/assets/2026-10-04-codex-role-host-preflight/checks.json)은 제품 인수 통과를 대신하지 않는다.
 
-PR [#109](https://github.com/Sangeok/stagekeeper/pull/109)은 `dev` 대상으로 생성됐고 소스 커밋 `21a1d6eb66cd0e57f94cff87de14b485f321a21e`의 CI `check`가 통과했다. 같은 커밋의 Linux checkout에서도 session 11개와 report 28개가 모두 PASS이며 skip은 없다. [WSL2 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-host-preflight/observations.json)은 모델 없는 실제 파일 명령 결과, 동일 실행 파일 hash, 완전한 verifier 패키지 inventory/checksum 및 잠금 반납을 기록한다. 패키지 inventory는 verifier의 실제 실행 통과를 의미하지 않는다.
+PR [#109](https://github.com/Sangeok/stagekeeper/pull/109)은 `dev`에 병합됐고 소스 커밋 `21a1d6eb66cd0e57f94cff87de14b485f321a21e`의 CI `check`가 통과했다. 같은 커밋의 Linux checkout에서도 session 11개와 report 28개가 모두 PASS이며 skip은 없다. [초기 WSL2 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-host-preflight/observations.json)은 당시 모델 없는 실제 파일 명령 결과, 동일 실행 파일 hash, 완전한 verifier 패키지 inventory/checksum 및 잠금 반납을 기록한다. 패키지 inventory만으로 실제 verifier 통과를 의미하지 않으며 후속 실제 모델 기록과 구분한다.
 
 ## Risks and Rollback
 

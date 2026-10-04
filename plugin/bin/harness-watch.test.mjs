@@ -399,7 +399,8 @@ it("retries five request/body timeouts and removes only its own terminal state",
     f.setHandler(async (_request, res) => {
       if (body) { res.writeHead(200, { "content-type": "text/event-stream" }); res.write(": keepalive\n\n"); }
     });
-    const result = await f.run(["--session", session, "--interval", "0.01", "--deadline", "0.1", "--request-timeout", "0.05"]).result;
+    // Allow a fresh Node process to connect before testing its five response timeouts.
+    const result = await f.run(["--session", session, "--interval", "0.01", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
     assert.equal(result.event.code, "request-failed");
     assert.equal(f.calls.length, 6);
     assert.equal(existsSync(f.lockPath), false);

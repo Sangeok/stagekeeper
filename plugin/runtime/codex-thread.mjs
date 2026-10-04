@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, realpathSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -163,6 +163,23 @@ export class AppServer {
   }
 }
 
+export function roleCommandPath(platform = process.platform) {
+  if (platform !== "win32") return "/usr/local/bin:/usr/bin:/bin";
+  const root = process.env.SystemRoot ?? "C:\\Windows";
+  return [path.win32.join(root, "System32"), path.win32.join(root, "System32/WindowsPowerShell/v1.0"), root].join(";");
+}
+
+export function stageVerifierPackage(verifier, scratch) {
+  const root = path.join(scratch, ".agents/skills/reconciling-proposals-with-codebase");
+  mkdirSync(path.dirname(root), { recursive: true });
+  cpSync(path.dirname(verifier.path), root, { recursive: true, errorOnExist: true, force: false });
+  const staged = verifierPackage(root), current = verifierPackage(path.dirname(verifier.path));
+  if (staged.checksum !== verifier.checksum || current.checksum !== verifier.checksum || staged.files !== verifier.files) {
+    throw new Error("Verifier package changed while staging; no model turn started");
+  }
+  return staged;
+}
+
 export function inheritedPolicyOverrides(config, url, tools) {
   const overrides = [];
   const servers = Object.keys(config.mcp_servers ?? {}).filter(name => name !== "harness");
@@ -173,8 +190,10 @@ export function inheritedPolicyOverrides(config, url, tools) {
   const plugins = Object.keys(config.plugins ?? {});
   if (plugins.length) overrides.push(`plugins={${plugins.map(name => `${JSON.stringify(name)}={enabled=false}`).join(",")}}`);
   // TOML overrides merge maps. Emptying the table does not remove inherited values.
-  const variables = Object.keys(config.shell_environment_policy?.set ?? {});
-  if (variables.length) overrides.push(`shell_environment_policy.set={${variables.map(name => `${JSON.stringify(name)}=""`).join(",")}}`);
+  const variables = [...new Set([...Object.keys(config.shell_environment_policy?.set ?? {}), "PATH"])];
+  // Resolve ordinary commands without inheriting user tool directories or credentials.
+  // Preserve matching PATH aliases on Windows, whose environment names ignore case.
+  overrides.push(`shell_environment_policy.set={${variables.map(name => `${JSON.stringify(name)}=${JSON.stringify(name.toUpperCase() === "PATH" ? roleCommandPath() : "")}`).join(",")}}`);
   return overrides;
 }
 
@@ -197,7 +216,8 @@ export function assertRolePolicy(config, filesystem, url, agent) {
     || Object.keys(harness.http_headers ?? {}).length || Object.keys(harness.env_http_headers ?? {}).length
     || permission?.extends !== ":read-only" || permission.workspace_roots != null || !isDeepStrictEqual(paths, filesystem)
     || permission.network?.enabled !== false || Object.entries(permission.network ?? {}).some(([name, value]) => name !== "enabled" && value != null)
-    || config.shell_environment_policy?.inherit !== "none" || Object.values(config.shell_environment_policy?.set ?? {}).some(value => value !== "")) {
+    || config.shell_environment_policy?.inherit !== "none" || config.shell_environment_policy?.set?.PATH !== roleCommandPath()
+    || Object.entries(config.shell_environment_policy?.set ?? {}).some(([name, value]) => value !== (name.toUpperCase() === "PATH" ? roleCommandPath() : ""))) {
     throw new Error("Effective role policy differs; no model turn started");
   }
 }
@@ -207,7 +227,7 @@ export async function verifyRoleExecution(server, scratch, agent, platform = pro
   const marker = "harness-role-execution-ready";
   const command = platform === "win32"
     ? [path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", `[Console]::Write('${marker}')`]
-    : ["/bin/sh", "-c", `printf '${marker}'`];
+    : ["/bin/sh", "-c", `command -v cat >/dev/null && printf '${marker}'`];
   // Omit sandboxPolicy: the command must use the already checked named permissions.
   // A config/read match alone does not prove the host can launch a restricted tool.
   let result;
@@ -244,7 +264,9 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
   const expected = JSON.parse(readFileSync(path.join(input.binding.root, "docs/harness/codex-package.json"), "utf8")).verifier;
   if (verifier.path !== expected.path || verifier.checksum !== expected.checksum) throw new Error("Verifier package changed; rerun $harness-init");
   const scratch = mkdtempSync(path.join(tmpdir(), "harness-role-")), filesystem = rolePermissions(input, dispatch.agent, dispatch.key, scratch);
-  if (dispatch.agent === "plan-verifier") filesystem[path.dirname(verifier.path)] = "read";
+  // An owner package inside .codex must not require access to that credential directory.
+  const roleVerifier = dispatch.agent === "plan-verifier" ? stageVerifierPackage(verifier, scratch) : null;
+  if (roleVerifier) filesystem[path.dirname(roleVerifier.path)] = "read";
   const bridge = await roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug });
   const cli = codexExecutable(), config = [
     'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
@@ -268,9 +290,10 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     assertRolePolicy(effective.config, filesystem, bridge.url, dispatch.agent);
     await verifyRoleExecution(server, scratch, dispatch.agent);
     const inventory = await server.request("skills/list", { cwds: [scratch], forceReload: true });
-    const skills = (inventory.data ?? []).flatMap(value => value.skills ?? []), matching = skills.filter(skill => skill.name === "reconciling-proposals-with-codebase");
-    if (dispatch.agent === "plan-verifier" && (matching.length !== 1 || realpathSync(matching[0].path) !== realpathSync(verifier.path))) throw new Error("Actual verifier loader path differs");
-    const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: dispatch.agent === "plan-verifier" && skill.name === "reconciling-proposals-with-codebase" })) } });
+    const skills = (inventory.data ?? []).flatMap(value => value.skills ?? []);
+    const isRoleVerifier = skill => roleVerifier !== null && skill.name === "reconciling-proposals-with-codebase" && realpathSync(skill.path) === realpathSync(roleVerifier.path);
+    if (roleVerifier && skills.filter(isRoleVerifier).length !== 1) throw new Error("Actual staged verifier loader path differs");
+    const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
     threadId = thread.thread?.id;
     if (!threadId) throw new Error("Fresh thread identity missing");
     const completion = new Promise((resolve, reject) => { complete = message => {
@@ -284,7 +307,7 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     }; server.listeners.add(complete); });
     void completion.catch(() => {});
     turnRequested = true;
-    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, requiredVerificationPaths: dispatch.requiredVerificationPaths, entry: dispatch.entry ?? null, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: dispatch.agent === "plan-verifier" ? verifier.path : undefined }) }] });
+    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, requiredVerificationPaths: dispatch.requiredVerificationPaths, entry: dispatch.entry ?? null, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path }) }] });
     turnId = turn.turn?.id;
     if (!turnId) throw new Error("Active turn identity missing");
     const deadline = new Promise((_, reject) => { monitor = setTimeout(() => reject(new Error("Role turn deadline exceeded")), 15 * 60000); });
