@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-10-04T14:39:36.421Z",
+  "sourceBase": "2d129c1798d79d9d09a307ab07ba9a49400867c2+working-tree",
+  "sourceFiles": {
+    "plugin/runtime/codex-thread.mjs": "470309246c738dbf108e27096f02638531a9b8e3983d2d8294faea0692dab5f2",
+    "plugin/runtime/role-files.mjs": "3ef73c4cfbeac30bf096607332650564605e22beacfca31daf4cd32d5c7b6c46",
+    "plugin/bin/harness-role-files.test.mjs": "1f1751c43d63650eb957be39c09d729ff3e220c0cff09a66abd3d0d0f38ff299",
+    "plugin/bin/harness-session.test.mjs": "e6b0f503b155a2edd9f8c9d6917cc288989fb983685fd97bd955b0ee1e03becd"
+  },
+  "platform": "win32",
+  "results": {
+    "nativeAndSession": {
+      "tests": 20,
+      "pass": 19,
+      "skip": 1,
+      "fail": 0,
+      "skipReason": "POSIX fixed-PATH test on Windows"
+    },
+    "npmTest": {
+      "tests": 296,
+      "pass": 295,
+      "skip": 1,
+      "fail": 0
+    },
+    "check": {
+      "verdict": "PASS",
+      "components": [
+        "plugin/lib sync",
+        "ESLint",
+        "FSD",
+        "Next typegen",
+        "TypeScript",
+        "architecture 26",
+        "project availability 18"
+      ]
+    },
+    "verifyFsd": "PASS",
+    "build": "PASS",
+    "nativeActualEvidence": "PASS within observations.json scope",
+    "reportStructure": "PASS: active/result:null",
+    "strictTraceability": {
+      "verdict": "PASS",
+      "files": 2,
+      "requirements": 22,
+      "taskCoverage": 22,
+      "verifierCoverage": 22
+    },
+    "diffWhitespace": "PASS"
+  },
+  "limits": [
+    "These regression gates do not certify generic native Windows command execution, full verifier/installed bundle or minimum-dependency packaging.",
+    "No WSL, additional CLI login, auth copy, production DB operation or private template publication used in this change."
+  ]
+}

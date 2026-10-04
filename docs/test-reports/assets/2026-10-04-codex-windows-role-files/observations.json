@@ -1,0 +1,215 @@
+{
+  "observedAt": "2026-10-04T14:35:10.915Z",
+  "sourceBase": "2d129c1798d79d9d09a307ab07ba9a49400867c2+working-tree",
+  "sourceFiles": {
+    "plugin/runtime/codex-thread.mjs": "470309246c738dbf108e27096f02638531a9b8e3983d2d8294faea0692dab5f2",
+    "plugin/runtime/role-files.mjs": "3ef73c4cfbeac30bf096607332650564605e22beacfca31daf4cd32d5c7b6c46",
+    "plugin/bin/harness-role-files.test.mjs": "1f1751c43d63650eb957be39c09d729ff3e220c0cff09a66abd3d0d0f38ff299",
+    "plugin/bin/harness-session.test.mjs": "e6b0f503b155a2edd9f8c9d6917cc288989fb983685fd97bd955b0ee1e03becd"
+  },
+  "host": {
+    "platform": "win32",
+    "node": "22.13.1",
+    "codex": "0.160.0",
+    "authentication": "Existing native Windows login; no auth file read or copy."
+  },
+  "backend": "Scoped local role_file_* MCP data operations; no process launcher",
+  "policy": {
+    "root": "deny",
+    "shell": false,
+    "network": false,
+    "inheritedServersAndPlugins": "disabled",
+    "viewImageAndPermissionRequests": "disabled in final effective config",
+    "domainTools": "Unchanged role-bound service allowlist"
+  },
+  "dev": {
+    "observedAt": "2026-10-04T14:33:05.991Z",
+    "modelTurnsStarted": 1,
+    "reportedTotalTokens": 103714,
+    "outcomeCalls": 1,
+    "cleanup": {
+      "childEmptyReleaseGuardPassed": true,
+      "release": "released"
+    },
+    "sourceFiles": {
+      "plugin/runtime/codex-thread.mjs": "470309246c738dbf108e27096f02638531a9b8e3983d2d8294faea0692dab5f2",
+      "plugin/runtime/role-files.mjs": "3ef73c4cfbeac30bf096607332650564605e22beacfca31daf4cd32d5c7b6c46"
+    },
+    "verdict": "PASS: bounded actual file operations",
+    "checks": {
+      "updated": true,
+      "created": true,
+      "plan": true,
+      "readonlyUnchanged": true,
+      "gitUnchanged": true
+    },
+    "refusals": {
+      "readonlyWrite": true,
+      "foreignRead": true,
+      "externalRead": true,
+      "gitWrite": true
+    },
+    "listAndLiteralSearch": "PASS",
+    "projectAndItem": "Fixture receipt bound to web-dev/WINDOWS_CANARY; one outcome then done:true"
+  },
+  "verifierLoader": {
+    "observedAt": "2026-10-04T14:27:40.826Z",
+    "modelTurnsStarted": 1,
+    "reportedTotalTokens": 39849,
+    "outcomeCalls": 1,
+    "cleanup": {
+      "childEmptyReleaseGuardPassed": true,
+      "release": "released"
+    },
+    "verdict": "PASS: package access only",
+    "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+    "completeFiles": [
+      {
+        "path": "agents/openai.yaml",
+        "hash": "254b82d03c00b919e454fc3b350178b7a6ef5c888cadccffe43a960bd5ab3ceb",
+        "read": "PASS"
+      },
+      {
+        "path": "references/common-mistakes.md",
+        "hash": "d55ac24f0f2bf218a7b61326614959abfd2e94bb4ee54279b709af51d6a61a55",
+        "read": "PASS"
+      },
+      {
+        "path": "references/examples.md",
+        "hash": "b539140144ca803aa4f37d2bad4f4bed01f375f684ff8cec857d8e3f65bb70e5",
+        "read": "PASS"
+      },
+      {
+        "path": "references/gate-details.md",
+        "hash": "c9ad9c68630870cbfccc70e4bbf780b538018549854dc27ba8b46f7684d45a3f",
+        "read": "PASS"
+      },
+      {
+        "path": "references/ledgers-and-output.md",
+        "hash": "5830ad3f07728523f8eaf40f04a6ecd8080ca89bf0bfc4ad661383321609d9b1",
+        "read": "PASS"
+      },
+      {
+        "path": "references/revalidation.md",
+        "hash": "78779b6633e2bb18c1ee9a7d3ffe4106b7ab908c7563d96546dc5441c4c800e6",
+        "read": "PASS"
+      },
+      {
+        "path": "references/runtime-and-artifacts.md",
+        "hash": "739a6ceb0ba82e84fb39801bdb6df32f28e2d2e057692101b8f99876e270e6f2",
+        "read": "PASS"
+      },
+      {
+        "path": "SKILL.md",
+        "hash": "704194f68366dee40aa2662e63d71f4517b7af8735e6d3c07a163000fc53860f",
+        "read": "PASS"
+      }
+    ],
+    "enabledPackages": 1,
+    "originalUnchanged": true,
+    "stagedUnchanged": true,
+    "originalOwnerSkillRead": "REFUSED",
+    "stagedSkillWrite": "REFUSED",
+    "sourceScope": "Final dispatcher; broker before the subsequent bounded/incomplete-search correction. Loader/read/write behavior unchanged; final broker unit tests cover the correction."
+  },
+  "pendingStop": {
+    "observedAt": "2026-10-04T14:30:03.093Z",
+    "modelTurnsStarted": 1,
+    "reportedTotalTokens": 4528,
+    "outcomeCalls": 0,
+    "cleanup": {
+      "childEmptyReleaseGuardPassed": true,
+      "release": "released"
+    },
+    "verdict": "PASS: bounded pending domain MCP cancellation",
+    "concurrentClaudeStart": "locked",
+    "earlyRelease": "quiescence-required",
+    "terminalTurn": "interrupted",
+    "lateOutcomeCalls": 0,
+    "sourceScope": "Final dispatcher; broker before subsequent bounded/incomplete-search correction. File operations are synchronous and no command process exists."
+  },
+  "initialAuditor": {
+    "observedAt": "2026-10-04T14:18:28.715Z",
+    "modelTurnsStarted": 1,
+    "reportedTotalTokens": 66835,
+    "outcomeCalls": 1,
+    "cleanup": {
+      "childEmptyReleaseGuardPassed": true,
+      "release": "released"
+    },
+    "verdict": "PASS: permitted read/scratch and readonly repository refusal only",
+    "malformedExternalPath": "The exploratory script escaped Windows path incorrectly. Its external-read refusal is NOT counted as external isolation; final dev canary tests the correct absolute external file."
+  },
+  "retainedEarlierTrials": [
+    {
+      "fixture": "native-dev-incomplete-fixture-results",
+      "observedAt": "2026-10-04T14:21:52.281Z",
+      "modelTurnsStarted": 1,
+      "reportedTotalTokens": 12431,
+      "outcomeCalls": 0,
+      "cleanup": {
+        "childEmptyReleaseGuardPassed": true,
+        "release": "released"
+      },
+      "error": "Fixture omitted required runtime protocol marker; no accepted role receipt.",
+      "sourceFiles": {
+        "plugin/runtime/codex-thread.mjs": "299afc584a32ff8681eb5033827146235777e4609295cf1202751ef42e8089bf",
+        "plugin/runtime/role-files.mjs": "c2285233b47be54694f5200bc9d31f905468720024bf29545b61e5b49aa6ceb5"
+      }
+    },
+    {
+      "fixture": "native-dev-missing-outcome-fixture-results",
+      "observedAt": "2026-10-04T14:22:58.648Z",
+      "modelTurnsStarted": 1,
+      "reportedTotalTokens": 69482,
+      "outcomeCalls": 0,
+      "cleanup": {
+        "childEmptyReleaseGuardPassed": true,
+        "release": "released"
+      },
+      "error": "Fixture allowed completion without outcome; not completion acceptance.",
+      "sourceFiles": {
+        "plugin/runtime/codex-thread.mjs": "299afc584a32ff8681eb5033827146235777e4609295cf1202751ef42e8089bf",
+        "plugin/runtime/role-files.mjs": "c2285233b47be54694f5200bc9d31f905468720024bf29545b61e5b49aa6ceb5"
+      }
+    },
+    {
+      "fixture": "native-dev-before-search-bound-results",
+      "observedAt": "2026-10-04T14:30:10.278Z",
+      "modelTurnsStarted": 1,
+      "reportedTotalTokens": 49695,
+      "outcomeCalls": 1,
+      "cleanup": {
+        "childEmptyReleaseGuardPassed": true,
+        "release": "released"
+      },
+      "error": "Earlier successful dev canary before search bounds; superseded by final source trial.",
+      "sourceFiles": {
+        "plugin/runtime/codex-thread.mjs": "470309246c738dbf108e27096f02638531a9b8e3983d2d8294faea0692dab5f2",
+        "plugin/runtime/role-files.mjs": "c2285233b47be54694f5200bc9d31f905468720024bf29545b61e5b49aa6ceb5"
+      }
+    },
+    {
+      "fixture": "native-verifier-null-key-failure-results",
+      "observedAt": "2026-10-04T14:25:30.840Z",
+      "modelTurnsStarted": 1,
+      "reportedTotalTokens": 15981,
+      "outcomeCalls": 0,
+      "cleanup": {
+        "childEmptyReleaseGuardPassed": true,
+        "release": "released"
+      },
+      "error": "Product refused nullable optional role key; corrected with bound-key regression and actual loader rerun.",
+      "sourceFiles": null
+    }
+  ],
+  "limits": [
+    "This is Windows file operation acceptance, not full Windows product support.",
+    "Generic shell/build/test commands remain unavailable; no WSL, other login or parent-permission fallback.",
+    "8-file loader canary reads first lines and validates whole-file hashes; it is not a complete proposal reconciliation or full verifier acceptance.",
+    "Additional-install-free helper/verifier packaging, installed winning private templates, actual two-CLI/DB/browser handoff and C4 remain unaccepted.",
+    "Only retained trials have token fields here; an earlier exploratory stop and a superseded dev trial were not retained, so no complete turn-wide token total is claimed.",
+    "Native LPAC command prototypes remain outside product code; existing Node/libuv piped subprocess incompatibility and native command policy/cleanup require further work.",
+    "Public evidence excludes private package contents, credentials, capability URLs, model thread/session IDs and real conversation transcripts."
+  ]
+}

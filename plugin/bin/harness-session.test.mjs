@@ -114,7 +114,7 @@ it("neutralizes inherited servers/plugins/environment without copying their valu
   assert.ok(inherited.includes(`"PATH"=${JSON.stringify(roleCommandPath())}`));
   assert.ok(inherited.includes(`"Path"=${JSON.stringify(roleCommandPath())}`));
   const config = { agents: { enabled: false }, approval_policy: "never", default_permissions: "harness-role", web_search: "disabled", project_doc_max_bytes: 0,
-    features: { multi_agent: false, apps: false, hooks: false, memories: false, goals: false, code_mode: { enabled: false }, shell_tool: true, unified_exec: false },
+    features: { multi_agent: false, apps: false, hooks: false, memories: false, goals: false, view_image: false, request_permissions_tool: false, code_mode: { enabled: false }, shell_tool: true, unified_exec: false },
     mcp_servers: { harness_owner: { enabled: false }, harness: { enabled: true, url, enabled_tools: ROLE_TOOLS["doc-auditor"], default_tools_approval_mode: "prompt", tools: Object.fromEntries(ROLE_TOOLS["doc-auditor"].map(name => [name, { approval_mode: "approve" }])), bearer_token_env_var: "HARNESS_ROLE_CAPABILITY" } }, plugins: { other: { enabled: false } },
     permissions: { "harness-role": { extends: ":read-only", filesystem: { ...filesystem, glob_scan_max_depth: null }, network: { enabled: false } } }, shell_environment_policy: { inherit: "none", set: { PATH: roleCommandPath(), HARNESS_OWNER_TOKEN: "" } } };
   assert.doesNotThrow(() => assertRolePolicy(config, filesystem, url, "doc-auditor"));

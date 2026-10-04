@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-04T12:45:26.305Z"
-tested-revision: "040f2f9a22f6d0aee658fc178b618856156307e6"
+last-executed-at: "2026-10-04T14:39:36.421Z"
+tested-revision: "2d129c1798d79d9d09a307ab07ba9a49400867c2"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -23,6 +23,8 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-04 native Windows file backend: actual Codex model reads, guarded workspace/new item writes, directory/literal search, protected path refusals, the complete 8-file staged package loader canary and pending-turn cancellation now have bounded evidence. No WSL or other login was used. Shell/build/test execution and additional-install-free packaging remain blocked; this is not complete Windows support or full verifier acceptance. [Windows observations](../assets/2026-10-04-codex-windows-role-files/observations.json) preserves actual failures, source hashes, limits and retained token fields.
 
 2026-10-04 authenticated WSL2 follow-up: fixed isolated shell PATH and staged the complete verifier as a read-only scratch skill without exposing .codex. Actual role read/scratch, full private working-source verifier (one defect detected, then separate clean-fixture pass), kernel denials and pending-turn stop passed their bounded trials. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json). Actual approved dual CLI/browser, package/deployment and C4 acceptance remain incomplete. Historical failures/blocked rows are preserved.
 
@@ -55,6 +57,7 @@ the integrated two-CLI/browser product flow is still NOT RUN.
 | R1 | docs/proposals/completed/2026-10-04-codex-dual-client-support.md | E1/E6/E7 C0 | MUST | Actual isolation/discovery plus legacy boundaries; unexecuted checks remain blocked |
 | R2 | docs/proposals/completed/2026-10-04-codex-dual-client-support.md | C1–C3 source and acceptance | MUST | Preserve Claude, client/ledger/ownership contracts and safe generation; actual host/DB/package acceptance must be distinct |
 | R3 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Current role host, cancellation and C4 prerequisite | MUST | Actual file operations must execute under unchanged permissions before C4; preserve prior failures |
+| R4 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Native Windows files first, commands and minimum setup remain gated | MUST | Actual scoped file boundaries/ownership without WSL; no shell/test or installation readiness claim from file canaries |
 
 ## Test Target
 
@@ -152,6 +155,11 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T76 | R3 | informational | Linux native pending turn stop and duplicate exclusion | Keep lock until actual terminal turn and owned work end | [E88] | PASS |
 | T77 | R3 | informational | Final Windows/Linux runtime regressions | Final changed runtime passes repository checks and meaningful platform tests | [E89] | PASS |
 | T78 | R3 | required | Remaining native resumption and C4 gates | Actual approved dual CLI/browser cycle before C4 automatic watch | [E90] | BLOCKED |
+| T79 | R4 | required | Native Windows final-source dev model | Current dispatcher/broker executes allowed reads/guarded writes/new plan/list/search; external/foreign/readonly/Git refused | [E91] | PASS |
+| T80 | R4 | informational | Actual complete staged verifier loader | All 8 file hashes match; exactly one enabled staged package; source/stage immutable; does not certify full verifier | [E92] | PASS |
+| T81 | R4 | required | Actual native pending stop | Other-client start locked; early release refused; terminal interrupted; zero late outcome; released under child-empty guard | [E93] | PASS |
+| T82 | R4 | informational | Native broker/regression gates | Path aliases/absent reserved names/CAS/incomplete search/nullable key/receipt/stop guards | [E94] | PASS |
+| T83 | R4 | required | Native shell/build/test and installed minimum setup | Same role authority and no extra manual Node/skill install; full Windows verifier acceptance | [E95] | NOT RUN |
 
 ## Commands and Static Checks
 
@@ -273,6 +281,11 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E88 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Actual PM turn had one pending agent_next. Concurrent Claude session start returned locked with original policies; premature release returned quiescence-required. turn/interrupt then interrupted observed; pending HTTP closed, zero outcome calls/children, own release succeeded. Fixture MCP, not actual two-CLI/browser mixed-host acceptance. Native tokens=4368. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
 | E89 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Windows session 12 PASS/1 POSIX skip; Linux session 13 PASS. Final npm test: Windows 288 PASS/1 POSIX skip, Linux 289 PASS/no skip. npm run check and build passed. Initial 50ms watch response-timeout fixture twice observed only 4 of 5 requests at HTTP listener; gave fresh-process connection 200ms while preserving five retries/cleanup assertions; targeted and full reruns passed. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
 | E90 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Native Codex login and bounded actual role/full verifier/stop now observed. Linux Claude 2.1.288 installed but auth status none when inspected; requested native user login for bidirectional CLI trial. Private working tree/production seed/install/DB browser/mixed-host gates remain separate. C4 and 110-minute idle NOT IMPLEMENTED/NOT RUN. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E91 | Actual Windows scoped file model | 2026-10-04T14:33:05.991Z; baseline 2d129c1798d79d9d09a307ab07ba9a49400867c2 plus working source hashes; actual fresh web-dev thread modified existing workspace file, created a new file and bound item plan, listed/searched; actual readonly/foreign/external/Git requests refused and protected bytes unchanged; one receipt-bound outcome then done:true/release. [Projected observations](../assets/2026-10-04-codex-windows-role-files/observations.json). | Safe fixture projection; no raw log in Git |
+| E92 | Actual Windows verifier loader | 2026-10-04T14:27:40.826Z; all 8 staged files read by model with exact whole-file hashes, one loader selected, source/stage unchanged; staged write and original owner skill read refused. Earlier nullable key refusal exposed a product defect and was corrected; first-line/hash canary only, not full reconciliation. [Projected observations](../assets/2026-10-04-codex-windows-role-files/observations.json). | Safe hash/status projection; private contents excluded |
+| E93 | Actual Windows pending cancellation | 2026-10-04T14:30:03.093Z; pending agent_next; concurrent Claude start locked and premature release quiescence-required; actual terminal interrupted, no outcome submitted; final release passed child-empty guard. Broker has no command process. [Projected observations](../assets/2026-10-04-codex-windows-role-files/observations.json). | Safe status projection; no session/capability identifiers |
+| E94 | Native source regression | 2026-10-04; final source/runtime hashes and platform gate coverage recorded in [checks](../assets/2026-10-04-codex-windows-role-files/checks.json). Historical malformed absolute-path and incomplete fixture outcomes are excluded from acceptance rather than rewritten as successful probes. | Safe checks projection |
+| E95 | Remaining Windows minimum setup | 2026-10-04; shell/build/test disabled in file backend; Node/external verifier dependency packaging and full Windows verifier/product acceptance not performed. LPAC command prototypes were not shipped; captured-pipe child compatibility remains unresolved. File successes do not clear BLK-MIN-01, other runtime/package gates or C4. | Explicit unresolved scope |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -284,6 +297,8 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+2026-10-04 native Windows file backend: actual Codex model reads, guarded workspace/new item writes, directory/literal search, protected path refusals, the complete 8-file staged package loader canary and pending-turn cancellation now have bounded evidence. No WSL or other login was used. Shell/build/test execution and additional-install-free packaging remain blocked; this is not complete Windows support or full verifier acceptance. [Windows observations](../assets/2026-10-04-codex-windows-role-files/observations.json) preserves actual failures, source hashes, limits and retained token fields.
 
 Actual model trials exposed two product defects missed by config-only probes: PATH removal broke normal read commands, and catalog discovery did not make the owner skill readable under the denied auth directory. Both are corrected without widening root/network/credential access. The full verifier successfully detected a real bounded proposal mismatch and passed a fresh corrected fixture. Native pending cancellation passed on Linux. These narrower gates do not certify all source proposal acceptance or C4.
 
@@ -316,6 +331,8 @@ Owned disposable roots retain non-secret fixture source/configuration and synthe
 An earlier writer implementation left its own draft when Windows handle/path dev values differed. After that writer ended, its valid draft was explicitly recovered; the fixed writer compares the actual file identity and never takes over an existing draft automatically. Tests cover failed rename, an unrelated successor temporary file, external report modification and immutable completed-campaign preflight. Current own .tmp is absent after atomic rename/read-back. Tests remove only their explicitly checked owned temporary roots; C0 evidence roots are retained. Required failure history is preserved rather than rewritten as PASS; a future successful alternative must follow explicit report lifecycle/evidence rules.
 
 ## Conclusion
+
+Latest native Windows decision: active/result:null. Scoped file role behavior and loader/stop canaries passed; commands, full verifier/installed package/minimum setup and C4 remain unresolved. All earlier conclusions below describe their own checkpoints.
 
 Latest decision: active/result:null. Bounded Linux actual role/full verifier/stop behavior now passed; actual approved dual CLI/browser cycle and C4 remain pending. Historical required failures and unimplemented gates retain the aggregate fail result.
 

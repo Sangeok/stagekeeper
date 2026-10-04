@@ -33,6 +33,11 @@ WSL이나 다른 클라이언트 로그인, 별도 Node·검증 스킬 설치를
 최소 설치 기준과 [후속 계획](../proposals/active/codex-dual-client-runtime-follow-ups.md)의
 Windows 실행·패키징 게이트를 자동 watch보다 먼저 해결한다.
 
+Windows Codex 역할은 현재 scoped 파일 MCP backend로 읽기·목록·검색·guarded 쓰기와
+중지를 실행한다. WSL이나 다른 클라이언트 로그인은 사용하지 않는다. 일반 shell/build/test
+명령과 추가 수동 의존성 설치 없는 배포는 미완료다. 상세 경계는 [protocol.md](./protocol.md)의
+Windows 역할 backend 절을 따른다. 파일 동작 인수가 전체 지원 인증을 대신하지 않는다.
+
 Phase 4는 2026-09-04에 완료됐다(제안서:
 `docs/proposals/completed/2026-09-04-harness-platform-phase-4-entitlement.md`).
 플랜은 Free/Pro/Max이고 상한은 5축이다 — 프로젝트·워크스페이스·백로그·이력 창·에이전트.
