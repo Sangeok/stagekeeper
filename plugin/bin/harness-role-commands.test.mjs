@@ -48,6 +48,16 @@ it("refuses snapshot aliases and honors cancellation before copying source bytes
   await assert.rejects(snapshotRepository(f.root, f.destination, f.files, controller.signal), { name: "AbortError" });
 });
 
+it("keeps concurrent binary copies independent and snapshot hashes deterministic", async t => {
+  const f = fixture(t);
+  const expected = Array.from({ length: 19 }, (_, index) => Buffer.alloc(65536 + index, index));
+  for (const [index, bytes] of expected.entries()) writeFileSync(path.join(f.root, `src/data-${index}.bin`), bytes);
+  const first = await snapshotRepository(f.root, f.destination, f.files);
+  for (const [index, bytes] of expected.entries()) assert.deepEqual(readFileSync(path.join(f.destination, `src/data-${index}.bin`)), bytes);
+  const second = await snapshotRepository(f.root, path.join(f.base, "second"), f.files);
+  assert.equal(first.snapshotHash, second.snapshotHash); assert.equal(first.files, 20);
+});
+
 it("refuses malformed runtime provenance and PM execution", async t => {
   const f = fixture(t);
   writeFileSync(path.join(f.base, "provenance.json"), JSON.stringify({ format: "stagekeeper-windows-node-v1", version: "22.23.3", architecture: "x64", executableSha256: "fake" }));

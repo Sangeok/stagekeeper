@@ -32,38 +32,56 @@ export function installedWindowsRuntime(directory = bundlePath) {
 
 export async function snapshotRepository(root, destination, fileBroker, signal) {
   const hashes = [], omitted = []; let bytes = 0, count = 0, omittedCount = 0;
-  const buffer = Buffer.alloc(1024 * 1024);
+  const buffers = Array.from({ length: 8 }, () => Buffer.alloc(1024 * 1024));
   const started = Date.now();
-  async function visit(directory, relative = "") {
+  function checkpoint() {
     signal?.throwIfAborted();
     if (Date.now() - started > 300000) throw new Error("Snapshot preparation deadline exceeded");
+  }
+  async function copy({ source, rel, target, before, row }, buffer) {
+    const input = await open(source, "r"), digest = createHash("sha256"); let output;
+    try {
+      output = await open(target, "wx", 0o600);
+      if (identity(await input.stat({ bigint: true })) !== identity(before)) throw new Error("Snapshot file changed while opening");
+      let length = 0;
+      while (true) {
+        checkpoint();
+        const { bytesRead } = await input.read(buffer, 0, buffer.length, null); if (!bytesRead) break;
+        if ((length += bytesRead) > Number(before.size)) throw new Error("Snapshot file grew while reading");
+        digest.update(buffer.subarray(0, bytesRead));
+        let offset = 0; while (offset < bytesRead) offset += (await output.write(buffer, offset, bytesRead - offset, null)).bytesWritten;
+      }
+      fileBroker.resolveRead(source); const after = lstatSync(source, { bigint: true });
+      if (length !== Number(before.size) || identity(after) !== identity(before) || after.mtimeNs !== before.mtimeNs || after.size !== before.size) throw new Error("Snapshot source changed during copy");
+      row[1] = digest.digest("hex");
+    } finally { await input.close(); await output?.close(); }
+  }
+  async function visit(directory, relative = "") {
+    checkpoint();
     fileBroker.resolveRead(directory);
     const entries = (await readdir(directory)).sort();
+    let queued = [];
+    async function flush() {
+      // Join every bounded copy before propagating an error or deleting the owned
+      // destination. Each worker has its own buffer; hashes keep discovery order.
+      const results = await Promise.allSettled(queued.map((task, index) => copy(task, buffers[index])));
+      queued = [];
+      const failure = results.find(result => result.status === "rejected");
+      if (failure) throw failure.reason;
+    }
     for (const name of entries) {
-      signal?.throwIfAborted();
+      checkpoint();
       const source = path.join(directory, name), rel = path.join(relative, name), target = path.join(destination, rel);
       if (omittedName(name) || fileBroker.permission(source) === "deny") { omittedCount++; if (omitted.length < 200) omitted.push(rel); continue; }
       fileBroker.resolveRead(source);
       const before = lstatSync(source, { bigint: true });
-      if (before.isDirectory()) { await mkdir(target, { recursive: true }); await visit(source, rel); continue; }
+      if (before.isDirectory()) { await flush(); await mkdir(target, { recursive: true }); await visit(source, rel); continue; }
       if (!before.isFile() || before.size > 128n * 1024n * 1024n || ++count > 100000 || (bytes += Number(before.size)) > 2 * 1024 * 1024 * 1024) throw new Error("Snapshot size or file type unsupported");
-      const input = await open(source, "r"), digest = createHash("sha256"); let output;
-      try {
-        output = await open(target, "wx", 0o600);
-        if (identity(await input.stat({ bigint: true })) !== identity(before)) throw new Error("Snapshot file changed while opening");
-        let length = 0;
-        while (true) {
-          signal?.throwIfAborted();
-          const { bytesRead } = await input.read(buffer, 0, buffer.length, null); if (!bytesRead) break;
-          if ((length += bytesRead) > Number(before.size)) throw new Error("Snapshot file grew while reading");
-          digest.update(buffer.subarray(0, bytesRead));
-          let offset = 0; while (offset < bytesRead) offset += (await output.write(buffer, offset, bytesRead - offset, null)).bytesWritten;
-        }
-        fileBroker.resolveRead(source); const after = lstatSync(source, { bigint: true });
-        if (length !== Number(before.size) || identity(after) !== identity(before) || after.mtimeNs !== before.mtimeNs || after.size !== before.size) throw new Error("Snapshot source changed during copy");
-        hashes.push([rel.split(path.sep).join("/"), digest.digest("hex")]);
-      } finally { await input.close(); await output?.close(); }
+      const row = [rel.split(path.sep).join("/"), null]; hashes.push(row);
+      queued.push({ source, rel, target, before, row });
+      if (queued.length === buffers.length) await flush();
     }
+    await flush();
   }
   await mkdir(destination, { recursive: true }); await visit(root);
   return { snapshotHash: hash(JSON.stringify(hashes)), files: count, bytes, omitted, omittedCount, omissionsTruncated: omittedCount > omitted.length };
