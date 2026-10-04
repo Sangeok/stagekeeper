@@ -121,8 +121,15 @@ public static class StagekeeperRoleProcess {
   }
 
   public static Result Run(string root, string command, string cwd, int timeoutMs) {
-    Stage = "validation-path";
-    if (!Path.IsPathRooted(root) || Path.GetFullPath(root) != root || root.StartsWith("\\\\") || timeoutMs < 100 || timeoutMs > 120000 || command == null || command.Length > 4096 || command.IndexOf('\0') >= 0) throw new Exception("Invalid role request");
+    Stage = "validation-bounds";
+    if (timeoutMs < 100 || timeoutMs > 120000 || command == null || command.Length > 4096 || command.IndexOf('\0') >= 0) throw new Exception("Invalid role request");
+    Stage = "validation-local-path";
+    if (root == null || root.Length < 4 || !Char.IsLetter(root[0]) || root[1] != ':' || root[2] != '\\' || !Path.IsPathRooted(root)) throw new Exception("A local owned snapshot is required");
+    // The trusted broker created this owned directory. .NET and Node differ in
+    // Windows path canonicalization (including system TEMP's 8.3 spelling).
+    // Normalize the same physical target; never accept UNC/device roots or grant
+    // permissions to an original/model-selected path.
+    root = Path.GetFullPath(root);
     Stage = "validation-cwd";
     if (cwd == null || cwd.StartsWith("\\") || cwd.IndexOf(':') >= 0 || Array.Exists(cwd.Split('\\', '/'), part => part == ".." || part == ".")) throw new Exception("Invalid snapshot cwd");
     string repo = Path.Combine(root, "repo"), scratch = Path.Combine(root, "scratch"), runtime = Path.Combine(root, "runtime");

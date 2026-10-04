@@ -45,7 +45,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
       fileBroker.resolveRead(source);
       const before = lstatSync(source, { bigint: true });
       if (before.isDirectory()) { await mkdir(target, { recursive: true }); await visit(source, rel); continue; }
-      if (!before.isFile() || before.size > 64n * 1024n * 1024n || ++count > 100000 || (bytes += Number(before.size)) > 2 * 1024 * 1024 * 1024) throw new Error("Snapshot size or file type unsupported");
+      if (!before.isFile() || before.size > 128n * 1024n * 1024n || ++count > 100000 || (bytes += Number(before.size)) > 2 * 1024 * 1024 * 1024) throw new Error("Snapshot size or file type unsupported");
       const input = await open(source, "r"), digest = createHash("sha256"); let output;
       try {
         output = await open(target, "wx", 0o600);
