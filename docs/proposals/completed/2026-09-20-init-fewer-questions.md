@@ -14,7 +14,6 @@ closed-reason: null
 owners: []
 related:
   - "docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md"
-  - "docs/proposals/active/agent-role-catalog.md"
   - "docs/proposals/completed/2026-09-23-src-server-clean-code-findings.md"
   - "docs/architecture/protocol.md"
   - "docs/architecture/system-overview.md"
@@ -653,7 +652,7 @@ npm run test:server        # tests/server/*.test.ts — 서버 변경 시 로컬
   바꾸면 낡은 채 남는다. 근본 해법(선택 필드화)은 후속 제안서다.
 - **형제 제안서와의 순서 의존.** 현재 코드와의 불일치는 없지만, 같은 표면을 건드리는
   활성 제안서가 둘 있다.
-  - `agent-role-catalog.md`(`awaiting-approval`)는 워크스페이스에 `role`을 더해
+  - 당시 `agent-role-catalog.md`(`awaiting-approval`, 2026-10-04 사용자 지시로 삭제)는 워크스페이스에 `role`을 더해
     `role: "review"`를 **`path`·`verify` 없이** 선언하게 하고 `Workspace.path`를
     nullable로 바꾼다. 그것이 반영되면 이 제안의 **step 1 초안 지시**(항상 `path`+`verify`를
     담은 워크스페이스를 만든다)가 불완전해지므로 `SKILL.md`를 함께 고쳐야 한다.

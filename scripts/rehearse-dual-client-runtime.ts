@@ -14,7 +14,8 @@ import { isRunbookVersion } from "@harness/core/runbook.mjs";
 
 const REPO = realpathSync(fileURLToPath(new URL("..", import.meta.url)));
 const CAMPAIGN = "<!-- stagekeeper:dual-client-runtime:v1 -->";
-const PROPOSAL = "docs/proposals/active/codex-dual-client-support.md";
+const PROPOSAL = "docs/proposals/completed/2026-10-04-codex-dual-client-support.md";
+const FOLLOW_UP = "docs/proposals/active/codex-dual-client-runtime-follow-ups.md";
 const SECTIONS = ["Summary and Decision", "Scope and Criteria", "Test Target", "Preconditions and Test Data", "Test Matrix", "Commands and Static Checks", "Evidence Registry", "Findings and Follow-up", "Test Data and Cleanup", "Conclusion", "Review Checklist"];
 const OUTCOMES = ["PASS", "FAIL", "NOT IMPLEMENTED", "BLOCKED", "NOT RUN", "NOT APPLICABLE"] as const;
 type Verdict = typeof OUTCOMES[number];
@@ -150,7 +151,7 @@ export function parseReport(body: string, reportPath: string, repoRoot = REPO): 
   requireCondition(metadata.owners.every(owner => /^(team|user):[a-zA-Z0-9-]+$/.test(owner)), "Invalid report owner.");
   requireCondition(metadata["observed-environments"].every(environment => environment.split("|").length === 4 && environment.split("|").every(part => part.trim())), "Invalid observed environment.");
   for (const reference of [...metadata.related, ...metadata["follow-up"]]) localReference(reference, repoRoot);
-  const parts = body.slice(front[0].length).split(/^## /m);
+  const parts = body.slice(front[0].length).replace(/\r\n/g, "\n").split(/^## /m);
   const sections = new Map<string, string>();
   for (const part of parts.slice(1)) {
     const newline = part.indexOf("\n"), name = part.slice(0, newline).trim();
@@ -225,7 +226,7 @@ export function buildReport(input: { previous?: string; observations: Observatio
   const repoRoot = input.repoRoot ?? REPO;
   const prior = input.previous ? parseReport(input.previous, input.reportPath, repoRoot) : null;
   requireCondition(!prior || prior.metadata.status === "active", "Completed campaigns are immutable; use a new campaign report.");
-  const metadata: z.infer<typeof metadataSchema> = prior?.metadata ?? { status: "active", stage: "planned", result: null, "report-kind": "acceptance", "report-size": "standard", "test-levels": ["static", "contract"], "test-tools": ["Node.js", "Codex CLI", "Claude Code CLI"], "created-at": input.at.slice(0, 10), "completed-at": null, "last-executed-at": null, "tested-revision": null, owners: ["user:Sangeok"], related: [PROPOSAL, "docs/test-reports/README.md", "docs/test-reports/template.md"], "primary-area": "harness/dual-client-runtime", "observed-environments": [`local | disposable CLI/loopback MCP | Node.js ${process.version}/${process.platform} | test owner`], "test-summary": null, "follow-up": [PROPOSAL] };
+  const metadata: z.infer<typeof metadataSchema> = prior?.metadata ?? { status: "active", stage: "planned", result: null, "report-kind": "acceptance", "report-size": "standard", "test-levels": ["static", "contract"], "test-tools": ["Node.js", "Codex CLI", "Claude Code CLI"], "created-at": input.at.slice(0, 10), "completed-at": null, "last-executed-at": null, "tested-revision": null, owners: ["user:Sangeok"], related: [PROPOSAL, FOLLOW_UP, "docs/test-reports/README.md", "docs/test-reports/template.md"], "primary-area": "harness/dual-client-runtime", "observed-environments": [`local | disposable CLI/loopback MCP | Node.js ${process.version}/${process.platform} | test owner`], "test-summary": null, "follow-up": [FOLLOW_UP] };
   metadata.stage = "blocked";
   metadata["last-executed-at"] = input.at;
   metadata["tested-revision"] = input.revision;
@@ -238,7 +239,7 @@ export function buildReport(input: { previous?: string; observations: Observatio
     ["Test Matrix", "| ID | Criterion | Gate | Scenario/method | Expected | Actual/Evidence | Verdict |\n| --- | --- | --- | --- | --- | --- | --- |"],
     ["Commands and Static Checks", "No independent commands outside the recorded Test Matrix. Explicit unit/check/build results are recorded here when executed.\n\n| ID | Reference | Gate | Command/method | Expected | Actual/Evidence | Verdict |\n| --- | --- | --- | --- | --- | --- | --- |"],
     ["Evidence Registry", "| ID | Kind | Safe evidence | Retention |\n| --- | --- | --- | --- |\n\nExisting failures versus new failures: host/environment gaps remain separate from product regressions.\nSensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded."],
-    ["Findings and Follow-up", `C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track unresolved native role isolation, actual winning package body, approved private deployment and mixed-version quiescence in [the proposal](../../proposals/active/codex-dual-client-support.md).`],
+    ["Findings and Follow-up", `C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track unresolved native role isolation, actual winning package body, approved private deployment and mixed-version quiescence in [the follow-up proposal](../../proposals/active/codex-dual-client-runtime-follow-ups.md).`],
     ["Test Data and Cleanup", acceptance ? "Schema migrations affect only the validated test DB. Integration fixtures attempt scoped cleanup in finally; failed cleanup must be inspected before reuse. Production data, global registration and model usage are untouched. Own report temporary file is removed only while its original identity matches; existing abandoned files are never taken over." : "The disposable root retains non-secret fixture source/configuration for reproduction. Own loopback listener and CLI processes are closed before report emission. No production data, real token registration, DB audit or model usage is created. Own report temporary file is removed only while its original identity matches; existing abandoned files are never taken over."],
     ["Conclusion", "Result rationale: blocked\nRemaining uncertainty: real model permissions/context, installed package winning body, approved browser/CLI resumption and quiescent mixed-version handoff.\nRerun decision: complete the separately bounded actual acceptance trials before support readiness. Structural validation exit 0 is not product PASS."],
     ["Review Checklist", "- [x] JSON-compatible flat metadata and standard sections used.\n- [x] Required gates and Evidence IDs recorded; no fabricated model/DB/browser PASS.\n- [x] Fixed/projected diagnostics reviewed for sensitive content.\n- [x] Cleanup and retained fixtures documented.\n- [ ] Complete actual host/package/mixed-version gates before support readiness.\n- [ ] Run repository-wide docs:check if it becomes available; currently absent.\n- [x] This report uses the dedicated structural validator, which does not replace docs:check."],

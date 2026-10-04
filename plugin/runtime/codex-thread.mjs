@@ -167,7 +167,8 @@ export function inheritedPolicyOverrides(config, url, tools) {
   const overrides = [];
   const servers = Object.keys(config.mcp_servers ?? {}).filter(name => name !== "harness");
   const disabled = servers.map(name => `${JSON.stringify(name)}={enabled=false}`);
-  disabled.push(`harness={url=${JSON.stringify(url)},enabled=true,enabled_tools=${JSON.stringify(tools)},bearer_token_env_var="HARNESS_ROLE_CAPABILITY"}`);
+  const approvedTools = tools.map(name => `${JSON.stringify(name)}={approval_mode="approve"}`).join(",");
+  disabled.push(`harness={url=${JSON.stringify(url)},enabled=true,enabled_tools=${JSON.stringify(tools)},default_tools_approval_mode="prompt",tools={${approvedTools}},bearer_token_env_var="HARNESS_ROLE_CAPABILITY"}`);
   overrides.push(`mcp_servers={${disabled.join(",")}}`);
   const plugins = Object.keys(config.plugins ?? {});
   if (plugins.length) overrides.push(`plugins={${plugins.map(name => `${JSON.stringify(name)}={enabled=false}`).join(",")}}`);
@@ -183,18 +184,37 @@ export function assertRolePolicy(config, filesystem, url, agent) {
   const tools = ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev, harness = config.mcp_servers?.harness;
   const disabled = ["multi_agent", "apps", "hooks", "memories", "goals"];
   if (config.agents?.enabled !== false || config.approval_policy !== "never" || config.default_permissions !== "harness-role"
+    || config.sandbox_mode != null
     || config.web_search !== (agent === "feature-scout" ? "live" : "disabled") || config.project_doc_max_bytes !== 0 || config.features?.code_mode?.enabled !== false
     || disabled.some(name => config.features?.[name] !== false)
     || config.features?.shell_tool !== (agent !== "pm") || config.features?.unified_exec !== false
     || Object.entries(config.mcp_servers ?? {}).some(([name, server]) => name !== "harness" && server.enabled !== false)
     || Object.values(config.plugins ?? {}).some(plugin => plugin.enabled !== false)
     || !harness || harness.enabled !== true || harness.url !== url || !isDeepStrictEqual(harness.enabled_tools, tools)
+    || harness.default_tools_approval_mode !== "prompt" || tools.some(name => harness.tools?.[name]?.approval_mode !== "approve")
+    || Object.entries(harness.tools ?? {}).some(([name, policy]) => !tools.includes(name) && policy.approval_mode === "approve")
     || harness.bearer_token_env_var !== "HARNESS_ROLE_CAPABILITY" || harness.bearer_token != null
     || Object.keys(harness.http_headers ?? {}).length || Object.keys(harness.env_http_headers ?? {}).length
     || permission?.extends !== ":read-only" || permission.workspace_roots != null || !isDeepStrictEqual(paths, filesystem)
     || permission.network?.enabled !== false || Object.entries(permission.network ?? {}).some(([name, value]) => name !== "enabled" && value != null)
     || config.shell_environment_policy?.inherit !== "none" || Object.values(config.shell_environment_policy?.set ?? {}).some(value => value !== "")) {
     throw new Error("Effective role policy differs; no model turn started");
+  }
+}
+
+export async function verifyRoleExecution(server, scratch, agent, platform = process.platform) {
+  if (agent === "pm") return;
+  const marker = "harness-role-execution-ready";
+  const command = platform === "win32"
+    ? [path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", `[Console]::Write('${marker}')`]
+    : ["/bin/sh", "-c", `printf '${marker}'`];
+  // Omit sandboxPolicy: the command must use the already checked named permissions.
+  // A config/read match alone does not prove the host can launch a restricted tool.
+  let result;
+  try { result = await server.request("command/exec", { command, cwd: scratch, timeoutMs: 10000, outputBytesCap: 1024 }, 15000); }
+  catch { throw new Error("Role sandbox execution unavailable; no model turn started. Use a host supporting the unchanged role permissions."); }
+  if (result.exitCode !== 0 || result.stdout?.trim() !== marker) {
+    throw new Error("Role sandbox execution unavailable; no model turn started. Use a host supporting the unchanged role permissions.");
   }
 }
 
@@ -246,6 +266,7 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     child.stdin.write(JSON.stringify({ method: "initialized", params: {} }) + "\n");
     const effective = await server.request("config/read", { includeLayers: false, cwd: scratch });
     assertRolePolicy(effective.config, filesystem, bridge.url, dispatch.agent);
+    await verifyRoleExecution(server, scratch, dispatch.agent);
     const inventory = await server.request("skills/list", { cwds: [scratch], forceReload: true });
     const skills = (inventory.data ?? []).flatMap(value => value.skills ?? []), matching = skills.filter(skill => skill.name === "reconciling-proposals-with-codebase");
     if (dispatch.agent === "plan-verifier" && (matching.length !== 1 || realpathSync(matching[0].path) !== realpathSync(verifier.path))) throw new Error("Actual verifier loader path differs");

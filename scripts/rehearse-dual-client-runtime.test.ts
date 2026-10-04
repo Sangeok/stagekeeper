@@ -9,7 +9,8 @@ import { buildReport, capabilityProbe, isolatedModelEnvironment, main, overallRe
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 const REVISION = "a".repeat(40);
 const AT = "2026-10-03T12:00:00+09:00";
-const PROPOSAL = "docs/proposals/active/codex-dual-client-support.md";
+const PROPOSAL = "docs/proposals/completed/2026-10-04-codex-dual-client-support.md";
+const FOLLOW_UP = "docs/proposals/active/codex-dual-client-runtime-follow-ups.md";
 
 it("independent model environment forwards OS keys without credentials or parent context", () => {
   const environment = isolatedModelEnvironment({ Path: "fixture path", SystemRoot: "fixture system", USERPROFILE: "fixture profile", HARNESS_TOKEN: "private", HARNESS_OWNER_TOKEN: "private", OPENAI_API_KEY: "private", CODEX_THREAD_ID: "parent", CODEX_SESSION_ID: "parent", NODE_OPTIONS: "untrusted" });
@@ -37,8 +38,8 @@ function fixture(t: TestContext): { repo: string; report: string; body: string }
     assert.ok(path.basename(repo).startsWith("stagekeeper-dual-report-test-"));
     rmSync(repo, { recursive: true, force: true });
   });
-  for (const directory of ["docs/test-reports/active", "docs/test-reports/completed", "docs/proposals/active"]) mkdirSync(path.join(repo, directory), { recursive: true });
-  for (const name of [PROPOSAL, "docs/test-reports/README.md", "docs/test-reports/template.md"]) writeFileSync(path.join(repo, name), "Fixture reference\n");
+  for (const directory of ["docs/test-reports/active", "docs/test-reports/completed", "docs/proposals/active", "docs/proposals/completed"]) mkdirSync(path.join(repo, directory), { recursive: true });
+  for (const name of [PROPOSAL, FOLLOW_UP, "docs/test-reports/README.md", "docs/test-reports/template.md"]) writeFileSync(path.join(repo, name), "Fixture reference\n");
   const report = path.join(repo, "docs/test-reports/active/dual-client-runtime-report.md");
   const body = buildReport({ observations: [{ method: "native isolation", expected: "actual permission evidence", detail: "NOT RUN: authentication prerequisite", verdict: "NOT RUN" }], revision: REVISION, at: AT, reportPath: report, repoRoot: repo });
   return { repo, report, body };
@@ -122,6 +123,20 @@ it("append preserves historical rows/evidence and records each new revision sepa
   assert.ok(appended.includes(`revision ${"b".repeat(40)}`));
   assert.equal(current.metadata.result, null);
   assert.equal(overallResult(current.tests), "blocked");
+});
+
+it("appends to a Windows CRLF campaign without damaging its evidence registry", t => {
+  const { repo, report, body } = fixture(t);
+  const previous = body.replace(/\n/g, "\r\n");
+  writeFileSync(report, previous);
+  writeReport(report, saved => buildReport({ previous: saved, observations: [{ method: "CRLF rerun", expected: "history retained", detail: "Observed current fixture", verdict: "PASS" }], revision: REVISION, at: AT, reportPath: report, repoRoot: repo }), { repoRoot: repo });
+  const current = parseReport(readFileSync(report, "utf8"), report, repo);
+  assert.deepEqual(current.tests[0], parseReport(previous, report, repo).tests[0]);
+  assert.equal(current.tests.length, 2);
+  assert.deepEqual([...current.evidenceIds], ["E1", "E2"]);
+  assert.equal(current.metadata.result, null);
+  assert.equal(overallResult(current.tests), "blocked");
+  assert.equal(existsSync(report + ".tmp"), false);
 });
 
 it("accepts planned null fields/empty lists but not missing keys", t => {

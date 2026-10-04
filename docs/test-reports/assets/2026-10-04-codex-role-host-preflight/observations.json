@@ -1,0 +1,218 @@
+{
+  "recordedAt": "2026-10-04T11:54:02.691Z",
+  "sourceBase": "6837fe73e802e8c833c335b1dc740acccf814975",
+  "worktreeSource": true,
+  "sourceSha256": {
+    "plugin/runtime/codex-thread.mjs": "25290638a0df9b9759aa9260162dd4718419b695c2a3fdbc0fb92c8b61bf4ca9",
+    "plugin/bin/harness-session.test.mjs": "c28985b111dcbb2c1d551810e4e523211817ff8bf6f05802a292558a71053103"
+  },
+  "fixtureSha256": {
+    "current-role-probe.mjs": "3e01f1c25891e43c1814c252f6739828ee0a2614a90cddd06656aa735ed8ee41",
+    "current-role-probe-after.mjs": "b851eb0477c56e34a980f42387e7f883809f250177daed983d3d56a1c95ede08",
+    "current-role-preflight.mjs": "adcd9adad82127db28d5b27146be857b9d7351c80eef0c624b1befd42a017ee5",
+    "current-role-stop-probe.mjs": "6a20bd59a4b5129ac39e0b30c73027142870846c3cda899f20f37488825024c6"
+  },
+  "scope": "Actual current product dispatchFreshRole with disposable Git repositories and synthetic loopback MCP; no private role bodies, real DB, browser approval, package installation, deployment, or watch trial.",
+  "trials": {
+    "beforeFix": {
+      "at": "2026-10-04T11:41:13.494Z",
+      "cli": "0.160.0",
+      "calls": [],
+      "error": "Role did not execute agent_next; no completion claimed",
+      "usage": {
+        "totalTokens": 22781,
+        "inputTokens": 22364,
+        "cachedInputTokens": 10368,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 417,
+        "reasoningOutputTokens": 122
+      },
+      "events": [
+        {
+          "type": "effective-policy",
+          "legacySandbox": null,
+          "defaultPermissions": "harness-role",
+          "windowsSandbox": "elevated"
+        },
+        {
+          "type": "effective-policy",
+          "legacySandbox": null,
+          "defaultPermissions": "harness-role",
+          "windowsSandbox": "elevated"
+        },
+        {
+          "method": "turn/completed",
+          "status": "completed"
+        }
+      ],
+      "repositoryWriteObserved": false,
+      "release": "released",
+      "sourceStage": "HEAD codex-thread.mjs before per-tool MCP approval fix",
+      "verdict": "FAIL: first agent_next was denied by never approval policy"
+    },
+    "afterMcpFix": {
+      "at": "2026-10-04T11:45:07.278Z",
+      "cli": "0.160.0",
+      "calls": [
+        {
+          "name": "agent_next",
+          "client": "codex",
+          "outcome": false
+        },
+        {
+          "name": "agent_next",
+          "client": "codex",
+          "outcome": true
+        }
+      ],
+      "error": null,
+      "usage": {
+        "totalTokens": 38646,
+        "inputTokens": 37566,
+        "cachedInputTokens": 26880,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 1080,
+        "reasoningOutputTokens": 306
+      },
+      "events": [
+        {
+          "type": "effective-policy",
+          "legacySandbox": null,
+          "defaultPermissions": "harness-role",
+          "windowsSandbox": "elevated"
+        },
+        {
+          "type": "effective-policy",
+          "legacySandbox": null,
+          "defaultPermissions": "harness-role",
+          "windowsSandbox": "elevated"
+        },
+        {
+          "method": "item/started",
+          "type": "commandExecution",
+          "status": "inProgress",
+          "output": null
+        },
+        {
+          "method": "item/completed",
+          "type": "commandExecution",
+          "status": "failed",
+          "output": "Failed to create unified exec process: elevated Windows sandbox requires effective `:root` read access"
+        },
+        {
+          "method": "item/started",
+          "type": "commandExecution",
+          "status": "inProgress",
+          "output": null
+        },
+        {
+          "method": "item/completed",
+          "type": "commandExecution",
+          "status": "failed",
+          "output": "Failed to create unified exec process: elevated Windows sandbox requires effective `:root` read access"
+        },
+        {
+          "method": "item/started",
+          "type": "commandExecution",
+          "status": "inProgress",
+          "output": null
+        },
+        {
+          "method": "item/completed",
+          "type": "commandExecution",
+          "status": "failed",
+          "output": "Failed to create unified exec process: elevated Windows sandbox requires effective `:root` read access"
+        },
+        {
+          "method": "turn/completed",
+          "status": "completed"
+        }
+      ],
+      "repositoryWriteObserved": false,
+      "release": "released",
+      "sourceStage": "Per-tool approval fix before sandbox execution preflight",
+      "verdict": "BLOCKED: agent_next and outcome executed; all three filesystem commands refused before launch"
+    },
+    "executionPreflight": {
+      "at": "2026-10-04T11:48:08.353Z",
+      "cli": "0.160.0",
+      "calls": [],
+      "error": "Role sandbox execution unavailable; no model turn started. Use a host supporting the unchanged role permissions.",
+      "usage": null,
+      "events": [
+        {
+          "type": "effective-policy",
+          "legacySandbox": null,
+          "defaultPermissions": "harness-role",
+          "windowsSandbox": "elevated"
+        },
+        {
+          "type": "effective-policy",
+          "legacySandbox": null,
+          "defaultPermissions": "harness-role",
+          "windowsSandbox": "elevated"
+        }
+      ],
+      "repositoryWriteObserved": false,
+      "release": "released",
+      "sourceStage": "Current worktree sourceSha256",
+      "verdict": "PASS for early failure/cleanup only; filesystem host remains BLOCKED"
+    },
+    "pendingStop": {
+      "at": "2026-10-04T11:48:55.423Z",
+      "cli": "0.160.0",
+      "calls": [
+        {
+          "name": "agent_next",
+          "client": "codex",
+          "agent": "pm",
+          "outcome": false
+        }
+      ],
+      "error": null,
+      "usage": {
+        "totalTokens": 4621,
+        "inputTokens": 4527,
+        "cachedInputTokens": 0,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 94,
+        "reasoningOutputTokens": 0
+      },
+      "events": [
+        {
+          "method": "turn/interrupt",
+          "at": "2026-10-04T11:49:01.397Z"
+        },
+        {
+          "method": "turn/completed",
+          "status": "interrupted"
+        }
+      ],
+      "repositoryWriteObserved": null,
+      "release": "released",
+      "sourceStage": "Current worktree sourceSha256",
+      "verdict": "PASS for actual PM pending MCP cancellation and common lock exclusion only",
+      "beforeChildren": 1,
+      "afterChildren": 0,
+      "sameSessionThroughout": true,
+      "duplicateClientStart": "locked",
+      "storedPolicy": {
+        "commit": false,
+        "propose": false
+      },
+      "duplicatePolicy": {
+        "commit": false,
+        "propose": false
+      },
+      "earlyRelease": "quiescence-required",
+      "terminal": "interrupted",
+      "stopToInterruptMs": 381,
+      "outcomeAfterStopCount": 0,
+      "cleanup": "released"
+    }
+  },
+  "totalReportedTokens": 66048,
+  "cleanup": "All owned App Server children and loopback servers ended; managed session locks released. Disposable fixture roots/scratch retained for reproduction. No global config/credential store, production DB, or existing browser profile modified.",
+  "next": "Use a host enforcing the unchanged root-deny role permissions, rerun read/scratch/forbidden-write and full verifier/approval resumption, then implement C4 and run actual 110-minute no-model idle/cancellation acceptance.",
+  "officialVersionSource": "https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/resolved_permissions.rs"
+}

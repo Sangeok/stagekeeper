@@ -10,7 +10,7 @@ import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
 import { dispatchBinding } from "./harness-codex.mjs";
-import { AppServer, childEnvironment, rolePermissions, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge } from "../runtime/codex-thread.mjs";
+import { AppServer, childEnvironment, rolePermissions, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution } from "../runtime/codex-thread.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
 
@@ -112,12 +112,27 @@ it("neutralizes inherited servers/plugins/environment without copying their valu
   assert.match(inherited, /"harness_owner"=\{enabled=false\}/); assert.match(inherited, /"HARNESS_OWNER_TOKEN"=""/);
   const config = { agents: { enabled: false }, approval_policy: "never", default_permissions: "harness-role", web_search: "disabled", project_doc_max_bytes: 0,
     features: { multi_agent: false, apps: false, hooks: false, memories: false, goals: false, code_mode: { enabled: false }, shell_tool: true, unified_exec: false },
-    mcp_servers: { harness_owner: { enabled: false }, harness: { enabled: true, url, enabled_tools: ROLE_TOOLS["doc-auditor"], bearer_token_env_var: "HARNESS_ROLE_CAPABILITY" } }, plugins: { other: { enabled: false } },
+    mcp_servers: { harness_owner: { enabled: false }, harness: { enabled: true, url, enabled_tools: ROLE_TOOLS["doc-auditor"], default_tools_approval_mode: "prompt", tools: Object.fromEntries(ROLE_TOOLS["doc-auditor"].map(name => [name, { approval_mode: "approve" }])), bearer_token_env_var: "HARNESS_ROLE_CAPABILITY" } }, plugins: { other: { enabled: false } },
     permissions: { "harness-role": { extends: ":read-only", filesystem: { ...filesystem, glob_scan_max_depth: null }, network: { enabled: false } } }, shell_environment_policy: { inherit: "none", set: { HARNESS_OWNER_TOKEN: "" } } };
   assert.doesNotThrow(() => assertRolePolicy(config, filesystem, url, "doc-auditor"));
-  for (const mutate of [value => { value.mcp_servers.harness_owner.enabled = true; }, value => { value.permissions["harness-role"].filesystem["C:/extra"] = "write"; }, value => { value.features.multi_agent = true; }, value => { value.shell_environment_policy.set.HARNESS_OWNER_TOKEN = "secret"; }, value => { value.mcp_servers.harness.http_headers = { Authorization: "secret" }; }, value => { value.permissions["harness-role"].network.enabled = true; }]) {
+  assert.throws(() => assertRolePolicy({ ...config, sandbox_mode: "workspace-write" }, filesystem, url, "doc-auditor"));
+  for (const mutate of [value => { value.mcp_servers.harness_owner.enabled = true; }, value => { value.permissions["harness-role"].filesystem["C:/extra"] = "write"; }, value => { value.features.multi_agent = true; }, value => { value.shell_environment_policy.set.HARNESS_OWNER_TOKEN = "secret"; }, value => { value.mcp_servers.harness.http_headers = { Authorization: "secret" }; }, value => { value.permissions["harness-role"].network.enabled = true; }, value => { value.mcp_servers.harness.default_tools_approval_mode = "approve"; }, value => { value.mcp_servers.harness.tools.agent_next.approval_mode = "prompt"; }, value => { value.mcp_servers.harness.tools.gate_approve = { approval_mode: "approve" }; }]) {
     const changed = structuredClone(config); mutate(changed); assert.throws(() => assertRolePolicy(changed, filesystem, url, "doc-auditor"));
   }
+});
+
+it("requires actual sandbox execution without replacing named permissions or starting a model", async () => {
+  const calls = [];
+  const server = { request: async (method, params) => { calls.push({ method, params }); return { exitCode: 0, stdout: "harness-role-execution-ready" }; } };
+  await verifyRoleExecution(server, "scratch", "doc-auditor", "win32");
+  await verifyRoleExecution(server, "scratch", "dev", "linux");
+  await verifyRoleExecution(server, "scratch", "pm", "win32");
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(call => call.method === "command/exec" && !Object.hasOwn(call.params, "sandboxPolicy") && call.params.timeoutMs === 10000));
+  for (const result of [{ exitCode: 1, stdout: "", stderr: "private-host-details" }, { exitCode: 0, stdout: "wrong-marker" }]) {
+    await assert.rejects(verifyRoleExecution({ request: async () => result }, "scratch", "dev", "win32"), error => /no model turn started/.test(error.message) && !error.message.includes("private-host-details"));
+  }
+  await assert.rejects(verifyRoleExecution({ request: async () => { throw new Error("private-host-details"); } }, "scratch", "dev"), /Role sandbox execution unavailable/);
 });
 
 it("refuses App Server approval requests and bounds failed transport requests", async () => {

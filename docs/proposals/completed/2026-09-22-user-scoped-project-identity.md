@@ -175,7 +175,7 @@ owner: async (projectId, userId) =>
   `SKILL.md`, 그리고 **`docs/investigations/active/harness-platform.md:920`(v2 스펙 본문의 검증기
   코드 — A-2와 함께, B-1 승인과 무관)**. B-1이 실행될 때만 `rationale.md`·`system-overview.md`·
   같은 문서의 **도구 이름 일곱 곳**(`:176,181,189,322,1128,1129,1206` — `:920`과는 별개다)·
-  `agent-role-catalog.md`(활성 제안서).
+  당시 `agent-role-catalog.md`(2026-10-04 사용자 지시로 삭제된 미구현 제안서).
 
 제외 범위:
 
@@ -599,7 +599,7 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
 | `packages/core/deliver.test.mjs` · `src/server/agents/{next,steps}.test.ts` | update | 스텁 fixture에 `mcp__harness__agent_next`가 문자열로 박혀 있다(`deliver.test.mjs:6,21`) — B-1이 깨뜨린다 | medium — fixture staleness |
 | `docs/architecture/{rationale,system-overview}.md` | update | 도구 이름 `rationale.md:40` · `system-overview.md:50`(B-1) | low — 문서 |
 | `docs/investigations/active/harness-platform.md` | update | **v2 스펙 본문 — 두 시점에 손댄다.** **A-2에서 `:920`**(`clientId: row.projectId`를 싣는 검증기 코드)에 `hu_` 분기를 반영한다 — **B-1 승인과 무관하다.** B-1이 실행될 때 추가로 `:189` 도구 이름 규칙·`:322` 생성 `tools:` 예시·`:1128-1129` init 절차·`:176,181,1206` | medium — 스펙 문서라 코드와 어긋나면 상위 규범이 틀린다. **A만 하고 `:920`을 빼면 스펙이 코드와 반대를 말한다** |
-| `docs/proposals/active/agent-role-catalog.md` | update | `:246-247`이 새 에이전트의 `tools:`를 `mcp__harness__*`로 지정한다 — B-1과 충돌하는 **활성 제안서** | medium — 제안서 간 조율 |
+| 당시 `agent-role-catalog.md`(2026-10-04 사용자 지시로 삭제) | historical | `:246-247`이 새 에이전트의 `tools:`를 `mcp__harness__*`로 지정했다 — 당시 B-1과 충돌한 미구현 제안서 | medium — 역사적 제안서 간 조율 기록 |
 | **`Sangeok/harness-templates` (별도 저장소)** | update | 템플릿 9개 + `templates.test.mjs` = **10개 파일 44곳**(2026-09-20 실측). **`CLAUDE.runbook.md:129`와 `templates.test.mjs:177,187`은 소유자 이름이라 유지**(B-1) | **high** — 별도 PR이 필요하다(이 저장소의 PR에 담을 수 없다). 작업 자체는 가능하다: `plugin/templates/`가 로컬 작업트리이고 remote가 그 저장소다. **다만 착수 전에 그 저장소가 깨끗한지 확인할 것** — 2026-09-20 기준 `harness/server-clean-code` 브랜치에서 **8개 파일이 미커밋 상태**였고, 그 위에 44곳 일괄 변경을 얹으면 두 작업이 엉킨다 |
 | **DB `Template` 표** | reseed | `npm run seed:templates` 수동 실행 없이는 템플릿 변경이 전달되지 않는다 | **high** — 배포 절차, 자동화 없음 |
 
@@ -969,7 +969,7 @@ B-1 선택지 3의 실현 가능성.
   그 저장소이며 권한도 있다. 실제 블로커는 **그 저장소의 상태**다 — 확인 시점에 `harness/server-clean-code`
   브랜치에서 **8개 파일이 미커밋**이었다(다른 활성 제안서의 진행 중 작업으로 보인다). 그 작업이
   정리되기 전에 44곳 일괄 이름 변경을 얹으면 두 작업이 엉켜 되돌리기 어려워진다.
-- **`agent-role-catalog.md`(활성 제안서)와 충돌한다.** `:246-247`이 새 에이전트의 `tools:`를
+- **당시 `agent-role-catalog.md`와 충돌했다.** 이 미구현 제안서는 2026-10-04 사용자 지시로 삭제됐다. 당시 `:246-247`이 새 에이전트의 `tools:`를
   `mcp__harness__*`로 지정한다. B-1을 하면 두 제안서 중 하나가 먼저 상대를 갱신해야 한다.
 - **B-1의 이득이 소유자 토큰 사용자에게는 부분적이다.** `harness_owner`는 조건부여야 해서
   플러그인 매니페스트에 넣을 수 없다(§B-1). 그 사용자에게는 저장소 `.mcp.json`·재시작·승인이

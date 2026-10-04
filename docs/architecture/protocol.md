@@ -453,8 +453,12 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 업데이트된 watch는 `--start --managed`를 사용한다. metadata 없는 legacy stop의 즉시 정리 계약은 유지하되
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 
-Codex role dispatcher는 모델 없는 effective config preflight 후 새 App Server thread를 시작한다.
+Codex role dispatcher는 모델 없는 effective config와 sandbox command 실행 preflight 후 새 App Server thread를 시작한다.
 다른 inherited MCP·plugin을 끄고 shell 설정의 상속 값을 비우며 named filesystem/network policy와 도구 목록을 확인한다.
+허용된 역할 MCP 도구만 개별 `approval_mode="approve"`로 설정하고 기본값은 `prompt`로 유지한다.
+owner 도구·권한 상승 요청은 거부한다. legacy sandbox 설정이 named policy와 함께 남아 있으면 실행하지 않는다.
+파일 도구가 없는 PM을 제외하고, 동일 named policy의 `command/exec`로 고정 marker를 먼저 확인한다.
+실행 불가 시 모델을 호출하지 않고 실패한다. marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지 않는다.
 parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package와
 winning skill path/checksum을 확인하고 다른 skill은 비활성화한다. 부모 대화·판정 목록을 전달하지 않는다.
 PM은 파일 도구가 없고 scout만 web search를 허용한다. Git metadata는 read-only이며 child commit은

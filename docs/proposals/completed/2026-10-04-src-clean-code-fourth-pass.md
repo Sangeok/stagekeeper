@@ -21,7 +21,7 @@ related:
   - "docs/architecture/protocol.md"
   - "docs/conventions/product-copy.md"
   - "docs/proposals/completed/2026-10-01-src-clean-code-third-pass.md"
-  - "docs/proposals/active/codex-dual-client-support.md"
+  - "docs/proposals/completed/2026-10-04-codex-dual-client-support.md"
 ---
 
 # src 클린코드 4차 검토 — 개선 제안 10건
