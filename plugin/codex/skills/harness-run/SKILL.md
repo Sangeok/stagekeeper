@@ -21,10 +21,12 @@ by the runbook. Act only on the fresh Codex runtime echo and pipeline answer. Fo
 fresh App Server role with a minimal briefing. It never forks the parent history. Do not use
 native default agents, another CLI, inherited parent conclusions or auto-approval as fallback.
 Runtime permission failures are failed/blocked. Keep the independent verifier's complete skill.
-If the helper reports sandbox execution unavailable, stop and retain the role's filesystem
-policy. Use a host that can enforce those permissions before retrying. The Windows CLI
-0.160.0 root-read requirement is incompatible with the current root-deny role profile;
-do not broaden permissions or start automatic watch to work around this failure.
+If the helper reports `codex-role-execution-unavailable`, stop and retain the role's filesystem
+policy and unresolved ownership. Report a Stagekeeper runtime compatibility issue. Do not
+ask the owner to install WSL, switch operating systems, log into another client or repeat
+initialization. The Windows CLI 0.160.0 root-read requirement is incompatible with the current
+root-deny role profile; native Windows compatibility remains a product release blocker.
+Do not broaden permissions or start automatic watch to work around this failure.
 
 Before verify dispatch, do your own required reconciliation round and record the selected
 verification paths. Create a scratch JSON file with the sole field requiredVerificationPaths

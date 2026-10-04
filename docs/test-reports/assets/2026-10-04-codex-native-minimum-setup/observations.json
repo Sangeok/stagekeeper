@@ -1,0 +1,52 @@
+{
+  "observedAt": "2026-10-04T13:23:54.729Z",
+  "sourceBase": "8d95609622201c52421ed3a609f130ee2c013fd6+working-tree",
+  "sourceFiles": {
+    "plugin/runtime/codex-thread.mjs": "1ba09230d7707c86c3db2d4ba31e821cf43bbbd4f0a9cf075175b6f6558b0337",
+    "plugin/bin/harness-codex.mjs": "e22c11b07bbdad8cbd0f76ac07d824dbbf22f20a3c59d7cafc384857f1865ae2"
+  },
+  "host": {
+    "platform": "win32",
+    "cliVersion": "codex-cli 0.160.0",
+    "sandbox": "elevated"
+  },
+  "adapter": "dispatchFreshRole",
+  "verdict": "BLOCKED",
+  "errorCode": "codex-role-execution-unavailable",
+  "requests": [
+    "initialize",
+    "config/read",
+    "initialize",
+    "config/read",
+    "command/exec"
+  ],
+  "effectivePolicies": [
+    {
+      "type": "effective-policy",
+      "legacySandbox": null,
+      "defaultPermissions": "harness-role",
+      "windowsSandbox": "elevated"
+    },
+    {
+      "type": "effective-policy",
+      "legacySandbox": null,
+      "defaultPermissions": "harness-role",
+      "windowsSandbox": "elevated"
+    }
+  ],
+  "modelThreadOrTurnStarts": 0,
+  "modelUsageObserved": false,
+  "fixtureMcpCalls": 0,
+  "forbiddenRepositoryWriteObserved": false,
+  "cleanup": {
+    "ownershipBeforeStop": "owned",
+    "release": "released",
+    "lockAbsent": true
+  },
+  "limits": [
+    "Actual current Windows adapter preflight only; thread/start and turn/start were explicitly forbidden by the probe.",
+    "No WSL, installation, login or role permission change was performed.",
+    "A blocked command proves no allowed file execution; absent forbidden writes do not prove filesystem isolation.",
+    "This confirms error propagation and clean release, not native Windows product readiness, dependency packaging or C4 completion."
+  ]
+}

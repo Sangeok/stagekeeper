@@ -462,7 +462,10 @@ named filesystem/network policy와 도구 목록을 확인한다.
 owner 도구·권한 상승 요청은 거부한다. legacy sandbox 설정이 named policy와 함께 남아 있으면 실행하지 않는다.
 파일 도구가 없는 PM을 제외하고, 동일 named policy의 `command/exec`로 고정 marker를 먼저 확인한다.
 POSIX preflight는 `cat` 명령의 경로 해석도 확인해 읽기 도구가 없는 셸에서 모델을 시작하지 않는다.
-실행 불가 시 모델을 호출하지 않고 실패한다. marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지 않는다.
+실행 불가 시 모델을 호출하지 않고 `codex-role-execution-unavailable`로 실패한다.
+이를 재초기화·WSL 설치·다른 클라이언트 로그인으로 복구하도록 안내하지 않는다.
+Stagekeeper 런타임 호환성 결함으로 보고하고 미확인 소유권과 역할 권한을 유지한다.
+marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지 않는다.
 parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package를
 scratch의 `.agents/skills/reconciling-proposals-with-codebase`로 복사하고, 원본·복사본의 checksum과 파일 수를
 init metadata와 비교한다. 이 패키지만 scratch 쓰기 권한보다 좁은 읽기 전용 권한으로 지정한다.

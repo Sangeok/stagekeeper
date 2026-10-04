@@ -8,6 +8,12 @@ above the skill directory. Verify `.codex-plugin/plugin.json` declares harness, 
 0.5.0 or later and skills `./codex/skills/`, and verify the bin/runtime/lib files below exist.
 Never assume CODEX_PLUGIN_ROOT or use an unrelated checkout as the installed package.
 
+Use the owner's chosen native client and existing login. Do not require WSL, a VM/container,
+another client login, or manual Node/verifier-skill installation to connect Stagekeeper.
+This source version still depends on Node and an owner-provided verifier package. If those
+dependencies are unavailable, report an unresolved Stagekeeper packaging requirement and
+stop; do not turn them into extra user setup steps or claim the package is ready.
+
 Read `references/reconciliation-contract.md`. Resolve and read the complete owner-provided
 reconciling-proposals-with-codebase package and its referenced resources. Check the actual
 winning Codex loader path and checksum; incompatible, duplicate or missing packages block

@@ -27,6 +27,12 @@ Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 �
 제품 지원 인증으로 해석하지 않는다. 미완료 근거는 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md),
 실제 source 계약은 [protocol.md](./protocol.md)의 dual-client 절을 따른다.
 
+사용자는 선택한 native 클라이언트의 기존 설치·로그인으로 연결할 수 있어야 한다.
+WSL이나 다른 클라이언트 로그인, 별도 Node·검증 스킬 설치를 사용자에게 요구하는
+경로는 출시 기준을 충족하지 않는다. [system-overview.md](./system-overview.md)의
+최소 설치 기준과 [후속 계획](../proposals/active/codex-dual-client-runtime-follow-ups.md)의
+Windows 실행·패키징 게이트를 자동 watch보다 먼저 해결한다.
+
 Phase 4는 2026-09-04에 완료됐다(제안서:
 `docs/proposals/completed/2026-09-04-harness-platform-phase-4-entitlement.md`).
 플랜은 Free/Pro/Max이고 상한은 5축이다 — 프로젝트·워크스페이스·백로그·이력 창·에이전트.

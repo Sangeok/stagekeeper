@@ -8,6 +8,16 @@ Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트
 Codex foreground 어댑터 소스도 같은 HTTP MCP·원장을 사용한다. Codex의 실제
 모델 인수와 배포는 [검증 보고서](../test-reports/active/dual-client-runtime-report.md)의 미완료 항목이다.
 
+2026-10-04 사용자가 승인한 설치 기준: 웹 사용에는 로컬 실행 환경을 요구하지 않는다.
+저장소 실행에는 사용자가 선택한 Claude Code 또는 Codex의 기존 native 설치·로그인을
+사용하고, Stagekeeper 플러그인 설치와 프로젝트 연결을 기본 사용자 절차로 삼는다.
+WSL·VM·컨테이너·별도 Linux checkout이나 선택하지 않은 클라이언트의 설치·로그인을
+지원 조건이나 오류 복구 절차로 요구하지 않는다. helper 실행 환경과 완전한 검증 스킬의
+전달은 Stagekeeper 패키징 책임이며 사용자가 Node나 외부 스킬을 별도로 설치하게 하지 않는다.
+이 기준은 출시 게이트다. 현재 Codex 소스는 별도 Node와 owner-provided 검증 패키지에
+의존하고 Windows 역할 파일 실행도 미통과이므로 아직 이 기준을 만족하지 않는다.
+WSL 시험 결과는 개발 증거로 보존하며 Windows 지원·최소 설치 인수를 대신하지 않는다.
+
 ```text
 [브라우저의 사용자]
         │ GitHub 로그인, 백로그 편집, 게이트 승인

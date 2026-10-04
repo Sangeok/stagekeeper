@@ -9,8 +9,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
-import { dispatchBinding } from "./harness-codex.mjs";
-import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution } from "../runtime/codex-thread.mjs";
+import { dispatchBinding, codexFailure } from "./harness-codex.mjs";
+import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
 
@@ -160,10 +160,25 @@ it("requires actual sandbox execution without replacing named permissions or sta
   await verifyRoleExecution(server, "scratch", "pm", "win32");
   assert.equal(calls.length, 2);
   assert.ok(calls.every(call => call.method === "command/exec" && !Object.hasOwn(call.params, "sandboxPolicy") && call.params.timeoutMs === 10000));
+  const assertRuntimeFailure = error => {
+    assert.ok(error instanceof RoleExecutionUnavailable);
+    const failure = codexFailure(error, "owned-session");
+    assert.equal(failure.code, "codex-role-execution-unavailable");
+    assert.equal(failure.session, "owned-session");
+    assert.match(failure.reason, /no model turn started/);
+    assert.match(failure.reason, /Stagekeeper must fix runtime compatibility/);
+    assert.doesNotMatch(failure.reason, /private-host-details|Use a host|resolve with \$harness-init/);
+    return true;
+  };
   for (const result of [{ exitCode: 1, stdout: "", stderr: "private-host-details" }, { exitCode: 0, stdout: "wrong-marker" }]) {
-    await assert.rejects(verifyRoleExecution({ request: async () => result }, "scratch", "dev", "win32"), error => /no model turn started/.test(error.message) && !error.message.includes("private-host-details"));
+    await assert.rejects(verifyRoleExecution({ request: async () => result }, "scratch", "dev", "win32"), assertRuntimeFailure);
   }
-  await assert.rejects(verifyRoleExecution({ request: async () => { throw new Error("private-host-details"); } }, "scratch", "dev"), /Role sandbox execution unavailable/);
+  await assert.rejects(verifyRoleExecution({ request: async () => { throw new Error("private-host-details"); } }, "scratch", "dev"), assertRuntimeFailure);
+  const privateError = Object.assign(new Error("private-host-details"), { code: "codex-role-execution-unavailable" });
+  const refused = codexFailure(privateError);
+  assert.equal(refused.code, "codex-refused");
+  assert.equal(refused.session, null);
+  assert.doesNotMatch(JSON.stringify(refused), /private-host-details/);
 });
 
 it("refuses App Server approval requests and bounds failed transport requests", async () => {

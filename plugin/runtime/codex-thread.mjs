@@ -222,6 +222,14 @@ export function assertRolePolicy(config, filesystem, url, agent) {
   }
 }
 
+export class RoleExecutionUnavailable extends Error {
+  constructor() {
+    super("Role sandbox execution unavailable; no model turn started. Stagekeeper must fix runtime compatibility. Keep role permissions and unresolved ownership; do not request WSL, another client login or repeated initialization.");
+    this.name = "RoleExecutionUnavailable";
+    this.code = "codex-role-execution-unavailable";
+  }
+}
+
 export async function verifyRoleExecution(server, scratch, agent, platform = process.platform) {
   if (agent === "pm") return;
   const marker = "harness-role-execution-ready";
@@ -232,9 +240,9 @@ export async function verifyRoleExecution(server, scratch, agent, platform = pro
   // A config/read match alone does not prove the host can launch a restricted tool.
   let result;
   try { result = await server.request("command/exec", { command, cwd: scratch, timeoutMs: 10000, outputBytesCap: 1024 }, 15000); }
-  catch { throw new Error("Role sandbox execution unavailable; no model turn started. Use a host supporting the unchanged role permissions."); }
+  catch { throw new RoleExecutionUnavailable(); }
   if (result.exitCode !== 0 || result.stdout?.trim() !== marker) {
-    throw new Error("Role sandbox execution unavailable; no model turn started. Use a host supporting the unchanged role permissions.");
+    throw new RoleExecutionUnavailable();
   }
 }
 
