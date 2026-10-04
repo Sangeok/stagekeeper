@@ -37,6 +37,8 @@ static void uv__unique_pipe_name(unsigned long long ptr, char* name, size_t size
 }
 '@
 $text = [IO.File]::ReadAllText($pipeFile).Replace("`r`n", "`n")
+$old = $old.Replace("`r`n", "`n")
+$replacement = $replacement.Replace("`r`n", "`n")
 if ($text.Contains($old)) {
   if ($text.IndexOf($old) -ne $text.LastIndexOf($old)) { throw 'Node patch anchor is ambiguous' }
   [IO.File]::WriteAllText($pipeFile, $text.Replace($old, $replacement), [Text.UTF8Encoding]::new($false))
@@ -50,7 +52,7 @@ try {
 $runtime = Join-Path $buildPath 'runtime'
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $source 'Release/node.exe') -Destination (Join-Path $runtime 'node.exe')
-Copy-Item -LiteralPath (Join-Path $source 'deps/npm') -Destination (Join-Path $runtime 'npm') -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $source 'deps/npm') -Destination $runtime -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $source 'LICENSE') -Destination (Join-Path $runtime 'LICENSE')
 $manifest = [ordered]@{
   format = 'stagekeeper-windows-node-v1'; version = $version; architecture = 'x64'
