@@ -1,5 +1,5 @@
 // Actual components mounted with local action/clipboard doubles. No production route.
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { NewProjectForm } from "../../../src/fsd/features/create-project/ui/new-project-form";
@@ -16,6 +16,7 @@ import { AutomaticScoutControl } from "../../../src/fsd/features/edit-pipeline/u
 import { ProjectConnectionControl } from "../../../src/fsd/features/manage-project-connection/ui/project-connection-control";
 import { connectionControlKey } from "../../../src/fsd/features/manage-project-connection/model/project-connection-state";
 import { ResumeButtons } from "../../../src/fsd/features/review-gate/ui/resume-buttons";
+import { ProposeButton } from "../../../src/fsd/features/propose-item/ui/propose-button";
 import { defaultGraph } from "../../../packages/core/pipeline.mjs";
 import { runAcceptance } from "./src-clean-code-acceptance";
 
@@ -28,6 +29,7 @@ const controls = {
   payloads: [] as unknown[],
   refreshes: 0,
   finishAction: (outcome: "success" | "error" | "stale" | "unknown") => { void outcome; },
+  setRoster: (roster: string[]) => { void roster; },
 };
 Object.assign(window, { fixture: controls });
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
@@ -79,7 +81,7 @@ function ResumeFixture() {
 function FormFixture() {
   const picker = new URLSearchParams(location.search).has("picker") || fixturePicker;
   return <NewProjectForm defaultOwner="fixture-owner" repoLoadFailed={false} mcpUrl="https://fixture.test/api/mcp"
-    repos={picker ? [{ name: "picked-repo", defaultBranch: "release/picked" }] : []}
+    repos={picker ? [{ name: "picked-repo", defaultBranch: "release/picked" }, { name: "second-repo", defaultBranch: "main" }] : []}
     action={async (_previous, data) => {
       controls.submissions.push(Object.fromEntries(data.entries()));
       await new Promise<void>(resolve => { pending.add(resolve); controls.finishRegistration = () => { pending.delete(resolve); resolve(); }; });
@@ -126,12 +128,23 @@ function cleanupFixture() {
   for (const finish of pending) finish(); pending.clear();
   if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard); else Reflect.deleteProperty(navigator, "clipboard");
 }
+
+function ProposeFixture() {
+  const [roster, setRoster] = useState<string[]>([]);
+  useEffect(() => {
+    controls.setRoster = setRoster;
+    return () => { controls.setRoster = () => {}; };
+  }, []);
+  return <ProposeButton itemKey="KEY" roster={roster} propose={input => action(input, {
+    success: { success: true, data: undefined }, error: { success: false, error: "Refused" }, stale: { success: false, error: "stale" },
+  })} />;
+}
 function renderMode(mode: string, picker = false) {
   cleanupFixture(); fixturePicker = picker;
   controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0;
   installClipboard();
   root = createRoot(document.getElementById("root")!);
-  root.render(<AppRouterContext.Provider value={router}>{mode === "copy" ? <CopyFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+  root.render(<AppRouterContext.Provider value={router}>{mode === "copy" ? <CopyFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
 }
 const toolbar = document.createElement("div");
 const run = document.createElement("button"); run.textContent = "Run acceptance";

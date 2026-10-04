@@ -4,10 +4,14 @@
 // 저장소 문서의 실제 주소. 라우트마다 템플릿을 다시 쓰면 화면마다 다른 링크가 나온다.
 export type RepoRef = { owner: string; repo: string; branch: string };
 
+function encodePathSegments(value: string): string {
+  return value.split("/").map(encodeURIComponent).join("/");
+}
+
 // ref가 있으면 그 커밋을 연다 — 게이트②가 승인하는 것은 planCommit이고, 보고도 자기 커밋이 있다.
 // 없을 때만 브랜치 HEAD(계획서가 아직 제출 전인 경우)다.
 export function blobHref(repo: RepoRef, path: string, ref: string | null = null): string {
-  return `https://github.com/${repo.owner}/${repo.repo}/blob/${ref ?? repo.branch}/${path}`;
+  return `https://github.com/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.repo)}/blob/${encodePathSegments(ref ?? repo.branch)}/${encodePathSegments(path)}`;
 }
 
 // blobHref가 만드는 주소는 **기록된 커밋**을 가리킨다. 그 커밋이 원격에 없으면 조용히 404다 —

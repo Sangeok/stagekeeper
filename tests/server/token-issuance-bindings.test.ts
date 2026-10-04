@@ -95,7 +95,7 @@ it("actual web list routes enforce original scopes and pass usage fields without
     "@/server/auth/guard": { requireProjectOwner: async (slug: string) => { guards.push(slug); return { projectId: "p", userId: "u" }; }, requireUser: async () => { guards.push("user"); return { userId: "u" }; } },
     "@/server/entitlement": { projectAccess: async () => ({ available: true, plan: "pro" }) },
     "@/server/public-url": { mcpUrl: () => "http://example.test/api/mcp", ownerMcpUrl: () => "http://example.test/api/mcp/owner" },
-    "@/fsd/pages/project-tokens": { ProjectTokensPage: PageComponent }, "@/fsd/pages/user-tokens": { UserTokensPage: PageComponent },
+    "@/fsd/pages/project-tokens/index.server": { ProjectTokensPage: PageComponent }, "@/fsd/pages/user-tokens/index.server": { UserTokensPage: PageComponent },
     "@/fsd/features/manage-token/index.server": { issueToken: noop, issueOwnerToken: noop, revokeToken: noop, revokeOwnerToken: noop, renameToken: noop, renameOwnerToken: noop },
     "@/fsd/features/manage-user-token/index.server": { issueUserToken: noop, revokeUserToken: noop, renameUserToken: noop },
     "@/fsd/widgets/app-header": { AppHeader: () => null }, "@/fsd/widgets/app-header/index.server": { loadHeaderUser: async () => ({ login: "owner", plan: "pro" }) },

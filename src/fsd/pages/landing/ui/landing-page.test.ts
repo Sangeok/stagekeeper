@@ -4,11 +4,13 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { copyLock, lockFailure, missingUnits } from "@/fsd/shared/lib/copy-lock";
 import { LandingPage } from "./landing-page";
+import { gateActionLabel, gateActionHint } from "@/fsd/entities/pipeline";
 
-// 데모 카드는 실제 Inbox에 대한 약속이다. 제품 문장 셋을 값으로 적었으므로(랜딩이 클라이언트 barrel을
-// 끌어오지 않게) product-copy.md §16의 잠금 블록이 그 셋을 이 화면에 묶는다.
+// 데모는 실제 Inbox의 순수 문구 API와 canonical copy를 함께 따른다.
 it("the landing demo card shows the product lines product-copy.md §16 locks", () => {
   const html = renderToStaticMarkup(createElement(LandingPage, { signedIn: false, signInAction: async () => {} }));
   const missing = missingUnits(copyLock("landing-demo"), html);
   assert.deepEqual(missing, [], lockFailure("landing-demo", missing));
+  assert.ok(html.includes(gateActionLabel("before-implement")));
+  assert.ok(html.includes(gateActionHint("before-implement")));
 });

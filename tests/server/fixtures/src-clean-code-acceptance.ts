@@ -1,6 +1,6 @@
 type Outcome = "success" | "error" | "stale" | "unknown";
 import { PIPELINE_STALE, PIPELINE_UNKNOWN } from "../../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
-type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void };
+type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void; setRoster: (roster: string[]) => void };
 type Result = { case: string; expected: string; observed: string; status: "Pass" | "Fail" };
 const tick = () => new Promise(resolve => setTimeout(resolve, 80));
 const check = (condition: unknown, message: string) => { if (!condition) throw new Error(message); };
@@ -24,6 +24,62 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     finally { cleanup(); await tick(); }
   };
   const mount = async (mode: string, picker = false) => { render(mode, picker); await tick(); };
+  await run("propose roster same instance", "current selection drives display and submission; explicit selection survives reorder/removal/reappearance and reason survives cancel", async () => {
+    await mount("propose"); await click("Put on the board");
+    const select = document.querySelector<HTMLSelectElement>("select")!;
+    check(select.value === "" && find("Put on the board").disabled, "empty roster enabled");
+    controls.setRoster(["dev"]); await tick();
+    check(document.querySelector("select") === select && select.value === "dev" && !find("Put on the board").disabled, "new roster not derived in same instance");
+    input("input", "evidence survives"); await tick();
+    controls.setRoster(["dev", "other"]); await tick();
+    select.value = "other"; select.dispatchEvent(new Event("change", { bubbles: true })); await tick();
+    controls.setRoster(["other", "dev"]); await tick(); check(select.value === "other", "selection lost on reorder");
+    controls.setRoster(["dev"]); await tick(); check(select.value === "dev", "missing selection not replaced for display");
+    controls.setRoster(["dev", "other"]); await tick(); check(select.value === "other", "explicit selection erased when absent");
+    controls.setRoster([]); await tick(); check(select.value === "" && find("Put on the board").disabled, "empty list has old value");
+    controls.setRoster(["dev", "other"]); await tick();
+    await click("Cancel"); await click("Put on the board");
+    check(document.querySelector<HTMLSelectElement>("select")?.value === "other", "cancel cleared explicit selection");
+    check(document.querySelector<HTMLInputElement>("input")?.value === "evidence survives", "reason cleared");
+    await click("Put on the board");
+    check(JSON.stringify(controls.payloads[0]) === JSON.stringify({ key: "KEY", agent: "other", reason: "evidence survives" }), "payload differs from display");
+    controls.finishAction("success"); await tick();
+  });
+  for (const outcome of ["error", "unknown"] as const) await run(`propose pending ${outcome}`, "pending roster changes display but preserve the one captured request; retry uses current roster and retained reason", async () => {
+    await mount("propose"); controls.setRoster(["dev"]); await tick(); await click("Put on the board");
+    input("input", "captured evidence"); await tick(); await click("Put on the board");
+    const snapshot = JSON.stringify(controls.payloads[0]);
+    controls.setRoster(["other"]); await tick();
+    check(document.querySelector<HTMLSelectElement>("select")?.value === "other", "pending display not current");
+    check(controls.payloads.length === 1 && JSON.stringify(controls.payloads[0]) === snapshot && snapshot.includes('"agent":"dev"'), "pending request changed or duplicated");
+    controls.finishAction(outcome); await tick();
+    check(document.querySelector<HTMLInputElement>("input")?.value === "captured evidence", "failure erased reason");
+    await click("Put on the board"); check(controls.payloads.length === 2, "retry not submitted");
+    check(JSON.stringify(controls.payloads[1]) === JSON.stringify({ key: "KEY", agent: "other", reason: "captured evidence" }), "retry uses stale roster");
+    controls.finishAction("success"); await tick();
+  });
+  for (const picker of [true, false]) await run(`form name reset ${picker ? "picker" : "manual"}`, "only Start over clears name in the same DOM input; ordinary selection/edit changes keep it and B submits an empty name", async () => {
+    await mount("form", picker);
+    if (picker) await click("picked-repo release/picked");
+    else { input('input[inputmode="url"]', "https://github.com/o/repo-a"); await tick(); }
+    await click("Edit"); const name = input('input[name="name"]', "Repository A name"); await tick(); check(document.activeElement === name, "name focus lost");
+    await click("Collapse"); check(document.querySelector('input[name="name"]') === name && name.value === "Repository A name", "collapse reset/remounted name");
+    if (picker) { await click("Paste a URL instead"); input('input[inputmode="url"]', "https://github.com/o/ordinary-change"); await tick(); await click("Pick from my repositories"); await click("second-repo main"); }
+    else { input('input[inputmode="url"]', "https://github.com/o/ordinary-change"); await tick(); await click("Edit"); input('input[name="repo"]', "direct-change"); await tick(); await click("Collapse"); }
+    check(name.value === "Repository A name", "ordinary transition cleared name");
+    await click("Start over"); check(document.querySelector('input[name="name"]') === name && name.value === "", "reset did not clear same name input");
+    if (picker) await click("second-repo main"); else { input('input[inputmode="url"]', "https://github.com/o/repo-b"); await tick(); }
+    await click("Create project"); check(controls.submissions[0]?.name === "", "A name submitted to B");
+    check(controls.submissions[0]?.repo === (picker ? "second-repo" : "repo-b"), "B repository mismatch");
+    controls.finishRegistration(); await tick();
+  });
+  await run("form pending snapshot", "Start over changes only later form state while the captured registration and terminal result retain their lifetime", async () => {
+    await mount("form", true); await click("picked-repo release/picked"); await click("Edit"); input('input[name="name"]', "Submitted name"); await tick();
+    await click("Create project"); const snapshot = JSON.stringify(controls.submissions[0]);
+    await click("Start over"); check(document.querySelector<HTMLInputElement>('input[name="name"]')?.value === "", "pending reset did not clear next state");
+    check(controls.submissions.length === 1 && JSON.stringify(controls.submissions[0]) === snapshot && snapshot.includes("Submitted name"), "captured FormData changed");
+    controls.finishRegistration(); await tick(); check(document.getElementById("root")?.textContent?.includes("Project created"), "registration result erased");
+  });
   await run("copy lifetime", "duplicate writes blocked; stale text success hidden; rejection retry and unmount settle", async () => {
     await mount("copy"); const scope = document.querySelector("#copy")!;
     const copy = find("Copy", scope); copy.click(); copy.click(); await tick(); check(controls.writes.length === 1, "duplicate copy");

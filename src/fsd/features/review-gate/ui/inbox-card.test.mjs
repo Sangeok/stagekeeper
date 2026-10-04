@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
 import { InboxCard } from "./inbox-card.tsx";
 import { inboxReadOnlyLabel } from "../model/inbox-item.ts";
+import { blobHref, DOC_LINK_NOTE } from "@/fsd/entities/board-item";
 
 const render = (item, props = {}) => {
   const action = async () => ({ success: true });
@@ -12,6 +13,18 @@ const render = (item, props = {}) => {
     createElement(InboxCard, { item, now: item.updatedAt,
       transition: action, approve: action, discard: action, canWrite: true, ...props })));
 };
+
+it("the rendered Inbox anchor keeps reserved filename data and the recorded commit note", () => {
+  const path = "docs/#?% 한글.md";
+  const planUrl = blobHref({ owner: "o", repo: "r", branch: "feature/branch" }, path, "commit");
+  const html = render({ ...inReview("before-implement", null), planPath: path, planUrl, planCommit: "commit" });
+  const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(match => match[1].replaceAll("&amp;", "&"));
+  assert.ok(hrefs.includes(planUrl));
+  const url = new URL(hrefs.find(href => href === planUrl));
+  assert.equal(url.hash, ""); assert.equal(url.search, "");
+  assert.equal(decodeURIComponent(url.pathname), `/o/r/blob/commit/${path}`);
+  assert.ok(html.includes(DOC_LINK_NOTE));
+});
 
 it("uses the precise readonly label and hides every write control and execution guidance", () => {
   for (const [code, label] of [["disconnected", "Disconnected"], ["not-selected", "Not selected"], ["integrity", "Read only"]]) {

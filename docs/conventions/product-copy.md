@@ -252,7 +252,7 @@ Activity rows link to the item page and end with the state chip.
 | State | Line |
 | --- | --- |
 | `proposed` | FEAT-05 · waiting for a plan request · 2 days |
-| `in_review` | FEAT-04 · plan submitted · in review for 2 days |
+| `in_review` | FEAT-04 · plan submitted · proposed 2 days ago |
 | `planning` | FEAT-06 · writing the plan — **before dispatch:** FEAT-06 · waiting for dev (quiet tone) |
 | `implementing` | FEAT-07 · implementing — **before dispatch:** FEAT-07 · waiting for dev (quiet tone) |
 | `done` | FEAT-02 · *(first sentence of joined results, or reason when results are empty)* |
@@ -1041,7 +1041,7 @@ Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, c
 <!-- copy-lock:landing-demo -->
 > Waiting on you
 > Approve implementation
-> Approving lets dev change code. Then you run dev in Claude Code.
+> Approving lets dev change code. Then continue in your coding client.
 <!-- /copy-lock -->
 
 - "The cycle you'll run": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·

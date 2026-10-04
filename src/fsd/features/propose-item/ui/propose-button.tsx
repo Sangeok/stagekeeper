@@ -13,7 +13,8 @@ export type ProposeAction = (input: { key: string; agent: string; reason: string
 // ("open items: 2 (max 2)" 등). 실패를 이 행 아래에 붙이는 것은 RemoveBacklogButton과 같은 이유다.
 export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; roster: string[]; propose: ProposeAction }) {
   const [open, setOpen] = useState(false);
-  const [agent, setAgent] = useState(roster[0] ?? "");
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const agent = selectedAgent !== null && roster.includes(selectedAgent) ? selectedAgent : roster[0] ?? "";
   const [reason, setReason] = useState("owner");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -32,7 +33,7 @@ export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; r
         <select
           value={agent}
           disabled={pending}
-          onChange={(e) => setAgent(e.target.value)}
+          onChange={(e) => setSelectedAgent(e.target.value)}
           className="w-full rounded-md border border-edge bg-paper px-2.5 py-[7px] text-sm leading-5 text-ink disabled:opacity-50"
         >
           {roster.length === 0 ? <option value="">No workspace yet</option> : null}
@@ -51,10 +52,11 @@ export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; r
           size="sm"
           variant="mine"
           disabled={pending || agent === ""}
-          onClick={() =>
+          onClick={() => {
+            const input = { key: itemKey, agent, reason };
             startTransition(async () => {
               try {
-                const result = await propose({ key: itemKey, agent, reason });
+                const result = await propose(input);
                 if (!result.success) {
                   setError(result.error);
                   return;
@@ -65,8 +67,8 @@ export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; r
               } catch {
                 setError("Couldn't put it on the board. Try again.");
               }
-            })
-          }
+            });
+          }}
         >
           {pending ? "Putting…" : "Put on the board"}
         </Button>

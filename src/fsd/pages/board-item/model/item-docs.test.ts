@@ -7,6 +7,17 @@ const repo = { owner: "Sangeok", repo: "harness-smoke", branch: "main" };
 const at = (iso: string) => new Date(iso);
 const report = (actor: string, path: string, commit = "0000000", iso = "2026-09-06T14:00:00Z") => ({ actor, path, commit, at: at(iso) });
 
+it("Documents plan and report keep reserved filenames, commit priority and slash branch fallback", () => {
+  const path = "docs/#?% 한글.md";
+  const docs = toItemDocs({ planPath: path, planCommit: null, acceptedAt: null, reports: [report("dev", path, "commit")] }, { ...repo, branch: "Feature/branch" });
+  assert.deepEqual(docs.map(doc => doc.label), ["Plan", "Implementation report"]);
+  for (const [index, ref] of ["Feature/branch", "commit"].entries()) {
+    const url = new URL(docs[index].href);
+    assert.equal(url.hash, ""); assert.equal(url.search, "");
+    assert.equal(decodeURIComponent(url.pathname), `/Sangeok/harness-smoke/blob/${ref}/${path}`);
+  }
+});
+
 describe("toItemDocs", () => {
   it("keeps every constructor actor report and its recorded commit in Documents", () => {
     const docs = toItemDocs({ planPath: null, planCommit: null, acceptedAt: null,

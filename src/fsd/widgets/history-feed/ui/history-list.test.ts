@@ -12,6 +12,20 @@ const reports = ["c1", "c2"].map(id => ({ id, at, actor: "dev", commit: "abcdef1
 const rows = toHistoryRows([], reports, { repo: { owner: "o", repo: "r", branch: "main" }, order: "desc",
   keyLinks: { slug: "sample", currentRounds: new Map([["K-1", "current"]]) } });
 
+it("rendered History report anchors preserve reserved filenames and their shared note", () => {
+  const path = "docs/#?% 한글.md";
+  const encoded = toHistoryRows([], reports.map(report => ({ ...report, path })), { repo: { owner: "o", repo: "r", branch: "feature/branch" }, order: "desc" });
+  const html = renderToStaticMarkup(createElement(HistoryList, { rows: encoded }));
+  const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(match => match[1].replaceAll("&amp;", "&"));
+  assert.equal(hrefs.length, 2);
+  for (const href of hrefs) {
+    const url = new URL(href);
+    assert.equal(url.hash, ""); assert.equal(url.search, "");
+    assert.equal(decodeURIComponent(url.pathname), `/o/r/blob/abcdef123/${path}`);
+  }
+  assert.equal(html.split(DOC_LINK_NOTE).length - 1, 1);
+});
+
 it("renders current-key and report links with one shared note and machine-readable UTC", () => {
   const html = renderToStaticMarkup(createElement(HistoryList, { rows }));
   assert.equal(html.split(DOC_LINK_NOTE).length - 1, 1);

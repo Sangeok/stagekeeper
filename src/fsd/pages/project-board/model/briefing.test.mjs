@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { buildBriefing, firstSentence } from "./briefing.ts";
@@ -44,7 +45,7 @@ describe("buildBriefing", () => {
     const briefing = buildBriefing(BOARD, TODAY, ROSTER, NODE_KINDS);
     assert.deepEqual(briefing.activity.map(({ key, line, tone }) => ({ key, line, tone })), [
       { key: "FEAT-05", line: "waiting for a plan request · 1 day", tone: "pending" },
-      { key: "FEAT-04", line: "plan submitted · in review for 1 day", tone: "pending" },
+      { key: "FEAT-04", line: "plan submitted · proposed 1 day ago", tone: "pending" },
       { key: "FEAT-01", line: "waiting for a plan request · 13 days", tone: "pending" },
       { key: "FEAT-06", line: "writing the plan", tone: "active" },
       { key: "FEAT-07", line: "implementing", tone: "active" },
@@ -54,10 +55,10 @@ describe("buildBriefing", () => {
   });
 
   for (const [label, proposedOn, proposedLine, reviewLine] of [
-    ["UTC midnight crossing", "2026-08-14T23:59:00Z", "waiting for a plan request · 1 day", "plan submitted · in review for 1 day"],
+    ["UTC midnight crossing", "2026-08-14T23:59:00Z", "waiting for a plan request · 1 day", "plan submitted · proposed 1 day ago"],
     ["same UTC date", "2026-08-15T00:00:00Z", "waiting for a plan request", "plan submitted · in review"],
     ["future date", "2026-08-16T00:00:00Z", "waiting for a plan request", "plan submitted · in review"],
-    ["multiple UTC days", "2026-08-02T12:00:00Z", "waiting for a plan request · 13 days", "plan submitted · in review for 13 days"],
+    ["multiple UTC days", "2026-08-02T12:00:00Z", "waiting for a plan request · 13 days", "plan submitted · proposed 13 days ago"],
   ]) {
     it("formats gate day tags for " + label, () => {
       const briefing = buildBriefing([
@@ -73,6 +74,23 @@ describe("buildBriefing", () => {
       row({ status: "done", reason: "Unused reason.", results: ["First part", "second part. Later."] }),
     ], TODAY, ROSTER, NODE_KINDS);
     assert.equal(briefing.activity[0].line, "First part second part.");
+  });
+
+  it("reports proposal age even when review started today and matches canonical copy", () => {
+    const reviewEnteredAt = new Date("2026-08-15T00:00:00Z");
+    const rows = [row({
+      key: "FEAT-04",
+      status: "in_review",
+      proposedOn: new Date("2026-08-13T23:59:00Z"),
+      updatedAt: reviewEnteredAt,
+      transitions: [{ from: "planning", to: "in_review", at: reviewEnteredAt }],
+    })];
+    const line = buildBriefing(rows, TODAY, ROSTER, NODE_KINDS).activity[0].line;
+    assert.equal(line, "plan submitted · proposed 2 days ago");
+    const copy = readFileSync(new URL("../../../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
+    const section = copy.split("## 6.")[1].split("## 7.")[0];
+    assert.ok(section.includes(line));
+    assert.ok(!line.includes("in review for"));
   });
 
   it("uses the reason when results are empty, including unknown status strings", () => {
@@ -146,6 +164,16 @@ describe("buildBriefing", () => {
 
     it("is idle when nothing is in review", () => {
       assert.equal(verifierOf([row({ key: "D-1", status: "done", node: null, gate: null })]), "Idle");
+    });
+
+    it("ignores held cursors and prefers working eligible items over queued ones", () => {
+      const held = row({ key: "H-1", status: "on_hold", node: "verify", gate: null, dispatched: true });
+      const queued = row({ key: "Q-1", status: "in_review", node: "verify", gate: null, dispatched: false });
+      const working = row({ key: "W-1", status: "in_review", node: "verify", gate: null, dispatched: true });
+      assert.equal(verifierOf([held]), "Idle");
+      assert.equal(verifierOf([held, queued]), "Ready for Q-1");
+      assert.equal(verifierOf([held, queued, working]), "Verifying W-1");
+      assert.equal(buildBriefing([held], TODAY, ROSTER, NODE_KINDS).activity[0].tone, "hold");
     });
   });
 

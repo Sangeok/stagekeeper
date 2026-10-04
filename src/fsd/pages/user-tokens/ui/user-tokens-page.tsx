@@ -1,13 +1,12 @@
 import type { ReactElement } from "react";
-import { isTokenActive } from "@harness/core/token-validity.mjs";
-import { TokenUsage, TokenStatus, TokenExpiry } from "@/fsd/entities/project-token";
+import type { TokenRow } from "@/fsd/entities/project-token";
+import { TokenTable } from "@/fsd/entities/project-token/index.server";
 import { NewUserTokenForm, RenameUserTokenForm } from "@/fsd/features/manage-user-token";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";
-import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 
-export type UserTokenRow = { id: string; label: string; createdAt: Date; revokedAt: Date | null; expiresAt: Date | null; lastUsedAt: Date | null; usageTrackingStartedAt: Date | null };
+export type UserTokenRow = TokenRow;
 
 type Props = {
   mcpUrl: string;
@@ -18,10 +17,6 @@ type Props = {
   at: Date;
 };
 
-const day = (d: Date) => d.toISOString().slice(0, 10);
-
-// project-tokens의 표와 같은 모양이지만 그쪽 파일 안에 있는 것을 가져오지 않는다 —
-// 같은 layer의 다른 slice는 import할 수 없다(fsd).
 export function UserTokensPage({ mcpUrl, tokens, issue, revoke, rename, at }: Props): ReactElement {
   return (
     // billing-page.tsx와 같은 컨테이너. 프로젝트 화면은 p/[slug]/layout.tsx가 주지만 이 경로는 그 밖에 있다 —
@@ -51,52 +46,9 @@ export function UserTokensPage({ mcpUrl, tokens, issue, revoke, rename, at }: Pr
 
       <NewUserTokenForm issue={issue} mcpUrl={mcpUrl} />
 
-      {[true, false].map((active) => (
-        <section key={String(active)} className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium">{active ? "Active tokens" : "Ended tokens"}</h2>
-          <Table>
-            <thead>
-              <tr>
-                <Th>Token name</Th>
-                <Th>Issued</Th>
-                <Th>Last used</Th>
-                <Th>Expires</Th>
-                <Th>Status</Th>
-                <Th>Reference</Th>
-                <Th />
-              </tr>
-            </thead>
-            <tbody>
-              {!tokens.some((t) => isTokenActive(t, at) === active) ? (
-                <Tr>
-                  <Td colSpan={7} className="text-quiet">
-                    {active ? tokens.length === 0 ? "No tokens yet. Issue one above." : "No active tokens." : "No ended tokens."}
-                  </Td>
-                </Tr>
-              ) : null}
-              {tokens.filter((t) => isTokenActive(t, at) === active).map((t) => (
-                <Tr key={t.id} className={!active ? "text-quiet" : undefined}>
-                  <Td><RenameUserTokenForm label={t.label} rename={rename.bind(null, t.id)} /></Td>
-                  <Td className="font-mono text-xs">{day(t.createdAt)}</Td>
-                  <Td><TokenUsage lastUsedAt={t.lastUsedAt} usageTrackingStartedAt={t.usageTrackingStartedAt} /></Td>
-                  <Td><TokenExpiry expiresAt={t.expiresAt} /></Td>
-                  <Td><TokenStatus revokedAt={t.revokedAt} expiresAt={t.expiresAt} at={at} />{t.revokedAt ? ` ${day(t.revokedAt)}` : null}</Td>
-                  <Td className="font-mono text-xs text-quiet">user:{t.id}</Td>
-                  <Td className="text-right">
-                    {t.revokedAt ? null : (
-                      <form action={revoke.bind(null, t.id)}>
-                        <Button size="sm" type="submit">
-                          Revoke
-                        </Button>
-                      </form>
-                    )}
-                  </Td>
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
-        </section>
-      ))}
+      <TokenTable tokens={tokens} at={at} reference="user" headingLevel={2} empty="No tokens yet. Issue one above."
+        renderName={(row) => <RenameUserTokenForm label={row.label} rename={rename.bind(null, row.id)} />}
+        renderRevoke={(row) => <form action={revoke.bind(null, row.id)}><Button size="sm" type="submit">Revoke</Button></form>} />
     </main>
   );
 }
