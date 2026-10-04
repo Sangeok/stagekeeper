@@ -118,11 +118,13 @@ it("fences native file tools with the current receipt and active owner, never fo
   try {
     assert.ok((await request("role_file_read", { path: path.join(f.root, "src/code.ts") })).error);
     assert.ok((await request("agent_next", {})).result);
+    const malformed = await request("role_file_read", { path: path.join(f.root, "src/code.ts"), maxLines: 600 });
+    assert.equal(malformed.error.code, -32602); assert.match(malformed.error.message, /1\.\.500/);
     const read = await request("role_file_read", { path: path.join(f.root, "src/code.ts") });
     assert.equal(JSON.parse(read.result.content[0].text).text, "first line\nsecond needle\nthird line\n");
     assert.deepEqual(calls, ["agent_next"]);
     active = false;
-    assert.ok((await request("role_file_write", { path: path.join(f.scratch, "late.txt"), content: "LATE", expectedHash: null })).error);
+    assert.equal((await request("role_file_write", { path: path.join(f.scratch, "late.txt"), content: "LATE", expectedHash: null })).error.code, -32000);
   } finally { await bridge.close(); }
   assert.throws(() => f.files.call("role_file_list", { path: f.root }));
 });

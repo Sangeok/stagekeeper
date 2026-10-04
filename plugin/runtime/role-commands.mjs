@@ -15,7 +15,7 @@ const identity = stat => process.platform === "win32" ? String(stat.ino) : `${st
 
 export const roleCommandTool = {
   name: "role_command_exec",
-  description: "Execute a Windows command in fresh disposable snapshots of permitted repository and role scratch files. Use relative paths; cwd is relative to the repository. STAGEKEEPER_ROLE_SCRATCH points to the copied scratch. Build outputs and edits stay in the snapshots and are discarded. Owner authentication, Git metadata, .env files, foreign workspaces and network access are unavailable. Every result identifies its snapshot; timeout/stopped/truncated results are never success. No original writes occur.",
+  description: "Execute a cmd.exe /d /s /c command in fresh disposable snapshots of permitted repository and role scratch files. Use Node/npm or saved scripts, not PowerShell syntax. Use relative paths; cwd is relative to the repository. STAGEKEEPER_ROLE_SCRATCH points to the copied scratch. Build outputs and edits stay in the snapshots and are discarded. Owner authentication, Git metadata, .env files, foreign workspaces and network access are unavailable. Every result identifies its snapshot; timeout/stopped/truncated results are never success. No original writes occur.",
   inputSchema: { type: "object", properties: { command: { type: "string", minLength: 1, maxLength: 4096 }, cwd: { type: "string" }, timeoutMs: { type: "integer", minimum: 100, maximum: 120000 } }, required: ["command"], additionalProperties: false },
 };
 

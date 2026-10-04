@@ -10,7 +10,7 @@ import { ROLE_TOOLS, verifierPackage, readCodexRole } from "./codex-agent.mjs";
 import { callTool, listTools } from "./mcp-client.mjs";
 import { checkSession, registerChild, settleChild, gitRoot } from "./local-session.mjs";
 import { safeTarget } from "./file-ownership.mjs";
-import { createRoleFiles, roleFileToolNames } from "./role-files.mjs";
+import { createRoleFiles, roleFileToolNames, RoleFileInputError } from "./role-files.mjs";
 import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, roleCommandTool } from "./role-commands.mjs";
 
 export function codexExecutable() {
@@ -127,9 +127,11 @@ export async function roleBridge(input, files, session, dispatch, operations = {
       } else throw new Error("Unsupported role bridge method");
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
-    } catch {
+    } catch (error) {
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ jsonrpc: "2.0", id: requestId, error: { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }));
+      response.end(JSON.stringify({ jsonrpc: "2.0", id: requestId, error: error instanceof RoleFileInputError
+        ? { code: -32602, message: error.message }
+        : { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }));
     } finally { pending--; }
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
@@ -339,7 +341,7 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     const skills = (inventory.data ?? []).flatMap(value => value.skills ?? []);
     const isRoleVerifier = skill => roleVerifier !== null && skill.name === "reconciling-proposals-with-codebase" && realpathSync(skill.path) === realpathSync(roleVerifier.path);
     if (roleVerifier && skills.filter(isRoleVerifier).length !== 1) throw new Error("Actual staged verifier loader path differs");
-    const nativeInstructions = nativeFiles && dispatch.agent !== "pm" ? "\nWindows native file operations use only mcp__harness__role_file_read/list/search/write with absolute paths. File writes require the current hash (null only for an absent file). These operations preserve role filesystem permissions. Literal search reports incomplete/truncated/skipped scans; finish reading the affected files before claiming a complete review. "
+    const nativeInstructions = nativeFiles && dispatch.agent !== "pm" ? "\nWindows native file operations use only mcp__harness__role_file_read/list/search/write with absolute paths. role_file_read accepts maxLines 1..500 (default 200); follow nextLine until null to read the full file. Invalid read pagination (-32602) may be corrected within those bounds; permission or ownership refusals must not be bypassed. File writes require the current hash (null only for an absent file). These operations preserve role filesystem permissions. Literal search reports incomplete/truncated/skipped scans; finish reading the affected files before claiming a complete review. "
       + (nativeRuntime ? "Run build/test commands through mcp__harness__role_command_exec using relative paths in its fresh disposable repository snapshot. STAGEKEEPER_ROLE_SCRATCH points to a fresh copy of the supplied role scratch, including any prepared verification sketches and staged skill files. Original absolute repository/scratch paths cannot be used by commands. It excludes Git metadata, .env files and denied paths; no owner environment or network is available. All snapshot writes and generated outputs are discarded. Edit originals through guarded file tools and run a fresh command afterward. Record the snapshot hash and omissions in verification evidence; a zero exit alone does not cover omitted dependencies or original files changed afterward. Timeout, stop and output-limit are blocked/failed, never passed. " : "Shell commands, builds and tests are unavailable in this backend: report requested command checks as blocked, never passed. ")
       + "Do not request WSL, another login, or permission escalation. Load the supplied verifier SKILL.md and its referenced files through role_file_read when required." : "";
     const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions + nativeInstructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
