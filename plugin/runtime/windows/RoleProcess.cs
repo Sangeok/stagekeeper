@@ -13,6 +13,7 @@ using Microsoft.Win32.SafeHandles;
 // Trusted launcher. Model code runs only after token and Job Object validation.
 // All ACL changes concern a newly owned snapshot, never the user's repository.
 public static class StagekeeperRoleProcess {
+  public static string Stage = "validation", FailedStage = null;
   public sealed class Result {
     public uint exitCode;
     public uint maxActiveProcesses;
@@ -132,8 +133,10 @@ public static class StagekeeperRoleProcess {
     var process = new ProcessInformation(); SecurityIdentifier identifier = null;
     var output = new Output(); int stopped = 0;
     try {
+      Stage = "profile-create";
       int status = CreateAppContainerProfile(name, name, "Disposable Stagekeeper role", IntPtr.Zero, 0, out sid);
       if (status != 0) Marshal.ThrowExceptionForHR(status); profile = true; identifier = new SecurityIdentifier(sid);
+      Stage = "snapshot-acl";
       Grant(root, identifier, FileSystemRights.ReadAttributes | FileSystemRights.ReadExtendedAttributes | FileSystemRights.Traverse | FileSystemRights.Synchronize, false);
       Grant(repo, identifier, FileSystemRights.Modify, true);
       Grant(scratch, identifier, FileSystemRights.Modify, true);
@@ -147,13 +150,16 @@ public static class StagekeeperRoleProcess {
       canaryAcl.AddAccessRule(new FileSystemAccessRule(WindowsIdentity.GetCurrent().User, FileSystemRights.FullControl, AccessControlType.Allow));
       canaryAcl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier("S-1-15-2-1"), FileSystemRights.Read, AccessControlType.Allow));
       File.SetAccessControl(aapCanary, canaryAcl);
+      Stage = "drive-map";
       drive = MapDrive(root);
+      Stage = "stdio-pipes";
       var pipeSecurity = new SecurityAttributes { Length = Marshal.SizeOf(typeof(SecurityAttributes)), Inherit = true };
       Check(CreatePipe(out inRead, out inWrite, ref pipeSecurity, 0), "stdin pipe");
       Check(CreatePipe(out outRead, out outWrite, ref pipeSecurity, 0), "stdout pipe");
       Check(CreatePipe(out errRead, out errWrite, ref pipeSecurity, 0), "stderr pipe");
       Check(SetHandleInformation(inWrite, 1, 0), "stdin inheritance"); Check(SetHandleInformation(outRead, 1, 0), "stdout inheritance"); Check(SetHandleInformation(errRead, 1, 0), "stderr inheritance");
       CloseHandle(inWrite); inWrite = IntPtr.Zero;
+      Stage = "process-attributes";
       IntPtr size = IntPtr.Zero; InitializeProcThreadAttributeList(IntPtr.Zero, 3, 0, ref size);
       list = Marshal.AllocHGlobal(size); Check(InitializeProcThreadAttributeList(list, 3, 0, ref size), "attributes"); listReady = true;
       handles = Marshal.AllocHGlobal(3 * IntPtr.Size); Marshal.WriteIntPtr(handles, inRead); Marshal.WriteIntPtr(handles, IntPtr.Size, outWrite); Marshal.WriteIntPtr(handles, 2 * IntPtr.Size, errWrite);
@@ -180,17 +186,22 @@ public static class StagekeeperRoleProcess {
       var startup = new StartupInfoEx(); startup.Info.cb = Marshal.SizeOf(startup); startup.Attributes = list;
       startup.Info.flags = 0x100; startup.Info.stdin = inRead; startup.Info.stdout = outWrite; startup.Info.stderr = errWrite;
       string working = drive + "\\repo" + (cwd.Length == 0 ? "" : "\\" + cwd);
+      Stage = "process-create";
       Check(CreateProcessW(exe, new StringBuilder("\"" + exe + "\" /d /s /c \"" + command + "\""), IntPtr.Zero, IntPtr.Zero, true, 0x08000000 | 0x00080000 | 0x00000400 | 4, environment, working, ref startup, out process), "CreateProcess");
+      Stage = "token-audit";
       AuditToken(process.Process, identifier, new SecurityIdentifier(Marshal.ReadIntPtr(capabilitySids)));
+      Stage = "job-assign";
       job = CreateJobObjectW(IntPtr.Zero, null); if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "job");
       var jobLimits = new JobExtendedLimit(); jobLimits.Basic.Flags = 0x2000;
       limits = Marshal.AllocHGlobal(Marshal.SizeOf(jobLimits)); Marshal.StructureToPtr(jobLimits, limits, false);
       Check(SetInformationJobObject(job, 9, limits, (uint)Marshal.SizeOf(jobLimits)), "job limits"); Check(AssignProcessToJobObject(job, process.Process), "job assignment");
       var control = new Thread(() => { try { Console.In.ReadLine(); } finally { Interlocked.Exchange(ref stopped, 1); } }); control.IsBackground = true; control.Start();
+      Stage = "process-resume";
       if (ResumeThread(process.Thread) == UInt32.MaxValue) throw new Win32Exception(Marshal.GetLastWin32Error(), "resume");
       CloseHandle(inRead); inRead = IntPtr.Zero; CloseHandle(outWrite); outWrite = IntPtr.Zero; CloseHandle(errWrite); errWrite = IntPtr.Zero;
       var outputTask = Task.Run(() => output.Read(outRead)); var errorTask = Task.Run(() => output.Read(errRead));
       var clock = System.Diagnostics.Stopwatch.StartNew(); string reason = "exited"; uint peak = 1;
+      Stage = "job-execution";
       while (true) {
         peak = Math.Max(peak, ActiveProcesses(job));
         uint waiting = WaitForSingleObject(process.Process, 20);
@@ -203,6 +214,7 @@ public static class StagekeeperRoleProcess {
         Check(TerminateJobObject(job, 124), "job cancellation"); break;
       }
       Check(TerminateJobObject(job, 124), "job finish");
+      Stage = "job-quiescence";
       var end = System.Diagnostics.Stopwatch.StartNew();
       while (ActiveProcesses(job) != 0 && end.ElapsedMilliseconds < 5000) Thread.Sleep(20);
       if (ActiveProcesses(job) != 0 || WaitForSingleObject(process.Process, 5000) != 0) throw new Exception("Job is not quiescent");
@@ -210,7 +222,7 @@ public static class StagekeeperRoleProcess {
       if (!Task.WaitAll(new Task[] { outputTask, errorTask }, 5000)) throw new Exception("Output readers did not end");
       if (Volatile.Read(ref output.exceeded) != 0) reason = "output-limit";
       return new Result { exitCode = exitCode, maxActiveProcesses = peak, status = reason, stdout = outputTask.Result, stderr = errorTask.Result, quiescent = true, outputTruncated = output.exceeded != 0 };
-    } finally {
+    } catch { FailedStage = Stage; throw; } finally {
       if (job != IntPtr.Zero) { TerminateJobObject(job, 125); CloseHandle(job); }
       else if (process.Process != IntPtr.Zero) TerminateProcess(process.Process, 125);
       if (limits != IntPtr.Zero) Marshal.FreeHGlobal(limits);
@@ -222,11 +234,13 @@ public static class StagekeeperRoleProcess {
       for (int i = 0; i < groupCount; i++) LocalFree(Marshal.ReadIntPtr(groups, i * IntPtr.Size)); if (groups != IntPtr.Zero) LocalFree(groups);
       for (int i = 0; i < capabilityCount; i++) LocalFree(Marshal.ReadIntPtr(capabilitySids, i * IntPtr.Size)); if (capabilitySids != IntPtr.Zero) LocalFree(capabilitySids);
       // Cleanup failure suppresses the acknowledgement, retaining owner fencing.
+      Stage = "drive-cleanup";
       if (drive != null) Check(DefineDosDevice(14, drive, root), "drive cleanup");
       // Never propagate ACL updates through a tree that untrusted code could have
       // populated with reparse points. Its disposable grants disappear when the
       // owner deletes the verified root after this acknowledgement.
       if (sid != IntPtr.Zero) FreeSid(sid);
+      Stage = "profile-cleanup";
       if (profile) { int status = DeleteAppContainerProfile(name); if (status != 0) Marshal.ThrowExceptionForHR(status); }
     }
   }

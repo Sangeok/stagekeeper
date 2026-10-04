@@ -99,11 +99,11 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
   const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
   const child = spawn(executable, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(request.root, "role-process.ps1"), "-RequestPath", requestFile],
     { cwd: request.root, windowsHide: true, env: { SystemRoot: process.env.SystemRoot ?? "C:\\Windows", TEMP: request.root, TMP: request.root }, stdio: ["pipe", "pipe", "pipe"] });
-  const identity = { pid: child.pid, nonce }; let stdout = "", stderrBytes = 0, activated = false, registered = false;
+  const identity = { pid: child.pid, nonce }; let stdout = "", stderr = "", stderrBytes = 0, activated = false, registered = false;
   const stop = () => { if (!child.stdin.destroyed) child.stdin.end("stop\n"); };
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", chunk => { stdout += chunk; if (Buffer.byteLength(stdout) > 512 * 1024) { stop(); child.kill(); } });
-  child.stderr.on("data", chunk => { stderrBytes += chunk.length; if (stderrBytes > 8192) { stop(); child.kill(); } });
+  child.stderr.on("data", chunk => { stderrBytes += chunk.length; if (stderrBytes <= 8192) stderr += chunk.toString("utf8"); else { stop(); child.kill(); } });
   child.stdin.on("error", () => {});
   const ended = new Promise((resolve, reject) => { child.once("error", reject); child.once("close", (code, terminalSignal) => resolve({ code, terminalSignal })); });
   void ended.catch(() => {}); signal?.addEventListener("abort", stop, { once: true });
@@ -119,7 +119,15 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
     signal?.throwIfAborted(); child.stdin.write("start\n"); activated = true;
     ownershipTimer = setTimeout(() => { ownershipPending = monitorOwnership(); }, 200);
     const terminal = await Promise.race([ended, new Promise((_, reject) => { timer = setTimeout(() => { stop(); child.kill(); reject(new Error("Native helper did not acknowledge termination; ownership retained")); }, request.timeoutMs + 45000); })]);
-    if (terminal.code !== 0 || terminal.terminalSignal) throw new Error("Native helper ended without acknowledgement; ownership retained");
+    if (terminal.code !== 0 || terminal.terminalSignal) {
+      let diagnostic = "";
+      try {
+        const failure = JSON.parse(stderr.trim());
+        if (failure.error === "native-helper-failed" && /^[a-z-]{1,40}$/.test(failure.stage) && Number.isInteger(failure.hresult))
+          diagnostic = ` (${failure.stage}; HRESULT ${failure.hresult}${Number.isInteger(failure.nativeErrorCode) ? `; Win32 ${failure.nativeErrorCode}` : ""})`;
+      } catch { /* Non-protocol diagnostics are deliberately not reflected. */ }
+      throw new Error(`Native helper ended without acknowledgement${diagnostic}; ownership retained`);
+    }
     const result = JSON.parse(stdout.trim());
     if (result.nonce !== nonce || result.quiescent !== true || !["exited", "timeout", "stopped", "output-limit"].includes(result.status)
       || !Number.isInteger(result.exitCode) || typeof result.stdout !== "string" || typeof result.stderr !== "string" || typeof result.outputTruncated !== "boolean") throw new Error("Native helper acknowledgement differs; ownership retained");
