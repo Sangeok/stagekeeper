@@ -64,7 +64,7 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     else { input('input[inputmode="url"]', "https://github.com/o/repo-a"); await tick(); }
     await click("Edit"); const name = input('input[name="name"]', "Repository A name"); await tick(); check(document.activeElement === name, "name focus lost");
     await click("Collapse"); check(document.querySelector('input[name="name"]') === name && name.value === "Repository A name", "collapse reset/remounted name");
-    if (picker) { await click("Paste a URL instead"); input('input[inputmode="url"]', "https://github.com/o/ordinary-change"); await tick(); await click("Pick from my repositories"); await click("second-repo main"); }
+    if (picker) { await click("Edit"); input('input[name="repo"]', "ordinary-change"); await tick(); await click("Collapse"); }
     else { input('input[inputmode="url"]', "https://github.com/o/ordinary-change"); await tick(); await click("Edit"); input('input[name="repo"]', "direct-change"); await tick(); await click("Collapse"); }
     check(name.value === "Repository A name", "ordinary transition cleared name");
     await click("Start over"); check(document.querySelector('input[name="name"]') === name && name.value === "", "reset did not clear same name input");
@@ -72,6 +72,19 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     await click("Create project"); check(controls.submissions[0]?.name === "", "A name submitted to B");
     check(controls.submissions[0]?.repo === (picker ? "second-repo" : "repo-b"), "B repository mismatch");
     controls.finishRegistration(); await tick();
+  });
+  await run("form name across entry modes", "manual URL changes, picker/manual switches and ordinary repository selection keep the same display-name input", async () => {
+    await mount("form", true); await click("Paste a URL instead");
+    input('input[inputmode="url"]', "https://github.com/o/repo-a"); await tick(); await click("Edit");
+    const name = input('input[name="name"]', "Preserved name"); await tick();
+    input('input[inputmode="url"]', "https://github.com/o/ordinary-change"); await tick();
+    check(name.value === "Preserved name", "URL change erased name");
+    await click("Pick from my repositories");
+    check(document.querySelector('input[name="name"]') === name && name.value === "Preserved name", "picker switch erased/remounted name");
+    await click("Paste a URL instead");
+    check(document.querySelector('input[name="name"]') === name && name.value === "Preserved name", "manual switch erased/remounted name");
+    await click("Pick from my repositories"); await click("second-repo main");
+    check(document.querySelector('input[name="name"]') === name && name.value === "Preserved name", "selection erased/remounted name");
   });
   await run("form pending snapshot", "Start over changes only later form state while the captured registration and terminal result retain their lifetime", async () => {
     await mount("form", true); await click("picked-repo release/picked"); await click("Edit"); input('input[name="name"]', "Submitted name"); await tick();

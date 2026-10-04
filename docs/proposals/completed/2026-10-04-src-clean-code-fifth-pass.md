@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "implementation"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-04"
 approved-by: "user"
 approved-at: "2026-10-04"
 approval-scope: "F5-01~14 Core 구현과 명시된 회귀·아키텍처·실제 인수 검증"
-completed-at: null
-verification-summary: "F5-01~14 코드 적용; check·web 570·fresh manifest/server 61·build·격리 DB 통합·HTTP/Flight 61 통과. 실제 브라우저 DOM 인수 미실행."
+completed-at: "2026-10-04"
+verification-summary: "F5-01~14 구현 및 dev 통합 충돌 해결. check·web 576·fresh manifest/server 61·build·격리 DB 통합·HTTP/Flight 61·실제 브라우저 DOM 35 통과; fixture·브라우저·DB cleanup 완료."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -494,20 +494,20 @@ moveSlot(g, "doc-auditor", null, "pro")
 | `npm run verify:fsd` | Pass, exit 0 | 아키텍처 예외·suppress 없음 |
 | `npm run test:architecture` | Pass, exit 0; 26/26, skip 0 | `check`에서도 통과 |
 | `npm run check` | Pass, exit 0 | plugin 동기화·lint·typegen·tsc·architecture·availability 18/18 |
-| `npm run test:web` | Pass, exit 0; 570/570, skip 0 | schema·순수 모델·실제 entity/page render·href·날짜 회귀 |
+| `npm run test:web` | Pass, exit 0; 576/576, skip 0 | 최신 dev 통합 후 schema·순수 모델·실제 entity/page render·href·날짜 회귀 |
 | `npm run test:server` 기본 실행 | Pass, exit 0; 55 통과·1 조건부 skip | build 이전 실행을 fresh manifest 검증으로 간주하지 않음 |
 | fresh build 후 두 manifest env=true의 `npm run test:server` | Pass, exit 0; 61/61, skip 0 | 전체 소비 AST·5개 Action 등록·서버 표시/모델의 미등록·route/client manifest |
 | `npm run build` | Pass, exit 0 | Next 16.3.3 production Turbopack; 모든 기존 route 수집 |
 | `npm run test:server:integration` | Pass, exit 0 | 루프백 PostgreSQL 17.11의 별도 stagekeeper_test_* DB에 migration 후 전체 직렬 통합 시험 |
 | 새 fifth-pass runner | Pass, exit 0; HTTP/Flight 61/61 | 실제 Action·화면 body·GET 무쓰기·7개 decoder 준비 대조군·fresh loader·EOF/reference/settlement·fixture/worker/Next/pool cleanup |
-| 실제 React fixture 브라우저 DOM 인수 | Not run | fixture를 확장하고 실행 가능한 bundle까지 준비했으나 연결된 브라우저가 없고 `/results`가 빈 배열. 동일 인스턴스 roster/name·focus·pending UI 사례와 DOM cleanup을 Pass로 기록하지 않음 |
+| 실제 React fixture 브라우저 DOM 인수 | Pass, exit 0; 35/35 | 격리 headless Chrome에서 동일 인스턴스 roster/name·focus·pending 및 최신 dev의 dual-client 사례 통과; root unmount·clipboard 복원·pagehide listener 제거·Finish·브라우저 종료 확인 |
 | GitHub 원격 문서 fetch | Not run; 완료 게이트 아님 | 실제 화면 href의 예약 문자/commit/branch round-trip은 통과 |
 
-구현 브랜치는 최신 origin/dev의 `77ad552509e421402c98f509706d2410a8735a06`에서 분기한 `harness/src-clean-code-fifth-pass`다. 영향 목록의 41 M·13 A·1 R을 대조했고 누락·목록 밖 제품 변경은 없다. 기존 다른 작업의 문서 변경을 보존했다. F5-09/10은 설명만 정정했고, 서비스·core·schema·설정·의존성 파일은 그대로다.
+구현 브랜치는 origin/dev의 `77ad552509e421402c98f509706d2410a8735a06`에서 분기한 `harness/src-clean-code-fifth-pass`다. 이후 dev `a0eb40fc97e973ecc034ebb9ceb13100ded4354d`를 통합한 `4a0cffd`에서 제품 검증을 다시 실행했다. fixture의 충돌은 ProposeFixture와 TurnFixture를 모두 보존해 해결했다. 영향 목록의 41 M·13 A·1 R을 대조했고 누락·목록 밖 제품 변경은 없다. 기존 다른 작업의 문서 변경은 별도 문서 정리 브랜치에 보존했다. F5-09/10은 설명만 정정했고, 서비스·core·schema·설정·의존성 파일은 그대로다.
 
 실제 인수 중 runner의 Turbopack chunk 형식, guest의 일반 Location redirect, 기존 사람 전이 정책에 맞는 hold fixture, 독립 등록 repo와 40자 이하 slug를 보완했다. 제품 정책을 바꾸지 않고 최종 전체 실행으로 다시 검증했다. 정상 응답마다 새 route worker를 사용하며 실제 chunk/module 호출 횟수도 기록했다. 최초 TEST_DATABASE_URL 부재는 DB 쓰기 전 nonzero 중단으로 확인한 뒤 임시 디렉터리에 독립 루프백 DB를 준비했다. 환경 변수·운영 DB 설정은 영구 변경하지 않았다.
 
-상세 결과: [2026-10-04 fifth-pass test report](../../test-reports/active/2026-10-04-src-clean-code-fifth-pass.md). 브라우저 DOM 게이트가 남아 있으므로 completed-at은 비워 두고 완료 문서로 이동하지 않는다. 이 결과는 위 역사적 문서 검토의 source receipt와 구분되는 새 구현 실행 증거다.
+상세 결과: [2026-10-04 fifth-pass test report](../../test-reports/completed/2026-10-04-src-clean-code-fifth-pass.md). 모든 필수 로컬 검증과 실제 인수가 통과해 제안서와 보고서를 completed로 이동한다. 이 결과는 위 역사적 문서 검토의 source receipt와 구분되는 새 구현 실행 증거다. 최초 브라우저 실행은 시험이 선택 완료 화면에 없는 버튼을 찾는 문제로 1건 실패했다. 실제 Edit/direct 경로로 수정하고 picker/manual 전환의 이름 보존 사례도 더해 전체 35건을 재실행했다. fixture 소스 hash와 cleanup 결과는 보고서의 JSON 증거에 있다.
 
 최종 inspection에서 실제 test DB 사용자 수 0, 인수/Next/PostgreSQL 프로세스 부재와 `git diff --check` 통과를 확인했다. 임시 PostgreSQL 서버와 UI fixture는 종료했고 다운로드 ZIP도 삭제했다. 자동 승인 검토가 나머지 임시 디렉터리 삭제를 `blocked by policy`로 거부해 정지된 빈 cluster와 portable binaries는 남아 있다. 정확한 경로와 두 거부의 범위는 test report에 기록했다.
 
@@ -678,7 +678,7 @@ F5-03·F5-08·F5-13은 같은 Board 영역을 다루지만 원인은 실행 bind
 
 ## Completion or Closure Notes
 
-F5-01~14의 애플리케이션 변경과 지정된 회귀 시험·인수 runner를 구현했다. 승인 metadata는 사용자 요청을 반영했다. 필수 검증이 모두 끝나기 전에는 `active/`, `status: pending`, `stage: implementation`을 유지한다. 현재 통과·미실행 결과는 Verification Results와 연결된 test report가 기준이며, 완료 metadata와 문서 이동은 전체 게이트 통과 후에 기록한다.
+F5-01~14의 애플리케이션 변경과 지정된 회귀 시험·인수 runner를 구현했다. 최신 dev를 통합한 뒤 필수 명령·격리 DB·실제 HTTP/Flight·브라우저 DOM 인수와 cleanup을 통과해 2026-10-04 completed 처리했다. [PR #107](https://github.com/Sangeok/stagekeeper/pull/107)의 dev 병합은 최종 변경의 check workflow 통과 후에 진행하며 운영 배포는 이 구현 완료 기록의 범위 밖이다.
 
 ## Review Checklist
 
@@ -689,4 +689,4 @@ F5-01~14의 애플리케이션 변경과 지정된 회귀 시험·인수 runner�
 - [x] 영향 범위·안전성·실행 순서·검증·롤백을 작성했다.
 - [x] 리뷰 증거 확인과 미래 구현의 테스트 결과를 구분했다.
 - [x] 승인·완료 상태를 문서 위치와 일치시켰다.
-- [ ] 후속 애플리케이션 구현과 필수 검증을 수행하고 실제 결과를 기록했다.
+- [x] 후속 애플리케이션 구현과 필수 검증을 수행하고 실제 결과를 기록했다.
