@@ -73,8 +73,16 @@ export const codexInstallCommands: readonly string[] = [
 ];
 
 export function codexMcpCommand(mcpUrl: string): string {
+  return codexConnectionCommand(mcpUrl, "harness", AGENT_TOKEN_VARIABLE);
+}
+
+export function codexOwnerMcpCommand(ownerMcpUrl: string): string {
+  return codexConnectionCommand(ownerMcpUrl, "harness_owner", OWNER_TOKEN_VARIABLE);
+}
+
+function codexConnectionCommand(mcpUrl: string, name: string, variable: string): string {
   const url = new URL(mcpUrl);
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error("Invalid MCP URL");
   const quoted = `'${url.href.replaceAll("'", "%27")}'`;
-  return `codex mcp add harness --url ${quoted} --bearer-token-env-var HARNESS_TOKEN`;
+  return `codex mcp add ${name} --url ${quoted} --bearer-token-env-var ${variable}`;
 }

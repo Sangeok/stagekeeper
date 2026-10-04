@@ -111,6 +111,20 @@ public 기준은 `origin/dev` `9675a3efdaf12bb7c419d11c4164beaa55c89821`, branch
 실제 host·DB·브라우저·설치·양방향 승인 재개 증거와 C0 미해제 blocker는 아래 완료 조건 및 report에 남긴다.
 소스 구현을 허용한 이번 지시가 운영 등록·seed·배포나 실패 후보의 자동 승인 우회를 허용한 것은 아니다.
 
+### 2026-10-04 후속 소스와 검증
+
+위 작업 트리 설명은 2026-10-03 당시의 기록이다. public 소스는 PR #104로 dev에 병합됐다.
+후속 UI commit `e3548546076f279ddbf1e22e2a5ec563fd0a6e9e`는 OwnerTokenReveal의
+Claude/Codex 선택·token-free owner MCP 등록 안내와 TurnBanner의 공통 선택 상태를 구현했다.
+배너의 setup/next와 같은 프로젝트 탭 이동은 선택을 유지하며, token/owner URL 또는
+프로젝트 slug 변경은 Claude 기본값으로 초기화한다. 선택만으로 등록·mutation을 실행하지 않는다.
+
+DB 계약 시험 6개도 이후 fourth-pass의 격리 PostgreSQL 통합 95개에 포함되어 통과했다.
+해당 시험 소스 hash는 기존 E65와 동일하다. 이는 실제 두 CLI의 전체 주기나 private
+배포 인수를 대신하지 않는다. private template은 별도 저장소의 미커밋 변경이며 C4는 별도 범위다.
+이번 두 UI 작업의 완료 근거는 [UI 인수 보고서](../../test-reports/completed/2026-10-04-codex-dual-client-ui.md)다.
+실제 모델·권한 격리·설치·혼합 호스트·배포 gate가 남아 있으므로 이 제안서는 blocked를 유지한다.
+
 ### Codex 기능 근거와 미확인 경계
 
 아래 공식 문서를 조사했다. 문서상 지원과 Stagekeeper 조합에서 실제 검증된 지원을 구분한다.
@@ -1054,11 +1068,12 @@ schema migration이 없더라도 template·package·실행 session 상태 때문
 | C0 rehearsal 코드와 report validator | 구현, PASS: 24 tests / 1 skip / 0 failures | `scripts/rehearse-dual-client-runtime.ts`·동일 이름 test. capability/무쓰기 validation 분리, 미지원 phase 조기 거부, 표준 metadata·증거·required 판정, atomic writer/경합·기존 보고서 보존. Windows 파일 symlink 권한 시험 1개는 skip이며 directory junction/경로 이탈 시험은 통과 |
 | 실제 Codex 역할·fresh CLI 모델 시험 | 필수 후보 FAIL / 다른 후보 BLOCKED | native 역할 선택 미제공, 자동 승인 fresh 후보의 저장소 쓰기 성공, strict named profile 및 OS-only 환경 재시험의 읽기·scratch 실행 전 거부. 보호된 원본 대신 disposable checkout에서 수행. 실제 결과·usage·재현 인수는 C0 보고서에 기록 |
 | C0 package / legacy watch | 선행 fixture PASS, 제품 호환 미완료 | Codex 0.160.0 / Claude 2.1.288. 실제 compatibility package loader·Codex body/helper·Claude validator, 완전한 verifier 8개 파일/checksum, 기존 watch second start/stop 확인. 전체 제품 package/혼합 버전·quiescence는 미실행 |
-| C1–C3 로컬 제품 소스 | 구현 | client/hash/echo와 전량 bundle·pre-render, 양쪽 init/lock, fresh role/MCP bridge·session, Codex handoff projection, seed/restore, 연결·재개 UI/skill, architecture·사용법 반영. public/private는 별도 미커밋 source이며 운영 seed·등록·배포하지 않음 |
-| E1–E12 제품 검증 | 미완료 | source/contract 일부 통과. 실제 양방향 승인 재개, DB/atomic seed·브라우저·제품 설치·model/kernel 권한/독립 검증·혼합 호스트 quiescence는 미실행. C4 자동 watch는 별도 범위 |
+| C1–C3 로컬 제품 소스 | 구현, public PR #104 병합 | client/hash/echo와 전량 bundle·pre-render, 양쪽 init/lock, fresh role/MCP bridge·session, Codex handoff projection, seed/restore, 연결·재개 UI/skill, architecture·사용법 반영. private source는 별도 미커밋 변경이며 운영 seed·배포하지 않음 |
+| E1–E12 제품 검증 | 미완료 | source/contract·격리 DB 6개·UI 브라우저 통과. 실제 두 CLI의 양방향 승인 재개, 승인된 private bundle 배포/복구·제품 설치·model/kernel 권한/독립 검증·혼합 호스트 quiescence는 미실행. C4 자동 watch는 별도 범위 |
 | application check/전체 test/build | PASS | 최종 `npm run check`(lint·FSD·type·architecture 26·project availability 18), `npm test` 286/286, `test:web` 554/554, `test:templates` 32/32, 직접 `npm run build` exit 0. 기존 `_success` warning 1개. 별도 script tests 29 PASS/1 Windows file-symlink 권한 skip/0 failures. 최신 dev 통합 source 7d8dd35와 report E67–E69 및 source hash로 범위 식별 |
 | dev PR 통합 | public 소스 커밋·최신 dev 통합 | 771fd41 구현 commit 뒤 origin/dev a6ea199를 7d8dd35에 통합. client schema·plugin 0.5.0과 최신 acceptance_fail/owner retry 동작을 함께 보존. private 저장소 local 변경·실제 지원 인증/배포·기존 별도 문서 정리는 public PR에 포함하지 않음 |
-| C3 실제 DB 인수 시험/runner | 구현·type compile, 실제 DB 미실행 | 양방향 client×legacy/slots 승인 원장/receipt/usage·전량 preflight·seed rollback/제한 복구의 PostgreSQL 시험 6개. acceptance phase는 별도 prepared checkout와 보호된 TEST_DATABASE_URL을 선검사하고 test DB migration·시험만 실행. 현재 환경에 TEST_DATABASE_URL이 없으며 unit의 injected runner 결과를 DB PASS로 기록하지 않음. 최초 acceptance report와 양쪽 phase 순서의 history 보존도 검증 |
+| C3 실제 DB 인수 시험/runner | 구현, 후속 격리 DB 6/6 PASS | 2026-10-03 당시에는 TEST_DATABASE_URL이 없어 미실행이었다. 2026-10-04 fourth-pass의 PostgreSQL 통합 95개에서 양방향 client×legacy/slots 원장/receipt/usage·전량 preflight·seed rollback/제한 복구의 6개가 통과했다. 소스 SHA256은 E65와 동일. 실제 CLI/browser 전체 주기·private 배포 시험과 구분한다 |
+| 남은 두 UI 소스 요구사항 | 구현, 브라우저 PASS | OwnerTokenReveal의 Codex 선택·owner MCP 등록 Copy, TurnBanner setup/next의 공통 선택·탭 유지·slug 초기화. check/build, web 559, core/plugin 286, 실제 브라우저 28개 통과. 위 UI 인수 보고서에 source revision과 범위 기록 |
 | 실제 모델 없는 Codex effective config | PASS, 실행 격리 증거 아님 | 0.160.0 config/read에서 상속 MCP 4개·plugin 차단과 shell-set 값 제거 및 좁힌 profile/tool 설정 대조. thread/turn 0회. 이전 C0 모델 실패를 해제하지 않음 |
 | 최신 report/추적 검증 | PASS | report의 standard metadata·증거·required fail 판정 유지와 최종 read-back/validate-only exit 0. proposal strict traceability phase/task 20/20·verifier 20/20 |
 
@@ -1076,7 +1091,7 @@ Claude의 기존 runbook export·raw hash와 init/seed/stale 호출 경계를 �
 
 C4를 함께 수행하면 E12와 watch 안내까지 통과해야 전체 범위를 완료로 옮긴다. C4를 후속 작업으로 미루면 REQ-DUAL-018·REQ-DUAL-019의 watch 부분과 BLK-DUAL-04, 관련 Task/검증을 별도 active proposal로 명시적으로 이관하고 이 문서의 승인 범위·완료 요약을 기본 지원으로 조정한다. 미검증 watch를 완료로 표시하지 않는다.
 
-다음 작업은 **구현된 fresh App Server 어댑터의 실제 모델 격리와 양방향 승인 재개 인수, 별도 승인된 private seed/rollback·패키지 배포 검증**이다. config/read PASS는 model/tool/kernel 격리 PASS가 아니다. public/private 미커밋 source의 hash와 최종 테스트는 runtime report에 기록하고 기존 사용자 변경은 보존한다. 운영 seed·배포·C4 완료로 해석하지 않는다.
+다음 작업은 **구현된 fresh App Server 어댑터의 실제 모델 격리와 양방향 승인 재개 인수, 별도 승인된 private seed/rollback·패키지 배포 검증**이다. config/read PASS는 model/tool/kernel 격리 PASS가 아니다. public 소스는 PR #104에 병합됐고 남은 두 UI 구현은 위 후속 commit/report로 추적한다. private 미커밋 source의 hash와 최종 테스트는 runtime report에 별도로 보존한다. 운영 seed·배포·C4 완료로 해석하지 않는다.
 
 ## Review Checklist
 

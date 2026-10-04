@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { PathnameContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { NewProjectForm } from "../../../src/fsd/features/create-project/ui/new-project-form";
 import { CopyButton } from "../../../src/fsd/shared/ui/copy-button";
 import { TokenReveal } from "../../../src/fsd/entities/project-token/ui/token-reveal";
@@ -10,6 +11,9 @@ import { NewTokenForm } from "../../../src/fsd/features/manage-token/ui/new-toke
 import { NewUserTokenForm } from "../../../src/fsd/features/manage-user-token/ui/new-user-token-form";
 import { NewOwnerTokenForm } from "../../../src/fsd/features/manage-token/ui/new-owner-token-form";
 import { NextStepBox } from "../../../src/fsd/widgets/turn-banner/ui/next-step";
+import { TurnBanner } from "../../../src/fsd/widgets/turn-banner/ui/turn-banner";
+import { deriveTurn, type Turn } from "../../../src/fsd/widgets/turn-banner/model/turn";
+import { projectPath, type ProjectTabSegment } from "../../../src/fsd/shared/routes/project";
 import { InboxCardBoundary } from "../../../src/fsd/features/review-gate/ui/inbox-card-boundary";
 import { PipelineRail } from "../../../src/fsd/features/edit-pipeline/ui/pipeline-rail";
 import { AutomaticScoutControl } from "../../../src/fsd/features/edit-pipeline/ui/automatic-scout-control";
@@ -93,13 +97,15 @@ function FormFixture() {
 
 function CopyFixture() {
   const [text, setText] = useState("A"); const [mounted, setMounted] = useState(true);
+  const [ownerUrl, setOwnerUrl] = useState("https://fixture.test/api/mcp/owner");
   return <>
     <button onClick={() => setText("B")}>Change text</button>
+    <button onClick={() => setOwnerUrl("https://second.fixture.test/api/mcp/owner")}>Change owner URL</button>
     <button onClick={() => setMounted(false)}>Unmount copy</button>
     {mounted ? <section id="copy"><CopyButton text={text} /></section> : null}
     <section id="hs"><TokenReveal token={`hs_fixture-${text}`} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="hu"><TokenReveal token={`hu_fixture-${text}`} mcpUrl="https://fixture.test/api/mcp" /></section>
-    <section id="ho"><OwnerTokenReveal token={`ho_fixture-${text}`} ownerMcpUrl="https://fixture.test/api/mcp/owner" /></section>
+    <section id="ho"><OwnerTokenReveal token={`ho_fixture-${text}`} ownerMcpUrl={ownerUrl} /></section>
     <section id="next"><NextStepBox steps={[
       { kind: "handoff", key: "same", line: `Commit docs/${text}.md, then continue the pipeline for same.`, note: `docs/${text}.md` },
       { kind: "continue", key: "ready", line: "Continue the pipeline for ready." },
@@ -108,6 +114,29 @@ function CopyFixture() {
     <section id="new-hs"><NewTokenForm issue={async () => ({ success: true, data: { token: "hs_fixture-issued" } })} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="new-hu"><NewUserTokenForm issue={async () => ({ success: true, data: { token: "hu_fixture-issued" } })} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="new-ho"><NewOwnerTokenForm issue={async () => ({ success: true, data: { token: "ho_fixture-issued" } })} ownerMcpUrl="https://fixture.test/api/mcp/owner" /></section>
+  </>;
+}
+
+function TurnFixture() {
+  const [slug, setSlug] = useState("alpha");
+  const [tab, setTab] = useState<ProjectTabSegment>("");
+  const [setup, setSetup] = useState(true);
+  const turn: Turn = setup ? deriveTurn([], { tokenIssued: true, rosterSynced: false }) : {
+    kind: "theirs", detail: "Current fixture work", next: [
+      { kind: "continue", key: "K-1", line: "Continue the pipeline for K-1." },
+      { kind: "handoff", key: "K-2", line: "Commit the prepared file, then continue the pipeline for K-2.", note: null },
+    ],
+  };
+  return <>
+    <button onClick={() => setSetup(false)}>Show work</button>
+    <button onClick={() => setSetup(true)}>Show setup</button>
+    <button onClick={() => setTab("/backlog")}>Show compact tab</button>
+    <button onClick={() => setTab("")}>Show board tab</button>
+    <button onClick={() => setTab("/inbox")}>Show inbox tab</button>
+    <button onClick={() => setSlug("beta")}>Change banner project</button>
+    <PathnameContext.Provider value={projectPath(slug, tab)}>
+      <section id="turn"><TurnBanner turn={turn} slug={slug} /></section>
+    </PathnameContext.Provider>
   </>;
 }
 
@@ -144,7 +173,7 @@ function renderMode(mode: string, picker = false) {
   controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0;
   installClipboard();
   root = createRoot(document.getElementById("root")!);
-  root.render(<AppRouterContext.Provider value={router}>{mode === "copy" ? <CopyFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+  root.render(<AppRouterContext.Provider value={router}>{mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
 }
 const toolbar = document.createElement("div");
 const run = document.createElement("button"); run.textContent = "Run acceptance";

@@ -3,7 +3,21 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { TOKEN_KINDS } from "@harness/core/token.mjs";
-import { OWNER_TOKEN_VARIABLE, PLUGIN_ID, PLUGIN_MARKETPLACE, connectCommands, installCommands, profileLine, saveCommands, tokenKind } from "./connect-command";
+import { OWNER_TOKEN_VARIABLE, PLUGIN_ID, PLUGIN_MARKETPLACE, codexMcpCommand, codexOwnerMcpCommand, connectCommands, installCommands, profileLine, saveCommands, tokenKind } from "./connect-command";
+
+describe("Codex owner connection", () => {
+  it("registers the owner endpoint with an environment reference and preserves the agent command", () => {
+    assert.equal(codexOwnerMcpCommand("https://fixture.test/api/mcp/owner"), "codex mcp add harness_owner --url 'https://fixture.test/api/mcp/owner' --bearer-token-env-var HARNESS_OWNER_TOKEN");
+    assert.equal(codexMcpCommand("https://fixture.test/api/mcp"), "codex mcp add harness --url 'https://fixture.test/api/mcp' --bearer-token-env-var HARNESS_TOKEN");
+  });
+
+  it("quotes shell-sensitive URL paths without including credentials or query parameters", () => {
+    assert.equal(codexOwnerMcpCommand("https://fixture.test/a'b/$value/`name"), "codex mcp add harness_owner --url 'https://fixture.test/a%27b/$value/%60name' --bearer-token-env-var HARNESS_OWNER_TOKEN");
+    for (const url of ["file:///tmp/owner", "https://owner:secret@fixture.test/api/mcp/owner", "https://fixture.test/api/mcp/owner?token=secret", "https://fixture.test/api/mcp/owner#secret"]) {
+      assert.throws(() => codexOwnerMcpCommand(url), /Invalid MCP URL/);
+    }
+  });
+});
 
 describe("connectCommands", () => {
   it("gives one runnable line per shell, with the token inlined", () => {
