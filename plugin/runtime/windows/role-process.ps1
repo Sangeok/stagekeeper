@@ -6,7 +6,17 @@ try {
   # The owner registers this helper before granting permission to start a child.
   if ([Console]::In.ReadLine() -ne 'start') { throw 'Owner did not activate the helper' }
   $phase = 'compile'
+  $compilerPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'compiler'))
+  if (-not $compilerPath.StartsWith([IO.Path]::GetFullPath($PSScriptRoot) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Compiler scope differs' }
+  [IO.Directory]::CreateDirectory($compilerPath) | Out-Null
+  $env:TEMP = $compilerPath
+  $env:TMP = $compilerPath
   Add-Type -Path (Join-Path $PSScriptRoot 'RoleProcess.cs')
+  # CodeDOM creates protected temporary directories on Windows Server. The
+  # compiling process removes only its verified compiler directory before any
+  # untrusted process/ACL exists. Never rewrite/delete a role-populated tree here.
+  $phase = 'compiler-cleanup'
+  [IO.Directory]::Delete($compilerPath, $true)
   $phase = 'launch'
   $result = [StagekeeperRoleProcess]::Run($request.root, $request.command, $request.cwd, $request.timeoutMs)
   $result | Add-Member -NotePropertyName nonce -NotePropertyValue $request.nonce
