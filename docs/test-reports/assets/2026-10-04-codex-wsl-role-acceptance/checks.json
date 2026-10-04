@@ -1,0 +1,120 @@
+{
+  "at": "2026-10-04T12:48:40.344Z",
+  "sourceBase": "040f2f9a22f6d0aee658fc178b618856156307e6",
+  "worktreeSource": true,
+  "sourceSha256": {
+    "plugin/runtime/codex-thread.mjs": "81e2869647a86d849221ea897e5b877eb471304c5b7479c49ce16882c873481a",
+    "plugin/bin/harness-session.test.mjs": "cf3cf2c23f5dc0a16b4c09e8f768b7f62b8909cfa89ff49b91fc6e37c50ce26b",
+    "plugin/bin/harness-watch.test.mjs": "dbeec7fb952d0b2ff9c6783a404365ddf81e630b32ac91bca3b99ae4b2c957af"
+  },
+  "results": {
+    "windowsCorePlugin": {
+      "command": "npm test",
+      "tests": 289,
+      "pass": 288,
+      "fail": 0,
+      "skip": 1,
+      "skipReason": "POSIX-only shell PATH test"
+    },
+    "linuxCorePlugin": {
+      "command": "npm test",
+      "tests": 289,
+      "pass": 289,
+      "fail": 0,
+      "skip": 0
+    },
+    "windowsSession": {
+      "command": "node --test plugin/bin/harness-session.test.mjs",
+      "pass": 12,
+      "skip": 1,
+      "fail": 0
+    },
+    "linuxSession": {
+      "command": "node --test plugin/bin/harness-session.test.mjs",
+      "pass": 13,
+      "skip": 0,
+      "fail": 0
+    },
+    "check": {
+      "command": "npm run check",
+      "passed": true,
+      "fsd": true,
+      "architecture": 26,
+      "projectAvailability": 18
+    },
+    "build": {
+      "command": "npm run build",
+      "passed": true,
+      "framework": "Next.js 16.3.3",
+      "generatedRoutes": 15
+    },
+    "reportStructure": {
+      "command": "node --import tsx scripts/rehearse-dual-client-runtime.ts --validate-report-only --report docs/test-reports/active/dual-client-runtime-report.md",
+      "passed": true,
+      "productPass": false
+    },
+    "whitespace": {
+      "command": "git diff --check",
+      "passed": true
+    }
+  },
+  "nativeVerifierTap": [
+    {
+      "trial": "defect detected",
+      "commands": [
+        {
+          "status": "completed",
+          "pass": "1",
+          "fail": "0"
+        },
+        {
+          "status": "completed",
+          "pass": "1",
+          "fail": "0"
+        },
+        {
+          "status": "completed",
+          "pass": null,
+          "fail": null
+        }
+      ],
+      "note": "Counts parsed from retained native command output; null means the original 2000-character projection omitted that TAP footer, not an invented count."
+    },
+    {
+      "trial": "clean fixture",
+      "commands": [
+        {
+          "status": "completed",
+          "pass": "1",
+          "fail": "0"
+        },
+        {
+          "status": "completed",
+          "pass": "1",
+          "fail": "0"
+        },
+        {
+          "status": "completed",
+          "pass": null,
+          "fail": null
+        },
+        {
+          "status": "completed",
+          "pass": "1",
+          "fail": "0"
+        }
+      ],
+      "note": "Counts parsed from retained native command output; null means the original 2000-character projection omitted that TAP footer, not an invented count."
+    }
+  ],
+  "incidentalRegression": {
+    "initial": "npm test: 287 PASS, 1 FAIL, 1 POSIX skip. A standalone rerun reproduced the response-timeout fixture count failure (5 observed requests including startup versus 6 expected).",
+    "fix": "Increase only fixture request timeout from 50ms to 200ms to allow a fresh Node process to connect. Five retries, request-failed and exact cleanup assertions unchanged.",
+    "targetedRerun": {
+      "pass": 1,
+      "fail": 0
+    },
+    "fullReruns": "Final Windows/Linux totals above."
+  },
+  "productVerdict": "Bounded Linux role/full verifier/kernel permissions/pending stop passed. Actual dual CLI/browser/package/mixed-host acceptance and C4 remain incomplete."
+}

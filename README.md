@@ -44,6 +44,12 @@ fresh 역할 실행과 공통 잠금의 사용법은 [plugin/README.md](./plugin
 코드만 배포해서는 지원을 활성화할 수 없다. [검증 보고서](./docs/test-reports/active/dual-client-runtime-report.md)의
 필수 host·DB·설치·인수 항목을 통과하기 전에는 제품 지원 완료로 선언하지 않는다.
 
+사용자는 선택한 native 클라이언트의 기존 로그인으로 플러그인을 설치하고 프로젝트를
+연결할 수 있어야 한다. WSL이나 다른 CLI 로그인, 별도 Node·검증 스킬 설치는 기본
+사용 절차에 포함하지 않는다. 현재 Codex 경로의 Windows 실행과 의존성 패키징은
+미완료이며 [후속 계획](./docs/proposals/active/codex-dual-client-runtime-follow-ups.md)에서
+자동 watch보다 먼저 해결한다.
+
 ## 로컬 확인
 
 ```powershell

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gitRoot, stateFiles, checkSession, startSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
 import { connectionInput, verifyProject, verifyCodexSupport, callTool } from "../runtime/mcp-client.mjs";
-import { codexExecutable, dispatchFreshRole } from "../runtime/codex-thread.mjs";
+import { codexExecutable, dispatchFreshRole, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { RUNTIME_PROTOCOL } from "../lib/client-runtime.mjs";
 import { verifierPackage } from "../runtime/codex-agent.mjs";
 import { safeTarget } from "../runtime/file-ownership.mjs";
@@ -17,6 +17,13 @@ export function dispatchBinding(next, workspaces) {
   const keyed = workspaces.some(ws => ws.agent === next.agent) || next.agent === "plan-verifier";
   if (keyed && !next.key) throw new Error("Workspace/verifier requires an item key");
   return { agent: next.agent, key: next.key, agentKey: keyed ? next.key : undefined, entry: next.entry, ...(next.agentRunId ? { agentRunId: next.agentRunId } : {}) };
+}
+
+export function codexFailure(error, session = null) {
+  if (error instanceof RoleExecutionUnavailable) {
+    return { event: "error", session, code: error.code, reason: error.message };
+  }
+  return { event: "error", session, code: "codex-refused", reason: "Codex configuration, runtime, binding, permission or server check failed. Keep ownership until owned work is quiescent; resolve with $harness-init. No completion is claimed." };
 }
 
 function optionsFor(argv) {
@@ -99,8 +106,8 @@ async function main() {
       dispatch.requiredVerificationPaths = briefing.requiredVerificationPaths;
     } else if (options.briefing) throw new Error("Only independent verifier accepts a minimal briefing");
     console.log(JSON.stringify({ session: options.session, ...await dispatchFreshRole(input, files, options.session, dispatch) }));
-  } catch {
-    console.log(JSON.stringify({ event: "error", session: options?.session ?? null, code: "codex-refused", reason: "Codex configuration, runtime, binding, permission or server check failed. Keep ownership until owned work is quiescent; resolve with $harness-init. No completion is claimed." })); process.exitCode = 1;
+  } catch (error) {
+    console.log(JSON.stringify(codexFailure(error, options?.session ?? null))); process.exitCode = 1;
   }
 }
 

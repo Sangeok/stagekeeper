@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-04T12:10:33.969Z"
-tested-revision: "21a1d6eb66cd0e57f94cff87de14b485f321a21e"
+last-executed-at: "2026-10-04T12:45:26.305Z"
+tested-revision: "040f2f9a22f6d0aee658fc178b618856156307e6"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -23,6 +23,8 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-04 authenticated WSL2 follow-up: fixed isolated shell PATH and staged the complete verifier as a read-only scratch skill without exposing .codex. Actual role read/scratch, full private working-source verifier (one defect detected, then separate clean-fixture pass), kernel denials and pending-turn stop passed their bounded trials. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json). Actual approved dual CLI/browser, package/deployment and C4 acceptance remain incomplete. Historical failures/blocked rows are preserved.
 
 2026-10-04 WSL2 follow-up: the unchanged root-deny policy now passes bounded model-free read/scratch/protected-path probes on a dedicated Linux checkout. Session 11/11 and report 28/28 regressions pass. No inference was started; native Linux login, full actual verifier/approved resumption and C4 remain pending. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json). Earlier Windows blockers and historical verdicts remain valid for their recorded host/revision.
 
@@ -141,6 +143,15 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T67 | R3 | informational | WSL2 unchanged-policy functional filesystem probe | Allowed read/scratch write execute; protected read and repository/Git writes fail | [E79] | PASS |
 | T68 | R3 | informational | WSL2 current-source session/report regression | Session ownership and report tests pass on native Linux | [E80] | PASS |
 | T69 | R3 | required | WSL2 actual model/full verifier and C4 prerequisite | Authenticated actual model/full verifier and approved resumption precede C4 | [E81] | BLOCKED |
+| T70 | R3 | required | Authenticated Linux role before fixed PATH | Allowed native read executes with isolated shell environment | [E82] | FAIL |
+| T71 | R3 | informational | Authenticated Linux role after fixed system PATH | Allowed read/scratch execution without parent credentials or broadened filesystem policy | [E83] | PASS |
+| T72 | R3 | required | Full verifier before package staging | Required owner skill must be readable before verification success | [E84] | BLOCKED |
+| T73 | R3 | informational | Staged full verifier detects actual fixture defect | Complete package and executable paths support a concrete independent finding | [E85] | PASS |
+| T74 | R3 | informational | Fresh full verifier after synthetic plan correction | All required paths and no-edit final reread complete without defects | [E86] | PASS |
+| T75 | R3 | informational | Staged verifier kernel permissions | Read-only staged skill and normal repository read/scratch write, protected reads/writes denied | [E87] | PASS |
+| T76 | R3 | informational | Linux native pending turn stop and duplicate exclusion | Keep lock until actual terminal turn and owned work end | [E88] | PASS |
+| T77 | R3 | informational | Final Windows/Linux runtime regressions | Final changed runtime passes repository checks and meaningful platform tests | [E89] | PASS |
+| T78 | R3 | required | Remaining native resumption and C4 gates | Actual approved dual CLI/browser cycle before C4 automatic watch | [E90] | BLOCKED |
 
 ## Commands and Static Checks
 
@@ -253,6 +264,15 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E79 | Actual WSL2 model-free host | 2026-10-04T12:10:33.969Z; revision 21a1d6eb66cd0e57f94cff87de14b485f321a21e; Actual unchanged product adapter on Ubuntu 26.04.1/WSL2 with native Codex 0.160.0, unprivileged user: preflight/read/scratch write exit 0; out-of-repository synthetic canary read exit 1; repository and Git metadata writes exit 2, read-only filesystem. Scratch contents match; forbidden files absent. Root deny and approval never unchanged. Same binary moved into minimal readable system tools after user-local executable was hidden by bubblewrap. No model turn or remote role call; owned children/bridge ended, locks released. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json) | Inline; no raw log retained |
 | E80 | Actual WSL2 model-free host | 2026-10-04T12:10:33.969Z; revision 21a1d6eb66cd0e57f94cff87de14b485f321a21e; Linux checkout at 21a1d6eb66cd0e57f94cff87de14b485f321a21e: npm ci completed; session 11/11 and report 28/28 pass, zero skips. The Linux report symlink case ran. These are regression tests, not actual winning role/full verifier/CLI approval/watch acceptance. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json) | Inline; no raw log retained |
 | E81 | Actual WSL2 model-free host | 2026-10-04T12:10:33.969Z; revision 21a1d6eb66cd0e57f94cff87de14b485f321a21e; Native Linux CLI is separately awaiting device login; Windows credentials were not copied. Model-free filesystem probes passed but actual role inference/full independent verifier and approved CLI resumption remain unexecuted. C4 runner/skill and 110-minute idle trial remain NOT IMPLEMENTED; authorization persists. [Linux host observations](../assets/2026-10-04-codex-wsl-host-preflight/observations.json) | Inline; no raw log retained |
+| E82 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Actual synthetic doc-auditor transport completed, but cat exited 127 (command not found); scratch write completed. Historical failure preserved. Native tokens=28179. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E83 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Actual native read and scratch write completed; forbidden repository file absent. Repository write denial was tool/model-reported and is not fabricated as a command event. Owner/nested tools unavailable; no parent judgment supplied, limited to bounded fixture. Native tokens=22533. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E84 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Actual private working-source verifier found the owner skill in catalog but cat was denied under .codex. It recorded verify blocked and all four required paths NOT RUN, with no clean claim or source edit. Native tokens=83078. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E85 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Actual private role plus unchanged 8-file owner package/checksum; exact staged loader path selected and original same-name skill disabled. Baseline and exact scratch destination executed. All four paths ran; one real scope-text/test-description mismatch found. Ordered gates/final reread reported; clean Git and plan unchanged; receipts bound. Not zero-defect readiness. Native tokens=285928. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E86 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; New independent model thread, actual private verifier and complete staged owner package. Four paths ran, baseline and scratch destination tests twice passed; sole export, numeric boundaries and input handling checked. Final report 0 defects; source plan unchanged and repository clean; children settled/released. Synthetic fixture only, not C4 or production package certification. Native tokens=247078. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E87 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Model-free named-policy preflight/cat resolved; staged SKILL SHA read exit 0, skill write exit 2; read/scratch exit 0; external read exit 1 and repository/Git writes exit 2. Forbidden files absent; no model turn or remote call; release completed. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E88 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Actual PM turn had one pending agent_next. Concurrent Claude session start returned locked with original policies; premature release returned quiescence-required. turn/interrupt then interrupted observed; pending HTTP closed, zero outcome calls/children, own release succeeded. Fixture MCP, not actual two-CLI/browser mixed-host acceptance. Native tokens=4368. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E89 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Windows session 12 PASS/1 POSIX skip; Linux session 13 PASS. Final npm test: Windows 288 PASS/1 POSIX skip, Linux 289 PASS/no skip. npm run check and build passed. Initial 50ms watch response-timeout fixture twice observed only 4 of 5 requests at HTTP listener; gave fresh-process connection 200ms while preserving five retries/cleanup assertions; targeted and full reruns passed. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
+| E90 | Actual WSL2 role/verifier | 2026-10-04T12:45:26.305Z; revision 040f2f9a22f6d0aee658fc178b618856156307e6; Native Codex login and bounded actual role/full verifier/stop now observed. Linux Claude 2.1.288 installed but auth status none when inspected; requested native user login for bidirectional CLI trial. Private working tree/production seed/install/DB browser/mixed-host gates remain separate. C4 and 110-minute idle NOT IMPLEMENTED/NOT RUN. [WSL role evidence](../assets/2026-10-04-codex-wsl-role-acceptance/observations.json) | Inline; no raw log retained |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -264,6 +284,8 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+Actual model trials exposed two product defects missed by config-only probes: PATH removal broke normal read commands, and catalog discovery did not make the owner skill readable under the denied auth directory. Both are corrected without widening root/network/credential access. The full verifier successfully detected a real bounded proposal mismatch and passed a fresh corrected fixture. Native pending cancellation passed on Linux. These narrower gates do not certify all source proposal acceptance or C4.
 
 The WSL2 system executable resolves the earlier Linux package-placement failure without granting additional role access. Model-free filesystem host behavior is now observed on Linux; full role/verifier and approved resumption remain prerequisites. No global Windows configuration, credential copy, production seed, or C4 implementation occurred.
 
@@ -283,6 +305,8 @@ Permission-profile basis: [official permissions documentation](https://learn.cha
 
 ## Test Data and Cleanup
 
+Latest WSL2 phase: inspected 11 owned fixture checkouts; none retains a session lock. Actual role App Server children/bridges ended before release. Public evidence excludes raw private role/step bodies, auth codes, credential contents and conversation identities. Disposable test/scratch evidence and native Linux authentication remain outside Git for subsequent authorized trials.
+
 Initial setup correction: an invalid synthetic hash fixture failed before model/child startup. Its exact owned lock/policy were removed after root/session and empty child/poller checks; fixture source remains. The separate actual trial sessions all released normally.
 
 Current manual trials consumed the native CLI login without copying credentials or forwarding parent HARNESS/owner/API variables. All owned child/bridge processes and locks settled/released. Synthetic fixtures and probe scripts remain in the owned temporary root for reproduction; no production seed, deployment or browser profile change. Three model turns report a total of 66048 tokens; execution preflight starts none. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) contains no credentials, private body or real conversation transcript.
@@ -293,7 +317,9 @@ An earlier writer implementation left its own draft when Windows handle/path dev
 
 ## Conclusion
 
-Latest decision: remain active/result:null. Bounded WSL2 filesystem behavior passed; actual authenticated role/verifier and approved resumption have not been run. C4 remains unimplemented. Prior required failures are preserved and are not cleared by this narrower PASS.
+Latest decision: active/result:null. Bounded Linux actual role/full verifier/stop behavior now passed; actual approved dual CLI/browser cycle and C4 remain pending. Historical required failures and unimplemented gates retain the aggregate fail result.
+
+Earlier model-free WSL2 decision, before native login: remain active/result:null. Bounded WSL2 filesystem behavior passed; actual authenticated role/verifier and approved resumption had not been run. C4 remained unimplemented. This historical decision is superseded only for the bounded actual role/verifier/stop paths recorded above; its unexecuted resumption/C4 gates remain unresolved.
 
 Current decision: preserve active/result:null. Actual MCP execution/cancellation evidence is partial; Windows functional filesystem gate remains blocked. C4 and the 110-minute idle experiment were not performed. A compatible host must pass the unchanged-role basic acceptance before proceeding.
 

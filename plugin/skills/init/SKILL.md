@@ -5,6 +5,12 @@ description: Connect this repository to Stagekeeper — write harness.json, gene
 
 # harness:init
 
+Use the owner's existing native Claude Code installation and login. Do not require WSL,
+a VM/container, another client login, or manual Node/verifier-skill installation to connect
+Stagekeeper. This source version still depends on Node and an external complete verifier
+package. If either dependency is unavailable, report an unresolved Stagekeeper packaging
+requirement and stop; do not turn it into extra user setup steps or claim the package is ready.
+
 Precondition: the user has created the project on the web and has a token. The token must be
 in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).
 

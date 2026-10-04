@@ -1,0 +1,58 @@
+{
+  "checkedAt": "2026-10-04T13:26:22.365Z",
+  "platform": "win32",
+  "sourceFiles": {
+    "plugin/runtime/codex-thread.mjs": "1ba09230d7707c86c3db2d4ba31e821cf43bbbd4f0a9cf075175b6f6558b0337",
+    "plugin/bin/harness-codex.mjs": "e22c11b07bbdad8cbd0f76ac07d824dbbf22f20a3c59d7cafc384857f1865ae2"
+  },
+  "checks": [
+    {
+      "command": "node --test plugin/bin/harness-session.test.mjs",
+      "result": "PASS",
+      "pass": 12,
+      "skip": 1
+    },
+    {
+      "command": "npm test",
+      "result": "PASS",
+      "pass": 288,
+      "fail": 0,
+      "skip": 1
+    },
+    {
+      "command": "npm run check",
+      "result": "PASS",
+      "includes": [
+        "lint",
+        "FSD",
+        "typegen",
+        "typecheck",
+        "26 architecture tests",
+        "18 project availability tests"
+      ]
+    },
+    {
+      "command": "npm run verify:fsd",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "result": "PASS"
+    },
+    {
+      "command": "runtime report --validate-report-only",
+      "result": "PASS",
+      "scope": "report structure only, product result not final"
+    },
+    {
+      "command": "changed Markdown relative-link check",
+      "result": "PASS",
+      "checkedLinks": 40
+    }
+  ],
+  "productNativeMinimumSetup": "BLOCKED",
+  "c4": "NOT IMPLEMENTED",
+  "limits": [
+    "Local Windows checks only; historical Linux/model observations apply to their recorded source hashes."
+  ]
+}

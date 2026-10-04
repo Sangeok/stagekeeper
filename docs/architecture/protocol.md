@@ -454,13 +454,23 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 
 Codex role dispatcher는 모델 없는 effective config와 sandbox command 실행 preflight 후 새 App Server thread를 시작한다.
-다른 inherited MCP·plugin을 끄고 shell 설정의 상속 값을 비우며 named filesystem/network policy와 도구 목록을 확인한다.
+다른 inherited MCP·plugin을 끄고 shell 환경을 `inherit="none"`으로 설정한다. 상속된 명시적 환경 값도 비우되
+`PATH`와 대소문자 별칭에는 고정 시스템 도구 경로만 지정한다. POSIX는 `/usr/local/bin:/usr/bin:/bin`,
+Windows는 시스템 디렉터리와 Windows PowerShell 경로다. 사용자 도구 경로·credential 값은 전달하지 않는다.
+named filesystem/network policy와 도구 목록을 확인한다.
 허용된 역할 MCP 도구만 개별 `approval_mode="approve"`로 설정하고 기본값은 `prompt`로 유지한다.
 owner 도구·권한 상승 요청은 거부한다. legacy sandbox 설정이 named policy와 함께 남아 있으면 실행하지 않는다.
 파일 도구가 없는 PM을 제외하고, 동일 named policy의 `command/exec`로 고정 marker를 먼저 확인한다.
-실행 불가 시 모델을 호출하지 않고 실패한다. marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지 않는다.
-parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package와
-winning skill path/checksum을 확인하고 다른 skill은 비활성화한다. 부모 대화·판정 목록을 전달하지 않는다.
+POSIX preflight는 `cat` 명령의 경로 해석도 확인해 읽기 도구가 없는 셸에서 모델을 시작하지 않는다.
+실행 불가 시 모델을 호출하지 않고 `codex-role-execution-unavailable`로 실패한다.
+이를 재초기화·WSL 설치·다른 클라이언트 로그인으로 복구하도록 안내하지 않는다.
+Stagekeeper 런타임 호환성 결함으로 보고하고 미확인 소유권과 역할 권한을 유지한다.
+marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지 않는다.
+parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package를
+scratch의 `.agents/skills/reconciling-proposals-with-codebase`로 복사하고, 원본·복사본의 checksum과 파일 수를
+init metadata와 비교한다. 이 패키지만 scratch 쓰기 권한보다 좁은 읽기 전용 권한으로 지정한다.
+owner `.codex` 인증 디렉터리는 계속 차단한다. 실제 skill 목록에서 복사본의 정확한 경로 하나를 확인해
+그 skill만 활성화하며 같은 이름의 원본을 포함한 다른 skill은 비활성화한다. 부모 대화·판정 목록을 전달하지 않는다.
 PM은 파일 도구가 없고 scout만 web search를 허용한다. Git metadata는 read-only이며 child commit은
 main loop/owner로 handoff한다. 실제 모델의 tool/kernel 격리 증거는 별도로 필요하다.
 

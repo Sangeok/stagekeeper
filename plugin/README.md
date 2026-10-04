@@ -9,6 +9,13 @@ portable root manifest는 두지 않는다. private 단계 본문은 패키지�
 DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-reports/active/dual-client-runtime-report.md)의
 미완료 항목이다. 아래 사용법은 설치·서버·private bundle의 같은 버전을 준비한 뒤 적용한다.
 
+제품의 기본 연결 절차는 선택한 native 클라이언트의 기존 로그인 → Stagekeeper 플러그인
+설치 → 프로젝트 연결이다. WSL·다른 CLI 로그인·별도 Node·검증 스킬 설치를 사용자에게
+요구하지 않는다. 현재 두 클라이언트의 소스 실행 절차에는 Node와 외부 검증 패키지 의존성이
+남아 있고 Codex Windows 역할 파일 실행도 차단되므로 최소 설치 지원은 미완료다.
+이 의존성을 패키지에서 해결하고 Windows 인수를 통과하기 전에는 일반 사용자에게
+추가 설치를 안내하거나 준비 완료를 선언하지 않는다. WSL 검증은 내부 개발 기록이다.
+
 ## 초기화와 명시적 실행
 
 Codex 설치 명령은 `codex plugin marketplace add Sangeok/stagekeeper`,
@@ -43,6 +50,9 @@ fresh App Server는 부모 대화를 재사용하지 않는다. 정책을 모델
 PM은 MCP만 사용한다. scout만 web search를 허용한다. verifier는 저장소 read-only와 검증 scratch,
 dev는 담당 workspace·계획·보고 파일에만 write를 허용한다. 권한 요청은 거부하고 미확인 상태는 실패로 남긴다.
 설정 검사의 성공은 실제 kernel/tool 격리 검증을 대신하지 않는다.
+파일 도구 preflight가 실패하면 `codex-role-execution-unavailable`로 중단한다.
+이 오류는 Stagekeeper 호환성 수정 대상이며 `$harness-init` 반복이나 WSL 설치로
+사용자에게 해결을 맡기지 않는다. 미확인 작업의 소유권은 기존 종료 계약대로 보존한다.
 
 `harness-session.mjs --stop --session <id> --root <checkout>`은 token/config 없이 stopping만 기록한다.
 실제 turn·child·tool 요청 종료를 확인한 후 `--release`로 반납한다. process 종료만으로 active turn의
