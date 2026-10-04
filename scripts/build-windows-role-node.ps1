@@ -46,7 +46,7 @@ if ($text.Contains($old)) {
 
 Push-Location $source
 try {
-  & .\vcbuild.bat release x64
+  & .\vcbuild.bat release x64 openssl-no-asm
   if ($LASTEXITCODE -ne 0) { throw 'Node source build failed' }
 } finally { Pop-Location }
 $runtime = Join-Path $buildPath 'runtime'
@@ -54,12 +54,16 @@ New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $source 'Release/node.exe') -Destination (Join-Path $runtime 'node.exe')
 Copy-Item -LiteralPath (Join-Path $source 'deps/npm') -Destination $runtime -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $source 'LICENSE') -Destination (Join-Path $runtime 'LICENSE')
+$packageHash = & (Join-Path $runtime 'node.exe') -e 'const fs=require("node:fs"),p=require("node:path"),c=require("node:crypto"),rows=[];function scan(dir,rel=""){for(const name of fs.readdirSync(dir).sort()){if(!rel&&name==="provenance.json")continue;const file=p.join(dir,name),r=p.join(rel,name);if(fs.statSync(file).isDirectory())scan(file,r);else rows.push([r.split(p.sep).join("/"),c.createHash("sha256").update(fs.readFileSync(file)).digest("hex")]);}}scan(process.argv[1]);console.log(c.createHash("sha256").update(JSON.stringify(rows)).digest("hex"));' $runtime
+if ($LASTEXITCODE -ne 0 -or $packageHash -notmatch '^[a-f0-9]{64}$') { throw 'Runtime package hashing failed' }
 $manifest = [ordered]@{
   format = 'stagekeeper-windows-node-v1'; version = $version; architecture = 'x64'
+  buildArguments = @('release', 'x64', 'openssl-no-asm')
   source = "https://nodejs.org/dist/v$version/node-v$version.tar.gz"; sourceSha256 = $sourceHash
   pipeBackport = 'https://github.com/libuv/libuv/pull/5181'
   pipeSourceSha256 = (Get-FileHash -LiteralPath $pipeFile -Algorithm SHA256).Hash.ToLowerInvariant()
   executableSha256 = (Get-FileHash -LiteralPath (Join-Path $runtime 'node.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+  packageSha256 = $packageHash
 }
 [IO.File]::WriteAllText((Join-Path $runtime 'provenance.json'), ($manifest | ConvertTo-Json) + "`n", [Text.UTF8Encoding]::new($false))
 & (Join-Path $runtime 'node.exe') -e 'const cp=require("node:child_process"); const r=cp.spawnSync(process.execPath,["-e","console.log(123)"],{encoding:"utf8"}); if(r.status!==0 || r.stdout.trim()!=="123") process.exit(1);'
