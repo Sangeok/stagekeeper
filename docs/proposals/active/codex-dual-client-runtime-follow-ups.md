@@ -51,7 +51,7 @@ related:
 - 실제 PM 모델의 pending MCP 요청에서 stop → interrupt → interrupted → bridge/child 종료 → release를 확인했다. 종료 전 release와 동시 Claude session 시작은 거부됐다. fixture MCP를 사용했으므로 실제 두 CLI/browser 승인 재개나 혼합 버전 호스트 인수의 완료 근거가 아니다.
 - 후속 진행 지시로 WSL2 Ubuntu 26.04.1과 별도 Linux 사용자/checkout을 준비했다. CLI 0.160.0에 native ChatGPT 로그인을 완료했고 Windows 인증 파일은 복사하지 않았다. 실제 모델 시험에서 PATH 제거로 읽기 명령이 실패하고, owner `.codex` 안의 스킬은 목록에 나타나도 읽지 못하는 결함을 발견했다. 고정 시스템 PATH와 checksum을 검증한 완전한 스킬의 읽기 전용 scratch 복사본으로 수정했다. root deny·인증 디렉터리 차단·network/approval 정책은 유지했다.
 - 수정 후 bounded 실제 역할의 읽기/scratch 쓰기, 실제 private working-source verifier의 네 검증 경로, 모델 없는 staged skill·외부 경로·저장소/Git 권한 경계가 통과했다. verifier는 시험 제안서의 설명 불일치 1건을 찾아냈고, 그 시험 문서만 수정한 별도 fresh 실행에서 0 defects를 반환했다. 이 결과는 현재 C4 문서나 운영 winning package를 검증한 결과가 아니다. Linux native pending turn도 종료 전 반납·중복 시작을 거부하고 interrupt/실제 종료 후 자신의 잠금을 반납했다.
-- C4 자동 watch 어댑터·명령·skill은 미구현이다. Windows 기본 파일 실행, 최소 설치 패키징, 실제 양방향 CLI/browser 승인 재개와 혼합 호스트 인수가 남아 있다. C4 구현·110분 idle 시험은 시작하지 않았다. Linux Claude 2.1.288은 개발 시험용으로 설치했고 당시 auth status는 none이었다. 추가 WSL Claude 로그인 요청을 진행 조건에서 철회했다. 준비한 격리 DB·WSL 환경은 사용자 기본 설치 요건이 아니다.
+- C4 자동 watch 어댑터·명령·skill은 미구현이다. Windows scoped 파일 실행·중지는 구현했으며 일반 명령 실행, 최소 설치 패키징, 실제 양방향 CLI/browser 승인 재개와 혼합 호스트 인수가 남아 있다. C4 구현·110분 idle 시험은 시작하지 않았다. Linux Claude 2.1.288은 개발 시험용으로 설치했고 당시 auth status는 none이었다. 추가 WSL Claude 로그인 요청을 진행 조건에서 철회했다. 준비한 격리 DB·WSL 환경은 사용자 기본 설치 요건이 아니다.
 - 두 클라이언트의 현재 helper는 `node`로 실행하고 완전한 외부 검증 패키지를 요구한다. 이 두 의존성의 무수동 설치 전달도 아직 구현하지 않았다. Codex Windows sandbox 파일 실행 실패는 별도 `codex-role-execution-unavailable` 오류로 구분하며 재초기화·호스트 변경으로 사용자에게 해결을 맡기지 않는다.
 
 ## Scope
@@ -87,19 +87,50 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 지원 기능 또는 검증된 배포물로 해결하며 임의 다운로드나 원본 없는 대체 스킬을 만들지
 않는다. 전달 revision/hash·완전성·winning loader·충돌/업데이트 경계를 직접 검증한다.
 
-**BLK-MIN-01:** 현재 CLI 0.160.0에서 Windows 역할 파일 실행이 차단되며 helper/검증
-패키지의 추가 설치 없는 전달도 미구현이다. 기본 Codex 제품 지원과 C4 착수를 차단한다.
-Linux/WSL 시험과 marker 성공은 이 blocker의 해제 증거가 아니다.
+**BLK-MIN-01:** Windows scoped 파일 MCP backend로 역할 읽기·검색·쓰기·중지를 구현했다.
+현재 CLI 0.160.0의 root-deny 일반 명령 실행과 helper/검증 패키지의 추가 설치 없는 전달은
+미완료다. 기본 Codex 제품 지원과 C4 착수를 계속 차단한다. Linux/WSL 시험과 파일
+canary·loader 성공은 이 blocker 전체의 해제 증거가 아니다.
 
-**TASK-MIN-01:** 모델 없는 Windows native capability 시험으로 현재 정책을 유지한
+#### TASK-MIN-01: Windows native 역할 실행
+
+모델 없는 Windows native capability 시험으로 현재 정책을 유지한
 실행 가능성을 확인하고 어댑터/클라이언트 호환성 해결 방안을 검증한다. repository 읽기와
 scratch 쓰기, owner credential·외부 경로 읽기 및 repository/Git 쓰기 거부를 실제 파일
-명령으로 확인한다. 불가능하면 blocker를 유지하며 WSL 설치를 권하는 복구를 제공하지 않는다.
+연산으로 확인한다. Windows에서는 scoped MCP 파일 연산으로 먼저 구현했으며, 일반
+명령을 부모의 넓은 권한으로 실행하지 않는다. 남은 native shell/build/test 격리와 전체
+verifier 검증을 이어서 확인한다. 불가능하면 blocker를 유지하며 WSL 설치를 권하는 복구를
+제공하지 않는다.
 
-**TASK-MIN-02:** helper 실행 환경·완전한 검증 패키지의 출처와 전달 방식을 확정하고
+satisfies: REQ-MIN-001
+
+#### TASK-MIN-02: 추가 수동 설치 없는 helper·검증 패키지 전달
+
+helper 실행 환경·완전한 검증 패키지의 출처와 전달 방식을 확정하고
 설치된 Stagekeeper 패키지에서 구현·검증한다. 기존 외부 패키지 수동 설치 의존성을
 제거하되 verifier 독립 문맥과 원본 계약은 보존한다. 별도 Node·외부 스킬이 없는 Windows
 사용자 프로필에서 기존 선택 클라이언트 인증만으로 설치·연결·역할 실행·중지를 검증한다.
+
+satisfies: REQ-MIN-002
+
+2026-10-04 Windows 파일 backend 진행: `role-files.mjs`의 고정 파일 연산을
+역할 bridge에 연결했다. 실제 native Codex 모델이 repository 읽기·허용 workspace 수정·
+신규 파일·항목 plan 생성·목록·검색을 실행했고 readonly/foreign/external/Git 경로를
+거부했다. 별도 thread에서 완전한 verifier 8개 파일의 첫 줄 읽기와 전체 파일 hash를
+관찰하고 원본·복사본 불변 및 staged write/원본 owner read 거부를 확인했다. 선택적
+`agent_next` key:null 오거부도 실제 loader 실패로 발견해 canonical dispatch key에
+바인딩하도록 수정했다. pending turn의 다른 client start 차단·중지·quiescence-required·
+terminal interrupted 후 release가 통과했다. [Windows 관찰 기록](../../test-reports/assets/2026-10-04-codex-windows-role-files/observations.json)은
+phase별 범위·실패·hash·관찰된 token을 보존한다. loader canary는 전체 verifier 인수가
+아니며, fixture 서비스는 실제 DB 원장이나 설치된 winning template 배포를 검증하지 않는다.
+
+TASK-MIN-01의 다음 실행 범위는 Windows의 일반 shell/build/test를 동일한 역할 파일·
+network 권한 안에서 실행하고 모든 자식 종료를 확인하는 것이다. LPAC 단일 명령
+prototype은 개발 임시 폴더에서 시험했으나 현재 Node/libuv의 captured-pipe 자식 실행이
+멈췄으므로 제품 launcher로 연결하지 않았다. [libuv의 upstream 수정](https://github.com/libuv/libuv/issues/5178)은
+AppContainer pipe namespace 호환 문제를 설명한다. 임의 명령을 지금의 privileged 파일
+broker에서 실행하거나 디스크 전체 읽기를 허용하는 해결은 채택하지 않는다.
+TASK-MIN-02와 이 명령·전체 verifier 인수가 완료되기 전 BLK-MIN-01을 해제하지 않는다.
 
 ### 이관한 C4 요구사항과 blocker
 
@@ -107,7 +138,7 @@ scratch 쓰기, owner credential·외부 경로 읽기 및 repository/Git 쓰기
 
 **REQ-DUAL-019 watch/실제 취소 부분:** stop 또는 ownership 상실 후 새 dispatch·결과 제출·watch 재설정을 중단한다. 늦은 이벤트로 재진입하지 않는다. stopping 중 잠금을 유지하고 실제 자식 종료 확인 뒤 release한다.
 
-**BLK-DUAL-04:** Codex의 파일 도구 권한, watch 대상 thread/turn 재진입·취소 및 장시간 idle에 필요한 증거가 아직 부족하다. C4와 자동 watch 안내를 차단하며 기본 명시적 재개 소스의 완료를 취소하지 않는다.
+**BLK-DUAL-04의 현재 상태:** Codex의 파일 도구 권한, watch 대상 thread/turn 재진입·취소 및 장시간 idle에 필요한 증거가 아직 부족하다. C4와 자동 watch 안내를 차단하며 기본 명시적 재개 소스의 완료를 취소하지 않는다.
 
 2026-10-04 최초 실행: fresh thread와 pending MCP turn 취소는 직접 관찰했지만 Windows 파일 도구 실행은 차단됐다. 설치된 CLI 0.160.0의 Windows backend는 `:root` 읽기를 요구하고 현재 역할 정책은 `:root="deny"`다. [동일 버전 공식 소스](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/resolved_permissions.rs)의 `validate_elevated_filesystem_policy`와 실제 오류가 일치한다. 당시 로컬 WSL 배포판·Docker/Podman은 없었다. 전체 디스크 읽기 허용이나 Windows 전역 설정 변경으로 대체하지 않았다.
 
@@ -115,9 +146,9 @@ scratch 쓰기, owner credential·외부 경로 읽기 및 repository/Git 쓰기
 
 2026-10-04 로그인 후 실행: 실제 모델은 MCP를 호출했지만 `inherit="none"` 셸의 PATH가 없어 `cat` 읽기가 실패했다. 상속 PATH를 전달하지 않고 고정 시스템 도구 경로를 설정했으며 POSIX preflight에 `cat` 경로 확인을 추가했다. 실제 전체 verifier는 owner 스킬을 읽지 못해 네 경로를 NOT RUN/blocked로 올바르게 보고했다. 원본 패키지 8개 파일만 scratch에 복사하고 원본·복사본 checksum과 파일 수를 재검증해, 이 하위 경로를 읽기 전용으로 제한했다. 실제 loader의 정확한 staged 경로만 활성화한 새 모델은 baseline·정확한 계획 sketch의 scratch destination·import/export·citation/최종 reread를 실행했다. 발견한 시험 문서 결함과 수정 후 별도 0-defect 실행, kernel write 거부 및 pending stop 증거는 [WSL 역할 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/observations.json)에 보존한다. 실제 승인 재개·혼합 CLI/host와 패키지 인수는 이 bounded 통과로 대체하지 않는다.
 
-**TASK-C4-01:** 실제 호스트 기능을 먼저 확인하고 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 watch session/정책 main-loop reuse, no-model idle, permission relay, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 구현한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
+**TASK-C4-01 실행 범위:** 실제 호스트 기능을 먼저 확인하고 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 watch session/정책 main-loop reuse, no-model idle, permission relay, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 구현한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
 
-**TASK-C4-02 / E12:** 실제 thread/turn/session에서 110분 no-model idle, 작업 발견·재진입·gate 대기/승인·handoff·auth/cap/permission·stop/interrupt·늦은 이벤트·ownership 상실 후 rearm 없음과 Claude watch 회귀를 시험한다. latency·poll/model 호출 수·종료 이유를 기록한다. pending stop은 실제 종료 확인 전 잠금과 ownership을 유지해야 하며 확인 실패 시 잠금을 보존한다. E10의 watch 안내는 관찰한 호스트·버전·방식에 한정한다.
+**TASK-C4-02 검증 범위:** E12의 실제 thread/turn/session에서 110분 no-model idle, 작업 발견·재진입·gate 대기/승인·handoff·auth/cap/permission·stop/interrupt·늦은 이벤트·ownership 상실 후 rearm 없음과 Claude watch 회귀를 시험한다. latency·poll/model 호출 수·종료 이유를 기록한다. pending stop은 실제 종료 확인 전 잠금과 ownership을 유지해야 하며 확인 실패 시 잠금을 보존한다. E10의 watch 안내는 관찰한 호스트·버전·방식에 한정한다.
 
 ## Affected Files
 
@@ -155,6 +186,12 @@ scratch 쓰기, owner credential·외부 경로 읽기 및 repository/Git 쓰기
 ## Verification Plan
 
 기존 runtime 보고서의 T53–T56과 이관한 E1–E12 기준을 사용한다. report의 revision·실행 시각·직접 관찰·정리 결과를 기록하고 역사적 판정을 보존한다. `--validate-report-only` 통과는 문서 구조 검증이며 제품 PASS가 아니다. 발견된 코드 결함을 수정하면 해당 회귀와 저장소의 check·관련 test/build를 수행한다.
+
+verifies: REQ-MIN-001, REQ-MIN-002
+
+아래 최소 설치 인수는 계획된 검증이며 파일 canary/loader 통과로 완료 처리하지 않는다.
+ID 추적 검사는 이 후속 문서와 원본 completed 제안서를 함께 입력한다. 원본에서 가져온
+REQ-DUAL·BLK-DUAL 정의를 복제하거나 완료 문서를 다시 편집하지 않는다.
 
 | 요구사항 | 작업 | 추가 인수 |
 | --- | --- | --- |

@@ -10,6 +10,7 @@ import { ROLE_TOOLS, verifierPackage, readCodexRole } from "./codex-agent.mjs";
 import { callTool, listTools } from "./mcp-client.mjs";
 import { checkSession, registerChild, settleChild, gitRoot } from "./local-session.mjs";
 import { safeTarget } from "./file-ownership.mjs";
+import { createRoleFiles, roleFileToolNames } from "./role-files.mjs";
 
 export function codexExecutable() {
   for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
@@ -57,7 +58,9 @@ export function boundArguments(name, args, dispatch, receipt) {
   if (args.project !== undefined && args.project !== dispatch.project) throw new Error("Role project mismatch");
   if (name === "agent_next") {
     if (args.agent !== undefined && args.agent !== dispatch.agent) throw new Error("Role agent mismatch");
-    if (args.key !== undefined && args.key !== dispatch.agentKey) throw new Error("Role key mismatch");
+    // App Server tools may encode an absent optional key as null. The request
+    // below always binds the actual dispatch key, including keyless report roles.
+    if (args.key != null && args.key !== dispatch.agentKey) throw new Error("Role key mismatch");
     if (args.outcome && (!receipt || !isDeepStrictEqual(args.receipt, receipt.receipt))) throw new Error("Outcome receipt mismatch");
     const binding = receipt ?? dispatch;
     if (args.entry && !isDeepStrictEqual(args.entry, binding.entry)) throw new Error("Pipeline entry mismatch");
@@ -79,10 +82,12 @@ export function boundArguments(name, args, dispatch, receipt) {
   return args;
 }
 
-export async function roleBridge(input, files, session, dispatch, operations = { listTools, callTool, checkSession }) {
-  const logical = ROLE_TOOLS[dispatch.agent] ? dispatch.agent : "dev", names = ROLE_TOOLS[logical];
-  const tools = (await operations.listTools(input)).filter(tool => names.includes(tool.name));
-  if (tools.length !== names.length || new Set(tools.map(tool => tool.name)).size !== names.length) throw new Error("Role MCP allowlist incomplete");
+export async function roleBridge(input, files, session, dispatch, operations = { listTools, callTool, checkSession }, fileBroker = null) {
+  const logical = ROLE_TOOLS[dispatch.agent] ? dispatch.agent : "dev", domainNames = ROLE_TOOLS[logical];
+  const domainTools = (await operations.listTools(input)).filter(tool => domainNames.includes(tool.name));
+  if (domainTools.length !== domainNames.length || new Set(domainTools.map(tool => tool.name)).size !== domainNames.length) throw new Error("Role MCP allowlist incomplete");
+  const tools = [...domainTools, ...(fileBroker?.tools ?? [])], names = tools.map(tool => tool.name);
+  if (new Set(names).size !== names.length) throw new Error("Role tool names conflict");
   const capability = randomUUID(); let receipt = null, done = false, requests = 0, pending = 0;
   const controller = new AbortController();
   const server = createServer(async (request, response) => {
@@ -102,8 +107,10 @@ export async function roleBridge(input, files, session, dispatch, operations = {
         if (++requests > 100 || done || pending > 1 || !names.includes(message.params?.name) || (!receipt && message.params.name !== "agent_next")) throw new Error("Role tool or run closed");
         const ownership = await operations.checkSession(files, session, input.binding);
         if (ownership.event !== "owned" || ownership.lifecycle !== "active" || ownership.client !== "codex") throw new Error("Role session no longer active");
-        const name = message.params.name, args = boundArguments(name, message.params.arguments ?? {}, dispatch, receipt);
-        const value = await operations.callTool(input, name, args, controller.signal);
+        const name = message.params.name;
+        if (controller.signal.aborted) throw new Error("Role bridge stopped");
+        const args = domainNames.includes(name) ? boundArguments(name, message.params.arguments ?? {}, dispatch, receipt) : message.params.arguments;
+        const value = domainNames.includes(name) ? await operations.callTool(input, name, args, controller.signal) : fileBroker.call(name, args);
         if (name === "agent_next") {
           if (typeof value.done !== "boolean" || (!value.done && (!value.receipt?.runId || !Number.isInteger(value.receipt.revision) || value.receipt.stepId !== value.step))
             || (dispatch.entry && !isDeepStrictEqual(value.entry, dispatch.entry))
@@ -121,7 +128,7 @@ export async function roleBridge(input, files, session, dispatch, operations = {
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   return { url: `http://127.0.0.1:${server.address().port}/mcp/${capability}`, result: () => ({ done, receipt }),
-    close: async () => { controller.abort(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); if (pending) throw new Error("Role requests still pending"); } };
+    close: async () => { controller.abort(); fileBroker?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); if (pending) throw new Error("Role requests still pending"); } };
 }
 
 export class AppServer {
@@ -197,16 +204,16 @@ export function inheritedPolicyOverrides(config, url, tools) {
   return overrides;
 }
 
-export function assertRolePolicy(config, filesystem, url, agent) {
+export function assertRolePolicy(config, filesystem, url, agent, nativeFiles = false) {
   const permission = config.permissions?.["harness-role"], actualFiles = permission?.filesystem ?? {};
   const paths = Object.fromEntries(Object.entries(actualFiles).filter(([name]) => name !== "glob_scan_max_depth"));
-  const tools = ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev, harness = config.mcp_servers?.harness;
-  const disabled = ["multi_agent", "apps", "hooks", "memories", "goals"];
+  const tools = [...(ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev), ...(nativeFiles ? roleFileToolNames(agent) : [])], harness = config.mcp_servers?.harness;
+  const disabled = ["multi_agent", "apps", "hooks", "memories", "goals", "view_image", "request_permissions_tool"];
   if (config.agents?.enabled !== false || config.approval_policy !== "never" || config.default_permissions !== "harness-role"
     || config.sandbox_mode != null
     || config.web_search !== (agent === "feature-scout" ? "live" : "disabled") || config.project_doc_max_bytes !== 0 || config.features?.code_mode?.enabled !== false
     || disabled.some(name => config.features?.[name] !== false)
-    || config.features?.shell_tool !== (agent !== "pm") || config.features?.unified_exec !== false
+    || config.features?.shell_tool !== (!nativeFiles && agent !== "pm") || config.features?.unified_exec !== false
     || Object.entries(config.mcp_servers ?? {}).some(([name, server]) => name !== "harness" && server.enabled !== false)
     || Object.values(config.plugins ?? {}).some(plugin => plugin.enabled !== false)
     || !harness || harness.enabled !== true || harness.url !== url || !isDeepStrictEqual(harness.enabled_tools, tools)
@@ -230,9 +237,21 @@ export class RoleExecutionUnavailable extends Error {
   }
 }
 
-export async function verifyRoleExecution(server, scratch, agent, platform = process.platform) {
+export async function verifyRoleExecution(server, scratch, agent, platform = process.platform, fileBroker = null) {
   if (agent === "pm") return;
   const marker = "harness-role-execution-ready";
+  if (fileBroker) {
+    try {
+      const target = path.join(scratch, `execution-probe-${randomUUID()}.txt`);
+      const written = fileBroker.call("role_file_write", { path: target, content: marker, expectedHash: null });
+      const read = fileBroker.call("role_file_read", { path: target });
+      if (read.text !== marker || read.hash !== written.hash) throw new Error("Native file probe differs");
+      let refused = false;
+      try { fileBroker.call("role_file_list", { path: path.parse(scratch).root }); } catch { refused = true; }
+      if (!refused) throw new Error("Native file root denial differs");
+      return;
+    } catch { throw new RoleExecutionUnavailable(); }
+  }
   const command = platform === "win32"
     ? [path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", `[Console]::Write('${marker}')`]
     : ["/bin/sh", "-c", `command -v cat >/dev/null && printf '${marker}'`];
@@ -275,15 +294,17 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
   // An owner package inside .codex must not require access to that credential directory.
   const roleVerifier = dispatch.agent === "plan-verifier" ? stageVerifierPackage(verifier, scratch) : null;
   if (roleVerifier) filesystem[path.dirname(roleVerifier.path)] = "read";
-  const bridge = await roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug });
+  const nativeFiles = process.platform === "win32", fileBroker = nativeFiles ? createRoleFiles(filesystem, dispatch.agent) : null;
+  const tools = [...(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev), ...(nativeFiles ? roleFileToolNames(dispatch.agent) : [])];
+  const bridge = await roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug }, undefined, fileBroker);
   const cli = codexExecutable(), config = [
-    'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
-    `features.shell_tool=${dispatch.agent !== "pm"}`, 'features.unified_exec=false', 'default_permissions="harness-role"', 'permissions.harness-role.extends=":read-only"',
+    'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.view_image=false', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
+    `features.shell_tool=${!nativeFiles && dispatch.agent !== "pm"}`, 'features.unified_exec=false', 'default_permissions="harness-role"', 'permissions.harness-role.extends=":read-only"',
     `permissions.harness-role.filesystem={${Object.entries(filesystem).map(([file, access]) => `${JSON.stringify(file)}=${JSON.stringify(access)}`).join(",")}}`, 'permissions.harness-role.network.enabled=false',
-    `mcp_servers={harness={url=${JSON.stringify(bridge.url)},enabled_tools=${JSON.stringify(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev)}}}`, 'shell_environment_policy.inherit="none"',
+    `mcp_servers={harness={url=${JSON.stringify(bridge.url)},enabled_tools=${JSON.stringify(tools)}}}`, 'shell_environment_policy.inherit="none"',
   ];
   let inherited;
-  try { inherited = await inspectHostPolicy(cli, config, scratch, files, session, input.binding, bridge.url, ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev); }
+  try { inherited = await inspectHostPolicy(cli, config, scratch, files, session, input.binding, bridge.url, tools); }
   catch (error) { await bridge.close(); throw error; }
   const child = spawn(cli.executable, [...cli.prefix, ...[...config, ...inherited].flatMap(value => ["-c", value]), "app-server", "--stdio", "--strict-config"], { cwd: scratch, env: { ...childEnvironment(), HARNESS_ROLE_CAPABILITY: randomUUID() }, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
   const hostChild = { pid: child.pid, nonce: randomUUID() }, server = new AppServer(child);
@@ -295,13 +316,14 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     await server.request("initialize", { clientInfo: { name: "stagekeeper-role", version: "1" }, capabilities: { experimentalApi: true } });
     child.stdin.write(JSON.stringify({ method: "initialized", params: {} }) + "\n");
     const effective = await server.request("config/read", { includeLayers: false, cwd: scratch });
-    assertRolePolicy(effective.config, filesystem, bridge.url, dispatch.agent);
-    await verifyRoleExecution(server, scratch, dispatch.agent);
+    assertRolePolicy(effective.config, filesystem, bridge.url, dispatch.agent, nativeFiles);
+    await verifyRoleExecution(server, scratch, dispatch.agent, process.platform, fileBroker);
     const inventory = await server.request("skills/list", { cwds: [scratch], forceReload: true });
     const skills = (inventory.data ?? []).flatMap(value => value.skills ?? []);
     const isRoleVerifier = skill => roleVerifier !== null && skill.name === "reconciling-proposals-with-codebase" && realpathSync(skill.path) === realpathSync(roleVerifier.path);
     if (roleVerifier && skills.filter(isRoleVerifier).length !== 1) throw new Error("Actual staged verifier loader path differs");
-    const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
+    const nativeInstructions = nativeFiles && dispatch.agent !== "pm" ? "\nWindows native file operations use only mcp__harness__role_file_read/list/search/write with absolute paths. File writes require the current hash (null only for an absent file). These operations preserve role filesystem permissions. Literal search reports incomplete/truncated/skipped scans; finish reading the affected files before claiming a complete review. Shell commands, builds and tests are unavailable in this backend: report requested command checks as blocked, never passed. Do not request WSL, another login, or permission escalation. Load the supplied verifier SKILL.md and its referenced files through role_file_read when required." : "";
+    const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions + nativeInstructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
     threadId = thread.thread?.id;
     if (!threadId) throw new Error("Fresh thread identity missing");
     const completion = new Promise((resolve, reject) => { complete = message => {

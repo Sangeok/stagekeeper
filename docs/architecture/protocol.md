@@ -453,19 +453,42 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 업데이트된 watch는 `--start --managed`를 사용한다. metadata 없는 legacy stop의 즉시 정리 계약은 유지하되
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 
-Codex role dispatcher는 모델 없는 effective config와 sandbox command 실행 preflight 후 새 App Server thread를 시작한다.
+Codex role dispatcher는 모델 없는 effective config와 플랫폼별 실행 preflight 후 새 App Server thread를 시작한다.
 다른 inherited MCP·plugin을 끄고 shell 환경을 `inherit="none"`으로 설정한다. 상속된 명시적 환경 값도 비우되
 `PATH`와 대소문자 별칭에는 고정 시스템 도구 경로만 지정한다. POSIX는 `/usr/local/bin:/usr/bin:/bin`,
 Windows는 시스템 디렉터리와 Windows PowerShell 경로다. 사용자 도구 경로·credential 값은 전달하지 않는다.
 named filesystem/network policy와 도구 목록을 확인한다.
 허용된 역할 MCP 도구만 개별 `approval_mode="approve"`로 설정하고 기본값은 `prompt`로 유지한다.
 owner 도구·권한 상승 요청은 거부한다. legacy sandbox 설정이 named policy와 함께 남아 있으면 실행하지 않는다.
-파일 도구가 없는 PM을 제외하고, 동일 named policy의 `command/exec`로 고정 marker를 먼저 확인한다.
+파일 도구가 없는 PM을 제외하고, POSIX는 동일 named policy의 `command/exec`로 고정 marker를 먼저 확인한다.
 POSIX preflight는 `cat` 명령의 경로 해석도 확인해 읽기 도구가 없는 셸에서 모델을 시작하지 않는다.
 실행 불가 시 모델을 호출하지 않고 `codex-role-execution-unavailable`로 실패한다.
 이를 재초기화·WSL 설치·다른 클라이언트 로그인으로 복구하도록 안내하지 않는다.
 Stagekeeper 런타임 호환성 결함으로 보고하고 미확인 소유권과 역할 권한을 유지한다.
 marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지 않는다.
+
+Windows에서는 `plugin/runtime/role-files.mjs`가 역할별 localhost MCP bridge에
+`role_file_read/list/search/write`를 추가한다. 서버 domain 도구 목록·managed 역할 TOML은
+그대로이며 파일 도구를 서비스에 전달하지 않는다. PM에는 파일 도구를 주지 않는다.
+`rolePermissions`의 동일한 절대 경로 정책을 사용하고 가장 구체적인 규칙을 적용한다.
+root deny, 외부/인증 경로 차단, 다른 workspace deny, Git·관리 파일 read-only를 유지한다.
+관리 경로가 아직 없어도 쓰기를 거부하며 device/UNC/ADS·junction/symlink/hardlink 별칭을
+거부한다. 파일 쓰기는 현재 SHA-256 또는 신규 파일의 null을 요구하며 변경 시 거부한다.
+읽기·검색·요청 크기는 제한되고 불완전한 검색은 명시하며 검증 성공으로 취급하지 않는다.
+
+Windows preflight는 이 파일 backend의 실제 scratch 생성·읽기·hash 일치와 drive root
+접근 거부를 모델 전에 확인한다. 파일 호출에도 `agent_next` receipt, active Codex 소유권,
+동시 요청·완료·중지 fence를 적용한다. broker는 고정 데이터 연산만 수행하며 모델 코드나
+임의 명령을 실행하지 않는다. shell/unified exec는 Windows에서 비활성화한다.
+`view_image`와 `request_permissions_tool`도 모든 역할에서 비활성화하며 effective config로
+확인한다. 기존 named filesystem/network policy와 승인 거부는 유지한다.
+
+이 backend로 Windows native 파일 읽기·검색·수정·역할 중지는 실행할 수 있다.
+일반 build/test/shell 실행은 아직 지원하지 않는다. 필요한 명령 검증은 blocked로 보고하며
+자동으로 부모 프로세스의 넓은 권한이나 WSL로 옮기지 않는다. Windows 명령 격리, 완전한
+검증 인수와 추가 Node/외부 스킬 수동 설치 없는 패키징이 완료되기 전에는 전체 Windows
+제품 지원 준비가 완료됐다고 선언하지 않는다.
+
 parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package를
 scratch의 `.agents/skills/reconciling-proposals-with-codebase`로 복사하고, 원본·복사본의 checksum과 파일 수를
 init metadata와 비교한다. 이 패키지만 scratch 쓰기 권한보다 좁은 읽기 전용 권한으로 지정한다.
