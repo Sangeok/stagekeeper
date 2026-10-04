@@ -526,7 +526,8 @@ Prisma 설정은 `env("DATABASE_URL")`을 즉시 평가한다. 로컬 설정이 
 
 ## Verification Results
 
-구현 검증은 아직 실행하지 않았다(Not run yet). 아래는 이 문서를 쓰면서 돌린 사전 검사다.
+아래는 제안서 작성 당시의 사전 검사와 이후 갱신한 실행 기록이다.
+실제 구현 완료와 전체 검증 결과는 Completion or Closure Notes에 기록한다.
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
@@ -606,7 +607,8 @@ worktree에 `npm ci --offline --no-audit --no-fund`로 의존성을 직접 설�
 `docs/proposals/completed/2026-10-02-non-behavioral-comment-cleanup.md` 경로를 넘긴다.
 
 이번 승인 범위의 미완료 항목은 없다. Open Questions 5의 세 회색 지대는 명시한 범위 밖으로 유지한다.
-PR 병합은 `dev` 대상 `check` 워크플로가 green인 뒤 진행한다.
+[PR #98](https://github.com/Sangeok/stagekeeper/pull/98)은 2026-10-02 dev에 병합됐다
+(`2f4bbd67698144a778ce43e9aa40a02d5e7a6a75`).
 
 ## Review Checklist
 

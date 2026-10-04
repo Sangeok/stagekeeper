@@ -12,7 +12,7 @@ last-executed-at: '2026-09-17T21:24:07+09:00'
 tested-revision: 'c5c15f6563722876899d8fa836ce3292a6318a45'
 owners: ['user:Sangeok']
 related:
-  - 'docs/proposals/active/pipeline-agent-slots.md'
+  - 'docs/proposals/completed/2026-10-04-pipeline-agent-slots.md'
   - 'docs/test-reports/completed/2026-09-17-pipeline-agent-slots-postgresql-acceptance.md'
 primary-area: 'pipeline/agent-slots'
 observed-environments:

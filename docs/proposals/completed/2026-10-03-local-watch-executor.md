@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-02"
 approved-by: "user (explicit chat request)"
 approved-at: "2026-10-02"
-approval-scope: "Stage 1 implementation, verification, commit and pull request to dev; Stage 2 remains design only. Merge, release promotion and production acceptance are separate."
-completed-at: null
-verification-summary: null
+approval-scope: "Stage 1 implementation, verification, commit and pull request to dev; Stage 2 remains design only. 2026-10-03 사용자 지시로 코드 구현 완료를 기준으로 completed 처리하며 브라우저·배포·운영 인수는 후속 작업으로 남긴다."
+completed-at: "2026-10-03"
+verification-summary: "PR #100 dev 병합(0aec9ab); 구현 보고서의 core/CLI 254, web 526, architecture 26, project-availability 18 PASS; check·build·verify:fsd 및 격리 Claude 메인 대화 스모크 PASS. 브라우저·hosted cache·mathgic 운영 실측은 미실행 후속 작업."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -22,9 +22,16 @@ related:
   - "docs/architecture/fsd.md"
   - "plugin/skills/init/references/reconciliation-contract.md"
   - "docs/conventions/product-copy.md"
+  - "docs/test-reports/active/2026-10-02-local-watch-executor.md"
 ---
 
 # 로컬 실행기 — 세션 감시형 `/harness:watch`(1단계)와 상주형(2단계 설계)
+
+1단계 코드 구현은 PR [#100](https://github.com/Sangeok/stagekeeper/pull/100)으로 완료되어
+2026-10-02 dev에 병합됐다(`0aec9ab9144f6c9c26c5e39c3321c09771791ddb`). 2026-10-03 사용자
+지시에 따라 코드 구현 완료를 기준으로 이 문서를 `completed` 처리한다. 자동 검증과 격리 세션
+시험 결과는 [구현 보고서](../../test-reports/active/2026-10-02-local-watch-executor.md)에 있다.
+브라우저·플러그인 설치/배포 확인·운영 실측은 후속 작업이며, 2단계 상주형은 설계만 완료했다.
 
 ## Summary
 
@@ -91,8 +98,9 @@ related:
 
 ## Current State
 
-이 절과 Before/After 스케치는 제안 검증 당시의 코드 관측 기록이다. 실제 구현은 최신 dev
-495bd22 위에서 주석 정리와 토큰 관리 변경을 보존해 적용하며, 최종 실행 근거와 미실행 인수 항목은 구현 보고서에 둔다.
+이 절과 Before/After 스케치는 제안 검증 당시의 코드 관측 기록이다. 실제 1단계 구현은
+최신 dev `495bd22`를 기반으로 적용·검증됐으며, 완료 결과와 미실행 후속 작업은
+Verification Results와 Completion or Closure Notes에 기록한다.
 
 ### 2026-10-02 기존 관측 기록 — mathgic ITEM-01
 
@@ -130,10 +138,10 @@ related:
   그래서 스크립트가 서버 변경 없이 "세션이 움직일 일"을 판정할 수 있다.
 - 호출 한도는 `agent_next`에만 걸린다(`src/server/agents/next.ts:16`, `:104`). `pipeline_next`를 주기적으로
   불러도 세션의 디스패치 한도를 쓰지 않는다.
-- 최종 구현 기준 origin/dev(495bd22)의 MCP 인증은 유효한 미폐기 credential을 받아들이면 토큰 사용 기록 query도 기다린다
+- 현재 작업 트리의 MCP 인증은 유효한 미폐기 credential을 받아들이면 토큰 사용 기록 query도 기다린다
   (`src/server/mcp/auth.ts`, `deps.ts`, `src/server/token-usage-query.ts`). 60초 조건은 행 변경만 줄이며
   DB 왕복을 없애지 않는다. domain 거부도 이미 받아들인 credential의 기록을 취소하지 않는다.
-  이 인증 변경은 토큰 관리 PR #99로 dev에 반영된 기반 동작이며 watch PR의 추가 변경이 아니다. 감시가 인증을 추가 구현하거나 우회하지 않으며, 실측은 실제 배포된 인증 query를 포함한다.
+  감시가 이 기록을 추가 구현하거나 우회하지 않으며, 폴링 비용 실측은 인증 query도 포함한다.
 - `pipeline_next`는 읽기 도구이지만 doc-audit·scout 완료에 대해 지연 전진을 한다
   (`docs/architecture/protocol.md:137`). 감시 스크립트가 부르면 세션이 부를 때와 같은 전진이 조금
   먼저 일어날 뿐이다.
@@ -765,8 +773,8 @@ After:
 
 **`plugin/.claude-plugin/plugin.json`** — 현재 `"version": "0.3.7"`을 `"0.4.0"`으로 올린다. 새 스킬이 생기므로
 minor를 올리고, 판을 올려야 사용자 쪽 `claude plugin update`가 새 판을 받는다.
-최신 dev의 `src/fsd/entities/project-token/ui/token-reveal.test.ts`는 init 안내가 배포되는
-plugin 판을 0.3.7로 잠근다. 이 기대값도 0.4.0으로 갱신하고 실제 init 안내 본문 검사는 유지한다.
+실제 구현에서는 최신 dev의 `src/fsd/entities/project-token/ui/token-reveal.test.ts`에 있는
+init 배포 판 기대값도 0.3.7에서 0.4.0으로 갱신하고 안내 본문 검사는 유지했다.
 
 ### 문서 수정
 
@@ -874,14 +882,14 @@ watch skill/next-step.test.mjs/보고서 목표는 현재 충돌하지 않는다
 
 승인 메모:
 
-- front matter의 승인 범위에 따라 1단계를 구현·검증하고 dev PR을 연다. merge/배포/운영 인수는 별도이며 완료로 기록하지 않는다.
+- 구현 당시 승인 기록은 front matter에 보존한다. 코드 구현과 dev 병합은 완료됐으며,
+  사용자 요청에 따라 운영 인수는 완료 처리의 후속 작업으로 남긴다.
 
 ## Execution Plan
 
-2026-10-02 구현·commit·dev PR 요청으로 1단계 구현이 승인되었다. unrelated dirty 작업을 보존하기 위해 별도 worktree에서 origin/dev를 기준으로 구현한다.
-구현 시 git ls-remote --heads origin으로 dev 존재를 확인하고 origin/dev를 fetch한 뒤
-그 기준에서 harness/local-watch-executor를 만든다. PR은 gh pr create --base dev다.
-main/dev에 직접 commit하지 않으며 unrelated dirty/untracked 파일을 포함하지 않는다.
+아래 Phase 1–4는 실제 구현에 사용한 계획을 보존한 기록이다. `harness/local-watch-executor`에서
+구현하고 최신 dev `495bd22`를 반영한 PR #100이 dev에 병합됐다. 별도 checkout에서 검증하여
+다른 작업의 dirty/untracked 파일을 보존했다. Phase 5의 배포·운영 인수는 후속 작업이다.
 
 ### Phase 1: 순수 판정 모듈
 
@@ -928,8 +936,8 @@ main/dev에 직접 commit하지 않으며 unrelated dirty/untracked 파일을 �
 
 ### Phase 5: 플러그인 확인·배포와 실측
 
-- check workflow가 green인 feature PR을 dev에 merge하고, local/remote dev의 검증 SHA를 확인한다.
-  main은 dev로 fast-forward만 승격한다. dev를 PR head로 쓰거나 UI merge로 승격하지 않는다.
+- PR #100의 dev 병합은 `0aec9ab`로 완료됐다. 이후 release 승격 시 main은 검증된 dev로
+  fast-forward만 승격한다. dev를 PR head로 쓰거나 UI merge로 승격하지 않는다.
 - 웹의 watch 안내를 노출하기 전 사용할 설치 경로가 local marketplace인지 hosted cache인지
   확인한다. local ./plugin 소스는 실제 경로가 main의 새 내용인지 보고 세션을 재시작한다.
   hosted cache는 아래 두 update 명령 후 캐시 manifest의 0.4.0과 watch skill/CLI/lib 본문을 확인한다.
@@ -937,7 +945,8 @@ main/dev에 직접 commit하지 않으며 unrelated dirty/untracked 파일을 �
 - mathgic 소유자 세션을 재시작해 정책을 받고 watch를 켠다. 다음 ready gate는 소유자가 웹에서 연다.
   성공 기준 1·2·5와 V13을 보고서로 남긴다. 운영 자동화/권한 확인 창/호출 수·compute 관측을
   보고 비용 범위를 승인한 세션만 장시간 유지한다. 이 검토가 interval 변경을 요구하면 proposal을
-  갱신/재검증하며 성공 기준을 조용히 바꾸지 않는다. 실제 인수 전 completed로 옮기지 않는다.
+  갱신/재검증하며 성공 기준을 조용히 바꾸지 않는다. 사용자 지시에 따라 코드 구현은 completed로
+  처리했으며, 실제 운영 인수는 이 후속 작업의 완료 근거로 별도 기록한다.
 
 ```powershell
 claude plugin marketplace update stagekeeper-local
@@ -981,7 +990,7 @@ npm test가, src/**/*.test.mjs/ts는 test:web이 실행한다. 테스트는 fixt
 | V9 | 실제 메인 대화 background·완료/idle 재무장/stop, policy/ownership/stale runbook, 다른 item의 wait, plugin 경로 치환 | Phase 3 보고서. dummy server + 지원 tool 세션으로 observable task/query 순서와 policy 적용 확인. 셸 plugin-root 환경변수 없이 SKILL 본문의 실제 CLI/reference 경로가 해석됨. permission/commit handoff는 소유자 입력 전 제출/재무장 없음. 도구 비활성 환경은 시작 실패 |
 | V10 | mine의 acceptance+미시작 plan, handoff+미시작 implement, gate+verify, 반복 project slots, on_hold | turn.test.ts. pending→working 입력 순서/한 item 한 줄. count/detail/why/open 유지; setup/none/theirs 기존 결과 유지. WATCH_LINE과 copyLock(turn-banner-watch) 일치 |
 | V11 | 실제 본문·명령 Code·Copy payload·빈 상자·읽기 전용·문서의 툴팁 예시 | next-step.test.mjs의 renderToStaticMarkup(기존 client context 패턴 이용), inbox-card.test.mjs의 기존 render helper, gate-copy.test.ts/pipeline-rail.test.mjs. WATCH_LINE은 명령 Code 하나로 렌더; steps:[]는 HTML/안내 모두 없음; before-plan의 새 hint/도움말 본문 존재; read-only에서 실행 안내 없음. product-copy §3의 hint·§18의 before Plan 툴팁 예시와 최종 렌더/기대 문장이 일치하며 해당 두 자리의 이전 힌트는 남지 않음 |
-| V12 | core→lib, plugin manifest/marketplace precedence, skill 발견, 문서 잠금 registry, 경계 보존 | plugin-lib --check + JSON.parse manifest/marketplace 구조 검사 + 실제 설치 파일과 /harness:watch 로딩. manifest name=harness/version=0.4.0; token-reveal.test.ts의 init 배포 판 기대값도 0.4.0이며 실제 안내 본문 검사는 유지. marketplace name=stagekeeper-local/source=./plugin이며 version override가 없음. npm check/verify:fsd/test:architecture 및 diff로 server/Prisma/templates/init/marketplace의 무변경 확인 |
+| V12 | core→lib, plugin manifest/marketplace precedence, skill 발견, 문서 잠금 registry, 경계 보존 | plugin-lib --check + JSON.parse manifest/marketplace 구조 검사 + 실제 설치 파일과 /harness:watch 로딩. manifest name=harness/version=0.4.0; marketplace name=stagekeeper-local/source=./plugin이며 version override가 없음. npm check/verify:fsd/test:architecture 및 diff로 server/Prisma/templates/init/marketplace의 무변경 확인 |
 | V13 | mathgic gate→work→agent_next 성공 receipt, 110분 idle와 재무장, 확인 창/비용/세션 종료 | 명명된 보고서. 성공 기준의 로컬 시각과 gate event/task/receipt id, actual plugin/tool 판, HTTP/모델 호출 수, stop 뒤 새 요청 없음(기존 in-flight 서버 효과는 취소 보장 밖). 휴대폰 push·2단계 실행·다른 기기 잠금은 성공 주장 밖 |
 
 fixture/cleanup: 부모 HARNESS_TOKEN/HARNESS_SERVER/HARNESS_OWNER_TOKEN과 dotenv 자동 로딩을
@@ -993,7 +1002,6 @@ child/server 종료 뒤 절대 경로가 자기 tmp root 안인지 검증한다.
 오염시키지 않게 한다. core parser는 정규화 정책 외 IO를 갖지 않는다.
 
 현재 두 문구 기대값(gate-copy.test.ts, pipeline-rail.test.mjs)만 새 문장으로 갱신한다.
-plugin 판 상승에 따라 token-reveal.test.ts의 배포 판 기대값은 0.4.0으로 갱신한다.
 다른 기존 기대값을 맞춰 회귀를 숨기지 않는다. 신규 렌더/상태 시험은 V10/V11의 요구를 추가한다.
 
 ### 최종 산출물과 의존성
@@ -1008,27 +1016,50 @@ plugin 판 상승에 따라 token-reveal.test.ts의 배포 판 기대값은 0.4.
 
 ### Definition of Done
 
+2026-10-03 사용자 지시로 코드 구현 완료를 문서 완료 기준으로 확정했다. 아래 구현·자동 검증·
+격리 세션 시험은 완료됐고 브라우저·배포·운영 인수는 후속 작업으로 관리한다.
+
 - 22개 산출물이 inventory와 일치하고 외부 skill·설정·정체·도구 전제가 검사된다.
   plugin root는 스킬 본문 치환으로 해결되며 셸 환경변수 없이 CLI/reference가 동작한다.
 - 총 46자 token과 checkout 판 추출을 실제 request/무쓰기 경계로 검증한다. 같은 판의 반복과
   소유자 hash를 구분하고 충돌/손상은 거부하며 legacy 판 생략·stale 경고는 보존한다.
-- V1–V13과 필수 명령이 통과하며 phase별 미실행/기존 실패/신규 실패가 보고서에서 구별된다.
+- V1–V8·V10의 자동 검증, V9의 격리 메인 대화 스모크, V11의 자동 렌더 검증,
+  V12의 로컬 소스 검증과 필수 명령이 통과했다. V11의 브라우저 검증, V12의 hosted cache 확인,
+  V13의 운영 실측은 미실행 후속 작업으로 보고서에서 구별한다.
 - guard 경쟁·동일 session poller·지연 응답의 force/stop·timeout·bad body·후속 cleanup을 검증한다.
   설정/환경을 잃은 뒤에도 자기 session을 stop할 수 있고 손상/다른 소유자의 상태는 보존한다.
 - 모든 fresh cycle에 head 정책·commit 정책·현재 scope/entry/receipt/소유권을 적용한다.
 - 웹 model 및 최종 렌더/copy payload/read-only를 확인하고 product-copy §3·§5·§6·§15·§18과
   잠금 표를 동기화한다. §18의 툴팁 예시를 포함해 이전 힌트를 남기지 않는다.
 - 서버/DB/도구 집합/템플릿/init/marketplace 무변경, 자동 push/게이트 없음, 2단계 구현 없음을 확인한다.
-- green dev 인수 뒤 main fast-forward·실제 plugin 본문·실측이 끝나야 completed로 처리한다.
+- 코드 구현·기록된 검증·PR #100 dev 병합을 근거로 completed 처리한다. release 승격·실제
+  배포 plugin 본문 확인·운영 실측의 완료를 이 상태로 주장하지 않는다.
 
 ## Verification Results
 
-2026-10-02의 실제 1단계 구현과 자동 검증은 [구현 보고서](../../test-reports/active/2026-10-02-local-watch-executor.md)에 기록한다. 아래 표는 제안 검증 당시의 역사적 baseline이며 새 watch 구현의 통과 증거를 대체하지 않는다. PR/운영 인수 전에는 completed로 이동하지 않는다.
+### 실제 1단계 구현 결과
 
-이번 작업은 제안서 대조이며 애플리케이션/watch 구현을 하지 않았다. 아래 baseline은
-HEAD 03876dd24fab12c63542b4565f087b79a877f7ef의 추적된 코드에서 기록한 결과다.
-이후 다른 작업의 미커밋 토큰 관리 변경이 들어온 작업 트리의 통과를 뜻하지 않는다.
-구현을 시작할 때는 최신 dev와 작업 트리를 구분해 baseline을 다시 기록한다.
+[구현 보고서](../../test-reports/active/2026-10-02-local-watch-executor.md)의 최종 dev 기반 검증 기록:
+
+| 검사 | 결과 | 범위 |
+| --- | --- | --- |
+| npm test | PASS, 254/254 | watch 시험을 포함한 core/CLI |
+| npm run test:web | PASS, 526/526 | 최종 dev 기반 웹/MCP |
+| npm run check | PASS | 복사본 동기화·lint·typegen·typecheck·architecture 26/26·project-availability 18/18 |
+| npm run verify:fsd / npm run build | PASS | FSD 경계와 production build |
+| 격리 Claude 메인 대화 스모크 | PASS | 실제 background 완료 통지·idle 재무장·receipt dispatch·commit:no handoff·owner stop |
+| dev 병합 | 완료, PR #100 / 0aec9ab | 2026-10-02 병합. 구현 commit b0b3c27, 최종 PR head 427fd7d |
+| 브라우저·hosted cache·mathgic 운영 실측 | 후속 작업, 미실행 | V11 브라우저/clipboard, V12 배포 설치 본문, V13 실제 gate→receipt·110분 idle·권한/비용 관측 |
+
+위 결과는 구현 당시 실행 기록이다. 이번 완료 처리에서는 문서 상태·이동·링크를 확인하며
+애플리케이션 테스트나 운영 인수를 다시 실행하지 않는다. 기존 lint 경고 1개와 짧은 timing 시험의
+병렬 실행 실패 및 동일 코드의 직렬 재실행 통과는 구현 보고서에 기록돼 있다.
+
+### 제안 검증 당시 baseline
+
+아래는 구현 전 제안서 대조에서 HEAD 03876dd24fab12c63542b4565f087b79a877f7ef의 추적된 코드로
+기록한 역사적 baseline이다. 당시 애플리케이션/watch 구현은 하지 않았으며, 이후 실제 구현 결과는
+위 절과 구현 보고서에서 구별한다.
 
 | 검사 | 결과 | 범위 |
 | --- | --- | --- |
@@ -1039,11 +1070,10 @@ HEAD 03876dd24fab12c63542b4565f087b79a877f7ef의 추적된 코드에서 기록�
 | 초안의 감시 code 실행(임시 파일·가짜 서버) | 결함 5건 재현 | force 중 이전 응답이 새 lock 덮어쓰기; 동일 session 두 poller 모두 work; hu_ fixture가 project를 빠뜨림; 마지막 SSE 알림이 정상 결과를 가림; 잘못된 interval/deadline이 idle로 성공 |
 | 이번 재대조의 웹 스케치 검사 | PASS | Before 네 쌍의 현재 source 일치, 임시 메모리의 After 타입 오류 0, 배너 상태 8개와 NextStepBox/InboxCard/PipelineRail 실제 렌더. 저장소 코드 변경이나 watch 구현 시험이 아님 |
 | 이번 재대조의 전송·로컬 런타임 검사 | PASS | 현재 MCP handler/도구/인증의 dummy 요청 8개로 stateless SSE·project scope·접근 거부 확인. 임시 Git/linked worktree·mkdir 배타성·rename 교체·PowerShell/Git Bash 공백/따옴표 인자 확인. 운영 호출 0 |
-| 새 구현의 V1–V13·check/lint/build·배포/실측 | Not run yet | 구현 승인 후 검증. 이번 문서 검증 결과로 대체하지 않음 |
+| 새 구현의 V1–V13·check/lint/build·배포/실측 | 당시 미실행 | 구현 전 대조 결과. 이후 구현 검증과 남은 인수 항목은 위 실제 결과에 기록 |
 
 재현된 초안 전체 CLI/core/test 복사 블록은 제거하고 위 동시성·전송·판정·스킬 계약과 검증
-목적지로 교체했다. 웹 Before/After는 현재 source와 일치하며 후속 구현 스케치로 유지한다.
-완료/닫힘 전용 TBD는 lifecycle 기록이며 구현 계약의 미결 placeholder가 아니다.
+목적지로 교체했다. 웹 Before/After는 제안 검증 당시 source와 구현 스케치의 역사적 기록이다.
 
 위 baseline·초안 결함 5건은 기존 대조 기록이다. 이번 재대조는 §18 툴팁 예시의 수정 누락,
 stop과 공통 설정 preflight의 충돌, 설치 Next.js의 dev/build 출력 분리와 맞지 않는 종료 지시,
@@ -1092,11 +1122,20 @@ stop과 공통 설정 preflight의 충돌, 설치 Next.js의 dev/build 출력 �
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-03. 사용자 요청으로 1단계 코드 구현 완료를 기준으로 완료 처리했다.
+- verification-summary: core/CLI 254, web 526, architecture 26, project-availability 18 PASS;
+  check·build·verify:fsd 및 격리 Claude 메인 대화 스모크 PASS. 상세 범위·제한은
+  [구현 보고서](../../test-reports/active/2026-10-02-local-watch-executor.md)에 기록한다.
+- implementation PR/commit: [PR #100](https://github.com/Sangeok/stagekeeper/pull/100),
+  구현 `b0b3c27b7b1a2f0009b2c94427a38c8152f13608`, 최종 PR head `427fd7d`,
+  dev 병합 `0aec9ab9144f6c9c26c5e39c3321c09771791ddb`(2026-10-02).
+- changed files summary: watch 순수 코어·동기화 lib·CLI·메인 대화 스킬 및 시험,
+  배너 판정/안내·before-plan/Inbox 문구와 시험, plugin 0.4.0 및 init 안내 판 기대값,
+  문구·프로토콜·스펙·검증 계약·구현 보고서. 22개 구현 산출물이며 제안서 자체는 별도다.
+- remaining follow-up: V11 실제 브라우저/clipboard/좁은 폭 확인, V12 hosted cache와 실제 설치
+  본문 확인·세션 재시작, release/배포 확인, V13 mathgic gate→work→agent_next receipt·110분
+  idle 재무장·권한 확인 창·HTTP/모델/Neon/Vercel 비용 관측. 시험 보고서는 이 후속 검증을 위해
+  active에 유지한다. 2단계 상주형 구현은 별도 제안·승인 대상이다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -1108,18 +1147,18 @@ stop과 공통 설정 preflight의 충돌, 설치 Next.js의 dev/build 출력 �
 
 ## Review Checklist
 
-- [x] 실행 계약의 미결 placeholder는 없고 shell 예시의 인자 치환 규칙을 명시했다. 완료/닫힘 전용 TBD는 유지한다.
+- [x] 실행 계약의 미결 placeholder는 없고 shell 예시의 인자 치환 규칙을 명시했다. 완료 기록은 채웠고 미사용 닫힘 전용 TBD만 유지한다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다.
 - [x] `stage`는 pending 문서에서만 사용했다.
-- [x] 현재 구현 요청에 따라 `stage: "approved"`이며 승인자·시각·범위가 기록되어 있다.
+- [x] 완료 문서의 `stage`는 null이며 구현 승인 기록과 사용자 완료 기준을 보존했다.
 - [x] `proposal-size`는 standard이고 강제 조건(5개 이상 파일, 런타임 side effect)에 해당한다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용한다.
 - [x] 변경 범위와 제외 범위가 명확하다.
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [x] 현재 baseline 통과, 재현된 초안 결함, 아직 없는 새 구현의 미실행 검증을 구분했다.
+- [x] 제안 검증 당시 baseline·초안 결함, 실제 구현 검증 통과, 미실행 후속 인수를 구분했다.
 - [x] 잠금·전송·권한·중단·fresh cycle 계약을 inventory/Phase/V1–V13/산출물/DoD/롤백에 반영했다.
 - [x] 설정/환경이 없는 stop의 소유권 경계와 §18 툴팁 예시를 구현·검증·완료 조건에 반영했다.
 - [x] 설치된 Next.js의 dev/build 출력 분리와 Prisma 생성 경로를 구분해 빌드 절차를 정했다.

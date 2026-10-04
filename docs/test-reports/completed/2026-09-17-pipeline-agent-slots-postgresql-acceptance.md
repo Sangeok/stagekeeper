@@ -11,7 +11,7 @@ completed-at: '2026-09-17'
 last-executed-at: '2026-09-17T20:57:56+09:00'
 tested-revision: 'c5c15f6563722876899d8fa836ce3292a6318a45'
 owners: ['user:Sangeok']
-related: ['docs/proposals/active/pipeline-agent-slots.md']
+related: ['docs/proposals/completed/2026-10-04-pipeline-agent-slots.md']
 primary-area: 'pipeline/agent-slots'
 observed-environments: ['local runner / remote PostgreSQL | application services | Node.js 22.13.1 / Windows | database owner']
 test-summary: 'pass: PostgreSQL 슬롯 통합 검증 — 재실행 통과 후 테스트 데이터 제거 및 스키마·템플릿 재설치 완료'

@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "awaiting-approval"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-09-16"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "user (2026-10-04 문서 정리 지시)"
+approved-at: "2026-10-04"
+approval-scope: "이미 dev에 통합된 Core 1 코드와 기록된 로컬 인수의 완료 정리. Phase 2 역할 카탈로그 구현·운영 배포·새 DB 변경은 승인 범위 밖이다."
+completed-at: "2026-10-04"
+verification-summary: "Core 1 구현 ce19203은 PR #46(fc1879f)으로 dev 통합. 2026-09-18 통합 보고서의 check·build·core 156·web 306·DB 10·E2E 17·UI 11 PASS를 완료 근거로 보존한다. Phase 2와 CI/운영/private bundle 확인은 후속 작업이다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -24,6 +24,11 @@ related:
 ---
 
 # 에이전트 슬롯 파이프라인 — 구간과 자유 슬롯의 실행 기반
+
+2026-10-04 문서 정리에서 완료 범위를 **이미 dev에 통합된 Core 1 코드와 기록된 로컬 인수**로 정했다.
+2026-09-16~18의 계획·검토·미체크 DoD는 당시 기록으로 보존한다. 새로 실행하거나 운영 검증을 통과했다고 해석하지 않는다.
+Phase 2는 [agent-role-catalog](../active/agent-role-catalog.md)에서 active 계획으로 유지하며,
+당시 미완료 CI·운영/private bundle 확인은 [후속 기록](../../test-reports/active/2026-10-04-proposal-status-follow-ups.md)으로 추적한다.
 
 ## Summary
 
@@ -529,8 +534,8 @@ refresh가 Client state를 보존하는 계약도 따른다. gateCardKey의 tupl
 
 ## Approval
 
-front matter는 미승인이다. 2026-09-16 grilling의 8결정은 설계 출발점이다.
-문서 reconciliation·수정이 구현·운영 승인으로 바뀌지 않는다.
+2026-09-16 작성 당시에는 미승인이었고 grilling의 8결정은 설계 출발점이었다.
+현재 front matter는 2026-10-04 완료 정리 승인만 기록한다. 과거 구현 승인이나 운영 승인을 소급하지 않는다.
 
 | # | 질문 | 보존 결정·실행 경계 |
 | --- | --- | --- |
@@ -745,12 +750,14 @@ PR #47(`e3af7fb`)에서 닫혔다. 남은 것:
 
 ## Completion or Closure Notes
 
-1단계(Core)는 `ce19203`으로 커밋됐고 작업 트리는 깨끗하다. 다만 **문서는 미승인**이다 —
-front matter의 `approved-by`·`approved-at`·`approval-scope`가 비어 있다. `stage`는
-`awaiting-approval`이다 — README의 정의상 "검토와 승인 요청이 가능한 상태"이지 승인이 아니다.
-`status`는 `pending`을 유지하며 `active/`에 둔다.
-남은 항목은 「구현 현황 — 2026-09-18 재검토」의 처리 순서에 있다. `completed/`로 옮기는 것은
-승인과 그 항목들의 종료 뒤다. 구현 커밋의 존재를 승인으로 기록하지 않는다.
+1단계(Core)의 `ce19203`은 [PR #46](https://github.com/Sangeok/stagekeeper/pull/46)으로 dev에 병합됐다
+(`fc1879fb463a47db798627c35a5824edeade0d4e`, 2026-09-18 KST).
+완료 정리는 [2026-09-18 dev 통합 보고서](../../test-reports/completed/2026-09-18-pipeline-slots-dev-integration.md)의
+실제 check·build·DB·E2E·UI 실행 결과를 근거로 한다. 기존의 승인 전 검토는 역사적 기록이며,
+이번 완료 정리 승인을 과거 코드 작성 시점의 승인으로 소급하지 않는다.
+
+2026-10-04 코드 구현 완료 기준으로 completed에 보존한다. 위 DoD의 운영/private/CI 항목을
+새로 Pass 처리하지 않는다. 해당 후속 작업과 Phase 2는 위 연결된 active 기록에 남긴다.
 
 ## Review Checklist
 
@@ -765,4 +772,5 @@ front matter의 `approved-by`·`approved-at`·`approval-scope`가 비어 있다.
 - [x] legacy의 새 스텁 재개가 필수 entry 검사에 막히지 않도록 dispatch의 서버 format과 조건부 entry 계약을 JSON·hint·body·V8·DoD에 맞췄다.
 - [x] 2026-09-17 후속 전체 검토에서 같은 run의 이전 단계 outcome 오결합·신형 gate의 과거 승인/오래된 요청 재사용·항목 생성 전 PM의 cap 재개 누락을 stepId/gateEntry/hasResumablePmRun 계약으로 닫고 inventory·왕복 경로·steps·V3–V8·DoD에 전파했다.
 - [x] 같은 날짜 새 전체 검토에서 Inbox의 승인 성공 잠금이 새 gate 회차 Props에도 남는 경로를 gateCardKey→GateCardLock 재마운트 계약으로 보완하고 runtime·artifact·inventory·steps·V6·DoD에 전파했다.
-- [ ] 구현·배포 합격 조건: 아직 수행하지 않음.
+- [x] Core 1 구현·기록된 로컬 인수를 근거로 완료 문서를 보존하고 미검증 후속 작업을 분리했다.
+- [ ] 후속 CI 편입·private bundle provenance·운영 배포 검증은 별도 승인과 실행 근거가 필요하다.
