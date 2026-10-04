@@ -26,15 +26,17 @@ export function addSlot(graph: Graph, agent: string, before: string | null, plan
   while (g.nodes.includes(id)) id = `${agent}#${index++}`;
   const nodes = [...g.nodes];
   const destination = before === null ? null : normalizeSlots({ nodes: [before], gates: [] }).nodes[0];
+  if (destination !== null && !nodes.includes(destination)) return { ok: false, reason: "unknown destination" };
   nodes.splice(destination === null ? nodes.length : nodes.indexOf(destination), 0, id);
   return check({ ...g, nodes }, plan);
 }
 
 export function moveSlot(graph: Graph, id: string, before: string | null, plan: string): Step {
+  if (!graph.nodes.includes(id)) return { ok: false, reason: "unknown source" };
+  if (before !== null && !graph.nodes.includes(before)) return { ok: false, reason: "unknown destination" };
   if (!isProjectSlot(id)) return { ok: false, reason: "only project slots can move" };
   if (id === before) return check(graph, plan);
   const nodes = graph.nodes.filter((node) => node !== id);
-  if (before !== null && !nodes.includes(before)) return { ok: false, reason: "unknown destination" };
   nodes.splice(before === null ? nodes.length : nodes.indexOf(before), 0, id);
   return check({ ...graph, nodes }, plan);
 }

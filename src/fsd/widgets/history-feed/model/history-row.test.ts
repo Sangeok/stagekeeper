@@ -10,6 +10,16 @@ const report = (patch: Partial<HistoryReportInput> = {}): HistoryReportInput => 
   commit: "abcdef123456", isAcceptance: false, acceptedAt: null, ...patch });
 const rows = (events: HistoryEventInput[], reports: HistoryReportInput[] = []) => toHistoryRows(events, reports, { repo, order: "desc" });
 
+it("History report URLs keep reserved path data and each report's recorded commit", () => {
+  const path = "docs/#?% 한글.md";
+  const [row] = rows([], [report({ path, commit: "commit/#?%" })]);
+  assert.ok(row.source === "report");
+  const url = new URL(row.href);
+  assert.equal(url.hash, ""); assert.equal(url.search, "");
+  assert.equal(decodeURIComponent(url.pathname), `/owner/repo/blob/commit/#?%/${path}`);
+  assert.equal(row.text, "Implementation report");
+});
+
 it("acceptance events retain actor/channel/key linkage while labeling only same-state audit notes", () => {
   const events = [event({ id: "failed", from: "done", to: "done", note: "acceptance-failed", boardItemId: "item", key: "K" }),
     event({ id: "retry", actor: "human", channel: "web", from: "done", to: "done", note: "acceptance-retry", boardItemId: "item", key: "K" })];

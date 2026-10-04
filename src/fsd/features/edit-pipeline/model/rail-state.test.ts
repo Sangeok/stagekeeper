@@ -7,6 +7,29 @@ import { addNode, addSlot, moveSlot, insertGate, removeGate, removeNode, swapTai
 
 const pro = () => defaultGraph("pro") as { nodes: string[]; gates: string[] };
 
+it("rejects absent IDs before no-op/insertion and preserves the entire input graph", () => {
+  const graph = { nodes: ["doc-auditor", "plan", "implement", "accept"], gates: ["before-doc-auditor"] };
+  const before = structuredClone(graph);
+  for (const [result, reason] of [
+    [addSlot(graph, "doc-auditor", "missing", "pro"), "unknown destination"],
+    [moveSlot(graph, "doc-auditor#9", null, "pro"), "unknown source"],
+    [moveSlot(graph, "doc-auditor#9", "doc-auditor#9", "pro"), "unknown source"],
+    [moveSlot(graph, "doc-auditor", "missing", "pro"), "unknown destination"],
+  ] as const) {
+    assert.deepEqual(result, { ok: false, reason });
+    assert.deepEqual(graph, before);
+  }
+  const unchanged = moveSlot(graph, "doc-auditor", "doc-auditor", "pro");
+  assert.ok(unchanged.ok);
+  assert.deepEqual(unchanged.graph, graph);
+  const end = moveSlot(graph, "doc-auditor", null, "pro");
+  assert.ok(end.ok);
+  assert.deepEqual(end.graph.nodes, ["plan", "implement", "accept", "doc-auditor"]);
+  assert.deepEqual(end.graph.gates, graph.gates);
+  assert.deepEqual(graph, before);
+  assert.equal(addSlot(defaultGraph("free"), "doc-auditor", null, "free").ok, false);
+});
+
 it("repeating, moving and deleting slots preserve other identities and attached gates", () => {
   const first = addSlot({ nodes: ["doc-audit", "plan", "implement", "accept"], gates: ["before-doc-audit"] }, "doc-auditor", "accept", "pro");
   assert.ok(first.ok);

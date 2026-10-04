@@ -51,6 +51,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
   const { selection, manual: isManualEntry, editing: isEditing, query, urlDraft: urlText } = entry;
   const [slug, setSlug] = useState("");
   const [branch, setBranch] = useState("main");
+  const [name, setName] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
 
   const repository = selectedRepository(selection);
@@ -66,7 +67,10 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
     setEntry(next.state);
     if (next.slug !== undefined) setSlug(next.slug);
     if (next.branch !== undefined) setBranch(next.branch);
-    if (next.resetDetails) setSlugTouched(false);
+    if (next.resetDetails) {
+      setSlugTouched(false);
+      setName("");
+    }
   };
   const showPicker = () => changeEntry({ type: "picker" });
   const showManualEntry = () => changeEntry({ type: "manual" });
@@ -161,7 +165,7 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
           />
         </Field>
         <Field label="Display name">
-          <Input name="name" placeholder={repo || "Defaults to the slug"} />
+          <Input name="name" value={name} onChange={(event) => setName(event.target.value)} placeholder={repo || "Defaults to the slug"} />
         </Field>
       </div>
 

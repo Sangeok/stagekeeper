@@ -9,8 +9,8 @@ import { prisma } from "@/server/db";
 import { renameUserToken as renameUserTokenIn } from "@/server/token-management-query";
 
 // 사용자 토큰(hu_)은 **사람에게만** 묶인다 — projectId도, 검사할 프로젝트 가용성도 없다.
-// 그래서 manage-token.server.ts의 네 액션을 재사용할 수 없다: 그쪽은 requireProjectWrite(slug) →
-// projectId → projectPath(slug)로 구조 자체가 프로젝트에 묶여 있다. 여기는 requireUser 하나다.
+// 프로젝트 토큰 액션은 소유권을 확인하고 projectId·projectPath(slug)에 묶인다. 발급·이름 변경은 서비스가
+// 가용성도 검사하지만 소유자의 폐기는 미선택·연결 해제 상태에서도 허용한다. 여기는 requireUser 하나다.
 //
 // 프로젝트 인가는 발급 시점이 아니라 **호출 시점**에 한다(tools.ts의 scope()가 호출마다
 // ownerUserId를 대조한다) — 이 토큰은 "누구냐"만 말하기 때문이다.

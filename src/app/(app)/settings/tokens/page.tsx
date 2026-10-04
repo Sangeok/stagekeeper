@@ -1,5 +1,5 @@
 import { issueUserToken, revokeUserToken, renameUserToken } from "@/fsd/features/manage-user-token/index.server";
-import { UserTokensPage } from "@/fsd/pages/user-tokens";
+import { UserTokensPage } from "@/fsd/pages/user-tokens/index.server";
 import { AppHeader } from "@/fsd/widgets/app-header";
 import { loadHeaderUser } from "@/fsd/widgets/app-header/index.server";
 import { requireUser } from "@/server/auth/guard";

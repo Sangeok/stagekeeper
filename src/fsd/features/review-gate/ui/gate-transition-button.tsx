@@ -9,7 +9,7 @@ import { Button } from "@/fsd/shared/ui/button";
 import { gateActionLabel, gateLockLabel, gatePendingLabel, gateToast } from "../model/gate-text";
 import { LockedChip, useGateCardLock } from "./gate-card-lock";
 
-// 게이트 버튼. 라벨은 목적지 status에서 온다(Request plan / Approve implementation).
+// 게이트 버튼. 라벨은 현재 커서의 gate ID에서 온다(Request plan / Approve implementation).
 // 언제나 채움이다 — 검증 기록 유무로 물러서지 않는다(design.md 규칙 2). 결과 문장은 카드가 버튼 아래에서 말한다.
 export function GateTransitionButton({
   gate,

@@ -22,6 +22,21 @@ const router = { back: noop, forward: noop, refresh: noop, push: noop, replace: 
 const render = (patch: Partial<BoardItemView> = {}, canWrite = true) => renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: router },
   createElement(BoardItemPage, { slug: "example", retryAcceptance: async () => ({ success: true as const, data: undefined }), item: { ...item, ...patch }, canWrite, transition: async () => ({ success: true as const, data: undefined }) })));
 
+it("Documents, History and the direct Failure record anchor all retain reserved path data", () => {
+  const path = "docs/#?% 한글.md";
+  const encodedReports = reports.map(report => ({ ...report, path, commit: "commit" }));
+  const html = render({ reports: encodedReports, docs: toItemDocs({ planPath: path, planCommit: "commit", acceptedAt: at, reports: encodedReports }, repo), acceptanceFailure: { id: "failure", checks: [3], note: "failed", path, commit: "commit", at } });
+  const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(match => match[1].replaceAll("&amp;", "&")).filter(href => href.startsWith("https://github.com/"));
+  assert.equal(hrefs.length, 4);
+  for (const href of hrefs) {
+    const url = new URL(href);
+    assert.equal(url.hash, ""); assert.equal(url.search, "");
+    assert.equal(decodeURIComponent(url.pathname), `/owner/repo/blob/commit/${path}`);
+  }
+  assert.ok(html.includes("Failure record"));
+  assert.ok(html.includes(DOC_LINK_NOTE));
+});
+
 it("preserves Documents, reopen and UTC header while replacing only History", () => {
   const html = render();
   assert.match(html, /Proposed 2026-09-30 01:49/);
