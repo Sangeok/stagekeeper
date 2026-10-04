@@ -4,12 +4,12 @@ stage: "blocked"
 result: null
 report-kind: "acceptance"
 report-size: "standard"
-test-levels: ["static","component","contract","manual"]
-test-tools: ["Node.js","Codex CLI","Claude Code CLI"]
+test-levels: ["static","component","contract","integration","manual"]
+test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-03T09:56:41Z"
-tested-revision: "7d8dd35137553d429dbd57c2241424c768aa4530"
+last-executed-at: "2026-10-04T05:02:22Z"
+tested-revision: "e3548546076f279ddbf1e22e2a5ec563fd0a6e9e"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/active/codex-dual-client-support.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -26,11 +26,21 @@ follow-up: ["docs/proposals/active/codex-dual-client-support.md"]
 
 C0 evaluates a disposable host/package/legacy-lock environment. It does not certify Codex production support or authorize deployment. Each execution appends evidence; historical PASS results are tied to their own recorded revision.
 
-Decision: historical automatic approval candidate isolation FAIL; strict-profile/native alternatives BLOCKED. Following the user's further implementation instruction, C1–C3 product source, private templates and local contract tests are implemented. Actual product host isolation, approved cross-client resumption, DB seed/rollback and released package acceptance remain unexecuted. Source completion does not clear the runtime gates. Native user CLI is authenticated; access to auth differs under the outer sandbox account.
+Decision: historical automatic approval candidate isolation FAIL; strict-profile/native alternatives BLOCKED. Following the user's further implementation instruction, C1–C3 product source, private templates and local contract tests are implemented. Actual product host isolation, approved cross-client resumption, operational private bundle seed/rollback and released package acceptance remain unexecuted. Source completion does not clear the runtime gates. Native user CLI is authenticated; access to auth differs under the outer sandbox account.
+
+2026-10-04 follow-up: E70 imports the later isolated PostgreSQL contract results; the six
+previously unexecuted tests passed without changing their source. E71 records the two
+remaining UI implementations and actual React browser tests. Operational private seed,
+released package and real installed CLI/model acceptance remain unexecuted; historical
+FAIL/BLOCKED and source-only NOT RUN rows below retain their original run scope.
 
 ## Scope and Criteria
 
 Included: C0 capability/package/legacy fixtures, bounded historical model trials, C1–C3 source and local regression/contract checks, and a new model-free App Server effective-config inspection. Excluded execution: production DB seed, actual C3 host/DB/browser acceptance, deployment and C4 automatic watch. The capability script itself sends no model turns.
+
+The later follow-up adds isolated DB contract evidence from the fourth-pass campaign and
+owner/banner UI browser evidence. The earlier exclusions describe that run's scope;
+the integrated two-CLI/browser product flow is still NOT RUN.
 
 | Criterion | Source | Scope | Interpretation | Success criterion |
 | --- | --- | --- | --- | --- |
@@ -109,7 +119,9 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T54 | R2 | required | Actual DB/browser bidirectional approved resumption | Same BoardItem/PipelineRun/open AgentRun, approved commit and caller usage across both clients | [E62] | NOT RUN |
 | T55 | R2 | required | Actual product package/private atomic seed and rollback | Installed winning helper/body; both clients work; transactional deployment/limited recovery observed | [E62] | NOT RUN |
 | T56 | R2 | required | Actual mixed-version host stopping and quiescence | Pending role/tool ends before ownership transfer; no successor cleanup | [E62] | NOT RUN |
-| T57 | R2 | required | New six PostgreSQL dual-client/seed recovery tests | Both client orders and formats preserve approved commit/run/receipt/usage; rollback and bounded restore work | [E65] | NOT RUN |
+| T57 | R2 | required | Six PostgreSQL tests at the 2026-10-03 source-only snapshot | Both client orders and formats preserve approved commit/run/receipt/usage; rollback and bounded restore work | [E65] | NOT RUN |
+| T58 | R2 | required | Later isolated PostgreSQL contract execution | All six unchanged tests pass inside the fourth-pass 95-test suite; no deployed bundle or CLI claim | [E70] | PASS |
+| T59 | R2 | required | Owner connection and shared banner selection | Correct owner command/Copy; setup-next/tab persistence and identity resets; selection has no mutation | [E71] | PASS |
 
 ## Commands and Static Checks
 
@@ -210,6 +222,8 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E67 | Committed latest-dev integration | 2026-10-03T09:55:52Z; source revision 7d8dd35137553d429dbd57c2241424c768aa4530 incorporates origin/dev a6ea1991bac069e2e7b1fa041d24739fd9c09ac6. Four conflicts resolved preserving Codex client schema and dev acceptance-failure behavior, both protocol sections and plugin 0.5.0. Codex main loop now records acceptance_fail and waits for owner retry/reopen before fresh accept. npm run db:generate/check exit 0, architecture26/availability18 pass; npm test 286 pass, test:web554 pass, private templates32 pass, explicit script tests29 pass/1 privilege skip/0 failures. Existing _success warning only. No DB migration/model or production action executed. | Commit source; inline safe local results |
 | E68 | Integrated production build | 2026-10-03 after E67 source regression; npm run build exit 0 with Prisma7.10 generation, Next16.3.3 compile/type validation, 15 static pages and complete route output. Uses current dev schema including additive acceptance failure migration but executes no migration/DB seed. | Committed source; build result only |
 | E69 | PR evidence read-back | 2026-10-03 saved PR evidence: strict proposal validator exit 0 with phase/task20/20 and verifier20/20; dedicated report validate-only exit 0; staged diff whitespace check passes. Historical candidate FAIL and required real host/DB/package NOT RUN remain intact, active/result:null retained. | Inline summary; source PR does not certify release |
+| E70 | Later isolated DB contracts | 2026-10-04 fourth-pass campaign: npm run test:server:integration passed 95/95, including client-runtime tests 44–49: both client orders times legacy/slots, preflight-before-mutation, transactional seed rollback/bounded restore. Source SHA256 remains 7a7dedc35811a6ad5ab4bb8f212f1579b61eeb54f1c53b1431de35a0cda007ff; e354854 retains that exact test source. Original TAP log inspected locally; production/private deployment and CLI/model/browser full flow not exercised. | [Fourth-pass report](../completed/2026-10-04-src-clean-code-fourth-pass.md), unchanged tests/server/integration/client-runtime.test.ts |
+| E71 | Remaining UI implementation/acceptance | 2026-10-04 source e3548546076f279ddbf1e22e2a5ec563fd0a6e9e: owner Codex choice uses explicit token-free harness_owner registration; banner owns shared local selection across setup/work/tab changes and resets on slug. npm run check/build pass, test:web559/core-plugin286 pass, browser28/28 pass. No MCP registration, model, DB migration/seed or deployment executed in this UI follow-up. | [UI acceptance report](../completed/2026-10-04-codex-dual-client-ui.md), [browser results](../assets/2026-10-04-codex-dual-client-ui/browser-results.json) |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -228,7 +242,7 @@ C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track 
 
 BLK-DUAL-01 remains open: reject the writable-repository automatic approval candidate; test the implemented fresh App Server adapter where repository reads and allowed scratch writes execute while forbidden writes, nested agents and owner tools are actually denied. The new effective config check does not establish functional kernel/tool restrictions. Neither global sandbox reconfiguration nor blanket escalation was performed. Architecture documents now describe implemented source and explicitly distinguish actual product readiness.
 
-BLK-DUAL-02 is partially informed by the unchanged complete owner skill package (8 files, E18/E32), actual graph-preservation/render tests and local bounded seed/restore contracts; actual verifier execution and DB seed rollback remain untested. BLK-DUAL-03's earlier compatibility fixture passed, while the new source package is not published or installed for full acceptance. BLK-DUAL-05 has local managed/legacy stopping, child settlement and successor fencing tests; actual mixed host pending/quiescence remains unproven. C4 stays out of scope.
+BLK-DUAL-02 is partially informed by the unchanged complete owner skill package (8 files, E18/E32), graph-preservation/render tests and bounded seed/restore contracts, including later isolated DB rollback E70; actual verifier execution and approved private bundle deployment/recovery remain untested. BLK-DUAL-03's earlier compatibility fixture passed, while the new source package is not published or installed for full acceptance. BLK-DUAL-05 has local managed/legacy stopping, child settlement and successor fencing tests; actual mixed host pending/quiescence remains unproven. C4 stays out of scope.
 
 Reproduction: run node --import tsx scripts/rehearse-dual-client-runtime.ts --phase capability --root <new-empty-absolute-root-outside-repository> --report docs/test-reports/active/dual-client-runtime-report.md. The command uses no model and currently exits 2 for required unexecuted checks. It creates native-probe.argv.json/native-probe.prompt.txt and strict-profile-probe.argv.json/strict-profile-probe.prompt.txt, plus separate read-only repository and scratch fixtures. capabilityProbe and isolatedModelEnvironment exports supply the exact generated argument array and sanitized environment for an independently authorized Node spawn. These are explicit prototypes, not production adapters or a model auto-launch interface. The historical automatic approval probe is failure evidence and should not be used for a real repository.
 
