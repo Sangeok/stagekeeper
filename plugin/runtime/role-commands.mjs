@@ -140,7 +140,7 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
 }
 
 export async function verifyNativeRuntime(runtime, lifecycle = {}) {
-  const directory = await mkdtemp(path.join(tmpdir(), "harness-command-preflight-"));
+  const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-preflight-"));
   let connections = 0, listener, acknowledged = false, helperStarted = false; const sockets = new Set();
   try {
     await mkdir(path.join(directory, "repo")); await mkdir(path.join(directory, "scratch"));
@@ -182,7 +182,7 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
       || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 120000) throw new Error("Invalid native command bounds");
     const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
     combined.throwIfAborted();
-    const directory = await mkdtemp(path.join(tmpdir(), "harness-command-"));
+    const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
     const own = randomUUID(); await writeFile(path.join(directory, "owner.json"), JSON.stringify({ own }), { flag: "wx" });
     let acknowledged = false, helperStarted = false;
     try {

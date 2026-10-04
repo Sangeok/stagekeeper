@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
@@ -11,8 +11,9 @@ import { createRoleFiles } from "../runtime/role-files.mjs";
 import { snapshotRepository, runNativeCommand, createRoleCommands, installedWindowsRuntime, verifyNativeRuntime } from "../runtime/role-commands.mjs";
 
 const digest = value => createHash("sha256").update(value).digest("hex");
+const temporaryRoot = realpathSync(tmpdir());
 function fixture(t) {
-  const base = mkdtempSync(path.join(tmpdir(), "harness-command-test-")), root = path.join(base, "original"), destination = path.join(base, "snapshot");
+  const base = mkdtempSync(path.join(temporaryRoot, "harness-command-test-")), root = path.join(base, "original"), destination = path.join(base, "snapshot");
   for (const dir of [root, path.join(root, "foreign"), path.join(root, ".git"), path.join(root, "src"), destination]) mkdirSync(dir);
   writeFileSync(path.join(base, "external.txt"), "EXTERNAL_CANARY");
   writeFileSync(path.join(root, "src/source.cjs"), "module.exports = 42;\n");
@@ -21,7 +22,7 @@ function fixture(t) {
   writeFileSync(path.join(root, ".env"), "ENV_CANARY");
   const files = createRoleFiles({ ":root": "deny", [root]: "write", [path.join(root, "foreign")]: "deny", [path.join(root, ".git")]: "read" }, "dev");
   t.after(async () => {
-    const relative = path.relative(tmpdir(), base);
+    const relative = path.relative(temporaryRoot, base);
     assert.ok(relative.startsWith("harness-command-test-") && !relative.includes(path.sep));
     await rm(base, { recursive: true });
   });

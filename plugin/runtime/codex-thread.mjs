@@ -297,7 +297,7 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
   const verifier = verifierPackage();
   const expected = JSON.parse(readFileSync(path.join(input.binding.root, "docs/harness/codex-package.json"), "utf8")).verifier;
   if (verifier.path !== expected.path || verifier.checksum !== expected.checksum) throw new Error("Verifier package changed; rerun $harness-init");
-  const scratch = mkdtempSync(path.join(tmpdir(), "harness-role-")), filesystem = rolePermissions(input, dispatch.agent, dispatch.key, scratch);
+  const scratch = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-role-")), filesystem = rolePermissions(input, dispatch.agent, dispatch.key, scratch);
   // An owner package inside .codex must not require access to that credential directory.
   const roleVerifier = dispatch.agent === "plan-verifier" ? stageVerifierPackage(verifier, scratch) : null;
   if (roleVerifier) filesystem[path.dirname(roleVerifier.path)] = "read";

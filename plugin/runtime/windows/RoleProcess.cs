@@ -121,9 +121,12 @@ public static class StagekeeperRoleProcess {
   }
 
   public static Result Run(string root, string command, string cwd, int timeoutMs) {
+    Stage = "validation-path";
     if (!Path.IsPathRooted(root) || Path.GetFullPath(root) != root || root.StartsWith("\\\\") || timeoutMs < 100 || timeoutMs > 120000 || command == null || command.Length > 4096 || command.IndexOf('\0') >= 0) throw new Exception("Invalid role request");
+    Stage = "validation-cwd";
     if (cwd == null || cwd.StartsWith("\\") || cwd.IndexOf(':') >= 0 || Array.Exists(cwd.Split('\\', '/'), part => part == ".." || part == ".")) throw new Exception("Invalid snapshot cwd");
     string repo = Path.Combine(root, "repo"), scratch = Path.Combine(root, "scratch"), runtime = Path.Combine(root, "runtime");
+    Stage = "validation-alias";
     foreach (string dir in new string[] { root, repo, scratch, runtime }) if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) throw new Exception("Snapshot alias refused");
     string name = "stagekeeper.role." + Guid.NewGuid().ToString("N"), drive = null;
     IntPtr sid = IntPtr.Zero, list = IntPtr.Zero, caps = IntPtr.Zero, optout = IntPtr.Zero, environment = IntPtr.Zero, groups = IntPtr.Zero, capabilitySids = IntPtr.Zero, capability = IntPtr.Zero;
