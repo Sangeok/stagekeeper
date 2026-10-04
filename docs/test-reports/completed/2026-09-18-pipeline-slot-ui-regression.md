@@ -13,7 +13,7 @@ tested-revision: 'c5c15f6563722876899d8fa836ce3292a6318a45'
 owners: ['user:Sangeok']
 related:
   - 'docs/test-reports/completed/2026-09-17-pipeline-agent-slots-e2e.md'
-  - 'docs/proposals/active/pipeline-agent-slots.md'
+  - 'docs/proposals/completed/2026-10-04-pipeline-agent-slots.md'
 primary-area: 'pipeline/ui-regression'
 observed-environments:
   - 'local | actual application UI / Server Actions / MCP HTTP | Windows / headless Chrome / Next.js 16.3.3 / Node.js 22.13.1 | anonymous / fixture owner Max'

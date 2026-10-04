@@ -12,7 +12,7 @@ last-executed-at: '2026-09-18T08:12:51.934+09:00'
 tested-revision: 'ce19203'
 owners: ['user:Sangeok']
 related:
-  - 'docs/proposals/active/pipeline-agent-slots.md'
+  - 'docs/proposals/completed/2026-10-04-pipeline-agent-slots.md'
   - 'docs/test-reports/completed/2026-09-17-pipeline-agent-slots-e2e.md'
   - 'docs/test-reports/completed/2026-09-18-pipeline-slot-ui-regression.md'
 primary-area: 'pipeline/dev-integration'

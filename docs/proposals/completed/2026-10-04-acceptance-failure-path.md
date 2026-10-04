@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-03"
 approved-by: "user"
 approved-at: "2026-10-03"
 approval-scope: "copy, implementation, isolated verification, plugin version, public dev PR/merge, private template PR"
-completed-at: null
-verification-summary: "Local implementation checks passed; production rollout and watch observation not run"
+completed-at: "2026-10-04"
+verification-summary: "PR #102·#103 dev 병합 및 로컬 구현 검증 완료. 2026-10-04 관련 회귀 테스트 192개·웹 액션 테스트·plugin/lib 동기화 검사 통과. Private 런북 PR 병합·운영 배포·watch 실측은 후속 작업이며 미완료."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -20,7 +20,7 @@ related:
   - "docs/architecture/system-overview.md"
   - "docs/architecture/verification.md"
   - "docs/conventions/product-copy.md"
-  - "docs/proposals/active/local-watch-executor.md"
+  - "docs/proposals/completed/2026-10-03-local-watch-executor.md"
   - "docs/proposals/completed/2026-09-07-human-checkpoint-consistency.md"
   - "docs/proposals/completed/2026-09-10-configurable-pipeline.md"
 ---
@@ -39,7 +39,9 @@ related:
 
 문서 정합성 검증 뒤 사용자가 2026-10-03에 이 문서를 바탕으로 실제 구현과 dev 병합을 승인했다.
 카피·구현·격리 검증·private PR은 이 지시에 포함한다. 운영 DB migration/seed·플러그인 설치 갱신·main 승격은 별도다.
-구현 검증 결과는 아래에 기록하며, 운영 실측이 남아 있어 제안서는 active에 둔다.
+코드 구현은 PR #102·#103으로 dev에 병합됐으며 구현 검증 결과는 아래에 기록한다.
+2026-10-04 사용자 지시에 따라 코드 구현·격리 검증·dev 병합 완료를 기준으로 제안서를 completed 처리한다.
+Private 런북 PR 병합과 운영 배포·설치 갱신·watch 실측은 후속 작업으로 남긴다.
 
 ## Goal
 
@@ -63,6 +65,11 @@ related:
 
 ### 성공 기준 / Definition of Done
 
+제안서의 completed 처리는 아래 구현 완료 조건을 기준으로 한다.
+운영 후속 작업은 별도의 완료 조건을 충족해야 하며, 문서 완료가 운영 완료나 운영 변경 승인을 뜻하지 않는다.
+
+#### 구현 완료 조건
+
 1. done·열린 accept·미인수·열린 실패 없음은 배너의 세션 차례이며 기존 accept 터미널 줄을 보존한다.
 2. 실패 뒤 single key와 key 없는 `pipeline_next`가 `wait/acceptance`를 반환하고 watch가 그 항목을 일로 세지 않는다.
 3. 실패는 소유자 차례이며 해당 항목의 터미널 줄은 없다. 실패만 pending이면 상세를 연다.
@@ -73,11 +80,14 @@ related:
    자신의 정상 재시도로 A가 먼저 화면에서 사라져도 같은 항목의 확인된 성공 안내는 한 번 표시한다.
 5. 열린 실패 중 main-loop 인수 보고는 Report·이벤트·커서 변경 없이 거부된다.
 6. 레일의 기존 auto planning/implementing과 게이트 편집 권한을 보존한다.
-7. 검증 행렬·명령·실제 Next/브라우저·배포 본문을 확인한다. 미실행·skip을 Pass로 세지 않는다.
+7. 검증 행렬·명령·실제 Next/브라우저·격리 최종 본문을 확인한다. 미실행·skip을 Pass로 세지 않는다.
    agent 15개·owner `["gate_approve"]`의 고정 등록 집합과 retry의 두 MCP 부재를 검증한다.
-8. 실측 시작 전에 watch·권한·플러그인/런북 판을 기록하고 “실패 → 웹 재시도 → 다음 폴링 → 성공”을 관측한다.
+
+#### 운영 후속 작업의 완료 조건
+
+1. 실측 시작 전에 watch·권한·플러그인/런북 판을 기록하고 “실패 → 웹 재시도 → 다음 폴링 → 성공”을 관측한다.
    초기 설정과 관측 구간을 구분하고 구간 안에 터미널 입력이 없었는지 기록한다.
-9. 카피·레거시·운영 승인·본문 일치 조건을 충족하지 않으면 해당 단계는 완료가 아니다.
+2. 카피·레거시·운영 승인·본문 일치 조건을 충족하지 않으면 해당 운영 단계는 완료가 아니다.
    런북의 cap 안내와 protocol의 제품 사용량·실행 저장 절은 서버 reason/resetAt·계정 단위 5시간 계약과 일치해야 한다.
    옛 30일 dispatch cap 안내를 재배포하지 않는다. 30일 History 조회 정책은 그대로다.
 
@@ -180,7 +190,8 @@ Affected Files의 구체적 행을 범위로 사용하며 대략적인 파일 �
 
 ## Scope
 
-Core는 아래 실패·재시도·배너·레일·계약·배포 일치 검증이다.
+완료된 구현 범위는 아래 실패·재시도·배너·레일·계약·격리 최종 본문 검증이다.
+Private 런북 PR 병합·운영 배포 일치 검증·watch 실측은 별도 후속 작업이다.
 카피 승인은 구현 선행 조건, 운영 쓰기는 Approval의 별도 확인 대상이다.
 비목표의 후속 후보·레거시 자동 보정은 제외 범위다.
 현재 계정 사용량·토큰·요청 제한을 이전 정책으로 되돌리는 작업은 금지한다.
@@ -834,25 +845,23 @@ structured package/plugin JSON·Prisma generated model·MCP schema는 parser/실
 
 ## Completion or Closure Notes
 
-로컬 구현·검증은 완료했다. dev 병합 결과는 PR과 세션 최종 응답으로 확인하며, 운영 DoD가 남아 completed로 옮기지 않는다.
+코드 구현·로컬 검증은 완료했고 PR #102·#103은 2026-10-03 dev에 병합됐다.
+2026-10-04 사용자 지시로 코드 구현 완료를 기준으로 completed 처리했다.
+운영 후속 작업의 완료 조건은 유지하며, V16 미실행을 Pass로 바꾸지 않는다.
 
 완료 기록:
-- completed-at: TBD
-- verification-summary: 위 실행 결과 참조; 운영 V16 미실행
-- implementation PR/commit: harness/acceptance-failure-path; 독립 rail PR [#102](https://github.com/Sangeok/stagekeeper/pull/102)는 check green 후 dev에 병합(9e31f75), companion private PR [#7](https://github.com/Sangeok/harness-templates/pull/7), private head 55f2d7dcfd1803662f25d3df0e3000cfcf2f7461
+- completed-at: 2026-10-04
+- verification-summary: 위 구현 검증 결과 참조. 2026-10-04 현재 dev에서 관련 회귀 테스트 192개, 웹 액션 테스트 및 plugin/lib 동기화 검사를 재확인했다. 운영 V16은 미실행이다.
+- implementation PR/commit: 본 구현 PR [#103](https://github.com/Sangeok/stagekeeper/pull/103)은 check green 후 dev에 병합(a6ea199), 독립 rail PR [#102](https://github.com/Sangeok/stagekeeper/pull/102)도 dev에 병합(9e31f75). Companion private PR [#7](https://github.com/Sangeok/harness-templates/pull/7)은 2026-10-04 확인 시 OPEN이며, private head는 55f2d7dcfd1803662f25d3df0e3000cfcf2f7461이다.
 - changed files summary: 실패 모델/서비스/MCP·재시도 action/UI·차례/이력·watch 0.4.2·private 런북·migration/경합/실제 Next·브라우저 시험. 도구 registry fixture(project-connection)와 plugin version fixture(token-reveal)도 새 계약에 맞췄다
-- remaining follow-up: 승인된 대상의 레거시 count, 호환 plugin 선배포, migration 선행, 서버/웹 배포, 검증된 private merge SHA의 운영 seed/생성물 비교, 운영 watch 실측
+- remaining follow-up: private PR #7 병합, main 승격, 승인된 대상의 레거시 count, 호환 plugin 선배포·설치 갱신, migration 선행, 서버/웹 배포, 검증된 private merge SHA의 운영 seed/생성물 비교, 운영 watch 실측
 
 닫힘 기록:
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+실행하지 않기로 닫은 문서가 아니므로 해당 없음. closed metadata는 null이다.
 
 ## Review Checklist
 
-- [x] pending/approved·사용자 구현 승인과 운영 미승인 범위가 현재 권한과 일치한다.
+- [x] completed·사용자 구현 승인과 운영 후속 작업의 승인 범위가 현재 권한과 일치한다.
 - [x] 최신 dev/문서 작업 트리 차이·private 원문/fixture 차이를 기록했다.
 - [x] requirements·symbol provenance·create preflight·검증 목적지가 구체적이다.
 - [x] cap/request limit/토큰·게이트·Reopen·이력 창·커밋 정책의 보존을 전파했다.
@@ -861,13 +870,15 @@ structured package/plugin JSON·Prisma generated model·MCP schema는 parser/실
 - [x] 경쟁·rollback·실패/응답 유실·cleanup 검증 경로가 있다.
 - [x] 같은 key의 실패 기록 교체·Client state 초기화·늦은 응답 억제·정상 성공 안내의 검증 경로를 정의했다.
 - [x] generated client·Template/HTTP/사용자 body까지 산출물 목적지를 정의했다.
-- [x] 설계의 미결 placeholder는 없다. TBD는 미래 완료/닫힘 기록뿐이다.
+- [x] 설계의 미결 placeholder는 없다. 완료일을 기록했고 closed metadata는 null이다.
 - [x] 구현 후 명령·격리 DB·실제 Next/browser·private render/HTTP/init 본문 결과를 기록했다.
-- [ ] 운영 진입 조건·배포 본문·watch 한 바퀴를 검증했다.
-- [x] 구현 승인/검증 메타데이터를 갱신했다. 운영 DoD 미충족으로 completed/closed는 null을 유지한다.
+- [ ] 운영 후속 작업: 운영 진입 조건·배포 본문·watch 한 바퀴를 검증했다.
+- [x] 코드 구현 완료를 기준으로 status·stage·completed-at·검증 요약·완료 기록을 갱신하고 completed로 이동했다. closed metadata는 null을 유지한다.
 
 ## Open Questions
 
 구현 설계를 나중에 정하도록 남긴 질문은 없다.
-카피/구현은 승인되고 로컬 검증을 마쳤다. 운영 레거시 count·외부 운영 변경 승인은 명시적 단계 진입 조건이며 아직 수행하지 않았다.
+카피/구현은 승인되고 로컬 검증·dev 병합을 마쳐 completed 처리했다.
+Private 런북 PR 병합과 운영 레거시 count·외부 운영 변경·watch 실측은 후속 작업이며,
+운영 레거시 count·외부 운영 변경 승인은 명시적 단계 진입 조건으로 유지한다.
 조건이 실패하면 그 단계가 중단된다. 문서 정합성 검증으로 승인·실측을 대신하지 않는다.

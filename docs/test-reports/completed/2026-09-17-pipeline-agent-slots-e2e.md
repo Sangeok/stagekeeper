@@ -12,7 +12,7 @@ last-executed-at: '2026-09-17T13:25:27.330Z'
 tested-revision: 'c5c15f6563722876899d8fa836ce3292a6318a45'
 owners: ['user:Sangeok']
 related:
-  - 'docs/proposals/active/pipeline-agent-slots.md'
+  - 'docs/proposals/completed/2026-10-04-pipeline-agent-slots.md'
   - 'docs/test-reports/completed/2026-09-17-pipeline-agent-slots-regression.md'
   - 'docs/test-reports/completed/2026-09-17-pipeline-agent-slots-postgresql-acceptance.md'
 primary-area: 'pipeline/agent-slots'
@@ -39,7 +39,7 @@ UI 문제 두 건은 미수정이며, 이 판정은 앱 전체에 결함이 없�
 
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 해석 및 확인 기준 |
 | --- | --- | --- | --- |
-| R1 | [pipeline-agent-slots.md](../../proposals/active/pipeline-agent-slots.md), Core 1 A–D/F | 반복 슬롯, 버전 고정, 실행 결합, 게이트, 완료·재개 | UI 조작 및 실제 MCP 호출 뒤 DB read-back으로 cursor/version/entry/run/report 상태 확인 |
+| R1 | [pipeline-agent-slots.md](../../proposals/completed/2026-10-04-pipeline-agent-slots.md), Core 1 A–D/F | 반복 슬롯, 버전 고정, 실행 결합, 게이트, 완료·재개 | UI 조작 및 실제 MCP 호출 뒤 DB read-back으로 cursor/version/entry/run/report 상태 확인 |
 | R2 | AGENTS.md, src/server/auth/guard.ts, edit-pipeline.server.ts 및 기존 Backlog 입력 계약 | 로그인, 소유권, 플랜·입력 제한 | 실제 Auth.js 세션과 Server Action의 거부 및 zero-write 확인 |
 | R3 | AGENTS.md의 코드 변경 완료 검사 | 승인 시간 초과 수정 | lint/FSD/type/architecture/관련 테스트/production build 통과 |
 

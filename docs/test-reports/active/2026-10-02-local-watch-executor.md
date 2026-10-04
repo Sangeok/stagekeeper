@@ -1,6 +1,12 @@
 # Local watch executor — implementation and acceptance
 
-Date: 2026-10-02. Proposal: [local-watch-executor](../../proposals/active/local-watch-executor.md).
+Date: 2026-10-02. Proposal: [local-watch-executor](../../proposals/completed/2026-10-03-local-watch-executor.md).
+
+Completion update (2026-10-03): PR #100 merged into dev on 2026-10-02 at
+`0aec9ab9144f6c9c26c5e39c3321c09771791ddb`. At the user's request, the proposal is
+completed on the basis of Stage 1 code implementation and the recorded verification.
+The sections below preserve implementation-time evidence; this report stays active for
+the pending browser, hosted-cache, deployment and operating acceptance follow-ups.
 
 ## Scope and basis
 
@@ -199,12 +205,13 @@ manifest and the token-reveal package expectation. Local checks, build and bound
 main-conversation/local-source acceptance establish dev integration readiness once
 the final PR check workflow is green. Ready status does not claim all V1–V13 or
 production readiness are complete; browser, hosted-cache and operating acceptance
-remain explicit follow-ups. Actual merge and release promotion are separate actions.
+remain explicit follow-ups. Dev merge subsequently completed at `0aec9ab`; release
+promotion and deployment acceptance are not established by this report.
 Deployment SHA/plugin installation path/actual loaded version: not observed yet.
 No template reseed is required or claimed.
 
-After a green `check` workflow and approved integration, merge to dev; promote main by
-fast-forward only. Stop existing watchers before updating. Inspect the real local source
+Dev integration is complete. For release promotion, promote main by fast-forward only
+from verified dev. Stop existing watchers before updating. Inspect the real local source
 or hosted cache's 0.4.0 bodies and restart the Claude session before acceptance.
 
 Record the owner's local gate-open time, work-output time and next successful
@@ -214,5 +221,6 @@ rearm, policy/permission windows, HTTP/model calls, DB compute/cost and stop pre
 new requests. In-flight server effects and already dispatched agents are outside local
 cancellation guarantees. No phone push, resident spawn or cross-device lock claim.
 
-The proposal remains active until these pending acceptance steps are observed. Automated
-tests are implementation evidence, not proof of a successful production watch session.
+The proposal is completed on the user's code-implementation criterion; these pending
+acceptance steps remain follow-up work in this active report. Automated tests are
+implementation evidence, not proof of a successful production watch session.
