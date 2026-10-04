@@ -38,7 +38,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
     signal?.throwIfAborted();
     if (Date.now() - started > 300000) throw new Error("Snapshot preparation deadline exceeded");
   }
-  async function copy({ source, rel, target, before, row }, buffer) {
+  async function copy({ source, target, before, row }, buffer) {
     const input = await open(source, "r"), digest = createHash("sha256"); let output;
     try {
       output = await open(target, "wx", 0o600);
@@ -78,7 +78,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
       if (before.isDirectory()) { await flush(); await mkdir(target, { recursive: true }); await visit(source, rel); continue; }
       if (!before.isFile() || before.size > 128n * 1024n * 1024n || ++count > 100000 || (bytes += Number(before.size)) > 2 * 1024 * 1024 * 1024) throw new Error("Snapshot size or file type unsupported");
       const row = [rel.split(path.sep).join("/"), null]; hashes.push(row);
-      queued.push({ source, rel, target, before, row });
+      queued.push({ source, target, before, row });
       if (queued.length === buffers.length) await flush();
     }
     await flush();
