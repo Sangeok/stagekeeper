@@ -1,8 +1,8 @@
 {
-  "recordedAt": "2026-10-04T17:11:17.458Z",
-  "testedRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
+  "recordedAt": "2026-10-04T17:33:49.725Z",
+  "testedRevision": "fa42731c4a0f8a7d8751764e3a77882dbd6b806d",
   "sourceHashes": {
-    "plugin/runtime/role-files.mjs": "1cef9cdce0a5823c9749701e2df1ed1a4567fbf818112f3248edd0b606b9f8dc",
+    "plugin/runtime/role-files.mjs": "d786166a04b8a7a969c2dc1559f433314d60ebb3e95f1102e95cf288bebdb489",
     "plugin/runtime/role-commands.mjs": "b17e1d0a2539acaffba5416b3a262e17fb828ece26909917d28c6c8b004af180",
     "plugin/runtime/windows/RoleProcess.cs": "18a91a41b6e529d11c8928d85a0598fe6f6699d9128398a2bbd614b132b85f01",
     "plugin/runtime/windows/role-process.ps1": "59cb8a8aa28458fa4fdf10b2d3ca7367bcd64e55a9903650b14efcf9feb4a69a",
@@ -34,20 +34,20 @@
     }
   },
   "check": "PASS",
-  "hostProductionBuild": "PASS in check workflow run 37219215200 on source 056602a8023d54fe11513d99b82408cc08ca1116; separate from the network-denied role snapshot build",
+  "hostProductionBuild": "PASS in check workflow run 37220359528 on source fa42731c4a0f8a7d8751764e3a77882dbd6b806d; separate from the network-denied role snapshot build",
   "nativeCi": {
-    "run": 37219215571,
-    "sourceRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
+    "run": 37220359543,
+    "sourceRevision": "fa42731c4a0f8a7d8751764e3a77882dbd6b806d",
     "result": "PASS"
-  },
-  "completeRuntimeArtifactCi": {
-    "run": 37217822204,
-    "sourceRevision": "d2ce0ea9b7662e3cb558f7b5240f8b1ca88af6fc",
-    "result": "PASS; entire hidden npm tree included and full package hash verified"
   },
   "webSourceScope": "Only source change was plugin version test 0.5.0 -> 0.5.1; 576 tests passed.",
   "reportStructure": "PASS",
   "strictProposalTrace": "PASS",
   "diffCheck": "PASS",
-  "runtimeReadiness": "Incomplete; bounded source/local package evidence does not clear full release gates."
+  "runtimeReadiness": "Incomplete; bounded source/local package evidence does not clear full release gates.",
+  "completeRuntimeArtifactCi": {
+    "run": 37217822204,
+    "sourceRevision": "d2ce0ea9b7662e3cb558f7b5240f8b1ca88af6fc",
+    "result": "PASS; entire hidden npm tree included and full package hash verified"
+  }
 }

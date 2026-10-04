@@ -1,7 +1,7 @@
 {
   "format": "stagekeeper-windows-role-commands-v1",
-  "recordedAt": "2026-10-04T17:11:17.458Z",
-  "testedRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
+  "recordedAt": "2026-10-04T17:33:49.725Z",
+  "testedRevision": "fa42731c4a0f8a7d8751764e3a77882dbd6b806d",
   "environment": {
     "platform": "win32",
     "architecture": "x64",
@@ -237,9 +237,9 @@
     "applicableToFinalPackage": "Verifier checksum and adapter/model instructions are unchanged. Final snapshot/path/helper changes have separate actual native regression and package evidence; this full-model run retains its own earlier source identity."
   },
   "installed": {
-    "at": "2026-10-04T17:09:52.385Z",
-    "sourceRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
-    "packageSha256": "d21fff391dafc500b49d3cbd67d74e38c9203c420cee32461e5fa78df36437a1",
+    "at": "2026-10-04T17:30:07.344Z",
+    "sourceRevision": "fa42731c4a0f8a7d8751764e3a77882dbd6b806d",
+    "packageSha256": "8935a8c12ff0d9d1c5d1c8f7c42c57d67b7fd7227dfb56fb736130887dc95e41",
     "files": 2209,
     "marketplaceAddExit": 0,
     "pluginInstallExit": 0,
@@ -261,9 +261,9 @@
     "claudeManifestValidationExit": 0
   },
   "finalPrivateBundle": {
-    "sourceRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
+    "sourceRevision": "fa42731c4a0f8a7d8751764e3a77882dbd6b806d",
     "files": 2209,
-    "packageSha256": "d21fff391dafc500b49d3cbd67d74e38c9203c420cee32461e5fa78df36437a1",
+    "packageSha256": "8935a8c12ff0d9d1c5d1c8f7c42c57d67b7fd7227dfb56fb736130887dc95e41",
     "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
     "verifier": {
       "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
@@ -272,10 +272,10 @@
     "published": false
   },
   "projectBuild": {
-    "at": "2026-10-04T17:01:57.956Z",
-    "revision": "a44cb8c-plus-bounded-copy-batches",
+    "at": "2026-10-04T17:21:40.790Z",
+    "revision": "9236185-plus-always-ancestor-checks",
     "sourceHashes": {
-      "plugin/runtime/role-commands.mjs": "5450e309d92e5dc2f7b1ee0b6c76c96b582bc92a941edfe7990df0ea9233cc08",
+      "plugin/runtime/role-commands.mjs": "b17e1d0a2539acaffba5416b3a262e17fb828ece26909917d28c6c8b004af180",
       "plugin/runtime/windows/RoleProcess.cs": "18a91a41b6e529d11c8928d85a0598fe6f6699d9128398a2bbd614b132b85f01"
     },
     "outcome": "Full snapshot prepared and npm run build invoked. Exit 1 at missing Prisma schema engine download under network denial; no full-project build PASS.",
