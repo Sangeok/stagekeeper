@@ -1,0 +1,494 @@
+{
+  "format": "stagekeeper-windows-role-commands-v1",
+  "recordedAt": "2026-10-04T17:11:17.458Z",
+  "testedRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
+  "environment": {
+    "platform": "win32",
+    "architecture": "x64",
+    "codex": "0.160.0",
+    "node": "22.23.3",
+    "nativeLogin": true,
+    "wslUsed": false,
+    "authCopied": false,
+    "globalNodeExcludedFromHelperPath": true,
+    "externalVerifierInstallRequired": false
+  },
+  "runtime": {
+    "sourceSha256": "9436c81b284889303d39f5b8bd629bf19e790c665ccb94b4994aa87220d9799a",
+    "pipeBackport": "https://github.com/libuv/libuv/pull/5181",
+    "pipeSourceSha256": "e7d893d314bd1824ee12f242fba44ffd6e7c39e9e9c4644ad06127901d363a7f",
+    "executableSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+    "packageSha256": "90e2f6d8df5d0b806d20ea7c256ab467c0bec22a3daa4f3f0fd8732c7d9effc4",
+    "completeArtifactRun": 37217822204,
+    "hiddenNpmFilesIncluded": true,
+    "reconstructedOriginalArtifactMatchedFullPackageHash": true
+  },
+  "developer": {
+    "at": "2026-10-04T16:59:27.850Z",
+    "modelStarts": 1,
+    "complete": true,
+    "turnStatus": "completed",
+    "usage": {
+      "total": {
+        "totalTokens": 75111,
+        "inputTokens": 74035,
+        "cachedInputTokens": 62464,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 1076,
+        "reasoningOutputTokens": 119
+      },
+      "last": {
+        "totalTokens": 10023,
+        "inputTokens": 9967,
+        "cachedInputTokens": 9344,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 56,
+        "reasoningOutputTokens": 0
+      },
+      "modelContextWindow": 258400
+    },
+    "commands": [
+      {
+        "status": "exited",
+        "exitCode": 1,
+        "quiescent": true,
+        "maxActiveProcesses": 6,
+        "outputTruncated": false,
+        "snapshotHash": "7ab0a6a728ceac524a8973afaaf3361b6c81b12c5944aca25af75703cbf8892a",
+        "repositorySnapshotHash": "e2581291a50fdf94d741d6bbcc229fb4c0f9be97f9d7488c1394e99cbecb3a2b",
+        "scratchSnapshotHash": "918dea5e1d361db813cd5c6baef8cd44a0c227b9ec0d2a01e7188336a1104280",
+        "files": 6,
+        "bytes": 678,
+        "omittedCount": 4,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      },
+      {
+        "status": "exited",
+        "exitCode": 0,
+        "quiescent": true,
+        "maxActiveProcesses": 6,
+        "outputTruncated": false,
+        "snapshotHash": "58f393b59200a426b0c41acba071b1ebb73b45f9f4b65d915b6124a674c8a0a0",
+        "repositorySnapshotHash": "a6b7b9fc8bee0355c2a7e3f076111c8463d06298463092971cfe27dd10f8460c",
+        "scratchSnapshotHash": "918dea5e1d361db813cd5c6baef8cd44a0c227b9ec0d2a01e7188336a1104280",
+        "files": 6,
+        "bytes": 678,
+        "omittedCount": 4,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      },
+      {
+        "status": "exited",
+        "exitCode": 0,
+        "quiescent": true,
+        "maxActiveProcesses": 3,
+        "outputTruncated": false,
+        "snapshotHash": "58f393b59200a426b0c41acba071b1ebb73b45f9f4b65d915b6124a674c8a0a0",
+        "repositorySnapshotHash": "a6b7b9fc8bee0355c2a7e3f076111c8463d06298463092971cfe27dd10f8460c",
+        "scratchSnapshotHash": "918dea5e1d361db813cd5c6baef8cd44a0c227b9ec0d2a01e7188336a1104280",
+        "files": 6,
+        "bytes": 678,
+        "omittedCount": 4,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      }
+    ],
+    "release": "released",
+    "sourceHashes": {
+      "runtime/codex-thread.mjs": "e3bad51b345114b87bf958f8edce08d0568d6562f1ea1762231d759ea441b119",
+      "runtime/role-commands.mjs": "2244bcf85c2050ef32e1371b891a4505469d7956153e91fa277da6c13fc4bdf3",
+      "runtime/windows/RoleProcess.cs": "18a91a41b6e529d11c8928d85a0598fe6f6699d9128398a2bbd614b132b85f01",
+      "runtime/codex-agent.mjs": "5dc77913e4c7ce1f71c6bb58ab4ec2db9b7df41f4ad0a66220431a87c7a07ef5",
+      "bin/harness.ps1": "c38dd1e3e7ec78e3d75236c223ddfe8f9551e9bf7a4603cb5fdb2c7e2ea7a299"
+    },
+    "packageSourceRevision": "a44cb8ca19dad9a36aeaf315888184f6270cb18b",
+    "packageSha256": "9ca5b701fce6d3d0eda26d30c00b27ad1d306f72bfea509ff7efd3def7028a83",
+    "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+    "checks": {
+      "updated": true,
+      "buildDiscarded": true,
+      "foreignUnchanged": true,
+      "envUnchanged": true
+    },
+    "outcome": "Expected failing test; guarded original code edit; passing npm test/build; fresh command confirms prior output discarded."
+  },
+  "verifier": {
+    "at": "2026-10-04T16:35:04.823Z",
+    "modelStarts": 1,
+    "complete": true,
+    "turnStatus": "completed",
+    "usage": {
+      "total": {
+        "totalTokens": 630638,
+        "inputTokens": 617604,
+        "cachedInputTokens": 558976,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 13034,
+        "reasoningOutputTokens": 4852
+      },
+      "last": {
+        "totalTokens": 58785,
+        "inputTokens": 58722,
+        "cachedInputTokens": 54400,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 63,
+        "reasoningOutputTokens": 0
+      },
+      "modelContextWindow": 258400
+    },
+    "commands": [
+      {
+        "status": "exited",
+        "exitCode": 0,
+        "quiescent": true,
+        "maxActiveProcesses": 6,
+        "outputTruncated": false,
+        "snapshotHash": "2bd388e5eaadfce9d683f4924c3cf62c58566c522c7ca1c328704893d7926dba",
+        "repositorySnapshotHash": "d6f6f5525e9bfa3b62ad988d98b7565251a5a6f85ec00e2b26a8c77f09ac4fd9",
+        "scratchSnapshotHash": "95294920d2b9bef04816f6ff1a10952749ceff341105b2ad206fc72b8118db97",
+        "files": 6,
+        "bytes": 3761,
+        "omittedCount": 2,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      },
+      {
+        "status": "exited",
+        "exitCode": 0,
+        "quiescent": true,
+        "maxActiveProcesses": 9,
+        "outputTruncated": false,
+        "snapshotHash": "cba3753a9c03968f65acfadc2626256cb364b1fcedee4a424e6b6cf17fcfe813",
+        "repositorySnapshotHash": "d6f6f5525e9bfa3b62ad988d98b7565251a5a6f85ec00e2b26a8c77f09ac4fd9",
+        "scratchSnapshotHash": "0edc544ccd41f880fa9ccbad7ae2797f5aa1689a2872882ee2cc0c3189ce16e2",
+        "files": 6,
+        "bytes": 3761,
+        "omittedCount": 2,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      },
+      {
+        "status": "exited",
+        "exitCode": 0,
+        "quiescent": true,
+        "maxActiveProcesses": 6,
+        "outputTruncated": false,
+        "snapshotHash": "cba3753a9c03968f65acfadc2626256cb364b1fcedee4a424e6b6cf17fcfe813",
+        "repositorySnapshotHash": "d6f6f5525e9bfa3b62ad988d98b7565251a5a6f85ec00e2b26a8c77f09ac4fd9",
+        "scratchSnapshotHash": "0edc544ccd41f880fa9ccbad7ae2797f5aa1689a2872882ee2cc0c3189ce16e2",
+        "files": 6,
+        "bytes": 3761,
+        "omittedCount": 2,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      },
+      {
+        "status": "exited",
+        "exitCode": 0,
+        "quiescent": true,
+        "maxActiveProcesses": 9,
+        "outputTruncated": false,
+        "snapshotHash": "cba3753a9c03968f65acfadc2626256cb364b1fcedee4a424e6b6cf17fcfe813",
+        "repositorySnapshotHash": "d6f6f5525e9bfa3b62ad988d98b7565251a5a6f85ec00e2b26a8c77f09ac4fd9",
+        "scratchSnapshotHash": "0edc544ccd41f880fa9ccbad7ae2797f5aa1689a2872882ee2cc0c3189ce16e2",
+        "files": 6,
+        "bytes": 3761,
+        "omittedCount": 2,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      },
+      {
+        "status": "exited",
+        "exitCode": 0,
+        "quiescent": true,
+        "maxActiveProcesses": 6,
+        "outputTruncated": false,
+        "snapshotHash": "cba3753a9c03968f65acfadc2626256cb364b1fcedee4a424e6b6cf17fcfe813",
+        "repositorySnapshotHash": "d6f6f5525e9bfa3b62ad988d98b7565251a5a6f85ec00e2b26a8c77f09ac4fd9",
+        "scratchSnapshotHash": "0edc544ccd41f880fa9ccbad7ae2797f5aa1689a2872882ee2cc0c3189ce16e2",
+        "files": 6,
+        "bytes": 3761,
+        "omittedCount": 2,
+        "omissionsTruncated": false,
+        "originalRepositoryWrites": false,
+        "snapshotWrites": "discarded"
+      }
+    ],
+    "release": "released",
+    "packageSourceRevision": "b6da689772cc75912002893ebbaf928b5b55ac14",
+    "packageSha256": "ef601ac2ed5af95b317cadbd867c4d26eb02892c16b810bec8cbb24fd990457a",
+    "runtimeSha256": "4718df157dfd3326bd58f6e55b585052c7f8c7eac368e26e478284d842f1b3c4",
+    "staged": {
+      "files": 8,
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "enabledMatchingPackages": 1
+    },
+    "ownerUnchanged": true,
+    "planUnchanged": true,
+    "outcome": "Clean pass achieved; zero plan defects. Complete original SKILL and all six referenced resources read. Four verification paths, two sweeps, full no-edit final pass. Scratch destination 10/10 twice per sweep; unchanged baseline 2/2 before and after. 900-pair independent BigInt oracle and 256 wider pairs. Review-only synthetic CommonJS plan.",
+    "applicableToFinalPackage": "Verifier checksum and adapter/model instructions are unchanged. Final snapshot/path/helper changes have separate actual native regression and package evidence; this full-model run retains its own earlier source identity."
+  },
+  "installed": {
+    "at": "2026-10-04T17:09:52.385Z",
+    "sourceRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
+    "packageSha256": "d21fff391dafc500b49d3cbd67d74e38c9203c420cee32461e5fa78df36437a1",
+    "files": 2209,
+    "marketplaceAddExit": 0,
+    "pluginInstallExit": 0,
+    "winningPackages": 1,
+    "verifier": {
+      "files": 8,
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6"
+    },
+    "dryRunExit": 0,
+    "filesWrittenExit": 0,
+    "globalNodeOnPath": false,
+    "sourceOnlyTemplatesIncluded": false,
+    "fixtureRequests": [
+      "/api/templates",
+      "/api/templates"
+    ],
+    "modelTurns": 0,
+    "fullProductWiring": false,
+    "claudeManifestValidationExit": 0
+  },
+  "finalPrivateBundle": {
+    "sourceRevision": "056602a8023d54fe11513d99b82408cc08ca1116",
+    "files": 2209,
+    "packageSha256": "d21fff391dafc500b49d3cbd67d74e38c9203c420cee32461e5fa78df36437a1",
+    "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    },
+    "published": false
+  },
+  "projectBuild": {
+    "at": "2026-10-04T17:01:57.956Z",
+    "revision": "a44cb8c-plus-bounded-copy-batches",
+    "sourceHashes": {
+      "plugin/runtime/role-commands.mjs": "5450e309d92e5dc2f7b1ee0b6c76c96b582bc92a941edfe7990df0ea9233cc08",
+      "plugin/runtime/windows/RoleProcess.cs": "18a91a41b6e529d11c8928d85a0598fe6f6699d9128398a2bbd614b132b85f01"
+    },
+    "outcome": "Full snapshot prepared and npm run build invoked. Exit 1 at missing Prisma schema engine download under network denial; no full-project build PASS.",
+    "result": {
+      "status": "exited",
+      "exitCode": 1,
+      "quiescent": true,
+      "outputTruncated": false,
+      "snapshotHash": "7f8c9c9fceaf9ee90bd67d1d55a112c2003f86a1060e813073b3a996f1b2d58e",
+      "files": 33871,
+      "bytes": 743143926,
+      "omittedCount": 0,
+      "originalRepositoryWrites": false,
+      "snapshotWrites": "discarded"
+    },
+    "fixtureSourceRevision": "94d255eff5ea924ca0587974c1c58f4fd6f896cd",
+    "fixtureDependencyInstall": "Offline npm ci --ignore-scripts with isolated empty npm configs; developer-owned temporary fixture, not a user install requirement."
+  },
+  "historicalFailures": [
+    {
+      "kind": "artifact",
+      "outcome": "First CI upload omitted hidden npm files; full package hash refused. Workflow now includes hidden files; no weakened hash check."
+    },
+    {
+      "kind": "native-ci",
+      "runs": [
+        37215537393,
+        37215854215,
+        37215993873,
+        37216461934,
+        37216656065,
+        37216777847,
+        37217222977
+      ],
+      "outcome": "Earlier candidates failed. Trusted temporary path normalization and pre-command compiler artifact cleanup corrected Windows Server differences. Unknown acknowledgements retain ownership."
+    },
+    {
+      "kind": "mismatch-verifier",
+      "at": "2026-10-04T16:17:19.983Z",
+      "modelStarts": 1,
+      "complete": true,
+      "turnStatus": "completed",
+      "usage": {
+        "total": {
+          "totalTokens": 301887,
+          "inputTokens": 289733,
+          "cachedInputTokens": 243968,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 12154,
+          "reasoningOutputTokens": 5445
+        },
+        "last": {
+          "totalTokens": 38642,
+          "inputTokens": 38581,
+          "cachedInputTokens": 33792,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 61,
+          "reasoningOutputTokens": 0
+        },
+        "modelContextWindow": 258400
+      },
+      "commands": [
+        {
+          "status": "exited",
+          "exitCode": 0,
+          "quiescent": true,
+          "maxActiveProcesses": 6,
+          "outputTruncated": false,
+          "snapshotHash": "9507e3ed2fea0050d211ab04388cfc07cd20173056b88133cb14ba96b099a537",
+          "repositorySnapshotHash": "c8819c2e7ed4972654e16f69f307a47122ebd415c33815ef9d9840146a422c2a",
+          "scratchSnapshotHash": "dc2665dbc5fca4990e403cb0d0b0faa12c83ec80058453dc3bf8262907f4f42a",
+          "files": 6,
+          "bytes": 3767,
+          "omittedCount": 2,
+          "omissionsTruncated": false,
+          "originalRepositoryWrites": false,
+          "snapshotWrites": "discarded"
+        },
+        {
+          "status": "exited",
+          "exitCode": 1,
+          "quiescent": true,
+          "maxActiveProcesses": 2,
+          "outputTruncated": false,
+          "snapshotHash": "1366fdbe580089e6b3a28feddfbdb2b9ce43c2defad3cf8a880d7cc70572ae8f",
+          "repositorySnapshotHash": "c8819c2e7ed4972654e16f69f307a47122ebd415c33815ef9d9840146a422c2a",
+          "scratchSnapshotHash": "157ab3c5249213d7f16b61a7a035bf048edf808b35cc8275284f498585999a58",
+          "files": 6,
+          "bytes": 3767,
+          "omittedCount": 2,
+          "omissionsTruncated": false,
+          "originalRepositoryWrites": false,
+          "snapshotWrites": "discarded"
+        },
+        {
+          "status": "exited",
+          "exitCode": 0,
+          "quiescent": true,
+          "maxActiveProcesses": 6,
+          "outputTruncated": false,
+          "snapshotHash": "1366fdbe580089e6b3a28feddfbdb2b9ce43c2defad3cf8a880d7cc70572ae8f",
+          "repositorySnapshotHash": "c8819c2e7ed4972654e16f69f307a47122ebd415c33815ef9d9840146a422c2a",
+          "scratchSnapshotHash": "157ab3c5249213d7f16b61a7a035bf048edf808b35cc8275284f498585999a58",
+          "files": 6,
+          "bytes": 3767,
+          "omittedCount": 2,
+          "omissionsTruncated": false,
+          "originalRepositoryWrites": false,
+          "snapshotWrites": "discarded"
+        },
+        {
+          "status": "exited",
+          "exitCode": 0,
+          "quiescent": true,
+          "maxActiveProcesses": 6,
+          "outputTruncated": false,
+          "snapshotHash": "1366fdbe580089e6b3a28feddfbdb2b9ce43c2defad3cf8a880d7cc70572ae8f",
+          "repositorySnapshotHash": "c8819c2e7ed4972654e16f69f307a47122ebd415c33815ef9d9840146a422c2a",
+          "scratchSnapshotHash": "157ab3c5249213d7f16b61a7a035bf048edf808b35cc8275284f498585999a58",
+          "files": 6,
+          "bytes": 3767,
+          "omittedCount": 2,
+          "omissionsTruncated": false,
+          "originalRepositoryWrites": false,
+          "snapshotWrites": "discarded"
+        }
+      ],
+      "release": "released",
+      "outcome": "One intentional current-behavior plan mismatch detected. Clean gate blocked by oversized read pagination; one PowerShell-syntax command failed before corrected cmd execution. Input errors now have a correction-specific error, authority refusals remain stop errors."
+    },
+    {
+      "kind": "unborn-git-fixture",
+      "at": "2026-10-04T16:29:32.435Z",
+      "modelStarts": 1,
+      "complete": true,
+      "turnStatus": "completed",
+      "usage": {
+        "total": {
+          "totalTokens": 261195,
+          "inputTokens": 256971,
+          "cachedInputTokens": 208768,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 4224,
+          "reasoningOutputTokens": 1502
+        },
+        "last": {
+          "totalTokens": 40943,
+          "inputTokens": 40888,
+          "cachedInputTokens": 38272,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 55,
+          "reasoningOutputTokens": 0
+        },
+        "modelContextWindow": 258400
+      },
+      "commands": [
+        {
+          "status": "exited",
+          "exitCode": 0,
+          "quiescent": true,
+          "maxActiveProcesses": 6,
+          "outputTruncated": false,
+          "snapshotHash": "153a0adf056679e51186c28f4d55c4e1856399d730622e725ecb9432c885a295",
+          "repositorySnapshotHash": "d6f6f5525e9bfa3b62ad988d98b7565251a5a6f85ec00e2b26a8c77f09ac4fd9",
+          "scratchSnapshotHash": "ecf797b2c05134070c1dfd189d73a62436fd181b93daa57c4555352eb5fb543f",
+          "files": 6,
+          "bytes": 3761,
+          "omittedCount": 2,
+          "omissionsTruncated": false,
+          "originalRepositoryWrites": false,
+          "snapshotWrites": "discarded"
+        }
+      ],
+      "release": "released",
+      "outcome": "Full verifier stopped when disposable fixture had no initial Git commit. Fixture corrected with a real initial commit; original failure retained."
+    },
+    {
+      "kind": "project-snapshot-hardlink",
+      "outcome": "Shared original node_modules hard link refused. A separately installed regular-file fixture is used; alias/hardlink guards were not relaxed."
+    },
+    {
+      "kind": "project-snapshot-deadline",
+      "outcome": "Original 120-second and sequential 300-second preparation bounds reached on the full dependency fixture. Native full-path resolution and bounded/joined 8-file batches with separate buffers then copied the complete 33871-file/743143926-byte fixture. Authority, aliases and per-file pre/post identity checks retained."
+    }
+  ],
+  "limits": {
+    "snapshot": {
+      "maxFileBytes": 134217728,
+      "maxFiles": 100000,
+      "maxTotalBytes": 2147483648,
+      "maxPreparationMs": 300000
+    },
+    "command": {
+      "maxTimeoutMs": 120000,
+      "maxCapturedBytes": 49152
+    },
+    "noOriginalCommandWrites": true,
+    "noNetworkCapability": true,
+    "fullDiskReadGranted": false,
+    "excluded": [
+      "Git/auth/.env metadata in command snapshots",
+      "network-dependent installation/builds",
+      "operational private template seed/rollback",
+      "actual bidirectional CLI/browser approval and mixed-version hosts",
+      "public/private package publishing and update/conflict acceptance",
+      "C4 automatic watch and 110-minute idle"
+    ]
+  },
+  "privacy": {
+    "rawPrivateSkillBodiesIncluded": false,
+    "rawModelEventsIncluded": false,
+    "authenticationIncluded": false,
+    "sessionCapabilityIdentifiersIncluded": false,
+    "absoluteUserPathsIncluded": false
+  }
+}

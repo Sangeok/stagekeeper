@@ -8,12 +8,12 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-04T14:39:36.421Z"
-tested-revision: "2d129c1798d79d9d09a307ab07ba9a49400867c2"
+last-executed-at: "2026-10-04T17:11:17.458Z"
+tested-revision: "056602a8023d54fe11513d99b82408cc08ca1116"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
-observed-environments: ["local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
+observed-environments: ["local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
 test-summary: "fail: dual-client runtime — required runtime gates remain unresolved"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
@@ -23,6 +23,10 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-04 native Windows commands and private bundle: actual code edit → npm test/build → discarded-output freshness passed in a native Codex thread. The unchanged complete verifier passed four bounded paths and a no-edit final sweep in a separate thread; zero plan defects were present in that corrected synthetic fixture. LPAC parent/child file and network refusals, whole-job termination, slow-start stop and guarded release passed. A private package includes Node/npm/license and the unchanged 8-file verifier; isolated client install/discovery and helper init without global Node in PATH passed. Full Next project build is recorded separately below. No WSL/new login/auth copy was used. Actual service approval/resumption, update/conflict and publishing/seed acceptance, mixed hosts and C4 remain open. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json) and [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json) retain failed candidates and exact phase identities.
+
+Historical file-only checkpoint:
 
 2026-10-04 native Windows file backend: actual Codex model reads, guarded workspace/new item writes, directory/literal search, protected path refusals, the complete 8-file staged package loader canary and pending-turn cancellation now have bounded evidence. No WSL or other login was used. Shell/build/test execution and additional-install-free packaging remain blocked; this is not complete Windows support or full verifier acceptance. [Windows observations](../assets/2026-10-04-codex-windows-role-files/observations.json) preserves actual failures, source hashes, limits and retained token fields.
 
@@ -46,6 +50,8 @@ FAIL/BLOCKED and source-only NOT RUN rows below retain their original run scope.
 
 ## Scope and Criteria
 
+Latest additions: native LPAC command and npm fixtures, independent full original verifier, complete private runtime/verifier packaging, isolated Codex install/discovery, PATH-without-global-Node helper init and actual full-project build attempt. No production DB or template seed, publishing, extra login, WSL execution or C4 trial. Earlier exclusions describe their own checkpoints.
+
 Included: C0 capability/package/legacy fixtures, bounded historical model trials, C1–C3 source and local regression/contract checks, and a new model-free App Server effective-config inspection. Excluded execution: production DB seed, actual C3 host/DB/browser acceptance, deployment and C4 automatic watch. The capability script itself sends no model turns.
 
 The later follow-up adds isolated DB contract evidence from the fourth-pass campaign and
@@ -59,7 +65,11 @@ the integrated two-CLI/browser product flow is still NOT RUN.
 | R3 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Current role host, cancellation and C4 prerequisite | MUST | Actual file operations must execute under unchanged permissions before C4; preserve prior failures |
 | R4 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Native Windows files first, commands and minimum setup remain gated | MUST | Actual scoped file boundaries/ownership without WSL; no shell/test or installation readiness claim from file canaries |
 
+| R5 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Native Windows commands, complete original verifier and private local minimum-setup bundle | MUST | Real guarded edit/test/build, LPAC child quiescence, independent full verifier and installed bundle evidence; preserve per-candidate failures and separate service/release gates |
+
 ## Test Target
+
+Latest source is 056602a8023d54fe11513d99b82408cc08ca1116. Phase-specific source/package/runtime SHA-256 identities are in the new projected artifact. Earlier full verifier and code-edit trials retain their own package revisions; later path/preparation/helper changes have separate actual native regressions. Temporary fixtures use synthetic loopback templates/MCP, not production DB or winning deployed private templates. The 8-file original verifier is copied unchanged and its private body is excluded from Git.
 
 The current run uses disposable Git checkouts under the owned stagekeeper-c4-runtime temporary root and synthetic localhost MCP, calling the actual product dispatchFreshRole. Role instructions are test stubs, not private winning template bodies. Current HEAD is the tested baseline; source hashes in the artifact identify uncommitted changes.
 
@@ -161,6 +171,15 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T82 | R4 | informational | Native broker/regression gates | Path aliases/absent reserved names/CAS/incomplete search/nullable key/receipt/stop guards | [E94] | PASS |
 | T83 | R4 | required | Native shell/build/test and installed minimum setup | Same role authority and no extra manual Node/skill install; full Windows verifier acceptance | [E95] | NOT RUN |
 
+| T84 | R5 | required | Actual LPAC command/runtime and child lifecycle | Scoped file/network behavior, job descendants terminate, stop during compile never starts untrusted code | [E96] | PASS |
+| T85 | R5 | required | Actual installed-package developer model | Guarded 41→42 edit, expected first failure, passing npm test/build and fresh output check | [E97] | PASS |
+| T86 | R5 | informational | Earlier full verifier with intentional plan defect | Report defect and do not falsely declare a clean pass when references are blocked | [E98] | BLOCKED |
+| T87 | R5 | informational | Earlier corrected verifier with unborn Git fixture | Stop if independently required repository identity cannot be verified | [E99] | BLOCKED |
+| T88 | R5 | required | Independent full original Windows verifier, committed fixture | Four paths, exact scratch destination, preservation and complete no-edit final pass; originals unchanged | [E100] | PASS |
+| T89 | R5 | required | Private complete package and isolated client install/init | One winning package, unchanged complete verifier, bundled helper without global Node in PATH | [E101] | PASS |
+| T90 | R5 | informational | Full Next project snapshot build | Record actual result independently of minimal npm canaries; no production DB/network waiver | [E102] | BLOCKED |
+| T91 | R5 | required | Operational product and C4 gates | Actual service approval/resumption, update/conflict, released package/private seed and mixed hosts before C4 | [E104] | BLOCKED |
+
 ## Commands and Static Checks
 
 Explicit local gates below were executed. The new TS test requires its own command because existing npm test/check globs do not select it.
@@ -186,6 +205,11 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | C17 | R2 | required | Full regression after latest dev integration | check/unit/web/script/private-template gates preserve both client contracts and acceptance failure handling | [E67] | PASS |
 | C18 | R2 | required | Production build after latest dev integration | Prisma generation and Next production build/type/static routes | [E68] | PASS |
 | C19 | R2 | required | Saved PR evidence trace/report validation | Strict trace and report lifecycle/evidence remain valid; runtime readiness stays unresolved | [E69] | PASS |
+
+| C20 | R5 | required | Final source check/core/web/native regressions | Types/lint/FSD/architecture, 309 core tests (307 PASS, 2 explicit skips), 576 web tests and 20 actual native tests | [E103] | PASS |
+| C21 | R5 | required | Host production build / CI check | Prisma/Next compile and static generation; distinct from role snapshot build | [E103] | PASS |
+| C22 | R5 | required | Windows runtime build and actual CI acceptance | Pinned official source, LOCAL pipe backport, native role/npm tests and complete artifact hash | [E96] | PASS |
+| C23 | R5 | required | Report structure, strict combined proposal trace and diff check | Saved report links/IDs/lifecycle and 22/22 trace coverage; no product readiness promotion | [E103] | PASS |
 
 ## Evidence Registry
 
@@ -287,6 +311,16 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E94 | Native source regression | 2026-10-04; final source/runtime hashes and platform gate coverage recorded in [checks](../assets/2026-10-04-codex-windows-role-files/checks.json). Historical malformed absolute-path and incomplete fixture outcomes are excluded from acceptance rather than rewritten as successful probes. | Safe checks projection |
 | E95 | Remaining Windows minimum setup | 2026-10-04; shell/build/test disabled in file backend; Node/external verifier dependency packaging and full Windows verifier/product acceptance not performed. LPAC command prototypes were not shipped; captured-pipe child compatibility remains unresolved. File successes do not clear BLK-MIN-01, other runtime/package gates or C4. | Explicit unresolved scope |
 
+| E96 | Actual native command/kernel and CI | 2026-10-04; actual LPAC parent/child permitted read/scratch, original/external/AAP-only/root-listing denial, loopback EACCES and zero connections; npm grandchildren, timeout/output cap and compile-time stop. Job active=0 and reader EOF acknowledgement fences settlement/release. Windows Server source CI run 37219215571 passed; the complete runtime artifact from passed run 37217822204 was separately hash-verified. Prior normalization/compiler-cleanup failures retained. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E97 | Actual developer model | 2026-10-04; private model package revision a44cb8ca19dad9a36aeaf315888184f6270cb18b with verified complete CI runtime; 1 fresh native model turn, 3 actual commands. Expected first failing test, guarded code changed to 42, tests/build exit 0, subsequent FRESH_SNAPSHOT confirms outputs discarded. Foreign/.env bytes preserved; terminal completed and release. Final bundle source 056602a has separate copy-batch regression/install evidence; phase identities are not rewritten. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E98 | Historical full verifier failure | 2026-10-04; complete original verifier detected the intentional adds/subtracts text mismatch. Oversized reference read parameters were misclassified as permission refusals; clean gate blocked. One PowerShell-syntax command failed before corrected cmd execution. Error classification/tool syntax fixed; no false clean verdict. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E99 | Historical unborn fixture stop | 2026-10-04; after reference reads succeeded, the corrected plan fixture still had no initial Git commit. Verifier stopped on missing required ref; real initial fixture commit fixed the test setup. No authority was widened. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E100 | Actual independent full verifier | 2026-10-04; private package revision b6da689772cc75912002893ebbaf928b5b55ac14; unchanged original 8-file checksum, one enabled staged package, full SKILL and six referenced resources read. All four paths and two sweeps with full no-edit final pass; zero plan defects, 5 commands exit 0/quiescent, destination 10/10 twice per sweep and baseline 2/2 before/after; 900-pair BigInt oracle plus 256 wider pairs. Owner/plan/stage unchanged and released. Pure CommonJS fixture, not production source verification. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E101 | Private bundle install/minimum setup | 2026-10-04; complete CI runtime/npm/license plus original verifier, tracked public helper source only; both verifier destinations checksum-identical. New isolated Codex profile marketplace/plugin install, one winning skill/helper, dry-run and files-written helper init exit 0 without global Node or verifier env path; no auth copy/private template body. Synthetic template service, not full real project registration. Claude manifest validation exit 0. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E102 | Actual full-project attempt | 2026-10-04; original shared node_modules hard link refused. Fresh regular-file public project fixture via offline npm ci --ignore-scripts; initial 120-second and sequential 300-second snapshot limits reached. Native path resolution and joined 8-file batches then prepared all 33,871 files/743,143,926 bytes with alias and pre/post identity checks retained. Actual npm run build invoked Prisma config; exit 1 while downloading the absent schema engine (network-denied EAI_FAIL). Job quiescent, no original writes, outputs discarded. Not a passing full-project build or Google Fonts/network acceptance. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E103 | Final native source and document checks | 2026-10-04; check/core/web/host build and native regression counts plus exact current source hashes recorded separately. Report validator/strict proposal trace/diff check are document/source gates; historical required failures retain aggregate fail. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E104 | Remaining actual service/release/C4 scope | 2026-10-04; no operational private seed/rollback/publish, real bidirectional CLI/browser approved resumption or mixed-version host acceptance; package update/conflict acceptance still open. C4 source and 110-minute idle trial NOT IMPLEMENTED/NOT RUN. Existing private working tree/WSL environment not changed. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
 
@@ -297,6 +331,10 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+2026-10-04 native Windows commands and private bundle: actual code edit → npm test/build → discarded-output freshness passed in a native Codex thread. The unchanged complete verifier passed four bounded paths and a no-edit final sweep in a separate thread; zero plan defects were present in that corrected synthetic fixture. LPAC parent/child file and network refusals, whole-job termination, slow-start stop and guarded release passed. A private package includes Node/npm/license and the unchanged 8-file verifier; isolated client install/discovery and helper init without global Node in PATH passed. Full Next project build is recorded separately below. No WSL/new login/auth copy was used. Actual service approval/resumption, update/conflict and publishing/seed acceptance, mixed hosts and C4 remain open. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json) and [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json) retain failed candidates and exact phase identities.
+
+Historical file-only checkpoint:
 
 2026-10-04 native Windows file backend: actual Codex model reads, guarded workspace/new item writes, directory/literal search, protected path refusals, the complete 8-file staged package loader canary and pending-turn cancellation now have bounded evidence. No WSL or other login was used. Shell/build/test execution and additional-install-free packaging remain blocked; this is not complete Windows support or full verifier acceptance. [Windows observations](../assets/2026-10-04-codex-windows-role-files/observations.json) preserves actual failures, source hashes, limits and retained token fields.
 
@@ -320,6 +358,8 @@ Permission-profile basis: [official permissions documentation](https://learn.cha
 
 ## Test Data and Cleanup
 
+Latest command/model phases: originals and protected bytes unchanged except the explicitly guarded developer fixture edit. Snapshot writes discarded, acknowledged jobs empty, actual App Server/bridge closed before own release. Failed acknowledgements retained ownership rather than claiming safe cleanup. Windows Server compiler artifacts are removed from a verified trusted directory before untrusted execution; no post-command ACL traversal is introduced. Private bundles/fixtures and raw private model events remain outside Git. Isolated package profiles contain no copied authentication; actual model trials use the existing native client login.
+
 Latest WSL2 phase: inspected 11 owned fixture checkouts; none retains a session lock. Actual role App Server children/bridges ended before release. Public evidence excludes raw private role/step bodies, auth codes, credential contents and conversation identities. Disposable test/scratch evidence and native Linux authentication remain outside Git for subsequent authorized trials.
 
 Initial setup correction: an invalid synthetic hash fixture failed before model/child startup. Its exact owned lock/policy were removed after root/session and empty child/poller checks; fixture source remains. The separate actual trial sessions all released normally.
@@ -331,6 +371,8 @@ Owned disposable roots retain non-secret fixture source/configuration and synthe
 An earlier writer implementation left its own draft when Windows handle/path dev values differed. After that writer ended, its valid draft was explicitly recovered; the fixed writer compares the actual file identity and never takes over an existing draft automatically. Tests cover failed rename, an unrelated successor temporary file, external report modification and immutable completed-campaign preflight. Current own .tmp is absent after atomic rename/read-back. Tests remove only their explicitly checked owned temporary roots; C0 evidence roots are retained. Required failure history is preserved rather than rewritten as PASS; a future successful alternative must follow explicit report lifecycle/evidence rules.
 
 ## Conclusion
+
+Latest command/bundle decision: active/result:null. Bounded native Windows model execution, full original verifier and private local package evidence now pass their stated scope. Operational release, integrated service acceptance and C4 are incomplete. Earlier decisions below remain historical.
 
 Latest native Windows decision: active/result:null. Scoped file role behavior and loader/stop canaries passed; commands, full verifier/installed package/minimum setup and C4 remain unresolved. All earlier conclusions below describe their own checkpoints.
 

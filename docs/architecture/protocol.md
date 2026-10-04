@@ -491,7 +491,10 @@ CLI의 shell/unified exec는 계속 비활성화한다.
 
 명령은 같은 파일 정책으로 내보낸 repository와 role scratch의 새 복사본에서 실행한다.
 Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제외하고 binary도 hash를
-기록한다. alias/hardlink·복사 중 변경은 거부하며 크기·파일 수·준비 시간에 상한이 있다.
+기록한다. alias/hardlink·복사 중 변경은 거부한다. 한 파일 128MiB, 100,000개·총 2GiB,
+각 snapshot 준비 300초를 상한으로 둔다. 최대 8개 파일을 별도 buffer로 복사하며 모든
+진행 중 복사를 join한 뒤 오류를 전파·정리한다. 실제 경로와 IO 전후 identity·mtime·size를
+매번 확인하며 권한·경로 결과를 cache하지 않는다.
 `cwd`는 repository 상대 경로이고 `STAGEKEEPER_ROLE_SCRATCH`는 복사한 scratch다.
 전체 source/scratch hash·누락 수/경로·누락 목록 잘림을 결과에 포함한다. 모든 복사본 쓰기와
 산출물은 버리며 원본으로 동기화하지 않는다. 원본 수정은 guarded 파일 도구를 사용한다.
@@ -506,6 +509,9 @@ logon session에 임시 매핑한다. process 전용 매핑으로 주장하지 �
 stdin EOF, 고정된 환경과 runtime/System32 PATH만 전달하며 network capability는 없다.
 
 helper는 소유권 등록·active 확인 뒤에만 컴파일/실행하며 command 중에도 active를 확인한다.
+신뢰된 compiler 임시 파일은 검증한 owned 하위 디렉터리에서 만들고, untrusted 실행 전에
+같은 compiling process가 삭제한다. 실제 시작 marker와 종료 acknowledgement를 구분하며
+컴파일 중 도착한 stop도 suspended 자식의 resume 전에 확인한다.
 stop·소유권 상실·timeout·출력 상한·root 종료 시 job 전체를 종료한다. active process 0,
 root terminal, output reader EOF, drive/profile cleanup을 확인한 nonce acknowledgement 뒤에만
 tracked helper를 settle한다. 오류·ack 누락은 ownership과 owned 복사본을 보존한다. 명령이
