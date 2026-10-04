@@ -135,6 +135,7 @@ public static class StagekeeperRoleProcess {
     bool profile = false, listReady = false;
     var process = new ProcessInformation(); SecurityIdentifier identifier = null;
     var output = new Output(); int stopped = 0;
+    var control = new Thread(() => { try { Console.In.ReadLine(); } finally { Interlocked.Exchange(ref stopped, 1); } }); control.IsBackground = true; control.Start();
     try {
       Stage = "profile-create";
       int status = CreateAppContainerProfile(name, name, "Disposable Stagekeeper role", IntPtr.Zero, 0, out sid);
@@ -198,12 +199,16 @@ public static class StagekeeperRoleProcess {
       var jobLimits = new JobExtendedLimit(); jobLimits.Basic.Flags = 0x2000;
       limits = Marshal.AllocHGlobal(Marshal.SizeOf(jobLimits)); Marshal.StructureToPtr(jobLimits, limits, false);
       Check(SetInformationJobObject(job, 9, limits, (uint)Marshal.SizeOf(jobLimits)), "job limits"); Check(AssignProcessToJobObject(job, process.Process), "job assignment");
-      var control = new Thread(() => { try { Console.In.ReadLine(); } finally { Interlocked.Exchange(ref stopped, 1); } }); control.IsBackground = true; control.Start();
       Stage = "process-resume";
-      if (ResumeThread(process.Thread) == UInt32.MaxValue) throw new Win32Exception(Marshal.GetLastWin32Error(), "resume");
+      bool stoppedBeforeLaunch = Volatile.Read(ref stopped) != 0;
+      if (stoppedBeforeLaunch) Check(TerminateJobObject(job, 124), "stopped before resume");
+      else {
+        if (ResumeThread(process.Thread) == UInt32.MaxValue) throw new Win32Exception(Marshal.GetLastWin32Error(), "resume");
+        Console.Out.WriteLine("__stagekeeper_native_started__"); Console.Out.Flush();
+      }
       CloseHandle(inRead); inRead = IntPtr.Zero; CloseHandle(outWrite); outWrite = IntPtr.Zero; CloseHandle(errWrite); errWrite = IntPtr.Zero;
       var outputTask = Task.Run(() => output.Read(outRead)); var errorTask = Task.Run(() => output.Read(errRead));
-      var clock = System.Diagnostics.Stopwatch.StartNew(); string reason = "exited"; uint peak = 1;
+      var clock = System.Diagnostics.Stopwatch.StartNew(); string reason = stoppedBeforeLaunch ? "stopped" : "exited"; uint peak = 1;
       Stage = "job-execution";
       while (true) {
         peak = Math.Max(peak, ActiveProcesses(job));

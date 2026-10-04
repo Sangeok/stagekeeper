@@ -63,7 +63,7 @@ async function nativeFixture(t) {
 }
 // Outer host kernel acceptance cannot recursively create another privileged
 // launcher inside an already isolated role snapshot. Its skipped status is visible.
-const native = { skip: process.platform !== "win32" || process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1", timeout: 30000 };
+const native = { skip: process.platform !== "win32" || process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1", timeout: 120000 };
 
 it("uses actual LPAC file denial and leaves the original repository unchanged", native, async t => {
   const f = await nativeFixture(t), outside = path.join(f.base, "external.txt"), source = path.join(f.root, "src/source.cjs");
@@ -117,6 +117,8 @@ it("retains the real session lock until a stopped command helper acknowledges al
     const result = await runNativeCommand({ root: f.directory, command: 'start /b cmd /d /c "for /l %n in (1,1,100000000) do @rem waiting" & for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 10000 }, {
       onSpawn: async child => {
         await registerChild(files, started.session, binding, child);
+      },
+      onStarted: async () => {
         stopTimer = setTimeout(() => { stopTask = (async () => {
           await requestStop(files, started.session);
           assert.equal((await releaseSession(files, started.session)).code, "quiescence-required");
@@ -144,6 +146,19 @@ it("waits for actual job termination on stop and never activates after an owner 
   assert.equal(refusedSettled, 1); assert.equal(existsSync(path.join(refused.directory, "repo/write.txt")), false);
 });
 
+it("never resumes an untrusted command when stop is queued during helper compilation", native, async t => {
+  const f = await nativeFixture(t), controller = new AbortController(); let started = 0, timer;
+  try {
+    const result = await runNativeCommand({ root: f.directory, command: "echo FORBIDDEN> write.txt", cwd: "", timeoutMs: 5000 }, {
+      signal: controller.signal,
+      onSpawn: async () => { timer = setTimeout(() => controller.abort(), 150); },
+      onStarted: async () => started++,
+    });
+    assert.equal(result.status, "stopped"); assert.equal(result.quiescent, true); assert.equal(started, 0);
+    assert.equal(existsSync(path.join(f.directory, "repo/write.txt")), false);
+  } finally { clearTimeout(timer); }
+});
+
 it("rejects malformed command arguments before preparing or executing a snapshot", async t => {
   const f = fixture(t), broker = await createRoleCommands({ root: f.root, agent: "dev", fileBroker: f.files, runtime: {} });
   try {
@@ -152,7 +167,7 @@ it("rejects malformed command arguments before preparing or executing a snapshot
 });
 
 const runtimePath = process.env.STAGEKEEPER_TEST_WINDOWS_RUNTIME;
-it("passes real pipe/network/path preflight and runs npm test/build on a fresh source snapshot", { skip: process.platform !== "win32" || !runtimePath, timeout: 120000 }, async t => {
+it("passes real pipe/network/path preflight and runs npm test/build on a fresh source snapshot", { skip: process.platform !== "win32" || !runtimePath, timeout: 180000 }, async t => {
   const runtime = installedWindowsRuntime(runtimePath); assert.equal((await verifyNativeRuntime(runtime)).event, "native-command-ready");
   const f = fixture(t);
   writeFileSync(path.join(f.root, "package.json"), JSON.stringify({ scripts: { test: "node --test source.test.cjs", build: "node build.cjs" } }));

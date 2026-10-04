@@ -90,7 +90,7 @@ async function copyRuntime(runtime, destination, signal) {
   await writeFile(path.join(destination, "npm.cmd"), '@echo off\r\n"%~dp0node.exe" "%~dp0npm\\bin\\npm-cli.js" %*\r\n', { flag: "wx" });
 }
 
-export async function runNativeCommand(request, { signal, onSpawn = async () => {}, beforeActivate = async () => {}, onSettled = async () => {} } = {}) {
+export async function runNativeCommand(request, { signal, onSpawn = async () => {}, onStarted = async () => {}, beforeActivate = async () => {}, onSettled = async () => {} } = {}) {
   if (process.platform !== "win32") throw new Error("Windows native backend required");
   signal?.throwIfAborted();
   for (const [name, source] of Object.entries(helperSources)) await writeFile(path.join(request.root, name), source, { flag: "wx" });
@@ -99,10 +99,15 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
   const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
   const child = spawn(executable, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(request.root, "role-process.ps1"), "-RequestPath", requestFile],
     { cwd: request.root, windowsHide: true, env: { SystemRoot: process.env.SystemRoot ?? "C:\\Windows", TEMP: request.root, TMP: request.root }, stdio: ["pipe", "pipe", "pipe"] });
-  const identity = { pid: child.pid, nonce }; let stdout = "", stderr = "", stderrBytes = 0, activated = false, registered = false;
+  const identity = { pid: child.pid, nonce }; let stdout = "", stderr = "", stderrBytes = 0, activated = false, registered = false, started;
+  const startMarker = "__stagekeeper_native_started__";
   const stop = () => { if (!child.stdin.destroyed) child.stdin.end("stop\n"); };
   child.stdout.setEncoding("utf8");
-  child.stdout.on("data", chunk => { stdout += chunk; if (Buffer.byteLength(stdout) > 512 * 1024) { stop(); child.kill(); } });
+  child.stdout.on("data", chunk => {
+    stdout += chunk;
+    if (!started && stdout.startsWith(startMarker + "\r\n")) { started = Promise.resolve().then(() => onStarted(identity)); void started.catch(stop); }
+    if (Buffer.byteLength(stdout) > 512 * 1024) { stop(); child.kill(); }
+  });
   child.stderr.on("data", chunk => { stderrBytes += chunk.length; if (stderrBytes <= 8192) stderr += chunk.toString("utf8"); else { stop(); child.kill(); } });
   child.stdin.on("error", () => {});
   const ended = new Promise((resolve, reject) => { child.once("error", reject); child.once("close", (code, terminalSignal) => resolve({ code, terminalSignal })); });
@@ -128,7 +133,8 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
       } catch { /* Non-protocol diagnostics are deliberately not reflected. */ }
       throw new Error(`Native helper ended without acknowledgement${diagnostic}; ownership retained`);
     }
-    const result = JSON.parse(stdout.trim());
+    await started;
+    const result = JSON.parse(stdout.startsWith(startMarker + "\r\n") ? stdout.slice(startMarker.length + 2).trim() : stdout.trim());
     if (result.nonce !== nonce || result.quiescent !== true || !["exited", "timeout", "stopped", "output-limit"].includes(result.status)
       || !Number.isInteger(result.exitCode) || typeof result.stdout !== "string" || typeof result.stderr !== "string" || typeof result.outputTruncated !== "boolean") throw new Error("Native helper acknowledgement differs; ownership retained");
     await onSettled(identity); registered = false; return result;
