@@ -11,11 +11,11 @@ completed-at: "2026-10-04"
 last-executed-at: "2026-10-04T05:02:22Z"
 tested-revision: "e3548546076f279ddbf1e22e2a5ec563fd0a6e9e"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-support.md","docs/conventions/product-copy.md"]
+related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/conventions/product-copy.md"]
 primary-area: "frontend/dual-client"
 observed-environments: ["local | isolated React fixture | Node.js/Windows/headless Edge | synthetic tokens"]
 test-summary: "pass: owner Codex connection and shared TurnBanner selection implemented and verified"
-follow-up: ["docs/proposals/active/codex-dual-client-support.md"]
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Dual-client의 남은 두 UI 요구사항 구현 인수

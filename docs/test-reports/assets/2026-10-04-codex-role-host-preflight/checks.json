@@ -1,0 +1,65 @@
+{
+  "at": "2026-10-04T11:56:29.121Z",
+  "sourceBase": "6837fe73e802e8c833c335b1dc740acccf814975",
+  "worktreeSource": true,
+  "sourceSha256": {
+    "plugin/runtime/codex-thread.mjs": "25290638a0df9b9759aa9260162dd4718419b695c2a3fdbc0fb92c8b61bf4ca9",
+    "plugin/bin/harness-session.test.mjs": "c28985b111dcbb2c1d551810e4e523211817ff8bf6f05802a292558a71053103",
+    "plugin/codex/skills/harness-run/SKILL.md": "d0318249b18d9adeaed207ff4958ebe788d7cea56d74ecd1e7d4fd1e23b70028",
+    "scripts/rehearse-dual-client-runtime.ts": "45ad1b4166239eaff4c7b7f2d7f8fa1ef54e71751b4f5d093ba55cd79237797e",
+    "scripts/rehearse-dual-client-runtime.test.ts": "9a06d16dfd0b7e00a6594bbeb9c71e1cc7768664809bd2d7c7b1c489caddf6e0"
+  },
+  "results": {
+    "sessionTests": {
+      "command": "node --test plugin/bin/harness-session.test.mjs",
+      "pass": 11,
+      "fail": 0
+    },
+    "corePluginTests": {
+      "command": "npm test",
+      "pass": 287,
+      "fail": 0
+    },
+    "reportTests": {
+      "command": "node --import tsx --test scripts/rehearse-dual-client-runtime.test.ts",
+      "pass": 27,
+      "fail": 0,
+      "skip": 1,
+      "skipReason": "Windows file symlink privilege; path escape/junction checks executed"
+    },
+    "check": {
+      "command": "npm run check",
+      "passed": true,
+      "architecture": 26,
+      "projectAvailability": 18,
+      "existingWarnings": 0
+    },
+    "architecture": {
+      "command": "npm run test:architecture",
+      "pass": 26,
+      "fail": 0
+    },
+    "fsd": {
+      "command": "npm run verify:fsd",
+      "passed": true
+    },
+    "build": {
+      "command": "npm run build",
+      "passed": true,
+      "framework": "Next.js 16.3.3",
+      "scope": "Runtime source included; subsequent CRLF report parser/test change verified by targeted tests and final check"
+    },
+    "structure": {
+      "command": "node --import tsx scripts/rehearse-dual-client-runtime.ts --validate-report-only --report docs/test-reports/active/dual-client-runtime-report.md",
+      "passed": true,
+      "productPass": false
+    },
+    "whitespace": {
+      "command": "git diff --check",
+      "passed": true
+    }
+  },
+  "incidentalFix": "Report appends failed on saved CRLF section text. Normalize section line endings during parse; regression preserves evidence/history and active null result.",
+  "initialFixtureCleanup": "An initial synthetic setup used invalid literal fixture hashes and failed before any model/child started. Removed only its exact verified lock/policy after checking root/session/empty children/null poller. Fixture source retained. All actual trial sessions released.",
+  "productVerdict": "Basic filesystem host BLOCKED; C4 NOT IMPLEMENTED. Unit/build/report results do not certify runtime/deployment readiness."
+}

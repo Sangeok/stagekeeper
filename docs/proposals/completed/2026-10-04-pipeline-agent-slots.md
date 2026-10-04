@@ -27,7 +27,7 @@ related:
 
 2026-10-04 문서 정리에서 완료 범위를 **이미 dev에 통합된 Core 1 코드와 기록된 로컬 인수**로 정했다.
 2026-09-16~18의 계획·검토·미체크 DoD는 당시 기록으로 보존한다. 새로 실행하거나 운영 검증을 통과했다고 해석하지 않는다.
-Phase 2는 [agent-role-catalog](../active/agent-role-catalog.md)에서 active 계획으로 유지하며,
+Phase 2 역할 카탈로그 제안서는 2026-10-04 사용자의 삭제 지시에 따라 제거했다. 사용자 정의 역할은 구현되지 않았으며 활성 계획으로 유지하지 않는다.
 당시 미완료 CI·운영/private bundle 확인은 [후속 기록](../../test-reports/active/2026-10-04-proposal-status-follow-ups.md)으로 추적한다.
 
 ## Summary

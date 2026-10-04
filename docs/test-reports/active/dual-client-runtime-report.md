@@ -8,14 +8,14 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-04T05:02:22Z"
-tested-revision: "e3548546076f279ddbf1e22e2a5ec563fd0a6e9e"
+last-executed-at: "2026-10-04T11:56:29.121Z"
+tested-revision: "6837fe73e802e8c833c335b1dc740acccf814975"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-support.md","docs/test-reports/README.md","docs/test-reports/template.md"]
+related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner"]
-test-summary: "fail: dual-client implementation and runtime — source gates pass; required host and deployment gates remain unresolved"
-follow-up: ["docs/proposals/active/codex-dual-client-support.md"]
+test-summary: "fail: dual-client runtime — required runtime gates remain unresolved"
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Dual-client implementation and runtime report
@@ -23,6 +23,10 @@ follow-up: ["docs/proposals/active/codex-dual-client-support.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-04 actual current-adapter trials: per-tool MCP approval defect fixed; MCP execution and pending PM stop/common-lock exclusion observed. Windows 0.160.0 cannot execute the unchanged root-deny file policy, so basic host acceptance remains BLOCKED and C4 is NOT IMPLEMENTED. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) records projected diagnostics, source hashes and 66048 reported tokens. Full DB/browser/installed-package/verifier and mixed-version acceptance remain open.
+
+2026-10-04 document lifecycle update: the user completed the basic proposal on its source-implementation criterion. Remaining actual host, CLI, private deployment and C4 work is tracked in [the active follow-up proposal](../../proposals/active/codex-dual-client-runtime-follow-ups.md). That lifecycle-only update ran no runtime trials and preserved then-current metadata. The later actual trial rows below update execution metadata while retaining all historical rows.
 
 C0 evaluates a disposable host/package/legacy-lock environment. It does not certify Codex production support or authorize deployment. Each execution appends evidence; historical PASS results are tied to their own recorded revision.
 
@@ -44,12 +48,15 @@ the integrated two-CLI/browser product flow is still NOT RUN.
 
 | Criterion | Source | Scope | Interpretation | Success criterion |
 | --- | --- | --- | --- | --- |
-| R1 | docs/proposals/active/codex-dual-client-support.md | E1/E6/E7 C0 | MUST | Actual isolation/discovery plus legacy boundaries; unexecuted checks remain blocked |
-| R2 | docs/proposals/active/codex-dual-client-support.md | C1–C3 source and acceptance | MUST | Preserve Claude, client/ledger/ownership contracts and safe generation; actual host/DB/package acceptance must be distinct |
+| R1 | docs/proposals/completed/2026-10-04-codex-dual-client-support.md | E1/E6/E7 C0 | MUST | Actual isolation/discovery plus legacy boundaries; unexecuted checks remain blocked |
+| R2 | docs/proposals/completed/2026-10-04-codex-dual-client-support.md | C1–C3 source and acceptance | MUST | Preserve Claude, client/ledger/ownership contracts and safe generation; actual host/DB/package acceptance must be distinct |
+| R3 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Current role host, cancellation and C4 prerequisite | MUST | Actual file operations must execute under unchanged permissions before C4; preserve prior failures |
 
 ## Test Target
 
-Disposable roots and loopback MCP are runtime targets; the current repository/private working trees are source/test targets. User/global configuration and production DB are untouched. Existing user documentation changes are retained. New inspection uses config/read only and starts no model turn.
+The current run uses disposable Git checkouts under the owned stagekeeper-c4-runtime temporary root and synthetic localhost MCP, calling the actual product dispatchFreshRole. Role instructions are test stubs, not private winning template bodies. Current HEAD is the tested baseline; source hashes in the artifact identify uncommitted changes.
+
+Disposable roots and loopback MCP are runtime targets; the current repository/private working trees are source/test targets. User/global configuration and production DB are untouched. Existing user documentation changes are retained. The historical 2026-10-03 inspection used config/read only and started no model turn; the new actual trials are described separately above.
 
 Fixtures are retained under %TEMP%/stagekeeper-dual-client-c0-20261003-a, -b, -c and -d. Model targets were -b/checkout and its sibling verifier scratch directories. The final model-free capability run used -d. CLI versions: Codex 0.160.0 and Claude Code 2.1.288. Public baseline is origin/dev 9675a3efdaf12bb7c419d11c4164beaa55c89821, branch harness/codex-dual-client-support; product source is uncommitted. Private HEAD remains 95ace9d70b63cc8598ab229e2fe1138467f11728 with separate local template/test changes. Source hashes below identify the tested working bodies, not a published revision.
 
@@ -122,6 +129,13 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T57 | R2 | required | Six PostgreSQL tests at the 2026-10-03 source-only snapshot | Both client orders and formats preserve approved commit/run/receipt/usage; rollback and bounded restore work | [E65] | NOT RUN |
 | T58 | R2 | required | Later isolated PostgreSQL contract execution | All six unchanged tests pass inside the fourth-pass 95-test suite; no deployed bundle or CLI claim | [E70] | PASS |
 | T59 | R2 | required | Owner connection and shared banner selection | Correct owner command/Copy; setup-next/tab persistence and identity resets; selection has no mutation | [E71] | PASS |
+| T60 | R3 | required | Current adapter first MCP execution before fix | Role-authorized agent_next executes under never escalation policy | [E72] | FAIL |
+| T61 | R3 | informational | Current adapter MCP execution after per-tool fix | Only role-authorized MCP calls execute | [E73] | PASS |
+| T62 | R3 | required | Current adapter functional filesystem host gate | Allowed repository read and scratch write execute; forbidden repository write fails | [E74] | BLOCKED |
+| T63 | R3 | informational | Model-free sandbox execution preflight and cleanup | Unsupported role execution stops before a model turn and releases its settled child | [E75] | PASS |
+| T64 | R3 | informational | Actual pending PM MCP cancellation and duplicate start | Preserve lock until terminal turn, refuse duplicate client, then release | [E76] | PASS |
+| T65 | R3 | required | C4 prerequisite and automatic watch | Functional basic host acceptance precedes C4 implementation and 110-minute idle trial | [E77] | NOT IMPLEMENTED |
+| T66 | R1 | informational | Final source/report regression and build | No source regression; immutable historical evidence and truthful active lifecycle | [E78] | PASS |
 
 ## Commands and Static Checks
 
@@ -224,6 +238,13 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E69 | PR evidence read-back | 2026-10-03 saved PR evidence: strict proposal validator exit 0 with phase/task20/20 and verifier20/20; dedicated report validate-only exit 0; staged diff whitespace check passes. Historical candidate FAIL and required real host/DB/package NOT RUN remain intact, active/result:null retained. | Inline summary; source PR does not certify release |
 | E70 | Later isolated DB contracts | 2026-10-04 fourth-pass campaign: npm run test:server:integration passed 95/95, including client-runtime tests 44–49: both client orders times legacy/slots, preflight-before-mutation, transactional seed rollback/bounded restore. Source SHA256 remains 7a7dedc35811a6ad5ab4bb8f212f1579b61eeb54f1c53b1431de35a0cda007ff; e354854 retains that exact test source. Original TAP log inspected locally; production/private deployment and CLI/model/browser full flow not exercised. | [Fourth-pass report](../completed/2026-10-04-src-clean-code-fourth-pass.md), unchanged tests/server/integration/client-runtime.test.ts |
 | E71 | Remaining UI implementation/acceptance | 2026-10-04 source e3548546076f279ddbf1e22e2a5ec563fd0a6e9e: owner Codex choice uses explicit token-free harness_owner registration; banner owns shared local selection across setup/work/tab changes and resets on slug. npm run check/build pass, test:web559/core-plugin286 pass, browser28/28 pass. No MCP registration, model, DB migration/seed or deployment executed in this UI follow-up. | [UI acceptance report](../completed/2026-10-04-codex-dual-client-ui.md), [browser results](../assets/2026-10-04-codex-dual-client-ui/browser-results.json) |
+| E72 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Actual doc-auditor model on 2026-10-04T11:41:13.494Z: zero remote calls; model reported MCP approval required under never. The adapter defect was fixed after this failed trial; failure history retained. Reported tokens 22781. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) | Inline; no raw log retained |
+| E73 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Actual doc-auditor model on 2026-10-04T11:45:07.278Z: agent_next plus bound outcome executed with client codex, done true; owner/nested tools unavailable. This is MCP execution evidence only, not filesystem PASS or winning private role/verifier acceptance. Reported tokens 38646. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) | Inline; no raw log retained |
+| E74 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Actual post-MCP-fix model: read, scratch write, forbidden repository write all refused before process launch: elevated Windows sandbox requires effective :root read access. No protected write observed, but allowed operations also failed. BLOCKED, not successful filesystem isolation. Same-version upstream validation confirms incompatibility. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) | Inline; no raw log retained |
+| E75 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Actual final worktree adapter: effective policy check followed by command/exec under unchanged named permissions fails. No turn/token usage or remote role tool call; child/bridge ended and session released. PM, which has no native file tools, skips the command probe. Marker success alone would not certify filesystem isolation. Runtime SHA256 25290638a0df9b9759aa9260162dd4718419b695c2a3fdbc0fb92c8b61bf4ca9. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) | Inline; no raw log retained |
+| E76 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Actual model on 2026-10-04T11:48:55.423Z: pending agent_next observed, children 1; simultaneous Claude start locked with same session and unchanged commit/propose false policy. Stop → early release quiescence-required → turn/interrupt after 381ms → turn/completed interrupted → pending HTTP closed → children 0 → release. No outcome submission after stop. Reported tokens 4621. This is fixture-MCP/current-Codex evidence, not actual Claude host or mixed-version handoff acceptance. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) | Inline; no raw log retained |
+| E77 | Actual current adapter/manual host | 2026-10-04T11:48:55.423Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; NOT IMPLEMENTED: basic filesystem host gate is blocked, so C4 runner/command/skill and actual 110-minute idle/resumption trial were not started. Local WSL distribution and Docker/Podman are unavailable. User authorization remains recorded; no permission widening, global setup, or automatic-watch guidance substituted for evidence. | Inline; no raw log retained |
+| E78 | C0 command/fixture | 2026-10-04T11:56:29.121Z; revision 6837fe73e802e8c833c335b1dc740acccf814975; Session tests 11 PASS; npm test 287 PASS; npm run check PASS (architecture26/project-availability18; lint clean); explicit FSD/architecture PASS; build PASS. Actual report append exposed CRLF evidence-table corruption, fixed by normalizing parsed section text; report tests 27 PASS/1 Windows file-symlink privilege skip/0 failures and final check PASS. Dedicated report structure and git diff --check PASS. [Final source hashes and checks](../assets/2026-10-04-codex-role-host-preflight/checks.json). No new model, DB, package or C4 trial in these commands. | Inline; no raw log retained |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -236,13 +257,15 @@ Final E64–E66 uncommitted source inventory: 59 changed/untracked public files 
 
 ## Findings and Follow-up
 
+Current run: MCP tool approvals are bounded to the existing role allowlist with default prompt; request escalation still refused. The file-role command preflight now fails before inference on the unsupported host. Actual PM pending MCP stop was observed but does not clear BLK-DUAL-01/02/03/05 or watch BLK-DUAL-04. Compatible host basic acceptance is the next dependency; C4 remains authorized but unimplemented. Earlier scope statements below describe their own historical runs.
+
 The public implementation is committed in 771fd41 and integrated with latest dev in E67's revision for a PR targeting dev. The earlier uncommitted inventories describe their historical checkpoints. The separate private template repository remains at 95ace9d70b63cc8598ab229e2fe1138467f11728 with local changes; those bodies are excluded from the public PR and have not been committed, pushed or seeded. Actual installed package, owner skill execution, DB and deployment blockers remain unchanged. Unrelated existing document edits/deletions are excluded from the public commits.
 
-C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track unresolved native role isolation, actual winning package body, approved private deployment and mixed-version quiescence in [the proposal](../../proposals/active/codex-dual-client-support.md).
+C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track unresolved native role isolation, actual winning package body, approved private deployment and mixed-version quiescence in [the follow-up proposal](../../proposals/active/codex-dual-client-runtime-follow-ups.md).
 
 BLK-DUAL-01 remains open: reject the writable-repository automatic approval candidate; test the implemented fresh App Server adapter where repository reads and allowed scratch writes execute while forbidden writes, nested agents and owner tools are actually denied. The new effective config check does not establish functional kernel/tool restrictions. Neither global sandbox reconfiguration nor blanket escalation was performed. Architecture documents now describe implemented source and explicitly distinguish actual product readiness.
 
-BLK-DUAL-02 is partially informed by the unchanged complete owner skill package (8 files, E18/E32), graph-preservation/render tests and bounded seed/restore contracts, including later isolated DB rollback E70; actual verifier execution and approved private bundle deployment/recovery remain untested. BLK-DUAL-03's earlier compatibility fixture passed, while the new source package is not published or installed for full acceptance. BLK-DUAL-05 has local managed/legacy stopping, child settlement and successor fencing tests; actual mixed host pending/quiescence remains unproven. C4 stays out of scope.
+BLK-DUAL-02 is partially informed by the unchanged complete owner skill package (8 files, E18/E32), graph-preservation/render tests and bounded seed/restore contracts, including later isolated DB rollback E70; actual verifier execution and approved private bundle deployment/recovery remain untested. BLK-DUAL-03's earlier compatibility fixture passed, while the new source package is not published or installed for full acceptance. BLK-DUAL-05 has local managed/legacy stopping, child settlement and successor fencing tests; actual mixed host pending/quiescence remains unproven. C4 was outside that historical execution scope; the user subsequently authorized it, but the current basic host gate prevents the prescribed next implementation step.
 
 Reproduction: run node --import tsx scripts/rehearse-dual-client-runtime.ts --phase capability --root <new-empty-absolute-root-outside-repository> --report docs/test-reports/active/dual-client-runtime-report.md. The command uses no model and currently exits 2 for required unexecuted checks. It creates native-probe.argv.json/native-probe.prompt.txt and strict-profile-probe.argv.json/strict-profile-probe.prompt.txt, plus separate read-only repository and scratch fixtures. capabilityProbe and isolatedModelEnvironment exports supply the exact generated argument array and sanitized environment for an independently authorized Node spawn. These are explicit prototypes, not production adapters or a model auto-launch interface. The historical automatic approval probe is failure evidence and should not be used for a real repository.
 
@@ -250,11 +273,17 @@ Permission-profile basis: [official permissions documentation](https://learn.cha
 
 ## Test Data and Cleanup
 
+Initial setup correction: an invalid synthetic hash fixture failed before model/child startup. Its exact owned lock/policy were removed after root/session and empty child/poller checks; fixture source remains. The separate actual trial sessions all released normally.
+
+Current manual trials consumed the native CLI login without copying credentials or forwarding parent HARNESS/owner/API variables. All owned child/bridge processes and locks settled/released. Synthetic fixtures and probe scripts remain in the owned temporary root for reproduction; no production seed, deployment or browser profile change. Three model turns report a total of 66048 tokens; execution preflight starts none. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) contains no credentials, private body or real conversation transcript.
+
 Owned disposable roots retain non-secret fixture source/configuration and synthetic write-failure files for reproduction. C0 loopback listener/App Server inspection processes close before report emission. The manual model trials completed; one earlier network-blocked CLI attempt was stopped by its exact owned PID without targeting unrelated Codex processes. No product/global configuration, production data, real token registration, DB audit or DB seed was changed. The five completed manual probes consumed model usage as recorded in their evidence; the model-free script itself did not.
 
 An earlier writer implementation left its own draft when Windows handle/path dev values differed. After that writer ended, its valid draft was explicitly recovered; the fixed writer compares the actual file identity and never takes over an existing draft automatically. Tests cover failed rename, an unrelated successor temporary file, external report modification and immutable completed-campaign preflight. Current own .tmp is absent after atomic rename/read-back. Tests remove only their explicitly checked owned temporary roots; C0 evidence roots are retained. Required failure history is preserved rather than rewritten as PASS; a future successful alternative must follow explicit report lifecycle/evidence rules.
 
 ## Conclusion
+
+Current decision: preserve active/result:null. Actual MCP execution/cancellation evidence is partial; Windows functional filesystem gate remains blocked. C4 and the 110-minute idle experiment were not performed. A compatible host must pass the unchanged-role basic acceptance before proceeding.
 
 Result rationale: fail
 Required failure: automatic approval candidate wrote the protected disposable repository. Native role selection and strict fresh CLI candidates remain blocked or unproven. Static/unit/build PASS cannot repair these runtime outcomes.
