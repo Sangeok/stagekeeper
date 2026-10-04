@@ -52,7 +52,7 @@ related:
 - 후속 진행 지시로 WSL2 Ubuntu 26.04.1과 별도 Linux 사용자/checkout을 준비했다. CLI 0.160.0에 native ChatGPT 로그인을 완료했고 Windows 인증 파일은 복사하지 않았다. 실제 모델 시험에서 PATH 제거로 읽기 명령이 실패하고, owner `.codex` 안의 스킬은 목록에 나타나도 읽지 못하는 결함을 발견했다. 고정 시스템 PATH와 checksum을 검증한 완전한 스킬의 읽기 전용 scratch 복사본으로 수정했다. root deny·인증 디렉터리 차단·network/approval 정책은 유지했다.
 - 수정 후 bounded 실제 역할의 읽기/scratch 쓰기, 실제 private working-source verifier의 네 검증 경로, 모델 없는 staged skill·외부 경로·저장소/Git 권한 경계가 통과했다. verifier는 시험 제안서의 설명 불일치 1건을 찾아냈고, 그 시험 문서만 수정한 별도 fresh 실행에서 0 defects를 반환했다. 이 결과는 현재 C4 문서나 운영 winning package를 검증한 결과가 아니다. Linux native pending turn도 종료 전 반납·중복 시작을 거부하고 interrupt/실제 종료 후 자신의 잠금을 반납했다.
 - C4 자동 watch 어댑터·명령·skill은 미구현이다. Windows 기본 파일 실행, 최소 설치 패키징, 실제 양방향 CLI/browser 승인 재개와 혼합 호스트 인수가 남아 있다. C4 구현·110분 idle 시험은 시작하지 않았다. Linux Claude 2.1.288은 개발 시험용으로 설치했고 당시 auth status는 none이었다. 추가 WSL Claude 로그인 요청을 진행 조건에서 철회했다. 준비한 격리 DB·WSL 환경은 사용자 기본 설치 요건이 아니다.
-- 현재 helper는 `node`로 실행하고 완전한 owner-provided 외부 검증 패키지를 요구한다. 이 두 의존성의 무수동 설치 전달도 아직 구현하지 않았다. Windows sandbox 파일 실행 실패는 별도 `codex-role-execution-unavailable` 오류로 구분하며 재초기화·호스트 변경으로 사용자에게 해결을 맡기지 않는다.
+- 두 클라이언트의 현재 helper는 `node`로 실행하고 완전한 외부 검증 패키지를 요구한다. 이 두 의존성의 무수동 설치 전달도 아직 구현하지 않았다. Codex Windows sandbox 파일 실행 실패는 별도 `codex-role-execution-unavailable` 오류로 구분하며 재초기화·호스트 변경으로 사용자에게 해결을 맡기지 않는다.
 
 ## Scope
 
@@ -123,6 +123,7 @@ scratch 쓰기, owner credential·외부 경로 읽기 및 repository/Git 쓰기
 
 | 영역 | 예정 작업 | 리스크 |
 | --- | --- | --- |
+| `plugin/skills/init/SKILL.md`, `plugin/skills/watch/SKILL.md`, `plugin/codex/skills/harness-init/SKILL.md`와 양쪽 helper 배포물 | 선택한 각 client의 Node/검증 패키지 수동 설치 의존성 해소·안내 | high — 사용자 설치·winning package |
 | `plugin/bin/harness-codex.mjs`, `plugin/runtime/codex-thread.mjs`, 설치 배포물의 helper/검증 패키지와 init 경로 | TASK-MIN-01/02; native 실행·의존성 전달 방식 확정 후 구현, 제품 오류를 사용자 설치 요구로 변환하지 않음 | high — Windows 권한 경계·배포 출처·기존 인증 |
 | `plugin/runtime/codex-thread.mjs`, `codex-agent.mjs`, `local-session.mjs`; `plugin/bin/harness-session.mjs` | 실제 인수 및 발견된 결함 수정 | high — 권한·독립 문맥·소유권 |
 | `plugin/templates` 별도 private 저장소; `scripts/seed-templates.ts`, `restore-dual-client-templates.ts` | 소스 전달·승인된 배포/복구 인수 | high — 데이터·배포 조합 |

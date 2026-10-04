@@ -7,6 +7,11 @@ description: 'Keep this Claude Code session running the Stagekeeper pipeline —
 
 ## 1. Preflight
 
+Use the owner's existing native Claude Code installation and login. Missing helper runtime
+or verifier dependencies are Stagekeeper packaging requirements. Do not ask the owner to
+install WSL, another client, Node or a verifier skill manually. Stop if the installed package
+cannot supply the dependencies; do not start a watcher or claim readiness.
+
 Read the current checkout's `harness.json`, `CLAUDE.md` and generated
 `.claude/agents/` stubs. Follow the runbook's project scope, briefing, entry,
 receipt and external verification rules. Never reconstruct server step bodies

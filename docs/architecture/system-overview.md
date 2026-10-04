@@ -14,8 +14,8 @@ Codex foreground 어댑터 소스도 같은 HTTP MCP·원장을 사용한다. Co
 WSL·VM·컨테이너·별도 Linux checkout이나 선택하지 않은 클라이언트의 설치·로그인을
 지원 조건이나 오류 복구 절차로 요구하지 않는다. helper 실행 환경과 완전한 검증 스킬의
 전달은 Stagekeeper 패키징 책임이며 사용자가 Node나 외부 스킬을 별도로 설치하게 하지 않는다.
-이 기준은 출시 게이트다. 현재 Codex 소스는 별도 Node와 owner-provided 검증 패키지에
-의존하고 Windows 역할 파일 실행도 미통과이므로 아직 이 기준을 만족하지 않는다.
+이 기준은 출시 게이트다. 현재 두 클라이언트의 helper는 별도 Node와 외부 검증 패키지에
+의존하며 Codex Windows 역할 파일 실행도 미통과이므로 아직 이 기준을 만족하지 않는다.
 WSL 시험 결과는 개발 증거로 보존하며 Windows 지원·최소 설치 인수를 대신하지 않는다.
 
 ```text
