@@ -30,7 +30,7 @@ export function packageWindowsPlugin({ output, runtimeDirectory, verifierDirecto
   const runtimeRows = regularTree(runtime.directory).filter(([name]) => name !== "provenance.json");
   if (digest(JSON.stringify(runtimeRows)) !== runtime.packageSha256 || digest(readFileSync(path.join(runtime.directory, "node.exe"))) !== runtime.executableSha256) throw new Error("Runtime build artifact changed");
   const source = execFileSync("git", ["ls-files", "--", "plugin"], { cwd: repository, encoding: "utf8" }).trim().split(/\r?\n/);
-  mkdirSync(output);
+  mkdirSync(output, { recursive: true });
   for (const name of source) {
     if (name.startsWith("plugin/templates/") || name.endsWith(".test.mjs")) continue;
     const sourceFile = path.join(repository, name), target = path.join(output, name.slice("plugin/".length));
