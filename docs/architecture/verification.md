@@ -41,6 +41,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
+| `build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash를 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
