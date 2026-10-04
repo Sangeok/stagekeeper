@@ -57,6 +57,10 @@ it("refuses linked, binary, oversized and ambiguous Windows files with no token 
   const alias = path.join(f.root, "src/alias");
   symlinkSync(f.base, alias, process.platform === "win32" ? "junction" : "dir");
   assert.throws(() => f.files.call("role_file_read", { path: path.join(alias, "outside.txt") }));
+  assert.throws(() => f.files.call("role_file_write", { path: path.join(alias, "missing/new.txt"), content: "FORBIDDEN", expectedHash: null }));
+  const aliasedPolicy = createRoleFiles({ ":root": "deny", [alias]: "write" }, "web-dev");
+  assert.throws(() => aliasedPolicy.call("role_file_read", { path: path.join(alias, "outside.txt") }));
+  aliasedPolicy.close();
   assert.equal(readFileSync(path.join(f.base, "outside.txt"), "utf8"), "OUTSIDE_CANARY");
   assert.throws(() => f.files.call("role_command_exec", { command: "anything" }));
   assert.throws(() => f.files.call("role_file_read", { path: path.join(f.root, "src/code.ts"), token: "injection" }));

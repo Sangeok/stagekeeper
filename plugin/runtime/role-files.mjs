@@ -64,6 +64,18 @@ export function createRoleFiles(filesystem, agent) {
       }
     }
     if (access(target) === "deny" || (write && access(target) !== "write")) throw new Error("File permission refused");
+    // The native resolver validates the entire existing chain in one OS call.
+    // Require its exact canonical spelling, then check the leaf type/link
+    // policy. A differing spelling (including Windows short names) takes the
+    // explicit ancestor checks below; no authority or path result is cached.
+    try {
+      if (canonical(realpathSync.native(target)) === canonical(target)) {
+        const stat = lstatSync(target, { bigint: true });
+        if (stat.isSymbolicLink()) throw new Error("File alias refused");
+        if (stat.isFile() && stat.nlink !== 1n) throw new Error("Hard-linked file refused");
+        return target;
+      }
+    } catch (error) { if (error.code !== "ENOENT") throw error; }
     let current = parsed.root, existing = parsed.root;
     for (const segment of target.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
       current = path.join(current, segment);
