@@ -1,7 +1,6 @@
 // NextDeps의 Prisma 구현. 규칙은 next.ts, 저장은 여기. 항목이 쉬거나 폐기될 때 run을 닫는 쪽은
 // board-query.ts(closeRuns)다 — 보드 트랜잭션 안에서 일어나야 하므로.
 import "server-only";
-import { prisma } from "@/server/db";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccess } from "../project-access-query";
 import { latestBoard } from "@/server/pipeline/board";
@@ -71,5 +70,3 @@ export function createNextDeps(db: PrismaClient): NextDeps {
   deps.withCursor = cursorTransaction(db, deps);
   return deps;
 }
-
-export const prismaNextDeps = createNextDeps(prisma);

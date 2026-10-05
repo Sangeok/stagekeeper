@@ -7,8 +7,6 @@ import { projectAccess } from "@/server/entitlement";
 import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
 import { makeTemplatesFor } from "./templates-query";
 
-export type { TemplateResult } from "./templates-query";
-
 export const templatesFor = makeTemplatesFor({
   requestLimit: limitProjectRequest,
   findTokenByHash: (hash) => prisma.projectToken.findUnique({

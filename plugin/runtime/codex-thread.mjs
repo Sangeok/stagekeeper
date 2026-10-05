@@ -14,6 +14,7 @@ import { createRoleFiles, roleFileToolNames, RoleFileInputError } from "./role-f
 import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, roleCommandTool } from "./role-commands.mjs";
 import { createQaBrowser, withQaBrowser } from "./qa-browser.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { createRoleGit, roleGitTool } from "./role-git.mjs";
 
 export function codexExecutable() {
   for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
@@ -220,16 +221,17 @@ export function inheritedPolicyOverrides(config, url, tools) {
   return overrides;
 }
 
-export function assertRolePolicy(config, filesystem, url, agent, nativeFiles = false, nativeCommands = false) {
+export function assertRolePolicy(config, filesystem, url, agent, nativeFiles = false, nativeCommands = false, nativeGit = false) {
   const permission = config.permissions?.["harness-role"], actualFiles = permission?.filesystem ?? {};
   const paths = Object.fromEntries(Object.entries(actualFiles).filter(([name]) => name !== "glob_scan_max_depth"));
-  const tools = [...(ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev), ...(nativeFiles ? roleFileToolNames(agent) : []), ...(nativeCommands ? [roleCommandTool.name] : []), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS : [])], harness = config.mcp_servers?.harness;
+  const tools = [...(ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev), ...(nativeFiles ? roleFileToolNames(agent) : []), ...(nativeCommands ? [roleCommandTool.name] : []), ...(nativeGit ? [roleGitTool.name] : []), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS : [])], harness = config.mcp_servers?.harness;
   const disabled = ["multi_agent", "apps", "hooks", "memories", "goals", "view_image", "request_permissions_tool"];
   if (config.agents?.enabled !== false || config.approval_policy !== "never" || config.default_permissions !== "harness-role"
     || config.sandbox_mode != null
     || config.web_search !== (agent === "feature-scout" ? "live" : "disabled") || config.project_doc_max_bytes !== 0 || config.features?.code_mode?.enabled !== false
     || disabled.some(name => config.features?.[name] !== false)
     || config.features?.shell_tool !== (!nativeFiles && !["pm", "qa-verifier"].includes(agent)) || config.features?.unified_exec !== false
+    || (agent === "qa-verifier" && (nativeCommands || nativeGit))
     || Object.entries(config.mcp_servers ?? {}).some(([name, server]) => name !== "harness" && server.enabled !== false)
     || Object.values(config.plugins ?? {}).some(plugin => plugin.enabled !== false)
     || !harness || harness.enabled !== true || harness.url !== url || !isDeepStrictEqual(harness.enabled_tools, tools)
@@ -320,7 +322,10 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
   const commandLifecycle = { onSpawn: identity => registerChild(files, session, input.binding, identity), onSettled: identity => settleChild(files, session, identity),
     beforeActivate: async () => { const state = await checkSession(files, session, input.binding); if (state.event !== "owned" || state.lifecycle !== "active") throw new Error("Native command owner no longer active"); } };
   if (nativeRuntime) { try { await verifyNativeRuntime(nativeRuntime, commandLifecycle); } catch { throw new RoleExecutionUnavailable(); } }
-  const localFiles = nativeRuntime ? await createRoleCommands({ root: input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;
+  const commandBroker = nativeRuntime ? await createRoleCommands({ root: input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;
+  const nativeGit = nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent);
+  const localFiles = nativeGit ? createRoleGit({ root: input.binding.root, agent: dispatch.agent, fileBroker: nativeFileBroker, backend: commandBroker,
+    planCommit: dispatch.planCommit ?? null, commonDirectory: path.dirname(path.dirname(files.lock)) }, commandLifecycle) : commandBroker;
   const fileBroker = dispatch.agent === "qa-verifier" ? withQaBrowser(localFiles, await createQaBrowser(input.config.qa ?? undefined)) : localFiles;
   const tools = [...(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev), ...(fileBroker?.tools.map(tool => tool.name) ?? [])];
   const bridge = await roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug }, undefined, fileBroker);
@@ -343,7 +348,7 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     await server.request("initialize", { clientInfo: { name: "stagekeeper-role", version: "1" }, capabilities: { experimentalApi: true } });
     child.stdin.write(JSON.stringify({ method: "initialized", params: {} }) + "\n");
     const effective = await server.request("config/read", { includeLayers: false, cwd: scratch });
-    assertRolePolicy(effective.config, filesystem, bridge.url, dispatch.agent, nativeFiles, nativeRuntime !== null);
+    assertRolePolicy(effective.config, filesystem, bridge.url, dispatch.agent, nativeFiles, nativeRuntime !== null, nativeGit);
     await verifyRoleExecution(server, scratch, dispatch.agent, process.platform, nativeFileBroker);
     const inventory = await server.request("skills/list", { cwds: [scratch], forceReload: true });
     const skills = (inventory.data ?? []).flatMap(value => value.skills ?? []);
@@ -351,6 +356,7 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     if (roleVerifier && skills.filter(isRoleVerifier).length !== 1) throw new Error("Actual staged verifier loader path differs");
     const nativeInstructions = nativeFiles && dispatch.agent !== "pm" ? "\nWindows native file operations use only mcp__harness__role_file_read/list/search/write with absolute paths. role_file_read accepts maxLines 1..500 (default 200); follow nextLine until null to read the full file. Invalid read pagination (-32602) may be corrected within those bounds; permission or ownership refusals must not be bypassed. File writes require the current hash (null only for an absent file). These operations preserve role filesystem permissions. Literal search reports incomplete/truncated/skipped scans; finish reading the affected files before claiming a complete review. "
       + (nativeRuntime ? "Run build/test commands through mcp__harness__role_command_exec using relative paths in its fresh disposable repository snapshot. STAGEKEEPER_ROLE_SCRATCH points to a fresh copy of the supplied role scratch, including any prepared verification sketches and staged skill files. Original absolute repository/scratch paths cannot be used by commands. It excludes Git metadata, .env files and denied paths; no owner environment or network is available. All snapshot writes and generated outputs are discarded. Edit originals through guarded file tools and run a fresh command afterward. Record the snapshot hash and omissions in verification evidence; a zero exit alone does not cover omitted dependencies or original files changed afterward. Timeout, stop and output-limit are blocked/failed, never passed. " : "Shell commands, builds and tests are unavailable in this backend: report requested command checks as blocked, never passed. ")
+      + (nativeGit ? "Git read checks use mcp__harness__role_git_read, never role_command_exec. Translate git diff/status/show/rev-parse checks in the supplied role or skill to its fixed operations. Select concrete permitted absolute file paths through file tools; directories, wildcards and repository-wide claims are unavailable. show/diff accept only HEAD or the exact supplied planCommit; show reads one file. diff compares committed content with current original bytes. status uses a private index copy and explicit files; ignore rules, rename tracking, filters and line-ending conversion are unavailable. Record its head, ref, file hashes and explicit-files scope. Original Git metadata stays private and unchanged; commit remains an owner handoff. " : "")
       + "Do not request WSL, another login, or permission escalation. Load the supplied verifier SKILL.md and its referenced files through role_file_read when required." : "";
     const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions + nativeInstructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
     threadId = thread.thread?.id;

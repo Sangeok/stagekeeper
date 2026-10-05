@@ -7,8 +7,6 @@ import { projectAccess } from "@/server/entitlement";
 import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
 import { makeProjectIdentityFor } from "./project-identity-query";
 
-export type { ProjectIdentity, ProjectIdentityResult } from "./project-identity-query";
-
 export const projectIdentityFor = makeProjectIdentityFor({
   requestLimit: limitProjectRequest,
   findTokenByHash: (hash) => prisma.projectToken.findUnique({

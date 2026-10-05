@@ -132,6 +132,36 @@ Claude update와 Codex 재설치의 2,209개 파일이 새 package hash와 일�
 초기 실패와 source/runtime/package/ZIP identity를 보존한다. TASK-MIN-02 전체와
 BLK-MIN-01은 물리적 clean Windows·released private bundle/service 인수 전까지 유지한다.
 
+2026-10-05 실제 private working 본문 서비스 인수: current dev source의 fresh
+production 서비스·격리 native DB에 고정한 12행 본문을 넣고, installed 0.5.2 helper로
+추가 Node 없는 PATH의 양쪽 init·Codex 연결·웹 승인·제한 복구를 확인했다.
+같은 dev receipt/원장/사용량을 보존한 양쪽 client 형식과 local-session 인수 및
+동시 시작 거부도 통과했다. native Claude 모델 인수와는 구분한다.
+실제 dev 본문은 Git diff 확인 뒤 implement blocked와 hold failed를 기록했다.
+Git metadata를 제외하는 명령 snapshot과 실제 본문의 Git 확인·owner handoff
+호환성을 해결하고 재현해야 하며, 이 시험은 구현 완료·active-command 중지/재개·
+전체 verifier의 통과를 입증하지 않는다. 잘못 준비한 verifier/stop fixture도
+[bounded FAIL 보고서](../../test-reports/completed/2026-10-05-windows-private-template-acceptance.md)에
+보존한다. 다음 시험은 기록한 commit의 실제 계획 파일과 필수 verification paths,
+공개 source와 일치하는 고정 private candidate를 먼저 확인한다. 이 working copy는
+future QA 참조가 있고 released 본문이 아니다. BLK-MIN-01·REQ-MIN-001/002와 C4의
+미완료 상태는 유지하며 다른 client 로그인·WSL 설치를 사용자 복구 조건으로 요구하지 않는다.
+
+2026-10-05 Git 호환성 후속 구현: Windows non-PM 역할에 `role_git_read`의
+고정 head/show/diff/status를 연결했다. 절대 경로의 허용 파일·HEAD/기록한 plan commit만
+읽으며 원본 metadata·config·hooks·외부 diff와 임의 명령은 노출하지 않는다. worktree,
+index의 숨김 flag, 과거 tree/symlink/gitlink, alias/stale 데이터와 실제 reader 종료도
+검증했다. 최종 0.5.7의 2,210개 설치 파일·Windows host Git 시험 12개·필수 source CI 및
+실제 서비스 HTTP bridge의 receipt/scope/stop 제한이 통과했다. 최종 bridge 시험은
+새 모델 0회다. 별도로 실제 private dev는 0.5.6에서 Git 확인과 native 테스트를 마쳐
+서버에 implement ok·verify ok를 기록했으며 report handoff로 owner commit을 기다린다.
+[좁은 회귀 완료 보고서](../../test-reports/completed/2026-10-05-windows-role-git.md)는
+이 버전 차이와 실패·사용량·cleanup을 보존한다. 독립 verifier는 read failed/blocked였고,
+초기 실제 pending 중지의 resume은 scope 검증에 실패했다. 다음 깨끗한 항목은 테스트를
+완료했지만 제어된 pending 중지를 수행하지 못했다. 새 native CI도 증거 고정 시점에
+실행 중이었다. 전체 verifier·동일 항목 중지/재개·최종 accept·released 본문·물리적 clean
+Windows·native Claude·C4는 여전히 미완료이며 BLK-MIN-01·REQ-MIN-001/002를 유지한다.
+
 2026-10-04 Windows 파일 backend 진행: `role-files.mjs`의 고정 파일 연산을
 역할 bridge에 연결했다. 실제 native Codex 모델이 repository 읽기·허용 workspace 수정·
 신규 파일·항목 plan 생성·목록·검색을 실행했고 readonly/foreign/external/Git 경로를

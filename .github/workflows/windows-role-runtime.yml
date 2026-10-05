@@ -1,14 +1,25 @@
 name: windows-role-runtime
 
 on:
+  # A PR may restore its base branch's cache, but not another PR's cache.
+  # Keep dev warm, including after cache eviction during an idle period.
+  push:
+    branches: [dev]
   pull_request:
     branches: [dev]
     paths:
       - .github/workflows/windows-role-runtime.yml
       - scripts/build-windows-role-node.ps1
+      - scripts/windows-role-runtime-cache.mjs
+      - scripts/windows-role-runtime-cache.test.mjs
       - plugin/runtime/windows/**
       - plugin/runtime/role-commands.mjs
+      - plugin/runtime/role-git.mjs
+      - plugin/runtime/codex-thread.mjs
+      - plugin/.claude-plugin/plugin.json
+      - plugin/.codex-plugin/plugin.json
       - plugin/bin/harness-role-commands.test.mjs
+      - plugin/bin/harness-role-git.test.mjs
       - scripts/rehearse-windows-project-build.mjs
       - scripts/build.mjs
       - scripts/windows-role-readlink.cjs
@@ -25,32 +36,68 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Superseded PR commits can stop. Let dev finish its shared cold build.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   native-runtime:
     runs-on: windows-2022
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Validate runtime cache contract
+        shell: pwsh
+        run: |
+          node --test scripts/windows-role-runtime-cache.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime cache contract tests failed' }
+      - name: Calculate runtime cache identity
+        id: runtime-key
+        shell: pwsh
+        run: |
+          $key = node scripts/windows-role-runtime-cache.mjs key
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime cache identity failed' }
+          "key=$key" >> $env:GITHUB_OUTPUT
       - uses: actions/cache/restore@v4
         id: node-cache
         with:
-          path: ${{ runner.temp }}/stagekeeper-node-source
-          key: windows-node-22.23.3-${{ hashFiles('scripts/build-windows-role-node.ps1') }}
+          path: ${{ runner.temp }}/stagekeeper-node-source/runtime
+          key: ${{ steps.runtime-key.outputs.key }}
+      - name: Refuse a partial runtime cache match
+        if: steps.node-cache.outputs.cache-matched-key != '' && steps.node-cache.outputs.cache-matched-key != steps.runtime-key.outputs.key
+        shell: pwsh
+        run: throw 'Only an exact runtime cache may be reused; partial cache restore refused'
       - name: Build pinned Node with AppContainer pipe backport
         id: node-build
+        if: steps.node-cache.outputs.cache-hit != 'true'
         shell: pwsh
-        run: ./scripts/build-windows-role-node.ps1 -BuildRoot "$env:RUNNER_TEMP/stagekeeper-node-source"
+        run: |
+          Write-Output 'Runtime cache miss: compiling pinned Node'
+          ./scripts/build-windows-role-node.ps1 -BuildRoot "$env:RUNNER_TEMP/stagekeeper-node-source"
+      - name: Verify prepared runtime with runner Node
+        id: runtime-verify
+        shell: pwsh
+        run: |
+          node scripts/windows-role-runtime-cache.mjs verify --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime cache integrity failed; cached executables were not launched' }
+          Write-Output "Runtime cache hit: ${{ steps.node-cache.outputs.cache-hit == 'true' }}"
+          & "$env:RUNNER_TEMP/stagekeeper-node-source/runtime/node.exe" -e 'const cp=require("node:child_process"); const r=cp.spawnSync(process.execPath,["-e","console.log(123)"],{encoding:"utf8"}); if(r.status!==0 || r.stdout.trim()!=="123") process.exit(1);'
+          if ($LASTEXITCODE -ne 0) { throw 'Prepared runtime child-process smoke failed' }
       # Preserve a successfully built runtime even if a later acceptance fails.
       - uses: actions/cache/save@v4
-        if: steps.node-cache.outputs.cache-hit != 'true'
+        if: steps.node-cache.outputs.cache-hit != 'true' && steps.runtime-verify.outcome == 'success'
         with:
-          path: ${{ runner.temp }}/stagekeeper-node-source
-          key: ${{ steps.node-cache.outputs.cache-primary-key }}
+          path: ${{ runner.temp }}/stagekeeper-node-source/runtime
+          key: ${{ steps.runtime-key.outputs.key }}
       - name: Validate actual Windows role commands and bundled npm
         shell: pwsh
         run: |
           $env:STAGEKEEPER_TEST_WINDOWS_RUNTIME = "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
-          node --test plugin/bin/harness-role-commands.test.mjs plugin/bin/harness-role-files.test.mjs
+          node --test plugin/bin/harness-role-commands.test.mjs plugin/bin/harness-role-files.test.mjs plugin/bin/harness-role-git.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native role command acceptance failed' }
           node --test scripts/windows-role-readlink.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native readlink compatibility acceptance failed' }
@@ -65,7 +112,7 @@ jobs:
           node scripts/rehearse-windows-project-build.mjs --root . --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
           if ($LASTEXITCODE -ne 0) { throw 'Offline native project build acceptance failed' }
       - name: Preserve runtime and provenance for native validation
-        if: always() && steps.node-build.outcome == 'success'
+        if: always() && steps.runtime-verify.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: windows-role-node-x64

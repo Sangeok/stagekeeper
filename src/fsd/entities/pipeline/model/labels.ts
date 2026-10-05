@@ -1,4 +1,4 @@
-import { slotAgent, NODE_KINDS, gateKind, gateId, boundaryOf } from "@harness/core/pipeline.mjs";
+import { slotAgent, gateKind, gateId, boundaryOf } from "@harness/core/pipeline.mjs";
 
 const LABEL: Record<string, string> = { propose: "Propose", plan: "Plan", verify: "Verify", implement: "Implement", qa: "QA", accept: "Accept", "doc-audit": "Doc audit", scout: "Scout" };
 export const nodeLabel = (kind: string): string => {
@@ -17,5 +17,3 @@ export const gateLabel = (id: string): string => `before ${nodeLabel(gateKind(id
 
 export const nodeAgentLabel = (kind: string, roster: readonly string[]): string =>
   kind === "plan" || kind === "implement" ? roster.join(", ") : (slotAgent(kind) ?? "");
-
-export const NODE_ORDER = NODE_KINDS;

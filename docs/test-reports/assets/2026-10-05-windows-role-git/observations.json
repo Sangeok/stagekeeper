@@ -1,0 +1,407 @@
+{
+  "format": "stagekeeper-windows-git-regression-v1",
+  "at": "2026-10-05T12:52:42.471Z",
+  "sourceRevision": "97f03030206f075ae6b7f4308da3314adb01478a",
+  "serviceRevision": "f74ee8f09c74ee8b19bd2c7dabb5ed2d4ff7c35b",
+  "privateCandidate": {
+    "sourceRevision": "95ace9d70b63cc8598ab229e2fe1138467f11728",
+    "sourceHash": "5b6dc1861070d9cc99db033757a2aaa024bf7ce695b5c721a6b7dc13839435bb",
+    "rows": 12,
+    "workingCopy": true,
+    "futureQaReferences": true,
+    "bodyWritten": false
+  },
+  "package": {
+    "version": "0.5.7",
+    "sourceRevision": "97f03030206f075ae6b7f4308da3314adb01478a",
+    "files": 2210,
+    "sha256": "d37d94007f154cfaa4e8f32a0c02a02432144eb6945611c9b64f30def05e55d4",
+    "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    },
+    "allInstalledFilesMatch": true,
+    "authCopied": false,
+    "globalNodeOnClientPath": false
+  },
+  "reproduction": {
+    "version": "0.5.2",
+    "nativeGitUnavailable": true,
+    "gitMetadataOmitted": true,
+    "exitCode": 1,
+    "quiescent": true
+  },
+  "models": {
+    "starts": 4,
+    "totalReportedTokens": 800812,
+    "trials": [
+      {
+        "version": "0.5.3",
+        "phase": "verifier",
+        "starts": 1,
+        "requests": 1,
+        "totalReportedTokens": 104847,
+        "result": {
+          "event": "done",
+          "done": true,
+          "receiptObserved": true
+        },
+        "errorType": null,
+        "tools": [
+          "agent_next",
+          "agent_next",
+          "board_get",
+          "role_file_read",
+          "agent_next",
+          "agent_next",
+          "agent_next",
+          "agent_next"
+        ],
+        "gitReads": [],
+        "nativeQueries": [],
+        "skillRead": false,
+        "ownerStopRequested": false
+      },
+      {
+        "version": "0.5.3",
+        "phase": "pending",
+        "starts": 1,
+        "requests": 1,
+        "totalReportedTokens": 104888,
+        "result": null,
+        "errorType": "Error",
+        "tools": [
+          "agent_next",
+          "role_file_read",
+          "role_file_read",
+          "board_get",
+          "role_git_read",
+          "role_file_read",
+          "role_file_read",
+          "role_file_read",
+          "role_git_read",
+          "role_file_write",
+          "agent_next",
+          "role_command_exec"
+        ],
+        "gitReads": [
+          {
+            "operation": "diff",
+            "paths": 1
+          },
+          {
+            "operation": "status",
+            "paths": 2
+          }
+        ],
+        "nativeQueries": [
+          {
+            "status": "stopped",
+            "exitCode": 124,
+            "quiescent": true,
+            "maxActiveProcesses": 4,
+            "pendingCanary": true,
+            "testsPassed": false,
+            "outputTruncated": false
+          }
+        ],
+        "skillRead": false,
+        "ownerStopRequested": true
+      },
+      {
+        "version": "0.5.6",
+        "phase": "resume",
+        "starts": 1,
+        "requests": 1,
+        "totalReportedTokens": 226128,
+        "result": {
+          "event": "paused",
+          "done": false,
+          "receiptObserved": true
+        },
+        "errorType": null,
+        "tools": [
+          "agent_next",
+          "role_file_read",
+          "role_file_read",
+          "role_file_read",
+          "role_git_read",
+          "role_file_list",
+          "role_file_read",
+          "role_file_read",
+          "role_file_read",
+          "role_git_read",
+          "role_git_read",
+          "role_command_exec",
+          "agent_next",
+          "agent_next",
+          "role_file_read",
+          "role_file_list",
+          "agent_next",
+          "agent_next"
+        ],
+        "gitReads": [
+          {
+            "operation": "show",
+            "paths": 1
+          },
+          {
+            "operation": "status",
+            "paths": 4
+          },
+          {
+            "operation": "diff",
+            "paths": 1
+          }
+        ],
+        "nativeQueries": [],
+        "skillRead": false,
+        "ownerStopRequested": false
+      },
+      {
+        "version": "0.5.6",
+        "phase": "pending",
+        "starts": 1,
+        "requests": 1,
+        "totalReportedTokens": 364949,
+        "result": {
+          "event": "paused",
+          "done": false,
+          "receiptObserved": true
+        },
+        "errorType": null,
+        "tools": [
+          "agent_next",
+          "role_file_read",
+          "role_file_read",
+          "board_get",
+          "role_git_read",
+          "role_file_read",
+          "role_file_read",
+          "role_file_read",
+          "role_git_read",
+          "role_file_write",
+          "agent_next",
+          "role_command_exec",
+          "role_git_read",
+          "agent_next",
+          "role_file_read",
+          "role_file_read",
+          "agent_next",
+          "agent_next",
+          "agent_next"
+        ],
+        "gitReads": [
+          {
+            "operation": "diff",
+            "paths": 1
+          },
+          {
+            "operation": "status",
+            "paths": 3
+          },
+          {
+            "operation": "diff",
+            "paths": 2
+          }
+        ],
+        "nativeQueries": [
+          {
+            "status": "exited",
+            "exitCode": 0,
+            "quiescent": true,
+            "maxActiveProcesses": 4,
+            "pendingCanary": false,
+            "testsPassed": false,
+            "outputTruncated": false
+          },
+          {
+            "status": "exited",
+            "exitCode": 0,
+            "quiescent": true,
+            "maxActiveProcesses": 4,
+            "pendingCanary": true,
+            "testsPassed": true,
+            "outputTruncated": false
+          }
+        ],
+        "skillRead": false,
+        "ownerStopRequested": false
+      }
+    ]
+  },
+  "finalPrivateDev": {
+    "version": "0.5.6",
+    "gitReads": 3,
+    "realNativeTestsPassed": true,
+    "acceptedVerifyOk": true,
+    "reportHandoffPending": true,
+    "fullRoleCompleted": false,
+    "controlledPendingStopCompleted": false
+  },
+  "installedGitBridge": {
+    "version": "0.5.7",
+    "sourceRevision": "97f03030206f075ae6b7f4308da3314adb01478a",
+    "receiptRequired": true,
+    "sameServerRun": true,
+    "recordedPlanShow": true,
+    "sourceDiff": true,
+    "sourceStatus": true,
+    "foreignAndManagedDenied": true,
+    "afterStopDenied": true,
+    "ownedProcessesJoined": 10,
+    "modelStarts": 0
+  },
+  "server": {
+    "runs": 3,
+    "charges": 3,
+    "steps": 11,
+    "ledger": [
+      {
+        "stepId": "start",
+        "outcome": "ok",
+        "accepted": true
+      },
+      {
+        "stepId": "read",
+        "outcome": "failed",
+        "accepted": true
+      },
+      {
+        "stepId": "read",
+        "outcome": "blocked",
+        "accepted": true
+      },
+      {
+        "stepId": "report",
+        "outcome": "ok",
+        "accepted": true
+      },
+      {
+        "stepId": "implement",
+        "outcome": "ok",
+        "accepted": true
+      },
+      {
+        "stepId": "verify",
+        "outcome": "failed",
+        "accepted": true
+      },
+      {
+        "stepId": "hold",
+        "outcome": "blocked",
+        "accepted": true
+      },
+      {
+        "stepId": "implement",
+        "outcome": "ok",
+        "accepted": true
+      },
+      {
+        "stepId": "verify",
+        "outcome": "ok",
+        "accepted": true
+      },
+      {
+        "stepId": "report",
+        "outcome": "failed",
+        "accepted": true
+      },
+      {
+        "stepId": "report",
+        "outcome": "handoff",
+        "accepted": true
+      }
+    ]
+  },
+  "cleanup": {
+    "at": "2026-10-05T12:52:42.471Z",
+    "candidateRestored": true,
+    "codexRowRemoved": true,
+    "unrelatedRowPreserved": true,
+    "privateSourceStillMatchesSnapshot": true,
+    "privateRepositoryWritten": false,
+    "productionDatabaseAccess": false,
+    "nextStopped": true,
+    "postgresStopped": true,
+    "roleImplementationPreserved": true
+  },
+  "checks": {
+    "windowsHostGit": {
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    "targetedBeforeFinalTreeGuard": {
+      "passed": 31,
+      "failed": 0,
+      "skipped": 1
+    },
+    "requiredCi": {
+      "run": 37312063293,
+      "revision": "97f03030206f075ae6b7f4308da3314adb01478a",
+      "result": "pass",
+      "covers": [
+        "npm run check",
+        "npm test",
+        "npm run test:web",
+        "npm run build"
+      ]
+    },
+    "windowsNativeCi": {
+      "run": 37312063277,
+      "revision": "97f03030206f075ae6b7f4308da3314adb01478a",
+      "result": "pending"
+    },
+    "priorWindowsNativeCi": {
+      "run": 37293546260,
+      "revision": "21b2c7bdcacd463ffe7286d05da4dc73b1960a74",
+      "result": "pass",
+      "scope": "unchanged LPAC runtime/commands and complete project build; not the new Git broker"
+    }
+  },
+  "operatorIssues": [
+    {
+      "issue": "briefing/independent-verifier read did not complete",
+      "models": 1,
+      "resolved": false
+    },
+    {
+      "issue": "first resume preparation expected optional top-level AgentRunId instead of receipt.runId",
+      "models": 0,
+      "resolved": true
+    },
+    {
+      "issue": "first resumed trial retained uncommitted owner control/generated package files",
+      "models": 1,
+      "resolved": true,
+      "nextCase": "fresh initialized 0.5.6 repository; actual dev verify ok"
+    },
+    {
+      "issue": "clean-case pending observer included command preflight and did not interrupt the actual test",
+      "models": 1,
+      "resolved": false,
+      "result": "actual test finished successfully; no new controlled pending-stop certification"
+    },
+    {
+      "issue": "final HTTP probe omitted agentKey in local dispatch",
+      "models": 0,
+      "resolved": true
+    }
+  ],
+  "remaining": [
+    "complete independent verifier",
+    "owner report commit and final accept",
+    "same-case private-body controlled pending stop/resume",
+    "released private body aligned with integration source",
+    "physical clean Windows",
+    "native Claude host acceptance",
+    "C4 and publication"
+  ],
+  "sourceHashes": {
+    "plugin/runtime/role-git.mjs": "8b7e6a7014950e335b663eb8ad0e43c2c84cc167a4b71e407dbb61085e459db0",
+    "plugin/runtime/codex-thread.mjs": "1b0f8fbea1172ae78b9bdcc6d1d8ffe4f19395c49cdd426487a0dd4000759f33",
+    "plugin/bin/harness-role-git.test.mjs": "ea6db794328961dc3b4f683c3f074d1eefd505d27c0be7127f6d10ba285cdcfa"
+  }
+}
