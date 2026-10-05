@@ -103,7 +103,7 @@ it("refuses binary/oversize output and stale original files", host, async t => {
   await assert.rejects(query(f, "diff"), /size/);
   const binary = fixture(t); writeFileSync(binary.file, Buffer.from([0, 255])); binary.git("add", "code.txt"); binary.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "binary");
   await assert.rejects(query(binary, "show"), /Binary/);
-  let file; const stale = fixture(t, { onSpawn: async () => writeFileSync(file, "changed during query\n") }); file = stale.file;
+  let file, queries = 0; const stale = fixture(t, { onSpawn: async () => { if (++queries === 2) writeFileSync(file, "changed during query\n"); } }); file = stale.file;
   await assert.rejects(query(stale, "diff"), /changed during query/);
 });
 
@@ -120,7 +120,7 @@ it("bounds historical blob output and rejects a changed index or HEAD before acc
   const big = fixture(t); writeFileSync(big.file, "x".repeat(1024 * 1024 + 1)); big.git("add", "code.txt");
   big.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "large blob"); writeFileSync(big.file, "small\n");
   await assert.rejects(query(big, "show"), /output limit/);
-  let index; const changed = fixture(t, { onSpawn: async () => writeFileSync(index, "changed-index") }); index = path.join(changed.root, ".git/index");
+  let index, queries = 0; const changed = fixture(t, { onSpawn: async () => { if (++queries === 2) writeFileSync(index, "changed-index"); } }); index = path.join(changed.root, ".git/index");
   await assert.rejects(query(changed, "status"), /index changed/);
   let gitHead; const head = fixture(t, { onSpawn: async () => writeFileSync(gitHead, "0".repeat(40) + "\n") }); gitHead = path.join(head.root, ".git/HEAD");
   await assert.rejects(query(head, "head"), /HEAD changed/);
@@ -150,4 +150,17 @@ it("resolves the real Git for Windows reader from the standard launcher PATH", {
   assert.equal(nativeGitExecutable({ Path: path.join(directory, "cmd") }), actual);
   const f = fixture(t), fake = path.join(f.base, "unresolved/cmd"); mkdirSync(fake, { recursive: true }); writeFileSync(path.join(fake, "git.exe"), "launcher");
   assert.throws(() => nativeGitExecutable({ PATH: fake }), /termination/);
+});
+
+it("cannot disclose denied historical descendants through a deleted or replaced directory path", host, async t => {
+  const f = fixture(t), directory = path.join(f.root, "prior"); mkdirSync(directory); writeFileSync(path.join(directory, "denied.txt"), "HISTORICAL_DENIED_CANARY\n");
+  f.git("add", "prior"); f.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "historical tree");
+  assert.equal(path.relative(f.root, directory), "prior"); await rm(directory, { recursive: true });
+  const files = createRoleFiles({ ":root": "deny", [f.root]: "write", [path.join(directory, "denied.txt")]: "deny" }, "dev");
+  const broker = createRoleGit({ root: f.root, agent: "dev", fileBroker: files });
+  try {
+    await assert.rejects(broker.call("role_git_read", { operation: "diff", paths: [directory] }), /Historical.*scope/);
+    writeFileSync(directory, "replacement regular file\n"); f.git("add", "-A", "--", "prior");
+    for (const operation of ["diff", "show", "status"]) await assert.rejects(broker.call("role_git_read", { operation, paths: [directory] }), /Historical.*scope/);
+  } finally { await broker.close(); }
 });

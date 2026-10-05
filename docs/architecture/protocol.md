@@ -506,6 +506,9 @@ Windows non-PM 역할의 Git 조회는 별도 `role_git_read` 고정 데이터 �
 정책·receipt·active 소유권·중지 fence를 적용한다. `show`는 한 파일만, `show/diff`의 ref는
 HEAD 또는 해당 dispatch에 기록된 planCommit만 허용한다. 외부·다른 workspace·인증·환경
 파일·directory·glob은 거부하고 전체 저장소 검증으로 해석하지 않는다.
+현재 경로가 삭제되었거나 일반 파일로 바뀌어도 비교 commit에서 directory/tree·symlink·
+submodule이면 거부한다. literal pathspec의 역사 tree 재귀로 금지된 하위 파일을
+노출하지 않도록 HEAD와 조회 ref의 파일 type과 선택 범위를 먼저 확인한다.
 
 기존 native Git의 고정 builtin 조회만 shell 없이 실행한다. 세션의 공통 Git 디렉터리와
 worktree HEAD를 확인하고 객체·필요한 index를 새 owned 비공개 데이터베이스에 복사한다.

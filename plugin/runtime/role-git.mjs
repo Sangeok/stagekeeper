@@ -221,6 +221,16 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
       await writeFile(path.join(directory, "git/config"), `[core]\nrepositoryformatversion = ${sha256 ? 1 : 0}\nbare = false\nautocrlf = false\n${sha256 ? "[extensions]\nobjectFormat = sha256\n" : ""}`);
       await writeFile(path.join(directory, "git/HEAD"), location.head + "\n");
       await copyObjects(location.common, path.join(directory, "git/objects"), combined);
+      // An absent/current regular path can have been a tree in the commit.
+      // Literal Git pathspecs still recurse into trees, so reject those before
+      // diff/status can disclose denied historical descendants.
+      if (selected.length) for (const commit of new Set([location.head, ref])) {
+        const entries = textPaths(await gitRead(directory, git, ["ls-tree", "-z", commit, "--", ...selected.map(row => row.relative)], lifecycle, combined));
+        for (const entry of entries) {
+          const match = /^(100644|100755) blob ([a-f0-9]{40}|[a-f0-9]{64})\t(.+)$/.exec(entry);
+          if (!match || !selected.some(row => canonical(row.relative) === canonical(match[3]))) throw new Error("Historical Git file type or scope refused");
+        }
+      }
       const indexPath = path.join(location.directory, "index"); let indexHash = null;
       if (operation === "status") {
         if (existsSync(indexPath)) {
