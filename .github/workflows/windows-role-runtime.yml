@@ -10,6 +10,8 @@ on:
       - plugin/runtime/role-commands.mjs
       - plugin/runtime/role-git.mjs
       - plugin/runtime/codex-thread.mjs
+      - plugin/.claude-plugin/plugin.json
+      - plugin/.codex-plugin/plugin.json
       - plugin/bin/harness-role-commands.test.mjs
       - plugin/bin/harness-role-git.test.mjs
       - scripts/rehearse-windows-project-build.mjs
