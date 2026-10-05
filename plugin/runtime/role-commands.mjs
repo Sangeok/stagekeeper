@@ -112,19 +112,24 @@ async function copyRuntime(runtime, destination, signal) {
 export async function runNativeCommand(request, { signal, onSpawn = async () => {}, onStarted = async () => {}, beforeActivate = async () => {}, onSettled = async () => {} } = {}) {
   if (process.platform !== "win32") throw new Error("Windows native backend required");
   signal?.throwIfAborted();
+  // TEMPORARY ci-timing-probe (never merge): cumulative milliseconds since entry.
+  const probeT0 = Date.now(), probeMarks = {}; let probeHelper = null;
+  const probeMark = name => { probeMarks[name] = Date.now() - probeT0; };
   for (const [name, source] of Object.entries(helperSources)) await writeFile(path.join(request.root, name), source, { flag: "wx" });
   const nonce = randomUUID(), requestFile = path.join(request.root, "request.json");
   await writeFile(requestFile, JSON.stringify({ ...request, nonce }), { flag: "wx" });
+  probeMark("filesWritten");
   const executable = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
   const child = spawn(executable, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(request.root, "role-process.ps1"), "-RequestPath", requestFile],
     { cwd: request.root, windowsHide: true, env: { SystemRoot: process.env.SystemRoot ?? "C:\\Windows", TEMP: request.root, TMP: request.root }, stdio: ["pipe", "pipe", "pipe"] });
+  probeMark("spawned");
   const identity = { pid: child.pid, nonce }; let stdout = "", stderr = "", stderrBytes = 0, activated = false, registered = false, started;
   const startMarker = "__stagekeeper_native_started__";
   const stop = () => { if (!child.stdin.destroyed) child.stdin.end("stop\n"); };
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", chunk => {
     stdout += chunk;
-    if (!started && stdout.startsWith(startMarker + "\r\n")) { started = Promise.resolve().then(() => onStarted(identity)); void started.catch(stop); }
+    if (!started && stdout.startsWith(startMarker + "\r\n")) { probeMark("startedMarker"); started = Promise.resolve().then(() => onStarted(identity)); void started.catch(stop); }
     if (Buffer.byteLength(stdout) > 512 * 1024) { stop(); child.kill(); }
   });
   child.stderr.on("data", chunk => { stderrBytes += chunk.length; if (stderrBytes <= 8192) stderr += chunk.toString("utf8"); else { stop(); child.kill(); } });
@@ -141,8 +146,10 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
     await onSpawn(identity); registered = true;
     await beforeActivate();
     signal?.throwIfAborted(); child.stdin.write("start\n"); activated = true;
+    probeMark("activated");
     ownershipTimer = setTimeout(() => { ownershipPending = monitorOwnership(); }, 200);
     const terminal = await Promise.race([ended, new Promise((_, reject) => { timer = setTimeout(() => { stop(); child.kill(); reject(new Error("Native helper did not acknowledge termination; ownership retained")); }, request.timeoutMs + 45000); })]);
+    probeMark("helperExited");
     if (terminal.code !== 0 || terminal.terminalSignal) {
       let diagnostic = "";
       try {
@@ -154,6 +161,7 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
     }
     await started;
     const result = JSON.parse(stdout.startsWith(startMarker + "\r\n") ? stdout.slice(startMarker.length + 2).trim() : stdout.trim());
+    probeHelper = result.probe ?? null;
     if (result.nonce !== nonce || result.quiescent !== true || !["exited", "timeout", "stopped", "output-limit"].includes(result.status)
       || !Number.isInteger(result.exitCode) || typeof result.stdout !== "string" || typeof result.stderr !== "string" || typeof result.outputTruncated !== "boolean") throw new Error("Native helper acknowledgement differs; ownership retained");
     await onSettled(identity); registered = false; return result;
@@ -161,6 +169,7 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
     monitorStopped = true; clearTimeout(ownershipTimer); await ownershipPending;
     clearTimeout(timer); signal?.removeEventListener("abort", stop); stop();
     if (!activated) { child.kill(); await ended; if (registered) await onSettled(identity); }
+    console.error("[ci-timing-probe] native " + JSON.stringify({ ...probeMarks, totalMs: Date.now() - probeT0, helper: probeHelper }));
   }
 }
 
@@ -210,20 +219,29 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
     const own = randomUUID(); await writeFile(path.join(directory, "owner.json"), JSON.stringify({ own }), { flag: "wx" });
     let acknowledged = false, helperStarted = false;
+    // TEMPORARY ci-timing-probe (never merge): cumulative milliseconds since entry.
+    const probeT0 = Date.now(), probeMarks = {};
+    const probeMark = name => { probeMarks[name] = Date.now() - probeT0; };
     try {
       const snapshot = await snapshotRepository(root, path.join(directory, "repo"), fileBroker, combined);
+      probeMark("snapshot"); probeMarks.snapshotFiles = snapshot.files; probeMarks.snapshotBytes = snapshot.bytes;
       if (cwd && !lstatSync(fileBroker.resolveRead(path.resolve(root, cwd))).isDirectory()) throw new Error("Command workspace directory required");
       const scratchSnapshot = scratch ? await snapshotRepository(scratch, path.join(directory, "scratch"), fileBroker, combined) : null;
       if (!scratchSnapshot) await mkdir(path.join(directory, "scratch"));
+      probeMark("scratch");
       await copyRuntime(runtime, path.join(directory, "runtime"), combined);
+      probeMark("copyRuntime");
       helperStarted = true;
       const result = await runNativeCommand({ root: directory, command: args.command, cwd: cwd.replaceAll("/", "\\"), timeoutMs }, { ...lifecycle, signal: combined });
+      probeMark("native");
       acknowledged = true;
       return { ...result, nonce: undefined, ...snapshot, repositorySnapshotHash: snapshot.snapshotHash, scratchSnapshot,
         snapshotHash: hash(JSON.stringify([snapshot.snapshotHash, scratchSnapshot?.snapshotHash ?? null])), snapshotWrites: "discarded", originalRepositoryWrites: false };
     } finally {
       // Failed acknowledgements preserve the owned directory for explicit recovery.
       if ((!helperStarted || acknowledged) && realpathSync(directory) === directory && JSON.parse(readFileSync(path.join(directory, "owner.json"), "utf8")).own === own) await rm(directory, { recursive: true });
+      probeMark("cleanup");
+      console.error("[ci-timing-probe] execute " + JSON.stringify(probeMarks));
     }
   }
   return { tools: [...fileBroker.tools, roleCommandTool],
