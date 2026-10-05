@@ -9,6 +9,16 @@ on:
       - plugin/runtime/windows/**
       - plugin/runtime/role-commands.mjs
       - plugin/bin/harness-role-commands.test.mjs
+      - scripts/rehearse-windows-project-build.mjs
+      - scripts/build.mjs
+      - scripts/windows-role-readlink.cjs
+      - scripts/windows-role-readlink.test.mjs
+      - package.json
+      - package-lock.json
+      - prisma.config.ts
+      - prisma/schema.prisma
+      - next.config.*
+      - src/**
 
 permissions:
   contents: read
@@ -32,6 +42,16 @@ jobs:
           $env:STAGEKEEPER_TEST_WINDOWS_RUNTIME = "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
           node --test plugin/bin/harness-role-commands.test.mjs plugin/bin/harness-role-files.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native role command acceptance failed' }
+          node --test scripts/windows-role-readlink.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Native readlink compatibility acceptance failed' }
+      - name: Prepare project dependencies with normal lifecycle scripts
+        shell: pwsh
+        run: npm ci --no-audit --no-fund
+      - name: Build full project inside network-denied Windows role
+        shell: pwsh
+        run: |
+          node scripts/rehearse-windows-project-build.mjs --root . --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
+          if ($LASTEXITCODE -ne 0) { throw 'Offline native project build acceptance failed' }
       - name: Preserve runtime and provenance for native validation
         uses: actions/upload-artifact@v4
         with:

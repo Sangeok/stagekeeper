@@ -43,6 +43,9 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | --- | --- | --- | --- |
 | `build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash를 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `package-windows-plugin.mjs` | `node scripts/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source·runtime·변경하지 않은 완전한 owner verifier를 양쪽 skill 경로에 복사하고 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |
+| `rehearse-windows-project-build.mjs` | `node scripts/rehearse-windows-project-build.mjs --root <npm ci로 준비한 공개 checkout> --runtime <검증된 Windows runtime>` | `windows-role-runtime` CI/전체 프로젝트 빌드 회귀 시 | Prisma 엔진을 포함한 정상 의존성 설치 후, DB URL·환경 파일·network 없는 실제 LPAC snapshot에서 전체 `npm run build`와 원본 source/build ID 불변·산출물 폐기·종료 acknowledgement를 확인한다. 모델·DB·로그인·배포를 실행하지 않는다 |
+| `build.mjs`, `windows-role-readlink.cjs` | `npm run build` | 프로젝트 production build | 기본 Next 빌드를 유지하고 Windows 역할 복사본에서만 Webpack·readlink 오류 호환 preload를 선택한다. 일반 파일임을 실제 lstat로 확인할 때만 EPERM/EACCES를 EINVAL로 바꾸며 링크·metadata 거부는 유지한다. owner 프로세스·커널·ACL·network 권한은 변경하지 않는다 |
+| `windows-role-readlink.test.mjs` | `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows-role-readlink.test.mjs` | native Windows CI/호환 preload 변경 시 | 실제 LPAC의 sync/callback/promises/ESM readlink·callback validation·외부 metadata/data 거부를 확인한다. 다른 플랫폼/미준비된 runtime의 skip은 전체 Windows 인수 PASS를 대신하지 않는다 |
 | `verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
@@ -71,6 +74,32 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `recovery/individual-project-availability-d3/restore-d2-shadow.sql` | 위 복구 CLI | D3 commit 뒤 D2 호환 복구 | 현재 direct owner에서 legacy shadow를 transaction으로 재구성. 일반 migration path에는 없음 |
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
+
+## 프로젝트 빌드 의존성
+
+개발자/CI가 먼저 정상 `npm ci`로 프로젝트 의존성을 준비한다. Prisma CLI의
+schema engine은 `@prisma/engines`의 postinstall이 내려받으므로 `--ignore-scripts`로
+준비한 fixture는 전체 offline build의 선행 조건을 충족하지 않는다. 이 설치는
+역할 명령의 network 권한을 늘리는 근거가 아니다. 프로젝트별 의존성 준비와
+Stagekeeper 사용자의 최소 플러그인 설치 인수는 별도 범위다.
+
+`prisma.config.ts`는 client generate에 DB URL을 요구하지 않는다. DB 명령은 실제
+유효한 `DATABASE_URL`이 필요하며 빈 URL을 사용한 접속은 Prisma가 거부한다.
+Next 폰트는 `src/app/fonts/`의 원본·라이선스·출처/hash를 포함하는 로컬 파일로
+빌드한다. 의존성이 준비된 Windows checkout의 전체 빌드는 역할의 network deny,
+환경 파일 제외와 원본 무쓰기 경계를 유지한 상태로 검증한다.
+
+이 저장소는 Windows 역할의 `npm run build`에서만 Webpack을 선택한다. Next 설정은
+SWC의 TS 설정 변환을 거치지 않는 `next.config.mjs`다. 원본 tsconfig와 Webpack의
+경로 별칭 해석은 유지하며, SWC loader의 중복 별칭 변환만 제외한다. native Rust의
+DOS 경로 canonicalize 제한을 피하기 위한 현재 Next 16.3.3 호환 경로다. loader 구조는
+semver 보장 API가 아니므로 지원한 구조가 없으면 실패하며 CI의 실제 전체 빌드가
+업그레이드 회귀를 확인한다. 타입 검사를 생략하지 않는다.
+
+역할 복사본은 산출물을 폐기하므로 Webpack 캐시를 끄고 Next worker를 2개로 제한한다.
+빌드 프로세스와 그 Node worker에만 readlink 호환 preload를 전달한다. 일반 파일과
+디렉터리의 EINVAL 오류 의미를 복구하며 성공한 링크 target이나 불완전한 metadata를
+만들어 내지 않는다. 역할 command의 120초·snapshot의 300초 제한은 유지한다.
 
 ## 저장소 연결 해제 검증
 
