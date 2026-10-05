@@ -1,0 +1,374 @@
+{
+  "sourceRevision": "72141512408454276316103f0e8c9b0091cd841e",
+  "committedBlobHashes": {
+    "package.json": "f091891ba840c6751968df682e8f4f8d9ff9a4295428bdd8ab2ad509176c5621",
+    "package-lock.json": "eeda0464dce3737a697eab6d94ca346e27050be00fecc7541fbfdfc6711747ff",
+    "prisma.config.ts": "7d8f49b4e4551fb2a439ad2c17ec3432a2fa302a18990a38bc4c85eb52afe572",
+    "prisma/schema.prisma": "1685649ea191ee5e4caa828227fce800fdc4a872690aed4a09151b00b2440cea",
+    "next.config.mjs": "5c019bf7713189a9cf3d188219be84f52949968600a9cc478540b40ad086cbce",
+    "scripts/build.mjs": "b3ba0c7b546230eabb4e50caad7fa964ccd25d74f122d040e16a75d33b42ac44",
+    "scripts/windows-role-readlink.cjs": "3489da00afb5b8a8b0e4ae45e619fd2aaf4eb57695faec828d8d91dfa660d126",
+    "scripts/windows-role-spawn-diagnostics.cjs": "7fb8fd930ade7b31ea679759828f4d5ecee60ab647575b39d6727150f0703d3d",
+    "src/app/layout.tsx": "4489f8a4cc1a53d9b89247d821a8947ead5bc3a9261f46c151a62612b593b46c",
+    "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+    "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+  },
+  "sourceComparison": "CI checkout bytes match committed content with Windows CRLF checkout normalization; font bytes exact",
+  "final": {
+    "runId": 37287612001,
+    "url": "https://github.com/Sangeok/stagekeeper/actions/runs/37287612001",
+    "conclusion": "success",
+    "at": "2026-10-05T09:16:13.165Z",
+    "sourceHashes": {
+      "package.json": "cc31dec2a1da798ac2b10699f1b2ad5df05361a2202f8f8b2bfb94220070676c",
+      "package-lock.json": "966e75b19ac9e8d1e747e1e48985777ae6c65bcd0190f32226122dfd91529560",
+      "prisma.config.ts": "0129a954c948082e99c42865f1cb8ca4005ff118e0aeba5916c8cfea77b793e9",
+      "prisma/schema.prisma": "1ef3876c7cbae527167e11725f212db1814577f06d4d52ddd67f49d63bb57814",
+      "next.config.mjs": "1cfb9267da1dd694cba285a4324fdb63dbbd60eef92abedf7e795b7895196686",
+      "scripts/build.mjs": "3191566fd1e99d34dd238e4a709586ee220c8feedecc6d771c1165b5909b964e",
+      "scripts/windows-role-readlink.cjs": "502e05bd30a3bd8c5da23f73c7d05518b423f193f8e1d5ff707f6452a6c6ea74",
+      "scripts/windows-role-spawn-diagnostics.cjs": "72de1072608e9a1fbae4009521ddcad72038b3e84245283666e8467367ffe0ff",
+      "src/app/layout.tsx": "09527533244ec0f8497a46ac8fb4cb8a1df5c583607059c77c71a9cdcf359bb6",
+      "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+      "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+    },
+    "runtimeSha256": "c60a4fb5d7a4d313b80c839d58cc8b99ab9f07a7c3acb037ffe11943f4688179",
+    "runtimePackageSha256": "b40b942bc2376223ed67c47291a65075bfaef6775ac44632fc318fad65668e48",
+    "result": {
+      "exitCode": 0,
+      "maxActiveProcesses": 9,
+      "status": "exited",
+      "quiescent": true,
+      "outputTruncated": false,
+      "snapshotHash": "3cd28f6cc1518368d0714fb1b84b4b4f81b946f2afa57d70e0820296952282dd",
+      "files": 33889,
+      "bytes": 764338530,
+      "omitted": [
+        ".git"
+      ],
+      "omittedCount": 1,
+      "omissionsTruncated": false,
+      "repositorySnapshotHash": "4e6e1e6d65acdaf15bc496d60b2d900d94d910444799f7585863dab34cab9ffc",
+      "scratchSnapshot": {
+        "snapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "files": 0,
+        "bytes": 0,
+        "omitted": [],
+        "omittedCount": 0,
+        "omissionsTruncated": false
+      },
+      "snapshotWrites": "discarded",
+      "originalRepositoryWrites": false
+    },
+    "spawnFailures": [
+      {
+        "event": "windows-role-spawn-failed",
+        "code": "EPERM",
+        "executable": "node.exe",
+        "currentNode": true,
+        "sameDrive": true,
+        "nextWorker": false,
+        "argumentCount": 3,
+        "stdio": [
+          "ignore",
+          "ignore",
+          "ignore",
+          "pipe"
+        ],
+        "detached": true,
+        "windowsHide": false,
+        "windowsVerbatimArguments": false
+      }
+    ],
+    "compilerSeconds": 11.8,
+    "typeCheckSeconds": 11,
+    "staticPages": 15,
+    "sourceAndOriginalBuildIdAssertions": "pass",
+    "normalNpmCi": true,
+    "roleNetworkAccess": false,
+    "databaseUrlProvided": false,
+    "modelTurns": 0
+  },
+  "priorServerFailures": [
+    {
+      "runId": 37280554579,
+      "sourceRevision": "20c7243330b3831d4c57bf2569968fcf72dd8d28",
+      "at": "2026-10-05T08:55:19.505Z",
+      "sourceHashes": {
+        "package.json": "cc31dec2a1da798ac2b10699f1b2ad5df05361a2202f8f8b2bfb94220070676c",
+        "package-lock.json": "966e75b19ac9e8d1e747e1e48985777ae6c65bcd0190f32226122dfd91529560",
+        "prisma.config.ts": "0129a954c948082e99c42865f1cb8ca4005ff118e0aeba5916c8cfea77b793e9",
+        "prisma/schema.prisma": "1ef3876c7cbae527167e11725f212db1814577f06d4d52ddd67f49d63bb57814",
+        "next.config.mjs": "2baf9620834571346b2b8e8a917c82046ea2ff85828c983e8a03cab4df2024e6",
+        "scripts/build.mjs": "d1fe3752d2ad071d26676d7b19935189162c3be4c1915900679b6216da414a98",
+        "scripts/windows-role-readlink.cjs": "9e597981a21e73ce1d0c819864fe5f6c2fcba721e06fe13e3fe21545e0517f03",
+        "scripts/windows-role-spawn-diagnostics.cjs": "72de1072608e9a1fbae4009521ddcad72038b3e84245283666e8467367ffe0ff",
+        "src/app/layout.tsx": "09527533244ec0f8497a46ac8fb4cb8a1df5c583607059c77c71a9cdcf359bb6",
+        "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+        "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+      },
+      "runtimeSha256": "6125edf9b7af49bc6178d10d91d79100377a137e02d596bbf2ea8f623ddd2d87",
+      "runtimePackageSha256": "2d7d13e44dad7fc6246b00aac31350942419e220b13d4b6af066f481c9ca365d",
+      "result": {
+        "exitCode": 1,
+        "maxActiveProcesses": 8,
+        "status": "exited",
+        "quiescent": true,
+        "outputTruncated": false,
+        "snapshotHash": "95a8d45f8ae6416e8b004a2e4a1d5031f94ff719d0f396c606f1afad79256df6",
+        "files": 33887,
+        "bytes": 764321207,
+        "omitted": [
+          ".git"
+        ],
+        "omittedCount": 1,
+        "omissionsTruncated": false,
+        "repositorySnapshotHash": "70d6f90cd1a3404e74cba5425fce66f5ebcbd6e80b660d960ba406adee655395",
+        "scratchSnapshot": {
+          "snapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "files": 0,
+          "bytes": 0,
+          "omitted": [],
+          "omittedCount": 0,
+          "omissionsTruncated": false
+        },
+        "snapshotWrites": "discarded",
+        "originalRepositoryWrites": false
+      },
+      "spawnFailures": [
+        {
+          "event": "windows-role-spawn-failed",
+          "code": "EPERM",
+          "executable": "node.exe",
+          "currentNode": true,
+          "sameDrive": true,
+          "nextWorker": false,
+          "argumentCount": 3,
+          "stdio": [
+            "ignore",
+            "ignore",
+            "ignore",
+            "pipe"
+          ],
+          "detached": true,
+          "windowsHide": false,
+          "windowsVerbatimArguments": false
+        },
+        {
+          "event": "windows-role-spawn-failed",
+          "code": "EPERM",
+          "executable": "node.exe",
+          "currentNode": true,
+          "sameDrive": true,
+          "nextWorker": false,
+          "argumentCount": 7,
+          "stdio": [
+            "ignore",
+            "pipe",
+            "pipe"
+          ],
+          "detached": false,
+          "windowsHide": false,
+          "windowsVerbatimArguments": false
+        }
+      ]
+    },
+    {
+      "runId": 37286056938,
+      "sourceRevision": "0bda7153ce230c7457dc26859e10c250663f6f02",
+      "at": "2026-10-05T09:02:26.925Z",
+      "sourceHashes": {
+        "package.json": "cc31dec2a1da798ac2b10699f1b2ad5df05361a2202f8f8b2bfb94220070676c",
+        "package-lock.json": "966e75b19ac9e8d1e747e1e48985777ae6c65bcd0190f32226122dfd91529560",
+        "prisma.config.ts": "0129a954c948082e99c42865f1cb8ca4005ff118e0aeba5916c8cfea77b793e9",
+        "prisma/schema.prisma": "1ef3876c7cbae527167e11725f212db1814577f06d4d52ddd67f49d63bb57814",
+        "next.config.mjs": "2baf9620834571346b2b8e8a917c82046ea2ff85828c983e8a03cab4df2024e6",
+        "scripts/build.mjs": "3191566fd1e99d34dd238e4a709586ee220c8feedecc6d771c1165b5909b964e",
+        "scripts/windows-role-readlink.cjs": "502e05bd30a3bd8c5da23f73c7d05518b423f193f8e1d5ff707f6452a6c6ea74",
+        "scripts/windows-role-spawn-diagnostics.cjs": "72de1072608e9a1fbae4009521ddcad72038b3e84245283666e8467367ffe0ff",
+        "src/app/layout.tsx": "09527533244ec0f8497a46ac8fb4cb8a1df5c583607059c77c71a9cdcf359bb6",
+        "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+        "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+      },
+      "runtimeSha256": "556dc357fd9ad39f9045676bbf4d89f105576ffaabc25be5f29bc0b4587de4dd",
+      "runtimePackageSha256": "28c7f99e9f01afc6f0bd445a38432f90f33b217775803c84dcfb8c7a0bb4c418",
+      "result": {
+        "exitCode": 1,
+        "maxActiveProcesses": 6,
+        "status": "exited",
+        "quiescent": true,
+        "outputTruncated": false,
+        "snapshotHash": "0fc1283580a113fffc7f6cfcfc8a44392d146d178a6b32323a1c6460986685e1",
+        "files": 33889,
+        "bytes": 764338255,
+        "omitted": [
+          ".git"
+        ],
+        "omittedCount": 1,
+        "omissionsTruncated": false,
+        "repositorySnapshotHash": "e8c04fd81b31006e4f6719bdeb6ba34b79e68616d57f49690091425b7e907f25",
+        "scratchSnapshot": {
+          "snapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "files": 0,
+          "bytes": 0,
+          "omitted": [],
+          "omittedCount": 0,
+          "omissionsTruncated": false
+        },
+        "snapshotWrites": "discarded",
+        "originalRepositoryWrites": false
+      },
+      "spawnFailures": [
+        {
+          "event": "windows-role-spawn-failed",
+          "code": "EPERM",
+          "executable": "node.exe",
+          "currentNode": true,
+          "sameDrive": true,
+          "nextWorker": false,
+          "argumentCount": 3,
+          "stdio": [
+            "ignore",
+            "ignore",
+            "ignore",
+            "pipe"
+          ],
+          "detached": true,
+          "windowsHide": false,
+          "windowsVerbatimArguments": false
+        },
+        {
+          "event": "windows-role-spawn-failed",
+          "code": "EPERM",
+          "executable": "node.exe",
+          "currentNode": true,
+          "sameDrive": true,
+          "nextWorker": false,
+          "argumentCount": 7,
+          "stdio": [
+            "ignore",
+            "pipe",
+            "pipe"
+          ],
+          "detached": false,
+          "windowsHide": false,
+          "windowsVerbatimArguments": false
+        }
+      ]
+    }
+  ],
+  "localApiCandidate": {
+    "at": "2026-10-05T09:07:47.459Z",
+    "sourceHashes": {
+      "package.json": "3bb19ee525a4517057b116ba3823ebdb71e1e08316239d67fe1d908e2bb32b96",
+      "package-lock.json": "966e75b19ac9e8d1e747e1e48985777ae6c65bcd0190f32226122dfd91529560",
+      "prisma.config.ts": "d5091f0fa4c24b2696f86fdf59c8892d0ad6c2146dba8c35f029a4d2ca6eef40",
+      "prisma/schema.prisma": "1ef3876c7cbae527167e11725f212db1814577f06d4d52ddd67f49d63bb57814",
+      "next.config.mjs": "c766feb140302fef5cc189f50bc2a0addc5ba38d278ff1e6ca1e01d56df8571d",
+      "scripts/build.mjs": "b3ba0c7b546230eabb4e50caad7fa964ccd25d74f122d040e16a75d33b42ac44",
+      "scripts/windows-role-readlink.cjs": "3489da00afb5b8a8b0e4ae45e619fd2aaf4eb57695faec828d8d91dfa660d126",
+      "scripts/windows-role-spawn-diagnostics.cjs": "7fb8fd930ade7b31ea679759828f4d5ecee60ab647575b39d6727150f0703d3d",
+      "src/app/layout.tsx": "b4a984574a62cb01e5aa8afab4035556eda558534a32b54e4b9ce8d241ffd78a",
+      "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+      "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+    },
+    "runtimeSha256": "6125edf9b7af49bc6178d10d91d79100377a137e02d596bbf2ea8f623ddd2d87",
+    "runtimePackageSha256": "2d7d13e44dad7fc6246b00aac31350942419e220b13d4b6af066f481c9ca365d",
+    "result": {
+      "exitCode": 0,
+      "maxActiveProcesses": 9,
+      "status": "exited",
+      "quiescent": true,
+      "outputTruncated": false,
+      "snapshotHash": "ad03dea1afed5a719607f432e1840423f248fc220634f650b8dc00f4095d9ba7",
+      "files": 33884,
+      "bytes": 764280794,
+      "omitted": [],
+      "omittedCount": 0,
+      "omissionsTruncated": false,
+      "repositorySnapshotHash": "6e835d952c4894fdc781f194896ed7880ceaaef2f147979448ab5e8d4b88299c",
+      "scratchSnapshot": {
+        "snapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "files": 0,
+        "bytes": 0,
+        "omitted": [],
+        "omittedCount": 0,
+        "omissionsTruncated": false
+      },
+      "snapshotWrites": "discarded",
+      "originalRepositoryWrites": false
+    },
+    "spawnFailures": [],
+    "verdict": "invalidated: source invariant failed because operator copied a comment change into the fixture during execution",
+    "sourceInvariantPassed": false,
+    "compileAndTypeCheckCompleted": true
+  },
+  "negativeTypeCheck": {
+    "at": "2026-10-05T09:16:11.026Z",
+    "sourceHashes": {
+      "package.json": "3bb19ee525a4517057b116ba3823ebdb71e1e08316239d67fe1d908e2bb32b96",
+      "package-lock.json": "966e75b19ac9e8d1e747e1e48985777ae6c65bcd0190f32226122dfd91529560",
+      "prisma.config.ts": "d5091f0fa4c24b2696f86fdf59c8892d0ad6c2146dba8c35f029a4d2ca6eef40",
+      "prisma/schema.prisma": "1ef3876c7cbae527167e11725f212db1814577f06d4d52ddd67f49d63bb57814",
+      "next.config.mjs": "68a812d377a8a8b20eb549b1a7cf3e65fff7b4f4351a0598f77570f1aa7f1370",
+      "scripts/build.mjs": "b3ba0c7b546230eabb4e50caad7fa964ccd25d74f122d040e16a75d33b42ac44",
+      "scripts/windows-role-readlink.cjs": "3489da00afb5b8a8b0e4ae45e619fd2aaf4eb57695faec828d8d91dfa660d126",
+      "scripts/windows-role-spawn-diagnostics.cjs": "7fb8fd930ade7b31ea679759828f4d5ecee60ab647575b39d6727150f0703d3d",
+      "src/app/layout.tsx": "b4a984574a62cb01e5aa8afab4035556eda558534a32b54e4b9ce8d241ffd78a",
+      "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+      "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+    },
+    "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+    "runtimePackageSha256": "90e2f6d8df5d0b806d20ea7c256ab467c0bec22a3daa4f3f0fd8732c7d9effc4",
+    "result": {
+      "exitCode": 1,
+      "maxActiveProcesses": 9,
+      "status": "exited",
+      "quiescent": true,
+      "outputTruncated": false,
+      "snapshotHash": "c829d563a44569a058ecd097ccbfc38703fd259b076c1a14580873bf4ae8c94f",
+      "files": 33885,
+      "bytes": 764280861,
+      "omitted": [],
+      "omittedCount": 0,
+      "omissionsTruncated": false,
+      "repositorySnapshotHash": "b74a6ddb7d24f52fd11a7cba8e98440ba2730708502ade3c16a14c0b5b2f655c",
+      "scratchSnapshot": {
+        "snapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "files": 0,
+        "bytes": 0,
+        "omitted": [],
+        "omittedCount": 0,
+        "omissionsTruncated": false
+      },
+      "snapshotWrites": "discarded",
+      "originalRepositoryWrites": false
+    },
+    "spawnFailures": [],
+    "verdict": "pass: intentional number-to-string type error rejected",
+    "errorFile": "src/server/windows-build-type-error-canary.ts",
+    "currentSourceHashReadback": "pass",
+    "canaryRemoved": true
+  },
+  "interpretation": {
+    "fatalCaller": "Installed Next TypeScript CLI --showConfig uses the observed seven-argument ignored-stdin spawn; API mode removes that path",
+    "nulDeviceCause": "Inference from ignored-stdin failures and upstream libuv NUL opening; no NUL ACL or kernel permission changed",
+    "typeScriptVersion": "5.9.3",
+    "typeCheckMode": "Supported Next compiler API only for Windows role snapshots; host retains default CLI",
+    "upgradeLimit": "TypeScript without a compiler API requires a new validated Windows build approach; never skip type checking"
+  },
+  "checks": {
+    "sourceCi": 37287612166,
+    "sourceCiConclusion": "success",
+    "configEslint": "pass",
+    "configStrictJsTypes": "pass",
+    "fsd": "pass",
+    "architecture": {
+      "pass": 26,
+      "skip": 2
+    },
+    "nativeChecksInCi": "all executed; silent IPC/readlink and command denials passed"
+  },
+  "scope": "Repository full offline native Windows build regression; service minimum setup/release/C4 remain separate",
+  "commandBodiesUserPathsPrivateDataExcluded": true
+}

@@ -243,6 +243,16 @@ single-preload의 로컬 전체 격리 빌드도 통과했으며 Windows Server�
 실패와 최종 CI는 [빌드 보고서](../../test-reports/completed/2026-10-05-windows-project-build.md)에서
 별도로 추적한다.
 
+최종 소스 `7214151`의 Windows Server [전체 격리 빌드 CI](https://github.com/Sangeok/stagekeeper/actions/runs/37287612001)와
+[check CI](https://github.com/Sangeok/stagekeeper/actions/runs/37287612166)가 통과했다.
+Windows 역할에만 Next의 지원되는 TypeScript compiler API 검사를 선택해 실패한 CLI
+spawn 경로를 피했으며, 의도적인 타입 오류의 실제 LPAC 빌드 실패도 확인했다.
+원본 source/build ID 불변·quiescence·산출물 폐기가 통과했다. 이전 Server spawn 실패와
+로컬 시험 중 operator 주석 갱신으로 source 불변 검사가 실패한 기록은
+[API/CI evidence](../../test-reports/assets/2026-10-05-windows-project-build/typescript-api-observations.json)에
+보존한다. 이 전체 프로젝트 빌드 회귀 통과는 위의 남은 최소 설치·운영·C4 gate를
+완료 처리하는 근거가 아니다.
+
 2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. 최초 Windows 단계에서는 MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. Windows 실제 모델의 MCP 호출과 pending stop/잠금 반납을 확인했고 Windows 파일 명령은 BLOCKED였다. 후속 WSL2 모델 없는 실제 파일 시험에서는 허용 읽기/scratch, 금지된 외부 읽기·저장소/Git 쓰기 차단을 확인했다. 당시 별도 Linux 로그인과 실제 모델/전체 verifier는 미실행이었다. 로그인 후의 추가 관찰은 아래에 구분하고 기존 실패 이력은 보존한다.
 
 로그인 후 단계에서는 PATH와 verifier 패키지 접근 결함을 실제 모델로 재현·수정했다. 실제 bounded 역할 및 private working-source verifier의 네 경로·실제 결함 탐지·별도 clean-fixture 최종 reread, staged package kernel 권한과 Linux native pending stop이 통과했다. actual App Server token 합계와 phase별 runtime/role/package hash, 원본 문서 불변·receipt·cleanup 범위는 [WSL 역할 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/observations.json)에 기록한다. CLI token 합계는 서버 사용량 횟수나 금액이 아니다. 당시 Windows source와 Linux 실행 runtime hash가 일치했다. 초기 PATH 실패와 skill blocked도 삭제하지 않는다.

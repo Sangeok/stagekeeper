@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-05T08:43:56.519Z"
-tested-revision: "6c5c57adab694a1d10213467a15d85f445d7d454"
+last-executed-at: "2026-10-05T09:16:13.165Z"
+tested-revision: "72141512408454276316103f0e8c9b0091cd841e"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -23,6 +23,16 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-05 final Server build: checkpoint 7214151 passed both source check and
+actual Windows Server LPAC full-project CI. The supported compiler API removes
+Next's failing ignored-stdin CLI spawn while retaining type-error rejection,
+confirmed by an intentional-error LPAC trial. Original hashes/build ID,
+quiescence and discarded outputs passed on the committed Server checkout.
+[E108 API/CI observations](../assets/2026-10-05-windows-project-build/typescript-api-observations.json)
+retain the failed Server candidates and the local operator-mutation guard failure.
+This resolves the tested full-project Server build regression, while the broader
+minimum-setup/service/release/C4 gates remain open.
 
 2026-10-05 real local native-service follow-up: the installed Codex plugin/helper
 registered and synchronized a project with no global Node on the client PATH,
@@ -197,6 +207,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T92 | R5 | informational | Later prepared full native project build | Full build without role network/DB URL; retained source, limits and quiescence | [E105] | PASS |
 | T93 | R5 | informational | Corrected single-preload full local build and actual silent IPC | Full compile/type/static/tracing build; IPC fork and denied spawn diagnostics without argument disclosure | [E106] | PASS |
 | T94 | R5 | informational | Installed native Codex against real local service | Registration/MCP/sync, owner approval, pending command stop and fresh resume; same AgentRun and one usage charge; synthetic templates, no Node in client PATH | [E107] | PASS |
+| T95 | R5 | informational | Final Windows Server full build and retained type rejection | Complete offline LPAC compile/type/static/tracing build with original invariants; intentional type error rejected in separate LPAC fixture | [E108] | PASS |
 
 ## Commands and Static Checks
 
@@ -341,6 +352,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E105 | Later full native project build | 2026-10-05; source checkpoint 09c5ed426169fb475a656c4dfe7e55249a597088, normal npm ci dependencies, local fonts/DB-free generate and role-only compiler/FS compatibility. Actual full LPAC build exit 0/quiescent, 33,883 files/764,278,078 bytes, source/build ID unchanged, outputs discarded; no network/ACL waiver/model/DB/service/publish/C4. Prior canonicalize/readlink failures, 21-worker timeout and wrapper entrypoint correction preserved in [completed report](../completed/2026-10-05-windows-project-build.md) and [projected observations](../assets/2026-10-05-windows-project-build/observations.json). | Safe source/runtime hashes and projected results only; no raw user paths/auth/private body |
 | E106 | Single-preload native build | Source 6c5c57adab694a1d10213467a15d85f445d7d454: local LPAC build exit 0/quiescent, 33,884 files/764,280,480 bytes; actual silent IPC and denied spawn/readlink tests PASS. [Projected hashes/results](../assets/2026-10-05-windows-project-build/single-preload-observations.json). Earlier Server spawn EPERM and double-preload worker failure remain in [build report](../completed/2026-10-05-windows-project-build.md). Server CI acceptance is separate. | Exact tested bytes and committed content comparison; no private arguments or paths |
 | E107 | Installed native client and real local service | Source 6c5c57adab694a1d10213467a15d85f445d7d454, Codex 0.160.0, bundled Node/no global Node in client PATH, unchanged 8-file verifier package, actual fresh migrated loopback DB and synthetic role/runbook. Install/discovery/registration/MCP/sync, owner gate, native pending stop/quiescence and fresh resume PASS; one AgentRun/usage charge. Two earlier model fixture failures retained; 4 model starts, 126,714 token subtotal with first usage unknown. [Projected observations](../assets/2026-10-05-windows-native-service/observations.json). | Private bodies, credentials, session IDs and raw model transcripts excluded; physical clean-machine/released template/browser/mixed-client/C4 gates remain open |
+| E108 | Final Windows Server build/API checker | Source 72141512408454276316103f0e8c9b0091cd841e: [native run 37287612001](https://github.com/Sangeok/stagekeeper/actions/runs/37287612001) and [check 37287612166](https://github.com/Sangeok/stagekeeper/actions/runs/37287612166) SUCCESS. Actual LPAC full build exit 0/quiescent/peak 9, 33,889 files/764,338,530 bytes, compile 11.8s/type check 11s, 15 pages/traces/routes, original source/build ID assertions PASS. Intentional number-to-string error failed a separate LPAC build and its own canary was removed after quiescence. [Projected observations](../assets/2026-10-05-windows-project-build/typescript-api-observations.json) preserve earlier Server EPERM and invalidated local source-invariance trial; NUL cause is an inference, not a permission grant. | Tested source/runtime hashes and fixed spawn classifications only; no private command bodies/paths/auth; does not certify aggregate service/release/C4 readiness |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
