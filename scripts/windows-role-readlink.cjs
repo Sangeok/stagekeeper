@@ -7,6 +7,11 @@ const { getSystemErrorMap } = process.getBuiltinModule("util");
 // readlink may report EPERM even for a regular file. Webpack/NFT expect EINVAL
 // for non-links. Never reinterpret a link or a failed metadata check.
 if (process.platform === "win32" && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1") {
+  // Next reserializes repeated --require values as one path for workers. Keep
+  // one preload entry and load the opt-in diagnostics from this entry instead.
+  if (process.env.STAGEKEEPER_BUILD_DIAGNOSTICS === "1") {
+    process.getBuiltinModule("module").createRequire(__filename)("./windows-role-spawn-diagnostics.cjs");
+  }
   const originalReadlink = fs.readlink;
   const originalSync = fs.readlinkSync;
   const originalPromise = fs.promises.readlink;

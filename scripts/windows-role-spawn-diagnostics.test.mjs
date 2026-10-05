@@ -19,7 +19,8 @@ it("runs silent IPC forks and diagnoses denied spawns without exposing arguments
   assert.equal(createHash("sha256").update(readFileSync(path.join(runtime.directory, "node.exe"))).digest("hex"), runtime.executableSha256);
   copyFileSync(path.join(runtime.directory, "node.exe"), path.join(directory, "runtime/node.exe"));
   copyFileSync(path.join(runtime.directory, "node.exe"), path.join(base, "denied-node.exe"));
-  copyFileSync(new URL("./windows-role-spawn-diagnostics.cjs", import.meta.url), path.join(directory, "repo/diagnostics.cjs"));
+  copyFileSync(new URL("./windows-role-readlink.cjs", import.meta.url), path.join(directory, "repo/compat.cjs"));
+  copyFileSync(new URL("./windows-role-spawn-diagnostics.cjs", import.meta.url), path.join(directory, "repo/windows-role-spawn-diagnostics.cjs"));
   writeFileSync(path.join(directory, "repo/canary.txt"), "INSIDE_CANARY");
   writeFileSync(path.join(directory, "repo/child.cjs"), `
 const assert = require('node:assert/strict'), fs = require('node:fs');
@@ -52,7 +53,7 @@ const assert = require('node:assert/strict'), cp = require('node:child_process')
     await rm(base, { recursive: true });
   });
   const result = await runNativeCommand({ root: directory,
-    command: 'set "STAGEKEEPER_BUILD_DIAGNOSTICS=1" && set "NODE_OPTIONS=--require %CD%\\diagnostics.cjs" && node probe.cjs', cwd: "", timeoutMs: 10000 });
+    command: 'set "STAGEKEEPER_BUILD_DIAGNOSTICS=1" && set "NODE_OPTIONS=--require %CD%\\compat.cjs" && node probe.cjs', cwd: "", timeoutMs: 10000 });
   acknowledged = result.quiescent;
   assert.equal(result.status, "exited");
   assert.equal(result.exitCode, 0, result.stderr);

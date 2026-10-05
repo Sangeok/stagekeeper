@@ -88,6 +88,13 @@ The local T1 pass remains an observation of that local runtime/environment;
 Windows Server acceptance is unresolved. Opt-in fixed-field spawn diagnostics
 and a silent IPC fork regression test are being used to identify this failure.
 
+A diagnostic candidate used two `NODE_OPTIONS --require` entries. Local compilation
+and type checking passed, but Next's worker option serialization merged the paths
+and page collection failed with `MODULE_NOT_FOUND`; the job exited 1 and acknowledged
+quiescence. The diagnostic is now loaded from the existing single preload entry.
+Both actual LPAC IPC/denial and readlink tests passed after that correction. This
+failed candidate is distinct from the Windows Server `spawn EPERM` observation.
+
 ## Findings and Follow-up
 
 The earlier fixture omitted Prisma's postinstall engine, and Google fonts were
