@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-04T17:33:49.725Z"
-tested-revision: "fa42731c4a0f8a7d8751764e3a77882dbd6b806d"
+last-executed-at: "2026-10-05T04:49:06.861Z"
+tested-revision: "09c5ed426169fb475a656c4dfe7e55249a597088"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -23,6 +23,8 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-05 full native Windows project build passed after normal dependency preparation: 33,883 files/764,278,078 bytes, no role network or DB URL, full compilation/type/static-generation/tracing/route table, exit 0/quiescent, originals unchanged and snapshot writes discarded. [Completed build report](../completed/2026-10-05-windows-project-build.md) and [projected observations](../assets/2026-10-05-windows-project-build/observations.json) identify that later source checkpoint and preserve failed candidates. This narrower result supersedes the T90 build blockage only for the prepared current repository; real service/minimum-setup/release and C4 gates remain open. Earlier phase source identities remain separate.
 
 2026-10-04 native Windows commands and private bundle: actual code edit → npm test/build → discarded-output freshness passed in a native Codex thread. The unchanged complete verifier passed four bounded paths and a no-edit final sweep in a separate thread; zero plan defects were present in that corrected synthetic fixture. LPAC parent/child file and network refusals, whole-job termination, slow-start stop and guarded release passed. A private package includes Node/npm/license and the unchanged 8-file verifier; isolated client install/discovery and helper init without global Node in PATH passed. Full Next project build is recorded separately below. No WSL/new login/auth copy was used. Actual service approval/resumption, update/conflict and publishing/seed acceptance, mixed hosts and C4 remain open. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json) and [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json) retain failed candidates and exact phase identities.
 
@@ -69,7 +71,7 @@ the integrated two-CLI/browser product flow is still NOT RUN.
 
 ## Test Target
 
-Latest source is fa42731c4a0f8a7d8751764e3a77882dbd6b806d. Phase-specific source/package/runtime SHA-256 identities are in the new projected artifact. Earlier full verifier and code-edit trials retain their own package revisions; later path/preparation/helper changes have separate actual native regressions. All ancestors retain alias metadata checks even when the native resolver returns the same spelling; the real-junction regression covers that result. Temporary fixtures use synthetic loopback templates/MCP, not production DB or winning deployed private templates. The 8-file original verifier is copied unchanged and its private body is excluded from Git.
+The native command/package phase source is fa42731c4a0f8a7d8751764e3a77882dbd6b806d. Its phase-specific source/package/runtime SHA-256 identities are in that projected artifact; the later project build has its own completed report and exact source hashes. Earlier full verifier and code-edit trials retain their own package revisions; later path/preparation/helper changes have separate actual native regressions. All ancestors retain alias metadata checks even when the native resolver returns the same spelling; the real-junction regression covers that result. Temporary fixtures use synthetic loopback templates/MCP, not production DB or winning deployed private templates. The 8-file original verifier is copied unchanged and its private body is excluded from Git.
 
 The current run uses disposable Git checkouts under the owned stagekeeper-c4-runtime temporary root and synthetic localhost MCP, calling the actual product dispatchFreshRole. Role instructions are test stubs, not private winning template bodies. Current HEAD is the tested baseline; source hashes in the artifact identify uncommitted changes.
 
@@ -179,6 +181,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T89 | R5 | required | Private complete package and isolated client install/init | One winning package, unchanged complete verifier, bundled helper without global Node in PATH | [E101] | PASS |
 | T90 | R5 | informational | Full Next project snapshot build | Record actual result independently of minimal npm canaries; no production DB/network waiver | [E102] | BLOCKED |
 | T91 | R5 | required | Operational product and C4 gates | Actual service approval/resumption, update/conflict, released package/private seed and mixed hosts before C4 | [E104] | BLOCKED |
+| T92 | R5 | informational | Later prepared full native project build | Full build without role network/DB URL; retained source, limits and quiescence | [E105] | PASS |
 
 ## Commands and Static Checks
 
@@ -320,6 +323,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E102 | Actual full-project attempt | 2026-10-04; original shared node_modules hard link refused. Fresh regular-file public project fixture via offline npm ci --ignore-scripts; initial 120-second and sequential 300-second snapshot limits reached. Native path resolution and joined 8-file batches then prepared all 33,871 files/743,143,926 bytes with alias and pre/post identity checks retained. Actual npm run build invoked Prisma config; exit 1 while downloading the absent schema engine (network-denied EAI_FAIL). Job quiescent, no original writes, outputs discarded. Not a passing full-project build or Google Fonts/network acceptance. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
 | E103 | Final native source and document checks | 2026-10-04; check/core/web/host build and native regression counts plus exact current source hashes recorded separately. Report validator/strict proposal trace/diff check are document/source gates; historical required failures retain aggregate fail. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
 | E104 | Remaining actual service/release/C4 scope | 2026-10-04; no operational private seed/rollback/publish, real bidirectional CLI/browser approved resumption or mixed-version host acceptance; package update/conflict acceptance still open. C4 source and 110-minute idle trial NOT IMPLEMENTED/NOT RUN. Existing private working tree/WSL environment not changed. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json); [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json). | Safe projected metadata only; no private body, raw transcript, auth/session IDs or absolute user paths |
+| E105 | Later full native project build | 2026-10-05; source checkpoint 09c5ed426169fb475a656c4dfe7e55249a597088, normal npm ci dependencies, local fonts/DB-free generate and role-only compiler/FS compatibility. Actual full LPAC build exit 0/quiescent, 33,883 files/764,278,078 bytes, source/build ID unchanged, outputs discarded; no network/ACL waiver/model/DB/service/publish/C4. Prior canonicalize/readlink failures, 21-worker timeout and wrapper entrypoint correction preserved in [completed report](../completed/2026-10-05-windows-project-build.md) and [projected observations](../assets/2026-10-05-windows-project-build/observations.json). | Safe source/runtime hashes and projected results only; no raw user paths/auth/private body |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.

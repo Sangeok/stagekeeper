@@ -11,5 +11,5 @@ The existing font families, CSS variables and normal weights remain in use.
 | `fragment-mono-regular.ttf` | `ofl/fragmentmono/FragmentMono-Regular.ttf` | `0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460` |
 
 Each font's original SIL Open Font License 1.1 and copyright notice are included
-in the adjacent `*-OFL.txt` file. Font updates must update the upstream revision,
+in the adjacent `*-ofl.txt` file. Font updates must update the upstream revision,
 file hashes and matching license together.

@@ -1,0 +1,132 @@
+{
+  "sourceRevision": "09c5ed426169fb475a656c4dfe7e55249a597088",
+  "completedAt": "2026-10-05T04:49:06.861Z",
+  "prerequisite": {
+    "normalNpmCi": true,
+    "installedPackages": 524,
+    "prismaVersion": "7.10.0",
+    "nextVersion": "16.3.3",
+    "dependencyCopy": "regular files from the normal npm ci developer fixture",
+    "authenticationCopied": false,
+    "environmentFilesCopied": false
+  },
+  "scope": {
+    "platform": "native Windows",
+    "databaseUrlProvided": false,
+    "networkGranted": false,
+    "originalAclChanges": false,
+    "modelTurns": 0,
+    "serviceAcceptance": false,
+    "publishing": false,
+    "c4": false
+  },
+  "sourceHashes": {
+    "package.json": "3bb19ee525a4517057b116ba3823ebdb71e1e08316239d67fe1d908e2bb32b96",
+    "package-lock.json": "966e75b19ac9e8d1e747e1e48985777ae6c65bcd0190f32226122dfd91529560",
+    "prisma.config.ts": "d5091f0fa4c24b2696f86fdf59c8892d0ad6c2146dba8c35f029a4d2ca6eef40",
+    "prisma/schema.prisma": "1ef3876c7cbae527167e11725f212db1814577f06d4d52ddd67f49d63bb57814",
+    "next.config.mjs": "f079228c18d22824e3f0d24200144d74b8e3a5c3ad23c9b33c18590a71b75e18",
+    "scripts/build.mjs": "b3ba0c7b546230eabb4e50caad7fa964ccd25d74f122d040e16a75d33b42ac44",
+    "scripts/windows-role-readlink.cjs": "8208858205316af095e166d1e8a414d13b91e4daced2c2cd6fa46e6ef3b161a0",
+    "src/app/layout.tsx": "b4a984574a62cb01e5aa8afab4035556eda558534a32b54e4b9ce8d241ffd78a",
+    "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+    "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+  },
+  "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+  "runtimePackageSha256": "90e2f6d8df5d0b806d20ea7c256ab467c0bec22a3daa4f3f0fd8732c7d9effc4",
+  "priorCandidates": [
+    {
+      "case": "installed engine, old TS config",
+      "reason": "SWC DOS-volume canonicalize access denied",
+      "status": "exited",
+      "exitCode": 1,
+      "quiescent": true,
+      "maxActiveProcesses": 7,
+      "outputTruncated": false
+    },
+    {
+      "case": "plain JS config, default Turbopack",
+      "reason": "Turbopack DOS-volume canonicalize access denied",
+      "status": "exited",
+      "exitCode": 1,
+      "quiescent": true,
+      "maxActiveProcesses": 7,
+      "outputTruncated": false
+    },
+    {
+      "case": "Webpack, SWC aliases delegated",
+      "reason": "non-link readlink EPERM",
+      "status": "exited",
+      "exitCode": 1,
+      "quiescent": true,
+      "maxActiveProcesses": 8,
+      "outputTruncated": false
+    },
+    {
+      "case": "Webpack and readlink compatibility, default worker count",
+      "reason": "21 workers; compiled, typed and generated pages, timed out collecting traces",
+      "status": "timeout",
+      "exitCode": 124,
+      "quiescent": true,
+      "maxActiveProcesses": 26,
+      "outputTruncated": false
+    },
+    {
+      "case": "first build wrapper",
+      "reason": "Prisma package root resolves a types entry rather than CLI; corrected to its exported build/index.js",
+      "status": "exited",
+      "exitCode": 1,
+      "quiescent": true,
+      "maxActiveProcesses": 5,
+      "outputTruncated": false
+    }
+  ],
+  "finalBuild": {
+    "status": "exited",
+    "exitCode": 0,
+    "quiescent": true,
+    "maxActiveProcesses": 8,
+    "outputTruncated": false,
+    "files": 33883,
+    "bytes": 764278078,
+    "repositorySnapshotHash": "533ef117d1e709b9744f68ff2ccaf0a65e8b8e6ae7b9e0a55fe155cc1453e85e",
+    "snapshotHash": "f05b2054072fc459e769e6ee5f87b6da06418e6ec413fc834676e2f070640a4e",
+    "snapshotWrites": "discarded",
+    "originalRepositoryWrites": false,
+    "originalSourceHashesUnchanged": true,
+    "originalBuildIdUnchanged": true,
+    "compiledSeconds": 13.1,
+    "typeCheckSeconds": 24,
+    "staticPages": 15,
+    "workers": 2,
+    "routeTable": true,
+    "stderr": "Loaded Prisma config and schema; no build error or warning"
+  },
+  "checks": {
+    "localCheck": {
+      "pass": true,
+      "architecturePass": 26,
+      "architecturePlatformSkip": 1,
+      "projectAvailabilityPass": 18
+    },
+    "strictNextConfigJsTypes": true,
+    "hostProductionBuild": true,
+    "webPass": 576,
+    "nativeBackendPass": 20,
+    "nativeReadlinkPass": 1,
+    "ciCheck": {
+      "run": 37265022165,
+      "result": "success"
+    },
+    "ciWindowsRuntime": {
+      "run": 37265022163,
+      "result": "in_progress at evidence capture; new pinned runtime build required"
+    }
+  },
+  "cleanup": {
+    "roleChildrenQuiescent": true,
+    "roleSnapshotsDiscarded": true,
+    "preparationFixturesRetainedOutsideGit": true,
+    "credentialsReadOrCopied": false
+  }
+}
