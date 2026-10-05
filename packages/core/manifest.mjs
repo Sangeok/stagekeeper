@@ -17,12 +17,6 @@ export function planWrites({ targets, existing, lock, adopt }) {
   return out;
 }
 
-export function buildLock(targets) {
-  const files = {};
-  for (const [path, t] of Object.entries(targets)) files[path] = { template: t.template, hash: hashOf(t.content) };
-  return { version: 1, files };
-}
-
 export function mergeClientLock(previous, targets, writes, client = "claude") {
   client = parseClient(client);
   const shared = new Set(COMMON_DOCS.map(file => file));

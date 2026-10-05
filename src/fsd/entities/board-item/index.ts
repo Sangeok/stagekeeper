@@ -7,4 +7,3 @@ export { OverBudgetChip } from "./ui/over-budget-chip";
 export { isPlanVerified } from "./model/verification";
 export { isAwaitingAcceptance } from "./model/acceptance";
 export { isAtGate, needsHumanDecision, pendingInboxCount, resumeTargetsFor } from "./model/inbox-gate";
-export type { GateRow } from "./model/inbox-gate";
