@@ -5,7 +5,7 @@ Claude의 `skills/`와 `.claude-plugin/plugin.json`, Codex의 `codex/skills/`와
 portable root manifest는 두지 않는다. private 단계 본문은 패키지에 포함하지 않고
 인증된 서버가 공급한다. `lib/`는 `packages/core`에서 동기화한 복사본이다.
 
-현재 버전은 소스 기준 0.5.1이다. 실제 설치된 winning skill/helper, 모델 권한,
+현재 버전은 소스 기준 0.5.2이다. 실제 설치된 winning skill/helper, 모델 권한,
 DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-reports/active/dual-client-runtime-report.md)의
 미완료 항목이다. 아래 사용법은 설치·서버·private bundle의 같은 버전을 준비한 뒤 적용한다.
 
@@ -15,6 +15,11 @@ DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-repor
 완전한 verifier를 포함하며 `bin/harness.ps1`이 helper를 실행한다. source-only checkout에는
 이 생성 배포물이 없다. bundle 생성·인수·실제 배포는 각각 별도 상태이며 배포 전에 일반
 사용자에게 추가 설치를 안내하거나 준비 완료를 선언하지 않는다. WSL 검증은 내부 개발 기록이다.
+
+새 설치 배포물의 내용이 바뀌면 양쪽 manifest의 버전을 함께 올린다. Claude Code는
+같은 버전의 `plugin update`를 최신 상태로 처리하고 이전 캐시를 유지하므로, 파일만
+교체하는 방식은 업데이트가 아니다. 설치 후 실제 client가 선택한 캐시의 전체 inventory와
+verifier checksum을 새 패키지와 대조하며 client를 재시작해 적용한다.
 
 Windows Codex 역할의 파일 연산은 scoped MCP backend가 수행한다. 완전한 runtime이
 있으면 모델 전 실제 LPAC·pipe 자식 실행·외부/AAP 파일 및 network 거부 preflight 뒤

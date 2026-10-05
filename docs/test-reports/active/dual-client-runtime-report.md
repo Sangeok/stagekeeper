@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-05T09:16:13.165Z"
-tested-revision: "72141512408454276316103f0e8c9b0091cd841e"
+last-executed-at: "2026-10-05T09:54:35.974Z"
+tested-revision: "21b2c7bdcacd463ffe7286d05da4dc73b1960a74"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -23,6 +23,19 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-05 package-update follow-up: changing a 0.5.1 package without changing
+its version left Claude's previous cache in place (`up_to_date`), a retained
+failed candidate. After both manifests became 0.5.2, actual Claude update and
+Codex reinstall selected the new package; all 2,209 installed files matched.
+Both installed helpers initialized synthetic fixtures without global Node in
+PATH and preserved modified generated files. With duplicate verifier copies,
+the actual fresh Codex thread enabled only the original staged checksum; no
+model turn was requested. A private ZIP passed complete extraction/hash checks.
+[Narrow regression report](../completed/2026-10-05-windows-package-update.md)
+and [E109/E110 observations](../assets/2026-10-05-windows-package-acceptance/observations.json)
+do not certify physical clean Windows, released private templates or connected
+cross-client/browser acceptance. Operational release and C4 remain blocked.
 
 2026-10-05 final Server build: checkpoint 7214151 passed both source check and
 actual Windows Server LPAC full-project CI. The supported compiler API removes
@@ -208,6 +221,8 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T93 | R5 | informational | Corrected single-preload full local build and actual silent IPC | Full compile/type/static/tracing build; IPC fork and denied spawn diagnostics without argument disclosure | [E106] | PASS |
 | T94 | R5 | informational | Installed native Codex against real local service | Registration/MCP/sync, owner approval, pending command stop and fresh resume; same AgentRun and one usage charge; synthetic templates, no Node in client PATH | [E107] | PASS |
 | T95 | R5 | informational | Final Windows Server full build and retained type rejection | Complete offline LPAC compile/type/static/tracing build with original invariants; intentional type error rejected in separate LPAC fixture | [E108] | PASS |
+| T96 | R5 | informational | Historical same-version private package refresh candidate | Changed content should replace the installed bytes; Claude instead returned up_to_date and retained the old 0.5.1 cache, while Codex refreshed | [E109] | FAIL |
+| T97 | R5 | informational | Later versioned 0.5.2 private package regression | Both real caches match all 2,209 files; no-global-Node helpers and modified ownership preservation; original staged skill selection before inference; ZIP exact round trip | [E110] | PASS |
 
 ## Commands and Static Checks
 
@@ -353,6 +368,8 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E106 | Single-preload native build | Source 6c5c57adab694a1d10213467a15d85f445d7d454: local LPAC build exit 0/quiescent, 33,884 files/764,280,480 bytes; actual silent IPC and denied spawn/readlink tests PASS. [Projected hashes/results](../assets/2026-10-05-windows-project-build/single-preload-observations.json). Earlier Server spawn EPERM and double-preload worker failure remain in [build report](../completed/2026-10-05-windows-project-build.md). Server CI acceptance is separate. | Exact tested bytes and committed content comparison; no private arguments or paths |
 | E107 | Installed native client and real local service | Source 6c5c57adab694a1d10213467a15d85f445d7d454, Codex 0.160.0, bundled Node/no global Node in client PATH, unchanged 8-file verifier package, actual fresh migrated loopback DB and synthetic role/runbook. Install/discovery/registration/MCP/sync, owner gate, native pending stop/quiescence and fresh resume PASS; one AgentRun/usage charge. Two earlier model fixture failures retained; 4 model starts, 126,714 token subtotal with first usage unknown. [Projected observations](../assets/2026-10-05-windows-native-service/observations.json). | Private bodies, credentials, session IDs and raw model transcripts excluded; physical clean-machine/released template/browser/mixed-client/C4 gates remain open |
 | E108 | Final Windows Server build/API checker | Source 72141512408454276316103f0e8c9b0091cd841e: [native run 37287612001](https://github.com/Sangeok/stagekeeper/actions/runs/37287612001) and [check 37287612166](https://github.com/Sangeok/stagekeeper/actions/runs/37287612166) SUCCESS. Actual LPAC full build exit 0/quiescent/peak 9, 33,889 files/764,338,530 bytes, compile 11.8s/type check 11s, 15 pages/traces/routes, original source/build ID assertions PASS. Intentional number-to-string error failed a separate LPAC build and its own canary was removed after quiescence. [Projected observations](../assets/2026-10-05-windows-project-build/typescript-api-observations.json) preserve earlier Server EPERM and invalidated local source-invariance trial; NUL cause is an inference, not a permission grant. | Tested source/runtime hashes and fixed spawn classifications only; no private command bodies/paths/auth; does not certify aggregate service/release/C4 readiness |
+| E109 | Historical same-version package update | Earlier installed source 6c5c57a vs new d328ea2, both 0.5.1: Codex refreshed; Claude returned up_to_date and retained the previous package hash. Actual FAIL candidate retained in [observations](../assets/2026-10-05-windows-package-acceptance/observations.json). | Fixed fields/hashes only; no private body or profile paths |
+| E110 | Versioned install/cache/helper/conflict/archive regression | Source 21b2c7bdcacd463ffe7286d05da4dc73b1960a74, 0.5.2: actual Claude/Codex updates and complete 2,209-file comparison PASS; no-global-Node helper init and modified ownership preservation PASS; duplicate-skill actual thread selection PASS with zero model turns; ZIP exact extraction PASS. [Completed narrow report](../completed/2026-10-05-windows-package-update.md), [observations](../assets/2026-10-05-windows-package-acceptance/observations.json). | No physical clean-machine/released private body/service/browser/C4 certification; no publication or auth copies |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.

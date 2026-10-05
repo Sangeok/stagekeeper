@@ -14,8 +14,10 @@ it("ships the public init reuse guidance through the bumped plugin package", () 
   assert.match(skill, /Never ask for the token in chat or commit it to the repository/);
   assert.match(skill, /Do not save it machine-wide/i);
   const plugin = JSON.parse(readFileSync("plugin/.claude-plugin/plugin.json", "utf8"));
+  const codexPlugin = JSON.parse(readFileSync("plugin/.codex-plugin/plugin.json", "utf8"));
   const marketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"));
-  assert.equal(plugin.version, "0.5.1");
+  assert.equal(plugin.version, "0.5.2");
+  assert.equal(codexPlugin.version, plugin.version);
   assert.ok(marketplace.plugins.some((entry: { name: string; source: string }) => entry.name === plugin.name && entry.source === "./plugin"));
 });
 

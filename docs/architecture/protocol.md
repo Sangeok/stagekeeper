@@ -525,6 +525,12 @@ Node를 검증해 실행하며 별도 Node/검증 스킬 설치를 요구하지 
 private verifier 본문은 public Git에 넣지 않는다. private 로컬 패키지 생성·시험과 실제
 패키지 공개/설치는 별도 상태이며 완전한 Windows 인수와 출시 승인 전 readiness를 선언하지 않는다.
 
+내용이 바뀐 install bundle은 Claude/Codex manifest의 버전을 함께 올린다. Claude Code의
+같은 버전 update는 이전 캐시를 유지할 수 있으므로 새 파일을 같은 버전으로 배포하지 않는다.
+업데이트 인수는 종료 코드만 확인하지 않고 실제 client의 설치/loader 경로에서 전체
+inventory·runtime·완전한 verifier checksum을 새 배포물과 대조한다. 설치 변경 후 client를
+재시작해 적용하며 이전 소유권/실행을 자동으로 회수하거나 이전 generated 파일을 채택하지 않는다.
+
 parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package를
 scratch의 `.agents/skills/reconciling-proposals-with-codebase`로 복사하고, 원본·복사본의 checksum과 파일 수를
 init metadata와 비교한다. 이 패키지만 scratch 쓰기 권한보다 좁은 읽기 전용 권한으로 지정한다.
