@@ -1,0 +1,79 @@
+{
+  "sourceRevision": "6c5c57adab694a1d10213467a15d85f445d7d454",
+  "at": "2026-10-05T08:07:51.639Z",
+  "sourceHashes": {
+    "package.json": "3bb19ee525a4517057b116ba3823ebdb71e1e08316239d67fe1d908e2bb32b96",
+    "package-lock.json": "966e75b19ac9e8d1e747e1e48985777ae6c65bcd0190f32226122dfd91529560",
+    "prisma.config.ts": "d5091f0fa4c24b2696f86fdf59c8892d0ad6c2146dba8c35f029a4d2ca6eef40",
+    "prisma/schema.prisma": "1ef3876c7cbae527167e11725f212db1814577f06d4d52ddd67f49d63bb57814",
+    "next.config.mjs": "f079228c18d22824e3f0d24200144d74b8e3a5c3ad23c9b33c18590a71b75e18",
+    "scripts/build.mjs": "b3ba0c7b546230eabb4e50caad7fa964ccd25d74f122d040e16a75d33b42ac44",
+    "scripts/windows-role-readlink.cjs": "3489da00afb5b8a8b0e4ae45e619fd2aaf4eb57695faec828d8d91dfa660d126",
+    "scripts/windows-role-spawn-diagnostics.cjs": "7fb8fd930ade7b31ea679759828f4d5ecee60ab647575b39d6727150f0703d3d",
+    "src/app/layout.tsx": "b4a984574a62cb01e5aa8afab4035556eda558534a32b54e4b9ce8d241ffd78a",
+    "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+    "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+  },
+  "committedBlobHashes": {
+    "package.json": "f091891ba840c6751968df682e8f4f8d9ff9a4295428bdd8ab2ad509176c5621",
+    "package-lock.json": "eeda0464dce3737a697eab6d94ca346e27050be00fecc7541fbfdfc6711747ff",
+    "prisma.config.ts": "7d8f49b4e4551fb2a439ad2c17ec3432a2fa302a18990a38bc4c85eb52afe572",
+    "prisma/schema.prisma": "1685649ea191ee5e4caa828227fce800fdc4a872690aed4a09151b00b2440cea",
+    "next.config.mjs": "f079228c18d22824e3f0d24200144d74b8e3a5c3ad23c9b33c18590a71b75e18",
+    "scripts/build.mjs": "b3ba0c7b546230eabb4e50caad7fa964ccd25d74f122d040e16a75d33b42ac44",
+    "scripts/windows-role-readlink.cjs": "3489da00afb5b8a8b0e4ae45e619fd2aaf4eb57695faec828d8d91dfa660d126",
+    "scripts/windows-role-spawn-diagnostics.cjs": "7fb8fd930ade7b31ea679759828f4d5ecee60ab647575b39d6727150f0703d3d",
+    "src/app/layout.tsx": "4489f8a4cc1a53d9b89247d821a8947ead5bc3a9261f46c151a62612b593b46c",
+    "src/app/fonts/schibsted-grotesk-normal.ttf": "6ceeadf6be8e1fd7687011c7fa38ed0edd1abe967a0b73d97caec183552e823d",
+    "src/app/fonts/fragment-mono-regular.ttf": "0fe011f425873c2e0fc73a189e394e340ad48d2b9a99a576bdeec75cee000460"
+  },
+  "sourceComparison": "Exact binary bytes; CRLF/LF normalized text content matches committed checkpoint",
+  "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+  "runtimePackageSha256": "90e2f6d8df5d0b806d20ea7c256ab467c0bec22a3daa4f3f0fd8732c7d9effc4",
+  "databaseUrlProvided": false,
+  "roleNetworkAccess": false,
+  "modelTurns": 0,
+  "result": {
+    "exitCode": 0,
+    "maxActiveProcesses": 8,
+    "status": "exited",
+    "quiescent": true,
+    "outputTruncated": false,
+    "snapshotHash": "d7423c4a92269367e0c4c56b439e3bd35814a42566832b636087fcde093b9f9d",
+    "files": 33884,
+    "bytes": 764280480,
+    "omitted": [],
+    "omittedCount": 0,
+    "omissionsTruncated": false,
+    "repositorySnapshotHash": "eb88eca0545d5dc8b1dd1cf429242b3a3f7aa3fe97cffc6d65fc69334731bccd",
+    "scratchSnapshot": {
+      "snapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "files": 0,
+      "bytes": 0,
+      "omitted": [],
+      "omittedCount": 0,
+      "omissionsTruncated": false
+    },
+    "snapshotWrites": "discarded",
+    "originalRepositoryWrites": false
+  },
+  "compileSeconds": 16.4,
+  "typeCheckSeconds": 27.4,
+  "staticPages": 15,
+  "scope": "Local full public project build; Windows Server CI and service acceptance are separate",
+  "commandOutputExcluded": true,
+  "corrections": [
+    {
+      "case": "two NODE_OPTIONS preloads",
+      "result": "MODULE_NOT_FOUND after successful compile/type check",
+      "quiescent": true,
+      "fix": "Existing single preload loads optional diagnostics"
+    }
+  ],
+  "nativeChecks": {
+    "silentIpcForkAndDeniedExecutable": "pass",
+    "readlinkAndExternalDenials": "pass",
+    "counts": 2,
+    "skips": 0
+  }
+}

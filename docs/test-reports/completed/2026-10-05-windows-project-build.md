@@ -95,6 +95,17 @@ quiescence. The diagnostic is now loaded from the existing single preload entry.
 Both actual LPAC IPC/denial and readlink tests passed after that correction. This
 failed candidate is distinct from the Windows Server `spawn EPERM` observation.
 
+The corrected checkpoint `6c5c57adab694a1d10213467a15d85f445d7d454`
+also passed a fresh local full LPAC build on 2026-10-05T08:07:51.639Z:
+33,884 files/764,280,480 bytes, compilation 16.4s, type checking 27.4s,
+15 static pages and full tracing/route table. Exit 0, peak 8 processes,
+acknowledged quiescence, original source/build ID unchanged and discarded outputs
+were asserted. The diagnostic produced no spawn failure. Source content matches
+the committed checkpoint (exact font bytes; LF/CRLF-normalized text), with both
+tested-byte and committed-blob hashes in [single-preload observations](../assets/2026-10-05-windows-project-build/single-preload-observations.json).
+Source CI [37281300745](https://github.com/Sangeok/stagekeeper/actions/runs/37281300745)
+passed; its native Server rerun remains separate from this local result.
+
 ## Findings and Follow-up
 
 The earlier fixture omitted Prisma's postinstall engine, and Google fonts were

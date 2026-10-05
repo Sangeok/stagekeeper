@@ -228,6 +228,21 @@ revision으로 기록하고 이후 snapshot/helper 최적화의 native 회귀와
 [새 보고서](../../test-reports/completed/2026-10-05-windows-project-build.md)에서 PASS다.
 전체 Windows/운영 readiness 또는 C4 완료를 선언하지 않는다. 아래는 이전 단계의 기록이다.
 
+2026-10-05 후속 로컬 실제 서비스 시험에서는 설치된 native Codex plugin/helper와
+새 loopback PostgreSQL·production Next 서비스를 연결했다. client PATH에서 전역 Node를
+제외한 설치/loader/프로젝트 등록/MCP 연결·동기화, 실제 owner MCP 승인, 모델의 native
+명령 실행 중 stop과 quiescence 전 release 거부, 새 세션의 동일 AgentRun 재개·완료가
+통과했다. 서버 사용량은 재개 전후 1회였다. 기존 Windows 로그인만 사용했고 WSL·인증
+복사·운영 쓰기는 없었다. 합성 템플릿의 이전 실패 2회와 수정 후 모델 2회를
+[관찰 기록](../../test-reports/assets/2026-10-05-windows-native-service/observations.json)에
+구분했다. 첫 모델 token usage는 누락되어 126,714는 나머지 3회의 보고된 합계다.
+시험 서비스/DB는 종료했고 소유한 역할·세션도 정리했다. 물리적으로 새 Windows의
+최소 설치, 배포된 private winning template·업데이트/충돌, 실제 browser/Claude 양방향
+승인·재개와 운영/C4 gate는 이 bounded 시험으로 완료 처리하지 않는다.
+single-preload의 로컬 전체 격리 빌드도 통과했으며 Windows Server의 이전 `spawn EPERM`
+실패와 최종 CI는 [빌드 보고서](../../test-reports/completed/2026-10-05-windows-project-build.md)에서
+별도로 추적한다.
+
 2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. 최초 Windows 단계에서는 MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. Windows 실제 모델의 MCP 호출과 pending stop/잠금 반납을 확인했고 Windows 파일 명령은 BLOCKED였다. 후속 WSL2 모델 없는 실제 파일 시험에서는 허용 읽기/scratch, 금지된 외부 읽기·저장소/Git 쓰기 차단을 확인했다. 당시 별도 Linux 로그인과 실제 모델/전체 verifier는 미실행이었다. 로그인 후의 추가 관찰은 아래에 구분하고 기존 실패 이력은 보존한다.
 
 로그인 후 단계에서는 PATH와 verifier 패키지 접근 결함을 실제 모델로 재현·수정했다. 실제 bounded 역할 및 private working-source verifier의 네 경로·실제 결함 탐지·별도 clean-fixture 최종 reread, staged package kernel 권한과 Linux native pending stop이 통과했다. actual App Server token 합계와 phase별 runtime/role/package hash, 원본 문서 불변·receipt·cleanup 범위는 [WSL 역할 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/observations.json)에 기록한다. CLI token 합계는 서버 사용량 횟수나 금액이 아니다. 당시 Windows source와 Linux 실행 runtime hash가 일치했다. 초기 PATH 실패와 skill blocked도 삭제하지 않는다.

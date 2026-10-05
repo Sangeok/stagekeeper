@@ -1,0 +1,199 @@
+{
+  "sourceRevision": "6c5c57adab694a1d10213467a15d85f445d7d454",
+  "completedAt": "2026-10-05T08:43:56.519Z",
+  "sourceHashes": {
+    "plugin/bin/harness-codex.mjs": "e22c11b07bbdad8cbd0f76ac07d824dbbf22f20a3c59d7cafc384857f1865ae2",
+    "plugin/runtime/codex-thread.mjs": "e3bad51b345114b87bf958f8edce08d0568d6562f1ea1762231d759ea441b119",
+    "plugin/runtime/local-session.mjs": "019f75f94d0747d4812882368b9cec765afb129de9ca23ed25cb2279ae6eb373",
+    "plugin/runtime/role-commands.mjs": "b17e1d0a2539acaffba5416b3a262e17fb828ece26909917d28c6c8b004af180",
+    "plugin/runtime/role-files.mjs": "d786166a04b8a7a969c2dc1559f433314d60ebb3e95f1102e95cf288bebdb489"
+  },
+  "selectedClient": "codex",
+  "cliVersion": "0.160.0",
+  "environment": {
+    "platform": "native Windows",
+    "isolatedPluginInstallHome": true,
+    "physicalFreshMachine": false,
+    "globalNodeOnClientPath": false,
+    "existingNativeLogin": true,
+    "authenticationCopied": false,
+    "newLogin": false,
+    "wsl": false,
+    "database": "Fresh owned loopback test cluster with actual migrations",
+    "productionWrites": false,
+    "templates": "Synthetic role/runbook fixture; full original packaged 8-file verifier included but not executed in this service trial"
+  },
+  "install": {
+    "winningHarnessInitCount": 1,
+    "actualClientLoader": true,
+    "packageSha256": "8935a8c12ff0d9d1c5d1c8f7c42c57d67b7fd7227dfb56fb736130887dc95e41",
+    "runtimeSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+    "verifierFiles": 8,
+    "verifierSha256": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6"
+  },
+  "connection": {
+    "at": "2026-10-05T08:28:43.573Z",
+    "registration": "pass",
+    "installedNativeHelper": "pass",
+    "actualTemplateDownload": "pass",
+    "actualMcpRegistration": "pass",
+    "actualProjectSync": "pass",
+    "realGateWait": "pass",
+    "globalNodeOnClientPath": false,
+    "ownerAuthenticationCopied": false,
+    "modelStarts": 0,
+    "isolatedInstallProfile": true
+  },
+  "serviceGates": {
+    "ownerMcpApproval": "pass",
+    "actualNativePending": "pass",
+    "stopAndQuiescence": "pass",
+    "releaseBeforeAcknowledgement": "refused",
+    "freshNativeResume": "pass",
+    "sameAgentRun": true,
+    "agentRunRowsAfterResume": 1,
+    "usageRunCountBeforeAndAfterResume": 1,
+    "agentRunClosedAfterResume": true,
+    "ownerAndNestedAgentTools": "Effective policy/inventory checked; negative invocation not part of this trial"
+  },
+  "phases": [
+    {
+      "name": "pending",
+      "modelStarts": 1,
+      "usage": null,
+      "result": {
+        "event": "paused",
+        "done": false,
+        "receiptObserved": true
+      },
+      "error": null,
+      "commandStarted": false
+    },
+    {
+      "name": "pending-allowed",
+      "modelStarts": 1,
+      "usage": {
+        "total": {
+          "totalTokens": 38027,
+          "inputTokens": 37361,
+          "cachedInputTokens": 19712,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 666,
+          "reasoningOutputTokens": 140
+        },
+        "last": {
+          "totalTokens": 8851,
+          "inputTokens": 8770,
+          "cachedInputTokens": 0,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 81,
+          "reasoningOutputTokens": 47
+        },
+        "modelContextWindow": 258400
+      },
+      "result": {
+        "event": "paused",
+        "done": false,
+        "receiptObserved": true
+      },
+      "error": null,
+      "commandStarted": false
+    },
+    {
+      "name": "pending-ready",
+      "modelStarts": 1,
+      "usage": {
+        "total": {
+          "totalTokens": 48902,
+          "inputTokens": 48537,
+          "cachedInputTokens": 37248,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 365,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "totalTokens": 10563,
+          "inputTokens": 10525,
+          "cachedInputTokens": 9984,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 38,
+          "reasoningOutputTokens": 0
+        },
+        "modelContextWindow": 258400
+      },
+      "result": null,
+      "error": "Error",
+      "commandStarted": true
+    },
+    {
+      "name": "resume",
+      "modelStarts": 1,
+      "usage": {
+        "total": {
+          "totalTokens": 39785,
+          "inputTokens": 39265,
+          "cachedInputTokens": 30976,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 520,
+          "reasoningOutputTokens": 0
+        },
+        "last": {
+          "totalTokens": 7529,
+          "inputTokens": 7493,
+          "cachedInputTokens": 7168,
+          "cacheWriteInputTokens": 0,
+          "outputTokens": 36,
+          "reasoningOutputTokens": 0
+        },
+        "modelContextWindow": 258400
+      },
+      "result": {
+        "event": "done",
+        "done": true,
+        "receiptObserved": true
+      },
+      "error": null,
+      "commandStarted": false
+    }
+  ],
+  "modelStarts": 4,
+  "reportedTokenTotal": 126714,
+  "tokenTotalComplete": false,
+  "tokenMeaning": "Reported App Server tokens, not server usage runs or a money estimate",
+  "failedCandidates": [
+    {
+      "case": "Fixture queried non-existent AgentRun.cursor instead of stepId",
+      "modelStarts": 0,
+      "ownerApprovalCalled": false,
+      "corrected": true
+    },
+    {
+      "case": "First synthetic role paused before pending command",
+      "modelStarts": 1,
+      "tokenUsage": null
+    },
+    {
+      "case": "Synthetic role pre-read an absent scratch file",
+      "modelStarts": 1,
+      "result": "Refused; role reported blocked",
+      "corrected": "Explicit absent-file write with expectedHash:null and list-based marker lookup"
+    }
+  ],
+  "cleanup": {
+    "ownedRoleChildren": 0,
+    "localSessionsReleased": true,
+    "ownedNextStopped": true,
+    "ownedPostgresqlStopped": true,
+    "privateDiagnosticsRetainedOutsideGit": true
+  },
+  "remaining": [
+    "Windows Server full build CI",
+    "Physical fresh Windows minimum-install acceptance",
+    "Released winning package/private templates and update/conflict",
+    "Actual browser and bidirectional Claude/Codex approval/resumption",
+    "Operational seed/deployment/recovery",
+    "C4 watch and long-idle acceptance"
+  ],
+  "scope": "Bounded installed native Codex + real local service pipeline; not aggregate Windows/release acceptance",
+  "privateBodiesCredentialsSessionIdsExcluded": true
+}
