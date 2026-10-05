@@ -46,13 +46,14 @@ related:
 ## Current State
 
 - C1–C3 public 소스는 PR #104, 후속 UI는 PR #106으로 dev 통합됐다. 기존 격리 DB 계약 6개와 UI 브라우저 시험은 PASS다.
-- T53–T56의 기존 NOT RUN 행은 당시 기록으로 유지한다. 2026-10-04 현재 제품 어댑터를 실제 모델로 시험해 MCP 승인 설정 결함을 수정했다. 이후 MCP 호출은 실행됐지만 허용 읽기/scratch 쓰기는 Windows sandbox의 root-read 요구로 BLOCKED다. 전체 역할 격리·verifier 인수는 미완료다.
+- T53–T56의 기존 NOT RUN 행은 당시 기록으로 유지한다. 2026-10-04 초기 제품 어댑터의 실제 모델 시험에서 MCP 승인 설정 결함을 수정했다. 당시 built-in Windows sandbox의 root-read 요구로 허용 읽기/scratch가 BLOCKED였다. 후속 native backend의 범위별 판정은 아래와 보고서의 새 행으로 구분한다.
 - `plugin/templates` 별도 private 저장소에는 수정 7개와 신규 `en/CODEX.runbook.md`가 미커밋 상태다. 운영 seed·배포는 수행하지 않았다.
 - 실제 PM 모델의 pending MCP 요청에서 stop → interrupt → interrupted → bridge/child 종료 → release를 확인했다. 종료 전 release와 동시 Claude session 시작은 거부됐다. fixture MCP를 사용했으므로 실제 두 CLI/browser 승인 재개나 혼합 버전 호스트 인수의 완료 근거가 아니다.
 - 후속 진행 지시로 WSL2 Ubuntu 26.04.1과 별도 Linux 사용자/checkout을 준비했다. CLI 0.160.0에 native ChatGPT 로그인을 완료했고 Windows 인증 파일은 복사하지 않았다. 실제 모델 시험에서 PATH 제거로 읽기 명령이 실패하고, owner `.codex` 안의 스킬은 목록에 나타나도 읽지 못하는 결함을 발견했다. 고정 시스템 PATH와 checksum을 검증한 완전한 스킬의 읽기 전용 scratch 복사본으로 수정했다. root deny·인증 디렉터리 차단·network/approval 정책은 유지했다.
 - 수정 후 bounded 실제 역할의 읽기/scratch 쓰기, 실제 private working-source verifier의 네 검증 경로, 모델 없는 staged skill·외부 경로·저장소/Git 권한 경계가 통과했다. verifier는 시험 제안서의 설명 불일치 1건을 찾아냈고, 그 시험 문서만 수정한 별도 fresh 실행에서 0 defects를 반환했다. 이 결과는 현재 C4 문서나 운영 winning package를 검증한 결과가 아니다. Linux native pending turn도 종료 전 반납·중복 시작을 거부하고 interrupt/실제 종료 후 자신의 잠금을 반납했다.
-- C4 자동 watch 어댑터·명령·skill은 미구현이다. Windows scoped 파일 실행·중지는 구현했으며 일반 명령 실행, 최소 설치 패키징, 실제 양방향 CLI/browser 승인 재개와 혼합 호스트 인수가 남아 있다. C4 구현·110분 idle 시험은 시작하지 않았다. Linux Claude 2.1.288은 개발 시험용으로 설치했고 당시 auth status는 none이었다. 추가 WSL Claude 로그인 요청을 진행 조건에서 철회했다. 준비한 격리 DB·WSL 환경은 사용자 기본 설치 요건이 아니다.
-- 두 클라이언트의 현재 helper는 `node`로 실행하고 완전한 외부 검증 패키지를 요구한다. 이 두 의존성의 무수동 설치 전달도 아직 구현하지 않았다. Codex Windows sandbox 파일 실행 실패는 별도 `codex-role-execution-unavailable` 오류로 구분하며 재초기화·호스트 변경으로 사용자에게 해결을 맡기지 않는다.
+- C4 자동 watch 어댑터·명령·skill은 미구현이다. Windows scoped 파일 실행·중지와 LPAC snapshot 명령 backend, Node/npm·완전한 원본 verifier를 포함하는 private Windows bundle 생성기는 구현했다. 실제 설치·전체 verifier 인수와 양방향 CLI/browser 승인 재개·혼합 호스트 인수 상태는 보고서에서 따로 추적한다. C4 구현·110분 idle 시험은 시작하지 않았다. Linux Claude 2.1.288은 개발 시험용으로 설치했고 당시 auth status는 none이었다. 추가 WSL Claude 로그인 요청을 진행 조건에서 철회했다. 준비한 격리 DB·WSL 환경은 사용자 기본 설치 요건이 아니다.
+- Windows helper는 install bundle의 `bin/harness.ps1`로 bundled Node를 사용한다. verifier는 양쪽 client의 skill 경로에 완전한 원본을 포함한다. source-only checkout에는 생성 배포물이 없으며 별도 Node/스킬 수동 설치를 사용자 복구 절차로 안내하지 않는다. 잘못된 runtime이나 preflight 실패는 `codex-role-execution-unavailable`로 구분하며 재초기화·호스트 변경으로 사용자에게 해결을 맡기지 않는다.
+- native 명령 후속 시험에서 실제 Windows Codex의 guarded 코드 수정→npm test/build→다음 명령의 산출물 부재 확인, 별도 원본 verifier의 네 경로·no-edit final pass 및 중지/Job 자식 종료가 통과했다. verifier는 의도적 시험 제안서 불일치를 발견했고, 올바른 fixture의 별도 fresh 실행에서는 처음부터 plan defect가 없었다. 격리 프로필의 private 패키지 설치·winning loader·전역 Node 없는 PATH에서 helper init도 통과했다. 전체 Next fixture는 33,871개·743,143,926 bytes의 snapshot에서 실제 Prisma build 명령까지 실행됐으나, ignore-scripts로 설치하지 않은 엔진의 다운로드가 network deny로 실패했다. host의 production build PASS와 이 결과는 구분한다. 실제 서비스 등록·승인 재개·배포/업데이트 인수와 C4 완료를 뜻하지 않는다.
 
 ## Scope
 
@@ -87,10 +88,14 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 지원 기능 또는 검증된 배포물로 해결하며 임의 다운로드나 원본 없는 대체 스킬을 만들지
 않는다. 전달 revision/hash·완전성·winning loader·충돌/업데이트 경계를 직접 검증한다.
 
-**BLK-MIN-01:** Windows scoped 파일 MCP backend로 역할 읽기·검색·쓰기·중지를 구현했다.
-현재 CLI 0.160.0의 root-deny 일반 명령 실행과 helper/검증 패키지의 추가 설치 없는 전달은
-미완료다. 기본 Codex 제품 지원과 C4 착수를 계속 차단한다. Linux/WSL 시험과 파일
-canary·loader 성공은 이 blocker 전체의 해제 증거가 아니다.
+**BLK-MIN-01:** Windows scoped 파일 MCP와 별도 LPAC snapshot 명령 backend 및 Windows
+bundle 생성기는 구현했다. 실제 설치된 패키지의 최소 설치·완전한 verifier·현재 client
+loader/업데이트 인수가 모두 통과하기 전에는 기본 제품 지원과 C4 착수를 계속 차단한다.
+private 로컬 패키지의 실제 loader/init과 bounded 원본 verifier는 통과했다. Node가 전역
+PATH에 없는 helper subprocess 시험이며, Node가 물리적으로 없는 clean Windows machine의
+설치·실제 서비스 연결 및 업데이트/충돌 인수나 패키지 공개 완료로 승격하지 않는다.
+CLI 0.160.0의 root-read shell backend를 켜지 않는다. Linux/WSL 기록이나 파일/명령
+fixture만의 성공은 blocker 전체의 해제 증거가 아니다.
 
 #### TASK-MIN-01: Windows native 역할 실행
 
@@ -98,8 +103,9 @@ canary·loader 성공은 이 blocker 전체의 해제 증거가 아니다.
 실행 가능성을 확인하고 어댑터/클라이언트 호환성 해결 방안을 검증한다. repository 읽기와
 scratch 쓰기, owner credential·외부 경로 읽기 및 repository/Git 쓰기 거부를 실제 파일
 연산으로 확인한다. Windows에서는 scoped MCP 파일 연산으로 먼저 구현했으며, 일반
-명령을 부모의 넓은 권한으로 실행하지 않는다. 남은 native shell/build/test 격리와 전체
-verifier 검증을 이어서 확인한다. 불가능하면 blocker를 유지하며 WSL 설치를 권하는 복구를
+명령을 부모의 넓은 권한으로 실행하지 않는다. native shell/build/test 격리와 전체
+verifier 검증은 후속 bounded Windows 시험에서 통과했다. 전체 repository의 외부 다운로드·
+Git·환경 의존성 및 실제 서비스 인수는 별도로 확인한다. 불가능하면 blocker를 유지하며 WSL 설치를 권하는 복구를
 제공하지 않는다.
 
 satisfies: REQ-MIN-001
@@ -124,13 +130,18 @@ terminal interrupted 후 release가 통과했다. [Windows 관찰 기록](../../
 phase별 범위·실패·hash·관찰된 token을 보존한다. loader canary는 전체 verifier 인수가
 아니며, fixture 서비스는 실제 DB 원장이나 설치된 winning template 배포를 검증하지 않는다.
 
-TASK-MIN-01의 다음 실행 범위는 Windows의 일반 shell/build/test를 동일한 역할 파일·
-network 권한 안에서 실행하고 모든 자식 종료를 확인하는 것이다. LPAC 단일 명령
-prototype은 개발 임시 폴더에서 시험했으나 현재 Node/libuv의 captured-pipe 자식 실행이
-멈췄으므로 제품 launcher로 연결하지 않았다. [libuv의 upstream 수정](https://github.com/libuv/libuv/issues/5178)은
-AppContainer pipe namespace 호환 문제를 설명한다. 임의 명령을 지금의 privileged 파일
-broker에서 실행하거나 디스크 전체 읽기를 허용하는 해결은 채택하지 않는다.
-TASK-MIN-02와 이 명령·전체 verifier 인수가 완료되기 전 BLK-MIN-01을 해제하지 않는다.
+2026-10-04 명령·패키징 후속 소스: 고정한 Node 22.23.3 공식 source에
+[libuv의 AppContainer pipe 수정](https://github.com/libuv/libuv/pull/5181)을 backport하는
+운영자 build를 추가했다. 일반 realpath/module semantics를 유지하고 role snapshot만
+임시 drive letter에 매핑한다. 명령은 scoped 파일 정책으로 만든 repository/scratch
+복사본에서 LPAC·network 없음·Job Object 아래 실행하며 출력/시간 상한과 전체 자식
+종료 acknowledgement를 적용한다. snapshot hash·제외 경로를 결과에 남기고 모든
+복사본 쓰기를 버린다. 원본 수정은 guarded 파일 도구가 담당한다.
+Windows bundle 생성기는 이 runtime·원본 npm·license와 변경하지 않은 완전한 verifier를
+포함한다. source-only Git checkout과 실제 설치 배포물을 구분한다. 현재 실행 결과와
+native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test-reports/active/dual-client-runtime-report.md)에
+추가 기록하며 과거 pipe 실패를 PASS로 덮어쓰지 않는다. TASK-MIN-02와 전체 verifier·
+설치 인수가 완료되기 전 BLK-MIN-01을 해제하지 않는다.
 
 ### 이관한 C4 요구사항과 blocker
 
@@ -202,6 +213,17 @@ preflight 실패/불일치/transport 오류는 모델 시작 없이 고정된 �
 하며 민감한 원본 오류를 노출하거나 재초기화/추가 설치를 해결책으로 제시하지 않는다.
 
 ## Verification Results
+
+native 명령·bundle 후속 결과는 [새 projected evidence](../../test-reports/assets/2026-10-04-codex-windows-role-commands/observations.json)와
+[검증 기록](../../test-reports/assets/2026-10-04-codex-windows-role-commands/checks.json)에 phase별
+소스/package/runtime hash, 실제 model token 필드, snapshot·종료·잠금 반납을 보존한다.
+Windows Server CI와 로컬 native 20개 시험이 통과했다. 초기 hidden npm 누락, trusted TEMP
+표기와 compiler cleanup 실패, verifier의 pagination/shell syntax 오류, unborn Git fixture,
+full-project hardlink·준비 시간 실패도 삭제하지 않았다. 기존 원본 private skill은 8개 파일의
+checksum이 같으며 Git에 본문을 넣지 않았다. full verifier 모델은 자신의 이전 package
+revision으로 기록하고 이후 snapshot/helper 최적화의 native 회귀와 최종 패키지 검증을
+별도로 기록한다. 네트워크가 필요한 현재 Next fixture build는 엔진 다운로드에서 실패했으며
+전체 Windows/운영 readiness 또는 C4 완료를 선언하지 않는다. 아래는 이전 단계의 기록이다.
 
 2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. 최초 Windows 단계에서는 MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. Windows 실제 모델의 MCP 호출과 pending stop/잠금 반납을 확인했고 Windows 파일 명령은 BLOCKED였다. 후속 WSL2 모델 없는 실제 파일 시험에서는 허용 읽기/scratch, 금지된 외부 읽기·저장소/Git 쓰기 차단을 확인했다. 당시 별도 Linux 로그인과 실제 모델/전체 verifier는 미실행이었다. 로그인 후의 추가 관찰은 아래에 구분하고 기존 실패 이력은 보존한다.
 

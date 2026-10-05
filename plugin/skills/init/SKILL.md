@@ -7,9 +7,15 @@ description: Connect this repository to Stagekeeper — write harness.json, gene
 
 Use the owner's existing native Claude Code installation and login. Do not require WSL,
 a VM/container, another client login, or manual Node/verifier-skill installation to connect
-Stagekeeper. This source version still depends on Node and an external complete verifier
-package. If either dependency is unavailable, report an unresolved Stagekeeper packaging
-requirement and stop; do not turn it into extra user setup steps or claim the package is ready.
+Stagekeeper. On Windows execute this package's helpers through
+`powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <absolute-plugin-root>/bin/harness.ps1 <task> <existing arguments>`.
+Use task `init` for harness-init.mjs, `session` for harness-session.mjs and `watch` for
+harness-watch.mjs. Translate every Node helper command below through this launcher on
+Windows and quote its absolute path when it contains spaces.
+This uses the verified included Node without changing persistent execution policy. Read the
+complete original verifier included at `skills/reconciling-proposals-with-codebase` and follow
+the reconciliation contract below. If the installed bundle lacks either dependency, report a
+Stagekeeper packaging failure and stop; do not turn it into extra owner setup steps.
 
 Precondition: the user has created the project on the web and has a token. The token must be
 in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).

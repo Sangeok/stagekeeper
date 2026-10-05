@@ -1,0 +1,53 @@
+{
+  "recordedAt": "2026-10-04T17:33:49.725Z",
+  "testedRevision": "fa42731c4a0f8a7d8751764e3a77882dbd6b806d",
+  "sourceHashes": {
+    "plugin/runtime/role-files.mjs": "d786166a04b8a7a969c2dc1559f433314d60ebb3e95f1102e95cf288bebdb489",
+    "plugin/runtime/role-commands.mjs": "b17e1d0a2539acaffba5416b3a262e17fb828ece26909917d28c6c8b004af180",
+    "plugin/runtime/windows/RoleProcess.cs": "18a91a41b6e529d11c8928d85a0598fe6f6699d9128398a2bbd614b132b85f01",
+    "plugin/runtime/windows/role-process.ps1": "59cb8a8aa28458fa4fdf10b2d3ca7367bcd64e55a9903650b14efcf9feb4a69a",
+    "plugin/runtime/codex-thread.mjs": "e3bad51b345114b87bf958f8edce08d0568d6562f1ea1762231d759ea441b119",
+    "plugin/runtime/codex-agent.mjs": "5dc77913e4c7ce1f71c6bb58ab4ec2db9b7df41f4ad0a66220431a87c7a07ef5",
+    "plugin/bin/harness.ps1": "c38dd1e3e7ec78e3d75236c223ddfe8f9551e9bf7a4603cb5fdb2c7e2ea7a299",
+    "scripts/package-windows-plugin.mjs": "7c287b15a97693fa48aa16c10b8598367307435feae91e4de68336cd86cc297e",
+    "scripts/build-windows-role-node.ps1": "3e05d3e669f49747cc5b8d5885fe6cb0bb7db3de584adbbaa2f9ffa1fe783c25",
+    ".github/workflows/windows-role-runtime.yml": "9076992123b658dd300daad42c6d5b7b2791073cb728eecb64a4d0924a9e40cf"
+  },
+  "counts": {
+    "native": {
+      "tests": 20,
+      "pass": 20,
+      "fail": 0,
+      "skipped": 0
+    },
+    "core": {
+      "tests": 309,
+      "pass": 307,
+      "fail": 0,
+      "skipped": 2
+    },
+    "web": {
+      "tests": 576,
+      "pass": 576,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "check": "PASS",
+  "hostProductionBuild": "PASS in check workflow run 37220359528 on source fa42731c4a0f8a7d8751764e3a77882dbd6b806d; separate from the network-denied role snapshot build",
+  "nativeCi": {
+    "run": 37220359543,
+    "sourceRevision": "fa42731c4a0f8a7d8751764e3a77882dbd6b806d",
+    "result": "PASS"
+  },
+  "webSourceScope": "Only source change was plugin version test 0.5.0 -> 0.5.1; 576 tests passed.",
+  "reportStructure": "PASS",
+  "strictProposalTrace": "PASS",
+  "diffCheck": "PASS",
+  "runtimeReadiness": "Incomplete; bounded source/local package evidence does not clear full release gates.",
+  "completeRuntimeArtifactCi": {
+    "run": 37217822204,
+    "sourceRevision": "d2ce0ea9b7662e3cb558f7b5240f8b1ca88af6fc",
+    "result": "PASS; entire hidden npm tree included and full package hash verified"
+  }
+}

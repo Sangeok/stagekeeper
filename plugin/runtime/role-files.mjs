@@ -12,6 +12,10 @@ const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const identity = stat => process.platform === "win32" ? String(stat.ino) : `${stat.dev}:${stat.ino}`;
 const canonical = name => process.platform === "win32" ? name.toLowerCase() : name;
 
+export class RoleFileInputError extends Error {
+  constructor() { super("Invalid read pagination. Use integer maxLines 1..500 and positive safe-integer startLine; follow nextLine for further pages. Correct parameters without changing target permissions."); this.name = "RoleFileInputError"; }
+}
+
 export function roleFileToolNames(agent) {
   if (agent === "pm") return [];
   // Read-only roles may write scratch; the path policy still refuses repository writes.
@@ -19,7 +23,7 @@ export function roleFileToolNames(agent) {
 }
 
 const schemas = {
-  role_file_read: { description: "Read a permitted UTF-8 file, with line pagination and a SHA-256 for guarded editing. Absolute paths only.", properties: { path: { type: "string" }, startLine: { type: "integer", minimum: 1 }, maxLines: { type: "integer", minimum: 1, maximum: 500 } }, required: ["path"] },
+  role_file_read: { description: "Read a permitted UTF-8 file, with line pagination and a SHA-256 for guarded editing. Absolute paths only. maxLines is 1..500 (default 200); follow nextLine to continue reading the complete file.", properties: { path: { type: "string" }, startLine: { type: "integer", minimum: 1 }, maxLines: { type: "integer", minimum: 1, maximum: 500 } }, required: ["path"] },
   role_file_list: { description: "List up to 200 permitted directory entries. A denied workspace is omitted. Use the nextOffset to continue.", properties: { path: { type: "string" }, offset: { type: "integer", minimum: 0 } }, required: ["path"] },
   role_file_search: { description: "Search a literal string in permitted UTF-8 files in a directory. Reports incomplete scans explicitly; never interprets a regex or shell command.", properties: { path: { type: "string" }, text: { type: "string", minLength: 1, maxLength: 200 }, offset: { type: "integer", minimum: 0 } }, required: ["path", "text"] },
   role_file_write: { description: "Write a permitted UTF-8 file. expectedHash must be the SHA-256 from a current read, or null for a new file. Managed and Git files remain protected, including absent paths.", properties: { path: { type: "string" }, content: { type: "string" }, expectedHash: { type: ["string", "null"] } }, required: ["path", "content", "expectedHash"] },
@@ -60,15 +64,27 @@ export function createRoleFiles(filesystem, agent) {
       }
     }
     if (access(target) === "deny" || (write && access(target) !== "write")) throw new Error("File permission refused");
-    let current = parsed.root;
+    // Resolve once through the OS, but always inspect every ancestor's alias/link
+    // metadata: a canonical spelling alone is not a reparse-point authority check.
+    // Differing spellings (including Windows short names) get the JS fallback.
+    let nativeExact = false;
+    try {
+      nativeExact = canonical(realpathSync.native(target)) === canonical(target);
+    } catch (error) { if (error.code !== "ENOENT") throw error; }
+    let current = parsed.root, existing = parsed.root;
     for (const segment of target.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
       current = path.join(current, segment);
       try {
         const stat = lstatSync(current, { bigint: true });
-        if (stat.isSymbolicLink() || canonical(realpathSync(current)) !== canonical(current)) throw new Error("File alias refused");
+        if (stat.isSymbolicLink()) throw new Error("File alias refused");
         if (stat.isFile() && stat.nlink !== 1n) throw new Error("Hard-linked file refused");
+        existing = current;
       } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
+    // Resolve the complete existing chain once; resolving every prefix repeats
+    // its ancestors for each dependency file. No path/permission result is cached:
+    // callers recheck before and after IO, including aliases above the policy root.
+    if (!nativeExact && canonical(realpathSync(existing)) !== canonical(existing)) throw new Error("File alias refused");
     return target;
   }
 
@@ -148,6 +164,9 @@ export function createRoleFiles(filesystem, agent) {
 
   return {
     tools: roleFileTools(agent),
+    // Trusted snapshot exporter only; these methods are never MCP tools.
+    permission: access,
+    resolveRead(name) { if (closed) throw new Error("Role file broker closed"); return resolveTarget(name); },
     close() { closed = true; },
     call(name, args) {
       if (closed || !names.includes(name) || !args || Array.isArray(args) || typeof args !== "object") throw new Error("Role file operation unavailable");
@@ -157,7 +176,7 @@ export function createRoleFiles(filesystem, agent) {
       if (name === "role_file_write") return write(target, args);
       if (name === "role_file_read") {
         const start = args.startLine ?? 1, count = args.maxLines ?? 200;
-        if (!Number.isSafeInteger(start) || start < 1 || !Number.isInteger(count) || count < 1 || count > 500) throw new Error("Invalid read pagination");
+        if (!Number.isSafeInteger(start) || start < 1 || !Number.isInteger(count) || count < 1 || count > 500) throw new RoleFileInputError();
         const file = read(target), lines = file.text.split(/\r?\n/), selected = lines.slice(start - 1, start - 1 + count).join("\n");
         if (Buffer.byteLength(selected, "utf8") > 65536) throw new Error("Read page too large");
         return { path: target, hash: file.hash, text: selected, startLine: start, totalLines: lines.length, nextLine: start - 1 + count < lines.length ? start + count : null };

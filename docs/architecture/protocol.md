@@ -483,11 +483,47 @@ Windows preflight는 이 파일 backend의 실제 scratch 생성·읽기·hash �
 `view_image`와 `request_permissions_tool`도 모든 역할에서 비활성화하며 effective config로
 확인한다. 기존 named filesystem/network policy와 승인 거부는 유지한다.
 
-이 backend로 Windows native 파일 읽기·검색·수정·역할 중지는 실행할 수 있다.
-일반 build/test/shell 실행은 아직 지원하지 않는다. 필요한 명령 검증은 blocked로 보고하며
-자동으로 부모 프로세스의 넓은 권한이나 WSL로 옮기지 않는다. Windows 명령 격리, 완전한
-검증 인수와 추가 Node/외부 스킬 수동 설치 없는 패키징이 완료되기 전에는 전체 Windows
-제품 지원 준비가 완료됐다고 선언하지 않는다.
+Windows install bundle에 검증된 runtime이 있으면 `role-commands.mjs`가 모델 전에 실제
+Node pipe 자식 실행·파일 허용/거부·AAP 전용 파일 거부·root listing 거부·부모와 자식의
+loopback network 거부를 시험한다. 성공한 non-PM 역할에만 `role_command_exec`을 추가한다.
+source-only checkout은 파일 backend를 유지하며, 잘못된 bundle은 명령 preflight에서 실패한다.
+CLI의 shell/unified exec는 계속 비활성화한다.
+
+명령은 같은 파일 정책으로 내보낸 repository와 role scratch의 새 복사본에서 실행한다.
+Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제외하고 binary도 hash를
+기록한다. alias/hardlink·복사 중 변경은 거부한다. 한 파일 128MiB, 100,000개·총 2GiB,
+각 snapshot 준비 300초를 상한으로 둔다. 최대 8개 파일을 별도 buffer로 복사하며 모든
+진행 중 복사를 join한 뒤 오류를 전파·정리한다. 실제 경로와 IO 전후 identity·mtime·size를
+매번 확인하며 권한·경로 결과를 cache하지 않는다.
+`cwd`는 repository 상대 경로이고 `STAGEKEEPER_ROLE_SCRATCH`는 복사한 scratch다.
+전체 source/scratch hash·누락 수/경로·누락 목록 잘림을 결과에 포함한다. 모든 복사본 쓰기와
+산출물은 버리며 원본으로 동기화하지 않는다. 원본 수정은 guarded 파일 도구를 사용한다.
+누락된 Git·환경·network 의존성을 별도 인수로 남기고 exit 0을 전체 검증으로 해석하지 않는다.
+
+trusted PowerShell/C# helper는 새 LPAC profile에 `registryRead`만 주며 AAP opt-out과
+AppContainer SID·capability를 suspended process에서 확인한다. ACL은 새 owned root의
+metadata와 복사본에만 부여한다. 원본 repository·인증·drive root의 ACL은 바꾸지 않는다.
+Node의 일반 realpath/module semantics를 유지하기 위해 쓰지 않는 drive letter를 같은
+logon session에 임시 매핑한다. process 전용 매핑으로 주장하지 않으며 정상 종료 확인 뒤
+정확한 target을 지정해 해제한다. 자식은 같은 LPAC와 kill-on-close Job Object를 상속한다.
+stdin EOF, 고정된 환경과 runtime/System32 PATH만 전달하며 network capability는 없다.
+
+helper는 소유권 등록·active 확인 뒤에만 컴파일/실행하며 command 중에도 active를 확인한다.
+신뢰된 compiler 임시 파일은 검증한 owned 하위 디렉터리에서 만들고, untrusted 실행 전에
+같은 compiling process가 삭제한다. 실제 시작 marker와 종료 acknowledgement를 구분하며
+컴파일 중 도착한 stop도 suspended 자식의 resume 전에 확인한다.
+stop·소유권 상실·timeout·출력 상한·root 종료 시 job 전체를 종료한다. active process 0,
+root terminal, output reader EOF, drive/profile cleanup을 확인한 nonce acknowledgement 뒤에만
+tracked helper를 settle한다. 오류·ack 누락은 ownership과 owned 복사본을 보존한다. 명령이
+끝난 트리에 ACL 변경을 전파하지 않으며 확인된 owned root만 삭제한다. 비정상 helper 종료의
+남은 profile/drive는 명시적 복구 대상이며 자동 잠금 회수 근거가 아니다.
+
+운영자는 고정 Node source와 libuv pipe backport로 만든 runtime·원본 npm·license를
+`package-windows-plugin.mjs`로 완전한 원본 verifier와 함께 전달한다. verifier는 양쪽 client의
+skill 경로에 같은 checksum으로 복사한다. Windows helper는 `bin/harness.ps1`에서 bundled
+Node를 검증해 실행하며 별도 Node/검증 스킬 설치를 요구하지 않는다. generated binary와
+private verifier 본문은 public Git에 넣지 않는다. private 로컬 패키지 생성·시험과 실제
+패키지 공개/설치는 별도 상태이며 완전한 Windows 인수와 출시 승인 전 readiness를 선언하지 않는다.
 
 parent HARNESS token 대신 일회성 localhost bridge capability만 child에 준다. verifier의 완전한 owner package를
 scratch의 `.agents/skills/reconciling-proposals-with-codebase`로 복사하고, 원본·복사본의 checksum과 파일 수를

@@ -14,10 +14,12 @@ Codex foreground 어댑터 소스도 같은 HTTP MCP·원장을 사용한다. Co
 WSL·VM·컨테이너·별도 Linux checkout이나 선택하지 않은 클라이언트의 설치·로그인을
 지원 조건이나 오류 복구 절차로 요구하지 않는다. helper 실행 환경과 완전한 검증 스킬의
 전달은 Stagekeeper 패키징 책임이며 사용자가 Node나 외부 스킬을 별도로 설치하게 하지 않는다.
-이 기준은 출시 게이트다. 현재 두 클라이언트의 helper는 별도 Node와 외부 검증 패키지에
-의존하므로 아직 이 기준을 만족하지 않는다. Windows Codex 역할 파일 작업은 scoped MCP
-backend로 읽기·검색·수정·중지를 실행하며, 일반 shell/build/test와 설치된 패키지의 전체
-Windows 인수는 미완료다. 파일 작업의 구현을 전체 최소 설치 지원으로 해석하지 않는다.
+이 기준은 출시 게이트다. Windows bundle 생성기는 Node/npm·license와 완전한 원본
+verifier를 포함하고 `bin/harness.ps1`이 검증된 runtime으로 양쪽 helper를 실행한다.
+source-only checkout에는 생성 runtime/스킬이 없으며 일반 사용자용 설치 배포물이 아니다.
+Windows Codex는 scoped 파일 MCP와 실제 격리 preflight 뒤 LPAC snapshot 명령을 사용한다.
+새 source의 구현·private 로컬 package 시험과 실제 설치 배포·전체 Windows 인수는 별도다.
+현재 판정은 runtime 보고서를 따르며 파일/명령 fixture의 성공을 전체 출시로 해석하지 않는다.
 WSL 시험 결과는 개발 증거로 보존하며 Windows 지원·최소 설치 인수를 대신하지 않는다.
 
 ```text

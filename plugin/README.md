@@ -5,16 +5,23 @@ Claude의 `skills/`와 `.claude-plugin/plugin.json`, Codex의 `codex/skills/`와
 portable root manifest는 두지 않는다. private 단계 본문은 패키지에 포함하지 않고
 인증된 서버가 공급한다. `lib/`는 `packages/core`에서 동기화한 복사본이다.
 
-현재 버전은 소스 기준 0.5.0이다. 실제 설치된 winning skill/helper, 모델 권한,
+현재 버전은 소스 기준 0.5.1이다. 실제 설치된 winning skill/helper, 모델 권한,
 DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-reports/active/dual-client-runtime-report.md)의
 미완료 항목이다. 아래 사용법은 설치·서버·private bundle의 같은 버전을 준비한 뒤 적용한다.
 
 제품의 기본 연결 절차는 선택한 native 클라이언트의 기존 로그인 → Stagekeeper 플러그인
 설치 → 프로젝트 연결이다. WSL·다른 CLI 로그인·별도 Node·검증 스킬 설치를 사용자에게
-요구하지 않는다. 현재 두 클라이언트의 소스 실행 절차에는 Node와 외부 검증 패키지 의존성이
-남아 있고 Codex Windows 역할 파일 실행도 차단되므로 최소 설치 지원은 미완료다.
-이 의존성을 패키지에서 해결하고 Windows 인수를 통과하기 전에는 일반 사용자에게
-추가 설치를 안내하거나 준비 완료를 선언하지 않는다. WSL 검증은 내부 개발 기록이다.
+요구하지 않는다. Windows install bundle은 검증된 Node·원본 npm·license와 변경하지 않은
+완전한 verifier를 포함하며 `bin/harness.ps1`이 helper를 실행한다. source-only checkout에는
+이 생성 배포물이 없다. bundle 생성·인수·실제 배포는 각각 별도 상태이며 배포 전에 일반
+사용자에게 추가 설치를 안내하거나 준비 완료를 선언하지 않는다. WSL 검증은 내부 개발 기록이다.
+
+Windows Codex 역할의 파일 연산은 scoped MCP backend가 수행한다. 완전한 runtime이
+있으면 모델 전 실제 LPAC·pipe 자식 실행·외부/AAP 파일 및 network 거부 preflight 뒤
+`role_command_exec`을 추가한다. 이 도구는 허용된 repository/role scratch의 새 임시
+복사본에서 명령을 실행한다. 원본·Git·인증은 변경하지 않고 복사본의 산출물은 버린다.
+필요한 원본 수정은 guarded 파일 도구로 수행한다. 누락된 Git/.env/denied 의존성과 snapshot
+hash를 검증 근거에 포함하며, 명령 exit 0만으로 전체 제품 인수를 선언하지 않는다.
 
 ## 초기화와 명시적 실행
 

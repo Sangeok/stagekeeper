@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { linkSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRoleFiles, roleFileToolNames } from "../runtime/role-files.mjs";
@@ -57,6 +57,18 @@ it("refuses linked, binary, oversized and ambiguous Windows files with no token 
   const alias = path.join(f.root, "src/alias");
   symlinkSync(f.base, alias, process.platform === "win32" ? "junction" : "dir");
   assert.throws(() => f.files.call("role_file_read", { path: path.join(alias, "outside.txt") }));
+  assert.throws(() => f.files.call("role_file_write", { path: path.join(alias, "missing/new.txt"), content: "FORBIDDEN", expectedHash: null }));
+  const aliasedPolicy = createRoleFiles({ ":root": "deny", [alias]: "write" }, "web-dev");
+  assert.throws(() => aliasedPolicy.call("role_file_read", { path: path.join(alias, "outside.txt") }));
+  const nativeResolver = realpathSync.native;
+  try {
+    // An OS canonical spelling may preserve a mounted path. Real on-disk ancestor
+    // metadata must still refuse its junction, including a new write destination.
+    realpathSync.native = target => target;
+    assert.throws(() => aliasedPolicy.call("role_file_read", { path: path.join(alias, "outside.txt") }));
+    assert.throws(() => aliasedPolicy.call("role_file_write", { path: path.join(alias, "missing/new.txt"), content: "FORBIDDEN", expectedHash: null }));
+  } finally { realpathSync.native = nativeResolver; }
+  aliasedPolicy.close();
   assert.equal(readFileSync(path.join(f.base, "outside.txt"), "utf8"), "OUTSIDE_CANARY");
   assert.throws(() => f.files.call("role_command_exec", { command: "anything" }));
   assert.throws(() => f.files.call("role_file_read", { path: path.join(f.root, "src/code.ts"), token: "injection" }));
@@ -118,11 +130,37 @@ it("fences native file tools with the current receipt and active owner, never fo
   try {
     assert.ok((await request("role_file_read", { path: path.join(f.root, "src/code.ts") })).error);
     assert.ok((await request("agent_next", {})).result);
+    const malformed = await request("role_file_read", { path: path.join(f.root, "src/code.ts"), maxLines: 600 });
+    assert.equal(malformed.error.code, -32602); assert.match(malformed.error.message, /1\.\.500/);
     const read = await request("role_file_read", { path: path.join(f.root, "src/code.ts") });
     assert.equal(JSON.parse(read.result.content[0].text).text, "first line\nsecond needle\nthird line\n");
     assert.deepEqual(calls, ["agent_next"]);
     active = false;
-    assert.ok((await request("role_file_write", { path: path.join(f.scratch, "late.txt"), content: "LATE", expectedHash: null })).error);
+    assert.equal((await request("role_file_write", { path: path.join(f.scratch, "late.txt"), content: "LATE", expectedHash: null })).error.code, -32000);
   } finally { await bridge.close(); }
   assert.throws(() => f.files.call("role_file_list", { path: f.root }));
+});
+
+it("discards an asynchronous local result after stop and waits for its backend to settle", async () => {
+  const receipt = { runId: "command-run", revision: 1, stepId: "inspect" };
+  let finish, entered, signal, closed = false;
+  const started = new Promise(resolve => { entered = resolve; });
+  const pending = new Promise(resolve => { finish = resolve; });
+  const backend = { tools: [{ name: "role_command_exec", inputSchema: { type: "object" } }],
+    call: async (_, __, controllerSignal) => { signal = controllerSignal; entered(); await pending; return { exitCode: 0, status: "exited", quiescent: true }; },
+    close: async () => { await pending; closed = true; } };
+  const operations = { listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name, inputSchema: { type: "object" } })),
+    checkSession: async () => ({ event: "owned", lifecycle: "active", client: "codex" }),
+    callTool: async () => ({ done: false, receipt, step: "inspect" }) };
+  const bridge = await roleBridge({}, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, backend);
+  const request = async name => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: {} } }) })).json();
+  try {
+    await request("agent_next");
+    const command = request("role_command_exec"); await started;
+    assert.ok((await request("role_command_exec")).error);
+    bridge.abort(); assert.equal(signal.aborted, true);
+    finish(); assert.ok((await command).error);
+  } finally { finish(); await bridge.close(); }
+  assert.equal(closed, true);
 });
