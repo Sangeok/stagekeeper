@@ -54,6 +54,7 @@ related:
 - C4 자동 watch 어댑터·명령·skill은 미구현이다. Windows scoped 파일 실행·중지와 LPAC snapshot 명령 backend, Node/npm·완전한 원본 verifier를 포함하는 private Windows bundle 생성기는 구현했다. 실제 설치·전체 verifier 인수와 양방향 CLI/browser 승인 재개·혼합 호스트 인수 상태는 보고서에서 따로 추적한다. C4 구현·110분 idle 시험은 시작하지 않았다. Linux Claude 2.1.288은 개발 시험용으로 설치했고 당시 auth status는 none이었다. 추가 WSL Claude 로그인 요청을 진행 조건에서 철회했다. 준비한 격리 DB·WSL 환경은 사용자 기본 설치 요건이 아니다.
 - Windows helper는 install bundle의 `bin/harness.ps1`로 bundled Node를 사용한다. verifier는 양쪽 client의 skill 경로에 완전한 원본을 포함한다. source-only checkout에는 생성 배포물이 없으며 별도 Node/스킬 수동 설치를 사용자 복구 절차로 안내하지 않는다. 잘못된 runtime이나 preflight 실패는 `codex-role-execution-unavailable`로 구분하며 재초기화·호스트 변경으로 사용자에게 해결을 맡기지 않는다.
 - native 명령 후속 시험에서 실제 Windows Codex의 guarded 코드 수정→npm test/build→다음 명령의 산출물 부재 확인, 별도 원본 verifier의 네 경로·no-edit final pass 및 중지/Job 자식 종료가 통과했다. verifier는 의도적 시험 제안서 불일치를 발견했고, 올바른 fixture의 별도 fresh 실행에서는 처음부터 plan defect가 없었다. 격리 프로필의 private 패키지 설치·winning loader·전역 Node 없는 PATH에서 helper init도 통과했다. 전체 Next fixture는 33,871개·743,143,926 bytes의 snapshot에서 실제 Prisma build 명령까지 실행됐으나, ignore-scripts로 설치하지 않은 엔진의 다운로드가 network deny로 실패했다. host의 production build PASS와 이 결과는 구분한다. 실제 서비스 등록·승인 재개·배포/업데이트 인수와 C4 완료를 뜻하지 않는다.
+- 2026-10-05 전체 프로젝트 빌드 후속 시험은 정상 npm ci로 엔진을 준비한 공개 source fixture에서 통과했다. 로컬 licensed font·DB URL 없는 generate·Windows 역할 전용 Webpack/SWC 별칭 위임과 readlink 호환 경로·2 worker/캐시 제외를 적용했다. 실제 33,883개·764,278,078 bytes LPAC snapshot의 전체 build exit 0, 타입 검사·15개 정적 페이지·build trace·route table·종료 acknowledgement와 원본 hash/build ID 불변을 확인했다. source/kernel 권한·network deny·120초 command/300초 snapshot 제한을 유지했다. [별도 완료 보고서](../../test-reports/completed/2026-10-05-windows-project-build.md)는 실패했던 후보도 보존한다. 이 저장소의 준비된 의존성 빌드 결과이며 최소 설치·실제 서비스 재개·배포와 C4 인수를 완료 처리하지 않는다.
 
 ## Scope
 
@@ -222,8 +223,35 @@ Windows Server CI와 로컬 native 20개 시험이 통과했다. 초기 hidden n
 full-project hardlink·준비 시간 실패도 삭제하지 않았다. 기존 원본 private skill은 8개 파일의
 checksum이 같으며 Git에 본문을 넣지 않았다. full verifier 모델은 자신의 이전 package
 revision으로 기록하고 이후 snapshot/helper 최적화의 native 회귀와 최종 패키지 검증을
-별도로 기록한다. 네트워크가 필요한 현재 Next fixture build는 엔진 다운로드에서 실패했으며
+별도로 기록한다. 당시 Next fixture build의 엔진 다운로드 실패는 역사적 기록으로 유지한다.
+2026-10-05 정상 의존성 준비 후 현재 저장소의 network-denied 전체 빌드는
+[새 보고서](../../test-reports/completed/2026-10-05-windows-project-build.md)에서 PASS다.
 전체 Windows/운영 readiness 또는 C4 완료를 선언하지 않는다. 아래는 이전 단계의 기록이다.
+
+2026-10-05 후속 로컬 실제 서비스 시험에서는 설치된 native Codex plugin/helper와
+새 loopback PostgreSQL·production Next 서비스를 연결했다. client PATH에서 전역 Node를
+제외한 설치/loader/프로젝트 등록/MCP 연결·동기화, 실제 owner MCP 승인, 모델의 native
+명령 실행 중 stop과 quiescence 전 release 거부, 새 세션의 동일 AgentRun 재개·완료가
+통과했다. 서버 사용량은 재개 전후 1회였다. 기존 Windows 로그인만 사용했고 WSL·인증
+복사·운영 쓰기는 없었다. 합성 템플릿의 이전 실패 2회와 수정 후 모델 2회를
+[관찰 기록](../../test-reports/assets/2026-10-05-windows-native-service/observations.json)에
+구분했다. 첫 모델 token usage는 누락되어 126,714는 나머지 3회의 보고된 합계다.
+시험 서비스/DB는 종료했고 소유한 역할·세션도 정리했다. 물리적으로 새 Windows의
+최소 설치, 배포된 private winning template·업데이트/충돌, 실제 browser/Claude 양방향
+승인·재개와 운영/C4 gate는 이 bounded 시험으로 완료 처리하지 않는다.
+single-preload의 로컬 전체 격리 빌드도 통과했으며 Windows Server의 이전 `spawn EPERM`
+실패와 최종 CI는 [빌드 보고서](../../test-reports/completed/2026-10-05-windows-project-build.md)에서
+별도로 추적한다.
+
+최종 소스 `7214151`의 Windows Server [전체 격리 빌드 CI](https://github.com/Sangeok/stagekeeper/actions/runs/37287612001)와
+[check CI](https://github.com/Sangeok/stagekeeper/actions/runs/37287612166)가 통과했다.
+Windows 역할에만 Next의 지원되는 TypeScript compiler API 검사를 선택해 실패한 CLI
+spawn 경로를 피했으며, 의도적인 타입 오류의 실제 LPAC 빌드 실패도 확인했다.
+원본 source/build ID 불변·quiescence·산출물 폐기가 통과했다. 이전 Server spawn 실패와
+로컬 시험 중 operator 주석 갱신으로 source 불변 검사가 실패한 기록은
+[API/CI evidence](../../test-reports/assets/2026-10-05-windows-project-build/typescript-api-observations.json)에
+보존한다. 이 전체 프로젝트 빌드 회귀 통과는 위의 남은 최소 설치·운영·C4 gate를
+완료 처리하는 근거가 아니다.
 
 2026-10-04 사용자 진행 지시에 따라 기본 인수를 실행했다. 최초 Windows 단계에서는 MCP 승인 결함을 수정하고 모델 없는 실제 sandbox 실행 preflight를 추가했다. Windows 실제 모델의 MCP 호출과 pending stop/잠금 반납을 확인했고 Windows 파일 명령은 BLOCKED였다. 후속 WSL2 모델 없는 실제 파일 시험에서는 허용 읽기/scratch, 금지된 외부 읽기·저장소/Git 쓰기 차단을 확인했다. 당시 별도 Linux 로그인과 실제 모델/전체 verifier는 미실행이었다. 로그인 후의 추가 관찰은 아래에 구분하고 기존 실패 이력은 보존한다.
 

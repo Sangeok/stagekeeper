@@ -47,10 +47,15 @@ fresh 역할 실행과 공통 잠금의 사용법은 [plugin/README.md](./plugin
 사용자는 선택한 native 클라이언트의 기존 로그인으로 플러그인을 설치하고 프로젝트를
 연결할 수 있어야 한다. WSL이나 다른 CLI 로그인, 별도 Node·검증 스킬 설치는 기본
 사용 절차에 포함하지 않는다. 현재 Codex 경로의 Windows 실행과 의존성 패키징은
-미완료이며 [후속 계획](./docs/proposals/active/codex-dual-client-runtime-follow-ups.md)에서
+구현되어 있으며, 실제 설치·전체 서비스 인수는 [후속 계획](./docs/proposals/active/codex-dual-client-runtime-follow-ups.md)에서
 자동 watch보다 먼저 해결한다.
 
 ## 로컬 확인
+
+개발자/CI는 먼저 `npm ci`로 프로젝트 의존성(Prisma 엔진의 설치 스크립트 포함)을
+준비한다. 이후 `npm run db:generate`와 `npm run build`에는 DB 접속 정보가 필요하지
+않고, 폰트도 저장소의 로컬 파일을 사용한다. 서버 실행·migration에는 유효한
+`DATABASE_URL`이 필요하다. 이 개발 절차는 플러그인 사용자의 추가 설치 요구가 아니다.
 
 ```powershell
 npm run dev

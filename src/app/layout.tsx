@@ -1,18 +1,24 @@
 import type { Metadata } from "next";
-import { Fragment_Mono, Schibsted_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-// 사람이 읽는 글은 Schibsted Grotesk(가변 서체라 weight 지정 없음), 기계가 만든 식별자는 Fragment Mono(400뿐).
-const sans = Schibsted_Grotesk({
+// 사람이 읽는 글은 Schibsted Grotesk(400–900), 기계가 만든 식별자는 Fragment Mono(400뿐).
+const sans = localFont({
+  src: "./fonts/schibsted-grotesk-normal.ttf",
   variable: "--font-schibsted",
-  subsets: ["latin"],
+  weight: "400 900",
+  style: "normal",
+  display: "swap",
 });
 
-const mono = Fragment_Mono({
+const mono = localFont({
+  src: "./fonts/fragment-mono-regular.ttf",
   variable: "--font-fragment",
-  subsets: ["latin"],
   weight: "400",
+  style: "normal",
+  display: "swap",
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
