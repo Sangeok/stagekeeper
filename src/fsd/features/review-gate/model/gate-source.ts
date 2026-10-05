@@ -3,7 +3,7 @@ import { STATUSES, canDiscard, findRule, type RuleKind } from "@harness/core/tra
 import type { RejectAction } from "./gate-text";
 
 // 결재함 자격(게이트·재개·뱃지 수)은 배너도 쓰므로 entities/board-item이 소유한다. 이 슬라이스 소비자를 위해 다시 내보낸다.
-export { isAtGate, needsHumanDecision, pendingInboxCount, resumeTargetsFor, type GateRow } from "@/fsd/entities/board-item";
+export { isAtGate, needsHumanDecision, pendingInboxCount, resumeTargetsFor } from "@/fsd/entities/board-item";
 
 const ruleKind = (actor: string, from: string, to: string): RuleKind | null =>
   findRule(actor, from, to)?.kind ?? null;

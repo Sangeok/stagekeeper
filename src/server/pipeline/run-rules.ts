@@ -79,7 +79,6 @@ export const RUNBOOK_STALE_NOTE =
   "This repository's runbook does not match the current template, or its version was never recorded. "
   + "Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md.";
 
-export type PipelineOverview = { head: HeadNext; items: PipelineNext[]; runbook?: { stale: true; note: string } };
 export function hintFor(node: string): string {
   const agent = slotAgent(node);
   return HINT[node] ?? (agent === "doc-auditor" ? HINT["doc-audit"] : agent === "feature-scout" ? HINT.scout : "");

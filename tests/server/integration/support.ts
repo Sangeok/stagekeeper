@@ -75,14 +75,6 @@ export function ordered() {
   };
 }
 
-// 모든 보드 writer는 latestRow(boardItem.findFirst)로 읽고 그 값으로 CAS한다 — 읽은 직후가 순서를 끼울 자리다.
-export const afterBoardRead = (db: PrismaClient, hook: Hook): PrismaClient =>
-  db.$extends({ query: { boardItem: { async findFirst({ args, query }) {
-    const row = await query(args);
-    await hook();
-    return row;
-  } } } }) as unknown as PrismaClient;
-
 // project_sync는 저장 roster를 workspace.findMany로 읽고 그 뒤에 합집합을 쓴다 — Serializable 경계를 끼울 자리다.
 export const afterWorkspaceRead = (db: PrismaClient, hook: Hook): PrismaClient =>
   db.$extends({ query: { workspace: { async findMany({ args, query }) {

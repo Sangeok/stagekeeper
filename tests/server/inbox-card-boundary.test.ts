@@ -23,7 +23,6 @@ const namedExports = (source: ts.SourceFile) => source.statements.filter(ts.isEx
 });
 
 it("moved server compositions and schemas have exact public provenance and no bypass consumers across src", () => {
-  assert.equal(existsSync("src/fsd/pages/project-inbox/index.ts"), false);
   const compositions = [
     ["ProjectInboxPage", "project-inbox", "src/app/(app)/p/[slug]/inbox/page.tsx"],
     ["ProjectTokensPage", "project-tokens", "src/app/(app)/p/[slug]/tokens/page.tsx"],
@@ -31,7 +30,7 @@ it("moved server compositions and schemas have exact public provenance and no by
   ];
   for (const [name, slice] of compositions) {
     assert.ok(namedExports(parse(`src/fsd/pages/${slice}/index.server.ts`)).some(entry => entry.name === name && !entry.typeOnly && entry.from === `./ui/${slice}-page`));
-    if (slice !== "project-inbox") assert.ok(namedExports(parse(`src/fsd/pages/${slice}/index.ts`)).every(entry => entry.typeOnly));
+    assert.equal(existsSync(`src/fsd/pages/${slice}/index.ts`), false);
   }
   assert.deepEqual(namedExports(parse("src/fsd/entities/project-token/index.server.ts")), [{ name: "TokenTable", from: "./ui/token-table", typeOnly: false }]);
   assert.ok(namedExports(parse("src/fsd/entities/project-token/index.ts")).some(entry => entry.name === "TokenRow" && entry.typeOnly && entry.from === "./model/token-row"));
