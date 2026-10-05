@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-05T09:54:35.974Z"
-tested-revision: "21b2c7bdcacd463ffe7286d05da4dc73b1960a74"
+last-executed-at: "2026-10-05T10:42:06.144Z"
+tested-revision: "0edfb7e044b0e2c19e4ce7a72966d0beea5f0690"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -23,6 +23,18 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-05 private working-template follow-up: the installed 0.5.2 helpers
+connected to a fresh migrated production service using actual private bodies,
+with no global Node on the client PATH. Transaction rollback/bounded restore,
+real Inbox approval and server/local-session receipt/usage handover passed.
+The dev role recorded implement blocked after Git diff inspection and hold
+failed; no implementation completion, active-command stop/resume or full
+service verifier pass was established. The candidate is an unreleased working
+copy with future QA references. Three model starts and all operator fixture
+failures are preserved in [the bounded FAIL report](../completed/2026-10-05-windows-private-template-acceptance.md).
+Physical clean Windows, released private bodies and native Claude host
+acceptance remain open; no additional client login or WSL was requested.
 
 2026-10-05 package-update follow-up: changing a 0.5.1 package without changing
 its version left Claude's previous cache in place (`up_to_date`), a retained
@@ -223,6 +235,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T95 | R5 | informational | Final Windows Server full build and retained type rejection | Complete offline LPAC compile/type/static/tracing build with original invariants; intentional type error rejected in separate LPAC fixture | [E108] | PASS |
 | T96 | R5 | informational | Historical same-version private package refresh candidate | Changed content should replace the installed bytes; Claude instead returned up_to_date and retained the old 0.5.1 cache, while Codex refreshed | [E109] | FAIL |
 | T97 | R5 | informational | Later versioned 0.5.2 private package regression | Both real caches match all 2,209 files; no-global-Node helpers and modified ownership preservation; original staged skill selection before inference; ZIP exact round trip | [E110] | PASS |
+| T98 | R5 | informational | Actual private working bodies on a fresh Windows service | Installed helper connection, DB rollback/restore, browser approval and server/local-session handover PASS; dev Git inspection blocked, hold failed; full verifier and active-command stop/resume not established | [E111] | FAIL |
 
 ## Commands and Static Checks
 
@@ -370,6 +383,8 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E108 | Final Windows Server build/API checker | Source 72141512408454276316103f0e8c9b0091cd841e: [native run 37287612001](https://github.com/Sangeok/stagekeeper/actions/runs/37287612001) and [check 37287612166](https://github.com/Sangeok/stagekeeper/actions/runs/37287612166) SUCCESS. Actual LPAC full build exit 0/quiescent/peak 9, 33,889 files/764,338,530 bytes, compile 11.8s/type check 11s, 15 pages/traces/routes, original source/build ID assertions PASS. Intentional number-to-string error failed a separate LPAC build and its own canary was removed after quiescence. [Projected observations](../assets/2026-10-05-windows-project-build/typescript-api-observations.json) preserve earlier Server EPERM and invalidated local source-invariance trial; NUL cause is an inference, not a permission grant. | Tested source/runtime hashes and fixed spawn classifications only; no private command bodies/paths/auth; does not certify aggregate service/release/C4 readiness |
 | E109 | Historical same-version package update | Earlier installed source 6c5c57a vs new d328ea2, both 0.5.1: Codex refreshed; Claude returned up_to_date and retained the previous package hash. Actual FAIL candidate retained in [observations](../assets/2026-10-05-windows-package-acceptance/observations.json). | Fixed fields/hashes only; no private body or profile paths |
 | E110 | Versioned install/cache/helper/conflict/archive regression | Source 21b2c7bdcacd463ffe7286d05da4dc73b1960a74, 0.5.2: actual Claude/Codex updates and complete 2,209-file comparison PASS; no-global-Node helper init and modified ownership preservation PASS; duplicate-skill actual thread selection PASS with zero model turns; ZIP exact extraction PASS. [Completed narrow report](../completed/2026-10-05-windows-package-update.md), [observations](../assets/2026-10-05-windows-package-acceptance/observations.json). | No physical clean-machine/released private body/service/browser/C4 certification; no publication or auth copies |
+
+| E111 | Actual private working-template service trial | Application 0edfb7e044b0e2c19e4ce7a72966d0beea5f0690 and prior verified 0.5.2 install bundle. Real private working snapshot/fresh DB rollback and bounded restore/real browser approval/server and local-session handover PASS; dev implement blocked after Git diff inspection and hold failed. Three model starts, 223,481 reported tokens. Operator setup failures and invalid verifier/stop trials are preserved in [bounded FAIL report](../completed/2026-10-05-windows-private-template-acceptance.md) and [projected observations](../assets/2026-10-05-windows-private-template-acceptance/observations.json). | No private body/auth/session IDs/raw transcripts; unreleased working snapshot and future QA references do not certify released body/full verifier/active-command resume/native Claude/clean Windows/C4 |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
