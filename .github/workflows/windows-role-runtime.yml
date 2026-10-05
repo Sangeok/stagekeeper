@@ -8,7 +8,10 @@ on:
       - scripts/build-windows-role-node.ps1
       - plugin/runtime/windows/**
       - plugin/runtime/role-commands.mjs
+      - plugin/runtime/role-git.mjs
+      - plugin/runtime/codex-thread.mjs
       - plugin/bin/harness-role-commands.test.mjs
+      - plugin/bin/harness-role-git.test.mjs
       - scripts/rehearse-windows-project-build.mjs
       - scripts/build.mjs
       - scripts/windows-role-readlink.cjs
@@ -50,7 +53,7 @@ jobs:
         shell: pwsh
         run: |
           $env:STAGEKEEPER_TEST_WINDOWS_RUNTIME = "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
-          node --test plugin/bin/harness-role-commands.test.mjs plugin/bin/harness-role-files.test.mjs
+          node --test plugin/bin/harness-role-commands.test.mjs plugin/bin/harness-role-files.test.mjs plugin/bin/harness-role-git.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native role command acceptance failed' }
           node --test scripts/windows-role-readlink.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native readlink compatibility acceptance failed' }
