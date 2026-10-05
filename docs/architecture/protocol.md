@@ -513,6 +513,8 @@ worktree HEAD를 확인하고 객체·필요한 index를 새 owned 비공개 데
 소유자 환경을 전달하지 않으며 system/global config·pager·fsmonitor·외부 diff·textconv·
 lazy fetch·submodule 조회를 비활성화한다. 객체 alias/hardlink·복사 중 변경을 거부하고
 파일 128MiB·100,000개·총 2GiB·준비 300초, 조회 10초·출력 1MiB를 상한으로 둔다.
+표준 Git for Windows의 cmd/bin launcher 대신 같은 설치의 실제 mingw64 builtin을
+호출한다. launcher의 종료만 reader 종료로 계산하지 않으며 확인되지 않는 shim은 거부한다.
 프로세스를 같은 소유권에 등록하고 중지 시 실제 종료와 reader EOF를 기다려 settle한다.
 
 `diff`는 HEAD/planCommit에서 만든 private index와 현재 허용 파일의 byte 내용을 비교한다.

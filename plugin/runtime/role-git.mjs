@@ -125,13 +125,21 @@ async function copyObjects(common, destination, signal) {
   }
 }
 
-function executable() {
+export function nativeGitExecutable(environment = process.env) {
   const name = process.platform === "win32" ? "git.exe" : "git";
-  const envPath = Object.entries(process.env).find(([key]) => key.toUpperCase() === "PATH")?.[1] ?? "";
+  const envPath = Object.entries(environment).find(([key]) => key.toUpperCase() === "PATH")?.[1] ?? "";
   for (const directory of envPath.split(path.delimiter)) {
     if (!path.isAbsolute(directory)) continue;
     const candidate = path.join(directory, name);
-    if (existsSync(candidate)) return realpathSync(candidate);
+    if (!existsSync(candidate)) continue;
+    if (process.platform === "win32" && ["cmd", "bin"].includes(path.basename(directory).toLowerCase()) && path.basename(path.dirname(directory)).toLowerCase() !== "mingw64") {
+      // Git for Windows cmd/bin shims launch a second process. Call the actual
+      // builtin executable so cancellation joins the process that reads data.
+      const actual = path.join(path.dirname(directory), "mingw64/bin/git.exe");
+      if (existsSync(actual)) return realpathSync(actual);
+      throw new Error("Native Git launcher cannot establish reader termination");
+    }
+    return realpathSync(candidate);
   }
   throw new Error("Existing native Git executable unavailable");
 }
@@ -184,7 +192,7 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
   if (agent === "pm") throw new Error("PM Git operations refused");
   root = realpathSync(root);
   if (planCommit !== null && !oid(planCommit)) throw new Error("Bound plan commit refused");
-  const git = executable(), controller = new AbortController(); let closed = false, pending = null;
+  const git = nativeGitExecutable(), controller = new AbortController(); let closed = false, pending = null;
   async function execute(args, outerSignal) {
     if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).some(key => !["operation", "paths", "ref"].includes(key))
       || !["head", "show", "diff", "status"].includes(args.operation)) throw new Error("Invalid scoped Git arguments");

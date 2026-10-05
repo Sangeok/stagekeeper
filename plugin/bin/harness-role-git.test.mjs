@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { createRoleFiles } from "../runtime/role-files.mjs";
-import { createRoleGit } from "../runtime/role-git.mjs";
+import { createRoleGit, nativeGitExecutable } from "../runtime/role-git.mjs";
 
 const temporary = realpathSync(tmpdir()), digest = bytes => createHash("sha256").update(bytes).digest("hex");
 // Host Git is intentionally absent from the LPAC command snapshot. This broker
@@ -142,4 +142,12 @@ it("cannot hide current source changes through assume-unchanged or skip-worktree
     assert.match((await query(f, "status")).output, / M code.txt/);
     assert.equal(digest(readFileSync(path.join(f.root, ".git/index"))), index);
   }
+});
+
+it("resolves the real Git for Windows reader from the standard launcher PATH", { skip: process.platform !== "win32" || host.skip }, t => {
+  const actual = nativeGitExecutable(), directory = path.dirname(path.dirname(path.dirname(actual))), shim = path.join(directory, "cmd/git.exe");
+  if (!existsSync(shim)) { t.skip("Host uses a standalone Git distribution"); return; }
+  assert.equal(nativeGitExecutable({ Path: path.join(directory, "cmd") }), actual);
+  const f = fixture(t), fake = path.join(f.base, "unresolved/cmd"); mkdirSync(fake, { recursive: true }); writeFileSync(path.join(fake, "git.exe"), "launcher");
+  assert.throws(() => nativeGitExecutable({ PATH: fake }), /termination/);
 });
