@@ -10,7 +10,10 @@ function isRecord(value) {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {},
-  ...(windowsRole ? { experimental: { cpus: 2 } } : {}),
+  // Next's CLI checker opens ignored stdin through NUL. Avoid that device access
+  // in Windows Server LPAC with the supported compiler API and piped IPC worker.
+  // This project's TypeScript provides the API; type errors still fail the build.
+  ...(windowsRole ? { experimental: { cpus: 2, useTypeScriptCli: false } } : {}),
   webpack(config) {
     if (!windowsRole) return config;
     // A fresh role snapshot discards every build artifact, including caches.
