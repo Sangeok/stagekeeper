@@ -102,6 +102,11 @@ it("checks the Windows broker tool allowlist and disables native shell execution
     mcp_servers: { harness: { enabled: true, url, enabled_tools: names, default_tools_approval_mode: "prompt", tools: Object.fromEntries(names.map(name => [name, { approval_mode: "approve" }])), bearer_token_env_var: "HARNESS_ROLE_CAPABILITY" } },
     permissions: { "harness-role": { extends: ":read-only", filesystem: f.filesystem, network: { enabled: false } } }, shell_environment_policy: { inherit: "none", set: { PATH: roleCommandPath() } } };
   assert.doesNotThrow(() => assertRolePolicy(config, f.filesystem, url, agent, true));
+  const git = structuredClone(config);
+  git.mcp_servers.harness.enabled_tools.push("role_git_read");
+  git.mcp_servers.harness.tools.role_git_read = { approval_mode: "approve" };
+  assert.doesNotThrow(() => assertRolePolicy(git, f.filesystem, url, agent, true, false, true));
+  assert.throws(() => assertRolePolicy(git, f.filesystem, url, agent, true));
   const shell = structuredClone(config); shell.features.shell_tool = true;
   assert.throws(() => assertRolePolicy(shell, f.filesystem, url, agent, true));
   const expanded = structuredClone(config); expanded.mcp_servers.harness.enabled_tools.push("role_command_exec");

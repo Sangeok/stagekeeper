@@ -500,6 +500,27 @@ Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제
 산출물은 버리며 원본으로 동기화하지 않는다. 원본 수정은 guarded 파일 도구를 사용한다.
 누락된 Git·환경·network 의존성을 별도 인수로 남기고 exit 0을 전체 검증으로 해석하지 않는다.
 
+Windows non-PM 역할의 Git 조회는 별도 `role_git_read` 고정 데이터 도구를 사용한다.
+`head`, `show`, `diff`, `status`만 제공하며 일반 명령 backend에 Git이나 원본 `.git`을
+추가하지 않는다. 파일 선택은 절대 경로의 구체적인 허용 파일 최대 50개이며 같은 파일
+정책·receipt·active 소유권·중지 fence를 적용한다. `show`는 한 파일만, `show/diff`의 ref는
+HEAD 또는 해당 dispatch에 기록된 planCommit만 허용한다. 외부·다른 workspace·인증·환경
+파일·directory·glob은 거부하고 전체 저장소 검증으로 해석하지 않는다.
+
+기존 native Git의 고정 builtin 조회만 shell 없이 실행한다. 세션의 공통 Git 디렉터리와
+worktree HEAD를 확인하고 객체·필요한 index를 새 owned 비공개 데이터베이스에 복사한다.
+원본 config·hooks·credentials·replace refs·alternates·promisor 데이터는 사용하지 않는다.
+소유자 환경을 전달하지 않으며 system/global config·pager·fsmonitor·외부 diff·textconv·
+lazy fetch·submodule 조회를 비활성화한다. 객체 alias/hardlink·복사 중 변경을 거부하고
+파일 128MiB·100,000개·총 2GiB·준비 300초, 조회 10초·출력 1MiB를 상한으로 둔다.
+프로세스를 같은 소유권에 등록하고 중지 시 실제 종료와 reader EOF를 기다려 settle한다.
+
+`diff`는 HEAD/planCommit와 현재 허용 파일의 byte 내용을 비교한다. `status`는 private
+index와 선택한 현재 파일을 사용한다. ignore rules·rename 추적·filter·line-ending 변환을
+재현하지 않는다. 응답에 commit·파일 hash·선택 파일 범위를 명시하고 원본 파일과 HEAD가
+조회 중 변경되면 거부한다. Git 조회 산출물·index 변경은 버리며 원본 metadata 쓰기나
+commit은 허용하지 않는다. 누락·거부·출력 상한은 blocked이며 성공 판정으로 사용하지 않는다.
+
 trusted PowerShell/C# helper는 새 LPAC profile에 `registryRead`만 주며 AAP opt-out과
 AppContainer SID·capability를 suspended process에서 확인한다. ACL은 새 owned root의
 metadata와 복사본에만 부여한다. 원본 repository·인증·drive root의 ACL은 바꾸지 않는다.
