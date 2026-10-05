@@ -185,7 +185,7 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     return agent !== null && PROJECT_AGENTS.includes(agent);
   };
   const working = items.filter((i) => !pending.includes(i) && i.status !== "on_hold" && i.gate === null
-    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || isProjectSlot(i.node) || (i.node === "accept" && isAwaitingAcceptance(i.status, i.accepted))));
+    && (i.node === "plan" || i.node === "verify" || i.node === "implement" || i.node === "qa" || isProjectSlot(i.node) || (i.node === "accept" && isAwaitingAcceptance(i.status, i.accepted))));
   const first = pending[0];
   if (first !== undefined) {
     const openCount = items.filter((i) => isOpen(i.status)).length;

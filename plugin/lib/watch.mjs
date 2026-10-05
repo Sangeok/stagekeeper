@@ -94,6 +94,11 @@ function validateItem(item) {
             && new Set(item.checks).size === item.checks.length && typeof item.note === "string"
             && item.note.trim().length > 0 && item.note.length <= 150);
           break;
+        case "qa":
+          requireValue(item.node === "qa" && text(item.note) && text(item.path) && /^[0-9a-f]{7,40}$/.test(item.commit)
+            && object(item.resume) && item.resume.agent === "qa-verifier" && item.resume.key === item.key && item.resume.format === "slots-v1");
+          validateEntry(item.resume.entry, "qa");
+          break;
         case "handoff": requireValue(nullableText(item.note)); break;
         case "cap": requireValue(typeof item.reason === "string"); break;
         default: requireValue(false);

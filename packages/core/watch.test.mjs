@@ -24,6 +24,16 @@ it("failed acceptance is an idle wait, preserving other work and rejecting malfo
   }
 });
 
+it("failed QA waits only that item and preserves ready work with a valid current QA resume binding", () => {
+  const resume = { agent: "qa-verifier", key: "FAILED-QA", format: "slots-v1", entry: { runId: "pipeline", entryId: "entry", slotId: "qa" } };
+  const failure = { key: "FAILED-QA", node: "qa", version: 2, action: "wait", on: "qa", note: "QA failed", path: "docs/agents/qa-verifier/FAILED-QA.md", commit: "a".repeat(40), resume };
+  assert.equal(hasWork(actionableWork(overview([failure]), policy)), false);
+  assert.deepEqual(actionableWork(overview([failure, dispatch()]), policy), actionableWork(overview([dispatch()]), policy));
+  for (const patch of [{ node: "plan" }, { note: "" }, { path: null }, { commit: "uncommitted" }, { resume: { ...resume, agent: "dev" } }, { resume: { ...resume, key: "OTHER" } }, { resume: { ...resume, format: null } }, { resume: { ...resume, entry: { ...resume.entry, slotId: "implement" } } }, { resume: { ...resume, entry: undefined } }]) {
+    assert.throws(() => actionableWork(overview([{ ...failure, ...patch }]), policy), /Invalid pipeline overview/);
+  }
+});
+
 describe("watch MCP response parser", () => {
   it("reads the one JSON tool body", () => {
     assert.deepEqual(parse(response(overview())), { ok: true, value: overview() });

@@ -18,7 +18,7 @@ const CLI = fileURLToPath(new URL("../../plugin/bin/harness-init.mjs", import.me
 const RUNBOOK = "# Runbook\nversion {{runbook_version}}\n{{report_table}}\n";
 // Public fixtures test the wire contract; the private corpus has its own content checks.
 const rows = [
-  ...["dev", "pm", "plan-verifier", "doc-auditor", "feature-scout"].map((agent) => ({
+  ...["dev", "pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier"].map((agent) => ({
     path: `agents/${agent}.md`, body: `---\nname: ${agent}\ndescription: Test role.\n---\nStub\n## step:start\nPrivate step\nnext: done\n`,
   })),
   ...["plans/README.md", "plans/template.md", "plans/verification-paths.md", "agents/README.md"].map((path) => ({ path: `docs/${path}`, body: "# Test document\n" })),

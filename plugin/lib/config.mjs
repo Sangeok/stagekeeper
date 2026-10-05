@@ -1,5 +1,6 @@
 // 순수. harness.json → 정규화된 설정. 실패는 필드 경로가 붙은 Error 하나로.
 import { validateWorkspaceSemantics } from "./workspaces.mjs";
+import { parseQaConfig } from "./qa.mjs";
 
 const EXECUTORS = new Set(["local", "routine"]);
 const RELEASE_AUTH = new Set(["none", "verifier"]);
@@ -36,5 +37,6 @@ export function parseHarnessConfig(input) {
     release = { baseUrl: str(raw.release.baseUrl, "release.baseUrl").replace(/\/$/, ""), auth };
   }
   const scout = raw.scout === undefined ? null : { question: str(raw.scout.question, "scout.question") };
-  return { version: 1, project, language, workspaces, executor, release, scout };
+  const qa = parseQaConfig(raw.qa, release);
+  return { version: 1, project, language, workspaces, executor, release, scout, qa };
 }

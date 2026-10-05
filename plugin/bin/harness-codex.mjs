@@ -14,7 +14,7 @@ export function dispatchBinding(next, workspaces) {
   const item = next.key !== undefined;
   if (item && next.format !== null && next.format !== "slots-v1") throw new Error("Unsupported item pipeline format");
   if (next.format === "slots-v1" && (!next.entry?.runId || !next.entry?.entryId || !next.entry?.slotId)) throw new Error("Bound dispatch missing entry");
-  const keyed = workspaces.some(ws => ws.agent === next.agent) || next.agent === "plan-verifier";
+  const keyed = workspaces.some(ws => ws.agent === next.agent) || ["plan-verifier", "qa-verifier"].includes(next.agent);
   if (keyed && !next.key) throw new Error("Workspace/verifier requires an item key");
   return { agent: next.agent, key: next.key, agentKey: keyed ? next.key : undefined, entry: next.entry, ...(next.agentRunId ? { agentRunId: next.agentRunId } : {}) };
 }
@@ -30,7 +30,7 @@ function optionsFor(argv) {
   const [operation, ...args] = argv;
   if (!["prepare", "next", "dispatch", "stop", "release", "complete-init"].includes(operation)) throw new Error("Unknown Codex operation");
   const options = { operation };
-  const accepted = new Set(["root", "server", "session", "key", "commit", "propose", "briefing", "handoff-commit"]);
+  const accepted = new Set(["root", "server", "session", "key", "commit", "propose", "briefing", "handoff-commit", "retry-qa"]);
   for (let i = 0; i < args.length; i += 2) {
     const name = args[i].slice(2), value = args[i + 1];
     if (!args[i].startsWith("--") || !accepted.has(name) || Object.hasOwn(options, name) || !value || value.startsWith("--")) throw new Error("Invalid Codex arguments");
@@ -80,6 +80,10 @@ async function main() {
     const pipeline = await callTool(input, "pipeline_next", options.key ? { key: options.key } : {});
     if (options.operation === "next") { console.log(JSON.stringify({ event: "next", session: options.session, policy: owned.policy, pipeline })); return; }
     let next = options.key ? pipeline : pipeline.head;
+    if (options["retry-qa"] !== undefined) {
+      if (options["retry-qa"] !== "yes" || next.action !== "wait" || next.on !== "qa") throw new Error("Explicit QA retry requires a current QA failure");
+      next = { action: "dispatch", ...next.resume };
+    }
     if (next.action === "wait" && next.on === "handoff" && options["handoff-commit"]) {
       if (!options.key || !/^[0-9a-f]{7,40}$/.test(options["handoff-commit"]) || !next.resume || !next.note) throw new Error("Confirmed handoff commit and current resume binding required");
       const prepared = safeTarget(location.root, next.note.trim());
@@ -104,7 +108,21 @@ async function main() {
       const briefing = JSON.parse(text);
       if (Object.keys(briefing).some(name => name !== "requiredVerificationPaths") || !Array.isArray(briefing.requiredVerificationPaths) || !briefing.requiredVerificationPaths.length || briefing.requiredVerificationPaths.some(value => typeof value !== "string" || !value.trim())) throw new Error("Verifier briefing must contain only requiredVerificationPaths");
       dispatch.requiredVerificationPaths = briefing.requiredVerificationPaths;
-    } else if (options.briefing) throw new Error("Only independent verifier accepts a minimal briefing");
+    } else if (dispatch.agent === "qa-verifier") {
+      if (!options.briefing || !input.config.qa) throw new Error("QA requires explicit test configuration and build identity briefing");
+      const text = readFileSync(options.briefing, "utf8");
+      if (text.length > 4000) throw new Error("QA briefing too large");
+      const briefing = JSON.parse(text);
+      if (Object.keys(briefing).some(name => !["targetCommit", "testBuildIdentity"].includes(name)) || !/^[0-9a-f]{7,40}$/.test(briefing.targetCommit ?? "") || typeof briefing.testBuildIdentity !== "string" || !briefing.testBuildIdentity.trim()) throw new Error("QA briefing requires only targetCommit and observed testBuildIdentity");
+      const board = await callTool(input, "board_get", { key: dispatch.key });
+      const report = board.reports?.filter(report => report.actor === board.agent && report.agentRunId).at(-1);
+      if (!report || report.commit !== briefing.targetCommit) throw new Error("QA briefing target differs from the implementation report");
+      execFileSync("git", ["-C", location.root, "merge-base", "--is-ancestor", briefing.targetCommit, "HEAD"], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+      const changed = execFileSync("git", ["-C", location.root, "diff", "--name-only", briefing.targetCommit], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim().split(/\r?\n/).filter(Boolean);
+      const workflowFile = name => ["harness.json", "harness.lock.json", "CLAUDE.md", ".mcp.json", `docs/agents/qa-verifier/${dispatch.key}.md`, `docs/agents/main-loop/${dispatch.key}.md`].includes(name) || [".codex/", ".claude/", "docs/harness/"].some(prefix => name.startsWith(prefix));
+      if (changed.some(name => !workflowFile(name))) throw new Error("Product files changed since the QA implementation target");
+      dispatch.qaBriefing = briefing;
+    } else if (options.briefing) throw new Error("Only independent verifiers accept a minimal briefing");
     console.log(JSON.stringify({ session: options.session, ...await dispatchFreshRole(input, files, options.session, dispatch) }));
   } catch (error) {
     console.log(JSON.stringify(codexFailure(error, options?.session ?? null))); process.exitCode = 1;

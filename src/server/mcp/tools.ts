@@ -52,7 +52,7 @@ export type ToolDeps = {
   propose(projectId: string, input: { key: string; agent: string; reason: string }, actorRef: string): Promise<ServerResult<BoardItemView>>;
   transition(projectId: string, input: { key: string; to: string; result?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitPlan(projectId: string, input: { key: string; path: string; commit: string; type?: string }, actorRef: string): Promise<ServerResult<unknown>>;
-  submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string }, actorRef: string): Promise<ServerResult<unknown>>;
+  submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string; qa?: unknown }, actorRef: string): Promise<ServerResult<unknown>>;
   failAcceptance(projectId: string, input: { key: string; checks: number[]; note: string; path?: string; commit?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
   agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
@@ -204,7 +204,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.submitPlan(projectId, args, actorRef));
   });
-  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ ...project, key: z.string(), actor: z.string(), path: z.string(), commit: z.string(), runId: z.string().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires runId and qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}. Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ ...project, key: z.string(), actor: z.string(), path: z.string(), commit: z.string(), runId: z.string().optional(), qa: z.unknown().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;

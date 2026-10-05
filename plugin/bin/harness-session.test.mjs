@@ -13,6 +13,8 @@ import { dispatchBinding, codexFailure } from "./harness-codex.mjs";
 import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
+import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { createRoleFiles } from "../runtime/role-files.mjs";
 
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), "harness-session-test-"));
@@ -103,6 +105,60 @@ it("refuses modified role policies including owner tools, duplicate sections and
   const managed = renderCodexRole(body, "doc-auditor");
   assert.equal(readCodexRole(managed, "doc-auditor", "doc-auditor").name, "doc-auditor");
   for (const changed of [managed.replace('enabled = false', 'enabled = true'), managed.replace('[mcp_servers.harness_owner]\nenabled = false', '[mcp_servers.harness_owner]\nenabled = true'), managed.replace('"backlog_list"', '"gate_approve"'), managed + '[agents]\nenabled = false\n', managed.replace('sandbox_mode = "read-only"', 'sandbox_mode = "workspace-write"'), managed + 'unmanaged = true\n']) assert.throws(() => readCodexRole(changed, "doc-auditor", "doc-auditor"));
+});
+it("QA can write only its bound report and scratch while retaining read access to product files", async () => {
+  const f = fixture(), scratch = path.join(f.root, "scratch");
+  mkdirSync(scratch);
+  const product = path.join(f.root, "app.ts"), ownReport = path.join(f.root, "docs/agents/qa-verifier/A.md");
+  writeFileSync(product, "product");
+  const input = { binding: f.binding, config: { workspaces: [{ agent: "web-dev", path: "." }] } };
+  const files = createRoleFiles(rolePermissions(input, "qa-verifier", "A", scratch), "qa-verifier");
+  try {
+    assert.equal(files.call("role_file_read", { path: product }).text, "product");
+    files.call("role_file_write", { path: ownReport, content: "Observed QA", expectedHash: null });
+    files.call("role_file_write", { path: path.join(scratch, "evidence.md"), content: "Snapshot", expectedHash: null });
+    for (const target of [product, path.join(f.root, "docs/agents/qa-verifier/B.md"), path.join(f.root, "harness.json"), path.join(f.root, ".git/config")]) {
+      assert.throws(() => files.call("role_file_write", { path: target, content: "changed", expectedHash: null }), /permission refused|protected/);
+    }
+    assert.equal(readFileSync(product, "utf8"), "product");
+  } finally { await files.close(); }
+});
+it("QA alone receives the complete browser allowlist without shell, owner or nested-agent rights", () => {
+  const body = `---\nname: qa-verifier\ndescription: Browser QA\ntools: Read, Write, ${ROLE_TOOLS["qa-verifier"].map(name => "mcp__harness__" + name).join(", ")}, ${QA_BROWSER_TOOLS.map(name => "mcp__harness_qa_browser__" + name).join(", ")}\n---\n${RUNTIME_MARKER}\nUse mcp__harness_qa_browser__browser_snapshot.`;
+  const managed = renderCodexRole(body, "qa-verifier"), policy = readCodexRole(managed, "qa-verifier", "qa-verifier");
+  assert.equal(policy.sandbox_mode, "workspace-write");
+  assert.equal(policy["agents.enabled"], false);
+  assert.equal(policy["mcp_servers.harness_owner.enabled"], false);
+  assert.match(policy.developer_instructions, /mcp__harness__browser_snapshot/);
+  assert.throws(() => renderCodexRole(body.replace("tools: Read,", "tools: Bash, Read,"), "qa-verifier"), /file tool allowlist/);
+  assert.throws(() => renderCodexRole(body.replace(", mcp__harness_qa_browser__browser_network_requests", ""), "qa-verifier"), /browser allowlist/);
+  const devBody = body.replace("name: qa-verifier", "name: web-dev").replace(ROLE_TOOLS["qa-verifier"].map(name => "mcp__harness__" + name).join(", "), ROLE_TOOLS.dev.map(name => "mcp__harness__" + name).join(", "));
+  assert.throws(() => renderCodexRole(devBody, "dev"), /browser allowlist/);
+});
+it("QA verify refuses fabricated completion and forwards browser evidence with the current receipt binding", async () => {
+  const entry = { runId: "pipeline", entryId: "entry", slotId: "qa" }, receipt = { runId: "qa-run", revision: 1, stepId: "verify" };
+  const calls = []; let verified = false;
+  const operations = {
+    checkSession: async () => ({ event: "owned", lifecycle: "active", client: "codex" }),
+    listTools: async () => [...ROLE_TOOLS["qa-verifier"], "gate_approve", "board_transition"].map(name => ({ name, inputSchema: { type: "object" } })),
+    callTool: async (_input, name, args) => { calls.push({ name, args }); return { done: false, step: args.outcome ? "report" : "verify", receipt: args.outcome ? { ...receipt, revision: 2, stepId: "report" } : receipt, agentRunId: "qa-run", entry }; },
+  };
+  const evidence = { content: [{ type: "image", data: "aW1hZ2U=", mimeType: "image/png" }], isError: false };
+  const browser = { tools: QA_BROWSER_TOOLS.map(name => ({ name, inputSchema: { type: "object" } })), call: async () => ({ mcpResult: evidence }), qaVerified: () => verified, close: async () => {} };
+  const bridge = await roleBridge({ binding: {} }, {}, "session", { project: "p", agent: "qa-verifier", key: "A", agentKey: "A", entry }, operations, browser);
+  let id = 0;
+  const request = async (method, params) => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method, params }) })).json();
+  try {
+    const inventory = (await request("tools/list", {})).result.tools.map(tool => tool.name);
+    assert.ok(!inventory.includes("gate_approve") && !inventory.includes("board_transition"));
+    await request("tools/call", { name: "agent_next", arguments: {} });
+    assert.ok((await request("tools/call", { name: "agent_next", arguments: { outcome: "ok", receipt } })).error);
+    assert.equal(calls.length, 1);
+    assert.deepEqual((await request("tools/call", { name: "browser_take_screenshot", arguments: {} })).result, evidence);
+    verified = true;
+    assert.equal(JSON.parse((await request("tools/call", { name: "agent_next", arguments: { outcome: "ok", receipt } })).result.content[0].text).step, "report");
+    assert.deepEqual(calls.at(-1).args, { outcome: "ok", receipt, agent: "qa-verifier", key: "A", entry, agentRunId: "qa-run", stepId: "verify", client: "codex" });
+  } finally { await bridge.close(); }
 });
 
 it("neutralizes inherited servers/plugins/environment without copying their values and checks the effective policy", () => {

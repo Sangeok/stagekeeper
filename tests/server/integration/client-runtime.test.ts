@@ -13,7 +13,7 @@ const role = `${RUNTIME_MARKER}\nFixture role.\n## step:implement requires: impl
 const runbook = `${RUNTIME_MARKER}\nCodex fixture source.\n`;
 const pipelineAnswer = z.object({ action: z.enum(["dispatch", "wait", "accept", "done"]), entry: z.object({ runId: z.string(), entryId: z.string(), slotId: z.string() }).nullable().optional() }).passthrough();
 const bundle = (lang: string) => [
-  ...["dev", "pm", "feature-scout", "doc-auditor", "plan-verifier"].map(agent => ({ lang, path: `agents/${agent}.md`, body: role })),
+  ...["dev", "pm", "feature-scout", "doc-auditor", "plan-verifier", "qa-verifier"].map(agent => ({ lang, path: `agents/${agent}.md`, body: role })),
   ...COMMON_DOCS.map(path => ({ lang, path, body: "Common fixture documentation." })),
   { lang, path: "CLAUDE.runbook.md", body: "Claude fixture source." }, { lang, path: "CODEX.runbook.md", body: runbook },
 ];

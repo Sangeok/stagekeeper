@@ -353,7 +353,14 @@ async function init() {
     : [];
   for (const name of stale) delete mcp.mcpServers[name];
   // 걷어낼 게 없으면 손대지 않는다 — 남의 .mcp.json을 매 실행 재기록하면 잡음이고 `write:` 줄도 거짓이 된다.
-  const mcpContent = stale.length ? JSON.stringify(mcp, null, 2) + "\n" : null;
+  const qaMcp = CLIENT === "claude" && config.qa ? { type: "http", url: config.qa.mcpUrl } : null;
+  if (qaMcp) {
+    const currentQa = mcp.mcpServers?.harness_qa_browser;
+    if (currentQa && JSON.stringify(currentQa) !== JSON.stringify(qaMcp)) throw new Error("Existing harness_qa_browser differs from qa.mcpUrl; resolve the explicit test endpoint before init");
+    mcp.mcpServers ??= {};
+    mcp.mcpServers.harness_qa_browser = qaMcp;
+  }
+  const mcpContent = stale.length || qaMcp ? JSON.stringify(mcp, null, 2) + "\n" : null;
 
   const nextLock = mergeClientLock(lock, targets, writes, CLIENT);
   const lockContent = JSON.stringify(nextLock, null, 2) + "\n";
@@ -372,7 +379,7 @@ async function init() {
     write("CLAUDE.md", runbook);
   }
   if (mcpContent !== null) {
-    console.log(`write: .mcp.json (removed ${stale.join(", ")} — the server is registered once per machine at user scope)`);
+    console.log(qaMcp ? `write: .mcp.json (configured QA browser; removed legacy entries: ${stale.join(", ") || "none"})` : `write: .mcp.json (removed ${stale.join(", ")} — the server is registered once per machine at user scope)`);
     write(".mcp.json", mcpContent);
     // 지운 항목이 **서버 URL의 출처이기도 했다면**, 이 저장소의 마지막 기록이 방금 사라진 것이다.
     // 생성기는 사용자 범위 설정을 읽지 않으므로 보완하지 않고 알린다 — 스킬이 HARNESS_SERVER를 심는다.

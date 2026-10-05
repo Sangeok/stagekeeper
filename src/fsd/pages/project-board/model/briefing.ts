@@ -46,7 +46,7 @@ function summaryLine(row: BoardRow): string {
 
 function activityItem(row: BoardRow, today: Date): ActivityItem {
   const slot = slotAgent(row.node);
-  if (slot !== null && PROJECT_AGENTS.includes(slot) && row.status !== "on_hold") return { key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slot} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
+  if (slot !== null && (PROJECT_AGENTS.includes(slot) || slot === "qa-verifier") && row.status !== "on_hold") return { key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slot} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
   const item = {
     key: row.backlogItem.key,
     status: row.status,
@@ -117,7 +117,7 @@ function workerState(agent: string, rows: readonly BoardRow[]): string {
 }
 
 function teamState(agent: string, rows: readonly BoardRow[]): string {
-  if (PROJECT_AGENTS.includes(agent)) {
+  if (PROJECT_AGENTS.includes(agent) || agent === "qa-verifier") {
     const current = rows.find((row) => row.node && dispatcherFor(row.node, row.agent) === agent && row.status !== "on_hold");
     return current ? `${current.dispatched ? "Working on" : "Ready for"} ${current.backlogItem.key}` : "Idle";
   }

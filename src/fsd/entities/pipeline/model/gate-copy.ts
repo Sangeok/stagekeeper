@@ -8,6 +8,7 @@ const GATE_COPY: Record<string, { label: string; hint: string }> = {
   "before-verify": { label: "Continue to verification", hint: "The main loop verifies the plan; plan-verifier runs an independent pass." },
   "before-implement": { label: "Approve implementation", hint: "Approving lets dev change code. Then continue in your coding client." },
   "before-accept": { label: "Continue to acceptance", hint: "The main loop reproduces the five acceptance checks." },
+  "before-qa": { label: "Continue to QA", hint: "qa-verifier tests the implemented user flows in the configured test environment." },
   "before-doc-audit": { label: "Continue to doc audit", hint: "doc-auditor checks whether the docs still match the code." },
   "before-scout": { label: "Continue to scouting", hint: "feature-scout researches outside and proposes features." },
 };

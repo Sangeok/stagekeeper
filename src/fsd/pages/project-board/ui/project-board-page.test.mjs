@@ -54,7 +54,7 @@ describe("ProjectBoardPage", () => {
   it("renders Team handles and their states in the model order", () => {
     const html = renderBoard();
     const handles = Array.from(html.matchAll(/<b\b[^>]*>([^<]+)<\/b>/g), ([, handle]) => handle);
-    assert.deepEqual(handles, ["pm", ...ROSTER, "plan-verifier", "doc-auditor", "feature-scout"]);
+    assert.deepEqual(handles, ["pm", ...ROSTER, "plan-verifier", "qa-verifier", "doc-auditor", "feature-scout"]);
     assert.match(html, /web-dev<\/b>Working on FEAT-07/);
     // BOARD의 in_review 항목은 게이트 2에 서 있다 — 검증자는 끝났다.
     assert.match(html, /plan-verifier<\/b>Idle/);

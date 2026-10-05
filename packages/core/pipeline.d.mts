@@ -17,6 +17,7 @@ export type NodeFacts = {
   format?: string | null;
   slotComplete?: boolean;
   implementationComplete?: boolean;
+  qaComplete?: boolean;
 };
 export type AdvanceFacts = NodeFacts & { approvedGates: readonly string[] };
 export type Advance = { cursor: string | null; entered: string[]; transitions: Boundary[] };
@@ -30,6 +31,7 @@ export const PROJECT_AGENTS: string[];
 export const AUTO_SCOUT_DISABLED_REASON: string;
 export function slotAgent(slot: unknown): string | null;
 export function dispatcherFor(node: string | null, itemAgent: string): string | null;
+export function isItemNode(node: string | null): boolean;
 export const GATE_PREFIX: "before-";
 export function gateId(kind: string): string;
 export function isGateId(id: unknown): id is string;

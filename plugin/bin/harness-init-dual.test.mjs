@@ -11,9 +11,10 @@ import { deliverable } from "../lib/deliver.mjs";
 import { codexRunbookVersion } from "../lib/runbook.mjs";
 import { ROLE_TOOLS, ROLE_FILE_TOOLS } from "../runtime/codex-agent.mjs";
 import { newToken } from "../lib/token.mjs";
+import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 
 const BIN = fileURLToPath(new URL("harness-init.mjs", import.meta.url));
-const roles = Object.entries(ROLE_TOOLS).map(([role, tools]) => ({ path: `agents/${role}.md`, body: `---\nname: ${role === "dev" ? "{{ws.agent}}" : role}\ndescription: Test ${role}\ntools: ${[...ROLE_FILE_TOOLS[role], ...tools.map(tool => `mcp__harness__${tool}`)].join(", ")}\n---\n${RUNTIME_MARKER}\nStub only.\n## step:start\nPRIVATE STEP\nnext: done\n` }));
+const roles = Object.entries(ROLE_TOOLS).map(([role, tools]) => ({ path: `agents/${role}.md`, body: `---\nname: ${role === "dev" ? "{{ws.agent}}" : role}\ndescription: Test ${role}\ntools: ${[...ROLE_FILE_TOOLS[role], ...tools.map(tool => `mcp__harness__${tool}`), ...(role === "qa-verifier" ? QA_BROWSER_TOOLS.map(tool => `mcp__harness_qa_browser__${tool}`) : [])].join(", ")}\n---\n${RUNTIME_MARKER}\nStub only.\n## step:start\nPRIVATE STEP\nnext: done\n` }));
 const rows = [...roles, ...COMMON_DOCS.map(path => ({ path, body: "shared {{project.name}}\n" })), { path: "CLAUDE.runbook.md", body: "Claude version {{runbook_version}}\n" }, { path: "CODEX.runbook.md", body: `${RUNTIME_MARKER}\nCodex source {{runbook_version}}\n` }];
 const config = { version: 1, project: { owner: "o", repo: "r", branch: "main", slug: "o-r" }, workspaces: [{ id: "web", path: "src", agent: "web-dev", verify: ["npm test"] }] };
 

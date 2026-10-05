@@ -8,7 +8,7 @@ import { hashOf, mergeClientLock } from "./manifest.mjs";
 const rows = [
   { path: "CLAUDE.runbook.md", body: "legacy\n" }, { path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nCodex\n" },
   ...COMMON_DOCS.map(path => ({ path, body: "shared\n" })),
-  ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor"].map(role => ({ path: `agents/${role}.md`, body: RUNTIME_MARKER + "\nStub\n## step:start\nPrivate\nnext: done\n" })),
+  ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier"].map(role => ({ path: `agents/${role}.md`, body: RUNTIME_MARKER + "\nStub\n## step:start\nPrivate\nnext: done\n" })),
 ];
 it("keeps Claude default and rejects non-enum clients", () => {
   assert.equal(parseClient(undefined), "claude"); assert.equal(parseClient(null), "claude");

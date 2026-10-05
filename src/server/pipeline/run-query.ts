@@ -1,6 +1,7 @@
 // 파이프라인 런의 저장과 사실 읽기. 판정은 packages/core/pipeline.mjs. board.ts를 import하지 않는다.
 import { randomUUID } from "node:crypto";
-import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, cursorForStatus, defaultGraph, isGateId, sequence } from "@harness/core/pipeline.mjs";
+import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence } from "@harness/core/pipeline.mjs";
+import { qaEntryResult } from "./qa-query";
 import { readProjectUsageCapIn } from "../account-usage-query";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client"; // Prisma는 값 — P2002 검사에 쓴다(edit-backlog.server.ts와 같은 import)
 import { readProjectPlanIn } from "@/server/project-access-query";
@@ -12,7 +13,7 @@ export type PipelineEntry = { runId: string; entryId: string; slotId: string };
 export type GateEntry = { runId: string; entryId: string };
 export type PipelineRunRow = { id: string; node: string; entryId: string | null; enteredAt: Date; closedAt: Date | null; version: { id: string; version: number; format: string | null; nodes: string[]; gates: string[] } };
 // advance()에 넣는 사실. 읽는 곳은 readFacts 하나.
-export type PipelineFacts = { status: string; validation: string | null; accepted: boolean; approvedGates: string[]; closedAgents: string[]; format: string | null; slotComplete: boolean; implementationComplete: boolean };
+export type PipelineFacts = { status: string; validation: string | null; accepted: boolean; approvedGates: string[]; closedAgents: string[]; format: string | null; slotComplete: boolean; implementationComplete: boolean; qaComplete?: boolean };
 
 // 현재 버전 = 프로젝트의 최대 version. 없으면 기본 그래프를 version 1로 물질화한다. 두 호출자가 동시에 처음 만나면
 // @@unique([projectId, version])가 한쪽을 P2002로 막는다 — 그쪽은 다시 읽는다.
@@ -60,6 +61,12 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: P
   if (run.version.format !== null && run.version.format !== SLOT_FORMAT) throw new Error("Unsupported pipeline format; update the compatible bundle.");
   if (run.version.format === SLOT_FORMAT && !run.entryId) throw new Error("Missing pipeline entry; refresh pipeline_next.");
   const bound = run.version.format === SLOT_FORMAT;
+  if (run.node === "qa") {
+    if (!bound || !run.entryId) throw new Error("QA requires a bound pipeline entry");
+    const item = await db.boardItem.findUniqueOrThrow({ where: { id: row.id }, select: { agent: true } });
+    const qa = await qaEntryResult(db, projectId, row.id, item.agent, run.id, run.entryId);
+    return { status: row.status, validation: row.validation, accepted: row.acceptedAt !== null, format: run.version.format, approvedGates: [], closedAgents: [], implementationComplete: false, slotComplete: false, qaComplete: qa.complete };
+  }
   if (bound && run.node !== "implement") {
     const agent = slotAgent(run.node);
     const slotComplete = agent !== null && PROJECT_AGENTS.includes(agent)
@@ -111,7 +118,7 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
   // 열린 dev run의 마지막 원장 행 — turn-data.server.ts의 agentRun.findMany와 같은 판정을 서버가 따로 갖는다
   const open = node === null || isGateId(node) || node === "accept"
     ? null
-    : await db.agentRun.findFirst({ where: { projectId, agent: dispatcherFor(node, row.agent) ?? "", key: ["plan", "implement", "verify"].includes(node) ? key : null, closedAt: null,
+    : await db.agentRun.findFirst({ where: { projectId, agent: dispatcherFor(node, row.agent) ?? "", key: isItemNode(node) ? key : null, closedAt: null,
       pipelineRunId: run.version.format === SLOT_FORMAT ? run.id : null, pipelineEntryId: run.version.format === SLOT_FORMAT ? run.entryId : null }, orderBy: { openedAt: "desc" }, include: { steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, orderBy: { at: "desc" }, take: 1 } } });
   const last = open?.steps[0];
   const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
@@ -120,10 +127,11 @@ export async function nextFor(db: Db, projectId: string, key: string): Promise<P
     ? await db.acceptanceFailure.findFirst({ where: { boardItemId: row.id, clearedAt: null }, select: { checks: true, note: true } })
     : null;
   const cap = dispatches ? await readProjectUsageCapIn(db, projectId) : null;
+  const qaFailure = node === "qa" && run.entryId && !open ? (await qaEntryResult(db, projectId, row.id, row.agent, run.id, run.entryId)).failure : null;
   return decideNext({
     key, version: run.version.version, node, status: row.status, planCommit: row.planCommit, agent: row.agent, handoff, hasResumableRun: open !== null,
     format: run.version.format, entry: run.entryId ? { runId: run.id, entryId: run.entryId, slotId: run.node } : undefined,
-    cap, acceptanceFailure,
+    cap, acceptanceFailure, qaFailure,
   });
 }
 

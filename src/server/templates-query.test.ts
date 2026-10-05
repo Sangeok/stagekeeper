@@ -11,7 +11,7 @@ const tokenRecord = { id: "agent-token", projectId: "project-1", expiresAt: null
 const agentStub = "# Agent\n";
 const agentBody = `${agentStub}\n## step:start\nPrivate instructions.\nnext: done\n`;
 const templateRows = [
-  ...["dev", "pm", "plan-verifier", "doc-auditor", "feature-scout"].map((agent) => ({
+  ...["dev", "pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier"].map((agent) => ({
     path: `agents/${agent}.md`, body: agentBody,
   })),
   { path: "CLAUDE.runbook.md", body: "Full runbook" },
@@ -50,7 +50,7 @@ function setup(options: Options = {}) {
 describe("templatesFor", () => {
   it("returns the final Codex REST payload while legacy defaults stay unchanged", async () => {
     const rows = [
-      ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor"].map(role => ({ path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\nStub\n## step:x\nHidden step.\nnext: done\n` })),
+      ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier"].map(role => ({ path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\nStub\n## step:x\nHidden step.\nnext: done\n` })),
       ...COMMON_DOCS.map(path => ({ path, body: "shared" })),
       { path: "CLAUDE.runbook.md", body: "legacy" }, { path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nsource" },
     ];
@@ -146,11 +146,12 @@ describe("templatesFor", () => {
       const result = await templatesFor(authorizationHeader, "en");
 
       assert.ok(result.ok);
-      assert.deepEqual(result.entitlement, { plan, agents: ["pm", "plan-verifier", "doc-auditor", "feature-scout"] });
+      assert.deepEqual(result.entitlement, { plan, agents: ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier"] });
       assert.deepEqual(result.templates, {
         "agents/dev.md": agentStub,
         "agents/pm.md": agentStub,
         "agents/plan-verifier.md": agentStub,
+        "agents/qa-verifier.md": agentStub,
         "agents/doc-auditor.md": agentStub,
         "agents/feature-scout.md": agentStub,
         "CLAUDE.runbook.md": "Full runbook",

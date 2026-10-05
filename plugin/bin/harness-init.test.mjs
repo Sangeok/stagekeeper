@@ -24,6 +24,7 @@ const FIXTURES = {
   "docs/agents/README.md": "# Agents\n{{roster_table}}\n",
   // 보고 에이전트의 description은 런북 report_table의 행이 된다 — 없으면 생성기가 멈춘다(아래 "no frontmatter description").
   "agents/pm.md": "---\nname: pm\ndescription: Picks work.\n---\nroster {{roster_names}}\n\n## step:start\npm step body\nnext: done\n",
+  "agents/qa-verifier.md": "---\nname: qa-verifier\ndescription: Tests user flows.\n---\n\n## step:start requires: done\nqa step body\nnext: done\n",
   "agents/plan-verifier.md": "---\nname: plan-verifier\ndescription: Verifies plans.\n---\n\n## step:start\nverifier step body\n",
   "agents/doc-auditor.md": "---\nname: doc-auditor\ndescription: Audits docs.\n---\n\n## step:start\nauditor step body\n",
   "agents/feature-scout.md": "---\nname: feature-scout\ndescription: Scouts features.\n---\n{{scout.question}}\n\n## step:start\nscout step body\n",
@@ -170,6 +171,20 @@ describe("harness-init (v2)", () => {
     assert.equal(mcp.mcpServers.harness_owner, undefined);
     // --server를 줬으므로 폴백 파괴 경고는 뜨지 않는다.
     assert.doesNotMatch(r.out, /only record of the server URL/);
+  });
+  it("QA configuration installs its dedicated local browser entry and preserves conflicting user configuration", () => {
+    const qa = { environment: "test", baseUrl: "http://127.0.0.1:3000", mcpUrl: "http://127.0.0.1:8931/mcp", scenariosPath: "docs/qa/scenarios.md" };
+    const root = fresh(JSON.stringify({ ...JSON.parse(APCH), qa }));
+    const result = run(root);
+    assert.equal(result.code, 0, result.out);
+    assert.deepEqual(JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8")).mcpServers.harness_qa_browser, { type: "http", url: qa.mcpUrl });
+    assert.ok(existsSync(join(root, ".claude/agents/qa-verifier.md")));
+    const conflicting = { mcpServers: { harness_qa_browser: { type: "http", url: "http://127.0.0.1:9999/mcp" }, other: { url: "https://example.com/mcp" } } };
+    writeFileSync(join(root, ".mcp.json"), JSON.stringify(conflicting));
+    const before = snapshot(root), refused = run(root);
+    assert.notEqual(refused.code, 0);
+    assert.match(refused.out, /Existing harness_qa_browser differs/);
+    assert.deepEqual(snapshot(root), before);
   });
   it("second run: unchanged files rewritten, user-edited file skipped", () => {
     const root = fresh();

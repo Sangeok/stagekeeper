@@ -1,7 +1,7 @@
 import { allowsAgent } from "@harness/core/entitlement.mjs";
 import { readAccountUsageIn, usageLimitFailure } from "../account-usage-query";
 import { readDatabaseClockIn } from "../database-clock";
-import { dispatcherFor, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, isItemNode, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccessIn } from "../project-access-query";
 import { hasActiveLegacyScoutSlot } from "../automatic-scout";
@@ -46,7 +46,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           if (!pipeline || pipeline.boardItem.projectId !== projectId || pipeline.boardItem.discardedAt || pipeline.version.format !== SLOT_FORMAT) throw new StaleCursor();
           const latest = await tx.boardItem.findFirst({ where: { projectId, backlogItemId: pipeline.boardItem.backlogItemId, discardedAt: null }, orderBy: { proposedOn: "desc" }, select: { id: true } });
           if (latest?.id !== pipeline.boardItemId || dispatcherFor(entry.slotId, pipeline.boardItem.agent) !== input.agent) throw new StaleCursor();
-          const expectedKey = ["plan", "implement", "verify"].includes(entry.slotId) ? pipeline.boardItem.backlogItem.key : null;
+          const expectedKey = isItemNode(entry.slotId) ? pipeline.boardItem.backlogItem.key : null;
           if (key !== expectedKey) throw new StaleCursor();
           if (claim && (input.agentRunId !== undefined && input.agentRunId !== claim.runId || input.stepId !== undefined && input.stepId !== claim.stepId)) throw new StaleCursor();
           if (input.outcome && claim) {

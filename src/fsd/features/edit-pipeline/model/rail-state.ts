@@ -60,7 +60,7 @@ export const addNode = (g: Graph, kind: string, plan: string): Step => {
   // 세우지는 않는다: 슬롯이 놓인 자리와 꼬리 순서를 그대로 둔다.
   if (!TAIL_NODES.includes(kind)) {
     const nodes = [...g.nodes];
-    const at = kind === "propose" ? 0 : kind === "verify" ? nodes.indexOf("implement") : nodes.length;
+    const at = kind === "propose" ? 0 : kind === "verify" ? nodes.indexOf("implement") : kind === "qa" ? nodes.indexOf("accept") : nodes.length;
     nodes.splice(at, 0, kind);
     return check({ ...g, nodes }, plan);
   }
