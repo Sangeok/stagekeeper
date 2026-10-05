@@ -75,6 +75,19 @@ The architecture skip is the native test without its explicitly prepared runtime
 T4 runs that test separately on actual native Windows. No architecture exception
 or type-check bypass was added.
 
+### Subsequent Windows Server observation
+
+The final documentation checkpoint `0017d385a2cb580203200b762da6450d2b13eac7`
+passed [check CI](https://github.com/Sangeok/stagekeeper/actions/runs/37265467065).
+Its [Windows Server run](https://github.com/Sangeok/stagekeeper/actions/runs/37265467066)
+completed on 2026-10-05T05:49:05Z with a failure in the full-project build:
+Prisma generation and the 21 native command/readlink tests passed, but Next.js
+reported `spawn EPERM` before compilation finished. The job exited 1, acknowledged
+quiescence (peak 6 processes) and discarded its snapshot without original writes.
+The local T1 pass remains an observation of that local runtime/environment;
+Windows Server acceptance is unresolved. Opt-in fixed-field spawn diagnostics
+and a silent IPC fork regression test are being used to identify this failure.
+
 ## Findings and Follow-up
 
 The earlier fixture omitted Prisma's postinstall engine, and Google fonts were

@@ -21,7 +21,7 @@ export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
     assert.ok(existsSync(path.join(root, name)), `Normal npm ci must prepare ${name}`);
   }
   const sourceNames = ["package.json", "package-lock.json", "prisma.config.ts", "prisma/schema.prisma", "next.config.mjs",
-    "scripts/build.mjs", "scripts/windows-role-readlink.cjs", "src/app/layout.tsx",
+    "scripts/build.mjs", "scripts/windows-role-readlink.cjs", "scripts/windows-role-spawn-diagnostics.cjs", "src/app/layout.tsx",
     "src/app/fonts/schibsted-grotesk-normal.ttf", "src/app/fonts/fragment-mono-regular.ttf"];
   const sources = () => Object.fromEntries(sourceNames.map(name => [name, digest(readFileSync(path.join(root, name)))]));
   const sourceHashes = sources();
@@ -36,7 +36,7 @@ export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
     // Clearing the variables is explicit; the launcher also uses a fixed clean
     // environment. .next is excluded by the snapshot, so this is a fresh build.
     const result = await broker.call("role_command_exec", {
-      command: 'set "DATABASE_URL=" && set "NEXT_TELEMETRY_DISABLED=1" && npm run build',
+      command: 'set "DATABASE_URL=" && set "NEXT_TELEMETRY_DISABLED=1" && set "STAGEKEEPER_BUILD_DIAGNOSTICS=1" && npm run build',
       timeoutMs: 120000,
     });
     settled = result.quiescent === true;

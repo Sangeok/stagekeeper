@@ -10,10 +10,11 @@ const steps = [
 ];
 const env = { ...process.env };
 if (windowsRole) {
-  const preload = fileURLToPath(new URL("./windows-role-readlink.cjs", import.meta.url));
   // The launcher provides a clean environment. Retain any caller's other Node
   // options and preload this compatibility layer in build workers as well.
-  env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ""} --require ${JSON.stringify(preload)}`.trim();
+  const preloads = ["windows-role-readlink.cjs", ...(env.STAGEKEEPER_BUILD_DIAGNOSTICS === "1" ? ["windows-role-spawn-diagnostics.cjs"] : [])];
+  env.NODE_OPTIONS = [env.NODE_OPTIONS ?? "", ...preloads.map(name =>
+    `--require ${JSON.stringify(fileURLToPath(new URL(name, import.meta.url)))}`)].join(" ").trim();
 }
 for (const args of steps) {
   const child = spawnSync(process.execPath, args, { env, stdio: "inherit", windowsHide: true });

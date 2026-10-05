@@ -13,6 +13,8 @@ on:
       - scripts/build.mjs
       - scripts/windows-role-readlink.cjs
       - scripts/windows-role-readlink.test.mjs
+      - scripts/windows-role-spawn-diagnostics.cjs
+      - scripts/windows-role-spawn-diagnostics.test.mjs
       - package.json
       - package-lock.json
       - prisma.config.ts
@@ -29,13 +31,21 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: node-cache
         with:
           path: ${{ runner.temp }}/stagekeeper-node-source
           key: windows-node-22.23.3-${{ hashFiles('scripts/build-windows-role-node.ps1') }}
       - name: Build pinned Node with AppContainer pipe backport
+        id: node-build
         shell: pwsh
         run: ./scripts/build-windows-role-node.ps1 -BuildRoot "$env:RUNNER_TEMP/stagekeeper-node-source"
+      # Preserve a successfully built runtime even if a later acceptance fails.
+      - uses: actions/cache/save@v4
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/stagekeeper-node-source
+          key: ${{ steps.node-cache.outputs.cache-primary-key }}
       - name: Validate actual Windows role commands and bundled npm
         shell: pwsh
         run: |
@@ -44,6 +54,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Native role command acceptance failed' }
           node --test scripts/windows-role-readlink.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native readlink compatibility acceptance failed' }
+          node --test scripts/windows-role-spawn-diagnostics.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Native IPC and spawn diagnostics acceptance failed' }
       - name: Prepare project dependencies with normal lifecycle scripts
         shell: pwsh
         run: npm ci --no-audit --no-fund
@@ -53,6 +65,7 @@ jobs:
           node scripts/rehearse-windows-project-build.mjs --root . --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
           if ($LASTEXITCODE -ne 0) { throw 'Offline native project build acceptance failed' }
       - name: Preserve runtime and provenance for native validation
+        if: always() && steps.node-build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: windows-role-node-x64
