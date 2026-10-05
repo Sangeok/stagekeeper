@@ -512,6 +512,9 @@ submodule이면 거부한다. literal pathspec의 역사 tree 재귀로 금지�
 
 기존 native Git의 고정 builtin 조회만 shell 없이 실행한다. 세션의 공통 Git 디렉터리와
 worktree HEAD를 확인하고 객체·필요한 index를 새 owned 비공개 데이터베이스에 복사한다.
+공통 디렉터리의 양쪽 경로에서 ancestor alias/link를 먼저 거부한 뒤 OS의 native realpath를
+비교한다. Windows TEMP의 8.3 축약 이름과 Git이 기록한 긴 이름은 같은 실제 디렉터리이면
+일치한다. 다른 저장소나 junction/symlink를 세션 binding으로 허용하지 않는다.
 원본 config·hooks·credentials·replace refs·alternates·promisor 데이터는 사용하지 않는다.
 소유자 환경을 전달하지 않으며 system/global config·pager·fsmonitor·외부 diff·textconv·
 lazy fetch·submodule 조회를 비활성화한다. 객체 alias/hardlink·복사 중 변경을 거부하고

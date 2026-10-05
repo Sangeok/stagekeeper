@@ -57,6 +57,15 @@ it("refuses outside/denied/auth/env paths, directory and wildcard selections, ar
   const wrong = createRoleGit({ root: f.root, agent: "dev", fileBroker: f.files, commonDirectory: f.base });
   await assert.rejects(wrong.call("role_git_read", { operation: "head" }), /binding/);
   await wrong.close();
+  const foreign = fixture(t);
+  const other = createRoleGit({ root: f.root, agent: "dev", fileBroker: f.files, commonDirectory: path.join(foreign.root, ".git") });
+  try { await assert.rejects(other.call("role_git_read", { operation: "head" }), /binding/); }
+  finally { await other.close(); }
+  const alias = path.join(f.base, "bound-git-alias");
+  symlinkSync(path.join(f.root, ".git"), alias, process.platform === "win32" ? "junction" : "dir");
+  const linked = createRoleGit({ root: f.root, agent: "dev", fileBroker: f.files, commonDirectory: alias });
+  try { await assert.rejects(linked.call("role_git_read", { operation: "head" }), /alias/); }
+  finally { await linked.close(); }
 });
 
 it("ignores repository/system/owner config, filters, diff helpers, fsmonitor and credentials", host, async t => {
@@ -75,13 +84,28 @@ it("ignores repository/system/owner config, filters, diff helpers, fsmonitor and
   } finally { if (previous === undefined) delete process.env.GIT_CONFIG_COUNT; else process.env.GIT_CONFIG_COUNT = previous; if (token === undefined) delete process.env.HARNESS_TOKEN; else process.env.HARNESS_TOKEN = token; }
 });
 
-it("supports ordinary Git worktrees and packed objects without copying their config", host, async t => {
+it("supports ordinary Git worktrees and packed objects, including Windows short paths, without copying their config", host, async t => {
   const f = fixture(t); f.git("gc");
   const root = path.join(f.base, "worktree"); f.git("worktree", "add", "--detach", root, "HEAD");
-  const files = createRoleFiles({ ":root": "deny", [root]: "write" }, "dev");
-  const broker = createRoleGit({ root, agent: "dev", fileBroker: files, commonDirectory: path.join(f.root, ".git") });
-  try { assert.equal((await broker.call("role_git_read", { operation: "show", paths: [path.join(root, "code.txt")] })).output, "before\n"); }
-  finally { await broker.close(); }
+  // The runner's TEMP can use RUNNER~1 while Git writes runneradmin in .git.
+  const spellings = new Set([path.join(f.root, ".git"), realpathSync.native(path.join(f.root, ".git"))]);
+  try {
+    for (const commonDirectory of spellings) {
+      const files = createRoleFiles({ ":root": "deny", [root]: "write" }, "dev");
+      const broker = createRoleGit({ root, agent: "dev", fileBroker: files, commonDirectory });
+      try { assert.equal((await broker.call("role_git_read", { operation: "show", paths: [path.join(root, "code.txt")] })).output, "before\n"); }
+      finally { await broker.close(); }
+    }
+  }
+  catch (error) {
+    // Only disposable fixture metadata enters diagnostics; owner config stays private.
+    const pointer = readFileSync(path.join(root, ".git"), "utf8").trim();
+    const directory = path.resolve(root, pointer.replace(/^gitdir: /, ""));
+    const commonPointer = readFileSync(path.join(directory, "commondir"), "utf8").trim();
+    t.diagnostic(JSON.stringify({ gitVersion: f.git("--version"), root, pointer, commonPointer,
+      resolvedCommonDirectory: path.resolve(directory, commonPointer), expectedCommonDirectory: path.join(f.root, ".git") }));
+    throw error;
+  }
 });
 
 it("refuses file/metadata aliases and alternate object sources", host, async t => {

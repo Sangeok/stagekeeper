@@ -212,7 +212,12 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
     const timeout = AbortSignal.timeout(300000), combined = AbortSignal.any([signal, timeout]);
     check(combined); await lifecycle.beforeActivate?.();
     const location = await layout(root, combined), ref = args.ref === undefined || args.ref === "HEAD" ? location.head : planCommit;
-    if (commonDirectory !== null && canonical(location.common) !== canonical(regularPath(commonDirectory))) throw new Error("Git metadata does not match session binding");
+    if (commonDirectory !== null) {
+      const expected = regularPath(commonDirectory);
+      // Git expands Windows 8.3 TEMP names. Resolve both already-checked chains
+      // through the OS so spelling differences cannot reject the same directory.
+      if (canonical(realpathSync.native(location.common)) !== canonical(realpathSync.native(expected))) throw new Error("Git metadata does not match session binding");
+    }
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-git-")), own = randomUUID();
     await writeFile(path.join(directory, "owner.json"), JSON.stringify({ own }), { mode: 0o600 });
     try {
