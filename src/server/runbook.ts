@@ -19,8 +19,6 @@ export async function resolveCodexBundle(projectId: string, db: PrismaClient = p
   return readCodexBundle(language => db.template.findMany({ where: { lang: language }, select: { path: true, body: true } }), project.language, access.plan, true);
 }
 
-export type { RunbookResult } from "./runbook-query";
-
 export const recordRunbook = makeRecordRunbook({
   requestLimit: limitProjectRequest,
   findTokenByHash: (hash) => prisma.projectToken.findUnique({
