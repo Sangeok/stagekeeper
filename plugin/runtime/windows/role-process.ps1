@@ -4,6 +4,12 @@ $ErrorActionPreference = 'Stop'
 $probeClock = [Diagnostics.Stopwatch]::StartNew()
 $probe = [ordered]@{ psStartupMs = [int]([DateTime]::Now - [Diagnostics.Process]::GetCurrentProcess().StartTime).TotalMilliseconds }
 function Probe-Mark([string]$name) { $probe[$name] = $probeClock.ElapsedMilliseconds; $probeClock.Restart() }
+# Candidate fix under test: load the two core modules this helper uses from
+# $PSHOME by absolute path, so the first cmdlet does not trigger auto-load
+# discovery across every module directory on the host.
+Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Management\Microsoft.PowerShell.Management.psd1"
+Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1"
+Probe-Mark 'importMs'
 $phase = 'request'
 try {
   $request = Get-Content -LiteralPath $RequestPath -Raw -Encoding UTF8 | ConvertFrom-Json
