@@ -1,7 +1,8 @@
-# Windows runtime cache — local implementation verification
+# Windows runtime cache — implementation verification
 
-Date: 2026-10-05. Scope: runtime reuse in `windows-role-runtime`, not deployment
-or certification of hosted cross-PR cache timings.
+Date: 2026-10-05 UTC. Scope: runtime reuse in `windows-role-runtime` and repair
+of the hosted Git worktree binding failure, not deployment or certification of
+hosted cross-PR cache timings.
 
 ## Result
 
@@ -23,6 +24,7 @@ checks stop. Same-PR replacement runs cancel older work; active `dev` work finis
 | `npm run build` | Passed; normal production build with generated Prisma client and no project `.env`/DB credentials |
 | Actual Windows role/file/readlink/IPC acceptance | 22 passed, no skips; prepared runtime set explicitly |
 | Latest `dev` Git acceptance after rebase | 12 passed, no skips |
+| Git binding regression with real Windows 8.3 TEMP and Git 2.55 | Failure reproduced before the fix; 12 passed after the fix, including short/long spelling equivalence and foreign-repository/junction refusal |
 | Updated token-reveal regression after rebase | 8 passed |
 | Network-denied actual Windows full project build | Passed: exit 0, quiescent, untruncated output, snapshot writes discarded, original repository/build identity unchanged |
 | actionlint 1.7.12 | Passed on final workflow; official release archive checksum verified |
@@ -32,6 +34,33 @@ The isolated branch started from `af88938` and was rebased onto `38ebaa9`
 (merged #117). The rebase preserved Git test triggers and the native Git command
 in the workflow; check/actionlint, Git acceptance and its changed UI regression
 were rerun. Application source and runtime build recipe were unchanged by #117.
+
+## Hosted observations and Git binding repair
+
+The first hosted cache implementation run
+[37315941150](https://github.com/Sangeok/stagekeeper/actions/runs/37315941150)
+compiled the pinned runtime successfully in 47m 23s, passed runner-Node integrity
+verification and child-process smoke, and saved a 33,840,992-byte runtime cache.
+Its later native acceptance failed at the existing Git worktree binding test;
+the runtime compile, integrity verification and cache save all succeeded.
+
+The diagnostic retry
+[37327849104](https://github.com/Sangeok/stagekeeper/actions/runs/37327849104)
+restored the exact cache in 3s, skipped compilation and passed integrity/smoke in
+1s. Its fixture diagnostics established that Windows TEMP used `RUNNER~1`, while
+Git recorded the same ancestor as `runneradmin`. JavaScript realpath preserved
+the short spelling; comparing those strings incorrectly rejected the binding.
+The same failure was reproduced locally with Git 2.55.0.windows.5 and a real
+owned 8.3 temporary path before changing production code.
+
+The fix compares native realpaths only after the existing ancestor/link checks
+on both common-directory chains. Tests cover both short and native spellings of
+the same worktree binding, a different repository, and a junction/symlink binding
+to the same repository. Existing file scope, object alias/hardlink rejection,
+configuration isolation and lifecycle checks remain enforced. Latest `dev`
+(`7441af0`) was merged into the PR branch; `npm run check` and the application
+production build passed on that base. Full hosted acceptance is rerun on
+[PR #119](https://github.com/Sangeok/stagekeeper/pull/119) after this repair.
 
 ## Runtime material and limits
 
@@ -55,8 +84,8 @@ snapshot, omitted `.git` and `.next`, built with the existing Windows Webpack
 compatibility path, and preserved original files. No model, production database,
 template seed, plugin installation or release was performed.
 
-Fresh hosted compilation of the new provenance field and hosted warm-cache
-skipping remain CI observations. A new PR's reuse of the `dev` cache can only be
+Fresh hosted compilation of the new provenance field and same-PR warm-cache
+skipping were observed above. A new PR's reuse of the `dev` cache can only be
 observed after this workflow is merged and a `dev` push creates the new key.
 The first compile and cache eviction/expiry still incur full compilation cost.
 Already-running workflows keep their original definition.
