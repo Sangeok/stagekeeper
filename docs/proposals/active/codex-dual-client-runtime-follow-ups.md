@@ -93,8 +93,10 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 bundle 생성기는 구현했다. 실제 설치된 패키지의 최소 설치·완전한 verifier·현재 client
 loader/업데이트 인수가 모두 통과하기 전에는 기본 제품 지원과 C4 착수를 계속 차단한다.
 private 로컬 패키지의 실제 loader/init과 bounded 원본 verifier는 통과했다. Node가 전역
-PATH에 없는 helper subprocess 시험이며, Node가 물리적으로 없는 clean Windows machine의
-설치·실제 서비스 연결 및 업데이트/충돌 인수나 패키지 공개 완료로 승격하지 않는다.
+PATH에 없는 helper subprocess 시험이며, 후속 `0.5.2` private 패키지의 실제 양쪽 client
+업데이트·전체 cache inventory·helper init·수정 generated 파일 보존과 Codex staged skill
+선택도 통과했다. Node가 물리적으로 없는 clean Windows machine, released private 본문과
+연결된 서비스·양방향 browser 인수나 패키지 공개 완료로 승격하지 않는다.
 CLI 0.160.0의 root-read shell backend를 켜지 않는다. Linux/WSL 기록이나 파일/명령
 fixture만의 성공은 blocker 전체의 해제 증거가 아니다.
 
@@ -119,6 +121,16 @@ helper 실행 환경·완전한 검증 패키지의 출처와 전달 방식을 �
 사용자 프로필에서 기존 선택 클라이언트 인증만으로 설치·연결·역할 실행·중지를 검증한다.
 
 satisfies: REQ-MIN-002
+
+2026-10-05 패키지 갱신 인수: 같은 `0.5.1`로 새 내용을 전달하면 Claude update는
+`up_to_date`로 이전 cache를 유지했다. 양쪽 manifest를 `0.5.2`로 올린 뒤 실제
+Claude update와 Codex 재설치의 2,209개 파일이 새 package hash와 일치했다.
+전역 Node 없는 PATH의 installed helper·수정 파일/ownership 보존, duplicate verifier가
+있을 때 실제 fresh thread의 원본 staged checksum 하나 선택, private ZIP 추출 hash도
+통과했다. model turn은 0이며 새 전체 verifier 검토나 서비스 연결 시험은 아니다.
+[범위별 완료 보고서](../../test-reports/completed/2026-10-05-windows-package-update.md)는
+초기 실패와 source/runtime/package/ZIP identity를 보존한다. TASK-MIN-02 전체와
+BLK-MIN-01은 물리적 clean Windows·released private bundle/service 인수 전까지 유지한다.
 
 2026-10-04 Windows 파일 backend 진행: `role-files.mjs`의 고정 파일 연산을
 역할 bridge에 연결했다. 실제 native Codex 모델이 repository 읽기·허용 workspace 수정·

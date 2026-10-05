@@ -1,0 +1,187 @@
+{
+  "format": "stagekeeper-windows-package-acceptance-v1",
+  "at": "2026-10-05T09:54:35.974Z",
+  "testedRevision": "21b2c7bdcacd463ffe7286d05da4dc73b1960a74",
+  "environment": {
+    "windows": "Windows 11 Home 10.0.26200",
+    "codex": "0.160.0",
+    "claude": "2.1.288",
+    "bundledNode": "22.23.3/x64",
+    "globalNodeOnClientPath": false,
+    "physicalCleanWindows": false,
+    "ownerAuthenticationCopied": false,
+    "cliInstallsRequiredByTrial": 0,
+    "modelStarts": 0,
+    "operatingDatabaseWrites": 0,
+    "published": false
+  },
+  "previousCandidates": {
+    "oldInstalled": {
+      "version": "0.5.1",
+      "sourceRevision": "6c5c57adab694a1d10213467a15d85f445d7d454",
+      "packageSha256": "8935a8c12ff0d9d1c5d1c8f7c42c57d67b7fd7227dfb56fb736130887dc95e41",
+      "files": 2209,
+      "verifier": {
+        "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+        "files": 8
+      }
+    },
+    "sameVersionNewPackage": {
+      "version": "0.5.1",
+      "sourceRevision": "d328ea26de5f61b5926ee303bdc5f642121130f3",
+      "packageSha256": "96536ff5de8ad35a57446effeebbc7c3eb16ae219be9b077f6493df30361b297",
+      "files": 2209,
+      "verifier": {
+        "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+        "files": 8
+      }
+    },
+    "codexSameVersionFresh": true,
+    "claudeSameVersionFresh": false,
+    "claudeResult": "up_to_date",
+    "verdict": "FAIL for Claude content refresh; preserved historical candidate, fixed by a versioned package"
+  },
+  "current": {
+    "version": "0.5.2",
+    "sourceRevision": "21b2c7bdcacd463ffe7286d05da4dc73b1960a74",
+    "packageSha256": "8aac9675cd109a081992e90dd02491dc4b51655287641b05b9e150bbf28334ff",
+    "files": 2209,
+    "trackedPluginFilesCompared": 42,
+    "gitContentComparison": "LF-normalized public text; package/extracted hashes identify the exact tested bytes",
+    "runtime": {
+      "executableSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+      "packageSha256": "90e2f6d8df5d0b806d20ea7c256ab467c0bec22a3daa4f3f0fd8732c7d9effc4",
+      "sourceSha256": "9436c81b284889303d39f5b8bd629bf19e790c665ccb94b4994aa87220d9799a"
+    },
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    },
+    "phases": [
+      {
+        "label": "claude-versioned-update",
+        "version": "0.5.2",
+        "sourceRevision": "21b2c7bdcacd463ffe7286d05da4dc73b1960a74",
+        "allFilesMatch": true,
+        "packageSha256": "8aac9675cd109a081992e90dd02491dc4b51655287641b05b9e150bbf28334ff",
+        "updateOutcome": "updated"
+      },
+      {
+        "label": "codex-versioned-update",
+        "version": "0.5.2",
+        "sourceRevision": "21b2c7bdcacd463ffe7286d05da4dc73b1960a74",
+        "allFilesMatch": true,
+        "packageSha256": "8aac9675cd109a081992e90dd02491dc4b51655287641b05b9e150bbf28334ff"
+      },
+      {
+        "label": "claude-versioned-helper-and-conflict",
+        "init": 0,
+        "modifiedRerun": 0,
+        "modifiedFilePreserved": true,
+        "ownedHashPreserved": true,
+        "globalNodeOnPath": false,
+        "externalVerifierOverrideIgnored": false,
+        "verifierChecksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+        "verifierFiles": 8
+      },
+      {
+        "label": "codex-versioned-helper-and-conflict",
+        "init": 0,
+        "modifiedRerun": 0,
+        "modifiedFilePreserved": true,
+        "ownedHashPreserved": true,
+        "globalNodeOnPath": false,
+        "externalVerifierOverrideIgnored": true,
+        "verifierChecksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+        "verifierFiles": 8
+      }
+    ],
+    "skillConflict": {
+      "verdict": "pass",
+      "mainVerifierCandidates": 3,
+      "roleVerifierCandidates": 2,
+      "duplicateCopies": 3,
+      "duplicateChecksums": [
+        "9b692c07610f20191a43809fc619fada84b40f13edf128fcec682ed574efc9f2",
+        "9b692c07610f20191a43809fc619fada84b40f13edf128fcec682ed574efc9f2",
+        "9b692c07610f20191a43809fc619fada84b40f13edf128fcec682ed574efc9f2"
+      ],
+      "enabled": 1,
+      "disabled": 34,
+      "threadStarts": 1,
+      "modelStarts": 0,
+      "selectedChecksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "originalUnchanged": true,
+      "ownedChildrenSettled": true,
+      "sessionReleased": true,
+      "method": "Actual installed dispatcher/effective policy/skills list and accepted fresh thread; intentionally stopped before turn/start. No verifier review/model inference."
+    },
+    "archive": {
+      "format": "zip",
+      "bytes": 37634175,
+      "sha256": "826091b129c90171d53a7fdabfd178e9b5439421277f8dabc6b9b1c651bfd7fb",
+      "extractedInventoryExact": true,
+      "manifestBytesExact": true,
+      "published": false
+    }
+  },
+  "checks": {
+    "sourceCheck": {
+      "verdict": "PASS",
+      "lint": true,
+      "typegen": true,
+      "typescript": true,
+      "fsd": true,
+      "architecture": {
+        "pass": 26,
+        "skip": 2,
+        "skipReason": "Separate native runtime fixture variables not provided"
+      },
+      "projectAvailability": {
+        "pass": 18,
+        "fail": 0
+      }
+    },
+    "finalTypeCheck": "PASS",
+    "tokenReveal": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 0
+    },
+    "reportValidator": "PASS after saving updated active runtime report; aggregate lifecycle remains active/blocked/result:null"
+  },
+  "remaining": [
+    "physical fresh Windows without any Node installation",
+    "released private template winning body and connected service acceptance",
+    "Claude/Codex browser-approved bidirectional resumption",
+    "operational private seed/recovery/package publication",
+    "mixed-version pending/quiescence acceptance",
+    "C4 implementation and 110-minute idle trial"
+  ],
+  "operatorScripts": [
+    {
+      "name": "stagekeeper-windows-package-probe.mjs",
+      "sha256": "376732c5618c065541d404879f93b97bd1456f94f66131955e6d8ee221dca5c7"
+    },
+    {
+      "name": "stagekeeper-windows-package-update.mjs",
+      "sha256": "6803353c0b681ee5466858e23abc6ed105d72ef21e39a2cfe65295bb50b411a2"
+    },
+    {
+      "name": "stagekeeper-windows-package-versioned.mjs",
+      "sha256": "345473d774a9e8080f6aacc50424e4f21b4800d93d50af97fd188a617212c723"
+    },
+    {
+      "name": "stagekeeper-windows-package-conflicts-v1.mjs",
+      "sha256": "42548a842ac3fae64add0780a3cd9938051b4f63b90063e80ba0d4debe165ba4"
+    },
+    {
+      "name": "stagekeeper-windows-package-conflicts.mjs",
+      "sha256": "7729ef293267f0ef5614b0cd5f8601dba306f9a1d3599a625e5d439108735ab4"
+    },
+    {
+      "name": "stagekeeper-windows-package-archive.mjs",
+      "sha256": "0852c5cb19b4d8d451cc66d29be23a80c3c06d380a8dd44e2f8eacd8ebf736c0"
+    }
+  ]
+}
