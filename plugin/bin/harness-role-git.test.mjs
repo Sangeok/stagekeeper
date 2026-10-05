@@ -81,6 +81,15 @@ it("supports ordinary Git worktrees and packed objects without copying their con
   const files = createRoleFiles({ ":root": "deny", [root]: "write" }, "dev");
   const broker = createRoleGit({ root, agent: "dev", fileBroker: files, commonDirectory: path.join(f.root, ".git") });
   try { assert.equal((await broker.call("role_git_read", { operation: "show", paths: [path.join(root, "code.txt")] })).output, "before\n"); }
+  catch (error) {
+    // Only disposable fixture metadata enters diagnostics; owner config stays private.
+    const pointer = readFileSync(path.join(root, ".git"), "utf8").trim();
+    const directory = path.resolve(root, pointer.replace(/^gitdir: /, ""));
+    const commonPointer = readFileSync(path.join(directory, "commondir"), "utf8").trim();
+    t.diagnostic(JSON.stringify({ gitVersion: f.git("--version"), root, pointer, commonPointer,
+      resolvedCommonDirectory: path.resolve(directory, commonPointer), expectedCommonDirectory: path.join(f.root, ".git") }));
+    throw error;
+  }
   finally { await broker.close(); }
 });
 
