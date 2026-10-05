@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-05T10:42:06.144Z"
-tested-revision: "0edfb7e044b0e2c19e4ce7a72966d0beea5f0690"
+last-executed-at: "2026-10-05T12:52:42.471Z"
+tested-revision: "97f03030206f075ae6b7f4308da3314adb01478a"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "fail: dual-client runtime — required runtime gates remain unresolved"
+test-summary: "fail: dual-client runtime — scoped Windows Git regression passed; full service verifier, controlled same-case stop/resume and release gates remain unresolved"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -23,6 +23,22 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-05 scoped Git follow-up: fixed native Windows `role_git_read` now
+provides head/show/diff/status for permitted files without exposing original
+Git metadata to the command snapshot. The final 0.5.7 package matches all
+2,210 installed files; twelve final Windows host Git tests and required source
+CI passed. Its actual HTTP service bridge enforced receipt, file scope and
+stop fences with zero new model turns. Separately, a real private dev on the
+0.5.6 candidate completed Git checks and native tests; the server accepted
+verify ok and then report handoff. This is not full role completion or a new
+0.5.7 model acceptance run. Full service verifier and controlled same-case
+private pending stop/resume remain open; failed verifier/resume/operator
+trials and all four model starts are retained. The latest native CI was still
+running at evidence freeze. [Narrow regression report](../completed/2026-10-05-windows-role-git.md)
+and [E112 observations](../assets/2026-10-05-windows-role-git/observations.json)
+preserve the scope, package/service identities and cleanup. No WSL, additional
+login or authentication copying was requested; C4 remains incomplete.
 
 2026-10-05 private working-template follow-up: the installed 0.5.2 helpers
 connected to a fresh migrated production service using actual private bodies,
@@ -236,6 +252,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T96 | R5 | informational | Historical same-version private package refresh candidate | Changed content should replace the installed bytes; Claude instead returned up_to_date and retained the old 0.5.1 cache, while Codex refreshed | [E109] | FAIL |
 | T97 | R5 | informational | Later versioned 0.5.2 private package regression | Both real caches match all 2,209 files; no-global-Node helpers and modified ownership preservation; original staged skill selection before inference; ZIP exact round trip | [E110] | PASS |
 | T98 | R5 | informational | Actual private working bodies on a fresh Windows service | Installed helper connection, DB rollback/restore, browser approval and server/local-session handover PASS; dev Git inspection blocked, hold failed; full verifier and active-command stop/resume not established | [E111] | FAIL |
+| T99 | R5 | informational | Scoped native Windows Git regression and actual private dev verification | Final 0.5.7 host/installed HTTP bridge boundary checks and required source CI PASS; actual 0.5.6 dev Git/native tests and server verify ok; owner report handoff pending; no full verifier/same-case controlled resume certification | [E112] | PASS |
 
 ## Commands and Static Checks
 
@@ -385,6 +402,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E110 | Versioned install/cache/helper/conflict/archive regression | Source 21b2c7bdcacd463ffe7286d05da4dc73b1960a74, 0.5.2: actual Claude/Codex updates and complete 2,209-file comparison PASS; no-global-Node helper init and modified ownership preservation PASS; duplicate-skill actual thread selection PASS with zero model turns; ZIP exact extraction PASS. [Completed narrow report](../completed/2026-10-05-windows-package-update.md), [observations](../assets/2026-10-05-windows-package-acceptance/observations.json). | No physical clean-machine/released private body/service/browser/C4 certification; no publication or auth copies |
 
 | E111 | Actual private working-template service trial | Application 0edfb7e044b0e2c19e4ce7a72966d0beea5f0690 and prior verified 0.5.2 install bundle. Real private working snapshot/fresh DB rollback and bounded restore/real browser approval/server and local-session handover PASS; dev implement blocked after Git diff inspection and hold failed. Three model starts, 223,481 reported tokens. Operator setup failures and invalid verifier/stop trials are preserved in [bounded FAIL report](../completed/2026-10-05-windows-private-template-acceptance.md) and [projected observations](../assets/2026-10-05-windows-private-template-acceptance/observations.json). | No private body/auth/session IDs/raw transcripts; unreleased working snapshot and future QA references do not certify released body/full verifier/active-command resume/native Claude/clean Windows/C4 |
+| E112 | Scoped Windows Git regression and private dev verification | Source 97f03030206f075ae6b7f4308da3314adb01478a: final 0.5.7 installed inventory 2,210 files, host 12 PASS/0 FAIL/0 SKIP, required check CI and actual HTTP bridge PASS. Intermediate 0.5.6 actual private dev accepted verify ok, report handoff pending. Four model starts, 800,812 reported tokens; server 3 runs/3 charges/11 steps. Failed verifier/resume/operator trials retained in [completed narrow report](../completed/2026-10-05-windows-role-git.md) and [observations](../assets/2026-10-05-windows-role-git/observations.json). | No private body/auth/session IDs/raw transcripts; service checkpoint and intermediate/final package versions distinguished; latest native CI pending at evidence freeze; full verifier/same-case controlled resume/release/C4 not certified |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -396,6 +414,16 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+E112 resolves the reproduced Git-inspection blocker through scoped data
+operations. The actual private dev reached verify ok, then awaited owner report
+commit after report failed/handoff. The independent verifier never completed
+its read phase. An earlier real pending-command stop quiesced, but that resume
+failed scope verification because of owner control/generated files; the later
+clean case completed its test without a controlled pending stop. These outcomes
+do not satisfy full verifier, same-case stop/resume or final accept. Released
+private bodies, physical clean Windows, native Claude host, latest native CI
+and C4 remain separately tracked; no user installation/auth burden was added.
 
 2026-10-04 native Windows commands and private bundle: actual code edit → npm test/build → discarded-output freshness passed in a native Codex thread. The unchanged complete verifier passed four bounded paths and a no-edit final sweep in a separate thread; zero plan defects were present in that corrected synthetic fixture. LPAC parent/child file and network refusals, whole-job termination, slow-start stop and guarded release passed. A private package includes Node/npm/license and the unchanged 8-file verifier; isolated client install/discovery and helper init without global Node in PATH passed. Full Next project build is recorded separately below. No WSL/new login/auth copy was used. Actual service approval/resumption, update/conflict and publishing/seed acceptance, mixed hosts and C4 remain open. [Projected observations](../assets/2026-10-04-codex-windows-role-commands/observations.json) and [checks](../assets/2026-10-04-codex-windows-role-commands/checks.json) retain failed candidates and exact phase identities.
 
@@ -423,6 +451,13 @@ Permission-profile basis: [official permissions documentation](https://learn.cha
 
 ## Test Data and Cleanup
 
+E112: bounded candidate restore removed the Codex row and preserved unrelated
+data in the fresh isolated DB. All owned role/Git processes and sessions were
+settled; the actual Next service and PostgreSQL cluster were stopped. The
+private source hash still matched the original working snapshot; production DB
+was never accessed. The tiny fixture's implementation and projected evidence
+were retained. Failed/interrupted model outcomes and usage were not rewritten.
+
 E107: the real-service native trials released each owned local session after
 child settlement. The fixture Next supervisor and fresh PostgreSQL cluster were
 stopped using their verified process/cluster ownership. Synthetic test credentials
@@ -442,6 +477,12 @@ Owned disposable roots retain non-secret fixture source/configuration and synthe
 An earlier writer implementation left its own draft when Windows handle/path dev values differed. After that writer ended, its valid draft was explicitly recovered; the fixed writer compares the actual file identity and never takes over an existing draft automatically. Tests cover failed rename, an unrelated successor temporary file, external report modification and immutable completed-campaign preflight. Current own .tmp is absent after atomic rename/read-back. Tests remove only their explicitly checked owned temporary roots; C0 evidence roots are retained. Required failure history is preserved rather than rewritten as PASS; a future successful alternative must follow explicit report lifecycle/evidence rules.
 
 ## Conclusion
+
+Latest Git decision: retain active/result:null for this aggregate campaign.
+The narrow Git regression is complete, including actual private dev verify ok
+and final installed data-query fences. Full independent service verifier,
+controlled same-case pending stop/resume, owner final accept and release/C4
+remain unresolved. E112 does not replace historical failure records below.
 
 Latest command/bundle decision: active/result:null. Bounded native Windows model execution, full original verifier and private local package evidence now pass their stated scope. Operational release, integrated service acceptance and C4 are incomplete. Earlier decisions below remain historical.
 

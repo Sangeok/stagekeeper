@@ -5,7 +5,7 @@ Claude의 `skills/`와 `.claude-plugin/plugin.json`, Codex의 `codex/skills/`와
 portable root manifest는 두지 않는다. private 단계 본문은 패키지에 포함하지 않고
 인증된 서버가 공급한다. `lib/`는 `packages/core`에서 동기화한 복사본이다.
 
-현재 버전은 소스 기준 0.5.2이다. 실제 설치된 winning skill/helper, 모델 권한,
+현재 버전은 양쪽 plugin manifest를 기준으로 확인한다. 실제 설치된 winning skill/helper, 모델 권한,
 DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-reports/active/dual-client-runtime-report.md)의
 미완료 항목이다. 아래 사용법은 설치·서버·private bundle의 같은 버전을 준비한 뒤 적용한다.
 
@@ -27,6 +27,12 @@ Windows Codex 역할의 파일 연산은 scoped MCP backend가 수행한다. 완
 복사본에서 명령을 실행한다. 원본·Git·인증은 변경하지 않고 복사본의 산출물은 버린다.
 필요한 원본 수정은 guarded 파일 도구로 수행한다. 누락된 Git/.env/denied 의존성과 snapshot
 hash를 검증 근거에 포함하며, 명령 exit 0만으로 전체 제품 인수를 선언하지 않는다.
+
+Git 확인은 non-PM 역할의 `role_git_read`를 사용한다. 허용한 구체적인 파일에만
+HEAD·기록된 planCommit의 show·diff·status를 제공한다. 원본 Git config나 hooks를
+사용하지 않는 비공개 복사본에서 기존 native Git의 고정 builtin을 조회한다.
+원본 index·파일을 쓰지 않으며 Git commit은 소유자에게 인계한다. 전체 저장소·다른
+workspace·인증 경로의 확인이나 rename/filter/ignore/line-ending 변환은 이 결과에 포함되지 않는다.
 
 ## 초기화와 명시적 실행
 
