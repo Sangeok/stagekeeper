@@ -1,0 +1,259 @@
+{
+  "format": "stagekeeper-windows-private-template-acceptance-v1",
+  "at": "2026-10-05T10:42:06.144Z",
+  "testedRevision": "0edfb7e044b0e2c19e4ce7a72966d0beea5f0690",
+  "package": {
+    "version": "0.5.2",
+    "sourceRevision": "21b2c7bdcacd463ffe7286d05da4dc73b1960a74",
+    "packageSha256": "8aac9675cd109a081992e90dd02491dc4b51655287641b05b9e150bbf28334ff",
+    "files": 2209,
+    "runtime": {
+      "executableSha256": "e9db844fb5645759122c8a9954793c4ce40ea354e3a329fd9f504b0b59f6208f",
+      "packageSha256": "90e2f6d8df5d0b806d20ea7c256ab467c0bec22a3daa4f3f0fd8732c7d9effc4",
+      "sourceSha256": "9436c81b284889303d39f5b8bd629bf19e790c665ccb94b4994aa87220d9799a"
+    },
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    }
+  },
+  "candidate": {
+    "privateRevision": "95ace9d70b63cc8598ab229e2fe1138467f11728",
+    "workingCopy": true,
+    "released": false,
+    "sourceSha256": "5b6dc1861070d9cc99db033757a2aaa024bf7ce695b5c721a6b7dc13839435bb",
+    "rows": 12,
+    "languages": [
+      "en"
+    ],
+    "includesUnimplementedQaRole": true,
+    "privateSourceSnapshotPreserved": true
+  },
+  "environment": {
+    "windows": "Windows 11 Home 10.0.26200",
+    "codex": "0.160.0",
+    "claude": "2.1.288",
+    "postgres": "18.4",
+    "bundledNode": "22.23.3/x64",
+    "globalNodeOnClientPath": false,
+    "physicalCleanWindows": false,
+    "existingNativeCodexLogin": true,
+    "existingNativeClaudeLogin": false,
+    "authenticationCopied": false,
+    "loginRequested": false,
+    "wslUsed": false,
+    "operatingDatabaseAccess": false,
+    "published": false
+  },
+  "gates": {
+    "registration": "pass",
+    "installedLoader": "pass",
+    "codexActualPrivateInit": "pass",
+    "claudeActualPrivateInit": "pass",
+    "realMcpRegistration": "pass",
+    "realProjectSync": "pass",
+    "realGateWait": "pass",
+    "globalNodeOnClientPath": false,
+    "modelStarts": 0,
+    "authenticationCopied": false,
+    "seedRollback": "pass",
+    "boundedRestore": "pass",
+    "restoreBaseline": "synthetic candidate plus marker; not released template history",
+    "browserApproval": "pass",
+    "browserPageErrors": 0,
+    "browserAuthentication": "disposable fixture JWT; GitHub OAuth not exercised",
+    "devPrivateBody": "FAIL: implement blocked following Git diff inspection; hold outcome failed; original implementation unchanged",
+    "activeCommandStop": "NOT RUN: model paused before a valid pending-command stop",
+    "freshNativeModelResume": "NOT RUN",
+    "fullServiceVerifier": "NOT RUN: read failed in both attempts; neither completed verify",
+    "releasedPrivateBody": "NOT RUN",
+    "nativeClaudeModelHandover": "NOT RUN"
+  },
+  "models": {
+    "starts": 3,
+    "turnStartRequests": 3,
+    "reportedTotalTokens": 223481,
+    "monetaryCostMeasured": false,
+    "phases": [
+      {
+        "phase": "verifier",
+        "turnStartRequests": 1,
+        "modelStarts": 1,
+        "event": "paused",
+        "done": false,
+        "receiptObserved": true,
+        "toolCalls": 8,
+        "commandRequested": false,
+        "fullVerifierPass": false,
+        "totalTokens": 53121
+      },
+      {
+        "phase": "pending",
+        "turnStartRequests": 1,
+        "modelStarts": 1,
+        "event": "paused",
+        "done": false,
+        "receiptObserved": true,
+        "toolCalls": 11,
+        "commandRequested": true,
+        "fullVerifierPass": false,
+        "totalTokens": 119019
+      },
+      {
+        "phase": "verifier-selected",
+        "turnStartRequests": 1,
+        "modelStarts": 1,
+        "event": "paused",
+        "done": false,
+        "receiptObserved": true,
+        "toolCalls": 6,
+        "commandRequested": false,
+        "fullVerifierPass": false,
+        "totalTokens": 51341
+      }
+    ]
+  },
+  "handover": {
+    "bothDirections": true,
+    "sameDevRunReceipt": true,
+    "usagePreserved": true,
+    "ledgerPreserved": true,
+    "concurrentStartRejected": true,
+    "nativeClaudeModelExercised": false,
+    "before": {
+      "runs": 3,
+      "charges": 3,
+      "steps": 6
+    },
+    "after": {
+      "runs": 3,
+      "charges": 3,
+      "steps": 6
+    }
+  },
+  "operatorFailures": [
+    {
+      "kind": "dependency junction",
+      "result": "host Turbopack build failed; later production build with regular copied dependencies passed"
+    },
+    {
+      "kind": "restore hash comparison ordering",
+      "result": "fixture assertion failed after correct DB restoration; fixed to exact sorted row comparison and reran"
+    },
+    {
+      "kind": "service process lifetime",
+      "result": "initial loopback service unavailable across commands; held foreground supervisor for actual acceptance"
+    },
+    {
+      "kind": "fixture token format",
+      "result": "48-character hex token refused; corrected using product newToken(user) before registration"
+    },
+    {
+      "kind": "ledger query column",
+      "result": "read-only query used nonexistent TransitionEvent.projectId; corrected to boardItemId"
+    },
+    {
+      "kind": "verifier minimal briefing",
+      "result": "first lower-level dispatch omitted selected verification paths; does not qualify as full verifier acceptance"
+    },
+    {
+      "kind": "verifier committed source",
+      "result": "second K-2 plan existed in fixture worktree but not its recorded commit; no verifier acceptance claimed"
+    },
+    {
+      "kind": "stop session field",
+      "result": "first stop used nonexistent lock.session and returned replaced after role paused; corrected to lock.id and released quiescent sessions; no active-command stop claim"
+    }
+  ],
+  "cleanup": {
+    "at": "2026-10-05T10:42:06.144Z",
+    "candidateRestored": true,
+    "codexRowRemoved": true,
+    "unrelatedRowPreserved": true,
+    "privateSourceStillMatchesSnapshot": true,
+    "fixtureImplementationUnchanged": true,
+    "privateRepositoryWritten": false,
+    "productionDatabaseAccess": false,
+    "nextStopped": true,
+    "postgresStopped": true,
+    "allRoleChildrenSettled": true,
+    "allLocalLocksReleased": true,
+    "privateArtifactsRetainedOutsideGit": true,
+    "operatorScriptsUploaded": false
+  },
+  "operators": [
+    {
+      "name": "stagekeeper-prepare-release-acceptance.mjs",
+      "sha256": "9e570cdab92a60ee99d815b4c0beac323a8006024cdac3c3f2d5403972d7e231"
+    },
+    {
+      "name": "stagekeeper-bootstrap-release-acceptance.mjs",
+      "sha256": "2811a51c138d7fc6737a8d578b40bf1a4d3453a47b45898f0b559f8156ef1cb2"
+    },
+    {
+      "name": "stagekeeper-connect-release-acceptance.mjs",
+      "sha256": "8e6f2c9bea73bfb1ab46b2bd3aa0420fe0c629a3ec96632c31c79df34b170427"
+    },
+    {
+      "name": "stagekeeper-serve-release-acceptance.mjs",
+      "sha256": "5cdfe34eebfc46261c07d33f859e2889151efb2bcc8fad574b8ee3bb23744f43"
+    },
+    {
+      "name": "stagekeeper-acceptance-browser.mjs",
+      "sha256": "87077c387163bcbaa948e91d82424eb5bc59547680db9765019f2664472f419d"
+    },
+    {
+      "name": "stagekeeper-launch-acceptance-model.mjs",
+      "sha256": "08af66c9aed336e8f36e7c3cd955c6706092254346a6afd713a177cab44d7fa3"
+    },
+    {
+      "name": "stagekeeper-acceptance-control.mjs",
+      "sha256": "6d4da74e21d10aa0339b97c68369b45f72506a45d3391bb807cf6da31b41a0ad"
+    },
+    {
+      "name": "stagekeeper-acceptance-auth-probe.mjs",
+      "sha256": "4a374b9c91c542514f90bdf106875130c545db76b1c5bc6de4eb80d89a9b8137"
+    },
+    {
+      "name": "stagekeeper-repair-acceptance-token.mjs",
+      "sha256": "c7915ab05268ed7d549575076f6953570c9ac6038886659177b4573b91ec26e7"
+    },
+    {
+      "name": "stagekeeper-acceptance-verifier-retry.mjs",
+      "sha256": "38968ea7618693eb16bea5a92306c2b5a74c9f75c7c218bcc9b94e665cfea00e"
+    },
+    {
+      "name": "stagekeeper-finish-acceptance-sessions.mjs",
+      "sha256": "a0edcfebfffbb80bcfb644b797a1e3593c8d564ccc9458bcc50fd52f3c50d9b0"
+    },
+    {
+      "name": "stagekeeper-cleanup-release-acceptance.mjs",
+      "sha256": "0f1d01cdc92c5ebba154bcb986fb8a3852e148941dc93984ca8ff902c8a7fc01"
+    },
+    {
+      "name": "stagekeeper-stop-acceptance-database.mjs",
+      "sha256": "2659d4cdb691c2da110cdce385ba17a6c523be1a5e6fefb70dd2f7a254a7760b"
+    },
+    {
+      "name": "stagekeeper-acceptance-dependency-projection.mjs",
+      "sha256": "7168d9d45f774ae163325b75f055046df0f2fe48de3dd853c6eb814cfc3df6eb"
+    },
+    {
+      "name": "dispatch-driver.mjs",
+      "sha256": "932f6bc54e61bb8dfd0186b5477e59101a3a3ac94eaae3f7bbb9a941dc74fa94"
+    }
+  ],
+  "checks": {
+    "hostProductionBuild": "PASS after regular dependency copy",
+    "reportStructure": "PASS; active aggregate remains non-final",
+    "fsd": "PASS",
+    "architecture": {
+      "pass": 26,
+      "fail": 0,
+      "skip": 2,
+      "skipReason": "native runtime fixture not provided to architecture glob"
+    },
+    "diffCheck": "PASS",
+    "applicationCodeChanged": false
+  }
+}

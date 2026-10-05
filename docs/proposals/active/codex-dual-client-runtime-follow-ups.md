@@ -132,6 +132,21 @@ Claude update와 Codex 재설치의 2,209개 파일이 새 package hash와 일�
 초기 실패와 source/runtime/package/ZIP identity를 보존한다. TASK-MIN-02 전체와
 BLK-MIN-01은 물리적 clean Windows·released private bundle/service 인수 전까지 유지한다.
 
+2026-10-05 실제 private working 본문 서비스 인수: current dev source의 fresh
+production 서비스·격리 native DB에 고정한 12행 본문을 넣고, installed 0.5.2 helper로
+추가 Node 없는 PATH의 양쪽 init·Codex 연결·웹 승인·제한 복구를 확인했다.
+같은 dev receipt/원장/사용량을 보존한 양쪽 client 형식과 local-session 인수 및
+동시 시작 거부도 통과했다. native Claude 모델 인수와는 구분한다.
+실제 dev 본문은 Git diff 확인 뒤 implement blocked와 hold failed를 기록했다.
+Git metadata를 제외하는 명령 snapshot과 실제 본문의 Git 확인·owner handoff
+호환성을 해결하고 재현해야 하며, 이 시험은 구현 완료·active-command 중지/재개·
+전체 verifier의 통과를 입증하지 않는다. 잘못 준비한 verifier/stop fixture도
+[bounded FAIL 보고서](../../test-reports/completed/2026-10-05-windows-private-template-acceptance.md)에
+보존한다. 다음 시험은 기록한 commit의 실제 계획 파일과 필수 verification paths,
+공개 source와 일치하는 고정 private candidate를 먼저 확인한다. 이 working copy는
+future QA 참조가 있고 released 본문이 아니다. BLK-MIN-01·REQ-MIN-001/002와 C4의
+미완료 상태는 유지하며 다른 client 로그인·WSL 설치를 사용자 복구 조건으로 요구하지 않는다.
+
 2026-10-04 Windows 파일 backend 진행: `role-files.mjs`의 고정 파일 연산을
 역할 bridge에 연결했다. 실제 native Codex 모델이 repository 읽기·허용 workspace 수정·
 신규 파일·항목 plan 생성·목록·검색을 실행했고 readonly/foreign/external/Git 경로를
