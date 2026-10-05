@@ -515,8 +515,11 @@ lazy fetch·submodule 조회를 비활성화한다. 객체 alias/hardlink·복�
 파일 128MiB·100,000개·총 2GiB·준비 300초, 조회 10초·출력 1MiB를 상한으로 둔다.
 프로세스를 같은 소유권에 등록하고 중지 시 실제 종료와 reader EOF를 기다려 settle한다.
 
-`diff`는 HEAD/planCommit와 현재 허용 파일의 byte 내용을 비교한다. `status`는 private
-index와 선택한 현재 파일을 사용한다. ignore rules·rename 추적·filter·line-ending 변환을
+`diff`는 HEAD/planCommit에서 만든 private index와 현재 허용 파일의 byte 내용을 비교한다.
+추적되지 않은 신규 파일은 `status`로 확인한다. `status`는 복사한 private index와 선택한
+현재 파일을 사용하고 선택 파일의 assume-unchanged·skip-worktree flag를 복사본에서만
+지운다. 이 flag로 실제 수정이 숨겨지면 검증 증거가 될 수 없다. 원본 index가 없으면
+HEAD에서 복사본 index만 구성한다. ignore rules·rename 추적·filter·line-ending 변환을
 재현하지 않는다. 응답에 commit·파일 hash·선택 파일 범위를 명시하고 원본 파일과 HEAD가
 조회 중 변경되면 거부한다. Git 조회 산출물·index 변경은 버리며 원본 metadata 쓰기나
 commit은 허용하지 않는다. 누락·거부·출력 상한은 blocked이며 성공 판정으로 사용하지 않는다.

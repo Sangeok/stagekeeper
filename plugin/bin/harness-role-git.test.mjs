@@ -133,3 +133,13 @@ it("uses literal filenames and an owned index when the original index is absent"
   assert.match((await query(f, "diff", { paths: [file] })).output, /\+after/);
   assert.equal(existsSync(path.join(f.root, ".git/index")), false);
 });
+
+it("cannot hide current source changes through assume-unchanged or skip-worktree index flags", host, async t => {
+  for (const flag of ["--assume-unchanged", "--skip-worktree"]) {
+    const f = fixture(t); f.git("update-index", flag, "code.txt"); writeFileSync(f.file, "after\n");
+    const index = digest(readFileSync(path.join(f.root, ".git/index")));
+    assert.match((await query(f, "diff")).output, /\+after/);
+    assert.match((await query(f, "status")).output, / M code.txt/);
+    assert.equal(digest(readFileSync(path.join(f.root, ".git/index"))), index);
+  }
+});

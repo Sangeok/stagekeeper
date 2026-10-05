@@ -16,7 +16,9 @@ it("ships the public init reuse guidance through the bumped plugin package", () 
   const plugin = JSON.parse(readFileSync("plugin/.claude-plugin/plugin.json", "utf8"));
   const codexPlugin = JSON.parse(readFileSync("plugin/.codex-plugin/plugin.json", "utf8"));
   const marketplace = JSON.parse(readFileSync(".claude-plugin/marketplace.json", "utf8"));
-  assert.equal(plugin.version, "0.5.2");
+  assert.match(plugin.version, /^\d+\.\d+\.\d+$/);
+  const [major, minor, patch] = plugin.version.split(".").map(Number);
+  assert.ok(major > 0 || minor > 5 || (minor === 5 && patch >= 2), "init reuse guidance requires plugin 0.5.2 or newer");
   assert.equal(codexPlugin.version, plugin.version);
   assert.ok(marketplace.plugins.some((entry: { name: string; source: string }) => entry.name === plugin.name && entry.source === "./plugin"));
 });

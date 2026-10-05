@@ -17,7 +17,7 @@ const check = signal => signal?.throwIfAborted();
 const canonical = value => process.platform === "win32" ? value.toLowerCase() : value;
 export const roleGitTool = {
   name: "role_git_read",
-  description: "Read scoped Git evidence without a shell. head returns HEAD; show reads one file at HEAD or the supplied planCommit; diff compares HEAD (or planCommit) with current bytes; status reports staged/worktree changes for explicit files only. Paths must be absolute permitted regular files (deleted files allowed). No directory, glob, rename tracking, ignore rules, filters or line-ending conversion. Git metadata and original files are never written. Output is bounded; refusals are blocked, never passed.",
+  description: "Read scoped Git evidence without a shell. head returns HEAD; show reads one file at HEAD or the supplied planCommit; diff compares committed paths at HEAD (or planCommit) with current bytes; status reports staged/worktree changes and untracked files for explicit files only. Paths must be absolute permitted regular files (deleted files allowed). No directory, glob, rename tracking, ignore rules, filters or line-ending conversion. Assume-unchanged/skip-worktree cannot conceal selected file changes. Original Git metadata and files are never written. Output is bounded; refusals are blocked, never passed.",
   inputSchema: { type: "object", properties: {
     operation: { type: "string", enum: ["head", "show", "diff", "status"] },
     paths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 50 },
@@ -214,7 +214,7 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
       await writeFile(path.join(directory, "git/HEAD"), location.head + "\n");
       await copyObjects(location.common, path.join(directory, "git/objects"), combined);
       const indexPath = path.join(location.directory, "index"); let indexHash = null;
-      if (operation === "status" || operation === "diff") {
+      if (operation === "status") {
         if (existsSync(indexPath)) {
           const bytes = await bytesAt(indexPath, MAX_OBJECT, combined); indexHash = hash(bytes);
           await writeFile(path.join(directory, "git/index"), bytes);
@@ -232,6 +232,15 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
         snapshot.push({ path: row.target, hash: bytes === null ? null : hash(bytes) });
         if (bytes !== null) { const destination = path.join(directory, "repo", row.relative); await mkdir(path.dirname(destination), { recursive: true }); await writeFile(destination, bytes); }
       }
+      if (operation === "diff") await gitRead(directory, git, ["read-tree", ref], lifecycle, combined);
+      if (operation === "status") {
+        const tracked = textPaths(await gitRead(directory, git, ["ls-files", "--cached", "-z", "--", ...selected.map(row => row.relative)], lifecycle, combined));
+        if (tracked.some(name => !selected.some(row => canonical(row.relative) === canonical(name)))) throw new Error("Git index scope refused");
+        // update-index selects one flag action per invocation; combining these
+        // switches would leave assume-unchanged active and conceal a real edit.
+        for (const flag of ["--no-assume-unchanged", "--no-skip-worktree"])
+          if (tracked.length) await gitRead(directory, git, ["update-index", flag, "--", ...new Set(tracked)], lifecycle, combined);
+      }
       let command;
       if (operation === "head") command = ["rev-parse", "--verify", "HEAD^{commit}"];
       if (operation === "show") command = ["cat-file", "blob", ref + ":" + selected[0].relative];
@@ -239,7 +248,7 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
       if (operation === "status") command = ["status", "--porcelain=v1", "--untracked-files=all", "--no-renames", "--ignore-submodules=all", "--", ...selected.map(row => row.relative)];
       const output = text(await gitRead(directory, git, command, lifecycle, combined));
       if ((await layout(root, combined)).head !== location.head) throw new Error("Git HEAD changed during query");
-      if ((operation === "status" || operation === "diff") && (existsSync(indexPath) ? hash(await bytesAt(indexPath, MAX_OBJECT, combined)) : null) !== indexHash)
+      if (operation === "status" && (existsSync(indexPath) ? hash(await bytesAt(indexPath, MAX_OBJECT, combined)) : null) !== indexHash)
         throw new Error("Git index changed during query");
       for (const row of snapshot) {
         fileBroker.resolveRead(row.path);
@@ -263,4 +272,10 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
     },
     async close() { closed = true; controller.abort(); try { await pending; } finally { await backend.close(); } },
   };
+}
+
+function textPaths(bytes) {
+  const value = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  if (!value.endsWith("\0") && value !== "") throw new Error("Git index response refused");
+  return value.split("\0").filter(Boolean);
 }
