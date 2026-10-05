@@ -5,6 +5,10 @@ $ErrorActionPreference = 'Stop'
 # Backport the AppContainer pipe fix; do not change Node's module/symlink semantics.
 $version = '22.23.3'
 $sourceHash = '9436c81b284889303d39f5b8bd629bf19e790c665ccb94b4994aa87220d9799a'
+$buildScriptBytes = [Text.Encoding]::UTF8.GetBytes([IO.File]::ReadAllText($PSCommandPath).Replace("`r`n", "`n"))
+$buildScriptHasher = [Security.Cryptography.SHA256]::Create()
+try { $buildScriptHash = [BitConverter]::ToString($buildScriptHasher.ComputeHash($buildScriptBytes)).Replace('-', '').ToLowerInvariant() }
+finally { $buildScriptHasher.Dispose() }
 $buildPath = [IO.Path]::GetFullPath($BuildRoot)
 if (-not [IO.Path]::IsPathRooted($BuildRoot) -or $buildPath -eq [IO.Path]::GetPathRoot($buildPath)) { throw 'A dedicated absolute build directory is required' }
 New-Item -ItemType Directory -Path $buildPath -Force | Out-Null
@@ -59,6 +63,7 @@ if ($LASTEXITCODE -ne 0 -or $packageHash -notmatch '^[a-f0-9]{64}$') { throw 'Ru
 $manifest = [ordered]@{
   format = 'stagekeeper-windows-node-v1'; version = $version; architecture = 'x64'
   buildArguments = @('release', 'x64', 'openssl-no-asm')
+  buildScriptSha256 = $buildScriptHash
   source = "https://nodejs.org/dist/v$version/node-v$version.tar.gz"; sourceSha256 = $sourceHash
   pipeBackport = 'https://github.com/libuv/libuv/pull/5181'
   pipeSourceSha256 = (Get-FileHash -LiteralPath $pipeFile -Algorithm SHA256).Hash.ToLowerInvariant()

@@ -41,7 +41,8 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
-| `build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash를 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
+| `build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
+| `windows-role-runtime-cache.mjs`, `windows-role-runtime-cache.test.mjs` | `node scripts/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
 | `package-windows-plugin.mjs` | `node scripts/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source·runtime·변경하지 않은 완전한 owner verifier를 양쪽 skill 경로에 복사하고 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |
 | `rehearse-windows-project-build.mjs` | `node scripts/rehearse-windows-project-build.mjs --root <npm ci로 준비한 공개 checkout> --runtime <검증된 Windows runtime>` | `windows-role-runtime` CI/전체 프로젝트 빌드 회귀 시 | Prisma 엔진을 포함한 정상 의존성 설치 후, DB URL·환경 파일·network 없는 실제 LPAC snapshot에서 전체 `npm run build`와 원본 source/build ID 불변·산출물 폐기·종료 acknowledgement를 확인한다. 모델·DB·로그인·배포를 실행하지 않는다 |
 | `build.mjs`, `windows-role-readlink.cjs` | `npm run build` | 프로젝트 production build | 기본 Next 빌드를 유지하고 Windows 역할 복사본에서만 Webpack·readlink 오류 호환 preload와 TypeScript compiler API 검사를 선택한다. 타입 검사를 생략하지 않으며 API가 없는 TypeScript로의 업그레이드는 실제 native CI에서 검증해야 한다. 일반 파일임을 실제 lstat로 확인할 때만 EPERM/EACCES를 EINVAL로 바꾸며 링크·metadata 거부는 유지한다. owner 프로세스·커널·ACL·network 권한은 변경하지 않는다 |
@@ -75,6 +76,33 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 | `recovery/individual-project-availability-d3/restore-d2-shadow.sql` | 위 복구 CLI | D3 commit 뒤 D2 호환 복구 | 현재 direct owner에서 legacy shadow를 transaction으로 재구성. 일반 migration path에는 없음 |
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
+
+## Windows CI 런타임 재사용
+
+`windows-role-runtime`은 `dev` push와 관련 경로를 바꾼 PR에서 실행한다. `dev` 실행이
+생성한 캐시는 새 PR이 공유할 수 있고, PR 실행이 생성한 캐시는 해당 PR의 재실행만
+재사용한다. `dev` push는 경로를 제한하지 않아 유휴 기간의 캐시 만료 후에도 다시
+공유 캐시를 준비한다. PR 새 커밋은 같은 workflow·PR의 이전 실행을 취소하지만,
+진행 중인 `dev` 런타임 생성은 취소하지 않는다.
+
+캐시에는 `stagekeeper-node-source/runtime`만 저장한다. Node 소스·컴파일 중간 산출물은
+저장하지 않는다. 키에는 Windows 2022/x64와 빌드 스크립트·검증 계약 지문을 포함하고,
+스크립트의 LF/CRLF 차이는 정규화한다. 다른 버전의 prefix fallback은 사용하지 않는다.
+정확한 캐시가 없으면 기존 pinned source 빌드를 수행한다. 부분 키가 복원되면 중단한다.
+복원된 캐시는 runner Node로 출처·옵션·빌드 지문·실행 파일 및 패키지 전체를 검증한
+후에만 실행한다. 새 빌드는 기존 builder의 해시 계산·smoke 이후 같은 검증을 거쳐
+캐시 저장과 실제 역할 인수로 넘어간다. 검증 실패는 중단하며 잘못된 캐시를 조용히
+덮어쓰거나 이전 버전으로 대체하지 않는다.
+캐시 해시는 파일 일관성 검사이며 서명 인증을 대신하지 않는다. 기존 PR/base branch
+범위 격리를 유지하고 `pull_request_target`에서 PR 코드를 실행해 공유 캐시를 만들지 않는다.
+
+검증과 child-process smoke를 통과한 런타임은 후속 프로젝트 테스트 전에 캐시한다.
+실제 Windows 역할 명령·파일 격리·readlink·IPC 회귀와 네트워크가 차단된 전체 프로젝트
+빌드는 캐시 여부와 관계없이 매번 실행한다. 후속 실패에서도 검증을 통과한 런타임과
+provenance artifact를 보존한다. 캐시 준비 성공은 전체 인수 성공을 뜻하지 않는다.
+새 캐시 규약의 최초 실행 및 캐시 삭제·만료 시에는 전체 컴파일 시간이 다시 필요하다.
+`dev` 공유 재사용은 이 workflow 변경이 `dev`에 병합되고 해당 push가 캐시를 만든 뒤부터
+가능하며, 이미 실행 중인 구버전 PR job에는 소급 적용되지 않는다.
 
 ## 프로젝트 빌드 의존성
 
