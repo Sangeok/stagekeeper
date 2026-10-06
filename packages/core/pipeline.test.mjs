@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, gateId, NODE_KINDS, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
 
-const full = { nodes: [...NODE_KINDS], gates: [...DEFAULT_GATES] };
+const full = { nodes: NODE_KINDS.filter(kind => kind !== "qa"), gates: [...DEFAULT_GATES] };
 const facts = (o = {}) => ({ status: "proposed", validation: null, accepted: false, approvedGates: [], closedAgents: [], ...o });
 
 describe("slot execution isolation", () => {
@@ -41,7 +41,7 @@ describe("slot execution isolation", () => {
 describe("defaultGraph", () => {
   it("free has no verify or doc-audit; pro and max have every node but scout; gates are the two boundaries", () => {
     assert.deepEqual(defaultGraph("free").nodes, ["propose", "plan", "implement", "accept"]);
-    assert.deepEqual(defaultGraph("pro").nodes, NODE_KINDS.filter((k) => k !== "scout"));
+    assert.deepEqual(defaultGraph("pro").nodes, NODE_KINDS.filter((k) => !["scout", "qa"].includes(k)));
     assert.deepEqual(defaultGraph("max").gates, DEFAULT_GATES);
   });
   it("scout is opt-in — absent from every default graph, valid once added on a plan that has feature-scout", () => {

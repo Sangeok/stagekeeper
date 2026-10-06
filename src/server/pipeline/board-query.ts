@@ -11,6 +11,8 @@ import { ensureRun, readFacts, type Graph, type GateEntry } from "./run-query";
 import { decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, MAIN_LOOP, PLAN_VERIFIER } from "./board-rules";
 import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryRecord, type HistoryView } from "./history-page";
 import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
+import { parseQaReport } from "@harness/core/qa.mjs";
+import { implementationReport } from "./qa-query";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -506,7 +508,7 @@ async function submitPlan(projectId: string, input: { key: string; path: string;
   });
 }
 
-async function submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string }, actorRef: string) {
+async function submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string; qa?: unknown }, actorRef: string) {
   return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
@@ -523,12 +525,25 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
       && await tx.acceptanceFailure.findFirst({ where: { boardItemId: row.id, clearedAt: null }, select: { id: true } }) !== null;
     const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep, acceptanceFailed });
     if (!d.ok) throw new BoardRejection(d.reason);
+    const pipeline = await ensureRun(tx, projectId, row.id, row.status, false);
+    if (d.value.accepts && pipeline.version.nodes.includes("qa") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection("QA has not completed; acceptance is only available at accept");
+    if (input.actor !== "qa-verifier" && input.qa !== undefined) throw new BoardRejection("QA evidence belongs to qa-verifier");
+    let qa: ReturnType<typeof parseQaReport> | undefined;
+    if (input.actor === "qa-verifier") {
+      try { qa = parseQaReport(input.qa); } catch (error) { throw new BoardRejection(error instanceof Error ? error.message : "Invalid QA report"); }
+      if (!input.runId || input.path !== `docs/agents/qa-verifier/${input.key}.md`) throw new BoardRejection("QA report requires its bound AgentRun and report path");
+      if (pipeline.version.format !== SLOT_FORMAT || pipeline.node !== "qa" || pipeline.closedAt || row.status !== "done") throw new BoardRejection("QA report requires the current qa entry");
+      const target = await implementationReport(tx, row.id, row.agent, pipeline.id);
+      if (!target || target.commit !== qa.targetCommit) throw new BoardRejection("QA target does not match the implementation report commit");
+      const qaRun = await tx.agentRun.findFirst({ where: { id: input.runId, projectId, agent: "qa-verifier", key: input.key, pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId, closedAt: null }, include: { steps: { where: { accepted: true } } } });
+      if (!qaRun || !(qa.verdict === "pass" ? qaRun.stepId === "report" && qaRun.steps.some(step => step.stepId === "verify" && step.outcome === "ok") : qaRun.stepId === `${qa.verdict === "fail" ? "failed" : "blocked"}-report`)) throw new BoardRejection("QA verdict does not match the current run's verification outcome");
+    }
     if (input.runId) {
       const agentRun = await tx.agentRun.findUnique({ where: { id: input.runId }, include: { pipelineRun: true } });
       if (!agentRun || agentRun.projectId !== projectId || agentRun.agent !== input.actor || agentRun.key !== input.key || agentRun.closedAt || (agentRun.pipelineRun && (agentRun.pipelineRun.boardItemId !== row.id || agentRun.pipelineRun.closedAt || agentRun.pipelineRun.entryId !== agentRun.pipelineEntryId))) throw new BoardRejection("stale report run");
     }
     await claim(tx, row, {});
-    const report = await tx.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit, agentRunId: input.runId, isAcceptance: d.value.accepts } });
+    const report = await tx.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit, agentRunId: input.runId, isAcceptance: d.value.accepts, ...(qa ? { qa } : {}) } });
     await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "agent", actorId: actorRef, note: "report" } });
     // 인수 기록이면 항목에 표시한다 — 배너·항목 상세·journey가 이 열 하나로 "인수됐나"를 읽는다.
     if (d.value.accepts) {

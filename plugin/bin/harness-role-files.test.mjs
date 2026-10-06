@@ -6,6 +6,7 @@ import path from "node:path";
 import { createRoleFiles, roleFileToolNames } from "../runtime/role-files.mjs";
 import { roleBridge, verifyRoleExecution, assertRolePolicy, roleCommandPath, boundArguments } from "../runtime/codex-thread.mjs";
 import { ROLE_TOOLS } from "../runtime/codex-agent.mjs";
+import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 
 function fixture() {
   const base = mkdtempSync(path.join(tmpdir(), "harness-native-files-")), root = path.join(base, "repository"), scratch = path.join(base, "scratch");
@@ -94,9 +95,9 @@ it("searches only permitted text and reports bounded or skipped scans as incompl
   assert.equal(aliasSearch.incomplete, true); assert.equal(aliasSearch.skipped, 1);
 });
 
-it("checks the Windows broker tool allowlist and disables native shell execution in effective config", () => {
-  const f = fixture(), agent = "doc-auditor", url = "http://127.0.0.1:1/native-role";
-  const names = [...ROLE_TOOLS[agent], ...roleFileToolNames(agent)];
+for (const agent of ["doc-auditor", "qa-verifier"]) it(`checks the ${agent} broker allowlist and disables native shell execution in effective config`, () => {
+  const f = fixture(), url = "http://127.0.0.1:1/native-role";
+  const names = [...ROLE_TOOLS[agent], ...roleFileToolNames(agent), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS : [])];
   const config = { agents: { enabled: false }, approval_policy: "never", default_permissions: "harness-role", web_search: "disabled", project_doc_max_bytes: 0,
     features: { multi_agent: false, apps: false, hooks: false, memories: false, goals: false, view_image: false, request_permissions_tool: false, code_mode: { enabled: false }, shell_tool: false, unified_exec: false },
     mcp_servers: { harness: { enabled: true, url, enabled_tools: names, default_tools_approval_mode: "prompt", tools: Object.fromEntries(names.map(name => [name, { approval_mode: "approve" }])), bearer_token_env_var: "HARNESS_ROLE_CAPABILITY" } },
@@ -105,8 +106,14 @@ it("checks the Windows broker tool allowlist and disables native shell execution
   const git = structuredClone(config);
   git.mcp_servers.harness.enabled_tools.push("role_git_read");
   git.mcp_servers.harness.tools.role_git_read = { approval_mode: "approve" };
-  assert.doesNotThrow(() => assertRolePolicy(git, f.filesystem, url, agent, true, false, true));
+  if (agent === "qa-verifier") assert.throws(() => assertRolePolicy(git, f.filesystem, url, agent, true, false, true));
+  else assert.doesNotThrow(() => assertRolePolicy(git, f.filesystem, url, agent, true, false, true));
   assert.throws(() => assertRolePolicy(git, f.filesystem, url, agent, true));
+  const command = structuredClone(config);
+  command.mcp_servers.harness.enabled_tools.push("role_command_exec");
+  command.mcp_servers.harness.tools.role_command_exec = { approval_mode: "approve" };
+  if (agent === "qa-verifier") assert.throws(() => assertRolePolicy(command, f.filesystem, url, agent, true, true));
+  else assert.doesNotThrow(() => assertRolePolicy(command, f.filesystem, url, agent, true, true));
   const shell = structuredClone(config); shell.features.shell_tool = true;
   assert.throws(() => assertRolePolicy(shell, f.filesystem, url, agent, true));
   const expanded = structuredClone(config); expanded.mcp_servers.harness.enabled_tools.push("role_command_exec");

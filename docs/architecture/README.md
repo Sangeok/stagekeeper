@@ -103,6 +103,7 @@ stagekeeper/
 - [sources.md](./sources.md): 원재료 매핑 — ApcH(`de25a1c`)의 무엇이 어디로 왔나
 - [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
+- [qa-verifier.md](./qa-verifier.md): 선택적 브라우저 QA 역할, 테스트 환경, 실행·보고 결합
 - [repository-disconnection.md](./repository-disconnection.md): 연결 상태·토큰·읽기 보존 계약과 운영 배포·복구 절차
 - [rationale.md](./rationale.md): 규칙이 무엇을 겪고 생겼는지 — 골든 diff와 첫 스모크 요약
 

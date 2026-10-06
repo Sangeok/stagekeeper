@@ -268,6 +268,13 @@ rollback을 단정하지 않는다. 웹은 advice를 조회하지 않고 성공 
 
 ## 파이프라인 그래프
 
+선택적 `qa` 노드는 implement와 accept 사이에서 항목 key를 가진 `qa-verifier`를
+호출한다(Pro/Max). QA 진입 시 구현 완료 `done`을 기록하며, 현재 entry와 구현 커밋에 묶인
+verify/ok·정상 report/ok·구조화된 pass 보고가 모두 있어야 accept로 간다. 실패·차단 보고는
+wait-on-QA로 멈추고, 오래된 보고나 닫힌 실패 run은 완료 근거가 아니다. 최종 인수는 메인
+루프만 한다. 기존 그래프·기본값은 보존한다. 계약과 배포 순서는
+[qa-verifier.md](./qa-verifier.md)를 따른다.
+
 순서의 단일 출처는 `packages/core/pipeline.mjs`와 그 프로젝트의 `PipelineVersion` 행이다. 런북에는 순서가 없다.
 
 - **앵커와 슬롯.** plan·implement·accept는 각각 한 번이며 순서가 고정된다. propose는 선택이며 맨 앞, verify는 선택이며 plan과 implement 사이다. doc-auditor·feature-scout는 앵커 사이에 반복 배치할 수 있다. 첫 생성은 접미가 없고 이후 #2, #3 등을 배정한다. 이동·다른 슬롯 삭제로 기존 ID를 바꾸지 않는다. doc-audit·scout는 기존 별칭이며 편집 정규화는 연결 게이트도 함께 옮긴다. 기본 그래프와 scout opt-in은 보존한다.
@@ -500,7 +507,8 @@ Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제
 산출물은 버리며 원본으로 동기화하지 않는다. 원본 수정은 guarded 파일 도구를 사용한다.
 누락된 Git·환경·network 의존성을 별도 인수로 남기고 exit 0을 전체 검증으로 해석하지 않는다.
 
-Windows non-PM 역할의 Git 조회는 별도 `role_git_read` 고정 데이터 도구를 사용한다.
+Windows에서 PM과 `qa-verifier`를 제외한 역할의 Git 조회는 별도 `role_git_read` 고정 데이터 도구를 사용한다.
+QA는 모든 플랫폼에서 파일·브라우저 도구만 사용하며 Git·명령 실행 도구를 받지 않는다.
 `head`, `show`, `diff`, `status`만 제공하며 일반 명령 backend에 Git이나 원본 `.git`을
 추가하지 않는다. 파일 선택은 절대 경로의 구체적인 허용 파일 최대 50개이며 같은 파일
 정책·receipt·active 소유권·중지 fence를 적용한다. `show`는 한 파일만, `show/diff`의 ref는
