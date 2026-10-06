@@ -64,9 +64,13 @@ policy; Codex additionally checks the origin before/after actions through its br
 ## Authority and evidence
 
 QA reads the requirement, approved plan and implementation report in a fresh context.
-It writes only `docs/agents/qa-verifier/<KEY>.md` and scratch evidence. It has no product
-editing, shell, owner, transition, approval, acceptance, backlog mutation or nested-agent
-tools. The main loop arranges a real report commit through the existing handoff procedure.
+It writes only `docs/agents/qa-verifier/<KEY>.md` and scratch evidence. It has no shell,
+owner, transition, approval, acceptance, backlog mutation or nested-agent tools. Its one
+file-writing tool is `Write`, and a Claude tool list cannot scope a tool to a path: on Claude
+the role rule limits it to the report, and the main loop fingerprints the working tree before
+dispatch and compares it, report excluded, when QA returns (runbook *Verifier tree check*).
+Codex enforces the report leaf through file ownership. The main loop arranges a real report
+commit through the existing handoff procedure.
 
 The browser allowlist supports navigation, snapshots, forms, waiting, screenshots,
 console messages and network requests. It excludes executable code, uploads, profiles and

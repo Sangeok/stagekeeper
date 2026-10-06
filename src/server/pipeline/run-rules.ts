@@ -33,9 +33,10 @@ export type PipelineNextInput = {
   cap: UsageLimitFailure | null;
 };
 
-// dispatch의 hint — 그 노드에서 지켜야 할 한 문장. product-copy.md §13에 같은 문장.
+// dispatch·accept의 hint — 그 노드에서 지켜야 할 한 문장. product-copy.md §13 표에 같은 문장(run-rules.test.mjs가 고정).
+// 에이전트 정의나 서버가 이미 강제하는 수치(제안 건수 등)는 여기 다시 적지 않는다 — 따라 적은 숫자가 어긋난 적이 있다.
 export const HINT: Record<string, string> = {
-  propose: "Dispatch pm with no key. It proposes at most one item per run.",
+  propose: "Dispatch pm with no key.",
   accept: "You run this one — reproduce the five acceptance checks yourself. All pass: write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }). Any fails: record it with acceptance_fail and tell the owner; don't reopen.",
   plan: "Dispatch with the item key. One item per dispatch.",
   verify: "Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
