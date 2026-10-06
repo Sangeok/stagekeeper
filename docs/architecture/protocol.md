@@ -547,6 +547,8 @@ Node의 일반 realpath/module semantics를 유지하기 위해 쓰지 않는 dr
 logon session에 임시 매핑한다. process 전용 매핑으로 주장하지 않으며 정상 종료 확인 뒤
 정확한 target을 지정해 해제한다. 자식은 같은 LPAC와 kill-on-close Job Object를 상속한다.
 stdin EOF, 고정된 환경과 runtime/System32 PATH만 전달하며 network capability는 없다.
+helper는 사용하는 Windows PowerShell 코어 모듈(Management·Utility)을 `$PSHOME`에서 절대
+경로로 먼저 로드하며 host 모듈 경로의 자동 로드 탐색에 의존하지 않는다.
 
 helper는 소유권 등록·active 확인 뒤에만 컴파일/실행하며 command 중에도 active를 확인한다.
 신뢰된 compiler 임시 파일은 검증한 owned 하위 디렉터리에서 만들고, untrusted 실행 전에

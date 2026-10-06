@@ -1,7 +1,13 @@
 param([Parameter(Mandatory=$true)][string]$RequestPath)
 $ErrorActionPreference = 'Stop'
-$phase = 'request'
+$phase = 'modules'
 try {
+  # Load the only modules this helper uses from $PSHOME by absolute path. Resolving
+  # the first cmdlet through module auto-loading took about 21 s per helper on
+  # hosted Windows Server runners; this also keeps host module paths out of it.
+  Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Management\Microsoft.PowerShell.Management.psd1"
+  Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1"
+  $phase = 'request'
   $request = Get-Content -LiteralPath $RequestPath -Raw -Encoding UTF8 | ConvertFrom-Json
   # The owner registers this helper before granting permission to start a child.
   if ([Console]::In.ReadLine() -ne 'start') { throw 'Owner did not activate the helper' }
