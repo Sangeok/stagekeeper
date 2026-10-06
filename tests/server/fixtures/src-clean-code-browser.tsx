@@ -10,7 +10,7 @@ import { OwnerTokenReveal } from "../../../src/fsd/entities/project-token/ui/own
 import { NewTokenForm } from "../../../src/fsd/features/manage-token/ui/new-token-form";
 import { NewUserTokenForm } from "../../../src/fsd/features/manage-user-token/ui/new-user-token-form";
 import { NewOwnerTokenForm } from "../../../src/fsd/features/manage-token/ui/new-owner-token-form";
-import { NextStepBox } from "../../../src/fsd/widgets/turn-banner/ui/next-step";
+import { NextStepContent } from "../../../src/fsd/widgets/turn-banner/ui/next-step";
 import { TurnBanner } from "../../../src/fsd/widgets/turn-banner/ui/turn-banner";
 import { deriveTurn, type Turn } from "../../../src/fsd/widgets/turn-banner/model/turn";
 import { projectPath, type ProjectTabSegment } from "../../../src/fsd/shared/routes/project";
@@ -95,6 +95,11 @@ function FormFixture() {
     }} />;
 }
 
+function NextStepFixture({ steps }: Pick<Parameters<typeof NextStepContent>[0], "steps">) {
+  const [client, setClient] = useState<Parameters<typeof NextStepContent>[0]["client"]>("claude");
+  return <NextStepContent steps={steps} client={client} onClientChange={setClient} />;
+}
+
 function CopyFixture() {
   const [text, setText] = useState("A"); const [mounted, setMounted] = useState(true);
   const [ownerUrl, setOwnerUrl] = useState("https://fixture.test/api/mcp/owner");
@@ -106,7 +111,7 @@ function CopyFixture() {
     <section id="hs"><TokenReveal token={`hs_fixture-${text}`} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="hu"><TokenReveal token={`hu_fixture-${text}`} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="ho"><OwnerTokenReveal token={`ho_fixture-${text}`} ownerMcpUrl={ownerUrl} /></section>
-    <section id="next"><NextStepBox steps={[
+    <section id="next"><NextStepFixture steps={[
       { kind: "handoff", key: "same", line: `Commit docs/${text}.md, then continue the pipeline for same.`, note: `docs/${text}.md` },
       { kind: "continue", key: "ready", line: "Continue the pipeline for ready." },
       { kind: "handoff", key: "null-note", line: "Commit the prepared file, then continue the pipeline for null-note.", note: null },

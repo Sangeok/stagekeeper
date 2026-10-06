@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
 import { Code, CodeBlock } from "@/fsd/shared/ui/code";
 import { CopyButton } from "@/fsd/shared/ui/copy-button";
@@ -12,11 +12,6 @@ const WATCH_COMMAND = clientRuntime("claude").resume_command;
 const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));
 
 // 터미널로 돌아가는 다리. 이 상자만 에이전트 차례에도 --mine을 쓴다 — 복사는 사람의 동작이다.
-export function NextStepBox({ steps }: { steps: NextStep[] }): ReactElement | null {
-  const [client, setClient] = useState<RuntimeClient>("claude");
-  return <NextStepContent steps={steps} client={client} onClientChange={setClient} />;
-}
-
 export function NextStepContent({ steps, client, onClientChange }: { steps: NextStep[]; client: RuntimeClient; onClientChange: (client: RuntimeClient) => void }): ReactElement | null {
   if (steps.length === 0) return null;
   const [before, ...rest] = WATCH_LINE.split(WATCH_COMMAND);

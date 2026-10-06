@@ -4,7 +4,7 @@
 // 이유는 경계다 — 그 문장을 만드는 곳에는 서버 액션(src/fsd)뿐 아니라 MCP 도구(src/server)와 생성기(plugin)도
 // 있는데, src/server는 FSD 슬라이스를 import할 수 없다. 세 층이 다 닿는 자리는 packages/core 하나뿐이라
 // 문장은 거기 두고, 여기는 **화면에만 필요한 말**(플랜 이름·축 이름·무제한 표기·안내 문구)을 맡는다.
-import { LIMITS, PLANS, UNLIMITED, limitsFor } from "@harness/core/entitlement.mjs";
+import { PLANS, UNLIMITED, limitsFor } from "@harness/core/entitlement.mjs";
 
 export type PlanId = "free" | "pro" | "max";
 
@@ -39,9 +39,6 @@ export function planMatrix(): PlanRow[] {
     { label: "New agent runs per 5-hour window", values: cell((p) => count(limitsFor(p).dispatches)) },
   ];
 }
-
-// 표가 LIMITS의 플랜을 하나도 빠뜨리지 않았는지 — 플랜이 늘면 여기서 걸린다.
-export const PLAN_COUNT = Object.keys(LIMITS).length;
 
 // 상한 문장(그리고 그 뒤의 업그레이드 안내)은 여기 두지 않는다 — capError가 이미 그 한 문장을 만든다.
 export const BILLING_NOTE = "Pricing and checkout are being built. Plans are set by hand for now.";

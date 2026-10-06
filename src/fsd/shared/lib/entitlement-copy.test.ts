@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PLAN_COUNT, PLAN_IDS, planLabel, planMatrix } from "./entitlement-copy";
+import { LIMITS } from "@harness/core/entitlement.mjs";
+import { PLAN_IDS, planLabel, planMatrix } from "./entitlement-copy";
 
 describe("entitlement-copy", () => {
   it("covers every plan in LIMITS — a new plan must not silently miss the table", () => {
-    assert.equal(PLAN_IDS.length, PLAN_COUNT);
+    assert.equal(PLAN_IDS.length, Object.keys(LIMITS).length);
     for (const row of planMatrix()) {
       for (const plan of PLAN_IDS) assert.ok(row.values[plan], `${row.label} / ${plan}`);
     }
