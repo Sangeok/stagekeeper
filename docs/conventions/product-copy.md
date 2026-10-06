@@ -787,14 +787,16 @@ using the exact §12 recorded-approval reason. There is no fabricated `next`. Re
 with the item key; do not repeat `gate_approve`. A mutation exception or an unknown commit outcome
 does not use this recorded-approval reason.
 
-**`dispatch` hints** — one sentence per node, the same text `pipeline_next` returns:
+**Hints** — one sentence per node, the same text `pipeline_next` returns with `dispatch` and `accept`:
 
 | node | hint |
 | --- | --- |
-| `propose` | Dispatch pm with no key. It proposes at most one item per run. |
+| `propose` | Dispatch pm with no key. |
 | `plan` | Dispatch with the item key. One item per dispatch. |
-| `verify` | Run your own verification round first (paths from docs/plans/verification-paths.md, reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record. |
+| `verify` | Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record. |
 | `implement` | Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate. |
+| `qa` | Dispatch qa-verifier with the item key and current entry. Use only the explicit test environment and required scenarios in harness.json. It records browser evidence against the implementation commit. Failed, blocked or stale QA cannot complete this node; final acceptance remains with the main loop. |
+| `accept` | You run this one — reproduce the five acceptance checks yourself. All pass: write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: "main-loop" }). Any fails: record it with acceptance_fail and tell the owner; don't reopen. |
 | `doc-audit` | Dispatch doc-auditor with no key; append its report to docs/agents/doc-auditor/audit-log.md yourself. |
 | `scoutHead` | Dispatch feature-scout with no key. It adds up to three backlog items it has evidence for. Append its report to docs/agents/feature-scout/scouting-log.md yourself, then call pipeline_next again. |
 | `scout` | Dispatch feature-scout with no key; it adds up to three items it has evidence for to the backlog. Append its report to docs/agents/feature-scout/scouting-log.md yourself. |
@@ -891,8 +893,13 @@ both). Below: each file's title, its section headings, and the sentences that se
 
 - Title: `{{project.name}} — pipeline runbook`. "This is the procedure. It holds no state —
   the state lives in Stagekeeper."
-- Sections: Document map · Project scope · Agents · Where things stand · Before the cycle ·
-  The cycle (run by the main loop) · The five acceptance checks · Approving from this session · Rules · Pipeline execution identity.
+- Sections: Optional browser QA · Document map · Project scope · Agents · Where things stand · Before the cycle ·
+  The cycle (run by the main loop) · Verifier tree check · The five acceptance checks · Approving from this session · Rules · Pipeline execution identity.
+- Verifier tree check: right before each dispatch or resume at `verify` and `qa`, fingerprint the
+  whole working tree through a temporary index (the QA report excluded) and compare when the agent
+  returns — finished or on a handoff. A different hash voids that round or QA run: show
+  `git status --short`, revert nothing, stop. The main loop's own uncommitted round log is why
+  "is the tree clean" can't be the test. Paths in `.gitignore` are not covered.
 - Project scope: read this checkout's `harness.json`, use its `project.slug` in every call and briefing,
   including after compaction. Only a confirmed legacy project-token connection without a slug may omit it.
 - Where things stand: answer from `pipeline_next({ project, runbook: "{{runbook_version}}" })`,

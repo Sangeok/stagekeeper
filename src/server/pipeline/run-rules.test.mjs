@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { HINT, decideHead, decideNext, handoffIsLive, scoutNodePending } from "./run-rules.ts";
 import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
@@ -75,6 +76,21 @@ describe("decideNext (H.4)", () => {
     assert.match(HINT.verify, /verification-paths\.md/);
     assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);
     assert.match(HINT.accept, /report_submit/);
+  });
+
+  it("product-copy.md §13 hint table holds exactly the HINT sentences", () => {
+    // 표는 손으로 옮겨 적어 두 번 어긋났다(verify 문장·qa 행 누락·propose 건수). 행 = HINT 한 항목, 글자 그대로.
+    const copy = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
+    const lines = copy.slice(copy.indexOf("**Hints** —")).split(/\r?\n/);
+    const start = lines.findIndex(line => line.startsWith("| `"));
+    const rows = lines.slice(start, lines.findIndex((line, i) => i > start && !line.startsWith("| `")));
+    const table = Object.fromEntries(rows.map(line => /^\| `([^`]+)` \| (.+) \|$/.exec(line)).map(m => [m[1], m[2]]));
+    assert.equal(rows.length, Object.keys(HINT).length);
+    assert.deepEqual(table, HINT);
+  });
+
+  it("the propose hint leaves the pick count to pm and the server", () => {
+    assert.doesNotMatch(HINT.propose, /\b(one|two|1|2)\b/);
   });
 
   it("accept carries its hint like every other answer", () => {
