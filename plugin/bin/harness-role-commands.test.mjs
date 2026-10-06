@@ -101,10 +101,13 @@ it("bounds output and terminates all Job Object children on timeout", native, as
 
 it("refuses an external junction and safely cleans a later junction without changing original ACLs", native, async t => {
   const f = await nativeFixture(t), aclScript = path.join(f.base, "read-acl.ps1");
-  writeFileSync(aclScript, 'param([string]$Target)\n(Get-Acl -LiteralPath $Target).Sddl\n');
+  writeFileSync(aclScript, 'param([string]$Target)\n$ErrorActionPreference = "Stop"\n(Get-Acl -LiteralPath $Target).Sddl\n');
   const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
-  const originalAcl = () => execFileSync(powershell, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", aclScript, f.root], { encoding: "utf8", windowsHide: true }).trim();
-  const before = originalAcl();
+  // A PowerShell 7 PSModulePath (pwsh CI steps) makes Windows PowerShell fail to
+  // load Get-Acl and print nothing, so every comparison below would pass vacuously.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "psmodulepath"));
+  const originalAcl = () => execFileSync(powershell, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", aclScript, f.root], { encoding: "utf8", windowsHide: true, env }).trim();
+  const before = originalAcl(); assert.match(before, /^O:.+D:/);
   const result = await runNativeCommand({ root: f.directory, command: `mklink /J alias "${f.root}" & type alias\\src\\source.cjs`, cwd: "", timeoutMs: 2000 });
   assert.equal(result.quiescent, true); assert.notEqual(result.exitCode, 0); assert.equal(existsSync(path.join(f.directory, "repo/alias")), false);
   assert.equal(result.stdout.includes("module.exports"), false); assert.equal(originalAcl(), before);
