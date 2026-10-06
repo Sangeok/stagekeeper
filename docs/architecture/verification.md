@@ -79,11 +79,17 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 
 ## Windows CI 런타임 재사용
 
-`windows-role-runtime`은 `dev` push와 관련 경로를 바꾼 PR에서 실행한다. `dev` 실행이
+`windows-role-runtime`은 `dev` push와, Windows runtime·역할 인수 시험·오프라인 빌드
+입력(`package.json`·lock·`next.config.*`·Prisma 설정·`scripts/build.mjs`·
+`src/app/layout.tsx`·`src/app/fonts/**`)을 바꾼 PR에서 실행한다. 그 밖의 애플리케이션
+source만 바꾼 PR에서는 실행하지 않는다. 그런 변경의 LPAC 전용 회귀는 병합 후 경로를
+제한하지 않는 `dev` push의 전체 인수에서 드러나고, `main`은 `dev`에서 통과한 커밋만
+받는다. `dev` 실행이
 생성한 캐시는 새 PR이 공유할 수 있고, PR 실행이 생성한 캐시는 해당 PR의 재실행만
 재사용한다. `dev` push는 경로를 제한하지 않아 유휴 기간의 캐시 만료 후에도 다시
 공유 캐시를 준비한다. PR 새 커밋은 같은 workflow·PR의 이전 실행을 취소하지만,
-진행 중인 `dev` 런타임 생성은 취소하지 않는다.
+진행 중인 `dev` 런타임 생성은 취소하지 않는다. 프로젝트 의존성 설치는 `setup-node`의
+npm 캐시를 사용한다.
 
 캐시에는 `stagekeeper-node-source/runtime`만 저장한다. Node 소스·컴파일 중간 산출물은
 저장하지 않는다. 키에는 Windows 2022/x64와 빌드 스크립트·검증 계약 지문을 포함하고,
