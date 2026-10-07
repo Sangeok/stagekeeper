@@ -176,6 +176,25 @@ it("resolves the real Git for Windows reader from the standard launcher PATH", {
   assert.throws(() => nativeGitExecutable({ PATH: fake }), /termination/);
 });
 
+it("resolves the UCRT64 builtin of Git for Windows 2.56 and the earlier MINGW64 builtin behind launchers", { skip: process.platform !== "win32" || host.skip }, t => {
+  const base = mkdtempSync(path.join(temporary, "harness-git-layout-"));
+  t.after(() => rm(base, { recursive: true }));
+  const install = (name, builtins) => {
+    const root = path.join(base, name);
+    for (const shim of ["cmd", "bin"]) { mkdirSync(path.join(root, shim), { recursive: true }); writeFileSync(path.join(root, shim, "git.exe"), "launcher"); }
+    for (const builtin of builtins) { mkdirSync(path.join(root, builtin, "bin"), { recursive: true }); writeFileSync(path.join(root, builtin, "bin/git.exe"), "builtin"); }
+    return root;
+  };
+  const ucrt = install("ucrt", ["ucrt64"]), legacy = install("legacy", ["mingw64"]), both = install("both", ["mingw64", "ucrt64"]);
+  for (const shim of ["cmd", "bin"]) {
+    assert.equal(nativeGitExecutable({ PATH: path.join(ucrt, shim) }), realpathSync(path.join(ucrt, "ucrt64/bin/git.exe")));
+    assert.equal(nativeGitExecutable({ PATH: path.join(legacy, shim) }), realpathSync(path.join(legacy, "mingw64/bin/git.exe")));
+    assert.equal(nativeGitExecutable({ PATH: path.join(both, shim) }), realpathSync(path.join(both, "ucrt64/bin/git.exe")));
+  }
+  // A builtin directory on PATH is the reader itself, not a launcher.
+  assert.equal(nativeGitExecutable({ PATH: path.join(ucrt, "ucrt64/bin") }), realpathSync(path.join(ucrt, "ucrt64/bin/git.exe")));
+});
+
 it("cannot disclose denied historical descendants through a deleted or replaced directory path", host, async t => {
   const f = fixture(t), directory = path.join(f.root, "prior"); mkdirSync(directory); writeFileSync(path.join(directory, "denied.txt"), "HISTORICAL_DENIED_CANARY\n");
   f.git("add", "prior"); f.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "historical tree");
