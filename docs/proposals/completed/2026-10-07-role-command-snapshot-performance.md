@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-07"
 approved-by: "HamSangEok"
 approved-at: "2026-10-07"
 approval-scope: "Phase 0(단계별 시간 기록), Phase 1(빈 루트 선부여)"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-07"
+verification-summary: "Phase 0(#130)·Phase 1(#132) 구현과 검증 완료. CI 리허설 3회 중앙값 grantMs+aclMs 476ms(기준선 aclMs 15,626ms, 목표 3,000ms 이하), 로컬 native 시험 37/37과 보안 검사 변형 4건 확인. Phase 2는 닫고 Phase 3는 후속으로 보류"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -988,7 +988,8 @@ Phase 2의 비동기 검사가 계약을 유지하는 이유:
 
 - 2026-10-07 Phase 0만 승인했습니다. Phase 1 이후는 Phase 0 기준선과 수치 목표를 이 문서에 기록한 뒤 따로 승인합니다.
 - 2026-10-07 Phase 0 구현(#130)이 머지됐고 기준선과 수치 목표를 기록했습니다.
-- 2026-10-07 Phase 1을 승인했습니다. Phase 2·3은 승인 전입니다.
+- 2026-10-07 Phase 1을 승인했습니다.
+- 2026-10-07 Phase 2는 진행하지 않고, Phase 3는 보류하기로 결정했습니다(사용자). 근거는 Completion or Closure Notes에 있습니다.
 
 ## Execution Plan
 
@@ -1159,21 +1160,27 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+완료 기록:
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
-
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-07
+- verification-summary: front matter와 같습니다. 수치는 Current State "Phase 0 기준선"과 "Phase 1 결과"에 있습니다.
+- implementation PR/commit
+  - Phase 0: #130(`c8e81c1`), 기준선과 수치 목표 #131(`1ad8672`).
+  - Phase 1: #132(`c8799f6`).
+  - 2026-10-07 `main`을 `c8799f6`으로 fast-forward 승격했고, 플러그인 0.5.11이 마켓플레이스로 나갔습니다.
+- changed files summary
+  - `plugin/runtime/windows/RoleProcess.cs`: `aclMs`, `Prepare`, 공유 검증, `RequireGrant`, `Run`의 SID·부여 확인.
+  - `plugin/runtime/windows/role-process.ps1`: `prepare` 모드 분기.
+  - `plugin/runtime/role-commands.mjs`: `timings`, `prepareNativeRoot`, 준비 순서.
+  - 시험 3개 파일, `docs/architecture/protocol.md`, 두 플러그인 매니페스트(0.5.10, 0.5.11).
+- Phase 2 — 진행하지 않음
+  - 문서 적용본 로컬 검증에서 스냅숏이 99~102초에서 164초로 늘어, 이득보다 손해 신호가 컸습니다.
+  - 줄일 수 있는 몫은 경로 검사(로컬 약 20초)뿐이고, Defender가 꺼진 CI 러너에서는 더 작을 가능성이 큽니다.
+  - 판정에 CI 10회가 필요하고 바뀌는 곳이 보안 검사 코드라, 기대 이득에 비해 비용과 위험이 큽니다.
+- remaining follow-up
+  - Phase 3(스냅숏 삭제를 결과 뒤로)는 보류합니다. 다시 열 조건은 실제 사용에서 명령 대기 시간이 문제로 드러나는 것입니다. 받아들일지 정할 세 가지는 Open Questions에 남겼습니다.
+  - 리허설 전체 단축폭은 아직 확정되지 않았습니다. Phase 1 CI 3회는 Next 빌드가 기준선보다 느려 전체 중앙값이 132초에서 129초로만 줄었습니다(Current State "Phase 1 결과"). 확정하려면 기준선과 교차 측정해야 합니다.
+  - 신뢰된 launcher 변경에 대한 사람의 보안 검토(Open Questions).
 
 ## Review Checklist
 
