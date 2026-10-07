@@ -31,6 +31,10 @@ related:
 "위생"(보고만)으로 나눈다. 완료 판정과 실패 대기는 QA 노드와 같은 방식(현재 entry에 묶인 run과 보고)을 쓰되, DB 마이그레이션 없이
 run이 끝난 단계로 판정한다. 검증 에이전트의 쓰기를 훅으로 강제하는 일은 별도 제안서로 다룬다.
 
+이번 범위는 Claude다(2026-10-07 사용자 결정). Codex에는 번들 검사가 요구하는 역할 등록만 하고, Codex 도우미가 이 디스패치를 역할 run을
+열기 전에 분명한 오류로 거부한다. Codex에서 검증을 실행하는 일은 별도 제안서로 다룬다. 구현 전에 계약만 옮긴 임시 에이전트로 가치를 먼저
+확인했다(*Current State*의 「가치 검증 스파이크」).
+
 ## Goal
 
 ### 목표
@@ -52,6 +56,8 @@ run이 끝난 단계로 판정한다. 검증 에이전트의 쓰기를 훅으로
   `code-reviewer` 예시 `:433`)를 되살리지 않는다. 고정 역할 하나다.
 - **보안·성능 전문 검토**: 별도 에이전트로 두지 않는다. 필요해지면 이 에이전트의 검사 항목으로 넣는 후속 제안을 쓴다.
 - **모델 고정**: 다른 검증 에이전트처럼 메인 루프 모델을 상속한다. 첫 실사용의 비용을 본 뒤 정한다.
+- **Codex 실행**: Codex에서 검증 환경·브리핑·Windows Git 증거·명시적 재시도·Codex 런북 절을 갖추는 일은 별도 제안서다(대안 분석 「범위」).
+  이번에는 Codex 역할 등록만 하고, 도우미가 디스패치를 거부한다(6절).
 
 ### 성공 기준
 
@@ -60,14 +66,18 @@ run이 끝난 단계로 판정한다. 검증 에이전트의 쓰기를 훅으로
 2. 현재 entry의 impl-verifier run이 `verify/ok`와 `report/ok`로 닫히고 그 run에 묶인 보고가 있을 때만 `impl-verify`가 끝난다.
    `failed-report`·`blocked-report`로 끝나면 `wait on impl-verify`로 멈추고 같은 에이전트를 반복 디스패치하지 않는다.
    그 전에는 메인 루프의 인수 기록이 거부되고, 구현을 다시 열면 옛 보고는 거부된다(PostgreSQL 통합 시험).
-3. Codex에서 impl-verifier 역할이 정확한 도구 허용 목록으로 렌더된다(템플릿 시험).
+3. Codex에서 impl-verifier 역할이 정확한 도구 허용 목록으로 렌더된다(템플릿 시험). Codex 도우미는 impl-verifier 디스패치를 역할 run을 열기 전에
+   `codex-role-unsupported`로 거부하고, Claude Code에서 이어 가라고 알린다(도우미 시험, 6절).
 4. 실제 모델 리허설(harness-smoke 저장소):
    - (a) 아무것도 단언하지 않는 시험을 심은 `fix` 항목에서(계획의 Tests 절은 그 시험 파일을 적는다) verify가 `failed`로 끝나고, 결함 종류가
      "동작 깨짐(시험이 변경을 못 잡음)"이다.
    - (b) 올바른 구현에서는 `report/ok`로 끝나 노드가 완료된다.
-   - (c) 새 함수를 더하는 `feat` 항목에서 되돌리기가 시험을 단언 전에(가져오기 단계에서) 깨뜨리면, 보고서가 이를 "시험이 변경을 잡음"으로
-     세지 않고 로드 단계 실패로 기록한다(1절 검사 4).
-   - 이것이 이 에이전트의 가치 주장에 대한 유일한 실측 증거다. QA 출시 때는 실제 모델을 통한 전체 작업 주기가 범위 밖이었다
+   - (c) 새 파일만 더하는 `feat` 항목에서는 변이 확인을 돌리지 않고 "해당 없음(새 파일뿐)"으로 기록한다. 시험이 동작을 단언하는지는 검사 3으로 본다
+     (1절 검사 4).
+   - (d) 기존 파일에 새 함수를 더하는 `feat` 항목에서 되돌리기가 시험을 단언 전에(가져오기·컴파일·타입 오류로) 깨뜨리면, 보고서가 이를
+     "시험이 변경을 잡음"으로 세지 않고 로드 단계 실패로 기록한다(1절 검사 4).
+   - 계약 자체는 구현 전의 가치 검증 스파이크(*Current State*)가 작은 저장소에서 먼저 확인했다. 서버·플러그인·감시기를 거친 전체 경로의
+     실측은 이것뿐이다. QA 출시 때는 실제 모델을 통한 전체 작업 주기가 범위 밖이었다
      (`docs/test-reports/completed/2026-10-05-qa-verifier.md:28`).
 
 ## Proposal Size
@@ -76,7 +86,8 @@ run이 끝난 단계로 판정한다. 검증 에이전트의 쓰기를 훅으로
 
 선택 근거:
 
-- 58개 파일을 바꾼다(코어·서버·웹·플러그인·Codex·private 템플릿·문서·시험. 공개 저장소 51개, private 템플릿 7개). 목록은 *Affected Files*.
+- 55개 파일을 바꾼다(코어·서버·웹·플러그인·Codex·private 템플릿·문서·시험. 공개 저장소 49개, private 템플릿 6개). 목록은 *Affected Files*.
+  Claude 전용으로 줄이며 `plugin/runtime/codex-thread.mjs`, `plugin/bin/harness-role-files.test.mjs`, `en/CODEX.runbook.md`가 빠졌다.
 - API 계약이 늘어난다: `pipeline_next`의 새 대기 형태, `report_submit`의 새 행위자 규칙.
 - 롤아웃 순서 제약이 있다(*Risks and Rollback*). 단순 revert로 끝나지 않는다.
 
@@ -98,6 +109,18 @@ run이 끝난 단계로 판정한다. 검증 에이전트의 쓰기를 훅으로
 녹색으로 통과한 사례도 있었다(저장소 문서 기록 없음, 작업 세션에서 겪은 사례). 이 종류는 dev의 자기 검증으로도, 인수 3번
 (검증 명령 재실행)으로도 원리상 잡히지 않는다.
 
+**가치 검증 스파이크(2026-10-07).** 이 문서를 리뷰한 뒤 구현에 들어가기 전에, 1절 계약을 그대로 옮긴 임시 서브에이전트를 파일 몇 개짜리
+Node 저장소 셋에서 돌렸다. 서버 대신 보드 기록을 JSON 파일로 주었고(보고 커밋은 짧은 SHA로 줘서 `start` 1의 `rev-parse` 비교도 거쳤다),
+메인 루프의 사본 준비(clone, 구현 보고 커밋으로 detached checkout, `origin` 제거)는 스크립트로 했다. 기대 판정은 미리 직접 확인했다.
+
+- (a) 단언 없는 시험을 심은 `fix`: `failed`. 검사 3(단언 없음)과 변이 확인(되돌려도 통과) 둘 다로 잡았다.
+- (b) 단언하는 시험을 둔 같은 `fix`: `ok`. 되돌리자 시험이 단언(`190 !== 180`)에서 실패했다.
+- (c) 새 파일만 더한 `feat`: `ok`. 되돌리자 `MODULE_NOT_FOUND`가 났고, 로드 단계 실패로 기록해 증거로 세지 않았다. 에이전트도 제품 변경이
+  모두 새 파일이면 이 절차로는 이 결과만 나온다고 적었다. 그래서 1절 검사 4는 이 경우 변이 확인을 돌리지 않는다.
+- 세 번 모두 원본 저장소와 ref는 바뀌지 않았다. 모델은 메인 루프와 같았고(`claude-opus-5-5`), 항목당 약 9.5만 토큰·80~104초였다.
+- 한계: 의존성·링크·느린 시험이 없는 저장소였고, 서버·플러그인·감시기를 거치지 않았다. 그래서 성공 기준 4의 실측(Phase 7)을 대신하지 않는다.
+  스크립트와 보고서는 저장소에 싣지 않았다(작업 세션의 임시 디렉터리).
+
 **QA 노드가 이미 깔아 둔 길.** 구현 뒤 검증 노드에 필요한 구조는 QA(`f0dd023`)가 만들었다.
 
 - 노드 진입 시 구현 완료(`done`) 기록: `advance`, `packages/core/pipeline.mjs:122`
@@ -115,25 +138,38 @@ run이 끝난 단계로 판정한다. 검증 에이전트의 쓰기를 훅으로
 
 - 코어 규칙: `impl-verify` 노드, `impl-verifier` 에이전트, 순서·완료·진입 전이
 - 서버: 완료 판정 질의, `pipeline_next` 대기, `report_submit` 규칙, 인수 차단
-- 감시기(watch)와 Codex 역할·디스패치·재시도
+- 감시기(watch), Codex 역할 등록과 impl-verifier 디스패치 거부(6절)
 - 웹: 파이프라인 편집기 레일, 라벨·게이트 문구, 브리핑·배너의 노드 목록
-- private 템플릿: 새 에이전트 정의, 런북 절과 런북의 *Verifier tree check*·인수 1번·`wait` 목록 두 곳, `docs/agents/README.md` 행위자 표, Codex 런북, 계획 템플릿 Tests 절(시험 파일 이름), QA 템플릿·런북 QA 절의
-  한 문장(두 노드 그래프의 HEAD, Codex 런북 QA 절의 빌드 증거 문장 포함), 템플릿 시험
+- private 템플릿: 새 에이전트 정의, 런북 절과 런북의 *Verifier tree check*·인수 1번·`wait` 목록 두 곳, `docs/agents/README.md` 행위자 표, 계획 템플릿 Tests 절(시험 파일 이름), QA 템플릿·런북 QA 절의
+  한 문장(두 노드 그래프의 HEAD), 템플릿 시험. Codex 런북은 바꾸지 않는다
 - 문서: 새 아키텍처 문서와 `docs/architecture/README.md` 색인, protocol 단락과 대기 종류 목록·도구 호출자 칸, invariants의 행위자 수, product-copy §5·§6·§7·§12·§13·§14·§18(9절), 플러그인 스킬 문서 두 곳(6절)
-- QA 경로의 최소 조정: Codex QA 디스패치의 허용 목록에 impl-verifier 보고 경로를 더하고, `--retry-qa` 분기를 두 재시도를 함께 다루는
-  `explicitRetry`로 옮긴다(동작과 문구는 그대로, 6절). 같은 목록·표를 고치는 김에 QA의 기존
+- QA 경로의 최소 조정: Codex QA 디스패치의 허용 목록에 impl-verifier 보고 경로를 더한다(6절. Claude로 impl-verify를 거친 항목을
+  Codex로 QA하는 경우). 같은 목록·표를 고치는 김에 QA의 기존
   불일치(게이트 버튼 문구, `plugin/README.md`, 플러그인 스킬 문서, protocol의 대기 종류와 도구 호출자 칸, product-copy의 목록·`report_submit` 행·§12의 QA 거부 사유,
   런북의 `wait` 목록)도 맞춘다(6·7·8·9절)
 
 제외 범위:
 
 - 검증 에이전트 쓰기 강제 훅(별도 제안서)
+- Codex 실행(별도 제안서): 검증 환경(사본 또는 스냅숏), 브리핑, Windows의 Git 증거, `--retry-impl-verify`, Codex 런북 절과 그 QA 절의
+  빌드 증거 문장. 그때까지는 도우미가 디스패치를 거부한다(6절)
 - 기본 그래프 변경, Free 플랜, 모델 고정, 자동 reopen
 - DB 스키마 변경(마이그레이션 없음)
 - QA의 와이어 계약(`on: "qa"`) 변경
 - 웹에서 검증 실패를 소유자 차례로 보이게 하는 일(QA와 같은 기존 한계, *Risks and Rollback*의 「웹 표시」)
 
 ## 대안 분석
+
+### 범위
+
+| 안 | 내용 | 판단 |
+| --- | --- | --- |
+| 가 | Claude와 Codex를 함께 낸다(2026-10-06 원안) | 기각. Codex 검증 환경이 미결이라 기능 PR 전체가 그 결정에 묶인다. Codex Windows는 역할 명령 1회에 CI에서 약 76~90초가 들어 한 턴 15분에 걸릴 수 있다(*Open Questions*) |
+| **나** | **Claude 먼저. Codex는 역할 등록과 디스패치 거부만** | **선택(2026-10-07 사용자 결정).** 가치 검증 스파이크(*Current State*)가 계약을 먼저 확인했다 |
+| 다 | Codex 역할 등록도 뺀다 | 기각. Codex 번들 검사가 플랜의 모든 역할 템플릿을 요구하고(`packages/core/client-runtime.mjs:32`), 역할 표에 없는 역할은 dev 목록과 비교돼 `Role MCP allowlist differs`로 init이 멈춘다(6절) |
+
+원안의 Codex 코드와 시험(재시도·옵션 파싱·보고 경로 쓰기 권한·브리핑 분기·`turn/start` 입력)은 이 문서의 이전 판(#134 `0a0d238`)에 남아 있다.
+별도 제안서가 그것을 출발점으로 쓴다.
 
 ### 구조
 
@@ -166,15 +202,15 @@ reopen 단언) run의 신선도는 entry 결합이 보장한다. 검증한 커�
 
 iii은 QA에서 메인 루프가 테스트 빌드를 준비하는 것과 같은 책임 분담이다. 사본은 `git clone`으로 만든다. `git worktree add`는
 본 저장소의 `.git/worktrees`를 공유하므로, 에이전트가 사본에서 Git을 쓰면 본 저장소 메타데이터가 바뀐다.
-Codex Windows는 역할 명령이 이미 명령마다 일회용 저장소 스냅숏에서 돈다(`plugin/runtime/role-commands.mjs:18`). 그래서 다른
-방식이 맞을 수 있다(*Open Questions*).
+Codex는 이번 범위가 아니다(「범위」). Codex Windows는 역할 명령이 이미 명령마다 일회용 저장소 스냅숏에서 돌아(`plugin/runtime/role-commands.mjs:18`)
+다른 방식이 맞을 수 있으므로 별도 제안서가 정한다(*Open Questions*).
 
 ### 노드 순서와 와이어 계약
 
 - **`impl-verify`는 `qa`보다 앞에 고정한다.** 검증 사본은 필요하지만 실행 중인 테스트 서버와 브라우저는 필요 없어 QA보다 싸다.
   코드 결함이 먼저 나오면 브라우저 QA 비용을 아낀다. QA의 대상 커밋은 그대로다(dev의 구현 보고 커밋). 다만 Codex QA 디스패치는
   대상 커밋 뒤에 바뀐 파일을 허용 목록으로 검사하므로(`plugin/bin/harness-codex.mjs:121`–`:123`), 그 사이에 커밋되는 impl-verifier 보고
-  경로를 목록에 더한다(6절). Claude QA도 시험 빌드가 targetCommit을 돈다는 증거를 요구하므로 QA 템플릿과 런북에 한 문장을 더한다(8절).
+  경로를 목록에 더한다(6절. Codex는 impl-verify를 거부하므로, Claude로 impl-verify를 거친 뒤 Codex로 QA하는 경우다). Claude QA도 시험 빌드가 targetCommit을 돈다는 증거를 요구하므로 QA 템플릿과 런북에 한 문장을 더한다(8절).
 - **QA의 `on: "qa"`는 일반화하지 않고 `on: "impl-verify"`를 따로 둔다.** 배포된 감시기와 Codex 도우미가 `on === "qa"`를
   정확히 비교한다(`packages/core/watch.mjs:97`, `plugin/bin/harness-codex.mjs:84`). 일반화하면 배포된 클라이언트가 깨진다.
   서버 내부의 "구현 보고 찾기"는 공유한다(`implementationReport`).
@@ -222,6 +258,9 @@ private 템플릿 본문은 이 공개 저장소에 싣지 않는다(`docs/archi
 4. **변이 확인**(항목 종류가 `feat`·`fix`이고 시험이 있을 때). 종류는 `backlog_get`이 돌려주는 백로그 항목의 `type`이다.
    plan_submit이 계획의 분류로 이 값을 정하되, 소유자가 정한 값은 그대로 둔다(`src/server/pipeline/board-query.ts:483`–`:494`).
    그래서 계획의 "Plan classification" 줄과 다를 수 있다. `type`이 비어 있을 때만 계획의 분류 줄을 쓰고, 둘이 다르면 보고서에 적는다.
+   되돌릴 제품 파일(아래 1의 조건)이 모두 `planCommit` 뒤에 새로 생긴 파일이면 변이 확인을 돌리지 않고 "해당 없음(새 파일뿐)"으로 기록한다.
+   지우면 시험이 늘 가져오기 단계에서 깨져 3의 증거가 나오지 않고, 검증 명령 두 번의 비용만 든다(*Current State*의 가치 검증 스파이크 (c)).
+   이때 시험이 동작을 단언하는지는 검사 3만 본다.
    1. 검증 사본에서 제품 변경을 `planCommit` 상태로 되돌린다. 되돌리는 대상은 아래 조건을 모두 맞는 파일뿐이다.
       - 계획의 "Files to change" 행에 있다.
       - 계획의 "Tests" 절이 시험 파일로 적지 않았다.
@@ -237,22 +276,16 @@ private 템플릿 본문은 이 공개 저장소에 싣지 않는다(`docs/archi
    2. **사본이 실제로 바뀌었는지 먼저 단언한다**(되돌리기 전후 트리 해시가 달라야 한다). CRLF 사례 같은 빈 변이를 막는다.
    3. 작업 영역 검증 명령을 실행한다. 계획의 "Tests"가 약속한 시험이 **단언에서 실패해야** "시험이 변경을 잡음"이다.
       통과하면 "시험이 변경을 못 잡음"으로, 동작 깨짐 결함이다. 시험이 단언 전에(가져오기·컴파일·타입 오류로) 실패하면 이 확인은
-      증거가 되지 않는다. 새 기호를 더하는 `feat`에서 흔하다. "로드 단계 실패"로 기록하고 판정에 쓰지 않으며, 시험이 동작을
+      증거가 되지 않는다. 기존 파일에 새 기호를 더하는 `feat`에서 흔하다. "로드 단계 실패"로 기록하고 판정에 쓰지 않으며, 시험이 동작을
       단언하는지는 검사 3이 맡는다.
    4. 사본을 targetCommit으로 되돌리고 같은 명령을 다시 실행한다. 통과해야 한다. 기준 실행은 `start`에서 이미 통과했으므로,
       여기서 실패하면 환경이 흔들린 것이다. `failed`가 아니라 `blocked`로 보고한다.
    - `refactor`·`docs`는 해당 없음으로 기록한다. 동작 보존 변경은 되돌려도 시험이 통과하는 것이 정상이다.
 
-클라이언트마다 지금 할 수 있는 범위가 다르다.
-- **Claude**: `start`·검사의 Git 증거와 사본에서의 실행을 모두 직접 한다. 사본의 Git은 `cd` 없이 `git -C <사본>`으로 부른다.
-  같은 명령에서 `cd`로 다른 디렉터리에 들어가 `git`을 돌리면, 읽기 전용이라도 Claude Code가 확인을 묻기 때문이다(8절 런북 1단계).
-- **비Windows Codex**: 저장소 쪽 Git 증거(조상 확인, 변경 파일 목록, 파일별 커밋 목록)는 읽기 전용 저장소와 `.git`으로 만들 수 있다.
-  하지만 역할은 저장소 읽기와 스크래치 쓰기만 열려 있다(`plugin/runtime/codex-thread.mjs:40`–`:42`, `:root`는 거부). 그래서 저장소 밖 사본의
-  HEAD 확인과 사본에서의 검증 명령 실행은 Phase 6의 권한 결정이 있어야 한다.
-- **Windows Codex**: 저장소 쪽 증거도 만들 수 없다. Git 조회는 `role_git_read`뿐이고, 이 도구는 `head`·`show`·`diff`·`status`만, ref는 HEAD나
-  planCommit만, 파일은 50개까지만 받는다(`plugin/runtime/role-git.mjs:22`·`:24`, `:206`–`:210`, `docs/architecture/protocol.md:514`–`:520`).
-
-Codex에서 이것들을 어떻게 넘길지는 Phase 6 전에 정한다(*Open Questions*). 정하지 않으면 Codex 실행은 `start`에서 언제나 `blocked`가 된다.
+**실행하는 클라이언트는 Claude뿐이다.** `start`·검사의 Git 증거와 사본에서의 실행을 모두 직접 한다. 사본의 Git은 `cd` 없이
+`git -C <사본>`으로 부른다. 같은 명령에서 `cd`로 다른 디렉터리에 들어가 `git`을 돌리면, 읽기 전용이라도 Claude Code가 확인을 묻기
+때문이다(8절 런북 1단계). Codex에서는 도우미가 디스패치를 역할 run 전에 거부하므로(6절) 이 계약이 실행되지 않는다. Codex 역할이 이 계약을
+실행하려면 무엇이 모자란지는 *Open Questions*의 [Codex 실행 — 별도 제안서로 넘김]에 남긴다.
 
 **결함 분류.** plan-verifier의 "breaks implementation | doc hygiene" 구분을 그대로 따른다.
 
@@ -451,7 +484,8 @@ export async function implVerifyEntryResult(db: Db, projectId: string, boardItem
   ```ts
     "impl-verify": "Dispatch impl-verifier with the item key and current entry. First prepare the verification environment for the implementation report commit as the runbook says, then brief only that commit and where to verify it. Failed, blocked or stale verification cannot complete this node; final acceptance remains with the main loop.",
   ```
-  문장은 클라이언트를 가리지 않게 쓴다. "검증 환경"은 Claude에서는 검증 사본이고, Codex에서는 Phase 6에서 정할 방식이다.
+  문장은 클라이언트를 가리지 않게 쓴다. HINT는 Codex에도 가지만 Codex 도우미가 이 디스패치를 거부한다(6절). "검증 환경"은 Claude에서는
+  검증 사본이고, Codex 방식은 별도 제안서가 정한다.
 - `decideNext`에서는 `qa` 대기 줄(`:68`) 바로 앞에 같은 판정 순서로 한 줄을 넣는다. 함수 위 주석(`:57`)의 판정 순서
   "런 닫힘 → 게이트 → accept → handoff → cap → dispatch"에는 QA 추가 때 실패 대기가 빠졌다. handoff 뒤에 "impl-verify·qa 실패 대기"를 넣는다.
   ```ts
@@ -561,7 +595,9 @@ verify 벽(`board-rules.ts:131`)은 걸리지 않는다.
           break;
 ```
 
-### 6. Codex — `plugin/runtime/*`, `plugin/bin/harness-codex.mjs`
+### 6. Codex — 역할 등록, 디스패치 거부, QA 허용 목록
+
+이번 범위에서 Codex는 impl-verifier를 실행하지 않는다(대안 분석 「범위」). 그래도 아래는 필요하다.
 
 - **`codex-agent.mjs:9` `ROLE_TOOLS`·`ROLE_FILE_TOOLS`에 역할을 등록한다.** 빠뜨리면 init이 dev 목록과 비교하다
   `Role MCP allowlist differs`로 멈춘다(`codex-agent.mjs:39`·`:43`). 권한이 새지는 않지만 설치가 깨진다.
@@ -571,40 +607,49 @@ verify 벽(`board-rules.ts:131`)은 걸리지 않는다.
   ```js
     "impl-verifier": ["Read", "Glob", "Grep", "Bash", "Write"],
   ```
-- 쓰기 역할 집합(`codex-agent.mjs:48`의 `write`, `:68`의 sandbox 검사)에 `"impl-verifier"`를 더한다.
-- `codex-thread.mjs`의 `rolePermissions`(`:38`)에 QA처럼 보고 경로 하나만 쓰기로 연다. 검증 사본 경로는 *Open Questions*를 정한 뒤 더한다
-  (Windows에서는 쓰기 권한만으로 사본에서 명령을 돌릴 수 없다. 같은 항목).
+- 쓰기 역할 집합(`codex-agent.mjs:48`의 `write`, `:68`의 sandbox 검사)에 `"impl-verifier"`를 더한다. 템플릿이 `Write`를 선언하므로,
+  빠뜨리면 렌더가 `Read-only role declares write tools`로 멈춘다(`:49`).
+- **디스패치를 거부한다(`harness-codex.mjs`).** `main()`의 역할 디스패치는 `dispatchBinding`(`:99`)을 지나 `dispatchFreshRole`(`:126`)로 가는
+  한 길뿐이다. 거부를 `dispatchBinding` 맨 앞에 두면 `board_get`도, 서버의 역할 run도 생기지 않는다.
+  - 오류는 자기 코드와 문구를 낸다. `codexFailure`(`:22`–`:27`)는 지금 `RoleExecutionUnavailable`만 그대로 내고, 나머지는
+    "resolve with $harness-init"이라는 일반 문구로 바꾼다. 그대로 두면 소유자가 init을 되풀이하게 된다.
+  - 서버에서는 거부하지 않는다. 한 프로젝트를 Claude와 Codex가 함께 쓸 수 있고, 서버의 그래프 검사는 어느 클라이언트가 항목을 돌릴지 모른다.
+  - 거부한 뒤에도 `pipeline_next`는 같은 디스패치를 낸다. 그 항목은 Claude Code에서 이어 가거나 *Risks and Rollback*의 「막힌 항목의 출구」를
+    따른다. 노드를 그래프에서 빼도 이미 그 버전에 묶인 항목은 그대로다.
+
+  After(새 클래스와 바뀐 두 함수 전체. `dispatchBinding`은 거부 한 줄, `codexFailure`는 조건 하나가 늘었다):
+
   ```js
-    if (agent === "impl-verifier") {
-      if (!key || !/^[A-Za-z0-9_-]+$/.test(key)) throw new Error("Implementation verification requires a safe item key");
-      filesystem[safeTarget(root, `docs/agents/impl-verifier/${key}.md`)] = "write";
+  // Codex does not run impl-verifier yet (its verification environment is a separate proposal), so the dispatch stops before any run opens.
+  export class CodexRoleUnsupported extends Error {
+    constructor() {
+      super("Implementation verification (impl-verify) is not available on Codex yet; no role run started. Continue this item from Claude Code, or remove impl-verify from the Pipeline tab so items that have not started skip it.");
+      this.name = "CodexRoleUnsupported";
+      this.code = "codex-role-unsupported";
     }
-  ```
-- `harness-codex.mjs:17`의 `keyed` 목록에 `"impl-verifier"`를 더한다(항목 key 필수).
-- `--retry-qa` 옆에 `--retry-impl-verify yes`를 둔다. `next.on === "impl-verify"`일 때만 받는다.
-  허용 옵션 목록(`harness-codex.mjs:33`의 `accepted`)에도 `"retry-impl-verify"`를 더한다. 빠뜨리면 이 플래그가 알 수 없는 옵션으로 거부된다.
-  - 이 목록은 export되지 않은 `optionsFor`(`:29`) 안에 있어 지금은 시험할 수 없다. `function optionsFor(argv)`를 `export function optionsFor(argv)`로 바꿔
-    `harness-session.test.mjs`에서 파싱을 시험한다(*Verification Plan*). 본문은 그대로다.
-  - 지금 재시도 분기(`:83`–`:86`)는 export되지 않은 `main()` 안에 있어 시험에서 부를 수 없다. `--retry-qa`에도 시험이 없다
-    (`rg -n "retry-qa" plugin/bin -g '*.test.*'` 결과 없음).
-  - 그래서 두 플래그를 함께 다루는 순수 함수로 빼서 export하고, `harness-session.test.mjs`에서 시험한다(*Verification Plan*).
-    QA의 거부 문구(`Explicit QA retry requires a current QA failure`)는 그대로다.
-  - `main()`의 `:82`–`:86`은 `let next = explicitRetry(options.key ? pipeline : pipeline.head, options);` 한 줄이 된다.
-    `next`는 `:95`에서 다시 대입되므로 `let`으로 둔다.
-  ```js
-  // An owner's explicit retry turns only the matching failed verification wait back into a dispatch of its resume binding.
-  export function explicitRetry(next, options) {
-    for (const [flag, on, label] of [["retry-qa", "qa", "QA"], ["retry-impl-verify", "impl-verify", "implementation verification"]]) {
-      if (options[flag] === undefined) continue;
-      if (options[flag] !== "yes" || next.action !== "wait" || next.on !== on) throw new Error(`Explicit ${label} retry requires a current ${label} failure`);
-      return { action: "dispatch", ...next.resume };
+  }
+
+  export function dispatchBinding(next, workspaces) {
+    if (next.action !== "dispatch") throw new Error("Current pipeline is not dispatchable");
+    if (next.agent === "impl-verifier") throw new CodexRoleUnsupported();
+    const item = next.key !== undefined;
+    if (item && next.format !== null && next.format !== "slots-v1") throw new Error("Unsupported item pipeline format");
+    if (next.format === "slots-v1" && (!next.entry?.runId || !next.entry?.entryId || !next.entry?.slotId)) throw new Error("Bound dispatch missing entry");
+    const keyed = workspaces.some(ws => ws.agent === next.agent) || ["plan-verifier", "qa-verifier"].includes(next.agent);
+    if (keyed && !next.key) throw new Error("Workspace/verifier requires an item key");
+    return { agent: next.agent, key: next.key, agentKey: keyed ? next.key : undefined, entry: next.entry, ...(next.agentRunId ? { agentRunId: next.agentRunId } : {}) };
+  }
+
+  export function codexFailure(error, session = null) {
+    if (error instanceof RoleExecutionUnavailable || error instanceof CodexRoleUnsupported) {
+      return { event: "error", session, code: error.code, reason: error.message };
     }
-    return next;
+    return { event: "error", session, code: "codex-refused", reason: "Codex configuration, runtime, binding, permission or server check failed. Keep ownership until owned work is quiescent; resolve with $harness-init. No completion is claimed." };
   }
   ```
 - **QA 디스패치의 허용 목록(`harness-codex.mjs:122`)에 impl-verifier 보고 경로를 더한다.** QA 디스패치는 대상 커밋(dev의 구현 보고
   커밋) 뒤에 바뀐 파일이 이 목록 밖에 있으면 `Product files changed since the QA implementation target`으로 거부한다(`:121`–`:123`).
-  impl-verify가 qa보다 앞이므로 두 노드를 함께 쓰는 그래프에서는 그 사이에 `docs/agents/impl-verifier/<KEY>.md`가 커밋된다. 빠뜨리면 Codex QA가
+  Claude로 impl-verify를 거친 항목을 Codex로 QA하면 그 사이에 `docs/agents/impl-verifier/<KEY>.md`가 커밋돼 있다. 빠뜨리면 그 Codex QA가
   매번 거부된다. 이 목록을 단언하는 시험은 지금 없다(`rg -n "Product files changed" -g '*.test.*'` 결과 없음). 그래서 판정 함수를
   `dispatchBinding`처럼 export해 `plugin/bin/harness-session.test.mjs`에서 시험한다(*Verification Plan*).
   ```js
@@ -612,22 +657,20 @@ verify 벽(`board-rules.ts:131`)은 걸리지 않는다.
   export const qaWorkflowFile = (name, key) => ["harness.json", "harness.lock.json", "CLAUDE.md", ".mcp.json", `docs/agents/qa-verifier/${key}.md`, `docs/agents/impl-verifier/${key}.md`, `docs/agents/main-loop/${key}.md`].includes(name) || [".codex/", ".claude/", "docs/harness/"].some(prefix => name.startsWith(prefix));
   ```
   `main`의 `:122` 줄은 지우고, `:123`은 `if (changed.some(name => !qaWorkflowFile(name, dispatch.key))) throw new Error("Product files changed since the QA implementation target");`로 바꾼다.
-- QA 브리핑 분기(`harness-codex.mjs:111`) 옆에 impl-verifier 분기를 둔다. 입력은 `targetCommit`(과 *Open Questions*에서 정할 사본 정보)이다.
-  targetCommit이 dev의 마지막 구현 보고 커밋과 같은지는 QA와 같은 방식으로 검사한다.
-  - 브리핑 분기도 지금은 export되지 않은 `main()` 안이라 시험할 수 없다. QA·plan-verifier 브리핑 분기에도 시험이 없다.
-    그래서 impl-verifier 분기는 `explicitRetry`처럼 export한 순수 함수로 둔다. 입력은 `board_get` 결과와 브리핑 파일 내용이고(Windows의 Git 증거를 도우미가
-    계산하기로 정하면 그 Git 결과도), 출력은 역할에 넘길 브리핑이다. Git 호출 자체는 QA처럼 `main()`에 남긴다(`harness-codex.mjs:120`–`:121`).
-    Phase 6의 시험(대상 커밋 불일치 거부 포함)은 이 함수에 건다.
-- **브리핑을 역할 스레드까지 넘긴다.** `codex-thread.mjs:375`의 `turn/start` 입력은 필드를 하나씩 나열한다(`qaBriefing: dispatch.qaBriefing` 등).
-  impl-verifier 브리핑 필드도 여기에 더한다. 빠뜨리면 역할이 targetCommit과 사본 경로를 받지 못한다. 이 입력을 만드는 부분도 시험이 없으므로,
-  필드 나열을 export한 함수로 빼고 브리핑 필드가 들어가는지 시험한다(Phase 6).
-- `plugin/README.md:54`(독립 verifier의 `--briefing`은 `requiredVerificationPaths`만 담는다)와 `:68`(verifier는 저장소 read-only)을 고친다.
-  두 문장은 지금 QA도 반영하지 않는다(QA 추가 때 생긴 기존 불일치). 같은 문장을 고치므로 QA도 함께 맞춘다.
-- 플러그인 스킬 문서 두 곳이 대기 종류와 브리핑을 나열한다. 둘 다 QA도 반영하지 않았다(기존 불일치).
+- `plugin/README.md`에 "impl-verifier는 아직 Codex에서 돌지 않는다. 도우미가 `codex-role-unsupported`로 거부한다"를 더한다. 같은 문단의
+  `:54`(독립 verifier의 `--briefing`은 `requiredVerificationPaths`만 담는다)와 `:68`(verifier는 저장소 read-only)은 QA를 반영하지 않는다
+  (QA 추가 때 생긴 기존 불일치). 같은 문단을 고치므로 QA도 함께 맞춘다.
+- 플러그인 스킬 문서 두 곳이 대기 종류를 나열한다. 둘 다 QA도 반영하지 않았다(기존 불일치).
   - `plugin/skills/watch/SKILL.md:136`의 "A gate, handoff, cap or failed acceptance waits that item only"에 실패한 QA와 구현 검증을 더한다(Phase 3).
-  - `plugin/codex/skills/harness-run/SKILL.md:42`–`:50`은 verify 브리핑과 gate·cap·handoff 대기만 말한다. impl-verifier 브리핑은 Phase 6에서,
-    QA·impl-verify 대기는 Phase 3에서 더한다.
-- **플러그인 판**: Phase 1·3·6이 모두 플러그인 파일을 바꾼다(`plugin/lib` 미러 포함). 판은 Phase마다 올리지 않고 한 번만 올린다.
+  - `plugin/codex/skills/harness-run/SKILL.md:50`의 "Wait at gate/cap/handoff"에 QA·impl-verify 대기를 더한다(Phase 3). 같은 절에
+    "도우미가 impl-verifier를 `codex-role-unsupported`로 거부하면 다시 디스패치하지 말고, 소유자에게 Claude Code에서 이어 가라고 알린다"를 더한다.
+- **이번에 하지 않는 것(별도 제안서)**: 원안의 아래 변경은 Codex가 impl-verifier를 실행할 때만 필요하다. 거부가 그 앞에 있으므로 넣지 않는다.
+  - `codex-thread.mjs`의 `rolePermissions`(`:38`)에서 보고 경로 쓰기 열기와 검증 사본 경로 권한
+  - `harness-codex.mjs:17`의 `keyed` 목록
+  - `--retry-impl-verify`와, `--retry-qa`를 함께 다루는 `explicitRetry`로 옮기기(`optionsFor` export 포함)
+  - impl-verifier 브리핑 분기와 `codex-thread.mjs:375`의 `turn/start` 입력 필드
+  - `harness-role-files.test.mjs:98`의 역할 목록, Codex 런북 절, `harness-run` 스킬의 브리핑 문장
+- **플러그인 판**: Phase 1·3이 모두 플러그인 파일을 바꾼다(`plugin/lib` 미러 포함). 판은 Phase마다 올리지 않고 한 번만 올린다.
   `plugin/.claude-plugin/plugin.json`과 `plugin/.codex-plugin/plugin.json`을 같은 값으로 올린다
   (`src/fsd/entities/project-token/ui/token-reveal.test.ts:22`가 두 값이 같은지 단언한다).
   - 값은 기능 PR을 dev에 넣을 때의 dev 판보다 하나 높게 정한다. 2026-10-07 기준 main·dev 모두 0.5.11이므로 0.5.12다.
@@ -678,19 +721,31 @@ export const addNode = (g: Graph, kind: string, plan: string): Step => {
 | --- | --- |
 | `en/agents/impl-verifier.md`(신규) | 1절의 계약. 스텁에 runtime 표시가 정확히 하나 있어야 한다(`packages/core/client-runtime.mjs:37`). 렌더한 단계 본문에 `{{`, `/harness:init`, `` `CLAUDE.md` ``가 남으면 안 된다. dual-client 묶음의 Codex 렌더 시험이 모든 역할의 렌더 결과에서 이것들을 금지한다(작업본 `templates.test.mjs:452`–`:453`). 변수는 이 역할이 받는 것만 쓴다. dev 전용 `ws.*` 같은 변수는 렌더에서 `template var missing`으로 실패한다(`packages/core/render.mjs:5`) |
 | `en/CLAUDE.runbook.md` | "Optional implementation verification" 절(아래). *Verifier tree check*에 `impl-verify`와 `snap ':(exclude)docs/agents/impl-verifier/<KEY>.md'`. 인수 1번에 impl-verifier 보고를 예상 증거로 추가. "Where things stand"의 `wait` 목록(#7 `55f2d7d`의 `:54`, "a gate, a commit handoff, the cap, failed acceptance")과 사이클의 `wait` 처리 목록(`:93`–`:106`)에 실패한 QA와 구현 검증을 더하고, 처리는 각 절의 대기 단계로 보낸다. QA도 두 목록에서 빠져 있다(QA 대기 처리는 QA 절에만 있다, #8 `efd7d42`의 `:10`) |
-| `en/CODEX.runbook.md` | 같은 절의 Codex 판. 브리핑 파일과 `--retry-impl-verify`. Claude 런북의 나머지 변경(*Verifier tree check*, 인수 1번, 두 `wait` 목록)도 Codex 런북에 같은 항목이 있으면 같이 고친다. **Phase 6에서** 쓴다. 이 파일은 아직 harness-templates의 어느 브랜치에도 커밋돼 있지 않고(2026-10-06, origin의 모든 브랜치 `git ls-tree`), 로컬 checkout의 추적되지 않은 파일뿐이다. QA는 Codex 삽입을 패치 파일(`qa-verifier-codex-runbook.patch`)로만 커밋했고(harness-templates `harness/qa-verifier`의 `QA-VERIFIER-ROLLOUT.md`), 그 내용은 작업본 Codex 런북에 이미 들어 있다(`:3`–`:17`). 그래서 dual-client 묶음 커밋이 선행 조건이고(*Execution Plan*), 브리핑 방식은 *Open Questions*를 정한 뒤에야 쓸 수 있다 |
+| `en/CODEX.runbook.md` | 바꾸지 않는다(6절의 「이번에 하지 않는 것」). 이 행의 본문이 그대로면 Codex 번들 판(런북 해시)도 그대로라, 이번 롤아웃으로 Codex 프로젝트가 멈추지 않는다(*Risks and Rollback*). 이 파일이 harness-templates의 어느 브랜치에도 커밋돼 있지 않은 사정은 *Execution Plan*의 dual-client 묶음 선행 조건에 있다 |
 | `en/docs/agents/README.md` | Actors 표에 `impl-verifier` 행 |
 | `en/docs/plans/template.md` | Tests 절의 Covered 항목마다 그 동작을 단언하는 시험 파일을 적게 한다(예: `- **Covered**: <behavior> — <test file>`). 지금은 동작만 적고(`:82`–`:87`) 시험 본문은 스케치에서 뺀다(`:75`–`:76`). 그래서 1절 검사 4.1의 시험·제품 파일 구분이 근거를 잃는다. 이 템플릿은 init이 프로젝트에 내려보내므로(`plugin/bin/harness-init.mjs:291`–`:292`), `/harness:init` 뒤에 쓰는 새 계획부터 적용된다 |
-| `en/agents/qa-verifier.md`, `en/CLAUDE.runbook.md`의 QA 절 | 두 노드를 함께 쓰는 그래프에서는 impl-verifier 보고 커밋 때문에 HEAD가 늘 targetCommit보다 앞선다. 그런데 QA 템플릿은 시험 빌드가 targetCommit을 돈다는 증거를 요구하고 모호하면 `blocked`로 보며(#8 `efd7d42`의 `en/agents/qa-verifier.md:58`–`:60`. harness-templates 정정 PR이 줄을 옮긴다), 런북은 구현 보고 커밋의 빌드 식별을 준비하라고 한다(`en/CLAUDE.runbook.md:7`). 그래서 한 문장을 더한다. "HEAD와 targetCommit의 차이가 워크플로·보고 파일뿐이면(6절 `qaWorkflowFile`과 같은 목록) 기대한 상태다. 증거는 `git diff --name-only <targetCommit>`이다." 이 증거는 메인 루프가 빌드 증거와 함께 준다. QA에는 셸·Git 도구가 없기 때문이다(`en/agents/qa-verifier.md:4`, `docs/architecture/protocol.md:515`). Codex는 6절의 허용 목록이 디스패치 전에 같은 판정을 한다. 하지만 그 결과는 역할에 넘어가지 않고, QA 브리핑은 `targetCommit`과 `testBuildIdentity`만 받는다(`plugin/bin/harness-codex.mjs:116`, `:124`). 그래서 Codex에서는 이 증거를 `testBuildIdentity` 안에 담는다. Codex 런북의 QA 절("Supply observed build identity evidence", 작업본 `en/CODEX.runbook.md:8`)도 같은 문장으로 고친다(Phase 6). 패치 파일은 고치지 않는다 |
+| `en/agents/qa-verifier.md`, `en/CLAUDE.runbook.md`의 QA 절 | 두 노드를 함께 쓰는 그래프에서는 impl-verifier 보고 커밋 때문에 HEAD가 늘 targetCommit보다 앞선다. 그런데 QA 템플릿은 시험 빌드가 targetCommit을 돈다는 증거를 요구하고 모호하면 `blocked`로 보며(#8 `efd7d42`의 `en/agents/qa-verifier.md:58`–`:60`. harness-templates 정정 PR이 줄을 옮긴다), 런북은 구현 보고 커밋의 빌드 식별을 준비하라고 한다(`en/CLAUDE.runbook.md:7`). 그래서 한 문장을 더한다. "HEAD와 targetCommit의 차이가 워크플로·보고 파일뿐이면(6절 `qaWorkflowFile`과 같은 목록) 기대한 상태다. 증거는 `git diff --name-only <targetCommit>`이다." 이 증거는 메인 루프가 빌드 증거와 함께 준다. QA에는 셸·Git 도구가 없기 때문이다(`en/agents/qa-verifier.md:4`, `docs/architecture/protocol.md:515`). Codex는 6절의 허용 목록이 디스패치 전에 같은 판정을 한다. 하지만 그 결과는 역할에 넘어가지 않고, QA 브리핑은 `targetCommit`과 `testBuildIdentity`만 받는다(`plugin/bin/harness-codex.mjs:116`, `:124`). Codex 런북의 QA 절("Supply observed build identity evidence", 작업본 `en/CODEX.runbook.md:8`)에 이 증거를 `testBuildIdentity`에 담으라는 문장을 더하는 일은 별도 제안서로 미룬다. Codex에서는 impl-verify가 거부되므로, 이 증거가 필요한 것은 Claude로 impl-verify를 거친 뒤 Codex로 QA하는 혼합 사용뿐이다. 그때 Codex QA는 증거가 모호하다고 보고 `blocked`로 끝날 수 있다 |
 | `templates.test.mjs` | `EXPECTED` 도구, `STEPS`, `AGENTS`, Codex 렌더 시험. 연결 고정 시험도 바꾼다. QA 브랜치의 `templates.test.mjs:370`은 실패·차단 보고 단계에 `requires: done`을 `agents/qa-verifier.md`에만 허용하므로, 같은 연결을 쓰는 `agents/impl-verifier.md`도 허용 목록에 넣는다. 실제 서버 엔진으로 단계 경로를 시험하는 QA의 "QA verdict routing with the actual role and server engine"(`:152`–`:175`)과 같은 시험을 impl-verifier에도 둔다(start→verify→report, start 차단, verify 실패·차단). 도우미 `devSession`은 이미 `role`을 받지만(`:50`), 행위자를 `role === "qa-verifier" ? role : cfg.workspaces[0].agent`로 정한다(`:51`). 그대로 두면 impl-verifier 세션이 dev 행위자로 돌아 역할을 시험하지 못하므로 `role === "dev" ? cfg.workspaces[0].agent : role`로 바꾼다. 보고 에이전트 목록 `REPORT`(`:179`, `:211`의 보고 표 시험이 쓴다)에 `agents/impl-verifier.md`를 더하고, 에이전트 수를 적은 두 곳(머리 주석 `:2`의 "6종", `:405`의 시험 이름 "all six private role templates")도 맞춘다. harness-templates 정정 PR의 시험 "the runbook fingerprints the tree around both verifiers, QA's own report excluded"는 *Verifier tree check* 문장을 `verify`·`qa` 두 노드로 고정하므로(``run `snap` at `verify`, or …``와 ``At the `verify` and `qa` nodes…`` 단언), 그 문장에 `impl-verify`를 넣으면서 이 단언도 바꾼다. dual-client 묶음이 들여오는 두 시험도 고려한다(작업본 기준, 묶음 커밋 뒤 줄 번호는 달라질 수 있다). 이주 시험 "preserves all existing graph edges and requirements across the dual-client migration"(`:431`–`:437`)은 `AGENTS`의 역할마다 #6 `95ace9d`의 이전 판을 `git show`로 읽는다. 새 역할은 이전 판이 없으므로 `agents/qa-verifier.md`처럼 `agents/impl-verifier.md`도 걸러 낸다. 그대로 두면 `fatal: path … does not exist`로 실패한다. 렌더 시험 "renders each entitled Codex role and every server step…"(`:439`–`:457`)은 `AGENTS`의 역할을 모두 렌더하므로 impl-verifier도 자동으로 돈다. 그래서 *Verification Plan*의 Codex 렌더 시험은 그 시험이 있으면 겹친다(남겨도 무해하다). 계약 두 가지는 따로 고정한다. 하나는 impl-verifier 단계 id와 `requires`다. `start`·`verify`·`failed-report`·`blocked-report`는 `["done"]`, `report`는 `["done", "verify-ok"]`(형제: QA 브랜치 `:352`–`:354`의 dev 단계 단언). 다른 하나는 QA 템플릿에 더한 두 노드 그래프 문장이다(`render("agents/qa-verifier.md")`에 `diff --name-only`, 형제 `:203`–`:207`). 두 노드 그래프는 실제 모델 리허설(성공 기준 4)이 돌지 않으므로 이 단언이 그 문장의 유일한 검사다 |
 
 런북 절의 내용(문장은 템플릿에서 정한다). 아래 번호는 이 문서 안의 참조용이다. 런북 문장에는 단계·게이트 번호를 쓰지 않는다
 (QA 브랜치 `templates.test.mjs:229`의 `/step:? [0-9]|[Gg]ate [0-9]/`).
 
-1. `impl-verify`에서 디스패치하기 전에, 저장소 밖에 구현 보고 커밋의 사본을 만든다(`git clone` 후 그 커밋으로 detached checkout).
-   - 위치는 런북이 정한다: 저장소와 같은 부모 아래의 `<저장소 디렉터리 이름>.impl-verify/<KEY>`. 그래야 메인 루프와 소유자 없는 감시 실행이
-     따로 읽을 설정 없이 같은 경로를 얻는다. 위치를 harness.json에 두면 설정 형식이 바뀌므로 그렇게 하지 않는다.
-   - 소유자는 `<저장소 디렉터리 이름>.impl-verify`의 절대 경로를 Claude Code 설정의 `permissions.additionalDirectories`에 한 번 등록해 둔다.
+1. `impl-verify`에서 디스패치하기 전에, 저장소 밖에 구현 보고 커밋의 사본을 만든다. `git clone` 뒤 그 커밋으로 detached checkout을 하고,
+   `git -C <사본> remote remove origin`으로 원격을 지운다.
+   - 원격을 지우는 이유: 로컬 경로에서 clone한 사본의 `origin`은 본 저장소를 가리킨다. 사본에서 push하면 본 저장소의 ref가 바뀌는데,
+     *Verifier tree check*의 `snap`은 작업 트리만 보므로 이것을 잡지 못한다.
+   - 위치는 런북이 정한다: `~/.harness/impl-verify/<저장소 디렉터리 이름>-<해시>/<KEY>`. 해시는 `git rev-parse --show-toplevel` 출력의
+     sha256 앞 8자이고, 계산 명령(Node 한 줄)은 런북이 준다.
+     - 메인 루프와 소유자 없는 감시 실행이 따로 읽을 설정 없이 같은 경로를 얻는다. 위치를 harness.json에 두면 설정 형식이 바뀌므로 그렇게 하지 않는다.
+     - 해시는 디렉터리 이름이 같은 두 checkout(같은 저장소의 다른 clone 등)이 같은 `<KEY>` 사본을 서로 지우지 않게 한다.
+     - 저장소 옆(`<저장소>.impl-verify`)에 두지 않는다. 저장소가 OneDrive 같은 동기화 폴더 아래면(이 저장소를 개발하는 PC가 그렇다) 항목마다
+       전체 clone과 의존성이 동기화 대상이 된다. 이 저장소는 의존성을 포함한 작업 트리가 33,900개 파일·764.6MB였다
+       (`docs/proposals/completed/2026-10-07-role-command-snapshot-performance.md:102`, 역할 명령 스냅숏 기준).
+     - 홈 바로 아래 점 디렉터리는 OneDrive 폴더 백업과 iCloud가 동기화하는 Desktop·Documents 밖이다. 홈 전체를 동기화하는 환경이면
+       소유자가 이 디렉터리를 동기화에서 뺀다(9절의 롤아웃 절).
+     - OS 임시 폴더에도 두지 않는다. 소유자가 한 번 등록하는 경로(아래)가 늘 같아야 하는데, 임시 폴더 위치는 환경 변수(`TMPDIR`·`TEMP`)를 따라 바뀐다.
+   - 소유자는 `~/.harness/impl-verify`의 절대 경로를 Claude Code 설정의 `permissions.additionalDirectories`에 한 번 등록해 둔다.
+     저장소마다가 아니라 한 번이다.
      Claude Code 문서(permissions의 Working directories, sandboxing)에 따르면 등록이 주는 것은 셋이다.
      - 확인 없는 읽기
      - 그 디렉터리로의 `cd`를 읽기 전용 명령으로 보는 것
@@ -728,7 +783,7 @@ QA 절과 같은 방식으로 써도 이 시험에 걸리지 않는다. 이 시�
 
 | 파일 | 변경 |
 | --- | --- |
-| `docs/architecture/impl-verifier.md`(신규) | 역할·입력·권한·판정·롤아웃. `qa-verifier.md`와 같은 구성. 롤아웃 절에 배포 순서와 소유자 순서(플러그인 갱신 → `/harness:init` → Claude는 검증 사본 디렉터리 등록(8절) → Pipeline 탭에서 노드 추가)를 적고, 막힌 항목의 출구(*Risks and Rollback*)도 적는다 |
+| `docs/architecture/impl-verifier.md`(신규) | 역할·입력·권한·판정·롤아웃. `qa-verifier.md`와 같은 구성. 롤아웃 절에 배포 순서와 소유자 순서(플러그인 갱신 → `/harness:init` → Claude는 검증 사본 디렉터리 등록(8절) → Pipeline 탭에서 노드 추가)를 적고, 막힌 항목의 출구(*Risks and Rollback*)도 적는다. Codex로 돌리는 프로젝트에는 아직 넣지 않는다는 것(6절의 거부)과, 홈 전체를 동기화하는 환경이면 사본 디렉터리를 동기화에서 빼라는 것(8절 1단계)도 적는다 |
 | `docs/architecture/README.md:106` 옆 | 색인 한 줄 |
 | `docs/architecture/protocol.md:271` 단락 옆 | impl-verify 단락(QA 단락과 같은 모양). 순서(implement와 accept 사이, qa가 있으면 그 앞), 진입 시 `done` 기록, 완료 증거(현재 entry의 run이 verify/ok·report/ok로 닫히고 결합 보고가 있음), 보고 조건(결합 runId·보고 경로·SHA 커밋), wait-on-impl-verify, 최종 인수는 메인 루프 |
 | `docs/architecture/protocol.md:156`, `:180` | `pipeline_next` 답의 대기 종류 목록 `wait`(`gate`·`handoff`·`cap`·`acceptance`)과 감시 절의 같은 목록("gate/handoff/cap/acceptance가 다른 ready 항목을 가리지 않는다")에 `impl-verify`를 더한다. `qa`도 빠져 있어 함께 넣는다 |
@@ -767,7 +822,7 @@ QA를 문자열로 다루는 시험 밖의 모든 지점을 아래 명령으로 
 rg -n 'qa-verifier|"qa"|\bqa[A-Z]\w*|before-qa|retry-qa|\bqa:' src packages plugin/bin plugin/runtime plugin/lib plugin/skills plugin/codex scripts tests -g '!*.test.*' -g '!**/generated/**'
 ```
 
-2026-10-07(origin/dev `c8799f6`) 기준 22개 파일 86줄이다(`plugin/lib` 미러 포함, `c78b8d0`·`42fc424`·`1dce256`·`4264126`·`ab538b5`·`c8e81c1`·`1ad8672`에서도 같았다). 따옴표 없는 이름(`docs/agents/qa-verifier/…` 같은 경로 조각)과
+2026-10-07(origin/dev `c8799f6`) 기준 22개 파일 86줄이다(`plugin/lib` 미러 포함, `c78b8d0`·`42fc424`·`1dce256`·`4264126`·`ab538b5`·`c8e81c1`·`1ad8672`·`aba7629`·`8a12137`에서도 같았다). 따옴표 없는 이름(`docs/agents/qa-verifier/…` 같은 경로 조각)과
 `qaBriefing` 같은 파생 이름, `labels.ts:3`의 `qa: "QA"` 같은 키까지 이 패턴에 걸린다. `plugin/skills`·`plugin/codex`·`scripts`·`tests`에는
 결과가 없다. 이름을 쓰지 않고 대기 종류나 브리핑을 나열하는 문서는 이 검색에 걸리지 않으므로 6절과 9절에서 따로 다룬다.
 
@@ -789,16 +844,16 @@ rg -n 'qa-verifier|"qa"|\bqa[A-Z]\w*|before-qa|retry-qa|\bqa:' src packages plug
 | `src/fsd/entities/pipeline/model/gate-copy.ts:11` | `before-qa` 문구 | 7절 |
 | `src/fsd/entities/pipeline/model/labels.ts:3` | 노드 라벨 | 7절 |
 | `src/fsd/pages/project-board/model/briefing.ts:49`, `:120` | 보고 에이전트 상태 | 7절 |
-| `plugin/bin/harness-codex.mjs:17`, `:33`, `:83`–`:84`, `:111`, `:124` | key 필수·옵션·재시도·브리핑 | 6절 |
+| `plugin/bin/harness-codex.mjs:17`, `:33`, `:83`–`:84`, `:111`, `:124` | key 필수·옵션·재시도·브리핑 | 바꾸지 않는다. impl-verifier는 그 앞의 `dispatchBinding`에서 거부된다(6절). Codex 실행은 별도 제안서 |
 | `plugin/bin/harness-codex.mjs:122` | QA 대상 커밋 뒤 허용 파일 | impl-verifier 보고 경로를 더한다(6절) |
 | `plugin/bin/harness-init.mjs:356`–`:382` | QA 브라우저 MCP 등록 | 해당 없음(QA 브라우저 전용) |
 | `plugin/runtime/qa-browser.mjs:99` | QA 브라우저 관찰 | 해당 없음 |
 | `plugin/runtime/codex-agent.mjs:14`, `:19`, `:48`, `:68` | 역할 표·쓰기 역할 | 6절 |
 | `plugin/runtime/codex-agent.mjs:46` | 브라우저 도구 수 | 바꾸지 않는다. QA가 아닌 역할은 브라우저 도구가 0개여야 한다는 기존 분기가 impl-verifier에 그대로 맞다 |
-| `plugin/runtime/codex-thread.mjs:44`–`:46` | 보고 경로 쓰기 | 6절 |
-| `plugin/runtime/codex-thread.mjs:375` | 역할 스레드 입력(`qaBriefing`) | impl-verifier 브리핑 필드를 더한다(6절, Phase 6) |
+| `plugin/runtime/codex-thread.mjs:44`–`:46` | 보고 경로 쓰기 | 바꾸지 않는다(디스패치 전에 거부, 6절). 별도 제안서 |
+| `plugin/runtime/codex-thread.mjs:375` | 역할 스레드 입력(`qaBriefing`) | 바꾸지 않는다. 별도 제안서 |
 | `plugin/runtime/codex-thread.mjs:121`, `:227`, `:234`, `:329` | QA 브라우저 관찰·도구 | 해당 없음(QA 브라우저 전용) |
-| `plugin/runtime/codex-thread.mjs:233`, `:315`, `:319`, `:326`, `:334` | pm·qa 예외 | 바꾸지 않는다. impl-verifier는 plan-verifier처럼 비Windows에서 셸을, Windows에서 네이티브 명령과 Git을 받는다(Bash가 필요하다) |
+| `plugin/runtime/codex-thread.mjs:233`, `:315`, `:319`, `:326`, `:334` | pm·qa 예외 | 바꾸지 않는다. Codex가 impl-verifier를 실행하게 되면 plan-verifier처럼 비Windows에서 셸을, Windows에서 네이티브 명령과 Git을 받아야 한다(Bash가 필요하다). 별도 제안서가 확인한다 |
 
 QA 이름을 쓰지 않고 목록·표로 따라오는 지점은 아래 두 검색으로 따로 열거했다. 보고 에이전트 목록의 소비자와, 게이트별·행위자별 표다.
 
@@ -868,14 +923,14 @@ rg -n '"before-scout"|"before-doc-audit"|"feature-scout"|"doc-auditor"' src pack
 | `src/fsd/pages/project-board/model/briefing.test.mjs:135`·`:213`, `src/fsd/pages/project-board/ui/project-board-page.test.mjs:57` | update | `NODE_KINDS`로 만든 Team 목록을 고정해 둔 시험. impl-verifier가 그래프 순서대로 plan-verifier와 qa-verifier 사이에 들어간다 | low |
 | `src/server/pipeline/run-rules.test.mjs:73` | update | `HINT`의 키 목록 고정값에 `impl-verify`를 넣는다 | low |
 | `plugin/bin/harness-init.test.mjs:27` | update | init 시험의 템플릿 픽스처. Pro/Max 플랜이면 init이 `agents/impl-verifier.md`를 요구하므로(`harness-init.mjs:270`) 픽스처 행을 더한다 | low |
-| `plugin/runtime/codex-agent.mjs`, `codex-thread.mjs`, `plugin/bin/harness-codex.mjs`, `plugin/README.md`, `plugin/skills/watch/SKILL.md`, `plugin/codex/skills/harness-run/SKILL.md` | update | Codex 역할·권한·디스패치·재시도·QA 허용 목록·브리핑 전달, 설명 문서와 스킬의 대기·브리핑 문장 | medium |
+| `plugin/runtime/codex-agent.mjs`, `plugin/bin/harness-codex.mjs`, `plugin/README.md`, `plugin/skills/watch/SKILL.md`, `plugin/codex/skills/harness-run/SKILL.md` | update | Codex 역할 등록·impl-verifier 디스패치 거부·QA 허용 목록, 설명 문서와 스킬의 대기·거부 문장 | medium |
 | `plugin/.claude-plugin/plugin.json`, `plugin/.codex-plugin/plugin.json` | update | 플러그인 판(Phase 7에서 한 번, 두 값을 같게) | medium. 판이 사용자 배포 시점을 정하므로 *Risks and Rollback*의 순서를 따른다 |
-| `plugin/bin/harness-session.test.mjs`(`dispatchBinding`·`explicitRetry`·`optionsFor`·`qaWorkflowFile`·`rolePermissions`), `plugin/bin/harness-role-files.test.mjs:98`(역할 정책 목록) | update | session 시험에는 impl-verifier의 key 결합(`dispatchBinding`), 명시적 재시도(`explicitRetry`)와 그 옵션 파싱(`optionsFor`, 6절), QA 허용 목록의 impl-verifier 보고 경로, 보고 경로와 스크래치만 쓰는 권한(`rolePermissions`, 안전하지 않은 key 거부 포함)을 더한다(Phase 3, *Verification Plan*). Phase 6에는 브리핑 함수(대상 커밋 불일치 거부 포함), `turn/start` 입력을 만드는 함수, 정한 방식의 사본 쓰기 권한 사례를 더한다. role-files 시험에는 `:98`의 역할 목록에 impl-verifier를 더한다. 이 시험은 브로커 허용 목록과 셸 끔을 보고, Git·명령 도구 허용은 doc-auditor와 같은 쪽으로 판정한다. `plugin/bin/harness-init-dual.test.mjs`는 `ROLE_TOOLS`에서 역할을 만들므로(`:17`) 자동으로 따라온다 | low |
+| `plugin/bin/harness-session.test.mjs`(`dispatchBinding`·`codexFailure`·`qaWorkflowFile`) | update | impl-verifier 디스패치 거부(역할 run 전, 자기 코드와 문구)와 QA 허용 목록의 impl-verifier 보고 경로를 더한다(Phase 3, *Verification Plan*). `plugin/bin/harness-init-dual.test.mjs`는 `ROLE_TOOLS`에서 역할을 만들므로(`:17`) 자동으로 따라온다. `harness-role-files.test.mjs:98`의 역할 목록은 이번에 바꾸지 않는다(Codex 권한 분기를 두지 않으므로, 6절) | low |
 | `src/server/mcp/tools.ts`, `src/server/mcp/tools.test.mjs:90` | update | `report_submit` 설명(4절). product-copy §13 행과 같은 문장으로 맞춘 뒤, `:90`의 고정 목록에 `"report_submit"`을 더해 일치를 시험으로 고정한다(Phase 5) | low |
 | `src/fsd/entities/pipeline/model/{labels,gate-copy}.ts`, `src/fsd/features/review-gate/model/gate-text.ts`, `src/fsd/features/edit-pipeline/model/rail-state.ts`, `src/fsd/pages/project-board/model/briefing.ts`(+test), `src/fsd/widgets/turn-banner/model/turn.ts`, `rail-state.test.ts`·`gate-copy.test.ts`(새 사례, *Verification Plan*) | update | 편집기·게이트 버튼·배너·브리핑 | low |
 | `src/fsd/entities/pipeline/model/labels.test.ts:19`, `:26` | update | `NODE_KINDS` 전체를 매핑한 리터럴 배열을 고정해 둔 시험. 새 노드 자리에 `"auto → implementation check"`와 `"Implementation check"`가 들어간다 | low |
 | `docs/architecture/{impl-verifier.md,README.md,protocol.md,invariants.md}`, `docs/conventions/product-copy.md` | create/update | 계약 문서 | low |
-| harness-templates: `en/agents/impl-verifier.md`(신규), `en/agents/qa-verifier.md`, `en/CLAUDE.runbook.md`, `en/CODEX.runbook.md`, `en/docs/agents/README.md`, `en/docs/plans/template.md`, `templates.test.mjs`(`:370`과 단계 경로 시험 포함) | create/update | 역할 정의·런북 | medium. 이 작업이 든 main 승격 전에 시드해야 한다(*Risks and Rollback*). `en/CODEX.runbook.md`는 dual-client 묶음 커밋이 선행 조건이다(*Execution Plan*) |
+| harness-templates: `en/agents/impl-verifier.md`(신규), `en/agents/qa-verifier.md`, `en/CLAUDE.runbook.md`, `en/docs/agents/README.md`, `en/docs/plans/template.md`, `templates.test.mjs`(`:370`과 단계 경로 시험 포함) | create/update | 역할 정의·런북 | medium. 이 작업이 든 main 승격 전에 시드해야 한다(*Risks and Rollback*). dual-client 묶음 커밋이 선행 조건이다(*Execution Plan*) |
 
 소비자 영향: 위 목록의 근거는 네 가지다.
 
@@ -887,9 +942,9 @@ rg -n '"before-scout"|"before-doc-audit"|"feature-scout"|"doc-auditor"' src pack
   ```
   전체 목록을 고정한 줄은 위 표에 넣었다. 나머지는 QA 전용이라 바꾸지 않는다.
   - QA 전용 시험: `qa.test.mjs`, `qa-query.test.ts`, `qa-verifier.test.ts`, `watch.test.mjs:28`, `harness-session.test.mjs:112`–`:160`.
-    `harness-role-files.test.mjs:98`은 QA 전용이 아니고(doc-auditor도 돈다) 역할 목록에 impl-verifier를 더한다(위 표)
+    `harness-role-files.test.mjs:98`은 QA 전용이 아니지만(doc-auditor도 돈다) 이번에는 바꾸지 않는다(위 표)
   - 플러그인 모듈 이름 목록: `harness-watch.test.mjs:456`
-  - `harness-session.test.mjs`·`harness-role-files.test.mjs`·`watch.test.mjs`에는 impl-verifier 형제 사례를 더한다. 고정값을 바꾸는 것이 아니라 새 사례이고,
+  - `harness-session.test.mjs`·`watch.test.mjs`에는 impl-verifier 형제 사례를 더한다. 고정값을 바꾸는 것이 아니라 새 사례이고,
     무엇을 더하는지는 위 표와 *Verification Plan*에 있다.
 - `NODE_KINDS`·`REPORT_AGENTS`를 import하는 시험 검색:
   ```bash
@@ -914,6 +969,7 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
   쓰기 탐지는 *Verifier tree check*에 맡긴다. 강제는 별도 훅 제안서다.
 - **런타임 부작용**: 메인 루프가 만드는 검증 사본은 저장소 밖이다. 사본 정리는 런북 절차에 있다.
 - **동시성·재실행·권한**: 11절.
+- **Codex**: impl-verifier 디스패치는 도우미가 `board_get`·역할 run 전에 거부한다(6절). 서버 상태는 바뀌지 않고, 그 항목은 Claude Code에서 이어 간다.
 - 확인한 항목:
   - [x] 정적 import: 새 모듈 하나(`impl-verify-query.ts`)를 `run-query.ts`·`board-query.ts`가 쓴다
   - [x] 시험과 스크립트 참조: 노드·에이전트 목록을 고정한 시험(*Affected Files*의 검색 명령과 표)
@@ -925,7 +981,9 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
 승인 메모:
 
 - 승인 전.
-- 함께 받을 결정: *Open Questions*의 Codex 변이 확인 환경(Phase 6 전에 확정).
+- 2026-10-07 리뷰 뒤 사용자가 "가치 검증 → Claude 전용"을 정했다. 가치 검증 스파이크(*Current State*)의 판정이 기대와 3/3 맞아, 범위를 Claude로
+  줄였다(대안 분석 「범위」). Codex 실행은 별도 제안서다.
+- 함께 받을 결정: 없다. 원안의 [Codex 변이 확인 환경]은 별도 제안서로 넘겼다(*Open Questions*).
 
 ## Execution Plan
 
@@ -941,7 +999,7 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
     확인 요청 없이 읽는지, 그 안에서 검증 명령이 메인 대화와 같은 규칙(권한 모드·허용 규칙·샌드박스 자동 허용)으로 도는지 본다(8절).
     사본의 Git 조회(`git -C <사본> rev-parse HEAD` 같은 읽기 전용 명령)가 확인 없이 도는지도 본다(1절).
   - 결과에 따라 런북 절(8절)의 사본 위치 안내가 정해지므로 Phase 4보다 먼저 한다(*Open Questions*).
-- **dual-client 템플릿 묶음 커밋(Phase 4 전).** harness-templates main에 Codex를 받치는 묶음 전체가 들어가 있어야 Phase 4·6이 그 위에서 시작한다(8절).
+- **dual-client 템플릿 묶음 커밋(Phase 4 전).** harness-templates main에 Codex를 받치는 묶음 전체가 들어가 있어야 Phase 4가 그 위에서 시작한다(8절).
   - 묶음은 둘이다. `en/CODEX.runbook.md`와, 모든 역할 스텁의 runtime 표시를 포함한 그 밖의 "dual-client edits"(harness-templates #8의 `QA-VERIFIER-ROLLOUT.md:5`)다.
     2026-10-07에도 본 checkout의 작업본에만 있다: `en/CLAUDE.runbook.md`, 역할 스텁 다섯, `en/docs/agents/README.md`, `templates.test.mjs`의 수정과
     추적되지 않은 `en/CODEX.runbook.md`(`git -C plugin/templates status --short`. 같이 나오는 추적되지 않은 `en/agents/qa-verifier.md`는 #8 `efd7d42`의 파일과 같다).
@@ -961,8 +1019,8 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
     (`20261002000000_token_usage_tracking`부터 `20261005000000_qa_verifier`까지), 플러그인 0.5.8이 함께 나갔다. 2026-10-07에는 #124·#125·#126이
     `7bd40e1`로(플러그인 0.5.9), 이어 #127~#132가 `c8799f6`으로 승격됐다(플러그인 0.5.11). 세 커밋 모두 Production 배포가 있다(`gh api repos/Sangeok/stagekeeper/deployments`).
     운영 DB의 마이그레이션 적용은 그 출시의 기록에 따른 것이고, 이 문서는 DB를 조회하지 않았다.
-  - 2026-10-07에 dev(`aba7629`)가 main보다 앞선 것은 #133(형제 제안서를 `completed/`로 옮긴 문서 변경)뿐이다. 앱 소스를 바꾸지 않으므로
-    이 작업의 승격에 함께 실려도 운영 동작은 바뀌지 않는다. Phase 7 전에 다시 `git log origin/main..origin/dev`로 확인한다.
+  - 2026-10-07에 dev(`8a12137`)가 main보다 앞선 것은 문서 변경 둘뿐이다. #133(형제 제안서를 `completed/`로 옮김)과 #134(이 제안서)다.
+    앱 소스를 바꾸지 않으므로 이 작업의 승격에 함께 실려도 운영 동작은 바뀌지 않는다. Phase 7 전에 다시 `git log origin/main..origin/dev`로 확인한다.
   - 템플릿: 그 작업들의 템플릿(harness-templates PR #6·#7·#8과 정정 PR)은 2026-10-07에도 머지 전이다. 그래서 2026-10-06 출시 때 운영 DB에 시드됐는지,
     됐다면 어느 원본(열린 브랜치나 작업본)에서였는지 이 문서는 모른다.
   - 서버가 이미 나갔으므로 #7(`acceptance_fail` 지시)을 서버보다 먼저 시드할 수 없다는 제약은 사라졌다. 운영 `HINT.accept`가 그 지시에 기대므로
@@ -976,13 +1034,13 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
   - Phase 4의 템플릿 브랜치는 이 머지와 dual-client 묶음 커밋 뒤의 harness-templates main에서 딴다.
 
 Phase는 구현 순서다. 각 Phase가 끝나면 전체 시험이 녹색이어야 한다.
-**Phase 1–6은 stagekeeper 기능 브랜치 하나(`harness/impl-verifier`)에 쌓고, dev에는 PR 하나로 넣는다.** 운영 서버는 Vercel Git 연동으로
+**Phase 1–5는 stagekeeper 기능 브랜치 하나(`harness/impl-verifier`)에 쌓고, dev에는 PR 하나로 넣는다.** 운영 서버는 Vercel Git 연동으로
 배포되므로, dev에 들어간 뒤 첫 main 승격이 곧 운영 배포다(*Risks and Rollback*). Phase 1만 든 서버는 이런 상태가 된다.
 - 소유자가 노드를 넣을 수 있다(`NODE_KINDS`).
 - 완료 판정은 없다(Phase 2).
 - Codex 번들은 아직 시드되지 않은 템플릿을 요구한다.
 
-그래서 Phase를 하나씩 dev에 넣지 않는다. Phase 4·6의 템플릿 변경은 harness-templates에 따로 PR로 낸다.
+그래서 Phase를 하나씩 dev에 넣지 않는다. Phase 4의 템플릿 변경은 harness-templates에 따로 PR로 낸다.
 
 1. **Phase 1 — 이름 등록과 그것을 고정한 시험(한 번에)**:
    - 코드: `pipeline.mjs`(2절 전부)·`pipeline.d.mts`·`entitlement.mjs`(3절, `:8` 주석 포함), `plugin/lib` 미러, Codex 역할 표(`codex-agent.mjs`의 `ROLE_TOOLS`·`ROLE_FILE_TOOLS`·쓰기 역할 집합), `labels.ts`의 `LABEL`.
@@ -995,12 +1053,12 @@ Phase는 구현 순서다. 각 Phase가 끝나면 전체 시험이 녹색이어�
    - 검증: `npm run check`, `npm test`, `npm run test:web`, `npm run test:server:integration`(위 목록의 통합 시험 픽스처 때문)
 2. **Phase 2 — 서버**: `impl-verify-query.ts`, `run-query.ts`, `run-rules.ts`(HINT 포함)와 `run-rules.test.mjs:73`, product-copy §13 hint 행, `board-query.ts`, `board-rules.ts:112`의 주석, 통합 시험.
    - 검증: `npm run check`(`tsc`는 여기서만 돈다), `npm run test:web`, `npm run test:server:integration`(격리 DB `stagekeeper_test_*`만 허용, `scripts/test-server-integration.mjs:14`)
-3. **Phase 3 — 감시기와 Codex 실행**: `watch.mjs`(+ `watch.test.mjs`의 새 사례), `codex-thread.mjs`의 보고 경로 권한, `harness-codex.mjs`의
-   keyed 목록·허용 옵션(`optionsFor` export)·재시도(`explicitRetry`)·QA 허용 목록(`qaWorkflowFile`)(+ `harness-session.test.mjs`, `harness-role-files.test.mjs`),
-   두 스킬 문서의 대기 문장(6절). 플러그인 판은 여기서 올리지 않는다(6절).
+3. **Phase 3 — 감시기와 Codex 거부**: `watch.mjs`(+ `watch.test.mjs`의 새 사례), `harness-codex.mjs`의 디스패치 거부(`CodexRoleUnsupported`)와
+   QA 허용 목록(`qaWorkflowFile`)(+ `harness-session.test.mjs`), `plugin/README.md`, 두 스킬 문서의 대기·거부 문장(6절).
+   플러그인 판은 여기서 올리지 않는다(6절).
    - 검증: `npm run check`(`plugin/lib` 미러 일치), `npm test`(plugin/bin 포함), *Verification Plan*의 `main()` 연결 확인
 4. **Phase 4 — private 템플릿**: 새 에이전트 정의, Claude 런북 변경(새 절, *Verifier tree check*, 인수 1번, `wait` 목록 두 곳), README 행,
-   계획 템플릿의 Tests 절, QA 템플릿·런북 QA 절의 한 문장, 템플릿 시험(8절 표의 `templates.test.mjs` 행 전부). Codex 런북은 Phase 6이다.
+   계획 템플릿의 Tests 절, QA 템플릿·런북 QA 절의 한 문장, 템플릿 시험(8절 표의 `templates.test.mjs` 행 전부). Codex 런북은 바꾸지 않는다(6절).
    - 검증: `npm run test:templates`. 이 시험은 `../../packages/core`와 `@harness/core/*` 경로 별칭을 쓰므로 stagekeeper 체크아웃 안의
      `plugin/templates` 자리에서 돈다.
    - 본 checkout의 `plugin/templates`에서 브랜치를 바꾸지 않는다. 그곳에는 다른 작업의 커밋되지 않은 변경이 있을 수 있다(2026-10-06에는
@@ -1013,11 +1071,8 @@ Phase는 구현 순서다. 각 Phase가 끝나면 전체 시험이 녹색이어�
    아키텍처 문서(새 `impl-verifier.md`와 `README.md` 색인, protocol의 단락·대기 종류·호출자 칸, invariants), product-copy(§13 hint 행 제외).
    시험: `rail-state.test.ts`·`gate-copy.test.ts`의 새 사례, `tools.test.mjs:90` 목록의 `"report_submit"`(*Verification Plan*).
    - 검증: `npm run test:web`, `npm run check`, `npm run build`(CI)
-6. **Phase 6 — Codex 검증 환경과 브리핑**: *Open Questions* 확정 뒤 브리핑 분기(Windows의 Git 증거 전달 포함), 역할 스레드 입력(`codex-thread.mjs:375`),
-   사본 권한(Windows에서 사본 경로 안을 고르면 역할 명령의 실행 위치도, *Open Questions*), `plugin/README.md`, `harness-run` 스킬의 브리핑 문장, Codex 런북 절과 Codex 런북 QA 절의 빌드 증거 문장(harness-templates).
-   - 검증: `npm test`, `npm run test:templates`. 브리핑 분기와 `turn/start` 입력을 export한 함수로 빼고(6절), `harness-session.test.mjs`에 그 함수의 사례
-     (대상 커밋 불일치 거부, 역할 스레드 입력에 브리핑 필드가 들어감)를 더한다. 정한 방식의 사본 쓰기 권한 사례도 같은 파일의 보고 경로 쓰기 사례 옆에 더한다.
-     뽑아낸 함수를 `main()`과 `codex-thread.mjs`가 쓰는지는 *Verification Plan*의 `main()` 연결 확인과 같은 방식으로 본다.
+6. **Phase 6 — 별도 제안서로 옮겼다.** Codex 검증 환경과 브리핑(대안 분석 「범위」, 6절의 「이번에 하지 않는 것」). 다른 절이 Phase 7을
+   가리키므로 번호는 비워 둔다.
 7. **Phase 7 — 롤아웃과 실제 모델 리허설**:
    - 사전 확인: 운영 DB의 워크스페이스 이름(`Workspace.agent`)에 `impl-verifier`가 없는지 읽기 전용 질의로 본다(10절의 `workspaces.mjs:14`).
      있으면 그 소유자와 이름을 먼저 정리한다.
@@ -1031,15 +1086,16 @@ Phase는 구현 순서다. 각 Phase가 끝나면 전체 시험이 녹색이어�
      7. harness-smoke에서 소유자 순서대로 노드를 넣고 성공 기준 4를 실측한다.
      8. 실측이 기대대로면 다른 소유자에게 소유자 순서를 안내한다.
 
-     CI가 실패하면 둘째 시드 전에 멈추므로, Codex 런북만 바뀐 채 서버가 따라오지 않는 상태가 생기지 않는다.
+     CI가 실패하면 둘째 시드 전에 멈추므로, 런북만 바뀐 채 서버가 따라오지 않는 상태가 생기지 않는다.
    - 템플릿 시드는 두 번에 나눈다. 원본은 harness-templates의 머지 커밋을 detached로 둔 별도 worktree다(본 checkout의 `plugin/templates` 작업본이 아니다).
      시드 스크립트가 `git -C <dir> rev-parse HEAD`로 원본 판을 기록하므로(`scripts/seed-templates.ts:22`), `--dir`은 Git 작업 트리 안에 있어야 한다.
      - 첫 시드: 새 `agents/impl-verifier.md` 행만 시드한다. 스크립트는 `--dir` 아래의 모든 `.md`를 읽으므로(`scripts/lib/template-seed-query.ts:29`–`:47`)
        `--dir`은 그 worktree 안의 점으로 시작하는 하위 디렉터리(예: `.seed-impl-verifier`)로 하고, 그 안에 `en/agents/impl-verifier.md` 하나만 둔다.
        스크립트는 점으로 시작하는 이름을 건너뛰므로(`:33`, `:40`) 이 디렉터리가 남아도 둘째 시드를 깨지 않는다. 점 없는 이름이면 둘째 시드가 그것을
        언어 디렉터리로 읽어 `Invalid or duplicate template`으로 거부한다. Codex 런북이 없으므로 `--snapshot`은 필요 없다(`scripts/seed-templates.ts:16`).
-     - 둘째 시드: `--dir`은 worktree 루트다(점 없는 하위 디렉터리는 `en` 하나다). 런북·README·계획 템플릿·QA 템플릿을 CI 녹색과 `migrate status` 확인 뒤, 승격 바로 전에 시드한다. Codex 런북 행이 바뀌면 모든 Codex 프로젝트가 `$harness-init`까지
-       멈추므로(*Risks and Rollback*) 사용자 안내를 함께 낸다. Codex 런북이 들어가면 시드 검사가 그 언어의 번들 전체를 요구하므로 번들 전체를 싣는다
+     - 둘째 시드: `--dir`은 worktree 루트다(점 없는 하위 디렉터리는 `en` 하나다). 런북·README·계획 템플릿·QA 템플릿을 CI 녹색과 `migrate status` 확인 뒤, 승격 바로 전에 시드한다. 이번 롤아웃은 Codex 런북을 바꾸지 않는다.
+       그래도 운영 Codex 런북 행이 원본과 다르면(아래 행별 출처 확인) 이 시드가 그 행을 바꿔 모든 Codex 프로젝트가 `$harness-init`까지
+       멈추므로(*Risks and Rollback*), 그때는 사용자 안내를 함께 낸다. Codex 런북이 들어가면 시드 검사가 그 언어의 번들 전체를 요구하므로 번들 전체를 싣는다
        (`scripts/lib/template-seed-query.ts:25`, Codex 런북이 있으면 `--snapshot` 필수 `scripts/seed-templates.ts:16`). 이때 `--snapshot`으로 복원용 스냅숏을 남긴다.
        스냅숏 경로는 공개 저장소 밖이어야 한다(`scripts/seed-templates.ts:18`–`:20`).
      - 이유: `restoreTemplates`는 새로 생긴 행이 든 스냅숏을 복원하지 않는다(Codex 런북 행만 예외, `scripts/lib/template-seed-query.ts:71`).
@@ -1062,7 +1118,9 @@ Phase는 구현 순서다. 각 Phase가 끝나면 전체 시험이 녹색이어�
    - 소유자 순서는 플러그인 갱신 → `/harness:init` → Claude는 검증 사본 디렉터리 등록(8절 런북 1단계) → Pipeline 탭에서 노드 추가다. harness-smoke에서 먼저 이 순서를
      따르고, 실측 뒤 다른 소유자에게 안내한다. *Risks and Rollback*의 배포 순서를 따른다.
    - 성공 기준 4를 harness-smoke 저장소에서 실측한다. 노드는 opt-in이라 이 실측 전에는 다른 소유자에게 노드 추가를 안내하지 않는다.
-     (a)·(b)·(c) 중 하나라도 기대와 다르면, 원인을 고친 판이 나갈 때까지 안내를 미루고 실측 보고서에 결과를 남긴다.
+     같은 실측에서 항목마다 사본 준비(clone과 의존성)의 시간·디스크, impl-verifier의 토큰과 시간, `wait on impl-verify`의 빈도를 함께 적는다
+     (*Risks and Rollback*의 「비용」).
+     (a)~(d) 중 하나라도 기대와 다르면, 원인을 고친 판이 나갈 때까지 안내를 미루고 실측 보고서에 결과를 남긴다.
      원인이 서버나 템플릿 쪽이고 이미 노드를 쓰는 그래프가 있으면 *Risks and Rollback*의 롤백 방법을 따른다.
 
 ## Verification Plan
@@ -1083,8 +1141,8 @@ CI에서 도는 것(기능 PR과 그 뒤의 dev push):
 - `check`(`.github/workflows/check.yml`)는 `npm run check`·`npm test`·`npm run test:web`·`npm run build`만 돌린다.
   `npm run test:templates`는 템플릿이 이 저장소에 없어 로컬에만 있고(`check.yml`의 주석), `npm run test:server:integration`도 CI에 없다.
   그래서 성공 기준 2(통합 시험)와 3(템플릿 시험)은 CI 녹색으로 증명되지 않는다. 두 명령의 결과와 그때의 커밋을 *Verification Results*에 적은 뒤 PR을 머지한다.
-- `windows-role-runtime`(`.github/workflows/windows-role-runtime.yml`)도 이 PR에서 돈다. 경로 필터에 이 작업이 바꾸는 `plugin/runtime/codex-thread.mjs`,
-  `plugin/bin/harness-role-files.test.mjs`, 두 매니페스트가 들어 있다. 이 job은 역할 시험 셋을 실제 Windows 역할 런타임(`STAGEKEEPER_TEST_WINDOWS_RUNTIME`)으로 돌린다.
+- `windows-role-runtime`(`.github/workflows/windows-role-runtime.yml`)도 이 PR에서 돈다. 경로 필터에 이 작업이 바꾸는 두 매니페스트가 들어 있다
+  (Claude 전용으로 줄이며 같은 필터의 `codex-thread.mjs`·`harness-role-files.test.mjs`는 바꾸지 않게 됐다). 이 job은 역할 시험 셋을 실제 Windows 역할 런타임(`STAGEKEEPER_TEST_WINDOWS_RUNTIME`)으로 돌린다.
   역할 런타임은 `pm`만 따로 거부하므로(`role-commands.mjs:214`, `role-git.mjs:200`, `role-files.mjs:20`) impl-verifier 전용 Windows 사례는 따로 두지 않는다.
 
 추가 시험 — 코어(`packages/core/pipeline.test.mjs`, 기존 `facts` 도우미를 쓴다. `:3`의 import에 `isItemNode`를 더한다). 형제는 `packages/core/qa.test.mjs:9`–`:23`이다.
@@ -1231,10 +1289,8 @@ it("acceptance at impl-verify names the implementation check even when qa follow
 ```
 
 추가 시험 — Codex 도우미(`plugin/bin/harness-session.test.mjs`, 기존 `import { dispatchBinding, codexFailure } from "./harness-codex.mjs"`에
-`qaWorkflowFile`, `explicitRetry`, `optionsFor`를 더한다). QA 허용 목록, 명시적 재시도, 옵션 파싱, key 결합, 보고 경로 쓰기 권한(안전하지 않은 key 거부 포함)을 본다.
-마지막 사례는 두 부분이고, 형제는 같은 파일의 `:81`–`:82`(plan-verifier key 결합)와 `:109`–`:125`("QA can write only its bound report and scratch…")다.
-옵션 파싱 사례에는 형제가 없다(`optionsFor`는 지금 export되지 않는다).
-기대값은 계산이 필요 없는 불리언·문구·객체다.
+`qaWorkflowFile`을 더한다). QA 허용 목록과 impl-verifier 거부를 본다. 거부 사례의 형제는 같은 파일의 `:77`–`:90`(디스패치 결합)과
+`:220`(`RoleExecutionUnavailable`)이다. 기대값은 계산이 필요 없는 불리언·문구·객체다.
 
 ```js
 it("QA accepts this item's impl-verifier report as a workflow file after its target, and nothing else new", () => {
@@ -1244,54 +1300,23 @@ it("QA accepts this item's impl-verifier report as a workflow file after its tar
   assert.equal(qaWorkflowFile("src/app.ts", "A"), false);
 });
 
-it("an explicit retry turns only the matching failed verification wait back into its dispatch", () => {
-  const wait = (on, agent) => ({ action: "wait", on, note: "n", path: "p", commit: "c".repeat(40), resume: { agent, key: "A", format: "slots-v1" } });
-  assert.deepEqual(explicitRetry(wait("impl-verify", "impl-verifier"), { "retry-impl-verify": "yes" }), { action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1" });
-  assert.throws(() => explicitRetry(wait("qa", "qa-verifier"), { "retry-impl-verify": "yes" }), /current implementation verification failure/);
-  assert.throws(() => explicitRetry(wait("impl-verify", "impl-verifier"), { "retry-qa": "yes" }), /current QA failure/);
-  assert.deepEqual(explicitRetry(wait("qa", "qa-verifier"), { "retry-qa": "yes" }), { action: "dispatch", agent: "qa-verifier", key: "A", format: "slots-v1" });
-  assert.equal(explicitRetry(wait("qa", "qa-verifier"), {}).action, "wait");
-});
-
-it("accepts --retry-impl-verify as a dispatch option and still refuses unknown options", () => {
-  assert.equal(optionsFor(["dispatch", "--session", "s", "--key", "A", "--retry-impl-verify", "yes"])["retry-impl-verify"], "yes");
-  assert.throws(() => optionsFor(["dispatch", "--session", "s", "--retry-unknown", "yes"]), /Invalid Codex arguments/);
-});
-
-it("impl-verifier binds its item key and can write only its bound report and scratch", async () => {
+it("Codex refuses impl-verifier before any role run opens and says where to continue", () => {
   const entry = { runId: "pipeline", entryId: "entry", slotId: "impl-verify" };
-  assert.equal(dispatchBinding({ action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1", entry }, []).agentKey, "A");
-  assert.throws(() => dispatchBinding({ action: "dispatch", agent: "impl-verifier", format: "slots-v1", entry }, []), /requires an item key/);
-  const f = fixture(), scratch = path.join(f.root, "scratch");
-  mkdirSync(scratch);
-  const product = path.join(f.root, "app.ts"), ownReport = path.join(f.root, "docs/agents/impl-verifier/A.md");
-  writeFileSync(product, "product");
-  const input = { binding: f.binding, config: { workspaces: [{ agent: "web-dev", path: "." }] } };
-  // 보고 경로는 key로 만들므로, 경로를 벗어날 수 있는 key는 권한을 만들기 전에 거부한다.
-  assert.throws(() => rolePermissions(input, "impl-verifier", "../A", scratch), /safe item key/);
-  const files = createRoleFiles(rolePermissions(input, "impl-verifier", "A", scratch), "impl-verifier");
-  try {
-    assert.equal(files.call("role_file_read", { path: product }).text, "product");
-    files.call("role_file_write", { path: ownReport, content: "Verified", expectedHash: null });
-    files.call("role_file_write", { path: path.join(scratch, "notes.md"), content: "Notes", expectedHash: null });
-    for (const target of [product, path.join(f.root, "docs/agents/impl-verifier/B.md"), path.join(f.root, "docs/agents/qa-verifier/A.md"), path.join(f.root, "harness.json"), path.join(f.root, ".git/config")]) {
-      assert.throws(() => files.call("role_file_write", { path: target, content: "changed", expectedHash: null }), /permission refused|protected/);
-    }
-    assert.equal(readFileSync(product, "utf8"), "product");
-  } finally { await files.close(); }
+  let refused;
+  assert.throws(() => dispatchBinding({ action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1", entry }, []), (error) => { refused = error; return true; });
+  assert.deepEqual(codexFailure(refused, "s"), { event: "error", session: "s", code: "codex-role-unsupported", reason: refused.message });
+  assert.match(refused.message, /not available on Codex yet.*Claude Code/);
 });
 ```
 
-`main()`은 시험에서 부를 수 없으므로, 뽑아낸 함수를 `main()`이 실제로 쓰는지는 정적으로 확인한다(Phase 3).
-옛 인라인 판정(`harness-codex.mjs:83`–`:84`의 `options["retry-qa"]`, `:122`–`:123`의 `workflowFile`)이 남으면 위 시험은 녹색이어도
-도우미는 `--retry-impl-verify`를 받기만 하고 무시하거나, impl-verifier 보고가 커밋된 뒤의 Codex QA를 거부한다.
+`main()`은 시험에서 부를 수 없으므로, 뽑아낸 판정을 `main()`이 실제로 쓰는지는 정적으로 확인한다(Phase 3).
+옛 인라인 판정(`harness-codex.mjs:122`–`:123`의 `workflowFile`)이 남으면 위 시험은 녹색이어도 impl-verifier 보고가 커밋된 뒤의 Codex QA를 거부한다.
+거부는 `main()`이 이미 부르는 `dispatchBinding`(`:99`)과 `codexFailure`(`:128`) 안에 있으므로 따로 확인할 연결이 없다.
 
 ```bash
-rg -n 'options\["retry-qa"\]|\bworkflowFile\b' plugin/bin/harness-codex.mjs                              # 결과 없음(지금은 4줄)
-rg -c 'explicitRetry\(options\.key|qaWorkflowFile\(name, dispatch\.key\)' plugin/bin/harness-codex.mjs    # 2(지금은 0)
+rg -n '\bworkflowFile\b' plugin/bin/harness-codex.mjs                      # 결과 없음(지금은 2줄)
+rg -c 'qaWorkflowFile\(name, dispatch\.key\)' plugin/bin/harness-codex.mjs # 1(지금은 0)
 ```
-
-Phase 6에서 브리핑 함수와 `turn/start` 입력 함수를 뽑을 때도, 정한 이름이 `main()`과 `codex-thread.mjs`에서 쓰이고 옛 인라인 코드가 남지 않았는지 같은 방식으로 확인한다.
 
 추가 시험 — 웹. 편집기 삽입 위치(`src/fsd/features/edit-pipeline/model/rail-state.test.ts`, 형제 "adds an opt-in node back in skeleton order" `:81`–`:85`)와
 게이트 툴팁(`src/fsd/entities/pipeline/model/gate-copy.test.ts`, 형제 `:16`–`:24`). 삽입 위치가 틀리면 두 노드 그래프에서 **+** 버튼이
@@ -1344,6 +1369,13 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
 
 제안 단계 사전 확인(버리는 worktree에서 문서의 코드를 글자 그대로 옮겨 돌렸다):
 
+- Claude 전용 판(2026-10-07, origin/dev `8a12137`): 6절의 거부 코드와 `qaWorkflowFile`, 위 Codex 도우미 시험 2건만 버리는 worktree에 옮겨
+  `node --test plugin/bin/harness-session.test.mjs`를 돌렸다. 18건 중 17건 통과·실패 0이었다(적용 전 16건. 나머지 1건은 적용 전에도 건너뛰는 POSIX 사례다).
+  - 거부 줄이나 `codexFailure`의 통과 조건을 하나씩 빼면 거부 시험이 실패했다.
+  - `main()` 연결 확인(위 `rg` 두 줄)은 적용 뒤 옛 줄 0·새 줄 1이었다.
+  - 그 밖의 코드는 아래 판들과 같아서 다시 돌리지 않았다. 아래 결과에는 이번에 뺀 Codex 코드와 시험(`explicitRetry`·`optionsFor`·`keyed`·
+    `rolePermissions` 분기와 그 시험 3건)이 들어 있었다. 뺀 코드는 Codex 도우미 안에서만 쓰였다.
+- 아래는 줄이기 전 판(Codex 실행 포함)의 기록이다.
 - 적용: 2·3·4·5·6·7절의 코드 조각, 표와 본문이 글자로 적은 변경(`OPT_IN_NODES` 주석, `main()`의 재시도 한 줄, `accepted`·`keyed` 목록, `optionsFor` export 포함),
   *Verification Plan*의 새 시험(코어·감시기·Codex 도우미·웹), 통합 시험 파일이다. 바꾸는 곳은 각각 원본과 정확히 한 번 일치했다.
   `plugin/lib`은 `scripts/plugin-lib.mjs`로 맞췄다. `harness-role-files.test.mjs:98` 목록 변경과 `tools.test.mjs:90` 변경은 넣지 않았다
@@ -1366,7 +1398,7 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
   `project-board-page.test.mjs`, `client-bundle-query.test.ts`, `harness-init.test.ts`, `run-rules.test.mjs`, `templates-query.test.ts`였다.
   `run-rules.test.mjs`는 §13 hint 행을 넣지 않은 상태라서도 실패한다(Phase 2에서 함께 넣는다).
 - 돌리지 않은 것: 새 시험을 넣은 판의 `npm run test:web` 전체, 통합 시험(격리 DB 필요. 중복 제출 단언은 타입 검사만 거쳤다),
-  `npm run test:templates`, 8절 템플릿과 9절 문서 변경, 6절의 README·스킬 문장, Phase 6.
+  `npm run test:templates`, 8절 템플릿과 9절 문서 변경, 6절의 README·스킬 문장.
   - 글자로 정하지 않은 코드 주석 변경도 넣지 않았다: 2절 `pipeline.mjs:100`–`:102`, 3절 `entitlement.mjs:8`, 4절 `run-rules.ts:57`,
     9절 `board-rules.ts:112`. 주석만 바꾸므로 시험 결과는 바뀌지 않는다.
 
@@ -1413,14 +1445,15 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
     - 옛 Codex 번들 검사도 남는 행을 문제 삼지 않는다.
   - 감시기는 모르는 대기를 거부한다. 그래서 플러그인이 갱신되기 전에 노드가 그래프에 들어가면 그 소유자의 감시가 멈춘다. 노드는 opt-in이고 소유자가
     직접 넣으므로 소유자 순서로 막는다(아래 항목).
-  - **Codex 런북 행을 다시 시드하면 모든 Codex 프로젝트가 멈춘다.**
-    - 범위: 둘째 시드(Phase 6의 Codex 런북 변경 포함)와 그 스냅숏 복원 모두에서 생긴다. 노드를 쓰는지와 상관없이 모든 Codex 프로젝트다.
+  - **Codex 런북 행이 바뀌면 모든 Codex 프로젝트가 멈춘다.**
+    - 이번 롤아웃은 Codex 런북을 바꾸지 않는다(6절). 그래도 둘째 시드는 번들 전체를 싣으므로, 운영 Codex 런북 행이 원본과 다르면
+      (Phase 7의 행별 출처 확인) 그 시드와 스냅숏 복원이 행을 바꾼다. 노드를 쓰는지와 상관없이 모든 Codex 프로젝트다.
     - 이유: Codex 번들 판은 `CODEX.runbook.md`의 해시다(`src/server/client-bundle-query.ts:24`). 판이 다르면 서버가 Codex의 `pipeline_next`를
       거부하고(`src/server/mcp/deps.ts:61`–`:65`), 플러그인도 세션 준비·시작을 거부한다
       (`plugin/runtime/mcp-client.mjs:85`의 "Codex runbook is stale; run $harness-init"). 그래서 사용자가 `$harness-init`을 다시 돌릴 때까지 멈춘다.
     - Claude는 안내만 붙는다(`deps.ts:88`, Codex는 `false`).
-    - 플러그인 갱신 전에 init한 Codex 소유자는 갱신 뒤 한 번 더 init해야 impl-verifier 역할을 받는다.
-    - 그래서 둘째 시드는 승격 바로 전에 하고, Codex 사용자에게 "플러그인 갱신 뒤 `$harness-init`"을 함께 알린다.
+    - 플러그인 갱신 전에 init한 Codex 소유자는 갱신 뒤 한 번 더 init해야 impl-verifier 역할을 받는다(실행은 6절대로 거부된다).
+    - 그래서 둘째 시드는 승격 바로 전에 하고, Codex 런북 행이 바뀌는 경우 Codex 사용자에게 "플러그인 갱신 뒤 `$harness-init`"을 함께 알린다.
   - Phase 1이 든 체크아웃에서 템플릿을 시드하면, 번들에 Codex 런북이 있을 때 impl-verifier 템플릿이 없으면 시드가 거부된다
     (`scripts/lib/template-seed-query.ts:25`가 `"max"`로 번들을 검사한다). 기능 브랜치의 다른 템플릿 재시드는 Phase 1이 없는 체크아웃에서 하거나
     impl-verifier 템플릿을 함께 싣는다.
@@ -1450,13 +1483,16 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
     (`:17`–`:18`, `:36`, `docs/conventions/product-copy.md:304`).
   - 그래서 출구는 둘이다. 환경을 고친 뒤 명시적으로 재시도하거나, 계획부터 다시 열어 dev가 계획을 내 `in_review`가 된 뒤 보류하거나 버린다.
     뒤의 길로 빠지면 검증이 끝나지 않으므로, 남은 Claude 검증 사본은 8절 6단계대로 링크를 먼저 끊고 지운다.
-  - *Open Questions*의 [Codex 변이 확인 환경]이 "이 경로를 쓸 수 없다"고 적은 프로젝트에 노드를 넣으면, 그 경로로 검증하는 항목은 모두 이렇게 된다.
-    그래서 그런 프로젝트를 Phase 6에서 어떻게 다룰지 정하고, `docs/architecture/impl-verifier.md`의 롤아웃 절에 이 출구를 적는다(9절).
+  - Codex로 돌리는 프로젝트에 노드를 넣으면, Codex에서 그 노드에 닿는 항목은 모두 이렇게 된다(6절의 거부). 그런 항목에는 셋째 출구가 있다.
+    Claude Code에서 이어 가는 것이다. 그래서 `docs/architecture/impl-verifier.md`의 롤아웃 절에 "Codex로 돌리는 프로젝트에는 아직 넣지 않는다"와
+    이 출구들을 적는다(9절).
 - **변이 확인의 오판**:
   - 적용 여부는 백로그 항목의 `type`으로 정한다(1절 검사 4). 계획의 분류 줄로 정하면, 소유자가 `refactor`로 정한 항목에서 되돌려도
     통과하는 정상 결과를 결함으로 내거나, 소유자가 `fix`로 정한 항목의 확인을 건너뛸 수 있다. plan_submit은 소유자가 정한 종류를 덮지 않는다.
-  - 새 기호를 더하는 `feat`는 되돌리면 시험이 가져오기 단계에서 깨진다. 이것을 "시험이 변경을 잡음"으로 세면 거짓 안심이 된다. 그래서
-    단언 실패만 증거로 세고, 로드 단계 실패는 기록만 한다(1절 검사 4). 이 경우 단언이 있는지는 정적 검사(검사 3)만 본다. 성공 기준 4(c)가 이 경로를 실측한다.
+  - 새 파일만 더하는 `feat`는 되돌리면 시험이 늘 가져오기 단계에서 깨지므로 변이 확인을 돌리지 않는다(1절 검사 4, 가치 검증 스파이크 (c)).
+    기존 파일에 새 기호를 더하는 `feat`도 되돌리면 시험이 단언 전에 깨질 수 있다. 이것을 "시험이 변경을 잡음"으로 세면 거짓 안심이 된다.
+    그래서 단언 실패만 증거로 세고, 로드 단계 실패는 기록만 한다. 두 경우 모두 단언이 있는지는 정적 검사(검사 3)만 본다.
+    성공 기준 4(c)·(d)가 두 경로를 실측한다.
   - 시험 파일과 제품 파일은 계획의 Tests 절이 적은 시험 파일로 가른다(1절 검사 4.1, 8절의 계획 템플릿 변경).
     - 템플릿 변경 전에 쓴 계획에는 그 목록이 없으므로 변이 확인은 `blocked`가 된다.
     - 계획이 시험 파일을 빠뜨리면 시험까지 되돌려 잘못된 결함을 낼 수 있다. 그래서 되돌리는 파일 목록을 보고서에 남긴다.
@@ -1473,8 +1509,13 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
   - QA 실패도 지금 똑같이 보인다.
   - 이 제안은 웹 표시를 바꾸지 않는다. 소유자는 런북 절차의 대기 처리(8절 5단계: 보고를 읽고 소유자에게 알린 뒤 멈춘다)로 알게 된다.
     검증 실패를 소유자 차례로 보이게 하는 일은 QA와 함께 다룰 후속 제안이다.
-- **비용**: opt-in 노드 하나가 항목마다 디스패치 1회와 작업 영역 검증 명령 3회(impl-verifier의 기준 실행, 변이 실행, 복원 실행)를 더한다.
-  모델은 상속이다. Codex Windows에서는 명령마다 스냅숏 준비·정리 시간도 붙는다(*Open Questions*의 [Codex 변이 확인 환경]).
+- **비용**: opt-in 노드 하나가 항목마다 아래를 더한다. Phase 7 리허설에서 함께 잰다.
+  - 디스패치 1회. 모델은 상속이다. 가치 검증 스파이크에서는 항목당 약 9.5만 토큰·80~104초였다. 파일 몇 개짜리 저장소였으므로, 읽을 코드와
+    시험 출력이 많은 실제 저장소에서는 더 든다.
+  - 작업 영역 검증 명령 최대 3회(impl-verifier의 기준 실행, 변이 실행, 복원 실행). 변이 확인을 하지 않는 항목(`refactor`·`docs`, 새 파일만 더한
+    `feat`)은 기준 실행 1회다.
+  - 메인 루프의 사본 준비: 항목마다 `git clone` 한 번과 의존성 준비(설치나 연결). 시간과 디스크는 프로젝트의 의존성을 따른다. 이 저장소라면
+    의존성을 포함한 작업 트리가 약 765MB다(8절 1단계). 사본은 항목이 끝나면 지운다(8절 6단계).
 - **이름 비교 지점의 변화**: 10절 목록은 이 문서를 쓸 때의 코드 기준이다. 구현 직전에 10절의 검색 명령을 다시 돌려, 그 사이 생긴 지점이 없는지 확인한다.
 
 롤백 방법:
@@ -1486,7 +1527,7 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
   지우지 않는다. 새 플러그인의 Codex 번들 검사가 그 행을 계속 요구한다(*배포 순서*). 플러그인까지 되돌리려면 판을 다시 올려 옛 내용을 낸다.
 - **노드를 쓰는 그래프 버전이 있을 때**: QA와 같다. 그 버전은 호환 서버가 필요하므로, 소유자가 노드 없는 새 그래프 버전을 저장한 뒤
   revert한다. 열린 항목은 원래 버전으로 남는다(`docs/architecture/qa-verifier.md`의 Rollout).
-- **템플릿**: 둘째 시드의 행(런북·README·계획 템플릿·QA 템플릿·Codex 런북)은 그 스냅숏으로 되돌린다(`restoreTemplates`). 스냅숏 뒤에 행이 바뀌었으면 복원이
+- **템플릿**: 둘째 시드의 행(런북·README·계획 템플릿·QA 템플릿과 번들째 실린 나머지 행)은 그 스냅숏으로 되돌린다(`restoreTemplates`). 스냅숏 뒤에 행이 바뀌었으면 복원이
   거부되므로(`scripts/lib/template-seed-query.ts:73`), 그 사이 다른 시드가 있었다면 그 시드부터 되돌린다. 첫 시드의 `agents/impl-verifier.md` 행은
   지우지 않는다. `restoreTemplates`가 새 행 삭제를 거부하고(`:71`), 옛 서버·플러그인에는 무해하며, 새 플러그인은 이 행을 요구한다.
   복원이 Codex 런북 행을 바꾸면 모든 Codex 프로젝트가 `$harness-init`까지 다시 멈춘다(*배포 순서*). 복원할 때도 사용자에게 알린다.
@@ -1531,7 +1572,7 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
 <!-- doc-validation-skip -->
 ## Open Questions
 
-- **[Codex 변이 확인 환경]**
+- **[Codex 실행 — 별도 제안서로 넘김]** 이번 제안에서는 정하지 않는다(대안 분석 「범위」). 아래는 그 제안서의 입력으로 남긴다.
   - Codex Windows의 역할 명령은 명령마다 저장소 스냅숏을 새로 만들고, 쓰기는 버린다(`plugin/runtime/role-commands.mjs:18`).
     - 의존성도 스냅숏에 실린다. 역할이 읽을 수 있는 파일을 `.git`·`.codex`·`.claude`·`.next`와 `.env`류(`.env.example` 제외)만 빼고 모두 복사하고
       (`role-commands.mjs:13`, `:75`), pm을 뺀 워크스페이스 밖 역할은 저장소 전체를 읽는다(`codex-thread.mjs:40`, `:43`). impl-verifier도 그렇다.
@@ -1562,11 +1603,13 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
       - 그래서 소유자 PC에서는 세 번이 15분 턴을 넘기거나, 스냅숏 하나가 준비 상한 300초에 가까워질 수 있다.
     - 그 제안서는 2026-10-07에 완료됐다. Phase 0(시간 기록)과 Phase 1(복사 전 권한 부여)로 ACL 단계는 1초 미만이 됐다. 스냅숏 복사를 줄이는
       Phase 2는 진행하지 않기로 했고, Phase 3(삭제를 결과 반환 뒤로)는 보류됐다. 그래서 아래 선택은 지금 수치를 기준으로 한다.
-  - 비Windows Codex는 저장소 읽기와 스크래치 쓰기만 열려 있다(`codex-thread.mjs:40`).
+  - 비Windows Codex: 저장소 쪽 Git 증거(조상 확인, 변경 파일 목록, 파일별 커밋 목록)는 읽기 전용 저장소와 `.git`으로 만들 수 있다. 하지만 역할은
+    저장소 읽기와 스크래치 쓰기만 열려 있다(`codex-thread.mjs:40`–`:42`, `:root`는 거부). 그래서 저장소 밖 사본의 HEAD 확인과 사본에서의 검증 명령
+    실행에는 권한 결정이 필요하다.
   - Windows의 역할 명령은 언제나 저장소 루트(`input.binding.root`)의 스냅숏에서 돌고, `cwd`도 저장소 기준 상대 경로만 받는다
     (`codex-thread.mjs:325`, `role-commands.mjs:220`). 그래서 Windows에서 아래의 "메인 루프 사본 경로를 쓰기로 연다"를 고르면 권한만으로는
     모자라고, 명령이 사본에서 돌도록 명령 실행 쪽도 바꿔야 한다.
-  - 제안: Phase 6 전에 harness-smoke에서 두 경로를 실측하고, "메인 루프 사본 경로를 쓰기로 연다"와 "스냅숏 안에서 되돌리기와 시험을
+  - 그 제안서는 harness-smoke에서 두 경로를 실측하고, "메인 루프 사본 경로를 쓰기로 연다"와 "스냅숏 안에서 되돌리기와 시험을
     명령 하나로 실행한다" 중 하나를 정한다. Windows 실측은 명령 결과의 단계별 시간으로 스냅숏 준비와 명령 실행을 나눠 적는다.
     Windows의 Git 증거 전달 방식과, 이 경로를 쓸 수 없는 프로젝트(의존성을 링크로 잇거나 15분 안에 끝나지 않는 프로젝트)를 어떻게 다룰지도
     함께 정한다. 그런 프로젝트에서는 노드를 넣은 뒤의 항목이 빠져나갈 길이 좁다(*Risks and Rollback*의 「막힌 항목의 출구」).
@@ -1585,7 +1628,8 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
   - `--add-dir`도 대안이 아니다. 파일 접근 규칙은 설정 키와 같지만, `--add-dir`로 더한 디렉터리에서는 `.claude/agents/`·skills·commands와
     설정의 일부 키(`enabledPlugins` 등)까지 읽어 들인다(permissions 문서의 "Additional directories grant file access, not configuration"). 사본은 같은
     저장소의 clone이므로, 저장소가 `.claude/agents/`를 커밋해 두었다면 같은 이름의 역할 정의가 한 번 더 실린다. 설정 키로 등록한 디렉터리는 파일 접근만 준다.
-- **[화면 문구]** 라벨 "Implementation check", 게이트 문구(`gate-copy.ts`·`gate-text.ts`), product-copy §6의 역할 용어는 제안값이다.
+- **[화면 문구]** 라벨 "Implementation check", 게이트 문구(`gate-copy.ts`·`gate-text.ts`), product-copy §6의 역할 용어, Codex 도우미의 거부 문구(6절)는
+  제안값이다.
   product-copy 검토에서 확정한다. 검증 에이전트 보고의 문서 라벨(지금은 plan-verifier·qa-verifier처럼 "Implementation report", 10절)을
   따로 둘지도 그때 함께 정한다.
 
