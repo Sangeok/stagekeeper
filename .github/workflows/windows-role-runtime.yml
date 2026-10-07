@@ -5,6 +5,9 @@ on:
   # Keep dev warm, including after cache eviction during an idle period.
   push:
     branches: [dev]
+  # PRs run only for the Windows runtime, its acceptance tests and the offline
+  # build inputs. Other application source is checked by the dev push, which runs
+  # every step; main receives only commits already green on dev.
   pull_request:
     branches: [dev]
     paths:
@@ -14,11 +17,13 @@ on:
       - scripts/windows-role-runtime-cache.test.mjs
       - plugin/runtime/windows/**
       - plugin/runtime/role-commands.mjs
+      - plugin/runtime/role-files.mjs
       - plugin/runtime/role-git.mjs
       - plugin/runtime/codex-thread.mjs
       - plugin/.claude-plugin/plugin.json
       - plugin/.codex-plugin/plugin.json
       - plugin/bin/harness-role-commands.test.mjs
+      - plugin/bin/harness-role-files.test.mjs
       - plugin/bin/harness-role-git.test.mjs
       - scripts/rehearse-windows-project-build.mjs
       - scripts/build.mjs
@@ -31,7 +36,8 @@ on:
       - prisma.config.ts
       - prisma/schema.prisma
       - next.config.*
-      - src/**
+      - src/app/layout.tsx
+      - src/app/fonts/**
 
 permissions:
   contents: read
@@ -50,6 +56,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
       - name: Validate runtime cache contract
         shell: pwsh
         run: |
