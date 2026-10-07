@@ -19,6 +19,7 @@ public static class StagekeeperRoleProcess {
     public uint maxActiveProcesses;
     public string status, stdout, stderr;
     public bool quiescent, outputTruncated;
+    public long aclMs;
   }
   [StructLayout(LayoutKind.Sequential)] struct JobBasicLimit { public long UserTime, JobTime; public uint Flags; public UIntPtr MinWorking, MaxWorking; public uint ActiveLimit; public UIntPtr Affinity; public uint Priority, Scheduling; }
   [StructLayout(LayoutKind.Sequential)] struct IoCounters { public ulong ReadOps, WriteOps, OtherOps, ReadBytes, WriteBytes, OtherBytes; }
@@ -148,6 +149,7 @@ public static class StagekeeperRoleProcess {
       int status = CreateAppContainerProfile(name, name, "Disposable Stagekeeper role", IntPtr.Zero, 0, out sid);
       if (status != 0) Marshal.ThrowExceptionForHR(status); profile = true; identifier = new SecurityIdentifier(sid);
       Stage = "snapshot-acl";
+      var aclClock = System.Diagnostics.Stopwatch.StartNew();
       Grant(root, identifier, FileSystemRights.ReadAttributes | FileSystemRights.ReadExtendedAttributes | FileSystemRights.Traverse | FileSystemRights.Synchronize, false);
       Grant(repo, identifier, FileSystemRights.Modify, true);
       Grant(scratch, identifier, FileSystemRights.Modify, true);
@@ -161,6 +163,7 @@ public static class StagekeeperRoleProcess {
       canaryAcl.AddAccessRule(new FileSystemAccessRule(WindowsIdentity.GetCurrent().User, FileSystemRights.FullControl, AccessControlType.Allow));
       canaryAcl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier("S-1-15-2-1"), FileSystemRights.Read, AccessControlType.Allow));
       File.SetAccessControl(aapCanary, canaryAcl);
+      long aclMs = aclClock.ElapsedMilliseconds;
       Stage = "drive-map";
       drive = MapDrive(root);
       Stage = "stdio-pipes";
@@ -236,7 +239,7 @@ public static class StagekeeperRoleProcess {
       uint exitCode; Check(GetExitCodeProcess(process.Process, out exitCode), "exit code");
       if (!Task.WaitAll(new Task[] { outputTask, errorTask }, 5000)) throw new Exception("Output readers did not end");
       if (Volatile.Read(ref output.exceeded) != 0) reason = "output-limit";
-      return new Result { exitCode = exitCode, maxActiveProcesses = peak, status = reason, stdout = outputTask.Result, stderr = errorTask.Result, quiescent = true, outputTruncated = output.exceeded != 0 };
+      return new Result { exitCode = exitCode, maxActiveProcesses = peak, status = reason, stdout = outputTask.Result, stderr = errorTask.Result, quiescent = true, outputTruncated = output.exceeded != 0, aclMs = aclMs };
     } catch { FailedStage = Stage; throw; } finally {
       if (job != IntPtr.Zero) { TerminateJobObject(job, 125); CloseHandle(job); }
       else if (process.Process != IntPtr.Zero) TerminateProcess(process.Process, 125);

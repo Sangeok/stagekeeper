@@ -191,6 +191,9 @@ it("passes real pipe/network/path preflight and runs npm test/build on a fresh s
     const first = await broker.call("role_command_exec", { command: "npm run test && npm run build" });
     assert.equal(first.exitCode, 0); assert.equal(first.status, "exited"); assert.match(first.stdout, /BUILD_READY/);
     assert.equal(first.originalRepositoryWrites, false); assert.equal(first.snapshotWrites, "discarded"); assert.equal(existsSync(path.join(f.root, "built.txt")), false);
+    // Durations vary by machine; only their contract holds: monotonic laps and a non-negative Stopwatch.
+    for (const name of ["snapshotMs", "scratchMs", "runtimeMs", "commandMs"]) assert.ok(Number.isInteger(first.timings[name]) && first.timings[name] >= 0, name);
+    assert.ok(Number.isInteger(first.aclMs) && first.aclMs >= 0, "aclMs");
     const source = path.join(f.root, "src/source.cjs"); f.files.call("role_file_write", { path: source, expectedHash: digest(readFileSync(source)), content: "module.exports = 41;\n" });
     const failed = await broker.call("role_command_exec", { command: "npm run test" });
     assert.notEqual(failed.exitCode, 0); assert.notEqual(first.snapshotHash, failed.snapshotHash);
