@@ -56,7 +56,6 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
       - name: Validate runtime cache contract
         shell: pwsh
         run: |
