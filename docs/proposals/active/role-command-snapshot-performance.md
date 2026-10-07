@@ -61,8 +61,13 @@ Windows 역할 명령(`role_command_exec`)은 실행할 때마다 저장소 전�
 
 ### 성공 기준
 
-사용자 결정에 따라 수치 목표는 **Phase 0 측정 후 확정**한다. 확정 전에도 아래는 성립해야 한다.
+수치 목표는 Phase 0 기준선(Current State)으로 정한다. 이 문서의 머지가 목표 확정이다.
 
+- **Phase 1 목표:** CI 리허설 3회 중앙값에서 `timings.grantMs + aclMs`가 3,000ms 이하.
+  - 기준선 `aclMs` 중앙값은 15,626ms다. 80% 이상 줄이는 목표다.
+  - `grantMs`에는 도우미 기동 1회가 들어간다(#122 이후 0.4~2.5초). 문서 적용본 로컬 검증은 `grantMs` 1.1초, `aclMs` 5ms였다.
+- **Phase 2 채택 게이트:** 같은 날 번갈아 잰 5회씩의 중앙값에서 `snapshotMs`가 Phase 2 직전 `dev`보다 20% 이상 줄어야 한다.
+  - 기준선 3회의 `snapshotMs`가 43.6~81.7초로 크게 흩어져, 3회 중앙값으로는 20% 차이를 가리기 어렵다.
 - Phase 0 뒤 `role_command_exec` 결과와 CI 리허설 출력에 단계별 시간이 숫자로 남는다.
   - 항목: `timings.snapshotMs`·`scratchMs`·`runtimeMs`·`commandMs`, 도우미의 `aclMs`. Phase 1부터 `timings.grantMs`가 더해진다.
   - `dev` CI 리허설 표본으로 기준선을 문서에 기록한다.
@@ -77,7 +82,7 @@ Windows 역할 명령(`role_command_exec`)은 실행할 때마다 저장소 전�
   - 전역 복사 대기열의 실패 전파
   - 단계별 시간 필드
 - 각 Phase 전후의 리허설 시간을 같은 방식으로 기록한다.
-  - Phase 2는 미리 정한 기준 이상 줄어들 때만 채택한다(Open Questions).
+  - Phase 2는 위 게이트를 넘을 때만 채택한다.
 
 ## Proposal Size
 
@@ -124,6 +129,23 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
 - 같은 규모의 스냅숏이 처음에는 120초, 이어 300초 상한에 걸렸습니다.
 - native 경로 해석과 8개 단위 묶음 복사를 넣은 뒤에야 통과했습니다.
 - 지금 파일당 2.0~2.6ms이면 10만 개 상한에서 200~263초입니다.
+
+### Phase 0 기준선 (CI, 2026-10-07)
+
+`dev` `c8e81c1`(#130 머지)의 push 실행 37579574253과 같은 커밋 재실행 2회입니다. 단위는 ms이고, 마지막 행만 초입니다.
+
+| 항목 | 1회 | 2회 | 3회 | 중앙값 |
+| --- | --- | --- | --- | --- |
+| `snapshotMs` | 81,695 | 60,584 | 43,557 | 60,584 |
+| `scratchMs` | 1 | 1 | 1 | 1 |
+| `runtimeMs` | 3,028 | 2,945 | 3,083 | 3,028 |
+| `commandMs` | 50,660 | 56,488 | 37,683 | 50,660 |
+| 그 안의 `aclMs` | 17,612 | 15,626 | 11,497 | 15,626 |
+| 리허설 step 전체(초) | 152 | 132 | 93 | 132 |
+
+- `aclMs`는 `commandMs` 중앙값의 약 31%, 리허설 전체의 약 12%입니다.
+- step 전체에서 `timings` 합을 뺀 약 9~17초는 결과 반환 뒤 스냅숏 삭제와 스크립트 기동 등이라 `timings`에 잡히지 않습니다.
+- 참고로 PR #130 실행(37579053926)은 `snapshotMs` 65,736, `runtimeMs` 3,412, `commandMs` 57,988, `aclMs` 14,318이었습니다.
 
 ### 문서 적용본 예비 검증 (로컬, 2026-10-07)
 
@@ -282,7 +304,7 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
   - Phase 0에서는 `Run`의 기존 `snapshot-acl` 단계를 `Stopwatch`로 감쌉니다.
   - 숫자만 기록합니다. "Numeric diagnostics and fixed stages only"(`role-process.ps1:35`) 원칙과 같습니다.
 - 리허설 스크립트는 이미 `result` 전체를 출력하므로 바꿀 필요가 없습니다(`scripts/rehearse-windows-project-build.mjs`의 `evidence.result`).
-- 기준선: `dev` push CI 리허설 3회 이상의 중앙값을 이 문서에 기록하고 수치 목표를 확정합니다.
+- 기준선: 기록했습니다(Current State "Phase 0 기준선"). 수치 목표는 성공 기준에 있습니다.
 
 ### Phase 1 — 역할 SID를 빈 루트에 먼저 부여
 
@@ -857,7 +879,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
 - 달라지는 점
   - 복사가 디렉터리 경계를 넘어 최대 8개까지 계속 돕니다.
   - 상위 디렉터리 파일이 다 끝나기 전에 하위 디렉터리 파일 복사가 시작될 수 있습니다(해시 순서와는 무관).
-- 채택 게이트: Phase 0 기준선과 같은 측정(CI 리허설 3회 이상 중앙값)에서 `snapshotMs`가 Open Questions에서 정한 기준 이상 줄어야 병합합니다. 못 미치면 이 Phase는 닫습니다.
+- 채택 게이트: 성공 기준의 Phase 2 게이트(같은 날 번갈아 잰 5회씩의 중앙값에서 `snapshotMs` 20% 이상 단축)를 넘어야 병합합니다. 못 미치면 이 Phase는 닫습니다.
   - 로컬 예비 검증에서는 오히려 느려질 수 있다는 신호가 있었습니다(Current State).
   - 게이트를 통과하지 못하면 Phase 0·1만으로 마무리합니다.
 
@@ -944,13 +966,14 @@ Phase 2의 비동기 검사가 계약을 유지하는 이유:
 승인 메모:
 
 - 2026-10-07 Phase 0만 승인했습니다. Phase 1 이후는 Phase 0 기준선과 수치 목표를 이 문서에 기록한 뒤 따로 승인합니다.
+- 2026-10-07 Phase 0 구현(#130)이 머지됐고 기준선과 수치 목표를 기록했습니다. Phase 1은 아직 승인 전입니다.
 
 ## Execution Plan
 
 1. **Phase 0 — 기록**
    - 작업: `execute`의 `timings`, `RoleProcess.cs` `Result.aclMs`, `Run`의 `snapshot-acl` 측정. 플러그인 버전 상승.
    - 검증: `npm test`, 새 시간 필드 시험, `windows-role-runtime` CI 리허설 출력.
-   - 기준선: `dev` push 리허설 3회 이상의 중앙값을 이 문서에 기록하고 수치 목표를 확정합니다.
+   - 기준선: 완료(#130, Current State "Phase 0 기준선").
 2. **Phase 1 — 선부여**
    - 작업: `prepare` 모드, `Run` 확인, `prepareNativeRoot`, 호출부 3곳과 시험 fixture, `protocol.md`. 플러그인 버전 상승.
    - 검증: 기존 native 시험 전체, 새 선부여 시험, CI 리허설에서 `aclMs`(Run)와 `grantMs`를 Phase 0과 비교.
@@ -1083,7 +1106,7 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 | `npm run check` | Pass (Phase 0) | 로컬 worktree |
 | `npm test` | Pass (Phase 0) | 333 pass, 2 skip(런타임 필요 시험, 아래 native 실행에서 통과) |
 | Phase 0 native 시험 (로컬, CI 런타임 `033f9ac…`) | Pass | `harness-role-commands`·`harness-role-files`·`harness-role-git` 30/30, readlink·spawn 2/2. `timings`를 빼면 새 단언이 실패하고, `aclMs` 대입만 빼면 기본값 0으로 통과합니다(값 확인은 CI 리허설 출력으로) |
-| `windows-role-runtime` (CI) | Not run yet | Phase마다 리허설 `timings` 기록 |
+| `windows-role-runtime` (CI) | Pass (Phase 0) | PR #130 1회, `dev` `c8e81c1` 3회. 값은 Current State "Phase 0 기준선" |
 | 문서 적용본 로컬 검증 (설계 검증용, 구현 아님) | Pass | `harness-role-files` 10/10, `harness-role-commands` 14/14(런타임 포함), readlink 1/1, spawn 1/1, 리허설 exit 0. 세부는 Current State |
 
 ## Risks and Rollback
@@ -1148,8 +1171,6 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 <!-- doc-validation-skip -->
 ## Open Questions
 
-- **[Goal / 성공 기준]** 수치 목표는 Phase 0 기준선을 기록한 뒤 정합니다(사용자 결정). 기준선 기록 직후 이 문서에 채웁니다.
-- **[Phase 2 게이트]** 채택 기준을 정해야 합니다. 예: CI 리허설 3회 중앙값에서 `snapshotMs` 20% 이상 단축. Phase 0 뒤에 정합니다.
 - **[Phase 3]** 진행 여부를 정해야 합니다. 받아들일지 정할 것은 세 가지입니다.
   - 정리 실패가 명령 결과가 아니라 `close()`에서 드러나는 것.
   - 그 결과 이미 성공한 역할 실행이 오류로 끝날 수 있는 것.
