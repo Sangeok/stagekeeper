@@ -18,6 +18,7 @@ export type NodeFacts = {
   slotComplete?: boolean;
   implementationComplete?: boolean;
   qaComplete?: boolean;
+  implVerifyComplete?: boolean;
 };
 export type AdvanceFacts = NodeFacts & { approvedGates: readonly string[] };
 export type Advance = { cursor: string | null; entered: string[]; transitions: Boundary[] };

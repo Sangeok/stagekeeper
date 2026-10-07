@@ -135,6 +135,13 @@ it("QA alone receives the complete browser allowlist without shell, owner or nes
   const devBody = body.replace("name: qa-verifier", "name: web-dev").replace(ROLE_TOOLS["qa-verifier"].map(name => "mcp__harness__" + name).join(", "), ROLE_TOOLS.dev.map(name => "mcp__harness__" + name).join(", "));
   assert.throws(() => renderCodexRole(devBody, "dev"), /browser allowlist/);
 });
+it("impl-verifier installs on Codex as a write role with its exact tools, so a Pro bundle renders", () => {
+  const body = `---\nname: impl-verifier\ndescription: Implementation check\ntools: Read, Glob, Grep, Bash, Write, ${ROLE_TOOLS["impl-verifier"].map(name => "mcp__harness__" + name).join(", ")}\n---\n${RUNTIME_MARKER}\nUse the current server step.`;
+  const policy = readCodexRole(renderCodexRole(body, "impl-verifier"), "impl-verifier", "impl-verifier");
+  assert.equal(policy.sandbox_mode, "workspace-write");
+  assert.deepEqual(policy["mcp_servers.harness.enabled_tools"], ["agent_next", "board_get", "backlog_get", "report_submit"]);
+  assert.throws(() => renderCodexRole(body.replace("tools: Read,", "tools: Edit, Read,"), "impl-verifier"), /file tool allowlist/);
+});
 it("QA verify refuses fabricated completion and forwards browser evidence with the current receipt binding", async () => {
   const entry = { runId: "pipeline", entryId: "entry", slotId: "qa" }, receipt = { runId: "qa-run", revision: 1, stepId: "verify" };
   const calls = []; let verified = false;

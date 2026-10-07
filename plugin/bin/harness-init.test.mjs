@@ -25,6 +25,7 @@ const FIXTURES = {
   // 보고 에이전트의 description은 런북 report_table의 행이 된다 — 없으면 생성기가 멈춘다(아래 "no frontmatter description").
   "agents/pm.md": "---\nname: pm\ndescription: Picks work.\n---\nroster {{roster_names}}\n\n## step:start\npm step body\nnext: done\n",
   "agents/qa-verifier.md": "---\nname: qa-verifier\ndescription: Tests user flows.\n---\n\n## step:start requires: done\nqa step body\nnext: done\n",
+  "agents/impl-verifier.md": "---\nname: impl-verifier\ndescription: Verifies implementations.\n---\n\n## step:start requires: done\nimpl-verifier step body\nnext: done\n",
   "agents/plan-verifier.md": "---\nname: plan-verifier\ndescription: Verifies plans.\n---\n\n## step:start\nverifier step body\n",
   "agents/doc-auditor.md": "---\nname: doc-auditor\ndescription: Audits docs.\n---\n\n## step:start\nauditor step body\n",
   "agents/feature-scout.md": "---\nname: feature-scout\ndescription: Scouts features.\n---\n{{scout.question}}\n\n## step:start\nscout step body\n",

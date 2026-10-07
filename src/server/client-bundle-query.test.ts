@@ -5,7 +5,7 @@ import { readCodexBundle, checkCodexRunbook } from "./client-bundle-query";
 
 const bundle = [
   { path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nSource\r\n" }, ...COMMON_DOCS.map(path => ({ path, body: "docs" })),
-  ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier"].map(role => ({ path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\nStub\n## step:start\nDo it.\nnext: done\n` })),
+  ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier", "impl-verifier"].map(role => ({ path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\nStub\n## step:start\nDo it.\nnext: done\n` })),
 ];
 it("MCP fallback selects the entire English bundle only if the localized Codex source is absent", async () => {
   const calls: string[] = [];

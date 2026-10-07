@@ -37,7 +37,7 @@ describe("entitlement", () => {
     assert.deepEqual(LIMITS.free.agents, ["pm", "feature-scout"]);
     assert.deepEqual(LIMITS.pro.agents, REPORT_AGENTS);
     assert.deepEqual(LIMITS.max.agents, REPORT_AGENTS);
-    assert.deepEqual(REPORT_AGENTS, ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier"]);
+    assert.deepEqual(REPORT_AGENTS, ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"]);
   });
 
   describe("withinLimit", () => {

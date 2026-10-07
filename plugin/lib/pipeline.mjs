@@ -3,12 +3,12 @@
 // 서버(board-query.ts·run-query.ts)가 커서를 옮기거나 세울 때, 웹(edit-pipeline)이 레일을 그릴 때, 저장 액션이 검증할 때 같은 함수를 쓴다.
 import { limitsFor } from "./entitlement.mjs";
 
-// 비게이트 노드 8종, 골격 순서. 게이트는 노드가 아니라 간선(before-<kind>)이다.
-export const NODE_KINDS = ["propose", "plan", "verify", "implement", "qa", "accept", "doc-audit", "scout"];
+// 비게이트 노드 9종, 골격 순서. 게이트는 노드가 아니라 간선(before-<kind>)이다.
+export const NODE_KINDS = ["propose", "plan", "verify", "implement", "impl-verify", "qa", "accept", "doc-audit", "scout"];
 export const REQUIRED_NODES = ["plan", "implement", "accept"]; // 못 뺀다 — accept는 증거 규칙이지 게이트가 아니다
 export const TAIL_NODES = ["doc-audit", "scout"];               // accept 뒤. 서로 순서를 바꿀 수 있다
 // 노드가 디스패치하는 에이전트. plan·implement는 항목의 dev(BoardItem.agent), accept는 main-loop 본인(디스패치 아님).
-export const NODE_AGENT = { propose: "pm", verify: "plan-verifier", qa: "qa-verifier", "doc-audit": "doc-auditor", scout: "feature-scout" };
+export const NODE_AGENT = { propose: "pm", verify: "plan-verifier", "impl-verify": "impl-verifier", qa: "qa-verifier", "doc-audit": "doc-auditor", scout: "feature-scout" };
 export const SLOT_FORMAT = "slots-v1";
 export const PROJECT_AGENTS = ["doc-auditor", "feature-scout"];
 export const AUTO_SCOUT_DISABLED_REASON = "Automatic scouting is off. Add a backlog item, or turn it on in the Pipeline tab.";
@@ -24,7 +24,7 @@ export function slotAgent(slot) {
 // "지금 이 일을 하는 run이 열려 있나"를 묻는 화면이 이걸 쓴다 — 항목에 아무 run이나 열려 있는 것과 다르다.
 export const dispatcherFor = (node, itemAgent) =>
   node === "plan" || node === "implement" ? itemAgent : slotAgent(node);
-export const isItemNode = (node) => ["plan", "implement", "verify", "qa"].includes(node);
+export const isItemNode = (node) => ["plan", "implement", "verify", "impl-verify", "qa"].includes(node);
 export const GATE_PREFIX = "before-";
 export const gateId = (kind) => `${GATE_PREFIX}${kind}`;
 export const isGateId = (id) => typeof id === "string" && id.startsWith(GATE_PREFIX);
@@ -42,8 +42,8 @@ export function nodeAllowed(plan, kind) {
   const agent = slotAgent(kind);
   return agent === null || limitsFor(plan).agents.includes(agent);
 }
-// harness.json에 달린 선택 노드 — 서버가 설정을 모르므로 기본 그래프에 넣지 않는다(Pipeline 탭에서 넣는다).
-export const OPT_IN_NODES = ["scout", "qa"];
+// 선택 노드 — 기본 그래프에 넣지 않는다(Pipeline 탭에서 넣는다). scout·qa는 서버가 모르는 harness.json 설정에 달렸고, impl-verify는 항목마다 검증 비용을 더한다.
+export const OPT_IN_NODES = ["scout", "impl-verify", "qa"];
 // 기본 그래프 = 골격에서 플랜 밖 노드와 opt-in 노드를 뺀 것 + 게이트 둘. Free: propose·plan·implement·accept (verify·doc-audit 없음).
 export function defaultGraph(plan) {
   return { nodes: NODE_KINDS.filter((k) => nodeAllowed(plan, k) && !OPT_IN_NODES.includes(k)), gates: [...DEFAULT_GATES] };
@@ -63,7 +63,9 @@ export function validateGraph(graph, plan) {
   if (!(planAt < implementAt && implementAt < acceptAt)) return { ok: false, reason: "anchors must keep the order plan · implement · accept" };
   if (nodes.includes("propose") && nodes[0] !== "propose") return { ok: false, reason: "propose must be first" };
   if (nodes.includes("verify") && !(planAt < nodes.indexOf("verify") && nodes.indexOf("verify") < implementAt)) return { ok: false, reason: "verify must be between plan and implement" };
+  if (nodes.includes("impl-verify") && !(implementAt < nodes.indexOf("impl-verify") && nodes.indexOf("impl-verify") < acceptAt)) return { ok: false, reason: "impl-verify must be between implement and accept" };
   if (nodes.includes("qa") && !(implementAt < nodes.indexOf("qa") && nodes.indexOf("qa") < acceptAt)) return { ok: false, reason: "qa must be between implement and accept" };
+  if (nodes.includes("impl-verify") && nodes.includes("qa") && nodes.indexOf("impl-verify") > nodes.indexOf("qa")) return { ok: false, reason: "impl-verify must come before qa" };
   for (const [alias, agent] of [["doc-audit", "doc-auditor"], ["scout", "feature-scout"]]) {
     const slots = nodes.filter((id) => slotAgent(id) === agent);
     if (slots.includes(alias) && slots.length > 1) return { ok: false, reason: `don't mix ${alias} with ${agent} slots` };
@@ -93,19 +95,21 @@ export function cursorForStatus(graph, status) {
     case "planning": return "plan";
     case "in_review": return graph.nodes.includes("verify") ? "verify" : at("implement");
     case "implementing": return "implement";
-    case "done": return graph.nodes.includes("qa") ? at("qa") : "accept";
+    case "done": return graph.nodes.includes("impl-verify") ? at("impl-verify") : graph.nodes.includes("qa") ? at("qa") : "accept";
     default: return null;
   }
 }
 // 노드 하나가 끝났는가 — 증거로만 판정한다(에이전트의 말이 아니라 원장·보드).
 //   propose: 행이 있다(런이 있다는 뜻) · plan: 계획서가 제출돼 in_review 이후다 · verify: 검증 기록 · implement: done
 //   accept: acceptedAt · doc-audit/scout: 커서가 들어온 뒤 그 에이전트의 run이 닫혔다
+//   qa·impl-verify: 현재 entry에서 통과로 닫힌 검증 run과 그 보고
 export function nodeDone(kind, facts) {
   if (facts.format === SLOT_FORMAT) {
     if (kind === "implement") return facts.implementationComplete === true;
     if (PROJECT_AGENTS.includes(slotAgent(kind))) return facts.slotComplete === true;
   }
   switch (kind) {
+    case "impl-verify": return facts.implVerifyComplete === true;
     case "qa": return facts.qaComplete === true;
     case "propose": return true;
     case "plan": return ["in_review", "implementing", "done"].includes(facts.status);
@@ -138,7 +142,7 @@ export function advance(graph, cursor, facts) {
     if (facts.format === SLOT_FORMAT) {
       const boundary = boundaryOf(gateId(next));
       if (boundary && status === boundary.from && !graph.gates.includes(gateId(next))) transitions.push(boundary);
-      if (["accept", gateId("accept"), "qa", gateId("qa")].includes(next) && status === "implementing") {
+      if (["impl-verify", gateId("impl-verify"), "accept", gateId("accept"), "qa", gateId("qa")].includes(next) && status === "implementing") {
         transitions.push({ from: "implementing", to: "done" });
       }
       return { cursor: next, entered, transitions };

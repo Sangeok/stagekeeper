@@ -132,6 +132,7 @@ describe("buildBriefing", () => {
       { agent: "admin-dev", state: "Awaiting review" },
       { agent: "backend-dev", state: "On hold" },
       { agent: "plan-verifier", state: "Idle" },
+      { agent: "impl-verifier", state: "Idle" },
       { agent: "qa-verifier", state: "Idle" },
       { agent: "doc-auditor", state: "Idle" },
       { agent: "feature-scout", state: "Idle" },
@@ -210,6 +211,7 @@ describe("buildBriefing", () => {
       team: [
         { agent: "pm", state: "No new proposals" },
         { agent: "plan-verifier", state: "Idle" },
+        { agent: "impl-verifier", state: "Idle" },
         { agent: "qa-verifier", state: "Idle" },
         { agent: "doc-auditor", state: "Idle" },
         { agent: "feature-scout", state: "Idle" },
