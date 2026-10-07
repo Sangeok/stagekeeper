@@ -109,7 +109,7 @@ export type ReportSubmitInput = {
 };
 
 // 불변식 8의 벽. 두 가지를 건다.
-//  ① 행위자: 아무 이름이나 보고 파일을 심을 수 없다. 고정 4종 + 워크스페이스 dev + main-loop만.
+//  ① 행위자: 아무 이름이나 보고 파일을 심을 수 없다. 고정 보고 에이전트(REPORT_AGENTS) + 워크스페이스 dev + main-loop만.
 //  ② 검증 선행: implementing(구현 보고)에서만 verify 기록을 요구한다. in_review(검증 라운드 기록)와
 //     done(인수 기록)은 요구하지 않는다 — 예외를 **상태**로 걸어야 이름 위장으로 못 지나간다.
 // verify를 outcome 불문으로 보는 이유:
