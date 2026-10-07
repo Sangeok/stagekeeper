@@ -5,7 +5,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, write
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { installedWindowsRuntime, runNativeCommand } from "../plugin/runtime/role-commands.mjs";
+import { installedWindowsRuntime, prepareNativeRoot, runNativeCommand } from "../plugin/runtime/role-commands.mjs";
 
 it("preserves readlink's non-link semantics, callback validation and denied paths inside actual LPAC", {
   skip: process.platform !== "win32" || !process.env.STAGEKEEPER_TEST_WINDOWS_RUNTIME || process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1",
@@ -14,7 +14,7 @@ it("preserves readlink's non-link semantics, callback validation and denied path
   const temporaryRoot = realpathSync(tmpdir());
   const base = mkdtempSync(path.join(temporaryRoot, "stagekeeper-readlink-test-"));
   const directory = path.join(base, "command");
-  for (const name of ["repo", "runtime", "scratch"]) mkdirSync(path.join(directory, name), { recursive: true });
+  mkdirSync(directory, { recursive: true }); const prepared = await prepareNativeRoot(directory);
   const runtime = installedWindowsRuntime(process.env.STAGEKEEPER_TEST_WINDOWS_RUNTIME);
   const executable = path.join(runtime.directory, "node.exe");
   assert.equal(createHash("sha256").update(readFileSync(executable)).digest("hex"), runtime.executableSha256);
@@ -50,7 +50,7 @@ const errorCode = code => error => error.code === code;
     assert.ok(path.basename(base).startsWith("stagekeeper-readlink-test-"));
     await rm(base, { recursive: true });
   });
-  const result = await runNativeCommand({ root: directory,
+  const result = await runNativeCommand({ root: directory, ...prepared,
     command: 'set "NODE_OPTIONS=--require %CD%\\compat.cjs" && node probe.cjs', cwd: "", timeoutMs: 10000 });
   acknowledged = result.quiescent;
   assert.equal(result.status, "exited");

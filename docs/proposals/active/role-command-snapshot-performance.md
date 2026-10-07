@@ -5,7 +5,7 @@ proposal-size: "standard"
 created-at: "2026-10-07"
 approved-by: "HamSangEok"
 approved-at: "2026-10-07"
-approval-scope: "Phase 0(단계별 시간 기록)만"
+approval-scope: "Phase 0(단계별 시간 기록), Phase 1(빈 루트 선부여)"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -966,7 +966,8 @@ Phase 2의 비동기 검사가 계약을 유지하는 이유:
 승인 메모:
 
 - 2026-10-07 Phase 0만 승인했습니다. Phase 1 이후는 Phase 0 기준선과 수치 목표를 이 문서에 기록한 뒤 따로 승인합니다.
-- 2026-10-07 Phase 0 구현(#130)이 머지됐고 기준선과 수치 목표를 기록했습니다. Phase 1은 아직 승인 전입니다.
+- 2026-10-07 Phase 0 구현(#130)이 머지됐고 기준선과 수치 목표를 기록했습니다.
+- 2026-10-07 Phase 1을 승인했습니다. Phase 2·3은 승인 전입니다.
 
 ## Execution Plan
 
@@ -1106,6 +1107,10 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 | `npm run check` | Pass (Phase 0) | 로컬 worktree |
 | `npm test` | Pass (Phase 0) | 333 pass, 2 skip(런타임 필요 시험, 아래 native 실행에서 통과) |
 | Phase 0 native 시험 (로컬, CI 런타임 `033f9ac…`) | Pass | `harness-role-commands`·`harness-role-files`·`harness-role-git` 30/30, readlink·spawn 2/2. `timings`를 빼면 새 단언이 실패하고, `aclMs` 대입만 빼면 기본값 0으로 통과합니다(값 확인은 CI 리허설 출력으로) |
+| `npm run check` | Pass (Phase 1) | 로컬 worktree |
+| `npm test` | Pass (Phase 1) | 334 pass, 2 skip(런타임 필요 시험, 아래 native 실행에서 통과) |
+| Phase 1 native 시험 (로컬, CI 런타임 `033f9ac…`) | Pass | `harness-role-commands`·`harness-role-files`·`harness-role-git`·readlink·spawn 37/37(새 시험 2 포함) |
+| Phase 1 변형 확인 (로컬) | Pass | `RequireGrant` 무력화, `profile-sid` 검사 제거, `prepare-empty` 검사 제거는 새 시험 2가 "거부 누락"으로 실패합니다. repo 권한을 상속 안 되게 바꾸면 `Run`이 `snapshot-acl`에서 실행을 거부합니다 |
 | `windows-role-runtime` (CI) | Pass (Phase 0) | PR #130 1회, `dev` `c8e81c1` 3회. 값은 Current State "Phase 0 기준선" |
 | 문서 적용본 로컬 검증 (설계 검증용, 구현 아님) | Pass | `harness-role-files` 10/10, `harness-role-commands` 14/14(런타임 포함), readlink 1/1, spawn 1/1, 리허설 exit 0. 세부는 Current State |
 

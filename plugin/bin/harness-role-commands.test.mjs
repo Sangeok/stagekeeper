@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { gitRoot, stateFiles, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { createRoleFiles } from "../runtime/role-files.mjs";
-import { snapshotRepository, runNativeCommand, createRoleCommands, installedWindowsRuntime, verifyNativeRuntime } from "../runtime/role-commands.mjs";
+import { snapshotRepository, runNativeCommand, prepareNativeRoot, createRoleCommands, installedWindowsRuntime, verifyNativeRuntime } from "../runtime/role-commands.mjs";
 
 const digest = value => createHash("sha256").update(value).digest("hex");
 const temporaryRoot = realpathSync(tmpdir());
@@ -67,9 +67,10 @@ it("refuses malformed runtime provenance and PM execution", async t => {
 
 async function nativeFixture(t) {
   const f = fixture(t), directory = path.join(f.base, "command");
-  await mkdir(directory); for (const name of ["repo", "runtime", "scratch"]) await mkdir(path.join(directory, name));
+  // As in a real snapshot, files written after preparation inherit the role grant.
+  await mkdir(directory); const prepared = await prepareNativeRoot(directory);
   writeFileSync(path.join(directory, "repo/read.txt"), "READ_CANARY");
-  return { ...f, directory };
+  return { ...f, directory, prepared };
 }
 // Outer host kernel acceptance cannot recursively create another privileged
 // launcher inside an already isolated role snapshot. Its skipped status is visible.
@@ -78,7 +79,7 @@ const native = { skip: process.platform !== "win32" || process.env.STAGEKEEPER_R
 it("uses actual LPAC file denial and leaves the original repository unchanged", native, async t => {
   const f = await nativeFixture(t), outside = path.join(f.base, "external.txt"), source = path.join(f.root, "src/source.cjs");
   let registered = 0, settled = 0;
-  const result = await runNativeCommand({ root: f.directory, command: `type read.txt & echo SCRATCH_WRITE> ..\\scratch\\written.txt & type "${outside}" & echo FORBIDDEN> "${source}" & type ..\\boundary\\aap-only.txt`, cwd: "", timeoutMs: 2000 },
+  const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: `type read.txt & echo SCRATCH_WRITE> ..\\scratch\\written.txt & type "${outside}" & echo FORBIDDEN> "${source}" & type ..\\boundary\\aap-only.txt`, cwd: "", timeoutMs: 2000 },
     { onSpawn: async () => registered++, onSettled: async () => settled++ });
   assert.equal(result.quiescent, true); assert.equal(result.status, "exited"); assert.notEqual(result.exitCode, 0);
   assert.equal(registered, 1); assert.equal(settled, 1);
@@ -90,11 +91,11 @@ it("uses actual LPAC file denial and leaves the original repository unchanged", 
 
 it("bounds output and terminates all Job Object children on timeout", native, async t => {
   const f = await nativeFixture(t);
-  const result = await runNativeCommand({ root: f.directory, command: 'start /b cmd /d /c "for /l %n in (1,1,100000000) do @rem waiting" & for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 300 });
+  const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: 'start /b cmd /d /c "for /l %n in (1,1,100000000) do @rem waiting" & for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 300 });
   assert.equal(result.status, "timeout"); assert.equal(result.quiescent, true);
   assert.ok(result.maxActiveProcesses >= 2, "A real descendant must have entered the job before cancellation");
   const out = await nativeFixture(t);
-  const capped = await runNativeCommand({ root: out.directory, command: 'for /l %n in (1,1,100000) do @echo OUTPUT_CANARY_012345678901234567890123456789', cwd: "", timeoutMs: 5000 });
+  const capped = await runNativeCommand({ root: out.directory, ...out.prepared, command: 'for /l %n in (1,1,100000) do @echo OUTPUT_CANARY_012345678901234567890123456789', cwd: "", timeoutMs: 5000 });
   assert.equal(capped.status, "output-limit"); assert.equal(capped.outputTruncated, true); assert.equal(capped.quiescent, true);
   assert.ok(Buffer.byteLength(capped.stdout + capped.stderr) <= 49152);
 });
@@ -108,7 +109,7 @@ it("refuses an external junction and safely cleans a later junction without chan
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "psmodulepath"));
   const originalAcl = () => execFileSync(powershell, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", aclScript, f.root], { encoding: "utf8", windowsHide: true, env }).trim();
   const before = originalAcl(); assert.match(before, /^O:.+D:/);
-  const result = await runNativeCommand({ root: f.directory, command: `mklink /J alias "${f.root}" & type alias\\src\\source.cjs`, cwd: "", timeoutMs: 2000 });
+  const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: `mklink /J alias "${f.root}" & type alias\\src\\source.cjs`, cwd: "", timeoutMs: 2000 });
   assert.equal(result.quiescent, true); assert.notEqual(result.exitCode, 0); assert.equal(existsSync(path.join(f.directory, "repo/alias")), false);
   assert.equal(result.stdout.includes("module.exports"), false); assert.equal(originalAcl(), before);
   // The kernel denied the role's link creation. Introduce a link only after the
@@ -127,7 +128,7 @@ it("retains the real session lock until a stopped command helper acknowledges al
   const started = await startSession(files, binding, { client: "codex", commit: false, propose: false });
   let stopTimer, stopTask;
   try {
-    const result = await runNativeCommand({ root: f.directory, command: 'start /b cmd /d /c "for /l %n in (1,1,100000000) do @rem waiting" & for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 10000 }, {
+    const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: 'start /b cmd /d /c "for /l %n in (1,1,100000000) do @rem waiting" & for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 10000 }, {
       onSpawn: async child => {
         await registerChild(files, started.session, binding, child);
       },
@@ -151,18 +152,18 @@ it("waits for actual job termination on stop and never activates after an owner 
   const f = await nativeFixture(t), controller = new AbortController(); let settled = 0;
   const timer = setTimeout(() => controller.abort(), 2500);
   try {
-    const result = await runNativeCommand({ root: f.directory, command: 'for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 10000 }, { signal: controller.signal, onSettled: async () => settled++ });
+    const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: 'for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 10000 }, { signal: controller.signal, onSettled: async () => settled++ });
     assert.equal(result.status, "stopped"); assert.equal(result.quiescent, true); assert.equal(settled, 1);
   } finally { clearTimeout(timer); }
   const refused = await nativeFixture(t); let refusedSettled = 0;
-  await assert.rejects(runNativeCommand({ root: refused.directory, command: 'echo FORBIDDEN> write.txt', cwd: "", timeoutMs: 500 }, { beforeActivate: async () => { throw new Error("owner stopped"); }, onSettled: async () => refusedSettled++ }), /owner stopped/);
+  await assert.rejects(runNativeCommand({ root: refused.directory, ...refused.prepared, command: 'echo FORBIDDEN> write.txt', cwd: "", timeoutMs: 500 }, { beforeActivate: async () => { throw new Error("owner stopped"); }, onSettled: async () => refusedSettled++ }), /owner stopped/);
   assert.equal(refusedSettled, 1); assert.equal(existsSync(path.join(refused.directory, "repo/write.txt")), false);
 });
 
 it("never resumes an untrusted command when stop is queued during helper compilation", native, async t => {
   const f = await nativeFixture(t), controller = new AbortController(); let started = 0, timer;
   try {
-    const result = await runNativeCommand({ root: f.directory, command: "echo FORBIDDEN> write.txt", cwd: "", timeoutMs: 5000 }, {
+    const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: "echo FORBIDDEN> write.txt", cwd: "", timeoutMs: 5000 }, {
       signal: controller.signal,
       onSpawn: async () => { timer = setTimeout(() => controller.abort(), 150); },
       onStarted: async () => started++,
@@ -170,6 +171,24 @@ it("never resumes an untrusted command when stop is queued during helper compila
     assert.equal(result.status, "stopped"); assert.equal(result.quiescent, true); assert.equal(started, 0);
     assert.equal(existsSync(path.join(f.directory, "repo/write.txt")), false);
   } finally { clearTimeout(timer); }
+});
+
+it("grants the role SID only on empty roots and refuses a launch whose prepared SID, grants or profile differ", native, async t => {
+  const f = fixture(t), named = name => path.join(f.base, name);
+  const [mismatched, accepted, populated, unprepared, invalid] = ["mismatched", "accepted", "populated", "unprepared", "invalid"].map(named);
+  for (const directory of [mismatched, accepted]) await mkdir(directory);
+  const first = await prepareNativeRoot(mismatched), second = await prepareNativeRoot(accepted);
+  assert.match(first.sid, /^S-1-15-2(?:-\d+){7}$/); assert.notEqual(first.sid, second.sid);
+  for (const directory of [mismatched, accepted]) writeFileSync(path.join(directory, "repo/read.txt"), "READ_CANARY");
+  await assert.rejects(runNativeCommand({ root: mismatched, ...first, sid: second.sid, command: "type read.txt", cwd: "", timeoutMs: 2000 }), /profile-sid/);
+  const result = await runNativeCommand({ root: accepted, ...second, command: "type read.txt", cwd: "", timeoutMs: 2000 });
+  assert.equal(result.stdout, "READ_CANARY");
+  // Each helper launch writes its sources into its root with "wx", so every refusal uses its own root.
+  for (const directory of [populated, unprepared, invalid]) for (const name of ["repo", "scratch", "runtime"]) await mkdir(path.join(directory, name), { recursive: true });
+  writeFileSync(path.join(populated, "repo/early.txt"), "EARLY");
+  await assert.rejects(runNativeCommand({ mode: "prepare", root: populated, profile: first.profile, command: "prepare", cwd: "", timeoutMs: 10000 }), /prepare-empty/);
+  await assert.rejects(runNativeCommand({ root: unprepared, ...first, command: "type read.txt", cwd: "", timeoutMs: 2000 }), /snapshot-acl/);
+  await assert.rejects(runNativeCommand({ root: invalid, profile: "stagekeeper.role.invalid", sid: first.sid, command: "type read.txt", cwd: "", timeoutMs: 2000 }), /validation-profile/);
 });
 
 it("rejects malformed command arguments before preparing or executing a snapshot", async t => {
@@ -192,7 +211,7 @@ it("passes real pipe/network/path preflight and runs npm test/build on a fresh s
     assert.equal(first.exitCode, 0); assert.equal(first.status, "exited"); assert.match(first.stdout, /BUILD_READY/);
     assert.equal(first.originalRepositoryWrites, false); assert.equal(first.snapshotWrites, "discarded"); assert.equal(existsSync(path.join(f.root, "built.txt")), false);
     // Durations vary by machine; only their contract holds: monotonic laps and a non-negative Stopwatch.
-    for (const name of ["snapshotMs", "scratchMs", "runtimeMs", "commandMs"]) assert.ok(Number.isInteger(first.timings[name]) && first.timings[name] >= 0, name);
+    for (const name of ["grantMs", "snapshotMs", "scratchMs", "runtimeMs", "commandMs"]) assert.ok(Number.isInteger(first.timings[name]) && first.timings[name] >= 0, name);
     assert.ok(Number.isInteger(first.aclMs) && first.aclMs >= 0, "aclMs");
     const source = path.join(f.root, "src/source.cjs"); f.files.call("role_file_write", { path: source, expectedHash: digest(readFileSync(source)), content: "module.exports = 41;\n" });
     const failed = await broker.call("role_command_exec", { command: "npm run test" });

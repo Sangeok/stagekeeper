@@ -17,7 +17,7 @@ public static class StagekeeperRoleProcess {
   public sealed class Result {
     public uint exitCode;
     public uint maxActiveProcesses;
-    public string status, stdout, stderr;
+    public string status, stdout, stderr, sid;
     public bool quiescent, outputTruncated;
     public long aclMs;
   }
@@ -36,6 +36,7 @@ public static class StagekeeperRoleProcess {
   [StructLayout(LayoutKind.Sequential)] struct ProcessInformation { public IntPtr Process, Thread; public uint Pid, Tid; }
   [DllImport("userenv.dll", CharSet=CharSet.Unicode)] static extern int CreateAppContainerProfile(string name, string display, string description, IntPtr capabilities, uint count, out IntPtr sid);
   [DllImport("userenv.dll", CharSet=CharSet.Unicode)] static extern int DeleteAppContainerProfile(string name);
+  [DllImport("userenv.dll", CharSet=CharSet.Unicode)] static extern int DeriveAppContainerSidFromAppContainerName(string name, out IntPtr sid);
   [DllImport("advapi32.dll")] static extern IntPtr FreeSid(IntPtr sid);
   [DllImport("kernelbase.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool DeriveCapabilitySidsFromName(string name, out IntPtr groups, out uint groupCount, out IntPtr capabilities, out uint capabilityCount);
   [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr value);
@@ -89,6 +90,55 @@ public static class StagekeeperRoleProcess {
     acl.AddAccessRule(new FileSystemAccessRule(sid, rights, inherit ? InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit : InheritanceFlags.None, PropagationFlags.None, AccessControlType.Allow));
     Directory.SetAccessControl(directory, acl);
   }
+  // Shared by Prepare and Run. The trusted broker created this owned directory. .NET and
+  // Node differ in Windows path canonicalization (including system TEMP's 8.3 spelling).
+  // Normalize the same physical target; never accept UNC/device roots or grant
+  // permissions to an original/model-selected path.
+  static string[] SnapshotRoots(string root) {
+    Stage = "validation-local-path";
+    if (root == null || root.Length < 4 || !Char.IsLetter(root[0]) || root[1] != ':' || root[2] != '\\' || !Path.IsPathRooted(root)) throw new Exception("A local owned snapshot is required");
+    root = Path.GetFullPath(root);
+    string[] roots = { root, Path.Combine(root, "repo"), Path.Combine(root, "scratch"), Path.Combine(root, "runtime") };
+    Stage = "validation-alias";
+    foreach (string dir in roots) if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) throw new Exception("Snapshot alias refused");
+    return roots;
+  }
+  static string ProfileName(string name) {
+    Stage = "validation-profile";
+    if (name == null || !System.Text.RegularExpressions.Regex.IsMatch(name, "^stagekeeper\\.role\\.[0-9a-f]{32}$")) throw new Exception("Invalid role profile");
+    return name;
+  }
+  const FileSystemRights RootRights = FileSystemRights.ReadAttributes | FileSystemRights.ReadExtendedAttributes | FileSystemRights.Traverse | FileSystemRights.Synchronize;
+  // Read-only check. Any DACL write on a populated directory re-walks its subtree, even
+  // for a non-inheritable rule, so Run never writes ACLs on the copied trees.
+  static void RequireGrant(string directory, SecurityIdentifier sid, FileSystemRights rights, bool inherit) {
+    var flags = inherit ? InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit : InheritanceFlags.None;
+    foreach (FileSystemAccessRule rule in Directory.GetAccessControl(directory).GetAccessRules(true, false, typeof(SecurityIdentifier)))
+      if (rule.IdentityReference.Equals(sid) && rule.AccessControlType == AccessControlType.Allow && rule.InheritanceFlags == flags && (rule.FileSystemRights & rights) == rights) return;
+    throw new Exception("Prepared snapshot grant missing");
+  }
+  // Grants the role SID on the still-empty snapshot roots so files copied afterwards
+  // inherit it at creation. No profile, token or process exists yet; Run creates the profile.
+  public static Result Prepare(string root, string profileName) {
+    string[] roots = SnapshotRoots(root);
+    string name = ProfileName(profileName);
+    Stage = "prepare-empty";
+    for (int i = 1; i < roots.Length; i++) using (var entries = Directory.EnumerateFileSystemEntries(roots[i]).GetEnumerator()) if (entries.MoveNext()) throw new Exception("Snapshot root is not empty");
+    Stage = "prepare-sid";
+    IntPtr sid;
+    int status = DeriveAppContainerSidFromAppContainerName(name, out sid);
+    if (status != 0) Marshal.ThrowExceptionForHR(status);
+    try {
+      var identifier = new SecurityIdentifier(sid);
+      Stage = "prepare-acl";
+      var clock = System.Diagnostics.Stopwatch.StartNew();
+      Grant(roots[0], identifier, RootRights, false);
+      Grant(roots[1], identifier, FileSystemRights.Modify, true);
+      Grant(roots[2], identifier, FileSystemRights.Modify, true);
+      Grant(roots[3], identifier, FileSystemRights.ReadAndExecute, true);
+      return new Result { status = "exited", stdout = "", stderr = "", quiescent = true, sid = identifier.Value, aclMs = clock.ElapsedMilliseconds };
+    } finally { FreeSid(sid); }
+  }
   static string MapDrive(string root) {
     for (char letter = 'Z'; letter >= 'D'; letter--) {
       string name = letter + ":";
@@ -121,22 +171,15 @@ public static class StagekeeperRoleProcess {
     }
   }
 
-  public static Result Run(string root, string command, string cwd, int timeoutMs) {
+  public static Result Run(string root, string profileName, string expectedSid, string command, string cwd, int timeoutMs) {
     Stage = "validation-bounds";
     if (timeoutMs < 100 || timeoutMs > 120000 || command == null || command.Length > 4096 || command.IndexOf('\0') >= 0) throw new Exception("Invalid role request");
-    Stage = "validation-local-path";
-    if (root == null || root.Length < 4 || !Char.IsLetter(root[0]) || root[1] != ':' || root[2] != '\\' || !Path.IsPathRooted(root)) throw new Exception("A local owned snapshot is required");
-    // The trusted broker created this owned directory. .NET and Node differ in
-    // Windows path canonicalization (including system TEMP's 8.3 spelling).
-    // Normalize the same physical target; never accept UNC/device roots or grant
-    // permissions to an original/model-selected path.
-    root = Path.GetFullPath(root);
     Stage = "validation-cwd";
     if (cwd == null || cwd.StartsWith("\\") || cwd.IndexOf(':') >= 0 || Array.Exists(cwd.Split('\\', '/'), part => part == ".." || part == ".")) throw new Exception("Invalid snapshot cwd");
-    string repo = Path.Combine(root, "repo"), scratch = Path.Combine(root, "scratch"), runtime = Path.Combine(root, "runtime");
-    Stage = "validation-alias";
-    foreach (string dir in new string[] { root, repo, scratch, runtime }) if ((File.GetAttributes(dir) & FileAttributes.ReparsePoint) != 0) throw new Exception("Snapshot alias refused");
-    string name = "stagekeeper.role." + Guid.NewGuid().ToString("N"), drive = null;
+    string[] roots = SnapshotRoots(root);
+    root = roots[0];
+    string repo = roots[1], scratch = roots[2], runtime = roots[3];
+    string name = ProfileName(profileName), drive = null;
     IntPtr sid = IntPtr.Zero, list = IntPtr.Zero, caps = IntPtr.Zero, optout = IntPtr.Zero, environment = IntPtr.Zero, groups = IntPtr.Zero, capabilitySids = IntPtr.Zero, capability = IntPtr.Zero;
     uint groupCount = 0, capabilityCount = 0;
     IntPtr inRead = IntPtr.Zero, inWrite = IntPtr.Zero, outRead = IntPtr.Zero, outWrite = IntPtr.Zero, errRead = IntPtr.Zero, errWrite = IntPtr.Zero, handles = IntPtr.Zero, job = IntPtr.Zero, limits = IntPtr.Zero;
@@ -148,12 +191,16 @@ public static class StagekeeperRoleProcess {
       Stage = "profile-create";
       int status = CreateAppContainerProfile(name, name, "Disposable Stagekeeper role", IntPtr.Zero, 0, out sid);
       if (status != 0) Marshal.ThrowExceptionForHR(status); profile = true; identifier = new SecurityIdentifier(sid);
+      Stage = "profile-sid";
+      if (!String.Equals(identifier.Value, expectedSid, StringComparison.Ordinal)) throw new Exception("Profile SID differs from prepared grants");
       Stage = "snapshot-acl";
       var aclClock = System.Diagnostics.Stopwatch.StartNew();
-      Grant(root, identifier, FileSystemRights.ReadAttributes | FileSystemRights.ReadExtendedAttributes | FileSystemRights.Traverse | FileSystemRights.Synchronize, false);
-      Grant(repo, identifier, FileSystemRights.Modify, true);
-      Grant(scratch, identifier, FileSystemRights.Modify, true);
-      Grant(runtime, identifier, FileSystemRights.ReadAndExecute, true);
+      // Prepare wrote these rules before the owner copied files, and copied files inherited
+      // them at creation. Only read them here: a write would re-walk the populated tree.
+      RequireGrant(root, identifier, RootRights, false);
+      RequireGrant(repo, identifier, FileSystemRights.Modify, true);
+      RequireGrant(scratch, identifier, FileSystemRights.Modify, true);
+      RequireGrant(runtime, identifier, FileSystemRights.ReadAndExecute, true);
       string boundary = Path.Combine(root, "boundary"); Directory.CreateDirectory(boundary);
       Grant(boundary, identifier, FileSystemRights.ReadAndExecute, false);
       string aapCanary = Path.Combine(boundary, "aap-only.txt");

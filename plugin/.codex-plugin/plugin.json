@@ -1,6 +1,6 @@
 {
   "name": "harness",
   "description": "Stagekeeper foreground pipeline run and resume for Codex.",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "skills": "./codex/skills/"
 }

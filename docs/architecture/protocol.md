@@ -502,6 +502,9 @@ Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제
 각 snapshot 준비 300초를 상한으로 둔다. 최대 8개 파일을 별도 buffer로 복사하며 모든
 진행 중 복사를 join한 뒤 오류를 전파·정리한다. 실제 경로와 IO 전후 identity·mtime·size를
 매번 확인하며 권한·경로 결과를 cache하지 않는다.
+역할 SID 권한은 복사 전에 부여한다(helper `prepare`). 상속 권한은 빈 repository·scratch·runtime
+루트에, root의 상속되지 않는 Traverse 권한은 복사 전 root에 둔다. 복사된 파일은 생성 시 상속하며
+채워진 트리에는 ACL을 쓰지 않는다.
 `cwd`는 repository 상대 경로이고 `STAGEKEEPER_ROLE_SCRATCH`는 복사한 scratch다.
 전체 source/scratch hash·누락 수/경로·누락 목록 잘림을 결과에 포함한다. 결과의 단계별 소요
 시간(`timings`, helper ACL 단계 `aclMs`)은 숫자 ms만 담는다. 모든 복사본 쓰기와
@@ -545,6 +548,8 @@ commit은 허용하지 않는다. 누락·거부·출력 상한은 blocked이며
 trusted PowerShell/C# helper는 새 LPAC profile에 `registryRead`만 주며 AAP opt-out과
 AppContainer SID·capability를 suspended process에서 확인한다. ACL은 새 owned root의
 metadata와 복사본에만 부여한다. 원본 repository·인증·drive root의 ACL은 바꾸지 않는다.
+실행 helper는 새 profile을 만든 뒤 그 SID가 준비한 SID와 같은지, root와 세 루트에 준비한 규칙이
+있는지 읽기만으로 확인하고 다르면 실행하지 않는다.
 Node의 일반 realpath/module semantics를 유지하기 위해 쓰지 않는 drive letter를 같은
 logon session에 임시 매핑한다. process 전용 매핑으로 주장하지 않으며 정상 종료 확인 뒤
 정확한 target을 지정해 해제한다. 자식은 같은 LPAC와 kill-on-close Job Object를 상속한다.
@@ -552,7 +557,7 @@ stdin EOF, 고정된 환경과 runtime/System32 PATH만 전달하며 network cap
 helper는 사용하는 Windows PowerShell 코어 모듈(Management·Utility)을 `$PSHOME`에서 절대
 경로로 먼저 로드하며 host 모듈 경로의 자동 로드 탐색에 의존하지 않는다.
 
-helper는 소유권 등록·active 확인 뒤에만 컴파일/실행하며 command 중에도 active를 확인한다.
+helper는 `prepare` 실행을 포함해 소유권 등록·active 확인 뒤에만 컴파일/실행하며 command 중에도 active를 확인한다.
 신뢰된 compiler 임시 파일은 검증한 owned 하위 디렉터리에서 만들고, untrusted 실행 전에
 같은 compiling process가 삭제한다. 실제 시작 marker와 종료 acknowledgement를 구분하며
 컴파일 중 도착한 stop도 suspended 자식의 resume 전에 확인한다.
