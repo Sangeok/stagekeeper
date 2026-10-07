@@ -125,6 +125,9 @@ async function copyObjects(common, destination, signal) {
   }
 }
 
+// Git for Windows 2.56 moved its builtin from mingw64 to ucrt64; older installs keep mingw64.
+const gitForWindowsBuiltins = ["ucrt64", "mingw64"];
+
 export function nativeGitExecutable(environment = process.env) {
   const name = process.platform === "win32" ? "git.exe" : "git";
   const envPath = Object.entries(environment).find(([key]) => key.toUpperCase() === "PATH")?.[1] ?? "";
@@ -132,11 +135,14 @@ export function nativeGitExecutable(environment = process.env) {
     if (!path.isAbsolute(directory)) continue;
     const candidate = path.join(directory, name);
     if (!existsSync(candidate)) continue;
-    if (process.platform === "win32" && ["cmd", "bin"].includes(path.basename(directory).toLowerCase()) && path.basename(path.dirname(directory)).toLowerCase() !== "mingw64") {
+    if (process.platform === "win32" && ["cmd", "bin"].includes(path.basename(directory).toLowerCase())
+      && !gitForWindowsBuiltins.includes(path.basename(path.dirname(directory)).toLowerCase())) {
       // Git for Windows cmd/bin shims launch a second process. Call the actual
       // builtin executable so cancellation joins the process that reads data.
-      const actual = path.join(path.dirname(directory), "mingw64/bin/git.exe");
-      if (existsSync(actual)) return realpathSync(actual);
+      for (const builtin of gitForWindowsBuiltins) {
+        const actual = path.join(path.dirname(directory), builtin, "bin/git.exe");
+        if (existsSync(actual)) return realpathSync(actual);
+      }
       throw new Error("Native Git launcher cannot establish reader termination");
     }
     return realpathSync(candidate);
@@ -146,14 +152,16 @@ export function nativeGitExecutable(environment = process.env) {
 
 async function gitRead(directory, git, args, lifecycle, signal) {
   check(signal); await lifecycle.beforeActivate?.(); check(signal);
-  const system = process.env.SystemRoot ?? "C:\\Windows", nil = process.platform === "win32" ? "NUL" : "/dev/null";
+  // The owned empty file replaces NUL: Git for Windows 2.56.0 cannot open NUL as
+  // a config path. It also serves as the empty attributes file.
+  const system = process.env.SystemRoot ?? "C:\\Windows", empty = path.join(directory, "empty");
   const env = { PATH: [path.dirname(git), ...(process.platform === "win32" ? [path.join(system, "System32")] : [])].join(path.delimiter),
     HOME: directory, USERPROFILE: directory, XDG_CONFIG_HOME: directory, APPDATA: directory, LOCALAPPDATA: directory,
-    TMP: directory, TEMP: directory, LANG: "C", LC_ALL: "C", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_SYSTEM: nil, GIT_CONFIG_GLOBAL: nil,
+    TMP: directory, TEMP: directory, LANG: "C", LC_ALL: "C", GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_SYSTEM: empty, GIT_CONFIG_GLOBAL: empty,
     GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0", GIT_NO_REPLACE_OBJECTS: "1", GIT_NO_LAZY_FETCH: "1", GIT_LITERAL_PATHSPECS: "1" };
   if (process.platform === "win32") { env.SystemRoot = system; env.WINDIR = system; }
   const child = spawn(git, ["--no-pager", "--no-optional-locks", "--no-replace-objects", "--no-lazy-fetch", "--literal-pathspecs",
-    "-c", "core.fsmonitor=false", "-c", "core.autocrlf=false", "-c", "core.hooksPath=disabled-hooks", "-c", "core.attributesFile=" + nil,
+    "-c", "core.fsmonitor=false", "-c", "core.autocrlf=false", "-c", "core.hooksPath=disabled-hooks", "-c", "core.attributesFile=" + empty,
     "-c", "submodule.recurse=false", "--git-dir=" + path.join(directory, "git"), "--work-tree=" + path.join(directory, "repo"), ...args],
   { cwd: directory, env, windowsHide: true, shell: false, stdio: ["ignore", "pipe", "pipe"] });
   const owner = { pid: child.pid, nonce: randomUUID() };
@@ -222,6 +230,7 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
     await writeFile(path.join(directory, "owner.json"), JSON.stringify({ own }), { mode: 0o600 });
     try {
       await mkdir(path.join(directory, "git")); await mkdir(path.join(directory, "git/refs")); await mkdir(path.join(directory, "repo"));
+      await writeFile(path.join(directory, "empty"), "", { flag: "wx", mode: 0o600 });
       const sha256 = location.head.length === 64;
       await writeFile(path.join(directory, "git/config"), `[core]\nrepositoryformatversion = ${sha256 ? 1 : 0}\nbare = false\nautocrlf = false\n${sha256 ? "[extensions]\nobjectFormat = sha256\n" : ""}`);
       await writeFile(path.join(directory, "git/HEAD"), location.head + "\n");
