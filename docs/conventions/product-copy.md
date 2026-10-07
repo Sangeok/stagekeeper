@@ -208,6 +208,8 @@ and `pipeline_next` hands the session the same node.
 - plan → `Continue the pipeline for ITEM-01: plan — dev writes the plan.`
 - verify → `Continue the pipeline for ITEM-01: verify — verify the plan.`
 - implement → `Continue the pipeline for ITEM-01: implement — dev implements.`
+- impl-verify → `Continue the pipeline for ITEM-01: impl-verify — impl-verifier runs impl-verify.`
+- qa → `Continue the pipeline for ITEM-01: qa — qa-verifier runs qa.`
 - accept → `Continue the pipeline for ITEM-01: accept — accept.`
 - doc-audit → `Continue the pipeline for ITEM-01: doc-audit — doc-auditor audits.`
 - scout → `Continue the pipeline for ITEM-01: scout — feature-scout scouts.`
@@ -316,16 +318,17 @@ moves the item; it does not start an agent. Until someone runs the session, noth
 the banner, the Activity line and the Team row all say so rather than claiming work in progress.
 
 **Team row** — the agents the current pipeline dispatches, in graph order. pm appears when the
-graph has a Propose node, plan-verifier with Verify, doc-auditor with Doc audit, feature-scout
-with Scout; the workspace roster (dev and friends) appears once, for Plan and Implement. Accept
-dispatches nobody — the main loop runs it. feature-scout also runs outside the graph when nothing is left to pick and the backlog has changed since it last looked; the Team row lists graph nodes only, so it appears there only with a Scout node. The default pipeline has no feature-scout, and the Free
+graph has a Propose node, plan-verifier with Verify, impl-verifier with Implementation check,
+qa-verifier with QA, doc-auditor with Doc audit, feature-scout with Scout; the workspace roster (dev and friends) appears once, for Plan and Implement. Accept
+dispatches nobody — the main loop runs it. feature-scout also runs outside the graph when nothing is left to pick and the backlog has changed since it last looked; the Team row lists graph nodes only, so it appears there only with a Scout node. The default pipeline has no feature-scout, impl-verifier or qa-verifier, and the Free
 default has no plan-verifier or doc-auditor either.
 
 One dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
 "No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on
 FEAT-06" (only once its run is open; before that "Ready for FEAT-06") / "On hold" / "Recently
 done" / "Idle". Roles: pm "Selection" · dev "Development"
-· plan-verifier "Plan verification" · doc-auditor "Doc audit" · feature-scout "Feature
+· plan-verifier "Plan verification" · impl-verifier "Implementation check" · qa-verifier "QA"
+· doc-auditor "Doc audit" · feature-scout "Feature
 scouting" · unknown "Agent" · none "Unassigned". These role names are terminology, not fields
 rendered in the Team row; the row shows only the agent handle and its state.
 
@@ -337,8 +340,8 @@ rendered in the Team row; the row shows only the agent handle and its state.
 - Order: `before-implement` (in_review) first, then `before-plan` (proposed), then on_hold.
 - Cards are the decision card above (§6). A card appears when the item's pipeline run waits at a
   gate — not because of its status. A graph with that gate removed shows no card there.
-- Gates that are not a state boundary (`before-verify` · `before-accept` · `before-doc-audit` ·
-  `before-scout`) also make cards. Their button says **Continue to …**, the status does not change,
+- Gates that are not a state boundary (`before-verify` · `before-impl-verify` · `before-qa` ·
+  `before-accept` · `before-doc-audit` · `before-scout`) also make cards. Their button says **Continue to …**, the status does not change,
   and the "What this decision does" list adds: "**Continue** moves the item to the next node;
   nothing changes on the board."
 - No gate warns about a missing validation — whether to verify is the owner's choice, made in the
@@ -714,6 +717,18 @@ are terse on purpose — agents parse them.
 | `plan_submit only in planning or in_review (now done)` | — |
 | `report_submit only in in_review, implementing, or done (now proposed)` | — |
 | `no such board item: FEAT-9` | — |
+| `QA has not completed; acceptance is only available at accept` | — |
+| `QA evidence belongs to qa-verifier` | — |
+| `QA report requires its bound AgentRun and report path` | — |
+| `QA report requires the current qa entry` | — |
+| `QA target does not match the implementation report commit` | — |
+| `QA verdict does not match the current run's verification outcome` | — |
+| `Implementation verification has not completed; acceptance is only available at accept` | — |
+| `Implementation verification report requires its bound AgentRun and report path` | — |
+| `Implementation verification report requires a commit SHA` | — |
+| `Implementation verification report requires the current impl-verify entry` | — |
+| `Implementation verification needs a completed implementation report` | — |
+| `Implementation verification report does not match the current run's outcome` | — |
 | `not the owner of this project` (owner server `gate_approve` · **agent server와 REST 3종**: `hu_` 토큰이 남의 슬러그를 가리킬 때. 없는 슬러그도 같은 문장이다 — 존재 여부를 흘리지 않는다) | — |
 | `project required: send harness.json project.slug as project on every request. If the slug is missing, recover it with /harness:init; if it is already set, update the harness plugin or include project in the MCP call.` (agent server · REST 3종: `hu_` 토큰인데 `project`가 없을 때. `hs_`에는 나오지 않는다) | — |
 | `session approvals are not on the free plan — approve in the Inbox, or upgrade the plan` (owner server) | — |
@@ -736,6 +751,9 @@ are terse on purpose — agents parse them.
 | `anchors must keep the order plan · implement · accept` | shown as is |
 | `propose must be first` | shown as is |
 | `verify must be between plan and implement` | shown as is |
+| `impl-verify must be between implement and accept` | shown as is |
+| `qa must be between implement and accept` | shown as is |
+| `impl-verify must come before qa` | shown as is |
 | `don't mix doc-audit with doc-auditor slots` | shown as is |
 | `a gate appears twice` | shown as is |
 | `gate before-scout has no node after it` | shown as is |
@@ -766,10 +784,10 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `board_propose` | pm: create a `proposed` item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, or the key is already open. |
 | `board_transition` | Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. `plan_submit` already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here. |
 | `plan_submit` | Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing. Optional type (feat, fix, refactor, docs) fills an empty type or revises an agent-set type; an owner-set type is preserved (typeKept: owner when it differs). |
-| `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
+| `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires `runId` and `qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}`. impl-verifier additionally requires `runId`. Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
 | `acceptance_fail` | main-loop: record a failed acceptance at the accept node — the failed checks (1–5, the runbook's five acceptance checks) and a note of 150 characters or fewer; a committed write-up's path and commit are optional, together. The item then waits for the owner, who runs acceptance again or reopens it on the item page. Don't run the checks again until pipeline_next answers accept. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
-| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is feature-scout's turn (no candidates) or pm's turn (candidates remain) (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "a Scout node in items dispatches feature-scout — that run looks for items to add" · "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — the selected pm or unbound feature-scout run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. Pass `runbook` — the version written in the calling checkout's `CLAUDE.md` — and the answer judges that copy; without it, the version the last init reported. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap` · `acceptance`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
+| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is feature-scout's turn (no candidates) or pm's turn (candidates remain) (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "a Scout node in items dispatches feature-scout — that run looks for items to add" · "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — the selected pm or unbound feature-scout run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. Pass `runbook` — the version written in the calling checkout's `CLAUDE.md` — and the answer judges that copy; without it, the version the last init reported. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap` · `acceptance` · `impl-verify` · `qa`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
 | `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:
@@ -1194,10 +1212,11 @@ never existed look the same from here.
 - Without a persisted version: `Default pipeline · not saved yet`. Reading the page never creates a version.
 - A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max.
 - The rail is one row of node cards in graph order. Anchor names: **Propose** · **Plan** ·
-  **Verify** · **Implement** · **Accept**. Repeatable project-agent slots read **Doc audit** and
+  **Verify** · **Implement** · **Accept**; the optional item nodes read **Implementation check** and
+  **QA**. Repeatable project-agent slots read **Doc audit** and
   **Scout**, and a repeat keeps its suffix — **Doc audit #2**, **Scout #3**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
-  node has no gate, small text between the cards says “auto → planning” · “auto → implementing” · “auto → verify” · “auto → accept” · “auto → doc audit” · “auto → scout”, including “auto → doc audit #2” for repeated slots. Propose alone has no auto label.
+  node has no gate, small text between the cards says “auto → planning” · “auto → implementing” · “auto → verify” · “auto → implementation check” · “auto → qa” · “auto → accept” · “auto → doc audit” · “auto → scout”, including “auto → doc audit #2” for repeated slots. Propose alone has no auto label.
 - Hovering anywhere on a gate card shows what that gate means, as the browser tooltip:
   "The item waits here until you press `<button>` in the Inbox. `<hint>`" — the gate's own Inbox
   button and its next-step hint (§3, §7), so the two screens use the same words. A repeated slot
@@ -1210,7 +1229,7 @@ never existed look the same from here.
   ("before Plan"), only one is open at a time, and the **+** it belongs to is shown pressed. It
   offers **Add gate**, **Add doc-auditor here** / **Add feature-scout here**, **Move `<id>` here**
   for each project-agent slot already on the rail, and **Add `<Node>`** for an optional node the
-  graph does not have (a removed one, or the opt-in Scout). Choosing anything closes it.
+  graph does not have (a removed one, or the opt-in Scout, Implementation check or QA). Choosing anything closes it.
 - Below the rail, a row of text buttons appends or relocates without picking an edge:
   **Add doc-auditor at end** / **Add feature-scout at end**, and **Move `<id>` to end** for each
   project-agent slot. The row is present only while editing.

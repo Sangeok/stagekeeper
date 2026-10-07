@@ -25,6 +25,8 @@ const GATE_FEEDBACK: Record<string, { pending: string; lock: string; toast: stri
   "before-verify": { pending: "Continuing…", lock: "Continued", toast: "Continued to verification" },
   "before-implement": { pending: "Approving…", lock: "Approved", toast: "Implementation approved" },
   "before-accept": { pending: "Continuing…", lock: "Continued", toast: "Continued to acceptance" },
+  "before-impl-verify": { pending: "Continuing…", lock: "Continued", toast: "Continued to implementation check" },
+  "before-qa": { pending: "Continuing…", lock: "Continued", toast: "Continued to QA" },
   "before-doc-audit": { pending: "Continuing…", lock: "Continued", toast: "Continued to doc audit" },
   "before-scout": { pending: "Continuing…", lock: "Continued", toast: "Continued to scouting" },
 };

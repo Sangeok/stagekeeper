@@ -204,7 +204,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.submitPlan(projectId, args, actorRef));
   });
-  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires runId and qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}. Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ ...project, key: z.string(), actor: z.string(), path: z.string(), commit: z.string(), runId: z.string().optional(), qa: z.unknown().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires runId and qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}. impl-verifier additionally requires runId. Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ ...project, key: z.string(), actor: z.string(), path: z.string(), commit: z.string(), runId: z.string().optional(), qa: z.unknown().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;

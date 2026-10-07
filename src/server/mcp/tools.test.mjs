@@ -87,7 +87,7 @@ describe("agent-scoped MCP tools", () => {
   // 문구가 갈리는 두 도구는 product-copy를 그대로 따라야 한다.
   it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
-    for (const tool of ["board_transition", "plan_submit", "agent_next", "backlog_add", "acceptance_fail"]) {
+    for (const tool of ["board_transition", "plan_submit", "report_submit", "agent_next", "backlog_add", "acceptance_fail"]) {
       const expected = copyRow(tool);
       assert.ok(expected, `no product-copy row for ${tool}`);
       assert.equal(meta[tool].description, expected, tool);

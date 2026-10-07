@@ -70,7 +70,7 @@
   `outcome`은 묻지 않는다: 불변식의 뜻은 "보고 전에 검증을 **시도**했다"이고, verify가 실패로 끝난
   뒤의 hold 보고까지 막으면 그 뜻을 넘는다. 예외는 행위자 이름이 아니라 **상태**로 건다 —
   `in_review`(검증 라운드 기록)와 `done`(인수 기록)은 verify를 요구하지 않는다. 이름으로 걸면
-  이름을 바꿔 지나갈 수 있다. 행위자 자체도 검사한다: 고정 4종 + 워크스페이스 dev + `main-loop`.
+  이름을 바꿔 지나갈 수 있다. 행위자 자체도 검사한다: 고정 보고 에이전트(`REPORT_AGENTS`) + 워크스페이스 dev + `main-loop`.
   판정은 `src/server/pipeline/board-rules.ts`의 `decideReportSubmit` 하나에 있다.
 - **사용 목록은 저장된 정확한 집합이다.** Project.available이 실제 권한 상태이며 매 조회마다 오래된 N개를
   계산하지 않는다. downgrade는 현재 목록에서 사용자 선택·에이전트 활동·sync·등록 순서로 줄이고,

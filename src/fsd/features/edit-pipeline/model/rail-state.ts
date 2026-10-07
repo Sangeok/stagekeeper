@@ -56,11 +56,15 @@ export const removeNode = (g: Graph, kind: string, plan: string): Step =>
 
 // 뺐던 노드 되돌리기와 opt-in 노드 넣기가 같은 함수다.
 export const addNode = (g: Graph, kind: string, plan: string): Step => {
-  // 앞머리 노드는 골격 순서의 자리에 끼운다 — propose는 맨 앞, verify는 implement 바로 앞. 나머지 노드를 다시
-  // 세우지는 않는다: 슬롯이 놓인 자리와 꼬리 순서를 그대로 둔다.
+  // 앞머리 노드는 골격 순서의 자리에 끼운다 — propose는 맨 앞, verify는 implement 바로 앞, impl-verify는 qa(없으면 accept) 앞,
+  // qa는 accept 앞. 나머지 노드를 다시 세우지는 않는다: 슬롯이 놓인 자리와 꼬리 순서를 그대로 둔다.
   if (!TAIL_NODES.includes(kind)) {
     const nodes = [...g.nodes];
-    const at = kind === "propose" ? 0 : kind === "verify" ? nodes.indexOf("implement") : kind === "qa" ? nodes.indexOf("accept") : nodes.length;
+    const at = kind === "propose" ? 0
+      : kind === "verify" ? nodes.indexOf("implement")
+      : kind === "impl-verify" ? (nodes.includes("qa") ? nodes.indexOf("qa") : nodes.indexOf("accept"))
+      : kind === "qa" ? nodes.indexOf("accept")
+      : nodes.length;
     nodes.splice(at, 0, kind);
     return check({ ...g, nodes }, plan);
   }

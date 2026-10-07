@@ -84,6 +84,18 @@ describe("rail-state", () => {
     if (r.ok) assert.deepEqual(r.graph.nodes.slice(-2), ["doc-audit", "scout"]);
   });
 
+  it("adds impl-verify right before qa, or before accept when qa is absent", () => {
+    const withQa = addNode(pro(), "qa", "pro");
+    assert.ok(withQa.ok);
+    if (!withQa.ok) return;
+    const both = addNode(withQa.graph, "impl-verify", "pro");
+    assert.ok(both.ok);
+    if (both.ok) assert.deepEqual(both.graph.nodes.slice(both.graph.nodes.indexOf("implement"), both.graph.nodes.indexOf("accept") + 1), ["implement", "impl-verify", "qa", "accept"]);
+    const alone = addNode(pro(), "impl-verify", "pro");
+    assert.ok(alone.ok);
+    if (alone.ok) assert.equal(alone.graph.nodes[alone.graph.nodes.indexOf("accept") - 1], "impl-verify");
+  });
+
   it("refuses a node the plan does not allow", () => {
     const free = defaultGraph("free") as { nodes: string[]; gates: string[] };
     const r = addNode(free, "verify", "free");
