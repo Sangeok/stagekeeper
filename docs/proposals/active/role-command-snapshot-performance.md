@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "draft"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-10-07"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "HamSangEok"
+approved-at: "2026-10-07"
+approval-scope: "Phase 0(단계별 시간 기록)만"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -943,7 +943,7 @@ Phase 2의 비동기 검사가 계약을 유지하는 이유:
 
 승인 메모:
 
-- 승인 전.
+- 2026-10-07 Phase 0만 승인했습니다. Phase 1 이후는 Phase 0 기준선과 수치 목표를 이 문서에 기록한 뒤 따로 승인합니다.
 
 ## Execution Plan
 
@@ -1080,8 +1080,9 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `npm run check` | Not run yet | Phase마다 실행 |
-| `npm test` | Not run yet | Phase마다 실행 |
+| `npm run check` | Pass (Phase 0) | 로컬 worktree |
+| `npm test` | Pass (Phase 0) | 333 pass, 2 skip(런타임 필요 시험, 아래 native 실행에서 통과) |
+| Phase 0 native 시험 (로컬, CI 런타임 `033f9ac…`) | Pass | `harness-role-commands`·`harness-role-files`·`harness-role-git` 30/30, readlink·spawn 2/2. `timings`를 빼면 새 단언이 실패하고, `aclMs` 대입만 빼면 기본값 0으로 통과합니다(값 확인은 CI 리허설 출력으로) |
 | `windows-role-runtime` (CI) | Not run yet | Phase마다 리허설 `timings` 기록 |
 | 문서 적용본 로컬 검증 (설계 검증용, 구현 아님) | Pass | `harness-role-files` 10/10, `harness-role-commands` 14/14(런타임 포함), readlink 1/1, spawn 1/1, 리허설 exit 0. 세부는 Current State |
 

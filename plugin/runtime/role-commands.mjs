@@ -209,18 +209,21 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
     combined.throwIfAborted();
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
     const own = randomUUID(); await writeFile(path.join(directory, "owner.json"), JSON.stringify({ own }), { flag: "wx" });
-    let acknowledged = false, helperStarted = false;
+    // Numeric phase durations only; monotonic so every lap is non-negative.
+    let acknowledged = false, helperStarted = false, clock = performance.now(); const timings = {};
+    const lap = name => { const now = performance.now(); timings[name] = Math.round(now - clock); clock = now; };
     try {
-      const snapshot = await snapshotRepository(root, path.join(directory, "repo"), fileBroker, combined);
+      const snapshot = await snapshotRepository(root, path.join(directory, "repo"), fileBroker, combined); lap("snapshotMs");
       if (cwd && !lstatSync(fileBroker.resolveRead(path.resolve(root, cwd))).isDirectory()) throw new Error("Command workspace directory required");
       const scratchSnapshot = scratch ? await snapshotRepository(scratch, path.join(directory, "scratch"), fileBroker, combined) : null;
       if (!scratchSnapshot) await mkdir(path.join(directory, "scratch"));
-      await copyRuntime(runtime, path.join(directory, "runtime"), combined);
+      lap("scratchMs");
+      await copyRuntime(runtime, path.join(directory, "runtime"), combined); lap("runtimeMs");
       helperStarted = true;
       const result = await runNativeCommand({ root: directory, command: args.command, cwd: cwd.replaceAll("/", "\\"), timeoutMs }, { ...lifecycle, signal: combined });
-      acknowledged = true;
+      acknowledged = true; lap("commandMs");
       return { ...result, nonce: undefined, ...snapshot, repositorySnapshotHash: snapshot.snapshotHash, scratchSnapshot,
-        snapshotHash: hash(JSON.stringify([snapshot.snapshotHash, scratchSnapshot?.snapshotHash ?? null])), snapshotWrites: "discarded", originalRepositoryWrites: false };
+        snapshotHash: hash(JSON.stringify([snapshot.snapshotHash, scratchSnapshot?.snapshotHash ?? null])), snapshotWrites: "discarded", originalRepositoryWrites: false, timings };
     } finally {
       // Failed acknowledgements preserve the owned directory for explicit recovery.
       if ((!helperStarted || acknowledged) && realpathSync(directory) === directory && JSON.parse(readFileSync(path.join(directory, "owner.json"), "utf8")).own === own) await rm(directory, { recursive: true });

@@ -503,7 +503,8 @@ Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제
 진행 중 복사를 join한 뒤 오류를 전파·정리한다. 실제 경로와 IO 전후 identity·mtime·size를
 매번 확인하며 권한·경로 결과를 cache하지 않는다.
 `cwd`는 repository 상대 경로이고 `STAGEKEEPER_ROLE_SCRATCH`는 복사한 scratch다.
-전체 source/scratch hash·누락 수/경로·누락 목록 잘림을 결과에 포함한다. 모든 복사본 쓰기와
+전체 source/scratch hash·누락 수/경로·누락 목록 잘림을 결과에 포함한다. 결과의 단계별 소요
+시간(`timings`, helper ACL 단계 `aclMs`)은 숫자 ms만 담는다. 모든 복사본 쓰기와
 산출물은 버리며 원본으로 동기화하지 않는다. 원본 수정은 guarded 파일 도구를 사용한다.
 누락된 Git·환경·network 의존성을 별도 인수로 남기고 exit 0을 전체 검증으로 해석하지 않는다.
 
