@@ -1,12 +1,12 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-10-06"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "HamSangEok"
+approved-at: "2026-10-07"
+approval-scope: "Phase 1–5·7, Claude 전용(Codex 실행은 별도 제안서) — 대화 승인. Phase 4·7은 Execution Plan의 선행 조건을 채운 뒤 시작"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -980,7 +980,8 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
 
 승인 메모:
 
-- 승인 전.
+- 조건: Phase 1–3은 바로 시작한다. Phase 4는 *Execution Plan*의 템플릿 선행 조건(harness-templates #6·#7·#8과 정정 PR 머지, dual-client 묶음 커밋,
+  서브에이전트의 추가 디렉터리 상속 확인)을 채운 뒤 시작한다. Phase 7은 그에 더해 dev의 미출시 작업을 다시 확인한 뒤 시작한다.
 - 2026-10-07 리뷰 뒤 사용자가 "가치 검증 → Claude 전용"을 정했다. 가치 검증 스파이크(*Current State*)의 판정이 기대와 3/3 맞아, 범위를 Claude로
   줄였다(대안 분석 「범위」). Codex 실행은 별도 제안서다.
 - 함께 받을 결정: 없다. 원안의 [Codex 변이 확인 환경]은 별도 제안서로 넘겼다(*Open Questions*).
@@ -1559,7 +1560,7 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다.
 - [x] `stage`는 pending 문서에서만 사용했다.
-- [ ] `stage: "approved"`라면 승인 기록이 모두 채워져 있다(승인 전).
+- [x] `stage: "approved"`라면 승인 기록이 모두 채워져 있다.
 - [x] `proposal-size`는 standard 강제 조건에 맞게 standard다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용한다.
 - [x] 변경 범위와 제외 범위가 명확하다.
