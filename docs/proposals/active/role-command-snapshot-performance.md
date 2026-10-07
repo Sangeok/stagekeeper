@@ -64,7 +64,7 @@ Windows 역할 명령(`role_command_exec`)은 실행할 때마다 저장소 전�
 사용자 결정에 따라 수치 목표는 **Phase 0 측정 후 확정**한다. 확정 전에도 아래는 성립해야 한다.
 
 - Phase 0 뒤 `role_command_exec` 결과와 CI 리허설 출력에 단계별 시간이 숫자로 남는다.
-  - 항목: `timings.grantMs`·`snapshotMs`·`scratchMs`·`runtimeMs`·`commandMs`, 도우미의 `aclMs`.
+  - 항목: `timings.snapshotMs`·`scratchMs`·`runtimeMs`·`commandMs`, 도우미의 `aclMs`. Phase 1부터 `timings.grantMs`가 더해진다.
   - `dev` CI 리허설 표본으로 기준선을 문서에 기록한다.
 - 기존 보안 시험이 의미 변경 없이 통과한다(fixture 준비 순서만 바뀜).
   - `plugin/bin/harness-role-files.test.mjs`
@@ -73,7 +73,8 @@ Windows 역할 명령(`role_command_exec`)은 실행할 때마다 저장소 전�
   - `scripts/windows-role-spawn-diagnostics.test.mjs`
 - Verification Plan의 새 시험이 통과한다.
   - 비동기 경로 검사 동치성
-  - 선부여 SID·권한 불일치 시 실패
+  - 선부여 SID·권한·profile 불일치 시 실패
+  - 전역 복사 대기열의 실패 전파
   - 단계별 시간 필드
 - 각 Phase 전후의 리허설 시간을 같은 방식으로 기록한다.
   - Phase 2는 미리 정한 기준 이상 줄어들 때만 채택한다(Open Questions).
@@ -124,6 +125,28 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
 - native 경로 해석과 8개 단위 묶음 복사를 넣은 뒤에야 통과했습니다.
 - 지금 파일당 2.0~2.6ms이면 10만 개 상한에서 200~263초입니다.
 
+### 문서 적용본 예비 검증 (로컬, 2026-10-07)
+
+이 문서의 Phase 0~2 코드 블록을 `dev`(`1dce256`) 사본에 그대로 적용해 돌렸습니다. 커밋하지 않은 임시 사본이며, 런타임은 CI artifact를 무결성 검증 후 사용했습니다(실행 파일 SHA-256 `033f9ac…`).
+
+- **컴파일·연결:** C# 블록은 도우미와 같은 PowerShell 5.1 `Add-Type`로 컴파일됐고, JS 모듈은 import 연결까지 통과했습니다.
+- **시험:** `harness-role-files` 10개, `harness-role-commands` 14개(런타임 필요 시험 포함), readlink·spawn 시험이 모두 통과했습니다.
+- **변형 확인:** 조상 검사를 건너뛰게 바꾸면 새 동치 시험과 기존 시험이 함께 실패합니다.
+
+이 저장소 전체를 대상으로 한 네트워크 차단 빌드 리허설(각 1회)입니다.
+
+| 측정 | 원본 | 적용본 |
+| --- | --- | --- |
+| 리허설 전체 | 369초 | 267초 |
+| `prepare` (`grantMs`) | — | 1.1초 |
+| `Run`의 `snapshot-acl` (`aclMs`) | 측정 안 함(CI 기준 15.9~16.8초) | 5ms |
+| 저장소 스냅숏 (`snapshotMs`) | 리허설 안에서는 측정 안 함 | 164.2초 |
+| 도우미와 실제 빌드 (`commandMs`) | — | 85.2초 |
+
+- Phase 1이 ACL 단계를 없앤다는 것은 확인됐습니다(`aclMs` 5ms).
+- 적용본의 스냅숏 164.2초는 같은 PC에서 원본 함수만 따로 쟀던 99~102초보다 깁니다. Phase 2(비동기 검사)가 이 환경에서는 오히려 느릴 수 있다는 신호입니다.
+- 원본과 적용본의 스냅숏을 번갈아 재는 비교는 PC 메모리 부족으로 원본 1회(237초)에서 중단돼 결론을 내지 못했습니다. 로컬 수치는 Defender와 시스템 부하의 영향을 크게 받으므로, Phase 2 채택 여부는 CI 측정 게이트로만 판단합니다.
+
 ### 현재 코드 경로
 
 명령 한 번(`plugin/runtime/role-commands.mjs:202-228`, `execute`)은 다음 순서로 돕니다.
@@ -148,6 +171,10 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
 도우미의 ACL 부여(`plugin/runtime/windows/RoleProcess.cs:147-156`)는 이렇게 동작합니다.
 - `Run`이 새 AppContainer profile을 만든 **뒤**, 이미 채워진 `repo`·`scratch`·`runtime`에 상속 규칙을 붙입니다(`Grant`, `:86-90`, `inherit: true`).
 - 그러면 Windows가 트리 전체(3.4만 개 파일)로 권한을 전파합니다. 이것이 `snapshot-acl` 약 16초입니다.
+- 같은 단계의 root 권한(`:151`)은 상속되지 않는 규칙인데도, 채워진 트리에 쓰면 하위 트리를 다시 훑습니다. 로컬 실측(2만 개 파일, `RoleProcess.cs`와 같은 `Directory.SetAccessControl`) 결과는 다음과 같습니다.
+  - 채워진 root에 상속되지 않는 규칙 추가: 1,839ms / 2,001ms
+  - 채워진 하위 디렉터리에 상속 규칙 추가: 1,807ms
+  - **빈** 디렉터리에 상속 규칙 추가: 5ms. 그 뒤 2만 개 파일을 채우는 시간은 규칙이 없을 때와 같았고(12.7초 / 11.8~12.7초), 가장 깊은 파일에서 상속된 규칙을 확인했습니다.
 - profile 이름은 `Run`에서 무작위로 정하므로(`:138`) 복사 전에는 SID를 알 수 없습니다.
 
 ### 지켜야 할 계약과 이력
@@ -203,7 +230,7 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
 
 ### Option C: `node_modules` 재사용 또는 제외
 
-- 장점: 파일의 97%(33,203/34,323)를 건너뛴다.
+- 장점: 파일의 약 97%를 건너뛴다(로컬 작업 트리 집계 33,203/34,323).
 - 단점
   - "새 복사본" 계약(`protocol.md:499`)이 바뀌고 명령 사이 격리가 약해진다.
   - 의존성 폴더에 캐시를 쓰는 도구와 충돌할 수 있다.
@@ -242,7 +269,7 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
   - 계약 유지가 사용자 결정이다.
   - Phase 1은 측정된 16초를 구조적으로 없앤다.
   - Phase 2·3은 측정과 결정에 따라 넣거나 뺄 수 있다.
-  - 선부여 방식으로는 기존 `Run` 실행 경로를 거의 그대로 두는 별도 `prepare` 실행(Option A 안의 B2 방식)을 G보다 우선한다.
+  - 선부여 방식으로는 기존 `Run` 실행 경로와 stdin 제어 프로토콜을 그대로 두는 별도 `prepare` 실행을 Option G보다 우선한다.
 
 ## Proposal
 
@@ -259,7 +286,11 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
 
 ### Phase 1 — 역할 SID를 빈 루트에 먼저 부여
 
-흐름: `execute`가 빈 `repo`·`scratch`·`runtime`을 만들고 → 도우미를 `prepare` 모드로 실행합니다(역할 SID를 파생해 세 루트에 상속 규칙 부여, profile·토큰·프로세스는 만들지 않음) → 그다음 복사합니다. 새 파일은 생성 시점에 규칙을 상속합니다. `Run`은 지금처럼 profile을 새로 만들고, 그 SID가 준비 때 SID와 같은지와 세 루트에 규칙이 있는지 **읽기만** 해서 확인합니다.
+흐름: `execute`가 빈 `repo`·`scratch`·`runtime`을 만들고 → 도우미를 `prepare` 모드로 실행합니다 → 그다음 복사합니다.
+- `prepare`는 역할 SID를 파생해 root의 Traverse 계열 규칙과 세 루트의 상속 규칙을 붙입니다. profile·토큰·프로세스는 만들지 않습니다.
+- 새 파일은 생성 시점에 규칙을 상속합니다.
+- `Run`은 지금처럼 profile을 새로 만들고, 그 SID가 준비 때 SID와 같은지와 네 규칙이 있는지 **읽기만** 해서 확인합니다.
+- root 규칙까지 `prepare`로 옮기는 이유: 상속되지 않는 규칙이라도 채워진 트리에 쓰면 하위 트리를 다시 훑기 때문입니다(Current State 실측). 그래서 `Run`은 채워진 트리에 ACL을 전혀 쓰지 않습니다.
 
 #### `plugin/runtime/windows/role-process.ps1`
 
@@ -313,7 +344,7 @@ Before (`:17-22`, `:36-37`, `:86-90`):
   }
 ```
 
-After (새 필드·선언·함수. `Grant`는 그대로 둡니다):
+After (새 필드·선언·함수. `Grant`는 그대로 두고, 새 함수는 `Grant`(`:86-90`) 바로 다음에 둡니다):
 
 ```csharp
   public sealed class Result {
@@ -350,11 +381,13 @@ After (새 필드·선언·함수. `Grant`는 그대로 둡니다):
     if (name == null || !System.Text.RegularExpressions.Regex.IsMatch(name, "^stagekeeper\\.role\\.[0-9a-f]{32}$")) throw new Exception("Invalid role profile");
     return name;
   }
-  // Read-only check: never propagate ACL updates through a populated tree.
-  static void RequireGrant(string directory, SecurityIdentifier sid, FileSystemRights rights) {
-    var inherit = InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit;
+  const FileSystemRights RootRights = FileSystemRights.ReadAttributes | FileSystemRights.ReadExtendedAttributes | FileSystemRights.Traverse | FileSystemRights.Synchronize;
+  // Read-only check. Any DACL write on a populated directory re-walks its subtree, even
+  // for a non-inheritable rule, so Run never writes ACLs on the copied trees.
+  static void RequireGrant(string directory, SecurityIdentifier sid, FileSystemRights rights, bool inherit) {
+    var flags = inherit ? InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit : InheritanceFlags.None;
     foreach (FileSystemAccessRule rule in Directory.GetAccessControl(directory).GetAccessRules(true, false, typeof(SecurityIdentifier)))
-      if (rule.IdentityReference.Equals(sid) && rule.AccessControlType == AccessControlType.Allow && rule.InheritanceFlags == inherit && (rule.FileSystemRights & rights) == rights) return;
+      if (rule.IdentityReference.Equals(sid) && rule.AccessControlType == AccessControlType.Allow && rule.InheritanceFlags == flags && (rule.FileSystemRights & rights) == rights) return;
     throw new Exception("Prepared snapshot grant missing");
   }
   // Grants the role SID on the still-empty snapshot roots so files copied afterwards
@@ -372,6 +405,7 @@ After (새 필드·선언·함수. `Grant`는 그대로 둡니다):
       var identifier = new SecurityIdentifier(sid);
       Stage = "prepare-acl";
       var clock = System.Diagnostics.Stopwatch.StartNew();
+      Grant(roots[0], identifier, RootRights, false);
       Grant(roots[1], identifier, FileSystemRights.Modify, true);
       Grant(roots[2], identifier, FileSystemRights.Modify, true);
       Grant(roots[3], identifier, FileSystemRights.ReadAndExecute, true);
@@ -431,12 +465,12 @@ After (새 필드·선언·함수. `Grant`는 그대로 둡니다):
       if (!String.Equals(identifier.Value, expectedSid, StringComparison.Ordinal)) throw new Exception("Profile SID differs from prepared grants");
       Stage = "snapshot-acl";
       var aclClock = System.Diagnostics.Stopwatch.StartNew();
-      Grant(root, identifier, FileSystemRights.ReadAttributes | FileSystemRights.ReadExtendedAttributes | FileSystemRights.Traverse | FileSystemRights.Synchronize, false);
-      // Prepare granted these inheritable rules on the empty roots; copied files inherited
-      // them at creation. Verify without propagating through the populated tree.
-      RequireGrant(repo, identifier, FileSystemRights.Modify);
-      RequireGrant(scratch, identifier, FileSystemRights.Modify);
-      RequireGrant(runtime, identifier, FileSystemRights.ReadAndExecute);
+      // Prepare wrote these rules before the owner copied files, and copied files inherited
+      // them at creation. Only read them here: a write would re-walk the populated tree.
+      RequireGrant(root, identifier, RootRights, false);
+      RequireGrant(repo, identifier, FileSystemRights.Modify, true);
+      RequireGrant(scratch, identifier, FileSystemRights.Modify, true);
+      RequireGrant(runtime, identifier, FileSystemRights.ReadAndExecute, true);
 ```
 
 `Run`의 이후 부분은 두 군데만 바뀝니다.
@@ -473,6 +507,7 @@ After:
 export async function prepareNativeRoot(root, lifecycle = {}) {
   for (const name of ["repo", "scratch", "runtime"]) await mkdir(path.join(root, name));
   const profile = "stagekeeper.role." + randomUUID().replaceAll("-", "");
+  // command/cwd keep the shared request shape; the helper ignores them in prepare mode.
   const prepared = await runNativeCommand({ mode: "prepare", root, profile, command: "prepare", cwd: "", timeoutMs: 10000 }, lifecycle);
   if (prepared.status !== "exited" || prepared.exitCode !== 0 || !/^S-1-15-2(?:-\d+){7}$/.test(prepared.sid ?? "")) throw new Error("Native snapshot grant preparation failed");
   // The launch writes its own helper sources and request into the same owned root.
@@ -598,8 +633,8 @@ After (Phase 0의 `timings` + Phase 1의 준비 순서):
 
 #### 문서 `docs/architecture/protocol.md`
 
-- `:503-504` 다음에 문장을 추가합니다. "역할 SID의 상속 권한은 복사 전 빈 repository·scratch·runtime 루트에 부여하며(helper `prepare`), 복사된 파일은 생성 시 상속한다. 채워진 트리에 ACL을 전파하지 않는다."
-- `:544-546` 다음에 문장을 추가합니다. "실행 helper는 새 profile을 만든 뒤 그 SID가 준비한 SID와 같은지, 세 루트에 상속 규칙이 있는지 읽기만으로 확인하고 다르면 실행하지 않는다."
+- `:503-504` 다음에 문장을 추가합니다. "역할 SID 권한은 복사 전에 부여한다(helper `prepare`). 상속 권한은 빈 repository·scratch·runtime 루트에, root의 상속되지 않는 Traverse 권한은 복사 전 root에 둔다. 복사된 파일은 생성 시 상속한다. 채워진 트리에는 ACL을 쓰지 않는다."
+- `:544-546` 다음에 문장을 추가합니다. "실행 helper는 새 profile을 만든 뒤 그 SID가 준비한 SID와 같은지, root와 세 루트에 준비한 규칙이 있는지 읽기만으로 확인하고 다르면 실행하지 않는다."
 - `:554`의 "소유권 등록·active 확인 뒤에만 컴파일/실행" 규칙은 `prepare` 실행에도 그대로 적용된다고 명시합니다.
 
 ### Phase 2 — 경로 검사 비동기화와 전역 복사 대기열 (측정 게이트)
@@ -670,10 +705,11 @@ const syncStep = {
   lstat: target => lstatSync(target, { bigint: true }),
   realpath: target => realpathSync(target),
 };
+const realpathAsync = promisify(realpath);
 const asyncStep = {
   native: target => promises.realpath(target),
   lstat: target => promises.lstat(target, { bigint: true }),
-  realpath: target => promisify(realpath)(target),
+  realpath: target => realpathAsync(target),
 };
 function runSteps(steps) {
   let next = steps.next();
@@ -821,7 +857,9 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
 - 달라지는 점
   - 복사가 디렉터리 경계를 넘어 최대 8개까지 계속 돕니다.
   - 상위 디렉터리 파일이 다 끝나기 전에 하위 디렉터리 파일 복사가 시작될 수 있습니다(해시 순서와는 무관).
-- 채택 게이트: Phase 0 기준선과 같은 측정(CI 리허설 3회 이상 중앙값, 로컬 동일 worktree)에서 `snapshotMs`가 Open Questions에서 정한 기준 이상 줄어야 병합합니다. 못 미치면 이 Phase는 닫습니다.
+- 채택 게이트: Phase 0 기준선과 같은 측정(CI 리허설 3회 이상 중앙값)에서 `snapshotMs`가 Open Questions에서 정한 기준 이상 줄어야 병합합니다. 못 미치면 이 Phase는 닫습니다.
+  - 로컬 예비 검증에서는 오히려 느려질 수 있다는 신호가 있었습니다(Current State).
+  - 게이트를 통과하지 못하면 Phase 0·1만으로 마무리합니다.
 
 ### Phase 3 (선택) — 스냅숏 삭제를 결과 뒤로
 
@@ -851,20 +889,21 @@ After (`createRoleCommands` 안. `execute`의 `finally`와 `close`만):
 - 지켜야 할 것: 삭제 대상과 소유 확인은 Before와 같습니다.
 - 달라지는 점
   - 삭제 실패가 명령 결과 대신 `close()`에서 드러납니다.
+  - 역할 실행이 끝날 때 `close()`는 `codex-thread.mjs:400`의 `bridge.close()` → `:148` → `role-git.mjs:305`를 거쳐 불립니다. 그래서 삭제 실패는 **이미 성공한 역할 실행을 오류로 끝나게** 합니다. 지금은 해당 명령 하나가 실패합니다.
   - 다음 명령의 복사와 이전 명령의 삭제가 겹칠 수 있습니다.
-- 이 두 가지를 받아들일지가 Open Question입니다.
+- 이 세 가지를 받아들일지가 Open Question입니다.
 
 ## Affected Files
 
 | 경로 또는 영역 | 작업 | 판단 근거 | 리스크 |
 | --- | --- | --- | --- |
-| `plugin/runtime/windows/RoleProcess.cs` | update | `Result` 필드, `DeriveAppContainerSidFromAppContainerName`, `SnapshotRoots`·`ProfileName`·`RequireGrant`·`Prepare`, `Run` 시그니처와 부여 확인 | high: 신뢰된 launcher. 실패 분기를 새로 추가 |
+| `plugin/runtime/windows/RoleProcess.cs` | update | `Result` 필드, `DeriveAppContainerSidFromAppContainerName`, `RootRights`·`SnapshotRoots`·`ProfileName`·`RequireGrant`·`Prepare`, `Run` 시그니처와 부여 확인(채워진 트리에 ACL 쓰기 없음) | high: 신뢰된 launcher. 실패 분기를 새로 추가 |
 | `plugin/runtime/windows/role-process.ps1` | update | `mode` 분기 | medium: helper 진입점 |
 | `plugin/runtime/role-commands.mjs` | update | `prepareNativeRoot`(새 export), `copyRuntime` 디렉터리, `verifyNativeRuntime`·`execute` 순서와 `timings`, (Phase 2) `snapshotRepository`, (Phase 3) 정리 | medium |
 | `plugin/runtime/role-files.mjs` | update | 검사 생성기와 동기·비동기 실행기, `resolveReadAsync` | medium: 보안 검사 코드. 단일 구현으로 차이를 막음 |
 | `plugin/bin/harness-role-commands.test.mjs` | update | `nativeFixture`(`:68-73`)가 `prepareNativeRoot` 뒤 파일 작성, 직접 `runNativeCommand` 호출(`:81`~`:165`)에 `...prepared` 전달, 새 시험 | low |
 | `plugin/bin/harness-role-files.test.mjs` | update | 비동기 동치 시험 | low |
-| `scripts/windows-role-readlink.test.mjs` | update | `:17`의 직접 `mkdirSync` 대신 `prepareNativeRoot`, `:53` 호출에 `...prepared` | low |
+| `scripts/windows-role-readlink.test.mjs` | update | `:17`의 세 하위 디렉터리 `mkdirSync`를 `mkdirSync(directory, { recursive: true }); const prepared = await prepareNativeRoot(directory);`로 바꿈(`prepareNativeRoot`는 루트가 있어야 하고 하위 디렉터리를 직접 만듦), `:53` 호출에 `...prepared` | low |
 | `scripts/windows-role-spawn-diagnostics.test.mjs` | update | `:17`, `:55` 같은 변경 | low |
 | `docs/architecture/protocol.md` | update | `:503-504`, `:544-546`, `:554` 보강 | low |
 | `plugin/.claude-plugin/plugin.json`, `plugin/.codex-plugin/plugin.json` | update | 런타임 변경이 설치본에 전달되도록 Phase마다 버전 상승 | low |
@@ -878,7 +917,11 @@ After (`createRoleCommands` 안. `execute`의 `finally`와 `close`만):
 Phase 1의 선부여가 계약을 유지하는 이유:
 
 - **부여 범위가 같습니다.** 대상은 소유 루트의 `repo`·`scratch`·`runtime`과 root의 Traverse 계열 권한뿐이고, 원본 저장소 ACL은 건드리지 않습니다(`protocol.md:545-546`).
-- **전파가 사라집니다.** 규칙은 비어 있는 루트에만 붙이고(`prepare-empty`로 강제), 채워진 트리에서는 읽기만 합니다(`RequireGrant`). "명령이 끝난 트리에 ACL 변경을 전파하지 않는다"(`protocol.md:560-561`)보다 강한 성질입니다.
+- **전파가 사라집니다.**
+  - 상속 규칙은 비어 있는 세 루트에만 붙입니다(`prepare-empty`로 강제).
+  - 상속되지 않는 root 규칙도 복사 전에 붙입니다. 그 시점 root 아래에는 `owner.json`, helper 파일, 빈 세 루트뿐입니다.
+  - `Run`은 채워진 트리에서 읽기만 합니다(`RequireGrant`). 쓰기는 새로 만든 빈 `boundary`와 canary 파일에만 있습니다(`RoleProcess.cs:155-163`).
+  - "명령이 끝난 트리에 ACL 변경을 전파하지 않는다"(`protocol.md:560-561`)보다 강한 성질입니다.
 - **명령별 새 profile은 그대로입니다.** profile 생성·삭제는 여전히 `Run`이 하고(`RoleProcess.cs:147-149`, `:258-259`), `prepare`는 SID만 파생합니다. profile, 토큰, 프로세스는 만들지 않습니다.
 - **SID가 다르면 실행하지 않습니다.** 준비한 SID와 `Run`이 만든 profile의 SID가 다르거나 규칙이 없으면 자식 프로세스를 만들기 전에 실패합니다.
 - **복사 중 그 SID를 가진 프로세스가 없습니다.** 규칙이 붙은 뒤 복사가 끝날 때까지 그 SID로 실행되는 프로세스는 없습니다. profile 이름은 무작위 128비트이고, 그 이름을 담은 `request.json`은 소유 루트에 있습니다. LPAC는 root에 Traverse만 있어 이 파일을 읽을 수 없습니다(`RoleProcess.cs:151`). 같은 사용자 권한의 프로세스는 이미 원본에 접근할 수 있으므로 새 위협이 아닙니다.
@@ -949,7 +992,7 @@ node scripts/rehearse-windows-project-build.mjs --root . --runtime "<verified ru
 - 정지·소유권: `:122-173`.
 - 사전 점검과 실제 npm test/build: `:183-198`.
 
-새 시험 1 — 비동기 검사 동치(Phase 2). `plugin/bin/harness-role-files.test.mjs`에 넣고 `:49-78`과 같은 fixture를 씁니다. 허용된 경로의 반환값은 `path.resolve(입력)`과 같아야 하는데, 이는 `role-files.mjs:58`(`const target = path.resolve(name)`)과 `:88`(`return target`)로 정해진 항등 관계입니다(계산 없음).
+새 시험 1 — 비동기 검사 동치(Phase 2). `plugin/bin/harness-role-files.test.mjs`에 넣고 `:49-78`과 같은 fixture를 씁니다. 문서 적용본에서 `promises.realpath`를 바꿔 끼우면 `resolveReadAsync`가 그 함수를 호출하는 것을 확인했습니다(호출 1회). 허용된 경로의 반환값은 `path.resolve(입력)`과 같아야 하는데, 이는 `role-files.mjs:58`(`const target = path.resolve(name)`)과 `:88`(`return target`)로 정해진 항등 관계입니다(계산 없음).
 
 ```js
 // import에 promises 추가: import { linkSync, mkdirSync, mkdtempSync, promises, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
@@ -981,8 +1024,9 @@ it("resolves asynchronously with exactly the synchronous path policy", async () 
 
 ```js
 // import에 prepareNativeRoot 추가: import { snapshotRepository, runNativeCommand, prepareNativeRoot, createRoleCommands, installedWindowsRuntime, verifyNativeRuntime } from "../runtime/role-commands.mjs";
-it("grants the role SID only on empty roots and refuses a launch whose prepared SID differs", native, async t => {
-  const f = fixture(t), mismatched = path.join(f.base, "mismatched"), accepted = path.join(f.base, "accepted"), populated = path.join(f.base, "populated");
+it("grants the role SID only on empty roots and refuses a launch whose prepared SID, grants or profile differ", native, async t => {
+  const f = fixture(t), named = name => path.join(f.base, name);
+  const [mismatched, accepted, populated, unprepared, invalid] = ["mismatched", "accepted", "populated", "unprepared", "invalid"].map(named);
   for (const directory of [mismatched, accepted]) await mkdir(directory);
   const first = await prepareNativeRoot(mismatched), second = await prepareNativeRoot(accepted);
   assert.match(first.sid, /^S-1-15-2(?:-\d+){7}$/); assert.notEqual(first.sid, second.sid);
@@ -990,13 +1034,30 @@ it("grants the role SID only on empty roots and refuses a launch whose prepared 
   await assert.rejects(runNativeCommand({ root: mismatched, ...first, sid: second.sid, command: "type read.txt", cwd: "", timeoutMs: 2000 }), /profile-sid/);
   const result = await runNativeCommand({ root: accepted, ...second, command: "type read.txt", cwd: "", timeoutMs: 2000 });
   assert.equal(result.stdout, "READ_CANARY");
-  for (const name of ["repo", "scratch", "runtime"]) await mkdir(path.join(populated, name), { recursive: true });
+  // Each helper launch writes its sources into its root with "wx", so every refusal uses its own root.
+  for (const directory of [populated, unprepared, invalid]) for (const name of ["repo", "scratch", "runtime"]) await mkdir(path.join(directory, name), { recursive: true });
   writeFileSync(path.join(populated, "repo/early.txt"), "EARLY");
   await assert.rejects(runNativeCommand({ mode: "prepare", root: populated, profile: first.profile, command: "prepare", cwd: "", timeoutMs: 10000 }), /prepare-empty/);
+  await assert.rejects(runNativeCommand({ root: unprepared, ...first, command: "type read.txt", cwd: "", timeoutMs: 2000 }), /snapshot-acl/);
+  await assert.rejects(runNativeCommand({ root: invalid, profile: "stagekeeper.role.invalid", sid: first.sid, command: "type read.txt", cwd: "", timeoutMs: 2000 }), /validation-profile/);
 });
 ```
 
-새 시험 3 — 단계별 시간 필드(Phase 0). `harness-role-commands.test.mjs:183-198` 시험의 `first` 결과에 단언을 더합니다. 값은 실행 환경에 따라 달라지므로 계약에서 나오는 성질만 확인합니다. `performance.now()`는 단조 증가해 차이가 음수일 수 없고, `Stopwatch.ElapsedMilliseconds`는 0 이상의 `long`입니다.
+새 시험 2-1 — 전역 복사 대기열의 실패 전파(Phase 2). `harness-role-commands.test.mjs`의 `:51-59`와 같은 비-native 시험입니다. 복사 뒤 재검사(두 번째 `resolveReadAsync`)를 실패시키고, 그 오류가 그대로 올라오는지 봅니다. 기대값은 시험이 넣은 오류 문자열입니다(계산 없음).
+
+```js
+it("raises a copy failure from the global queue after joining in-flight copies", async t => {
+  const f = fixture(t), failing = path.join(f.root, "src/data-7.bin"); let checks = 0;
+  for (let index = 0; index < 20; index++) writeFileSync(path.join(f.root, `src/data-${index}.bin`), Buffer.alloc(65536, index));
+  const broker = { ...f.files, async resolveReadAsync(name) {
+    if (name === failing && ++checks === 2) throw new Error("FAILING_AFTER_COPY");
+    return f.files.resolveReadAsync(name);
+  } };
+  await assert.rejects(snapshotRepository(f.root, f.destination, broker), /FAILING_AFTER_COPY/);
+});
+```
+
+새 시험 3 — 단계별 시간 필드(Phase 0). `harness-role-commands.test.mjs:183-198` 시험의 `first` 결과에 단언을 더합니다. Phase 0에서는 목록에서 `grantMs`를 빼고, Phase 1에서 넣습니다. 값은 실행 환경에 따라 달라지므로 계약에서 나오는 성질만 확인합니다. `performance.now()`는 단조 증가해 차이가 음수일 수 없고, `Stopwatch.ElapsedMilliseconds`는 0 이상의 `long`입니다.
 
 ```js
     for (const name of ["grantMs", "snapshotMs", "scratchMs", "runtimeMs", "commandMs"]) assert.ok(Number.isInteger(first.timings[name]) && first.timings[name] >= 0, name);
@@ -1022,6 +1083,7 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 | `npm run check` | Not run yet | Phase마다 실행 |
 | `npm test` | Not run yet | Phase마다 실행 |
 | `windows-role-runtime` (CI) | Not run yet | Phase마다 리허설 `timings` 기록 |
+| 문서 적용본 로컬 검증 (설계 검증용, 구현 아님) | Pass | `harness-role-files` 10/10, `harness-role-commands` 14/14(런타임 포함), readlink 1/1, spawn 1/1, 리허설 exit 0. 세부는 Current State |
 
 ## Risks and Rollback
 
@@ -1087,9 +1149,13 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 
 - **[Goal / 성공 기준]** 수치 목표는 Phase 0 기준선을 기록한 뒤 정합니다(사용자 결정). 기준선 기록 직후 이 문서에 채웁니다.
 - **[Phase 2 게이트]** 채택 기준을 정해야 합니다. 예: CI 리허설 3회 중앙값에서 `snapshotMs` 20% 이상 단축. Phase 0 뒤에 정합니다.
-- **[Phase 3]** 진행 여부를 정해야 합니다. 정리 실패를 명령 결과가 아니라 `close()`에서 드러내는 것과, 다음 명령의 복사와 겹치는 것을 받아들일지의 문제입니다.
-- **[새 시험 1]** `fs.promises.realpath`를 시험에서 바꿔 끼울 수 있다는 가정을 Phase 2 시작 시 확인합니다. 불가하면 실행기에 resolver를 주입하는 방식으로 바꿉니다.
-- **[Phase 1 실패 분기]** `validation-profile`·`profile-sid`·`RequireGrant`·`prepare-empty`·`prepare-sid`는 이 설계에서 새로 생기는 실패 분기입니다. 정상 경로를 막지 않는지 보안 검토에서 확인합니다.
+- **[Phase 3]** 진행 여부를 정해야 합니다. 받아들일지 정할 것은 세 가지입니다.
+  - 정리 실패가 명령 결과가 아니라 `close()`에서 드러나는 것.
+  - 그 결과 이미 성공한 역할 실행이 오류로 끝날 수 있는 것.
+  - 다음 명령의 복사와 이전 명령의 삭제가 겹치는 것.
+- **[Phase 1 실패 분기]** `validation-profile`·`profile-sid`·`RequireGrant`·`prepare-empty`·`prepare-sid`는 이 설계에서 새로 생기는 실패 분기입니다.
+  - 정상 경로가 막히지 않는 것은 문서 적용본의 기존·새 native 시험 통과로 확인했습니다.
+  - 남은 것은 신뢰된 launcher 변경에 대한 사람의 보안 검토입니다.
 - **[소비처 영향]** 문자열 경로를 쓰는 패키징·배포 스크립트 같은 동적 참조는 전수하지 않았습니다. `scripts/package-windows-plugin.mjs`는 두 helper 파일명의 존재만 확인하며, 파일명은 바뀌지 않습니다.
 
 <!-- doc-validation-restore -->
