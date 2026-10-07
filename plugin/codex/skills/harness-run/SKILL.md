@@ -47,7 +47,9 @@ and checks only. Append scout/audit reports yourself. After done re-query pipeli
 the completed role again to open a new run. Preserve receipt, entry and agentRunId unchanged.
 Legacy null format and slots-v1 are distinct; missing/unknown item binding stops the cycle.
 
-Wait at gate/cap/handoff and tell the owner what is actually pending. Roles cannot write Git
+Wait at gate/cap/handoff, failed QA or failed implementation verification and tell the owner
+what is actually pending. If dispatch refuses impl-verifier with codex-role-unsupported, do not
+dispatch it again; tell the owner to continue that item from Claude Code. Roles cannot write Git
 metadata; commit prepared artifacts yourself only with the stored actual commit permission,
 otherwise ask the owner. After the actual commit and the owner's explicit continue use
 dispatch --session <id> --key <KEY> --handoff-commit <commit>; no automatic commit is performed.

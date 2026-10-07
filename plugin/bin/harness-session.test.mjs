@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
-import { dispatchBinding, codexFailure } from "./harness-codex.mjs";
+import { dispatchBinding, codexFailure, qaWorkflowFile } from "./harness-codex.mjs";
 import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
@@ -87,6 +87,21 @@ it("binds the original legacy/slots key and receipt while refusing owner and oth
   assert.throws(() => boundArguments("report_submit", { actor: "main-loop", key: "A" }, dispatch, receipt));
   const report = dispatchBinding({ action: "dispatch", agent: "feature-scout", key: "A", format: "slots-v1", entry: { ...entry, slotId: "scout" } }, []);
   assert.equal(report.agentKey, undefined); assert.ok(report.entry);
+});
+
+it("QA accepts this item's impl-verifier report as a workflow file after its target, and nothing else new", () => {
+  assert.equal(qaWorkflowFile("docs/agents/impl-verifier/A.md", "A"), true);
+  assert.equal(qaWorkflowFile("docs/agents/impl-verifier/B.md", "A"), false);
+  assert.equal(qaWorkflowFile("docs/agents/qa-verifier/A.md", "A"), true);
+  assert.equal(qaWorkflowFile("src/app.ts", "A"), false);
+});
+
+it("Codex refuses impl-verifier before any role run opens and says where to continue", () => {
+  const entry = { runId: "pipeline", entryId: "entry", slotId: "impl-verify" };
+  let refused;
+  assert.throws(() => dispatchBinding({ action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1", entry }, []), (error) => { refused = error; return true; });
+  assert.deepEqual(codexFailure(refused, "s"), { event: "error", session: "s", code: "codex-role-unsupported", reason: refused.message });
+  assert.match(refused.message, /not available on Codex yet.*Claude Code/);
 });
 
 it("omits parent credentials and restricts workspace, readonly and foreign paths", () => {

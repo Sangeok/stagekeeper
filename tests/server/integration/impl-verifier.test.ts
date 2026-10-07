@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
+import { actionableWork } from "@harness/core/watch.mjs";
 import { createBoardService } from "../../../src/server/pipeline/board";
 import { nextFor } from "../../../src/server/pipeline/run-query";
 import { cleanup, connections, fixture } from "./support";
@@ -50,6 +51,8 @@ for (const verdict of ["pass", "fail", "blocked"] as const) it(`impl-verifier ${
     } else {
       if (next.action !== "wait" || next.on !== "impl-verify") throw new Error(`expected wait on impl-verify: ${JSON.stringify(next)}`);
       assert.equal(next.resume.agent, "impl-verifier"); assert.equal(next.resume.entry?.entryId, entered.entryId); assert.equal(next.commit, "c".repeat(40));
+      // 서버가 내는 대기는 배포된 감시기가 받는 모양이어야 한다. 하나라도 틀리면 감시가 overview 전체를 거부한다.
+      assert.doesNotThrow(() => actionableWork({ head: { action: "none", reason: "No candidates." }, items: [next] }, { commit: false, propose: false }));
       assert.equal((await board.submitReport(f.projectId, acceptance, "test")).ok, false);
     }
     // 다시 열고 다시 구현해 들어오면, 옛 entry의 run은 통과든 실패든 완료 근거가 되지 않고 새 검증이 디스패치된다.
