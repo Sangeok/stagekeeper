@@ -24,7 +24,9 @@ try {
   $phase = 'compiler-cleanup'
   [IO.Directory]::Delete($compilerPath, $true)
   $phase = 'launch'
-  $result = [StagekeeperRoleProcess]::Run($request.root, $request.command, $request.cwd, $request.timeoutMs)
+  # Prepare grants the role SID on the still-empty snapshot roots before the owner copies files.
+  if ($request.mode -eq 'prepare') { $result = [StagekeeperRoleProcess]::Prepare($request.root, $request.profile) }
+  else { $result = [StagekeeperRoleProcess]::Run($request.root, $request.profile, $request.sid, $request.command, $request.cwd, $request.timeoutMs) }
   $result | Add-Member -NotePropertyName nonce -NotePropertyValue $request.nonce
   [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
   [Console]::WriteLine(($result | ConvertTo-Json -Compress))

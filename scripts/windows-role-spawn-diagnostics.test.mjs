@@ -5,7 +5,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, write
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { installedWindowsRuntime, runNativeCommand } from "../plugin/runtime/role-commands.mjs";
+import { installedWindowsRuntime, prepareNativeRoot, runNativeCommand } from "../plugin/runtime/role-commands.mjs";
 
 it("runs silent IPC forks and diagnoses denied spawns without exposing arguments or changing denial", {
   skip: process.platform !== "win32" || !process.env.STAGEKEEPER_TEST_WINDOWS_RUNTIME || process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1",
@@ -14,7 +14,7 @@ it("runs silent IPC forks and diagnoses denied spawns without exposing arguments
   const temporaryRoot = realpathSync(tmpdir());
   const base = mkdtempSync(path.join(temporaryRoot, "stagekeeper-spawn-test-"));
   const directory = path.join(base, "command");
-  for (const name of ["repo", "runtime", "scratch"]) mkdirSync(path.join(directory, name), { recursive: true });
+  mkdirSync(directory, { recursive: true }); const prepared = await prepareNativeRoot(directory);
   const runtime = installedWindowsRuntime(process.env.STAGEKEEPER_TEST_WINDOWS_RUNTIME);
   assert.equal(createHash("sha256").update(readFileSync(path.join(runtime.directory, "node.exe"))).digest("hex"), runtime.executableSha256);
   copyFileSync(path.join(runtime.directory, "node.exe"), path.join(directory, "runtime/node.exe"));
@@ -52,7 +52,7 @@ const assert = require('node:assert/strict'), cp = require('node:child_process')
     assert.ok(path.basename(base).startsWith("stagekeeper-spawn-test-"));
     await rm(base, { recursive: true });
   });
-  const result = await runNativeCommand({ root: directory,
+  const result = await runNativeCommand({ root: directory, ...prepared,
     command: 'set "STAGEKEEPER_BUILD_DIAGNOSTICS=1" && set "NODE_OPTIONS=--require %CD%\\compat.cjs" && node probe.cjs', cwd: "", timeoutMs: 10000 });
   acknowledged = result.quiescent;
   assert.equal(result.status, "exited");

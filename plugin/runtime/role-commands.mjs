@@ -104,7 +104,8 @@ async function copyRuntime(runtime, destination, signal) {
       }
     }
   }
-  await mkdir(destination); await visit(runtime.directory);
+  // prepareNativeRoot created this root empty so copied files inherit the role grant.
+  await mkdir(destination, { recursive: true }); await visit(runtime.directory);
   if (hash(JSON.stringify(files)) !== runtime.packageSha256) throw new Error("Runtime package changed");
   await writeFile(path.join(destination, "npm.cmd"), '@echo off\r\n"%~dp0node.exe" "%~dp0npm\\bin\\npm-cli.js" %*\r\n', { flag: "wx" });
 }
@@ -164,11 +165,24 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
   }
 }
 
+// Grants the role SID on the still-empty roots before any snapshot bytes exist, with the
+// same ownership registration and activation fencing as a command launch.
+export async function prepareNativeRoot(root, lifecycle = {}) {
+  for (const name of ["repo", "scratch", "runtime"]) await mkdir(path.join(root, name));
+  const profile = "stagekeeper.role." + randomUUID().replaceAll("-", "");
+  // command/cwd keep the shared request shape; the helper ignores them in prepare mode.
+  const prepared = await runNativeCommand({ mode: "prepare", root, profile, command: "prepare", cwd: "", timeoutMs: 10000 }, lifecycle);
+  if (prepared.status !== "exited" || prepared.exitCode !== 0 || !/^S-1-15-2(?:-\d+){7}$/.test(prepared.sid ?? "")) throw new Error("Native snapshot grant preparation failed");
+  // The launch writes its own helper sources and request into the same owned root.
+  for (const name of ["role-process.ps1", "RoleProcess.cs", "request.json"]) await rm(path.join(root, name));
+  return { profile, sid: prepared.sid };
+}
+
 export async function verifyNativeRuntime(runtime, lifecycle = {}) {
   const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-preflight-"));
-  let connections = 0, listener, acknowledged = false, helperStarted = false; const sockets = new Set();
+  let connections = 0, listener, unacknowledged = false; const sockets = new Set();
   try {
-    await mkdir(path.join(directory, "repo")); await mkdir(path.join(directory, "scratch"));
+    unacknowledged = true; const prepared = await prepareNativeRoot(directory, lifecycle); unacknowledged = false;
     await writeFile(path.join(directory, "repo/allowed.txt"), "ALLOWED_CANARY");
     await writeFile(path.join(directory, "external.txt"), "EXTERNAL_CANARY");
     await copyRuntime(runtime, path.join(directory, "runtime"));
@@ -184,15 +198,15 @@ const childCode="const fs=require('node:fs'),a=require('node:assert/strict'),net
 const r=cp.spawnSync(process.execPath,['-e',childCode],{encoding:'utf8',timeout:3000});assert.equal(r.status,0);assert.equal(r.stdout.trim(),'CHILD_READY');
 const socket=net.connect({host:'127.0.0.1',port:${listener.address().port}});socket.setTimeout(2000);socket.on('connect',()=>{console.error('NETWORK_ALLOWED');process.exit(1)});socket.on('timeout',()=>{console.error('NETWORK_NOT_PROVEN');process.exit(1)});socket.on('error',error=>{assert.equal(error.code,'EACCES');console.log('harness-native-command-ready')});`;
     await writeFile(path.join(directory, "repo/probe.cjs"), probe);
-    helperStarted = true;
-    const result = await runNativeCommand({ root: directory, command: "node probe.cjs", cwd: "", timeoutMs: 10000 }, lifecycle);
-    acknowledged = true;
+    unacknowledged = true;
+    const result = await runNativeCommand({ root: directory, ...prepared, command: "node probe.cjs", cwd: "", timeoutMs: 10000 }, lifecycle);
+    unacknowledged = false;
     if (result.status !== "exited" || result.exitCode !== 0 || result.outputTruncated || result.stdout.trim() !== "harness-native-command-ready" || connections !== 0
       || readFileSync(path.join(directory, "external.txt"), "utf8") !== "EXTERNAL_CANARY") throw new Error("Native command isolation preflight failed");
     return { event: "native-command-ready", runtimeSha256: runtime.executableSha256 };
   } finally {
     for (const socket of sockets) socket.destroy(); if (listener?.listening) await new Promise(resolve => listener.close(resolve));
-    if ((!helperStarted || acknowledged) && realpathSync(directory) === directory) await rm(directory, { recursive: true });
+    if (!unacknowledged && realpathSync(directory) === directory) await rm(directory, { recursive: true });
   }
 }
 
@@ -210,23 +224,25 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
     const own = randomUUID(); await writeFile(path.join(directory, "owner.json"), JSON.stringify({ own }), { flag: "wx" });
     // Numeric phase durations only; monotonic so every lap is non-negative.
-    let acknowledged = false, helperStarted = false, clock = performance.now(); const timings = {};
+    let unacknowledged = false, clock = performance.now(); const timings = {};
     const lap = name => { const now = performance.now(); timings[name] = Math.round(now - clock); clock = now; };
     try {
+      unacknowledged = true;
+      const prepared = await prepareNativeRoot(directory, { ...lifecycle, signal: combined });
+      unacknowledged = false; lap("grantMs");
       const snapshot = await snapshotRepository(root, path.join(directory, "repo"), fileBroker, combined); lap("snapshotMs");
       if (cwd && !lstatSync(fileBroker.resolveRead(path.resolve(root, cwd))).isDirectory()) throw new Error("Command workspace directory required");
       const scratchSnapshot = scratch ? await snapshotRepository(scratch, path.join(directory, "scratch"), fileBroker, combined) : null;
-      if (!scratchSnapshot) await mkdir(path.join(directory, "scratch"));
       lap("scratchMs");
       await copyRuntime(runtime, path.join(directory, "runtime"), combined); lap("runtimeMs");
-      helperStarted = true;
-      const result = await runNativeCommand({ root: directory, command: args.command, cwd: cwd.replaceAll("/", "\\"), timeoutMs }, { ...lifecycle, signal: combined });
-      acknowledged = true; lap("commandMs");
-      return { ...result, nonce: undefined, ...snapshot, repositorySnapshotHash: snapshot.snapshotHash, scratchSnapshot,
+      unacknowledged = true;
+      const result = await runNativeCommand({ root: directory, ...prepared, command: args.command, cwd: cwd.replaceAll("/", "\\"), timeoutMs }, { ...lifecycle, signal: combined });
+      unacknowledged = false; lap("commandMs");
+      return { ...result, nonce: undefined, sid: undefined, ...snapshot, repositorySnapshotHash: snapshot.snapshotHash, scratchSnapshot,
         snapshotHash: hash(JSON.stringify([snapshot.snapshotHash, scratchSnapshot?.snapshotHash ?? null])), snapshotWrites: "discarded", originalRepositoryWrites: false, timings };
     } finally {
       // Failed acknowledgements preserve the owned directory for explicit recovery.
-      if ((!helperStarted || acknowledged) && realpathSync(directory) === directory && JSON.parse(readFileSync(path.join(directory, "owner.json"), "utf8")).own === own) await rm(directory, { recursive: true });
+      if (!unacknowledged && realpathSync(directory) === directory && JSON.parse(readFileSync(path.join(directory, "owner.json"), "utf8")).own === own) await rm(directory, { recursive: true });
     }
   }
   return { tools: [...fileBroker.tools, roleCommandTool],

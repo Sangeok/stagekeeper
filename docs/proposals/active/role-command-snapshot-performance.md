@@ -5,7 +5,7 @@ proposal-size: "standard"
 created-at: "2026-10-07"
 approved-by: "HamSangEok"
 approved-at: "2026-10-07"
-approval-scope: "Phase 0(단계별 시간 기록)만"
+approval-scope: "Phase 0(단계별 시간 기록), Phase 1(빈 루트 선부여)"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -146,6 +146,27 @@ CI 값은 측정용으로만 쓰고 닫은 PR #120의 두 실행(37387573737, 37
 - `aclMs`는 `commandMs` 중앙값의 약 31%, 리허설 전체의 약 12%입니다.
 - step 전체에서 `timings` 합을 뺀 약 9~17초는 결과 반환 뒤 스냅숏 삭제와 스크립트 기동 등이라 `timings`에 잡히지 않습니다.
 - 참고로 PR #130 실행(37579053926)은 `snapshotMs` 65,736, `runtimeMs` 3,412, `commandMs` 57,988, `aclMs` 14,318이었습니다.
+
+### Phase 1 결과 (CI, 2026-10-07)
+
+PR #132의 실행 37584271788과 같은 커밋 재실행 2회입니다. 단위는 ms이고, 마지막 두 행만 초입니다.
+
+| 항목 | 1회 | 2회 | 3회 | 중앙값 | 기준선 중앙값 |
+| --- | --- | --- | --- | --- | --- |
+| `grantMs` | 421 | 474 | 677 | 474 | — |
+| `aclMs` | 2 | 2 | 2 | 2 | 15,626 |
+| `grantMs + aclMs` | 423 | 476 | 679 | 476 | 15,626 |
+| `snapshotMs` | 69,162 | 66,560 | 61,535 | 66,560 | 60,584 |
+| `runtimeMs` | 3,662 | 3,205 | 3,063 | 3,205 | 3,028 |
+| `commandMs` | 44,442 | 44,372 | 42,914 | 44,372 | 50,660 |
+| Next compile + TypeScript(초) | 22.4 | 22.2 | 21.8 | 22.2 | 17.9 |
+| 리허설 step 전체(초) | 134 | 129 | 119 | 129 | 132 |
+
+- Phase 1 목표(`grantMs + aclMs` 중앙값 3,000ms 이하)를 달성했습니다. 476ms로, 기준선보다 97% 줄었습니다.
+- 리허설 전체 중앙값은 132초에서 129초로 3초만 줄었습니다. 이 3회는 Phase 1이 바꾸지 않는 부분이 기준선보다 느렸습니다.
+  - Next 빌드 로그의 compile과 TypeScript 시간이 21.8~22.4초였습니다. 기준선은 14.4~20.8초였습니다.
+  - 스냅숏 중앙값도 6초 길었지만, 기준선 범위(43.6~81.7초) 안입니다.
+- 미리 부여한 부모 아래에 파일을 만드는 비용은 로컬 측정에서 규칙이 없을 때와 같았습니다(Current State "현재 코드 경로"). 그래서 이 차이는 러너 편차로 봅니다. 리허설 전체 단축폭은 Phase 2 게이트의 교차 측정에서 다시 확인합니다.
 
 ### 문서 적용본 예비 검증 (로컬, 2026-10-07)
 
@@ -966,7 +987,8 @@ Phase 2의 비동기 검사가 계약을 유지하는 이유:
 승인 메모:
 
 - 2026-10-07 Phase 0만 승인했습니다. Phase 1 이후는 Phase 0 기준선과 수치 목표를 이 문서에 기록한 뒤 따로 승인합니다.
-- 2026-10-07 Phase 0 구현(#130)이 머지됐고 기준선과 수치 목표를 기록했습니다. Phase 1은 아직 승인 전입니다.
+- 2026-10-07 Phase 0 구현(#130)이 머지됐고 기준선과 수치 목표를 기록했습니다.
+- 2026-10-07 Phase 1을 승인했습니다. Phase 2·3은 승인 전입니다.
 
 ## Execution Plan
 
@@ -1106,6 +1128,11 @@ it.todo("returns before deleting the owned snapshot and joins the deletion in cl
 | `npm run check` | Pass (Phase 0) | 로컬 worktree |
 | `npm test` | Pass (Phase 0) | 333 pass, 2 skip(런타임 필요 시험, 아래 native 실행에서 통과) |
 | Phase 0 native 시험 (로컬, CI 런타임 `033f9ac…`) | Pass | `harness-role-commands`·`harness-role-files`·`harness-role-git` 30/30, readlink·spawn 2/2. `timings`를 빼면 새 단언이 실패하고, `aclMs` 대입만 빼면 기본값 0으로 통과합니다(값 확인은 CI 리허설 출력으로) |
+| `npm run check` | Pass (Phase 1) | 로컬 worktree |
+| `npm test` | Pass (Phase 1) | 334 pass, 2 skip(런타임 필요 시험, 아래 native 실행에서 통과) |
+| Phase 1 native 시험 (로컬, CI 런타임 `033f9ac…`) | Pass | `harness-role-commands`·`harness-role-files`·`harness-role-git`·readlink·spawn 37/37(새 시험 2 포함) |
+| Phase 1 변형 확인 (로컬) | Pass | `RequireGrant` 무력화, `profile-sid` 검사 제거, `prepare-empty` 검사 제거는 새 시험 2가 "거부 누락"으로 실패합니다. repo 권한을 상속 안 되게 바꾸면 `Run`이 `snapshot-acl`에서 실행을 거부합니다 |
+| `windows-role-runtime` (CI) | Pass (Phase 1) | PR #132 3회, `grantMs + aclMs` 중앙값 476ms(목표 3,000ms 이하). 값은 Current State "Phase 1 결과" |
 | `windows-role-runtime` (CI) | Pass (Phase 0) | PR #130 1회, `dev` `c8e81c1` 3회. 값은 Current State "Phase 0 기준선" |
 | 문서 적용본 로컬 검증 (설계 검증용, 구현 아님) | Pass | `harness-role-files` 10/10, `harness-role-commands` 14/14(런타임 포함), readlink 1/1, spawn 1/1, 리허설 exit 0. 세부는 Current State |
 
