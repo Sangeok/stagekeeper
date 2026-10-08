@@ -283,8 +283,9 @@ private 템플릿 본문은 이 공개 저장소에 싣지 않는다(`docs/archi
    - `refactor`·`docs`는 해당 없음으로 기록한다. 동작 보존 변경은 되돌려도 시험이 통과하는 것이 정상이다.
 
 **실행하는 클라이언트는 Claude뿐이다.** `start`·검사의 Git 증거와 사본에서의 실행을 모두 직접 한다. 사본의 Git은 `cd` 없이
-`git -C <사본>`으로 부른다. 같은 명령에서 `cd`로 다른 디렉터리에 들어가 `git`을 돌리면, 읽기 전용이라도 Claude Code가 확인을 묻기
-때문이다(8절 런북 1단계). Codex에서는 도우미가 디스패치를 역할 run 전에 거부하므로(6절) 이 계약이 실행되지 않는다. Codex 역할이 이 계약을
+`git -C <사본>`으로 부른다. 그래야 모든 Git 명령이 대상 사본을 이름으로 갖는다. 같은 명령에서 `cd`로 다른 디렉터리에 들어가 `git`을 돌리면
+읽기 전용이라도 Claude Code가 확인을 묻는다. `git -C`도 확인을 피하지는 못한다. 기본 권한 모드에서는 읽기 전용 `git -C`도 매번 확인을 묻는다
+(2026-10-08 실측, *Open Questions*의 [Claude 서브에이전트의 추가 디렉터리 상속]). Codex에서는 도우미가 디스패치를 역할 run 전에 거부하므로(6절) 이 계약이 실행되지 않는다. Codex 역할이 이 계약을
 실행하려면 무엇이 모자란지는 *Open Questions*의 [Codex 실행 — 별도 제안서로 넘김]에 남긴다.
 
 **결함 분류.** plan-verifier의 "breaks implementation | doc hygiene" 구분을 그대로 따른다.
@@ -752,13 +753,15 @@ export const addNode = (g: Graph, kind: string, plan: string): Step => {
      - 샌드박스(macOS·Linux·WSL2)에서 그 디렉터리에 쓰는 것
    - 등록 뒤 사본 안의 검증 명령과 Git 명령이 확인을 거치는지는, dev가 저장소에서 검증 명령을 돌릴 때처럼 소유자의 권한 모드·허용 규칙·
      샌드박스 자동 허용이 정한다. 파일 수정도 권한 모드를 따른다. 네이티브 Windows에서는 샌드박스가 돌지 않는다(sandboxing 문서).
-     다만 같은 명령에서 `cd`로 사본에 들어가 `git`을 돌리면, 그 디렉터리의 Git 훅이 돌 수 있어 읽기 전용이라도 확인을 묻는다
-     (permissions의 Read-only commands). 그래서 impl-verifier는 사본의 Git을 `git -C <사본>`으로 부른다(1절).
+     같은 명령에서 `cd`로 사본에 들어가 `git`을 돌리면, 그 디렉터리의 Git 훅이 돌 수 있어 읽기 전용이라도 확인을 묻는다
+     (permissions의 Read-only commands). impl-verifier는 사본의 Git을 `git -C <사본>`으로 부른다(1절). 하지만 기본 권한 모드에서는 이것도
+     매번 확인을 묻는다(2026-10-08 실측). 런북은 그때 소유자에게 알리라고 하고, `Bash(git -C <경로>/*)` 같은 와일드카드 허용 규칙은 권하지 말라고
+     한다. 실측에서 그런 규칙이 `..`로 빠져나간 다른 저장소의 `git`까지 허용했다(*Open Questions*).
    - 같은 `<KEY>` 사본이 남아 있으면(대기 뒤 명시적 재시도) 6단계처럼 링크를 먼저 끊고 지운 뒤 새로 만든다. `git clone`은 비어 있지 않은
      대상 디렉터리를 거부한다.
    - 서브에이전트는 정의에 `permissionMode`가 없으면 메인 대화의 권한 모드로 돌고(역할 스텁은 이 값을 두지 않는다), 확인 요청은 메인 세션에 뜬다
      (Claude Code 문서 sub-agents). 셸 명령의 샌드박스도 부모 세션과 같은 설정을 쓴다(sandboxing). 파일 도구가 추가 디렉터리를 확인 없이 읽는지는
-     문서에 없으므로 Phase 4 전에 확인한다(*Execution Plan*의 선행 조건, *Open Questions*).
+     문서에 없어서 Phase 4 전에 확인했다. 서브에이전트의 파일 도구도 메인과 똑같이 등록을 따른다(2026-10-08, *Open Questions*).
 2. 작업 영역 검증 명령이 그 사본에서 돌도록 의존성을 준비한다(설치나 연결은 프로젝트가 정한다). 기준 실행은 하지 않는다.
    **준비가 실패해도 디스패치한다.** 기준 실행과 환경 판정은 impl-verifier의 `start`가 하고(1절), 실패하면 `blocked` 보고가 서버에 남는다.
    그러면 그 항목만 `wait on impl-verify`로 멈춘다. 메인 루프가 디스패치를 건너뛰면 서버에는 아무것도 기록되지 않는다.
@@ -993,14 +996,38 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
 - **stagekeeper PR #121 머지 — 충족(2026-10-06, `450176a`).**
   - 이 PR이 product-copy §13 hint 표를 코드와 맞추고, 표와 `HINT`의 일치를 `run-rules.test.mjs:81`로 고정했다.
   - 그래서 Phase 2에서 `HINT`에 `impl-verify`를 더할 때 §13 행도 같은 Phase에서 넣어야 `npm run test:web`이 통과한다.
-- **harness-templates 정정 PR 머지.** *Verifier tree check* 절을 런북에 넣는 PR로, 아직 제출 전이다(harness-templates #8 머지 대기).
+- **harness-templates 정정 PR 머지 — 충족(2026-10-08, harness-templates #9 `832f7d6`).** *Verifier tree check* 절을 런북에 넣는 PR이다.
   Phase 4가 그 절을 확장한다.
-- **Claude 서브에이전트의 추가 디렉터리 상속 확인(Phase 4 전).**
+- **Claude 서브에이전트의 추가 디렉터리 상속 확인(Phase 4 전) — 충족(2026-10-08).** 결과와 그에 따른 런북 안내는 *Open Questions*의
+  [Claude 서브에이전트의 추가 디렉터리 상속]에 있다. 사본 위치는 그대로 두고, 기본 권한 모드에서 `git -C`가 늘 확인을 묻는다는 것을 런북과
+  `docs/architecture/impl-verifier.md`에 적었다.
   - 로컬 저장소 하나에서 시험용 서브에이전트로 확인한다. `permissions.additionalDirectories`에 등록한 저장소 밖 디렉터리를 서브에이전트가
     확인 요청 없이 읽는지, 그 안에서 검증 명령이 메인 대화와 같은 규칙(권한 모드·허용 규칙·샌드박스 자동 허용)으로 도는지 본다(8절).
     사본의 Git 조회(`git -C <사본> rev-parse HEAD` 같은 읽기 전용 명령)가 확인 없이 도는지도 본다(1절).
   - 결과에 따라 런북 절(8절)의 사본 위치 안내가 정해지므로 Phase 4보다 먼저 한다(*Open Questions*).
-- **dual-client 템플릿 묶음 커밋(Phase 4 전).** harness-templates main에 Codex를 받치는 묶음 전체가 들어가 있어야 Phase 4가 그 위에서 시작한다(8절).
+- **dual-client 템플릿 묶음 커밋(Phase 4 전) — 충족(2026-10-08, harness-templates #10 `2314539`, main `528b823`).**
+  harness-templates main에 Codex를 받치는 묶음 전체가 들어가 있어야 Phase 4가 그 위에서 시작한다(8절).
+  - 커밋 방법: 작업본의 추적 파일을 3-way 병합으로 옮겼다(기준 `95ace9d`, 우리 쪽 #9 위 브랜치, 상대 쪽 작업본). #8과 겹친 QA 내용은 #8의 머지된 문장을 따랐고,
+    `qa-verifier-codex-runbook.patch`는 지우고 `QA-VERIFIER-ROLLOUT.md`에 그 이유를 적었다. 결과는 "작업본 + #7 + #9"와 같다.
+    #7·#9가 건드리지 않은 파일(`CODEX.runbook.md`, pm·doc-auditor·feature-scout)은 LF 정규화 뒤 작업본과 바이트가 같다.
+  - 커밋 전에 기록한 작업본 해시(LF 정규화 sha256, 본 checkout `plugin/templates`, HEAD `95ace9d`, 2026-10-07T23:59:35Z). Phase 7의 행별 출처 확인에 쓴다.
+    ```text
+    851dde2b97e0e482ac47b5a15b95a0ad8b4e2bfa9f697aa76d2a5f37902c4d4a en/CLAUDE.runbook.md
+    ef5cb547c8c2030119bb91336b04ddb139293440f6ed38b35ce8bf923ca10b22 en/CODEX.runbook.md
+    ca0f39b3e489ab236ed4eb1113601ff1798812bdfa0c5ac69a6e5de7e1535ec5 en/agents/dev.md
+    4cc599dca790560b7e2252068c485e59e6a137df0b2647cf4a3939f27eb03ddb en/agents/doc-auditor.md
+    c4059e06aea80ccdae95995b63519d485fcc98b5ae104c29bdb59cd30c03db4b en/agents/feature-scout.md
+    300c498e7e88406fda42b74a39a2878f865e370b46d4dcef37914f916d0eb771 en/agents/plan-verifier.md
+    b0727c3177b5a1e9f91f5d68de81ef39af04f3763c88002cd26dcbd288606280 en/agents/pm.md
+    b310fae4a26121a9b2837537938c5770669750428aa253cd67ff7cf516f15b48 en/agents/qa-verifier.md
+    240bde3cd21be10d8428d492a33f061a4da8c3e742c16143ea630f3e0ec8eadb en/docs/agents/README.md
+    ea530b7c24e79d31a4c2880d54686b4851cf30bc4b948605b2cd9f2966db4e3d en/docs/plans/README.md
+    bead97a06d48ddeb287ad5bb664c7ce99beb7152020ac07dd303dad7072d7187 en/docs/plans/template.md
+    d31f317447a558a932dc94097f956d238a0071651024b128e2c139dd6dc97ad4 en/docs/plans/verification-paths.md
+    ```
+    정정 PR의 작업본은 그대로 #9로 커밋했으므로(적용한 diff가 작업본의 `git diff`와 바이트가 같다) 그 판은 커밋 `832f7d6`으로 대조한다.
+
+  아래는 커밋 전(2026-10-07)에 적은 사정이다.
   - 묶음은 둘이다. `en/CODEX.runbook.md`와, 모든 역할 스텁의 runtime 표시를 포함한 그 밖의 "dual-client edits"(harness-templates #8의 `QA-VERIFIER-ROLLOUT.md:5`)다.
     2026-10-07에도 본 checkout의 작업본에만 있다: `en/CLAUDE.runbook.md`, 역할 스텁 다섯, `en/docs/agents/README.md`, `templates.test.mjs`의 수정과
     추적되지 않은 `en/CODEX.runbook.md`(`git -C plugin/templates status --short`. 같이 나오는 추적되지 않은 `en/agents/qa-verifier.md`는 #8 `efd7d42`의 파일과 같다).
@@ -1022,13 +1049,14 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
     운영 DB의 마이그레이션 적용은 그 출시의 기록에 따른 것이고, 이 문서는 DB를 조회하지 않았다.
   - 2026-10-07에 dev(`8a12137`)가 main보다 앞선 것은 문서 변경 둘뿐이다. #133(형제 제안서를 `completed/`로 옮김)과 #134(이 제안서)다.
     앱 소스를 바꾸지 않으므로 이 작업의 승격에 함께 실려도 운영 동작은 바뀌지 않는다. Phase 7 전에 다시 `git log origin/main..origin/dev`로 확인한다.
-  - 템플릿: 그 작업들의 템플릿(harness-templates PR #6·#7·#8과 정정 PR)은 2026-10-07에도 머지 전이다. 그래서 2026-10-06 출시 때 운영 DB에 시드됐는지,
-    됐다면 어느 원본(열린 브랜치나 작업본)에서였는지 이 문서는 모른다.
+  - 템플릿: 그 작업들의 템플릿(harness-templates PR #6·#7·#8과 정정 PR)은 2026-10-07에도 머지 전이었고, 2026-10-08에 머지됐다(위). 그래도 2026-10-06 출시 때
+    운영 DB에 시드됐는지, 됐다면 어느 원본(열린 브랜치나 작업본)에서였는지 이 문서는 모른다.
   - 서버가 이미 나갔으므로 #7(`acceptance_fail` 지시)을 서버보다 먼저 시드할 수 없다는 제약은 사라졌다. 운영 `HINT.accept`가 그 지시에 기대므로
     (`src/server/pipeline/run-rules.ts:40`) 이 작업과 상관없이 먼저 시드하는 편이 낫다. 다만 #7만 시드하면 안 된다. `en/CLAUDE.runbook.md`는 #7에만
     `acceptance_fail`이, #8과 작업본에만 QA 절이 있어서, 운영 행이 #8이나 작업본에서 왔다면 #7만 올릴 때 운영 QA 노드가 기대는 QA 절이 사라진다.
     #7·#8을 함께 머지한 뒤, Phase 7과 같은 행별 출처 확인을 거쳐 시드한다.
-- **harness-templates PR #6·#7·#8과 정정 PR이 main에 머지돼 있어야 한다(Phase 4 전).**
+- **harness-templates PR #6·#7·#8과 정정 PR이 main에 머지돼 있어야 한다(Phase 4 전) — 충족(2026-10-08).** 소유자가 #8·#6·#7 순서로 머지했고(main `809c64c`),
+  이어 #10·#9가 머지됐다(main `528b823`). 머지된 main은 stagekeeper dev(`cc7fe08`) 위에서 `npm run test:templates` 36/36이었다. 운영 DB 시드는 하지 않았다.
   - 템플릿은 경로마다 행이 하나다. #7(`acceptance-failure-path`)은 #8(`qa-verifier`)의 조상이 아닌데, 둘 다 `en/CLAUDE.runbook.md`와
     `en/docs/agents/README.md`를 바꾼다. 그래서 #8에서 갈라진 브랜치로 런북을 시드하면 #7의 `acceptance_fail` 지시가 사라진다.
   - 운영(`c8799f6`)과 dev의 `HINT.accept`는 그 지시에 기댄다(`src/server/pipeline/run-rules.ts:40`).
@@ -1411,7 +1439,7 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
 | `npm test` | Not run yet | |
 | `npm run test:web` | Not run yet | |
 | `npm run test:server:integration` | Not run yet | 격리 DB 필요 |
-| `npm run test:templates` | Not run yet | 버리는 worktree 안의 템플릿 작업 브랜치(Phase 4) |
+| `npm run test:templates` | 53/53 통과(2026-10-08) | harness-templates `harness/impl-verifier` `d996315`(PR #11)을 이 기능 브랜치 `c9d8b5c`의 `plugin/templates` 자리에 두고 돌렸다. 기준(main `528b823`)은 42건 중 1건 실패(`Codex bundle missing: agents/impl-verifier.md`). 템플릿 문장 변이 27건 모두 시험이 잡음. stagekeeper dev `cc7fe08` 위에서는 51/53(Codex 렌더 두 건은 Phase 1의 역할 등록이 필요). DB 없는 시드 검사 유효 행 13 |
 | 실제 모델 리허설 | Not run yet | 성공 기준 4 |
 
 ## Risks and Rollback
@@ -1469,10 +1497,11 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
 - **검증 사본의 권한 확인**:
   - Claude Code는 작업 디렉터리 밖 읽기마다 권한을 확인하고, `permissions.additionalDirectories`에 등록한 디렉터리는 확인 없이 읽는다.
     등록 뒤 검증·Git 명령이 확인을 거치는지는 소유자의 권한 모드·허용 규칙·샌드박스 자동 허용이 정한다. dev가 저장소에서 검증 명령을 돌릴 때와 같다(8절 런북 1단계).
-  - 서브에이전트는 메인 대화의 권한 모드(정의에 따로 두지 않을 때)와 샌드박스 설정을 그대로 쓴다. 하지만 파일 도구가 추가 디렉터리를 확인 없이
-    읽는지는 문서에 없다(*Open Questions*).
+  - 서브에이전트는 메인 대화의 권한 모드(정의에 따로 두지 않을 때)와 샌드박스 설정을 그대로 쓴다. 파일 도구도 추가 디렉터리 등록을 메인과
+    똑같이 따른다(2026-10-08 실측, *Open Questions*).
   - 확인이 필요하면 요청이 메인 세션에 뜬다(Claude Code 문서 sub-agents). 소유자가 없는 감시 실행에서는 멈추거나, 거부되면 impl-verifier가 `blocked`로 보고한다.
-  - 판정이 틀리는 쪽이 아니라 멈추는 쪽이다. Phase 4 전에 확인한다(*Execution Plan*의 선행 조건).
+    기본 권한 모드에서는 사본의 `git -C`가 매번 확인을 물으므로, 그 모드의 감시 실행은 impl-verify마다 이렇게 멈춘다.
+  - 판정이 틀리는 쪽이 아니라 멈추는 쪽이다. 와일드카드 허용 규칙으로 이 멈춤을 없애면 다른 저장소의 `git`까지 열린다(실측). 그래서 런북은 그런 규칙을 권하지 않는다.
 - **검증 사본 준비 실패**:
   - 의존성 준비는 프로젝트마다 다르고 메인 루프 모델이 한다.
   - 준비가 실패해도 디스패치하고, impl-verifier가 `start`의 기준 실행에서 `blocked`로 보고한다(8절 2단계). 그래서 잘못된 판정 대신 그 항목의
@@ -1621,7 +1650,24 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
   - 서브에이전트의 셸 명령은 부모 세션과 같은 샌드박스 설정을 쓰고, 그 설정은 추가 디렉터리에 쓰기를 허용한다. 그래서 샌드박스가 켜진
     macOS·Linux·WSL2에서는 사본 안 셸 명령의 쓰기가 막히지 않는다. 남은 것은 파일 도구의 확인 없는 읽기와, 샌드박스 밖(네이티브 Windows 등) 명령의 확인이다.
 
-  Phase 4 전에 확인한다(*Execution Plan*의 선행 조건).
+  **해결(2026-10-08 실측).** 사본 위치는 그대로 둔다.
+  - 방법: Claude Code 2.1.292, 네이티브 Windows, 비대화형 `claude -p`. 시험용 저장소에 `.claude/agents/probe.md`(Read·Glob·Grep·Bash, sonnet)를 두고
+    메인 루프와 서브에이전트가 같은 네 동작을 했다. 저장소 밖 `~/.harness/impl-verify/<probe>`의 Read와 Glob, `git -C <사본> rev-parse HEAD`,
+    허용 규칙 `Bash(node:*)`가 덮는 `node <사본>/t.mjs`다. 설정은 `--settings` 파일로 주고 `--setting-sources project --strict-mcp-config`로
+    사용자 설정과 MCP를 뺐다. 신뢰하지 않은 작업 공간의 `.claude/settings.json` permissions는 무시되기 때문이다. 아홉 번 돌렸고 비용은 약 0.45달러였다.
+  - 결과 1: 모든 설정에서 서브에이전트의 판정이 메인과 같았다. 등록이 없으면 Read·Glob이 둘 다 거부되고, `additionalDirectories`에 등록하면
+    둘 다 확인 없이 읽었다. 허용 규칙이 덮는 node 명령은 등록과 상관없이 둘 다 돌았다.
+  - 결과 2: 기본 권한 모드(manual)에서 `git -C <경로> …`는 등록해도, 경로가 작업 디렉터리 자신이어도 매번 확인을 물었다. `-C` 없는
+    `git rev-parse HEAD`(작업 디렉터리 안)는 확인 없이 돌았다. auto 모드에서는 등록 여부와 상관없이 위 동작이 모두 확인 없이 돌았다(분류기 판정).
+  - 결과 3: 허용 규칙 `Bash(git -C C:/Users/<u>/.harness/impl-verify/*)`를 더하면 메인과 서브에이전트의 `git -C <사본>`이 돌았다. 그런데 같은 규칙이
+    `git -C …/impl-verify/../../<다른 저장소> rev-parse HEAD`도 확인 없이 돌렸다. `*`가 `..`를 막지 않으므로 이 규칙은 사실상 모든 저장소의 Git을 연다.
+    `&&`로 이은 둘째 명령은 따로 판정돼 확인을 물었고, 따옴표로 감싼 경로는 규칙과 맞지 않았다. 확인한 명령은 모두 읽기 전용이었다.
+  - 반영: 런북 impl-verify 절은 등록을 안내하고, 기본 모드에서 `git -C`가 확인을 묻는다는 것과 와일드카드 규칙을 권하지 말라는 것을 적는다(8절).
+    `docs/architecture/impl-verifier.md`의 권한 문단도 같은 내용으로 고쳤다. 1절의 `git -C` 근거는 "확인을 피한다"가 아니라 "명령이 사본을 이름으로 가진다"로 바꿨다.
+  - 한계: 비대화형에서는 서브에이전트의 확인 요청이 거부로 끝난다. 대화형에서 메인 세션에 뜨는지는 문서에 따른 것이고 재지 않았다.
+    샌드박스가 도는 macOS·Linux·WSL2와 그 자동 허용은 재지 않았다.
+
+  아래는 확인 전(2026-10-07)에 적은 대안이다.
   - 안 되면 사본 위치를 다시 정한다. 예를 들어 작업 디렉터리 안에서 Git이 무시하는 하위 디렉터리다. 그 경우 두 가지를 확인해야 한다.
     - 저장소의 시험·린트·타입 검사가 사본 파일을 함께 읽지 않는지.
     - 사본의 `CLAUDE.md`(런북)가 검증 에이전트에 실리지 않는지. 작업 디렉터리 아래 하위 디렉터리의 `CLAUDE.md`는 그 안의 파일을 Read·Write·Edit할 때

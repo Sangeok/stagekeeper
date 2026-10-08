@@ -889,6 +889,22 @@ both). Below: each file's title, its section headings, and the sentences that se
 - Output: `Verification: ITEM-01 — 2 defects` / `— 0 defects` · `[Defect 1] <breaks
   implementation | doc hygiene>` · `[Paths run]` · `[Paths not run]`
 
+### `agents/impl-verifier.md`
+
+- description: *Re-reads an implemented item against its approved plan in a fresh context and checks, in a disposable copy, that the promised tests catch the change. Never fixes or accepts the item.*
+- Sections: Role · Never · How you work. Steps: start · verify · report · failed-report · blocked-report.
+- "You never saw this change being written, so your re-read is a real re-read."
+- "Run every verification command and every revert in that copy only. Call its Git as
+  `git -C <copy> …`, never `cd <copy> && git`." In the repository checkout it writes only
+  `docs/agents/impl-verifier/<KEY>.md`.
+- "Compare the 40-character SHAs, never the strings: a report may record a short SHA."
+- Mutation check: "The promised tests failing on an assertion: 'tests catch the change'.
+  Everything passing: 'tests miss the change' — a defect that breaks the implementation. Failing
+  before any assertion (import, compile, type error): 'load-stage failure' — record it; it is
+  evidence neither way."
+- Output: `Implementation verification: ITEM-01 — ok, N hygiene defects` / `— N defects break the
+  implementation` / `— could not run` · `[Checks run]` · `[Mutation check]` · `[Defects]`
+
 ### `agents/doc-auditor.md`
 
 - description: *Checks whether what the docs claim about the code is still true. Reports only.*
@@ -912,18 +928,28 @@ both). Below: each file's title, its section headings, and the sentences that se
 
 - Title: `{{project.name}} — pipeline runbook`. "This is the procedure. It holds no state —
   the state lives in Stagekeeper."
-- Sections: Optional browser QA · Document map · Project scope · Agents · Where things stand · Before the cycle ·
+- Sections: Optional implementation verification · Optional browser QA · Document map · Project scope · Agents · Where things stand · Before the cycle ·
   The cycle (run by the main loop) · Verifier tree check · The five acceptance checks · Approving from this session · Rules · Pipeline execution identity.
-- Verifier tree check: right before each dispatch or resume at `verify` and `qa`, fingerprint the
-  whole working tree through a temporary index (the QA report excluded) and compare when the agent
-  returns — finished or on a handoff. A different hash voids that round or QA run: show
+- Optional implementation verification: before each impl-verify dispatch or retry, clone a copy
+  outside the repository at `~/.harness/impl-verify/<directory>-<hash>/<KEY>`, detach it at the
+  implementation report commit and remove its remote; prepare dependencies with workspace links
+  pointing inside the copy; dispatch even if preparation failed; brief only project, key, entry,
+  targetCommit and the copy path. wait on impl-verify: read the report, notify the owner, stop.
+  Delete the copy when the run ends, unlinking junctions and symlinks first. The owner registers
+  `~/.harness/impl-verify` once in `permissions.additionalDirectories`; "Never suggest a wildcard
+  rule such as `Bash(git -C <path>/*)`: a `..` in the path takes it to any repository."
+- Verifier tree check: right before each dispatch or resume at `verify`, `impl-verify` and `qa`,
+  fingerprint the whole working tree through a temporary index (the impl-verifier or QA report
+  excluded) and compare when the agent returns — finished or on a handoff. A different hash voids
+  that round, implementation verification or QA run: show
   `git status --short`, revert nothing, stop. The main loop's own uncommitted round log is why
   "is the tree clean" can't be the test. Paths in `.gitignore` are not covered.
 - Project scope: read this checkout's `harness.json`, use its `project.slug` in every call and briefing,
   including after compaction. Only a confirmed legacy project-token connection without a slug may omit it.
 - Where things stand: answer from `pipeline_next({ project, runbook: "{{runbook_version}}" })`,
   then `board_get({ project, key })` per open item. Name its status, last event/time, validation and
-  whose turn it is: `wait` names a gate, handoff, cap or failed acceptance; `accept` is the main loop's,
+  whose turn it is: `wait` names a gate, handoff, cap, failed acceptance, or failed implementation
+  verification or QA; `accept` is the main loop's,
   `dispatch` is an agent's. Name the node/gate and the recorded plan commit before implementation approval.
   "Never state a status you did not read in this turn. If a tool fails, say so and stop."
 - Before the cycle: complete the external-skill preflight, respect the runbook-stale warning and
@@ -934,6 +960,8 @@ both). Below: each file's title, its section headings, and the sentences that se
   plan's recorded commit must be on the remote; a handoff waits for the owner's commit.
   A cap waits for the server's reason/resetAt; already open runs can resume.
   Failed acceptance waits for owner web retry or Reopen without rerunning the checks; inspect other ready work.
+  Failed, blocked or stale implementation verification or QA waits: read the report at the answer's
+  path, tell the owner its note, and stop for that item; retry only after an explicit decision.
   At `accept`, independently reproduce all five checks. All pass: write and commit the acceptance
   section with actual owner permission, then `report_submit({ project, key, actor: "main-loop", path, commit })`.
   Any fails: `acceptance_fail({ project, key, checks, note })`, tell the owner, and wait for fresh `accept`.
@@ -942,7 +970,9 @@ both). Below: each file's title, its section headings, and the sentences that se
   Retry keeps done and the backlog removed; Reopen restores the backlog. Fresh accept reruns all five checks.
 - Acceptance checks: "Changed files ↔ the plan's 'Files to change' — plus
   `docs/agents/<actor>/<KEY>.md`, which the agent is told to commit with the code and which no
-  plan ever lists; anything else outside the table fails the check. Diff ↔ 'Implementation
+  plan ever lists. When impl-verify or qa is enabled, its committed
+  `docs/agents/impl-verifier/<KEY>.md` or `docs/agents/qa-verifier/<KEY>.md` is also expected
+  verification evidence; anything else outside the table fails the check. Diff ↔ 'Implementation
   sketch'. Run the verify command yourself. Confirm the backlog entry is gone. Read the report
   records from `board_get`, check the `path` and `commit`, and open that file — `result` is a
   summary, not the report location."
@@ -982,6 +1012,8 @@ both). Below: each file's title, its section headings, and the sentences that se
   Tests · Out-of-scope dependencies · Alternatives
 - "Every sentence in Current behavior needs a file:line. Re-read the line right before you cite it."
 - "Files to change is a contract: nothing outside it gets touched. If you need more, put the item on hold."
+- Tests: each Covered behavior names the test file that asserts it — "Name the test file that
+  asserts each behavior: `<behavior> — <test file>`".
 - Markdown targets: "Fence your before/after with four tildes (`~~~~markdown`) so the inner
   fence survives." Three backticks around a block that already contains three backticks
   closes early and the plan renders broken.

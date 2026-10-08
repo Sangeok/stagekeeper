@@ -33,9 +33,15 @@ The main loop prepares the copy before each dispatch, outside the repository:
   unlinking any junction or symlink first.
 
 The owner registers the absolute path of `~/.harness/impl-verify` once in Claude Code's
-`permissions.additionalDirectories`. Whether verify and Git commands in the copy still ask is
-decided by the owner's permission mode, allow rules and sandbox settings, as for dev's verify
-commands in the repository. impl-verifier calls the copy's Git as `git -C <copy>`.
+`permissions.additionalDirectories`. impl-verifier's file tools then read the copy without
+asking: a subagent follows the same additional directories, permission mode and allow rules as
+the main session (measured with Claude Code 2.1.292 on Windows, 2026-10-08). Verify commands in
+the copy ask or not by the owner's allow rules and sandbox settings, as for dev's verify commands
+in the repository. In the default permission mode every `git -C <copy>` call asks, even a
+read-only one; auto mode decides per call. Do not add a wildcard allow rule such as
+`Bash(git -C <copy root>/*)`: in the same measurement it also matched
+`git -C <copy root>/../../<another repository> rev-parse HEAD` and ran it without asking.
+impl-verifier still calls the copy's Git as `git -C <copy>`, so every Git command names the copy.
 
 ## Checks and verdicts
 
