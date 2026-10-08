@@ -1435,12 +1435,36 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| `npm run check` | Not run yet | |
-| `npm test` | Not run yet | |
-| `npm run test:web` | Not run yet | |
-| `npm run test:server:integration` | Not run yet | 격리 DB 필요 |
+| `npm run check` | 통과(2026-10-08) | 기능 브랜치 `1142808`. lint·FSD·`tsc`·`test:architecture`·`plugin/lib` 미러 일치 |
+| `npm test` | 343건 중 341건 통과·실패 0·건너뜀 2(2026-10-08) | `1142808`. 건너뜀 2건은 dev에서도 건너뛰는 POSIX·런타임 사례 |
+| `npm run test:web` | 584/584 통과(2026-10-08) | `1142808` |
+| `npm run test:server:integration` | 통과, 103/103(2026-10-08) | `1142808`. 로컬 포터블 PG18의 격리 DB `stagekeeper_test_impl`(실행기는 요약만 내므로 같은 명령을 직접 돌려 건수를 셌다). 운영 DB에는 닿지 않았다 |
+| `npm run build` | 로컬에서 돌리지 않음 | 기능 PR의 CI `check`가 돌린다 |
 | `npm run test:templates` | 53/53 통과(2026-10-08) | harness-templates `harness/impl-verifier` `d996315`(PR #11)을 이 기능 브랜치 `c9d8b5c`의 `plugin/templates` 자리에 두고 돌렸다. 기준(main `528b823`)은 42건 중 1건 실패(`Codex bundle missing: agents/impl-verifier.md`). 템플릿 문장 변이 27건 모두 시험이 잡음. stagekeeper dev `cc7fe08` 위에서는 51/53(Codex 렌더 두 건은 Phase 1의 역할 등록이 필요). DB 없는 시드 검사 유효 행 13 |
 | 실제 모델 리허설 | Not run yet | 성공 기준 4 |
+
+Phase별 기록(모두 기능 브랜치 `harness/impl-verifier`, dev `cc7fe08`에서 땀). 변이 확인은 바꾼 곳을 한 번에 하나씩 되돌리거나 비틀고 시험이 실패하는지 본 것이다.
+매번 원본 줄과 정확히 한 번 일치하는지, 되돌린 뒤 `git diff`가 그대로인지 확인했다.
+
+| Phase | 커밋 | 결과 |
+| --- | --- | --- |
+| 1 이름 등록 | `c0ae557` | `npm run check` 통과, `npm test` 실패 0, `npm run test:web` 579/579, 통합 98/98, 변이 8/8 |
+| 2 서버 | `6521ba7` | `npm run check` 통과, `npm test` 실패 0, `npm run test:web` 579/579, 통합 103/103, 변이 11/11 |
+| 3 감시기·Codex 거부 | `ec1a3cb` | `npm test` 343건 중 341건 통과·실패 0, `npm run test:web` 579/579, 통합 103/103, `main()` 연결 확인(옛 줄 0·새 줄 1), 변이 8/8 |
+| 5 웹·문서 | `c9d8b5c` | `npm run check` 통과, `npm run test:web` 584/584, `npm test` 실패 0, 변이 8/8 |
+| 4 템플릿 | harness-templates `d996315`(PR #11, 머지 `405ca54`), stagekeeper `1142808` | `npm run test:templates` 53/53, 템플릿 문장 변이 27/27, DB 없는 시드 검사 유효 행 13 |
+
+계획과 달라진 것:
+
+- Phase 순서: Phase 4는 선행 조건(템플릿 PR 머지, 서브에이전트 확인)을 기다리느라 Phase 5 뒤에 했다. Phase 5의 product-copy §14(템플릿 요약)는 템플릿 문장에
+  달려 있어 Phase 4로 미뤘다가 거기서 넣었다. 계획에서 Phase 2에 있던 감시기 `actionableWork` 단언은 감시기를 바꾸는 Phase 3에서 넣었다.
+- 계획 밖으로 더한 시험:
+  - Phase 1: `harness-session.test.mjs`의 impl-verifier Codex 역할 왕복 시험. `readCodexRole`의 sandbox 줄은 이 시험이 아니면 받치는 시험이 없다.
+  - Phase 2: 통합 시험의 재제출 거부 사유 단언과 "impl-verify 뒤 슬롯에서 인수 거부" 사례. 이것이 없으면 `submitReport`의 거부 줄 셋
+    (그래프 전체 impl-verify 거부, 현재 entry 확인, run 판정 확인)을 지워도 시험이 통과했다. 뒤의 둘은 나중 줄의 stale-run 검사가 가렸다.
+  - Phase 5: `turn.test.ts`(항목에 묶인 검증 노드의 배너), `briefing.test.mjs`(Activity와 Team 행), 새 `gate-text.test.ts`(QA 토스트도 함께 고정).
+  - Phase 4: 런북의 사본 해시 명령을 실제로 실행해 Node의 sha256과 비교하는 시험. 런북 절·QA 문장·README 행·계획 Tests 규칙을 고정하는 단언.
+- 템플릿 문장: 서브에이전트 권한 확인(*Open Questions*) 결과로 런북의 권한 안내와 1절의 `git -C` 근거를 고쳤다.
 
 ## Risks and Rollback
 
