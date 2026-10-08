@@ -9,8 +9,18 @@ import { RUNTIME_PROTOCOL } from "../lib/client-runtime.mjs";
 import { verifierPackage } from "../runtime/codex-agent.mjs";
 import { safeTarget } from "../runtime/file-ownership.mjs";
 
+// Codex does not run impl-verifier yet (its verification environment is a separate proposal), so the dispatch stops before any run opens.
+export class CodexRoleUnsupported extends Error {
+  constructor() {
+    super("Implementation verification (impl-verify) is not available on Codex yet; no role run started. Continue this item from Claude Code, or remove impl-verify from the Pipeline tab so items that have not started skip it.");
+    this.name = "CodexRoleUnsupported";
+    this.code = "codex-role-unsupported";
+  }
+}
+
 export function dispatchBinding(next, workspaces) {
   if (next.action !== "dispatch") throw new Error("Current pipeline is not dispatchable");
+  if (next.agent === "impl-verifier") throw new CodexRoleUnsupported();
   const item = next.key !== undefined;
   if (item && next.format !== null && next.format !== "slots-v1") throw new Error("Unsupported item pipeline format");
   if (next.format === "slots-v1" && (!next.entry?.runId || !next.entry?.entryId || !next.entry?.slotId)) throw new Error("Bound dispatch missing entry");
@@ -20,11 +30,14 @@ export function dispatchBinding(next, workspaces) {
 }
 
 export function codexFailure(error, session = null) {
-  if (error instanceof RoleExecutionUnavailable) {
+  if (error instanceof RoleExecutionUnavailable || error instanceof CodexRoleUnsupported) {
     return { event: "error", session, code: error.code, reason: error.message };
   }
   return { event: "error", session, code: "codex-refused", reason: "Codex configuration, runtime, binding, permission or server check failed. Keep ownership until owned work is quiescent; resolve with $harness-init. No completion is claimed." };
 }
+
+// Workflow files that may change after the QA target. impl-verify runs before qa, so its report lands here too.
+export const qaWorkflowFile = (name, key) => ["harness.json", "harness.lock.json", "CLAUDE.md", ".mcp.json", `docs/agents/qa-verifier/${key}.md`, `docs/agents/impl-verifier/${key}.md`, `docs/agents/main-loop/${key}.md`].includes(name) || [".codex/", ".claude/", "docs/harness/"].some(prefix => name.startsWith(prefix));
 
 function optionsFor(argv) {
   const [operation, ...args] = argv;
@@ -119,8 +132,7 @@ async function main() {
       if (!report || report.commit !== briefing.targetCommit) throw new Error("QA briefing target differs from the implementation report");
       execFileSync("git", ["-C", location.root, "merge-base", "--is-ancestor", briefing.targetCommit, "HEAD"], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
       const changed = execFileSync("git", ["-C", location.root, "diff", "--name-only", briefing.targetCommit], { windowsHide: true, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim().split(/\r?\n/).filter(Boolean);
-      const workflowFile = name => ["harness.json", "harness.lock.json", "CLAUDE.md", ".mcp.json", `docs/agents/qa-verifier/${dispatch.key}.md`, `docs/agents/main-loop/${dispatch.key}.md`].includes(name) || [".codex/", ".claude/", "docs/harness/"].some(prefix => name.startsWith(prefix));
-      if (changed.some(name => !workflowFile(name))) throw new Error("Product files changed since the QA implementation target");
+      if (changed.some(name => !qaWorkflowFile(name, dispatch.key))) throw new Error("Product files changed since the QA implementation target");
       dispatch.qaBriefing = briefing;
     } else if (options.briefing) throw new Error("Only independent verifiers accept a minimal briefing");
     console.log(JSON.stringify({ session: options.session, ...await dispatchFreshRole(input, files, options.session, dispatch) }));

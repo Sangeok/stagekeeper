@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
-import { dispatchBinding, codexFailure } from "./harness-codex.mjs";
+import { dispatchBinding, codexFailure, qaWorkflowFile } from "./harness-codex.mjs";
 import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
@@ -89,6 +89,21 @@ it("binds the original legacy/slots key and receipt while refusing owner and oth
   assert.equal(report.agentKey, undefined); assert.ok(report.entry);
 });
 
+it("QA accepts this item's impl-verifier report as a workflow file after its target, and nothing else new", () => {
+  assert.equal(qaWorkflowFile("docs/agents/impl-verifier/A.md", "A"), true);
+  assert.equal(qaWorkflowFile("docs/agents/impl-verifier/B.md", "A"), false);
+  assert.equal(qaWorkflowFile("docs/agents/qa-verifier/A.md", "A"), true);
+  assert.equal(qaWorkflowFile("src/app.ts", "A"), false);
+});
+
+it("Codex refuses impl-verifier before any role run opens and says where to continue", () => {
+  const entry = { runId: "pipeline", entryId: "entry", slotId: "impl-verify" };
+  let refused;
+  assert.throws(() => dispatchBinding({ action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1", entry }, []), (error) => { refused = error; return true; });
+  assert.deepEqual(codexFailure(refused, "s"), { event: "error", session: "s", code: "codex-role-unsupported", reason: refused.message });
+  assert.match(refused.message, /not available on Codex yet.*Claude Code/);
+});
+
 it("omits parent credentials and restricts workspace, readonly and foreign paths", () => {
   assert.deepEqual(childEnvironment({ PATH: "ok", HARNESS_TOKEN: "secret", HARNESS_OWNER_TOKEN: "owner", OPENAI_API_KEY: "key", NODE_OPTIONS: "injection", CODEX_HOME: "parent", CLAUDE_CONFIG_DIR: "parent", GIT_CONFIG_COUNT: "1" }), { PATH: "ok" });
   const f = fixture(), input = { binding: f.binding, config: { workspaces: [{ agent: "web-dev", path: "src/web", readOnly: ["src/web/policy"] }, { agent: "api-dev", path: "src/api" }] } };
@@ -134,6 +149,13 @@ it("QA alone receives the complete browser allowlist without shell, owner or nes
   assert.throws(() => renderCodexRole(body.replace(", mcp__harness_qa_browser__browser_network_requests", ""), "qa-verifier"), /browser allowlist/);
   const devBody = body.replace("name: qa-verifier", "name: web-dev").replace(ROLE_TOOLS["qa-verifier"].map(name => "mcp__harness__" + name).join(", "), ROLE_TOOLS.dev.map(name => "mcp__harness__" + name).join(", "));
   assert.throws(() => renderCodexRole(devBody, "dev"), /browser allowlist/);
+});
+it("impl-verifier installs on Codex as a write role with its exact tools, so a Pro bundle renders", () => {
+  const body = `---\nname: impl-verifier\ndescription: Implementation check\ntools: Read, Glob, Grep, Bash, Write, ${ROLE_TOOLS["impl-verifier"].map(name => "mcp__harness__" + name).join(", ")}\n---\n${RUNTIME_MARKER}\nUse the current server step.`;
+  const policy = readCodexRole(renderCodexRole(body, "impl-verifier"), "impl-verifier", "impl-verifier");
+  assert.equal(policy.sandbox_mode, "workspace-write");
+  assert.deepEqual(policy["mcp_servers.harness.enabled_tools"], ["agent_next", "board_get", "backlog_get", "report_submit"]);
+  assert.throws(() => renderCodexRole(body.replace("tools: Read,", "tools: Edit, Read,"), "impl-verifier"), /file tool allowlist/);
 });
 it("QA verify refuses fabricated completion and forwards browser evidence with the current receipt binding", async () => {
   const entry = { runId: "pipeline", entryId: "entry", slotId: "qa" }, receipt = { runId: "qa-run", revision: 1, stepId: "verify" };

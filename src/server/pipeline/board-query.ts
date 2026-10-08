@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { allowsSessionApprovals, capError } from "@harness/core/entitlement.mjs";
 import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/backlog.mjs";
 import { readProjectAccessIn, readProjectPlanIn } from "../project-access-query";
-import { advance, cursorForStatus, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { advance, cursorForStatus, gateId, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import { hasActiveLegacyScoutSlot } from "../automatic-scout";
 import { isOpen } from "@harness/core/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem, type AcceptanceFailure } from "@/generated/prisma/client";
@@ -13,6 +13,7 @@ import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type His
 import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
 import { parseQaReport } from "@harness/core/qa.mjs";
 import { implementationReport } from "./qa-query";
+import { IMPL_VERIFIER, IMPL_VERIFY_PENDING, implVerifierReportPath } from "./impl-verify-query";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -526,7 +527,9 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
     const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep, acceptanceFailed });
     if (!d.ok) throw new BoardRejection(d.reason);
     const pipeline = await ensureRun(tx, projectId, row.id, row.status, false);
+    if (d.value.accepts && !pipeline.closedAt && ["impl-verify", gateId("impl-verify")].includes(pipeline.node)) throw new BoardRejection(IMPL_VERIFY_PENDING);
     if (d.value.accepts && pipeline.version.nodes.includes("qa") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection("QA has not completed; acceptance is only available at accept");
+    if (d.value.accepts && pipeline.version.nodes.includes("impl-verify") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection(IMPL_VERIFY_PENDING);
     if (input.actor !== "qa-verifier" && input.qa !== undefined) throw new BoardRejection("QA evidence belongs to qa-verifier");
     let qa: ReturnType<typeof parseQaReport> | undefined;
     if (input.actor === "qa-verifier") {
@@ -537,6 +540,14 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
       if (!target || target.commit !== qa.targetCommit) throw new BoardRejection("QA target does not match the implementation report commit");
       const qaRun = await tx.agentRun.findFirst({ where: { id: input.runId, projectId, agent: "qa-verifier", key: input.key, pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId, closedAt: null }, include: { steps: { where: { accepted: true } } } });
       if (!qaRun || !(qa.verdict === "pass" ? qaRun.stepId === "report" && qaRun.steps.some(step => step.stepId === "verify" && step.outcome === "ok") : qaRun.stepId === `${qa.verdict === "fail" ? "failed" : "blocked"}-report`)) throw new BoardRejection("QA verdict does not match the current run's verification outcome");
+    }
+    if (input.actor === IMPL_VERIFIER) {
+      if (!input.runId || input.path !== implVerifierReportPath(input.key)) throw new BoardRejection("Implementation verification report requires its bound AgentRun and report path");
+      if (!/^[0-9a-f]{7,40}$/.test(input.commit)) throw new BoardRejection("Implementation verification report requires a commit SHA");
+      if (pipeline.version.format !== SLOT_FORMAT || pipeline.node !== "impl-verify" || pipeline.closedAt || row.status !== "done") throw new BoardRejection("Implementation verification report requires the current impl-verify entry");
+      if (!await implementationReport(tx, row.id, row.agent, pipeline.id)) throw new BoardRejection("Implementation verification needs a completed implementation report");
+      const verifierRun = await tx.agentRun.findFirst({ where: { id: input.runId, projectId, agent: IMPL_VERIFIER, key: input.key, pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId, closedAt: null }, include: { steps: { where: { accepted: true } } } });
+      if (!verifierRun || !(verifierRun.stepId === "report" ? verifierRun.steps.some(step => step.stepId === "verify" && step.outcome === "ok") : ["failed-report", "blocked-report"].includes(verifierRun.stepId))) throw new BoardRejection("Implementation verification report does not match the current run's outcome");
     }
     if (input.runId) {
       const agentRun = await tx.agentRun.findUnique({ where: { id: input.runId }, include: { pipelineRun: true } });

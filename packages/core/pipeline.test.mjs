@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, gateId, NODE_KINDS, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
+import { advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, gateId, isItemNode, NODE_KINDS, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
 
-const full = { nodes: NODE_KINDS.filter(kind => kind !== "qa"), gates: [...DEFAULT_GATES] };
+const full = { nodes: NODE_KINDS.filter(kind => !["impl-verify", "qa"].includes(kind)), gates: [...DEFAULT_GATES] };
 const facts = (o = {}) => ({ status: "proposed", validation: null, accepted: false, approvedGates: [], closedAgents: [], ...o });
 
 describe("slot execution isolation", () => {
@@ -41,7 +41,7 @@ describe("slot execution isolation", () => {
 describe("defaultGraph", () => {
   it("free has no verify or doc-audit; pro and max have every node but scout; gates are the two boundaries", () => {
     assert.deepEqual(defaultGraph("free").nodes, ["propose", "plan", "implement", "accept"]);
-    assert.deepEqual(defaultGraph("pro").nodes, NODE_KINDS.filter((k) => !["scout", "qa"].includes(k)));
+    assert.deepEqual(defaultGraph("pro").nodes, NODE_KINDS.filter((k) => !["scout", "impl-verify", "qa"].includes(k)));
     assert.deepEqual(defaultGraph("max").gates, DEFAULT_GATES);
   });
   it("scout is opt-in — absent from every default graph, valid once added on a plan that has feature-scout", () => {
@@ -138,5 +138,36 @@ describe("dispatcherFor", () => {
 
   it("is not the item's dev outside plan and implement, so a stale dev run cannot pass for verification", () => {
     assert.notEqual(dispatcherFor("verify", "web-dev"), "web-dev");
+  });
+});
+
+describe("impl-verify node", () => {
+  const graph = { nodes: ["plan", "implement", "impl-verify", "qa", "accept"], gates: [] };
+  it("is opt-in, item-bound, sits between implement and qa, and stays off Free", () => {
+    assert.ok(!defaultGraph("pro").nodes.includes("impl-verify"));
+    assert.deepEqual(validateGraph(graph, "pro"), { ok: true });
+    assert.deepEqual(validateGraph({ ...graph, nodes: ["plan", "implement", "qa", "impl-verify", "accept"] }, "pro"), { ok: false, reason: "impl-verify must come before qa" });
+    for (const nodes of [["plan", "impl-verify", "implement", "accept"], ["plan", "implement", "accept", "impl-verify"]]) {
+      assert.deepEqual(validateGraph({ nodes, gates: [] }, "pro"), { ok: false, reason: "impl-verify must be between implement and accept" });
+    }
+    assert.equal(validateGraph({ nodes: ["plan", "implement", "impl-verify", "accept"], gates: [] }, "free").ok, false);
+    assert.equal(dispatcherFor("impl-verify", "dev"), "impl-verifier");
+    assert.equal(isItemNode("impl-verify"), true);
+  });
+  it("a done item stands at impl-verify and only its own evidence completes it", () => {
+    assert.equal(cursorForStatus(graph, "done"), "impl-verify");
+    assert.equal(nodeDone("impl-verify", facts({ status: "done" })), false);
+    assert.equal(nodeDone("impl-verify", facts({ status: "done", qaComplete: true })), false);
+    assert.equal(nodeDone("impl-verify", facts({ status: "done", implVerifyComplete: true })), true);
+  });
+  it("entering impl-verify or its gate from implementing records implementation done once, and leaving records nothing", () => {
+    const entering = facts({ status: "implementing", format: "slots-v1", implementationComplete: true });
+    const r = advance(graph, "implement", entering);
+    assert.equal(r.cursor, "impl-verify");
+    assert.deepEqual(r.transitions, [{ from: "implementing", to: "done" }]);
+    const gated = advance({ ...graph, gates: ["before-impl-verify"] }, "implement", entering);
+    assert.equal(gated.cursor, "before-impl-verify");
+    assert.deepEqual(gated.transitions, [{ from: "implementing", to: "done" }]);
+    assert.deepEqual(advance(graph, "impl-verify", facts({ status: "done", format: "slots-v1", implVerifyComplete: true })).transitions, []);
   });
 });

@@ -70,7 +70,7 @@ describe("decideNext (H.4)", () => {
   });
   it("HINT covers every node the pipeline can stop on, accept included", () => {
     // accept는 메인 루프가 에이전트 없이 직접 하는 유일한 동작이라 hint를 따로 단다.
-    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
+    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "impl-verify", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
     assert.match(HINT.verify, /validation_record/);
     // verify hint는 경로 목록을 남길 자리를 말한다.
     assert.match(HINT.verify, /verification-paths\.md/);

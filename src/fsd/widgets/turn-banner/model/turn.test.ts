@@ -195,6 +195,14 @@ describe("deriveTurn — theirs and none", () => {
       ],
     );
   });
+
+  it("an item at an item-bound verifier node is the session's work, with that verifier's line", () => {
+    for (const [node, agent] of [["impl-verify", "impl-verifier"], ["qa", "qa-verifier"]] as const) {
+      const turn = deriveTurn([{ ...item("FEAT-09", "done"), node }], ready);
+      if (turn.kind !== "theirs") assert.fail(`${node}: ${turn.kind}`);
+      assert.deepEqual(turn.next.map((n) => n.line), [`Continue the pipeline for FEAT-09: ${node} — ${agent} runs ${node}.`], node);
+    }
+  });
   // on_hold는 배너를 소유하지 않는다(product-copy.md §5) — 결재함 목록과 탭 뱃지는 다르다.
   it("is none when only accepted done and on_hold remain", () => {
     const turn = deriveTurn([accepted("FEAT-01"), item("FEAT-05", "on_hold")], ready);

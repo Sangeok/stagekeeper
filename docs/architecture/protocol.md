@@ -143,17 +143,17 @@ MCP `AuthInfo.expiresAt`의 초 단위 재검사는 사용하지 않는다. 다�
 | `project_sync` | `{workspaces[], language?, project?}` (= `harness.json`의 `workspaces`·`language`) | 워크스페이스 upsert(roster 갱신) · `Project.language` 갱신(`agent_next`가 단계를 찾는 언어) | init 스킬 | 1 · 4 |
 | `backlog_list` | `{includeRemoved?, project?}` | 백로그 항목 + 최신 보드 status | pm·dev·doc-auditor·feature-scout | 1 |
 | `backlog_add` | `{runId, title, area, source, type, project?}` | 서버가 ITEM-NN 발급. 열린 feature-scout run만, run당 누적 3건·플랜의 live 상한. 반환 `{key}` | feature-scout | 1 |
-| `backlog_get` | `{key, project?}` | 항목 1건(`source` 전문) | dev | 1 |
+| `backlog_get` | `{key, project?}` | 항목 1건(`source` 전문) | dev·impl-verifier·qa-verifier | 1 |
 | `board_list` | `{open?, project?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
-| `board_get` | `{key, project?}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·main-loop | 1 |
+| `board_get` | `{key, project?}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·impl-verifier·qa-verifier·main-loop | 1 |
 | `board_propose` | `{key, agent, reason, project?}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
 | `board_transition` | `{key, to, result?, project?}` | 에이전트는 planning·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev | 1 |
 | `plan_submit` | `{key, path, commit, type?, project?}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
-| `report_submit` | `{key, actor, path, commit, runId?, project?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·main-loop | 1 |
+| `report_submit` | `{key, actor, path, commit, runId?, project?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·impl-verifier·qa-verifier·main-loop | 1 |
 | `acceptance_fail` | `{key, checks, note, path?, commit?, project?}` | 최신 done·미인수·열린 accept 노드에 실패 조건 1–5(각각 한 번)와 150자 이하 note를 기록한다. path/commit은 함께 선택 입력. Failure는 Report와 별개이며 같은 상태 이벤트 `acceptance-failed`를 남긴다. 중복 실패는 거부하고 cursor·acceptedAt·backlog는 보존한다 | main-loop | 1 |
 | `validation_record` | `{key, text, project?}` | `validation` — **`in_review`일 때만**. 되돌리기 시 서버가 지움. **마지막 `plan_submit` 뒤에 `plan-verifier`의 `verify` ok 원장이 없으면 거부**(`no plan-verifier pass recorded after the last plan_submit — …`) | main-loop | 1 |
 | `agent_next` | `{agent, key?, outcome?, note?, entry?, agentRunId?, stepId?, receipt?, project?}` | 에이전트 템플릿의 **다음 단계 하나**(`{step, instruction, receipt:{runId,revision,stepId}, done:false}` / `{done:true}`). 단계 본문은 이 도구로만 나간다 — 파일(`.claude/agents/*.md`)은 스텁이다. **새 run은 `requires`가 맞는 첫 단계로 열린다**(실패 분기 전용 단계는 진입 후보가 아니다) — 그래서 보드 상태로 갈리는 에이전트도 스스로 분기하는 단계를 둘 필요가 없다. 열리는 단계가 하나도 없으면 run을 만들지 않고 거부한다. 보드 상태가 단계의 `requires`와 다르면 **거부**하며 그 단계를 여는 상태를 말한다(``not open: step `implement` opens when the item is `implementing` (now `proposed`)``). `key`가 있으면 그 항목에 배정된 에이전트만 부를 수 있다(``item FEAT-1 belongs to `api-dev`, not `web-dev```). 플랜 밖 에이전트·선택되지 않은 프로젝트도 거부. **`outcome: "handoff"`는 커밋 핸드오프다** — 원장(`AgentRunStep`)에 남기고 같은 단계를 돌려준다(전진·분기·거부 카운트 없음). 재개는 outcome 없는 호출 | 전부 | 4 |
-| `pipeline_next` | `{key?, runbook?, project?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 후보가 없으면 feature-scout, 있으면 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm"|"feature-scout", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`·`acceptance`) · `accept` · `done` 종류다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다. `runbook`(12자리 소문자 hex)이 있으면 key 없는 개요의 `runbook` 필드는 그 판이 현재 템플릿과 다를 때만 실린다. 없거나 모양이 틀리면 마지막 init이 보고한 판(`Project.runbookVersion`)으로 판정한다. 넘겨받은 판은 저장하지 않는다 | main-loop · harness-watch | 2 |
+| `pipeline_next` | `{key?, runbook?, project?}` | `key` 있음: 그 항목의 다음 일 하나(`PipelineNext`). 없음: `{head, items}` — `head`는 후보가 없으면 feature-scout, 있으면 pm 디스패치 차례인지(`{action:"dispatch", agent:"pm"|"feature-scout", hint}` 또는 `{action:"none", reason}`), `items`는 열린 항목 각각의 답. 답은 `dispatch` · `wait`(`gate`·`handoff`·`cap`·`acceptance`·`impl-verify`·`qa`) · `accept` · `done` 종류다. 읽기 도구이지만 `doc-audit`·`scout` 완료는 보드 쓰기를 지나지 않으므로 이 호출이 지연 전진을 한다. `runbook`(12자리 소문자 hex)이 있으면 key 없는 개요의 `runbook` 필드는 그 판이 현재 템플릿과 다를 때만 실린다. 없거나 모양이 틀리면 마지막 init이 보고한 판(`Project.runbookVersion`)으로 판정한다. 넘겨받은 판은 저장하지 않는다 | main-loop · harness-watch | 2 |
 | `command_next` / `command_ack` / `command_done` | — / `{id}` / `{id, summary}` | 명령 원장 멱등 소비 | routine (Phase 3) | 3 |
 | `release_list` / `release_close` | — / `{id, outcome, evidence}` | 배포 확인 원장 | release-verify (Phase 3) | 3 |
 
@@ -177,7 +177,7 @@ checkout CLAUDE.md의 init 관리 runbook start/end marker 사이에서만 12자
 work/idle 통지 이후 세션은 저장된 정책과 현재 소유권을 확인하며 work에는 fresh overview를
 다시 읽는다. propose:no는 head만 제외하고 항목의 feature-scout 슬롯은 유지한다. 각 새 행동과
 재무장 전에 소유권을 확인하고 fresh hint/format/entry 및 AgentRun receipt를 그대로 사용한다.
-한 항목의 gate/handoff/cap/acceptance가 다른 ready 항목을 가리지 않는다. 감시가 gate를 자동으로 열거나
+한 항목의 gate/handoff/cap/acceptance/impl-verify/qa 대기가 다른 ready 항목을 가리지 않는다. 감시가 gate를 자동으로 열거나
 push하지 않으며 commit:no의 acceptance/report는 소유자의 실제 commit·명시적 재개를 기다린다.
 
 상태는 realpath로 확인한 공통 Git 디렉터리의 harness/에 있다. mkdir guard로 짧은 동기 파일
@@ -274,6 +274,15 @@ verify/ok·정상 report/ok·구조화된 pass 보고가 모두 있어야 accept
 wait-on-QA로 멈추고, 오래된 보고나 닫힌 실패 run은 완료 근거가 아니다. 최종 인수는 메인
 루프만 한다. 기존 그래프·기본값은 보존한다. 계약과 배포 순서는
 [qa-verifier.md](./qa-verifier.md)를 따른다.
+
+선택적 `impl-verify` 노드는 implement와 accept 사이(`qa`가 있으면 그 앞)에서 항목 key를 가진
+`impl-verifier`를 호출한다(Pro/Max). 진입 시 구현 완료 `done`을 기록하며, 현재 entry에서
+verify/ok·정상 report/ok로 닫힌 run과 그 run에 묶인 보고가 있어야 다음 노드로 간다. 보고는
+열린 결합 run, `docs/agents/impl-verifier/<KEY>.md` 경로, SHA 커밋, 현재 impl-verify entry가
+있을 때만 받는다. 실패·차단 보고는 wait-on-impl-verify로 멈추고, 이전 entry의 run은 통과든
+실패든 완료 근거가 아니다. 그래프에 이 노드가 있으면 인수는 커서가 accept에 선 뒤에만 받는다.
+최종 인수는 메인 루프만 한다. Codex 도우미는 아직 이 디스패치를 거부한다. 계약과 배포 순서는
+[impl-verifier.md](./impl-verifier.md)를 따른다.
 
 순서의 단일 출처는 `packages/core/pipeline.mjs`와 그 프로젝트의 `PipelineVersion` 행이다. 런북에는 순서가 없다.
 

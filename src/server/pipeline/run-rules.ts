@@ -12,6 +12,7 @@ export type PipelineNext =
   | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }  // 커밋 핸드오프(배너와 같은 판정)
   | { key: string; node: string; version: number; action: "wait"; on: "acceptance"; checks: number[]; note: string }
   | { key: string; node: string; version: number; action: "wait"; on: "qa"; note: string; path: string; commit: string; resume: { agent: "qa-verifier"; key: string; format: string | null; entry?: PipelineEntry; agentRunId?: string } }
+  | { key: string; node: string; version: number; action: "wait"; on: "impl-verify"; note: string; path: string; commit: string; resume: { agent: "impl-verifier"; key: string; format: string | null; entry?: PipelineEntry; agentRunId?: string } }
   | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string; code: "USAGE_LIMIT_REACHED"; resetAt: string }
   | { key: string; node: string; version: number; action: "accept"; hint: string }                           // main-loop 본인이 인수 5조건을 재현한다
   | { key: string; node: string | null; version: number; action: "done" };
@@ -24,6 +25,7 @@ export type PipelineNextInput = {
   hasResumableRun?: boolean;
   acceptanceFailure?: { checks: number[]; note: string } | null;
   qaFailure?: { note: string; path: string; commit: string } | null;
+  implVerifyFailure?: { note: string; path: string; commit: string } | null;
   version: number;                          // PipelineRun.version.version
   node: string | null;                      // PipelineRun.node. null이면 런이 닫혔다
   status: string;
@@ -41,7 +43,8 @@ export const HINT: Record<string, string> = {
   plan: "Dispatch with the item key. One item per dispatch.",
   verify: "Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record.",
   implement: "Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate.",
-  qa: "Dispatch qa-verifier with the item key and current entry. Use only the explicit test environment and required scenarios in harness.json. It records browser evidence against the implementation commit. Failed, blocked or stale QA cannot complete this node; final acceptance remains with the main loop.",
+  "impl-verify": "Dispatch impl-verifier with the item key and current entry. First prepare the verification environment for the implementation report commit as the runbook says, then brief only that commit and where to verify it. Failed, blocked or stale verification cannot complete this node; final acceptance remains with the main loop.",
+  qa:"Dispatch qa-verifier with the item key and current entry. Use only the explicit test environment and required scenarios in harness.json. It records browser evidence against the implementation commit. Failed, blocked or stale QA cannot complete this node; final acceptance remains with the main loop.",
   "doc-audit": "Dispatch doc-auditor with no key; append its report to docs/agents/doc-auditor/audit-log.md yourself.",
   scoutHead: "Dispatch feature-scout with no key. It adds up to three backlog items it has evidence for. Append its report to docs/agents/feature-scout/scouting-log.md yourself, then call pipeline_next again.",
   scout: "Dispatch feature-scout with no key; it adds up to three items it has evidence for to the backlog. Append its report to docs/agents/feature-scout/scouting-log.md yourself.",
@@ -54,7 +57,7 @@ export const HINT: Record<string, string> = {
 // 살아 있는 핸드오프를 숨기면 에이전트가 다시 디스패치돼 핸드오프를 다시 남긴다.
 export const handoffIsLive = (steppedAt: Date, itemUpdatedAt: Date): boolean => steppedAt.getTime() > itemUpdatedAt.getTime();
 
-// 판정 순서: 런 닫힘 → 게이트 → accept → handoff → cap → dispatch. 에이전트 없는 노드는 있을 수 없지만(accept는 위에서 끝난다) 방어로 done.
+// 판정 순서: 런 닫힘 → 게이트 → accept → handoff → impl-verify·qa 실패 대기 → cap → dispatch. 에이전트 없는 노드는 있을 수 없지만(accept는 위에서 끝난다) 방어로 done.
 export function decideNext(i: PipelineNextInput): PipelineNext {
   const { key, version } = i;
   if (i.node === null) return { key, node: null, version, action: "done" };
@@ -65,6 +68,7 @@ export function decideNext(i: PipelineNextInput): PipelineNext {
     ? { key, node, version, action: "wait", on: "acceptance", checks: i.acceptanceFailure.checks, note: i.acceptanceFailure.note }
     : { key, node, version, action: "accept", hint: HINT.accept ?? "" };
   if (i.handoff !== null) return { key, node, version, action: "wait", on: "handoff", note: i.handoff.note };
+  if (node === "impl-verify" && i.implVerifyFailure) return { key, node, version, action: "wait", on: "impl-verify", ...i.implVerifyFailure, resume: { agent: "impl-verifier", key, format: i.format ?? null, ...(i.entry ? { entry: i.entry } : {}) } };
   if (node === "qa" && i.qaFailure) return { key, node, version, action: "wait", on: "qa", ...i.qaFailure, resume: { agent: "qa-verifier", key, format: i.format ?? null, ...(i.entry ? { entry: i.entry } : {}) } };
   const agent = dispatcherFor(node, i.agent);
   if (agent === null) return { key, node, version, action: "done" };

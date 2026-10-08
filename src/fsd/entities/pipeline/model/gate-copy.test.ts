@@ -23,6 +23,11 @@ describe("gateTooltip", () => {
     for (const [gate, want] of cases) assert.equal(gateTooltip(gate), want, gate);
   });
 
+  it("names the implementation check and QA gates by their Inbox buttons", () => {
+    assert.equal(gateTooltip("before-impl-verify"), "The item waits here until you press Continue to implementation check in the Inbox. impl-verifier re-reads the change in a fresh context and checks that the tests catch it.");
+    assert.equal(gateTooltip("before-qa"), "The item waits here until you press Continue to QA in the Inbox. qa-verifier tests the implemented user flows in the configured test environment.");
+  });
+
   it("gives a repeated or renamed project-agent slot its original slot's words", () => {
     const cases: [string, string][] = [
       ["before-doc-audit", DOC_AUDIT],

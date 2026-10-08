@@ -99,6 +99,11 @@ function validateItem(item) {
             && object(item.resume) && item.resume.agent === "qa-verifier" && item.resume.key === item.key && item.resume.format === "slots-v1");
           validateEntry(item.resume.entry, "qa");
           break;
+        case "impl-verify":
+          requireValue(item.node === "impl-verify" && text(item.note) && text(item.path) && /^[0-9a-f]{7,40}$/.test(item.commit)
+            && object(item.resume) && item.resume.agent === "impl-verifier" && item.resume.key === item.key && item.resume.format === "slots-v1");
+          validateEntry(item.resume.entry, "impl-verify");
+          break;
         case "handoff": requireValue(nullableText(item.note)); break;
         case "cap": requireValue(typeof item.reason === "string"); break;
         default: requireValue(false);

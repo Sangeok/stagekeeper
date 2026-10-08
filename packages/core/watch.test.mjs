@@ -34,6 +34,16 @@ it("failed QA waits only that item and preserves ready work with a valid current
   }
 });
 
+it("failed implementation verification waits only that item and preserves ready work with a valid current resume binding", () => {
+  const resume = { agent: "impl-verifier", key: "FAILED-IV", format: "slots-v1", entry: { runId: "pipeline", entryId: "entry", slotId: "impl-verify" } };
+  const failure = { key: "FAILED-IV", node: "impl-verify", version: 2, action: "wait", on: "impl-verify", note: "impl-verifier found defects", path: "docs/agents/impl-verifier/FAILED-IV.md", commit: "a".repeat(40), resume };
+  assert.equal(hasWork(actionableWork(overview([failure]), policy)), false);
+  assert.deepEqual(actionableWork(overview([failure, dispatch()]), policy), actionableWork(overview([dispatch()]), policy));
+  for (const patch of [{ node: "qa" }, { note: "" }, { path: null }, { commit: "uncommitted" }, { resume: { ...resume, agent: "qa-verifier" } }, { resume: { ...resume, key: "OTHER" } }, { resume: { ...resume, format: null } }, { resume: { ...resume, entry: { ...resume.entry, slotId: "qa" } } }, { resume: { ...resume, entry: undefined } }]) {
+    assert.throws(() => actionableWork(overview([{ ...failure, ...patch }]), policy), /Invalid pipeline overview/);
+  }
+});
+
 describe("watch MCP response parser", () => {
   it("reads the one JSON tool body", () => {
     assert.deepEqual(parse(response(overview())), { ok: true, value: overview() });

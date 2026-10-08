@@ -132,6 +132,7 @@ describe("buildBriefing", () => {
       { agent: "admin-dev", state: "Awaiting review" },
       { agent: "backend-dev", state: "On hold" },
       { agent: "plan-verifier", state: "Idle" },
+      { agent: "impl-verifier", state: "Idle" },
       { agent: "qa-verifier", state: "Idle" },
       { agent: "doc-auditor", state: "Idle" },
       { agent: "feature-scout", state: "Idle" },
@@ -210,6 +211,7 @@ describe("buildBriefing", () => {
       team: [
         { agent: "pm", state: "No new proposals" },
         { agent: "plan-verifier", state: "Idle" },
+        { agent: "impl-verifier", state: "Idle" },
         { agent: "qa-verifier", state: "Idle" },
         { agent: "doc-auditor", state: "Idle" },
         { agent: "feature-scout", state: "Idle" },
@@ -230,6 +232,16 @@ describe("buildBriefing", () => {
     const briefing = buildBriefing(rows, TODAY, ["web-dev"], NODE_KINDS);
     assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "waiting for web-dev", tone: "pending" }]);
     assert.equal(briefing.team.find((t) => t.agent === "web-dev").state, "Ready for N-1");
+  });
+
+  it("shows an item-bound verifier at its own node in Activity and in its Team row", () => {
+    for (const [node, agent] of [["impl-verify", "impl-verifier"], ["qa", "qa-verifier"]]) {
+      for (const dispatched of [false, true]) {
+        const briefing = buildBriefing([row({ key: "V-1", status: "done", node, gate: null, dispatched })], TODAY, ROSTER, NODE_KINDS);
+        assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: `${dispatched ? "working: " : "waiting for "}${agent} · ${node}`, tone: dispatched ? "active" : "pending" }], `${node} ${dispatched}`);
+        assert.equal(briefing.team.find((t) => t.agent === agent).state, `${dispatched ? "Working on" : "Ready for"} V-1`, `${node} ${dispatched}`);
+      }
+    }
   });
 
   it("says the agent is working once a run is open", () => {

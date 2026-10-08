@@ -12,11 +12,12 @@ export const ROLE_TOOLS = {
   "doc-auditor": ["agent_next", "backlog_list"],
   "plan-verifier": ["agent_next", "board_get"],
   "qa-verifier": ["agent_next", "board_get", "backlog_get", "report_submit"],
+  "impl-verifier": ["agent_next", "board_get", "backlog_get", "report_submit"],
   dev: ["agent_next", "backlog_get", "board_get", "board_transition", "plan_submit", "report_submit"],
 };
 export const ROLE_FILE_TOOLS = {
   pm: [], "feature-scout": ["Read", "Glob", "Grep", "WebSearch", "WebFetch"], "doc-auditor": ["Read", "Glob", "Grep"],
-  "plan-verifier": ["Read", "Glob", "Grep", "Bash", "Skill"], "qa-verifier": ["Read", "Glob", "Grep", "Write"], dev: ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "MultiEdit"],
+  "plan-verifier": ["Read", "Glob", "Grep", "Bash", "Skill"], "qa-verifier": ["Read", "Glob", "Grep", "Write"], "impl-verifier": ["Read", "Glob", "Grep", "Bash", "Write"], dev: ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "MultiEdit"],
 };
 const FILE_TOOLS = new Set(Object.values(ROLE_FILE_TOOLS).flat());
 
@@ -45,7 +46,7 @@ export function renderCodexRole(body, logicalRole) {
   const browserTools = parsed.tools.filter(tool => tool.startsWith("mcp__harness_qa_browser__"));
   if (logicalRole === "qa-verifier" ? browserTools.length !== QA_BROWSER_TOOLS.length || new Set(browserTools).size !== browserTools.length : browserTools.length !== 0) throw new Error("Role browser allowlist differs");
   parsed.instruction = parsed.instruction.replaceAll("mcp__harness_qa_browser__", "mcp__harness__");
-  const write = logicalRole === "dev" || logicalRole === "qa-verifier";
+  const write = logicalRole === "dev" || logicalRole === "qa-verifier" || logicalRole === "impl-verifier";
   if (!write && parsed.tools.some(tool => ["Write", "Edit", "MultiEdit"].includes(tool))) throw new Error("Read-only role declares write tools");
   const entry = "Execute only through the installed harness-codex fresh-thread helper, never through a parent-history subagent. Include client: codex on every agent_next; the helper enforces project, key, entry and role binding. " + (logicalRole === "pm" ? "Use only the MCP tools; no repository read or file tools." : "Use the absolute repository and scratch paths in the briefing; cwd is scratch. Read docs/harness/codex-runbook.md relative to repository.") + " Translate legacy /harness:init recovery advice to $harness-init. Stop after done:true. Owner tools and nested agents are unavailable. Permission refusal is failed/blocked, never verification success. Git metadata stays protected: prepare permitted files, submit handoff, and let the main loop or owner commit with actual permission.";
   return `name = ${JSON.stringify(parsed.name)}\ndescription = ${JSON.stringify(parsed.description)}\ndeveloper_instructions = ${JSON.stringify(entry + "\n\n" + parsed.instruction)}\nsandbox_mode = ${JSON.stringify(write ? "workspace-write" : "read-only")}\n[agents]\nenabled = false\n[mcp_servers.harness]\nenabled_tools = ${JSON.stringify(allowed)}\n[mcp_servers.harness_owner]\nenabled = false\n`;
@@ -65,7 +66,7 @@ export function readCodexRole(body, logicalRole, agent) {
   const tools = fields["mcp_servers.harness.enabled_tools"], allowed = ROLE_TOOLS[logicalRole];
   if (Object.keys(fields).length !== required.length || required.some(name => !Object.hasOwn(fields, name)) || fields.name !== agent
     || typeof fields.description !== "string" || typeof fields.developer_instructions !== "string" || !fields.developer_instructions.includes(RUNTIME_MARKER)
-    || fields.sandbox_mode !== (["dev", "qa-verifier"].includes(logicalRole) ? "workspace-write" : "read-only") || fields["agents.enabled"] !== false
+    || fields.sandbox_mode !== (["dev", "qa-verifier", "impl-verifier"].includes(logicalRole) ? "workspace-write" : "read-only") || fields["agents.enabled"] !== false
     || fields["mcp_servers.harness_owner.enabled"] !== false || !Array.isArray(tools) || new Set(tools).size !== allowed.length || tools.length !== allowed.length || tools.some(tool => !allowed.includes(tool))) throw new Error("Role policy differs from managed contract");
   return fields;
 }

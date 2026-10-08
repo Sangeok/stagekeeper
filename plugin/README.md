@@ -51,7 +51,10 @@ owner가 제공한 완전한 검증 skill과 실제 winning loader가 필요하�
 `harness-codex.mjs prepare --commit yes|no --propose yes|no`로 foreground 소유권을 얻는다.
 helper의 `next --session <id> [--key <key>]`는 최신 client/hash를 보내 다시 조회하고,
 `dispatch --session <id> [--key <key>]`는 그 응답을 새 역할 thread에 연결한다.
-독립 verifier의 `--briefing` JSON은 `requiredVerificationPaths`만 포함한다.
+독립 verifier의 `--briefing` JSON은 plan-verifier면 `requiredVerificationPaths`만,
+qa-verifier면 `targetCommit`과 관찰한 `testBuildIdentity`만 포함한다.
+impl-verifier는 아직 Codex에서 돌지 않는다. helper가 역할 run을 열기 전에 `codex-role-unsupported`로
+거부하므로, 그 항목은 Claude Code에서 이어 간다.
 반환된 역할 보고는 main loop가 실제 계획 파일에 추가하고 직접 검증·인수를 수행한다.
 모든 gate는 기존 owner 웹·owner endpoint로만 결정한다. 자동 push·gate 승인·worktree 정리는 없다.
 
@@ -65,7 +68,8 @@ main loop나 owner가 실제 허용 범위에서 커밋한다. 명시적 계속 
 fresh App Server는 부모 대화를 재사용하지 않는다. 정책을 모델 없는 config/read로 검사하고
 상속된 다른 MCP·plugin·shell 설정 값을 차단한 뒤 실제 적용된 설정을 다시 대조한다.
 역할 전용 localhost bridge만 child에 공급하며 실제 HARNESS credential은 parent에 남긴다.
-PM은 MCP만 사용한다. scout만 web search를 허용한다. verifier는 저장소 read-only와 검증 scratch,
+PM은 MCP만 사용한다. scout만 web search를 허용한다. verifier는 저장소 read-only와 검증 scratch
+(qa-verifier는 자기 보고 파일 `docs/agents/qa-verifier/<KEY>.md` 쓰기도),
 dev는 담당 workspace·계획·보고 파일에만 write를 허용한다. 권한 요청은 거부하고 미확인 상태는 실패로 남긴다.
 설정 검사의 성공은 실제 kernel/tool 격리 검증을 대신하지 않는다.
 파일 도구 preflight가 실패하면 `codex-role-execution-unavailable`로 중단한다.
