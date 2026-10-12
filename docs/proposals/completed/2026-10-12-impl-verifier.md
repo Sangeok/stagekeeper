@@ -1,14 +1,14 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-06"
 approved-by: "HamSangEok"
 approved-at: "2026-10-07"
 approval-scope: "Phase 1–5·7, Claude 전용(Codex 실행은 별도 제안서) — 대화 승인. Phase 4·7은 Execution Plan의 선행 조건을 채운 뒤 시작"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-12"
+verification-summary: "Phase 1–5 시험 녹색(check·test·web·통합 103/103·templates 53/53, 변이 확인), 2026-10-08 운영 시드·main 승격(6d16410), 실제 모델 리허설 성공 기준 4 (a)~(d) 통과 — docs/test-reports/completed/2026-10-12-impl-verifier-model-rehearsal-report.md"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -19,6 +19,7 @@ related:
   - "docs/architecture/rationale.md"
   - "docs/proposals/completed/2026-10-04-pipeline-agent-slots.md"
   - "docs/proposals/completed/2026-10-07-role-command-snapshot-performance.md"
+  - "docs/test-reports/completed/2026-10-12-impl-verifier-model-rehearsal-report.md"
 ---
 
 # 구현 독립 검증 에이전트 (impl-verifier)
@@ -1042,7 +1043,7 @@ DB에 저장되는 노드 이름은 `PipelineVersion.nodes`(문자열 배열, `p
     (origin/main·#6·#7·#8 모두 0개, qa-verifier만 1개). 표시는 본 checkout의 커밋되지 않은 작업본에만 있다.
   - 실측(2026-10-06, DB 없이): #8 `efd7d42`의 `en`에 작업본의 Codex 런북만 더한 디렉터리는 `readTemplateSources`에서
     `Codex bundle protocol mismatch: agents/dev.md`로 거부됐다. 아래 Phase 7의 사전 검증 명령과 같은 방법이다.
-- **dev의 미출시 작업이 먼저 출시돼 있어야 한다(Phase 7 전) — 코드는 충족, 템플릿은 미충족.**
+- **dev의 미출시 작업이 먼저 출시돼 있어야 한다(Phase 7 전) — 코드는 충족, 템플릿은 2026-10-08 둘째 시드로 충족(*Verification Results*의 Phase 7).**
   - 코드: 2026-10-06에 main이 `03876dd`에서 `450176a`로 fast-forward 승격됐다(107커밋). QA·인수 실패·사용량 작업, 마이그레이션 6개
     (`20261002000000_token_usage_tracking`부터 `20261005000000_qa_verifier`까지), 플러그인 0.5.8이 함께 나갔다. 2026-10-07에는 #124·#125·#126이
     `7bd40e1`로(플러그인 0.5.9), 이어 #127~#132가 `c8799f6`으로 승격됐다(플러그인 0.5.11). 세 커밋 모두 Production 배포가 있다(`gh api repos/Sangeok/stagekeeper/deployments`).
@@ -1394,7 +1395,7 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
   `NODE_KINDS`·`REPORT_AGENTS`를 import하는 시험)으로 찾았고, 아래 사전 확인에서 실제 실패 파일과 맞췄다(통합 시험 제외).
   그 밖의 기존 시험이 실패하면 먼저 두 검색을 다시 돌려 누락인지 확인하고, 누락이 아니면 신규 회귀로 본다.
 - 기존 실패와 신규 실패 구분: Phase마다 바꾸기 전 dev에서 같은 명령을 먼저 돌려 기준을 남긴다.
-- 성공 기준 4는 Phase 7의 실측 보고서(`docs/test-reports/`)로 판정한다.
+- 성공 기준 4는 Phase 7의 실측 보고서(`docs/test-reports/completed/2026-10-12-impl-verifier-model-rehearsal-report.md`)로 판정한다.
 
 제안 단계 사전 확인(버리는 worktree에서 문서의 코드를 글자 그대로 옮겨 돌렸다):
 
@@ -1439,9 +1440,9 @@ it("the impl-verifier stub and every step render for Codex with its exact role t
 | `npm test` | 343건 중 341건 통과·실패 0·건너뜀 2(2026-10-08) | `1142808`. 건너뜀 2건은 dev에서도 건너뛰는 POSIX·런타임 사례 |
 | `npm run test:web` | 584/584 통과(2026-10-08) | `1142808` |
 | `npm run test:server:integration` | 통과, 103/103(2026-10-08) | `1142808`. 로컬 포터블 PG18의 격리 DB `stagekeeper_test_impl`(실행기는 요약만 내므로 같은 명령을 직접 돌려 건수를 셌다). 운영 DB에는 닿지 않았다 |
-| `npm run build` | 로컬에서 돌리지 않음 | 기능 PR의 CI `check`가 돌린다 |
+| `npm run build` | 로컬에서 돌리지 않음 | 기능 PR의 CI `check`가 돌린다. dev push(`6d16410`)의 `check`·`windows-role-runtime`과 main push의 `check`가 녹색이었다(2026-10-08) |
 | `npm run test:templates` | 53/53 통과(2026-10-08) | harness-templates `harness/impl-verifier` `d996315`(PR #11)을 이 기능 브랜치 `c9d8b5c`의 `plugin/templates` 자리에 두고 돌렸다. 기준(main `528b823`)은 42건 중 1건 실패(`Codex bundle missing: agents/impl-verifier.md`). 템플릿 문장 변이 27건 모두 시험이 잡음. stagekeeper dev `cc7fe08` 위에서는 51/53(Codex 렌더 두 건은 Phase 1의 역할 등록이 필요). DB 없는 시드 검사 유효 행 13 |
-| 실제 모델 리허설 | Not run yet | 성공 기준 4 |
+| 실제 모델 리허설 | (a)~(d) 통과(2026-10-09·2026-10-12) | 성공 기준 4. harness-smoke, 운영 서버. `docs/test-reports/completed/2026-10-12-impl-verifier-model-rehearsal-report.md` |
 
 Phase별 기록(모두 기능 브랜치 `harness/impl-verifier`, dev `cc7fe08`에서 땀). 변이 확인은 바꾼 곳을 한 번에 하나씩 되돌리거나 비틀고 시험이 실패하는지 본 것이다.
 매번 원본 줄과 정확히 한 번 일치하는지, 되돌린 뒤 `git diff`가 그대로인지 확인했다.
@@ -1453,6 +1454,7 @@ Phase별 기록(모두 기능 브랜치 `harness/impl-verifier`, dev `cc7fe08`�
 | 3 감시기·Codex 거부 | `ec1a3cb` | `npm test` 343건 중 341건 통과·실패 0, `npm run test:web` 579/579, 통합 103/103, `main()` 연결 확인(옛 줄 0·새 줄 1), 변이 8/8 |
 | 5 웹·문서 | `c9d8b5c` | `npm run check` 통과, `npm run test:web` 584/584, `npm test` 실패 0, 변이 8/8 |
 | 4 템플릿 | harness-templates `d996315`(PR #11, 머지 `405ca54`), stagekeeper `1142808` | `npm run test:templates` 53/53, 템플릿 문장 변이 27/27, DB 없는 시드 검사 유효 행 13 |
+| 7 롤아웃·리허설 | stagekeeper PR #137(dev `6d16410`, 2026-10-08 main 승격), 운영 시드 `405ca54` 13행 | 운영 Production 배포 성공, harness-smoke에서 성공 기준 4 (a)~(d) 통과. 측정과 발견 사항은 실측 보고서(`docs/test-reports/completed/2026-10-12-impl-verifier-model-rehearsal-report.md`) |
 
 계획과 달라진 것:
 
@@ -1465,6 +1467,19 @@ Phase별 기록(모두 기능 브랜치 `harness/impl-verifier`, dev `cc7fe08`�
   - Phase 5: `turn.test.ts`(항목에 묶인 검증 노드의 배너), `briefing.test.mjs`(Activity와 Team 행), 새 `gate-text.test.ts`(QA 토스트도 함께 고정).
   - Phase 4: 런북의 사본 해시 명령을 실제로 실행해 Node의 sha256과 비교하는 시험. 런북 절·QA 문장·README 행·계획 Tests 규칙을 고정하는 단언.
 - 템플릿 문장: 서브에이전트 권한 확인(*Open Questions*) 결과로 런북의 권한 안내와 1절의 `git -C` 근거를 고쳤다.
+- Phase 7 순서: 기능 PR #137이 첫 시드 전에 dev에 머지됐다(`6d16410`). 계획은 첫 시드 → dev 머지였다. dev push는 Preview 배포만 만들고, 운영 서버는 시드 뒤 main 승격 때 바뀌었으므로 운영 영향은 없었다.
+- Phase 7 행별 출처 확인: 운영의 기존 템플릿 10행은 모두 harness-templates `8cad30b`(2026-09-28)와 같았다. `agents/qa-verifier.md`와 `CODEX.runbook.md` 행은 없었다.
+  그래서 플러그인 0.5.8 이상의 Pro·Max init이 `Template missing on server`로 멈췄을 것으로 본다(코드로 추론, 실행은 안 함). 둘째 시드가 두 행을 만들어 해소했다.
+- Phase 7 추가 단계: 둘째 시드 전에 qa-verifier 행만 따로 시드하는 단계를 끼웠으나 실패했다(트랜잭션이라 쓰인 것 없음, 스크립트가 오류 내용을 숨겨 원인 미확정).
+  이어서 `migrate status`(up to date)와 둘째 시드(`405ca54` 13행)는 성공했다. 스냅숏을 원본과 대조해 13행이 모두 `405ca54`와 같고, 시드 직전 상태가 사전 확인 때와 같음을 확인했다.
+  qa-verifier 행이 둘째 시드에서 새로 생겨, 그 스냅숏은 `restoreTemplates`로 복원할 수 없다. 롤백 방법을 고쳤다(*Risks and Rollback*의 템플릿 항목).
+- 승격: `git push origin 6d16410:main`(빨리 감기만 받는 push)으로 `c8799f6` → `6d16410`. 승격 전 dev의 `check`·`windows-role-runtime`이 녹색이었다.
+- 소유자 순서(harness-smoke):
+  - 마켓플레이스 설치본에 Windows 내장 Node가 없어 `/harness:init`이 멈췄다. 소유자 승인으로 init 한 번만 시스템 Node로 돌렸다(기존 상태).
+  - 노드는 소유자가 로그인한 브라우저에서 넣었다.
+  - 메인 루프는 대화형이 아니라 `claude -p` headless로 돌렸다.
+- 성공 기준 4(a): auto 모드 분류기가 심은 결함을 기록하는 dev 단계를 막았다. 그 단계만 소유자가 승인한 허용 목록 회차로 진행하고, impl-verify는 auto 모드로 돌렸다.
+- 자세한 내용은 실측 보고서의 Findings(F1~F7)에 있다.
 
 ## Risks and Rollback
 
@@ -1581,35 +1596,44 @@ Phase별 기록(모두 기능 브랜치 `harness/impl-verifier`, dev `cc7fe08`�
   지우지 않는다. 새 플러그인의 Codex 번들 검사가 그 행을 계속 요구한다(*배포 순서*). 플러그인까지 되돌리려면 판을 다시 올려 옛 내용을 낸다.
 - **노드를 쓰는 그래프 버전이 있을 때**: QA와 같다. 그 버전은 호환 서버가 필요하므로, 소유자가 노드 없는 새 그래프 버전을 저장한 뒤
   revert한다. 열린 항목은 원래 버전으로 남는다(`docs/architecture/qa-verifier.md`의 Rollout).
-- **템플릿**: 둘째 시드의 행(런북·README·계획 템플릿·QA 템플릿과 번들째 실린 나머지 행)은 그 스냅숏으로 되돌린다(`restoreTemplates`). 스냅숏 뒤에 행이 바뀌었으면 복원이
-  거부되므로(`scripts/lib/template-seed-query.ts:73`), 그 사이 다른 시드가 있었다면 그 시드부터 되돌린다. 첫 시드의 `agents/impl-verifier.md` 행은
-  지우지 않는다. `restoreTemplates`가 새 행 삭제를 거부하고(`:71`), 옛 서버·플러그인에는 무해하며, 새 플러그인은 이 행을 요구한다.
-  복원이 Codex 런북 행을 바꾸면 모든 Codex 프로젝트가 `$harness-init`까지 다시 멈춘다(*배포 순서*). 복원할 때도 사용자에게 알린다.
+- **템플릿**: 계획은 둘째 시드의 스냅숏으로 되돌리는 것이었다(`restoreTemplates`). 실제 둘째 시드에서 `agents/qa-verifier.md` 행이 새로 생겨,
+  그 스냅숏은 복원이 거부된다(`restoreTemplates`는 새로 생긴 행이 든 스냅숏을 복원하지 않는다. Codex 런북 행만 예외, `scripts/lib/template-seed-query.ts:71`).
+  - 그래서 기존 10행은 harness-templates `8cad30b`에서 다시 시드해 이전 본문으로 되돌린다(*Verification Results*의 Phase 7 행별 출처 확인).
+  - 그 사이 다른 시드가 있었다면 그 시드부터 되돌린다.
+  - 새로 생긴 세 행(`agents/impl-verifier.md`·`agents/qa-verifier.md`·`CODEX.runbook.md`)은 지우지 않는다. 옛 서버·플러그인에는 무해하고,
+    새 플러그인은 impl-verifier·qa-verifier 행을 요구한다.
+  - Codex 런북 행은 2026-10-08 전에는 운영에 없었다. 되돌릴 때 그 뒤 Codex를 쓰기 시작한 프로젝트가 있으면 함께 알린다(*배포 순서*).
 - DB 스키마 변경이 없으므로 데이터 되돌리기는 템플릿 행뿐이다.
 
 ## Completion or Closure Notes
 
-완료 또는 닫힘 처리 후 `completed/`로 이동할 때 작성합니다.
+완료 기록:
 
-완료 기록(`status: "completed"`일 때 작성):
-
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
-
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-12
+- verification-summary: front matter와 같다. 명령별 결과는 *Verification Results*, 리허설의 측정과 발견 사항은
+  `docs/test-reports/completed/2026-10-12-impl-verifier-model-rehearsal-report.md`에 있다.
+- implementation PR/commit
+  - 제안서: #134(원안, `8a12137`), #135(Claude 전용으로 좁힘, `d1e583a`), #136(승인 기록, `cc7fe08`).
+  - 구현: #137(`harness/impl-verifier` → dev, 머지 `6d16410`). Phase 커밋은 `c0ae557`·`6521ba7`·`ec1a3cb`·`c9d8b5c`·`1142808`, 검증 기록 `4673574`, 플러그인 0.5.12 `2dd04e7`.
+  - 템플릿: harness-templates #11(`d996315`, 머지 `405ca54`). 선행 조건의 #6~#10이 그 앞에 머지됐다.
+  - 2026-10-08 운영 템플릿을 `405ca54`로 시드하고 `main`을 `c8799f6`에서 `6d16410`으로 fast-forward 승격했다. 플러그인 0.5.12가 마켓플레이스로 나갔다.
+- changed files summary
+  - 공개 저장소 52개 파일(`cc7fe08..6d16410`): 코어 노드·에이전트 등록과 `plugin/lib` 미러, 서버의 impl-verify 완료 판정·대기·인수 거부,
+    감시기의 대기 종류, Codex 역할 등록과 디스패치 거부, 웹 편집기·게이트 문구·배너·브리핑, 아키텍처 문서(`impl-verifier.md` 신설,
+    protocol·invariants), product-copy, 두 플러그인 매니페스트, 시험.
+  - private 템플릿: 새 에이전트 정의, Claude 런북의 impl-verify 절과 *Verifier tree check* 확장, README 행, 계획 템플릿의 Tests 절, QA 문장.
+- remaining follow-up
+  - 실제 경로에서 "되돌리면 단언 실패 → 잡음 → ok" 판정을 관찰하지 못했다(실측 보고서 F1). 노드를 켠 프로젝트에서 기존 동작을 바꾸는 fix·refactor가
+    처음 impl-verify를 지날 때 확인한다. harness-smoke의 ITEM-03은 `wait on impl-verify`로 남아 있어서, 소유자가 Reopen하면 이 경로를 볼 수 있다.
+  - 다른 소유자에게 소유자 순서(Phase 7 마지막 단계)를 안내한다. 위 빈칸과 Codex 프로젝트에는 아직 넣지 않는다는 점을 함께 알린다.
+  - 화면 문구 확정(*Open Questions*의 [화면 문구]).
+  - Codex 실행(별도 제안서, *Open Questions*), 검증 에이전트 쓰기 강제 훅(비목표), 검증 실패를 웹에서 소유자 차례로 보이기(*Risks and Rollback*의 웹 표시, QA와 함께).
+  - 리허설에서 드러난 기존 문제: 마켓플레이스 설치본에 Windows 내장 Node가 없어 init이 멈춘다(F3). 시드 스크립트가 실패 원인을 숨긴다(F5).
+    보류 직후 pm이 같은 항목을 다시 올린다(F7).
 
 ## Review Checklist
 
-- [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
+- [x] 모든 `{placeholder}`와 `TBD`를 처리했고, 완료 상태에 맞게 갱신했다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다.
 - [x] `stage`는 pending 문서에서만 사용했다.
@@ -1620,7 +1644,7 @@ Phase별 기록(모두 기능 브랜치 `harness/impl-verifier`, dev `cc7fe08`�
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 import, 타입, 시험, 런타임 부작용, 이름 비교 지점(10절), 동시성·권한(11절)을 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다(실행 전).
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. 새 실패는 없고, 실측 보고서의 F3·F4는 이번 작업 전부터 있던 상태다.
 - [x] 잔여 리스크를 명시했다.
 
 <!-- doc-validation-skip -->
