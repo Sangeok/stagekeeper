@@ -1,7 +1,16 @@
 import "server-only";
+import { z } from "zod";
 
 export type PublicRepo = { name: string; defaultBranch: string };
 export type PublicReposResult = { ok: true; repos: PublicRepo[] } | { ok: false; category: "http" | "shape" | "request" };
+
+// GitHub 응답 중 읽는 필드만 선언한다. 나머지는 버린다.
+// 기본 브랜치나 보관 여부가 없거나 타입이 다르면 "main"과 false로 본다.
+const githubRepoSchema = z.object({
+  name: z.string(),
+  default_branch: z.string().catch("main"),
+  archived: z.boolean().catch(false),
+});
 
 // 로그인한 계정의 **공개** 저장소 목록. 미인증 엔드포인트라 토큰도 스코프도 쓰지 않는다.
 // 비공개 저장소는 여기 없다 — 그걸 보려면 repo 스코프(읽기 + 쓰기)가 필요해서
@@ -12,7 +21,12 @@ export async function listPublicRepos(login: string): Promise<PublicReposResult>
     const response = await fetch(
       `https://api.github.com/users/${encodeURIComponent(login)}/repos?sort=updated&per_page=100`,
       {
-        headers: { Accept: "application/vnd.github+json" },
+        headers: {
+          Accept: "application/vnd.github+json",
+          // 응답 모양에 의존하므로 버전을 고정한다. 그 버전이 종료되면 조용히 다음 버전으로
+          // 넘어가지 않고 요청이 실패해 "http"로 드러난다.
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
         // 미인증 한도가 IP당 시간당 60회다. 목록은 자주 바뀌지 않으므로 5분 캐시로 충분히 아낀다.
         next: { revalidate: 300 },
       },
@@ -21,20 +35,17 @@ export async function listPublicRepos(login: string): Promise<PublicReposResult>
       console.error("github repositories unavailable", { category: "http", status: response.status });
       return { ok: false, category: "http" };
     }
-    const body: unknown = await response.json();
+    // 200이어도 본문이 JSON이 아닐 수 있다(프록시 오류 페이지 등). 요청 실패가 아니라 모양 문제다.
+    const body: unknown = await response.json().catch(() => null);
     if (!Array.isArray(body)) {
       console.error("github repositories unavailable", { category: "shape" });
       return { ok: false, category: "shape" };
     }
     const repos: PublicRepo[] = [];
     for (const raw of body) {
-      if (raw === null || typeof raw !== "object") continue;
-      const item = raw as { name?: unknown; default_branch?: unknown; archived?: unknown };
-      if (typeof item.name !== "string" || item.archived === true) continue;
-      repos.push({
-        name: item.name,
-        defaultBranch: typeof item.default_branch === "string" ? item.default_branch : "main",
-      });
+      const parsed = githubRepoSchema.safeParse(raw);
+      if (!parsed.success || parsed.data.archived) continue;
+      repos.push({ name: parsed.data.name, defaultBranch: parsed.data.default_branch });
     }
     return { ok: true, repos };
   } catch (error) {

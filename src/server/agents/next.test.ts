@@ -3,7 +3,7 @@ import { usageSnapshot } from "@harness/core/usage-window.mjs";
 import { usageLimitFailure } from "../account-usage-query";
 import { describe, it } from "node:test";
 
-import { REFUSAL_WARN_AT, agentNext, type NextDeps, type NextInput, type Outcome, type Receipt, type Scope } from "./next";
+import { REFUSAL_WARN_AT, REVISION_MAX, agentNext, type NextDeps, type NextInput, type Outcome, type Receipt, type Scope } from "./next";
 
 // dev.md의 축소판 — 그래프는 같고 본문만 짧다. 실제 템플릿은 private 저장소에 있어 CI에는 없다(templates.test.mjs가 따로 본다).
 const DEV = `---
@@ -518,6 +518,10 @@ it("requires a receipt for every outcome, including handoff", async () => {
   await h.call(dev());
   for (const outcome of ["ok", "failed", "blocked", "handoff"] as const) {
     assert.match(refused(await agentNext(h.deps, SCOPE, dev({ outcome }))), /receipt required/);
+  }
+  const receipt = { runId: "run", revision: 0, stepId: "step" };
+  for (const bad of [{ runId: "" }, { stepId: "" }, { revision: -1 }, { revision: 0.5 }, { revision: REVISION_MAX + 1 }]) {
+    assert.match(refused(await agentNext(h.deps, SCOPE, dev({ outcome: "ok", receipt: { ...receipt, ...bad } }))), /receipt required/);
   }
   assert.equal(h.records.length + h.rejected.length, 0);
 });
