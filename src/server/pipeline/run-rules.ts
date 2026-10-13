@@ -101,7 +101,7 @@ export type HeadInput = {
   scoutNodePending: boolean;
   hasPropose: boolean;   // 현재 버전의 nodes에 propose가 있는가
   openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
-  availableBacklog: number; // 아직 보드에 안 올라간 백로그 항목 수 — pm이 고를 수 있는 것
+  availableBacklog: number; // 최신 행이 미결도 보류도 아닌 백로그 항목 수(countPickable) — pm이 고를 수 있는 것
   cap: UsageLimitFailure | null;
 };
 

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition } from "./board-rules.ts";
+import { countPickable, decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition } from "./board-rules.ts";
 
-const base = { backlogExists: true, hasOpenRow: false, openCount: 0, roster: ["web-dev", "admin-dev"], agent: "web-dev", reason: "evidence" };
+const base = { backlogExists: true, hasOpenRow: false, onHold: false, openCount: 0, roster: ["web-dev", "admin-dev"], agent: "web-dev", reason: "evidence" };
 const row = (o = {}) => ({ status: "planning", planPath: null, reportCount: 0, results: [], validation: null, ...o });
 const rs = (o = {}) => ({ status: "done", actor: "web-dev", roster: ["web-dev", "admin-dev"], hasVerifyStep: false, acceptanceFailed: false, ...o });
 
@@ -38,7 +38,18 @@ describe("decidePropose", () => {
     assert.equal(decidePropose({ ...base, hasOpenRow: true }).ok, false);
     assert.equal(decidePropose({ ...base, backlogExists: false }).ok, false);
   });
+  it("rejects a key whose latest row is on hold — only the owner resumes it", () => {
+    assert.deepEqual(decidePropose({ ...base, onHold: true }), { ok: false, reason: "on hold — only the owner resumes it, on the web" });
+  });
   it("accepts otherwise", () => assert.equal(decidePropose(base).ok, true));
+});
+
+describe("countPickable", () => {
+  it("drops items whose latest row is open or on hold and counts the rest", () => {
+    const latest = [{ backlogItemId: "held", status: "on_hold" }, { backlogItemId: "open", status: "planning" }, { backlogItemId: "proposed", status: "proposed" }];
+    assert.equal(countPickable(["held", "open", "proposed", "fresh"], latest), 1);
+    assert.equal(countPickable([], latest), 0);
+  });
 });
 
 describe("decideTransition", () => {

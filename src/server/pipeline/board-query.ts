@@ -8,7 +8,7 @@ import { isOpen } from "@harness/core/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem, type AcceptanceFailure } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
 import { ensureRun, readFacts, type Graph, type GateEntry } from "./run-query";
-import { decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, MAIN_LOOP, PLAN_VERIFIER } from "./board-rules";
+import { countPickable, decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, MAIN_LOOP, PLAN_VERIFIER } from "./board-rules";
 import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryRecord, type HistoryView } from "./history-page";
 import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
 import { parseQaReport } from "@harness/core/qa.mjs";
@@ -187,15 +187,14 @@ function latestRowFor(projectId: string, key: string) {
   return latestRow(prisma, projectId, key);
 }
 
-// pm이 지금 고를 수 있는 백로그 항목 수. 제거되지 않았고, 지금 보드에 미결로 올라 있지도 않은 것.
+// pm이 지금 고를 수 있는 백로그 항목 수. 제거되지 않았고, 최신 행이 미결도 보류도 아닌 것(countPickable).
 // 후보가 없으면 head는 scout의 마지막 보고와 백로그 변화 시각으로 새 정찰 여부를 정한다.
 async function availableBacklogCount(projectId: string): Promise<number> {
   const [items, board] = await Promise.all([
     prisma.backlogItem.findMany({ where: { projectId, removedAt: null }, select: { id: true } }),
-    latestBoard(projectId, true),
+    latestBoard(projectId),
   ]);
-  const onBoard = new Set(board.map((r) => r.backlogItemId));
-  return items.filter((i) => !onBoard.has(i.id)).length;
+  return countPickable(items.map((i) => i.id), board);
 }
 
 async function backlogWithStatus(projectId: string, includeRemoved: boolean) {
@@ -302,11 +301,13 @@ async function propose(projectId: string, input: { key: string; agent: string; r
   return inProjectTransaction(projectId, async (tx) => {
     const backlog = await tx.backlogItem.findUnique({ where: { projectId_key: { projectId, key: input.key } } });
     const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
-    const openOnly = true;
-    const open = await latestBoard(projectId, openOnly, tx);
+    const latest = await latestBoard(projectId, false, tx);
+    const open = latest.filter((r) => isOpen(r.status));
+    const mine = backlog ? latest.find((r) => r.backlogItemId === backlog.id) : undefined;
     const d = decidePropose({
       backlogExists: !!backlog && backlog.removedAt === null,
-      hasOpenRow: !!backlog && open.some((r) => r.backlogItemId === backlog.id),
+      hasOpenRow: mine !== undefined && isOpen(mine.status),
+      onHold: mine?.status === "on_hold",
       openCount: open.length, roster, agent: input.agent, reason: input.reason,
     });
     if (!d.ok || !backlog) return fail(d.ok ? "no such backlog item" : d.reason);
