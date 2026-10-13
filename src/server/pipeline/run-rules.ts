@@ -76,7 +76,8 @@ export function decideNext(i: PipelineNextInput): PipelineNext {
   return { key, node, version, action: "dispatch", agent, hint: hintFor(node), format: i.format ?? null, ...(i.entry ? { entry: i.entry } : {}) };
 }
 
-// key 없는 pipeline_next의 머리 — 빈 백로그는 scout가 채우고 후보가 있으면 pm이 고른다.
+// key 없는 pipeline_next의 머리 — pm이 고를 후보(availableBacklog)가 없으면 scout가 백로그를 채우고, 있으면 pm이 고른다.
+// 보류 항목은 후보가 아니므로, 보류만 남은 백로그도 scout 쪽으로 간다.
 export type HeadNext = { action: "dispatch"; agent: "pm" | "feature-scout"; hint: string }
   | { action: "none"; reason: string; code?: never }
   | ({ action: "none" } & Omit<UsageLimitFailure, "ok">);
@@ -109,7 +110,7 @@ export function scoutNodePending(items: PipelineNext[]): boolean {
   return items.some((item) => item.action === "dispatch" && item.agent === "feature-scout");
 }
 
-// Open limit first, then fill an empty backlog once per change, then propose.
+// Open limit first, then, with nothing for pm to pick (held items don't count), fill the backlog once per change, then propose.
 export function decideHead(i: HeadInput): HeadNext {
   if (!canPropose(i.openCount)) return { action: "none", reason: `open items: ${i.openCount} (max 2)` };
   if (i.availableBacklog === 0) {
