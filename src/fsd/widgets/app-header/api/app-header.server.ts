@@ -11,7 +11,7 @@ export async function loadHeaderUser(userId: string): Promise<{ login: string; p
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { login: true } }),
     planForUser(userId),
   ]);
-  return { ...user, plan };
+  return { login: user.login, plan };
 }
 
 // 프로젝트 전환 목록. 만든 순서가 곧 표시 순서다.
