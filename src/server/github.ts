@@ -41,11 +41,12 @@ export async function listPublicRepos(login: string): Promise<PublicReposResult>
       console.error("github repositories unavailable", { category: "shape" });
       return { ok: false, category: "shape" };
     }
-    const repos = body.flatMap((raw): PublicRepo[] => {
+    const repos: PublicRepo[] = [];
+    for (const raw of body) {
       const parsed = githubRepoSchema.safeParse(raw);
-      if (!parsed.success || parsed.data.archived) return [];
-      return [{ name: parsed.data.name, defaultBranch: parsed.data.default_branch }];
-    });
+      if (!parsed.success || parsed.data.archived) continue;
+      repos.push({ name: parsed.data.name, defaultBranch: parsed.data.default_branch });
+    }
     return { ok: true, repos };
   } catch (error) {
     // 목록은 편의 기능이다. GitHub가 답하지 않아도 붙여넣기로 등록할 수 있어야 한다.
