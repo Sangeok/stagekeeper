@@ -15,7 +15,14 @@ export async function readAccountUsageIn(tx: Prisma.TransactionClient, userId: s
     usageWindowStartedAt: true, usageRunCount: true, subscription: { select: { plan: true } },
   } });
   const plan = normalizePlan(user.subscription?.plan);
-  return { ...usageSnapshot(plan, user.usageWindowStartedAt, user.usageRunCount, at ?? await readDatabaseClockIn(tx)), plan };
+  const now = at ?? await readDatabaseClockIn(tx);
+  const snapshot = usageSnapshot(
+    plan,
+    user.usageWindowStartedAt,
+    user.usageRunCount,
+    now,
+  );
+  return { ...snapshot, plan };
 }
 
 export function usageLimitFailure(snapshot: ReturnType<typeof usageSnapshot>): UsageLimitFailure | null {
