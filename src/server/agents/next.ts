@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { REPORT_AGENTS, allowsAgent } from "@harness/core/entitlement.mjs";
 import { renderTemplate } from "@harness/core/render.mjs";
 import { parseClient, runtimeEcho, type Client } from "@harness/core/client-runtime.mjs";
@@ -12,19 +13,18 @@ export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
 export const NOTE_MAX = 500;
-// 영수증 revision의 상한 — AgentRun.revision은 Postgres Int(int4)다. MCP 입력 스키마(tools.ts)도 같은 값을 쓴다.
+// 영수증 revision의 상한 — AgentRun.revision은 Postgres Int(int4)다.
 export const REVISION_MAX = 2_147_483_647;
 export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
 const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만 쓴다
 
-export type Receipt = { runId: string; revision: number; stepId: string };
+// agent_next의 MCP 입력 스키마(tools.ts)도 이 스키마를 쓴다. 규칙은 여기 한 곳에만 둔다.
+export const receiptSchema = z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(REVISION_MAX), stepId: z.string().min(1) });
+export type Receipt = z.infer<typeof receiptSchema>;
 
-// MCP 입력 스키마(tools.ts의 agent_next receipt)와 같은 규칙 — 이 함수는 스키마를 거치지 않는 호출자도 받는다.
+// 이 함수는 MCP 스키마를 거치지 않는 호출자도 받는다.
 export function isWellFormedReceipt(receipt: Receipt | undefined): receipt is Receipt {
-  return receipt !== undefined
-    && typeof receipt.runId === "string" && receipt.runId !== ""
-    && typeof receipt.stepId === "string" && receipt.stepId !== ""
-    && Number.isInteger(receipt.revision) && receipt.revision >= 0 && receipt.revision <= REVISION_MAX;
+  return receiptSchema.safeParse(receipt).success;
 }
 export type NextInput = { agent: string; client?: Client; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
 export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string; runtime?: ReturnType<typeof runtimeEcho> };
