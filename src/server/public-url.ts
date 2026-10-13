@@ -15,6 +15,14 @@ function publicUrl(): string {
   return (configured ?? LOCAL_DEV_URL).replace(/\/$/, "");
 }
 
+// 메타데이터의 절대 URL(canonical·og:image)이 붙는 기준 — 루트 레이아웃의 metadataBase.
+// 로그를 남기지 않는다: 루트 레이아웃은 모듈 로드 때 평가되어 변수 없는 CI 빌드에서도 불리므로, 위 경보를 여기서 쓰면
+// 빌드마다 거짓 경보가 난다. 운영에서 변수가 빠진 것은 토큰 화면의 첫 호출이 같은 변수로 알린다.
+// 빌드 때 미리 그리는 페이지(/login 등)는 이 값을 빌드 시점에 굳힌다 — 배포 빌드에도 변수가 있어야 한다.
+export function siteUrl(): URL {
+  return new URL(process.env.HARNESS_PUBLIC_URL ?? LOCAL_DEV_URL);
+}
+
 // 토큰 화면이 보여 주는 주소. 스킬이 서버 주소를 물을 때 사용자가 이 값을 그대로 붙여넣는다 —
 // `/api/mcp` 꼬리는 생성기가 뗀다(harness-init.mjs의 normalizeServer).
 // HARNESS_SERVER는 /harness:init이 직접 설정한다.

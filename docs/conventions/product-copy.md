@@ -1137,6 +1137,23 @@ Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, c
 > Approving lets dev change code. Then continue in your coding client.
 <!-- /copy-lock -->
 
+- Off the page — browser tab, search result, link preview (added 2026-10-13):
+  - Title: **Stagekeeper — Approval gates for your coding agents**. It names the product in the
+    page's own terms: the gates are what you hold, the agents are yours. "coding agents", not
+    "Claude Code agents" — the Codex client is coming and the title should not expire with it; the
+    description carries "Claude Code". It counts no gates and promises no human at every step
+    (see the claims below).
+  - Description: the paragraph's first two sentences, verbatim. At 113 characters a search result
+    does not cut it.
+  - Share card (1200×630): the headline as on the page (second line `--mine`), the S monogram with
+    "Stagekeeper", and the `--mine` strip from the demo card's head. Nothing else.
+  - App icon: a white S on a `--mine` square — the colour the product gives only to your turn.
+
+<!-- copy-lock:landing-meta -->
+> Stagekeeper — Approval gates for your coding agents
+> Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and the gates.
+<!-- /copy-lock -->
+
 - "The cycle you'll run": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·
   6 Implemented · 7 Accepted — only steps 2 and 5 carry a "you" tag; no other actor names —
   "Two of these stop for you today — 2 and 5. The rest you run in your own Claude Code."

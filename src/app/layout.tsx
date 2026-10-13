@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Toaster } from "sonner";
+import { siteUrl } from "@/server/public-url";
 import "./globals.css";
 
 // 사람이 읽는 글은 Schibsted Grotesk(400–900), 기계가 만든 식별자는 Fragment Mono(400뿐).
@@ -21,9 +22,14 @@ const mono = localFont({
   adjustFontFallback: false,
 });
 
+// 공유 카드 이미지는 opengraph-image.tsx가, og:title·og:description은 Next가 각 페이지의 제목·설명에서 채운다.
+// 색인은 닫힌 쪽이 기본이고 공개 랜딩(page.tsx)만 연다 — 공개 경로를 목록으로 여는 proxy와 같은 방향이다.
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: "Stagekeeper",
   description: "Agent development pipeline with human approval gates.",
+  openGraph: { siteName: "Stagekeeper", type: "website" },
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

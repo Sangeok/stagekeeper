@@ -202,6 +202,7 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 | `turn-banner-connect-claude`·`-codex` | §5 First run의 클라이언트 선택 | `src/fsd/widgets/turn-banner/model/setup-detail.test.ts`, `ui/turn-banner.test.ts` | 선택한 init 표시·서버 판정 불변; 브라우저 fixture가 setup/next·탭 유지·slug reset을 검증 |
 | `turn-banner-watch` | §5 Next, in Claude Code | `src/fsd/widgets/turn-banner/model/turn.test.ts`, `ui/next-step.test.mjs` | `WATCH_LINE` 글자 일치·실제 본문·명령 Code·빈 상자·Copy payload |
 | `landing-demo` | §16 Landing (데모 카드) | `src/fsd/pages/landing/ui/landing-page.test.ts` | `LandingPage`의 데모 카드가 값으로 적은 제품 문장 셋 |
+| `landing-meta` | §16 Landing (탭·검색·공유) | 같은 파일 | 문서 제목·설명(`LANDING_TITLE`·`LANDING_DESCRIPTION`, 글자 일치)과 설명이 본문 첫 문단에 그대로 있는지 |
 | `history-tab` | §19 History tab | `src/fsd/pages/project-history/ui/project-history-page.test.ts` | Items 빈 상태·상태별 행·펼친/빈 상세, Events key/all 빈 상태와 중간 페이지. 독립 커서·보기 전환·링크 목적지 검사 |
 
 읽는 법과 블록 규칙(한 줄 = 한 단위, 줄바꿈 금지)은 `src/fsd/shared/lib/copy-lock.ts`와 product-copy.md 머리의
