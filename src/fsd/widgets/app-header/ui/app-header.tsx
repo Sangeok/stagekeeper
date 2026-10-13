@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { type PlanId, planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import type { Plan } from "@harness/core/entitlement.mjs";
+import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
 import { billingPath } from "@/fsd/shared/routes/billing";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { newProjectPath, projectsPath } from "@/fsd/shared/routes/projects";
@@ -18,7 +19,7 @@ export function AppHeader({
   login: string;
   project?: HeaderProject;
   projects?: HeaderProject[];
-  plan?: PlanId;
+  plan?: Plan;
 }) {
   return (
     <header className="border-b border-rule">

@@ -1,9 +1,10 @@
+import type { Plan } from "@harness/core/entitlement.mjs";
 import { countNoun } from "@/fsd/shared/lib/count-noun";
 import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
 
 export type ProjectConnectionTarget = { id: string; name: string; repoOwner: string; repo: string; disconnectedAt: string | null };
 export type ProjectConnectionSummary = {
-  plan: "free" | "pro" | "max"; limit: number | null; version: number; connectedCount: number;
+  plan: Plan; limit: number | null; version: number; connectedCount: number;
 };
 export type ProjectConnectionState = { status: "success" } | { status: "stale" } | { status: "error"; reason: string };
 export type ProjectConnectionAction = (input: { targetProjectId: string; expectedVersion: number }) => Promise<ProjectConnectionState>;

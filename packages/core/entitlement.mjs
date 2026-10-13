@@ -1,7 +1,10 @@
 // 순수. import 없음. 플랜과 상한 — "이 사용자가 얼마나 쓸 수 있나"의 단일 출처.
 // 서버 액션(프로젝트 생성·백로그 추가)·MCP(project_sync·agent_next)·템플릿 배포가 이 표로 판정하고,
 // /billing 화면이 이 표를 그린다. 여기 없는 축에는 상한이 없다. 플랜은 사용자에 붙고 프로젝트는 소유자의 플랜을 따른다.
-export const PLANS = ["free", "pro", "max"];
+// 플랜 타입은 이 목록에서 나온다. 서버와 화면은 각자 적지 않고 여기 Plan을 import한다.
+/** @typedef {(typeof PLANS)[number]} Plan */
+export const PLANS = /** @type {const} */ (["free", "pro", "max"]);
+/** @type {Plan} */
 export const DEFAULT_PLAN = "free"; // Subscription 행이 없는 사용자
 export const UNLIMITED = Infinity;
 export const OWNER_TOKEN_PLAN_GATE = "Owner tokens open on Pro. Approve in the Inbox for now.";
@@ -15,6 +18,7 @@ export const LIMITS = {
 };
 const AXES = ["projects", "workspaces", "backlog", "dispatches"];
 
+/** @param {unknown} x @returns {x is Plan} */
 export function isPlan(x) { return PLANS.includes(x); }
 export function limitsFor(plan) {
   if (!isPlan(plan)) throw new Error(`unknown plan: ${plan}`);
