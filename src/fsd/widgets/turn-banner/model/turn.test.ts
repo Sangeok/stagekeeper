@@ -79,6 +79,16 @@ describe("deriveTurn — setup", () => {
     assert.equal(turn.kind, "setup");
     if (turn.kind === "setup") assert.equal(turn.current, 3);
   });
+  it("counts the token step done once the repository is connected without a project token", () => {
+    // /harness:init with a user token (hu_) registers the project and issues no project token.
+    const connected = deriveTurn([], { tokenIssued: false, rosterSynced: true });
+    assert.equal(connected.kind, "setup");
+    if (connected.kind !== "setup") return;
+    assert.equal(connected.current, 3);
+    assert.deepEqual(connected.steps.map((s) => s.done), [true, true, false]);
+    const fresh = deriveTurn([], { tokenIssued: false, rosterSynced: false });
+    if (fresh.kind === "setup") assert.equal(fresh.current, 1);
+  });
 });
 
 describe("deriveTurn — mine", () => {
