@@ -1,7 +1,7 @@
-import { DEFAULT_PLAN, isPlan } from "@harness/core/entitlement.mjs";
+import { DEFAULT_PLAN, isPlan, type Plan } from "@harness/core/entitlement.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
-export type Plan = "free" | "pro" | "max";
+export type { Plan };
 export type ProjectAccess =
   | { plan: Plan; available: true }
   | { plan: Plan; available: false; code: "not-selected" | "disconnected" | "integrity"; reason: string };
@@ -12,7 +12,7 @@ export const READ_OPTIONS = { isolationLevel: "RepeatableRead", maxWait: 5000, t
 export type TransactionHost = Pick<PrismaClient, "$transaction">;
 
 export function normalizePlan(value: unknown): Plan {
-  return isPlan(value) ? value as Plan : DEFAULT_PLAN;
+  return isPlan(value) ? value : DEFAULT_PLAN;
 }
 
 export class ProjectIntegrityError extends Error {

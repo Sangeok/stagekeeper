@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { usageSnapshot } from "@harness/core/usage-window.mjs";
 import { usageLimitFailure } from "../account-usage-query";
+import type { Plan } from "../entitlement";
 import { describe, it } from "node:test";
 
 import { REFUSAL_WARN_AT, REVISION_MAX, agentNext, type NextDeps, type NextInput, type Outcome, type Receipt, type Scope } from "./next";
@@ -90,7 +91,7 @@ const VARS: Record<string, Record<string, unknown>> = {
 type Run = { revision: number; id: string; agent: string; key: string | null; stepId: string; closedAt: Date | null; refused: number; tokenId: string };
 type Rec = { runId: string; stepId: string; outcome: Outcome; note: string | null };
 type Opts = {
-  plan?: "free" | "pro" | "max"; locked?: string; roster?: string[]; templates?: Record<string, string>;
+  plan?: Plan; locked?: string; roster?: string[]; templates?: Record<string, string>;
   board?: Record<string, string>; openCount?: number; verifiedElsewhere?: boolean;
   itemAgent?: Record<string, string>; usageCount?: number; scope?: Scope;
 };

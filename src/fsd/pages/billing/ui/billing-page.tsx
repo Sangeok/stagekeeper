@@ -1,11 +1,12 @@
 import type { ReactElement } from "react";
-import { BILLING_NOTE, PLAN_IDS, type PlanId, planLabel, planMatrix } from "@/fsd/shared/lib/entitlement-copy";
+import { PLANS, type Plan } from "@harness/core/entitlement.mjs";
+import { BILLING_NOTE, planLabel, planMatrix } from "@/fsd/shared/lib/entitlement-copy";
 
 // 플랜 화면. 읽기 전용이다 — 결제가 없으므로 버튼도 없다.
 // 표는 LIMITS에서 렌더한다(entitlement-copy.planMatrix): 코드의 상한과 화면의 표가 어긋날 수 없게.
 type UsageView = { kind: "limited"; percent: number; resetAt: string | null } | { kind: "unlimited" } | { kind: "unavailable" };
 
-export function BillingPage({ plan, usage }: { plan: PlanId; usage: UsageView }): ReactElement {
+export function BillingPage({ plan, usage }: { plan: Plan; usage: UsageView }): ReactElement {
   const rows = planMatrix();
   return (
     <main className="mx-auto flex w-full max-w-[800px] flex-col gap-8 px-5 pt-9 pb-14">
@@ -35,7 +36,7 @@ export function BillingPage({ plan, usage }: { plan: PlanId; usage: UsageView })
               <th scope="col" className="py-2 pr-3 font-medium text-quiet">
                 Limit
               </th>
-              {PLAN_IDS.map((p) => (
+              {PLANS.map((p) => (
                 <th key={p} scope="col" className="py-2 pr-3 font-medium">
                   {planLabel(p)}
                   {p === plan ? <span className="ml-1.5 text-xs font-normal text-quiet">(current)</span> : null}
@@ -49,7 +50,7 @@ export function BillingPage({ plan, usage }: { plan: PlanId; usage: UsageView })
                 <th scope="row" className="py-2 pr-3 text-left font-normal text-quiet">
                   {row.label}
                 </th>
-                {PLAN_IDS.map((p) => (
+                {PLANS.map((p) => (
                   <td key={p} className={p === plan ? "py-2 pr-3 font-medium" : "py-2 pr-3"}>
                     {row.values[p]}
                   </td>
