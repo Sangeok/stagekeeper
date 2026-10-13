@@ -8,9 +8,11 @@ it("distinguishes empty success, malformed responses, HTTP failure and request f
   const fetchMock = t.mock.method(globalThis, "fetch");
   fetchMock.mock.mockImplementation(async () => new Response("[]"));
   assert.deepEqual(await listPublicRepos("user"), { ok: true, repos: [] });
-  fetchMock.mock.mockImplementation(async () => new Response(JSON.stringify([null, 5, {}, { name: "archived", archived: true }, { name: "active" }, { name: "custom", default_branch: "dev" }])));
-  assert.deepEqual(await listPublicRepos("user"), { ok: true, repos: [{ name: "active", defaultBranch: "main" }, { name: "custom", defaultBranch: "dev" }] });
+  fetchMock.mock.mockImplementation(async () => new Response(JSON.stringify([null, 5, {}, { name: "archived", archived: true }, { name: "active" }, { name: "custom", default_branch: "dev" }, { name: "nulls", default_branch: null, archived: null }])));
+  assert.deepEqual(await listPublicRepos("user"), { ok: true, repos: [{ name: "active", defaultBranch: "main" }, { name: "custom", defaultBranch: "dev" }, { name: "nulls", defaultBranch: "main" }] });
   fetchMock.mock.mockImplementation(async () => new Response("{}"));
+  assert.deepEqual(await listPublicRepos("user"), { ok: false, category: "shape" });
+  fetchMock.mock.mockImplementation(async () => new Response("<html>"));
   assert.deepEqual(await listPublicRepos("user"), { ok: false, category: "shape" });
   fetchMock.mock.mockImplementation(async () => new Response("sensitive-body", { status: 403 }));
   assert.deepEqual(await listPublicRepos("user"), { ok: false, category: "http" });
