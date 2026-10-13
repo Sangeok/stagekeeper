@@ -1,12 +1,12 @@
 import "server-only";
 
-import type { PlanId } from "@/fsd/shared/lib/entitlement-copy";
+import type { Plan } from "@harness/core/entitlement.mjs";
 import { prisma } from "@/server/db";
 import { planForUser } from "@/server/entitlement";
 import type { HeaderProject } from "../ui/app-header";
 
 // 머리가 필요로 하는 값은 머리가 읽는다 — 라우트마다 같은 질의를 되풀이하지 않게.
-export async function loadHeaderUser(userId: string): Promise<{ login: string; plan: PlanId }> {
+export async function loadHeaderUser(userId: string): Promise<{ login: string; plan: Plan }> {
   const [user, plan] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { login: true } }),
     planForUser(userId),

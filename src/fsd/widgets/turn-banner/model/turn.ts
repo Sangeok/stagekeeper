@@ -62,7 +62,8 @@ function setupSteps(setup: SetupState): SetupStep[] {
       key: "token",
       title: "Token issued",
       detail: "Shown once when you created the project. Issue another on the Tokens tab.",
-      done: setup.tokenIssued,
+      // 연결은 토큰 없이 되지 않는다. 사용자 토큰(hu_)으로 /harness:init 한 프로젝트에는 프로젝트 토큰이 없다.
+      done: setup.tokenIssued || setup.rosterSynced,
     },
     {
       key: "connect",

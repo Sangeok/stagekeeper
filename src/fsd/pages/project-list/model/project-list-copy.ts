@@ -1,12 +1,13 @@
 import { countNoun } from "@/fsd/shared/lib/count-noun";
-import { planLabel, type PlanId } from "@/fsd/shared/lib/entitlement-copy";
+import type { Plan } from "@harness/core/entitlement.mjs";
+import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
 
 // /projects의 상태 문장들(product-copy.md §10). 연결 수는 새 저장소를 연결할 수 있는지를 정하므로 늘 한 문장으로 말하고,
 // 사용 가능 수는 연결 수와 다를 때(다운그레이드가 남긴 Not selected)만 selectionNotice가 말한다.
 
 const repositories = (n: number) => countNoun(n, "repository", "repositories");
 
-export function connectionSummary({ plan, limit, connectedCount }: { plan: PlanId; limit: number | null; connectedCount: number }): { line: string; full: boolean; over: boolean } {
+export function connectionSummary({ plan, limit, connectedCount }: { plan: Plan; limit: number | null; connectedCount: number }): { line: string; full: boolean; over: boolean } {
   const name = planLabel(plan);
   if (limit === null) return { line: `${repositories(connectedCount)} connected on the ${name} plan.`, full: false, over: false };
   if (connectedCount > limit) return { line: `${repositories(connectedCount)} connected. The ${name} plan allows ${limit}.`, full: true, over: true };
@@ -29,7 +30,7 @@ const BASIS: Record<string, string> = {
 };
 
 export function selectionNotice({ plan, limit, notSelectedCount, over, kept }: {
-  plan: PlanId; limit: number | null; notSelectedCount: number; over: boolean; kept: { names: string[]; basis: string | null } | null;
+  plan: Plan; limit: number | null; notSelectedCount: number; over: boolean; kept: { names: string[]; basis: string | null } | null;
 }): string[] {
   const lines: string[] = [];
   if (kept) {

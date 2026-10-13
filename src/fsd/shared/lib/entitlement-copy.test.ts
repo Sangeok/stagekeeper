@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { LIMITS } from "@harness/core/entitlement.mjs";
-import { PLAN_IDS, planLabel, planMatrix } from "./entitlement-copy";
+import { LIMITS, PLANS } from "@harness/core/entitlement.mjs";
+import { planLabel, planMatrix } from "./entitlement-copy";
 
 describe("entitlement-copy", () => {
   it("covers every plan in LIMITS — a new plan must not silently miss the table", () => {
-    assert.equal(PLAN_IDS.length, Object.keys(LIMITS).length);
+    assert.equal(PLANS.length, Object.keys(LIMITS).length);
     for (const row of planMatrix()) {
-      for (const plan of PLAN_IDS) assert.ok(row.values[plan], `${row.label} / ${plan}`);
+      for (const plan of PLANS) assert.ok(row.values[plan], `${row.label} / ${plan}`);
     }
   });
   it("renders the unlimited axes as words, not Infinity", () => {
     const rows = planMatrix();
-    const text = rows.flatMap((r) => PLAN_IDS.map((p) => r.values[p])).join(" ");
+    const text = rows.flatMap((r) => PLANS.map((p) => r.values[p])).join(" ");
     assert.doesNotMatch(text, /Infinity/);
     assert.match(text, /Unlimited/);
   });
