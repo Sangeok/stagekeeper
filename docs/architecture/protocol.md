@@ -146,7 +146,7 @@ MCP `AuthInfo.expiresAt`의 초 단위 재검사는 사용하지 않는다. 다�
 | `backlog_get` | `{key, project?}` | 항목 1건(`source` 전문) | dev·impl-verifier·qa-verifier | 1 |
 | `board_list` | `{open?, project?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
 | `board_get` | `{key, project?}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·impl-verifier·qa-verifier·main-loop | 1 |
-| `board_propose` | `{key, agent, reason, project?}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key | pm | 1 |
+| `board_propose` | `{key, agent, reason, project?}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key, 최신 행이 `on_hold`인 key | pm | 1 |
 | `board_transition` | `{key, to, result?, project?}` | 에이전트는 planning·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev | 1 |
 | `plan_submit` | `{key, path, commit, type?, project?}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
 | `report_submit` | `{key, actor, path, commit, runId?, project?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·impl-verifier·qa-verifier·main-loop | 1 |
@@ -259,7 +259,8 @@ rollback을 단정하지 않는다. 웹은 advice를 조회하지 않고 성공 
 | `implementing` | `on_hold` | agent | hold | `result` 필수 |
 
 부수 규칙: 폐기는 `proposed`·`in_review`에서만(행은 남고 `discardedAt`이 찍힌다) ·
-미결(`done`·`on_hold`가 아닌 것)이 2건이면 새로 올리지 않는다 · `validation` 기록은
+미결(`done`·`on_hold`가 아닌 것)이 2건이면 새로 올리지 않는다 · 최신 행이 `on_hold`인 항목은 다시 올리지
+않는다(서버가 거부한다). 소유자가 재개로 잇는다 · `validation` 기록은
 `in_review`에서만, 그리고 마지막 `plan_submit` 뒤 plan-verifier의 `verify` ok 원장이 있어야 · `plan_submit`은 `planning`·`in_review`에서만 · `report_submit`은
 `in_review`·`implementing`·`done`에서만 · `reason`·`result`·`validation`은 각 150자(선택 `result`도 같다).
 
@@ -359,6 +360,7 @@ v2에서는 `validation_record`가 `in_review`에서만 받고, 되돌리기·�
 
 ### `on_hold` 재개
 
+보류 항목은 pm이 다시 올리지 않는다(`board_propose`가 거부한다). 소유자가 재개로 잇거나 백로그에서 제거한다.
 계획부터 다시 쓸 것이면 `planning`으로, 기존 계획으로 이어갈 것이면 `implementing`으로 되돌린다.
 화면의 주 버튼은 멈춘 자리(보류 이벤트의 `from`)로 돌아가는 쪽이다.
 
@@ -391,7 +393,8 @@ our hole은 관측과 코드 확정을 구분한 `file:line`을 적는다. `Effe
 - 보드에 올리는 것만으로 제거하지 않는다. 완료는 `removedReason: done`, 사람 제거는 owner,
   Proposed 폐기는 discarded. In review 폐기는 백로그를 유지한다. 제거 시 removedAt도 함께 찍으며
   살아 있는 행의 removedReason은 null이다. 재열기는 두 열을 모두 null로 한다.
-- head는 미결 2건을 먼저 검사한다. 후보가 없을 때 Scout 노드가 이미 dispatch 중이면 head는 쉰다.
+- 후보는 제거되지 않았고 최신 행이 미결도 보류도 아닌 백로그 항목이다.
+  head는 미결 2건을 먼저 검사한다. 후보가 없을 때 Scout 노드가 이미 dispatch 중이면 head는 쉰다.
   그 다음 자동 발굴 설정을 검사하며 꺼져 있으면 사람이 백로그를 추가하도록 안내한다.
   마지막 추가·제거 시각 뒤 report/ok 수락 원장과 함께 닫힌 scout run이 있으면 다시 부르지 않는다.
   그래프에 묶인 scout 완료도 이 판정에 포함하며, 도중 닫힌 run은 포함하지 않는다.

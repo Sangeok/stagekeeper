@@ -2,7 +2,7 @@
 // MCP 도구와 웹 액션이 같은 함수를 부르므로 판정이 한 곳에만 있다.
 import { REPORT_AGENTS } from "@harness/core/entitlement.mjs";
 import { boundaryOf, gateId, isGateId } from "@harness/core/pipeline.mjs";
-import { canDiscard, canPropose, canRecordValidation, checkText, findRule, type RuleKind } from "@harness/core/transitions.mjs";
+import { canDiscard, canPropose, canRecordValidation, checkText, findRule, isOpen, type RuleKind } from "@harness/core/transitions.mjs";
 
 export type Actor = "human" | "agent" | "pipeline";
 export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string };
@@ -12,6 +12,7 @@ export type RowSnapshot = { status: string; planPath: string | null; reportCount
 export type ProposeInput = {
   backlogExists: boolean;       // 항목이 있고 removedAt === null
   hasOpenRow: boolean;          // 이 key의 최신 행이 미결
+  onHold: boolean;              // 이 key의 최신 행이 on_hold — 소유자만 재개로 잇는다
   openCount: number;            // 프로젝트 전체 미결 수
   roster: readonly string[];    // Workspace.agent 집합
   agent: string;
@@ -21,10 +22,18 @@ export type ProposeInput = {
 export function decidePropose(i: ProposeInput): Decision<null> {
   if (!i.backlogExists) return { ok: false, reason: "no such backlog item (or removed)" };
   if (i.hasOpenRow) return { ok: false, reason: "already open" };
+  if (i.onHold) return { ok: false, reason: "on hold — only the owner resumes it, on the web" };
   if (!canPropose(i.openCount)) return { ok: false, reason: `open items: ${i.openCount} (max 2)` };
   if (!i.roster.includes(i.agent)) return { ok: false, reason: `agent not in roster: ${i.agent}` };
   const bad = checkText("reason", i.reason);
   return bad ? { ok: false, reason: bad } : { ok: true, value: null };
+}
+
+// pm이 고를 수 있는 백로그 항목 수. latest는 항목별 최신 행이다(latestBoard) — 최신 행이 미결이거나
+// 보류면 뺀다. 보류는 소유자의 재개로만 이어진다.
+export function countPickable(backlogIds: readonly string[], latest: readonly { backlogItemId: string; status: string }[]): number {
+  const taken = new Set(latest.filter((r) => isOpen(r.status) || r.status === "on_hold").map((r) => r.backlogItemId));
+  return backlogIds.filter((id) => !taken.has(id)).length;
 }
 
 // reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board-query.ts transitionIn).

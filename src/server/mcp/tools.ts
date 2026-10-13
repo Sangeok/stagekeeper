@@ -180,7 +180,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const row = await deps.boardGet(projectId, args.key);
     return row ? text(row) : fail(`no such board item: ${args.key}`);
   });
-  server.registerTool("board_propose", { description: "pm: create a proposed item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, or the key is already open.", inputSchema: z.object({ ...project, key: z.string(), agent: z.string(), reason: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("board_propose", { description: "pm: create a proposed item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, the key is already open, or the key is on hold (only the owner resumes it, on the web).", inputSchema: z.object({ ...project, key: z.string(), agent: z.string(), reason: z.string() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;

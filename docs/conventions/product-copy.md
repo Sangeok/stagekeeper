@@ -702,6 +702,7 @@ are terse on purpose — agents parse them.
 | `stale` | The board changed. Refresh and try again. |
 | `no such backlog item (or removed)` | — |
 | `already open` | — |
+| `on hold — only the owner resumes it, on the web` | — |
 | `open items: 2 (max 2)` | — |
 | `a Scout node in items dispatches feature-scout — that run looks for items to add` (pipeline_next head) | — |
 | `feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab` (pipeline_next head) | — |
@@ -781,7 +782,7 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `backlog_add` | feature-scout: add one backlog item you have evidence for. The server assigns the key (ITEM-NN). Pass runId = the runId of the receipt your current agent_next step returned. At most 3 per run, and never an item the owner removed or discarded (backlog_list includeRemoved shows them). After a failed or timed-out call, check backlog_list before calling again. |
 | `board_list` | Latest board item per backlog item. `open: true` → only open ones. |
 | `board_get` | Latest board item with its transition history and reports. |
-| `board_propose` | pm: create a `proposed` item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, or the key is already open. |
+| `board_propose` | pm: create a `proposed` item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, the key is already open, or the key is on hold (only the owner resumes it, on the web). |
 | `board_transition` | Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. `plan_submit` already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here. |
 | `plan_submit` | Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing. Optional type (feat, fix, refactor, docs) fills an empty type or revises an agent-set type; an owner-set type is preserved (typeKept: owner when it differs). |
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires `runId` and `qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}`. impl-verifier additionally requires `runId`. Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |

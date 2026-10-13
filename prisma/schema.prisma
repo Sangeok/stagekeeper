@@ -177,7 +177,7 @@ model BacklogItem {
   @@unique([projectId, key])
 }
 
-model BoardItem {                        // 같은 backlog 항목이 여러 번 올라올 수 있다(보류 후 재선정). 최신 = proposedOn 최대
+model BoardItem {                        // 같은 backlog 항목이 여러 번 올라올 수 있다(in_review 폐기 뒤 재선정. 보류는 재선정하지 않고 재개한다). 최신 = proposedOn 최대
   id            String            @id @default(cuid())
   projectId     String
   backlogItemId String
