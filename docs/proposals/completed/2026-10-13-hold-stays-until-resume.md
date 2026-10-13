@@ -1,14 +1,14 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-13"
 approved-by: "user:Sangeok"
 approved-at: "2026-10-13"
 approval-scope: "Proposal 1–7 전체(Open Question 1은 제안대로 보류만 남으면 scout 분기) — 대화 승인. PR 머지·운영 시드·main 승격은 단계마다 따로 확인"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-13"
+verification-summary: "check·test 341·web 586·CI build 녹색, 통합 106/106(기준선 103)·templates 53/53, 운영 pm 행 시드(9a292eaae9e5 = 356ce8d)와 main 승격(69dcc11) 뒤 harness-smoke ITEM-05의 board_propose가 새 사유로 거부됨"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -416,6 +416,8 @@ Questions 1에 적었다.
 
 - 2026-10-13 대화에서 "해당 문서를 바탕으로 실제 코드 수정을 진행하라"로 승인됐다. 커밋·PR·머지, 운영 DB 시드,
   main 승격은 외부에 닿는 단계라 그때마다 따로 확인한다.
+- 같은 날 단계마다 확인을 받았다. 두 PR은 소유자가 머지했다. 운영 시드는 소유자가 권한 모드를 수동으로 바꾸고
+  명령마다 승인했다. main 승격과 운영 거부 확인은 대화에서 확인받았다.
 
 ## Execution Plan
 
@@ -600,13 +602,13 @@ root`, 2026-10-13 실측, 이 제안의 변경과 무관). 빌드는 PR의 CI `c
 | `npm run check` | 통과 (2026-10-13) | test:architecture 44 통과·2 건너뜀, test:project-availability 18/18 |
 | `npm test` | 통과 (2026-10-13) | 341 통과·2 건너뜀·실패 0 |
 | `npm run test:web` | 통과 (2026-10-13) | 586/586 (판정 시험 2건과 `board_propose` 고정 포함) |
-| `npm run build` | Not run yet | PR의 CI `check (build)`로 확인 |
+| `npm run build` | 통과 (2026-10-13) | 로컬에서는 돌리지 않음. PR #139의 CI `check (build)` 녹색. dev push(`69dcc11`)의 `check`·`windows-role-runtime`도 success |
 | `npm run test:server:integration` | 통과 (2026-10-13) | 106/106. origin/dev 기준선은 103/103. 옛 `board-query.ts`로 되돌리면 새 시험 2건이 실패한다 |
 | `npm run test:templates` | 통과 (2026-10-13) | 53/53 (변경 전에도 53/53) |
 | `prisma migrate diff` | 통과 (2026-10-13) | `-- This is an empty migration.` |
 | "옛 것 없음"·"새 것 있음" 검사 | 통과 (2026-10-13) | 옛 것 출력 없음 3건·`plugin/` 변경 0, 새 것은 두 파일 모두 |
-| 부분 시드와 해시 대조(Execution Plan 6) | Not run yet | 운영 |
-| 배포 확인과 거부 확인(Execution Plan 8) | Not run yet | 운영 |
+| 부분 시드와 해시 대조(Execution Plan 6) | 통과 (2026-10-13) | 사전 검사 1행. `done: 1 templates atomically seeded from 356ce8dc…`. 운영 pm 행 `9a292eaae9e5`는 `M`=`356ce8d`의 파일과 같다(시드 전 `b0727c3177b5`). 첫 시도는 실패했다(Completion Notes) |
+| 배포 확인과 거부 확인(Execution Plan 8) | 통과 (2026-10-13) | Production 배포 `69dcc11` success(03:14Z). ITEM-05 `board_propose` → `on hold — only the owner resumes it, on the web`. 다시 읽은 최신 행은 2026-10-12의 보류 행 그대로였다 |
 
 ## Risks and Rollback
 
@@ -616,7 +618,8 @@ root`, 2026-10-13 실측, 이 제안의 변경과 무관). 빌드는 PR의 CI `c
   이어진다. 보류 항목은 결재함 카드와 뱃지로 보이지만, 배너는 차지하지 않는다(`product-copy.md:187`).
 - 살아 있는 백로그가 모두 보류면 자동 정찰이 새 항목을 찾아 올 수 있다(Proposal 7).
 - 모델이 새 템플릿 문구를 어길 수 있다. 그래도 서버가 거부하고, pm은 `failed`로 끝난다.
-- 템플릿 시드와 서버 승격 사이에는 Proposal 6의 일이 생길 수 있다. 지금 데이터에서는 생기지 않는다.
+- 템플릿 시드와 서버 승격 사이에는 Proposal 6의 일이 생길 수 있다. 실제 간격은 시드(03:06Z)에서 배포(03:14Z)까지
+  약 7분이었다. 배포 뒤 harness-smoke 보드에는 새 행이 없었다(ITEM-04는 보드에 오른 적 없음, ITEM-05는 보류 그대로).
 - 보류 항목을 백로그에서 제거해도 그 보드 행은 `on_hold`로, 런 커서는 열린 채 남는다. 지금 동작과 같고, 이
   제안은 바꾸지 않는다.
 - 보류 행이 둘인 옛 데이터(harness-smoke ITEM-05)에서 새 행을 재개했다가 검토 중에 폐기하면, 옛 보류 행이
@@ -632,27 +635,41 @@ root`, 2026-10-13 실측, 이 제안의 변경과 무관). 빌드는 PR의 CI `c
 
 ## Completion or Closure Notes
 
-완료 또는 닫힘 처리 후 `completed/`로 이동할 때 작성합니다.
+완료 기록:
 
-완료 기록(`status: "completed"`일 때 작성):
-
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
-
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-13
+- verification-summary: front matter와 같다. 명령별 결과는 *Verification Results*에 있다.
+- implementation PR/commit
+  - 구현과 제안서: #139(`harness/hold-stays-until-resume` → dev, 머지 `69dcc11`). 커밋은 `641550f`(서버 판정·조회,
+    시험, 도구 설명, product-copy, 스키마 주석), `d961594`(protocol·invariants), `0c60780`(승인된 제안서와 검증 결과).
+  - 템플릿: harness-templates #12(`5559d09`, 머지 `356ce8d`).
+  - 운영 템플릿의 `en/agents/pm.md` 한 행을 `356ce8d`로 시드했다. 이어 `main`을 `6d16410`에서 `69dcc11`로
+    fast-forward 승격했다. 이 승격에는 #138(impl-verifier 완료 문서)도 함께 들어갔다.
+- changed files summary
+  - 공개 저장소 12개 파일: `board-rules.ts`(보류 거부, `countPickable`), `board-query.ts`(`propose` 입력과 후보 수),
+    `run-rules.ts`·`schema.prisma` 주석, `tools.ts` 설명과 `tools.test.mjs` 고정 목록, `product-copy.md` §12·§13,
+    `protocol.md`, `invariants.md`, 판정 시험, 새 통합 시험 `hold-propose.test.ts`, 이 제안서.
+  - private 템플릿: `en/agents/pm.md` 세 줄(상태 표, 보류 규칙, pick 단계의 blocked 결과).
+- 계획과 달라진 실행
+  - Execution Plan 6: `DOTENV_CONFIG_PATH=… npm run seed:templates`는 PowerShell에서 돌지 않는다. 그래서 같은
+    효과의 `node --env-file="$MAIN/.env" --import tsx scripts/seed-templates.ts --dir …`로 실행했다. 먼저 같은
+    형태로 읽기 질의를 돌려 같은 운영 DB에 닿는지 확인했다. 시드 디렉터리는 `mktemp -d` 대신 세션 scratchpad에 두었다.
+  - 운영 시드는 자동 권한 모드가 공유 자원 변경으로 거부했다. 소유자가 수동 모드로 바꾸고 명령마다 승인했다.
+  - 첫 시드 시도는 원인을 숨긴 채 exit 1로 끝났다(`scripts/seed-templates.ts`가 오류를 출력하지 않는다). 같은
+    단계를 밟고 커밋 전에 throw로 롤백하는 진단을 두 번 돌렸다. 스냅숏 읽기와 upsert는 정상이었고, 운영 행은
+    `b0727c3177b5` 그대로였다. 재시도는 성공했다. 첫 실패의 원인은 확인하지 못했고, 커밋 시점의 일시적 오류로 본다.
+  - Execution Plan 8의 `board_propose`는 harness-smoke 디렉터리의 세션 대신, 같은 운영 서버
+    (`https://stagekeeper.dev/api/mcp`)에 user 토큰으로 붙은 세션에서 `project: "harness-smoke"`로 불렀다.
+    판정은 같은 `decidePropose`를 지난다.
+- remaining follow-up
+  - Open Questions 1·2. 보류만 남았을 때 정찰 대신 "재개하라"는 사유를 낼지와, 계획·구현 중인 항목을 소유자가
+    웹에서 직접 보류할 수 있게 할지다.
+  - 시드 스크립트가 실패 원인을 숨기는 문제(리허설 보고서 F5)가 이번 시드에서도 진단 비용을 키웠다.
+  - harness-smoke ITEM-05의 첫째 보류 행(런 커서 `plan`, 열림)은 그대로 두었다(Scope의 제외 범위).
 
 ## Review Checklist
 
-- [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
+- [x] 모든 `{placeholder}`와 `TBD`를 처리했고, 완료 상태에 맞게 갱신했다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
@@ -663,10 +680,10 @@ root`, 2026-10-13 실측, 이 제안의 변경과 무관). 빌드는 PR의 CI `c
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다. 시험의 새 실패는 없다. 첫 시드 시도의 실패는 재시도로
+  풀렸고 Completion Notes에 적었다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
-- [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 
 ## Open Questions
 
