@@ -4,9 +4,9 @@ import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import * as board from "@/server/pipeline/board";
-import { proposeInputSchema } from "../model/propose-input";
+import { proposeInputSchema, type ProposeInput } from "../model/propose-input";
 
-export async function proposeItem(slug: string, input: { key: string; agent: string; reason: string }): Promise<ActionResult<void>> {
+export async function proposeItem(slug: string, input: ProposeInput): Promise<ActionResult<void>> {
   if (typeof slug !== "string" || slug.length === 0) return failure("Couldn't put it on the board. Try again.");
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(w.reason);

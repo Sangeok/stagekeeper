@@ -1,13 +1,14 @@
 import type { Plan } from "@harness/core/entitlement.mjs";
 import { countNoun } from "@/fsd/shared/lib/count-noun";
 import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import type { ProjectConnectionInput } from "./project-connection-input";
 
 export type ProjectConnectionTarget = { id: string; name: string; repoOwner: string; repo: string; disconnectedAt: string | null };
 export type ProjectConnectionSummary = {
   plan: Plan; limit: number | null; version: number; connectedCount: number;
 };
 export type ProjectConnectionState = { status: "success" } | { status: "stale" } | { status: "error"; reason: string };
-export type ProjectConnectionAction = (input: { targetProjectId: string; expectedVersion: number }) => Promise<ProjectConnectionState>;
+export type ProjectConnectionAction = (input: ProjectConnectionInput) => Promise<ProjectConnectionState>;
 export const STALE_CONNECTION_MESSAGE = "Your project list changed. Review the latest connection details and try again.";
 export const UNKNOWN_CONNECTION_MESSAGE = "Couldn't confirm the result. Refresh to check the latest repository connection.";
 

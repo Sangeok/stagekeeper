@@ -33,7 +33,12 @@ it("exposes exactly two inline session mutations and keeps the ordinary loader b
     assert.match(body, /revalidatePath\(projectsPath\(\)\)/);
     assert.match(body, /revalidatePath\(PROJECT_LAYOUT_REVALIDATE_PATH, "layout"\)/);
   }
-  assert.match(source, /expectedVersion: z\.number\(\)\.int\(\)\.min\(0\)\.max\(Number\.MAX_SAFE_INTEGER\)/);
+  assert.ok(ast.statements.some(node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)
+    && node.moduleSpecifier.text === "../model/project-connection-input"
+    && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)
+    && node.importClause.namedBindings.elements.some(element => element.name.text === "inputSchema" && !element.isTypeOnly)));
+  assert.ok(!ast.statements.some(node => ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === "inputSchema")));
+  assert.match(read("src/fsd/features/manage-project-connection/model/project-connection-input.ts"), /expectedVersion: z\.number\(\)\.int\(\)\.min\(0\)\.max\(Number\.MAX_SAFE_INTEGER\)/);
   assert.ok(!read("src/fsd/features/manage-project-connection/index.ts").includes("loadProjectConnection"));
   const tokens = read("src/fsd/features/manage-token/api/manage-token.server.ts");
   assert.match(tokens, /await issueProjectToken\(\{ projectId, userId, label, expiresAt \}\)/);

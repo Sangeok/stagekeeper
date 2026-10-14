@@ -186,6 +186,44 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 생성 산출물의 일시 계측이나 브라우저 응답 계측을 애플리케이션 소스·배포에 포함하지 않는다.
 범위·방법·실행 판정은 [3차 인수 보고서](../test-reports/completed/2026-10-01-src-clean-code-third-pass-regression.md)에 기록한다.
 
+### FSD 클린코드 후속 인수
+
+`rehearse-src-clean-code.ts`는 기존 Inbox A~D 외에 done 항목 R-1을 준비한다.
+`/owner-item`에서 실제 상세 페이지를 열고 `/arm/reopen-before-once` 또는
+`/arm/reopen-after-once`로 **다음 humanTransition 한 건만** 저장 전/후에 응답을 잘라 낸다.
+소켓 종료에 따른 POST 재전송과 혼동하지 않도록 정상 HTTP 응답의 RSC frame을 잘라 낸다.
+`/state`에서 R-1의 status·updatedAt·전이 수를 대조한다. Reopen의 Try again은 mutation을
+다시 보내지 않고 최신 상태를 읽어야 하며, Evidence·Documents·History는 계속 보여야 한다.
+
+DB 없는 실제 컴포넌트 시험은 `--ui-only`로 실행한다. `/fixture?mode=token-issuance`는
+세 발급 폼의 성공·거부·응답 미확인과 Previous token/만료값 보존을 제어하고,
+`/fixture?mode=documents`는 같은 URL의 별개 보고를 추가·삭제·재정렬한다.
+`?mode=copy&autorun` 또는 Run acceptance가 전체 동작 시험 결과를 `/results`에 기록한다.
+Documents의 duplicate-key 경고는 `--ui-only --fixture-development`로 별도 확인한다.
+이 옵션은 fixture 브라우저 번들만 development로 바꾸며 production build 설정은 바꾸지 않는다.
+실제 키보드 ArrowLeft/Right가 각 Coding client 그룹 안에서 순환하는지, Tab/Shift+Tab이
+그룹을 벗어나 다음/이전 컨트롤로 이동하는지도 확인한다. 합성 KeyboardEvent만으로 판정하지 않는다.
+
+```bash
+node --import tsx scripts/rehearse-src-clean-code.ts --ui-only
+# /finish로 앞 실행을 종료한 뒤:
+node --import tsx scripts/rehearse-src-clean-code.ts --ui-only --fixture-development
+```
+
+브라우저 Finish는 root·보류 작업·clipboard·console 대체를 정리하고, `/finish`는
+listener·자식 Next·DB fixture를 정리한다. 실제 DB 리허설은 기존처럼 fresh build와
+별도의 `TEST_DATABASE_URL` 검사를 통과해야 한다. schema 이동 뒤에는 아래 fresh registry 검사도 실행한다.
+
+```bash
+npm run build
+SRC_CHECK_INBOX_MANIFEST=true RDC_CHECK_ACTION_MANIFEST=true npm run test:server
+```
+
+`rehearse-account-usage-and-tokens.ts --interactive`의 `http://127.0.0.1:55477/state`는
+fixture 소유자의 종류별 토큰 수와 Reference·revoked 여부만 반환한다(평문·hash·세션 제외).
+`/lose-next-action`으로 응답을 잃은 발급은 +1, Refresh list는 +0, 수동 Revoke는 지정 Reference만
+종료시키는지 확인한다. 동일 이름의 기존 토큰도 보존해야 한다. `/finish`로 종료한다.
+
 ## 문구 잠금
 
 `docs/conventions/product-copy.md`는 "코드는 이 파일에서 나온다"고 선언하지만 강제가 없어 두 번 어긋났다 —
@@ -202,6 +240,7 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 | `turn-banner-connect-claude`·`-codex` | §5 First run의 클라이언트 선택 | `src/fsd/widgets/turn-banner/model/setup-detail.test.ts`, `ui/turn-banner.test.ts` | 선택한 init 표시·서버 판정 불변; 브라우저 fixture가 setup/next·탭 유지·slug reset을 검증 |
 | `turn-banner-watch` | §5 Next, in Claude Code | `src/fsd/widgets/turn-banner/model/turn.test.ts`, `ui/next-step.test.mjs` | `WATCH_LINE` 글자 일치·실제 본문·명령 Code·빈 상자·Copy payload |
 | `landing-demo` | §16 Landing (데모 카드) | `src/fsd/pages/landing/ui/landing-page.test.ts` | `LandingPage`의 데모 카드가 값으로 적은 제품 문장 셋 |
+| `landing-meta` | §16 Landing (탭·검색·공유) | 같은 파일 | 문서 제목·설명(`LANDING_TITLE`·`LANDING_DESCRIPTION`, 글자 일치)과 설명이 본문 첫 문단에 그대로 있는지 |
 | `history-tab` | §19 History tab | `src/fsd/pages/project-history/ui/project-history-page.test.ts` | Items 빈 상태·상태별 행·펼친/빈 상세, Events key/all 빈 상태와 중간 페이지. 독립 커서·보기 전환·링크 목적지 검사 |
 
 읽는 법과 블록 규칙(한 줄 = 한 단위, 줄바꿈 금지)은 `src/fsd/shared/lib/copy-lock.ts`와 product-copy.md 머리의

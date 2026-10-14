@@ -9,6 +9,8 @@ import { ButtonLink, buttonClass } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
 import { Chip } from "@/fsd/shared/ui/chip";
 
+import { HEADLINE, LANDING_DESCRIPTION } from "../model/landing-copy";
+
 // 공개 랜딩. 문구는 product-copy.md §16. Server Component — 상호작용은 CTA 폼뿐이다.
 // 히어로의 볼드니스는 문장 하나(둘째 줄만 --mine)와 실제 Inbox 카드 한 장에만 있다. 슬로건·그라디언트·모션 없음.
 
@@ -63,13 +65,12 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
         <section className="grid items-start gap-10 py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-14 md:py-[88px]">
           <div>
             <h1 className="text-[clamp(34px,4.2vw,54px)] leading-[1.02] font-semibold tracking-[-0.03em] text-balance">
-              Your agents build.
+              {HEADLINE.agents}
               <br />
-              <span className="text-mine">You set the rules.</span>
+              <span className="text-mine">{HEADLINE.you}</span>
             </h1>
             <p className="mt-[22px] max-w-[52ch] text-[17px] leading-[26px] text-quiet">
-              Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and
-              the gates. Agents propose, plan, and report — they can&apos;t grant themselves permission.
+              {LANDING_DESCRIPTION} Agents propose, plan, and report — they can&apos;t grant themselves permission.
             </p>
             <div className="mt-[30px]">
               {signedIn ? (

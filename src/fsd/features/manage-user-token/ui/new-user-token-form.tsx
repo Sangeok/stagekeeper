@@ -15,12 +15,22 @@ type Props = { issue: (label: string, expiresAt: string | null) => Promise<Actio
 // 1회 노출 규약은 토큰 종류와 무관하고, 셸 변수 이름도 HARNESS_TOKEN으로 같다 —
 // 사용자 범위 MCP 등록에 들어가는 참조가 `${HARNESS_TOKEN}` 하나이기 때문이다.
 // 2·3단계는 그 컴포넌트가 접두(hu_)를 보고 바꾼다: 이 토큰은 머신에 한 번 영구 저장한다.
+type IssuedToken = { token: string; expiresAt: string | null };
+type IssueState =
+  | { status: "idle"; previous: null }
+  | { status: "pending"; previous: IssuedToken | null }
+  | { status: "rejected"; previous: IssuedToken | null; error: string }
+  | { status: "unknown"; previous: IssuedToken | null }
+  | { status: "succeeded"; issued: IssuedToken };
+
+const ISSUE_UNKNOWN = "Couldn't confirm whether the token was issued. Refresh the list before trying again. If you identify a token whose value you did not receive, revoke it before issuing another.";
+
 export function NewUserTokenForm({ issue, mcpUrl }: Props): ReactElement {
-  const [token, setToken] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<IssueState>({ status: "idle", previous: null });
   const [pending, startTransition] = useTransition();
-  const [issuedExpiry, setIssuedExpiry] = useState<string | null>(null);
   const router = useRouter();
+  const issued = state.status === "succeeded" ? state.issued : state.previous;
+  const error = state.status === "rejected" ? state.error : state.status === "unknown" ? ISSUE_UNKNOWN : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -32,21 +42,21 @@ export function NewUserTokenForm({ issue, mcpUrl }: Props): ReactElement {
           const expiryInput = String(data.get("expiry") ?? "");
           let expiry: string | null;
           try { expiry = parseTokenExpiryInput(expiryInput)?.toISOString() ?? null; }
-          catch { setError("Choose a future expiry in UTC, or leave it blank for no expiry."); return; }
+          catch { setState({ status: "rejected", previous: issued, error: "Choose a future expiry in UTC, or leave it blank for no expiry." }); return; }
+          setState({ status: "pending", previous: issued });
           startTransition(async () => {
             try {
               // requireUser는 로그인이 끊기면 redirect로 throw한다 — try/catch는 그래서 남긴다.
               const result = await issue(label, expiry);
               if (!result.success) {
-                setError(result.error);
+                setState({ status: "rejected", previous: issued, error: result.error });
                 router.refresh();
                 return;
               }
-              setToken(result.data.token);
-              setIssuedExpiry(expiry);
-              setError(null);
+              setState({ status: "succeeded", issued: { token: result.data.token, expiresAt: expiry } });
             } catch {
-              setError("Couldn't issue the token. Try again.");
+              // The write may have committed. Keep the last received token separate from this unknown result.
+              setState({ status: "unknown", previous: issued });
               router.refresh();
             }
           });
@@ -64,8 +74,10 @@ export function NewUserTokenForm({ issue, mcpUrl }: Props): ReactElement {
         </Button>
       </form>
       {error ? <p role="alert" className="text-sm text-risk">{error}</p> : null}
-      {token ? <p className="text-sm text-quiet">{issuedExpiry ? "Expires at " + issuedExpiry.slice(0, 16).replace("T", " ") + " UTC" : "No expiry"}</p> : null}
-      {token ? <TokenReveal token={token} mcpUrl={mcpUrl} /> : null}
+      {state.status === "unknown" ? <div><Button type="button" disabled={pending} onClick={() => startTransition(() => router.refresh())}>Refresh list</Button></div> : null}
+      {issued && state.status !== "succeeded" ? <p className="text-sm font-medium">Previous token</p> : null}
+      {issued ? <p className="text-sm text-quiet">{issued.expiresAt ? "Expires at " + issued.expiresAt.slice(0, 16).replace("T", " ") + " UTC" : "No expiry"}</p> : null}
+      {issued ? <TokenReveal token={issued.token} mcpUrl={mcpUrl} /> : null}
     </div>
   );
 }
