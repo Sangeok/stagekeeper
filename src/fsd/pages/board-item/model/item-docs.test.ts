@@ -5,7 +5,8 @@ import { toItemDocs } from "./item-docs";
 
 const repo = { owner: "Sangeok", repo: "harness-smoke", branch: "main" };
 const at = (iso: string) => new Date(iso);
-const report = (actor: string, path: string, commit = "0000000", iso = "2026-09-06T14:00:00Z") => ({ actor, path, commit, at: at(iso) });
+let reportSequence = 0;
+const report = (actor: string, path: string, commit = "0000000", iso = "2026-09-06T14:00:00Z") => ({ id: `fixture-${++reportSequence}`, actor, path, commit, at: at(iso) });
 
 it("Documents plan and report keep reserved filenames, commit priority and slash branch fallback", () => {
   const path = "docs/#?% 한글.md";
@@ -19,6 +20,16 @@ it("Documents plan and report keep reserved filenames, commit priority and slash
 });
 
 describe("toItemDocs", () => {
+  it("keeps distinct submission identities for identical links, including a plan/report collision", () => {
+    const first = { ...report("dev", "docs/report.md", "commit"), id: "plan" };
+    const second = { ...first, id: "second" };
+    const source = { planPath: first.path, planCommit: first.commit, acceptedAt: null, reports: [first, second] };
+    const docs = toItemDocs(source, repo);
+    assert.deepEqual(docs.map(doc => doc.id), ["plan", "report:plan", "report:second"]);
+    assert.equal(new Set(docs.map(doc => doc.href)).size, 1);
+    assert.deepEqual(toItemDocs({ ...source, reports: [second, first] }, repo).map(doc => doc.id), ["plan", "report:second", "report:plan"]);
+    assert.deepEqual(toItemDocs({ ...source, reports: [second] }, repo).map(doc => doc.id), ["plan", "report:second"]);
+  });
   it("keeps every constructor actor report and its recorded commit in Documents", () => {
     const docs = toItemDocs({ planPath: null, planCommit: null, acceptedAt: null,
       reports: [report("constructor", "docs/first.md", "1111111"), report("constructor", "docs/second.md", "2222222")] }, repo);

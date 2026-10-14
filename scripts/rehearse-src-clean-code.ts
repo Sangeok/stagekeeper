@@ -13,6 +13,7 @@ import { build } from "esbuild";
 import { validateTestDatabase } from "./test-server-integration.mjs";
 
 async function main(): Promise<void> {
+  if (process.argv.includes("--fixture-development") && !process.argv.includes("--ui-only")) throw new Error("--fixture-development requires --ui-only");
   if (process.argv.includes("--ui-only")) { await uiOnly(); return; }
   config({ quiet: true });
   const url = validateTestDatabase(process.env); const previous = process.env.DATABASE_URL;
@@ -26,6 +27,16 @@ async function main(): Promise<void> {
   const secret = randomBytes(32).toString("hex"); const upstream = "http://127.0.0.1:55451";
   const browserOrigin = "http://127.0.0.1:55452";
   let actionMode = "normal"; const actions: string[] = []; let results: unknown[] = [];
+  let reopenMode: "normal" | "before" | "after" = "normal";
+  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as {
+    node: Record<string, { filename?: string; exportedName?: string }>;
+    edge: Record<string, { filename?: string; exportedName?: string }>;
+  };
+  assert.ok(manifest.node && manifest.edge, "Fresh Action registry required");
+  const reopenActions = new Set([...Object.entries(manifest.node), ...Object.entries(manifest.edge)]
+    .filter(([, entry]) => entry.filename?.replaceAll("\\", "/").endsWith("src/fsd/features/review-gate/api/review-gate.server.ts") && entry.exportedName === "humanTransition")
+    .map(([id]) => id));
+  assert.ok(reopenActions.size > 0, "Fresh humanTransition action required");
   let releaseAction = () => {};
   let finish!: () => void; const done = new Promise<void>(resolve => { finish = resolve; });
   const browserBundle = await build({ entryPoints: ["tests/server/fixtures/src-clean-code-browser.tsx"], bundle: true, write: false,
@@ -45,6 +56,10 @@ async function main(): Promise<void> {
       }
       if (path === "/fixture.js") { res.setHeader("content-type", "text/javascript"); res.end(browserBundle.outputFiles[0].contents); return; }
       if (path.startsWith("/fixture?")) { res.setHeader("content-type", "text/html"); res.end('<div id="root"></div><script>window.process={env:{}}</script><script src="/fixture.js"></script>'); return; }
+      if (path === "/arm/reopen-before-once" || path === "/arm/reopen-after-once") {
+        reopenMode = path === "/arm/reopen-before-once" ? "before" : "after";
+        res.end("Reopen response fault armed once"); return;
+      }
       if (path.startsWith("/arm/")) { actionMode = path.slice(5); res.end("armed"); return; }
       if (path.startsWith("/server-fail/")) {
         assert.ok(faultChunk, "start with --render-faults to enable the generated-build fault seam");
@@ -71,22 +86,27 @@ async function main(): Promise<void> {
           items: await db.boardItem.findMany({ where: { projectId: owner!.projectId }, select: { status: true, updatedAt: true, backlogItem: { select: { key: true } }, events: { select: { to: true, note: true } } } }),
         })); return;
       }
-      if (path === "/owner") {
+      if (path === "/owner" || path === "/owner-item") {
         const cookieName = "authjs.session-token";
         const token = await encode({ token: { uid: owner!.userId, name: "fixture" }, secret, salt: cookieName, maxAge: 3600 });
         res.setHeader("set-cookie", `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax`);
-        res.writeHead(302, { location: `/p/${owner!.id}/inbox` }); res.end(); return;
+        res.writeHead(302, { location: `/p/${owner!.id}/${path === "/owner-item" ? "items/R-1" : "inbox"}` }); res.end(); return;
       }
       const buffers: Buffer[] = []; for await (const chunk of req) buffers.push(Buffer.from(chunk));
       const body = Buffer.concat(buffers); const isAction = !!req.headers["next-action"];
       const mode = isAction ? actionMode : "normal";
+      const reopenFault = req.method === "POST" && reopenActions.has(String(req.headers["next-action"])) ? reopenMode : "normal";
+      if (reopenFault !== "normal") reopenMode = "normal";
       if (isAction) { actions.push(body.toString()); if (mode === "pause") actionMode = "normal"; }
+      // A completed, truncated RSC response avoids a transport-level replay of the POST.
+      if (reopenFault === "before") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
       if (mode === "before") { req.socket.destroy(); return; }
       if (mode === "pause") await new Promise<void>(resolve => { releaseAction = resolve; });
       const headers = new Headers(); for (const [name, value] of Object.entries(req.headers)) if (value !== undefined && name !== "connection") headers.set(name, Array.isArray(value) ? value.join(", ") : value);
       headers.set("x-forwarded-host", new URL(browserOrigin).host);
       const response = await fetch(`${upstream}${path}`, { method: req.method, headers, redirect: "manual", ...(body.length ? { body } : {}) });
       const content = Buffer.from(await response.arrayBuffer());
+      if (reopenFault === "after") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
       if (mode === "after") { req.socket.destroy(); return; }
       res.statusCode = response.status;
       response.headers.forEach((value, name) => { if (!["transfer-encoding", "content-encoding", "content-length"].includes(name)) res.setHeader(name, value); });
@@ -130,6 +150,14 @@ async function main(): Promise<void> {
         await db.pipelineRun.update({ where: { boardItemId: board.id }, data: { node: "before-implement" } });
       }
     }
+    const reopenBacklog = await db.backlogItem.create({ data: { projectId: owner.projectId, key: "R-1", title: "Reopen without losing evidence", area: "web", source: "fixture", removedAt: new Date(), removedReason: "done" } });
+    const reopenItem = await db.boardItem.create({ data: {
+      projectId: owner.projectId, backlogItemId: reopenBacklog.id, agent: "dev", status: "done", reason: "Reopen fixture evidence",
+      results: ["Implementation completed"], planPath: "docs/fixture-plan.md", planCommit: "abcdef123456",
+      reports: { create: { actor: "dev", path: "docs/fixture-report.md", commit: "abcdef123456", isAcceptance: false } },
+      events: { create: { actor: "pipeline", from: "implementing", to: "done" } },
+    } });
+    await ensureRun(db, owner.projectId, reopenItem.id, "done", false);
     next = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "55451"], {
       env: { ...process.env, DATABASE_URL: url, AUTH_SECRET: secret, AUTH_URL: browserOrigin, AUTH_TRUST_HOST: "true" }, stdio: ["ignore", "ignore", "pipe"], windowsHide: true,
     });
@@ -138,7 +166,7 @@ async function main(): Promise<void> {
     for (let attempt = 0; attempt < 100; attempt++) { try { if ((await fetch(`${upstream}/login`)).status === 200) { started = true; break; } } catch { /* Wait for local server. */ } await delay(100); }
     assert.ok(started, "fresh production Next server must start");
     await new Promise<void>(resolve => proxy.listen(55452, "127.0.0.1", resolve));
-    console.log(`Browser acceptance ready: ${browserOrigin}/owner and ${browserOrigin}/fixture?mode=form`);
+    console.log(`Browser acceptance ready: ${browserOrigin}/owner, /owner-item and /fixture?mode=form`);
     await done;
   } finally {
     process.removeListener("SIGINT", interrupt);
@@ -151,8 +179,9 @@ async function main(): Promise<void> {
   }
 }
 async function uiOnly(): Promise<void> {
+  const development = process.argv.includes("--fixture-development");
   const bundle = await build({ entryPoints: ["tests/server/fixtures/src-clean-code-browser.tsx"], bundle: true, write: false,
-    platform: "browser", format: "iife", jsx: "automatic", define: { "process.env.NODE_ENV": '"production"' },
+    platform: "browser", format: "iife", jsx: "automatic", define: { "process.env.NODE_ENV": JSON.stringify(development ? "development" : "production") },
     plugins: [{ name: "fixture-links", setup(builder) {
       builder.onResolve({ filter: /^next\/link$/ }, () => ({ path: "fixture-link", namespace: "fixture" }));
       builder.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({ contents: 'import React from "react"; export default function Link({children,href,...props}) { return React.createElement("a",{...props,href},children) }', resolveDir: process.cwd() }));

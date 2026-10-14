@@ -4,13 +4,13 @@ import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { itemPath, projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import * as board from "@/server/pipeline/board";
-import type { RetryAcceptanceAction, TransitionInput } from "../model/inbox-item";
-import { retryAcceptanceInputSchema, transitionInputSchema, approveGateInputSchema, discardInputSchema } from "../model/review-gate-input";
+import { retryAcceptanceInputSchema, transitionInputSchema, approveGateInputSchema, discardInputSchema,
+  type RetryAcceptanceInput, type TransitionInput, type ApproveGateInput, type DiscardInput } from "../model/review-gate-input";
 
 const REASON_MESSAGE: Record<string, string> = { stale: "The board changed. Refresh and try again." };
 const message = (reason: string) => REASON_MESSAGE[reason] ?? reason;
 
-export async function retryAcceptance(slug: string, input: Parameters<RetryAcceptanceAction>[0]): Promise<ActionResult<void>> {
+export async function retryAcceptance(slug: string, input: RetryAcceptanceInput): Promise<ActionResult<void>> {
   if (typeof slug !== "string" || slug.length === 0) return failure(message("stale"));
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(message(w.reason));
@@ -39,7 +39,7 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
 }
 
 // 게이트 승인 — 게이트 id로. 서버 층의 잠금은 board.transitionIn의 viaGate 거부가 맡는다.
-export async function approveGate(slug: string, input: { key: string; gate: string; gateEntry?: { runId: string; entryId: string }; expectedUpdatedAt: string }): Promise<ActionResult<void>> {
+export async function approveGate(slug: string, input: ApproveGateInput): Promise<ActionResult<void>> {
   if (typeof slug !== "string" || slug.length === 0) return failure(message("stale"));
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(message(w.reason));
@@ -52,7 +52,7 @@ export async function approveGate(slug: string, input: { key: string; gate: stri
   return success();
 }
 
-export async function discardItem(slug: string, key: string, expectedUpdatedAt: string): Promise<ActionResult<void>> {
+export async function discardItem(slug: string, key: DiscardInput["key"], expectedUpdatedAt: DiscardInput["expectedUpdatedAt"]): Promise<ActionResult<void>> {
   if (typeof slug !== "string" || slug.length === 0) return failure(message("stale"));
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(message(w.reason));

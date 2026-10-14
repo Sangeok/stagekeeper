@@ -1,20 +1,19 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { projectsPath } from "@/fsd/shared/routes/projects";
 import { requireUser } from "@/server/auth/guard";
 import { loadProjectAvailability, selectProjectForUse } from "@/server/project-availability";
 import type { ProjectSelectionModel, SelectProjectState } from "../model/select-project-state";
 
-const inputSchema = z.object({ targetProjectId: z.string().min(1), replacementProjectId: z.string().min(1).optional(), expectedVersion: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) });
+import { inputSchema, type SelectProjectInput } from "../model/select-project-input";
 
 export async function loadProjectSelection(userId: string): Promise<ProjectSelectionModel> {
   const view = await loadProjectAvailability(userId);
   return { plan: view.plan, limit: view.limit, version: view.version, availableCount: view.availableCount, projects: view.projects.filter((p) => p.disconnectedAt === null) };
 }
 
-export async function selectProject(input: z.input<typeof inputSchema>): Promise<SelectProjectState> {
+export async function selectProject(input: SelectProjectInput): Promise<SelectProjectState> {
   "use server";
   const { userId } = await requireUser();
   const parsed = inputSchema.safeParse(input);

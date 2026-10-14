@@ -12,3 +12,8 @@ export const approveGateInputSchema = z.object({
   gateEntry: z.object({ runId: z.string().min(1), entryId: z.string().min(1) }).optional(),
 });
 export const discardInputSchema = z.object(itemInput);
+
+export type RetryAcceptanceInput = z.input<typeof retryAcceptanceInputSchema>;
+export type TransitionInput = z.input<typeof transitionInputSchema>;
+export type ApproveGateInput = z.input<typeof approveGateInputSchema>;
+export type DiscardInput = z.input<typeof discardInputSchema>;
