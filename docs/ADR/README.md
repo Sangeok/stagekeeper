@@ -30,6 +30,7 @@ ADR은 결정이 *왜* 내려졌는지, 어떤 대안을 비교했는지, 어떤
 | ADR | Title | Status |
 | --- | --- | --- |
 | [0001](0001-adopt-feature-sliced-design.md) | Next.js 경계에 맞춘 Feature-Sliced Design 채택 | accepted |
+| [0002](0002-test-code-organization.md) | 대상 옆 테스트 배치와 실행 경계별 분리 채택 | accepted |
 
 첫 번째 실제 아키텍처 결정은 `0001`부터 시작합니다. `0000`은 ADR 운영 방식
 자체를 기록하는 메타 ADR이 필요할 때만 사용합니다.

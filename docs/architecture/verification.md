@@ -35,6 +35,40 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 런타임 의존성까지 완전히 증명하지는 못한다. 자동 검사를 통과했다는 사실은 아래
 리뷰를 생략할 근거가 아니다.
 
+## 테스트 배치 규칙의 검증
+
+규칙 본문은 [test-organization.md](./test-organization.md)가 소유한다.
+이 절은 현재 자동화 상태와 변경 작성자·PR 리뷰어가 확인할 항목을 구분한다.
+
+| 확인 사항 | 현재 자동화 | 수동 확인 |
+| --- | --- | --- |
+| FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`와 `packages/core/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
+| 대상 옆 배치와 테스트 소유권 | 전용 자동 검사 없음 | 대상과 실행 환경에 맞는 위치인지, 하위 폴더 분리가 필요한지 확인한다 |
+| 운영 코드 → 테스트·fixture·helper 의존 금지 | 테스트 전용 import·export를 구별하는 전용 검사 없음 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
+| 테스트 검색과 실행 | 명령에 지정된 패턴에 일치하는 파일만 실행한다 | 신규·이동 파일이 명령에 포함되고 실행 결과에 나타나는지 확인한다 |
+
+현재 테스트 명령과 CI의 관계는 다음과 같다. 정확한 실행 패턴은
+[package.json](../../package.json), CI 연결은
+[check.yml](../../.github/workflows/check.yml)을 기준으로 한다.
+
+- `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
+  연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
+  환경을 같은 변경에서 보완한다.
+- `npm test`: `packages/core/*.test.mjs`와 `plugin/bin/*.test.mjs`를 실행하며 CI에 연결되어
+  있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
+- `npm run test:architecture`: `scripts/*.test.mjs`를 실행하며 CI의 `npm run check`에
+  포함된다. 이 명령 자체가 테스트 배치 규칙 전체를 검증하는 것은 아니다.
+- `npm run test:server`: 서버 전용 bootstrap과 함께 `tests/server/*.test.ts`를 실행한다.
+  현재 `check` workflow의 별도 실행 항목에는 포함되지 않는다.
+- `npm run test:server:integration`: 격리 PostgreSQL과 전용 실행 스크립트를 사용한다.
+  DB 안전 검사와 실행 절차는 아래 저장소 스크립트 설명을 따른다.
+- 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
+  문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
+
+테스트 추가·이동 PR에는 실제 실행 명령과 결과를 남긴다. 설정 변경으로 파일이
+탐색 대상에서 빠지거나 테스트 타입 검사가 사라지지 않았는지 확인한다. 전체
+아키텍처 규칙의 예외가 필요하면 아래 예외 정책을 따른다.
+
 ## 저장소 스크립트
 
 `scripts/`는 앱 런타임 코드가 아니다. 검사기와 운영 도구만 둔다.
@@ -270,6 +304,8 @@ fixture 소유자의 종류별 토큰 수와 Reference·revoked 여부만 반환
 - [ ] public API가 필요한 symbol만 명시적으로 export한다.
 - [ ] server/client public API가 섞이지 않았다.
 - [ ] 상태, schema, 테스트, loading/error UI가 변경 책임 근처에 있다.
+- [ ] 테스트의 위치·보조 코드·운영 코드 의존성을 [테스트 배치 규칙](./test-organization.md)과 대조했다.
+- [ ] 추가·이동한 테스트가 실제 실행 명령의 검색 패턴에 포함되고 실행됐다.
 - [ ] 전역 store, 공통 hook, shared 추출이 실제 반복과 같은 변경 방향으로
   정당화된다.
 - [ ] `src/app` route가 composition 이상을 떠안지 않는다.
