@@ -1,6 +1,6 @@
 type Outcome = "success" | "error" | "stale" | "unknown";
 import { PIPELINE_STALE, PIPELINE_UNKNOWN } from "../../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
-type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void; setRoster: (roster: string[]) => void };
+type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; duplicateKeyWarnings: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void; setRoster: (roster: string[]) => void };
 type Result = { case: string; expected: string; observed: string; status: "Pass" | "Fail" };
 const tick = () => new Promise(resolve => setTimeout(resolve, 80));
 const check = (condition: unknown, message: string) => { if (!condition) throw new Error(message); };
@@ -24,6 +24,49 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     finally { cleanup(); await tick(); }
   };
   const mount = async (mode: string, picker = false) => { render(mode, picker); await tick(); };
+  await run("Documents preserve duplicate links across updates", "plan and every distinct report retain their DOM identity with no duplicate-key warnings", async () => {
+    await mount("documents");
+    const section = [...document.querySelectorAll("section")].find(section => section.querySelector("h2")?.textContent === "Documents");
+    check(section, "Documents section missing");
+    const rows = () => [...section!.querySelectorAll("li")];
+    const first = rows();
+    check(first.length === 3, "initial reports collapsed");
+    check(new Set(first.map(row => row.querySelector("a")?.href)).size === 1, "fixture URLs differ");
+    await click("Reverse reports");
+    check(rows()[0] === first[0] && rows()[1] === first[2] && rows()[2] === first[1], "report identity changed on reorder");
+    await click("Remove first report");
+    check(rows().length === 2 && rows()[1] === first[1], "wrong report removed");
+    await click("Add report");
+    check(rows().length === 3 && rows()[1] === first[1], "adding a report replaced a prior row");
+    check(controls.duplicateKeyWarnings === 0, "duplicate React keys");
+  });
+  for (const kind of ["hs", "hu", "ho"]) for (const outcome of ["error", "unknown"] as const) {
+    await run(`token ${kind} ${outcome}`, "previous successful value/expiry survive a later failure; refresh never issues; explicit retry replaces only on success", async () => {
+      await mount("token-issuance");
+      const scope = document.getElementById(`issue-${kind}`)!;
+      const label = kind === "ho" ? "Issue owner token" : "Issue token";
+      const expiry = `#issue-${kind} input[name="expiry"]`;
+      input(expiry, "2999-01-01 00:00"); await click(label, scope);
+      check(find("Issuing…", scope).disabled && [...scope.querySelectorAll("input")].every(field => field.disabled), "issuance input not locked");
+      controls.finishAction("success"); await tick();
+      check(scope.textContent?.includes(`${kind}_fixture-1`) && scope.textContent.includes("2999-01-01 00:00 UTC"), "first issuance missing");
+      input(expiry, "3000-01-01 00:00"); await click(label, scope);
+      check(scope.textContent?.includes("Previous token"), "pending request presents old token as current");
+      controls.finishAction(outcome); await tick();
+      check(scope.textContent?.includes(`${kind}_fixture-1`) && scope.textContent.includes("2999-01-01 00:00 UTC") && !scope.textContent.includes("3000-01-01 00:00 UTC"), "failure replaced previous result");
+      check(scope.querySelector('[role="alert"]')?.textContent === (outcome === "error" ? "Refused" : "Couldn't confirm whether the token was issued. Refresh the list before trying again. If you identify a token whose value you did not receive, revoke it before issuing another."), "failure contract differs");
+      check(controls.payloads.length === 2 && controls.refreshes === 1, "failure did not refresh exactly once");
+      if (outcome === "unknown") {
+        await click("Refresh list", scope);
+        check(controls.payloads.length === 2 && controls.refreshes === 2 && scope.textContent?.includes("Previous token"), "refresh resubmitted or cleared prior result");
+      }
+      await click(label, scope); controls.finishAction("success"); await tick();
+      check(controls.payloads.length === 3 && scope.textContent?.includes(`${kind}_fixture-3`) && scope.textContent.includes("3000-01-01 00:00 UTC"), "explicit retry result missing");
+      check(!scope.textContent?.includes(`${kind}_fixture-1`) && !scope.textContent?.includes("Previous token"), "success did not replace prior result");
+      input(expiry, "invalid"); await click(label, scope);
+      check(controls.payloads.length === 3 && scope.textContent?.includes(`${kind}_fixture-3`) && scope.textContent.includes("Previous token"), "invalid input invoked an action or erased a token");
+    });
+  }
   await run("propose roster same instance", "current selection drives display and submission; explicit selection survives reorder/removal/reappearance and reason survives cancel", async () => {
     await mount("propose"); await click("Put on the board");
     const select = document.querySelector<HTMLSelectElement>("select")!;

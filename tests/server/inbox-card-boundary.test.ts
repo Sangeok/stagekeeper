@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { it } from "node:test";
 import { runInNewContext } from "node:vm";
@@ -36,7 +36,10 @@ it("moved server compositions and schemas have exact public provenance and no by
   assert.ok(namedExports(parse("src/fsd/entities/project-token/index.ts")).some(entry => entry.name === "TokenRow" && entry.typeOnly && entry.from === "./model/token-row"));
   assert.ok(!namedExports(parse("src/fsd/entities/project-token/index.ts")).some(entry => entry.name === "TokenTable"));
   const consumers: Record<string, string[]> = { TokenTable: [], ProjectInboxPage: [], ProjectTokensPage: [], UserTokensPage: [] };
-  const schemas = ["retryAcceptanceInputSchema", "transitionInputSchema", "approveGateInputSchema", "discardInputSchema", "proposeInputSchema"];
+  const schemaOwners = new Map([
+    ["review-gate", "review-gate-input"], ["propose-item", "propose-input"],
+    ["manage-project-connection", "project-connection-input"], ["select-project-for-use", "select-project-input"],
+  ].map(([feature, model]) => [resolve(`src/fsd/features/${feature}/model/${model}`), `src/fsd/features/${feature}/api/`]));
   for (const path of sourceFiles("src")) {
     const ast = parse(path);
     for (const node of ast.statements) {
@@ -45,6 +48,14 @@ it("moved server compositions and schemas have exact public provenance and no by
       const from = node.moduleSpecifier.text;
       const binding = ts.isImportDeclaration(node) ? node.importClause?.namedBindings : node.exportClause;
       const elements = binding && (ts.isNamedImports(binding) || ts.isNamedExports(binding)) ? binding.elements : [];
+      const sourcePath = from.startsWith("@/") ? resolve("src", from.slice(2)) : from.startsWith(".") ? resolve(dirname(path), from) : null;
+      const schemaApi = sourcePath === null ? undefined : schemaOwners.get(sourcePath.replace(/\.(?:ts|tsx)$/, ""));
+      const declarationTypeOnly = ts.isImportDeclaration(node) ? !!node.importClause?.isTypeOnly : node.isTypeOnly;
+      const hasRuntimeBinding = !declarationTypeOnly && (elements.length === 0 || elements.some(element => !element.isTypeOnly));
+      if (schemaApi && hasRuntimeBinding) {
+        assert.ok(ts.isImportDeclaration(node), `${path}: schemas must not be re-exported`);
+        assert.ok(!hasDirective(ast, "use client") && (path.startsWith(schemaApi) || /\.test\.(?:ts|tsx|mjs)$/.test(path)), `${path}: schema values belong to the feature's server adapter`);
+      }
       if (from.includes("project-token") && path.startsWith("src/fsd/entities/project-token/")) assert.doesNotMatch(from, /features|pages|@\/server/);
       if (hasDirective(ast, "use client")) assert.doesNotMatch(from, /index\.server|token-table|project-tokens-page|user-tokens-page|project-inbox-page/);
       for (const element of elements) {
@@ -55,8 +66,6 @@ it("moved server compositions and schemas have exact public provenance and no by
           const slice = name === "TokenTable" ? "entities/project-token" : `pages/${compositions.find(entry => entry[0] === name)![1]}`;
           assert.equal(from, `@/fsd/${slice}/index.server`, `${path}: server API required`);
         }
-        if (schemas.includes(name) && path.includes("/index")) assert.fail(`${path}: schema must not enter a public Action barrel`);
-        if (schemas.includes(name) && ts.isImportDeclaration(node) && !path.endsWith(".test.ts")) assert.ok(path.endsWith("/api/review-gate.server.ts") || path.endsWith("/api/propose-item.server.ts"));
       }
     }
   }
@@ -70,8 +79,24 @@ it("moved server compositions and schemas have exact public provenance and no by
 if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh Action registry contains all mutations and no display, loader, composition or schema modules", () => {
   assertActions("src/fsd/features/review-gate/api/review-gate.server.ts", ["retryAcceptance", "humanTransition", "approveGate", "discardItem"]);
   assertActions("src/fsd/features/propose-item/api/propose-item.server.ts", ["proposeItem"]);
-  const forbidden = /token-table|project-(?:inbox|tokens)-page|user-tokens-page|review-gate-input|propose-input|project-board\.server|project-history\.server|inbox-data\.server/;
+  const forbidden = /token-table|project-(?:inbox|tokens)-page|user-tokens-page|review-gate-input|propose-input|project-connection-input|select-project-input|reopen-actions-boundary|project-board\.server|project-history\.server|inbox-data\.server/;
   for (const entry of manifestEntries()) assert.doesNotMatch(entry.filename ?? "", forbidden);
+  const selection = manifestEntries().filter(entry => entry.filename?.replaceAll("\\", "/").endsWith("src/fsd/features/select-project-for-use/api/select-project-for-use.server.ts"));
+  assert.equal(selection.length, 1);
+  assert.ok(selection[0].exportedName?.startsWith("$$RSC_SERVER_ACTION_"));
+});
+
+it("keeps selection schema ownership separate from its only inline mutation", () => {
+  const path = "src/fsd/features/select-project-for-use/api/select-project-for-use.server.ts";
+  const source = parse(path);
+  assert.ok(!hasDirective(source, "use server"));
+  assert.ok(source.statements.some(node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === "server-only"));
+  const functions = source.statements.filter(ts.isFunctionDeclaration);
+  const actions = functions.filter(node => node.body?.statements.some(statement => ts.isExpressionStatement(statement) && ts.isStringLiteral(statement.expression) && statement.expression.text === "use server"));
+  assert.deepEqual(actions.map(node => node.name?.text), ["selectProject"]);
+  assert.ok(functions.some(node => node.name?.text === "loadProjectSelection"));
+  assert.ok(source.statements.some(node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === "../model/select-project-input"));
+  assert.ok(!source.statements.some(node => ts.isVariableStatement(node) && node.declarationList.declarations.some(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === "inputSchema")));
 });
 
 it("renders the canonical neutral fallback and retries without inferring a mutation outcome", () => {

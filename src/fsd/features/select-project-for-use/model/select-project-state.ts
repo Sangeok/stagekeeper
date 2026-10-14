@@ -1,10 +1,11 @@
 import type { Plan } from "@harness/core/entitlement.mjs";
 import { countNoun } from "@/fsd/shared/lib/count-noun";
+import type { SelectProjectInput } from "./select-project-input";
 
 export type ProjectChoice ={ id: string; name: string; available: boolean; openItems: number; openRuns: number };
 export type ProjectSelectionModel = { plan: Plan; limit: number | null; version: number; availableCount: number; projects: ProjectChoice[] };
 export type SelectProjectState = { status: "success" } | { status: "stale" } | { status: "error"; reason: string };
-export type SelectProjectAction = (input: { targetProjectId: string; replacementProjectId?: string; expectedVersion: number }) => Promise<SelectProjectState>;
+export type SelectProjectAction = (input: SelectProjectInput) => Promise<SelectProjectState>;
 export const STALE_SELECTION_MESSAGE = "Your project list changed. Review the latest selection and try again.";
 
 export function selectionIsFull(model: ProjectSelectionModel): boolean {

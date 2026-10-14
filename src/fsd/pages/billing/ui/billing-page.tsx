@@ -1,9 +1,10 @@
 import type { ReactElement } from "react";
 import { PLANS, type Plan } from "@harness/core/entitlement.mjs";
-import { BILLING_NOTE, planLabel, planMatrix } from "@/fsd/shared/lib/entitlement-copy";
+import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import { BILLING_NOTE, planMatrix } from "../model/plan-matrix";
 
 // 플랜 화면. 읽기 전용이다 — 결제가 없으므로 버튼도 없다.
-// 표는 LIMITS에서 렌더한다(entitlement-copy.planMatrix): 코드의 상한과 화면의 표가 어긋날 수 없게.
+// 표는 LIMITS에서 렌더한다(plan-matrix.planMatrix): 코드의 상한과 화면의 표가 어긋날 수 없게.
 type UsageView = { kind: "limited"; percent: number; resetAt: string | null } | { kind: "unlimited" } | { kind: "unavailable" };
 
 export function BillingPage({ plan, usage }: { plan: Plan; usage: UsageView }): ReactElement {

@@ -118,7 +118,8 @@ function workerState(agent: string, rows: readonly BoardRow[]): string {
 
 function teamState(agent: string, rows: readonly BoardRow[]): string {
   if (PROJECT_AGENTS.includes(agent) || ["qa-verifier", "impl-verifier"].includes(agent)) {
-    const current = rows.find((row) => row.node && dispatcherFor(row.node, row.agent) === agent && row.status !== "on_hold");
+    const eligible = rows.filter((row) => row.node && dispatcherFor(row.node, row.agent) === agent && row.status !== "on_hold");
+    const current = eligible.find((row) => row.dispatched) ?? eligible[0];
     return current ? `${current.dispatched ? "Working on" : "Ready for"} ${current.backlogItem.key}` : "Idle";
   }
   if (agent === "pm") return pmState(rows);

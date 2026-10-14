@@ -21,6 +21,9 @@ import { ProjectConnectionControl } from "../../../src/fsd/features/manage-proje
 import { connectionControlKey } from "../../../src/fsd/features/manage-project-connection/model/project-connection-state";
 import { ResumeButtons } from "../../../src/fsd/features/review-gate/ui/resume-buttons";
 import { ProposeButton } from "../../../src/fsd/features/propose-item/ui/propose-button";
+import { BoardItemPage, type BoardItemView } from "../../../src/fsd/pages/board-item/ui/board-item-page";
+import { toItemDocs } from "../../../src/fsd/pages/board-item/model/item-docs";
+import type { ActionResult } from "../../../src/fsd/shared/api/result";
 import { defaultGraph } from "../../../packages/core/pipeline.mjs";
 import { runAcceptance } from "./src-clean-code-acceptance";
 
@@ -32,12 +35,14 @@ const controls = {
   registration: "created" as "created" | "existing" | "disconnected",
   payloads: [] as unknown[],
   refreshes: 0,
+  duplicateKeyWarnings: 0,
   finishAction: (outcome: "success" | "error" | "stale" | "unknown") => { void outcome; },
   setRoster: (roster: string[]) => { void roster; },
 };
 Object.assign(window, { fixture: controls });
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
 const pending = new Set<() => void>();
+let restoreConsole = () => {};
 function installClipboard() { Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
   writeText: (text: string) => new Promise<void>((resolve, reject) => {
     controls.writes.push(text);
@@ -122,6 +127,38 @@ function CopyFixture() {
   </>;
 }
 
+function TokenIssuanceFixture() {
+  const issue = (kind: "hs" | "hu" | "ho") => (label: string, expiresAt: string | null) => action<ActionResult<{ token: string }>>({ kind, label, expiresAt }, {
+    success: { success: true, data: { token: `${kind}_fixture-${controls.payloads.length + 1}` } },
+    error: { success: false, error: "Refused" }, stale: { success: false, error: "stale" },
+  });
+  return <>
+    <section id="issue-hs"><NewTokenForm issue={issue("hs")} mcpUrl="https://fixture.test/api/mcp" /></section>
+    <section id="issue-hu"><NewUserTokenForm issue={issue("hu")} mcpUrl="https://fixture.test/api/mcp" /></section>
+    <section id="issue-ho"><NewOwnerTokenForm issue={issue("ho")} ownerMcpUrl="https://fixture.test/api/mcp/owner" /></section>
+  </>;
+}
+
+function DocumentsFixture() {
+  const at = new Date("2026-10-14T00:00:00Z");
+  const repo = { owner: "fixture", repo: "documents", branch: "main" };
+  const report = (id: string): BoardItemView["reports"][number] => ({ id, actor: "dev", path: "docs/report.md", commit: "samecommit", at, acceptedAt: null });
+  const [reports, setReports] = useState(() => [report("plan"), report("second")]);
+  const item: BoardItemView = {
+    key: "DOC-1", title: "Distinct reports with identical URLs", agent: "dev", area: "web", status: "done",
+    reason: "Retain every submission", results: [], validation: null, proposedOn: at, acceptedAt: null,
+    acceptanceFailure: null, updatedAt: at.toISOString(), repo, reports, events: [],
+    docs: toItemDocs({ planPath: "docs/report.md", planCommit: "samecommit", acceptedAt: null, reports }, repo),
+  };
+  const unused = async (): Promise<ActionResult<void>> => { throw new Error("Documents fixture must not mutate"); };
+  return <>
+    <button onClick={() => setReports(current => [...current].reverse())}>Reverse reports</button>
+    <button onClick={() => setReports(current => current.slice(1))}>Remove first report</button>
+    <button onClick={() => setReports(current => current.some(row => row.id === "third") ? current : [...current, report("third")])}>Add report</button>
+    <BoardItemPage slug="documents" item={item} canWrite={false} transition={unused} retryAcceptance={unused} />
+  </>;
+}
+
 function TurnFixture() {
   const [slug, setSlug] = useState("alpha");
   const [tab, setTab] = useState<ProjectTabSegment>("");
@@ -160,6 +197,10 @@ let fixturePicker = false;
 function cleanupFixture() {
   root?.unmount(); root = undefined;
   for (const finish of pending) finish(); pending.clear();
+  restoreConsole(); restoreConsole = () => {};
+  controls.finishAction = () => {};
+  controls.finishCopy = () => {};
+  controls.finishRegistration = () => {};
   if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard); else Reflect.deleteProperty(navigator, "clipboard");
 }
 
@@ -175,10 +216,18 @@ function ProposeFixture() {
 }
 function renderMode(mode: string, picker = false) {
   cleanupFixture(); fixturePicker = picker;
-  controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0;
+  controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0; controls.duplicateKeyWarnings = 0;
   installClipboard();
+  if (mode === "documents") {
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      if (args.some(value => typeof value === "string" && value.includes("Encountered two children with the same key"))) controls.duplicateKeyWarnings++;
+      originalError(...args);
+    };
+    restoreConsole = () => { console.error = originalError; };
+  }
   root = createRoot(document.getElementById("root")!);
-  root.render(<AppRouterContext.Provider value={router}>{mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+  root.render(<AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
 }
 const toolbar = document.createElement("div");
 const run = document.createElement("button"); run.textContent = "Run acceptance";

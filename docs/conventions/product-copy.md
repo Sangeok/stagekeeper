@@ -395,6 +395,7 @@ A recorded time takes precedence; both null fields mean Unknown, only tracking s
 All three issuance forms add **Expires at (UTC)** with "YYYY-MM-DD HH:mm. Leave blank for no expiry."
 Use a plain text input with placeholder `YYYY-MM-DD HH:mm`; interpret it as UTC. Do not use a browser-localized calendar input. Invalid formats, nonexistent dates and non-future timestamps show "Choose a future expiry in UTC, or leave it blank for no expiry."
 After issuing, show **No expiry** or `Expires at YYYY-MM-DD HH:mm UTC`.
+All three forms distinguish a confirmed server refusal from an unknown issuance result. An unknown result refreshes the list and offers **Refresh list**, which only reads the current list; it never issues or revokes a token. A prior successful value and its expiry remain visible as **Previous token** during a later request or after its refusal/unknown result. Only a new successful response replaces them. Names may repeat: identify the token by its individual Reference before choosing Revoke; never automatically revoke by name or issue again.
 Validation: "Choose a future expiry in UTC, or leave it blank for no expiry."
 Each token kind has **Active tokens** and **Ended tokens** lists. Empty lists say
 "No active tokens." / "No ended tokens." Existing no-token issuance guidance remains.
@@ -406,7 +407,7 @@ Selected-out/disconnected project lists hide issuance and rename and keep indivi
 
 - Title **Tokens**. Intro: "Agents connect with a token. An agent token can't approve gates or edit and remove backlog items — approving is yours, in the Inbox or with an owner token below. feature-scout can add up to three backlog items a run." · "MCP server URL: `http://…/api/mcp`"
 - New token: label **Token name** (placeholder `personal laptop, CI`), button **Issue token** / "Issuing…". Error:
-  "Couldn't issue the token. Try again."
+  "Couldn't confirm whether the token was issued. Refresh the list before trying again. If you identify a token whose value you did not receive, revoke it before issuing another."
 - Table: Token name · Issued · Last used · Expires · Status · Reference. Status "Active" / "Expired" / "Revoked 2026-08-30".
   Reference `token:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 
@@ -505,7 +506,7 @@ transcript에 남기 때문이고, `SKILL.md`의 "Never print the token value"�
   for you. It's yours, not the project's — agents never get it. Send back, hold, reopen, and
   discard stay web only." · "Owner MCP server URL: `http://…/api/mcp/owner`"
 - New owner token (Pro and Max): label **Token name** (placeholder `my laptop session`), button
-  **Issue owner token** / "Issuing…". Error: "Couldn't issue the token. Try again." Server
+  **Issue owner token** / "Issuing…". Error: "Couldn't confirm whether the token was issued. Refresh the list before trying again. If you identify a token whose value you did not receive, revoke it before issuing another." Server
   refusal by plan: "Owner tokens open on Pro. Approve in the Inbox for now."
 - Free: no form — the same line instead, "Owner tokens open on Pro. Approve in the Inbox for now."
 - Table: same columns, **the viewer's own tokens only**. Reference `owner:cmte…`. Row action
@@ -565,7 +566,7 @@ and the quoted owner URL, never the token value.
   this token — an older `harness.json` has no slug, and without one there is nothing to name the
   project with." · "MCP server URL: `http://…/api/mcp`"
 - New token: label **Token name** (placeholder `personal laptop, CI`), button **Issue token** / "Issuing…". Error:
-  "Couldn't issue the token. Try again."
+  "Couldn't confirm whether the token was issued. Refresh the list before trying again. If you identify a token whose value you did not receive, revoke it before issuing another."
 - Table: Token name · Issued · Last used · Expires · Status · Reference. Status "Active" / "Expired" / "Revoked 2026-08-30".
   Reference `user:cmte…`. Row action **Revoke**. Empty: "No tokens yet. Issue one above."
 - 발급 직후의 노출은 프로젝트 토큰과 **같은 컴포넌트**다(`TokenReveal`). 셸 변수 이름도 `HARNESS_TOKEN`으로
@@ -663,6 +664,7 @@ and the quoted owner URL, never the token value.
 - **Reopen** (only while `done`): **Reopen implementation** · "Reopen planning instead" · hint (§3).
   Pressing either replaces that row with **Note to dev** (required) · the confirm button named for
   the chosen action · "Cancel" — never two buttons with the same name on screen
+- Reopen has its own error boundary. Fallback: "This section couldn't be loaded. Try again to check the latest item state." Button **Try again** re-reads the item without repeating the action. Evidence, Documents, Acceptance failed and History stay visible. If the current item is still done, choose the action and enter the note again; otherwise Reopen disappears. Redirects and not-found responses keep their normal Next behavior.
 - **History**: `2026-08-30 01:49` `agent` `— → proposed` · `2026-08-30 01:52` `human` `proposed → planning` ·
   a gate opened from the owner's session reads `human · session` (`TransitionEvent.channel`;
   web rows stay plain `human`, agent rows carry no channel) · discard renders as `→ discarded`

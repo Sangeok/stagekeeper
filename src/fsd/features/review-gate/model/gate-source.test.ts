@@ -21,7 +21,7 @@ describe("RuleKind", () => {
       if (ts.isVariableStatement(node)) return node.declarationList.declarations.flatMap(declaration => ts.isIdentifier(declaration.name) ? [declaration.name.text] : []);
       return [];
     });
-    assert.equal(names.length, 8);
+    assert.ok(names.length > 0, "runtime declarations must not be empty");
     assert.deepEqual(names.sort(), Object.keys(transitions).sort());
   });
   it("covers every kind the state machine actually produces", () => {

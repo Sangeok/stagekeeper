@@ -251,6 +251,25 @@ describe("buildBriefing", () => {
     assert.equal(briefing.team.find((t) => t.agent === "web-dev").state, "Working on N-1");
   });
 
+  for (const [node, agent] of [
+    ["qa", "qa-verifier"], ["impl-verify", "impl-verifier"],
+    ["doc-auditor", "doc-auditor"], ["doc-auditor#2", "doc-auditor"],
+    ["feature-scout", "feature-scout"], ["feature-scout#2", "feature-scout"],
+  ]) {
+    it(`${agent} at ${node} prefers dispatched work and preserves order within each priority`, () => {
+      const member = (rows) => buildBriefing(rows, TODAY, ROSTER, [node]).team.find((m) => m.agent === agent).state;
+      const makeRow = (key, dispatched, status = "done") => row({ key, status, node, gate: null, dispatched });
+      const held = makeRow("H", true, "on_hold");
+      const queued = makeRow("Q", false), olderQueued = makeRow("Q-old", false);
+      const working = makeRow("W", true), olderWorking = makeRow("W-old", true);
+      assert.equal(member([held, queued, working, olderWorking]), "Working on W");
+      assert.equal(member([held, queued, olderQueued]), "Ready for Q");
+      assert.equal(member([working, olderWorking]), "Working on W");
+      assert.equal(member([held]), "Idle");
+      assert.equal(member([]), "Idle");
+    });
+  }
+
   it("does not change rows, result arrays, dates, or the roster", () => {
     const rows = Object.freeze(BOARD.map((item) => Object.freeze({
       ...item,

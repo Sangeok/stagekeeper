@@ -4,8 +4,9 @@ import { blobHref, type RepoRef } from "@/fsd/entities/board-item";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { isGateId } from "@harness/core/pipeline.mjs";
 import { needsHumanDecision } from "./gate-source";
+import type { ApproveGateInput, DiscardInput, RetryAcceptanceInput, TransitionInput } from "./review-gate-input";
 
-export type GateEntry = { runId: string; entryId: string };
+export type GateEntry = NonNullable<ApproveGateInput["gateEntry"]>;
 export type InboxReadOnlyLabel = "Disconnected" | "Not selected" | "Read only";
 
 export function inboxReadOnlyLabel(access: { available: boolean; code?: "disconnected" | "not-selected" | "integrity" }): InboxReadOnlyLabel {
@@ -38,21 +39,16 @@ export type InboxItem = {
 
 // 인자 넷이 모두 string이면 순서를 바꿔도 컴파일된다. expectedUpdatedAt은 낙관적 잠금 토큰이라
 // key와 뒤바뀌면 런타임에야 "stale"로 드러난다 — 이름 있는 객체 하나로 받는다.
-export type TransitionInput = {
-  key: string;
-  to: string;
-  result?: string;
-  expectedUpdatedAt: string;
-};
+export type { TransitionInput } from "./review-gate-input";
 
-export type RetryAcceptanceAction = (input: { key: string; expectedUpdatedAt: string }) => Promise<ActionResult<void>>;
+export type RetryAcceptanceAction = (input: RetryAcceptanceInput) => Promise<ActionResult<void>>;
 
 export type TransitionAction = (input: TransitionInput) => Promise<ActionResult<void>>;
 
-export type DiscardAction = (key: string, expectedUpdatedAt: string) => Promise<ActionResult<void>>;
+export type DiscardAction = (key: DiscardInput["key"], expectedUpdatedAt: DiscardInput["expectedUpdatedAt"]) => Promise<ActionResult<void>>;
 
 // 게이트 승인 액션 — 게이트 id로 부른다.
-export type GateAction = (input: { key: string; gate: string; gateEntry?: GateEntry; expectedUpdatedAt: string }) => Promise<ActionResult<void>>;
+export type GateAction = (input: ApproveGateInput) => Promise<ActionResult<void>>;
 
 // 표시 순서: 파이프라인 깊은 것부터 — 게이트②(in_review) → 게이트①(proposed) → 보류.
 // 결재함에 오를 자격(needsHumanDecision)과 달리 이건 순수한 표시 규칙이다.

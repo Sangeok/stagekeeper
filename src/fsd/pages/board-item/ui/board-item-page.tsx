@@ -5,7 +5,7 @@ import { utcMinute } from "@/fsd/shared/lib/relative-time";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
 
-export type ItemDoc = { label: string; path: string; href: string };
+export type ItemDoc = { id: string; label: string; path: string; href: string };
 
 export type BoardItemView = {
   key: string;
@@ -77,7 +77,7 @@ export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrit
           <SectionLabel>Documents</SectionLabel>
           <ul className="flex flex-col gap-1 text-sm">
             {item.docs.map((doc) => (
-              <li key={doc.href} className="flex flex-wrap items-baseline gap-2">
+              <li key={doc.id} className="flex flex-wrap items-baseline gap-2">
                 <a href={doc.href} target="_blank" rel="noreferrer" className="underline underline-offset-2">
                   {doc.label} ↗
                 </a>

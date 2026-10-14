@@ -3,6 +3,17 @@ import { it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { BillingPage } from "./billing-page";
+import { BILLING_NOTE, planMatrix } from "../model/plan-matrix";
+
+it("renders the Billing-owned matrix in order with its existing note", () => {
+  const html = renderToStaticMarkup(createElement(BillingPage, { plan: "pro", usage: { kind: "unavailable" } }));
+  const table = html.slice(html.indexOf("<table"), html.indexOf("</table>"));
+  const positions = planMatrix().map(row => table.indexOf(row.label));
+  assert.equal(positions.length, 8);
+  assert.ok(positions.every((at, index) => at >= 0 && (index === 0 || at > positions[index - 1])));
+  assert.ok(html.includes(BILLING_NOTE));
+  assert.doesNotMatch(table, /Infinity/);
+});
 
 it("renders usage only as percent with accessible progress and a recovery time at cap", () => {
   for (const percent of [0, 37, 100]) {
