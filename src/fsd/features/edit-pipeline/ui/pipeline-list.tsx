@@ -76,7 +76,7 @@ export function PipelineList({ projectId, pipelines, rules, autoProposeEnabled, 
           }}>Archive</button>
         </> : null}
       </div>)}</div>
-      {rename ? <form className="flex gap-2" onSubmit={event => { event.preventDefault(); mutate(() => actions.rename(rename.id, rename.name), () => setRename(null)); }}>
+      {rename && editable ? <form className="flex gap-2" onSubmit={event => { event.preventDefault(); mutate(() => actions.rename(rename.id, rename.name), () => setRename(null)); }}>
         <input aria-label="Pipeline name" className="rounded border border-edge bg-paper px-2 py-1 text-sm" value={rename.name} maxLength={40} disabled={busy || unknown} onChange={event => setRename({ ...rename, name: event.target.value })} />
         <Button size="sm" disabled={busy || unknown} type="submit">Save name</Button><button type="button" disabled={busy} onClick={() => setRename(null)}>Cancel</button>
       </form> : null}
@@ -95,7 +95,7 @@ export function PipelineList({ projectId, pipelines, rules, autoProposeEnabled, 
       <h2 className="break-words text-sm font-medium">{selected === null ? "New pipeline" : current?.name}</h2>
       {selected === null ? <input aria-label="New pipeline name" placeholder="Pipeline name" maxLength={40} disabled={!editable || busy} className="max-w-sm rounded border border-edge bg-paper px-3 py-2 text-sm" value={draftName} onChange={event => setDraftName(event.target.value)} /> : null}
       <p className="text-xs text-quiet">{selected === null ? "New pipeline · not saved yet" : current?.saved ? `Version ${current.saved.version} · saved ${agoLabel(current.saved.createdAt, now)} · applies to items proposed from now on.` : "Default pipeline · not saved yet"}</p>
-      {current || selected === null ? <PipelineRail key={`${projectId}:${selected ?? "new"}:${plan}:${editable}`} pipelineId={selected} name={draftName}
+      {current || selected === null ? <PipelineRail key={`${projectId}:${selected ?? "new"}`} pipelineId={selected} name={draftName}
         definition={current?.definition ?? { steps: [], gates: [] }} expectedVersion={current?.saved?.version ?? 0}
         pipelines={pipelines} rules={rules} plan={plan} roster={roster} editable={editable && !pending && !unknown}
         unavailableReason={unavailableReason} save={save} onSelect={select} onDirtyChange={setDirty} onBusyChange={setRailBusy}

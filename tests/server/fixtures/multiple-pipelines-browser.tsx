@@ -24,6 +24,8 @@ const fixture = {
   update: (pipelines: PipelineSnapshot[]) => { void pipelines; },
   identity: (key: string) => { void key; },
   preset: (id: string) => { void id; },
+  access: (editable: boolean) => { void editable; },
+  plan: (plan: string) => { void plan; },
   mount: (mode: Mode, editable = true) => { void mode; void editable; },
   initial,
 };
@@ -35,7 +37,8 @@ function pending<T>(kind: string, input: unknown, values: Record<Exclude<Outcome
 }
 function Fixture({ mode, editable }: { mode: Mode; editable: boolean }) {
   const [pipelines, setPipelines] = useState(initial), [identity, setIdentity] = useState("ITEM-01"), [preset, setPreset] = useState("default");
-  useEffect(() => { fixture.update = setPipelines; fixture.identity = setIdentity; fixture.preset = setPreset; }, []);
+  const [writable, setWritable] = useState(editable), [plan, setPlan] = useState(editable ? "pro" : "free");
+  useEffect(() => { fixture.update = setPipelines; fixture.identity = setIdentity; fixture.preset = setPreset; fixture.access = setWritable; fixture.plan = setPlan; }, []);
   const save = (input: SavePipelineInput): Promise<SavePipelineResult> => pending("save", input, {
     success: { status: "success", pipelineId: input.pipelineId ?? "created", version: input.expectedVersion + 1 }, error: { status: "error", reason: "Rejected" }, stale: { status: "stale" },
   });
@@ -44,10 +47,10 @@ function Fixture({ mode, editable }: { mode: Mode; editable: boolean }) {
   if (mode === "propose") return <ProposeButton itemKey={identity} roster={["dev"]} preselected={preset} pipelines={pipelines.filter(row => row.runnable).map(({ id, name }) => ({ id, name }))} propose={input => pending("propose", input, { success: { success: true, data: undefined }, error: { success: false, error: "Rejected" }, stale: { success: false, error: "Pipeline not found.", resetPipeline: true } })} />;
   if (mode === "rail") {
     const parent = pipelines.find(row => row.id === "delivery")!;
-    return <PipelineRail pipelineId={parent.id} definition={parent.definition} expectedVersion={parent.saved!.version} pipelines={pipelines} rules={{}} plan="pro" roster={["dev"]} editable save={save} />;
+    return <PipelineRail pipelineId={parent.id} definition={parent.definition} expectedVersion={parent.saved!.version} pipelines={pipelines} rules={{}} plan={plan} roster={["dev"]} editable={writable} save={save} />;
   }
   return <PipelineList projectId="p" pipelines={pipelines} rules={{ fix: "delivery" }} autoProposeEnabled
-    now={new Date(0)} plan={editable ? "pro" : "free"} roster={["dev"]} editable={editable} save={save}
+    now={new Date(0)} plan={plan} roster={["dev"]} editable={writable} save={save}
     actions={{ archive: id => mutate("archive", id), rename: (id, name) => mutate("rename", { id, name }), setDefault: id => mutate("default", id), setRule: (type, id) => mutate("rule", { type, id }), setAutomaticPick: enabled => mutate("picking", enabled) }} />;
 }
 let generation = 0;

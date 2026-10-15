@@ -96,11 +96,14 @@ stagekeeper/
   최상위 모듈의 관계
 - [fsd.md](./fsd.md): FSD layer·slice·segment, import 방향, public API,
   Next.js Server/Client 경계
+- [test-organization.md](./test-organization.md): 테스트의 위치·이름·소유권,
+  fixture와 운영 코드의 의존성 경계
 - [verification.md](./verification.md): 자동 경계 검사, 저장소 스크립트 목록, 리뷰 체크리스트
 - [ADR-0001](../ADR/0001-adopt-feature-sliced-design.md): 이 구조를 선택한
   이유와 받아들인 trade-off
+- [ADR-0002](../ADR/0002-test-code-organization.md): 대상 옆 테스트 배치와
+  실행 경계별 분리를 선택한 이유
 - [CONTEXT.md](../../CONTEXT.md): 구현과 독립적인 Stagekeeper 도메인 용어
-- [sources.md](./sources.md): 원재료 매핑 — ApcH(`de25a1c`)의 무엇이 어디로 왔나
 - [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
 - [qa-verifier.md](./qa-verifier.md): 선택적 브라우저 QA 역할, 테스트 환경, 실행·보고 결합
@@ -114,8 +117,9 @@ stagekeeper/
    재사용 가능한 제품 코드는 `src/fsd`에 둔다.
 2. FSD 의존성은 `pages → widgets → features → entities → shared` 방향으로만
    흐른다. 같은 layer의 다른 slice를 직접 import하지 않는다.
-3. slice 밖에서는 해당 slice의 `index.ts` 또는 `index.server.ts`만 import한다.
-   내부에서는 public API를 우회하지 않고 상대 경로를 사용한다.
+3. slice 밖에서는 해당 slice의 public API(`index.ts`·`index.tsx`·`index.server.ts`)만
+   import한다. 같은 slice 내부에서는 실제 파일을 상대 경로로 참조한다. slice가
+   없는 `shared`의 공개 경로는 [FSD 규칙](./fsd.md#shared의-공개-경로)을 따른다.
 4. `src/server`는 `src/fsd`를 import하지 않는다. 서버 Action/API adapter만
    FSD slice의 `api` segment에서 `src/server`를 호출할 수 있다.
 5. `packages/core`는 `src`와 npm package에 의존하지 않는다. UI와 DB가 같은
@@ -132,18 +136,21 @@ stagekeeper/
 2. DB·인증·MCP·트랜잭션 같은 서버 기능인가? → `src/server`
 3. 프레임워크와 무관한 순수 규칙인가? → `packages/core`
 4. 전체 화면인가? → `src/fsd/pages/<slice>`
-5. 여러 화면이 재사용하는 독립 UI 블록인가? → `widgets/<slice>`
+5. 여러 화면에서 재사용하거나 한 화면 안에서 독립적인 큰 UI 블록인가? → `widgets/<slice>`
 6. 사용자가 수행하는 의미 있는 동작인가? → `features/<slice>`
 7. 도메인 명사와 표현인가? → `entities/<slice>`
 8. Stagekeeper가 아닌 앱에서도 쓸 수 있는 기반인가? → `shared/<segment>`
 
-둘 이상의 후보가 떠오르면 현재 사용처에 가장 가까운 낮은 추상화에서 시작한다.
-세 곳 이상에서 같은 책임과 같은 변경 방향으로 반복될 때만 위 layer로 추출한다.
+둘 이상의 후보가 떠오르면 현재 책임을 소유한 page 또는 slice에서 시작한다.
+내부 파일 분리, 별도 slice 분리, 재사용을 위한 추출의 판단 기준은
+[FSD 코드 배치와 추출 판단](./fsd.md#코드-배치와-추출-판단)을 따른다.
 
 ## 개발 시작과 종료
 
 코드를 작성하기 전에 이 문서와 작업에 관련된 세부 문서를 읽는다. Next.js 파일을
 바꾸기 전에는 `node_modules/next/dist/docs/`의 해당 버전 문서도 읽는다.
+테스트를 추가·수정·이동할 때는 [test-organization.md](./test-organization.md)를
+읽고, 실행 명령과 자동 검사 범위는 [verification.md](./verification.md)를 확인한다.
 
 ```powershell
 npm run check      # CI와 같은 게이트 — 복사본 동기화 검사 · lint · 타입 · 아키텍처 테스트

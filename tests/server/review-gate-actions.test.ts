@@ -1,14 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { it } from "node:test";
-import { runInNewContext } from "node:vm";
-import ts from "typescript";
 import { success, failure } from "../../src/fsd/shared/api/result";
 import * as routes from "../../src/fsd/shared/routes/project";
-import type { approveGate as ApproveGate } from "../../src/fsd/features/review-gate/api/review-gate.server";
-import type { retryAcceptance as RetryAcceptance } from "../../src/fsd/features/review-gate/api/review-gate.server";
-import * as schemas from "../../src/fsd/features/review-gate/model/review-gate-input";
+import type { approveGate as ApproveGate, retryAcceptance as RetryAcceptance } from "@/fsd/features/review-gate/index.server";
 import { loadModule } from "./fixtures/load-module";
 import type { ActionResult } from "../../src/fsd/shared/api/result";
 
@@ -100,13 +94,9 @@ for (const target of actions) {
 }
 
 it("retry checks access/date first, revalidates three paths only after success and propagates uncertain commits", async () => {
-  const code = ts.transpileModule(readFileSync("src/fsd/features/review-gate/api/review-gate.server.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-  const require = createRequire(import.meta.url);
   for (const outcome of ["success", "refused", "invalid-date", "unavailable", "foreign", "guest", "precommit", "commit-unknown", "revalidate-failure"] as const) {
     const revalidated: string[] = []; let writes = 0; const original = new Error(outcome);
-    const exports = {} as { retryAcceptance: typeof RetryAcceptance };
     const deps: Record<string, unknown> = {
-      "../model/review-gate-input": schemas,
       "next/cache": { revalidatePath: (path: string) => { if (outcome === "revalidate-failure") throw original; revalidated.push(path); } },
       "@/fsd/shared/api/result": { success, failure }, "@/fsd/shared/routes/project": routes,
       "@/server/auth/guard": { requireProjectWrite: async () => {
@@ -120,8 +110,8 @@ it("retry checks access/date first, revalidates three paths only after success a
         return { ok: true, item: null };
       } },
     };
-    runInNewContext(code, { exports, Date, require: (name: string) => Object.hasOwn(deps, name) ? deps[name] : require(name) });
-    const result = exports.retryAcceptance("sample", { key: "KEY", expectedUpdatedAt: outcome === "invalid-date" ? "invalid" : new Date(0).toISOString() });
+    const loaded = loadModule<{ retryAcceptance: typeof RetryAcceptance }>(reviewFile, deps);
+    const result = loaded.retryAcceptance("sample", { key: "KEY", expectedUpdatedAt: outcome === "invalid-date" ? "invalid" : new Date(0).toISOString() });
     if (["foreign", "guest", "precommit", "commit-unknown", "revalidate-failure"].includes(outcome)) await assert.rejects(result, error => error === original);
     else if (outcome === "success") assert.deepEqual(await result, success());
     else assert.equal((await result).success, false);
@@ -131,13 +121,9 @@ it("retry checks access/date first, revalidates three paths only after success a
 });
 
 it("web approval revalidates exactly three paths only after confirmed success, and never reads advice", async () => {
-  const code = ts.transpileModule(readFileSync("src/fsd/features/review-gate/api/review-gate.server.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-  const require = createRequire(import.meta.url);
   for (const outcome of ["success", "refused", "precommit", "commit-unknown", "revalidate-failure"] as const) {
     const revalidated: string[] = []; let writes = 0; let advice = 0; const original = new Error(outcome);
-    const exported = {} as { approveGate: typeof ApproveGate };
     const deps: Record<string, unknown> = {
-      "../model/review-gate-input": schemas,
       "next/cache": { revalidatePath: (path: string) => { if (outcome === "revalidate-failure") throw original; revalidated.push(path); } },
       "@/fsd/shared/api/result": { success, failure }, "@/fsd/shared/routes/project": routes,
       "@/server/auth/guard": { requireProjectWrite: async () => ({ ok: true, userId: "owner", projectId: "p" }) },
@@ -145,8 +131,8 @@ it("web approval revalidates exactly three paths only after confirmed success, a
         if (outcome === "precommit" || outcome === "commit-unknown") throw original;
         return { ok: true, item: { id: "written" } }; }, nextFor: () => { advice++; throw new Error("web must not read advice"); } },
     };
-    runInNewContext(code, { exports: exported, Date, require: (name: string) => Object.hasOwn(deps, name) ? deps[name] : require(name) });
-    const result = exported.approveGate("sample", { key: "KEY", gate: "before-accept", expectedUpdatedAt: new Date(0).toISOString() });
+    const loaded = loadModule<{ approveGate: typeof ApproveGate }>(reviewFile, deps);
+    const result = loaded.approveGate("sample", { key: "KEY", gate: "before-accept", expectedUpdatedAt: new Date(0).toISOString() });
     if (outcome === "success") assert.deepEqual(await result, success());
     else if (outcome === "refused") assert.deepEqual(await result, failure("The board changed. Refresh and try again."));
     else await assert.rejects(result, error => error === original);

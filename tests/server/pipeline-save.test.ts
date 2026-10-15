@@ -4,7 +4,7 @@ import type { PrismaClient } from "../../src/generated/prisma/client";
 import { savePipelineDefinition } from "../../src/server/pipeline/definition-save-query";
 import * as state from "../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
 import { loadModule } from "./fixtures/load-module";
-import { assertActions } from "./fixtures/action-manifest";
+import { assertActions, manifestEntries } from "./fixtures/action-manifest";
 
 it("rejects malformed definitions and baselines before a transaction", async () => {
   let transactions = 0;
@@ -52,4 +52,8 @@ it("actual action preserves authority, accepts fragments and revalidates success
   assert.deepEqual(refreshes, [["/(app)/p/[slug]", "layout"]]);
 });
 
-if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh build exposes savePipeline", () => assertActions("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", ["savePipeline"]));
+if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh build exposes pipeline Actions but not the private draft model", () => {
+  assertActions("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", ["savePipeline"]);
+  assertActions("src/fsd/features/edit-pipeline/api/automatic-scout.server.ts", ["saveAutomaticScout"]);
+  assert.ok(!manifestEntries().some(entry => entry.filename?.replaceAll("\\", "/").endsWith("src/fsd/features/edit-pipeline/model/pipeline-draft-state.ts")));
+});

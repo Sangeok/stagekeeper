@@ -217,11 +217,26 @@ async function main(): Promise<void> {
       bridge = createServer(async (req, res) => {
         if (req.url === "/finish") { res.end("Fixture cleanup started"); finish(); return; }
         if (req.url === "/lose-next-action") { loseNext = true; res.end("Next action response will be lost"); return; }
+        if (req.url === "/state") {
+          try {
+            const select = { id: true, revokedAt: true };
+            const [agent, owned, user] = await Promise.all([
+              db.projectToken.findMany({ where: { projectId: owner!.projectId }, select }),
+              db.ownerToken.findMany({ where: { projectId: owner!.projectId, userId: owner!.userId }, select }),
+              db.userToken.findMany({ where: { userId: owner!.userId }, select }),
+            ]);
+            const summary = (rows: { id: string; revokedAt: Date | null }[], prefix: string) => ({ count: rows.length,
+              tokens: rows.map(row => ({ reference: `${prefix}:${row.id}`, revoked: row.revokedAt !== null })) });
+            res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+            res.end(JSON.stringify({ agent: summary(agent, "token"), owner: summary(owned, "owner"), user: summary(user, "user") }));
+          } catch { res.writeHead(500).end("Fixture state unavailable"); }
+          return;
+        }
         const path = req.url === "/project" ? `/p/${owner!.id}/tokens` : req.url === "/billing" ? "/billing" : "/settings/tokens";
         res.writeHead(302, { "set-cookie": `${session}; Path=/; HttpOnly; SameSite=Lax`, location: browserOrigin + path }); res.end();
       });
       await new Promise<void>((resolve, reject) => { bridge!.once("error", reject); bridge!.listen(55477, "127.0.0.1", resolve); });
-      console.log("UI fixture ready at http://127.0.0.1:55477/user (/project, /billing, /lose-next-action, /finish). Loopback only.");
+      console.log("UI fixture ready at http://127.0.0.1:55477/user (/project, /billing, /state, /lose-next-action, /finish). Loopback only.");
       await finished;
     }
   } finally {

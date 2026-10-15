@@ -3,7 +3,7 @@
 // 실제 SQL을 그대로 실행하고 사이에 대기만 끼운다.
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, type Prisma } from "../../../src/generated/prisma/client";
+import { PrismaClient, type PipelineVersion, type Prisma } from "../../../src/generated/prisma/client";
 import { prisma as singleton } from "../../../src/server/db";
 
 export function testDatabaseUrl(): string {
@@ -56,6 +56,24 @@ export async function fixture(db: PrismaClient, options: FixtureOptions = {}): P
 export const cleanup = async (db: PrismaClient, userId: string | undefined) => {
   if (userId) await db.user.delete({ where: { id: userId } });
 };
+
+type PipelineFixtureInput = {
+  projectId: string; version: number; nodes: string[]; gates: string[]; createdBy: string; format?: string | null;
+};
+
+// Seed a fresh project's complete default without going through the application
+// writer under test. Keep legacy execution graphs intact, as migration A does.
+export async function seedPipelineVersion(db: PrismaClient, input: PipelineFixtureInput): Promise<PipelineVersion> {
+  return db.$transaction(async tx => {
+    const pipelineId = `default_${input.projectId}`;
+    await tx.pipeline.create({ data: {
+      id: pipelineId, projectId: input.projectId, name: "Default", createdBy: input.createdBy,
+      definitions: { create: { version: 1, steps: input.nodes.filter(node => node !== "propose"), gates: input.gates, createdBy: input.createdBy } },
+    } });
+    await tx.project.update({ where: { id: input.projectId }, data: { defaultPipelineId: pipelineId } });
+    return tx.pipelineVersion.create({ data: { ...input, pipelineId } });
+  });
+}
 
 export async function pipelineState(db: PrismaClient, projectId: string) {
   return {

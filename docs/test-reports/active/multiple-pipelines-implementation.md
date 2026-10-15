@@ -1,5 +1,35 @@
 # Multiple pipelines — 첫 release 구현·검증
 
+## 최신 dev 통합 검증
+
+2026-10-15 원격 dev `645e312de12c54e50d273287ac869c81c900da82`를 첫 release
+브랜치에 통합했다. dev의 초안 상태 모델, 소유자 guard, page/action 주입,
+읽기 전용 회복과 테스트 배치 규칙을 유지했다. 편집 레일은 프로젝트·Pipeline이
+바뀔 때만 초기화하고, 요금제·쓰기 권한 변경은 초안을 보존한 채 반영한다.
+자기 정의의 새 판과 참조 정의만 바뀐 snapshot을 구분하고, 저장 중 받은 더 최신
+판은 응답 처리 후에도 유지한다. 제안서의 레일 identity 계약도 이에 맞췄다.
+
+통합 후 다시 실행한 결과:
+
+| 검사 | 결과 |
+| --- | --- |
+| `npm run check` (FSD·lint·타입·architecture 포함) | pass |
+| `npm test` | 347 pass, 기존 환경 조건 2 skip |
+| `npm run test:web` | 633 pass |
+| `npm run test:server`, fresh build manifest 검사 포함 | 143 pass |
+| `npm run test:server:integration` | migration A와 전체 DB 테스트 pass |
+| fresh production build | pass |
+| 실제 Next HTTP 인수 | 8개 액션·권한·읽기 전용 GET·5개 화면 pass |
+| 브라우저 인수 | 15개 시나리오 pass, page error 0 |
+| 폐기 심볼·경로·문구 검사 3개, `git diff --check` | pass |
+
+새 브라우저 회귀는 요금제·읽기 전용 전환 후 초안과 CAS 보존, 읽기 전용 상태의
+stale 회복, pending 중 받은 최신 자기 정의의 버전 보존을 포함한다.
+기존 fifth-pass HTTP 인수의 제안 입력에도 필수 pipelineId와 완전한 기본
+Pipeline fixture를 적용했다. 운영 DB와 운영 배포는 이 검증에 포함하지 않았다.
+
+아래는 최초 구현 당시의 기록이다.
+
 2026-10-15, [제안서](../../proposals/active/multiple-pipelines.md)의 Phase 1–5를 구현했다.
 기준선은 원격 dev `c60a906498964ee2d72234b114319ddbc98a1bce`, 작업 브랜치는
 `harness/multiple-pipelines`다. 원래 checkout의 미커밋 plugin-clean-code 작업과

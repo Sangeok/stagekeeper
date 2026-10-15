@@ -16,6 +16,7 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
   { pattern: /With no Propose node|has a Propose node|no propose node on this pipeline|Propose alone has no auto label/, where: ["web", "skill", "locks"], since: "2026-10-15", why: "PM automatic picking is a project setting; definitions no longer contain Propose" },
+  { pattern: /Couldn(?:'|&apos;|&#39;|&#x27;)t issue the token\. Try again\./, where: ["web"], since: "2026-10-14", why: "a lost issuance response does not prove the token was not created" },
   { pattern: /needs acceptance|items need acceptance/, where: ["web", "skill", "locks"], since: "2026-10-03", why: "accept is the session’s turn; only a recorded failure waits for the owner" },
   { pattern: /This token stays valid until you revoke it\./, where: ["web", "skill", "locks"], since: "2026-10-02", why: "tokens now have optional expiry" },
   { pattern: /Counted over the last 30 days|60 calls per 10 minutes per token/, where: ["web", "skill", "locks"], since: "2026-10-02", why: "account run usage and actual request windows replace both old limits" },

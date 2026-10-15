@@ -1,13 +1,4 @@
-// 플랜을 사람에게 보이는 말로 옮기는 한 곳. 배지·매트릭스 표·상한 안내가 여기서 같은 어휘를 쓴다.
-//
-// **상한 문장 자체는 여기 없다.** `capReason`/`capError`(packages/core/entitlement.mjs)가 그 단일 출처이고,
-// 이유는 경계다 — 그 문장을 만드는 곳에는 서버 액션(src/fsd)뿐 아니라 MCP 도구(src/server)와 생성기(plugin)도
-// 있는데, src/server는 FSD 슬라이스를 import할 수 없다. 세 층이 다 닿는 자리는 packages/core 하나뿐이라
-// 문장은 거기 두고, 여기는 **화면에만 필요한 말**(플랜 이름·축 이름·무제한 표기·안내 문구)을 맡는다.
 import { PLANS, UNLIMITED, limitsFor, type Plan } from "@harness/core/entitlement.mjs";
-
-const PLAN_LABEL: Record<Plan, string> = { free: "Free", pro: "Pro", max: "Max" };
-export const planLabel = (plan: Plan): string => PLAN_LABEL[plan];
 
 // 표의 줄. 축 이름과 순서를 여기서 정한다 — 값은 LIMITS에서 읽으므로 표와 코드가 어긋날 수 없다.
 export type PlanRow = { label: string; values: Record<Plan, string> };

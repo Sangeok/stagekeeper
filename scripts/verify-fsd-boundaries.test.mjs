@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -13,7 +14,7 @@ import { verifyProject } from "./verify-fsd-boundaries.mjs";
 const temporaryProjects = [];
 
 function project() {
-  const root = mkdtempSync(join(tmpdir(), "stagekeeper-fsd-"));
+  const root = mkdtempSync(join(realpathSync(tmpdir()), "stagekeeper-fsd-"));
   temporaryProjects.push(root);
   return root;
 }

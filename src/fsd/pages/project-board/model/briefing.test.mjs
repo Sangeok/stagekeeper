@@ -251,6 +251,25 @@ describe("buildBriefing", () => {
     assert.equal(briefing.team.find((t) => t.agent === "web-dev").state, "Working on N-1");
   });
 
+  for (const [node, agent] of [
+    ["qa", "qa-verifier"], ["impl-verify", "impl-verifier"],
+    ["doc-auditor", "doc-auditor"], ["doc-auditor#2", "doc-auditor"],
+    ["feature-scout", "feature-scout"], ["feature-scout#2", "feature-scout"],
+  ]) {
+    it(`${agent} at ${node} prefers dispatched work and preserves order within each priority`, () => {
+      const member = (rows) => buildBriefing(rows, TODAY, ROSTER, [node]).team.find((m) => m.agent === agent).state;
+      const makeRow = (key, dispatched, status = "done") => row({ key, status, node, gate: null, dispatched });
+      const held = makeRow("H", true, "on_hold");
+      const queued = makeRow("Q", false), olderQueued = makeRow("Q-old", false);
+      const working = makeRow("W", true), olderWorking = makeRow("W-old", true);
+      assert.equal(member([held, queued, working, olderWorking]), "Working on W");
+      assert.equal(member([held, queued, olderQueued]), "Ready for Q");
+      assert.equal(member([working, olderWorking]), "Working on W");
+      assert.equal(member([held]), "Idle");
+      assert.equal(member([]), "Idle");
+    });
+  }
+
   it("does not change rows, result arrays, dates, or the roster", () => {
     const rows = Object.freeze(BOARD.map((item) => Object.freeze({
       ...item,
@@ -261,5 +280,27 @@ describe("buildBriefing", () => {
     const before = structuredClone({ rows, roster });
     buildBriefing(rows, TODAY, roster, NODE_KINDS);
     assert.deepEqual({ rows, roster }, before);
+  });
+});
+
+
+describe("workspace work belongs to the current dispatcher", () => {
+  for (const node of ["doc-auditor", "doc-auditor#2", "feature-scout", "feature-scout#2"]) {
+    for (const dispatched of [false, true]) {
+      it(`${node}, dispatched=${dispatched}, never assigns slot work to the dev`, () => {
+        const nodes = ["plan", "implement", node, "accept"];
+        const slot = row({ key: "S-1", status: "implementing", node, gate: null, dispatched });
+        const member = (rows) => buildBriefing(rows, TODAY, ["web-dev"], nodes).team.find(m => m.agent === "web-dev").state;
+        assert.equal(member([slot]), "Idle");
+        assert.equal(member([slot, row({ key: "D-1", status: "planning", dispatched: true })]), "Working on D-1");
+        assert.equal(member([slot, row({ key: "D-1", status: "implementing", dispatched: false })]), "Ready for D-1");
+      });
+    }
+  }
+  it("does not queue a dev at a gate or a missing cursor", () => {
+    for (const gate of [null, "before-doc-auditor"]) {
+      const briefing = buildBriefing([row({ status: "implementing", node: null, gate, dispatched: false })], TODAY, ["web-dev"], ["plan", "implement", "accept"]);
+      assert.equal(briefing.team.find(member => member.agent === "web-dev").state, "Idle");
+    }
   });
 });

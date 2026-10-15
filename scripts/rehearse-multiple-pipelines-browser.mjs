@@ -2,7 +2,7 @@
 // Mounts real client components on a loopback fixture; uses no application DB.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 if (!process.argv[2]) throw new Error("Pass an installed playwright-core/index.mjs; no dependency is installed by this rehearsal.");
 const { chromium } = await import(pathToFileURL(resolve(process.argv[2])).href);
 const require = createRequire(import.meta.url), { build } = require("esbuild");
-const artifacts = mkdtempSync(join(tmpdir(), "multiple-pipelines-browser-"));
+const artifacts = mkdtempSync(join(realpathSync(tmpdir()), "multiple-pipelines-browser-"));
 const built = await build({ entryPoints: ["tests/server/fixtures/multiple-pipelines-browser.tsx"], bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", define: { "process.env.NODE_ENV": '"development"' }, banner: { js: 'var process = { env: { NODE_ENV: "development" } };' } });
 let css = "";
 try { for (const name of readdirSync(".next/static/chunks")) if (name.endsWith(".css")) css += readFileSync(join(".next/static/chunks", name), "utf8"); } catch { /* Functional rehearsal works before a build too. */ }
@@ -71,6 +71,32 @@ try {
     assert.equal(await button("Save").isDisabled(), true); assert.equal(await button("Discard changes and reload").count(), 1);
     assert.ok((await page.locator("body").innerText()).includes("Doc audit"));
   });
+  await run("plan and read-only changes preserve the draft and its original save version", async () => {
+    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here");
+    await page.evaluate(() => { window.fixture.plan("max"); window.fixture.access(false); });
+    await button("Save").waitFor({ state: "hidden" }); await button("Discard changes").waitFor();
+    assert.ok((await page.locator("body").innerText()).includes("Doc audit"));
+    await page.evaluate(() => window.fixture.access(true)); await button("Save").click();
+    assert.equal((await writes())[0].input.expectedVersion, 1);
+    assert.ok((await writes())[0].input.definition.steps.includes("doc-auditor"));
+    await finish("success");
+  });
+  await run("a newer own snapshot remains recoverable after access becomes read-only", async () => {
+    await mount("rail"); await add("Add doc-auditor here");
+    await page.evaluate(() => { window.fixture.update(window.fixture.initial.map(row => row.id === "delivery" ? { ...row, saved: { version: 2, createdAt: new Date(1) } } : row)); window.fixture.access(false); });
+    await button("Discard changes and reload").waitFor(); assert.equal(await button("Save").count(), 0);
+    assert.match(await page.getByRole("alert").first().innerText(), /pipeline changed/);
+    assert.ok((await page.locator("body").innerText()).includes("Doc audit"));
+    assert.equal((await writes()).length, 0);
+  });
+  await run("a pending save adopts a newer received snapshot without regressing its version", async () => {
+    await mount("rail"); await add("Add doc-auditor here"); await button("Save").click();
+    await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "delivery" ? { ...row, definition: { steps: ["plan", "implement", "pipeline:check", "accept", "feature-scout"], gates: [] }, saved: { version: 3, createdAt: new Date(2) } } : row)));
+    await finish("success"); await add("Add doc-auditor here"); await button("Save").click();
+    assert.equal((await writes())[1].input.expectedVersion, 3);
+    assert.ok((await writes())[1].input.definition.steps.includes("feature-scout"));
+    await finish("success");
+  });
   await run("dependency-only snapshots retain dirty drafts, refresh preview and invalidate prior no-gate confirmation", async () => {
     await mount("rail"); await add("Add doc-auditor here");
     await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "check" ? { ...row, definition: { steps: ["qa"], gates: [] }, saved: { version: 2, createdAt: new Date(0) } } : row.id === "delivery" ? { ...row, runnable: { ...row.runnable, gates: [] } } : row)));
@@ -102,8 +128,8 @@ try {
   await run("new slots reserve ids inside referenced definitions without modifying them", async () => {
     await mount("rail");
     await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "check"
-      ? { ...row, definition: { steps: ["doc-auditor", "doc-auditor#2"], gates: ["before-doc-auditor"] } }
-      : row.id === "delivery" ? { ...row, definition: { steps: ["pipeline:check", "plan", "implement", "accept", "doc-auditor#3"], gates: [] }, runnable: { nodes: ["doc-auditor", "doc-auditor#2", "plan", "implement", "accept", "doc-auditor#3"], gates: ["before-doc-auditor"], format: "slots-v1" } } : row)));
+      ? { ...row, definition: { steps: ["doc-auditor", "doc-auditor#2"], gates: ["before-doc-auditor"] }, saved: { version: 2, createdAt: new Date(1) } }
+      : row.id === "delivery" ? { ...row, definition: { steps: ["pipeline:check", "plan", "implement", "accept", "doc-auditor#3"], gates: [] }, saved: { version: 2, createdAt: new Date(1) }, runnable: { nodes: ["doc-auditor", "doc-auditor#2", "plan", "implement", "accept", "doc-auditor#3"], gates: ["before-doc-auditor"], format: "slots-v1" } } : row)));
     await page.waitForTimeout(60); await add("Add doc-auditor here"); await button("Save").click();
     assert.deepEqual((await writes())[0].input.definition.steps, ["pipeline:check", "plan", "implement", "accept", "doc-auditor#3", "doc-auditor#4"]);
     await finish("success");

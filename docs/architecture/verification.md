@@ -21,7 +21,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 - 다른 slice 내부로 들어가는 deep import
 - non-empty slice의 public API 누락
 - FSD에서 `src/server`를 호출하는 server adapter의 위치와 directive
-- Client Component의 서버 모듈 import
+- `"use client"` 파일의 직접 import 중 `src/server`, `index.server`, `*.server` 경로
 - `src/server → src/fsd` 역방향 의존
 - `packages/core`의 `src` 또는 외부 npm package 의존
 - `src/components`, `src/hooks`, `src/lib`, `src/utils`, `src/types` 같은 전역
@@ -34,6 +34,59 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 정규식 기반 검사라 계산된 dynamic import, TypeScript path alias의 복잡한 재정의,
 런타임 의존성까지 완전히 증명하지는 못한다. 자동 검사를 통과했다는 사실은 아래
 리뷰를 생략할 근거가 아니다.
+
+## FSD 규칙의 검증
+
+규칙 본문은 [fsd.md](./fsd.md)가 소유한다. 현재 자동 검사는 파일 경로와 소스의
+import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그래프를 판정하지 않는다.
+
+| 확인 사항 | 현재 자동화 | 추가 확인 |
+| --- | --- | --- |
+| layer 방향·slice 격리·외부 public API 경로 | `verify:fsd`가 인식한 import 경로와 non-empty slice의 진입점 파일 존재를 검사한다 | 실제 export와 소비 계약이 맞는지 확인한다. 다른 slice를 절대 경로로 참조하는 규칙은 별도로 리뷰한다 |
+| 공개 symbol과 자기 public API 참조 | 같은 slice의 절대 경로 import는 거부한다 | `export *` 금지, 필요한 symbol만 공개하는지, 상대 경로로 자기 barrel을 참조하지 않는지는 전용 자동 검사가 없다 |
+| `shared` 공개 경로 | `shared` 밖에서 segment 또는 unit 경로보다 깊게 들어가는 import를 거부한다 | 단일 파일·폴더형 unit의 실제 진입점과 export를 확인한다. `shared` 내부에는 unit별 접근 금지 규칙이나 전용 검사가 없다 |
+| 서버 adapter와 Client 경계 | FSD의 `src/server` 직접 import 위치·directive와 `"use client"` 파일의 서버 경로 직접 import를 검사한다 | 일반 barrel을 경유한 서버 코드 유입, `server-only`와 `"use server"`의 용도, Action 전달·입력 검증·인가는 코드 리뷰와 관련 동작 검증으로 확인한다 |
+| slice 책임·공통화·상태 위치 | 전용 자동 검사 없음 | [코드 배치와 추출 판단](./fsd.md#코드-배치와-추출-판단)에 따라 소유권·변경 이유·실제 소비처를 확인한다 |
+
+`npm run test:architecture`는 검사기 등을 포함한 `scripts/*.test.mjs`의 회귀
+테스트를 실행한다. 문서의 모든 규칙이나 애플리케이션의 Server/Client 연결을
+증명하는 명령은 아니다. 코드 변경 시 `npm run check`의 lint·타입 검사와
+`npm run build`, 변경 영역의 관련 테스트를 함께 적용한다. 빌드 통과도 Action의
+인증·인가나 업무 동작 검증을 대신하지 않는다.
+
+## 테스트 배치 규칙의 검증
+
+규칙 본문은 [test-organization.md](./test-organization.md)가 소유한다.
+이 절은 현재 자동화 상태와 변경 작성자·PR 리뷰어가 확인할 항목을 구분한다.
+
+| 확인 사항 | 현재 자동화 | 수동 확인 |
+| --- | --- | --- |
+| FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`와 `packages/core/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
+| 대상 옆 배치와 테스트 소유권 | 전용 자동 검사 없음 | 대상과 실행 환경에 맞는 위치인지, 하위 폴더 분리가 필요한지 확인한다 |
+| 운영 코드 → 테스트·fixture·helper 의존 금지 | 테스트 전용 import·export를 구별하는 전용 검사 없음 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
+| 테스트 검색과 실행 | 명령에 지정된 패턴에 일치하는 파일만 실행한다 | 신규·이동 파일이 명령에 포함되고 실행 결과에 나타나는지 확인한다 |
+
+현재 테스트 명령과 CI의 관계는 다음과 같다. 정확한 실행 패턴은
+[package.json](../../package.json), CI 연결은
+[check.yml](../../.github/workflows/check.yml)을 기준으로 한다.
+
+- `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
+  연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
+  환경을 같은 변경에서 보완한다.
+- `npm test`: `packages/core/*.test.mjs`와 `plugin/bin/*.test.mjs`를 실행하며 CI에 연결되어
+  있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
+- `npm run test:architecture`: `scripts/*.test.mjs`를 실행하며 CI의 `npm run check`에
+  포함된다. 이 명령 자체가 테스트 배치 규칙 전체를 검증하는 것은 아니다.
+- `npm run test:server`: 서버 전용 bootstrap과 함께 `tests/server/*.test.ts`를 실행한다.
+  현재 `check` workflow의 별도 실행 항목에는 포함되지 않는다.
+- `npm run test:server:integration`: 격리 PostgreSQL과 전용 실행 스크립트를 사용한다.
+  DB 안전 검사와 실행 절차는 아래 저장소 스크립트 설명을 따른다.
+- 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
+  문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
+
+테스트 추가·이동 PR에는 실제 실행 명령과 결과를 남긴다. 설정 변경으로 파일이
+탐색 대상에서 빠지거나 테스트 타입 검사가 사라지지 않았는지 확인한다. 전체
+아키텍처 규칙의 예외가 필요하면 아래 예외 정책을 따른다.
 
 ## 저장소 스크립트
 
@@ -187,6 +240,71 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 생성 산출물의 일시 계측이나 브라우저 응답 계측을 애플리케이션 소스·배포에 포함하지 않는다.
 범위·방법·실행 판정은 [3차 인수 보고서](../test-reports/completed/2026-10-01-src-clean-code-third-pass-regression.md)에 기록한다.
 
+### FSD 클린코드 후속 인수
+
+`rehearse-src-clean-code.ts`는 기존 Inbox A~D 외에 done 항목 R-1을 준비한다.
+`/owner-item`에서 실제 상세 페이지를 열고 `/arm/reopen-before-once` 또는
+`/arm/reopen-after-once`로 **다음 humanTransition 한 건만** 저장 전/후에 응답을 잘라 낸다.
+소켓 종료에 따른 POST 재전송과 혼동하지 않도록 정상 HTTP 응답의 RSC frame을 잘라 낸다.
+`/state`에서 R-1의 status·updatedAt·전이 수를 대조한다. Reopen의 Try again은 mutation을
+다시 보내지 않고 최신 상태를 읽어야 하며, Evidence·Documents·History는 계속 보여야 한다.
+
+DB 없는 실제 컴포넌트 시험은 `--ui-only`로 실행한다. `/fixture?mode=token-issuance`는
+세 발급 폼의 성공·거부·응답 미확인과 Previous token/만료값 보존을 제어하고,
+`/fixture?mode=documents`는 같은 URL의 별개 보고를 추가·삭제·재정렬한다.
+`?mode=copy&autorun` 또는 Run acceptance가 전체 동작 시험 결과를 `/results`에 기록한다.
+Documents의 duplicate-key 경고는 `--ui-only --fixture-development`로 별도 확인한다.
+이 옵션은 fixture 브라우저 번들만 development로 바꾸며 production build 설정은 바꾸지 않는다.
+실제 키보드 ArrowLeft/Right가 각 Coding client 그룹 안에서 순환하는지, Tab/Shift+Tab이
+그룹을 벗어나 다음/이전 컨트롤로 이동하는지도 확인한다. 합성 KeyboardEvent만으로 판정하지 않는다.
+
+```bash
+node --import tsx scripts/rehearse-src-clean-code.ts --ui-only
+# /finish로 앞 실행을 종료한 뒤:
+node --import tsx scripts/rehearse-src-clean-code.ts --ui-only --fixture-development
+```
+
+브라우저 Finish는 root·보류 작업·clipboard·console 대체를 정리하고, `/finish`는
+listener·자식 Next·DB fixture를 정리한다. 실제 DB 리허설은 기존처럼 fresh build와
+별도의 `TEST_DATABASE_URL` 검사를 통과해야 한다. schema 이동 뒤에는 아래 fresh registry 검사도 실행한다.
+
+```bash
+npm run build
+SRC_CHECK_INBOX_MANIFEST=true RDC_CHECK_ACTION_MANIFEST=true npm run test:server
+```
+
+`rehearse-account-usage-and-tokens.ts --interactive`의 `http://127.0.0.1:55477/state`는
+fixture 소유자의 종류별 토큰 수와 Reference·revoked 여부만 반환한다(평문·hash·세션 제외).
+`/lose-next-action`으로 응답을 잃은 발급은 +1, Refresh list는 +0, 수동 Revoke는 지정 Reference만
+종료시키는지 확인한다. 동일 이름의 기존 토큰도 보존해야 한다. `/finish`로 종료한다.
+
+### FSD 파이프라인 초안 후속 인수
+
+`rehearse-src-clean-code.ts --ui-only`의 `?mode=pipeline-page`는 실제 ProjectPipelinePage를 렌더한다.
+Run acceptance / `?mode=copy&autorun`은 version·plan·roster·readonly·프로젝트 identity 갱신,
+version 0 기본값, pending 응답 순서·stale/unknown·이전 프로젝트의 늦은 응답을 검증한다.
+같은 검사를 `--ui-only --fixture-development`에서도 실행한다. 기존 rail/scout 단독 모드는 유지한다.
+rail의 노드와 숨겨진 Read as text의 노드를 구분하며 제출 graph·expectedVersion·호출 수를 함께 본다.
+
+실제 Next 인수는 fresh build/manifest와 검증된 TEST_DATABASE_URL의 기존 DB fixture에서 수행한다.
+서버 모듈을 읽는 실제 DB 모드는 테스트 bootstrap을 포함해 실행한다:
+
+```bash
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-src-clean-code.ts
+```
+
+`--ui-only` 모드는 서버 서비스를 import하지 않으므로 기존 명령을 사용한다.
+`/owner-pipeline`으로 동일 프로젝트의 두 탭을 열고 A 초안 → B 저장 → A Scout 변경 뒤
+A의 초안과 stale 복구가 유지되는지 확인한다. `/pipeline-state`는 version/graph·Scout 설정·두 Action의 호출 수만 반환한다.
+`/arm/pipeline-before-once`·`/arm/pipeline-after-once`는 다음 savePipeline POST 한 건의 RSC 응답만
+저장 전/후에 잘라 낸다. 각각 DB version +0/+1, 명시적 Discard changes and reload는 +0이어야 한다.
+최종 version·rail·Read as text 본문과 DB graph를 대조한다. Scout나 다른 Action에 fault를 적용하지 않는다.
+이 시험은 원본 소스나 빌드 chunk를 계측하지 않는다.
+
+시험 후 Finish(`/finish`)로 보류 응답·root·listener·Next 자식·fixture DB와 connection을 정리한다.
+manifest 시험은 `tests/server/pipeline-save.test.ts`가 소유하며 두 pipeline Action 등록과 내부 draft 모델 비등록을 검사한다.
+`RDC_CHECK_ACTION_MANIFEST=true npm run test:server`는 반드시 해당 fresh build 뒤에 실행한다.
+
 ## 문구 잠금
 
 `docs/conventions/product-copy.md`는 "코드는 이 파일에서 나온다"고 선언하지만 강제가 없어 두 번 어긋났다 —
@@ -233,8 +351,10 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 - [ ] public API가 필요한 symbol만 명시적으로 export한다.
 - [ ] server/client public API가 섞이지 않았다.
 - [ ] 상태, schema, 테스트, loading/error UI가 변경 책임 근처에 있다.
-- [ ] 전역 store, 공통 hook, shared 추출이 실제 반복과 같은 변경 방향으로
-  정당화된다.
+- [ ] 테스트의 위치·보조 코드·운영 코드 의존성을 [테스트 배치 규칙](./test-organization.md)과 대조했다.
+- [ ] 추가·이동한 테스트가 실제 실행 명령의 검색 패턴에 포함되고 실행됐다.
+- [ ] 전역 store, 공통 hook, slice·shared 추출의 책임·변경 이유·실제 소비처를
+  [FSD 배치 기준](./fsd.md#코드-배치와-추출-판단)과 대조했다.
 - [ ] `src/app` route가 composition 이상을 떠안지 않는다.
 - [ ] `src/server`가 UI 표현이나 FSD 타입에 의존하지 않는다.
 - [ ] `npm run lint`, `npm run test:architecture`, 관련 테스트가 통과한다.

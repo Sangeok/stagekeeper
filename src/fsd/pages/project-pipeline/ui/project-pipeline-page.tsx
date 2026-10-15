@@ -10,6 +10,6 @@ export function ProjectPipelinePage({ autoScoutEnabled, canChangeAutoScout, save
   return <>
     <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
     <AutomaticScoutControl enabled={autoScoutEnabled} writable={canChangeAutoScout} save={saveAutoScout} unavailableReason={props.unavailableReason} />
-    <PipelineList {...props} />
+    <PipelineList key={props.projectId} {...props} />
   </>;
 }

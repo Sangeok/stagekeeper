@@ -6,8 +6,9 @@ import { FIELD_BUDGET } from "@/fsd/entities/board-item";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
+import type { ProposeInput } from "../model/propose-input";
 
-export type ProposeAction = (input: { pipelineId: string; key: string; agent: string; reason: string }) => Promise<ActionResult<void> & { resetPipeline?: boolean }>;
+export type ProposeAction = (input: ProposeInput) => Promise<ActionResult<void> & { resetPipeline?: boolean }>;
 
 // 백로그 행에서 항목을 직접 보드에 올린다 — pm을 부르지 않고. 사유 문구는 서버의 것을 그대로 보여 준다
 // ("open items: 2 (max 2)" 등). 실패를 이 행 아래에 붙이는 것은 RemoveBacklogButton과 같은 이유다.

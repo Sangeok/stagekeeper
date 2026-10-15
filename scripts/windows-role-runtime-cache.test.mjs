@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
+import { copyFileSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,9 +13,9 @@ const builder = new URL("./build-windows-role-node.ps1", import.meta.url);
 const cli = fileURLToPath(new URL("./windows-role-runtime-cache.mjs", import.meta.url));
 
 function fixture(t) {
-  const root = mkdtempSync(path.join(tmpdir(), "stagekeeper-runtime-cache-test-"));
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "stagekeeper-runtime-cache-test-"));
   t.after(() => {
-    assert.equal(path.dirname(root), path.resolve(tmpdir()));
+    assert.equal(path.dirname(root), path.resolve(realpathSync(tmpdir())));
     assert.ok(path.basename(root).startsWith("stagekeeper-runtime-cache-test-"));
     rmSync(root, { recursive: true, force: true });
   });

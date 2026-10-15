@@ -5,9 +5,9 @@ import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import * as board from "@/server/pipeline/board";
 import { PIPELINE_NOT_FOUND, PIPELINE_CANNOT_RUN_ITEMS } from "@/server/pipeline/run-query";
-import { proposeInputSchema } from "../model/propose-input";
+import { proposeInputSchema, type ProposeInput } from "../model/propose-input";
 
-export async function proposeItem(slug: string, input: { pipelineId: string; key: string; agent: string; reason: string }): Promise<ActionResult<void> & { resetPipeline?: boolean }> {
+export async function proposeItem(slug: string, input: ProposeInput): Promise<ActionResult<void> & { resetPipeline?: boolean }> {
   if (typeof slug !== "string" || slug.length === 0) return failure("Couldn't put it on the board. Try again.");
   const w = await requireProjectWrite(slug);
   if (!w.ok) return failure(w.reason);

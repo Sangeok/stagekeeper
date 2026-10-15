@@ -8,6 +8,7 @@ import { Button } from "@/fsd/shared/ui/button";
 import { Chip } from "@/fsd/shared/ui/chip";
 import { PIPELINE_EDIT_PLAN_GATE } from "../model/plan-gate";
 import { PIPELINE_STALE, PIPELINE_UNKNOWN, type SavePipelineInput, type SavePipelineResult } from "../model/pipeline-save-state";
+import { beginPipelineSave, createPipelineDraft, discardPipelineDraft, finishPipelineSave, isPipelineDirty, receivePipelineSnapshot, editPipelineDraft } from "../model/pipeline-draft-state";
 import { addNode, addSlot, check, hasUngatedRunnable, insertRef, isProjectSlot, moveSlot, insertGate, removeGate, removeNode, preview, swapTail, type CompositionContext, type PipelineSnapshot, type Step } from "../model/rail-state";
 
 export type SavePipelineAction = (input: SavePipelineInput) => Promise<SavePipelineResult>;
@@ -21,26 +22,29 @@ type Props = {
 type Move = { label: string; step: Step };
 
 export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0, pipelines, rules, plan, roster, editable, save, unavailableReason, onSelect, onDirtyChange, onBusyChange, onSaved }: Props) {
-  const [state, setState] = useState(definition);
-  const [baseline, setBaseline] = useState({ definition, version: expectedVersion });
+  const [editor, setEditor] = useState(() => createPipelineDraft({ definition, version: expectedVersion }));
   const [openEdge, setOpenEdge] = useState<string | null | false>(false);
   const [expanded, setExpanded] = useState(false);
   const [confirmingNoGate, setConfirmingNoGate] = useState(false);
-  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [externalChange, setExternalChange] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [busy, setBusy] = useState(false);
-  const saving = useRef(false), alive = useRef(true), recovery = useRef(false);
+  const saving = useRef(false), alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const dirty = JSON.stringify(state) !== JSON.stringify(baseline.definition);
+  const state = editor.definition, baseline = editor.baseline;
+  const busy = editor.request.status === "saving";
+  const recoveryMessage = editor.request.status === "stale" ? PIPELINE_STALE
+    : editor.request.status === "unknown" ? PIPELINE_UNKNOWN : null;
+  const dirty = isPipelineDirty(editor);
   // Includes dependency definitions and execution graphs: a child save does not increment its parent's definition version.
   const fingerprint = JSON.stringify({ pipelines, rules });
-  const [seen, setSeen] = useState(fingerprint);
-  if (seen !== fingerprint && !busy && !pending) {
-    setSeen(fingerprint);
+  const inputKey = JSON.stringify([fingerprint, definition, expectedVersion, plan, editable, roster]);
+  const [seen, setSeen] = useState({ fingerprint, inputKey });
+  if (seen.inputKey !== inputKey) {
+    setSeen({ fingerprint, inputKey });
+    setEditor(current => receivePipelineSnapshot(current, { definition, version: expectedVersion }));
+    setOpenEdge(false);
     setConfirmingNoGate(false);
-    if (dirty) setExternalChange(true);
-    else { setState(definition); setBaseline({ definition, version: expectedVersion }); }
+    if (dirty && seen.fingerprint !== fingerprint) setExternalChange(true);
   }
   const id = pipelineId ?? "draft:new";
   const definitions: Record<string, Definition> = Object.create(null);
@@ -65,30 +69,32 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   ];
   const applyIfValid = (step: Step): void => {
     if (!editable || saving.current || !step.ok) return;
-    setState(step.definition); setOpenEdge(false); setConfirmingNoGate(false);
+    setEditor(current => editPipelineDraft(current, step.definition)); setOpenEdge(false); setConfirmingNoGate(false);
     onDirtyChange?.(JSON.stringify(step.definition) !== JSON.stringify(baseline.definition));
   };
   const onSave = (): void => {
-    if (!canEdit || !dirty || !validation.ok || saving.current || recovery.current) return;
+    if (!canEdit || !dirty || !validation.ok || saving.current || editor.request.status !== "idle") return;
     if (ungated && !confirmingNoGate) { setConfirmingNoGate(true); return; }
-    const snapshot = { steps: [...state.steps], gates: [...state.gates] };
-    saving.current = true; setBusy(true); onBusyChange?.(true);
+    const started = beginPipelineSave(editor);
+    if (started.request.status !== "saving") return;
+    const input = { pipelineId, name, ...started.request.submitted };
+    saving.current = true; setEditor(started); onBusyChange?.(true);
     startTransition(async () => {
       try {
-        const result = await save({ pipelineId, name, definition: snapshot, expectedVersion: baseline.version });
+        const result = await save(input);
         if (!alive.current) return;
+        setEditor(current => finishPipelineSave(current, result));
         if (result.status === "error") toast.error(result.reason);
-        else if (result.status === "stale") { recovery.current = true; setRecoveryMessage(PIPELINE_STALE); }
-        else {
-          setBaseline({ definition: snapshot, version: result.version }); setConfirmingNoGate(false); setExternalChange(false);
+        else if (result.status === "success") {
+          setConfirmingNoGate(false); setExternalChange(false);
           onDirtyChange?.(false); onSaved?.(result.pipelineId); toast.success("Pipeline saved");
         }
       } catch {
         if (!alive.current) return;
-        recovery.current = true; setRecoveryMessage(PIPELINE_UNKNOWN);
+        setEditor(current => finishPipelineSave(current, { status: "unknown" }));
       } finally {
         saving.current = false;
-        if (alive.current) { setBusy(false); onBusyChange?.(false); }
+        if (alive.current) onBusyChange?.(false);
       }
     });
   };
@@ -142,12 +148,12 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
     {!validation.ok ? <p className="text-xs text-risk">{validation.reason}</p> : null}
     {ungated ? <p className="text-xs text-risk">No gate: plan and implementation start without your approval. Acceptance is still required. Reopen and discard stay on the web.</p> : null}
     {!editable ? <p className="text-xs text-quiet">{unavailableReason ?? PIPELINE_EDIT_PLAN_GATE}</p> : null}
-    {editable ? <div className="flex items-center gap-3">
-      <Button variant="mine" disabled={!dirty || !canEdit || !validation.ok || recoveryMessage !== null} onClick={onSave}>{busy || pending ? "Saving…" : confirmingNoGate ? "Save without a gate" : "Save"}</Button>
-      {dirty || recoveryMessage !== null || externalChange ? <button type="button" className="text-xs text-quiet underline" disabled={!canEdit} onClick={() => {
+    {editable || dirty || recoveryMessage !== null || externalChange ? <div className="flex items-center gap-3">
+      {editable ? <Button variant="mine" disabled={!dirty || !canEdit || !validation.ok || recoveryMessage !== null} onClick={onSave}>{busy || pending ? "Saving…" : confirmingNoGate ? "Save without a gate" : "Save"}</Button> : null}
+      {dirty || recoveryMessage !== null || externalChange ? <button type="button" className="text-xs text-quiet underline" disabled={busy || pending} onClick={() => {
         if (saving.current) return;
-        if (recovery.current || externalChange) { window.location.reload(); return; }
-        setState(baseline.definition); setConfirmingNoGate(false); onDirtyChange?.(false);
+        if (recoveryMessage !== null || externalChange) { window.location.reload(); return; }
+        setEditor(discardPipelineDraft); setConfirmingNoGate(false); onDirtyChange?.(false);
       }}>{recoveryMessage !== null || externalChange ? "Discard changes and reload" : "Discard changes"}</button> : null}
     </div> : null}
     {recoveryMessage ? <p role="alert" className="text-xs text-risk">{recoveryMessage}</p> : null}

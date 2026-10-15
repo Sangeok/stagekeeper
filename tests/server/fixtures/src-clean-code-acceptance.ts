@@ -1,6 +1,6 @@
 type Outcome = "success" | "error" | "stale" | "unknown";
 import { PIPELINE_STALE, PIPELINE_UNKNOWN } from "../../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
-type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void; setRoster: (roster: string[]) => void };
+type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; duplicateKeyWarnings: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void; setRoster: (roster: string[]) => void };
 type Result = { case: string; expected: string; observed: string; status: "Pass" | "Fail" };
 const tick = () => new Promise(resolve => setTimeout(resolve, 80));
 const check = (condition: unknown, message: string) => { if (!condition) throw new Error(message); };
@@ -24,6 +24,49 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     finally { cleanup(); await tick(); }
   };
   const mount = async (mode: string, picker = false) => { render(mode, picker); await tick(); };
+  await run("Documents preserve duplicate links across updates", "plan and every distinct report retain their DOM identity with no duplicate-key warnings", async () => {
+    await mount("documents");
+    const section = [...document.querySelectorAll("section")].find(section => section.querySelector("h2")?.textContent === "Documents");
+    check(section, "Documents section missing");
+    const rows = () => [...section!.querySelectorAll("li")];
+    const first = rows();
+    check(first.length === 3, "initial reports collapsed");
+    check(new Set(first.map(row => row.querySelector("a")?.href)).size === 1, "fixture URLs differ");
+    await click("Reverse reports");
+    check(rows()[0] === first[0] && rows()[1] === first[2] && rows()[2] === first[1], "report identity changed on reorder");
+    await click("Remove first report");
+    check(rows().length === 2 && rows()[1] === first[1], "wrong report removed");
+    await click("Add report");
+    check(rows().length === 3 && rows()[1] === first[1], "adding a report replaced a prior row");
+    check(controls.duplicateKeyWarnings === 0, "duplicate React keys");
+  });
+  for (const kind of ["hs", "hu", "ho"]) for (const outcome of ["error", "unknown"] as const) {
+    await run(`token ${kind} ${outcome}`, "previous successful value/expiry survive a later failure; refresh never issues; explicit retry replaces only on success", async () => {
+      await mount("token-issuance");
+      const scope = document.getElementById(`issue-${kind}`)!;
+      const label = kind === "ho" ? "Issue owner token" : "Issue token";
+      const expiry = `#issue-${kind} input[name="expiry"]`;
+      input(expiry, "2999-01-01 00:00"); await click(label, scope);
+      check(find("Issuing…", scope).disabled && [...scope.querySelectorAll("input")].every(field => field.disabled), "issuance input not locked");
+      controls.finishAction("success"); await tick();
+      check(scope.textContent?.includes(`${kind}_fixture-1`) && scope.textContent.includes("2999-01-01 00:00 UTC"), "first issuance missing");
+      input(expiry, "3000-01-01 00:00"); await click(label, scope);
+      check(scope.textContent?.includes("Previous token"), "pending request presents old token as current");
+      controls.finishAction(outcome); await tick();
+      check(scope.textContent?.includes(`${kind}_fixture-1`) && scope.textContent.includes("2999-01-01 00:00 UTC") && !scope.textContent.includes("3000-01-01 00:00 UTC"), "failure replaced previous result");
+      check(scope.querySelector('[role="alert"]')?.textContent === (outcome === "error" ? "Refused" : "Couldn't confirm whether the token was issued. Refresh the list before trying again. If you identify a token whose value you did not receive, revoke it before issuing another."), "failure contract differs");
+      check(controls.payloads.length === 2 && controls.refreshes === 1, "failure did not refresh exactly once");
+      if (outcome === "unknown") {
+        await click("Refresh list", scope);
+        check(controls.payloads.length === 2 && controls.refreshes === 2 && scope.textContent?.includes("Previous token"), "refresh resubmitted or cleared prior result");
+      }
+      await click(label, scope); controls.finishAction("success"); await tick();
+      check(controls.payloads.length === 3 && scope.textContent?.includes(`${kind}_fixture-3`) && scope.textContent.includes("3000-01-01 00:00 UTC"), "explicit retry result missing");
+      check(!scope.textContent?.includes(`${kind}_fixture-1`) && !scope.textContent?.includes("Previous token"), "success did not replace prior result");
+      input(expiry, "invalid"); await click(label, scope);
+      check(controls.payloads.length === 3 && scope.textContent?.includes(`${kind}_fixture-3`) && scope.textContent.includes("Previous token"), "invalid input invoked an action or erased a token");
+    });
+  }
   await run("propose roster same instance", "current selection drives display and submission; explicit selection survives reorder/removal/reappearance and reason survives cancel", async () => {
     await mount("propose"); await click("Put on the board");
     const select = document.querySelector<HTMLSelectElement>('select:not([aria-label="Pipeline"])')!;
@@ -180,6 +223,75 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     else if (outcome === "error") check(!find("Save").disabled, "validation retry blocked");
     else { check(find("Save").disabled, "unsafe retry allowed"); check(find("Discard changes and reload"), "explicit reload missing"); check(document.querySelector('[role="alert"]')?.textContent === (outcome === "stale" ? PIPELINE_STALE : PIPELINE_UNKNOWN), "canonical recovery mismatch"); }
   });
+  const rail = () => document.querySelector<HTMLElement>("#pipeline-page .overflow-x-auto")!;
+  const hasNode = (name: string) => [...rail().querySelectorAll("span")].some(node => node.textContent === name);
+  await run("pipeline page dirty snapshot", "Scout refresh keeps the draft, old baseline and explicit conflict recovery", async () => {
+    await mount("pipeline-page"); await click("Remove", rail());
+    await click("Automatic scouting"); controls.finishAction("success"); await tick();
+    await click("Receive version 4");
+    check(!hasNode("Propose") && hasNode("Verify"), "server snapshot erased the draft");
+    check(document.getElementById("pipeline-page")?.textContent?.includes("Version 4"), "server description did not refresh");
+    check(find("Save").disabled && find("Discard changes and reload"), "conflict recovery missing");
+    check(document.querySelector('[role="alert"]')?.textContent === PIPELINE_STALE, "conflict copy differs");
+    check(JSON.stringify(controls.payloads) === "[false]", "snapshot or Scout saved the graph");
+  });
+  await run("pipeline page clean snapshot", "clean snapshot advances the next CAS baseline and a late older snapshot cannot undo success", async () => {
+    await mount("pipeline-page"); await click("Receive version 4");
+    check(!hasNode("Verify"), "clean server graph not adopted");
+    await click("Remove", rail()); await click("Save");
+    check(JSON.stringify(controls.payloads[0]).includes('"expectedVersion":4'), "next save kept old CAS");
+    controls.finishAction("success"); await tick();
+    await click("Receive original version 3");
+    check(!hasNode("Propose") && !hasNode("Verify"), "late old snapshot overwrote the saved graph");
+    check(!buttons().some(button => button.textContent === "Discard changes"), "success stayed dirty");
+  });
+  await run("pipeline page permission changes", "plan/roster/readonly changes preserve edits; readonly discard never mutates", async () => {
+    await mount("pipeline-page"); await click("Remove", rail()); await click("Change plan"); await click("Change roster");
+    check(!hasNode("Propose") && rail().textContent?.includes("other-dev"), "metadata refresh erased draft or ignored roster");
+    await click("Read only"); check(!hasNode("Propose"), "readonly remounted draft");
+    check(!buttons().some(button => button.textContent === "Save"), "readonly Save exposed");
+    await click("Discard changes"); check(hasNode("Propose"), "readonly local discard unavailable");
+    check(controls.payloads.length === 0, "local discard mutated");
+    await click("Writable"); await click("Remove", rail()); check(!find("Save").disabled, "writable recovery remained locked");
+  });
+  await run("pipeline page default plan", "version-zero defaults change only when clean or explicitly discarded", async () => {
+    await mount("pipeline-page-default"); await click("Remove", rail()); await click("Change default plan");
+    check(!hasNode("Propose") && hasNode("Verify"), "unsaved plan change erased draft");
+    await click("Discard changes"); check(hasNode("Propose") && !hasNode("Verify"), "discard did not adopt free default");
+    check(controls.payloads.length === 0, "default reconciliation wrote a version");
+  });
+  for (const outcome of ["success", "error", "stale", "unknown"] as const) await run(`pipeline page pending ${outcome}`, "in-flight snapshot is retained until the owned response; recovery remains explicit", async () => {
+    await mount("pipeline-page"); await click("Remove", rail()); await click("Save");
+    await click(outcome === "success" ? "Receive version 5" : "Receive version 4");
+    check(!hasNode("Propose") && hasNode("Verify") && find("Discard changes").disabled, "pending props replaced or unlocked draft");
+    controls.finishAction(outcome); await tick();
+    if (outcome === "success") check(hasNode("Propose") && !hasNode("Verify"), "success did not adopt the newer server snapshot");
+    else {
+      check(!hasNode("Propose") && find("Save").disabled, "failed pending save discarded/retried draft");
+      check(document.querySelector('[role="alert"]')?.textContent === (outcome === "unknown" ? PIPELINE_UNKNOWN : PIPELINE_STALE), "pending recovery lost");
+      await click("Read only"); check(!find("Discard changes and reload").disabled, "readonly recovery inaccessible");
+    }
+    check(controls.payloads.length === 1, "pending save resubmitted");
+  });
+  for (const graphFirst of [false, true]) await run(`pipeline page independent responses ${graphFirst}`, "graph and Scout can settle in either order without changing submitted graph/CAS", async () => {
+    await mount("pipeline-page"); await click("Remove", rail()); await click("Save");
+    const finishGraph = controls.finishAction; const payload = JSON.stringify(controls.payloads[0]);
+    await click("Automatic scouting"); const finishScout = controls.finishAction;
+    (graphFirst ? finishGraph : finishScout)("success"); await tick();
+    (graphFirst ? finishScout : finishGraph)("success"); await tick();
+    check(controls.payloads.length === 2 && JSON.stringify(controls.payloads[0]) === payload, "independent action changed submission");
+    check(!hasNode("Propose") && find("Save").disabled, "successful draft was lost or remained dirty");
+  });
+  for (const outcome of ["success", "error", "stale", "unknown"] as const) await run(`pipeline page project switch ${outcome}`, "old-project replies cannot change the new project's draft, recovery or lock", async () => {
+    await mount("pipeline-page"); await click("Remove", rail()); await click("Save");
+    const finishOld = controls.finishAction; await click("Switch project");
+    check(hasNode("Propose"), "new project inherited old draft");
+    finishOld(outcome); await tick();
+    check(!document.querySelector('[role="alert"]'), "old response leaked recovery");
+    await click("Remove", rail()); check(!find("Save").disabled, "old response locked new project");
+    check(controls.payloads.length === 1, "project switch mutated");
+  });
+
   for (const outcome of ["error", "unknown", "success"] as const) await run(`scout ${outcome}`, "one mutation; refusal preserves state; unknown refreshes without resubmission", async () => {
     await mount("scout"); await click("Automatic scouting"); check(find("Automatic scouting").disabled, "pending switch active");
     controls.finishAction(outcome); await tick(); check(controls.payloads.length === 1, "scout resubmitted");

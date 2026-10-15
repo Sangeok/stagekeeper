@@ -15,12 +15,16 @@ import { TurnBanner } from "../../../src/fsd/widgets/turn-banner/ui/turn-banner"
 import { deriveTurn, type Turn } from "../../../src/fsd/widgets/turn-banner/model/turn";
 import { projectPath, type ProjectTabSegment } from "../../../src/fsd/shared/routes/project";
 import { InboxCardBoundary } from "../../../src/fsd/features/review-gate/ui/inbox-card-boundary";
+import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { PipelineRail } from "../../../src/fsd/features/edit-pipeline/ui/pipeline-rail";
 import { AutomaticScoutControl } from "../../../src/fsd/features/edit-pipeline/ui/automatic-scout-control";
 import { ProjectConnectionControl } from "../../../src/fsd/features/manage-project-connection/ui/project-connection-control";
 import { connectionControlKey } from "../../../src/fsd/features/manage-project-connection/model/project-connection-state";
 import { ResumeButtons } from "../../../src/fsd/features/review-gate/ui/resume-buttons";
 import { ProposeButton } from "../../../src/fsd/features/propose-item/ui/propose-button";
+import { BoardItemPage, type BoardItemView } from "../../../src/fsd/pages/board-item/ui/board-item-page";
+import { toItemDocs } from "../../../src/fsd/pages/board-item/model/item-docs";
+import type { ActionResult } from "../../../src/fsd/shared/api/result";
 import { defaultGraph } from "../../../packages/core/pipeline.mjs";
 import { runAcceptance } from "./src-clean-code-acceptance";
 
@@ -32,12 +36,14 @@ const controls = {
   registration: "created" as "created" | "existing" | "disconnected",
   payloads: [] as unknown[],
   refreshes: 0,
+  duplicateKeyWarnings: 0,
   finishAction: (outcome: "success" | "error" | "stale" | "unknown") => { void outcome; },
   setRoster: (roster: string[]) => { void roster; },
 };
 Object.assign(window, { fixture: controls });
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
 const pending = new Set<() => void>();
+let restoreConsole = () => {};
 function installClipboard() { Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
   writeText: (text: string) => new Promise<void>((resolve, reject) => {
     controls.writes.push(text);
@@ -63,6 +69,43 @@ function PipelineFixture() {
     <PipelineRail pipelineId="default" definition={{ steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }} rules={{}} pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }, saved: { version: 3, createdAt: new Date(0) }, runnable: { ...defaultGraph("pro"), format: "slots-v1" } }]} expectedVersion={3} plan="pro" roster={["dev"]} editable
       save={input => action(input, { success: { status: "success", pipelineId: "default", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
 }
+function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
+  const [view, setView] = useState({ projectId: "one", version: unsaved ? 0 : 3, graph: defaultGraph("pro"), plan: "pro", editable: true, roster: ["dev"], enabled: true });
+  const remoteGraph = () => ({ ...defaultGraph("pro"), nodes: defaultGraph("pro").nodes.filter((node: string) => node !== "verify") });
+  const now = new Date("2026-10-15T00:00:00Z");
+  return <>
+    <div aria-label="Pipeline fixture controls">
+      <button onClick={() => setView(current => ({ ...current, version: 4, graph: remoteGraph() }))}>Receive version 4</button>
+      <button onClick={() => setView(current => ({ ...current, version: 5, graph: remoteGraph() }))}>Receive version 5</button>
+      <button onClick={() => setView(current => ({ ...current, version: 3, graph: defaultGraph("pro") }))}>Receive original version 3</button>
+      <button onClick={() => setView(current => ({ ...current, plan: "max" }))}>Change plan</button>
+      <button onClick={() => setView(current => ({ ...current, editable: false }))}>Read only</button>
+      <button onClick={() => setView(current => ({ ...current, editable: true }))}>Writable</button>
+      <button onClick={() => setView(current => ({ ...current, roster: ["other-dev"] }))}>Change roster</button>
+      <button onClick={() => setView(current => ({ ...current, plan: "free", editable: false, graph: defaultGraph("free") }))}>Change default plan</button>
+      <button onClick={() => setView({ projectId: "two", version: 3, graph: defaultGraph("pro"), plan: "pro", editable: true, roster: ["dev"], enabled: true })}>Switch project</button>
+    </div>
+    <div id="pipeline-page">
+      <ProjectPipelinePage projectId={view.projectId}
+        pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: view.graph.nodes, gates: view.graph.gates }, saved: view.version === 0 ? null : { version: view.version, createdAt: now }, runnable: { ...view.graph, format: "slots-v1" } }]}
+        rules={{}} autoProposeEnabled actions={{ archive: async () => ({ success: true, data: null }), rename: async () => ({ success: true, data: null }), setDefault: async () => ({ success: true, data: null }), setRule: async () => ({ success: true, data: null }), setAutomaticPick: async () => ({ success: true, data: null }) }} now={now}
+        plan={view.plan} roster={view.roster} editable={view.editable} unavailableReason={view.editable ? undefined : "Not selected"}
+        autoScoutEnabled={view.enabled} canChangeAutoScout={view.editable}
+        save={async input => {
+          const result = await action(input, { success: { status: "success" as const, pipelineId: "default", version: input.expectedVersion + 1 }, error: { status: "error" as const, reason: "Unavailable" }, stale: { status: "stale" as const } });
+          if (result.status === "success") setView(current => current.projectId === view.projectId && current.version <= result.version
+            ? { ...current, version: result.version, graph: { nodes: input.definition.steps, gates: input.definition.gates } } : current);
+          return result;
+        }}
+        saveAutoScout={async enabled => {
+          const result = await action(enabled, { success: { success: true as const, data: enabled }, error: { success: false as const, error: "Unavailable" }, stale: { success: false as const, error: "stale" } });
+          if (result.success) setView(current => current.projectId === view.projectId ? { ...current, enabled } : current);
+          return result;
+        }} />
+    </div>
+  </>;
+}
+
 function ScoutFixture() {
   return <AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />;
 }
@@ -122,6 +165,39 @@ function CopyFixture() {
   </>;
 }
 
+function TokenIssuanceFixture() {
+  const issue = (kind: "hs" | "hu" | "ho") => (label: string, expiresAt: string | null) => action<ActionResult<{ token: string }>>({ kind, label, expiresAt }, {
+    success: { success: true, data: { token: `${kind}_fixture-${controls.payloads.length + 1}` } },
+    error: { success: false, error: "Refused" }, stale: { success: false, error: "stale" },
+  });
+  return <>
+    <section id="issue-hs"><NewTokenForm issue={issue("hs")} mcpUrl="https://fixture.test/api/mcp" /></section>
+    <section id="issue-hu"><NewUserTokenForm issue={issue("hu")} mcpUrl="https://fixture.test/api/mcp" /></section>
+    <section id="issue-ho"><NewOwnerTokenForm issue={issue("ho")} ownerMcpUrl="https://fixture.test/api/mcp/owner" /></section>
+  </>;
+}
+
+function DocumentsFixture() {
+  const at = new Date("2026-10-14T00:00:00Z");
+  const repo = { owner: "fixture", repo: "documents", branch: "main" };
+  const report = (id: string): BoardItemView["reports"][number] => ({ id, actor: "dev", path: "docs/report.md", commit: "samecommit", at, acceptedAt: null });
+  const [reports, setReports] = useState(() => [report("plan"), report("second")]);
+  const item: BoardItemView = {
+    id: "documents", pipeline: { pipelineId: null, name: "Default", canChange: false },
+    key: "DOC-1", title: "Distinct reports with identical URLs", agent: "dev", area: "web", status: "done",
+    reason: "Retain every submission", results: [], validation: null, proposedOn: at, acceptedAt: null,
+    acceptanceFailure: null, updatedAt: at.toISOString(), repo, reports, events: [],
+    docs: toItemDocs({ planPath: "docs/report.md", planCommit: "samecommit", acceptedAt: null, reports }, repo),
+  };
+  const unused = async (): Promise<ActionResult<void>> => { throw new Error("Documents fixture must not mutate"); };
+  return <>
+    <button onClick={() => setReports(current => [...current].reverse())}>Reverse reports</button>
+    <button onClick={() => setReports(current => current.slice(1))}>Remove first report</button>
+    <button onClick={() => setReports(current => current.some(row => row.id === "third") ? current : [...current, report("third")])}>Add report</button>
+    <BoardItemPage slug="documents" item={item} canWrite={false} transition={unused} retryAcceptance={unused} pipelineChoices={[]} changePipeline={async () => { throw new Error("Read-only fixture"); }} />
+  </>;
+}
+
 function TurnFixture() {
   const [slug, setSlug] = useState("alpha");
   const [tab, setTab] = useState<ProjectTabSegment>("");
@@ -160,6 +236,10 @@ let fixturePicker = false;
 function cleanupFixture() {
   root?.unmount(); root = undefined;
   for (const finish of pending) finish(); pending.clear();
+  restoreConsole(); restoreConsole = () => {};
+  controls.finishAction = () => {};
+  controls.finishCopy = () => {};
+  controls.finishRegistration = () => {};
   if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard); else Reflect.deleteProperty(navigator, "clipboard");
 }
 
@@ -175,10 +255,18 @@ function ProposeFixture() {
 }
 function renderMode(mode: string, picker = false) {
   cleanupFixture(); fixturePicker = picker;
-  controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0;
+  controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0; controls.duplicateKeyWarnings = 0;
   installClipboard();
+  if (mode === "documents") {
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => {
+      if (args.some(value => typeof value === "string" && value.includes("Encountered two children with the same key"))) controls.duplicateKeyWarnings++;
+      originalError(...args);
+    };
+    restoreConsole = () => { console.error = originalError; };
+  }
   root = createRoot(document.getElementById("root")!);
-  root.render(<AppRouterContext.Provider value={router}>{mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+  root.render(<AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
 }
 const toolbar = document.createElement("div");
 const run = document.createElement("button"); run.textContent = "Run acceptance";
