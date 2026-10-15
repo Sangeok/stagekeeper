@@ -277,6 +277,33 @@ fixture 소유자의 종류별 토큰 수와 Reference·revoked 여부만 반환
 `/lose-next-action`으로 응답을 잃은 발급은 +1, Refresh list는 +0, 수동 Revoke는 지정 Reference만
 종료시키는지 확인한다. 동일 이름의 기존 토큰도 보존해야 한다. `/finish`로 종료한다.
 
+### FSD 파이프라인 초안 후속 인수
+
+`rehearse-src-clean-code.ts --ui-only`의 `?mode=pipeline-page`는 실제 ProjectPipelinePage를 렌더한다.
+Run acceptance / `?mode=copy&autorun`은 version·plan·roster·readonly·프로젝트 identity 갱신,
+version 0 기본값, pending 응답 순서·stale/unknown·이전 프로젝트의 늦은 응답을 검증한다.
+같은 검사를 `--ui-only --fixture-development`에서도 실행한다. 기존 rail/scout 단독 모드는 유지한다.
+rail의 노드와 숨겨진 Read as text의 노드를 구분하며 제출 graph·expectedVersion·호출 수를 함께 본다.
+
+실제 Next 인수는 fresh build/manifest와 검증된 TEST_DATABASE_URL의 기존 DB fixture에서 수행한다.
+서버 모듈을 읽는 실제 DB 모드는 테스트 bootstrap을 포함해 실행한다:
+
+```bash
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-src-clean-code.ts
+```
+
+`--ui-only` 모드는 서버 서비스를 import하지 않으므로 기존 명령을 사용한다.
+`/owner-pipeline`으로 동일 프로젝트의 두 탭을 열고 A 초안 → B 저장 → A Scout 변경 뒤
+A의 초안과 stale 복구가 유지되는지 확인한다. `/pipeline-state`는 version/graph·Scout 설정·두 Action의 호출 수만 반환한다.
+`/arm/pipeline-before-once`·`/arm/pipeline-after-once`는 다음 savePipeline POST 한 건의 RSC 응답만
+저장 전/후에 잘라 낸다. 각각 DB version +0/+1, 명시적 Discard changes and reload는 +0이어야 한다.
+최종 version·rail·Read as text 본문과 DB graph를 대조한다. Scout나 다른 Action에 fault를 적용하지 않는다.
+이 시험은 원본 소스나 빌드 chunk를 계측하지 않는다.
+
+시험 후 Finish(`/finish`)로 보류 응답·root·listener·Next 자식·fixture DB와 connection을 정리한다.
+manifest 시험은 `tests/server/pipeline-save.test.ts`가 소유하며 두 pipeline Action 등록과 내부 draft 모델 비등록을 검사한다.
+`RDC_CHECK_ACTION_MANIFEST=true npm run test:server`는 반드시 해당 fresh build 뒤에 실행한다.
+
 ## 문구 잠금
 
 `docs/conventions/product-copy.md`는 "코드는 이 파일에서 나온다"고 선언하지만 강제가 없어 두 번 어긋났다 —

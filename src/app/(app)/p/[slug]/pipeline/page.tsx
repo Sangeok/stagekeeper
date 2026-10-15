@@ -20,6 +20,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) 
 
   return (
     <ProjectPipelinePage
+      projectId={projectId}
       graph={version.graph}
       format={version.format}
       saved={version.persisted ? { version: version.persisted.version, at: version.persisted.createdAt } : undefined}

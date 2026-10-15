@@ -282,3 +282,25 @@ describe("buildBriefing", () => {
     assert.deepEqual({ rows, roster }, before);
   });
 });
+
+
+describe("workspace work belongs to the current dispatcher", () => {
+  for (const node of ["doc-auditor", "doc-auditor#2", "feature-scout", "feature-scout#2"]) {
+    for (const dispatched of [false, true]) {
+      it(`${node}, dispatched=${dispatched}, never assigns slot work to the dev`, () => {
+        const nodes = ["plan", "implement", node, "accept"];
+        const slot = row({ key: "S-1", status: "implementing", node, gate: null, dispatched });
+        const member = (rows) => buildBriefing(rows, TODAY, ["web-dev"], nodes).team.find(m => m.agent === "web-dev").state;
+        assert.equal(member([slot]), "Idle");
+        assert.equal(member([slot, row({ key: "D-1", status: "planning", dispatched: true })]), "Working on D-1");
+        assert.equal(member([slot, row({ key: "D-1", status: "implementing", dispatched: false })]), "Ready for D-1");
+      });
+    }
+  }
+  it("does not queue a dev at a gate or a missing cursor", () => {
+    for (const gate of [null, "before-doc-auditor"]) {
+      const briefing = buildBriefing([row({ status: "implementing", node: null, gate, dispatched: false })], TODAY, ["web-dev"], ["plan", "implement", "accept"]);
+      assert.equal(briefing.team[0].state, "Idle");
+    }
+  });
+});

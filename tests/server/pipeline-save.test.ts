@@ -5,7 +5,7 @@ import { defaultGraph } from "@harness/core/pipeline.mjs";
 import { savePipelineVersion } from "../../src/server/pipeline/version-save-query";
 import * as state from "../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
 import { loadModule } from "./fixtures/load-module";
-import { assertActions } from "./fixtures/action-manifest";
+import { assertActions, manifestEntries } from "./fixtures/action-manifest";
 
 it("saves exactly expected+1 and rejects stale/invalid baselines without create", async () => {
   const writes: Prisma.PipelineVersionCreateArgs[] = [];
@@ -57,4 +57,8 @@ it("actual action preserves authentication/plan gates and revalidates success al
   response = { status: "success", version: 1 }; await action.savePipeline("mine", valid); assert.equal(refreshes, 1);
 });
 
-if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh build exposes savePipeline", () => assertActions("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", ["savePipeline"]));
+if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh build exposes pipeline Actions but not the private draft model", () => {
+  assertActions("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", ["savePipeline"]);
+  assertActions("src/fsd/features/edit-pipeline/api/automatic-scout.server.ts", ["saveAutomaticScout"]);
+  assert.ok(!manifestEntries().some(entry => entry.filename?.replaceAll("\\", "/").endsWith("src/fsd/features/edit-pipeline/model/pipeline-draft-state.ts")));
+});

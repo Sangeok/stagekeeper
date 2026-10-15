@@ -68,3 +68,16 @@ describe("ProjectBoardPage", () => {
     assert.match(html, /pm<\/b>No new proposals/);
   });
 });
+
+
+it("renders slot work without attributing it to the workspace dev", () => {
+  for (const node of ["doc-auditor", "doc-auditor#2", "feature-scout", "feature-scout#2"]) {
+    for (const dispatched of [false, true]) {
+      const briefing = buildBriefing([row({ key: "S-1", status: "implementing", node, gate: null, dispatched })], TODAY, ["web-dev"], ["plan", "implement", node, "accept"]);
+      const html = renderToStaticMarkup(createElement(ProjectBoardPage, { slug: "sample", briefing }));
+      assert.match(html, /web-dev<\/b>Idle/);
+      assert.ok(html.includes(`${node.split("#")[0]}</b>${dispatched ? "Working on" : "Ready for"} S-1`));
+      assert.ok(html.includes(`/p/sample/items/S-1`));
+    }
+  }
+});

@@ -1262,7 +1262,7 @@ never existed look the same from here.
 - Title **Pipeline**. Version line: "Version 3 · saved 2 days ago · applies to items proposed from
   now on."
 - Without a persisted version: `Default pipeline · not saved yet`. Reading the page never creates a version.
-- A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max.
+- A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max. A retained draft may still be discarded locally, and stale/unknown recovery may still reload the route; neither operation submits a graph.
 - The rail is one row of node cards in graph order. Anchor names: **Propose** · **Plan** ·
   **Verify** · **Implement** · **Accept**; the optional item nodes read **Implementation check** and
   **QA**. Repeatable project-agent slots read **Doc audit** and
@@ -1307,6 +1307,8 @@ never existed look the same from here.
   Before the list: "Before picking an item: Scout when no backlog items are available." or "Before picking an item: automatic scouting is off; add a backlog item to continue."
   When automatic scouting is off, the shared Nothing open detail reads "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab."
   The first-run checklist appends "Then run the pipeline in your coding client, or put the item on the board from the Backlog tab." to that off detail.
+
+A new server snapshot preserves an edited draft and its original save version. A newer persisted version shows the stale recovery below; plan or availability changes immediately restrict editing without erasing the draft. Clean drafts follow the latest snapshot. The version line and Read as text describe the saved server graph, while the rail shows the draft.
 
 Stale saves retain the draft and block automatic refresh or resubmission. A lost
 response does not imply rollback. The explicit recovery button reloads the current route.

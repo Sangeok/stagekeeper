@@ -28,6 +28,8 @@ async function main(): Promise<void> {
   const browserOrigin = "http://127.0.0.1:55452";
   let actionMode = "normal"; const actions: string[] = []; let results: unknown[] = [];
   let reopenMode: "normal" | "before" | "after" = "normal";
+  let pipelineMode: "normal" | "before" | "after" = "normal";
+  const pipelineCalls = { save: 0, scout: 0 };
   const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as {
     node: Record<string, { filename?: string; exportedName?: string }>;
     edge: Record<string, { filename?: string; exportedName?: string }>;
@@ -37,6 +39,11 @@ async function main(): Promise<void> {
     .filter(([, entry]) => entry.filename?.replaceAll("\\", "/").endsWith("src/fsd/features/review-gate/api/review-gate.server.ts") && entry.exportedName === "humanTransition")
     .map(([id]) => id));
   assert.ok(reopenActions.size > 0, "Fresh humanTransition action required");
+  const actionIds = (filename: string, exportedName: string) => new Set([...Object.entries(manifest.node), ...Object.entries(manifest.edge)]
+    .filter(([, entry]) => entry.filename?.replaceAll("\\", "/").endsWith(filename) && entry.exportedName === exportedName).map(([id]) => id));
+  const pipelineActions = actionIds("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", "savePipeline");
+  const scoutActions = actionIds("src/fsd/features/edit-pipeline/api/automatic-scout.server.ts", "saveAutomaticScout");
+  assert.ok(pipelineActions.size > 0 && scoutActions.size > 0, "Fresh pipeline and Scout actions required");
   let releaseAction = () => {};
   let finish!: () => void; const done = new Promise<void>(resolve => { finish = resolve; });
   const browserBundle = await build({ entryPoints: ["tests/server/fixtures/src-clean-code-browser.tsx"], bundle: true, write: false,
@@ -59,6 +66,18 @@ async function main(): Promise<void> {
       if (path === "/arm/reopen-before-once" || path === "/arm/reopen-after-once") {
         reopenMode = path === "/arm/reopen-before-once" ? "before" : "after";
         res.end("Reopen response fault armed once"); return;
+      }
+      if (path === "/arm/pipeline-before-once" || path === "/arm/pipeline-after-once") {
+        pipelineMode = path === "/arm/pipeline-before-once" ? "before" : "after";
+        res.end("Pipeline response fault armed once"); return;
+      }
+      if (path === "/pipeline-state") {
+        const [versions, project] = await Promise.all([
+          db.pipelineVersion.findMany({ where: { projectId: owner!.projectId }, orderBy: { version: "asc" }, select: { version: true, nodes: true, gates: true } }),
+          db.project.findUniqueOrThrow({ where: { id: owner!.projectId }, select: { autoScoutEnabled: true } }),
+        ]);
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ versions, count: versions.length, autoScoutEnabled: project.autoScoutEnabled, calls: pipelineCalls })); return;
       }
       if (path.startsWith("/arm/")) { actionMode = path.slice(5); res.end("armed"); return; }
       if (path.startsWith("/server-fail/")) {
@@ -86,27 +105,31 @@ async function main(): Promise<void> {
           items: await db.boardItem.findMany({ where: { projectId: owner!.projectId }, select: { status: true, updatedAt: true, backlogItem: { select: { key: true } }, events: { select: { to: true, note: true } } } }),
         })); return;
       }
-      if (path === "/owner" || path === "/owner-item") {
+      if (path === "/owner" || path === "/owner-item" || path === "/owner-pipeline") {
         const cookieName = "authjs.session-token";
         const token = await encode({ token: { uid: owner!.userId, name: "fixture" }, secret, salt: cookieName, maxAge: 3600 });
         res.setHeader("set-cookie", `${cookieName}=${token}; Path=/; HttpOnly; SameSite=Lax`);
-        res.writeHead(302, { location: `/p/${owner!.id}/${path === "/owner-item" ? "items/R-1" : "inbox"}` }); res.end(); return;
+        res.writeHead(302, { location: `/p/${owner!.id}/${path === "/owner-item" ? "items/R-1" : path === "/owner-pipeline" ? "pipeline" : "inbox"}` }); res.end(); return;
       }
       const buffers: Buffer[] = []; for await (const chunk of req) buffers.push(Buffer.from(chunk));
       const body = Buffer.concat(buffers); const isAction = !!req.headers["next-action"];
       const mode = isAction ? actionMode : "normal";
       const reopenFault = req.method === "POST" && reopenActions.has(String(req.headers["next-action"])) ? reopenMode : "normal";
       if (reopenFault !== "normal") reopenMode = "normal";
+      const pipelineFault = req.method === "POST" && pipelineActions.has(String(req.headers["next-action"])) ? pipelineMode : "normal";
+      if (pipelineFault !== "normal") pipelineMode = "normal";
+      if (req.method === "POST" && pipelineActions.has(String(req.headers["next-action"]))) pipelineCalls.save++;
+      if (req.method === "POST" && scoutActions.has(String(req.headers["next-action"]))) pipelineCalls.scout++;
       if (isAction) { actions.push(body.toString()); if (mode === "pause") actionMode = "normal"; }
       // A completed, truncated RSC response avoids a transport-level replay of the POST.
-      if (reopenFault === "before") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
+      if (reopenFault === "before" || pipelineFault === "before") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
       if (mode === "before") { req.socket.destroy(); return; }
       if (mode === "pause") await new Promise<void>(resolve => { releaseAction = resolve; });
       const headers = new Headers(); for (const [name, value] of Object.entries(req.headers)) if (value !== undefined && name !== "connection") headers.set(name, Array.isArray(value) ? value.join(", ") : value);
       headers.set("x-forwarded-host", new URL(browserOrigin).host);
       const response = await fetch(`${upstream}${path}`, { method: req.method, headers, redirect: "manual", ...(body.length ? { body } : {}) });
       const content = Buffer.from(await response.arrayBuffer());
-      if (reopenFault === "after") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
+      if (reopenFault === "after" || pipelineFault === "after") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
       if (mode === "after") { req.socket.destroy(); return; }
       res.statusCode = response.status;
       response.headers.forEach((value, name) => { if (!["transfer-encoding", "content-encoding", "content-length"].includes(name)) res.setHeader(name, value); });
@@ -166,7 +189,7 @@ async function main(): Promise<void> {
     for (let attempt = 0; attempt < 100; attempt++) { try { if ((await fetch(`${upstream}/login`)).status === 200) { started = true; break; } } catch { /* Wait for local server. */ } await delay(100); }
     assert.ok(started, "fresh production Next server must start");
     await new Promise<void>(resolve => proxy.listen(55452, "127.0.0.1", resolve));
-    console.log(`Browser acceptance ready: ${browserOrigin}/owner, /owner-item and /fixture?mode=form`);
+    console.log(`Browser acceptance ready: ${browserOrigin}/owner, /owner-item, /owner-pipeline and /fixture?mode=form`);
     await done;
   } finally {
     process.removeListener("SIGINT", interrupt);

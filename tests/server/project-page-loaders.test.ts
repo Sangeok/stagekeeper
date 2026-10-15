@@ -46,6 +46,7 @@ it("Board loader queries all open project runs and binds only null-key project s
     assert.equal(output.activity[0].tone === "active", example.expected, example.label);
     const state = output.team.find(member => member.agent === "doc-auditor")?.state;
     assert.equal(state?.startsWith("Working on"), example.expected, example.label);
+    assert.equal(output.team.find(member => member.agent === "dev")?.state, "Idle", example.label);
   }
 });
 
