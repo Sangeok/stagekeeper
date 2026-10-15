@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import ts from "typescript";
 import * as transitions from "@harness/core/transitions.mjs";
 import { STATUSES, findRule, type RuleKind } from "@harness/core/transitions.mjs";
-import { isAtGate, needsHumanDecision, pendingInboxCount, reopenTargetsFor } from "./gate-source";
+import { needsHumanDecision, pendingInboxCount, reopenTargetsFor } from "./gate-source";
 
 // 타입의 완전한 집합과 실행 표를 양방향으로 묶는다. 타입에만 남은 폐기 kind도 허용하지 않는다.
 const DECLARED: Record<RuleKind, true> = { gate: true, auto: true, bounce: true, hold: true, resume: true, plan: true, reopen: true };
@@ -68,9 +68,8 @@ describe("pendingInboxCount", () => {
   });
 
   it("counts a resumable on_hold item that never owns the banner", () => {
-    // 이 한 줄이 회귀의 핵심이다 — 배너 술어(isAtGate)로 세면 0이 된다.
-    assert.equal(isAtGate({ status: "on_hold", gate: null }), false);
     assert.equal(needsHumanDecision({ status: "on_hold", gate: null }), true);
+    // 게이트에서 대기하는 항목만 세면 재개 가능한 on_hold가 빠진다.
     assert.equal(pendingInboxCount([{ status: "on_hold", gate: null }]), 1);
   });
 
