@@ -1,65 +1,62 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { defaultGraph } from "@harness/core/pipeline.mjs";
-import { savePipelineVersion } from "../../../src/server/pipeline/version-save-query";
-import { ensureCurrentVersion } from "../../../src/server/pipeline/run-query";
-import { cleanup, connections, fixture, ordered } from "./support";
+import { savePipelineDefinition } from "../../../src/server/pipeline/definition-save-query";
+import { ensureRun } from "../../../src/server/pipeline/run-query";
+import { checkpoint, cleanup, connections, fixture } from "./support";
 
-it("two real saves reading the same persisted/zero baseline append once under a read barrier", async () => {
-  const pool = connections(); const [first, second] = pool.all;
-  let userId: string | undefined;
+it("two real saves serialize on owner/project locks and the loser is stale at zero and persisted baselines, in both orders", async () => {
+  const pool = connections();
   try {
-    const f = await fixture(first, { plan: "pro" }); userId = f.userId;
-    for (const baseline of [0, 1]) {
-      const meet = ordered();
-      // Prisma extensions preserve these delegates at runtime but carry different generic types.
-      const hooked = (db: typeof first, hook: () => Promise<void>) => db.$extends({ query: { pipelineVersion: { async findFirst({ args, query }) { const row = await query(args); await hook(); return row; } } } }) as unknown as typeof db;
-      const input = { projectId: f.projectId, userId: f.userId, graph: defaultGraph("pro"), expectedVersion: baseline };
-      const winner = savePipelineVersion(hooked(first, meet.winner), input);
-      const loser = savePipelineVersion(hooked(second, meet.loser), { ...input, graph: { ...input.graph, gates: [] } });
-      try { assert.deepEqual(await winner, { status: "success", version: baseline + 1 }); } finally { meet.finish(); }
-      assert.deepEqual(await loser, { status: "stale" });
-      const rows = await first.pipelineVersion.findMany({ where: { projectId: f.projectId }, orderBy: { version: "asc" } });
-      assert.equal(rows.length, baseline + 1); assert.deepEqual(rows.at(-1)?.gates, input.graph.gates);
-      assert.deepEqual(await savePipelineVersion(first, input), { status: "stale" });
+    for (const winnerIndex of [0, 1]) {
+      const winner = pool.all[winnerIndex], loser = pool.all[1 - winnerIndex];
+      const f = await fixture(winner, { plan: "pro" });
+      try {
+        const graph = defaultGraph("pro"), pipelineId = `default_${f.projectId}`;
+        for (const baseline of [0, 1]) {
+          const held = checkpoint(), reached = checkpoint();
+          const first = winner.$extends({ query: { pipelineDefinition: { async create({ args, query }) { await held.hook(); return query(args); } } } }) as unknown as typeof winner;
+          const second = loser.$extends({ query: { project: { async findUnique({ args, query }) { const row = await query(args); await reached.hook(); return row; } } } }) as unknown as typeof loser;
+          const input = { projectId: f.projectId, userId: f.userId, pipelineId, definition: { steps: graph.nodes, gates: graph.gates }, expectedVersion: baseline };
+          const saving = savePipelineDefinition(first, input);
+          let competing: ReturnType<typeof savePipelineDefinition> | undefined;
+          try {
+            await held.entered();
+            competing = savePipelineDefinition(second, { ...input, definition: { ...input.definition, gates: [] } });
+            await reached.entered(); reached.release(); held.release();
+            assert.deepEqual(await saving, { status: "success", pipelineId, version: baseline + 1 });
+            assert.deepEqual(await competing, { status: "stale" });
+            assert.equal(await winner.pipelineDefinition.count({ where: { pipelineId } }), baseline + 1);
+            assert.equal(await winner.pipelineVersion.count({ where: { projectId: f.projectId } }), 1, "unchanged executable graph is reused");
+          } finally { reached.release(); held.release(); await Promise.allSettled([saving, competing]); }
+        }
+      } finally { await cleanup(winner, f.userId); }
     }
-  } finally { await cleanup(first, userId); await pool.disconnect(); }
+  } finally { await pool.disconnect(); }
 });
 
-it("baseline-zero save cannot overwrite a concurrently materialized default", async () => {
+it("baseline-zero save and materialization preserve whichever obtains the shared lock first", async () => {
   const pool = connections(); const [first, second] = pool.all;
-  let userId: string | undefined;
   try {
-    const f = await fixture(first, { plan: "pro" }); userId = f.userId;
-    let read!: () => void; let release!: () => void;
-    const observed = new Promise<void>(resolve => { read = resolve; }); const gate = new Promise<void>(resolve => { release = resolve; });
-    const hooked = first.$extends({ query: { pipelineVersion: { async findFirst({ args, query }) { const row = await query(args); read(); await gate; return row; } } } }) as unknown as typeof first;
-    const save = savePipelineVersion(hooked, { projectId: f.projectId, userId: f.userId, graph: { ...defaultGraph("pro"), gates: [] }, expectedVersion: 0 });
-    await observed;
-    try { await ensureCurrentVersion(second, f.projectId); } finally { release(); }
-    assert.deepEqual(await save, { status: "stale" });
-    const rows = await first.pipelineVersion.findMany({ where: { projectId: f.projectId } });
-    assert.equal(rows.length, 1); assert.equal(rows[0].createdBy, "pipeline"); assert.deepEqual(rows[0].gates, defaultGraph("pro").gates);
-  } finally { await cleanup(first, userId); await pool.disconnect(); }
-});
-
-it("a default materializer cannot replace a baseline-zero save that commits first", async () => {
-  const pool = connections(); const [first, second] = pool.all;
-  let userId: string | undefined;
-  let release!: () => void;
-  try {
-    const f = await fixture(first, { plan: "pro" }); userId = f.userId;
-    let read!: () => void;
-    const observed = new Promise<void>(resolve => { read = resolve; });
-    const gate = new Promise<void>(resolve => { release = resolve; });
-    // Pause after the real SQL read; only ordering is simulated.
-    const hooked = second.$extends({ query: { pipelineVersion: { async findFirst({ args, query }) { const row = await query(args); read(); await gate; return row; } } } }) as unknown as typeof second;
-    const materialize = ensureCurrentVersion(hooked, f.projectId);
-    await observed;
-    const graph = { ...defaultGraph("pro"), gates: [] };
-    try { assert.deepEqual(await savePipelineVersion(first, { projectId: f.projectId, userId: f.userId, graph, expectedVersion: 0 }), { status: "success", version: 1 }); } finally { release(); }
-    const current = await materialize;
-    assert.equal(current.createdBy, f.userId); assert.deepEqual(current.gates, []);
-    assert.equal(await first.pipelineVersion.count({ where: { projectId: f.projectId } }), 1);
-  } finally { release?.(); await cleanup(first, userId); await pool.disconnect(); }
+    for (const saveFirst of [true, false]) {
+      const f = await fixture(first, { plan: "pro" });
+      const held = checkpoint(), reached = checkpoint();
+      // The first project read precedes locks; park the loser there and let the winner commit.
+      const waiting = second.$extends({ query: { project: { async findUnique({ args, query }) { const row = await query(args); await held.hook(); return row; } } } }) as unknown as typeof second;
+      const graph = defaultGraph("pro"), pipelineId = `default_${f.projectId}`;
+      const input = { projectId: f.projectId, userId: f.userId, pipelineId, definition: { steps: graph.nodes, gates: [] }, expectedVersion: 0 };
+      const delayed = saveFirst ? ensureRun(waiting, f.projectId, f.boardItemId, "in_review", false) : savePipelineDefinition(waiting, input);
+      try {
+        await held.entered();
+        if (saveFirst) assert.equal((await savePipelineDefinition(first, input)).status, "success");
+        else await ensureRun(first, f.projectId, f.boardItemId, "in_review", false);
+        held.release();
+        const result = await delayed;
+        if (!saveFirst) assert.deepEqual(result, { status: "stale" });
+        const versions = await first.pipelineVersion.findMany({ where: { projectId: f.projectId } });
+        assert.equal(versions.length, 1); assert.deepEqual(versions[0].gates, saveFirst ? [] : graph.gates);
+        assert.equal(await first.pipelineDefinition.count({ where: { pipelineId } }), 1);
+      } finally { held.release(); reached.release(); await Promise.allSettled([delayed]); await cleanup(first, f.userId); }
+    }
+  } finally { await pool.disconnect(); }
 });

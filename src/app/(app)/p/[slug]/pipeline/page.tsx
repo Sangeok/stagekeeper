@@ -1,18 +1,18 @@
 import { allowsPipelineEdit } from "@harness/core/pipeline.mjs";
-import { saveAutomaticScout, savePipeline } from "@/fsd/features/edit-pipeline/index.server";
+import { saveAutomaticScout, savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, setAutomaticPickAction } from "@/fsd/features/edit-pipeline/index.server";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { projectAccess } from "@/server/entitlement";
 import { loadProjectRoster } from "@/server/project";
-import { loadCurrentVersionView } from "@/server/pipeline/run";
+import { loadPipelinesView } from "@/server/pipeline/run";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) {
   const { slug } = await params;
   const { projectId } = await requireProjectOwner(slug);
 
-  const [version, access, roster, project] = await Promise.all([
-    loadCurrentVersionView(prisma, projectId),
+  const [view, access, roster, project] = await Promise.all([
+    loadPipelinesView(prisma, projectId),
     projectAccess(projectId),
     loadProjectRoster(prisma, projectId),
     prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } }),
@@ -20,9 +20,9 @@ export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) 
 
   return (
     <ProjectPipelinePage
-      graph={version.graph}
-      format={version.format}
-      saved={version.persisted ? { version: version.persisted.version, at: version.persisted.createdAt } : undefined}
+      projectId={projectId}
+      {...view}
+      actions={{ archive: archivePipelineAction.bind(null, slug), rename: renamePipelineAction.bind(null, slug), setDefault: setDefaultPipelineAction.bind(null, slug), setRule: setPipelineRuleAction.bind(null, slug), setAutomaticPick: setAutomaticPickAction.bind(null, slug) }}
       now={new Date()}
       plan={access.plan}
       roster={roster}

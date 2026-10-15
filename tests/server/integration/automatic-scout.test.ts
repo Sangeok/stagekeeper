@@ -14,13 +14,14 @@ it("Free owners can disable and re-enable automatic scouting without changing th
     f = await fixture(db);
     const initial = await headFor(db, f.projectId, 0, 0, false);
     assert.equal(initial.action, "dispatch");
-    const graph = await db.pipelineVersion.findFirstOrThrow({ where: { projectId: f.projectId } });
+    const count = async () => Promise.all([db.pipeline.count({ where: { projectId: f!.projectId } }), db.pipelineDefinition.count({ where: { pipeline: { projectId: f!.projectId } } }), db.pipelineVersion.count({ where: { projectId: f!.projectId } })]);
+    assert.deepEqual(await count(), [0, 0, 0]);
     const write = (enabled: boolean) => setAutomaticScout(db, { projectId: f!.projectId, userId: f!.userId, enabled });
     assert.deepEqual(await write(false), { ok: true, item: false });
     assert.deepEqual(await headFor(db, f.projectId, 0, 0, false), { action: "none", reason: AUTO_SCOUT_DISABLED_REASON });
     const pm = await headFor(db, f.projectId, 0, 1, false);
     assert.equal(pm.action, "dispatch"); if (pm.action === "dispatch") assert.equal(pm.agent, "pm");
-    assert.deepEqual(await db.pipelineVersion.findFirstOrThrow({ where: { projectId: f.projectId } }), graph);
+    assert.deepEqual(await count(), [0, 0, 0]);
     assert.deepEqual(await write(true), { ok: true, item: true });
     assert.equal((await headFor(db, f.projectId, 0, 0, false)).action, "dispatch");
   } finally { await cleanup(db, f?.userId); await pool.disconnect(); }

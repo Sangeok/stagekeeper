@@ -1,5 +1,5 @@
 // 순수. DB·프레임워크 없음(board-rules.ts와 같은 층). run.ts가 읽은 사실로 pipeline_next의 답 하나를 정한다.
-import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON, AUTO_PROPOSE_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import { canPropose } from "@harness/core/transitions.mjs";
 
 // 응답 — 항목 하나의 다음 일. 세션은 이 값을 읽고 그 턴에 행동한다(런북 "The cycle").
@@ -100,7 +100,7 @@ export type HeadInput = {
   hasResumableScoutRun?: boolean;
   scoutedSinceChange: boolean;
   scoutNodePending: boolean;
-  hasPropose: boolean;   // 현재 버전의 nodes에 propose가 있는가
+  autoProposeEnabled: boolean; // Project.autoProposeEnabled — 옛 propose 노드를 대신하는 설정
   openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
   availableBacklog: number; // 최신 행이 미결도 보류도 아닌 백로그 항목 수(countPickable) — pm이 고를 수 있는 것
   cap: UsageLimitFailure | null;
@@ -120,7 +120,7 @@ export function decideHead(i: HeadInput): HeadNext {
     if (i.cap !== null && !i.hasResumableScoutRun) return { action: "none", reason: i.cap.reason, code: i.cap.code, resetAt: i.cap.resetAt };
     return { action: "dispatch", agent: "feature-scout", hint: HINT.scoutHead };
   }
-  if (!i.hasPropose) return { action: "none", reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" };
+  if (!i.autoProposeEnabled) return { action: "none", reason: AUTO_PROPOSE_DISABLED_REASON };
   if (i.cap !== null && !i.hasResumablePmRun) return { action: "none", reason: i.cap.reason, code: i.cap.code, resetAt: i.cap.resetAt };
   return { action: "dispatch", agent: "pm", hint: HINT.propose };
 }

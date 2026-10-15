@@ -2,18 +2,20 @@ import { randomUUID } from "node:crypto";
 import { allowsSessionApprovals, capError } from "@harness/core/entitlement.mjs";
 import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/backlog.mjs";
 import { readProjectAccessIn, readProjectPlanIn } from "../project-access-query";
-import { advance, cursorForStatus, gateId, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { advance, sequence, routePipeline, cursorForStatus, gateId, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import { hasActiveLegacyScoutSlot } from "../automatic-scout";
 import { isOpen } from "@harness/core/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem, type AcceptanceFailure } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
-import { ensureRun, readFacts, type Graph, type GateEntry } from "./run-query";
+import { ensureRunIn, ensureDefaultPipeline, ensureRunnableVersion, PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND, readFacts, type Graph, type GateEntry } from "./run-query";
 import { countPickable, decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, MAIN_LOOP, PLAN_VERIFIER } from "./board-rules";
 import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryRecord, type HistoryView } from "./history-page";
 import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
 import { parseQaReport } from "@harness/core/qa.mjs";
 import { implementationReport } from "./qa-query";
 import { IMPL_VERIFIER, IMPL_VERIFY_PENDING, implVerifierReportPath } from "./impl-verify-query";
+
+import { PipelineRejection, rethrowPipelineConflict } from "./lock-query";
 
 export type { ServerResult } from "@/server/result";
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
@@ -26,7 +28,7 @@ function reportFailure<Args extends unknown[], Result>(action: (...args: Args) =
   return async (...args: Args): Promise<Result | ServerResult<never>> => {
     try { return await action(...args); }
     catch (error) {
-      if (error instanceof BoardRejection) return fail(error.message);
+      if (error instanceof BoardRejection || error instanceof PipelineRejection) return fail(error.message);
       throw error;
     }
   };
@@ -47,6 +49,12 @@ export type Caller =
 export type Proposer = { actor: "agent"; actorRef: string } | { actor: "human"; actorRef: string; channel: Channel };
 
 // 항목별 최신 행 = backlogItemId마다 proposedOn 최대. 폐기 행은 없는 것으로 친다.
+export const PIPELINE_CHANGE_UNAVAILABLE = "The pipeline can change only while the item is proposed and nothing has run on it yet.";
+
+// Proposed 항목의 파이프라인을 바꾼다(소유자, 웹). 이 런에 묶인 에이전트 실행이 없을 때만 — 그래야 버려지는 실행 증거가 없다.
+// plan 앞 프로젝트 슬롯이 이미 돌았으면 Proposed여도 바꾸지 않는다. 옛 형식(format null) 런은 실행이 런에 묶이지 않아 판정할 수 없으므로 거부한다.
+// 새 파이프라인의 현재 실행 판으로 다시 고정하고 새 항목처럼 머리에 선 뒤 전진한다. 원장에는 같은 상태의 이벤트 한 줄.
+
 export function createBoardQueries(prisma: PrismaClient) {
 async function inProjectTransaction<Result>(projectId: string, work: (tx: Prisma.TransactionClient) => Promise<Result>, options?: { isolationLevel: "Serializable" }) {
   return prisma.$transaction(async (tx) => {
@@ -58,7 +66,7 @@ async function inProjectTransaction<Result>(projectId: string, work: (tx: Prisma
     const result = await work(tx);
     if (isRejection(result)) throw new BoardRejection(result.reason);
     return result;
-  }, { timeout: BOARD_TRANSACTION_TIMEOUT_MS, ...options });
+  }, { timeout: BOARD_TRANSACTION_TIMEOUT_MS, ...options }).catch(rethrowPipelineConflict);
 }
 // Both writers share the owner -> project locks with run closure and plan changes.
 async function addBacklog(projectId: string, input: {
@@ -132,6 +140,41 @@ async function removeBacklog(projectId: string, key: string): Promise<ServerResu
     }
     throw error;
   }
+}
+
+async function changePipeline(projectId: string, input: { key: string; pipelineId: string; userId: string; expectedUpdatedAt: Date }): Promise<ServerResult<null>> {
+  return inProjectTransaction(projectId, async (tx) => {
+    const owner = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { ownerUserId: true } });
+    if (owner.ownerUserId !== input.userId) throw new BoardRejection("pipeline change access denied");
+    const row = await latestRow(tx, projectId, input.key);
+    if (!row) return fail(`no such board item: ${input.key}`);
+    if (row.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) throw new BoardRejection("stale");
+    if (row.status !== "proposed") throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
+    const run = await tx.pipelineRun.findUnique({ where: { boardItemId: row.id }, include: { version: true } });
+    if (!run) throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
+    if (run.closedAt || run.version.format !== SLOT_FORMAT) throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
+    if (await tx.agentRun.findFirst({ where: { pipelineRunId: run.id }, select: { id: true } })) throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
+    const unrunnable = await runnableReason(tx, projectId, input.pipelineId);
+    if (unrunnable !== null) throw new BoardRejection(unrunnable);
+    const version = await ensureRunnableVersion(tx, projectId, input.pipelineId);
+    if (version.id === run.version.id) return { ok: true as const, item: null };
+    const claimed = await tx.boardItem.updateMany({
+      where: { id: row.id, updatedAt: input.expectedUpdatedAt, status: row.status, discardedAt: null },
+      data: { updatedAt: nextTimestamp(row.updatedAt) },
+    });
+    if (claimed.count !== 1) throw new BoardRejection("stale");
+    const graph: Graph = { nodes: version.nodes, gates: version.gates };
+    await tx.pipelineRun.update({ where: { id: run.id }, data: {
+      versionId: version.id, node: sequence(graph)[0], entryId: version.format === SLOT_FORMAT ? randomUUID() : null, enteredAt: new Date(), closedAt: null,
+    } });
+    await tx.transitionEvent.create({ data: {
+      boardItemId: row.id, from: row.status, to: row.status, actor: "human", actorId: input.userId, channel: "web",
+      note: `pipeline-changed:${run.version.id}:${version.id}`,
+    } });
+    // 새 그래프의 머리에 before-plan 게이트가 없으면 여기서 planning으로 넘는다 — propose와 같은 규칙.
+    await advanceRun(tx, projectId, input.key);
+    return { ok: true as const, item: null };
+  });
 }
 
 async function latestBoard(projectId: string, openOnly = false, db: Db = prisma) {
@@ -297,7 +340,8 @@ async function currentRoundIds(projectId: string, keys: readonly string[]): Prom
 // 미결 상한(2)은 "세고 나서 만든다" — READ COMMITTED에서는 두 호출자가 같은 수를 읽고 둘 다 만들 수 있다.
 // 스펙이 이 상한을 서버 강제로 규정하므로(불변식·pm 규칙) 이 트랜잭션만 Serializable로 올린다.
 // 충돌 시 Postgres가 40001로 실패시키고, 도구는 그 오류를 그대로 반환한다(에이전트는 다시 부르면 된다).
-async function propose(projectId: string, input: { key: string; agent: string; reason: string }, by: Proposer) {
+// 파이프라인: 웹은 고른 것(미리 선택은 규칙 결과), pm은 type 규칙 → 기본(결정 6). MCP board_propose 입력에는 pipelineId가 없다.
+async function propose(projectId: string, input: { key: string; agent: string; reason: string; pipelineId?: string }, by: Proposer) {
   return inProjectTransaction(projectId, async (tx) => {
     const backlog = await tx.backlogItem.findUnique({ where: { projectId_key: { projectId, key: input.key } } });
     const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
@@ -311,15 +355,36 @@ async function propose(projectId: string, input: { key: string; agent: string; r
       openCount: open.length, roster, agent: input.agent, reason: input.reason,
     });
     if (!d.ok || !backlog) return fail(d.ok ? "no such backlog item" : d.reason);
+    await ensureDefaultPipeline(tx, projectId);
+    const pipelineId = by.actor === "human" && input.pipelineId !== undefined
+      ? input.pipelineId : await routedPipelineId(tx, projectId, backlog.type);
+    const unrunnable = await runnableReason(tx, projectId, pipelineId);
+    if (unrunnable !== null) return fail(unrunnable);
     const item = await tx.boardItem.create({
       data: { projectId, backlogItemId: backlog.id, agent: input.agent, status: "proposed", reason: input.reason,
         events: { create: { from: null, to: "proposed", actor: by.actor, actorId: by.actorRef, channel: by.actor === "human" ? by.channel : null } } },
     });
-    // 런은 항목과 같은 트랜잭션에서 머리에 선다. 게이트 없는 before-plan이면 여기서 바로 planning으로 넘는다.
-    await ensureRun(tx, projectId, item.id, "proposed", true);
+    // 런은 항목과 같은 트랜잭션에서 고른 파이프라인의 실행 판 머리에 선다. 게이트 없는 before-plan이면 여기서 바로 planning으로 넘는다.
+    await ensureRunIn(tx, projectId, item.id, "proposed", true, pipelineId);
     await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: item.id } }) };
   }, { isolationLevel: "Serializable" });
+}
+
+// type 규칙 → 기본(core routePipeline). 기본 파이프라인 행이 없으면 여기서 만든다 — 이 경로는 프로젝트 잠금 안이다.
+async function routedPipelineId(tx: Prisma.TransactionClient, projectId: string, type: string | null): Promise<string> {
+  const defaultId = await ensureDefaultPipeline(tx, projectId);
+  const rules = await tx.pipelineRule.findMany({ where: { projectId }, select: { type: true, pipelineId: true } });
+  return routePipeline(type, Object.fromEntries(rules.map((r) => [r.type, r.pipelineId])), defaultId);
+}
+
+// 항목에 붙을 수 있으면 null — 비보관이고, 실행 판이 있거나 아직 물질화되지 않은 기본 파이프라인이다.
+// 없거나 다른 프로젝트·보관이면 PIPELINE_NOT_FOUND, 조각이면 PIPELINE_CANNOT_RUN_ITEMS(§8 문구 표, 정의 저장·설정과 같은 사유).
+async function runnableReason(tx: Prisma.TransactionClient, projectId: string, pipelineId: string): Promise<string | null> {
+  const pipeline = await tx.pipeline.findFirst({ where: { id: pipelineId, projectId, archivedAt: null },
+    select: { versions: { select: { id: true }, take: 1 }, defaultOf: { where: { id: projectId }, select: { id: true } } } });
+  if (pipeline === null) return PIPELINE_NOT_FOUND;
+  return pipeline.versions.length > 0 || pipeline.defaultOf.length > 0 ? null : PIPELINE_CANNOT_RUN_ITEMS;
 }
 
 async function transitionIn(
@@ -332,7 +397,7 @@ async function transitionIn(
   // 무해한 성공으로 둔다. 결과를 실은 호출은 기록할 것이 있으므로 그대로 판정으로 보낸다.
   if (isNoopTransition(row.status, input.to, input.result)) return { ok: true as const, item: row };
   if (caller.actor === "pipeline" && input.to === "done") {
-    const run = await ensureRun(tx, projectId, row.id, row.status, false);
+    const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
     const walked = advance(run.version, run.node, await readFacts(tx, projectId, row, run));
     if (run.closedAt || caller.actorRef !== `pipeline:${run.version.id}` || input.result !== "Implementation span completed." || !walked.transitions.some((t: { to: string }) => t.to === "done")) return fail("implementation span is not complete");
   }
@@ -412,7 +477,7 @@ async function gate(
   return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
-    const run = await ensureRun(tx, projectId, row.id, row.status, false);
+    const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
     const access = await readProjectAccessIn(tx, projectId);
     const owner = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { ownerUserId: true } });
     if (!access.available || owner.ownerUserId !== caller.actorRef || (caller.channel === "session" && !allowsSessionApprovals(access.plan))) throw new BoardRejection("gate access denied");
@@ -454,7 +519,7 @@ async function recordValidation(projectId: string, input: { key: string; text: s
   return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
-    const pipeline = await ensureRun(tx, projectId, row.id, row.status, false);
+    const pipeline = await ensureRunIn(tx, projectId, row.id, row.status, false);
     const verifierBinding = pipeline.version.format === SLOT_FORMAT ? { pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId } : { pipelineRunId: null };
     // 벽의 재료: 마지막 plan_submit 시각과, 그 뒤의 plan-verifier verify ok. 조회는 in_review일 때만 한다 — 다른 상태는 첫 검사가 거부한다.
     const lastPlan = row.status === "in_review"
@@ -527,7 +592,7 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
       && await tx.acceptanceFailure.findFirst({ where: { boardItemId: row.id, clearedAt: null }, select: { id: true } }) !== null;
     const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep, acceptanceFailed });
     if (!d.ok) throw new BoardRejection(d.reason);
-    const pipeline = await ensureRun(tx, projectId, row.id, row.status, false);
+    const pipeline = await ensureRunIn(tx, projectId, row.id, row.status, false);
     if (d.value.accepts && !pipeline.closedAt && ["impl-verify", gateId("impl-verify")].includes(pipeline.node)) throw new BoardRejection(IMPL_VERIFY_PENDING);
     if (d.value.accepts && pipeline.version.nodes.includes("qa") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection("QA has not completed; acceptance is only available at accept");
     if (d.value.accepts && pipeline.version.nodes.includes("impl-verify") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection(IMPL_VERIFY_PENDING);
@@ -568,7 +633,7 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
 }
 
 async function acceptanceState(tx: Prisma.TransactionClient, projectId: string, row: BoardItem) {
-  const run = await ensureRun(tx, projectId, row.id, row.status, false);
+  const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
   if (run.version.format !== null && (run.version.format !== SLOT_FORMAT || !run.entryId)) {
     throw new BoardRejection("Unsupported pipeline format or missing entry; update the compatible bundle.");
   }
@@ -624,7 +689,7 @@ async function retryAcceptance(projectId: string,
 async function advanceRun(tx: Db, projectId: string, key: string, approval?: GateEntry) {
   const row = await latestRow(tx, projectId, key);
   if (!row) return;
-  const run = await ensureRun(tx, projectId, row.id, row.status, false);
+  const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
   if (run.closedAt || row.status === "on_hold") return;
   const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
   const facts = await readFacts(tx, projectId, row, run);
@@ -645,7 +710,7 @@ async function advanceRun(tx: Db, projectId: string, key: string, approval?: Gat
 async function resetRun(tx: Db, projectId: string, key: string, status: string) {
   const row = await latestRow(tx, projectId, key);
   if (!row) return;
-  const run = await ensureRun(tx, projectId, row.id, row.status, false);
+  const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
   const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
   const node = cursorForStatus(graph, status);
   await tx.pipelineRun.update({ where: { id: run.id }, data: { node: node ?? run.node, entryId: run.version.format === SLOT_FORMAT ? randomUUID() : null, enteredAt: new Date(), closedAt: null } });
@@ -659,7 +724,7 @@ function closeRun(tx: Db, boardItemId: string) {
   return tx.pipelineRun.updateMany({ where: { boardItemId, closedAt: null }, data: { closedAt: new Date() } });
 }
 
-return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, projectHistory, projectHistoryItems, hasProjectHistoryBefore, currentRoundIds, propose: reportFailure(propose), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), failAcceptance: reportFailure(failAcceptance), retryAcceptance: reportFailure(retryAcceptance), advancePipeline: reportFailure(advancePipeline) };
+return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, projectHistory, projectHistoryItems, hasProjectHistoryBefore, currentRoundIds, propose: reportFailure(propose), changePipeline: reportFailure(changePipeline), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), failAcceptance: reportFailure(failAcceptance), retryAcceptance: reportFailure(retryAcceptance), advancePipeline: reportFailure(advancePipeline) };
 }
 
 function isRejection(value: unknown): value is { ok: false; reason: string } {

@@ -9,11 +9,14 @@ const row = { id: "item", status: "implementing", validation: null, acceptedAt: 
 it("nextFor reads active failures only at the open accept node", async () => {
   for (const [node, closedAt, expected] of [["accept", null, 1], ["accept", new Date(0), 0], ["before-accept", null, 0]] as const) {
     let reads = 0;
-    const db = {
+    const tx = {
+      $queryRaw: async () => [],
+      project: { findUnique: async () => ({ ownerUserId: "owner", repoOwner: "owner", available: true, disconnectedAt: null, ownerUser: { subscription: { plan: "pro" } } }) },
       boardItem: { findFirst: async () => ({ ...row, status: "done", agent: "dev", planCommit: null }) },
       pipelineRun: { findUnique: async () => ({ ...cursor, node, closedAt }) },
       acceptanceFailure: { findFirst: async (args: unknown) => { reads++; assert.deepEqual(args, { where: { boardItemId: "item", clearedAt: null }, select: { checks: true, note: true } }); return { checks: [3], note: "failed" }; } },
-    } as unknown as PrismaClient;
+    };
+    const db = { ...tx, $transaction: async (work: (transaction: typeof tx) => Promise<unknown>) => work(tx) } as unknown as PrismaClient;
     const answer = await nextFor(db, "project", "K");
     assert.equal(reads, expected);
     if (expected) { assert.equal(answer.action, "wait"); assert.ok("on" in answer && answer.on === "acceptance"); }

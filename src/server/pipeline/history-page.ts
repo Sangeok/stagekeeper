@@ -4,6 +4,7 @@ export type HistoryView = "key" | "all";
 export type HistoryCursor = { at: Date; source: "report" | "event"; id: string };
 type HistoryIdentity = { id: string; at: Date; boardItemId: string; key: string };
 export type HistoryEventRecord = HistoryIdentity & {
+  pipelineChange?: { fromName: string; toName: string } | null;
   source: "event"; actor: string; channel: string | null;
   from: string | null; to: string | null; note: string | null;
 };

@@ -49,11 +49,11 @@
   사용자로 한정되는가")은 자격으로 지키고, 판단의 일부가 세션에 있다는 점은 서버 전제와 원장의 `channel`로
   드러낸다.
 - **게이트가 없는 자리의 전이는 서버가 actor `pipeline`으로 넘고 원장에 남긴다.** 불변식 4의 판별 기준은
-  그대로다: 게이트가 **있으면** 사람만 연다. 게이트를 뺀 것은 소유자의 그래프 편집(웹, `PipelineVersion.createdBy`)
+  그대로다: 게이트가 **있으면** 사람만 연다. 게이트를 뺀 것은 소유자의 정의 편집(웹, `PipelineDefinition.createdBy`)
   이고, 자동 전이 행은 `actorId`에 버전 id를 실어 어느 그래프가 넘겼는지 읽힌다. 서버가 쓰려면 두 조건이 다
   맞아야 한다 — 상태 기계의 경계 전이가 허용되고 그래프에 그 자리의 게이트가 없어야 한다. 구현 구간 종료는 별도로, 현재 고정 그래프와 결합 실행 증거를 확인한 뒤 pipeline이 done을 기록한다.
 - **인수는 노드에서 못 뺀다.** 증거 없는 상태 주장 금지가 사는 자리다 — `accept`가 빠지면 `acceptedAt` 없이
-  파이프라인이 끝나는 경로가 생긴다. `validateGraph`가 저장 시점에 막는다.
+  파이프라인이 끝나는 경로가 생긴다. 항목을 받는 펼친 실행 판의 `validateGraph`가 저장 시점에 막는다. 조각 정의에는 이 필수 앵커 규칙을 적용하지 않지만 사용처를 함께 재조립해 실행 가능성을 보존한다.
 - **불변식 8은 행을 지우지 않는 것으로 지킨다.** 폐기는 `BoardItem.discardedAt` 표기이고
   백로그 제거는 `removedAt`과 `removedReason`으로 남긴다(`done`·`owner`·`discarded`).
   Proposed 폐기는 백로그도 제거하며 In review 폐기는 백로그를 유지한다. 행도 `TransitionEvent`도 지우지 않는다.
@@ -78,7 +78,7 @@
 - **연결된 미선택 프로젝트의 연결은 보존한다.** 웹 읽기와 사용 선택·token revoke·연결 해제를 허용하며 그 밖의
   쓰기는 거부한다. agent MCP는 project_get만 허용하고 다른 읽기/쓰기·templates/runbook을 같은 이유로
   거부한다. 이미 access를 통과한 in-flight 요청은 완료될 수 있다. 선택 변경은 token·Workspace·run·cursor를
-  삭제·폐기·종료하지 않는다. page GET은 기본 PipelineVersion도 생성하지 않는다.
+  삭제·폐기·종료하지 않는다. page GET은 기본 Pipeline 행과 PipelineDefinition·PipelineVersion도 생성하지 않는다.
   **이 판정은 프로젝트가 정해진 뒤에 온다.** 사용자 토큰(`hu_`)은 프로젝트를 도구 인자·쿼리로 받으므로
   순서가 소유 확인(`ownerUserId`) → 사용 가능 여부다 — 남의 프로젝트는 잠금 사유가 아니라
   `not the owner of this project`로 떨어지고, 그래서 잠금 사유가 남의 프로젝트 존재를 알리는 창구가 되지 않는다.

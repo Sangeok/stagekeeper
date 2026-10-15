@@ -285,14 +285,16 @@ verify/ok·정상 report/ok로 닫힌 run과 그 run에 묶인 보고가 있어�
 최종 인수는 메인 루프만 한다. Codex 도우미는 아직 이 디스패치를 거부한다. 계약과 배포 순서는
 [impl-verifier.md](./impl-verifier.md)를 따른다.
 
-순서의 단일 출처는 `packages/core/pipeline.mjs`와 그 프로젝트의 `PipelineVersion` 행이다. 런북에는 순서가 없다.
+순서의 단일 출처는 `packages/core/pipeline.mjs`, 편집 원본인 `PipelineDefinition`, 펼친 실행 판인 `PipelineVersion`이다. `Pipeline`은 프로젝트 안에서 이름·보관 상태를 갖고 `PipelineRule`은 항목 type별 선택을 정한다. 런북에는 순서가 없다.
 
-- **앵커와 슬롯.** plan·implement·accept는 각각 한 번이며 순서가 고정된다. propose는 선택이며 맨 앞, verify는 선택이며 plan과 implement 사이다. doc-auditor·feature-scout는 앵커 사이에 반복 배치할 수 있다. 첫 생성은 접미가 없고 이후 #2, #3 등을 배정한다. 이동·다른 슬롯 삭제로 기존 ID를 바꾸지 않는다. doc-audit·scout는 기존 별칭이며 편집 정규화는 연결 게이트도 함께 옮긴다. 기본 그래프와 scout opt-in은 보존한다.
+- **앵커와 슬롯.** plan·implement·accept는 각각 한 번이며 순서가 고정된다. verify는 선택이며 plan과 implement 사이다. 새 정의에는 propose를 저장하지 않는다. doc-auditor·feature-scout는 앵커 사이에 반복 배치할 수 있다. 첫 생성은 접미가 없고 이후 #2, #3 등을 배정한다. 이동·다른 슬롯 삭제로 기존 ID를 바꾸지 않는다. doc-audit·scout는 기존 별칭이며 편집 정규화는 연결 게이트도 함께 옮긴다. 기본 그래프와 scout opt-in은 보존한다.
+- **정의와 연결.** 정의는 steps/gates를 저장한다. `pipeline:<id>`는 같은 프로젝트의 활성 정의를 펼치며 `before-pipeline:<id>`는 펼친 첫 단계 앞 게이트가 된다. 순환·중복·앵커 역순은 거부한다. 앵커가 없는 조각은 다른 Pipeline 안에서 쓸 수 있지만 항목의 기본·규칙·선택 대상은 될 수 없다. 저장은 직접·간접 사용처도 재조립하고, 항목을 받던 사용처가 깨지면 전체를 취소한다. 실행 그래프가 같으면 기존 실행 판을 재사용한다.
+- **자동 선택.** `Project.autoProposeEnabled`는 PM 자동 선택 설정이며 기본값은 true다. Pro·Max 소유자만 Pipeline 탭에서 변경한다. 꺼도 열린 PM 실행은 닫지 않는다. 규칙이 없는 type과 null type은 기본 Pipeline을 사용한다. 웹 Put on the board는 활성 실행 가능 Pipeline을 직접 고를 수 있다. 다운그레이드 후에도 저장된 기본·규칙과 항목 선택은 유지된다.
 - **자동 발굴.** `Project.autoScoutEnabled`는 빈 후보 백로그를 채우는 head scout의 소유자 설정이며 기본값은 true다. Pipeline 탭 시작 부분에 조건부 Scout를 표시하고 Free·Pro·Max 모두 켜거나 끌 수 있다. 항목 그래프의 편집 권한·버전과 독립적이며 변경은 즉시 적용한다. 후보가 없고 꺼져 있으면 head는 `Automatic scouting is off. Add a backlog item, or turn it on in the Pipeline tab.`을 반환한다. 후보가 있으면 pm의 기존 규칙을 따른다.
 - **자동 발굴 중단.** 웹 action은 세션 소유자와 프로젝트 쓰기 접근을 검사하고 `User → Project` 잠금 안에서 설정 저장과 열린 독립 Scout run 종료를 함께 수행한다. 꺼진 동안 독립 Scout `agent_next`는 단계·새 run을 주지 않고, 종료된 run의 `backlog_add`는 거부한다. 이미 전달된 로컬 지시 자체를 취소하지는 않는다. entry에 묶인 Scout 슬롯과 다른 에이전트는 유지한다. 레거시(format=null) 항목의 Scout는 독립 run과 구별되지 않으므로 실제 커서가 Scout에 있을 때 그 공유 run을 보존하고 호출을 허용한다. 레거시 슬롯이 없을 때는 일반 중단 규칙을 적용한다.
 - **자동 발굴 배포.** 먼저 `20261001000000_automatic_scout_control` migration을 적용한 뒤 새 서버를 배포한다. 기존 프로젝트는 true로 유지되고 이전 서버는 추가 컬럼을 무시한다. 새 서버는 컬럼을 읽으므로 migration 없이 실행할 수 없다. 되돌릴 때는 이전 서버로 돌아가고 컬럼을 남긴다. 운영 DB 변경은 별도 배포 작업으로 수행하며 개발·인수 시험은 격리 DB만 사용한다.
 - **게이트.** before-<slotId>는 해당 슬롯 앞 간선이다. before-propose는 없다. before-plan과 before-implement만 승인이 상태 전이를 함께 수행한다. 나머지는 same-status 감사 이벤트다. 새 형식의 승인은 읽어 둔 gateEntry(runId, entryId)를 그대로 제출해야 하며 잠긴 현재 회차에서 한 번만 소비된다. 과거 이벤트나 같은 timestamp는 재승인 근거가 아니다.
-- **버전과 회차.** 새 PipelineVersion.format은 slots-v1, 기존 행은 null이다. 항목은 시작한 버전에 고정된다. PipelineRun.entryId는 진입·reset마다 새로 생성한다. 기존 행의 nodes/gates를 backfill하지 않는다. 알 수 없는 형식은 거부한다. GET은 버전을 생성하지 않는다.
+- **버전과 회차.** 새 PipelineVersion.format은 slots-v1, 기존 행은 null이다. 실행 판 번호는 프로젝트 전체의 증가 일련번호이고 정의 번호는 Pipeline별로 증가한다. 항목은 시작한 실행 판에 고정된다. 예외는 Proposed·slots-v1·열린 런이며 그 런에 묶인 AgentRun이 하나도 없는 경우다. 소유자의 웹 Change pipeline이 User → Project 잠금과 expectedUpdatedAt CAS 아래 다른 Pipeline의 현재 실행 판으로 다시 고정하고, 새 entryId로 머리에서 시작한다. 같은 상태 이벤트 `pipeline-changed:<옛 판 id>:<새 판 id>`를 human/web으로 남기고 필요하면 별도 자동 전이를 기록한다. 이후 pipeline_next의 version·entry도 새 판을 가리킨다. 이 변경은 두 MCP 서버에 없다. PipelineRun.entryId는 진입·reset마다 새로 생성한다. 기존 행의 nodes/gates를 backfill하지 않는다. 알 수 없는 형식은 거부한다. GET과 head 조회는 Pipeline·정의·실행 판을 생성하지 않는다. 첫 쓰기는 가상 기본을 지연 생성하며, 모든 쓰기는 User → Project 순서로 잠근 뒤 접근·플랜을 재검사한다.
 - **실행 결합.** 새 dispatch 응답의 entry={runId,entryId,slotId}는 PipelineRun을 식별한다. agent_next는 이 entry에 결합하고 응답에 실제 agentRunId와 receipt={runId,revision,stepId}를 준다. 모든 outcome은 응답 receipt를 그대로 제출하며, 결합 실행은 entry도 함께 제출한다. agentRunId·stepId는 선택적 호환 필드이며 제출하면 receipt와 일치해야 한다. 현재 회차·단계·revision이 다르면 쓰기 전에 거부한다. 프로젝트 에이전트는 entry가 있어도 key를 생략한다. 항목 생성 전 PM은 결합 없는 실행이다.
 - **완료 증거.** plan_submit은 planning→in_review를 같은 transaction에서 처리한다. verify는 validation_record로 완료한다. implement는 같은 AgentRun의 verify/ok, 결합 Report, 정상 report/ok 종료가 모두 필요하다. hold 보고는 완료가 아니다. 프로젝트 슬롯은 정확한 entry의 닫힌 AgentRun으로 완료한다. 다음 슬롯 진입에서는 이전 슬롯의 사실을 재사용하지 않는다.
 - **구간 종료와 인수.** 구현 구간의 마지막 슬롯을 지난 뒤, before-accept를 기다리기 전에 서버가 pipeline:<versionId>로 done을 기록하고 result에 "Implementation span completed."를 추가한다. agent의 done 전이는 없다. accept는 acceptedAt이라는 별도 증거이며 생략할 수 없다. 인수 뒤 슬롯도 계속 진행한다.
@@ -398,7 +400,7 @@ our hole은 관측과 코드 확정을 구분한 `file:line`을 적는다. `Effe
   그 다음 자동 발굴 설정을 검사하며 꺼져 있으면 사람이 백로그를 추가하도록 안내한다.
   마지막 추가·제거 시각 뒤 report/ok 수락 원장과 함께 닫힌 scout run이 있으면 다시 부르지 않는다.
   그래프에 묶인 scout 완료도 이 판정에 포함하며, 도중 닫힌 run은 포함하지 않는다.
-  후보가 있으면 Propose 노드 여부와 dispatch 상한을 본다. head scout는 Propose 노드 없이도 돈다.
+  후보가 있으면 PM 자동 선택 설정과 dispatch 상한을 본다. head scout는 PM 자동 선택 설정과 상관없이 돈다.
   dispatch 상한에서도 선택된 agent의 열린 단독 run은 재개할 수 있다. 그래프 슬롯 run은 head가 이어받지 않는다.
   head scout는 entry 없이 receipt만 사용하고, 그래프 Scout는 기존 slot 결합 규칙을 따른다.
 

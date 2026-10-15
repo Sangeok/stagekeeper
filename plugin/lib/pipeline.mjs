@@ -44,38 +44,72 @@ export function nodeAllowed(plan, kind) {
 }
 // 선택 노드 — 기본 그래프에 넣지 않는다(Pipeline 탭에서 넣는다). scout·qa는 서버가 모르는 harness.json 설정에 달렸고, impl-verify는 항목마다 검증 비용을 더한다.
 export const OPT_IN_NODES = ["scout", "impl-verify", "qa"];
-// 기본 그래프 = 골격에서 플랜 밖 노드와 opt-in 노드를 뺀 것 + 게이트 둘. Free: propose·plan·implement·accept (verify·doc-audit 없음).
+// 정의에 넣을 수 있는 노드 = 골격에서 propose를 뺀 것. propose는 옛 판을 읽으려고 NODE_KINDS에 남고, 지금은 프로젝트 설정(autoProposeEnabled)이다.
+export const STEP_KINDS = NODE_KINDS.filter((k) => k !== "propose");
+// 기본 그래프 = 정의 노드에서 플랜 밖 노드와 opt-in 노드를 뺀 것 + 게이트 둘. Free: plan·implement·accept (verify·doc-audit 없음).
 export function defaultGraph(plan) {
-  return { nodes: NODE_KINDS.filter((k) => nodeAllowed(plan, k) && !OPT_IN_NODES.includes(k)), gates: [...DEFAULT_GATES] };
+  return { nodes: STEP_KINDS.filter((k) => nodeAllowed(plan, k) && !OPT_IN_NODES.includes(k)), gates: [...DEFAULT_GATES] };
 }
 export function allowsPipelineEdit(plan) { return limitsFor(plan).pipelineEdit; }
 
-// 저장 전 검증. 사유는 화면에 그대로 보인다(product-copy.md §12).
+export const PROPOSE_SETTING_REASON = "propose is no longer a node — turn on Automatic picking in the Pipeline tab";
+
+// 순서 규칙 — 두 노드가 다 있을 때만 본다. 표의 순서가 사유의 우선순위다(예전 validateGraph가 검사하던 순서).
+// 앵커가 다 있는 그래프에서는 이 아홉 짝이 plan·verify·implement·impl-verify·qa·accept의 전순서를 이미 강제한다.
+const ORDER = [
+  ["plan", "implement", "anchors must keep the order plan · implement · accept"],
+  ["implement", "accept", "anchors must keep the order plan · implement · accept"],
+  ["plan", "verify", "verify must be between plan and implement"],
+  ["verify", "implement", "verify must be between plan and implement"],
+  ["implement", "impl-verify", "impl-verify must be between implement and accept"],
+  ["impl-verify", "accept", "impl-verify must be between implement and accept"],
+  ["implement", "qa", "qa must be between implement and accept"],
+  ["qa", "accept", "qa must be between implement and accept"],
+  ["impl-verify", "qa", "impl-verify must come before qa"],
+];
+const RANK = ["plan", "verify", "implement", "impl-verify", "qa", "accept"];
+function orderReason(nodes) {
+  for (const [first, then, reason] of ORDER) {
+    const a = nodes.indexOf(first), b = nodes.indexOf(then);
+    if (a >= 0 && b >= 0 && a > b) return reason;
+  }
+  // 조각에서만 걸리는 짝(예: [accept, plan]처럼 사이 노드가 없는 경우). 앵커가 다 있으면 위 아홉 짝이 먼저 같은 결론을 낸다.
+  const ranked = nodes.filter((id) => RANK.includes(id));
+  for (let i = 1; i < ranked.length; i++) {
+    if (RANK.indexOf(ranked[i - 1]) > RANK.indexOf(ranked[i])) return `${ranked[i]} must come before ${ranked[i - 1]}`;
+  }
+  return null;
+}
+function aliasReason(nodes) {
+  for (const [alias, agent] of [["doc-audit", "doc-auditor"], ["scout", "feature-scout"]]) {
+    const slots = nodes.filter((id) => slotAgent(id) === agent);
+    if (slots.includes(alias) && slots.length > 1) return `don't mix ${alias} with ${agent} slots`;
+  }
+  return null;
+}
+function gateReason(steps, gates) {
+  if (new Set(gates).size !== gates.length) return "a gate appears twice";
+  for (const g of gates) {
+    const k = gateKind(g);
+    if (k === null || !steps.includes(k)) return `gate ${g} has no node after it`;
+  }
+  return null;
+}
+
+// 항목에 붙일 수 있는 그래프인가 — 실행 판(펼친 결과)의 검증. 사유는 화면에 그대로 보인다(product-copy.md §12).
 export function validateGraph(graph, plan) {
   const { nodes, gates } = graph ?? {};
   if (!Array.isArray(nodes) || !Array.isArray(gates)) return { ok: false, reason: "graph must have nodes and gates" };
   if (![...nodes, ...gates].every((id) => typeof id === "string")) return { ok: false, reason: "slot and gate ids must be strings" };
   if (new Set(nodes).size !== nodes.length) return { ok: false, reason: "a node appears twice" };
-  for (const k of nodes) if (!NODE_KINDS.includes(k) && !PROJECT_AGENTS.includes(slotAgent(k))) return { ok: false, reason: `unknown node: ${k}` };
+  for (const k of nodes) {
+    if (k === "propose") return { ok: false, reason: PROPOSE_SETTING_REASON };
+    if (!NODE_KINDS.includes(k) && !PROJECT_AGENTS.includes(slotAgent(k))) return { ok: false, reason: `unknown node: ${k}` };
+  }
   for (const k of REQUIRED_NODES) if (!nodes.includes(k)) return { ok: false, reason: `${k} can't be removed` };
   for (const k of nodes) if (!nodeAllowed(plan, k)) return { ok: false, reason: `${k} is not on the ${plan} plan` };
-  const planAt = nodes.indexOf("plan"), implementAt = nodes.indexOf("implement"), acceptAt = nodes.indexOf("accept");
-  if (!(planAt < implementAt && implementAt < acceptAt)) return { ok: false, reason: "anchors must keep the order plan · implement · accept" };
-  if (nodes.includes("propose") && nodes[0] !== "propose") return { ok: false, reason: "propose must be first" };
-  if (nodes.includes("verify") && !(planAt < nodes.indexOf("verify") && nodes.indexOf("verify") < implementAt)) return { ok: false, reason: "verify must be between plan and implement" };
-  if (nodes.includes("impl-verify") && !(implementAt < nodes.indexOf("impl-verify") && nodes.indexOf("impl-verify") < acceptAt)) return { ok: false, reason: "impl-verify must be between implement and accept" };
-  if (nodes.includes("qa") && !(implementAt < nodes.indexOf("qa") && nodes.indexOf("qa") < acceptAt)) return { ok: false, reason: "qa must be between implement and accept" };
-  if (nodes.includes("impl-verify") && nodes.includes("qa") && nodes.indexOf("impl-verify") > nodes.indexOf("qa")) return { ok: false, reason: "impl-verify must come before qa" };
-  for (const [alias, agent] of [["doc-audit", "doc-auditor"], ["scout", "feature-scout"]]) {
-    const slots = nodes.filter((id) => slotAgent(id) === agent);
-    if (slots.includes(alias) && slots.length > 1) return { ok: false, reason: `don't mix ${alias} with ${agent} slots` };
-  }
-  if (new Set(gates).size !== gates.length) return { ok: false, reason: "a gate appears twice" };
-  for (const g of gates) {
-    const k = gateKind(g);
-    if (k === null || k === "propose" || !nodes.includes(k)) return { ok: false, reason: `gate ${g} has no node after it` };
-  }
-  return { ok: true };
+  const reason = orderReason(nodes) ?? aliasReason(nodes) ?? gateReason(nodes, gates);
+  return reason === null ? { ok: true } : { ok: false, reason };
 }
 
 // 커서가 걷는 순서: 노드마다 그 앞 게이트(있으면) → 노드. 예: [propose, before-plan, plan, verify, before-implement, implement, accept, doc-audit, scout]
@@ -154,3 +188,124 @@ export function advance(graph, cursor, facts) {
     at = next;
   }
 }
+
+// 연결 step. 정의의 steps에 노드 id 대신 pipeline:<id>로 들어가고, 그 앞 게이트는 before-pipeline:<id>다(gateId가 그대로 만든다).
+export const REF_PREFIX = "pipeline:";
+export const isRef = (step) => typeof step === "string" && step.startsWith(REF_PREFIX);
+export const refId = (step) => (isRef(step) ? step.slice(REF_PREFIX.length) : null);
+export const refStep = (pipelineId) => `${REF_PREFIX}${pipelineId}`;
+
+// 정의 하나의 단독 검사(저장 시). 앵커가 다 있는지는 보지 않는다 — 그건 펼친 결과의 validateGraph다.
+// 연결이 가리키는 파이프라인이 있는지·순환인지는 펼칠 때(expand) 본다.
+export function validateDefinition(definition, plan) {
+  const { steps, gates } = definition ?? {};
+  if (!Array.isArray(steps) || !Array.isArray(gates)) return { ok: false, reason: "pipeline must have steps and gates" };
+  if (![...steps, ...gates].every((id) => typeof id === "string")) return { ok: false, reason: "step and gate ids must be strings" };
+  if (steps.length === 0) return { ok: false, reason: "a pipeline needs at least one step" };
+  if (new Set(steps).size !== steps.length) return { ok: false, reason: "a step appears twice" };
+  for (const s of steps) {
+    if (isRef(s)) {
+      if (refId(s) === "") return { ok: false, reason: `unknown step: ${s}` };
+      continue;
+    }
+    if (s === "propose") return { ok: false, reason: PROPOSE_SETTING_REASON };
+    if (!NODE_KINDS.includes(s) && !PROJECT_AGENTS.includes(slotAgent(s))) return { ok: false, reason: `unknown node: ${s}` };
+    if (!nodeAllowed(plan, s)) return { ok: false, reason: `${s} is not on the ${plan} plan` };
+  }
+  const own = steps.filter((s) => !isRef(s));
+  const reason = orderReason(own) ?? aliasReason(own) ?? gateReason(steps, gates);
+  return reason === null ? { ok: true } : { ok: false, reason };
+}
+
+// 연결을 반복 스택으로 펼친다. 유효한 중첩 깊이에 임의 상한을 두지 않는다.
+// definitions는 단독 검사를 통과한 비보관 정의 묶음이다. 연결·중복은 여기서 검사한다.
+export function expand(pipelineId, definitions, path = []) {
+  const fail = (id, reason) => ({ ok: false, pipelineId: id, reason });
+  const missing = "it uses a pipeline that is archived or missing";
+  const loop = "pipelines can't use each other in a loop";
+  if (!Object.hasOwn(definitions, pipelineId)) return fail(pipelineId, missing);
+  const active = new Set(path);
+  if (active.has(pipelineId)) return fail(pipelineId, loop);
+  const frameOf = (id, junction) => ({ id, junction, index: 0, nodes: [], gates: new Set(), seen: new Set() });
+  const stack = [frameOf(pipelineId, false)];
+  active.add(pipelineId);
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1];
+    const definition = definitions[frame.id];
+    if (frame.index === definition.steps.length) {
+      stack.pop();
+      active.delete(frame.id);
+      const graph = { nodes: frame.nodes, gates: [...frame.gates] };
+      if (stack.length === 0) return { ok: true, graph };
+      const parent = stack[stack.length - 1];
+      if (frame.junction) parent.gates.add(gateId(frame.nodes[0]));
+      for (const node of frame.nodes) {
+        if (parent.seen.has(node)) return fail(parent.id, "a node appears twice");
+        parent.seen.add(node);
+        parent.nodes.push(node);
+      }
+      for (const gate of frame.gates) parent.gates.add(gate);
+      continue;
+    }
+    const step = definition.steps[frame.index++];
+    const gated = definition.gates.includes(gateId(step));
+    if (!isRef(step)) {
+      if (frame.seen.has(step)) return fail(frame.id, "a node appears twice");
+      frame.seen.add(step);
+      if (gated) frame.gates.add(gateId(step));
+      frame.nodes.push(step);
+      continue;
+    }
+    const id = refId(step);
+    if (!Object.hasOwn(definitions, id)) return fail(frame.id, missing);
+    if (active.has(id)) return fail(frame.id, loop);
+    active.add(id);
+    stack.push(frameOf(id, gated));
+  }
+  return fail(pipelineId, missing);
+}
+
+// 펼친 결과의 구조 검사 — 앵커가 다 있는지는 보지 않는다(항목에 붙일 수 있는지는 validateGraph).
+export function composedReason(graph) {
+  if (new Set(graph.nodes).size !== graph.nodes.length) return "a node appears twice";
+  return orderReason(graph.nodes) ?? aliasReason(graph.nodes);
+}
+
+// 이 파이프라인을 직·간접으로 쓰는 파이프라인들(자기 자신 제외). 순환이 있어도 끝난다.
+export function usersOf(pipelineId, definitions) {
+  const found = new Set(), queue = [pipelineId];
+  while (queue.length > 0) {
+    const target = refStep(queue.shift());
+    for (const [id, definition] of Object.entries(definitions)) {
+      if (id !== pipelineId && !found.has(id) && definition.steps.includes(target)) { found.add(id); queue.push(id); }
+    }
+  }
+  return [...found];
+}
+
+// 저장 판정. changedId의 정의를 바꾼 definitions에서, 그것과 그것을 쓰는 모든 파이프라인을 다시 펼친다.
+// mustRun(실행 판이 있거나 기본·규칙 대상인 파이프라인)은 펼친 결과가 validateGraph를 통과해야 한다 — 붙을 수 있던 것은 계속 붙을 수 있어야 한다.
+// runnable[id] = 항목에 붙일 수 있게 된 펼친 그래프(null = 조각).
+export function recompose(changedId, definitions, mustRun, plan) {
+  const runnable = Object.create(null);
+  for (const id of [changedId, ...usersOf(changedId, definitions)]) {
+    const expanded = expand(id, definitions);
+    if (!expanded.ok) return expanded;
+    const structural = composedReason(expanded.graph);
+    if (structural !== null) return { ok: false, pipelineId: id, reason: structural };
+    const full = validateGraph(expanded.graph, plan);
+    if (!full.ok && mustRun.includes(id)) return { ok: false, pipelineId: id, reason: full.reason };
+    runnable[id] = full.ok ? expanded.graph : null;
+  }
+  return { ok: true, runnable };
+}
+
+// 새 항목이 붙을 파이프라인 — type 규칙이 있으면 그것, 없거나 type이 비었으면 기본(결정 6).
+export function routePipeline(type, rules, defaultPipelineId) {
+  return type !== null && Object.hasOwn(rules, type) ? rules[type] : defaultPipelineId;
+}
+
+export const AUTO_PROPOSE_DISABLED_REASON = "Automatic picking is off. Put an item on the board from the Backlog tab, or turn it on in the Pipeline tab.";
+
+// Free에서 파이프라인 편집·설정과 Automatic picking 변경을 막는 문장. src/server는 FSD를 import하지 않으므로(fsd.md) 서비스·웹 action·레일이 함께 쓰도록 core가 소유한다.
+export const PIPELINE_EDIT_PLAN_GATE = "Pipeline editing opens on Pro. The default pipeline stays as is.";

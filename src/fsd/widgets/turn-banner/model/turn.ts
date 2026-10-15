@@ -76,7 +76,7 @@ function setupSteps(setup: SetupState): SetupStep[] {
       title: "Run the pipeline in your coding client",
       detail: setup.autoScoutEnabled === false
         ? `${SCOUT_OFF_DETAIL} Then run the pipeline in your coding client, or put the item on the board from the Backlog tab.`
-        : "feature-scout reads the code and adds up to three backlog items; pm puts up to two on the board for your approval. With no Propose node, put one on the board from the Backlog tab.",
+        : "feature-scout reads the code and adds up to three backlog items; pm puts up to two on the board for your approval. With automatic picking off, put one on the board from the Backlog tab.",
       // 이 목록은 보드가 비어 있을 때만 만들어진다 — 그래서 마지막 단계는 아직 끝날 수 없다.
       done: false,
     },

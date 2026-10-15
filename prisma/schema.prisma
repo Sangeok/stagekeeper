@@ -45,6 +45,8 @@ model Project {
   commandIssue Int?
   runbookVersion String?                 // /harness:init이 마지막으로 심은 런북 템플릿의 해시. null = 보고된 적 없음(= 낡음으로 본다)
   autoScoutEnabled Boolean     @default(true) // 빈 백로그 자동 발굴. 그래프 슬롯과 독립적이며 모든 플랜에서 소유자가 제어한다
+  autoProposeEnabled Boolean   @default(true) // head가 pm을 불러 백로그에서 고르게 하는가. 옛 propose 노드를 대신한다
+  defaultPipelineId String?              // 규칙에 걸리지 않은 새 항목이 붙는 파이프라인. null = 첫 쓰기 경로에서 default_<id>를 만든다
   createdAt    DateTime        @default(now())
   tokens       ProjectToken[]
   workspaces   Workspace[]
@@ -54,6 +56,9 @@ model Project {
   runs         AgentRun[]
   ownerTokens  OwnerToken[]
   pipelineVersions PipelineVersion[]
+  pipelines    Pipeline[]      @relation("ProjectPipelines")
+  defaultPipeline Pipeline?    @relation("ProjectDefaultPipeline", fields: [defaultPipelineId], references: [id], onDelete: SetNull)
+  pipelineRules PipelineRule[]
   ownerUserId   String
   repoOwner     String
   available     Boolean   @default(true)
@@ -305,18 +310,21 @@ model AgentRunStep {                     // 수락(true), 거절 감사(false), 
   @@index([at])
 }
 
-model PipelineVersion {                  // 프로젝트의 그래프. 저장마다 새 행 — 항목은 시작 시점 버전에 고정된다(원장 = 감사 로그)
-  id        String   @id @default(cuid())
-  projectId String
-  version   Int                          // 1부터. 현재 = 프로젝트의 최대 version
-  nodes     String[]                     // pipeline.mjs NODE_KINDS의 부분열
-  gates     String[]                     // before-<kind>
-  format    String?
-  createdAt DateTime @default(now())
-  createdBy String                       // userId. 기본 그래프를 서버가 물질화했으면 "pipeline"
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  runs      PipelineRun[]
+model PipelineVersion {                  // 실행 판 — 항목이 실제로 도는 펼친 그래프. 정의 저장이 영향받은 파이프라인마다 새 행을 쓴다. 항목은 시작 시점 판에 고정된다 — Proposed이고 실행 전인 항목만 Change pipeline으로 다시 고정한다(원장 = 감사 로그)
+  id         String    @id @default(cuid())
+  projectId  String
+  pipelineId String?                     // migration A가 채우고, migration B가 null 부재를 검증한 뒤 NOT NULL로 만든다
+  version    Int                         // 프로젝트 안 일련번호(파이프라인을 가로지른다). 그 파이프라인의 현재 = 그 파이프라인 행 중 최대 version
+  nodes      String[]                    // pipeline.mjs NODE_KINDS의 부분열(펼친 결과라 연결이 없다)
+  gates      String[]                    // before-<kind>
+  format     String?
+  createdAt  DateTime  @default(now())
+  createdBy  String                      // userId. 기본 그래프를 서버가 물질화했으면 "pipeline"
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pipeline   Pipeline? @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  runs       PipelineRun[]
   @@unique([projectId, version])
+  @@index([pipelineId, version])
 }
 
 model PipelineRun {                      // 항목의 커서 — "지금 어느 노드(또는 어느 게이트 앞)에 서 있나". BoardItem당 하나
@@ -330,4 +338,40 @@ model PipelineRun {                      // 항목의 커서 — "지금 어느 
   closedAt    DateTime?
   boardItem   BoardItem       @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
   version     PipelineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade) // 이 스키마의 다른 관계와 같이. 없으면 Prisma 기본 Restrict라 프로젝트 삭제(Project → PipelineVersion 캐스케이드)가 막힌다
+}
+
+model Pipeline {                         // 이름 붙은 파이프라인. 종류가 없다 — 항목에 붙을 수 있는지는 실행 판이 있는가(펼친 결과의 validateGraph)로 정해진다
+  id          String    @id @default(cuid()) // migration·지연 생성이 만든 기본 파이프라인은 default_<projectId>
+  projectId   String
+  name        String
+  createdAt   DateTime  @default(now())
+  createdBy   String                     // userId. migration·지연 생성이 만들었으면 "pipeline"
+  archivedAt  DateTime?                  // 보관. 지우지 않는다 — 판 행과 런이 이 행을 거쳐 원장에 남는다(불변식 8)
+  project     Project   @relation("ProjectPipelines", fields: [projectId], references: [id], onDelete: Cascade)
+  defaultOf   Project[] @relation("ProjectDefaultPipeline")
+  definitions PipelineDefinition[]
+  versions    PipelineVersion[]
+  rules       PipelineRule[]
+  @@index([projectId, archivedAt])
+}
+
+model PipelineDefinition {               // 편집 원본. 저장마다 새 행. steps는 노드 id 또는 pipeline:<id>, gates는 before-<step>
+  id         String   @id @default(cuid())
+  pipelineId String
+  version    Int                         // 파이프라인마다 1부터. 저장의 낙관적 기준(expectedVersion)이자 Pipeline 탭이 보여 주는 번호
+  steps      String[]
+  gates      String[]
+  createdAt  DateTime @default(now())
+  createdBy  String
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  @@unique([pipelineId, version])
+}
+
+model PipelineRule {                     // BacklogItem.type → 파이프라인. 규칙이 없으면 기본(결정 6)
+  projectId  String
+  type       String                      // backlog.mjs ITEM_TYPES
+  pipelineId String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  @@id([projectId, type])
 }

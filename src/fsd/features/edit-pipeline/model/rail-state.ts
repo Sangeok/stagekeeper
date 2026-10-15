@@ -1,79 +1,87 @@
-// 레일 조작의 순수 규칙. 조작마다 결과 그래프를 validateGraph에 통과시키고, 막히면 그 사유를 그대로 돌려준다 —
-// 화면은 규칙을 다시 구현하지 않고 버튼을 비활성으로 두면서 서버와 같은 문장을 보여 준다.
-import { TAIL_NODES, PROJECT_AGENTS, slotAgent, gateKind, gateId, validateGraph } from "@harness/core/pipeline.mjs";
+import { TAIL_NODES, PROJECT_AGENTS, slotAgent, gateKind, gateId, validateDefinition, expand, recompose, refStep, refId, type Definition, type Definitions, type Recompose } from "@harness/core/pipeline.mjs";
 
-export type Graph = { nodes: string[]; gates: string[] };
-export type Step = { ok: true; graph: Graph } | { ok: false; reason: string };
+export type { Definition } from "@harness/core/pipeline.mjs";
+export type PipelineSnapshot = {
+  id: string; name: string; isDefault: boolean; definition: Definition;
+  saved: { version: number; createdAt: Date } | null;
+  runnable: { nodes: string[]; gates: string[]; format: string | null } | null;
+};
+export type CompositionContext = { pipelineId: string; definitions: Definitions; mustRun: readonly string[] };
+export type Step = { ok: true; definition: Definition } | { ok: false; reason: string };
 
-// 프로젝트 에이전트(doc-auditor·feature-scout)의 슬롯인가. slotAgent는 슬롯이 아니면 null이다.
 export function isProjectSlot(id: string): boolean {
   const agent = slotAgent(id);
   return agent !== null && PROJECT_AGENTS.includes(agent);
 }
-
-export function normalizeSlots(graph: Graph): Graph {
-  const normalize = (id: string) => {
+export function normalizeSlots(definition: Definition): Definition {
+  const normalize = (id: string): string => {
     const agent = slotAgent(id);
     return agent !== null && PROJECT_AGENTS.includes(agent) && !id.includes("#") ? agent : id;
   };
-  return { nodes: graph.nodes.map(normalize), gates: graph.gates.map((id) => gateId(normalize(gateKind(id) ?? id))) };
+  return { steps: definition.steps.map(normalize), gates: definition.gates.map(id => gateId(normalize(gateKind(id) ?? id))) };
 }
-
-export function addSlot(graph: Graph, agent: string, before: string | null, plan: string): Step {
-  if (!PROJECT_AGENTS.includes(agent)) return { ok: false, reason: "unknown project agent" };
-  const g = normalizeSlots(graph);
-  let id = agent, index = 2;
-  while (g.nodes.includes(id)) id = `${agent}#${index++}`;
-  const nodes = [...g.nodes];
-  const destination = before === null ? null : normalizeSlots({ nodes: [before], gates: [] }).nodes[0];
-  if (destination !== null && !nodes.includes(destination)) return { ok: false, reason: "unknown destination" };
-  nodes.splice(destination === null ? nodes.length : nodes.indexOf(destination), 0, id);
-  return check({ ...g, nodes }, plan);
+export function preview(definition: Definition, plan: string, context: CompositionContext): Recompose {
+  const definitions = Object.assign(Object.create(null), context.definitions, { [context.pipelineId]: definition });
+  return recompose(context.pipelineId, definitions, context.mustRun, plan);
 }
-
-export function moveSlot(graph: Graph, id: string, before: string | null, plan: string): Step {
-  if (!graph.nodes.includes(id)) return { ok: false, reason: "unknown source" };
-  if (before !== null && !graph.nodes.includes(before)) return { ok: false, reason: "unknown destination" };
-  if (!isProjectSlot(id)) return { ok: false, reason: "only project slots can move" };
-  if (id === before) return check(graph, plan);
-  const nodes = graph.nodes.filter((node) => node !== id);
-  nodes.splice(before === null ? nodes.length : nodes.indexOf(before), 0, id);
-  return check({ ...graph, nodes }, plan);
-}
-
-const check = (graph: Graph, plan: string): Step => {
-  const v = validateGraph(graph, plan);
-  return v.ok ? { ok: true, graph } : { ok: false, reason: v.reason };
-};
-
-export const insertGate = (g: Graph, id: string, plan: string): Step => check({ ...g, gates: [...g.gates, id] }, plan);
-
-export const removeGate = (g: Graph, id: string, plan: string): Step => check({ ...g, gates: g.gates.filter((x) => x !== id) }, plan);
-
-// 노드를 빼면 그 앞 게이트도 함께 빠진다 — 남으면 뒤에 노드가 없어 저장이 막힌다.
-export const removeNode = (g: Graph, kind: string, plan: string): Step =>
-  check({ nodes: g.nodes.filter((x) => x !== kind), gates: g.gates.filter((x) => x !== gateId(kind)) }, plan);
-
-// 뺐던 노드 되돌리기와 opt-in 노드 넣기가 같은 함수다.
-export const addNode = (g: Graph, kind: string, plan: string): Step => {
-  // 앞머리 노드는 골격 순서의 자리에 끼운다 — propose는 맨 앞, verify는 implement 바로 앞, impl-verify는 qa(없으면 accept) 앞,
-  // qa는 accept 앞. 나머지 노드를 다시 세우지는 않는다: 슬롯이 놓인 자리와 꼬리 순서를 그대로 둔다.
-  if (!TAIL_NODES.includes(kind)) {
-    const nodes = [...g.nodes];
-    const at = kind === "propose" ? 0
-      : kind === "verify" ? nodes.indexOf("implement")
-      : kind === "impl-verify" ? (nodes.includes("qa") ? nodes.indexOf("qa") : nodes.indexOf("accept"))
-      : kind === "qa" ? nodes.indexOf("accept")
-      : nodes.length;
-    nodes.splice(at, 0, kind);
-    return check({ ...g, nodes }, plan);
+export function check(definition: Definition, plan: string, context?: CompositionContext): Step {
+  const valid = validateDefinition(definition, plan);
+  if (!valid.ok) return valid;
+  if (context) {
+    const composed = preview(definition, plan, context);
+    if (!composed.ok) return { ok: false, reason: composed.reason };
   }
-  // 꼬리 노드(accept 뒤)는 끝에 붙인다. 꼬리는 사용자가 바꿔 둔 순서를 그대로 둔다 — 다시 세우면 swapTail이 조용히 풀린다.
-  return check({ ...g, nodes: [...g.nodes, kind] }, plan);
-};
+  return { ok: true, definition };
+}
+export function hasUngatedRunnable(result: Recompose): boolean {
+  return result.ok && Object.values(result.runnable).some(graph => graph !== null && graph.gates.length === 0);
+}
 
-// 꼬리 두 노드의 순서만 뒤집는다. 하나뿐이면 그래프는 그대로다.
-export const swapTail = (g: Graph, plan: string): Step => {
-  const isTail = (k: string) => TAIL_NODES.includes(k);
-  return check({ ...g, nodes: [...g.nodes.filter((k) => !isTail(k)), ...g.nodes.filter(isTail).reverse()] }, plan);
+export function addSlot(definition: Definition, agent: string, before: string | null, plan: string, context?: CompositionContext): Step {
+  if (!PROJECT_AGENTS.includes(agent)) return { ok: false, reason: "unknown project agent" };
+  const draft = normalizeSlots(definition);
+  const reserved = new Set(draft.steps);
+  if (context) for (const step of draft.steps) {
+    const id = refId(step);
+    if (id === null) continue;
+    const expanded = expand(id, context.definitions);
+    if (expanded.ok) for (const node of expanded.graph.nodes) reserved.add(node);
+  }
+  let id = agent, index = 2;
+  while (reserved.has(id)) id = `${agent}#${index++}`;
+  const destination = before === null ? null : normalizeSlots({ steps: [before], gates: [] }).steps[0];
+  if (destination !== null && !draft.steps.includes(destination)) return { ok: false, reason: "unknown destination" };
+  const steps = [...draft.steps];
+  steps.splice(destination === null ? steps.length : steps.indexOf(destination), 0, id);
+  return check({ ...draft, steps }, plan, context);
+}
+export function moveSlot(definition: Definition, id: string, before: string | null, plan: string, context?: CompositionContext): Step {
+  if (!definition.steps.includes(id)) return { ok: false, reason: "unknown source" };
+  if (before !== null && !definition.steps.includes(before)) return { ok: false, reason: "unknown destination" };
+  if (!isProjectSlot(id)) return { ok: false, reason: "only project slots can move" };
+  if (id === before) return check(definition, plan, context);
+  const steps = definition.steps.filter(step => step !== id);
+  steps.splice(before === null ? steps.length : steps.indexOf(before), 0, id);
+  return check({ ...definition, steps }, plan, context);
+}
+export function insertRef(definition: Definition, pipelineId: string, before: string | null, plan: string, context?: CompositionContext): Step {
+  if (before !== null && !definition.steps.includes(before)) return { ok: false, reason: "unknown destination" };
+  const steps = [...definition.steps];
+  steps.splice(before === null ? steps.length : steps.indexOf(before), 0, refStep(pipelineId));
+  return check({ ...definition, steps }, plan, context);
+}
+export const insertGate = (definition: Definition, id: string, plan: string, context?: CompositionContext): Step => check({ ...definition, gates: [...definition.gates, id] }, plan, context);
+export const removeGate = (definition: Definition, id: string, plan: string, context?: CompositionContext): Step => check({ ...definition, gates: definition.gates.filter(gate => gate !== id) }, plan, context);
+export const removeNode = (definition: Definition, kind: string, plan: string, context?: CompositionContext): Step =>
+  check({ steps: definition.steps.filter(step => step !== kind), gates: definition.gates.filter(gate => gate !== gateId(kind)) }, plan, context);
+export function addNode(definition: Definition, kind: string, plan: string, context?: CompositionContext): Step {
+  const steps = [...definition.steps];
+  const anchor = kind === "verify" ? "implement" : kind === "impl-verify" ? (steps.includes("qa") ? "qa" : "accept") : kind === "qa" ? "accept" : null;
+  const at = anchor === null ? -1 : steps.indexOf(anchor);
+  steps.splice(at < 0 ? steps.length : at, 0, kind);
+  return check({ ...definition, steps }, plan, context);
+}
+export const swapTail = (definition: Definition, plan: string, context?: CompositionContext): Step => {
+  const isTail = (kind: string): boolean => TAIL_NODES.includes(kind);
+  return check({ ...definition, steps: [...definition.steps.filter(kind => !isTail(kind)), ...definition.steps.filter(isTail).reverse()] }, plan, context);
 };

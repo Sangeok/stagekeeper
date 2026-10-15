@@ -1,4 +1,7 @@
 import "server-only";
+import { prisma } from "@/server/db";
+import { loadPipelineChanges } from "@/server/pipeline/run";
+import type { HistoryEventRecord } from "@/server/pipeline/history-page";
 import { historyCutoff } from "@harness/core/entitlement.mjs";
 import { readHistoryQuery } from "../model/history-navigation";
 import type { ProjectHistoryProps } from "../model/history-view";
@@ -27,7 +30,7 @@ export async function loadProjectHistory({ slug, projectId, searchParams, now }:
         projectHistory(projectId, { key: item.key, view: "all", since: cutoff, before: itemBefore }),
         currentRoundIds(projectId, [item.key]),
       ]);
-      expanded = { key: item.key, events: history.rows.filter(row => row.source === "event"),
+      expanded = { key: item.key, events: await withPipelineNames(projectId, history.rows.filter(row => row.source === "event")),
         reports: history.rows.filter(row => row.source === "report"), currentRounds,
         nextCursor: history.next === null ? null : formatHistoryCursor(history.next), hasBefore: itemBefore !== null };
     }
@@ -43,6 +46,11 @@ export async function loadProjectHistory({ slug, projectId, searchParams, now }:
   ]);
   const currentRounds = await currentRoundIds(projectId, page.rows.map(row => row.key));
   return { slug, mode: "events", view, repo, currentRounds,
-    events: page.rows.filter(row => row.source === "event"), reports: page.rows.filter(row => row.source === "report"),
+    events: await withPipelineNames(projectId, page.rows.filter(row => row.source === "event")), reports: page.rows.filter(row => row.source === "report"),
     nextCursor: page.next === null ? null : formatHistoryCursor(page.next), hasBefore: before !== null, historyTruncated: truncated };
+}
+
+async function withPipelineNames(projectId: string, events: HistoryEventRecord[]): Promise<HistoryEventRecord[]> {
+  const changes = await loadPipelineChanges(prisma, projectId, events.map(event => event.note));
+  return events.map(event => ({ ...event, pipelineChange: event.note ? changes[event.note] ?? null : null }));
 }

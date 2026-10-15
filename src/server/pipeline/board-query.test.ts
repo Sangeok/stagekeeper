@@ -142,8 +142,9 @@ it("failed approval rolls back lazy PipelineRun materialization", async () => {
     boardItem: { findFirst: async () => ({ id: "item", status: "proposed", validation: null, planCommit: null, updatedAt: new Date(0) }) },
     project: {
       findUnique: async () => ({ ownerUserId: "owner", repoOwner: "repo", available: true, ownerUser: { subscription: { plan: "pro" } } }),
-      findUniqueOrThrow: async () => ({ ownerUserId: "owner" }),
+      findUniqueOrThrow: async () => ({ ownerUserId: "owner", defaultPipelineId: "default" }),
     },
+    pipeline: { findFirst: async () => ({ id: "default" }) },
     pipelineVersion: { findFirst: async () => version },
     pipelineRun: {
       findUnique: async () => materialized,

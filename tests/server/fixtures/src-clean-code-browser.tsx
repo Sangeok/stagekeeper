@@ -60,8 +60,8 @@ function action<T>(input: unknown, values: { success: T; error: T; stale: T }): 
 const router = { refresh: () => { controls.refreshes++; } } as React.ContextType<typeof AppRouterContext>;
 function PipelineFixture() {
   return <><AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />
-    <PipelineRail graph={defaultGraph("pro")} expectedVersion={3} plan="pro" roster={["dev"]} editable
-      save={input => action(input, { success: { status: "success", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
+    <PipelineRail pipelineId="default" definition={{ steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }} rules={{}} pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }, saved: { version: 3, createdAt: new Date(0) }, runnable: { ...defaultGraph("pro"), format: "slots-v1" } }]} expectedVersion={3} plan="pro" roster={["dev"]} editable
+      save={input => action(input, { success: { status: "success", pipelineId: "default", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
 }
 function ScoutFixture() {
   return <AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />;
@@ -169,7 +169,7 @@ function ProposeFixture() {
     controls.setRoster = setRoster;
     return () => { controls.setRoster = () => {}; };
   }, []);
-  return <ProposeButton itemKey="KEY" roster={roster} propose={input => action(input, {
+  return <ProposeButton pipelines={[{ id: "default", name: "Default" }]} preselected="default" itemKey="KEY" roster={roster} propose={input => action(input, {
     success: { success: true, data: undefined }, error: { success: false, error: "Refused" }, stale: { success: false, error: "stale" },
   })} />;
 }

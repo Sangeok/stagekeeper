@@ -57,6 +57,16 @@ export const cleanup = async (db: PrismaClient, userId: string | undefined) => {
   if (userId) await db.user.delete({ where: { id: userId } });
 };
 
+export async function pipelineState(db: PrismaClient, projectId: string) {
+  return {
+    project: await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { defaultPipelineId: true, autoProposeEnabled: true } }),
+    pipelines: await db.pipeline.findMany({ where: { projectId }, orderBy: { id: "asc" }, include: {
+      definitions: { orderBy: { version: "asc" } }, versions: { orderBy: { version: "asc" } }, rules: { orderBy: { type: "asc" } },
+    } }),
+    board: await db.boardItem.findMany({ where: { projectId }, orderBy: { id: "asc" }, include: { run: true, events: { orderBy: { id: "asc" } } } }),
+  };
+}
+
 export type Hook = () => Promise<void>;
 
 // 승패를 고정한다: 둘 다 같은 행을 읽은 뒤에야 이긴 쪽이 CAS를 하고, 진 쪽은 이긴 쪽이 커밋을 끝낼 때까지 기다린다.

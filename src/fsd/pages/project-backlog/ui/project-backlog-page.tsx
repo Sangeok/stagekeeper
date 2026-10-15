@@ -14,9 +14,11 @@ type Props = {
   remove: RemoveBacklogAction;
   propose: ProposeAction;
   roster: string[];
+  pipelines: { id: string; name: string }[];
+  preselected: Record<string, string>;
 };
 
-export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, remove, propose, roster, canWrite }: Props) {
+export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, remove, propose, roster, canWrite, pipelines, preselected }: Props) {
   return (
     <>
       <div className="flex items-center justify-between">
@@ -35,7 +37,7 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, r
         renderRowActions={(row) => (
           <>
             {/* 보드에 올리기는 아직 보드에 없는 항목에만 — 올라간 항목은 보드 상태 열이 말한다. */}
-            {row.status === null ? <ProposeButton itemKey={row.key} roster={roster} propose={propose} /> : null}
+            {row.status === null ? <ProposeButton key={row.key} itemKey={row.key} pipelines={pipelines} preselected={preselected[row.key]} roster={roster} propose={propose} /> : null}
             <RemoveBacklogButton itemKey={row.key} remove={remove} />
           </>
         )}
