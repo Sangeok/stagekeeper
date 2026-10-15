@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   const database = validateTestDatabase(process.env);
   const parentDatabase = process.env.DATABASE_URL;
   process.env.DATABASE_URL = database;
-  const { connections, fixture, cleanup } = await import("../tests/server/integration/support");
+  const { connections, fixture, cleanup, seedPipelineVersion } = await import("../tests/server/integration/support");
   const { createBoardService } = await import("../src/server/pipeline/board");
   const pool = connections(1); const [db] = pool.all;
   const fixtures: Awaited<ReturnType<typeof fixture>>[] = [];
@@ -70,7 +70,7 @@ async function main(): Promise<void> {
   try {
     const f = await fixture(db, { status: "done", plan: "pro", planPath: "docs/plan.md", validation: "pass" }); fixtures.push(f);
     const foreign = await fixture(db); fixtures.push(foreign);
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: [], createdBy: f.userId } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: [], createdBy: f.userId });
     await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "accept", entryId: "entry" } });
     await db.backlogItem.update({ where: { id: f.backlogItemId }, data: { removedAt: new Date(), removedReason: "done" } });
     const board = createBoardService(db);

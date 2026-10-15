@@ -6,20 +6,34 @@ import { testDatabaseUrl } from "../integration/support";
 export type SqlConnection = { connect(): Promise<void>; end(): Promise<void>; query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }> };
 const { Client }: { Client: new (options: { connectionString: string }) => SqlConnection } = createRequire(import.meta.url)("pg");
 export const boundary = "20261015000000_multiple_pipelines";
+export const cleanupBoundary = "20261015010000_pipeline_version_owner_required";
 const migrations = new URL("../../../prisma/migrations/", import.meta.url);
 export const migrationA = readFileSync(new URL(`${boundary}/migration.sql`, migrations), "utf8");
+export const migrationB = readFileSync(new URL(`${cleanupBoundary}/migration.sql`, migrations), "utf8");
 
 // Each rehearsal owns one random schema on the guarded test database. Historical
 // SQL, rather than today's generated client, creates the actual predecessor.
-export async function withPredecessor(work: (db: SqlConnection) => Promise<void>) {
+export async function withPredecessor(work: (db: SqlConnection) => Promise<void>, before = boundary): Promise<void> {
   const db = new Client({ connectionString: testDatabaseUrl() });
   const schema = `pipelines_${randomUUID().replace(/-/g, "")}`;
   await db.connect();
   try {
     await db.query(`CREATE SCHEMA "${schema}"`); await db.query(`SET search_path TO "${schema}"`);
-    const previous = readdirSync(migrations, { withFileTypes: true }).filter(entry => entry.isDirectory() && entry.name < boundary).map(entry => entry.name).sort();
-    for (const name of previous) await db.query(readFileSync(new URL(`${name}/migration.sql`, migrations), "utf8"));
-    await db.query(`
+    const previous = readdirSync(migrations, { withFileTypes: true }).filter(entry => entry.isDirectory() && entry.name < before).map(entry => entry.name).sort();
+    for (const name of previous) {
+      if (name === boundary) await seedPrePipelineData(db);
+      await db.query(readFileSync(new URL(`${name}/migration.sql`, migrations), "utf8"));
+    }
+    if (before === boundary) await seedPrePipelineData(db);
+    await work(db);
+  } finally {
+    await db.query("ROLLBACK"); await db.query("SET search_path TO public");
+    await db.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`); await db.end();
+  }
+}
+
+async function seedPrePipelineData(db: SqlConnection): Promise<void> {
+  await db.query(`
       INSERT INTO "User" (id,"githubId",login) VALUES ('u',-9001,'pipeline-owner');
       INSERT INTO "Project" (id,slug,name,"repoOwner",repo,branch,"ownerUserId")
         SELECT id,id,id,'owner','repo','main','u' FROM unnest(ARRAY['empty','legacy','slots','off']) AS id;
@@ -36,11 +50,6 @@ export async function withPredecessor(work: (db: SqlConnection) => Promise<void>
       INSERT INTO "AgentRunStep" (id,"runId","stepId",outcome,accepted) VALUES ('step','agent','plan','ok',true);
       INSERT INTO "Report" (id,"boardItemId",actor,path,commit,"agentRunId","isAcceptance") VALUES ('report','i','dev','report.md','abc','agent',false);
     `);
-    await work(db);
-  } finally {
-    await db.query("ROLLBACK"); await db.query("SET search_path TO public");
-    await db.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`); await db.end();
-  }
 }
 
 export async function executionSnapshot(db: SqlConnection) {

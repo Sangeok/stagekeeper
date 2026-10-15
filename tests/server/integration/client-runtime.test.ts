@@ -7,7 +7,7 @@ import { codexRunbookVersion } from "@harness/core/runbook.mjs";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 import { createBoardService } from "../../../src/server/pipeline/board";
 import { seedTemplates, snapshotTemplates, restoreTemplates } from "../../../scripts/lib/template-seed-query";
-import { cleanup, connections, fixture } from "./support";
+import { seedPipelineVersion, cleanup, connections, fixture } from "./support";
 
 const role = `${RUNTIME_MARKER}\nFixture role.\n## step:implement requires: implementing\nRead {{runtime.runbook_path}}.\nnext: verify\n## step:verify requires: implementing\nVerify current artifacts.\nnext: done\n`;
 const runbook = `${RUNTIME_MARKER}\nCodex fixture source.\n`;
@@ -28,7 +28,7 @@ for (const format of [null, "slots-v1"] as const) for (const [first, second] of 
       userId = f.userId; lang = `dual-${f.id}`;
       await db.project.update({ where: { id: f.projectId }, data: { language: lang } });
       await db.template.createMany({ data: bundle(lang) });
-      const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format, nodes: ["plan", "implement", "accept"], gates: ["before-implement"], createdBy: f.userId } });
+      const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format, nodes: ["plan", "implement", "accept"], gates: ["before-implement"], createdBy: f.userId });
       const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "before-implement", entryId: format ? "original-entry" : null } });
       const deps = createToolDeps(db), hash = codexRunbookVersion(runbook);
       const waiting = await deps.pipelineNext(f.projectId, f.key, hash, first);

@@ -3,14 +3,14 @@ import { it } from "node:test";
 import { actionableWork } from "@harness/core/watch.mjs";
 import { createBoardService } from "../../../src/server/pipeline/board";
 import { nextFor } from "../../../src/server/pipeline/run-query";
-import { cleanup, connections, fixture } from "./support";
+import { seedPipelineVersion, cleanup, connections, fixture } from "./support";
 
 for (const verdict of ["pass", "fail", "blocked"] as const) it(`impl-verifier ${verdict} binds its run, controls acceptance and never outlives its entry in PostgreSQL`, async () => {
   const { all: [db], disconnect } = connections(1);
   let userId: string | undefined;
   try {
     const f = await fixture(db, { status: "implementing", plan: "max" }); userId = f.userId;
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, nodes: ["plan", "implement", "impl-verify", "accept"], gates: [], format: "slots-v1", createdBy: "test" } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, nodes: ["plan", "implement", "impl-verify", "accept"], gates: [], format: "slots-v1", createdBy: "test" });
     const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "implement", entryId: "implementation-entry" } });
     const board = createBoardService(db);
     const acceptance = { key: f.key, actor: "main-loop", path: `docs/agents/main-loop/${f.key}.md`, commit: "b".repeat(40) };
@@ -82,7 +82,7 @@ for (const [title, nodes, node] of [
   let userId: string | undefined;
   try {
     const f = await fixture(db, { status: "done", plan: "max" }); userId = f.userId;
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, nodes: [...nodes], gates: [], format: "slots-v1", createdBy: "test" } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, nodes: [...nodes], gates: [], format: "slots-v1", createdBy: "test" });
     await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node, entryId: "verification-entry" } });
     const result = await createBoardService(db).submitReport(f.projectId, { key: f.key, actor: "main-loop", path: `docs/agents/main-loop/${f.key}.md`, commit: "b".repeat(40) }, "test");
     assert.ok(!result.ok && /^Implementation verification has not completed/.test(result.reason));
