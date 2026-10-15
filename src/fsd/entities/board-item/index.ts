@@ -6,4 +6,4 @@ export { NotVerifiedChip } from "./ui/not-verified-chip";
 export { OverBudgetChip } from "./ui/over-budget-chip";
 export { isPlanVerified } from "./model/verification";
 export { isAwaitingAcceptance } from "./model/acceptance";
-export { isAtGate, needsHumanDecision, pendingInboxCount, resumeTargetsFor } from "./model/inbox-gate";
+export { needsHumanDecision, pendingInboxCount, resumeTargetsFor } from "./model/inbox-gate";
