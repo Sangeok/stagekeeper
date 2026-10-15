@@ -11,7 +11,7 @@ type BoardRow = {
   backlogItem: { key: string };
   gate: string | null; // 런이 서 있는 게이트 — 카드 판정의 재료
   node: string | null; // 런이 서 있는 노드. 게이트에 서 있거나 런이 닫혔으면 null
-  dispatched: boolean; // 이 항목으로 열린 에이전트 run이 있는가 — 배너와 같은 사실(turn.ts)
+  dispatched: boolean; // 현재 node를 디스패치하는 에이전트의 열린 run이 있는가. 담당 dev와 다를 수 있다.
 };
 type Tone = "pending" | "active" | "done" | "hold" | "muted";
 
@@ -106,10 +106,14 @@ function verifierState(rows: readonly BoardRow[]): string {
 function workerState(agent: string, rows: readonly BoardRow[]): string {
   const mine = rows.filter((row) => row.agent === agent);
   if (mine.some((row) => row.status === "in_review")) return "Awaiting review";
-  const working = mine.find((row) => (row.status === "planning" || row.status === "implementing") && row.dispatched);
+  const atWorkspaceNode = mine.filter((row) =>
+    (row.status === "planning" || row.status === "implementing")
+    && (row.node === "plan" || row.node === "implement")
+    && dispatcherFor(row.node, row.agent) === agent);
+  const working = atWorkspaceNode.find((row) => row.dispatched);
   if (working) return `Working on ${working.backlogItem.key}`;
   // 디스패치 전이면 그 사람은 일하는 중이 아니라 불리기를 기다린다.
-  const queued = mine.find((row) => row.status === "planning" || row.status === "implementing");
+  const queued = atWorkspaceNode[0];
   if (queued) return `Ready for ${queued.backlogItem.key}`;
   if (mine.some((row) => row.status === "on_hold")) return "On hold";
   if (mine.some((row) => row.status === "done")) return "Recently done";

@@ -1,0 +1,453 @@
+{
+  "base": "131cb7444bfd61d82f492f0cf9bc5046a30609a3",
+  "http": {
+    "observations": [
+      {
+        "case": "two tabs and Scout",
+        "start": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 1,
+          "autoScoutEnabled": true,
+          "calls": {
+            "save": 0,
+            "scout": 0
+          }
+        },
+        "afterB": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 2,
+          "autoScoutEnabled": true,
+          "calls": {
+            "save": 1,
+            "scout": 0
+          }
+        },
+        "afterScout": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 2,
+          "autoScoutEnabled": false,
+          "calls": {
+            "save": 1,
+            "scout": 1
+          }
+        },
+        "result": "PASS"
+      },
+      {
+        "case": "response loss before",
+        "before": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 2,
+          "autoScoutEnabled": false,
+          "calls": {
+            "save": 1,
+            "scout": 1
+          }
+        },
+        "lost": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 2,
+          "autoScoutEnabled": false,
+          "calls": {
+            "save": 2,
+            "scout": 1
+          }
+        },
+        "final": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 2,
+          "autoScoutEnabled": false,
+          "calls": {
+            "save": 2,
+            "scout": 1
+          }
+        },
+        "railLabels": [
+          "Propose",
+          "Plan",
+          "Implement",
+          "Accept",
+          "Doc audit"
+        ],
+        "result": "PASS"
+      },
+      {
+        "case": "response loss after",
+        "before": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 2,
+          "autoScoutEnabled": false,
+          "calls": {
+            "save": 2,
+            "scout": 1
+          }
+        },
+        "lost": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 3,
+              "nodes": [
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 3,
+          "autoScoutEnabled": false,
+          "calls": {
+            "save": 3,
+            "scout": 1
+          }
+        },
+        "final": {
+          "versions": [
+            {
+              "version": 1,
+              "nodes": [
+                "propose",
+                "plan",
+                "verify",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 2,
+              "nodes": [
+                "propose",
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            },
+            {
+              "version": 3,
+              "nodes": [
+                "plan",
+                "implement",
+                "accept",
+                "doc-audit"
+              ],
+              "gates": [
+                "before-plan",
+                "before-implement"
+              ]
+            }
+          ],
+          "count": 3,
+          "autoScoutEnabled": false,
+          "calls": {
+            "save": 3,
+            "scout": 1
+          }
+        },
+        "railLabels": [
+          "Plan",
+          "Implement",
+          "Accept",
+          "Doc audit"
+        ],
+        "result": "PASS"
+      }
+    ],
+    "result": "PASS"
+  },
+  "finalBody": {
+    "result": "PASS",
+    "version": 3,
+    "readAsText": [
+      "before Plan — you",
+      "Plan",
+      "before Implement — you",
+      "Implement",
+      "Accept",
+      "Doc audit"
+    ],
+    "versionCount": 3,
+    "calls": {
+      "save": 3,
+      "scout": 1
+    }
+  },
+  "ui": {
+    "production": {
+      "passed": 56,
+      "failed": 0
+    },
+    "development": {
+      "passed": 56,
+      "failed": 0,
+      "pageErrors": 0
+    }
+  },
+  "cleanup": {
+    "fixtureUsers": 0,
+    "fixtureProjects": 0,
+    "fixtureVersions": 0,
+    "listenersClosed": {
+      "55451": true,
+      "55452": true,
+      "55491": true
+    },
+    "temporaryCredentialRemoved": true,
+    "temporaryDatabaseDataRemoved": true
+  },
+  "source_sha256": {
+    "scripts/rehearse-src-clean-code.ts": "04cdde9459ed5bb7f4a7b23713b5e0af7404c6fe619490d144314c8e1174689a",
+    "src/app/(app)/p/[slug]/pipeline/page.tsx": "012ba88c2690e0569656736253d66067fedba774fab1b229a833b6fc16f4e279",
+    "src/fsd/features/edit-pipeline/model/pipeline-draft-state.test.ts": "3ffdd1b3015145fd9604dcf37e3b786f6a0bd98666ea5a348e1e17ad563719b9",
+    "src/fsd/features/edit-pipeline/model/pipeline-draft-state.ts": "8fdf8984569a9c46d57f30aebfbcd046f5e1930b8c724ab914de0c4c1ea42747",
+    "src/fsd/features/edit-pipeline/ui/pipeline-rail.tsx": "a7a6af3995c67b04f7b056bec018dde80218e436461d5ba3fe7f2f74b291d432",
+    "src/fsd/pages/billing/model/plan-matrix.test.ts": "9400a1cecedaf77a88e9aa18aa4d1bf9c512942a7f2073e3ca7c002080f58769",
+    "src/fsd/pages/project-board/model/briefing.test.mjs": "be6a24a7acc7a7b820951168a814d8fcfbea6917c1318319eabc2f2dbd1df6ef",
+    "src/fsd/pages/project-board/model/briefing.ts": "3d988c1bed82c48262574e7070b1e4f53eec6a31fca4799a34338f29655050d2",
+    "src/fsd/pages/project-board/ui/project-board-page.test.mjs": "41582d6f2c6e2682e1311fe8b3ff91ba15bc243b6d3f7364bfe39ff7f4b85338",
+    "src/fsd/pages/project-pipeline/ui/project-pipeline-page.test.ts": "53f73b5324b36e9113e24230d439eb5146333e3bf75565b2242bb46076a4bd99",
+    "src/fsd/pages/project-pipeline/ui/project-pipeline-page.tsx": "895d787bd29b82d65c03d7ab88719803bf9ac0bada46c7c5e1a356a2e8cf564a",
+    "tests/server/fixtures/src-clean-code-acceptance.ts": "d97e621f084531de0b03d330fa02c4d49cc73481fd5c5d65b177b7a7bb33ea9d",
+    "tests/server/fixtures/src-clean-code-browser.tsx": "897a407deb345b44e8c1ef8f5a4a8aec39ca61b01676e23756a70329daae940d",
+    "tests/server/pipeline-save.test.ts": "be3c6e1fce41d89853572e460dae00cf0e1c13e5c9dde5e252a8155dc40ebb10",
+    "tests/server/project-page-loaders.test.ts": "ee4daaebf171b16631b6c23df474e70c9affc873ea5b6f8c156c7e1dcd3b835e"
+  }
+}

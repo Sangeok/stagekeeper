@@ -15,6 +15,7 @@ import { TurnBanner } from "../../../src/fsd/widgets/turn-banner/ui/turn-banner"
 import { deriveTurn, type Turn } from "../../../src/fsd/widgets/turn-banner/model/turn";
 import { projectPath, type ProjectTabSegment } from "../../../src/fsd/shared/routes/project";
 import { InboxCardBoundary } from "../../../src/fsd/features/review-gate/ui/inbox-card-boundary";
+import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { PipelineRail } from "../../../src/fsd/features/edit-pipeline/ui/pipeline-rail";
 import { AutomaticScoutControl } from "../../../src/fsd/features/edit-pipeline/ui/automatic-scout-control";
 import { ProjectConnectionControl } from "../../../src/fsd/features/manage-project-connection/ui/project-connection-control";
@@ -68,6 +69,42 @@ function PipelineFixture() {
     <PipelineRail graph={defaultGraph("pro")} expectedVersion={3} plan="pro" roster={["dev"]} editable
       save={input => action(input, { success: { status: "success", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
 }
+function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
+  const [view, setView] = useState({ projectId: "one", version: unsaved ? 0 : 3, graph: defaultGraph("pro"), plan: "pro", editable: true, roster: ["dev"], enabled: true });
+  const remoteGraph = () => ({ ...defaultGraph("pro"), nodes: defaultGraph("pro").nodes.filter((node: string) => node !== "verify") });
+  const now = new Date("2026-10-15T00:00:00Z");
+  return <>
+    <div aria-label="Pipeline fixture controls">
+      <button onClick={() => setView(current => ({ ...current, version: 4, graph: remoteGraph() }))}>Receive version 4</button>
+      <button onClick={() => setView(current => ({ ...current, version: 5, graph: remoteGraph() }))}>Receive version 5</button>
+      <button onClick={() => setView(current => ({ ...current, version: 3, graph: defaultGraph("pro") }))}>Receive original version 3</button>
+      <button onClick={() => setView(current => ({ ...current, plan: "max" }))}>Change plan</button>
+      <button onClick={() => setView(current => ({ ...current, editable: false }))}>Read only</button>
+      <button onClick={() => setView(current => ({ ...current, editable: true }))}>Writable</button>
+      <button onClick={() => setView(current => ({ ...current, roster: ["other-dev"] }))}>Change roster</button>
+      <button onClick={() => setView(current => ({ ...current, plan: "free", editable: false, graph: defaultGraph("free") }))}>Change default plan</button>
+      <button onClick={() => setView({ projectId: "two", version: 3, graph: defaultGraph("pro"), plan: "pro", editable: true, roster: ["dev"], enabled: true })}>Switch project</button>
+    </div>
+    <div id="pipeline-page">
+      <ProjectPipelinePage projectId={view.projectId} graph={view.graph} format="slots-v1"
+        saved={view.version === 0 ? undefined : { version: view.version, at: now }} now={now}
+        plan={view.plan} roster={view.roster} editable={view.editable} unavailableReason={view.editable ? undefined : "Not selected"}
+        autoScoutEnabled={view.enabled} canChangeAutoScout={view.editable}
+        save={async input => {
+          const result = await action(input, { success: { status: "success" as const, version: input.expectedVersion + 1 }, error: { status: "error" as const, reason: "Unavailable" }, stale: { status: "stale" as const } });
+          if (result.status === "success") setView(current => current.projectId === view.projectId && current.version <= result.version
+            ? { ...current, version: result.version, graph: input.graph } : current);
+          return result;
+        }}
+        saveAutoScout={async enabled => {
+          const result = await action(enabled, { success: { success: true as const, data: enabled }, error: { success: false as const, error: "Unavailable" }, stale: { success: false as const, error: "stale" } });
+          if (result.success) setView(current => current.projectId === view.projectId ? { ...current, enabled } : current);
+          return result;
+        }} />
+    </div>
+  </>;
+}
+
 function ScoutFixture() {
   return <AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />;
 }
@@ -227,7 +264,7 @@ function renderMode(mode: string, picker = false) {
     restoreConsole = () => { console.error = originalError; };
   }
   root = createRoot(document.getElementById("root")!);
-  root.render(<AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+  root.render(<AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
 }
 const toolbar = document.createElement("div");
 const run = document.createElement("button"); run.textContent = "Run acceptance";

@@ -5,6 +5,35 @@ import ts from "typescript";
 import { LIMITS, PLANS } from "@harness/core/entitlement.mjs";
 import { planMatrix } from "./plan-matrix";
 
+const BILLING_EXPORTS = ["PlanRow", "planMatrix", "BILLING_NOTE"];
+
+function assertAccountPlanApi(source: string): void {
+  const api = ts.createSourceFile("index.ts", source, ts.ScriptTarget.Latest, true);
+  const names = api.statements.flatMap(node => {
+    if (ts.isExportDeclaration(node)) {
+      assert.ok(node.exportClause && ts.isNamedExports(node.exportClause), "Use explicit named exports");
+      return node.exportClause.elements.map(element => element.name.text);
+    }
+    if (!ts.canHaveModifiers(node) || !ts.getModifiers(node)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) return [];
+    if (ts.isVariableStatement(node)) return node.declarationList.declarations.flatMap(declaration => ts.isIdentifier(declaration.name) ? [declaration.name.text] : []);
+    if ((ts.isFunctionDeclaration(node) || ts.isTypeAliasDeclaration(node) || ts.isInterfaceDeclaration(node)) && node.name) return [node.name.text];
+    return [];
+  });
+  assert.ok(names.includes("planLabel"), "planLabel must remain public");
+  for (const name of BILLING_EXPORTS) assert.ok(!names.includes(name), `${name} belongs to Billing`);
+}
+
+it("allows unrelated public exports but rejects missing labels and Billing leaks", () => {
+  const source = readFileSync(new URL("../../../entities/account-plan/index.ts", import.meta.url), "utf8");
+  assertAccountPlanApi(source + '\nexport type { Plan } from "@harness/core/entitlement.mjs";');
+  assertAccountPlanApi(source + '\nexport { anotherLabel } from "./model/another-label";');
+  assert.throws(() => assertAccountPlanApi('export type { Plan } from "@harness/core/entitlement.mjs";'), /planLabel/);
+  for (const name of BILLING_EXPORTS) {
+    assert.throws(() => assertAccountPlanApi(source + `\nexport type { ${name} } from "./model/leak";`), new RegExp(name));
+    assert.throws(() => assertAccountPlanApi(source + `\nexport const ${name} = 1;`), new RegExp(name));
+  }
+});
+
 it("owns the table declarations and consumes them through the Billing slice", () => {
   const moved = new Set(["PlanRow", "planMatrix", "BILLING_NOTE"]);
   for (const file of ["entitlement-copy.ts", "entitlement-copy.test.ts"]) assert.equal(existsSync(new URL(`../../../shared/lib/${file}`, import.meta.url)), false);
@@ -13,12 +42,7 @@ it("owns the table declarations and consumes them through the Billing slice", ()
     ? node.declarationList.declarations.flatMap(declaration => ts.isIdentifier(declaration.name) ? [declaration.name.text] : [])
     : (ts.isTypeAliasDeclaration(node) || ts.isFunctionDeclaration(node)) && node.name ? [node.name.text] : []);
   assert.ok(names.every(name => !moved.has(name)));
-  const api = ts.createSourceFile("index.ts", readFileSync(new URL("../../../entities/account-plan/index.ts", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
-  const exports = api.statements.filter(ts.isExportDeclaration);
-  assert.equal(exports.length, 1);
-  assert.equal(exports[0].moduleSpecifier && ts.isStringLiteral(exports[0].moduleSpecifier) ? exports[0].moduleSpecifier.text : null, "./model/plan-label");
-  const clause = exports[0].exportClause;
-  assert.deepEqual(clause && ts.isNamedExports(clause) ? clause.elements.map(element => element.name.text) : [], ["planLabel"]);
+  assertAccountPlanApi(readFileSync(new URL("../../../entities/account-plan/index.ts", import.meta.url), "utf8"));
   const page = ts.createSourceFile("billing-page.tsx", readFileSync(new URL("../ui/billing-page.tsx", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const imports = page.statements.filter(ts.isImportDeclaration).flatMap(node => {
     const binding = node.importClause?.namedBindings;
