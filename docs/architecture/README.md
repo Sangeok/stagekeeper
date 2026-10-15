@@ -104,7 +104,6 @@ stagekeeper/
 - [ADR-0002](../ADR/0002-test-code-organization.md): 대상 옆 테스트 배치와
   실행 경계별 분리를 선택한 이유
 - [CONTEXT.md](../../CONTEXT.md): 구현과 독립적인 Stagekeeper 도메인 용어
-- [sources.md](./sources.md): 원재료 매핑 — ApcH(`de25a1c`)의 무엇이 어디로 왔나
 - [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
 - [qa-verifier.md](./qa-verifier.md): 선택적 브라우저 QA 역할, 테스트 환경, 실행·보고 결합
