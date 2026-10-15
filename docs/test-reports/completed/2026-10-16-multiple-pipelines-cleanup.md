@@ -1,4 +1,30 @@
+---
+status: 'completed'
+stage: null
+result: 'pass'
+report-kind: 'acceptance'
+report-size: 'compact'
+test-levels: ['static', 'component', 'integration', 'end-to-end']
+test-tools: ['npm', 'Prisma', 'PostgreSQL', 'Next.js', 'Playwright']
+created-at: '2026-10-15'
+completed-at: '2026-10-16'
+last-executed-at: '2026-10-15'
+tested-revision: 'd703b49dd4dec7cc9f55f24112e8f9cc9323be2a'
+owners: ['user:Sangeok']
+related: ['docs/proposals/completed/2026-10-16-multiple-pipelines.md', 'docs/test-reports/completed/2026-10-16-multiple-pipelines-production-acceptance.md']
+primary-area: 'pipeline/multiple-pipelines'
+observed-environments: ['local | web and server | Windows Node 22 PostgreSQL 18 | isolated owner fixtures']
+test-summary: 'pass: Phase 6 구현 인수 — 로컬·격리 DB·실제 Next 검증 통과'
+follow-up: []
+---
+
 # Multiple pipelines — Phase 6 cleanup 구현·검증
+
+운영 전환까지 완료했다. 이 문서는 아래 로컬 검증 시점의 기록이며, 최종 상태는
+[운영 인수 보고서](./2026-10-16-multiple-pipelines-production-acceptance.md)를 따른다.
+각 검증 표의 명령·시나리오는 필수 인수 기준이며 표시된 기존 환경 조건 skip은 해당 환경에서 적용되지 않는 항목이다.
+이 보고서의 시험 데이터는 격리 DB에서 정리했고 운영 데이터는 사용하지 않았다.
+
 
 ## dev 통합 후 재검증
 
@@ -25,15 +51,11 @@ dev `2e9832bea4e61623945d51d552dcc684b1095215`로 병합했다. 해당 PR의 `ch
 첫 release의 최종 브라우저 인수 15개와 기존 HTTP·Flight 회귀 61개도 통과했다.
 cleanup은 그 frontend·core 소스를 변경하지 않는다.
 
-cleanup PR은 **draft로 유지**한다. 운영 DB 식별과 maintenance·기존 writer drain·백업
-접근 정보가 아직 확인되지 않았다. 운영 A와 nullable 서버가 적용되기 전에 B를 dev에
-병합하지 않는다. main은 `08bd0f0`에 유지하며 운영 DB migration은 실행하지 않았다.
-사용자의 후속 진행 지시로 PR·병합·배포 준비까지 진행했으나 운영 선행 조건을
-로컬 검증으로 대체하지 않는다.
+위 검증 직후 cleanup PR을 draft로 유지했다. 이후 운영 DB·Vercel 접근과 백업을 확인하고, A 및 nullable 서버 운영 인수 후 PR #164를 병합했다. B와 필수 서버 배포도 완료했으며 최종 상태는 운영 인수 보고서를 따른다.
 
 아래는 dev 재배치 전 최초 cleanup 구현·검증 기록이다.
 
-2026-10-15 사용자 후속 지시로 [제안서](../../proposals/active/multiple-pipelines.md)의
+2026-10-15 사용자 후속 지시로 [제안서](../../proposals/completed/2026-10-16-multiple-pipelines.md)의
 Phase 6을 별도 브랜치 `harness/multiple-pipelines-cleanup`에 준비했다.
 기준은 첫 release 커밋 `02f0403`이며 작업 경로는
 `C:/Users/hamso/AppData/Local/Temp/mp6wt`다.
@@ -112,4 +134,4 @@ fifth-pass 상세 결과는 `mp6-fifth-report.md`에 있다.
 
 운영 순서는 제안서대로 maintenance·backup·구형 writer 종료 → A → nullable 서버 →
 B → 필수 schema 서버다. B 적용 직전 대기 migration이 B 하나인지, 구형 인스턴스가
-종료됐는지 확인해야 한다. 운영 적용과 인수가 남아 제안서와 이 보고서를 active에 유지한다.
+종료됐는지 확인해야 한다. 이 절은 최초 검증 당시의 배포 조건이다. 이후 완료한 운영 실행은 별도 운영 인수 보고서를 따른다.

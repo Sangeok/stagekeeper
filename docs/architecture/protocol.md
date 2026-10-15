@@ -286,7 +286,7 @@ verify/ok·정상 report/ok로 닫힌 run과 그 run에 묶인 보고가 있어�
 
 순서의 단일 출처는 `packages/core/pipeline.mjs`, 편집 원본인 `PipelineDefinition`, 펼친 실행 판인 `PipelineVersion`이다. `Pipeline`은 프로젝트 안에서 이름·보관 상태를 갖고 `PipelineRule`은 항목 type별 선택을 정한다. 런북에는 순서가 없다.
 
-실행 판의 `PipelineVersion.pipelineId`와 `pipeline` 관계는 필수다. migration A가 기존 판을 기본 Pipeline에 연결하고, 별도 cleanup migration B가 null 부재를 확인한 뒤 NOT NULL을 강제한다. 새 프로젝트의 `Project.defaultPipelineId`는 지연 생성을 위해 nullable로 유지한다. 운영 적용은 A와 nullable 서버를 먼저 배포한 뒤 B와 필수 schema 서버를 배포하는 두 release 순서를 따른다. B는 기존 writer가 남긴 null을 자동 보정하지 않고 전환을 거부한다. 롤백·재도입은 [제안서의 배포·롤백 절](../proposals/active/multiple-pipelines.md)을 따른다.
+실행 판의 `PipelineVersion.pipelineId`와 `pipeline` 관계는 필수다. migration A가 기존 판을 기본 Pipeline에 연결하고, 별도 cleanup migration B가 null 부재를 확인한 뒤 NOT NULL을 강제한다. 새 프로젝트의 `Project.defaultPipelineId`는 지연 생성을 위해 nullable로 유지한다. 운영 적용은 A와 nullable 서버를 먼저 배포한 뒤 B와 필수 schema 서버를 배포하는 두 release 순서를 따른다. B는 기존 writer가 남긴 null을 자동 보정하지 않고 전환을 거부한다. 롤백·재도입은 [제안서의 배포·롤백 절](../proposals/completed/2026-10-16-multiple-pipelines.md)을 따른다.
 
 - **앵커와 슬롯.** plan·implement·accept는 각각 한 번이며 순서가 고정된다. verify는 선택이며 plan과 implement 사이다. 새 정의에는 propose를 저장하지 않는다. doc-auditor·feature-scout는 앵커 사이에 반복 배치할 수 있다. 첫 생성은 접미가 없고 이후 #2, #3 등을 배정한다. 이동·다른 슬롯 삭제로 기존 ID를 바꾸지 않는다. doc-audit·scout는 기존 별칭이며 편집 정규화는 연결 게이트도 함께 옮긴다. 기본 그래프와 scout opt-in은 보존한다.
 - **정의와 연결.** 정의는 steps/gates를 저장한다. `pipeline:<id>`는 같은 프로젝트의 활성 정의를 펼치며 `before-pipeline:<id>`는 펼친 첫 단계 앞 게이트가 된다. 순환·중복·앵커 역순은 거부한다. 앵커가 없는 조각은 다른 Pipeline 안에서 쓸 수 있지만 항목의 기본·규칙·선택 대상은 될 수 없다. 저장은 직접·간접 사용처도 재조립하고, 항목을 받던 사용처가 깨지면 전체를 취소한다. 실행 그래프가 같으면 기존 실행 판을 재사용한다.

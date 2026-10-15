@@ -1,4 +1,30 @@
+---
+status: 'completed'
+stage: null
+result: 'pass'
+report-kind: 'acceptance'
+report-size: 'compact'
+test-levels: ['static', 'component', 'integration', 'end-to-end']
+test-tools: ['npm', 'Prisma', 'PostgreSQL', 'Next.js', 'Playwright']
+created-at: '2026-10-15'
+completed-at: '2026-10-16'
+last-executed-at: '2026-10-15'
+tested-revision: '2e9832bea4e61623945d51d552dcc684b1095215'
+owners: ['user:Sangeok']
+related: ['docs/proposals/completed/2026-10-16-multiple-pipelines.md', 'docs/test-reports/completed/2026-10-16-multiple-pipelines-production-acceptance.md']
+primary-area: 'pipeline/multiple-pipelines'
+observed-environments: ['local | web and server | Windows Node 22 PostgreSQL 18 | isolated owner fixtures']
+test-summary: 'pass: Phase 1–5 구현 인수 — 로컬·격리 DB·실제 Next 검증 통과'
+follow-up: []
+---
+
 # Multiple pipelines — 첫 release 구현·검증
+
+운영 전환까지 완료했다. 이 문서는 아래 로컬 검증 시점의 기록이며, 최종 상태는
+[운영 인수 보고서](./2026-10-16-multiple-pipelines-production-acceptance.md)를 따른다.
+각 검증 표의 명령·시나리오는 필수 인수 기준이며 표시된 기존 환경 조건 skip은 해당 환경에서 적용되지 않는 항목이다.
+이 보고서의 시험 데이터는 격리 DB에서 정리했고 운영 데이터는 사용하지 않았다.
+
 
 ## 최신 dev 통합 검증
 
@@ -31,11 +57,11 @@ Pipeline fixture를 적용했다. 운영 DB와 운영 배포는 이 검증에 �
 
 이 첫 release는 [PR #163](https://github.com/Sangeok/stagekeeper/pull/163)으로 dev에
 병합됐다(`2e9832b`). PR의 `check` 네 항목·Windows native-runtime·Vercel preview와
-병합된 dev의 `check`가 통과했다. 운영 A·nullable 서버 적용은 아직 진행하지 않았다.
+병합된 dev의 `check`가 통과했다. 운영 적용 당시의 상태는 별도 운영 인수 보고서에 기록했다.
 
 아래는 최초 구현 당시의 기록이다.
 
-2026-10-15, [제안서](../../proposals/active/multiple-pipelines.md)의 Phase 1–5를 구현했다.
+2026-10-15, [제안서](../../proposals/completed/2026-10-16-multiple-pipelines.md)의 Phase 1–5를 구현했다.
 기준선은 원격 dev `c60a906498964ee2d72234b114319ddbc98a1bce`, 작업 브랜치는
 `harness/multiple-pipelines`다. 원래 checkout의 미커밋 plugin-clean-code 작업과
 겹치는 core·protocol 파일이 있어 별도 worktree에서 작업했다.
@@ -109,4 +135,5 @@ Phase 6의 migration B와 required Prisma schema는 아직 적용하지 않았�
 운영 maintenance·백업·DB migration·서버 배포·private bundle 지원 인증·dev/main 승격은
 이 로컬 구현 검증으로 완료 처리하지 않는다. 제안서의 배포·롤백 순서를 따른다. 원래
 checkout의 plugin-clean-code 작업과 늦게 통합하는 쪽은 dev 위에서 충돌을 해결하고 다시
-검증해야 한다. 이 때문에 제안서는 active에 유지한다.
+검증해야 했다. 이 절은 첫 release 로컬 검증 당시 남아 있던 작업의 기록이며,
+이후 Phase 6과 운영 전환을 완료한 결과는 별도 보고서에 기록했다.

@@ -1,14 +1,14 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-10"
 approved-by: "user:Sangeok"
 approved-at: "2026-10-15"
-approval-scope: "이 제안에 따른 실제 코드 수정. Phase 1–5 첫 release와 로컬 검증; 2026-10-15 후속 지시로 Phase 6 구현·검증을 별도 브랜치에서 먼저 준비한다. Phase 6 병합·배포는 첫 release 이후 별도 cleanup release로 진행한다."
-completed-at: null
-verification-summary: "Phase 1–5 기록: docs/test-reports/active/multiple-pipelines-implementation.md. Phase 6 후속 구현·검증: docs/test-reports/active/multiple-pipelines-cleanup.md. 운영 배포는 미완료."
+approval-scope: "실제 코드 구현과 후속 진행 지시에 따른 Phase 1–6 통합·검증·운영 배포. 사용자 확인 운영 DB에 maintenance·복원 가능한 백업·A → nullable 서버 → B → 필수 서버 순서를 적용한다."
+completed-at: "2026-10-16"
+verification-summary: "Phase 1–6 구현·격리 검증과 A/B 운영 전환 완료. docs/test-reports/completed/2026-10-16-multiple-pipelines-production-acceptance.md 참조."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -27,7 +27,7 @@ related:
 
 ## 구현 진행 기록
 
-2026-10-15 사용자 구현 지시에 따라 Phase 1–5 첫 release를 구현했다. 실제 변경·검증·잔여 배포 절차는 [구현 보고서](../../test-reports/active/multiple-pipelines-implementation.md)를 따른다. 같은 날 후속 지시로 Phase 6을 첫 release 커밋 위의 별도 브랜치에서 먼저 준비했다([cleanup 보고서](../../test-reports/active/multiple-pipelines-cleanup.md)). 후속 진행 지시로 첫 release [PR #163](https://github.com/Sangeok/stagekeeper/pull/163)을 dev에 병합했으며, cleanup 변경을 dev `2e9832b` 위에 재배치했다. 운영 A·nullable 서버 적용 전에는 cleanup PR을 draft로 유지한다. 배포 순서는 아래 배포 절을 유지한다. 아래 Before와 대조 이력은 구현 전 기준선의 기록이다. 운영 배포가 남아 이 문서를 active에 유지한다.
+2026-10-15 사용자 구현 지시로 Phase 1–5를 구현하고 [PR #163](https://github.com/Sangeok/stagekeeper/pull/163)을 dev에 병합했다. 후속 진행 지시에 따라 Phase 6 [PR #164](https://github.com/Sangeok/stagekeeper/pull/164)도 A 서버 운영 인수 뒤 병합했다. 2026-10-16(KST) 운영 DB 백업·실제 복원·A/B/rollback 리허설, 요청 차단·drain, A → nullable 서버 → B → 필수 서버 배포를 완료하고 `stagekeeper.dev`를 재개했다. [운영 인수 보고서](../../test-reports/completed/2026-10-16-multiple-pipelines-production-acceptance.md)가 최종 상태와 검증 한계를 기록한다. [첫 구현 보고서](../../test-reports/completed/2026-10-16-multiple-pipelines-implementation.md)와 [cleanup 보고서](../../test-reports/completed/2026-10-16-multiple-pipelines-cleanup.md)는 로컬 검증 근거다. 아래 Before·대조 이력은 구현 전 기준선을 보존한 기록이다.
 
 ## Summary
 
@@ -1592,7 +1592,7 @@ FSD 예외·루트 app 추가·수동 generated 수정은 허용하지 않는다
 
 승인 메모:
 
-- 2026-10-15 사용자 지시로 실제 코드 구현을 승인받았다. Phase 1–5와 후속 Phase 6의 구현·검증 범위는 상단 approval-scope와 구현 진행 기록을 따른다. 후속 진행 지시에 따라 PR·병합·배포 준비를 진행했다. 실제 운영 DB 식별과 maintenance·기존 writer drain·백업 접근 조건이 확인되기 전에는 운영 migration·main 승격을 실행하지 않는다.
+- 2026-10-15 사용자 지시로 실제 코드 구현을 승인받았다. Phase 1–5와 후속 Phase 6의 구현·검증 범위는 상단 approval-scope와 구현 진행 기록을 따른다. 후속 진행 지시에 따라 PR·병합·배포 준비를 진행했다. 운영 DB는 사용자가 확인했으며, maintenance·기존 writer 차단과 drain·백업 복원 검증을 마친 후 운영 migration과 main 승격을 순서대로 실행했다. 실행 근거는 운영 인수 보고서에 있다.
 
 ## Execution Plan
 
@@ -2153,19 +2153,21 @@ Proposed 변경 → Item·History Items 펼침/Events의 이름·감사 행 → 
   - A/B Prisma schema validate, A DDL과 migrate diff의 구조 대조, 격리 PGlite의 A backfill·기존 판/런/이벤트 보존·전체 catalog·B 거부/성공·B 전후 rollback·번호 초과 zero-write가 통과했다.
   - 별도 포터블 PostgreSQL 인스턴스의 실제 data_directory를 확인한 뒤 두 연결로 Serializable 경합을 재현했다. `ON CONFLICT DO NOTHING`은 40001, 단순 INSERT는 23505였고 실패 transaction의 부분 쓰기는 없었다. 종료 시 자기 인스턴스를 정지했다.
   - Git Bash의 새 음성 검사 함수는 untracked 금지 심볼에서 1, 무일치에서 0, 잘못된 검색 경로에서 2로 끝났다. 실패 중단이 다음 쓰기를 막는 것도 확인했다.
-- 위 결과는 제안의 계약·조각·검증 절차에 대한 증거다. 새 서비스와 화면의 구현 후 통합 시험·실제 Next POST/브라우저 인수를 대신하지 않으며, 아래 미실행 표는 그대로 유지한다. 최종 판정은 이 수정본에 대한 별도 무편집 전체 검증 결과로 보고한다.
+- 위 결과는 제안 검증 당시의 계약·조각·검증 절차에 대한 증거다. 당시에는 새 서비스와 화면의 구현 후 통합 시험·실제 Next POST/브라우저 인수를 실행하지 않았다. 이후 구현·배포 결과는 아래 표와 연결된 보고서에 기록한다.
 
-### 구현 후 실행 결과 (아직 미실행)
+### 구현 후 실행 결과
 
-| 명령 | 결과 | 비고 |
+| 명령/인수 | 결과 | 근거 |
 | --- | --- | --- |
-| `npm test` | Not run yet | |
-| `npm run test:web` | Not run yet | |
-| `npm run test:server` | Not run yet | |
-| `npm run test:server:integration` | Not run yet | 로컬 격리 DB 필요 |
-| `npm run check` | Not run yet | |
-| `npm run verify:fsd` | Not run yet | |
-| `npm run build` | Not run yet | |
+| `npm test` | PASS: 347, 기존 조건 skip 2 | 첫 release·cleanup 보고서 |
+| `npm run test:web` | PASS: 633 | 동일 |
+| `npm run test:server` | PASS: 143 | fresh action manifest 포함 |
+| `npm run test:server:integration` | PASS | 격리 PostgreSQL A/B·rollback |
+| `npm run check`, `npm run verify:fsd`, production build | PASS | 양 release 로컬·CI |
+| 실제 Next HTTP·브라우저 | PASS | 8개 action·5개 화면·15개 브라우저 시나리오·61개 HTTP/Flight 회귀 |
+| 운영 A/B 전환·조회·기존 원장 보존·서비스 재개 | PASS | 운영 인수 보고서 |
+
+운영에서는 실제 항목을 변경하는 사용자 동작을 재실행하지 않았다. 해당 동작은 격리 DB·실제 Next 서버로 검증했다. private bundle 지원 인증은 이 기능 배포의 판정 범위가 아니다.
 
 ## Risks and Rollback
 
@@ -2174,7 +2176,7 @@ Proposed 변경 → Item·History Items 펼침/Events의 이름·감사 행 → 
 3. **자동 파이프라인 변경 창 없음**: Proposed 조건을 유지하기로 사용자 확정했다. 즉시 planning이 된 항목에는 Change pipeline을 표시하지 않는다. planning·Reopen으로 창을 넓히지 않는다.
 4. **공용 정의 변경 영향**: 다음 항목부터 사용처 실행 판이 바뀐다. Also changes 목록과 서버 재조립 사유를 표시한다. 이미 고정된 run은 바꾸지 않는다.
 5. **경합·timeout·응답 유실**: 15초 transaction timeout과 기존 Serializable 오류를 따른다. 실패 감사/부분 쓰기/자동 재제출을 막는 통합 시험과 UI 회복 시험을 완료 조건으로 둔다.
-6. **운영 검증**: 제안 SQL(A·B·롤백)은 PGlite와 포터블 PostgreSQL 18에서 검사했다(Verification Results). 새 서비스가 없어 Prisma 통합·실제 Next/DB 리허설은 아직 실행하지 않았다. 구현 후 격리 DB에서 A→새 서버→B와 rollback을 재현해야 한다. 운영 배포·private bundle 지원 인증을 대신하지 않는다.
+6. **운영 검증**: Prisma 통합·실제 Next/DB 인수와 운영 백업 복원본의 A/B/rollback 리허설을 완료했다. 운영 A/B, 각 서버 배포와 재개 결과는 운영 인수 보고서에 있다. 실제 운영의 브라우저 편집 흐름과 private bundle 지원 인증까지 검증한 것은 아니다.
 7. **다른 미커밋 작업과의 머지 순서**: 본 checkout의 plugin-clean-code 작업(2026-10-13 미커밋)이 `packages/core/pipeline.mjs`(nodeDone)·`pipeline.d.mts`(NodeFacts)·`pipeline.test.mjs`·`docs/architecture/protocol.md`를 함께 고치고 `packages/core/pipeline-types.test.ts`를 만든다. 늦게 머지되는 쪽이 dev에 rebase하고 core 시험과 `npm run check`를 다시 돌린다.
 
 롤백은 **maintenance 유지 → 데이터 보정 → 옛 서버 검증 → 재개** 순서다. 먼저 옛 서버를 공개 배포하고 나중에 보정하지 않는다.
@@ -2214,21 +2216,12 @@ COMMIT;
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+완료일·검증 요약은 front matter를 따른다.
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
-
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+- implementation PR: [#163](https://github.com/Sangeok/stagekeeper/pull/163), [#164](https://github.com/Sangeok/stagekeeper/pull/164).
+- 변경: Pipeline·Definition·Rule, 기본/자동 선택, 합성 편집과 항목 선택·변경, A/B migration 및 필수 Prisma 관계.
+- 운영 인수: 필수 schema 서버 배포와 서비스 재개 완료. 백업·복원·구형 주소 차단·원장 보존 근거는 운영 보고서에 보존한다.
+- 범위 밖 후속: private bundle 전체 지원 인증은 기존 [dual-client 보고서](../../test-reports/active/dual-client-runtime-report.md)에서 별도로 추적한다.
 
 ## 구현 완료 조건
 
@@ -2241,11 +2234,11 @@ COMMIT;
 
 ## Review Checklist
 
-- [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
+- [x] 완료 상태와 검증 결과를 기록하고 완료/닫힘 전용 미작성 항목을 정리했다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다.
 - [x] `stage`는 pending 문서에서만 사용했다.
-- [ ] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다. (승인 전)
+- [x] 승인 기록을 채웠으며 완료 상태의 `stage`는 null이다.
 - [x] `proposal-size`는 standard이고, standard 강제 조건(마이그레이션·데이터 구조·5개 이상 파일)에 해당한다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용한다.
 - [x] 변경 범위와 제외 범위가 명확하다.
