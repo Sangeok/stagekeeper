@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, it } from "node:test";
@@ -8,7 +8,7 @@ import { diffPluginLib, syncPluginLib } from "./plugin-lib.mjs";
 const temporaryProjects = [];
 
 function project() {
-  const root = mkdtempSync(join(tmpdir(), "stagekeeper-plugin-lib-"));
+  const root = mkdtempSync(join(realpathSync(tmpdir()), "stagekeeper-plugin-lib-"));
   temporaryProjects.push(root);
   return root;
 }

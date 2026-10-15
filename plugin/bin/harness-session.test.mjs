@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
@@ -17,7 +17,7 @@ import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 import { createRoleFiles } from "../runtime/role-files.mjs";
 
 function fixture() {
-  const root = mkdtempSync(path.join(tmpdir(), "harness-session-test-"));
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()),"harness-session-test-"));
   execFileSync("git", ["init", root], { stdio: "ignore" });
   const location = gitRoot(root), files = stateFiles(location.directory);
   const binding = { root: location.root, server: "http://127.0.0.1:1", project: "test", configHash: "1".repeat(64), tokenHash: "2".repeat(64) };
@@ -214,8 +214,8 @@ it("resolves POSIX read commands with only the fixed system PATH and no parent c
 });
 
 it("copies the complete verifier into scratch without copying credential siblings or permitting a changed package", () => {
-  const owner = mkdtempSync(path.join(tmpdir(), "harness-verifier-owner-"));
-  const packageRoot = path.join(owner, "skills/reconciling-proposals-with-codebase"), scratch = mkdtempSync(path.join(tmpdir(), "harness-verifier-stage-"));
+  const owner = mkdtempSync(path.join(realpathSync(tmpdir()),"harness-verifier-owner-"));
+  const packageRoot = path.join(owner, "skills/reconciling-proposals-with-codebase"), scratch = mkdtempSync(path.join(realpathSync(tmpdir()),"harness-verifier-stage-"));
   mkdirSync(path.join(packageRoot, "references"), { recursive: true });
   writeFileSync(path.join(owner, "auth.json"), "credential-sibling-canary");
   writeFileSync(path.join(packageRoot, "SKILL.md"), "---\nname: reconciling-proposals-with-codebase\n---\n[Required resource](references/required.md)\n");
@@ -227,7 +227,7 @@ it("copies the complete verifier into scratch without copying credential sibling
   assert.equal(existsSync(path.join(path.dirname(staged.path), "auth.json")), false);
   assert.throws(() => stageVerifierPackage(expected, scratch));
   writeFileSync(path.join(packageRoot, "references/required.md"), "Changed after init");
-  assert.throws(() => stageVerifierPackage(expected, mkdtempSync(path.join(tmpdir(), "harness-verifier-changed-"))), /changed while staging/);
+  assert.throws(() => stageVerifierPackage(expected, mkdtempSync(path.join(realpathSync(tmpdir()),"harness-verifier-changed-"))), /changed while staging/);
 });
 
 it("requires actual sandbox execution without replacing named permissions or starting a model", async () => {

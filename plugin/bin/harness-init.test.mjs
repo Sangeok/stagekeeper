@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
@@ -33,7 +33,7 @@ const FIXTURES = {
   // 런북은 자기 판을 적는다 — 세션이 그 값을 pipeline_next에 넘긴다(아래 "reports the runbook version it just planted").
   "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\nversion {{runbook_version}}\nfull pipeline\n\nReport only:\n\n{{report_table}}\n",
 };
-const TPL_DIR = mkdtempSync(join(tmpdir(), "harness-tpl-"));
+const TPL_DIR = mkdtempSync(join(realpathSync(tmpdir()),"harness-tpl-"));
 for (const [rel, body] of Object.entries(FIXTURES)) {
   const full = join(TPL_DIR, "en", rel);
   mkdirSync(dirname(full), { recursive: true });
@@ -60,7 +60,7 @@ const runBare = (env, root, ...args) => {
 };
 const run = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root, "https://h.example", ...args);
 const runFree = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR, HARNESS_PLAN: "free" }, root, "https://h.example", ...args);
-const fresh = (cfg = APCH) => { const root = mkdtempSync(join(tmpdir(), "harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
+const fresh = (cfg = APCH) => { const root = mkdtempSync(join(realpathSync(tmpdir()),"harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
 const ONE_WS = JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }], scout: { question: "q" } });
 
 // 오류 뒤의 새 파일과 기존 내용 변경을 모두 잡도록 테스트 저장소 전체를 비교한다.
@@ -443,7 +443,7 @@ describe("harness-init (v2)", () => {
     // slug까지 싣는다 — 스킬이 harness.json 초안의 project.slug를 이 값으로 채운다.
     const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "dev", name: "stagekeeper", slug: "stagekeeper" };
     // harness.json이 없는 첫 연결에서 쓰는 모드다 — 설정을 읽지 않고, 아무것도 쓰지 않는다.
-    const emptyRoot = () => mkdtempSync(join(tmpdir(), "harness-empty-"));
+    const emptyRoot = () => mkdtempSync(join(realpathSync(tmpdir()),"harness-empty-"));
 
     it("prints the identity without harness.json and writes nothing", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server) => {
@@ -493,7 +493,7 @@ describe("harness-init (v2)", () => {
     // (git@github.com:…)에 실제로 접속한다. 기호 참조 없는 경로는 아래 시험들이 로컬 origin으로 따로 탄다.
     const IDENTITY = ["-c", "user.name=harness-test", "-c", "user.email=harness-test@example.invalid"];
     const gitRoot = (remote = "git@github.com:Sangeok/stagekeeper.git", { symref = "main" } = {}) => {
-      const root = mkdtempSync(join(tmpdir(), "harness-git-"));
+      const root = mkdtempSync(join(realpathSync(tmpdir()),"harness-git-"));
       execFileSync("git", ["init", "-q", "-b", "feature"], { cwd: root, stdio: "ignore" });
       if (remote) execFileSync("git", ["remote", "add", "origin", remote], { cwd: root, stdio: "ignore" });
       if (remote && symref) execFileSync("git", ["symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${symref}`], { cwd: root, stdio: "ignore" });
@@ -503,7 +503,7 @@ describe("harness-init (v2)", () => {
     // 멈추는데, 호스트 없는 짧은 형태(`fixture/stagekeeper.git`)는 해석되고 git에게는 작업 디렉터리 기준의 로컬
     // 경로다. 커밋은 신원을 명령에 준다 — CI 워크플로에는 git 신원을 설정하는 단계가 없다.
     const bareOrigin = (root, defaultBranch) => {
-      const seed = mkdtempSync(join(tmpdir(), "harness-seed-"));
+      const seed = mkdtempSync(join(realpathSync(tmpdir()),"harness-seed-"));
       execFileSync("git", ["init", "-q", "-b", defaultBranch], { cwd: seed, stdio: "ignore" });
       execFileSync("git", [...IDENTITY, "commit", "-q", "--allow-empty", "-m", "init"], { cwd: seed, stdio: "ignore" });
       execFileSync("git", ["clone", "-q", "--bare", seed, join(root, "fixture", "stagekeeper.git")], { stdio: "ignore" });

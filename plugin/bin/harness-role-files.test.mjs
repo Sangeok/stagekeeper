@@ -9,7 +9,7 @@ import { ROLE_TOOLS } from "../runtime/codex-agent.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 
 function fixture() {
-  const base = mkdtempSync(path.join(tmpdir(), "harness-native-files-")), root = path.join(base, "repository"), scratch = path.join(base, "scratch");
+  const base = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-native-files-")), root = path.join(base, "repository"), scratch = path.join(base, "scratch");
   for (const name of [root, scratch, path.join(root, "src/policy"), path.join(root, "other"), path.join(root, ".git"), path.join(root, "docs/plans")]) mkdirSync(name, { recursive: true });
   writeFileSync(path.join(base, "outside.txt"), "OUTSIDE_CANARY");
   writeFileSync(path.join(root, "src/code.ts"), "first line\nsecond needle\nthird line\n");

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { it, type TestContext } from "node:test";
@@ -32,9 +32,9 @@ it("strict prototype separates repository/scratch without mixing legacy sandbox 
 });
 
 function fixture(t: TestContext): { repo: string; report: string; body: string } {
-  const repo = mkdtempSync(path.join(tmpdir(), "stagekeeper-dual-report-test-"));
+  const repo = mkdtempSync(path.join(realpathSync(tmpdir()), "stagekeeper-dual-report-test-"));
   t.after(() => {
-    assert.equal(path.dirname(repo), path.resolve(tmpdir()));
+    assert.equal(path.dirname(repo), path.resolve(realpathSync(tmpdir())));
     assert.ok(path.basename(repo).startsWith("stagekeeper-dual-report-test-"));
     rmSync(repo, { recursive: true, force: true });
   });

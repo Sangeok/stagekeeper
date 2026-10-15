@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -39,7 +39,7 @@ async function waitFor(predicate) {
 }
 
 async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
-  const root = mkdtempSync(path.join(tmpdir(), "harness-watch-test-"));
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-watch-test-"));
   const children = new Set();
   const calls = [];
   const pending = new Set();
@@ -101,7 +101,7 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
     // Never recursively remove a path outside this fixture's named absolute root.
-    assert.equal(path.dirname(path.resolve(root)), path.resolve(tmpdir()));
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(realpathSync(tmpdir())));
     assert.ok(path.basename(root).startsWith("harness-watch-test-"));
     rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   });

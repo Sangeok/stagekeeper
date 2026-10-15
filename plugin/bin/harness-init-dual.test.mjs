@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createServer } from "node:http";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { it } from "node:test";
@@ -19,7 +19,7 @@ const rows = [...roles, ...COMMON_DOCS.map(path => ({ path, body: "shared {{proj
 const config = { version: 1, project: { owner: "o", repo: "r", branch: "main", slug: "o-r" }, workspaces: [{ id: "web", path: "src", agent: "web-dev", verify: ["npm test"] }] };
 
 async function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), "harness-init-dual-")), skill = join(root, "verifier");
+  const root = mkdtempSync(join(realpathSync(tmpdir()), "harness-init-dual-")), skill = join(root, "verifier");
   mkdirSync(skill); writeFileSync(join(skill, "SKILL.md"), "---\nname: reconciling-proposals-with-codebase\n---\nRead [gates](./gates.md).\n"); writeFileSync(join(skill, "gates.md"), "Fixture only: INV-1 INV-2 INV-3 INV-4 INV-5 INV-6 INV-7\n");
   writeFileSync(join(root, "harness.json"), JSON.stringify(config));
   const requests = [];
