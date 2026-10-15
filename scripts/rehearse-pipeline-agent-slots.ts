@@ -6,6 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { createBoardQueries } from "../src/server/pipeline/board-query";
 import { agentNext, type NextDeps } from "../src/server/agents/next";
+import { seedPipelineVersion } from "../tests/server/integration/support";
 import { cursorTransaction } from "../src/server/agents/run-query";
 
 // Deliberately no dotenv import or DATABASE_URL fallback. Only a disposable,
@@ -71,7 +72,7 @@ async function main() {
     assert.equal(await db.agentRun.count({ where: { project: { ownerUserId: owner.id } } }), 60);
     await db.subscription.update({ where: { userId: owner.id }, data: { plan: "max" } });
 
-    const version = await db.pipelineVersion.create({ data: { projectId: p1.id, version: 1, format: "slots-v1", nodes: ["plan", "implement", "doc-auditor", "accept"], gates: ["before-accept"], createdBy: owner.id } });
+    const version = await seedPipelineVersion(db, { projectId: p1.id, version: 1, format: "slots-v1", nodes: ["plan", "implement", "doc-auditor", "accept"], gates: ["before-accept"], createdBy: owner.id });
     const backlog = await db.backlogItem.create({ data: { projectId: p1.id, key: "SLOT-1", title: "Slot fixture", area: "web", source: "rehearsal" } });
     const item = await db.boardItem.create({ data: { projectId: p1.id, backlogItemId: backlog.id, agent: "web-dev", status: "implementing", reason: "fixture", results: [] } });
     const pipeline = await db.pipelineRun.create({ data: { boardItemId: item.id, versionId: version.id, node: "implement", entryId: randomUUID() } });

@@ -5,11 +5,11 @@ import { createBoardService } from "../../../src/server/pipeline/board";
 import { nextFor } from "../../../src/server/pipeline/run";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 import { registerTools } from "../../../src/server/mcp/tools";
-import { checkpoint, cleanup, connections, failingEvent, fixture, type Fixture } from "./support";
+import { seedPipelineVersion, checkpoint, cleanup, connections, failingEvent, fixture, type Fixture } from "./support";
 
 async function acceptanceFixture(db: PrismaClient, format: string | null = "slots-v1") {
   const f = await fixture(db, { status: "done", plan: "pro", validation: "pass", planPath: "plan.md" });
-  const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format, nodes: ["plan", "implement", "accept"], gates: [], createdBy: f.userId } });
+  const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format, nodes: ["plan", "implement", "accept"], gates: [], createdBy: f.userId });
   await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "accept", entryId: format ? "entry" : null } });
   await db.backlogItem.update({ where: { id: f.backlogItemId }, data: { removedAt: new Date(), removedReason: "done" } });
   return f;

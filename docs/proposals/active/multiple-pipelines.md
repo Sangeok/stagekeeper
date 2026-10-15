@@ -6,9 +6,9 @@ proposal-size: "standard"
 created-at: "2026-10-10"
 approved-by: "user:Sangeok"
 approved-at: "2026-10-15"
-approval-scope: "이 제안에 따른 실제 코드 수정. Phase 1–5 첫 release와 로컬 검증; Phase 6은 첫 release dev 병합 후 별도 cleanup release."
+approval-scope: "이 제안에 따른 실제 코드 수정. Phase 1–5 첫 release와 로컬 검증; 2026-10-15 후속 지시로 Phase 6 구현·검증을 별도 브랜치에서 먼저 준비한다. Phase 6 병합·배포는 첫 release 이후 별도 cleanup release로 진행한다."
 completed-at: null
-verification-summary: "첫 release 구현과 검증 기록: docs/test-reports/active/multiple-pipelines-implementation.md. Phase 6 및 운영 배포는 미완료."
+verification-summary: "Phase 1–5 기록: docs/test-reports/active/multiple-pipelines-implementation.md. Phase 6 후속 구현·검증: docs/test-reports/active/multiple-pipelines-cleanup.md. 운영 배포는 미완료."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -27,7 +27,7 @@ related:
 
 ## 구현 진행 기록
 
-2026-10-15 사용자 구현 지시에 따라 Phase 1–5 첫 release를 구현했다. 실제 변경·검증·잔여 배포 절차는 [구현 보고서](../../test-reports/active/multiple-pipelines-implementation.md)를 따른다. 아래 Before와 대조 이력은 구현 전 기준선의 기록이다. Phase 6은 첫 release가 dev에 병합된 뒤 별도 변경으로 진행하므로 이 문서를 active에 유지한다.
+2026-10-15 사용자 구현 지시에 따라 Phase 1–5 첫 release를 구현했다. 실제 변경·검증·잔여 배포 절차는 [구현 보고서](../../test-reports/active/multiple-pipelines-implementation.md)를 따른다. 같은 날 후속 지시로 Phase 6을 첫 release 커밋 위의 별도 브랜치에서 먼저 준비했다([cleanup 보고서](../../test-reports/active/multiple-pipelines-cleanup.md)). 후속 진행 지시로 첫 release [PR #163](https://github.com/Sangeok/stagekeeper/pull/163)을 dev에 병합했으며, cleanup 변경을 dev `2e9832b` 위에 재배치했다. 운영 A·nullable 서버 적용 전에는 cleanup PR을 draft로 유지한다. 배포 순서는 아래 배포 절을 유지한다. 아래 Before와 대조 이력은 구현 전 기준선의 기록이다. 운영 배포가 남아 이 문서를 active에 유지한다.
 
 ## Summary
 
@@ -1592,12 +1592,12 @@ FSD 예외·루트 app 추가·수동 generated 수정은 허용하지 않는다
 
 승인 메모:
 
-- 승인 전. 웹 단계(Phase 4)는 화면 배치를 따로 확정한 뒤 시작한다.
+- 2026-10-15 사용자 지시로 실제 코드 구현을 승인받았다. Phase 1–5와 후속 Phase 6의 구현·검증 범위는 상단 approval-scope와 구현 진행 기록을 따른다. 후속 진행 지시에 따라 PR·병합·배포 준비를 진행했다. 실제 운영 DB 식별과 maintenance·기존 writer drain·백업 접근 조건이 확인되기 전에는 운영 migration·main 승격을 실행하지 않는다.
 
 ## Execution Plan
 
 Phase 1–5는 한 브랜치(`harness/multiple-pipelines`, `dev`에서 분기) 안의 검증 단위이고, 합쳐서 첫 release(migration A와 nullable 서버)가 된다.
-Phase 6은 그 PR이 dev에 머지된 뒤 따로 분기하는 cleanup release(migration B와 필수 schema)다.
+Phase 6은 그 PR이 dev에 머지된 뒤 별도로 통합·배포하는 cleanup release(migration B와 필수 schema)다. 후속 승인으로 구현·로컬 검증을 먼저 준비하며, 아래 Phase 6 절에 브랜치와 통합 조건을 기록한다.
 배포 단위는 **migration A → nullable 서버 release → migration B + 필수 schema cleanup release** 세 단계다.
 
 ### 준비: 작업 worktree와 격리 시험 DB
@@ -1709,7 +1709,7 @@ worktree는 PR 머지 뒤 등록 경로를 `git -C "$MAIN" worktree list --porce
 
 ### Phase 6: cleanup release (migration B와 필수 schema)
 
-- **선행 조건**: Phase 1–5의 PR이 dev에 머지돼 있다. 그 dev에서 별도 `harness/<topic>` 브랜치로 분기한다("준비" 절차에서 브랜치 이름만 바꾼다).
+- **병합·배포 선행 조건**: Phase 1–5의 PR이 dev에 머지돼 있다. 그 dev 기준의 별도 `harness/<topic>` 브랜치에서 cleanup 변경을 통합한다("준비" 절차에서 브랜치 이름만 바꾼다). 2026-10-15 후속 승인에 따라 구현·로컬 검증은 첫 release 커밋 위의 `harness/multiple-pipelines-cleanup`에서 미리 진행할 수 있다. 첫 release PR에 B를 포함하지 않으며, 후속 PR은 실제 dev 기준으로 재검증하고 dev를 대상으로 한다. migration A와 nullable 서버의 운영 적용을 확인할 때까지 cleanup PR은 draft로 유지하며 병합하지 않는다.
 - **작업 내용**
   - `prisma/migrations/<later timestamp>_pipeline_version_owner_required/migration.sql`에 §3의 B SQL을 그대로 넣는다. 이 디렉터리는 이 release에만 있으므로 첫 release의 `migrate deploy`는 B를 실행하지 않는다.
   - schema의 `PipelineVersion.pipelineId`·`pipeline`을 필수(`String`·`Pipeline`)로 바꾸고 `db:generate`로 client를 다시 만든다. 모델은 늘지 않으므로 생성 모델 수 23은 그대로다.

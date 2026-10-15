@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createBoardService } from "../../../src/server/pipeline/board";
 import { nextFor } from "../../../src/server/pipeline/run-query";
-import { cleanup, connections, fixture } from "./support";
+import { seedPipelineVersion, cleanup, connections, fixture } from "./support";
 
 for (const verdict of ["pass", "fail", "blocked"] as const) it(`QA ${verdict} binds actual evidence and controls acceptance in PostgreSQL`, async () => {
   const { all: [db], disconnect } = connections(1);
   let userId: string | undefined;
   try {
     const f = await fixture(db, { status: "implementing", plan: "max" }); userId = f.userId;
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, nodes: ["plan", "implement", "qa", "accept"], gates: [], format: "slots-v1", createdBy: "test" } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, nodes: ["plan", "implement", "qa", "accept"], gates: [], format: "slots-v1", createdBy: "test" });
     const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "implement", entryId: "implementation-entry" } });
     const dev = await db.agentRun.create({ data: { projectId: f.projectId, agent: "dev", key: f.key, tokenId: "test", stepId: "report", closedAt: new Date(), pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId, steps: { create: [{ stepId: "verify", outcome: "ok", accepted: true }, { stepId: "report", outcome: "ok", accepted: true }] } } });
     const targetCommit = "a".repeat(40);

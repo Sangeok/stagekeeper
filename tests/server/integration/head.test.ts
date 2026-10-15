@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { headFor } from "../../../src/server/pipeline/run-query";
 import { createToolDeps } from "../../../src/server/mcp/deps";
-import { cleanup, connections, fixture, type Fixture } from "./support";
+import { seedPipelineVersion, cleanup, connections, fixture, type Fixture } from "./support";
 
 it("head scouts only after a backlog change, and only accepted report completion suppresses it", async () => {
   const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
@@ -43,7 +43,7 @@ it("at the dispatch cap only a matching unbound scout can resume the empty head"
     const capped = await read(); assert.equal(capped.action, "none"); if (capped.action === "none") assert.match(capped.reason, /Usage limit reached/);
     const pm = await db.agentRun.create({ data: { projectId: f.projectId, agent: "pm", tokenId: "t", stepId: "start" } });
     assert.equal((await read()).action, "none", "PM cannot resume as scout");
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: ["before-plan"], createdBy: f.userId } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: ["before-plan"], createdBy: f.userId });
     const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "feature-scout", entryId: "entry" } });
     const scout = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "write", pipelineRunId: pipeline.id, pipelineEntryId: "entry" } });
     assert.equal((await read()).action, "none", "bound runs belong to their slot");
@@ -64,8 +64,8 @@ it("a real overview dispatches its trailing Scout slot once, then remembers the 
     const earlier = new Date(Date.now() - 10000);
     await db.boardItem.update({ where: { id: f.boardItemId }, data: { acceptedAt: earlier } });
     await db.backlogItem.update({ where: { id: f.backlogItemId }, data: { createdAt: earlier, removedAt: earlier, removedReason: "done" } });
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format: "slots-v1", createdBy: f.userId,
-      nodes: ["propose", "plan", "implement", "accept", "feature-scout"], gates: ["before-plan", "before-implement"] } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format: "slots-v1", createdBy: f.userId,
+      nodes: ["propose", "plan", "implement", "accept", "feature-scout"], gates: ["before-plan", "before-implement"] });
     const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "feature-scout", entryId: "entry", enteredAt: earlier } });
     const tools = createToolDeps(db);
     const first = await tools.pipelineNext(f.projectId, undefined);

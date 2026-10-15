@@ -5,7 +5,7 @@ import { setAutomaticScout } from "../../../src/server/automatic-scout";
 import { headFor } from "../../../src/server/pipeline/run-query";
 import { createNextDeps } from "../../../src/server/agents/runs";
 import { createBoardQueries } from "../../../src/server/pipeline/board-query";
-import { afterProjectRead, checkpoint, cleanup, connections, fixture, type Fixture } from "./support";
+import { seedPipelineVersion, afterProjectRead, checkpoint, cleanup, connections, fixture, type Fixture } from "./support";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
 
 it("Free owners can disable and re-enable automatic scouting without changing the saved item graph", async () => {
@@ -32,8 +32,8 @@ it("disabling closes only unbound scout runs, blocks their additions and new ins
   try {
     f = await fixture(db, { plan: "pro" });
     const head = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "write" } });
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format: "slots-v1", createdBy: f.userId,
-      nodes: ["propose", "plan", "feature-scout", "implement", "accept"], gates: [] } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format: "slots-v1", createdBy: f.userId,
+      nodes: ["propose", "plan", "feature-scout", "implement", "accept"], gates: [] });
     const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "feature-scout", entryId: "entry" } });
     const bound = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "write", pipelineRunId: pipeline.id, pipelineEntryId: "entry" } });
     const pm = await db.agentRun.create({ data: { projectId: f.projectId, agent: "pm", tokenId: "t", stepId: "pick" } });
@@ -71,8 +71,8 @@ it("preserves a legacy Scout slot's shared run while automatic head scouting is 
   const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
   try {
     f = await fixture(db, { plan: "pro", status: "done" });
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, createdBy: f.userId,
-      nodes: ["plan", "implement", "accept", "scout"], gates: [] } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, createdBy: f.userId,
+      nodes: ["plan", "implement", "accept", "scout"], gates: [] });
     await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "scout" } });
     const scout = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "write" } });
     assert.equal((await setAutomaticScout(db, { projectId: f.projectId, userId: f.userId, enabled: false })).ok, true);
