@@ -117,8 +117,9 @@ stagekeeper/
    재사용 가능한 제품 코드는 `src/fsd`에 둔다.
 2. FSD 의존성은 `pages → widgets → features → entities → shared` 방향으로만
    흐른다. 같은 layer의 다른 slice를 직접 import하지 않는다.
-3. slice 밖에서는 해당 slice의 `index.ts` 또는 `index.server.ts`만 import한다.
-   내부에서는 public API를 우회하지 않고 상대 경로를 사용한다.
+3. slice 밖에서는 해당 slice의 public API(`index.ts`·`index.tsx`·`index.server.ts`)만
+   import한다. 같은 slice 내부에서는 실제 파일을 상대 경로로 참조한다. slice가
+   없는 `shared`의 공개 경로는 [FSD 규칙](./fsd.md#shared의-공개-경로)을 따른다.
 4. `src/server`는 `src/fsd`를 import하지 않는다. 서버 Action/API adapter만
    FSD slice의 `api` segment에서 `src/server`를 호출할 수 있다.
 5. `packages/core`는 `src`와 npm package에 의존하지 않는다. UI와 DB가 같은
@@ -135,13 +136,14 @@ stagekeeper/
 2. DB·인증·MCP·트랜잭션 같은 서버 기능인가? → `src/server`
 3. 프레임워크와 무관한 순수 규칙인가? → `packages/core`
 4. 전체 화면인가? → `src/fsd/pages/<slice>`
-5. 여러 화면이 재사용하는 독립 UI 블록인가? → `widgets/<slice>`
+5. 여러 화면에서 재사용하거나 한 화면 안에서 독립적인 큰 UI 블록인가? → `widgets/<slice>`
 6. 사용자가 수행하는 의미 있는 동작인가? → `features/<slice>`
 7. 도메인 명사와 표현인가? → `entities/<slice>`
 8. Stagekeeper가 아닌 앱에서도 쓸 수 있는 기반인가? → `shared/<segment>`
 
-둘 이상의 후보가 떠오르면 현재 사용처에 가장 가까운 낮은 추상화에서 시작한다.
-세 곳 이상에서 같은 책임과 같은 변경 방향으로 반복될 때만 위 layer로 추출한다.
+둘 이상의 후보가 떠오르면 현재 책임을 소유한 page 또는 slice에서 시작한다.
+내부 파일 분리, 별도 slice 분리, 재사용을 위한 추출의 판단 기준은
+[FSD 코드 배치와 추출 판단](./fsd.md#코드-배치와-추출-판단)을 따른다.
 
 ## 개발 시작과 종료
 

@@ -21,7 +21,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 - 다른 slice 내부로 들어가는 deep import
 - non-empty slice의 public API 누락
 - FSD에서 `src/server`를 호출하는 server adapter의 위치와 directive
-- Client Component의 서버 모듈 import
+- `"use client"` 파일의 직접 import 중 `src/server`, `index.server`, `*.server` 경로
 - `src/server → src/fsd` 역방향 의존
 - `packages/core`의 `src` 또는 외부 npm package 의존
 - `src/components`, `src/hooks`, `src/lib`, `src/utils`, `src/types` 같은 전역
@@ -34,6 +34,25 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 정규식 기반 검사라 계산된 dynamic import, TypeScript path alias의 복잡한 재정의,
 런타임 의존성까지 완전히 증명하지는 못한다. 자동 검사를 통과했다는 사실은 아래
 리뷰를 생략할 근거가 아니다.
+
+## FSD 규칙의 검증
+
+규칙 본문은 [fsd.md](./fsd.md)가 소유한다. 현재 자동 검사는 파일 경로와 소스의
+import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그래프를 판정하지 않는다.
+
+| 확인 사항 | 현재 자동화 | 추가 확인 |
+| --- | --- | --- |
+| layer 방향·slice 격리·외부 public API 경로 | `verify:fsd`가 인식한 import 경로와 non-empty slice의 진입점 파일 존재를 검사한다 | 실제 export와 소비 계약이 맞는지 확인한다. 다른 slice를 절대 경로로 참조하는 규칙은 별도로 리뷰한다 |
+| 공개 symbol과 자기 public API 참조 | 같은 slice의 절대 경로 import는 거부한다 | `export *` 금지, 필요한 symbol만 공개하는지, 상대 경로로 자기 barrel을 참조하지 않는지는 전용 자동 검사가 없다 |
+| `shared` 공개 경로 | `shared` 밖에서 segment 또는 unit 경로보다 깊게 들어가는 import를 거부한다 | 단일 파일·폴더형 unit의 실제 진입점과 export를 확인한다. `shared` 내부에는 unit별 접근 금지 규칙이나 전용 검사가 없다 |
+| 서버 adapter와 Client 경계 | FSD의 `src/server` 직접 import 위치·directive와 `"use client"` 파일의 서버 경로 직접 import를 검사한다 | 일반 barrel을 경유한 서버 코드 유입, `server-only`와 `"use server"`의 용도, Action 전달·입력 검증·인가는 코드 리뷰와 관련 동작 검증으로 확인한다 |
+| slice 책임·공통화·상태 위치 | 전용 자동 검사 없음 | [코드 배치와 추출 판단](./fsd.md#코드-배치와-추출-판단)에 따라 소유권·변경 이유·실제 소비처를 확인한다 |
+
+`npm run test:architecture`는 검사기 등을 포함한 `scripts/*.test.mjs`의 회귀
+테스트를 실행한다. 문서의 모든 규칙이나 애플리케이션의 Server/Client 연결을
+증명하는 명령은 아니다. 코드 변경 시 `npm run check`의 lint·타입 검사와
+`npm run build`, 변경 영역의 관련 테스트를 함께 적용한다. 빌드 통과도 Action의
+인증·인가나 업무 동작 검증을 대신하지 않는다.
 
 ## 테스트 배치 규칙의 검증
 
@@ -306,8 +325,8 @@ fixture 소유자의 종류별 토큰 수와 Reference·revoked 여부만 반환
 - [ ] 상태, schema, 테스트, loading/error UI가 변경 책임 근처에 있다.
 - [ ] 테스트의 위치·보조 코드·운영 코드 의존성을 [테스트 배치 규칙](./test-organization.md)과 대조했다.
 - [ ] 추가·이동한 테스트가 실제 실행 명령의 검색 패턴에 포함되고 실행됐다.
-- [ ] 전역 store, 공통 hook, shared 추출이 실제 반복과 같은 변경 방향으로
-  정당화된다.
+- [ ] 전역 store, 공통 hook, slice·shared 추출의 책임·변경 이유·실제 소비처를
+  [FSD 배치 기준](./fsd.md#코드-배치와-추출-판단)과 대조했다.
 - [ ] `src/app` route가 composition 이상을 떠안지 않는다.
 - [ ] `src/server`가 UI 표현이나 FSD 타입에 의존하지 않는다.
 - [ ] `npm run lint`, `npm run test:architecture`, 관련 테스트가 통과한다.
