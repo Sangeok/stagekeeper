@@ -66,8 +66,8 @@ function action<T>(input: unknown, values: { success: T; error: T; stale: T }): 
 const router = { refresh: () => { controls.refreshes++; } } as React.ContextType<typeof AppRouterContext>;
 function PipelineFixture() {
   return <><AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />
-    <PipelineRail graph={defaultGraph("pro")} expectedVersion={3} plan="pro" roster={["dev"]} editable
-      save={input => action(input, { success: { status: "success", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
+    <PipelineRail pipelineId="default" definition={{ steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }} rules={{}} pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }, saved: { version: 3, createdAt: new Date(0) }, runnable: { ...defaultGraph("pro"), format: "slots-v1" } }]} expectedVersion={3} plan="pro" roster={["dev"]} editable
+      save={input => action(input, { success: { status: "success", pipelineId: "default", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
 }
 function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
   const [view, setView] = useState({ projectId: "one", version: unsaved ? 0 : 3, graph: defaultGraph("pro"), plan: "pro", editable: true, roster: ["dev"], enabled: true });
@@ -86,14 +86,15 @@ function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
       <button onClick={() => setView({ projectId: "two", version: 3, graph: defaultGraph("pro"), plan: "pro", editable: true, roster: ["dev"], enabled: true })}>Switch project</button>
     </div>
     <div id="pipeline-page">
-      <ProjectPipelinePage projectId={view.projectId} graph={view.graph} format="slots-v1"
-        saved={view.version === 0 ? undefined : { version: view.version, at: now }} now={now}
+      <ProjectPipelinePage projectId={view.projectId}
+        pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: view.graph.nodes, gates: view.graph.gates }, saved: view.version === 0 ? null : { version: view.version, createdAt: now }, runnable: { ...view.graph, format: "slots-v1" } }]}
+        rules={{}} autoProposeEnabled actions={{ archive: async () => ({ success: true, data: null }), rename: async () => ({ success: true, data: null }), setDefault: async () => ({ success: true, data: null }), setRule: async () => ({ success: true, data: null }), setAutomaticPick: async () => ({ success: true, data: null }) }} now={now}
         plan={view.plan} roster={view.roster} editable={view.editable} unavailableReason={view.editable ? undefined : "Not selected"}
         autoScoutEnabled={view.enabled} canChangeAutoScout={view.editable}
         save={async input => {
-          const result = await action(input, { success: { status: "success" as const, version: input.expectedVersion + 1 }, error: { status: "error" as const, reason: "Unavailable" }, stale: { status: "stale" as const } });
+          const result = await action(input, { success: { status: "success" as const, pipelineId: "default", version: input.expectedVersion + 1 }, error: { status: "error" as const, reason: "Unavailable" }, stale: { status: "stale" as const } });
           if (result.status === "success") setView(current => current.projectId === view.projectId && current.version <= result.version
-            ? { ...current, version: result.version, graph: input.graph } : current);
+            ? { ...current, version: result.version, graph: { nodes: input.definition.steps, gates: input.definition.gates } } : current);
           return result;
         }}
         saveAutoScout={async enabled => {
@@ -182,6 +183,7 @@ function DocumentsFixture() {
   const report = (id: string): BoardItemView["reports"][number] => ({ id, actor: "dev", path: "docs/report.md", commit: "samecommit", at, acceptedAt: null });
   const [reports, setReports] = useState(() => [report("plan"), report("second")]);
   const item: BoardItemView = {
+    id: "documents", pipeline: { pipelineId: null, name: "Default", canChange: false },
     key: "DOC-1", title: "Distinct reports with identical URLs", agent: "dev", area: "web", status: "done",
     reason: "Retain every submission", results: [], validation: null, proposedOn: at, acceptedAt: null,
     acceptanceFailure: null, updatedAt: at.toISOString(), repo, reports, events: [],
@@ -192,7 +194,7 @@ function DocumentsFixture() {
     <button onClick={() => setReports(current => [...current].reverse())}>Reverse reports</button>
     <button onClick={() => setReports(current => current.slice(1))}>Remove first report</button>
     <button onClick={() => setReports(current => current.some(row => row.id === "third") ? current : [...current, report("third")])}>Add report</button>
-    <BoardItemPage slug="documents" item={item} canWrite={false} transition={unused} retryAcceptance={unused} />
+    <BoardItemPage slug="documents" item={item} canWrite={false} transition={unused} retryAcceptance={unused} pipelineChoices={[]} changePipeline={async () => { throw new Error("Read-only fixture"); }} />
   </>;
 }
 
@@ -247,7 +249,7 @@ function ProposeFixture() {
     controls.setRoster = setRoster;
     return () => { controls.setRoster = () => {}; };
   }, []);
-  return <ProposeButton itemKey="KEY" roster={roster} propose={input => action(input, {
+  return <ProposeButton pipelines={[{ id: "default", name: "Default" }]} preselected="default" itemKey="KEY" roster={roster} propose={input => action(input, {
     success: { success: true, data: undefined }, error: { success: false, error: "Refused" }, stale: { success: false, error: "stale" },
   })} />;
 }

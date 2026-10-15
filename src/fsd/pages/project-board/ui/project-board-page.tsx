@@ -42,6 +42,7 @@ function ActivityRow({ slug, item }: { slug: string; item: ActivityItem }) {
       <span className={cn("text-sm", isQuiet && "text-quiet")}>
         <span className="mr-2.5 font-mono text-xs">{item.key}</span>
         {item.line}
+        <span className="ml-2 text-xs text-quiet">{item.pipelineName}</span>
       </span>
       <span className="flex items-center gap-1.5">
         {item.overBudget ? <OverBudgetChip /> : null}

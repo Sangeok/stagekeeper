@@ -69,10 +69,10 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
   }
   await run("propose roster same instance", "current selection drives display and submission; explicit selection survives reorder/removal/reappearance and reason survives cancel", async () => {
     await mount("propose"); await click("Put on the board");
-    const select = document.querySelector<HTMLSelectElement>("select")!;
+    const select = document.querySelector<HTMLSelectElement>('select:not([aria-label="Pipeline"])')!;
     check(select.value === "" && find("Put on the board").disabled, "empty roster enabled");
     controls.setRoster(["dev"]); await tick();
-    check(document.querySelector("select") === select && select.value === "dev" && !find("Put on the board").disabled, "new roster not derived in same instance");
+    check(document.querySelector('select:not([aria-label="Pipeline"])') === select && select.value === "dev" && !find("Put on the board").disabled, "new roster not derived in same instance");
     input("input", "evidence survives"); await tick();
     controls.setRoster(["dev", "other"]); await tick();
     select.value = "other"; select.dispatchEvent(new Event("change", { bubbles: true })); await tick();
@@ -82,10 +82,10 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     controls.setRoster([]); await tick(); check(select.value === "" && find("Put on the board").disabled, "empty list has old value");
     controls.setRoster(["dev", "other"]); await tick();
     await click("Cancel"); await click("Put on the board");
-    check(document.querySelector<HTMLSelectElement>("select")?.value === "other", "cancel cleared explicit selection");
+    check(document.querySelector<HTMLSelectElement>('select:not([aria-label="Pipeline"])')?.value === "other", "cancel cleared explicit selection");
     check(document.querySelector<HTMLInputElement>("input")?.value === "evidence survives", "reason cleared");
     await click("Put on the board");
-    check(JSON.stringify(controls.payloads[0]) === JSON.stringify({ key: "KEY", agent: "other", reason: "evidence survives" }), "payload differs from display");
+    check(JSON.stringify(controls.payloads[0]) === JSON.stringify({ key: "KEY", agent: "other", reason: "evidence survives", pipelineId: "default" }), "payload differs from display");
     controls.finishAction("success"); await tick();
   });
   for (const outcome of ["error", "unknown"] as const) await run(`propose pending ${outcome}`, "pending roster changes display but preserve the one captured request; retry uses current roster and retained reason", async () => {
@@ -93,12 +93,12 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     input("input", "captured evidence"); await tick(); await click("Put on the board");
     const snapshot = JSON.stringify(controls.payloads[0]);
     controls.setRoster(["other"]); await tick();
-    check(document.querySelector<HTMLSelectElement>("select")?.value === "other", "pending display not current");
+    check(document.querySelector<HTMLSelectElement>('select:not([aria-label="Pipeline"])')?.value === "other", "pending display not current");
     check(controls.payloads.length === 1 && JSON.stringify(controls.payloads[0]) === snapshot && snapshot.includes('"agent":"dev"'), "pending request changed or duplicated");
     controls.finishAction(outcome); await tick();
     check(document.querySelector<HTMLInputElement>("input")?.value === "captured evidence", "failure erased reason");
     await click("Put on the board"); check(controls.payloads.length === 2, "retry not submitted");
-    check(JSON.stringify(controls.payloads[1]) === JSON.stringify({ key: "KEY", agent: "other", reason: "captured evidence" }), "retry uses stale roster");
+    check(JSON.stringify(controls.payloads[1]) === JSON.stringify({ key: "KEY", agent: "other", reason: "captured evidence", pipelineId: "default" }), "retry uses stale roster");
     controls.finishAction("success"); await tick();
   });
   for (const picker of [true, false]) await run(`form name reset ${picker ? "picker" : "manual"}`, "only Start over clears name in the same DOM input; ordinary selection/edit changes keep it and B submits an empty name", async () => {

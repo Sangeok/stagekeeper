@@ -231,7 +231,7 @@ Under the lines, one quiet line, with `/harness:watch` in mono:
 you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Connect the
 repository — the detail line is the lock block below (chip **Not connected yet**) · 3 Run the
 pipeline in Claude Code "feature-scout reads the code and adds up to three backlog items; pm
-puts up to two on the board for your approval. With no Propose node, put one on the board
+puts up to two on the board for your approval. With automatic picking off, put one on the board
 from the Backlog tab." Strip: "Setting up · Step 3 of 3 — Run the pipeline in your coding client."
 
 
@@ -317,8 +317,7 @@ model is in git history).
 moves the item; it does not start an agent. Until someone runs the session, nothing is happening —
 the banner, the Activity line and the Team row all say so rather than claiming work in progress.
 
-**Team row** — the agents the current pipeline dispatches, in graph order. pm appears when the
-graph has a Propose node, plan-verifier with Verify, impl-verifier with Implementation check,
+**Team row** — the union of agents dispatched by active pipelines that run items. The default pipeline comes first, then creation time and id; each agent appears once at its first position. pm appears first when Automatic picking is on, plan-verifier with Verify, impl-verifier with Implementation check,
 qa-verifier with QA, doc-auditor with Doc audit, feature-scout with Scout; the workspace roster (dev and friends) appears once, for Plan and Implement. Accept
 dispatches nobody — the main loop runs it. feature-scout also runs outside the graph when nothing is left to pick and the backlog has changed since it last looked; the Team row lists graph nodes only, so it appears there only with a Scout node. The default pipeline has no feature-scout, impl-verifier or qa-verifier, and the Free
 default has no plan-verifier or doc-auditor either.
@@ -652,6 +651,8 @@ and the quoted owner URL, never the token value.
 
 ## 11. Item detail
 
+- **Pipeline**: the name of the pipeline pinned to this run, including archived pipelines.
+- **Change pipeline** is available only for a writable Proposed item with a slots run and no bound agent execution. Choices exclude the current pipeline and fragments; omit the control if no choices remain. It remains available after downgrade to Free. Stale: "The board changed. Refresh and try again." Unknown response: "Couldn't confirm whether the pipeline changed. Refresh to check the current state before trying again." Refresh before retrying; never resubmit automatically.
 - Header: `ITEM-01` · `dev` · `README.md` — title — state chip — "Proposed 2026-08-30 01:49" ·
   "Accepted 2026-09-06 16:10" once the acceptance record is in
 - **Evidence** · **Result** ("None yet") · **Validation** (the record, or a quiet **Not verified**
@@ -671,7 +672,7 @@ and the quoted owner URL, never the token value.
 - A boundary the pipeline crossed on its own — the graph has no gate there — is written by
   `pipeline`, and the row reads `pipeline · auto`. A gate the owner opened carries the gate in its
   note, rendered as `gate · before Implement`. Same-state rows show **Plan submitted**, **Validation recorded**,
-  **Acceptance failed**, **Acceptance run again**, or `gate · <gate label>` instead of a repeated-state arrow. Unknown notes keep the original transition and note.
+  **Acceptance failed**, **Acceptance run again**, **Pipeline changed** (note: `<old name> → <new name>`), or `gate · <gate label>` instead of a repeated-state arrow. Unknown notes keep the original transition and note.
 - Report rows use the same labels as Documents, the stored submitter and a seven-character commit link.
   The report's own recorded commit opens on GitHub. Duplicate `report` transition events are omitted.
   Item History is oldest first, with the same row presentation as the project History tab; its key column is omitted.
@@ -686,7 +687,9 @@ Document link labels (reused on the board): plan "Plan"; reports by actor — ma
 
 ## 12. Server messages
 
-Malformed pipeline graph/version inputs return "Invalid pipeline save request."
+Malformed pipeline definition/version inputs return "Invalid pipeline save request."
+Malformed pipeline settings inputs return "Invalid pipeline settings request."
+Malformed pipeline change inputs return "Invalid pipeline change request."
 Pipeline save recovery uses §18; other mutations retain their current refresh messages.
 
 Reasons come back from `board.ts` / `board-rules.ts` to both MCP callers and web actions. They
@@ -745,14 +748,32 @@ are terse on purpose — agents parse them.
 | `gates open through board.gate, not a transition: proposed → planning` (a client that still sends a gate as a plain transition) | — |
 | `Usage limit reached. New runs are available at <UTC ISO>.` (`USAGE_LIMIT_REACHED`, `resetAt`) | — |
 | `Request limit reached. Retry after <seconds> seconds.` (`RATE_LIMITED`, `retryAfterSec`; REST 429 also sends `Retry-After`) | — |
-| `graph must have nodes and gates` (pipeline save) | shown as is |
+| `pipeline must have steps and gates` | shown as is |
+| `step and gate ids must be strings` | shown as is |
+| `a pipeline needs at least one step` | shown as is |
+| `a step appears twice` | shown as is |
+| `unknown step: <step>` | shown as is |
+| `it uses a pipeline that is archived or missing` | shown as is |
+| `pipelines can't use each other in a loop` | shown as is |
+| `<a> must come before <b>` | shown as is |
+| `propose is no longer a node — turn on Automatic picking in the Pipeline tab` | shown as is |
+| `This pipeline can't run items on its own. Use it inside another pipeline.` | shown as is |
+| `Saving would break <name>: <reason>` | shown as is |
+| `Pipeline not found.` | shown as is |
+| `Use 1 to 40 characters for the pipeline name.` | shown as is |
+| `Another pipeline already uses this name. Choose a different one.` | shown as is |
+| `The pipeline can change only while the item is proposed and nothing has run on it yet.` | shown as is |
+| `pipeline change access denied` | shown as is |
+| `Can't archive <name>: it's the default pipeline.` | shown as is |
+| `Can't archive <name>: <names> use it.` | shown as is |
+| `Can't archive <name>: the <type> rule points to it.` | shown as is |
+| `graph must have nodes and gates` (expanded executable validation) | shown as is |
 | `slot and gate ids must be strings` | shown as is |
 | `a node appears twice` | shown as is |
 | `unknown node: verifyy` | shown as is |
 | `accept can't be removed` | shown as is |
 | `verify is not on the free plan` | shown as is |
 | `anchors must keep the order plan · implement · accept` | shown as is |
-| `propose must be first` | shown as is |
 | `verify must be between plan and implement` | shown as is |
 | `impl-verify must be between implement and accept` | shown as is |
 | `qa must be between implement and accept` | shown as is |
@@ -760,7 +781,7 @@ are terse on purpose — agents parse them.
 | `don't mix doc-audit with doc-auditor slots` | shown as is |
 | `a gate appears twice` | shown as is |
 | `gate before-scout has no node after it` | shown as is |
-| — (pipeline save, plan) | Pipeline editing opens on Pro. The default pipeline stays as is. |
+| — (pipeline definition save and all five settings, including Automatic picking, plan) | Pipeline editing opens on Pro. The default pipeline stays as is. |
 | — (pipeline save, race) | The pipeline changed. Your draft is still here. Discard changes and reload to edit the latest version. |
 | — (put on the board, race) | The board changed. Refresh and try again. |
 
@@ -790,7 +811,7 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires `runId` and `qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}`. impl-verifier additionally requires `runId`. Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record. |
 | `acceptance_fail` | main-loop: record a failed acceptance at the accept node — the failed checks (1–5, the runbook's five acceptance checks) and a note of 150 characters or fewer; a committed write-up's path and commit are optional, together. The item then waits for the owner, who runs acceptance again or reopens it on the item page. Don't run the checks again until pipeline_next answers accept. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, ≤150 characters, and only after a plan-verifier pass is on record for the current plan. |
-| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is feature-scout's turn (no candidates) or pm's turn (candidates remain) (`dispatch` with a hint, or `none` with a reason: "no propose node on this pipeline — put an item on the board from the Backlog tab" · "open items: 2 (max 2)" · "a Scout node in items dispatches feature-scout — that run looks for items to add" · "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — the selected pm or unbound feature-scout run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. Pass `runbook` — the version written in the calling checkout's `CLAUDE.md` — and the answer judges that copy; without it, the version the last init reported. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap` · `acceptance` · `impl-verify` · `qa`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
+| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is feature-scout's turn (no candidates) or pm's turn (candidates remain) (`dispatch` with a hint, or `none` with a reason: "Automatic picking is off. Put an item on the board from the Backlog tab, or turn it on in the Pipeline tab." · "open items: 2 (max 2)" · "a Scout node in items dispatches feature-scout — that run looks for items to add" · "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — the selected pm or unbound feature-scout run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. Pass `runbook` — the version written in the calling checkout's `CLAUDE.md` — and the answer judges that copy; without it, the version the last init reported. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap` · `acceptance` · `impl-verify` · `qa`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
 | `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:
@@ -1259,16 +1280,18 @@ never existed look the same from here.
 
 ## 18. Pipeline tab
 
-- Title **Pipeline**. Version line: "Version 3 · saved 2 days ago · applies to items proposed from
+- Title **Pipeline**. The **Pipelines** list shows **Default**, **Runs items** or **Used inside**. Order: default first, then creation time and id. **New pipeline**, **Rename**, **Archive**, the **Default** selector and feat/fix/refactor/docs routing selectors share the editor's write permission. Free and unavailable projects show read-only values and the same reason as the rail.
+- Put on the board has a **Pipeline** select of active runnable pipelines, preselected by the type rule or default. An unsaved virtual default is runnable and selectable. Activity cards and item pages show the run's pipeline name.
+- Version line (the selected definition version): "Version 3 · saved 2 days ago · applies to items proposed from
   now on."
-- Without a persisted version: `Default pipeline · not saved yet`. Reading the page never creates a version.
-- A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max. A retained draft may still be discarded locally, and stale/unknown recovery may still reload the route; neither operation submits a graph.
-- The rail is one row of node cards in graph order. Anchor names: **Propose** · **Plan** ·
+- Without a persisted version: `Default pipeline · not saved yet`. A new draft reads `New pipeline · not saved yet`, starts empty, and needs a step before saving. First save opens the new pipeline. Reading the page never creates Pipeline, definition or execution rows.
+- A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max. A retained draft may still be discarded locally, and stale/unknown recovery may still reload the route; neither operation submits a definition.
+- The rail is one row of node cards in graph order. Node names: **Plan** ·
   **Verify** · **Implement** · **Accept**; the optional item nodes read **Implementation check** and
   **QA**. Repeatable project-agent slots read **Doc audit** and
   **Scout**, and a repeat keeps its suffix — **Doc audit #2**, **Scout #3**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
-  node has no gate, small text between the cards says “auto → planning” · “auto → implementing” · “auto → verify” · “auto → implementation check” · “auto → qa” · “auto → accept” · “auto → doc audit” · “auto → scout”, including “auto → doc audit #2” for repeated slots. Propose alone has no auto label.
+  node has no gate, small text between the cards says “auto → planning” · “auto → implementing” · “auto → verify” · “auto → implementation check” · “auto → qa” · “auto → accept” · “auto → doc audit” · “auto → scout”, including “auto → doc audit #2” for repeated slots.
 - Hovering anywhere on a gate card shows what that gate means, as the browser tooltip:
   "The item waits here until you press `<button>` in the Inbox. `<hint>`" — the gate's own Inbox
   button and its next-step hint (§3, §7), so the two screens use the same words. A repeated slot
@@ -1282,17 +1305,17 @@ never existed look the same from here.
   offers **Add gate**, **Add doc-auditor here** / **Add feature-scout here**, **Move `<id>` here**
   for each project-agent slot already on the rail, and **Add `<Node>`** for an optional node the
   graph does not have (a removed one, or the opt-in Scout, Implementation check or QA). Choosing anything closes it.
-- Below the rail, a row of text buttons appends or relocates without picking an edge:
-  **Add doc-auditor at end** / **Add feature-scout at end**, and **Move `<id>` to end** for each
-  project-agent slot. The row is present only while editing.
-- A node card's menu offers **Remove** for optional nodes; a gate card carries its own **Remove**.
+- **Add first step** on an empty rail and **Add at end** open the same Add/Use panel at the end. Existing project-agent slots can be moved there; new slot ids account for referenced definitions too.
+- A node card's menu offers **Remove** for optional nodes, and also anchors when editing a fragment or new unsaved pipeline; a gate card carries its own **Remove**.
   **Swap** appears only for the legacy `doc-audit`/`scout` pair when both are on the rail — new
   slots are reordered with **Move**, not Swap.
-- A button is disabled with the server's own reason — the rail runs the same `validateGraph` the
-  save action does, so the wording in §12 is what the user sees.
-- Zero gates is allowed, and saving warns first: "No gate: plan and implementation start without
+- A button is disabled with the server's own reason — the rail runs the same `validateDefinition` and `recompose` as the
+  save service, so the wording in §12 is what the user sees.
+- Zero gates is allowed. Saving warns when the resulting runnable graph of this pipeline or any user has no gates, not for a fragment by itself: "No gate: plan and implementation start without
   your approval. Acceptance is still required. Reopen and discard stay on the web." The Save
   button reads **Save without a gate** until it is pressed a second time.
+- **Use <name> here** adds a named block with **Edit <name>**. **Show expanded** previews the flattened nodes and gates without editing the child definition. **Also changes** lists users affected by a save. Empty rails and the end have Add/Use controls. New project-agent slots reserve ids across local and referenced steps. A dependency-only update refreshes preview, users, slot reservations and gate warnings even if this definition version is unchanged; keep dirty drafts, show the external-change warning and invalidate prior no-gate confirmation.
+- **Automatic picking**, handle `pm`, follows the Automatic scouting section. On/off changes apply immediately and do not close an open PM run. Off: "Automatic picking is off. Put an item on the board from the Backlog tab, or turn it on in the Pipeline tab." Free shows a disabled switch with "Pipeline editing opens on Pro. The default pipeline stays as is." Lost response: "The setting may have changed. Refresh to check before trying again." Never retry automatically.
 - The conditional Scout section appears before the item rail on every plan, including Free.
   Eyebrow **Before picking an item** · title **Scout** · handle `feature-scout` · switch **Automatic scouting**, **On** / **Off** / **Saving…**.
   Intro: "When no backlog items are available, feature-scout looks for up to three items to add before pm picks work."
@@ -1301,10 +1324,10 @@ never existed look the same from here.
   Footer: "Changes take effect immediately. Scout slots in the item pipeline below follow their saved order."
   Unavailable projects show a disabled switch and the project recovery reason. Saves happen immediately, separately from the item graph Save button.
   Success: **Automatic scouting on** / **Automatic scouting off**. A lost response refreshes the server state and says "The setting may have changed. Refresh to check before trying again." It does not retry the mutation.
-- The rail is labelled **Item pipeline**. Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is." Automatic scouting can still be changed on Free.
+- The editor is headed by the selected pipeline name. Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is." Automatic scouting can still be changed on Free. Automatic picking cannot.
 - Scout graph slots are opt-in and run in their saved positions independently of automatic scouting.
 - **Read as text** is a `<details>` that renders the graph as a numbered list, in cursor order.
-  Before the list: "Before picking an item: Scout when no backlog items are available." or "Before picking an item: automatic scouting is off; add a backlog item to continue."
+  The separate Automatic scouting section explains the head scout behavior.
   When automatic scouting is off, the shared Nothing open detail reads "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab."
   The first-run checklist appends "Then run the pipeline in your coding client, or put the item on the board from the Backlog tab." to that off detail.
 
@@ -1340,7 +1363,7 @@ because the Report record supplies the row. The inclusion rules are:
 | Source | Condition | Included records |
 | --- | --- | --- |
 | Report | All | Implementation report · Validation record · Acceptance record · Audit report · Scouting report |
-| TransitionEvent | actor = human | Human decisions, including propose, gates, hold, resume, discard and reopen |
+| TransitionEvent | actor = human | Human decisions, including propose, gates, hold, resume, discard, reopen and pipeline changes |
 | TransitionEvent | note = validation | Validation recorded |
 | TransitionEvent | to = done or on_hold | Implementation completion and agent holds |
 

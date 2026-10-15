@@ -1,8 +1,8 @@
-import type { Graph } from "./rail-state";
+import type { Definition } from "@harness/core/pipeline.mjs";
 
-export type SavePipelineInput = { graph: Graph; expectedVersion: number };
+export type SavePipelineInput = { pipelineId: string | null; name?: string; definition: Definition; expectedVersion: number };
 export type SavePipelineResult =
-  | { status: "success"; version: number }
+  | { status: "success"; pipelineId: string; version: number }
   | { status: "stale" }
   | { status: "error"; reason: string };
 

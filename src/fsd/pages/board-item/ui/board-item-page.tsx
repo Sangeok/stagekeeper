@@ -1,4 +1,5 @@
 import { blobHref, DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
+import { ChangePipelineControl, type ChangePipelineAction } from "@/fsd/features/change-item-pipeline";
 import { AcceptanceFailure, ReopenActions, type RetryAcceptanceAction, type TransitionAction } from "@/fsd/features/review-gate";
 import { HistoryList, toHistoryRows, HISTORY_TRUNCATED_NOTE, type HistoryEventInput, type HistoryReportInput } from "@/fsd/widgets/history-feed";
 import { utcMinute } from "@/fsd/shared/lib/relative-time";
@@ -8,6 +9,8 @@ import { SectionLabel } from "@/fsd/shared/ui/section-label";
 export type ItemDoc = { id: string; label: string; path: string; href: string };
 
 export type BoardItemView = {
+  id: string;
+  pipeline: { pipelineId: string | null; name: string; canChange: boolean };
   key: string;
   title: string;
   area: string;
@@ -29,7 +32,7 @@ export type BoardItemView = {
 };
 
 // transition은 라우트가 slug를 bind해서 넘긴 사람 전이 액션(review-gate). 이 페이지는 되돌리기(reopen)에만 쓴다.
-export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrite }: { slug: string; item: BoardItemView; transition: TransitionAction; retryAcceptance: RetryAcceptanceAction; canWrite: boolean }) {
+export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrite, pipelineChoices, changePipeline }: { slug: string; item: BoardItemView; transition: TransitionAction; retryAcceptance: RetryAcceptanceAction; canWrite: boolean; pipelineChoices: { id: string; name: string }[]; changePipeline: ChangePipelineAction }) {
   return (
     <>
       <header className="flex flex-col gap-1">
@@ -43,6 +46,11 @@ export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrit
           {item.acceptedAt !== null ? <span className="font-mono text-xs text-quiet">Accepted {utcMinute(item.acceptedAt)}</span> : null}
         </p>
       </header>
+
+      <p className="text-sm text-quiet">Pipeline · {item.pipeline.name}</p>
+      {canWrite && item.pipeline.canChange && pipelineChoices.length > 0 ? <ChangePipelineControl
+        key={JSON.stringify([item.id, item.pipeline.pipelineId, item.updatedAt])} itemKey={item.key} updatedAt={item.updatedAt}
+        pipelines={pipelineChoices} change={changePipeline} /> : null}
 
       <dl className="flex flex-col gap-4 text-sm">
         <div>

@@ -5,6 +5,7 @@ import { itemPath } from "@/fsd/shared/routes/project";
 
 type HistoryInput = { id: string; at: Date; boardItemId?: string; key?: string };
 export type HistoryEventInput = HistoryInput & {
+  pipelineChange?: { fromName: string; toName: string } | null;
   actor: string; channel: string | null; from: string | null; to: string | null; note: string | null;
 };
 export type HistoryReportInput = HistoryInput & {
@@ -24,6 +25,7 @@ export const HISTORY_TRUNCATED_NOTE = "History older than 30 days opens on Pro."
 
 function eventContent(event: HistoryEventInput): { text: string; note: string | null } {
   if (event.from === event.to) {
+    if (event.pipelineChange && /^pipeline-changed:[^:]+:[^:]+$/.test(event.note ?? "")) return { text: "Pipeline changed", note: `${event.pipelineChange.fromName} → ${event.pipelineChange.toName}` };
     if (event.note === "acceptance-failed") return { text: "Acceptance failed", note: null };
     if (event.note === "acceptance-retry") return { text: "Acceptance run again", note: null };
     if (event.note === "plan") return { text: "Plan submitted", note: null };

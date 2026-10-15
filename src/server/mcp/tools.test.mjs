@@ -22,7 +22,7 @@ const descriptions = () => {
 
 // 웹 전용 — 에이전트 토큰용 서버에 절대 없어야 한다(불변식 4의 회귀 가드).
 const WEB_ONLY = ["gate_approve", "board_approve", "board_bounce", "board_hold", "board_discard", "board_resume",
-  "retryAcceptance", "acceptance_retry", "backlog_update", "backlog_remove", "token_issue", "command_create"];
+  "retryAcceptance", "acceptance_retry", "changeItemPipeline", "change_pipeline", "savePipeline", "setPipelineRule", "backlog_update", "backlog_remove", "token_issue", "command_create"];
 
 const ctx = { http: { authInfo: { extra: { projectId: "p1", tokenId: "t1" } } } };
 const ws = [{ id: "web", path: "apps/web", agent: "dev", verify: ["npm test"], knowledge: null, readOnly: [] }];
@@ -50,6 +50,12 @@ it("acceptance_fail preserves scope, request budget, service failure and the com
 });
 
 describe("agent-scoped MCP tools", () => {
+  it("PM cannot override pipeline routing through board_propose", () => {
+    const schema = descriptions().board_propose.inputSchema;
+    const input = { key: "K-1", agent: "dev", reason: "evidence" };
+    assert.deepEqual(schema.parse({ ...input, pipelineId: "web-only" }), input);
+    assert.ok(!("pipelineId" in schema.shape));
+  });
   it("serializes Codex runtime inside the actual MCP text and validates client enum", async () => {
     const handlers = {}, meta = {}, calls = [];
     registerTools({ registerTool: (name, schema, fn) => { handlers[name] = fn; meta[name] = schema; } }, {

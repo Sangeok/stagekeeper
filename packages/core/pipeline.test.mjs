@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, gateId, isItemNode, NODE_KINDS, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
+import { expand, recompose, refStep, routePipeline, usersOf, validateDefinition, PROPOSE_SETTING_REASON, advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, gateId, isItemNode, NODE_KINDS, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
 
 const full = { nodes: NODE_KINDS.filter(kind => !["impl-verify", "qa"].includes(kind)), gates: [...DEFAULT_GATES] };
 const facts = (o = {}) => ({ status: "proposed", validation: null, accepted: false, approvedGates: [], closedAgents: [], ...o });
@@ -40,8 +40,8 @@ describe("slot execution isolation", () => {
 
 describe("defaultGraph", () => {
   it("free has no verify or doc-audit; pro and max have every node but scout; gates are the two boundaries", () => {
-    assert.deepEqual(defaultGraph("free").nodes, ["propose", "plan", "implement", "accept"]);
-    assert.deepEqual(defaultGraph("pro").nodes, NODE_KINDS.filter((k) => !["scout", "impl-verify", "qa"].includes(k)));
+    assert.deepEqual(defaultGraph("free").nodes, ["plan", "implement", "accept"]);
+    assert.deepEqual(defaultGraph("pro").nodes, NODE_KINDS.filter((k) => !["propose", "scout", "impl-verify", "qa"].includes(k)));
     assert.deepEqual(defaultGraph("max").gates, DEFAULT_GATES);
   });
   it("scout is opt-in — absent from every default graph, valid once added on a plan that has feature-scout", () => {
@@ -55,12 +55,12 @@ describe("validateGraph", () => {
     for (const plan of ["free", "pro", "max"]) assert.equal(validateGraph(defaultGraph(plan), plan).ok, true, plan);
   });
   it("refuses removing plan, implement, or accept", () => {
-    assert.match(validateGraph({ nodes: ["propose", "plan", "implement"], gates: [] }, "max").reason, /accept can't be removed/);
+    assert.match(validateGraph({ nodes: ["plan", "implement"], gates: [] }, "max").reason, /accept can't be removed/);
   });
   it("refuses a node the plan does not allow, and a gate with no node after it", () => {
     assert.match(validateGraph({ nodes: ["plan", "verify", "implement", "accept"], gates: [] }, "free").reason, /verify is not on the free plan/);
     assert.match(validateGraph({ nodes: ["plan", "implement", "accept"], gates: [gateId("verify")] }, "max").reason, /has no node after it/);
-    assert.match(validateGraph({ nodes: ["propose", "plan", "implement", "accept"], gates: [gateId("propose")] }, "max").reason, /has no node after it/);
+    assert.equal(validateGraph({ nodes: ["propose", "plan", "implement", "accept"], gates: [gateId("propose")] }, "max").reason, PROPOSE_SETTING_REASON);
   });
   it("keeps the head order and lets the tail swap", () => {
     assert.equal(validateGraph({ nodes: ["plan", "implement", "verify", "accept"], gates: [] }, "max").ok, false);
@@ -170,4 +170,65 @@ describe("impl-verify node", () => {
     assert.deepEqual(gated.transitions, [{ from: "implementing", to: "done" }]);
     assert.deepEqual(advance(graph, "impl-verify", facts({ status: "done", format: "slots-v1", implVerifyComplete: true })).transitions, []);
   });
+});
+
+
+describe("pipeline composition", () => {
+  const planning = { steps: ["plan", "verify"], gates: ["before-plan"] };
+  const checking = { steps: ["impl-verify", "qa"], gates: ["before-qa"] };
+  const feature = { steps: [refStep("planning"), "implement", refStep("checking"), "accept"], gates: [] };
+  const definitions = { planning, checking, feature };
+
+  it("saves a fragment without anchors but keeps its internal order", () => {
+    assert.equal(validateDefinition(checking, "pro").ok, true);
+    assert.equal(validateDefinition({ steps: ["qa", "impl-verify"], gates: [] }, "pro").ok, false);
+    assert.equal(validateDefinition({ steps: ["accept", "plan"], gates: [] }, "pro").ok, false);
+    assert.equal(validateDefinition({ steps: ["propose", "plan"], gates: [] }, "pro").ok, false);
+  });
+
+  it("expands references in place, unions gates and moves a junction gate onto the block's first node", () => {
+    const expanded = expand("feature", definitions);
+    assert.equal(expanded.ok, true);
+    assert.deepEqual(expanded.graph.nodes, [...planning.steps, "implement", ...checking.steps, "accept"]);
+    assert.deepEqual(new Set(expanded.graph.gates), new Set([...planning.gates, ...checking.gates]));
+    assert.equal(validateGraph(expanded.graph, "pro").ok, true);
+    assert.equal(validateGraph(expand("checking", definitions).graph, "pro").ok, false);
+    const junction = expand("feature", { ...definitions, feature: { ...feature, gates: [`before-${refStep("checking")}`] } });
+    assert.ok(junction.ok && junction.graph.gates.includes(`before-${checking.steps[0]}`));
+  });
+
+  it("refuses loops and archived references", () => {
+    assert.equal(expand("feature", { ...definitions, checking: { steps: ["impl-verify", refStep("feature")], gates: [] } }).ok, false);
+    assert.equal(expand("feature", { planning, feature }).ok, false); // checking이 보관돼 묶음에서 빠졌다
+  });
+
+  it("rejects a change that breaks a pipeline that must stay runnable, naming that pipeline", () => {
+    assert.deepEqual(usersOf("checking", definitions), ["feature"]);
+    const broken = recompose("checking", { ...definitions, checking: { steps: ["verify", "qa"], gates: [] } }, ["feature"], "pro");
+    assert.equal(broken.ok, false);
+    assert.ok(!broken.ok && broken.pipelineId === "feature");
+    const fine = recompose("checking", definitions, ["feature"], "pro");
+    assert.ok(fine.ok && fine.runnable.checking === null && fine.runnable.feature !== null);
+  });
+
+  it("routes by type and falls back to the default", () => {
+    const rules = { fix: "hotfix" };
+    assert.equal(routePipeline("fix", rules, "default"), rules.fix);
+    assert.equal(routePipeline("feat", rules, "default"), "default");
+    assert.equal(routePipeline(null, rules, "default"), "default");
+  });
+});
+
+it("expands ten thousand nested definitions iteratively and rejects cycles, duplicate nodes and mixed aliases", () => {
+  const definitions = Object.create(null);
+  for (let index = 0; index < 10_000; index++) definitions[`p${index}`] = { steps: [refStep(`p${index + 1}`)], gates: [] };
+  definitions.p10000 = { steps: ["plan", "implement", "accept"], gates: ["before-plan"] };
+  assert.deepEqual(expand("p0", definitions), { ok: true, graph: { nodes: ["plan", "implement", "accept"], gates: ["before-plan"] } });
+  definitions.p10000 = { steps: [refStep("p0")], gates: [] };
+  assert.equal(expand("p0", definitions).ok, false);
+  const duplicate = { leaf: { steps: ["qa"], gates: [] }, parent: { steps: [refStep("leaf"), "qa"], gates: [] } };
+  assert.equal(expand("parent", duplicate).ok, false);
+  assert.equal(validateDefinition({ steps: ["doc-audit", "doc-auditor#2"], gates: [] }, "pro").ok, false);
+  assert.equal(expand("toString", {}).ok, false);
+  assert.equal(routePipeline("toString", {}, "default"), "default");
 });

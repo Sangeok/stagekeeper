@@ -162,12 +162,14 @@ for (const quota of ["live", "run"] as const) it(`serialized additions enforce t
   } finally { counted.release(); rivalRead.release(); await Promise.allSettled(pending); await cleanup(a, f?.userId); await pool.disconnect(); }
 });
 
-for (const winner of ["remove", "propose"] as const) it(`remove/propose race: ${winner} wins without a removed open item`, async () => {
+for (const materialized of [false, true]) for (const winner of ["remove", "propose"] as const) it(`remove/propose race: ${winner} wins with materialized=${materialized} without a removed open item`, async () => {
   const pool = connections(); const [a, b] = pool.all; let f: Fixture | undefined;
   const removePaused = checkpoint(); const proposalRead = checkpoint(); proposalRead.release();
   const pending: Promise<unknown>[] = [];
   try {
-    f = await fixture(a); await a.boardItem.delete({ where: { id: f.boardItemId } });
+    f = await fixture(a);
+    if (materialized) await ensureRun(a, f.projectId, f.boardItemId, "in_review", false);
+    await a.boardItem.delete({ where: { id: f.boardItemId } });
     const removeDb = winner === "remove" ? afterBoardList(a, removePaused.hook) : afterProjectRead(a, removePaused.hook);
     const remove = settled(createBoardService(removeDb).removeBacklog(f.projectId, f.key)); pending.push(remove);
     await removePaused.entered();
@@ -184,6 +186,8 @@ for (const winner of ["remove", "propose"] as const) it(`remove/propose race: ${
       if (!proposed.ok) { assert.ok(proposed.error instanceof Prisma.PrismaClientKnownRequestError); assert.equal(proposed.error.code, "P2034"); }
       assert.equal(item.removedReason, "owner"); assert.equal(open.length, 0);
     } else {
+      // A first proposal also updates Project.defaultPipelineId. Its raw row-lock
+      // conflict must produce the same business rejection as a delegate conflict.
       assert.ok(removed.ok && !removed.value.ok); assert.match(removed.value.reason, /item changed|open on the board/);
       assert.equal(item.removedAt, null); assert.equal(open.length, 1);
     }

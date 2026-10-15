@@ -6,6 +6,8 @@ import { requireProjectOwner } from "@/server/auth/guard";
 import { projectAccess } from "@/server/entitlement";
 import { prisma } from "@/server/db";
 import { loadProjectRoster } from "@/server/project";
+import { routePipeline } from "@harness/core/pipeline.mjs";
+import { loadPipelinesView } from "@/server/pipeline/run";
 import { backlogWithStatus } from "@/server/pipeline/board";
 
 export default async function Page({ params, searchParams }: PageProps<"/p/[slug]/backlog">) {
@@ -15,9 +17,10 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
 
   // 질의 키와 인코딩은 링크를 만드는 쪽과 같은 모듈에서 온다(shared/routes/project.ts).
   const { includeRemoved, editKey } = readBacklogQuery(query);
-  const [items, roster] = await Promise.all([
+  const [items, roster, view] = await Promise.all([
     backlogWithStatus(projectId, includeRemoved),
     loadProjectRoster(prisma, projectId),
+    loadPipelinesView(prisma, projectId),
   ]);
   const access = await projectAccess(projectId);
   const editing = items.find((item) => item.key === editKey);
@@ -36,6 +39,8 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
       remove={removeBacklogItem.bind(null, slug)}
       propose={proposeItem.bind(null, slug)}
       roster={roster}
+      pipelines={view.pipelines.filter(pipeline => pipeline.runnable !== null).map(({ id, name }) => ({ id, name }))}
+      preselected={Object.fromEntries(items.map(item => [item.key, routePipeline(item.type, view.rules, view.pipelines.find(pipeline => pipeline.isDefault)!.id)]))}
     />
   );
 }

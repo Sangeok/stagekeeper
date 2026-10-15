@@ -43,7 +43,7 @@ it("at the dispatch cap only a matching unbound scout can resume the empty head"
     const capped = await read(); assert.equal(capped.action, "none"); if (capped.action === "none") assert.match(capped.reason, /Usage limit reached/);
     const pm = await db.agentRun.create({ data: { projectId: f.projectId, agent: "pm", tokenId: "t", stepId: "start" } });
     assert.equal((await read()).action, "none", "PM cannot resume as scout");
-    const version = await db.pipelineVersion.findFirstOrThrow({ where: { projectId: f.projectId } });
+    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: ["before-plan"], createdBy: f.userId } });
     const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "feature-scout", entryId: "entry" } });
     const scout = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "write", pipelineRunId: pipeline.id, pipelineEntryId: "entry" } });
     assert.equal((await read()).action, "none", "bound runs belong to their slot");

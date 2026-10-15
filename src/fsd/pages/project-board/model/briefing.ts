@@ -3,6 +3,7 @@ import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline
 import { daysBetween } from "@/fsd/shared/lib/relative-time";
 
 type BoardRow = {
+  pipelineName?: string;
   agent: string;
   status: string;
   reason: string;
@@ -16,6 +17,7 @@ type BoardRow = {
 type Tone = "pending" | "active" | "done" | "hold" | "muted";
 
 export type ActivityItem = {
+  pipelineName: string;
   key: string;
   status: string;
   line: string;
@@ -46,8 +48,9 @@ function summaryLine(row: BoardRow): string {
 
 function activityItem(row: BoardRow, today: Date): ActivityItem {
   const slot = slotAgent(row.node);
-  if (slot !== null && (PROJECT_AGENTS.includes(slot) || ["qa-verifier", "impl-verifier"].includes(slot)) && row.status !== "on_hold") return { key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slot} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
+  if (slot !== null && (PROJECT_AGENTS.includes(slot) || ["qa-verifier", "impl-verifier"].includes(slot)) && row.status !== "on_hold") return { pipelineName: row.pipelineName ?? "Default", key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slot} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
   const item = {
+    pipelineName: row.pipelineName ?? "Default",
     key: row.backlogItem.key,
     status: row.status,
     // 합치거나 첫 문장으로 줄이기 전에 건별 원문 길이를 잰다.
@@ -138,6 +141,7 @@ export function buildBriefing(
   today: Date,
   roster: readonly string[],
   nodes: readonly string[],
+  autoProposeEnabled = true,
 ): Briefing {
   const gateItems: ActivityItem[] = [];
   const otherItems: ActivityItem[] = [];
@@ -152,6 +156,6 @@ export function buildBriefing(
     const agent = slotAgent(kind);
     return agent !== null ? [agent] : [];
   };
-  const team = [...new Set(nodes.flatMap(agentsOf))].map((agent) => ({ agent, state: teamState(agent, rows) }));
+  const team = [...new Set([...(autoProposeEnabled ? ["pm"] : []), ...nodes.filter(kind => kind !== "propose").flatMap(agentsOf)])].map((agent) => ({ agent, state: teamState(agent, rows) }));
   return { activity: [...gateItems, ...otherItems], team };
 }

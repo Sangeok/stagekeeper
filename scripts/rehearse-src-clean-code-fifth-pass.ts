@@ -350,6 +350,7 @@ type AcceptanceContext = {
 };
 
 async function acceptanceCases(context: AcceptanceContext): Promise<void> {
+  const { seedPipelineVersion } = await import("../tests/server/integration/support");
   const { db, service, fixture, session, post, get, snapshot, run } = context;
   const reviewFile = "The board changed. Refresh and try again.", proposeError = "Couldn't put it on the board. Try again.";
   // Flight's JSON reviver removes the undefined data field; the Action seam
@@ -363,7 +364,7 @@ async function acceptanceCases(context: AcceptanceContext): Promise<void> {
     { name: "proposeItem", page: "backlog", route: "backlog", status: "implementing" },
   ];
   const installRun = async (f: Fixture, node: string, format: string | null = SLOT_FORMAT, nodes = ["plan", "verify", "implement", "accept"], gates = ["before-implement"]) => {
-    const version = await db.pipelineVersion.create({ data: { projectId: f.projectId, version: 1, format, nodes, gates, createdBy: f.userId } });
+    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format, nodes, gates, createdBy: f.userId });
     return db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node, entryId: format === SLOT_FORMAT ? randomUUID() : null } });
   };
   const prepare = async (name: string, format: string | null = SLOT_FORMAT) => {
@@ -380,7 +381,8 @@ async function acceptanceCases(context: AcceptanceContext): Promise<void> {
     if (name === "approveGate") input = { ...input, gate: "before-implement", ...(format === SLOT_FORMAT ? { gateEntry: { runId: pipeline.id, entryId: pipeline.entryId } } : {}) };
     if (name === "proposeItem") {
       await db.backlogItem.create({ data: { projectId: f.projectId, key: "NEW", title: "New proposal", area: "web", source: "fixture" } });
-      input = { key: "NEW", agent: "dev", reason: "owner proposal" };
+      const { pipelineId } = await db.pipelineVersion.findUniqueOrThrow({ where: { id: pipeline.versionId }, select: { pipelineId: true } });
+      input = { pipelineId, key: "NEW", agent: "dev", reason: "owner proposal" };
     }
     return { f, input, path: `/p/${f.id}/${spec.page}`, route: `/(app)/p/[slug]/${spec.route}/page`, cookie: await session(f.userId) };
   };
@@ -399,7 +401,10 @@ async function acceptanceCases(context: AcceptanceContext): Promise<void> {
       if ("expectedUpdatedAt" in owner.input) for (const value of [0, null, "invalid"]) bad.push({ ...owner.input, expectedUpdatedAt: value });
       if (spec.name === "approveGate") for (const value of [null, [], { runId: 0, entryId: "entry" }, { runId: "run", entryId: {} }]) bad.push({ ...owner.input, gateEntry: value });
       if (spec.name === "humanTransition") bad.push({ ...owner.input, result: 0 }, { ...owner.input, to: null });
-      if (spec.name === "proposeItem") bad.push({ ...owner.input, agent: 0 }, { ...owner.input, agent: null }, { ...owner.input, reason: {} });
+      if (spec.name === "proposeItem") {
+        bad.push({ ...owner.input, agent: 0 }, { ...owner.input, agent: null }, { ...owner.input, reason: {} });
+        for (const pipelineId of [undefined, null, 0, ""]) bad.push({ ...owner.input, pipelineId });
+      }
       for (const input of bad) {
         assert.deepEqual(await post(spec.name, argumentsFor(spec.name, owner.f.id, input), owner.cookie, owner.path, owner.route), failure(spec.name === "proposeItem" ? proposeError : reviewFile));
         assert.equal(await snapshot(owner.f), before);

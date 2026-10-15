@@ -15,7 +15,7 @@ const actions = [
   { name: "humanTransition", service: "transition", file: reviewFile, input: { key: "KEY", to: "on_hold", result: "", expectedUpdatedAt: timestamp } },
   { name: "approveGate", service: "gate", file: reviewFile, input: { key: "KEY", gate: "before-implement", gateEntry: { runId: "run", entryId: "entry" }, expectedUpdatedAt: timestamp } },
   { name: "discardItem", service: "discard", file: reviewFile, input: { key: "KEY", expectedUpdatedAt: timestamp } },
-  { name: "proposeItem", service: "propose", file: "src/fsd/features/propose-item/api/propose-item.server.ts", input: { key: "KEY", agent: "dev", reason: " owner " } },
+  { name: "proposeItem", service: "propose", file: "src/fsd/features/propose-item/api/propose-item.server.ts", input: { pipelineId: "default", key: "KEY", agent: "dev", reason: " owner " } },
 ];
 
 for (const target of actions) {
@@ -66,7 +66,7 @@ for (const target of actions) {
       const result = fixture.call(...args("sample", input));
       if (["guest", "foreign", "precommit", "commit-unknown", "revalidation"].includes(outcome)) await assert.rejects(result, caught => caught === fixture.exception);
       else assert.deepEqual(await result, outcome === "success" ? success() : failure(outcome === "read-only" ? "locked" : outcome === "stale" && target.name !== "proposeItem" ? reviewError : outcome));
-      assert.deepEqual(fixture.counts(), { guards: 1, writes: ["guest", "foreign", "read-only"].includes(outcome) ? 0 : 1, revalidations: outcome === "success" ? target.name === "discardItem" ? 2 : 3 : outcome === "revalidation" ? 1 : 0 });
+      assert.deepEqual(fixture.counts(), { guards: 1, writes: ["guest", "foreign", "read-only"].includes(outcome) ? 0 : 1, revalidations: outcome === "success" ? target.name === "discardItem" ? 2 : target.name === "proposeItem" ? 1 : 3 : outcome === "revalidation" ? 1 : 0 });
       for (const values of fixture.serviceArgs) {
         assert.equal(values[0], "owned");
         const submitted = values[1] as Record<string, unknown>;

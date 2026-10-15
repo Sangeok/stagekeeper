@@ -1,4 +1,4 @@
-import { slotAgent, gateKind, gateId, boundaryOf } from "@harness/core/pipeline.mjs";
+import { slotAgent, refId, gateKind, gateId, boundaryOf } from "@harness/core/pipeline.mjs";
 
 const LABEL: Record<string, string> = { propose: "Propose", plan: "Plan", verify: "Verify", implement: "Implement", "impl-verify": "Implementation check", qa: "QA", accept: "Accept", "doc-audit": "Doc audit", scout: "Scout" };
 export const nodeLabel = (kind: string): string => {
@@ -10,7 +10,11 @@ export const nodeLabel = (kind: string): string => {
   return label + suffix;
 };
 export const autoEdgeLabel = (kind: string): string | null => kind === "propose" ? null : `auto → ${boundaryOf(gateId(kind))?.to ?? nodeLabel(kind).toLowerCase()}`;
-export const gateLabel = (id: string): string => `before ${nodeLabel(gateKind(id) ?? id)}`;
+export const gateLabel = (id: string, nameOf?: (pipelineId: string) => string): string => {
+  const step = gateKind(id) ?? id;
+  const pipelineId = refId(step);
+  return `before ${pipelineId !== null && nameOf ? nameOf(pipelineId) : nodeLabel(step)}`;
+};
 
 // 그 노드를 도는 에이전트. plan·implement는 항목의 dev(워크스페이스 roster), 그 밖은 노드가 고정으로 부르는 에이전트다.
 // accept는 아무도 디스패치하지 않는다(main-loop 본인) — 빈 문자열을 돌려주고 부르는 쪽이 말을 고른다.

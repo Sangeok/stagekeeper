@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { FIELD_BUDGET } from "@/fsd/entities/board-item";
@@ -8,17 +8,29 @@ import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 import type { ProposeInput } from "../model/propose-input";
 
-export type ProposeAction = (input: ProposeInput) => Promise<ActionResult<void>>;
+export type ProposeAction = (input: ProposeInput) => Promise<ActionResult<void> & { resetPipeline?: boolean }>;
 
 // 백로그 행에서 항목을 직접 보드에 올린다 — pm을 부르지 않고. 사유 문구는 서버의 것을 그대로 보여 준다
 // ("open items: 2 (max 2)" 등). 실패를 이 행 아래에 붙이는 것은 RemoveBacklogButton과 같은 이유다.
-export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; roster: string[]; propose: ProposeAction }) {
+export function ProposeButton({ itemKey, roster, propose, pipelines, preselected }: { itemKey: string; roster: string[]; propose: ProposeAction; pipelines: { id: string; name: string }[]; preselected: string }) {
   const [open, setOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const agent = selectedAgent !== null && roster.includes(selectedAgent) ? selectedAgent : roster[0] ?? "";
   const [reason, setReason] = useState("owner");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const [pipelineId, setPipelineId] = useState(preselected);
+  const fingerprint = JSON.stringify({ itemKey, preselected, pipelines });
+  const [seen, setSeen] = useState(fingerprint);
+  const [selectionSource, setSelectionSource] = useState({ itemKey, preselected });
+  const submitting = useRef(false), alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  if (!pending && seen !== fingerprint) {
+    setSeen(fingerprint);
+    if (selectionSource.itemKey !== itemKey || selectionSource.preselected !== preselected || !pipelines.some(pipeline => pipeline.id === pipelineId)) setPipelineId(preselected);
+    setSelectionSource({ itemKey, preselected });
+  }
 
   if (!open) {
     return (
@@ -30,6 +42,11 @@ export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; r
 
   return (
     <div className="flex flex-col items-start gap-2 py-1 text-left">
+      <Field label="Pipeline" className="w-56">
+        <select aria-label="Pipeline" value={pipelineId} disabled={pending} onChange={event => setPipelineId(event.target.value)} className="w-full rounded-md border border-edge bg-paper px-2.5 py-[7px] text-sm">
+          {pipelines.map(pipeline => <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>)}
+        </select>
+      </Field>
       <Field label="Assignee" className="w-40">
         <select
           value={agent}
@@ -54,20 +71,25 @@ export function ProposeButton({ itemKey, roster, propose }: { itemKey: string; r
           variant="mine"
           disabled={pending || agent === ""}
           onClick={() => {
-            const input = { key: itemKey, agent, reason };
+            if (submitting.current) return;
+            submitting.current = true;
+            const input = { key: itemKey, agent, reason, pipelineId };
             startTransition(async () => {
               try {
                 const result = await propose(input);
+                if (!alive.current) return;
                 if (!result.success) {
                   setError(result.error);
+                  if (result.resetPipeline) setPipelineId(preselected);
                   return;
                 }
                 setError(null);
                 setOpen(false);
                 toast.success(`Put on the board · ${itemKey}`);
               } catch {
+                if (!alive.current) return;
                 setError("Couldn't put it on the board. Try again.");
-              }
+              } finally { submitting.current = false; }
             });
           }}
         >

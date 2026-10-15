@@ -50,3 +50,24 @@ export function nextAfter(graph: GraphInput, id: string): string | null;
 export function cursorForStatus(graph: GraphInput, status: string): string | null;
 export function nodeDone(kind: string, facts: NodeFacts): boolean;
 export function advance(graph: GraphInput, cursor: string | null, facts: AdvanceFacts): Advance;
+
+export type Definition = { steps: string[]; gates: string[] };
+export type DefinitionInput = { readonly steps: readonly string[]; readonly gates: readonly string[] };
+export type Definitions = Readonly<Record<string, DefinitionInput>>;
+export type Expansion = { ok: true; graph: Graph } | { ok: false; pipelineId: string; reason: string };
+export type Recompose = { ok: true; runnable: Record<string, Graph | null> } | { ok: false; pipelineId: string; reason: string };
+
+export const STEP_KINDS: string[];
+export const PROPOSE_SETTING_REASON: string;
+export const AUTO_PROPOSE_DISABLED_REASON: string;
+export const PIPELINE_EDIT_PLAN_GATE: string;
+export const REF_PREFIX: "pipeline:";
+export function isRef(step: unknown): step is string;
+export function refId(step: unknown): string | null;
+export function refStep(pipelineId: string): string;
+export function validateDefinition(definition: unknown, plan: string): GraphValidation;
+export function expand(pipelineId: string, definitions: Definitions, path?: readonly string[]): Expansion;
+export function composedReason(graph: GraphInput): string | null;
+export function usersOf(pipelineId: string, definitions: Definitions): string[];
+export function recompose(changedId: string, definitions: Definitions, mustRun: readonly string[], plan: string): Recompose;
+export function routePipeline(type: string | null, rules: Readonly<Record<string, string>>, defaultPipelineId: string): string;

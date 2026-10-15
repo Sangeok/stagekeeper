@@ -5,18 +5,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PipelineRail } from "./pipeline-rail.tsx";
 
 const props = {
-  graph: { nodes: ["propose", "plan", "verify", "implement", "accept", "doc-audit", "scout"], gates: [] },
-  plan: "pro", roster: ["dev"], expectedVersion: 0, save: async () => ({ status: "success", version: 1 }),
+  pipelineId: "default", rules: {}, pipelines: [{ id: "default", name: "Default", isDefault: true, definition: { steps: ["plan", "implement", "accept"], gates: [] }, saved: null, runnable: { nodes: ["plan", "implement", "accept"], gates: [], format: "slots-v1" } }],
+  definition: { steps: ["plan", "verify", "implement", "accept", "doc-audit", "scout"], gates: [] },
+  plan: "pro", roster: ["dev"], expectedVersion: 0, save: async () => ({ status: "success", pipelineId: "default", version: 1 }),
 };
 
 it("ungated edges explain every automatic step including first Plan and repeated slots", () => {
   for (const editable of [true, false]) {
-    const graph = { nodes: ["plan", "verify", "implement", "accept", "doc-auditor#2", "feature-scout#2"], gates: [] };
-    const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, graph, editable }));
+    const definition = { steps: ["plan", "verify", "implement", "accept", "doc-auditor#2", "feature-scout#2"], gates: [] };
+    const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, definition, editable }));
     for (const label of ["planning", "verify", "implementing", "accept", "doc audit #2", "scout #2"]) assert.ok(html.includes(`auto → ${label}`));
     assert.equal(html.includes("+"), editable);
   }
-  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, graph: { nodes: ["plan", "implement", "accept"], gates: ["before-accept"] }, editable: false }));
+  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, definition: { steps: ["plan", "implement", "accept"], gates: ["before-accept"] }, editable: false }));
   assert.ok(!html.includes("auto → accept")); assert.match(html, /Gate · you/);
 });
 it("keeps required labels structural when editing is unavailable", () => {
@@ -26,8 +27,8 @@ it("keeps required labels structural when editing is unavailable", () => {
   assert.match(html, /Not selected/);
 });
 it("says on hover what each gate card means, on read-only plans too", () => {
-  const graph = { nodes: ["propose", "plan", "implement", "accept"], gates: ["before-plan", "before-implement"] };
-  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, graph, editable: false }));
+  const definition = { steps: ["plan", "implement", "accept"], gates: ["before-plan", "before-implement"] };
+  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, definition, editable: false }));
   // 칩이 아니라 카드 전체(바깥 div)에 붙는다 — 카드 어디에 올려도 보여야 한다.
   const titles = [...html.matchAll(/<div[^>]*\btitle="([^"]*)"[^>]*>(?:(?!<\/div>).)*?Gate · you/gs)].map((m) => m[1]);
   assert.deepEqual(titles, [

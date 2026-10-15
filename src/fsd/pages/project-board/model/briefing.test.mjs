@@ -185,9 +185,9 @@ describe("buildBriefing", () => {
       buildBriefing(BOARD, TODAY, ROSTER, defaultGraph("free").nodes).team.map((m) => m.agent),
       ["pm", ...ROSTER],
     );
-    // propose 노드가 없으면 pm도 빠지고, 꼬리에 doc-audit만 있으면 doc-auditor만 붙는다.
+    // Automatic picking이 꺼져 있으면 옛 propose 노드가 있어도 pm은 빠진다.
     assert.deepEqual(
-      buildBriefing(BOARD, TODAY, ROSTER, ["plan", "implement", "accept", "doc-audit"]).team.map((m) => m.agent),
+      buildBriefing(BOARD, TODAY, ROSTER, ["propose", "plan", "implement", "accept", "doc-audit"], false).team.map((m) => m.agent),
       [...ROSTER, "doc-auditor"],
     );
   });
@@ -300,7 +300,7 @@ describe("workspace work belongs to the current dispatcher", () => {
   it("does not queue a dev at a gate or a missing cursor", () => {
     for (const gate of [null, "before-doc-auditor"]) {
       const briefing = buildBriefing([row({ status: "implementing", node: null, gate, dispatched: false })], TODAY, ["web-dev"], ["plan", "implement", "accept"]);
-      assert.equal(briefing.team[0].state, "Idle");
+      assert.equal(briefing.team.find(member => member.agent === "web-dev").state, "Idle");
     }
   });
 });

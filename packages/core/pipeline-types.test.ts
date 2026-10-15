@@ -1,0 +1,10 @@
+import { composedReason, expand, recompose, validateDefinition, type DefinitionInput, type Definitions } from './pipeline.mjs';
+const fragment = { steps: ['plan'], gates: [] } as const satisfies DefinitionInput;
+const definitions = { one: fragment } as const satisfies Definitions;
+const expanded = expand('one', definitions, [] as const);
+if (expanded.ok) composedReason(expanded.graph); else expanded.reason satisfies string;
+const result = recompose('one', definitions, [] as const, 'pro');
+if (result.ok) result.runnable.one satisfies { nodes: string[]; gates: string[] } | null;
+else result.pipelineId satisfies string;
+const input: unknown = {};
+validateDefinition(input, 'pro');

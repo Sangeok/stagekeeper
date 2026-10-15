@@ -35,11 +35,11 @@ it("Board loader queries all open project runs and binds only null-key project s
     const deps = {
       "../model/briefing": { buildBriefing }, "@/server/pipeline/board": { latestBoard: async () => [row] },
       "@/server/db": { prisma: {
-        pipelineRun: { findMany: async (query: unknown) => { assert.deepEqual(JSON.parse(JSON.stringify(query)), { where: { closedAt: null, boardItem: { projectId: "owned" } }, select: { id: true, entryId: true, version: { select: { format: true } }, boardItemId: true, node: true } }); return "noPipeline" in example ? [] : [pipeline]; } },
+        pipelineRun: { findMany: async (query: unknown) => { const q = query as { where: { closedAt?: null } }; if (q.where.closedAt !== null) return [{ boardItemId: "item", version: { pipeline: { name: "Named" } } }]; assert.deepEqual(JSON.parse(JSON.stringify(query)), { where: { closedAt: null, boardItem: { projectId: "owned" } }, select: { id: true, entryId: true, version: { select: { format: true } }, boardItemId: true, node: true } }); return "noPipeline" in example ? [] : [pipeline]; } },
         agentRun: { findMany: async (query: unknown) => { assert.deepEqual(JSON.parse(JSON.stringify(query)), { where: { projectId: "owned", closedAt: null }, select: { key: true, agent: true, pipelineRunId: true, pipelineEntryId: true } }); return "noExecution" in example || example.agent.projectId !== "owned" || example.agent.closedAt !== null ? [] : [example.agent]; } },
       } },
       "@/server/project": { loadProjectRoster: async () => ["dev"] },
-      "@/server/pipeline/run": { loadCurrentVersionView: async () => ({ graph: { nodes: ["plan", "implement", "accept", "doc-auditor#2"] } }) },
+      "@/server/pipeline/run": { loadPipelinesView: async () => ({ pipelines: [{ runnable: { nodes: ["plan", "implement", "accept", "doc-auditor#2"] } }], autoProposeEnabled: true }) },
     };
     const loader = loadModule<typeof import("../../src/fsd/pages/project-board/api/project-board.server")>(boardPath, deps);
     const output = await loader.loadProjectBoard("owned", at);
@@ -56,8 +56,8 @@ it("actual Board loader keeps loose key/agent dispatch and maps a gate separatel
     { id: "two", agent: "dev", status: "proposed", reason: "Evidence", results: [], proposedOn: at, backlogItem: { key: "K-2" } }];
   const deps = {
     "../model/briefing": { buildBriefing }, "@/server/pipeline/board": { latestBoard: async (id: string) => { assert.equal(id, "owned"); return rows; } },
-    "@/server/db": { prisma: { pipelineRun: { findMany: async () => [{ boardItemId: "one", node: "implement" }, { boardItemId: "two", node: "before-plan" }] }, agentRun: { findMany: async () => [{ key: "K-1", agent: "dev" }] } } },
-    "@/server/project": { loadProjectRoster: async () => ["dev"] }, "@/server/pipeline/run": { loadCurrentVersionView: async () => ({ graph: { nodes: ["propose", "plan", "implement", "accept"] } }) },
+    "@/server/db": { prisma: { pipelineRun: { findMany: async () => [{ boardItemId: "one", node: "implement", version: { pipeline: null } }, { boardItemId: "two", node: "before-plan", version: { pipeline: null } }] }, agentRun: { findMany: async () => [{ key: "K-1", agent: "dev" }] } } },
+    "@/server/project": { loadProjectRoster: async () => ["dev"] }, "@/server/pipeline/run": { loadPipelinesView: async () => ({ pipelines: [{ runnable: { nodes: ["propose", "plan", "implement", "accept"] } }], autoProposeEnabled: true }) },
   };
   const loader = loadModule<typeof import("../../src/fsd/pages/project-board/api/project-board.server")>(boardPath, deps);
   const output = await loader.loadProjectBoard("owned", at);

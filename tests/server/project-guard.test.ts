@@ -47,13 +47,13 @@ const actions: ActionCase[] = [
   { file: backlogPath, name: "addBacklogItem", args: () => [{ status: "idle" }, backlogForm()], paths: backlogPaths, result: { status: "saved" } },
   { file: backlogPath, name: "updateBacklogItem", args: () => ["KEY", { status: "idle" }, backlogForm()], paths: backlogPaths, result: { status: "saved" } },
   { file: backlogPath, name: "removeBacklogItem", args: () => ["KEY"], paths: backlogPaths, result: { status: "saved" } },
-  { file: pipelinePath, name: "savePipeline", args: () => [{ graph: defaultGraph("pro"), expectedVersion: 0 }], paths: [["/p/mine/pipeline"]], result: { status: "success", version: 1 } },
+  { file: pipelinePath, name: "savePipeline", args: () => [{ pipelineId: "default", definition: { steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }, expectedVersion: 0 }], paths: [[routes.PROJECT_LAYOUT_REVALIDATE_PATH, "layout"]], result: { status: "success", pipelineId: "default", version: 1 } },
   { file: scoutPath, name: "saveAutomaticScout", args: () => [true], paths: [["/p/mine", "layout"]], result: results.success(true) },
   { file: reviewPath, name: "retryAcceptance", args: () => [{ key: "KEY", expectedUpdatedAt: timestamp }], paths: reviewPaths, result: results.success() },
   { file: reviewPath, name: "humanTransition", args: () => [{ key: "KEY", to: "on_hold", result: "", expectedUpdatedAt: timestamp }], paths: reviewPaths, result: results.success() },
   { file: reviewPath, name: "approveGate", args: () => [{ key: "KEY", gate: "before-implement", expectedUpdatedAt: timestamp }], paths: reviewPaths, result: results.success() },
   { file: reviewPath, name: "discardItem", args: () => ["KEY", timestamp], paths: reviewPaths.slice(0, 2), result: results.success() },
-  { file: proposePath, name: "proposeItem", args: () => [{ key: "KEY", agent: "dev", reason: "Evidence" }], paths: [["/p/mine/backlog"], ["/p/mine"], ["/p/mine/inbox"]], result: results.success() },
+  { file: proposePath, name: "proposeItem", args: () => [{ key: "KEY", agent: "dev", reason: "Evidence", pipelineId: "default" }], paths: [[routes.PROJECT_LAYOUT_REVALIDATE_PATH, "layout"]], result: results.success() },
 ];
 
 type GuardOptions = {
@@ -106,7 +106,7 @@ function guardFixture(options: GuardOptions = {}) {
     },
     "@/server/token-management-query": { renameProjectToken: mutation("rename") },
     "@/server/pipeline/board": Object.fromEntries(["addBacklog", "updateBacklog", "removeBacklog", "retryAcceptance", "transition", "gate", "discard", "propose"].map(name => [name, mutation(name)])),
-    "@/server/pipeline/version-save-query": { savePipelineVersion: mutation("savePipeline", { status: "success", version: 1 }) },
+    "@/server/pipeline/definition-save-query": { savePipelineDefinition: mutation("savePipeline", { status: "success", pipelineId: "default", version: 1 }) },
     "@/server/automatic-scout": { setAutomaticScout: mutation("saveAutomaticScout", { ok: true, item: true }) },
   };
   return { guards, dependencies, events, queries, mutations, revalidated, exception, reason };
