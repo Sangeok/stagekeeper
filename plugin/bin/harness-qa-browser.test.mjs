@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
+import { realpathSync } from "node:fs";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -40,7 +41,7 @@ it("tool failures remain failures and never count as completed browser verificat
   assert.equal(browser.verified(), false); await browser.close();
 });
 it("current MCP file snapshots expose observed refs only from the explicit artifact directory", async () => {
-  const artifactsDir = await mkdtemp(path.join(tmpdir(), "harness-qa-artifacts-"));
+  const artifactsDir = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-qa-artifacts-"));
   await writeFile(path.join(artifactsDir, "page-2026-10-05.yml"), '- button "Save" [ref=e2]');
   const f = fixture("- [Snapshot](output/page-2026-10-05.yml)"), browser = await createQaBrowser({ ...config, artifactsDir }, f.fetcher);
   try {
@@ -52,7 +53,7 @@ it("current MCP file snapshots expose observed refs only from the explicit artif
   finally { await unconfigured.close(); }
 });
 it("unrecognized or oversized snapshot files cannot become QA observations", async () => {
-  const artifactsDir = await mkdtemp(path.join(tmpdir(), "harness-qa-artifacts-"));
+  const artifactsDir = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-qa-artifacts-"));
   await writeFile(path.join(artifactsDir, "page-2026.yml"), "x".repeat(256 * 1024 + 1));
   for (const filename of ["../secret.env", "page-2026.yml"]) {
     const f = fixture(`- [Snapshot](${filename})`), browser = await createQaBrowser({ ...config, artifactsDir }, f.fetcher);

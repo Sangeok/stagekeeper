@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -26,9 +26,9 @@ const rows = [
 ];
 
 function checkout(t: TestContext, slug?: string): string {
-  const root = mkdtempSync(join(tmpdir(), "harness-scope-"));
+  const root = mkdtempSync(join(realpathSync(tmpdir()), "harness-scope-"));
   t.after(() => {
-    assert.equal(dirname(root), resolve(tmpdir()));
+    assert.equal(dirname(root), resolve(realpathSync(tmpdir())));
     assert.ok(basename(root).startsWith("harness-scope-"));
     rmSync(root, { recursive: true, force: true });
   });
