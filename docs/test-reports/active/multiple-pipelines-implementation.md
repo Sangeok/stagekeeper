@@ -21,12 +21,17 @@
 | fresh production build | pass |
 | 실제 Next HTTP 인수 | 8개 액션·권한·읽기 전용 GET·5개 화면 pass |
 | 브라우저 인수 | 15개 시나리오 pass, page error 0 |
+| 기존 fifth-pass 실제 HTTP·Flight 회귀 | 61개 검사 pass, fixture·서버 cleanup pass |
 | 폐기 심볼·경로·문구 검사 3개, `git diff --check` | pass |
 
 새 브라우저 회귀는 요금제·읽기 전용 전환 후 초안과 CAS 보존, 읽기 전용 상태의
 stale 회복, pending 중 받은 최신 자기 정의의 버전 보존을 포함한다.
 기존 fifth-pass HTTP 인수의 제안 입력에도 필수 pipelineId와 완전한 기본
 Pipeline fixture를 적용했다. 운영 DB와 운영 배포는 이 검증에 포함하지 않았다.
+
+이 첫 release는 [PR #163](https://github.com/Sangeok/stagekeeper/pull/163)으로 dev에
+병합됐다(`2e9832b`). PR의 `check` 네 항목·Windows native-runtime·Vercel preview와
+병합된 dev의 `check`가 통과했다. 운영 A·nullable 서버 적용은 아직 진행하지 않았다.
 
 아래는 최초 구현 당시의 기록이다.
 

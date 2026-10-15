@@ -1,5 +1,38 @@
 # Multiple pipelines — Phase 6 cleanup 구현·검증
 
+## dev 통합 후 재검증
+
+2026-10-15 첫 release [PR #163](https://github.com/Sangeok/stagekeeper/pull/163)을
+dev `2e9832bea4e61623945d51d552dcc684b1095215`로 병합했다. 해당 PR의 `check`
+네 항목·Windows native-runtime·Vercel preview가 통과했고, 병합된 dev의
+`check`도 통과했다. cleanup 변경만 그 dev 위에 재배치했다.
+기본 Pipeline fixture helper와 fifth-pass 입력 수정은 첫 release 통합 때 먼저
+반영되어 cleanup 차이에서 빠졌다. A SQL과 기존 migration은 변경하지 않았다.
+
+| 재검증 | 결과 |
+| --- | --- |
+| required Prisma generate / validate | pass |
+| `npm run check` (FSD·lint·타입·architecture 포함) | pass |
+| `npm test` | 347 pass, 기존 환경 조건 2 skip |
+| `npm run test:web` | 633 pass |
+| `npm run test:server`, fresh build manifest 검사 포함 | 143 pass |
+| `npm run test:server:integration` | A·B 포함 전체 migration과 DB 테스트 pass |
+| fresh production build | pass |
+| 실제 Next HTTP 인수 | required schema로 8개 액션·권한·5개 화면 pass |
+| 폐기 심볼·경로·문구 검사 3개, `git diff --check` | pass |
+
+새 실행 로그는 Temp의 `release-mp6wt-{generate,validate,check,core,web,manifest,integration,build,http}.log`다.
+첫 release의 최종 브라우저 인수 15개와 기존 HTTP·Flight 회귀 61개도 통과했다.
+cleanup은 그 frontend·core 소스를 변경하지 않는다.
+
+cleanup PR은 **draft로 유지**한다. 운영 DB 식별과 maintenance·기존 writer drain·백업
+접근 정보가 아직 확인되지 않았다. 운영 A와 nullable 서버가 적용되기 전에 B를 dev에
+병합하지 않는다. main은 `08bd0f0`에 유지하며 운영 DB migration은 실행하지 않았다.
+사용자의 후속 진행 지시로 PR·병합·배포 준비까지 진행했으나 운영 선행 조건을
+로컬 검증으로 대체하지 않는다.
+
+아래는 dev 재배치 전 최초 cleanup 구현·검증 기록이다.
+
 2026-10-15 사용자 후속 지시로 [제안서](../../proposals/active/multiple-pipelines.md)의
 Phase 6을 별도 브랜치 `harness/multiple-pipelines-cleanup`에 준비했다.
 기준은 첫 release 커밋 `02f0403`이며 작업 경로는
