@@ -7,6 +7,17 @@ const bundle = [
   { path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nSource\r\n" }, ...COMMON_DOCS.map(path => ({ path, body: "docs" })),
   ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier", "impl-verifier"].map(role => ({ path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\nStub\n## step:start\nDo it.\nnext: done\n` })),
 ];
+
+it("accepts a single delivered stub marker and rejects two markers before a malformed heading", async () => {
+  for (const plan of ["free", "pro", "max"] as const) for (const newline of ["\n", "\r\n"]) {
+    const one = ["## step: start", RUNTIME_MARKER, "## step:start", "PRIVATE STEP", "next: done", ""].join(newline);
+    const replace = (body: string) => bundle.map(row => row.path === "agents/dev.md" ? { ...row, body } : row);
+    const accepted = await readCodexBundle(async () => replace(one), "en", plan, false);
+    assert.ok(accepted.ok);
+    const rejected = await readCodexBundle(async () => replace(RUNTIME_MARKER + newline + one), "en", plan, false);
+    assert.equal(rejected.ok, false);
+  }
+});
 it("MCP fallback selects the entire English bundle only if the localized Codex source is absent", async () => {
   const calls: string[] = [];
   const result = await readCodexBundle(async language => { calls.push(language); return language === "en" ? bundle : [{ path: "agents/dev.md", body: "localized partial" }]; }, "ko", "max", true);

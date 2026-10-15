@@ -326,7 +326,7 @@ verify/ok·정상 report/ok로 닫힌 run과 그 run에 묶인 보고가 있어�
 `BoardItem.acceptedAt`에 적고, 그때까지 항목은 배너에서 소유자 차례로 센다. 다섯 조건은 여전히 사람이
 직접 재현하며, 기록은 그 결과를 적은 `docs/agents/main-loop/<항목ID>.md`다. 조건이 하나라도 깨지면
 항목 상세에서 되돌린다(reopen, 사유 필수) — 계획이 유효하면 `implementing`, 아니면 `planning`.
-`done`은 "dev가 끝났다고 보고했다"이지 인수가 아니다.
+`done`은 pipeline이 구현 구간 완료 증거를 확인한 상태이며 인수는 아니다.
 
 ### 게이트②가 승인하는 것
 

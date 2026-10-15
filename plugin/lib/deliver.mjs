@@ -2,17 +2,11 @@
 // 같은 함수로 같은 집합을 만든다. 본문(단계)은 서버에만 남고 파일로는 스텁만 나간다.
 import { REPORT_AGENTS, limitsFor } from "./entitlement.mjs";
 import { clientRuntime, parseClient, runtimeEcho, validateCodexBundle } from "./client-runtime.mjs";
+import { stubOf } from "./template-boundary.mjs";
 
-// 단계 제목. 이 줄 앞까지가 스텁이다 — src/server/agents/steps.ts의 파서가 같은 정규식을 쓴다(경계의 정의는 여기 하나).
-export const STEP_HEADING = /^## step:(\S+)(.*)$/;
+export { STEP_HEADING, stubOf } from "./template-boundary.mjs";
+
 const RUNBOOK_FREE = "CLAUDE.runbook.free.md"; // 옛 Free 판. 파일은 지웠고 DB 행이 남아 있어도 내려보내지 않는다 — 런북은 한 판이다
-
-// 첫 단계 제목 앞까지. 단계가 없는 본문(runbook·docs)은 그대로.
-export function stubOf(body) {
-  const lines = body.split(/\r?\n/);
-  const first = lines.findIndex((l) => STEP_HEADING.test(l));
-  return first < 0 ? body : lines.slice(0, first).join("\n").trimEnd() + "\n";
-}
 
 const agentOf = (path) => /^agents\/([^/]+)\.md$/.exec(path)?.[1] ?? null;
 

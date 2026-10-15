@@ -1,22 +1,22 @@
-# External reconciliation skill — harness contract v1
+# Bundled reconciliation skill — harness contract v1
 
-Harness currently depends on an owner-provided `reconciling-proposals-with-codebase`
-skill. The project owner supplies an approved release or checkout of the complete package,
-including every referenced file. Harness does not publish an installer or claim an upstream
-download URL for that package. Do not substitute a similarly named package from a search.
+Stagekeeper's installed bundle includes the complete original
+`skills/reconciling-proposals-with-codebase/` package, including every referenced file.
+Packaging uses an owner-approved source; init does not download, synthesize or replace it.
 
-## Supply and installation
+## Supply and resolved loader
 
-Install that complete directory at
-`.claude/skills/reconciling-proposals-with-codebase/` in the connected project, with
-`SKILL.md` at its root. An existing personal or managed installation is also supported if
-it resolves under the same unqualified name and satisfies the contract below. A copy in a
-Codex-only skill directory does not establish availability in Claude Code.
+Read the installed bundle's `skills/reconciling-proposals-with-codebase/SKILL.md`
+and its required supporting files. Confirm the actual Claude Skill invocation resolves
+that compatible package; a same-named personal/project skill can shadow the bundle.
+Do not overwrite conflicting packages during init. Record the winning absolute path and
+bundle version/commit or package checksum, then repeat preflight after reconciliation.
 
-These installation locations follow the [Claude Code skill documentation](https://code.claude.com/docs/en/skills#where-skills-live).
-Check the effective installation: a higher-precedence skill can shadow the project copy.
-Do not overwrite an existing package during init; have the owner reconcile conflicting
-versions, then repeat preflight. Record the supplied version/commit or package checksum.
+An installed bundle missing this dependency is a Stagekeeper packaging failure: stop and
+repair/update the complete Stagekeeper package. Do not require manual Node or verifier
+installation as the user's default recovery. A source-only development checkout may use
+an explicitly approved complete project/personal package, but that does not certify the
+installed bundle or its actual winning loader.
 
 ## Preflight — inspect without starting a review
 
@@ -34,8 +34,8 @@ versions, then repeat preflight. Record the supplied version/commit or package c
 
 All checks must pass before init writes files. If any fails, report
 `Verification skill unavailable or incompatible: <specific missing requirement>` and stop.
-Ask the project owner to supply or repair the complete compatible package at the project
-path above, then rerun `/harness:init`. Do not bypass verification or generate a replacement
+Repair/update the complete Stagekeeper bundle (or reconcile the winning loader conflict),
+then rerun `/harness:init`. Do not bypass verification or generate a replacement
 skill during init. Recheck after the package changes and before a new review session.
 
 This is a compatibility contract, not a claim that a particular unversioned personal skill

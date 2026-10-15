@@ -1,4 +1,5 @@
 import { limitsFor } from "./entitlement.mjs";
+import { stubOf } from "./template-boundary.mjs";
 
 export const CLIENTS = ["claude", "codex"];
 export const RUNTIME_PROTOCOL = "harness-runtime-v1";
@@ -32,7 +33,7 @@ export function validateCodexBundle(rows, plan) {
     if (typeof templates[file] !== "string" || !templates[file].trim()) throw new Error(`Codex bundle missing: ${file}`);
   }
   for (const file of ["CODEX.runbook.md", ...roles.map(role => `agents/${role}.md`)]) {
-    const stub = templates[file].split(/^## step:/m)[0];
+    const stub = stubOf(templates[file]);
     const markers = stub.match(/<!-- harness-runtime:[^>]+ -->/g) ?? [];
     if (markers.length !== 1 || markers[0] !== RUNTIME_MARKER) throw new Error(`Codex bundle protocol mismatch: ${file}`);
   }

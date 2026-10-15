@@ -20,7 +20,8 @@ If the installed package lacks either dependency, report a Stagekeeper packaging
 and stop. Do not turn a source-only checkout into extra user setup steps or claim readiness.
 
 Read `references/reconciliation-contract.md`. Resolve and read the complete bundled original
-reconciling-proposals-with-codebase package and its referenced resources. Check the actual
+reconciling-proposals-with-codebase package and its referenced resources; bundle-first helper
+resolution and source-development fallbacks follow that contract. Check the actual
 staged Codex role loader path and checksum; incompatible or missing packages block
 init. Never download or manufacture a replacement. Perform this before any generated write.
 

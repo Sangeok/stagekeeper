@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { REPORT_AGENTS } from "./entitlement.mjs";
 import { STEP_HEADING, deliverable, stubOf } from "./deliver.mjs";
+import { STEP_HEADING as BOUNDARY_HEADING, stubOf as boundaryStubOf } from "./template-boundary.mjs";
+
+it("preserves the deliver public API as the shared boundary exports", () => {
+  assert.equal(STEP_HEADING, BOUNDARY_HEADING);
+  assert.equal(stubOf, boundaryStubOf);
+});
 
 const AGENT = "---\nname: pm\ntools: mcp__harness__agent_next\n---\nRole line.\n\n## step:start\nOrientation.\nnext: done\n";
 const ROWS = [

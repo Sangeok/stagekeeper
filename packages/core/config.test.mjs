@@ -5,6 +5,15 @@ import { parseHarnessConfig } from "./config.mjs";
 
 const APCH = readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8");
 
+for (const field of ["project", "executor", "release", "scout"]) it(`rejects non-object ${field} with its config field path`, () => {
+  const base = { version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] };
+  for (const value of [null, [], "wrong", 1, true]) {
+    assert.throws(() => parseHarnessConfig({ ...base, [field]: value }), {
+      name: "Error", message: `harness.json ${field}: must be an object`,
+    });
+  }
+});
+
 describe("parseHarnessConfig", () => {
   it("accepts the ApcH example and normalizes defaults", () => {
     const c = parseHarnessConfig(APCH);

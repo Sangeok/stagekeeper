@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
+import { createServer } from "node:http";
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -10,11 +11,153 @@ import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
 import { dispatchBinding, codexFailure, qaWorkflowFile } from "./harness-codex.mjs";
-import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
+import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, dispatchFreshRole, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
+import { callTool } from "../runtime/mcp-client.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 import { createRoleFiles } from "../runtime/role-files.mjs";
+
+it("carries safe server refusals through real callTool and HTTP bridge without changing receipts", async t => {
+  const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  let payload, status = 200, wrongId = false, beforeResponse = async () => {};
+  const upstream = createServer(async (request, response) => {
+    const chunks = []; for await (const chunk of request) chunks.push(chunk);
+    const message = JSON.parse(Buffer.concat(chunks).toString());
+    await beforeResponse();
+    response.writeHead(status, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ jsonrpc: "2.0", id: wrongId ? "wrong" : message.id, result: payload }));
+  });
+  await new Promise(resolve => upstream.listen(0, "127.0.0.1", resolve));
+  t.after(() => { upstream.closeAllConnections(); upstream.close(); });
+  const input = { binding: f.binding, server: `http://127.0.0.1:${upstream.address().port}`, token: "hu_fixture_secret", client: "codex", config: { project: { slug: "p" } } };
+  const bridge = await roleBridge(input, f.files, started.session, { project: "p", agent: "doc-auditor" }, {
+    listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name })), callTool, checkSession,
+  });
+  let id = 0;
+  const request = async () => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name: "agent_next", arguments: {} } }) })).json();
+  const refuse = value => { payload = { isError: true, content: [{ type: "text", text: JSON.stringify(value) }] }; };
+  try {
+    const current = { done: false, step: "audit", receipt: { runId: "r", revision: 1, stepId: "audit" }, runtime: { client: "codex", protocol: "harness-runtime-v1" } };
+    payload = { content: [{ type: "text", text: JSON.stringify(current) }] };
+    assert.equal((await request()).result.isError, false);
+    const expectedState = { done: false, receipt: current };
+    for (const value of [{ error: "verify step not recorded for actor" }, { error: "another domain refusal" },
+      { error: "cap", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-10T12:00:00.000Z" }, { error: "rate", code: "RATE_LIMITED", retryAfterSec: 7 }]) {
+      refuse({ ...value, stack: "must not leak", headers: { secret: "discard" } });
+      const result = await request(); assert.equal(result.id, id); assert.equal(result.result.isError, true);
+      assert.deepEqual(JSON.parse(result.result.content[0].text), value); assert.deepEqual(bridge.result(), expectedState);
+    }
+    for (const value of [{ error: input.token }, { error: "ho_credential" }, { error: "Authorization: secret" }, { error: "at fn (secret.js)" },
+      { error: "x".repeat(1001) }, { error: "bad\nreason" }, { error: "cap", code: "USAGE_LIMIT_REACHED", resetAt: "invalid" }, { error: "rate", code: "RATE_LIMITED", retryAfterSec: "7" }]) {
+      refuse(value); const result = await request(); assert.equal(result.error.code, -32000); assert.equal(result.result, undefined);
+      assert.deepEqual(bridge.result(), expectedState);
+    }
+    refuse({ error: "safe reason" }); wrongId = true; assert.equal((await request()).error.code, -32000); wrongId = false;
+    status = 503; assert.equal((await request()).error.code, -32000); status = 200;
+    beforeResponse = () => requestStop(f.files, started.session);
+    assert.equal((await request()).error.code, -32000); assert.deepEqual(bridge.result(), expectedState);
+  } finally { await bridge.close(); await requestStop(f.files, started.session); await releaseSession(f.files, started.session); }
+});
+
+it("does not publish a domain refusal arriving after bridge abort", async t => {
+  const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  let bridge;
+  const upstream = createServer(async (request, response) => {
+    const chunks = []; for await (const chunk of request) chunks.push(chunk);
+    const message = JSON.parse(Buffer.concat(chunks).toString()); bridge.abort();
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { isError: true, content: [{ type: "text", text: '{"error":"safe refusal"}' }] } }));
+  });
+  await new Promise(resolve => upstream.listen(0, "127.0.0.1", resolve)); t.after(() => { upstream.closeAllConnections(); upstream.close(); });
+  bridge = await roleBridge({ binding: f.binding, server: `http://127.0.0.1:${upstream.address().port}`, token: "hu_fixture", client: "codex", config: { project: { slug: "p" } } },
+    f.files, started.session, { project: "p", agent: "doc-auditor" }, { listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name })), callTool, checkSession });
+  try {
+    const result = await (await fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "agent_next" } }) })).json();
+    assert.equal(result.error.code, -32000); assert.deepEqual(bridge.result(), { done: false, receipt: null });
+  } finally { await bridge.close(); await requestStop(f.files, started.session); await releaseSession(f.files, started.session); }
+});
+
+async function dispatcherFixture(mode) {
+  const f = fixture(), agent = ["cli", "wrapper", "native-provenance", "native-preflight", "command-broker", "git-broker"].includes(mode) ? "doc-auditor" : "qa-verifier";
+  const started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  mkdirSync(path.join(f.root, ".codex/agents"), { recursive: true }); mkdirSync(path.join(f.root, "docs/harness"), { recursive: true });
+  const roleTools = [...ROLE_TOOLS[agent].map(name => "mcp__harness__" + name), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS.map(name => "mcp__harness_qa_browser__" + name) : [])];
+  const body = `---\nname: ${agent}\ndescription: Fixture\ntools: ${roleTools.join(", ")}\n---\n${RUNTIME_MARKER}\nUse the current server step.`;
+  writeFileSync(path.join(f.root, `.codex/agents/${agent}.toml`), renderCodexRole(body, agent));
+  const verifier = { path: "fixture/SKILL.md", checksum: "fixture" };
+  writeFileSync(path.join(f.root, "docs/harness/codex-package.json"), JSON.stringify({ verifier }));
+  const counts = { files: 0, browser: 0, bridge: 0, server: 0, acquired: 0 }; let filesystem, bridge, tools;
+  const fail = () => { throw new Error(mode); };
+  const operations = {
+    codexExecutable: () => { if (["cli", "wrapper"].includes(mode)) fail(); return { executable: "fixture", prefix: [] }; },
+    verifierPackage: () => verifier,
+    createRoleFiles: (permissions, role) => {
+      counts.acquired++; filesystem = permissions; const broker = createRoleFiles(permissions, role), close = broker.close;
+      broker.close = async () => { counts.files++; await close(); }; return broker;
+    },
+    installedWindowsRuntime: () => {
+      if (mode === "native-provenance") fail();
+      if (["native-preflight", "command-broker", "git-broker"].includes(mode)) return {};
+      throw Object.assign(new Error("no source runtime"), { code: "ENOENT" });
+    },
+    verifyNativeRuntime: async () => { if (mode === "native-preflight") fail(); },
+    createRoleCommands: async ({ fileBroker }) => { if (mode === "command-broker") fail(); return fileBroker; },
+    createRoleGit: ({ backend }) => { if (mode === "git-broker") fail(); return backend; },
+    createQaBrowser: async () => {
+      if (mode === "qa-init") fail();
+      return { tools: [...QA_BROWSER_TOOLS, ...(mode === "tool-conflict" ? ["agent_next"] : [])].map(name => ({ name })),
+        close: async () => { counts.browser++; if (mode === "browser-close") fail(); }, verified: () => false };
+    },
+    roleBridge: async (input, files, session, dispatch, unused, fileBroker) => {
+      tools = [...ROLE_TOOLS[agent], ...fileBroker.tools.map(tool => tool.name)];
+      bridge = await roleBridge(input, files, session, dispatch, {
+        listTools: async () => { if (mode === "inventory") fail(); return ROLE_TOOLS[agent].slice(mode === "allowlist" ? 1 : 0).map(name => ({ name })); },
+        callTool: fail, checkSession,
+      }, fileBroker);
+      const close = bridge.close; bridge.close = async () => { counts.bridge++; await close(); }; return bridge;
+    },
+    inspectHostPolicy: async () => { if (["host-policy", "browser-close"].includes(mode)) fail(); return []; },
+    spawn: () => { if (mode === "spawn") fail(); return { pid: process.pid, stdin: new PassThrough() }; },
+    createAppServer: child => ({ child, closed: false, listeners: new Set(),
+      request: async method => {
+        if (method === "initialize") { if (["initialize", "server-close"].includes(mode)) fail(); return {}; }
+        if (method === "config/read") {
+          if (mode === "effective-policy") return { config: {} };
+          return { config: { agents: { enabled: false }, approval_policy: "never", default_permissions: "harness-role", web_search: "disabled", project_doc_max_bytes: 0,
+            features: { multi_agent: false, apps: false, hooks: false, memories: false, goals: false, view_image: false, request_permissions_tool: false, code_mode: { enabled: false }, shell_tool: false, unified_exec: false },
+            mcp_servers: { harness: { enabled: true, url: bridge.url, enabled_tools: tools, default_tools_approval_mode: "prompt", tools: Object.fromEntries(tools.map(name => [name, { approval_mode: "approve" }])), bearer_token_env_var: "HARNESS_ROLE_CAPABILITY" } },
+            permissions: { "harness-role": { extends: ":read-only", filesystem, network: { enabled: false } } }, shell_environment_policy: { inherit: "none", set: { PATH: roleCommandPath() } } } };
+        }
+        if (method === "skills/list") return { data: [] };
+        if (method === "thread/start") return { thread: { id: "thread" } };
+        if (method === "turn/start") fail();
+        throw new Error(`Unexpected fixture request: ${method}`);
+      },
+      close: async function () { counts.server++; this.closed = true; if (mode === "server-close") fail(); },
+    }),
+  };
+  const input = { binding: f.binding, token: "hu_fixture", config: { project: { slug: "p" }, workspaces: [] } };
+  return { ...f, counts, started, getBridge: () => bridge, run: () => dispatchFreshRole(input, f.files, started.session, { agent, agentKey: "A", key: "A" }, operations) };
+}
+
+for (const mode of ["cli", "wrapper", "native-provenance", "native-preflight", "command-broker", "git-broker", "qa-init", "inventory", "allowlist", "tool-conflict", "host-policy", "spawn", "initialize", "effective-policy", "browser-close", "server-close", "unacknowledged-turn"]) {
+  it(`dispatcher cleans partial acquisition after ${mode} and preserves unsettled ownership`, {
+    skip: process.platform !== "win32" && ["native-provenance", "native-preflight", "command-broker", "git-broker"].includes(mode),
+  }, async () => {
+    const f = await dispatcherFixture(mode);
+    await assert.rejects(f.run());
+    assert.equal(f.counts.files, ["cli", "wrapper"].includes(mode) ? 0 : 1);
+    assert.equal(f.counts.acquired, ["cli", "wrapper"].includes(mode) ? 0 : 1);
+    const hasBrowser = ["inventory", "allowlist", "tool-conflict", "host-policy", "spawn", "initialize", "effective-policy", "browser-close", "server-close", "unacknowledged-turn"].includes(mode);
+    assert.equal(f.counts.browser, hasBrowser ? 1 : 0);
+    const bridge = f.getBridge(); if (bridge) { assert.equal(f.counts.bridge, 1); await assert.rejects(fetch(bridge.url)); }
+    const children = readState(f.files).lock.children;
+    assert.equal(children.length, ["server-close", "unacknowledged-turn"].includes(mode) ? 1 : 0);
+    assert.equal((await checkSession(f.files, f.started.session, f.binding)).event, "owned");
+  });
+}
 
 function fixture() {
   const root = mkdtempSync(path.join(realpathSync(tmpdir()),"harness-session-test-"));

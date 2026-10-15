@@ -147,7 +147,7 @@ export function nodeDone(kind, facts) {
     case "qa": return facts.qaComplete === true;
     case "propose": return true;
     case "plan": return ["in_review", "implementing", "done"].includes(facts.status);
-    case "verify": return facts.validation !== null;
+    case "verify": return typeof facts.validation === "string";
     case "implement": return facts.status === "done" || facts.implementationComplete === true;
     case "accept": return facts.accepted;
     default: return facts.closedAgents.includes(slotAgent(kind));

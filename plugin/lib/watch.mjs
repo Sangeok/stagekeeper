@@ -40,7 +40,18 @@ export function parseToolResponse(contentType, body, requestId) {
     const value = JSON.parse(blocks[0].text);
     if (!object(value)) return protocolError();
     if (result.isError === true) {
-      return text(value.error) ? { ok: false, error: { code: "access-refused", reason: value.error } } : protocolError();
+      if (!text(value.error) || (value.code !== undefined && typeof value.code !== "string")) return protocolError();
+      const error = { code: "access-refused", reason: value.error };
+      if (value.code === "USAGE_LIMIT_REACHED") {
+        if (typeof value.resetAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value.resetAt)
+          || !Number.isFinite(Date.parse(value.resetAt))) return protocolError();
+        return { ok: false, error: { ...error, domainCode: value.code, resetAt: value.resetAt } };
+      }
+      if (value.code === "RATE_LIMITED") {
+        if (!Number.isSafeInteger(value.retryAfterSec) || value.retryAfterSec < 1) return protocolError();
+        return { ok: false, error: { ...error, domainCode: value.code, retryAfterSec: value.retryAfterSec } };
+      }
+      return { ok: false, error };
     }
     return { ok: true, value };
   } catch {

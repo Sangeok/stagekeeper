@@ -63,6 +63,61 @@ const runFree = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR, HAR
 const fresh = (cfg = APCH) => { const root = mkdtempSync(join(realpathSync(tmpdir()),"harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
 const ONE_WS = JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }], scout: { question: "q" } });
 
+for (const field of ["project", "executor", "release", "scout"]) it(`reports null ${field} as a field-path config error without generating files`, () => {
+  const invalid = { ...JSON.parse(ONE_WS), [field]: null }, root = fresh(JSON.stringify(invalid));
+  const before = snapshot(root), result = run(root);
+  assert.notEqual(result.code, 0);
+  assert.match(result.out, new RegExp(`Config error: harness\\.json ${field}: must be an object`));
+  assert.deepEqual(snapshot(root), before);
+});
+
+it("bounds identity, registration, templates and reporting across delayed headers and streaming bodies", { timeout: 65000 }, async t => {
+  const cases = ["/api/project", "/api/projects", "/api/templates", "/api/runbook"].flatMap(endpoint => ["headers", "body", "error-body"].map(mode => ({ endpoint, mode })));
+  await Promise.all(cases.map(async ({ endpoint, mode }) => {
+    const root = fresh(ONE_WS);
+    if (endpoint === "/api/projects") {
+      execFileSync("git", ["init", root], { stdio: "ignore" });
+      execFileSync("git", ["-C", root, "remote", "add", "origin", "https://github.com/o/r.git"]);
+      execFileSync("git", ["-C", root, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
+    }
+    const before = snapshot(root), observed = [], timers = [];
+    const server = createServer((request, response) => {
+      const url = new URL(request.url, "http://localhost"); observed.push(url.pathname);
+      if (url.pathname !== endpoint) { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(deliverable(ROWS, "pro"))); return; }
+      if (endpoint === "/api/runbook") assert.equal(existsSync(join(root, "harness.init.guard")), false, "init guard must be released before reporting");
+      if (mode === "headers") return;
+      response.writeHead(mode === "error-body" ? 429 : 200, { "Content-Type": "application/json" }); response.write('{"unfinished":');
+      const timer = setInterval(() => { if (!response.destroyed) response.write(" "); }, 250); timers.push(timer);
+      response.once("close", () => clearInterval(timer));
+    });
+    await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+    t.after(() => { timers.forEach(clearInterval); server.closeAllConnections(); server.close(); });
+    const env = { ...BASE_ENV, HARNESS_TOKEN: "hu_fixture" };
+    const flags = endpoint === "/api/project" ? ["--print-project"] : endpoint === "/api/projects" ? ["--register"] : [];
+    // A user token needs a slug for generation; registration/identity remain read-only modes.
+    if (!flags.length) { const config = JSON.parse(ONE_WS); config.project.slug = "fixture"; writeFileSync(join(root, "harness.json"), JSON.stringify(config)); }
+    const started = Date.now();
+    const result = await new Promise(resolve => execFile(process.execPath, argv(root, `http://127.0.0.1:${server.address().port}`, flags),
+      { env, windowsHide: true, timeout: 45000 }, (error, stdout, stderr) => resolve({ code: error?.code ?? 0, out: stdout + stderr })));
+    const elapsed = Date.now() - started, label = `${endpoint}/${mode}: ${result.out}`;
+    const discardedSuccessBody = endpoint === "/api/runbook" && mode === "body";
+    assert.ok(elapsed < 40000, label); if (!discardedSuccessBody) assert.ok(elapsed >= 18000, label);
+    assert.equal(observed.filter(path => path === endpoint).length, 1, "no automatic retry");
+    if (endpoint === "/api/runbook") {
+      assert.equal(result.code, mode === "error-body" ? 1 : 0, label);
+      assert.ok(existsSync(join(root, "CLAUDE.md"))); assert.ok(existsSync(join(root, "harness.lock.json")));
+      if (!discardedSuccessBody) assert.match(result.out, /note: runbook version not recorded/);
+      if (mode === "error-body") assert.match(result.out, /Wait before retrying|stated wait/);
+    } else {
+      assert.equal(result.code, 1, label);
+      assert.equal(existsSync(join(root, "harness.lock.json")), false); assert.equal(existsSync(join(root, ".claude")), false);
+      if (flags.length) assert.deepEqual(snapshot(root), before);
+      if (endpoint === "/api/projects" && mode !== "error-body") assert.match(result.out, /Registration result unknown.*server may have saved.*No automatic retry or rollback/s);
+    }
+    assert.equal(existsSync(join(root, "harness.init.guard")), false);
+  }));
+});
+
 // 오류 뒤의 새 파일과 기존 내용 변경을 모두 잡도록 테스트 저장소 전체를 비교한다.
 const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile())

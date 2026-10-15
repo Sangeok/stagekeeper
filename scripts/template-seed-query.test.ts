@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { COMMON_DOCS, RUNTIME_MARKER } from "@harness/core/client-runtime.mjs";
+import { limitsFor } from "@harness/core/entitlement.mjs";
 import { seedTemplates, snapshotTemplates, restoreTemplates, type TemplateSource } from "./lib/template-seed-query";
 
 const rows: TemplateSource[] = [
   { lang: "en", path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nsource" },
   ...COMMON_DOCS.map(path => ({ lang: "en", path, body: "shared" })),
-  ...["dev", "pm", "feature-scout", "doc-auditor", "plan-verifier"].map(role => ({ lang: "en", path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\n## step:read\nRead.\nnext: done\n` })),
+  ...["dev", ...limitsFor("max").agents].map(role => ({ lang: "en", path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\n## step:read\nRead.\nnext: done\n` })),
 ];
 function database() {
   const data = new Map<string, string>(), writes: string[] = [];
@@ -18,6 +19,20 @@ function database() {
   };
   return { data, writes, store };
 }
+
+it("validates shared marker boundaries before writes and allows the parser-valid single marker", async () => {
+  for (const newline of ["\n", "\r\n"]) {
+    const one = ["## step: start", RUNTIME_MARKER, "## step:start", "PRIVATE STEP", "next: done", ""].join(newline);
+    const replace = (body: string) => rows.map(row => row.path === "agents/dev.md" ? { ...row, body } : row);
+    const rejected = database();
+    await assert.rejects(() => seedTemplates(rejected.store, replace(RUNTIME_MARKER + newline + one)), /protocol mismatch/);
+    assert.deepEqual(rejected.writes, []);
+    const accepted = database();
+    await seedTemplates(accepted.store, replace(one));
+    assert.equal(accepted.data.get("en/agents/dev.md"), one);
+    assert.equal(accepted.writes.length, rows.length);
+  }
+});
 it("validates the entire source before even the first write", async () => {
   for (const invalid of [rows.slice(0, -1), [...rows, rows[0]], rows.map((row, index) => index === rows.length - 1 ? { ...row, body: `${RUNTIME_MARKER}\n## step:broken\nBad\nnext: missing` } : row)]) {
     const db = database(); await assert.rejects(() => seedTemplates(db.store, invalid)); assert.deepEqual(db.writes, []);

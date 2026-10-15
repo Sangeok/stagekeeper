@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
+import { SEGMENT } from "@harness/core/repo-url.mjs";
+import { REPO_SEGMENT } from "./project-slug-rule";
 
 // 슬러그·저장소 이름 규칙은 두 트리에 한 벌씩 있다 — src/server는 FSD를, FSD의 model은 src/server를
 // import할 수 없다(verify-fsd-boundaries.mjs의 server/no-fsd-import·fsd/server-import-boundary).
@@ -8,7 +10,6 @@ import { it } from "node:test";
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const SERVER = read("./project-slug-rule.ts");
 const FSD_SLUG = read("../fsd/features/create-project/model/project-slug.ts");
-const FSD_REPO = read("../fsd/features/create-project/model/repo-url.ts");
 
 function initializer(source: string, name: string): string {
   const match = source.match(new RegExp(`^export const ${name} = (.+);\\r?$`, "m"));
@@ -22,6 +23,7 @@ it("the server slug rule and the web form's slug rule are the same text", () => 
   }
 });
 
-it("the server repository segment rule and the web form's are the same text", () => {
-  assert.equal(initializer(SERVER, "REPO_SEGMENT"), initializer(FSD_REPO, "SEGMENT"), "REPO_SEGMENT drifted from create-project/model/repo-url.ts SEGMENT");
+it("the server repository segment rule matches the shared core policy", () => {
+  assert.equal(REPO_SEGMENT.source, SEGMENT.source);
+  assert.equal(REPO_SEGMENT.flags, SEGMENT.flags);
 });
