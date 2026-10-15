@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import type { Plan } from "@harness/core/entitlement.mjs";
-import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import { planLabel } from "@/fsd/entities/account-plan";
 import { billingPath } from "@/fsd/shared/routes/billing";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { newProjectPath, projectsPath } from "@/fsd/shared/routes/projects";

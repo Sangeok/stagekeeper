@@ -14,6 +14,7 @@ export async function requireUser(): Promise<{ userId: string }> {
 // 다른 사용자의 프로젝트와 없는 프로젝트는 같은 not-found를 반환한다.
 export async function requireProjectOwner(slug: string): Promise<{ userId: string; projectId: string }> {
   const { userId } = await requireUser();
+  if (typeof slug !== "string" || slug.trim().length === 0) notFound();
   const project = await prisma.project.findFirst({ where: { ownerUserId: userId, slug }, select: { id: true } });
   if (!project) notFound();
   return { userId, projectId: project.id };

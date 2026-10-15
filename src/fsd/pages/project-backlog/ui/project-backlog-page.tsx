@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { BacklogForm, BacklogTable, RemoveBacklogButton, type BacklogFormAction, type BacklogRow, type RemoveBacklogAction } from "@/fsd/features/edit-backlog";
+import { BacklogForm, RemoveBacklogButton, type BacklogFormAction, type RemoveBacklogAction } from "@/fsd/features/edit-backlog";
 import { ProposeButton, type ProposeAction } from "@/fsd/features/propose-item";
 import { backlogHref } from "@/fsd/shared/routes/project";
+import { BacklogTable, type BacklogRow } from "./backlog-table";
 
 type Props = {
   canWrite: boolean;

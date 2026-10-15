@@ -1,6 +1,6 @@
 import { countNoun } from "@/fsd/shared/lib/count-noun";
 import type { Plan } from "@harness/core/entitlement.mjs";
-import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import { planLabel } from "@/fsd/entities/account-plan";
 
 // /projects의 상태 문장들(product-copy.md §10). 연결 수는 새 저장소를 연결할 수 있는지를 정하므로 늘 한 문장으로 말하고,
 // 사용 가능 수는 연결 수와 다를 때(다운그레이드가 남긴 Not selected)만 selectionNotice가 말한다.
