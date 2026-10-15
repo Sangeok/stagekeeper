@@ -1,8 +1,7 @@
 # 프로토콜 — 도구 계약과 보드 규약
 
 에이전트가 서비스에 말을 거는 방법(MCP 도구)과 보드 항목이 지켜야 하는 기록 규약을
-한곳에 둔다. 왜 이래야 하는지는 [invariants.md](./invariants.md), 어디서 왔는지는
-[sources.md](./sources.md)에 있다.
+한곳에 둔다. 왜 이래야 하는지는 [invariants.md](./invariants.md)에 있다.
 
 ## 템플릿 다운로드 — `GET /api/templates`
 
