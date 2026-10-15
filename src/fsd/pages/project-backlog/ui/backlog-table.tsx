@@ -22,8 +22,8 @@ type Props = {
   canWrite: boolean;
   slug: string;
   rows: BacklogRow[];
-  // 제거되지 않은 행의 마지막 열. pages 층이 채운다(보드에 올리기·제거) — 같은 layer의 다른 slice를
-  // 여기서 import하지 않고, 이 표가 쓰지 않는 액션을 prop으로 통과시키지 않는다. canWrite일 때만 부른다.
+  // 제거되지 않은 행의 마지막 열. page의 조합이 채우며(보드에 올리기·제거),
+  // 이 표가 쓰지 않는 액션을 prop으로 통과시키지 않는다. canWrite일 때만 부른다.
   renderRowActions?: (row: BacklogRow) => ReactNode;
 };
 

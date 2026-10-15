@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { PLANS, type Plan } from "@harness/core/entitlement.mjs";
-import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import { planLabel } from "@/fsd/entities/account-plan";
 import { BILLING_NOTE, planMatrix } from "../model/plan-matrix";
 
 // 플랜 화면. 읽기 전용이다 — 결제가 없으므로 버튼도 없다.

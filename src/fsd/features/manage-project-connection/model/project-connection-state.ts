@@ -1,6 +1,6 @@
 import type { Plan } from "@harness/core/entitlement.mjs";
 import { countNoun } from "@/fsd/shared/lib/count-noun";
-import { planLabel } from "@/fsd/shared/lib/entitlement-copy";
+import { planLabel } from "@/fsd/entities/account-plan";
 import type { ProjectConnectionInput } from "./project-connection-input";
 
 export type ProjectConnectionTarget = { id: string; name: string; repoOwner: string; repo: string; disconnectedAt: string | null };
