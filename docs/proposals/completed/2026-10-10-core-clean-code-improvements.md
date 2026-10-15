@@ -23,6 +23,15 @@ related:
 
 # packages/core 클린 코드 검증 및 개선 제안
 
+## 최신 dev 통합 · 2026-10-16
+
+CORE-001~005의 공개 변경을 plugin 개선과 함께 `dev`의 `45b51d3` 위에 통합했다.
+Multiple pipelines의 파이프라인 조합 타입 검증과 이번 `NodeFacts.validation` 타입 검증을
+모두 유지했다. 최신 lint·type·FSD·architecture·미러·build 및 core/plugin·web·server·격리 DB·
+템플릿·Windows 검증 결과와 private 저장소 분리는
+[plugin 완료 기록의 2026-10-16 통합 검증](2026-10-10-plugin-clean-code-findings.md)을 따른다.
+아래 2026-10-10의 발견·검증 횟수·hash·독립 리뷰는 당시 이력으로 보존한다.
+
 ## Summary
 
 **CORE-001~005의 코드 수정과 제안된 회귀 검증을 완료했다.** 단계 경계는 새 순수
@@ -716,7 +725,8 @@ CORE-005는 세 설명을 pipeline 완료·별도 인수 계약에 맞췄으며 
 기존 seed fixture 실패는 해결됐고 최종 실행 실패는 없다. private 템플릿의 실제 발생
 빈도, 실제 DB seed/restore·모델·Windows 설치/제품 인수는 이 작업의 잔여 구현 항목이
 아니며 별도 운영/runtime 검증 대상이다. 코드 변경과 테스트는 작업 트리에 남겨 두었고
-커밋·PR·배포는 수행하지 않았다. 이 문서는 완료 기록으로 `completed/`에 이동한다.
+2026-10-10 완료 당시에는 커밋·PR·배포를 수행하지 않았다. 이 문서는 완료 기록으로 `completed/`에 이동했다.
+후속 공개 코드 통합은 위 2026-10-16 기록을 따른다.
 
 ## Review Checklist
 

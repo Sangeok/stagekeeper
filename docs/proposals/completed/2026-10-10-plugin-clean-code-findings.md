@@ -26,6 +26,43 @@ related:
 
 # plugin 클린코드 개선 제안
 
+## 최신 dev 통합 검증 · 2026-10-16
+
+2026-10-10의 plugin 12건과 [core 5건](2026-10-10-core-clean-code-improvements.md)의 공개 변경을
+로컬 보존 커밋 `5973bf6`으로 묶고, `dev`의 `45b51d3`에서 분기한
+`harness/plugin-core-integration`에 통합했다. 기존 Multiple pipelines 구현은 유지했다.
+충돌한 `packages/core/pipeline-types.test.ts`는 파이프라인 조합 타입 검증과 검증 증거 타입 검증을
+함께 보존했고, `plugin/bin/harness-init-dual.test.mjs`는 최신 `realpathSync(tmpdir())` fixture와
+LF/CRLF·marker·초기화 회귀 검증을 함께 보존했다.
+
+아래는 통합 코드에서 새로 실행한 결과다. 이후 절의 2026-10-10 검토·독립 렌즈 결과·hash는
+당시 이력이며, 이번 통합에서 다시 수행한 독립 리뷰나 현재 파일 identity로 해석하지 않는다.
+
+| 검증 | 결과 |
+| --- | --- |
+| `npm run check` | 통과: 미러·lint·FSD·route typegen·TypeScript·architecture·project availability |
+| `npm test` | 400 pass, 2 skip, 0 fail |
+| `npm run test:web` | 637 pass, 0 skip |
+| `npm run build` | Prisma generate 및 Next production build 통과 |
+| fresh build 후 `npm run test:server` | 143 pass, 0 skip; `RDC_CHECK_ACTION_MANIFEST=true`, `SRC_CHECK_INBOX_MANIFEST=true` |
+| PostgreSQL 통합 시험 | 131 pass, 0 skip; `runIntegration`의 migrate deploy 및 전체 integration suite |
+| seed query + private templates 시험 | 63 pass, 0 skip (seed 4, private 59) |
+| Windows native 시험 | 37 pass, 0 skip; role commands/files/git 및 readlink/spawn diagnostics |
+| 공개·private `git diff --check` | 통과 |
+
+기본 `npm test`의 skip은 native runtime 경로가 필요한 시험과 POSIX 전용 시험이다.
+전자는 검증된 Windows runtime을 지정한 별도 실행에서 통과했다. 기본 architecture 시험의
+native readlink/spawn skip 2개도 같은 별도 실행에서 통과했다. POSIX 실행 결과는 Linux CI에서 확인한다.
+Windows runtime은 아래 2026-10-10 기록과 동일한 package/executable SHA-256을 다시 검증했다.
+DB 시험은 PostgreSQL 18.6의 새 loopback cluster와 `stagekeeper_test_plugin_core_integration`에서
+실행하고 cluster를 종료했다. 운영 `.env`와 DB는 사용하지 않았다.
+
+private 템플릿은 HEAD `405ca54a31653058188b372b459292f1d07d88d3`와 로컬 수정 4개를
+별도 patch·내용 hash로 보존했다. Git 이력을 포함한 ignored 복사본에서 시험했으며
+공개 커밋·PR에는 private 본문을 포함하지 않는다. 기존 작업 트리의 별도 active 제안서 2개도
+이번 변경에 포함하지 않는다. private 저장소 반영, 운영 seed, 패키지 배포, 설치·모델 인수는
+별도 후속 작업이다. 이번 실행 범위는 공개 코드의 `dev` 대상 PR까지다.
+
 ## Summary
 
 `plugin/` 전체를 `frontend-clean-code-orchestrator`의 독립 렌즈 다섯 개와 중립 품질 게이트로 검토했다.
@@ -681,7 +718,8 @@ core를 되돌리면 배포 사본도 원본 기준으로 다시 동기화한다
 
 승인된 12개 ID의 Core 구현·회귀 검증을 완료했다. `docs/proposals/README.md`의 lifecycle 규칙에 따라
 `completed/2026-10-10-plugin-clean-code-findings.md`로 이동하고 승인·완료 metadata를 갱신했다.
-코드·private 템플릿은 작업 파일에 반영했으며 커밋·PR은 만들지 않았다. 운영 seed·패키지 배포·설치 인수는 별도 실행 범위다.
+2026-10-10 완료 당시에는 코드·private 템플릿을 작업 파일에 반영하고 커밋·PR은 만들지 않았다.
+후속 공개 코드 통합은 위 2026-10-16 기록을 따른다. 운영 seed·패키지 배포·설치 인수는 별도 실행 범위다.
 
 구현 검증 snapshot은 공개 변경 20개와 private 변경 4개를 상대 경로로 합쳐 JavaScript 기본 정렬한 24개 파일이다.
 경로를 LF로 연결한 UTF-8 SHA-256은 `6e01e2b4b2eed39feb3244adff16379d0d2b996ee2341bdc04ddcbdfbdcb497a`,
