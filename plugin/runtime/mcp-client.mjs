@@ -53,13 +53,34 @@ export async function mcpRequest(input, method, params, signal) {
   return { id, body: new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)), contentType: response.headers.get("content-type") };
 }
 
+export class McpDomainError extends Error {
+  constructor(body) {
+    super("The server refused the role request.");
+    this.name = "McpDomainError";
+    this.body = Object.freeze(body);
+  }
+}
+
+function safeDomainFailure(error, token) {
+  const reason = error.reason?.trim();
+  if (!reason || reason.length > 1000 || (token && reason.includes(token))
+    || /[<>\x00-\x1f]|\bBearer\b|\b(?:hs_|hu_|ho_)[A-Za-z0-9_-]+|Authorization|\bat\s+\S+\s*\(/i.test(reason)) return null;
+  return { error: reason,
+    ...(error.domainCode === "USAGE_LIMIT_REACHED" ? { code: error.domainCode, resetAt: error.resetAt } : {}),
+    ...(error.domainCode === "RATE_LIMITED" ? { code: error.domainCode, retryAfterSec: error.retryAfterSec } : {}) };
+}
+
 export async function callTool(input, name, args = {}, signal) {
   const scoped = { ...args, ...(input.config.project.slug ? { project: input.config.project.slug } : {}) };
   if (input.client === "codex" && ["agent_next", "pipeline_next"].includes(name)) scoped.client = "codex";
   if (name === "pipeline_next" && input.runbook) scoped.runbook = input.runbook;
   const response = await mcpRequest(input, "tools/call", { name, arguments: scoped }, signal);
   const parsed = parseToolResponse(response.contentType, response.body, response.id);
-  if (!parsed.ok) throw new Error(`MCP ${name} failed (${parsed.error.code}); stop; use ${input.client === "codex" ? "$harness-init" : "/harness:init"} for connection recovery`);
+  if (!parsed.ok) {
+    const body = parsed.error.code === "access-refused" ? safeDomainFailure(parsed.error, input.token) : null;
+    if (body) throw new McpDomainError(body);
+    throw new Error(`MCP ${name} failed (${parsed.error.code}); stop; use ${input.client === "codex" ? "$harness-init" : "/harness:init"} for connection recovery`);
+  }
   if (input.client === "codex" && ["agent_next", "pipeline_next"].includes(name)
     && (parsed.value?.runtime?.client !== "codex" || parsed.value.runtime.protocol !== RUNTIME_PROTOCOL)) throw new Error("Unsupported Codex server runtime; no further calls allowed");
   return parsed.value;

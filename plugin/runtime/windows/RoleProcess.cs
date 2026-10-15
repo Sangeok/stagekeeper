@@ -13,6 +13,15 @@ using Microsoft.Win32.SafeHandles;
 // Trusted launcher. Model code runs only after token and Job Object validation.
 // All ACL changes concern a newly owned snapshot, never the user's repository.
 public static class StagekeeperRoleProcess {
+  const uint TOKEN_QUERY = 8, SE_GROUP_ENABLED = 4;
+  const int TokenIsAppContainer = 29, TokenAppContainerSid = 31, TokenCapabilities = 30;
+  const int JobObjectBasicAccountingInformation = 1, JobObjectExtendedLimitInformation = 9;
+  const int PROC_THREAD_ATTRIBUTE_HANDLE_LIST = 0x20002, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES = 0x20009,
+    PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY = 0x2000f;
+  const int PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT = 1;
+  const uint STARTF_USESTDHANDLES = 0x100, CREATE_NO_WINDOW = 0x08000000,
+    EXTENDED_STARTUPINFO_PRESENT = 0x00080000, CREATE_UNICODE_ENVIRONMENT = 0x00000400,
+    CREATE_SUSPENDED = 4, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
   public static string Stage = "validation", FailedStage = null;
   public sealed class Result {
     public uint exitCode;
@@ -64,7 +73,7 @@ public static class StagekeeperRoleProcess {
   static void Check(bool success, string operation) { if (!success) throw new Win32Exception(Marshal.GetLastWin32Error(), operation); }
   static uint ActiveProcesses(IntPtr job) {
     IntPtr data = Marshal.AllocHGlobal(48);
-    try { Check(QueryInformationJobObject(job, 1, data, 48, IntPtr.Zero), "job accounting"); return (uint)Marshal.ReadInt32(data, 40); }
+    try { Check(QueryInformationJobObject(job, JobObjectBasicAccountingInformation, data, 48, IntPtr.Zero), "job accounting"); return (uint)Marshal.ReadInt32(data, 40); }
     finally { Marshal.FreeHGlobal(data); }
   }
   static IntPtr TokenData(IntPtr token, int type) {
@@ -75,9 +84,9 @@ public static class StagekeeperRoleProcess {
     catch { Marshal.FreeHGlobal(data); throw; }
   }
   static void AuditToken(IntPtr process, SecurityIdentifier expected, SecurityIdentifier registryCapability) {
-    IntPtr token; Check(OpenProcessToken(process, 8, out token), "process token");
+    IntPtr token; Check(OpenProcessToken(process, TOKEN_QUERY, out token), "process token");
     try {
-      IntPtr flag = TokenData(token, 29), sid = TokenData(token, 31), caps = TokenData(token, 30);
+      IntPtr flag = TokenData(token, TokenIsAppContainer), sid = TokenData(token, TokenAppContainerSid), caps = TokenData(token, TokenCapabilities);
       try {
         if (Marshal.ReadInt32(flag) != 1 || !new SecurityIdentifier(Marshal.ReadIntPtr(sid)).Equals(expected)) throw new Exception("AppContainer identity differs");
         int offset = IntPtr.Size == 8 ? 8 : 4;
@@ -224,16 +233,16 @@ public static class StagekeeperRoleProcess {
       IntPtr size = IntPtr.Zero; InitializeProcThreadAttributeList(IntPtr.Zero, 3, 0, ref size);
       list = Marshal.AllocHGlobal(size); Check(InitializeProcThreadAttributeList(list, 3, 0, ref size), "attributes"); listReady = true;
       handles = Marshal.AllocHGlobal(3 * IntPtr.Size); Marshal.WriteIntPtr(handles, inRead); Marshal.WriteIntPtr(handles, IntPtr.Size, outWrite); Marshal.WriteIntPtr(handles, 2 * IntPtr.Size, errWrite);
-      Check(UpdateProcThreadAttribute(list, 0, new IntPtr(0x20002), handles, new IntPtr(3 * IntPtr.Size), IntPtr.Zero, IntPtr.Zero), "stdio handle list");
+      Check(UpdateProcThreadAttribute(list, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_HANDLE_LIST), handles, new IntPtr(3 * IntPtr.Size), IntPtr.Zero, IntPtr.Zero), "stdio handle list");
       Check(DeriveCapabilitySidsFromName("registryRead", out groups, out groupCount, out capabilitySids, out capabilityCount), "registry capability");
       if (capabilityCount != 1) throw new Exception("Registry capability identity differs");
       capability = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SidAndAttributes)));
-      Marshal.StructureToPtr(new SidAndAttributes { Sid = Marshal.ReadIntPtr(capabilitySids), Attributes = 4 }, capability, false);
+      Marshal.StructureToPtr(new SidAndAttributes { Sid = Marshal.ReadIntPtr(capabilitySids), Attributes = SE_GROUP_ENABLED }, capability, false);
       var security = new SecurityCapabilities { Sid = sid, Capabilities = capability, Count = 1 };
       caps = Marshal.AllocHGlobal(Marshal.SizeOf(security)); Marshal.StructureToPtr(security, caps, false);
-      Check(UpdateProcThreadAttribute(list, 0, new IntPtr(0x20009), caps, new IntPtr(Marshal.SizeOf(security)), IntPtr.Zero, IntPtr.Zero), "capabilities");
-      optout = Marshal.AllocHGlobal(4); Marshal.WriteInt32(optout, 1);
-      Check(UpdateProcThreadAttribute(list, 0, new IntPtr(0x2000f), optout, new IntPtr(4), IntPtr.Zero, IntPtr.Zero), "AAP opt out");
+      Check(UpdateProcThreadAttribute(list, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES), caps, new IntPtr(Marshal.SizeOf(security)), IntPtr.Zero, IntPtr.Zero), "capabilities");
+      optout = Marshal.AllocHGlobal(4); Marshal.WriteInt32(optout, PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT);
+      Check(UpdateProcThreadAttribute(list, 0, new IntPtr(PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY), optout, new IntPtr(4), IntPtr.Zero, IntPtr.Zero), "AAP opt out");
       string windows = Environment.GetEnvironmentVariable("SystemRoot"), exe = Path.Combine(windows, "System32", "cmd.exe"), temporary = drive + "\\scratch";
       var variables = new SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         { "APPDATA", temporary }, { "ComSpec", exe }, { "HOME", temporary }, { "LOCALAPPDATA", temporary },
@@ -245,17 +254,17 @@ public static class StagekeeperRoleProcess {
       var env = new StringBuilder(); foreach (var pair in variables) env.Append(pair.Key).Append('=').Append(pair.Value).Append('\0'); env.Append('\0');
       environment = Marshal.StringToHGlobalUni(env.ToString());
       var startup = new StartupInfoEx(); startup.Info.cb = Marshal.SizeOf(startup); startup.Attributes = list;
-      startup.Info.flags = 0x100; startup.Info.stdin = inRead; startup.Info.stdout = outWrite; startup.Info.stderr = errWrite;
+      startup.Info.flags = STARTF_USESTDHANDLES; startup.Info.stdin = inRead; startup.Info.stdout = outWrite; startup.Info.stderr = errWrite;
       string working = drive + "\\repo" + (cwd.Length == 0 ? "" : "\\" + cwd);
       Stage = "process-create";
-      Check(CreateProcessW(exe, new StringBuilder("\"" + exe + "\" /d /s /c \"" + command + "\""), IntPtr.Zero, IntPtr.Zero, true, 0x08000000 | 0x00080000 | 0x00000400 | 4, environment, working, ref startup, out process), "CreateProcess");
+      Check(CreateProcessW(exe, new StringBuilder("\"" + exe + "\" /d /s /c \"" + command + "\""), IntPtr.Zero, IntPtr.Zero, true, CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED, environment, working, ref startup, out process), "CreateProcess");
       Stage = "token-audit";
       AuditToken(process.Process, identifier, new SecurityIdentifier(Marshal.ReadIntPtr(capabilitySids)));
       Stage = "job-assign";
       job = CreateJobObjectW(IntPtr.Zero, null); if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error(), "job");
-      var jobLimits = new JobExtendedLimit(); jobLimits.Basic.Flags = 0x2000;
+      var jobLimits = new JobExtendedLimit(); jobLimits.Basic.Flags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
       limits = Marshal.AllocHGlobal(Marshal.SizeOf(jobLimits)); Marshal.StructureToPtr(jobLimits, limits, false);
-      Check(SetInformationJobObject(job, 9, limits, (uint)Marshal.SizeOf(jobLimits)), "job limits"); Check(AssignProcessToJobObject(job, process.Process), "job assignment");
+      Check(SetInformationJobObject(job, JobObjectExtendedLimitInformation, limits, (uint)Marshal.SizeOf(jobLimits)), "job limits"); Check(AssignProcessToJobObject(job, process.Process), "job assignment");
       Stage = "process-resume";
       bool stoppedBeforeLaunch = Volatile.Read(ref stopped) != 0;
       if (stoppedBeforeLaunch) Check(TerminateJobObject(job, 124), "stopped before resume");

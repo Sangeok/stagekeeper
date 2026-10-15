@@ -5,9 +5,32 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
-import { createQaBrowser } from "../runtime/qa-browser.mjs";
+import { createQaBrowser, withQaBrowser } from "../runtime/qa-browser.mjs";
 
 const config = { environment: "test", baseUrl: "http://127.0.0.1:3000", mcpUrl: "http://127.0.0.1:8931/mcp", scenariosPath: "docs/qa/scenarios.md" };
+it("deletes an initialized QA session when inventory validation fails", async () => {
+  const f = fixture(), deletes = [];
+  await assert.rejects(createQaBrowser(config, async (url, options) => {
+    if (options.method === "DELETE") { deletes.push(options.headers["Mcp-Session-Id"]); return f.fetcher(url, options); }
+    const message = JSON.parse(options.body);
+    if (message.method === "tools/list") return Response.json({ jsonrpc: "2.0", id: message.id, result: { tools: [] } });
+    return f.fetcher(url, options);
+  }), /inventory incomplete/);
+  assert.deepEqual(deletes, ["qa-session"]);
+});
+for (const failClose of [false, true]) it(`QA cleanup deletes the session and closes files even when browser close fails: ${failClose}`, async () => {
+  const f = fixture(), cleanup = [];
+  const browser = await createQaBrowser(config, async (url, options) => {
+    if (options.method === "DELETE") { cleanup.push("delete"); return f.fetcher(url, options); }
+    const message = JSON.parse(options.body);
+    if (message.params?.name === "browser_close") { cleanup.push("browser"); if (failClose) throw new Error("close transport failed"); }
+    return f.fetcher(url, options);
+  });
+  await browser.call("browser_navigate", { url: config.baseUrl });
+  const broker = withQaBrowser({ tools: [], close: async () => { cleanup.push("files"); } }, browser);
+  if (failClose) await assert.rejects(broker.close(), /close transport failed/); else await broker.close();
+  await browser.close(); assert.deepEqual(cleanup, ["browser", "delete", "files"]);
+});
 function fixture(snapshot = "- textbox [ref=e1]") {
   const calls = []; let failed = false, origin = config.baseUrl;
   const fetcher = async (_url, options) => {

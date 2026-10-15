@@ -77,6 +77,18 @@ describe("watch MCP response parser", () => {
     refusal.result.content[0].text = "{}";
     assert.equal(parse(refusal).error.code, "protocol-error");
   });
+  it("keeps compatible refusal fields and only validated limit metadata", () => {
+    const refusal = value => parse(response({}, { result: { isError: true, content: [{ type: "text", text: JSON.stringify(value) }] } }));
+    assert.deepEqual(refusal({ error: "cap", code: "USAGE_LIMIT_REACHED", resetAt: "2026-10-10T12:00:00.000Z", secret: "discard" }),
+      { ok: false, error: { code: "access-refused", reason: "cap", domainCode: "USAGE_LIMIT_REACHED", resetAt: "2026-10-10T12:00:00.000Z" } });
+    assert.deepEqual(refusal({ error: "rate", code: "RATE_LIMITED", retryAfterSec: 5 }),
+      { ok: false, error: { code: "access-refused", reason: "rate", domainCode: "RATE_LIMITED", retryAfterSec: 5 } });
+    assert.deepEqual(refusal({ error: "other", code: "UNKNOWN", secret: "discard" }), { ok: false, error: { code: "access-refused", reason: "other" } });
+    for (const value of [{ error: "cap", code: "USAGE_LIMIT_REACHED", resetAt: "bad" }, { error: "cap", code: "USAGE_LIMIT_REACHED" },
+      ...[0, -1, 1.5, "5", null].map(retryAfterSec => ({ error: "rate", code: "RATE_LIMITED", retryAfterSec })), { error: "bad", code: {} }]) {
+      assert.equal(refusal(value).error.code, "protocol-error");
+    }
+  });
 });
 
 describe("watch overview validation and actionable work", () => {

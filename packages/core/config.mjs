@@ -7,13 +7,17 @@ const RELEASE_AUTH = new Set(["none", "verifier"]);
 
 function fail(path, msg) { throw new Error(`harness.json ${path}: ${msg}`); }
 function str(v, path) { if (typeof v !== "string" || v === "") fail(path, "must be a non-empty string"); return v; }
+function object(value, path) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) fail(path, "must be an object");
+  return value;
+}
 
 export function parseHarnessConfig(input) {
   const raw = typeof input === "string" ? JSON.parse(input) : input;
   if (raw === null || typeof raw !== "object") fail("", "must be an object");
   if (raw.version !== 1) fail("version", "only version 1 is supported");
   if (raw.project === undefined) fail("project", "required");
-  const p = raw.project;
+  const p = object(raw.project, "project");
   const project = {
     owner: str(p.owner, "project.owner"), repo: str(p.repo, "project.repo"), branch: str(p.branch, "project.branch"),
     name: p.name === undefined ? p.repo : str(p.name, "project.name"),
@@ -26,17 +30,18 @@ export function parseHarnessConfig(input) {
     normalizeKnowledge: (value, path) => value === undefined ? null : str(value, path),
     normalizeReadOnly: (value) => value === undefined ? [] : value,
   });
-  const e = raw.executor === undefined ? { kind: "local" } : raw.executor;
+  const e = raw.executor === undefined ? { kind: "local" } : object(raw.executor, "executor");
   if (!EXECUTORS.has(e.kind)) fail("executor.kind", "local | routine");
   if (e.kind === "routine" && !Number.isInteger(e.commandIssue)) fail("executor.commandIssue", "routine executor needs commandIssue (an integer)");
   const executor = { kind: e.kind, commandIssue: e.kind === "routine" ? e.commandIssue : null };
   let release = null;
   if (raw.release !== undefined) {
-    const auth = raw.release.auth === undefined ? "none" : raw.release.auth;
+    const r = object(raw.release, "release");
+    const auth = r.auth === undefined ? "none" : r.auth;
     if (!RELEASE_AUTH.has(auth)) fail("release.auth", "none | verifier");
-    release = { baseUrl: str(raw.release.baseUrl, "release.baseUrl").replace(/\/$/, ""), auth };
+    release = { baseUrl: str(r.baseUrl, "release.baseUrl").replace(/\/$/, ""), auth };
   }
-  const scout = raw.scout === undefined ? null : { question: str(raw.scout.question, "scout.question") };
+  const scout = raw.scout === undefined ? null : { question: str(object(raw.scout, "scout").question, "scout.question") };
   const qa = parseQaConfig(raw.qa, release);
   return { version: 1, project, language, workspaces, executor, release, scout, qa };
 }

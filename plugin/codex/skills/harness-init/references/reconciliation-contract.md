@@ -1,27 +1,27 @@
-# External reconciliation skill — harness contract v1
+# Bundled reconciliation skill — harness contract v1
 
-Harness currently depends on an owner-provided `reconciling-proposals-with-codebase`
-skill. The project owner supplies an approved release or checkout of the complete package,
-including every referenced file. Harness does not publish an installer or claim an upstream
-download URL for that package. Do not substitute a similarly named package from a search.
+Stagekeeper's installed bundle includes the complete original
+`codex/skills/reconciling-proposals-with-codebase/` package, including every referenced file.
+Packaging uses an owner-approved source; init does not download, synthesize or replace it.
 
-## Supply and installation
+## Supply and resolved loader
 
-Install that complete directory at
-the actual Codex-discovered `reconciling-proposals-with-codebase/` directory, with
-`SKILL.md` at its root. An existing personal or managed installation is also supported if
-it resolves under the same unqualified name and satisfies the contract below. A copy in a
-Claude-only skill directory does not establish availability in Codex. Keep Claude's package
-intact. HARNESS_VERIFIER_SKILL_DIR must match this host's actual Codex skills/list path.
+The helper resolves its bundled directory first. Only when that directory is absent in
+source development does it try `HARNESS_VERIFIER_SKILL_DIR`, then
+`CODEX_HOME/skills/reconciling-proposals-with-codebase` (default `~/.codex/skills/`).
+These fallbacks do not repair or certify an incomplete installed bundle. Keep Claude's
+package intact; the two clients have separate bundled copies.
 
-These installation locations follow the [Codex skill documentation](https://learn.chatgpt.com/docs/skills).
-Check the effective installation: a higher-precedence skill can shadow the project copy.
-Do not overwrite an existing package during init; have the owner reconcile conflicting
-versions, then repeat preflight. Record the supplied version/commit or package checksum.
+Read the complete bundled package and record its absolute path, bundle version/commit
+or checksum. The plan-verifier helper stages that package into scratch, checks its full
+checksum/file count against init metadata, and requires exactly that staged path in
+actual `skills/list`; only that skill is activated. Do not overwrite conflicts during init.
+An installed bundle missing the verifier is a Stagekeeper packaging failure: stop and
+repair/update Stagekeeper, without requiring manual Node or verifier installation.
 
 ## Preflight — inspect without starting a review
 
-1. Resolve the actual `reconciling-proposals-with-codebase` skill available to this Claude
+1. Resolve the actual `reconciling-proposals-with-codebase` skill available to this Codex
    session. Read its complete `SKILL.md` and the supporting instructions required by
    its gate workflow. Missing files or an unavailable Skill invocation are a failed check.
 2. Confirm it defines and requires the ordered gates INV-1 through INV-7 for a full review,
@@ -35,8 +35,8 @@ versions, then repeat preflight. Record the supplied version/commit or package c
 
 All checks must pass before init writes files. If any fails, report
 `Verification skill unavailable or incompatible: <specific missing requirement>` and stop.
-Ask the project owner to supply or repair the complete compatible package at the project
-path above, then rerun `$harness-init`. Do not bypass verification or generate a replacement
+Repair/update the complete Stagekeeper bundle (or reconcile the winning loader conflict),
+then rerun `$harness-init`. Do not bypass verification or generate a replacement
 skill during init. Recheck after the package changes and before a new review session.
 
 This is a compatibility contract, not a claim that a particular unversioned personal skill

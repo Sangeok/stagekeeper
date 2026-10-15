@@ -5,6 +5,32 @@ import { expand, recompose, refStep, routePipeline, usersOf, validateDefinition,
 const full = { nodes: NODE_KINDS.filter(kind => !["impl-verify", "qa"].includes(kind)), gates: [...DEFAULT_GATES] };
 const facts = (o = {}) => ({ status: "proposed", validation: null, accepted: false, approvedGates: [], closedAgents: [], ...o });
 
+for (const format of [null, "slots-v1"]) describe(`verify validation contract: ${format ?? "legacy"}`, () => {
+  const graph = { nodes: ["plan", "verify", "implement", "accept"], gates: [] };
+  it("stops on absent or non-string evidence without entering another node or changing status", () => {
+    for (const validation of [null, undefined, 0, false, {}]) {
+      const input = facts({ format, status: "in_review", validation });
+      assert.equal(nodeDone("verify", input), false);
+      assert.deepEqual(advance(graph, "verify", input), { cursor: "verify", entered: [], transitions: [] });
+    }
+    const missing = facts({ format, status: "in_review" }); delete missing.validation;
+    assert.equal(nodeDone("verify", missing), false);
+    assert.deepEqual(advance(graph, "verify", missing), { cursor: "verify", entered: [], transitions: [] });
+  });
+  it("keeps string evidence including an empty record and honors human gates", () => {
+    for (const validation of ["clean pass", ""]) {
+      const input = facts({ format, status: "in_review", validation });
+      assert.equal(nodeDone("verify", input), true);
+      assert.deepEqual(advance(graph, "verify", input), {
+        cursor: "implement", entered: ["implement"], transitions: [{ from: "in_review", to: "implementing" }],
+      });
+      assert.deepEqual(advance({ ...graph, gates: ["before-implement"] }, "verify", input), {
+        cursor: "before-implement", entered: ["before-implement"], transitions: [],
+      });
+    }
+  });
+});
+
 describe("slot execution isolation", () => {
   const graph = { nodes: ["doc-auditor", "plan", "feature-scout", "verify", "implement", "doc-auditor#2", "accept", "feature-scout#2"], gates: ["before-accept"] };
   it("accepts repeated project agents in each span without changing defaults", () => {

@@ -21,7 +21,7 @@ describe("transitions", () => {
     assert.equal(done.kind, "auto"); assert.equal(done.requiresResult, true); assert.equal(done.requiresReport, true);
     assert.equal(findRule("agent", "planning", "on_hold").requiresResult, true);
     assert.equal(findRule("agent", "implementing", "on_hold").requiresResult, true);
-    assert.equal(findRule("human", "implementing", "done"), null); // done은 검증을 거친 에이전트만
+    assert.equal(findRule("human", "implementing", "done"), null); // done은 pipeline의 구현 구간 완료이며 인수는 별도 acceptedAt
   });
   it("human rejects: bounce clears validation, hold needs result, resume", () => {
     const bounce = findRule("human", "in_review", "planning");

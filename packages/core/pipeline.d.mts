@@ -11,7 +11,7 @@ export type GraphValidation = { ok: true } | { ok: false; reason: string };
 // 노드 하나가 끝났는가를 판정하는 증거(nodeDone). advance는 여기에 승인된 게이트를 더해 받는다.
 export type NodeFacts = {
   status: string;
-  validation: unknown;
+  validation: string | null;
   accepted: boolean;
   closedAgents: readonly string[];
   format?: string | null;

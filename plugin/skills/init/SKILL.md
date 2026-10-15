@@ -75,12 +75,12 @@ caller: it has not sent the project scope. Update the harness plugin and reload 
 skill when using an older version; for a direct MCP call, include `project` explicitly.
 Repeating the same unscoped request or merely rerunning an older init does not fix it.
 
-Before creating or updating any repository files, complete the external verification-skill
+Before creating or updating any repository files, complete the bundled verification-skill
 preflight in [references/reconciliation-contract.md](references/reconciliation-contract.md).
-The project owner supplies the approved skill package; harness does not bundle or download
-it. Check the actual resolved skill and its supporting files, not just its name in a list.
-If it is missing or incompatible, report the missing requirement and the installation path
-from that reference, then stop before step 1. After installation, rerun this preflight.
+Stagekeeper bundles the complete original package. Check the actual resolved skill and
+its supporting files, not just its name in a list. If the installed bundle is missing or
+incompatible, report a Stagekeeper packaging failure and stop before step 1; repair/update
+the bundle and repeat preflight. Source-development fallback is described in that reference.
 
 1. If there's no `harness.json`, **do not interview the user.** Build one draft and show it once.
    - `project`: **which command depends on the token in the shell.** Check the prefix of
@@ -211,7 +211,7 @@ from that reference, then stop before step 1. After installation, rerun this pre
    naming who reads it and why — whoever finds it later should not mistake it for documentation
    written for people.
 7. Show `git status` and leave the commit to the user. Suggested message: `chore: connect to Stagekeeper`.
-   Include the resolved verification-skill path and the owner-supplied version/commit (or the
+   Include the resolved verification-skill path and the bundle version/commit (or the
    package checksum when it has no version). Initialization is complete only after the
    preflight and connection checks have passed; file generation alone is not completion.
    Commit these files on the branch you are on. They reach the default branch when this branch

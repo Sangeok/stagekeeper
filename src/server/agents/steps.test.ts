@@ -29,6 +29,14 @@ const fails = (body: string, re: RegExp) =>
   assert.throws(() => splitTemplate(body), (e: unknown) => e instanceof TemplateFormatError && re.test((e as Error).message));
 
 describe("splitTemplate", () => {
+  it("keeps a malformed heading and marker in the stub before parsing the valid step", () => {
+    for (const newline of ["\n", "\r\n"]) {
+      const body = ["## step: start", "<!-- harness-runtime:harness-runtime-v1 -->", "## step:start", "PRIVATE STEP", "next: done", ""].join(newline);
+      const parsed = splitTemplate(body);
+      assert.equal(parsed.stub, "## step: start\n<!-- harness-runtime:harness-runtime-v1 -->\n");
+      assert.deepEqual(parsed.steps.map(step => ({ id: step.id, body: step.body, next: step.next })), [{ id: "start", body: "PRIVATE STEP", next: [DONE] }]);
+    }
+  });
   it("a body without steps is all stub", () => {
     const runbook = "# Runbook\n\nNo steps here.\n";
     assert.deepEqual(splitTemplate(runbook), { stub: runbook, steps: [] });

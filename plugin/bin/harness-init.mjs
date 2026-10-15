@@ -21,6 +21,7 @@ import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } 
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const progress = { phase: "preflight", written: [] };
+const REST_DEADLINE_MS = 20_000;
 
 async function responseFailure(res, server, token) {
   const body = await res.json().catch(() => null);
@@ -119,7 +120,7 @@ async function init() {
     if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
     const url = `${SERVER}/api/project`;
     let res;
-    try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
+    try { res = await fetch(url, { signal: AbortSignal.timeout(REST_DEADLINE_MS), headers: { Authorization: `Bearer ${token}` } }); }
     catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
     if (!res.ok) {
       const reason = await responseFailure(res, SERVER, token);
@@ -165,14 +166,16 @@ async function init() {
     )?.[1] ?? "");
     const branch = fromSymref || fromRemote || git(["branch", "--show-current"]);
     const url = `${SERVER}/api/projects`;
+    const registrationSignal = AbortSignal.timeout(REST_DEADLINE_MS);
     let res;
     try {
       res = await fetch(url, {
         method: "POST",
+        signal: registrationSignal,
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ owner: ref.owner, repo: ref.repo, ...(branch ? { branch } : {}) }),
       });
-    } catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
+    } catch (e) { console.log(`Registration result unknown: ${e.message}. The server may have saved the project; check it on the web before retrying. No automatic retry or rollback was performed.`); process.exit(1); }
     if (!res.ok) {
       const reason = await responseFailure(res, SERVER, token);
       // 401은 대개 프로젝트 토큰(hs_)을 쓴 경우다 — 그 토큰은 등록 경로를 지나지 않는다.
@@ -184,6 +187,10 @@ async function init() {
       process.exit(1);
     }
     const body = await res.json().catch(() => null);
+    if (registrationSignal.aborted) {
+      console.log("Registration result unknown: response deadline exceeded. The server may have saved the project; check it on the web before retrying. No automatic retry or rollback was performed.");
+      process.exit(1);
+    }
     if (!isRecord(body) || !isRecord(body.project)) {
       console.log("Unexpected /api/projects response (no project object): plugin and server are out of step — update the harness plugin.");
       process.exit(1);
@@ -221,7 +228,7 @@ async function init() {
     if (CLIENT === "codex") url.searchParams.set("client", CLIENT);
     if (projectScope) url.searchParams.set("project", projectScope);
     let res;
-    try { res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); }
+    try { res = await fetch(url, { signal: AbortSignal.timeout(REST_DEADLINE_MS), headers: { Authorization: `Bearer ${token}` } }); }
     catch (e) { console.log(`Cannot reach ${url}: ${e.message}`); process.exit(1); }
     if (!res.ok) {
       const reason = await responseFailure(res, SERVER, token);
@@ -249,7 +256,7 @@ async function init() {
       const url = new URL(`${SERVER}/api/templates`);
       url.searchParams.set("lang", lang); url.searchParams.set("client", CLIENT);
       if (projectScope) url.searchParams.set("project", projectScope);
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(url, { signal: AbortSignal.timeout(REST_DEADLINE_MS), headers: { Authorization: `Bearer ${token}` } });
       const remote = await res.json();
       if (!res.ok || remote.runtime?.client !== CLIENT || remote.runtime?.protocol !== RUNTIME_PROTOCOL || remote.entitlement?.plan !== entitlement.plan || typeof remote.templates?.["CODEX.runbook.md"] !== "string" || codexRunbookVersion(remote.templates["CODEX.runbook.md"]) !== codexRunbookVersion(templates["CODEX.runbook.md"])) throw new Error("Local Codex source and remote supported runtime/version/entitlement differ");
       validateCodexBundle(Object.entries(remote.templates).map(([path, body]) => ({ path, body })), remote.entitlement.plan);
@@ -331,14 +338,17 @@ async function init() {
   // (scripts/seed-templates.ts), 로컬 템플릿 모드(TPL_DIR)는 autocrlf 작업본을 그대로 읽기 때문이다.
   // 서버에 보고하는 판도 같은 값이다(아래 POST /api/runbook).
   const runbookBlock = CLIENT === "claude" ? `${RUNBOOK_START}\n${renderTemplate(tpl("CLAUDE.runbook.md"), { ...vars, runbook_version: runbookVersionNow })}\n${RUNBOOK_END}` : "";
-  const runbookPath = join(ROOT, "CLAUDE.md");
-  let runbook = existsSync(runbookPath) ? readFileSync(runbookPath, "utf8") : "";
-  if (CLIENT === "claude") existing["CLAUDE.md"] = existsSync(runbookPath) ? runbook : null;
-  const startIndex = runbook.indexOf(RUNBOOK_START), endIndex = runbook.indexOf(RUNBOOK_END);
-  const hasReplaceableRunbookBlock = startIndex >= 0 && endIndex > startIndex;
-  runbook = hasReplaceableRunbookBlock
-    ? runbook.slice(0, startIndex) + runbookBlock + runbook.slice(endIndex + RUNBOOK_END.length)
-    : (runbook ? runbook.replace(/\s*$/, "\n\n") : "") + runbookBlock + "\n";
+  let runbook = "", hasReplaceableRunbookBlock = false;
+  if (CLIENT === "claude") {
+    const runbookPath = join(ROOT, "CLAUDE.md"), present = existsSync(runbookPath);
+    runbook = present ? readFileSync(runbookPath, "utf8") : "";
+    existing["CLAUDE.md"] = present ? runbook : null;
+    const startIndex = runbook.indexOf(RUNBOOK_START), endIndex = runbook.indexOf(RUNBOOK_END);
+    hasReplaceableRunbookBlock = startIndex >= 0 && endIndex > startIndex;
+    runbook = hasReplaceableRunbookBlock
+      ? runbook.slice(0, startIndex) + runbookBlock + runbook.slice(endIndex + RUNBOOK_END.length)
+      : (runbook ? runbook.replace(/\s*$/, "\n\n") : "") + runbookBlock + "\n";
+  }
 
   // .mcp.json: 서버를 **더 이상 여기 쓰지 않는다**(사용자 범위에 머신당 1회 등록한다).
   // 읽기는 남는다. 두 가지 이유다: ① 여기가 권위 있는 파싱이고(위 회수 읽기는 던지지 않으므로 깨진
@@ -404,6 +414,7 @@ async function init() {
     try {
       const res = await fetch(`${SERVER}/api/runbook`, {
         method: "POST",
+        signal: AbortSignal.timeout(REST_DEADLINE_MS),
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ version: runbookVersionNow, ...(projectScope ? { project: projectScope } : {}) }),
       });
@@ -417,7 +428,7 @@ async function init() {
         if ([401, 403, 409].includes(res.status)) {
           console.log("stop: server access was refused after file generation. Keep the generated files; resolve the reported error before MCP registration, project_sync, or declaring init complete.");
         }
-      }
+      } else { await res.body?.cancel(); }
     } catch (e) { note(e.message); }
   }
 }

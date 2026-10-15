@@ -32,7 +32,7 @@ describe("parseRepoUrl", () => {
 
   // null은 "해석 못 했다"이고 호출부가 사용자에게 물어서 진행한다 — 추측한 값을 내보내지 않는다.
   it("returns null rather than guessing", () => {
-    for (const url of ["", "   ", "not a url", "https://gitlab.com/a/b", "https://github.com/onlyowner", null, undefined, 42]) {
+    for (const url of ["", "   ", "not a url", "https://gitlab.com/a/b", "https://github.com/onlyowner", null, undefined, 42, false, [], {}]) {
       assert.equal(parseRepoUrl(url), null, String(url));
     }
   });

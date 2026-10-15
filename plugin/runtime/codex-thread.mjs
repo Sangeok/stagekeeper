@@ -7,7 +7,7 @@ import { createInterface } from "node:readline";
 import { createServer } from "node:http";
 import { isDeepStrictEqual } from "node:util";
 import { ROLE_TOOLS, verifierPackage, readCodexRole } from "./codex-agent.mjs";
-import { callTool, listTools } from "./mcp-client.mjs";
+import { callTool, listTools, McpDomainError } from "./mcp-client.mjs";
 import { checkSession, registerChild, settleChild, gitRoot } from "./local-session.mjs";
 import { safeTarget } from "./file-ownership.mjs";
 import { createRoleFiles, roleFileToolNames, RoleFileInputError } from "./role-files.mjs";
@@ -62,15 +62,16 @@ export function rolePermissions(input, agent, key, scratch) {
   return filesystem;
 }
 
-export function boundArguments(name, args, dispatch, receipt) {
+export function boundArguments(name, args, dispatch, stepResponse) {
   if (args.project !== undefined && args.project !== dispatch.project) throw new Error("Role project mismatch");
   if (name === "agent_next") {
     if (args.agent !== undefined && args.agent !== dispatch.agent) throw new Error("Role agent mismatch");
     // App Server tools may encode an absent optional key as null. The request
     // below always binds the actual dispatch key, including keyless report roles.
     if (args.key != null && args.key !== dispatch.agentKey) throw new Error("Role key mismatch");
-    if (args.outcome && (!receipt || !isDeepStrictEqual(args.receipt, receipt.receipt))) throw new Error("Outcome receipt mismatch");
-    const binding = receipt ?? dispatch;
+    const stepReceipt = stepResponse?.receipt;
+    if (args.outcome && (!stepResponse || !isDeepStrictEqual(args.receipt, stepReceipt))) throw new Error("Outcome receipt mismatch");
+    const binding = stepResponse ?? dispatch;
     if (args.entry && !isDeepStrictEqual(args.entry, binding.entry)) throw new Error("Pipeline entry mismatch");
     if (args.agentRunId && args.agentRunId !== binding.agentRunId) throw new Error("Agent run mismatch");
     return { ...args, agent: dispatch.agent, key: dispatch.agentKey,
@@ -79,13 +80,15 @@ export function boundArguments(name, args, dispatch, receipt) {
   }
   if (dispatch.key && args.key !== undefined && args.key !== dispatch.key) throw new Error("Role artifact key mismatch");
   if (name === "report_submit") {
-    if (!receipt?.receipt || args.actor !== dispatch.agent) throw new Error("Role report actor/run mismatch");
-    if (args.runId !== undefined && args.runId !== receipt.receipt.runId) throw new Error("Report run mismatch");
-    return { ...args, runId: receipt.receipt.runId };
+    const stepReceipt = stepResponse?.receipt;
+    if (!stepReceipt || args.actor !== dispatch.agent) throw new Error("Role report actor/run mismatch");
+    if (args.runId !== undefined && args.runId !== stepReceipt.runId) throw new Error("Report run mismatch");
+    return { ...args, runId: stepReceipt.runId };
   }
   if (name === "backlog_add") {
-    if (!receipt?.receipt || (args.runId !== undefined && args.runId !== receipt.receipt.runId)) throw new Error("Scout run mismatch");
-    return { ...args, runId: receipt.receipt.runId };
+    const stepReceipt = stepResponse?.receipt;
+    if (!stepReceipt || (args.runId !== undefined && args.runId !== stepReceipt.runId)) throw new Error("Scout run mismatch");
+    return { ...args, runId: stepReceipt.runId };
   }
   return args;
 }
@@ -96,7 +99,7 @@ export async function roleBridge(input, files, session, dispatch, operations = {
   if (domainTools.length !== domainNames.length || new Set(domainTools.map(tool => tool.name)).size !== domainNames.length) throw new Error("Role MCP allowlist incomplete");
   const tools = [...domainTools, ...(fileBroker?.tools ?? [])], names = tools.map(tool => tool.name);
   if (new Set(names).size !== names.length) throw new Error("Role tool names conflict");
-  const capability = randomUUID(); let receipt = null, done = false, requests = 0, pending = 0;
+  const capability = randomUUID(); let stepResponse = null, done = false, requests = 0, pending = 0;
   const controller = new AbortController();
   const server = createServer(async (request, response) => {
     if (request.url !== `/mcp/${capability}`) { response.writeHead(404); response.end(); return; }
@@ -112,13 +115,13 @@ export async function roleBridge(input, files, session, dispatch, operations = {
       else if (message.method?.startsWith("notifications/")) { response.writeHead(202); response.end(); return; }
       else if (message.method === "tools/list") result = { tools };
       else if (message.method === "tools/call") {
-        if (++requests > 100 || done || pending > 1 || !names.includes(message.params?.name) || (!receipt && message.params.name !== "agent_next")) throw new Error("Role tool or run closed");
+        if (++requests > 100 || done || pending > 1 || !names.includes(message.params?.name) || (!stepResponse && message.params.name !== "agent_next")) throw new Error("Role tool or run closed");
         const ownership = await operations.checkSession(files, session, input.binding);
         if (ownership.event !== "owned" || ownership.lifecycle !== "active" || ownership.client !== "codex") throw new Error("Role session no longer active");
         const name = message.params.name;
         if (controller.signal.aborted) throw new Error("Role bridge stopped");
-        const args = domainNames.includes(name) ? boundArguments(name, message.params.arguments ?? {}, dispatch, receipt) : message.params.arguments;
-        if (dispatch.agent === "qa-verifier" && name === "agent_next" && args.outcome === "ok" && receipt?.step === "verify" && !fileBroker?.qaVerified()) throw new Error("QA verify requires actual browser, snapshot, console and network observations");
+        const args = domainNames.includes(name) ? boundArguments(name, message.params.arguments ?? {}, dispatch, stepResponse) : message.params.arguments;
+        if (dispatch.agent === "qa-verifier" && name === "agent_next" && args.outcome === "ok" && stepResponse?.step === "verify" && !fileBroker?.qaVerified()) throw new Error("QA verify requires actual browser, snapshot, console and network observations");
         const value = domainNames.includes(name) ? await operations.callTool(input, name, args, controller.signal) : await fileBroker.call(name, args, controller.signal);
         if (controller.signal.aborted) throw new Error("Role response arrived after stop");
         if (!domainNames.includes(name)) {
@@ -129,21 +132,30 @@ export async function roleBridge(input, files, session, dispatch, operations = {
           if (typeof value.done !== "boolean" || (!value.done && (!value.receipt?.runId || !Number.isInteger(value.receipt.revision) || value.receipt.stepId !== value.step))
             || (dispatch.entry && !isDeepStrictEqual(value.entry, dispatch.entry))
             || (!value.done && dispatch.entry && value.agentRunId !== value.receipt.runId)) throw new Error("Role response binding mismatch");
-          receipt = value; done = value.done === true;
+          stepResponse = value; done = value.done === true;
         }
         result = value?.mcpResult ?? { content: [{ type: "text", text: JSON.stringify(value) }], isError: false };
       } else throw new Error("Unsupported role bridge method");
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
     } catch (error) {
+      let domainFailure = null;
+      if (error instanceof McpDomainError && !controller.signal.aborted) {
+        try {
+          const current = await operations.checkSession(files, session, input.binding);
+          if (!controller.signal.aborted && current.event === "owned" && current.lifecycle === "active" && current.client === "codex") domainFailure = error.body;
+        } catch { domainFailure = null; }
+      }
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ jsonrpc: "2.0", id: requestId, error: error instanceof RoleFileInputError
+      response.end(JSON.stringify({ jsonrpc: "2.0", id: requestId, ...(domainFailure
+        ? { result: { isError: true, content: [{ type: "text", text: JSON.stringify(domainFailure) }] } }
+        : { error: error instanceof RoleFileInputError
         ? { code: -32602, message: error.message }
-        : { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }));
+        : { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }) }));
     } finally { pending--; }
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-  return { url: `http://127.0.0.1:${server.address().port}/mcp/${capability}`, result: () => ({ done, receipt }),
+  return { url: `http://127.0.0.1:${server.address().port}/mcp/${capability}`, result: () => ({ done, receipt: stepResponse }),
     abort: () => controller.abort(),
     close: async () => { controller.abort(); try { await fileBroker?.close(); } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); } if (pending) throw new Error("Role requests still pending"); } };
 }
@@ -226,23 +238,24 @@ export function assertRolePolicy(config, filesystem, url, agent, nativeFiles = f
   const paths = Object.fromEntries(Object.entries(actualFiles).filter(([name]) => name !== "glob_scan_max_depth"));
   const tools = [...(ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev), ...(nativeFiles ? roleFileToolNames(agent) : []), ...(nativeCommands ? [roleCommandTool.name] : []), ...(nativeGit ? [roleGitTool.name] : []), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS : [])], harness = config.mcp_servers?.harness;
   const disabled = ["multi_agent", "apps", "hooks", "memories", "goals", "view_image", "request_permissions_tool"];
-  if (config.agents?.enabled !== false || config.approval_policy !== "never" || config.default_permissions !== "harness-role"
-    || config.sandbox_mode != null
-    || config.web_search !== (agent === "feature-scout" ? "live" : "disabled") || config.project_doc_max_bytes !== 0 || config.features?.code_mode?.enabled !== false
-    || disabled.some(name => config.features?.[name] !== false)
-    || config.features?.shell_tool !== (!nativeFiles && !["pm", "qa-verifier"].includes(agent)) || config.features?.unified_exec !== false
-    || (agent === "qa-verifier" && (nativeCommands || nativeGit))
-    || Object.entries(config.mcp_servers ?? {}).some(([name, server]) => name !== "harness" && server.enabled !== false)
-    || Object.values(config.plugins ?? {}).some(plugin => plugin.enabled !== false)
-    || !harness || harness.enabled !== true || harness.url !== url || !isDeepStrictEqual(harness.enabled_tools, tools)
-    || harness.default_tools_approval_mode !== "prompt" || tools.some(name => harness.tools?.[name]?.approval_mode !== "approve")
-    || Object.entries(harness.tools ?? {}).some(([name, policy]) => !tools.includes(name) && policy.approval_mode === "approve")
-    || harness.bearer_token_env_var !== "HARNESS_ROLE_CAPABILITY" || harness.bearer_token != null
-    || Object.keys(harness.http_headers ?? {}).length || Object.keys(harness.env_http_headers ?? {}).length
-    || permission?.extends !== ":read-only" || permission.workspace_roots != null || !isDeepStrictEqual(paths, filesystem)
-    || permission.network?.enabled !== false || Object.entries(permission.network ?? {}).some(([name, value]) => name !== "enabled" && value != null)
-    || config.shell_environment_policy?.inherit !== "none" || config.shell_environment_policy?.set?.PATH !== roleCommandPath()
-    || Object.entries(config.shell_environment_policy?.set ?? {}).some(([name, value]) => value !== (name.toUpperCase() === "PATH" ? roleCommandPath() : ""))) {
+  const featuresMatch = () => config.agents?.enabled === false && config.approval_policy === "never" && config.default_permissions === "harness-role"
+    && config.sandbox_mode == null
+    && config.web_search === (agent === "feature-scout" ? "live" : "disabled") && config.project_doc_max_bytes === 0 && config.features?.code_mode?.enabled === false
+    && disabled.every(name => config.features?.[name] === false)
+    && config.features?.shell_tool === (!nativeFiles && !["pm", "qa-verifier"].includes(agent)) && config.features?.unified_exec === false
+    && !(agent === "qa-verifier" && (nativeCommands || nativeGit));
+  const inheritedToolsDisabled = () => Object.entries(config.mcp_servers ?? {}).every(([name, server]) => name === "harness" || server.enabled === false)
+    && Object.values(config.plugins ?? {}).every(plugin => plugin.enabled === false);
+  const mcpPolicyMatches = () => harness && harness.enabled === true && harness.url === url && isDeepStrictEqual(harness.enabled_tools, tools)
+    && harness.default_tools_approval_mode === "prompt" && tools.every(name => harness.tools?.[name]?.approval_mode === "approve")
+    && Object.entries(harness.tools ?? {}).every(([name, policy]) => tools.includes(name) || policy.approval_mode !== "approve")
+    && harness.bearer_token_env_var === "HARNESS_ROLE_CAPABILITY" && harness.bearer_token == null
+    && Object.keys(harness.http_headers ?? {}).length === 0 && Object.keys(harness.env_http_headers ?? {}).length === 0;
+  const filesystemPolicyMatches = () => permission?.extends === ":read-only" && permission.workspace_roots == null && isDeepStrictEqual(paths, filesystem)
+    && permission.network?.enabled === false && Object.entries(permission.network ?? {}).every(([name, value]) => name === "enabled" || value == null);
+  const shellEnvironmentMatches = () => config.shell_environment_policy?.inherit === "none" && config.shell_environment_policy?.set?.PATH === roleCommandPath()
+    && Object.entries(config.shell_environment_policy?.set ?? {}).every(([name, value]) => value === (name.toUpperCase() === "PATH" ? roleCommandPath() : ""));
+  if (!featuresMatch() || !inheritedToolsDisabled() || !mcpPolicyMatches() || !filesystemPolicyMatches() || !shellEnvironmentMatches()) {
     throw new Error("Effective role policy differs; no model turn started");
   }
 }
@@ -299,50 +312,57 @@ async function inspectHostPolicy(cli, config, scratch, files, session, binding, 
   }
 }
 
-export async function dispatchFreshRole(input, files, session, dispatch) {
+export async function dispatchFreshRole(input, files, session, dispatch, operations = {}) {
+  // Tests replace acquisition/transport only; production uses the same policy and ownership checks.
+  const runtime = { codexExecutable, verifierPackage, createRoleFiles, installedWindowsRuntime, verifyNativeRuntime,
+    createRoleCommands, createRoleGit, createQaBrowser, roleBridge, inspectHostPolicy, spawn,
+    createAppServer: child => new AppServer(child), ...operations };
   const owned = await checkSession(files, session, input.binding);
   if (owned.event !== "owned" || owned.lifecycle !== "active" || owned.client !== "codex") throw new Error("Active Codex session required");
   if (!/^[a-z][a-z0-9-]*$/.test(dispatch.agent)) throw new Error("Invalid role");
   const role = readFileSync(safeTarget(input.binding.root, `.codex/agents/${dispatch.agent}.toml`), "utf8");
   const roleConfig = readCodexRole(role, ROLE_TOOLS[dispatch.agent] ? dispatch.agent : "dev", dispatch.agent);
-  const verifier = verifierPackage();
+  const cli = runtime.codexExecutable();
+  const verifier = runtime.verifierPackage();
   const expected = JSON.parse(readFileSync(path.join(input.binding.root, "docs/harness/codex-package.json"), "utf8")).verifier;
   if (verifier.path !== expected.path || verifier.checksum !== expected.checksum) throw new Error("Verifier package changed; rerun $harness-init");
-  const scratch = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-role-")), filesystem = rolePermissions(input, dispatch.agent, dispatch.key, scratch);
-  // An owner package inside .codex must not require access to that credential directory.
-  const roleVerifier = dispatch.agent === "plan-verifier" ? stageVerifierPackage(verifier, scratch) : null;
-  if (roleVerifier) filesystem[path.dirname(roleVerifier.path)] = "read";
-  const nativeFiles = process.platform === "win32" || dispatch.agent === "qa-verifier", nativeFileBroker = nativeFiles ? createRoleFiles(filesystem, dispatch.agent) : null;
-  // An unbundled source checkout preserves the scoped file backend. A packaged
-  // runtime must pass actual kernel/child/network probes before exposing commands.
-  let nativeRuntime = null;
-  if (nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)) {
-    try { nativeRuntime = installedWindowsRuntime(); } catch (error) { if (error.code !== "ENOENT") throw error; }
-  }
-  const commandLifecycle = { onSpawn: identity => registerChild(files, session, input.binding, identity), onSettled: identity => settleChild(files, session, identity),
-    beforeActivate: async () => { const state = await checkSession(files, session, input.binding); if (state.event !== "owned" || state.lifecycle !== "active") throw new Error("Native command owner no longer active"); } };
-  if (nativeRuntime) { try { await verifyNativeRuntime(nativeRuntime, commandLifecycle); } catch { throw new RoleExecutionUnavailable(); } }
-  const commandBroker = nativeRuntime ? await createRoleCommands({ root: input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;
-  const nativeGit = nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent);
-  const localFiles = nativeGit ? createRoleGit({ root: input.binding.root, agent: dispatch.agent, fileBroker: nativeFileBroker, backend: commandBroker,
-    planCommit: dispatch.planCommit ?? null, commonDirectory: path.dirname(path.dirname(files.lock)) }, commandLifecycle) : commandBroker;
-  const fileBroker = dispatch.agent === "qa-verifier" ? withQaBrowser(localFiles, await createQaBrowser(input.config.qa ?? undefined)) : localFiles;
-  const tools = [...(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev), ...(fileBroker?.tools.map(tool => tool.name) ?? [])];
-  const bridge = await roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug }, undefined, fileBroker);
-  const cli = codexExecutable(), config = [
-    'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.view_image=false', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
-    `features.shell_tool=${!nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)}`, 'features.unified_exec=false', 'default_permissions="harness-role"', 'permissions.harness-role.extends=":read-only"',
-    `permissions.harness-role.filesystem={${Object.entries(filesystem).map(([file, access]) => `${JSON.stringify(file)}=${JSON.stringify(access)}`).join(",")}}`, 'permissions.harness-role.network.enabled=false',
-    `mcp_servers={harness={url=${JSON.stringify(bridge.url)},enabled_tools=${JSON.stringify(tools)}}}`, 'shell_environment_policy.inherit="none"',
-  ];
-  let inherited;
-  try { inherited = await inspectHostPolicy(cli, config, scratch, files, session, input.binding, bridge.url, tools); }
-  catch (error) { await bridge.close(); throw error; }
-  const child = spawn(cli.executable, [...cli.prefix, ...[...config, ...inherited].flatMap(value => ["-c", value]), "app-server", "--stdio", "--strict-config"], { cwd: scratch, env: { ...childEnvironment(), HARNESS_ROLE_CAPABILITY: randomUUID() }, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
-  const hostChild = { pid: child.pid, nonce: randomUUID() }, server = new AppServer(child);
+  let fileBroker = null, bridge = null, server = null, hostChild;
   let registered = false, threadId, turnId, settled = false, turnRequested = false, monitor, ownershipTimer, ownershipPending, complete;
   let monitorStopped = false; const reports = [];
   try {
+    const scratch = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-role-")), filesystem = rolePermissions(input, dispatch.agent, dispatch.key, scratch);
+    // An owner package inside .codex must not require access to that credential directory.
+    const roleVerifier = dispatch.agent === "plan-verifier" ? stageVerifierPackage(verifier, scratch) : null;
+    if (roleVerifier) filesystem[path.dirname(roleVerifier.path)] = "read";
+    const nativeFiles = process.platform === "win32" || dispatch.agent === "qa-verifier", nativeFileBroker = nativeFiles ? runtime.createRoleFiles(filesystem, dispatch.agent) : null;
+    fileBroker = nativeFileBroker;
+    // An unbundled source checkout preserves the scoped file backend. A packaged
+    // runtime must pass actual kernel/child/network probes before exposing commands.
+    let nativeRuntime = null;
+    if (nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)) {
+      try { nativeRuntime = runtime.installedWindowsRuntime(); } catch (error) { if (error.code !== "ENOENT") throw error; }
+    }
+    const commandLifecycle = { onSpawn: identity => registerChild(files, session, input.binding, identity), onSettled: identity => settleChild(files, session, identity),
+      beforeActivate: async () => { const state = await checkSession(files, session, input.binding); if (state.event !== "owned" || state.lifecycle !== "active") throw new Error("Native command owner no longer active"); } };
+    if (nativeRuntime) { try { await runtime.verifyNativeRuntime(nativeRuntime, commandLifecycle); } catch { throw new RoleExecutionUnavailable(); } }
+    const commandBroker = nativeRuntime ? await runtime.createRoleCommands({ root: input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;
+    fileBroker = commandBroker;
+    const nativeGit = nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent);
+    const localFiles = nativeGit ? runtime.createRoleGit({ root: input.binding.root, agent: dispatch.agent, fileBroker: nativeFileBroker, backend: commandBroker,
+      planCommit: dispatch.planCommit ?? null, commonDirectory: path.dirname(path.dirname(files.lock)) }, commandLifecycle) : commandBroker;
+    fileBroker = localFiles;
+    if (dispatch.agent === "qa-verifier") fileBroker = withQaBrowser(localFiles, await runtime.createQaBrowser(input.config.qa ?? undefined));
+    const tools = [...(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev), ...(fileBroker?.tools.map(tool => tool.name) ?? [])];
+    bridge = await runtime.roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug }, undefined, fileBroker);
+    const config = [
+      'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.view_image=false', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
+      `features.shell_tool=${!nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)}`, 'features.unified_exec=false', 'default_permissions="harness-role"', 'permissions.harness-role.extends=":read-only"',
+      `permissions.harness-role.filesystem={${Object.entries(filesystem).map(([file, access]) => `${JSON.stringify(file)}=${JSON.stringify(access)}`).join(",")}}`, 'permissions.harness-role.network.enabled=false',
+      `mcp_servers={harness={url=${JSON.stringify(bridge.url)},enabled_tools=${JSON.stringify(tools)}}}`, 'shell_environment_policy.inherit="none"',
+    ];
+    const inherited = await runtime.inspectHostPolicy(cli, config, scratch, files, session, input.binding, bridge.url, tools);
+    const child = runtime.spawn(cli.executable, [...cli.prefix, ...[...config, ...inherited].flatMap(value => ["-c", value]), "app-server", "--stdio", "--strict-config"], { cwd: scratch, env: { ...childEnvironment(), HARNESS_ROLE_CAPABILITY: randomUUID() }, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+    hostChild = { pid: child.pid, nonce: randomUUID() }; server = runtime.createAppServer(child);
     if (!child.pid) throw new Error("Codex process did not start");
     await registerChild(files, session, input.binding, hostChild); registered = true;
     await server.request("initialize", { clientInfo: { name: "stagekeeper-role", version: "1" }, capabilities: { experimentalApi: true } });
@@ -390,14 +410,19 @@ export async function dispatchFreshRole(input, files, session, dispatch) {
     return { event: result.done ? "done" : "paused", threadId, report, ...result };
   } finally {
     clearTimeout(monitor);
-    monitorStopped = true; clearTimeout(ownershipTimer); await ownershipPending;
-    if (threadId && turnId && !settled && !server.closed) {
-      await server.request("turn/interrupt", { threadId, turnId }).catch(() => {});
-      const limit = Date.now() + 20000;
-      while (!settled && !server.closed && Date.now() < limit) await new Promise(resolve => setTimeout(resolve, 25));
-    }
+    monitorStopped = true; clearTimeout(ownershipTimer);
     let processEnded = false;
-    try { await server.close(); processEnded = true; } finally { await bridge.close(); }
+    try {
+      await ownershipPending;
+      if (threadId && turnId && !settled && !server.closed) {
+        await server.request("turn/interrupt", { threadId, turnId }).catch(() => {});
+        const limit = Date.now() + 20000;
+        while (!settled && !server.closed && Date.now() < limit) await new Promise(resolve => setTimeout(resolve, 25));
+      }
+    } finally {
+      try { if (server) { await server.close(); processEnded = true; } }
+      finally { if (bridge) await bridge.close(); else await fileBroker?.close(); }
+    }
     // Process death alone cannot establish quiescence of an unacknowledged active turn.
     if (registered && processEnded && server.closed && (!turnRequested || settled)) await settleChild(files, session, hostChild);
   }

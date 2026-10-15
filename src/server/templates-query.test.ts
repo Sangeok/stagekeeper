@@ -4,6 +4,8 @@ import { describe, it } from "node:test";
 import { newToken } from "@harness/core/token.mjs";
 import { makeTemplatesFor, type TemplateDeps } from "./templates-query";
 import { COMMON_DOCS, RUNTIME_MARKER } from "@harness/core/client-runtime.mjs";
+import { stubOf } from "@harness/core/deliver.mjs";
+import { limitsFor } from "@harness/core/entitlement.mjs";
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;
@@ -48,6 +50,30 @@ function setup(options: Options = {}) {
 }
 
 describe("templatesFor", () => {
+  it("serializes only the shared stub and rejects duplicate markers before exposing any bundle", async () => {
+    for (const plan of ["free", "pro", "max"] as const) for (const newline of ["\n", "\r\n"]) {
+      const one = ["## step: start", RUNTIME_MARKER, "## step:start", "PRIVATE STEP", "next: done", ""].join(newline);
+      const runbook = RUNTIME_MARKER + newline + "Full runbook" + newline;
+      const rows = [
+        ...["dev", ...limitsFor("max").agents].map(role => ({ path: `agents/${role}.md`, body: one })),
+        ...COMMON_DOCS.map(path => ({ path, body: "shared" })),
+        { path: "CODEX.runbook.md", body: runbook },
+      ];
+      const options = { templateRows: rows, access: { plan, available: true } } satisfies Options;
+      const result = await setup(options).templatesFor(authorizationHeader, "en", null, "codex");
+      assert.ok(result.ok);
+      const serialized = JSON.parse(JSON.stringify(result));
+      assert.equal(serialized.templates["agents/dev.md"], stubOf(one));
+      assert.equal((serialized.templates["agents/dev.md"].match(/<!-- harness-runtime:[^>]+ -->/g) ?? []).length, 1);
+      assert.doesNotMatch(serialized.templates["agents/dev.md"], /PRIVATE STEP|^## step:\S/m);
+      assert.equal(serialized.templates["CODEX.runbook.md"], runbook);
+      const rejected = await setup({ ...options, templateRows: rows.map(row => row.path === "agents/dev.md" ? { ...row, body: RUNTIME_MARKER + newline + one } : row) }).templatesFor(authorizationHeader, "en", null, "codex");
+      assert.equal(rejected.ok, false);
+      assert.equal("templates" in rejected, false);
+      assert.equal("runtime" in rejected, false);
+      if (!rejected.ok) { assert.equal(rejected.status, 404); assert.match(rejected.reason, /protocol mismatch/); }
+    }
+  });
   it("returns the final Codex REST payload while legacy defaults stay unchanged", async () => {
     const rows = [
       ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier", "impl-verifier"].map(role => ({ path: `agents/${role}.md`, body: `${RUNTIME_MARKER}\nStub\n## step:x\nHidden step.\nnext: done\n` })),

@@ -4,6 +4,27 @@ import { COMMON_DOCS, RUNTIME_MARKER, parseClient, validateCodexBundle, clientRu
 import { deliverable } from "./deliver.mjs";
 import { codexRunbookVersion, runbookVersion } from "./runbook.mjs";
 import { hashOf, mergeClientLock } from "./manifest.mjs";
+import { limitsFor } from "./entitlement.mjs";
+import { stubOf } from "./template-boundary.mjs";
+
+for (const plan of ["free", "pro", "max"]) for (const newline of ["\n", "\r\n"]) {
+  it(`validates the exact delivered stub for malformed headings: ${plan}/${JSON.stringify(newline)}`, () => {
+    const one = ["## step: start", RUNTIME_MARKER, "## step:start", "PRIVATE STEP", "next: done", ""].join(newline);
+    const two = RUNTIME_MARKER + newline + one;
+    const replace = body => rows.map(row => row.path === "agents/dev.md" ? { ...row, body } : row);
+    assert.throws(() => validateCodexBundle(replace(two), plan), /protocol mismatch: agents\/dev\.md/);
+    assert.throws(() => deliverable(replace(two), plan, "codex"), /protocol mismatch/);
+    const result = JSON.parse(JSON.stringify(deliverable(replace(one), plan, "codex")));
+    assert.equal(result.templates["agents/dev.md"], stubOf(one));
+    assert.equal((result.templates["agents/dev.md"].match(/<!-- harness-runtime:[^>]+ -->/g) ?? []).length, 1);
+    assert.doesNotMatch(result.templates["agents/dev.md"], /PRIVATE STEP|^## step:\S/m);
+    assert.equal(result.templates["CODEX.runbook.md"], rows.find(row => row.path === "CODEX.runbook.md").body);
+    assert.equal(result.templates["CLAUDE.runbook.md"], undefined);
+    for (const role of ["pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier", "impl-verifier"]) {
+      assert.equal(Object.hasOwn(result.templates, `agents/${role}.md`), limitsFor(plan).agents.includes(role));
+    }
+  });
+}
 
 const rows = [
   { path: "CLAUDE.runbook.md", body: "legacy\n" }, { path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nCodex\n" },

@@ -5,9 +5,8 @@
 // 등록 호출을 만들어야 하고, 생성기는 plugin/lib 미러만 볼 수 있다. 슬러그 규칙을 core에 두지
 // 않은 것과 반대 판단인데 이유가 다르다 — 슬러그는 서버가 만들어 돌려주므로 생성기가 쓸 일이 없다.
 //
-// **src/fsd/features/create-project/model/repo-url.ts에 같은 정규식이 한 벌 더 있다.**
-// 웹 폼의 붙여넣기 경로가 그것을 쓴다.
-// 패턴을 고칠 때는 두 곳을 함께 본다.
+// 웹 폼의 model/repo-url.ts도 이 원본을 typed facade로 소비한다.
+// plugin/lib 사본은 sync:plugin-lib로만 갱신한다.
 
 // GitHub 계정·저장소 이름에 허용되는 모양. 점으로 끝나는 이름은 받지 않는다.
 export const SEGMENT = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
@@ -22,6 +21,7 @@ const PATTERNS = [
   /^([^/\s.]+)\/([^/\s]+?)(?:\.git)?\/?$/,
 ];
 
+/** @param {unknown} input @returns {{ owner: string, repo: string } | null} */
 export function parseRepoUrl(input) {
   if (typeof input !== "string") return null;
   const text = input.trim().replace(/[?#].*$/, "");
