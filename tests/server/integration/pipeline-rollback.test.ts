@@ -5,7 +5,7 @@ import { executionSnapshot, migrationA, migrationB, withPredecessor } from "../f
 
 // Exercise the published maintenance procedure verbatim; this is not a new
 // migration, and does not make rollback safe while writers remain online.
-const proposal = readFileSync(new URL("../../../docs/proposals/active/multiple-pipelines.md", import.meta.url), "utf8");
+const proposal = readFileSync(new URL("../../../docs/proposals/completed/2026-10-16-multiple-pipelines.md", import.meta.url), "utf8");
 const rollback = [...proposal.matchAll(/```sql\r?\n([\s\S]*?)```/g)].map(match => match[1]).find(sql => sql.includes("rollback_"));
 assert.ok(rollback, "The proposal must retain its executable rollback procedure");
 

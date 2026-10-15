@@ -1,0 +1,226 @@
+{
+  "backup": {
+    "bytes": 109258,
+    "sha256": "063b4730e36f46daafeddb1aa5cb049b9544955b5ec623696b6af6a485e761ef",
+    "createdAt": "2026-10-15T15:33:20.828Z",
+    "tables": 21,
+    "snapshotConsistent": true,
+    "restore": {
+      "status": "passed",
+      "finishedAt": "2026-10-15T15:33:52.680Z",
+      "archiveSha256": "063b4730e36f46daafeddb1aa5cb049b9544955b5ec623696b6af6a485e761ef",
+      "checks": [
+        "all 21 source tables restored with exact counts and content fingerprints",
+        "migration A succeeded on restored production snapshot",
+        "migration B succeeded on restored production snapshot",
+        "existing run/event/agent/report ledger fingerprints preserved after A and B",
+        "proposal rollback SQL succeeded after B and restored nullable writer compatibility"
+      ]
+    }
+  },
+  "blocking": {
+    "confirmedAt": "2026-10-15T15:27:09.648Z",
+    "checkedRequests": 196,
+    "readyDeployments": 191,
+    "maxFunctionTimeoutSeconds": 300,
+    "drainSeconds": 330,
+    "retiredHosts": 249
+  },
+  "results": {
+    "production-A-result": {
+      "phase": "A",
+      "finishedAt": "2026-10-15T15:34:44.567Z",
+      "pendingBefore": [
+        "20261015000000_multiple_pipelines"
+      ],
+      "checks": {
+        "null_versions": 0,
+        "invalid_defaults": 0,
+        "invalid_owners": 0,
+        "invalid_definitions": 0
+      },
+      "nullable": "YES",
+      "preservedTables": 19,
+      "operationalRateWindowsExcluded": true,
+      "backupSha256": "063b4730e36f46daafeddb1aa5cb049b9544955b5ec623696b6af6a485e761ef"
+    },
+    "production-B-result": {
+      "phase": "B",
+      "finishedAt": "2026-10-15T15:37:17.189Z",
+      "pendingBefore": [
+        "20261015010000_pipeline_version_owner_required"
+      ],
+      "checks": {
+        "null_versions": 0,
+        "invalid_defaults": 0,
+        "invalid_owners": 0,
+        "invalid_definitions": 0
+      },
+      "nullable": "NO",
+      "preservedTables": 19,
+      "operationalRateWindowsExcluded": true,
+      "backupSha256": "063b4730e36f46daafeddb1aa5cb049b9544955b5ec623696b6af6a485e761ef"
+    },
+    "production-verify-result": {
+      "phase": "verify",
+      "finishedAt": "2026-10-15T15:39:12.118Z",
+      "pendingBefore": [],
+      "checks": {
+        "null_versions": 0,
+        "invalid_defaults": 0,
+        "invalid_owners": 0,
+        "invalid_definitions": 0
+      },
+      "nullable": "NO",
+      "preservedTables": 19,
+      "operationalRateWindowsExcluded": true,
+      "backupSha256": "063b4730e36f46daafeddb1aa5cb049b9544955b5ec623696b6af6a485e761ef"
+    },
+    "acceptance-A": {
+      "at": "2026-10-15T15:36:36.365Z",
+      "deploymentId": "dpl_FgNqhbeo1CXB4RJxpAvUq8edYJJL",
+      "sha": "2e9832bea4e61623945d51d552dcc684b1095215",
+      "domain": "stagekeeper.dev",
+      "publicRequestsBlocked": true
+    },
+    "acceptance-B": {
+      "at": "2026-10-15T15:39:22.564Z",
+      "deploymentId": "dpl_Dq5TnaCuNut5PupiwfGhERoE9K6p",
+      "sha": "1091e7306e0b796c6cd0ed8ff2b7e8325defef0d",
+      "domain": "stagekeeper.dev",
+      "publicRequestsBlocked": true
+    },
+    "read-A": {
+      "phase": "A",
+      "finishedAt": "2026-10-15T15:35:56.986Z",
+      "readOnlyTransaction": true,
+      "results": [
+        {
+          "pipelines": 1,
+          "existingItems": 2,
+          "openItems": 1,
+          "headAction": "dispatch",
+          "headWithScoutAction": "dispatch"
+        },
+        {
+          "pipelines": 1,
+          "existingItems": 5,
+          "openItems": 0,
+          "headAction": "dispatch",
+          "headWithScoutAction": "dispatch"
+        }
+      ]
+    },
+    "read-B": {
+      "phase": "B",
+      "finishedAt": "2026-10-15T15:37:48.228Z",
+      "readOnlyTransaction": true,
+      "results": [
+        {
+          "pipelines": 1,
+          "existingItems": 2,
+          "openItems": 1,
+          "headAction": "dispatch",
+          "headWithScoutAction": "dispatch"
+        },
+        {
+          "pipelines": 1,
+          "existingItems": 5,
+          "openItems": 0,
+          "headAction": "dispatch",
+          "headWithScoutAction": "dispatch"
+        }
+      ]
+    },
+    "mcp-before": {
+      "finishedAt": "2026-10-15T15:31:15.454Z",
+      "results": [
+        {
+          "check": "tools/list",
+          "count": 15
+        },
+        {
+          "check": "production DB identity",
+          "passed": true
+        },
+        {
+          "check": "board_list",
+          "items": 2
+        },
+        {
+          "check": "existing item/history reads",
+          "items": 2
+        }
+      ]
+    },
+    "mcp-A": {
+      "finishedAt": "2026-10-15T15:36:06.989Z",
+      "results": [
+        {
+          "check": "tools/list",
+          "count": 15
+        },
+        {
+          "check": "production DB identity",
+          "passed": true
+        },
+        {
+          "check": "board_list",
+          "items": 2
+        },
+        {
+          "check": "existing item/history reads",
+          "items": 2
+        }
+      ]
+    },
+    "mcp-B": {
+      "finishedAt": "2026-10-15T15:39:05.851Z",
+      "results": [
+        {
+          "check": "tools/list",
+          "count": 15
+        },
+        {
+          "check": "production DB identity",
+          "passed": true
+        },
+        {
+          "check": "board_list",
+          "items": 2
+        },
+        {
+          "check": "existing item/history reads",
+          "items": 2
+        }
+      ]
+    },
+    "resume-verified": {
+      "resumedAt": "2026-10-15T15:40:00.183Z",
+      "results": [
+        {
+          "path": "/",
+          "status": 200
+        },
+        {
+          "path": "/login",
+          "status": 200
+        },
+        {
+          "path": "/api/mcp",
+          "status": 401
+        }
+      ],
+      "oldWriterBlocked": true,
+      "temporaryBypassRevoked": true,
+      "firewallRuleCount": 1,
+      "production": {
+        "at": "2026-10-15T15:39:22.564Z",
+        "deploymentId": "dpl_Dq5TnaCuNut5PupiwfGhERoE9K6p",
+        "sha": "1091e7306e0b796c6cd0ed8ff2b7e8325defef0d",
+        "domain": "stagekeeper.dev",
+        "publicRequestsBlocked": true
+      }
+    }
+  }
+}
