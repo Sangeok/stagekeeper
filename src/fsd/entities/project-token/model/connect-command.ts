@@ -1,3 +1,5 @@
+import { PLUGIN_ID, PLUGIN_MARKETPLACE } from "@/fsd/shared/config/plugin-install";
+
 // 순수. 발급된 토큰을 사용자의 셸에 넣는 명령을 만든다.
 // 토큰은 파일이 아니라 **Claude Code를 띄우는 셸의 환경변수**에 산다 — MCP 등록에는
 // `${HARNESS_TOKEN}` 참조만 들어가기 때문이다. 값을 설정에 박으면 그 설정을 읽을 수 있는 모두가
@@ -53,18 +55,6 @@ export function saveCommands(variable: string = AGENT_TOKEN_VARIABLE): ConnectCo
 export function profileLine(token: string, variable: string = AGENT_TOKEN_VARIABLE): string {
   return `export ${variable}="${token}"`;
 }
-
-// 플러그인 설치 명령. `/harness:init`은 플러그인이 주는 슬래시 명령이라 토큰보다 **먼저** 깔려 있어야 한다 —
-// 안 깔린 세션에서는 Claude Code가 "Unknown command: /harness:init"만 내고 우리 코드는 한 줄도 돌지 않는다.
-// 그래서 막을 수 있는 자리가 이 화면뿐이다. source는 공개 저장소라 머신별 경로가 필요 없고,
-// stagekeeper-local은 .claude-plugin/marketplace.json의 name이다(설치 후 그 이름으로 등록된다).
-export const PLUGIN_MARKETPLACE = "Sangeok/stagekeeper";
-export const PLUGIN_ID = "harness@stagekeeper-local";
-
-export const installCommands: readonly string[] = [
-  `claude plugin marketplace add ${PLUGIN_MARKETPLACE}`,
-  `claude plugin install ${PLUGIN_ID}`,
-];
 
 // C0에서 실제 확인한 compatibility marketplace 형식과 Codex의 add 명령을 쓴다.
 export const codexInstallCommands: readonly string[] = [

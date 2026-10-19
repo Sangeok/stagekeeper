@@ -10,6 +10,9 @@ with evidence, but they can't grant themselves permission.
 Stagekeeper never runs your agents. Your own Claude Code session connects to it over MCP
 through the `harness` plugin that lives in this repository.
 
+Read the [documentation](https://stagekeeper.dev/docs) or
+[connect your first repository](https://stagekeeper.dev/docs/getting-started).
+
 ## Status
 
 - **Implemented:** the web app, the agent and owner MCP servers, and the Claude Code plugin.

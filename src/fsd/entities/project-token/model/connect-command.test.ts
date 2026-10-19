@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
 import { TOKEN_KINDS } from "@harness/core/token.mjs";
-import { OWNER_TOKEN_VARIABLE, PLUGIN_ID, PLUGIN_MARKETPLACE, codexMcpCommand, codexOwnerMcpCommand, connectCommands, installCommands, profileLine, saveCommands, tokenKind } from "./connect-command";
+import { OWNER_TOKEN_VARIABLE, codexMcpCommand, codexOwnerMcpCommand, connectCommands, profileLine, saveCommands, tokenKind } from "./connect-command";
 
 describe("Codex owner connection", () => {
   it("registers the owner endpoint with an environment reference and preserves the agent command", () => {
@@ -72,28 +71,5 @@ describe("saveCommands", () => {
 
   it("gives the profile line for macOS and Linux, with the token inlined — it goes into a file, not a prompt", () => {
     assert.equal(profileLine("hu_abc"), 'export HARNESS_TOKEN="hu_abc"');
-  });
-});
-
-describe("installCommands", () => {
-  // 순서가 전부다 — marketplace를 먼저 등록해야 그 이름으로 install이 해석된다.
-  it("adds the marketplace before installing the plugin from it", () => {
-    assert.deepEqual([...installCommands], [
-      "claude plugin marketplace add Sangeok/stagekeeper",
-      "claude plugin install harness@stagekeeper-local",
-    ]);
-  });
-
-  // 설치 id는 마켓플레이스 매니페스트가 선언한 이름에서 파생된다. 매니페스트가 바뀌면 이 문구도 바뀌어야 한다.
-  it("installs the plugin under the id the marketplace manifest declares", () => {
-    const manifest = JSON.parse(
-      readFileSync(new URL("../../../../../.claude-plugin/marketplace.json", import.meta.url), "utf8"),
-    );
-    assert.equal(PLUGIN_ID, `${manifest.plugins[0].name}@${manifest.name}`);
-  });
-
-  // source는 공개 저장소다 — 머신별 절대경로가 문구에 들어가면 다른 사람 화면에서 거짓이 된다.
-  it("points at a public repository, not a machine-specific path", () => {
-    assert.match(PLUGIN_MARKETPLACE, /^[\w.-]+\/[\w.-]+$/);
   });
 });

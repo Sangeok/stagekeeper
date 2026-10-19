@@ -326,7 +326,10 @@ manifest 시험은 `tests/server/pipeline-save.test.ts`가 소유하며 두 pipe
 | `turn-banner-connect-claude`·`-codex` | §5 First run의 클라이언트 선택 | `src/fsd/widgets/turn-banner/model/setup-detail.test.ts`, `ui/turn-banner.test.ts` | 선택한 init 표시·서버 판정 불변; 브라우저 fixture가 setup/next·탭 유지·slug reset을 검증 |
 | `turn-banner-watch` | §5 Next, in Claude Code | `src/fsd/widgets/turn-banner/model/turn.test.ts`, `ui/next-step.test.mjs` | `WATCH_LINE` 글자 일치·실제 본문·명령 Code·빈 상자·Copy payload |
 | `landing-demo` | §16 Landing (데모 카드) | `src/fsd/pages/landing/ui/landing-page.test.ts` | `LandingPage`의 데모 카드가 값으로 적은 제품 문장 셋 |
-| `landing-meta` | §16 Landing (탭·검색·공유) | 같은 파일 | 문서 제목·설명(`LANDING_TITLE`·`LANDING_DESCRIPTION`, 글자 일치)과 설명이 본문 첫 문단에 그대로 있는지 |
+| `landing-meta` | §16 Landing (탭·검색·공유) | 같은 파일 | 문서 제목·설명(`LANDING_TITLE`·`LANDING_DESCRIPTION`, 글자 일치). 본문과 독립적으로 검사 |
+| `landing-intro` | §16 Landing (본문) | 같은 파일 | 기존 랜딩 본문(`LANDING_INTRO`) 보존·로그인별 CTA·머리/꼬리 Docs 링크 |
+| `docs-meta` | §20 Docs | `src/fsd/pages/docs/ui/docs-copy.test.ts` | 다섯 페이지 제목·설명 10개 단위의 순서와 글자 일치 |
+| `docs-shell` | §20 Docs (탐색·공통 버튼) | 같은 파일 | 다섯 실제 페이지 렌더의 공통 탐색·CTA·건너뛰기, 현재 항목·이전/다음 경계와 문서 금지어 검사 |
 | `history-tab` | §19 History tab | `src/fsd/pages/project-history/ui/project-history-page.test.ts` | Items 빈 상태·상태별 행·펼친/빈 상세, Events key/all 빈 상태와 중간 페이지. 독립 커서·보기 전환·링크 목적지 검사 |
 
 읽는 법과 블록 규칙(한 줄 = 한 단위, 줄바꿈 금지)은 `src/fsd/shared/lib/copy-lock.ts`와 product-copy.md 머리의
@@ -336,6 +339,22 @@ manifest 시험은 `tests/server/pipeline-save.test.ts`가 소유하며 두 pipe
 - 화면에 문서에 없는 문장을 **더한** 경우는 못 잡는다.
 - 문서와 화면이 **같이 틀린** 경우는 못 잡는다 — `retired-copy.test.mjs`가 그 틈을 맡는데, 옛 표현을 사람이 등록해야 안다.
 - `claude`처럼 짧은 단위는 어디서든 맞으므로 지키는 힘이 없다. 지키는 것은 문장이다.
+
+## 공개 문서 검증
+
+공개 문서 본문은 product-copy.md §20의 예외에 따라 TSX에서 관리한다. 메타데이터와 공통 UI는 위 잠금으로,
+단계·플랜·설치 명령·인수 이름은 실제 core/entity/config 값과 렌더 결과의 비교로 확인한다.
+`src/fsd/pages/docs/model/docs-pages.test.ts`는 registry와 다섯 실제 정적 page.tsx의 경로 집합을 비교한다.
+`src/app/sitemap.test.ts`·`robots.test.ts`는 반환 구조를, `src/app/page.test.ts`는 실제 랜딩 라우트를 VM 주입으로 읽어
+기존 auth·GitHub action 연결과 JSON-LD의 파싱 값·HTML 이스케이프를 검사한다. DB·실제 인증 모듈을 시험 double로 대체한다.
+`src/proxy.test.ts`는 현재 설치 버전의 `unstable_doesMiddlewareMatch`로 sitemap의 정확한 제외와 기존 자산·인증 경계를 검사한다.
+Next의 node-environment bootstrap은 그 시험 파일에서만 먼저 읽으며 실험 API는 버전 변경 때 재대조한다.
+
+실행 서버 인수는 `HARNESS_PUBLIC_URL=https://stagekeeper.dev`로 fresh build와 start를 모두 실행한 뒤 수행한다.
+다섯 페이지의 본문·h1·탐색·명령, 실제 head의 title/description/canonical/robots·공유 카드·아이콘,
+파싱한 sitemap XML의 정확한 URL 여섯 개, robots 본문, JSON.parse한 랜딩 WebSite를 확인한다.
+비로그인/로그인 문서 접근, 기존 private 보호·noindex, 끝 `/`의 308, 320/768/1280px·확대·라이트/다크·키보드·Copy 복구도 확인한다.
+CSS·로컬 폰트·이미지의 실제 응답과 렌더를 확인하며, 미실행 환경 인수를 자동 시험 통과로 대체하지 않는다.
 
 ## 변경 전 체크리스트
 
