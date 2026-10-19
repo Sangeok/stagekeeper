@@ -4,10 +4,11 @@ import { readFile, readdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { createBoardQueries } from "../src/server/pipeline/board-query";
-import { agentNext, type NextDeps } from "../src/server/agents/next";
+import { createBoardService as createBoardQueries } from "../src/server/pipeline/api";
+import { agentNext } from "../src/server/agents/api";
+import { type NextDeps } from "../src/server/agents/next";
 import { seedPipelineVersion } from "../tests/server/integration/support";
-import { cursorTransaction } from "../src/server/agents/run-query";
+import { cursorTransaction } from "../src/server/agents/run-service";
 
 // Deliberately no dotenv import or DATABASE_URL fallback. Only a disposable,
 // initially empty PostgreSQL database is accepted; all fixtures stay there.

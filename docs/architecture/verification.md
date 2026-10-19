@@ -3,15 +3,18 @@
 ## 자동 검사
 
 `scripts/verify-fsd-boundaries.mjs`는 외부 package 없이 정적 import를 검사한다.
+`scripts/verify-server-boundaries.mjs`는 설치된 TypeScript의 AST·모듈 해석을 사용해
+[서버 모듈 계약](./server.md)의 공개 경로·방향·타입 간선·순환·초기화 closure와 시험 목록을 검사한다.
 
 ```powershell
 npm run verify:fsd
+npm run verify:server
 npm run test:architecture
 npm run lint
 npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI와 같은 게이트
 ```
 
-`npm run lint`는 ESLint 뒤에 FSD 검사를 실행하므로 일반적인 품질 게이트에서
+`npm run lint`는 ESLint 뒤에 FSD·서버 검사를 실행하므로 일반적인 품질 게이트에서
 아키텍처 경계도 함께 확인한다.
 
 검사 대상:
@@ -64,6 +67,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 | FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`와 `packages/core/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
 | 대상 옆 배치와 테스트 소유권 | 전용 자동 검사 없음 | 대상과 실행 환경에 맞는 위치인지, 하위 폴더 분리가 필요한지 확인한다 |
 | 운영 코드 → 테스트·fixture·helper 의존 금지 | 테스트 전용 import·export를 구별하는 전용 검사 없음 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
+| 서버 모듈 내부 참조 | `verify:server`가 정적 참조와 실제 VM source 경로의 파일·모듈 등록 및 미사용 행을 검사한다 | mock 키·계산된 loader 경로는 binding 시험과 실제 리허설로 확인한다 |
 | 테스트 검색과 실행 | 명령에 지정된 패턴에 일치하는 파일만 실행한다 | 신규·이동 파일이 명령에 포함되고 실행 결과에 나타나는지 확인한다 |
 
 현재 테스트 명령과 CI의 관계는 다음과 같다. 정확한 실행 패턴은
@@ -102,6 +106,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 | `windows-role-readlink.test.mjs` | `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows-role-readlink.test.mjs` | native Windows CI/호환 preload 변경 시 | 실제 LPAC의 sync/callback/promises/ESM readlink·callback validation·외부 metadata/data 거부를 확인한다. 다른 플랫폼/미준비된 runtime의 skip은 전체 Windows 인수 PASS를 대신하지 않는다 |
 | `windows-role-spawn-diagnostics.cjs`, `windows-role-spawn-diagnostics.test.mjs` | 기존 단일 preload의 opt-in / `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows-role-spawn-diagnostics.test.mjs` | native Windows CI/child startup 진단 | 역할 빌드의 오류 code·실행 파일 분류·stdio 등 고정 필드만 기록하고 경로·인자·환경·권한·오류를 변경하지 않는다. 실제 silent IPC fork와 외부 실행 파일 거부 및 비공개 인자 미노출을 확인한다. 런타임 컴파일 캐시는 시험 전 저장하고 후속 실패에도 artifact를 보존한다 |
 | `verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
+| `verify-server-boundaries.mjs` | `npm run verify:server`, `npm run lint`, `npm run check` | CI마다 | 서버 공개 API·모듈 방향·runtime 초기화·정확한 내부 시험 목록 검사. 미추적 source도 포함 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
@@ -113,7 +118,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 | `rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 8종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
 | `rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 별도 기능 설정 없이 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
 | `rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
-| `verify-fsd-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
+| `verify-fsd-boundaries.test.mjs`, `verify-server-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `retired-copy.test.mjs` | `npm run test:architecture` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
 | `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |

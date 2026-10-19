@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { AFTER_SIGN_IN, authConfigBase } from "./config.base.ts";
+import { AFTER_SIGN_IN, authConfigBase } from "./config.base";
 
 const call = (pathname, user) =>
   authConfigBase.callbacks.authorized({ auth: user ? { user } : null, request: { nextUrl: new URL(`http://h.local${pathname}`) } });

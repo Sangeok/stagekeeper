@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
-import { setAutomaticScout } from "../../../src/server/automatic-scout";
-import { headFor } from "../../../src/server/pipeline/run-query";
-import { createNextDeps } from "../../../src/server/agents/runs";
-import { createBoardQueries } from "../../../src/server/pipeline/board-query";
+import { setAutomaticScout } from "../../../src/server/pipeline/api";
+import { headFor } from "../../../src/server/pipeline/api";
+import { createNextDeps } from "../../../src/server/agents/api";
+import { createBoardService as createBoardQueries } from "../../../src/server/pipeline/api";
 import { seedPipelineVersion, afterProjectRead, checkpoint, cleanup, connections, fixture, type Fixture } from "./support";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
 

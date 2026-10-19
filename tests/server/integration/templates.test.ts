@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
 import { newToken } from "@harness/core/token.mjs";
-import { NOT_SELECTED_REASON } from "../../../src/server/project-access-query";
+import { NOT_SELECTED_REASON } from "../../../src/server/projects/access-query";
 import { GET } from "../../../src/app/api/templates/route";
 import { cleanup, connections } from "./support";
 

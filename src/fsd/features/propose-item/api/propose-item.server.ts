@@ -3,8 +3,8 @@ import { revalidatePath } from "next/cache";
 import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
-import * as board from "@/server/pipeline/board";
-import { PIPELINE_NOT_FOUND, PIPELINE_CANNOT_RUN_ITEMS } from "@/server/pipeline/run-query";
+import * as board from "@/server/pipeline/api.server";
+import { PIPELINE_NOT_FOUND, PIPELINE_CANNOT_RUN_ITEMS } from "@/server/pipeline/api";
 import { proposeInputSchema, type ProposeInput } from "../model/propose-input";
 
 export async function proposeItem(slug: string, input: ProposeInput): Promise<ActionResult<void> & { resetPipeline?: boolean }> {

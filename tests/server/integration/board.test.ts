@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { createBoardService } from "../../../src/server/pipeline/board";
-import { ensureRun } from "../../../src/server/pipeline/run";
+import { createBoardService } from "../../../src/server/pipeline/api";
+import { ensureRun } from "../../../src/server/pipeline/run-service";
 import { cleanup, connections, failingEvent, fixture, type Fixture } from "./support";
 
 const human = (f: Fixture, expectedUpdatedAt: Date) =>

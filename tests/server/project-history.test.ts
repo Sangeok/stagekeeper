@@ -8,7 +8,8 @@ import { loadModule } from "./fixtures/load-module";
 import type { ReactElement } from "react";
 import { historyCutoff } from "../../packages/core/entitlement.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
-import { createBoardService, currentRoundIds, hasProjectHistoryBefore, projectHistory, projectHistoryItems } from "../../src/server/pipeline/board";
+import { createBoardService } from "../../src/server/pipeline/api";
+import { currentRoundIds, hasProjectHistoryBefore, projectHistory, projectHistoryItems } from "../../src/server/pipeline/api.server";
 import * as cursorModule from "../../src/server/pipeline/history-page";
 import * as itemCursorModule from "../../src/server/pipeline/history-items";
 import { afterCursor, eventWhere } from "../../src/server/pipeline/history-page";
@@ -54,13 +55,11 @@ it("the actual route stops before reads on auth failure and derives scope only f
     "@/server/auth/guard": { requireProjectOwner: async (slug: string) => {
       calls.push("guard"); assert.equal(slug, "sample"); if (rejectAccess) throw denied; return { projectId: "owned" };
     } },
-    "@/server/entitlement": { planForProject: async (id: string) => { calls.push("plan"); assert.equal(id, "owned"); return plan; } },
-    "@/server/pipeline/history-page": cursorModule,
-    "@/server/pipeline/history-items": itemCursorModule,
-    "@/server/project": { loadProjectRepository: async (id: string) => {
+    "@/server/projects/api.server": { ...({ planForProject: async (id: string) => { calls.push("plan"); assert.equal(id, "owned"); return plan; } }), ...({ loadProjectRepository: async (id: string) => {
       calls.push("repo"); assert.equal(id, "owned"); return { owner: "o", repo: "r", branch: "main" };
-    } },
-    "@/server/pipeline/board": {
+    } }) },
+    "@/server/pipeline/api": { ...cursorModule, ...itemCursorModule, loadPipelineChanges: async () => [] },
+    "@/server/pipeline/api.server": {
       projectHistory: async (id: string, query: typeof options[number]) => {
         calls.push("history"); assert.equal(id, "owned"); options.push(query);
         return { rows: [report], next: { at, source: "report", id: "c1" } };
@@ -214,11 +213,9 @@ it("defaults to item summaries, ignores malformed cursors and fetches only an ex
     "@/server/auth/guard": { requireProjectOwner: async () => {
       calls.push("guard"); if (!authorized) throw denied; return { projectId: "owned" };
     } },
-    "@/server/entitlement": { planForProject: async () => { calls.push("plan"); return plan; } },
-    "@/server/pipeline/history-page": cursorModule,
-    "@/server/pipeline/history-items": itemCursorModule,
-    "@/server/project": { loadProjectRepository: async () => { calls.push("repo"); return { owner: "o", repo: "r", branch: "main" }; } },
-    "@/server/pipeline/board": {
+    "@/server/projects/api.server": { ...({ planForProject: async () => { calls.push("plan"); return plan; } }), ...({ loadProjectRepository: async () => { calls.push("repo"); return { owner: "o", repo: "r", branch: "main" }; } }) },
+    "@/server/pipeline/api": { ...cursorModule, ...itemCursorModule, loadPipelineChanges: async () => [] },
+    "@/server/pipeline/api.server": {
       projectHistoryItems: async (id: string, options: itemCursorModule.HistoryItemsOptions) => {
         assert.equal(id, "owned"); calls.push("items"); itemOptions.push(options); return { rows: [summary], next: { at, id: "item1" } };
       },

@@ -3,8 +3,8 @@ import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REA
 import { canPropose } from "@harness/core/transitions.mjs";
 
 // 응답 — 항목 하나의 다음 일. 세션은 이 값을 읽고 그 턴에 행동한다(런북 "The cycle").
-import type { PipelineEntry, GateEntry } from "./run-query";
-import type { UsageLimitFailure } from "../result";
+import type { PipelineEntry, GateEntry } from "./run-service";
+import type { UsageLimitFailure } from "@/server/result";
 
 export type PipelineNext =
   | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string; format: string | null; entry?: PipelineEntry }  // 그 에이전트를 key와 함께 디스패치. hint = 그 노드에서 지켜야 할 한 문장

@@ -285,9 +285,10 @@ npm run dev              # http://localhost:3000
 | `npm run dev` | Next.js dev server |
 | `npm run build` | `prisma generate`, then `next build` |
 | `npm run start` | Serve the production build |
-| `npm run check` | The CI static gate: `plugin/lib` sync check, ESLint and FSD boundaries, `next typegen`, `tsc --noEmit`, architecture and project-availability tests |
-| `npm run lint` | ESLint, then the FSD boundary check |
+| `npm run check` | The CI static gate: `plugin/lib` sync check, ESLint and FSD/server boundaries, `next typegen`, `tsc --noEmit`, architecture and project-availability tests |
+| `npm run lint` | ESLint, then FSD and server boundary checks |
 | `npm run verify:fsd` | FSD boundary check only |
+| `npm run verify:server` | Server module/public API and initialization boundary check |
 | `npm run test:architecture` | `scripts/*.test.mjs` |
 | `npm test` | `packages/core` and `plugin/bin` tests |
 | `npm run test:web` | `src/**/*.test.ts` and `src/**/*.test.mjs` |
@@ -365,7 +366,7 @@ proposals describe future work.
 - Every string the product shows comes from
   [`docs/conventions/product-copy.md`](./docs/conventions/product-copy.md); copy-lock tests
   fail when a screen and the document disagree.
-- Before you finish a change, run `npm run verify:fsd`, `npm run test:architecture`, and the
+- Before you finish a change, run `npm run verify:fsd`, `npm run verify:server`, `npm run test:architecture`, and the
   relevant lint, type, test, and build commands. An exception to an architecture check must
   be documented and approved in
   [`docs/architecture/verification.md`](./docs/architecture/verification.md).

@@ -95,6 +95,10 @@ src/fsd/features/manage-project-connection/
    이유로 같은 layer의 다른 slice나 상위 layer에 의존하지 않는다.
 5. 서버 bootstrap·DB fixture가 필요한 테스트를 Client Component의 module graph에
    연결하지 않는다. 테스트 실행 환경의 설정은 테스트 진입점에서 소유한다.
+6. 서버의 같은 모듈 옆 시험은 상대 경로로 내부를 검증한다. 다른 모듈의 비공개
+   구현이 필요한 시험·리허설은 [서버 내부 참조 목록](./server.md#내부-참조-시험-목록)에
+   정확한 파일·모듈·이유를 기록한다. 공개 symbol은 제품 소비자로 정하며 시험 전용으로
+   넓히지 않는다. `verify:server`는 미등록 참조와 사용하지 않는 목록 행을 거부한다.
 
 파일이 가까이 있다는 사실과 런타임 의존성은 별개다. 테스트 파일을 별도 폴더에
 두더라도 운영 코드에서 import하면 경계 위반이다. `tsconfig`에서 테스트를 제외하는

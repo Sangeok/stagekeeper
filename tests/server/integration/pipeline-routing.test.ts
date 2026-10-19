@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { ITEM_TYPES } from "@harness/core/backlog.mjs";
-import { createBoardQueries } from "../../../src/server/pipeline/board-query";
-import { savePipelineDefinition } from "../../../src/server/pipeline/definition-save-query";
-import { setPipelineRule, archivePipeline } from "../../../src/server/pipeline/pipeline-settings-query";
-import { PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND } from "../../../src/server/pipeline/run-query";
+import { createBoardService as createBoardQueries } from "../../../src/server/pipeline/api";
+import { savePipelineDefinition } from "../../../src/server/pipeline/api";
+import { setPipelineRule, archivePipeline } from "../../../src/server/pipeline/api";
+import { PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND } from "../../../src/server/pipeline/api";
 import { cleanup, connections, fixture, pipelineState } from "./support";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 

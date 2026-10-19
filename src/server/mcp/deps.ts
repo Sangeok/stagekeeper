@@ -1,23 +1,24 @@
 // ToolDeps의 Prisma 구현 + 토큰 검증 바인딩. 도구 본문은 tools.ts, 저장 규칙은 pipeline/board.ts.
 import { historyCutoff } from "@harness/core/entitlement.mjs";
 import "server-only";
-import { recordTokenUsage } from "../token-usage";
-import { consumeProjectRequestBudget } from "../request-rate-limit";
-import { agentNext } from "@/server/agents/next";
-import { createNextDeps } from "@/server/agents/runs";
+import { recordTokenUsage } from "@/server/tokens/api.server";
+import { consumeProjectRequestBudget } from "@/server/usage/api";
+import { agentNext } from "@/server/agents/api";
+import { createNextDeps } from "@/server/agents/api";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma as defaultDb } from "@/server/db";
-import { readProjectAccess } from "@/server/project-access-query";
-import { createBoardService } from "@/server/pipeline/board";
-import { RUNBOOK_STALE_NOTE, scoutNodePending } from "@/server/pipeline/run-rules";
-import { headFor, nextFor } from "@/server/pipeline/run";
-import { runbookStale, resolveCodexBundle } from "@/server/runbook";
-import { checkCodexRunbook } from "@/server/client-bundle-query";
-import { codexHandoffView } from "@/server/codex-handoff-query";
-import { findUserTokenByHash, projectForUser } from "@/server/user-scope-query";
+import { readProjectAccess } from "@/server/projects/api";
+import { createBoardService } from "@/server/pipeline/api";
+import { RUNBOOK_STALE_NOTE, scoutNodePending } from "@/server/pipeline/api";
+import { headFor, nextFor } from "@/server/pipeline/api";
+import { runbookStale, resolveCodexBundle } from "@/server/templates/api";
+import { checkCodexRunbook } from "@/server/templates/api";
+import { codexHandoffView } from "@/server/pipeline/api";
+import { findUserTokenByHash } from "@/server/tokens/api";
+import { projectForUser } from "@/server/projects/api";
 import { makeVerifyToken } from "./auth";
-import { loadProjectView } from "./project-query";
-import { syncProject } from "./project-sync-query";
+import { loadProjectView } from "@/server/projects/api";
+import { syncProject } from "@/server/projects/api";
 import { backlogView, backlogWithStatusView, boardWithBacklogView } from "./views";
 import type { ToolDeps } from "./tools";
 
@@ -89,7 +90,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
       return { ok: true as const, item: { head, items, ...(runtime ? { runtime } : {}), ...(stale ? { runbook: { stale: true as const, note: RUNBOOK_STALE_NOTE } } : {}) } };
     },
     access: (projectId) => readProjectAccess(prisma, projectId),
-    // 술어는 user-scope-query.ts 한 곳에 있다 — REST 세 경로도 같은 것을 쓴다.
+    // 술어는 projects/owner-query.ts 한 곳에 있다 — REST 세 경로도 같은 것을 쓴다.
     projectFor: (slug, userId) => projectForUser(slug, userId, prisma),
   };
 }

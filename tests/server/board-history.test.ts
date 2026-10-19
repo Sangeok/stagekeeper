@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../src/generated/prisma/client";
-import { createBoardService } from "../../src/server/pipeline/board";
+import { createBoardService } from "../../src/server/pipeline/api";
 
 it("history truncation queries the displayed row and includes report-only history; no query without cutoff", async () => {
   const calls: unknown[] = [];

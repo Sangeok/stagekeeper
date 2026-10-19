@@ -1,10 +1,7 @@
 "use server";
 import { newToken } from "@harness/core/token.mjs";
-import { Prisma } from "@/generated/prisma/client";
 import { requireUser } from "@/server/auth/guard";
-import { prisma } from "@/server/db";
-import { AvailabilityConflict, withAvailabilityTransaction } from "@/server/project-availability-service";
-import { registerProjectResultIn } from "@/server/project-registration-query";
+import { registerWebProject } from "@/server/projects/api.server";
 import type { CreateProjectState } from "../model/create-project-state";
 import { RESERVED_SLUGS, SLUG_ERROR, SLUG_RE } from "../model/project-slug";
 import { SEGMENT } from "../model/repo-url";
@@ -30,26 +27,6 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
     return { status: "error", error: "GitHub owner and repo must be GitHub names — letters, numbers, dots, dashes, underscores." };
   }
   const { plain, hash } = newToken();
-  try {
-    // 상한 검사와 생성은 한 트랜잭션이다 — 따로 두면 동시에 온 두 요청이 둘 다 "아직 여유 있음"을
-    // 읽고 둘 다 만든다(board-query.ts propose의 미결 상한과 같은 이유).
-    const result = await withAvailabilityTransaction(prisma, (tx) => registerProjectResultIn(tx, {
-      userId,
-      slug,
-      name,
-      owner,
-      repo,
-      branch,
-      initialTokenHash: hash,
-    }));
-    return toCreateProjectState(result, plain);
-  } catch (error) {
-    if (error instanceof AvailabilityConflict) return { status: "error", error: error.message };
-    // 전역 slug의 저장 경쟁은 현재 Prisma adapter의 두 metadata 형태를 모두 처리한다.
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
-      && JSON.stringify(error.meta?.target ?? error.meta?.driverAdapterError ?? "").includes("slug")) {
-      return { status: "error", error: `'${slug}' is already taken.` };
-    }
-    throw error;
-  }
+  const result = await registerWebProject({ userId, slug, name, owner, repo, branch, initialTokenHash: hash });
+  return result.ok ? toCreateProjectState(result.item, plain) : { status: "error", error: result.reason };
 }

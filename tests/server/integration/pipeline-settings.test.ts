@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { refStep, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline.mjs";
-import { savePipelineDefinition } from "../../../src/server/pipeline/definition-save-query";
-import { archivePipeline, renamePipeline, setAutomaticPick, setDefaultPipeline, setPipelineRule } from "../../../src/server/pipeline/pipeline-settings-query";
-import { ensureRun, loadPipelinesView, PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND } from "../../../src/server/pipeline/run-query";
+import { savePipelineDefinition } from "../../../src/server/pipeline/api";
+import { archivePipeline, renamePipeline, setAutomaticPick, setDefaultPipeline, setPipelineRule } from "../../../src/server/pipeline/api";
+import { ensureRun } from "../../../src/server/pipeline/run-service";
+import { loadPipelinesView, PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND } from "../../../src/server/pipeline/api";
 import { checkpoint, cleanup, connections, fixture, pipelineState } from "./support";
 
 it("settings validate names, targets, defaults, direct references and rules without partial writes; archived runs retain their versions", async () => {

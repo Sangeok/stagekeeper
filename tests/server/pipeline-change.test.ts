@@ -10,7 +10,7 @@ it("change action rejects inaccessible projects and malformed payloads without s
   const action = loadModule<typeof import("../../src/fsd/features/change-item-pipeline/api/change-item-pipeline.server")>("src/fsd/features/change-item-pipeline/api/change-item-pipeline.server.ts", {
     "next/cache": { revalidatePath: (...args: unknown[]) => refreshed.push(args) },
     "@/server/auth/guard": { requireProjectWrite: async () => denied ? { ok: false, reason: denied } : { ok: true, projectId: "trusted", userId: "owner" } },
-    "@/server/pipeline/board": { changePipeline: async (projectId: string, input: { userId: string; expectedUpdatedAt: Date }) => {
+    "@/server/pipeline/api.server": { changePipeline: async (projectId: string, input: { userId: string; expectedUpdatedAt: Date }) => {
       calls++; assert.equal(projectId, "trusted"); assert.equal(input.userId, "owner"); assert.equal(input.expectedUpdatedAt.toISOString(), "2026-10-15T00:00:00.000Z");
       return reason ? { ok: false, reason } : { ok: true, item: null };
     } },

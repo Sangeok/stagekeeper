@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { Prisma, type PrismaClient } from "../../../src/generated/prisma/client";
-import { createBoardService } from "../../../src/server/pipeline/board";
-import { ensureRun } from "../../../src/server/pipeline/run-query";
+import { createBoardService } from "../../../src/server/pipeline/api";
+import { ensureRun } from "../../../src/server/pipeline/run-service";
 import { createToolDeps } from "../../../src/server/mcp/deps";
-import { agentNext, type NextDeps } from "../../../src/server/agents/next";
-import { createNextDeps } from "../../../src/server/agents/runs";
-import { cursorTransaction } from "../../../src/server/agents/run-query";
+import { agentNext } from "../../../src/server/agents/api";
+import { type NextDeps } from "../../../src/server/agents/next";
+import { createNextDeps } from "../../../src/server/agents/api";
+import { cursorTransaction } from "../../../src/server/agents/run-service";
 import { afterBacklogCount, afterBoardList, afterProjectRead, beforeRunClaim, checkpoint, cleanup, connections, failingEvent, fixture, type Fixture } from "./support";
 
 const ownerInput = { title: "A concrete problem", area: "", source: "", type: null, addedBy: "owner" as const, addedByRunId: null };

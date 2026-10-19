@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { headFor } from "../../../src/server/pipeline/run-query";
+import { headFor } from "../../../src/server/pipeline/api";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 import { seedPipelineVersion, cleanup, connections, fixture, type Fixture } from "./support";
 

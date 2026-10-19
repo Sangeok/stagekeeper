@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 import * as results from "../../src/fsd/shared/api/result";
-import { renameProjectToken, renameUserToken } from "../../src/server/token-management-query";
-import { createBoardQueries } from "../../src/server/pipeline/board-query";
+import { renameProjectToken, renameUserToken } from "../../src/server/tokens/api";
+import { createBoardService as createBoardQueries } from "../../src/server/pipeline/api";
 import { loadModule } from "./fixtures/load-module";
 import { assertActions } from "./fixtures/action-manifest";
 
@@ -23,8 +23,8 @@ it("all eight authenticated mutations reject malformed IDs before delegate write
       requireProjectWrite: async () => { guards++; return { ok: true, projectId: "p", userId: "u" }; },
     },
     "@/server/db": { prisma: { projectToken: { updateMany: write }, ownerToken: { updateMany: write }, userToken: { updateMany: write } } },
-    "@/server/project-token": {}, "@/server/token-management-query": { renameProjectToken: write, renameUserToken: write },
-    "@/server/pipeline/board": { updateBacklog: write, removeBacklog: write },
+    "@/server/tokens/api.server": {}, "@/server/tokens/api": { renameProjectToken: write, renameUserToken: write },
+    "@/server/pipeline/api.server": { updateBacklog: write, removeBacklog: write },
   };
   const project = loadModule<typeof import("../../src/fsd/features/manage-token/api/manage-token.server")>(projectPath, dependencies);
   const user = loadModule<typeof import("../../src/fsd/features/manage-user-token/api/manage-user-token.server")>(userPath, dependencies);

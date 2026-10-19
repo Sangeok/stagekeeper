@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
-import { createBoardService } from "../../../src/server/pipeline/board";
-import { nextFor } from "../../../src/server/pipeline/run";
+import { createBoardService } from "../../../src/server/pipeline/api";
+import { nextFor } from "../../../src/server/pipeline/api";
 import { createToolDeps } from "../../../src/server/mcp/deps";
-import { registerTools } from "../../../src/server/mcp/tools";
+import { registerTools } from "../../../src/server/mcp/api";
 import { seedPipelineVersion, checkpoint, cleanup, connections, failingEvent, fixture, type Fixture } from "./support";
 
 async function acceptanceFixture(db: PrismaClient, format: string | null = "slots-v1") {

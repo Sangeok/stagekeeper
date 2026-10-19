@@ -102,7 +102,7 @@ runbook 거부는 생성 파일을 보존하되 후속 MCP 등록·sync·성공 
 MCP의 공통 `project` 필드 설명은 `hu_`에서 매 호출 필수라는 점과 설정 출처를 명시한다. `optional`은
 `hs_` 하위호환을 위한 스키마이며, 사용자 토큰의 요구사항을 완화하지 않는다.
 
-이 경계의 회귀 검사는 `src/server/harness-init.test.ts`다. 실제 CLI를 로컬 HTTP 서버와 연결하고
+이 경계의 회귀 검사는 `src/server/rest/harness-init.test.ts`다. 실제 CLI를 로컬 HTTP 서버와 연결하고
 `makeTemplatesFor`·`makeRecordRunbook`의 실제 인증·스코프 코드를 실행한다. DB IO만 대체하며
 `npm run test:web`을 통해 CI에서 검사한다. 토큰 하나로 두 checkout을 연결하는 경우, 플랜별 첫 생성·재실행,
 slug 누락, `hs_` 호환, dry-run 무쓰기, 타 프로젝트 거부를 포함한다. private 템플릿 검사는

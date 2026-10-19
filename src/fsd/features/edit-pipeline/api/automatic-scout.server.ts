@@ -4,7 +4,7 @@ import { failure, success, type ActionResult } from "@/fsd/shared/api/result";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { setAutomaticScout } from "@/server/automatic-scout";
+import { setAutomaticScout } from "@/server/pipeline/api";
 
 export async function saveAutomaticScout(slug: string, enabled: boolean): Promise<ActionResult<boolean>> {
   const access = await requireProjectWrite(slug);

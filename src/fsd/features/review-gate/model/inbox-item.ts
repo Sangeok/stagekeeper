@@ -111,7 +111,7 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
 }
 
 // 슬롯 버전에서 이 카드의 게이트가 묶인 파이프라인 항목. 레거시 버전이거나 게이트가 아니면 null —
-// 카드의 잠금 키와 승인 payload가 같은 판정을 쓴다(서버는 board-query의 gate에서 같은 조합을 다시 검사한다).
+// 카드의 잠금 키와 승인 payload가 같은 판정을 쓴다(서버는 board-service의 gate에서 같은 조합을 다시 검사한다).
 export function slotGateEntry(item: InboxItem): GateEntry | null {
   return item.gate !== null && item.format === "slots-v1" && item.gateEntry ? item.gateEntry : null;
 }

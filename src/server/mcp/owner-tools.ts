@@ -3,8 +3,8 @@
 // 여기 도구는 `gate_approve` 하나다 — 그래프의 어느 게이트든 연다. 되돌리기·보류·재개·Reopen·폐기·백로그 편집·토큰 발급은 여전히 웹 전용이다.
 import { allowsSessionApprovals } from "@harness/core/entitlement.mjs";
 import type { McpServer } from "@modelcontextprotocol/server";
-import type { ProjectAccess } from "@/server/entitlement";
-import type { PipelineNext } from "@/server/pipeline/run-rules";
+import type { ProjectAccess } from "@/server/projects/contracts";
+import type { PipelineNext } from "@/server/pipeline/contracts";
 import type { ServerResult } from "@/server/result";
 import { failureBody, type ServerFailure, type RequestRateFailure } from "@/server/result";
 import { z } from "zod";

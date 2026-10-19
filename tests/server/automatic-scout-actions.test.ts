@@ -21,7 +21,7 @@ it("saves scouting through the authenticated owner scope on every plan and refre
         return outcome === "read-only" ? { ok: false, reason: "Not selected" } : { ok: true, userId: "owner", projectId: "project" };
       } },
       "@/server/db": { prisma: db },
-      "@/server/automatic-scout": { setAutomaticScout: async (client: unknown, input: unknown) => {
+      "@/server/pipeline/api": { setAutomaticScout: async (client: unknown, input: unknown) => {
         assert.equal(client, db); writes.push(input);
         return outcome === "refused" ? { ok: false, reason: "Project not found." } : { ok: true, item: false };
       } },

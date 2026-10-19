@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
-import { OWNER_TOOL_NAMES, registerOwnerTools as registerProductionOwnerTools } from "./owner-tools.ts";
-import { APPROVED_ADVICE_FAILURE, createOwnerGate } from "./owner-gate.ts";
-import { AGENT_TOOL_NAMES } from "./tools.ts";
+import { OWNER_TOOL_NAMES } from "./owner-tools";
+import { registerOwnerTools as registerProductionOwnerTools } from "./owner-tools";
+import { APPROVED_ADVICE_FAILURE, createOwnerGate } from "./owner-gate";
+import { AGENT_TOOL_NAMES } from "./tools";
 
 const ctx = { http: { authInfo: { extra: { projectId: "p1", userId: "u1", ownerTokenId: "o1" } } } };
 const body = (r) => JSON.parse(r.content[0].text);

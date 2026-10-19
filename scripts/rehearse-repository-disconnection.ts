@@ -97,7 +97,7 @@ async function main(): Promise<void> {
     await db.projectToken.create({ data: { projectId: owner.projectId, hash: hs.hash, label: "fixture" } });
     await db.transitionEvent.create({ data: { boardItemId: owner.boardItemId, actor: "human", to: "in_review", note: "retained event" } });
     await db.report.create({ data: { boardItemId: owner.boardItemId, actor: "dev", path: "retained.md", commit: "1234567" } });
-    const { ensureRun } = await import("../src/server/pipeline/run");
+    const { ensureRun } = await import("../src/server/pipeline/run-service");
     await ensureRun(db, owner.projectId, owner.boardItemId, "in_review", false);
     await db.pipelineRun.update({ where: { boardItemId: owner.boardItemId }, data: { node: "before-implement" } });
     const ownedCookie = await cookie(owner.userId); const foreignCookie = await cookie(foreign.userId);
@@ -140,8 +140,8 @@ async function main(): Promise<void> {
     assert.equal((await db.project.findUniqueOrThrow({ where: { id: owner.projectId } })).disconnectedAt, null);
     assert.ok((await db.projectToken.findUniqueOrThrow({ where: { hash: hs.hash } })).revokedAt);
     if (process.argv.includes("--interactive") || process.argv.includes("--transport-loss")) {
-      const { withAvailabilityTransaction } = await import("../src/server/project-availability-service");
-      const { registerProjectResultIn } = await import("../src/server/project-registration-query");
+      const { withAvailabilityTransaction } = await import("../src/server/projects/availability-service");
+      const { registerProjectResultIn } = await import("../src/server/projects/registration-command");
       await db.project.update({ where: { id: owner.projectId }, data: { name: "RDC Alpha" } });
       await withAvailabilityTransaction(db, (tx) => registerProjectResultIn(tx, { userId: owner!.userId, owner: "rdc-fixture", repo: "beta", name: "RDC Beta", branch: "main" }));
       const now = Date.now();

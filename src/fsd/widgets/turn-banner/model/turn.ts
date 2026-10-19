@@ -178,9 +178,9 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
 
   // 당신 차례 = 게이트가 열린 것 + 인수 실패 + 커밋을 기다리는 것. on_hold는 여전히 배너를 소유하지 않는다.
   const pending = items.filter((i) => i.gate !== null || i.acceptanceFailed || i.handoff !== null);
-  // 보류한 항목은 커서를 멈춘 자리에 둔 채 런이 열려 있다(board-query.ts resetRun) — 재개가 그 자리를 이어받기
+  // 보류한 항목은 커서를 멈춘 자리에 둔 채 런이 열려 있다(board-service.ts resetRun) — 재개가 그 자리를 이어받기
   // 위해서다. 그래서 노드만 보면 "작업 중"이 된다.
-  // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board-query.ts walkingKeys) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
+  // pipeline_next는 walkingKeys에서 같은 규칙으로 거른다(board-service.ts walkingKeys) — 그 주석이 말하는 "배너와 같은 규칙"이 여기다.
   const isProjectSlot = (node: string | null) => {
     const agent = slotAgent(node);
     return agent !== null && PROJECT_AGENTS.includes(agent);

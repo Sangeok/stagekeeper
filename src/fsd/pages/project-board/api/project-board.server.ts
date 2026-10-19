@@ -1,9 +1,9 @@
 import "server-only";
 import { buildBriefing, type Briefing } from "../model/briefing";
 import { prisma } from "@/server/db";
-import { loadProjectRoster } from "@/server/project";
-import { latestBoard } from "@/server/pipeline/board";
-import { loadPipelinesView } from "@/server/pipeline/run";
+import { loadProjectRoster } from "@/server/projects/api";
+import { latestBoard } from "@/server/pipeline/api.server";
+import { loadPipelinesView } from "@/server/pipeline/api";
 import { dispatcherFor, isGateId, slotAgent, PROJECT_AGENTS, SLOT_FORMAT } from "@harness/core/pipeline.mjs";
 
 export async function loadProjectBoard(projectId: string, now: Date): Promise<Briefing> {

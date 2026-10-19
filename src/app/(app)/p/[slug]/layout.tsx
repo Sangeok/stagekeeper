@@ -3,7 +3,7 @@ import { loadHeaderProjects, loadHeaderUser } from "@/fsd/widgets/app-header/ind
 import { TurnBanner, TurnBar } from "@/fsd/widgets/turn-banner";
 import { loadTurn } from "@/fsd/widgets/turn-banner/index.server";
 import { requireProjectOwner } from "@/server/auth/guard";
-import { projectAccess } from "@/server/entitlement";
+import { projectAccess } from "@/server/projects/api.server";
 import { LockedProjectBanner } from "@/fsd/features/select-project-for-use/index.server";
 import { DisconnectedProjectBanner } from "@/fsd/features/manage-project-connection/index.server";
 import { prisma } from "@/server/db";

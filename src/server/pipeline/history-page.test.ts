@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { afterCursor, eventWhere, formatHistoryCursor, mergeHistoryPage, parseHistoryCursor,
-  type HistoryCursor, type HistoryEventRecord, type HistoryReportRecord } from "./history-page";
+import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryReportRecord } from "./history-page";
+import { formatHistoryCursor, parseHistoryCursor } from "./history-page";
+import { type HistoryEventRecord } from "./history-page";
 
 const at = new Date("2026-09-30T12:00:00.123Z");
 const event = (id: string, time = at): HistoryEventRecord => ({ source: "event", id, at: time, boardItemId: "board", key: "K-1",

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
-import { createNextDeps } from "../../../src/server/agents/runs";
+import { createNextDeps } from "../../../src/server/agents/api";
 import type { OutcomeCommit } from "../../../src/server/agents/next";
 import { beforeRunClaim, cleanup, connections, failingAudit, fixture, ordered } from "./support";
 

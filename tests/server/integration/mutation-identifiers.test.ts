@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { randomUUID } from "node:crypto";
-import { renameProjectToken, renameUserToken } from "../../../src/server/token-management-query";
-import { createBoardQueries } from "../../../src/server/pipeline/board-query";
+import { renameProjectToken, renameUserToken } from "../../../src/server/tokens/api";
+import { createBoardService as createBoardQueries } from "../../../src/server/pipeline/api";
 import { cleanup, connections, fixture } from "./support";
 
 it("invalid direct token/backlog selectors leave every row unchanged and valid operations affect one target", async () => {

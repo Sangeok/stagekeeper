@@ -9,7 +9,7 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 
 2026-09-01 기준 Phase 0·1이 구현·검증 완료된 상태다(스모크 인수:
 `docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md`). 아래 구조가
-실제 저장소와 일치하며, `npm run verify:fsd`·`npm run test:architecture`가 경계를
+실제 저장소와 일치하며, `npm run verify:fsd`·`npm run verify:server`·`npm run test:architecture`가 경계를
 강제한다. `plugin/templates/`는 의도적으로 git 미추적이다 — 원본은 별도 private
 저장소(`Sangeok/harness-templates`), 배포는 DB(`Template` 테이블) 경유.
 
@@ -17,7 +17,7 @@ Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 �
 플랜에 맞춰 잘라 낸 것만 준다 — 에이전트 파일은 첫 `## step:` 앞의 **스텁**, 플랜 밖 보고
 에이전트는 제외한다. 기본 런북은 `CLAUDE.runbook.md`이며 Codex 요청은 `CODEX.runbook.md`를 선택한다. 예전 Free variant는 배포하지 않는다. 단계 본문은
 `agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/core/deliver.mjs`
-하나가 정하고, 서버(`src/server/templates.ts`)와 생성기(`plugin/bin/harness-init.mjs`의
+하나가 정하고, 서버(`src/server/rest/templates.ts`)와 생성기(`plugin/bin/harness-init.mjs`의
 로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/core/entitlement.mjs`.
 
 2026-10-03 작업 트리에는 dual-client 계약과 Codex foreground 어댑터가 구현되어 있다.
@@ -96,6 +96,7 @@ stagekeeper/
   최상위 모듈의 관계
 - [fsd.md](./fsd.md): FSD layer·slice·segment, import 방향, public API,
   Next.js Server/Client 경계
+- [server.md](./server.md): 서버 모듈 소유권·공개 API·초기화 경계·시험 내부 참조 목록
 - [test-organization.md](./test-organization.md): 테스트의 위치·이름·소유권,
   fixture와 운영 코드의 의존성 경계
 - [verification.md](./verification.md): 자동 경계 검사, 저장소 스크립트 목록, 리뷰 체크리스트
@@ -103,6 +104,7 @@ stagekeeper/
   이유와 받아들인 trade-off
 - [ADR-0002](../ADR/0002-test-code-organization.md): 대상 옆 테스트 배치와
   실행 경계별 분리를 선택한 이유
+- [ADR-0003](../ADR/0003-server-module-boundaries.md): 서버 모듈과 공개 진입점 분리의 배경
 - [CONTEXT.md](../../CONTEXT.md): 구현과 독립적인 Stagekeeper 도메인 용어
 - [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
@@ -155,6 +157,7 @@ stagekeeper/
 ```powershell
 npm run check      # CI와 같은 게이트 — 복사본 동기화 검사 · lint · 타입 · 아키텍처 테스트
 npm run verify:fsd
+npm run verify:server
 npm run test:architecture
 ```
 

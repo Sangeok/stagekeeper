@@ -3,8 +3,8 @@ import "server-only";
 import { dispatcherFor, isGateId, SLOT_FORMAT } from "@harness/core/pipeline.mjs";
 import { pendingInboxCount } from "@/fsd/entities/board-item";
 import { prisma } from "@/server/db";
-import { latestBoard } from "@/server/pipeline/board";
-import { handoffIsLive } from "@/server/pipeline/run-rules";
+import { latestBoard } from "@/server/pipeline/api.server";
+import { handoffIsLive } from "@/server/pipeline/api";
 import { deriveTurn, type Turn } from "../model/turn";
 
 export type TurnData = { turn: Turn; inboxCount: number };

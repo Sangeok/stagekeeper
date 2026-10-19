@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
-import { syncProject } from "../../../src/server/mcp/project-sync-query";
+import { syncProject } from "../../../src/server/projects/api";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 import { afterWorkspaceRead, cleanup, connections, ordered } from "./support";
 

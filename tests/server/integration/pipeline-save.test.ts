@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { defaultGraph } from "@harness/core/pipeline.mjs";
-import { savePipelineDefinition } from "../../../src/server/pipeline/definition-save-query";
-import { ensureRun } from "../../../src/server/pipeline/run-query";
+import { savePipelineDefinition } from "../../../src/server/pipeline/api";
+import { ensureRun } from "../../../src/server/pipeline/run-service";
 import { checkpoint, cleanup, connections, fixture } from "./support";
 
 it("two real saves serialize on owner/project locks and the loser is stale at zero and persisted baselines, in both orders", async () => {

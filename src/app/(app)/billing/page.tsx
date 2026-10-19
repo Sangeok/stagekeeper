@@ -2,8 +2,8 @@ import { BillingPage } from "@/fsd/pages/billing";
 import { AppHeader } from "@/fsd/widgets/app-header";
 import { loadHeaderUser } from "@/fsd/widgets/app-header/index.server";
 import { requireUser } from "@/server/auth/guard";
-import { accountUsage } from "@/server/account-usage";
-import type { AccountUsage } from "@/server/account-usage-query";
+import { accountUsage } from "@/server/usage/api.server";
+import type { AccountUsage } from "@/server/usage/contracts";
 
 // 플랜 화면은 프로젝트 밖이다 — 프로젝트 탭 셸을 쓰지 않고 머리만 얹는다(/projects와 같은 모양).
 export default async function Page() {

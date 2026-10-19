@@ -3,7 +3,7 @@ import { ProjectTokensPage } from "@/fsd/pages/project-tokens/index.server";
 import { issueOwnerToken, issueToken, revokeOwnerToken, revokeToken, renameToken, renameOwnerToken } from "@/fsd/features/manage-token/index.server";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { projectAccess } from "@/server/entitlement";
+import { projectAccess } from "@/server/projects/api.server";
 import { mcpUrl, ownerMcpUrl } from "@/server/public-url";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/tokens">) {

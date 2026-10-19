@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { registerTools, type ToolDeps } from "../src/server/mcp/tools";
-import { registerOwnerTools, type OwnerToolDeps } from "../src/server/mcp/owner-tools";
-import { splitTemplate } from "../src/server/agents/steps";
+import { registerTools } from "../src/server/mcp/api";
+import { type ToolDeps } from "../src/server/mcp/tools";
+import { registerOwnerTools } from "../src/server/mcp/api";
+import { type OwnerToolDeps } from "../src/server/mcp/owner-tools";
+import { splitTemplate } from "../src/server/templates/api";
 
 type Call = { tool: string; args: Record<string, unknown> };
 type Entry = { schema: z.ZodType; invoke: (args: never, ctx: never) => Promise<{ isError?: boolean }> };

@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Plan } from "@harness/core/entitlement.mjs";
 import { prisma } from "@/server/db";
-import { planForUser } from "@/server/entitlement";
+import { planForUser } from "@/server/projects/api.server";
 import type { HeaderProject } from "../ui/app-header";
 
 // 머리가 필요로 하는 값은 머리가 읽는다 — 라우트마다 같은 질의를 되풀이하지 않게.

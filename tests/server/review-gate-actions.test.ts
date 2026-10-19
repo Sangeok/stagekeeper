@@ -34,7 +34,7 @@ for (const target of actions) {
         if (outcome === "guest" || outcome === "foreign") throw exception;
         return outcome === "read-only" ? { ok: false, reason: "locked" } : { ok: true, projectId: "owned", userId: "owner" };
       } },
-      "@/server/pipeline/board": { [target.service]: async (...values: unknown[]) => {
+      "@/server/pipeline/api.server": { [target.service]: async (...values: unknown[]) => {
         writes++; serviceArgs.push(values);
         if (outcome === "precommit" || outcome === "commit-unknown") throw exception;
         return outcome === "stale" || outcome === "business" ? { ok: false, reason: outcome } : { ok: true, item: null };
@@ -103,7 +103,7 @@ it("retry checks access/date first, revalidates three paths only after success a
         if (outcome === "foreign" || outcome === "guest") throw original;
         return outcome === "unavailable" ? { ok: false, reason: "locked" } : { ok: true, userId: "owner", projectId: "p" };
       } },
-      "@/server/pipeline/board": { retryAcceptance: async (projectId: string, input: { key: string; userId: string; expectedUpdatedAt: Date }) => {
+      "@/server/pipeline/api.server": { retryAcceptance: async (projectId: string, input: { key: string; userId: string; expectedUpdatedAt: Date }) => {
         writes++; assert.equal(projectId, "p"); assert.equal(input.userId, "owner"); assert.equal(input.expectedUpdatedAt.getTime(), 0);
         if (outcome === "refused") return { ok: false, reason: "stale" };
         if (outcome === "precommit" || outcome === "commit-unknown") throw original;
@@ -127,7 +127,7 @@ it("web approval revalidates exactly three paths only after confirmed success, a
       "next/cache": { revalidatePath: (path: string) => { if (outcome === "revalidate-failure") throw original; revalidated.push(path); } },
       "@/fsd/shared/api/result": { success, failure }, "@/fsd/shared/routes/project": routes,
       "@/server/auth/guard": { requireProjectWrite: async () => ({ ok: true, userId: "owner", projectId: "p" }) },
-      "@/server/pipeline/board": { gate: async () => { writes++; if (outcome === "refused") return { ok: false, reason: "stale" };
+      "@/server/pipeline/api.server": { gate: async () => { writes++; if (outcome === "refused") return { ok: false, reason: "stale" };
         if (outcome === "precommit" || outcome === "commit-unknown") throw original;
         return { ok: true, item: { id: "written" } }; }, nextFor: () => { advice++; throw new Error("web must not read advice"); } },
     };

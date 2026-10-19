@@ -205,7 +205,7 @@ import {
 import { inboxReadOnlyLabel } from "@/fsd/features/review-gate";
 import { ProjectInboxPage } from "@/fsd/pages/project-inbox/index.server";
 import { requireProjectOwner } from "@/server/auth/guard";
-import { projectAccess } from "@/server/entitlement";
+import { projectAccess } from "@/server/projects/api.server";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/inbox">) {
   const { slug } = await params;

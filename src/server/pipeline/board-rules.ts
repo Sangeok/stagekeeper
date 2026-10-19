@@ -36,7 +36,7 @@ export function countPickable(backlogIds: readonly string[], latest: readonly { 
   return backlogIds.filter((id) => !taken.has(id)).length;
 }
 
-// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board-query.ts transitionIn).
+// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board-service.ts transitionIn).
 export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean; kind: RuleKind };
 
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
@@ -125,7 +125,7 @@ export type ReportSubmitInput = {
 // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다. outcome을 ok로 좁히면
 // 그 보고가 막힌다. 불변식의 뜻은 "보고 전에 검증을 시도했다"이고, 그건 커서(AgentRun.stepId)에
 // 결합하지 않고도 원장 한 줄로 표현된다.
-// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board-query.ts의 acceptedAt 쓰기가
+// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board-service.ts의 acceptedAt 쓰기가
 // "report_submit의 숨은 부수효과"가 아니라 "판정의 결과"가 된다(decideTransition의 completes와 같은 자리).
 export type ReportSubmitPatch = { accepts: boolean };
 

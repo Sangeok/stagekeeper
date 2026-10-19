@@ -49,7 +49,7 @@ it("detects aliased imports, relation reads and unsafe projections while allowin
     assert.ok(violations(source, "src/server/example.ts").length > 0, source);
   }
   assert.deepEqual(violations('const dto = { owner: repositoryOwner(row.repoOwner) };', "src/server/example.ts"), []);
-  assert.ok(violations('const data = { members: { create: { userId, role: "owner" } } };', "src/server/project-registration-query.ts").length > 0);
+  assert.ok(violations('const data = { members: { create: { userId, role: "owner" } } };', "src/server/projects/registration-command.ts").length > 0);
 });
 
 it("removes retired ownership tools and keeps only the D3 cleanup commands", () => {

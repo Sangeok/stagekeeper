@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { historyCutoff } from "../../../packages/core/entitlement.mjs";
-import { createBoardService } from "../../../src/server/pipeline/board";
+import { createBoardService } from "../../../src/server/pipeline/api";
 import type { HistoryItemCursor, HistoryItemRecord } from "../../../src/server/pipeline/history-items";
 import type { HistoryCursor, HistoryRecord } from "../../../src/server/pipeline/history-page";
 import { cleanup, connections, fixture, type Fixture } from "./support";

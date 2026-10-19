@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { it } from "node:test";
 import { newToken } from "@harness/core/token.mjs";
 import { makeVerifyOwnerToken, makeVerifyToken } from "../../../src/server/mcp/auth";
-import { makeRecordTokenUsage } from "../../../src/server/token-usage-query";
+import { makeRecordTokenUsage } from "../../../src/server/tokens/usage-recorder";
 import { cleanup, connections, checkpoint } from "./support";
 
 it("all three real token tables preserve legacy nulls, throttle boundaries and concurrent monotonicity", async () => {

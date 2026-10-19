@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { defaultGraph } from "@harness/core/pipeline.mjs";
-import { ensureRun, headFor, loadPipelinesView, nextFor } from "../../../src/server/pipeline/run-query";
-import { savePipelineDefinition } from "../../../src/server/pipeline/definition-save-query";
-import { createBoardQueries } from "../../../src/server/pipeline/board-query";
+import { ensureRun } from "../../../src/server/pipeline/run-service";
+import { headFor, loadPipelinesView, nextFor } from "../../../src/server/pipeline/api";
+import { savePipelineDefinition } from "../../../src/server/pipeline/api";
+import { createBoardService as createBoardQueries } from "../../../src/server/pipeline/api";
 import { Prisma } from "../../../src/generated/prisma/client";
 import { afterProjectRead, checkpoint, cleanup, connections, fixture, pipelineState } from "./support";
 

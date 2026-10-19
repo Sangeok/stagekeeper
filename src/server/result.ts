@@ -12,9 +12,3 @@ export function failureBody(failure: { reason: string; code?: never } | ServerFa
   if (failure.code === "RATE_LIMITED") return { error: failure.reason, code: failure.code, retryAfterSec: failure.retryAfterSec };
   return { error: failure.reason };
 }
-
-export type RestRateFailure = RequestRateFailure & { status: 429 };
-export function restFailureResponse(failure: { status: number; reason: string; code?: never } | RestRateFailure): Response {
-  return Response.json(failureBody(failure), { status: failure.status,
-    ...(failure.code === "RATE_LIMITED" ? { headers: { "Retry-After": String(failure.retryAfterSec) } } : {}) });
-}

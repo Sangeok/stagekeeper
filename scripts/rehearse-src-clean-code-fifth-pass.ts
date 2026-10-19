@@ -424,7 +424,7 @@ async function acceptanceCases(context: AcceptanceContext): Promise<void> {
         const before = await snapshot(control.f);
         const result = await post(spec.name, argumentsFor(spec.name, control.f.id, null), cookie, control.path, control.route, kind === "read-only");
         if (kind === "read-only") {
-          const access = await (await import("../src/server/project-access-query")).readProjectAccessIn(db, control.f.projectId);
+          const access = await (await import("../src/server/projects/access-query")).readProjectAccessIn(db, control.f.projectId);
           assert.equal(access.available, false);
           assert.ok("reason" in access, "fifth-pass assertion 19");
           assert.deepEqual(result, failure(access.reason));

@@ -2,7 +2,7 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/server/db";
-import { projectAccess } from "@/server/entitlement";
+import { projectAccess } from "@/server/projects/api.server";
 import { auth } from "./index";
 
 export async function requireUser(): Promise<{ userId: string }> {
