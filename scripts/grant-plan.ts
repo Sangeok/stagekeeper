@@ -1,7 +1,7 @@
 // 사용자에게 플랜을 붙인다. 결제 경로가 없는 동안 Subscription 행을 쓰는 유일한 길이다 — 손으로 돌린다.
 // 사용: npm run plan:grant -- <github login> <free|pro|max> [note]
 import { PLANS, isPlan } from "../packages/core/entitlement.mjs";
-import { changeUserPlan } from "../src/server/project-availability-service";
+import { changeUserPlan } from "@/server/projects/api";
 import { withPrisma } from "./lib/prisma";
 
 const [login, plan, ...rest] = process.argv.slice(2);

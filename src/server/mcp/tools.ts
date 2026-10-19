@@ -1,12 +1,13 @@
 // 에이전트 토큰 스코프의 MCP 도구. 스펙 §5가 계약이다.
 // 게이트·반려·백로그 편집·삭제·토큰 발급 도구는 여기 없다. 백로그 추가만 feature-scout가 한다.
 import type { McpServer } from "@modelcontextprotocol/server";
-import { NOTE_MAX, OUTCOMES, receiptSchema, type NextInput, type NextOutput } from "@/server/agents/next";
+import { NOTE_MAX, OUTCOMES, receiptSchema } from "@/server/agents/api";
+import { type NextInput, type NextOutput } from "@/server/agents/contracts";
 import type { Client } from "@harness/core/client-runtime.mjs";
-import type { ProjectAccess } from "@/server/entitlement";
+import type { ProjectAccess } from "@/server/projects/contracts";
 import type { ServerResult, ServerFailure, RequestRateFailure } from "@/server/result";
 import { failureBody } from "@/server/result";
-import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/scope-copy";
+import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/projects/api";
 import { ITEM_TYPES } from "@harness/core/backlog.mjs";
 import { validateWorkspaceSemantics } from "@harness/core/workspaces.mjs";
 import type { BacklogView, BacklogWithStatusView } from "./views";
@@ -18,17 +19,17 @@ export const AGENT_TOOL_NAMES = [
   "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next", "acceptance_fail",
 ] as const;
 
-export type WorkspaceInput = { id: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] };
+import type { WorkspaceInput } from "@/server/projects/contracts";
 
 // 에이전트가 JSON으로 받는 최소 계약. Prisma 행은 이보다 넓고, 넓은 쪽은 좁은 쪽에 대입된다 —
-// 그래서 여기에 적힌 필드가 board-query.ts의 select/include에서 빠지면 deps.ts가 컴파일에서 걸린다.
+// 그래서 여기에 적힌 필드가 board-service.ts의 select/include에서 빠지면 deps.ts가 컴파일에서 걸린다.
 // Prisma 타입을 직접 import하지 않는 건 inbox-item.ts의 BoardRow와 같은 이유다.
 export type ProjectView = {
   id: string; slug: string; name: string; owner: string; repo: string; branch: string; language: string;
   executorKind: string; commandIssue: number | null; runbookVersion: string | null; createdAt: Date;
   workspaces: { id: string; projectId: string; wsId: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] }[];
 };
-// board_propose는 방금 만든 행만 돌려준다 — backlogItem을 include하지 않는다(board-query.ts propose).
+// board_propose는 방금 만든 행만 돌려준다 — backlogItem을 include하지 않는다(board-service.ts propose).
 export type BoardItemView = {
   id: string; agent: string; status: string; reason: string; results: string[]; validation: string | null;
   planPath: string | null; planCommit: string | null; proposedOn: Date; updatedAt: Date;
@@ -80,7 +81,7 @@ const guardUnavailable = async (deps: ToolDeps, projectId: string) => {
 };
 
 // 거부 문구는 product-copy.md §12가 단일 출처이고, 코드 쪽 출처는 scope-copy.ts다 —
-// REST 세 경로(rest-scope.ts)가 같은 판정에 같은 문장을 쓴다. 여기서 다시 내보내는 것은
+// REST 세 경로(rest/scope.ts)가 같은 판정에 같은 문장을 쓴다. 여기서 다시 내보내는 것은
 // 이 모듈에서 가져다 쓰던 호출자를 그대로 두기 위해서다.
 export { NOT_YOURS, PROJECT_REQUIRED };
 

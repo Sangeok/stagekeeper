@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { refStep } from "@harness/core/pipeline.mjs";
-import { savePipelineDefinition } from "../../../src/server/pipeline/definition-save-query";
-import { ensureRun } from "../../../src/server/pipeline/run-query";
+import { savePipelineDefinition } from "../../../src/server/pipeline/api";
+import { ensureRun } from "../../../src/server/pipeline/run-service";
 import { cleanup, connections, fixture, pipelineState } from "./support";
 
 it("a used pipeline's save writes new runnable versions for its users and refuses a breaking change", async () => {

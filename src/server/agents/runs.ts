@@ -1,20 +1,20 @@
 // NextDeps의 Prisma 구현. 규칙은 next.ts, 저장은 여기. 항목이 쉬거나 폐기될 때 run을 닫는 쪽은
-// board-query.ts(closeRuns)다 — 보드 트랜잭션 안에서 일어나야 하므로.
-import "server-only";
+// board-service.ts(closeRuns)다 — 보드 트랜잭션 안에서 일어나야 하므로.
 import type { PrismaClient } from "@/generated/prisma/client";
-import { readProjectAccess } from "../project-access-query";
-import { latestBoard } from "@/server/pipeline/board";
+import { readProjectAccess } from "@/server/projects/api";
+import { createBoardService } from "@/server/pipeline/api";
 import type { NextDeps } from "./next";
-import { repositoryOwner } from "../project-access-query";
-import { loadProjectRoster } from "../project";
+import { repositoryOwner } from "@/server/projects/api";
+import { loadProjectRoster } from "@/server/projects/api";
 import { serverVars } from "./vars";
-import { cursorTransaction, commitRunOutcome } from "./run-query";
-import { readProjectUsageCapIn } from "../account-usage-query";
-import { resolveCodexBundle } from "../runbook";
+import { cursorTransaction, commitRunOutcome } from "./run-service";
+import { readProjectUsageCapIn } from "@/server/usage/api";
+import { resolveCodexBundle } from "@/server/templates/api";
 
 const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기본 "ko")에 템플릿이 없으면 여기로
 
 export function createNextDeps(db: PrismaClient): NextDeps {
+  const board = createBoardService(db);
   const deps: NextDeps = {
     access: (projectId) => readProjectAccess(db, projectId),
     roster: (projectId) => loadProjectRoster(db, projectId),
@@ -55,7 +55,7 @@ export function createNextDeps(db: PrismaClient): NextDeps {
       });
       return row?.agent ?? null;
     },
-    openCount: async (projectId) => (await latestBoard(projectId, true, db)).length,
+    openCount: async (projectId) => (await board.latestBoard(projectId, true)).length,
     verifyOk: async (projectId, agent, key) =>
       (await db.agentRunStep.findFirst({ where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", run: { projectId, agent, key } }, select: { id: true } })) !== null,
     // 원장을 쓰기 전에 project/agent/key를 모두 확인한다. 존재 여부를 다른 스코프에 노출하지 않는다.

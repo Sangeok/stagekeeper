@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { AGENT_TOOL_NAMES, PROJECT_REQUIRED, registerTools as registerProductionTools } from "./tools.ts";
-import { NOT_SELECTED_REASON } from "../project-access-query.ts";
-import { REVISION_MAX } from "../agents/next.ts";
+import { AGENT_TOOL_NAMES, PROJECT_REQUIRED } from "./tools";
+import { registerTools as registerProductionTools } from "./tools";
+import { NOT_SELECTED_REASON } from "../projects/access-query";
+import { REVISION_MAX } from "../agents/next";
 
 // product-copy.md §13의 행 하나. 백틱과 굵은글은 마크다운 서식이라 떼고 비교한다.
 const COPY = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");

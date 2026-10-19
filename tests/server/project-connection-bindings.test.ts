@@ -4,12 +4,13 @@ import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
 import { it } from "node:test";
 import ts from "typescript";
-import { AGENT_TOOL_NAMES, registerTools, type ToolDeps } from "../../src/server/mcp/tools";
-import { OWNER_TOOL_NAMES, registerOwnerTools, type OwnerToolDeps } from "../../src/server/mcp/owner-tools";
+import { AGENT_TOOL_NAMES, type ToolDeps } from "../../src/server/mcp/tools";
+import { registerTools } from "../../src/server/mcp/api";
+import { OWNER_TOOL_NAMES, type OwnerToolDeps } from "../../src/server/mcp/owner-tools";
+import { registerOwnerTools } from "../../src/server/mcp/api";
 import type { McpServer } from "@modelcontextprotocol/server";
-import { DISCONNECTED_REASON } from "../../src/server/project-access-query";
-import * as accessQuery from "../../src/server/project-access-query";
-import * as availability from "../../src/server/project-availability-service";
+import { DISCONNECTED_REASON } from "../../src/server/projects/access-query";
+import { registerRepositoryProject, REPO_SEGMENT } from "../../src/server/projects/api";
 import { Prisma } from "../../src/generated/prisma/client";
 
 const adapterPath = "src/fsd/features/manage-project-connection/api/manage-project-connection.server.ts";
@@ -77,7 +78,7 @@ it("all 14 agent tools and the owner tool stop before any domain dependency when
 });
 
 it("retries one real Prisma slug violation in legacy/driver metadata and propagates exhaustion or unrelated constraints", async () => {
-  const source = read("src/server/project-registration.ts");
+  const source = read("src/server/rest/project-registration.ts");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   const require = createRequire(import.meta.url);
   const collision = (meta: Record<string, unknown>) => new Prisma.PrismaClientKnownRequestError("unique constraint", { code: "P2002", clientVersion: "7.10.0", meta });
@@ -90,12 +91,11 @@ it("retries one real Prisma slug violation in legacy/driver metadata and propaga
     let calls = 0;
     const exported: { registerProject?: (header: string, body: unknown) => Promise<unknown> } = {};
     const deps: Record<string, unknown> = {
-      "server-only": {}, "./token-usage": { recordTokenUsage: async () => {} }, "../token-usage": { recordTokenUsage: async () => {} }, "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": accessQuery,
-      "@/server/project-availability-service": availability,
+      "server-only": {}, "@/server/tokens/api.server": { recordTokenUsage: async () => {} },
+      "@/server/projects/api": { registerRepositoryProject, REPO_SEGMENT },
       "@/server/db": { prisma: { $transaction: async () => { if (++calls <= failures) throw collision(meta); return { status: "created", projectId: "p", slug: "stored" }; },
         project: { findUnique: async () => ({ repoOwner: "owner", repo: "repo", branch: "main", name: "stored", slug: "stored", disconnectedAt: null }) } } },
-      "./project-registration-query": {}, "./project-slug-rule": { REPO_SEGMENT: /^[a-z]+$/ },
-      "./request-rate": { limitAccountRequest: async () => null }, "./rest-scope": { resolveUserScope: async () => ({ ok: true, userId: "trusted" }) }, "./user-scope-query": {},
+      "@/server/usage/api.server": { limitAccountRequest: async () => null }, "./scope": { resolveUserScope: async () => ({ ok: true, userId: "trusted" }) },
     };
     runInNewContext(code, { exports: exported, JSON, require: (name: string) => name in deps ? deps[name] : require(name) });
     assert.ok(exported.registerProject);

@@ -28,7 +28,7 @@ For frontend code, follow `docs/architecture/fsd.md`:
   state. Until the existing root `app/` is migrated as one operation, do not create a
   parallel `src/app/`.
 
-Run `npm run verify:fsd`, `npm run test:architecture`, and the relevant lint, type,
+Run `npm run verify:fsd`, `npm run verify:server`, `npm run test:architecture`, and the relevant lint, type,
 test, and build commands before completing a code change. Do not suppress an
 architecture error without documenting and approving the exception in
 `docs/architecture/verification.md`.

@@ -8,9 +8,8 @@ import ts from "typescript";
 import type { ReactElement } from "react";
 import { hashToken } from "@harness/core/token.mjs";
 import * as result from "../../src/fsd/shared/api/result";
-import * as registration from "../../src/server/project-registration-query";
-import * as availability from "../../src/server/project-availability-service";
-import * as management from "../../src/server/token-management-query";
+import { registerWebProject } from "../../src/server/projects/registration-service";
+import * as management from "../../src/server/tokens/rename-token";
 import { Prisma } from "../../src/generated/prisma/client";
 
 const plainObject = (value: unknown) => JSON.parse(JSON.stringify(value));
@@ -39,7 +38,7 @@ it("actual user issuance and revocation preserve session scope, name defaults an
     "@/server/auth/guard": { requireUser: async () => { guards++; return { userId: "u" }; } },
     "@/server/db": { prisma: { userToken: { create: async ({ data }: { data: Record<string, unknown> }) => rows.push(data), updateMany: async (args: unknown) => revoked.push(plainObject(args)) } } },
     "@/fsd/shared/api/result": result, "@/fsd/shared/routes/user-tokens": { userTokensPath: () => "/settings/tokens" },
-    "@/server/token-management-query": management,
+    "@/server/tokens/api": management,
   });
   const action = load<typeof import("../../src/fsd/features/manage-user-token/api/manage-user-token.server")>("src/fsd/features/manage-user-token/api/manage-user-token.server.ts");
   for (const label of [" laptop ", "laptop", "  "]) {
@@ -66,11 +65,10 @@ it("actual web project action passes a tracked nested token only for a newly cre
         create: async (args: Prisma.ProjectCreateArgs) => { creates.push(args); return { id: "p" }; },
       },
     } as unknown as Prisma.TransactionClient;
-    const prisma = { $transaction: async (run: (tx: Prisma.TransactionClient) => Promise<unknown>) => run(transaction) };
+    const prisma = { $transaction: async (run: (tx: Prisma.TransactionClient) => Promise<unknown>) => run(transaction) } as unknown as Parameters<typeof registerWebProject>[0];
     const load = loader({
-      "@/server/auth/guard": { requireUser: async () => ({ userId: "u" }) }, "@/server/db": { prisma },
-      "@/generated/prisma/client": { Prisma }, "@/server/project-registration-query": registration,
-      "@/server/project-availability-service": availability,
+      "@/server/auth/guard": { requireUser: async () => ({ userId: "u" }) },
+      "@/server/projects/api.server": { registerWebProject: (input: Parameters<typeof registerWebProject>[1]) => registerWebProject(prisma, input) },
     });
     const action = load<typeof import("../../src/fsd/features/create-project/api/create-project.server")>("src/fsd/features/create-project/api/create-project.server.ts");
     const form = new FormData(); for (const [key, value] of Object.entries({ slug: "mine", owner: "owner", repo: "repo" })) form.set(key, value);
@@ -93,7 +91,7 @@ it("actual web list routes enforce original scopes and pass usage fields without
   const load = loader({
     "@/server/db": { prisma: { projectToken: delegate("agent"), ownerToken: delegate("owner"), userToken: delegate("user") } },
     "@/server/auth/guard": { requireProjectOwner: async (slug: string) => { guards.push(slug); return { projectId: "p", userId: "u" }; }, requireUser: async () => { guards.push("user"); return { userId: "u" }; } },
-    "@/server/entitlement": { projectAccess: async () => ({ available: true, plan: "pro" }) },
+    "@/server/projects/api.server": { projectAccess: async () => ({ available: true, plan: "pro" }) },
     "@/server/public-url": { mcpUrl: () => "http://example.test/api/mcp", ownerMcpUrl: () => "http://example.test/api/mcp/owner" },
     "@/fsd/pages/project-tokens/index.server": { ProjectTokensPage: PageComponent }, "@/fsd/pages/user-tokens/index.server": { UserTokensPage: PageComponent },
     "@/fsd/features/manage-token/index.server": { issueToken: noop, issueOwnerToken: noop, revokeToken: noop, revokeOwnerToken: noop, renameToken: noop, renameOwnerToken: noop },
@@ -111,5 +109,27 @@ it("actual web list routes enforce original scopes and pass usage fields without
   assert.deepEqual(guards, ["mine", "user"]);
   for (const [index, kind, where] of [[0, "agent", { projectId: "p" }], [1, "owner", { projectId: "p", userId: "u" }], [2, "user", { userId: "u" }]] as const) {
     assert.deepEqual(queries[index], { kind, args: { where, select: { id: true, label: true, createdAt: true, revokedAt: true, expiresAt: true, lastUsedAt: true, usageTrackingStartedAt: true }, orderBy: { createdAt: "desc" } } });
+  }
+});
+
+it("web action generates one token before registration and preserves single-attempt collision/error behavior", async () => {
+  for (const error of [new Prisma.PrismaClientKnownRequestError("collision", { code: "P2002", clientVersion: "7.10.0", meta: { target: ["slug"] } }), new Error("storage failed")]) {
+    let generated = 0, attempts = 0;
+    const prisma = { $transaction: async () => { attempts++; throw error; } } as unknown as Parameters<typeof registerWebProject>[0];
+    const load = loader({
+      "@/server/auth/guard": { requireUser: async () => ({ userId: "u" }) },
+      "@harness/core/token.mjs": { newToken: () => { generated++; return { plain: "one-time-secret", hash: "hash" }; } },
+      "@/server/projects/api.server": { registerWebProject: (input: Parameters<typeof registerWebProject>[1]) => {
+        assert.equal(generated, 1); assert.equal(input.initialTokenHash, "hash");
+        assert.equal(JSON.stringify(input).includes("one-time-secret"), false);
+        return registerWebProject(prisma, input);
+      } },
+    });
+    const action = load<typeof import("../../src/fsd/features/create-project/api/create-project.server")>("src/fsd/features/create-project/api/create-project.server.ts");
+    const form = new FormData(); for (const [key, value] of Object.entries({ slug: "mine", owner: "owner", repo: "repo" })) form.set(key, value);
+    const pending = action.createProject({ status: "idle" }, form);
+    if (error instanceof Prisma.PrismaClientKnownRequestError) assert.deepEqual(JSON.parse(JSON.stringify(await pending)), { status: "error", error: "'mine' is already taken." });
+    else await assert.rejects(pending, e => e === error);
+    assert.equal(attempts, 1); assert.equal(generated, 1);
   }
 });

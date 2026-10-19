@@ -3,10 +3,11 @@ import { REPORT_AGENTS, allowsAgent } from "@harness/core/entitlement.mjs";
 import { renderTemplate } from "@harness/core/render.mjs";
 import { parseClient, runtimeEcho, type Client } from "@harness/core/client-runtime.mjs";
 import { STATUSES, canPropose } from "@harness/core/transitions.mjs";
-import type { ProjectAccess } from "@/server/entitlement";
+import type { ProjectAccess } from "@/server/projects/contracts";
 import type { ServerResult, UsageLimitFailure } from "@/server/result";
-import type { PipelineEntry } from "../pipeline/run-query";
-import { DONE, TemplateFormatError, findStep, splitTemplate, type ParsedTemplate, type Step } from "./steps";
+import type { PipelineEntry } from "@/server/pipeline/contracts";
+import { DONE, TemplateFormatError, findStep, splitTemplate } from "@/server/templates/api";
+import { type ParsedTemplate, type Step } from "@/server/templates/contracts";
 
 // handoff: 커밋 권한이 없어 멈췄다 — 전진·분기 없이 원장에 남고 자리에 머문다. 배너가 이 행을 읽는다.
 export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;

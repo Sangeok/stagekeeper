@@ -52,10 +52,10 @@ WSL 시험 결과는 개발 증거로 보존하며 Windows 지원·최소 설치
 사람 전용 게이트는 프롬프트 관례가 아니라 서버의 도구 집합과 전이 규칙으로
 강제한다. FSD 폴더 구조는 이 보안 경계를 대체하지 않는다.
 
-개인 프로젝트는 한 사용자에게 직접 귀속된다. `project-access-query`가 직접 소유권과 저장된
+개인 프로젝트는 한 사용자에게 직접 귀속된다. `projects/access-query`가 직접 소유권과 저장된
 사용 가능 상태를 읽고 entitlement facade를 통해 웹/MCP/템플릿/런북에 같은 판정을 제공한다.
-`project-availability-service`는 등록·플랜·사용 목록의 원자적 변경과 원장을 소유한다.
-`project-connection-service`는 데이터 보존형 연결 해제·웹 재연결을, `project-token-service`는 잠금 안의
+`projects/availability-service`는 등록·플랜·사용 목록의 원자적 변경과 원장을 소유한다.
+`projects/connection-service`는 데이터 보존형 연결 해제·웹 재연결을, `tokens/project-token-service`는 잠금 안의
 새 credential 발급을 소유한다. 세 writer는 등록·플랜·사용 선택과 같은 User 행 잠금을 공유한다.
 연결된 미선택 프로젝트는 웹 읽기·사용 선택·토큰 폐기·연결 해제와 agent MCP project_get을 허용한다.
 해제된 프로젝트는 등록 상한을 점유하지 않고 소유자에게 읽기 전용으로 남는다. hs_/ho_는 폐기하고
@@ -130,4 +130,4 @@ workspace가 아니라 같은 저장소의 배포 재료다. 서버 endpoint가 
 
 ## 슬롯 실행 저장 경계
 
-`pipeline/run-query.ts`, `pipeline/board-query.ts`, `agents/run-query.ts`는 주입된 Prisma client를 사용한다. 운영 singleton 연결은 기존 run.ts·board.ts·runs.ts 어댑터가 맡는다. slots-v1은 entry별 실행과 보고서를 결합하며, owner 행 잠금 아래 개설 상한을 지킨다. 기존 null 형식은 별도 호환 경로로 읽는다. 사용자 정의 역할과 Workspace 스키마 확장은 포함하지 않는다.
+`pipeline/run-service.ts`, `pipeline/board-service.ts`, `agents/run-service.ts`는 주입된 Prisma client를 사용한다. `pipeline/api.ts`와 `agents/api.ts`는 주입형 진입점이며 `agents/runs.ts`도 주입된 보드 factory를 쓴다. 운영 singleton 연결은 `pipeline/board.ts`와 각 모듈의 `api.server.ts`가 맡는다. slots-v1은 entry별 실행과 보고서를 결합하며, owner 행 잠금 아래 개설 상한을 지킨다. 기존 null 형식은 별도 호환 경로로 읽는다. 사용자 정의 역할과 Workspace 스키마 확장은 포함하지 않는다.

@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   const url = validateTestDatabase(process.env); const previous = process.env.DATABASE_URL;
   process.env.DATABASE_URL = url;
   const { connections, fixture, cleanup } = await import("../tests/server/integration/support");
-  const { ensureRun } = await import("../src/server/pipeline/run");
+  const { ensureRun } = await import("../src/server/pipeline/run-service");
   const pool = connections(1); const db = pool.all[0];
   let owner: Awaited<ReturnType<typeof fixture>> | undefined; let next: ChildProcess | undefined;
   let faultChunk: { path: string; original: string } | undefined;

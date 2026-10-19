@@ -1,8 +1,8 @@
 // /harness:init이 방금 심은 런북 판을 보고하는 곳.
-// route는 배선만 한다. 인증·검증은 @/server/runbook에 있다
+// route는 배선만 한다. 인증·검증은 @/server/rest/runbook에 있다
 // (system-overview.md: "Route Handler와 page는 직접 정책을 재구현하지 않고 src/server를 호출한다").
-import { recordRunbook } from "@/server/runbook";
-import { restFailureResponse } from "@/server/result";
+import { recordRunbook } from "@/server/rest/api.server";
+import { restFailureResponse } from "@/server/rest/api";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);

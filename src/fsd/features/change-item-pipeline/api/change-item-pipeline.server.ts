@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { failure, success, type ActionResult } from "@/fsd/shared/api/result";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
-import { changePipeline } from "@/server/pipeline/board";
+import { changePipeline } from "@/server/pipeline/api.server";
 import { changePipelineInputSchema } from "../model/change-input";
 
 export async function changeItemPipeline(slug: string, input: { key: string; pipelineId: string; expectedUpdatedAt: string }): Promise<ActionResult<null>> {

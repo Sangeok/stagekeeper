@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { createBoardQueries, PIPELINE_CHANGE_UNAVAILABLE } from "../../../src/server/pipeline/board-query";
-import { savePipelineDefinition } from "../../../src/server/pipeline/definition-save-query";
-import { ensureRun, loadItemPipelineView, loadPipelineChanges } from "../../../src/server/pipeline/run-query";
-import { createNextDeps } from "../../../src/server/agents/runs";
+import { createBoardService as createBoardQueries } from "../../../src/server/pipeline/api";
+import { PIPELINE_CHANGE_UNAVAILABLE } from "../../../src/server/pipeline/board-service";
+import { savePipelineDefinition } from "../../../src/server/pipeline/api";
+import { ensureRun } from "../../../src/server/pipeline/run-service";
+import { loadItemPipelineView, loadPipelineChanges } from "../../../src/server/pipeline/api";
+import { createNextDeps } from "../../../src/server/agents/api";
 import type { NextDeps } from "../../../src/server/agents/next";
 import { afterProjectRead, checkpoint, cleanup, connections, failingEvent, fixture, pipelineState } from "./support";
 

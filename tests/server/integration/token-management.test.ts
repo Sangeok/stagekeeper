@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
-import { renameProjectToken, renameUserToken } from "../../../src/server/token-management-query";
-import { issueProjectToken, issueProjectOwnerToken } from "../../../src/server/project-token-service";
-import { makeRecordTokenUsage } from "../../../src/server/token-usage-query";
-import { disconnectProject } from "../../../src/server/project-connection-service";
+import { renameProjectToken, renameUserToken } from "../../../src/server/tokens/api";
+import { issueProjectToken, issueProjectOwnerToken } from "../../../src/server/tokens/project-token-service";
+import { makeRecordTokenUsage } from "../../../src/server/tokens/usage-recorder";
+import { disconnectProject } from "../../../src/server/projects/connection-service";
 import { cleanup, connections, fixture, checkpoint } from "./support";
 
 it("rename changes only labels, preserves ended credentials and cannot cross a user or project scope", async () => {

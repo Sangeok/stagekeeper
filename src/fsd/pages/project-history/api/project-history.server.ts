@@ -1,15 +1,15 @@
 import "server-only";
 import { prisma } from "@/server/db";
-import { loadPipelineChanges } from "@/server/pipeline/run";
-import type { HistoryEventRecord } from "@/server/pipeline/history-page";
+import { loadPipelineChanges } from "@/server/pipeline/api";
+import type { HistoryEventRecord } from "@/server/pipeline/contracts";
 import { historyCutoff } from "@harness/core/entitlement.mjs";
 import { readHistoryQuery } from "../model/history-navigation";
 import type { ProjectHistoryProps } from "../model/history-view";
-import { planForProject } from "@/server/entitlement";
-import { currentRoundIds, hasProjectHistoryBefore, projectHistory, projectHistoryItems } from "@/server/pipeline/board";
-import { formatHistoryCursor, parseHistoryCursor } from "@/server/pipeline/history-page";
-import { formatHistoryItemCursor, parseHistoryItemCursor } from "@/server/pipeline/history-items";
-import { loadProjectRepository } from "@/server/project";
+import { planForProject } from "@/server/projects/api.server";
+import { currentRoundIds, hasProjectHistoryBefore, projectHistory, projectHistoryItems } from "@/server/pipeline/api.server";
+import { formatHistoryCursor, parseHistoryCursor } from "@/server/pipeline/api";
+import { formatHistoryItemCursor, parseHistoryItemCursor } from "@/server/pipeline/api";
+import { loadProjectRepository } from "@/server/projects/api.server";
 
 export async function loadProjectHistory({ slug, projectId, searchParams, now }: { slug: string; projectId: string; searchParams: Record<string, string | string[] | undefined>; now: Date }): Promise<ProjectHistoryProps> {
   const cutoff = historyCutoff(await planForProject(projectId), now);

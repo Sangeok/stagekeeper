@@ -1,6 +1,6 @@
 import type { BoardItem } from "@/generated/prisma/client";
-import type { Caller } from "@/server/pipeline/board-query";
-import type { PipelineNext } from "@/server/pipeline/run-rules";
+import type { Caller } from "@/server/pipeline/contracts";
+import type { PipelineNext } from "@/server/pipeline/contracts";
 import type { ServerResult } from "@/server/result";
 import type { OwnerToolDeps } from "./owner-tools";
 

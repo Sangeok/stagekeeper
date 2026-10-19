@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { PUBLIC_EXACT, PUBLIC_PREFIXES } from "./config.base.ts";
+import { PUBLIC_EXACT, PUBLIC_PREFIXES } from "./config.base";
 
 const APP_DIR = "src/app";
 

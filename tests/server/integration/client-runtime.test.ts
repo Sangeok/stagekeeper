@@ -5,7 +5,7 @@ import { z } from "zod";
 import { COMMON_DOCS, RUNTIME_MARKER } from "@harness/core/client-runtime.mjs";
 import { codexRunbookVersion } from "@harness/core/runbook.mjs";
 import { createToolDeps } from "../../../src/server/mcp/deps";
-import { createBoardService } from "../../../src/server/pipeline/board";
+import { createBoardService } from "../../../src/server/pipeline/api";
 import { seedTemplates, snapshotTemplates, restoreTemplates } from "../../../scripts/lib/template-seed-query";
 import { seedPipelineVersion, cleanup, connections, fixture } from "./support";
 

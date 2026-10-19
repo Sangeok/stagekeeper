@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { projectsPath } from "@/fsd/shared/routes/projects";
 import { requireUser } from "@/server/auth/guard";
-import { loadProjectAvailability, selectProjectForUse } from "@/server/project-availability";
+import { loadProjectAvailability, selectProjectForUse } from "@/server/projects/api.server";
 import type { ProjectSelectionModel, SelectProjectState } from "../model/select-project-state";
 
 import { inputSchema, type SelectProjectInput } from "../model/select-project-input";

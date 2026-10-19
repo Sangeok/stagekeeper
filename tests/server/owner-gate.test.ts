@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { BoardItem } from "../../src/generated/prisma/client";
 import { APPROVED_ADVICE_FAILURE, createOwnerGate } from "../../src/server/mcp/owner-gate";
-import type { PipelineNext } from "../../src/server/pipeline/run-rules";
+import type { PipelineNext } from "../../src/server/pipeline/contracts";
 
 const item: BoardItem = { id: "item", projectId: "p", backlogItemId: "b", agent: "dev", status: "done", reason: "evidence", results: ["result"],
   validation: null, acceptedAt: null, planPath: "docs/plan.md", planCommit: "abcdef1", proposedOn: new Date(0), updatedAt: new Date(1), discardedAt: null };

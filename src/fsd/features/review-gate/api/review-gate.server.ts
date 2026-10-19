@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { itemPath, projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
-import * as board from "@/server/pipeline/board";
+import * as board from "@/server/pipeline/api.server";
 import { retryAcceptanceInputSchema, transitionInputSchema, approveGateInputSchema, discardInputSchema,
   type RetryAcceptanceInput, type TransitionInput, type ApproveGateInput, type DiscardInput } from "../model/review-gate-input";
 

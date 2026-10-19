@@ -1,10 +1,10 @@
 // /harness:init이 템플릿을 받아가는 곳.
-// route는 배선만 한다. 인증·조회는 @/server/templates에 있다
+// route는 배선만 한다. 인증·조회는 @/server/rest/templates에 있다
 // (system-overview.md: "Route Handler와 page는 직접 정책을 재구현하지 않고 src/server를 호출한다").
 // Route Handler는 기본적으로 캐시되지 않는다 — 토큰마다 응답이 갈리므로 그대로 둔다.
 // 응답: { templates: { <path>: <body> }, entitlement: { plan, agents } } — 생성기는 templates 키가 없으면 중단한다.
-import { templatesFor } from "@/server/templates";
-import { restFailureResponse } from "@/server/result";
+import { templatesFor } from "@/server/rest/api.server";
+import { restFailureResponse } from "@/server/rest/api";
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;

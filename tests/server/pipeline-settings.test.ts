@@ -15,8 +15,8 @@ it("all five settings actions enforce authority and plan before shape, use trust
   const actions = loadModule<typeof import("../../src/fsd/features/edit-pipeline/api/pipeline-settings.server")>("src/fsd/features/edit-pipeline/api/pipeline-settings.server.ts", {
     "next/cache": { revalidatePath: (...args: unknown[]) => refreshed.push(args) },
     "@/server/auth/guard": { requireProjectWrite: async () => access ? { ok: true, projectId: "trusted", userId: "owner" } : { ok: false, reason: "Unavailable" } },
-    "@/server/db": { prisma: {} }, "@/server/entitlement": { planForProject: async () => plan },
-    "@/server/pipeline/pipeline-settings-query": { archivePipeline: work, renamePipeline: work, setDefaultPipeline: work, setPipelineRule: work, setAutomaticPick: work },
+    "@/server/db": { prisma: {} }, "@/server/projects/api.server": { planForProject: async () => plan },
+    "@/server/pipeline/api": { archivePipeline: work, renamePipeline: work, setDefaultPipeline: work, setPipelineRule: work, setAutomaticPick: work },
   });
   const invoke = [() => actions.archivePipelineAction("mine", "p"), () => actions.renamePipelineAction("mine", "p", "Name"),
     () => actions.setDefaultPipelineAction("mine", "p"), () => actions.setPipelineRuleAction("mine", "fix", "p"), () => actions.setAutomaticPickAction("mine", false)];

@@ -1,5 +1,5 @@
 import "server-only";
-import { loadProjectAvailability } from "@/server/project-availability";
+import { loadProjectAvailability } from "@/server/projects/api.server";
 import type { ProjectListModel } from "../ui/project-list-page";
 
 export async function loadProjectListPage(userId: string): Promise<ProjectListModel> {

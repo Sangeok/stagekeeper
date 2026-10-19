@@ -24,7 +24,7 @@ it("GET derives failures only for the latest unaccepted done at an open accept c
       acceptanceFailure: { findMany: async (args: unknown) => { failureQuery = args; return [{ boardItemId: "old" }, ...(currentFailure ? [{ boardItemId: "new" }] : [])]; } },
     };
     const deps: Record<string, unknown> = {
-      "server-only": {}, "@/server/db": { prisma: db }, "@/server/pipeline/board": { latestBoard: async () => rows },
+      "server-only": {}, "@/server/db": { prisma: db }, "@/server/pipeline/api.server": { latestBoard: async () => rows },
       "../model/turn": { deriveTurn: (value: TurnItem[]) => { items = value; return { kind: "none", detail: "fixture" }; } },
     };
     const exports = {} as { loadTurn: typeof loadTurn };

@@ -12,7 +12,7 @@ it("falls back to the local URL and reports a missing HARNESS_PUBLIC_URL once, o
   process.env.NODE_ENV = "production";
   const errors = t.mock.method(console, "error", () => {});
 
-  const { mcpUrl, ownerMcpUrl, siteUrl } = await import("./public-url.ts");
+  const { mcpUrl, ownerMcpUrl, siteUrl } = await import("./public-url");
   assert.equal(errors.mock.callCount(), 0, "no log at module load");
   // metadataBase는 빌드에서도 읽히므로 조용히 같은 fallback을 쓰고, 토큰 화면의 한 번뿐인 경보를 써 버리지 않는다.
   assert.equal(siteUrl().href, "http://localhost:3000/");

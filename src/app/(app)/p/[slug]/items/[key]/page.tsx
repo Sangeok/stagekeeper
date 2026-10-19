@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import { historyCutoff } from "@harness/core/entitlement.mjs";
 import { prisma } from "@/server/db";
-import { loadPipelinesView, loadItemPipelineView, loadPipelineChanges } from "@/server/pipeline/run";
+import { loadPipelinesView, loadItemPipelineView, loadPipelineChanges } from "@/server/pipeline/api";
 import { changeItemPipeline } from "@/fsd/features/change-item-pipeline/index.server";
 import { humanTransition, retryAcceptance } from "@/fsd/features/review-gate/index.server";
 import { BoardItemPage, toItemDocs } from "@/fsd/pages/board-item";
 import { requireProjectOwner } from "@/server/auth/guard";
-import { planForProject, projectAccess } from "@/server/entitlement";
-import { getWithHistory, hasHistoryBefore } from "@/server/pipeline/board";
-import { loadProjectRepository } from "@/server/project";
+import { planForProject, projectAccess } from "@/server/projects/api.server";
+import { getWithHistory, hasHistoryBefore } from "@/server/pipeline/api.server";
+import { loadProjectRepository } from "@/server/projects/api.server";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]">) {
   const { slug, key } = await params;

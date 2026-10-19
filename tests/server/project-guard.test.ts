@@ -92,22 +92,22 @@ function guardFixture(options: GuardOptions = {}) {
     planForProject: async () => "pro",
   };
   const guards = loadModule<typeof import("@/server/auth/guard")>(guardPath, {
-    "next/navigation": { notFound, redirect }, "@/server/db": { prisma }, "@/server/entitlement": entitlement,
+    "next/navigation": { notFound, redirect }, "@/server/db": { prisma }, "@/server/projects/api.server": entitlement,
     "./index": { auth: async () => { step("auth"); return options.session === "guest" ? null : { user: { id: "viewer" } }; } },
   });
   const dependencies: Record<string, unknown> = {
     "@/server/auth/guard": guards,
     "next/cache": { revalidatePath: (...args: unknown[]) => revalidated.push(args) },
-    "@/server/db": { prisma }, "@/server/entitlement": entitlement,
+    "@/server/db": { prisma }, "@/server/projects/api.server": entitlement,
     "@/fsd/shared/api/result": results, "@/fsd/shared/routes/project": routes,
-    "@/server/project-token": {
+    "@/server/tokens/api.server": {
       issueProjectToken: mutation("issueToken", { ok: true, item: { token: "fixture-token" } }),
       issueProjectOwnerToken: mutation("issueOwnerToken", { ok: true, item: { token: "fixture-token" } }),
     },
-    "@/server/token-management-query": { renameProjectToken: mutation("rename") },
-    "@/server/pipeline/board": Object.fromEntries(["addBacklog", "updateBacklog", "removeBacklog", "retryAcceptance", "transition", "gate", "discard", "propose"].map(name => [name, mutation(name)])),
-    "@/server/pipeline/definition-save-query": { savePipelineDefinition: mutation("savePipeline", { status: "success", pipelineId: "default", version: 1 }) },
-    "@/server/automatic-scout": { setAutomaticScout: mutation("saveAutomaticScout", { ok: true, item: true }) },
+    "@/server/tokens/api": { renameProjectToken: mutation("rename") },
+    "@/server/pipeline/api.server": Object.fromEntries(["addBacklog", "updateBacklog", "removeBacklog", "retryAcceptance", "transition", "gate", "discard", "propose"].map(name => [name, mutation(name)])),
+    "@/server/pipeline/api": { ...({ savePipelineDefinition: mutation("savePipeline", { status: "success", pipelineId: "default", version: 1 }) }), ...({ setAutomaticScout: mutation("saveAutomaticScout", { ok: true, item: true }) }) },
+
   };
   return { guards, dependencies, events, queries, mutations, revalidated, exception, reason };
 }

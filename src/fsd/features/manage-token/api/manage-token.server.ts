@@ -4,8 +4,8 @@ import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { issueProjectToken, issueProjectOwnerToken } from "@/server/project-token";
-import { renameProjectToken } from "@/server/token-management-query";
+import { issueProjectToken, issueProjectOwnerToken } from "@/server/tokens/api.server";
+import { renameProjectToken } from "@/server/tokens/api";
 
 // 평문은 이 반환값에만 존재한다. 서비스는 sha256 해시만 저장한다.
 // 실패는 review-gate와 같은 ActionResult로 돌려준다 — 같은 layer에서 실패 규약이 두 벌이 되지 않게.

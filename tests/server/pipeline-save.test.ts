@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../src/generated/prisma/client";
-import { savePipelineDefinition } from "../../src/server/pipeline/definition-save-query";
+import { savePipelineDefinition } from "../../src/server/pipeline/api";
 import * as state from "../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
 import { loadModule } from "./fixtures/load-module";
 import { assertActions, manifestEntries } from "./fixtures/action-manifest";
@@ -33,8 +33,8 @@ it("actual action preserves authority, accepts fragments and revalidates success
   const action = loadModule<typeof import("../../src/fsd/features/edit-pipeline/api/edit-pipeline.server")>("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", {
     "next/cache": { revalidatePath: (...args: unknown[]) => { refreshes.push(args); } },
     "@/server/auth/guard": { requireProjectWrite: async () => writable ? { ok: true, projectId: "trusted", userId: "owner" } : { ok: false, reason: "Read only" } },
-    "@/server/entitlement": { planForProject: async () => plan }, "@/server/db": { prisma: {} },
-    "@/server/pipeline/definition-save-query": { savePipelineDefinition: async (_db: unknown, input: { projectId: string; userId: string; definition: unknown }) => {
+    "@/server/projects/api.server": { planForProject: async () => plan }, "@/server/db": { prisma: {} },
+    "@/server/pipeline/api": { savePipelineDefinition: async (_db: unknown, input: { projectId: string; userId: string; definition: unknown }) => {
       assert.equal(input.projectId, "trusted"); assert.equal(input.userId, "owner");
       assert.deepEqual(input.definition, { steps: ["qa"], gates: [] }); saves++; return response;
     } },

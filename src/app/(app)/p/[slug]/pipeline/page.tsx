@@ -3,9 +3,9 @@ import { saveAutomaticScout, savePipeline, archivePipelineAction, renamePipeline
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { projectAccess } from "@/server/entitlement";
-import { loadProjectRoster } from "@/server/project";
-import { loadPipelinesView } from "@/server/pipeline/run";
+import { projectAccess } from "@/server/projects/api.server";
+import { loadProjectRoster } from "@/server/projects/api";
+import { loadPipelinesView } from "@/server/pipeline/api";
 
 export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) {
   const { slug } = await params;

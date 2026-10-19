@@ -6,8 +6,8 @@ import { failure, success, type ActionResult } from "@/fsd/shared/api/result";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { planForProject } from "@/server/entitlement";
-import { archivePipeline, renamePipeline, setDefaultPipeline, setPipelineRule, setAutomaticPick } from "@/server/pipeline/pipeline-settings-query";
+import { planForProject } from "@/server/projects/api.server";
+import { archivePipeline, renamePipeline, setDefaultPipeline, setPipelineRule, setAutomaticPick } from "@/server/pipeline/api";
 import type { ServerResult } from "@/server/result";
 
 async function change(slug: string, valid: boolean, work: (identity: { projectId: string; userId: string }) => Promise<ServerResult<null>>): Promise<ActionResult<null>> {

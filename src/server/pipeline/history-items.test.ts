@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { formatHistoryItemCursor, historyItemsQuery, parseHistoryItemCursor } from "./history-items";
+import { formatHistoryItemCursor, parseHistoryItemCursor } from "./history-items";
+import { historyItemsQuery } from "./history-items";
 
 it("round-trips item cursors and rejects event cursors, invalid dates and malformed identities", () => {
   const cursor = { at: new Date("2026-09-30T00:00:00.123Z"), id: "item-one_2" };

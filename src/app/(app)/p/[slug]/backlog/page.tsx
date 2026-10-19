@@ -3,12 +3,12 @@ import { proposeItem } from "@/fsd/features/propose-item/index.server";
 import { ProjectBacklogPage } from "@/fsd/pages/project-backlog";
 import { readBacklogQuery } from "@/fsd/shared/routes/project";
 import { requireProjectOwner } from "@/server/auth/guard";
-import { projectAccess } from "@/server/entitlement";
+import { projectAccess } from "@/server/projects/api.server";
 import { prisma } from "@/server/db";
-import { loadProjectRoster } from "@/server/project";
+import { loadProjectRoster } from "@/server/projects/api";
 import { routePipeline } from "@harness/core/pipeline.mjs";
-import { loadPipelinesView } from "@/server/pipeline/run";
-import { backlogWithStatus } from "@/server/pipeline/board";
+import { loadPipelinesView } from "@/server/pipeline/api";
+import { backlogWithStatus } from "@/server/pipeline/api.server";
 
 export default async function Page({ params, searchParams }: PageProps<"/p/[slug]/backlog">) {
   const { slug } = await params;

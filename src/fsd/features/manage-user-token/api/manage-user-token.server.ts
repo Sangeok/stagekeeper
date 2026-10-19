@@ -6,7 +6,7 @@ import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
 import { requireUser } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
-import { renameUserToken as renameUserTokenIn } from "@/server/token-management-query";
+import { renameUserToken as renameUserTokenIn } from "@/server/tokens/api";
 
 // 사용자 토큰(hu_)은 **사람에게만** 묶인다 — projectId도, 검사할 프로젝트 가용성도 없다.
 // 프로젝트 토큰 액션은 소유권을 확인하고 projectId·projectPath(slug)에 묶인다. 발급·이름 변경은 서비스가

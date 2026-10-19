@@ -3,7 +3,8 @@
 import type { AuthInfo } from "@modelcontextprotocol/server";
 import { hashToken, parseBearer } from "@harness/core/token.mjs";
 import { isTokenActive } from "@harness/core/token-validity.mjs";
-import { tryRecordTokenUsage, type TokenUsageRecorder } from "../token-usage-query";
+import { tryRecordTokenUsage } from "@/server/tokens/api";
+import { type TokenUsageRecorder } from "@/server/tokens/contracts";
 
 export type TokenRow = { id: string; projectId: string; revokedAt: Date | null; expiresAt: Date | null } | null;
 export type OwnerTokenRow = { id: string; projectId: string; userId: string; revokedAt: Date | null; expiresAt: Date | null } | null;

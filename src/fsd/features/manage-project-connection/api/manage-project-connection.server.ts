@@ -3,8 +3,8 @@ import { revalidatePath } from "next/cache";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { projectsPath } from "@/fsd/shared/routes/projects";
 import { requireUser } from "@/server/auth/guard";
-import { loadProjectConnection as loadConnection } from "@/server/project-availability";
-import { disconnectProject, reconnectProject } from "@/server/project-connection";
+import { loadProjectConnection as loadConnection } from "@/server/projects/api.server";
+import { disconnectProject, reconnectProject } from "@/server/projects/api.server";
 import type { ProjectConnectionAction, ProjectConnectionTarget, ProjectConnectionSummary, ProjectConnectionState } from "../model/project-connection-state";
 
 import { inputSchema } from "../model/project-connection-input";

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { actionableWork } from "@harness/core/watch.mjs";
-import { createBoardService } from "../../../src/server/pipeline/board";
-import { nextFor } from "../../../src/server/pipeline/run-query";
+import { createBoardService } from "../../../src/server/pipeline/api";
+import { nextFor } from "../../../src/server/pipeline/api";
 import { seedPipelineVersion, cleanup, connections, fixture } from "./support";
 
 for (const verdict of ["pass", "fail", "blocked"] as const) it(`impl-verifier ${verdict} binds its run, controls acceptance and never outlives its entry in PostgreSQL`, async () => {

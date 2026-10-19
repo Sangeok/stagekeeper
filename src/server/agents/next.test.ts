@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { usageSnapshot } from "@harness/core/usage-window.mjs";
-import { usageLimitFailure } from "../account-usage-query";
-import type { Plan } from "../entitlement";
+import { usageLimitFailure } from "../usage/api";
+import type { Plan } from "../projects/entitlement";
 import { describe, it } from "node:test";
 
-import { REFUSAL_WARN_AT, REVISION_MAX, agentNext, type NextDeps, type NextInput, type Outcome, type Receipt, type Scope } from "./next";
+import { REFUSAL_WARN_AT, REVISION_MAX, type NextDeps, type Outcome, type Receipt, type Scope } from "./next";
+import { agentNext } from "./next";
+import { type NextInput } from "./next";
 
 // dev.md의 축소판 — 그래프는 같고 본문만 짧다. 실제 템플릿은 private 저장소에 있어 CI에는 없다(templates.test.mjs가 따로 본다).
 const DEV = `---

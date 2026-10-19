@@ -7,12 +7,16 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { newToken } from "@harness/core/token.mjs";
 import * as auth from "../../src/server/mcp/auth";
-import * as templatesQuery from "../../src/server/templates-query";
-import * as identityQuery from "../../src/server/project-identity-query";
-import * as runbookQuery from "../../src/server/runbook-query";
-import * as restScope from "../../src/server/rest-scope";
-import * as usageQuery from "../../src/server/token-usage-query";
-import * as access from "../../src/server/project-access-query";
+import * as templatesQuery from "../../src/server/rest/templates-handler";
+import * as identityQuery from "../../src/server/rest/project-identity-handler";
+import * as runbookQuery from "../../src/server/rest/runbook-handler";
+import * as restScope from "../../src/server/rest/scope";
+import * as usageQuery from "../../src/server/tokens/usage-recorder";
+import * as access from "../../src/server/projects/access-query";
+import { projectForUser } from "../../src/server/projects/api";
+import { findUserTokenByHash } from "../../src/server/tokens/api";
+import { registerRepositoryProject } from "../../src/server/projects/api";
+import { restFailureResponse } from "../../src/server/rest/api";
 import { Prisma } from "../../src/generated/prisma/client";
 
 type Handler = (request: Request) => Promise<Response>;
@@ -33,6 +37,7 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
     updateMany: async (args: unknown) => { usage.push({ kind, args: plainObject(args) }); if (options.recordFailure) throw new Error("private storage error"); return { count: 1 }; },
   });
   const prisma = {
+    $transaction: async () => ({ status: "existing", projectId: "p", slug: "mine" }),
     projectToken: delegate("agent"), ownerToken: delegate("owner"), userToken: delegate("user"),
     project: {
       findFirst: async ({ where }: { where: { slug: string; ownerUserId: string } }) => where.slug === "mine" && where.ownerUserId === "u" ? { id: "p" } : null,
@@ -42,16 +47,20 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
   };
   const common: Record<string, unknown> = {
     "server-only": {}, "@/server/db": { prisma }, "./db": { prisma },
-    "./token-usage-query": usageQuery, "./request-rate": { limitProjectRequest: async () => null, limitAccountRequest: async () => null }, "../request-rate": { limitProjectRequest: async () => null }, "../request-rate-limit": { consumeProjectRequestBudget: async () => null }, "@/server/result": require(resolve("src/server/result.ts")), "./auth": auth, "./rest-scope": restScope,
-    "./templates-query": templatesQuery, "./project-identity-query": identityQuery, "./runbook-query": runbookQuery,
-    "@/generated/prisma/client": { Prisma }, "@/server/project-access-query": access,
-    "@/server/entitlement": { projectAccess: async () => options.unavailable ? { available: false, reason: "not selected" } : { available: true, plan: "pro" } },
-    "@/server/project-availability-service": { withAvailabilityTransaction: async (_db: unknown, work: (tx: unknown) => Promise<unknown>) => work({}) },
-    "./project-registration-query": { registerProjectResultIn: async () => ({ status: "existing", projectId: "p", slug: "mine" }) },
-    "@/server/agents/next": {}, "@/server/agents/runs": { createNextDeps: () => ({}) },
-    "@/server/pipeline/board": { createBoardService: () => ({}) }, "@/server/pipeline/run": {}, "@/server/pipeline/run-rules": {},
-    "./project-query": {}, "./project-sync-query": {}, "./views": {}, "./owner-gate": { createOwnerGate: () => async () => ({}) },
-    "@/server/mcp/tools": {}, "@/server/mcp/owner-tools": {},
+    "./usage-recorder": usageQuery, "@/server/tokens/api": { ...usageQuery, findUserTokenByHash },
+    "@/server/usage/api.server": { limitProjectRequest: async () => null, limitAccountRequest: async () => null },
+    "@/server/usage/api": { consumeProjectRequestBudget: async () => null }, "./auth": auth, "./scope": restScope,
+    "./templates-handler": templatesQuery, "./project-identity-handler": identityQuery, "./runbook-handler": runbookQuery,
+    "@/generated/prisma/client": { Prisma }, "@/server/projects/api": { ...access, projectForUser, registerRepositoryProject,
+      REPO_SEGMENT: /^[a-z]+$/, },
+    "@/server/projects/api.server": {
+      projectAccess: async () => options.unavailable ? { available: false, reason: "not selected" } : { available: true, plan: "pro" },
+      projectForUser: (slug: string, userId: string) => projectForUser(slug, userId, prisma as never),
+    },
+    "@/server/agents/api": { createNextDeps: () => ({}) },
+    "@/server/pipeline/api": { createBoardService: () => ({}) },
+      "./views": {}, "./owner-gate": { createOwnerGate: () => async () => ({}) },
+    "@/server/mcp/api": {}, "@/server/rest/api": { restFailureResponse },
     "@/fsd/shared/routes/project": { projectPath: (slug: string) => `/p/${slug}` },
     "mcp-handler": {
       createMcpHandler: () => async () => Response.json({ ok: true }),
@@ -77,15 +86,13 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
     });
     return exported as T; // The VM is the same boundary as the repository's binding tests.
   }
-  const binder = load<{ recordTokenUsage: usageQuery.TokenUsageRecorder }>("src/server/token-usage.ts");
-  common["./token-usage"] = common["../token-usage"] = binder;
-  common["@/server/user-scope-query"] = common["./user-scope-query"] = load("src/server/user-scope-query.ts");
-  common["@/server/runbook"] = load("src/server/runbook.ts");
-  common["@/server/templates"] = load("src/server/templates.ts");
-  common["@/server/project-identity"] = load("src/server/project-identity.ts");
-  common["@/server/project-registration"] = load("src/server/project-registration.ts");
-  common["@/server/mcp/deps"] = load("src/server/mcp/deps.ts");
-  common["@/server/mcp/owner-deps"] = load("src/server/mcp/owner-deps.ts");
+  const binder = load<{ recordTokenUsage: usageQuery.TokenUsageRecorder }>("src/server/tokens/usage.ts");
+  common["@/server/tokens/api.server"] = { ...binder as object, findUserTokenByHash: (hash: string) => findUserTokenByHash(hash, prisma as never) };
+  common["@/server/rest/api.server"] = {
+    ...load<object>("src/server/rest/runbook.ts"), ...load<object>("src/server/rest/templates.ts"),
+    ...load<object>("src/server/rest/project-identity.ts"), ...load<object>("src/server/rest/project-registration.ts"),
+  };
+  common["@/server/mcp/api.server"] = { ...load<object>("src/server/mcp/deps.ts"), ...load<object>("src/server/mcp/owner-deps.ts") };
   return { load, tokens, usage, reads };
 }
 

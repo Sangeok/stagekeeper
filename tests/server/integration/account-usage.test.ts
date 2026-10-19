@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
-import { agentNext } from "../../../src/server/agents/next";
-import { createNextDeps } from "../../../src/server/agents/runs";
-import { readAccountUsage } from "../../../src/server/account-usage-query";
+import { agentNext } from "../../../src/server/agents/api";
+import { createNextDeps } from "../../../src/server/agents/api";
+import { readAccountUsage } from "../../../src/server/usage/account-usage-query";
 import { cleanup, connections, fixture, checkpoint } from "./support";
 import { setTimeout as delay } from "node:timers/promises";
 

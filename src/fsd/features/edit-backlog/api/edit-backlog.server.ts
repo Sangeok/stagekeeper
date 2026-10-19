@@ -3,7 +3,7 @@ import { toItemType } from "@harness/core/backlog.mjs";
 import { revalidatePath } from "next/cache";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
-import { addBacklog, updateBacklog, removeBacklog } from "@/server/pipeline/board";
+import { addBacklog, updateBacklog, removeBacklog } from "@/server/pipeline/api.server";
 import type { BacklogFormState } from "../model/backlog-form-state";
 
 const field = (form: FormData, name: string) => String(form.get(name) ?? "").trim();

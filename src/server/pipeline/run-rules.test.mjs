@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { HINT, decideHead, decideNext, handoffIsLive, scoutNodePending } from "./run-rules.ts";
+import { HINT, decideHead, decideNext } from "./run-rules";
+import { handoffIsLive, scoutNodePending } from "./run-rules";
 import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, cap: null };

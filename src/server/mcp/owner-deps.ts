@@ -1,11 +1,11 @@
 // OwnerToolDeps의 Prisma 구현 + 소유자 토큰 검증 바인딩. 도구 본문은 owner-tools.ts, 저장 규칙은 pipeline/board.ts.
 import "server-only";
-import { recordTokenUsage } from "../token-usage";
-import { limitProjectRequest } from "../request-rate";
+import { recordTokenUsage } from "@/server/tokens/api.server";
+import { limitProjectRequest } from "@/server/usage/api.server";
 import { prisma } from "@/server/db";
-import { projectAccess } from "@/server/entitlement";
-import * as board from "@/server/pipeline/board";
-import { nextFor } from "@/server/pipeline/run";
+import { projectAccess } from "@/server/projects/api.server";
+import * as board from "@/server/pipeline/api.server";
+import { nextFor } from "@/server/pipeline/api";
 import { makeVerifyOwnerToken } from "./auth";
 import { createOwnerGate } from "./owner-gate";
 import type { OwnerToolDeps } from "./owner-tools";

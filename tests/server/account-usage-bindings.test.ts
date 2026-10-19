@@ -5,7 +5,7 @@ import { it } from "node:test";
 import { runInNewContext } from "node:vm";
 import type { ReactElement } from "react";
 import ts from "typescript";
-import type { AccountUsageSnapshot } from "../../src/server/account-usage-query";
+import type { AccountUsageSnapshot } from "../../src/server/usage/account-usage-query";
 
 function loadPage(options: { userId?: string; authFailure?: boolean; headerFailure?: boolean; snapshotFailure?: boolean }) {
   const calls: string[] = [], diagnostics: unknown[] = [];
@@ -14,7 +14,7 @@ function loadPage(options: { userId?: string; authFailure?: boolean; headerFailu
     "@/fsd/pages/billing": { BillingPage: () => null }, "@/fsd/widgets/app-header": { AppHeader: () => null },
     "@/server/auth/guard": { requireUser: async () => { if (options.authFailure) throw new Error("Login redirect"); return { userId: options.userId ?? "first" }; } },
     "@/fsd/widgets/app-header/index.server": { loadHeaderUser: async () => { if (options.headerFailure) throw new Error("Header unavailable"); return { login: "fixture", plan: "pro" }; } },
-    "@/server/account-usage": { accountUsage: async (userId: string): Promise<AccountUsageSnapshot> => {
+    "@/server/usage/api.server": { accountUsage: async (userId: string): Promise<AccountUsageSnapshot> => {
       calls.push(userId); if (options.snapshotFailure) throw new Error("Private storage details");
       return { plan: "free", usage: { kind: "limited", percent: userId === "first" ? 95 : 25, resetAt: null } };
     } },

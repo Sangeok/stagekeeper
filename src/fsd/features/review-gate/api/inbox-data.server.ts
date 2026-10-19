@@ -1,7 +1,7 @@
 import "server-only";
 
-import { loadProjectRepository } from "@/server/project";
-import { latestBoardWithEvents } from "@/server/pipeline/board";
+import { loadProjectRepository } from "@/server/projects/api.server";
+import { latestBoardWithEvents } from "@/server/pipeline/api.server";
 import { toInboxItems, type InboxItem } from "../model/inbox-item";
 
 // 결재함 카드의 읽기도 이 slice가 소유한다. latestBoardWithEvents는 InboxItem 전용으로 맞춘
