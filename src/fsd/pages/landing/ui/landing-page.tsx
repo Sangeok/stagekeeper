@@ -4,12 +4,13 @@ import { statusLabel } from "@/fsd/entities/board-item";
 import { gateActionLabel, gateActionHint } from "@/fsd/entities/pipeline";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { PROJECT_TABS } from "@/fsd/shared/routes/project";
+import { docsPath } from "@/fsd/shared/routes/docs";
 import { projectsPath } from "@/fsd/shared/routes/projects";
 import { ButtonLink, buttonClass } from "@/fsd/shared/ui/button";
 import { cardClass } from "@/fsd/shared/ui/card";
 import { Chip } from "@/fsd/shared/ui/chip";
 
-import { HEADLINE, LANDING_DESCRIPTION } from "../model/landing-copy";
+import { HEADLINE, LANDING_INTRO } from "../model/landing-copy";
 
 // 공개 랜딩. 문구는 product-copy.md §16. Server Component — 상호작용은 CTA 폼뿐이다.
 // 히어로의 볼드니스는 문장 하나(둘째 줄만 --mine)와 실제 Inbox 카드 한 장에만 있다. 슬로건·그라디언트·모션 없음.
@@ -47,6 +48,8 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
           <Link href="/" className="font-semibold tracking-[-0.01em]">
             Stagekeeper
           </Link>
+          <nav aria-label="Main navigation" className="flex items-center gap-5">
+            <Link href={docsPath("overview")} className="text-sm underline underline-offset-[3px]">Docs</Link>
           {signedIn ? (
             <Link href={projectsPath()} className="text-sm underline underline-offset-[3px]">
               Open projects
@@ -58,6 +61,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
               </button>
             </form>
           )}
+          </nav>
         </div>
       </header>
 
@@ -70,7 +74,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
               <span className="text-mine">{HEADLINE.you}</span>
             </h1>
             <p className="mt-[22px] max-w-[52ch] text-[17px] leading-[26px] text-quiet">
-              {LANDING_DESCRIPTION} Agents propose, plan, and report — they can&apos;t grant themselves permission.
+              {LANDING_INTRO}
             </p>
             <div className="mt-[30px]">
               {signedIn ? (
@@ -131,6 +135,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
 
         <footer className="mt-16 flex flex-wrap justify-between gap-x-4 gap-y-2 border-t border-rule pt-5 text-xs text-quiet">
           <span>Stagekeeper</span>
+          <Link href={docsPath("overview")} className="underline underline-offset-2">Docs</Link>
           <span>Works with Claude Code · GitHub sign-in</span>
         </footer>
       </main>

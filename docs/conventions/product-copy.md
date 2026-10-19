@@ -8,6 +8,11 @@ Scope: web UI, server-action errors, MCP tool descriptions, generated agent temp
 `/harness:init` skill, generator console output. **Docs under `docs/` and code comments stay
 in Korean** — that is the team's working language. Only what is *shown* is English.
 
+Exception: published `/docs` article bodies live in `src/fsd/pages/docs/ui` and are not
+duplicated here. Their metadata, navigation, and shared controls remain canonical in §20.
+Article facts come from shared code where possible; rendered prose is checked for retired
+words and reviewed against its source contracts when the product changes.
+
 **Copy-lock blocks.** A blockquote between `<!-- copy-lock:<id> -->` and `<!-- /copy-lock -->` is
 read by a test, which renders the screen and fails unless every line of the block is on it
 (`src/fsd/shared/lib/copy-lock.ts`; ids and their tests are listed in
@@ -1150,6 +1155,7 @@ Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, c
   state, the ledger, and the gates. Agents propose, plan, and report — they can't grant
   themselves permission."
 - CTA: **Continue with GitHub** (signed in: **Open projects**). No sub-line under the CTA — `/harness:init` is taught on the token screen.
+- Header and footer link: **Docs**, to `/docs`, in both sign-in states.
 - Demo beside the thesis: a static gate-2 inbox card, caption "Your inbox when a plan is ready for you."
   The card repeats three product lines by value — the banner headline (§5), the gate-2 button and its
   hint (§7). The demo is a promise about the real Inbox, so they are locked to the landing page:
@@ -1161,20 +1167,20 @@ Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, c
 <!-- /copy-lock -->
 
 - Off the page — browser tab, search result, link preview (added 2026-10-13):
-  - Title: **Stagekeeper — Approval gates for your coding agents**. It names the product in the
-    page's own terms: the gates are what you hold, the agents are yours. "coding agents", not
-    "Claude Code agents" — the Codex client is coming and the title should not expire with it; the
-    description carries "Claude Code". It counts no gates and promises no human at every step
-    (see the claims below).
-  - Description: the paragraph's first two sentences, verbatim. At 113 characters a search result
-    does not cut it.
+  - Title: **Stagekeeper — Automate Claude Code with approval gates**.
+  - Description: the separate search description below. It does not replace the existing
+    paragraph. Gates remain configurable, and a record is required for a Verified or Accepted claim.
   - Share card (1200×630): the headline as on the page (second line `--mine`), the S monogram with
     "Stagekeeper", and the `--mine` strip from the demo card's head. Nothing else.
   - App icon: a white S on a `--mine` square — the colour the product gives only to your turn.
 
 <!-- copy-lock:landing-meta -->
-> Stagekeeper — Approval gates for your coding agents
-> Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and the gates.
+> Stagekeeper — Automate Claude Code with approval gates
+> Your Claude Code runs plan → verify → implement → accept. Gates are where you put them, and nothing passes without a record.
+<!-- /copy-lock -->
+
+<!-- copy-lock:landing-intro -->
+> Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and the gates. Agents propose, plan, and report — they can't grant themselves permission.
 <!-- /copy-lock -->
 
 - "The cycle you'll run": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·
@@ -1397,6 +1403,52 @@ an already open page or browser back/forward restoration does not promise an imm
 
 The lock covers item-empty, populated/expanded/empty-detail and event key-empty/all-empty/middle-page cases.
 Each case checks its own absent copy and link destinations; mutually exclusive empty messages do not appear together.
+
+## 20. Docs — public `/docs`
+
+English, public, static articles. The order is Overview → Get started → Automation →
+Approval gates → Security. Only the article body has the exception in this file's scope;
+metadata and common controls below stay locked to the rendered pages.
+
+<!-- copy-lock:docs-meta -->
+> Stagekeeper docs — Claude Code pipeline with approval gates
+> Learn how Stagekeeper connects Claude Code to a development pipeline, approval gates, and records in your own repository.
+> Get started
+> Connect a repository to Stagekeeper, install the Claude Code plugin, and run your first backlog item.
+> Run Claude Code on your backlog
+> See what Claude Code runs automatically, where your pipeline waits, and how picking, scouting, and acceptance work.
+> Approval gates for Claude Code
+> Choose where Claude Code waits for approval, edit pipelines, and open gates in the Inbox or from your own session.
+> MCP tokens and agent permissions
+> Understand project, user, and owner tokens, their permissions, expiry, revocation, and where Stagekeeper stores records.
+<!-- /copy-lock -->
+
+<!-- copy-lock:docs-shell -->
+> Docs
+> Overview
+> Get started
+> Automation
+> Approval gates
+> Security
+> Open Stagekeeper
+> Skip to content
+<!-- /copy-lock -->
+
+- Page navigation labels: **Previous**, **Next**. Omit the previous link on Overview and
+  the next link on Security. Each link names its destination with the navigation label above.
+- Accessible navigation labels: **Main navigation**, **Documentation**, **Page navigation**.
+  The current documentation link uses `aria-current="page"`; Skip to content targets the main article.
+- **Open Stagekeeper** always links to `/projects`; the existing sign-in flow handles guests.
+- Installation and session commands use the shared values, render as code, and reuse **Copy** / **Copied**.
+- Claims we do not make: fully unattended execution, automatic gate approval or push,
+  Codex or Windows support, prices, or purchase instructions. Verify is optional; Done and
+  Accepted are different records. An owner token retains its project and owner scope.
+- Installation and acceptance names move without changing their existing values. Plan facts
+  come from core policy; a repeated slot's display name comes from the pipeline entity.
+- Published prose follows §1–§2. Protocol identifiers stay in code. The documentation test
+  checks every rendered page for AI/LLM and the listed stamp/reject/ticket/harness variants
+  outside code, preformatted blocks, scripts, and styles. General words such as issue/task/model
+  are checked in the article review rather than banned globally.
 
 ## Codex 연결·재개 안내
 

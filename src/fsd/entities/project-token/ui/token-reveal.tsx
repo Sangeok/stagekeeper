@@ -5,12 +5,13 @@ import { useState } from "react";
 import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
 
 import { cn } from "@/fsd/shared/lib/class-name";
+import { installCommands } from "@/fsd/shared/config/plugin-install";
 import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
 import { Card } from "@/fsd/shared/ui/card";
 import { Code, CodeBlock } from "@/fsd/shared/ui/code";
 import { CopyButton } from "@/fsd/shared/ui/copy-button";
 import { RuntimeClientChoice } from "@/fsd/shared/ui/runtime-client-choice";
-import { type ConnectCommand, connectCommands, installCommands, codexInstallCommands, profileLine, saveCommands, tokenKind } from "../model/connect-command";
+import { type ConnectCommand, connectCommands, codexInstallCommands, profileLine, saveCommands, tokenKind } from "../model/connect-command";
 
 type RuntimeClient = NonNullable<Parameters<typeof clientRuntime>[0]>;
 const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));

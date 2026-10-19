@@ -48,4 +48,10 @@ describe("public route list", () => {
       assert.ok(!isPublic(route.url), `${route.url} is inside (app) but the public list opens it at the proxy`);
     }
   });
+
+  it("has a real public page for every exact exception", () => {
+    for (const url of PUBLIC_EXACT) {
+      assert.ok(routes.some((route) => route.url === url && !route.inAppGroup), `${url} is a dead or protected exception in PUBLIC_EXACT`);
+    }
+  });
 });

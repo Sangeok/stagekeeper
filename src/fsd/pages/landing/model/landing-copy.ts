@@ -4,8 +4,11 @@
 // 둘째 줄만 --mine이다: 그 색은 사람 차례에만 쓴다.
 export const HEADLINE = { agents: "Your agents build.", you: "You set the rules." } as const;
 
-export const LANDING_TITLE = "Stagekeeper — Approval gates for your coding agents";
+export const LANDING_TITLE = "Stagekeeper — Automate Claude Code with approval gates";
 
-// 랜딩 본문 첫 문단의 앞 두 문장 그대로. 검색 결과에서 잘리지 않는 길이다.
+// 검색 설명과 본문은 각각의 잠금으로 유지한다. 메타데이터를 고쳐도 기존 본문은 바뀌지 않는다.
 export const LANDING_DESCRIPTION =
-  "Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and the gates.";
+  "Your Claude Code runs plan → verify → implement → accept. Gates are where you put them, and nothing passes without a record.";
+
+export const LANDING_INTRO =
+  "Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and the gates. Agents propose, plan, and report — they can't grant themselves permission.";

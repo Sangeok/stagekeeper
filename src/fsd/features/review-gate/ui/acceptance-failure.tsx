@@ -4,9 +4,10 @@ import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DOC_LINK_NOTE } from "@/fsd/entities/board-item";
+import { ACCEPTANCE_CHECK_LABELS } from "@/fsd/entities/pipeline";
 import { Button } from "@/fsd/shared/ui/button";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
-import { ACCEPTANCE_CHECK_LABELS, ACCEPTANCE_RETRY_HINT, ACCEPTANCE_RETRY_UNKNOWN } from "../model/gate-text";
+import { ACCEPTANCE_RETRY_HINT, ACCEPTANCE_RETRY_UNKNOWN } from "../model/gate-text";
 import type { RetryAcceptanceAction } from "../model/inbox-item";
 
 export type AcceptanceFailureView = {
