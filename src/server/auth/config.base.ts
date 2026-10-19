@@ -1,9 +1,16 @@
 import type { NextAuthConfig } from "next-auth";
 
-// 공개 경로. "/"(랜딩)는 **정확 일치**만 — startsWith("/")로 검사하면 모든 경로가 공개된다.
+// 랜딩과 문서는 정확한 경로만 공개한다. startsWith("/")나 startsWith("/docs")로 넓히지 않는다.
 // 이 목록과 src/app의 디렉터리 구조가 어긋나면 public-routes.test.mjs가 잡는다: 라우트 그룹은
 // URL에 나타나지 않아 proxy가 "(app) 밖인가"를 읽을 수 없어서, 코로케이션 대신 검사로 묶었다.
-export const PUBLIC_EXACT = new Set(["/"]);
+export const PUBLIC_EXACT = new Set([
+  "/",
+  "/docs",
+  "/docs/getting-started",
+  "/docs/automation",
+  "/docs/approval-gates",
+  "/docs/security",
+]);
 export const PUBLIC_PREFIXES = ["/login"];
 // 로그인 뒤 도착지. 랜딩이 "/"를 차지하므로 프로젝트 목록은 /projects다.
 export const AFTER_SIGN_IN = "/projects";

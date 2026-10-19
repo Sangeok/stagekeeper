@@ -6,6 +6,15 @@ const call = (pathname, user) =>
   authConfigBase.callbacks.authorized({ auth: user ? { user } : null, request: { nextUrl: new URL(`http://h.local${pathname}`) } });
 
 describe("authorized", () => {
+  it("keeps every documentation page public before and after sign-in without opening similar prefixes", () => {
+    for (const path of ["/docs", "/docs/getting-started", "/docs/automation", "/docs/approval-gates", "/docs/security"]) {
+      assert.equal(call(path, null), true, path);
+      assert.equal(call(path, { id: "u1" }), true, path);
+    }
+    for (const path of ["/docs-private", "/docs/security/private", "/docs/getting-started/private", "/docs/unknown"]) {
+      assert.equal(call(path, null), false, path);
+    }
+  });
   it("unauthenticated: landing and /login are public", () => {
     assert.equal(call("/", null), true);
     assert.equal(call("/login", null), true);
