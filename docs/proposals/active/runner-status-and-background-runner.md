@@ -524,6 +524,8 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 | `src/fsd/pages/billing/model/plan-matrix.ts`(+`plan-matrix.test.ts`) | update(B) | B-5 "Background runner" 행 | low |
 | `src/fsd/pages/project-list/api/project-list.server.ts`, `ui/project-list-page.tsx`, `ui/project-list-page.test.mjs`, `model/project-list-copy.ts`, `model/project-list-copy.test.ts` | update | 목록 카드 한 줄. `availability-service.ts`는 바꾸지 않는다 | low |
 | `tests/server/fixtures/src-clean-code-browser.tsx` | keep | 새 prop이 선택이라 그대로 렌더된다(`:219`) | low |
+| `scripts/project-availability-runtime.test.ts`, `tests/server/server-public-api.test.ts` | update(A) | 생성 모델 수 24, rest·runners 런타임 바인딩 목록(구현 중 발견) | low |
+| `src/server/rest/scope.ts`(+`scope.test.ts`), `src/server/runners/runner-service.test.ts` | update/add(A) | 성공 결과의 `tokenId`, 서비스 규칙 단위 시험 | low |
 | `plugin/bin/harness-watch.mjs`(+`harness-watch.test.mjs` fixture 라우팅), `plugin/bin/harness-session.mjs`(+`harness-session.test.mjs`), `plugin/runtime/runner-client.mjs`(add) | update | A-4 | medium — 이벤트 계약 변경 |
 | `plugin/runtime/local-session.mjs` | update(A·B) | A: `readState`가 `runnerLease`(boolean)를 검사. B: `mode: "resident"` | medium — B의 새 mode는 옛 판이 손상 상태로 봄(의도) |
 | `plugin/skills/watch/SKILL.md` | update | A-4 스킬 규칙, B-3 `--once` | medium |
@@ -673,7 +675,29 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 | 기준선 `npm run test:web` | pass | 664/664 |
 | 기준선 `npm run test:server` | pass | 138/139, 건너뜀 1 |
 | 기준선 `npm run test:server:integration` | pass | 로컬 포터블 PG18 `stagekeeper_test_*`. 스크립트가 수를 출력하지 않음 |
-| 구현 뒤 전체 | Not run yet | 구현 전 |
+| Phase A 구현 뒤(`harness/runner-status`, 2026-10-20) `npm run check` | pass | lint·tsc·`verify:fsd`·`verify:server`·아키텍처·가용성 18/18 |
+| Phase A `npm test` | pass | 423/425, 건너뜀 2(기준선과 같음). 새 사례 23: core runner 6·entitlement 2·플러그인 lease 15 |
+| Phase A `npm run test:web` | pass | 711/711. 새 사례: runner-service 15·runner-handler 10·배너 모델·렌더·loadTurn·목록 카드 |
+| Phase A `npm run test:server` | pass | 139/140, 건너뜀 1. 공개 API 목록 시험에 runner 바인딩 추가 |
+| Phase A `npm run test:server:integration` | pass | 로컬 포터블 PG18. `runner-lease.test.ts` 7/7을 따로 돌려 확인 |
+| 변이 확인: `runner-service.ts`의 User·Project 잠금 두 줄을 뺌 | 경합 시험 실패(의도) | 되돌린 뒤 7/7 통과 |
+| 화면: 실제 `TurnBanner`·`ProjectListPage`를 컴파일한 Tailwind와 함께 헤드리스 Chromium으로 렌더(1100px·420px) | 확인 | 상태별 줄·Pause/Resume·버전 줄·스트립·카드. 가로 넘침 없음. 로그인·DB 없이 한 일회성 확인이라 저장소에 남기지 않음 |
+| `npm run build` | CI | PR의 `check (build)` |
+| smoke A(localhost) | Not run yet | localhost도 공유 Neon을 쓰므로 마이그레이션 적용(운영 반영) 확인 뒤 |
+
+**Phase A 구현에서 제안과 달라진 점**(2026-10-20).
+- 영향 파일에 빠져 있던 고정 시험 둘을 함께 고쳤다.
+  - `scripts/project-availability-runtime.test.ts`: 생성 모델 수 23 → 24(`Runner`).
+  - `tests/server/server-public-api.test.ts`: rest 런타임 묶음에 `runnerRequest`, `runners/api.server.ts` 바인딩 사례.
+- `rest/scope.ts`의 성공 결과에 `tokenId`를 더했다(`Runner.tokenId` 감사 기록). `scope.test.ts` 기대값도 고쳤다.
+- 마이그레이션에 CHECK 제약을 두었다(mode·state·waitReason·stopReason·resident 필드·permission 값). 값 목록은 `packages/core/runner.mjs`와 같다.
+- 서비스 규칙은 DB 없는 `src/server/runners/runner-service.test.ts`가 보고, handler 시험은 인증·접근·요청 제한·본문·응답 모양을 본다.
+- 일시 정지 중인 poll은 `pipeline_next`를 부르지 않는다(신호만 보낸다). 반복 수를 바꾸지 않는 것은 그대로이고, 일시 정지 중 서버 부수효과와 요청을 줄인다.
+- `--takeover`는 `--start --managed`와만 쓸 수 있다. lease 시작의 일시적 실패는 5번까지 짧게(1·2·3·4초) 다시 보낸다 — 폴링 간격(60초)을 기다리면 시작이 몇 분 멈춘다.
+- 배너 데이터는 `TurnData.runner: RunnerFacts`(`{runner: TurnRunner | null, paused, renderedAt}`)다. 시각은 ISO 문자열로 넘긴다.
+- 목록 카드는 `project-list-copy.ts`의 `activityLines`를 바꾸지 않고, 위젯 공개 API의 `RunnerShort`로 host를 mono로 그린다. 그래서 `project-list-copy.ts`·그 시험은 바뀌지 않았다.
+- 잠금 블록 이름: `turn-banner-runner`, `-reasons`, `-short`, `-none`. Pause/Resume 단어는 잠그지 않았다(짧은 단위는 지키는 힘이 없다, verification.md).
+- 두 매니페스트(`.claude-plugin`·`.codex-plugin`)를 함께 0.5.13으로 올렸다.
 
 ## Risks and Rollback
 
