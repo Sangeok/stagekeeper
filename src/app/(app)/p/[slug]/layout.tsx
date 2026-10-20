@@ -6,6 +6,7 @@ import { requireProjectOwner } from "@/server/auth/guard";
 import { projectAccess } from "@/server/projects/api.server";
 import { LockedProjectBanner } from "@/fsd/features/select-project-for-use/index.server";
 import { DisconnectedProjectBanner } from "@/fsd/features/manage-project-connection/index.server";
+import { saveRunnerPaused } from "@/fsd/features/pause-runner/index.server";
 import { prisma } from "@/server/db";
 
 // 탭 셸 + 턴 배너. 인가는 각 page와 서버 액션이 자기 requireProjectOwner로 한다.
@@ -14,7 +15,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
   const { slug } = await params;
   const { userId, projectId } = await requireProjectOwner(slug);
 
-  const [project, user, projects, { turn, inboxCount }, access] = await Promise.all([
+  const [project, user, projects, { turn, inboxCount, runner }, access] = await Promise.all([
     prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { slug: true, name: true } }),
     loadHeaderUser(userId),
     loadHeaderProjects(userId),
@@ -30,7 +31,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-8 px-5 pt-9 pb-14">
         {!access.available && access.code === "disconnected" ? <DisconnectedProjectBanner userId={userId} projectId={projectId} />
           : !access.available ? <LockedProjectBanner userId={userId} projectId={projectId} reason={access.reason} /> : null}
-        {access.available ? <TurnBanner turn={turn} slug={slug} /> : null}
+        {access.available ? <TurnBanner turn={turn} slug={slug} runner={runner} pause={saveRunnerPaused.bind(null, slug)} /> : null}
         {children}
       </main>
     </div>

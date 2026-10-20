@@ -18,7 +18,8 @@
 | pipeline | 보드·게이트·실행·정의·설정 | projects, usage |
 | agents | 단계 커서·결과·원장 | projects, usage, templates, pipeline |
 | auth | 웹 세션·guard | projects |
-| rest | REST scope·입력·HTTP 응답 | projects, tokens, usage, templates |
+| runners | 실행기 lease·상태·일시 정지 | projects |
+| rest | REST scope·입력·HTTP 응답 | projects, tokens, usage, templates, runners |
 | mcp | 도구·인증·서비스 조립·응답 | projects, tokens, usage, templates, agents, pipeline |
 
 타입 참조도 이 방향을 따른다. 루트 기반 파일은 `db.ts`, `database-clock.ts`, `github.ts`,
@@ -40,7 +41,7 @@
 
 다른 모듈의 runtime API는 아래 연결 조립부만 읽는다.
 
-- rest: `api.server.ts`, `templates.ts`, `runbook.ts`, `project-identity.ts`, `project-registration.ts`
+- rest: `api.server.ts`, `templates.ts`, `runbook.ts`, `project-identity.ts`, `project-registration.ts`, `runner.ts`
 - mcp: `api.server.ts`, `deps.ts`, `owner-deps.ts`
 - auth: `index.ts`, `guard.ts`, `config.ts`
 - Next 진입점과 기존 FSD 서버 adapter
@@ -70,7 +71,10 @@
 | `pipeline/api.server.ts` | `addBacklog`, `updateBacklog`, `removeBacklog`, `backlogWithStatus`, `latestBoard`, `latestBoardWithEvents`, `latestRowFor`, `getWithHistory`, `hasHistoryBefore`, `projectHistory`, `projectHistoryItems`, `hasProjectHistoryBefore`, `currentRoundIds`, `propose`, `changePipeline`, `transition`, `discard`, `gate`, `retryAcceptance` | `board.ts`의 singleton 바인딩; 기존 app/FSD·owner MCP 소비. agents의 `latestBoard` 사용은 주입형 factory 호출로 바뀜 |
 | `pipeline/contracts.ts` | `Caller`, `PipelineEntry`, `PipelineNext`, `HistoryEventRecord` | `board-service`, `run-service`, `run-rules`, `history-page`; agents·MCP·FSD의 기존 타입 참조 |
 | `agents/api.ts`, `agents/contracts.ts` | 값: `agentNext`, `createNextDeps`, `NOTE_MAX`, `OUTCOMES`, `receiptSchema`; 타입: `NextInput`, `NextOutput` | 기존 next·runs 구현; MCP. 파서는 templates 소유이며 agents에서 재수출하지 않음 |
-| `rest/api.ts`, `rest/api.server.ts` | 주입형: `restFailureResponse`; runtime: `projectIdentityFor`, `templatesFor`, `recordRunbook`, `registerProject` | `response`와 네 REST 바인딩; 동일한 `src/app/api/{project,templates,runbook,projects}/route.ts` |
+| `runners/api.ts` | `runRunnerOp`, `setRunnerPaused`, `readRunnerState`, `readRunnerSummaries` | `runner-service`; 일시 정지 Action(`features/pause-runner`)이 DB를 넘겨 `setRunnerPaused`를 부름 |
+| `runners/api.server.ts` | `runRunnerOp`, `readRunnerState`, `readRunnerSummaries` | prisma 바인딩; REST 조립부(`rest/runner.ts`)·배너와 프로젝트 목록의 FSD api adapter |
+| `runners/contracts.ts` | `RunnerMode`, `RunnerStateName`, `RunnerWaitReason`, `RunnerPermission`, `RunnerStopReason`, `RunnerRecord`, `RunnerView`, `RunnerHolder`, `RunnerOp`, `RunnerOpResult` | 이 파일에서 직접 정의. REST handler와 FSD api adapter의 타입 참조 |
+| `rest/api.ts`, `rest/api.server.ts` | 주입형: `restFailureResponse`, `runnerResponse`; runtime: `projectIdentityFor`, `templatesFor`, `recordRunbook`, `registerProject`, `runnerRequest` | `response`·`runner-handler`와 다섯 REST 바인딩; 동일한 `src/app/api/{project,templates,runbook,projects,runner}/route.ts` |
 | `mcp/api.ts`, `mcp/api.server.ts` | 주입형: `registerTools`, `registerOwnerTools`; runtime: `prismaToolDeps`, `verifyProjectToken`, `prismaOwnerToolDeps`, `verifyOwnerToken` | tools·owner-tools와 deps·owner-deps; 기존 두 MCP route |
 | `auth/index.ts`, `auth/guard.ts`, `auth/config.base.ts` | `auth`, `handlers`, `signIn`; `requireUser`, `requireProjectOwner`, `requireProjectWrite`; `AFTER_SIGN_IN`, `authConfigBase` | 정의·외부 소비자·두 내부 조립 간선. `config.ts`는 비공개 |
 

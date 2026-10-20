@@ -242,3 +242,31 @@ the PowerShell tool from then on.
 
 Recorded only, by the owner's decision. The watch skill keeps allowing both shells. A resident
 executor that runs `claude -p` in the checkout has no worktree guard.
+
+## Runner status, Phase A — 2026-10-20 (automated; smoke pending)
+
+Proposal: `docs/proposals/active/runner-status-and-background-runner.md` (Phase A). The managed
+watch now takes a per-project runner lease on the server (`POST /api/runner`), signals while it
+polls, reports `working` before it hands out work, honours the web pause, and tells the server
+when it ends stuck or in error. Plugin 0.5.13.
+
+Automated evidence on branch `harness/runner-status`:
+
+- Plugin: 15 new cases in `plugin/bin/harness-watch.test.mjs` run the real watch and session
+  CLIs against a fake server that routes `/api/runner` apart from MCP. They cover lease start,
+  busy (lock removed, exit 0), refusal, takeover, resend of a transient start with the same
+  session, a server without the route (local lock only), signal before `pipeline_next`, pause
+  (no `pipeline_next`, no stuck count), replaced, stop on stuck and error, a non-boolean lease
+  record, the session check (`paused`, `server:"unreachable"`, 404, replaced), the release stop,
+  and foreground sessions that never call the route. The existing watch tests pass unchanged.
+- Server: lease rules without a database (`src/server/runners/runner-service.test.ts`), the REST
+  judgement (`src/server/rest/runner-handler.test.ts`), and the isolated-PostgreSQL integration
+  `tests/server/integration/runner-lease.test.ts` (7/7: real row-lock race, database-clock
+  expiry, stopped rows, resends, pause, plan gate and downgrade, the migration's checks, the
+  real route). Removing the two lock lines makes the race case fail.
+- Web: banner model, render and loader cases; a one-off headless render of the real banner and
+  project list at 1100px and 420px with compiled Tailwind showed every state without overflow.
+
+Not yet observed: a localhost smoke (A in the proposal). localhost uses the shared Neon
+database, so it waits for the owner's confirmation of the migration. The fixture CLIs prove
+the protocol, not the behaviour of a real Claude Code session acting on `busy` or `paused`.

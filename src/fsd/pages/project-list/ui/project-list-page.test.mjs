@@ -81,3 +81,19 @@ it("keeps preserved projects in their own group, including zero connected", () =
   assert.match(html, /href="\/p\/aaa"/); assert.match(text, /Reconnect repository/);
   assert.doesNotMatch(text, /Use this project|More actions/);
 });
+
+// 실행기 요약은 활동 줄 아래 한 줄이다(product-copy §10). 판정의 "지금"은 서버가 읽은 DB 시각이다.
+it("adds the runner's short form under the activity lines, with the host in mono", () => {
+  const renderedAt = "2026-10-20T12:00:00.000Z";
+  const runner = (seenMinutesAgo) => ({ runner: { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null,
+    seenAt: new Date(Date.parse(renderedAt) - seenMinutesAgo * 60_000).toISOString(), lastActivity: null }, paused: false, renderedAt });
+  const html = render({ ...base, plan: "pro", limit: 5, connectedCount: 3, projects: [
+    project("a", { runner: runner(1) }), project("b", { runner: runner(5) }), project("c", { runner: { runner: null, paused: false, renderedAt } }),
+  ] });
+  const text = visible(html);
+  assert.ok(text.includes("Runner: watching on desk"));
+  assert.ok(text.includes("Runner: no signal from desk"));
+  assert.match(html, /<code[^>]*>desk<\/code>/);
+  assert.equal(text.match(/Runner:/g).length, 2, "nothing is added without a runner row or a pause");
+  assert.equal(text.match(/Nothing open/g).length, 3);
+});

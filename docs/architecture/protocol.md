@@ -116,7 +116,7 @@ init을 재실행해 런북과 관리 스텁을 갱신한다. 새 템플릿 변�
 프로젝트 전달 지침, `project_get`·`project_sync` 성공까지 확인한 뒤 판단한다.
 
 실제 보호 요청은 계정 1,200회·프로젝트 300회/10분으로 제한한다. 각 subject의 첫 허용 요청이
-구간을 시작한다. 15개 agent 도구·owner `gate_approve`·네 REST 경로에 인증/소유 범위/공통
+구간을 시작한다. 15개 agent 도구·owner `gate_approve`·다섯 REST 경로에 인증/소유 범위/공통
 접근·owner 플랜 판정 뒤 한 번 적용한다. 등록은 계정만 센다. SDK schema 거부·초기화·목록·
 접근 거부는 제외하고 이후 도메인 실패는 센다. selected-out의 허용된 `project_get`도 센다.
 DB의 account → project 잠금 아래 함께 증가하며 거부 시 생성/reset/증가를 모두 rollback한다.
@@ -164,7 +164,9 @@ MCP `AuthInfo.expiresAt`의 초 단위 재검사는 사용하지 않는다. 다�
 owner/repo(대소문자 정규화)·설정 slug·available:true를 확인하고, 이후 key 없는
 `pipeline_next`만 폴링한다. 총 46자 hs_/hu_만 허용하며 ho_는 거부한다. hu_의 project.slug는
 모든 요청에 전달하고, slug 없는 hs_만 legacy 생략을 허용한다. 서버 기본값·dotenv fallback·
-redirect 추적은 없다. 서버 도구 집합·인증·사용 기록·DB를 감시 구현에서 바꾸지 않는다.
+redirect 추적은 없다. 서버 도구 집합·인증·사용 기록은 감시 구현에서 바꾸지 않는다. 관리형 감시는
+plugin 0.5.13부터 아래 "실행기 lease" 절의 REST 경로로 lease·생존·정지를 보고하며, 그 경로만
+`Runner` 행과 `Project.runnerPausedAt`을 쓴다.
 
 checkout CLAUDE.md의 init 관리 runbook start/end marker 사이에서만 12자리 소문자 hex 판을
 읽는다. 같은 선언/인자 값의 반복은 허용하고 다른 판·손상된 선언·marker 누락/역순/중복은
@@ -186,6 +188,8 @@ poller는 하나이며 ESRCH만 죽음 증거로 쓴다. work/idle은 session을
 stop은 root/session만으로 자기 상태를 해제하며 config/token/server 부재에도 실행할 수 있다.
 손상 상태·abandoned guard는 force도 우회하지 않는다. 12시간 만료도 owner 확인 후 force가 필요하다.
 로컬 잠금은 다른 clone/기기·수동 세션을 잠그거나 이미 실행된 agent/in-flight 요청을 취소하지 않는다.
+다른 clone/기기 사이의 중복은 서버의 실행기 lease가 막는다(아래 절). 수동 세션과 옛 플러그인 판의
+감시는 lease에 참여하지 않으므로 막지 못한다.
 
 기본 interval=60초, deadline=110분, request timeout=20초, body 한도=1MiB다. fetch/body/sleep/guard
 대기는 deadline에 묶이며 최대 1초마다 로컬 소유권을 확인한다. 5연속 전송 실패는 error; 정상
@@ -202,6 +206,44 @@ overview가 실패 수를 초기화한다. 같은 비어 있지 않은 작업 �
 null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트① · `plan` · `in_review` · `validation` · 게이트② · `report` · `done` · 인수 `report`). `agent_next`의 원장은 따로다 —
 `AgentRun`(에이전트·항목별 커서)과 `AgentRunStep`(범위가 확인된 outcome의 수락·거절 감사 기록)이며
 `TransitionEvent`에는 남기지 않는다.
+
+## 실행기 lease — `POST /api/runner`
+
+실행기(runner)는 파이프라인 일을 자동으로 이어 가는 로컬 프로세스다. 지금은 관리형 `/harness:watch`
+(mode `session`)가 쓰고, 창 없는 상주 실행기(mode `resident`, Pro 이상)가 같은 경로를 쓸 예정이다.
+서버는 프로젝트마다 lease 하나를 `Runner` 행으로 둔다. MCP 도구가 아니라서 에이전트 모델의 도구 목록에 없다.
+결정과 근거는 `docs/proposals/active/runner-status-and-background-runner.md`.
+
+- 인증·범위: 다른 REST 경로와 같다(hs_, 또는 hu_ + 본문 `project`; ho_ 거부). 선택되지 않았거나 연결이
+  끊긴 프로젝트는 403과 사유다. 프로젝트 300회/10분 구간에 함께 센다.
+- 본문: `{op, session, project?}`와 op별 필드. `session`은 로컬 잠금의 UUID다.
+  - `start`: `mode`(session|resident), `host`(1–64자), `branch?`·`permission?`(auto|allowlist, resident 필수), `autostart?`, `takeover?`
+  - `beat`: `state?`(idle|working|waiting, 없으면 유지), `waitReason?`(dirty|branch, waiting일 때만 그리고 반드시), `lastResult?`(150자), `lastLog?`(경로 구분자 없는 파일 이름, 100자)
+  - `stop`: `reason`(owner|stuck|error|plan)
+  - 그 밖의 본문(모르는 키 포함)은 400 `Invalid runner request.`
+- 응답: 성공은 `{ok:true, paused}`(beat는 `stop:"plan"`을 더할 수 있다). 409 `RUNNER_BUSY`는 `holder:{mode, host, seenAt}`를,
+  409 `RUNNER_REPLACED`와 403 `PLAN_REQUIRED`는 코드를 싣는다. 문장은 product-copy §12.
+- 잠금과 시계: 모든 op는 한 트랜잭션(READ COMMITTED)에서 User → Project `FOR UPDATE`를 잡은 뒤 접근·플랜·
+  `Runner` 행을 읽는다. 시각은 DB 시계(`clock_timestamp()`)다.
+- 생존(`packages/core/runner.mjs`, 웹 배너와 같은 함수): stopped가 아니고 마지막 신호 뒤 3분 안이면 lease를 잡고 있다.
+  session·working만 신호와 프로젝트의 마지막 에이전트 활동(`AgentRun.openedAt`·`AgentRunStep.at`) 중 늦은 쪽 뒤 60분이다.
+  응답 없는 행과 stopped 행은 새 start가 확인 없이 덮어쓰고, 살아 있는 행은 `takeover:true`로만 넘겨받는다.
+- 재전송: 같은 session의 start는 성공(seenAt만 갱신)이고 beat는 멱등, 행이 없는 stop은 성공이다. 행이 없거나 다른
+  session이거나 stopped인 행에 대한 beat와 다른 session의 stop은 `RUNNER_REPLACED`다.
+- 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다.
+- 정지: owner는 행을 지운다. stuck·error·plan은 `state=stopped`로 남아 배너가 이유를 보이고, 다음 start가 덮어쓴다.
+- 일시 정지: `Project.runnerPausedAt`. 웹 Action(`requireProjectWrite`)만 바꾸며 멱등이다. 실행기는 응답의
+  `paused`를 보고 새 일을 시작하지 않는다. 진행 중인 역할은 끝까지 둔다.
+- 플랜: resident start는 `residentRunner`(Pro·Max)가 아니면 `PLAN_REQUIRED`다. resident beat는 거절하지 않고
+  `stop:"plan"`을 돌려준다. session은 플랜과 무관하다.
+- CLI(plugin 0.5.13): 관리형 start는 로컬 잠금 뒤 lease를 잡고 결과를 잠금의 `runnerLease`(boolean)에 남긴다.
+  BUSY면 잠금을 지우고 `busy` 이벤트를 낸다. 404면 `runnerLease:false`로 로컬 잠금만으로 돈다. poll은 beat(idle)
+  뒤 `pipeline_next`를 부르고, paused면 `pipeline_next`를 부르지 않으며 반복 수도 바꾸지 않는다. work를 내기 전에
+  beat(working)를, stuck·error로 끝날 때 stop을 한 번 보낸다. `harness-session --check`는 `runnerLease`인 Claude
+  watch 세션에서만 state 없는 beat를 보내 `paused` 또는 `server:"unreachable"`을 싣고, `--release`는 stop(owner)을
+  보낸다. Codex foreground는 이 경로를 부르지 않는다.
+- 한계: 옛 플러그인 판과 수동 세션은 lease에 참여하지 않아 보이지도 막히지도 않는다. 서버를 롤백하면(404)
+  CLI는 로컬 잠금만으로 계속 돈다.
 
 ## MCP 도구 계약 — 소유자 토큰 스코프
 

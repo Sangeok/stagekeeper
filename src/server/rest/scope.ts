@@ -4,7 +4,7 @@
 //
 // **hu_ 갈래는 선택이다.** findUserTokenByHash·projectFor를 주입하지 않은 호출자에게는
 // hu_가 존재하지 않는 것처럼 동작한다(makeVerifyToken의 두 번째 인자와 같은 규약).
-// 조회 결과에는 사용 기록에 필요한 내부 토큰 ID도 포함한다.
+// 조회 결과에는 사용 기록에 필요한 내부 토큰 ID도 포함한다. 통과한 토큰의 ID는 결과에도 싣는다(실행기 lease의 감사 기록).
 import { hashToken, parseBearer } from "@harness/core/token.mjs";
 import { isTokenActive } from "@harness/core/token-validity.mjs";
 import { tryRecordTokenUsage } from "@/server/tokens/api";
@@ -18,7 +18,7 @@ export type RestTokenDeps = {
   recordTokenUsage?: TokenUsageRecorder;
 };
 
-export type RestScope = { ok: true; projectId: string } | { ok: false; status: 401 | 403; reason: string };
+export type RestScope = { ok: true; projectId: string; tokenId: string } | { ok: false; status: 401 | 403; reason: string };
 
 // 슬러그는 경로마다 다른 곳에서 온다 — 쿼리 문자열(templates·project) 또는 본문(runbook).
 // 꺼내는 일은 호출부가 하고, 판정은 여기가 한다.
@@ -34,7 +34,7 @@ export async function resolveRestScope(
     const at = new Date();
     if (!row || !isTokenActive(row, at)) return { ok: false, status: 401, reason: "invalid or revoked token" };
     await tryRecordTokenUsage(deps.recordTokenUsage, "agent", row.id, at);
-    return { ok: true, projectId: row.projectId };
+    return { ok: true, projectId: row.projectId, tokenId: row.id };
   }
 
   const findUser = deps.findUserTokenByHash;
@@ -53,7 +53,7 @@ export async function resolveRestScope(
   const projectId = await projectFor!(slug, userRow.userId);
   // 없는 슬러그와 남의 프로젝트를 같은 답으로 돌려준다 — 존재 여부를 흘리지 않는다(guard.ts:14).
   if (projectId === null) return { ok: false, status: 403, reason: NOT_YOURS };
-  return { ok: true, projectId };
+  return { ok: true, projectId, tokenId: userRow.id };
 }
 
 // 사람만 식별한다. 프로젝트를 **아직 만들기 전**인 경로(POST /api/projects)가 쓴다.

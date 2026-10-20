@@ -21,7 +21,7 @@ describe("availability after a plan change", () => {
     assert.deepEqual(candidates, before);
   });
 });
-import { DEFAULT_PLAN, LIMITS, PLANS, REPORT_AGENTS, allowsAgent, allowsSessionApprovals, availableProjectIds, capError, capReason, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
+import { DEFAULT_PLAN, LIMITS, PLANS, REPORT_AGENTS, RESIDENT_RUNNER_PLAN_GATE, allowsAgent, allowsSessionApprovals, availableProjectIds, capError, capReason, historyCutoff, isPlan, limitsFor, withinLimit } from "./entitlement.mjs";
 
 
 describe("entitlement", () => {
@@ -210,4 +210,16 @@ describe("pipeline axes", () => {
     assert.equal(capReason("free", "dispatches"), "dispatch cap reached on the free plan (20)");
   });
 
+});
+
+// 상주 실행기는 Pro 이상이다. 1단계 세션 감시는 플랜과 무관해서 축이 없다.
+describe("resident runner axis", () => {
+  it("opens the background runner on Pro and Max only", () => {
+    assert.equal(LIMITS.free.residentRunner, false);
+    assert.equal(LIMITS.pro.residentRunner, true);
+    assert.equal(LIMITS.max.residentRunner, true);
+  });
+  it("names the session watch as the Free alternative", () => {
+    assert.equal(RESIDENT_RUNNER_PLAN_GATE, "The background runner opens on Pro. Use /harness:watch in a Claude Code session for now.");
+  });
 });

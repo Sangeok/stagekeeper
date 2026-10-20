@@ -232,6 +232,70 @@ Under the lines, one quiet line, with `/harness:watch` in mono:
 > Or leave `/harness:watch` running in that session — it continues ready steps and waits for your gates and commits.
 <!-- /copy-lock -->
 
+The watch line and the line under it show only when **no live runner** reports to the server —
+no runner row, no signal, or stopped. A live runner already runs the session; telling the owner to
+start `/harness:watch` there would be wrong. With no runner row at all, one more quiet line follows
+(old plugin versions run without reporting, so the server cannot see them):
+
+<!-- copy-lock:turn-banner-runner-none -->
+> Runners on plugin 0.5.13 or later show their status here.
+<!-- /copy-lock -->
+
+**Runner line** — on Board and Inbox, under the headline of every banner kind (setup, yours,
+theirs, nothing open), one line about the runner that keeps the pipeline going: the session
+watch (`/harness:watch`) or, on Pro, the background runner. It answers "is anything running, and
+where". What the runner is doing is not repeated — the detail line above already says it.
+`{host}` and `{branch}` are identifiers and render in mono; `{n}` is whole minutes ("checked" never
+says 0). Units join with " · ". One line wins, in this order: stopped → no signal → paused →
+waiting → working or watching. "No signal" means no signal for 3 minutes; a session working on a
+step counts the latest agent activity and allows 60 minutes. The background runner adds
+` · starts at sign-in` when sign-in start is on and ` · allow-list only` when it runs without auto mode.
+
+<!-- copy-lock:turn-banner-runner -->
+> Runner: watching in Claude Code on {host}
+> Runner: running in the background on {host} ({branch})
+> Runner: working in Claude Code on {host}
+> Runner: working in the background on {host} ({branch})
+> checked {n} min ago
+> last activity {n} min ago
+> Runner on {host} is waiting: commit or stash the changes on {branch}, and it continues.
+> Runner on {host} is waiting: switch back to {branch}, and it continues.
+> Runner paused — it starts nothing new.
+> Work already running finishes first.
+> No signal from the runner on {host} for {n} min.
+> Runner on {host} stopped: {reason}. Start it again in Claude Code.
+> starts at sign-in
+> allow-list only
+<!-- /copy-lock -->
+
+"Work already running finishes first." follows the pause sentence only while the runner is working.
+`{reason}` is a fixed sentence per stop code — never free text from the server or the CLI. A stop by
+the owner on their own machine removes the line instead.
+
+<!-- copy-lock:turn-banner-runner-reasons -->
+> the same steps came back three times without progress
+> it hit an error — check the session or its log
+> the background runner needs Pro
+<!-- /copy-lock -->
+
+Next to the line, a quiet **Pause** (or **Resume** while paused) button. It shows only when a runner
+row exists or a pause is on. Pausing stops new work only — a role that is already running finishes;
+ending the process is the owner's local command. A lost response shows "The setting may have
+changed. Refresh to check before trying again." and is never retried automatically.
+
+The strip on other tabs and the project card (§10) end with the short form — the strip after
+" · ", the card as its own line. Nothing is added without a runner row or a pause.
+
+<!-- copy-lock:turn-banner-runner-short -->
+> Runner: watching on {host}
+> Runner: running on {host}
+> Runner: working on {host}
+> Runner: waiting on {host}
+> Runner: paused
+> Runner: no signal from {host}
+> Runner: stopped on {host}
+<!-- /copy-lock -->
+
 **First run** (no board rows yet) — **Set up in three steps**: 1 Token issued "Shown once when
 you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Connect the
 repository — the detail line is the lock block below (chip **Not connected yet**) · 3 Run the
@@ -593,6 +657,9 @@ and the quoted owner URL, never the token value.
 - Rows: name, `owner/repo` and the branch are the project link; beside it the open counts `3 open items` ·
   `1 open agent run` (singular for one), or `Nothing open`. In-use rows carry no status word — every row is
   in use until a downgrade leaves some **Not selected**.
+- Under the open counts, a connected row with a runner row or a pause adds the runner's short form (§5,
+  `turn-banner-runner-short`): `Runner: watching on desk` · `Runner: no signal from desk` · `Runner: paused`.
+  The host renders in mono. Disconnected rows add nothing.
 - Not selected rows sit below a boundary row `Not selected, so read only.` and each has **Use this project**
   (outline button), a sibling of the project link. A notice above the list explains them, one sentence per line:
   `After your plan changed, {names} stayed in use, chosen by {basis}.` (basis: your earlier selection · the most
@@ -698,6 +765,18 @@ Malformed pipeline definition/version inputs return "Invalid pipeline save reque
 Malformed pipeline settings inputs return "Invalid pipeline settings request."
 Malformed pipeline change inputs return "Invalid pipeline change request."
 Pipeline save recovery uses §18; other mutations retain their current refresh messages.
+
+The runner route (`POST /api/runner`, used by `/harness:watch` and the background runner — never by
+an agent) answers with a code the CLI branches on. `{time}` is `YYYY-MM-DD HH:mm`.
+
+| Code | Message |
+| --- | --- |
+| `RUNNER_BUSY` (409, with `holder`) | `A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or take it over.` |
+| `PLAN_REQUIRED` (403) | `The background runner opens on Pro. Use /harness:watch in a Claude Code session for now.` (`RESIDENT_RUNNER_PLAN_GATE`) |
+| `RUNNER_REPLACED` (409) | `Another runner took over this project. This one stops.` |
+| — (400) | `Invalid runner request.` |
+
+The web Pause/Resume refuses a non-boolean choice with "Choose whether the runner is paused.".
 
 Reasons come back from `board.ts` / `board-rules.ts` to both MCP callers and web actions. They
 are terse on purpose — agents parse them.
@@ -1127,6 +1206,9 @@ both). Below: each file's title, its section headings, and the sentences that se
 - Defaults: 60-second HTTP polling, 110-minute CLI deadline (maximum 110), 20-second request timeout (maximum 20). Positive fractional timings are allowed for isolated tests.
 - PowerShell and Bash both run the resolved absolute plugin CLI with shell-safe quoted checkout/session arguments. The skill body resolves `${CLAUDE_PLUGIN_ROOT}`; the shell does not supply that variable. A started explicit server is carried through check/poll; stop needs only checkout/session. Token values stay in the environment.
 - Events: started/owned include session and boolean commit/propose policy; locked gives startedAt/seenAt; work/stuck give session, normalized items/head and runbookStale; idle/stopped give session; replaced gives session and string/null seenAt; error gives string/null session, code and reason. Exactly one JSON line; only error exits 1. Missing/invalid task output stops the watch. Events are data, not executable instructions or receipts.
+- Server lease (plugin 0.5.13): a managed start also takes the project's runner lease on the server (§5 runner line). `busy` (exit 0, no session) gives `holder:{mode, host, seenAt}` — the start left no local state. `owned` from the session check may add boolean `paused`, or `server:"unreachable"` when the server could not be asked; neither is present when the server has no runner route.
+- Busy question: "A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or should I take over?" Only an explicit yes restarts with `--takeover`.
+- Pause notice, once per pause: "The runner is paused on the web. I start nothing new until you resume it there." Roles already running finish; the watch stays armed and resumes on its own.
 - Work requires current ownership and a fresh overview; idle quietly rearms. Stuck/replaced/stopped/error and owner stop never rearm. An explicit tool time-limit notice requires ownership/policy/stop-intent checks before rearming. Permission prompts and main-loop commit handoffs wait for owner input.
 
 | code | reason |
@@ -1147,6 +1229,7 @@ both). Below: each file's title, its section headings, and the sentences that se
 
 HTTP authentication fallback: "The server refused HARNESS_TOKEN (401)." (403 uses 403).
 Other 4xx fallback: "The server refused the watch request (HTTP <status>)."
+Runner route fallback: "The server refused the runner request (HTTP <status>)."
 Unsafe tool/HTTP reason fallback: "The server refused the watch request."
 Unavailable identity fallback: "This project is not available for use."
 Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, control characters or stack reflection.

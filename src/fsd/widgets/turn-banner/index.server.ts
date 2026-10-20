@@ -1,1 +1,1 @@
-export { loadTurn } from "./api/turn-data.server";
+export { loadTurn, runnerFacts } from "./api/turn-data.server";
