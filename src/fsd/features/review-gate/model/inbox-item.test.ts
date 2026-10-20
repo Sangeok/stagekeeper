@@ -64,7 +64,24 @@ describe("toInboxItems", () => {
     })], repo);
     assert.ok(item);
     assert.equal(item.heldFrom, "implementing"); // 주 Resume 버튼이 여기서 정해진다
+    assert.equal(item.heldBy, "agent"); // 보류 메모의 이름표가 여기서 정해진다
     assert.equal(item.statusSince, "2026-08-30T09:00:00.000Z");
+  });
+
+  it("heldBy reads the hold transition's actor, and is null when no hold is in the events", () => {
+    const [byOwner] = toInboxItems([boardRow({
+      status: "on_hold",
+      events: [{ at: at("2026-08-30T09:00:00Z"), from: "in_review", to: "on_hold", actor: "human" }],
+    })], repo);
+    assert.equal(byOwner?.heldBy, "human");
+    const [unknown] = toInboxItems([boardRow({ status: "on_hold", events: [] })], repo);
+    assert.equal(unknown?.heldBy, null);
+    const [open] = toInboxItems([boardRow({
+      status: "in_review",
+      run: { node: "before-implement", closedAt: null },
+      events: [{ at: at("2026-08-30T09:00:00Z"), from: "on_hold", to: "in_review", actor: "human" }],
+    })], repo);
+    assert.equal(open?.heldBy, null);
   });
 
   it("names who put it on the board — pm, or you when it came from the Backlog tab", () => {

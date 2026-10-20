@@ -39,7 +39,17 @@ const inReview = (gate, validation) => ({ key: "ITEM-02", title: "Replay the tri
   agent: "web-dev", status: "in_review", gate, reason: "Users asked for it", results: [], validation,
   planPath: "docs/plans/ITEM-02.md", planUrl: "https://github.com/o/r/blob/0ff233d/docs/plans/ITEM-02.md",
   planCommit: "0ff233d0000000000000000000000000000000000", proposedBy: "pm", proposedOn: "2026-09-26T00:00:00Z",
-  statusSince: "2026-09-28T00:00:00Z", heldFrom: null, updatedAt: "2026-09-28T00:00:00Z" });
+  statusSince: "2026-09-28T00:00:00Z", heldFrom: null, heldBy: null, updatedAt: "2026-09-28T00:00:00Z" });
+
+it("labels the hold note by who held the item — the agent's question is not the owner's note", () => {
+  const held = (heldBy) => ({ ...inReview(null, null), status: "on_hold", heldFrom: "planning", heldBy,
+    results: ["Open: maxWords 0 → throw, first word, or \"\"? Answer in the item's Source, then resume."] });
+  const byAgent = render(held("agent"));
+  assert.match(byAgent, /web-dev&#x27;s note/);
+  assert.doesNotMatch(byAgent, /Your note/);
+  assert.match(byAgent, /Answer in the item&#x27;s Source, then resume\./);
+  assert.match(render(held("human")), /Your note/);
+});
 
 it("shows classification at the gate and explains the two discard outcomes", () => {
   const item = { key: "ITEM-01", title: "Fix a confirmed defect", type: "fix", area: ".", agent: "dev",

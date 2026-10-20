@@ -131,6 +131,16 @@ describe("decideReportSubmit — actor and the verify wall", () => {
     assert.match(why, /harness:init/);
     assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
   });
+  it("main-loop is still walled in implementing, with a reason that fits main-loop", () => {
+    // 이름으로 예외를 걸지 않는다 — 벽은 그대로고, main-loop에게 맞지 않는 agent_next·init 안내만 바꾼다.
+    // 게이트 없는 파이프라인에서는 validation_record가 항목을 implementing으로 넘긴 뒤 round log가 도착한다(2026-10-20 smoke).
+    const refused = decideReportSubmit(rs({ status: "implementing", actor: "main-loop", hasVerifyStep: false }));
+    assert.equal(refused.ok, false);
+    assert.match(refused.reason, /in_review/);
+    assert.match(refused.reason, /before validation_record/);
+    assert.match(refused.reason, /done/);
+    assert.doesNotMatch(refused.reason, /agent_next|harness:init/);
+  });
   it("the wall is outcome-agnostic — a failed verify still lets the hold report through", () => {
     // "같은 (project, actor, key)에 verify 기록이 있다(outcome 불문)".
     // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다.

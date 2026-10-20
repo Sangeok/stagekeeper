@@ -224,3 +224,21 @@ cancellation guarantees. No phone push, resident spawn or cross-device lock clai
 The proposal is completed on the user's code-implementation criterion; these pending
 acceptance steps remain follow-up work in this active report. Automated tests are
 implementation evidence, not proof of a successful production watch session.
+
+## Operating observation — 2026-10-20 background session on Windows
+
+This was an unattended smoke on localhost (`harness-watch-smoke`, a gate-free pipeline,
+Windows bundle 0.5.12). It ran in a `claude --bg --permission-mode auto` session, and it is
+not the V13 mathgic run.
+
+The background session runs in an isolated worktree. Commits land on that worktree's branch,
+not on the checkout's branch. The auto-mode classifier denied nothing. The worktree guard
+refused 8 commands that it could not prove stay inside the worktree.
+
+One of those refusals was the documented launcher itself: `powershell.exe … harness.ps1 watch …`
+called from the Bash tool ("runs powershell in a plain command; … cannot be shown not to run
+git"). The same command through the PowerShell tool ran 5 seconds later, and the session used
+the PowerShell tool from then on.
+
+Recorded only, by the owner's decision. The watch skill keeps allowing both shells. A resident
+executor that runs `claude -p` in the checkout has no worktree guard.
