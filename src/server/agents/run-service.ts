@@ -55,15 +55,17 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
             // 영수증이 가리키는 run이 이 프로젝트·에이전트·항목·파이프라인 항목·스텝·리비전의 것인가:
             const receiptMatchesPriorRun = prior !== null && prior.projectId === projectId && prior.agent === input.agent && prior.key === key
               && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && prior.stepId === claim.stepId && prior.revision === claim.revision;
-            // 그 run이 닫혔고, 닫은 스텝의 결과가 보드에 이미 반영돼 있는가(plan 제출 → in_review, 보류 → on_hold):
+            // 그 run이 닫혔고, 닫은 스텝의 결과가 보드에 이미 반영돼 있는가(plan 제출 → in_review, 보류 → on_hold).
+            // plan 단계도 보류로 닫힌다 — 대상을 못 찾거나 열린 결정이 남으면 dev가 계획 없이 plan 단계에서 바로 on_hold로 보낸다.
+            // 그 뒤의 마지막 outcome은 protocol.md(보드가 닫은 run의 terminal outcome 한 번)대로 받는다.
             const priorStepIsRecordedTerminal = !!prior?.closedAt
-              && ((prior.stepId === "plan" && entry.slotId === "plan" && pipeline.boardItem.status === "in_review")
+              && ((prior.stepId === "plan" && entry.slotId === "plan" && (pipeline.boardItem.status === "in_review" || pipeline.boardItem.status === "on_hold"))
                 || (prior.stepId === "hold" && pipeline.boardItem.status === "on_hold"));
             closedTerminal = ["ok", "failed", "blocked"].includes(input.outcome) && receiptMatchesPriorRun && priorStepIsRecordedTerminal;
             if (closedTerminal && prior?.closedAt) {
               closedTerminal = await tx.transitionEvent.findFirst({ where: {
                 boardItemId: pipeline.boardItemId,
-                ...(prior.stepId === "plan" ? { from: "planning", to: "in_review" } : { to: "on_hold" }),
+                ...(prior.stepId === "plan" ? { from: "planning", to: pipeline.boardItem.status } : { to: "on_hold" }),
                 at: prior.closedAt,
               }, select: { id: true } }) !== null;
             }
