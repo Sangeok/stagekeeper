@@ -243,7 +243,7 @@ the PowerShell tool from then on.
 Recorded only, by the owner's decision. The watch skill keeps allowing both shells. A resident
 executor that runs `claude -p` in the checkout has no worktree guard.
 
-## Runner status, Phase A — 2026-10-20 (automated; smoke pending)
+## Runner status, Phase A — 2026-10-20 (automated) and 2026-10-21 (localhost smoke)
 
 Proposal: `docs/proposals/active/runner-status-and-background-runner.md` (Phase A). The managed
 watch now takes a per-project runner lease on the server (`POST /api/runner`), signals while it
@@ -267,6 +267,51 @@ Automated evidence on branch `harness/runner-status`:
 - Web: banner model, render and loader cases; a one-off headless render of the real banner and
   project list at 1100px and 420px with compiled Tailwind showed every state without overflow.
 
-Not yet observed: a localhost smoke (A in the proposal). localhost uses the shared Neon
-database, so it waits for the owner's confirmation of the migration. The fixture CLIs prove
-the protocol, not the behaviour of a real Claude Code session acting on `busy` or `paused`.
+### Localhost smoke A — 2026-10-20 16:25–16:36 UTC
+
+Setup:
+
+- The owner confirmed the migration first. `migrate status` listed only `20261020000000_runner`.
+  The same SQL then ran in one transaction on the shared Neon database and was rolled back,
+  with checks for the table, the six CHECK constraints, the cascading key and the new column,
+  and with no project paused. The owner ran `prisma migrate deploy`, and the same checks passed
+  on the applied schema.
+- Server: dev (`653f367`) served from the junction worktree on port 3001 with
+  `next dev --webpack`. Turbopack refuses a junctioned `node_modules` ("Symlink
+  [project]/node_modules is invalid, it points out of the filesystem root"). Port 3000 belonged
+  to another project and was left alone.
+- Plugin: the 0.5.13 CLIs from the worktree, run directly against `harness-watch-smoke` (Max)
+  with `--server http://localhost:3001`. These are the commands the watch skill runs. No Claude
+  Code session ran them, and the board had no open items.
+
+| Proposal step | Observed |
+| --- | --- |
+| 1. Start shows the runner | `--start --managed` returned `started`. Board: "Runner: watching in Claude Code on `BOOK-5K4693FRHA` · checked 1 min ago" with **Pause**. Under a minute shows as 1, as designed. Other tabs end the strip with "Runner: watching on …". |
+| 2. A second clone gets `busy` | A second clone's start returned `busy` with holder `{mode:"session", host:"BOOK-5K4693FRHA"}`, exit 0, and left no lock files. The first clone's lock stayed. |
+| 3. Pause and Resume | **Pause** changed the line to "Runner paused — it starts nothing new." with **Resume**. `--check` returned `"paused":true`. The server log showed three poller signals after the pause and no MCP request. After **Resume**, the line came back, and the next poll signalled and then called `pipeline_next`. |
+| 4. Closing the window | The poller was killed without stop or release. Four minutes after its last signal, the board showed "No signal from the runner on `BOOK-5K4693FRHA` for 4 min." The second clone could then start, and the old session's `--check` returned `replaced`. |
+| 5. Project list card | The card added "Runner: watching on `BOOK-5K4693FRHA`" under "Nothing open". |
+
+After the steps, the second clone's `--stop` and `--release` sent the owner stop, and the
+runner line left the board. The pause was cleared.
+
+Findings:
+
+- The killed poller left `poller` in the old clone's lock, and `--release` returned
+  `quiescence-required`. This rule predates Phase A: a dead process does not prove that work
+  settled. The lock was recovered by hand as the watch skill's section 6 describes. No role had
+  been dispatched. A real closed window leaves the same lock. By the watch skill, the next
+  start then reports `locked` (not run here).
+- Each runner request took 5.6–7.5 s on this machine, and MCP requests took 5.6–9.0 s. The
+  runner request makes several database round trips to the us-east-2 Neon database. The
+  watch's 20-second request timeout covers this.
+- A pg deprecation warning ("Calling client.query() when the client is already executing a
+  query") appears on project pages. The owner's dev-server log on a branch without Phase A has
+  the same warning, so Phase A did not introduce it.
+
+Not yet observed:
+
+- A real Claude Code session acting on `busy`, `paused` or `replaced`. The fixture CLIs prove
+  the protocol, and this smoke proves it against the real server and web.
+- A runner in the `working` state, including the 60-minute rule after the last agent activity.
+  The board had no work to hand out.

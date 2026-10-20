@@ -683,7 +683,8 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 | 변이 확인: `runner-service.ts`의 User·Project 잠금 두 줄을 뺌 | 경합 시험 실패(의도) | 되돌린 뒤 7/7 통과 |
 | 화면: 실제 `TurnBanner`·`ProjectListPage`를 컴파일한 Tailwind와 함께 헤드리스 Chromium으로 렌더(1100px·420px) | 확인 | 상태별 줄·Pause/Resume·버전 줄·스트립·카드. 가로 넘침 없음. 로그인·DB 없이 한 일회성 확인이라 저장소에 남기지 않음 |
 | `npm run build` | CI | PR의 `check (build)` |
-| smoke A(localhost) | Not run yet | localhost도 공유 Neon을 쓰므로 마이그레이션 적용(운영 반영) 확인 뒤 |
+| 공유 DB 마이그레이션(2026-10-21, 주인 확인) | pass | `migrate status` 대기는 `20261020000000_runner` 하나였다. 같은 SQL을 한 트랜잭션으로 돌리고 확인한 뒤 ROLLBACK했다(테이블·CHECK 6개·CASCADE FK·열, 일시 정지된 프로젝트 0). 주인이 `migrate deploy`를 실행했고, 같은 검사가 통과했으며 `migrate status`는 up to date |
+| smoke A(localhost, 2026-10-20 16:25–16:36 UTC) | pass(CLI 수준) | 1~5를 모두 관찰했다. dev(`653f367`)를 정션 worktree에서 `next dev --webpack`으로 :3001에 띄웠다(Turbopack은 정션 `node_modules`를 거부). worktree의 0.5.13 CLI를 스킬이 쓰는 명령 그대로 직접 돌렸다. 실제 Claude Code 세션이 `busy`·`paused`를 처리하는 모습과 `working` 상태(60분 규칙)는 보지 못했다(보드에 일이 없었음). 자세한 내용은 시험 보고서 "Localhost smoke A" |
 
 **Phase A 구현에서 제안과 달라진 점**(2026-10-20).
 - 영향 파일에 빠져 있던 고정 시험 둘을 함께 고쳤다.
