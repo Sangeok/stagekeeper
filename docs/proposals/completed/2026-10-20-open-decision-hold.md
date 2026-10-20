@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-20"
 approved-by: "HamSangEok"
 approved-at: "2026-10-20"
 approval-scope: "템플릿 저장소의 dev.md step:plan·plans/template.md·시험 import 경로 변경, 커밋·PR·머지까지. 공유 DB 시드(운영 출시)는 실행 직전 별도 확인"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-20"
+verification-summary: "템플릿 시험 53/53. 시드 뒤 13행 대조에서 두 행만 바뀌고 런북 해시 불변. watch smoke D 세 경우 통과: ITEM-02 열린 결정 보류 → Source 답 → 재개 → 답대로 인수, 대조군 ITEM-03 보류 없이 인수"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -262,8 +262,12 @@ npm run test:templates
 | 편집본 `splitTemplate` 파싱 | 단계 `plan,implement,verify,report,hold`, 새 문장은 plan 단계에만, stub에는 없음 | 2026-10-20 |
 | DB 대 템플릿 main LF sha256(읽기 전용, 전체 행) | 13행 모두 일치. `agents/dev.md` `6099d0fbf6d63938`, `docs/plans/template.md` `34156a40dc8329c5` | 되돌리기 기준. 깨끗한 checkout에서 시드하면 바뀌는 건 두 행뿐 |
 | 템플릿 PR | Sangeok/harness-templates#13 머지, main `2951fdf` | 커밋 `0b8eb74`. 템플릿 저장소에는 CI가 없다 |
-| 시드 | Not run yet | 실행 직전 별도 확인 |
-| smoke D | Not run yet | 출시 뒤 |
+| 시드(`seed:templates --dir <깨끗한 2951fdf checkout> --snapshot <공개 저장소 밖>`) | 13행 단일 트랜잭션 | 2026-10-20 주인 확인 뒤 실행. 스냅숏은 바뀐 행으로 `agents/dev.md`, `docs/plans/template.md` 두 개만 기록 |
+| 시드 뒤 전체 행 대조(읽기 전용) | 13행 모두 새 main과 일치 | `agents/dev.md` `57b467e5a90e`, `docs/plans/template.md` `cc3cfd6a8032`. 런북 `b5257ea7e9cd`·`ef5cb547c8c2` 그대로 |
+| smoke D — ITEM-02 빈틈 | 통과 | 08:00:21 dev가 계획 없이 보류(actor agent). 사유 139자에 질문·선택지·답할 곳이 들어 있었다. 계획 파일과 커밋은 없었고 작업 트리는 깨끗했다. localhost Inbox에 카드와 뱃지가 떴다 |
+| smoke D — ITEM-02 답·재개 | 통과 | 08:03:07 Source에 답을 적고 웹에서 재개했다. dev는 다시 보류하지 않고 08:09 계획을 제출했다. 검증 → 구현 → 09:01:37 인수까지 갔다. 탐침 결과 1 미만은 RangeError, 단어 없는 입력은 `""`, maxWords를 먼저 적용하고 maxLength는 그대로였다 |
+| smoke D — ITEM-03 대조군 | 통과 | 보류 이벤트 0건으로 07:55 제안부터 08:35:19 인수까지 갔다. ITEM-02가 보류된 동안에도 진행됐다 |
+| smoke 저장소 | main `68f6b3e`(push), `npm test` 35/35 | 결과 브랜치를 빨리 감기로 머지한 뒤 worktree를 지웠다 |
 
 ## Risks and Rollback
 
@@ -286,11 +290,20 @@ npm run test:templates
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-20
+- verification-summary: front matter와 같음. 세부는 Verification Results 표.
+- implementation PR/commit:
+  - Sangeok/harness-templates#13(`0b8eb74`, main `2951fdf`)
+  - 승인 문서 #170(dev `9ad524d`)
+  - 공유 DB 시드 2026-10-20
+- changed files summary: 템플릿 저장소의 `en/agents/dev.md`(step:plan), `en/docs/plans/template.md`(Problem 절), `templates.test.mjs`(import 한 줄).
+- smoke D에서 드러나 같은 날 dev에 넣은 것:
+  - #172(`c59a937`): 계획 단계 보류 뒤 `agent_next ok`가 stale이던 문제. `run-service.ts`가 protocol.md대로 계획 단계 보류로 닫힌 run의 마지막 outcome을 받는다.
+  - #171(`3c2824f`): Inbox 보류 메모 이름표를 보류 주체별로 바꾸고(에이전트면 "dev's note"), main-loop의 implementing 거절 문구를 고쳤다.
+- remaining follow-up:
+  - #171과 #172는 dev에만 있다. 운영 서버는 main에서 배포되므로 main 승격 전까지 운영 Inbox는 "Your note"를 보이고, 계획 단계 보류 뒤 `ok`는 stale이다. 이번 smoke의 dev는 stale을 받고 스스로 멈췄다.
+  - background 세션의 worktree 격리 장치가 명령 30건을 거절했다. 대부분 plan-verifier의 긴 스크립트였고, 검증 단계가 느려졌다(약 12–14분). 상주 실행기는 본 checkout에서 돌기로 했으므로 거기에는 해당하지 않는다.
+  - dev가 `plan_submit`을 접두어 없이 두 번 불러 "No such tool"이 났고, 스스로 회복했다. 지난 smoke의 `report_submit`과 같은 패턴이다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -305,8 +318,8 @@ npm run test:templates
 - [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다.
-- [x] `stage`는 pending 문서에서만 사용했다.
-- [x] `stage: "approved"`이고 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
+- [x] 완료 문서라 `stage: null`이고, `approved-by`, `approved-at`, `approval-scope`는 승인 기록으로 남아 있다.
+- [x] `completed-at`, `verification-summary`, Completion or Closure Notes를 실제 수행 결과로 갱신했다.
 - [x] `proposal-size`는 standard다(롤백이 재시드).
 - [x] 승인 기록은 front matter를 단일 기준으로 사용한다.
 - [x] 변경 범위와 제외 범위가 명확하다.
