@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-10-20"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "HamSangEok"
+approved-at: "2026-10-20"
+approval-scope: "Phase A·B 구현과 커밋·PR·dev 머지까지. Phase B 1단계 실측이 실패하면 그 부분은 설계를 고쳐 다시 승인받는다. 공유 DB 마이그레이션, main 승격, marketplace 갱신은 각각 실행 직전 별도 확인"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -565,7 +565,7 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 
 승인 메모:
 
-- 승인 전.
+- 2026-10-20 HamSangEok이 Phase A·B를 승인했다(범위는 front matter의 `approval-scope`). PR #175를 머지한 뒤 범위를 골라 확인했다.
 - 검토 요청 7개는 2026-10-20 사용자가 확인했다. 7은 `/billing`만으로 범위를 좁혀 확인했다.
 - 운영 마이그레이션, 운영 배포(main 승격), 플러그인 marketplace 갱신은 각각 실행 직전에 따로 확인받는다.
 
@@ -724,7 +724,7 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다.
 - [x] `stage`는 pending 문서에서만 사용했다.
-- [ ] `stage: "approved"`라면 승인 기록이 모두 채워져 있다. (승인 전)
+- [x] `stage: "approved"`라면 승인 기록이 모두 채워져 있다.
 - [x] `proposal-size`는 standard다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용한다.
 - [x] 변경 범위와 제외 범위가 명확하다.
