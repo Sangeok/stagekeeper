@@ -34,6 +34,7 @@ export type InboxItem = {
   proposedOn: string; // ISO
   statusSince: string; // ISO. 지금 status로 바뀐 전이 이벤트의 시각(없으면 updatedAt)
   heldFrom: string | null; // on_hold 직전 status — 주 Resume 버튼이 여기서 정해진다
+  heldBy: "human" | "agent" | null; // on_hold로 보낸 전이의 actor — 보류 메모의 이름표가 여기서 정해진다
   updatedAt: string; // ISO. 낙관적 잠금(CAS)에 그대로 돌려보낸다
 };
 
@@ -105,6 +106,8 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
         proposedOn: row.proposedOn.toISOString(),
         statusSince: (became?.at ?? row.updatedAt).toISOString(),
         heldFrom: held?.from ?? null,
+        // 에이전트도 보류한다(계획 단계의 열린 결정, 범위 밖 차단). 그 메모는 사용자가 쓴 것이 아니다.
+        heldBy: held === undefined ? null : held.actor === "human" ? "human" : "agent",
         updatedAt: row.updatedAt.toISOString(),
       };
     });

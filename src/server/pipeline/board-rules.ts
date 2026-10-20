@@ -138,6 +138,14 @@ export function decideReportSubmit(i: ReportSubmitInput): Decision<ReportSubmitP
   // **Phase 4 이전에 init한 프로젝트**다 — 통짜 본문 파일을 그대로 들고 있으면 agent_next를 부르지 않아
   // 원장에 verify가 남지 않는다. 그 사용자에게 필요한 다음 행동은 재검증이 아니라 /harness:init 재실행이다.
   if (i.status === "implementing" && !i.hasVerifyStep) {
+    // main-loop은 agent_next를 쓰지 않으므로 위 안내가 맞지 않는다. 벽은 그대로 두고(이름으로 예외를 걸지 않는다)
+    // 문구만 가른다 — 게이트 없는 파이프라인에서는 validation_record가 항목을 implementing으로 바로 넘긴다.
+    if (i.actor === MAIN_LOOP) {
+      return {
+        ok: false,
+        reason: "main-loop reports in in_review (the round log, before validation_record moves the item on) or in done (the acceptance) — this item is implementing",
+      };
+    }
     return {
       ok: false,
       reason:

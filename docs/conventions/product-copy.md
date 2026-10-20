@@ -298,7 +298,9 @@ the item key in the body as well as the key label; it does not replace it with "
   isn't approved. Under the path/commit row: "Opens the recorded commit on GitHub. If it
   404s, that commit is not pushed yet." Pushing is the owner's job and no pipeline step grants
   it, so the link can point at a commit that only exists locally.
-- On hold: **Your note** row → Resume buttons (§3).
+- On hold: **Your note** row → Resume buttons (§3). When an agent put the item on hold — dev's
+  open decision, a scope blocker — the row is the agent's: **web-dev's note**. An old hold
+  outside the event window keeps **Your note**.
 - Over-budget badge after the status line: **Over 150 characters** — tooltip "This summary is
   over 150 characters. Move the details to docs/agents/."
 - Help (collapsed): **What this decision does**
@@ -727,6 +729,8 @@ are terse on purpose — agents parse them.
 | `not allowed: agent done → implementing` (reopen is web only) | — |
 | `plan_submit only in planning or in_review (now done)` | — |
 | `report_submit only in in_review, implementing, or done (now proposed)` | — |
+| ``verify step not recorded for `web-dev` on this item — record the verify step through agent_next before reporting. If the agent files still carry full step bodies, rerun /harness:init to get stubs.`` | — |
+| `main-loop reports in in_review (the round log, before validation_record moves the item on) or in done (the acceptance) — this item is implementing` | — |
 | `no such board item: FEAT-9` | — |
 | `QA has not completed; acceptance is only available at accept` | — |
 | `QA evidence belongs to qa-verifier` | — |

@@ -9,6 +9,7 @@ import { Code } from "@/fsd/shared/ui/code";
 import { gateLabel } from "@/fsd/entities/pipeline";
 import {
   gateNextActionHint,
+  holdNoteLabel,
   resumeHint,
   resumePrimaryFor,
 } from "../model/gate-text";
@@ -58,7 +59,7 @@ function InboxCardContent({ item, now, transition, approve, discard, canWrite, r
 
         {isInReview ? <PlanRow item={item} /> : null}
         {isProposed ? <Kv label="Evidence">{item.reason}</Kv> : null}
-        {isOnHold ? <Kv label="Your note">{item.results[item.results.length - 1] ?? item.reason}</Kv> : null}
+        {isOnHold ? <Kv label={holdNoteLabel(item.heldBy, item.agent)}>{item.results[item.results.length - 1] ?? item.reason}</Kv> : null}
 
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

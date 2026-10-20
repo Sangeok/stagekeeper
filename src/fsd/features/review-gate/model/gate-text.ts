@@ -60,6 +60,10 @@ export function resumeHint(primary: string, heldFrom: string | null): string {
   if (heldFrom === "proposed") return "dev writes the plan. Resuming implementation instead skips the approval gate.";
   return "dev rewrites the plan; the validation is cleared. Resuming implementation instead skips the approval gate.";
 }
+// 보류 메모의 이름표 — 사람이 보류했으면 자기 메모, 에이전트가 보류했으면 그 에이전트의 메모다(product-copy.md §6).
+export function holdNoteLabel(heldBy: "human" | "agent" | null, agent: string): string {
+  return heldBy === "agent" ? `${agent}'s note` : "Your note";
+}
 
 // 되돌리기(reopen) — done에서 돌아가는 두 목적지. 주 버튼은 구현(계획은 유효하고 코드가 틀린 경우)이다.
 // 힌트는 고른 목적지가 무엇을 하는지 말한다(product-copy.md §3).
