@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
+import type { PauseRunnerAction } from "@/fsd/features/pause-runner";
 
 import { cn } from "@/fsd/shared/lib/class-name";
 import { activeProjectTab, itemPath, type ProjectTabId, projectPath } from "@/fsd/shared/routes/project";
@@ -14,33 +15,43 @@ import { RuntimeClientChoice } from "@/fsd/shared/ui/runtime-client-choice";
 import { HEADLINE, type SetupStep, type Turn, type TurnTarget } from "../model/turn";
 import type { RuntimeClient } from "../model/next-step";
 import { formatSetupDetail } from "../model/setup-detail";
+import { hasLiveRunner, runnerShortLine, type RunnerFacts } from "../model/runner";
 import { NextStepContent } from "./next-step";
+import { RunnerRow, RunnerShort, useRunnerNow } from "./runner-line";
 
 // 탭이 아닌 프로젝트 하위 경로(항목 상세 등)에서는 null이다.
 type Tab = ProjectTabId | null;
 const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));
 
+// runner·pause는 선택이다. 없으면 실행기 줄 없이 지금과 똑같이 그린다(실행기 상태를 읽지 않는 화면·fixture).
+type TurnBannerProps = { turn: Turn; slug: string; runner?: RunnerFacts; pause?: PauseRunnerAction };
+
 // 레이아웃은 경로를 모른다 — 어느 탭인지는 여기서 읽는다. Board·Inbox에서는 크게, 나머지에서는 한 줄 스트립.
-export function TurnBanner({ turn, slug }: { turn: Turn; slug: string }): ReactElement {
-  return <TurnBannerContent key={slug} turn={turn} slug={slug} />;
+export function TurnBanner(props: TurnBannerProps): ReactElement {
+  return <TurnBannerContent key={props.slug} {...props} />;
 }
 
-function TurnBannerContent({ turn, slug }: { turn: Turn; slug: string }): ReactElement {
+function TurnBannerContent({ turn, slug, runner, pause }: TurnBannerProps): ReactElement {
   const pathname = usePathname();
   const [client, setClient] = useState<RuntimeClient>("claude");
+  const now = useRunnerNow(runner?.renderedAt);
   const tab = activeProjectTab(pathname, slug);
   const isFullBanner = tab === "board" || tab === "inbox";
-  if (!isFullBanner) return <CompactBanner turn={turn} tab={tab} slug={slug} pathname={pathname} />;
+  if (!isFullBanner) return <CompactBanner turn={turn} tab={tab} slug={slug} pathname={pathname} runner={runner} now={now} />;
+  // 배너의 모든 종류에서 같은 자리에 둔다 — 보드가 빈 첫 실행에도 feature-scout를 돌리는 실행기가 있을 수 있다.
+  const runnerRow = runner === undefined ? null : <RunnerRow facts={runner} now={now} pause={pause} />;
   if (turn.kind === "setup") return <SetupList
     steps={turn.steps.map(step => ({ ...step, detail: formatSetupDetail(step, client) }))}
     current={turn.current}
     slug={slug}
     clientChoice={<RuntimeClientChoice value={client} options={OPTIONS} onChange={setClient} />}
+    runnerRow={runnerRow}
   />;
   const nextSteps = turn.kind === "mine" || turn.kind === "theirs"
-    ? <NextStepContent steps={turn.next} client={client} onClientChange={setClient} />
+    ? <NextStepContent steps={turn.next} client={client} onClientChange={setClient}
+      showWatch={!hasLiveRunner(runner, now)} showRunnerHint={runner !== undefined && runner.runner === null} />
     : null;
-  return <FullBanner turn={turn} tab={tab} slug={slug} nextSteps={nextSteps} />;
+  return <FullBanner turn={turn} tab={tab} slug={slug} nextSteps={nextSteps} runnerRow={runnerRow} />;
 }
 
 // 내 차례의 버튼. 결재함에 카드가 있으면 Inbox(mine), 인수·핸드오프뿐이면 그 항목 페이지(quiet) — 어디로 갈지는
@@ -60,7 +71,7 @@ function OpenTargetLink({ open, slug }: { open: TurnTarget; slug: string }) {
   );
 }
 
-function FullBanner({ turn, tab, slug, nextSteps }: { turn: Exclude<Turn, { kind: "setup" }>; tab: Tab; slug: string; nextSteps: ReactNode }) {
+function FullBanner({ turn, tab, slug, nextSteps, runnerRow }: { turn: Exclude<Turn, { kind: "setup" }>; tab: Tab; slug: string; nextSteps: ReactNode; runnerRow: ReactNode }) {
   const headline = HEADLINE[turn.kind];
   // Inbox에서는 카드가 바로 아래 있으니 세부 줄을 되풀이하지 않는다 — 카드가 있을 때만. 인수·핸드오프뿐인 차례는
   // 카드가 없어("Nothing to decide.") 배너가 세부 줄과 항목 링크를 지녀야 한다.
@@ -74,6 +85,7 @@ function FullBanner({ turn, tab, slug, nextSteps }: { turn: Exclude<Turn, { kind
         ) : null}
         {headline}
       </h1>
+      {runnerRow}
       {inboxCardsAreBelow ? null : <p className="max-w-[60ch] text-sm text-quiet">{turn.detail}</p>}
       {turn.kind === "mine" && turn.why !== null ? <p className="text-xs text-quiet">{turn.why}</p> : null}
       {nextSteps}
@@ -124,9 +136,10 @@ function compactView(turn: Turn, tab: Tab, slug: string, pathname: string): Comp
   }
 }
 
-function CompactBanner({ turn, tab, slug, pathname }: { turn: Turn; tab: Tab; slug: string; pathname: string }) {
+function CompactBanner({ turn, tab, slug, pathname, runner, now }: { turn: Turn; tab: Tab; slug: string; pathname: string; runner?: RunnerFacts; now: number }) {
   const isMyTurn = turn.kind === "mine";
   const { detail, action } = compactView(turn, tab, slug, pathname);
+  const runnerTail = runner !== undefined && runnerShortLine(runner, now) !== null ? runner : null;
   return (
     <div
       className={cn(
@@ -135,7 +148,7 @@ function CompactBanner({ turn, tab, slug, pathname }: { turn: Turn; tab: Tab; sl
       )}
     >
       <b className={cn("font-medium", isMyTurn && "text-mine")}>{turn.kind === "setup" ? "Setting up" : HEADLINE[turn.kind]}</b>
-      <span className="text-quiet">{detail}</span>
+      <span className="text-quiet">{detail}{runnerTail !== null ? <>{" · "}<RunnerShort facts={runnerTail} now={now} /></> : null}</span>
       {action !== null ? (
         <Link href={action.href} className={cn("ml-auto", isMyTurn ? "text-mine" : "text-ink")}>
           {action.label}
@@ -147,10 +160,11 @@ function CompactBanner({ turn, tab, slug, pathname }: { turn: Turn; tab: Tab; sl
 
 // 첫 방문 체크리스트. 마지막 단계는 첫 항목이 보드에 오르면 끝난다.
 // current는 deriveTurn이 이미 정한 1-based 값 — 여기서 다시 계산하지 않는다.
-function SetupList({ steps, current, slug, clientChoice }: { steps: SetupStep[]; current: number; slug: string; clientChoice: ReactNode }) {
+function SetupList({ steps, current, slug, clientChoice, runnerRow }: { steps: SetupStep[]; current: number; slug: string; clientChoice: ReactNode; runnerRow: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
       <h1 className="type-display">{HEADLINE.setup}</h1>
+      {runnerRow}
       {clientChoice}
       <ol className="mt-2 flex flex-col border-t border-rule">
         {steps.map((step, i) => {

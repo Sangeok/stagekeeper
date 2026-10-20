@@ -71,6 +71,8 @@ export function readState(files) {
     || (lock.client !== undefined && !["claude", "codex"].includes(lock.client))
     || (lock.mode !== undefined && !["watch", "foreground"].includes(lock.mode))
     || (lock.lifecycle !== undefined && !["active", "stopping"].includes(lock.lifecycle))
+    // 서버 lease를 잡았는가(/api/runner). CLI는 매번 새 프로세스라 이 값으로만 안다. 옛 판은 이 키를 읽지 않는다.
+    || (lock.runnerLease !== undefined && typeof lock.runnerLease !== "boolean")
     || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce))))) fail("corrupt-state");
   return { lock, policy };
 }

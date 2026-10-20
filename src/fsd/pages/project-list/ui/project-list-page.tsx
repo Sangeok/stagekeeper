@@ -7,12 +7,14 @@ import { newProjectPath } from "@/fsd/shared/routes/projects";
 import { ButtonLink } from "@/fsd/shared/ui/button";
 import { UseProjectControl, selectionControlKey, type ProjectSelectionModel, type SelectProjectAction } from "@/fsd/features/select-project-for-use";
 import { ProjectConnectionControl, connectionControlKey, type ProjectConnectionSummary, type ProjectConnectionAction } from "@/fsd/features/manage-project-connection";
+import { RunnerShort, type RunnerFacts } from "@/fsd/widgets/turn-banner";
 import { activityLines, connectionSummary, NOT_SELECTED_BOUNDARY, selectionNotice } from "../model/project-list-copy";
 
 export type ProjectListModel = Omit<ProjectSelectionModel, "projects"> & {
   login: string;
   connectedCount: number;
-  projects: (ProjectSelectionModel["projects"][number] & { slug: string; repoOwner: string; repo: string; branch: string; disconnectedAt: string | null })[];
+  // runner는 선택이다. 있으면 활동 줄 아래에 실행기의 짧은 형태를 한 줄 더한다(product-copy §10).
+  projects: (ProjectSelectionModel["projects"][number] & { slug: string; repoOwner: string; repo: string; branch: string; disconnectedAt: string | null; runner?: RunnerFacts })[];
   notice: { basis: string | null; availableProjectIds: string[]; at: string } | null;
 };
 type ProjectRow = ProjectListModel["projects"][number];
@@ -49,6 +51,7 @@ export function ProjectListPage({ model, action, disconnect, reconnect }: Props)
         </Link>
         {!isDisconnected ? <span className="flex flex-col text-right text-xs text-quiet tabular-nums">
           {activityLines(p.openItems, p.openRuns).map((line) => <span key={line}>{line}</span>)}
+          {p.runner ? <span><RunnerShort facts={p.runner} now={Date.parse(p.runner.renderedAt)} /></span> : null}
         </span> : null}
         {!isDisconnected ? <UseProjectControl key={selectionControlKey(p.id, selection)} targetId={p.id} model={selection} action={action} /> : null}
         <ProjectConnectionControl key={connectionControlKey(p.id, connection)} target={{ id: p.id, name: p.name, repoOwner: p.repoOwner, repo: p.repo, disconnectedAt: p.disconnectedAt }} summary={connection} disconnect={disconnect} reconnect={reconnect} />

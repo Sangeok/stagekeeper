@@ -5,13 +5,29 @@ import { pendingInboxCount } from "@/fsd/entities/board-item";
 import { prisma } from "@/server/db";
 import { latestBoard } from "@/server/pipeline/api.server";
 import { handoffIsLive } from "@/server/pipeline/api";
+import { readRunnerState } from "@/server/runners/api.server";
+import type { RunnerView } from "@/server/runners/contracts";
+import type { RunnerFacts } from "../model/runner";
 import { deriveTurn, type Turn } from "../model/turn";
 
-export type TurnData = { turn: Turn; inboxCount: number };
+export type TurnData = { turn: Turn; inboxCount: number; runner: RunnerFacts };
+
+// 서버 타입을 위젯 model의 타입으로 옮긴다 — model/ui는 @/server를 읽지 않는다. 시각은 ISO 문자열로 넘긴다.
+export function runnerFacts(view: RunnerView): RunnerFacts {
+  const row = view.runner;
+  return {
+    runner: row === null ? null : {
+      mode: row.mode, host: row.host, branch: row.branch, permission: row.permission, autostart: row.autostart, state: row.state,
+      waitReason: row.waitReason, stopReason: row.stopReason, seenAt: row.seenAt.toISOString(), lastActivity: view.lastActivity?.toISOString() ?? null,
+    },
+    paused: view.pausedAt !== null,
+    renderedAt: view.renderedAt.toISOString(),
+  };
+}
 
 // latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다.
 export async function loadTurn(projectId: string): Promise<TurnData> {
-  const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns, project, failures] = await Promise.all([
+  const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns, project, failures, runner] = await Promise.all([
     latestBoard(projectId),
     prisma.projectToken.count({ where: { projectId, revokedAt: null } }),
     prisma.workspace.count({ where: { projectId } }),
@@ -22,6 +38,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     prisma.pipelineRun.findMany({ where: { closedAt: null, boardItem: { projectId } }, select: { id: true, entryId: true, version: { select: { format: true } }, boardItemId: true, node: true } }),
     prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } }),
     prisma.acceptanceFailure.findMany({ where: { clearedAt: null, boardItem: { projectId } }, select: { boardItemId: true } }),
+    readRunnerState(projectId),
   ]);
 
   // 에이전트가 멈췄다는 사실은 원장에 남지만, 소유자가 커밋하고 에이전트가 이어가면 그 행은 그대로 남는다.
@@ -67,5 +84,6 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
   return {
     turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0, autoScoutEnabled: project.autoScoutEnabled }),
     inboxCount: pendingInboxCount(items.map((i) => ({ status: i.status, gate: i.gate }))),
+    runner: runnerFacts(runner),
   };
 }

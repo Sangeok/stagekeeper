@@ -9,6 +9,7 @@ import { isRunbookVersion } from "../lib/runbook.mjs";
 import { actionableWork, hasWork, nextWatchState, parseToolResponse, workSignature } from "../lib/watch.mjs";
 
 import { WatchFailure, Interrupted, gitRoot, stateFiles, readState, atomicWrite, isAlive, withGuard, replaced, matchesBinding, requireOwnership, clearState } from "../runtime/local-session.mjs";
+import { runnerCall, runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 
 const REASONS = {
   "invalid-arguments": "Invalid watch arguments. Check the mode, required values, and positive timing limits.",
@@ -38,7 +39,7 @@ const fail = (code, reason) => { throw new WatchFailure(code, reason); };
 
 function parseArguments(argv) {
   const values = new Set(["root", "server", "commit", "propose", "session", "interval", "deadline", "request-timeout"]);
-  const flags = new Set(["start", "force", "check", "stop", "managed"]);
+  const flags = new Set(["start", "force", "check", "stop", "managed", "takeover"]);
   const options = {};
   for (let i = 0; i < argv.length; i++) {
     const name = argv[i].startsWith("--") ? argv[i].slice(2) : "";
@@ -54,7 +55,9 @@ function parseArguments(argv) {
   const mode = options.start ? "start" : options.stop ? "stop" : options.check ? "check" : "poll";
   if (mode === "start") {
     if (options.session || !["yes", "no"].includes(options.commit) || !["yes", "no"].includes(options.propose)) fail("invalid-arguments");
-  } else if (!options.session || options.force || options.managed || options.commit || options.propose) fail("invalid-arguments");
+    // 교체는 서버 lease에만 뜻이 있다 — 서버 lease는 관리형 시작만 잡는다.
+    if (options.takeover && !options.managed) fail("invalid-arguments");
+  } else if (!options.session || options.force || options.managed || options.takeover || options.commit || options.propose) fail("invalid-arguments");
   if (mode !== "poll" && ["interval", "deadline", "request-timeout"].some((key) => options[key] !== undefined)) fail("invalid-arguments");
   const timing = (name, fallback, max = Infinity) => {
     const value = options[name] === undefined ? fallback : Number(options[name]);
@@ -224,6 +227,44 @@ function verifyIdentity(value, config) {
   if (!value.available) fail("access-refused", cleanReason(value.reason, process.env.HARNESS_TOKEN, "This project is not available for use."));
 }
 
+const runnerTarget = (input) => ({ server: input.server, token: input.token, project: input.config.project.slug });
+
+// 이 시작이 방금 만든 잠금만 지운다(서버가 lease를 주지 않았을 때). 폴러가 붙은 뒤의 잠금은 건드리지 않는다.
+async function dropStartedLock(files, session) {
+  await withGuard(files, () => {
+    const state = readState(files);
+    if (state?.lock.id === session && state.lock.poller === null) clearState(files);
+  });
+}
+
+// 서버 lease를 잡는다. 결과는 잠금의 runnerLease에 남긴다 — --check·--release·poll은 매번 새 프로세스라
+// 이 값으로만 lease를 잡았는지 안다. 404(경로가 없는 서버)면 오늘처럼 로컬 잠금만으로 돈다.
+async function startLease(files, input, options, session) {
+  const payload = { op: "start", session, mode: "session", host: runnerHost(), ...(options.takeover ? { takeover: true } : {}) };
+  let result;
+  for (let failures = 0;;) {
+    // 같은 세션으로 다시 보내므로 서버가 앞의 요청을 이미 받았어도 BUSY가 되지 않는다.
+    result = await runnerCallWithin(runnerTarget(input), payload, options.requestTimeout);
+    if (result.kind !== "transient" || ++failures >= 5) break;
+    // 사람이 시작을 기다리고 있다 — 폴링 간격(60초)이 아니라 짧게 다시 보낸다.
+    await delay(Math.min(Math.max(1000 * failures, result.retryAfter), 10_000));
+  }
+  if (result.kind === "ok" || result.kind === "missing") {
+    await withGuard(files, () => {
+      const state = readState(files);
+      if (state?.lock.id !== session) throw new Interrupted(replaced(session, state));
+      state.lock.runnerLease = result.kind === "ok";
+      atomicWrite(files.lock, state.lock);
+    });
+    return null;
+  }
+  await dropStartedLock(files, session);
+  if (result.kind === "busy") return { event: "busy", holder: result.holder };
+  if (result.kind === "transient") fail("request-failed");
+  if (result.kind === "refused") fail("access-refused", cleanReason(result.reason, input.token, `The server refused the runner request (HTTP ${result.status}).`));
+  fail("protocol-error");
+}
+
 async function startWatch(files, input, options) {
   // No watch session exists yet: startup can fail, but cannot emit a sessionless idle.
   const expires = Infinity;
@@ -239,7 +280,7 @@ async function startWatch(files, input, options) {
   }
   verifyIdentity(identity, input.config);
   mkdirSync(path.dirname(files.lock), { recursive: true });
-  return withGuard(files, () => {
+  const event = await withGuard(files, () => {
     if (!matchesBinding(input.binding, localInput({ root: input.binding.root }, options).binding)) fail("binding-changed");
     const state = readState(files);
     if (state && (!options.force || state.lock.lifecycle !== undefined)) return { event: "locked", startedAt: state.lock.startedAt, seenAt: state.lock.seenAt };
@@ -250,6 +291,33 @@ async function startWatch(files, input, options) {
       ...(options.managed ? { client: "claude", mode: "watch", lifecycle: "active", children: [] } : {}) });
     return { event: "started", session, policy: { commit: policy.commit, propose: policy.propose } };
   });
+  if (event.event !== "started" || !options.managed) return event;
+  return (await startLease(files, input, options, event.session)) ?? event;
+}
+
+// 폴링 중의 lease 호출. 멈춤 신호와 마감을 따른다 — 마감을 넘기면 idle, 시간 초과는 일시적 실패다.
+async function limitedRunner(target, payload, controller, expires, timeout) {
+  const remaining = expires - performance.now();
+  if (remaining <= 0) throw new Interrupted({ event: "idle" });
+  // AbortSignal.timeout은 정수 밀리초만 받는다.
+  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(Math.max(1, Math.ceil(Math.min(remaining, timeout))))]);
+  try { return await runnerCall(target, payload, { signal }); }
+  catch {
+    if (controller.signal.aborted) throw controller.signal.reason;
+    if (remaining <= timeout) throw new Interrupted({ event: "idle" });
+    return { kind: "transient", retryAfter: 0 };
+  }
+}
+
+// 신호의 결과를 폴링의 갈래로 옮긴다. 일시적 실패는 기존 연속 실패 횟수에 함께 센다.
+// 404는 서버가 경로를 잃은 것(롤백)이라 그 호출만 건너뛴다.
+function leaseOutcome(result, input) {
+  if (result.kind === "ok") return { paused: result.paused };
+  if (result.kind === "missing") return { paused: false };
+  if (result.kind === "transient") throw new TransientFailure(result.retryAfter);
+  if (result.kind === "replaced") throw new Interrupted({ event: "replaced", seenAt: null });
+  if (result.kind === "refused") fail("access-refused", cleanReason(result.reason, input.token, `The server refused the runner request (HTTP ${result.status}).`));
+  fail("protocol-error");
 }
 
 async function pollWatch(files, input, options) {
@@ -258,6 +326,7 @@ async function pollWatch(files, input, options) {
   const expires = performance.now() + options.deadline;
   const controller = new AbortController();
   let registered = false;
+  let lease = false;
   let event;
   let localTimer;
   let monitorPending;
@@ -274,6 +343,7 @@ async function pollWatch(files, input, options) {
       requireOwnership(state, session, input.binding);
       if ((state.lock.mode ?? "watch") !== "watch" || (state.lock.client ?? "claude") !== "claude") fail("binding-changed");
       if (state.lock.poller && isAlive(state.lock.poller.pid)) fail("poller-active");
+      lease = state.lock.runnerLease === true;
       state.lock.poller = { pid: process.pid, nonce };
       state.lock.seenAt = now();
       atomicWrite(files.lock, state.lock);
@@ -298,6 +368,23 @@ async function pollWatch(files, input, options) {
       const started = performance.now();
       let wait;
       try {
+        // 신호가 먼저다. 일시 정지면 pipeline_next도 부르지 않고, 작업 반복 상태(nextWatchState)도 바꾸지 않는다 —
+        // 바꾸면 일시 정지 세 번 만에 거짓 stuck이 된다(lib/watch.mjs STUCK_AFTER).
+        const { paused } = lease
+          ? leaseOutcome(await limitedRunner(runnerTarget(input), { op: "beat", session, state: "idle" }, controller, expires, options.requestTimeout), input)
+          : { paused: false };
+        controller.signal.throwIfAborted();
+        if (paused) {
+          await withGuard(files, () => {
+            const state = readState(files);
+            requireOwnership(state, session, input.binding, nonce);
+            state.lock.seenAt = now();
+            atomicWrite(files.lock, state.lock);
+          }, expires);
+          failures = 0;
+          await delay(Math.min(Math.max(0, started + options.interval - performance.now()), Math.max(0, expires - performance.now())), undefined, { signal: controller.signal });
+          continue;
+        }
         const overview = await limitedRequest(input, "pipeline_next", controller, expires, options.requestTimeout);
         controller.signal.throwIfAborted();
         if (performance.now() >= expires) { event = { event: "idle", session }; break; }
@@ -316,6 +403,11 @@ async function pollWatch(files, input, options) {
           return hasWork(work) ? { event: state.lock.state.stuck ? "stuck" : "work", session, ...work } : null;
         }, expires);
         failures = 0;
+        if (event && lease && event.event === "work") {
+          // 작업을 내기 전에 working을 알린다. 실패해도 작업은 낸다 — 1단계의 작업 중 생존 판정은 에이전트 활동도 본다.
+          const working = await limitedRunner(runnerTarget(input), { op: "beat", session, state: "working" }, controller, expires, options.requestTimeout);
+          if (working.kind === "replaced") event = { event: "replaced", session, seenAt: null };
+        }
         if (event) break;
         wait = Math.max(0, started + options.interval - performance.now());
       } catch (error) {
@@ -359,6 +451,11 @@ async function pollWatch(files, input, options) {
           reason: error instanceof WatchFailure ? error.message : REASONS["corrupt-state"] };
       }
     }
+  }
+  // stuck·error로 끝나면 서버에도 정지를 한 번 알린다. 그 요청이 실패해도 원래 이벤트와 종료 코드는 그대로다.
+  // 다른 폴러가 살아 있거나 가드를 쥔 경우는 이 세션이 멈춘 것이 아니므로 보내지 않는다.
+  if (lease && (event?.event === "stuck" || (event?.event === "error" && !["poller-active", "guard-busy"].includes(event.code)))) {
+    await runnerCallWithin(runnerTarget(input), { op: "stop", session, reason: event.event === "stuck" ? "stuck" : "error" }, options.requestTimeout);
   }
   return event;
 }

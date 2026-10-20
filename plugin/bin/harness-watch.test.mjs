@@ -8,6 +8,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { releaseSession, stateFiles } from "../runtime/local-session.mjs";
+import { runnerHost } from "../runtime/runner-client.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-watch.mjs", import.meta.url));
 const TOKEN = "hu_" + "a".repeat(43);
@@ -42,6 +43,9 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
   const root = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-watch-test-"));
   const children = new Set();
   const calls = [];
+  // /api/runner는 MCP와 따로 기록한다. 기본은 404 — 경로가 없는 서버처럼 로컬 잠금만으로 돈다.
+  const runnerCalls = [];
+  let runnerHandler = (body, res) => { res.statusCode = 404; res.end(); };
   const pending = new Set();
   let handler = async (request, response) => {
     send(response, request, request.params.name === "project_get" ? IDENTITY : EMPTY);
@@ -50,6 +54,11 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
     let raw = "";
     for await (const chunk of req) raw += chunk;
     const request = JSON.parse(raw);
+    if (req.url === "/api/runner") {
+      runnerCalls.push({ body: request, headers: req.headers, at: performance.now() });
+      await runnerHandler(request, res);
+      return;
+    }
     calls.push({ request, headers: req.headers, url: req.url, method: req.method, at: performance.now() });
     const task = Promise.resolve(handler(request, res));
     pending.add(task);
@@ -107,8 +116,9 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
   });
   const start = async (extra = [], env) => (await run(["--start", "--commit", "no", "--propose", "no", ...extra], env).result);
   const poll = (session, extra = [], env) => run(["--session", session, "--interval", "0.02", "--deadline", "0.01", "--request-timeout", "0.2", ...extra], env);
-  return { root, url, directory, lockPath, policyPath, calls, git, run, start, poll,
+  return { root, url, directory, lockPath, policyPath, calls, runnerCalls, git, run, start, poll,
     setHandler: (value) => { handler = value; },
+    setRunnerHandler: (value) => { runnerHandler = value; },
     snapshot: () => [lockPath, policyPath].map((file) => existsSync(file) ? readFileSync(file, "utf8") : null) };
 }
 
@@ -450,10 +460,10 @@ it("runs the real CLI with shell-safe plugin/root arguments containing spaces an
   mkdirSync(path.join(pluginRoot, "bin"), { recursive: true });
   mkdirSync(path.join(pluginRoot, "lib"));
   mkdirSync(path.join(pluginRoot, "runtime"));
-  for (const name of ["local-session", "file-ownership"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
+  for (const name of ["local-session", "file-ownership", "runner-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
   const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
   copyFileSync(BIN, cli);
-  for (const name of ["watch", "config", "qa", "token", "runbook", "workspaces", "entitlement"]) {
+  for (const name of ["watch", "config", "qa", "token", "runbook", "workspaces", "entitlement", "runner"]) {
     copyFileSync(fileURLToPath(new URL(`../lib/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "lib", `${name}.mjs`));
   }
   const session = (await f.start()).event.session;
@@ -491,4 +501,200 @@ it("preserves state-free startup when config changes while project_get is in fli
   release.resolve();
   assert.equal((await start).event.code, "binding-changed");
   assert.equal(existsSync(f.lockPath), false); assert.equal(existsSync(f.policyPath), false);
+});
+
+// 서버 lease(POST /api/runner). 가짜 서버는 이 경로를 MCP와 따로 받고, 사례마다 op별 응답을 정한다.
+const SESSION_BIN = fileURLToPath(new URL("./harness-session.mjs", import.meta.url));
+const runnerReply = (status, body) => (_request, res) => { res.statusCode = status; res.setHeader("content-type", "application/json"); res.end(JSON.stringify(body)); };
+const LEASE_OK = runnerReply(200, { ok: true, paused: false });
+const byOp = (replies) => (request, res) => (replies[request.op] ?? runnerReply(404, {}))(request, res);
+const ops = (f) => f.runnerCalls.map((call) => call.body.op === "beat" ? `beat:${call.body.state ?? "-"}` : call.body.op);
+
+function runSession(f, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [SESSION_BIN, "--root", f.root, ...args], {
+      env: { ...BASE_ENV, HARNESS_TOKEN: TOKEN, HARNESS_SERVER: f.url }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      try { assert.equal(stderr, ""); assert.equal(stdout.trim().split(/\r?\n/).length, 1); resolve({ code, event: JSON.parse(stdout) }); }
+      catch (error) { reject(error); }
+    });
+  });
+}
+
+it("a managed start takes the server lease and records it in the lock", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: LEASE_OK }));
+  const { event, code } = await f.start(["--managed"]);
+  assert.equal(code, 0); assert.equal(event.event, "started");
+  assert.equal(json(f.lockPath).runnerLease, true);
+  assert.deepEqual(f.runnerCalls.map((call) => call.body), [{ op: "start", session: event.session, mode: "session", host: runnerHost(), project: "owner-repo" }]);
+  assert.equal(f.runnerCalls[0].headers.authorization, `Bearer ${TOKEN}`);
+  assert.equal(JSON.stringify(f.runnerCalls[0].body).includes(TOKEN), false);
+});
+
+it("a busy lease removes the new local lock and reports where the other runner is", async (t) => {
+  const f = await fixture(t);
+  const holder = { mode: "session", host: "desk", seenAt: "2026-10-20T12:00:00.000Z" };
+  f.setRunnerHandler(byOp({ start: runnerReply(409, { error: "busy", code: "RUNNER_BUSY", holder }) }));
+  const { event, code } = await f.start(["--managed"]);
+  assert.equal(code, 0); assert.deepEqual(event, { event: "busy", holder });
+  assert.equal(existsSync(f.lockPath), false); assert.equal(existsSync(f.policyPath), false);
+});
+
+it("a refused lease removes the new local lock and keeps the server's reason", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: runnerReply(403, { error: "This project is not selected for use." }) }));
+  const { event, code } = await f.start(["--managed"]);
+  assert.equal(code, 1); assert.equal(event.code, "access-refused"); assert.equal(event.reason, "This project is not selected for use.");
+  assert.equal(existsSync(f.lockPath), false);
+});
+
+it("takes over only on an explicit managed start", async (t) => {
+  const f = await fixture(t);
+  for (const args of [["--start", "--commit", "no", "--propose", "no", "--takeover"], ["--session", "s", "--takeover"], ["--check", "--session", "s", "--takeover"]]) {
+    const { event, code } = await f.run(args).result;
+    assert.equal(code, 1); assert.equal(event.code, "invalid-arguments");
+  }
+  assert.equal(f.calls.length + f.runnerCalls.length, 0);
+  f.setRunnerHandler(byOp({ start: LEASE_OK }));
+  await f.start(["--managed", "--takeover"]);
+  assert.equal(f.runnerCalls[0].body.takeover, true);
+});
+
+it("resends a transient lease start with the same session", async (t) => {
+  const f = await fixture(t);
+  let attempts = 0;
+  f.setRunnerHandler((request, res) => (++attempts < 3 ? runnerReply(503, {}) : LEASE_OK)(request, res));
+  const { event } = await f.start(["--managed"]);
+  assert.equal(event.event, "started");
+  assert.deepEqual(f.runnerCalls.map((call) => call.body.session), [event.session, event.session, event.session]);
+  assert.equal(json(f.lockPath).runnerLease, true);
+});
+
+it("without the server route a managed start runs on the local lock alone and never calls the route again", async (t) => {
+  const f = await fixture(t);
+  const { event } = await f.start(["--managed"]);
+  assert.equal(json(f.lockPath).runnerLease, false);
+  f.setHandler(async (request, res) => send(res, request, READY));
+  assert.equal((await f.poll(event.session).result).event.event, "work");
+  assert.equal((await runSession(f, ["--check", "--client", "claude", "--session", event.session])).event.event, "owned");
+  assert.deepEqual(ops(f), ["start"]);
+});
+
+it("with a lease a poll signals before pipeline_next and reports working before it hands out work", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: LEASE_OK, beat: LEASE_OK }));
+  const { event } = await f.start(["--managed"]);
+  f.setHandler(async (request, res) => send(res, request, READY));
+  assert.equal((await f.poll(event.session).result).event.event, "work");
+  assert.deepEqual(ops(f), ["start", "beat:idle", "beat:working"]);
+  assert.ok(f.runnerCalls[1].at < f.calls.at(-1).at, "the signal goes before pipeline_next");
+});
+
+it("a web pause holds new work without calling pipeline_next or counting toward stuck", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: runnerReply(200, { ok: true, paused: true }), beat: runnerReply(200, { ok: true, paused: true }) }));
+  const { event } = await f.start(["--managed"]);
+  f.setHandler(async (request, res) => send(res, request, request.params.name === "project_get" ? IDENTITY : READY));
+  const before = f.calls.length;
+  for (let i = 0; i < 4; i++) { const polled = (await f.poll(event.session).result).event; assert.equal(polled.event, "idle", JSON.stringify(polled)); }
+  assert.equal(f.calls.length, before, "no pipeline_next while paused");
+  assert.ok(ops(f).filter((op) => op === "beat:idle").length >= 4);
+  assert.deepEqual(json(f.lockPath).state, { lastSignature: null, repeats: 0, stuck: false });
+  f.setRunnerHandler(byOp({ beat: LEASE_OK }));
+  assert.equal((await f.poll(event.session).result).event.event, "work");
+});
+
+it("ends a poll as replaced when another runner took the lease", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: LEASE_OK, beat: runnerReply(409, { error: "Another runner took over this project. This one stops.", code: "RUNNER_REPLACED" }) }));
+  const { event } = await f.start(["--managed"]);
+  const result = await f.poll(event.session).result;
+  assert.equal(result.code, 0);
+  assert.deepEqual(result.event, { event: "replaced", session: event.session, seenAt: null });
+  assert.equal(json(f.lockPath).poller, null);
+});
+
+it("skips a signal the server no longer routes and keeps handing out work", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: LEASE_OK }));
+  const { event } = await f.start(["--managed"]);
+  f.setHandler(async (request, res) => send(res, request, READY));
+  assert.equal((await f.poll(event.session).result).event.event, "work");
+  assert.deepEqual(ops(f), ["start", "beat:idle", "beat:working"]);
+});
+
+it("tells the server once when a poll ends stuck or in error, and keeps the event when that fails", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: LEASE_OK, beat: LEASE_OK, stop: runnerReply(500, {}) }));
+  const { event } = await f.start(["--managed"]);
+  f.setHandler(async (request, res) => send(res, request, READY));
+  const results = [];
+  for (let i = 0; i < 3; i++) results.push(await f.poll(event.session).result);
+  assert.deepEqual(results.map((result) => [result.event.event, result.code]), [["work", 0], ["work", 0], ["stuck", 0]]);
+  assert.deepEqual(f.runnerCalls.filter((call) => call.body.op === "stop").map((call) => call.body), [{ op: "stop", session: event.session, reason: "stuck", project: "owner-repo" }]);
+
+  const g = await fixture(t);
+  g.setRunnerHandler(byOp({ start: LEASE_OK, beat: LEASE_OK, stop: LEASE_OK }));
+  const second = (await g.start(["--managed"])).event;
+  g.setHandler(async (_request, res) => { res.statusCode = 503; res.end(); });
+  const failed = await g.poll(second.session).result;
+  assert.equal(failed.event.code, "request-failed"); assert.equal(failed.code, 1);
+  assert.deepEqual(g.runnerCalls.filter((call) => call.body.op === "stop").map((call) => call.body.reason), ["error"]);
+});
+
+it("refuses a lock whose lease record is not a boolean", async (t) => {
+  const f = await fixture(t);
+  f.setRunnerHandler(byOp({ start: LEASE_OK }));
+  const { event } = await f.start(["--managed"]);
+  writeFileSync(f.lockPath, JSON.stringify({ ...json(f.lockPath), runnerLease: "yes" }));
+  const result = await f.poll(event.session).result;
+  assert.equal(result.event.code, "corrupt-state");
+  assert.equal(f.runnerCalls.length, 1);
+});
+
+it("a session check signals a held lease without a state and reports the web pause or an unreachable server", async (t) => {
+  const f = await fixture(t);
+  let beat = runnerReply(200, { ok: true, paused: true });
+  f.setRunnerHandler((request, res) => (request.op === "start" ? LEASE_OK : beat)(request, res));
+  const { event } = await f.start(["--managed"]);
+  const check = () => runSession(f, ["--check", "--client", "claude", "--session", event.session]);
+  const paused = await check();
+  assert.equal(paused.code, 0); assert.equal(paused.event.event, "owned"); assert.equal(paused.event.paused, true);
+  assert.deepEqual(f.runnerCalls.at(-1).body, { op: "beat", session: event.session, project: "owner-repo" });
+  beat = runnerReply(503, {});
+  const down = await check();
+  assert.equal(down.code, 0); assert.equal(down.event.server, "unreachable"); assert.equal("paused" in down.event, false);
+  beat = runnerReply(404, {});
+  const gone = await check();
+  assert.equal(gone.event.event, "owned"); assert.equal("paused" in gone.event || "server" in gone.event, false);
+  beat = runnerReply(409, { error: "Another runner took over this project. This one stops.", code: "RUNNER_REPLACED" });
+  assert.deepEqual((await check()).event, { event: "replaced", session: event.session, seenAt: null });
+});
+
+it("a release tells the server the owner stopped the lease, and succeeds when the server is down", async (t) => {
+  for (const reply of [LEASE_OK, runnerReply(500, {})]) {
+    const f = await fixture(t);
+    f.setRunnerHandler(byOp({ start: LEASE_OK, stop: reply }));
+    const { event } = await f.start(["--managed"]);
+    assert.equal((await runSession(f, ["--stop", "--session", event.session])).event.event, "stopping");
+    assert.equal((await runSession(f, ["--release", "--session", event.session])).event.event, "released");
+    assert.equal(existsSync(f.lockPath), false);
+    assert.deepEqual(f.runnerCalls.at(-1).body, { op: "stop", session: event.session, reason: "owner", project: "owner-repo" });
+  }
+});
+
+it("foreground sessions never call the runner route, even with a lease record", async (t) => {
+  const f = await fixture(t);
+  const started = await runSession(f, ["--start", "--client", "claude", "--commit", "no", "--propose", "no"]);
+  assert.equal(started.event.event, "started");
+  writeFileSync(f.lockPath, JSON.stringify({ ...json(f.lockPath), runnerLease: true }));
+  assert.equal((await runSession(f, ["--check", "--client", "claude", "--session", started.event.session])).event.event, "owned");
+  await runSession(f, ["--stop", "--session", started.event.session]);
+  assert.equal((await runSession(f, ["--release", "--session", started.event.session])).event.event, "released");
+  assert.equal(f.runnerCalls.length, 0);
 });

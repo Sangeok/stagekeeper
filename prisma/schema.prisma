@@ -47,6 +47,8 @@ model Project {
   autoScoutEnabled Boolean     @default(true) // 빈 백로그 자동 발굴. 그래프 슬롯과 독립적이며 모든 플랜에서 소유자가 제어한다
   autoProposeEnabled Boolean   @default(true) // head가 pm을 불러 백로그에서 고르게 하는가. 옛 propose 노드를 대신한다
   defaultPipelineId String?              // 규칙에 걸리지 않은 새 항목이 붙는 파이프라인. null = 첫 쓰기 경로에서 default_<id>를 만든다
+  runnerPausedAt DateTime?               // 웹의 실행기 일시 정지. null = 아님. 실행기가 없어도 유지된다(다음 실행기가 정지 상태로 시작)
+  runner       Runner?
   createdAt    DateTime        @default(now())
   tokens       ProjectToken[]
   workspaces   Workspace[]
@@ -70,6 +72,27 @@ model Project {
 
   @@index([ownerUserId, available])
   @@index([ownerUserId, disconnectedAt])
+}
+
+// 프로젝트당 실행기 하나(서버 lease). 생존 판정은 packages/core/runner.mjs. 새 시작이 행을 덮어쓰고,
+// 정지한 행은 state=stopped로 남아 "정지됨(이유)"를 보인다. 소유자가 로컬에서 멈추면 행을 지운다.
+model Runner {
+  projectId  String   @id
+  session    String                     // 로컬 세션 id(watch.lock.json의 id). lease 소유 판정은 이 값 하나로 한다
+  tokenId    String                     // lease를 잡은 토큰의 내부 id(hs_ 또는 hu_). 감사용이며 판정에 쓰지 않는다
+  mode       String                     // session | resident
+  host       String                     // 실행기 PC 이름, 64자까지
+  branch     String?                    // resident만: 시작 때 고정한 브랜치
+  permission String?                    // resident만: auto | allowlist
+  autostart  Boolean  @default(false)
+  state      String                     // idle | working | waiting | stopped
+  waitReason String?                    // state=waiting일 때 dirty | branch
+  lastResult String?                    // 마지막 실행 결과 한 줄, 150자까지
+  lastLog    String?                    // 마지막 로그 파일 이름(경로 아님)
+  stopReason String?                    // state=stopped일 때 stuck | error | plan
+  startedAt  DateTime
+  seenAt     DateTime
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model RequestRateWindow {

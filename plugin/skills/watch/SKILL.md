@@ -32,8 +32,8 @@ PowerShell environment variable. Resolve that absolute root, and verify:
 
 - `${CLAUDE_PLUGIN_ROOT}/bin/harness-watch.mjs`
 - `${CLAUDE_PLUGIN_ROOT}/bin/harness-session.mjs` and `runtime/` modules
-- `${CLAUDE_PLUGIN_ROOT}/lib/watch.mjs`, `config.mjs`, `token.mjs`, `runbook.mjs`
-  and the transitive `workspaces.mjs` and `entitlement.mjs`
+- `${CLAUDE_PLUGIN_ROOT}/lib/watch.mjs`, `config.mjs`, `token.mjs`, `runbook.mjs`,
+  `runner.mjs` and the transitive `workspaces.mjs` and `entitlement.mjs`
 - `${CLAUDE_PLUGIN_ROOT}/skills/init/references/reconciliation-contract.md`
 
 Read that exact reconciliation contract and preflight the **effective**
@@ -73,6 +73,12 @@ Run `--start --managed --commit yes|no --propose yes|no` using the verified watc
 Require exit 0 and exactly one valid `started` JSON object with a nonempty
 session and boolean policy. Save the session, checkout, explicit server if
 used, and policy. Never supply default server URLs or read `.env` as a fallback.
+If `busy`, another runner holds this project's server lease (another checkout or
+computer). The start left no local state. Show its holder and ask once: **A runner is
+already running for this project on {host} (last signal {time} UTC). Stop it there, or
+should I take over?** Only an explicit yes reruns the start with `--takeover` and the
+same policy answers; otherwise stop. Taking over makes the other runner stop at its next
+signal; it does not cancel work that runner already dispatched.
 If `locked`, show its `startedAt`/`seenAt` and ask the owner to stop the old
 watch **and its already dispatched work**. Do not take over a managed session
 with `--force`. Use the stop/quiescence/release sequence below before starting
@@ -101,6 +107,9 @@ Read the output file: require exactly one JSON object and consistent exit code
 (1 for `error`, 0 otherwise). Check the event's schema before using it:
 
 - `started` / `owned`: nonempty session and `policy:{commit:boolean,propose:boolean}`.
+  `owned` may also carry boolean `paused`, or `server:"unreachable"` (the server
+  could not be asked; continue as not paused).
+- `busy` (start only): `holder:{mode,host,seenAt}` strings and no session.
 - `locked`: string `startedAt` and `seenAt`; no automatic takeover.
 - `work` / `stuck`: session, `items` array, `head:{agent}` or null, boolean
   `runbookStale`. Items have key/node, positive integer version,
@@ -140,7 +149,11 @@ Follow all fresh ready items and the permitted head using the current runbook:
 
 Before every new dispatch, acceptance, outcome/report submission or rearm,
 check current CLI ownership again. Stop on lost ownership and discard late
-completion notices. Repeat fresh cycles until no work remains, then arm once.
+completion notices. When that check says `paused:true`, the owner paused the
+runner on the web: start nothing new — no dispatch, acceptance or report that has
+not begun — and let roles already running finish. Say **The runner is paused on
+the web. I start nothing new until you resume it there.** once per pause, then
+rearm; the watcher keeps signalling and wakes the session after Resume. Repeat fresh cycles until no work remains, then arm once.
 Never open a gate as a side effect of this loop.
 
 ## 5. Permissions and handoffs
@@ -209,11 +222,13 @@ through start, check and poll; stop does not need it.
 
 ```text
 node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --start --managed --commit yes --propose no
+node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --start --managed --takeover --commit yes --propose no
 node '<absolute-plugin-root>/bin/harness-watch.mjs' --root '<absolute-checkout>' --session '<session>'
 node '<absolute-plugin-root>/bin/harness-session.mjs' --root '<absolute-checkout>' --check --client claude --session '<session>'
 node '<absolute-plugin-root>/bin/harness-session.mjs' --root '<absolute-checkout>' --stop --session '<session>'
 node '<absolute-plugin-root>/bin/harness-session.mjs' --root '<absolute-checkout>' --release --session '<session>'
 ```
 
-Do not add `--spawn`: the resident executor, automatic push, global cross-clone
-locking, hosted/routine execution and server heartbeat are separate future work.
+Do not add `--spawn`: the resident executor, automatic push and hosted/routine
+execution are separate future work. The server lease and signals come from the CLI;
+never call the runner route yourself.

@@ -13,7 +13,7 @@ it("records REST credentials before missing-slug and ownership refusals, without
     projectFor: async () => { calls.push("ownership"); return null; },
     recordTokenUsage: async (kind: string, id: string) => { calls.push(`${kind}:${id}`); },
   };
-  assert.deepEqual(await resolveRestScope(deps, `Bearer ${newToken().plain}`, null), { ok: true, projectId: "p" });
+  assert.deepEqual(await resolveRestScope(deps, `Bearer ${newToken().plain}`, null), { ok: true, projectId: "p", tokenId: "agent-id" });
   assert.deepEqual(calls.splice(0), ["agent:agent-id"]);
   const header = `Bearer ${newToken("user").plain}`;
   assert.deepEqual(await resolveRestScope(deps, header, null), { ok: false, status: 401, reason: PROJECT_REQUIRED });

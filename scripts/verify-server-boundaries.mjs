@@ -6,14 +6,14 @@ import ts from "typescript";
 const directions = {
   projects: [], tokens: ["projects"], usage: ["projects"], templates: ["projects"],
   pipeline: ["projects", "usage"], agents: ["projects", "usage", "templates", "pipeline"],
-  auth: ["projects"], rest: ["projects", "tokens", "usage", "templates"],
+  auth: ["projects"], runners: ["projects"], rest: ["projects", "tokens", "usage", "templates", "runners"],
   mcp: ["projects", "tokens", "usage", "templates", "agents", "pipeline"],
 };
 const rootFiles = new Set(["db.ts", "database-clock.ts", "github.ts", "public-url.ts", "result.ts"]);
 const authPublic = new Set(["auth/index.ts", "auth/guard.ts", "auth/config.base.ts"]);
 const authAssembly = new Set(["auth/guard.ts->auth/index.ts", "auth/config.ts->auth/config.base.ts"]);
 const runtimeAssembly = new Set([
-  "rest/api.server.ts", "rest/templates.ts", "rest/runbook.ts", "rest/project-identity.ts", "rest/project-registration.ts",
+  "rest/api.server.ts", "rest/templates.ts", "rest/runbook.ts", "rest/project-identity.ts", "rest/project-registration.ts", "rest/runner.ts",
   "mcp/api.server.ts", "mcp/deps.ts", "mcp/owner-deps.ts", "auth/index.ts", "auth/guard.ts", "auth/config.ts",
 ]);
 const normalize = value => value.split(sep).join("/");

@@ -8,13 +8,15 @@ export const PLANS = /** @type {const} */ (["free", "pro", "max"]);
 export const DEFAULT_PLAN = "free"; // Subscription 행이 없는 사용자
 export const UNLIMITED = Infinity;
 export const OWNER_TOKEN_PLAN_GATE = "Owner tokens open on Pro. Approve in the Inbox for now.";
+// 창 없는 상주 실행기(resident runner)의 플랜 거절. 1단계 세션 감시(/harness:watch)는 모든 플랜에 열려 있다.
+export const RESIDENT_RUNNER_PLAN_GATE = "The background runner opens on Pro. Use /harness:watch in a Claude Code session for now.";
 // 고정 보고 에이전트. 워크스페이스 dev는 roster(Workspace.agent[])가 정하고, 그 수는 `workspaces` 축이 막는다.
 export const REPORT_AGENTS = ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"];
 
 export const LIMITS = {
-  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout"], sessionApprovals: false, pipelineEdit: false, dispatches: 20 },
-  pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: 100 },
-  max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: UNLIMITED },
+  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout"], sessionApprovals: false, pipelineEdit: false, dispatches: 20, residentRunner: false },
+  pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: 100, residentRunner: true },
+  max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: UNLIMITED, residentRunner: true },
 };
 const AXES = ["projects", "workspaces", "backlog", "dispatches"];
 
