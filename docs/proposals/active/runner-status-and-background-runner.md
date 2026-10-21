@@ -73,13 +73,19 @@ related:
 
 이 문서가 위 결정 위에서 새로 정한 것(검토 요청)은 [검토 요청](#검토-요청) 절에 모았다. 2026-10-20 사용자가 일곱 개 모두 확인했다.
 
-**Phase B spike 뒤 결정 (2026-10-21, 사용자 확정).** spike에서 세 가정이 실측과 달랐다(시험 보고서 "Runner Phase B spike"). 사용자가 아래대로 고쳤다.
+**Phase B spike 뒤 결정 (2026-10-21, 사용자 확정).** spike에서 세 가정이 실측과 달랐다(시험 보고서 "Runner Phase B spike"). 사용자가 B1~B3처럼 고쳤다.
 
-| # | 실측 | 결정 |
+그 뒤 "실행 중 사용자가 같은 checkout을 만지는 경우"를 따로 대조했다. 대조 대상은 제안서 B-1·B-2, dev 역할의 stage 규칙, 런북의 검증 트리 검사와 인수 검사(템플릿 `2951fdf`)다. 문서 대조이고 실측이 아니다. 사용자는 B4~B7을 더했다. 이렇게 해도 남는 경우는 [Risks](#risks-and-rollback)에 적었다.
+
+| # | 근거 | 결정 |
 | --- | --- | --- |
 | B1 | `git -C . push`는 `--disallowedTools` 접두어 규칙을 피해 갔다. auto 분류기도 로컬 원격으로의 push를 허용했다. | push 차단을 두 겹으로 한다. 접두어 규칙에 더해, `claude -p` 프로세스의 환경에만 빈 `pushInsteadOf`를 건다. 이 차단은 `pushurl`을 따로 둔 원격에는 듣지 않으므로, 그런 원격이 있으면 시작을 거부한다(B-1, B-3). |
 | B2 | 사용자가 직접 부른 스킬이라도, 오래 사는 프로세스를 띄우는 명령은 auto 분류기가 [Unauthorized Persistence]로 거절했다. 로그온 작업 등록도 같았다. | 스킬은 검사만 한다. 시작과 자동 시작 켜기·끄기는 사용자가 `!`로 실행할 명령을 보여 준다. 권한 설정은 바꾸지 않는다(B-1, B-4). |
 | B3 | 상주 프로세스만 죽이면 `claude.exe`는 끝났지만 도구 셸과 그 자식은 고아로 남았다. | 각 `claude -p`를 Job Object 런처 안에서 띄운다. 런처의 job은 kill-on-close이고 breakaway를 허용하지 않는다(B-3). |
+| B4 | 실행 직전 검사는 실행을 시작하기 전에만 브랜치를 본다. 실행 중에 브랜치가 바뀌면 에이전트의 커밋이 다른 브랜치에 쌓인다. 서버는 커밋을 SHA로만 기록한다(런북 "Commit on the branch you are working on"). | 실행 중에도 60초마다 브랜치를 본다. 바뀌었으면 그 실행을 끝내고(job 종료) 대기로 바꾸고 알린다. 이 중단은 실패로 세지 않는다(B-2). |
+| B5 | Pause는 진행 중인 실행을 끝까지 둔다(최대 2시간). 사용자는 그 실행이 언제 끝났는지 새로고침해야 안다. | 일시 정지 중에 진행 중이던 실행이 끝나면 알림을 한 번 띄운다(B-2). |
+| B6 | 대기 알림만으로는 무엇이 바뀌었는지 모른다. 편집기나 dev 서버가 고친 파일인지(예: 이 저장소의 `next dev`는 `AGENTS.md`를 다시 쓴다), 끊긴 실행이 남긴 미완성 변경인지 구별되지 않는다. 그래서 사용자가 미완성 작업을 그대로 커밋할 수 있다. | 대기 알림과 `status`에 바뀐 파일을 보인다. 직전 실행이 끊겨 변경을 남겼으면 그것을 따로 알린다(B-2, B-4). |
+| B7 | 구현 단계에서 계획 안의 같은 파일을 사용자가 고치면 dev 커밋에 섞인다. 실행기로는 알아낼 수 없다. | 시작 출력과 배너의 `working` 줄에서 "편집 전에 Pause"를 알린다(B-1, B-4). |
 
 ## Current State
 
@@ -435,6 +441,7 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
     - 이유: auto 분류기는 사용자가 부른 스킬 안에서도 오래 사는 프로세스를 띄우는 명령을 [Unauthorized Persistence]로 거절했다. 구체적인 허용 규칙이 있으면 통과했지만, 이 문서는 사용자에게 권한 설정을 바꾸게 하지 않는다. main push와 같은 흐름이다.
     - `stop`·`status`는 스킬이 직접 실행한다. 둘 다 프로세스를 새로 띄우지 않는다.
   - **시작 CLI**(`harness-background.mjs --start`)는 시작 검사를 다시 한다. 스킬이 검사한 뒤 사용자가 명령을 실행하기까지 상태가 바뀔 수 있기 때문이다. 그다음 상주 프로세스를 Node `detached`로 띄우고, PC·저장소·브랜치·로그 위치·끄는 방법을 출력한다.
+    - 같은 출력에 "편집 전에 Pause" 안내 한 줄을 넣는다(결정 B7, 문구는 B-4 표). 실행기가 도는 동안 이 checkout은 실행기가 일하는 곳이기 때문이다.
     - 상주 프로세스는 Node여야 한다. Windows PowerShell 5.1은 Node가 `detached`로 띄우면 아무것도 하지 않고 끝났다(spike). 그래서 PowerShell 도우미(B-3 런처, B-4 알림)는 상주 프로세스의 일반 자식으로, 창을 숨겨 띄운다.
     - spike에서 이렇게 띄운 Node 프로세스는 그것을 띄운 `claude -p`가 끝난 뒤에도 335초 넘게 살아 있었다(손으로 끝냄). `!` 명령도 Claude Code가 띄운 셸에서 돈다. 대화형 창을 닫을 때 상주 프로세스가 살아남는지는 재지 않았으므로 smoke B에서 본다.
   - lease 시작은 `start`(mode `resident`, `branch`, `permission`)이고, 결과를 A-4의 "lease 기록"과 같이 로컬 잠금의 `runnerLease`에 남긴다. 상주 실행기는 404 서버에서 시작하지 않는다(표시 없이 무인으로 도는 것을 막는다).
@@ -448,14 +455,25 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
 
 1. 60초마다 `beat` → `pipeline_next`(propose 정책 적용, `actionableWork` 재사용). 이 `beat`는 지금 상태를 싣는다. 대기 중이면 대기 조건이 풀릴 때까지 `waiting`(같은 `waitReason`)을, 아니면 `idle`을 보낸다. 상태가 매분 바뀌어 배너가 흔들리거나 쓰기가 늘지 않게 하려는 것이다.
 2. 할 일이 있고 일시 정지가 아니면 **실행 직전 검사**를 한다.
-   - `git status --porcelain`이 비어 있는지 본다. 무시된 파일은 제외하고, 추적되지 않은 파일은 포함한다.
+   - `git --no-optional-locks status --porcelain`이 비어 있는지 본다. 무시된 파일은 제외하고, 추적되지 않은 파일은 포함한다.
+     - `--no-optional-locks`를 붙이는 이유: 대기 중에는 이 검사가 60초마다 돈다. 그때 `index.lock`을 잡으면 사용자의 편집기나 터미널의 git 작업과 부딪힌다.
    - `git rev-parse --abbrev-ref HEAD`가 시작 브랜치와 같은지 본다.
    - 실패하면 `beat`(state `waiting`, waitReason)를 보내고 Windows 알림을 한 번 띄운 뒤 1로 돌아간다. 같은 대기가 이어지는 동안에는 알림을 다시 띄우지 않는다.
+   - **대기 알림에 바뀐 파일을 싣는다**(결정 B6). 미커밋 대기면 `git status --porcelain`의 경로 중 처음 셋과 남은 개수를 보인다. 브랜치 대기면 지금 브랜치를 보인다. 분리된 HEAD면 커밋 해시 7자리다.
+   - 직전 실행이 끊겼고 그 실행이 끝났을 때 작업 트리에 변경이 있었으면, 로컬 상태에 표시를 남긴다. 끊긴 경우는 시간 초과, 오류 종료, 브랜치 변경으로 인한 중단이다. 표시가 있는 동안의 미커밋 대기는 "끊긴 실행이 남긴 변경이니 확인한 뒤 커밋하거나 stash하라"는 알림을 쓴다(B-4 표).
+   - 이 표시는 작업 트리가 깨끗해지거나 다음 실행이 시작되면 지운다.
+   - 서버의 `waitReason`(`dirty`·`branch`)과 배너 문장은 바꾸지 않는다. 구별은 알림과 `status`에서만 한다. 배너 문장 "commit or stash"는 stash를 함께 권하므로, 확인하지 않은 커밋만을 유도하지는 않는다.
 3. `claude -p`를 띄운다(B-3). 도는 동안 부모 프로세스는 60초마다 `beat`(state `working`)를 보낸다.
+   - **작업 중 브랜치 감시**(결정 B4). 같은 60초마다 `git rev-parse --abbrev-ref HEAD`를 시작 브랜치와 비교한다.
+   - 다르면 job 런처를 끝내 그 실행을 멈추고, 끊긴 실행 표시를 남긴다. 그다음 `beat`(state `waiting`, waitReason `branch`)를 보내고 알림을 띄운다(B-4 표).
+   - 이 중단은 사용자가 만든 상황이므로 실패 횟수에 넣지 않는다.
+   - 중단된 단계의 서버 상태는 1단계에서 작업 중에 창을 닫았을 때와 같다. 이 문서는 그 처리를 바꾸지 않는다.
+   - 감시 간격이 60초이므로, 그 사이 에이전트가 다른 브랜치에 커밋할 수 있는 시간은 최대 1분이다.
 4. 끝나면 결과를 판정하고 `beat`(state `idle`, lastResult, lastLog)를 보낸 뒤 1로 돌아간다.
+   - **일시 정지 중에 끝났으면**(그 실행을 시작한 뒤 `beat` 응답이 `paused`로 바뀌었으면) 알림을 한 번 띄운다(결정 B5, B-4 표). 이제 편집해도 된다는 뜻이다.
 
 - **진전 판정.** 실행 앞뒤의 작업 서명(`workSignature`)이 같으면 진전 없음이다.
-- **실패 상한.** 비정상 종료, 시간 초과, 진전 없음을 실패로 센다. 3회 연속이면 `stop`(reason `stuck`)을 보내고 알림을 띄운 뒤 종료한다. 진전이 있으면 횟수를 0으로 되돌린다.
+- **실패 상한.** 비정상 종료, 시간 초과, 진전 없음을 실패로 센다. 3회 연속이면 `stop`(reason `stuck`)을 보내고 알림을 띄운 뒤 종료한다. 진전이 있으면 횟수를 0으로 되돌린다. 작업 중 브랜치 변경으로 끝낸 실행은 세지 않는다(결정 B4).
 - **시간 상한.** 기본 2시간이다. 넘으면 job 런처(B-3) 프로세스를 끝낸다. 런처의 job이 닫히면서 손자 프로세스까지 끝난다. spike에서 런처만 죽였을 때 그 아래 트리 전체가 끝났다(대역 트리로 잼).
 - **멈춤 요청.** `stop:"plan"`, `RUNNER_REPLACED`, 로컬 `--stop`을 받으면 진행 중인 실행을 끝까지 두고 새 실행을 시작하지 않는다. 그 실행이 끝나면 종료한다.
 - **실행 중 404.** 상주 프로세스의 `beat`가 404를 받으면(서버 롤백) 멈춤 요청과 같이 처리한다. B-1이 404 서버에서 시작하지 않는 것과 같은 이유로, 표시 없이 무인으로 계속 돌지 않게 한다. 서버에 보낼 곳이 없으므로 로그와 Windows 알림으로만 알린다. 자식 `claude -p` 안의 `--check`는 A-4대로 그 호출만 건너뛰므로 진행 중인 실행은 끝까지 간다.
@@ -518,6 +536,22 @@ claude -p "/harness:watch --once --session <id>" \
   - 띄우는 경우: 정지(owner 제외), 대기 시작, 교체됨, 플랜 정지, 실행 중 404(B-2), 자동 시작 거부.
   - 상주 프로세스는 이 스크립트를 일반 자식으로, 창을 숨겨 띄운다(B-1). AppUserModelID는 PowerShell 것을 쓴다.
   - spike에서 직접 실행했을 때와 분리된 Node의 숨김 자식으로 실행했을 때 모두 토스트가 떴고, `ToastNotificationManager.History`에서도 찾았다.
+  - 띄우는 경우에 더하는 것: 작업 중 브랜치 변경으로 인한 중단(B4), 일시 정지 중 실행 완료(B5). 대기 시작 알림에는 바뀐 파일과 끊긴 실행 여부를 싣는다(B6).
+- **편집 경고 문구**(결정 B4~B7). 아래 영어 문장은 **초안**이다. 구현 전에 사용자에게 확인받고, product-copy §15(알림·시작 출력)와 §5(배너 단위)에 넣는다. 나머지 알림 문구(정지, 교체, 플랜, 실행 중 404, 자동 시작 거부)는 Execution Plan 3단계에서 같은 방식으로 정한다.
+  - `{files}`는 처음 세 경로와 `and {n} more`로 이룬다. `{current}`는 지금 브랜치이고, 분리된 HEAD면 커밋 해시 7자리다.
+
+| 경우 | 토스트 제목 | 토스트 본문 |
+| --- | --- | --- |
+| 대기·미커밋 | `Runner waiting on {branch}` | `Uncommitted changes: {files}. Commit or stash them, and it continues.` |
+| 대기·미커밋, 직전 실행이 끊김 | `Runner waiting on {branch}` | `The last run stopped before it finished and left these changes: {files}. Review them before you commit or stash them, and it continues.` |
+| 대기·브랜치 | `Runner waiting on {branch}` | `This checkout is on {current}. Switch back to {branch}, and it continues.` |
+| 작업 중 브랜치 변경 | `Runner ended a run` | `The branch changed from {branch} to {current} during a run, so the run was ended. Switch back to {branch} and check what it left, and it continues.` |
+| 일시 정지 중 실행 완료 | `Runner paused` | `The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume.` |
+
+| 자리 | 문장 |
+| --- | --- |
+| 시작 출력(B-1) | `The runner works in this checkout on {branch}. Pause it in Stagekeeper before you edit files here.` |
+| 배너 `resident·working` 줄 끝 단위(§5 `turn-banner-runner` 잠금 블록에 한 줄 추가) | `pause before editing` |
 - **자동 시작.** `autostart on`은 로그온 때 `harness.ps1 background --start …`를 창 없이 실행하도록 등록한다. `autostart off`는 등록을 지운다.
   - 둘 다 스킬이 직접 실행하지 않고 `!` 명령으로 보여 준다(B-1, spike 결정 B2). spike에서 이 세션의 auto 분류기가 작업 등록을 [Unauthorized Persistence]로 거절했다.
   - 시작 검사(작업 트리, 브랜치, lease, 플랜)는 수동 시작과 같다(B-1). 실패하면 Windows 알림을 띄우고 이유를 로그에 남긴다.
@@ -537,6 +571,7 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 
 - **`/billing` 플랜 표.** `src/fsd/pages/billing/model/plan-matrix.ts`의 `planMatrix` 끝에 `{ label: "Background runner", values: cell((p) => (limitsFor(p).residentRunner ? "Yes" : "—")) }`를 더한다. 값은 A-3에서 더한 `LIMITS`의 `residentRunner`에서 읽는다. `plan-matrix.test.ts`에 이 행의 값 `{ free: "—", pro: "Yes", max: "Yes" }`를 고정하는 사례를 더한다.
 - **배너의 Free 줄.** A-5 표의 "없음·Free" 줄(`The background runner opens on Pro.`)과, 그 줄을 위해 레이아웃이 넘기는 `plan` prop을 이때 더한다. product-copy §5의 실행기 잠금 블록에도 이때 그 줄을 더한다.
+- **배너의 편집 경고 단위**(결정 B7). 같은 출시에서 `resident·working` 줄 끝에 ` · pause before editing`(B-4 표, 확인 전 초안)을 붙인다. `session·working`에는 붙이지 않는다. 그 경우는 사용자가 창을 보고 있다. `turn-banner-runner` 잠금 블록에 한 줄을 더하고, `model/runner.test.ts`에 그 단위가 `resident·working`에만 붙는 사례를 더한다.
 - **공개 문서는 바꾸지 않는다**(`src/fsd/pages/docs/`, 검토 요청 7).
 
 ## 검토 요청
@@ -565,7 +600,7 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 | `src/server/rest/runner-handler.ts`(+`runner-handler.test.ts`), `src/server/rest/runner.ts`, `src/server/rest/api.server.ts`, `src/server/rest/api.ts` | add/update | A-3 REST 판정·바인딩·응답 | medium — 인증 경계 |
 | `src/app/api/runner/route.ts` | add | 배선만 | low |
 | `scripts/verify-server-boundaries.mjs`(`directions`·`runtimeAssembly`), `docs/architecture/server.md`(`:12-22`·`:43`·`:54-75`) | update | 새 모듈·조립부·공개 symbol | low |
-| `src/fsd/widgets/turn-banner/model/runner.ts`(+`runner.test.ts`), `ui/runner-line.tsx`, `api/turn-data.server.ts`, `api/turn-data.test.ts`, `ui/turn-banner.tsx`, `ui/turn-banner.test.ts`, `ui/next-step.tsx`, `ui/next-step.test.mjs`, `index.ts` | add/update(A·B) | A: A-5. B: Free 줄(B-5) | medium — 잠금 문구·탭별 렌더·hydration |
+| `src/fsd/widgets/turn-banner/model/runner.ts`(+`runner.test.ts`), `ui/runner-line.tsx`, `api/turn-data.server.ts`, `api/turn-data.test.ts`, `ui/turn-banner.tsx`, `ui/turn-banner.test.ts`, `ui/next-step.tsx`, `ui/next-step.test.mjs`, `index.ts` | add/update(A·B) | A: A-5. B: Free 줄과 편집 경고 단위(B-5) | medium — 잠금 문구·탭별 렌더·hydration |
 | `src/fsd/features/pause-runner/api/pause-runner.server.ts`, `ui/pause-runner-button.tsx`, `index.ts`, `index.server.ts` | add | 일시 정지 Action·버튼 | low |
 | `src/app/(app)/p/[slug]/layout.tsx` | update(A·B) | A: `runner`·`pause`를 `TurnBanner`에. B: `plan`(B-5) | low |
 | `src/fsd/pages/billing/model/plan-matrix.ts`(+`plan-matrix.test.ts`) | update(B) | B-5 "Background runner" 행 | low |
@@ -620,6 +655,7 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 - 검토 요청 7개는 2026-10-20 사용자가 확인했다. 7은 `/billing`만으로 범위를 좁혀 확인했다.
 - 운영 마이그레이션, 운영 배포(main 승격), 플러그인 marketplace 갱신은 각각 실행 직전에 따로 확인받는다.
 - 2026-10-21 Phase B spike에서 실측과 다른 세 부분(push 환경 차단, 시작·자동 시작의 `!` 명령, Job Object 런처)을 approval-scope에 따라 사용자가 다시 확인했다([Phase B spike 뒤 결정](#결정-기록-2026-10-20-grill-me-사용자-확정)).
+- 같은 날 "실행 중 사용자 편집" 대조 뒤 사용자가 B4~B7을 더했다. B4는 작업 중 브랜치 감시, B5는 일시 정지 중 완료 알림, B6은 대기 알림 보강, B7은 "편집 전에 Pause" 안내다. 그 문구(B-4 표)는 구현 전에 따로 확인받는다.
 
 ## Execution Plan
 
@@ -647,9 +683,13 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
      - 자식 환경: push 차단 변수. 기존 `GIT_CONFIG_COUNT`가 있으면 덧붙이는지도 본다.
      - init의 `permissionMode`: hook 이벤트 뒤에 오는 경우.
      - 시간 초과: 런처를 끝내는 방식.
+     - 작업 중 브랜치 변경(결정 B4): 가짜 `claude`가 도는 동안 브랜치를 바꾸면, 다음 확인에서 런처가 끝나고 `waiting`·`branch`가 가고 알림이 뜬다. 실패 횟수는 그대로다.
+     - 일시 정지 중 완료(결정 B5): 실행 중에 `beat` 응답이 `paused`로 바뀐 뒤 실행이 끝나면 알림이 한 번 뜬다. 일시 정지가 아닐 때는 뜨지 않는다.
+     - 대기 알림(결정 B6): 경로 셋과 `and {n} more`를 확인한다. 끊긴 실행 표시가 있으면 다른 문장을 쓰고, 작업 트리가 깨끗해지면 표시를 지운다.
    - `job-launch.ps1`은 Windows에서 실제로 돌리는 시험을 둔다. 다룰 것은 상주 프로세스를 죽였을 때와 런처를 죽였을 때 손자 프로세스까지 끝나는지다. CI의 Windows 작업에 넣고, 로컬에서 돌린 결과도 기록한다.
 3. watch 스킬 `--once` 갈래, background 스킬(`start`·`autostart`는 `!` 명령을 보여 줌), `harness.ps1`, 알림·자동 시작·job 런처 스크립트, 번들 필수 파일 검사, product-copy §15를 만든다.
-4. B-5: `/billing` 행과 시험, 배너 Free 줄과 `plan` prop(레이아웃), product-copy §5 잠금 블록의 Free 줄과 렌더 사례.
+4. B-5: `/billing` 행과 시험, 배너 Free 줄과 `plan` prop(레이아웃), product-copy §5 잠금 블록의 Free 줄과 렌더 사례, `resident·working` 편집 경고 단위와 그 사례.
+   - B-4 표의 편집 경고 문구는 3단계 전에 사용자에게 확인받는다.
 5. PR → dev → localhost smoke B → 운영 승격·번들 갱신(각각 확인).
 
 ## Verification Plan
@@ -723,6 +763,9 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
   8. push가 일어나지 않는다.
   9. 스킬이 보여 준 `!` 명령으로 시작한다. 그 Claude Code 창을 닫아도 상주 프로세스가 계속 돈다.
   10. 실행 중에 상주 프로세스를 강제로 끝내면 `claude -p`와 도구 셸이 함께 끝나고, 다음 시작이 고아 없이 된다.
+  11. 실행 중에 브랜치를 바꾸면 1분 안에 실행이 끝나고, 배너가 브랜치 대기를 보이고 알림이 뜬다. 되돌리면 이어 간다. 남은 변경이 있으면 "끊긴 실행" 알림이 뜬다.
+  12. 실행 중에 Pause를 누르면, 그 실행이 끝날 때 "이제 편집해도 된다" 알림이 뜬다.
+  13. `working` 중 배너에 ` · pause before editing`이 붙는다.
 - **기존 실패와 신규 실패 구분.** 시작 전에 dev 기준선의 같은 명령 결과를 기록하고, 실패 파일과 개수를 비교한다.
 
 ## Verification Results
@@ -774,6 +817,17 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
   - 실제 로그온 때의 트리거
   - `conhost --headless` 아래의 PowerShell 런처
   - 기본 모델을 쓸 때 분류기의 판정(spike는 haiku로 쟀다)
+- **실행 중에 사람이 같은 작업 트리를 만지는 경우는 막지 못한다.** 결정 B4~B7을 더해도 아래 경우가 남는다. 실행기로는 알아낼 수 없으므로 "편집 전에 Pause" 안내(B7)와 인수 검사에 맡긴다.
+  - 구현 중에 계획 안의 같은 파일을 고친 경우. dev는 그 항목의 허용 파일만 stage하므로(dev 역할 "Stage only this item's allowed files") 그 파일의 편집이 커밋에 섞인다. 인수 검사 1(바뀐 파일 ↔ 계획 목록)은 통과하고, 검사 2(diff ↔ 계획 개요)는 잡을 수도 놓칠 수도 있다.
+  - 실행 중에 사람이 같은 브랜치에서 git 작업을 한 경우.
+    - `git add -A` 커밋: 에이전트의 미완성 변경이 사람 커밋에 섞인다. 사람 변경이 계획 밖 파일이면 인수 검사 1이 잡을 수 있다.
+    - `git stash`: 에이전트 작업이 숨겨졌다가 나중에 섞인다.
+    - `git pull`·`rebase`: 에이전트 아래에서 HEAD와 파일이 바뀐다.
+    - 파일 되돌리기: 에이전트의 변경이 사라진다.
+    - 브랜치 전환만은 B4가 1분 안에 잡는다.
+  - 같은 checkout에서 사람이 연 Claude Code 대화가 동시에 작업하는 경우. lease는 실행기끼리만 막는다.
+  - 검증 단계(verify·impl-verify·qa) 중의 편집은 런북의 트리 지문 검사가 라운드를 무효로 하고 멈춘다. 안전하지만 사람이 이어 줘야 한다.
+  - 구조적으로 없애려면 실행기에 별도 worktree를 줘야 한다. 그러면 결정 11과 smoke 결정 6(본 checkout, 시작 브랜치 고정)을 뒤집게 되므로 택하지 않았다(2026-10-21 보강안을 고를 때 사용자가 이 안을 고르지 않았다). 같은 위험은 1단계 watch와 대화 세션에도 있다. 창이 없어지면 생길 가능성이 커질 뿐이다.
 - **시작에 사용자 손이 한 번 더 간다.** 스킬이 보여 준 `!` 명령을 사용자가 실행해야 시작된다(spike 결정 B2). 사용자가 스스로 허용 규칙을 더하면 줄일 수 있지만, 이 문서는 권한 설정을 바꾸게 하지 않는다.
 - **`claude -p` 한 번의 기본 비용이 크다.** 사용자 범위의 플러그인, MCP 서버, 지시 파일을 모두 싣고 시작한다. spike에서 "OK" 한 줄에 기본 모델로 추정 $0.46이 나왔다. 이 값은 API 가격 환산이고, 구독이면 청구액이 아니다. 할 일이 있을 때만 띄우므로 대기 중에는 들지 않는다.
 - **다른 브랜치 WIP와 같은 파일을 고친다.** 본 checkout의 `harness/pipeline-tab-redesign` 미커밋 작업이 `docs/conventions/product-copy.md`를 고치고 있다. 먼저 머지되는 쪽 뒤에 다른 쪽이 충돌을 해결해야 한다. 그 작업이 고치는 `availability-service.ts`는 이 문서가 건드리지 않도록 목록 데이터를 adapter에서 합쳤다(A-5).
