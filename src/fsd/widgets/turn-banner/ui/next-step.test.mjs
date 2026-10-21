@@ -38,3 +38,14 @@ it("hides the watch line for a live runner and adds the version line only withou
   const codex = renderToStaticMarkup(createElement(NextStepContent, { steps, client: "codex", onClientChange: () => {}, showRunnerHint: true }));
   assert.doesNotMatch(codex, /harness:watch|plugin 0\.5\.13/);
 });
+// Free 줄(B-5)은 버전 줄과 함께, Free 플랜일 때만 붙는다.
+it("adds the Free line under the version line only on the Free plan", () => {
+  const render = (props) => renderToStaticMarkup(createElement(NextStepContent, { steps, client: "claude", onClientChange: () => {}, ...props }));
+  const free = render({ showRunnerHint: true, showFreeLine: true });
+  assert.deepEqual(missingUnits([...copyLock("turn-banner-runner-none"), ...copyLock("turn-banner-runner-free")], free), []);
+  assert.doesNotMatch(render({ showRunnerHint: true }), /opens on Pro/);
+  assert.doesNotMatch(render({ showRunnerHint: false, showFreeLine: true }), /opens on Pro/);
+  assert.doesNotMatch(render({ showWatch: false, showRunnerHint: true, showFreeLine: true }), /opens on Pro/);
+  const codex = renderToStaticMarkup(createElement(NextStepContent, { steps, client: "codex", onClientChange: () => {}, showRunnerHint: true, showFreeLine: true }));
+  assert.doesNotMatch(codex, /opens on Pro/);
+});

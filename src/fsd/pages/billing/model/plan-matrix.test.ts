@@ -89,3 +89,13 @@ describe("planMatrix — pipeline rows", () => {
     assert.deepEqual(row.values, { free: "20", pro: "100", max: "Unlimited" });
   });
 });
+
+// Pro 차이는 /billing에만 보인다(검토 요청 7). 값은 LIMITS의 residentRunner에서 읽는다.
+describe("planMatrix — background runner", () => {
+  it("shows the background runner on Pro and Max only", () => {
+    const row = planMatrix().find((r) => r.label === "Background runner");
+    assert.ok(row, "the background runner row is missing");
+    assert.deepEqual(row.values, { free: "—", pro: "Yes", max: "Yes" });
+    assert.equal(planMatrix().at(-1)?.label, "Background runner");
+  });
+});

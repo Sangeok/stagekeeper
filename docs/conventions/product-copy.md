@@ -241,6 +241,13 @@ start `/harness:watch` there would be wrong. With no runner row at all, one more
 > Runners on plugin 0.5.13 or later show their status here.
 <!-- /copy-lock -->
 
+On the Free plan, one more quiet line follows it. It names the background runner, not "running without a
+window" — Free can still run `/harness:watch` in a background Claude Code session:
+
+<!-- copy-lock:turn-banner-runner-free -->
+> The background runner opens on Pro.
+<!-- /copy-lock -->
+
 **Runner line** — on Board and Inbox, under the headline of every banner kind (setup, yours,
 theirs, nothing open), one line about the runner that keeps the pipeline going: the session
 watch (`/harness:watch`) or, on Pro, the background runner. It answers "is anything running, and
@@ -250,6 +257,9 @@ says 0). Units join with " · ". One line wins, in this order: stopped → no si
 waiting → working or watching. "No signal" means no signal for 3 minutes; a session working on a
 step counts the latest agent activity and allows 60 minutes. The background runner adds
 ` · starts at sign-in` when sign-in start is on and ` · allow-list only` when it runs without auto mode.
+While the background runner is working, ` · pause before you edit {branch}` follows "checked" — an
+edit in that checkout during a run can land in the runner's commit. A working session does not get it
+(the owner is watching that window), and neither does a paused line.
 
 <!-- copy-lock:turn-banner-runner -->
 > Runner: watching in Claude Code on {host}
@@ -266,6 +276,7 @@ step counts the latest agent activity and allows 60 minutes. The background runn
 > Runner on {host} stopped: {reason}. Start it again in Claude Code.
 > starts at sign-in
 > allow-list only
+> pause before you edit {branch}
 <!-- /copy-lock -->
 
 "Work already running finishes first." follows the pause sentence only while the runner is working.
@@ -1209,6 +1220,7 @@ both). Below: each file's title, its section headings, and the sentences that se
 - Server lease (plugin 0.5.13): a managed start also takes the project's runner lease on the server (§5 runner line). `busy` (exit 0, no session) gives `holder:{mode, host, seenAt}` — the start left no local state. `owned` from the session check may add boolean `paused`, or `server:"unreachable"` when the server could not be asked; neither is present when the server has no runner route.
 - Busy question: "A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or should I take over?" Only an explicit yes restarts with `--takeover`.
 - Pause notice, once per pause: "The runner is paused on the web. I start nothing new until you resume it there." Roles already running finish; the watch stays armed and resumes on its own.
+- One background run, `--once --session <id>` (plugin 0.5.14): the background runner starts a print-mode session with it. The session requires `mode:resident` and commit policy yes. It runs every ready step once and never asks or arms. It ends with one line per item it moved or left waiting.
 - Work requires current ownership and a fresh overview; idle quietly rearms. Stuck/replaced/stopped/error and owner stop never rearm. An explicit tool time-limit notice requires ownership/policy/stop-intent checks before rearming. Permission prompts and main-loop commit handoffs wait for owner input.
 
 | code | reason |
@@ -1233,6 +1245,76 @@ Runner route fallback: "The server refused the runner request (HTTP <status>)."
 Unsafe tool/HTTP reason fallback: "The server refused the watch request."
 Unavailable identity fallback: "This project is not available for use."
 Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, control characters or stack reflection.
+
+### Background runner — `/harness:background` (plugin 0.5.14, Pro and Max)
+
+The background runner continues the pipeline on this PC without a Claude Code window. It runs one
+`claude -p "/harness:watch --once …"` per batch of ready work (§5 runner line). The five notice lines
+marked *confirmed* were settled with the owner on 2026-10-21. The other notices and lines below are the
+first draft and need the owner's confirmation before release.
+
+- Skill description: "Run the Stagekeeper pipeline on this PC without a Claude Code window — the background runner continues web approvals on Pro and Max. Use when the user says "/harness:background" with start, stop, status, or autostart on or off."
+- Policy question, once per start: "Should the runner also start new work, or only continue items already on the board?" New work defaults to no. The skill also says: "The runner commits its work in this checkout and never pushes."
+- Start hand-off. The skill never starts the runner itself. Claude Code's auto mode refuses a command that leaves a process running after the session, so the skill hands the command to the owner: "Starting a process that keeps running after this session is your call. Run this yourself:" — followed by one `!` line. Sign-in start uses the same hand-off.
+- Stop: "The runner finishes the run in progress, then stops." (`stopping`) · "The runner stopped." (`stopped`)
+- Status: plain lines from `--status`. A sign-in task registered by an older plugin adds: "Sign-in start points at an older plugin. Turn it off and on again."
+- Start output, one line each, before the JSON line:
+  - "Background runner started on {host} for {branch}."
+  - "Run logs: {logs}"
+  - "Stop it with /harness:background stop."
+  - "The runner works in this checkout on {branch}. Pause it on the Stagekeeper Board before you edit files here." (*confirmed*)
+  - "Auto mode is not available here, so the runner runs only the commands on its allow list." (only without auto mode)
+
+Windows notices (title — body). `{files}` is the first three paths and "and {n} more"; `{current}` is the
+checkout's branch, or a 7-character commit for a detached HEAD.
+
+| when | title | body |
+| --- | --- | --- |
+| waiting on uncommitted changes (*confirmed*) | Runner waiting on {branch} | Uncommitted changes: {files}. Commit or stash them, and it continues. |
+| the same, left by an interrupted run (*confirmed*) | Runner waiting on {branch} | The last run stopped partway and left changes in {files}. Check them, then commit or stash them, and it continues. |
+| waiting on the branch (*confirmed*) | Runner waiting on {branch} | This checkout is on {current}. Switch back to {branch}, and it continues. |
+| the branch changed during a run (*confirmed*) | Runner ended a run | The checkout switched to {current} during a run, so the runner ended that run. Switch back to {branch}, and it continues. |
+| a paused run finished (*confirmed*) | Runner paused | The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume. |
+| stuck | Runner stopped | The same steps came back three times without progress. Check the latest run log, then start it again. |
+| error | Runner stopped | It hit an error. Check the latest run log, then start it again. |
+| plan | Runner stopped | The background runner needs Pro. |
+| replaced | Runner stopped | Another runner took over this project. This one stops. |
+| route lost (HTTP 404) | Runner stopped | The server stopped taking runner signals, so the runner stopped after its run. Start it again when the server is back. |
+| sign-in start refused | Runner did not start | {reason} — one sentence from the table below |
+
+Start and sign-in refusals (`harness-background.mjs`, `code` → sentence; printed before the JSON line):
+
+| code | reason |
+| --- | --- |
+| invalid-arguments | Invalid background arguments. Check the operation and its values. |
+| invalid-config | Watch configuration is invalid. Run /harness:init and start again. |
+| missing-server | Server URL required: pass --server <url> or set HARNESS_SERVER. |
+| invalid-token | HARNESS_TOKEN must be a project or user token. |
+| identity-mismatch | This token does not match the configured repository. Stop and reconnect with /harness:init. |
+| request-failed | Five consecutive requests failed. Resolve the server or connection error before starting again. |
+| dirty | Uncommitted changes: {files}. Commit or stash them before you start the runner. |
+| detached | This checkout is not on a branch. Switch to the branch the runner should work on. |
+| push-url | Remote {remote} has its own push URL, which the runner cannot block. Remove it, or start the runner from another clone. |
+| locked | This checkout already has a watch or runner (started {startedAt}). Stop it first. |
+| busy | A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or take it over. |
+| plan | The background runner opens on Pro. Use /harness:watch in a Claude Code session for now. |
+| no-route | This Stagekeeper server does not take runners yet. Use /harness:watch in a Claude Code session. |
+| no-claude | Claude Code (claude.exe) was not found on PATH. Install the native Claude Code, then start again. |
+| claude-failed | Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again. |
+| runner-exited | The runner exited before it started work. Check {log}. |
+| not-running | No background runner is running in this checkout. |
+| autostart-branch | Sign-in start was set up on {branch}, but this checkout is on {current}. Switch back, or turn sign-in start off and on again. |
+| autostart-missing | Sign-in start is not set up for this checkout. |
+| autostart-windows | Sign-in start is available on Windows only. |
+| autostart-token | Sign-in start needs a user token (hu_…) saved in your user environment variables. Save HARNESS_TOKEN there first. |
+| autostart-server | Sign-in start needs HARNESS_SERVER saved in your user environment variables, or pass --server. |
+| autostart-failed | Windows refused the sign-in task. Nothing was changed. |
+| corrupt-state | Watch state is unreadable or inconsistent. Stop all related tasks before removing it. |
+| guard-busy | Watch state is busy. Stop related tasks before recovering an abandoned guard. |
+
+The server keeps one result line per run (`lastResult`, fixed words only, never the model's text): "done: {n}
+turns, {n} denied" · "error: {subtype}" · "error: exit {code}" · "ended: the branch changed" · "ended: time
+limit" · "ended: runner stopping".
 
 ## 16. Landing — public `/` (built 2026-08-30, landing-v2)
 

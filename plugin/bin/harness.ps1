@@ -1,5 +1,5 @@
 param(
-  [Parameter(Mandatory=$true, Position=0)][ValidateSet('init','codex','session','watch')][string]$Task,
+  [Parameter(Mandatory=$true, Position=0)][ValidateSet('init','codex','session','watch','background')][string]$Task,
   [Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments
 )
 $ErrorActionPreference = 'Stop'
@@ -16,6 +16,6 @@ try {
   [Console]::Error.WriteLine('Stagekeeper Windows package is missing or invalid. Report a packaging failure; do not install Node or WSL as a workaround.')
   exit 1
 }
-$entry = Join-Path $PSScriptRoot (@{init='harness-init.mjs';codex='harness-codex.mjs';session='harness-session.mjs';watch='harness-watch.mjs'}[$Task])
+$entry = Join-Path $PSScriptRoot (@{init='harness-init.mjs';codex='harness-codex.mjs';session='harness-session.mjs';watch='harness-watch.mjs';background='harness-background.mjs'}[$Task])
 & $nodePath $entry @Arguments
 exit $LASTEXITCODE

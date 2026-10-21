@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { PathnameContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { copyLock, missingUnits, visibleText } from "@/fsd/shared/lib/copy-lock";
+import type { Plan } from "@harness/core/entitlement.mjs";
 import type { RunnerFacts, TurnRunner } from "../model/runner";
 import { deriveTurn, type Turn } from "../model/turn";
 import { TurnBanner } from "./turn-banner";
@@ -39,8 +40,8 @@ const live: TurnRunner = { mode: "session", host: "desk", branch: null, permissi
 const facts = (runner: TurnRunner | null, paused = false): RunnerFacts => ({ runner, paused, renderedAt: RENDERED });
 const working: Turn = { kind: "theirs", detail: "dev is implementing ITEM-01", next: [{ kind: "continue", key: "ITEM-02", line: "Continue the pipeline for ITEM-02: plan — dev writes the plan." }] };
 
-function renderWith(turn: Turn, pathname: string, runner: RunnerFacts | undefined, pause = true): string {
-  const banner = createElement(TurnBanner, { turn, slug: "alpha", runner, pause: pause ? async (paused: boolean) => ({ success: true as const, data: paused }) : undefined });
+function renderWith(turn: Turn, pathname: string, runner: RunnerFacts | undefined, pause = true, plan?: Plan): string {
+  const banner = createElement(TurnBanner, { turn, slug: "alpha", runner, plan, pause: pause ? async (paused: boolean) => ({ success: true as const, data: paused }) : undefined });
   return renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: {} as ContextType<typeof AppRouterContext> },
     createElement(PathnameContext.Provider, { value: pathname }, banner)));
 }
@@ -53,6 +54,16 @@ it("shows a live runner on Board and Inbox in every banner kind, with Pause, and
     assert.match(html, />Pause<\/button>/);
     assert.doesNotMatch(html, /Or leave|plugin 0\.5\.13/);
   }
+});
+
+// Free 줄(B-5): 실행기 행이 없고 프로젝트 플랜이 Free일 때만. 플랜을 넘기지 않는 화면은 지금과 같다.
+it("adds the Free line only without a runner row on the Free plan", () => {
+  const free = renderWith(working, "/p/alpha", facts(null), true, "free");
+  assert.deepEqual(missingUnits([...copyLock("turn-banner-runner-none"), ...copyLock("turn-banner-runner-free")], free), []);
+  assert.doesNotMatch(renderWith(working, "/p/alpha", facts(null), true, "pro"), /opens on Pro/);
+  assert.doesNotMatch(renderWith(working, "/p/alpha", facts(null)), /opens on Pro/);
+  assert.doesNotMatch(renderWith(working, "/p/alpha", facts(live), true, "free"), /opens on Pro/);
+  assert.doesNotMatch(renderWith(working, "/p/alpha/backlog", facts(null), true, "free"), /opens on Pro/);
 });
 
 it("keeps the watch line without a live runner and adds the version line only without a row", () => {

@@ -25,6 +25,9 @@ on:
       - plugin/bin/harness-role-commands.test.mjs
       - plugin/bin/harness-role-files.test.mjs
       - plugin/bin/harness-role-git.test.mjs
+      - plugin/bin/harness-background.mjs
+      - plugin/bin/harness-background*.test.mjs
+      - plugin/runtime/background.mjs
       - scripts/rehearse-windows-project-build.mjs
       - scripts/build.mjs
       - scripts/windows-role-readlink.cjs
@@ -61,6 +64,12 @@ jobs:
         run: |
           node --test scripts/windows-role-runtime-cache.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Runtime cache contract tests failed' }
+      # 상주 실행기의 job 런처·알림·시작 흐름은 Windows에서만 실제 경로를 탄다. 런타임 빌드가 필요 없으니 먼저 돈다.
+      - name: Validate background runner job launcher
+        shell: pwsh
+        run: |
+          node --test plugin/bin/harness-background-windows.test.mjs plugin/bin/harness-background.test.mjs plugin/bin/harness-background-loop.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Background runner acceptance failed' }
       - name: Calculate runtime cache identity
         id: runtime-key
         shell: pwsh

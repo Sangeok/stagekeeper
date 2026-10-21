@@ -4,6 +4,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmdirSync
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { STUCK_AFTER } from "../lib/watch.mjs";
+import { isRunbookVersion } from "../lib/runbook.mjs";
 import { atomicWrite as atomicText, safeTarget } from "./file-ownership.mjs";
 const REASONS = {
   "invalid-arguments": "Invalid watch arguments. Check the mode, required values, and positive timing limits.",
@@ -39,6 +40,30 @@ export function gitRoot(input) {
   } catch { fail("invalid-config"); }
 }
 
+// checkout의 CLAUDE.md가 선언한 런북 판. watch와 background가 pipeline_next에 같은 값을 싣는다.
+export function checkoutRunbookVersion(root) {
+  const body = readFileSync(path.join(root, "CLAUDE.md"), "utf8");
+  const start = "<!-- harness:runbook:start -->";
+  const end = "<!-- harness:runbook:end -->";
+  const starts = body.split(start).length - 1;
+  const ends = body.split(end).length - 1;
+  if (starts === 0 && ends === 0) return null;
+  if (starts !== 1 || ends !== 1 || body.indexOf(start) >= body.indexOf(end)) fail("invalid-config");
+  const managed = body.slice(body.indexOf(start) + start.length, body.indexOf(end));
+  const versions = [];
+  // Count declaration prefixes too: a damaged quote must not silently become legacy.
+  const prefixes = [...managed.matchAll(/This document is runbook version|\brunbook\s*:/g)];
+  const declarations = [...managed.matchAll(/This document is runbook version\s+`([^`\r\n]*)`|\brunbook\s*:\s*"([^"\r\n]*)"/g)];
+  if (prefixes.length !== declarations.length) fail("invalid-config");
+  for (const match of declarations) {
+    const value = match[1] ?? match[2];
+    if (!isRunbookVersion(value)) fail("invalid-config");
+    versions.push(value);
+  }
+  if (new Set(versions).size > 1) fail("invalid-config");
+  return versions[0] ?? null;
+}
+
 export function stateFiles(directory) {
   return { policy: path.join(directory, "watch.json"), lock: path.join(directory, "watch.lock.json"), guard: path.join(directory, "watch.guard") };
 }
@@ -69,7 +94,8 @@ export function readState(files) {
     || state.stuck !== (state.repeats >= STUCK_AFTER)
     || !(poller === null || (isObject(poller) && Number.isInteger(poller.pid) && poller.pid > 0 && nonempty(poller.nonce)))
     || (lock.client !== undefined && !["claude", "codex"].includes(lock.client))
-    || (lock.mode !== undefined && !["watch", "foreground"].includes(lock.mode))
+    // resident = 창 없는 상주 실행기(harness-background.mjs). 옛 판은 이 값을 손상 상태로 보고 거부한다 — 같은 저장소에서 섞여 돌지 않게.
+    || (lock.mode !== undefined && !["watch", "foreground", "resident"].includes(lock.mode))
     || (lock.lifecycle !== undefined && !["active", "stopping"].includes(lock.lifecycle))
     // 서버 lease를 잡았는가(/api/runner). CLI는 매번 새 프로세스라 이 값으로만 안다. 옛 판은 이 키를 읽지 않는다.
     || (lock.runnerLease !== undefined && typeof lock.runnerLease !== "boolean")

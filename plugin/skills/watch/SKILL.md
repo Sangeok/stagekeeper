@@ -57,6 +57,10 @@ completion notices. Refuse bare mode, disabled background tasks
 (`CLAUDE_CODE_DISABLE_BACKGROUND_TASKS=1`) or missing capabilities. Never
 silently substitute `/loop` or model-driven polling.
 
+When the arguments are `--once --session <id>`, the background runner started
+this session (`/harness:background`); skip the background-task capability check
+and follow section 7 instead of sections 2 and 3.
+
 ## 2. Start
 
 Ask once for this new watch session:
@@ -206,6 +210,32 @@ unique temporary files. Never remove a live guard or another owner's lock.
 Local cleanup does not undo completed server transitions, in-flight requests,
 receipts or previously dispatched work.
 
+## 7. One background run (`--once`)
+
+The background runner (`/harness:background`) starts this session with
+`claude -p "/harness:watch --once --session <id>"` when the web has ready work.
+Nobody reads this session while it runs: never ask a question or wait for an
+answer, and never arm the watcher or run the watch CLI.
+
+1. Run the common session `--check --client claude --session <id>` and require
+   `owned`, `mode:resident`, `client:claude`, `lifecycle:active`, this session
+   and `policy.commit:true`. Anything else: end with one line naming what was
+   wrong. `paused:true`: start nothing and end.
+2. Follow section 4's work loop from "get a **fresh, keyless** `pipeline_next`
+   overview" on, with the stored policy: the runner's commit policy is always
+   yes and `propose` is the owner's answer. Check the session again before every
+   dispatch, acceptance, outcome/report submission and fresh cycle; on lost
+   ownership, `stopping` or `paused:true`, start nothing new and let running
+   roles finish.
+3. Where the runbook says to ask or tell the owner, that item waits — the web
+   already shows the gate, hold or handoff. Note it in your final reply and
+   continue with other items. A denied tool call is not retried in another form;
+   that item waits for the next run.
+4. Commit under the runbook's rules. Never push and never open a gate.
+5. Repeat fresh cycles until no ready work remains, then end the turn with one
+   line per item you moved or left waiting. The runner reads the result and
+   decides when to start the next run.
+
 ## Commands and quoting
 
 Construct commands from verified real values. Never execute the placeholders
@@ -229,6 +259,6 @@ node '<absolute-plugin-root>/bin/harness-session.mjs' --root '<absolute-checkout
 node '<absolute-plugin-root>/bin/harness-session.mjs' --root '<absolute-checkout>' --release --session '<session>'
 ```
 
-Do not add `--spawn`: the resident executor, automatic push and hosted/routine
-execution are separate future work. The server lease and signals come from the CLI;
-never call the runner route yourself.
+Do not add `--spawn`: the resident executor is `/harness:background`, which calls
+section 7; automatic push and hosted/routine execution are separate future work.
+The server lease and signals come from the CLI; never call the runner route yourself.

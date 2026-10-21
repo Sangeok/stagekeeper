@@ -31,7 +31,7 @@ export default async function ProjectLayout({ children, params }: LayoutProps<"/
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-8 px-5 pt-9 pb-14">
         {!access.available && access.code === "disconnected" ? <DisconnectedProjectBanner userId={userId} projectId={projectId} />
           : !access.available ? <LockedProjectBanner userId={userId} projectId={projectId} reason={access.reason} /> : null}
-        {access.available ? <TurnBanner turn={turn} slug={slug} runner={runner} pause={saveRunnerPaused.bind(null, slug)} /> : null}
+        {access.available ? <TurnBanner turn={turn} slug={slug} runner={runner} pause={saveRunnerPaused.bind(null, slug)} plan={access.plan} /> : null}
         {children}
       </main>
     </div>

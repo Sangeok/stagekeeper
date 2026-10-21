@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
+import type { Plan } from "@harness/core/entitlement.mjs";
 import type { PauseRunnerAction } from "@/fsd/features/pause-runner";
 
 import { cn } from "@/fsd/shared/lib/class-name";
@@ -23,15 +24,16 @@ import { RunnerRow, RunnerShort, useRunnerNow } from "./runner-line";
 type Tab = ProjectTabId | null;
 const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));
 
-// runner·pause는 선택이다. 없으면 실행기 줄 없이 지금과 똑같이 그린다(실행기 상태를 읽지 않는 화면·fixture).
-type TurnBannerProps = { turn: Turn; slug: string; runner?: RunnerFacts; pause?: PauseRunnerAction };
+// runner·pause·plan은 선택이다. 없으면 실행기 줄 없이 지금과 똑같이 그린다(실행기 상태를 읽지 않는 화면·fixture).
+// plan은 Free 줄에만 쓴다(B-5) — 레이아웃이 이미 읽은 프로젝트 접근의 플랜이다.
+type TurnBannerProps = { turn: Turn; slug: string; runner?: RunnerFacts; pause?: PauseRunnerAction; plan?: Plan };
 
 // 레이아웃은 경로를 모른다 — 어느 탭인지는 여기서 읽는다. Board·Inbox에서는 크게, 나머지에서는 한 줄 스트립.
 export function TurnBanner(props: TurnBannerProps): ReactElement {
   return <TurnBannerContent key={props.slug} {...props} />;
 }
 
-function TurnBannerContent({ turn, slug, runner, pause }: TurnBannerProps): ReactElement {
+function TurnBannerContent({ turn, slug, runner, pause, plan }: TurnBannerProps): ReactElement {
   const pathname = usePathname();
   const [client, setClient] = useState<RuntimeClient>("claude");
   const now = useRunnerNow(runner?.renderedAt);
@@ -49,7 +51,7 @@ function TurnBannerContent({ turn, slug, runner, pause }: TurnBannerProps): Reac
   />;
   const nextSteps = turn.kind === "mine" || turn.kind === "theirs"
     ? <NextStepContent steps={turn.next} client={client} onClientChange={setClient}
-      showWatch={!hasLiveRunner(runner, now)} showRunnerHint={runner !== undefined && runner.runner === null} />
+      showWatch={!hasLiveRunner(runner, now)} showRunnerHint={runner !== undefined && runner.runner === null} showFreeLine={plan === "free"} />
     : null;
   return <FullBanner turn={turn} tab={tab} slug={slug} nextSteps={nextSteps} runnerRow={runnerRow} />;
 }

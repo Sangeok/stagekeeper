@@ -24,6 +24,7 @@ export function planMatrix(): PlanRow[] {
     { label: "Session approvals", values: cell((p) => (limitsFor(p).sessionApprovals ? "Yes" : "Web only")) },
     { label: "Pipeline editing", values: cell((p) => (limitsFor(p).pipelineEdit ? "Yes" : "Default only")) },
     { label: "New agent runs per 5-hour window", values: cell((p) => count(limitsFor(p).dispatches)) },
+    { label: "Background runner", values: cell((p) => (limitsFor(p).residentRunner ? "Yes" : "—")) },
   ];
 }
 
