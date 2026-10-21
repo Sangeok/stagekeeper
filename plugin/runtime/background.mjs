@@ -1,6 +1,7 @@
 import { hasWork, workSignature } from "../lib/watch.mjs";
 
 export const INTERVAL_MS = 60_000;
+export const BRANCH_CHECK_MS = 2_000;
 export const RUN_LIMIT_MS = 2 * 60 * 60_000;
 export const FAILURE_LIMIT = 3;
 export const REQUEST_FAILURE_LIMIT = 5;
@@ -110,7 +111,7 @@ export function classifyRun(end) {
 }
 
 export async function runResident(context, deps) {
-  const { branch, interval = INTERVAL_MS, runLimit = RUN_LIMIT_MS } = context;
+  const { branch, interval = INTERVAL_MS, branchCheck = BRANCH_CHECK_MS, runLimit = RUN_LIMIT_MS } = context;
   const status = { state: "idle", waitReason: null, waitFiles: [], interrupted: null, lastResult: null, lastLog: null, failures: 0 };
   let wait = null;
   let failures = 0, transient = 0, requestFailures = 0;
@@ -128,6 +129,10 @@ export async function runResident(context, deps) {
   const waitNotice = (reason, tree) => {
     if (reason === "branch") return fillNotice("waitBranch", { branch, current: tree.current });
     return fillNotice(status.interrupted ? "waitInterrupted" : "waitDirty", { branch, files: fileList(tree.dirty) });
+  };
+  const branchMoved = () => {
+    try { return deps.branch() !== branch; }
+    catch (error) { deps.log(`branch check failed: ${error?.message ?? error}`); return false; }
   };
   const sleepActive = async ms => {
     for (let left = ms; left > 0; left -= 1000) {
@@ -181,15 +186,19 @@ export async function runResident(context, deps) {
     let finished = false;
     const done = run.done.then(end => { finished = true; return end; });
     const started = deps.now();
+    let beatAt = null;
     while (!finished) {
-      const result = verdict(await deps.beat({ state: "working" }));
-      if (result.paused) pausedDuringRun = true;
-      if (result.stop && !stopAfter) stopAfter = result.stop;
+      if (beatAt === null || deps.now() - beatAt >= interval) {
+        beatAt = deps.now();
+        const result = verdict(await deps.beat({ state: "working" }));
+        if (result.paused) pausedDuringRun = true;
+        if (result.stop && !stopAfter) stopAfter = result.stop;
+      }
       if (deps.lifecycle() !== "active" && !stopAfter) stopAfter = deps.lifecycle() === "stopping" ? "owner" : "replaced";
-      if (!endedFor && deps.tree().branch !== branch) { endedFor = "branch"; run.end("branch"); }
+      if (!endedFor && branchMoved()) { endedFor = "branch"; run.end("branch"); }
       if (!endedFor && deps.now() - started >= runLimit) { endedFor = "timeout"; run.end("timeout"); }
       const pause = new AbortController();
-      await Promise.race([done, deps.sleep(interval, pause.signal)]);
+      await Promise.race([done, deps.sleep(Math.min(branchCheck, interval), pause.signal)]);
       pause.abort();
     }
     const end = await done;

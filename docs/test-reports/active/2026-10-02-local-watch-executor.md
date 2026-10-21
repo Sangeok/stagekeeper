@@ -447,6 +447,8 @@ Findings:
 - The documented one-minute window (B-2 step 3) happened. During the second branch switch, the
   agent committed the ITEM-05 plan (`ee8385c`) on `smoke-b-other2` before the runner noticed the
   switch. The commit was later fast-forwarded into the smoke repository's main.
+  Follow-up (2026-10-22, plugin 0.5.16): the runner now checks the branch every 2 s during a
+  run, so the window is about 2 s. The 60 s signal is unchanged.
 - A stop sent before a run's first session check ends that run without work. The run's main
   loop requires `lifecycle:active` (watch skill section 7) and ended with "the session check
   reported `lifecycle:stopping` … so I dispatched no agents and changed nothing" in 6 turns

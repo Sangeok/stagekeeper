@@ -265,8 +265,9 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   - 할 일이 있으면 실행 직전 검사를 한다. 미커밋이나 브랜치 변경이면 waiting으로 보내고 알림은 대기 하나에 한 번이다.
   - 검사를 통과하면 `claude -p "/harness:watch --once --session <id>"`를 띄운다. `--settings <common>/harness/background-settings.json`,
     `--disallowedTools "Bash(git push:*)" "PowerShell(git push*)"`, stream-json을 붙인다.
-  - 도는 동안 60초마다 다음을 한다: beat(working), 브랜치 감시(바뀌면 실행을 끝내고 branch 대기·알림, 실패로 세지
-    않음), 2시간 상한.
+  - 도는 동안 60초마다 beat(working)를 보낸다. 브랜치 감시와 2시간 상한은 2초마다 본다. 브랜치가 바뀌면 실행을 끝내고
+    branch 대기로 바꾸고 알림을 띄우며, 이 중단은 실패로 세지 않는다. 브랜치 확인이 한 번 실패하면 로그만 남기고 다음
+    확인에 맡긴다.
   - 끝나면 결과 한 줄(`lastResult`)과 로그 이름(`lastLog`)을 beat로 보낸다. 앞뒤 작업 서명이 같거나 비정상 종료·
     시간 초과면 실패이고, 3회 연속이면 멈춘다. 셋 모두 진전 없음이면 stop(stuck), 오류·시간 초과가 섞이면
     stop(error)다. 일시 정지 중에 끝난 실행은 알림 하나를 띄운다.
