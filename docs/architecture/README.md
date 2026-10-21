@@ -74,6 +74,7 @@ owner 이름은 adapter가 유지한다. D3 cleanup 운영 배포에는 D2 운�
 stagekeeper/
 ├── src/
 │   ├── app/                 # Next.js 라우팅·composition root
+│   │   └── _fonts/          # 라우팅에서 제외한 앱 전역 폰트·라이선스·이미지용 로더
 │   ├── fsd/                 # 프런트엔드 FSD root
 │   │   ├── pages/
 │   │   ├── widgets/

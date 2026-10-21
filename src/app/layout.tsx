@@ -6,7 +6,7 @@ import "./globals.css";
 
 // 사람이 읽는 글은 Schibsted Grotesk(400–900), 기계가 만든 식별자는 Fragment Mono(400뿐).
 const sans = localFont({
-  src: "./fonts/schibsted-grotesk-normal.ttf",
+  src: "./_fonts/schibsted-grotesk-normal.ttf",
   variable: "--font-schibsted",
   weight: "400 900",
   style: "normal",
@@ -14,7 +14,7 @@ const sans = localFont({
 });
 
 const mono = localFont({
-  src: "./fonts/fragment-mono-regular.ttf",
+  src: "./_fonts/fragment-mono-regular.ttf",
   variable: "--font-fragment",
   weight: "400",
   style: "normal",

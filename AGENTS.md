@@ -19,6 +19,8 @@ For frontend code, follow `docs/architecture/fsd.md`:
 
 - Keep Next.js route entrypoints and framework composition in `src/app` after the
   approved source-layout migration.
+- Keep app-owned fonts, licenses, provenance, and the image font loader together in
+  `src/app/_fonts/`. The underscore marks a Next.js private folder excluded from routing.
 - Put product frontend code in `src/fsd` and preserve the dependency direction
   `pages -> widgets -> features -> entities -> shared`.
 - Import another slice only through its public API. Keep same-layer slices isolated.
@@ -27,6 +29,19 @@ For frontend code, follow `docs/architecture/fsd.md`:
 - Do not create both root `app/` and `src/app/`; Next.js ignores `src/app/` in that
   state. Until the existing root `app/` is migrated as one operation, do not create a
   parallel `src/app/`.
+
+For test placement, follow `docs/architecture/test-organization.md`:
+
+- Do not put test files or test-only code directly in `src/` (alongside `app/`) or
+  directly in `src/app/` (alongside `page.tsx`). Examples of forbidden paths include
+  `src/proxy.test.ts`, `src/app/page.test.ts`, `src/app/robots.test.ts`, and
+  `src/app/sitemap.test.ts`.
+- Do not create test-only directories such as `tests/`, `__tests__/`, or `testing/`
+  directly under either directory. This restriction takes precedence over the
+  default rule of colocating tests with their target.
+- Put product tests beside their owner in `src/fsd` or `src/server`. Put tests of
+  framework entrypoints in a responsibility-specific directory under root `tests/`
+  and ensure the test command discovers them.
 
 Run `npm run verify:fsd`, `npm run verify:server`, `npm run test:architecture`, and the relevant lint, type,
 test, and build commands before completing a code change. Do not suppress an

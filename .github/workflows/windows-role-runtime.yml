@@ -37,7 +37,7 @@ on:
       - prisma/schema.prisma
       - next.config.*
       - src/app/layout.tsx
-      - src/app/fonts/**
+      - src/app/_fonts/**
 
 permissions:
   contents: read

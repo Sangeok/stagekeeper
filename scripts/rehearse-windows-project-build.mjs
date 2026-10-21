@@ -22,7 +22,7 @@ export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
   }
   const sourceNames = ["package.json", "package-lock.json", "prisma.config.ts", "prisma/schema.prisma", "next.config.mjs",
     "scripts/build.mjs", "scripts/windows-role-readlink.cjs", "scripts/windows-role-spawn-diagnostics.cjs", "src/app/layout.tsx",
-    "src/app/fonts/schibsted-grotesk-normal.ttf", "src/app/fonts/fragment-mono-regular.ttf"];
+    "src/app/_fonts/schibsted-grotesk-normal.ttf", "src/app/_fonts/fragment-mono-regular.ttf"];
   const sources = () => Object.fromEntries(sourceNames.map(name => [name, digest(readFileSync(path.join(root, name)))]));
   const sourceHashes = sources();
   const originalBuildId = existsSync(path.join(root, ".next/BUILD_ID")) ? readFileSync(path.join(root, ".next/BUILD_ID"), "utf8") : null;

@@ -169,6 +169,11 @@ Route Handler도 같은 원칙으로 transport만 담당하고 `src/server`의 u
 호출한다. Next.js 특수 파일의 실제 API는 반드시 설치된 버전의
 `node_modules/next/dist/docs/`를 확인한다.
 
+`src/app/_fonts/`는 전역 레이아웃과 메타데이터 이미지 진입점이 사용하는 폰트 원본,
+라이선스, 출처와 이미지용 로더를 함께 소유한다. 앱 전역 조합에 속하는 자산이며,
+Next.js의 private folder(`_` 접두사) 규약으로 폴더와 하위 경로를 라우팅에서 제외한다.
+이 접두사는 `src/app` 내부의 Next.js 규약이며 `src/fsd`의 kebab-case 규칙은 유지한다.
+
 ## Server와 Client 경계
 
 - 기본은 Server Component다. event handler, 브라우저 API, local state가 필요한
