@@ -105,7 +105,7 @@ function mineDetail(pending: TurnItem[]): string {
   return parts.join(" · ");
 }
 
-function workingLine(w: TurnItem): string {
+function sessionWorkLine(w: TurnItem): string {
   if (w.node === "accept") return `${w.key} is waiting for acceptance`;
   if (!w.dispatched) return `${w.key} is waiting for ${w.node === "verify" ? "verification" : dispatcherFor(w.node, w.agent)}`;
   switch (w.node) {
@@ -160,7 +160,7 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     const agent = slotAgent(node);
     return agent !== null && PROJECT_AGENTS.includes(agent);
   };
-  const working = items.filter((i) => !pending.includes(i) && i.status !== "on_hold" && i.gate === null
+  const sessionWorkItems = items.filter((i) => !pending.includes(i) && i.status !== "on_hold" && i.gate === null
     && (i.node === "plan" || i.node === "verify" || i.node === "implement" || i.node === "impl-verify" || i.node === "qa" || isProjectSlot(i.node) || (i.node === "accept" && isAwaitingAcceptance(i.status, i.accepted))));
   const first = pending[0];
   if (first !== undefined) {
@@ -171,16 +171,16 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
       count: pending.length,
       detail: mineDetail(pending),
       why: canPropose(openCount) ? null : BLOCKED_WHY,
-      next: nextSteps([...pending, ...working]),
+      next: nextSteps([...pending, ...sessionWorkItems]),
       open,
     };
   }
 
-  if (working.length > 0) {
+  if (sessionWorkItems.length > 0) {
     return {
       kind: "theirs",
-      detail: working.map(workingLine).join(" · "),
-      next: nextSteps(working),
+      detail: sessionWorkItems.map(sessionWorkLine).join(" · "),
+      next: nextSteps(sessionWorkItems),
     };
   }
 
