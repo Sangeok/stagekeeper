@@ -19,10 +19,6 @@ export async function createProject(_prev: CreateProjectState, form: FormData): 
   if (!SLUG_RE.test(slug)) return { status: "error", error: SLUG_ERROR };
   if (RESERVED_SLUGS.has(slug)) return { status: "error", error: `'${slug}' is reserved.` };
   if (!owner || !repo) return { status: "error", error: "GitHub owner and repo are required." };
-  // 형식도 서버에서 본다. 붙여넣기 경로만 SEGMENT를 통과했고 수동 입력은 무검증이었다 —
-  // 그렇게 들어온 값은 저장된 뒤 모든 화면의 저장소 링크를 깨진 채로 만든다.
-  // branch는 여기서 걸지 않는다 — git 브랜치 이름은 `release/1.0`처럼 슬래시를 담을 수 있어
-  // SEGMENT로 재면 정상 브랜치를 막는다.
   if (!SEGMENT.test(owner) || !SEGMENT.test(repo)) {
     return { status: "error", error: "GitHub owner and repo must be GitHub names — letters, numbers, dots, dashes, underscores." };
   }

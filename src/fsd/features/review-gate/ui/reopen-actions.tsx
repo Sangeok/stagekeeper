@@ -21,10 +21,6 @@ import {
 import type { TransitionAction } from "../model/inbox-item";
 import { ReopenActionsBoundary } from "./reopen-actions-boundary";
 
-// 항목 상세의 되돌리기(done → implementing | planning). Inbox 카드가 아니다 — done은 결재함 자격이 없어서
-// 모든 done이 영원히 결재함에 남지 않는다(§7). 쉬는 상태는 주 버튼 + 텍스트 링크 + 힌트. 하나를 누르면 그 줄이
-// 노트 칸 + 고른 동작의 확인 버튼 + Cancel로 바뀐다 — 같은 라벨의 버튼이 둘 보이지 않게(product-copy.md §3·§11).
-// 노트는 필수다: 폼이 막고 서버에는 빈 result가 닿지 않는다.
 const NOTE_HINT = `Which acceptance check failed. dev reads this before picking the item back up. Up to ${NOTE_LIMIT.reopen} characters.`;
 
 type Props = {

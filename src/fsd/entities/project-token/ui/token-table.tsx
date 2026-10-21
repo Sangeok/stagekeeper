@@ -17,7 +17,6 @@ type Props = {
 
 const day = (date: Date): string => date.toISOString().slice(0, 10);
 
-// 표시만 공유한다. 이름 편집·폐기 Action은 서버 page가 만드는 slot에 남는다.
 export function TokenTable({ tokens, at, reference, empty, headingLevel, renderName, renderRevoke }: Props): ReactElement {
   const Heading = headingLevel === 2 ? "h2" : "h3";
   return <div className="flex flex-col gap-4">

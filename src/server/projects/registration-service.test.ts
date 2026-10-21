@@ -21,7 +21,6 @@ function fixture(options: { errors?: unknown[]; row?: unknown; owned?: unknown[]
       create: async (args: Prisma.ProjectCreateArgs) => { creates.push(args); return { id: "p" }; },
     },
   } as unknown as Prisma.TransactionClient;
-  // The fixture implements only registration's IO; Prisma's fluent/array overload is unused.
   const client = {
     $transaction: async (work: (tx: Prisma.TransactionClient) => Promise<unknown>) => {
       const error = options.errors?.[transactions];

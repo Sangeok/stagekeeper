@@ -77,7 +77,6 @@ it("real row locks order both revocation races for every kind and keep authentic
           }
           const done = pending.then(() => { settled = true; });
           if (revokeFirst) await arrived.entered();
-          // The first transaction owns the row lock until the explicit barrier releases it.
           await new Promise((resolve) => setTimeout(resolve, 50)); assert.equal(settled, false);
           gate.release(); await holding; await done;
           const saved = await read(); assert.ok(saved.revokedAt);

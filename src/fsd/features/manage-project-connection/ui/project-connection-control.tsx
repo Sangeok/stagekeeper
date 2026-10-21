@@ -7,8 +7,6 @@ import { reconnectBlock, STALE_CONNECTION_MESSAGE, UNKNOWN_CONNECTION_MESSAGE, t
 
 type Props = { target: ProjectConnectionTarget; summary: ProjectConnectionSummary; disconnect: ProjectConnectionAction; reconnect: ProjectConnectionAction };
 
-// 조각(fragment)으로 돌려준다 — 목록 행(flex-wrap)에서는 여는 버튼이 행 끝에, 확인 창(order-last w-full)이 행 아래에 놓이고,
-// 배너(flex-col)에서는 위에서 아래로 쌓인다. 연결 해제는 드물고 hs_/ho_를 폐기하므로 ⋯ 메뉴 안에 둔다.
 export function ProjectConnectionControl({ target, summary, disconnect, reconnect }: Props) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -68,7 +66,6 @@ export function ProjectConnectionControl({ target, summary, disconnect, reconnec
     </div>
   );
 
-  // ⋯는 확인 창이 열려도 남긴다 — 사라지면 그 행의 열린 수가 옆 행들과 다른 자리로 밀린다.
   return <>
     {!confirming || !disconnected ? trigger : null}
     {!confirming ? null : (

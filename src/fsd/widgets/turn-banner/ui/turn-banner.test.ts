@@ -33,7 +33,6 @@ it("renders both ready entries with Claude defaults and leaves compact tabs comp
   assert.doesNotMatch(render(turn, "/p/alpha/backlog"), /Coding client|>Copy<\/button>/);
 });
 
-// 실행기 줄(product-copy §5). 새 prop은 선택이라 위 사례는 실행기 없이 그대로 그린다.
 const RENDERED = "2026-10-20T12:00:00.000Z";
 const minutesAgo = (n: number) => new Date(Date.parse(RENDERED) - n * 60_000).toISOString();
 const live: TurnRunner = { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null, seenAt: minutesAgo(1), lastActivity: null };
@@ -56,7 +55,6 @@ it("shows a live runner on Board and Inbox in every banner kind, with Pause, and
   }
 });
 
-// Free 줄(B-5): 실행기 행이 없고 프로젝트 플랜이 Free일 때만. 플랜을 넘기지 않는 화면은 지금과 같다.
 it("adds the Free line only without a runner row on the Free plan", () => {
   const free = renderWith(working, "/p/alpha", facts(null), true, "free");
   assert.deepEqual(missingUnits([...copyLock("turn-banner-runner-none"), ...copyLock("turn-banner-runner-free")], free), []);

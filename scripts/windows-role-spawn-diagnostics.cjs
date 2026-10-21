@@ -1,5 +1,3 @@
-// Opt-in build diagnostics for the bundled Node runtime. Observe failures;
-// never change the executable, options, error or permission decision.
 if (process.platform === "win32" && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1"
   && process.env.STAGEKEEPER_BUILD_DIAGNOSTICS === "1") {
   const { ChildProcess } = process.getBuiltinModule("child_process");
@@ -14,7 +12,6 @@ if (process.platform === "win32" && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1
       const args = options.args ?? [];
       const file = options.file ?? "";
       const name = path.basename(file).toLowerCase();
-      // Fixed classifications only: no command bodies, paths or environment.
       console.error(JSON.stringify({
         event: "windows-role-spawn-failed",
         code: ["EPERM", "EACCES", "ENOENT"].includes(error?.code) ? error.code : "other",

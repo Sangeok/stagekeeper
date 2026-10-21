@@ -7,8 +7,6 @@ const MAX_SCAN_FILES = 1000;
 const MAX_SCAN_BYTES = 16 * MAX_FILE_BYTES;
 const READ_TOOLS = ["role_file_read", "role_file_list", "role_file_search"];
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
-// Windows lstat's fast path reports dev=0; fstat reports the volume serial.
-// resolveTarget pins the drive and physical path, so compare its file ID here.
 const identity = stat => process.platform === "win32" ? String(stat.ino) : `${stat.dev}:${stat.ino}`;
 const canonical = name => process.platform === "win32" ? name.toLowerCase() : name;
 
@@ -18,7 +16,6 @@ export class RoleFileInputError extends Error {
 
 export function roleFileToolNames(agent) {
   if (agent === "pm") return [];
-  // Read-only roles may write scratch; the path policy still refuses repository writes.
   return [...READ_TOOLS, "role_file_write"];
 }
 
@@ -36,8 +33,6 @@ export function roleFileTools(agent) {
   });
 }
 
-// The Windows backend exposes data operations, not a general process launcher.
-// Neither model-provided code nor a shell runs in this privileged broker.
 export function createRoleFiles(filesystem, agent) {
   if (filesystem[":root"] !== "deny") throw new Error("Role file broker requires root denial");
   const rules = Object.entries(filesystem).filter(([name]) => !name.startsWith(":"))
@@ -64,9 +59,6 @@ export function createRoleFiles(filesystem, agent) {
       }
     }
     if (access(target) === "deny" || (write && access(target) !== "write")) throw new Error("File permission refused");
-    // Resolve once through the OS, but always inspect every ancestor's alias/link
-    // metadata: a canonical spelling alone is not a reparse-point authority check.
-    // Differing spellings (including Windows short names) get the JS fallback.
     let nativeExact = false;
     try {
       nativeExact = canonical(realpathSync.native(target)) === canonical(target);
@@ -81,9 +73,6 @@ export function createRoleFiles(filesystem, agent) {
         existing = current;
       } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
-    // Resolve the complete existing chain once; resolving every prefix repeats
-    // its ancestors for each dependency file. No path/permission result is cached:
-    // callers recheck before and after IO, including aliases above the policy root.
     if (!nativeExact && canonical(realpathSync(existing)) !== canonical(existing)) throw new Error("File alias refused");
     return target;
   }
@@ -164,7 +153,6 @@ export function createRoleFiles(filesystem, agent) {
 
   return {
     tools: roleFileTools(agent),
-    // Trusted snapshot exporter only; these methods are never MCP tools.
     permission: access,
     resolveRead(name) { if (closed) throw new Error("Role file broker closed"); return resolveTarget(name); },
     close() { closed = true; },

@@ -16,8 +16,6 @@ type UsageDb = { projectToken: UsageDelegate; ownerToken: UsageDelegate; userTok
 export function makeRecordTokenUsage(db: UsageDb): TokenUsageRecorder {
   const delegates = { agent: db.projectToken, owner: db.ownerToken, user: db.userToken };
   return async (kind, tokenId, at) => {
-    // The predicate protects against late requests and revocation across processes.
-    // It reduces row writes; every accepted credential still attempts a query.
     await delegates[kind].updateMany({
       where: {
         id: tokenId,
@@ -45,7 +43,6 @@ export async function tryRecordTokenUsage(
     try {
       console.warn("Token usage recording failed", { kind });
     } catch {
-      // Diagnostic failures must not change authentication either.
       return;
     }
   }

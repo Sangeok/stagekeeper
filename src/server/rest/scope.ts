@@ -1,10 +1,3 @@
-// REST 세 경로(/api/templates · /api/runbook · /api/project)가 공유하는 주체 판정.
-// mcp/tools.ts의 scope()와 같은 갈래다: hs_는 토큰이 프로젝트를 알고, hu_는 슬러그를 인자로 받아
-// 호출마다 ownerUserId로 인가한다(owner-tools.ts:38·guard.ts:15-20과 같은 술어).
-//
-// **hu_ 갈래는 선택이다.** findUserTokenByHash·projectFor를 주입하지 않은 호출자에게는
-// hu_가 존재하지 않는 것처럼 동작한다(makeVerifyToken의 두 번째 인자와 같은 규약).
-// 조회 결과에는 사용 기록에 필요한 내부 토큰 ID도 포함한다. 통과한 토큰의 ID는 결과에도 싣는다(실행기 lease의 감사 기록).
 import { hashToken, parseBearer } from "@harness/core/token.mjs";
 import { isTokenActive } from "@harness/core/token-validity.mjs";
 import { tryRecordTokenUsage } from "@/server/tokens/api";
@@ -20,8 +13,6 @@ export type RestTokenDeps = {
 
 export type RestScope = { ok: true; projectId: string; tokenId: string } | { ok: false; status: 401 | 403; reason: string };
 
-// 슬러그는 경로마다 다른 곳에서 온다 — 쿼리 문자열(templates·project) 또는 본문(runbook).
-// 꺼내는 일은 호출부가 하고, 판정은 여기가 한다.
 export async function resolveRestScope(
   deps: RestTokenDeps,
   authorizationHeader: string | null,
@@ -39,7 +30,6 @@ export async function resolveRestScope(
 
   const findUser = deps.findUserTokenByHash;
   const projectFor = deps.projectFor;
-  // 접두가 hu_가 아니거나 hu_를 받지 않는 배포면 여기서 끝난다 — DB를 건드리지 않는다.
   const userPlain = findUser && projectFor ? parseBearer(authorizationHeader, "user") : null;
   if (!userPlain) return { ok: false, status: 401, reason: "bearer token required" };
 
@@ -47,22 +37,13 @@ export async function resolveRestScope(
   const at = new Date();
   if (!userRow || !isTokenActive(userRow, at)) return { ok: false, status: 401, reason: "invalid or revoked token" };
   await tryRecordTokenUsage(deps.recordTokenUsage, "user", userRow.id, at);
-  // 토큰은 멀쩡하지만 가리킬 프로젝트가 없다. 고치는 법을 문장이 들고 있다(A-8의 전환 경로).
   if (slug === null) return { ok: false, status: 401, reason: PROJECT_REQUIRED };
 
   const projectId = await projectFor!(slug, userRow.userId);
-  // 없는 슬러그와 남의 프로젝트를 같은 답으로 돌려준다 — 존재 여부를 흘리지 않는다(guard.ts:14).
   if (projectId === null) return { ok: false, status: 403, reason: NOT_YOURS };
   return { ok: true, projectId, tokenId: userRow.id };
 }
 
-// 사람만 식별한다. 프로젝트를 **아직 만들기 전**인 경로(POST /api/projects)가 쓴다.
-//
-// resolveRestScope를 확장하지 않는 이유가 둘이다.
-// 1. 그쪽은 반환 계약이 `{ projectId }`라 프로젝트가 없는 호출을 표현할 수 없고,
-//    슬러그가 없으면 PROJECT_REQUIRED로 떨어진다(위 slug === null 분기) — 등록 경로에는 정확히 반대다.
-// 2. **hs_를 받으면 안 된다.** 프로젝트 토큰으로 새 프로젝트를 만드는 것은 말이 안 되고,
-//    resolveRestScope는 hs_를 첫 가지로 통과시킨다. 여기서는 hu_만 통과한다.
 export type UserScope = { ok: true; userId: string } | { ok: false; status: 401; reason: string };
 
 export async function resolveUserScope(
@@ -71,7 +52,6 @@ export async function resolveUserScope(
   recordUsage?: TokenUsageRecorder,
 ): Promise<UserScope> {
   const plain = parseBearer(authorizationHeader, "user");
-  // hs_·ho_·형식 오류·헤더 없음이 모두 여기로 떨어진다. DB는 건드리지 않는다.
   if (!plain) return { ok: false, status: 401, reason: "user token required" };
   const row = await findUserTokenByHash(hashToken(plain));
   const at = new Date();

@@ -86,8 +86,6 @@ async function callMcp(route: typeof agentMcp, token: string, name: string, args
   return { status: response.status, result: message.result as ToolResult, body };
 }
 
-// The real owner SQL lock is held before starting the second operation. A second
-// post-lock barrier would deadlock, so only the first writer is paused here.
 function afterOwnerLock(db: PrismaClient, hook: Hook): TransactionHost {
   return db.$extends({ query: { async $queryRaw({ args, query }) {
     const result = await query(args);
@@ -176,12 +174,10 @@ it("preserves project identity and every populated child, revokes project creden
       assert.equal(result.result?.isError, true, name);
       assert.deepEqual(result.result?.content, [{ type: "text", text: JSON.stringify({ error: DISCONNECTED_REASON }) }], name);
     }
-    // Revoked credentials fail authentication without revealing connection state.
     for (const result of [await callMcp(agentMcp, hs.plain, "project_get", {}), await callMcp(ownerMcp, ho.plain, "gate_approve", { key: f.key, gate: "before-plan" })]) {
       assert.equal(result.status, 401); assert.ok(!result.body.includes(DISCONNECTED_REASON));
     }
     for (const endpoint of [() => identity(request("/api/project", hs.plain)), () => templates(request(`/api/templates?lang=${f!.id}`, hs.plain)), () => runbook(request("/api/runbook", hs.plain, rb))]) assert.equal((await endpoint()).status, 401);
-    // A historically retained ho_ row cannot bypass the tool's state guard.
     const retainedOwner = newToken("owner");
     await db.ownerToken.create({ data: { projectId: f.projectId, userId: f.userId, hash: retainedOwner.hash, label: "retained guard fixture" } });
     const refusedOwner = await callMcp(ownerMcp, retainedOwner.plain, "gate_approve", { key: f.key, gate: "before-plan" });
@@ -205,8 +201,6 @@ it("preserves project identity and every populated child, revokes project creden
       ["disconnect-project", f.projectId, [], [f.projectId], []], ["reconnect-project", f.projectId, [f.projectId], [], [f.projectId]],
     ]);
     assert.equal((await identity(request(`/api/project?project=${f.id}`, hu.plain))).status, 200);
-    // Existing case variants are an integrity error, even on a current-version
-    // reconnect no-op. No endpoint may choose one or return its reconnect URL.
     await db.project.create({ data: { ownerUserId: f.userId, slug: `${f.id}-duplicate`, name: "duplicate", repoOwner: f.id.toUpperCase(), repo: f.id.toUpperCase(), branch: "main", available: false } });
     const ambiguous = await register(request("/api/projects", hu.plain, registration));
     assert.equal(ambiguous.status, 409); assert.deepEqual(await ambiguous.json(), { error: "Project ownership is unavailable." });

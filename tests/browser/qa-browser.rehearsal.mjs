@@ -1,4 +1,3 @@
-// Actual Playwright MCP rehearsal. No model, operating DB or real credentials.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";

@@ -18,8 +18,6 @@ type Props = {
   failure: AcceptanceFailureView | null; retryAcceptance: RetryAcceptanceAction;
 };
 
-// The item wrapper survives its own A → null refresh. Observing B permanently invalidates A,
-// even if B later disappears. Navigating to another item unmounts this wrapper (the page keys it).
 export function AcceptanceFailure(props: Props) {
   const alive = useRef(false);
   const observed = useRef<string | null>(null);
@@ -72,7 +70,6 @@ function FailureRecord({ itemKey, updatedAt, canWrite, failure, retryAcceptance,
         router.refresh();
       } catch {
         if (!current()) return;
-        // A lost response can follow a committed write. Only a fresh detail can resolve it.
         if (mounted.current) setUncertain(true);
         toast(ACCEPTANCE_RETRY_UNKNOWN);
         router.refresh();

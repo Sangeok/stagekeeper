@@ -6,7 +6,6 @@ import { requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { setRunnerPaused } from "@/server/runners/api";
 
-// 웹의 실행기 일시 정지. 규칙(멱등·잠금 순서·사용 가능 여부)은 서버 서비스에 있다 — Action은 시험에서 부를 수 없다.
 export async function saveRunnerPaused(slug: string, paused: boolean): Promise<ActionResult<boolean>> {
   const access = await requireProjectWrite(slug);
   if (!access.ok) return failure(access.reason);

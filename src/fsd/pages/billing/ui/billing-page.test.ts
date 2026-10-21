@@ -9,7 +9,6 @@ it("renders the Billing-owned matrix in order with its existing note", () => {
   const html = renderToStaticMarkup(createElement(BillingPage, { plan: "pro", usage: { kind: "unavailable" } }));
   const table = html.slice(html.indexOf("<table"), html.indexOf("</table>"));
   const positions = planMatrix().map(row => table.indexOf(row.label));
-  // Phase B: "Background runner" 행이 마지막에 붙어 9줄이다.
   assert.equal(positions.length, 9);
   assert.ok(table.includes("Background runner"));
   assert.ok(positions.every((at, index) => at >= 0 && (index === 0 || at > positions[index - 1])));

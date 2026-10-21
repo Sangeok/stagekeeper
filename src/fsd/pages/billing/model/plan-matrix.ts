@@ -1,6 +1,5 @@
 import { PLANS, UNLIMITED, limitsFor, type Plan } from "@harness/core/entitlement.mjs";
 
-// 표의 줄. 축 이름과 순서를 여기서 정한다 — 값은 LIMITS에서 읽으므로 표와 코드가 어긋날 수 없다.
 export type PlanRow = { label: string; values: Record<Plan, string> };
 
 const UNLIMITED_TEXT = "Unlimited";
@@ -28,5 +27,4 @@ export function planMatrix(): PlanRow[] {
   ];
 }
 
-// 상한 문장(그리고 그 뒤의 업그레이드 안내)은 여기 두지 않는다 — capError가 이미 그 한 문장을 만든다.
 export const BILLING_NOTE = "Pricing and checkout are being built. Plans are set by hand for now.";

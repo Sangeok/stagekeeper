@@ -79,8 +79,6 @@ it("replays all 17 prior SQL files whole on one connection and adds RDC without 
     for (const name of old) await db.query(readFileSync(new URL(`${name}/migration.sql`, directory), "utf8"));
     assert.equal(await capability(), "legacy");
     assert.equal((await db.query("SELECT current_schema() AS name")).rows[0].name, schema);
-    // Insert only after replaying them. Latest Prisma queries would ask for the new
-    // columns before they exist; SQL describes the actual previous schema.
     await db.query(`
       INSERT INTO "User" (id,"githubId",login,"projectAvailabilityVersion") VALUES ('u',-1,'owner',1);
       INSERT INTO "Subscription" (id,"userId",plan,"updatedAt") VALUES ('s','u','pro',CURRENT_TIMESTAMP);
@@ -156,7 +154,6 @@ it("replays all 17 prior SQL files whole on one connection and adds RDC without 
   }
 });
 
-// fixture는 실제 migration이 만든 표 그대로여야 한다. 최신 schema에 옛 모양 데이터를 넣는 시험으로 대체하지 않는다.
 const statementsOf = (migration: string) =>
   readFileSync(new URL(`../../../prisma/migrations/${migration}/migration.sql`, import.meta.url), "utf8")
     .split(";").map((statement) => statement.trim()).filter(Boolean);
@@ -165,7 +162,6 @@ it("the additive migration applies to the real agent_run tables and preserves le
   const url = process.env.TEST_DATABASE_URL;
   if (!url || !decodeURIComponent(new URL(url).pathname).startsWith("/stagekeeper_test_")) throw new Error("Run via test:server:integration");
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
-  // 16진수만 남긴 이름이라 식별자로 안전하다. transaction 전용 schema이므로 rollback이 표·인덱스를 전부 지운다.
   const schema = `migration_fixture_${randomUUID().replace(/-/g, "")}`;
   try {
     await assert.rejects(db.$transaction(async (tx) => {
@@ -199,7 +195,6 @@ it("the additive migration applies to the real agent_run tables and preserves le
         assert.equal(byName[name].column_default, null);
       }
 
-      // 새 인덱스가 같은 표의 기존 인덱스와 이름이 겹치지 않아야 한다 — 3열짜리 임시 표로는 드러나지 않는 경계다.
       const indexes = (await tx.$queryRawUnsafe<{ indexname: string }[]>(`SELECT indexname FROM pg_indexes WHERE schemaname = '${schema}'`))
         .map((row) => row.indexname).sort();
       assert.deepEqual(indexes, [
@@ -251,7 +246,6 @@ it("backlog authorship migrates the original tables and reconciles old-writer re
       await tx.$executeRawUnsafe(`UPDATE "BoardItem" SET status='on_hold' WHERE id='hold-remove'`);
       await tx.$executeRawUnsafe(`UPDATE "BacklogItem" SET "removedAt"='2026-02-01' WHERE id='hold-remove'`);
       await tx.$executeRawUnsafe(`INSERT INTO "BoardItem" (id,"projectId","backlogItemId",agent,status,reason,"updatedAt") VALUES ('new-done','p','owner-done','dev','done','', '2026-02-01')`);
-      // Rehearse the post-drain lock order and normalize in the same transaction.
       const started = performance.now();
       await tx.$queryRawUnsafe('SELECT id FROM "User" ORDER BY id FOR UPDATE');
       await tx.$queryRawUnsafe('SELECT id FROM "Project" ORDER BY id FOR UPDATE');

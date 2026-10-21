@@ -5,7 +5,6 @@ const text = (value) => typeof value === "string" && value.length > 0;
 const nullableText = (value) => value === null || typeof value === "string";
 const protocolError = () => ({ ok: false, error: { code: "protocol-error" } });
 
-// A trailing notification must never replace the response to our own request.
 export function parseToolResponse(contentType, body, requestId) {
   try {
     const type = contentType?.split(";")[0].trim().toLowerCase();

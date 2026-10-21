@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { AutomaticScoutControl } from "./automatic-scout-control";
 
-// Pending/refusal/unknown response cases are exercised by actual React in the browser.
 it("renders confirmed state and the read-only reason without a mutation", () => {
   let calls = 0;
   for (const enabled of [true, false]) {

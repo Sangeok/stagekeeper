@@ -5,8 +5,6 @@ import type { ServerResult } from "@/server/result";
 
 type ScoutSettingInput = { projectId: string; userId: string; enabled: boolean };
 
-// Legacy graph Scouts share unbound runs with head scouting. Preserve that
-// existing contract while a legacy item's cursor is actually on a Scout node.
 export async function hasActiveLegacyScoutSlot(db: Prisma.TransactionClient, projectId: string): Promise<boolean> {
   const items = await db.boardItem.findMany({
     where: { projectId, discardedAt: null }, distinct: ["backlogItemId"], orderBy: { proposedOn: "desc" },
@@ -16,8 +14,6 @@ export async function hasActiveLegacyScoutSlot(db: Prisma.TransactionClient, pro
     && run.version.format === null && slotAgent(run.node) === "feature-scout");
 }
 
-// Share the owner -> project lock order with dispatch and backlog writers so
-// disabling scouting also stops outstanding unbound runs from adding items.
 export async function setAutomaticScout(client: PrismaClient, input: ScoutSettingInput): Promise<ServerResult<boolean>> {
   if (typeof input.enabled !== "boolean") return { ok: false, reason: "Choose whether automatic scouting is on or off." };
   return client.$transaction(async (tx) => {

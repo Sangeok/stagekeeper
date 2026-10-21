@@ -1,4 +1,3 @@
-// 순수. harness.json → 정규화된 설정. 실패는 필드 경로가 붙은 Error 하나로.
 import { validateWorkspaceSemantics } from "./workspaces.mjs";
 import { parseQaConfig } from "./qa.mjs";
 
@@ -21,8 +20,6 @@ export function parseHarnessConfig(input) {
   const project = {
     owner: str(p.owner, "project.owner"), repo: str(p.repo, "project.repo"), branch: str(p.branch, "project.branch"),
     name: p.name === undefined ? p.repo : str(p.name, "project.name"),
-    // 선택. hs_는 토큰이 프로젝트를 알고 있어 없어도 되지만, hu_는 이 값이 없으면 가리킬 대상이 없다 —
-    // optional은 하위호환을 위한 것이지 hu_가 슬러그 없이 동작한다는 뜻이 아니다.
     slug: p.slug === undefined ? null : str(p.slug, "project.slug"),
   };
   const language = raw.language === undefined ? "en" : str(raw.language, "language");

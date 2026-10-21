@@ -8,7 +8,6 @@ describe("transitions", () => {
     assert.equal(findRule("human", "in_review", "implementing").kind, "gate");
     assert.equal(findRule("agent", "proposed", "planning"), null);
     assert.equal(findRule("agent", "in_review", "implementing"), null);
-    // 파이프라인 — 게이트와 같은 경계 둘만. "게이트가 없을 때만"은 상태 기계가 아니라 그래프가 정한다(pipeline.mjs advance).
     assert.equal(findRule("pipeline", "proposed", "planning").kind, "auto");
     assert.equal(findRule("pipeline", "in_review", "implementing").kind, "auto");
     assert.equal(findRule("pipeline", "planning", "in_review"), null);
@@ -21,7 +20,7 @@ describe("transitions", () => {
     assert.equal(done.kind, "auto"); assert.equal(done.requiresResult, true); assert.equal(done.requiresReport, true);
     assert.equal(findRule("agent", "planning", "on_hold").requiresResult, true);
     assert.equal(findRule("agent", "implementing", "on_hold").requiresResult, true);
-    assert.equal(findRule("human", "implementing", "done"), null); // done은 pipeline의 구현 구간 완료이며 인수는 별도 acceptedAt
+    assert.equal(findRule("human", "implementing", "done"), null);
   });
   it("human rejects: bounce clears validation, hold needs result, resume", () => {
     const bounce = findRule("human", "in_review", "planning");
@@ -42,7 +41,7 @@ describe("transitions", () => {
     assert.equal(isOpen("done"), false);
     assert.equal(findRule("human", "__proto__", "planning"), null);
     assert.equal(findRule("agent", "planning", "toString"), null);
-    assert.equal(findRule("human", "승인대기", "planning"), null); // 옛 한글 식별자는 더 이상 상태가 아니다
+    assert.equal(findRule("human", "승인대기", "planning"), null);
   });
   it("discard only from proposed/in_review", () => {
     assert.equal(canDiscard("proposed"), true); assert.equal(canDiscard("in_review"), true);

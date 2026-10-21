@@ -37,7 +37,6 @@ describe("buildBriefing", () => {
     const briefing = buildBriefing(rows, TODAY, ROSTER, NODE_KINDS);
     assert.deepEqual(briefing.activity.map((item) => item.key), ["R-2", "R-1", "W-2", "W-1"]);
     assert.equal(briefing.team.find((member) => member.agent === "web-dev").state, "Working on W-2");
-    // 둘 다 게이트 2에 서 있다 — 검증자가 할 일은 남지 않았다.
     assert.equal(briefing.team.find((member) => member.agent === "plan-verifier").state, "Idle");
   });
 
@@ -139,8 +138,6 @@ describe("buildBriefing", () => {
     ]);
   });
 
-  // 상태만 보면 in_review인 동안 내내 "Verifying"이 된다 — 부르기 전에도, 끝나고 게이트에서
-  // 기다리는 동안에도. 자리는 상태가 아니라 런의 커서가 말한다.
   describe("plan-verifier state follows the cursor, not the status", () => {
     const verifierOf = (rows) =>
       buildBriefing(rows, TODAY, ROSTER, NODE_KINDS).team.find((m) => m.agent === "plan-verifier").state;
@@ -180,12 +177,10 @@ describe("buildBriefing", () => {
   });
 
   it("lists only the agents the current graph dispatches, in graph order", () => {
-    // Free 기본 그래프에는 verify·doc-audit이 없다 — plan-verifier·doc-auditor·feature-scout가 빠진다.
     assert.deepEqual(
       buildBriefing(BOARD, TODAY, ROSTER, defaultGraph("free").nodes).team.map((m) => m.agent),
       ["pm", ...ROSTER],
     );
-    // Automatic picking이 꺼져 있으면 옛 propose 노드가 있어도 pm은 빠진다.
     assert.deepEqual(
       buildBriefing(BOARD, TODAY, ROSTER, ["propose", "plan", "implement", "accept", "doc-audit"], false).team.map((m) => m.agent),
       [...ROSTER, "doc-auditor"],
@@ -226,8 +221,6 @@ describe("buildBriefing", () => {
   });
 
   it("does not claim work is happening before anyone was dispatched", () => {
-    // 게이트를 열자마자 status는 planning이 된다. 사람이 세션을 돌리기 전까지는
-    // 아무도 계획서를 쓰고 있지 않다. 보드도 배너와 같은 판정을 써야 한다.
     const rows = [row({ key: "N-1", agent: "web-dev", status: "planning", gate: null, dispatched: false })];
     const briefing = buildBriefing(rows, TODAY, ["web-dev"], NODE_KINDS);
     assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "waiting for web-dev", tone: "pending" }]);

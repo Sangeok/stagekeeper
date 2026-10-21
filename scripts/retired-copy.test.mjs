@@ -1,9 +1,3 @@
-// 폐기된 표현 가드. 연결 방식이 바뀌면 옛 방식을 말하는 문장이 어딘가에 남는다.
-// 잠금 시험(src/fsd/shared/lib/copy-lock.ts)은 문서와
-// 화면이 **같은지**만 보므로 둘이 같이 틀리면 통과한다. 이 시험은 그 틈을 막는다: 보이는 문구 어디에도 옛 표현이 없어야 한다.
-//
-// **모델을 바꾸는 PR이 여기에 한 줄을 더한다**(docs/architecture/verification.md의 체크리스트). 더하지 않으면 이 시험은
-// 아무것도 모른다 — 자동으로 알아내는 장치가 아니다.
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -12,8 +6,6 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-// where: web = src/fsd·src/app의 보이는 문구, skill = plugin/skills의 SKILL.md, locks = product-copy.md의 잠금 블록.
-// product-copy.md의 나머지(한국어 근거 문단)는 옛 표현을 **일부러 인용**하므로 보지 않는다.
 export const RETIRED = [
   { pattern: /With no Propose node|has a Propose node|no propose node on this pipeline|Propose alone has no auto label/, where: ["web", "skill", "locks"], since: "2026-10-15", why: "PM automatic picking is a project setting; definitions no longer contain Propose" },
   { pattern: /Couldn(?:'|&apos;|&#39;|&#x27;)t issue the token\. Try again\./, where: ["web"], since: "2026-10-14", why: "a lost issuance response does not prove the token was not created" },
@@ -80,8 +72,6 @@ function walk(dir, keep, out = []) {
   return out;
 }
 
-// 주석은 보이는 문구가 아니고, 옛 표현을 설명하려고 인용하기도 한다. JSX 태그는 떼어 문장이 이어지게 한다
-// ("generated <Code>.mcp.json</Code>" → "generated .mcp.json").
 export function shownText(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, " ")

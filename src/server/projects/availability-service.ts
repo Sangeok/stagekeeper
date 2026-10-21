@@ -15,8 +15,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-// Prisma's PostgreSQL adapter reports conflicts from FOR UPDATE as P2010,
-// while delegate writes use P2034. Retry only the two transaction SQL states.
 function isRawTransactionConflict(error: unknown): boolean {
   if (!isRecord(error) || error.code !== "P2010" || !isRecord(error.meta)) return false;
   const adapter = error.meta.driverAdapterError;
@@ -61,7 +59,6 @@ export async function readOwnerAvailabilityIn(tx: Prisma.TransactionClient, user
   return { userId, login: user.login, version: user.projectAvailabilityVersion, plan, projects };
 }
 
-// Writers share this lock. Read-only snapshots must never acquire it.
 export async function lockProjectOwnerIn(tx: Prisma.TransactionClient, userId: string): Promise<void> {
   await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
 }

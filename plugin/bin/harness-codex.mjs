@@ -9,7 +9,6 @@ import { RUNTIME_PROTOCOL } from "../lib/client-runtime.mjs";
 import { verifierPackage } from "../runtime/codex-agent.mjs";
 import { safeTarget } from "../runtime/file-ownership.mjs";
 
-// Codex does not run impl-verifier yet (its verification environment is a separate proposal), so the dispatch stops before any run opens.
 export class CodexRoleUnsupported extends Error {
   constructor() {
     super("Implementation verification (impl-verify) is not available on Codex yet; no role run started. Continue this item from Claude Code, or remove impl-verify from the Pipeline tab so items that have not started skip it.");
@@ -36,7 +35,6 @@ export function codexFailure(error, session = null) {
   return { event: "error", session, code: "codex-refused", reason: "Codex configuration, runtime, binding, permission or server check failed. Keep ownership until owned work is quiescent; resolve with $harness-init. No completion is claimed." };
 }
 
-// Workflow files that may change after the QA target. impl-verify runs before qa, so its report lands here too.
 export const qaWorkflowFile = (name, key) => ["harness.json", "harness.lock.json", "CLAUDE.md", ".mcp.json", `docs/agents/qa-verifier/${key}.md`, `docs/agents/impl-verifier/${key}.md`, `docs/agents/main-loop/${key}.md`].includes(name) || [".codex/", ".claude/", "docs/harness/"].some(prefix => name.startsWith(prefix));
 
 function optionsFor(argv) {
@@ -80,7 +78,6 @@ async function main() {
       await callTool(input, "project_sync", { workspaces: input.config.workspaces, language: input.config.language });
       console.log(JSON.stringify({ event: "project-synced", client: "codex", protocol: RUNTIME_PROTOCOL }));
       await verifyProject(input); await verifyCodexSupport(input);
-      // This marks wiring readiness only. Runtime isolation still needs the required host evidence.
       console.log(JSON.stringify({ event: "connected", client: "codex", protocol: RUNTIME_PROTOCOL, runtimeVerificationRequired: true })); return;
     }
     if (options.operation === "prepare") {

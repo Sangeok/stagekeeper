@@ -1,5 +1,3 @@
-// same-status 증거 이벤트(validation·plan·report)가 창에 끼어도 상태 줄과 재개 버튼이 흔들리지 않는 것을 고정한다.
-// 쿼리(latestBoardWithEvents)가 note 없는 전이만 주지만, 모델 자신도 같은 가드를 갖는다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { toInboxItems, gateCardKey } from "./inbox-item";
@@ -37,7 +35,6 @@ const boardRow = (overrides: object) => ({
   updatedAt: at("2026-08-31T12:00:00Z"),
   backlogItem: { type: null, key: "FEAT-01", title: "t", area: "src" },
   events: [] as { at: Date; from: string | null; to: string | null; actor: string }[],
-  // 카드 여부는 런의 커서가 정한다 — 기본 그래프의 in_review는 검증 뒤 before-implement에 선다.
   run: { node: "before-implement", closedAt: null } as { node: string; closedAt: Date | null } | null,
   ...overrides,
 });
@@ -45,7 +42,7 @@ const boardRow = (overrides: object) => ({
 describe("toInboxItems", () => {
   it("statusSince reads the real transition, not a newer same-status event", () => {
     const [item] = toInboxItems([boardRow({
-      events: [ // 최신순(desc) — 쿼리와 같은 순서. 첫 행은 plan 재제출·validation류의 same-status 이벤트.
+      events: [
         { at: at("2026-08-31T10:00:00Z"), from: "in_review", to: "in_review" , actor: "agent" },
         { at: at("2026-08-30T09:00:00Z"), from: "planning", to: "in_review" , actor: "agent" },
       ],
@@ -63,8 +60,8 @@ describe("toInboxItems", () => {
       ],
     })], repo);
     assert.ok(item);
-    assert.equal(item.heldFrom, "implementing"); // 주 Resume 버튼이 여기서 정해진다
-    assert.equal(item.heldBy, "agent"); // 보류 메모의 이름표가 여기서 정해진다
+    assert.equal(item.heldFrom, "implementing");
+    assert.equal(item.heldBy, "agent");
     assert.equal(item.statusSince, "2026-08-30T09:00:00.000Z");
   });
 
@@ -99,7 +96,6 @@ describe("toInboxItems", () => {
     })], repo)[0];
     assert.equal(byOwner?.proposedBy, "you", "웹에서 올린 항목을 pm이 올렸다고 말하면 안 된다");
 
-    // 이벤트 창(take: 8)을 벗어난 오래된 항목은 pm으로 둔다 — 지금까지의 모든 제안이 pm의 것이다.
     assert.equal(toInboxItems([boardRow({ events: [] })], repo)[0]?.proposedBy, "pm");
   });
 

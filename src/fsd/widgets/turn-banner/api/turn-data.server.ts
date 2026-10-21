@@ -12,7 +12,6 @@ import { deriveTurn, type Turn } from "../model/turn";
 
 export type TurnData = { turn: Turn; inboxCount: number; runner: RunnerFacts };
 
-// 서버 타입을 위젯 model의 타입으로 옮긴다 — model/ui는 @/server를 읽지 않는다. 시각은 ISO 문자열로 넘긴다.
 export function runnerFacts(view: RunnerView): RunnerFacts {
   const row = view.runner;
   return {
@@ -25,7 +24,6 @@ export function runnerFacts(view: RunnerView): RunnerFacts {
   };
 }
 
-// latestBoard는 바꾸지 않고(board_list의 JSON) 열린 런을 함께 읽어 key → node/gate 맵을 만든다.
 export async function loadTurn(projectId: string): Promise<TurnData> {
   const [rows, tokenCount, workspaceCount, openRuns, pipelineRuns, project, failures, runner] = await Promise.all([
     latestBoard(projectId),
@@ -41,8 +39,6 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     readRunnerState(projectId),
   ]);
 
-  // 에이전트가 멈췄다는 사실은 원장에 남지만, 소유자가 커밋하고 에이전트가 이어가면 그 행은 그대로 남는다.
-  // 보드 행이 그 뒤에 갱신됐으면 커밋은 이미 끝난 것이다 — 그러지 않으면 배너가 "커밋을 기다린다"에서 안 내려온다.
   const updatedAt = new Map(rows.map((r) => [r.backlogItem.key, r.updatedAt]));
   const handoffs = new Map<string, { step: string; note: string | null }>();
   for (const run of openRuns) {
@@ -52,9 +48,6 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     if (since === undefined || !handoffIsLive(last.at, since)) continue;
     handoffs.set(run.key, { step: run.stepId, note: last.note });
   }
-  // "열린 run이 있다"로는 부족하다. dev가 닫히지 않은 채 항목이 verify로 넘어가면
-  // 아무도 검증하지 않는데 "being verified"가 된다. 그 노드를 도는 에이전트로 좁힌다.
-  // key와 agent를 잇는 구분자는 NUL(\u0000)이다 — src/app/(app)/p/[slug]/page.tsx의 보드 파생과 같은 값이어야 한다.
   const running = new Set(openRuns.filter((r) => r.key !== null).map((r) => `${r.key}\u0000${r.agent}`));
   const cursor = new Map(pipelineRuns.map((r) => [r.boardItemId, r.node]));
   const failedIds = new Set(failures.map((f) => f.boardItemId));
@@ -62,7 +55,6 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
     const at = cursor.get(r.id) ?? null;
     const node = at !== null && !isGateId(at) ? at : null;
     const pipeline = pipelineRuns.find((p) => p.boardItemId === r.id);
-    // 슬롯 버전은 열린 run이 이 파이프라인 항목에 묶여 있어야 "하고 있다"다. 레거시 버전은 key·agent로만 본다.
     const isSlotRun = pipeline?.version.format === SLOT_FORMAT;
     const boundRun = isSlotRun ? openRuns.find((a) => a.pipelineRunId === pipeline.id && a.pipelineEntryId === pipeline.entryId && a.agent === dispatcherFor(at, r.agent)) : undefined;
     const last = boundRun?.steps[0];

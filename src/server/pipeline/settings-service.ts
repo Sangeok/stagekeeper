@@ -24,7 +24,6 @@ async function change(
     return await withPipelineWrite(client, input.projectId, input.userId, async context => {
       requirePipelineEdit(context.plan);
       const view = await loadPipelinesViewIn(context.tx, input.projectId);
-      // Preserve the original default before any successful settings write, including a swap.
       await ensureRunnableVersion(context.tx, input.projectId);
       await work(context, view);
       return { ok: true, item: null };

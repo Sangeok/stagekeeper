@@ -55,7 +55,6 @@ export function rolePermissions(input, agent, key, scratch) {
       filesystem[safeTarget(root, other.path)] = "deny";
     }
     for (const scope of workspace.readOnly ?? []) filesystem[scope === "." ? root : safeTarget(root, scope)] = "read";
-    // Harness, role and policy files stay protected even when a workspace is the root.
     for (const file of ["harness.json", "harness.lock.json", "CLAUDE.md", ".mcp.json", "docs/harness", "docs/plans/template.md", "docs/plans/verification-paths.md"]) filesystem[safeTarget(root, file)] = "read";
     filesystem[path.join(root, ".codex")] = "read";
   }
@@ -66,8 +65,6 @@ export function boundArguments(name, args, dispatch, stepResponse) {
   if (args.project !== undefined && args.project !== dispatch.project) throw new Error("Role project mismatch");
   if (name === "agent_next") {
     if (args.agent !== undefined && args.agent !== dispatch.agent) throw new Error("Role agent mismatch");
-    // App Server tools may encode an absent optional key as null. The request
-    // below always binds the actual dispatch key, including keyless report roles.
     if (args.key != null && args.key !== dispatch.agentKey) throw new Error("Role key mismatch");
     const stepReceipt = stepResponse?.receipt;
     if (args.outcome && (!stepResponse || !isDeepStrictEqual(args.receipt, stepReceipt))) throw new Error("Outcome receipt mismatch");
@@ -168,7 +165,6 @@ export class AppServer {
       try {
         const message = JSON.parse(line);
         if (message.method && message.id !== undefined) {
-          // A role cannot acquire greater rights or answer owner approvals.
           child.stdin.write(JSON.stringify({ id: message.id, error: { code: -32000, message: "Role permission escalation refused" } }) + "\n");
         } else if (message.id !== undefined) {
           const handler = this.pending.get(message.id);
@@ -225,10 +221,7 @@ export function inheritedPolicyOverrides(config, url, tools) {
   overrides.push(`mcp_servers={${disabled.join(",")}}`);
   const plugins = Object.keys(config.plugins ?? {});
   if (plugins.length) overrides.push(`plugins={${plugins.map(name => `${JSON.stringify(name)}={enabled=false}`).join(",")}}`);
-  // TOML overrides merge maps. Emptying the table does not remove inherited values.
   const variables = [...new Set([...Object.keys(config.shell_environment_policy?.set ?? {}), "PATH"])];
-  // Resolve ordinary commands without inheriting user tool directories or credentials.
-  // Preserve matching PATH aliases on Windows, whose environment names ignore case.
   overrides.push(`shell_environment_policy.set={${variables.map(name => `${JSON.stringify(name)}=${JSON.stringify(name.toUpperCase() === "PATH" ? roleCommandPath() : "")}`).join(",")}}`);
   return overrides;
 }
@@ -286,8 +279,6 @@ export async function verifyRoleExecution(server, scratch, agent, platform = pro
   const command = platform === "win32"
     ? [path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", `[Console]::Write('${marker}')`]
     : ["/bin/sh", "-c", `command -v cat >/dev/null && printf '${marker}'`];
-  // Omit sandboxPolicy: the command must use the already checked named permissions.
-  // A config/read match alone does not prove the host can launch a restricted tool.
   let result;
   try { result = await server.request("command/exec", { command, cwd: scratch, timeoutMs: 10000, outputBytesCap: 1024 }, 15000); }
   catch { throw new RoleExecutionUnavailable(); }
@@ -313,7 +304,6 @@ async function inspectHostPolicy(cli, config, scratch, files, session, binding, 
 }
 
 export async function dispatchFreshRole(input, files, session, dispatch, operations = {}) {
-  // Tests replace acquisition/transport only; production uses the same policy and ownership checks.
   const runtime = { codexExecutable, verifierPackage, createRoleFiles, installedWindowsRuntime, verifyNativeRuntime,
     createRoleCommands, createRoleGit, createQaBrowser, roleBridge, inspectHostPolicy, spawn,
     createAppServer: child => new AppServer(child), ...operations };
@@ -331,13 +321,10 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
   let monitorStopped = false; const reports = [];
   try {
     const scratch = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-role-")), filesystem = rolePermissions(input, dispatch.agent, dispatch.key, scratch);
-    // An owner package inside .codex must not require access to that credential directory.
     const roleVerifier = dispatch.agent === "plan-verifier" ? stageVerifierPackage(verifier, scratch) : null;
     if (roleVerifier) filesystem[path.dirname(roleVerifier.path)] = "read";
     const nativeFiles = process.platform === "win32" || dispatch.agent === "qa-verifier", nativeFileBroker = nativeFiles ? runtime.createRoleFiles(filesystem, dispatch.agent) : null;
     fileBroker = nativeFileBroker;
-    // An unbundled source checkout preserves the scoped file backend. A packaged
-    // runtime must pass actual kernel/child/network probes before exposing commands.
     let nativeRuntime = null;
     if (nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)) {
       try { nativeRuntime = runtime.installedWindowsRuntime(); } catch (error) { if (error.code !== "ENOENT") throw error; }
@@ -423,7 +410,6 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
       try { if (server) { await server.close(); processEnded = true; } }
       finally { if (bridge) await bridge.close(); else await fileBroker?.close(); }
     }
-    // Process death alone cannot establish quiescence of an unacknowledged active turn.
     if (registered && processEnded && server.closed && (!turnRequested || settled)) await settleChild(files, session, hostChild);
   }
 }

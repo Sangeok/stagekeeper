@@ -1,4 +1,3 @@
-// Real Next action + lost response and browser lifetime fixtures, only on a validated test DB.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -86,7 +85,7 @@ async function main(): Promise<void> {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
       if (next.exitCode !== null) throw new Error("Local Next exited before startup");
-      try { if ((await fetch(`${origin}/login`, { redirect: "manual" })).status === 200) { ready = true; break; } } catch { /* Listener starting. */ }
+      try { if ((await fetch(`${origin}/login`, { redirect: "manual" })).status === 200) { ready = true; break; } } catch {   }
       await delay(100);
     }
     assert.ok(ready);
@@ -131,8 +130,6 @@ async function main(): Promise<void> {
         const body = Buffer.from(await response.arrayBuffer());
         if (loseNext && isAction) {
           loseNext = false;
-          // Browsers can replay a POST after a closed connection. Exercise both that safe
-          // server refusal (the automatic HTTP test) and a response the action cannot decode.
           if (corruptResponse) { corruptResponse = false; res.writeHead(502, { "content-type": "text/plain" }).end("Committed fixture response unavailable"); }
           else res.destroy();
           return;

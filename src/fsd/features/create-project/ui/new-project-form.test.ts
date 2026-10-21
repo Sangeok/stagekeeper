@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NewProjectForm, ProjectRegistrationResult, formMode } from "./new-project-form";
 import { toCreateProjectState } from "../model/create-project-result";
 
-// 수동 입력 중에는 저장소가 파싱돼도(`…/acme/h` 처럼 한 글자만 쳐도 파싱된다) 입력란이 사라지면 안 된다.
 it("keeps the URL input while typing, even once a repository parses", () => {
   assert.equal(formMode(true, false), "manual");
   assert.equal(formMode(true, true), "manual");

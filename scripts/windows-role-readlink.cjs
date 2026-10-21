@@ -1,14 +1,8 @@
-// This synchronous preload targets the bundled Node 22.23.3 runtime.
 const fs = process.getBuiltinModule("fs");
 const { syncBuiltinESMExports } = process.getBuiltinModule("module");
 const { getSystemErrorMap } = process.getBuiltinModule("util");
 
-// Build-process-only compatibility. AppContainer cannot query DOS volume names;
-// readlink may report EPERM even for a regular file. Webpack/NFT expect EINVAL
-// for non-links. Never reinterpret a link or a failed metadata check.
 if (process.platform === "win32" && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1") {
-  // Next reserializes repeated --require values as one path for workers. Keep
-  // one preload entry and load the opt-in diagnostics from this entry instead.
   if (process.env.STAGEKEEPER_BUILD_DIAGNOSTICS === "1") {
     process.getBuiltinModule("module").createRequire(__filename)("./windows-role-spawn-diagnostics.cjs");
   }

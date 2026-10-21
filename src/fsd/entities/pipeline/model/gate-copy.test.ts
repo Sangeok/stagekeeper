@@ -1,5 +1,3 @@
-// 레일의 게이트 카드 툴팁이 그 게이트의 Inbox 버튼 이름과 힌트를 그대로 말하는지 본다(product-copy.md §18).
-// 매핑이 빠지면 "Move past before-…" 같은 대체 문구가 사용자에게 보인다 — 반복 슬롯이 가장 빠지기 쉽다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 

@@ -5,9 +5,6 @@ import { copyLock } from "@/fsd/shared/lib/copy-lock";
 import { WATCH_LINE, deriveTurn, nextStepLine, type TurnItem } from "./turn";
 
 const ready = { tokenIssued: true, rosterSynced: true };
-// 커서는 기본 Pro 그래프(propose · before-plan · plan · verify · before-implement · implement · accept · doc-audit)에서
-// 그 상태가 서는 자리다. in_review는 검증 기록이 있어야 before-implement로 넘어간다 — 없으면 아직 verify 노드다.
-// 배너는 검증 기록 자체를 읽지 않는다 — 기록은 여기서 커서 자리를 정하는 데만 쓴다.
 const cursorFor = (status: string, validation: string | null): { gate: string | null; node: string | null } => {
   switch (status) {
     case "proposed": return { gate: "before-plan", node: "before-plan" };
@@ -25,10 +22,9 @@ const item = (key: string, status: string, validation: string | null = null, age
   accepted: false,
   acceptanceFailed: false,
   handoff: null,
-  dispatched: true, // 기본은 "세션이 그 일을 돌리고 있다" — 디스패치 전 상태는 그 자리에서 따로 세운다
+  dispatched: true,
   ...cursorFor(status, validation),
 });
-// 인수까지 끝난 항목은 꼬리 노드를 지나 런이 닫힌다 — 커서가 없으니 터미널 줄도 없다.
 const failed = (key: string): TurnItem => ({ ...item(key, "done"), acceptanceFailed: true });
 const accepted = (key: string): TurnItem => ({ ...item(key, "done"), accepted: true, gate: null, node: null });
 const handoff = (key: string, note: string | null, status = "planning", agent = "web-dev"): TurnItem => ({
@@ -80,7 +76,6 @@ describe("deriveTurn — setup", () => {
     if (turn.kind === "setup") assert.equal(turn.current, 3);
   });
   it("counts the token step done once the repository is connected without a project token", () => {
-    // /harness:init with a user token (hu_) registers the project and issues no project token.
     const connected = deriveTurn([], { tokenIssued: false, rosterSynced: true });
     assert.equal(connected.kind, "setup");
     if (connected.kind !== "setup") return;
@@ -116,14 +111,12 @@ describe("deriveTurn — mine", () => {
     assert.deepEqual(turn.next, [{ kind: "continue", key: "FEAT-04", line: "Continue the pipeline for FEAT-04: verify — verify the plan." }]);
   });
   it("without a verify node the same item waits at before-implement, ready for approval like a verified one", () => {
-    // Free 기본 그래프에는 verify가 없다 — 커서가 곧 게이트다. 검증은 사용자가 파이프라인으로 고르는 것이라
-    // 기록이 없다고 해서 배너가 "검증이 필요하다"고 재촉하지 않는다(design.md 규칙 2).
     const atGate: TurnItem = { ...item("FEAT-04", "in_review", null), gate: "before-implement", node: "before-implement" };
     const turn = deriveTurn([atGate], ready);
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-04 is ready for your approval");
     assert.equal(turn.why, null);
-    assert.deepEqual(turn.next, []); // 게이트는 터미널 줄이 없다 — 결정은 Inbox나 세션의 것
+    assert.deepEqual(turn.next, []);
   });
   it("counts verified and unverified plans at before-implement as one approval category", () => {
     const unverified: TurnItem = { ...item("FEAT-04", "in_review", null), gate: "before-implement", node: "before-implement" };
@@ -133,8 +126,6 @@ describe("deriveTurn — mine", () => {
     assert.equal(turn.count, 2);
   });
   it("a gate the five categories do not name still says where the item stands", () => {
-    // 그래프가 게이트를 어디든 놓을 수 있으므로 상태로 부류를 나누면 before-verify·before-doc-audit에
-    // 선 항목은 상세 줄에서 사라진다 — 배너가 "Waiting on you"만 내고 이유를 안 말하게 된다.
     const atVerify: TurnItem = { ...item("FEAT-06", "in_review", null), gate: "before-verify", node: "before-verify" };
     const turn = deriveTurn([atVerify], ready);
     if (turn.kind !== "mine") assert.fail(turn.kind);
@@ -155,7 +146,6 @@ describe("deriveTurn — mine", () => {
     const turn = deriveTurn([atAccept], ready);
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-08 is waiting before Accept");
-    // 게이트가 없는 그래프에서는 그대로 인수를 청한다.
     assert.equal((deriveTurn([item("FEAT-08", "done")], ready) as { detail: string }).detail, "FEAT-08 is waiting for acceptance");
   });
 
@@ -165,8 +155,6 @@ describe("deriveTurn — mine", () => {
     assert.equal(turn.count, 1);
   });
 
-  // 보류하면 resetRun이 커서를 멈춘 자리에 세워 두고 런은 열어 둔다(board-service.ts resetRun — 재개가 그 자리를
-  // 이어받는다). 그래서 on_hold 항목은 node를 그대로 들고 있다. 상태를 안 보면 "작업 중"이 된다.
   it("a held item keeps its node but nobody is working on it", () => {
     const held = { ...item("FEAT-05", "on_hold"), node: "implement", gate: null };
     assert.equal(deriveTurn([held], ready).kind, "none");
@@ -178,11 +166,9 @@ describe("deriveTurn — mine", () => {
 
 describe("deriveTurn — theirs and none", () => {
   it("does not claim an agent is working when nobody was dispatched yet", () => {
-    // 게이트를 열자마자 status는 planning이 되지만 세션을 돌리기 전까지 아무도 그 일을 하고 있지 않다.
     const turn = deriveTurn([{ ...item("FEAT-01", "planning"), dispatched: false }], ready);
     if (turn.kind !== "theirs") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-01 is waiting for dev");
-    // 할 일은 그대로 터미널 줄이 준다.
     assert.deepEqual(turn.next.map((n) => n.line), ["Continue the pipeline for FEAT-01: plan — dev writes the plan."]);
   });
 
@@ -213,7 +199,6 @@ describe("deriveTurn — theirs and none", () => {
       assert.deepEqual(turn.next.map((n) => n.line), [`Continue the pipeline for FEAT-09: ${node} — ${agent} runs ${node}.`], node);
     }
   });
-  // on_hold는 배너를 소유하지 않는다(product-copy.md §5) — 결재함 목록과 탭 뱃지는 다르다.
   it("is none when only accepted done and on_hold remain", () => {
     const turn = deriveTurn([accepted("FEAT-01"), item("FEAT-05", "on_hold")], ready);
     assert.equal(turn.kind, "none");
@@ -234,7 +219,6 @@ describe("deriveTurn — acceptance and handoff", () => {
     assert.equal(turn.count, 1);
     assert.equal(turn.detail, "FEAT-01 is waiting for your commit");
     assert.deepEqual(turn.next, [{ kind: "handoff", key: "FEAT-01", line: "Commit docs/plans/FEAT-01.md, then continue the pipeline for FEAT-01.", note: "docs/plans/FEAT-01.md" }]);
-    // note가 없는 핸드오프 — 경로 자리를 고정 문구가 채운다.
     assert.equal(nextStepLine(handoff("FEAT-01", null)), "Commit the prepared file, then continue the pipeline for FEAT-01.");
   });
   it("orders approval · acceptance · commit, and still says why pm is blocked", () => {
@@ -245,8 +229,8 @@ describe("deriveTurn — acceptance and handoff", () => {
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-03 is ready for your approval · FEAT-02 failed acceptance · FEAT-01 is waiting for your commit");
     assert.equal(turn.count, 3);
-    assert.equal(turn.why, "pm can't propose anything new until you clear one."); // planning + in_review = 미결 2
-    assert.deepEqual(turn.next.map((n) => n.key), ["FEAT-01"]); // verified in_review는 터미널 줄이 없다
+    assert.equal(turn.why, "pm can't propose anything new until you clear one.");
+    assert.deepEqual(turn.next.map((n) => n.key), ["FEAT-01"]);
   });
 });
 
@@ -261,7 +245,6 @@ describe("deriveTurn — where the button goes", () => {
     const paused = deriveTurn([handoff("FEAT-01", "docs/plans/FEAT-01.md")], ready);
     if (paused.kind !== "mine") assert.fail(paused.kind);
     assert.deepEqual(paused.open, { kind: "item", key: "FEAT-01" });
-    // on_hold는 배너를 소유하지 않지만 결재함 카드라서 버튼은 Inbox로 간다.
     const held = deriveTurn([failed("FEAT-02"), item("FEAT-05", "on_hold")], ready);
     if (held.kind !== "mine") assert.fail(held.kind);
     assert.deepEqual(held.open, { kind: "inbox" });
@@ -312,8 +295,6 @@ describe("terminal steps while waiting on the owner", () => {
   it("locks the watch sentence to product-copy", () => assert.deepEqual([WATCH_LINE], copyLock("turn-banner-watch")));
 });
 
-// 첫 실행 2단계의 문장은 product-copy.md §5의 잠금 블록 그대로다. 배너는 이 값을 그대로 그린다
-// (`/harness:init`만 Code로 감싼다) — 같은 문장을 JSX에 한 번 더 적어 두었던 자리가 "approve the server"를 들고 남았었다.
 describe("the first-run connect step", () => {
   it("reads exactly as product-copy.md §5 locks it", () => {
     const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false });

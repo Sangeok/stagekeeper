@@ -21,7 +21,6 @@ function fixture(t) {
   });
   const directory = path.join(root, "runtime");
   mkdirSync(path.join(directory, "npm/bin"), { recursive: true });
-  // Verification must not execute this deliberately non-executable fixture.
   writeFileSync(path.join(directory, "node.exe"), "THIS_IS_NOT_AN_EXECUTABLE");
   writeFileSync(path.join(directory, "npm/bin/npm-cli.js"), "throw new Error('must not execute cached npm');");
   writeFileSync(path.join(directory, "LICENSE"), "fixture license");

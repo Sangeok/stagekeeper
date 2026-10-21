@@ -1,5 +1,3 @@
-// 순수. DB·프레임워크 없음. transitions.mjs의 규칙을 "이 행에 이 요청을 적용해도 되는가"로 번역한다.
-// MCP 도구와 웹 액션이 같은 함수를 부르므로 판정이 한 곳에만 있다.
 import { REPORT_AGENTS } from "@harness/core/entitlement.mjs";
 import { boundaryOf, gateId, isGateId } from "@harness/core/pipeline.mjs";
 import { canDiscard, canPropose, canRecordValidation, checkText, findRule, isOpen, type RuleKind } from "@harness/core/transitions.mjs";
@@ -10,11 +8,11 @@ export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string }
 export type RowSnapshot = { status: string; planPath: string | null; reportCount: number; results: string[]; validation: string | null };
 
 export type ProposeInput = {
-  backlogExists: boolean;       // 항목이 있고 removedAt === null
-  hasOpenRow: boolean;          // 이 key의 최신 행이 미결
-  onHold: boolean;              // 이 key의 최신 행이 on_hold — 소유자만 재개로 잇는다
-  openCount: number;            // 프로젝트 전체 미결 수
-  roster: readonly string[];    // Workspace.agent 집합
+  backlogExists: boolean;
+  hasOpenRow: boolean;
+  onHold: boolean;
+  openCount: number;
+  roster: readonly string[];
   agent: string;
   reason: string;
 };
@@ -29,20 +27,16 @@ export function decidePropose(i: ProposeInput): Decision<null> {
   return bad ? { ok: false, reason: bad } : { ok: true, value: null };
 }
 
-// pm이 고를 수 있는 백로그 항목 수. latest는 항목별 최신 행이다(latestBoard) — 최신 행이 미결이거나
-// 보류면 뺀다. 보류는 소유자의 재개로만 이어진다.
 export function countPickable(backlogIds: readonly string[], latest: readonly { backlogItemId: string; status: string }[]): number {
   const taken = new Set(latest.filter((r) => isOpen(r.status) || r.status === "on_hold").map((r) => r.backlogItemId));
   return backlogIds.filter((id) => !taken.has(id)).length;
 }
 
-// reopens: done에서 돌아가는 사람 전이. completes의 역이다 — 백로그를 복원하고 인수 표시를 지운다(board-service.ts transitionIn).
 export type TransitionPatch = { status: string; results: string[]; validation: string | null; completes: boolean; reopens: boolean; kind: RuleKind };
 
 export function decideTransition(row: RowSnapshot, actor: Actor, to: string, result: string | undefined): Decision<TransitionPatch> {
   const rule = findRule(actor, row.status, to);
   if (!rule) return { ok: false, reason: `not allowed: ${actor} ${row.status} → ${to}` };
-  // 필수든 선택이든, 온 result는 150자 예산을 지킨다(되돌리기 노트가 선택 result로 들어온다).
   if (rule.requiresResult || result !== undefined) { const bad = checkText("result", result); if (bad) return { ok: false, reason: bad }; }
   if (rule.requiresPlan && !row.planPath) return { ok: false, reason: "plan_submit first" };
   if (rule.requiresReport && row.reportCount === 0) return { ok: false, reason: "report_submit first" };
@@ -65,13 +59,9 @@ export const PLAN_VERIFIER = "plan-verifier";
 export type ValidationInput = {
   status: string;
   text: string;
-  // 같은 (project, plan-verifier, key)에 stepId "verify"·outcome "ok" 원장 행이 **마지막 plan_submit 뒤에** 있는가.
   verifierPassedAfterPlan: boolean;
 };
 
-// 불변식 8의 벽, report_submit과 대칭. "기록 전에 독립 패스를 시도했다"를 원장으로 증명한다 — 결함 유무의 판정은
-// 여전히 메인 루프의 것이다(verify ok = 경로를 다 돌렸다, ≠ 결함 0). Free는 plan-verifier가 플랜 밖이라 자연히
-// 거부된다 — Free 런북이 말하는 "no validation record"와 같은 결과다.
 export function decideValidation(i: ValidationInput): Decision<null> {
   if (!canRecordValidation(i.status)) return { ok: false, reason: `validation only in in_review (now ${i.status})` };
   const bad = checkText("validation", i.text);
@@ -82,11 +72,7 @@ export function decideValidation(i: ValidationInput): Decision<null> {
   return { ok: true, value: null };
 }
 
-// in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — planCommit이 승인 대상(HEAD)을 가리키게 한다.
 const PLAN_SUBMIT_STATUSES = new Set(["planning", "in_review"]);
-// 이미 요청한 상태다. 한 노드가 호출 여럿으로 이뤄져 있어 순서가 어긋날 수 있으므로(plan_submit이
-// 전이까지 한 뒤 템플릿이 board_transition을 또 부른다) 에러 대신 무해한 성공으로 둔다.
-// 결과를 실은 호출은 기록할 것이 있으므로 제외한다 — 그건 판정을 거쳐야 한다.
 export function isNoopTransition(status: string, to: string, result?: string): boolean {
   return status === to && result === undefined;
 }
@@ -97,13 +83,8 @@ export function decidePlanSubmit(status: string): Decision<null> {
     : { ok: false, reason: `plan_submit only in planning or in_review (now ${status})` };
 }
 
-// 보고는 실제 작업이 있는 상태에서만: 검증 라운드 기록(in_review) · 구현 보고(implementing) · 인수 기록(done).
-// proposed·planning은 아직 보고할 일이 없고, on_hold 제출은 결재함의 보류 전 상태 판독(heldFrom)을 흐린다.
 const REPORT_SUBMIT_STATUSES = new Set(["in_review", "implementing", "done"]);
 
-// main-loop은 .claude/agents 정의가 없는 디스패처지만 **보고 행위자다** — 검증 라운드 기록과 인수 기록을
-// 낸다(protocol.md의 report_submit 행, 템플릿 docs/agents/README.md의 행위자 표). roster(Workspace.agent)에도
-// REPORT_AGENTS에도 없으므로 여기서 따로 더한다. 빼면 런북 accept 단계의 인수 등록이 막힌다.
 export const MAIN_LOOP = "main-loop";
 const knownReporter = (actor: string, roster: readonly string[]) =>
   actor === MAIN_LOOP || REPORT_AGENTS.includes(actor) || roster.includes(actor);
@@ -111,22 +92,11 @@ const knownReporter = (actor: string, roster: readonly string[]) =>
 export type ReportSubmitInput = {
   status: string;
   actor: string;
-  roster: readonly string[]; // Workspace.agent[]
-  // 같은 (project, actor, key)에 stepId "verify" 원장 행이 있는가 — **outcome은 묻지 않는다**.
+  roster: readonly string[];
   hasVerifyStep: boolean;
   acceptanceFailed: boolean;
 };
 
-// 불변식 8의 벽. 두 가지를 건다.
-//  ① 행위자: 아무 이름이나 보고 파일을 심을 수 없다. 고정 보고 에이전트(REPORT_AGENTS) + 워크스페이스 dev + main-loop만.
-//  ② 검증 선행: implementing(구현 보고)에서만 verify 기록을 요구한다. in_review(검증 라운드 기록)와
-//     done(인수 기록)은 요구하지 않는다 — 예외를 **상태**로 걸어야 이름 위장으로 못 지나간다.
-// verify를 outcome 불문으로 보는 이유:
-// dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다. outcome을 ok로 좁히면
-// 그 보고가 막힌다. 불변식의 뜻은 "보고 전에 검증을 시도했다"이고, 그건 커서(AgentRun.stepId)에
-// 결합하지 않고도 원장 한 줄로 표현된다.
-// 보고가 인수 기록인가 — done에서 main-loop이 낸 보고만. 값으로 드러내야 board-service.ts의 acceptedAt 쓰기가
-// "report_submit의 숨은 부수효과"가 아니라 "판정의 결과"가 된다(decideTransition의 completes와 같은 자리).
 export type ReportSubmitPatch = { accepts: boolean };
 
 export function decideReportSubmit(i: ReportSubmitInput): Decision<ReportSubmitPatch> {
@@ -134,12 +104,7 @@ export function decideReportSubmit(i: ReportSubmitInput): Decision<ReportSubmitP
     return { ok: false, reason: `report_submit only in in_review, implementing, or done (now ${i.status})` };
   }
   if (!knownReporter(i.actor, i.roster)) return { ok: false, reason: `unknown reporter: ${i.actor}` };
-  // 문구가 원인까지 말한다. 이 벽에 걸리는 흔한 경우는 "검증을 건너뛴 에이전트"가 아니라
-  // **Phase 4 이전에 init한 프로젝트**다 — 통짜 본문 파일을 그대로 들고 있으면 agent_next를 부르지 않아
-  // 원장에 verify가 남지 않는다. 그 사용자에게 필요한 다음 행동은 재검증이 아니라 /harness:init 재실행이다.
   if (i.status === "implementing" && !i.hasVerifyStep) {
-    // main-loop은 agent_next를 쓰지 않으므로 위 안내가 맞지 않는다. 벽은 그대로 두고(이름으로 예외를 걸지 않는다)
-    // 문구만 가른다 — 게이트 없는 파이프라인에서는 validation_record가 항목을 implementing으로 바로 넘긴다.
     if (i.actor === MAIN_LOOP) {
       return {
         ok: false,
@@ -191,11 +156,9 @@ export function decideAcceptanceRetry(i: AcceptanceState): Decision<null> {
     : { ok: false, reason: "no failed acceptance to run again" };
 }
 
-// 게이트 판정 — 웹과 세션이 같이 쓴다. 런의 커서가 그 게이트에 서 있어야 하고(그래프가 진실), 경계 게이트면 상태도 맞아야 한다.
-// 세션 채널은 전제가 하나 더 붙는다(before-implement의 검증 기록·planCommit 일치). 웹은 카드가 커밋을 보여 주므로 그 검사가 없다.
 export type GateInput = {
-  gate: string;                    // before-<kind>
-  cursor: string | null;           // PipelineRun.node. null이면 런이 닫혔다
+  gate: string;
+  cursor: string | null;
   status: string;
   validation: string | null;
   planCommit: string | null;

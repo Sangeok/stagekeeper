@@ -1,4 +1,3 @@
-// Browser QA is an opt-in test environment, never inferred from release settings.
 export const QA_BROWSER_TOOLS = ["browser_navigate", "browser_snapshot", "browser_click", "browser_type", "browser_fill_form", "browser_press_key", "browser_select_option", "browser_wait_for", "browser_take_screenshot", "browser_console_messages", "browser_network_requests"];
 
 function text(value, name, limit = 2000) {

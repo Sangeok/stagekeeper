@@ -41,7 +41,6 @@ it("baseline-zero save and materialization preserve whichever obtains the shared
     for (const saveFirst of [true, false]) {
       const f = await fixture(first, { plan: "pro" });
       const held = checkpoint(), reached = checkpoint();
-      // The first project read precedes locks; park the loser there and let the winner commit.
       const waiting = second.$extends({ query: { project: { async findUnique({ args, query }) { const row = await query(args); await held.hook(); return row; } } } }) as unknown as typeof second;
       const graph = defaultGraph("pro"), pipelineId = `default_${f.projectId}`;
       const input = { projectId: f.projectId, userId: f.userId, pipelineId, definition: { steps: graph.nodes, gates: [] }, expectedVersion: 0 };

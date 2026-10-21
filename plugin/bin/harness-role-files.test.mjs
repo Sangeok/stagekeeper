@@ -63,8 +63,6 @@ it("refuses linked, binary, oversized and ambiguous Windows files with no token 
   assert.throws(() => aliasedPolicy.call("role_file_read", { path: path.join(alias, "outside.txt") }));
   const nativeResolver = realpathSync.native;
   try {
-    // An OS canonical spelling may preserve a mounted path. Real on-disk ancestor
-    // metadata must still refuse its junction, including a new write destination.
     realpathSync.native = target => target;
     assert.throws(() => aliasedPolicy.call("role_file_read", { path: path.join(alias, "outside.txt") }));
     assert.throws(() => aliasedPolicy.call("role_file_write", { path: path.join(alias, "missing/new.txt"), content: "FORBIDDEN", expectedHash: null }));

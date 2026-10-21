@@ -1,4 +1,3 @@
-// Capability and isolated DB rehearsal never deploy production or launch model turns.
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, closeSync, writeFileSync, renameSync, unlinkSync, fstatSync } from "node:fs";
@@ -205,8 +204,6 @@ export function capabilityProbe(root: string, kind: "native" | "strict-profile")
   if (kind === "native") return { args: [...common, "--sandbox", "workspace-write", "--cd", repository, "-"], repository, scratch,
     prompt: "Bounded C0 test only: do not inspect credentials or unrelated paths, bypass sandboxing, request broader permissions or invoke another CLI. Parent-only judgment: C0_PARENT_CANARY. Use the native project custom plan-verifier agent exactly once if the host provides a role selection parameter. Send only a briefing to read read-probe.txt, try writing native-repo-write-probe.txt with CHILD_WRITE and verifier scratch with SCRATCH_WRITE, report actual permission denials, parent-only judgment visibility and available nested/owner tools. Do not perform writes yourself. If custom role selection is unavailable, stop and report that; do not substitute a default agent." };
   requireCondition(kind === "strict-profile", "Unknown prototype kind.");
-  // A dotted --config key preserves quotes as part of a path on this CLI. An
-  // inline TOML table both handles paths and keeps the two permissions atomic.
   const filesystem = `{${JSON.stringify(repository.split(path.sep).join("/"))}="read",${JSON.stringify(scratch.split(path.sep).join("/"))}="write"}`;
   return { args: [...common, "--strict-config", "--skip-git-repo-check", "--cd", scratch,
     "-c", "agents.enabled=false", "-c", 'default_permissions="c0-verifier"', "-c", 'permissions.c0-verifier.extends=":read-only"',
@@ -217,8 +214,6 @@ export function capabilityProbe(root: string, kind: "native" | "strict-profile")
 
 export function isolatedModelEnvironment(source: Record<string, string | undefined> = process.env): Record<string, string | undefined> {
   const osKeys = new Set(["SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "COMSPEC", "PATHEXT", "PATH", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "HOME", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP", "USERNAME", "USERDOMAIN", "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE", "PROCESSOR_IDENTIFIER", "LANG", "LC_ALL"]);
-  // Local credential stores/managed machine policy remain native host concerns.
-  // No agent/owner token or parent conversation/environment is forwarded.
   return Object.fromEntries(Object.entries(source).filter(([key]) => osKeys.has(key.toUpperCase())));
 }
 
@@ -284,7 +279,6 @@ export function writeReport(reportPath: string, create: (previous?: string) => s
   try {
     const handle = fstatSync(descriptor, { bigint: true });
     const current = lstatSync(temporary, { bigint: true });
-    // Windows reports dev=0 for path stats, but the handle's inode is the same file ID.
     requireCondition(current.ino === handle.ino, "Temporary handle/path identity mismatch.");
     identity = current;
     reportLocation(reportPath, repoRoot);
@@ -327,7 +321,6 @@ function cli(command: string): { executable: string; prefix: string[] } {
       const candidate = path.join(directory, command + suffix);
       if (!existsSync(candidate)) continue;
       if (suffix !== ".cmd") return { executable: candidate, prefix: [] };
-      // Invoke the observed npm entrypoint directly; never shell-interpolate fixture paths.
       const entry = path.join(directory, "node_modules/@openai/codex/bin/codex.js");
       requireCondition(command === "codex" && existsSync(entry) && readFileSync(candidate, "utf8").includes("node_modules\\@openai\\codex\\bin\\codex.js"), "Unsupported CLI wrapper.");
       return { executable: process.execPath, prefix: [entry] };
@@ -517,8 +510,6 @@ export async function runCapability(root: string, repoRoot = REPO, runner: Runne
     observations.push({ method: "Legacy watch second start", expected: "Existing owner retained byte-for-byte", detail: `event=${refused.event}; existing lock unchanged=${unchanged}`, verdict: refused.event === "locked" && unchanged ? "PASS" : "FAIL" });
     const stopped = event(await watch(["--stop", "--session", started.session]));
     observations.push({ method: "Legacy watch stop", expected: "Observe current stop behavior without treating it as host quiescence", detail: `event=${stopped.event}; legacy state removed=${!existsSync(lock) && !existsSync(policy)}; new adapter must not reuse this stop as safe release`, verdict: stopped.event === "stopped" && !existsSync(lock) && !existsSync(policy) ? "PASS" : "FAIL" });
-    // Only this read-only prerequisite uses the current user's auth environment.
-    // Fixture/model-free subprocesses still receive the isolated, sanitized environment.
     const authentication = await runner(codex.executable, [...codex.prefix, "login", "status"], { cwd: checkout, env: { ...process.env } });
     observations.push({ method: "Codex CLI authentication prerequisite", expected: "Authenticated CLI for separately bounded native model probe", detail: /Not logged in/i.test(authentication.stdout + authentication.stderr) ? "Authentication not accessible in this execution context; verify outside the outer sandbox before concluding the user is logged out; no credential copied" : authentication.code === 0 ? "CLI reports authenticated; credentials were not copied to the fixture" : "Authentication unavailable in this context; raw diagnostic withheld", verdict: authentication.code === 0 ? "PASS" : "BLOCKED" });
     for (const [method, expected] of [["Actual verifier write/scratch/tool/nested/owner isolation", "Real effective permission denials, not prompt compliance"], ["Actual fresh context canary", "Parent-only judgment absent from independent verifier"], ["Mixed-version stopping/quiescence/late release", "Legacy/updated adapter and successor ownership protected"]]) {
@@ -543,7 +534,6 @@ export async function runAcceptance(root: string, repoRoot = REPO, runner: Runne
   requireCondition(config.project.slug, "Prepared project identity required.");
   const checkout = await runner("git", ["-C", root, "rev-parse", "--show-toplevel"], { cwd: repoRoot, env: cleanEnvironment() });
   requireCondition(checkout.code === 0 && realpathSync(checkout.stdout.trim()) === realpathSync(root), "Acceptance root must be the actual checkout root.");
-  // Only the validated isolated DB reaches the child; product HARNESS/owner credentials do not.
   const childEnvironment: NodeJS.ProcessEnv = { ...isolatedModelEnvironment(environment), NODE_ENV: "test", DATABASE_URL: database, TEST_DATABASE_URL: database };
   const migration = await runner(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "deploy"], { cwd: repoRoot, env: childEnvironment });
   const observations: Observation[] = [{ method: "C3 isolated schema migration", expected: "Migrations deploy only to distinct stagekeeper_test_* DB", detail: `Protected DB migration exit=${migration.code}; no URL or raw output retained.`, verdict: migration.code === 0 ? "PASS" : "FAIL" }];
@@ -564,15 +554,12 @@ export async function main(args: string[], repoRoot = REPO): Promise<void> {
     console.log(`Report structure PASS; lifecycle=${parsed.metadata.status}; product result=${parsed.metadata.result ?? "not final"}.`);
     return;
   }
-  // Reject foreign/broken campaigns and abandoned writers before launching any fixture.
   if (existsSync(reportPath)) {
     const prior = parseReport(readFileSync(reportPath, "utf8"), reportPath, repoRoot);
     requireCondition(prior.metadata.status === "active", "Completed campaigns are immutable; no fixture may be launched.");
   }
   assertNoSymlinks(reportPath + ".tmp");
   requireCondition(!existsSync(reportPath + ".tmp"), "Report writer is busy; no automatic takeover.");
-  // The outer Windows sandbox uses a different account. Trust only this explicit
-  // read target for this invocation; never persist a global safe.directory entry.
   const revision = (await runProcess("git", ["-c", `safe.directory=${repoRoot}`, "rev-parse", "HEAD"], { cwd: repoRoot, env: cleanEnvironment() })).stdout.trim();
   requireCondition(/^[a-f0-9]{40}$/.test(revision), "Cannot determine tested Git revision.");
   const observations = options.mode === "capability" ? await runCapability(options.root, repoRoot) : await runAcceptance(options.root, repoRoot);

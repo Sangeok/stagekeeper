@@ -1,8 +1,3 @@
-// 서비스가 스스로를 부르는 주소 — .env의 HARNESS_PUBLIC_URL. 변수가 없으면 로컬 개발 주소로 떨어진다.
-// 프로덕션에서 그 fallback이 쓰이면 모든 토큰 화면이 localhost 주소를 보여 주므로 첫 호출 때 한 번 오류를 남긴다.
-// fallback은 그대로 돌려준다 — throw하면 조용한 오설정이 세 토큰 화면의 렌더 실패로 바뀐다.
-// 로그를 모듈 로드가 아니라 첫 호출에 두는 이유: CI의 check 워크플로가 변수 없이 프로덕션 빌드를 돌리고, 빌드는
-// 라우트 모듈을 평가한다. 세 라우트는 요청 시 렌더라 첫 호출은 실제 서버에서만 일어난다.
 const LOCAL_DEV_URL = "http://localhost:3000";
 let reportedMissing = false;
 
@@ -15,22 +10,14 @@ function publicUrl(): string {
   return (configured ?? LOCAL_DEV_URL).replace(/\/$/, "");
 }
 
-// 메타데이터의 절대 URL(canonical·og:image)이 붙는 기준 — 루트 레이아웃의 metadataBase.
-// 로그를 남기지 않는다: 루트 레이아웃은 모듈 로드 때 평가되어 변수 없는 CI 빌드에서도 불리므로, 위 경보를 여기서 쓰면
-// 빌드마다 거짓 경보가 난다. 운영에서 변수가 빠진 것은 토큰 화면의 첫 호출이 같은 변수로 알린다.
-// 빌드 때 미리 그리는 페이지(/login 등)는 이 값을 빌드 시점에 굳힌다 — 배포 빌드에도 변수가 있어야 한다.
 export function siteUrl(): URL {
   return new URL(process.env.HARNESS_PUBLIC_URL ?? LOCAL_DEV_URL);
 }
 
-// 토큰 화면이 보여 주는 주소. 스킬이 서버 주소를 물을 때 사용자가 이 값을 그대로 붙여넣는다 —
-// `/api/mcp` 꼬리는 생성기가 뗀다(harness-init.mjs의 normalizeServer).
-// HARNESS_SERVER는 /harness:init이 직접 설정한다.
 export function mcpUrl(): string {
   return `${publicUrl()}/api/mcp`;
 }
 
-// 소유자 토큰용 서버. 스킬이 사용자 범위에 `harness_owner`로 등록하는 주소와 같아야 한다 — `${SERVER}/api/mcp/owner`.
 export function ownerMcpUrl(): string {
   return `${publicUrl()}/api/mcp/owner`;
 }

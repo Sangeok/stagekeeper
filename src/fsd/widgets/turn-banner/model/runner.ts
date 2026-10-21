@@ -1,7 +1,4 @@
 import { runnerSignalAt, runnerStatus } from "@harness/core/runner.mjs";
-// 순수. 배너와 프로젝트 목록에 보이는 실행기 줄. 문구는 docs/conventions/product-copy.md §5의 잠금 블록이고,
-// 생존 판정은 서버의 lease 판정과 같은 함수다(packages/core/runner.mjs).
-// 서버 타입(@/server/runners/contracts)은 여기서 읽지 않는다 — api adapter가 이 타입으로 옮긴다.
 
 export type TurnRunner = {
   mode: "session" | "resident";
@@ -16,10 +13,8 @@ export type TurnRunner = {
   lastActivity: string | null;
 };
 
-// 서버가 읽은 사실 한 묶음. renderedAt은 같은 조회의 DB 시각이고, 첫 렌더는 이 값을 "지금"으로 쓴다.
 export type RunnerFacts = { runner: TurnRunner | null; paused: boolean; renderedAt: string };
 
-// 큰 배너 줄. 한 값은 잠금 블록의 한 단위다(` · `로 이어 붙인다). {host}·{branch}는 식별자라 monospace로 그린다.
 export const RUNNER_LINES = {
   sessionIdle: "Runner: watching in Claude Code on {host}",
   residentIdle: "Runner: running in the background on {host} ({branch})",
@@ -35,18 +30,15 @@ export const RUNNER_LINES = {
   stopped: "Runner on {host} stopped: {reason}. Start it again in Claude Code.",
   autostart: "starts at sign-in",
   allowlist: "allow-list only",
-  // 상주 실행기가 일하는 동안만(결정 B7). 그 checkout을 고치면 실행기의 커밋에 섞일 수 있다.
   editGuard: "pause before you edit {branch}",
 } as const;
 
-// 정지 이유는 코드별 고정 문장이다. 서버나 CLI가 보낸 자유 문장은 화면에 싣지 않는다.
 export const RUNNER_STOP_REASONS = {
   stuck: "the same steps came back three times without progress",
   error: "it hit an error — check the session or its log",
   plan: "the background runner needs Pro",
 } as const;
 
-// 스트립 꼬리와 프로젝트 목록 카드 줄.
 export const RUNNER_SHORT = {
   sessionIdle: "Runner: watching on {host}",
   residentIdle: "Runner: running on {host}",
@@ -57,9 +49,7 @@ export const RUNNER_SHORT = {
   stopped: "Runner: stopped on {host}",
 } as const;
 
-// 실행기가 없을 때 WATCH_LINE 아래에 붙는 한 줄(결정 9: 옛 플러그인의 watch는 서버가 구별하지 못한다).
 export const RUNNER_VERSION_LINE = "Runners on plugin 0.5.13 or later show their status here.";
-// 실행기가 없고 Free 플랜일 때 그 아래 한 줄(B-5). "창 없는 실행"이 아니라 background runner가 Pro에서 열린다고만 말한다.
 export const RUNNER_FREE_LINE = "The background runner opens on Pro.";
 
 export type RunnerSegment = { text: string; code?: boolean };
@@ -67,10 +57,8 @@ export type RunnerLine = RunnerSegment[];
 
 const MINUTE = 60_000;
 const minutesSince = (from: string, now: number) => Math.max(0, now - Date.parse(from)) / MINUTE;
-// "checked N min ago"는 1분 아래를 1로 올린다 — "0 min ago"는 쓰지 않는다.
 const ago = (from: string, now: number) => String(Math.max(1, Math.ceil(minutesSince(from, now))));
 
-// 틀의 {이름}을 값으로 채운다. host·branch는 code 조각이 된다.
 export function fillLine(template: string, values: Record<string, string>): RunnerLine {
   const out: RunnerLine = [];
   for (const part of template.split(/(\{[a-z]+\})/)) {
@@ -95,15 +83,12 @@ export function runnerLiveness(runner: TurnRunner, now: number): RunnerLiveness 
   return runnerStatus(toDates(runner), activity(runner), new Date(now));
 }
 
-// WATCH_LINE은 살아 있는 실행기가 없을 때만 보인다 — 행이 없거나, 응답 없음이거나, 정지인 경우.
 export function hasLiveRunner(facts: RunnerFacts | undefined, now: number): boolean {
   return facts?.runner != null && runnerLiveness(facts.runner, now) === "live";
 }
 
-// Pause/Resume은 실행기 행이 있거나 일시 정지 중일 때만 보인다.
 export const showsPauseControl = (facts: RunnerFacts | undefined): boolean => facts !== undefined && (facts.runner !== null || facts.paused);
 
-// 큰 배너의 실행기 줄. 실행기도 일시 정지도 없으면 null.
 export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   const { runner, paused } = facts;
   if (runner === null) return paused ? fillLine(RUNNER_LINES.paused, {}) : null;
@@ -138,7 +123,6 @@ export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   return join(fillLine(main, values), fillLine(RUNNER_LINES.checked, { n: ago(runner.seenAt, now) }), ...guard, ...suffixes);
 }
 
-// 스트립 꼬리와 목록 카드의 짧은 형태. 붙일 것이 없으면 null.
 export function runnerShortLine(facts: RunnerFacts, now: number): RunnerLine | null {
   const { runner, paused } = facts;
   if (runner === null) return paused ? fillLine(RUNNER_SHORT.paused, {}) : null;

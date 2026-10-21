@@ -21,11 +21,9 @@ export function createOwnerGate(deps: OwnerGateDependencies): OwnerToolDeps["gat
       actor: "human", actorRef: userId, channel: "session", expectedUpdatedAt: row.updatedAt,
     });
     if (!written.ok) return written;
-    // 성공 응답을 받은 mutation만 저장을 확정한다. commit 결과 불명의 예외는 이 catch 밖에 둔다.
     try {
       return { ok: true, item: { item: written.item, next: await deps.advice(projectId, input.key) } };
     } catch {
-      // DB 예외나 credential 대신 확정된 저장 사실과 읽기 복구 방법만 wire로 보낸다.
       return { ok: false, reason: APPROVED_ADVICE_FAILURE };
     }
   };

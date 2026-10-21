@@ -70,17 +70,14 @@ describe("decideNext (H.4)", () => {
     assert.equal(decideNext({ ...base, node: "propose", status: "proposed" }).agent, "pm");
   });
   it("HINT covers every node the pipeline can stop on, accept included", () => {
-    // accept는 메인 루프가 에이전트 없이 직접 하는 유일한 동작이라 hint를 따로 단다.
     assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "impl-verify", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
     assert.match(HINT.verify, /validation_record/);
-    // verify hint는 경로 목록을 남길 자리를 말한다.
     assert.match(HINT.verify, /verification-paths\.md/);
     assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);
     assert.match(HINT.accept, /report_submit/);
   });
 
   it("product-copy.md §13 hint table holds exactly the HINT sentences", () => {
-    // 표는 손으로 옮겨 적어 두 번 어긋났다(verify 문장·qa 행 누락·propose 건수). 행 = HINT 한 항목, 글자 그대로.
     const copy = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
     const lines = copy.slice(copy.indexOf("**Hints** —")).split(/\r?\n/);
     const start = lines.findIndex(line => line.startsWith("| `"));
@@ -121,8 +118,6 @@ describe("decideHead (H.4)", () => {
   });
 });
 
-// dev가 멈춘 뒤 소유자가 커밋하고 에이전트가 계획서를 제출했는데도
-// 파이프라인이 "그 파일을 커밋하라"를 계속 답했다. 원장의 마지막 단계만 보면 그렇게 된다.
 describe("handoffIsLive", () => {
   const at = (iso) => new Date(iso);
 
@@ -131,7 +126,6 @@ describe("handoffIsLive", () => {
   });
 
   it("is stale once the item is written after the stop — the commit already happened", () => {
-    // plan_submit·report_submit·validation·전이가 전부 보드 행을 갱신한다.
     assert.equal(handoffIsLive(at("2026-09-11T10:00:00Z"), at("2026-09-11T10:00:01Z")), false);
   });
 
@@ -143,7 +137,6 @@ describe("handoffIsLive", () => {
     const live = decideNext({ ...base, node: "plan", handoff: { note: "docs/plans/FEAT-01.md" } });
     assert.equal(live.action, "wait");
     assert.equal(live.on, "handoff");
-    // nextFor가 handoffIsLive로 거른 뒤의 모양 — handoff가 null이면 디스패치로 돌아간다.
     const stale = decideNext({ ...base, node: "plan", handoff: null });
     assert.equal(stale.action, "dispatch");
     assert.equal(stale.agent, "web-dev");

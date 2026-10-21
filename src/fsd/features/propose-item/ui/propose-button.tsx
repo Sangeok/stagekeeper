@@ -10,8 +10,6 @@ import type { ProposeInput } from "../model/propose-input";
 
 export type ProposeAction = (input: ProposeInput) => Promise<ActionResult<void> & { resetPipeline?: boolean }>;
 
-// 백로그 행에서 항목을 직접 보드에 올린다 — pm을 부르지 않고. 사유 문구는 서버의 것을 그대로 보여 준다
-// ("open items: 2 (max 2)" 등). 실패를 이 행 아래에 붙이는 것은 RemoveBacklogButton과 같은 이유다.
 export function ProposeButton({ itemKey, roster, propose, pipelines, preselected }: { itemKey: string; roster: string[]; propose: ProposeAction; pipelines: { id: string; name: string }[]; preselected: string }) {
   const [open, setOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);

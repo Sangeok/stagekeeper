@@ -8,7 +8,6 @@ import { mcpUrl } from "@/server/public-url";
 
 export default async function Page() {
   const { userId } = await requireUser();
-  // 로그인한 GitHub 계정을 owner 기본값으로 준다 — 이미 아는 값을 다시 묻지 않는다.
   const user = await loadHeaderUser(userId);
   const repos = await listPublicRepos(user.login);
   return (

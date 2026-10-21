@@ -9,7 +9,6 @@ import { type HistoryCursor, type HistoryRecord, type HistoryView } from "../../
 import { toHistoryRows } from "../../../src/fsd/widgets/history-feed";
 import { cleanup, connections, fixture, testDatabaseUrl, type Fixture } from "./support";
 
-// SQL과 바인딩은 메모리에만 보관한다. 실패해도 접속 주소나 파라미터를 출력하지 않는다.
 it("reads isolated project history with stable cursors, retained rounds and plan windows", async (t) => {
   const pool = connections(1);
   const db = pool.all[0];

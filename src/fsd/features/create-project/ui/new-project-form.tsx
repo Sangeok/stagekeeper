@@ -12,20 +12,16 @@ import type { RepoOption } from "../model/repo-url";
 import { selectedRepository } from "../model/repository-selection";
 import { initialRepositoryEntry, transitionRepositoryEntry, type RepositoryEntryEvent } from "../model/repository-entry-state";
 
-// 서버 액션과 저장소 목록은 route가 prop으로 넘긴다 — "use client" 파일은 *.server·@/server를 import할 수 없다(fsd.md).
 type Props = {
   action: (prev: CreateProjectState, form: FormData) => Promise<CreateProjectState>;
   mcpUrl: string;
   defaultOwner: string;
   repoLoadFailed: boolean;
-  repos: RepoOption[]; // 로그인 계정의 공개 저장소. 비공개는 여기 없다 — 그때는 주소를 붙여넣는다
+  repos: RepoOption[];
 };
 
 const TEXT_BUTTON = "text-xs text-quiet underline underline-offset-2";
 
-// 화면은 셋 중 하나다. 수동 입력은 저장소가 파싱돼도 입력란을 유지하고 파싱 결과를 그 아래에 보여 준다 —
-// 파싱은 한 글자짜리 repo 이름에도 맞으므로, 파싱 결과로 입력란을 바꾸면 주소를 타이핑하는 도중
-// (`…/acme/h`) 입력란이 사라졌다.
 export type FormMode = "manual" | "chosen" | "picker";
 export function formMode(isManualEntry: boolean, isRepoChosen: boolean): FormMode {
   if (isManualEntry) return "manual";
@@ -142,7 +138,6 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
 
       {pasteError ? <p className="text-sm text-risk">{pasteError}</p> : null}
 
-      {/* 접혀 있어도 값은 폼과 함께 전송된다 — hidden은 제출을 막지 않는다. */}
       <div hidden={!isEditing} className="flex flex-col gap-4 border-l-2 border-rule pl-4">
         <Field label="GitHub owner">
           <Input name="owner" required value={owner} onChange={(event) => changeEntry({ type: "direct", owner: event.target.value, repo })} />
@@ -182,8 +177,6 @@ export function NewProjectForm({ action, mcpUrl, defaultOwner, repos, repoLoadFa
   );
 }
 
-// 내 저장소 고르기: 검색 + 목록. autoFocus 입력을 들고 있으므로 모듈 최상위에 둔다 —
-// 부모 함수 안에서 정의하면 타이핑마다 새 컴포넌트 타입이 되어 입력이 remount되고 포커스를 잃는다.
 function RepoPicker({
   repos,
   query,

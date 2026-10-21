@@ -1,12 +1,9 @@
-// 서버의 실행기 경로(POST /api/runner) 호출과 응답 분류. MCP 도구가 아니다 — 에이전트 모델은 이 경로를 모른다.
-// 분류만 하고 결정은 부르는 쪽(watch·session CLI)이 한다. 토큰은 환경에서 받은 값을 헤더로만 보낸다.
 import os from "node:os";
 import { RUNNER_HOST_MAX } from "../lib/runner.mjs";
 
 const BODY_LIMIT = 64 * 1024;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
-// 실행기 PC 이름. 서버 열은 64자까지다.
 export function runnerHost() {
   const name = os.hostname().trim().slice(0, RUNNER_HOST_MAX);
   return name.length > 0 ? name : "unknown";
@@ -48,7 +45,6 @@ export async function runnerCall(target, payload, { signal } = {}) {
     if (signal?.aborted) throw signal.reason;
     return { kind: "transient", retryAfter: 0 };
   }
-  // 경로가 없는 서버(롤백·옛 판). 부르는 쪽이 로컬 잠금만으로 계속 돈다.
   if (response.status === 404) { await response.body?.cancel().catch(() => {}); return { kind: "missing" }; }
   if (response.status === 408 || response.status === 429 || response.status >= 500) {
     await response.body?.cancel().catch(() => {});
@@ -73,7 +69,6 @@ export async function runnerCall(target, payload, { signal } = {}) {
   return { kind: "refused", status: response.status, reason: isObject(body) && typeof body.error === "string" ? body.error : null };
 }
 
-// 시간 제한을 둔 한 번의 호출. 끝나지 않으면 일시적 실패로 본다.
 export async function runnerCallWithin(target, payload, timeoutMs) {
   const signal = AbortSignal.timeout(Math.max(1, Math.ceil(timeoutMs)));
   try { return await runnerCall(target, payload, { signal }); }

@@ -14,15 +14,11 @@ import { runbookVersion } from "../lib/runbook.mjs";
 const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));
 const APCH = readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8");
 
-// 템플릿 원문은 저장소에 없다 — 서버가 인증된 요청에만 내려준다. 여기서 검증하는 것은 생성기의 동작
-// (무엇을 쓰고·건너뛰고·거부하는가)이지 템플릿 내용이 아니므로, 최소 픽스처를 로컬 우회로로 물린다.
-// 에이전트 픽스처는 단계 형식(`## step:`)을 따른다 — 파일로 나가는 것은 첫 단계 앞의 스텁뿐이어야 한다.
 const FIXTURES = {
   "docs/plans/README.md": "# Plans — {{project.name}}\n",
   "docs/plans/template.md": "# Plan\n",
   "docs/plans/verification-paths.md": "# Verification paths\n",
   "docs/agents/README.md": "# Agents\n{{roster_table}}\n",
-  // 보고 에이전트의 description은 런북 report_table의 행이 된다 — 없으면 생성기가 멈춘다(아래 "no frontmatter description").
   "agents/pm.md": "---\nname: pm\ndescription: Picks work.\n---\nroster {{roster_names}}\n\n## step:start\npm step body\nnext: done\n",
   "agents/qa-verifier.md": "---\nname: qa-verifier\ndescription: Tests user flows.\n---\n\n## step:start requires: done\nqa step body\nnext: done\n",
   "agents/impl-verifier.md": "---\nname: impl-verifier\ndescription: Verifies implementations.\n---\n\n## step:start requires: done\nimpl-verifier step body\nnext: done\n",
@@ -30,7 +26,6 @@ const FIXTURES = {
   "agents/doc-auditor.md": "---\nname: doc-auditor\ndescription: Audits docs.\n---\n\n## step:start\nauditor step body\n",
   "agents/feature-scout.md": "---\nname: feature-scout\ndescription: Scouts features.\n---\n{{scout.question}}\n\n## step:start\nscout step body\n",
   "agents/dev.md": "---\nname: {{ws.agent}}\n---\nowns {{ws.path}}\n{{ws.verify_block}}\n\n## step:implement requires: implementing\ndev step body\n",
-  // 런북은 자기 판을 적는다 — 세션이 그 값을 pipeline_next에 넘긴다(아래 "reports the runbook version it just planted").
   "CLAUDE.runbook.md": "## Harness\nbranch {{board_branch}}\nversion {{runbook_version}}\nfull pipeline\n\nReport only:\n\n{{report_table}}\n",
 };
 const TPL_DIR = mkdtempSync(join(realpathSync(tmpdir()),"harness-tpl-"));
@@ -41,7 +36,6 @@ for (const [rel, body] of Object.entries(FIXTURES)) {
 }
 const ROWS = Object.entries(FIXTURES).map(([path, body]) => ({ path, body }));
 
-// 부모 셸의 HARNESS_* 는 지운다 — 테스트가 고른 경로(우회로 / 가짜 서버)만 보게.
 const BASE_ENV = { ...process.env };
 for (const k of ["HARNESS_TEMPLATES_DIR", "HARNESS_TOKEN", "HARNESS_PLAN", "HARNESS_SERVER"]) delete BASE_ENV[k];
 const argv = (root, server, args) => [BIN, "--root", root, "--server", server, ...args];
@@ -49,11 +43,9 @@ const runWith = (env, root, server, ...args) => {
   try { return { code: 0, out: execFileSync("node", argv(root, server, args), { encoding: "utf8", stdio: "pipe", env: { ...BASE_ENV, ...env } }) }; }
   catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; }
 };
-// 가짜 서버가 같은 프로세스에 있으면 동기 spawn은 교착이다(응답을 줄 이벤트 루프가 막힌다) — 그 경우만 비동기로.
 const runAsync = (env, root, server, ...args) => new Promise((resolve) =>
   execFile("node", argv(root, server, args), { encoding: "utf8", env: { ...BASE_ENV, ...env } },
     (e, stdout, stderr) => resolve({ code: e ? e.code : 0, out: String(stdout) + String(stderr) })));
-// --server를 아예 주지 않는 실행. 서버 URL 출처 순서를 시험하려면 argv에서 그 인자가 빠져야 한다.
 const runBare = (env, root, ...args) => {
   try { return { code: 0, out: execFileSync("node", [BIN, "--root", root, ...args], { encoding: "utf8", stdio: "pipe", env: { ...BASE_ENV, ...env } }) }; }
   catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; }
@@ -94,7 +86,6 @@ it("bounds identity, registration, templates and reporting across delayed header
     t.after(() => { timers.forEach(clearInterval); server.closeAllConnections(); server.close(); });
     const env = { ...BASE_ENV, HARNESS_TOKEN: "hu_fixture" };
     const flags = endpoint === "/api/project" ? ["--print-project"] : endpoint === "/api/projects" ? ["--register"] : [];
-    // A user token needs a slug for generation; registration/identity remain read-only modes.
     if (!flags.length) { const config = JSON.parse(ONE_WS); config.project.slug = "fixture"; writeFileSync(join(root, "harness.json"), JSON.stringify(config)); }
     const started = Date.now();
     const result = await new Promise(resolve => execFile(process.execPath, argv(root, `http://127.0.0.1:${server.address().port}`, flags),
@@ -118,7 +109,6 @@ it("bounds identity, registration, templates and reporting across delayed header
   }));
 });
 
-// 오류 뒤의 새 파일과 기존 내용 변경을 모두 잡도록 테스트 저장소 전체를 비교한다.
 const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: true, withFileTypes: true })
   .filter((entry) => entry.isFile())
   .map((entry) => {
@@ -126,10 +116,6 @@ const snapshot = (root) => Object.fromEntries(readdirSync(root, { recursive: tru
     return [relative(root, fullPath), readFileSync(fullPath, "utf8")];
   }));
 
-// 가짜 /api/templates — 응답 본문 하나를 정해 두고 받은 요청을 기록한다.
-// postStatus: 런북 보고(POST /api/runbook)에 돌려줄 상태. 기본 200.
-// project: GET /api/project가 줄 정체. projectStatus 404는 그 경로가 없는 구버전 서버다.
-// registered/registerStatus: POST /api/projects가 줄 응답. 201 = 새로 만듦, 200 = 기존 것.
 const withServer = async (body, fn, { postStatus = 200, postError = null, project = null, projectStatus = 200, registered = null, registerStatus = 201, registerError = null, templateStatus = 200, rateAt = () => null } = {}) => {
   const seen = [];
   const server = createServer((req, res) => {
@@ -142,14 +128,11 @@ const withServer = async (body, fn, { postStatus = 200, postError = null, projec
         res.statusCode = 429; res.setHeader("Retry-After", "23");
         res.end(JSON.stringify({ error: "Request limit reached.", code: "RATE_LIMITED", retryAfterSec: 23 })); return;
       }
-      // **/api/projects가 /api/project보다 먼저다.** startsWith("/api/project")는 "/api/projects"도
-      // 삼키므로, 순서를 뒤집으면 등록 호출이 정체 스텁을 받아 시험이 녹색인 채 아무것도 증명하지 않는다.
       if (req.url?.startsWith("/api/projects")) {
         res.statusCode = registerStatus;
         res.end(JSON.stringify(registerStatus < 400 ? { project: registered } : registerError ?? { error: "registration refused" }));
         return;
       }
-      // 엔드포인트가 둘이 됐다 — url로 가르지 않으면 --print-project가 템플릿 본문을 받는다.
       if (req.url?.startsWith("/api/project")) {
         res.statusCode = projectStatus;
         res.end(JSON.stringify(projectStatus === 200 ? { project } : { error: "not found" }));
@@ -166,8 +149,6 @@ const withServer = async (body, fn, { postStatus = 200, postError = null, projec
 };
 
 describe("harness-init (v2)", () => {
-  // .mcp.json은 더 이상 생성물이 아니다 — 서버는 사용자 범위에 머신당 1회 등록된다.
-  // 해석된 주소는 stdout의 `server:` 줄이 알려 준다.
   it("materializes agents, docs, runbook, lock — no state files and no .mcp.json", () => {
     const root = fresh();
     const r = run(root);
@@ -176,16 +157,14 @@ describe("harness-init (v2)", () => {
       "docs/agents/README.md", ".claude/agents/pm.md", ".claude/agents/plan-verifier.md", ".claude/agents/doc-auditor.md", ".claude/agents/feature-scout.md",
       ".claude/agents/web-dev.md", ".claude/agents/admin-dev.md", ".claude/agents/backend-dev.md"]) assert.ok(existsSync(join(root, p)), `missing ${p}`);
     for (const p of ["PROJECT_BOARD.md", "TASK_BACKLOG.md", "docs/release-checks.md", "scripts", ".mcp.json"]) assert.ok(!existsSync(join(root, p)), `unexpected ${p}`);
-    assert.match(r.out, /^server: https:\/\/h\.example$/m); // 스킬이 claude mcp add에 넘길 주소
-    assert.doesNotMatch(r.out, /write: \.mcp\.json/); // 걷어낼 게 없으면 손대지 않는다
+    assert.match(r.out, /^server: https:\/\/h\.example$/m);
+    assert.doesNotMatch(r.out, /write: \.mcp\.json/);
     assert.doesNotMatch(readFileSync(join(root, ".claude/agents/backend-dev.md"), "utf8"), /\{\{/);
     const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
     assert.equal(lock.version, 1);
-    assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files)); // 병합 파일은 잠그지 않는다
-    assert.match(r.out, /^plan: max$/m); // 우회로의 기본 플랜
+    assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files));
+    assert.match(r.out, /^plan: max$/m);
   });
-  // --owner는 생성기에서 사라졌다. 조용히 무시하면 옛 스킬이 계속 넘길 때 사용자가 소유자
-  // 서버를 잃고도 모르므로, 어디로 옮겼는지 알리고 파일은 만들지 않는다.
   it("--owner no longer writes a server: it says where the owner server moved, and writes no .mcp.json", () => {
     const withOwner = fresh();
     const r = run(withOwner, "--owner");
@@ -196,7 +175,7 @@ describe("harness-init (v2)", () => {
     const plain = fresh();
     const p = run(plain);
     assert.equal(p.code, 0, p.out);
-    assert.doesNotMatch(p.out, /--owner no longer writes/); // 플래그를 안 주면 안내도 없다
+    assert.doesNotMatch(p.out, /--owner no longer writes/);
   });
   it("agent files are stubs — no step body reaches disk", () => {
     const root = fresh();
@@ -209,8 +188,6 @@ describe("harness-init (v2)", () => {
     assert.match(readFileSync(join(root, ".claude/agents/web-dev.md"), "utf8"), /^name: web-dev$/m);
     assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
   });
-  // 범위 우선순위가 local > project > user라, 저장소 항목을 남겨 두면 사용자 범위를 계속 이긴다.
-  // 그래서 우리 항목만 걷어내고 남의 서버는 보존한다.
   it("removes our entries from .mcp.json, preserving other servers", () => {
     const root = fresh();
     writeFileSync(join(root, ".mcp.json"), JSON.stringify({ mcpServers: {
@@ -220,12 +197,11 @@ describe("harness-init (v2)", () => {
     } }));
     const r = run(root);
     assert.equal(r.code, 0, r.out);
-    assert.match(r.out, /write: \.mcp\.json \(removed harness, harness_owner —/); // 복수형 경로
+    assert.match(r.out, /write: \.mcp\.json \(removed harness, harness_owner —/);
     const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
     assert.equal(mcp.mcpServers.notion.url, "https://mcp.notion.com/mcp");
     assert.equal(mcp.mcpServers.harness, undefined);
     assert.equal(mcp.mcpServers.harness_owner, undefined);
-    // --server를 줬으므로 폴백 파괴 경고는 뜨지 않는다.
     assert.doesNotMatch(r.out, /only record of the server URL/);
   });
   it("QA configuration installs its dedicated local browser entry and preserves conflicting user configuration", () => {
@@ -268,7 +244,6 @@ describe("harness-init (v2)", () => {
     assert.ok(existsSync(join(root, ".claude/agents/feature-scout.md")));
     assert.ok(readFileSync(join(root, ".claude/agents/feature-scout.md"), "utf8").includes(DEFAULT_SCOUT_QUESTION));
     assert.ok(existsSync(join(root, ".claude/agents/dev.md")));
-    // The file and report table use the same delivered agent list.
     assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /feature-scout/);
   });
   it("exit 1 with the field path on bad config", () => {
@@ -312,7 +287,7 @@ describe("harness-init (v2)", () => {
         assert.doesNotMatch(result.out, /^write:/m);
         assert.deepEqual(snapshot(root), before);
         writeFileSync(join(root, ".mcp.json"), "{}");
-        assert.equal(run(root).code, 0); // 입력 수정 후 adopt 없이 재실행할 수 있다.
+        assert.equal(run(root).code, 0);
       });
     }
     it("preserves generated files and the old lock when an update cannot prepare MCP", () => {
@@ -340,7 +315,6 @@ describe("harness-init (v2)", () => {
       assert.match(result.out, /harness\.lock\.json/);
       assert.deepEqual(snapshot(root), before);
     });
-    // 표의 문구는 에이전트 frontmatter에서 온다. 없으면 빈 칸을 조용히 내보내지 않고 멈춘다 — 아무것도 쓰지 않은 채.
     it("does not write any targets when a delivered report agent has no frontmatter description", async () => {
       const body = deliverable(ROWS, "pro");
       const stub = body.templates["agents/doc-auditor.md"];
@@ -407,7 +381,7 @@ describe("harness-init (v2)", () => {
 
   describe("plan", () => {
     it("pro: the runbook's report table lists every delivered report agent in the generator's order, with its own description", () => {
-      const root = fresh(); // APCH: scout 설정됨 — 넷 다 내려간다
+      const root = fresh();
       assert.equal(run(root).code, 0);
       assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"),
         /\| agent \| does \|\n\| --- \| --- \|\n\| `pm` \| Picks work\. \|\n\| `plan-verifier` \| Verifies plans\. \|\n\| `doc-auditor` \| Audits docs\. \|\n\| `feature-scout` \| Scouts features\. \|\n/);
@@ -423,15 +397,14 @@ describe("harness-init (v2)", () => {
         assert.match(r.out, new RegExp(`^skip\\(plan\\): \\.claude/agents/${a}\\.md \\(not on the free plan\\)$`, "m"));
       }
       const runbook = readFileSync(join(root, "CLAUDE.md"), "utf8");
-      assert.match(runbook, /full pipeline/); // 런북은 한 판이다 — 플랜 차이는 그래프가 진다(deliver.mjs)
-      // 한 판이지만 표는 내려간 파일과 같은 목록에서 나온다 — free 런북이 배달되지 않은 둘을 시키지 않는다.
+      assert.match(runbook, /full pipeline/);
       assert.match(runbook, /\| `pm` \| Picks work\. \|\n\| `feature-scout` \| Scouts features\. \|/);
       assert.doesNotMatch(runbook, /plan-verifier|doc-auditor/);
       const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
       assert.ok(!(".claude/agents/plan-verifier.md" in lock.files));
     });
     it("free: refuses before writing when harness.json has more workspaces than the plan allows", () => {
-      const root = fresh(); // APCH: 3 workspaces
+      const root = fresh();
       const r = runFree(root);
       assert.equal(r.code, 1, r.out);
       assert.match(r.out, /workspace cap reached on the free plan \(1\): harness\.json has 3 workspaces/);
@@ -445,7 +418,6 @@ describe("harness-init (v2)", () => {
   });
 
   describe("서버 URL 출처", () => {
-    // 기본값은 없다. 세 출처가 모두 비면 멈추고 아무것도 쓰지 않는다.
     it("exits 1 and writes nothing when no source supplies a server URL", () => {
       const root = fresh(ONE_WS);
       const before = snapshot(root);
@@ -455,8 +427,6 @@ describe("harness-init (v2)", () => {
       assert.deepEqual(snapshot(root), before);
     });
 
-    // 회수는 그대로지만 같은 실행에서 그 항목을 지운다 — 즉 이 저장소의 마지막 URL 기록이 사라진다.
-    // 생성기는 사용자 범위 설정을 읽지 않으므로 보완하지 않고 **알린다**.
     it("recovers the server from an existing .mcp.json, then removes that entry and says so", () => {
       const root = fresh(ONE_WS);
       writeFileSync(join(root, ".mcp.json"), JSON.stringify({
@@ -464,15 +434,12 @@ describe("harness-init (v2)", () => {
       }));
       const r = runBare({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root);
       assert.equal(r.code, 0, r.out);
-      assert.match(r.out, /^server: https:\/\/recovered\.example$/m); // 지워질 파일에서 읽어 정규화했다
+      assert.match(r.out, /^server: https:\/\/recovered\.example$/m);
       assert.match(r.out, /only record of the server URL — make sure HARNESS_SERVER is set \(https:\/\/recovered\.example\)/);
       const mcp = JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8"));
       assert.equal(mcp.mcpServers.harness, undefined);
     });
 
-    // 토큰 페이지는 `<base>/api/mcp`를 보여 준다. 그대로 넘겨도 꼬리가 겹치지 않아야 한다.
-    // stdout의 `server:` 줄 값이 스킬을 거쳐 `claude mcp add`에 그대로 들어가므로,
-    // 꼬리가 남으면 `/api/mcp/api/mcp`가 된다.
     for (const given of ["https://h.example/api/mcp", "https://h.example/api/mcp/", "https://h.example/api/mcp/owner"]) {
       it(`normalizes ${given} to the base URL`, () => {
         const root = fresh(ONE_WS);
@@ -482,7 +449,6 @@ describe("harness-init (v2)", () => {
       });
     }
 
-    // 깨진 .mcp.json은 회수에 실패해도 던지지 않는다 — 그래도 URL이 없으면 멈춘다.
     it("does not throw on an unreadable .mcp.json while recovering, and says so", () => {
       const root = fresh(ONE_WS);
       writeFileSync(join(root, ".mcp.json"), "{");
@@ -495,9 +461,7 @@ describe("harness-init (v2)", () => {
   });
 
   describe("--print-project", () => {
-    // slug까지 싣는다 — 스킬이 harness.json 초안의 project.slug를 이 값으로 채운다.
     const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "dev", name: "stagekeeper", slug: "stagekeeper" };
-    // harness.json이 없는 첫 연결에서 쓰는 모드다 — 설정을 읽지 않고, 아무것도 쓰지 않는다.
     const emptyRoot = () => mkdtempSync(join(realpathSync(tmpdir()),"harness-empty-"));
 
     it("prints the identity without harness.json and writes nothing", async () => {
@@ -512,7 +476,6 @@ describe("harness-init (v2)", () => {
       }, { project: identity });
     });
 
-    // language를 실으면 harness.json이 ?lang=ko를 만들어 첫 연결이 404가 된다.
     it("carries no language key", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server) => {
         const r = await runAsync({ HARNESS_TOKEN: "t-test" }, emptyRoot(), server, "--print-project");
@@ -521,7 +484,6 @@ describe("harness-init (v2)", () => {
       }, { project: identity });
     });
 
-    // 구버전 서버에는 이 경로가 없다. 그 사실을 말하고 실패하면 스킬이 물어서 진행한다.
     it("says the server has no /api/project when it answers 404", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server) => {
         const root = emptyRoot();
@@ -534,18 +496,8 @@ describe("harness-init (v2)", () => {
     });
   });
 
-  // 첫 연결에서 git이 아는 것으로 프로젝트를 등록한다. 사용자 토큰(hu_) 전용 모드다.
   describe("--register", () => {
     const identity = { owner: "Sangeok", repo: "stagekeeper", branch: "main", name: "stagekeeper", slug: "stagekeeper" };
-    // 진짜 git 저장소를 만든다 — 테스트 전용 우회 플래그를 두면 정작 git을 읽는 경로가 검증되지 않는다.
-    //
-    // 등록하는 것은 **저장소의 기본 브랜치**다(현재 브랜치가 아니다). 그래서 픽스처의 현재 브랜치는
-    // `feature`, 기호 참조 refs/remotes/origin/HEAD는 `origin/main`으로 **서로 다르게** 둔다 — 같으면
-    // 어느 쪽을 읽었는지 시험이 가리지 못한다. 브랜치 이름은 늘 명시한다: `init.defaultBranch`가 환경마다
-    // 달라(개발 머신 main, CI 러너 master) 이름을 git에 맡겼더니 branch 단언이 CI에서만 깨졌다.
-    //
-    // 기호 참조를 기본으로 넣는 이유: 없으면 등록이 `git ls-remote origin`으로 넘어가 기본 origin
-    // (git@github.com:…)에 실제로 접속한다. 기호 참조 없는 경로는 아래 시험들이 로컬 origin으로 따로 탄다.
     const IDENTITY = ["-c", "user.name=harness-test", "-c", "user.email=harness-test@example.invalid"];
     const gitRoot = (remote = "git@github.com:Sangeok/stagekeeper.git", { symref = "main" } = {}) => {
       const root = mkdtempSync(join(realpathSync(tmpdir()),"harness-git-"));
@@ -554,9 +506,6 @@ describe("harness-init (v2)", () => {
       if (remote && symref) execFileSync("git", ["symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${symref}`], { cwd: root, stdio: "ignore" });
       return root;
     };
-    // origin을 **상대 경로**로 둔다. 등록은 origin을 GitHub owner/repo로 해석하지 못하면 기본 브랜치를 찾기 전에
-    // 멈추는데, 호스트 없는 짧은 형태(`fixture/stagekeeper.git`)는 해석되고 git에게는 작업 디렉터리 기준의 로컬
-    // 경로다. 커밋은 신원을 명령에 준다 — CI 워크플로에는 git 신원을 설정하는 단계가 없다.
     const bareOrigin = (root, defaultBranch) => {
       const seed = mkdtempSync(join(realpathSync(tmpdir()),"harness-seed-"));
       execFileSync("git", ["init", "-q", "-b", defaultBranch], { cwd: seed, stdio: "ignore" });
@@ -570,13 +519,11 @@ describe("harness-init (v2)", () => {
         const before = snapshot(root);
         const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, root, server, "--register");
         assert.equal(r.code, 0, r.out);
-        // --print-project와 같은 모양이어야 스킬의 초안 경로가 하나로 유지된다.
         assert.deepEqual(JSON.parse(r.out.trim()), identity);
         const call = seen.find((s) => s.url?.startsWith("/api/projects"));
         assert.ok(call, "must POST to /api/projects");
         assert.equal(call.method, "POST");
         assert.equal(call.authorization, "Bearer hu_test");
-        // 현재 브랜치는 feature다 — main이 왔다면 기호 참조(저장소의 기본 브랜치)를 읽은 것이다.
         assert.deepEqual(JSON.parse(call.body), { owner: "Sangeok", repo: "stagekeeper", branch: "main" });
         assert.deepEqual(snapshot(root), before, "--register must not write files");
       }, { registered: identity });
@@ -591,13 +538,11 @@ describe("harness-init (v2)", () => {
       }, { rateAt: () => "/api/projects" });
     });
 
-    // 기호 참조 없는 경로 셋. `git init` 뒤 remote를 붙인 저장소에는 refs/remotes/origin/HEAD가 없다(흔하다).
     const registerBody = async (root) => {
       let body;
       await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
         const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, root, server, "--register");
         assert.equal(r.code, 0, r.out);
-        // 어느 경로로 떨어져도 출력은 JSON 한 줄이다 — 스킬이 그것을 읽는다.
         assert.deepEqual(JSON.parse(r.out.trim()), identity);
         body = JSON.parse(seen.find((s) => s.url?.startsWith("/api/projects")).body);
       }, { registered: identity });
@@ -621,8 +566,6 @@ describe("harness-init (v2)", () => {
       assert.deepEqual(await registerBody(root), { owner: "missing", repo: "stagekeeper" });
     });
 
-    // 재실행이 정상 흐름이다. 서버가 (owner, repo)로 멱등 처리해 200을 주면 새 프로젝트가 아니다 —
-    // 이게 깨지면 init을 다시 돌릴 때마다 <repo>-2가 생긴다.
     it("accepts the 200 that means the repository was already registered", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server) => {
         const root = gitRoot();
@@ -644,7 +587,6 @@ describe("harness-init (v2)", () => {
       }, { registerStatus: 409, registerError: { error: "This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.", reconnectPath: "/p/preserved" } });
     });
 
-    // 401은 대개 프로젝트 토큰을 쓴 경우다 — 그 토큰은 이 경로를 지나지 않는다.
     it("points an hs_ token at --print-project when the server refuses with 401", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server) => {
         const r = await runAsync({ HARNESS_TOKEN: "hs_test" }, gitRoot(), server, "--register");
@@ -662,7 +604,6 @@ describe("harness-init (v2)", () => {
       }, { registerStatus: 404 });
     });
 
-    // git이 답을 못 주면 서버를 부르지 않는다 — 스킬이 사용자에게 물어서 진행한다.
     it("stops before calling the server when there is no origin remote", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
         const r = await runAsync({ HARNESS_TOKEN: "hu_test" }, gitRoot(null), server, "--register");
@@ -758,9 +699,6 @@ describe("harness-init (v2)", () => {
         assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
       });
     });
-    // 저장소에 심은 런북이 어느 판인지 서버가 알아야 pipeline_next가 표류를 말할 수 있다.
-    // 런북 본문에도 같은 판을 적는다 — 세션이 그 값을 pipeline_next에 넘겨, 서버가 "마지막으로 init한 브랜치"가
-    // 아니라 이 checkout의 CLAUDE.md로 표류를 판정한다.
     it("reports the runbook version it just planted, with the same token, and writes it into the runbook", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
         const root = fresh(ONE_WS);
@@ -778,8 +716,6 @@ describe("harness-init (v2)", () => {
         assert.doesNotMatch(r.out, /not recorded/);
       });
     });
-    // DB의 본문은 seed가 LF로 맞춘다. CRLF 본문을 받아도 판은 LF 본문의 판이어야 한다 — 아니면 로컬 템플릿
-    // 모드(autocrlf 작업본)로 심은 런북은 늘 낡았다고 판정된다.
     it("versions a CRLF runbook body as its LF form, in the report and in the planted runbook", async () => {
       const body = deliverable(ROWS, "pro");
       body.templates["CLAUDE.runbook.md"] = FIXTURES["CLAUDE.runbook.md"].replace(/\n/g, "\r\n");
@@ -792,7 +728,6 @@ describe("harness-init (v2)", () => {
         assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), new RegExp(`^version ${version}\\r?$`, "m"));
       });
     });
-    // 보고가 실패해도 파일은 이미 옳다. 판정이 "낡음"으로 기울 뿐이라 중단할 이유가 없다.
     it("a refused report leaves init successful and says so in one line", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
         const root = fresh(ONE_WS);

@@ -149,7 +149,6 @@ describe("advance", () => {
 
 describe("dispatcherFor", () => {
   it("names the agent that actually turns the node", () => {
-    // 화면이 "지금 이 일을 하는 run이 열려 있나"를 물을 때 쓴다.
     assert.equal(dispatcherFor("plan", "web-dev"), "web-dev");
     assert.equal(dispatcherFor("implement", "web-dev"), "web-dev");
     assert.equal(dispatcherFor("verify", "web-dev"), "plan-verifier");
@@ -225,7 +224,7 @@ describe("pipeline composition", () => {
 
   it("refuses loops and archived references", () => {
     assert.equal(expand("feature", { ...definitions, checking: { steps: ["impl-verify", refStep("feature")], gates: [] } }).ok, false);
-    assert.equal(expand("feature", { planning, feature }).ok, false); // checking이 보관돼 묶음에서 빠졌다
+    assert.equal(expand("feature", { planning, feature }).ok, false);
   });
 
   it("rejects a change that breaks a pipeline that must stay runnable, naming that pipeline", () => {

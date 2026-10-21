@@ -1,4 +1,3 @@
-// Fresh production build + isolated TEST_DATABASE_URL. No production credentials.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -42,7 +41,7 @@ async function main(): Promise<void> {
     let started = false;
     for (let attempt = 0; attempt < 100; attempt++) {
       if (server.exitCode !== null) throw new Error("Local Next server exited before startup");
-      try { if ((await fetch(`${origin}/login`, { redirect: "manual" })).status === 200) { started = true; break; } } catch { /* Starting. */ }
+      try { if ((await fetch(`${origin}/login`, { redirect: "manual" })).status === 200) { started = true; break; } } catch {   }
       await delay(100);
     }
     assert.ok(started, "Local Next server did not start");

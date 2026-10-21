@@ -1,13 +1,8 @@
 name: windows-role-runtime
 
 on:
-  # A PR may restore its base branch's cache, but not another PR's cache.
-  # Keep dev warm, including after cache eviction during an idle period.
   push:
     branches: [dev]
-  # PRs run only for the Windows runtime, its acceptance tests and the offline
-  # build inputs. Other application source is checked by the dev push, which runs
-  # every step; main receives only commits already green on dev.
   pull_request:
     branches: [dev]
     paths:
@@ -47,7 +42,6 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # Superseded PR commits can stop. Let dev finish its shared cold build.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -64,7 +58,6 @@ jobs:
         run: |
           node --test scripts/windows-role-runtime-cache.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Runtime cache contract tests failed' }
-      # 상주 실행기의 job 런처·알림·시작 흐름은 Windows에서만 실제 경로를 탄다. 런타임 빌드가 필요 없으니 먼저 돈다.
       - name: Validate background runner job launcher
         shell: pwsh
         run: |
@@ -102,7 +95,6 @@ jobs:
           Write-Output "Runtime cache hit: ${{ steps.node-cache.outputs.cache-hit == 'true' }}"
           & "$env:RUNNER_TEMP/stagekeeper-node-source/runtime/node.exe" -e 'const cp=require("node:child_process"); const r=cp.spawnSync(process.execPath,["-e","console.log(123)"],{encoding:"utf8"}); if(r.status!==0 || r.stdout.trim()!=="123") process.exit(1);'
           if ($LASTEXITCODE -ne 0) { throw 'Prepared runtime child-process smoke failed' }
-      # Preserve a successfully built runtime even if a later acceptance fails.
       - uses: actions/cache/save@v4
         if: steps.node-cache.outputs.cache-hit != 'true' && steps.runtime-verify.outcome == 'success'
         with:

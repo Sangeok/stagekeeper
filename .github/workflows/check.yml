@@ -7,8 +7,6 @@ on:
     branches: [dev, main]
 
 jobs:
-  # The parts are independent, so they run in parallel on the same locked
-  # dependencies. The workflow is green only when every part passes.
   check:
     name: check (${{ matrix.part }})
     runs-on: ubuntu-latest
@@ -22,9 +20,6 @@ jobs:
             command: npm test
           - part: test-web
             command: npm run test:web
-          # The production build catches what tsc --noEmit cannot: route collection,
-          # server/client boundaries, static generation. No DATABASE_URL or .env is
-          # provided: client generation and this build need no database connection.
           - part: build
             command: npm run build
     steps:
@@ -34,9 +29,5 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      # src/generated/prisma is gitignored, and tsc --noEmit needs the client types.
       - run: npm run db:generate
       - run: ${{ matrix.command }}
-      # npm run test:templates stays local: plugin/templates/ is not in this
-      # repository (origin Sangeok/harness-templates), so the runner has no files
-      # to test.

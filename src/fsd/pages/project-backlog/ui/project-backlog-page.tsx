@@ -9,7 +9,6 @@ type Props = {
   slug: string;
   rows: BacklogRow[];
   includeRemoved: boolean;
-  // 편집할 항목과 그 수정 액션은 함께 온다 — 항목만 있고 add로 대신 채우면 "수정"이 조용히 새 항목을 만든다.
   editing?: { item: { key: string; title: string; area: string; source: string; type: string | null }; update: BacklogFormAction };
   add: BacklogFormAction;
   remove: RemoveBacklogAction;
@@ -37,7 +36,6 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, r
         rows={rows}
         renderRowActions={(row) => (
           <>
-            {/* 보드에 올리기는 아직 보드에 없는 항목에만 — 올라간 항목은 보드 상태 열이 말한다. */}
             {row.status === null ? <ProposeButton key={row.key} itemKey={row.key} pipelines={pipelines} preselected={preselected[row.key]} roster={roster} propose={propose} /> : null}
             <RemoveBacklogButton itemKey={row.key} remove={remove} />
           </>

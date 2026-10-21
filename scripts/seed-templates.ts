@@ -1,4 +1,3 @@
-// Private 원본을 모두 검증한 뒤 단일 transaction으로 올린다. 운영 실행은 별도 승인 범위다.
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { resolve, relative, isAbsolute, sep } from "node:path";

@@ -8,7 +8,6 @@ export type PauseRunnerAction = (paused: boolean) => Promise<ActionResult<boolea
 
 const LOST = "The setting may have changed. Refresh to check before trying again.";
 
-// 새 실행만 막는다. 진행 중인 역할은 실행기가 끝까지 둔다. 응답을 잃으면 다시 보내지 않고 새로 읽게 한다.
 export function PauseRunnerButton({ paused, save }: { paused: boolean; save: PauseRunnerAction }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();

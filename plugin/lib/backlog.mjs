@@ -7,7 +7,6 @@ export function toItemType(value) {
   return ITEM_TYPES.find((type) => type === value) ?? null;
 }
 
-// Include removed items: a key is an immutable reference and must never be reused.
 /** @param {string[]} keys @returns {string} */
 export function nextItemKey(keys) {
   let maximum = 0n;

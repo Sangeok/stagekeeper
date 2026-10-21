@@ -10,9 +10,9 @@ type BoardRow = {
   results: readonly string[];
   proposedOn: Date;
   backlogItem: { key: string };
-  gate: string | null; // 런이 서 있는 게이트 — 카드 판정의 재료
-  node: string | null; // 런이 서 있는 노드. 게이트에 서 있거나 런이 닫혔으면 null
-  dispatched: boolean; // 현재 node를 디스패치하는 에이전트의 열린 run이 있는가. 담당 dev와 다를 수 있다.
+  gate: string | null;
+  node: string | null;
+  dispatched: boolean;
 };
 type Tone = "pending" | "active" | "done" | "hold" | "muted";
 
@@ -35,14 +35,12 @@ function dayTag(proposedOn: Date, today: Date): string {
 
 export function firstSentence(text: string): string {
   const trimmed = text.trim();
-  // board.ts 내부의 마침표는 문장 끝이 아니다 — 뒤에 공백이나 문자열 끝이 있어야 한다.
   const match = /^([\s\S]*?[.!?])(\s|$)/.exec(trimmed);
   return match?.[1] ?? trimmed;
 }
 
 function summaryLine(row: BoardRow): string {
   const source = row.results.length > 0 ? row.results.join(" ") : row.reason;
-  // 빈 요약은 key를 본문에도 표시한다.
   return firstSentence(source) || row.backlogItem.key;
 }
 
@@ -53,7 +51,6 @@ function activityItem(row: BoardRow, today: Date): ActivityItem {
     pipelineName: row.pipelineName ?? "Default",
     key: row.backlogItem.key,
     status: row.status,
-    // 합치거나 첫 문장으로 줄이기 전에 건별 원문 길이를 잰다.
     overBudget: isOverBudget([row.reason, ...row.results]),
   };
   switch (row.status) {
@@ -69,8 +66,6 @@ function activityItem(row: BoardRow, today: Date): ActivityItem {
         tone: "pending",
       };
     }
-    // 게이트를 열자마자 이 상태가 된다. 사람이 세션을 돌리기 전까지 아무도 그 일을 하고 있지 않다 —
-    // 배너와 같은 판정을 쓴다. tone도 pending이다: 보드에서 움직이는 것처럼 보이면 안 된다.
     case "planning":
       return row.dispatched
         ? { ...item, line: "writing the plan", tone: "active" }
@@ -93,19 +88,14 @@ function pmState(rows: readonly BoardRow[]): string {
   return pending > 0 ? `${pending} awaiting your approval` : "No new proposals";
 }
 
-// 검증자는 보드의 담당 agent가 아니므로 프로젝트 전체에서 verify 노드에 선 항목을 본다.
-// 상태(in_review)로 판단하면 검증 전·검증 중·검증이 끝나고 게이트에서 기다리는 동안이 전부
-// "Verifying"이 된다. 자리는 상태가 아니라 런의 커서가 말한다 — workerState와 같은 규칙.
 function verifierState(rows: readonly BoardRow[]): string {
   const atVerify = rows.filter((row) => row.node === "verify" && row.status !== "on_hold");
   const working = atVerify.find((row) => row.dispatched);
   if (working) return `Verifying ${working.backlogItem.key}`;
-  // 디스패치 전이면 그 사람은 일하는 중이 아니라 불리기를 기다린다.
   const queued = atVerify[0];
   return queued ? `Ready for ${queued.backlogItem.key}` : "Idle";
 }
 
-// 같은 우선순위 안에서는 서버가 반환한 최신 순서를 따른다.
 function workerState(agent: string, rows: readonly BoardRow[]): string {
   const mine = rows.filter((row) => row.agent === agent);
   if (mine.some((row) => row.status === "in_review")) return "Awaiting review";
@@ -115,7 +105,6 @@ function workerState(agent: string, rows: readonly BoardRow[]): string {
     && dispatcherFor(row.node, row.agent) === agent);
   const working = atWorkspaceNode.find((row) => row.dispatched);
   if (working) return `Working on ${working.backlogItem.key}`;
-  // 디스패치 전이면 그 사람은 일하는 중이 아니라 불리기를 기다린다.
   const queued = atWorkspaceNode[0];
   if (queued) return `Ready for ${queued.backlogItem.key}`;
   if (mine.some((row) => row.status === "on_hold")) return "On hold";
@@ -134,8 +123,6 @@ function teamState(agent: string, rows: readonly BoardRow[]): string {
   return workerState(agent, rows);
 }
 
-// rows는 latestBoard가 고른 최신 행들이다. Activity만 gate 우선으로 배치하고,
-// Team은 원래 서버 순서를 유지해야 같은 우선순위의 최신 항목을 선택한다.
 export function buildBriefing(
   rows: readonly BoardRow[],
   today: Date,
@@ -150,7 +137,6 @@ export function buildBriefing(
     if (row.gate !== null) gateItems.push(item);
     else otherItems.push(item);
   }
-  // 현재 그래프의 노드가 디스패치하는 에이전트만, 그래프 순서로 — plan·implement는 roster(항목의 dev), accept는 main-loop(디스패치 아님).
   const agentsOf = (kind: string): readonly string[] => {
     if (kind === "plan" || kind === "implement") return roster;
     const agent = slotAgent(kind);

@@ -1,4 +1,3 @@
-// Scripted bursts through the current MCP callbacks. Domain IO is a fixture, not production traffic.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import type { McpServer } from "@modelcontextprotocol/server";

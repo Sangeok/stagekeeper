@@ -16,15 +16,11 @@ type Props = {
   steps: NextStep[];
   client: RuntimeClient;
   onClientChange: (client: RuntimeClient) => void;
-  // 살아 있는 실행기가 이미 세션을 돌리면 "watch를 켜 두라"는 줄은 맞지 않는다(product-copy §5).
   showWatch?: boolean;
-  // 실행기 행이 아예 없을 때만: 옛 플러그인의 watch는 서버에 보이지 않는다는 한 줄.
   showRunnerHint?: boolean;
-  // 그 한 줄 아래, Free 플랜일 때만: background runner는 Pro에서 열린다(B-5).
   showFreeLine?: boolean;
 };
 
-// 터미널로 돌아가는 다리. 이 상자만 에이전트 차례에도 --mine을 쓴다 — 복사는 사람의 동작이다.
 export function NextStepContent({ steps, client, onClientChange, showWatch = true, showRunnerHint = false, showFreeLine = false }: Props): ReactElement | null {
   if (steps.length === 0) return null;
   const [before, ...rest] = WATCH_LINE.split(WATCH_COMMAND);

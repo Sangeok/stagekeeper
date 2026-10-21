@@ -1,6 +1,3 @@
-// 실행기 보고 경로(POST /api/runner). 주체 판정 → 프로젝트 접근 → 요청 제한 → 본문 검사 → 서비스 호출.
-// DB 작업을 주입받아 인증 실패가 쓰기를 막는지 DB 없이 검증한다(runbook-handler.ts와 같은 모양).
-// MCP 도구가 아닌 REST다 — MCP 도구는 모든 에이전트 모델의 도구 목록에 보이고, 모델이 lease를 건드릴 이유가 없다.
 import {
   RUNNER_BRANCH_MAX, RUNNER_HOST_MAX, RUNNER_LOG_MAX, RUNNER_MODES, RUNNER_PERMISSIONS, RUNNER_RESULT_MAX,
   RUNNER_STOP_REASONS, RUNNER_WAIT_REASONS,
@@ -22,7 +19,6 @@ export type RunnerDeps = RestTokenDeps & {
 };
 
 const SESSION_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-// 같은 키를 op마다 따로 적는다. 표를 벗어난 키는 400이다 — 오타가 조용히 무시되지 않게 한다.
 const KEYS = {
   start: ["mode", "host", "branch", "permission", "autostart", "takeover"],
   beat: ["state", "waitReason", "lastResult", "lastLog"],
@@ -38,7 +34,6 @@ const optional = <T>(body: Record<string, unknown>, key: string, check: (value: 
 const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
 const isLogName = (value: unknown): value is string => text(value, RUNNER_LOG_MAX) && !/[\\/]/.test(value);
 
-// 표(A-3) 그대로의 본문만 받는다. 맞지 않으면 null.
 export function parseRunnerRequest(body: unknown): RunnerOp | null {
   if (!isRecord(body) || !oneOf(["start", "beat", "stop"] as const, body.op)) return null;
   const op = body.op;
@@ -61,7 +56,6 @@ export function parseRunnerRequest(body: unknown): RunnerOp | null {
     const lastResult = optional(body, "lastResult", (value): value is string => text(value, RUNNER_RESULT_MAX));
     const lastLog = optional(body, "lastLog", isLogName);
     if (state === undefined || waitReason === undefined || lastResult === undefined || lastLog === undefined) return null;
-    // 대기 이유는 대기일 때만, 그리고 대기면 반드시 있다.
     if ((state === "waiting") !== (waitReason !== null)) return null;
     return { op, session, state, waitReason, lastResult, lastLog };
   }
@@ -69,7 +63,6 @@ export function parseRunnerRequest(body: unknown): RunnerOp | null {
   return { op, session, reason: body.reason };
 }
 
-// hu_ 전용. 빈 문자열은 슬러그가 아니므로 없는 것으로 친다 — PROJECT_REQUIRED가 고치는 법을 말한다.
 const projectOf = (body: unknown): string | null => {
   if (!isRecord(body) || typeof body.project !== "string" || body.project.length === 0) return null;
   return body.project;
@@ -94,8 +87,6 @@ export function makeRunnerRequest(deps: RunnerDeps): RunnerRequest {
   };
 }
 
-// restFailureResponse는 error만 남기고 code·holder를 버린다(failureBody). 실행기 CLI는 code로 갈래를 고르므로
-// 이 경로는 본문을 그대로 만든다. 429만 기존 모양(code RATE_LIMITED, retryAfterSec, Retry-After)을 따른다.
 export function runnerResponse(result: RunnerRequestResult): Response {
   if (result.ok) return Response.json(result.body);
   if (result.code === "RATE_LIMITED") {

@@ -9,8 +9,6 @@ import { DisconnectedProjectBanner } from "@/fsd/features/manage-project-connect
 import { saveRunnerPaused } from "@/fsd/features/pause-runner/index.server";
 import { prisma } from "@/server/db";
 
-// 탭 셸 + 턴 배너. 인가는 각 page와 서버 액션이 자기 requireProjectOwner로 한다.
-// 배너·머리의 읽기는 각 위젯의 server adapter가 소유한다 — 여기는 조합만 한다.
 export default async function ProjectLayout({ children, params }: LayoutProps<"/p/[slug]">) {
   const { slug } = await params;
   const { userId, projectId } = await requireProjectOwner(slug);

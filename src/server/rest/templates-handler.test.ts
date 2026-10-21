@@ -156,7 +156,6 @@ describe("templatesFor", () => {
         "agents/dev.md": agentStub,
         "agents/pm.md": agentStub,
         "agents/feature-scout.md": agentStub,
-        // 런북은 한 판이다 — 플랜 차이(검증자·감사자 유무)는 파이프라인 그래프가 진다(deliver.mjs).
         "CLAUDE.runbook.md": "Full runbook",
         "docs/plans/README.md": "Plan documentation",
       },
@@ -196,7 +195,6 @@ describe("templatesFor", () => {
   });
 });
 
-// hu_ — 프로젝트가 토큰이 아니라 ?project=<slug>에서 온다.
 describe("templatesFor with a user token", () => {
   const user = newToken("user");
   const userHeader = `Bearer ${user.plain}`;
@@ -208,7 +206,6 @@ describe("templatesFor with a user token", () => {
     };
     const deps: TemplateDeps = {
       requestLimit: async () => null,
-      // hs_ 조회는 접두에서 이미 갈렸으므로 닿으면 안 된다.
       findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
       findUserTokenByHash: async () => (options.userRecord === undefined ? userRecord : options.userRecord),
       projectFor: async (slug, userId) => {
@@ -231,7 +228,6 @@ describe("templatesFor with a user token", () => {
     assert.deepEqual(calls.projectIds, ["project-1"]);
   });
 
-  // 슬러그 없는 옛 harness.json이 이 오류의 주된 원인이다 — 문장이 고치는 법을 들고 있어야 한다.
   it("returns 401 naming the fix when no project is given, without looking anything up", async () => {
     const { templatesFor, calls } = userSetup();
 
@@ -264,7 +260,6 @@ describe("templatesFor with a user token", () => {
     }
   });
 
-  // hu_를 주입하지 않은 배포에서는 hu_가 아예 존재하지 않는 것처럼 굴어야 한다.
   it("refuses the token outright where the hu_ lookups are not injected", async () => {
     const { templatesFor, calls } = setup();
 

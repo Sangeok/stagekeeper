@@ -9,7 +9,6 @@ else result.pipelineId satisfies string;
 const input: unknown = {};
 validateDefinition(input, 'pro');
 
-// compile-only: 실제 호출부와 같은 공개 선언을 검사한다. Node 런타임 테스트가 아니다.
 type Assert<T extends true> = T;
 type Accepts<T> = T extends NodeFacts["validation"] ? true : false;
 

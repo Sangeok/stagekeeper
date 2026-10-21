@@ -12,7 +12,6 @@ export default async function Page({ params }: PageProps<"/p/[slug]/tokens">) {
   const select = { id: true, label: true, createdAt: true, revokedAt: true, expiresAt: true, lastUsedAt: true, usageTrackingStartedAt: true };
   const [tokens, ownerTokens, access] = await Promise.all([
     prisma.projectToken.findMany({ where: { projectId }, select, orderBy: { createdAt: "desc" } }),
-    // 소유자 토큰은 보는 사람 자신의 것만 — 다른 사용자의 자격은 목록에도 오르지 않는다.
     prisma.ownerToken.findMany({ where: { projectId, userId }, select, orderBy: { createdAt: "desc" } }),
     projectAccess(projectId),
   ]);

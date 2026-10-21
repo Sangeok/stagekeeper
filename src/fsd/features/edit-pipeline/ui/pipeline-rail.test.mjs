@@ -29,7 +29,6 @@ it("keeps required labels structural when editing is unavailable", () => {
 it("says on hover what each gate card means, on read-only plans too", () => {
   const definition = { steps: ["plan", "implement", "accept"], gates: ["before-plan", "before-implement"] };
   const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, definition, editable: false }));
-  // 칩이 아니라 카드 전체(바깥 div)에 붙는다 — 카드 어디에 올려도 보여야 한다.
   const titles = [...html.matchAll(/<div[^>]*\btitle="([^"]*)"[^>]*>(?:(?!<\/div>).)*?Gate · you/gs)].map((m) => m[1]);
   assert.deepEqual(titles, [
     "The item waits here until you press Request plan in the Inbox. Requesting lets dev write a plan. Then continue in your coding client. Nothing changes in the code yet.",

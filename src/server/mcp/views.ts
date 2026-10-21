@@ -15,7 +15,6 @@ export function backlogWithStatusView(row: BacklogWithStatusView): BacklogWithSt
   return { ...backlogView(row), status: row.status };
 }
 
-// Keep board history while projecting nested backlog data through the same boundary.
 export function boardWithBacklogView<T extends { backlogItem: BacklogView }>(row: T): Omit<T, "backlogItem"> & { backlogItem: BacklogView } {
   return { ...row, backlogItem: backlogView(row.backlogItem) };
 }

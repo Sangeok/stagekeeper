@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// 창 없는 상주 실행기(/harness:background). 한 줄 JSON을 내고 끝나는 watch CLI와 진입점을 나눈다(제안서 B-1).
-// 사람에게 보일 문장은 JSON 앞 줄에 쓰고, 마지막 줄은 늘 JSON 하나다.
 import { execFileSync, spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, createWriteStream, existsSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
@@ -94,7 +92,6 @@ function parseArguments(argv) {
   if ((op === "run") !== Boolean(options.session)) refuse("invalid-arguments");
   if (options.takeover && op !== "start") refuse("invalid-arguments");
   if (options["from-autostart"] && op !== "start") refuse("invalid-arguments");
-  // interval·run-limit은 격리 시험용이다(watch의 소수 timing과 같다).
   const timing = (name, fallback, unit) => {
     if (options[name] === undefined) return fallback;
     const value = Number(options[name]);
@@ -108,7 +105,6 @@ function git(root, args) {
   return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
 }
 
-// 작업 트리의 브랜치와 미커밋 경로. 대기 중에는 60초마다 돌므로 index.lock을 잡지 않는다.
 function treeState(root) {
   const head = git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
   const branch = head === "HEAD" ? null : head;
@@ -117,7 +113,6 @@ function treeState(root) {
   return { branch, current, dirty };
 }
 
-// pushurl을 따로 둔 원격. 환경 차단(pushInsteadOf)이 그 원격에는 듣지 않는다(결정 B1).
 function pushUrlRemotes(root) {
   let output;
   try { output = git(root, ["config", "--get-regexp", "^remote\\..*\\.pushurl$"]); }
@@ -138,7 +133,6 @@ function claudeCommand() {
 
 const powershell = () => path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
 
-// `claude -p` 하나를 띄운다. Windows에서는 job 런처를 거친다(결정 B3): 상주 프로세스나 런처가 죽으면 트리 전체가 끝난다.
 function spawnClaude({ root, args, env, claude, requestFile, onLine, log }) {
   let child;
   if (process.platform === "win32") {
@@ -148,7 +142,6 @@ function spawnClaude({ root, args, env, claude, requestFile, onLine, log }) {
       path.join(PLUGIN_ROOT, "runtime", "windows", "job-launch.ps1"), "-RequestPath", requestFile],
     { cwd: root, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
   } else {
-    // 자기 프로세스 그룹. 끝낼 때 그룹 전체에 보낸다.
     child = spawn(claude.command, [...claude.prefix, ...args], { cwd: root, env, stdio: ["ignore", "pipe", "pipe"], detached: true });
   }
   let pending = "";
@@ -172,12 +165,11 @@ function spawnClaude({ root, args, env, claude, requestFile, onLine, log }) {
     try {
       if (process.platform === "win32") child.kill();
       else process.kill(-child.pid, "SIGKILL");
-    } catch { /* 이미 끝났다 */ }
+    } catch {   }
   };
   return { child, done, end };
 }
 
-// 실제 권한 모드. init 메시지가 오면 바로 끝내 모델 요청 전에 멈춘다(제안서 B-3 "auto를 쓸 수 없는 계정").
 async function probePermission(root, settings, env, directory) {
   const claude = claudeCommand();
   const run = { permissionMode: null };
@@ -191,19 +183,16 @@ async function probePermission(root, settings, env, directory) {
   const timer = setTimeout(() => probe.end(), PROBE_LIMIT);
   await probe.done;
   clearTimeout(timer);
-  try { unlinkSync(path.join(directory, "probe.launch.json")); } catch { /* 없다 */ }
+  try { unlinkSync(path.join(directory, "probe.launch.json")); } catch {   }
   if (!run.permissionMode) refuse("claude-failed");
   return run.permissionMode === "auto" ? "auto" : "allowlist";
 }
 
-// 끝날 때까지 기다릴 수 있게 promise를 돌려준다. 종료 직전의 알림은 기다려야 한다 — Node가 끝나면 Node의 job이
-// 일반 자식(이 PowerShell)까지 끝낸다.
 function notify(directory, notice) {
   backgroundLog(directory, `notice ${notice.kind}: ${notice.title} — ${notice.body}`);
   const file = process.env.STAGEKEEPER_TEST_NOTIFY_FILE;
   if (file) { appendFileSync(file, JSON.stringify(notice) + "\n"); return Promise.resolve(); }
   if (process.platform !== "win32") return Promise.resolve();
-  // 상주 프로세스의 일반 자식으로, 창을 숨겨 띄운다. PowerShell 5.1은 detached로 띄우면 아무것도 하지 않는다(spike).
   const child = spawn(powershell(), ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File",
     path.join(PLUGIN_ROOT, "runtime", "windows", "notify.ps1"), "-Title", notice.title, "-Body", notice.body],
   { stdio: "ignore", windowsHide: true });
@@ -221,7 +210,7 @@ function backgroundLog(directory, line) {
     const file = path.join(directory, "background.log");
     if (existsSync(file) && statSync(file).size > BACKGROUND_LOG_MAX) renameSync(file, file + ".1");
     appendFileSync(file, `${now()} ${line}\n`);
-  } catch { /* 기록 실패는 실행을 멈추지 않는다 */ }
+  } catch {   }
 }
 
 const statusFile = directory => path.join(directory, "background.json");
@@ -237,7 +226,7 @@ function pruneRuns(runs) {
   for (const name of names.slice(0, Math.max(0, names.length - RUN_LOG_KEEP))) {
     const id = name.slice(0, -".jsonl".length);
     for (const suffix of [".jsonl", ".meta.json", ".stderr.txt", ".launch.json"]) {
-      try { unlinkSync(path.join(runs, id + suffix)); } catch { /* 없다 */ }
+      try { unlinkSync(path.join(runs, id + suffix)); } catch {   }
     }
   }
 }
@@ -252,13 +241,11 @@ function connection(root, options) {
   return input;
 }
 
-// 죽은 상주 실행기가 남긴 잠금인가. 그 자식(job 런처)도 함께 끝났다 — Node의 job과 런처의 kill-on-close(spike).
 function staleResident(state) {
   return state.lock.mode === "resident" && !(state.lock.poller && isAlive(state.lock.poller.pid))
     && (state.lock.children ?? []).every(child => !isAlive(child.pid));
 }
 
-// 시작 검사(B-1). preflight와 start가 같은 검사를 한다 — 스킬이 본 뒤 사용자가 명령을 실행하기까지 상태가 바뀔 수 있다.
 async function startChecks(location, files, options) {
   const input = connection(location.root, options);
   const tree = treeState(location.root);
@@ -322,7 +309,6 @@ async function start(location, files, options) {
     await withGuard(files, () => { if (readState(files)?.lock.id === session) clearState(files); });
     if (result.kind === "busy") refuse("busy", { host: result.holder.host, time: result.holder.seenAt });
     if (result.kind === "plan") refuse("plan");
-    // 표시 없이 무인으로 돌지 않게 404 서버에서는 시작하지 않는다(B-1).
     if (result.kind === "missing") refuse("no-route");
     if (result.kind === "transient") refuse("request-failed");
     refuse("request-failed");
@@ -336,7 +322,6 @@ async function start(location, files, options) {
     ...(options.runLimit !== RUN_LIMIT_MS ? ["--run-limit", String(options.runLimit / 60_000)] : [])],
   { detached: true, stdio: ["ignore", out, out], windowsHide: true, env: process.env });
   resident.unref();
-  // 상주 프로세스가 poller로 자리 잡을 때까지 기다린다. 그 전에 끝나면 잠금과 서버 행을 거두고 이유를 알린다.
   const expires = performance.now() + START_WAIT;
   const exited = async () => {
     await withGuard(files, () => {
@@ -376,7 +361,6 @@ async function stop(files) {
     atomicWrite(files.lock, state.lock);
     return { event: "stopping", session: state.lock.id };
   });
-  // 상주 프로세스가 이미 없으면 서버 행도 소유자 정지로 지운다. 실패해도 로컬 해제는 끝났다.
   if (stopped && nonempty(process.env.HARNESS_TOKEN)) {
     await runnerCallWithin({ server: stopped.binding.server, token: process.env.HARNESS_TOKEN, project: stopped.binding.project },
       { op: "stop", session: stopped.id, reason: "owner" }, REQUEST_TIMEOUT);
@@ -401,7 +385,6 @@ function status(files) {
     autostart: autostart ? { registered: true, branch: autostart.branch, propose: autostart.propose, pluginMatches: autostart.pluginRoot === PLUGIN_ROOT } : { registered: false } };
 }
 
-// 사용자 범위 환경 변수에 저장된 값(로그온 작업이 읽는 값). 값은 메모리 밖으로 내보내지 않는다.
 function userEnvironment(name) {
   try {
     const output = execFileSync("reg", ["query", "HKCU\\Environment", "/v", name], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
@@ -445,11 +428,10 @@ function autostartOff(location, files) {
   try { result = autostartScript(["-Action", "unregister", "-TaskName", autostartTask(location.root)]); }
   catch { refuse("autostart-failed"); }
   if (result?.ok !== true) refuse("autostart-failed");
-  try { unlinkSync(autostartFile(files.directory)); } catch { /* 없다 */ }
+  try { unlinkSync(autostartFile(files.directory)); } catch {   }
   return { event: "autostart", registered: false };
 }
 
-// --run: 상주 프로세스 본체. 시작 CLI가 detached로 띄운다.
 async function resident(location, files, options) {
   const directory = files.directory;
   const session = options.session;
@@ -485,7 +467,7 @@ async function resident(location, files, options) {
         const state = readState(files);
         if (state?.lock.id === session) { state.lock.seenAt = now(); atomicWrite(files.lock, state.lock); }
       });
-    } catch { /* 잠금 갱신 실패는 신호를 막지 않는다 */ }
+    } catch {   }
     return runnerCallWithin(target, { op: "beat", session, ...payload }, REQUEST_TIMEOUT);
   };
   const startRun = () => {
@@ -508,7 +490,7 @@ async function resident(location, files, options) {
       await registered;
       await new Promise(resolve => stream.end(resolve));
       await settleChild(files, session, owned).catch(() => {});
-      try { unlinkSync(path.join(runs, `${id}.launch.json`)); } catch { /* 없다 */ }
+      try { unlinkSync(path.join(runs, `${id}.launch.json`)); } catch {   }
       if (exit.stderr.trim()) writeFileSync(path.join(runs, `${id}.stderr.txt`), exit.stderr);
       const meta = { startedAt, endedAt: now(), exitCode: exit.exitCode, permissionMode: run.permissionMode, result: run.result, endedFor };
       meta.line = classifyRun({ ...meta }).line;
@@ -574,7 +556,6 @@ async function main() {
     const code = error instanceof Refusal ? error.code : error?.code && REASONS[error.code] ? error.code : "corrupt-state";
     const reason = error instanceof Refusal ? error.message : REASONS[code];
     event = { event: "error", code, reason };
-    // 로그온 자동 시작에는 사람이 없다 — 거절을 알림과 로그로 남긴다.
     if (options?.["from-autostart"] && directory) await notify(directory, fillNotice("startRefused", { reason }));
     if (options?.op === "start" && directory) backgroundLog(directory, `start refused: ${code}`);
   }

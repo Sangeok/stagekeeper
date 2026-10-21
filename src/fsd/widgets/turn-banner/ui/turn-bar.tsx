@@ -1,7 +1,6 @@
 import { cn } from "@/fsd/shared/lib/class-name";
 import type { Turn } from "../model/turn";
 
-// 뷰포트 맨 위 2px. 차례가 색이다: 내 차례 = mine, 에이전트 차례 = ink, 없음·설정 중 = 헤어라인.
 const COLOR: Record<Turn["kind"], string> = {
   mine: "bg-mine",
   theirs: "bg-ink",

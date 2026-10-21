@@ -67,13 +67,10 @@ it("refuses malformed runtime provenance and PM execution", async t => {
 
 async function nativeFixture(t) {
   const f = fixture(t), directory = path.join(f.base, "command");
-  // As in a real snapshot, files written after preparation inherit the role grant.
   await mkdir(directory); const prepared = await prepareNativeRoot(directory);
   writeFileSync(path.join(directory, "repo/read.txt"), "READ_CANARY");
   return { ...f, directory, prepared };
 }
-// Outer host kernel acceptance cannot recursively create another privileged
-// launcher inside an already isolated role snapshot. Its skipped status is visible.
 const native = { skip: process.platform !== "win32" || process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1", timeout: 120000 };
 
 it("uses actual LPAC file denial and leaves the original repository unchanged", native, async t => {
@@ -104,17 +101,12 @@ it("refuses an external junction and safely cleans a later junction without chan
   const f = await nativeFixture(t), aclScript = path.join(f.base, "read-acl.ps1");
   writeFileSync(aclScript, 'param([string]$Target)\n$ErrorActionPreference = "Stop"\n(Get-Acl -LiteralPath $Target).Sddl\n');
   const powershell = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32/WindowsPowerShell/v1.0/powershell.exe");
-  // A PowerShell 7 PSModulePath (pwsh CI steps) makes Windows PowerShell fail to
-  // load Get-Acl and print nothing, so every comparison below would pass vacuously.
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toLowerCase() !== "psmodulepath"));
   const originalAcl = () => execFileSync(powershell, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", aclScript, f.root], { encoding: "utf8", windowsHide: true, env }).trim();
   const before = originalAcl(); assert.match(before, /^O:.+D:/);
   const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: `mklink /J alias "${f.root}" & type alias\\src\\source.cjs`, cwd: "", timeoutMs: 2000 });
   assert.equal(result.quiescent, true); assert.notEqual(result.exitCode, 0); assert.equal(existsSync(path.join(f.directory, "repo/alias")), false);
   assert.equal(result.stdout.includes("module.exports"), false); assert.equal(originalAcl(), before);
-  // The kernel denied the role's link creation. Introduce a link only after the
-  // termination acknowledgement to independently exercise owner-side deletion.
-  // Never grant ACLs recursively over a tree that already contains this link.
   symlinkSync(f.root, path.join(f.directory, "repo/alias"), "junction");
   assert.ok(path.relative(f.base, f.directory) === "command"); await rm(f.directory, { recursive: true });
   assert.equal(readFileSync(path.join(f.root, "src/source.cjs"), "utf8"), "module.exports = 42;\n"); assert.equal(originalAcl(), before);
@@ -183,7 +175,6 @@ it("grants the role SID only on empty roots and refuses a launch whose prepared 
   await assert.rejects(runNativeCommand({ root: mismatched, ...first, sid: second.sid, command: "type read.txt", cwd: "", timeoutMs: 2000 }), /profile-sid/);
   const result = await runNativeCommand({ root: accepted, ...second, command: "type read.txt", cwd: "", timeoutMs: 2000 });
   assert.equal(result.stdout, "READ_CANARY");
-  // Each helper launch writes its sources into its root with "wx", so every refusal uses its own root.
   for (const directory of [populated, unprepared, invalid]) for (const name of ["repo", "scratch", "runtime"]) await mkdir(path.join(directory, name), { recursive: true });
   writeFileSync(path.join(populated, "repo/early.txt"), "EARLY");
   await assert.rejects(runNativeCommand({ mode: "prepare", root: populated, profile: first.profile, command: "prepare", cwd: "", timeoutMs: 10000 }), /prepare-empty/);
@@ -210,7 +201,6 @@ it("passes real pipe/network/path preflight and runs npm test/build on a fresh s
     const first = await broker.call("role_command_exec", { command: "npm run test && npm run build" });
     assert.equal(first.exitCode, 0); assert.equal(first.status, "exited"); assert.match(first.stdout, /BUILD_READY/);
     assert.equal(first.originalRepositoryWrites, false); assert.equal(first.snapshotWrites, "discarded"); assert.equal(existsSync(path.join(f.root, "built.txt")), false);
-    // Durations vary by machine; only their contract holds: monotonic laps and a non-negative Stopwatch.
     for (const name of ["grantMs", "snapshotMs", "scratchMs", "runtimeMs", "commandMs"]) assert.ok(Number.isInteger(first.timings[name]) && first.timings[name] >= 0, name);
     assert.ok(Number.isInteger(first.aclMs) && first.aclMs >= 0, "aclMs");
     const source = path.join(f.root, "src/source.cjs"); f.files.call("role_file_write", { path: source, expectedHash: digest(readFileSync(source)), content: "module.exports = 41;\n" });

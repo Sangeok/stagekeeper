@@ -127,7 +127,6 @@ function assertNoMutation(fixture: ReturnType<typeof guardFixture>) {
 }
 
 function callAction(target: ActionCase, fixture: ReturnType<typeof guardFixture>, slug: unknown) {
-  // Deliberately cross the transport boundary with unknown input; names come from public APIs.
   const loaded = loadModule<Record<ActionName, (...args: unknown[]) => Promise<unknown>>>(target.file, fixture.dependencies);
   return loaded[target.name](slug, ...target.args());
 }
@@ -253,7 +252,6 @@ for (const leaf of routeFiles) {
     const ast = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     for (const scenario of ["malformed", "guest", "foreign", "missing"] as const) {
       const fixture = guardFixture(scenario === "guest" ? { session: "guest" } : scenario === "foreign" || scenario === "missing" ? { project: scenario } : {});
-      // No UI or data export may be called on the denied path. React itself remains real.
       const dependencies: Record<string, unknown> = {};
       const unexpected = () => assert.fail(`protected content ran before authorization: ${leaf}`);
       for (const node of ast.statements) {

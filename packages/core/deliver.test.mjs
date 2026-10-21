@@ -41,13 +41,11 @@ describe("deliverable", () => {
     const d = deliverable(ROWS, "max");
     assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/doc-auditor.md", "agents/feature-scout.md", "agents/plan-verifier.md", "agents/pm.md", "docs/plans/README.md"]);
     for (const a of ["pm", "plan-verifier", "doc-auditor", "feature-scout", "dev"]) assert.doesNotMatch(d.templates[`agents/${a}.md`], /## step:/, a);
-    assert.match(d.templates["agents/dev.md"], /\{\{ws\.agent\}\}/); // 스텁은 클라이언트가 렌더한다
+    assert.match(d.templates["agents/dev.md"], /\{\{ws\.agent\}\}/);
     assert.equal(d.templates["CLAUDE.runbook.md"], "## Harness\nfull pipeline\n");
     assert.equal(d.templates["docs/plans/README.md"], "# Plans\n");
     assert.deepEqual(d.entitlement, { plan: "max", agents: REPORT_AGENTS });
   });
-  // free도 **전체 런북**을 받는다(아래 CLAUDE.runbook.md 단언이 확인한다). 옛 free 변형은
-  // ROWS에 시드돼 있어도 deliverable이 걸러낸다 — 플랜 차이는 런북이 아니라 그래프가 진다.
   it("free: plan-verifier and doc-auditor stubs are left out; the runbook is the single full one, not a free variant", () => {
     const d = deliverable(ROWS, "free");
     assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/feature-scout.md", "agents/pm.md", "docs/plans/README.md"]);

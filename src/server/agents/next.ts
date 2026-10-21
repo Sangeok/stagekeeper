@@ -9,21 +9,17 @@ import type { PipelineEntry } from "@/server/pipeline/contracts";
 import { DONE, TemplateFormatError, findStep, splitTemplate } from "@/server/templates/api";
 import { type ParsedTemplate, type Step } from "@/server/templates/contracts";
 
-// handoff: 커밋 권한이 없어 멈췄다 — 전진·분기 없이 원장에 남고 자리에 머문다. 배너가 이 행을 읽는다.
 export const OUTCOMES = ["ok", "blocked", "failed", "handoff"] as const;
 export type Outcome = (typeof OUTCOMES)[number];
 
 export const NOTE_MAX = 500;
-// 영수증 revision의 상한 — AgentRun.revision은 Postgres Int(int4)다.
 export const REVISION_MAX = 2_147_483_647;
-export const REFUSAL_WARN_AT = 10; // 한 run에서 이만큼 거부되면 console.warn — 상태를 바꿔가며 본문을 캐는 신호
-const MAX_OPEN = 2; // transitions.mjs canPropose의 상한. 거부 문구에만 쓴다
+export const REFUSAL_WARN_AT = 10;
+const MAX_OPEN = 2;
 
-// agent_next의 MCP 입력 스키마(tools.ts)도 이 스키마를 쓴다. 규칙은 여기 한 곳에만 둔다.
 export const receiptSchema = z.object({ runId: z.string().min(1), revision: z.number().int().min(0).max(REVISION_MAX), stepId: z.string().min(1) });
 export type Receipt = z.infer<typeof receiptSchema>;
 
-// 이 함수는 MCP 스키마를 거치지 않는 호출자도 받는다.
 export function isWellFormedReceipt(receipt: Receipt | undefined): receipt is Receipt {
   return receiptSchema.safeParse(receipt).success;
 }
@@ -40,16 +36,16 @@ export type CommitResult = { kind: "accepted"; run: RunRow; refused: number } | 
 export type NextDeps = {
   withCursor?(scope: Scope, input: NextInput, key: string | null, work: (deps: NextDeps) => Promise<ServerResult<NextOutput>>): Promise<ServerResult<NextOutput>>;
   access(projectId: string): Promise<ProjectAccess>;
-  roster(projectId: string): Promise<string[]>; // Workspace.agent[] — wsId 순
-  template(projectId: string, path: string, client?: Client): Promise<string | null>; // Codex selects a complete bundle; Claude preserves per-file fallback.
+  roster(projectId: string): Promise<string[]>;
+  template(projectId: string, path: string, client?: Client): Promise<string | null>;
   vars(projectId: string, agent: string, client?: Client): Promise<Record<string, unknown>>;
   usageCap(projectId: string): Promise<UsageLimitFailure | null>;
   openRun(projectId: string, agent: string, key: string | null): Promise<RunRow | null>;
   createRun(scope: Scope, agent: string, key: string | null, stepId: string): Promise<ServerResult<RunRow>>;
-  boardStatus(projectId: string, key: string): Promise<string | null>; // 폐기되지 않은 최신 행의 상태
-  itemAgent(projectId: string, key: string): Promise<string | null>; // 그 행에 배정된 에이전트. 행이 없으면 null
+  boardStatus(projectId: string, key: string): Promise<string | null>;
+  itemAgent(projectId: string, key: string): Promise<string | null>;
   openCount(projectId: string): Promise<number>;
-  verifyOk(projectId: string, agent: string, key: string | null): Promise<boolean>; // 같은 (project, agent, key)의 어느 run이든 verify/ok 기록
+  verifyOk(projectId: string, agent: string, key: string | null): Promise<boolean>;
   runByReceipt(projectId: string, agent: string, key: string | null, runId: string): Promise<RunRow | null>;
   commitOutcome(input: OutcomeCommit): Promise<CommitResult>;
   closeRun(run: RunRow): Promise<void>;
@@ -58,14 +54,9 @@ export type NextDeps = {
 const fail = (reason: string): ServerResult<never> => ({ ok: false, reason });
 const ok = <T>(item: T): ServerResult<T> => ({ ok: true, item });
 
-// 템플릿이 보드 상태로 단계를 가르면 항목에 묶인 에이전트다 — key가 있어야 그 상태를 볼 수 있다.
 const needsKey = (parsed: ParsedTemplate) =>
   parsed.steps.some((s) => s.requires.some((r) => STATUSES.some(status => status === r) || r === "verify-ok"));
 
-// 새 run이 시작할 수 있는 단계. **실패 분기 전용 단계는 뺀다** — hold처럼 `on failed:`/`on blocked:`로만
-// 닿는 단계는 보통 requires가 없어서, 순서 훑기에 그냥 두면 어떤 보드 상태에서도 열리는 만능 입구가
-// 된다(항목이 proposed인데 hold로 run이 열린다). 실패 분기는 그 실패를 겪은 run만 들어가는 곳이다.
-// `next:`로도 닿는 단계는 정상 경로의 일부이므로 남는다(pm의 report가 그렇다).
 const entrySteps = (parsed: ParsedTemplate): Step[] => {
   const viaNext = new Set(parsed.steps.flatMap((s) => s.next));
   const viaFailure = new Set(parsed.steps.flatMap((s) => [s.onFailed, s.onBlocked].filter((x) => x !== undefined)));
@@ -85,13 +76,6 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   const roster = await deps.roster(projectId);
   if (!REPORT_AGENTS.includes(agent) && !roster.includes(agent)) return fail(`unknown agent: ${agent}`);
   if (!allowsAgent(access.plan, agent, roster)) return fail(`agent \`${agent}\` is not on the ${access.plan} plan`);
-  // 항목 소유 검사.
-  // 프롬프트가 아니라 서버가 강제한다(불변식 4와 같은 방향). 행이 없으면 여기서 말하지 않는다:
-  // requires 판정이 `not open`으로 더 정확히 설명한다.
-  //
-  // **roster의 워크스페이스 에이전트에만 건다.** 보드 행의 agent는 언제나 dev이고, 보고 에이전트는
-  // 그 항목을 **검사하러** key를 들고 온다(plan-verifier의 단계가 requires: in_review라 key가 필수다).
-  // 모든 key 호출에 걸면 검증자가 통째로 막힌다 — 소유는 "누가 이 일을 하느냐"이지 "누가 볼 수 있느냐"가 아니다.
   if (key !== null && roster.includes(agent)) {
     const owner = await deps.itemAgent(projectId, key);
     if (owner !== null && owner !== agent) return fail(`item ${key} belongs to \`${owner}\`, not \`${agent}\``);
@@ -114,7 +98,6 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   if (!needsKey(parsed) && key !== null) return fail(`agent \`${agent}\` takes no key`);
 
   const vars = await deps.vars(projectId, agent, client);
-  // Validate every step before opening/advancing a cursor or charging usage.
   try { parsed = { ...parsed, steps: parsed.steps.map(step => ({ ...step, body: renderTemplate(step.body, vars) })) }; }
   catch (error) { return fail(`template render failed: ${error instanceof Error ? error.message : "invalid variables"}`); }
   const execute = async (deps: NextDeps): Promise<ServerResult<NextOutput>> => {
@@ -125,8 +108,6 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
         receipt: { runId: run.id, revision: run.revision, stepId: run.stepId } });
     };
     const finished = (): ServerResult<NextOutput> => ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });
-    // outcome이 있으면 온전한 영수증이 함께 와야 한다. claim은 그 영수증이고 outcome이 없으면 null —
-    // 아래 분기는 claim으로 하므로 영수증이 있다는 전제를 컴파일러가 안다.
     const { outcome } = input;
     let claim: Receipt | null = null;
     if (outcome) {
@@ -218,7 +199,6 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
 
 const stale = () => fail("stale: the run moved under this call — call again without outcome to see the current step");
 
-// requires 한 항목을 사실과 견주고, 안 맞으면 고정 문구를 돌려준다. 사실은 물을 때만 한 번 읽는다.
 class Facts {
   private status?: Promise<string | null>;
   private open?: Promise<number>;
@@ -245,7 +225,6 @@ class Facts {
       const n = await this.open;
       return canPropose(n) ? null : `fewer than ${MAX_OPEN} items are open (now ${n})`;
     }
-    // 보드 상태. key 없는 에이전트의 템플릿에는 오지 않는다(needsKey가 먼저 막는다)
     this.status ??= this.deps.boardStatus(this.projectId, this.key ?? "");
     const now = await this.status;
     return now === r ? null : `the item is \`${r}\` (now \`${now ?? "not on the board"}\`)`;

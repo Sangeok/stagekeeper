@@ -1,5 +1,3 @@
-// Browser-only acceptance fixture. Real components, explicit controllable action
-// responses and snapshots; never imported by an application route.
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";

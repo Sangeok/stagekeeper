@@ -28,11 +28,10 @@ describe("slugCandidate", () => {
     assert.match(out ?? "", SLUG_RE);
   });
 
-  // null은 "못 만들었다"는 뜻이고 호출부가 fallback으로 푼다 — 규칙을 어긴 슬러그를 내보내지 않는다.
   it("returns null when nothing valid survives", () => {
     assert.equal(slugCandidate(""), null);
     assert.equal(slugCandidate("..."), null);
-    assert.equal(slugCandidate("a"), null); // 최소 2자
+    assert.equal(slugCandidate("a"), null);
   });
 
   it("returns null for a reserved slug so the caller suffixes it", () => {
@@ -45,8 +44,6 @@ describe("availableSlug", () => {
     assert.equal(availableSlug("stagekeeper", new Set()), "stagekeeper");
   });
 
-  // 접미사는 **다른 저장소가 같은 이름일 때만** 쓰인다. 같은 저장소의 재등록은 호출부의 멱등
-  // 조회가 먼저 잡으므로 여기 오지 않는다 — 그 구분이 무너지면 init 재실행이 <repo>-2를 만든다.
   it("suffixes only when the name is genuinely taken by something else", () => {
     assert.equal(availableSlug("stagekeeper", new Set(["stagekeeper"])), "stagekeeper-2");
     assert.equal(availableSlug("stagekeeper", new Set(["stagekeeper", "stagekeeper-2"])), "stagekeeper-3");
@@ -66,7 +63,6 @@ describe("availableSlug", () => {
   });
 
   it("never returns a reserved slug", () => {
-    // "new"는 후보 단계에서 null이 되어 fallback으로 빠진다.
     assert.ok(!RESERVED_SLUGS.has(availableSlug("new", new Set())));
   });
 });

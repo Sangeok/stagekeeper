@@ -1,4 +1,3 @@
-// 라벨과 순서가 entities/board-item 하나에서 오는 것을 고정한다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { toItemDocs } from "./item-docs";
@@ -54,8 +53,8 @@ describe("toItemDocs", () => {
       docs.map((d) => d.label),
       ["Plan", "Validation record", "Implementation report", "Audit report"],
     );
-    assert.equal(docs[0]?.href, "https://github.com/Sangeok/harness-smoke/blob/b72a941/docs/plans/FEAT-02.md"); // planCommit
-    assert.equal(docs[2]?.href, "https://github.com/Sangeok/harness-smoke/blob/2222222/docs/agents/dev/FEAT-02.md"); // 보고는 자기 커밋
+    assert.equal(docs[0]?.href, "https://github.com/Sangeok/harness-smoke/blob/b72a941/docs/plans/FEAT-02.md");
+    assert.equal(docs[2]?.href, "https://github.com/Sangeok/harness-smoke/blob/2222222/docs/agents/dev/FEAT-02.md");
   });
 
   it("falls back to the branch while the plan has no recorded commit", () => {

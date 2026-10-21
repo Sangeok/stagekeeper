@@ -2,7 +2,6 @@ import type { HTMLAttributes } from "react";
 
 import { cn } from "@/fsd/shared/lib/class-name";
 
-// 구역 이름(Activity · Team · Documents). 제목이 아니라 표식이라 작고 조용하다.
 export function SectionLabel({ className, ...rest }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2

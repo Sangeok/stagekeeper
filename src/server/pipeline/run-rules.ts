@@ -1,23 +1,20 @@
-// 순수. DB·프레임워크 없음(board-rules.ts와 같은 층). run.ts가 읽은 사실로 pipeline_next의 답 하나를 정한다.
 import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON, AUTO_PROPOSE_DISABLED_REASON } from "@harness/core/pipeline.mjs";
 import { canPropose } from "@harness/core/transitions.mjs";
 
-// 응답 — 항목 하나의 다음 일. 세션은 이 값을 읽고 그 턴에 행동한다(런북 "The cycle").
 import type { PipelineEntry, GateEntry } from "./run-service";
 import type { UsageLimitFailure } from "@/server/result";
 
 export type PipelineNext =
-  | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string; format: string | null; entry?: PipelineEntry }  // 그 에이전트를 key와 함께 디스패치. hint = 그 노드에서 지켜야 할 한 문장
+  | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string; format: string | null; entry?: PipelineEntry }
   | { key: string; node: string; version: number; action: "wait"; on: "gate"; gate: string; boundary: { from: string; to: string } | null; planCommit: string | null; format: string | null; gateEntry?: GateEntry }
-  | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }  // 커밋 핸드오프(배너와 같은 판정)
+  | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }
   | { key: string; node: string; version: number; action: "wait"; on: "acceptance"; checks: number[]; note: string }
   | { key: string; node: string; version: number; action: "wait"; on: "qa"; note: string; path: string; commit: string; resume: { agent: "qa-verifier"; key: string; format: string | null; entry?: PipelineEntry; agentRunId?: string } }
   | { key: string; node: string; version: number; action: "wait"; on: "impl-verify"; note: string; path: string; commit: string; resume: { agent: "impl-verifier"; key: string; format: string | null; entry?: PipelineEntry; agentRunId?: string } }
   | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string; code: "USAGE_LIMIT_REACHED"; resetAt: string }
-  | { key: string; node: string; version: number; action: "accept"; hint: string }                           // main-loop 본인이 인수 5조건을 재현한다
+  | { key: string; node: string; version: number; action: "accept"; hint: string }
   | { key: string; node: string | null; version: number; action: "done" };
 
-// run.ts(nextFor)가 읽어 넘기는 사실. 어느 질의로 읽는지는 아래 "판정 순서" 문단.
 export type PipelineNextInput = {
   key: string;
   format?: string | null;
@@ -26,17 +23,15 @@ export type PipelineNextInput = {
   acceptanceFailure?: { checks: number[]; note: string } | null;
   qaFailure?: { note: string; path: string; commit: string } | null;
   implVerifyFailure?: { note: string; path: string; commit: string } | null;
-  version: number;                          // PipelineRun.version.version
-  node: string | null;                      // PipelineRun.node. null이면 런이 닫혔다
+  version: number;
+  node: string | null;
   status: string;
   planCommit: string | null;
-  agent: string;                            // BoardItem.agent — plan·implement 노드가 디스패치하는 dev
-  handoff: { note: string | null } | null;  // 열린 dev run의 마지막 원장 행이 handoff면 그 note
+  agent: string;
+  handoff: { note: string | null } | null;
   cap: UsageLimitFailure | null;
 };
 
-// dispatch·accept의 hint — 그 노드에서 지켜야 할 한 문장. product-copy.md §13 표에 같은 문장(run-rules.test.mjs가 고정).
-// 에이전트 정의나 서버가 이미 강제하는 수치(제안 건수 등)는 여기 다시 적지 않는다 — 따라 적은 숫자가 어긋난 적이 있다.
 export const HINT: Record<string, string> = {
   propose: "Dispatch pm with no key.",
   accept: "You run this one — reproduce the five acceptance checks yourself. All pass: write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }). Any fails: record it with acceptance_fail and tell the owner; don't reopen.",
@@ -50,20 +45,13 @@ export const HINT: Record<string, string> = {
   scout: "Dispatch feature-scout with no key; it adds up to three items it has evidence for to the backlog. Append its report to docs/agents/feature-scout/scouting-log.md yourself.",
 };
 
-// 핸드오프가 아직 살아 있는가. 원장의 마지막 단계만 보면 안 된다 — 소유자가 커밋하고 에이전트가 이어서
-// 계획서나 보고를 제출하면 보드 행이 갱신되지만, 그 단계 행은 `handoff`인 채로 남는다. 그 상태에서
-// "그 파일을 커밋하라"를 계속 답하면 이미 커밋한 파일을 다시 커밋하라고 소유자에게 말하게 된다.
-// 그래서 멈춘 시각이 항목의 마지막 쓰기보다 뒤일 때만 살아 있다고 본다. 틀리는 쪽은 안전하다 —
-// 살아 있는 핸드오프를 숨기면 에이전트가 다시 디스패치돼 핸드오프를 다시 남긴다.
 export const handoffIsLive = (steppedAt: Date, itemUpdatedAt: Date): boolean => steppedAt.getTime() > itemUpdatedAt.getTime();
 
-// 판정 순서: 런 닫힘 → 게이트 → accept → handoff → impl-verify·qa 실패 대기 → cap → dispatch. 에이전트 없는 노드는 있을 수 없지만(accept는 위에서 끝난다) 방어로 done.
 export function decideNext(i: PipelineNextInput): PipelineNext {
   const { key, version } = i;
   if (i.node === null) return { key, node: null, version, action: "done" };
   const node = i.node;
   if (isGateId(node)) return { key, node, version, action: "wait", on: "gate", gate: node, boundary: boundaryOf(node), planCommit: i.planCommit, format: i.format ?? null, ...(i.entry ? { gateEntry: { runId: i.entry.runId, entryId: i.entry.entryId } } : {}) };
-  // accept는 메인 루프가 에이전트 없이 직접 하는 유일한 동작이라 hint를 따로 단다.
   if (node === "accept") return i.acceptanceFailure
     ? { key, node, version, action: "wait", on: "acceptance", checks: i.acceptanceFailure.checks, note: i.acceptanceFailure.note }
     : { key, node, version, action: "accept", hint: HINT.accept ?? "" };
@@ -76,15 +64,10 @@ export function decideNext(i: PipelineNextInput): PipelineNext {
   return { key, node, version, action: "dispatch", agent, hint: hintFor(node), format: i.format ?? null, ...(i.entry ? { entry: i.entry } : {}) };
 }
 
-// key 없는 pipeline_next의 머리 — pm이 고를 후보(availableBacklog)가 없으면 scout가 백로그를 채우고, 있으면 pm이 고른다.
-// 보류 항목은 후보가 아니므로, 보류만 남은 백로그도 scout 쪽으로 간다.
 export type HeadNext = { action: "dispatch"; agent: "pm" | "feature-scout"; hint: string }
   | { action: "none"; reason: string; code?: never }
   | ({ action: "none" } & Omit<UsageLimitFailure, "ok">);
 
-// 저장소의 런북이 현재 템플릿과 다를 때만 실린다 — 정상 응답은 이 필드가 아예 없다.
-// init이 심은 판의 해시를 서버가 갖고 있고(POST /api/runbook), 판정은 packages/core/runbook.mjs에 있다.
-// 세션이 매 턴 부르는 것이 key 없는 개요라 여기에 싣는다. product-copy.md §13에 같은 문장.
 export const RUNBOOK_STALE_NOTE =
   "This repository's runbook does not match the current template, or its version was never recorded. "
   + "Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md.";
@@ -100,9 +83,9 @@ export type HeadInput = {
   hasResumableScoutRun?: boolean;
   scoutedSinceChange: boolean;
   scoutNodePending: boolean;
-  autoProposeEnabled: boolean; // Project.autoProposeEnabled — 옛 propose 노드를 대신하는 설정
-  openCount: number;     // 미결 항목 수(latestBoard(projectId, true).length)
-  availableBacklog: number; // 최신 행이 미결도 보류도 아닌 백로그 항목 수(countPickable) — pm이 고를 수 있는 것
+  autoProposeEnabled: boolean;
+  openCount: number;
+  availableBacklog: number;
   cap: UsageLimitFailure | null;
 };
 
@@ -110,7 +93,6 @@ export function scoutNodePending(items: PipelineNext[]): boolean {
   return items.some((item) => item.action === "dispatch" && item.agent === "feature-scout");
 }
 
-// Open limit first, then, with nothing for pm to pick (held items don't count), fill the backlog once per change, then propose.
 export function decideHead(i: HeadInput): HeadNext {
   if (!canPropose(i.openCount)) return { action: "none", reason: `open items: ${i.openCount} (max 2)` };
   if (i.availableBacklog === 0) {

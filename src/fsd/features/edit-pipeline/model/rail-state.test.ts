@@ -1,5 +1,3 @@
-// 레일 버튼의 활성/비활성 근거. 각 조작은 결과 그래프를 validateGraph에 통과시켜야만 ok를 돌려주므로,
-// 화면은 규칙을 다시 구현하지 않고 이유를 그대로 보여 준다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { defaultGraph, refStep } from "@harness/core/pipeline.mjs";
@@ -114,7 +112,6 @@ describe("rail-state", () => {
   });
 
   it("keeps a swapped tail when another node is added back", () => {
-    // addNode가 전체를 골격 순서로 다시 세우면 방금 바꿔 둔 꼬리 순서가 조용히 풀린다.
     const withScout = addNode(pro(), "scout", "pro");
     assert.ok(withScout.ok);
     if (!withScout.ok) return;

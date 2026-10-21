@@ -17,7 +17,6 @@ function isSlugConflict(error: unknown): boolean {
     && JSON.stringify(error.meta?.target ?? error.meta?.driverAdapterError ?? "").includes("slug");
 }
 
-// The caller retains the one-time plaintext; only its hash crosses this boundary.
 export async function registerWebProject(client: TransactionHost, input: WebProjectInput): Promise<ServerResult<RegisterProjectResult>> {
   try {
     const item = await withAvailabilityTransaction(client, (tx) => registerProjectResultIn(tx, input));
@@ -33,13 +32,11 @@ export async function registerRepositoryProject(
   client: TransactionHost & Pick<PrismaClient, "project">,
   input: RepositoryInput,
 ): Promise<RepositoryRegistrationResult> {
-  // A slug race retries the entire registration once. It must never return another owner's row.
   for (let attempt = 0; ; attempt += 1) {
     try {
       const result = await withAvailabilityTransaction(client, (tx) => registerProjectResultIn(tx, input));
       if (result.status === "capped" || result.status === "integrity") return { status: result.status, reason: result.reason };
       if (result.status === "disconnected") return { status: "disconnected", reason: result.reason, slug: result.slug };
-      // Preserve the committed snapshot read: the row may disappear or disconnect after commit.
       const row = await client.project.findUnique({
         where: { id: result.projectId },
         select: { repoOwner: true, repo: true, branch: true, name: true, slug: true, disconnectedAt: true },

@@ -3,8 +3,6 @@ import type { ButtonHTMLAttributes, ComponentProps } from "react";
 
 import { cn } from "@/fsd/shared/lib/class-name";
 
-// 버튼 네 벌. mine = 지금 기다리는 결정(채움), mine-outline = 할 수는 있지만 재촉하지 않는 것,
-// quiet = 보조, risk = 되돌릴 수 없는 것. 색은 사람 동작에만 있다.
 export type ButtonVariant = "mine" | "mine-outline" | "quiet" | "risk";
 export type ButtonSize = "md" | "sm";
 
@@ -46,7 +44,6 @@ export function ButtonLink({ variant = "quiet", size = "md", className, ...rest 
   return <Link className={buttonClass(variant, size, className)} {...rest} />;
 }
 
-// 외부 주소(GitHub 계획서 등)로 새 탭을 여는 버튼 모양 링크.
 type ExternalButtonLinkProps = ComponentProps<"a"> & {
   variant?: ButtonVariant;
   size?: ButtonSize;

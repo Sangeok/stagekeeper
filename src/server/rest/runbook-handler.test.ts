@@ -56,7 +56,6 @@ describe("recordRunbook", () => {
     }
   });
 
-  // 잠긴 프로젝트는 템플릿도 못 받는다. 받지도 못한 판을 기록으로 남기지 않는다.
   it("refuses a locked project without writing, preserving the reason", async () => {
     const { recordRunbook, saved } = setup({ access: { plan: "free", available: false, code: "not-selected", reason: "project cap reached" } });
     const result = await recordRunbook(authorizationHeader, { version });
@@ -64,7 +63,6 @@ describe("recordRunbook", () => {
     assert.deepEqual(saved, []);
   });
 
-  // 형식을 서버에서 막지 않으면 아무 문자열이나 열에 앉아 영원히 "현재"가 된다.
   it("refuses a body that is not a 12-hex version", async () => {
     for (const body of [null, {}, { version: 1 }, { version: "" }, { version: "ZZZZZZZZZZZZ" }, { version: `${version}00` }]) {
       const { recordRunbook, saved } = setup();
@@ -76,7 +74,6 @@ describe("recordRunbook", () => {
   });
 });
 
-// hu_ — 이 경로에는 쿼리 문자열이 없어 프로젝트를 **본문**으로 받는다.
 describe("recordRunbook with a user token", () => {
   const user = newToken("user");
   const userHeader = `Bearer ${user.plain}`;

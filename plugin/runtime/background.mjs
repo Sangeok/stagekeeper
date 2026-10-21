@@ -1,5 +1,3 @@
-// 창 없는 상주 실행기(Phase B)의 한 사이클과 그 판단. 프로세스·git·서버·알림은 deps로 받아 시험이 가짜로 바꾼다.
-// 설계: docs/proposals/active/runner-status-and-background-runner.md B-1~B-4, 결정 B1~B7.
 import { hasWork, workSignature } from "../lib/watch.mjs";
 
 export const INTERVAL_MS = 60_000;
@@ -10,7 +8,6 @@ export const RUN_LOG_KEEP = 50;
 const FILES_SHOWN = 3;
 const RESULT_MAX = 150;
 
-// 알림 문구. 모두 2026-10-21 사용자 확정(product-copy §15).
 export const NOTICES = Object.freeze({
   waitDirty: { title: "Runner waiting on {branch}", body: "Uncommitted changes: {files}. Commit or stash them, and it continues." },
   waitInterrupted: { title: "Runner waiting on {branch}", body: "The last run stopped partway and left changes in {files}. Check them, then commit or stash them, and it continues." },
@@ -30,7 +27,6 @@ export function fillNotice(kind, values = {}) {
   return { kind, title: fill(NOTICES[kind].title), body: fill(NOTICES[kind].body) };
 }
 
-// `git status --porcelain -z`의 경로. 이름 바꾸기·복사는 원래 경로 필드를 하나 더 갖는다.
 export function porcelainPaths(output) {
   const fields = output.split("\0");
   const paths = [];
@@ -48,7 +44,6 @@ export function fileList(paths) {
   return paths.length > FILES_SHOWN ? `${shown} and ${paths.length - FILES_SHOWN} more` : shown;
 }
 
-// Windows 명령줄 한 인자(CommandLineToArgvW 규칙). job 런처가 ProcessStartInfo.Arguments로 그대로 넘긴다.
 export function quoteWindowsArgument(value) {
   if (value !== "" && !/[\s"]/.test(value)) return value;
   let out = "\"", slashes = 0;
@@ -61,8 +56,6 @@ export function quoteWindowsArgument(value) {
   return out + "\\".repeat(slashes * 2) + "\"";
 }
 
-// 자식 `claude -p`의 git이 push하지 못하게 한다(결정 B1). 빈 pushInsteadOf는 모든 push URL을 없는 전송으로 바꾼다.
-// 이미 GIT_CONFIG_COUNT가 있으면 그 뒤 번호로 덧붙인다. 사용자 git 설정 파일은 바꾸지 않는다.
 export function pushBlockedEnv(env) {
   const out = { ...env };
   const current = Number(env.GIT_CONFIG_COUNT);
@@ -81,7 +74,6 @@ export function runArguments({ session, permission, settings }) {
     "--output-format", "stream-json", "--verbose"];
 }
 
-// `background-settings.json`. 목록 밖은 auto 분류기(auto) 또는 거절(acceptEdits)이 판정한다.
 export function backgroundSettings(config) {
   const commands = ["git status", "git diff", "git log", "git show", "git add", "git commit", "git rev-parse"];
   const allow = ["mcp__harness"];
@@ -92,7 +84,6 @@ export function backgroundSettings(config) {
   return { permissions: { allow: [...new Set(allow)], deny: ["Bash(git push:*)", "PowerShell(git push*)"] } };
 }
 
-// stream-json 줄에서 init과 result만 읽는다. 모델이 쓴 문장은 싣지 않는다.
 export function readStreamLine(line, run) {
   let message;
   try { message = JSON.parse(line); } catch { return; }
@@ -106,7 +97,6 @@ export function readStreamLine(line, run) {
   };
 }
 
-// 실행 결과의 종류와 서버에 올릴 한 줄. 고정 어휘만 쓴다.
 export function classifyRun(end) {
   if (end.endedFor === "branch") return { outcome: "branch", line: "ended: the branch changed" };
   if (end.endedFor === "timeout") return { outcome: "timeout", line: "ended: time limit" };
@@ -119,28 +109,14 @@ export function classifyRun(end) {
   return { outcome: "error", line: end.exitCode === 0 ? "error: no result" : `error: exit ${end.exitCode}` };
 }
 
-/**
- * 상주 실행기의 루프. 끝날 때 멈춘 이유를 돌려준다:
- * owner(로컬 stop) · stuck · error · plan · replaced · missing(서버가 경로를 잃음).
- *
- * deps:
- * - lifecycle(): "active" | "stopping" | "gone" — 로컬 잠금. gone은 이 세션의 잠금이 아니다.
- * - beat(payload): runner 응답({kind,…}, runner-client.mjs)
- * - overview(): actionableWork 결과. 실패하면 throw
- * - tree(): { branch: string | null, current: string, dirty: string[] }
- * - startRun(): { done: Promise<{exitCode, result, permissionMode, endedFor, log}>, end(reason) }
- * - notify(notice) · save(status) · sleep(ms, signal?) · now() · log(line)
- */
 export async function runResident(context, deps) {
   const { branch, interval = INTERVAL_MS, runLimit = RUN_LIMIT_MS } = context;
   const status = { state: "idle", waitReason: null, waitFiles: [], interrupted: null, lastResult: null, lastLog: null, failures: 0 };
   let wait = null;
   let failures = 0, transient = 0, requestFailures = 0;
-  // 연속 실패의 종류. 모두 진전 없음일 때만 stuck이고, 오류·시간 초과가 하나라도 있으면 error다 — 배너의 이유 문장이 사실과 맞게.
   let failureKinds = [];
   const save = () => deps.save({ ...status, failures });
 
-  // 서버 응답을 루프의 갈래로. paused는 그대로, 멈춤은 이유로.
   const verdict = result => {
     if (result.kind === "ok") return { paused: result.paused, stop: result.stop === "plan" ? "plan" : null };
     if (result.kind === "replaced") return { paused: false, stop: "replaced" };
@@ -154,7 +130,6 @@ export async function runResident(context, deps) {
     return fillNotice(status.interrupted ? "waitInterrupted" : "waitDirty", { branch, files: fileList(tree.dirty) });
   };
   const sleepActive = async ms => {
-    // 멈춤 요청을 1초 안에 본다.
     for (let left = ms; left > 0; left -= 1000) {
       if (deps.lifecycle() !== "active") return;
       await deps.sleep(Math.min(1000, left));
@@ -184,7 +159,6 @@ export async function runResident(context, deps) {
     }
     if (!hasWork(work) && !wait) { await sleepActive(interval); continue; }
 
-    // 실행 직전 검사(B-2 2). 대기는 같은 이유가 이어지는 동안 알림을 다시 띄우지 않는다.
     const tree = deps.tree();
     const reason = tree.branch !== branch ? "branch" : tree.dirty.length > 0 ? "dirty" : null;
     if (reason) {
@@ -207,7 +181,6 @@ export async function runResident(context, deps) {
     let finished = false;
     const done = run.done.then(end => { finished = true; return end; });
     const started = deps.now();
-    // 실행 중: 60초마다 working 신호, 브랜치 감시(결정 B4), 시간 상한, 멈춤 요청.
     while (!finished) {
       const result = verdict(await deps.beat({ state: "working" }));
       if (result.paused) pausedDuringRun = true;
@@ -215,7 +188,6 @@ export async function runResident(context, deps) {
       if (deps.lifecycle() !== "active" && !stopAfter) stopAfter = deps.lifecycle() === "stopping" ? "owner" : "replaced";
       if (!endedFor && deps.tree().branch !== branch) { endedFor = "branch"; run.end("branch"); }
       if (!endedFor && deps.now() - started >= runLimit) { endedFor = "timeout"; run.end("timeout"); }
-      // 실행이 끝나면 기다림도 끝낸다 — 남은 타이머가 프로세스 종료를 붙잡지 않게.
       const pause = new AbortController();
       await Promise.race([done, deps.sleep(interval, pause.signal)]);
       pause.abort();
@@ -224,10 +196,9 @@ export async function runResident(context, deps) {
     const { outcome, line } = classifyRun({ ...end, endedFor: endedFor ?? end.endedFor });
     Object.assign(status, { state: "idle", lastResult: line, lastLog: end.log });
 
-    // 진전 판정: 실행 앞뒤의 작업 서명. 알 수 없으면 세지 않는다.
     let progressed = null;
     try { progressed = workSignature(await deps.overview()) !== before; } catch { progressed = null; }
-    if (outcome === "branch") { /* 사용자가 만든 상황 — 실패로 세지 않는다(결정 B4) */ }
+    if (outcome === "branch") {   }
     else if (outcome !== "success") { failures++; failureKinds.push("error"); }
     else if (progressed === false) { failures++; failureKinds.push("stuck"); }
     else { failures = 0; failureKinds = []; }
@@ -236,7 +207,6 @@ export async function runResident(context, deps) {
     if (outcome !== "success" && after.dirty.length > 0) status.interrupted = { log: end.log };
     if (outcome === "branch") {
       deps.notify(fillNotice("branchEnded", { branch, current: after.current }));
-      // 이 알림이 브랜치 대기의 시작이다 — 다음 검사에서 대기 알림을 다시 띄우지 않는다.
       wait = { reason: "branch" };
       Object.assign(status, { state: "waiting", waitReason: "branch", waitFiles: after.dirty.slice(0, FILES_SHOWN) });
     }
@@ -246,7 +216,6 @@ export async function runResident(context, deps) {
         lastResult: line, ...(end.log ? { lastLog: end.log } : {}) });
       const settled = verdict(report);
       if (settled.stop && !stopAfter) stopAfter = settled.stop;
-      // 일시 정지 중에 끝났다 — 이제 편집해도 된다(결정 B5).
       if (pausedDuringRun && settled.paused) deps.notify(fillNotice("pausedFinished", { branch }));
     }
     if (failures >= FAILURE_LIMIT) return failureKinds.every(kind => kind === "stuck") ? "stuck" : "error";

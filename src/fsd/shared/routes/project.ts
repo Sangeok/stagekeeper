@@ -1,7 +1,3 @@
-// 프로젝트 탭의 URL 형태와 목록의 유일한 출처. 탭을 추가하거나 경로를 바꿀 때 여기만 고친다.
-// revalidatePath는 사람이 보고 있는 경로와 문자열이 정확히 같아야 하므로 손으로 쓰지 않는다 —
-// 어긋나도 컴파일 오류가 아니라 조용히 낡은 화면이 남는다.
-
 export const PROJECT_TABS = [
   { id: "board", segment: "", label: "Board" },
   { id: "inbox", segment: "/inbox", label: "Inbox" },
@@ -18,18 +14,12 @@ export function projectPath(slug: string, segment: ProjectTabSegment = ""): stri
   return `/p/${slug}${segment}`;
 }
 
-// 모든 프로젝트의 탭 셸(src/app/(app)/p/[slug]/layout.tsx)을 다시 그리게 하는 revalidatePath 대상 — 라우트 파일의
-// 경로 그대로여야 하고 두 번째 인자는 "layout"이다. 라우트가 옮겨지면 여기만 고친다.
 export const PROJECT_LAYOUT_REVALIDATE_PATH = "/(app)/p/[slug]";
 
-// 항목 상세는 탭이 아니라 탭 아래의 경로다 — 탭 목록에 넣지 않고 이름 있는 빌더로 둔다.
 export function itemPath(slug: string, key: string): string {
   return `${projectPath(slug)}/items/${key}`;
 }
 
-// 백로그 화면의 URL 상태. 쓰는 쪽(features의 링크)과 읽는 쪽(src/app의 라우트)이 서로 다른
-// 트리에 있어서, 키 이름이나 인코딩을 바꿔도 컴파일 오류가 아니라 조용히 기능이 끊겼다.
-// searchParams는 타입이 없으므로 읽기도 여기서 한 번만 한다.
 const BACKLOG_EDIT = "edit";
 const BACKLOG_REMOVED = "removed";
 const BACKLOG_REMOVED_ON = "1";
@@ -52,7 +42,6 @@ export function readBacklogQuery(query: Record<string, string | string[] | undef
   };
 }
 
-// 지금 보고 있는 경로가 어느 탭인가. 프로젝트 밖(또는 탭이 아닌 하위 경로)이면 null.
 export function activeProjectTab(pathname: string, slug: string): ProjectTabId | null {
   const base = projectPath(slug);
   if (pathname === base) return "board";

@@ -23,7 +23,6 @@ async function lockWindowIn(tx: Prisma.TransactionClient, budget: Budget): Promi
 export async function consumeRequestBudget(client: TransactionHost, ownerUserId: string, projectId: string | null): Promise<RequestRateFailure | null> {
   try {
     return await client.$transaction(async (tx) => {
-      // Every contender takes account then project; clock_timestamp is read only after both locks.
       const locked = [await lockWindowIn(tx, { scope: "account", subjectId: ownerUserId, ownerUserId, projectId: null })];
       if (projectId !== null) locked.push(await lockWindowIn(tx, { scope: "project", subjectId: projectId, ownerUserId, projectId }));
       const at = await readDatabaseClockIn(tx);

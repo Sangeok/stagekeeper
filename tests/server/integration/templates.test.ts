@@ -6,8 +6,6 @@ import { NOT_SELECTED_REASON } from "../../../src/server/projects/access-query";
 import { GET } from "../../../src/app/api/templates/route";
 import { cleanup, connections } from "./support";
 
-// route가 쓰는 것은 @/server/db의 싱글턴이다. runner가 자식 프로세스의 DATABASE_URL에 검증된 test URL만 주입하므로
-// 여기서 만든 fixture와 같은 DB를 본다. 고유 lang 행만 만들고 지운다 — 실제 en seed 인수는 배포 절차의 몫이다.
 const agentBody = "# Agent\n\n## step:start\nPrivate instructions.\nnext: done\n";
 const agentStub = "# Agent\n";
 
@@ -21,7 +19,6 @@ it("the templates route answers with real bodies, the lock reason, and auth fail
     GET(new Request(`https://example.test/api/templates?lang=${encodeURIComponent(language)}`
       + (project === null ? "" : `&project=${encodeURIComponent(project)}`),
       { headers: header === null ? {} : { authorization: header } }));
-  // free 플랜의 기대 본문. hs_와 hu_가 같은 것을 받아야 한다 — 프로젝트가 어디서 왔는지만 다르다.
   const expected = {
     templates: {
       "agents/dev.md": agentStub,
@@ -47,17 +44,14 @@ it("the templates route answers with real bodies, the lock reason, and auth fail
       { lang, path: "docs/plans/README.md", body: "Plan documentation" },
     ] });
 
-    // Subscription 행이 없으므로 free다: 보고 에이전트는 pm·feature-scout만, 런북은 한 판, 본문이 아니라 스텁이 나간다.
     const ok = await request(`Bearer ${plain}`);
     assert.equal(ok.status, 200);
     assert.deepEqual(await ok.json(), expected);
 
-    // hu_ + ?project=<slug>: 같은 본문이다. 프로젝트가 토큰이 아니라 인자에서 왔을 뿐이다.
     const scoped = await request(`Bearer ${user.plain}`, lang, id);
     assert.equal(scoped.status, 200);
     assert.deepEqual(await scoped.json(), expected);
 
-    // 남의 슬러그와 없는 슬러그는 같은 403 문장이다 — 존재 여부를 흘리지 않는다.
     const foreign = await request(`Bearer ${user.plain}`, lang, `${id}-absent`);
     assert.equal(foreign.status, 403);
     assert.deepEqual(await foreign.json(), { error: "not the owner of this project" });
@@ -72,7 +66,6 @@ it("the templates route answers with real bodies, the lock reason, and auth fail
     assert.equal(missing.status, 404);
     assert.deepEqual(await missing.json(), { error: `no templates for language: ${lang}-absent` });
 
-    // 마지막 둘은 슬러그 없는 hu_와 모르는 hu_다. 둘 다 401이다.
     for (const header of [null, `Bearer ${newToken().plain}`, `Bearer ${newToken("owner").plain}`,
       `Bearer ${user.plain}`, `Bearer ${newToken("user").plain}`]) {
       const denied = await request(header);

@@ -11,8 +11,6 @@ const migrations = new URL("../../../prisma/migrations/", import.meta.url);
 export const migrationA = readFileSync(new URL(`${boundary}/migration.sql`, migrations), "utf8");
 export const migrationB = readFileSync(new URL(`${cleanupBoundary}/migration.sql`, migrations), "utf8");
 
-// Each rehearsal owns one random schema on the guarded test database. Historical
-// SQL, rather than today's generated client, creates the actual predecessor.
 export async function withPredecessor(work: (db: SqlConnection) => Promise<void>, before = boundary): Promise<void> {
   const db = new Client({ connectionString: testDatabaseUrl() });
   const schema = `pipelines_${randomUUID().replace(/-/g, "")}`;

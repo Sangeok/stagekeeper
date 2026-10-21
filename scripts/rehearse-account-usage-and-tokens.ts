@@ -1,4 +1,3 @@
-// Real Next HTTP/Server Actions against an isolated DB; never print credentials.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -52,13 +51,11 @@ async function main(): Promise<void> {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
       if (server.exitCode !== null) throw new Error("Local Next server exited");
-      try { ready = (await fetch(origin + "/login")).status === 200; } catch { /* bounded startup wait */ }
+      try { ready = (await fetch(origin + "/login")).status === 200; } catch {   }
       if (ready) break; await delay(100);
     }
     assert.ok(ready, "Local Next server must start");
     const findToken = (kind: "agent" | "owner" | "user", where: { id?: string; hash?: string }) => kind === "agent" ? db.projectToken.findFirstOrThrow({ where }) : kind === "owner" ? db.ownerToken.findFirstOrThrow({ where }) : db.userToken.findFirstOrThrow({ where });
-    // Validate every issuer through the built action/session boundary, then rename,
-    // re-read and revoke. A foreign session and an absent session cannot rename.
     for (const kind of ["agent", "owner", "user"] as const) {
       const issue = kind === "agent" ? "issueToken" : kind === "owner" ? "issueOwnerToken" : "issueUserToken";
       const rename = kind === "agent" ? "renameToken" : kind === "owner" ? "renameOwnerToken" : "renameUserToken";
@@ -99,8 +96,6 @@ async function main(): Promise<void> {
       const ended = await post(rename, [...prefix, row.id, `${kind} ended`], session); assert.ok(ended.text.includes('"success":true'));
       const markup = await get(kind === "user" ? "/settings/tokens" : `/p/${owner.id}/tokens`, session);
       assert.ok(markup.includes(`${kind} ended`) && markup.includes("Ended tokens") && markup.includes("Revoked"));
-      // Revocation remains a read-scoped recovery action on unselected,
-      // disconnected, and Free projects; account rename is independent of them.
       for (const [available, disconnectedAt, plan] of [[false, null, "pro"], [false, new Date(), "pro"], [true, null, "free"]] as const) {
         await db.project.update({ where: { id: owner.projectId }, data: { available, disconnectedAt } });
         await db.subscription.update({ where: { userId: owner.userId }, data: { plan } });
@@ -116,8 +111,6 @@ async function main(): Promise<void> {
       await db.project.update({ where: { id: owner.projectId }, data: { available: true, disconnectedAt: null } });
       await db.subscription.update({ where: { userId: owner.userId }, data: { plan: "pro" } });
     }
-    // All six production authentication paths reject expired credentials. The
-    // wrapper performs a fresh lookup even on subsequent requests.
     const tokens = { agent: newToken(), owner: newToken("owner"), user: newToken("user") };
     for (const kind of ["agent", "owner", "user"] as const) {
       const credential = tokens[kind];
@@ -207,8 +200,6 @@ async function main(): Promise<void> {
           const lose = loseNext && req.method === "POST" && Boolean(req.headers["next-action"]); if (lose) loseNext = false;
           const response: Response = await fetch(origin + req.url, { method: req.method, headers, redirect: "manual", ...(chunks.length ? { body: Buffer.concat(chunks) } : {}) });
           const body = Buffer.from(await response.arrayBuffer());
-          // A truncated RSC frame makes the action outcome unknown without a
-          // browser transport-level replay of an unacknowledged POST.
           if (lose) { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
           res.writeHead(response.status, Object.fromEntries([...response.headers].filter(([key]) => !["content-encoding", "content-length", "transfer-encoding"].includes(key)))); res.end(body);
         } catch { res.writeHead(502).end("Fixture transport unavailable"); }

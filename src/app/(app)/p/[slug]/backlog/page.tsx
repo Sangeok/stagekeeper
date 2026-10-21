@@ -15,7 +15,6 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
   const query = await searchParams;
   const { projectId } = await requireProjectOwner(slug);
 
-  // 질의 키와 인코딩은 링크를 만드는 쪽과 같은 모듈에서 온다(shared/routes/project.ts).
   const { includeRemoved, editKey } = readBacklogQuery(query);
   const [items, roster, view] = await Promise.all([
     backlogWithStatus(projectId, includeRemoved),

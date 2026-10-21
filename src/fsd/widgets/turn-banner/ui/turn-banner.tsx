@@ -20,15 +20,11 @@ import { hasLiveRunner, runnerShortLine, type RunnerFacts } from "../model/runne
 import { NextStepContent } from "./next-step";
 import { RunnerRow, RunnerShort, useRunnerNow } from "./runner-line";
 
-// 탭이 아닌 프로젝트 하위 경로(항목 상세 등)에서는 null이다.
 type Tab = ProjectTabId | null;
 const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));
 
-// runner·pause·plan은 선택이다. 없으면 실행기 줄 없이 지금과 똑같이 그린다(실행기 상태를 읽지 않는 화면·fixture).
-// plan은 Free 줄에만 쓴다(B-5) — 레이아웃이 이미 읽은 프로젝트 접근의 플랜이다.
 type TurnBannerProps = { turn: Turn; slug: string; runner?: RunnerFacts; pause?: PauseRunnerAction; plan?: Plan };
 
-// 레이아웃은 경로를 모른다 — 어느 탭인지는 여기서 읽는다. Board·Inbox에서는 크게, 나머지에서는 한 줄 스트립.
 export function TurnBanner(props: TurnBannerProps): ReactElement {
   return <TurnBannerContent key={props.slug} {...props} />;
 }
@@ -40,7 +36,6 @@ function TurnBannerContent({ turn, slug, runner, pause, plan }: TurnBannerProps)
   const tab = activeProjectTab(pathname, slug);
   const isFullBanner = tab === "board" || tab === "inbox";
   if (!isFullBanner) return <CompactBanner turn={turn} tab={tab} slug={slug} pathname={pathname} runner={runner} now={now} />;
-  // 배너의 모든 종류에서 같은 자리에 둔다 — 보드가 빈 첫 실행에도 feature-scout를 돌리는 실행기가 있을 수 있다.
   const runnerRow = runner === undefined ? null : <RunnerRow facts={runner} now={now} pause={pause} />;
   if (turn.kind === "setup") return <SetupList
     steps={turn.steps.map(step => ({ ...step, detail: formatSetupDetail(step, client) }))}
@@ -56,8 +51,6 @@ function TurnBannerContent({ turn, slug, runner, pause, plan }: TurnBannerProps)
   return <FullBanner turn={turn} tab={tab} slug={slug} nextSteps={nextSteps} runnerRow={runnerRow} />;
 }
 
-// 내 차례의 버튼. 결재함에 카드가 있으면 Inbox(mine), 인수·핸드오프뿐이면 그 항목 페이지(quiet) — 어디로 갈지는
-// 모델(TurnTarget)이 정했고 여기는 모양만 고른다.
 function OpenTargetLink({ open, slug }: { open: TurnTarget; slug: string }) {
   if (open.kind === "inbox") {
     return (
@@ -75,9 +68,6 @@ function OpenTargetLink({ open, slug }: { open: TurnTarget; slug: string }) {
 
 function FullBanner({ turn, tab, slug, nextSteps, runnerRow }: { turn: Exclude<Turn, { kind: "setup" }>; tab: Tab; slug: string; nextSteps: ReactNode; runnerRow: ReactNode }) {
   const headline = HEADLINE[turn.kind];
-  // Inbox에서는 카드가 바로 아래 있으니 세부 줄을 되풀이하지 않는다 — 카드가 있을 때만. 인수·핸드오프뿐인 차례는
-  // 카드가 없어("Nothing to decide.") 배너가 세부 줄과 항목 링크를 지녀야 한다.
-  // 세부 줄과 항목 링크는 이 한 판정으로 함께 숨고 함께 나온다.
   const inboxCardsAreBelow = turn.kind === "mine" && tab === "inbox" && turn.open.kind === "inbox";
   return (
     <section className="flex flex-col gap-2">
@@ -109,14 +99,12 @@ function FullBanner({ turn, tab, slug, nextSteps, runnerRow }: { turn: Exclude<T
 
 type CompactView = { detail: string; action: { href: string; label: string } | null };
 
-// 내 차례 스트립의 링크. 항목 페이지로 가는 링크는 그 항목 자신의 페이지에서는 없다(§5) — 이미 거기다.
 function compactAction(open: TurnTarget, slug: string, pathname: string): CompactView["action"] {
   if (open.kind === "inbox") return { href: projectPath(slug, "/inbox"), label: "Open inbox →" };
   const href = itemPath(slug, open.key);
   return pathname === href ? null : { href, label: `Open ${open.key} →` };
 }
 
-// 한 줄 스트립이 무엇을 말하고 어디로 보낼지 — kind마다 한 갈래씩, 마크업과 분리해서 읽는다.
 function compactView(turn: Turn, tab: Tab, slug: string, pathname: string): CompactView {
   switch (turn.kind) {
     case "setup": {
@@ -160,8 +148,6 @@ function CompactBanner({ turn, tab, slug, pathname, runner, now }: { turn: Turn;
   );
 }
 
-// 첫 방문 체크리스트. 마지막 단계는 첫 항목이 보드에 오르면 끝난다.
-// current는 deriveTurn이 이미 정한 1-based 값 — 여기서 다시 계산하지 않는다.
 function SetupList({ steps, current, slug, clientChoice, runnerRow }: { steps: SetupStep[]; current: number; slug: string; clientChoice: ReactNode; runnerRow: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
@@ -203,8 +189,6 @@ function SetupList({ steps, current, slug, clientChoice, runnerRow }: { steps: S
   );
 }
 
-// 문장은 모델의 `detail` 하나다 — 여기서는 슬래시 명령만 Code로 감싼다. 같은 문장을 JSX에 한 번 더 적어 두었더니
-// 그 사본이 "approve the server"를 들고 남았다(product-copy.md §5의 잠금 블록, turn.test.ts).
 const INIT_COMMANDS = CLIENTS.map(client => clientRuntime(parseClient(client)).init_command);
 
 function DetailText({ text }: { text: string }) {
