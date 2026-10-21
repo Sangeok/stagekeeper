@@ -10,18 +10,18 @@ export const RUN_LOG_KEEP = 50;
 const FILES_SHOWN = 3;
 const RESULT_MAX = 150;
 
-// 알림 문구. 편집 경고 다섯 줄(wait*, branchEnded, pausedFinished)은 2026-10-21 사용자 확정, 나머지는 product-copy §15.
+// 알림 문구. 모두 2026-10-21 사용자 확정(product-copy §15).
 export const NOTICES = Object.freeze({
   waitDirty: { title: "Runner waiting on {branch}", body: "Uncommitted changes: {files}. Commit or stash them, and it continues." },
   waitInterrupted: { title: "Runner waiting on {branch}", body: "The last run stopped partway and left changes in {files}. Check them, then commit or stash them, and it continues." },
   waitBranch: { title: "Runner waiting on {branch}", body: "This checkout is on {current}. Switch back to {branch}, and it continues." },
   branchEnded: { title: "Runner ended a run", body: "The checkout switched to {current} during a run, so the runner ended that run. Switch back to {branch}, and it continues." },
   pausedFinished: { title: "Runner paused", body: "The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume." },
-  stuck: { title: "Runner stopped", body: "The same steps came back three times without progress. Check the latest run log, then start it again." },
-  error: { title: "Runner stopped", body: "It hit an error. Check the latest run log, then start it again." },
+  stuck: { title: "Runner stopped", body: "The same steps came back three times without progress. Check its run log with /harness:background status, then start it again." },
+  error: { title: "Runner stopped", body: "It hit an error. Check its run log with /harness:background status, then start it again." },
   plan: { title: "Runner stopped", body: "The background runner needs Pro." },
   replaced: { title: "Runner stopped", body: "Another runner took over this project. This one stops." },
-  missing: { title: "Runner stopped", body: "The server stopped taking runner signals, so the runner stopped after its run. Start it again when the server is back." },
+  missing: { title: "Runner stopped", body: "The server stopped taking runner signals, so the runner stopped. Start it again when the server is back." },
   startRefused: { title: "Runner did not start", body: "{reason}" },
 });
 
@@ -136,6 +136,8 @@ export async function runResident(context, deps) {
   const status = { state: "idle", waitReason: null, waitFiles: [], interrupted: null, lastResult: null, lastLog: null, failures: 0 };
   let wait = null;
   let failures = 0, transient = 0, requestFailures = 0;
+  // 연속 실패의 종류. 모두 진전 없음일 때만 stuck이고, 오류·시간 초과가 하나라도 있으면 error다 — 배너의 이유 문장이 사실과 맞게.
+  let failureKinds = [];
   const save = () => deps.save({ ...status, failures });
 
   // 서버 응답을 루프의 갈래로. paused는 그대로, 멈춤은 이유로.
@@ -226,8 +228,9 @@ export async function runResident(context, deps) {
     let progressed = null;
     try { progressed = workSignature(await deps.overview()) !== before; } catch { progressed = null; }
     if (outcome === "branch") { /* 사용자가 만든 상황 — 실패로 세지 않는다(결정 B4) */ }
-    else if (outcome !== "success" || progressed === false) failures++;
-    else failures = 0;
+    else if (outcome !== "success") { failures++; failureKinds.push("error"); }
+    else if (progressed === false) { failures++; failureKinds.push("stuck"); }
+    else { failures = 0; failureKinds = []; }
 
     const after = deps.tree();
     if (outcome !== "success" && after.dirty.length > 0) status.interrupted = { log: end.log };
@@ -246,7 +249,7 @@ export async function runResident(context, deps) {
       // 일시 정지 중에 끝났다 — 이제 편집해도 된다(결정 B5).
       if (pausedDuringRun && settled.paused) deps.notify(fillNotice("pausedFinished", { branch }));
     }
-    if (failures >= FAILURE_LIMIT) return "stuck";
+    if (failures >= FAILURE_LIMIT) return failureKinds.every(kind => kind === "stuck") ? "stuck" : "error";
     if (stopAfter) return stopAfter;
   }
 }

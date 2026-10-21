@@ -42,10 +42,12 @@ else {
   if (step.touch) writeFileSync(step.touch, "partial\\n");
   if (step.kind === "hang") setInterval(() => {}, 1000);
   else {
+    // success는 서버의 일을 넘기고(진전), noop은 성공으로 끝나지만 일을 그대로 둔다(진전 없음).
     if (step.kind === "success") await fetch(process.env.HARNESS_SERVER + "/test/advance", { method: "POST", body: "{}" });
-    out({ type: "result", subtype: step.kind === "success" ? "success" : "error_during_execution", is_error: step.kind !== "success",
+    const ok = step.kind === "success" || step.kind === "noop";
+    out({ type: "result", subtype: ok ? "success" : "error_during_execution", is_error: !ok,
       num_turns: 2, terminal_reason: "completed", permission_denials: [] });
-    process.exit(step.kind === "success" ? 0 : 1);
+    process.exit(ok ? 0 : 1);
   }
 }
 `;
@@ -261,13 +263,22 @@ it("ends a run when the branch changes, waits on the branch and resumes after sw
   await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult?.startsWith("done:")), 30000, "the run after switching back");
 });
 
-it("stops as stuck after three failed runs and tells the server", async t => {
+// 세 번 연속 실패하면 멈춘다. 모두 진전 없음이면 stuck, 오류가 섞이면 error다(2026-10-21 확정).
+it("stops with an error after three failed runs and tells the server", async t => {
   const f = await fixture(t, { plan: [{ kind: "fail" }] });
+  const started = await f.run(START);
+  await waitFor(() => !existsSync(f.lockPath), 60000, "the error stop");
+  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "error" && call.session === started.event.session));
+  assert.ok(f.notices().some(notice => notice.kind === "error"));
+  assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 3);
+});
+
+it("stops as stuck after three runs that leave the same work", async t => {
+  const f = await fixture(t, { plan: [{ kind: "noop" }] });
   const started = await f.run(START);
   await waitFor(() => !existsSync(f.lockPath), 60000, "the stuck stop");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "stuck" && call.session === started.event.session));
   assert.ok(f.notices().some(notice => notice.kind === "stuck"));
-  assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 3);
 });
 
 it("stops without a server stop when another runner takes over", async t => {

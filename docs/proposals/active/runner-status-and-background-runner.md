@@ -473,7 +473,8 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
    - **일시 정지 중에 끝났으면**(그 실행을 시작한 뒤 `beat` 응답이 `paused`로 바뀌었으면) 알림을 한 번 띄운다(결정 B5, B-4 표). 이제 편집해도 된다는 뜻이다.
 
 - **진전 판정.** 실행 앞뒤의 작업 서명(`workSignature`)이 같으면 진전 없음이다.
-- **실패 상한.** 비정상 종료, 시간 초과, 진전 없음을 실패로 센다. 3회 연속이면 `stop`(reason `stuck`)을 보내고 알림을 띄운 뒤 종료한다. 진전이 있으면 횟수를 0으로 되돌린다. 작업 중 브랜치 변경으로 끝낸 실행은 세지 않는다(결정 B4).
+- **실패 상한.** 비정상 종료, 시간 초과, 진전 없음을 실패로 센다. 3회 연속이면 `stop`을 보내고 알림을 띄운 뒤 종료한다. 진전이 있으면 횟수를 0으로 되돌린다. 작업 중 브랜치 변경으로 끝낸 실행은 세지 않는다(결정 B4).
+  - 이유는 셋 모두 진전 없음일 때만 `stuck`이다. 오류·시간 초과가 하나라도 섞이면 `error`다(2026-10-21 사용자 확정). 배너의 이유 문장("the same steps came back three times without progress" / "it hit an error — …")이 사실과 맞게 하려는 것이다.
 - **시간 상한.** 기본 2시간이다. 넘으면 job 런처(B-3) 프로세스를 끝낸다. 런처의 job이 닫히면서 손자 프로세스까지 끝난다. spike에서 런처만 죽였을 때 그 아래 트리 전체가 끝났다(대역 트리로 잼).
 - **멈춤 요청.** `stop:"plan"`, `RUNNER_REPLACED`, 로컬 `--stop`을 받으면 진행 중인 실행을 끝까지 두고 새 실행을 시작하지 않는다. 그 실행이 끝나면 종료한다.
 - **실행 중 404.** 상주 프로세스의 `beat`가 404를 받으면(서버 롤백) 멈춤 요청과 같이 처리한다. B-1이 404 서버에서 시작하지 않는 것과 같은 이유로, 표시 없이 무인으로 계속 돌지 않게 한다. 서버에 보낼 곳이 없으므로 로그와 Windows 알림으로만 알린다. 자식 `claude -p` 안의 `--check`는 A-4대로 그 호출만 건너뛰므로 진행 중인 실행은 끝까지 간다.
@@ -540,7 +541,9 @@ claude -p "/harness:watch --once --session <id>" \
 - **편집 경고 문구**(결정 B4~B7). 아래 영어 문장은 **2026-10-21 사용자 확정**이다. 초안 둘을 고쳤다.
   - 끊긴 실행 문장: "Review them before you commit or stash them"은 stash까지 확인을 요구하는 것처럼 읽혔다.
   - 브랜치 변경 문장: 수동태였고 "check what it left"가 뒤따르는 끊긴 실행 알림과 겹쳤다.
-  - 문구는 product-copy §15(알림·시작 출력)와 §5(배너 단위)에 있다. 나머지 알림과 거절 문장(정지, 교체, 플랜, 실행 중 404, 자동 시작 거부, 시작 거절)은 product-copy §15의 초안으로 두고 출시 전에 확인받는다.
+  - 문구는 product-copy §15(알림·시작 출력)와 §5(배너 단위)에 있다. 나머지 알림과 거절 문장(정지, 교체, 플랜, 실행 중 404, 자동 시작 거부, 시작 거절)도 같은 날 사용자가 확정했다. 그중 세 문장은 확정 전에 고쳤다.
+    - 정지 두 문장: 로그를 보는 방법("Check its run log with /harness:background status")을 넣었다.
+    - 404 문장: 실행 중이 아닐 때 틀리는 "after its run"을 뺐다.
   - `{files}`는 처음 세 경로와 `and {n} more`로 이룬다. `{current}`는 지금 브랜치이고, 분리된 HEAD면 커밋 해시 7자리다.
   - 브랜치 변경 알림이 브랜치 대기의 시작이다. 다음 검사에서 "대기·브랜치" 알림을 다시 띄우지 않는다.
 
@@ -663,6 +666,10 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 - 운영 마이그레이션, 운영 배포(main 승격), 플러그인 marketplace 갱신은 각각 실행 직전에 따로 확인받는다.
 - 2026-10-21 Phase B spike에서 실측과 다른 세 부분(push 환경 차단, 시작·자동 시작의 `!` 명령, Job Object 런처)을 approval-scope에 따라 사용자가 다시 확인했다([Phase B spike 뒤 결정](#결정-기록-2026-10-20-grill-me-사용자-확정)).
 - 같은 날 "실행 중 사용자 편집" 대조 뒤 사용자가 B4~B7을 더했다. B4는 작업 중 브랜치 감시, B5는 일시 정지 중 완료 알림, B6은 대기 알림 보강, B7은 "편집 전에 Pause" 안내다. 그 문구(B-4 표)는 구현 전에 따로 확인받는다.
+- 구현 뒤(2026-10-21) 사용자가 다음을 확정했다.
+  - auto를 쓸 수 없을 때 `acceptEdits` + 허용 목록으로 돈다(결정 13의 dontAsk 대신, "Phase B 구현에서 제안과 달라진 점").
+  - product-copy §15의 모든 알림·거절 문장.
+  - 3회 실패 정지의 이유를 원인별로 나눈다(B-2 실패 상한).
 
 ## Execution Plan
 
@@ -696,7 +703,7 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
    - `job-launch.ps1`은 Windows에서 실제로 돌리는 시험을 둔다. 다룰 것은 상주 프로세스를 죽였을 때와 런처를 죽였을 때 손자 프로세스까지 끝나는지다. CI의 Windows 작업에 넣고, 로컬에서 돌린 결과도 기록한다.
 3. watch 스킬 `--once` 갈래, background 스킬(`start`·`autostart`는 `!` 명령을 보여 줌), `harness.ps1`, 알림·자동 시작·job 런처 스크립트, 번들 필수 파일 검사, product-copy §15를 만든다.
 4. B-5: `/billing` 행과 시험, 배너 Free 줄과 `plan` prop(레이아웃), product-copy §5 잠금 블록의 Free 줄과 렌더 사례, `resident·working` 편집 경고 단위와 그 사례.
-   - B-4 표의 편집 경고 문구는 2026-10-21 확정했다. 나머지 알림·거절 문장(product-copy §15 초안)은 출시 전에 확인받는다.
+   - B-4 표의 편집 경고 문구와 나머지 알림·거절 문장(product-copy §15)은 2026-10-21 모두 확정했다.
 5. PR → dev → localhost smoke B → 운영 승격·번들 갱신(각각 확인).
 
 ## Verification Plan
@@ -811,7 +818,7 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 - 두 매니페스트(`.claude-plugin`·`.codex-plugin`)를 함께 0.5.13으로 올렸다.
 
 **Phase B 구현에서 제안과 달라진 점**(2026-10-21, 브랜치 `harness/runner-background`).
-- **auto를 쓸 수 없을 때의 모드는 `acceptEdits` + 허용 목록이다(결정 13의 "dontAsk"가 아님 — 사용자 확인 필요).** 구현 전에 haiku로 쟀다.
+- **auto를 쓸 수 없을 때의 모드는 `acceptEdits` + 허용 목록이다(결정 13의 "dontAsk"가 아님 — 2026-10-21 사용자 확정).** 구현 전에 haiku로 쟀다.
   - `--permission-mode dontAsk`는 작업 폴더 안의 Write까지 거부했다("running in don't ask mode"). 허용 목록에 편집 도구가 없으니 dev의 모든 편집이 막힌다.
   - `acceptEdits`는 작업 폴더 안 쓰기를 허용했다. 목록에 없는 명령은 기다리지 않고 거부했다.
   - 서버의 `permission:"allowlist"`와 배너의 ` · allow-list only`는 그대로다.
