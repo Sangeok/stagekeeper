@@ -35,7 +35,6 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   const recoveryMessage = editor.request.status === "stale" ? PIPELINE_STALE
     : editor.request.status === "unknown" ? PIPELINE_UNKNOWN : null;
   const dirty = isPipelineDirty(editor);
-  // Includes dependency definitions and execution graphs: a child save does not increment its parent's definition version.
   const fingerprint = JSON.stringify({ pipelines, rules });
   const inputKey = JSON.stringify([fingerprint, definition, expectedVersion, plan, editable, roster]);
   const [seen, setSeen] = useState({ fingerprint, inputKey });
@@ -164,8 +163,6 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   </div>;
 }
 
-// 노드 앞 간선. 게이트가 있으면 그 카드, 없으면 자동 경계 안내와 "+".
-// "+"는 여는 스위치일 뿐이고 메뉴 자체는 레일 밖에 있다 — 그래서 이 칸의 너비는 열려도 그대로다.
 function EdgeSlot({
   gate,
   label,
@@ -187,7 +184,6 @@ function EdgeSlot({
   removeGateStep: Step;
   onApply: (step: Step) => void;
 }) {
-  // 툴팁은 칩이 아니라 카드 전체에 건다 — 무엇을 뜻하는지 묻는 곳은 카드다. 비활성 Remove는 자기 사유가 우선한다(§18).
   if (gate !== null) {
     return (
       <div title={tooltip ?? gateTooltip(gate)} className="flex min-w-[132px] flex-col justify-between gap-2 rounded-lg border border-edge bg-mine-soft px-3 py-2.5">
@@ -227,7 +223,6 @@ function EdgeSlot({
   );
 }
 
-// 노드 카드. 누가 그 노드를 도는지 한 줄로 — plan·implement는 항목의 dev(roster), 그 밖은 노드의 에이전트.
 function NodeCard({
   kind,
   roster,

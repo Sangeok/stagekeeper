@@ -15,7 +15,6 @@ export type HistoryReportRecord = HistoryIdentity & {
 export type HistoryRecord = HistoryEventRecord | HistoryReportRecord;
 
 export function eventWhere(view: HistoryView): Prisma.TransitionEventWhereInput {
-  // SQL의 <>는 NULL에 일치하지 않으므로 일반 전이를 별도 분기로 보존한다.
   const withoutReport = { OR: [{ note: null }, { note: { not: "report" } }] };
   if (view === "all") return withoutReport;
   return { AND: [withoutReport, { OR: [
@@ -40,7 +39,6 @@ export function mergeHistoryPage(
   const rows: HistoryRecord[] = [];
   let eventIndex = 0;
   let reportIndex = 0;
-  // 원천 안의 DB 정렬을 보존한다. 같은 시각에는 보고서가 전이보다 먼저 온다.
   while (rows.length < limit && (eventIndex < events.length || reportIndex < reports.length)) {
     const event = events[eventIndex];
     const report = reports[reportIndex];

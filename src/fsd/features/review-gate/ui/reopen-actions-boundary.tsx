@@ -5,8 +5,6 @@ import { catchError, type ErrorInfo } from "next/error";
 import { Button } from "@/fsd/shared/ui/button";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
 
-// Rendering and transport errors cannot tell us whether the transition committed.
-// Next's retry re-reads the page without resubmitting the mutation or swallowing redirects.
 function ReopenErrorFallback(_props: object, { retry }: ErrorInfo): ReactElement {
   return (
     <section>

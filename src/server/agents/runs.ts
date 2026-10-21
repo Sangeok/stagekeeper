@@ -1,5 +1,3 @@
-// NextDeps의 Prisma 구현. 규칙은 next.ts, 저장은 여기. 항목이 쉬거나 폐기될 때 run을 닫는 쪽은
-// board-service.ts(closeRuns)다 — 보드 트랜잭션 안에서 일어나야 하므로.
 import type { PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccess } from "@/server/projects/api";
 import { createBoardService } from "@/server/pipeline/api";
@@ -11,7 +9,7 @@ import { cursorTransaction, commitRunOutcome } from "./run-service";
 import { readProjectUsageCapIn } from "@/server/usage/api";
 import { resolveCodexBundle } from "@/server/templates/api";
 
-const TEMPLATE_FALLBACK_LANG = "en"; // 시드된 언어. Project.language(기본 "ko")에 템플릿이 없으면 여기로
+const TEMPLATE_FALLBACK_LANG = "en";
 
 export function createNextDeps(db: PrismaClient): NextDeps {
   const board = createBoardService(db);
@@ -37,7 +35,6 @@ export function createNextDeps(db: PrismaClient): NextDeps {
       return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent, client);
     },
     usageCap: (projectId) => db.$transaction((tx) => readProjectUsageCapIn(tx, projectId)),
-    // 같은 (project, agent, key)에 열린 run이 둘일 수는 있다(부분 유니크 인덱스 없음) — 최신 것을 커서로 본다.
     openRun: (projectId, agent, key) => db.agentRun.findFirst({
       where: { projectId, agent, key, closedAt: null }, orderBy: { openedAt: "desc" }, select: { id: true, stepId: true, revision: true, closedAt: true },
     }),
@@ -48,7 +45,6 @@ export function createNextDeps(db: PrismaClient): NextDeps {
       });
       return row?.status ?? null;
     },
-    // 소유 검사용. boardStatus와 같은 행(폐기 안 된 최신 행)을 본다 — 두 판정이 다른 행을 보면 안 된다.
     itemAgent: async (projectId, key) => {
       const row = await db.boardItem.findFirst({
         where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { agent: true },
@@ -58,7 +54,6 @@ export function createNextDeps(db: PrismaClient): NextDeps {
     openCount: async (projectId) => (await board.latestBoard(projectId, true)).length,
     verifyOk: async (projectId, agent, key) =>
       (await db.agentRunStep.findFirst({ where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", run: { projectId, agent, key } }, select: { id: true } })) !== null,
-    // 원장을 쓰기 전에 project/agent/key를 모두 확인한다. 존재 여부를 다른 스코프에 노출하지 않는다.
     runByReceipt: (projectId, agent, key, runId) => db.agentRun.findFirst({
       where: { id: runId, projectId, agent, key }, select: { id: true, stepId: true, revision: true, closedAt: true },
     }),

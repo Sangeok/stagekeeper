@@ -40,7 +40,6 @@ export function gitRoot(input) {
   } catch { fail("invalid-config"); }
 }
 
-// checkout의 CLAUDE.md가 선언한 런북 판. watch와 background가 pipeline_next에 같은 값을 싣는다.
 export function checkoutRunbookVersion(root) {
   const body = readFileSync(path.join(root, "CLAUDE.md"), "utf8");
   const start = "<!-- harness:runbook:start -->";
@@ -51,7 +50,6 @@ export function checkoutRunbookVersion(root) {
   if (starts !== 1 || ends !== 1 || body.indexOf(start) >= body.indexOf(end)) fail("invalid-config");
   const managed = body.slice(body.indexOf(start) + start.length, body.indexOf(end));
   const versions = [];
-  // Count declaration prefixes too: a damaged quote must not silently become legacy.
   const prefixes = [...managed.matchAll(/This document is runbook version|\brunbook\s*:/g)];
   const declarations = [...managed.matchAll(/This document is runbook version\s+`([^`\r\n]*)`|\brunbook\s*:\s*"([^"\r\n]*)"/g)];
   if (prefixes.length !== declarations.length) fail("invalid-config");
@@ -94,10 +92,8 @@ export function readState(files) {
     || state.stuck !== (state.repeats >= STUCK_AFTER)
     || !(poller === null || (isObject(poller) && Number.isInteger(poller.pid) && poller.pid > 0 && nonempty(poller.nonce)))
     || (lock.client !== undefined && !["claude", "codex"].includes(lock.client))
-    // resident = 창 없는 상주 실행기(harness-background.mjs). 옛 판은 이 값을 손상 상태로 보고 거부한다 — 같은 저장소에서 섞여 돌지 않게.
     || (lock.mode !== undefined && !["watch", "foreground", "resident"].includes(lock.mode))
     || (lock.lifecycle !== undefined && !["active", "stopping"].includes(lock.lifecycle))
-    // 서버 lease를 잡았는가(/api/runner). CLI는 매번 새 프로세스라 이 값으로만 안다. 옛 판은 이 키를 읽지 않는다.
     || (lock.runnerLease !== undefined && typeof lock.runnerLease !== "boolean")
     || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce))))) fail("corrupt-state");
   return { lock, policy };
@@ -120,7 +116,6 @@ export async function withGuard(files, action, expires = Infinity) {
       if (error.code !== "EEXIST") fail("corrupt-state");
       if (performance.now() >= expires) throw new Interrupted({ event: "idle" });
       if (performance.now() >= limit) fail("guard-busy");
-      // Abandoned guards are deliberately not stolen, even with --force.
       await delay(Math.min(25, Math.max(1, limit - performance.now())));
     }
   }
@@ -198,7 +193,6 @@ export async function releaseSession(files, session) {
     if (state === null) return { event: "released", session };
     if (state.lock.id !== session) return replaced(session, state);
     if (state.lock.lifecycle !== "stopping") return { event: "error", code: "stop-required", session };
-    // A dead process is not proof that a pending host task or model turn was settled.
     if (state.lock.poller !== null || (state.lock.children ?? []).length !== 0) return { event: "error", code: "quiescence-required", session };
     clearState(files);
     return { event: "released", session };
@@ -220,7 +214,6 @@ export async function settleChild(files, session, child) {
   return withGuard(files, () => {
     const state = readState(files);
     if (state?.lock.id !== session) return replaced(session, state);
-    // The runtime calls this only after both the turn and its owned process have ended.
     state.lock.children = (state.lock.children ?? []).filter(item => item.nonce !== child.nonce || item.pid !== child.pid);
     atomicWrite(files.lock, state.lock);
     return { event: "settled", session };

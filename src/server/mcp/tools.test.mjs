@@ -6,12 +6,10 @@ import { registerTools as registerProductionTools } from "./tools";
 import { NOT_SELECTED_REASON } from "../projects/access-query";
 import { REVISION_MAX } from "../agents/next";
 
-// product-copy.md §13의 행 하나. 백틱과 굵은글은 마크다운 서식이라 떼고 비교한다.
 const COPY = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
 const TICK = "`";
 const copyRow = (tool) => {
   const head = `| ${TICK}${tool}${TICK} | `;
-  // 작업본이 CRLF일 수 있다 — 끝의 CR을 떼지 않으면 표 끝의 `|`가 안 떨어진다.
   const line = COPY.split(/\r?\n/).find((l) => l.startsWith(head));
   return line === undefined ? null : line.slice(head.length).trimEnd().replace(/\|$/, "").trimEnd().replaceAll(TICK, "").replaceAll("**", "");
 };
@@ -21,7 +19,6 @@ const descriptions = () => {
   return meta;
 };
 
-// 웹 전용 — 에이전트 토큰용 서버에 절대 없어야 한다(불변식 4의 회귀 가드).
 const WEB_ONLY = ["gate_approve", "board_approve", "board_bounce", "board_hold", "board_discard", "board_resume",
   "retryAcceptance", "acceptance_retry", "changeItemPipeline", "change_pipeline", "savePipeline", "setPipelineRule", "backlog_update", "backlog_remove", "token_issue", "command_create"];
 
@@ -91,7 +88,6 @@ describe("agent-scoped MCP tools", () => {
     }
     assert.ok(COPY.includes(PROJECT_REQUIRED), "product-copy must document the actual missing-scope error");
   });
-  // 문구가 갈리는 두 도구는 product-copy를 그대로 따라야 한다.
   it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
     for (const tool of ["board_transition", "plan_submit", "report_submit", "agent_next", "backlog_add", "acceptance_fail", "board_propose"]) {
@@ -131,7 +127,6 @@ describe("agent-scoped MCP tools", () => {
     });
     const one = await handlers.pipeline_next({ key: "X-1" }, ctx);
     await handlers.pipeline_next({}, ctx);
-    // 세션이 자기 CLAUDE.md의 판을 넘긴다. 모양은 여기서 재지 않는다 — 틀린 값도 호출은 성공하고 판정 쪽이 무시한다.
     await handlers.pipeline_next({ runbook: "a85859257e4c" }, ctx);
     await handlers.pipeline_next({ runbook: "not-a-version" }, ctx);
     assert.deepEqual(calls, [["p1", "X-1", undefined], ["p1", undefined, undefined], ["p1", undefined, "a85859257e4c"], ["p1", undefined, "not-a-version"]]);
@@ -139,7 +134,6 @@ describe("agent-scoped MCP tools", () => {
   });
 });
 
-// 잠금은 인증이 아니라 도구 층에서 건다 — mcp-handler 2.1.1의 401은 사유를 실을 수 없다.
 describe("not-selected projects", () => {
   const locked = { plan: "free", available: false, code: "not-selected", reason: NOT_SELECTED_REASON };
   const handlersWith = (extra = {}) => {
@@ -149,8 +143,6 @@ describe("not-selected projects", () => {
   };
   const body = (r) => JSON.parse(r.content[0].text);
 
-  // 등록된 도구 전부에서 허용 목록만 뺀 집합을 돈다 — 손으로 쓴 목록이면 게이트를 빼먹은 새 도구가 통과한다.
-  // project_get은 의도적인 예외다(아래 시험): 잠금 사유를 에이전트에게 전하는 유일한 통로다.
   const ANSWERS_WHEN_LOCKED = new Set(["project_get"]);
   const ARGS = {
     board_propose: { key: "X-1", agent: "dev", reason: "r" },
@@ -221,7 +213,6 @@ describe("not-selected projects", () => {
   });
 });
 
-// hu_ — 프로젝트가 토큰이 아니라 인자에서 온다. 인가는 scope() 한 곳에서 호출마다 일어난다.
 describe("user-scoped tokens resolve the project from the argument", () => {
   const userCtx = { http: { authInfo: { extra: { userId: "user1", tokenId: "usr1" } } } };
   const body = (r) => JSON.parse(r.content[0].text);

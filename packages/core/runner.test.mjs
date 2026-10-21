@@ -22,11 +22,9 @@ describe("runner liveness", () => {
     assert.equal(runnerSilenceLimit(working), WORKING_TIMEOUT_MS);
     assert.equal(runnerStatus(working, null, at(60)), "live");
     assert.equal(runnerStatus(working, null, at(61)), "silent");
-    // 에이전트가 신호 뒤 40분에 움직였다 — 그 뒤 60분까지 산다.
     assert.equal(runnerStatus(working, at(40), at(100)), "live");
     assert.equal(runnerStatus(working, at(40), at(101)), "silent");
     assert.equal(runnerSignalAt(working, at(40)).getTime(), at(40).getTime());
-    // 신호보다 이른 활동은 기준을 당기지 않는다.
     const late = row("session", "working", 30);
     assert.equal(runnerSignalAt(late, at(10)).getTime(), at(30).getTime());
   });

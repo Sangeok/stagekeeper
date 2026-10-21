@@ -22,7 +22,6 @@ describe("planWrites", () => {
   it("normalizes CRLF so a Windows checkout is not mistaken for a user edit", () => {
     assert.equal(hashOf("a\r\nb\r\n"), hashOf("a\nb\n"));
     const lock = { version: 1, files: { "a.md": { template: "x/a.md", hash: hashOf("A1\n") } } };
-    // 디스크에서 CRLF로 돌아온 같은 내용 → skipModified가 아니라 write여야 한다
     assert.deepEqual(planWrites({ targets: t, existing: { "a.md": "A1\r\n" }, lock, adopt: false }).write, ["a.md"]);
   });
 });

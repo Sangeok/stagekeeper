@@ -12,8 +12,6 @@ import { Chip } from "@/fsd/shared/ui/chip";
 
 import { HEADLINE, LANDING_INTRO } from "../model/landing-copy";
 
-// 공개 랜딩. 문구는 product-copy.md §16. Server Component — 상호작용은 CTA 폼뿐이다.
-// 히어로의 볼드니스는 문장 하나(둘째 줄만 --mine)와 실제 Inbox 카드 한 장에만 있다. 슬로건·그라디언트·모션 없음.
 
 const CYCLE: { n: number; label: string; you?: true }[] = [
   { n: 1, label: "Proposed" },
@@ -143,15 +141,6 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
   );
 }
 
-// 실제 Inbox 카드(게이트②)와 같은 프리미티브로 그린 정적 데모. 눌리지 않는다.
-// 이 데모는 실제 Inbox 화면에 대한 약속이라, 문구가 제품과 갈라지면 랜딩이 거짓말이 된다.
-// 탭 목록과 상태 라벨은 소유 모듈에서 직접 가져온다. 나머지 셋은 값을 그대로 적되 출처를 밝힌다:
-//   "Waiting on you"  = widgets/turn-banner/model/turn.ts 의 HEADLINE.mine
-//   "Approve implementation"                = entities/pipeline/model/gate-copy.ts GATE_COPY["before-implement"].label
-//   "Approving lets dev change code. …"     = 같은 파일 GATE_COPY["before-implement"].hint
-// 두 barrel(turn-banner·review-gate)이 Client Component를 포함하고 있어, 공개 페이지인 랜딩이
-// 그것을 모듈 그래프로 끌어오지 않게 한 선택이다. 세 문구는 product-copy.md §16의 copy-lock:landing-demo가
-// 이 화면에 묶는다(landing-page.test.ts) — 문서의 문장을 바꾸면 여기도 바꿔야 시험이 통과한다.
 function InboxDemo() {
   return (
     <div aria-hidden="true" className="overflow-hidden rounded-[10px] border border-rule bg-ground md:mt-1.5">

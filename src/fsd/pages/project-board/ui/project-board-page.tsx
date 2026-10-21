@@ -7,7 +7,6 @@ import { itemPath } from "@/fsd/shared/routes/project";
 import { SectionLabel } from "@/fsd/shared/ui/section-label";
 import type { ActivityItem, Briefing, TeamMember } from "../model/briefing";
 
-// Board는 상태 전용이다: (레이아웃의 턴 배너) · Activity · Team. 결정 카드는 Inbox에만 있다.
 export function ProjectBoardPage({ slug, briefing }: { slug: string; briefing: Briefing }) {
   const rows = briefing.activity;
   return (
@@ -52,7 +51,6 @@ function ActivityRow({ slug, item }: { slug: string; item: ActivityItem }) {
   );
 }
 
-// 팀은 조밀한 한 줄: mono 핸들 + 상태. 아바타 없음.
 function TeamRow({ team }: { team: TeamMember[] }) {
   return (
     <div className="flex flex-wrap gap-x-[22px] gap-y-1.5 text-xs text-quiet">

@@ -62,8 +62,6 @@ it("default integrity errors, id collisions and version overflow roll materializ
           await db.pipeline.create({ data: { id: pipelineId, projectId: f.projectId, name: "Default", createdBy: f.userId, definitions: { create: { version: 1, steps: ["plan"], gates: [], createdBy: f.userId } } } });
           await db.project.update({ where: { id: f.projectId }, data: { defaultPipelineId: pipelineId } });
         } else if (mode === "overflow") {
-          // Exhaust the project-wide counter on another pipeline so the default
-          // still needs materialization under the required ownership schema.
           const otherPipeline = await db.pipeline.create({ data: { projectId: f.projectId, name: "Other", createdBy: f.userId } });
           await db.pipelineVersion.create({ data: { projectId: f.projectId, pipelineId: otherPipeline.id, version: 2_147_483_647, nodes: ["plan", "implement", "accept"], gates: [], createdBy: f.userId } });
         } else await db.pipeline.create({ data: { id: pipelineId, projectId: other.projectId, name: "Collision", createdBy: other.userId } });

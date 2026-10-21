@@ -1,5 +1,3 @@
-// Fixed read operations over a private, disposable Git database. Repository
-// config, hooks, credentials and object alternates never enter this database.
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, lstatSync, realpathSync } from "node:fs";
@@ -10,8 +8,6 @@ import path from "node:path";
 const MAX_BYTES = 1024 * 1024, MAX_OBJECT = 128 * MAX_BYTES, MAX_TOTAL = 2 * 1024 * MAX_BYTES;
 const oid = value => typeof value === "string" && /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(value);
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
-// Windows lstat reports dev=0 whereas fstat reports the volume serial number.
-// Both report the same file index; inode plus timestamps/size fence replacements.
 const identity = stat => [process.platform === "win32" ? "" : stat.dev, stat.ino, stat.size, stat.mtimeNs, stat.ctimeNs].join(":");
 const check = signal => signal?.throwIfAborted();
 const canonical = value => process.platform === "win32" ? value.toLowerCase() : value;
@@ -25,8 +21,6 @@ export const roleGitTool = {
   }, required: ["operation"], additionalProperties: false },
 };
 
-// Git metadata is trusted as data, never as executable configuration. Worktrees
-// may locate that data outside root; reject aliases throughout both real chains.
 function regularPath(target, absent = false) {
   target = path.resolve(target);
   let current = path.parse(target).root;
@@ -96,7 +90,6 @@ async function layout(root, signal) {
     }
   }
   if (!oid(head)) throw new Error("Git HEAD commit refused");
-  // A fresh snapshot has no alternate or promisor source and never fetches.
   const alternates = path.join(common, "objects/info/alternates");
   if (existsSync(alternates) && text(await bytesAt(alternates, MAX_BYTES, signal)).trim()) throw new Error("Git object alternates unsupported");
   return { directory, common, head };
@@ -125,7 +118,6 @@ async function copyObjects(common, destination, signal) {
   }
 }
 
-// Git for Windows 2.56 moved its builtin from mingw64 to ucrt64; older installs keep mingw64.
 const gitForWindowsBuiltins = ["ucrt64", "mingw64"];
 
 export function nativeGitExecutable(environment = process.env) {
@@ -137,8 +129,6 @@ export function nativeGitExecutable(environment = process.env) {
     if (!existsSync(candidate)) continue;
     if (process.platform === "win32" && ["cmd", "bin"].includes(path.basename(directory).toLowerCase())
       && !gitForWindowsBuiltins.includes(path.basename(path.dirname(directory)).toLowerCase())) {
-      // Git for Windows cmd/bin shims launch a second process. Call the actual
-      // builtin executable so cancellation joins the process that reads data.
       for (const builtin of gitForWindowsBuiltins) {
         const actual = path.join(path.dirname(directory), builtin, "bin/git.exe");
         if (existsSync(actual)) return realpathSync(actual);
@@ -152,8 +142,6 @@ export function nativeGitExecutable(environment = process.env) {
 
 async function gitRead(directory, git, args, lifecycle, signal) {
   check(signal); await lifecycle.beforeActivate?.(); check(signal);
-  // The owned empty file replaces NUL: Git for Windows 2.56.0 cannot open NUL as
-  // a config path. It also serves as the empty attributes file.
   const system = process.env.SystemRoot ?? "C:\\Windows", empty = path.join(directory, "empty");
   const env = { PATH: [path.dirname(git), ...(process.platform === "win32" ? [path.join(system, "System32")] : [])].join(path.delimiter),
     HOME: directory, USERPROFILE: directory, XDG_CONFIG_HOME: directory, APPDATA: directory, LOCALAPPDATA: directory,
@@ -222,8 +210,6 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
     const location = await layout(root, combined), ref = args.ref === undefined || args.ref === "HEAD" ? location.head : planCommit;
     if (commonDirectory !== null) {
       const expected = regularPath(commonDirectory);
-      // Git expands Windows 8.3 TEMP names. Resolve both already-checked chains
-      // through the OS so spelling differences cannot reject the same directory.
       if (canonical(realpathSync.native(location.common)) !== canonical(realpathSync.native(expected))) throw new Error("Git metadata does not match session binding");
     }
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-git-")), own = randomUUID();
@@ -235,9 +221,6 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
       await writeFile(path.join(directory, "git/config"), `[core]\nrepositoryformatversion = ${sha256 ? 1 : 0}\nbare = false\nautocrlf = false\n${sha256 ? "[extensions]\nobjectFormat = sha256\n" : ""}`);
       await writeFile(path.join(directory, "git/HEAD"), location.head + "\n");
       await copyObjects(location.common, path.join(directory, "git/objects"), combined);
-      // An absent/current regular path can have been a tree in the commit.
-      // Literal Git pathspecs still recurse into trees, so reject those before
-      // diff/status can disclose denied historical descendants.
       if (selected.length) for (const commit of new Set([location.head, ref])) {
         const entries = textPaths(await gitRead(directory, git, ["ls-tree", "-z", commit, "--", ...selected.map(row => row.relative)], lifecycle, combined));
         for (const entry of entries) {
@@ -251,8 +234,6 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
           const bytes = await bytesAt(indexPath, MAX_OBJECT, combined); indexHash = hash(bytes);
           await writeFile(path.join(directory, "git/index"), bytes);
         } else {
-          // Populate only the disposable index; without one Git treats tracked
-          // paths as deleted rather than comparing their actual worktree bytes.
           await gitRead(directory, git, ["read-tree", location.head], lifecycle, combined);
         }
       }
@@ -268,8 +249,6 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
       if (operation === "status") {
         const tracked = textPaths(await gitRead(directory, git, ["ls-files", "--cached", "-z", "--", ...selected.map(row => row.relative)], lifecycle, combined));
         if (tracked.some(name => !selected.some(row => canonical(row.relative) === canonical(name)))) throw new Error("Git index scope refused");
-        // update-index selects one flag action per invocation; combining these
-        // switches would leave assume-unchanged active and conceal a real edit.
         for (const flag of ["--no-assume-unchanged", "--no-skip-worktree"])
           if (tracked.length) await gitRead(directory, git, ["update-index", flag, "--", ...new Set(tracked)], lifecycle, combined);
       }

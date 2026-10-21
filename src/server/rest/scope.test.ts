@@ -41,10 +41,6 @@ it("never records rejected REST credentials and preserves original lookup failur
   assert.equal(writes, 0);
 });
 
-// resolveUserScope — 사람만 식별한다. 프로젝트를 아직 만들기 전인 POST /api/projects가 쓴다.
-// resolveRestScope와 갈라 둔 이유가 여기 단언으로 남아 있어야 한다: 그쪽은 hs_를 첫 가지로
-// 통과시키고 언제나 projectId를 돌려주므로, 둘을 "통합"하면 프로젝트 토큰으로 새 프로젝트를
-// 만들 수 있게 된다.
 describe("resolveUserScope", () => {
   const user = newToken("user");
   const rows: Record<string, { id: string; userId: string; revokedAt: Date | null; expiresAt: Date | null }> = {
@@ -62,7 +58,6 @@ describe("resolveUserScope", () => {
     assert.deepEqual(await resolve(`Bearer ${user.plain}`), { ok: true, userId: "user-1" });
   });
 
-  // 이 줄이 이 파일의 핵심이다. hs_로 프로젝트를 새로 만들 수 있으면 안 된다.
   it("refuses an agent token — a project token must not create projects", async () => {
     const { resolve, seen } = setup();
     const result = await resolve(`Bearer ${newToken().plain}`);

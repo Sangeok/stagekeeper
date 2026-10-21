@@ -48,6 +48,16 @@ test, and build commands before completing a code change. Do not suppress an
 architecture error without documenting and approving the exception in
 `docs/architecture/verification.md`.
 
+## Code comments
+
+- Do not add explanatory code comments, prose-only JSDoc, or test narration unless
+  the user explicitly requests comments. Express intent through names, types, and
+  code structure.
+- Preserve functional metadata such as required JSDoc type annotations, compiler
+  and tool directives, shebangs, generated markers, and license notices. Add such
+  metadata only when required by the code or an existing repository contract.
+- Keep removal of existing comments within the user's requested task scope.
+
 ## Branching and pull requests
 
 `dev` is the integration branch; `main` is the release branch and holds only

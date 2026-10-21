@@ -18,7 +18,6 @@ const bundle = (lang: string) => [
   { lang, path: "CLAUDE.runbook.md", body: "Claude fixture source." }, { lang, path: "CODEX.runbook.md", body: runbook },
 ];
 
-// 실제 DB 계약 시험이다. CLI 모델·브라우저 인수로 취급하지 않는다.
 for (const format of [null, "slots-v1"] as const) for (const [first, second] of [["claude", "codex"], ["codex", "claude"]] as const) {
   it(`${format ?? "legacy"}: ${first} → ${second} preserves approval, pipeline, open run, receipt and usage`, async () => {
     const { all: [db], disconnect } = connections(1);

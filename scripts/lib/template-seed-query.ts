@@ -57,7 +57,6 @@ export async function snapshotTemplates(store: TemplateStore, rows: TemplateSour
 }
 
 export async function seedTemplates(store: TemplateStore, rows: TemplateSource[]): Promise<number> {
-  // 모든 검증을 첫 upsert보다 앞에서 마친다. 호출자는 단일 DB transaction을 제공한다.
   validateTemplateSources(rows);
   for (const row of rows) await store.upsert({ where: { lang_path: { lang: row.lang, path: row.path } }, create: row, update: { body: row.body } });
   return rows.length;

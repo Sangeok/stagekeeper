@@ -8,7 +8,6 @@ import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Field, Input } from "@/fsd/shared/ui/field";
 
-// 서버 액션은 route가 prop으로 넘긴다 — "use client" 파일은 *.server를 import할 수 없다(fsd.md).
 type Props = { issue: (label: string, expiresAt: string | null) => Promise<ActionResult<{ token: string }>>; ownerMcpUrl: string };
 
 type IssuedToken = { token: string; expiresAt: string | null };
@@ -50,7 +49,6 @@ export function NewOwnerTokenForm({ issue, ownerMcpUrl }: Props): ReactElement {
               }
               setState({ status: "succeeded", issued: { token: result.data.token, expiresAt: expiry } });
             } catch {
-              // The write may have committed. Keep the last received token separate from this unknown result.
               setState({ status: "unknown", previous: issued });
               router.refresh();
             }

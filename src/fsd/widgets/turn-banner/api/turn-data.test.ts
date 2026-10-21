@@ -37,7 +37,6 @@ it("GET derives failures only for the latest unaccepted done at an open accept c
   }
 });
 
-// 실행기 사실은 위젯 model의 타입으로 옮긴다. 시각은 ISO 문자열이고, 서버의 자유 문장(lastResult·lastLog)은 넘기지 않는다.
 it("maps the runner view to banner facts for the project it was asked about", async () => {
   const code = ts.transpileModule(readFileSync("src/fsd/widgets/turn-banner/api/turn-data.server.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   const require = createRequire(import.meta.url);

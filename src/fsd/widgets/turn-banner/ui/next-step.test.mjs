@@ -26,7 +26,6 @@ it("copies the Codex resume payload for every key without automatic watch", () =
 it("renders no box or guidance for an empty list", () => {
   assert.equal(renderToStaticMarkup(createElement(NextStepContent, { steps: [], client: "claude", onClientChange: () => {} })), "");
 });
-// 살아 있는 실행기가 있으면 watch 줄을 숨긴다. 실행기 행이 아예 없을 때만 버전 줄이 붙는다(product-copy §5).
 it("hides the watch line for a live runner and adds the version line only without a runner row", () => {
   const render = (props) => renderToStaticMarkup(createElement(NextStepContent, { steps, client: "claude", onClientChange: () => {}, ...props }));
   const hidden = render({ showWatch: false, showRunnerHint: true });
@@ -38,7 +37,6 @@ it("hides the watch line for a live runner and adds the version line only withou
   const codex = renderToStaticMarkup(createElement(NextStepContent, { steps, client: "codex", onClientChange: () => {}, showRunnerHint: true }));
   assert.doesNotMatch(codex, /harness:watch|plugin 0\.5\.13/);
 });
-// Free 줄(B-5)은 버전 줄과 함께, Free 플랜일 때만 붙는다.
 it("adds the Free line under the version line only on the Free plan", () => {
   const render = (props) => renderToStaticMarkup(createElement(NextStepContent, { steps, client: "claude", onClientChange: () => {}, ...props }));
   const free = render({ showRunnerHint: true, showFreeLine: true });

@@ -22,7 +22,6 @@ type PageOutput = ReactElement<{
   events: unknown[]; reports: unknown[]; currentRounds: ReadonlyMap<string, string>;
 }>;
 
-// 실제 route 본문을 별도 VM에서 실행한다. 인증·DB 경계만 주입하므로 전역 module mock이 남지 않는다.
 function isolatedHistoryRoute(dependencies: Record<string, unknown>): (input: PageInput) => Promise<PageOutput> {
   const source = readFileSync(new URL("../../src/app/(app)/p/[slug]/history/page.tsx", import.meta.url), "utf8");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
@@ -36,7 +35,6 @@ function isolatedHistoryRoute(dependencies: Record<string, unknown>): (input: Pa
     throw new Error(`Unexpected route dependency: ${specifier}`);
   } });
   assert.equal(typeof exported.default, "function");
-  // transpile된 모듈의 경계다. 아래 시험이 입력·출력·실행 순서를 검증한다.
   return exported.default as (input: PageInput) => Promise<PageOutput>;
 }
 
@@ -111,7 +109,6 @@ it("exports history queries through both the factory and server entrypoint", () 
 it("scopes and bounds both sources, preserves the three filters and only projects public record fields", async () => {
   const calls: { source: string; args: unknown }[] = [];
   const at = new Date("2026-09-30T00:00:00.000Z");
-  // 외부 경계인 Prisma만 대체한다. 이 시험에서 쓰는 두 조회 외에는 허용하지 않는다.
   const db = {
     transitionEvent: { findMany: async (args: unknown) => {
       calls.push({ source: "event", args });

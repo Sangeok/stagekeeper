@@ -13,7 +13,6 @@ import { loadProjectRepository } from "@/server/projects/api.server";
 export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]">) {
   const { slug, key } = await params;
   const { projectId } = await requireProjectOwner(slug);
-  // 이력 창은 플랜이 정한다. 저장은 전부 하고 조회만 자른다 — 잘린 경우에만 화면이 그 사실을 알린다.
   const access = await projectAccess(projectId);
   const cutoff = historyCutoff(await planForProject(projectId), new Date());
   const [project, row] = await Promise.all([loadProjectRepository(projectId), getWithHistory(projectId, key, cutoff)]);

@@ -1,6 +1,3 @@
-// 탭 뱃지와 배너가 같은 수가 아니라는 사실을 고정한다.
-// 뱃지는 결재함 목록과 같은 술어로 세고(on_hold 포함, product-copy.md §7),
-// 배너는 on_hold를 세지 않는다(§5).
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
@@ -9,7 +6,6 @@ import * as transitions from "@harness/core/transitions.mjs";
 import { STATUSES, findRule, type RuleKind } from "@harness/core/transitions.mjs";
 import { needsHumanDecision, pendingInboxCount, reopenTargetsFor } from "./gate-source";
 
-// 타입의 완전한 집합과 실행 표를 양방향으로 묶는다. 타입에만 남은 폐기 kind도 허용하지 않는다.
 const DECLARED: Record<RuleKind, true> = { gate: true, auto: true, bounce: true, hold: true, resume: true, plan: true, reopen: true };
 
 describe("RuleKind", () => {
@@ -43,7 +39,6 @@ describe("reopenTargetsFor", () => {
   it("done reopens to planning or implementing; nothing else reopens; done is still not an inbox card", () => {
     assert.deepEqual(reopenTargetsFor("done"), ["planning", "implementing"]);
     for (const s of ["proposed", "planning", "in_review", "implementing", "on_hold"]) assert.deepEqual(reopenTargetsFor(s), [], s);
-    // Inbox 자격은 런이 게이트에 서 있거나 재개 가능한 것뿐 — 게이트 없는 done은 카드가 아니다.
     assert.equal(needsHumanDecision({ status: "done", gate: null }), false);
   });
 });
@@ -60,16 +55,13 @@ describe("pendingInboxCount", () => {
   });
 
   it("a gate the graph removed is not a card, whatever the status says", () => {
-    // 상태만 보면 proposed는 게이트지만, 그래프가 before-plan을 빼면 카드가 아니다.
     assert.equal(needsHumanDecision({ status: "proposed", gate: null }), false);
     assert.equal(needsHumanDecision({ status: "proposed", gate: "before-plan" }), true);
-    // 비경계 게이트도 카드다 — 상태 기계에는 그 자리에 사람 규칙이 없다.
     assert.equal(needsHumanDecision({ status: "in_review", gate: "before-verify" }), true);
   });
 
   it("counts a resumable on_hold item that never owns the banner", () => {
     assert.equal(needsHumanDecision({ status: "on_hold", gate: null }), true);
-    // 게이트에서 대기하는 항목만 세면 재개 가능한 on_hold가 빠진다.
     assert.equal(pendingInboxCount([{ status: "on_hold", gate: null }]), 1);
   });
 

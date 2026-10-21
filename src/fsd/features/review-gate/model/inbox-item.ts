@@ -1,5 +1,3 @@
-// 결재함 카드의 계약. Client Component가 *.server를 import할 수 없어서
-// 액션 형도 여기 둔다 — route가 slug를 bind해서 prop으로 넘긴다(fsd.md 「Server와 Client 경계」).
 import { blobHref, type RepoRef } from "@/fsd/entities/board-item";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { isGateId } from "@harness/core/pipeline.mjs";
@@ -23,23 +21,21 @@ export type InboxItem = {
   area: string;
   agent: string;
   status: string;
-  gate: string | null; // 런이 서 있는 게이트 — 카드는 gate !== null일 때 게이트 버튼을 그린다
+  gate: string | null;
   reason: string;
   results: string[];
   validation: string | null;
   planPath: string | null;
   planUrl: string | null;
   planCommit: string | null;
-  proposedBy: "you" | "pm"; // 제안 이벤트의 actor — 웹에서 올리면 사람이다
-  proposedOn: string; // ISO
-  statusSince: string; // ISO. 지금 status로 바뀐 전이 이벤트의 시각(없으면 updatedAt)
-  heldFrom: string | null; // on_hold 직전 status — 주 Resume 버튼이 여기서 정해진다
-  heldBy: "human" | "agent" | null; // on_hold로 보낸 전이의 actor — 보류 메모의 이름표가 여기서 정해진다
-  updatedAt: string; // ISO. 낙관적 잠금(CAS)에 그대로 돌려보낸다
+  proposedBy: "you" | "pm";
+  proposedOn: string;
+  statusSince: string;
+  heldFrom: string | null;
+  heldBy: "human" | "agent" | null;
+  updatedAt: string;
 };
 
-// 인자 넷이 모두 string이면 순서를 바꿔도 컴파일된다. expectedUpdatedAt은 낙관적 잠금 토큰이라
-// key와 뒤바뀌면 런타임에야 "stale"로 드러난다 — 이름 있는 객체 하나로 받는다.
 export type { TransitionInput } from "./review-gate-input";
 
 export type RetryAcceptanceAction = (input: RetryAcceptanceInput) => Promise<ActionResult<void>>;
@@ -48,15 +44,10 @@ export type TransitionAction = (input: TransitionInput) => Promise<ActionResult<
 
 export type DiscardAction = (key: DiscardInput["key"], expectedUpdatedAt: DiscardInput["expectedUpdatedAt"]) => Promise<ActionResult<void>>;
 
-// 게이트 승인 액션 — 게이트 id로 부른다.
 export type GateAction = (input: ApproveGateInput) => Promise<ActionResult<void>>;
 
-// 표시 순서: 파이프라인 깊은 것부터 — 게이트②(in_review) → 게이트①(proposed) → 보류.
-// 결재함에 오를 자격(needsHumanDecision)과 달리 이건 순수한 표시 규칙이다.
 const INBOX_SORT: Record<string, number> = { in_review: 0, proposed: 1, on_hold: 2 };
 
-// 라우트가 아니라 이 slice가 카드 모델을 소유한다 — InboxItem이 바뀔 때 한 파일만 본다.
-// Prisma를 import하지 않도록 행의 형만 구조적으로 선언한다(client-safe 유지).
 type BoardRow = {
   status: string;
   agent: string;
@@ -69,7 +60,7 @@ type BoardRow = {
   updatedAt: Date;
   backlogItem: { key: string; title: string; area: string; type: string | null };
   events: { at: Date; from: string | null; to: string | null; actor: string }[];
-  run: { id?: string; entryId?: string | null; version?: { format: string | null }; node: string; closedAt: Date | null } | null; // latestBoardWithEvents의 include run
+  run: { id?: string; entryId?: string | null; version?: { format: string | null }; node: string; closedAt: Date | null } | null;
 };
 
 export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxItem[] {
@@ -78,12 +69,8 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
     .filter((row) => needsHumanDecision({ status: row.status, gate: gateOf(row) }))
     .sort((a, b) => (INBOX_SORT[a.status] ?? 9) - (INBOX_SORT[b.status] ?? 9))
     .map((row) => {
-      // 이벤트는 최신순. 지금 status로 바뀐 전이(검증·plan·report 같은 same-status 이벤트는 제외)의 시각.
-      // 쿼리(latestBoardWithEvents)가 note 없는 전이만 주지만, 여기서도 같은 가드를 둔다 — 모델이 쿼리 형에 매이지 않게.
       const became = row.events.find((e) => e.to === row.status && e.from !== e.to);
       const held = row.status === "on_hold" ? row.events.find((e) => e.to === "on_hold" && e.from !== e.to) : undefined;
-      // 올린 사람 — 첫 이벤트(— → proposed)의 actor다. 에이전트가 올렸으면 계약상 pm이고,
-      // 사람이면 백로그에서 직접 올린 소유자다. 이벤트 창(take: 8)을 벗어난 오래된 항목은 pm으로 둔다.
       const opened = row.events.find((e) => e.from === null && e.to === "proposed");
       return {
         key: row.backlogItem.key,
@@ -99,22 +86,18 @@ export function toInboxItems(rows: readonly BoardRow[], repo: RepoRef): InboxIte
         results: row.results,
         validation: row.validation,
         planPath: row.planPath,
-        // 게이트②가 승인하는 것은 기록된 커밋이다 — 링크도 그 커밋을 연다(브랜치 HEAD는 제출 전에만).
         planUrl: row.planPath === null ? null : blobHref(repo, row.planPath, row.planCommit),
         planCommit: row.planCommit,
         proposedBy: opened?.actor === "human" ? ("you" as const) : ("pm" as const),
         proposedOn: row.proposedOn.toISOString(),
         statusSince: (became?.at ?? row.updatedAt).toISOString(),
         heldFrom: held?.from ?? null,
-        // 에이전트도 보류한다(계획 단계의 열린 결정, 범위 밖 차단). 그 메모는 사용자가 쓴 것이 아니다.
         heldBy: held === undefined ? null : held.actor === "human" ? "human" : "agent",
         updatedAt: row.updatedAt.toISOString(),
       };
     });
 }
 
-// 슬롯 버전에서 이 카드의 게이트가 묶인 파이프라인 항목. 레거시 버전이거나 게이트가 아니면 null —
-// 카드의 잠금 키와 승인 payload가 같은 판정을 쓴다(서버는 board-service의 gate에서 같은 조합을 다시 검사한다).
 export function slotGateEntry(item: InboxItem): GateEntry | null {
   return item.gate !== null && item.format === "slots-v1" && item.gateEntry ? item.gateEntry : null;
 }

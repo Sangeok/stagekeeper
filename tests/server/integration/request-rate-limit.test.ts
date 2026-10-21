@@ -79,7 +79,6 @@ it("admits the agreed four-project, four-session 10-minute burst without false l
     } })).id);
     const start = performance.now();
     await Promise.all(projects.flatMap((projectId) => pool.all.map(async (client) => {
-      // Measured callback burst 59 + registration/init 3; fixture count agreed before implementation.
       for (let call = 0; call < 62; call++) assert.equal(await consumeProjectRequestBudget(client, projectId), null);
     })));
     const elapsedMs = performance.now() - start;
@@ -88,8 +87,6 @@ it("admits the agreed four-project, four-session 10-minute burst without false l
     assert.equal(windows.find((row) => row.scope === "account")?.count, 992);
     assert.ok(windows.filter((row) => row.scope === "project").every((row) => row.count === 248));
     console.log(`Request budget load rehearsal: 992 allowed, ${Math.round(elapsedMs)}ms total, ${Math.round(elapsedMs / 992 * 100) / 100}ms amortized/request (local DB).`);
-    // Latest dev adds watch: four sessions per project, each with one startup
-    // project_get and ten polls at the default 60-second interval.
     for (const projectId of projects) for (let call = 0; call < 44; call++) {
       assert.equal(await consumeProjectRequestBudget(db, projectId), null);
     }

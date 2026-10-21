@@ -22,7 +22,6 @@ const READY = { ...EMPTY, items: [{ key: "ITEM-01", node: "plan", version: 1, ac
 const BASE_ENV = { ...process.env };
 for (const key of Object.keys(BASE_ENV)) if (key.startsWith("HARNESS_") || key.startsWith("GIT_CONFIG") || key === "NODE_OPTIONS" || key.startsWith("STAGEKEEPER_TEST_")) delete BASE_ENV[key];
 
-// 가짜 claude. 실행 계획(plan.json)의 첫 항목대로 한 번 움직이고, 받은 인자와 환경을 기록한다.
 const FAKE_CLAUDE = `
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 const args = process.argv.slice(2);
@@ -65,7 +64,6 @@ const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) 
 const lines = file => (existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line)) : []);
 
 async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}) {
-  // native는 Windows의 8.3 짧은 이름(RUNNER~1)을 펼친다. CLI는 git이 돌려준 긴 경로를 쓰므로 같은 표기로 비교한다.
   const root = mkdtempSync(path.join(realpathSync.native(tmpdir()), "harness-background-test-"));
   const runnerCalls = [];
   let overview = READY;
@@ -88,7 +86,6 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}
   git("config", "user.name", "test");
   writeFileSync(path.join(root, "harness.json"), JSON.stringify(CONFIG));
   writeFileSync(path.join(root, "CLAUDE.md"), `<!-- harness:runbook:start -->\nThis document is runbook version \`${VERSION}\`.\n<!-- harness:runbook:end -->\n`);
-  // 실행기가 쓰는 파일(.git 안)과 시험 도구(작업 트리 밖)는 작업 트리를 더럽히지 않는다.
   git("add", "-A");
   git("commit", "-q", "-m", "init");
   const tools = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-background-tools-"));
@@ -114,14 +111,13 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}
   const lockPath = path.join(directory, "watch.lock.json");
   const status = () => (existsSync(path.join(directory, "background.json")) ? JSON.parse(readFileSync(path.join(directory, "background.json"), "utf8")) : null);
   t.after(async () => {
-    // 상주 프로세스는 detached다 — 시험이 실패해도 남기지 않는다.
     if (existsSync(lockPath)) {
       await run(["--stop"]).catch(() => {});
       await waitFor(() => !existsSync(lockPath), 15000, "runner stop").catch(() => {});
     }
     const pid = status()?.pid;
-    if (pid && alive(pid)) { try { process.kill(pid); } catch { /* 이미 끝났다 */ } }
-    for (const entry of lines(record)) if (alive(entry.pid)) { try { process.kill(entry.pid); } catch { /* 이미 끝났다 */ } }
+    if (pid && alive(pid)) { try { process.kill(pid); } catch {   } }
+    for (const entry of lines(record)) if (alive(entry.pid)) { try { process.kill(entry.pid); } catch {   } }
     await new Promise(resolve => server.close(resolve));
     for (const dir of [root, tools]) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
@@ -263,7 +259,6 @@ it("ends a run when the branch changes, waits on the branch and resumes after sw
   await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult?.startsWith("done:")), 30000, "the run after switching back");
 });
 
-// 세 번 연속 실패하면 멈춘다. 모두 진전 없음이면 stuck, 오류가 섞이면 error다(2026-10-21 확정).
 it("stops with an error after three failed runs and tells the server", async t => {
   const f = await fixture(t, { plan: [{ kind: "fail" }] });
   const started = await f.run(START);

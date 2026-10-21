@@ -21,7 +21,6 @@ import { ResumeButtons } from "./resume-buttons";
 
 type Props = { item: InboxItem; now: string; transition: TransitionAction; approve: GateAction; discard: DiscardAction; canWrite: boolean; readOnlyLabel?: InboxReadOnlyLabel };
 
-// 카드 = 머리(키·영역 / 제목 / 상태 한 줄) → 읽을 것(계획서 줄 또는 증거) → 결정 블록(버튼 줄 + 결과 문장) → 보조.
 export function InboxCard(props: Props): ReactElement {
   return <InboxCardBoundary itemKey={props.item.key}>
     <GateCardLock key={gateCardKey(props.item)}>
@@ -30,18 +29,11 @@ export function InboxCard(props: Props): ReactElement {
   </InboxCardBoundary>;
 }
 
-// JSX 자식으로 남겨야 정적 표시의 오류도 카드별 경계 아래에서 처리된다.
 function InboxCardContent({ item, now, transition, approve, discard, canWrite, readOnlyLabel = "Not selected" }: Props): ReactElement {
-  // 잠긴 프로젝트에서는 아무 결정도 내릴 수 없다. 게이트·재개·반려·폐기를 모두 감추고 칩만 남긴다 —
-  // 서버 액션도 requireProjectWrite로 거부하므로, 눌러 보고 알게 되는 대신 미리 안다.
-  // **사유 문장은 여기 두지 않는다.** 레이아웃 배너가 화면 맨 위에서 이미 말하고 있어서,
-  // 카드마다 반복하면 같은 문장이 장 수만큼 늘어난다.
-  const gate = item.gate; // 런이 서 있는 게이트 — 카드 판정의 출처
+  const gate = item.gate;
   const isProposed = item.status === "proposed";
   const isInReview = item.status === "in_review";
   const isOnHold = item.status === "on_hold";
-  // 서버가 새 값은 거부하지만(TEXT_LIMIT), 이미 들어온 값의 초과 표시는 화면 몫이다.
-  // 재는 기준은 보드와 같은 한 곳(entities/board-item)에서 온다 — 두 화면이 어긋나지 않게.
   const overBudget = isOverBudget([item.reason, ...item.results]);
 
   return (
@@ -125,7 +117,6 @@ function InboxCardContent({ item, now, transition, approve, discard, canWrite, r
   );
 }
 
-// 상태 · 누가 · 언제. 떠 있던 상태 칩을 이 한 줄이 대신한다.
 function StatusLine({ item, now }: { item: InboxItem; now: string }) {
   const today = new Date(now);
   const label = <b className="font-medium text-ink">{statusLabel(item.status)}</b>;
@@ -161,11 +152,9 @@ function StatusLine({ item, now }: { item: InboxItem; now: string }) {
   return <span>{label}</span>;
 }
 
-// 게이트②에서 읽을 것은 계획서다: 검증 여부 · 경로 · 커밋. 검증 여부는 정보일 뿐 경고가 아니다(design.md 규칙 2).
 function PlanRow({ item }: { item: InboxItem }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-field px-3 py-2.5 text-xs">
-      {/* 술어를 함수로 뺐으므로 여기서 validation이 non-null로 좁혀지지 않는다 — title 값만 보정한다. */}
       {isPlanVerified(item.status, item.validation) ? (
         <Chip tone="record" title={item.validation ?? undefined}>
           Verified
@@ -180,7 +169,6 @@ function PlanRow({ item }: { item: InboxItem }) {
           <span className="font-mono">{item.planCommit.slice(0, 7)}</span>
         </>
       ) : null}
-      {/* 링크를 내미는 자리가 그 조건도 말한다 — 커밋이 푸시되지 않았으면 404다. w-full로 줄을 나눈다. */}
       {item.planUrl !== null ? <span className="w-full text-quiet">{DOC_LINK_NOTE}</span> : null}
     </div>
   );

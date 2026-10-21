@@ -43,7 +43,6 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
   const root = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-watch-test-"));
   const children = new Set();
   const calls = [];
-  // /api/runner는 MCP와 따로 기록한다. 기본은 404 — 경로가 없는 서버처럼 로컬 잠금만으로 돈다.
   const runnerCalls = [];
   let runnerHandler = (body, res) => { res.statusCode = 404; res.end(); };
   const pending = new Set();
@@ -109,7 +108,6 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
     await Promise.all(closed);
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
-    // Never recursively remove a path outside this fixture's named absolute root.
     assert.equal(path.dirname(path.resolve(root)), path.resolve(realpathSync(tmpdir())));
     assert.ok(path.basename(root).startsWith("harness-watch-test-"));
     rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
@@ -248,7 +246,7 @@ it("discards delayed work after force; old response/cleanup/stop cannot change t
   await waitFor(() => f.calls.length === 2);
   const successor = (await f.start(["--force"])).event;
   const before = f.snapshot();
-  const result = await old.result; // Local ownership monitoring aborts the still-hung request.
+  const result = await old.result;
   assert.equal(result.event.event, "replaced");
   release.resolve();
   assert.deepEqual(f.snapshot(), before);
@@ -409,7 +407,6 @@ it("retries five request/body timeouts and removes only its own terminal state",
     f.setHandler(async (_request, res) => {
       if (body) { res.writeHead(200, { "content-type": "text/event-stream" }); res.write(": keepalive\n\n"); }
     });
-    // Allow a fresh Node process to connect before testing its five response timeouts.
     const result = await f.run(["--session", session, "--interval", "0.01", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
     assert.equal(result.event.code, "request-failed");
     assert.equal(f.calls.length, 6);
@@ -503,7 +500,6 @@ it("preserves state-free startup when config changes while project_get is in fli
   assert.equal(existsSync(f.lockPath), false); assert.equal(existsSync(f.policyPath), false);
 });
 
-// 서버 lease(POST /api/runner). 가짜 서버는 이 경로를 MCP와 따로 받고, 사례마다 op별 응답을 정한다.
 const SESSION_BIN = fileURLToPath(new URL("./harness-session.mjs", import.meta.url));
 const runnerReply = (status, body) => (_request, res) => { res.statusCode = status; res.setHeader("content-type", "application/json"); res.end(JSON.stringify(body)); };
 const LEASE_OK = runnerReply(200, { ok: true, paused: false });

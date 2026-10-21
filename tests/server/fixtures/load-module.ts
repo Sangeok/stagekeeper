@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
-// Only IO/module boundaries are injected; React is never replaced.
 export function loadModule<T>(path: string, dependencies: Record<string, unknown>): T {
   const require = createRequire(import.meta.url);
   const exported = {};

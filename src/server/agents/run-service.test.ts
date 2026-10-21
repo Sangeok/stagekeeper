@@ -76,8 +76,6 @@ it("audit failure rolls back the receipt revision and cursor claim", async () =>
   assert.equal(f.records.length, 0);
 });
 
-// 보드가 닫은 run의 마지막 terminal outcome(protocol.md). 닫은 스텝·보드 상태·닫힌 시각의 전이가 모두 맞을 때만 받는다.
-// plan 단계는 제출(→ in_review)뿐 아니라 보류(→ on_hold)로도 닫힌다 — 열린 결정이나 대상 없음(2026-10-20 watch smoke).
 function closedRun({ stepId, status, event }: { stepId: string; status: string; event: { from: string; to: string } | null }) {
   const closedAt = new Date("2026-10-20T08:00:21.945Z");
   const slotId = stepId === "hold" ? "implement" : "plan";
@@ -94,7 +92,6 @@ function closedRun({ stepId, status, event }: { stepId: string; status: string; 
       const matches = event !== null && where.boardItemId === "item" && where.to === event.to && (where.from === undefined || where.from === event.from) && where.at.getTime() === closedAt.getTime();
       return matches ? { id: "event" } : null;
     } },
-    // 실제 쿼리처럼 closedAt: null 조건을 지킨다 — 닫힌 run은 열린 run으로 다시 잡히지 않는다.
     agentRun: { findFirst: async ({ where }: { where: { closedAt?: null } }) => (where.closedAt === null ? null : run), findUnique: async () => run },
   };
   const client = { $transaction: async (work: (db: typeof tx) => Promise<ServerResult<NextOutput>>) => work(tx) } as unknown as PrismaClient;

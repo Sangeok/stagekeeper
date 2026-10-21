@@ -5,7 +5,6 @@ import { createBoardQueries } from "./board-service";
 
 type Tx = Parameters<ReturnType<typeof createBoardQueries>["advanceRun"]>[0];
 const asTx = (fake: object): Tx => fake as unknown as Tx;
-// advanceRun/transitionIn은 실제 transaction seam을 사용한다. gate의 조언은 별도의 MCP adapter 책임이다.
 const client = {} as PrismaClient;
 
 it("gate returns only the saved row, preserving commit and unknown-commit exception boundaries", async () => {
@@ -21,7 +20,6 @@ it("gate returns only the saved row, preserving commit and unknown-commit except
       transitionEvent: { create: async () => { if (outcome === "precommit") throw original; events++; return { at: new Date(1) }; } },
       pipelineRun: { findUnique: async () => run, updateMany: async () => { moves++; return { count: 1 }; } },
     };
-    // 모형의 commit 확인 유실은 저장을 되돌리지 않는다. 실제 network 장애 시험과 구분한다.
     const db = { $transaction: async (work: (transaction: typeof tx) => Promise<unknown>) => {
       try {
         const result = await work(tx); committed = true;
@@ -39,9 +37,6 @@ it("gate returns only the saved row, preserving commit and unknown-commit except
 });
 
 it("a matching gateEntry is the only thing that opens the cursor's gate", async () => {
-  // readFacts returns approvedGates: [] for every slots-v1 run; advanceRun injects the
-  // approval for the entry the owner actually read. Drop that injection and the cursor
-  // stalls at the gate forever — this is the test that fails when it goes.
   const version = { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: ["before-accept"] };
   const run = { id: "pipeline", node: "before-accept", entryId: "entry", enteredAt: new Date(0), closedAt: null, version };
   const fixture = () => {
@@ -72,8 +67,6 @@ it("a matching gateEntry is the only thing that opens the cursor's gate", async 
   }
 });
 
-// The implementation span ends when the last slot before accept is complete. The server
-// writes done itself — no agent rule exists for it — and transitionIn guards that write.
 function spanFixture({ slotClosed = true } = {}) {
   const version = { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "doc-auditor#2", "accept"], gates: [] };
   const run = { id: "pipeline", node: "doc-auditor#2", entryId: "entry", enteredAt: new Date(0), closedAt: null, version };

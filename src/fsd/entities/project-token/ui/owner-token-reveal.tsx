@@ -12,7 +12,6 @@ import { OWNER_TOKEN_VARIABLE, codexOwnerMcpCommand, connectCommands } from "../
 type RuntimeClient = NonNullable<Parameters<typeof clientRuntime>[0]>;
 const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));
 
-// 문장은 product-copy.md §9의 잠금 블록(owner-token-reveal)에서 온다 — token-reveal.test.ts가 묶는다.
 export function OwnerTokenReveal({ token, ownerMcpUrl }: { token: string; ownerMcpUrl: string }): ReactElement {
   return <OwnerTokenRevealContent key={`${token}:${ownerMcpUrl}`} token={token} ownerMcpUrl={ownerMcpUrl} />;
 }

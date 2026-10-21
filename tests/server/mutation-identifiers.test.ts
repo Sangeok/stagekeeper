@@ -30,7 +30,7 @@ it("all eight authenticated mutations reject malformed IDs before delegate write
   const user = loadModule<typeof import("../../src/fsd/features/manage-user-token/api/manage-user-token.server")>(userPath, dependencies);
   const backlog = loadModule<typeof import("../../src/fsd/features/edit-backlog/api/edit-backlog.server")>(backlogPath, dependencies);
   for (const raw of [undefined, null, {}, { not: "one" }, "", " \n "]) {
-    const id = raw as string; // Deliberately cross the public runtime boundary.
+    const id = raw as string;
     for (const revoke of [() => project.revokeToken("mine", id), () => project.revokeOwnerToken("mine", id), () => user.revokeUserToken(id)]) await assert.rejects(revoke, /Invalid token ID\./);
     for (const rename of [() => project.renameToken("mine", id, "label"), () => project.renameOwnerToken("mine", id, "label"), () => user.renameUserToken(id, "label")]) assert.deepEqual(JSON.parse(JSON.stringify(await rename())), { success: false, error: "Token not found." });
     for (const update of [() => backlog.updateBacklogItem("mine", id, { status: "idle" }, new FormData()), () => backlog.removeBacklogItem("mine", id)]) assert.equal((await update()).status, "error");

@@ -1,4 +1,3 @@
-// lease 규칙을 DB 없이 검사한다. 실제 잠금·경합·DB 시계는 tests/server/integration/runner-lease.test.ts가 본다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -115,7 +114,6 @@ describe("runner start", () => {
     assert.equal(busy.state.activityReads, 1);
     const expired = fakeDb({ runner: runnerRow({ state: "working", seenAt: ago(70) }), lastRun: ago(65), lastStep: ago(61) });
     assert.equal((await op(expired, startAs(MINE))).ok, true);
-    // idle 세션은 활동을 읽지 않는다.
     const idle = fakeDb({ runner: runnerRow({ seenAt: ago(4) }), lastStep: ago(0) });
     assert.equal((await op(idle, startAs(MINE))).ok, true);
     assert.equal(idle.state.activityReads, 0);

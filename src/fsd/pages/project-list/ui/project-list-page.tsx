@@ -13,15 +13,12 @@ import { activityLines, connectionSummary, NOT_SELECTED_BOUNDARY, selectionNotic
 export type ProjectListModel = Omit<ProjectSelectionModel, "projects"> & {
   login: string;
   connectedCount: number;
-  // runner는 선택이다. 있으면 활동 줄 아래에 실행기의 짧은 형태를 한 줄 더한다(product-copy §10).
   projects: (ProjectSelectionModel["projects"][number] & { slug: string; repoOwner: string; repo: string; branch: string; disconnectedAt: string | null; runner?: RunnerFacts })[];
   notice: { basis: string | null; availableProjectIds: string[]; at: string } | null;
 };
 type ProjectRow = ProjectListModel["projects"][number];
 type Props = { model: ProjectListModel; action: SelectProjectAction; disconnect: ProjectConnectionAction; reconnect: ProjectConnectionAction };
 
-// 연결 수는 한 문장(connectionSummary)으로만 말한다. 사용 가능 수는 연결 수와 다를 때만 보인다 — 위의 안내와
-// 목록 안의 경계 줄. 평소엔 모든 행이 사용 중이라 행마다 상태 글자를 붙이지 않는다(product-copy.md §10).
 export function ProjectListPage({ model, action, disconnect, reconnect }: Props) {
   const { projects } = model;
   const connected = projects.filter((p) => p.disconnectedAt === null);

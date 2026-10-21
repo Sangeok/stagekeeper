@@ -1,4 +1,3 @@
-// Fresh-build browser acceptance on an isolated TEST_DATABASE_URL. Stop with /finish.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -121,7 +120,6 @@ async function main(): Promise<void> {
       if (req.method === "POST" && pipelineActions.has(String(req.headers["next-action"]))) pipelineCalls.save++;
       if (req.method === "POST" && scoutActions.has(String(req.headers["next-action"]))) pipelineCalls.scout++;
       if (isAction) { actions.push(body.toString()); if (mode === "pause") actionMode = "normal"; }
-      // A completed, truncated RSC response avoids a transport-level replay of the POST.
       if (reopenFault === "before" || pipelineFault === "before") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
       if (mode === "before") { req.socket.destroy(); return; }
       if (mode === "pause") await new Promise<void>(resolve => { releaseAction = resolve; });
@@ -139,8 +137,6 @@ async function main(): Promise<void> {
   const interrupt = () => finish(); process.once("SIGINT", interrupt);
   try {
     if (process.argv.includes("--render-faults")) {
-      // Instrument only an existing generated build, then restore its exact bytes.
-      // The real RSC content function stays a JSX child of the actual boundary.
       const files: string[] = [];
       const walk = (dir: string) => { for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, entry.name); if (entry.isDirectory()) walk(path); else if (entry.name.endsWith(".js")) files.push(path);
@@ -186,7 +182,7 @@ async function main(): Promise<void> {
     });
     next.stderr?.on("data", chunk => console.error(String(chunk).replace(/postgres(?:ql)?:\/\/\S+/g, "[database URL]")));
     let started = false;
-    for (let attempt = 0; attempt < 100; attempt++) { try { if ((await fetch(`${upstream}/login`)).status === 200) { started = true; break; } } catch { /* Wait for local server. */ } await delay(100); }
+    for (let attempt = 0; attempt < 100; attempt++) { try { if ((await fetch(`${upstream}/login`)).status === 200) { started = true; break; } } catch {   } await delay(100); }
     assert.ok(started, "fresh production Next server must start");
     await new Promise<void>(resolve => proxy.listen(55452, "127.0.0.1", resolve));
     console.log(`Browser acceptance ready: ${browserOrigin}/owner, /owner-item, /owner-pipeline and /fixture?mode=form`);

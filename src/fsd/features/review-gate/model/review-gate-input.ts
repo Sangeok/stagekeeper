@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// 기존 Date 파싱 범위는 유지하되 transport의 숫자/null 자동 변환은 막는다.
 const dateString = z.string().min(1).refine((value) => !Number.isNaN(new Date(value).getTime()));
 const itemInput = { key: z.string().min(1), expectedUpdatedAt: dateString };
 

@@ -20,18 +20,16 @@ export type BoardItemView = {
   results: string[];
   validation: string | null;
   proposedOn: Date;
-  acceptedAt: Date | null; // 인수 기록(main-loop의 report_submit in done). 실패는 별도로 기록한다
+  acceptedAt: Date | null;
   acceptanceFailure: { id: string; checks: number[]; note: string; path: string | null; commit: string | null; at: Date } | null;
-  updatedAt: string; // ISO. 되돌리기(reopen)의 낙관적 잠금 토큰
+  updatedAt: string;
   docs: ItemDoc[];
   events: HistoryEventInput[];
   reports: HistoryReportInput[];
   repo: RepoRef;
-  // 창 밖으로 밀린 이력이 있을 때만 true — 창이 없는 플랜에서는 언제나 false다.
   historyTruncated?: boolean;
 };
 
-// transition은 라우트가 slug를 bind해서 넘긴 사람 전이 액션(review-gate). 이 페이지는 되돌리기(reopen)에만 쓴다.
 export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrite, pipelineChoices, changePipeline }: { slug: string; item: BoardItemView; transition: TransitionAction; retryAcceptance: RetryAcceptanceAction; canWrite: boolean; pipelineChoices: { id: string; name: string }[]; changePipeline: ChangePipelineAction }) {
   return (
     <>
@@ -93,7 +91,6 @@ export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrit
               </li>
             ))}
           </ul>
-          {/* 링크 셋은 전부 기록된 커밋을 가리킨다 — 푸시 전이면 넷 다 404다(인박스 카드와 같은 문장). */}
           <p className="mt-1.5 text-xs text-quiet">{DOC_LINK_NOTE}</p>
         </section>
       ) : null}
@@ -111,7 +108,6 @@ export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrit
         }}
       />
 
-      {/* done에서만 그려진다(reopenTargetsFor) — Documents를 읽고 결정하는 순서라 그 아래, History 위(product-copy.md §11). */}
       {canWrite ? <ReopenActions itemKey={item.key} status={item.status} updatedAt={item.updatedAt} transition={transition} /> : null}
 
       <section>

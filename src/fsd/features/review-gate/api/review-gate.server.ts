@@ -33,12 +33,10 @@ export async function humanTransition(slug: string, input: TransitionInput): Pro
   const { userId, projectId } = w;
   const r = await board.transition(projectId, { key, to, result }, { actor: "human", actorRef: userId, channel: "web", expectedUpdatedAt: new Date(expectedUpdatedAt) });
   if (!r.ok) return failure(message(r.reason));
-  // 되돌리기(reopen)는 항목 상세에서 오므로 그 경로도 새로 그린다.
   revalidatePath(projectPath(slug)); revalidatePath(projectPath(slug, "/inbox")); revalidatePath(itemPath(slug, key));
   return success();
 }
 
-// 게이트 승인 — 게이트 id로. 서버 층의 잠금은 board.transitionIn의 viaGate 거부가 맡는다.
 export async function approveGate(slug: string, input: ApproveGateInput): Promise<ActionResult<void>> {
   if (typeof slug !== "string" || slug.length === 0) return failure(message("stale"));
   const w = await requireProjectWrite(slug);

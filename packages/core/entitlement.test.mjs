@@ -192,7 +192,6 @@ describe("capError", () => {
   });
 });
 
-// 파이프라인 축 둘 — 편집 가능 여부는 불리언이고, 디스패치는 롤링 창을 가진 수 축이다.
 describe("pipeline axes", () => {
   it("only Pro and Max may edit the graph", () => {
     assert.equal(LIMITS.free.pipelineEdit, false);
@@ -212,7 +211,6 @@ describe("pipeline axes", () => {
 
 });
 
-// 상주 실행기는 Pro 이상이다. 1단계 세션 감시는 플랜과 무관해서 축이 없다.
 describe("resident runner axis", () => {
   it("opens the background runner on Pro and Max only", () => {
     assert.equal(LIMITS.free.residentRunner, false);

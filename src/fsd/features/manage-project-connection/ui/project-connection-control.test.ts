@@ -5,7 +5,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { ProjectConnectionControl } from "./project-connection-control";
 
-// Real focus/effects/pending/CAS recovery are covered by browser connection cases.
 it("keeps disconnect in More actions and blocks reconnect above the current cap", () => {
   const action = async () => ({ status: "success" as const });
   const render = (disconnected: boolean) => renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: {} as ContextType<typeof AppRouterContext> }, createElement(ProjectConnectionControl, {

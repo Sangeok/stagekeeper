@@ -10,8 +10,6 @@ import { type NextDeps } from "../src/server/agents/next";
 import { seedPipelineVersion } from "../tests/server/integration/support";
 import { cursorTransaction } from "../src/server/agents/run-service";
 
-// Deliberately no dotenv import or DATABASE_URL fallback. Only a disposable,
-// initially empty PostgreSQL database is accepted; all fixtures stay there.
 async function main() {
   if (process.argv.slice(2).join(" ") !== "--allow-fixtures") throw new Error("Pass --allow-fixtures for an isolated, empty test database.");
   const connectionString = process.env.PIPELINE_SLOT_TEST_DATABASE_URL;
@@ -127,7 +125,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  // Do not print a connection string or a driver error containing credentials.
   console.error(error instanceof assert.AssertionError ? error.message : "Pipeline slot rehearsal failed. Check the isolated database configuration and test assertions.");
   process.exitCode = 1;
 });

@@ -1,21 +1,17 @@
 @import "tailwindcss";
-
-/* ── 디자인 토큰. hex는 oklch에서 계산했고 주석은 paper 대비 대비비.
-   색은 사람 차례에만 준다: --mine(만질 수 있는 것)·--risk(되돌릴 수 없음 / 증거 없음) 둘만 채도색이고
-   에이전트 차례·완료·보류는 무채다. 다크는 라이트와 같은 hue의 따뜻한 근흑 — 시스템 설정을 따른다(토글은 후속). */
 :root {
   color-scheme: light;
-  --ground: #fbfaf8;      /* 페이지 */
-  --paper: #ffffff;       /* 카드 */
-  --field: #f3f1ef;       /* 기록 영역·코드 바탕 */
-  --ink: #1d1a17;         /* 17.3:1 */
-  --quiet: #666260;       /*  6.0:1 */
-  --edge: #898583;        /*  3.65:1 — 입력칸·윤곽 버튼 테두리(비텍스트 3:1) */
-  --rule: #e0dddb;        /* 헤어라인 전용 */
-  --mine: #1a51bd;        /*  7.1:1 — 흰 글자도 7.1:1 */
+  --ground: #fbfaf8;
+  --paper: #ffffff;
+  --field: #f3f1ef;
+  --ink: #1d1a17;
+  --quiet: #666260;
+  --edge: #898583;
+  --rule: #e0dddb;
+  --mine: #1a51bd;
   --mine-soft: #e8eefb;
   --on-mine: #ffffff;
-  --risk: #a92227;        /*  7.2:1 */
+  --risk: #a92227;
   --risk-soft: #fbeaea;
 }
 
@@ -25,19 +21,17 @@
     --ground: #0f0d0b;
     --paper: #181513;
     --field: #211f1c;
-    --ink: #edebe8;       /* 15.2:1 */
-    --quiet: #a19e9b;     /*  6.8:1 */
-    --edge: #74716e;      /*  3.7:1 */
+    --ink: #edebe8;
+    --quiet: #a19e9b;
+    --edge: #74716e;
     --rule: #302d2b;
-    --mine: #73b6fa;      /*  8.5:1 */
+    --mine: #73b6fa;
     --mine-soft: #1b2a45;
     --on-mine: #0f0d0b;
-    --risk: #f47b74;      /*  6.8:1 */
+    --risk: #f47b74;
     --risk-soft: #3a1c1c;
   }
 }
-
-/* Tailwind 팔레트를 비우고 토큰만 남긴다 — zinc·amber·sky 같은 기본 색이 새로 들어올 수 없다. */
 @theme inline {
   --color-*: initial;
   --color-ground: var(--ground);
@@ -60,8 +54,6 @@
 
   --animate-breathe: breathe 2.4s ease-in-out infinite;
 }
-
-/* "Agents are working" 앞의 점 하나 — 제품의 유일한 상시 모션. */
 @keyframes breathe {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
@@ -96,7 +88,6 @@
 }
 
 @layer components {
-  /* 턴 헤드라인·랜딩 논지·첫 방문 제목 — 딱 세 곳에만 쓰는 디스플레이 크기. */
   .type-display {
     font-size: clamp(28px, 2vw + 20px, 40px);
     line-height: 1.05;

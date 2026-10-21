@@ -45,7 +45,6 @@ function reconcileLatest(state: PipelineDraftState): PipelineDraftState {
 export function receivePipelineSnapshot(state: PipelineDraftState, snapshot: PipelineSnapshot): PipelineDraftState {
   if (snapshot.version < state.latest.version || snapshot.version < state.baseline.version) return state;
   if (snapshot.version === state.latest.version) {
-    // Persisted versions are immutable. Only the unsaved default can change with the plan.
     if (snapshot.version !== 0 || sameDefinition(snapshot.definition, state.latest.definition)) return state;
   }
   return reconcileLatest({ ...state, latest: { version: snapshot.version, definition: copyDefinition(snapshot.definition) } });
@@ -85,6 +84,5 @@ export function finishPipelineSave(state: PipelineDraftState, result: SavePipeli
 }
 
 export function discardPipelineDraft(state: PipelineDraftState): PipelineDraftState {
-  // Recovery requires a fresh route read, not a locally observed success guess.
   return state.request.status === "idle" ? createPipelineDraft(state.latest) : state;
 }

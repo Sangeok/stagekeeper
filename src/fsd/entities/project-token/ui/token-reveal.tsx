@@ -16,11 +16,6 @@ import { type ConnectCommand, connectCommands, codexInstallCommands, profileLine
 type RuntimeClient = NonNullable<Parameters<typeof clientRuntime>[0]>;
 const OPTIONS = CLIENTS.map(parseClient).map(value => ({ value, label: value === "claude" ? "Claude Code" : "Codex" }));
 
-// 발급 직후 평문을 한 번만 보여 준다. 새로고침하면 사라진다 — 서비스는 해시만 저장한다.
-// create-project·manage-token·manage-user-token 셋이 이 화면을 쓴다(같은 layer끼리는 import할 수 없어 entity에 둔다).
-//
-// 문장은 전부 product-copy.md §9의 잠금 블록에서 온다(token-reveal.test.ts가 묶는다) — 1·4단계는 공통,
-// 2·3단계는 토큰 종류가 정한다. 안내는 /harness:init에서 끝난다: 재시작·연결 확인은 스킬이 그 자리에서 말한다.
 export function TokenReveal({ token, mcpUrl }: { token: string; mcpUrl: string }) {
   return <TokenRevealContent key={`${token}:${mcpUrl}`} token={token} mcpUrl={mcpUrl} />;
 }
@@ -89,7 +84,6 @@ export function TokenRevealView({ token, mcpUrl, client, onClientChange }: { tok
   );
 }
 
-// hs_ — 그 터미널에만 둔다. 변수는 머신에 하나인데 hs_는 저장소마다 달라서, 전역에 저장하면 다른 저장소의 토큰을 덮어쓴다.
 function SetProjectToken({ token, clientName }: { token: string; clientName: string }) {
   return (
     <div className="flex flex-col gap-2">
@@ -115,8 +109,6 @@ function SetProjectToken({ token, clientName }: { token: string; clientName: str
   );
 }
 
-// hu_ — 머신에 한 번 저장한다. 명령은 값을 싣지 않고 입력을 받으므로 길어도 잘라 보이지 않는다:
-// 비밀을 다루는 줄은 무엇을 실행하는지 다 보여야 한다.
 function SaveUserToken({ token, clientName }: { token: string; clientName: string }) {
   const line = profileLine(token);
   return (

@@ -1,5 +1,3 @@
-// 실행기 lease를 격리 DB에서 확인한다: 실제 행 잠금 아래의 경합, DB 시계 기준 만료, 재전송, 일시 정지,
-// 마이그레이션의 CHECK, 그리고 REST 경로 끝까지. 규칙 하나하나는 src/server/runners/runner-service.test.ts가 본다.
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
@@ -22,8 +20,6 @@ it("lets exactly one of two racing runners take a free lease under the real row 
   const gate = checkpoint(); let first: Promise<unknown> | undefined; let second: Promise<unknown> | undefined;
   try {
     f = await fixture(a);
-    // A가 Runner 행을 읽은 직후에 멈춘다. 잠금이 있으면 B는 A가 커밋할 때까지 기다렸다가 A의 행을 보고 BUSY를 받는다.
-    // 잠금을 빼면 B도 빈 행을 읽고 먼저 쓴다 — 둘 다 성공하므로 이 시험이 실패한다.
     const held = a.$extends({ query: { runner: { async findUnique({ args, query }) { const row = await query(args); await gate.hook(); return row; } } } }) as unknown as PrismaClient;
     first = op(held, f, start(A)); await gate.entered();
     second = op(b, f, start(B));
@@ -50,7 +46,6 @@ it("expires a lease by the database clock and never lets a stopped row hold it",
     assert.equal((await db.runner.findUniqueOrThrow({ where: { projectId: f.projectId } })).session, B);
     assert.deepEqual(await op(db, f, { op: "stop", session: B, reason: "stuck" }), { ok: true, body: { ok: true } });
     assert.equal((await op(db, f, start(A))).ok, true, "a stopped row does not hold the lease");
-    // 1단계 세션이 일하는 동안은 프로젝트의 마지막 에이전트 활동 뒤 60분이다.
     assert.equal((await op(db, f, { op: "beat", session: A, state: "working", waitReason: null, lastResult: null, lastLog: null })).ok, true);
     await age(db, f, 90);
     await db.agentRun.create({ data: { projectId: f.projectId, agent: "dev", tokenId: "t", stepId: "plan" } });

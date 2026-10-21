@@ -1,4 +1,3 @@
-// Fresh production build, real sessions/Server Actions, and disposable test DB only.
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -12,7 +11,6 @@ import { defaultGraph } from "../packages/core/pipeline.mjs";
 import { validateTestDatabase } from "./test-server-integration.mjs";
 
 const require = createRequire(import.meta.url);
-// Use the installed Flight encoder, including FormData and undefined wire values.
 const { encodeReply } = require("next/dist/compiled/react-server-dom-webpack/client.node") as {
   encodeReply: (args: unknown[]) => Promise<string | FormData>;
 };
@@ -67,7 +65,7 @@ async function main() {
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {
       if (next.exitCode !== null) throw new Error("Next server exited before acceptance");
-      try { ready = (await fetch(origin + "/login")).status === 200; } catch { /* bounded startup */ }
+      try { ready = (await fetch(origin + "/login")).status === 200; } catch {   }
       if (ready) break; await delay(100);
     }
     assert.ok(ready); await new Promise<void>((resolve, reject) => { proxy.once("error", reject); proxy.listen(55450, "127.0.0.1", resolve); });

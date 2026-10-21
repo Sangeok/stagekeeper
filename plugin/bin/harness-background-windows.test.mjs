@@ -1,5 +1,3 @@
-// Windows의 job 런처(runtime/windows/job-launch.ps1)를 실제로 띄워, 상주 프로세스나 런처가 죽을 때 `claude -p`가 띄운
-// 손자 프로세스까지 끝나는지 본다(결정 B3). 다른 OS에서는 건너뛴다.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -14,7 +12,6 @@ const BACKGROUND = new URL("../runtime/background.mjs", import.meta.url).href;
 const skip = process.platform !== "win32" && "Windows only";
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code !== "ESRCH"; } };
 
-// `claude` 대역: 손자를 detached로 띄우고(도구 셸이 job을 빠져나가려는 경우), 두 pid를 기록한 뒤 기다린다.
 const FAKE = `
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -23,7 +20,6 @@ grandchild.unref();
 writeFileSync(process.argv[2], JSON.stringify({ claude: process.pid, grandchild: grandchild.pid }));
 setInterval(() => {}, 1000);
 `;
-// 상주 프로세스 대역: 자기 pid로 런처 요청을 쓰고, 런처를 일반 자식으로 띄운 뒤 계속 산다.
 const RESIDENT = `
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
@@ -60,7 +56,7 @@ async function tree(t) {
   const ids = await waitFor(() => (existsSync(pidsFile) ? JSON.parse(readFileSync(pidsFile, "utf8")) : null), 30000, "the fake claude");
   const { launcher } = JSON.parse(readFileSync(launched, "utf8"));
   t.after(async () => {
-    for (const pid of [child.pid, launcher, ids.claude, ids.grandchild]) { try { process.kill(pid); } catch { /* 이미 끝났다 */ } }
+    for (const pid of [child.pid, launcher, ids.claude, ids.grandchild]) { try { process.kill(pid); } catch {   } }
     await delay(300);
     rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });

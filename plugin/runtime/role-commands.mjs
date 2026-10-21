@@ -19,8 +19,6 @@ export const roleCommandTool = {
   inputSchema: { type: "object", properties: { command: { type: "string", minLength: 1, maxLength: 4096 }, cwd: { type: "string" }, timeoutMs: { type: "integer", minimum: 100, maximum: 120000 } }, required: ["command"], additionalProperties: false },
 };
 
-// Package provenance is captured before starting a model. A project cannot replace
-// a manifest, helper source or executable to acquire a privileged process launcher.
 export function installedWindowsRuntime(directory = bundlePath) {
   const manifest = JSON.parse(readFileSync(path.join(directory, "provenance.json"), "utf8"));
   if (manifest.format !== "stagekeeper-windows-node-v1" || manifest.version !== "22.23.3" || manifest.architecture !== "x64"
@@ -62,8 +60,6 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
     const entries = (await readdir(directory)).sort();
     let queued = [];
     async function flush() {
-      // Join every bounded copy before propagating an error or deleting the owned
-      // destination. Each worker has its own buffer; hashes keep discovery order.
       const results = await Promise.allSettled(queued.map((task, index) => copy(task, buffers[index])));
       queued = [];
       const failure = results.find(result => result.status === "rejected");
@@ -104,7 +100,6 @@ async function copyRuntime(runtime, destination, signal) {
       }
     }
   }
-  // prepareNativeRoot created this root empty so copied files inherit the role grant.
   await mkdir(destination, { recursive: true }); await visit(runtime.directory);
   if (hash(JSON.stringify(files)) !== runtime.packageSha256) throw new Error("Runtime package changed");
   await writeFile(path.join(destination, "npm.cmd"), '@echo off\r\n"%~dp0node.exe" "%~dp0npm\\bin\\npm-cli.js" %*\r\n', { flag: "wx" });
@@ -150,7 +145,7 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
         const failure = JSON.parse(stderr.trim());
         if (failure.error === "native-helper-failed" && /^[a-z-]{1,40}$/.test(failure.stage) && Number.isInteger(failure.hresult))
           diagnostic = ` (${failure.stage}; HRESULT ${failure.hresult}${Number.isInteger(failure.nativeErrorCode) ? `; Win32 ${failure.nativeErrorCode}` : ""})`;
-      } catch { /* Non-protocol diagnostics are deliberately not reflected. */ }
+      } catch {   }
       throw new Error(`Native helper ended without acknowledgement${diagnostic}; ownership retained`);
     }
     await started;
@@ -165,15 +160,11 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
   }
 }
 
-// Grants the role SID on the still-empty roots before any snapshot bytes exist, with the
-// same ownership registration and activation fencing as a command launch.
 export async function prepareNativeRoot(root, lifecycle = {}) {
   for (const name of ["repo", "scratch", "runtime"]) await mkdir(path.join(root, name));
   const profile = "stagekeeper.role." + randomUUID().replaceAll("-", "");
-  // command/cwd keep the shared request shape; the helper ignores them in prepare mode.
   const prepared = await runNativeCommand({ mode: "prepare", root, profile, command: "prepare", cwd: "", timeoutMs: 10000 }, lifecycle);
   if (prepared.status !== "exited" || prepared.exitCode !== 0 || !/^S-1-15-2(?:-\d+){7}$/.test(prepared.sid ?? "")) throw new Error("Native snapshot grant preparation failed");
-  // The launch writes its own helper sources and request into the same owned root.
   for (const name of ["role-process.ps1", "RoleProcess.cs", "request.json"]) await rm(path.join(root, name));
   return { profile, sid: prepared.sid };
 }
@@ -223,7 +214,6 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
     combined.throwIfAborted();
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
     const own = randomUUID(); await writeFile(path.join(directory, "owner.json"), JSON.stringify({ own }), { flag: "wx" });
-    // Numeric phase durations only; monotonic so every lap is non-negative.
     let unacknowledged = false, clock = performance.now(); const timings = {};
     const lap = name => { const now = performance.now(); timings[name] = Math.round(now - clock); clock = now; };
     try {
@@ -241,7 +231,6 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
       return { ...result, nonce: undefined, sid: undefined, ...snapshot, repositorySnapshotHash: snapshot.snapshotHash, scratchSnapshot,
         snapshotHash: hash(JSON.stringify([snapshot.snapshotHash, scratchSnapshot?.snapshotHash ?? null])), snapshotWrites: "discarded", originalRepositoryWrites: false, timings };
     } finally {
-      // Failed acknowledgements preserve the owned directory for explicit recovery.
       if (!unacknowledged && realpathSync(directory) === directory && JSON.parse(readFileSync(path.join(directory, "owner.json"), "utf8")).own === own) await rm(directory, { recursive: true });
     }
   }

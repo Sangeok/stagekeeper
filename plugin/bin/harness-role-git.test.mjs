@@ -10,8 +10,6 @@ import { createRoleFiles } from "../runtime/role-files.mjs";
 import { createRoleGit, nativeGitExecutable } from "../runtime/role-git.mjs";
 
 const temporary = realpathSync(tmpdir()), digest = bytes => createHash("sha256").update(bytes).digest("hex");
-// Host Git is intentionally absent from the LPAC command snapshot. This broker
-// runs in the owner process; its real host tests remain visible as snapshot skips.
 const host = { skip: process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1" };
 function fixture(t, lifecycle = {}) {
   const base = mkdtempSync(path.join(temporary, "harness-git-test-")), root = path.join(base, "repo");
@@ -40,7 +38,7 @@ it("reads HEAD and scoped committed/current bytes without changing the original 
   assert.equal(diff.scope, "explicit-files"); assert.equal(diff.originalRepositoryWrites, false);
   assert.match((await query(f, "status")).output, / M code.txt/);
   f.git("add", "code.txt"); assert.match((await query(f, "status")).output, /M  code.txt/);
-  assert.notEqual(digest(readFileSync(path.join(f.root, ".git/index"))), index); // Only the explicit test-owner add changed it.
+  assert.notEqual(digest(readFileSync(path.join(f.root, ".git/index"))), index);
   const staged = digest(readFileSync(path.join(f.root, ".git/index"))); await query(f, "status");
   assert.equal(digest(readFileSync(path.join(f.root, ".git/index"))), staged);
   assert.deepEqual(readFileSync(path.join(f.root, ".git/config")), config);
@@ -87,7 +85,6 @@ it("ignores repository/system/owner config, filters, diff helpers, fsmonitor and
 it("supports ordinary Git worktrees and packed objects, including Windows short paths, without copying their config", host, async t => {
   const f = fixture(t); f.git("gc");
   const root = path.join(f.base, "worktree"); f.git("worktree", "add", "--detach", root, "HEAD");
-  // The runner's TEMP can use RUNNER~1 while Git writes runneradmin in .git.
   const spellings = new Set([path.join(f.root, ".git"), realpathSync.native(path.join(f.root, ".git"))]);
   try {
     for (const commonDirectory of spellings) {
@@ -98,7 +95,6 @@ it("supports ordinary Git worktrees and packed objects, including Windows short 
     }
   }
   catch (error) {
-    // Only disposable fixture metadata enters diagnostics; owner config stays private.
     const pointer = readFileSync(path.join(root, ".git"), "utf8").trim();
     const directory = path.resolve(root, pointer.replace(/^gitdir: /, ""));
     const commonPointer = readFileSync(path.join(directory, "commondir"), "utf8").trim();
@@ -191,7 +187,6 @@ it("resolves the UCRT64 builtin of Git for Windows 2.56 and the earlier MINGW64 
     assert.equal(nativeGitExecutable({ PATH: path.join(legacy, shim) }), realpathSync(path.join(legacy, "mingw64/bin/git.exe")));
     assert.equal(nativeGitExecutable({ PATH: path.join(both, shim) }), realpathSync(path.join(both, "ucrt64/bin/git.exe")));
   }
-  // A builtin directory on PATH is the reader itself, not a launcher.
   assert.equal(nativeGitExecutable({ PATH: path.join(ucrt, "ucrt64/bin") }), realpathSync(path.join(ucrt, "ucrt64/bin/git.exe")));
 });
 

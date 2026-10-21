@@ -1,4 +1,3 @@
-// Actual Next acceptance uses only a validated, disposable TEST_DATABASE_URL.
 import assert from "node:assert/strict";
 import { fork, spawn, type ChildProcess, type ForkOptions } from "node:child_process";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
@@ -74,7 +73,6 @@ async function consume(bytes: Buffer, manifest: object, loader?: Loader): Promis
     assert.equal(errors.length, 0, "all route loaders must settle successfully");
     return { action, chunkCalls, moduleCalls };
   } finally {
-    // No component or decoded Server Function is invoked. The parent kills timed-out workers.
     await Promise.allSettled(pending);
     if (beforeRequire === undefined) delete globals.__next_require__; else globals.__next_require__ = beforeRequire;
     if (beforeChunk === undefined) delete globals.__webpack_chunk_load__; else globals.__webpack_chunk_load__ = beforeChunk;
@@ -103,8 +101,6 @@ function routeConsumer(route: string): { loader: Loader; manifest: object } {
 
 function consumerMapping(mapping: Record<string, unknown>, turbopack: boolean): object {
   if (!turbopack) return mapping;
-  // Turbopack emits one path per chunk; the installed webpack Node decoder reads
-  // alternating chunk ID/filename pairs. Preserve every fresh path and module ID.
   return Object.fromEntries(Object.entries(mapping).map(([id, exports]) => {
     assert.ok(isRecord(exports), "fifth-pass assertion 7");
     return [id, Object.fromEntries(Object.entries(exports).map(([name, reference]) => {
@@ -147,7 +143,7 @@ async function probeWorker(kind: string): Promise<void> {
   const wire = prefix + '0:{"a":"$@1","f":[["$","$L2",null,{}]],"b":"fixture"}\n1:{"success":true}\n';
   let passed = false, calls: object = {};
   try { const result = await consume(Buffer.from(wire), { moduleMap: consumerMapping(mapping, kind === "turbopack-chunks"), moduleLoading: null, serverModuleMap: null }, kind === "missing-loader" ? undefined : loader); passed = true; calls = { chunks: result.chunkCalls, modules: result.moduleCalls }; }
-  catch { /* Each negative fixture must be rejected by the actual installed decoder. */ }
+  catch {   }
   assert.equal(componentCalls, 0);
   assert.deepEqual(mapping, before);
   assert.equal(passed, kind === "positive" || kind === "turbopack-chunks");
@@ -250,7 +246,6 @@ async function main(): Promise<void> {
     };
     const fixture = async (options: Parameters<typeof support.fixture>[1] = { plan: "pro" }) => {
       const id = randomUUID(), userId = randomUUID();
-      // IDs are known before the first write, including partial/unknown fixture commits.
       users.push(userId);
       return db.$transaction(async tx => {
         await tx.user.create({ data: { id: userId, login: `fifth-${id}`, githubId: -1 - randomBytes(4).readUInt32BE() % 2_000_000_000 } });
@@ -280,8 +275,6 @@ async function main(): Promise<void> {
     ]));
     let lastDiagnostics: Record<string, unknown> = {};
     const decode = async (route: string, bytes: Buffer) => {
-      // A fresh route-scoped worker for each response also prevents a warm
-      // decoder chunk cache from masking the normal owner's loader control.
       if (worker) await closeChild(worker);
       worker = spawnWorker(["--flight-worker", route], { ...process.env, DATABASE_URL: url, TEST_DATABASE_URL: url });
       await messageFrom(worker, message => isRecord(message) && message.ready === true);
@@ -316,9 +309,8 @@ async function main(): Promise<void> {
     stopNext = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "55455"], { env: { ...process.env, NODE_ENV: "production", DATABASE_URL: url, TEST_DATABASE_URL: url, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true" }, windowsHide: true, stdio: "ignore" });
     let startError = false; stopNext.once("error", () => { startError = true; });
     let ready = false;
-    for (let attempt = 0; attempt < 100 && !ready; attempt++) { assert.ok(!startError && stopNext.exitCode === null && !controller.signal.aborted, "fifth-pass assertion 16"); try { ready = (await request("/login")).status === 200; } catch { /* bounded startup, no writes */ } if (!ready) await delay(100); }
+    for (let attempt = 0; attempt < 100 && !ready; attempt++) { assert.ok(!startError && stopNext.exitCode === null && !controller.signal.aborted, "fifth-pass assertion 16"); try { ready = (await request("/login")).status === 200; } catch {   } if (!ready) await delay(100); }
     assert.ok(ready, "Next startup timeout");
-    // HTTP cases below use independent fixture users/projects and current timestamps.
     await acceptanceCases({ db, service, fixture, session, post, get, snapshot, run });
   } catch (error) {
     if (!results.some(row => row.status !== "Pass")) results.push({ case: "preparation/runtime", expected: "fresh artifacts, isolated fixtures and real route loaders", observed: error instanceof Error ? error.name : "runtime error", status: "Fail" });
@@ -353,8 +345,6 @@ async function acceptanceCases(context: AcceptanceContext): Promise<void> {
   const { seedPipelineVersion } = await import("../tests/server/integration/support");
   const { db, service, fixture, session, post, get, snapshot, run } = context;
   const reviewFile = "The board changed. Refresh and try again.", proposeError = "Couldn't put it on the board. Try again.";
-  // Flight's JSON reviver removes the undefined data field; the Action seam
-  // separately checks the original { success: true, data: undefined } object.
   const success = { success: true }, failure = (error: string) => ({ success: false, error });
   const specs = [
     { name: "retryAcceptance", page: "items/K-1", route: "items/[key]", status: "done" },

@@ -4,8 +4,6 @@ import { ProjectInboxPage } from "@/fsd/pages/project-inbox/index.server";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { projectAccess } from "@/server/projects/api.server";
 
-// 어떤 항목이 결재함에 오르는지, 카드 모델이 무엇인지, 그걸 만들려면 무엇을 읽어야 하는지는
-// 전부 review-gate가 소유한다 — 여기는 인가하고 넘기기만 한다.
 export default async function Page({ params }: PageProps<"/p/[slug]/inbox">) {
   const { slug } = await params;
   const { projectId } = await requireProjectOwner(slug);

@@ -8,7 +8,6 @@ type DocsPage = {
   description: string;
 };
 
-// 탐색·이전/다음·sitemap·문구 잠금이 이 순서를 함께 따른다.
 export const DOCS_PAGES = [
   {
     id: "overview",

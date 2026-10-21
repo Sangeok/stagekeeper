@@ -3,8 +3,6 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { QA_BROWSER_TOOLS, parseQaConfig } from "../lib/qa.mjs";
 
-// Never forward Stagekeeper credentials or reuse the owner's browser profile.
-// The owner starts a dedicated --isolated MCP process with disposable test data.
 export async function createQaBrowser(config, fetcher = fetch) {
   const qa = parseQaConfig(config);
   if (!qa) throw new Error("Explicit QA test environment required");

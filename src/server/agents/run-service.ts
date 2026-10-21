@@ -12,13 +12,9 @@ class StaleCursor extends Error {}
 class CursorRollback extends Error {
   constructor(readonly result: ServerResult<NextOutput>) { super("Outcome transaction must roll back"); }
 }
-// Bound execution validates and locks several rows before appending its outcome.
-// Give remote DB round trips the same bounded budget as board mutations.
 const CURSOR_TRANSACTION_TIMEOUT_MS = 15_000;
 const stale = () => ({ ok: false as const, reason: "stale: call pipeline_next and agent_next without outcome; do not resubmit old work with new ids" });
 
-// Every opener (including standalone PM) takes the owner's existing row first.
-// Cursor mutation and its ledger append share this transaction; rendering does not.
 export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNullable<NextDeps["withCursor"]> {
   return async (scope: Scope, input: NextInput, key, work): Promise<ServerResult<NextOutput>> => {
     try {
@@ -35,8 +31,6 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } });
           if (!project.autoScoutEnabled && !await hasActiveLegacyScoutSlot(tx, projectId)) return { ok: false, reason: AUTO_SCOUT_DISABLED_REASON };
         }
-        // outcome이 있는 호출은 영수증을 함께 싣는다(agentNext가 먼저 검증했다). claim은 그 영수증이고 outcome이 없으면 null —
-        // 아래 분기는 claim으로 하므로 영수증이 있다는 전제를 컴파일러가 안다.
         const claim = input.outcome ? input.receipt ?? null : null;
         if (input.outcome && !claim) throw new StaleCursor();
         let closedTerminal = false;
@@ -51,13 +45,8 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           if (claim && (input.agentRunId !== undefined && input.agentRunId !== claim.runId || input.stepId !== undefined && input.stepId !== claim.stepId)) throw new StaleCursor();
           if (input.outcome && claim) {
             const prior = await tx.agentRun.findUnique({ where: { id: claim.runId } });
-            // 재전송 수락 판정. 이미 닫힌 run에 같은 종결 outcome이 다시 오면(응답 유실 뒤 재시도) 거부하지 않고 받는다.
-            // 영수증이 가리키는 run이 이 프로젝트·에이전트·항목·파이프라인 항목·스텝·리비전의 것인가:
             const receiptMatchesPriorRun = prior !== null && prior.projectId === projectId && prior.agent === input.agent && prior.key === key
               && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && prior.stepId === claim.stepId && prior.revision === claim.revision;
-            // 그 run이 닫혔고, 닫은 스텝의 결과가 보드에 이미 반영돼 있는가(plan 제출 → in_review, 보류 → on_hold).
-            // plan 단계도 보류로 닫힌다 — 대상을 못 찾거나 열린 결정이 남으면 dev가 계획 없이 plan 단계에서 바로 on_hold로 보낸다.
-            // 그 뒤의 마지막 outcome은 protocol.md(보드가 닫은 run의 terminal outcome 한 번)대로 받는다.
             const priorStepIsRecordedTerminal = !!prior?.closedAt
               && ((prior.stepId === "plan" && entry.slotId === "plan" && (pipeline.boardItem.status === "in_review" || pipeline.boardItem.status === "on_hold"))
                 || (prior.stepId === "hold" && pipeline.boardItem.status === "on_hold"));

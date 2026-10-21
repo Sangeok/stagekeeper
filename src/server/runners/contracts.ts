@@ -1,5 +1,3 @@
-// 실행기 모듈 밖이 쓰는 타입. 값 목록은 packages/core/runner.mjs가 소유한다.
-// FSD의 model/ui는 이 파일을 읽지 않는다 — api adapter가 위젯 model의 타입으로 옮긴다.
 export type RunnerMode = "session" | "resident";
 export type RunnerStateName = "idle" | "working" | "waiting" | "stopped";
 export type RunnerWaitReason = "dirty" | "branch";
@@ -22,8 +20,6 @@ export type RunnerRecord = {
   seenAt: Date;
 };
 
-// 배너·목록이 읽는 한 프로젝트의 실행기 사실. renderedAt은 같은 조회에서 읽은 DB 시각이다 —
-// 판정의 "지금"을 앱 서버 시계가 아닌 lease 판정과 같은 시계로 맞춘다.
 export type RunnerView = {
   runner: RunnerRecord | null;
   pausedAt: Date | null;

@@ -18,7 +18,6 @@ export function InboxRejectControl({ item, transition, discard }: {
 }): ReactElement {
   const reject = (action: RejectAction, note: string) => {
     if (action === "discard") return discard(item.key, item.updatedAt);
-    // 날짜는 서버 렌더 시간이 아니라 실제 사용자가 누른 시간이다.
     return transition({ key: item.key, to: action === "hold" ? "on_hold" : "planning",
       result: action === "hold" ? holdResultLine(new Date(), note) : bounceResultLine(note), expectedUpdatedAt: item.updatedAt });
   };

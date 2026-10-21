@@ -1,5 +1,3 @@
-// 레일 카드의 두 줄(노드 이름 · 그 노드를 도는 사람)이 서로 다른 것을 말하는지 본다 —
-// 둘이 같으면 카드가 "Propose / Propose"가 되어 누가 도는지 알려 주지 못한다.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 

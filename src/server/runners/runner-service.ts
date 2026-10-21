@@ -1,6 +1,3 @@
-// 실행기 lease·상태·일시 정지. 판정은 packages/core/runner.mjs의 순수 함수이고, 여기는 잠금·저장·DB 시계를 맡는다.
-// 모든 쓰기는 한 트랜잭션 안에서 User → Project 순서로 FOR UPDATE를 잡는다(pipeline/automatic-scout.ts와 같은 순서).
-// 격리 수준은 기본(READ COMMITTED)이다: 잠금 뒤의 각 문장이 새 스냅숏을 봐야 앞선 실행기가 쓴 행을 본다.
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { limitsFor, RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/entitlement.mjs";
 import { BEAT_WRITE_INTERVAL_MS, holdsRunnerLease, needsAgentActivity } from "@harness/core/runner.mjs";
@@ -28,12 +25,8 @@ const RUNNER_SELECT = {
 } as const satisfies Prisma.RunnerSelect;
 type RunnerRow = Prisma.RunnerGetPayload<{ select: typeof RUNNER_SELECT }>;
 
-// 문자열 열의 값 목록은 마이그레이션의 CHECK가 지킨다(20261020000000_runner).
 const toRecord = (row: RunnerRow): RunnerRecord => row as RunnerRecord;
 
-// 프로젝트의 마지막 에이전트 활동. 1단계 세션이 일하는 동안의 생존 판정에만 쓴다(core runner.mjs).
-// 플랜 변경의 사용 목록 판정(projects/availability-service.ts)과 같은 값이지만, 모든 탭이 부르는 자리라
-// run과 step을 다 읽지 않고 두 집계로 읽는다.
 async function readLastAgentActivityIn(tx: Tx, projectId: string): Promise<Date | null> {
   const run = await tx.agentRun.aggregate({ where: { projectId }, _max: { openedAt: true } });
   const step = await tx.agentRunStep.aggregate({ where: { run: { projectId } }, _max: { at: true } });
@@ -43,7 +36,6 @@ async function readLastAgentActivityIn(tx: Tx, projectId: string): Promise<Date 
   return at > opened ? at : opened;
 }
 
-// 소유자 → 프로젝트 순서로 잠근다. 잠근 뒤에 다시 읽은 값만 판정에 쓴다.
 async function lockProjectIn(tx: Tx, projectId: string, userId?: string): Promise<{ runnerPausedAt: Date | null } | null> {
   const before = await tx.project.findUnique({ where: { id: projectId }, select: { ownerUserId: true } });
   if (!before || (userId !== undefined && before.ownerUserId !== userId)) return null;
@@ -63,7 +55,6 @@ async function startIn(tx: Tx, projectId: string, tokenId: string, request: Extr
   }
   const now = await readDatabaseClockIn(tx);
   const row = await tx.runner.findUnique({ where: { projectId }, select: RUNNER_SELECT });
-  // 응답을 잃은 CLI가 같은 세션으로 다시 보냈다. 자기 자신에게 BUSY를 주지 않는다.
   if (row && row.session === request.session) {
     await tx.runner.update({ where: { projectId }, data: { seenAt: now } });
     return { ok: true, body: { ok: true, paused } };
@@ -93,7 +84,6 @@ async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op
   if (!access.available) return { ok: false, status: 403, reason: access.reason };
   const now = await readDatabaseClockIn(tx);
   const row = await tx.runner.findUnique({ where: { projectId }, select: RUNNER_SELECT });
-  // 행이 없거나(소유자 정지로 지워짐), 다른 세션이 덮어썼거나, 이미 정지해 lease를 놓은 경우다.
   if (!row || row.session !== request.session || row.state === "stopped") return replaced();
   const state = request.state ?? row.state;
   const next = {
@@ -106,7 +96,6 @@ async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op
   if (changed || now.getTime() - row.seenAt.getTime() >= BEAT_WRITE_INTERVAL_MS) {
     await tx.runner.update({ where: { projectId }, data: { ...next, seenAt: now } });
   }
-  // 플랜이 내려간 상주 실행기는 거절하지 않는다. 진행 중인 실행을 끝낸 뒤 스스로 멈추게 한다(결정 2).
   const stop = row.mode === "resident" && !limitsFor(access.plan).residentRunner;
   return { ok: true, body: { ok: true, paused, ...(stop ? { stop: "plan" as const } : {}) } };
 }
@@ -136,7 +125,6 @@ export async function runRunnerOp(client: Client, input: { projectId: string; to
   }, WRITE_OPTIONS);
 }
 
-// 웹의 일시 정지 스위치. 새 실행만 막는다 — 진행 중인 실행은 실행기가 끝까지 둔다. 같은 값이면 쓰지 않는다.
 export async function setRunnerPaused(client: Client, input: { projectId: string; userId: string; paused: boolean }): Promise<ServerResult<boolean>> {
   if (typeof input.paused !== "boolean") return { ok: false, reason: PAUSE_CHOICE_REASON };
   return client.$transaction(async (tx) => {
@@ -159,7 +147,6 @@ async function readViewIn(tx: Tx, project: { id: string; runnerPausedAt: Date | 
   return { runner, pausedAt: project.runnerPausedAt, lastActivity, renderedAt };
 }
 
-// 배너가 읽는 한 프로젝트의 실행기 사실. 잠그지 않는다.
 export async function readRunnerState(client: Client, projectId: string): Promise<RunnerView> {
   return client.$transaction(async (tx) => {
     await tx.$executeRaw`SET TRANSACTION READ ONLY`;
@@ -168,7 +155,6 @@ export async function readRunnerState(client: Client, projectId: string): Promis
   }, READ_OPTIONS);
 }
 
-// 프로젝트 목록 카드가 읽는다. 목록의 프로젝트마다 한 번이 아니라 한 조회로 읽는다.
 export async function readRunnerSummaries(client: Client, projectIds: readonly string[]): Promise<Map<string, RunnerView>> {
   if (projectIds.length === 0) return new Map();
   return client.$transaction(async (tx) => {

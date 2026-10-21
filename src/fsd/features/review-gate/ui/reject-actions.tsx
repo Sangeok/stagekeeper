@@ -11,8 +11,6 @@ import { Field, Input } from "@/fsd/shared/ui/field";
 import { NOTE_LIMIT, rejectLabel, rejectLockLabel, rejectPendingLabel, rejectToast, type RejectAction } from "../model/gate-text";
 import { useGateCardLock } from "./gate-card-lock";
 
-// 보조 동작: 토글 링크 → 가로 텍스트 줄(Send back · Put on hold · Discard). Discard만 risk 색.
-// Send back·Put on hold는 아래로 노트 칸을 편다 — 안내는 placeholder가 아니라 도움말에 둔다.
 const LOCK_TONE: Record<RejectAction, "mine" | "risk" | "done"> = {
   bounce: "done",
   hold: "done",

@@ -11,16 +11,12 @@ export async function loadProjectBoard(projectId: string, now: Date): Promise<Br
     latestBoard(projectId),
     loadProjectRoster(prisma, projectId),
     prisma.pipelineRun.findMany({ where: { closedAt: null, boardItem: { projectId } }, select: { id: true, entryId: true, version: { select: { format: true } }, boardItemId: true, node: true } }),
-    // 열린 에이전트 run이 없으면 아무도 그 일을 하고 있지 않다. 배너(turn-data.server.ts)와 다른 점: 배너는
-    // slots-v1 버전에서 run이 이 파이프라인 항목(pipelineRunId·pipelineEntryId·agent)에 묶여 있어야 "하고 있다"로
-    // 보고, 보드의 keyed 판정은 모든 버전에서 key·agent만 본다. null-key 프로젝트 슬롯만 현재 entry binding을 요구한다.
     prisma.agentRun.findMany({ where: { projectId, closedAt: null }, select: { key: true, agent: true, pipelineRunId: true, pipelineEntryId: true } }),
     loadPipelinesView(prisma, projectId),
     prisma.pipelineRun.findMany({ where: { boardItem: { projectId } }, select: { boardItemId: true, version: { select: { pipeline: { select: { name: true } } } } } }),
   ]);
   const pipelineNames = new Map(names.map(run => [run.boardItemId, run.version.pipeline?.name ?? "Default"]));
   const cursor = new Map(runs.map((r) => [r.boardItemId, r]));
-  // key와 agent를 잇는 구분자는 NUL(\u0000)이다 — turn-data.server.ts의 배너 파생과 같은 값이어야 한다.
   const running = new Set(agentRuns.filter((r) => r.key !== null).map((r) => `${r.key}\u0000${r.agent}`));
 
   const briefing = buildBriefing(

@@ -85,7 +85,7 @@ describe("decideTransition", () => {
     assert.equal(back.ok, true); assert.equal(back.value.reopens, true); assert.equal(back.value.completes, false);
     assert.equal(back.value.validation, "clean pass"); assert.deepEqual(back.value.results, ["shipped", "acceptance check 3 failed"]);
     assert.equal(decideTransition(r, "human", "planning", "plan was wrong").value.validation, null);
-    assert.equal(decideTransition(row({ status: "in_review" }), "human", "on_hold", "x").value.reopens, false); // hold는 사람 규칙이지만 reopen이 아니다
+    assert.equal(decideTransition(row({ status: "in_review" }), "human", "on_hold", "x").value.reopens, false);
   });
 });
 
@@ -95,23 +95,20 @@ describe("discard / validation / plan_submit / report_submit", () => {
     const v = (o = {}) => decideValidation({ status: "in_review", text: "clean pass", verifierPassedAfterPlan: true, ...o });
     assert.equal(v().ok, true);
     assert.match(v({ verifierPassedAfterPlan: false }).reason, /plan-verifier/);
-    assert.match(v({ status: "implementing" }).reason, /only in in_review/); // 상태 검사가 먼저다
+    assert.match(v({ status: "implementing" }).reason, /only in in_review/);
     assert.match(v({ text: "x".repeat(151) }).reason, /150/);
   });
   it("plan_submit in planning and in_review only", () => {
-    // in_review 재제출 = 검증 라운드가 고친 계획서의 커밋 갱신 — 승인 대상이 기록에 남는다.
     assert.equal(decidePlanSubmit("planning").ok, true);
     assert.equal(decidePlanSubmit("in_review").ok, true);
     for (const s of ["proposed", "implementing", "done", "on_hold"]) assert.equal(decidePlanSubmit(s).ok, false, s);
   });
   it("report_submit only in in_review·implementing·done", () => {
-    // 상태 축만 본다 — verify 벽은 아래 describe에서 따로 잰다.
     for (const s of ["in_review", "implementing", "done"]) assert.equal(decideReportSubmit(rs({ status: s, hasVerifyStep: true })).ok, true, s);
     for (const s of ["proposed", "planning", "on_hold"]) assert.equal(decideReportSubmit(rs({ status: s, hasVerifyStep: true })).ok, false, s);
   });
 });
 
-// 벽. 상태로 걸고 이름으로 걸지 않는다 — implementing에서만 verify 선행을 요구한다.
 describe("decideReportSubmit — actor and the verify wall", () => {
   it("accepts the fixed report agents, the workspace devs, and main-loop", () => {
     for (const a of ["pm", "plan-verifier", "doc-auditor", "feature-scout", "web-dev", "admin-dev", "main-loop"]) {
@@ -124,7 +121,6 @@ describe("decideReportSubmit — actor and the verify wall", () => {
   });
   it("implementing needs a verify record from the same actor", () => {
     assert.match(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: false })).reason, /verify step not recorded/);
-    // 문구가 원인과 다음 행동까지 말한다 — Phase 4 이전 프로젝트가 이 벽에 걸리는 흔한 경우다.
     const why = decideReportSubmit(rs({ status: "implementing", hasVerifyStep: false, actor: "web-dev" })).reason;
     assert.match(why, /web-dev/);
     assert.match(why, /agent_next/);
@@ -132,8 +128,6 @@ describe("decideReportSubmit — actor and the verify wall", () => {
     assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
   });
   it("main-loop is still walled in implementing, with a reason that fits main-loop", () => {
-    // 이름으로 예외를 걸지 않는다 — 벽은 그대로고, main-loop에게 맞지 않는 agent_next·init 안내만 바꾼다.
-    // 게이트 없는 파이프라인에서는 validation_record가 항목을 implementing으로 넘긴 뒤 round log가 도착한다(2026-10-20 smoke).
     const refused = decideReportSubmit(rs({ status: "implementing", actor: "main-loop", hasVerifyStep: false }));
     assert.equal(refused.ok, false);
     assert.match(refused.reason, /in_review/);
@@ -142,8 +136,6 @@ describe("decideReportSubmit — actor and the verify wall", () => {
     assert.doesNotMatch(refused.reason, /agent_next|harness:init/);
   });
   it("the wall is outcome-agnostic — a failed verify still lets the hold report through", () => {
-    // "같은 (project, actor, key)에 verify 기록이 있다(outcome 불문)".
-    // dev의 hold 보고는 verify가 failed/blocked로 끝난 뒤 implementing에서 나온다.
     assert.equal(decideReportSubmit(rs({ status: "implementing", hasVerifyStep: true })).ok, true);
   });
   it("in_review and done do not require verify — the round log and the acceptance record", () => {
@@ -197,10 +189,8 @@ describe("decideGate — 웹과 세션이 같이 쓰는 게이트 판정", () =>
   });
 });
 
-// 한 노드가 호출 여러으로 이뤄져 있어서 순서가 어긋나면 에이전트가 멈추던 자리다.
 describe("isNoopTransition", () => {
   it("is a no-op when the item is already in the requested status", () => {
-    // plan_submit이 전이까지 한 뒤 템플릿이 board_transition을 또 부르는 경우.
     assert.equal(isNoopTransition("in_review", "in_review", undefined), true);
   });
 

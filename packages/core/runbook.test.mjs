@@ -16,7 +16,6 @@ describe("runbook", () => {
     assert.notEqual(runbookVersion(BODY), runbookVersion(OTHER));
   });
 
-  // 한 글자만 달라도 다른 판이다 — 표류를 잡자는 것이므로 근사 비교는 없다.
   it("a one-character edit is a different version", () => {
     assert.notEqual(runbookVersion(BODY), runbookVersion(BODY + " "));
   });
@@ -30,12 +29,10 @@ describe("runbook", () => {
     assert.equal(runbookIsStale(runbookVersion("older body\n"), [BODY, OTHER]), true);
   });
 
-  // 보고된 적이 없으면 맞다는 근거가 없다. init은 멱등하므로 모를 때 알리는 쪽이 싸다.
   it("never reported counts as stale", () => {
     assert.equal(runbookIsStale(null, [BODY]), true);
   });
 
-  // 보고 경로와 개요 입력이 같은 모양 규칙을 쓴다 — runbookVersion이 내는 값만 판으로 받는다.
   it("accepts only what runbookVersion produces as a version", () => {
     assert.equal(isRunbookVersion(runbookVersion(BODY)), true);
     for (const bad of ["", "abc", "ABCDEF123456", "0123456789abc", "0123456789a", "0123456789ag", " 0123456789ab", null, undefined, 12]) {
@@ -43,7 +40,6 @@ describe("runbook", () => {
     }
   });
 
-  // 템플릿을 못 읽었는데 "현재"라고 답하면 표류를 영원히 숨긴다.
   it("no current body at all is stale, whatever was stored", () => {
     assert.equal(runbookIsStale(runbookVersion(BODY), []), true);
     assert.equal(runbookIsStale(null, []), true);

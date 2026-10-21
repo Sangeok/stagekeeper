@@ -22,7 +22,6 @@ describe("vars", () => {
     assert.equal(v.ws.read_only_list, "- `apps/backend/asd/**`\n- `apps/backend/requirements.txt`");
     assert.equal(v.ws.out_of_scope_list, "- `apps/web/**`\n- `apps/admin/**`");
     assert.equal(v.ws.knowledge, "apps/backend/CLAUDE.md");
-    // 값이 문장을 통째로 든다 — 템플릿이 백틱으로 감싸면 없을 때 파일 이름처럼 읽힌다.
     assert.equal(v.ws.knowledge_line, "Your workspace knowledge doc is `apps/backend/CLAUDE.md` — read it before you write.");
   });
   it("empty lists render as 'none'", () => {
@@ -32,7 +31,6 @@ describe("vars", () => {
     assert.equal(v.ws.read_only_list, "none"); assert.equal(v.ws.out_of_scope_list, "none");
     assert.equal(v.ws.knowledge, "(none — this workspace has no knowledge doc yet. Say so in the plan)");
     assert.equal(v.ws.knowledge_line, "This workspace has no knowledge doc. Say so in the plan rather than inventing its conventions.");
-    // 없을 때는 경로처럼 보이는 조각이 남으면 안 된다 — 백틱도 괄호 경로도 없다.
     assert.doesNotMatch(v.ws.knowledge_line, /`/);
   });
   it("report table has one row per delivered agent, in order, with that agent's own description", () => {
@@ -42,8 +40,7 @@ describe("vars", () => {
   });
   it("templateDescription reads the frontmatter line and refuses a template without one", () => {
     assert.equal(templateDescription("---\nname: pm\ndescription: Picks work. Never reads code.\ntools: x\n---\n# Role\n", "en/agents/pm.md"), "Picks work. Never reads code.");
-    assert.equal(templateDescription("---\r\nname: pm\r\ndescription: Picks work.\r\n---\r\n", "pm"), "Picks work."); // autocrlf 체크아웃
-    // 본문의 description: 은 frontmatter가 아니다 — 없는 것으로 친다.
+    assert.equal(templateDescription("---\r\nname: pm\r\ndescription: Picks work.\r\n---\r\n", "pm"), "Picks work.");
     assert.throws(() => templateDescription("---\nname: pm\n---\ndescription: not here\n", "en/agents/pm.md"), /^Error: en\/agents\/pm\.md: no description in frontmatter$/);
   });
 });

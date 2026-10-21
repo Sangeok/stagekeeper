@@ -28,7 +28,6 @@ export function historyItemsQuery(projectId: string, { since, before, limit = 50
   const boundary = before === null ? Prisma.empty : Prisma.sql`
     WHERE (activity."at", item."id" COLLATE "C") < (${before.at}, ${before.id})`;
 
-  // Group before applying the cursor/limit so an active item cannot crowd out others or reappear on later pages.
   return Prisma.sql`
     WITH activity AS (
       SELECT board."backlogItemId" AS "id", event."at"

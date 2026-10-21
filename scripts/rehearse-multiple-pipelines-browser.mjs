@@ -1,5 +1,3 @@
-// Usage: node scripts/rehearse-multiple-pipelines-browser.mjs <playwright-core/index.mjs> [browser executable]
-// Mounts real client components on a loopback fixture; uses no application DB.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
@@ -14,7 +12,7 @@ const require = createRequire(import.meta.url), { build } = require("esbuild");
 const artifacts = mkdtempSync(join(realpathSync(tmpdir()), "multiple-pipelines-browser-"));
 const built = await build({ entryPoints: ["tests/server/fixtures/multiple-pipelines-browser.tsx"], bundle: true, write: false, platform: "browser", format: "iife", jsx: "automatic", define: { "process.env.NODE_ENV": '"development"' }, banner: { js: 'var process = { env: { NODE_ENV: "development" } };' } });
 let css = "";
-try { for (const name of readdirSync(".next/static/chunks")) if (name.endsWith(".css")) css += readFileSync(join(".next/static/chunks", name), "utf8"); } catch { /* Functional rehearsal works before a build too. */ }
+try { for (const name of readdirSync(".next/static/chunks")) if (name.endsWith(".css")) css += readFileSync(join(".next/static/chunks", name), "utf8"); } catch {   }
 const app = createServer((request, response) => {
   if (request.url === "/fixture.js") { response.setHeader("Content-Type", "text/javascript"); response.end(built.outputFiles[0].text); }
   else { response.setHeader("Content-Type", "text/html"); response.end(`<!doctype html><html><head><title>Multiple pipelines fixture</title><style>${css}</style></head><body style="padding:32px"><main id="root"></main><script src="/fixture.js"></script></body></html>`); }

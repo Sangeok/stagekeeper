@@ -43,8 +43,6 @@ export function UseProjectControl({ targetId, model, action }: Props) {
     });
   };
 
-  // 조각으로 돌려준다 — 목록 행(flex-wrap)에서는 버튼이 행 끝에, 확인 창(order-last w-full)이 행 아래에 놓이고,
-  // 잠금 배너(flex-col)에서는 위에서 아래로 쌓인다. self-start: 배너 안에서 버튼이 배너 폭으로 늘어나지 않게.
   return (
     <>
       {!isConfirming ? <Button size="sm" variant="mine-outline" className="self-start" disabled={isPending} onClick={() => isSelectionFull ? setIsConfirming(true) : send()}>

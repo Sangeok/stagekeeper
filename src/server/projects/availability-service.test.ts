@@ -22,7 +22,6 @@ function connectionFixture(plan: string | null, target: Omit<ReturnType<typeof p
     user: { findUniqueOrThrow: async () => { calls.push("user"); return { login: "test", projectAvailabilityVersion: 7, subscription: plan === null ? null : { plan } }; } },
     project: { findMany: async () => { calls.push("project"); return [target, { ...project("b"), disconnectedAt: null }, { ...project("c", false), disconnectedAt: null }]; } },
   };
-  // Deliberately omit board/run/event and all write delegates at this IO boundary.
   const client = { $transaction: async (run: (db: Prisma.TransactionClient) => Promise<unknown>, option: unknown) => {
     options.push(option); return run(tx as unknown as Prisma.TransactionClient);
   } } as unknown as TransactionHost;
@@ -84,7 +83,6 @@ function fixture(plan: string, projects = [project("a"), project("b", false)]) {
         projectAvailabilityEvent: { create: async ({ data }: { data: Event }) => { state.events.push(data); } },
         agentRun: { findMany: async () => [] },
       };
-      // A transaction boundary double intentionally implements only the exercised delegates.
       try { return await run(tx as unknown as Prisma.TransactionClient); }
       catch (error) { state = before; throw error; }
     },

@@ -10,9 +10,6 @@ import { createRoleCommands, installedWindowsRuntime } from "../plugin/runtime/r
 
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 
-// Dependencies are prepared with normal npm ci by the maintainer/CI before this
-// test. No installs, credentials, environment copies or network grants happen
-// in the role. Every build artifact stays in its disposable snapshot.
 export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
   assert.equal(process.platform, "win32", "Native Windows is required");
   root = realpathSync(root);
@@ -33,8 +30,6 @@ export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
   try {
     const files = createRoleFiles({ ":root": "deny", [root]: "read", [scratch]: "write" }, "plan-verifier");
     broker = await createRoleCommands({ root, scratch, agent: "plan-verifier", fileBroker: files, runtime });
-    // Clearing the variables is explicit; the launcher also uses a fixed clean
-    // environment. .next is excluded by the snapshot, so this is a fresh build.
     const result = await broker.call("role_command_exec", {
       command: 'set "DATABASE_URL=" && set "NEXT_TELEMETRY_DISABLED=1" && set "STAGEKEEPER_BUILD_DIAGNOSTICS=1" && npm run build',
       timeoutMs: 120000,
@@ -47,7 +42,6 @@ export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
       databaseUrlProvided: false, roleNetworkAccess: false, modelTurns: 0,
       result,
     };
-    // Print failures as well, so CI preserves the actual compiler diagnostics.
     console.log(JSON.stringify(evidence, null, 2));
     assert.equal(result.status, "exited");
     assert.equal(result.exitCode, 0, "Full project build must succeed with no role network or DB URL");
@@ -62,7 +56,6 @@ export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
     return evidence;
   } finally {
     await broker?.close();
-    // Unacknowledged executions retain scratch for explicit diagnosis/recovery.
     if (!broker || settled) {
       assert.equal(path.dirname(scratch), temporaryRoot);
       assert.ok(path.basename(scratch).startsWith("stagekeeper-project-build-acceptance-"));

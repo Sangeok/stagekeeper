@@ -42,7 +42,6 @@ describe("runnerLine", () => {
     assert.equal(text(facts(runner({ mode: "resident", branch: "main", permission: "auto", state: "working" }))), "Runner: working in the background on desk (main) · checked 1 min ago · pause before you edit main");
   });
 
-  // 편집 경고(결정 B7)는 상주 실행기가 일하는 동안만 붙는다. 세션은 사용자가 창을 보고 있고, 일시 정지 중에는 이미 멈춤 문장이 있다.
   it("adds the edit warning to a working background runner only", () => {
     const resident = { mode: "resident" as const, branch: "main", permission: "auto" as const };
     assert.deepEqual(fillLine(RUNNER_LINES.editGuard, { branch: "main" }), [{ text: "pause before you edit " }, { text: "main", code: true }]);

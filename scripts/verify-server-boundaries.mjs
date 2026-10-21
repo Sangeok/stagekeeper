@@ -85,7 +85,6 @@ function staticPrefix(expression) {
   return "";
 }
 
-/** Inspect the actual working tree, including files that are not in Git's index. */
 export function inspectServerBoundaries(root = process.cwd()) {
   root = resolve(root);
   const files = sourceFiles(root), options = compilerOptions(root), cache = ts.createModuleResolutionCache(root, file => file, options);
@@ -129,8 +128,6 @@ export function inspectServerBoundaries(root = process.cwd()) {
         if (ts.isStringLiteralLike(argument)) add(node, argument.text, true);
         else if (/^(?:@\/server\/|src\/server\/)/.test(staticPrefix(argument))) report(file, line(node), "computed", "Computed server import/require is forbidden");
       }
-      // Existing VM loaders read source paths and mock keys as data. Classify real source targets;
-      // fixture-only virtual paths are not imports and are checked by their own fixture runner.
       if (isTest(file) && ts.isStringLiteralLike(node) && /^src\/server\/[^\r\n*]+$/.test(node.text)
         && !(ts.isPropertyAssignment(node.parent) && node.parent.name === node)
         && !(ts.isCallExpression(node.parent) && ts.isIdentifier(node.parent.expression) && node.parent.expression.text === "write" && node.parent.arguments[1] === node)

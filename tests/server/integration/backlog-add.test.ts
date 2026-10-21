@@ -138,7 +138,6 @@ it("planning submission also keeps owner type, and proposed discard removes only
   } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
 });
 
-// Capture rejection immediately so the deliberately delayed loser cannot be unhandled.
 const settled = <T>(promise: Promise<T>) => promise.then((value) => ({ ok: true as const, value }), (error: unknown) => ({ ok: false as const, error }));
 
 for (const quota of ["live", "run"] as const) it(`serialized additions enforce the ${quota} quota with two real connections`, async () => {
@@ -187,8 +186,6 @@ for (const materialized of [false, true]) for (const winner of ["remove", "propo
       if (!proposed.ok) { assert.ok(proposed.error instanceof Prisma.PrismaClientKnownRequestError); assert.equal(proposed.error.code, "P2034"); }
       assert.equal(item.removedReason, "owner"); assert.equal(open.length, 0);
     } else {
-      // A first proposal also updates Project.defaultPipelineId. Its raw row-lock
-      // conflict must produce the same business rejection as a delegate conflict.
       assert.ok(removed.ok && !removed.value.ok); assert.match(removed.value.reason, /item changed|open on the board/);
       assert.equal(item.removedAt, null); assert.equal(open.length, 1);
     }

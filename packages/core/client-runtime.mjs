@@ -24,7 +24,6 @@ export function clientRuntime(client = "claude") {
 
 export function runtimeEcho() { return { client: "codex", protocol: RUNTIME_PROTOCOL }; }
 
-/** Checks the raw bundle before stub delivery. Does not perform language fallback. */
 export function validateCodexBundle(rows, plan) {
   const templates = Object.fromEntries(rows.map(({ path, body }) => [path, body]));
   const roles = ["dev", ...limitsFor(plan).agents];

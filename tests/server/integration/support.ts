@@ -1,6 +1,3 @@
-// 통합 시험의 공통 바탕. 두 연결과 barrier로 읽기·쓰기 순서를 통제한다 — Promise.all만으로는 누가 이길지
-// 정해지지 않아 "양방향 승패"와 "패자 부수효과 없음"을 시험할 수 없다. query 결과나 CAS count는 만들지 않는다:
-// 실제 SQL을 그대로 실행하고 사이에 대기만 끼운다.
 import { randomUUID } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type PipelineVersion, type Prisma } from "../../../src/generated/prisma/client";
@@ -14,8 +11,6 @@ export function testDatabaseUrl(): string {
   return url;
 }
 
-// 경쟁 연결은 READ COMMITTED다(Prisma 기본). project_sync처럼 Serializable이 필요한 경계는 그 함수가 직접 건다.
-// 기존 default 바인딩(@/server/db의 싱글턴)도 함께 끊는다 — route·owner-deps가 그 연결을 쓴다.
 export function connections(count = 2) {
   const url = testDatabaseUrl();
   const all = Array.from({ length: count }, () => new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) }));
@@ -34,8 +29,6 @@ export type FixtureOptions = {
   validation?: string; planPath?: string; planCommit?: string;
 };
 
-// updatedAt을 앞세워 만든다. nextTimestamp가 max(now, prev+1)이므로 이 상태에서는 언제나 prev+1이 되어
-// "같은 ms 안의 연속 갱신"이 실제로 재현되고, @updatedAt의 현재 시각이 끼어들지 않음을 확인할 수 있다.
 export async function fixture(db: PrismaClient, options: FixtureOptions = {}): Promise<Fixture> {
   const id = randomUUID();
   const agent = options.agent ?? "dev";
@@ -52,7 +45,6 @@ export async function fixture(db: PrismaClient, options: FixtureOptions = {}): P
   return { id, key: backlog.key, userId: user.id, projectId: project.id, backlogItemId: backlog.id, boardItemId: board.id, updatedAt: board.updatedAt };
 }
 
-// 이 시험이 만든 것만 지운다 — 사용자 한 행에서 프로젝트·항목·원장이 캐스케이드로 따라간다.
 export const cleanup = async (db: PrismaClient, userId: string | undefined) => {
   if (userId) await db.user.delete({ where: { id: userId } });
 };
@@ -61,8 +53,6 @@ type PipelineFixtureInput = {
   projectId: string; version: number; nodes: string[]; gates: string[]; createdBy: string; format?: string | null;
 };
 
-// Seed a fresh project's complete default without going through the application
-// writer under test. Keep legacy execution graphs intact, as migration A does.
 export async function seedPipelineVersion(db: PrismaClient, input: PipelineFixtureInput): Promise<PipelineVersion> {
   return db.$transaction(async tx => {
     const pipelineId = `default_${input.projectId}`;
@@ -87,8 +77,6 @@ export async function pipelineState(db: PrismaClient, projectId: string) {
 
 export type Hook = () => Promise<void>;
 
-// 승패를 고정한다: 둘 다 같은 행을 읽은 뒤에야 이긴 쪽이 CAS를 하고, 진 쪽은 이긴 쪽이 커밋을 끝낼 때까지 기다린다.
-// finish()는 이긴 쪽 호출을 await한 다음에 부른다. 두 번째 이후의 읽기는 이미 열린 관문을 그대로 지난다.
 export function ordered() {
   let arrived = 0;
   let bothRead!: () => void;
@@ -103,7 +91,6 @@ export function ordered() {
   };
 }
 
-// project_sync는 저장 roster를 workspace.findMany로 읽고 그 뒤에 합집합을 쓴다 — Serializable 경계를 끼울 자리다.
 export const afterWorkspaceRead = (db: PrismaClient, hook: Hook): PrismaClient =>
   db.$extends({ query: { workspace: { async findMany({ args, query }) {
     const rows = await query(args);
@@ -111,7 +98,6 @@ export const afterWorkspaceRead = (db: PrismaClient, hook: Hook): PrismaClient =
     return rows;
   } } } }) as unknown as PrismaClient;
 
-// commitOutcome은 읽지 않고 곧장 agentRun.updateMany로 CAS한다 — 그 앞이 순서를 끼울 자리다.
 export const beforeRunClaim = (db: PrismaClient, hook: Hook): PrismaClient =>
   db.$extends({ query: { agentRun: { async updateMany({ args, query }) {
     await hook();
@@ -145,7 +131,6 @@ export const afterBacklogCount = (db: PrismaClient, hook: (where: Prisma.Backlog
     return count;
   } } } }) as unknown as PrismaClient;
 
-// A one-shot gate, released in finally even when the expected query never arrives.
 export function checkpoint() {
   let notify!: () => void;
   let release!: () => void;

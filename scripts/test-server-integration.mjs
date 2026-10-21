@@ -37,7 +37,6 @@ export async function runIntegration(env = process.env, run = runChild) {
 
 function runChild(command, args, env) {
   return new Promise((resolvePromise, reject) => {
-    // Child output can contain a connection string. Report only the failing phase.
     const child = spawn(command, args, { cwd: fileURLToPath(new URL("../", import.meta.url)), env, shell: false, stdio: "ignore" });
     child.once("error", () => reject(new Error("Integration child could not start")));
     child.once("exit", (code) => code === 0 ? resolvePromise() : reject(new Error(`Integration ${args.includes("deploy") ? "migration" : "tests"} failed (exit ${code})`)));

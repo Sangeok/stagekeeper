@@ -1,5 +1,3 @@
-// Reproduce the real Next transport against an isolated database and current build.
-// Run after test:server:integration; never use this script against production.
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -41,7 +39,7 @@ async function main(): Promise<void> {
     });
     for (let attempt = 0; attempt < 100; attempt++) {
       if (server.exitCode !== null) throw new Error("Local Next server exited before startup");
-      try { if ((await fetch(`${origin}/login`, { redirect: "manual" })).status === 200) return; } catch { /* Wait for the listener. */ }
+      try { if ((await fetch(`${origin}/login`, { redirect: "manual" })).status === 200) return; } catch {   }
       await delay(100);
     }
     throw new Error("Local Next server did not start");
@@ -101,8 +99,6 @@ async function main(): Promise<void> {
     await ensureRun(db, owner.projectId, owner.boardItemId, "in_review", false);
     await db.pipelineRun.update({ where: { boardItemId: owner.boardItemId }, data: { node: "before-implement" } });
     const ownedCookie = await cookie(owner.userId); const foreignCookie = await cookie(foreign.userId);
-    // The same body includes a spoofed client userId. The valid owner's control
-    // first proves action ID, argument encoding and CSRF headers are correct.
     const body = JSON.stringify([{ targetProjectId: owner.projectId, expectedVersion: 1, userId: owner.userId }]);
     await start();
     const success = await post(disconnectId, body, ownedCookie);
@@ -155,8 +151,6 @@ async function main(): Promise<void> {
         await db.report.create({ data: { boardItemId: owner.boardItemId, actor: "dev", path: `retained-${index + 1}.md`, commit: "1234567", at } });
       }
       let loseNextAction = false;
-      // A loopback proxy can discard one committed response to exercise the real
-      // browser's uncertain-result path, without changing production application code.
       proxy = createServer(async (req, res) => {
         try {
           const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
@@ -175,8 +169,6 @@ async function main(): Promise<void> {
         } catch { if (!res.headersSent) res.writeHead(502); res.end("Fixture proxy failed"); }
       });
       await new Promise<void>((resolve) => proxy!.listen(55440, "127.0.0.1", resolve));
-      // Loopback-only fixture sign-in; production auth and application routes are
-      // unchanged. No cookie/JWT value is logged or included in the navigation URL.
       let finishInteractive!: () => void;
       const finished = new Promise<void>((resolve) => { finishInteractive = resolve; });
       bridge = createServer((req, res) => {

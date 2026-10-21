@@ -44,7 +44,6 @@ it("replays the previous schema and preserves active/revoked tokens, relations, 
     for (const table of ["ProjectToken", "OwnerToken", "UserToken"]) {
       assert.equal((await db.query(`SELECT count(*)::int AS n FROM "${table}" WHERE "lastUsedAt" IS NULL AND "usageTrackingStartedAt" IS NULL`)).rows[0].n, 2);
     }
-    // A legacy writer that omits the added columns remains compatible after migration.
     await db.query(`INSERT INTO "ProjectToken" (id,"projectId",hash,label) VALUES ('legacy-a','p','legacy-a-hash','legacy'); INSERT INTO "OwnerToken" (id,"projectId","userId",hash,label) VALUES ('legacy-o','p','u','legacy-o-hash','legacy'); INSERT INTO "UserToken" (id,"userId",hash,label) VALUES ('legacy-u','u','legacy-u-hash','legacy')`);
     for (const table of ["ProjectToken", "OwnerToken", "UserToken"]) assert.equal((await db.query(`SELECT count(*)::int AS n FROM "${table}" WHERE "lastUsedAt" IS NULL AND "usageTrackingStartedAt" IS NULL`)).rows[0].n, 3);
     await db.query(`INSERT INTO "AgentRun" (id,"projectId",agent,"tokenId","stepId") VALUES ('old-run','p','pm','old-token','start')`);

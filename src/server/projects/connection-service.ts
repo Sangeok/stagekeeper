@@ -44,7 +44,6 @@ async function changeConnection(client: TransactionHost, input: ProjectConnectio
         ? { disconnectedAt: now, available: false }
         : { disconnectedAt: null, available: true, lastSelectedAt: now } });
       if (operation === "disconnect") {
-        // Keep existing revocation times and every account-level credential.
         await tx.projectToken.updateMany({ where: { projectId: target.id, revokedAt: null }, data: { revokedAt: now } });
         await tx.ownerToken.updateMany({ where: { projectId: target.id, revokedAt: null }, data: { revokedAt: now } });
       }
@@ -57,7 +56,6 @@ async function changeConnection(client: TransactionHost, input: ProjectConnectio
       return { status: "success", changed: true, version };
     });
   } catch (error) {
-    // Convert failures only after rollback/retry has completed.
     if (error instanceof ProjectIntegrityError) return { status: "error", code: "integrity", reason: error.message };
     if (error instanceof AvailabilityConflict) return { status: "error", code: "conflict", reason: error.message };
     throw error;

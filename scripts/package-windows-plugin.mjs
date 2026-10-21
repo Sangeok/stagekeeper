@@ -21,8 +21,6 @@ function regularTree(directory) {
   visit(directory); return files;
 }
 
-// Produces a private, reviewable install directory; it never uploads/publishes it.
-// The verifier comes only from the unchanged complete owner package, not auth files.
 export function packageWindowsPlugin({ output, runtimeDirectory, verifierDirectory }) {
   if (!path.isAbsolute(output) || existsSync(output) || path.relative(repository, output).split(path.sep)[0] !== "..") throw new Error("A new output directory outside the repository is required");
   const runtime = installedWindowsRuntime(runtimeDirectory), verifier = verifierPackage(verifierDirectory);

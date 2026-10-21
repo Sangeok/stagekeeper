@@ -8,7 +8,6 @@ import { REFUSAL_WARN_AT, REVISION_MAX, type NextDeps, type Outcome, type Receip
 import { agentNext } from "./next";
 import { type NextInput } from "./next";
 
-// dev.md의 축소판 — 그래프는 같고 본문만 짧다. 실제 템플릿은 private 저장소에 있어 CI에는 없다(templates.test.mjs가 따로 본다).
 const DEV = `---
 name: dev
 tools: mcp__harness__agent_next
@@ -64,10 +63,8 @@ Propose it.
 next: done
 `;
 
-// implement에서 verify 없이 report로 가려는 템플릿 — verify-ok 검사가 그래프가 아니라 서버 규칙임을 본다.
 const SHORTCUT = DEV.replace("next: verify\non blocked: hold", "next: report\non blocked: hold");
 
-// 라우터 단계(start)를 지운 dev — 서버가 열리는 첫 단계를 골라야 한다.
 const PV = `---
 name: plan-verifier
 ---
@@ -196,7 +193,7 @@ describe("agentNext — opening and resending", () => {
     assert.match(s.instruction, /^Look at the item/);
     assert.equal(h.runs.length, 1);
     assert.equal(h.runs[0].stepId, "start");
-    assert.equal(h.records.length, 0); // 열기만 했다 — 원장에는 아무것도 없다
+    assert.equal(h.records.length, 0);
   });
   it("the instruction is the step body only, rendered — never the stub, never another step", async () => {
     const h = harness({ board: { "FEAT-1": "implementing" } });
@@ -245,9 +242,9 @@ describe("agentNext — routing", () => {
   it("on failed / on blocked route to the fallback; report needs implementing and a verify ok", async () => {
     const h = harness({ board: { "FEAT-1": "implementing" } });
     await h.call(dev());
-    step(await h.call(dev({ outcome: "ok" })));                                  // start → implement
-    assert.equal(step(await h.call(dev({ outcome: "ok" }))).step, "verify");    // implement → verify
-    assert.equal(step(await h.call(dev({ outcome: "failed", note: "tests red" }))).step, "hold"); // verify failed → hold
+    step(await h.call(dev({ outcome: "ok" })));
+    assert.equal(step(await h.call(dev({ outcome: "ok" }))).step, "verify");
+    assert.equal(step(await h.call(dev({ outcome: "failed", note: "tests red" }))).step, "hold");
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "verify", outcome: "failed", note: "tests red" });
   });
   it("implement blocked → hold; hold ok → done and the run closes", async () => {
@@ -280,7 +277,7 @@ describe("agentNext — routing", () => {
   it("an outcome with no route stays on the step, records it, and says so above the body", async () => {
     const h = harness();
     await h.call({ agent: "pm" });
-    step(await h.call({ agent: "pm", outcome: "ok" }));                          // start → pick
+    step(await h.call({ agent: "pm", outcome: "ok" }));
     const s = step(await h.call({ agent: "pm", outcome: "failed", note: "nothing fits" }));
     assert.equal(s.step, "pick");
     assert.match(s.instruction, /^\(failed recorded; this step has no `on failed:` route — you are still on `pick`\)\n\nPick one/);
@@ -302,13 +299,13 @@ describe("agentNext — handoff", () => {
   it("records the pause, stays on the step, and the next outcome-less call resumes the same step", async () => {
     const h = harness({ board: { "FEAT-1": "planning" } });
     await h.call(dev());
-    step(await h.call(dev({ outcome: "ok" })));                                   // start → plan
+    step(await h.call(dev({ outcome: "ok" })));
     const paused = step(await h.call(dev({ outcome: "handoff", note: "docs/plans/FEAT-1.md" })));
     assert.equal(paused.step, "plan");
     assert.equal(paused.instruction, "(handoff recorded — you are still on `plan`; after the commit, call again without outcome)\n\nPlan it as web-dev.");
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "plan", outcome: "handoff", note: "docs/plans/FEAT-1.md" });
     assert.equal(h.runs[0].stepId, "plan");
-    assert.equal(h.runs[0].refused, 0);                                            // 거부가 아니다
+    assert.equal(h.runs[0].refused, 0);
     const resumed = step(await h.call(dev()));
     assert.equal(resumed.step, "plan");
     assert.equal(resumed.instruction, "Plan it as web-dev.");
@@ -319,11 +316,8 @@ describe("agentNext — run lifecycle", () => {
   it("after done: a call without outcome opens a fresh run; a call with outcome gets {done: true} and opens nothing", async () => {
     const h = harness({ board: { "FEAT-1": "planning" } });
     await h.call(dev());
-    step(await h.call(dev({ outcome: "ok" })));                                  // start → plan
+    step(await h.call(dev({ outcome: "ok" })));
     assert.deepEqual(await h.call(dev({ outcome: "ok" })), { ok: true, item: { done: true } });
-    // dev의 report·hold는 board_transition 뒤에 ok를 보낸다 — 그 호출이 run을 열면 start로 되돌아간다.
-    // 열린 run이 없는 채 outcome이 오면 done에 note가 붙는다 — 그 done은 "이 run이 끝났다"이지
-    // "이 항목이 끝났다"가 아니기 때문이다.
     const closed = await h.call(dev({ outcome: "ok" }));
     assert.equal(closed.ok && closed.item.done, true);
     assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /not necessarily the item/);
@@ -335,12 +329,10 @@ describe("agentNext — run lifecycle", () => {
     const h = harness({ board: { "FEAT-1": "implementing" } });
     await h.call(dev());
     step(await h.call(dev({ outcome: "ok" })));
-    h.runs[0].closedAt = new Date();                                           // board.transition이 닫은 것과 같다
+    h.runs[0].closedAt = new Date();
     const closed = await h.call(dev({ outcome: "ok" }));
     assert.equal(closed.ok && closed.item.done, true);
     assert.match(closed.ok && "note" in closed.item ? (closed.item.note ?? "") : "", /call again without outcome/i);
-    // 런북은 두 dev 단계 모두 마지막 지시가 agent_next(outcome)인데, 그 직전 호출이 이미 run을 닫는다.
-    // 그 마지막 말이 한 줄도 안 남으면 plan run의 원장이 통째로 빈다.
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "implement", outcome: "ok", note: null });
     assert.equal(step(await h.call(dev())).step, "start");
   });
@@ -357,22 +349,20 @@ describe("agentNext — run lifecycle", () => {
     assert.equal(h.records.at(-1)?.note, "first");
     assert.equal(h.rejected.length, 2);
   });
-  // handoff는 자리에 머무는 기록이라 단계를 끝내지 않는다 — 그 뒤의 ok가 이 단계의 마지막 말이다.
   it("a handoff already on the step does not count as the last word", async () => {
     const h = harness({ board: { "FEAT-1": "planning" } });
     await h.call(dev());
-    step(await h.call(dev({ outcome: "ok" })));                                  // start → plan
-    await h.call(dev({ outcome: "handoff", note: "docs/plans/FEAT-1.md" }));     // 자리에 머문다
-    h.runs[0].closedAt = new Date();                                             // plan_submit이 닫았다
+    step(await h.call(dev({ outcome: "ok" })));
+    await h.call(dev({ outcome: "handoff", note: "docs/plans/FEAT-1.md" }));
+    h.runs[0].closedAt = new Date();
     await h.call(dev({ outcome: "ok", note: "in_review" }));
     assert.deepEqual(h.records.at(-1), { runId: "run1", stepId: "plan", outcome: "ok", note: "in_review" });
   });
-  // 정상 경로로 done에 닿은 run은 그 단계의 ok를 이미 남겼다 — 다시 보낸 ok는 아무것도 더하지 않는다.
   it("a run that reached done takes only rejected audit rows on replay", async () => {
     const h = harness({ board: { "FEAT-1": "planning" } });
     await h.call(dev());
     step(await h.call(dev({ outcome: "ok" })));
-    await h.call(dev({ outcome: "ok" }));                                        // plan → done, run 닫힘
+    await h.call(dev({ outcome: "ok" }));
     const after = h.records.length;
     await h.call(dev({ outcome: "ok" }));
     assert.equal(h.records.length, after);
@@ -447,7 +437,6 @@ describe("opening a run picks the first step that is open", () => {
     const r = await h.call(dev());
     assert.equal(r.ok, false);
     assert.match(r.reason, /not open/);
-    // 커서를 남기면 다음 호출이 그 자리에서 다시 판정하지 못한다.
     assert.equal(h.runs.length, 0);
   });
 
@@ -472,8 +461,6 @@ describe("item ownership", () => {
   });
 
   it("does not fence report agents out of an item they inspect", async () => {
-    // plan-verifier는 key를 쓰지만(단계가 requires: in_review) 항목의 소유자가 아니다 —
-    // 소유자는 언제나 워크스페이스 dev다. 소유 검사를 모든 key 호출에 걸면 검증자가 통째로 막힌다.
     const h = harness({ board: { "FEAT-1": "in_review" }, itemAgent: { "FEAT-1": "web-dev" },
       templates: { "agents/dev.md": DEV, "agents/plan-verifier.md": PV } });
     const r = await h.call({ agent: "plan-verifier", key: "FEAT-1" });

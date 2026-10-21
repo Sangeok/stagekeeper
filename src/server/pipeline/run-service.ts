@@ -1,21 +1,19 @@
-// 파이프라인 런의 저장과 사실 읽기. 판정은 packages/core/pipeline.mjs. board.ts를 import하지 않는다.
 import { randomUUID } from "node:crypto";
 import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence } from "@harness/core/pipeline.mjs";
 import { qaEntryResult } from "./qa-query";
 import { implVerifyEntryResult } from "./impl-verify-query";
 import { readProjectUsageCapIn } from "@/server/usage/api";
-import { Prisma, type PrismaClient, type PipelineVersion } from "@/generated/prisma/client"; // Prisma는 값 — P2002 검사에 쓴다(edit-backlog.server.ts와 같은 import)
+import { Prisma, type PrismaClient, type PipelineVersion } from "@/generated/prisma/client";
 import { readProjectPlanIn, READ_OPTIONS } from "@/server/projects/api";
 import { decideHead, decideNext, handoffIsLive, type HeadNext, type PipelineNext } from "./run-rules";
 
 import { PipelineRejection, withPipelineWrite } from "./lock-pipeline";
 
 type Db = PrismaClient | Prisma.TransactionClient;
-export type Graph = { nodes: string[]; gates: string[] }; // core는 JS라 타입을 주지 않는다 — 여기가 서버 쪽 정의
+export type Graph = { nodes: string[]; gates: string[] };
 export type PipelineEntry = { runId: string; entryId: string; slotId: string };
 export type GateEntry = { runId: string; entryId: string };
 export type PipelineRunRow = { id: string; node: string; entryId: string | null; enteredAt: Date; closedAt: Date | null; version: { id: string; version: number; format: string | null; nodes: string[]; gates: string[] } };
-// advance()에 넣는 사실. 읽는 곳은 readFacts 하나.
 export type PipelineFacts = { status: string; validation: string | null; accepted: boolean; approvedGates: string[]; closedAgents: string[]; format: string | null; slotComplete: boolean; implementationComplete: boolean; qaComplete?: boolean; implVerifyComplete?: boolean };
 
 export const DEFAULT_PIPELINE_NAME = "Default";
@@ -70,8 +68,6 @@ export async function ensureRunnableVersion(tx: Prisma.TransactionClient, projec
   const graph = defaultGraph(await readProjectPlanIn(tx, projectId));
   const version = await nextPipelineVersion(tx, projectId);
   const definitionId = randomUUID(), versionId = randomUUID();
-  // Serializable callers can have a snapshot from before acquiring the locks.
-  // DO NOTHING preserves their existing 40001 retry contract instead of 23505.
   const definitions = await tx.$queryRaw<{ id: string }[]>`INSERT INTO "PipelineDefinition" ("id", "pipelineId", "version", "steps", "gates", "createdBy")
     VALUES (${definitionId}, ${id}, 1, ARRAY[${Prisma.join(graph.nodes)}]::text[], ARRAY[${Prisma.join(graph.gates)}]::text[], 'pipeline')
     ON CONFLICT ("pipelineId", "version") DO NOTHING RETURNING "id"`;
@@ -166,7 +162,6 @@ export async function ensureRun(client: PrismaClient, projectId: string, boardIt
 }
 
 
-// 사실 읽기와 답. 판정은 run-rules.ts가 하고 여기는 질의만 한다.
 
 type RowFacts = { id: string; status: string; validation: string | null; acceptedAt: Date | null; agent?: string; backlogItem?: { key: string } };
 const NODE_AGENTS = ["doc-auditor", "feature-scout"];
@@ -192,7 +187,6 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: P
     const slotComplete = agent !== null && PROJECT_AGENTS.includes(agent)
       ? await db.agentRun.findFirst({ where: { projectId, agent, key: null, pipelineRunId: run.id, pipelineEntryId: run.entryId, closedAt: { not: null } }, select: { id: true } }) !== null
       : false;
-    // Gate/plan/validation/accept facts are already on the locked BoardItem.
     return { status: row.status, validation: row.validation, accepted: row.acceptedAt !== null, format: run.version.format, approvedGates: [], closedAgents: [], implementationComplete: false, slotComplete };
   }
   const completed = await db.agentRun.findMany({
@@ -231,11 +225,10 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: P
 
 export async function nextFor(db: PrismaClient, projectId: string, key: string): Promise<PipelineNext> {
   const row = await db.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" } });
-  if (!row) throw new Error(`no such board item: ${key}`); // 도구 층이 먼저 거른다
+  if (!row) throw new Error(`no such board item: ${key}`);
   const run = await ensureRun(db, projectId, row.id, row.status, false);
   if (run.version.format !== null && (run.version.format !== SLOT_FORMAT || !run.entryId)) throw new Error("Unsupported pipeline format or missing entry; update the compatible bundle.");
   const node = run.closedAt ? null : run.node;
-  // 열린 dev run의 마지막 원장 행 — turn-data.server.ts의 agentRun.findMany와 같은 판정을 서버가 따로 갖는다
   const open = node === null || isGateId(node) || node === "accept"
     ? null
     : await db.agentRun.findFirst({ where: { projectId, agent: dispatcherFor(node, row.agent) ?? "", key: isItemNode(node) ? key : null, closedAt: null,
@@ -256,8 +249,6 @@ export async function nextFor(db: PrismaClient, projectId: string, key: string):
   });
 }
 
-// key 없는 호출의 머리 — 미결 수는 deps.ts가 latestBoard로 세어 넘긴다(run.ts는 board.ts를 import하지 않는다)
-// pm을 부를지는 그래프가 아니라 프로젝트 설정이다 — 항목이 어느 파이프라인으로 갈지는 pm이 고른 뒤에 type으로 정해진다.
 export async function headFor(db: Db, projectId: string, openCount: number, availableBacklog: number, scoutNodePending: boolean): Promise<HeadNext> {
   const cap = await readProjectUsageCapIn(db, projectId);
   const [lastScout, backlogChange, resumableScout, project] = await Promise.all([

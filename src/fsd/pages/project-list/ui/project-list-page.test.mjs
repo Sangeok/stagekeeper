@@ -23,7 +23,6 @@ it("says once how many repositories are connected on the plan and steps New proj
   assert.doesNotMatch(html, /\d+ \/ \d+ (available|connected)/);
   assert.match(html, /To connect another, disconnect one or <a\b[^>]*href="\/billing"[^>]*>compare plans<\/a>\./);
   assert.doesNotMatch(newProjectClass(html), /\bbg-mine\b/);
-  // 평소엔 모든 행이 사용 중이라 상태 글자는 정보가 없다 — 예외일 때만 쓴다.
   assert.doesNotMatch(text, /\bAvailable\b|Not selected/);
   assert.doesNotMatch(text, /\bConnected\b|Disconnected|No disconnected repositories/);
 });
@@ -39,7 +38,6 @@ it("lets the whole identity block open the project and keeps every control outsi
 });
 
 it("keys the two controls on a connected row apart for the same target, version and plan", () => {
-  // 두 컨트롤은 한 <li>의 형제라 key가 겹치면 React가 짝을 잘못 맞춘다 — 판·요금제가 바뀔 때 상태를 비우는 key의 목적이 깨진다.
   const model = { ...base, projects: [project("a")] };
   assert.notEqual(selectionControlKey("a", model), connectionControlKey("a", model));
 });
@@ -82,7 +80,6 @@ it("keeps preserved projects in their own group, including zero connected", () =
   assert.doesNotMatch(text, /Use this project|More actions/);
 });
 
-// 실행기 요약은 활동 줄 아래 한 줄이다(product-copy §10). 판정의 "지금"은 서버가 읽은 DB 시각이다.
 it("adds the runner's short form under the activity lines, with the host in mono", () => {
   const renderedAt = "2026-10-20T12:00:00.000Z";
   const runner = (seenMinutesAgo) => ({ runner: { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null,

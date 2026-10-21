@@ -5,9 +5,6 @@ import { readProjectAccessIn } from "@/server/projects/api";
 
 export class PipelineRejection extends Error {}
 
-// The pg adapter wraps raw INSERT/FOR UPDATE serialization failures as P2010.
-// Keep the same conflict contract as Prisma delegate writes, without retrying
-// a transaction or treating an ambiguous connection failure as a safe retry.
 export function rethrowPipelineConflict(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2010") {
     const adapter = error.meta?.driverAdapterError;
@@ -27,8 +24,6 @@ export type PipelineWriteContext = {
   plan: Plan;
 };
 
-// All pipeline writers share the owner -> project lock order with board changes
-// and plan changes. Rejections must escape the transaction before becoming results.
 export async function withPipelineWrite<Result>(
   client: PrismaClient,
   projectId: string,

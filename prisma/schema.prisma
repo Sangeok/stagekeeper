@@ -23,10 +23,10 @@ model User {
   requestRateWindows RequestRateWindow[]
 }
 
-model Subscription {                   // 플랜은 사용자에 붙고 프로젝트는 소유자의 플랜을 따른다. 행이 없으면 free. 결제 경로 없음 — plan:grant 스크립트가 쓴다
+model Subscription {
   id        String   @id @default(cuid())
   userId    String   @unique
-  plan      String                     // entitlement.mjs PLANS
+  plan      String
   source    String   @default("manual")
   note      String?
   createdAt DateTime @default(now())
@@ -36,18 +36,18 @@ model Subscription {                   // 플랜은 사용자에 붙고 프로�
 
 model Project {
   id           String          @id @default(cuid())
-  slug         String          @unique   // URL: /p/apch
+  slug         String          @unique
   name         String
   repo         String
   branch       String
   language     String          @default("ko")
-  executorKind String          @default("local")   // local | routine
+  executorKind String          @default("local")
   commandIssue Int?
-  runbookVersion String?                 // /harness:init이 마지막으로 심은 런북 템플릿의 해시. null = 보고된 적 없음(= 낡음으로 본다)
-  autoScoutEnabled Boolean     @default(true) // 빈 백로그 자동 발굴. 그래프 슬롯과 독립적이며 모든 플랜에서 소유자가 제어한다
-  autoProposeEnabled Boolean   @default(true) // head가 pm을 불러 백로그에서 고르게 하는가. 옛 propose 노드를 대신한다
-  defaultPipelineId String?              // 규칙에 걸리지 않은 새 항목이 붙는 파이프라인. null = 첫 쓰기 경로에서 default_<id>를 만든다
-  runnerPausedAt DateTime?               // 웹의 실행기 일시 정지. null = 아님. 실행기가 없어도 유지된다(다음 실행기가 정지 상태로 시작)
+  runbookVersion String?
+  autoScoutEnabled Boolean     @default(true)
+  autoProposeEnabled Boolean   @default(true)
+  defaultPipelineId String?
+  runnerPausedAt DateTime?
   runner       Runner?
   createdAt    DateTime        @default(now())
   tokens       ProjectToken[]
@@ -74,22 +74,20 @@ model Project {
   @@index([ownerUserId, disconnectedAt])
 }
 
-// 프로젝트당 실행기 하나(서버 lease). 생존 판정은 packages/core/runner.mjs. 새 시작이 행을 덮어쓰고,
-// 정지한 행은 state=stopped로 남아 "정지됨(이유)"를 보인다. 소유자가 로컬에서 멈추면 행을 지운다.
 model Runner {
   projectId  String   @id
-  session    String                     // 로컬 세션 id(watch.lock.json의 id). lease 소유 판정은 이 값 하나로 한다
-  tokenId    String                     // lease를 잡은 토큰의 내부 id(hs_ 또는 hu_). 감사용이며 판정에 쓰지 않는다
-  mode       String                     // session | resident
-  host       String                     // 실행기 PC 이름, 64자까지
-  branch     String?                    // resident만: 시작 때 고정한 브랜치
-  permission String?                    // resident만: auto | allowlist
+  session    String
+  tokenId    String
+  mode       String
+  host       String
+  branch     String?
+  permission String?
   autostart  Boolean  @default(false)
-  state      String                     // idle | working | waiting | stopped
-  waitReason String?                    // state=waiting일 때 dirty | branch
-  lastResult String?                    // 마지막 실행 결과 한 줄, 150자까지
-  lastLog    String?                    // 마지막 로그 파일 이름(경로 아님)
-  stopReason String?                    // state=stopped일 때 stuck | error | plan
+  state      String
+  waitReason String?
+  lastResult String?
+  lastLog    String?
+  stopReason String?
   startedAt  DateTime
   seenAt     DateTime
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -133,7 +131,7 @@ model ProjectAvailabilityEvent {
 model ProjectToken {
   id        String    @id @default(cuid())
   projectId String
-  hash      String    @unique   // sha256(plain). 평문은 저장하지 않는다
+  hash      String    @unique
   label     String
   createdAt DateTime  @default(now())
   revokedAt DateTime?
@@ -143,11 +141,11 @@ model ProjectToken {
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
-model OwnerToken {                       // 사람 자격. 소유자가 자기 Claude Code 세션에 물려 게이트를 연다(/api/mcp/owner).
-  id        String    @id @default(cuid()) // ProjectToken과 표가 다르다 — 서로의 엔드포인트에서 접두(ho_/hs_)로 먼저 떨어진다
+model OwnerToken {
+  id        String    @id @default(cuid())
   projectId String
-  userId    String                        // 발급한 사람. 게이트 이벤트의 actorId가 이 값이다 — 웹에서 눌렀을 때와 같은 사람
-  hash      String    @unique             // sha256(plain). 평문은 저장하지 않는다
+  userId    String
+  hash      String    @unique
   label     String
   createdAt DateTime  @default(now())
   revokedAt DateTime?
@@ -159,10 +157,10 @@ model OwnerToken {                       // 사람 자격. 소유자가 자기 C
   @@index([projectId, userId])
 }
 
-model UserToken {                        // 사람 자격. OwnerToken에서 projectId만 뺀 모양이다 — 프로젝트는 도구 인자로 온다.
-  id        String    @id @default(cuid()) // 접두 hu_. 에이전트 서버(/api/mcp)에서 hs_와 함께 통과하고, 소유자 서버는 받지 않는다.
-  userId    String                        // 발급한 사람. 프로젝트 인가는 호출마다 Project.ownerUserId와 대조한다
-  hash      String    @unique             // sha256(plain). 평문은 저장하지 않는다
+model UserToken {
+  id        String    @id @default(cuid())
+  userId    String
+  hash      String    @unique
   label     String
   createdAt DateTime  @default(now())
   revokedAt DateTime?
@@ -173,7 +171,7 @@ model UserToken {                        // 사람 자격. OwnerToken에서 proj
   @@index([userId])
 }
 
-model Workspace {                      // harness.json.workspaces 의 사본 (project_sync)
+model Workspace {
   id        String   @id @default(cuid())
   projectId String
   wsId      String
@@ -189,37 +187,37 @@ model Workspace {                      // harness.json.workspaces 의 사본 (pr
 model BacklogItem {
   id        String      @id @default(cuid())
   projectId String
-  key       String                       // ITEM-01 (existing keys remain immutable)
+  key       String
   title     String
   area      String
-  source    String                       // Scout evidence follows the template contract
+  source    String
   createdAt DateTime    @default(now())
   removedAt DateTime?
-  type      String?                      // feat | fix | refactor | docs
-  typeSetBy String?                      // owner | feature-scout | dev, null when type is null
+  type      String?
+  typeSetBy String?
   addedBy   String      @default("owner")
-  addedByRunId String?                   // Audit identity, no FK; removed writes still count
-  removedReason String?                  // done | owner | discarded, null while live
+  addedByRunId String?
+  removedReason String?
   project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   board     BoardItem[]
   @@unique([projectId, key])
 }
 
-model BoardItem {                        // 같은 backlog 항목이 여러 번 올라올 수 있다(in_review 폐기 뒤 재선정. 보류는 재선정하지 않고 재개한다). 최신 = proposedOn 최대
+model BoardItem {
   id            String            @id @default(cuid())
   projectId     String
   backlogItemId String
   agent         String
-  status        String                    // transitions.mjs STATUSES
-  reason        String                    // 근거 ≤150
-  results       String[]                  // 결과 ≤150, 누적
-  validation    String?                   // 검증: — in_review에서만, 되돌리기 시 null
-  acceptedAt    DateTime?                 // 인수: done에서 main-loop의 report_submit이 찍는다. reopen 시 null
+  status        String
+  reason        String
+  results       String[]
+  validation    String?
+  acceptedAt    DateTime?
   planPath      String?
   planCommit    String?
   proposedOn    DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
-  discardedAt   DateTime?                 // 폐기(사람). 행은 남긴다 — 이벤트가 감사 로그(불변식 8)
+  discardedAt   DateTime?
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   backlogItem   BacklogItem       @relation(fields: [backlogItemId], references: [id], onDelete: Cascade)
   events        TransitionEvent[]
@@ -244,27 +242,27 @@ model AcceptanceFailure {
   @@index([boardItemId, clearedAt])
 }
 
-model TransitionEvent {                  // 감사 로그 (불변식 8)
+model TransitionEvent {
   id          String    @id @default(cuid())
   boardItemId String
   from        String?
-  to          String?                    // null = 폐기
-  actor       String                     // human | agent | pipeline
-  actorId     String?                    // userId 또는 tokenId
-  channel     String?                    // human 행만: web | session. agent 행과 이 열 이전의 행은 null
+  to          String?
+  actor       String
+  actorId     String?
+  channel     String?
   note        String?
   at          DateTime  @default(now())
   boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
 }
 
 model Report {
-  qa          Json?                      // Structured QA evidence, bound to the implementation commit and AgentRun
-  isAcceptance Boolean?                  // 제출 당시 인수 보고 여부. null은 목적을 복원하지 못한 기존 행
+  qa          Json?
+  isAcceptance Boolean?
   id          String    @id @default(cuid())
   boardItemId String
   agentRunId  String?
-  actor       String                     // web-dev | main-loop | …
-  path        String                     // docs/agents/<actor>/<ID>.md
+  actor       String
+  path        String
   commit      String
   at          DateTime  @default(now())
   boardItem   BoardItem @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
@@ -272,20 +270,20 @@ model Report {
   @@index([agentRunId])
 }
 
-model Template {                         // 에이전트·규약 템플릿 원문. 플러그인에 동봉하지 않고 서버가 인증된 요청에만 내려준다
-  lang      String                       // harness.json.language
-  path      String                       // agents/pm.md · agents/dev.md · docs/plans/README.md · CLAUDE.runbook.md
-  body      String                       // 자리표시자({{...}})가 든 원문. 렌더는 사용자 쪽에서 한다
+model Template {
+  lang      String
+  path      String
+  body      String
   updatedAt DateTime @updatedAt
   @@id([lang, path])
 }
 
-model Command {                          // 명령 원장 (Phase 3에서 소비)
+model Command {
   id        String    @id @default(cuid())
   projectId String
-  kind      String                       // pipeline-run | pm-select | audit-run | scout-run | <agent>-work
-  body      String                       // 서버가 roster에서 생성 (불변식 3)
-  status    String    @default("queued") // queued | acked | done
+  kind      String
+  body      String
+  status    String    @default("queued")
   createdAt DateTime  @default(now())
   ackedAt   DateTime?
   doneAt    DateTime?
@@ -293,17 +291,17 @@ model Command {                          // 명령 원장 (Phase 3에서 소비)
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
-model AgentRun {                         // 같은 (project, agent, key)의 여러 열린 run 중 최신 openedAt을 공유 커서로 고른다
+model AgentRun {
   id        String         @id @default(cuid())
   projectId String
   agent     String
-  key       String?                      // 항목에 묶인 에이전트(dev)만. pm·감사 에이전트는 null
-  tokenId   String                       // run 개설자. 실제 호출자는 AgentRunStep.callerTokenId
+  key       String?
+  tokenId   String
   revision  Int            @default(0)
-  stepId    String                       // 지금 서 있는 단계. 전진은 이 값이 그대로일 때만(CAS)
-  refused   Int            @default(0)   // 이 run에서 "열리지 않은 단계" 거부 횟수 — 10회에 경고
+  stepId    String
+  refused   Int            @default(0)
   openedAt  DateTime       @default(now())
-  closedAt  DateTime?                    // done 도달, 또는 항목이 done/on_hold/폐기될 때 board-query.ts closeRuns가 닫는다
+  closedAt  DateTime?
   project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   steps     AgentRunStep[]
   pipelineRunId String?
@@ -316,13 +314,13 @@ model AgentRun {                         // 같은 (project, agent, key)의 여�
   @@index([tokenId])
 }
 
-model AgentRunStep {                     // 수락(true), 거절 감사(false), 이전 원장(null). 거절은 실행 증거가 아니다
+model AgentRunStep {
   id      String   @id @default(cuid())
   runId   String
   stepId  String
-  outcome String                         // ok | blocked | failed | handoff
+  outcome String
   note    String?
-  callerTokenId String?                  // 폐기된 토큰도 감사 기록을 보존하므로 FK를 두지 않는다
+  callerTokenId String?
   receiptRevision Int?
   accepted Boolean?
   at      DateTime @default(now())
@@ -333,16 +331,16 @@ model AgentRunStep {                     // 수락(true), 거절 감사(false), 
   @@index([at])
 }
 
-model PipelineVersion {                  // 실행 판 — 항목이 실제로 도는 펼친 그래프. 정의 저장이 영향받은 파이프라인마다 새 행을 쓴다. 항목은 시작 시점 판에 고정된다 — Proposed이고 실행 전인 항목만 Change pipeline으로 다시 고정한다(원장 = 감사 로그)
+model PipelineVersion {
   id         String    @id @default(cuid())
   projectId  String
-  pipelineId String                      // migration A가 채우고, migration B가 null 부재를 검증한 뒤 NOT NULL로 만든다
-  version    Int                         // 프로젝트 안 일련번호(파이프라인을 가로지른다). 그 파이프라인의 현재 = 그 파이프라인 행 중 최대 version
-  nodes      String[]                    // pipeline.mjs NODE_KINDS의 부분열(펼친 결과라 연결이 없다)
-  gates      String[]                    // before-<kind>
+  pipelineId String
+  version    Int
+  nodes      String[]
+  gates      String[]
   format     String?
   createdAt  DateTime  @default(now())
-  createdBy  String                      // userId. 기본 그래프를 서버가 물질화했으면 "pipeline"
+  createdBy  String
   project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   pipeline   Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   runs       PipelineRun[]
@@ -350,26 +348,26 @@ model PipelineVersion {                  // 실행 판 — 항목이 실제로 �
   @@index([pipelineId, version])
 }
 
-model PipelineRun {                      // 항목의 커서 — "지금 어느 노드(또는 어느 게이트 앞)에 서 있나". BoardItem당 하나
+model PipelineRun {
   id          String          @id @default(cuid())
   boardItemId String          @unique
   versionId   String
   entryId     String?
   agentRuns   AgentRun[]
-  node        String                     // NODE_KINDS 또는 before-<kind>. 끝나면 마지막 노드 그대로 두고 closedAt
-  enteredAt   DateTime        @default(now())   // 이 node에 선 시각 — 게이트 승인·에이전트 run 닫힘은 이 시각부터(>=)의 것만 센다
+  node        String
+  enteredAt   DateTime        @default(now())
   closedAt    DateTime?
   boardItem   BoardItem       @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
-  version     PipelineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade) // 이 스키마의 다른 관계와 같이. 없으면 Prisma 기본 Restrict라 프로젝트 삭제(Project → PipelineVersion 캐스케이드)가 막힌다
+  version     PipelineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 }
 
-model Pipeline {                         // 이름 붙은 파이프라인. 종류가 없다 — 항목에 붙을 수 있는지는 실행 판이 있는가(펼친 결과의 validateGraph)로 정해진다
-  id          String    @id @default(cuid()) // migration·지연 생성이 만든 기본 파이프라인은 default_<projectId>
+model Pipeline {
+  id          String    @id @default(cuid())
   projectId   String
   name        String
   createdAt   DateTime  @default(now())
-  createdBy   String                     // userId. migration·지연 생성이 만들었으면 "pipeline"
-  archivedAt  DateTime?                  // 보관. 지우지 않는다 — 판 행과 런이 이 행을 거쳐 원장에 남는다(불변식 8)
+  createdBy   String
+  archivedAt  DateTime?
   project     Project   @relation("ProjectPipelines", fields: [projectId], references: [id], onDelete: Cascade)
   defaultOf   Project[] @relation("ProjectDefaultPipeline")
   definitions PipelineDefinition[]
@@ -378,10 +376,10 @@ model Pipeline {                         // 이름 붙은 파이프라인. 종�
   @@index([projectId, archivedAt])
 }
 
-model PipelineDefinition {               // 편집 원본. 저장마다 새 행. steps는 노드 id 또는 pipeline:<id>, gates는 before-<step>
+model PipelineDefinition {
   id         String   @id @default(cuid())
   pipelineId String
-  version    Int                         // 파이프라인마다 1부터. 저장의 낙관적 기준(expectedVersion)이자 Pipeline 탭이 보여 주는 번호
+  version    Int
   steps      String[]
   gates      String[]
   createdAt  DateTime @default(now())
@@ -390,9 +388,9 @@ model PipelineDefinition {               // 편집 원본. 저장마다 새 행.
   @@unique([pipelineId, version])
 }
 
-model PipelineRule {                     // BacklogItem.type → 파이프라인. 규칙이 없으면 기본(결정 6)
+model PipelineRule {
   projectId  String
-  type       String                      // backlog.mjs ITEM_TYPES
+  type       String
   pipelineId String
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)

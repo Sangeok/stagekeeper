@@ -1,4 +1,3 @@
-// Actual components mounted with local action/clipboard doubles. No production route.
 import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";

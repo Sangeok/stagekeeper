@@ -84,7 +84,7 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
         return require(name);
       },
     });
-    return exported as T; // The VM is the same boundary as the repository's binding tests.
+    return exported as T;
   }
   const binder = load<{ recordTokenUsage: usageQuery.TokenUsageRecorder }>("src/server/tokens/usage.ts");
   common["@/server/tokens/api.server"] = { ...binder as object, findUserTokenByHash: (hash: string) => findUserTokenByHash(hash, prisma as never) };

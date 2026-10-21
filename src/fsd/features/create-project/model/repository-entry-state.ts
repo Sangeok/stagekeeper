@@ -18,7 +18,6 @@ export function transitionRepositoryEntry(state: RepositoryEntryState, event: Re
     return ref && !context.slugTouched ? { slug: slugFromRepo(ref.repo) } : {};
   };
   switch (event.type) {
-    // Picker entry intentionally keeps editing and the stored URL draft.
     case "picker": return { state: { ...state, manual: false, selection: { source: "picker", repository: null } } };
     case "manual": return { state: { ...state, manual: true, query: "", selection: { source: "url", url: state.urlDraft } }, ...parsedSlug(state.urlDraft) };
     case "paste": return { state: { ...state, urlDraft: event.value, selection: { source: "url", url: event.value } }, ...parsedSlug(event.value) };

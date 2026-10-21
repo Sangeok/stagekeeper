@@ -75,7 +75,6 @@ describe("planMatrix", () => {
 
 });
 
-// 파이프라인 축 둘이 표에 줄로 선다 — 값은 LIMITS에서 읽으므로 표와 코드가 어긋날 수 없다.
 describe("planMatrix — pipeline rows", () => {
   it("shows who may edit the graph", () => {
     const row = planMatrix().find((r) => r.label === "Pipeline editing");
@@ -90,7 +89,6 @@ describe("planMatrix — pipeline rows", () => {
   });
 });
 
-// Pro 차이는 /billing에만 보인다(검토 요청 7). 값은 LIMITS의 residentRunner에서 읽는다.
 describe("planMatrix — background runner", () => {
   it("shows the background runner on Pro and Max only", () => {
     const row = planMatrix().find((r) => r.label === "Background runner");

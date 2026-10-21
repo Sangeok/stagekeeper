@@ -18,7 +18,6 @@ import { failureBody, type RequestRateFailure } from "../result";
 
 const CLI = fileURLToPath(new URL("../../../plugin/bin/harness-init.mjs", import.meta.url));
 const RUNBOOK = "# Runbook\nversion {{runbook_version}}\n{{report_table}}\n";
-// Public fixtures test the wire contract; the private corpus has its own content checks.
 const rows = [
   ...["dev", "pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"].map((agent) => ({
     path: `agents/${agent}.md`, body: `---\nname: ${agent}\ndescription: Test role.\n---\nStub\n## step:start\nPrivate step\nnext: done\n`,
@@ -49,8 +48,6 @@ function run(root: string, server: string, token: string, ...args: string[]): Pr
     (error, stdout, stderr) => done({ code: error?.code ?? 0, output: stdout + stderr })));
 }
 
-// Use the real REST services and token parser. Only database IO is replaced: a permissive
-// fake endpoint would let the client omit project while all its tests remain green.
 async function service(t: TestContext, plan: Plan = "free") {
   const user = newToken("user"), agent = newToken();
   const saved: { projectId: string; version: string }[] = [];

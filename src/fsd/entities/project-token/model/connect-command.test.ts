@@ -39,10 +39,7 @@ describe("connectCommands", () => {
   });
 });
 
-// /harness:init이 HARNESS_SERVER를 직접 설정한다(product-copy.md §9).
 describe("tokenKind", () => {
-  // 화면은 접두로 종류를 읽는다. 접두의 출처는 packages/core/token.mjs 하나다 — 그 모듈은 node:crypto를 끌고 와서
-  // 클라이언트 번들에 넣을 수 없으므로 여기서는 문자열로 다시 적고, 이 시험이 둘을 묶는다.
   it("reads the kind off the prefix packages/core issues", () => {
     assert.equal(tokenKind(`${TOKEN_KINDS.user}abc`), "user");
     assert.equal(tokenKind(`${TOKEN_KINDS.agent}abc`), "project");
@@ -50,7 +47,6 @@ describe("tokenKind", () => {
 });
 
 describe("saveCommands", () => {
-  // hu_만 머신 전역에 저장한다. hs_는 저장소마다 값이 달라 두 번째 저장소가 첫 번째를 덮어쓴다.
   it("gives one line per Windows shell that persists the variable and sets it in this shell too", () => {
     const commands = saveCommands();
     assert.deepEqual(commands.map((c) => c.kind), ["powershell", "gitbash"]);
@@ -60,7 +56,6 @@ describe("saveCommands", () => {
     assert.ok(commands[1]!.command.includes('export HARNESS_TOKEN="$t"'));
   });
 
-  // 값을 싣지 않고 입력을 받는다 — 그래서 인자가 없다. 셸 히스토리에 남는 것은 이 줄뿐이다.
   it("asks for the token instead of carrying it", () => {
     const [powershell, gitbash] = saveCommands();
     assert.match(powershell!.command, /Read-Host "HARNESS_TOKEN" -AsSecureString/);

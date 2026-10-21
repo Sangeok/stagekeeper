@@ -10,7 +10,6 @@ const CLEAN = { branch: "main", current: "main", dirty: [] };
 const OK = { kind: "ok", paused: false, stop: null };
 const SUCCESS = { exitCode: 0, result: { subtype: "success", isError: false, turns: 4, terminal: "completed", denials: 0 }, log: "run.jsonl" };
 
-// 루프를 가짜 의존성으로 돌린다. script는 각 호출이 돌려줄 값을 차례로 준다.
 function harness({ overviews = [WORK, NONE], trees = [], beats = [], runs = [], lifecycle = [], maxLoops = 40 } = {}) {
   const calls = { beats: [], notices: [], runs: 0, ended: [], saves: [] };
   let clock = 0, loops = 0;
@@ -65,16 +64,13 @@ it("waits on uncommitted changes, notifies once with the files, and continues wh
 it("ends a run when the branch changes, does not count it as a failure, and waits once on the branch", async () => {
   const other = { branch: "feature", current: "feature", dirty: ["half.ts"] };
   const { deps, calls } = harness({
-    // 실행 직전 · 실행 뒤 진전 판정 · 브랜치 대기 · 미커밋 대기 · 깨끗해진 뒤 · 두 번째 실행 뒤.
     overviews: [WORK, WORK, WORK, WORK, WORK, NONE],
-    // 실행 직전 검사 → 실행 중 감시 → 실행 뒤 → 다음 검사 둘(브랜치 그대로) → 되돌림·미커밋 → 깨끗.
     trees: [CLEAN, other, other, other, { ...CLEAN, dirty: ["half.ts"] }, CLEAN],
     runs: [{ hang: true, onEnd: { endedFor: "branch" } }, SUCCESS],
     lifecycle: Array(30).fill("active").concat("stopping"),
   });
   await runResident({ branch: "main", interval: 1000 }, deps);
   assert.deepEqual(calls.ended, ["branch"]);
-  // 중단 알림이 브랜치 대기의 시작이다 — 브랜치 대기 알림은 다시 뜨지 않는다. 되돌린 뒤의 미커밋은 끊긴 실행 문장이다.
   assert.deepEqual(calls.notices, ["branchEnded", "waitInterrupted"]);
   assert.ok(calls.saves.every(status => status.failures === 0));
   assert.equal(calls.runs, 2);
@@ -94,7 +90,6 @@ it("stops as stuck after three runs without progress", async () => {
   assert.equal(calls.runs, 3);
 });
 
-// 세 번 중 하나라도 오류·시간 초과면 stuck이 아니라 error다 — 배너의 이유 문장이 사실과 맞게(2026-10-21 확정).
 it("stops with an error when a failed run is among the three", async () => {
   const failed = { exitCode: 1, result: { subtype: "error_during_execution", isError: true, turns: 1, terminal: "completed", denials: 0 }, log: "run.jsonl" };
   const mixed = harness({ overviews: [WORK], runs: [SUCCESS, failed, SUCCESS] });
@@ -102,8 +97,6 @@ it("stops with an error when a failed run is among the three", async () => {
   assert.equal(mixed.calls.runs, 3);
   const allFailed = harness({ overviews: [WORK], runs: [failed] });
   assert.equal(await runResident({ branch: "main", interval: 1000 }, allFailed.deps), "error");
-  // 진전이 있으면 셈과 종류가 함께 처음으로 돌아간다.
-  // 실패 둘(앞뒤 WORK) → 진전 있는 성공(WORK → NEXT) → 진전 없는 성공 셋(NEXT → NEXT).
   const reset = harness({ overviews: [WORK, WORK, WORK, WORK, WORK, NEXT], runs: [failed, failed, SUCCESS] });
   assert.equal(await runResident({ branch: "main", interval: 1000 }, reset.deps), "stuck");
 });
@@ -181,7 +174,6 @@ it("builds the claude arguments, the allow list and reads only init and result",
   const args = runArguments({ session: "s-1", permission: "auto", settings: "/x/settings.json" });
   assert.deepEqual(args.slice(0, 4), ["-p", "/harness:watch --once --session s-1", "--permission-mode", "auto"]);
   assert.ok(args.includes("Bash(git push:*)") && args.includes("PowerShell(git push*)"));
-  // auto를 쓸 수 없으면 acceptEdits + 허용 목록이다 — dontAsk는 파일 쓰기까지 거부한다(실측).
   assert.equal(runArguments({ session: "s", permission: "allowlist", settings: "x" })[3], "acceptEdits");
   const settings = backgroundSettings({ workspaces: [{ verify: ["npm test"] }] });
   assert.ok(settings.permissions.allow.includes("mcp__harness"));

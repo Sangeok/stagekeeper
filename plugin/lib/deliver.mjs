@@ -1,19 +1,13 @@
-// 순수. /api/templates가 내려주는 집합의 규칙 — 서버(templatesFor)와 생성기의 로컬 우회로(HARNESS_TEMPLATES_DIR)가
-// 같은 함수로 같은 집합을 만든다. 본문(단계)은 서버에만 남고 파일로는 스텁만 나간다.
 import { REPORT_AGENTS, limitsFor } from "./entitlement.mjs";
 import { clientRuntime, parseClient, runtimeEcho, validateCodexBundle } from "./client-runtime.mjs";
 import { stubOf } from "./template-boundary.mjs";
 
 export { STEP_HEADING, stubOf } from "./template-boundary.mjs";
 
-const RUNBOOK_FREE = "CLAUDE.runbook.free.md"; // 옛 Free 판. 파일은 지웠고 DB 행이 남아 있어도 내려보내지 않는다 — 런북은 한 판이다
+const RUNBOOK_FREE = "CLAUDE.runbook.free.md";
 
 const agentOf = (path) => /^agents\/([^/]+)\.md$/.exec(path)?.[1] ?? null;
 
-// rows: Template 행 { path, body } 전부(한 언어). 돌려주는 templates는 생성기가 그대로 쓰는 { path: body }.
-// entitlement.agents는 이 플랜이 허용하는 **보고 에이전트**다 — 워크스페이스 dev는 harness.json이 정하고 그 수는
-// workspaces 축이 막는다(roster는 첫 init 시점에 서버에 없다: project_sync가 그 뒤에 온다).
-// 런북은 한 판이다 — 플랜 차이(검증자·감사자 유무)는 그래프가 진다(pipeline.mjs defaultGraph).
 export function deliverable(rows, plan, client = "claude") {
   client = parseClient(client);
   if (client === "codex") validateCodexBundle(rows, plan);
