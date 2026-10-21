@@ -25,6 +25,11 @@ it("GET derives failures only for the latest unaccepted done at an open accept c
     };
     const deps: Record<string, unknown> = {
       "server-only": {}, "@/server/db": { prisma: db }, "@/server/pipeline/api.server": { latestBoard: async () => rows },
+      "@/server/pipeline/api": { loadExecutionFacts: async (_db: unknown, projectId: string, input: unknown) => {
+        assert.equal(projectId, "p");
+        assert.deepEqual(JSON.parse(JSON.stringify(input)), [{ id: "new", key: "K", agent: "dev", updatedAt: new Date(0).toISOString() }]);
+        return [{ boardItemId: "new", cursorNode: node, activityDispatched: true, turnDispatched: node === "implement", handoff: null }];
+      } },
       "@/server/runners/api.server": { readRunnerState: async () => ({ runner: null, pausedAt: null, lastActivity: null, renderedAt: new Date(0) }) },
       "../model/turn": { deriveTurn: (value: TurnItem[]) => { items = value; return { kind: "none", detail: "fixture" }; } },
     };
@@ -32,6 +37,7 @@ it("GET derives failures only for the latest unaccepted done at an open accept c
     runInNewContext(code, { exports, Date, require: (name: string) => Object.hasOwn(deps, name) ? deps[name] : require(name) });
     const data = await exports.loadTurn("p");
     assert.equal(items[0].acceptanceFailed, expected);
+    assert.equal(items[0].dispatched, node === "implement");
     assert.deepEqual(JSON.parse(JSON.stringify(data.runner)), { runner: null, paused: false, renderedAt: "1970-01-01T00:00:00.000Z" });
     assert.equal(JSON.stringify(failureQuery), JSON.stringify({ where: { clearedAt: null, boardItem: { projectId: "p" } }, select: { boardItemId: true } }));
   }
@@ -52,6 +58,7 @@ it("maps the runner view to banner facts for the project it was asked about", as
   };
   const deps: Record<string, unknown> = {
     "server-only": {}, "@/server/db": { prisma: db }, "@/server/pipeline/api.server": { latestBoard: async () => [] },
+    "@/server/pipeline/api": { loadExecutionFacts: async () => [] },
     "@/server/runners/api.server": { readRunnerState: async (projectId: string) => { asked.push(projectId); return view; } },
     "../model/turn": { deriveTurn: () => ({ kind: "setup", steps: [], current: 1 }) },
   };

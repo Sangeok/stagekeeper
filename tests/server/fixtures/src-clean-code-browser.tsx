@@ -6,9 +6,7 @@ import { NewProjectForm } from "../../../src/fsd/features/create-project/ui/new-
 import { CopyButton } from "../../../src/fsd/shared/ui/copy-button";
 import { TokenReveal } from "../../../src/fsd/entities/project-token/ui/token-reveal";
 import { OwnerTokenReveal } from "../../../src/fsd/entities/project-token/ui/owner-token-reveal";
-import { NewTokenForm } from "../../../src/fsd/features/manage-token/ui/new-token-form";
-import { NewUserTokenForm } from "../../../src/fsd/features/manage-user-token/ui/new-user-token-form";
-import { NewOwnerTokenForm } from "../../../src/fsd/features/manage-token/ui/new-owner-token-form";
+import { NewTokenForm, NewUserTokenForm, NewOwnerTokenForm } from "@/fsd/features/manage-token";
 import { NextStepContent } from "../../../src/fsd/widgets/turn-banner/ui/next-step";
 import { TurnBanner } from "../../../src/fsd/widgets/turn-banner/ui/turn-banner";
 import { deriveTurn, type Turn } from "../../../src/fsd/widgets/turn-banner/model/turn";

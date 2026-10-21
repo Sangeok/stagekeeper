@@ -67,6 +67,37 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
       check(controls.payloads.length === 3 && scope.textContent?.includes(`${kind}_fixture-3`) && scope.textContent.includes("Previous token"), "invalid input invoked an action or erased a token");
     });
   }
+  for (const [firstKind, secondKind] of [["hs", "ho"], ["hu", "ho"]]) for (const outcome of ["error", "unknown"] as const) {
+    await run("token independent instances " + firstKind + "/" + secondKind + " " + outcome, "reverse responses keep token, expiry and alerts inside the requesting form without automatic requests", async () => {
+      await mount("token-issuance");
+      const first = document.getElementById("issue-" + firstKind)!;
+      const second = document.getElementById("issue-" + secondKind)!;
+      const label = (kind: string) => kind === "ho" ? "Issue owner token" : "Issue token";
+      input("#issue-" + firstKind + ' input[name="expiry"]', "2999-01-01 00:00");
+      await click(label(firstKind), first); controls.finishAction("success"); await tick();
+      input("#issue-" + secondKind + ' input[name="expiry"]', "2999-02-01 00:00");
+      await click(label(secondKind), second); controls.finishAction("success"); await tick();
+      check(first.textContent?.includes(firstKind + "_fixture-1") && second.textContent?.includes(secondKind + "_fixture-2"), "initial values crossed forms");
+      input("#issue-" + firstKind + ' input[name="expiry"]', "3000-01-01 00:00");
+      await click(label(firstKind), first); const finishFirst = controls.finishAction;
+      input("#issue-" + secondKind + ' input[name="expiry"]', "3000-02-01 00:00");
+      await click(label(secondKind), second); const finishSecond = controls.finishAction;
+      check(controls.payloads.length === 4 && finishFirst !== finishSecond, "concurrent form requests were shared or duplicated");
+      finishSecond(outcome); await tick();
+      check(first.textContent?.includes(firstKind + "_fixture-1") && first.textContent.includes("2999-01-01 00:00 UTC"), "another form response replaced the first pending value");
+      finishFirst("success"); await tick();
+      check(first.textContent?.includes(firstKind + "_fixture-3") && first.textContent.includes("3000-01-01 00:00 UTC"), "first response lost its own value or expiry");
+      check(!first.querySelector('[role="alert"]') && !first.textContent.includes(secondKind + "_fixture"), "another form alert or value leaked into the first form");
+      check(second.textContent?.includes(secondKind + "_fixture-2") && second.textContent.includes("2999-02-01 00:00 UTC") && second.textContent.includes("Previous token"), "second form lost its prior value");
+      check(!second.textContent.includes("3000-02-01 00:00 UTC") && !second.textContent.includes(firstKind + "_fixture"), "successful response crossed forms");
+      check(second.querySelector('[role="alert"]')?.textContent?.includes(outcome === "error" ? "Refused" : "Couldn't confirm"), "second form lost its own alert");
+      check(controls.payloads.length === 4 && controls.refreshes === 1, "response handling submitted an extra request");
+      if (outcome === "unknown") {
+        await click("Refresh list", second);
+        check(controls.payloads.length === 4 && controls.refreshes === 2 && first.textContent.includes(firstKind + "_fixture-3"), "refresh changed another form or issued again");
+      }
+    });
+  }
   await run("propose roster same instance", "current selection drives display and submission; explicit selection survives reorder/removal/reappearance and reason survives cancel", async () => {
     await mount("propose"); await click("Put on the board");
     const select = document.querySelector<HTMLSelectElement>('select:not([aria-label="Pipeline"])')!;
@@ -210,6 +241,54 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     radios()[1].click(); await tick(); await click("Show setup");
     check(radios()[1].checked && scope.textContent?.includes("$harness-init"), "work selection lost on setup");
     check(controls.payloads.length === 0 && controls.submissions.length === 0 && controls.refreshes === 0, "banner choice caused a mutation");
+  });
+  const insertionMenuOpen = () => buttons().some(button => button.textContent === "Add doc-auditor here");
+  await run("pipeline insertion menu positions", "end and step menus toggle and replace each other without changing the draft", async () => {
+    await mount("pipeline");
+    check(!insertionMenuOpen(), "menu starts open");
+    await click("Add at end");
+    check(insertionMenuOpen() && [...document.querySelectorAll("p")].some(p => p.textContent === "At end"), "end position missing");
+    check(!buttons().some(button => button.textContent === "Add gate"), "end position gained a before-step gate");
+    await click("Add at end"); check(!insertionMenuOpen(), "end toggle did not close");
+    await click("Insert before Plan");
+    check(insertionMenuOpen() && find("Insert before Plan").getAttribute("aria-expanded") === "true", "step position missing");
+    check([...document.querySelectorAll("p")].some(p => p.textContent === "before Plan"), "step heading missing");
+    await click("Add at end");
+    check(insertionMenuOpen() && find("Insert before Plan").getAttribute("aria-expanded") === "false", "end did not replace step position");
+    await click("Insert before Plan"); await click("Insert before Plan");
+    check(!insertionMenuOpen() && find("Save").disabled && controls.payloads.length === 0, "menu toggle changed or saved the draft");
+  });
+  for (const position of ["end", "before plan"] as const) await run(`pipeline insertion menu selection ${position}`, "selection inserts at the chosen position and closes without saving until requested", async () => {
+    await mount("pipeline");
+    await click(position === "end" ? "Add at end" : "Insert before Plan");
+    await click("Add doc-auditor here");
+    check(!insertionMenuOpen() && controls.payloads.length === 0 && !find("Save").disabled, "selection stayed open or saved automatically");
+    await click("Save");
+    check(controls.payloads.length === 1, "selection was not submitted exactly once");
+    const { steps } = (controls.payloads[0] as { definition: { steps: string[] } }).definition;
+    check(position === "end" ? steps.at(-1) === "doc-auditor#2" : steps[0] === "doc-auditor#2" && steps[1] === "plan", "selection used the wrong insertion position");
+    controls.finishAction("success"); await tick();
+  });
+  await run("pipeline insertion menu busy", "pending saves block opening and selecting menus and refusal restores the existing menu", async () => {
+    await mount("pipeline");
+    await click("Add at end"); await click("Add doc-auditor here"); await click("Add at end"); await click("Save");
+    const submitted = JSON.stringify(controls.payloads[0]);
+    check(find("Saving…").disabled && find("Add at end").disabled, "pending menu trigger active");
+    const add = find("Add doc-auditor here"); check(add.disabled, "pending menu choice active");
+    add.click(); find("Add at end").click(); await tick();
+    check(insertionMenuOpen() && controls.payloads.length === 1 && JSON.stringify(controls.payloads[0]) === submitted, "pending menu changed the submitted graph");
+    controls.finishAction("error"); await tick();
+    check(insertionMenuOpen() && !find("Add doc-auditor here").disabled, "refusal did not restore menu editing");
+    await click("Add doc-auditor here");
+    check(!insertionMenuOpen() && controls.payloads.length === 1, "restored selection did not close or resubmitted");
+  });
+  await run("pipeline insertion menu readonly", "losing write access closes the menu and removes insertion controls without a mutation", async () => {
+    await mount("pipeline-page"); await click("Add at end"); check(insertionMenuOpen(), "editable menu missing");
+    await click("Read only");
+    check(!insertionMenuOpen() && !buttons().some(button => button.textContent === "Add at end" || button.textContent?.trim() === "+"), "readonly insertion remained available");
+    check(controls.payloads.length === 0, "readonly change submitted the graph");
+    await click("Writable"); check(!insertionMenuOpen(), "restored write access reopened the old menu");
+    await click("Insert before Plan"); check(insertionMenuOpen(), "restored step menu unavailable");
   });
   for (const outcome of ["success", "error", "stale", "unknown"] as const) await run(`pipeline ${outcome}`, "pending edits/discard/re-entry blocked; draft and explicit recovery follow outcome", async () => {
     await mount("pipeline"); await click("Remove");

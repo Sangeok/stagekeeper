@@ -20,10 +20,11 @@ type Props = {
   onBusyChange?: (busy: boolean) => void; onSaved?: (id: string) => void;
 };
 type Move = { label: string; step: Step };
+type EdgeMenuState = { kind: "closed" } | { kind: "open"; before: string | null };
 
 export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0, pipelines, rules, plan, roster, editable, save, unavailableReason, onSelect, onDirtyChange, onBusyChange, onSaved }: Props) {
   const [editor, setEditor] = useState(() => createPipelineDraft({ definition, version: expectedVersion }));
-  const [openEdge, setOpenEdge] = useState<string | null | false>(false);
+  const [edgeMenu, setEdgeMenu] = useState<EdgeMenuState>({ kind: "closed" });
   const [expanded, setExpanded] = useState(false);
   const [confirmingNoGate, setConfirmingNoGate] = useState(false);
   const [externalChange, setExternalChange] = useState(false);
@@ -41,7 +42,7 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   if (seen.inputKey !== inputKey) {
     setSeen({ fingerprint, inputKey });
     setEditor(current => receivePipelineSnapshot(current, { definition, version: expectedVersion }));
-    setOpenEdge(false);
+    setEdgeMenu({ kind: "closed" });
     setConfirmingNoGate(false);
     if (dirty && seen.fingerprint !== fingerprint) setExternalChange(true);
   }
@@ -68,7 +69,7 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   ];
   const applyIfValid = (step: Step): void => {
     if (!editable || saving.current || !step.ok) return;
-    setEditor(current => editPipelineDraft(current, step.definition)); setOpenEdge(false); setConfirmingNoGate(false);
+    setEditor(current => editPipelineDraft(current, step.definition)); setEdgeMenu({ kind: "closed" }); setConfirmingNoGate(false);
     onDirtyChange?.(JSON.stringify(step.definition) !== JSON.stringify(baseline.definition));
   };
   const onSave = (): void => {
@@ -120,8 +121,8 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
         }
         return <div key={kind} className="flex shrink-0 items-stretch gap-2">
           <EdgeSlot gate={state.gates.includes(gateId(kind)) ? gateId(kind) : null} autoLabel={target === null ? autoEdgeLabel(kind) : null}
-            label={labelForGate(gateId(kind))} tooltip={tooltipForGate(kind)} editable={canEdit} open={openEdge === kind}
-            onToggle={() => { if (canEdit && !saving.current) setOpenEdge(openEdge === kind ? false : kind); }}
+            label={labelForGate(gateId(kind))} tooltip={tooltipForGate(kind)} editable={canEdit} open={edgeMenu.kind === "open" && edgeMenu.before === kind}
+            onToggle={() => { if (canEdit && !saving.current) setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === kind ? { kind: "closed" } : { kind: "open", before: kind }); }}
             removeGateStep={removeGate(state, gateId(kind), plan, context)} onApply={applyIfValid} />
           {target === null ? <NodeCard kind={kind} roster={roster} editable={canEdit}
             removable={!context.mustRun.includes(id) || !REQUIRED_NODES.includes(kind)}
@@ -135,10 +136,10 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
         </div>;
       })}
     </div>
-    {editable && !expanded ? <button type="button" className="self-start text-xs underline" disabled={!canEdit} onClick={() => setOpenEdge(openEdge === null ? false : null)}>{state.steps.length ? "Add at end" : "Add first step"}</button> : null}
-    {openEdge !== false && !expanded ? <div className="flex w-72 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
-      <p className="px-1.5 pb-1 text-xs text-quiet">{openEdge === null ? "At end" : labelForGate(gateId(openEdge))}</p>
-      {movesFor(openEdge).map(move => <div key={move.label} className="flex flex-col">
+    {editable && !expanded ? <button type="button" className="self-start text-xs underline" disabled={!canEdit} onClick={() => setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === null ? { kind: "closed" } : { kind: "open", before: null })}>{state.steps.length ? "Add at end" : "Add first step"}</button> : null}
+    {edgeMenu.kind === "open" && !expanded ? <div className="flex w-72 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
+      <p className="px-1.5 pb-1 text-xs text-quiet">{edgeMenu.before === null ? "At end" : labelForGate(gateId(edgeMenu.before))}</p>
+      {movesFor(edgeMenu.before).map(move => <div key={move.label} className="flex flex-col">
         <button type="button" disabled={!canEdit || !move.step.ok} className="rounded px-1.5 py-1 text-left text-xs hover:bg-field disabled:opacity-50" onClick={() => applyIfValid(move.step)}>{move.label}</button>
         {move.step.ok ? null : <span className="px-1.5 text-[11px] text-quiet">{move.step.reason}</span>}
       </div>)}

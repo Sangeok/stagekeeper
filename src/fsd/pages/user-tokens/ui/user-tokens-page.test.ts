@@ -19,6 +19,11 @@ it("renders account scope, all usage states and seven-column empty layout", () =
   assert.equal((html.match(/>Revoke</g) ?? []).length, 2);
   assert.equal((html.match(/<h2 /g) ?? []).length, 2);
   assert.equal((html.match(/>Save name</g) ?? []).length, 3);
+  assert.match(html, /Name the device or purpose so you can recognize this token later\./);
+  assert.match(html, /name="label"/);
+  const issuance = [...html.matchAll(/<form\b[\s\S]*?<\/form>/g)].map(([form]) => form).find(form => form.includes(">Issue token<"));
+  assert.ok(issuance);
+  assert.doesNotMatch(issuance, /required=""/);
   const empty = renderToStaticMarkup(createElement(UserTokensPage, { ...props, tokens: [] }));
   assert.match(empty, /colSpan="7"|colspan="7"/);
 });
