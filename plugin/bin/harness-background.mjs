@@ -105,9 +105,13 @@ function git(root, args) {
   return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
 }
 
-function treeState(root) {
+function headBranch(root) {
   const head = git(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim();
-  const branch = head === "HEAD" ? null : head;
+  return head === "HEAD" ? null : head;
+}
+
+function treeState(root) {
+  const branch = headBranch(root);
   const current = branch ?? git(root, ["rev-parse", "--short=7", "HEAD"]).trim();
   const dirty = porcelainPaths(git(root, ["--no-optional-locks", "status", "--porcelain", "-z"]));
   return { branch, current, dirty };
@@ -508,6 +512,7 @@ async function resident(location, files, options) {
     notify: notice => notify(directory, notice),
     overview: async () => actionableWork(await callTool(input, "pipeline_next"), { commit: true, propose: saved.propose === true }),
     tree: () => treeState(location.root),
+    branch: () => headBranch(location.root),
     startRun,
   };
   let reason;

@@ -10,8 +10,8 @@ const CLEAN = { branch: "main", current: "main", dirty: [] };
 const OK = { kind: "ok", paused: false, stop: null };
 const SUCCESS = { exitCode: 0, result: { subtype: "success", isError: false, turns: 4, terminal: "completed", denials: 0 }, log: "run.jsonl" };
 
-function harness({ overviews = [WORK, NONE], trees = [], beats = [], runs = [], lifecycle = [], maxLoops = 40 } = {}) {
-  const calls = { beats: [], notices: [], runs: 0, ended: [], saves: [] };
+function harness({ overviews = [WORK, NONE], trees = [], heads = null, beats = [], runs = [], lifecycle = [], maxLoops = 40 } = {}) {
+  const calls = { beats: [], notices: [], runs: 0, ended: [], saves: [], logs: [], endedAt: [] };
   let clock = 0, loops = 0;
   const next = (list, fallback) => (list.length > 1 ? list.shift() : list[0] ?? fallback);
   const deps = {
@@ -22,19 +22,24 @@ function harness({ overviews = [WORK, NONE], trees = [], beats = [], runs = [], 
     beat: async payload => { calls.beats.push(payload); const value = next(beats, OK); return typeof value === "function" ? value(payload, calls) : value; },
     overview: async () => { const value = next(overviews, NONE); if (value instanceof Error) throw value; return value; },
     tree: () => next(trees, CLEAN),
+    branch: () => {
+      const value = heads ? next(heads, "main") : next(trees, CLEAN).branch;
+      if (value instanceof Error) throw value;
+      return value;
+    },
     startRun: () => {
       calls.runs++;
       const plan = next(runs, SUCCESS);
       let resolve;
       const done = new Promise(r => { resolve = r; });
       if (!plan.hang) queueMicrotask(() => resolve(plan));
-      return { done, end: reason => { calls.ended.push(reason); resolve({ exitCode: 1, result: null, log: "run.jsonl", ...plan.onEnd }); } };
+      return { done, end: reason => { calls.ended.push(reason); calls.endedAt.push(clock); resolve({ exitCode: 1, result: null, log: "run.jsonl", ...plan.onEnd }); } };
     },
     notify: notice => calls.notices.push(notice.kind),
     save: status => calls.saves.push(status),
-    sleep: async () => { clock += 1000; },
+    sleep: async ms => { clock += ms; },
     now: () => clock,
-    log: () => {},
+    log: line => calls.logs.push(line),
   };
   return { deps, calls };
 }
@@ -74,6 +79,23 @@ it("ends a run when the branch changes, does not count it as a failure, and wait
   assert.deepEqual(calls.notices, ["branchEnded", "waitInterrupted"]);
   assert.ok(calls.saves.every(status => status.failures === 0));
   assert.equal(calls.runs, 2);
+});
+
+it("checks the branch every two seconds during a run and still beats once a minute", async () => {
+  const { deps, calls } = harness({ overviews: [WORK, WORK, NONE], heads: [...Array(40).fill("main"), "feature", "main"],
+    runs: [{ hang: true, onEnd: { endedFor: "branch" } }] });
+  await runResident({ branch: "main" }, deps);
+  assert.deepEqual(calls.ended, ["branch"]);
+  assert.deepEqual(calls.endedAt, [80_000]);
+  assert.equal(calls.beats.filter(beat => beat.state === "working" && !beat.lastResult).length, 2);
+});
+
+it("keeps the run going when one branch check fails", async () => {
+  const { deps, calls } = harness({ overviews: [WORK, WORK, NONE], heads: [new Error("HEAD is locked"), "main", "feature", "main"],
+    runs: [{ hang: true, onEnd: { endedFor: "branch" } }] });
+  assert.equal(await runResident({ branch: "main" }, deps), "owner");
+  assert.deepEqual(calls.endedAt, [4_000]);
+  assert.ok(calls.logs.includes("branch check failed: HEAD is locked"));
 });
 
 it("notifies once when a run that was paused finishes", async () => {
