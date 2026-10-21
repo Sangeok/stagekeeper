@@ -1,7 +1,8 @@
 import type { ReactElement } from "react";
 import type { TokenRow } from "@/fsd/entities/project-token";
 import { TokenTable } from "@/fsd/entities/project-token/index.server";
-import { NewUserTokenForm, RenameUserTokenForm } from "@/fsd/features/manage-user-token";
+import { NewUserTokenForm } from "@/fsd/features/manage-token";
+import { RenameUserTokenForm } from "@/fsd/features/manage-user-token";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";

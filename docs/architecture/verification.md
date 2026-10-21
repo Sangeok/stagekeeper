@@ -368,6 +368,26 @@ A의 초안과 stale 복구가 유지되는지 확인한다. `/pipeline-state`�
 manifest 시험은 `tests/server/pipeline-save.test.ts`가 소유하며 두 pipeline Action 등록과 내부 draft 모델 비등록을 검사한다.
 `RDC_CHECK_ACTION_MANIFEST=true npm run test:server`는 반드시 해당 fresh build 뒤에 실행한다.
 
+## 프런트엔드 클린 코드 Core 검증
+
+`src/server/pipeline/current-execution-query.test.ts`는 주입형 `loadExecutionFacts`의 프로젝트·열린 실행 격리,
+legacy/slot·keyed/null-key·entry 조건과 handoff의 최신 eligible step·시간·선택 순서를 확인한다.
+Board의 `activityDispatched`와 배너의 `turnDispatched`는 서로 다른 기존 표시 계약을 보존한다.
+실제 adapter 연결은 `tests/server/project-page-loaders.test.ts`와
+`src/fsd/widgets/turn-banner/api/turn-data.test.ts`에서 검증한다.
+
+`scripts/frontend-contract-owners.test.mjs`는 `test:architecture`에서 설치 상수 세 개와 인수 확인 label의
+공개 경로·실제 선언·소비 binding을 TypeScript AST와 symbol resolution으로 검사한다.
+다른 slice의 소스 파일명을 제품 테스트에서 고정하지 않는다. import의 줄바꿈·alias·추가 binding과
+공개 API 뒤 내부 이동은 허용하고, 복제·외부 재수출·wildcard·private import는 거부 fixture로 확인한다.
+설치 값·다섯 Docs 본문·문구 잠금 검증은 기존 product 테스트에 유지한다.
+
+발급 상태·제출·복구는 `features/manage-token/ui/token-issuance-form.tsx`가 소유한다.
+기존 `--ui-only` suite의 `token independent instances` 사례는 hs/ho·hu/ho를 같은 mount에서 요청하고,
+응답을 역순으로 정산하여 token·만료·alert 격리와 자동 요청 부재를 검사한다.
+기존 scope별 실패·응답 미확인·Previous token·Refresh list와 cleanup 사례도 유지한다.
+fixture의 refresh double은 실제 RSC state 보존의 증거가 아니므로, 앞의 실제 Next 토큰 인수 절차도 수행한다.
+
 ## 문구 잠금
 
 `docs/conventions/product-copy.md`는 "코드는 이 파일에서 나온다"고 선언하지만 강제가 없어 두 번 어긋났다 —

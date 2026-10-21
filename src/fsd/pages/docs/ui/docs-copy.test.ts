@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -80,10 +79,7 @@ it("renders the actual default flows, allowances, commands and acceptance names"
   for (const command of [...installCommands, CLAUDE_COMMANDS.init, CLAUDE_COMMANDS.watch]) assert.ok(gettingStarted.includes(command), command);
   assert.deepEqual(Object.keys(ACCEPTANCE_CHECK_LABELS), ["1", "2", "3", "4", "5"]);
   for (const name of Object.values(ACCEPTANCE_CHECK_LABELS)) assert.ok(visibleText(automation).includes(name), name);
-  const oldOwner = readFileSync(new URL("../../../features/review-gate/model/gate-text.ts", import.meta.url), "utf8");
-  assert.ok(!oldOwner.includes("ACCEPTANCE_CHECK_LABELS"), "the feature must not redeclare or re-export the moved names");
-  const consumer = readFileSync(new URL("../../../features/review-gate/ui/acceptance-failure.tsx", import.meta.url), "utf8");
-  assert.match(consumer, /import \{ ACCEPTANCE_CHECK_LABELS \} from "@\/fsd\/entities\/pipeline"/);
+
 });
 
 it("checks inflections in prose while allowing protocol identifiers inside code", () => {

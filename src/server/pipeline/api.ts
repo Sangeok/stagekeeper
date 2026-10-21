@@ -7,6 +7,7 @@ export { handoffIsLive } from "./run-rules";
 export { hasActiveLegacyScoutSlot } from "./automatic-scout";
 export { headFor } from "./run-service";
 export { loadItemPipelineView } from "./run-service";
+export { loadExecutionFacts } from "./current-execution-query";
 export { loadPipelineChanges } from "./run-service";
 export { loadPipelinesView } from "./run-service";
 export { nextFor } from "./run-service";

@@ -67,6 +67,37 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
       check(controls.payloads.length === 3 && scope.textContent?.includes(`${kind}_fixture-3`) && scope.textContent.includes("Previous token"), "invalid input invoked an action or erased a token");
     });
   }
+  for (const [firstKind, secondKind] of [["hs", "ho"], ["hu", "ho"]]) for (const outcome of ["error", "unknown"] as const) {
+    await run("token independent instances " + firstKind + "/" + secondKind + " " + outcome, "reverse responses keep token, expiry and alerts inside the requesting form without automatic requests", async () => {
+      await mount("token-issuance");
+      const first = document.getElementById("issue-" + firstKind)!;
+      const second = document.getElementById("issue-" + secondKind)!;
+      const label = (kind: string) => kind === "ho" ? "Issue owner token" : "Issue token";
+      input("#issue-" + firstKind + ' input[name="expiry"]', "2999-01-01 00:00");
+      await click(label(firstKind), first); controls.finishAction("success"); await tick();
+      input("#issue-" + secondKind + ' input[name="expiry"]', "2999-02-01 00:00");
+      await click(label(secondKind), second); controls.finishAction("success"); await tick();
+      check(first.textContent?.includes(firstKind + "_fixture-1") && second.textContent?.includes(secondKind + "_fixture-2"), "initial values crossed forms");
+      input("#issue-" + firstKind + ' input[name="expiry"]', "3000-01-01 00:00");
+      await click(label(firstKind), first); const finishFirst = controls.finishAction;
+      input("#issue-" + secondKind + ' input[name="expiry"]', "3000-02-01 00:00");
+      await click(label(secondKind), second); const finishSecond = controls.finishAction;
+      check(controls.payloads.length === 4 && finishFirst !== finishSecond, "concurrent form requests were shared or duplicated");
+      finishSecond(outcome); await tick();
+      check(first.textContent?.includes(firstKind + "_fixture-1") && first.textContent.includes("2999-01-01 00:00 UTC"), "another form response replaced the first pending value");
+      finishFirst("success"); await tick();
+      check(first.textContent?.includes(firstKind + "_fixture-3") && first.textContent.includes("3000-01-01 00:00 UTC"), "first response lost its own value or expiry");
+      check(!first.querySelector('[role="alert"]') && !first.textContent.includes(secondKind + "_fixture"), "another form alert or value leaked into the first form");
+      check(second.textContent?.includes(secondKind + "_fixture-2") && second.textContent.includes("2999-02-01 00:00 UTC") && second.textContent.includes("Previous token"), "second form lost its prior value");
+      check(!second.textContent.includes("3000-02-01 00:00 UTC") && !second.textContent.includes(firstKind + "_fixture"), "successful response crossed forms");
+      check(second.querySelector('[role="alert"]')?.textContent?.includes(outcome === "error" ? "Refused" : "Couldn't confirm"), "second form lost its own alert");
+      check(controls.payloads.length === 4 && controls.refreshes === 1, "response handling submitted an extra request");
+      if (outcome === "unknown") {
+        await click("Refresh list", second);
+        check(controls.payloads.length === 4 && controls.refreshes === 2 && first.textContent.includes(firstKind + "_fixture-3"), "refresh changed another form or issued again");
+      }
+    });
+  }
   await run("propose roster same instance", "current selection drives display and submission; explicit selection survives reorder/removal/reappearance and reason survives cancel", async () => {
     await mount("propose"); await click("Put on the board");
     const select = document.querySelector<HTMLSelectElement>('select:not([aria-label="Pipeline"])')!;
