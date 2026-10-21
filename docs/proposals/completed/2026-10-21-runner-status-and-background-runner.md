@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-20"
 approved-by: "HamSangEok"
 approved-at: "2026-10-20"
 approval-scope: "Phase A·B 구현과 커밋·PR·dev 머지까지. Phase B 1단계 실측이 실패하면 그 부분은 설계를 고쳐 다시 승인받는다. 공유 DB 마이그레이션, main 승격, marketplace 갱신은 각각 실행 직전 별도 확인"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-21"
+verification-summary: "Phase A: npm test 423/425, test:web 711/711, test:server 139/140, runner-lease 통합 7/7(잠금을 빼면 경합 시험 실패), 공유 DB 마이그레이션, smoke A 1~5. Phase B: npm test 447/449(#182) → 450/452(#185·#188), dev 06e093f test:web 710/710·test:server 139/140, smoke B 1~4·7~13 통과, 5는 자동 시작 결함을 #185로 고친 뒤 실제 로그온과 창 없는 시작으로 통과, 6은 handler·통합 시험으로 갈음. 운영 승격 main 4ce2bac(Phase A)·3396369(Phase B, dpl_FeoN6tWN6BxXDaNUeMJrfisfkdgG 대조)"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -443,7 +443,7 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
   - **시작 CLI**(`harness-background.mjs --start`)는 시작 검사를 다시 한다. 스킬이 검사한 뒤 사용자가 명령을 실행하기까지 상태가 바뀔 수 있기 때문이다. 그다음 상주 프로세스를 Node `detached`로 띄우고, PC·저장소·브랜치·로그 위치·끄는 방법을 출력한다.
     - 같은 출력에 "편집 전에 Pause" 안내 한 줄을 넣는다(결정 B7, 문구는 B-4 표). 실행기가 도는 동안 이 checkout은 실행기가 일하는 곳이기 때문이다.
     - 상주 프로세스는 Node여야 한다. Windows PowerShell 5.1은 Node가 `detached`로 띄우면 아무것도 하지 않고 끝났다(spike). 그래서 PowerShell 도우미(B-3 런처, B-4 알림)는 상주 프로세스의 일반 자식으로, 창을 숨겨 띄운다.
-    - spike에서 이렇게 띄운 Node 프로세스는 그것을 띄운 `claude -p`가 끝난 뒤에도 335초 넘게 살아 있었다(손으로 끝냄). `!` 명령도 Claude Code가 띄운 셸에서 돈다. 대화형 창을 닫을 때 상주 프로세스가 살아남는지는 재지 않았으므로 smoke B에서 본다.
+    - spike에서 이렇게 띄운 Node 프로세스는 그것을 띄운 `claude -p`가 끝난 뒤에도 335초 넘게 살아 있었다(손으로 끝냄). `!` 명령도 Claude Code가 띄운 셸에서 돈다. 대화형 창을 닫을 때 상주 프로세스가 살아남는지는 spike에서 재지 않았고, smoke B 9번에서 살아남는 것을 확인했다.
   - lease 시작은 `start`(mode `resident`, `branch`, `permission`)이고, 결과를 A-4의 "lease 기록"과 같이 로컬 잠금의 `runnerLease`에 남긴다. 상주 실행기는 404 서버에서 시작하지 않는다(표시 없이 무인으로 도는 것을 막는다).
 - **로컬 잠금.** `mode: "resident"`를 더한다. `readState`의 허용 값(`local-session.mjs:72`)을 넓힌다. 옛 판 플러그인은 이 값을 손상 상태로 보고 거부한다. 같은 저장소에서 옛 판과 섞여 도는 것을 막으므로 의도한 동작이다.
   - 상주 프로세스는 자기를 `poller`로, `claude -p`를 감싼 job 런처(B-3)를 `children`으로 잠금에 등록한다(`registerChild`·`settleChild`, `local-session.mjs:180-200`).
@@ -468,7 +468,7 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
    - 다르면 job 런처를 끝내 그 실행을 멈추고, 끊긴 실행 표시를 남긴다. 그다음 `beat`(state `waiting`, waitReason `branch`)를 보내고 알림을 띄운다(B-4 표).
    - 이 중단은 사용자가 만든 상황이므로 실패 횟수에 넣지 않는다.
    - 중단된 단계의 서버 상태는 1단계에서 작업 중에 창을 닫았을 때와 같다. 이 문서는 그 처리를 바꾸지 않는다.
-   - 감시 간격이 60초이므로, 그 사이 에이전트가 다른 브랜치에 커밋할 수 있는 시간은 최대 1분이다.
+   - 감시 간격이 60초이므로, 그 사이 에이전트가 다른 브랜치에 커밋할 수 있는 시간은 최대 1분이다. smoke B에서 실제로 한 번 일어났다(바꾼 브랜치에 계획 커밋).
 4. 끝나면 결과를 판정하고 `beat`(state `idle`, lastResult, lastLog)를 보낸 뒤 1로 돌아간다.
    - **일시 정지 중에 끝났으면**(그 실행을 시작한 뒤 `beat` 응답이 `paused`로 바뀌었으면) 알림을 한 번 띄운다(결정 B5, B-4 표). 이제 편집해도 된다는 뜻이다.
 
@@ -477,6 +477,8 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
   - 이유는 셋 모두 진전 없음일 때만 `stuck`이다. 오류·시간 초과가 하나라도 섞이면 `error`다(2026-10-21 사용자 확정). 배너의 이유 문장("the same steps came back three times without progress" / "it hit an error — …")이 사실과 맞게 하려는 것이다.
 - **시간 상한.** 기본 2시간이다. 넘으면 job 런처(B-3) 프로세스를 끝낸다. 런처의 job이 닫히면서 손자 프로세스까지 끝난다. spike에서 런처만 죽였을 때 그 아래 트리 전체가 끝났다(대역 트리로 잼).
 - **멈춤 요청.** `stop:"plan"`, `RUNNER_REPLACED`, 로컬 `--stop`을 받으면 진행 중인 실행을 끝까지 두고 새 실행을 시작하지 않는다. 그 실행이 끝나면 종료한다.
+  - 실행 안의 메인 루프는 디스패치·인수·보고·새 사이클 전마다 세션을 확인하고, `stopping`이면 새 단계를 시작하지 않는다(watch 스킬 §7). 그래서 로컬 `--stop`이 실행을 죽이지는 않지만, 그 실행은 다음 확인에서 일을 멈춘다.
+  - 실행의 첫 확인 전에 `--stop`이 오면 그 실행은 일 없이 끝나고, 진전 없음으로 실패 1이 세진다. 실행기는 곧바로 멈추므로 영향은 없다(smoke B에서 두 번 관찰).
 - **실행 중 404.** 상주 프로세스의 `beat`가 404를 받으면(서버 롤백) 멈춤 요청과 같이 처리한다. B-1이 404 서버에서 시작하지 않는 것과 같은 이유로, 표시 없이 무인으로 계속 돌지 않게 한다. 서버에 보낼 곳이 없으므로 로그와 Windows 알림으로만 알린다. 자식 `claude -p` 안의 `--check`는 A-4대로 그 호출만 건너뛰므로 진행 중인 실행은 끝까지 간다.
 
 #### B-3. `claude -p` 호출
@@ -802,6 +804,13 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 | 공유 DB 마이그레이션(2026-10-21, 주인 확인) | pass | `migrate status` 대기는 `20261020000000_runner` 하나였다. 같은 SQL을 한 트랜잭션으로 돌리고 확인한 뒤 ROLLBACK했다(테이블·CHECK 6개·CASCADE FK·열, 일시 정지된 프로젝트 0). 주인이 `migrate deploy`를 실행했고, 같은 검사가 통과했으며 `migrate status`는 up to date |
 | smoke A(localhost, 2026-10-20 16:25–16:36 UTC) | pass(CLI 수준) | 1~5를 모두 관찰했다. dev(`653f367`)를 정션 worktree에서 `next dev --webpack`으로 :3001에 띄웠다(Turbopack은 정션 `node_modules`를 거부). worktree의 0.5.13 CLI를 스킬이 쓰는 명령 그대로 직접 돌렸다. 실제 Claude Code 세션이 `busy`·`paused`를 처리하는 모습과 `working` 상태(60분 규칙)는 보지 못했다(보드에 일이 없었음). 자세한 내용은 시험 보고서 "Localhost smoke A" |
 | Phase B spike(2026-10-20 22:59 – 2026-10-21 00:35 UTC, Claude Code 2.1.305, 0.5.13 번들) | 일부 가정과 다름 → 사용자 결정 | Execution Plan Phase B 1단계 목록을 모두 쟀다. 맞은 것: `-p` 스킬 호출, init `permissionMode`, 거부 규칙 네 형태, `-p` 커밋, `--settings` 허용, 분리 프로세스 수명(`-p` 종료 뒤 335초 이상), 관리자 권한 없는 로그온 작업과 창 없는 실행, 토스트. 다른 것: `git -C . push` 통과, 스킬 안 시작을 분류기가 거절, 도구 셸 고아. 셋은 spike 결정 B1~B3으로 고쳤다. 대화형 창 닫기와 실제 로그온 트리거는 smoke B에서 본다. 시험 보고서 "Runner Phase B spike" |
+| Phase B 구현(#182, `harness/runner-background`, 2026-10-21) `npm run check` | pass | |
+| Phase B `npm test` | pass | 447/449, 건너뜀 2(기준선과 같음). 루프 12, CLI 10(가짜 `claude`·가짜 서버, Windows에서는 실제 job 런처), Windows job 트리 2. 런처에서 job을 빼면 job 트리 사례 둘이 실패 |
+| Phase B `npm run test:web`·`test:server`(로컬) | 중단 → CI | 메모리가 모자라 시험 파일 63개가 시작하지 못했다(0xC0000142). 그 사이 찾은 실제 실패 하나(`billing-page.test.ts`가 행 8개를 고정)를 고쳤다. 배너·billing·문구 시험은 따로 돌려 33개 통과. CI(check·windows-role-runtime) 통과 뒤 머지 |
+| #183(세 번 실패의 정지 이유 나눔) | pass | 루프 13, CLI 사례(세 번 실패 → `error`, 같은 일 세 번 → `stuck`), product-copy 검사. CI 통과 뒤 머지(dev `06e093f`) |
+| dev `06e093f` 로컬 `test:web`·`test:server`(`node --test-concurrency=4`) | pass | 710/710, 139/140(건너뜀 1). 기본 동시 실행 수로는 메모리가 모자라 무너져서 4로 낮췄다 |
+| #185(자동 시작 수정, 0.5.15) | pass | 새 Windows 시험 "registers and removes the sign-in task with the start line"은 옛 `autostart.ps1`에서 실패하고 수정본에서 통과했다. `npm test`(동시 실행 4) 450/452, 건너뜀 2. CI의 Windows 단계에서 새 시험이 돈 것을 확인했다. dev `4e8b7b9` |
+| smoke B(localhost, 2026-10-21 05:07–07:40·12:15–12:28 UTC, Claude Code 2.1.306, 기본 모델) | pass(5는 수정 뒤) | 0.5.14로 1~4·7~13이 통과했다. 5는 0.5.14에서 자동 시작 켜기가 늘 실패하는 결함을 찾아 #185로 고쳤다. 0.5.15에서 실제 로그온 때의 실행, 서버가 없을 때의 거절 알림, `Start-ScheduledTask`로 창 없는 시작과 작업이 끝난 뒤의 생존을 확인했다. 6은 계획대로 시험으로 갈음했다. 관찰은 시험 보고서 "Runner Phase B — localhost smoke B" |
 
 **Phase A 구현에서 제안과 달라진 점**(2026-10-20).
 - 영향 파일에 빠져 있던 고정 시험 둘을 함께 고쳤다.
@@ -832,7 +841,7 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 - 종료 직전의 알림은 끝날 때까지 기다린다. Node가 끝나면 Node의 job이 일반 자식(알림 PowerShell)까지 끝내기 때문이다.
 - `claude`는 Windows에서 PATH의 `claude.exe`만 찾는다. npm으로 설치한 `claude.cmd`는 job 런처(`UseShellExecute=false`)로 띄울 수 없어서 `no-claude`로 거절한다.
 - Windows CI(`windows-role-runtime.yml`)에 런타임 빌드보다 먼저 도는 "Validate background runner job launcher" 단계를 더했다. 상주 실행기 시험 세 파일을 돌린다. 런타임 캐시 키는 빌드 스크립트만 보므로 새 PowerShell 파일이 Node를 다시 빌드하게 하지 않는다.
-- 두 매니페스트를 함께 0.5.14로 올렸다.
+- 두 매니페스트를 함께 0.5.14로 올렸다. smoke B 뒤 자동 시작 수정(#185)으로 함께 0.5.15로 올렸다.
 
 ## Risks and Rollback
 
@@ -843,11 +852,12 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 - **`claude --bg` 판단은 문서 일부에 근거한다.** agent-view 문서 앞 10만 자만 읽었고, 커밋 전 질문과 놀 때 멈추는 동작을 실측하지는 않았다. 이 동작이 바뀌거나 문서 뒷부분에 예외가 있으면 대안 1을 다시 본다.
 - **옛 플러그인은 보이지 않고 lease에도 걸리지 않는다**(결정 9). 옛 판과 새 판이 다른 PC에서 동시에 돌면 막지 못한다. 서버의 receipt·stale 검사가 이중 처리만 막는다.
 - **push 차단에 남는 구멍이 있다.** 접두어 규칙과 환경 차단(B-3)을 둘 다 써도 두 가지는 막지 못한다. 모델이 환경 변수를 지우는 경우와, git 밖의 수단으로 push하는 의도적 우회다. 이 둘은 런북 계약에 맡긴다. `pushurl` 원격은 시작 거부로 막는다. auto 분류기는 push를 막지 않는다(spike).
-- **Phase B의 Claude Code·Windows 동작은 2026-10-21 spike에서 쟀다**(시험 보고서 "Runner Phase B spike"). 아직 재지 않은 것은 다음과 같다. smoke B에서 본다.
-  - 대화형 창을 닫을 때 상주 프로세스의 수명(대신 `-p` 종료를 쟀다)
-  - 실제 로그온 때의 트리거
-  - `conhost --headless` 아래의 PowerShell 런처
-  - 기본 모델을 쓸 때 분류기의 판정(spike는 haiku로 쟀다)
+- **Phase B의 Claude Code·Windows 동작은 2026-10-21 spike와 smoke B에서 쟀다**(시험 보고서 "Runner Phase B spike", "Runner Phase B — localhost smoke B"). spike가 남긴 네 가지는 smoke B에서 확인했다.
+  - 대화형 창을 닫아도 상주 프로세스가 계속 돌았다(9번).
+  - 실제 로그온 때 작업이 돌았다(5번, 0.5.15).
+  - `conhost --headless` 아래의 PowerShell 시작 줄이 창 없이 실행기를 띄웠고, 작업이 끝난 뒤에도 상주 프로세스가 살아남았다(5번).
+  - 기본 모델로 끝난 실행에서 분류기 거부가 없었다.
+  - 아직 실물로 보지 못한 것이 둘 있다. 10번에서 상주 프로세스를 죽인 순간 도구 셸이 없었으므로, 도구 셸이 함께 끝난다는 근거는 spike다. "끊긴 실행" 대기 알림은 루프 시험만 확인했다.
 - **실행 중에 사람이 같은 작업 트리를 만지는 경우는 막지 못한다.** 결정 B4~B7을 더해도 아래 경우가 남는다. 실행기로는 알아낼 수 없으므로 "편집 전에 Pause" 안내(B7)와 인수 검사에 맡긴다.
   - 구현 중에 계획 안의 같은 파일을 고친 경우. dev는 그 항목의 허용 파일만 stage하므로(dev 역할 "Stage only this item's allowed files") 그 파일의 편집이 커밋에 섞인다. 인수 검사 1(바뀐 파일 ↔ 계획 목록)은 통과하고, 검사 2(diff ↔ 계획 개요)는 잡을 수도 놓칠 수도 있다.
   - 실행 중에 사람이 같은 브랜치에서 git 작업을 한 경우.
@@ -862,7 +872,8 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 - **시작에 사용자 손이 한 번 더 간다.** 스킬이 보여 준 `!` 명령을 사용자가 실행해야 시작된다(spike 결정 B2). 사용자가 스스로 허용 규칙을 더하면 줄일 수 있지만, 이 문서는 권한 설정을 바꾸게 하지 않는다.
 - **`claude -p` 한 번의 기본 비용이 크다.** 사용자 범위의 플러그인, MCP 서버, 지시 파일을 모두 싣고 시작한다. spike에서 "OK" 한 줄에 기본 모델로 추정 $0.46이 나왔다. 이 값은 API 가격 환산이고, 구독이면 청구액이 아니다. 할 일이 있을 때만 띄우므로 대기 중에는 들지 않는다.
 - **다른 브랜치 WIP와 같은 파일을 고친다.** 본 checkout의 `harness/pipeline-tab-redesign` 미커밋 작업이 `docs/conventions/product-copy.md`를 고치고 있다. 먼저 머지되는 쪽 뒤에 다른 쪽이 충돌을 해결해야 한다. 그 작업이 고치는 `availability-service.ts`는 이 문서가 건드리지 않도록 목록 데이터를 adapter에서 합쳤다(A-5).
-- **lease를 얻기 전의 거부는 웹에 보이지 않는다.** 자동 시작의 미커밋 변경·브랜치 거부와 BUSY·플랜 거절은 서버에 행을 만들지 않는다. 사용자는 Windows 알림과 로그로만 안다.
+- **lease를 얻기 전의 거부는 웹에 보이지 않는다.** 자동 시작의 미커밋 변경·브랜치 거부와 BUSY·플랜 거절은 서버에 행을 만들지 않는다. 사용자는 Windows 알림과 로그로만 안다. 로그온 직후의 알림은 팝업을 놓치기 쉽고 알림 센터에만 남는다(smoke B에서 로그온 13초 뒤 나간 거절 알림).
+- **실행기가 없으면 웹에서 미리 일시 정지할 수 없다.** Pause·Resume 버튼은 실행기가 있거나 이미 일시 정지된 프로젝트에만 보인다(`showsPauseControl`). 할 일이 있는 상태에서 시작하면 첫 사이클(smoke B에서 27초) 안에 실행이 붙는다.
 - **상주 프로세스가 죽을 때의 자식은 job 런처가 정리한다**(B-3, spike 결정 B3).
   - 런처 없이는 도구 셸과 그 자식이 고아로 남았다(spike). 그 사이 신호가 끊겨 다른 실행기가 lease를 넘겨받으면, 같은 프로젝트에서 두 실행이 겹칠 수 있었다.
   - 런처를 쓰면 상주 프로세스를 죽였을 때 실제 `claude -p` 트리 전체가 끝났다. 런처만 죽인 경우는 대역 트리로 쟀고, 이때도 전체가 끝났다.
@@ -883,11 +894,28 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-21
+- verification-summary: front matter와 같다. 세부는 Verification Results 표와 시험 보고서의 "Runner status, Phase A", "Localhost smoke A", "Runner Phase B spike", "Runner Phase B — localhost smoke B" 절에 있다.
+- implementation PR/commit:
+  - 승인: #175(`9ed4cf2`)
+  - Phase A: #176(`653f367`), 마이그레이션·smoke A 기록 #177(`4ce2bac`). 공유 DB `migrate deploy`는 2026-10-21에 했다(주인 실행). main `4ce2bac` 승격과 운영 배포를 대조했고, 번들 0.5.13을 설치했다.
+  - Phase B:
+    - spike 기록 #179(`1fa4177`), 편집 보호 결정 #180(`1776aaf`)
+    - 구현 #182(`60207fc`), 세 번 실패의 정지 이유 #183(`06e093f`)
+    - 자동 시작 수정 #185(`4e8b7b9`, 0.5.15), smoke B 기록 #187(`3396369`), stop 시험 경쟁 조건 #188(`eff8ae2`)
+    - 2026-10-21 main `3396369`로 승격했다. 운영 HTML의 `dpl_FeoN6tWN6BxXDaNUeMJrfisfkdgG`가 그 커밋의 Production 배포 id와 같다. 이 PC에는 번들 0.5.15를 설치했다(`4e8b7b9`에서 패키징, 그 뒤 바뀐 것은 문서·시험뿐).
+- changed files summary:
+  - 서버: `src/server/runners/`(lease 서비스·계약·공개 API), `src/server/rest/runner*.ts`·`scope.ts`, `src/app/api/runner/route.ts`, 마이그레이션 `20261020000000_runner`(`Runner` 테이블, `Project.runnerPausedAt`).
+  - 웹: `widgets/turn-banner`(실행기 줄·짧은 형태·Free 줄·편집 경고, 로더), `features/pause-runner`, 프로젝트 목록 카드, `/billing`의 "Background runner" 행, 프로젝트 레이아웃.
+  - core: `packages/core/runner.mjs`·`entitlement.mjs`와 플러그인 미러(`plugin/lib/`).
+  - 플러그인: `harness-watch.mjs`·`harness-session.mjs`(1단계 lease 참여), `runtime/runner-client.mjs`·`local-session.mjs`, 상주 실행기 `bin/harness-background.mjs`·`runtime/background.mjs`·`runtime/windows/{job-launch,notify,autostart}.ps1`·`bin/harness.ps1`, 스킬 `background`·`watch` §7, Windows 패키징 스크립트, 두 매니페스트(0.5.13 → 0.5.14 → 0.5.15).
+  - CI: `windows-role-runtime.yml`의 상주 실행기 시험 단계.
+  - 문서: protocol.md, server.md, verification.md, product-copy §5·§15, CONTEXT.md, 시험 보고서.
+- remaining follow-up:
+  - 실물로 보지 못한 것이 둘 있다. 하나는 상주 프로세스가 죽을 때 도구 셸도 함께 끝나는지다. smoke B 10번에서는 그 순간 도구 셸이 없어서 spike 측정에 기댄다. 다른 하나는 "끊긴 실행" 대기 알림으로, 루프 시험만 확인했다.
+  - 1단계 watch가 실제 Claude Code 세션에서 `busy`·`replaced`를 처리하는 모습은 보지 못했다(smoke A는 CLI 수준). 상주 실행기의 `paused`·`working`은 smoke B에서 봤다.
+  - smoke B 관찰(시험 보고서 Findings)은 기록만 했다. 대기가 배너에 최대 60초 늦게 가는 것, 브랜치를 바꾼 뒤 1분 창 안의 다른 브랜치 커밋, 첫 확인 전 stop이 세는 실패 1, 기록 직전 Pause가 기록을 다음 실행에 넘기는 것, 로그온 직후 알림을 놓치기 쉬운 것, 실행기가 없을 때 미리 Pause할 수 없는 것이다. 고칠지는 정하지 않았다.
+  - smoke 저장소(`harness-watch-smoke`)는 ITEM-05가 구현을 기다리는 상태이고, 파이프라인은 Version 3(게이트 없음)이다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 

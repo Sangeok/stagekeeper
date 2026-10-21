@@ -164,7 +164,8 @@ it("starts a resident runner that runs ready work with push blocked, logs it and
   assert.equal(status.event.branch, "main");
   const stopping = await f.run(["--stop"]);
   assert.equal(stopping.event.event, "stopping");
-  await waitFor(() => !existsSync(f.lockPath), 15000, "the runner to release");
+  // 실행기는 잠금을 지운 뒤에 상태 파일에 정지를 쓴다 — 둘 다 끝날 때까지 기다린다.
+  await waitFor(() => !existsSync(f.lockPath) && f.status()?.state === "stopped", 15000, "the runner to stop");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "owner" && call.session === session));
   assert.equal(f.status().stopReason, "owner");
 });
@@ -262,18 +263,17 @@ it("ends a run when the branch changes, waits on the branch and resumes after sw
 it("stops with an error after three failed runs and tells the server", async t => {
   const f = await fixture(t, { plan: [{ kind: "fail" }] });
   const started = await f.run(START);
-  await waitFor(() => !existsSync(f.lockPath), 60000, "the error stop");
+  // 실행기는 잠금을 지운 뒤에 알림을 쓴다 — 둘 다 끝날 때까지 기다린다.
+  await waitFor(() => !existsSync(f.lockPath) && f.notices().some(notice => notice.kind === "error"), 60000, "the error stop and its notice");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "error" && call.session === started.event.session));
-  assert.ok(f.notices().some(notice => notice.kind === "error"));
   assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 3);
 });
 
 it("stops as stuck after three runs that leave the same work", async t => {
   const f = await fixture(t, { plan: [{ kind: "noop" }] });
   const started = await f.run(START);
-  await waitFor(() => !existsSync(f.lockPath), 60000, "the stuck stop");
+  await waitFor(() => !existsSync(f.lockPath) && f.notices().some(notice => notice.kind === "stuck"), 60000, "the stuck stop and its notice");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "stuck" && call.session === started.event.session));
-  assert.ok(f.notices().some(notice => notice.kind === "stuck"));
 });
 
 it("stops without a server stop when another runner takes over", async t => {
@@ -282,9 +282,8 @@ it("stops without a server stop when another runner takes over", async t => {
   assert.equal((await f.run(START)).event.event, "started");
   f.setRunner((body, res) => { res.statusCode = 409; res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ error: "replaced", code: "RUNNER_REPLACED" })); });
-  await waitFor(() => !existsSync(f.lockPath), 15000, "the replaced stop");
+  await waitFor(() => !existsSync(f.lockPath) && f.notices().some(notice => notice.kind === "replaced"), 15000, "the replaced stop and its notice");
   assert.ok(!f.runnerCalls.some(call => call.op === "stop"));
-  assert.ok(f.notices().some(notice => notice.kind === "replaced"));
 });
 
 it("clears a dead runner's lock on the next start and keeps only the newest fifty run logs", async t => {

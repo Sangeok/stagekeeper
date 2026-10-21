@@ -74,6 +74,7 @@ describe("decideNext (H.4)", () => {
     assert.match(HINT.verify, /validation_record/);
     assert.match(HINT.verify, /verification-paths\.md/);
     assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);
+    assert.match(HINT.verify, /round log states the decision, never that it was recorded/);
     assert.match(HINT.accept, /report_submit/);
   });
 

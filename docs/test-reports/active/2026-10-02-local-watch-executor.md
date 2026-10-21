@@ -245,7 +245,7 @@ executor that runs `claude -p` in the checkout has no worktree guard.
 
 ## Runner status, Phase A — 2026-10-20 (automated) and 2026-10-21 (localhost smoke)
 
-Proposal: `docs/proposals/active/runner-status-and-background-runner.md` (Phase A). The managed
+Proposal: `docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md` (Phase A). The managed
 watch now takes a per-project runner lease on the server (`POST /api/runner`), signals while it
 polls, reports `working` before it hands out work, honours the web pause, and tells the server
 when it ends stuck or in error. Plugin 0.5.13.
@@ -318,7 +318,7 @@ Not yet observed:
 
 ## Runner Phase B spike — 2026-10-20 22:59 – 2026-10-21 00:35 UTC
 
-Proposal: `docs/proposals/active/runner-status-and-background-runner.md`, Execution Plan Phase B
+Proposal: `docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md`, Execution Plan Phase B
 step 1. The spike measured the assumptions behind B-1, B-3 and B-4 before any Phase B code.
 
 Setup:
@@ -367,3 +367,110 @@ Not measured:
 - The logon trigger at a real logon. Smoke B step 5 covers it.
 - PowerShell, rather than Node, under `conhost --headless`.
 - Classifier probes with the default model as the main model. Those probes used haiku.
+
+## Runner Phase B — localhost smoke B, 2026-10-21
+
+Proposal: `docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md`, Verification Plan
+"smoke B". Steps 1–4 and 7–13 ran 05:07–07:40 UTC. Step 5 found a defect, and its retest ran
+12:15–12:28 UTC after the fix.
+
+Setup:
+
+- Server: dev `06e093f` (Phase B, #182 and #183) served from the junction worktree on port 3001
+  with `next dev --webpack`. The database was the shared Neon database. Port 3000 belonged to
+  another project and was left alone.
+- Plugin: the Windows bundle installed from the local marketplace. Steps 1–4 and 7–13 used
+  0.5.14 built from `06e093f`. The step 5 retest used 0.5.15 built from `4e8b7b9` (#185 and #184).
+- Repository: `harness-watch-smoke` (Max). Its `.mcp.json` pointed at port 3001 only during
+  the smoke, under `git update-index --skip-worktree`, and was restored afterwards. The pipeline
+  was saved as Version 2 with a gate before Implement, so a run could stop at a known point.
+  Automatic scouting stayed off. The backlog had ITEM-04 (`slugify` separator option) and
+  ITEM-05 (`isSlug` accepts the `slugify` options).
+- Runs: Claude Code 2.1.306, the default model (`claude-opus-5-5[1m]`), permission mode `auto`
+  from the init message.
+- Observation used the runner's own files (`.git/harness/background.log`, `background.json`,
+  `runs/`), the Windows notification history for group `stagekeeper-runner`, the dev-server log,
+  the board on the web and process listings. The watch scripts stayed in the session scratchpad.
+
+| Proposal step | Observed |
+| --- | --- |
+| 9. Start from the skill's line, then close the window | An interactive Claude Code in a new Windows Terminal window ran the start line with `--server http://localhost:3001 --propose yes`. It printed `started` (session `b5b698d0`, 05:07:58), and the window was closed. The resident (`node` 42740) kept running and later served steps 1–3 and 11. |
+| 13. Edit guard on the banner | During a run, the board line read "Runner: working in the background on `BOOK-5K4693FRHA` (`main`) · checked … · pause before you edit `main`". |
+| 12. Paused run finishing | **Pause** was pressed during the first run (05:08–05:38, ITEM-04 plan and plan verification, 65 turns). The run ended, and at 05:39:17 the toast read "Runner paused — The run in progress finished. You can edit main now. Nothing new starts until you choose Resume." |
+| 3. No new run while paused | No run started while paused, though ITEM-04 still had work. |
+| 2. Uncommitted file | After **Resume**, an untracked `smoke-b-dirty.txt` held the runner. The toast read "Runner waiting on main — Uncommitted changes: smoke-b-dirty.txt. Commit or stash them, and it continues." The banner showed the wait. The file was deleted at 05:44:43, and the next run started at 05:45:56, about 73 s later. |
+| 1. Web approval to acceptance, unattended | **Approve implementation** on the web was followed by a run 22 s later (05:50:14). That run took ITEM-04 through implementation (`15a7c0f`), acceptance (`d156d79`, `npm test` 50/50) and the doc audit (`b306fe7`) to Done: 41 turns, no denials, no question. |
+| 11. Branch switch during a run | The checkout switched to `smoke-b-other` during a run. The runner ended the run 26 s later (06:03:50, "ended: the branch changed"), and the banner showed the branch wait. The toast read "Runner ended a run — The checkout switched to smoke-b-other during a run, so the runner ended that run. Switch back to main, and it continues." Switching back started the next run 7 s later. A second switch (`smoke-b-other2`) behaved the same. |
+| 10. Killing the resident during a run | `taskkill /F` on the resident alone (no `/T`) during the run that started at 06:13:19 ended the whole tree under it, nine processes. Three minutes later the board read "No signal from the runner on `BOOK-5K4693FRHA` for 3 min." The next start (session `008437a2`, 06:33:14) cleared the dead lock and left no orphans. |
+| 7. Logs and the result line | Each finished run has `runs/<id>.jsonl` and `<id>.meta.json`, and the result line ("done: 41 turns, 0 denied", "ended: the branch changed") reached `status`. All 73 runner requests in the dev-server log returned 200. |
+| 8. No push | The run logs have no push attempt, and `origin/main` stayed at `68f6b3e`. The smoke repository's main is 10 commits ahead and was not pushed. |
+| 4. Local stop | `--stop` during the run at 07:27:53 returned `stopping`. The runner stopped as `owner` at 07:28:49, and the runner line left the board. |
+| 6. Free refusal | Not part of the smoke. The handler and integration tests cover it, and the smoke account stays on Max. |
+| 5. Sign-in start | See below. Failed on 0.5.14 and passed on 0.5.15. |
+
+Step 5 on 0.5.14: `--autostart-on` always failed with "Windows refused the sign-in task. Nothing
+was changed." In `plugin/runtime/windows/autostart.ps1`, the variable `$action` is the same
+variable as the parameter `$Action`, because PowerShell names ignore case. Its
+`ValidateSet('register','unregister')` rejected the task action object with a
+`ValidationMetadataException`, and the script's `catch` turned that into `autostart-failed`. No
+test ran the script. #185 renamed the variable and added a Windows test that registers a task
+through the script, reads it back from Task Scheduler and removes it. The test fails on the old
+script. Both manifests went to 0.5.15.
+
+Step 5 on 0.5.15:
+
+- `--autostart-on --propose yes --server http://localhost:3001` registered
+  "Stagekeeper runner 4bc8623e": `conhost.exe --headless powershell.exe … harness.ps1 background
+  --start --from-autostart …`, a logon trigger for the user, `Interactive`/`Limited`, no time
+  limit, and no second instance. `status` showed the registration and that the plugin path
+  matched.
+- The owner signed out and back in. The dev server was off, as planned. The task ran at sign-in
+  (12:15:16, result 0). After five failed requests, the runner refused at 12:15:29 with the toast
+  "Runner did not start — Five consecutive requests failed. Resolve the server or connection
+  error before starting again." and left no process. The owner found the toast in the
+  notification center but did not see it pop up.
+- With the dev server up again, `Start-ScheduledTask` ran the task at 12:25:21. The task ended
+  with result 0, and the `conhost`, `powershell` and `node` that started the runner exited. The
+  resident outlived them (`node` 40468) and started as session `843f9447` at 12:25:45. The board
+  read "Runner: running in the background on `BOOK-5K4693FRHA` (`main`) · checked 1 min ago ·
+  starts at sign-in" with **Pause**.
+- ITEM-05 was waiting at implementation, so a run started at 12:26:12. None of the ten processes
+  under the resident (`powershell` launcher, `claude.exe`, MCP servers and their `conhost`) had
+  a visible window.
+- `--stop` and `--autostart-off` followed at once. The task was removed. The run ended in
+  8 turns without work (see the stop finding below), and the runner stopped as `owner` at
+  12:27:37.
+
+Findings:
+
+- A wait reaches the banner up to 60 s late. The runner reports `waiting` with its next signal.
+- The documented one-minute window (B-2 step 3) happened. During the second branch switch, the
+  agent committed the ITEM-05 plan (`ee8385c`) on `smoke-b-other2` before the runner noticed the
+  switch. The commit was later fast-forwarded into the smoke repository's main.
+- A stop sent before a run's first session check ends that run without work. The run's main
+  loop requires `lifecycle:active` (watch skill section 7) and ended with "the session check
+  reported `lifecycle:stopping` … so I dispatched no agents and changed nothing" in 6 turns
+  (07:27) and 8 turns (12:26). The runner counts it as a run without progress (`failures: 1`),
+  then stops as planned, so the count has no effect.
+- **Pause** that arrives just before a record leaves the record for the next run. The first run
+  stopped before `validation_record`. The next run (05:45, 16 turns) found the round log ahead
+  of the board, checked that the plan, code and tests were unchanged, and recorded the result.
+- At the moment of step 10, the processes under `claude.exe` were MCP servers and no tool shell
+  was running. That a tool shell dies with the resident rests on the spike. The killed run left
+  `runs/<id>.jsonl` and `<id>.launch.json` and no `.meta.json`. Pruning removes the launch file
+  with the log.
+- A toast at sign-in is easy to miss. It went out 13 s after sign-in and was found only in the
+  notification center.
+- The web **Pause**/**Resume** control appears only while a runner exists or the project is
+  already paused (`showsPauseControl`). An owner cannot pause before a start, and a start with ready work
+  begins a run within the first cycle (27 s here).
+- The classifier denied nothing in any finished run with the default model.
+
+Not observed:
+
+- The "interrupted run" wait notice. Both branch-ended runs left a clean tree, so it rests on the
+  loop tests.
+
+Cleanup: the smoke `.mcp.json` was restored and its `skip-worktree` flag cleared. The pipeline
+was saved as Version 3 without a gate. Sign-in start is off, no runner is running, and ITEM-05
+waits for dev on the board.

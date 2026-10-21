@@ -212,7 +212,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 실행기(runner)는 파이프라인 일을 자동으로 이어 가는 로컬 프로세스다. 관리형 `/harness:watch`
 (mode `session`)와, plugin 0.5.14부터 창 없는 상주 실행기 `/harness:background`(mode `resident`, Pro 이상)가 쓴다.
 서버는 프로젝트마다 lease 하나를 `Runner` 행으로 둔다. MCP 도구가 아니라서 에이전트 모델의 도구 목록에 없다.
-결정과 근거는 `docs/proposals/active/runner-status-and-background-runner.md`.
+결정과 근거는 `docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md`.
 
 - 인증·범위: 다른 REST 경로와 같다(hs_, 또는 hu_ + 본문 `project`; ho_ 거부). 선택되지 않았거나 연결이
   끊긴 프로젝트는 403과 사유다. 프로젝트 300회/10분 구간에 함께 센다.
