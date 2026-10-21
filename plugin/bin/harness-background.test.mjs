@@ -164,7 +164,8 @@ it("starts a resident runner that runs ready work with push blocked, logs it and
   assert.equal(status.event.branch, "main");
   const stopping = await f.run(["--stop"]);
   assert.equal(stopping.event.event, "stopping");
-  await waitFor(() => !existsSync(f.lockPath), 15000, "the runner to release");
+  // 실행기는 잠금을 지운 뒤에 상태 파일에 정지를 쓴다 — 둘 다 끝날 때까지 기다린다.
+  await waitFor(() => !existsSync(f.lockPath) && f.status()?.state === "stopped", 15000, "the runner to stop");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "owner" && call.session === session));
   assert.equal(f.status().stopReason, "owner");
 });
