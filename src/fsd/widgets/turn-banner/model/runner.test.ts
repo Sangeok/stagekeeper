@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { copyLock } from "@/fsd/shared/lib/copy-lock";
 import {
-  fillLine, hasLiveRunner, lineText, RUNNER_LINES, RUNNER_SHORT, RUNNER_STOP_REASONS, RUNNER_VERSION_LINE, runnerLine, runnerShortLine,
+  fillLine, hasLiveRunner, lineText, RUNNER_FREE_LINE, RUNNER_LINES, RUNNER_SHORT, RUNNER_STOP_REASONS, RUNNER_VERSION_LINE, runnerLine, runnerShortLine,
   showsPauseControl, type RunnerFacts, type TurnRunner,
 } from "./runner";
 
@@ -23,6 +23,7 @@ describe("runner copy", () => {
     assert.deepEqual(Object.values(RUNNER_STOP_REASONS), copyLock("turn-banner-runner-reasons"));
     assert.deepEqual(Object.values(RUNNER_SHORT), copyLock("turn-banner-runner-short"));
     assert.deepEqual([RUNNER_VERSION_LINE], copyLock("turn-banner-runner-none"));
+    assert.deepEqual([RUNNER_FREE_LINE], copyLock("turn-banner-runner-free"));
   });
 
   it("renders host and branch as code and leaves other values as text", () => {
@@ -38,7 +39,18 @@ describe("runnerLine", () => {
     assert.equal(text(facts(runner())), "Runner: watching in Claude Code on desk · checked 1 min ago");
     assert.equal(text(facts(runner({ seenAt: ago(0.2) }))), "Runner: watching in Claude Code on desk · checked 1 min ago", "never 0 min");
     assert.equal(text(facts(runner({ mode: "resident", branch: "main", permission: "auto", seenAt: ago(2) }))), "Runner: running in the background on desk (main) · checked 2 min ago");
-    assert.equal(text(facts(runner({ mode: "resident", branch: "main", permission: "auto", state: "working" }))), "Runner: working in the background on desk (main) · checked 1 min ago");
+    assert.equal(text(facts(runner({ mode: "resident", branch: "main", permission: "auto", state: "working" }))), "Runner: working in the background on desk (main) · checked 1 min ago · pause before you edit main");
+  });
+
+  // 편집 경고(결정 B7)는 상주 실행기가 일하는 동안만 붙는다. 세션은 사용자가 창을 보고 있고, 일시 정지 중에는 이미 멈춤 문장이 있다.
+  it("adds the edit warning to a working background runner only", () => {
+    const resident = { mode: "resident" as const, branch: "main", permission: "auto" as const };
+    assert.deepEqual(fillLine(RUNNER_LINES.editGuard, { branch: "main" }), [{ text: "pause before you edit " }, { text: "main", code: true }]);
+    assert.equal(text(facts(runner({ ...resident, state: "working", autostart: true }))),
+      "Runner: working in the background on desk (main) · checked 1 min ago · pause before you edit main · starts at sign-in");
+    assert.doesNotMatch(text(facts(runner({ ...resident, state: "idle" }))) ?? "", /pause before/);
+    assert.doesNotMatch(text(facts(runner({ state: "working", lastActivity: ago(2) }))) ?? "", /pause before/);
+    assert.doesNotMatch(text(facts(runner({ ...resident, state: "working" }), true)) ?? "", /pause before/);
   });
 
   it("measures a working session from its last agent activity", () => {

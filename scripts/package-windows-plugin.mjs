@@ -46,7 +46,7 @@ export function packageWindowsPlugin({ output, runtimeDirectory, verifierDirecto
     if (copied.checksum !== verifier.checksum || copied.files !== verifier.files) throw new Error("Complete verifier copy differs");
   }
   if (verifierPackage(verifierRoot).checksum !== verifier.checksum) throw new Error("Owner verifier changed while packaging");
-  for (const needed of ["bin/harness.ps1", "runtime/windows/RoleProcess.cs", "runtime/windows/role-process.ps1"]) if (!existsSync(path.join(output, needed))) throw new Error("Native plugin source is incomplete; stage its new tracked files before packaging");
+  for (const needed of ["bin/harness.ps1", "runtime/windows/RoleProcess.cs", "runtime/windows/role-process.ps1", "runtime/windows/job-launch.ps1", "runtime/windows/notify.ps1", "runtime/windows/autostart.ps1"]) if (!existsSync(path.join(output, needed))) throw new Error("Native plugin source is incomplete; stage its new tracked files before packaging");
   const inventory = regularTree(output);
   const manifest = { format: "stagekeeper-windows-plugin-v1", sourceRevision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repository, encoding: "utf8" }).trim(),
     packageSha256: digest(JSON.stringify(inventory)), files: inventory.length, runtimeSha256: runtime.executableSha256,

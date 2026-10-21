@@ -5,10 +5,9 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { parseHarnessConfig } from "../lib/config.mjs";
 import { parseBearer } from "../lib/token.mjs";
-import { isRunbookVersion } from "../lib/runbook.mjs";
 import { actionableWork, hasWork, nextWatchState, parseToolResponse, workSignature } from "../lib/watch.mjs";
 
-import { WatchFailure, Interrupted, gitRoot, stateFiles, readState, atomicWrite, isAlive, withGuard, replaced, matchesBinding, requireOwnership, clearState } from "../runtime/local-session.mjs";
+import { WatchFailure, Interrupted, gitRoot, stateFiles, readState, atomicWrite, isAlive, withGuard, replaced, matchesBinding, requireOwnership, clearState, checkoutRunbookVersion } from "../runtime/local-session.mjs";
 import { runnerCall, runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 
 const REASONS = {
@@ -78,35 +77,12 @@ function serverUrl(input) {
   } catch { fail("invalid-config"); }
 }
 
-function checkoutVersion(root) {
-  const body = readFileSync(path.join(root, "CLAUDE.md"), "utf8");
-  const start = "<!-- harness:runbook:start -->";
-  const end = "<!-- harness:runbook:end -->";
-  const starts = body.split(start).length - 1;
-  const ends = body.split(end).length - 1;
-  if (starts === 0 && ends === 0) return null;
-  if (starts !== 1 || ends !== 1 || body.indexOf(start) >= body.indexOf(end)) fail("invalid-config");
-  const managed = body.slice(body.indexOf(start) + start.length, body.indexOf(end));
-  const versions = [];
-  // Count declaration prefixes too: a damaged quote must not silently become legacy.
-  const prefixes = [...managed.matchAll(/This document is runbook version|\brunbook\s*:/g)];
-  const declarations = [...managed.matchAll(/This document is runbook version\s+`([^`\r\n]*)`|\brunbook\s*:\s*"([^"\r\n]*)"/g)];
-  if (prefixes.length !== declarations.length) fail("invalid-config");
-  for (const match of declarations) {
-    const value = match[1] ?? match[2];
-    if (!isRunbookVersion(value)) fail("invalid-config");
-    versions.push(value);
-  }
-  if (new Set(versions).size > 1) fail("invalid-config");
-  return versions[0] ?? null;
-}
-
 function localInput(location, options) {
   let configText, config, runbook;
   try {
     configText = readFileSync(path.join(location.root, "harness.json"), "utf8");
     config = parseHarnessConfig(configText);
-    runbook = checkoutVersion(location.root);
+    runbook = checkoutRunbookVersion(location.root);
   } catch { fail("invalid-config"); }
   const token = process.env.HARNESS_TOKEN;
   if (!parseBearer(`Bearer ${token}`, "agent") && !parseBearer(`Bearer ${token}`, "user")) fail("invalid-token");

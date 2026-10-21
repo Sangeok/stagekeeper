@@ -521,7 +521,7 @@ claude -p "/harness:watch --once --session <id>" \
     - 첫째, `pushurl`을 따로 둔 원격. 이 원격은 환경 차단을 받지 않으므로 B-1이 시작을 거부한다.
     - 둘째, 모델이 환경 변수를 지우거나 git 밖의 수단으로 push하는 의도적 우회. 이 경우는 런북의 push 금지 계약("Pushing is the owner's job")에 맡긴다.
   - auto 분류기는 방어선이 아니다. Claude Code 문서는 작업 중인 저장소로의 push를 auto 기본 허용으로 적고 있고, spike에서도 접두어 규칙만 있을 때 `git -C . push`가 통과했다.
-- **auto를 쓸 수 없는 계정.** 시작할 때 짧은 preflight 실행으로 실제 권한 모드를 확인한다(stream-json 첫 `system`/`init` 메시지의 `permissionMode`). auto가 아니면 `--permission-mode dontAsk` + 같은 허용 목록으로 바꾸고 lease `start`의 `permission`을 `allowlist`로 보낸다(A-3). 배너에는 ` · allow-list only`를 덧붙인다(A-5).
+- **auto를 쓸 수 없는 계정.** 시작할 때 짧은 preflight 실행으로 실제 권한 모드를 확인한다(stream-json 첫 `system`/`init` 메시지의 `permissionMode`). auto가 아니면 `--permission-mode acceptEdits` + 같은 허용 목록으로 바꾸고(dontAsk는 파일 쓰기까지 거부해 쓰지 않는다 — "Phase B 구현에서 제안과 달라진 점") lease `start`의 `permission`을 `allowlist`로 보낸다(A-3). 배너에는 ` · allow-list only`를 덧붙인다(A-5).
   - 문서에 따르면 auto를 쓸 수 없으면 오류 없이 Manual(`default`)로 시작한다. 그래서 오류가 아니라 이 필드로 판정한다.
   - spike에서는 기본 모델과 haiku 모두 `auto`로 보고했다. 그 앞에 사용자의 SessionStart hook 이벤트가 먼저 온다. 그러니 첫 메시지가 아니라 `subtype: "init"`인 메시지를 찾는다.
 - **로그.** `<git-common-dir>/harness/runs/<UTC시각>.jsonl`에 stream-json을 그대로 쓰고, 같은 이름의 `.meta.json`에 종료 코드·시간·결과 종류·권한 거부 수를 쓴다. 최근 50개만 남긴다.
@@ -537,21 +537,25 @@ claude -p "/harness:watch --once --session <id>" \
   - 상주 프로세스는 이 스크립트를 일반 자식으로, 창을 숨겨 띄운다(B-1). AppUserModelID는 PowerShell 것을 쓴다.
   - spike에서 직접 실행했을 때와 분리된 Node의 숨김 자식으로 실행했을 때 모두 토스트가 떴고, `ToastNotificationManager.History`에서도 찾았다.
   - 띄우는 경우에 더하는 것: 작업 중 브랜치 변경으로 인한 중단(B4), 일시 정지 중 실행 완료(B5). 대기 시작 알림에는 바뀐 파일과 끊긴 실행 여부를 싣는다(B6).
-- **편집 경고 문구**(결정 B4~B7). 아래 영어 문장은 **초안**이다. 구현 전에 사용자에게 확인받고, product-copy §15(알림·시작 출력)와 §5(배너 단위)에 넣는다. 나머지 알림 문구(정지, 교체, 플랜, 실행 중 404, 자동 시작 거부)는 Execution Plan 3단계에서 같은 방식으로 정한다.
+- **편집 경고 문구**(결정 B4~B7). 아래 영어 문장은 **2026-10-21 사용자 확정**이다. 초안 둘을 고쳤다.
+  - 끊긴 실행 문장: "Review them before you commit or stash them"은 stash까지 확인을 요구하는 것처럼 읽혔다.
+  - 브랜치 변경 문장: 수동태였고 "check what it left"가 뒤따르는 끊긴 실행 알림과 겹쳤다.
+  - 문구는 product-copy §15(알림·시작 출력)와 §5(배너 단위)에 있다. 나머지 알림과 거절 문장(정지, 교체, 플랜, 실행 중 404, 자동 시작 거부, 시작 거절)은 product-copy §15의 초안으로 두고 출시 전에 확인받는다.
   - `{files}`는 처음 세 경로와 `and {n} more`로 이룬다. `{current}`는 지금 브랜치이고, 분리된 HEAD면 커밋 해시 7자리다.
+  - 브랜치 변경 알림이 브랜치 대기의 시작이다. 다음 검사에서 "대기·브랜치" 알림을 다시 띄우지 않는다.
 
 | 경우 | 토스트 제목 | 토스트 본문 |
 | --- | --- | --- |
 | 대기·미커밋 | `Runner waiting on {branch}` | `Uncommitted changes: {files}. Commit or stash them, and it continues.` |
-| 대기·미커밋, 직전 실행이 끊김 | `Runner waiting on {branch}` | `The last run stopped before it finished and left these changes: {files}. Review them before you commit or stash them, and it continues.` |
+| 대기·미커밋, 직전 실행이 끊김 | `Runner waiting on {branch}` | `The last run stopped partway and left changes in {files}. Check them, then commit or stash them, and it continues.` |
 | 대기·브랜치 | `Runner waiting on {branch}` | `This checkout is on {current}. Switch back to {branch}, and it continues.` |
-| 작업 중 브랜치 변경 | `Runner ended a run` | `The branch changed from {branch} to {current} during a run, so the run was ended. Switch back to {branch} and check what it left, and it continues.` |
+| 작업 중 브랜치 변경 | `Runner ended a run` | `The checkout switched to {current} during a run, so the runner ended that run. Switch back to {branch}, and it continues.` |
 | 일시 정지 중 실행 완료 | `Runner paused` | `The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume.` |
 
 | 자리 | 문장 |
 | --- | --- |
-| 시작 출력(B-1) | `The runner works in this checkout on {branch}. Pause it in Stagekeeper before you edit files here.` |
-| 배너 `resident·working` 줄 끝 단위(§5 `turn-banner-runner` 잠금 블록에 한 줄 추가) | `pause before editing` |
+| 시작 출력(B-1) | `The runner works in this checkout on {branch}. Pause it on the Stagekeeper Board before you edit files here.` |
+| 배너 `resident·working` 줄 끝 단위(§5 `turn-banner-runner` 잠금 블록에 한 줄 추가) | `pause before you edit {branch}` |
 - **자동 시작.** `autostart on`은 로그온 때 `harness.ps1 background --start …`를 창 없이 실행하도록 등록한다. `autostart off`는 등록을 지운다.
   - 둘 다 스킬이 직접 실행하지 않고 `!` 명령으로 보여 준다(B-1, spike 결정 B2). spike에서 이 세션의 auto 분류기가 작업 등록을 [Unauthorized Persistence]로 거절했다.
   - 시작 검사(작업 트리, 브랜치, lease, 플랜)는 수동 시작과 같다(B-1). 실패하면 Windows 알림을 띄우고 이유를 로그에 남긴다.
@@ -613,7 +617,10 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 | `plugin/skills/watch/SKILL.md` | update | A-4 스킬 규칙, B-3 `--once` | medium |
 | `plugin/.claude-plugin/plugin.json` | update | 판 상승(A, B 각각) | low |
 | `plugin/bin/harness-background.mjs`, `plugin/runtime/background.mjs`, `plugin/runtime/windows/notify.ps1`·`autostart.ps1`·`job-launch.ps1`, `plugin/skills/background/SKILL.md`, `plugin/bin/harness.ps1`(+test) | add/update | Phase B. `job-launch.ps1`은 B-3 자식 정리와 push 환경 차단(spike 결정 B1·B3) | high — 무인 실행·프로세스 수명 |
-| `scripts/package-windows-plugin.mjs` | update(B) | 번들의 필수 파일 검사(`:49`)에 `runtime/windows/job-launch.ps1`·`notify.ps1`을 더한다 | low |
+| `scripts/package-windows-plugin.mjs` | update(B) | 번들의 필수 파일 검사(`:49`)에 `runtime/windows/job-launch.ps1`·`notify.ps1`·`autostart.ps1`을 더한다 | low |
+| `plugin/bin/harness-background.test.mjs`, `harness-background-loop.test.mjs`, `harness-background-windows.test.mjs` | add(B) | 실제 CLI와 가짜 `claude`·서버로 하는 통합 시험, 루프 규칙 단위 시험, Windows job 런처 트리 정리 시험 | low |
+| `.github/workflows/windows-role-runtime.yml` | update(B) | 위 세 시험을 런타임 빌드보다 먼저 돌리는 단계와 PR 경로 | low |
+| `docs/architecture/verification.md` | update(B) | 잠금 표의 runner 행에 `-free` 블록과 편집 경고 | low |
 | `docs/architecture/protocol.md` | update | `:118-121`(다섯 REST 경로·요청 제한), `:163-167`(감시가 DB를 바꾸지 않는다는 문장), `:188`(로컬 잠금 한계 옆 서버 lease), 새 runner 절. Phase B: `:469-476`(로컬 상태 `mode`에 `resident`) | low |
 | `docs/conventions/product-copy.md` | update | §5 실행기 줄·짧은 형태·정지 이유, §10 목록 카드(`:593-594`), §12 거절 사유, §15 watch 이벤트·문구(Phase B: background 스킬, §5 Free 줄). §20은 바꾸지 않는다(검토 요청 7) | medium — 다른 브랜치 WIP와 같은 파일 |
 | `docs/architecture/verification.md` | update | 잠금 표(`:319-333`)에 새 블록 행 | low |
@@ -689,7 +696,7 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
    - `job-launch.ps1`은 Windows에서 실제로 돌리는 시험을 둔다. 다룰 것은 상주 프로세스를 죽였을 때와 런처를 죽였을 때 손자 프로세스까지 끝나는지다. CI의 Windows 작업에 넣고, 로컬에서 돌린 결과도 기록한다.
 3. watch 스킬 `--once` 갈래, background 스킬(`start`·`autostart`는 `!` 명령을 보여 줌), `harness.ps1`, 알림·자동 시작·job 런처 스크립트, 번들 필수 파일 검사, product-copy §15를 만든다.
 4. B-5: `/billing` 행과 시험, 배너 Free 줄과 `plan` prop(레이아웃), product-copy §5 잠금 블록의 Free 줄과 렌더 사례, `resident·working` 편집 경고 단위와 그 사례.
-   - B-4 표의 편집 경고 문구는 3단계 전에 사용자에게 확인받는다.
+   - B-4 표의 편집 경고 문구는 2026-10-21 확정했다. 나머지 알림·거절 문장(product-copy §15 초안)은 출시 전에 확인받는다.
 5. PR → dev → localhost smoke B → 운영 승격·번들 갱신(각각 확인).
 
 ## Verification Plan
@@ -802,6 +809,23 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 - 목록 카드는 `project-list-copy.ts`의 `activityLines`를 바꾸지 않고, 위젯 공개 API의 `RunnerShort`로 host를 mono로 그린다. 그래서 `project-list-copy.ts`·그 시험은 바뀌지 않았다.
 - 잠금 블록 이름: `turn-banner-runner`, `-reasons`, `-short`, `-none`. Pause/Resume 단어는 잠그지 않았다(짧은 단위는 지키는 힘이 없다, verification.md).
 - 두 매니페스트(`.claude-plugin`·`.codex-plugin`)를 함께 0.5.13으로 올렸다.
+
+**Phase B 구현에서 제안과 달라진 점**(2026-10-21, 브랜치 `harness/runner-background`).
+- **auto를 쓸 수 없을 때의 모드는 `acceptEdits` + 허용 목록이다(결정 13의 "dontAsk"가 아님 — 사용자 확인 필요).** 구현 전에 haiku로 쟀다.
+  - `--permission-mode dontAsk`는 작업 폴더 안의 Write까지 거부했다("running in don't ask mode"). 허용 목록에 편집 도구가 없으니 dev의 모든 편집이 막힌다.
+  - `acceptEdits`는 작업 폴더 안 쓰기를 허용했다. 목록에 없는 명령은 기다리지 않고 거부했다.
+  - 서버의 `permission:"allowlist"`와 배너의 ` · allow-list only`는 그대로다.
+- 시작 CLI가 `claude -p`를 한 번 띄워 init의 `permissionMode`를 읽고, 모델 요청 전에 바로 끝낸다(권한 확인 비용을 줄이기 위해서).
+- 루프는 `plugin/runtime/background.mjs`의 `runResident`에 두고, 프로세스·git·서버·알림을 deps로 받는다. 그래서 대기·중단·실패 상한을 DB나 프로세스 없이 시험한다(`plugin/bin/harness-background-loop.test.mjs`).
+- `harness-watch.mjs`의 CLAUDE.md 런북 판 읽기를 `local-session.mjs`의 `checkoutRunbookVersion`으로 옮겨 background와 같이 쓴다. 동작은 같다.
+- 스킬 연산은 `--preflight`(검사만), `--start`, `--stop`, `--status`, `--autostart-on`/`--autostart-off`, 내부용 `--run`이다. 로그온 작업에서 띄운 시작은 `--from-autostart`로 구별한다. 거절되면 알림을 띄운다.
+  - 시험용 `--interval`·`--run-limit`(소수 허용)은 watch의 timing과 같은 취지다.
+- 로컬 상태 파일(`background.json`, `background-settings.json`, `background.log`, `autostart.json`)은 잠금(`watch.lock.json`)과 따로 둔다. 잠금의 형식은 `mode:"resident"` 하나만 넓혔다.
+- 죽은 resident가 남긴 잠금(poller와 children이 모두 죽음)은 다음 `--start`와 `--stop`이 지운다. job 런처 덕분에 그 자식도 함께 끝났기 때문이다(spike). 그래서 재부팅 뒤 자동 시작이 `locked`에 막히지 않는다.
+- 종료 직전의 알림은 끝날 때까지 기다린다. Node가 끝나면 Node의 job이 일반 자식(알림 PowerShell)까지 끝내기 때문이다.
+- `claude`는 Windows에서 PATH의 `claude.exe`만 찾는다. npm으로 설치한 `claude.cmd`는 job 런처(`UseShellExecute=false`)로 띄울 수 없어서 `no-claude`로 거절한다.
+- Windows CI(`windows-role-runtime.yml`)에 런타임 빌드보다 먼저 도는 "Validate background runner job launcher" 단계를 더했다. 상주 실행기 시험 세 파일을 돌린다. 런타임 캐시 키는 빌드 스크립트만 보므로 새 PowerShell 파일이 Node를 다시 빌드하게 하지 않는다.
+- 두 매니페스트를 함께 0.5.14로 올렸다.
 
 ## Risks and Rollback
 

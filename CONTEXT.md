@@ -72,7 +72,8 @@ _Avoid_: 구현승인, 검증
 
 **실행기 (Runner)**:
 게이트 사이의 준비된 단계를 사람 대신 이어 가는 소유자 PC의 로컬 프로세스. 프로젝트마다 하나만 서버의
-실행 권리(lease)를 가지며, 게이트를 열거나 push하지 않는다. 일시 정지는 새 일만 막는다.
+실행 권리(lease)를 가지며, 게이트를 열거나 push하지 않는다. 일시 정지는 새 일만 막는다. 두 가지가 있다 —
+Claude Code 세션 안의 `/harness:watch`와, 창 없이 도는 background runner(`/harness:background`, Pro 이상).
 _Avoid_: executor(화면 문구), 에이전트, 워커
 
 ## States

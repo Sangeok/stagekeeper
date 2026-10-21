@@ -209,8 +209,8 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 
 ## 실행기 lease — `POST /api/runner`
 
-실행기(runner)는 파이프라인 일을 자동으로 이어 가는 로컬 프로세스다. 지금은 관리형 `/harness:watch`
-(mode `session`)가 쓰고, 창 없는 상주 실행기(mode `resident`, Pro 이상)가 같은 경로를 쓸 예정이다.
+실행기(runner)는 파이프라인 일을 자동으로 이어 가는 로컬 프로세스다. 관리형 `/harness:watch`
+(mode `session`)와, plugin 0.5.14부터 창 없는 상주 실행기 `/harness:background`(mode `resident`, Pro 이상)가 쓴다.
 서버는 프로젝트마다 lease 하나를 `Runner` 행으로 둔다. MCP 도구가 아니라서 에이전트 모델의 도구 목록에 없다.
 결정과 근거는 `docs/proposals/active/runner-status-and-background-runner.md`.
 
@@ -244,6 +244,52 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   보낸다. Codex foreground는 이 경로를 부르지 않는다.
 - 한계: 옛 플러그인 판과 수동 세션은 lease에 참여하지 않아 보이지도 막히지도 않는다. 서버를 롤백하면(404)
   CLI는 로컬 잠금만으로 계속 돈다.
+
+## 상주 실행기 — `/harness:background` (plugin 0.5.14)
+
+`plugin/bin/harness-background.mjs`(Windows는 `harness.ps1 background`)가 창 없이 도는 상주 프로세스를 띄운다.
+루프는 `plugin/runtime/background.mjs`의 `runResident`다. 결정과 근거는 위 제안서 B-1~B-4와 spike 결정 B1~B7이다.
+
+- 시작: 사용자가 스킬이 보여 준 `!` 명령으로 `--start`를 실행한다. auto 모드 분류기는 세션 뒤에도 남는 프로세스를 띄우는
+  명령을 거절하므로 스킬이 직접 실행하지 않는다. 시작 검사는 다음과 같다.
+  - 작업 트리가 깨끗한지(`git --no-optional-locks status --porcelain -z`, 추적되지 않은 파일 포함), 브랜치 위인지 본다.
+    `pushurl`을 따로 둔 원격이 없는지 보고, 로컬 잠금이 없는지(죽은 resident의 잠금은 지운다) 본다.
+  - `project_get`을 확인하고 `claude.exe`가 있는지 본다. `claude -p`를 한 번 띄워 init 메시지의 `permissionMode`를
+    읽고 모델 요청 전에 끝낸다.
+  - auto면 `permission:auto`다. 아니면 `allowlist`이고, 실행은 `--permission-mode acceptEdits` + 허용 목록이다.
+    dontAsk는 파일 쓰기까지 거부하므로 쓰지 않는다(실측).
+  - 그다음 정책(commit 고정 true)과 잠금(`mode:"resident"`)을 쓰고 lease start(mode resident, branch, permission,
+    autostart)를 보낸다. 404면 시작하지 않는다. 상주 프로세스를 Node `detached`로 띄우고, 그것이 poller로 자리 잡을
+    때까지 기다린다.
+- 한 사이클(60초): beat(idle 또는 waiting) → paused면 쉼 → `pipeline_next`.
+  - 할 일이 있으면 실행 직전 검사를 한다. 미커밋이나 브랜치 변경이면 waiting으로 보내고 알림은 대기 하나에 한 번이다.
+  - 검사를 통과하면 `claude -p "/harness:watch --once --session <id>"`를 띄운다. `--settings <common>/harness/background-settings.json`,
+    `--disallowedTools "Bash(git push:*)" "PowerShell(git push*)"`, stream-json을 붙인다.
+  - 도는 동안 60초마다 다음을 한다: beat(working), 브랜치 감시(바뀌면 실행을 끝내고 branch 대기·알림, 실패로 세지
+    않음), 2시간 상한.
+  - 끝나면 결과 한 줄(`lastResult`)과 로그 이름(`lastLog`)을 beat로 보낸다. 앞뒤 작업 서명이 같거나 비정상 종료·
+    시간 초과면 실패이고, 3회 연속이면 stop(stuck)이다. 일시 정지 중에 끝난 실행은 알림 하나를 띄운다.
+- 자식 정리: Windows에서 각 `claude -p`는 `runtime/windows/job-launch.ps1`이 만든 kill-on-close job 안에서 돈다
+  (breakaway 없음). 상주 프로세스나 런처가 죽으면 도구 셸까지 끝난다. 시간 초과와 브랜치 중단은 런처를 끝내는 것이다.
+  다른 OS는 자식을 자기 프로세스 그룹으로 띄우고 그룹에 SIGKILL을 보낸다.
+- push 차단: 접두어 거부 규칙에 더해, 자식 환경에만 `GIT_CONFIG_COUNT`/`KEY`/`VALUE`로 빈
+  `url.stagekeeper-push-blocked://.pushInsteadOf`를 덧붙인다. 사용자 git 설정 파일은 바꾸지 않는다.
+- 멈춤: 로컬 `--stop`은 `lifecycle:"stopping"`을 쓰고, 상주 프로세스는 진행 중인 실행을 끝낸 뒤 stop(owner)을 보내고
+  잠금을 지운다. 상주 프로세스가 이미 없으면 `--stop`이 잠금을 지우고 stop(owner)을 보낸다.
+  - 서버의 `stop:"plan"`·`RUNNER_REPLACED`·404와 5연속 요청 실패도 진행 중인 실행을 끝낸 뒤 멈춘다. stuck·error·plan은
+    stop을 보내고, replaced·404는 보내지 않는다.
+- 로컬 파일(공통 Git 디렉터리의 `harness/`):
+  - `background.json`: 상태(`--status`가 읽음)
+  - `background-settings.json`: 허용 목록
+  - `background.log`
+  - `runs/<UTC시각>.jsonl`·`.meta.json`(·`.stderr.txt`): 최근 50개
+  - `autostart.json`: 로그온 작업 등록 기록
+- 자동 시작(Windows): `--autostart-on`은 관리자 권한 없이 로그온 작업을 등록한다. 동작은
+  `conhost.exe --headless powershell.exe … harness.ps1 background --start --from-autostart …`이다.
+  - 사용자 환경 변수의 hu_ 토큰과 `HARNESS_SERVER`가 있어야 켠다. 등록 때의 브랜치와 다르면 시작을 거부하고 알림을 띄운다.
+  - 등록은 그때의 플러그인 경로를 가리키므로, `--status`가 경로 차이를 알린다.
+- 한계: 실행 중에 사람이 같은 작업 트리를 만지는 경우(같은 파일 편집, 커밋·stash·pull, 같은 checkout의 대화
+  세션)는 막지 못한다. 안내(`pause before you edit …`)와 인수 검사에 맡긴다.
 
 ## MCP 도구 계약 — 소유자 토큰 스코프
 
@@ -511,6 +557,8 @@ Codex의 keyed `wait/on:handoff`와 overview item에는 현재 열린 실행에�
 로컬 실행은 canonical common Git의 `harness/watch.json`, `watch.lock.json`, `watch.guard`를 공유한다.
 기존 binding 다섯 key는 그대로이고 새 metadata는 top-level `client`, `mode`, `lifecycle`, `children`이다.
 누락 metadata는 Claude/watch/active다. foreground start는 활성 state를 덮어쓰지 않는다.
+`mode`는 watch·foreground·resident(plugin 0.5.14, 상주 실행기)다. 옛 판은 resident를 손상 상태로 보고 거부한다 —
+같은 저장소에서 섞여 돌지 않게 하려는 의도다. resident는 자기를 poller로, job 런처를 children으로 등록한다.
 공통 session CLI의 stop은 token/config 없이 stopping을 기록하고 release는 stopping·poller null·children empty를 요구한다.
 Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를 정리한다. process death만으로
 미확인 turn을 정리하지 않는다. Claude host는 자신의 native role/tool 완료를 직접 확인해야 한다.

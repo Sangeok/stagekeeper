@@ -35,6 +35,8 @@ export const RUNNER_LINES = {
   stopped: "Runner on {host} stopped: {reason}. Start it again in Claude Code.",
   autostart: "starts at sign-in",
   allowlist: "allow-list only",
+  // 상주 실행기가 일하는 동안만(결정 B7). 그 checkout을 고치면 실행기의 커밋에 섞일 수 있다.
+  editGuard: "pause before you edit {branch}",
 } as const;
 
 // 정지 이유는 코드별 고정 문장이다. 서버나 CLI가 보낸 자유 문장은 화면에 싣지 않는다.
@@ -57,6 +59,8 @@ export const RUNNER_SHORT = {
 
 // 실행기가 없을 때 WATCH_LINE 아래에 붙는 한 줄(결정 9: 옛 플러그인의 watch는 서버가 구별하지 못한다).
 export const RUNNER_VERSION_LINE = "Runners on plugin 0.5.13 or later show their status here.";
+// 실행기가 없고 Free 플랜일 때 그 아래 한 줄(B-5). "창 없는 실행"이 아니라 background runner가 Pro에서 열린다고만 말한다.
+export const RUNNER_FREE_LINE = "The background runner opens on Pro.";
 
 export type RunnerSegment = { text: string; code?: boolean };
 export type RunnerLine = RunnerSegment[];
@@ -130,7 +134,8 @@ export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
     return join(fillLine(RUNNER_LINES.sessionWorking, values), fillLine(RUNNER_LINES.lastActivity, { n: ago(since, now) }), ...suffixes);
   }
   const main = runner.state === "working" ? RUNNER_LINES.residentWorking : resident ? RUNNER_LINES.residentIdle : RUNNER_LINES.sessionIdle;
-  return join(fillLine(main, values), fillLine(RUNNER_LINES.checked, { n: ago(runner.seenAt, now) }), ...suffixes);
+  const guard = runner.state === "working" ? [fillLine(RUNNER_LINES.editGuard, values)] : [];
+  return join(fillLine(main, values), fillLine(RUNNER_LINES.checked, { n: ago(runner.seenAt, now) }), ...guard, ...suffixes);
 }
 
 // 스트립 꼬리와 목록 카드의 짧은 형태. 붙일 것이 없으면 null.
