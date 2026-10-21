@@ -12,12 +12,13 @@ try {
   if ($Action -eq 'register') {
     if (-not $Execute -or -not $Argument) { throw 'Execute and Argument are required' }
     $user = "$env:USERDOMAIN\$env:USERNAME"
-    $action = New-ScheduledTaskAction -Execute $Execute -Argument $Argument
+    # `$action`이라고 쓰면 대소문자를 가리지 않아 매개변수 `$Action`이 되고, 그 ValidateSet이 작업 객체를 거부한다.
+    $taskAction = New-ScheduledTaskAction -Execute $Execute -Argument $Argument
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     # 상주 실행기는 오래 산다 — 시간 제한 없이, 두 번째 인스턴스는 띄우지 않는다.
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Seconds 0) -MultipleInstances IgnoreNew
-    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+    Register-ScheduledTask -TaskName $TaskName -Action $taskAction -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
   } else {
     if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false }
   }
