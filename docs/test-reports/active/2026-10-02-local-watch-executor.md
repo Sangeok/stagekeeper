@@ -315,3 +315,55 @@ Not yet observed:
   the protocol, and this smoke proves it against the real server and web.
 - A runner in the `working` state, including the 60-minute rule after the last agent activity.
   The board had no work to hand out.
+
+## Runner Phase B spike — 2026-10-20 22:59 – 2026-10-21 00:35 UTC
+
+Proposal: `docs/proposals/active/runner-status-and-background-runner.md`, Execution Plan Phase B
+step 1. The spike measured the assumptions behind B-1, B-3 and B-4 before any Phase B code.
+
+Setup:
+
+- Claude Code 2.1.305 on Windows 11 with the installed 0.5.13 bundle. Each probe ran in a
+  scratch repository whose `origin` is a bare repository on the same disk, so no push left the
+  machine. The scratch folder was never trusted.
+- The first `claude -p` used the default model. Mechanism probes used `--model haiku`. The
+  estimated cost of all probes was about $0.7. This is the client-side API-price estimate, not a
+  subscription charge.
+- Process probes used small Node and PowerShell stand-ins in the session scratchpad. They are
+  not committed. The documentation answers come from code.claude.com pages fetched on
+  2026-10-21: headless, cli-reference, permissions, permission-modes, skills and tools-reference.
+
+| Question | Observed |
+| --- | --- |
+| Stream-json fields | The `system`/`init` message reported `permissionMode: "auto"` for the default model and for haiku. The user's SessionStart hook events came before it. The `result` message carried `subtype`, `is_error`, `num_turns`, `total_cost_usd`, `terminal_reason`, `safety_stops` and `permission_denials`, a list of `{tool_name, tool_use_id, tool_input}`. Per the documentation, an unavailable auto mode starts the session in Manual without an error, so the init field is the check. |
+| Cost of one start | "Reply with exactly: OK" cost an estimated $0.46 with the default model, because every user-scope plugin, MCP server and instruction file loads. With haiku it cost $0.012. |
+| stdin | Without a redirect, `-p` waited 3 s and warned "no stdin data received in 3s". The runner must start it with stdin closed. |
+| Plugin skill in `-p` | `claude -p "/harness:watch --once --session probe"` loaded the installed skill. In a repository without `harness.json` it ran the preflight and stopped with "Run /harness:init". |
+| Project skill in an untrusted folder | `/probe-commit` loaded. A Git Bash parent rewrote the leading `/probe-commit` into `C:/Program Files/Git/probe-commit`, which is MSYS path conversion. The runner starts `claude.exe` directly, so only Git Bash test scripts need `MSYS_NO_PATHCONV=1`. |
+| Commit without asking | Under auto, a skill that tells the model to commit got a commit (`a959868`) and no question. |
+| `--settings` allow rules in an untrusted folder | Under `dontAsk`, `git commit` was denied ("running in don't ask mode") when there was no rule. With a `--settings` file allowing `PowerShell(git commit *)`, it ran. Read-only `git status` ran in both cases. |
+| Push deny rules | Under auto with no deny rule, a push to the bare remote succeeded: the classifier allowed it. With `--disallowedTools`, each of `PowerShell(git push*)`, `PowerShell(git push:*)`, `PowerShell(git push *)` and `Bash(git push:*)` denied the push and listed it in `permission_denials`, and the ref did not appear. |
+| Push variant | `git -C . push …` with `PowerShell(git push *)` pushed. The permissions page lists this gap, and auto mode allows pushing to the working repository by default. |
+| Process-scoped push block | `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=url.stagekeeper-push-blocked://.pushInsteadOf` and `GIT_CONFIG_VALUE_0=` (empty) made `git push origin …` and `git push <path> …` fail with "remote helper 'stagekeeper-push-blocked' aborted session". `git -c url.stagekeeper-push-blocked://.pushInsteadOf=x push` still failed, and `git fetch` worked. A remote with an explicit `pushurl` still pushed. |
+| Detached lifetime | A Node child started with `detached: true, stdio: "ignore", windowsHide: true` and `unref()` kept running for 377 s after a Bash tool call ended. Started from a `claude -p` PowerShell tool call, it kept running for 335 s after `claude -p` exited. Both were stopped by hand. Closing an interactive Claude Code window was not measured. |
+| Windows PowerShell 5.1 started detached | `powershell.exe` started by Node with `detached: true` did nothing: a script file and a one-line `Add-Content` both produced no output and no file. The same command as an ordinary hidden child ran. |
+| Children when the resident dies | Node puts its ordinary children into its own job: the child saw flags `0x3c00`, which are kill-on-close plus breakaway and silent breakaway. Killing the stand-in resident with `taskkill /F` (no `/T`) ended a Node → Node → Node tree. With a real `claude -p` as the child, `claude.exe` ended, but the PowerShell tool shell and the process it ran survived and kept writing. They were orphans. |
+| Job Object launcher | A Windows PowerShell 5.1 launcher compiled a small C# type. It creates a job with only `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, assigns itself, holds the resident's process handle and starts `claude.exe` (`UseShellExecute=false`, `CreateNoWindow`, stdin closed). With a real `claude -p` inside, killing the resident ended `claude.exe`, the hook processes, the tool shell and its process. With the Node → Node → Node stand-in inside, killing only the launcher ended the whole work tree and left the resident running. `claude.exe` ran normally inside a job without breakaway. |
+| Starting from a skill under auto | A user-invoked project skill whose step starts a detached runner was denied: "[Unauthorized Persistence]". An ad-hoc prompt doing the same was denied as "[Auto-Mode Bypass]". A specific allow rule matching the quoted command (`PowerShell(node *start-resident.mjs*)`) let it run. A rule that did not match the quotes did not. This session's own auto classifier denied registering the logon task as "[Unauthorized Persistence]". The owner then switched to manual mode and approved it. |
+| Logon task without elevation | The token was not elevated (`IsInRole(Administrator)` false). `Register-ScheduledTask` with an `-AtLogOn -User <user>` trigger and an `Interactive`/`Limited` principal succeeded. `Start-ScheduledTask` ran the action under `services → svchost → conhost --headless → node` in session 1, outside the Claude Code process tree. The task was stopped and unregistered. |
+| Window of the logon action | A window detector recorded every new visible top-level window for 4 s after `Start-ScheduledTask`. The control task ran `node.exe` directly and opened a Windows Terminal window at +220 ms (plus a `PseudoConsoleWindow`). The `conhost.exe --headless node …` task opened no visible window. Both wrote heartbeats, both tasks were removed, and the control window closed when its process was stopped. |
+| Toast | A WinRT toast under PowerShell's AppUserModelID showed and was found in `ToastNotificationManager.History`. That held when run directly, and when run as an ordinary hidden PowerShell child of a detached Node process. |
+
+Decisions the owner made on 2026-10-21 from these results are recorded in the proposal:
+
+- Add the process-scoped push block, and refuse to start when a remote has an explicit
+  `pushurl`.
+- Start and autostart through `!` commands that the skill shows.
+- Run each `claude -p` inside a Job Object launcher.
+
+Not measured:
+
+- Closing an interactive Claude Code window. The `claude -p` exit stood in for it.
+- The logon trigger at a real logon. Smoke B step 5 covers it.
+- PowerShell, rather than Node, under `conhost --headless`.
+- Classifier probes with the default model as the main model. Those probes used haiku.
