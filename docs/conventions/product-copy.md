@@ -1249,9 +1249,9 @@ Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, c
 ### Background runner — `/harness:background` (plugin 0.5.14, Pro and Max)
 
 The background runner continues the pipeline on this PC without a Claude Code window. It runs one
-`claude -p "/harness:watch --once …"` per batch of ready work (§5 runner line). The five notice lines
-marked *confirmed* were settled with the owner on 2026-10-21. The other notices and lines below are the
-first draft and need the owner's confirmation before release.
+`claude -p "/harness:watch --once …"` per batch of ready work (§5 runner line). Every line in this
+subsection was confirmed with the owner on 2026-10-21. The five edit-guard notices and the start
+output's edit line were settled first, and the rest followed.
 
 - Skill description: "Run the Stagekeeper pipeline on this PC without a Claude Code window — the background runner continues web approvals on Pro and Max. Use when the user says "/harness:background" with start, stop, status, or autostart on or off."
 - Policy question, once per start: "Should the runner also start new work, or only continue items already on the board?" New work defaults to no. The skill also says: "The runner commits its work in this checkout and never pushes."
@@ -1262,7 +1262,7 @@ first draft and need the owner's confirmation before release.
   - "Background runner started on {host} for {branch}."
   - "Run logs: {logs}"
   - "Stop it with /harness:background stop."
-  - "The runner works in this checkout on {branch}. Pause it on the Stagekeeper Board before you edit files here." (*confirmed*)
+  - "The runner works in this checkout on {branch}. Pause it on the Stagekeeper Board before you edit files here."
   - "Auto mode is not available here, so the runner runs only the commands on its allow list." (only without auto mode)
 
 Windows notices (title — body). `{files}` is the first three paths and "and {n} more"; `{current}` is the
@@ -1270,16 +1270,16 @@ checkout's branch, or a 7-character commit for a detached HEAD.
 
 | when | title | body |
 | --- | --- | --- |
-| waiting on uncommitted changes (*confirmed*) | Runner waiting on {branch} | Uncommitted changes: {files}. Commit or stash them, and it continues. |
-| the same, left by an interrupted run (*confirmed*) | Runner waiting on {branch} | The last run stopped partway and left changes in {files}. Check them, then commit or stash them, and it continues. |
-| waiting on the branch (*confirmed*) | Runner waiting on {branch} | This checkout is on {current}. Switch back to {branch}, and it continues. |
-| the branch changed during a run (*confirmed*) | Runner ended a run | The checkout switched to {current} during a run, so the runner ended that run. Switch back to {branch}, and it continues. |
-| a paused run finished (*confirmed*) | Runner paused | The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume. |
-| stuck | Runner stopped | The same steps came back three times without progress. Check the latest run log, then start it again. |
-| error | Runner stopped | It hit an error. Check the latest run log, then start it again. |
+| waiting on uncommitted changes | Runner waiting on {branch} | Uncommitted changes: {files}. Commit or stash them, and it continues. |
+| the same, left by an interrupted run | Runner waiting on {branch} | The last run stopped partway and left changes in {files}. Check them, then commit or stash them, and it continues. |
+| waiting on the branch | Runner waiting on {branch} | This checkout is on {current}. Switch back to {branch}, and it continues. |
+| the branch changed during a run | Runner ended a run | The checkout switched to {current} during a run, so the runner ended that run. Switch back to {branch}, and it continues. |
+| a paused run finished | Runner paused | The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume. |
+| stuck — three runs in a row left the same work | Runner stopped | The same steps came back three times without progress. Check its run log with /harness:background status, then start it again. |
+| error — the runner hit an error, or three runs in a row failed and at least one hit an error or the time limit | Runner stopped | It hit an error. Check its run log with /harness:background status, then start it again. |
 | plan | Runner stopped | The background runner needs Pro. |
 | replaced | Runner stopped | Another runner took over this project. This one stops. |
-| route lost (HTTP 404) | Runner stopped | The server stopped taking runner signals, so the runner stopped after its run. Start it again when the server is back. |
+| route lost (HTTP 404) | Runner stopped | The server stopped taking runner signals, so the runner stopped. Start it again when the server is back. |
 | sign-in start refused | Runner did not start | {reason} — one sentence from the table below |
 
 Start and sign-in refusals (`harness-background.mjs`, `code` → sentence; printed before the JSON line):

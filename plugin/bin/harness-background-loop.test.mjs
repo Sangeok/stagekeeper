@@ -94,6 +94,20 @@ it("stops as stuck after three runs without progress", async () => {
   assert.equal(calls.runs, 3);
 });
 
+// 세 번 중 하나라도 오류·시간 초과면 stuck이 아니라 error다 — 배너의 이유 문장이 사실과 맞게(2026-10-21 확정).
+it("stops with an error when a failed run is among the three", async () => {
+  const failed = { exitCode: 1, result: { subtype: "error_during_execution", isError: true, turns: 1, terminal: "completed", denials: 0 }, log: "run.jsonl" };
+  const mixed = harness({ overviews: [WORK], runs: [SUCCESS, failed, SUCCESS] });
+  assert.equal(await runResident({ branch: "main", interval: 1000 }, mixed.deps), "error");
+  assert.equal(mixed.calls.runs, 3);
+  const allFailed = harness({ overviews: [WORK], runs: [failed] });
+  assert.equal(await runResident({ branch: "main", interval: 1000 }, allFailed.deps), "error");
+  // 진전이 있으면 셈과 종류가 함께 처음으로 돌아간다.
+  // 실패 둘(앞뒤 WORK) → 진전 있는 성공(WORK → NEXT) → 진전 없는 성공 셋(NEXT → NEXT).
+  const reset = harness({ overviews: [WORK, WORK, WORK, WORK, WORK, NEXT], runs: [failed, failed, SUCCESS] });
+  assert.equal(await runResident({ branch: "main", interval: 1000 }, reset.deps), "stuck");
+});
+
 it("counts a timeout as a failure and marks changes it left as an interrupted run", async () => {
   const left = { ...CLEAN, dirty: ["partial.ts"] };
   const { deps, calls } = harness({ overviews: [WORK, WORK, WORK], trees: [CLEAN, CLEAN, CLEAN, left, left],
@@ -140,6 +154,9 @@ it("keeps the confirmed edit-guard copy", () => {
     "The checkout switched to feature during a run, so the runner ended that run. Switch back to main, and it continues.");
   assert.equal(fillNotice("pausedFinished", { branch: "main" }).body, "The run in progress finished. You can edit main now. Nothing new starts until you choose Resume.");
   assert.equal(fillNotice("branchEnded").title, "Runner ended a run");
+  assert.equal(fillNotice("stuck").body, "The same steps came back three times without progress. Check its run log with /harness:background status, then start it again.");
+  assert.equal(fillNotice("error").body, "It hit an error. Check its run log with /harness:background status, then start it again.");
+  assert.equal(fillNotice("missing").body, "The server stopped taking runner signals, so the runner stopped. Start it again when the server is back.");
 });
 
 it("parses porcelain output, quotes Windows arguments and blocks push in the child environment", () => {
