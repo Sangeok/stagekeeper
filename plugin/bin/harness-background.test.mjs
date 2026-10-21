@@ -63,7 +63,8 @@ const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) 
 const lines = file => (existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line)) : []);
 
 async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}) {
-  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-background-test-"));
+  // native는 Windows의 8.3 짧은 이름(RUNNER~1)을 펼친다. CLI는 git이 돌려준 긴 경로를 쓰므로 같은 표기로 비교한다.
+  const root = mkdtempSync(path.join(realpathSync.native(tmpdir()), "harness-background-test-"));
   const runnerCalls = [];
   let overview = READY;
   let runner = (body, res) => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ ok: true, paused: false })); };
