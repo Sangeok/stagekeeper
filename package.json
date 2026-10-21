@@ -9,6 +9,7 @@
     "lint": "eslint && node scripts/verify-fsd-boundaries.mjs && node scripts/verify-server-boundaries.mjs",
     "verify:fsd": "node scripts/verify-fsd-boundaries.mjs",
     "verify:server": "node scripts/verify-server-boundaries.mjs",
+    "branches:cleanup": "node scripts/cleanup-task-branches.mjs",
     "test:architecture": "node --test \"scripts/*.test.mjs\"",
     "check": "node scripts/plugin-lib.mjs --check && npm run lint && next typegen && tsc --noEmit && npm run test:architecture && npm run test:project-availability",
     "test": "node --test \"packages/core/*.test.mjs\" \"plugin/bin/*.test.mjs\"",

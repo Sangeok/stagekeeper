@@ -93,12 +93,69 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 탐색 대상에서 빠지거나 테스트 타입 검사가 사라지지 않았는지 확인한다. 전체
 아키텍처 규칙의 예외가 필요하면 아래 예외 정책을 따른다.
 
+## 작업 브랜치 정리
+
+실행 시점과 최우선 보호 정책은 루트 [AGENTS.md](../../AGENTS.md)의
+`Branching and pull requests`를 따른다. **로컬·원격 `main`과 `dev`는 절대 삭제하지
+않는다.** 로컬 정리는 `scripts/cleanup-task-branches.mjs`만 사용하며, 원격 작업
+브랜치는 기존 GitHub의 PR 병합 후 자동 삭제 정책으로 관리한다.
+
+```powershell
+npm run branches:cleanup
+npm run branches:cleanup -- --apply
+npm run branches:cleanup -- --apply --branch harness/example
+```
+
+기본은 삭제 없는 사전 확인이고 `--apply`로만 로컬 ref를 삭제한다. 확인 과정에서
+GitHub API를 조회하고 `origin/dev`의 추적 ref를 fetch한다. 원격 ref를 삭제하거나
+prune하지 않으며, checkout·stash·파일 정리·PR 병합은 수행하지 않는다. 작업 시작과
+종료 때 에이전트가 실행하며 별도 예약 작업이나 CI의 삭제 job은 없다.
+
+삭제하려면 다음 증거를 모두 확인해야 한다.
+
+1. 대상은 실제 로컬 `harness/<topic>` ref이고 symbolic ref가 아니다.
+   `main`·`dev` 또는 ref 별칭을 명시하면 저장소 조회 전에 거부한다.
+2. 실행 worktree에 staged·unstaged·untracked 변경이 없고, 대상이 현재 또는 다른
+   worktree에서 checkout되어 있지 않다. 다른 worktree에 속한 작업은 그대로 보존한다.
+3. 원격 `main`·`dev`가 모두 존재하고, 같은 저장소의 `dev` 대상 PR이 실제 병합되어
+   있다. 로컬 끝 커밋은 병합된 PR의 head SHA와 같고, 병합 결과는 fetch한 `origin/dev`
+   이력에 포함되어야 한다. PR 생성·단순 종료·원격 브랜치 부재만으로 완료를 판단하지 않는다.
+4. 해당 head SHA·PR에 연결된 최신 `check` workflow가 성공했고, 함께 실행된 다른
+   workflow의 최신 실행도 모두 완료·성공 상태다. 페이지를 모두 조회하며, 재실행의
+   최신 attempt를 확인한다. 누락·실패·대기·불명확한 응답은 삭제 보류다.
+   원격 브랜치 삭제 후 Actions 응답의 `pull_requests`가 비어 있으면 실행 저장소,
+   head 저장소, head 브랜치와 SHA를 모두 대조한다. 다른 PR 연결이 명시되면 사용하지 않는다.
+5. 해당 브랜치를 사용하는 열린 PR 또는 그 브랜치를 base로 하는 열린 PR이 없다.
+   원격 작업 브랜치가 남아 있다면 head SHA도 같아야 한다.
+6. 삭제 직전에 로컬 변경·worktree·ref SHA를 재검사한다. 원격 `dev`가 검사 도중
+   바뀌거나 로컬 ref에 추가 커밋이 생겼으면 보류한다.
+
+검증한 SHA를 expected old value로 지정하고 `git update-ref --no-deref`로 해당
+`refs/heads/harness/...` 하나만 삭제한다. SHA가 바뀌면 원자적으로 거부되며 symbolic
+ref를 따라 보호 브랜치를 삭제하지 않는다. squash·rebase 병합은 원래 head의 ancestry가
+아닌 PR의 병합 결과로 확인한다. 브랜치 설정 정리 실패는 결과의 `note`로 보고한다.
+
+결과 JSON의 `eligible`은 사전 확인 통과, `deleted`는 로컬 삭제 완료,
+`skipped`와 `reason`은 보존 이유다. GitHub 인증·네트워크·증거 확인에 실패하면
+브랜치를 보존한다. 사용자 변경을 치우거나 강제 삭제로 우회하지 않는다.
+
+원격 보호는 활성 Ruleset
+[Keep dev and main](https://github.com/Sangeok/stagekeeper/rules/24972879)이 담당한다.
+대상은 `refs/heads/main`·`refs/heads/dev`, 규칙은 `deletion`, bypass actor는 없다.
+2026-10-21 API 조회로 확인했으며, 실제 삭제를 시도하는 방식으로 검증하지 않는다.
+
+회귀 검증은 `scripts/cleanup-task-branches.test.mjs`가 임시 Git 저장소·bare origin과
+대체 GitHub 응답을 사용해 수행한다. 보호 ref·symbolic ref·추가 변경·worktree·미병합
+PR·CI 재실행·조회 실패·squash 병합·동시 커밋 보존을 확인하며,
+기존 `npm run test:architecture`와 `npm run check`에 포함된다.
+
 ## 저장소 스크립트
 
 `scripts/`는 앱 런타임 코드가 아니다. 검사기와 운영 도구만 둔다.
 
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
+| `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | 병합·CI·로컬 보존 조건을 확인한 작업 브랜치의 로컬 ref만 정리. `main`·`dev`와 원격 ref는 삭제하지 않음 |
 | `build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows-role-runtime-cache.mjs`, `windows-role-runtime-cache.test.mjs` | `node scripts/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
 | `package-windows-plugin.mjs` | `node scripts/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source·runtime·변경하지 않은 완전한 owner verifier를 양쪽 skill 경로에 복사하고 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |

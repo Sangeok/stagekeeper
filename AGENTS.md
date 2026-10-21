@@ -53,7 +53,21 @@ architecture error without documenting and approving the exception in
 `dev` is the integration branch; `main` is the release branch and holds only
 commits that were already green on `dev`.
 
-- Branch from `dev`, named `harness/<topic>`. Open the pull request against `dev`:
+- **Highest priority: never delete local or remote `main` or `dev`.** This overrides
+  every cleanup rule. Do not disable or bypass their deletion protection, and never
+  include either branch in a deletion command, batch, or wildcard.
+- At the start of each independent task and at task completion, run
+  `npm run branches:cleanup -- --apply`. The script only deletes verified local
+  `harness/<topic>` refs. Its default without `--apply` is a preview. Its safety
+  checks and skip reasons are documented in `docs/architecture/verification.md`.
+- Preserve dirty worktrees and additional commits. Do not stash, discard, force
+  checkout, or remove a worktree to make cleanup pass. Use an isolated worktree
+  for a new task when existing work must be preserved.
+- Verify that remote `main` and `dev` exist and fetch the latest `dev` before
+  creating a new `harness/<topic>` branch. If either protected remote branch is
+  missing or cannot be verified, stop branch maintenance and report it.
+- Branch from the latest `dev`, named `harness/<topic>`. Never reuse a merged task
+  branch for an independent task. Open the pull request against `dev`:
   `gh pr create --base dev`. The repository default branch is `main`, so without
   `--base` the pull request targets the wrong branch.
 - A pull request into `dev` merges only when the `check` workflow is green.
@@ -61,13 +75,20 @@ commits that were already green on `dev`.
   `git switch main && git merge --ff-only dev && git push origin main`.
   Do not merge `dev` into `main` through the GitHub UI: that merge commit lands on
   `main` alone, and every release after it needs a back-merge to repair the split.
-- **`dev` must never be the head of a pull request.** Besides the split above, this
-  repository has `deleteBranchOnMerge` enabled, so merging a PR whose head is `dev`
-  deletes `dev` — and the next session then branches from a stale local `origin/dev`
-  that still reports itself up to date, which is how work gets built on a base that no
-  longer exists. `git ls-remote --heads origin` is the authoritative check; recreate the
-  branch with `git push origin main:dev` if it has already been deleted.
+- **Neither `main` nor `dev` may be the head of a pull request.** Release promotion
+  remains fast-forward only. The active GitHub ruleset `Keep dev and main` forbids
+  deletion of both protected refs and has no bypass actors; retain that protection.
 - Feature branches are deleted automatically when their pull request merges
   (`deleteBranchOnMerge` is on). That is intended — it keeps `harness/<topic>` branches
   from piling up — and `gh pr merge` needs no `--delete-branch`.
+- A task is complete for branch cleanup only after its final tested commit is
+  merged into `dev`. Creating or closing a PR is insufficient. Merge only within
+  the user's authorized scope; never merge a PR merely to enable cleanup.
+- The script preserves checked-out branches, including the current branch. After
+  a confirmed merge, switch away only when local work is safely preserved, then
+  run cleanup again. It does not switch branches or delete remote refs.
+- Use the cleanup script for local task-branch deletion. Do not fall back to
+  `git branch -D`, ad hoc ref deletion, or deletion based only on branch age,
+  a missing remote ref, or `git branch --merged`. If evidence is incomplete or a
+  command fails, preserve the branch and report the reason.
 - Do not commit directly to `dev` or `main`.
