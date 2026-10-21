@@ -245,7 +245,7 @@ executor that runs `claude -p` in the checkout has no worktree guard.
 
 ## Runner status, Phase A — 2026-10-20 (automated) and 2026-10-21 (localhost smoke)
 
-Proposal: `docs/proposals/active/runner-status-and-background-runner.md` (Phase A). The managed
+Proposal: `docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md` (Phase A). The managed
 watch now takes a per-project runner lease on the server (`POST /api/runner`), signals while it
 polls, reports `working` before it hands out work, honours the web pause, and tells the server
 when it ends stuck or in error. Plugin 0.5.13.
@@ -318,7 +318,7 @@ Not yet observed:
 
 ## Runner Phase B spike — 2026-10-20 22:59 – 2026-10-21 00:35 UTC
 
-Proposal: `docs/proposals/active/runner-status-and-background-runner.md`, Execution Plan Phase B
+Proposal: `docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md`, Execution Plan Phase B
 step 1. The spike measured the assumptions behind B-1, B-3 and B-4 before any Phase B code.
 
 Setup:
@@ -370,7 +370,7 @@ Not measured:
 
 ## Runner Phase B — localhost smoke B, 2026-10-21
 
-Proposal: `docs/proposals/active/runner-status-and-background-runner.md`, Verification Plan
+Proposal: `docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md`, Verification Plan
 "smoke B". Steps 1–4 and 7–13 ran 05:07–07:40 UTC. Step 5 found a defect, and its retest ran
 12:15–12:28 UTC after the fix.
 
