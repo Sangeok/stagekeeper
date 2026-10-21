@@ -4,12 +4,34 @@
 단위·컴포넌트 테스트는 대상 코드 옆에 두고, 시스템 경계를 넘거나 별도 실행 환경이
 필요한 테스트는 그 책임을 소유한 테스트 디렉터리에 둔다.
 
-적용 범위는 `src/fsd`, `src/server`, `packages/core`, `plugin`, `scripts`, `tests`다.
+적용 범위는 `src`, `packages/core`, `plugin`, `scripts`, `tests`다.
 FSD layer·slice 규칙은 `src/fsd`에만 적용한다. 생성물과 배포 복사본은 직접 수정하지
 않고 원본에서 테스트한다. 선택 배경과 대안 비교는
 [ADR-0002](../ADR/0002-test-code-organization.md)에 보존한다.
 
 ## 배치 판단
+
+### `src/`·`src/app/` 바로 아래 배치 금지
+
+다음 두 위치에는 테스트 파일과 테스트 전용 fixture·mock·helper를 두지 않는다.
+
+- `src/` 바로 아래: `app/`과 같은 깊이. 예: `src/proxy.test.ts` 금지.
+- `src/app/` 바로 아래: 루트 `page.tsx`와 같은 깊이.
+  예: `src/app/page.test.ts`, `src/app/robots.test.ts`, `src/app/sitemap.test.ts` 금지.
+
+확장자나 이름에 관계없이 적용하며, 두 위치에 `tests/`, `__tests__/`, `testing/` 등
+테스트 전용 디렉터리를 만드는 것도 금지한다. 이 규칙은 아래의 **대상 옆 배치
+원칙보다 우선**한다. 금지 범위는 두 디렉터리의 바로 아래이며, `src/fsd`·`src/server`
+내부의 대상 옆 테스트 배치에는 기존 규칙을 적용한다.
+
+화면·기능·서버 동작의 테스트는 `src/fsd` 또는 `src/server`의 실제 소유 코드 옆에
+둔다. `page.tsx`·`robots.ts`·`sitemap.ts`·`proxy.ts` 등 framework 진입점 자체를
+검증해야 하면 저장소 루트 `tests/` 아래 책임별 디렉터리에 둔다. 서버 bootstrap이
+필요하면 `tests/server/`, 전체 사용자 흐름이면 `tests/e2e/` 규칙을 따른다.
+새 경로의 테스트가 실행 명령에 포함되도록 같은 변경에서 실행 패턴과 환경도
+확인·보완한다. 이 문서 변경만으로 새 디렉터리나 runner를 도입하지 않는다.
+
+### 소유권과 실행 환경에 따른 위치
 
 먼저 검증할 동작의 소유자를 찾고, 다음으로 필요한 실행 환경을 확인한다.
 테스트가 여러 함수를 호출한다는 이유만으로 별도 통합 테스트 폴더로 옮기지 않는다.

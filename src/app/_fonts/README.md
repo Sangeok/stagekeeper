@@ -1,5 +1,9 @@
 # Bundled fonts
 
+This Next.js private folder is excluded from routing. It keeps the fonts,
+licenses, provenance and image font loader together for the root layout and
+metadata image entrypoints.
+
 These are unmodified Google Fonts files from revision
 [`9710da1eacb3be272583c3224dcb70f9da6eadbb`](https://github.com/google/fonts/tree/9710da1eacb3be272583c3224dcb70f9da6eadbb).
 `next/font/local` includes them in the application build without a Google request.

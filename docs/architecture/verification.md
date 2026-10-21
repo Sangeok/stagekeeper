@@ -65,6 +65,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 | 확인 사항 | 현재 자동화 | 수동 확인 |
 | --- | --- | --- |
 | FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`와 `packages/core/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
+| `src/`·`src/app/` 바로 아래 테스트 배치 금지 | 전용 자동 검사 없음 | 두 위치에 테스트 파일·테스트 전용 보조 코드·테스트 전용 디렉터리가 없는지 확인한다. 대상 옆 배치 원칙보다 이 금지 규칙을 우선한다 |
 | 대상 옆 배치와 테스트 소유권 | 전용 자동 검사 없음 | 대상과 실행 환경에 맞는 위치인지, 하위 폴더 분리가 필요한지 확인한다 |
 | 운영 코드 → 테스트·fixture·helper 의존 금지 | 테스트 전용 import·export를 구별하는 전용 검사 없음 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
 | 서버 모듈 내부 참조 | `verify:server`가 정적 참조와 실제 VM source 경로의 파일·모듈 등록 및 미사용 행을 검사한다 | mock 키·계산된 loader 경로는 binding 시험과 실제 리허설로 확인한다 |
@@ -140,7 +141,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 
 `windows-role-runtime`은 `dev` push와, Windows runtime·역할 인수 시험·오프라인 빌드
 입력(`package.json`·lock·`next.config.*`·Prisma 설정·`scripts/build.mjs`·
-`src/app/layout.tsx`·`src/app/fonts/**`)을 바꾼 PR에서 실행한다. 그 밖의 애플리케이션
+`src/app/layout.tsx`·`src/app/_fonts/**`)을 바꾼 PR에서 실행한다. 그 밖의 애플리케이션
 source만 바꾼 PR에서는 실행하지 않는다. 그런 변경의 LPAC 전용 회귀는 병합 후 경로를
 제한하지 않는 `dev` push의 전체 인수에서 드러나고, `main`은 `dev`에서 통과한 커밋만
 받는다. `dev` 실행이
@@ -179,7 +180,7 @@ Stagekeeper 사용자의 최소 플러그인 설치 인수는 별도 범위다.
 
 `prisma.config.ts`는 client generate에 DB URL을 요구하지 않는다. DB 명령은 실제
 유효한 `DATABASE_URL`이 필요하며 빈 URL을 사용한 접속은 Prisma가 거부한다.
-Next 폰트는 `src/app/fonts/`의 원본·라이선스·출처/hash를 포함하는 로컬 파일로
+Next 폰트는 `src/app/_fonts/`의 원본·라이선스·출처/hash를 포함하는 로컬 파일로
 빌드한다. 의존성이 준비된 Windows checkout의 전체 빌드는 역할의 network deny,
 환경 파일 제외와 원본 무쓰기 경계를 유지한 상태로 검증한다.
 
