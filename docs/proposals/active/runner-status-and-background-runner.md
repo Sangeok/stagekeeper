@@ -73,6 +73,14 @@ related:
 
 이 문서가 위 결정 위에서 새로 정한 것(검토 요청)은 [검토 요청](#검토-요청) 절에 모았다. 2026-10-20 사용자가 일곱 개 모두 확인했다.
 
+**Phase B spike 뒤 결정 (2026-10-21, 사용자 확정).** spike에서 세 가정이 실측과 달랐다(시험 보고서 "Runner Phase B spike"). 사용자가 아래대로 고쳤다.
+
+| # | 실측 | 결정 |
+| --- | --- | --- |
+| B1 | `git -C . push`는 `--disallowedTools` 접두어 규칙을 피해 갔다. auto 분류기도 로컬 원격으로의 push를 허용했다. | push 차단을 두 겹으로 한다. 접두어 규칙에 더해, `claude -p` 프로세스의 환경에만 빈 `pushInsteadOf`를 건다. 이 차단은 `pushurl`을 따로 둔 원격에는 듣지 않으므로, 그런 원격이 있으면 시작을 거부한다(B-1, B-3). |
+| B2 | 사용자가 직접 부른 스킬이라도, 오래 사는 프로세스를 띄우는 명령은 auto 분류기가 [Unauthorized Persistence]로 거절했다. 로그온 작업 등록도 같았다. | 스킬은 검사만 한다. 시작과 자동 시작 켜기·끄기는 사용자가 `!`로 실행할 명령을 보여 준다. 권한 설정은 바꾸지 않는다(B-1, B-4). |
+| B3 | 상주 프로세스만 죽이면 `claude.exe`는 끝났지만 도구 셸과 그 자식은 고아로 남았다. | 각 `claude -p`를 Job Object 런처 안에서 띄운다. 런처의 job은 kill-on-close이고 breakaway를 허용하지 않는다(B-3). |
+
 ## Current State
 
 **서버는 실행기를 모른다.**
@@ -139,7 +147,7 @@ related:
    - 알림: "While agent view is open, Claude Code also sends a notification …" — agent view가 열려 있을 때만 온다.
    - 재부팅: "Shutting down or restarting your machine stops running background sessions." 로그인 때 자동으로 시작하는 기능은 문서에 없다.
 
-매번 짧게 끝나는 `claude -p`를 감독 프로세스가 띄우면 세 문제가 생기지 않는다. bg 전용 커밋 질문이 없고, 놀고 있는 세션이 없고, 알림과 시작을 직접 소유한다. 다만 `-p`에도 커밋 전에 묻는 규칙이 없는지는 B 1단계 spike에서 함께 확인한다.
+매번 짧게 끝나는 `claude -p`를 감독 프로세스가 띄우면 세 문제가 생기지 않는다. bg 전용 커밋 질문이 없고, 놀고 있는 세션이 없고, 알림과 시작을 직접 소유한다. `-p`도 커밋 전에 묻지 않았다. B 1단계 spike(2026-10-21)에서 스킬이 커밋하라고 지시하자 묻지 않고 커밋했다(시험 보고서 "Runner Phase B spike").
 
 ### Phase B 대안 2: 설계 문서의 `harness-watch.mjs --spawn` — 택하지 않음
 
@@ -422,10 +430,16 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
 - **스킬.** `plugin/skills/background/SKILL.md`(`/harness:background`)에 `start`, `stop`, `status`, `autostart on|off`를 둔다.
   - `start`는 1단계처럼 preflight를 거친다(런처, 토큰, 서버, 검증 스킬). 새 일을 시작할지 한 번 묻는다(기본 no).
   - **시작 검사.** 작업 트리에 커밋되지 않은 변경이 있으면 시작을 거부한다(smoke 결정 6). 지금 브랜치를 고정 브랜치로 기록한다. 자동 시작은 등록 때 기록한 브랜치와 지금 브랜치가 다르면 거부한다. 시작한 뒤의 미커밋 변경·브랜치 변경은 거부가 아니라 대기다(결정 11, B-2).
-  - 그다음 창과 분리된 프로세스를 띄우고 PC, 저장소, 브랜치, 로그 위치, 끄는 방법을 보여 준다.
+    - 원격 중 `pushurl`을 따로 둔 것이 있으면(`git config --get-regexp "^remote\..*\.pushurl$"`) 시작을 거부한다. B-3의 환경 차단이 그 원격에는 듣지 않기 때문이다(spike 결정 B1).
+  - **시작은 사용자가 실행한다**(spike 결정 B2). 스킬은 preflight와 시작 검사를 마친 뒤 시작하지 않는다. 대신 사용자가 `!`로 실행할 명령 한 줄을 보여 준다(`harness.ps1 background --start …`, 고른 답을 인자로 박는다).
+    - 이유: auto 분류기는 사용자가 부른 스킬 안에서도 오래 사는 프로세스를 띄우는 명령을 [Unauthorized Persistence]로 거절했다. 구체적인 허용 규칙이 있으면 통과했지만, 이 문서는 사용자에게 권한 설정을 바꾸게 하지 않는다. main push와 같은 흐름이다.
+    - `stop`·`status`는 스킬이 직접 실행한다. 둘 다 프로세스를 새로 띄우지 않는다.
+  - **시작 CLI**(`harness-background.mjs --start`)는 시작 검사를 다시 한다. 스킬이 검사한 뒤 사용자가 명령을 실행하기까지 상태가 바뀔 수 있기 때문이다. 그다음 상주 프로세스를 Node `detached`로 띄우고, PC·저장소·브랜치·로그 위치·끄는 방법을 출력한다.
+    - 상주 프로세스는 Node여야 한다. Windows PowerShell 5.1은 Node가 `detached`로 띄우면 아무것도 하지 않고 끝났다(spike). 그래서 PowerShell 도우미(B-3 런처, B-4 알림)는 상주 프로세스의 일반 자식으로, 창을 숨겨 띄운다.
+    - spike에서 이렇게 띄운 Node 프로세스는 그것을 띄운 `claude -p`가 끝난 뒤에도 335초 넘게 살아 있었다(손으로 끝냄). `!` 명령도 Claude Code가 띄운 셸에서 돈다. 대화형 창을 닫을 때 상주 프로세스가 살아남는지는 재지 않았으므로 smoke B에서 본다.
   - lease 시작은 `start`(mode `resident`, `branch`, `permission`)이고, 결과를 A-4의 "lease 기록"과 같이 로컬 잠금의 `runnerLease`에 남긴다. 상주 실행기는 404 서버에서 시작하지 않는다(표시 없이 무인으로 도는 것을 막는다).
 - **로컬 잠금.** `mode: "resident"`를 더한다. `readState`의 허용 값(`local-session.mjs:72`)을 넓힌다. 옛 판 플러그인은 이 값을 손상 상태로 보고 거부한다. 같은 저장소에서 옛 판과 섞여 도는 것을 막으므로 의도한 동작이다.
-  - 상주 프로세스는 자기를 `poller`로, 띄운 `claude -p`를 `children`으로 잠금에 등록한다(`registerChild`·`settleChild`, `local-session.mjs:180-200`).
+  - 상주 프로세스는 자기를 `poller`로, `claude -p`를 감싼 job 런처(B-3)를 `children`으로 잠금에 등록한다(`registerChild`·`settleChild`, `local-session.mjs:180-200`).
   - 로컬 `--stop`이 `lifecycle: "stopping"`을 쓰면, 상주 프로세스가 다음 확인에서 그것을 보고 새 실행을 멈춘다. 진행 중인 자식이 끝나면 정리(`settleChild`)하고, `poller`를 비운 뒤 스스로 `--release`와 같은 해제를 하고 끝낸다.
   - 해제는 지금처럼 `stopping`·`poller` 없음·`children` 없음을 요구한다(`releaseSession`, `local-session.mjs:166-178`).
 - **watch 스킬의 `--once` 갈래**는 `--check` 결과로 `mode:resident`를 요구한다. 1단계 무장 갈래는 지금처럼 `mode:watch`를 요구한다(`SKILL.md:83`).
@@ -442,7 +456,7 @@ MCP 도구가 아닌 REST로 둔다. MCP 도구로 만들면 `mcp__harness__*` �
 
 - **진전 판정.** 실행 앞뒤의 작업 서명(`workSignature`)이 같으면 진전 없음이다.
 - **실패 상한.** 비정상 종료, 시간 초과, 진전 없음을 실패로 센다. 3회 연속이면 `stop`(reason `stuck`)을 보내고 알림을 띄운 뒤 종료한다. 진전이 있으면 횟수를 0으로 되돌린다.
-- **시간 상한.** 기본 2시간이다. 넘으면 프로세스 트리를 끝낸다. Windows에서는 손자 프로세스까지 끝내야 하므로 `taskkill /T /F`를 쓴다.
+- **시간 상한.** 기본 2시간이다. 넘으면 job 런처(B-3) 프로세스를 끝낸다. 런처의 job이 닫히면서 손자 프로세스까지 끝난다. spike에서 런처만 죽였을 때 그 아래 트리 전체가 끝났다(대역 트리로 잼).
 - **멈춤 요청.** `stop:"plan"`, `RUNNER_REPLACED`, 로컬 `--stop`을 받으면 진행 중인 실행을 끝까지 두고 새 실행을 시작하지 않는다. 그 실행이 끝나면 종료한다.
 - **실행 중 404.** 상주 프로세스의 `beat`가 404를 받으면(서버 롤백) 멈춤 요청과 같이 처리한다. B-1이 404 서버에서 시작하지 않는 것과 같은 이유로, 표시 없이 무인으로 계속 돌지 않게 한다. 서버에 보낼 곳이 없으므로 로그와 Windows 알림으로만 알린다. 자식 `claude -p` 안의 `--check`는 A-4대로 그 호출만 건너뛰므로 진행 중인 실행은 끝까지 간다.
 
@@ -457,6 +471,18 @@ claude -p "/harness:watch --once --session <id>" \
   [--max-budget-usd <n>]   # 사용자가 켰을 때만
 ```
 
+- **띄우는 방법.** 상주 프로세스가 이 명령을 직접 띄우지 않는다. 아래 job 런처가 띄운다. stdin은 닫는다. 열어 두면 `-p`가 3초를 기다린 뒤 "no stdin data received in 3s" 경고를 낸다(spike).
+- **자식 정리 — Job Object 런처**(spike 결정 B3). `plugin/runtime/windows/job-launch.ps1`이 Windows PowerShell 5.1에서 작은 C# 형식을 `Add-Type`으로 컴파일해 쓴다. 상주 프로세스는 이 런처를 일반 자식으로, 창을 숨겨 띄운다(B-1). 런처가 하는 일은 다음 순서다.
+  1. 상주 프로세스의 process handle을 먼저 잡는다. pid가 재사용돼도 다른 프로세스와 헷갈리지 않게 하려는 것이다.
+  2. `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`만 켠 job을 만들고 자기를 넣는다. breakaway는 허용하지 않는다.
+  3. `claude.exe`를 띄운다(`UseShellExecute=false`, `CreateNoWindow`, stdin 닫음). stdout·stderr는 B-3 로그 파일로 넘긴다.
+  4. `claude.exe`가 끝나면 그 종료 코드로 끝낸다. 상주 프로세스가 먼저 끝나면 job을 끝낸 뒤 끝낸다.
+  - 런처 자신이 강제로 끝나도 job handle이 닫히므로, kernel이 job 안의 프로세스를 모두 끝낸다.
+  - 왜 필요한가: Node는 일반 자식을 자기 job에 넣는다(kill-on-close, silent breakaway). 그래서 상주 프로세스가 죽으면 `claude.exe`는 끝난다. 하지만 `claude.exe`가 띄운 도구 셸은 그 job을 빠져나가 고아로 남았다(spike).
+  - spike에서 런처를 거친 실제 `claude -p`는, 상주 프로세스를 죽이자 `claude.exe`, hook 프로세스, 도구 셸과 그 자식까지 모두 끝났다.
+  - 런처만 죽인 경우는 Node 세 단계의 대역 트리로 쟀다. 이때도 트리 전체가 끝났고 상주 프로세스는 남았다.
+  - `claude.exe`는 breakaway가 없는 job 안에서도 정상으로 돌았다.
+  - `RoleProcess.cs`(Codex 역할용 AppContainer 실행기)는 재사용하지 않는다. 그 실행기는 사용자 환경·네트워크를 끊는 격리 장치라서 `claude -p`에 맞지 않는다.
 - **실행 규칙은 한 곳에서 가져온다.** watch 스킬에 `--once` 갈래를 더한다. 무장·대기·CLI 폴링은 하지 않고, fresh overview의 일을 런북대로 끝까지 처리한 뒤 끝낸다.
   - 디스패치, 인수, 핸드오프, 게이트 대기, 소유권 확인 규칙은 1단계 §4·§5를 그대로 쓴다.
   - 커밋 정책은 로컬 세션 정책(`watch.json`의 `commit`)을 시작 때 `true`로 고정한다. 서버 lease에는 커밋 정책이 없다.
@@ -466,10 +492,22 @@ claude -p "/harness:watch --once --session <id>" \
   - `harness.json` 워크스페이스의 `verify` 명령들
   - 번들 런처
   
-  목록 밖은 auto 분류기가 판정한다. headless는 미신뢰 작업 공간의 project permissions를 무시하므로 `--settings`로 넘긴다.
-- **push 차단의 한계.** `--disallowedTools`는 접두어 규칙이라 `git -C <dir> push` 같은 변형을 못 막는다. 그 경우는 auto 분류기와 런북의 push 금지 계약("Pushing is the owner's job")이 다음 방어선이다. 이 한계를 잔여 위험에 적는다.
-- **auto를 쓸 수 없는 계정.** 시작할 때 짧은 preflight 실행으로 실제 권한 모드를 확인한다(stream-json 첫 `system`/`init` 메시지). auto가 아니면 `--permission-mode dontAsk` + 같은 허용 목록으로 바꾸고 lease `start`의 `permission`을 `allowlist`로 보낸다(A-3). 배너에는 ` · allow-list only`를 덧붙인다(A-5).
+  목록 밖은 auto 분류기가 판정한다. headless는 미신뢰 작업 공간의 project permissions를 무시하므로 `--settings`로 넘긴다. spike에서 `--settings` 허용 규칙은 신뢰하지 않은 작업 공간에서도 적용됐다. dontAsk에서 규칙이 없으면 커밋이 거부됐고, 규칙이 있으면 실행됐다.
+- **push 차단은 두 겹이다**(spike 결정 B1).
+  1. `--disallowedTools` 접두어 규칙. spike에서 `PowerShell(git push*)`, `PowerShell(git push:*)`, `PowerShell(git push *)`, `Bash(git push:*)`가 모두 push를 막았다.
+  2. 환경 차단. job 런처는 `claude.exe`의 환경에만 `GIT_CONFIG_COUNT`, `GIT_CONFIG_KEY_<n>=url.stagekeeper-push-blocked://.pushInsteadOf`, `GIT_CONFIG_VALUE_<n>=`(빈 값)을 더한다. 사용자 환경에 이미 `GIT_CONFIG_COUNT`가 있으면 그 뒤 번호로 덧붙인다.
+     - 빈 접두어는 모든 push URL을 없는 전송으로 바꾼다.
+     - spike에서 원격 이름으로 하는 push와 직접 경로로 하는 push가 모두 실패했다("remote helper 'stagekeeper-push-blocked' aborted session"). `git -c …pushInsteadOf=x`로 값을 더해도 실패했고, fetch는 됐다.
+     - 값은 그 프로세스 트리에만 있고, 사용자의 git 설정 파일은 바꾸지 않는다.
+  - 남는 구멍은 두 가지다.
+    - 첫째, `pushurl`을 따로 둔 원격. 이 원격은 환경 차단을 받지 않으므로 B-1이 시작을 거부한다.
+    - 둘째, 모델이 환경 변수를 지우거나 git 밖의 수단으로 push하는 의도적 우회. 이 경우는 런북의 push 금지 계약("Pushing is the owner's job")에 맡긴다.
+  - auto 분류기는 방어선이 아니다. Claude Code 문서는 작업 중인 저장소로의 push를 auto 기본 허용으로 적고 있고, spike에서도 접두어 규칙만 있을 때 `git -C . push`가 통과했다.
+- **auto를 쓸 수 없는 계정.** 시작할 때 짧은 preflight 실행으로 실제 권한 모드를 확인한다(stream-json 첫 `system`/`init` 메시지의 `permissionMode`). auto가 아니면 `--permission-mode dontAsk` + 같은 허용 목록으로 바꾸고 lease `start`의 `permission`을 `allowlist`로 보낸다(A-3). 배너에는 ` · allow-list only`를 덧붙인다(A-5).
+  - 문서에 따르면 auto를 쓸 수 없으면 오류 없이 Manual(`default`)로 시작한다. 그래서 오류가 아니라 이 필드로 판정한다.
+  - spike에서는 기본 모델과 haiku 모두 `auto`로 보고했다. 그 앞에 사용자의 SessionStart hook 이벤트가 먼저 온다. 그러니 첫 메시지가 아니라 `subtype: "init"`인 메시지를 찾는다.
 - **로그.** `<git-common-dir>/harness/runs/<UTC시각>.jsonl`에 stream-json을 그대로 쓰고, 같은 이름의 `.meta.json`에 종료 코드·시간·결과 종류·권한 거부 수를 쓴다. 최근 50개만 남긴다.
+  - 결과 종류와 권한 거부 수는 `result` 메시지의 `subtype`·`is_error`·`terminal_reason`과 `permission_denials`의 길이에서 읽는다. spike에서 `permission_denials`는 `{tool_name, tool_use_id, tool_input}`의 목록이었다.
   - 작업 트리 밖이라 실행 직전 검사에 걸리지 않는다.
   - 서버에는 결과 한 줄(`lastResult`)과 파일 이름(`lastLog`)만 올린다.
 
@@ -478,11 +516,20 @@ claude -p "/harness:watch --once --session <id>" \
 - **알림.** `plugin/runtime/windows/notify.ps1`이 Windows PowerShell 5.1의 WinRT 토스트를 띄운다.
   - 실패하면 로그에만 남기고 실행기는 계속 돈다.
   - 띄우는 경우: 정지(owner 제외), 대기 시작, 교체됨, 플랜 정지, 실행 중 404(B-2), 자동 시작 거부.
-- **자동 시작.** `autostart on`은 로그온 때 `harness.ps1 background --start …`를 숨긴 창으로 실행하도록 등록한다. `autostart off`는 등록을 지운다.
+  - 상주 프로세스는 이 스크립트를 일반 자식으로, 창을 숨겨 띄운다(B-1). AppUserModelID는 PowerShell 것을 쓴다.
+  - spike에서 직접 실행했을 때와 분리된 Node의 숨김 자식으로 실행했을 때 모두 토스트가 떴고, `ToastNotificationManager.History`에서도 찾았다.
+- **자동 시작.** `autostart on`은 로그온 때 `harness.ps1 background --start …`를 창 없이 실행하도록 등록한다. `autostart off`는 등록을 지운다.
+  - 둘 다 스킬이 직접 실행하지 않고 `!` 명령으로 보여 준다(B-1, spike 결정 B2). spike에서 이 세션의 auto 분류기가 작업 등록을 [Unauthorized Persistence]로 거절했다.
   - 시작 검사(작업 트리, 브랜치, lease, 플랜)는 수동 시작과 같다(B-1). 실패하면 Windows 알림을 띄우고 이유를 로그에 남긴다.
   - lease를 얻기 전에 거부된 시작은 서버에 행이 생기지 않아 웹에는 보이지 않는다(BUSY·플랜 거절도 마찬가지). 이 한계는 잔여 위험에 적는다.
   - 자동 시작에는 사용자 토큰(hu_)이 사용자 환경 변수에 저장돼 있어야 한다. 프로젝트 토큰(hs_)은 터미널마다 설정하는 값이라 로그온 때 읽을 수 없다(product-copy §15의 토큰 안내). 스킬이 이를 확인하고, 없으면 켜기를 거절한다.
-- **등록 방식.** 작업 스케줄러를 쓴다(결정 17). 관리자 권한 없이 사용자 범위의 로그온 작업을 만들 수 있는지는 확인하지 못했다. Phase B 첫 단계에서 실측하고, 안 되면 시작 프로그램 폴더 바로가기로 바꾼다. 어느 쪽이든 동작은 같다(사용자 로그온 때 실행).
+- **등록 방식.** 작업 스케줄러를 쓴다(결정 17).
+  - 관리자 권한 없이 된다. spike에서 권한이 올라가지 않은 토큰으로 `Register-ScheduledTask`(트리거 `-AtLogOn -User <사용자>`, principal `Interactive`·`Limited`)가 성공했다. `Start-ScheduledTask`로 실행하자 `services → svchost → conhost --headless → node` 아래, Claude Code 프로세스 트리 밖의 세션 1에서 돌았다.
+  - 동작은 `conhost.exe --headless`로 감싼다. spike 대조 실행에서 node를 바로 띄운 작업은 220ms 뒤 Windows Terminal 창을 열었다. `conhost --headless` 작업은 4초 동안 새로 보이는 창이 없었다.
+    - 등록하는 명령은 `conhost.exe --headless powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <플러그인>\bin\harness.ps1 background --start --autostart …`이다.
+    - spike는 그 아래에서 PowerShell이 아니라 node를 띄웠다. 이 차이는 smoke B 5에서 본다.
+  - 작업은 등록할 때의 플러그인 경로를 가리킨다. 그래서 `status`는 그 경로가 지금 판의 경로와 다르면 이를 알리고, `autostart on`을 다시 하라고 안내한다.
+  - 실제 로그온 때 트리거가 도는지는 smoke B 5에서 본다.
 
 #### B-5. Pro 차이 표시
 
@@ -530,7 +577,8 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 | `plugin/runtime/local-session.mjs` | update(A·B) | A: `readState`가 `runnerLease`(boolean)를 검사. B: `mode: "resident"` | medium — B의 새 mode는 옛 판이 손상 상태로 봄(의도) |
 | `plugin/skills/watch/SKILL.md` | update | A-4 스킬 규칙, B-3 `--once` | medium |
 | `plugin/.claude-plugin/plugin.json` | update | 판 상승(A, B 각각) | low |
-| `plugin/bin/harness-background.mjs`, `plugin/runtime/background.mjs`, `plugin/runtime/windows/notify.ps1`·`autostart.ps1`, `plugin/skills/background/SKILL.md`, `plugin/bin/harness.ps1`(+test) | add/update | Phase B | high — 무인 실행·프로세스 수명 |
+| `plugin/bin/harness-background.mjs`, `plugin/runtime/background.mjs`, `plugin/runtime/windows/notify.ps1`·`autostart.ps1`·`job-launch.ps1`, `plugin/skills/background/SKILL.md`, `plugin/bin/harness.ps1`(+test) | add/update | Phase B. `job-launch.ps1`은 B-3 자식 정리와 push 환경 차단(spike 결정 B1·B3) | high — 무인 실행·프로세스 수명 |
+| `scripts/package-windows-plugin.mjs` | update(B) | 번들의 필수 파일 검사(`:49`)에 `runtime/windows/job-launch.ps1`·`notify.ps1`을 더한다 | low |
 | `docs/architecture/protocol.md` | update | `:118-121`(다섯 REST 경로·요청 제한), `:163-167`(감시가 DB를 바꾸지 않는다는 문장), `:188`(로컬 잠금 한계 옆 서버 lease), 새 runner 절. Phase B: `:469-476`(로컬 상태 `mode`에 `resident`) | low |
 | `docs/conventions/product-copy.md` | update | §5 실행기 줄·짧은 형태·정지 이유, §10 목록 카드(`:593-594`), §12 거절 사유, §15 watch 이벤트·문구(Phase B: background 스킬, §5 Free 줄). §20은 바꾸지 않는다(검토 요청 7) | medium — 다른 브랜치 WIP와 같은 파일 |
 | `docs/architecture/verification.md` | update | 잠금 표(`:319-333`)에 새 블록 행 | low |
@@ -549,7 +597,8 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 - [ ] **정적 자산.** 해당 없음.
 - [x] **런타임 side effect.**
   - 서버: 신호마다 조건부 DB 쓰기가 있다.
-  - 플러그인: Phase B는 오래 사는 프로세스, 자식 프로세스, 작업 스케줄러 등록, 토스트를 만든다. 모두 사용자가 켜야 생긴다.
+  - 플러그인: Phase B는 오래 사는 프로세스, 자식 프로세스, 작업 스케줄러 등록, 토스트를 만든다. 모두 사용자가 `!` 명령으로 켜야 생긴다(spike 결정 B2).
+  - 자식 `claude -p`는 kill-on-close job 안에서 돈다. push 차단 환경 변수는 그 트리에만 있고, 사용자의 git 설정 파일은 바꾸지 않는다(B-3).
 - [x] **API·외부 영향.**
   - REST 계약이 하나 늘고, 요청 제한 구간에 함께 센다.
   - 옛 플러그인은 바뀌지 않고, 서버는 신호가 없는 실행기를 문제로 보지 않는다.
@@ -570,6 +619,7 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 - 2026-10-20 HamSangEok이 Phase A·B를 승인했다(범위는 front matter의 `approval-scope`). PR #175를 머지한 뒤 범위를 골라 확인했다.
 - 검토 요청 7개는 2026-10-20 사용자가 확인했다. 7은 `/billing`만으로 범위를 좁혀 확인했다.
 - 운영 마이그레이션, 운영 배포(main 승격), 플러그인 marketplace 갱신은 각각 실행 직전에 따로 확인받는다.
+- 2026-10-21 Phase B spike에서 실측과 다른 세 부분(push 환경 차단, 시작·자동 시작의 `!` 명령, Job Object 런처)을 approval-scope에 따라 사용자가 다시 확인했다([Phase B spike 뒤 결정](#결정-기록-2026-10-20-grill-me-사용자-확정)).
 
 ## Execution Plan
 
@@ -590,8 +640,15 @@ Phase B 출시와 함께 Pro 차이를 두 곳에 보인다. Phase A에는 Pro�
 
 **Phase B** (A 출시 뒤)
 1. 실측 spike: `claude -p "/harness:watch --once …"`의 스킬 호출, stream-json의 init 권한 모드·결과 필드, PowerShell 도구 거부 규칙의 문법(`PowerShell(git push*)`가 실제로 막는지), `-p`가 커밋 전에 묻지 않는지, Claude Code 세션에서 띄운 분리 프로세스의 수명, 상주 프로세스가 죽을 때 `claude -p` 자식과 손자 프로세스가 함께 끝나는지(Windows Job Object 등), 관리자 권한 없는 로그온 작업 등록, PowerShell 토스트. 결과를 테스트 보고서에 기록하고 B-3·B-4의 열린 부분을 확정한다.
+   - **2026-10-21 완료.** 결과는 시험 보고서 "Runner Phase B spike"에 있다. 실측과 다른 세 부분은 사용자가 고쳤다(spike 결정 B1~B3). B-1·B-2·B-3·B-4를 그대로 갱신했다.
 2. `harness-background.mjs`·`background.mjs`, 로컬 잠금 `resident`, 가짜 `claude` 실행 파일로 하는 시험을 만든다(대기·재개, 실패 3회, 시간 초과, 일시 정지, 교체, 플랜 정지, 실행 중 404, 로그 50개).
-3. watch 스킬 `--once` 갈래, background 스킬, `harness.ps1`, 알림·자동 시작 스크립트, product-copy §15를 만든다.
+   - spike 결정으로 다음 시험을 더한다.
+     - 시작 검사: `pushurl` 원격이 있으면 거부.
+     - 자식 환경: push 차단 변수. 기존 `GIT_CONFIG_COUNT`가 있으면 덧붙이는지도 본다.
+     - init의 `permissionMode`: hook 이벤트 뒤에 오는 경우.
+     - 시간 초과: 런처를 끝내는 방식.
+   - `job-launch.ps1`은 Windows에서 실제로 돌리는 시험을 둔다. 다룰 것은 상주 프로세스를 죽였을 때와 런처를 죽였을 때 손자 프로세스까지 끝나는지다. CI의 Windows 작업에 넣고, 로컬에서 돌린 결과도 기록한다.
+3. watch 스킬 `--once` 갈래, background 스킬(`start`·`autostart`는 `!` 명령을 보여 줌), `harness.ps1`, 알림·자동 시작·job 런처 스크립트, 번들 필수 파일 검사, product-copy §15를 만든다.
 4. B-5: `/billing` 행과 시험, 배너 Free 줄과 `plan` prop(레이아웃), product-copy §5 잠금 블록의 Free 줄과 렌더 사례.
 5. PR → dev → localhost smoke B → 운영 승격·번들 갱신(각각 확인).
 
@@ -664,6 +721,8 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
   6. Free 거절은 smoke가 아니라 handler 시험(`rest/runner-handler.test.ts`)과 통합 시험으로 확인한다. smoke 계정은 Max이고, 확인을 위해 실제 계정의 플랜을 바꾸지 않는다.
   7. 로그 파일과 결과 한 줄이 남는다.
   8. push가 일어나지 않는다.
+  9. 스킬이 보여 준 `!` 명령으로 시작한다. 그 Claude Code 창을 닫아도 상주 프로세스가 계속 돈다.
+  10. 실행 중에 상주 프로세스를 강제로 끝내면 `claude -p`와 도구 셸이 함께 끝나고, 다음 시작이 고아 없이 된다.
 - **기존 실패와 신규 실패 구분.** 시작 전에 dev 기준선의 같은 명령 결과를 기록하고, 실패 파일과 개수를 비교한다.
 
 ## Verification Results
@@ -685,6 +744,7 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 | `npm run build` | CI | PR의 `check (build)` |
 | 공유 DB 마이그레이션(2026-10-21, 주인 확인) | pass | `migrate status` 대기는 `20261020000000_runner` 하나였다. 같은 SQL을 한 트랜잭션으로 돌리고 확인한 뒤 ROLLBACK했다(테이블·CHECK 6개·CASCADE FK·열, 일시 정지된 프로젝트 0). 주인이 `migrate deploy`를 실행했고, 같은 검사가 통과했으며 `migrate status`는 up to date |
 | smoke A(localhost, 2026-10-20 16:25–16:36 UTC) | pass(CLI 수준) | 1~5를 모두 관찰했다. dev(`653f367`)를 정션 worktree에서 `next dev --webpack`으로 :3001에 띄웠다(Turbopack은 정션 `node_modules`를 거부). worktree의 0.5.13 CLI를 스킬이 쓰는 명령 그대로 직접 돌렸다. 실제 Claude Code 세션이 `busy`·`paused`를 처리하는 모습과 `working` 상태(60분 규칙)는 보지 못했다(보드에 일이 없었음). 자세한 내용은 시험 보고서 "Localhost smoke A" |
+| Phase B spike(2026-10-20 22:59 – 2026-10-21 00:35 UTC, Claude Code 2.1.305, 0.5.13 번들) | 일부 가정과 다름 → 사용자 결정 | Execution Plan Phase B 1단계 목록을 모두 쟀다. 맞은 것: `-p` 스킬 호출, init `permissionMode`, 거부 규칙 네 형태, `-p` 커밋, `--settings` 허용, 분리 프로세스 수명(`-p` 종료 뒤 335초 이상), 관리자 권한 없는 로그온 작업과 창 없는 실행, 토스트. 다른 것: `git -C . push` 통과, 스킬 안 시작을 분류기가 거절, 도구 셸 고아. 셋은 spike 결정 B1~B3으로 고쳤다. 대화형 창 닫기와 실제 로그온 트리거는 smoke B에서 본다. 시험 보고서 "Runner Phase B spike" |
 
 **Phase A 구현에서 제안과 달라진 점**(2026-10-20).
 - 영향 파일에 빠져 있던 고정 시험 둘을 함께 고쳤다.
@@ -708,11 +768,20 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 - **Pro 전용은 background 실행기에만 걸린다.** Free 사용자도 `claude --bg` + `/harness:watch`로 창 없이 돌릴 수 있다([Pro가 주는 것](#pro가-주는-것과-새는-곳)). 문구는 "background runner"가 Pro에서 열린다고만 말한다.
 - **`claude --bg` 판단은 문서 일부에 근거한다.** agent-view 문서 앞 10만 자만 읽었고, 커밋 전 질문과 놀 때 멈추는 동작을 실측하지는 않았다. 이 동작이 바뀌거나 문서 뒷부분에 예외가 있으면 대안 1을 다시 본다.
 - **옛 플러그인은 보이지 않고 lease에도 걸리지 않는다**(결정 9). 옛 판과 새 판이 다른 PC에서 동시에 돌면 막지 못한다. 서버의 receipt·stale 검사가 이중 처리만 막는다.
-- **push 차단은 접두어 규칙이다.** `git -C … push` 같은 변형은 auto 분류기와 런북 계약에 맡긴다.
-- **Phase B의 Claude Code·Windows 동작은 실측 전이다.** 확인할 것은 Execution Plan Phase B 1단계 목록이다(`-p`에서 스킬 호출, init 권한 모드, PowerShell 거부 규칙, `-p`의 커밋 전 질문 여부, 분리 프로세스 수명, 자식 정리, 관리자 권한 없는 로그온 작업, 토스트). Phase B 1단계 spike가 실패하면 그 부분의 설계를 고쳐 다시 승인받는다.
+- **push 차단에 남는 구멍이 있다.** 접두어 규칙과 환경 차단(B-3)을 둘 다 써도 두 가지는 막지 못한다. 모델이 환경 변수를 지우는 경우와, git 밖의 수단으로 push하는 의도적 우회다. 이 둘은 런북 계약에 맡긴다. `pushurl` 원격은 시작 거부로 막는다. auto 분류기는 push를 막지 않는다(spike).
+- **Phase B의 Claude Code·Windows 동작은 2026-10-21 spike에서 쟀다**(시험 보고서 "Runner Phase B spike"). 아직 재지 않은 것은 다음과 같다. smoke B에서 본다.
+  - 대화형 창을 닫을 때 상주 프로세스의 수명(대신 `-p` 종료를 쟀다)
+  - 실제 로그온 때의 트리거
+  - `conhost --headless` 아래의 PowerShell 런처
+  - 기본 모델을 쓸 때 분류기의 판정(spike는 haiku로 쟀다)
+- **시작에 사용자 손이 한 번 더 간다.** 스킬이 보여 준 `!` 명령을 사용자가 실행해야 시작된다(spike 결정 B2). 사용자가 스스로 허용 규칙을 더하면 줄일 수 있지만, 이 문서는 권한 설정을 바꾸게 하지 않는다.
+- **`claude -p` 한 번의 기본 비용이 크다.** 사용자 범위의 플러그인, MCP 서버, 지시 파일을 모두 싣고 시작한다. spike에서 "OK" 한 줄에 기본 모델로 추정 $0.46이 나왔다. 이 값은 API 가격 환산이고, 구독이면 청구액이 아니다. 할 일이 있을 때만 띄우므로 대기 중에는 들지 않는다.
 - **다른 브랜치 WIP와 같은 파일을 고친다.** 본 checkout의 `harness/pipeline-tab-redesign` 미커밋 작업이 `docs/conventions/product-copy.md`를 고치고 있다. 먼저 머지되는 쪽 뒤에 다른 쪽이 충돌을 해결해야 한다. 그 작업이 고치는 `availability-service.ts`는 이 문서가 건드리지 않도록 목록 데이터를 adapter에서 합쳤다(A-5).
 - **lease를 얻기 전의 거부는 웹에 보이지 않는다.** 자동 시작의 미커밋 변경·브랜치 거부와 BUSY·플랜 거절은 서버에 행을 만들지 않는다. 사용자는 Windows 알림과 로그로만 안다.
-- **상주 프로세스가 죽으면 자식이 남을 수 있다.** Windows에서는 부모가 끝나도 자식 프로세스가 저절로 끝나지 않는다. 그 사이 신호가 끊겨 다른 실행기가 lease를 넘겨받으면 같은 프로젝트에서 두 실행이 겹칠 수 있다. Phase B 1단계 spike에서 자식 정리 방식을 확인하고, 확인 전에는 설계를 확정하지 않는다.
+- **상주 프로세스가 죽을 때의 자식은 job 런처가 정리한다**(B-3, spike 결정 B3).
+  - 런처 없이는 도구 셸과 그 자식이 고아로 남았다(spike). 그 사이 신호가 끊겨 다른 실행기가 lease를 넘겨받으면, 같은 프로젝트에서 두 실행이 겹칠 수 있었다.
+  - 런처를 쓰면 상주 프로세스를 죽였을 때 실제 `claude -p` 트리 전체가 끝났다. 런처만 죽인 경우는 대역 트리로 쟀고, 이때도 전체가 끝났다.
+  - 남는 경우는 job을 빠져나가는 프로세스다. job이 breakaway를 허용하지 않으므로 OS 수준에서는 막힌다. 같은 사용자의 작업 스케줄러나 WMI처럼 다른 부모를 통해 띄운 프로세스는 job 밖에 생긴다. 이는 의도적 우회로 본다.
 - **요청·쓰기가 는다.** 실행기 하나당 10분에 신호 10회(+ 1단계 폴링 10회)이고, DB 쓰기는 상태가 바뀌거나 30초가 지났을 때만 한다. 폴링이 이미 DB를 깨워 두고 있어서 쉬는 상태로 내려가지 못하는 문제는 지금과 같다.
 - **모델 행동은 이 변경으로 바뀌지 않는다.** 도구 이름 접두어 누락 같은 문제는 상주 실행기에서도 같은 빈도로 날 수 있다. 실패 상한과 로그가 그 결과를 드러낼 뿐이다.
 
