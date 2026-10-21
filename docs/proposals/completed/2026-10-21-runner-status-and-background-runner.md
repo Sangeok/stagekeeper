@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-20"
 approved-by: "HamSangEok"
 approved-at: "2026-10-20"
 approval-scope: "Phase A·B 구현과 커밋·PR·dev 머지까지. Phase B 1단계 실측이 실패하면 그 부분은 설계를 고쳐 다시 승인받는다. 공유 DB 마이그레이션, main 승격, marketplace 갱신은 각각 실행 직전 별도 확인"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-21"
+verification-summary: "Phase A: npm test 423/425, test:web 711/711, test:server 139/140, runner-lease 통합 7/7(잠금을 빼면 경합 시험 실패), 공유 DB 마이그레이션, smoke A 1~5. Phase B: npm test 447/449(#182) → 450/452(#185·#188), dev 06e093f test:web 710/710·test:server 139/140, smoke B 1~4·7~13 통과, 5는 자동 시작 결함을 #185로 고친 뒤 실제 로그온과 창 없는 시작으로 통과, 6은 handler·통합 시험으로 갈음. 운영 승격 main 4ce2bac(Phase A)·3396369(Phase B, dpl_FeoN6tWN6BxXDaNUeMJrfisfkdgG 대조)"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -894,11 +894,28 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-10-21
+- verification-summary: front matter와 같다. 세부는 Verification Results 표와 시험 보고서의 "Runner status, Phase A", "Localhost smoke A", "Runner Phase B spike", "Runner Phase B — localhost smoke B" 절에 있다.
+- implementation PR/commit:
+  - 승인: #175(`9ed4cf2`)
+  - Phase A: #176(`653f367`), 마이그레이션·smoke A 기록 #177(`4ce2bac`). 공유 DB `migrate deploy`는 2026-10-21에 했다(주인 실행). main `4ce2bac` 승격과 운영 배포를 대조했고, 번들 0.5.13을 설치했다.
+  - Phase B:
+    - spike 기록 #179(`1fa4177`), 편집 보호 결정 #180(`1776aaf`)
+    - 구현 #182(`60207fc`), 세 번 실패의 정지 이유 #183(`06e093f`)
+    - 자동 시작 수정 #185(`4e8b7b9`, 0.5.15), smoke B 기록 #187(`3396369`), stop 시험 경쟁 조건 #188(`eff8ae2`)
+    - 2026-10-21 main `3396369`로 승격했다. 운영 HTML의 `dpl_FeoN6tWN6BxXDaNUeMJrfisfkdgG`가 그 커밋의 Production 배포 id와 같다. 이 PC에는 번들 0.5.15를 설치했다(`4e8b7b9`에서 패키징, 그 뒤 바뀐 것은 문서·시험뿐).
+- changed files summary:
+  - 서버: `src/server/runners/`(lease 서비스·계약·공개 API), `src/server/rest/runner*.ts`·`scope.ts`, `src/app/api/runner/route.ts`, 마이그레이션 `20261020000000_runner`(`Runner` 테이블, `Project.runnerPausedAt`).
+  - 웹: `widgets/turn-banner`(실행기 줄·짧은 형태·Free 줄·편집 경고, 로더), `features/pause-runner`, 프로젝트 목록 카드, `/billing`의 "Background runner" 행, 프로젝트 레이아웃.
+  - core: `packages/core/runner.mjs`·`entitlement.mjs`와 플러그인 미러(`plugin/lib/`).
+  - 플러그인: `harness-watch.mjs`·`harness-session.mjs`(1단계 lease 참여), `runtime/runner-client.mjs`·`local-session.mjs`, 상주 실행기 `bin/harness-background.mjs`·`runtime/background.mjs`·`runtime/windows/{job-launch,notify,autostart}.ps1`·`bin/harness.ps1`, 스킬 `background`·`watch` §7, Windows 패키징 스크립트, 두 매니페스트(0.5.13 → 0.5.14 → 0.5.15).
+  - CI: `windows-role-runtime.yml`의 상주 실행기 시험 단계.
+  - 문서: protocol.md, server.md, verification.md, product-copy §5·§15, CONTEXT.md, 시험 보고서.
+- remaining follow-up:
+  - 실물로 보지 못한 것이 둘 있다. 하나는 상주 프로세스가 죽을 때 도구 셸도 함께 끝나는지다. smoke B 10번에서는 그 순간 도구 셸이 없어서 spike 측정에 기댄다. 다른 하나는 "끊긴 실행" 대기 알림으로, 루프 시험만 확인했다.
+  - 1단계 watch가 실제 Claude Code 세션에서 `busy`·`replaced`를 처리하는 모습은 보지 못했다(smoke A는 CLI 수준). 상주 실행기의 `paused`·`working`은 smoke B에서 봤다.
+  - smoke B 관찰(시험 보고서 Findings)은 기록만 했다. 대기가 배너에 최대 60초 늦게 가는 것, 브랜치를 바꾼 뒤 1분 창 안의 다른 브랜치 커밋, 첫 확인 전 stop이 세는 실패 1, 기록 직전 Pause가 기록을 다음 실행에 넘기는 것, 로그온 직후 알림을 놓치기 쉬운 것, 실행기가 없을 때 미리 Pause할 수 없는 것이다. 고칠지는 정하지 않았다.
+  - smoke 저장소(`harness-watch-smoke`)는 ITEM-05가 구현을 기다리는 상태이고, 파이프라인은 Version 3(게이트 없음)이다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
