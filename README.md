@@ -24,7 +24,7 @@ Read the [documentation](https://stagekeeper.dev/docs) or
   existing client login and the plugin. On Windows the helpers run only on the verified
   Node.js runtime that an install bundle carries, and the bundle also carries the
   verification skill that plan review relies on. Bundles are built with
-  `scripts/package-windows-plugin.mjs` and are not published yet; the plugin source in this
+  `scripts/windows/package-windows-plugin.mjs` and are not published yet; the plugin source in this
   repository is not an install bundle.
 - **No payments:** plans are granted manually and `/billing` is read-only.
 - **Private templates:** the step bodies agents follow are not in this repository. They are
@@ -292,7 +292,8 @@ npm run dev              # http://localhost:3000
 | `npm run lint` | ESLint, then FSD and server boundary checks |
 | `npm run verify:fsd` | FSD boundary check only |
 | `npm run verify:server` | Server module/public API and initialization boundary check |
-| `npm run test:architecture` | `scripts/*.test.mjs` |
+| `npm run test:architecture` | `scripts/**/*.test.mjs` |
+| `npm run test:scripts` | `scripts/**/*.test.mjs`, `scripts/**/*.test.ts` (included in `check`) |
 | `npm test` | `packages/core` and `plugin/bin` tests |
 | `npm run test:web` | `src/**/*.test.ts` and `src/**/*.test.mjs` |
 | `npm run test:server` | `tests/server/*.test.ts` with the server-only bootstrap |

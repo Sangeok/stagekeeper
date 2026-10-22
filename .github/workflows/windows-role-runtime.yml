@@ -7,9 +7,9 @@ on:
     branches: [dev]
     paths:
       - .github/workflows/windows-role-runtime.yml
-      - scripts/build-windows-role-node.ps1
-      - scripts/windows-role-runtime-cache.mjs
-      - scripts/windows-role-runtime-cache.test.mjs
+      - scripts/windows/build-windows-role-node.ps1
+      - scripts/windows/windows-role-runtime-cache.mjs
+      - scripts/windows/windows-role-runtime-cache.test.mjs
       - plugin/runtime/windows/**
       - plugin/runtime/role-commands.mjs
       - plugin/runtime/role-files.mjs
@@ -23,12 +23,12 @@ on:
       - plugin/bin/harness-background.mjs
       - plugin/bin/harness-background*.test.mjs
       - plugin/runtime/background.mjs
-      - scripts/rehearse-windows-project-build.mjs
+      - scripts/windows/rehearse-windows-project-build.mjs
       - scripts/build.mjs
-      - scripts/windows-role-readlink.cjs
-      - scripts/windows-role-readlink.test.mjs
-      - scripts/windows-role-spawn-diagnostics.cjs
-      - scripts/windows-role-spawn-diagnostics.test.mjs
+      - scripts/windows/windows-role-readlink.cjs
+      - scripts/windows/windows-role-readlink.test.mjs
+      - scripts/windows/windows-role-spawn-diagnostics.cjs
+      - scripts/windows/windows-role-spawn-diagnostics.test.mjs
       - package.json
       - package-lock.json
       - prisma.config.ts
@@ -56,7 +56,7 @@ jobs:
       - name: Validate runtime cache contract
         shell: pwsh
         run: |
-          node --test scripts/windows-role-runtime-cache.test.mjs
+          node --test scripts/windows/windows-role-runtime-cache.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Runtime cache contract tests failed' }
       - name: Validate background runner job launcher
         shell: pwsh
@@ -67,7 +67,7 @@ jobs:
         id: runtime-key
         shell: pwsh
         run: |
-          $key = node scripts/windows-role-runtime-cache.mjs key
+          $key = node scripts/windows/windows-role-runtime-cache.mjs key
           if ($LASTEXITCODE -ne 0) { throw 'Runtime cache identity failed' }
           "key=$key" >> $env:GITHUB_OUTPUT
       - uses: actions/cache/restore@v4
@@ -85,12 +85,12 @@ jobs:
         shell: pwsh
         run: |
           Write-Output 'Runtime cache miss: compiling pinned Node'
-          ./scripts/build-windows-role-node.ps1 -BuildRoot "$env:RUNNER_TEMP/stagekeeper-node-source"
+          ./scripts/windows/build-windows-role-node.ps1 -BuildRoot "$env:RUNNER_TEMP/stagekeeper-node-source"
       - name: Verify prepared runtime with runner Node
         id: runtime-verify
         shell: pwsh
         run: |
-          node scripts/windows-role-runtime-cache.mjs verify --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
+          node scripts/windows/windows-role-runtime-cache.mjs verify --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
           if ($LASTEXITCODE -ne 0) { throw 'Runtime cache integrity failed; cached executables were not launched' }
           Write-Output "Runtime cache hit: ${{ steps.node-cache.outputs.cache-hit == 'true' }}"
           & "$env:RUNNER_TEMP/stagekeeper-node-source/runtime/node.exe" -e 'const cp=require("node:child_process"); const r=cp.spawnSync(process.execPath,["-e","console.log(123)"],{encoding:"utf8"}); if(r.status!==0 || r.stdout.trim()!=="123") process.exit(1);'
@@ -106,9 +106,9 @@ jobs:
           $env:STAGEKEEPER_TEST_WINDOWS_RUNTIME = "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
           node --test plugin/bin/harness-role-commands.test.mjs plugin/bin/harness-role-files.test.mjs plugin/bin/harness-role-git.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native role command acceptance failed' }
-          node --test scripts/windows-role-readlink.test.mjs
+          node --test scripts/windows/windows-role-readlink.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native readlink compatibility acceptance failed' }
-          node --test scripts/windows-role-spawn-diagnostics.test.mjs
+          node --test scripts/windows/windows-role-spawn-diagnostics.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Native IPC and spawn diagnostics acceptance failed' }
       - name: Prepare project dependencies with normal lifecycle scripts
         shell: pwsh
@@ -116,7 +116,7 @@ jobs:
       - name: Build full project inside network-denied Windows role
         shell: pwsh
         run: |
-          node scripts/rehearse-windows-project-build.mjs --root . --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
+          node scripts/windows/rehearse-windows-project-build.mjs --root . --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
           if ($LASTEXITCODE -ne 0) { throw 'Offline native project build acceptance failed' }
       - name: Preserve runtime and provenance for native validation
         if: always() && steps.runtime-verify.outcome == 'success'

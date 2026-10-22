@@ -89,15 +89,15 @@
 <!-- server-internal-tests:start -->
 | 시험 파일 | 내부 모듈 | 이유 |
 | --- | --- | --- |
-| `scripts/rehearse-acceptance-failure.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
-| `scripts/rehearse-pipeline-agent-slots.ts` | agents | 격리 인수 fixture의 실제 내부 실행 경로 조립 (next, run-service) |
-| `scripts/rehearse-project-availability-d3.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (availability-service, registration-command) |
-| `scripts/rehearse-repository-disconnection.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |
-| `scripts/rehearse-repository-disconnection.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (availability-service, registration-command) |
-| `scripts/rehearse-request-rate-baseline.ts` | mcp | 격리 인수 fixture의 실제 내부 실행 경로 조립 (tools, owner-tools) |
-| `scripts/rehearse-src-clean-code-fifth-pass.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
-| `scripts/rehearse-src-clean-code-fifth-pass.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (access-query) |
-| `scripts/rehearse-src-clean-code.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |
+| `scripts/rehearsals/rehearse-acceptance-failure.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
+| `scripts/rehearsals/rehearse-pipeline-agent-slots.ts` | agents | 격리 인수 fixture의 실제 내부 실행 경로 조립 (next, run-service) |
+| `scripts/project-ownership/rehearse-project-availability-d3.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (availability-service, registration-command) |
+| `scripts/rehearsals/rehearse-repository-disconnection.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |
+| `scripts/rehearsals/rehearse-repository-disconnection.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (availability-service, registration-command) |
+| `scripts/rehearsals/rehearse-request-rate-baseline.ts` | mcp | 격리 인수 fixture의 실제 내부 실행 경로 조립 (tools, owner-tools) |
+| `scripts/rehearsals/rehearse-src-clean-code-fifth-pass.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
+| `scripts/rehearsals/rehearse-src-clean-code-fifth-pass.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (access-query) |
+| `scripts/rehearsals/rehearse-src-clean-code.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |
 | `src/server/agents/next.test.ts` | projects | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (entitlement) |
 | `src/server/mcp/tools.test.mjs` | agents | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (next) |
 | `src/server/mcp/tools.test.mjs` | projects | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (access-query) |
@@ -155,7 +155,8 @@
 
 `npm run verify:server`는 실제 파일의 TypeScript AST로 import·export-from·타입 질의,
 literal dynamic import/require, 방향·순환·공개 경로·runtime 초기화와 목록을 검사한다.
-`npm run test:architecture`가 허용·거절 fixture를 실행한다. 두 명령은 `npm run check`에 포함된다.
+`npm run test:architecture`가 허용·거절 fixture를 실행한다. `npm run check`는
+`verify:server`와 해당 fixture를 포함한 `test:scripts`를 실행한다.
 미추적 파일도 검사하며 generated·dependency·build 출력은 제외한다.
 
 VM mock 키·빌드 chunk 정규식·상대 파일 읽기의 동작은 관련 시험과 리허설로 따로 확인한다.

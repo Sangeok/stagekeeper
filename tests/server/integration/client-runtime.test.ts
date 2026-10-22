@@ -6,7 +6,7 @@ import { COMMON_DOCS, RUNTIME_MARKER } from "@harness/core/client-runtime.mjs";
 import { codexRunbookVersion } from "@harness/core/runbook.mjs";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 import { createBoardService } from "../../../src/server/pipeline/api";
-import { seedTemplates, snapshotTemplates, restoreTemplates } from "../../../scripts/lib/template-seed-query";
+import { seedTemplates, snapshotTemplates, restoreTemplates } from "../../../scripts/templates/template-seed-query";
 import { seedPipelineVersion, cleanup, connections, fixture } from "./support";
 
 const role = `${RUNTIME_MARKER}\nFixture role.\n## step:implement requires: implementing\nRead {{runtime.runbook_path}}.\nnext: verify\n## step:verify requires: implementing\nVerify current artifacts.\nnext: done\n`;

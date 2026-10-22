@@ -72,7 +72,7 @@ related:
 보존·제외 범위:
 
 - JSDoc 타입 주석, `@ts-check`, triple-slash 참조, shebang, 도구 지시문 및 라이선스.
-- `scripts/windows-role-runtime-cache.mjs` 전체: 자기 본문이 캐시 키의 입력이므로 설명 주석 3개도 그대로 유지한다.
+- `scripts/windows/windows-role-runtime-cache.mjs` 전체: 자기 본문이 캐시 키의 입력이므로 설명 주석 3개도 그대로 유지한다.
 - 체크섬 대상인 기존 SQL migration·복구 SQL, Windows Node 빌드 레시피와 native helper의 원본.
 - 자동 관리되는 `migration_lock.toml`, `next-env.d.ts`, `src/generated`, `.next`, `node_modules`의 수동 편집.
 - 별도 저장소의 `plugin/templates`, 에이전트 지시인 `plugin/skills`, 기존 Markdown 문서의 내용·기능 표식.
@@ -156,7 +156,7 @@ JS/TS 주석은 파서 토큰 단위, YAML·ignore·schema는 삭제한 주석 �
 | `packages/core/token-validity.mjs` | 3 | 토큰·날짜 입력·반환 타입 |
 | `packages/core/usage-window.mjs` | 1 | 사용량 판정 입력 타입 |
 | `plugin/runtime/runner-client.mjs` | 1 | 요청·응답 union 타입 |
-| `scripts/windows-role-runtime-cache.mjs` | 3 | `windowsRuntimeCacheKey`가 자기 본문을 해시 |
+| `scripts/windows/windows-role-runtime-cache.mjs` | 3 | `windowsRuntimeCacheKey`가 자기 본문을 해시 |
 | 위 core 타입 주석의 `plugin/lib` 복사본 | 33 | core와 바이트 동일한 배포 복사본 |
 | 합계 | 74 | 타입·도구 71개, 본문 체크섬 3개 |
 

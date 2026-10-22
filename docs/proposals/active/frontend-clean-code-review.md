@@ -243,7 +243,7 @@ identifier 부재와 정확한 import 문법을 검사한다.
 symbol의 단일 소유권 검사는 `scripts` 아키텍처 검사 책임에 좁게 배치하고,
 AST를 사용해 줄바꿈·binding 표기 변화에 독립적으로 만든다. 기존 소유권 검증을 단순 삭제하지 않는다.
 
-이번 구현에서는 `scripts/frontend-contract-owners.test.mjs`로 소유권 assertion을 옮긴다.
+이번 구현에서는 `scripts/checks/frontend-contract-owners.test.mjs`로 소유권 assertion을 옮긴다.
 현재 `test:architecture`의 `scripts/*.test.mjs` 패턴에 포함되므로 package script를 추가하지 않는다.
 TypeScript AST와 현재 tsconfig의 module resolution을 사용해 공개 경로에서 선언까지 추적한다.
 private 파일명, import의 줄바꿈·alias·추가 binding의 수를 계약으로 고정하지 않는다.
@@ -309,7 +309,7 @@ FSD의 기존 방향·deep import 검사는 계속 `verify:fsd`가 담당한다.
 | Core / 001 | `tests/server/fixtures/src-clean-code-browser.tsx` | 세 발급 import의 public API 소비·hs/hu/ho fixture 보존 |
 | Core / 001 | `tests/server/fixtures/src-clean-code-acceptance.ts` | 같은 mount에서 발급 응답을 역순 정산하는 필수 상태 격리 사례 추가. 기존 token 사례 보존 |
 | Core / 003 | `src/fsd/shared/config/plugin-install.test.ts`, `src/fsd/pages/docs/ui/docs-copy.test.ts` | 소유권 assertion만 이동하고 값·본문 검증 유지 |
-| Core / 003 | `scripts/frontend-contract-owners.test.mjs` | 생성: 공개 경로·실제 선언·소유권 및 허용/거부 fixture |
+| Core / 003 | `scripts/checks/frontend-contract-owners.test.mjs` | 생성: 공개 경로·실제 선언·소유권 및 허용/거부 fixture |
 | Core / 002·003 | `docs/architecture/server.md`, `docs/architecture/verification.md` | 새 공개 조회와 변경한 검사·검증 범위 기록. 아키텍처 예외 추가 없음 |
 | Phase 2 / 004 | `src/fsd/features/edit-pipeline/ui/pipeline-rail.tsx` | 지역 메뉴 상태 표현 변경 |
 | Phase 2 / 004 | `tests/server/fixtures/src-clean-code-acceptance.ts` | 기존 UI fixture에 끝·특정 위치 열기/닫기/선택 후 닫힘 사례 추가 |
@@ -352,7 +352,7 @@ FSD의 기존 방향·deep import 검사는 계속 `verify:fsd`가 담당한다.
   `tests/server/server-public-api.test.ts`, `src/fsd/pages/project-board/model/briefing.test.mjs`,
   `src/fsd/pages/project-board/ui/project-board-page.test.mjs`, `src/fsd/widgets/turn-banner/model/turn.test.ts`,
   `src/fsd/features/edit-pipeline/ui/pipeline-rail.test.mjs`.
-- 실행 도구: `scripts/rehearse-src-clean-code.ts`, `scripts/rehearse-account-usage-and-tokens.ts`,
+- 실행 도구: `scripts/rehearsals/rehearse-src-clean-code.ts`, `scripts/rehearsals/rehearse-account-usage-and-tokens.ts`,
   `tests/server/register-server-only.mjs`, `scripts/test-server-integration.mjs`.
   `package.json`의 test glob, `tsconfig.json`의 alias, `next.config.mjs`는 유지한다.
 
@@ -446,7 +446,7 @@ npm run build
 실제 client fixture는 저장소 루트의 zsh에서 다음과 같이 실행한다. DB는 사용하지 않는다.
 
 ```bash
-node --import tsx scripts/rehearse-src-clean-code.ts --ui-only
+node --import tsx scripts/rehearsals/rehearse-src-clean-code.ts --ui-only
 ```
 
 `http://127.0.0.1:55452/fixture?mode=token-issuance`에서 Run acceptance 후 `/results`의 모든 status가 Pass인지 확인한다.
@@ -459,7 +459,7 @@ Finish로 root·보류 요청·clipboard 대체를 정리하고 `/finish`로 lis
 운영 URL과 다른 `stagekeeper_test_*` DB를 먼저 준비하며 이 문서 검토에서는 DB를 연결·변경하지 않는다.
 
 ```bash
-node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-account-usage-and-tokens.ts --interactive
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-account-usage-and-tokens.ts --interactive
 ```
 
 `http://127.0.0.1:55477/user`와 `/project`에서 세 종류를 확인한다.

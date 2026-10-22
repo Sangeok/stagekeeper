@@ -2,8 +2,8 @@
 
 ## 자동 검사
 
-`scripts/verify-fsd-boundaries.mjs`는 외부 package 없이 정적 import를 검사한다.
-`scripts/verify-server-boundaries.mjs`는 설치된 TypeScript의 AST·모듈 해석을 사용해
+`scripts/checks/verify-fsd-boundaries.mjs`는 외부 package 없이 정적 import를 검사한다.
+`scripts/checks/verify-server-boundaries.mjs`는 설치된 TypeScript의 AST·모듈 해석을 사용해
 [서버 모듈 계약](./server.md)의 공개 경로·방향·타입 간선·순환·초기화 closure와 시험 목록을 검사한다.
 
 ```powershell
@@ -51,7 +51,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 | 서버 adapter와 Client 경계 | FSD의 `src/server` 직접 import 위치·directive와 `"use client"` 파일의 서버 경로 직접 import를 검사한다 | 일반 barrel을 경유한 서버 코드 유입, `server-only`와 `"use server"`의 용도, Action 전달·입력 검증·인가는 코드 리뷰와 관련 동작 검증으로 확인한다 |
 | slice 책임·공통화·상태 위치 | 전용 자동 검사 없음 | [코드 배치와 추출 판단](./fsd.md#코드-배치와-추출-판단)에 따라 소유권·변경 이유·실제 소비처를 확인한다 |
 
-`npm run test:architecture`는 검사기 등을 포함한 `scripts/*.test.mjs`의 회귀
+`npm run test:architecture`는 검사기 등을 포함한 `scripts/**/*.test.mjs`의 회귀
 테스트를 실행한다. 문서의 모든 규칙이나 애플리케이션의 Server/Client 연결을
 증명하는 명령은 아니다. 코드 변경 시 `npm run check`의 lint·타입 검사와
 `npm run build`, 변경 영역의 관련 테스트를 함께 적용한다. 빌드 통과도 Action의
@@ -80,8 +80,13 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   환경을 같은 변경에서 보완한다.
 - `npm test`: `packages/core/*.test.mjs`와 `plugin/bin/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
-- `npm run test:architecture`: `scripts/*.test.mjs`를 실행하며 CI의 `npm run check`에
-  포함된다. 이 명령 자체가 테스트 배치 규칙 전체를 검증하는 것은 아니다.
+- `npm run test:scripts`: `scripts/**/*.test.mjs`와 `scripts/**/*.test.ts`를 재귀 검색하고
+  CI의 `npm run check`에서 실행한다. 외부 DB·모델 호출 없는 도구 테스트를 포함한다.
+  Windows native 시험은 기존처럼 플랫폼과 전용 runtime이 필요하며 미준비 시 skip한다.
+- `npm run test:architecture`: 같은 트리의 `.test.mjs`만 실행하는 기존 부분 집합 명령이다.
+  `npm run test:project-availability`는 `scripts/project-ownership/project-availability*.test.ts`를 실행한다.
+  두 부분 집합의 테스트는 `test:scripts`에도 포함되며 `check`에서 중복 실행하지 않는다.
+  이 명령들 자체가 테스트 배치 규칙 전체를 검증하는 것은 아니다.
 - `npm run test:server`: 서버 전용 bootstrap과 함께 `tests/server/*.test.ts`를 실행한다.
   현재 `check` workflow의 별도 실행 항목에는 포함되지 않는다.
 - `npm run test:server:integration`: 격리 PostgreSQL과 전용 실행 스크립트를 사용한다.
@@ -151,46 +156,70 @@ PR·CI 재실행·조회 실패·squash 병합·동시 커밋 보존을 확인�
 
 ## 저장소 스크립트
 
-`scripts/`는 앱 런타임 코드가 아니다. 검사기와 운영 도구만 둔다.
+`scripts/`는 앱 런타임 코드가 아니다. 저장소 도구·운영 도구·수동 리허설과 그 테스트를 둔다.
+배치는 실행 종류보다 함께 변경되는 책임을 기준으로 한다([ADR-0004](../ADR/0004-organize-repository-scripts.md)).
+
+| 위치 | 소유 책임 |
+| --- | --- |
+| 최상위 | build, 브랜치 정리, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여와 짝 테스트 |
+| `checks/` | FSD·서버 경계 검사기, 문구·공개 계약 검사와 테스트 |
+| `windows/` | native Node 빌드·캐시·패키징·호환 처리·Windows 리허설과 테스트 |
+| `templates/` | 템플릿 seed·restore·쿼리 보조 모듈과 테스트 |
+| `project-ownership/` | 소유권 검사·복구·보조 모듈·복구 SQL·D3 리허설과 테스트 |
+| `rehearsals/` | 위 책임에 속하지 않는 제품 기능 인수 리허설과 도구 자체의 테스트 |
+| `lib/` | 여러 책임이 실제 공유하는 Prisma 연결 등 |
+
+테스트는 도구 옆에 두며, 한 책임의 보조 모듈이나 복구 SQL을 공용 `lib/`로 분산하지 않는다.
+Windows·D3 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위해 별도 폴더를 만들지 않는다.
+리허설의 작업 차수 이름 변경·통합·삭제는 검증 사례와 대체 여부를 대조한 별도 변경으로 다룬다.
+
+새 위치로 이동할 때 npm 명령·CI 경로 필터·상대 import·저장소 루트 계산·fixture 경로를 함께 갱신한다.
+서버 검사기는 `scripts/rehearsals/`, `scripts/project-ownership/`, `scripts/windows/` 바로 아래의
+`rehearse-*.ts`·`rehearse-*.mjs`만 리허설로 판정한다. 내부 접근은 계속
+[서버 내부 참조 목록](./server.md#내부-참조-시험-목록)의 정확한 파일·모듈 등록을 요구한다.
+같은 디렉터리의 운영 도구나 helper에 테스트 권한을 부여하지 않는다.
+
+완료 제안서·검증 보고서에 남은 이전 경로는 당시 실행 기록으로 보존한다.
+현재 실행 명령은 아래 목록과 `package.json`을 따른다.
 
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
 | `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | 병합·CI·로컬 보존 조건을 확인한 작업 브랜치의 로컬 ref만 정리. `main`·`dev`와 원격 ref는 삭제하지 않음 |
-| `build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
-| `windows-role-runtime-cache.mjs`, `windows-role-runtime-cache.test.mjs` | `node scripts/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
-| `package-windows-plugin.mjs` | `node scripts/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source·runtime·변경하지 않은 완전한 owner verifier를 양쪽 skill 경로에 복사하고 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |
-| `rehearse-windows-project-build.mjs` | `node scripts/rehearse-windows-project-build.mjs --root <npm ci로 준비한 공개 checkout> --runtime <검증된 Windows runtime>` | `windows-role-runtime` CI/전체 프로젝트 빌드 회귀 시 | Prisma 엔진을 포함한 정상 의존성 설치 후, DB URL·환경 파일·network 없는 실제 LPAC snapshot에서 전체 `npm run build`와 원본 source/build ID 불변·산출물 폐기·종료 acknowledgement를 확인한다. 모델·DB·로그인·배포를 실행하지 않는다 |
-| `build.mjs`, `windows-role-readlink.cjs` | `npm run build` | 프로젝트 production build | 기본 Next 빌드를 유지하고 Windows 역할 복사본에서만 Webpack·readlink 오류 호환 preload와 TypeScript compiler API 검사를 선택한다. 타입 검사를 생략하지 않으며 API가 없는 TypeScript로의 업그레이드는 실제 native CI에서 검증해야 한다. 일반 파일임을 실제 lstat로 확인할 때만 EPERM/EACCES를 EINVAL로 바꾸며 링크·metadata 거부는 유지한다. owner 프로세스·커널·ACL·network 권한은 변경하지 않는다 |
-| `windows-role-readlink.test.mjs` | `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows-role-readlink.test.mjs` | native Windows CI/호환 preload 변경 시 | 실제 LPAC의 sync/callback/promises/ESM readlink·callback validation·외부 metadata/data 거부를 확인한다. 다른 플랫폼/미준비된 runtime의 skip은 전체 Windows 인수 PASS를 대신하지 않는다 |
-| `windows-role-spawn-diagnostics.cjs`, `windows-role-spawn-diagnostics.test.mjs` | 기존 단일 preload의 opt-in / `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows-role-spawn-diagnostics.test.mjs` | native Windows CI/child startup 진단 | 역할 빌드의 오류 code·실행 파일 분류·stdio 등 고정 필드만 기록하고 경로·인자·환경·권한·오류를 변경하지 않는다. 실제 silent IPC fork와 외부 실행 파일 거부 및 비공개 인자 미노출을 확인한다. 런타임 컴파일 캐시는 시험 전 저장하고 후속 실패에도 artifact를 보존한다 |
-| `verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
-| `verify-server-boundaries.mjs` | `npm run verify:server`, `npm run lint`, `npm run check` | CI마다 | 서버 공개 API·모듈 방향·runtime 초기화·정확한 내부 시험 목록 검사. 미추적 source도 포함 |
+| `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
+| `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
+| `windows/package-windows-plugin.mjs` | `node scripts/windows/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source·runtime·변경하지 않은 완전한 owner verifier를 양쪽 skill 경로에 복사하고 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |
+| `windows/rehearse-windows-project-build.mjs` | `node scripts/windows/rehearse-windows-project-build.mjs --root <npm ci로 준비한 공개 checkout> --runtime <검증된 Windows runtime>` | `windows-role-runtime` CI/전체 프로젝트 빌드 회귀 시 | Prisma 엔진을 포함한 정상 의존성 설치 후, DB URL·환경 파일·network 없는 실제 LPAC snapshot에서 전체 `npm run build`와 원본 source/build ID 불변·산출물 폐기·종료 acknowledgement를 확인한다. 모델·DB·로그인·배포를 실행하지 않는다 |
+| `build.mjs`, `windows/windows-role-readlink.cjs` | `npm run build` | 프로젝트 production build | 기본 Next 빌드를 유지하고 Windows 역할 복사본에서만 Webpack·readlink 오류 호환 preload와 TypeScript compiler API 검사를 선택한다. 타입 검사를 생략하지 않으며 API가 없는 TypeScript로의 업그레이드는 실제 native CI에서 검증해야 한다. 일반 파일임을 실제 lstat로 확인할 때만 EPERM/EACCES를 EINVAL로 바꾸며 링크·metadata 거부는 유지한다. owner 프로세스·커널·ACL·network 권한은 변경하지 않는다 |
+| `windows/windows-role-readlink.test.mjs` | `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows/windows-role-readlink.test.mjs` | native Windows CI/호환 preload 변경 시 | 실제 LPAC의 sync/callback/promises/ESM readlink·callback validation·외부 metadata/data 거부를 확인한다. 다른 플랫폼/미준비된 runtime의 skip은 전체 Windows 인수 PASS를 대신하지 않는다 |
+| `windows/windows-role-spawn-diagnostics.cjs`, `windows/windows-role-spawn-diagnostics.test.mjs` | 기존 단일 preload의 opt-in / `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows/windows-role-spawn-diagnostics.test.mjs` | native Windows CI/child startup 진단 | 역할 빌드의 오류 code·실행 파일 분류·stdio 등 고정 필드만 기록하고 경로·인자·환경·권한·오류를 변경하지 않는다. 실제 silent IPC fork와 외부 실행 파일 거부 및 비공개 인자 미노출을 확인한다. 런타임 컴파일 캐시는 시험 전 저장하고 후속 실패에도 artifact를 보존한다 |
+| `checks/verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
+| `checks/verify-server-boundaries.mjs` | `npm run verify:server`, `npm run lint`, `npm run check` | CI마다 | 서버 공개 API·모듈 방향·runtime 초기화·정확한 내부 시험 목록 검사. 미추적 source도 포함 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
-| `rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
-| `rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
-| `rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearse-dual-client-runtime.test.ts` | 위 검사기 변경 시 명시적으로 수동 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. 현재 `npm test`/`check`의 test glob에 포함되지 않는다 |
-| `rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
-| `rehearse-automatic-scout.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-automatic-scout.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next HTTP로 Free 자동 발굴 switch 저장·재조회·잘못된 입력·타인·무세션·사용 불가 프로젝트 거부를 검증한다. 루프백 fixture만 만들고 종료 시 자기 fixture를 정리한다 |
-| `rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 8종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
-| `rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 별도 기능 설정 없이 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
-| `rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
-| `verify-fsd-boundaries.test.mjs`, `verify-server-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
-| `retired-copy.test.mjs` | `npm run test:architecture` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
+| `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
+| `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
+| `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |
+| `rehearsals/rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
+| `rehearsals/rehearse-automatic-scout.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-automatic-scout.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next HTTP로 Free 자동 발굴 switch 저장·재조회·잘못된 입력·타인·무세션·사용 불가 프로젝트 거부를 검증한다. 루프백 fixture만 만들고 종료 시 자기 fixture를 정리한다 |
+| `rehearsals/rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 8종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
+| `rehearsals/rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 별도 기능 설정 없이 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리 |
+| `rehearsals/rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
+| `checks/verify-fsd-boundaries.test.mjs`, `checks/verify-server-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
+| `checks/retired-copy.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
 | `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
-| `seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증 |
-| `restore-dual-client-templates.ts` | `node --import tsx scripts/restore-dual-client-templates.ts --snapshot <private 경로>` | 승인된 template 복구 | snapshot version/hash·현재 body 전체를 먼저 대조하고 whitelist 행만 한 transaction으로 복구한다. 이전에 없던 CODEX.runbook 행만 삭제하며 외부 행을 보존한다 |
-| `lib/template-seed-query.ts`, `template-seed-query.test.ts` | `node --import tsx --test scripts/template-seed-query.test.ts` | seed/restore 변경 시 명시적으로 실행 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. 실제 DB rollback 증거가 아니며 기존 test glob 밖이다 |
+| `templates/seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증 |
+| `templates/restore-dual-client-templates.ts` | `node --import tsx scripts/templates/restore-dual-client-templates.ts --snapshot <private 경로>` | 승인된 template 복구 | snapshot version/hash·현재 body 전체를 먼저 대조하고 whitelist 행만 한 transaction으로 복구한다. 이전에 없던 CODEX.runbook 행만 삭제하며 외부 행을 보존한다 |
+| `templates/template-seed-query.ts`, `templates/template-seed-query.test.ts` | `node --import tsx --test scripts/templates/template-seed-query.test.ts` | CI 및 seed/restore 변경 시 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. `test:scripts`에 포함되며 실제 DB rollback 증거는 아니다 |
 | `grant-plan.ts` | `npm run plan:grant -- <login> <free\|pro\|max> [note]` | 플랜을 붙일 때, 로컬에서 | availability service를 통한 plan/set/version/event atomic change |
 | `lib/prisma.ts` | (헬퍼) | — | DB 스크립트의 Prisma 부트스트랩. `DATABASE_URL`이 없으면 exit 2 |
-| `check-project-ownership-cleanup.ts` | `npm run check:project-ownership:cleanup -- --pre\|--post` | D3 cleanup 전후 | catalog·직접 owner·exact set·event를 read-only snapshot으로 검사 |
-| `project-availability-cleanup.test.ts` | `npm run test:project-availability` | CI마다 | cleanup facts, SQL, CLI/receipt와 보존 계약의 DB 없는 회귀 검사 |
-| `project-availability-runtime.test.ts` | `npm run test:project-availability` → check | CI마다 | Member/legacy owner/old policy 부재, final schema/generated client와 폐기 script 검사 |
-| `rehearse-project-availability-d3.ts` | `npm run test:project-availability:d3:db -- --allow-fixtures --baseline <commit>` | 서로 다른 빈 격리 PostgreSQL 두 개에서 수동 | 고정 D2 artifact → cleanup → D3 등록 → 보상 migration → D2 smoke. 두 전용 URL 필수 |
-| `restore-project-ownership-shadow.ts` | `npm run restore:project-ownership:shadow -- [--check\|--apply --backup-receipt <path>]` | 승인된 D3 복구 | 전용 URL·receipt·migration checksum을 검사하고 고정 보상 migration bundle을 적용 |
-| `recovery/individual-project-availability-d3/restore-d2-shadow.sql` | 위 복구 CLI | D3 commit 뒤 D2 호환 복구 | 현재 direct owner에서 legacy shadow를 transaction으로 재구성. 일반 migration path에는 없음 |
+| `project-ownership/check-project-ownership-cleanup.ts` | `npm run check:project-ownership:cleanup -- --pre\|--post` | D3 cleanup 전후 | catalog·직접 owner·exact set·event를 read-only snapshot으로 검사 |
+| `project-ownership/project-availability-cleanup.test.ts` | `npm run test:project-availability` | CI마다 | cleanup facts, SQL, CLI/receipt와 보존 계약의 DB 없는 회귀 검사 |
+| `project-ownership/project-availability-runtime.test.ts` | `npm run test:project-availability` / `test:scripts` → check | CI마다 | Member/legacy owner/old policy 부재, final schema/generated client와 폐기 script 검사 |
+| `project-ownership/rehearse-project-availability-d3.ts` | `npm run test:project-availability:d3:db -- --allow-fixtures --baseline <commit>` | 서로 다른 빈 격리 PostgreSQL 두 개에서 수동 | 고정 D2 artifact → cleanup → D3 등록 → 보상 migration → D2 smoke. 두 전용 URL 필수 |
+| `project-ownership/restore-project-ownership-shadow.ts` | `npm run restore:project-ownership:shadow -- [--check\|--apply --backup-receipt <path>]` | 승인된 D3 복구 | 전용 URL·receipt·migration checksum을 검사하고 고정 보상 migration bundle을 적용 |
+| `project-ownership/recovery/individual-project-availability-d3/restore-d2-shadow.sql` | 위 복구 CLI | D3 commit 뒤 D2 호환 복구 | 현재 direct owner에서 legacy shadow를 transaction으로 재구성. 일반 migration path에는 없음 |
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
 
@@ -268,7 +297,7 @@ npm run build
 $env:RDC_CHECK_ACTION_MANIFEST = 'true'
 npm run test:server
 Remove-Item Env:RDC_CHECK_ACTION_MANIFEST
-node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-repository-disconnection.ts --transport-loss
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-repository-disconnection.ts --transport-loss
 # 화면 확인은 --interactive. Enter 또는 http://127.0.0.1:55439/finish로 서버/fixture를 정리한다.
 ```
 
@@ -291,7 +320,7 @@ $env:RDC_CHECK_ACTION_MANIFEST = 'true'
 npm run test:server
 Remove-Item Env:SRC_CHECK_INBOX_MANIFEST
 Remove-Item Env:RDC_CHECK_ACTION_MANIFEST
-node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-src-clean-code.ts --render-faults
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-src-clean-code.ts --render-faults
 ```
 
 리허설 중 `http://127.0.0.1:55452/owner`는 fixture 세션으로 실제 Inbox를 연다.
@@ -305,7 +334,7 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 
 ### FSD 클린코드 후속 인수
 
-`rehearse-src-clean-code.ts`는 기존 Inbox A~D 외에 done 항목 R-1을 준비한다.
+`rehearsals/rehearse-src-clean-code.ts`는 기존 Inbox A~D 외에 done 항목 R-1을 준비한다.
 `/owner-item`에서 실제 상세 페이지를 열고 `/arm/reopen-before-once` 또는
 `/arm/reopen-after-once`로 **다음 humanTransition 한 건만** 저장 전/후에 응답을 잘라 낸다.
 소켓 종료에 따른 POST 재전송과 혼동하지 않도록 정상 HTTP 응답의 RSC frame을 잘라 낸다.
@@ -322,9 +351,9 @@ Documents의 duplicate-key 경고는 `--ui-only --fixture-development`로 별도
 그룹을 벗어나 다음/이전 컨트롤로 이동하는지도 확인한다. 합성 KeyboardEvent만으로 판정하지 않는다.
 
 ```bash
-node --import tsx scripts/rehearse-src-clean-code.ts --ui-only
+node --import tsx scripts/rehearsals/rehearse-src-clean-code.ts --ui-only
 # /finish로 앞 실행을 종료한 뒤:
-node --import tsx scripts/rehearse-src-clean-code.ts --ui-only --fixture-development
+node --import tsx scripts/rehearsals/rehearse-src-clean-code.ts --ui-only --fixture-development
 ```
 
 브라우저 Finish는 root·보류 작업·clipboard·console 대체를 정리하고, `/finish`는
@@ -336,14 +365,14 @@ npm run build
 SRC_CHECK_INBOX_MANIFEST=true RDC_CHECK_ACTION_MANIFEST=true npm run test:server
 ```
 
-`rehearse-account-usage-and-tokens.ts --interactive`의 `http://127.0.0.1:55477/state`는
+`rehearsals/rehearse-account-usage-and-tokens.ts --interactive`의 `http://127.0.0.1:55477/state`는
 fixture 소유자의 종류별 토큰 수와 Reference·revoked 여부만 반환한다(평문·hash·세션 제외).
 `/lose-next-action`으로 응답을 잃은 발급은 +1, Refresh list는 +0, 수동 Revoke는 지정 Reference만
 종료시키는지 확인한다. 동일 이름의 기존 토큰도 보존해야 한다. `/finish`로 종료한다.
 
 ### FSD 파이프라인 초안 후속 인수
 
-`rehearse-src-clean-code.ts --ui-only`의 `?mode=pipeline-page`는 실제 ProjectPipelinePage를 렌더한다.
+`rehearsals/rehearse-src-clean-code.ts --ui-only`의 `?mode=pipeline-page`는 실제 ProjectPipelinePage를 렌더한다.
 Run acceptance / `?mode=copy&autorun`은 version·plan·roster·readonly·프로젝트 identity 갱신,
 version 0 기본값, pending 응답 순서·stale/unknown·이전 프로젝트의 늦은 응답을 검증한다.
 같은 검사를 `--ui-only --fixture-development`에서도 실행한다. 기존 rail/scout 단독 모드는 유지한다.
@@ -353,7 +382,7 @@ rail의 노드와 숨겨진 Read as text의 노드를 구분하며 제출 graph�
 서버 모듈을 읽는 실제 DB 모드는 테스트 bootstrap을 포함해 실행한다:
 
 ```bash
-node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-src-clean-code.ts
+node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-src-clean-code.ts
 ```
 
 `--ui-only` 모드는 서버 서비스를 import하지 않으므로 기존 명령을 사용한다.
@@ -376,7 +405,7 @@ Board의 `activityDispatched`와 배너의 `turnDispatched`는 서로 다른 기
 실제 adapter 연결은 `tests/server/project-page-loaders.test.ts`와
 `src/fsd/widgets/turn-banner/api/turn-data.test.ts`에서 검증한다.
 
-`scripts/frontend-contract-owners.test.mjs`는 `test:architecture`에서 설치 상수 세 개와 인수 확인 label의
+`scripts/checks/frontend-contract-owners.test.mjs`는 `test:scripts`와 `test:architecture`에서 설치 상수 세 개와 인수 확인 label의
 공개 경로·실제 선언·소비 binding을 TypeScript AST와 symbol resolution으로 검사한다.
 다른 slice의 소스 파일명을 제품 테스트에서 고정하지 않는다. import의 줄바꿈·alias·추가 binding과
 공개 API 뒤 내부 이동은 허용하고, 복제·외부 재수출·wildcard·private import는 거부 fixture로 확인한다.
@@ -416,7 +445,7 @@ fixture의 refresh double은 실제 RSC state 보존의 증거가 아니므로, 
 
 - 문서만 고친 경우, 화면 문장을 고친 경우는 잡는다.
 - 화면에 문서에 없는 문장을 **더한** 경우는 못 잡는다.
-- 문서와 화면이 **같이 틀린** 경우는 못 잡는다 — `retired-copy.test.mjs`가 그 틈을 맡는데, 옛 표현을 사람이 등록해야 안다.
+- 문서와 화면이 **같이 틀린** 경우는 못 잡는다 — `checks/retired-copy.test.mjs`가 그 틈을 맡는데, 옛 표현을 사람이 등록해야 안다.
 - `claude`처럼 짧은 단위는 어디서든 맞으므로 지키는 힘이 없다. 지키는 것은 문장이다.
 
 ## 공개 문서 검증
@@ -443,7 +472,7 @@ CSS·로컬 폰트·이미지의 실제 응답과 렌더를 확인하며, 미실
 - [ ] 새 slice가 필요하지 않다면 실제 사용처에 코로케이션했다.
 - [ ] DB/인증/MCP/보안 경계를 `src/fsd`에 넣지 않았다.
 - [ ] 연결 방식·도구 계약처럼 **사용자에게 말해 둔 사실**을 바꾸면, 옛 방식을 말하는 표현을
-  `scripts/retired-copy.test.mjs`의 `RETIRED`에 더했다. product-copy.md만 고치는 커밋은 없다 — 잠금 블록을
+  `scripts/checks/retired-copy.test.mjs`의 `RETIRED`에 더했다. product-copy.md만 고치는 커밋은 없다 — 잠금 블록을
   고치면 화면이 같은 커밋에 따라온다.
 
 ## 리뷰 체크리스트
@@ -474,7 +503,7 @@ CSS·로컬 폰트·이미지의 실제 응답과 렌더를 확인하며, 미실
 
 ## 마이그레이션 주의
 
-계정 사용량·토큰 관리는 `test:server:integration`의 account-usage/token-management/request-rate-limit 시험으로 DB 경합·rollback·migration을 검사한다. `scripts/rehearse-request-rate-baseline.ts`는 fixture IO 기반 호출 가정이며 운영 peak 측정이 아니다. 최신 production build 후 `TEST_DATABASE_URL`을 지정하고 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-account-usage-and-tokens.ts`로 실제 Next 인증·Server Actions·15개 도구 집계·SDK 제외·플랜 화면을 검증한다. `--interactive`는 loopback 테스트 로그인·응답 유실 proxy를 띄우며 `/finish`로 테스트 fixture와 서버를 정리한다. 실제 운영 DB나 세션을 사용하지 않는다.
+계정 사용량·토큰 관리는 `test:server:integration`의 account-usage/token-management/request-rate-limit 시험으로 DB 경합·rollback·migration을 검사한다. `scripts/rehearsals/rehearse-request-rate-baseline.ts`는 fixture IO 기반 호출 가정이며 운영 peak 측정이 아니다. 최신 production build 후 `TEST_DATABASE_URL`을 지정하고 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-account-usage-and-tokens.ts`로 실제 Next 인증·Server Actions·15개 도구 집계·SDK 제외·플랜 화면을 검증한다. `--interactive`는 loopback 테스트 로그인·응답 유실 proxy를 띄우며 `/finish`로 테스트 fixture와 서버를 정리한다. 실제 운영 DB나 세션을 사용하지 않는다.
 
 라우트 이동은 완료되어 현재 진입점은 `src/app/`이다. 루트 `app/`을 함께 만들면
 Next.js가 `src/app/`을 무시하므로 검사기가 즉시 실패시킨다.
@@ -486,4 +515,4 @@ API를 추가하고 import를 정리한 뒤 진행한다. 사용자가 수정 �
 
 ## Acceptance failure rehearsal
 
-`node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearse-acceptance-failure.ts` uses only validated `TEST_DATABASE_URL` (stagekeeper_test_*, distinct from the parent DATABASE_URL). It exercises the actual Next owner action, authentication/read-only/stale controls and lost-response recovery. After a fresh build, `--templates` checks the entire private LF bundle through a unique test Template language, authenticated HTTP and actual init-generated managed marker/report convention/hash; the DB fixture is cleaned and generated files remain in a unique Temp directory. `--interactive` serves isolated browser lifetime fixtures and the actual item page; `/finish` cleans the fixture server and users. New production code requires the additive acceptance migration before rollout; production migration/seeding/watch installation observations are separate from local checks.
+`node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-acceptance-failure.ts` uses only validated `TEST_DATABASE_URL` (stagekeeper_test_*, distinct from the parent DATABASE_URL). It exercises the actual Next owner action, authentication/read-only/stale controls and lost-response recovery. After a fresh build, `--templates` checks the entire private LF bundle through a unique test Template language, authenticated HTTP and actual init-generated managed marker/report convention/hash; the DB fixture is cleaned and generated files remain in a unique Temp directory. `--interactive` serves isolated browser lifetime fixtures and the actual item page; `/finish` cleans the fixture server and users. New production code requires the additive acceptance migration before rollout; production migration/seeding/watch installation observations are separate from local checks.

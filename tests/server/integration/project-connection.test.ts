@@ -20,7 +20,7 @@ import { registerProjectResultIn } from "../../../src/server/projects/registrati
 import { AGENT_TOOL_NAMES } from "../../../src/server/mcp/tools";
 import { createBoardService } from "../../../src/server/pipeline/api";
 import { ensureRun } from "../../../src/server/pipeline/run-service";
-import { readCleanupFactsIn } from "../../../scripts/lib/project-ownership-cleanup";
+import { readCleanupFactsIn } from "../../../scripts/project-ownership/project-ownership-cleanup";
 import { createNextDeps } from "../../../src/server/agents/api";
 import { makeRecordRunbook } from "../../../src/server/rest/runbook-handler";
 import { cleanup, connections, fixture, checkpoint, type Fixture, type Hook } from "./support";
