@@ -14,6 +14,10 @@ export class RoleFileInputError extends Error {
   constructor() { super("Invalid read pagination. Use integer maxLines 1..500 and positive safe-integer startLine; follow nextLine for further pages. Correct parameters without changing target permissions."); this.name = "RoleFileInputError"; }
 }
 
+export class RoleFileMissingError extends Error {
+  constructor() { super("The permitted file does not exist. This is not a permission denial. Create it with expectedHash:null only when the current step authorizes a new file; otherwise report the required file as missing."); this.name = "RoleFileMissingError"; }
+}
+
 export function roleFileToolNames(agent) {
   if (agent === "pm") return [];
   return [...READ_TOOLS, "role_file_write"];
@@ -79,7 +83,9 @@ export function createRoleFiles(filesystem, agent) {
 
   function read(target) {
     resolveTarget(target);
-    const before = lstatSync(target, { bigint: true });
+    let before;
+    try { before = lstatSync(target, { bigint: true }); }
+    catch (error) { if (error.code === "ENOENT") throw new RoleFileMissingError(); throw error; }
     if (!before.isFile() || before.size > BigInt(MAX_FILE_BYTES)) throw new Error("Text file too large or unsupported");
     const descriptor = openSync(target, "r");
     try {
