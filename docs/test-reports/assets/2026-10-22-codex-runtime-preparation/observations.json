@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-22T07:05:32.837187+00:00",
+  "scope": "preparation only; no live model/service/installation acceptance",
+  "publicSource": {
+    "revision": "e71684751923a3bf4ca03e127be83112cb56039f",
+    "pluginVersion": "0.5.17",
+    "protocol": "harness-runtime-v1",
+    "ci": [
+      {
+        "name": "check",
+        "runId": 39723500265,
+        "conclusion": "success"
+      },
+      {
+        "name": "windows-role-runtime",
+        "runId": 39723500363,
+        "conclusion": "success"
+      }
+    ]
+  },
+  "privateSource": {
+    "repository": "Sangeok/harness-templates",
+    "upstreamRevision": "71505fe3f7583fa5ffaa6b721a134d3d2a40354f",
+    "exportCommit": "a72860ca4afb4cd26872b3e2d9d4c7e2a5dbf88c",
+    "selection": "en required runtime bundle",
+    "rows": 13,
+    "templateSourceHash": "9637a9868d1c84bcbf7a349bb2978474a464d0a830ed1e42c39cdfdbea9c2864",
+    "gitBlobIdentity": "PASS",
+    "roleRendering": {
+      "clients": [
+        "claude",
+        "codex"
+      ],
+      "roles": [
+        "dev",
+        "doc-auditor",
+        "feature-scout",
+        "impl-verifier",
+        "plan-verifier",
+        "pm",
+        "qa-verifier"
+      ],
+      "result": "PASS"
+    },
+    "semantics": "structural/render compatibility; real role behavior unverified",
+    "bundleSha256": "5e099855c9ee63b0e4e9262b836773cfe6500e93960162553e164aafd00c790c"
+  },
+  "runtime": {
+    "artifactId": 12401914705,
+    "runId": 39723500363,
+    "downloadSha256": "1cca336c5eed074b9ac3829c7e4ebc235ac41ac7e4cbf95c50515eed08998054",
+    "expiresAt": "2026-10-29T04:43:20Z",
+    "key": "windows-role-node-runtime-v2-windows-2022-x64-914aadc3489f52fdf02931a774a6bcd9411b86dcf1f4a22f36146b9ffd2df3ee",
+    "buildScriptSha256": "3a4b9bf84ac384de1b610e445dbb5504f796c9ed19482ee018138a193559ab38",
+    "executableSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "packageSha256": "55106106c8e2a46edaf0ec6c4335b21c952ceefb6d7f6e871fbebf4fefdb3598",
+    "files": 2150,
+    "bytes": 98598377
+  },
+  "verifier": {
+    "files": 8,
+    "checksum": "709537e7095bc8e1e630181f9d0ea77d8e1549f786ff698d9abaf64410b8b9a0",
+    "unchangedOriginal": true
+  },
+  "package": {
+    "inventoryFiles": 2221,
+    "inventorySha256": "ea4b925144461fe2e6d9fdf61438bda9b880495957815c67895f7a95523a0842",
+    "archiveSha256": "63c89a32491976028634ba0bda046b306344ec2689851d9d6789bf6686b5db17",
+    "archiveBytes": 37377777,
+    "archiveEntries": 2222,
+    "allArchiveEntryHashesMatch": true
+  },
+  "fixture": {
+    "files": [
+      {
+        "path": "app/label.mjs",
+        "sha256": "f1c7510c1dabcb3a225e2d135c6918b5cea00d57e0cc0c09e72c64bdd4c23f53"
+      },
+      {
+        "path": "app/label.test.mjs",
+        "sha256": "ec8bd389b04d8da81406076c7c59fc8b6fc032cb987ba4a92ea6c34dd6c50ac6"
+      },
+      {
+        "path": "app/pending.mjs",
+        "sha256": "95fa648063206dec2ea616f754751d80c8d2ae388c9731d3eddeb24bdbbc32cb"
+      },
+      {
+        "path": "harness.json",
+        "sha256": "8fa8d1c2f264e1022ec0bd202660c4eb46add0d1891d44db6fb8bb69a80478cb"
+      },
+      {
+        "path": "package.json",
+        "sha256": "65e5cc46939903f78c1a55effbc6f1a7a81ba9399eea3bdccd1e75d7a095c574"
+      },
+      {
+        "path": "plan-candidate.md",
+        "sha256": "547ff208ae075274bd722e28a3005ceb77b7decde4447fcbb3f63d4467af2067"
+      }
+    ],
+    "baseline": {
+      "passed": 1,
+      "failed": 0
+    },
+    "sketch": {
+      "blocks": 2,
+      "exitCode": 0
+    },
+    "mutations": [
+      {
+        "mutation": "untrimmed",
+        "exitCode": 1,
+        "detected": true
+      },
+      {
+        "mutation": "trim-start",
+        "exitCode": 1,
+        "detected": true
+      },
+      {
+        "mutation": "trim-end",
+        "exitCode": 1,
+        "detected": true
+      },
+      {
+        "mutation": "remove-internal",
+        "exitCode": 1,
+        "detected": true
+      }
+    ],
+    "finalSketchExitCode": 0,
+    "pendingCommand": "npm run test:pending",
+    "pendingDurationMs": 60000,
+    "pendingSyntaxCheck": "PASS",
+    "pendingExecution": "NOT RUN",
+    "briefingSha256": "692d1694004a1984d93d61779f2fa29eef76093d3764905abe3f3ef71aad6eca"
+  },
+  "sourceRegression": {
+    "command": "node --test plugin/bin/harness-session.test.mjs plugin/bin/harness-background-loop.test.mjs plugin/bin/harness-role-files.test.mjs plugin/bin/harness-role-git.test.mjs",
+    "passed": 70,
+    "failed": 0,
+    "skipped": 6,
+    "skipReason": "Windows-specific cases on macOS"
+  },
+  "environment": {
+    "platform": "Darwin",
+    "architecture": "arm64",
+    "codexVersion": "0.163.0",
+    "claudeVersion": "2.1.307",
+    "testDatabaseConfigured": false,
+    "nativeWindowsInteractiveHost": "not assigned"
+  },
+  "notRun": [
+    "native client installation/update and loader",
+    "physical clean Windows minimum setup",
+    "private-template service plan-verifier",
+    "same-item active-command stop/resume and owner final accept",
+    "native Claude/Codex bidirectional browser approval",
+    "mixed-version host handoff",
+    "C4 implementation and 110-minute idle",
+    "production seed/deployment/package publication"
+  ],
+  "operatorCorrections": [
+    "Git credential could not clone private repository; fetched fixed-revision required files with connected GitHub and verified each blob",
+    "Interrupted slow partial runtime download; final connector ZIP matched the artifact digest before extraction",
+    "Corrected local source-check import and fixture workspace id before successful validation"
+  ],
+  "documentationChecks": {
+    "traceability": {
+      "mode": "standard",
+      "result": "PASS",
+      "legacyWarnings": 13,
+      "strict": "not selected: historical parent and blocked downstream scope"
+    },
+    "runtimeReportStructure": "PASS; lifecycle active; product not final",
+    "localLinks": "PASS",
+    "gitDiffCheck": "PASS"
+  },
+  "architectureChecks": {
+    "fsd": "PASS",
+    "server": "PASS",
+    "tests": {
+      "passed": 136,
+      "failed": 0,
+      "skipped": 2
+    }
+  }
+}
