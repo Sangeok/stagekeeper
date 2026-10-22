@@ -271,7 +271,7 @@ src/app, src/fsd/pages, shared/config, shared/routes, entities/pipeline/model �
   AI·LLM은 대문자 단어 단위로, stamp/stamps/stamped/stamping, reject/rejects/rejected/rejecting/rejection/rejections,
   ticket/tickets, harness는 대소문자를 무시한 단어 단위로 검사한다. 단어 경계만으로 활용형이 잡힌다고 가정하지 않는다.
   프로토콜 식별자는 code 안에서만 허용한다. 일반 영어와 겹치는 issue/task/model 등은 §2와 대조해 본문 검토에서 확인한다.
-- scripts/retired-copy.test.mjs의 기존 모든 소스·잠금 검사도 유지한다. 새 금지어 검사를 문서 밖 화면까지 확대하지 않는다.
+- scripts/checks/retired-copy.test.mjs의 기존 모든 소스·잠금 검사도 유지한다. 새 금지어 검사를 문서 밖 화면까지 확대하지 않는다.
 - docs/architecture/verification.md에 새 잠금·시험·실행 서버 인수를, fsd.md의 shared config 목록에 외부 CLI 설치 구성을 기록한다.
   새 경계 예외나 검사 억제는 도입하지 않는다.
 
@@ -312,7 +312,7 @@ src/app, src/fsd/pages, shared/config, shared/routes, entities/pipeline/model �
 
 기존 `src/fsd/entities/project-token/ui/token-reveal.test.ts`,
 `src/fsd/features/review-gate/ui/acceptance-failure.test.ts`, `src/server/public-url.test.mjs`,
-`scripts/retired-copy.test.mjs`는 그대로 실행하는 회귀 검증 표면이다. 기존 기대값을 느슨하게 만들지 않는다.
+`scripts/checks/retired-copy.test.mjs`는 그대로 실행하는 회귀 검증 표면이다. 기존 기대값을 느슨하게 만들지 않는다.
 packages/core·플러그인 manifest·Next 설정·루트 layout·CSS·폰트·이미지·DB·private 템플릿은 읽기·보존 대상이다.
 이 제안서 자체는 별도 검토 입력이다. 현재 요청으로 허용된 정합화 변경과 이후 승인된 검증·상태 기록은
 제품 구현 파일 목록과 구분해 기록한다. 기존 제안서 변경을 제품 범위 밖 변경으로 오인해 되돌리지 않는다.

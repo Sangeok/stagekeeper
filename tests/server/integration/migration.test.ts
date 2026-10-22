@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { it } from "node:test";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../../src/generated/prisma/client";
-import { PRESERVED_TABLES, readCleanupFactsIn } from "../../../scripts/lib/project-ownership-cleanup";
+import { PRESERVED_TABLES, readCleanupFactsIn } from "../../../scripts/project-ownership/project-ownership-cleanup";
 import { testDatabaseUrl } from "./support";
 
 type PgConnection = { connect(): Promise<void>; end(): Promise<void>; query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }> };

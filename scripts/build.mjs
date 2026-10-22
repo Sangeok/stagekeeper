@@ -10,7 +10,7 @@ const steps = [
 ];
 const env = { ...process.env };
 if (windowsRole) {
-  const preload = fileURLToPath(new URL("./windows-role-readlink.cjs", import.meta.url));
+  const preload = fileURLToPath(new URL("./windows/windows-role-readlink.cjs", import.meta.url));
   env.NODE_OPTIONS = `${env.NODE_OPTIONS ?? ""} --require ${JSON.stringify(preload)}`.trim();
 }
 for (const args of steps) {

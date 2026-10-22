@@ -87,7 +87,7 @@ Codex 자동 watch는 후속 C4이며 이 배포물의 실행 surface에 포함�
 
 ## 인수 검사
 
-`node --import tsx scripts/rehearse-dual-client-runtime.ts --phase acceptance --root <준비된-별도-checkout> --report docs/test-reports/active/dual-client-runtime-report.md`
+`node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase acceptance --root <준비된-별도-checkout> --report docs/test-reports/active/dual-client-runtime-report.md`
 는 제품 DB와 다른 `stagekeeper_test_*`의 `TEST_DATABASE_URL`을 확인한 뒤
 그 DB에만 migration과 양방향 승인 재개·원장·seed 복구 시험 6개를 실행한다.
 부모의 제품·owner·API credential을 test child에 전달하지 않는다.

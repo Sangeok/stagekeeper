@@ -211,12 +211,12 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 | `plugin/skills/init/SKILL.md`, `plugin/skills/watch/SKILL.md`, `plugin/codex/skills/harness-init/SKILL.md`와 양쪽 helper 배포물 | 선택한 각 client의 Node/검증 패키지 수동 설치 의존성 해소·안내 | high — 사용자 설치·winning package |
 | `plugin/bin/harness-codex.mjs`, `plugin/runtime/codex-thread.mjs`, 설치 배포물의 helper/검증 패키지와 init 경로 | TASK-MIN-01/02; native 실행·의존성 전달 방식 확정 후 구현, 제품 오류를 사용자 설치 요구로 변환하지 않음 | high — Windows 권한 경계·배포 출처·기존 인증 |
 | `plugin/runtime/codex-thread.mjs`, `codex-agent.mjs`, `local-session.mjs`; `plugin/bin/harness-session.mjs` | 실제 인수 및 발견된 결함 수정 | high — 권한·독립 문맥·소유권 |
-| `plugin/templates` 별도 private 저장소; `scripts/seed-templates.ts`, `restore-dual-client-templates.ts` | 소스 전달·승인된 배포/복구 인수 | high — 데이터·배포 조합 |
+| `plugin/templates` 별도 private 저장소; `scripts/templates/seed-templates.ts`, `restore-dual-client-templates.ts` | 소스 전달·승인된 배포/복구 인수 | high — 데이터·배포 조합 |
 | 실제 설치한 Claude/Codex package, 기존 dual-client UI | 양방향 end-to-end 인수 | high — 승인·원장·사용량 |
 | C4 후보 `plugin/runtime/codex-session.mjs`, `plugin/bin/harness-codex-watch.mjs` 및 test, `plugin/codex/skills/harness-watch/SKILL.md` | 호스트 기능 확인 후 구현 위치 확정 | high — 재진입·취소·장시간 실행 |
 | active runtime 보고서와 최종 watch 보고서 | revision·직접 관찰·정리 결과 기록 | medium — 증거 범위 과장 방지 |
 | `plugin/bin/harness-session.test.mjs`, `plugin/codex/skills/harness-run/SKILL.md`, `docs/architecture/protocol.md` | 실제 실행 preflight·역할 MCP 승인 정책의 회귀와 사용 지침 | high — 허용 도구 실행과 권한 경계 |
-| `scripts/rehearse-dual-client-runtime.ts` 및 test | 실제 기록 추가 중 발견한 CRLF 보고서 append 오류 수정 | medium — 기존 증거 행 보존 |
+| `scripts/rehearsals/rehearse-dual-client-runtime.ts` 및 test | 실제 기록 추가 중 발견한 CRLF 보고서 append 오류 수정 | medium — 기존 증거 행 보존 |
 | `plugin/bin/harness-watch.test.mjs` | 전체 검증에서 드러난 cold-process HTTP 연결 시간과 응답 timeout 시험의 경계 수정 | low — five-retry/cleanup 단언은 유지 |
 
 ## Safety Analysis

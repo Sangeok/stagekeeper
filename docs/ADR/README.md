@@ -32,6 +32,7 @@ ADR은 결정이 *왜* 내려졌는지, 어떤 대안을 비교했는지, 어떤
 | [0001](0001-adopt-feature-sliced-design.md) | Next.js 경계에 맞춘 Feature-Sliced Design 채택 | accepted |
 | [0002](0002-test-code-organization.md) | 대상 옆 테스트 배치와 실행 경계별 분리 채택 | accepted |
 | [0003](0003-server-module-boundaries.md) | 얕은 서버 기능 모듈과 명시적인 공개 진입점 | proposed |
+| [0004](0004-organize-repository-scripts.md) | 저장소 스크립트의 책임별 배치 | accepted |
 
 첫 번째 실제 아키텍처 결정은 `0001`부터 시작합니다. `0000`은 ADR 운영 방식
 자체를 기록하는 메타 ADR이 필요할 때만 사용합니다.
