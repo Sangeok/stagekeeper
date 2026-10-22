@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-05T12:52:42.471Z"
-tested-revision: "97f03030206f075ae6b7f4308da3314adb01478a"
+last-executed-at: "2026-10-22T15:48:25.445Z"
+tested-revision: "b17bc678a95174fce9fa7a6c2dc9c18327edf4c6"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
-observed-environments: ["local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "fail: dual-client runtime — scoped Windows Git regression passed; full service verifier, controlled same-case stop/resume and release gates remain unresolved"
+observed-environments: ["local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
+test-summary: "blocked: dual-client runtime — local Codex prepared-plan acceptance passed; broader host, handover and release gates remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -23,6 +23,15 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-22 runtime recovery: actual native Codex roles resume committed plans and
+reports, pass independent verification, implement and reach five-check service
+acceptance in an isolated prepared-plan fixture. CLI selection, queued calls, local
+project arguments, missing paths and list responses have regression coverage. Earlier
+failed candidates are retained. This is an unreleased local candidate with private
+working templates; controlled private stop/resume, clean-host/cross-client acceptance
+and operational release remain open.
+[Bounded regression report](../completed/2026-10-22-codex-runtime-recovery.md).
 
 2026-10-05 scoped Git follow-up: fixed native Windows `role_git_read` now
 provides head/show/diff/status for permitted files without exposing original
