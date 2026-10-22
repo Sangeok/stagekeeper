@@ -5,8 +5,9 @@ const text = (value) => typeof value === "string" && value.length > 0;
 const nullableText = (value) => value === null || typeof value === "string";
 const protocolError = () => ({ ok: false, error: { code: "protocol-error" } });
 
-export function parseToolResponse(contentType, body, requestId) {
+export function parseToolResponse(contentType, body, requestId, valueKind = "object") {
   try {
+    if (!["object", "object-list"].includes(valueKind)) return protocolError();
     const type = contentType?.split(";")[0].trim().toLowerCase();
     let messages;
     if (type === "application/json") {
@@ -37,9 +38,8 @@ export function parseToolResponse(contentType, body, requestId) {
     const blocks = result.content.filter((block) => object(block) && block.type === "text");
     if (blocks.length !== 1 || typeof blocks[0].text !== "string") return protocolError();
     const value = JSON.parse(blocks[0].text);
-    if (!object(value)) return protocolError();
     if (result.isError === true) {
-      if (!text(value.error) || (value.code !== undefined && typeof value.code !== "string")) return protocolError();
+      if (!object(value) || !text(value.error) || (value.code !== undefined && typeof value.code !== "string")) return protocolError();
       const error = { code: "access-refused", reason: value.error };
       if (value.code === "USAGE_LIMIT_REACHED") {
         if (typeof value.resetAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value.resetAt)
@@ -52,6 +52,7 @@ export function parseToolResponse(contentType, body, requestId) {
       }
       return { ok: false, error };
     }
+    if (valueKind === "object" ? !object(value) : !Array.isArray(value) || !value.every(object)) return protocolError();
     return { ok: true, value };
   } catch {
     return protocolError();

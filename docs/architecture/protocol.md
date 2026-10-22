@@ -592,6 +592,9 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 
 Codex role dispatcher는 모델 없는 effective config와 플랫폼별 실행 preflight 후 새 App Server thread를 시작한다.
+공통 MCP parser는 기본적으로 객체 응답을 요구한다. 로컬 client의 `backlog_list`와
+`board_list` 호출만 객체 배열 계약을 선택하며, 빈 배열도 유효하다. 오류 본문은 여전히
+객체여야 하고 JSON-RPC ID·content 검사와 pipeline/agent 응답의 객체 계약은 유지한다.
 CLI 탐색은 PATH의 지원되지 않는 Windows wrapper를 실행하지 않고 다음 후보를 검사한다.
 npm wrapper는 package identity·entry와 실제 `--version` 응답을 확인한다. helper는 선택한 경로·
 버전과 건너뛴 후보를 `cli-selected`로 출력하고, 그 실행 파일로 기존 App Server preflight를 수행한다.
