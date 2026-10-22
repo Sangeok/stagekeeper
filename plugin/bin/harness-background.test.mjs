@@ -345,3 +345,21 @@ it("reports a sign-in start that finds a runner already in this checkout as chec
   assert.equal((await f.run([...START, "--from-autostart"])).event.code, "locked");
   assert.deepEqual(f.runnerCalls.filter(call => call.op === "autostart").map(call => [call.state, call.branch, call.code]), [["refused", "main", "checkout-in-use"]]);
 });
+
+it("keeps sending a refused sign-in start report while the server is briefly unreachable", async t => {
+  const f = await fixture(t);
+  mkdirSync(f.directory, { recursive: true });
+  writeFileSync(path.join(f.directory, "autostart.json"), JSON.stringify({ schemaVersion: 1, branch: "main" }));
+  writeFileSync(path.join(f.root, "draft.txt"), "x");
+  let unavailable = 2;
+  f.setRunner((body, res) => {
+    if (unavailable-- > 0) { res.statusCode = 503; res.end(); return; }
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ ok: true, paused: false }));
+  });
+  assert.equal((await f.run([...START, "--from-autostart"])).event.code, "dirty");
+  const reports = f.runnerCalls.filter(call => call.op === "autostart");
+  assert.deepEqual(reports.map(call => [call.state, call.code]), [["refused", "dirty"], ["refused", "dirty"], ["refused", "dirty"]]);
+  assert.equal(new Set(reports.map(call => call.session)).size, 1);
+  assert.doesNotMatch(readFileSync(path.join(f.directory, "background.log"), "utf8"), /not reported/);
+});

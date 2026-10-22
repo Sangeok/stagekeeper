@@ -465,10 +465,22 @@ Findings:
 - A toast at sign-in is easy to miss. It went out 13 s after sign-in and was found only in the
   notification center. Follow-up (2026-10-22, plugin 0.5.17): a refused sign-in start is also
   reported to the server, and the banner names the reason.
+  Checked (2026-10-23, plugin 0.5.17) with a real sign-out and sign-in, the task pointing at
+  stagekeeper.dev and an uncommitted file in the smoke checkout:
+  - The task ran at sign-in (result 0), and the toast went out 20 s later.
+  - The refusal reached the server 24 s after sign-in. The row became `stopped`/`signin`/`dirty`,
+    and the production banner named the reason.
+  - That report was a single request. Follow-up (plugin 0.5.18): it retries transient failures like
+    the start lease, so a network that comes up a little after sign-in still gets the reason to the
+    banner.
 - The web **Pause**/**Resume** control appears only while a runner exists or the project is
   already paused (`showsPauseControl`). An owner cannot pause before a start, and a start with ready work
   begins a run within the first cycle (27 s here). Follow-up (2026-10-22, plugin 0.5.17): with
   sign-in start on, an owner stop keeps the row as stopped until sign-in, so **Pause** stays.
+  Checked (2026-10-22, plugin 0.5.17) on localhost with a real runner:
+  - **Pause** pressed before the start held.
+  - The paused runner started no run.
+  - An owner stop kept the row as `stopped`/`owner` with "starts again when you sign in".
 - The classifier denied nothing in any finished run with the default model.
 
 Not observed:
