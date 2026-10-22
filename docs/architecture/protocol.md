@@ -235,6 +235,8 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 - 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다.
 - 정지: owner는 행을 지운다. 다만 자동 시작이 켜진 resident 행은 `state=stopped`·`stopReason=owner`로 남긴다.
   배너가 "다음 로그온에 다시 시작한다"를 보이고 Pause를 두므로, 소유자가 로그온 전에 일시 정지할 수 있다.
+  DB 검사(`Runner_stop_check`, 마이그레이션 `20261022000000_runner_signin_stop`)는 `owner`·`signin`을 `autostart`인
+  resident 행에만 허용한다.
   stuck·error·plan은 `state=stopped`로 남아 배너가 이유를 보이고, 다음 start가 덮어쓴다.
 - 자동 시작 보고(`autostart`): 로그온 작업이 실행기를 띄우지 못한 이유를 웹에 남긴다. 알림을 놓쳐도 배너에 남는다.
   - on: 행이 없으면 `stopped`·`owner`·`autostart:true` 행을 만든다. 같은 PC의 resident 행이 있으면 `autostart`만 켠다.
