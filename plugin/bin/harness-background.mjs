@@ -277,8 +277,9 @@ async function startChecks(location, files, options) {
   return { input, tree, identity, stale: state !== null };
 }
 
-async function startLease(input, payload) {
-  const target = { server: input.server, token: input.token, project: input.config.project.slug };
+const runnerTarget = input => ({ server: input.server, token: input.token, project: input.config.project.slug });
+
+async function retryingRunnerCall(target, payload) {
   let result;
   for (let failures = 0;;) {
     result = await runnerCallWithin(target, payload, REQUEST_TIMEOUT);
@@ -307,7 +308,7 @@ async function start(location, files, options) {
       poller: null, client: "claude", mode: "resident", lifecycle: "active", children: [], host, runnerLease: true });
   });
   const autostart = existsSync(autostartFile(directory));
-  const result = await startLease(input, { op: "start", session, mode: "resident", host, branch: tree.branch, permission, autostart,
+  const result = await retryingRunnerCall(runnerTarget(input), { op: "start", session, mode: "resident", host, branch: tree.branch, permission, autostart,
     ...(options.takeover ? { takeover: true } : {}) });
   if (result.kind !== "ok") {
     await withGuard(files, () => { if (readState(files)?.lock.id === session) clearState(files); });
@@ -404,8 +405,7 @@ const SIGNIN_UNREPORTED = new Set(["invalid-arguments", "invalid-config", "missi
 async function reportAutostart(root, options, payload) {
   let input;
   try { input = connection(root, options); } catch { return false; }
-  const target = { server: input.server, token: input.token, project: input.config.project.slug };
-  const result = await runnerCallWithin(target, { op: "autostart", session: randomUUID(), host: runnerHost(), ...payload }, REQUEST_TIMEOUT);
+  const result = await retryingRunnerCall(runnerTarget(input), { op: "autostart", session: randomUUID(), host: runnerHost(), ...payload });
   return result.kind === "ok";
 }
 
