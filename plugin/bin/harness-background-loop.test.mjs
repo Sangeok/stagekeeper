@@ -11,7 +11,7 @@ const OK = { kind: "ok", paused: false, stop: null };
 const SUCCESS = { exitCode: 0, result: { subtype: "success", isError: false, turns: 4, terminal: "completed", denials: 0 }, log: "run.jsonl" };
 
 function harness({ overviews = [WORK, NONE], trees = [], heads = null, beats = [], runs = [], lifecycle = [], maxLoops = 40 } = {}) {
-  const calls = { beats: [], notices: [], runs: 0, ended: [], saves: [], logs: [], endedAt: [] };
+  const calls = { beats: [], beatAt: [], notices: [], runs: 0, ended: [], saves: [], logs: [], endedAt: [] };
   let clock = 0, loops = 0;
   const next = (list, fallback) => (list.length > 1 ? list.shift() : list[0] ?? fallback);
   const deps = {
@@ -19,7 +19,7 @@ function harness({ overviews = [WORK, NONE], trees = [], heads = null, beats = [
       if (++loops > maxLoops * 50) return "stopping";
       return next(lifecycle, "active");
     },
-    beat: async payload => { calls.beats.push(payload); const value = next(beats, OK); return typeof value === "function" ? value(payload, calls) : value; },
+    beat: async payload => { calls.beats.push(payload); calls.beatAt.push(clock); const value = next(beats, OK); return typeof value === "function" ? value(payload, calls) : value; },
     overview: async () => { const value = next(overviews, NONE); if (value instanceof Error) throw value; return value; },
     tree: () => next(trees, CLEAN),
     branch: () => {
@@ -64,6 +64,15 @@ it("waits on uncommitted changes, notifies once with the files, and continues wh
   assert.equal(calls.runs, 1);
   assert.equal(fillNotice("waitDirty", { branch: "main", files: fileList(dirty.dirty) }).body,
     "Uncommitted changes: a.ts, b.ts, c.ts and 1 more. Commit or stash them, and it continues.");
+});
+
+it("tells the server about a wait and its end within a second, not at the next minute's signal", async () => {
+  const dirty = { ...CLEAN, dirty: ["a.ts"] };
+  const { deps, calls } = harness({ overviews: [WORK, NONE], trees: [dirty, CLEAN] });
+  await runResident({ branch: "main" }, deps);
+  assert.deepEqual(calls.beats.slice(0, 3), [{ state: "idle" }, { state: "waiting", waitReason: "dirty" }, { state: "idle" }]);
+  assert.deepEqual(calls.beatAt.slice(0, 4), [0, 1_000, 2_000, 62_000]);
+  assert.deepEqual(calls.notices, ["waitDirty"]);
 });
 
 it("ends a run when the branch changes, does not count it as a failure, and waits once on the branch", async () => {

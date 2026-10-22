@@ -274,6 +274,8 @@ edit in that checkout during a run can land in the runner's commit. A working se
 > Work already running finishes first.
 > No signal from the runner on {host} for {n} min.
 > Runner on {host} stopped: {reason}. Start it again in Claude Code.
+> Runner on {host} stopped. It starts again when you sign in.
+> Runner on {host} did not start at sign-in: {reason}. It tries again at the next sign-in, or start it in Claude Code.
 > starts at sign-in
 > allow-list only
 > pause before you edit {branch}
@@ -281,12 +283,26 @@ edit in that checkout during a run can land in the runner's commit. A working se
 
 "Work already running finishes first." follows the pause sentence only while the runner is working.
 `{reason}` is a fixed sentence per stop code — never free text from the server or the CLI. A stop by
-the owner on their own machine removes the line instead.
+the owner on their own machine removes the line, unless sign-in start is on: then the line says the
+runner starts again when the owner signs in, so the owner can pause it before it does.
 
 <!-- copy-lock:turn-banner-runner-reasons -->
 > the same steps came back three times without progress
 > it hit an error — check the session or its log
 > the background runner needs Pro
+<!-- /copy-lock -->
+
+When sign-in start refuses to start the runner, the CLI reports a code and the line names it with a
+fixed phrase, so a missed Windows notice still leaves the reason on the Board. Codes the CLI does not
+name get the last phrase. Turning sign-in start off removes these lines.
+
+<!-- copy-lock:turn-banner-runner-signin -->
+> {branch} had uncommitted changes
+> the checkout was not on {branch}
+> the checkout was not on a branch
+> a remote has its own push URL
+> another watch or runner was using the checkout
+> see the runner log
 <!-- /copy-lock -->
 
 Next to the line, a quiet **Pause** (or **Resume** while paused) button. It shows only when a runner

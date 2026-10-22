@@ -7,7 +7,7 @@ import { latestBoard } from "@/server/pipeline/api.server";
 import { loadExecutionFacts } from "@/server/pipeline/api";
 import { readRunnerState } from "@/server/runners/api.server";
 import type { RunnerView } from "@/server/runners/contracts";
-import type { RunnerFacts } from "../model/runner";
+import { signinCode, type RunnerFacts } from "../model/runner";
 import { deriveTurn, type Turn } from "../model/turn";
 
 export type TurnData = { turn: Turn; inboxCount: number; runner: RunnerFacts };
@@ -17,7 +17,8 @@ export function runnerFacts(view: RunnerView): RunnerFacts {
   return {
     runner: row === null ? null : {
       mode: row.mode, host: row.host, branch: row.branch, permission: row.permission, autostart: row.autostart, state: row.state,
-      waitReason: row.waitReason, stopReason: row.stopReason, seenAt: row.seenAt.toISOString(), lastActivity: view.lastActivity?.toISOString() ?? null,
+      waitReason: row.waitReason, stopReason: row.stopReason, signinCode: row.stopReason === "signin" ? signinCode(row.lastResult) : null,
+      seenAt: row.seenAt.toISOString(), lastActivity: view.lastActivity?.toISOString() ?? null,
     },
     paused: view.pausedAt !== null,
     renderedAt: view.renderedAt.toISOString(),

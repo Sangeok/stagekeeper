@@ -915,7 +915,8 @@ TEST_DATABASE_URL="postgresql://postgres@127.0.0.1:<port>/stagekeeper_test_<name
   - 실물로 보지 못한 것이 둘 있다. 하나는 상주 프로세스가 죽을 때 도구 셸도 함께 끝나는지다. smoke B 10번에서는 그 순간 도구 셸이 없어서 spike 측정에 기댄다. 다른 하나는 "끊긴 실행" 대기 알림으로, 루프 시험만 확인했다.
   - 1단계 watch가 실제 Claude Code 세션에서 `busy`·`replaced`를 처리하는 모습은 보지 못했다(smoke A는 CLI 수준). 상주 실행기의 `paused`·`working`은 smoke B에서 봤다.
   - smoke B 관찰(시험 보고서 Findings)은 기록만 했다. 대기가 배너에 최대 60초 늦게 가는 것, 브랜치를 바꾼 뒤 1분 창 안의 다른 브랜치 커밋, 첫 확인 전 stop이 세는 실패 1, 기록 직전 Pause가 기록을 다음 실행에 넘기는 것, 로그온 직후 알림을 놓치기 쉬운 것, 실행기가 없을 때 미리 Pause할 수 없는 것이다. 고칠지는 정하지 않았다.
-    - 2026-10-22 후속: 1분 창은 실행 중 브랜치 확인을 2초마다로 바꿔 좁혔다(`harness/runner-branch-check`, 플러그인 0.5.16). 생존 신호는 그대로 60초다. 확인 사이 약 2초의 창은 남는다. 나머지 관찰은 그대로다.
+    - 2026-10-22 후속: 1분 창은 실행 중 브랜치 확인을 2초마다로 바꿔 좁혔다(`harness/runner-branch-check`, 플러그인 0.5.16). 생존 신호는 그대로 60초다. 확인 사이 약 2초의 창은 남는다.
+    - 같은 날 후속(`harness/runner-signin-visibility`, 플러그인 0.5.17): 대기의 시작과 끝을 1초 안에 보고한다. 자동 시작이 켜진 실행기는 소유자가 멈춰도 행을 `stopped`(owner)로 남겨 로그온 전에 Pause할 수 있다. 로그온 시작의 거부는 `autostart` op로 서버에 보고해 배너가 이유를 보인다. 첫 확인 전 stop의 실패 1과 기록 직전 Pause는 영향이 없어 그대로 둔다.
   - smoke 저장소(`harness-watch-smoke`)는 ITEM-05가 구현을 기다리는 상태이고, 파이프라인은 Version 3(게이트 없음)이다.
 
 닫힘 기록(`status: "closed"`일 때 작성):

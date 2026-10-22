@@ -444,6 +444,7 @@ Step 5 on 0.5.15:
 Findings:
 
 - A wait reaches the banner up to 60 s late. The runner reports `waiting` with its next signal.
+  Follow-up (2026-10-22, plugin 0.5.17): a wait that starts or ends is reported within 1 s.
 - The documented one-minute window (B-2 step 3) happened. During the second branch switch, the
   agent committed the ITEM-05 plan (`ee8385c`) on `smoke-b-other2` before the runner noticed the
   switch. The commit was later fast-forwarded into the smoke repository's main.
@@ -462,10 +463,12 @@ Findings:
   `runs/<id>.jsonl` and `<id>.launch.json` and no `.meta.json`. Pruning removes the launch file
   with the log.
 - A toast at sign-in is easy to miss. It went out 13 s after sign-in and was found only in the
-  notification center.
+  notification center. Follow-up (2026-10-22, plugin 0.5.17): a refused sign-in start is also
+  reported to the server, and the banner names the reason.
 - The web **Pause**/**Resume** control appears only while a runner exists or the project is
   already paused (`showsPauseControl`). An owner cannot pause before a start, and a start with ready work
-  begins a run within the first cycle (27 s here).
+  begins a run within the first cycle (27 s here). Follow-up (2026-10-22, plugin 0.5.17): with
+  sign-in start on, an owner stop keeps the row as stopped until sign-in, so **Pause** stays.
 - The classifier denied nothing in any finished run with the default model.
 
 Not observed:

@@ -6,6 +6,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { RESIDENT_RUNNER_PLAN_GATE } from "../lib/entitlement.mjs";
+import { RUNNER_SIGNIN_CODES } from "../lib/runner.mjs";
 import { parseBearer } from "../lib/token.mjs";
 import { actionableWork } from "../lib/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
@@ -397,6 +398,17 @@ function userEnvironment(name) {
   } catch { return null; }
 }
 
+const SIGNIN_UNREPORTED = new Set(["invalid-arguments", "invalid-config", "missing-server", "invalid-token", "identity-mismatch", "busy", "plan",
+  "no-route", "autostart-missing"]);
+
+async function reportAutostart(root, options, payload) {
+  let input;
+  try { input = connection(root, options); } catch { return false; }
+  const target = { server: input.server, token: input.token, project: input.config.project.slug };
+  const result = await runnerCallWithin(target, { op: "autostart", session: randomUUID(), host: runnerHost(), ...payload }, REQUEST_TIMEOUT);
+  return result.kind === "ok";
+}
+
 function autostartTask(root) { return `Stagekeeper runner ${hash(root).slice(0, 8)}`; }
 
 function autostartScript(args) {
@@ -405,7 +417,7 @@ function autostartScript(args) {
   return JSON.parse(output.trim().split(/\r?\n/).pop());
 }
 
-function autostartOn(location, files, options) {
+async function autostartOn(location, files, options) {
   if (process.platform !== "win32") refuse("autostart-windows");
   if (!parseBearer(`Bearer ${userEnvironment("HARNESS_TOKEN")}`, "user")) refuse("autostart-token");
   if (!options.server && !nonempty(userEnvironment("HARNESS_SERVER"))) refuse("autostart-server");
@@ -423,16 +435,21 @@ function autostartOn(location, files, options) {
   mkdirSync(files.directory, { recursive: true });
   atomicWrite(autostartFile(files.directory), { schemaVersion: 1, task, pluginRoot: PLUGIN_ROOT, root: location.root, branch: tree.branch,
     propose: options.propose, server: options.server ?? null, registeredAt: now() });
+  if (!await reportAutostart(location.root, options, { state: "on", branch: tree.branch })) backgroundLog(files.directory, "sign-in start on: not reported");
   return { event: "autostart", registered: true, branch: tree.branch };
 }
 
-function autostartOff(location, files) {
+async function autostartOff(location, files, options) {
   if (process.platform !== "win32") refuse("autostart-windows");
+  const registered = readOptional(autostartFile(files.directory));
   let result;
   try { result = autostartScript(["-Action", "unregister", "-TaskName", autostartTask(location.root)]); }
   catch { refuse("autostart-failed"); }
   if (result?.ok !== true) refuse("autostart-failed");
   try { unlinkSync(autostartFile(files.directory)); } catch {   }
+  if (!await reportAutostart(location.root, { server: options.server ?? registered?.server ?? undefined }, { state: "off" })) {
+    backgroundLog(files.directory, "sign-in start off: not reported");
+  }
   return { event: "autostart", registered: false };
 }
 
@@ -543,11 +560,13 @@ async function main() {
   let options;
   let event;
   let directory = null;
+  let root = null;
   try {
     options = parseArguments(process.argv.slice(2));
     const location = gitRoot(options.root);
     const files = { ...stateFiles(location.directory), directory: location.directory };
     directory = location.directory;
+    root = location.root;
     if (options.op === "preflight") {
       const { tree } = await startChecks(location, files, options);
       event = { event: "ready", host: runnerHost(), branch: tree.branch, autostart: existsSync(autostartFile(directory)) };
@@ -555,13 +574,20 @@ async function main() {
     else if (options.op === "run") event = await resident(location, files, options);
     else if (options.op === "stop") event = await stop(files);
     else if (options.op === "status") event = status(files);
-    else if (options.op === "autostart-on") event = autostartOn(location, files, options);
-    else event = autostartOff(location, files);
+    else if (options.op === "autostart-on") event = await autostartOn(location, files, options);
+    else event = await autostartOff(location, files, options);
   } catch (error) {
     const code = error instanceof Refusal ? error.code : error?.code && REASONS[error.code] ? error.code : "corrupt-state";
     const reason = error instanceof Refusal ? error.message : REASONS[code];
     event = { event: "error", code, reason };
-    if (options?.["from-autostart"] && directory) await notify(directory, fillNotice("startRefused", { reason }));
+    if (options?.["from-autostart"] && directory) {
+      await notify(directory, fillNotice("startRefused", { reason }));
+      const registered = readOptional(autostartFile(directory));
+      if (root && registered?.branch && !SIGNIN_UNREPORTED.has(code)) {
+        const payload = { state: "refused", branch: registered.branch, code: RUNNER_SIGNIN_CODES.includes(code) ? code : "other" };
+        if (!await reportAutostart(root, options, payload)) backgroundLog(directory, `sign-in start refusal not reported: ${code}`);
+      }
+    }
     if (options?.op === "start" && directory) backgroundLog(directory, `start refused: ${code}`);
   }
   if (event.event === "error" && event.reason) process.stdout.write(event.reason + "\n");

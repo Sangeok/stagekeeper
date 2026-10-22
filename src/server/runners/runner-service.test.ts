@@ -192,10 +192,90 @@ describe("runner stop", () => {
     assert.deepEqual(await op(stuck, { op: "stop", session: MINE, reason: "stuck" }), { ok: true, body: { ok: true } }, "a resent stop succeeds");
   });
 
+  it("keeps a background runner with sign-in start on as stopped by the owner, so the owner can pause it before the next sign-in", async () => {
+    const db = fakeDb({ runner: runnerRow({ session: MINE, mode: "resident", branch: "main", permission: "auto", autostart: true, state: "working" }) });
+    assert.deepEqual(await op(db, { op: "stop", session: MINE, reason: "owner" }), { ok: true, body: { ok: true } });
+    assert.deepEqual([db.state.runner?.state, db.state.runner?.stopReason, db.state.runner?.autostart], ["stopped", "owner", true]);
+    const manual = fakeDb({ runner: runnerRow({ session: MINE, mode: "resident", branch: "main", permission: "auto", autostart: false }) });
+    await op(manual, { op: "stop", session: MINE, reason: "owner" });
+    assert.equal(manual.state.runner, null);
+  });
+
   it("does not stop another runner's lease", async () => {
     const db = fakeDb({ runner: runnerRow({ session: OTHER }) });
     assert.deepEqual(await op(db, { op: "stop", session: MINE, reason: "owner" }), { ok: false, status: 409, code: "RUNNER_REPLACED", reason: RUNNER_REPLACED_REASON });
     assert.equal(db.state.runner?.session, OTHER);
+  });
+});
+
+describe("runner autostart report", () => {
+  const report = (state: "on" | "off" | "refused", patch: Partial<Extract<RunnerOp, { op: "autostart" }>> = {}): RunnerOp =>
+    ({ op: "autostart", session: MINE, state, host: "laptop", branch: state === "off" ? null : "main", code: state === "refused" ? "dirty" : null, ...patch });
+  const resident = (patch: Partial<RunnerRow> = {}) => runnerRow({ session: OTHER, mode: "resident", host: "laptop", branch: "main", permission: "auto", ...patch });
+
+  it("shows a sign-in start that has no runner yet as stopped until sign-in", async () => {
+    const db = fakeDb();
+    assert.deepEqual(await op(db, report("on")), { ok: true, body: { ok: true, paused: false } });
+    assert.deepEqual(db.state.runner, {
+      session: MINE, tokenId: "token-1", mode: "resident", host: "laptop", branch: "main", permission: null, autostart: true,
+      state: "stopped", waitReason: null, lastResult: null, lastLog: null, stopReason: "owner", startedAt: NOW, seenAt: NOW,
+    });
+  });
+
+  it("marks a runner on the same PC instead of replacing any row", async () => {
+    const live = fakeDb({ runner: resident() });
+    await op(live, report("on"));
+    assert.deepEqual(live.state.writes, ["runner.update:autostart"]);
+    assert.deepEqual([live.state.runner?.state, live.state.runner?.autostart], ["idle", true]);
+    const stuck = fakeDb({ runner: resident({ state: "stopped", stopReason: "stuck" }) });
+    await op(stuck, report("on"));
+    assert.deepEqual([stuck.state.runner?.stopReason, stuck.state.runner?.autostart], ["stuck", true]);
+    const elsewhere = fakeDb({ runner: resident({ host: "desk" }) });
+    await op(elsewhere, report("on"));
+    assert.deepEqual(elsewhere.state.writes, []);
+  });
+
+  it("records a refused sign-in start with its code unless another runner is live", async () => {
+    for (const runner of [null, resident({ state: "stopped", stopReason: "error" }), resident({ seenAt: ago(4) }), resident({ host: "desk", state: "stopped", stopReason: "owner" })]) {
+      const db = fakeDb({ runner });
+      assert.deepEqual(await op(db, report("refused", { code: "autostart-branch" })), { ok: true, body: { ok: true, paused: false } });
+      assert.deepEqual([db.state.runner?.session, db.state.runner?.host, db.state.runner?.state, db.state.runner?.stopReason, db.state.runner?.lastResult, db.state.runner?.autostart],
+        [MINE, "laptop", "stopped", "signin", "autostart-branch", true], JSON.stringify(runner));
+    }
+    const busy = fakeDb({ runner: resident({ host: "desk", seenAt: ago(1) }) });
+    await op(busy, report("refused"));
+    assert.deepEqual([busy.state.writes, busy.state.runner?.host], [[], "desk"]);
+  });
+
+  it("removes what sign-in start left when it is turned off, and only on the same PC", async () => {
+    for (const stopReason of ["owner", "signin"]) {
+      const db = fakeDb({ runner: resident({ state: "stopped", stopReason, autostart: true }) });
+      await op(db, report("off"));
+      assert.equal(db.state.runner, null);
+    }
+    const live = fakeDb({ runner: resident({ autostart: true }) });
+    await op(live, report("off"));
+    assert.deepEqual([live.state.runner?.state, live.state.runner?.autostart], ["idle", false]);
+    const stuck = fakeDb({ runner: resident({ state: "stopped", stopReason: "stuck", autostart: true }) });
+    await op(stuck, report("off"));
+    assert.deepEqual([stuck.state.runner?.stopReason, stuck.state.runner?.autostart], ["stuck", false]);
+    for (const runner of [null, resident({ host: "desk", state: "stopped", stopReason: "owner", autostart: true }), runnerRow({ host: "laptop", state: "stopped", stopReason: "error" })]) {
+      const db = fakeDb({ runner });
+      assert.deepEqual(await op(db, report("off")), { ok: true, body: { ok: true, paused: false } });
+      assert.deepEqual(db.state.writes, []);
+    }
+  });
+
+  it("keeps Free and unavailable projects unchanged, and reports the pause", async () => {
+    for (const state of ["on", "refused"] as const) {
+      const free = fakeDb({ plan: "free" });
+      assert.deepEqual(await op(free, report(state)), { ok: false, status: 403, code: "PLAN_REQUIRED", reason: RESIDENT_RUNNER_PLAN_GATE });
+      assert.deepEqual(free.state.writes, []);
+    }
+    const locked = fakeDb({ available: false, runner: resident({ state: "stopped", stopReason: "owner" }) });
+    assert.equal((await op(locked, report("off"))).ok, false);
+    assert.deepEqual(locked.state.writes, []);
+    assert.deepEqual(await op(fakeDb({ pausedAt: ago(5) }), report("on")), { ok: true, body: { ok: true, paused: true } });
   });
 });
 

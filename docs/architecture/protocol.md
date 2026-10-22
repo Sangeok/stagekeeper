@@ -220,6 +220,8 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   - `start`: `mode`(session|resident), `host`(1–64자), `branch?`·`permission?`(auto|allowlist, resident 필수), `autostart?`, `takeover?`
   - `beat`: `state?`(idle|working|waiting, 없으면 유지), `waitReason?`(dirty|branch, waiting일 때만 그리고 반드시), `lastResult?`(150자), `lastLog?`(경로 구분자 없는 파일 이름, 100자)
   - `stop`: `reason`(owner|stuck|error|plan)
+  - `autostart`: `state`(on|off|refused), `host`(1–64자), `branch?`(on·refused 필수), `code?`(refused일 때만 그리고 반드시:
+    dirty|autostart-branch|detached|push-url|locked|other). `session`은 이 보고를 위해 CLI가 새로 만든 UUID다.
   - 그 밖의 본문(모르는 키 포함)은 400 `Invalid runner request.`
 - 응답: 성공은 `{ok:true, paused}`(beat는 `stop:"plan"`을 더할 수 있다). 409 `RUNNER_BUSY`는 `holder:{mode, host, seenAt}`를,
   409 `RUNNER_REPLACED`와 403 `PLAN_REQUIRED`는 코드를 싣는다. 문장은 product-copy §12.
@@ -231,7 +233,16 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 - 재전송: 같은 session의 start는 성공(seenAt만 갱신)이고 beat는 멱등, 행이 없는 stop은 성공이다. 행이 없거나 다른
   session이거나 stopped인 행에 대한 beat와 다른 session의 stop은 `RUNNER_REPLACED`다.
 - 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다.
-- 정지: owner는 행을 지운다. stuck·error·plan은 `state=stopped`로 남아 배너가 이유를 보이고, 다음 start가 덮어쓴다.
+- 정지: owner는 행을 지운다. 다만 자동 시작이 켜진 resident 행은 `state=stopped`·`stopReason=owner`로 남긴다.
+  배너가 "다음 로그온에 다시 시작한다"를 보이고 Pause를 두므로, 소유자가 로그온 전에 일시 정지할 수 있다.
+  stuck·error·plan은 `state=stopped`로 남아 배너가 이유를 보이고, 다음 start가 덮어쓴다.
+- 자동 시작 보고(`autostart`): 로그온 작업이 실행기를 띄우지 못한 이유를 웹에 남긴다. 알림을 놓쳐도 배너에 남는다.
+  - on: 행이 없으면 `stopped`·`owner`·`autostart:true` 행을 만든다. 같은 PC의 resident 행이 있으면 `autostart`만 켠다.
+    다른 행은 그대로 둔다.
+  - refused: 살아 있는 행이 있으면 덮어쓰지 않는다(같은 PC면 `autostart`만 켠다). 없거나 stopped·응답 없는 행이면
+    `stopped`·`stopReason=signin`·`lastResult=<code>` 행으로 바꾼다. 배너는 code를 고정 문구로 바꾸고, 모르는 값은 other다.
+  - off: 같은 PC의 행만 본다. owner·signin으로 멈춘 행은 지우고, 그 밖의 행은 `autostart`를 끈다.
+  - on·refused는 플랜이 `residentRunner`가 아니면 `PLAN_REQUIRED`이고 아무것도 쓰지 않는다. off는 플랜과 무관하다.
 - 일시 정지: `Project.runnerPausedAt`. 웹 Action(`requireProjectWrite`)만 바꾸며 멱등이다. 실행기는 응답의
   `paused`를 보고 새 일을 시작하지 않는다. 진행 중인 역할은 끝까지 둔다.
 - 플랜: resident start는 `residentRunner`(Pro·Max)가 아니면 `PLAN_REQUIRED`다. resident beat는 거절하지 않고
@@ -263,6 +274,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
     때까지 기다린다.
 - 한 사이클(60초): beat(idle 또는 waiting) → paused면 쉼 → `pipeline_next`.
   - 할 일이 있으면 실행 직전 검사를 한다. 미커밋이나 브랜치 변경이면 waiting으로 보내고 알림은 대기 하나에 한 번이다.
+    대기가 새로 생기거나 풀리면 다음 사이클을 1초 뒤에 돌아, 배너가 60초를 기다리지 않고 바뀐 상태를 받는다.
   - 검사를 통과하면 `claude -p "/harness:watch --once --session <id>"`를 띄운다. `--settings <common>/harness/background-settings.json`,
     `--disallowedTools "Bash(git push:*)" "PowerShell(git push*)"`, stream-json을 붙인다.
   - 도는 동안 60초마다 beat(working)를 보낸다. 브랜치 감시와 2시간 상한은 2초마다 본다. 브랜치가 바뀌면 실행을 끝내고
@@ -290,6 +302,10 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   `conhost.exe --headless powershell.exe … harness.ps1 background --start --from-autostart …`이다.
   - 사용자 환경 변수의 hu_ 토큰과 `HARNESS_SERVER`가 있어야 켠다. 등록 때의 브랜치와 다르면 시작을 거부하고 알림을 띄운다.
   - 등록은 그때의 플러그인 경로를 가리키므로, `--status`가 경로 차이를 알린다.
+  - `--autostart-on`·`--autostart-off`와 로그온 시작의 거부는 `autostart` op로 서버에 보고한다(plugin 0.5.17).
+    거부는 등록 때의 브랜치와 고정 code를 싣는다. 보고는 연결·토큰·서버를 알 수 없거나, 토큰이 다른 저장소를 가리키거나,
+    다른 실행기가 lease를 잡았거나(busy), 플랜·경로가 막혔으면 보내지 않는다. 보고가 실패해도 명령 결과는 같고
+    `background.log`에 남는다. 수동 시작의 거부는 보고하지 않는다(소유자가 그 자리에서 이유를 본다).
 - 한계: 실행 중에 사람이 같은 작업 트리를 만지는 경우(같은 파일 편집, 커밋·stash·pull, 같은 checkout의 대화
   세션)는 막지 못한다. 안내(`pause before you edit …`)와 인수 검사에 맡긴다.
 

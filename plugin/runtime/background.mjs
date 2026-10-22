@@ -2,6 +2,7 @@ import { hasWork, workSignature } from "../lib/watch.mjs";
 
 export const INTERVAL_MS = 60_000;
 export const BRANCH_CHECK_MS = 2_000;
+export const REPORT_SOON_MS = 1_000;
 export const RUN_LIMIT_MS = 2 * 60 * 60_000;
 export const FAILURE_LIMIT = 3;
 export const REQUEST_FAILURE_LIMIT = 5;
@@ -167,16 +168,18 @@ export async function runResident(context, deps) {
     const tree = deps.tree();
     const reason = tree.branch !== branch ? "branch" : tree.dirty.length > 0 ? "dirty" : null;
     if (reason) {
-      if (!wait || wait.reason !== reason) deps.notify(waitNotice(reason, tree));
+      const fresh = !wait || wait.reason !== reason;
+      if (fresh) deps.notify(waitNotice(reason, tree));
       wait = { reason };
       Object.assign(status, { state: "waiting", waitReason: reason, waitFiles: tree.dirty.slice(0, FILES_SHOWN) });
       save();
-      await sleepActive(interval);
+      await sleepActive(fresh ? Math.min(REPORT_SOON_MS, interval) : interval);
       continue;
     }
+    const cleared = wait !== null;
     wait = null;
     Object.assign(status, { state: "idle", waitReason: null, waitFiles: [], interrupted: null });
-    if (!hasWork(work)) { save(); await sleepActive(interval); continue; }
+    if (!hasWork(work)) { save(); await sleepActive(cleared ? Math.min(REPORT_SOON_MS, interval) : interval); continue; }
 
     const before = workSignature(work);
     Object.assign(status, { state: "working" });
