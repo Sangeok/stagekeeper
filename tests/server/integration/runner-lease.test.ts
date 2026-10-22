@@ -118,8 +118,15 @@ it("keeps impossible rows out with the migration's checks", async () => {
       { ...base, mode: "cloud" }, { ...base, state: "busy" }, { ...base, state: "waiting" }, { ...base, waitReason: "dirty" },
       { ...base, state: "stopped" }, { ...base, stopReason: "owner", state: "stopped" }, { ...base, mode: "resident" },
       { ...base, mode: "resident", branch: "main", permission: "ask" },
+      { ...base, stopReason: "signin", state: "stopped", autostart: true }, { ...base, stopReason: "replaced", state: "stopped" },
+      { ...base, mode: "resident", branch: "main", stopReason: "owner", state: "stopped" },
+      { ...base, mode: "resident", branch: "main", stopReason: "signin", state: "stopped", lastResult: "dirty" },
     ]) await assert.rejects(db.runner.create({ data }), JSON.stringify(data));
     assert.ok(await db.runner.create({ data: { ...base, mode: "resident", branch: "main", permission: "allowlist" } }));
+    for (const stopReason of ["owner", "signin"]) {
+      await db.runner.delete({ where: { projectId: f.projectId } });
+      assert.ok(await db.runner.create({ data: { ...base, mode: "resident", branch: "main", autostart: true, stopReason, state: "stopped" } }), stopReason);
+    }
   } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
 });
 
@@ -141,5 +148,26 @@ it("answers through the real REST route with the codes and holder the CLI branch
     const invalid = await call({ op: "start", session: B, mode: "session" });
     assert.deepEqual([invalid.status, await invalid.json()], [400, { error: "Invalid runner request." }]);
     assert.equal((await call({ op: "beat", session: A }, "Bearer nope")).status, 401);
+  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+});
+
+it("keeps sign-in start rows through the migration's checks: on, a refused start, an owner stop and off", async () => {
+  const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
+  const report = (state: "on" | "off" | "refused", code: "dirty" | null = null): RunnerOp =>
+    ({ op: "autostart", session: B, state, host: "pc", branch: state === "off" ? null : "main", code });
+  const row = async () => db.runner.findUnique({ where: { projectId: f!.projectId }, select: { session: true, state: true, stopReason: true, lastResult: true, autostart: true, permission: true } });
+  try {
+    f = await fixture(db, { plan: "pro" });
+    assert.deepEqual(await op(db, f, report("on")), { ok: true, body: { ok: true, paused: false } });
+    assert.deepEqual(await row(), { session: B, state: "stopped", stopReason: "owner", lastResult: null, autostart: true, permission: null });
+    assert.deepEqual(await op(db, f, report("refused", "dirty")), { ok: true, body: { ok: true, paused: false } });
+    assert.deepEqual(await row(), { session: B, state: "stopped", stopReason: "signin", lastResult: "dirty", autostart: true, permission: null });
+    assert.deepEqual(await op(db, f, report("off")), { ok: true, body: { ok: true, paused: false } });
+    assert.equal(await row(), null);
+
+    assert.equal((await op(db, f, start(A, { mode: "resident", host: "pc", branch: "main", permission: "auto", autostart: true }))).ok, true);
+    assert.deepEqual(await op(db, f, { op: "stop", session: A, reason: "owner" }), { ok: true, body: { ok: true } });
+    assert.deepEqual(await row(), { session: A, state: "stopped", stopReason: "owner", lastResult: null, autostart: true, permission: "auto" });
+    assert.equal((await op(db, f, start(B, { mode: "resident", host: "pc", branch: "main", permission: "auto", autostart: true }))).ok, true, "the next start replaces it");
   } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
 });
