@@ -6,7 +6,6 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { RESIDENT_RUNNER_PLAN_GATE } from "../lib/entitlement.mjs";
-import { RUNNER_SIGNIN_CODES } from "../lib/runner.mjs";
 import { parseBearer } from "../lib/token.mjs";
 import { actionableWork } from "../lib/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
@@ -398,6 +397,7 @@ function userEnvironment(name) {
   } catch { return null; }
 }
 
+const SIGNIN_CODES = { dirty: "dirty", "autostart-branch": "autostart-branch", detached: "detached", "push-url": "push-url", locked: "checkout-in-use" };
 const SIGNIN_UNREPORTED = new Set(["invalid-arguments", "invalid-config", "missing-server", "invalid-token", "identity-mismatch", "busy", "plan",
   "no-route", "autostart-missing"]);
 
@@ -584,7 +584,7 @@ async function main() {
       await notify(directory, fillNotice("startRefused", { reason }));
       const registered = readOptional(autostartFile(directory));
       if (root && registered?.branch && !SIGNIN_UNREPORTED.has(code)) {
-        const payload = { state: "refused", branch: registered.branch, code: RUNNER_SIGNIN_CODES.includes(code) ? code : "other" };
+        const payload = { state: "refused", branch: registered.branch, code: Object.hasOwn(SIGNIN_CODES, code) ? SIGNIN_CODES[code] : "other" };
         if (!await reportAutostart(root, options, payload)) backgroundLog(directory, `sign-in start refusal not reported: ${code}`);
       }
     }

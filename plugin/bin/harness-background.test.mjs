@@ -336,3 +336,12 @@ it("reports a refused sign-in start to the Board with a fixed code, and a manual
   assert.equal((await f.run(signIn)).event.code, "busy");
   assert.equal(reports().length, 2, "a busy project already shows the runner that holds it");
 });
+
+it("reports a sign-in start that finds a runner already in this checkout as checkout-in-use", async t => {
+  const f = await fixture(t);
+  f.setOverview(EMPTY);
+  assert.equal((await f.run(START)).event.event, "started");
+  writeFileSync(path.join(f.directory, "autostart.json"), JSON.stringify({ schemaVersion: 1, branch: "main" }));
+  assert.equal((await f.run([...START, "--from-autostart"])).event.code, "locked");
+  assert.deepEqual(f.runnerCalls.filter(call => call.op === "autostart").map(call => [call.state, call.branch, call.code]), [["refused", "main", "checkout-in-use"]]);
+});

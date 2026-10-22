@@ -95,7 +95,7 @@ describe("runnerLine", () => {
       [{ text: "desk", code: true }, { text: "main", code: true }]);
     assert.equal(text(facts(runner({ ...resident, stopReason: "signin", signinCode: null }))),
       "Runner on desk did not start at sign-in: see the runner log. It tries again at the next sign-in, or start it in Claude Code.");
-    assert.equal(short(facts(runner({ ...resident, stopReason: "signin", signinCode: "locked" }))), "Runner: stopped on desk");
+    assert.equal(short(facts(runner({ ...resident, stopReason: "signin", signinCode: "checkout-in-use" }))), "Runner: stopped on desk");
     assert.equal(showsPauseControl(facts(runner({ ...resident, stopReason: "owner" }))), true);
   });
 

@@ -4,7 +4,7 @@ export type RunnerWaitReason = "dirty" | "branch";
 export type RunnerPermission = "auto" | "allowlist";
 export type RunnerStopReason = "owner" | "stuck" | "error" | "plan";
 export type RunnerAutostartState = "on" | "off" | "refused";
-export type RunnerSigninCode = "dirty" | "autostart-branch" | "detached" | "push-url" | "locked" | "other";
+export type RunnerSigninCode = "dirty" | "autostart-branch" | "detached" | "push-url" | "checkout-in-use" | "other";
 
 export type RunnerRecord = {
   session: string;

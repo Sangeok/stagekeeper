@@ -221,7 +221,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   - `beat`: `state?`(idle|working|waiting, 없으면 유지), `waitReason?`(dirty|branch, waiting일 때만 그리고 반드시), `lastResult?`(150자), `lastLog?`(경로 구분자 없는 파일 이름, 100자)
   - `stop`: `reason`(owner|stuck|error|plan)
   - `autostart`: `state`(on|off|refused), `host`(1–64자), `branch?`(on·refused 필수), `code?`(refused일 때만 그리고 반드시:
-    dirty|autostart-branch|detached|push-url|locked|other). `session`은 이 보고를 위해 CLI가 새로 만든 UUID다.
+    dirty|autostart-branch|detached|push-url|checkout-in-use|other). `session`은 이 보고를 위해 CLI가 새로 만든 UUID다.
   - 그 밖의 본문(모르는 키 포함)은 400 `Invalid runner request.`
 - 응답: 성공은 `{ok:true, paused}`(beat는 `stop:"plan"`을 더할 수 있다). 409 `RUNNER_BUSY`는 `holder:{mode, host, seenAt}`를,
   409 `RUNNER_REPLACED`와 403 `PLAN_REQUIRED`는 코드를 싣는다. 문장은 product-copy §12.

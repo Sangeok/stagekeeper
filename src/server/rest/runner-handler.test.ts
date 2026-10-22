@@ -124,7 +124,7 @@ describe("parseRunnerRequest", () => {
       { op: "autostart", session: SESSION, state: "on", host: "desk", branch: "main", code: null });
     assert.deepEqual(parseRunnerRequest({ op: "autostart", session: SESSION, state: "off", host: "desk" }),
       { op: "autostart", session: SESSION, state: "off", host: "desk", branch: null, code: null });
-    for (const code of ["dirty", "autostart-branch", "detached", "push-url", "locked", "other"]) {
+    for (const code of ["dirty", "autostart-branch", "detached", "push-url", "checkout-in-use", "other"]) {
       assert.deepEqual(parseRunnerRequest({ op: "autostart", session: SESSION, state: "refused", host: "desk", branch: "main", code }),
         { op: "autostart", session: SESSION, state: "refused", host: "desk", branch: "main", code });
     }

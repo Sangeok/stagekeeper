@@ -4,7 +4,7 @@ export const RUNNER_WAIT_REASONS = /** @type {const} */ (["dirty", "branch"]);
 export const RUNNER_PERMISSIONS = /** @type {const} */ (["auto", "allowlist"]);
 export const RUNNER_STOP_REASONS = /** @type {const} */ (["owner", "stuck", "error", "plan"]);
 export const RUNNER_AUTOSTART_STATES = /** @type {const} */ (["on", "off", "refused"]);
-export const RUNNER_SIGNIN_CODES = /** @type {const} */ (["dirty", "autostart-branch", "detached", "push-url", "locked", "other"]);
+export const RUNNER_SIGNIN_CODES = /** @type {const} */ (["dirty", "autostart-branch", "detached", "push-url", "checkout-in-use", "other"]);
 
 export const SIGNAL_TIMEOUT_MS = 3 * 60_000;
 export const WORKING_TIMEOUT_MS = 60 * 60_000;

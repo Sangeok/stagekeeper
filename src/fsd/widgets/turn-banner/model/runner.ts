@@ -47,7 +47,7 @@ export const RUNNER_SIGNIN_REASONS = {
   "autostart-branch": "the checkout was not on {branch}",
   detached: "the checkout was not on a branch",
   "push-url": "a remote has its own push URL",
-  locked: "another watch or runner was using the checkout",
+  "checkout-in-use": "another watch or runner was using the checkout",
   other: "see the runner log",
 } as const;
 export type SigninCode = keyof typeof RUNNER_SIGNIN_REASONS;
