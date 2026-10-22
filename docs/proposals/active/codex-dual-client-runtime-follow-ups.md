@@ -21,6 +21,7 @@ related:
   - "docs/architecture/verification.md"
   - "docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md"
   - "docs/architecture/impl-verifier.md"
+  - "docs/proposals/active/codex-resident-runner-plan.md"
 ---
 
 # Codex dual-client 실행·배포 인수와 조건부 자동 watch 후속 작업
@@ -75,9 +76,11 @@ Windows 설치·실제 모델·서비스 인수를 통과했다는 뜻이 아니
 `claude -p "/harness:watch --once --session …"`를 호출한다. 두 경로는 서버 lease와
 Pause/Resume를 사용하지만 Codex foreground는 그 보고 경로에 참여하지 않는다.
 [runner 완료 기록](../completed/2026-10-21-runner-status-and-background-runner.md)의
-Codex 제외 범위와 [현재 protocol](../../architecture/protocol.md)을 따른다. C4를 구현하기
-전에 session 감시와 resident 지원의 범위, lease·Pause·취소·정책 연결을 구체화해야 한다.
-이번 준비는 그 결정을 대신하거나 Claude background를 Codex 지원으로 간주하지 않는다.
+Codex 제외 범위와 [현재 protocol](../../architecture/protocol.md)을 따른다. 같은 날 사용자는
+C4의 첫 지원 범위로 **Pro/Max 상주형 우선**을 선택했다. 세션형 동시 개발은 제외하고
+[상주 실행기 상세 계획](./codex-resident-runner-plan.md)에서 기존 runner 재사용,
+결과 판독·취소 전략 분리, 모델 없는 준비 단계와 실제 연결 단계를 구분한다.
+Claude background가 이미 Codex를 지원한다는 뜻은 아니다.
 
 기본 재현은 **새 `slots-v1` 항목, `plan → verify → implement → accept`,
 `before-plan`·`before-implement` gate**로 고정한다. 선택적 `qa`·`impl-verify`는 이
@@ -137,7 +140,10 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 
 **BLK-MIN-01:** Windows scoped 파일 MCP와 별도 LPAC snapshot 명령 backend 및 Windows
 bundle 생성기는 구현했다. 실제 설치된 패키지의 최소 설치·완전한 verifier·현재 client
-loader/업데이트 인수가 모두 통과하기 전에는 기본 제품 지원과 C4 착수를 계속 차단한다.
+loader/업데이트 인수가 모두 통과하기 전에는 기본 제품 지원과 C4의 실제 Codex 연결·
+실행을 계속 차단한다. 2026-10-22 상주형 우선 결정에 따라 상세 계획의 C4A(공통 실행
+경계와 모의 테스트)는 선행 준비로 진행할 수 있다. C4A는 실제 Codex adapter·command를
+노출하지 않으며 BLK-MIN-01을 해제하지 않는다.
 private 로컬 패키지의 실제 loader/init과 bounded 원본 verifier는 통과했다. Node가 전역
 PATH에 없는 helper subprocess 시험이며, 후속 `0.5.2` private 패키지의 실제 양쪽 client
 업데이트·전체 cache inventory·helper init·수정 generated 파일 보존과 Codex staged skill
@@ -238,7 +244,7 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 **REQ-DUAL-019 watch/실제 취소 부분:** stop 또는 ownership 상실 후 새 dispatch·결과 제출·watch 재설정을 중단한다. 늦은 이벤트로 재진입하지 않는다. stopping 중 잠금을 유지하고 실제 자식 종료 확인 뒤 release한다.
 
-**BLK-DUAL-04의 현재 상태:** Codex의 파일 도구 권한, watch 대상 thread/turn 재진입·취소 및 장시간 idle에 필요한 증거가 아직 부족하다. C4와 자동 watch 안내를 차단하며 기본 명시적 재개 소스의 완료를 취소하지 않는다.
+**BLK-DUAL-04의 현재 상태:** Codex의 파일 도구 권한, watch 대상 thread/turn 재진입·취소 및 장시간 idle에 필요한 증거가 아직 부족하다. C4의 실제 Codex 연결·자동 watch 안내를 차단하며 기본 명시적 재개 소스의 완료를 취소하지 않는다. 상세 계획의 C4A 모의 준비는 이 실제 호스트 증거의 완료를 주장하지 않는 범위에서 진행한다.
 
 2026-10-04 최초 실행: fresh thread와 pending MCP turn 취소는 직접 관찰했지만 Windows 파일 도구 실행은 차단됐다. 설치된 CLI 0.160.0의 Windows backend는 `:root` 읽기를 요구하고 현재 역할 정책은 `:root="deny"`다. [동일 버전 공식 소스](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/resolved_permissions.rs)의 `validate_elevated_filesystem_policy`와 실제 오류가 일치한다. 당시 로컬 WSL 배포판·Docker/Podman은 없었다. 전체 디스크 읽기 허용이나 Windows 전역 설정 변경으로 대체하지 않았다.
 
@@ -246,7 +252,7 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 2026-10-04 로그인 후 실행: 실제 모델은 MCP를 호출했지만 `inherit="none"` 셸의 PATH가 없어 `cat` 읽기가 실패했다. 상속 PATH를 전달하지 않고 고정 시스템 도구 경로를 설정했으며 POSIX preflight에 `cat` 경로 확인을 추가했다. 실제 전체 verifier는 owner 스킬을 읽지 못해 네 경로를 NOT RUN/blocked로 올바르게 보고했다. 원본 패키지 8개 파일만 scratch에 복사하고 원본·복사본 checksum과 파일 수를 재검증해, 이 하위 경로를 읽기 전용으로 제한했다. 실제 loader의 정확한 staged 경로만 활성화한 새 모델은 baseline·정확한 계획 sketch의 scratch destination·import/export·citation/최종 reread를 실행했다. 발견한 시험 문서 결함과 수정 후 별도 0-defect 실행, kernel write 거부 및 pending stop 증거는 [WSL 역할 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/observations.json)에 보존한다. 실제 승인 재개·혼합 CLI/host와 패키지 인수는 이 bounded 통과로 대체하지 않는다.
 
-**TASK-C4-01 실행 범위:** 실제 호스트 기능을 먼저 확인하고 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 watch session/정책 main-loop reuse, no-model idle, permission relay, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 구현한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
+**TASK-C4-01 실행 범위:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A에서 기존 runner 실행 경계와 모의 계약을 먼저 준비한다. C4B는 기본 인수·실제 호스트 기능 확인 후 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 local session/정책과 cycle별 새 main-loop, no-model idle, permission 처리, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 연결한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
 
 **TASK-C4-02 검증 범위:** E12의 실제 thread/turn/session에서 110분 no-model idle, 작업 발견·재진입·gate 대기/승인·handoff·auth/cap/permission·stop/interrupt·늦은 이벤트·ownership 상실 후 rearm 없음과 Claude watch 회귀를 시험한다. latency·poll/model 호출 수·종료 이유를 기록한다. pending stop은 실제 종료 확인 전 잠금과 ownership을 유지해야 하며 확인 실패 시 잠금을 보존한다. E10의 watch 안내는 관찰한 호스트·버전·방식에 한정한다.
 
@@ -271,6 +277,11 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 ## Approval
 
+2026-10-22 추가 결정: 사용자는 기존 runner 재사용과 최소 Codex 연결을 구체화하도록
+지시하고, 첫 지원 범위를 Pro/Max 상주형으로 선택했다. 실제 인수 전 진행할 범위는
+상세 계획 C4A의 공통 경계·모의 테스트 준비로 제한한다. C4B/C4C의 실제 연결·지원
+활성화는 기존 인수와 호스트·권한 계약 조건을 유지한다.
+
 2026-10-22 사용자는 최신 기준으로 계획을 정리하고, 소스·private 템플릿 버전 고정,
 설치 후보와 실패 재현 시나리오를 준비하도록 지시했다. 이 준비 단계는 모델 호출·
 서비스/DB 실행·실제 client 설치를 수행하지 않는다. 아래 기존 로컬 인수 승인 범위는
@@ -287,7 +298,7 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 2. **환경 확보 후:** Windows native 시험 host의 기존 인증·client 버전, 새 시험 프로젝트·격리 DB/서비스, 원본 변경 없는 실행 snapshot을 고정한다. 물리적으로 Node가 없는 Windows 최소 설치 시험은 PATH 제외 시험과 따로 배정한다.
 3. **기본 인수:** 아래 재현 순서로 T53/T54/T56과 TASK-MIN-01/02를 실행한다. 과거 실패가 재현되면 product 결함·fixture 결함·operator 실수를 구분하고, product 결함으로 확인된 범위만 수정한다. 수정 후 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
 4. **설치/복구:** T55의 private seed/제한 복구와 installed loader·업데이트를 해당 시험 범위에서 확인한다. 운영 릴리스는 별도 범위다. BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
-5. **C4:** 최소 설치·기본 인수와 실제 host 기능 확인 후 현재 runner 계약을 반영한 bounded 설계를 확정하고 TASK-C4-01/02 및 E12를 실행한다. 아래 downstream 미완료를 이유로 1단계 준비를 다시 막지 않는다.
+5. **C4:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A는 모델 없는 준비로 진행 가능하다. 최소 설치·기본 인수와 실제 main-loop host/권한 계약 확인 뒤 C4B를 연결하고, C4C에서 TASK-C4-02/E12와 OS별 인수를 완료한다. 후속 실제 증거의 미완료를 이유로 C4A 준비를 막거나, C4A 통과로 실제 gate를 해제하지 않는다.
 
 ### 실제 Windows 인수의 시작 조건
 
