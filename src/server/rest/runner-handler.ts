@@ -1,6 +1,6 @@
 import {
-  RUNNER_BRANCH_MAX, RUNNER_HOST_MAX, RUNNER_LOG_MAX, RUNNER_MODES, RUNNER_PERMISSIONS, RUNNER_RESULT_MAX,
-  RUNNER_STOP_REASONS, RUNNER_WAIT_REASONS,
+  RUNNER_AUTOSTART_STATES, RUNNER_BRANCH_MAX, RUNNER_HOST_MAX, RUNNER_LOG_MAX, RUNNER_MODES, RUNNER_PERMISSIONS, RUNNER_RESULT_MAX,
+  RUNNER_SIGNIN_CODES, RUNNER_STOP_REASONS, RUNNER_WAIT_REASONS,
 } from "@harness/core/runner.mjs";
 import { failureBody, type RequestRateFailure } from "@/server/result";
 import type { ProjectAccess } from "@/server/projects/contracts";
@@ -23,6 +23,7 @@ const KEYS = {
   start: ["mode", "host", "branch", "permission", "autostart", "takeover"],
   beat: ["state", "waitReason", "lastResult", "lastLog"],
   stop: ["reason"],
+  autostart: ["state", "host", "branch", "code"],
 } as const;
 const COMMON = ["op", "project", "session"];
 
@@ -35,7 +36,7 @@ const isBoolean = (value: unknown): value is boolean => typeof value === "boolea
 const isLogName = (value: unknown): value is string => text(value, RUNNER_LOG_MAX) && !/[\\/]/.test(value);
 
 export function parseRunnerRequest(body: unknown): RunnerOp | null {
-  if (!isRecord(body) || !oneOf(["start", "beat", "stop"] as const, body.op)) return null;
+  if (!isRecord(body) || !oneOf(["start", "beat", "stop", "autostart"] as const, body.op)) return null;
   const op = body.op;
   if (Object.keys(body).some((key) => !COMMON.includes(key) && !(KEYS[op] as readonly string[]).includes(key))) return null;
   if (typeof body.session !== "string" || !SESSION_RE.test(body.session)) return null;
@@ -58,6 +59,14 @@ export function parseRunnerRequest(body: unknown): RunnerOp | null {
     if (state === undefined || waitReason === undefined || lastResult === undefined || lastLog === undefined) return null;
     if ((state === "waiting") !== (waitReason !== null)) return null;
     return { op, session, state, waitReason, lastResult, lastLog };
+  }
+  if (op === "autostart") {
+    if (!oneOf(RUNNER_AUTOSTART_STATES, body.state) || !text(body.host, RUNNER_HOST_MAX)) return null;
+    const branch = optional(body, "branch", (value): value is string => text(value, RUNNER_BRANCH_MAX));
+    const code = optional(body, "code", (value): value is (typeof RUNNER_SIGNIN_CODES)[number] => oneOf(RUNNER_SIGNIN_CODES, value));
+    if (branch === undefined || code === undefined) return null;
+    if ((body.state === "refused") !== (code !== null) || (body.state !== "off" && branch === null)) return null;
+    return { op, session, state: body.state, host: body.host, branch, code };
   }
   if (!oneOf(RUNNER_STOP_REASONS, body.reason)) return null;
   return { op, session, reason: body.reason };

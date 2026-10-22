@@ -4,7 +4,8 @@ import { createRequire } from "node:module";
 import { it } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import type { loadTurn } from "./turn-data.server";
+import type { loadTurn, runnerFacts } from "./turn-data.server";
+import { signinCode } from "../model/runner";
 import type { TurnItem } from "../model/turn";
 
 it("GET derives failures only for the latest unaccepted done at an open accept cursor without materializing runs", async () => {
@@ -31,7 +32,7 @@ it("GET derives failures only for the latest unaccepted done at an open accept c
         return [{ boardItemId: "new", cursorNode: node, activityDispatched: true, turnDispatched: node === "implement", handoff: null }];
       } },
       "@/server/runners/api.server": { readRunnerState: async () => ({ runner: null, pausedAt: null, lastActivity: null, renderedAt: new Date(0) }) },
-      "../model/turn": { deriveTurn: (value: TurnItem[]) => { items = value; return { kind: "none", detail: "fixture" }; } },
+      "../model/runner": { signinCode }, "../model/turn": { deriveTurn: (value: TurnItem[]) => { items = value; return { kind: "none", detail: "fixture" }; } },
     };
     const exports = {} as { loadTurn: typeof loadTurn };
     runInNewContext(code, { exports, Date, require: (name: string) => Object.hasOwn(deps, name) ? deps[name] : require(name) });
@@ -60,15 +61,30 @@ it("maps the runner view to banner facts for the project it was asked about", as
     "server-only": {}, "@/server/db": { prisma: db }, "@/server/pipeline/api.server": { latestBoard: async () => [] },
     "@/server/pipeline/api": { loadExecutionFacts: async () => [] },
     "@/server/runners/api.server": { readRunnerState: async (projectId: string) => { asked.push(projectId); return view; } },
-    "../model/turn": { deriveTurn: () => ({ kind: "setup", steps: [], current: 1 }) },
+    "../model/runner": { signinCode }, "../model/turn": { deriveTurn: () => ({ kind: "setup", steps: [], current: 1 }) },
   };
   const exports = {} as { loadTurn: typeof loadTurn };
   runInNewContext(code, { exports, Date, require: (name: string) => Object.hasOwn(deps, name) ? deps[name] : require(name) });
   const data = await exports.loadTurn("p");
   assert.deepEqual(asked, ["p"]);
   assert.deepEqual(JSON.parse(JSON.stringify(data.runner)), {
-    runner: { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "working", waitReason: null, stopReason: null,
+    runner: { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "working", waitReason: null, stopReason: null, signinCode: null,
       seenAt: new Date(2_000).toISOString(), lastActivity: new Date(4_000).toISOString() },
     paused: true, renderedAt: new Date(5_000).toISOString(),
   });
+});
+
+it("passes a refused sign-in start's code to the banner and never the stored text of other rows", () => {
+  const code = ts.transpileModule(readFileSync("src/fsd/widgets/turn-banner/api/turn-data.server.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const require = createRequire(import.meta.url);
+  const deps: Record<string, unknown> = { "server-only": {}, "@/server/db": { prisma: {} }, "@/server/pipeline/api.server": {}, "@/server/pipeline/api": {},
+    "@/server/runners/api.server": {}, "../model/runner": { signinCode }, "../model/turn": {} };
+  const exports = {} as { runnerFacts: typeof runnerFacts };
+  runInNewContext(code, { exports, Date, require: (name: string) => Object.hasOwn(deps, name) ? deps[name] : require(name) });
+  const row = (stopReason: string | null, lastResult: string | null) => ({ runner: { session: "s", mode: "resident", host: "desk", branch: "main", permission: null, autostart: true,
+    state: "stopped", waitReason: null, lastResult, lastLog: null, stopReason, startedAt: new Date(0), seenAt: new Date(0) },
+  pausedAt: null, lastActivity: null, renderedAt: new Date(0) }) as unknown as Parameters<typeof runnerFacts>[0];
+  assert.equal(exports.runnerFacts(row("signin", "push-url")).runner?.signinCode, "push-url");
+  assert.equal(exports.runnerFacts(row("signin", "free text")).runner?.signinCode, "other");
+  assert.equal(exports.runnerFacts(row("owner", "dirty")).runner?.signinCode, null);
 });

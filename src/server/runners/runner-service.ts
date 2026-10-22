@@ -101,16 +101,47 @@ async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op
 }
 
 async function stopIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op: "stop" }>): Promise<RunnerOpResult> {
-  const row = await tx.runner.findUnique({ where: { projectId }, select: { session: true } });
+  const row = await tx.runner.findUnique({ where: { projectId }, select: { session: true, mode: true, autostart: true } });
   if (!row) return { ok: true, body: { ok: true } };
   if (row.session !== request.session) return replaced();
-  if (request.reason === "owner") {
+  if (request.reason === "owner" && !(row.mode === "resident" && row.autostart)) {
     await tx.runner.delete({ where: { projectId } });
     return { ok: true, body: { ok: true } };
   }
   const now = await readDatabaseClockIn(tx);
   await tx.runner.update({ where: { projectId }, data: { state: "stopped", stopReason: request.reason, waitReason: null, seenAt: now } });
   return { ok: true, body: { ok: true } };
+}
+
+async function autostartIn(tx: Tx, projectId: string, tokenId: string, request: Extract<RunnerOp, { op: "autostart" }>, paused: boolean): Promise<RunnerOpResult> {
+  const access = await readProjectAccessIn(tx, projectId);
+  if (!access.available) return { ok: false, status: 403, reason: access.reason };
+  const row = await tx.runner.findUnique({ where: { projectId }, select: RUNNER_SELECT });
+  const ours = row !== null && row.mode === "resident" && row.host === request.host;
+  if (request.state === "off") {
+    if (!ours) return { ok: true, body: { ok: true, paused } };
+    if (row.state === "stopped" && (row.stopReason === "owner" || row.stopReason === "signin")) await tx.runner.delete({ where: { projectId } });
+    else if (row.autostart) await tx.runner.update({ where: { projectId }, data: { autostart: false } });
+    return { ok: true, body: { ok: true, paused } };
+  }
+  if (!limitsFor(access.plan).residentRunner) return { ok: false, status: 403, reason: RESIDENT_RUNNER_PLAN_GATE, code: "PLAN_REQUIRED" };
+  const now = await readDatabaseClockIn(tx);
+  if (row) {
+    const record = toRecord(row);
+    const lastActivity = needsAgentActivity(record) ? await readLastAgentActivityIn(tx, projectId) : null;
+    if (request.state === "on" || holdsRunnerLease(record, lastActivity, now)) {
+      if (ours && !row.autostart) await tx.runner.update({ where: { projectId }, data: { autostart: true } });
+      return { ok: true, body: { ok: true, paused } };
+    }
+  }
+  const refused = request.state === "refused";
+  const data = {
+    session: request.session, tokenId, mode: "resident", host: request.host, branch: request.branch, permission: null, autostart: true,
+    state: "stopped", waitReason: null, lastResult: refused ? request.code : null, lastLog: null, stopReason: refused ? "signin" : "owner",
+    startedAt: now, seenAt: now,
+  };
+  await tx.runner.upsert({ where: { projectId }, create: { projectId, ...data }, update: data });
+  return { ok: true, body: { ok: true, paused } };
 }
 
 export async function runRunnerOp(client: Client, input: { projectId: string; tokenId: string; request: RunnerOp }): Promise<RunnerOpResult> {
@@ -121,6 +152,7 @@ export async function runRunnerOp(client: Client, input: { projectId: string; to
     const { request } = input;
     if (request.op === "start") return startIn(tx, input.projectId, input.tokenId, request, paused);
     if (request.op === "beat") return beatIn(tx, input.projectId, request, paused);
+    if (request.op === "autostart") return autostartIn(tx, input.projectId, input.tokenId, request, paused);
     return stopIn(tx, input.projectId, request);
   }, WRITE_OPTIONS);
 }

@@ -1,17 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { RUNNER_SIGNIN_CODES } from "@harness/core/runner.mjs";
 import { copyLock } from "@/fsd/shared/lib/copy-lock";
 import {
-  fillLine, hasLiveRunner, lineText, RUNNER_FREE_LINE, RUNNER_LINES, RUNNER_SHORT, RUNNER_STOP_REASONS, RUNNER_VERSION_LINE, runnerLine, runnerShortLine,
-  showsPauseControl, type RunnerFacts, type TurnRunner,
+  fillLine, hasLiveRunner, lineText, RUNNER_FREE_LINE, RUNNER_LINES, RUNNER_SHORT, RUNNER_SIGNIN_REASONS, RUNNER_STOP_REASONS, RUNNER_VERSION_LINE, runnerLine,
+  runnerShortLine, showsPauseControl, signinCode, type RunnerFacts, type TurnRunner,
 } from "./runner";
 
 const RENDERED = Date.parse("2026-10-20T12:00:00.000Z");
 const ago = (minutes: number) => new Date(RENDERED - minutes * 60_000).toISOString();
 const runner = (patch: Partial<TurnRunner> = {}): TurnRunner => ({
   mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle",
-  waitReason: null, stopReason: null, seenAt: ago(1), lastActivity: null, ...patch,
+  waitReason: null, stopReason: null, signinCode: null, seenAt: ago(1), lastActivity: null, ...patch,
 });
 const facts = (value: TurnRunner | null, paused = false): RunnerFacts => ({ runner: value, paused, renderedAt: new Date(RENDERED).toISOString() });
 const text = (value: RunnerFacts, now = RENDERED) => { const line = runnerLine(value, now); return line === null ? null : lineText(line); };
@@ -21,6 +22,7 @@ describe("runner copy", () => {
   it("locks every line, reason and short form to product-copy", () => {
     assert.deepEqual(Object.values(RUNNER_LINES), copyLock("turn-banner-runner"));
     assert.deepEqual(Object.values(RUNNER_STOP_REASONS), copyLock("turn-banner-runner-reasons"));
+    assert.deepEqual(Object.values(RUNNER_SIGNIN_REASONS), copyLock("turn-banner-runner-signin"));
     assert.deepEqual(Object.values(RUNNER_SHORT), copyLock("turn-banner-runner-short"));
     assert.deepEqual([RUNNER_VERSION_LINE], copyLock("turn-banner-runner-none"));
     assert.deepEqual([RUNNER_FREE_LINE], copyLock("turn-banner-runner-free"));
@@ -80,6 +82,29 @@ describe("runnerLine", () => {
     assert.equal(text(facts(runner({ state: "working", seenAt: ago(90), lastActivity: ago(61) }))), "No signal from the runner on desk for 61 min.");
     assert.equal(text(facts(runner({ state: "stopped", stopReason: "stuck" }), true)), "Runner on desk stopped: the same steps came back three times without progress. Start it again in Claude Code.");
     assert.equal(text(facts(runner({ state: "stopped", stopReason: "plan" }))), "Runner on desk stopped: the background runner needs Pro. Start it again in Claude Code.");
+  });
+
+  it("keeps a background runner the owner stopped with sign-in start on, and names a refused sign-in start", () => {
+    const resident = { mode: "resident" as const, branch: "main", autostart: true, state: "stopped" as const };
+    assert.equal(text(facts(runner({ ...resident, stopReason: "owner" }))), "Runner on desk stopped. It starts again when you sign in.");
+    assert.equal(text(facts(runner({ ...resident, stopReason: "signin", signinCode: "dirty" }))),
+      "Runner on desk did not start at sign-in: main had uncommitted changes. It tries again at the next sign-in, or start it in Claude Code.");
+    assert.equal(text(facts(runner({ ...resident, stopReason: "signin", signinCode: "autostart-branch" }))),
+      "Runner on desk did not start at sign-in: the checkout was not on main. It tries again at the next sign-in, or start it in Claude Code.");
+    assert.deepEqual(runnerLine(facts(runner({ ...resident, stopReason: "signin", signinCode: "dirty" })), RENDERED)?.filter(segment => segment.code),
+      [{ text: "desk", code: true }, { text: "main", code: true }]);
+    assert.equal(text(facts(runner({ ...resident, stopReason: "signin", signinCode: null }))),
+      "Runner on desk did not start at sign-in: see the runner log. It tries again at the next sign-in, or start it in Claude Code.");
+    assert.equal(short(facts(runner({ ...resident, stopReason: "signin", signinCode: "checkout-in-use" }))), "Runner: stopped on desk");
+    assert.equal(showsPauseControl(facts(runner({ ...resident, stopReason: "owner" }))), true);
+  });
+
+  it("names every code the server accepts, and any other value as the log", () => {
+    assert.deepEqual(Object.keys(RUNNER_SIGNIN_REASONS), [...RUNNER_SIGNIN_CODES]);
+    assert.equal(signinCode("push-url"), "push-url");
+    assert.equal(signinCode("no-claude"), "other");
+    assert.equal(signinCode("constructor"), "other");
+    assert.equal(signinCode(null), "other");
   });
 
   it("moves to no signal while the page stays open", () => {

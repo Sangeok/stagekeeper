@@ -120,6 +120,14 @@ describe("parseRunnerRequest", () => {
     assert.deepEqual(parseRunnerRequest({ op: "beat", session: SESSION, state: "waiting", waitReason: "dirty", lastResult: "ITEM-01 done", lastLog: "2026-10-20T12-00-00Z.jsonl" }),
       { op: "beat", session: SESSION, state: "waiting", waitReason: "dirty", lastResult: "ITEM-01 done", lastLog: "2026-10-20T12-00-00Z.jsonl" });
     for (const reason of ["owner", "stuck", "error", "plan"]) assert.deepEqual(parseRunnerRequest({ op: "stop", session: SESSION, reason }), { op: "stop", session: SESSION, reason });
+    assert.deepEqual(parseRunnerRequest({ op: "autostart", session: SESSION, state: "on", host: "desk", branch: "main" }),
+      { op: "autostart", session: SESSION, state: "on", host: "desk", branch: "main", code: null });
+    assert.deepEqual(parseRunnerRequest({ op: "autostart", session: SESSION, state: "off", host: "desk" }),
+      { op: "autostart", session: SESSION, state: "off", host: "desk", branch: null, code: null });
+    for (const code of ["dirty", "autostart-branch", "detached", "push-url", "checkout-in-use", "other"]) {
+      assert.deepEqual(parseRunnerRequest({ op: "autostart", session: SESSION, state: "refused", host: "desk", branch: "main", code }),
+        { op: "autostart", session: SESSION, state: "refused", host: "desk", branch: "main", code });
+    }
     assert.deepEqual(parseRunnerRequest({ ...start, project: "mine" })?.op, "start");
   });
 
@@ -139,6 +147,16 @@ describe("parseRunnerRequest", () => {
       { op: "beat", session: SESSION, lastLog: "runs/a.jsonl" }, { op: "beat", session: SESSION, lastLog: "runs\\a.jsonl" }, { op: "beat", session: SESSION, lastLog: long(101) },
       { op: "beat", session: SESSION, reason: "owner" },
       { op: "stop", session: SESSION }, { op: "stop", session: SESSION, reason: "replaced" }, { op: "stop", session: SESSION, reason: "owner", state: "idle" },
+      { op: "stop", session: SESSION, reason: "signin" },
+      { op: "autostart", session: SESSION, host: "desk", branch: "main" }, { op: "autostart", session: SESSION, state: "paused", host: "desk", branch: "main" },
+      { op: "autostart", session: SESSION, state: "on", branch: "main" }, { op: "autostart", session: SESSION, state: "on", host: long(65), branch: "main" },
+      { op: "autostart", session: SESSION, state: "on", host: "desk" }, { op: "autostart", session: SESSION, state: "on", host: "desk", branch: "main", code: "dirty" },
+      { op: "autostart", session: SESSION, state: "refused", host: "desk", branch: "main" },
+      { op: "autostart", session: SESSION, state: "refused", host: "desk", branch: "main", code: "no-claude" },
+      { op: "autostart", session: SESSION, state: "refused", host: "desk", code: "dirty" },
+      { op: "autostart", session: SESSION, state: "off", host: "desk", code: "dirty" },
+      { op: "autostart", session: SESSION, state: "on", host: "desk", branch: "main", reason: "owner" },
+      { op: "autostart", state: "on", host: "desk", branch: "main" },
     ]) assert.equal(parseRunnerRequest(body), null, JSON.stringify(body));
   });
 });

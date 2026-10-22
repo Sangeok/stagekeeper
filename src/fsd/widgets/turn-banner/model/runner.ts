@@ -8,7 +8,8 @@ export type TurnRunner = {
   autostart: boolean;
   state: "idle" | "working" | "waiting" | "stopped";
   waitReason: "dirty" | "branch" | null;
-  stopReason: "stuck" | "error" | "plan" | null;
+  stopReason: "owner" | "stuck" | "error" | "plan" | "signin" | null;
+  signinCode: SigninCode | null;
   seenAt: string;
   lastActivity: string | null;
 };
@@ -28,6 +29,8 @@ export const RUNNER_LINES = {
   pausedWorking: "Work already running finishes first.",
   silent: "No signal from the runner on {host} for {n} min.",
   stopped: "Runner on {host} stopped: {reason}. Start it again in Claude Code.",
+  stoppedUntilSignIn: "Runner on {host} stopped. It starts again when you sign in.",
+  signInRefused: "Runner on {host} did not start at sign-in: {reason}. It tries again at the next sign-in, or start it in Claude Code.",
   autostart: "starts at sign-in",
   allowlist: "allow-list only",
   editGuard: "pause before you edit {branch}",
@@ -38,6 +41,18 @@ export const RUNNER_STOP_REASONS = {
   error: "it hit an error — check the session or its log",
   plan: "the background runner needs Pro",
 } as const;
+
+export const RUNNER_SIGNIN_REASONS = {
+  dirty: "{branch} had uncommitted changes",
+  "autostart-branch": "the checkout was not on {branch}",
+  detached: "the checkout was not on a branch",
+  "push-url": "a remote has its own push URL",
+  "checkout-in-use": "another watch or runner was using the checkout",
+  other: "see the runner log",
+} as const;
+export type SigninCode = keyof typeof RUNNER_SIGNIN_REASONS;
+export const signinCode = (value: string | null): SigninCode =>
+  value !== null && Object.hasOwn(RUNNER_SIGNIN_REASONS, value) ? value as SigninCode : "other";
 
 export const RUNNER_SHORT = {
   sessionIdle: "Runner: watching on {host}",
@@ -95,6 +110,10 @@ export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   const values = { host: runner.host, branch: runner.branch ?? "" };
   const liveness = runnerLiveness(runner, now);
   if (liveness === "stopped") {
+    if (runner.stopReason === "owner") return fillLine(RUNNER_LINES.stoppedUntilSignIn, values);
+    if (runner.stopReason === "signin") {
+      return fillLine(RUNNER_LINES.signInRefused.replace("{reason}", RUNNER_SIGNIN_REASONS[runner.signinCode ?? "other"]), values);
+    }
     return fillLine(RUNNER_LINES.stopped, { ...values, reason: RUNNER_STOP_REASONS[runner.stopReason ?? "error"] });
   }
   if (liveness === "silent") {

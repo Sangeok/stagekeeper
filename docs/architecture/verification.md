@@ -432,7 +432,7 @@ fixture의 refresh double은 실제 RSC state 보존의 증거가 아니므로, 
 | `turn-banner-connect` | §5 First run | `src/fsd/widgets/turn-banner/model/turn.test.ts` | 서버 모델의 중립 `detail`(글자 일치) |
 | `turn-banner-connect-claude`·`-codex` | §5 First run의 클라이언트 선택 | `src/fsd/widgets/turn-banner/model/setup-detail.test.ts`, `ui/turn-banner.test.ts` | 선택한 init 표시·서버 판정 불변; 브라우저 fixture가 setup/next·탭 유지·slug reset을 검증 |
 | `turn-banner-watch` | §5 Next, in Claude Code | `src/fsd/widgets/turn-banner/model/turn.test.ts`, `ui/next-step.test.mjs` | `WATCH_LINE` 글자 일치·실제 본문·명령 Code·빈 상자·Copy payload |
-| `turn-banner-runner`·`-reasons`·`-short`·`-none`·`-free` | §5 Runner line | `src/fsd/widgets/turn-banner/model/runner.test.ts`, `ui/turn-banner.test.ts`, `ui/next-step.test.mjs` | 실행기 줄 틀·정지 이유·짧은 형태·버전 줄·Free 줄의 글자 일치(model 상수). 렌더 시험이 값을 채운 줄, host의 mono, 살아 있는 실행기의 watch 줄 숨김, Board·Inbox에만 Pause/Resume, 상주 실행기 working에만 편집 경고, 행 없음·Free에만 Free 줄을 본다 |
+| `turn-banner-runner`·`-reasons`·`-signin`·`-short`·`-none`·`-free` | §5 Runner line | `src/fsd/widgets/turn-banner/model/runner.test.ts`, `ui/turn-banner.test.ts`, `ui/next-step.test.mjs` | 실행기 줄 틀·정지 이유·로그온 시작 거부 이유·짧은 형태·버전 줄·Free 줄의 글자 일치(model 상수). 렌더 시험이 값을 채운 줄, host의 mono, 살아 있는 실행기의 watch 줄 숨김, Board·Inbox에만 Pause/Resume, 상주 실행기 working에만 편집 경고, 행 없음·Free에만 Free 줄을 본다 |
 | `landing-demo` | §16 Landing (데모 카드) | `src/fsd/pages/landing/ui/landing-page.test.ts` | `LandingPage`의 데모 카드가 값으로 적은 제품 문장 셋 |
 | `landing-meta` | §16 Landing (탭·검색·공유) | 같은 파일 | 문서 제목·설명(`LANDING_TITLE`·`LANDING_DESCRIPTION`, 글자 일치). 본문과 독립적으로 검사 |
 | `landing-intro` | §16 Landing (본문) | 같은 파일 | 기존 랜딩 본문(`LANDING_INTRO`) 보존·로그인별 CTA·머리/꼬리 Docs 링크 |

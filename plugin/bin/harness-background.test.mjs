@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -309,4 +309,39 @@ it("keeps every refusal and start line in product copy", () => {
     assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(sentence), `${code} is missing from product-copy §15`);
   }
   for (const line of Object.values(START_LINES)) assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(line.replace(/\{\w+\}/g, "{}")), line);
+});
+
+it("reports a refused sign-in start to the Board with a fixed code, and a manual start never does", async t => {
+  const f = await fixture(t);
+  const signIn = [...START, "--from-autostart"];
+  const registered = branch => { mkdirSync(f.directory, { recursive: true }); writeFileSync(path.join(f.directory, "autostart.json"), JSON.stringify({ schemaVersion: 1, branch })); };
+  const reports = () => f.runnerCalls.filter(call => call.op === "autostart");
+  registered("main");
+  writeFileSync(path.join(f.root, "draft.txt"), "x");
+  assert.equal((await f.run(signIn)).event.code, "dirty");
+  assert.deepEqual(reports(), [{ op: "autostart", session: reports()[0]?.session, state: "refused", host: runnerHost(), branch: "main", code: "dirty", project: "owner-repo" }]);
+  assert.match(reports()[0].session, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.ok(f.notices().some(notice => notice.kind === "startRefused"));
+
+  registered("release");
+  assert.equal((await f.run(signIn)).event.code, "autostart-branch");
+  assert.deepEqual(reports().map(call => [call.branch, call.code]), [["main", "dirty"], ["release", "autostart-branch"]]);
+
+  registered("main");
+  assert.equal((await f.run(START)).event.code, "dirty");
+  assert.equal(reports().length, 2, "a manual start reports nothing");
+  unlinkSync(path.join(f.root, "draft.txt"));
+  f.setRunner((body, res) => { res.statusCode = 409; res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "busy", code: "RUNNER_BUSY", holder: { mode: "resident", host: "OTHER-PC", seenAt: "2026-10-22T00:00:00.000Z" } })); });
+  assert.equal((await f.run(signIn)).event.code, "busy");
+  assert.equal(reports().length, 2, "a busy project already shows the runner that holds it");
+});
+
+it("reports a sign-in start that finds a runner already in this checkout as checkout-in-use", async t => {
+  const f = await fixture(t);
+  f.setOverview(EMPTY);
+  assert.equal((await f.run(START)).event.event, "started");
+  writeFileSync(path.join(f.directory, "autostart.json"), JSON.stringify({ schemaVersion: 1, branch: "main" }));
+  assert.equal((await f.run([...START, "--from-autostart"])).event.code, "locked");
+  assert.deepEqual(f.runnerCalls.filter(call => call.op === "autostart").map(call => [call.state, call.branch, call.code]), [["refused", "main", "checkout-in-use"]]);
 });
