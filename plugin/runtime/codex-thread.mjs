@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir, homedir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
@@ -10,25 +10,14 @@ import { ROLE_TOOLS, verifierPackage, readCodexRole } from "./codex-agent.mjs";
 import { callTool, listTools, McpDomainError } from "./mcp-client.mjs";
 import { checkSession, registerChild, settleChild, gitRoot } from "./local-session.mjs";
 import { safeTarget } from "./file-ownership.mjs";
-import { createRoleFiles, roleFileToolNames, RoleFileInputError } from "./role-files.mjs";
+import { createRoleFiles, roleFileToolNames, RoleFileInputError, RolePathMissingError } from "./role-files.mjs";
 import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, roleCommandTool } from "./role-commands.mjs";
 import { createQaBrowser, withQaBrowser } from "./qa-browser.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 import { createRoleGit, roleGitTool } from "./role-git.mjs";
-
-export function codexExecutable() {
-  for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
-    for (const suffix of process.platform === "win32" ? [".exe", ".cmd"] : [""]) {
-      const candidate = path.join(directory, "codex" + suffix);
-      if (!existsSync(candidate)) continue;
-      if (suffix !== ".cmd") return { executable: candidate, prefix: [] };
-      const entry = path.join(directory, "node_modules/@openai/codex/bin/codex.js");
-      if (!existsSync(entry) || !readFileSync(candidate, "utf8").includes("node_modules\\@openai\\codex\\bin\\codex.js")) throw new Error("Unsupported Codex wrapper");
-      return { executable: process.execPath, prefix: [entry] };
-    }
-  }
-  throw new Error("Codex CLI required");
-}
+import { codexExecutable } from "./codex-executable.mjs";
+import { assertCommitHandoff, assertHandoffSubmission } from "./commit-handoff.mjs";
+export { codexExecutable } from "./codex-executable.mjs";
 
 export function childEnvironment(environment = process.env) {
   const allowed = new Set(["path", "pathext", "systemroot", "windir", "comspec", "temp", "tmp", "home", "userprofile", "appdata", "localappdata", "programfiles", "programfiles(x86)", "programdata", "username", "userdomain", "os", "systemdrive"]);
@@ -94,15 +83,55 @@ export async function roleBridge(input, files, session, dispatch, operations = {
   const logical = ROLE_TOOLS[dispatch.agent] ? dispatch.agent : "dev", domainNames = ROLE_TOOLS[logical];
   const domainTools = (await operations.listTools(input)).filter(tool => domainNames.includes(tool.name));
   if (domainTools.length !== domainNames.length || new Set(domainTools.map(tool => tool.name)).size !== domainNames.length) throw new Error("Role MCP allowlist incomplete");
-  const tools = [...domainTools, ...(fileBroker?.tools ?? [])], names = tools.map(tool => tool.name);
+  const localTools = (fileBroker?.tools ?? []).map(tool => ({ ...tool, inputSchema: { type: "object", ...tool.inputSchema,
+    properties: { ...tool.inputSchema?.properties, project: { type: "string", description: "Optional project slug; must match this role's bound project." } } } }));
+  const tools = [...domainTools, ...localTools], names = tools.map(tool => tool.name);
   if (new Set(names).size !== names.length) throw new Error("Role tool names conflict");
-  const capability = randomUUID(); let stepResponse = null, done = false, requests = 0, pending = 0;
+  const capability = randomUUID(); let stepResponse = null, done = false, requests = 0, pending = 0, queued = 0;
   const controller = new AbortController();
-  const server = createServer(async (request, response) => {
+  let queue = Promise.resolve();
+  const handlers = new Set();
+  async function executeTool(message) {
+    if (controller.signal.aborted || done || !names.includes(message.params?.name) || (!stepResponse && message.params.name !== "agent_next")) throw new Error("Role tool or run closed");
+    const ownership = await operations.checkSession(files, session, input.binding);
+    if (ownership.event !== "owned" || ownership.lifecycle !== "active" || ownership.client !== "codex") throw new Error("Role session no longer active");
+    const name = message.params.name;
+    if (controller.signal.aborted) throw new Error("Role bridge stopped");
+    let args = domainNames.includes(name) ? boundArguments(name, message.params.arguments ?? {}, dispatch, stepResponse) : message.params.arguments;
+    if (!domainNames.includes(name) && args && Object.hasOwn(args, "project")) {
+      if (args.project !== dispatch.project) throw new Error("Local role project mismatch");
+      args = { ...args }; delete args.project;
+    }
+    if (dispatch.commitHandoff) assertHandoffSubmission(input.binding.root, dispatch, name, args, stepResponse);
+    if (dispatch.agent === "qa-verifier" && name === "agent_next" && args.outcome === "ok" && stepResponse?.step === "verify" && !fileBroker?.qaVerified()) throw new Error("QA verify requires actual browser, snapshot, console and network observations");
+    const value = domainNames.includes(name) ? await operations.callTool(input, name, args, controller.signal) : await fileBroker.call(name, args, controller.signal);
+    if (controller.signal.aborted) throw new Error("Role response arrived after stop");
+    if (!domainNames.includes(name)) {
+      const current = await operations.checkSession(files, session, input.binding);
+      if (current.event !== "owned" || current.lifecycle !== "active" || current.client !== "codex") throw new Error("Local role result arrived after ownership ended");
+    }
+    if (name === "agent_next") {
+      if (typeof value.done !== "boolean" || (!value.done && (!value.receipt?.runId || !Number.isInteger(value.receipt.revision) || value.receipt.stepId !== value.step))
+        || (dispatch.entry && !isDeepStrictEqual(value.entry, dispatch.entry))
+        || (!value.done && dispatch.agentRunId && value.receipt.runId !== dispatch.agentRunId)
+        || (!value.done && dispatch.entry && value.agentRunId !== value.receipt.runId)) throw new Error("Role response binding mismatch");
+      stepResponse = value; done = value.done === true;
+    }
+    return value?.mcpResult ?? { content: [{ type: "text", text: JSON.stringify(value) }], isError: false };
+  }
+  async function enqueueTool(message) {
+    if (++requests > 100 || queued >= 32 || controller.signal.aborted) throw new Error("Role request limit or stop");
+    queued++;
+    const task = queue.then(() => executeTool(message));
+    queue = task.catch(() => {});
+    try { return await task; } finally { queued--; }
+  }
+  async function handleRequest(request, response) {
     if (request.url !== `/mcp/${capability}`) { response.writeHead(404); response.end(); return; }
     if (request.method !== "POST") { response.writeHead(405, { Allow: "POST" }); response.end(); return; }
     pending++; let requestId = null;
     try {
+      if (pending > 32 || controller.signal.aborted) throw new Error("Role request limit or stop");
       const chunks = []; let bytes = 0;
       for await (const chunk of request) { if ((bytes += chunk.length) > 65536) throw new Error("Bridge request too large"); chunks.push(chunk); }
       const message = JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -111,31 +140,12 @@ export async function roleBridge(input, files, session, dispatch, operations = {
       if (message.method === "initialize") result = { protocolVersion: message.params?.protocolVersion ?? "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "harness-role", version: "1" } };
       else if (message.method?.startsWith("notifications/")) { response.writeHead(202); response.end(); return; }
       else if (message.method === "tools/list") result = { tools };
-      else if (message.method === "tools/call") {
-        if (++requests > 100 || done || pending > 1 || !names.includes(message.params?.name) || (!stepResponse && message.params.name !== "agent_next")) throw new Error("Role tool or run closed");
-        const ownership = await operations.checkSession(files, session, input.binding);
-        if (ownership.event !== "owned" || ownership.lifecycle !== "active" || ownership.client !== "codex") throw new Error("Role session no longer active");
-        const name = message.params.name;
-        if (controller.signal.aborted) throw new Error("Role bridge stopped");
-        const args = domainNames.includes(name) ? boundArguments(name, message.params.arguments ?? {}, dispatch, stepResponse) : message.params.arguments;
-        if (dispatch.agent === "qa-verifier" && name === "agent_next" && args.outcome === "ok" && stepResponse?.step === "verify" && !fileBroker?.qaVerified()) throw new Error("QA verify requires actual browser, snapshot, console and network observations");
-        const value = domainNames.includes(name) ? await operations.callTool(input, name, args, controller.signal) : await fileBroker.call(name, args, controller.signal);
-        if (controller.signal.aborted) throw new Error("Role response arrived after stop");
-        if (!domainNames.includes(name)) {
-          const current = await operations.checkSession(files, session, input.binding);
-          if (current.event !== "owned" || current.lifecycle !== "active" || current.client !== "codex") throw new Error("Local role result arrived after ownership ended");
-        }
-        if (name === "agent_next") {
-          if (typeof value.done !== "boolean" || (!value.done && (!value.receipt?.runId || !Number.isInteger(value.receipt.revision) || value.receipt.stepId !== value.step))
-            || (dispatch.entry && !isDeepStrictEqual(value.entry, dispatch.entry))
-            || (!value.done && dispatch.entry && value.agentRunId !== value.receipt.runId)) throw new Error("Role response binding mismatch");
-          stepResponse = value; done = value.done === true;
-        }
-        result = value?.mcpResult ?? { content: [{ type: "text", text: JSON.stringify(value) }], isError: false };
-      } else throw new Error("Unsupported role bridge method");
+      else if (message.method === "tools/call") result = await enqueueTool(message);
+      else throw new Error("Unsupported role bridge method");
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
     } catch (error) {
+      if (response.destroyed) return;
       let domainFailure = null;
       if (error instanceof McpDomainError && !controller.signal.aborted) {
         try {
@@ -148,13 +158,25 @@ export async function roleBridge(input, files, session, dispatch, operations = {
         ? { result: { isError: true, content: [{ type: "text", text: JSON.stringify(domainFailure) }] } }
         : { error: error instanceof RoleFileInputError
         ? { code: -32602, message: error.message }
+        : error instanceof RolePathMissingError ? { code: -32004, message: error.message }
         : { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }) }));
     } finally { pending--; }
+  }
+  const server = createServer((request, response) => {
+    const task = handleRequest(request, response);
+    handlers.add(task);
+    void task.finally(() => handlers.delete(task)).catch(() => response.destroy());
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   return { url: `http://127.0.0.1:${server.address().port}/mcp/${capability}`, result: () => ({ done, receipt: stepResponse }),
     abort: () => controller.abort(),
-    close: async () => { controller.abort(); try { await fileBroker?.close(); } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); } if (pending) throw new Error("Role requests still pending"); } };
+    close: async () => {
+      controller.abort(); server.closeAllConnections();
+      await new Promise(resolve => server.close(resolve));
+      await Promise.allSettled([...handlers]);
+      await fileBroker?.close();
+      if (pending || queued) throw new Error("Role requests still pending");
+    } };
 }
 
 export class AppServer {
@@ -309,6 +331,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     createAppServer: child => new AppServer(child), ...operations };
   const owned = await checkSession(files, session, input.binding);
   if (owned.event !== "owned" || owned.lifecycle !== "active" || owned.client !== "codex") throw new Error("Active Codex session required");
+  assertCommitHandoff(input.binding.root, dispatch);
   if (!/^[a-z][a-z0-9-]*$/.test(dispatch.agent)) throw new Error("Invalid role");
   const role = readFileSync(safeTarget(input.binding.root, `.codex/agents/${dispatch.agent}.toml`), "utf8");
   const roleConfig = readCodexRole(role, ROLE_TOOLS[dispatch.agent] ? dispatch.agent : "dev", dispatch.agent);
@@ -336,7 +359,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     fileBroker = commandBroker;
     const nativeGit = nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent);
     const localFiles = nativeGit ? runtime.createRoleGit({ root: input.binding.root, agent: dispatch.agent, fileBroker: nativeFileBroker, backend: commandBroker,
-      planCommit: dispatch.planCommit ?? null, commonDirectory: path.dirname(path.dirname(files.lock)) }, commandLifecycle) : commandBroker;
+      planCommit: dispatch.planCommit ?? null, commitHandoff: dispatch.commitHandoff ?? null, commonDirectory: path.dirname(path.dirname(files.lock)) }, commandLifecycle) : commandBroker;
     fileBroker = localFiles;
     if (dispatch.agent === "qa-verifier") fileBroker = withQaBrowser(localFiles, await runtime.createQaBrowser(input.config.qa ?? undefined));
     const tools = [...(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev), ...(fileBroker?.tools.map(tool => tool.name) ?? [])];
@@ -363,9 +386,10 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     if (roleVerifier && skills.filter(isRoleVerifier).length !== 1) throw new Error("Actual staged verifier loader path differs");
     const nativeInstructions = nativeFiles && dispatch.agent !== "pm" ? "\nWindows native file operations use only mcp__harness__role_file_read/list/search/write with absolute paths. role_file_read accepts maxLines 1..500 (default 200); follow nextLine until null to read the full file. Invalid read pagination (-32602) may be corrected within those bounds; permission or ownership refusals must not be bypassed. File writes require the current hash (null only for an absent file). These operations preserve role filesystem permissions. Literal search reports incomplete/truncated/skipped scans; finish reading the affected files before claiming a complete review. "
       + (nativeRuntime ? "Run build/test commands through mcp__harness__role_command_exec using relative paths in its fresh disposable repository snapshot. STAGEKEEPER_ROLE_SCRATCH points to a fresh copy of the supplied role scratch, including any prepared verification sketches and staged skill files. Original absolute repository/scratch paths cannot be used by commands. It excludes Git metadata, .env files and denied paths; no owner environment or network is available. All snapshot writes and generated outputs are discarded. Edit originals through guarded file tools and run a fresh command afterward. Record the snapshot hash and omissions in verification evidence; a zero exit alone does not cover omitted dependencies or original files changed afterward. Timeout, stop and output-limit are blocked/failed, never passed. " : "Shell commands, builds and tests are unavailable in this backend: report requested command checks as blocked, never passed. ")
-      + (nativeGit ? "Git read checks use mcp__harness__role_git_read, never role_command_exec. Translate git diff/status/show/rev-parse checks in the supplied role or skill to its fixed operations. Select concrete permitted absolute file paths through file tools; directories, wildcards and repository-wide claims are unavailable. show/diff accept only HEAD or the exact supplied planCommit; show reads one file. diff compares committed content with current original bytes. status uses a private index copy and explicit files; ignore rules, rename tracking, filters and line-ending conversion are unavailable. Record its head, ref, file hashes and explicit-files scope. Original Git metadata stays private and unchanged; commit remains an owner handoff. " : "")
+      + (nativeGit ? "Git read checks use mcp__harness__role_git_read, never role_command_exec. Translate git diff/status/show/rev-parse checks in the supplied role or skill to its fixed operations. Select concrete permitted absolute file paths through file tools; directories, wildcards and repository-wide claims are unavailable. show/diff accept HEAD, the exact supplied planCommit, or commitHandoff.commit for its one confirmed path; show reads one file. diff compares committed content with current original bytes. status uses a private index copy and explicit files; ignore rules, rename tracking, filters and line-ending conversion are unavailable. Record its head, ref, file hashes and explicit-files scope. Original Git metadata stays private and unchanged; commit remains an owner handoff. " : "")
       + "Do not request WSL, another login, or permission escalation. Load the supplied verifier SKILL.md and its referenced files through role_file_read when required." : "";
-    const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions + nativeInstructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
+    const handoffInstructions = dispatch.commitHandoff ? "\nThe briefing contains commitHandoff verified by the helper. This is a resume after the owner already committed that artifact, not a request to prepare it again. First call agent_next without outcome on the bound existing run. Read commitHandoff.absolutePath and continue at the current step's submission after commit. Use the relative commitHandoff.path and its exact commit for plan_submit or report_submit. commitPermission:false forbids creating a commit; it does not forbid submitting this already committed artifact. Do not rewrite it or request the same handoff again. If a real defect requires an edit, report the changed evidence and stop for a new owner commit; never submit changed bytes with the old commit." : "";
+    const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions + nativeInstructions + handoffInstructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
     threadId = thread.thread?.id;
     if (!threadId) throw new Error("Fresh thread identity missing");
     const completion = new Promise((resolve, reject) => { complete = message => {
@@ -379,7 +403,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     }; server.listeners.add(complete); });
     void completion.catch(() => {});
     turnRequested = true;
-    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, requiredVerificationPaths: dispatch.requiredVerificationPaths, qaBriefing: dispatch.qaBriefing, entry: dispatch.entry ?? null, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path }) }] });
+    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, commitHandoff: dispatch.commitHandoff, requiredVerificationPaths: dispatch.requiredVerificationPaths, qaBriefing: dispatch.qaBriefing, entry: dispatch.entry ?? null, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path }) }] });
     turnId = turn.turn?.id;
     if (!turnId) throw new Error("Active turn identity missing");
     const deadline = new Promise((_, reject) => { monitor = setTimeout(() => reject(new Error("Role turn deadline exceeded")), 15 * 60000); });

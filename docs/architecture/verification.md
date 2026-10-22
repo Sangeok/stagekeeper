@@ -78,7 +78,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 - `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
   연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
   환경을 같은 변경에서 보완한다.
-- `npm test`: `packages/core/*.test.mjs`와 `plugin/bin/*.test.mjs`를 실행하며 CI에 연결되어
+- `npm test`: `packages/core/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
 - `npm run test:scripts`: `scripts/**/*.test.mjs`와 `scripts/**/*.test.ts`를 재귀 검색하고
   CI의 `npm run check`에서 실행한다. 외부 DB·모델 호출 없는 도구 테스트를 포함한다.
@@ -91,6 +91,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   현재 `check` workflow의 별도 실행 항목에는 포함되지 않는다.
 - `npm run test:server:integration`: 격리 PostgreSQL과 전용 실행 스크립트를 사용한다.
   DB 안전 검사와 실행 절차는 아래 저장소 스크립트 설명을 따른다.
+- `npm run test:templates`: 별도 private 저장소인 `plugin/templates`의 실제 본문을 검사한다.
+  서버 구조 또는 템플릿을 변경하면 Prisma 생성 후 실행하고, 통과 전에는 seed하지 않는다.
+  private 원본을 제공하지 않는 공개 CI의 통과가 이 검증을 대신하지 않는다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 

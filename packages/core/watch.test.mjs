@@ -45,6 +45,18 @@ it("failed implementation verification waits only that item and preserves ready 
 });
 
 describe("watch MCP response parser", () => {
+  it("accepts object lists only for an explicit list response contract", () => {
+    for (const value of [[], [{ key: "A" }]]) {
+      const body = JSON.stringify(response(value));
+      assert.equal(parseToolResponse("application/json", body, "ours").ok, false);
+      assert.deepEqual(parseToolResponse("application/json", body, "ours", "object-list"), { ok: true, value });
+    }
+    for (const value of [{}, null, [null], [[]], ["A"], 1])
+      assert.equal(parseToolResponse("application/json", JSON.stringify(response(value)), "ours", "object-list").ok, false);
+    const error = response(null, { result: { isError: true, content: [{ type: "text", text: '{"error":"unavailable"}' }] } });
+    assert.deepEqual(parseToolResponse("application/json", JSON.stringify(error), "ours", "object-list"), { ok: false, error: { code: "access-refused", reason: "unavailable" } });
+    assert.equal(parseToolResponse("application/json", JSON.stringify(response({})), "ours", "unknown").ok, false);
+  });
   it("reads the one JSON tool body", () => {
     assert.deepEqual(parse(response(overview())), { ok: true, value: overview() });
   });

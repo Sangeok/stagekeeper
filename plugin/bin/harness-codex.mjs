@@ -7,7 +7,7 @@ import { connectionInput, verifyProject, verifyCodexSupport, callTool } from "..
 import { codexExecutable, dispatchFreshRole, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { RUNTIME_PROTOCOL } from "../lib/client-runtime.mjs";
 import { verifierPackage } from "../runtime/codex-agent.mjs";
-import { safeTarget } from "../runtime/file-ownership.mjs";
+import { confirmCommitHandoff } from "../runtime/commit-handoff.mjs";
 
 export class CodexRoleUnsupported extends Error {
   constructor() {
@@ -71,6 +71,7 @@ async function main() {
       const verifier = verifierPackage();
       if (metadata.verifier?.path !== verifier.path || metadata.verifier.checksum !== verifier.checksum) throw new Error("Verifier package changed");
       const cli = codexExecutable();
+      console.log(JSON.stringify({ event: "cli-selected", ...cli }));
       execFileSync(cli.executable, [...cli.prefix, "mcp", "add", "harness", "--url", `${input.server}/api/mcp`, "--bearer-token-env-var", "HARNESS_TOKEN"], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
       console.log(JSON.stringify({ event: "mcp-registered", client: "codex", protocol: RUNTIME_PROTOCOL }));
       const installed = JSON.parse(execFileSync(cli.executable, [...cli.prefix, "mcp", "get", "harness", "--json"], { encoding: "utf8", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }));
@@ -89,24 +90,19 @@ async function main() {
     if (owned.event !== "owned" || owned.lifecycle !== "active" || owned.client !== "codex" || owned.mode !== "foreground") throw new Error("Active Codex foreground session required; a watch session cannot be adopted by ID");
     const pipeline = await callTool(input, "pipeline_next", options.key ? { key: options.key } : {});
     if (options.operation === "next") { console.log(JSON.stringify({ event: "next", session: options.session, policy: owned.policy, pipeline })); return; }
-    let next = options.key ? pipeline : pipeline.head;
+    let next = options.key ? pipeline : pipeline.head, commitHandoff;
     if (options["retry-qa"] !== undefined) {
       if (options["retry-qa"] !== "yes" || next.action !== "wait" || next.on !== "qa") throw new Error("Explicit QA retry requires a current QA failure");
       next = { action: "dispatch", ...next.resume };
     }
     if (next.action === "wait" && next.on === "handoff" && options["handoff-commit"]) {
-      if (!options.key || !/^[0-9a-f]{7,40}$/.test(options["handoff-commit"]) || !next.resume || !next.note) throw new Error("Confirmed handoff commit and current resume binding required");
-      const prepared = safeTarget(location.root, next.note.trim());
-      execFileSync("git", ["-C", location.root, "merge-base", "--is-ancestor", options["handoff-commit"], "HEAD"], { stdio: ["ignore", "pipe", "pipe"] });
-      const relative = next.note.trim().replaceAll("\\", "/");
-      if (![`docs/plans/${options.key}.md`, `docs/agents/${next.resume.agent}/${options.key}.md`].includes(relative)) throw new Error("Handoff artifact path differs from current role/item");
-      const committed = execFileSync("git", ["-C", location.root, "show", `${options["handoff-commit"]}:${relative}`], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-      if (committed.replaceAll("\r\n", "\n") !== readFileSync(prepared, "utf8").replaceAll("\r\n", "\n")) throw new Error("Prepared handoff file differs from confirmed commit");
+      commitHandoff = confirmCommitHandoff(location.root, options.key, next, options["handoff-commit"]);
       next = { action: "dispatch", ...next.resume };
     } else if (options["handoff-commit"]) throw new Error("No current handoff to continue");
     if (next.action !== "dispatch") { console.log(JSON.stringify({ event: "paused", session: options.session, pipeline })); return; }
     if (["pm", "feature-scout"].includes(next.agent) && !next.entry && !owned.policy.propose) throw new Error("New-work permission is disabled for this session");
     const dispatch = dispatchBinding(next, input.config.workspaces);
+    if (commitHandoff) dispatch.commitHandoff = commitHandoff;
     if (dispatch.key) {
       const board = await callTool(input, "board_get", { key: dispatch.key });
       dispatch.planPath = board.planPath; dispatch.planCommit = board.planCommit;
@@ -132,7 +128,9 @@ async function main() {
       if (changed.some(name => !qaWorkflowFile(name, dispatch.key))) throw new Error("Product files changed since the QA implementation target");
       dispatch.qaBriefing = briefing;
     } else if (options.briefing) throw new Error("Only independent verifiers accept a minimal briefing");
-    console.log(JSON.stringify({ session: options.session, ...await dispatchFreshRole(input, files, options.session, dispatch) }));
+    const cli = codexExecutable();
+    console.log(JSON.stringify({ event: "cli-selected", ...cli }));
+    console.log(JSON.stringify({ session: options.session, ...await dispatchFreshRole(input, files, options.session, dispatch, { codexExecutable: () => cli }) }));
   } catch (error) {
     console.log(JSON.stringify(codexFailure(error, options?.session ?? null))); process.exitCode = 1;
   }

@@ -14,6 +14,10 @@ export class RoleFileInputError extends Error {
   constructor() { super("Invalid read pagination. Use integer maxLines 1..500 and positive safe-integer startLine; follow nextLine for further pages. Correct parameters without changing target permissions."); this.name = "RoleFileInputError"; }
 }
 
+export class RolePathMissingError extends Error {
+  constructor() { super("The permitted path does not exist. This is not a permission denial. When the current step authorizes a new file, role_file_write with expectedHash:null creates it and any missing parent directories. Otherwise report the required input as missing. Existing write permissions still apply."); this.name = "RolePathMissingError"; }
+}
+
 export function roleFileToolNames(agent) {
   if (agent === "pm") return [];
   return [...READ_TOOLS, "role_file_write"];
@@ -77,9 +81,14 @@ export function createRoleFiles(filesystem, agent) {
     return target;
   }
 
+  function existingStat(target) {
+    try { return lstatSync(target, { bigint: true }); }
+    catch (error) { if (error.code === "ENOENT") throw new RolePathMissingError(); throw error; }
+  }
+
   function read(target) {
     resolveTarget(target);
-    const before = lstatSync(target, { bigint: true });
+    const before = existingStat(target);
     if (!before.isFile() || before.size > BigInt(MAX_FILE_BYTES)) throw new Error("Text file too large or unsupported");
     const descriptor = openSync(target, "r");
     try {
@@ -98,7 +107,7 @@ export function createRoleFiles(filesystem, agent) {
 
   function entries(target, deadline = Date.now() + 5000) {
     resolveTarget(target);
-    if (!lstatSync(target).isDirectory()) throw new Error("Directory required");
+    if (!existingStat(target).isDirectory()) throw new Error("Directory required");
     const directory = opendirSync(target), found = []; let incomplete = false, skipped = 0;
     try {
       let entry;

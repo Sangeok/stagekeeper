@@ -75,7 +75,8 @@ export async function callTool(input, name, args = {}, signal) {
   if (input.client === "codex" && ["agent_next", "pipeline_next"].includes(name)) scoped.client = "codex";
   if (name === "pipeline_next" && input.runbook) scoped.runbook = input.runbook;
   const response = await mcpRequest(input, "tools/call", { name, arguments: scoped }, signal);
-  const parsed = parseToolResponse(response.contentType, response.body, response.id);
+  const valueKind = ["backlog_list", "board_list"].includes(name) ? "object-list" : "object";
+  const parsed = parseToolResponse(response.contentType, response.body, response.id, valueKind);
   if (!parsed.ok) {
     const body = parsed.error.code === "access-refused" ? safeDomainFailure(parsed.error, input.token) : null;
     if (body) throw new McpDomainError(body);

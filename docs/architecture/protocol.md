@@ -572,6 +572,12 @@ Codex의 keyed `wait/on:handoff`와 overview item에는 현재 열린 실행에�
 `resume:{agent,key,format,entry?,agentRunId}`를 추가한다. legacy null과 slots-v1을 구분하며,
 이 projection은 실행을 새로 열거나 handoff를 지우지 않는다. helper는 명시적 계속 요청의
 `--handoff-commit`과 현재 role/key의 준비 파일·commit을 확인한 후 같은 run에 outcome 없는 재개를 한다.
+helper는 full SHA·파일 경로·LF 정규화 내용 hash·agent/key·기존 run/entry를 `commitHandoff`로
+새 역할에 전달한다. 역할 시작과 plan/report 제출 직전에 commit·파일·실행 결합을 다시 확인한다.
+인계 note는 저장소 안의 해당 산출물 상대/절대 경로를 받을 수 있다. 제출용 상대 `path`와
+파일 도구용 `absolutePath`를 구분하며 저장소 밖 경로나 다른 역할/항목의 파일은 거부한다.
+역할의 commit 생성 권한은 계속 false다. 소유자가 이미 커밋한 동일 산출물의 제출은 허용하며,
+내용이 바뀌면 이전 커밋으로 제출하지 못한다. board의 planCommit과 인계 커밋은 별도 증거다.
 승인 이후에는 저장된 next 조언 대신 현재 client/hash의 최신 pipeline 응답과 board 증거를 다시 읽는다.
 
 로컬 실행은 canonical common Git의 `harness/watch.json`, `watch.lock.json`, `watch.guard`를 공유한다.
@@ -586,6 +592,12 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 
 Codex role dispatcher는 모델 없는 effective config와 플랫폼별 실행 preflight 후 새 App Server thread를 시작한다.
+공통 MCP parser는 기본적으로 객체 응답을 요구한다. 로컬 client의 `backlog_list`와
+`board_list` 호출만 객체 배열 계약을 선택하며, 빈 배열도 유효하다. 오류 본문은 여전히
+객체여야 하고 JSON-RPC ID·content 검사와 pipeline/agent 응답의 객체 계약은 유지한다.
+CLI 탐색은 PATH의 지원되지 않는 Windows wrapper를 실행하지 않고 다음 후보를 검사한다.
+npm wrapper는 package identity·entry와 실제 `--version` 응답을 확인한다. helper는 선택한 경로·
+버전과 건너뛴 후보를 `cli-selected`로 출력하고, 그 실행 파일로 기존 App Server preflight를 수행한다.
 다른 inherited MCP·plugin을 끄고 shell 환경을 `inherit="none"`으로 설정한다. 상속된 명시적 환경 값도 비우되
 `PATH`와 대소문자 별칭에는 고정 시스템 도구 경로만 지정한다. POSIX는 `/usr/local/bin:/usr/bin:/bin`,
 Windows는 시스템 디렉터리와 Windows PowerShell 경로다. 사용자 도구 경로·credential 값은 전달하지 않는다.
@@ -602,15 +614,24 @@ marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지
 Windows에서는 `plugin/runtime/role-files.mjs`가 역할별 localhost MCP bridge에
 `role_file_read/list/search/write`를 추가한다. 서버 domain 도구 목록·managed 역할 TOML은
 그대로이며 파일 도구를 서비스에 전달하지 않는다. PM에는 파일 도구를 주지 않는다.
+로컬 도구의 bridge schema는 선택적 `project`를 받는다. 현재 dispatch의 project와 같은지
+확인한 뒤 backend 호출에서 제거하며, 다른 값과 나머지 미허용 인자는 거부한다.
 `rolePermissions`의 동일한 절대 경로 정책을 사용하고 가장 구체적인 규칙을 적용한다.
 root deny, 외부/인증 경로 차단, 다른 workspace deny, Git·관리 파일 read-only를 유지한다.
 관리 경로가 아직 없어도 쓰기를 거부하며 device/UNC/ADS·junction/symlink/hardlink 별칭을
 거부한다. 파일 쓰기는 현재 SHA-256 또는 신규 파일의 null을 요구하며 변경 시 거부한다.
+허용된 파일의 최초 읽기 또는 디렉터리 조회·검색에서 대상이 없으면 bridge는
+`-32004`로 경로 부재를 알린다.
+이 응답은 쓰기 권한을 부여하지 않는다. 현재 단계가 신규 파일 생성을 요구할 때만
+`expectedHash:null`로 생성하며, 금지된 경로는 존재 여부와 관계없이 일반 거부로 남긴다.
 읽기·검색·요청 크기는 제한되고 불완전한 검색은 명시하며 검증 성공으로 취급하지 않는다.
 
 Windows preflight는 이 파일 backend의 실제 scratch 생성·읽기·hash 일치와 drive root
 접근 거부를 모델 전에 확인한다. 파일 호출에도 `agent_next` receipt, active Codex 소유권,
-동시 요청·완료·중지 fence를 적용한다. broker는 고정 데이터 연산만 수행하며 모델 코드나
+완료·중지 fence를 적용한다. 겹친 정상 도구 요청은 역할별 제한된 큐에서 순차 실행한다.
+최대 HTTP 요청/큐 길이는 각각 32, 역할의 총 도구 호출 예산은 100이다. 실행 직전에 최신
+receipt와 active 소유권을 확인하고, 중지하면 대기 요청을 실행하지 않는다. bridge 종료는
+진행 중 요청의 종료를 기다린다. broker는 고정 데이터 연산만 수행하며 모델 코드나
 임의 명령을 실행하지 않는다. shell/unified exec는 Windows에서 비활성화한다.
 `view_image`와 `request_permissions_tool`도 모든 역할에서 비활성화하며 effective config로
 확인한다. 기존 named filesystem/network policy와 승인 거부는 유지한다.
@@ -641,7 +662,8 @@ QA는 모든 플랫폼에서 파일·브라우저 도구만 사용하며 Git·�
 `head`, `show`, `diff`, `status`만 제공하며 일반 명령 backend에 Git이나 원본 `.git`을
 추가하지 않는다. 파일 선택은 절대 경로의 구체적인 허용 파일 최대 50개이며 같은 파일
 정책·receipt·active 소유권·중지 fence를 적용한다. `show`는 한 파일만, `show/diff`의 ref는
-HEAD 또는 해당 dispatch에 기록된 planCommit만 허용한다. 외부·다른 workspace·인증·환경
+HEAD 또는 해당 dispatch에 기록된 planCommit을 허용한다. 인계 재개에서는 검증된
+commitHandoff.commit도 허용하되 그 인계 파일 하나에만 적용한다. 외부·다른 workspace·인증·환경
 파일·directory·glob은 거부하고 전체 저장소 검증으로 해석하지 않는다.
 현재 경로가 삭제되었거나 일반 파일로 바뀌어도 비교 commit에서 directory/tree·symlink·
 submodule이면 거부한다. literal pathspec의 역사 tree 재귀로 금지된 하위 파일을

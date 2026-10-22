@@ -1,0 +1,376 @@
+{
+  "sourceRevision": "b17bc678a95174fce9fa7a6c2dc9c18327edf4c6",
+  "package": {
+    "version": "0.5.17-unreleased-local-candidate",
+    "files": 2223,
+    "sha256": "c35e2a6c14b861791ab3b447f3d5386a739ea7d27e471629d9026e915286cd37",
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    }
+  },
+  "tests": {
+    "core-plugin-final5": {
+      "tests": 471,
+      "pass": 469,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2
+    },
+    "web": {
+      "tests": 741,
+      "pass": 741,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "server": {
+      "tests": 140,
+      "pass": 139,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1
+    },
+    "integration": {
+      "tests": 139,
+      "pass": 139,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "architecture": {
+      "tests": 138,
+      "pass": 136,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2
+    },
+    "check": {
+      "tests": 188,
+      "pass": 185,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 3
+    },
+    "native-host": {
+      "tests": 27,
+      "pass": 27,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "templates-final": {
+      "tests": 60,
+      "pass": 60,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    }
+  },
+  "runtimeBundleMatches": [
+    "bin/harness-codex.mjs",
+    "runtime/codex-thread.mjs",
+    "runtime/codex-executable.mjs",
+    "runtime/commit-handoff.mjs",
+    "runtime/role-git.mjs",
+    "runtime/role-files.mjs",
+    "runtime/mcp-client.mjs",
+    "lib/watch.mjs"
+  ],
+  "installation": {
+    "test": "actual-isolated-plugin-install-and-discovery",
+    "result": "PASS",
+    "skills": [
+      {
+        "name": "harness-init",
+        "loaded": true,
+        "bodyMatches": true
+      },
+      {
+        "name": "harness-run",
+        "loaded": true,
+        "bodyMatches": true
+      },
+      {
+        "name": "harness-resume",
+        "loaded": true,
+        "bodyMatches": true
+      },
+      {
+        "name": "reconciling-proposals-with-codebase",
+        "loaded": true,
+        "bodyMatches": true
+      }
+    ],
+    "modelTurns": 0
+  },
+  "modelCycle": [
+    {
+      "test": "private-template-seed",
+      "result": "PASS",
+      "rows": 13,
+      "hash": "05ba5c3195e78dbfd44e61ba1385380a5f3484e90c607987c372e433accdda6b"
+    },
+    {
+      "test": "production-http-service",
+      "result": "PASS"
+    },
+    {
+      "test": "installed-helper-init",
+      "result": "PASS"
+    },
+    {
+      "test": "isolated-mcp-registration-and-sync",
+      "result": "PASS"
+    },
+    {
+      "test": "agent-owner-tool-separation",
+      "result": "PASS"
+    },
+    {
+      "test": "actual-service-list-contracts",
+      "result": "PASS",
+      "backlogItems": 1,
+      "boardItems": 1
+    },
+    {
+      "test": "authenticated-real-browser",
+      "result": "PASS"
+    },
+    {
+      "test": "foreground-session-prepare",
+      "result": "PASS"
+    },
+    {
+      "test": "initial-pipeline",
+      "result": "PASS",
+      "action": "dispatch",
+      "agent": "dev"
+    },
+    {
+      "test": "controlled-stop-scenario",
+      "result": "NOT RUN"
+    },
+    {
+      "test": "prepared-plan-fixture",
+      "result": "PASS"
+    },
+    {
+      "test": "pipeline-round",
+      "round": 0,
+      "action": "wait",
+      "on": "handoff",
+      "agent": "dev"
+    },
+    {
+      "test": "owner-commit-handoff-resume",
+      "result": "PASS",
+      "agent": "dev",
+      "event": "done",
+      "usageUnchanged": true,
+      "artifactUnchanged": true,
+      "status": "in_review",
+      "planCommit": "c06aecb7719577a9d17dc697d90b0992e0c8c532"
+    },
+    {
+      "test": "pipeline-round",
+      "round": 1,
+      "action": "dispatch",
+      "on": null,
+      "agent": "plan-verifier"
+    },
+    {
+      "test": "main-loop-review-required"
+    },
+    {
+      "test": "actual-role",
+      "role": "plan-verifier",
+      "event": "done",
+      "step": null,
+      "usageRuns": 2
+    },
+    {
+      "test": "full-private-verifier",
+      "result": "PASS",
+      "cleanReport": true,
+      "recordedVerifyPass": true
+    },
+    {
+      "test": "pipeline-round",
+      "round": 2,
+      "action": "wait",
+      "on": "gate",
+      "agent": null
+    },
+    {
+      "test": "real-owner-mcp-approval",
+      "result": "PASS"
+    },
+    {
+      "test": "pipeline-round",
+      "round": 3,
+      "action": "dispatch",
+      "on": null,
+      "agent": "dev"
+    },
+    {
+      "test": "actual-role",
+      "role": "dev",
+      "event": "paused",
+      "step": "report",
+      "usageRuns": 3
+    },
+    {
+      "test": "pipeline-round",
+      "round": 4,
+      "action": "wait",
+      "on": "handoff",
+      "agent": "dev"
+    },
+    {
+      "test": "owner-commit-handoff-resume",
+      "result": "PASS",
+      "agent": "dev",
+      "event": "done",
+      "usageUnchanged": true,
+      "artifactUnchanged": true,
+      "status": "implementing",
+      "planCommit": "7efbcb0b90e50477b619d0d797d0f044482e6730"
+    },
+    {
+      "test": "pipeline-round",
+      "round": 5,
+      "action": "accept",
+      "on": null,
+      "agent": null
+    },
+    {
+      "test": "acceptance-review-required",
+      "status": "done"
+    },
+    {
+      "test": "actual-pipeline-acceptance",
+      "result": "PASS",
+      "checks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "acceptedAt": "2026-10-22T15:47:51.054Z"
+    },
+    {
+      "test": "service-end-to-end",
+      "result": "PASS",
+      "seconds": 743
+    },
+    {
+      "test": "service-local-session-cleanup",
+      "result": "PASS"
+    },
+    {
+      "test": "test-service-and-fixture-cleanup",
+      "result": "PASS"
+    },
+    {
+      "test": "independent-verifier-evidence",
+      "result": "PASS",
+      "requiredPaths": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "assertionsPassed": 45,
+      "mutantsRejected": 23,
+      "individualUtf16CodeUnitsChecked": 65536,
+      "additionalBoundaryStrings": 7,
+      "snapshotSha256": "8fcb2b93b7d35002ace491d2320f4dd186330cf1ea7ae1fa7a74da83831d8ed6",
+      "repositoryUnchanged": true,
+      "unrunPaths": []
+    }
+  ],
+  "acceptance": {
+    "checks": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "changed": [
+      "docs/agents/dev/K-1.md",
+      "src/greet.mjs",
+      "src/greet.test.mjs"
+    ],
+    "planCommit": "7efbcb0b90e50477b619d0d797d0f044482e6730",
+    "reportCommit": "d871b377abbf460f874088088894cca1c79bf03b",
+    "backlogItems": 0
+  },
+  "cleanup": {
+    "result": "PASS",
+    "databaseRows": {
+      "User": 0,
+      "Project": 0,
+      "BoardItem": 0,
+      "BacklogItem": 0,
+      "AgentRun": 0,
+      "Template": 0
+    },
+    "sessionLocks": {
+      "service-client": false,
+      "service-client-diagnostic": false,
+      "service-client-diagnostic2": false,
+      "service-client-final": false,
+      "complete/service-client-final": false,
+      "complete-final/service-client-final": false,
+      "complete-paths/service-client-final": false,
+      "complete-lists/service-client-final": false
+    },
+    "httpServiceStopped": true,
+    "postgresStopped": true
+  },
+  "originalFiles": {
+    "files": 914,
+    "changed": [
+      "docs/proposals/active/src-frontend-clean-code-review.md"
+    ]
+  },
+  "privateTemplateOriginalFilesPreserved": 16,
+  "privatePatchSha256": "96f25febffc24882f6d06d14906f81103cd3bf06042f3ed7a3883af1dd9a48c2",
+  "earlierTrials": [
+    {
+      "scope": "Candidate handoff resume",
+      "result": "FAIL",
+      "reason": "Valid local file calls carried project, which the backend rejected as an extra argument."
+    },
+    {
+      "scope": "First independent plan verification",
+      "result": "FAIL",
+      "reason": "Reviewer detected insufficient mutation coverage and a stale backlog-type statement; fixture was corrected and reviewed again."
+    },
+    {
+      "scope": "Full generated-plan cycle on package2",
+      "result": "FAIL",
+      "reason": "Implementation tests passed, but a first report read was indistinguishable from permission denial. Repeated report attempts were stopped and the fixture cleaned."
+    },
+    {
+      "scope": "Diagnostic fixture setup",
+      "result": "INVALID",
+      "reason": "A future board timestamp initially prevented a seeded handoff from being current; corrected before diagnostic conclusions."
+    },
+    {
+      "scope": "Prepared-plan cycle on package3",
+      "result": "FAIL",
+      "reason": "File absence was distinguished, but listing the absent report directory still returned a generic refusal. Directory listing/search were corrected before package4."
+    },
+    {
+      "scope": "Prepared-plan cycle on package4",
+      "result": "FAIL",
+      "reason": "Actual roles completed implementation and committed report resume, reaching accept; the runtime rejected the valid empty backlog array. Explicit object-list response contracts were added before package5."
+    }
+  ]
+}
