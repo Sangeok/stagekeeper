@@ -1,14 +1,14 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-21"
-updated-at: "2026-10-21"
+updated-at: "2026-10-22"
 approved-by: "user:Sangeok"
 approved-at: "2026-10-21"
 approval-scope: "Core FSD-CC-001·002·003과 Phase 2 FSD-CC-004·005의 실제 코드 수정·관련 검증. 후속 사용자 요청으로 커밋·push·dev 대상 PR 생성까지 포함한다. 병합·배포는 포함하지 않는다"
-completed-at: null
-verification-summary: "Core 001·002·003과 Phase 2 004·005 구현. Phase 2의 check·web 732·fresh manifest server 148·격리 worktree 기본 build 통과. production/development의 새 메뉴 5건·토큰 10건 모두 통과. Core의 core/plugin 435·격리 DB integration 기록 유지. 원래 Desktop 경로의 기본 build는 EPERM. 전체 UI suite는 각 54 pass/11 기존 fail로 gate 미충족"
+completed-at: "2026-10-22"
+verification-summary: "Core 001·002·003과 Phase 2 004·005 구현 완료. PR #186의 static·test·test-web·기본 build CI 성공 후 dev 병합. 로컬 web 732·fresh manifest server 148·새 메뉴 5건·토큰 10건 통과. 전체 UI suite의 각 54 pass/11 기존 fail과 Desktop build EPERM을 잔여 사항으로 보존하고 사용자 지시에 따라 완료 처리"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -22,13 +22,13 @@ related:
   - "docs/conventions/product-copy.md"
 ---
 
-# src/fsd 프런트엔드 클린 코드 검토 및 개선 제안
+# src/fsd 프런트엔드 클린 코드 검토 및 개선 기록
 
 ## Summary
 
 `src/fsd` 전체를 `frontend-clean-code-orchestrator`의 다섯 독립 렌즈와 별도 중립 품질 검토로 확인했다.
 최종 개선 항목은 **Should 3건, Consider 2건**이다. Must로 판단할 근거는 확인하지 못했다.
-토큰 발급 복구 흐름의 중복, 실행 조회·표시 기준의 분산, 다른 slice 내부 구현에 결합된 테스트를 먼저 개선한다.
+토큰 발급 복구 흐름의 중복, 실행 조회·표시 기준의 분산, 다른 slice 내부 구현에 결합된 테스트를 개선했다.
 후속 코드 정합화에서 기존 Board 회귀 계약을 확인했다. 실행 조회의 소유권은 모으되,
 Board의 활동 표시와 배너의 현재 cursor 표시는 서로 다른 기준을 그대로 유지한다.
 
@@ -40,7 +40,9 @@ Board의 활동 표시와 배너의 현재 cursor 표시는 서로 다른 기준
 | Consider | FSD-CC-004 | 삽입 메뉴 상태의 sentinel 의미 명시 | Readability |
 | Consider | FSD-CC-005 | 대기 항목을 포함하는 `working` 이름 명확화 | Readability |
 
-초기 산출물은 검토와 제안서였다. 현재 승인 범위는 Core 3개 항목과 추가 요청한 Phase 2의 2개 항목 구현·검증이다.
+초기 산출물은 검토와 제안서였다. Core 3개 항목과 추가 요청한 Phase 2의 2개 항목을 구현했고,
+[PR #186](https://github.com/Sangeok/stagekeeper/pull/186)의 CI 성공 후 `dev`에 병합됐다.
+2026-10-22 사용자 지시에 따라 완료 처리했다. 전체 UI suite의 기존 실패 11건은 잔여 사항으로 보존한다.
 초기 기준선과 실제 구현 후 검증 결과는 아래에서 별도로 기록한다.
 
 ## Goal
@@ -54,7 +56,7 @@ Board의 활동 표시와 배너의 현재 cursor 표시는 서로 다른 기준
 
 `proposal-size: standard`. 후속 구현은 여러 feature와 page의 공개 export·소비 경로를 조정하고,
 서버의 공개 조회 계약과 테스트 소유권에 영향을 준다. core 정책은 변경하지 않는다.
-문서 한 파일을 추가하는 현재 작업과 이후의 코드 변경 규모를 구분한다.
+초기의 문서 작성 작업과 실제 코드 구현 규모를 구분한다.
 
 정합화 Review Profile은 **High-Risk**다. 토큰 발급의 외부 효과·평문 보존·응답 유실 복구와
 공통 조회의 표시 계약·이동 후 검증 목적지를 다루기 때문이다. 이는 proposal-size와 별도 분류다.
@@ -109,7 +111,8 @@ TypeScript generalist는 타입·오류뿐 아니라 VAR/FN/OBJ/ERR/ASYNC/FMT/CM
 
 `src/app`, `src/server`, `packages/core` 전체에 대한 별도 감사는 수행하지 않았다.
 아래 서버 경로는 FSD 개선에 필요한 구체 조회 계약이며 전면 재설계 대상이 아니다. core는 기존 정책 참조만 유지한다.
-현재 요청은 Core 코드 구현과 관련 검증을 포함한다. 제품 의존성·DB schema 변경, 커밋·PR·병합·배포는 포함하지 않는다.
+초기 구현 요청 이후 Core·Phase 2 구현과 검증, 커밋·push·`dev` 대상 PR 생성까지 승인 범위가 확대됐다.
+제품 의존성·DB schema 변경은 수행하지 않았다. PR의 후속 병합 사실은 아래 완료 기록에 남긴다.
 
 후속 구현 분류는 다음과 같다. Should/Consider의 원래 우선순위를 유지한다.
 
@@ -534,6 +537,13 @@ Predictability·TypeScript generalist는 원시 finding을 제출하지 않았�
 후속 코드 변경은 항목별로 분리하고 문제가 생긴 항목의 코드·소비처·테스트를 함께 복원한다.
 다른 사용자 변경이나 보호 브랜치를 reset하지 않는다.
 
+완료 시 잔여 사항:
+
+- 전체 UI suite는 production/development 각각 54 pass/11 기존 fail이다. 전체 Pass 조건은 충족하지 못했다.
+  기존 코드에서도 재현된 Pipeline의 readonly discard·default plan·pending·project switch·zero-gate confirm 사례를 후속 검증 대상으로 남긴다.
+- 원래 Desktop 경로의 기본 build는 CSS worker port bind `EPERM`이 남아 있다.
+  격리 worktree와 PR CI의 기본 `npm run build`는 성공했으며 로컬 실패 기록을 덮어쓰지 않는다.
+
 ## Implementation Results
 
 실행일: 2026-10-21. 초기 승인 범위는 Core FSD-CC-001·002·003이며, 후속 사용자 요청으로 Phase 2 FSD-CC-004·005를 추가했다.
@@ -569,7 +579,8 @@ Predictability·TypeScript generalist는 원시 finding을 제출하지 않았�
 공통 UI suite의 실패는 Pipeline의 readonly discard, default plan, pending 4종, project switch 4종과 zero-gate confirm이다.
 수정하지 않은 기존 코드에서도 같은 11개 실패를 재현했다. 기존 개발 모드 baseline은 별도로 실행하지 않았다.
 이번 Core 범위를 벗어나는 Pipeline 동작을 고치거나 시험을 제거해 통과시키지 않았다.
-그 때문에 원래 요구한 `/results` 전체 Pass 조건과 해당 DoD 항목은 아직 완료로 표시하지 않는다. 원래 경로의 기본 build 실패도 통과로 대체하지 않았다.
+그 때문에 구현 직후에는 원래 요구한 `/results` 전체 Pass 조건과 해당 DoD 항목을 미완료로 기록했다.
+원래 경로의 기본 build 실패도 통과로 대체하지 않았다. 이후 사용자 지시에 따른 완료 판정은 아래에 별도로 기록한다.
 
 실제 DB 검증은 npm registry의 PostgreSQL 실행 파일을 저장소 밖 임시 경로에 준비하여
 loopback의 새로운 `stagekeeper_test_fsd_clean_code` DB에서 수행했다. 제품 의존성·lockfile·schema는 바꾸지 않았다.
@@ -605,20 +616,32 @@ Phase 2는 UI 지역 상태 표현·이름 변경이므로 DB·core/plugin을 �
 Core에서 수행한 해당 검증 기록과 Phase 2의 재실행 결과를 구분한다.
 Phase 2의 로그·브라우저 결과는 `/tmp/stagekeeper-fsd-phase2-*`의 로컬 기록이다.
 
+### PR·CI 및 최종 완료 판정
+
+- 구현 PR: [#186](https://github.com/Sangeok/stagekeeper/pull/186).
+- 최종 head: `7704b9c306843eaeaf4e0784060069d97cdd6602`.
+- `dev` 병합: 2026-10-22 08:33:19 KST, 병합 커밋 `b63112fb7d43ecf5de972ebee6ae59c84751a376`.
+- [check workflow](https://github.com/Sangeok/stagekeeper/actions/runs/39693885640)의 static·test·test-web·build가 모두 성공했다.
+  [기본 build job](https://github.com/Sangeok/stagekeeper/actions/runs/39693885640/job/119546458418)의 성공으로 CI 기본 빌드를 확인했다.
+- 2026-10-22 사용자가 코드 구현·병합·CI 성공과 별도 UI 검증의 기존 실패 11건을 확인한 뒤 이 문서의 completed 처리를 지시했다.
+  구현과 병합을 완료 기록으로 확정하고, 기존 UI 실패와 로컬 환경 제약은 Risks and Rollback에 남긴다.
+  UI suite의 전체 Pass 조건이 충족됐다는 판정은 하지 않는다.
+
 ## Definition of Done
 
-승인 범위의 완료에는 다음을 모두 요구한다. 문서 정합화 완료와 코드 구현 완료는 구분한다.
+승인 범위의 구현과 검증 기록은 다음과 같다. 최종 완료 처리는 위 사용자 지시와 잔여 사항을 함께 근거로 한다.
 
 - [x] 001: 상태·제출·복구가 공통 form 한 곳에 있고 두 wrapper·사용자 alias가 기존 scope별 본문·props를 보존한다. Core의 같은 mount 역순 응답 사례가 token·만료·alert의 격리와 자동 추가 요청 부재를 확인한다.
 - [x] 001: 옛 user 발급 파일·테스트·export·경로 import가 없고 새 public API·user page·두 browser fixture가 동작한다.
 - [x] 002: DB 주입형 공개 조회·타입과 두 adapter가 연결되며 Board/배너의 서로 다른 기존 기준·handoff·무쓰기·격리를 보존한다.
 - [x] 002: `nextFor`, route 권한 순서, runner/failure·pipeline 이름·setup 사실의 계약을 바꾸지 않는다.
 - [x] 003: 소유권 검사가 새 architecture 목적지에서 실행되고 기존 명령·문구·Docs 본문 검증을 유지한다.
-- [ ] VFY-001·002·003·006의 자동 검사와 실제 client/Next 인수가 통과했고 skip·미실행·기존 실패를 구분해 기록했다.
+- [x] VFY-001·002·003·006의 자동 검사·실제 client/Next 인수 결과와 skip·미실행·기존 실패를 기록했다. 관련 토큰 인수는 통과했고, 전체 UI suite의 기존 실패 11건은 완료 시 잔여 사항으로 남겼다.
 - [x] 생성 경로 충돌, 같은 layer 직접 의존, public API 누출, 무관한 core/plugin·DB·라우트·Action 변경이 없다.
 - [x] 새 공개 조회·검사 범위가 아키텍처 문서와 일치한다. 승인 metadata와 Core 구현 기록을 갱신한다.
 - [x] 004: 메뉴를 closed/open 상태로 구분하고 기존 `before: null` 계약을 유지한다. VFY-004의 위치 전환·두 위치 선택 후 닫힘·busy·readonly 5건이 production/development에서 통과한다.
 - [x] 005: 지역 이름을 `sessionWorkItems`·`sessionWorkLine`으로 바꾸고 옛 선언은 없다. VFY-005의 기존 배너·다음 단계·대기·인수·handoff 시험과 본문을 보존한다.
+- [x] PR #186의 CI 성공과 `dev` 병합을 확인하고 사용자 지시에 따라 완료 metadata와 문서 위치를 갱신했다.
 
 Phase 2는 추가 사용자 요청으로 구현했고 VFY-004·005를 별도로 확인했다.
 
@@ -635,5 +658,8 @@ Phase 2는 추가 사용자 요청으로 구현했고 VFY-004·005를 별도로 
 
 ## Completion or Closure Notes
 
-Core 001·002·003과 Phase 2 004·005의 코드를 구현했다. 전체 UI gate의 기존 Pipeline 11건 실패와 원래 경로의 build EPERM이 남아 있어 `pending`·`approved`와 `active/`를 유지한다.
-커밋·push·`dev` 대상 PR 생성은 후속 사용자 요청 범위에 포함한다. 병합·배포는 포함하지 않는다.
+Core 001·002·003과 Phase 2 004·005의 코드를 구현했고, PR #186이 CI 성공 후 `dev`에 병합됐다.
+2026-10-22 사용자 지시에 따라 `status: completed`, `stage: null`, `completed-at: 2026-10-22`로 갱신하고
+`completed/2026-10-22-frontend-clean-code-review.md`로 이동했다.
+기존 Pipeline UI 실패 11건과 원래 Desktop 경로의 build EPERM은 완료 시 잔여 사항으로 기록했다.
+전체 UI 인수의 완전 통과나 해당 실패의 해결을 주장하지 않는다.

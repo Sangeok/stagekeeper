@@ -1,15 +1,15 @@
 ---
 # Metadata. status value는 proposals/README.md의 세 상태만 사용합니다.
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-13"
-updated-at: "2026-10-19"
+updated-at: "2026-10-22"
 approved-by: "user:Sangeok"
 approved-at: "2026-10-19"
 approval-scope: "2026-10-14: Proposal 0–6 설계와 본문 보관 예외 승인. 2026-10-19 현재 요청: 제안서 기반 구현·검증 후 commit·push·dev 대상 PR 생성 승인. 본문은 PR 검토 대상으로 제출한다. 병합·main 승격은 이번 요청 범위 밖"
-completed-at: null
-verification-summary: "구현 및 로컬 자동 검사 완료. check, test:web 657개, core/plugin 388개 통과. Webpack production build와 공개 HTTP·브라우저 인수 확인. 로컬 기본 Turbopack build는 포트 권한 EPERM; PR check와 사용자 본문 검토는 제출 후 확인"
+completed-at: "2026-10-22"
+verification-summary: "공개 문서 5개와 인증·SEO·탐색·상수 이동·README 구현 완료. PR #168의 기본 build 포함 check 성공 후 dev 병합. 후속 관련 시험 38개 통과. 사용자 지시에 따라 코드 구현 완료를 기준으로 완료 처리하며, 미실행 수동 인수·본문 검토 확인·후속 삭제된 회귀 테스트와 로컬 EPERM은 잔여 사항으로 보존"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -29,9 +29,13 @@ related:
 
 ## Summary
 
-검색으로 Stagekeeper를 처음 알게 되는 사람이 제품을 이해하고 첫 실행까지 갈 수 있도록 `/docs` 아래에 영어 문서 다섯 개를 만든다.
+검색으로 Stagekeeper를 처음 알게 되는 사람이 제품을 이해하고 첫 실행까지 갈 수 있도록 `/docs` 아래에 영어 문서 다섯 개를 만들었다.
 문서는 로그인 없이 읽을 수 있는 정적 페이지이며 검색 색인을 허용한다. 비공개 화면의 인증과 noindex는 유지한다.
 설치 명령, 실제 기본 단계, 게이트 이름, 플랜 차이, 인수 확인 이름은 현재 코드에서 가져온다.
+
+[PR #168](https://github.com/Sangeok/stagekeeper/pull/168)은 기본 빌드를 포함한 CI 성공 후 `dev`에 병합됐다.
+2026-10-22 사용자가 코드 구현 완료를 기준으로 completed 처리를 지시하여 이 문서를 완료 기록으로 이동했다.
+미실행 수동 인수·본문 검토 확인과 후속 회귀 테스트 공백은 아래 잔여 사항에 보존한다.
 
 ## Goal
 
@@ -532,23 +536,46 @@ HARNESS_PUBLIC_URL=https://stagekeeper.dev npm run start -- --hostname 127.0.0.1
 Owner token의 범위는 실제 schema와 인증/owner handler의 **userId와 projectId 모두**를 따른다.
 공개 본문은 account 전체 승인 권한으로 설명하지 않는다. 이 구현에서 서버의 기존 권한 정책은 변경하지 않았다.
 
+### 후속 확인 — 2026-10-22
+
+- [PR #168](https://github.com/Sangeok/stagekeeper/pull/168)의 최종 head는 `43a0ad44a109c12ee8e0a92ab27b6fd6a16feab8`이다.
+  2026-10-19 18:34:13 KST에 `dev`로 병합됐으며 병합 커밋은 `c72b5ec465c867e550ce9b7f9224b47bfeb81431`이다.
+- [check workflow](https://github.com/Sangeok/stagekeeper/actions/runs/39229948299)의 static·test·test-web·build가 모두 성공했다.
+  [기본 build job](https://github.com/Sangeok/stagekeeper/actions/runs/39229948299/job/117985214743)도 성공해 기본 Turbopack 빌드를 확인했다.
+- 현재 코드에서 다섯 문서 경로·화면·탐색, 인증 공개 목록, metadata·sitemap·robots·랜딩 JSON-LD,
+  설치 상수·인수 이름의 이동과 README 링크를 확인했다. 제안 범위의 기능 구현은 모두 반영돼 있다.
+- 관련 시험 10개 파일을 다시 실행해 38개가 통과했고 실패·skip은 0개다.
+  문서·경로·설치 config·기존 token/acceptance/landing·인증 공개 경계를 확인했다.
+- PR의 리뷰·댓글에는 사용자 본문 검토 완료를 명시한 기록이 없다. 사용자 계정의 병합 사실과 본문 별도 검토 확인 여부를 구분한다.
+
 ## Risks and Rollback
 
 - 코드에서 계산하지 않는 감시·토큰·권한 설명은 제품 변경 때 낡을 수 있다. 사실별 근거 검토와 docs-copy·기존 계약 시험을 함께 수행한다.
 - 메타데이터 최종 병합과 proxy 실험 API는 Next 버전에 의존한다. 설치 버전 재대조와 production head·XML·자산 인수로 확인한다.
 - 검색 노출·순위·검색량 증가 자체는 보장하지 않는다. 외부 색인 상태와 성과 확인은 배포 뒤 별도 작업이다.
+- 복사 거부 뒤 실제 OS 수동 선택·복사 전체 과정과 DB를 읽는 로그인된 프로젝트 화면의 브라우저 인수는 미실행으로 남아 있다.
+  다섯 본문의 사용자 별도 검토 완료도 명시적 기록으로 확인하지 못했다. 구현 완료 처리와 별도로 남기는 확인 사항이다.
+- 당시 추가한 `src/proxy.test.ts`, `src/app/page.test.ts`, `src/app/robots.test.ts`, `src/app/sitemap.test.ts`는
+  [후속 커밋 ed73b52](https://github.com/Sangeok/stagekeeper/commit/ed73b5292583948956810fadc5d7f7df59ccd21e)에서 삭제됐다.
+  최신 `dev`에서도 대체 검사를 확인하지 못했다. 현재 테스트 배치 규칙에 맞춘 회귀 검증 보완을 후속 사항으로 남긴다.
+- 원래 로컬 경로의 기본 Turbopack `EPERM` 기록은 유지한다. PR CI의 기본 빌드는 성공했다.
 - 롤백은 문서 라우트·인증 목록·sitemap·robots·proxy·링크·metadata·상수 이동을 **같은 변경 단위로** 되돌린다.
   상수 옛 소유자와 소비자 import도 함께 복원하고 기존 core·DB·토큰 정책은 유지한다. 자동 검사와 공개/private 응답을 다시 확인한다.
 
 ## Completion or Closure Notes
 
-코드 구현과 로컬 자동 검증은 완료했다. 기본 Turbopack의 로컬 환경 실패와 미실행 인수는 위 표에 구분했다.
-commit·push 후 `harness/public-docs` → `dev` PR로 제출하며, PR의 check 결과와 사용자 본문 검토가 남아 있다.
-본문이 최종 승인됐거나 병합·릴리스됐다고 기록하지 않는다. 이 검토가 끝나기 전에는 completed-at을 채우거나 completed/로 이동하지 않는다.
+코드 구현은 모두 완료했고, PR #168은 기본 빌드를 포함한 CI 성공 후 `dev`에 병합됐다.
+초기 문서는 PR check와 사용자 본문 검토를 기다리는 상태로 남아 있었으나,
+후속 확인에서 구현·병합·CI 성공 및 수동 인수·검토·회귀 검증의 잔여 사항을 구분했다.
+2026-10-22 사용자의 "코드 구현이 전부 끝났으면 completed 처리" 지시에 따라 구현 완료를 문서 완료 판정의 기준으로 적용했다.
+`status: completed`, `stage: null`, `completed-at: 2026-10-22`로 갱신하고
+`completed/2026-10-22-public-docs-pages.md`로 이동했다.
+미실행 수동 인수, 사용자 본문 별도 검토와 후속 테스트 공백은 위 Risks and Rollback에 남긴다.
+이 완료 처리는 본문의 별도 최종 승인이나 모든 수동 인수의 통과를 의미하지 않는다.
 
 ## Review Checklist
 
-- [x] 기존 승인 목적·범위와 본문 별도 검토 조건을 보존했다.
+- [x] 기존 승인 목적·범위와 본문 별도 검토 여부를 기록하고 후속 사용자 지시의 완료 판정 기준을 반영했다.
 - [x] 최신 dev 기준과 옛 브랜치 차이, 구현 전 통합·재대조 조건을 적었다.
 - [x] 완료된 SEO·README 작업과 새 구현을 구분했다.
 - [x] 실제 파이프라인·자동 선택/발굴·플랜·인수·웹/세션 권한 차이를 출처와 연결했다.
@@ -558,11 +585,11 @@ commit·push 후 `harness/public-docs` → `dev` PR로 제출하며, PR의 check
 - [x] 정합화 당시 코드 대조와 실제 구현 후 자동·production 검증 결과를 구분했다.
 - [x] 범위 검사가 working tree·index·untracked 파일을 모두 포함하며 구현 전 변경을 보존하도록 했다.
 - [x] 코드 구현·로컬 자동 검사와 기록된 production 관측을 마쳤고, 환경 실패·미실행 인수를 별도로 적었다.
-- [ ] PR의 기본 build를 포함한 check와 미실행 수동 인수를 확인했다.
-- [ ] 사용자가 다섯 본문 초안을 검토했다.
-- [ ] 완료 또는 닫힘 기록을 실제 결과로 채웠다.
+- [x] PR의 기본 build를 포함한 check 성공과 `dev` 병합을 확인했다.
+- [x] 미실행 수동 인수·사용자 본문 검토 확인 여부·후속 회귀 테스트 공백을 잔여 사항으로 기록했다.
+- [x] 사용자 지시에 따라 코드 구현 완료를 기준으로 완료 metadata와 문서 위치를 갱신했다.
 
 ## Open Questions
 
-현재 구현 방향을 바꿔야 하는 미결 제품 결정은 없다. 본문·메타데이터 설명 초안은 Execution Plan 8단계의 기존 사용자 검토를 따른다.
+이 제안 범위의 기능 구현에 남은 미결 제품 결정은 없다. 본문·메타데이터의 별도 사용자 검토 확인은 잔여 사항으로 남긴다.
 기준 dev·Next 버전·대상 파일이 달라지면 변경된 경계를 다시 정합화한다.
