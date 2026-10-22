@@ -9,7 +9,7 @@ import { RESIDENT_RUNNER_PLAN_GATE } from "../lib/entitlement.mjs";
 import { parseBearer } from "../lib/token.mjs";
 import { actionableWork } from "../lib/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
-  readStreamLine, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
+  readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
 import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, matchesBinding, readState, registerChild, settleChild, stateFiles,
   withGuard } from "../runtime/local-session.mjs";
 import { callTool, connectionInput, verifyProject } from "../runtime/mcp-client.mjs";
@@ -246,8 +246,8 @@ function connection(root, options) {
 }
 
 function staleResident(state) {
-  return state.lock.mode === "resident" && !(state.lock.poller && isAlive(state.lock.poller.pid))
-    && (state.lock.children ?? []).every(child => !isAlive(child.pid));
+  return state.lock.mode === "resident" && state.lock.lifecycle !== "stopping" && !(state.lock.poller && isAlive(state.lock.poller.pid))
+    && (state.lock.children ?? []).length === 0;
 }
 
 async function startChecks(location, files, options) {
@@ -502,7 +502,7 @@ async function resident(location, files, options) {
       args: runArguments({ session, permission: saved.permission, settings }), onLine: line => readStreamLine(line, run) });
     const owned = { pid: child.child.pid, nonce: randomUUID() };
     let endedFor = null;
-    const end = reason => { endedFor ??= reason; child.end(); };
+    const end = reason => { if (endedFor) return; endedFor = reason; child.end(); };
     const registered = Number.isInteger(owned.pid)
       ? registerChild(files, session, input.binding, owned).catch(() => end("stop"))
       : Promise.resolve();
@@ -510,7 +510,7 @@ async function resident(location, files, options) {
       const exit = await child.done;
       await registered;
       await new Promise(resolve => stream.end(resolve));
-      await settleChild(files, session, owned).catch(() => {});
+      await settleChild(files, session, owned);
       try { unlinkSync(path.join(runs, `${id}.launch.json`)); } catch {   }
       if (exit.stderr.trim()) writeFileSync(path.join(runs, `${id}.stderr.txt`), exit.stderr);
       const meta = { startedAt, endedAt: now(), exitCode: exit.exitCode, permissionMode: run.permissionMode, result: run.result, endedFor };
@@ -530,7 +530,7 @@ async function resident(location, files, options) {
     overview: async () => actionableWork(await callTool(input, "pipeline_next"), { commit: true, propose: saved.propose === true }),
     tree: () => treeState(location.root),
     branch: () => headBranch(location.root),
-    startRun,
+    execution: { start: startRun, classify: classifyRun, stopMode: "drain" },
   };
   let reason;
   try {
@@ -538,6 +538,16 @@ async function resident(location, files, options) {
     reason = await runResident({ branch: saved.branch, interval: options.interval, runLimit: options.runLimit }, deps);
   } catch (error) {
     log(`runner failed: ${error?.message ?? error}`);
+    if (error instanceof ResidentRunUnsettled) {
+      await withGuard(files, () => {
+        const state = readState(files);
+        if (state?.lock.id !== session) return;
+        state.lock.lifecycle = "stopping";
+        atomicWrite(files.lock, state.lock);
+        save({ state: "stopping", stopReason: "unsettled" });
+      }).catch(() => {});
+      return { event: "stopping", session, code: error.code };
+    }
     reason = "error";
   }
   return finish(files, { session, target, reason, save, log, directory });

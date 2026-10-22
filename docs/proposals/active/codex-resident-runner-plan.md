@@ -59,6 +59,9 @@ INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
 
 ## Current Implementation and Delta
 
+아래 표는 기준 source `e716847`에서 조사한 차이다. 2026-10-23 C4A 구현 결과는
+문서 끝의 실행 기록을 따르며 실제 Codex 연결에 관한 행은 계속 미완료다.
+
 | 현재 근거 | 판정 | 필요한 변경 |
 | --- | --- | --- |
 | `plugin/runtime/background.mjs:runResident` | 재사용 | idle polling·backoff·편집 보호·heartbeat·실패 누적을 유지하고 실행 연결 경계만 분리 |
@@ -120,9 +123,9 @@ main-loop transport/commit 경계가 확인되기 전에는 Codex live adapter�
 
 ## Phase C4A: 실행 경계와 모델 없는 계약 테스트
 
-**READY — 지금 구현할 수 있는 범위.** 기본 실제 인수 전 허용하는 준비 단계이며,
+**소스 구현·로컬 검증 완료(2026-10-23).** 기본 실제 인수 전 허용한 준비 단계이며,
 Codex 자동 실행 기능을 노출하지 않는다. REQ-DUAL-018/019 완료에 기여하지만 실제
-요구사항 완료는 C4C가 소유한다. 이 문서 작성 시점의 구현·새 시험 상태는 NOT RUN이다.
+요구사항 완료는 C4C가 소유한다. 사용자의 진행 지시에 따라 아래 세 작업을 구현했다.
 
 preserves: INV-DUAL-001, INV-DUAL-002, INV-DUAL-003, INV-DUAL-005
 governed-by: CON-DUAL-001, CON-DUAL-002, CON-DUAL-003, CON-DUAL-005, CON-DUAL-008
@@ -187,7 +190,8 @@ verifies: REQ-DUAL-018, REQ-DUAL-019
 분류: 모델 없는 단위/회귀. 기존 Claude success/error/no-result/timeout/branch,
 3회 무진전 중지, 5회 전송 실패, 편집 보호, pause와 drain 종료를 동일한 관찰로 확인한다.
 `node --test plugin/bin/harness-background-loop.test.mjs plugin/bin/harness-background.test.mjs`.
-예정 증거이며 parent 요구사항의 준비 기여만 확인한다. 실제 Codex 지원 증거가 아니다.
+2026-10-23 PASS: 기존 동작과 새 CLI 실패 주입을 포함한 집중 시험 49개가 통과했다.
+parent 요구사항의 준비 기여만 확인하며 실제 Codex 지원 증거가 아니다.
 
 ### VFY-C4A-02: 취소·소유권 경계
 
@@ -200,7 +204,8 @@ done 전 release 0회와 late generation 무시를 확인한다. pause는 active
 session 시험의 helper를 참고하되 private 모듈을 테스트 때문에 공개하지 않는다.
 bin-level 실패 주입은 done rejection 뒤 서버 stop·clearState가 호출되지 않는지,
 그 stopping lock을 다음 start의 staleResident가 자동 회수하지 않는지도 관찰한다.
-`harness-resident-execution.test.mjs`가 필요하면 신규 경로임을 구현에서 명시한다. NOT RUN.
+2026-10-23 PASS: 신규 `plugin/bin/harness-resident-execution.test.mjs`의 모의 계약과
+기존 background CLI 시험의 test-only preload 실패 주입에서 위 경계를 관찰했다.
 
 ### VFY-C4A-03: no-model idle와 노출 제한
 
@@ -208,7 +213,8 @@ verifies: REQ-DUAL-018
 
 분류: fake clock/정적 계약. 110분 가상 idle 동안 adapter start 0회와 기존 주기의
 heartbeat/overview만 확인하고, CLI/skill에서 Codex resident 선택이 아직 불가능함을 확인한다.
-즉시 연속 work 신호에도 active run은 하나다. NOT RUN이며 실제 시간·모델 비용 증거가 아니다.
+즉시 연속 work 신호에도 active run은 하나다. 2026-10-23 PASS이며 실제 시간·모델 비용
+증거가 아니다. Codex resident 선택 인자는 client 시작 전 거부되는 것을 확인했다.
 
 코드 변경의 최종 검사는 `npm run verify:fsd`, `npm run verify:server`,
 `npm run test:architecture`, `npm run check`, `npm test`, `npm run build`다.
@@ -252,11 +258,12 @@ permission/handoff/cap, stop·늦은 이벤트·실제 자식 종료·동일 항
 
 ## Readiness and Handoff
 
-C4A는 concrete source·결과/취소 계약·검증 위치가 정해져 **READY**다. C4B/C4C는
+C4A는 **소스 구현·로컬 검증 완료**다. C4B/C4C는
 명시한 실제 증거와 서버 계약이 없어 **BLOCKED**다. 전체 proposal 상태는 blocked로
 유지하며 parent REQ-DUAL-018/019가 완료됐다고 표시하지 않는다.
 
-구현 인계: 이 문서의 C4A 세 작업만 수행한다. 먼저 현재 HEAD·사용자 변경·architecture와
+후속 구현 범위는 C4B의 선행 조건이 충족된 뒤 다시 고정한다. 이번 C4A 인계는 다음과
+같이 제한해 수행했다: 이 문서의 C4A 세 작업만 수행한다. 먼저 현재 HEAD·사용자 변경·architecture와
 기존 Claude 테스트를 재확인한다. execution 경계와 fake 시험을 완성하고 기존 Claude
 동작을 보존한다. live Codex 실행, DB/REST 변경, permission 완화나 사용자 command가
 필요해지면 그 변경은 C4B에 남기고 C4A를 확대하지 않는다. 검사 결과와 skip, 변경 경로,
@@ -264,9 +271,37 @@ C4A는 concrete source·결과/취소 계약·검증 위치가 정해져 **READY
 
 표준 traceability 검사 입력은 이 문서·상위 active 계획·원본 completed SDD다.
 strict는 역사적/후속 범위가 섞인 전체 graph에 적용하지 않는다. 문서 검사는 구현 시험을
-대신하지 않으며 신규 VFY의 실행 상태는 구현 시점까지 NOT RUN이다.
+대신하지 않는다. C4A VFY의 실제 로컬 결과는 아래 기록과 정제된 evidence를 따른다.
 
 2026-10-22 문서 검증: 위 3개 문서의 standard traceability는 PASS다. 기존 parent의
 legacy verifies 경고 13개는 유지하며, 신규 Task 3개와 VFY 3개를 연결했다. 두 active
 문서의 로컬 링크와 `git diff --check`도 PASS다. 이번 변경은 문서뿐이며 C4A 구현,
 새 runtime 시험과 실제 모델 호출은 수행하지 않았다.
+
+## C4A Implementation Results — 2026-10-23
+
+`runResident`는 명시적인 execution 경계로 start/classify/stopMode를 받는다.
+실제 연결은 Claude drain이며, interrupt adapter는 테스트 안에만 있다. 종료 요청은
+멱등이고 settlement 전에는 다음 실행으로 넘어가지 않는다. terminal stop 이후
+late success가 도착해도 새 overview나 결과 보고로 바뀌지 않는다.
+
+child settlement 실패를 삼키던 경로를 제거하고 `resident-run-unsettled`에서
+자기 lock을 stopping으로 보존한다. stopping이거나 tracked child가 남아 있으면
+PID 부재만으로 다음 start/반복 stop이 잠금을 회수하지 않는다. 실제 CLI에 주입한
+settlement 실패에서 서버 stop·결과 보고가 없고 lock/child가 남는 것을 확인했다.
+
+| 검사 | 결과 |
+| --- | --- |
+| 변경 전 Claude 집중 기준 | 29 PASS |
+| C4A 집중 시험 | 49 PASS |
+| `npm run check` | PASS; scripts 186 PASS / 2 SKIP |
+| `npm test` | 460 PASS / 17 SKIP |
+| FSD/server 경계 | PASS |
+| `npm run test:architecture` | 136 PASS / 2 SKIP |
+| 기본 `npm run build` | FAIL — 로컬 Turbopack CSS worker의 port binding에서 EPERM |
+| Prisma generate + 지원되는 `next build --webpack` | PASS; 기본 빌드와 별도 결과로 보존 |
+
+[소스 지문과 검사 기록](../../test-reports/assets/2026-10-23-codex-resident-c4a/checks.json)에
+명령·실패·skip·모의 범위를 기록했다. Codex transport·서버 API·DB·private 본문·Codex skill·권한은
+변경하지 않았다. 추가 설치 ZIP은 생성하지 않았으며, 앞선 0.5.17 준비물은 C4A 변경을
+포함하지 않는다. 향후 배포 후보는 버전을 올려 새 inventory로 패키징해야 한다.

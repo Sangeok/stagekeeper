@@ -263,6 +263,12 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 `plugin/bin/harness-background.mjs`(Windows는 `harness.ps1 background`)가 창 없이 도는 상주 프로세스를 띄운다.
 루프는 `plugin/runtime/background.mjs`의 `runResident`다. 결정과 근거는 위 제안서 B-1~B-4와 spike 결정 B1~B7이다.
 
+공통 루프는 `execution.start/classify/stopMode`로 실행 시작·결과 판독·종료 전략을 받는다.
+현재 실제 연결은 Claude의 `drain`뿐이다. `interrupt` 전략은 Codex 상주 연결을 준비하는
+모의 시험에서 검증하며, Codex resident command/skill과 서버 지원은 아직 노출하지 않는다.
+실행마다 generation을 증가시키고 해당 handle의 settlement만 소비한다. interrupt 전략은
+중지·소유권 상실 뒤 새 overview·dispatch·결과 보고를 막고 자식의 종료 확인을 기다린다.
+
 - 시작: 사용자가 스킬이 보여 준 `!` 명령으로 `--start`를 실행한다. auto 모드 분류기는 세션 뒤에도 남는 프로세스를 띄우는
   명령을 거절하므로 스킬이 직접 실행하지 않는다. 시작 검사는 다음과 같다.
   - 작업 트리가 깨끗한지(`git --no-optional-locks status --porcelain -z`, 추적되지 않은 파일 포함), 브랜치 위인지 본다.
@@ -291,9 +297,13 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 - push 차단: 접두어 거부 규칙에 더해, 자식 환경에만 `GIT_CONFIG_COUNT`/`KEY`/`VALUE`로 빈
   `url.stagekeeper-push-blocked://.pushInsteadOf`를 덧붙인다. 사용자 git 설정 파일은 바꾸지 않는다.
 - 멈춤: 로컬 `--stop`은 `lifecycle:"stopping"`을 쓰고, 상주 프로세스는 진행 중인 실행을 끝낸 뒤 stop(owner)을 보내고
-  잠금을 지운다. 상주 프로세스가 이미 없으면 `--stop`이 잠금을 지우고 stop(owner)을 보낸다.
+  잠금을 지운다. 상주 프로세스가 이미 없고 stopping 상태도 아니며 tracked child가 없을 때만
+  `--stop`이나 다음 start가 죽은 runner의 잠금을 정리할 수 있다.
   - 서버의 `stop:"plan"`·`RUNNER_REPLACED`·404와 5연속 요청 실패도 진행 중인 실행을 끝낸 뒤 멈춘다. stuck·error·plan은
     stop을 보내고, replaced·404는 보내지 않는다.
+  - 종료 요청·child settlement가 실패하면 `resident-run-unsettled`로 구분하고 자기 lock을
+    stopping으로 보존한다. 서버 stop과 clearState를 호출하지 않으며 로컬 상태는 stopping/unsettled다.
+    다음 start나 반복 stop은 PID가 사라졌다는 이유로 stopping lock·미정리 child 기록을 지우지 않는다.
 - 로컬 파일(공통 Git 디렉터리의 `harness/`):
   - `background.json`: 상태(`--status`가 읽음)
   - `background-settings.json`: 허용 목록

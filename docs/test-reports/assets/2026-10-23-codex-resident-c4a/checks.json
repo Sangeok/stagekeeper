@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-22T23:31:03.326049+00:00",
+  "scope": "C4A source implementation and model-free tests",
+  "productBaseline": "e71684751923a3bf4ca03e127be83112cb56039f",
+  "sourceFiles": [
+    {
+      "path": "plugin/runtime/background.mjs",
+      "sha256": "9ec5213cdb24a8d2b814b8c6b79f8002f6c07cdec16bbe857697d7f65a985537"
+    },
+    {
+      "path": "plugin/bin/harness-background.mjs",
+      "sha256": "6dc2b7f6f2be36119e2f291dd8267dc926d879f22307f620e92dc15a287760ed"
+    },
+    {
+      "path": "plugin/bin/harness-background-loop.test.mjs",
+      "sha256": "e63ad0b1bc957d63de020ddcf44de5d35400b7f569577c5ec69b8d00371c90ed"
+    },
+    {
+      "path": "plugin/bin/harness-background.test.mjs",
+      "sha256": "d42c600f0c75e472d262fb0f213c0d2dd5bf0e7e11c5b18e0b7563bc7d826706"
+    },
+    {
+      "path": "plugin/bin/harness-resident-execution.test.mjs",
+      "sha256": "0982a55676519023823e07457015baf2c6e9d3e17f8e39809dbd95a23c479f95"
+    }
+  ],
+  "changes": [
+    "Explicit execution.start/classify/stopMode boundary; real adapter remains Claude drain",
+    "Interrupt strategy tested only through test-local fake adapters",
+    "Terminal cancellation fences new overview/start/result effects and awaits settlement",
+    "Unconfirmed settlement preserves stopping ownership and suppresses server stop/clearState",
+    "Dead PIDs do not authorize reclaiming stopping locks or tracked-child records"
+  ],
+  "checks": [
+    {
+      "name": "pre-change focused baseline",
+      "command": "node --test plugin/bin/harness-background-loop.test.mjs plugin/bin/harness-background.test.mjs",
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "focused C4A tests",
+      "command": "node --test plugin/bin/harness-background.test.mjs plugin/bin/harness-background-loop.test.mjs plugin/bin/harness-resident-execution.test.mjs",
+      "passed": 49,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "source checks",
+      "command": "npm run check",
+      "result": "PASS",
+      "scriptTests": {
+        "passed": 186,
+        "failed": 0,
+        "skipped": 2
+      }
+    },
+    {
+      "name": "full core/plugin tests",
+      "command": "npm test",
+      "passed": 460,
+      "failed": 0,
+      "skipped": 17
+    },
+    {
+      "name": "FSD boundary",
+      "command": "npm run verify:fsd",
+      "result": "PASS"
+    },
+    {
+      "name": "server boundary",
+      "command": "npm run verify:server",
+      "result": "PASS"
+    },
+    {
+      "name": "architecture",
+      "command": "npm run test:architecture",
+      "passed": 136,
+      "failed": 0,
+      "skipped": 2
+    },
+    {
+      "name": "default build",
+      "command": "npm run build",
+      "result": "FAIL",
+      "exitCode": 1,
+      "detail": "Turbopack CSS worker: creating new process / binding to a port / Operation not permitted (os error 1)"
+    },
+    {
+      "name": "supported Webpack build",
+      "command": "npm run db:generate && node node_modules/next/dist/bin/next build --webpack",
+      "result": "PASS",
+      "exitCode": 0
+    }
+  ],
+  "modelFreeEvidence": {
+    "idleMinutes": 110,
+    "clock": "fake",
+    "modelStarts": 0,
+    "termination": "fake handle remains pending until explicit settlement",
+    "cliFailureInjection": "test-only Node preload fails child settlement; server stop/result absent, stopping lock and child preserved, subsequent start/stop cannot reclaim",
+    "codexResidentSelector": "unknown option rejected before any client or runner request"
+  },
+  "limitations": [
+    "Actual Codex resident execution, native permission and process cleanup require C4B/C4C",
+    "Simulated 110-minute idle is not E12 wall-clock acceptance",
+    "macOS/Windows end-to-end acceptance and production deployment not run",
+    "Previously prepared 0.5.17 installation candidate remains pinned to the product baseline and does not include C4A changes",
+    "Default local Turbopack build failed; Webpack build success is recorded separately"
+  ]
+}

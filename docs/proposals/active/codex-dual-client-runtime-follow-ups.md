@@ -89,6 +89,16 @@ Claude background가 이미 Codex를 지원한다는 뜻은 아니다.
 다른 CLI 설치·로그인을 사용자 복구 조건으로 요구하지 않는다. 기존 E1–E12의 더 넓은
 인수 범위는 삭제하지 않고 별도 후속 사례로 유지한다.
 
+### 2026-10-23 C4A 구현 기록
+
+2026-10-23 C4A 후속: [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 공통
+execution 경계·모의 취소 계약·종료 미확인 lock 보존을 구현했다. 집중 49개와 전체
+core/plugin 460개가 통과했고, 실제 Codex 연결·OS별 인수는 미실행이다. 기본 로컬
+Turbopack 빌드의 port-binding EPERM과 Webpack 빌드 PASS를
+[검사 기록](../../test-reports/assets/2026-10-23-codex-resident-c4a/checks.json)에 구분했다.
+앞서 만든 0.5.17 설치 후보는 기존 고정 source의 준비물이며 이 C4A 변경을 포함하지 않는다.
+BLK-MIN-01과 C4B/C4C의 실제 인수 조건은 유지한다.
+
 ### 2026-10-04~05 실행 기록
 
 아래 버전·미커밋 상태·실패·통과는 당시 checkpoint의 기록이다. 현재 private 후보의
@@ -298,7 +308,7 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 2. **환경 확보 후:** Windows native 시험 host의 기존 인증·client 버전, 새 시험 프로젝트·격리 DB/서비스, 원본 변경 없는 실행 snapshot을 고정한다. 물리적으로 Node가 없는 Windows 최소 설치 시험은 PATH 제외 시험과 따로 배정한다.
 3. **기본 인수:** 아래 재현 순서로 T53/T54/T56과 TASK-MIN-01/02를 실행한다. 과거 실패가 재현되면 product 결함·fixture 결함·operator 실수를 구분하고, product 결함으로 확인된 범위만 수정한다. 수정 후 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
 4. **설치/복구:** T55의 private seed/제한 복구와 installed loader·업데이트를 해당 시험 범위에서 확인한다. 운영 릴리스는 별도 범위다. BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
-5. **C4:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A는 모델 없는 준비로 진행 가능하다. 최소 설치·기본 인수와 실제 main-loop host/권한 계약 확인 뒤 C4B를 연결하고, C4C에서 TASK-C4-02/E12와 OS별 인수를 완료한다. 후속 실제 증거의 미완료를 이유로 C4A 준비를 막거나, C4A 통과로 실제 gate를 해제하지 않는다.
+5. **C4:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A는 2026-10-23 소스 구현·로컬 검증을 완료했다. 최소 설치·기본 인수와 실제 main-loop host/권한 계약 확인 뒤 C4B를 연결하고, C4C에서 TASK-C4-02/E12와 OS별 인수를 완료한다. C4A 통과로 실제 gate를 해제하지 않는다.
 
 ### 실제 Windows 인수의 시작 조건
 
