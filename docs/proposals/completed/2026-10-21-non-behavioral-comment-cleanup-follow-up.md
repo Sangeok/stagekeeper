@@ -1,14 +1,14 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-21"
 updated-at: "2026-10-21"
 approved-by: "사용자(채팅 실행 지시 및 후속 범위 정정)"
 approved-at: "2026-10-21"
 approval-scope: "프로젝트 전역의 동작·타입·검증에 영향을 주지 않는 일반 설명 주석 제거. 기능성 주석·문자열 데이터·체크섬 계약·라이선스는 보존하고 배포 복사본 동기화 및 검증 수행"
-completed-at: null
-verification-summary: "최신 dev 06e093f 기준 원본 351개 파일의 주석 2,231개와 미러 17개 파일의 주석 150개 제거. src의 비생성 JS/TS 주석 0개. AST·변환 코드·설정 구조·스키마 모델 보존, check·core/CLI·web·server 테스트 및 Webpack build 통과. 기본 Turbopack의 기존 EPERM으로 전체 완료 처리 보류"
+completed-at: "2026-10-21"
+verification-summary: "dev 06e093f 기준 원본 351개 파일의 주석 2,231개와 미러 17개 파일의 주석 150개 제거. src의 비생성 JS/TS 주석 0개. AST·변환 코드·설정 구조·스키마 모델 보존, 로컬 검사·테스트·Webpack build 통과. PR #184의 기본 npm run build 포함 check 및 native-runtime CI 성공 후 dev 병합 완료"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -29,12 +29,13 @@ related:
 
 프로젝트 전역에서 실행·타입·도구·검증에 사용되지 않는 일반 설명 주석을 제거했다.
 구현 이유나 보안 설계를 설명한다는 이유만으로 주석을 보존하지 않는다.
-최신 `dev`와 비교해 원본 351개 파일의 주석 2,231개와 배포 복사본 17개 파일의 주석 150개를 제거했다.
+구현 기준 `dev` 커밋 `06e093f`와 비교해 원본 351개 파일의 주석 2,231개와 배포 복사본 17개 파일의 주석 150개를 제거했다.
 
 `token-reveal.tsx`와 `connect-command.ts`를 포함해 `src/app`, `src/fsd`, `src/server` 및
 `src/proxy.ts`의 비생성 JS/TS 파일에는 주석이 없다. 타입·도구용 주석과 본문 체크섬 계약은 보존했다.
-검사·테스트와 Webpack production build는 통과했으나, 기본 Turbopack의 기존 로컬 EPERM에 대한
-성공 검증이 남아 있어 `active/`에 유지한다.
+로컬 검사·테스트와 Webpack production build를 통과했다.
+이후 [PR #184](https://github.com/Sangeok/stagekeeper/pull/184)에서 기본 `npm run build`를 포함한
+CI도 모두 통과하고 `dev`에 병합되어 구현과 검증을 완료했다.
 
 ## Goal
 
@@ -53,7 +54,10 @@ related:
 - 작업 브랜치: `harness/non-behavioral-comment-cleanup`.
 - 최신 `dev`의 background runner 구현과 브랜치 정리 정책을 반영한 뒤 다시 검증했다.
   충돌한 3개 파일도 최신 기능 구현을 유지하며 설명 주석만 제거했다.
-- `AGENTS.md`의 설명 주석 추가 금지 정책을 보존했다. 후속 사용자 요청에 따라 커밋·푸시와 `dev` 대상 PR 제출을 진행한다.
+- `AGENTS.md`의 설명 주석 추가 금지 정책을 보존했다.
+- 구현 커밋: `32bb2b3531f39531547047960c3e5e1926e826f0`.
+- PR #184는 2026-10-21 14:23:52 KST에 `dev`로 병합됐다.
+  병합 커밋은 `c1d83230aadd395f4f5e3cb2ccd42ad8b60beb3a`이며, PR의 모든 CI 검사가 성공했다.
 - 최초 C01–C07은 6개 파일의 7개 조각만 제거했다. 다음 C08은 `connect-command.ts`의 설명 주석 17개만 제거했다.
   구현 이유를 설명하는 주석까지 보존하고 지적받은 파일만 고쳤던 범위 설정은 사용자 의도보다 좁았다.
 - 사용자 후속 지적에 따라 C09에서 프로젝트 전역으로 정정했다.
@@ -134,7 +138,7 @@ JS/TS 주석은 파서 토큰 단위, YAML·ignore·schema는 삭제한 주석 �
 
 `connect-command.ts`를 포함한 이전 단계의 변경도 위 최종 수치에 한 번씩 포함한다.
 `AGENTS.md` 정책 변경과 이 제안서를 포함하면 커밋 대상은 총 370개 파일이다.
-정확한 적용 경로는 `git diff --name-only origin/dev...HEAD`로 확인한다.
+정확한 구현 적용 경로는 `git diff --name-only 06e093f83beeecf6cb4523e99eaa7af54e87dc41 32bb2b3531f39531547047960c3e5e1926e826f0`로 확인한다.
 
 ## Safety Analysis
 
@@ -239,7 +243,8 @@ node node_modules/next/dist/bin/next build --webpack
 ```
 
 Webpack 성공은 기본 `npm run build`의 성공을 뜻하지 않는다.
-운영 DB·실제 native Windows·private template 실행이나 CI 성공을 주장하지 않는다.
+로컬 검증만으로 운영 DB·실제 native Windows·private template 실행이나 CI 성공을 주장하지 않는다.
+실제로 실행된 CI 결과는 아래에 별도로 기록한다.
 
 ## Verification Results
 
@@ -258,11 +263,15 @@ Webpack 성공은 기본 `npm run build`의 성공을 뜻하지 않는다.
 | `npm run test:server` | PASS — 139 pass/1 skip, 실패 0 |
 | Webpack production build | PASS — 컴파일·타입 검사·정적 생성·라우트 수집 성공 |
 | 최종 기준 `dev`와 전체 Tailwind CSS 비교 | PASS — 같은 설정으로 생성한 CSS의 주석 제외 AST 동일 |
-| 기본 `npm run build` | 성공 검증 미완료 — 이전 실행에서 CSS worker의 포트 bind EPERM이 sandbox 밖 승인 재실행에서도 발생. C09에서 성공한 것으로 기록하지 않음 |
+| 기본 `npm run build` | PASS — PR #184의 [check (build)](https://github.com/Sangeok/stagekeeper/actions/runs/39548236349/job/119051207745)에서 구현 커밋 `32bb2b3`의 `npm run build` 단계 성공 |
+| PR의 `check` workflow | PASS — static·test·test-web·build 모두 성공, [실행 기록](https://github.com/Sangeok/stagekeeper/actions/runs/39548236349) |
+| Windows `native-runtime` CI | PASS — [실행 기록](https://github.com/Sangeok/stagekeeper/actions/runs/39548236501/job/119051208157) |
 
 기본 테스트와 웹 테스트는 이전에 허용한 로컬 포트 사용 환경에서 실행했다.
 skip은 기존 플랫폼·native 조건부 시험 및 opt-in client-reference manifest 시험이다.
-기본 Turbopack의 동일한 로컬 EPERM은 [기존 공개 문서 페이지 기록](./public-docs-pages.md)에도 있다.
+로컬 기본 Turbopack은 CSS worker의 포트 bind EPERM으로 실패했고 sandbox 밖 재실행에서도 같았다.
+동일한 로컬 제약은 [기존 공개 문서 페이지 기록](./2026-10-22-public-docs-pages.md)에도 있다.
+CI에서는 Node 22·Ubuntu 환경의 기본 빌드가 성공해 남아 있던 빌드 검증을 충족했다.
 Next 설정 변경·타입 검사 생략·검사 예외 추가로 실패를 우회하지 않았다.
 
 최신 `dev` 반영 후 최종 실행의 임시 로그는 `/tmp/stagekeeper-pr-check.log`,
@@ -279,17 +288,21 @@ CSS 비교 기록은 `/tmp/stagekeeper-latest-dev-css-comparison.json`에 있다
 - [x] 잔여 JS/TS 주석 74개가 타입·도구·체크섬 보호 목록과 일치한다.
 - [x] 미러 동기화·기존 검사·테스트·Webpack 빌드와 CSS 비교를 통과했다.
 - [x] 사용자 기존 변경과 본문 체크섬·문자열 데이터·라이선스를 보존했다.
-- [ ] 기본 `npm run build`의 성공을 확인하고 완료 metadata·문서 위치를 갱신한다.
+- [x] CI에서 기본 `npm run build`의 성공을 확인하고 완료 metadata·문서 위치를 갱신했다.
 
 ## Risks and Rollback
 
-- 기본 Turbopack build의 성공 검증이 남아 있다. 가능한 환경에서 같은 소스의 기본 build gate를 확인해야 한다.
-- Windows 전용 skip과 opt-in 시험을 전체 제품 인수 PASS로 해석하지 않는다.
+- 로컬 Turbopack의 EPERM은 환경 제약으로 남아 있다. 같은 구현 커밋의 CI 기본 build는 성공했다.
+- 로컬 Windows 전용 skip과 opt-in 시험 미실행을 전체 제품 인수 PASS로 해석하지 않는다.
+  Windows `native-runtime` CI의 성공은 위 실행 기록으로 별도 확인했다.
 - 롤백은 이번 주석 삭제 diff와 대응 미러·schema 주석을 복원한 뒤 클라이언트를 재생성한다.
   다른 사용자 변경이나 브랜치를 reset하지 않는다.
 
 ## Completion or Closure Notes
 
-C09의 전역 일반 주석 정리와 보조 검증은 적용 완료했다.
-초기처럼 구현 이유를 설명하는 주석을 자동으로 보존하거나 지적받은 파일만 정리한 상태가 아니다.
-기본 build gate가 남아 있으므로 `completed-at`은 비워 두고 `active/`에 유지한다.
+전역 일반 주석 정리와 검증은 완료됐으며, PR #184가 `dev`에 병합됐다.
+PR 생성 당시에는 로컬 Turbopack EPERM 때문에 기본 build gate를 미완료로 기록했으나,
+이후 CI의 기본 `npm run build`와 나머지 검사가 모두 성공했다.
+그 결과를 문서에 반영하지 않아 `active/`에 남아 있던 상태를 바로잡았다.
+`status: completed`, `stage: null`, `completed-at: 2026-10-21`로 갱신하고 완료일을 붙여 `completed/`로 이동했다.
+이 제안 범위에 남은 코드 구현이나 필수 검증은 없다.
