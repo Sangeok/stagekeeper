@@ -13,7 +13,7 @@
     "test:architecture": "node --test \"scripts/**/*.test.mjs\"",
     "test:scripts": "node --import tsx --test \"scripts/**/*.test.mjs\" \"scripts/**/*.test.ts\"",
     "check": "node scripts/plugin-lib.mjs --check && npm run lint && next typegen && tsc --noEmit && npm run test:scripts",
-    "test": "node --test \"packages/core/*.test.mjs\" \"plugin/bin/*.test.mjs\"",
+    "test": "node --test \"packages/core/*.test.mjs\" \"plugin/bin/*.test.mjs\" \"plugin/runtime/*.test.mjs\"",
     "test:web": "node --import tsx --test \"src/**/*.test.mjs\" \"src/**/*.test.ts\"",
     "test:templates": "node --import tsx --test \"plugin/templates/*.test.mjs\"",
     "seed:templates": "node --import tsx scripts/templates/seed-templates.ts",

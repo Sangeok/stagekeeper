@@ -144,6 +144,10 @@ it("fences native file tools with the current receipt and active owner, never fo
     assert.equal(malformed.error.code, -32602); assert.match(malformed.error.message, /1\.\.500/);
     const read = await request("role_file_read", { path: path.join(f.root, "src/code.ts") });
     assert.equal(JSON.parse(read.result.content[0].text).text, "first line\nsecond needle\nthird line\n");
+    const scoped = await request("role_file_read", { project: "test", path: path.join(f.root, "src/code.ts") });
+    assert.equal(JSON.parse(scoped.result.content[0].text).text, "first line\nsecond needle\nthird line\n");
+    assert.ok((await request("role_file_read", { project: "other", path: path.join(f.root, "src/code.ts") })).error);
+    assert.ok((await request("role_file_read", { project: "test", token: "extra", path: path.join(f.root, "src/code.ts") })).error);
     assert.deepEqual(calls, ["agent_next"]);
     active = false;
     assert.equal((await request("role_file_write", { path: path.join(f.scratch, "late.txt"), content: "LATE", expectedHash: null })).error.code, -32000);
@@ -168,9 +172,11 @@ it("discards an asynchronous local result after stop and waits for its backend t
   try {
     await request("agent_next");
     const command = request("role_command_exec"); await started;
-    assert.ok((await request("role_command_exec")).error);
+    const queued = request("role_command_exec");
+    await new Promise(resolve => setTimeout(resolve, 30));
     bridge.abort(); assert.equal(signal.aborted, true);
-    finish(); assert.ok((await command).error);
+    finish();
+    assert.ok((await command).error); assert.ok((await queued).error);
   } finally { finish(); await bridge.close(); }
   assert.equal(closed, true);
 });

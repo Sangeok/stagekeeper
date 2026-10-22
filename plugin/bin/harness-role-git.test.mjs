@@ -27,6 +27,21 @@ function fixture(t, lifecycle = {}) {
 }
 const query = (f, operation, extra = {}) => f.broker.call("role_git_read", { operation, ...(operation === "head" ? {} : { paths: [f.file] }), ...extra });
 
+it("reads a confirmed handoff commit after HEAD moves and restricts that ref to its artifact", host, async t => {
+  const f = fixture(t), name = "docs/plans/A.md", file = path.join(f.root, name);
+  mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, "Prepared plan\n");
+  f.git("add", "."); f.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "plan");
+  const commit = f.git("rev-parse", "HEAD");
+  writeFileSync(f.file, "later\n"); f.git("add", "."); f.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "later");
+  const broker = createRoleGit({ root: f.root, agent: "dev", fileBroker: f.files, commitHandoff: { path: name, commit } });
+  try {
+    const result = await broker.call("role_git_read", { operation: "show", ref: commit, paths: [file] });
+    assert.equal(result.output, "Prepared plan\n"); assert.equal(result.ref, commit);
+    await assert.rejects(broker.call("role_git_read", { operation: "show", ref: commit, paths: [f.file] }), /handoff path/);
+    await assert.rejects(broker.call("role_git_read", { operation: "show", ref: f.head, paths: [file] }), /selection/);
+  } finally { await broker.close(); }
+});
+
 it("reads HEAD and scoped committed/current bytes without changing the original index or metadata", host, async t => {
   const f = fixture(t), index = digest(readFileSync(path.join(f.root, ".git/index"))), config = readFileSync(path.join(f.root, ".git/config"));
   writeFileSync(f.file, "after\n");

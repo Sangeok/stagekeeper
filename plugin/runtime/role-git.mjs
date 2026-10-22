@@ -13,11 +13,11 @@ const check = signal => signal?.throwIfAborted();
 const canonical = value => process.platform === "win32" ? value.toLowerCase() : value;
 export const roleGitTool = {
   name: "role_git_read",
-  description: "Read scoped Git evidence without a shell. head returns HEAD; show reads one file at HEAD or the supplied planCommit; diff compares committed paths at HEAD (or planCommit) with current bytes; status reports staged/worktree changes and untracked files for explicit files only. Paths must be absolute permitted regular files (deleted files allowed). No directory, glob, rename tracking, ignore rules, filters or line-ending conversion. Assume-unchanged/skip-worktree cannot conceal selected file changes. Original Git metadata and files are never written. Output is bounded; refusals are blocked, never passed.",
+  description: "Read scoped Git evidence without a shell. head returns HEAD; show reads one file at HEAD, the supplied planCommit, or commitHandoff.commit for its confirmed path; diff compares committed paths at those refs with current bytes; status reports staged/worktree changes and untracked files for explicit files only. Paths must be absolute permitted regular files (deleted files allowed). No directory, glob, rename tracking, ignore rules, filters or line-ending conversion. Assume-unchanged/skip-worktree cannot conceal selected file changes. Original Git metadata and files are never written. Output is bounded; refusals are blocked, never passed.",
   inputSchema: { type: "object", properties: {
     operation: { type: "string", enum: ["head", "show", "diff", "status"] },
     paths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 50 },
-    ref: { type: "string", description: "HEAD (default) or the exact supplied planCommit. Only show/diff accept ref." },
+    ref: { type: "string", description: "HEAD (default), the exact supplied planCommit, or commitHandoff.commit for its confirmed path only. Only show/diff accept ref." },
   }, required: ["operation"], additionalProperties: false },
 };
 
@@ -184,10 +184,11 @@ async function gitRead(directory, git, args, lifecycle, signal) {
   finally { clearTimeout(timer); clearInterval(monitor); signal.removeEventListener("abort", abort); await terminal; await monitorTask; if (child.pid) await lifecycle.onSettled?.(owner); }
 }
 
-export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, planCommit = null, commonDirectory = null }, lifecycle = {}) {
+export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, planCommit = null, commitHandoff = null, commonDirectory = null }, lifecycle = {}) {
   if (agent === "pm") throw new Error("PM Git operations refused");
   root = realpathSync(root);
   if (planCommit !== null && !oid(planCommit)) throw new Error("Bound plan commit refused");
+  if (commitHandoff !== null && (!oid(commitHandoff.commit) || !/^docs\/(?:plans|agents\/[a-z][a-z0-9-]*)\/[A-Za-z0-9_-]+\.md$/.test(commitHandoff.path ?? ""))) throw new Error("Bound handoff commit refused");
   const git = nativeGitExecutable(), controller = new AbortController(); let closed = false, pending = null;
   async function execute(args, outerSignal) {
     if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).some(key => !["operation", "paths", "ref"].includes(key))
@@ -195,7 +196,7 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
     const operation = args.operation, names = args.paths ?? [];
     if (!Array.isArray(names) || names.length > 50 || (operation === "head" ? names.length !== 0 || args.ref !== undefined : !names.length)
       || (operation === "show" && names.length !== 1) || (operation === "status" && args.ref !== undefined)
-      || (args.ref !== undefined && args.ref !== "HEAD" && args.ref !== planCommit)) throw new Error("Invalid scoped Git selection");
+      || (args.ref !== undefined && args.ref !== "HEAD" && args.ref !== planCommit && args.ref !== commitHandoff?.commit)) throw new Error("Invalid scoped Git selection");
     const selected = names.map(name => {
       const target = fileBroker.resolveRead(name), relative = path.relative(root, target);
       if (!relative || relative.startsWith(".." + path.sep) || path.isAbsolute(relative) || relative.split(path.sep).some(part => [".git", ".codex", ".claude"].includes(part.toLowerCase()))
@@ -207,7 +208,8 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
     const signal = outerSignal ? AbortSignal.any([controller.signal, outerSignal]) : controller.signal;
     const timeout = AbortSignal.timeout(300000), combined = AbortSignal.any([signal, timeout]);
     check(combined); await lifecycle.beforeActivate?.();
-    const location = await layout(root, combined), ref = args.ref === undefined || args.ref === "HEAD" ? location.head : planCommit;
+    if (commitHandoff && args.ref === commitHandoff.commit && (selected.length !== 1 || selected[0].relative.replaceAll("\\", "/") !== commitHandoff.path)) throw new Error("Git handoff path differs");
+    const location = await layout(root, combined), ref = args.ref === undefined || args.ref === "HEAD" ? location.head : args.ref;
     if (commonDirectory !== null) {
       const expected = regularPath(commonDirectory);
       if (canonical(realpathSync.native(location.common)) !== canonical(realpathSync.native(expected))) throw new Error("Git metadata does not match session binding");
