@@ -157,6 +157,12 @@ it("fences native file tools with the current receipt and active owner, never fo
     assert.equal((await request("role_file_read", { path: path.join(f.root, "other/missing.md") })).error.code, -32000);
     assert.equal((await request("role_file_read", { path: path.join(f.root, "src/policy/missing.md") })).error.code, -32004);
     assert.equal((await request("role_file_write", { path: path.join(f.root, "src/policy/missing.md"), content: "FORBIDDEN", expectedHash: null })).error.code, -32000);
+    const missingDirectory = path.join(f.root, "src/new-reports"), newReport = path.join(missingDirectory, "A.md");
+    assert.equal((await request("role_file_list", { path: missingDirectory })).error.code, -32004);
+    assert.equal((await request("role_file_search", { path: missingDirectory, text: "report" })).error.code, -32004);
+    assert.equal((await request("role_file_list", { path: path.join(f.root, "other/missing") })).error.code, -32000);
+    assert.equal((await request("role_file_write", { path: newReport, content: "report", expectedHash: null })).error, undefined);
+    assert.equal(JSON.parse((await request("role_file_list", { path: missingDirectory })).result.content[0].text).entries[0].path, newReport);
     assert.deepEqual(calls, ["agent_next"]);
     active = false;
     assert.equal((await request("role_file_write", { path: path.join(f.scratch, "late.txt"), content: "LATE", expectedHash: null })).error.code, -32000);
