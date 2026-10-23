@@ -1,6 +1,6 @@
-import { clientRuntime } from "@harness/core/client-runtime.mjs";
-import { PLANS, limitsFor } from "@harness/core/entitlement.mjs";
-import { DEFAULT_GATES, OPT_IN_NODES, PROJECT_AGENTS, REQUIRED_NODES, STEP_KINDS, defaultGraph, dispatcherFor, nodeAllowed } from "@harness/core/pipeline.mjs";
+import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
+import { PLANS, limitsFor } from "@harness/core/plans/entitlement.mjs";
+import { DEFAULT_GATES, OPT_IN_NODES, PROJECT_AGENTS, REQUIRED_NODES, STEP_KINDS, defaultGraph, dispatcherFor, nodeAllowed } from "@harness/core/pipeline/pipeline.mjs";
 
 import { planLabel } from "@/fsd/entities/account-plan";
 import { ACCEPTANCE_CHECK_LABELS, gateActionHint, gateActionLabel, gateLabel, nodeLabel } from "@/fsd/entities/pipeline";

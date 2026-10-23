@@ -1173,7 +1173,7 @@ both). Below: each file's title, its section headings, and the sentences that se
   that agent; the file is not written and drops out of the lock · "workspace cap reached on the
   free plan (1): harness.json has 3 workspaces. project_sync would refuse — drop workspaces or
   upgrade the plan on the web." (exit 1, nothing written; the first clause is
-  `capReason(plan, axis)` from `packages/core/entitlement.mjs`, the one source for cap wording)
+  `capReason(plan, axis)` from `packages/core/plans/entitlement.mjs`, the one source for cap wording)
   · "Unexpected /api/templates response (no `templates` key): plugin and server are out of
   step — update the harness plugin." (a pre-Phase-4 server; exit 1) · "Template missing on
   server: en/agents/pm.md"

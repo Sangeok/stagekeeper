@@ -180,7 +180,7 @@ key 제거 또는 rail 단독 정적 렌더 통과만으로 완료하지 않는�
 
 `plan → implement → doc-auditor#2 → accept`는 허용되는 그래프다.
 implement 완료 후 auditor에 진입해도 구현 구간이 끝나기 전이므로 상태는 `implementing`이다.
-근거는 [core 회귀:23](../../../packages/core/pipeline.test.mjs#L23)과 [구현 구간 종료 계약](../../architecture/protocol.md#L297)이다.
+근거는 [core 회귀:23](../../../packages/core/pipeline/pipeline.test.mjs#L23)과 [구현 구간 종료 계약](../../architecture/protocol.md#L297)이다.
 현재 모델에 `agent=web-dev`, `node=doc-auditor#2`, `status=implementing`을 전달하면 다음 결과를 얻는다.
 
 | 현재 노드 실행 여부 | Activity | Team / doc-auditor | Team / web-dev |

@@ -1,5 +1,5 @@
 const bullets = (xs) => (xs.length === 0 ? "none" : xs.map((x) => `- \`${x}\``).join("\n"));
-import { clientRuntime } from "./client-runtime.mjs";
+import { clientRuntime } from "../execution/client-runtime.mjs";
 
 export const DEFAULT_SCOUT_QUESTION = "What should change next in this repository — a defect you can point to in the code, or a feature its users need — and what is the evidence?";
 

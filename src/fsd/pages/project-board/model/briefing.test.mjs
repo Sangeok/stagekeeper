@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 
 import { buildBriefing, firstSentence } from "./briefing.ts";
 import { BOARD, ROSTER, TODAY, row } from "./briefing.fixture.mjs";
-import { NODE_KINDS, defaultGraph } from "@harness/core/pipeline.mjs";
+import { NODE_KINDS, defaultGraph } from "@harness/core/pipeline/pipeline.mjs";
 
 describe("firstSentence", () => {
   it("cuts at the first terminator followed by space or end", () => {

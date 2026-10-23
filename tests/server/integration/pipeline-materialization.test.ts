@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { defaultGraph } from "@harness/core/pipeline.mjs";
+import { defaultGraph } from "@harness/core/pipeline/pipeline.mjs";
 import { ensureRun } from "../../../src/server/pipeline/run-service";
 import { headFor, loadPipelinesView, nextFor } from "../../../src/server/pipeline/api";
 import { savePipelineDefinition } from "../../../src/server/pipeline/api";

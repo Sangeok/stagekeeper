@@ -16,9 +16,9 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 않는다. `/api/templates`는
 플랜에 맞춰 잘라 낸 것만 준다 — 에이전트 파일은 첫 `## step:` 앞의 **스텁**, 플랜 밖 보고
 에이전트는 제외한다. 기본 런북은 `CLAUDE.runbook.md`이며 Codex 요청은 `CODEX.runbook.md`를 선택한다. 예전 Free variant는 배포하지 않는다. 단계 본문은
-`agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/core/deliver.mjs`
+`agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/core/templates/deliver.mjs`
 하나가 정하고, 서버(`src/server/rest/templates.ts`)와 생성기(`plugin/bin/harness-init.mjs`의
-로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/core/entitlement.mjs`.
+로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/core/plans/entitlement.mjs`.
 
 2026-10-03 작업 트리에는 dual-client 계약과 Codex foreground 어댑터가 구현되어 있다.
 서버 원장·승인·token 모델은 공통이고 client를 저장하지 않는다. Codex 역할은
@@ -96,6 +96,7 @@ stagekeeper/
 
 ## 문서 지도
 
+- [core.md](./core.md): 공유 규칙의 책임별 배치·모듈 경로·플러그인 복사 계약
 - [system-overview.md](./system-overview.md): 제품 주체, 런타임, 데이터 소유권,
   최상위 모듈의 관계
 - [fsd.md](./fsd.md): FSD layer·slice·segment, import 방향, public API,
@@ -110,6 +111,7 @@ stagekeeper/
   실행 경계별 분리를 선택한 이유
 - [ADR-0003](../ADR/0003-server-module-boundaries.md): 서버 모듈과 공개 진입점 분리의 배경
 - [ADR-0004](../ADR/0004-organize-repository-scripts.md): 저장소 스크립트의 책임별 배치와 실행 범위
+- [ADR-0005](../ADR/0005-organize-core-modules.md): 공유 규칙의 책임별 배치와 배포 경로 보존
 - [CONTEXT.md](../../CONTEXT.md): 구현과 독립적인 Stagekeeper 도메인 용어
 - [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
@@ -131,6 +133,7 @@ stagekeeper/
    FSD slice의 `api` segment에서 `src/server`를 호출할 수 있다.
 5. `packages/core`는 `src`와 npm package에 의존하지 않는다. UI와 DB가 같은
    규칙을 공유해야 하면 순수 판정을 여기에 두고 양쪽이 가져다 쓴다.
+   내부 배치와 공개 모듈 경로는 [core.md](./core.md)를 따른다.
 6. `components/`, `hooks/`, `utils/`, `types/` 같은 기술 종류별 최상위 폴더를
    만들지 않는다. 함께 바뀌는 코드는 같은 slice에 둔다.
 7. 새 layer나 예외 import를 만들기 전에 이 문서와 ADR을 먼저 바꾼다.

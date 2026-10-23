@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { RUNNER_SIGNIN_CODES } from "@harness/core/runner.mjs";
+import { RUNNER_SIGNIN_CODES } from "@harness/core/execution/runner.mjs";
 import { copyLock } from "@/fsd/shared/lib/copy-lock";
 import {
   fillLine, hasLiveRunner, lineText, RUNNER_FREE_LINE, RUNNER_LINES, RUNNER_SHORT, RUNNER_SIGNIN_REASONS, RUNNER_STOP_REASONS, RUNNER_VERSION_LINE, runnerLine,

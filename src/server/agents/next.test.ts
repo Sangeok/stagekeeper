@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { usageSnapshot } from "@harness/core/usage-window.mjs";
+import { usageSnapshot } from "@harness/core/plans/usage-window.mjs";
 import { usageLimitFailure } from "../usage/api";
 import type { Plan } from "../projects/entitlement";
 import { describe, it } from "node:test";

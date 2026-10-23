@@ -1,7 +1,7 @@
 import {
   RUNNER_AUTOSTART_STATES, RUNNER_BRANCH_MAX, RUNNER_HOST_MAX, RUNNER_LOG_MAX, RUNNER_MODES, RUNNER_PERMISSIONS, RUNNER_RESULT_MAX,
   RUNNER_SIGNIN_CODES, RUNNER_STOP_REASONS, RUNNER_WAIT_REASONS,
-} from "@harness/core/runner.mjs";
+} from "@harness/core/execution/runner.mjs";
 import { failureBody, type RequestRateFailure } from "@/server/result";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { RunnerOp, RunnerOpResult } from "@/server/runners/contracts";

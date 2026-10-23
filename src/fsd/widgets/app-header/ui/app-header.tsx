@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import type { Plan } from "@harness/core/entitlement.mjs";
+import type { Plan } from "@harness/core/plans/entitlement.mjs";
 import { planLabel } from "@/fsd/entities/account-plan";
 import { billingPath } from "@/fsd/shared/routes/billing";
 import { projectPath } from "@/fsd/shared/routes/project";

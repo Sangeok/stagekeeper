@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { parseHarnessConfig } from "./config.mjs";
+import { parseHarnessConfig } from "../configuration/harness-config.mjs";
 import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "./vars.mjs";
 
-const cfg = parseHarnessConfig(readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8"));
+const cfg = parseHarnessConfig(readFileSync(new URL("../../../examples/apch/harness.json", import.meta.url), "utf8"));
 
 describe("vars", () => {
   it("roster table has one row per workspace in order", () => {

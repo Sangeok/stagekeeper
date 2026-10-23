@@ -158,7 +158,7 @@ describe("verifyProject", () => {
     const root = project();
     write(
       root,
-      "packages/core/transitions.mjs",
+      "packages/core/pipeline/transitions.mjs",
       'import { z } from "zod";\nexport { z };\n',
     );
 

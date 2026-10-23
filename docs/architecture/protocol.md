@@ -227,7 +227,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   409 `RUNNER_REPLACED`와 403 `PLAN_REQUIRED`는 코드를 싣는다. 문장은 product-copy §12.
 - 잠금과 시계: 모든 op는 한 트랜잭션(READ COMMITTED)에서 User → Project `FOR UPDATE`를 잡은 뒤 접근·플랜·
   `Runner` 행을 읽는다. 시각은 DB 시계(`clock_timestamp()`)다.
-- 생존(`packages/core/runner.mjs`, 웹 배너와 같은 함수): stopped가 아니고 마지막 신호 뒤 3분 안이면 lease를 잡고 있다.
+- 생존(`packages/core/execution/runner.mjs`, 웹 배너와 같은 함수): stopped가 아니고 마지막 신호 뒤 3분 안이면 lease를 잡고 있다.
   session·working만 신호와 프로젝트의 마지막 에이전트 활동(`AgentRun.openedAt`·`AgentRunStep.at`) 중 늦은 쪽 뒤 60분이다.
   응답 없는 행과 stopped 행은 새 start가 확인 없이 덮어쓰고, 살아 있는 행은 `takeover:true`로만 넘겨받는다.
 - 재전송: 같은 session의 start는 성공(seenAt만 갱신)이고 beat는 멱등, 행이 없는 stop은 성공이다. 행이 없거나 다른
@@ -356,7 +356,7 @@ rollback을 단정하지 않는다. 웹은 advice를 조회하지 않고 성공 
 
 ## 상태 기계
 
-`packages/core/transitions.mjs`의 `RULES`가 유일한 출처다. 이 표에 없는 전이는 존재하지 않는다.
+`packages/core/pipeline/transitions.mjs`의 `RULES`가 유일한 출처다. 이 표에 없는 전이는 존재하지 않는다.
 
 | from | to | actor | kind | 전제 |
 | --- | --- | --- | --- | --- |
@@ -403,7 +403,7 @@ verify/ok·정상 report/ok로 닫힌 run과 그 run에 묶인 보고가 있어�
 최종 인수는 메인 루프만 한다. Codex 도우미는 아직 이 디스패치를 거부한다. 계약과 배포 순서는
 [impl-verifier.md](./impl-verifier.md)를 따른다.
 
-순서의 단일 출처는 `packages/core/pipeline.mjs`, 편집 원본인 `PipelineDefinition`, 펼친 실행 판인 `PipelineVersion`이다. `Pipeline`은 프로젝트 안에서 이름·보관 상태를 갖고 `PipelineRule`은 항목 type별 선택을 정한다. 런북에는 순서가 없다.
+순서의 단일 출처는 `packages/core/pipeline/pipeline.mjs`, 편집 원본인 `PipelineDefinition`, 펼친 실행 판인 `PipelineVersion`이다. `Pipeline`은 프로젝트 안에서 이름·보관 상태를 갖고 `PipelineRule`은 항목 type별 선택을 정한다. 런북에는 순서가 없다.
 
 실행 판의 `PipelineVersion.pipelineId`와 `pipeline` 관계는 필수다. migration A가 기존 판을 기본 Pipeline에 연결하고, 별도 cleanup migration B가 null 부재를 확인한 뒤 NOT NULL을 강제한다. 새 프로젝트의 `Project.defaultPipelineId`는 지연 생성을 위해 nullable로 유지한다. 운영 적용은 A와 nullable 서버를 먼저 배포한 뒤 B와 필수 schema 서버를 배포하는 두 release 순서를 따른다. B는 기존 writer가 남긴 null을 자동 보정하지 않고 전환을 거부한다. 롤백·재도입은 [제안서의 배포·롤백 절](../proposals/completed/2026-10-16-multiple-pipelines.md)을 따른다.
 

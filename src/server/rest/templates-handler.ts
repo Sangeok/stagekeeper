@@ -1,5 +1,5 @@
-import { deliverable } from "@harness/core/deliver.mjs";
-import { parseClient, type Client } from "@harness/core/client-runtime.mjs";
+import { deliverable } from "@harness/core/templates/deliver.mjs";
+import { parseClient, type Client } from "@harness/core/execution/client-runtime.mjs";
 import { readCodexBundle } from "@/server/templates/api";
 import type { Plan, ProjectAccess } from "@/server/projects/contracts";
 import { resolveRestScope, type RestTokenDeps } from "./scope";

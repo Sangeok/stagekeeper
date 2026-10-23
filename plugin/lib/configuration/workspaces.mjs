@@ -1,4 +1,4 @@
-import { REPORT_AGENTS } from "./entitlement.mjs";
+import { REPORT_AGENTS } from "../plans/entitlement.mjs";
 const AGENT_ID_RE = /^[a-z][a-z0-9-]*$/;
 function fail(path, message) { throw new Error(`harness.json ${path}: ${message}`); }
 function str(value, path) { if (typeof value !== "string" || value === "") fail(path, "must be a non-empty string"); return value; }

@@ -1,4 +1,4 @@
-import { isRunbookVersion } from "@harness/core/runbook.mjs";
+import { isRunbookVersion } from "@harness/core/templates/runbook.mjs";
 import { resolveRestScope, type RestTokenDeps } from "./scope";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { RequestRateFailure } from "@/server/result";

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { hashToken } from "@harness/core/token.mjs";
+import { hashToken } from "@harness/core/tokens/token.mjs";
 import type { Prisma } from "@/generated/prisma/client";
 import type { TransactionHost } from "../projects/contracts";
 import { DISCONNECTED_REASON } from "../projects/access-query";

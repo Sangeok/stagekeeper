@@ -1,13 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { NOTE_MAX, OUTCOMES, receiptSchema } from "@/server/agents/api";
 import { type NextInput, type NextOutput } from "@/server/agents/contracts";
-import type { Client } from "@harness/core/client-runtime.mjs";
+import type { Client } from "@harness/core/execution/client-runtime.mjs";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { ServerResult, ServerFailure, RequestRateFailure } from "@/server/result";
 import { failureBody } from "@/server/result";
 import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/projects/api";
-import { ITEM_TYPES } from "@harness/core/backlog.mjs";
-import { validateWorkspaceSemantics } from "@harness/core/workspaces.mjs";
+import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
+import { validateWorkspaceSemantics } from "@harness/core/configuration/workspaces.mjs";
 import type { BacklogView, BacklogWithStatusView } from "./views";
 import { z } from "zod";
 

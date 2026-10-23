@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Plan } from "@harness/core/entitlement.mjs";
+import type { Plan } from "@harness/core/plans/entitlement.mjs";
 import { prisma } from "@/server/db";
 import { planForUser } from "@/server/projects/api.server";
 import type { HeaderProject } from "../ui/app-header";

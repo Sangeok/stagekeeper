@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline.mjs";
+import { PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline/pipeline.mjs";
 import { loadModule } from "./fixtures/load-module";
 import { assertActions } from "./fixtures/action-manifest";
 

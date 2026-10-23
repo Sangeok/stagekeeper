@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { parseQaConfig, parseQaReport } from "./qa.mjs";
-import { advance, defaultGraph, dispatcherFor, isItemNode, nodeDone, validateGraph } from "./pipeline.mjs";
+import { advance, defaultGraph, dispatcherFor, isItemNode, nodeDone, validateGraph } from "./pipeline/pipeline.mjs";
 
 const config = { environment: "test", baseUrl: "http://127.0.0.1:3000", mcpUrl: "http://127.0.0.1:8931/mcp", scenariosPath: "docs/qa/scenarios.md" };
 const report = { verdict: "pass", targetCommit: "a".repeat(40), baseUrl: config.baseUrl, scenarios: [{ id: "save", status: "pass", expected: "saved after reload", actual: "saved after reload", evidence: ["snapshot at /settings; request 200"] }] };

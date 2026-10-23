@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { existsSync, readFileSync } from "node:fs";
 import ts from "typescript";
-import { LIMITS, PLANS } from "@harness/core/entitlement.mjs";
+import { LIMITS, PLANS } from "@harness/core/plans/entitlement.mjs";
 import { planMatrix } from "./plan-matrix";
 
 const BILLING_EXPORTS = ["PlanRow", "planMatrix", "BILLING_NOTE"];
@@ -25,9 +25,9 @@ function assertAccountPlanApi(source: string): void {
 
 it("allows unrelated public exports but rejects missing labels and Billing leaks", () => {
   const source = readFileSync(new URL("../../../entities/account-plan/index.ts", import.meta.url), "utf8");
-  assertAccountPlanApi(source + '\nexport type { Plan } from "@harness/core/entitlement.mjs";');
+  assertAccountPlanApi(source + '\nexport type { Plan } from "@harness/core/plans/entitlement.mjs";');
   assertAccountPlanApi(source + '\nexport { anotherLabel } from "./model/another-label";');
-  assert.throws(() => assertAccountPlanApi('export type { Plan } from "@harness/core/entitlement.mjs";'), /planLabel/);
+  assert.throws(() => assertAccountPlanApi('export type { Plan } from "@harness/core/plans/entitlement.mjs";'), /planLabel/);
   for (const name of BILLING_EXPORTS) {
     assert.throws(() => assertAccountPlanApi(source + `\nexport type { ${name} } from "./model/leak";`), new RegExp(name));
     assert.throws(() => assertAccountPlanApi(source + `\nexport const ${name} = 1;`), new RegExp(name));

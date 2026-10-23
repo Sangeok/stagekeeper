@@ -80,7 +80,7 @@ _Avoid_: executor(화면 문구), 에이전트, 워커
 
 보드 항목의 상태. **식별자**는 DB에 저장되고 MCP가 돌려주며 템플릿이 참조하는 값이고,
 **라벨**은 화면이 보여주는 영어 낱말이다(제품은 영어로 서비스한다 — `docs/conventions/product-copy.md`).
-유일한 출처는 `packages/core/transitions.mjs`의 `STATUSES`; 라벨은
+유일한 출처는 `packages/core/pipeline/transitions.mjs`의 `STATUSES`; 라벨은
 `src/fsd/entities/board-item/model/status-label.ts` 한 곳.
 
 | 식별자 | 라벨 | 뜻 | 여기서 여는 사람 동작 |

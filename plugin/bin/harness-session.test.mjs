@@ -14,7 +14,7 @@ import { dispatchBinding, codexFailure, qaWorkflowFile } from "./harness-codex.m
 import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, dispatchFreshRole, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { callTool } from "../runtime/mcp-client.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
-import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
+import { RUNTIME_MARKER } from "../lib/execution/client-runtime.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 import { createRoleFiles } from "../runtime/role-files.mjs";
 

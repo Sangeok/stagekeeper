@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactElement } from "react";
-import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
+import { CLIENTS, clientRuntime, parseClient } from "@harness/core/execution/client-runtime.mjs";
 
 import { Card } from "@/fsd/shared/ui/card";
 import { Code, CodeBlock } from "@/fsd/shared/ui/code";

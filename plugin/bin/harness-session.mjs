@@ -2,8 +2,8 @@
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
 import { connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin } from "../runtime/runner-client.mjs";
-import { parseClient } from "../lib/client-runtime.mjs";
-import { parseBearer } from "../lib/token.mjs";
+import { parseClient } from "../lib/execution/client-runtime.mjs";
+import { parseBearer } from "../lib/tokens/token.mjs";
 
 const RUNNER_TIMEOUT = 10000;
 

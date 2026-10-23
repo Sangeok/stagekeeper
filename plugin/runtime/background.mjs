@@ -1,4 +1,4 @@
-import { hasWork, workSignature } from "../lib/watch.mjs";
+import { hasWork, workSignature } from "../lib/execution/watch.mjs";
 
 export const INTERVAL_MS = 60_000;
 export const BRANCH_CHECK_MS = 2_000;

@@ -6,10 +6,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { deliverable } from "../lib/deliver.mjs";
-import { DEFAULT_SCOUT_QUESTION } from "../lib/vars.mjs";
-import { REPORT_AGENTS } from "../lib/entitlement.mjs";
-import { runbookVersion } from "../lib/runbook.mjs";
+import { deliverable } from "../lib/templates/deliver.mjs";
+import { DEFAULT_SCOUT_QUESTION } from "../lib/templates/vars.mjs";
+import { REPORT_AGENTS } from "../lib/plans/entitlement.mjs";
+import { runbookVersion } from "../lib/templates/runbook.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));
 const APCH = readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8");

@@ -1,4 +1,4 @@
-import { DEFAULT_PLAN, isPlan, type Plan } from "@harness/core/entitlement.mjs";
+import { DEFAULT_PLAN, isPlan, type Plan } from "@harness/core/plans/entitlement.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
 export type { Plan };

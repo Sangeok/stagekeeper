@@ -1,7 +1,7 @@
-import { allowsAgent } from "@harness/core/entitlement.mjs";
+import { allowsAgent } from "@harness/core/plans/entitlement.mjs";
 import { readAccountUsageIn, usageLimitFailure } from "@/server/usage/api";
 import { readDatabaseClockIn } from "@/server/database-clock";
-import { dispatcherFor, isItemNode, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, isItemNode, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccessIn } from "@/server/projects/api";
 import { hasActiveLegacyScoutSlot } from "@/server/pipeline/api";

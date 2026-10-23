@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { performance } from "node:perf_hooks";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { historyCutoff } from "../../../packages/core/entitlement.mjs";
+import { historyCutoff } from "../../../packages/core/plans/entitlement.mjs";
 import { PrismaClient } from "../../../src/generated/prisma/client";
 import { createBoardService } from "../../../src/server/pipeline/api";
 import { type HistoryCursor, type HistoryRecord, type HistoryView } from "../../../src/server/pipeline/history-page";

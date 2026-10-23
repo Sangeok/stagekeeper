@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/entitlement.mjs";
-import { newToken } from "@harness/core/token.mjs";
+import { RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
+import { newToken } from "@harness/core/tokens/token.mjs";
 import type { RunnerOp, RunnerOpResult } from "../runners/contracts";
 import { INVALID_RUNNER_REQUEST, makeRunnerRequest, parseRunnerRequest, runnerResponse, type RunnerDeps } from "./runner-handler";
 

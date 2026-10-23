@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { NODE_KINDS } from "@harness/core/pipeline.mjs";
+import { NODE_KINDS } from "@harness/core/pipeline/pipeline.mjs";
 import { autoEdgeLabel, gateLabel, nodeAgentLabel, nodeLabel } from "./labels";
 
 const ROSTER = ["dev", "web-dev"];

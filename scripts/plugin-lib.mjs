@@ -1,5 +1,5 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const CORE = "packages/core";
@@ -7,8 +7,12 @@ const LIB = "plugin/lib";
 
 const isDeliverable = (name) => name.endsWith(".mjs") && !name.endsWith(".test.mjs");
 
-function listModules(directory) {
-  return readdirSync(directory).filter(isDeliverable).sort();
+function listModules(directory, prefix = "") {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const relative = posix.join(prefix, entry.name);
+    if (entry.isDirectory()) return listModules(join(directory, entry.name), relative);
+    return entry.isFile() && isDeliverable(entry.name) ? [relative] : [];
+  }).sort();
 }
 
 export function diffPluginLib(projectRoot = process.cwd()) {
@@ -27,7 +31,11 @@ export function diffPluginLib(projectRoot = process.cwd()) {
 export function syncPluginLib(projectRoot = process.cwd()) {
   const { drift, orphan } = diffPluginLib(projectRoot);
   mkdirSync(resolve(projectRoot, LIB), { recursive: true });
-  for (const name of drift) copyFileSync(resolve(projectRoot, CORE, name), resolve(projectRoot, LIB, name));
+  for (const name of drift) {
+    const target = resolve(projectRoot, LIB, name);
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(resolve(projectRoot, CORE, name), target);
+  }
   for (const name of orphan) rmSync(resolve(projectRoot, LIB, name));
   return { drift, orphan };
 }

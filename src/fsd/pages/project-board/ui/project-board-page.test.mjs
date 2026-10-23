@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ProjectBoardPage } from "./project-board-page.tsx";
 import { buildBriefing } from "../model/briefing.ts";
 import { BOARD, ROSTER, TODAY, row } from "../model/briefing.fixture.mjs";
-import { NODE_KINDS } from "@harness/core/pipeline.mjs";
+import { NODE_KINDS } from "@harness/core/pipeline/pipeline.mjs";
 
 const renderBoard = (rows = BOARD, roster = ROSTER) =>
   renderToStaticMarkup(createElement(ProjectBoardPage, {

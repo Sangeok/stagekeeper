@@ -1,4 +1,4 @@
-import { capError } from "@harness/core/entitlement.mjs";
+import { capError } from "@harness/core/plans/entitlement.mjs";
 import { ProjectIntegrityError, type TransactionHost } from "./access-query";
 import { appendAvailabilityEventIn, AvailabilityConflict, findOwnedRepository, lockProjectOwnerIn, readOwnerAvailabilityIn, withAvailabilityTransaction } from "./availability-service";
 

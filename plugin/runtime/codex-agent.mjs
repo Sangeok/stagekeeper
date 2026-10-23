@@ -3,7 +3,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "
 import { join, relative, dirname, resolve, isAbsolute } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { RUNTIME_MARKER } from "../lib/client-runtime.mjs";
+import { RUNTIME_MARKER } from "../lib/execution/client-runtime.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 
 export const ROLE_TOOLS = {
