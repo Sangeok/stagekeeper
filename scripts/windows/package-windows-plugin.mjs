@@ -8,6 +8,7 @@ import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
+export const isShippedPluginFile = name => name.startsWith("plugin/") && !name.startsWith("plugin/templates/") && !name.endsWith(".test.mjs");
 function regularTree(directory) {
   const files = [];
   function visit(current, relative = "") {
@@ -30,7 +31,7 @@ export function packageWindowsPlugin({ output, runtimeDirectory, verifierDirecto
   const source = execFileSync("git", ["ls-files", "--", "plugin"], { cwd: repository, encoding: "utf8" }).trim().split(/\r?\n/);
   mkdirSync(output, { recursive: true });
   for (const name of source) {
-    if (name.startsWith("plugin/templates/") || name.endsWith(".test.mjs")) continue;
+    if (!isShippedPluginFile(name)) continue;
     const sourceFile = path.join(repository, name), target = path.join(output, name.slice("plugin/".length));
     if (!lstatSync(sourceFile).isFile() || lstatSync(sourceFile).isSymbolicLink()) throw new Error("Plugin source type refused");
     mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, readFileSync(sourceFile), { flag: "wx" });
