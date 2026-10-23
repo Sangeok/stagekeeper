@@ -1,19 +1,22 @@
 ---
 status: "completed"
-stage: "acceptance"
-result: "passed"
+stage: null
+result: "pass"
 report-kind: "regression"
 report-size: "standard"
-test-levels: ["static", "unit", "component", "contract", "integration", "runtime", "browser"]
+test-levels: ["static", "component", "contract", "integration", "end-to-end"]
 test-tools: ["Node.js test runner", "TypeScript", "ESLint", "Prisma", "PostgreSQL", "Next.js production build", "Playwright"]
 created-at: "2026-10-01"
 completed-at: "2026-10-01"
 last-executed-at: "2026-10-01"
 tested-revision: "14380ec940f6c65e33e154df1bc53346162534d7 + harness/remove-repository-connection-flag working tree"
 source-test-sha256: "e56c00608294500875749c115be255d516d2727ff78f3009dd19679472d26764"
-owners: []
+owners: ["user:Sangeok"]
 related: ["docs/architecture/repository-disconnection.md", "docs/architecture/verification.md"]
-test-summary: "연결 feature flag 완전 제거. 웹 495·서버 27 시험, 정적 검사·build·격리 DB 통합·실제 Next transport·브라우저 해제/재연결 통과."
+primary-area: "projects/repository-connection"
+observed-environments: ["local | Next.js 16.3.3 production server + isolated PostgreSQL | Node 22.13.1, Playwright browser | owner and fixture users"]
+test-summary: "pass: 연결 feature flag 완전 제거 — 웹 495·서버 27 시험, 정적 검사·build·격리 DB 통합·실제 Next transport·브라우저 해제/재연결 통과"
+follow-up: []
 ---
 
 # 저장소 연결 기능 상시 제공 검증

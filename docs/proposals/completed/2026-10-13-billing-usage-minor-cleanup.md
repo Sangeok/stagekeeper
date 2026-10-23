@@ -53,7 +53,7 @@ related:
 
 현재 테스트의 `$transaction` 더블은 옵션 인자를 무시한다. `$executeRaw` 더블도 실제 SQL을 확인하지 않고 항상 `read-only`라는 문자열을 기록한다. 따라서 격리 수준이나 읽기 전용 SQL이 바뀌어도 테스트가 통과할 수 있다.
 
-`readAccountUsageIn()`은 billing 외에 에이전트 실행 한도 검사에서도 사용된다. 특히 [실행 생성 경로](../../../src/server/agents/run-query.ts)는 먼저 읽은 DB 시각을 `at`으로 전달하고, 같은 시각으로 사용량 판정·카운터 갱신·실행 생성을 수행한다. 추가 시각 조회를 도입해서는 안 된다.
+`readAccountUsageIn()`은 billing 외에 에이전트 실행 한도 검사에서도 사용된다. 특히 [실행 생성 경로](https://github.com/Sangeok/stagekeeper/blob/b66e60fd4257180bd13df90a7453fef6b6486459/src/server/agents/run-query.ts)는 먼저 읽은 DB 시각을 `at`으로 전달하고, 같은 시각으로 사용량 판정·카운터 갱신·실행 생성을 수행한다. 추가 시각 조회를 도입해서는 안 된다.
 
 읽기 전용 트랜잭션을 여는 함수는 `readAccountUsage()`다. `readAccountUsageIn()` 자체는 전달받은 트랜잭션을 사용하며, 에이전트의 쓰기 트랜잭션 안에서도 호출된다. 읽기 전용 설정이나 새 트랜잭션을 공용 내부 함수로 옮기지 않는다.
 

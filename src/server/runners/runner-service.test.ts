@@ -51,8 +51,9 @@ function fakeDb(options: { runner?: RunnerRow | null; plan?: string; available?:
       update: async ({ data }: { data: Partial<RunnerRow> }) => { state.writes.push(`runner.update:${Object.keys(data).sort().join(",")}`); state.runner = { ...state.runner!, ...data }; return state.runner; },
       upsert: async ({ create }: { create: RunnerRow & { projectId: string } }) => {
         state.writes.push("runner.upsert");
-        const { projectId: _projectId, ...row } = create;
-        state.runner = row as RunnerRow;
+        const row: RunnerRow & { projectId?: string } = { ...create };
+        delete row.projectId;
+        state.runner = row;
         return state.runner;
       },
       delete: async () => { state.writes.push("runner.delete"); state.runner = null; },

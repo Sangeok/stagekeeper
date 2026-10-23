@@ -1,3 +1,23 @@
+---
+status: 'completed'
+stage: null
+result: 'pass'
+report-kind: 'acceptance'
+report-size: 'standard'
+test-levels: ['static', 'component', 'integration']
+test-tools: ['Node.js test runner', 'PowerShell', 'GitHub Actions', 'actionlint 1.7.12', 'Git 2.55.0.windows.5']
+created-at: '2026-10-05'
+completed-at: '2026-10-05'
+last-executed-at: '2026-10-05'
+tested-revision: 'af88938 rebased onto 38ebaa9, then dev 7441af0 merged (PR #119 branch)'
+owners: ['user:Sangeok']
+related: []
+primary-area: 'ci/windows-role-runtime'
+observed-environments: ['local | native Windows role runtime acceptance | Windows, Git 2.55.0.windows.5, real 8.3 TEMP path | owner', 'GitHub Actions | windows-role-runtime | windows-2022 | CI']
+test-summary: 'pass: Windows runtime cache implementation — cache contract, native Windows acceptance and the Git binding repair passed; dev-cache reuse by a new PR is observable only after merge'
+follow-up: []
+---
+
 # Windows runtime cache — implementation verification
 
 Date: 2026-10-05 UTC. Scope: runtime reuse in `windows-role-runtime` and repair

@@ -1,3 +1,23 @@
+---
+status: 'active'
+stage: 'running'
+result: null
+report-kind: 'acceptance'
+report-size: 'standard'
+test-levels: ['static', 'component', 'integration', 'end-to-end', 'manual']
+test-tools: ['Node.js test runner', 'Claude Code CLI', 'installed Windows plugin bundles', 'browser']
+created-at: '2026-10-02'
+completed-at: null
+last-executed-at: '2026-10-23'
+tested-revision: 'recorded per section; Stage 1 merged as 0aec9ab, runner sections name their installed bundle version'
+owners: ['user:Sangeok']
+related: ['docs/proposals/completed/2026-10-03-local-watch-executor.md']
+primary-area: 'plugin/local-watch-executor'
+observed-environments: ['local | watch skill, plugin CLI and resident runner | Windows 11 | owner', 'production | stagekeeper.dev Board banner | browser | owner']
+test-summary: null
+follow-up: []
+---
+
 # Local watch executor — implementation and acceptance
 
 Date: 2026-10-02. Proposal: [local-watch-executor](../../proposals/completed/2026-10-03-local-watch-executor.md).

@@ -106,7 +106,7 @@ Consider는 근거가 있는 낮은 우선순위 개선을 뜻한다. 스킬 내
 ### FSD-001 — Team의 실행 상태 우선순위 수정
 
 **근거:** [briefing.ts:119](../../../src/fsd/pages/project-board/model/briefing.ts#L119)의 project agent·qa-verifier·impl-verifier 분기는
-첫 적격 행을 고른 뒤 그 행의 `dispatched`만 검사한다. [서버 목록:137](../../../src/server/pipeline/board-query.ts#L137)은 최신 제안순이다.
+첫 적격 행을 고른 뒤 그 행의 `dispatched`만 검사한다. [서버 목록:137](https://github.com/Sangeok/stagekeeper/blob/df3de8543ed96352201a3e2f8583c26c578c94c8/src/server/pipeline/board-query.ts#L137)은 최신 제안순이다.
 따라서 최신 대기 항목 Q 뒤에 실행 중인 W가 있어도 Team은 `Ready for Q`가 된다.
 동일 파일의 [plan-verifier 판정:96](../../../src/fsd/pages/project-board/model/briefing.ts#L96)은 이미 실행 행을 우선한다.
 
@@ -180,9 +180,9 @@ confirmed failure의 기존 toast와 성공 후 refresh는 유지한다. `redire
 
 **근거:** [프로젝트 토큰 폼:44](../../../src/fsd/features/manage-token/ui/new-token-form.tsx#L44),
 [소유자 토큰 폼:43](../../../src/fsd/features/manage-token/ui/new-owner-token-form.tsx#L43),
-[사용자 토큰 폼:48](../../../src/fsd/features/manage-user-token/ui/new-user-token-form.tsx#L48)은 모든 예외를
+[사용자 토큰 폼:48](https://github.com/Sangeok/stagekeeper/blob/df3de8543ed96352201a3e2f8583c26c578c94c8/src/fsd/features/manage-user-token/ui/new-user-token-form.tsx#L48)은 모든 예외를
 `Couldn't issue the token. Try again.`으로 표시한다.
-[프로젝트 발급:34](../../../src/server/project-token-service.ts#L34)와
+[프로젝트 발급:34](https://github.com/Sangeok/stagekeeper/blob/df3de8543ed96352201a3e2f8583c26c578c94c8/src/server/project-token-service.ts#L34)와
 [사용자 발급:26](../../../src/fsd/features/manage-user-token/api/manage-user-token.server.ts#L26)은 저장 후 평문을 반환한다.
 
 **영향:** 저장이 끝나고 응답만 유실되어도 확정 실패처럼 안내한다. 수동 재시도는 별개 활성 토큰을 추가한다.
@@ -208,7 +208,7 @@ unknown 상태에 `Refresh list` 버튼을 제공하되 이 버튼은 `router.re
 현재 `token-names.test.ts`·`token-name.test.ts`는 초기 정적 렌더만 검사하므로 비동기 상태 검증을 대신할 수 없다.
 
 **완료 기준:** 세 종류 각각 커밋 후 응답 유실과 정상 거부를 구분한다.
-[기존 리허설:208](../../../scripts/rehearse-account-usage-and-tokens.ts#L208)의 `/lose-next-action`을 격리 테스트 DB에서 사용하고,
+[기존 리허설:208](https://github.com/Sangeok/stagekeeper/blob/df3de8543ed96352201a3e2f8583c26c578c94c8/scripts/rehearse-account-usage-and-tokens.ts#L208)의 `/lose-next-action`을 격리 테스트 DB에서 사용하고,
 미확인 토큰 정리와 이전 성공 결과 표시까지 확인한다. 이번 검토에서는 DB 리허설을 실행하지 않았다.
 
 ### FSD-005 — Documents의 stable identity 보존
@@ -216,7 +216,7 @@ unknown 상태에 `Refresh list` 버튼을 제공하되 이 버튼은 `router.re
 **근거:** [toItemDocs:5](../../../src/fsd/pages/board-item/model/item-docs.ts#L5)는 보고서 ID를 결과에서 버리지만 여러 보고는 모두 보존한다.
 [문서 목록:80](../../../src/fsd/pages/board-item/ui/board-item-page.tsx#L80)는 `doc.href`를 React key로 사용한다.
 [Report 모델:232](../../../prisma/schema.prisma#L232)은 path·commit의 고유성을 보장하지 않고,
-[제출 처리:558](../../../src/server/pipeline/board-query.ts#L558)는 매번 보고를 추가한다.
+[제출 처리:558](https://github.com/Sangeok/stagekeeper/blob/df3de8543ed96352201a3e2f8583c26c578c94c8/src/server/pipeline/board-query.ts#L558)는 매번 보고를 추가한다.
 
 **재현:** 서로 다른 ID의 보고 두 개에 같은 actor/path/commit을 주면 문서는 두 개, 고유 href는 하나이며 반환 필드는 label/path/href뿐이었다.
 설치된 React DOM의 `react-dom-client.development.js:6605`는 중복 key를 지원하지 않는 재조정 조건으로 취급한다.
@@ -252,7 +252,7 @@ URL 변경이나 보고서 중복 제거로 해결하지 않는다.
 
 ### FSD-006 — Billing 전용 표현의 소유권 정리
 
-**근거:** [entitlement-copy.ts:13](../../../src/fsd/shared/lib/entitlement-copy.ts#L13)의 `PlanRow`, `planMatrix`, `BILLING_NOTE`는
+**근거:** [entitlement-copy.ts:13](https://github.com/Sangeok/stagekeeper/blob/df3de8543ed96352201a3e2f8583c26c578c94c8/src/fsd/shared/lib/entitlement-copy.ts#L13)의 `PlanRow`, `planMatrix`, `BILLING_NOTE`는
 [BillingPage](../../../src/fsd/pages/billing/ui/billing-page.tsx#L3)에서만 화면에 사용한다. 표 모델 테스트는 shared, 사용량 UI 테스트는 Billing에 있다.
 
 **변경:** 먼저 없는 `pages/billing/model/` 디렉터리를 만들고 `plan-matrix.ts`·`plan-matrix.test.ts`로 표 모델·전용 helper·시험과 안내 문구를 옮긴다.

@@ -179,8 +179,8 @@ console 전체를 수집했다는 의미는 아니다.
 | F2 | medium | 잘못된 Backlog key 반환 후 Title/Area/Source 초기화 | 미수정 기존 UI 관찰. 입력 오류에서 값 보존 및 성공 때만 초기화하는 변경·재검증 필요 |
 | F3 | low | 재개 후 과거 인수 보고서의 라벨 변경 | 미수정 기존 UI 관찰. 현재 acceptedAt와 독립적인 보고서 목적 식별 및 과거 행 호환성 결정 필요 |
 
-F1 수정 위치는 [board-query.ts](../../../src/server/pipeline/board-query.ts)와
-[run-query.ts](../../../src/server/agents/run-query.ts)이다. timeout을 해당
+F1 수정 위치는 [board-query.ts](https://github.com/Sangeok/stagekeeper/blob/ce19203bf55ca1a113b0e4a96c37e16c9ff1d428/src/server/pipeline/board-query.ts)와
+[run-query.ts](https://github.com/Sangeok/stagekeeper/blob/ce19203bf55ca1a113b0e4a96c37e16c9ff1d428/src/server/agents/run-query.ts)이다. timeout을 해당
 트랜잭션에만 15초로 지정했고, owner/project lock, CAS, 감사 append 원자성과
 기존 isolation 옵션은 유지했다.
 

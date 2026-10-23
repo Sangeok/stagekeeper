@@ -1,9 +1,23 @@
 ---
-status: "passed"
+status: "completed"
+stage: null
+result: "pass"
+report-kind: "acceptance"
+report-size: "standard"
+test-levels: ["static", "component", "contract", "integration", "end-to-end"]
+test-tools: ["Node.js test runner", "ESLint", "TypeScript", "Next.js production build", "PostgreSQL 17.11", "headless Chrome 153 via Playwright"]
 http-status: "passed"
 browser-status: "passed"
 completed-at: "2026-10-04"
 created-at: "2026-10-04"
+last-executed-at: "2026-10-04"
+tested-revision: "4a0cffd with dev a0eb40f merged (PR #107 branch)"
+owners: ["user:Sangeok"]
+related: ["docs/proposals/completed/2026-10-04-src-clean-code-fifth-pass.md"]
+primary-area: "src/clean-code"
+observed-environments: ["local | Next.js 16.3.3 production build + loopback PostgreSQL 17.11 | isolated headless Chrome 153.0.8010.53 | owner, read-only, foreign and guest fixture users"]
+test-summary: "pass: src clean-code fifth pass — HTTP/Flight 61/61, browser DOM 35/35, server integration and static gates passed"
+follow-up: []
 ---
 
 # src clean-code fifth-pass HTTP acceptance

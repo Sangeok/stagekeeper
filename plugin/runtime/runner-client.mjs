@@ -41,7 +41,7 @@ export async function runnerCall(target, payload, { signal } = {}) {
     response = await fetch(`${target.server}/api/runner`, { method: "POST", redirect: "manual", signal,
       headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Bearer ${target.token}` },
       body: JSON.stringify({ ...payload, ...(target.project ? { project: target.project } : {}) }) });
-  } catch (error) {
+  } catch {
     if (signal?.aborted) throw signal.reason;
     return { kind: "transient", retryAfter: 0 };
   }
@@ -52,7 +52,7 @@ export async function runnerCall(target, payload, { signal } = {}) {
   }
   let body;
   try { body = await readJson(response); }
-  catch (error) {
+  catch {
     if (signal?.aborted) throw signal.reason;
     return { kind: "transient", retryAfter: 0 };
   }
