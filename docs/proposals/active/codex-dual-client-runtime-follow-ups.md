@@ -48,9 +48,25 @@ related:
 
 ## Current State
 
-### 2026-10-23 현재 기준 — 기본 foreground·R3 통과, R4 인계와 설치/복구 직접 확인
+### 2026-10-24 Windows 우선 인수
 
-현재 기준은 public `775772efd6163117809c33e13e070adba9a8cff7`과 private
+public `5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5` / plugin `0.5.20`을 실제 설치해 새 계획부터
+`before-plan`·`before-implement` 브라우저 승인, 독립 전체 verifier, 구현·보고서 handoff와
+5개 최종 인수까지 통과했다. 아래 2026-10-23 기록에서 남았던 두 gate 재현을 이 시험으로
+추가 확인했다. Windows 명령의 root `cwd: "."` 오거부와 인자 오류의 권한 거부 오표시를
+수정했다. 최초 0.5.19 verifier 거부의 정확한 인자는 수집되지 않았으므로 그 실패를
+dot-root 결함 하나로 단정하지 않는다. 같은 계획의 별도 0.5.19 verifier 재현은 통과했다.
+
+양쪽 실제 0.5.19→0.5.20 설치·2,225개 파일 검증과 번들 helper 전체 흐름이 통과했다.
+현재 PC에는 전역 Node가 있으며 subprocess PATH에서만 제외했다. 물리적 clean Windows의
+완료 근거로 올리지 않는다. 제한된 native main-loop 보고서 commit·중단·종료 시험도
+통과했지만 test-only bridge/lock fixture이며 C4 제품 연결·lease·110분 idle은 미완료다.
+전체 상태는 `pending/blocked`를 유지한다. 실패·범위·hash·정리 결과는
+[Windows 인수 보고서](../../test-reports/completed/2026-10-24-codex-windows-gates.md)에 있다.
+
+### 2026-10-23 기록 — 기본 foreground·R3 통과, R4 인계와 설치/복구 직접 확인
+
+당시 기준은 public `775772efd6163117809c33e13e070adba9a8cff7`과 private
 `fb6ef955ba3f6fc8320e173fbafc9ef03b83281b`다. 공개 PR #217과 private PR #15가
 병합됐고 공개 최종 PR 및 dev push의 check·Windows runtime CI가 모두 통과했다.
 실제 시험 package는 plugin `0.5.19`, source `64db9e966a2adf26f47544f1b7dd833556751d17`,
@@ -72,7 +88,7 @@ related:
 
 직접 증거와 두 R4 observer 실패/수정 이력은 [후속 인수 보고서](../../test-reports/completed/2026-10-23-codex-runtime-followups.md)에 기록했다. R3는 준비된 계획으로 시작했고 기본 fresh-plan 시험과 별도다. R4는 실제 native CLI main-loop의 MCP 호출·공통 session과 브라우저 승인 인계 범위이며 watch 전체 실행이 아니다.
 
-전체 상태는 `pending/blocked`를 유지한다. 현재 기본/R3/R4 사례는 `before-implement` owner gate를
+2026-10-23 당시 전체 상태는 `pending/blocked`였다. 당시 기본/R3/R4 사례는 `before-implement` owner gate를
 사용했다. 기본 재현의 `before-plan` gate, 물리적 clean Windows·혼합 host·운영 인수 또는
 C4를 함께 통과했다고 해석하지 않는다.
 private repository 병합은 운영 seed·서비스 배포·패키지 공개가 아니다.
@@ -333,10 +349,10 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 ## Execution Plan
 
-1. **현재 후보 유지:** 2026-10-23 현재 기준의 public/private/runtime/verifier/package identity를 사용한다. 0.5.17 준비물은 역사적 checkpoint로 보존한다. 다른 내용의 같은 버전을 새 설치 성공으로 취급하지 않는다.
+1. **현재 후보 유지:** 2026-10-24 Windows 인수의 public/private/runtime/verifier/package identity와 0.5.20 설치본을 사용한다. 이전 버전의 인수는 해당 source의 기록으로 보존한다. 다른 내용의 같은 버전을 새 설치 성공으로 취급하지 않는다.
 2. **시험 환경:** 실제 Windows host·기존 인증·client와 새 격리 DB/서비스가 확보돼 기본 foreground 인수를 통과했다. 후속 사례마다 새 fixture·고정 source를 사용하며 물리적으로 Node가 없는 Windows 최소 설치는 별도 검증한다.
-3. **실행 인수:** 현재 private 버전의 R3 같은 항목 중지/재개/최종 인수와 R4 양방향 CLI/browser 인계는 명시한 범위에서 통과했다. 다음 기본 재현에서는 두 gate와 전체 pipeline을 유지한다. 물리적 clean Windows 및 실제 혼합 버전 host에서 남은 조건을 확인한다. 실패는 product·fixture·operator 원인을 구분하고 제품 수정 시 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
-4. **설치/복구:** 현재 0.5.19 installed inventory·bundled helper, 버전 갱신, 수정 파일 보존과 실제 private atomic seed/제한 복구의 로컬 시험을 통과했다. 다음은 물리적 clean Windows 최소 설치와 실제 혼합 host 인수다. 운영 릴리스는 별도 범위이며 BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
+3. **실행 인수:** 현재 private 버전의 R3 같은 항목 중지/재개/최종 인수와 R4 양방향 CLI/browser 인계는 명시한 범위에서 통과했다. 2026-10-24 기본 재현은 두 browser gate와 전체 pipeline을 통과했다. 물리적 clean Windows 및 실제 혼합 버전 host에서 남은 조건을 확인한다. 실패는 product·fixture·operator 원인을 구분하고 제품 수정 시 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
+4. **설치/복구:** 0.5.20 installed inventory·bundled helper 전체 흐름과 양쪽 버전 갱신을 통과했다. 수정 파일 보존과 실제 private atomic seed/제한 복구는 앞선 0.5.19 시험의 직접 증거를 유지한다. 다음은 물리적 clean Windows 최소 설치와 실제 혼합 host 인수다. 운영 릴리스는 별도 범위이며 BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
 5. **C4:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A는 2026-10-23 소스 구현·로컬 검증을 완료했다. 최소 설치·기본 인수와 실제 main-loop host/권한 계약 확인 뒤 C4B를 연결하고, C4C에서 TASK-C4-02/E12와 OS별 인수를 완료한다. C4A 통과로 실제 gate를 해제하지 않는다.
 
 ### 실제 Windows 인수의 시작 조건
@@ -499,6 +515,7 @@ permission 상속, private/public 버전 차이, pending host 종료·잠금 반
 - [x] 최소 설치 기준과 native Windows/패키징의 선행 작업·출시 blocker를 반영했다.
 - [x] 2026-10-22 source/private/runtime/verifier 후보를 고정하고 최신 runner·Codex 제한, 설치 준비물, R1–R5 재현 순서와 시작 조건을 기록했다.
 - [x] 현재 private R3 active-command 중지·같은 run 재개·최종 인수를 통과하고 R4 양방향 browser/CLI 인계의 범위를 기록했다.
+- [x] 0.5.20 설치본의 새 계획·두 browser gate·독립 verifier·구현·보고서·최종 인수를 현재 Windows PC에서 통과했다.
 - [x] 현재 설치본의 bundled helper·버전 갱신·전체 inventory·수정 파일 보존과 private 제한 복구의 로컬 직접 증거를 추가했다.
 - [ ] REQ-MIN-001/002의 물리적 clean Windows 실행·추가 설치 없는 패키징 인수를 완료한다.
 - [ ] 실제 호스트·양방향 CLI·설치/배포·혼합 버전 인수 증거를 확보한다.

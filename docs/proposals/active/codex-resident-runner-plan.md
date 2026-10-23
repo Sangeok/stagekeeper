@@ -34,8 +34,9 @@ INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
 [완료 기록](../completed/2026-10-04-codex-dual-client-support.md)의 canonical 정의를 참조한다.
 이 문서는 그 작업의 상세 계획이며 자동 watch 요구사항을 새로 정의하지 않는다.
 
-제품 source 기준은 `e71684751923a3bf4ca03e127be83112cb56039f`/plugin `0.5.17`이다.
-설치 후보와 private source는 상위 문서의 2026-10-22 준비 기록을 따른다.
+현재 Windows 인수 source는 `5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5`/plugin `0.5.20`이다.
+설치 후보와 private source는 상위 문서의 2026-10-24 Windows 기록을 따른다.
+아래 기존 runner 차이 표와 C4A 준비 기록은 당시 `e716847` 기준을 보존한다.
 현재 아키텍처는 Claude의 상주 실행기와 Codex foreground만 지원한다. 아래 Codex
 상주 동작과 경로는 **예정 설계**이며 현재 지원 기능으로 문서화하거나 배포하지 않는다.
 
@@ -310,3 +311,18 @@ unsettled 경로가 남기는 `unsettled:true` 잠금에만 적용한다. 그 �
 명령·실패·skip·모의 범위를 기록했다. Codex transport·서버 API·DB·private 본문·Codex skill·권한은
 변경하지 않았다. 추가 설치 ZIP은 생성하지 않았으며, 앞선 0.5.17 준비물은 C4A 변경을
 포함하지 않는다. 향후 배포 후보는 버전을 올려 새 inventory로 패키징해야 한다.
+
+## Windows Host Contract Observation — 2026-10-24
+
+현재 Windows에서 native Codex App Server의 실제 `turn/completed` 상태
+`completed`와 `interrupted`를 관찰했다. 별도 main-loop 문맥이 현재 runbook을 사용해
+명시적으로 허용된 고정 보고서만 commit했고, pending MCP 중 stop 후 조기 release·
+경쟁 client 시작·늦은 commit이 거부됐다. 실제 프로세스·bridge handler 종료 뒤 lock을
+반납했다. owner 환경 변수 전달·외부 읽기·제품 쓰기·gate/nested tool 호출도 차단했다.
+
+이것은 0.5.19의 공통 helper와 test-only bridge/resident lock fixture를 쓴 bounded
+host 시험이다. 제품 main-loop adapter·서버 lease·fresh 역할 전체 orchestration·cycle별
+문맥 교체·110분 idle은 실행하지 않았다. BLK-C4R-01의 raw terminal/좁은 commit/stop
+계약을 부분적으로 뒷받침하며 BLK-C4R-01/02 또는 C4B readiness를 해제하지 않는다.
+현재 foreground 0.5.20의 두 browser gate 전체 인수와도 구분한다.
+[범위별 증거](../../test-reports/completed/2026-10-24-codex-windows-gates.md)를 따른다.
