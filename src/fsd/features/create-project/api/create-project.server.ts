@@ -1,5 +1,5 @@
 "use server";
-import { newToken } from "@harness/core/token.mjs";
+import { newToken } from "@harness/core/tokens/token.mjs";
 import { requireUser } from "@/server/auth/guard";
 import { registerWebProject } from "@/server/projects/api.server";
 import { validateRepositorySelection } from "@/server/github/api.server";

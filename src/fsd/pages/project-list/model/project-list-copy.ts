@@ -1,5 +1,5 @@
 import { countNoun } from "@/fsd/shared/lib/count-noun";
-import type { Plan } from "@harness/core/entitlement.mjs";
+import type { Plan } from "@harness/core/plans/entitlement.mjs";
 import { planLabel } from "@/fsd/entities/account-plan";
 
 

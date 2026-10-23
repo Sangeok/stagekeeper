@@ -1,4 +1,4 @@
-import { dispatcherFor, isGateId, PROJECT_AGENTS, SLOT_FORMAT, slotAgent } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, isGateId, PROJECT_AGENTS, SLOT_FORMAT, slotAgent } from "@harness/core/pipeline/pipeline.mjs";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { ExecutionFacts, ExecutionItem } from "./contracts";
 import { handoffIsLive } from "./run-rules";

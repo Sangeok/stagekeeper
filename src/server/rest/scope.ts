@@ -1,5 +1,5 @@
-import { hashToken, parseBearer } from "@harness/core/token.mjs";
-import { isTokenActive } from "@harness/core/token-validity.mjs";
+import { hashToken, parseBearer } from "@harness/core/tokens/token.mjs";
+import { isTokenActive } from "@harness/core/tokens/token-validity.mjs";
 import { tryRecordTokenUsage } from "@/server/tokens/api";
 import { type TokenUsageRecorder } from "@/server/tokens/contracts";
 import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/projects/api";

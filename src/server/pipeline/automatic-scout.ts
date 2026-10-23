@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { slotAgent } from "@harness/core/pipeline.mjs";
+import { slotAgent } from "@harness/core/pipeline/pipeline.mjs";
 import { readProjectAccessIn } from "@/server/projects/api";
 import type { ServerResult } from "@/server/result";
 

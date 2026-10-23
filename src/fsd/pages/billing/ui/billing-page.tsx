@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { PLANS, type Plan } from "@harness/core/entitlement.mjs";
+import { PLANS, type Plan } from "@harness/core/plans/entitlement.mjs";
 import { planLabel } from "@/fsd/entities/account-plan";
 import { BILLING_NOTE, planMatrix } from "../model/plan-matrix";
 

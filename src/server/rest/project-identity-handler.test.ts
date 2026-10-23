@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { newToken } from "@harness/core/token.mjs";
+import { newToken } from "@harness/core/tokens/token.mjs";
 import { makeProjectIdentityFor, type ProjectIdentityDeps } from "./project-identity-handler";
 import { NOT_SELECTED_REASON } from "../projects/access-query";
 import { OWNERSHIP_UNAVAILABLE_REASON } from "../projects/api";

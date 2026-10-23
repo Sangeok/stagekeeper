@@ -1,4 +1,4 @@
-import { usageSnapshot } from "@harness/core/usage-window.mjs";
+import { usageSnapshot } from "@harness/core/plans/usage-window.mjs";
 import type { Prisma } from "@/generated/prisma/client";
 import { normalizePlan, READ_OPTIONS } from "@/server/projects/api";
 import { type Plan, type TransactionHost } from "@/server/projects/contracts";

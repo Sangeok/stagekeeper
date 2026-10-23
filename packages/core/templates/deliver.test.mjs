@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { REPORT_AGENTS } from "./entitlement.mjs";
+import { REPORT_AGENTS } from "../plans/entitlement.mjs";
 import { STEP_HEADING, deliverable, stubOf } from "./deliver.mjs";
 import { STEP_HEADING as BOUNDARY_HEADING, stubOf as boundaryStubOf } from "./template-boundary.mjs";
 

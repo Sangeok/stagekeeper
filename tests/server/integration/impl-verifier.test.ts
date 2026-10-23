@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { actionableWork } from "@harness/core/watch.mjs";
+import { actionableWork } from "@harness/core/execution/watch.mjs";
 import { createBoardService } from "../../../src/server/pipeline/api";
 import { nextFor } from "../../../src/server/pipeline/api";
 import { seedPipelineVersion, cleanup, connections, fixture } from "./support";

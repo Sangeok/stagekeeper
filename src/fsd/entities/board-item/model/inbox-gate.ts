@@ -1,4 +1,4 @@
-import { STATUSES, findRule } from "@harness/core/transitions.mjs";
+import { STATUSES, findRule } from "@harness/core/pipeline/transitions.mjs";
 
 export type GateRow = { status: string; gate: string | null };
 

@@ -7,7 +7,7 @@ function actionFixture(options: { authorized?: boolean; userId?: string } = {}) 
   let tokens = 0, writes = 0, validations = 0;
   const action = loadModule<{ createProject: typeof createProject }>("src/fsd/features/create-project/api/create-project.server.ts", {
     "@/server/auth/guard": { requireUser: async () => ({ userId: options.userId ?? "user" }) },
-    "@harness/core/token.mjs": { newToken: () => { tokens++; return { plain: "hs_reveal", hash: "hash-only" }; } },
+    "@harness/core/tokens/token.mjs": { newToken: () => { tokens++; return { plain: "hs_reveal", hash: "hash-only" }; } },
     "@/server/github/api.server": { validateRepositorySelection: async (_user: string, input: { owner: string; name: string }) => {
       validations++; assert.equal(input.owner, "org"); assert.equal(input.name, "repo");
       return options.authorized ? { ok: true, value: {} } : { ok: false, message: "Repository access changed." };

@@ -1,4 +1,4 @@
-import { allowsSessionApprovals } from "@harness/core/entitlement.mjs";
+import { allowsSessionApprovals } from "@harness/core/plans/entitlement.mjs";
 import { ProjectTokensPage } from "@/fsd/pages/project-tokens/index.server";
 import { issueOwnerToken, issueToken, revokeOwnerToken, revokeToken, renameToken, renameOwnerToken } from "@/fsd/features/manage-token/index.server";
 import { requireProjectOwner } from "@/server/auth/guard";

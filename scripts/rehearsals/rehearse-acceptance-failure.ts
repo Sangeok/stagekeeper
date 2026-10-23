@@ -10,12 +10,12 @@ import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
 import { build } from "esbuild";
 import { validateTestDatabase } from "../test-server-integration.mjs";
-import { parseHarnessConfig } from "../../packages/core/config.mjs";
-import { deliverable } from "../../packages/core/deliver.mjs";
-import { renderTemplate } from "../../packages/core/render.mjs";
-import { runbookIsStale, runbookVersion } from "../../packages/core/runbook.mjs";
-import { newToken } from "../../packages/core/token.mjs";
-import { buildReportTable, buildVars, templateDescription } from "../../packages/core/vars.mjs";
+import { parseHarnessConfig } from "../../packages/core/configuration/harness-config.mjs";
+import { deliverable } from "../../packages/core/templates/deliver.mjs";
+import { renderTemplate } from "../../packages/core/templates/render.mjs";
+import { runbookIsStale, runbookVersion } from "../../packages/core/templates/runbook.mjs";
+import { newToken } from "../../packages/core/tokens/token.mjs";
+import { buildReportTable, buildVars, templateDescription } from "../../packages/core/templates/vars.mjs";
 
 const browserFixture = String.raw`
 import React, {useState} from 'react';

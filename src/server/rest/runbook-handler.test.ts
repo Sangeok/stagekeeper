@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { runbookVersion } from "@harness/core/runbook.mjs";
-import { newToken } from "@harness/core/token.mjs";
+import { runbookVersion } from "@harness/core/templates/runbook.mjs";
+import { newToken } from "@harness/core/tokens/token.mjs";
 import { makeRecordRunbook, type RunbookDeps } from "./runbook-handler";
 
 const { plain: rawToken, hash: tokenHash } = newToken();

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { defaultGraph, refStep } from "@harness/core/pipeline.mjs";
+import { defaultGraph, refStep } from "@harness/core/pipeline/pipeline.mjs";
 import { check, hasUngatedRunnable, preview, insertRef, addNode, addSlot, moveSlot, insertGate, removeGate, removeNode, swapTail } from "./rail-state";
 
 const definitionOf = (plan: string) => { const graph = defaultGraph(plan); return { steps: graph.nodes, gates: graph.gates }; };

@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { PipelineNext } from "./run-rules";
-import { dispatcherFor, isItemNode } from "@harness/core/pipeline.mjs";
+import { dispatcherFor, isItemNode } from "@harness/core/pipeline/pipeline.mjs";
 
 export async function codexHandoffView(db: PrismaClient, projectId: string, item: PipelineNext) {
   if (item.action !== "wait" || item.on !== "handoff") return item;

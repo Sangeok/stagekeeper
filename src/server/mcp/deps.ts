@@ -1,4 +1,4 @@
-import { historyCutoff } from "@harness/core/entitlement.mjs";
+import { historyCutoff } from "@harness/core/plans/entitlement.mjs";
 import "server-only";
 import { recordTokenUsage } from "@/server/tokens/api.server";
 import { consumeProjectRequestBudget } from "@/server/usage/api";

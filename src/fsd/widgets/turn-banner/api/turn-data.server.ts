@@ -1,6 +1,6 @@
 import "server-only";
 
-import { isGateId } from "@harness/core/pipeline.mjs";
+import { isGateId } from "@harness/core/pipeline/pipeline.mjs";
 import { pendingInboxCount } from "@/fsd/entities/board-item";
 import { prisma } from "@/server/db";
 import { latestBoard } from "@/server/pipeline/api.server";

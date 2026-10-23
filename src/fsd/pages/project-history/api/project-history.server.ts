@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/server/db";
 import { loadPipelineChanges } from "@/server/pipeline/api";
 import type { HistoryEventRecord } from "@/server/pipeline/contracts";
-import { historyCutoff } from "@harness/core/entitlement.mjs";
+import { historyCutoff } from "@harness/core/plans/entitlement.mjs";
 import { readHistoryQuery } from "../model/history-navigation";
 import type { ProjectHistoryProps } from "../model/history-view";
 import { planForProject } from "@/server/projects/api.server";

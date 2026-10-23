@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
+import { CLIENTS, clientRuntime, parseClient } from "@harness/core/execution/client-runtime.mjs";
 import { Code, CodeBlock } from "@/fsd/shared/ui/code";
 import { CopyButton } from "@/fsd/shared/ui/copy-button";
 import { RuntimeClientChoice } from "@/fsd/shared/ui/runtime-client-choice";

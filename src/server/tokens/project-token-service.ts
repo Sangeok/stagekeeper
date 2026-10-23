@@ -1,6 +1,6 @@
-import { allowsSessionApprovals, OWNER_TOKEN_PLAN_GATE } from "@harness/core/entitlement.mjs";
-import { newToken } from "@harness/core/token.mjs";
-import { parseTokenExpiry } from "@harness/core/token-validity.mjs";
+import { allowsSessionApprovals, OWNER_TOKEN_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
+import { newToken } from "@harness/core/tokens/token.mjs";
+import { parseTokenExpiry } from "@harness/core/tokens/token-validity.mjs";
 import { readProjectAccessIn } from "@/server/projects/api";
 import { type TransactionHost } from "@/server/projects/contracts";
 import { AvailabilityConflict, lockProjectOwnerIn, withAvailabilityTransaction } from "@/server/projects/api";

@@ -6,7 +6,7 @@ import { requireProjectOwner } from "@/server/auth/guard";
 import { projectAccess } from "@/server/projects/api.server";
 import { prisma } from "@/server/db";
 import { loadProjectRoster } from "@/server/projects/api";
-import { routePipeline } from "@harness/core/pipeline.mjs";
+import { routePipeline } from "@harness/core/pipeline/pipeline.mjs";
 import { loadPipelinesView } from "@/server/pipeline/api";
 import { backlogWithStatus } from "@/server/pipeline/api.server";
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { refStep, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline.mjs";
+import { refStep, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline/pipeline.mjs";
 import { savePipelineDefinition } from "../../../src/server/pipeline/api";
 import { archivePipeline, renamePipeline, setAutomaticPick, setDefaultPipeline, setPipelineRule } from "../../../src/server/pipeline/api";
 import { ensureRun } from "../../../src/server/pipeline/run-service";

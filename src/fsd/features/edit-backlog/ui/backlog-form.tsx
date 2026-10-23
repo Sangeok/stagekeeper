@@ -1,5 +1,5 @@
 "use client";
-import { ITEM_TYPES } from "@harness/core/backlog.mjs";
+import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
 import { useActionState, useState } from "react";
 
 import { Button } from "@/fsd/shared/ui/button";

@@ -1,6 +1,6 @@
-import { TAIL_NODES, PROJECT_AGENTS, slotAgent, gateKind, gateId, validateDefinition, expand, recompose, refStep, refId, type Definition, type Definitions, type Recompose } from "@harness/core/pipeline.mjs";
+import { TAIL_NODES, PROJECT_AGENTS, slotAgent, gateKind, gateId, validateDefinition, expand, recompose, refStep, refId, type Definition, type Definitions, type Recompose } from "@harness/core/pipeline/pipeline.mjs";
 
-export type { Definition } from "@harness/core/pipeline.mjs";
+export type { Definition } from "@harness/core/pipeline/pipeline.mjs";
 export type PipelineSnapshot = {
   id: string; name: string; isDefault: boolean; definition: Definition;
   saved: { version: number; createdAt: Date } | null;

@@ -54,6 +54,16 @@ dependencies/
 | [2026-06-25-example.md](./completed/2026-06-25-example.md) | `2026-06-25` | 작업 요약 |
 ```
 
+### Active
+
+현재 문서 없음.
+
+### Completed
+
+| 문서 | 완료일 | 비고 |
+| --- | --- | --- |
+| [2026-10-23-audit-npm-vulnerabilities.md](./completed/2026-10-23-audit-npm-vulnerabilities.md) | `2026-10-23` | 운영 의존성 critical 1·high 8 → 0. Next 16.4.2, MCP SDK 2.3.1, mcp-handler 2.3.0, Prisma 7.10.1. 운영 반영은 0.5.19 배포 결정에 묶임 |
+
 ## When to Write a Dependency Document
 
 다음처럼 패키지 변경 자체가 작업의 중심이면 이 디렉터리에 문서를 둔다.

@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
-import type { Plan } from "@harness/core/entitlement.mjs";
-import { allowsPipelineEdit, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline.mjs";
+import type { Plan } from "@harness/core/plans/entitlement.mjs";
+import { allowsPipelineEdit, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline/pipeline.mjs";
 import { readProjectAccessIn } from "@/server/projects/api";
 
 export class PipelineRejection extends Error {}

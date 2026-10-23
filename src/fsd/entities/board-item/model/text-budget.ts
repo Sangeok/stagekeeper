@@ -1,4 +1,4 @@
-import { TEXT_LIMIT } from "@harness/core/transitions.mjs";
+import { TEXT_LIMIT } from "@harness/core/pipeline/transitions.mjs";
 
 export const FIELD_BUDGET: number = TEXT_LIMIT;
 

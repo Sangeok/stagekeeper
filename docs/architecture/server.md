@@ -53,7 +53,7 @@
 
 다음은 현재 공개 계약이다. 구현 소유자와 실제 제품 소비자를 함께 기록한다.
 
-선택형 GitHub 목록의 운영 경계는 [ADR-0005](../ADR/0005-optional-github-repository-list.md)를 따른다.
+선택형 GitHub 목록의 운영 경계는 [ADR-0006](../ADR/0006-optional-github-repository-list.md)를 따른다.
 
 | 공개 import 경로 | symbol | 구현 소유자와 제품 소비자 |
 | --- | --- | --- |

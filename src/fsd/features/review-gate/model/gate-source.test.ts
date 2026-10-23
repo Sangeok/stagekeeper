@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import * as transitions from "@harness/core/transitions.mjs";
-import { STATUSES, findRule, type RuleKind } from "@harness/core/transitions.mjs";
+import * as transitions from "@harness/core/pipeline/transitions.mjs";
+import { STATUSES, findRule, type RuleKind } from "@harness/core/pipeline/transitions.mjs";
 import { needsHumanDecision, pendingInboxCount, reopenTargetsFor } from "./gate-source";
 
 const DECLARED: Record<RuleKind, true> = { gate: true, auto: true, bounce: true, hold: true, resume: true, plan: true, reopen: true };
 
 describe("RuleKind", () => {
   it("declares every runtime export without inventing another public value", () => {
-    const source = ts.createSourceFile("transitions.d.mts", readFileSync("packages/core/transitions.d.mts", "utf8"), ts.ScriptTarget.Latest, true);
+    const source = ts.createSourceFile("transitions.d.mts", readFileSync("packages/core/pipeline/transitions.d.mts", "utf8"), ts.ScriptTarget.Latest, true);
     const names = source.statements.flatMap(node => {
       if (!ts.canHaveModifiers(node) || !ts.getModifiers(node)?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) return [];
       if (ts.isFunctionDeclaration(node) && node.name) return [node.name.text];

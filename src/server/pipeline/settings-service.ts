@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@/generated/prisma/client";
-import { ITEM_TYPES } from "@harness/core/backlog.mjs";
-import { refStep } from "@harness/core/pipeline.mjs";
+import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
+import { refStep } from "@harness/core/pipeline/pipeline.mjs";
 import type { ServerResult } from "@/server/result";
 import { PipelineRejection, requirePipelineEdit, withPipelineWrite, type PipelineWriteContext } from "./lock-pipeline";
 import { ensureRunnableVersion, loadPipelinesViewIn, PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND, type PipelineView, type PipelinesView } from "./run-service";

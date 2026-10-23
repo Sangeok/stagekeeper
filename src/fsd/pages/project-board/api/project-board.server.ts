@@ -4,7 +4,7 @@ import { prisma } from "@/server/db";
 import { loadProjectRoster } from "@/server/projects/api";
 import { latestBoard } from "@/server/pipeline/api.server";
 import { loadExecutionFacts, loadPipelinesView } from "@/server/pipeline/api";
-import { isGateId } from "@harness/core/pipeline.mjs";
+import { isGateId } from "@harness/core/pipeline/pipeline.mjs";
 
 export async function loadProjectBoard(projectId: string, now: Date): Promise<Briefing> {
   const board = latestBoard(projectId);

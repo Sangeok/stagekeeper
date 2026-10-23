@@ -1,5 +1,5 @@
 "use client";
-import { AUTO_PROPOSE_DISABLED_REASON, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline.mjs";
+import { AUTO_PROPOSE_DISABLED_REASON, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline/pipeline.mjs";
 import { Button } from "@/fsd/shared/ui/button";
 
 type Props = { enabled: boolean; writable: boolean; pending: boolean; onToggle: () => void; unavailableReason?: string };

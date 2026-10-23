@@ -604,7 +604,7 @@ API fetch가 GitHub로 303을 따라가는 것을 화면 이동으로 간주하�
 
 ### BLK-PRV-01: 새 서버 모듈과 공개 경계 승인
 
-- classification: resolved for this code change. 현재 구현 요청과 ADR-0005, 아키텍처·검사기·caller의 원자적 이전으로 반영했다.
+- classification: resolved for this code change. 현재 구현 요청과 ADR-0006, 아키텍처·검사기·caller의 원자적 이전으로 반영했다.
 - evidence: 현재 `server.md`·검사기의 방향표와 rootFiles에는 루트 `github.ts`만 있다.
 - affects: CON-PRV-001, INV-PRV-003, Phase PRV-P1.
 - impact: 이를 무시하면 아키텍처 위반을 임시 예외로 숨기거나 루트 기반 파일에 기능 의존성을 넣게 된다.
@@ -660,7 +660,7 @@ API fetch가 GitHub로 303을 따라가는 것을 화면 이동으로 간주하�
 - verification/exit: 권한 allowlist, 새 공개 API·의존 방향, 최초 승인/기존 설치 관리·두 탭 최신 시도 규칙,
   App 배포 범위·콜백·비밀 저장·rollback 계약과 담당자를 기록한다.
 - detailed plan: 별도 파일 없음. 착수 승인 후 이 기준과 실제 코드를 재대조해 범위를 확정한다.
-- readiness: ADR-0005와 이번 코드 변경의 계약으로 반영. 실제 운영 준비는 BLK-PRV-02/03/04의 배포 게이트다.
+- readiness: ADR-0006와 이번 코드 변경의 계약으로 반영. 실제 운영 준비는 BLK-PRV-02/03/04의 배포 게이트다.
 
 ### Phase PRV-P1: 비활성 상태의 서버 기반과 저장 수명주기
 
@@ -1052,7 +1052,7 @@ OFF 상태에서도 incoming webhook의 서명 검증·폐기 처리와 비밀 �
 ## Implementation authorization — 2026-10-23
 
 현재 사용자의 구현 요청으로 코드·계약·검증 변경을 진행한다. 원본 작업 트리는 보존하고 최신 origin/dev의 별도 worktree를 사용한다.
-P0의 모듈 경계와 기본 OFF 구현 계약은 ADR-0005에 기록한다. public/private만 선택 대상으로 지원하고 archived는 두 목록 모두 제외하되 미지원 건수를 표시한다.
+P0의 모듈 경계와 기본 OFF 구현 계약은 ADR-0006에 기록한다. public/private만 선택 대상으로 지원하고 archived는 두 목록 모두 제외하되 미지원 건수를 표시한다.
 토큰은 별도 AES-256-GCM keyring으로 암호화하고, state·브라우저 binding은 해시만 보관한다. 시도는 10분, delivery 중복 기록은 24시간 뒤 정리한다.
 만료 자료 물리 삭제와 keyring 회전은 운영 maintenance 명령으로 수행하며 운영자는 주기 실행을 설정해야 한다. 기능 ON의 조건에 운영 준비 확인을 포함한다.
 connection revision은 승인·철회·허용 범위 변경을 fence하고 tokenVersion은 refresh 경쟁을 fence한다. 정상 refresh만으로 사용자 선택을 stale로 만들지 않는다.

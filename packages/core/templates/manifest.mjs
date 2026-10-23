@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { COMMON_DOCS, parseClient } from "./client-runtime.mjs";
+import { parseClient } from "../execution/client-runtime.mjs";
+import { COMMON_DOCS } from "./codex-bundle.mjs";
 
 export function hashOf(text) { return createHash("sha256").update(String(text).replace(/\r\n/g, "\n")).digest("hex").slice(0, 16); }
 

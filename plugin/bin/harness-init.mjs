@@ -2,18 +2,19 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { parseHarnessConfig } from "../lib/config.mjs";
+import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
 import { parseRepoUrl } from "../lib/repo-url.mjs";
-import { deliverable } from "../lib/deliver.mjs";
-import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/entitlement.mjs";
-import { mergeClientLock, planWrites } from "../lib/manifest.mjs";
-import { renderTemplate } from "../lib/render.mjs";
-import { runbookVersion, codexRunbookVersion } from "../lib/runbook.mjs";
-import { parseClient, RUNTIME_PROTOCOL, validateCodexBundle } from "../lib/client-runtime.mjs";
+import { deliverable } from "../lib/templates/deliver.mjs";
+import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/plans/entitlement.mjs";
+import { mergeClientLock, planWrites } from "../lib/templates/manifest.mjs";
+import { renderTemplate } from "../lib/templates/render.mjs";
+import { runbookVersion, codexRunbookVersion } from "../lib/templates/runbook.mjs";
+import { parseClient, RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
+import { validateCodexBundle } from "../lib/templates/codex-bundle.mjs";
 import { renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { acquireInitGuard, atomicWrite, safeTarget, writeGenerated } from "../runtime/file-ownership.mjs";
 import { serverUrl } from "../runtime/mcp-client.mjs";
-import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "../lib/vars.mjs";
+import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "../lib/templates/vars.mjs";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const progress = { phase: "preflight", written: [] };

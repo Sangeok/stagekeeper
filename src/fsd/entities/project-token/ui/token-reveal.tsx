@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CLIENTS, clientRuntime, parseClient } from "@harness/core/client-runtime.mjs";
+import { CLIENTS, clientRuntime, parseClient } from "@harness/core/execution/client-runtime.mjs";
 
 import { cn } from "@/fsd/shared/lib/class-name";
 import { installCommands } from "@/fsd/shared/config/plugin-install";

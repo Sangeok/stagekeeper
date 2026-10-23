@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@/generated/prisma/client";
-import { RUNBOOK_TEMPLATE, isRunbookVersion, runbookIsStale } from "@harness/core/runbook.mjs";
+import { RUNBOOK_TEMPLATE, isRunbookVersion, runbookIsStale } from "@harness/core/templates/runbook.mjs";
 
 export async function runbookStale(projectId: string, db: PrismaClient, reported?: string): Promise<boolean> {
   const rows = await db.template.findMany({ where: { path: RUNBOOK_TEMPLATE }, select: { body: true } });

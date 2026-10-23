@@ -72,7 +72,7 @@ D3 리허설은 2026-10-23 폐기했고, 현행 무결성의 읽기 전용 검�
 수행하고 `outcome`과 반환받은 `receipt`를 함께 보낸다. 커서는 `AgentRun`이며
 범위가 확인된 outcome 시도마다 `AgentRunStep`에 수락/거절 감사 기록을 남긴다.
 수락 기록과 커서 revision 갱신은 원자적이고, 거절 기록은 단계 증거가 아니다.
-무엇을 내려줄지는 `packages/core/deliver.mjs` 하나가
+무엇을 내려줄지는 `packages/core/templates/deliver.mjs` 하나가
 정하고, 서버와 생성기의 로컬 우회로가 같은 함수를 쓴다.
 
 ## 데이터와 규칙의 소유권
@@ -88,8 +88,8 @@ D3 리허설은 2026-10-23 폐기했고, 현행 무결성의 읽기 전용 검�
 | 워크스페이스·검증 명령 | 사용자 저장소의 `harness.json` | 코드와 함께 변하는 코드 인접 설정 |
 | **에이전트 절차의 단계 본문** | Postgres(`Template`) — 원문은 private 저장소 | 본문이 서비스의 실체다. 파일로 내려가면 로컬 파이프라인이 그대로 선다 |
 | **에이전트가 지금 서 있는 단계** | Postgres(`AgentRun`·`AgentRunStep`) | 커서가 서버에 있어야 단계 열거를 막고 감사가 남는다 |
-| **파이프라인 그래프와 커서** | Postgres(`Pipeline`·`PipelineDefinition`·`PipelineRule`·`PipelineVersion`·`PipelineRun`) — 규칙은 `packages/core/pipeline.mjs` | 순서가 서버에 있어야 강제·계수·감사가 된다. 런북에 글로 있으면 세션이 순서를 기억으로 바꿔도 서버가 모른다 |
-| 플랜과 상한 | `packages/core/entitlement.mjs`의 `LIMITS` | 웹 화면·MCP·생성기가 같은 표로 판정하고 `/billing`이 그것을 렌더 |
+| **파이프라인 그래프와 커서** | Postgres(`Pipeline`·`PipelineDefinition`·`PipelineRule`·`PipelineVersion`·`PipelineRun`) — 규칙은 `packages/core/pipeline/pipeline.mjs` | 순서가 서버에 있어야 강제·계수·감사가 된다. 런북에 글로 있으면 세션이 순서를 기억으로 바꿔도 서버가 모른다 |
+| 플랜과 상한 | `packages/core/plans/entitlement.mjs`의 `LIMITS` | 웹 화면·MCP·생성기가 같은 표로 판정하고 `/billing`이 그것을 렌더 |
 
 ## 최상위 의존성
 

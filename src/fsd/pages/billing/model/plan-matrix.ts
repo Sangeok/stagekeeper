@@ -1,4 +1,4 @@
-import { PLANS, UNLIMITED, limitsFor, type Plan } from "@harness/core/entitlement.mjs";
+import { PLANS, UNLIMITED, limitsFor, type Plan } from "@harness/core/plans/entitlement.mjs";
 
 export type PlanRow = { label: string; values: Record<Plan, string> };
 

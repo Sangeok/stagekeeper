@@ -6,7 +6,7 @@ import { it } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import type { ReactElement } from "react";
-import { hashToken } from "@harness/core/token.mjs";
+import { hashToken } from "@harness/core/tokens/token.mjs";
 import * as result from "../../src/fsd/shared/api/result";
 import { registerWebProject } from "../../src/server/projects/registration-service";
 import * as management from "../../src/server/tokens/rename-token";
@@ -118,7 +118,7 @@ it("web action generates one token before registration and preserves single-atte
     const prisma = { $transaction: async () => { attempts++; throw error; } } as unknown as Parameters<typeof registerWebProject>[0];
     const load = loader({
       "@/server/auth/guard": { requireUser: async () => ({ userId: "u" }) },
-      "@harness/core/token.mjs": { newToken: () => { generated++; return { plain: "one-time-secret", hash: "hash" }; } },
+      "@harness/core/tokens/token.mjs": { newToken: () => { generated++; return { plain: "one-time-secret", hash: "hash" }; } },
       "@/server/projects/api.server": { registerWebProject: (input: Parameters<typeof registerWebProject>[1]) => {
         assert.equal(generated, 1); assert.equal(input.initialTokenHash, "hash");
         assert.equal(JSON.stringify(input).includes("one-time-secret"), false);

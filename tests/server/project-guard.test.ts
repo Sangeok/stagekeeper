@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import { notFound, redirect } from "next/navigation";
 import ts from "typescript";
-import { defaultGraph } from "@harness/core/pipeline.mjs";
+import { defaultGraph } from "@harness/core/pipeline/pipeline.mjs";
 import type * as TokenActions from "@/fsd/features/manage-token/index.server";
 import type * as BacklogActions from "@/fsd/features/edit-backlog/index.server";
 import type * as PipelineActions from "@/fsd/features/edit-pipeline/index.server";
