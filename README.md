@@ -292,6 +292,7 @@ npm run dev              # http://localhost:3000
 | `npm run lint` | ESLint, then FSD and server boundary checks |
 | `npm run verify:fsd` | FSD boundary check only |
 | `npm run verify:server` | Server module/public API and initialization boundary check |
+| `npm run verify:plugin-version` | Before promoting `dev` to `main`: fails when shipped `plugin/` files changed without a higher, matching version in both plugin manifests |
 | `npm run test:architecture` | `scripts/**/*.test.mjs` |
 | `npm run test:scripts` | `scripts/**/*.test.mjs`, `scripts/**/*.test.ts` (included in `check`) |
 | `npm test` | `packages/core` and `plugin/bin` tests |
@@ -385,6 +386,8 @@ Branches: `dev` is the integration branch and `main` is the release branch.
 - A pull request into `dev` merges only when the `check` workflow is green.
 - `main` takes only commits already green on `dev`, by fast-forward:
   `git switch main && git merge --ff-only dev && git push origin main`.
+  Run `npm run verify:plugin-version` first: a shipped plugin change needs a higher,
+  matching version in both plugin manifests, or installed plugins never update.
 - Never open a pull request with `dev` as its head, and don't commit directly to `dev` or
   `main`.
 

@@ -85,6 +85,10 @@ commits that were already green on `dev`.
   `git switch main && git merge --ff-only dev && git push origin main`.
   Do not merge `dev` into `main` through the GitHub UI: that merge commit lands on
   `main` alone, and every release after it needs a back-merge to repair the split.
+- Before promoting, run `npm run verify:plugin-version` and stop if it fails. When
+  shipped `plugin/` files differ between `origin/main` and `origin/dev`, both plugin
+  manifests must carry the same, higher version; otherwise the server deploys while
+  installed plugins never update.
 - **Neither `main` nor `dev` may be the head of a pull request.** Release promotion
   remains fast-forward only. The active GitHub ruleset `Keep dev and main` forbids
   deletion of both protected refs and has no bypass actors; retain that protection.
