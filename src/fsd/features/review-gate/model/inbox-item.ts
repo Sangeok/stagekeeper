@@ -36,8 +36,6 @@ export type InboxItem = {
   updatedAt: string;
 };
 
-export type { TransitionInput } from "./review-gate-input";
-
 export type RetryAcceptanceAction = (input: RetryAcceptanceInput) => Promise<ActionResult<void>>;
 
 export type TransitionAction = (input: TransitionInput) => Promise<ActionResult<void>>;

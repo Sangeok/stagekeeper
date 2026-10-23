@@ -3,7 +3,6 @@ export { codexHandoffView } from "./codex-handoff-query";
 export { createBoardQueries as createBoardService } from "./board-service";
 export { formatHistoryCursor } from "./history-page";
 export { formatHistoryItemCursor } from "./history-items";
-export { handoffIsLive } from "./run-rules";
 export { hasActiveLegacyScoutSlot } from "./automatic-scout";
 export { headFor } from "./run-service";
 export { loadItemPipelineView } from "./run-service";

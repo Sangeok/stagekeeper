@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/server/db";
 import { normalizePlan, readProjectAccess, readProjectPlanIn, READ_OPTIONS, type Plan, type ProjectAccess } from "./access-query";
 
-export type { Plan, ProjectAccess } from "./access-query";
+export type { Plan } from "./access-query";
 
 export async function planForUser(userId: string): Promise<Plan> {
   const row = await prisma.subscription.findUnique({ where: { userId }, select: { plan: true } });
