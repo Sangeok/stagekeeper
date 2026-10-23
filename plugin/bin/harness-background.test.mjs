@@ -331,6 +331,7 @@ syncBuiltinESMExports();
   const lock = JSON.parse(readFileSync(f.lockPath, "utf8"));
   assert.equal(lock.id, started.event.session);
   assert.equal(lock.lifecycle, "stopping");
+  assert.equal(lock.unsettled, true);
   assert.equal(lock.children.length, 1);
   assert.ok(lock.children.every(child => !alive(child.pid)));
   assert.ok(f.runnerCalls.every(call => call.op !== "stop" && !call.lastResult));
@@ -339,6 +340,48 @@ syncBuiltinESMExports();
   assert.equal(JSON.parse(readFileSync(f.lockPath, "utf8")).id, lock.id);
   assert.ok(f.runnerCalls.every(call => call.op !== "stop"));
   unlinkSync(f.lockPath);
+});
+
+async function killMidRun(f, session) {
+  const lock = await waitFor(() => {
+    try {
+      const value = JSON.parse(readFileSync(f.lockPath, "utf8"));
+      return value.id === session && value.poller && value.children?.length ? value : null;
+    } catch { return null; }
+  }, 20000, "a run in progress");
+  const client = await waitFor(() => f.record().findLast(entry => !entry.args.includes("Reply with OK.") && alive(entry.pid)), 20000, "the running client");
+  const pids = [lock.poller.pid, ...lock.children.map(child => child.pid), client.pid];
+  for (const pid of pids) { try { process.kill(pid, "SIGKILL"); } catch {   } }
+  await waitFor(() => pids.every(pid => !alive(pid)), 15000, "the killed runner");
+}
+
+it("clears a runner that died mid-run on the next start and on a stop", async t => {
+  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "hang" }, { kind: "success" }] });
+  const first = await f.run(START);
+  assert.equal(first.event.event, "started");
+  await killMidRun(f, first.event.session);
+
+  const second = await f.run(START);
+  assert.equal(second.event.event, "started");
+  assert.notEqual(second.event.session, first.event.session);
+  await killMidRun(f, second.event.session);
+
+  assert.deepEqual((await f.run(["--stop"])).event, { event: "stopped", session: second.event.session });
+  assert.equal(existsSync(f.lockPath), false);
+  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.session === second.event.session && call.reason === "owner"));
+});
+
+it("starts at sign-in after a runner died mid-run", async t => {
+  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "success" }] });
+  const first = await f.run(START);
+  assert.equal(first.event.event, "started");
+  await killMidRun(f, first.event.session);
+  writeFileSync(path.join(f.directory, "autostart.json"), JSON.stringify({ schemaVersion: 1, branch: "main" }));
+
+  const signIn = await f.run([...START, "--from-autostart"]);
+  assert.equal(signIn.event.event, "started");
+  assert.notEqual(signIn.event.session, first.event.session);
+  assert.ok(f.runnerCalls.every(call => call.op !== "autostart"));
 });
 
 it("does not expose a Codex resident selector or start a client for an unknown option", async t => {

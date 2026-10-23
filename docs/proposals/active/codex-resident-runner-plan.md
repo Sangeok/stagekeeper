@@ -290,6 +290,11 @@ child settlement 실패를 삼키던 경로를 제거하고 `resident-run-unsett
 PID 부재만으로 다음 start/반복 stop이 잠금을 회수하지 않는다. 실제 CLI에 주입한
 settlement 실패에서 서버 stop·결과 보고가 없고 lock/child가 남는 것을 확인했다.
 
+2026-10-23 후속 수정: 위 회수 금지가 unsettled가 아닌 잠금에도 걸려, 실행 중 재부팅이나 강제 종료로 죽은
+runner의 checkout은 start·`--stop`·로그온 시작이 모두 `locked`로 막혔다(C4A 전에는 회수됨). 이제 회수 금지는
+unsettled 경로가 남기는 `unsettled:true` 잠금에만 적용한다. 그 밖의 잠금은 상주 프로세스와 기록된 child가 모두
+없으면 C4A 전처럼 회수한다. TASK-C4A-02가 유지하기로 한 기존 Claude drain 동작과 같다.
+
 | 검사 | 결과 |
 | --- | --- |
 | 변경 전 Claude 집중 기준 | 29 PASS |
