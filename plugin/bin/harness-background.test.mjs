@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { it } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { runnerHost } from "../runtime/runner-client.mjs";
 import { REASONS, START_LINES } from "./harness-background.mjs";
 
@@ -121,7 +121,7 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}
     await new Promise(resolve => server.close(resolve));
     for (const dir of [root, tools]) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
-  return { root, url, git, run, runnerCalls, directory, lockPath, status, record: () => lines(record), notices: () => lines(notices),
+  return { root, tools, url, git, run, runnerCalls, directory, lockPath, status, record: () => lines(record), notices: () => lines(notices),
     setRunner: handler => { runner = handler; }, setOverview: value => { overview = value; } };
 }
 
@@ -301,6 +301,53 @@ it("clears a dead runner's lock on the next start and keeps only the newest fift
   assert.notEqual(second.event.session, first.event.session);
   await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult && call.session === second.event.session), 30000, "a run");
   assert.equal(readdirSync(runs).filter(name => name.endsWith(".jsonl")).length, 50);
+});
+
+it("preserves an unconfirmed child settlement and refuses a new start or repeated stop", async t => {
+  const f = await fixture(t);
+  const preload = path.join(f.tools, "fail-settlement.mjs");
+  writeFileSync(preload, `
+import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+const rename = fs.renameSync;
+let failed = false;
+fs.renameSync = (source, target) => {
+  if (!failed && process.argv.includes("--run") && String(target).endsWith("watch.lock.json")) {
+    const before = JSON.parse(fs.readFileSync(target, "utf8"));
+    const after = JSON.parse(fs.readFileSync(source, "utf8"));
+    if (before.children?.length && after.children?.length === 0) {
+      failed = true;
+      throw new Error("Injected child settlement failure");
+    }
+  }
+  return rename(source, target);
+};
+syncBuiltinESMExports();
+`);
+  const started = await f.run(START, { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` });
+  assert.equal(started.event.event, "started");
+  await waitFor(() => f.status()?.stopReason === "unsettled", 15000, "unconfirmed settlement");
+  await waitFor(() => !alive(f.status().pid), 15000, "the failed runner to exit");
+  const lock = JSON.parse(readFileSync(f.lockPath, "utf8"));
+  assert.equal(lock.id, started.event.session);
+  assert.equal(lock.lifecycle, "stopping");
+  assert.equal(lock.children.length, 1);
+  assert.ok(lock.children.every(child => !alive(child.pid)));
+  assert.ok(f.runnerCalls.every(call => call.op !== "stop" && !call.lastResult));
+  assert.equal((await f.run(START)).event.code, "locked");
+  assert.equal((await f.run(["--stop"])).event.event, "stopping");
+  assert.equal(JSON.parse(readFileSync(f.lockPath, "utf8")).id, lock.id);
+  assert.ok(f.runnerCalls.every(call => call.op !== "stop"));
+  unlinkSync(f.lockPath);
+});
+
+it("does not expose a Codex resident selector or start a client for an unknown option", async t => {
+  const f = await fixture(t);
+  const result = await f.run([...START, "--client", "codex"]);
+  assert.equal(result.code, 1);
+  assert.equal(f.record().length, 0);
+  assert.equal(f.runnerCalls.length, 0);
+  assert.equal(existsSync(f.lockPath), false);
 });
 
 it("keeps every refusal and start line in product copy", () => {

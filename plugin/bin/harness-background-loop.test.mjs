@@ -27,14 +27,14 @@ function harness({ overviews = [WORK, NONE], trees = [], heads = null, beats = [
       if (value instanceof Error) throw value;
       return value;
     },
-    startRun: () => {
+    execution: { stopMode: "drain", classify: classifyRun, start: () => {
       calls.runs++;
       const plan = next(runs, SUCCESS);
       let resolve;
       const done = new Promise(r => { resolve = r; });
       if (!plan.hang) queueMicrotask(() => resolve(plan));
       return { done, end: reason => { calls.ended.push(reason); calls.endedAt.push(clock); resolve({ exitCode: 1, result: null, log: "run.jsonl", ...plan.onEnd }); } };
-    },
+    } },
     notify: notice => calls.notices.push(notice.kind),
     save: status => calls.saves.push(status),
     sleep: async ms => { clock += ms; },

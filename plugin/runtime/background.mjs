@@ -111,11 +111,23 @@ export function classifyRun(end) {
   return { outcome: "error", line: end.exitCode === 0 ? "error: no result" : `error: exit ${end.exitCode}` };
 }
 
+export class ResidentRunUnsettled extends Error {
+  constructor(cause) {
+    super("Resident run termination was not confirmed.", { cause });
+    this.code = "resident-run-unsettled";
+  }
+}
+
 export async function runResident(context, deps) {
   const { branch, interval = INTERVAL_MS, branchCheck = BRANCH_CHECK_MS, runLimit = RUN_LIMIT_MS } = context;
+  const execution = deps.execution;
+  if (!execution || typeof execution.start !== "function" || typeof execution.classify !== "function"
+    || !["drain", "interrupt"].includes(execution.stopMode)) throw new Error("Resident execution adapter required");
+  const interruptOnStop = execution.stopMode === "interrupt";
   const status = { state: "idle", waitReason: null, waitFiles: [], interrupted: null, lastResult: null, lastLog: null, failures: 0 };
   let wait = null;
-  let failures = 0, transient = 0, requestFailures = 0;
+  let failures = 0, transient = 0, requestFailures = 0, startFailures = 0;
+  let generation = 0;
   let failureKinds = [];
   const save = () => deps.save({ ...status, failures });
 
@@ -135,6 +147,11 @@ export async function runResident(context, deps) {
     try { return deps.branch() !== branch; }
     catch (error) { deps.log(`branch check failed: ${error?.message ?? error}`); return false; }
   };
+  const localStop = () => {
+    const life = deps.lifecycle();
+    return life === "active" ? null : life === "stopping" ? "owner" : "replaced";
+  };
+  const interruptReason = () => interruptOnStop ? localStop() : null;
   const sleepActive = async ms => {
     for (let left = ms; left > 0; left -= 1000) {
       if (deps.lifecycle() !== "active") return;
@@ -142,10 +159,61 @@ export async function runResident(context, deps) {
     }
   };
 
+  const awaitRun = async () => {
+    let run;
+    try {
+      run = execution.start({ generation: ++generation });
+      if (!run || typeof run.end !== "function" || typeof run.done?.then !== "function") throw new Error("Invalid resident run handle");
+    } catch (error) { throw new ResidentRunUnsettled(error); }
+    let endedFor = null, stopAfter = null, pausedDuringRun = false, finished = false, signalFailures = 0;
+    const done = run.done.then(end => { finished = true; return end; }, error => { finished = true; throw new ResidentRunUnsettled(error); });
+    void done.catch(() => {});
+    const endRun = async reason => {
+      if (endedFor || finished) return;
+      endedFor = reason;
+      try { await run.end(reason); } catch (error) { throw new ResidentRunUnsettled(error); }
+    };
+    const started = deps.now();
+    let beatAt = null;
+    try {
+      while (!finished) {
+        if (interruptOnStop) stopAfter ??= localStop();
+        if ((!interruptOnStop || !stopAfter) && (beatAt === null || deps.now() - beatAt >= interval)) {
+          beatAt = deps.now();
+          const result = verdict(await deps.beat({ state: "working" }));
+          if (result.paused) pausedDuringRun = true;
+          signalFailures = result.transient ? signalFailures + 1 : 0;
+          if (!stopAfter) stopAfter = result.stop ?? (signalFailures >= REQUEST_FAILURE_LIMIT ? "error" : null);
+        }
+        stopAfter ??= localStop();
+        if (interruptOnStop && stopAfter) await endRun("stop");
+        else {
+          if (branchMoved()) await endRun("branch");
+          if (deps.now() - started >= runLimit) await endRun("timeout");
+        }
+        if (!finished) {
+          const pause = new AbortController();
+          try { await Promise.race([done, deps.sleep(Math.min(branchCheck, interval), pause.signal)]); }
+          finally { pause.abort(); }
+        }
+      }
+      const end = await done;
+      if (interruptOnStop) stopAfter ??= localStop();
+      return { end, endedFor, stopAfter, pausedDuringRun };
+    } catch (error) {
+      if (!finished && !endedFor) {
+        try { void Promise.resolve(run.end("stop")).catch(() => {}); } catch {   }
+      }
+      throw error instanceof ResidentRunUnsettled ? error : new ResidentRunUnsettled(error);
+    }
+  };
+
   for (;;) {
     const life = deps.lifecycle();
     if (life !== "active") return life === "stopping" ? "owner" : "replaced";
     const beat = verdict(await deps.beat(wait ? { state: "waiting", waitReason: wait.reason } : { state: "idle" }));
+    const stoppedAfterBeat = interruptReason();
+    if (stoppedAfterBeat) return stoppedAfterBeat;
     if (beat.transient) {
       if (++transient >= REQUEST_FAILURE_LIMIT) return "error";
       await sleepActive(interval);
@@ -163,6 +231,8 @@ export async function runResident(context, deps) {
       await sleepActive(interval);
       continue;
     }
+    const stoppedAfterOverview = interruptReason();
+    if (stoppedAfterOverview) return stoppedAfterOverview;
     if (!hasWork(work) && !wait) { await sleepActive(interval); continue; }
 
     const tree = deps.tree();
@@ -182,34 +252,41 @@ export async function runResident(context, deps) {
     if (!hasWork(work)) { save(); await sleepActive(cleared ? Math.min(REPORT_SOON_MS, interval) : interval); continue; }
 
     const before = workSignature(work);
+    if (interruptOnStop) {
+      const ready = verdict(await deps.beat({ state: "working" }));
+      const stoppedBeforeStart = localStop();
+      if (stoppedBeforeStart || ready.stop) return stoppedBeforeStart ?? ready.stop;
+      if (ready.transient) {
+        if (++startFailures >= REQUEST_FAILURE_LIMIT) return "error";
+        await sleepActive(interval);
+        continue;
+      }
+      startFailures = 0;
+      if (ready.paused) { await sleepActive(interval); continue; }
+    }
     Object.assign(status, { state: "working" });
     save();
-    const run = deps.startRun();
-    let endedFor = null, stopAfter = null, pausedDuringRun = false;
-    let finished = false;
-    const done = run.done.then(end => { finished = true; return end; });
-    const started = deps.now();
-    let beatAt = null;
-    while (!finished) {
-      if (beatAt === null || deps.now() - beatAt >= interval) {
-        beatAt = deps.now();
-        const result = verdict(await deps.beat({ state: "working" }));
-        if (result.paused) pausedDuringRun = true;
-        if (result.stop && !stopAfter) stopAfter = result.stop;
-      }
-      if (deps.lifecycle() !== "active" && !stopAfter) stopAfter = deps.lifecycle() === "stopping" ? "owner" : "replaced";
-      if (!endedFor && branchMoved()) { endedFor = "branch"; run.end("branch"); }
-      if (!endedFor && deps.now() - started >= runLimit) { endedFor = "timeout"; run.end("timeout"); }
-      const pause = new AbortController();
-      await Promise.race([done, deps.sleep(Math.min(branchCheck, interval), pause.signal)]);
-      pause.abort();
+    const completed = await awaitRun();
+    const { end, endedFor, pausedDuringRun } = completed;
+    let { stopAfter } = completed;
+    if (interruptOnStop && stopAfter) return stopAfter;
+    let paused = false;
+    if (interruptOnStop) {
+      const current = verdict(await deps.beat({ state: "working" }));
+      const stoppedAfterRun = localStop();
+      if (stoppedAfterRun || current.stop) return stoppedAfterRun ?? current.stop;
+      paused = current.paused || current.transient;
     }
-    const end = await done;
-    const { outcome, line } = classifyRun({ ...end, endedFor: endedFor ?? end.endedFor });
+    const { outcome, line } = execution.classify({ ...end, endedFor: endedFor ?? end.endedFor });
+    if (outcome === "cancelled") return stopAfter ?? "error";
     Object.assign(status, { state: "idle", lastResult: line, lastLog: end.log });
 
     let progressed = null;
-    try { progressed = workSignature(await deps.overview()) !== before; } catch { progressed = null; }
+    if (!paused) {
+      try { progressed = workSignature(await deps.overview()) !== before; } catch { progressed = null; }
+    }
+    const stoppedAfterProgress = interruptReason();
+    if (stoppedAfterProgress) return stoppedAfterProgress;
     if (outcome === "branch") {   }
     else if (outcome !== "success") { failures++; failureKinds.push("error"); }
     else if (progressed === false) { failures++; failureKinds.push("stuck"); }
@@ -227,6 +304,8 @@ export async function runResident(context, deps) {
       const report = await deps.beat({ state: wait ? "waiting" : "idle", ...(wait ? { waitReason: wait.reason } : {}),
         lastResult: line, ...(end.log ? { lastLog: end.log } : {}) });
       const settled = verdict(report);
+      const stoppedAfterReport = interruptReason();
+      if (stoppedAfterReport) return stoppedAfterReport;
       if (settled.stop && !stopAfter) stopAfter = settled.stop;
       if (pausedDuringRun && settled.paused) deps.notify(fillNotice("pausedFinished", { branch }));
     }
