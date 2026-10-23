@@ -4,6 +4,31 @@ import { request } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { roleBridge } from "./codex-thread.mjs";
 import { ROLE_TOOLS } from "./codex-agent.mjs";
+import { z } from "zod";
+
+it("omits absent binding IDs and binds subsequent calls to the server-issued run", async t => {
+  const entry = { runId: "pipeline", entryId: "entry", slotId: "verify" };
+  const receipt = { runId: "agent-run", revision: 0, stepId: "start" }, calls = [];
+  const schema = z.object({ agentRunId: z.string().optional(), entry: z.object({ runId: z.string(), entryId: z.string(), slotId: z.string() }) });
+  const bridge = await roleBridge({ binding: {} }, {}, "session", { agent: "plan-verifier", project: "p", agentKey: "K-1", entry }, {
+    listTools: async () => ROLE_TOOLS["plan-verifier"].map(name => ({ name })),
+    checkSession: async () => ({ event: "owned", lifecycle: "active", client: "codex" }),
+    callTool: async (_input, _name, args) => {
+      schema.parse(args); calls.push(args);
+      return { done: false, step: "start", receipt, entry, agentRunId: receipt.runId };
+    },
+  });
+  t.after(() => bridge.close());
+  const call = args => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "agent_next", arguments: { project: "p", agent: "plan-verifier", key: "K-1", ...args } } }) }).then(response => response.json());
+  assert.equal((await call({ entry, agentRunId: null })).error, undefined);
+  assert.equal(Object.hasOwn(calls[0], "agentRunId"), false);
+  assert.equal((await call({ entry: null, agentRunId: null, outcome: "ok", receipt })).error, undefined);
+  assert.equal(calls[1].agentRunId, receipt.runId);
+  assert.deepEqual(calls[1].entry, entry);
+  assert.ok((await call({ agentRunId: "another-run" })).error);
+  assert.ok((await call({ entry: { ...entry, entryId: "another-entry" } })).error);
+  assert.equal(calls.length, 2);
+});
 
 async function fixture(t, execute = async () => ({ text: "allowed" })) {
   const receipt = { runId: "r", revision: 0, stepId: "audit" }, calls = [];

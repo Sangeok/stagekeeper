@@ -60,7 +60,9 @@ export function boundArguments(name, args, dispatch, stepResponse) {
     const binding = stepResponse ?? dispatch;
     if (args.entry && !isDeepStrictEqual(args.entry, binding.entry)) throw new Error("Pipeline entry mismatch");
     if (args.agentRunId && args.agentRunId !== binding.agentRunId) throw new Error("Agent run mismatch");
-    return { ...args, agent: dispatch.agent, key: dispatch.agentKey,
+    const normalized = { ...args };
+    for (const field of ["entry", "agentRunId"]) if (normalized[field] === null) delete normalized[field];
+    return { ...normalized, agent: dispatch.agent, key: dispatch.agentKey,
       ...(args.outcome && binding.receipt ? { stepId: binding.receipt.stepId } : {}),
       ...(binding.entry ? { entry: binding.entry } : {}), ...(binding.agentRunId ? { agentRunId: binding.agentRunId } : {}), client: "codex" };
   }
