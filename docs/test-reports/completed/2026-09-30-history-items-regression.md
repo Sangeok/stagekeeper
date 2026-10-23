@@ -1,11 +1,21 @@
 ---
 status: 'completed'
+stage: null
 result: 'pass'
 report-kind: 'regression'
+report-size: 'standard'
+test-levels: ['static', 'component', 'integration', 'end-to-end']
+test-tools: ['Node.js test runner', 'PostgreSQL 18', 'Next.js production build', 'browser (tool not recorded)']
 created-at: '2026-09-30'
 completed-at: '2026-09-30'
+last-executed-at: '2026-09-30'
+tested-revision: 'working tree committed as d0c1077'
+owners: ['user:Sangeok']
 related: ['docs/proposals/completed/2026-09-30-project-history-tab.md', 'docs/conventions/product-copy.md']
 primary-area: 'project/history'
+observed-environments: ['local | production build copy + isolated PostgreSQL 18 | browser at 800px light and 360px dark | owner, foreign and signed-out users']
+test-summary: 'pass: History Items 회귀 — 자동 검사·실제 PostgreSQL 통합 37개·프로덕션 앱 브라우저 확인 통과, 실제 GitHub OAuth 로그인은 미실행'
+follow-up: []
 ---
 
 # History Items regression

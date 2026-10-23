@@ -1,6 +1,6 @@
 ---
 status: 'completed'
-stage: 'complete'
+stage: null
 result: 'pass'
 report-kind: 'regression'
 report-size: 'compact'

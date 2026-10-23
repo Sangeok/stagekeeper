@@ -1,6 +1,6 @@
 ---
 status: 'completed'
-stage: 'complete'
+stage: null
 result: 'fail'
 report-kind: 'acceptance'
 report-size: 'standard'
@@ -10,9 +10,9 @@ created-at: '2026-09-03'
 completed-at: '2026-09-04'
 last-executed-at: '2026-09-04'
 tested-revision: 'stagekeeper de7dcda(dev) / private templates 9818dec(파일 방식)·d27e614(스텁 방식) / harness-smoke f925fbd 기준'
-owners: ['Sangeok']
+owners: ['user:Sangeok']
 related:
-  - 'docs/proposals/active/harness-platform-phase-4-entitlement.md'
+  - 'docs/proposals/completed/2026-09-04-harness-platform-phase-4-entitlement.md'
   - 'docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md'
 primary-area: 'pipeline/agent-delivery'
 observed-environments: ['Windows 11 · Node 22.13.1 · Claude Code · next dev(localhost:3000) · Neon Postgres(us-east-2)']

@@ -1,3 +1,23 @@
+---
+status: 'completed'
+stage: null
+result: 'pass'
+report-kind: 'acceptance'
+report-size: 'standard'
+test-levels: ['static', 'component', 'contract', 'integration']
+test-tools: ['Node.js test runner', 'ESLint', 'TypeScript', 'Prisma', 'PostgreSQL', 'Next.js production build']
+created-at: '2026-10-01'
+completed-at: '2026-10-01'
+last-executed-at: '2026-10-01'
+tested-revision: 'harness/automatic-scout-control working tree committed as 3dfb110'
+owners: ['user:Sangeok']
+related: []
+primary-area: 'pipeline/automatic-scout'
+observed-environments: ['local | Next.js production build + isolated PostgreSQL stagekeeper_test_auto_scout | real Next HTTP, no browser | owner, foreign, signed-out and unavailable-project fixtures']
+test-summary: 'pass: 자동 발굴 표시와 소유자 제어 구현 검증 — 정적 검사·웹 501개·격리 DB 통합·실제 Next HTTP 인수 통과, 실제 브라우저 확인은 이 보고서 범위 밖'
+follow-up: []
+---
+
 # 자동 발굴 표시와 소유자 제어 — 구현 검증
 
 브랜치: `harness/automatic-scout-control` (`origin/dev`에서 생성).

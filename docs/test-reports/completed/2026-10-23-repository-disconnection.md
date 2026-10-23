@@ -4,7 +4,7 @@ stage: null
 result: "blocked"
 report-kind: "regression"
 report-size: "standard"
-test-levels: ["static", "unit", "component", "contract", "integration", "runtime"]
+test-levels: ["static", "component", "contract", "integration"]
 test-tools: ["Node.js test runner", "TypeScript", "ESLint", "Prisma", "PostgreSQL", "Next.js production build"]
 created-at: "2026-09-30"
 completed-at: "2026-10-23"

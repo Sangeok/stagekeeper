@@ -120,7 +120,7 @@ controlled draft와 성공 시 추가 폼 초기화다. pending 중 수정은 �
 draft를 보존한다. [project-backlog-page.tsx](../../../src/fsd/pages/project-backlog/ui/project-backlog-page.tsx)의
 form key는 편집 항목·추가 모드 전환 때 다른 draft를 섞지 않게 한다.
 
-F3 수정은 [board-query.ts](../../../src/server/pipeline/board-query.ts)가 report 생성 때
+F3 수정은 [board-query.ts](https://github.com/Sangeok/stagekeeper/blob/ce19203bf55ca1a113b0e4a96c37e16c9ff1d428/src/server/pipeline/board-query.ts)가 report 생성 때
 제출 당시 인수 여부를 저장하고, [item-docs.ts](../../../src/fsd/pages/board-item/model/item-docs.ts)가
 그 값을 우선 사용하도록 한 것이다.
 [migration.sql](../../../prisma/migrations/20260917010000_report_acceptance_purpose/migration.sql)은

@@ -1,6 +1,21 @@
 ---
-status: "incomplete"
+status: "active"
+stage: "planned"
+result: null
+report-kind: "acceptance"
+report-size: "standard"
+test-levels: []
+test-tools: []
 created-at: "2026-10-04"
+completed-at: null
+last-executed-at: null
+tested-revision: null
+owners: ["user:Sangeok"]
+related: ["docs/proposals/completed/2026-10-04-pipeline-agent-slots.md", "docs/proposals/completed/2026-10-03-local-watch-executor.md", "docs/proposals/completed/2026-10-04-acceptance-failure-path.md", "docs/proposals/completed/2026-10-04-codex-dual-client-support.md"]
+primary-area: "proposals/acceptance-follow-ups"
+observed-environments: []
+test-summary: null
+follow-up: []
 ---
 
 # Proposal completion follow-ups

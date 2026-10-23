@@ -321,14 +321,21 @@ npm run docs:check
 
 자동 검증과 사람의 판정 검토 범위를 구분한다.
 
-`npm run docs:check`가 자동으로 확인하는 범위:
+`npm run docs:check`(`scripts/checks/verify-docs.mjs`)가 자동으로 확인하는 범위.
+CI의 `npm run check`에서도 실행된다.
 
 - `active/`·`completed/` 위치와 `status`, `stage`, `result`의 구조적 일치
-- validator에 설정된 필수 front matter 키, 허용 enum·`test-levels` 배열 값과 완료
-  파일명 날짜
+- 위 Lifecycle Metadata의 17개 front matter 키, 배열 필드의 문자열 배열 형식,
+  허용 enum(`report-kind`·`report-size`)·`test-levels` 배열 값과 `created-at` 날짜 형식
 - 완료 파일명과 `completed-at`의 일치 및 `stage: null`
-- `related`의 로컬 문서 참조와 본문의 `./`·`../` Markdown 참조가 실제로
-  존재하는지 여부
+- `related`의 로컬 문서 참조가 실제로 존재하는지 여부
+- 이 디렉터리만이 아니라 저장소가 추적하는 모든 Markdown 본문의 상대 링크가 추적 중인
+  파일·디렉터리를 가리키는지 여부. 코드 블록·인라인 코드 안의 링크, 외부 URL과 `#`
+  anchor 자체는 검사하지 않는다. 대소문자도 구분한다. 완료 문서가 이후 옮겨지거나 지워진
+  코드를 가리키면 그 문서가 쓰인 커밋의 GitHub permalink로 고정한다.
+
+front matter 값의 의미(`owners` 형식, `test-summary` 문장, `follow-up` 대상)와 active
+파일명 규칙은 자동 검사하지 않는다.
 
 템플릿의 Review Checklist로 사람이 확인해야 하는 범위:
 
