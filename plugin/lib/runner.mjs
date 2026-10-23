@@ -1,5 +1,4 @@
 export const RUNNER_MODES = /** @type {const} */ (["session", "resident"]);
-export const RUNNER_STATES = /** @type {const} */ (["idle", "working", "waiting", "stopped"]);
 export const RUNNER_WAIT_REASONS = /** @type {const} */ (["dirty", "branch"]);
 export const RUNNER_PERMISSIONS = /** @type {const} */ (["auto", "allowlist"]);
 export const RUNNER_STOP_REASONS = /** @type {const} */ (["owner", "stuck", "error", "plan"]);

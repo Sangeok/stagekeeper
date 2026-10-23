@@ -9,7 +9,6 @@ import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/projects/api";
 import { ITEM_TYPES } from "@harness/core/backlog.mjs";
 import { validateWorkspaceSemantics } from "@harness/core/workspaces.mjs";
 import type { BacklogView, BacklogWithStatusView } from "./views";
-export type { BacklogView, BacklogWithStatusView } from "./views";
 import { z } from "zod";
 
 export const AGENT_TOOL_NAMES = [
@@ -70,7 +69,7 @@ const guardUnavailable = async (deps: ToolDeps, projectId: string) => {
   return limited ? fail(limited) : null;
 };
 
-export { NOT_YOURS, PROJECT_REQUIRED };
+export { PROJECT_REQUIRED };
 
 type Scoped =
   | { ok: true; projectId: string; tokenId: string; actorRef: string }
