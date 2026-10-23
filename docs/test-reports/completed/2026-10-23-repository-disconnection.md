@@ -33,6 +33,9 @@ follow-up: []
 - 아래 "미실행" 절의 키보드 조작, 두 탭 stale, pending 화면, 응답 유실 후 화면 갱신과 실제 `/harness:init`
   거부 수동 인수는 여전히 **NOT RUN**이다. 실행 계획이 없어 전체 결과는 `blocked`로 완료한다.
   이 항목들에서 발견된 결함은 없다.
+- 후속 메모(같은 날): 키보드 조작, 두 탭 stale, pending 화면, 응답 유실 후 화면 갱신은
+  [브라우저 인수 보고서](./2026-10-23-repository-disconnection-browser.md)에서 실행해 모두 `PASS`였다. 이 보고서의
+  결과는 실행 당시 기록이라 바꾸지 않는다. 실제 `/harness:init` 거부 인수는 여전히 **NOT RUN**이다.
 
 ## 판정과 대상
 

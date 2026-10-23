@@ -5,7 +5,7 @@ result: null
 report-kind: 'acceptance'
 report-size: 'standard'
 test-levels: ['static', 'component', 'integration', 'end-to-end', 'manual']
-test-tools: ['Node.js test runner', 'Claude Code CLI', 'installed Windows plugin bundles', 'browser']
+test-tools: ['Node.js test runner', 'Claude Code CLI', 'installed Windows plugin bundles', 'browser', 'Playwright MCP']
 created-at: '2026-10-02'
 completed-at: null
 last-executed-at: '2026-10-23'
@@ -13,7 +13,7 @@ tested-revision: 'recorded per section; Stage 1 merged as 0aec9ab, runner sectio
 owners: ['user:Sangeok']
 related: ['docs/proposals/completed/2026-10-03-local-watch-executor.md']
 primary-area: 'plugin/local-watch-executor'
-observed-environments: ['local | watch skill, plugin CLI and resident runner | Windows 11 | owner', 'production | stagekeeper.dev Board banner | browser | owner']
+observed-environments: ['local | watch skill, plugin CLI and resident runner | Windows 11 | owner', 'production | stagekeeper.dev Board banner | browser | owner', 'local | Next.js production build + throwaway PostgreSQL 18 | Playwright Chromium 1280px and 360px | owner fixture session']
 test-summary: null
 follow-up: []
 ---
@@ -30,9 +30,9 @@ the pending browser, hosted-cache, deployment and operating acceptance follow-up
 
 Status update (2026-10-23): the runner sections below record runs on installed Windows
 bundles 0.5.13, 0.5.14, 0.5.15 and 0.5.17, the installed 0.5.13 watch skill loading in
-`claude -p` (Phase B spike) and the production banner naming a sign-in refusal. Still not
-recorded: the V11 real-clipboard and narrow-width Board/Inbox browser check, the V9 terminal permission
-windows, and V13. No run is scheduled for them.
+`claude -p` (Phase B spike) and the production banner naming a sign-in refusal. The V11
+Board/Inbox browser check ran later that day (Phase 4 below). Still not recorded: the V9
+terminal permission windows and V13. No run is scheduled for them.
 
 ## Scope and basis
 
@@ -216,13 +216,58 @@ idle rearm, head policy, per-action ownership, permission/commit waits and owner
 discarding late completion. A name/version-only check does not establish body resolution.
 Do not advance to release if this session smoke fails.
 
-## Phase 4 — browser acceptance (pending)
+## Phase 4 — browser acceptance
 
 On Board/Inbox use a gate/acceptance/handoff next to an unstarted item, spaces/long key
 and narrow viewport. Confirm all terminal lines, one quiet inline `/harness:watch`, actual
 copied terminal payload, read-only hides guidance and unavailable project hides banner.
 Keep the compact strip's behavior unchanged. Record screenshots and clipboard values
 without tokens or other credentials.
+
+### V11 run — 2026-10-23
+
+Target: `dev` `dc03640` (Next.js 16.4.2 production build) on `next start`, against a throwaway
+PostgreSQL 18 database, with a signed fixture owner session (Pro). Playwright MCP Chromium.
+The fixture was a one-off script in the disposable worktree; it was not committed.
+
+Fixture items, all in one project with a project token and a workspace:
+
+| Key | Status | Pipeline cursor | Purpose |
+| --- | --- | --- | --- |
+| `LONG KEY WITH SPACES 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ` | proposed | `before-plan` gate | gate and long key |
+| `ITEM-02` | implementing | `implement`, open dev run whose last step is `handoff` with note `docs/plans/ITEM-02 with spaces.md` | handoff |
+| `ITEM-03` | done | `accept` | acceptance |
+| `ITEM-04` | planning | `plan`, not dispatched | unstarted item |
+
+| Check | Result |
+| --- | --- |
+| Terminal lines, Board and Inbox | PASS. "Waiting on you" with "Next, in Claude Code" and three lines, each with one Copy button: `Commit docs/plans/ITEM-02 with spaces.md, then continue the pipeline for ITEM-02.`, `Continue the pipeline for ITEM-04: plan — dev writes the plan.`, `Continue the pipeline for ITEM-03: accept — accept.` The gate item has no terminal line and appears in the summary ("needs a plan request"), as `nextStepLine` returns null for gates. |
+| One quiet inline `/harness:watch` | PASS. Exactly one `/harness:watch` code span, inside the quiet "Or leave … running in that session" line, on Board and Inbox. |
+| Actual copied payload | PASS. With clipboard permission granted to the page origin, each Copy button was clicked after clearing the clipboard, and `navigator.clipboard.readText()` returned the shown line exactly for all three rows. |
+| Narrow viewport (360px) | PASS for the box: it stays inside the viewport (x 20–325) and its lines wrap. The page itself scrolls horizontally on project pages; see finding 1. |
+| Compact strip | PASS. Backlog shows "Waiting on you", the summary and "Open inbox →" with no terminal box and no `/harness:watch`. |
+| Unavailable project hides banner and guidance | PASS. After a real `disconnectProject` call, Board, Inbox and Backlog show "This repository is disconnected. Your project data is preserved as read only." and **Reconnect repository**, with no banner, no terminal box, no Copy button and no `/harness:watch`. Inbox cards show the **Disconnected** badge and no decision buttons. |
+| Console | 0 errors, 0 warnings on the fixture pages. |
+
+Not covered: the Codex client choice's lines, the **Not selected** and **Read only** variants
+(only **Disconnected** was used), and browsers other than Chromium.
+
+Findings:
+
+1. At 360px, project pages (Board, Inbox, Backlog) scroll horizontally because the top header
+   row does not fit: with the project named `stagekeeper` and the user `Sangeok`, the header's
+   **Tokens** link ends at x 429 and the user name at x 401, so the document is 401–446px wide
+   in a 345px viewport. `/projects` fits. The project tab strip scrolls inside its own
+   container, which is intended. The 2026-09-30 History report already noted this header
+   overflow as out of its scope. Not fixed here.
+2. Fixture-only: the long key with spaces overlaps the status pill in the Board activity list.
+   Keys come from `nextItemKey` (`src/server/pipeline/board-service.ts`), so such keys do not
+   occur in the product. Not counted as a defect.
+
+Cleanup: the fixture's `/finish` deleted the fixture user (cascading its project data) and
+stopped the server; the throwaway PostgreSQL was stopped. An earlier fixture run stopped on a
+script error before its cleanup, so its rows stayed only in that throwaway database. No
+production data or service was touched.
 
 ## Phase 5 — deployment and operating observations (pending)
 
