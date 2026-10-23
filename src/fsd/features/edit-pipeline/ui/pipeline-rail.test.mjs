@@ -40,3 +40,22 @@ it("retains optional Remove and Swap actions on an editable graph", () => {
   assert.match(html, />Remove<\/button>/); assert.match(html, />Swap<\/button>/);
   assert.equal([...html.matchAll(/>required<\/span>/g)].length, 3);
 });
+
+it("renders a saved fragment's server definition in cursor order without a runnable graph", () => {
+  const definition = { steps: ["qa"], gates: ["before-qa"] };
+  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, pipelineId: "fragment", definition, editable: false,
+    pipelines: [{ id: "fragment", name: "Check", isDefault: false, saved: { version: 1, createdAt: new Date(0) }, definition: { steps: ["impl-verify"], gates: [] }, runnable: null }] }));
+  const text = html.match(/<details[^>]*>([\s\S]*?)<\/details>/)?.[1];
+  assert.ok(text);
+  assert.match(text, /<li[^>]*>1\. before QA — you<\/li><li[^>]*>2\. QA<\/li>/);
+  assert.doesNotMatch(text, /Implementation check/);
+});
+
+it("renders the saved expansion error when a referenced pipeline is missing", () => {
+  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, editable: false,
+    definition: { steps: ["pipeline:missing"], gates: [] } }));
+  const text = html.match(/<details[^>]*>([\s\S]*?)<\/details>/)?.[1];
+  assert.ok(text);
+  assert.match(text, /it uses a pipeline that is archived or missing/);
+  assert.doesNotMatch(text, /<ol/);
+});

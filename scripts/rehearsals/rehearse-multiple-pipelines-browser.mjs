@@ -32,6 +32,96 @@ try {
   const writes = () => page.evaluate(() => window.fixture.writes);
   const add = async name => { await button("Add at end").click(); await button(name).click(); };
   const run = async (name, work) => { await work(); results.push(name); };
+  const textNodes = () => page.locator("details ol li").allTextContents();
+  const rail = () => page.locator(".overflow-x-auto").first();
+
+  await run("unsaved node and gate edits leave the saved text and version unchanged", async () => {
+    await mount("list"); await button("Delivery").click();
+    await page.locator("details summary").click();
+    const saved = await textNodes();
+    await add("Add doc-auditor here");
+    await page.getByRole("button", { name: "+", exact: true }).first().click(); await button("Add gate").click();
+    assert.deepEqual(await textNodes(), saved);
+    assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 1/);
+    await page.getByLabel("Show expanded").check();
+    assert.match(await rail().innerText(), /Doc audit/); assert.match(await rail().innerText(), /before Plan/);
+    assert.deepEqual(await textNodes(), saved); assert.equal((await writes()).length, 0);
+  });
+  await run("a newer saved graph updates text while retaining a stale draft and its original CAS", async () => {
+    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here");
+    await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "delivery"
+      ? { ...row, definition: { steps: ["plan", "implement", "accept", "feature-scout"], gates: ["before-accept"] }, saved: { version: 2, createdAt: new Date(1) } } : row)));
+    await button("Discard changes and reload").waitFor();
+    assert.match(await rail().innerText(), /Doc audit/);
+    assert.deepEqual(await textNodes(), ["1. Plan", "2. Implement", "3. before Accept — you", "4. Accept", "5. Scout"]);
+    assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 2/);
+    assert.equal(await button("Save").isDisabled(), true); assert.equal((await writes()).length, 0);
+  });
+  await run("dependency-only updates expand saved and draft graphs separately", async () => {
+    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here");
+    await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "check"
+      ? { ...row, definition: { steps: ["impl-verify"], gates: ["before-impl-verify"] }, saved: { version: 2, createdAt: new Date(1) } } : row)));
+    await page.getByRole("alert").waitFor();
+    assert.deepEqual(await textNodes(), ["1. Plan", "2. Implement", "3. before Implementation check — you", "4. Implementation check", "5. Accept"]);
+    await page.getByLabel("Show expanded").check();
+    assert.match(await rail().innerText(), /Implementation check/); assert.match(await rail().innerText(), /Doc audit/);
+    assert.equal((await writes()).length, 0);
+  });
+  await run("clean snapshots and post-save refreshes advance both descriptions", async () => {
+    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here"); await button("Save").click();
+    const submitted = (await writes())[0].input; assert.equal(submitted.expectedVersion, 1);
+    await finish("success"); assert.ok(!(await textNodes()).some(node => node.includes("Doc audit")));
+    await page.evaluate(definition => window.fixture.update(window.fixture.initial.map(row => row.id === "delivery"
+      ? { ...row, definition, saved: { version: 2, createdAt: new Date(1) } } : row)), submitted.definition);
+    await page.waitForTimeout(60);
+    assert.ok((await textNodes()).some(node => node.includes("Doc audit")));
+    assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 2/);
+    await add("Add doc-auditor here"); await button("Save").click();
+    assert.equal((await writes())[1].input.expectedVersion, 2); await finish("error");
+  });
+  for (const outcome of ["error", "stale", "unknown"]) await run(`save ${outcome} preserves saved text and the edited rail`, async () => {
+    await mount("list"); await button("Delivery").click(); const saved = await textNodes();
+    await add("Add doc-auditor here"); await button("Save").click();
+    assert.deepEqual(await textNodes(), saved); await finish(outcome);
+    assert.deepEqual(await textNodes(), saved); assert.match(await rail().innerText(), /Doc audit/);
+    assert.equal(await button("Save").isDisabled(), outcome !== "error"); assert.equal((await writes()).length, 1);
+  });
+  await run("new pipeline text stays empty until its created snapshot arrives", async () => {
+    await mount("list"); await button("New pipeline").click(); await page.getByLabel("New pipeline name").fill("Review");
+    await button("Add first step").click(); await button("Add QA").click(); assert.deepEqual(await textNodes(), []);
+    await button("Save").click(); assert.equal((await writes())[0].input.expectedVersion, 0); await finish("success");
+    assert.equal(await page.getByText("Loading saved pipeline…", { exact: true }).count(), 1);
+    await page.evaluate(() => window.fixture.update([...window.fixture.initial, { id: "created", name: "Review", isDefault: false,
+      definition: { steps: ["qa"], gates: [] }, saved: { version: 1, createdAt: new Date(1) }, runnable: null }]));
+    await page.waitForTimeout(60); assert.deepEqual(await textNodes(), ["1. QA"]);
+    assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 1/);
+  });
+  for (const dirty of [false, true]) await run(`version-zero default text follows server props with dirty=${dirty}`, async () => {
+    await mount("unsaved-default"); if (dirty) await add("Add doc-auditor here");
+    await page.evaluate(() => {
+      window.fixture.update(window.fixture.initial.map(row => row.id === "default" ? { ...row, saved: null } : row));
+      window.fixture.plan("free"); window.fixture.access(false);
+    });
+    await button("Save").waitFor({ state: "hidden" });
+    assert.deepEqual(await textNodes(), ["1. before Plan — you", "2. Plan", "3. Implement", "4. Accept"]);
+    assert.equal((await rail().innerText()).includes("Verify"), dirty);
+    assert.equal((await rail().innerText()).includes("Doc audit"), dirty);
+    assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Default pipeline · not saved yet/);
+    assert.equal((await writes()).length, 0);
+  });
+  await run("saved fragments render text without requiring a runnable graph", async () => {
+    await mount("list"); await button("Check").click();
+    assert.deepEqual(await textNodes(), ["1. before QA — you", "2. QA"]);
+  });
+  for (const [label, steps, reason] of [["missing", ["pipeline:missing"], /archived or missing/], ["loop", ["pipeline:delivery"], /loop/], ["duplicate", ["implement"], /appears twice/]]) {
+    await run(`invalid saved ${label} composition shows its expansion error`, async () => {
+      await mount("list"); await button("Delivery").click();
+      await page.evaluate(steps => window.fixture.update(window.fixture.initial.map(row => row.id === "check"
+        ? { ...row, definition: { steps, gates: [] }, saved: { version: 2, createdAt: new Date(1) } } : row)), steps);
+      await page.locator("details summary").click(); assert.match(await page.locator("details p").innerText(), reason);
+      assert.deepEqual(await textNodes(), []); assert.equal((await writes()).length, 0);
+    });
+  }
 
   await run("Free values are visible but all editing and picking mutations are unavailable", async () => {
     await mount("list", false); assert.equal(await button("New pipeline").count(), 0); assert.equal(await button("Rename").count(), 0); assert.equal(await button("Archive").count(), 0);
