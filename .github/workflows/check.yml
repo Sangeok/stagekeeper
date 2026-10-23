@@ -20,6 +20,8 @@ jobs:
             command: npm test
           - part: test-web
             command: npm run test:web
+          - part: server
+            command: npm run test:server
           - part: build
             command: npm run build
     steps:
@@ -31,3 +33,32 @@ jobs:
       - run: npm ci
       - run: npm run db:generate
       - run: ${{ matrix.command }}
+
+  server-integration:
+    name: check (server-integration)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: stagekeeper
+          POSTGRES_PASSWORD: stagekeeper
+          POSTGRES_DB: stagekeeper_test_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stagekeeper -d stagekeeper_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://stagekeeper:stagekeeper@localhost:5432/stagekeeper_test_ci
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run test:server:integration

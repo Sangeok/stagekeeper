@@ -87,9 +87,13 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   `npm run test:project-availability`는 `scripts/project-ownership/project-availability*.test.ts`를 실행한다.
   두 부분 집합의 테스트는 `test:scripts`에도 포함되며 `check`에서 중복 실행하지 않는다.
   이 명령들 자체가 테스트 배치 규칙 전체를 검증하는 것은 아니다.
-- `npm run test:server`: 서버 전용 bootstrap과 함께 `tests/server/*.test.ts`를 실행한다.
-  현재 `check` workflow의 별도 실행 항목에는 포함되지 않는다.
+- `npm run test:server`: 서버 전용 bootstrap과 함께 `tests/server/*.test.ts`를 실행하며
+  `check` workflow의 `server` 항목으로 연결되어 있다. build 뒤 manifest 검사
+  (`RDC_CHECK_ACTION_MANIFEST`·`SRC_CHECK_INBOX_MANIFEST`)는 환경 변수를 지정할 때만
+  실행되며 CI는 지정하지 않는다.
 - `npm run test:server:integration`: 격리 PostgreSQL과 전용 실행 스크립트를 사용한다.
+  `check` workflow의 `server-integration` job이 일회용 PostgreSQL 18 서비스 컨테이너의
+  `stagekeeper_test_ci` DB로 실행한다. 운영 DB나 secret을 사용하지 않는다.
   DB 안전 검사와 실행 절차는 아래 저장소 스크립트 설명을 따른다.
 - `npm run test:templates`: 별도 private 저장소인 `plugin/templates`의 실제 본문을 검사한다.
   서버 구조 또는 템플릿을 변경하면 Prisma 생성 후 실행하고, 통과 전에는 seed하지 않는다.
@@ -197,8 +201,8 @@ Windows·D3 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를
 | `windows/windows-role-spawn-diagnostics.cjs`, `windows/windows-role-spawn-diagnostics.test.mjs` | 기존 단일 preload의 opt-in / `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows/windows-role-spawn-diagnostics.test.mjs` | native Windows CI/child startup 진단 | 역할 빌드의 오류 code·실행 파일 분류·stdio 등 고정 필드만 기록하고 경로·인자·환경·권한·오류를 변경하지 않는다. 실제 silent IPC fork와 외부 실행 파일 거부 및 비공개 인자 미노출을 확인한다. 런타임 컴파일 캐시는 시험 전 저장하고 후속 실패에도 artifact를 보존한다 |
 | `checks/verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
 | `checks/verify-server-boundaries.mjs` | `npm run verify:server`, `npm run lint`, `npm run check` | CI마다 | 서버 공개 API·모듈 방향·runtime 초기화·정확한 내부 시험 목록 검사. 미추적 source도 포함 |
-| `tests/server/register-server-only.mjs` | `npm run test:server` | 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
-| `test-server-integration.mjs` | `npm run test:server:integration` | 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. DB 생성·삭제·reset 없음 |
+| `tests/server/register-server-only.mjs` | `npm run test:server` | CI마다, 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
+| `test-server-integration.mjs` | `npm run test:server:integration` | CI마다(일회용 PostgreSQL 18), 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. migrate 출력은 숨기고 시험 출력은 그대로 보인다. DB 생성·삭제·reset 없음 |
 | `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |

@@ -37,7 +37,7 @@ export async function runIntegration(env = process.env, run = runChild) {
 
 function runChild(command, args, env) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, args, { cwd: fileURLToPath(new URL("../", import.meta.url)), env, shell: false, stdio: "ignore" });
+    const child = spawn(command, args, { cwd: fileURLToPath(new URL("../", import.meta.url)), env, shell: false, stdio: args.includes("deploy") ? "ignore" : "inherit" });
     child.once("error", () => reject(new Error("Integration child could not start")));
     child.once("exit", (code) => code === 0 ? resolvePromise() : reject(new Error(`Integration ${args.includes("deploy") ? "migration" : "tests"} failed (exit ${code})`)));
   });

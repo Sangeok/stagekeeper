@@ -305,8 +305,10 @@ npm run dev              # http://localhost:3000
 Tests use the built-in Node.js test runner (`node --test`), with `tsx` for TypeScript.
 
 CI ([`check.yml`](./.github/workflows/check.yml)) runs `npm run check`, `npm test`,
-`npm run test:web`, and `npm run build` in parallel on Node.js 22 for pushes and pull
-requests to `dev` and `main`, without a database.
+`npm run test:web`, `npm run test:server`, and `npm run build` in parallel on Node.js 22
+for pushes and pull requests to `dev` and `main`, without a database. A separate job runs
+`npm run test:server:integration` against a disposable PostgreSQL 18 service container
+named `stagekeeper_test_ci`.
 [`windows-role-runtime.yml`](./.github/workflows/windows-role-runtime.yml) builds and tests
 the Windows role runtime on `dev` pushes and on pull requests that touch the runtime or its
 build inputs.
