@@ -35,7 +35,7 @@ related:
 미실행 수동 인수나 운영 활성화의 통과를 뜻하지 않는다.
 
 - 브라우저의 연결 관리 클릭·키보드·두 탭 stale·응답 유실 후 화면 갱신과 실제 `/harness:init` 수동 인수는
-  [검증 보고서](../../test-reports/active/2026-09-27-repository-disconnection.md)의 후속 검증으로 남긴다.
+  [검증 보고서](../../test-reports/completed/2026-10-23-repository-disconnection.md)의 후속 검증으로 남긴다.
 - BLK-RDC-01/02의 운영 데이터·backup 복원·전체 writer drain·호환 배포·설치본 버전 증거는 별도 운영 작업이다.
   기본 `PROJECT_CONNECTION_WRITES_ENABLED=false`와 기존 활성화 조건을 유지한다.
 - 2026-10-01 현재 `dev`의 연결 service·접근·등록·확인 UI/model 관련 단위 시험 22개가 모두 통과했다.
@@ -70,7 +70,7 @@ GitHub 저장소를 삭제하거나 GitHub 로그인·계정 전체 연동을 �
 사용자의 후속 요청 **“좋다 해당 문서를 바탕으로 실제 코드 수정을 진행하라.”**로 로컬 구현 권한을 받았다.
 `harness/repository-disconnection`의 `7a43fd56465d9f6a597bcf9c45e8cc8805364359` 위 working tree에
 RDC1–RDC3의 코드·migration·운영 검사·문서를 반영했다. 현재 계약은 갱신한 architecture 문서가 소유하며,
-실행 결과는 [검증 보고서](../../test-reports/active/2026-09-27-repository-disconnection.md)에 기록한다.
+실행 결과는 [검증 보고서](../../test-reports/completed/2026-10-23-repository-disconnection.md)에 기록한다.
 
 필수 npm gate, 격리 PostgreSQL 경쟁·보존·전체 migration 체인, 실제 Next action/GET·커밋 뒤 응답 유실은 통과했다.
 실제 User 잠금 대기에서 확인한 Prisma P2010/40001도 기존 P2034와 같은 transaction 재시도 경계로 보완했다.

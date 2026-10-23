@@ -309,7 +309,7 @@ AST와 새 build manifest는 loader가 원격 action이 아니며 두 mutation�
 리허설은 부모 DB 분리 검사를 통과한 뒤 child의 DATABASE_URL/TEST_DATABASE_URL만 테스트 DB로 맞춘다.
 연결 해제·재연결은 별도 기능 설정 없이 제공한다. 운영 DB·배포의 실제 상태는 로컬 통과로 증명되지 않는다.
 현재 배포 절차는 [repository-disconnection.md](./repository-disconnection.md)를 따른다.
-[최초 검증 보고서](../test-reports/active/2026-09-27-repository-disconnection.md)의 스위치 검증은 당시 정책의 기록이다.
+[최초 검증 보고서](../test-reports/completed/2026-10-23-repository-disconnection.md)의 스위치 검증은 당시 정책의 기록이다.
 스위치 제거 이후의 자동·실제 Next·브라우저 검증은 [상시 제공 검증 보고서](../test-reports/completed/2026-10-01-repository-connection-always-enabled.md)에 기록한다.
 
 ## src 클린코드 3차 인수

@@ -1,22 +1,38 @@
 ---
-status: "pending"
-stage: "acceptance"
+status: "completed"
+stage: null
 result: "blocked"
 report-kind: "regression"
 report-size: "standard"
 test-levels: ["static", "unit", "component", "contract", "integration", "runtime"]
 test-tools: ["Node.js test runner", "TypeScript", "ESLint", "Prisma", "PostgreSQL", "Next.js production build"]
 created-at: "2026-09-30"
-completed-at: null
+completed-at: "2026-10-23"
 last-executed-at: "2026-09-30"
 tested-revision: "7a43fd56465d9f6a597bcf9c45e8cc8805364359 + harness/repository-disconnection working tree"
 source-test-sha256: "491ba8c8b13fe127bca07f4953e5d0f30daa1786f2a572e1aff2dd13a3004bea"
-owners: []
-related: ["docs/proposals/completed/2026-10-01-repository-disconnection.md", "docs/architecture/repository-disconnection.md"]
-test-summary: "자동·격리 DB·실제 Next transport 통과. 실제 브라우저 인수 미실행과 운영 BLK-RDC-01/02로 전체 완료 보류."
+owners: ["user:Sangeok"]
+related: ["docs/proposals/completed/2026-10-01-repository-disconnection.md", "docs/architecture/repository-disconnection.md", "docs/test-reports/completed/2026-10-01-repository-connection-always-enabled.md"]
+primary-area: "projects/repository-disconnection"
+observed-environments: ["local | Next.js production build + isolated PostgreSQL 18.4 | Windows PowerShell, Node 22.13.1 | owner and foreign fixture users"]
+test-summary: "blocked: 저장소 연결 해제 구현 검증 — 자동·격리 DB·실제 Next transport는 통과, 실제 브라우저의 키보드·두 탭·응답 유실 화면과 /harness:init 수동 인수는 미실행"
+follow-up: []
 ---
 
 # 저장소 연결 해제 구현 검증
+
+## 완료 처리 (2026-10-23)
+
+이 보고서는 2026-09-30 실행 기록 그대로 `completed/`로 옮겼다. 새로 실행한 검사는 없다.
+
+- 아래의 운영 활성화 차단(`PROJECT_CONNECTION_WRITES_ENABLED`와 BLK-RDC-01/02)은 해소된 것이 아니라
+  2026-10-01 사용자 결정으로 스위치가 제거되면서(`a605d3b`) 게이트 자체가 없어졌다. BLK-RDC-01/02의
+  운영 리허설은 실행되지 않았다.
+- 스위치 제거 뒤의 브라우저 해제·재연결 클릭 흐름과 console 0개는
+  [상시 제공 검증 보고서](./2026-10-01-repository-connection-always-enabled.md)에 있다.
+- 아래 "미실행" 절의 키보드 조작, 두 탭 stale, pending 화면, 응답 유실 후 화면 갱신과 실제 `/harness:init`
+  거부 수동 인수는 여전히 **NOT RUN**이다. 실행 계획이 없어 전체 결과는 `blocked`로 완료한다.
+  이 항목들에서 발견된 결함은 없다.
 
 ## 판정과 대상
 

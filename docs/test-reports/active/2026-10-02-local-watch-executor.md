@@ -8,6 +8,12 @@ completed on the basis of Stage 1 code implementation and the recorded verificat
 The sections below preserve implementation-time evidence; this report stays active for
 the pending browser, hosted-cache, deployment and operating acceptance follow-ups.
 
+Status update (2026-10-23): the runner sections below record runs on installed Windows
+bundles 0.5.13, 0.5.14, 0.5.15 and 0.5.17, the installed 0.5.13 watch skill loading in
+`claude -p` (Phase B spike) and the production banner naming a sign-in refusal. Still not
+recorded: the V11 real-clipboard and narrow-width Board/Inbox browser check, the V9 terminal permission
+windows, and V13. No run is scheduled for them.
+
 ## Scope and basis
 
 - Initial base: `origin/dev` at `03876dd24fab12c63542b4565f087b79a877f7ef`.
