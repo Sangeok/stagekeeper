@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-23"
 approved-by: "user"
 approved-at: "2026-10-23"
 approval-scope: "Core FSD-REV-001·002의 실제 코드 수정·관련 회귀·브라우저 검증 및 후속 사용자 요청에 따른 commit·push·dev 대상 PR 생성. Phase 2 003–008, 배포·설치 bundle 생성·병합은 포함하지 않음"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-23"
+verification-summary: "승인된 Core 001·002 구현·검증 완료 및 PR #202 dev 병합. check CI 성공, 로컬 check·build·웹/서버/core 시험과 브라우저 회귀 29건 통과. 기존 UI-only 11건 실패는 production·development 변경 전후 동일. 미선택 Phase 2 003–008은 완료 범위에서 제외"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -23,9 +23,13 @@ related:
   - "docs/proposals/completed/2026-10-22-frontend-clean-code-review.md"
 ---
 
-# src/fsd 프런트엔드 클린 코드 검토·개선 제안
+# src/fsd 프런트엔드 클린 코드 검토·Core 개선 완료 기록
 
 ## Summary
+
+승인된 Core 001·002의 구현·검증을 완료했고 [PR #202](https://github.com/Sangeok/stagekeeper/pull/202)가
+`check` CI 성공 후 `dev`에 병합됐다. 선택 항목 003–008은 미선택·미구현이며 이번 완료
+범위에 포함하지 않는다. 아래 검토·제안·실행 계획은 당시 근거와 후속 후보를 보존한 기록이다.
 
 `frontend-clean-code-orchestrator`의 여섯 독립 렌즈와 별도 중립 품질 검토로
 `src/fsd` 전체를 검토했다. 최종 채택 항목은 **Must 1건, Should 1건, Consider 6건**이다.
@@ -670,9 +674,10 @@ READ-001은 이름 문제에 그치지 않는 제품 계약 불일치 때문에 
 
 ## Risks and Rollback
 
-실제 브라우저·응답 유실·운영 DB 지연·번들/렌더 비용은 관찰하지 않았다. 001은 정적
-계약 불일치이며, 008의 실제 지연 크기와 006/007의 우선순위는 구현·측정 맥락에 따라
-정해야 한다. 이전 완료 보고서의 잔여 시험 실패는 이번에 재검증하지 않았다.
+최초 리뷰는 정적 검토였으며, 이후 Core의 브라우저 회귀와 검증 결과는 실행 기록에
+남겼다. 운영 DB 지연·실제 설치·번들/렌더 비용은 측정하지 않았다. 미선택 008의 지연
+크기와 006/007의 우선순위는 후속 구현·측정 맥락에서 정한다. 기존 UI-only 실패 11건은
+fresh dev baseline과 production·development 모두 직접 비교했고 변경 전후 동일했다.
 
 후속 구현은 ID 또는 작은 묶음별 커밋으로 나눈다. 문제가 생기면 해당 묶음을 되돌려
 UI·소비자·시험을 함께 복구한다. core 이동을 되돌릴 때는 원래 정책 소유 모듈을 복구하고
@@ -682,7 +687,12 @@ UI·소비자·시험을 함께 복구한다. core 이동을 되돌릴 때는 �
 
 ## Completion or Closure Notes
 
-Core 001·002의 코드 변경과 관련 단위·브라우저 회귀 검증을 수행했다. 전체 UI-only
-suite의 기존 실패는 Core 실행 기록에 분리했으며 전체 인수 통과나 배포 완료를 뜻하지 않는다.
-Phase 2 003–008은 아직 선택하지 않았으므로 문서는 `active/`의 `pending/approved`로
-유지한다. 나머지 후보의 수행 또는 미실행 결정 이후 lifecycle 규칙에 따라 정리한다.
+승인된 Core 001·002의 코드 변경·관련 단위·브라우저 회귀 검증을 완료했다.
+PR #202의 최종 head `8a28d753b8a120718c654e2b8a3f38f5da2073d6`은 `check` CI가
+성공했고 merge commit `e55e141acd58b709695576da8cd5689bef7e67fe`로 `dev`에 병합됐다.
+
+Core 완료 기준에 포함하지 않은 선택 항목 003–008 때문에 문서를 active에 남기지 않는다.
+이 문서는 `completed/`의 `completed` 기록으로 정리하고, 해당 항목은 미구현 후속 후보로
+보존한다. 실제 수행하려면 새 후속 제안서에서 범위·현재 코드·검증 계획을 다시 확정한다.
+전체 UI-only suite의 기존 실패는 실행 기록에 분리했으며 전체 인수 통과나 배포 완료를
+뜻하지 않는다.
