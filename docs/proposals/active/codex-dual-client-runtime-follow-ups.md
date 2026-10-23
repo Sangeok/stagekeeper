@@ -48,9 +48,38 @@ related:
 
 ## Current State
 
-### 2026-10-22 재개 기준 — 준비 완료, 실제 인수는 미실행
+### 2026-10-23 현재 기준 — 기본 foreground·R3 통과, R4 인계와 설치/복구 직접 확인
 
-현재 단계는 **고정 후보와 재현 절차 준비**다. 전체 캠페인의 `pending/blocked`와
+현재 기준은 public `775772efd6163117809c33e13e070adba9a8cff7`과 private
+`fb6ef955ba3f6fc8320e173fbafc9ef03b83281b`다. 공개 PR #217과 private PR #15가
+병합됐고 공개 최종 PR 및 dev push의 check·Windows runtime CI가 모두 통과했다.
+실제 시험 package는 plugin `0.5.19`, source `64db9e966a2adf26f47544f1b7dd833556751d17`,
+2,225개 파일이며 이후 공개 변경은 보고서다. private 시험 commit
+`7f34e7b0a4e6e302b8559f54ca4894ee78b8964f`와 병합된 private main의 tree는 같다.
+정확한 package/runtime/verifier hash와 실패 후보는
+[기본 실행 인수 보고서](../../test-reports/completed/2026-10-23-codex-private-acceptance.md)에 보존한다.
+
+| 범위 | 현재 근거와 남은 조건 |
+| --- | --- |
+| 기본 Codex foreground | 기존 native Windows 로그인, Codex 0.164.0, built HTTP service·격리 DB·committed private 13행으로 새 계획 → 독립 검증 → owner 승인 → 구현 → 보고서 → 최종 인수 통과 |
+| 계획·보고서 commit handoff | 같은 실행을 추가 usage와 artifact 변경 없이 재개. 실제 전체 verifier의 필수 5개 경로·0 defects, 구현 45개 테스트·최종 5개 인수 확인 |
+| R1 / TASK-MIN-02 | 설치된 0.5.19의 양쪽 bundled helper로 실제 private 서비스 init·Codex 연결 및 수정 role/ownership 보존 통과. helper PATH에 전역 Node 없음; 물리적 clean Windows는 미완료 |
+| R2 / T53 | 현재 실제 독립 계획 검증과 정상 완료 경로 통과. 더 넓은 권한·독립 문맥 인수 및 과거 negative 시험은 각 source의 범위대로 유지 |
+| R3 / T53·T56 | 실제 npm run test:pending과 자식 실행 중 stop → 조기 release/경쟁 client 거부 → 종료 확인 → 동일 AgentRun/receipt 재개 → 검증 재실행·report handoff·5개 최종 인수 통과 |
+| R4 / T54·T56 | 실제 두 CLI와 browser before-implement 승인 후 양방향 같은 open implement step 인계 통과. receipt·approval·usage 보존; 빈 outcome 원장 유지. 이 사례는 인계 후 구현/최종 인수를 수행하지 않음 |
+| R5 / T55·T56 | 양쪽 실제 0.5.18→0.5.19 update와 2,225개 파일 전량 일치, 현재 private 13행의 atomic rollback/12행 제한 복구 통과. 실제 혼합 버전 host·운영 인수는 미완료 |
+| C4 | C4A 공통 구조·모의 검증 완료. C4B 실제 연결과 C4C 110분·OS별 인수는 미완료 |
+
+직접 증거와 두 R4 observer 실패/수정 이력은 [후속 인수 보고서](../../test-reports/completed/2026-10-23-codex-runtime-followups.md)에 기록했다. R3는 준비된 계획으로 시작했고 기본 fresh-plan 시험과 별도다. R4는 실제 native CLI main-loop의 MCP 호출·공통 session과 브라우저 승인 인계 범위이며 watch 전체 실행이 아니다.
+
+전체 상태는 `pending/blocked`를 유지한다. 현재 기본/R3/R4 사례는 `before-implement` owner gate를
+사용했다. 기본 재현의 `before-plan` gate, 물리적 clean Windows·혼합 host·운영 인수 또는
+C4를 함께 통과했다고 해석하지 않는다.
+private repository 병합은 운영 seed·서비스 배포·패키지 공개가 아니다.
+
+### 2026-10-22 준비 checkpoint — 당시 실제 인수 미실행
+
+당시 단계는 **고정 후보와 재현 절차 준비**였다. 전체 캠페인의 `pending/blocked`와
 BLK-MIN-01은 유지한다. 아래 준비 결과는 과거 실패를 현재 소스에서 재현했다거나
 Windows 설치·실제 모델·서비스 인수를 통과했다는 뜻이 아니다.
 
@@ -304,16 +333,16 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 ## Execution Plan
 
-1. **준비 완료:** 위 public/private/runtime/verifier/package 기준을 고정하고 로컬 전달물을 만든다. 설치 후보는 `0.5.17`이며 기존 설치본을 덮어쓰지 않았다. 다른 내용의 같은 버전으로 update 인수를 통과했다고 주장하지 않는다.
-2. **환경 확보 후:** Windows native 시험 host의 기존 인증·client 버전, 새 시험 프로젝트·격리 DB/서비스, 원본 변경 없는 실행 snapshot을 고정한다. 물리적으로 Node가 없는 Windows 최소 설치 시험은 PATH 제외 시험과 따로 배정한다.
-3. **기본 인수:** 아래 재현 순서로 T53/T54/T56과 TASK-MIN-01/02를 실행한다. 과거 실패가 재현되면 product 결함·fixture 결함·operator 실수를 구분하고, product 결함으로 확인된 범위만 수정한다. 수정 후 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
-4. **설치/복구:** T55의 private seed/제한 복구와 installed loader·업데이트를 해당 시험 범위에서 확인한다. 운영 릴리스는 별도 범위다. BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
+1. **현재 후보 유지:** 2026-10-23 현재 기준의 public/private/runtime/verifier/package identity를 사용한다. 0.5.17 준비물은 역사적 checkpoint로 보존한다. 다른 내용의 같은 버전을 새 설치 성공으로 취급하지 않는다.
+2. **시험 환경:** 실제 Windows host·기존 인증·client와 새 격리 DB/서비스가 확보돼 기본 foreground 인수를 통과했다. 후속 사례마다 새 fixture·고정 source를 사용하며 물리적으로 Node가 없는 Windows 최소 설치는 별도 검증한다.
+3. **실행 인수:** 현재 private 버전의 R3 같은 항목 중지/재개/최종 인수와 R4 양방향 CLI/browser 인계는 명시한 범위에서 통과했다. 다음 기본 재현에서는 두 gate와 전체 pipeline을 유지한다. 물리적 clean Windows 및 실제 혼합 버전 host에서 남은 조건을 확인한다. 실패는 product·fixture·operator 원인을 구분하고 제품 수정 시 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
+4. **설치/복구:** 현재 0.5.19 installed inventory·bundled helper, 버전 갱신, 수정 파일 보존과 실제 private atomic seed/제한 복구의 로컬 시험을 통과했다. 다음은 물리적 clean Windows 최소 설치와 실제 혼합 host 인수다. 운영 릴리스는 별도 범위이며 BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
 5. **C4:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A는 2026-10-23 소스 구현·로컬 검증을 완료했다. 최소 설치·기본 인수와 실제 main-loop host/권한 계약 확인 뒤 C4B를 연결하고, C4C에서 TASK-C4-02/E12와 OS별 인수를 완료한다. C4A 통과로 실제 gate를 해제하지 않는다.
 
 ### 실제 Windows 인수의 시작 조건
 
 - 담당 Windows host·기존 native client 로그인과 실제 CLI 버전·실행 파일 hash를 기록한다. 현재 macOS의 CLI 버전은 Windows 증거가 아니다.
-- 공개 소스는 위 revision, private 입력은 위 export commit/hash, 설치 후보는 위 inventory로 일치시킨다. 불일치하면 새 후보 번호와 증거를 만들고 멈춘다.
+- 공개·private·package는 2026-10-23 현재 기준의 직접 시험 commit/hash와 일치시킨다. 10월 22일의 export commit·0.5.17 inventory를 현재 후보와 혼용하지 않는다. 변경이 있으면 새 후보 identity와 변경 범위를 먼저 기록한다.
 - DB는 `stagekeeper_test_*` 이름의 disposable PostgreSQL이고 운영 DB와 달라야 한다. `scripts/test-server-integration.mjs`의 `validateTestDatabase`를 통과한 뒤에만 시험 프로세스의 DATABASE_URL을 그 DB에 연결한다. production 환경 파일을 복사하지 않는다.
 - `seed-templates.ts`의 `--snapshot`은 저장소 밖 private 경로에 쓴다. 제한 복구 시험은 기존 non-Codex 12행을 먼저 둔 legacy baseline에서 시작한다. 빈 DB에 전체 13행을 최초 생성한 snapshot은 `restoreTemplates`가 non-Codex 삭제를 거부하므로 그 상태를 제한 복구 PASS로 사용하지 않는다.
 - 승인된 시험 서비스의 실제 project identity로 fixture의 `harness.json`을 맞춘다. 원본 fixture는 보존하고 사례별 복사본을 쓴다. 서버 등록·양쪽 init 후 생긴 관리 파일과 초기 fixture를 먼저 owner가 commit한다.
@@ -321,12 +350,12 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 ### 준비한 재현 순서와 판정
 
-모든 사례는 **NOT RUN**이다. 로컬 fixture의 사전 검사만 통과했으며, 아래 PASS는
-실제 설치 package·서비스·role 관찰을 수행한 뒤 기록한다.
+아래 표는 인수 조건이다. 실행 상태는 위 2026-10-23 현황과 각 시험 보고서를 따른다.
+R3는 같은 항목의 최종 인수까지, R4는 표에 정의한 승인·open-run 인계까지 직접 확인했다. R1/R5의 로컬 설치·업데이트·제한 복구 증거도 추가했다. 물리적 clean Windows, 혼합 버전 host 및 운영/C4 조건은 미완료다.
 
 | 사례 | 대상 | 실행과 기대 관찰 | 중단 조건 |
 | --- | --- | --- | --- |
-| R1 설치/연결 | TASK-MIN-02, T55 | 선택 client의 격리 설치 경로와 실제 loader에서 2,221개 inventory 및 verifier checksum 대조; bundled `harness.ps1`로 init/연결. PATH에 전역 Node가 없는 경우와 물리적 clean Windows를 구분 | 다른 cache 선택, 추가 Node/skill/CLI 요구, 인증 복사, hash 불일치 |
+| R1 설치/연결 | TASK-MIN-02, T55 | 선택 client의 격리 설치 경로와 실제 loader에서 현재 후보 inventory 및 verifier checksum 대조; bundled `harness.ps1`로 init/연결. PATH에 전역 Node가 없는 경우와 물리적 clean Windows를 구분 | 다른 cache 선택, 추가 Node/skill/CLI 요구, 인증 복사, hash 불일치 |
 | R2 독립 계획 검증 | T53, REQ-MIN-001/002 | 새 항목에서 고정 planCommit과 `verifier-briefing.json`을 전달. baseline, 정확한 sketch 실행, before/after, 의존성 열거, mutation, citation/final reread를 실제 fresh role로 관찰. 허용 읽기/scratch와 금지 경로·owner 도구 거부도 확인 | read failed/blocked를 성공으로 제출, 필수 path 생략, 원본 변경·권한 확대 |
 | R3 동일 항목 중지/재개 | T53/T56, REQ-MIN-001 | 실제 `role_command_exec`의 `npm run test:pending` 요청과 그 소유 자식이 실행 중임을 확인한 뒤 stop. 종료 전 release·다른 client 시작 거부 → 자식 종료 acknowledgement → 자신의 release → fresh session의 같은 항목/AgentRun/receipt 재개 → verify·report·owner commit·최종 accept까지 관찰 | preflight를 중지하고 실제 명령 시험으로 기록, scope 밖 관리 파일 변경을 숨김, 별도 성공 항목으로 대체, 잠금 파일 수동 삭제 |
 | R4 양방향 승인·재개 | T54/T56 | Claude→Codex와 Codex→Claude를 별도 fresh 사례로 실행. 실제 browser gate 승인 뒤 동일 BoardItem/PipelineRun/open AgentRun·approval commit·receipt·원장·usage 보존 확인. 기존 DB contract 6개와 실제 CLI/browser 결과는 구분 | source client의 역할·자식이 남았는데 인계, run 재생성, 재개만으로 usage 증가, 자동 gate 승인 |
@@ -469,6 +498,8 @@ permission 상속, private/public 버전 차이, pending host 종료·잠금 반
 - [x] C4 요구사항·blocker·Task·검증과 안내 범위를 명시적으로 이관했다.
 - [x] 최소 설치 기준과 native Windows/패키징의 선행 작업·출시 blocker를 반영했다.
 - [x] 2026-10-22 source/private/runtime/verifier 후보를 고정하고 최신 runner·Codex 제한, 설치 준비물, R1–R5 재현 순서와 시작 조건을 기록했다.
-- [ ] REQ-MIN-001/002의 실제 Windows 실행·추가 설치 없는 패키징 인수를 통과한다.
+- [x] 현재 private R3 active-command 중지·같은 run 재개·최종 인수를 통과하고 R4 양방향 browser/CLI 인계의 범위를 기록했다.
+- [x] 현재 설치본의 bundled helper·버전 갱신·전체 inventory·수정 파일 보존과 private 제한 복구의 로컬 직접 증거를 추가했다.
+- [ ] REQ-MIN-001/002의 물리적 clean Windows 실행·추가 설치 없는 패키징 인수를 완료한다.
 - [ ] 실제 호스트·양방향 CLI·설치/배포·혼합 버전 인수 증거를 확보한다.
 - [ ] C4 실행 시 실제 장시간·취소 시험과 안내 검증을 완료한다.
