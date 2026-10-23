@@ -1,0 +1,433 @@
+{
+  "testedRevision": "64db9e966a2adf26f47544f1b7dd833556751d17",
+  "recordedAt": "2026-10-23T13:00:58.500Z",
+  "privateTemplates": {
+    "commit": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+    "mergeCommit": "fb6ef955ba3f6fc8320e173fbafc9ef03b83281b",
+    "pullRequest": "https://github.com/Sangeok/harness-templates/pull/15",
+    "sourceHash": "e49ac84385e131b3412df64b6c3335396ccb8cc2b1e22775294921152ce9f540",
+    "rows": 13,
+    "tests": 61,
+    "originalFilesUnchanged": true
+  },
+  "package": {
+    "version": "0.5.19",
+    "sourceRevision": "64db9e966a2adf26f47544f1b7dd833556751d17",
+    "packageSha256": "0e73f1dc8baf3e02812a53cba86030ae9bc4b50fbd4e661b569c582749be69f6",
+    "files": 2225,
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    }
+  },
+  "environment": {
+    "platform": "native Windows",
+    "codex": "0.164.0",
+    "ownerNode": "22.13.1",
+    "bundledNode": "22.23.3",
+    "next": "16.4.2",
+    "database": "isolated loopback PostgreSQL 18.6",
+    "browser": "headless Microsoft Edge"
+  },
+  "checks": {
+    "fixedSource": {
+      "check": {
+        "tests": 197,
+        "pass": 194,
+        "fail": 0,
+        "skipped": 3,
+        "cancelled": 0
+      },
+      "architecture": {
+        "tests": 150,
+        "pass": 148,
+        "fail": 0,
+        "skipped": 2,
+        "cancelled": 0
+      },
+      "corePluginSerial": {
+        "tests": 502,
+        "pass": 500,
+        "fail": 0,
+        "skipped": 2,
+        "cancelled": 0
+      },
+      "build": "PASS",
+      "fsd": "PASS",
+      "serverBoundaries": "PASS"
+    },
+    "unchangedApplicationAndPrivateSource": {
+      "revision": "0b21056c6f095338679855b03d6a96dce0c5319d",
+      "checks": [
+        {
+          "name": "web",
+          "exit": 0,
+          "seconds": 12,
+          "tests": 768,
+          "pass": 768,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0
+        },
+        {
+          "name": "server",
+          "exit": 0,
+          "seconds": 8,
+          "tests": 157,
+          "pass": 155,
+          "fail": 0,
+          "skipped": 2,
+          "cancelled": 0
+        },
+        {
+          "name": "templates",
+          "exit": 0,
+          "seconds": 2,
+          "tests": 61,
+          "pass": 61,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0
+        },
+        {
+          "name": "migration",
+          "exit": 0,
+          "seconds": 3
+        },
+        {
+          "name": "integration",
+          "exit": 0,
+          "seconds": 113,
+          "tests": 142,
+          "pass": 142,
+          "fail": 0,
+          "skipped": 0,
+          "cancelled": 0
+        }
+      ]
+    },
+    "earlierLocalFailures": [
+      {
+        "suite": "core/plugin",
+        "test": "acceptEdits fallback",
+        "result": "FAIL",
+        "isolatedRerun": "PASS"
+      },
+      {
+        "suite": "core/plugin",
+        "test": "unconfirmed child settlement",
+        "result": "FAIL",
+        "reason": "30-second wait expired"
+      }
+    ]
+  },
+  "bindingRegression": {
+    "before": "Actual first plan-verifier agent_next with agentRunId:null refused with -32000",
+    "control": "Direct bridge request omitting the ID passed against the actual service",
+    "after": "Actual first plan-verifier agent_next with agentRunId:null passed and later calls reused the server-issued ID",
+    "crossRunAndEntryGuards": "PASS"
+  },
+  "installation": {
+    "test": "actual-isolated-plugin-install-and-discovery",
+    "result": "PASS",
+    "skills": [
+      {
+        "name": "harness-init",
+        "loaded": true,
+        "bodyMatches": true
+      },
+      {
+        "name": "harness-run",
+        "loaded": true,
+        "bodyMatches": true
+      },
+      {
+        "name": "harness-resume",
+        "loaded": true,
+        "bodyMatches": true
+      },
+      {
+        "name": "reconciling-proposals-with-codebase",
+        "loaded": true,
+        "bodyMatches": true
+      }
+    ],
+    "modelTurns": 0
+  },
+  "service": [
+    {
+      "test": "private-template-seed",
+      "result": "PASS",
+      "rows": 13
+    },
+    {
+      "test": "production-http-service",
+      "result": "PASS"
+    },
+    {
+      "test": "installed-helper-init",
+      "result": "PASS"
+    },
+    {
+      "test": "isolated-mcp-registration-and-sync",
+      "result": "PASS"
+    },
+    {
+      "test": "agent-owner-tool-separation",
+      "result": "PASS"
+    },
+    {
+      "test": "actual-service-list-contracts",
+      "result": "PASS"
+    },
+    {
+      "test": "authenticated-real-browser",
+      "result": "PASS"
+    },
+    {
+      "test": "foreground-session-prepare",
+      "result": "PASS"
+    },
+    {
+      "test": "initial-pipeline",
+      "result": "PASS",
+      "action": "dispatch",
+      "agent": "dev"
+    },
+    {
+      "test": "controlled-stop-scenario",
+      "result": "NOT RUN"
+    },
+    {
+      "test": "fresh-plan-generation-start",
+      "result": "PASS",
+      "preparedPlan": false
+    },
+    {
+      "test": "pipeline-round",
+      "round": 0,
+      "action": "dispatch",
+      "on": null,
+      "agent": "dev"
+    },
+    {
+      "test": "actual-role",
+      "role": "dev",
+      "event": "paused",
+      "step": "plan",
+      "usageRuns": 1
+    },
+    {
+      "test": "pipeline-round",
+      "round": 1,
+      "action": "wait",
+      "on": "handoff",
+      "agent": "dev"
+    },
+    {
+      "test": "owner-commit-handoff-resume",
+      "result": "PASS",
+      "agent": "dev",
+      "event": "done",
+      "usageUnchanged": true,
+      "artifactUnchanged": true,
+      "status": "in_review"
+    },
+    {
+      "test": "pipeline-round",
+      "round": 2,
+      "action": "dispatch",
+      "on": null,
+      "agent": "plan-verifier"
+    },
+    {
+      "test": "main-loop-review-required"
+    },
+    {
+      "test": "actual-role",
+      "role": "plan-verifier",
+      "event": "done",
+      "step": null,
+      "usageRuns": 2
+    },
+    {
+      "test": "full-private-verifier",
+      "result": "PASS",
+      "cleanReport": true,
+      "recordedVerifyPass": true
+    },
+    {
+      "test": "pipeline-round",
+      "round": 3,
+      "action": "wait",
+      "on": "gate",
+      "agent": null
+    },
+    {
+      "test": "real-owner-mcp-approval",
+      "result": "PASS"
+    },
+    {
+      "test": "pipeline-round",
+      "round": 4,
+      "action": "dispatch",
+      "on": null,
+      "agent": "dev"
+    },
+    {
+      "test": "actual-role",
+      "role": "dev",
+      "event": "paused",
+      "step": "report",
+      "usageRuns": 3
+    },
+    {
+      "test": "pipeline-round",
+      "round": 5,
+      "action": "wait",
+      "on": "handoff",
+      "agent": "dev"
+    },
+    {
+      "test": "owner-commit-handoff-resume",
+      "result": "PASS",
+      "agent": "dev",
+      "event": "done",
+      "usageUnchanged": true,
+      "artifactUnchanged": true,
+      "status": "implementing"
+    },
+    {
+      "test": "pipeline-round",
+      "round": 6,
+      "action": "accept",
+      "on": null,
+      "agent": null
+    },
+    {
+      "test": "acceptance-review-required",
+      "status": "done"
+    },
+    {
+      "test": "actual-pipeline-acceptance",
+      "result": "PASS",
+      "checks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "acceptedAt": "2026-10-23T12:55:56.375Z"
+    },
+    {
+      "test": "service-end-to-end",
+      "result": "PASS",
+      "seconds": 888
+    },
+    {
+      "test": "service-local-session-cleanup",
+      "result": "PASS"
+    },
+    {
+      "test": "test-service-and-fixture-cleanup",
+      "result": "PASS"
+    }
+  ],
+  "independentReview": {
+    "requiredPaths": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "defects": 0,
+    "rootLiteralCases": 44,
+    "rootMutantsKilled": 25,
+    "independentRoleMutantsKilled": 23,
+    "utf16CodeUnits": 65536
+  },
+  "acceptance": {
+    "checks": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "implementationTests": 45,
+    "literalAssertions": 44,
+    "utf16CodeUnits": 65536,
+    "changedFiles": [
+      "docs/agents/dev/K-1.md",
+      "src/greet.mjs",
+      "src/greet.test.mjs"
+    ]
+  },
+  "earlierCandidates": [
+    {
+      "candidate": "0.5.18 first full cycle",
+      "result": "FAIL",
+      "reason": "Verifier first-call refusal; one plan citation was corrected before independent dispatch"
+    },
+    {
+      "candidate": "tracing setup",
+      "result": "FAIL",
+      "reason": "Windows preloader path needed a file URL; no model started"
+    },
+    {
+      "candidate": "0.5.18 traced fresh cycle",
+      "result": "FAIL",
+      "reason": "Same first-call refusal after fresh plan and unchanged-usage handoff passed"
+    },
+    {
+      "candidate": "model-free diagnostic",
+      "result": "PASS",
+      "scope": "Policy, native backend, full skill and fresh thread preflight only; zero model turns"
+    },
+    {
+      "candidate": "live bridge diagnostic",
+      "result": "FAIL",
+      "reason": "Direct call without null passed, model call with null refused"
+    }
+  ],
+  "cleanup": {
+    "counts": {
+      "users": 0,
+      "projects": 0,
+      "templates": 0
+    },
+    "postgresStopped": true,
+    "preservation": {
+      "public": {
+        "files": 914,
+        "changed": [
+          "src/fsd/features/edit-pipeline/ui/automatic-pick-control.test.ts",
+          "src/fsd/features/edit-pipeline/ui/automatic-pick-control.tsx",
+          "src/fsd/features/edit-pipeline/ui/automatic-scout-control.test.ts",
+          "src/fsd/features/edit-pipeline/ui/automatic-scout-control.tsx",
+          "src/fsd/features/edit-pipeline/ui/pipeline-list.test.ts",
+          "src/fsd/features/edit-pipeline/ui/pipeline-list.tsx",
+          "src/fsd/features/edit-pipeline/ui/pipeline-rail.test.mjs",
+          "src/fsd/features/edit-pipeline/ui/pipeline-rail.tsx"
+        ]
+      },
+      "private": {
+        "files": 16,
+        "changed": []
+      }
+    },
+    "publicOriginalNote": "Eight UI files changed concurrently in the original checkout; this task made no edits there and performed no restore. Public byte equality is not claimed."
+  },
+  "remainingGates": [
+    "Controlled actual-private active-command stop/resume",
+    "Physical clean Windows/minimum setup",
+    "Bidirectional Claude/Codex handover",
+    "Production seed and rollback",
+    "Published package update and deployment",
+    "C4 automatic watch"
+  ],
+  "privacy": "No private template bodies, credentials, account/session identifiers or raw model transcripts are published. Raw failed/successful trial evidence remains local; model token totals were not collected completely."
+}
