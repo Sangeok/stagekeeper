@@ -11,6 +11,7 @@
 
 | 모듈 | 소유 책임 | 참조 가능한 다른 모듈 |
 | --- | --- | --- |
+| github | 선택형 저장소 목록·승인·credential 수명주기 | 없음 |
 | projects | 접근·등록·가용성·연결·워크스페이스 | 없음 |
 | tokens | 발급·조회·이름·최근 사용 기록 | projects |
 | usage | 실행 사용량·요청 예산 | projects |
@@ -22,7 +23,7 @@
 | rest | REST scope·입력·HTTP 응답 | projects, tokens, usage, templates, runners |
 | mcp | 도구·인증·서비스 조립·응답 | projects, tokens, usage, templates, agents, pipeline |
 
-타입 참조도 이 방향을 따른다. 루트 기반 파일은 `db.ts`, `database-clock.ts`, `github.ts`,
+타입 참조도 이 방향을 따른다. 루트 기반 파일은 `db.ts`, `database-clock.ts`,
 `public-url.ts`, `result.ts`이며 기능 모듈을 참조하지 않는다. 서버는 FSD를 참조하지 않는다.
 
 ## 공개 진입점
@@ -52,8 +53,12 @@
 
 다음은 현재 공개 계약이다. 구현 소유자와 실제 제품 소비자를 함께 기록한다.
 
+선택형 GitHub 목록의 운영 경계는 [ADR-0006](../ADR/0006-optional-github-repository-list.md)를 따른다.
+
 | 공개 import 경로 | symbol | 구현 소유자와 제품 소비자 |
 | --- | --- | --- |
+| `github/api.server.ts` | `listPublicRepos`, `loadRepositoryConnection`, `startRepositoryConnection`, `completeRepositoryAuthorization`, `completeRepositoryInstallation`, `loadConnectionDraft`, `acknowledgeConnectionDraft`, `cancelRepositoryConnection`, `disconnectRepositoryList`, `listAuthorizedRepositories`, `validateRepositorySelection`, `handleGitHubWebhook`, `maintainGitHubConnections` | github 내부의 주입형 서비스·provider·vault·DB 바인딩; Next 진입점·create-project adapter·운영 maintenance 명령 |
+| `github/contracts.ts` | 저장소·상태·실패·서비스 의존성 타입 | 직접 정의한 타입; Next/FSD 서버 adapter에서 local DTO로 변환 |
 | `projects/api.ts` | `AvailabilityConflict`, `normalizePlan`, `repositoryOwner`, `READ_OPTIONS`, `readProjectAccess`, `readProjectAccessIn`, `readProjectPlanIn`, `lockProjectOwnerIn`, `withAvailabilityTransaction`, `OWNERSHIP_UNAVAILABLE_REASON`, `NOT_YOURS`, `PROJECT_REQUIRED`, `REPO_SEGMENT`, `RESERVED_SLUGS`, `SLUG_RE` | `access-query`, `availability-service`, `access-messages`, `slug-rule`; tokens·usage·templates·pipeline·agents·REST·MCP의 기존 실제 참조만 유지 |
 | `projects/api.ts` | `changeUserPlan`, `loadProjectRoster`, `loadProjectView`, `projectForUser`, `syncProject`, `registerRepositoryProject` | `availability-service`, `repository-query`, `project-view-query`, `owner-query`, `sync-workspaces`, `registration-service`; grant-plan·app/FSD roster 조회·agents·MCP·REST 등록 |
 | `projects/api.server.ts` | `planForUser`, `planForProject`, `projectAccess`, `loadProjectAvailability`, `loadProjectConnection`, `selectProjectForUse`, `disconnectProject`, `reconnectProject`, `loadProjectRepository`, `projectForUser`, `registerWebProject` | 기존 facade·연결/선택 바인딩과 새 조회/등록 바인딩; 웹·auth·REST 조립부. 주입형 roster는 이곳이 아닌 `api.ts` 사용 |
@@ -89,6 +94,10 @@
 <!-- server-internal-tests:start -->
 | 시험 파일 | 내부 모듈 | 이유 |
 | --- | --- | --- |
+| `tests/server/github-configuration.test.ts` | github | lazy 설정·기본 OFF·운영 준비 gate와 callback origin 검증 |
+| `tests/server/github-provider.test.ts` | github | 실제 HTTP adapter의 PKCE·권한·페이지·오류·개별 토큰 폐기 계약 |
+| `tests/server/github-token-vault.test.ts` | github | 실제 암호화·AAD·keyring 회전과 위조 envelope 거부 |
+| `tests/server/integration/github-connection.test.ts` | github | 격리 PostgreSQL의 시도·갱신·해제 CAS·webhook 중복·수명주기 검증 |
 | `scripts/rehearsals/rehearse-acceptance-failure.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
 | `scripts/rehearsals/rehearse-pipeline-agent-slots.ts` | agents | 격리 인수 fixture의 실제 내부 실행 경로 조립 (next, run-service) |
 | `scripts/rehearsals/rehearse-repository-disconnection.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |

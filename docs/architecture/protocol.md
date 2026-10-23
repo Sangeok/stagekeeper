@@ -757,3 +757,21 @@ main loop/owner로 handoff한다. 실제 모델의 tool/kernel 격리 증거는 
 Only the owner web action runs acceptance again. Under User → Project → current run locks, owner authorization and expectedUpdatedAt CAS, it advances updatedAt, writes same-state `acceptance-retry` with human/web, and sets clearedAt to that event time. It neither advances the cursor nor changes acceptance/backlog. Reopen clears active failures in the same transaction and restores backlog as before. Both retain the audit rows. Retry is absent from both MCP registries.
 
 Rollout requires compatible watch first, then the additive migration before server/web, then a verified full template bundle. Production migration, template seeding and marketplace changes require their own authorization.
+## Optional GitHub repository list
+
+GitHub list authorization is independent of the existing login and Project.disconnectedAt. The separate App requests Metadata read only;
+its user token sees the intersection of user access and installation permissions. Manual URL/direct registration remains available without this authorization.
+Public selection has no installation/revision requirement. Authorized selection carries repository ID, canonical owner/name, installation ID and connection revision;
+the actual createProject Action revalidates them before token creation or registerWebProject. Editing only project details preserves authorized provenance.
+
+`/api/github/connection/start` is an authenticated same-origin JSON POST. Its client performs top-level navigation from the returned fixed GitHub URL.
+OAuth and installation callbacks consume separate single-use states bound to user, browser and expected revision; callbacks never register a project.
+API routes authenticate directly because the proxy excludes `/api`. JSON endpoints use JSON 401 responses; top-level callbacks return fixed clean navigation URLs.
+Private HTTP/fetch results use no-store. Browser request generations and expected-user checks prevent old-account results from repopulating the form.
+
+Authorization/scope revision and refresh tokenVersion are separate fences. Refresh has one DB lease and stores the token pair atomically;
+an uncertain or expired lease never retries the consumed refresh token. Disconnect clears local secrets before attempting individual token revocation;
+an unconfirmed external revoke remains explicitly unconfirmed and never removes an installation or the user's whole grant.
+Signed raw-body webhooks stop authorization or invalidate scope and deduplicate delivery IDs in the same DB transaction.
+
+See [ADR-0006](../ADR/0006-optional-github-repository-list.md) and the README's optional-list setup for keyring, maintenance and activation/rollback contracts.

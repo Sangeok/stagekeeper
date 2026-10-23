@@ -21,6 +21,8 @@ model User {
   ownedProjects Project[] @relation("ProjectOwner")
   projectAvailabilityEvents ProjectAvailabilityEvent[]
   requestRateWindows RequestRateWindow[]
+  githubConnection GitHubConnection?
+  githubConnectAttempts GitHubConnectAttempt[]
 }
 
 model Subscription {
@@ -395,4 +397,57 @@ model PipelineRule {
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   @@id([projectId, type])
+}
+
+model GitHubConnection {
+  userId String @id
+  githubId String @unique
+  revision Int @default(0)
+  tokenVersion Int @default(0)
+  accessToken String?
+  refreshToken String?
+  accessExpiresAt DateTime?
+  refreshExpiresAt DateTime?
+  revokedAt DateTime?
+  refreshLeaseId String?
+  refreshLeaseExpiresAt DateTime?
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installations GitHubInstallation[]
+}
+
+model GitHubConnectAttempt {
+  id String @id
+  flowId String
+  userId String
+  browserHash String
+  stateHash String @unique
+  kind String
+  status String @default("pending")
+  expectedRevision Int
+  verifier String?
+  draft String?
+  outcome String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, browserHash, createdAt])
+  @@index([expiresAt])
+}
+
+model GitHubInstallation {
+  userId String
+  installationId String
+  connection GitHubConnection @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@id([userId, installationId])
+  @@index([installationId])
+}
+
+model GitHubWebhookDelivery {
+  id String @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
 }

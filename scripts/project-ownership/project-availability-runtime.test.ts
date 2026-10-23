@@ -71,5 +71,6 @@ it("keeps the final Prisma schema and generated client free of membership storag
   const generated = ["src/generated/prisma/client.ts", "src/generated/prisma/browser.ts", "src/generated/prisma/models.ts", "src/generated/prisma/internal/class.ts", "src/generated/prisma/internal/prismaNamespace.ts", "src/generated/prisma/internal/prismaNamespaceBrowser.ts"];
   for (const file of generated) assert.doesNotMatch(readFileSync(file, "utf8"), /ProjectMember|projectMember/);
   const modelFiles = readdirSync("src/generated/prisma/models").filter((file) => file.endsWith(".ts"));
-  assert.equal(modelFiles.length, 24);
+  const declaredModels = [...schema.matchAll(/^model (\w+)\s*\{/gm)].map(match => `${match[1]}.ts`).sort();
+  assert.deepEqual(modelFiles.sort(), declaredModels);
 });

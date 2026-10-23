@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { listPublicRepos } from "../../src/server/github";
+import { formatWithOptions } from "node:util";
+import { listPublicRepos } from "../../src/server/github/api.server";
 
 it("distinguishes empty success, malformed responses, HTTP failure and request failure", async (t) => {
   const logs: unknown[][] = [];
@@ -8,8 +9,8 @@ it("distinguishes empty success, malformed responses, HTTP failure and request f
   const fetchMock = t.mock.method(globalThis, "fetch");
   fetchMock.mock.mockImplementation(async () => new Response("[]"));
   assert.deepEqual(await listPublicRepos("user"), { ok: true, repos: [] });
-  fetchMock.mock.mockImplementation(async () => new Response(JSON.stringify([null, 5, {}, { name: "archived", archived: true }, { name: "active" }, { name: "custom", default_branch: "dev" }, { name: "nulls", default_branch: null, archived: null }])));
-  assert.deepEqual(await listPublicRepos("user"), { ok: true, repos: [{ name: "active", defaultBranch: "main" }, { name: "custom", defaultBranch: "dev" }, { name: "nulls", defaultBranch: "main" }] });
+  fetchMock.mock.mockImplementation(async () => new Response(JSON.stringify([null, 5, {}, { id: 1, owner: { login: "user" }, name: "archived", archived: true }, { id: 2, owner: { login: "user" }, name: "active" }, { id: 3, owner: { login: "org" }, name: "custom", default_branch: "dev" }, { id: 4, owner: { login: "user" }, name: "nulls", default_branch: null, archived: null }])));
+  assert.deepEqual(await listPublicRepos("user"), { ok: true, repos: [{ source: "public", repositoryId: "2", owner: "user", name: "active", defaultBranch: "main" }, { source: "public", repositoryId: "3", owner: "org", name: "custom", defaultBranch: "dev" }, { source: "public", repositoryId: "4", owner: "user", name: "nulls", defaultBranch: "main" }] });
   fetchMock.mock.mockImplementation(async () => new Response("{}"));
   assert.deepEqual(await listPublicRepos("user"), { ok: false, category: "shape" });
   fetchMock.mock.mockImplementation(async () => new Response("<html>"));
@@ -18,5 +19,5 @@ it("distinguishes empty success, malformed responses, HTTP failure and request f
   assert.deepEqual(await listPublicRepos("user"), { ok: false, category: "http" });
   fetchMock.mock.mockImplementation(async () => { throw new Error("sensitive-token"); });
   assert.deepEqual(await listPublicRepos("user"), { ok: false, category: "request" });
-  assert.equal(JSON.stringify(logs).includes("sensitive"), false);
+  assert.equal(logs.map(args => formatWithOptions({ depth: null }, ...args)).join(" ").includes("sensitive"), false);
 });

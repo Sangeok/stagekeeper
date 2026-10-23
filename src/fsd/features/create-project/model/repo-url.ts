@@ -1,11 +1,12 @@
 import { SLUG_MAX } from "./project-slug";
 import { parseRepoUrl as parseCoreRepoUrl } from "@harness/core/repo-url.mjs";
+import type { PublicRepository, AuthorizedRepository } from "./github-connection-state";
 
 export { SEGMENT } from "@harness/core/repo-url.mjs";
 
 export type RepoRef = { owner: string; repo: string };
 
-export type RepoOption = { name: string; defaultBranch: string };
+export type RepoOption = PublicRepository | AuthorizedRepository;
 
 export function parseRepoUrl(input: string): RepoRef | null {
   return parseCoreRepoUrl(input);
