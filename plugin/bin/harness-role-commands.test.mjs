@@ -185,7 +185,7 @@ it("grants the role SID only on empty roots and refuses a launch whose prepared 
 it("rejects malformed command arguments before preparing or executing a snapshot", async t => {
   const f = fixture(t), broker = await createRoleCommands({ root: f.root, agent: "dev", fileBroker: f.files, runtime: {} });
   try {
-    for (const args of [{ command: "echo ready", cwd: "../foreign" }, { command: "echo ready", cwd: "C:\\" }, { command: "echo ready", timeoutMs: 120001 }, { command: "echo ready", token: "secret" }, { command: "\0" }]) await assert.rejects(broker.call("role_command_exec", args));
+    for (const args of [{ command: "echo ready", cwd: "../foreign" }, { command: "echo ready", cwd: "C:\\" }, { command: "echo ready", cwd: "src/./nested" }, { command: "echo ready", cwd: "./src" }, { command: "echo ready", cwd: "src\\..\\foreign" }, { command: "echo ready", cwd: "src " }, { command: "echo ready", cwd: "src:stream" }, { command: "echo ready", timeoutMs: 120001 }, { command: "echo ready", token: "secret" }, { command: "\0" }]) await assert.rejects(broker.call("role_command_exec", args), { name: "RoleCommandInputError" });
   } finally { await broker.close(); }
 });
 
@@ -198,7 +198,7 @@ it("passes real pipe/network/path preflight and runs npm test/build on a fresh s
   writeFileSync(path.join(f.root, "build.cjs"), 'require("node:fs").writeFileSync("built.txt",String(require("./src/source.cjs"))); console.log("BUILD_READY");');
   const broker = await createRoleCommands({ root: f.root, agent: "dev", fileBroker: f.files, runtime });
   try {
-    const first = await broker.call("role_command_exec", { command: "npm run test && npm run build" });
+    const first = await broker.call("role_command_exec", { command: "npm run test && npm run build", cwd: "." });
     assert.equal(first.exitCode, 0); assert.equal(first.status, "exited"); assert.match(first.stdout, /BUILD_READY/);
     assert.equal(first.originalRepositoryWrites, false); assert.equal(first.snapshotWrites, "discarded"); assert.equal(existsSync(path.join(f.root, "built.txt")), false);
     for (const name of ["grantMs", "snapshotMs", "scratchMs", "runtimeMs", "commandMs"]) assert.ok(Number.isInteger(first.timings[name]) && first.timings[name] >= 0, name);

@@ -13,10 +13,14 @@ const bundlePath = fileURLToPath(new URL("./windows/node/", import.meta.url));
 const omittedName = name => [".git", ".codex", ".claude", ".next"].includes(name.toLowerCase()) || /^\.env(?:$|\.)/i.test(name) && name.toLowerCase() !== ".env.example";
 const identity = stat => process.platform === "win32" ? String(stat.ino) : `${stat.dev}:${stat.ino}`;
 
+export class RoleCommandInputError extends Error {
+  constructor(message) { super(message); this.name = "RoleCommandInputError"; }
+}
+
 export const roleCommandTool = {
   name: "role_command_exec",
   description: "Execute a cmd.exe /d /s /c command in fresh disposable snapshots of permitted repository and role scratch files. Use Node/npm or saved scripts, not PowerShell syntax. Use relative paths; cwd is relative to the repository. STAGEKEEPER_ROLE_SCRATCH points to the copied scratch. Build outputs and edits stay in the snapshots and are discarded. Owner authentication, Git metadata, .env files, foreign workspaces and network access are unavailable. Every result identifies its snapshot; timeout/stopped/truncated results are never success. No original writes occur.",
-  inputSchema: { type: "object", properties: { command: { type: "string", minLength: 1, maxLength: 4096 }, cwd: { type: "string" }, timeoutMs: { type: "integer", minimum: 100, maximum: 120000 } }, required: ["command"], additionalProperties: false },
+  inputSchema: { type: "object", properties: { command: { type: "string", minLength: 1, maxLength: 4096 }, cwd: { type: "string", description: "Repository-relative directory. Omit, use an empty string, or use exactly . for the repository root. Absolute paths and nested . or .. segments are refused." }, timeoutMs: { type: "integer", minimum: 100, maximum: 120000 } }, required: ["command"], additionalProperties: false },
 };
 
 export function installedWindowsRuntime(directory = bundlePath) {
@@ -205,11 +209,12 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
   if (agent === "pm") throw new Error("PM command backend refused");
   let closed = false, pending = null; const controller = new AbortController();
   async function execute(args, signal) {
-    if (closed || !args || Array.isArray(args) || Object.keys(args).some(key => !["command", "cwd", "timeoutMs"].includes(key))
-      || typeof args.command !== "string" || !args.command.trim() || args.command.length > 4096 || args.command.includes("\0")) throw new Error("Invalid native command");
-    const cwd = args.cwd ?? "", timeoutMs = args.timeoutMs ?? 60000;
+    if (closed) throw new Error("Native backend closed");
+    if (!args || Array.isArray(args) || Object.keys(args).some(key => !["command", "cwd", "timeoutMs"].includes(key))
+      || typeof args.command !== "string" || !args.command.trim() || args.command.length > 4096 || args.command.includes("\0")) throw new RoleCommandInputError("Use only command, optional cwd and optional timeoutMs. command must be a nonempty string of at most 4096 characters without null bytes.");
+    const cwd = args.cwd === "." ? "" : args.cwd ?? "", timeoutMs = args.timeoutMs ?? 60000;
     if (typeof cwd !== "string" || path.isAbsolute(cwd) || /[<>:"|?*\x00-\x1f]/.test(cwd) || cwd.split(/[\\/]/).some(part => [".", ".."].includes(part) || /[. ]$/.test(part))
-      || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 120000) throw new Error("Invalid native command bounds");
+      || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 120000) throw new RoleCommandInputError("cwd must be repository-relative: omit it, use an empty string, or use exactly . for the root; absolute paths, nested . or .. segments and Windows special path characters are refused. timeoutMs must be an integer from 100 through 120000. Correct parameters within these bounds without changing permissions.");
     const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
     combined.throwIfAborted();
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
