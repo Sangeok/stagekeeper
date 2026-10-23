@@ -172,12 +172,12 @@ PR·CI 재실행·조회 실패·squash 병합·동시 커밋 보존을 확인�
 | `checks/` | FSD·서버 경계 검사기, 문구·공개 계약 검사와 테스트 |
 | `windows/` | native Node 빌드·캐시·패키징·호환 처리·Windows 리허설과 테스트 |
 | `templates/` | 템플릿 seed·restore·쿼리 보조 모듈과 테스트 |
-| `project-ownership/` | 소유권 검사·복구·보조 모듈·복구 SQL·D3 리허설과 테스트 |
+| `project-ownership/` | 소유권 무결성의 읽기 전용 검사·보조 모듈과 테스트 |
 | `rehearsals/` | 위 책임에 속하지 않는 제품 기능 인수 리허설과 도구 자체의 테스트 |
 | `lib/` | 여러 책임이 실제 공유하는 Prisma 연결 등 |
 
 테스트는 도구 옆에 두며, 한 책임의 보조 모듈이나 복구 SQL을 공용 `lib/`로 분산하지 않는다.
-Windows·D3 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위해 별도 폴더를 만들지 않는다.
+Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위해 별도 폴더를 만들지 않는다.
 리허설의 작업 차수 이름 변경·통합·삭제는 검증 사례와 대체 여부를 대조한 별도 변경으로 다룬다.
 
 새 위치로 이동할 때 npm 명령·CI 경로 필터·상대 import·저장소 루트 계산·fixture 경로를 함께 갱신한다.
@@ -221,12 +221,13 @@ Windows·D3 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를
 | `templates/template-seed-query.ts`, `templates/template-seed-query.test.ts` | `node --import tsx --test scripts/templates/template-seed-query.test.ts` | CI 및 seed/restore 변경 시 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. `test:scripts`에 포함되며 실제 DB rollback 증거는 아니다 |
 | `grant-plan.ts` | `npm run plan:grant -- <login> <free\|pro\|max> [note]` | 플랜을 붙일 때, 로컬에서 | availability service를 통한 plan/set/version/event atomic change |
 | `lib/prisma.ts` | (헬퍼) | — | DB 스크립트의 Prisma 부트스트랩. `DATABASE_URL`이 없으면 exit 2 |
-| `project-ownership/check-project-ownership-cleanup.ts` | `npm run check:project-ownership:cleanup -- --pre\|--post` | D3 cleanup 전후 | catalog·직접 owner·exact set·event를 read-only snapshot으로 검사 |
-| `project-ownership/project-availability-cleanup.test.ts` | `npm run test:project-availability` | CI마다 | cleanup facts, SQL, CLI/receipt와 보존 계약의 DB 없는 회귀 검사 |
+| `project-ownership/check-project-ownership-cleanup.ts` | `npm run check:project-ownership:cleanup -- --pre\|--post` | 소유권 무결성 점검 시 | catalog·직접 owner·exact set·event를 read-only snapshot으로 검사 |
+| `project-ownership/project-availability-cleanup.test.ts` | `npm run test:project-availability` | CI마다 | cleanup facts, 기존 SQL과 읽기 전용 CLI의 DB 없는 회귀 검사 |
 | `project-ownership/project-availability-runtime.test.ts` | `npm run test:project-availability` / `test:scripts` → check | CI마다 | Member/legacy owner/old policy 부재, final schema/generated client와 폐기 script 검사 |
-| `project-ownership/rehearse-project-availability-d3.ts` | `npm run test:project-availability:d3:db -- --allow-fixtures --baseline <commit>` | 서로 다른 빈 격리 PostgreSQL 두 개에서 수동 | 고정 D2 artifact → cleanup → D3 등록 → 보상 migration → D2 smoke. 두 전용 URL 필수 |
-| `project-ownership/restore-project-ownership-shadow.ts` | `npm run restore:project-ownership:shadow -- [--check\|--apply --backup-receipt <path>]` | 승인된 D3 복구 | 전용 URL·receipt·migration checksum을 검사하고 고정 보상 migration bundle을 적용 |
-| `project-ownership/recovery/individual-project-availability-d3/restore-d2-shadow.sql` | 위 복구 CLI | D3 commit 뒤 D2 호환 복구 | 현재 direct owner에서 legacy shadow를 transaction으로 재구성. 일반 migration path에는 없음 |
+
+구버전 D2 복구 CLI·SQL·D3 리허설과 두 npm 실행 명령은 2026-10-23 폐기했다.
+당시 코드는 Git 이력에서 조회하며, 기존 migration 파일과
+`check:project-ownership:cleanup`의 읽기 전용 무결성 검사는 유지한다.
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
 

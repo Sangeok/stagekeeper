@@ -4,7 +4,6 @@ import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import type { CleanupFacts } from "./project-ownership-cleanup";
 import { CLEANUP_MIGRATION, validateCleanupFacts } from "./project-ownership-cleanup";
-import { artifactMigrationDigest, isRecoveryReceipt, RECOVERY_MIGRATION } from "./project-ownership-recovery";
 
 function facts(mode: "pre" | "post"): CleanupFacts {
   const post = mode === "post";
@@ -80,31 +79,15 @@ describe("validateCleanupFacts", () => {
   });
 });
 
-it("keeps cleanup and compensation migrations explicit and non-cascading", () => {
+it("keeps the ownership cleanup migration transactional and non-cascading", () => {
   const cleanup = readFileSync(`prisma/migrations/${CLEANUP_MIGRATION}/migration.sql`, "utf8");
-  const recovery = readFileSync("scripts/project-ownership/recovery/individual-project-availability-d3/restore-d2-shadow.sql", "utf8");
+  assert.match(cleanup, /^BEGIN;/);
+  assert.match(cleanup, /COMMIT;\s*$/);
   assert.match(cleanup, /DROP TABLE "ProjectMember"/);
   assert.match(cleanup, /DROP COLUMN "owner"/);
   assert.match(cleanup, /ON DELETE CASCADE ON UPDATE CASCADE/);
   for (const field of ["addedProjectIds", "removedProjectIds", "availableProjectIds"]) assert.match(cleanup, new RegExp(`ALTER COLUMN "${field}" SET NOT NULL`));
   assert.doesNotMatch(cleanup, /DROP (TABLE|COLUMN)[^;]*CASCADE/);
-  assert.match(recovery, /CREATE TABLE "ProjectMember"/);
-  assert.match(recovery, /ON DELETE SET NULL ON UPDATE CASCADE/);
-});
-
-it("requires a versioned recovery receipt with fixed non-empty identities", () => {
-  const receipt = {
-    version: 1, database: "fixture", schema: "public", d2Artifact: "a".repeat(40), d2MigrationsSha256: "b",
-    cleanupMigration: CLEANUP_MIGRATION, cleanupSqlSha256: "c", recoveryMigration: RECOVERY_MIGRATION,
-    recoverySqlSha256: "d", backupReference: "backup", rehearsalEvidence: "evidence",
-  };
-  assert.equal(isRecoveryReceipt(receipt), true);
-  assert.equal(isRecoveryReceipt({ ...receipt, backupReference: "" }), false);
-  assert.equal(isRecoveryReceipt({ ...receipt, version: 2 }), false);
-});
-
-it("rejects a non-commit D2 artifact before invoking git", async () => {
-  await assert.rejects(() => artifactMigrationDigest(process.cwd(), "not-a-commit"), /full commit id/);
 });
 
 it("cleanup CLI rejects ambiguous input before resolving a database", () => {
@@ -112,11 +95,4 @@ it("cleanup CLI rejects ambiguous input before resolving a database", () => {
   assert.equal(result.status, 2);
   assert.match(result.stderr, /--pre\|--post/);
   assert.doesNotMatch(result.stderr, /DATABASE_URL is not set/);
-});
-
-it("recovery CLI requires its dedicated URL before reading a receipt", () => {
-  const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/project-ownership/restore-project-ownership-shadow.ts", "--apply", "--backup-receipt", "missing.json"], { encoding: "utf8", env: { ...process.env, IPA_D3_RECOVERY_DATABASE_URL: "" } });
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /IPA_D3_RECOVERY_DATABASE_URL/);
-  assert.doesNotMatch(result.stderr, /ENOENT/);
 });

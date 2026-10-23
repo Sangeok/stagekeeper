@@ -62,8 +62,9 @@ WSL 시험 결과는 개발 증거로 보존하며 Windows 지원·최소 설치
 hu_는 보존하며 project_get을 포함한 새 연동 요청을 차단한다. 재연결은 기존 id/slug/데이터를 복원하는
 명시적 웹 동작이다. 상세 계약과 활성화 순서는 [repository-disconnection.md](./repository-disconnection.md)를 따른다.
 repoOwner는 GitHub 계정이며 외부 owner DTO로 변환한다. 개인 프로젝트의 ProjectMember와 legacy owner
-storage는 제거됐다. 복구가 필요하면 검토된 D2 보상 migration과 고정 artifact를 사용하며 일반 runtime은
-legacy 구조를 읽거나 쓰지 않는다.
+storage는 제거됐다. 일반 runtime은 legacy 구조를 읽거나 쓰지 않는다. 구버전 D2 복구 CLI·SQL과
+D3 리허설은 2026-10-23 폐기했고, 현행 무결성의 읽기 전용 검사와 migration 이력은 유지한다.
+운영 복구는 [repository-disconnection.md](./repository-disconnection.md)의 현재 상태 보존 계약을 따른다.
 
 **에이전트 정의는 스텁으로 물질화된다(Phase 4).** 플러그인이 사용자 저장소에 쓰는
 `.claude/agents/*.md`는 역할·굳은 규칙·구동 규칙까지이고, 절차의 단계 본문은

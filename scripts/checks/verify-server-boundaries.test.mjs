@@ -128,7 +128,7 @@ test("rejects wildcard test registry exemptions", () => rejects({}, "registry", 
 
 for (const file of [
   "scripts/rehearsals/rehearse-project.ts",
-  "scripts/project-ownership/rehearse-project-availability-d3.ts",
+  "scripts/project-ownership/rehearse-project.ts",
   "scripts/windows/rehearse-windows-project-build.mjs",
 ]) {
   test(`requires exact registration for ${file}`, () => {
@@ -144,7 +144,7 @@ for (const file of [
 
 for (const file of [
   "scripts/rehearsals/helper.ts",
-  "scripts/project-ownership/restore-project-ownership-shadow.ts",
+  "scripts/project-ownership/check-project-ownership-cleanup.ts",
   "scripts/windows/package-windows-plugin.mjs",
   "scripts/templates/rehearse-template.ts",
   "scripts/rehearsals/nested/rehearse-project.ts",

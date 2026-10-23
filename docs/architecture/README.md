@@ -63,8 +63,11 @@ event를 함께 저장한다. upgrade는 기존 목록을 유지하고 downgrade
 복원한다. 연결 해제·재연결은 별도 기능 스위치 없이 소유자의 웹 세션에서 사용할 수 있다.
 최종 개인 프로젝트 모델에는 ProjectMember와 legacy Project.owner가 없다. `ownerUserId`와 `repoOwner`는
 필수이고 사용자 삭제는 소유 프로젝트를 cascade한다. 외부 harness.json·MCP·template의 repository
-owner 이름은 adapter가 유지한다. D3 cleanup 운영 배포에는 D2 운영 인수와 backup/복구 rehearsal이
-선행되어야 한다. 로컬 구현·unit 통과는 그 증거가 아니다.
+owner 이름은 adapter가 유지한다. D3 cleanup의 운영 적용은
+[완료 기록](../proposals/completed/2026-09-15-individual-project-availability-phase-d3.md)에 보존한다.
+2026-10-23 구버전 D2 복구 CLI·SQL·D3 리허설을 폐기했다. 현행 소유권 무결성의 읽기 전용
+검사와 기존 migration 이력은 유지한다. 현재 운영 복구 계약은
+[repository-disconnection.md](./repository-disconnection.md)를 따른다.
 
 루트 `app/`은 Phase 0에서 `src/app/`으로 이동 완료됐다. Next.js는 루트 `app/`과
 `src/app/`이 동시에 있으면 `src/app/`을 무시하므로 루트 `app/`을 다시 만들지

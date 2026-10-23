@@ -21,14 +21,6 @@ export type RegisterProjectResult =
   | { status: "integrity"; reason: string }
   | { status: "capped"; reason: string };
 
-export async function registerProjectIn(
-  transaction: Prisma.TransactionClient,
-  input: RegisterProjectInput,
-): Promise<string | null> {
-  const result = await registerProjectResultIn(transaction, input);
-  return result.status === "created" || result.status === "existing" ? null : result.reason;
-}
-
 export async function registerProjectResultIn(
   transaction: Prisma.TransactionClient,
   input: RegisterProjectInput,
