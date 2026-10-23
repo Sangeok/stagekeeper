@@ -460,7 +460,8 @@ it("runs the real CLI with shell-safe plugin/root arguments containing spaces an
   for (const name of ["local-session", "file-ownership", "runner-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
   const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
   copyFileSync(BIN, cli);
-  for (const name of ["watch", "config", "qa", "token", "runbook", "workspaces", "entitlement", "runner"]) {
+  for (const name of ["execution/watch", "configuration/harness-config", "qa", "tokens/token", "templates/runbook", "configuration/workspaces", "plans/entitlement", "execution/runner"]) {
+    mkdirSync(path.dirname(path.join(pluginRoot, "lib", `${name}.mjs`)), { recursive: true });
     copyFileSync(fileURLToPath(new URL(`../lib/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "lib", `${name}.mjs`));
   }
   const session = (await f.start()).event.session;

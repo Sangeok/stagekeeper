@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { gitRoot, stateFiles, checkSession, startSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
 import { connectionInput, verifyProject, verifyCodexSupport, callTool } from "../runtime/mcp-client.mjs";
 import { codexExecutable, dispatchFreshRole, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
-import { RUNTIME_PROTOCOL } from "../lib/client-runtime.mjs";
+import { RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
 import { verifierPackage } from "../runtime/codex-agent.mjs";
 import { confirmCommitHandoff } from "../runtime/commit-handoff.mjs";
 

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { newToken } from "@harness/core/token.mjs";
+import { newToken } from "@harness/core/tokens/token.mjs";
 import { makeTemplatesFor, type TemplateDeps } from "./templates-handler";
-import { COMMON_DOCS, RUNTIME_MARKER } from "@harness/core/client-runtime.mjs";
-import { stubOf } from "@harness/core/deliver.mjs";
-import { limitsFor } from "@harness/core/entitlement.mjs";
+import { RUNTIME_MARKER } from "@harness/core/execution/client-runtime.mjs";
+import { COMMON_DOCS } from "@harness/core/templates/codex-bundle.mjs";
+import { stubOf } from "@harness/core/templates/deliver.mjs";
+import { limitsFor } from "@harness/core/plans/entitlement.mjs";
 
 const { plain: rawToken, hash: tokenHash } = newToken();
 const authorizationHeader = `Bearer ${rawToken}`;

@@ -1,4 +1,4 @@
-import type { Definition } from "@harness/core/pipeline.mjs";
+import type { Definition } from "@harness/core/pipeline/pipeline.mjs";
 
 export type SavePipelineInput = { pipelineId: string | null; name?: string; definition: Definition; expectedVersion: number };
 export type SavePipelineResult =

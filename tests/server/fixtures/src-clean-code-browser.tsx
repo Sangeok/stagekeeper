@@ -22,7 +22,7 @@ import { ProposeButton } from "../../../src/fsd/features/propose-item/ui/propose
 import { BoardItemPage, type BoardItemView } from "../../../src/fsd/pages/board-item/ui/board-item-page";
 import { toItemDocs } from "../../../src/fsd/pages/board-item/model/item-docs";
 import type { ActionResult } from "../../../src/fsd/shared/api/result";
-import { defaultGraph } from "../../../packages/core/pipeline.mjs";
+import { defaultGraph } from "../../../packages/core/pipeline/pipeline.mjs";
 import { runAcceptance } from "./src-clean-code-acceptance";
 
 const controls = {

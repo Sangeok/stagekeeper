@@ -7,7 +7,7 @@ import { createRequire } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
-import { defaultGraph } from "../../packages/core/pipeline.mjs";
+import { defaultGraph } from "../../packages/core/pipeline/pipeline.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
 
 const require = createRequire(import.meta.url);

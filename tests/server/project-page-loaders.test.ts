@@ -6,7 +6,7 @@ import { buildBriefing } from "../../src/fsd/pages/project-board/model/briefing"
 import { loadModule } from "./fixtures/load-module";
 import { manifestEntries } from "./fixtures/action-manifest";
 import { loadExecutionFacts } from "../../src/server/pipeline/api";
-import { SLOT_FORMAT } from "@harness/core/pipeline.mjs";
+import { SLOT_FORMAT } from "@harness/core/pipeline/pipeline.mjs";
 
 const boardPath = "src/fsd/pages/project-board/api/project-board.server.ts";
 const historyPath = "src/fsd/pages/project-history/api/project-history.server.ts";

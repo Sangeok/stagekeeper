@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { newToken } from "../../../packages/core/token.mjs";
+import { newToken } from "../../../packages/core/tokens/token.mjs";
 import { POST } from "../../../src/app/api/projects/route";
 import { cleanup, connections, fixture, type Fixture } from "./support";
 

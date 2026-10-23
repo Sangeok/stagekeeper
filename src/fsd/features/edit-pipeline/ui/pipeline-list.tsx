@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ITEM_TYPES } from "@harness/core/backlog.mjs";
+import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { agoLabel } from "@/fsd/shared/lib/relative-time";
 import { Button } from "@/fsd/shared/ui/button";

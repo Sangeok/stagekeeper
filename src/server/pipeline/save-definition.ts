@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { recompose, SLOT_FORMAT, validateDefinition, type Definition, type GraphInput } from "@harness/core/pipeline.mjs";
+import { recompose, SLOT_FORMAT, validateDefinition, type Definition, type GraphInput } from "@harness/core/pipeline/pipeline.mjs";
 import { PipelineRejection, requirePipelineEdit, withPipelineWrite } from "./lock-pipeline";
 import { ensureDefaultPipeline, ensureRunnableVersion, loadPipelinesViewIn, nextPipelineVersion, PIPELINE_NOT_FOUND } from "./run-service";
 

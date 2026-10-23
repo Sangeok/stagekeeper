@@ -6,7 +6,7 @@ import { createServer, type Server } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
-import { newToken } from "../../packages/core/token.mjs";
+import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
 
 async function main(): Promise<void> {

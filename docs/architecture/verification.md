@@ -31,7 +31,7 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
   기술 분류 폴더
 - kebab-case가 아닌 layer/slice/segment/file 이름
 - 루트 `app/`과 `src/app/`의 동시 존재
-- `plugin/lib`가 `packages/core`의 배포 모듈과 바이트 동일한지 — 내용이 다른 것(drift)과
+- `plugin/lib`가 `packages/core`의 하위 경로를 보존하고 배포 모듈과 바이트 동일한지 — 내용이 다른 것(drift)과
   원본이 사라진 것(orphan) 모두 (`scripts/plugin-lib.mjs --check`, `npm run check`의 첫 단계)
 
 정규식 기반 검사라 계산된 dynamic import, TypeScript path alias의 복잡한 재정의,
@@ -78,7 +78,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 - `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
   연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
   환경을 같은 변경에서 보완한다.
-- `npm test`: `packages/core/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
+- `npm test`: `packages/core/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
 - `npm run test:scripts`: `scripts/**/*.test.mjs`와 `scripts/**/*.test.ts`를 재귀 검색하고
   CI의 `npm run check`에서 실행한다. 외부 DB·모델 호출 없는 도구 테스트를 포함한다.
@@ -217,7 +217,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `checks/verify-fsd-boundaries.test.mjs`, `checks/verify-server-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `checks/retired-copy.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
-| `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
+| `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/**/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
 | `templates/seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증 |
 | `templates/restore-dual-client-templates.ts` | `node --import tsx scripts/templates/restore-dual-client-templates.ts --snapshot <private 경로>` | 승인된 template 복구 | snapshot version/hash·현재 body 전체를 먼저 대조하고 whitelist 행만 한 transaction으로 복구한다. 이전에 없던 CODEX.runbook 행만 삭제하며 외부 행을 보존한다 |
 | `templates/template-seed-query.ts`, `templates/template-seed-query.test.ts` | `node --import tsx --test scripts/templates/template-seed-query.test.ts` | CI 및 seed/restore 변경 시 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. `test:scripts`에 포함되며 실제 DB rollback 증거는 아니다 |
@@ -232,6 +232,9 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 `check:project-ownership:cleanup`의 읽기 전용 무결성 검사는 유지한다.
 
 `plugin/lib/`는 직접 고치지 않는다 — ESLint도 그 폴더를 무시한다(`eslint.config.mjs`). 원본을 고치고 동기화한다.
+동기화와 drift·고아 검사는 하위 디렉터리까지 재귀 탐색하며 `.test.mjs`와 타입 선언은
+배포하지 않는다. 중첩 경로·같은 basename·이동 후 고아 제거와 복사본의 상대 import는
+`plugin-lib.test.mjs`가 검증한다. 책임별 배치는 [core.md](./core.md)를 따른다.
 
 ## Windows CI 런타임 재사용
 

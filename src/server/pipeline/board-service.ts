@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { allowsSessionApprovals, capError } from "@harness/core/entitlement.mjs";
-import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/backlog.mjs";
+import { allowsSessionApprovals, capError } from "@harness/core/plans/entitlement.mjs";
+import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/pipeline/backlog.mjs";
 import { readProjectAccessIn, readProjectPlanIn } from "@/server/projects/api";
-import { advance, sequence, routePipeline, cursorForStatus, gateId, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { advance, sequence, routePipeline, cursorForStatus, gateId, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
 import { hasActiveLegacyScoutSlot } from "./automatic-scout";
-import { isOpen } from "@harness/core/transitions.mjs";
+import { isOpen } from "@harness/core/pipeline/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem, type AcceptanceFailure } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
 import { ensureRunIn, ensureDefaultPipeline, ensureRunnableVersion, PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND, readFacts, type Graph, type GateEntry } from "./run-service";

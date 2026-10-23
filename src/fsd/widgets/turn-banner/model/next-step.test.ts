@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { clientRuntime } from "@harness/core/client-runtime.mjs";
+import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
 import { formatNextStep } from "./next-step";
 import type { NextStep } from "./turn";
 

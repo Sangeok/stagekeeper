@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
-import { newToken } from "../../../packages/core/token.mjs";
-import { runbookVersion } from "../../../packages/core/runbook.mjs";
+import { newToken } from "../../../packages/core/tokens/token.mjs";
+import { runbookVersion } from "../../../packages/core/templates/runbook.mjs";
 import { GET as identity } from "../../../src/app/api/project/route";
 import { GET as templates } from "../../../src/app/api/templates/route";
 import { POST as runbook } from "../../../src/app/api/runbook/route";

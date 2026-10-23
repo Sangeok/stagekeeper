@@ -1,4 +1,4 @@
-import { clientRuntime } from "@harness/core/client-runtime.mjs";
+import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
 import type { NextStep } from "./turn";
 
 export type RuntimeClient = NonNullable<Parameters<typeof clientRuntime>[0]>;

@@ -1,9 +1,10 @@
-import { validateCodexBundle, runtimeEcho } from "@harness/core/client-runtime.mjs";
-import { codexRunbookVersion, isRunbookVersion } from "@harness/core/runbook.mjs";
+import { runtimeEcho } from "@harness/core/execution/client-runtime.mjs";
+import { validateCodexBundle } from "@harness/core/templates/codex-bundle.mjs";
+import { codexRunbookVersion, isRunbookVersion } from "@harness/core/templates/runbook.mjs";
 import type { Plan } from "@/server/projects/contracts";
 import type { ServerResult } from "@/server/result";
 import { splitTemplate } from "./steps";
-import { limitsFor } from "@harness/core/entitlement.mjs";
+import { limitsFor } from "@harness/core/plans/entitlement.mjs";
 
 export type CodexBundle = { language: string; templates: Record<string, string>; version: string; runtime: ReturnType<typeof runtimeEcho> };
 export type BundleReader = (language: string) => Promise<{ path: string; body: string }[]>;

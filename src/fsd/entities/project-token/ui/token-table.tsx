@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { isTokenActive } from "@harness/core/token-validity.mjs";
+import { isTokenActive } from "@harness/core/tokens/token-validity.mjs";
 import { Table, Td, Th, Tr } from "@/fsd/shared/ui/table";
 import type { TokenRow } from "../model/token-row";
 import { TokenUsage } from "./token-usage";

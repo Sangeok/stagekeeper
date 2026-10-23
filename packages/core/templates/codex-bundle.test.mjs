@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { COMMON_DOCS, RUNTIME_MARKER, parseClient, validateCodexBundle, clientRuntime } from "./client-runtime.mjs";
+import { RUNTIME_MARKER } from "../execution/client-runtime.mjs";
+import { COMMON_DOCS, validateCodexBundle } from "./codex-bundle.mjs";
 import { deliverable } from "./deliver.mjs";
 import { codexRunbookVersion, runbookVersion } from "./runbook.mjs";
 import { hashOf, mergeClientLock } from "./manifest.mjs";
-import { limitsFor } from "./entitlement.mjs";
+import { limitsFor } from "../plans/entitlement.mjs";
 import { stubOf } from "./template-boundary.mjs";
 
 for (const plan of ["free", "pro", "max"]) for (const newline of ["\n", "\r\n"]) {
@@ -31,11 +32,7 @@ const rows = [
   ...COMMON_DOCS.map(path => ({ path, body: "shared\n" })),
   ...["dev", "pm", "feature-scout", "plan-verifier", "doc-auditor", "qa-verifier", "impl-verifier"].map(role => ({ path: `agents/${role}.md`, body: RUNTIME_MARKER + "\nStub\n## step:start\nPrivate\nnext: done\n" })),
 ];
-it("keeps Claude default and rejects non-enum clients", () => {
-  assert.equal(parseClient(undefined), "claude"); assert.equal(parseClient(null), "claude");
-  for (const value of ["", "Codex", "routine", {}, true]) assert.throws(() => parseClient(value));
-  assert.equal(clientRuntime("codex").runbook_path, "docs/harness/codex-runbook.md");
-});
+
 it("delivers only the chosen runbook, entitled stubs and Codex-only runtime echo", () => {
   const claude = deliverable(rows, "free"), codex = deliverable(rows, "free", "codex");
   assert.equal(claude.runtime, undefined); assert.ok(claude.templates["CLAUDE.runbook.md"]); assert.equal(claude.templates["CODEX.runbook.md"], undefined);

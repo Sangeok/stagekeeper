@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
-import { newToken } from "../../../packages/core/token.mjs";
+import { newToken } from "../../../packages/core/tokens/token.mjs";
 import { readRunnerState, runRunnerOp, setRunnerPaused } from "../../../src/server/runners/api";
 import type { RunnerOp } from "../../../src/server/runners/contracts";
 import { POST as runnerRoute } from "../../../src/app/api/runner/route";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { TOKEN_KINDS } from "@harness/core/token.mjs";
+import { TOKEN_KINDS } from "@harness/core/tokens/token.mjs";
 import { OWNER_TOKEN_VARIABLE, codexMcpCommand, codexOwnerMcpCommand, connectCommands, profileLine, saveCommands, tokenKind } from "./connect-command";
 
 describe("Codex owner connection", () => {

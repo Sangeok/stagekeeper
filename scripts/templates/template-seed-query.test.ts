@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { COMMON_DOCS, RUNTIME_MARKER } from "@harness/core/client-runtime.mjs";
-import { limitsFor } from "@harness/core/entitlement.mjs";
+import { RUNTIME_MARKER } from "@harness/core/execution/client-runtime.mjs";
+import { COMMON_DOCS } from "@harness/core/templates/codex-bundle.mjs";
+import { limitsFor } from "@harness/core/plans/entitlement.mjs";
 import { seedTemplates, snapshotTemplates, restoreTemplates, type TemplateSource } from "./template-seed-query";
 
 const rows: TemplateSource[] = [

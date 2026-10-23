@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { newToken } from "@harness/core/token.mjs";
+import { newToken } from "@harness/core/tokens/token.mjs";
 import { resolveRestScope, resolveUserScope } from "./scope";
 import { NOT_YOURS, PROJECT_REQUIRED } from "../projects/api";
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
 import { REQUEST_LIMITS } from "../../../packages/core/request-rate.mjs";
-import { newToken } from "../../../packages/core/token.mjs";
+import { newToken } from "../../../packages/core/tokens/token.mjs";
 import { consumeProjectRequestBudget } from "../../../src/server/usage/api";
 import { consumeRequestBudget } from "../../../src/server/usage/request-rate-service";
 import { readDatabaseClockIn } from "../../../src/server/database-clock";

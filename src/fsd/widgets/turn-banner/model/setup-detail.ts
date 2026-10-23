@@ -1,4 +1,4 @@
-import { clientRuntime } from "@harness/core/client-runtime.mjs";
+import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
 import type { RuntimeClient } from "./next-step";
 import type { SetupStep } from "./turn";
 

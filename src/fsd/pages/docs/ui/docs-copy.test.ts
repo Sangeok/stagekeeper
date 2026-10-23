@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { defaultGraph } from "@harness/core/pipeline.mjs";
-import { limitsFor } from "@harness/core/entitlement.mjs";
+import { defaultGraph } from "@harness/core/pipeline/pipeline.mjs";
+import { limitsFor } from "@harness/core/plans/entitlement.mjs";
 
 import { ACCEPTANCE_CHECK_LABELS, nodeLabel } from "@/fsd/entities/pipeline";
 import { installCommands } from "@/fsd/shared/config/plugin-install";

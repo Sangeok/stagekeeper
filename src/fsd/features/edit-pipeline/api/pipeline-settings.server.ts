@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { allowsPipelineEdit, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline.mjs";
-import { ITEM_TYPES } from "@harness/core/backlog.mjs";
+import { allowsPipelineEdit, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline/pipeline.mjs";
+import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
 import { failure, success, type ActionResult } from "@/fsd/shared/api/result";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";

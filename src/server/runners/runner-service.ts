@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { limitsFor, RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/entitlement.mjs";
-import { BEAT_WRITE_INTERVAL_MS, holdsRunnerLease, needsAgentActivity } from "@harness/core/runner.mjs";
+import { limitsFor, RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
+import { BEAT_WRITE_INTERVAL_MS, holdsRunnerLease, needsAgentActivity } from "@harness/core/execution/runner.mjs";
 import { readDatabaseClockIn } from "@/server/database-clock";
 import { lockProjectOwnerIn, READ_OPTIONS, readProjectAccessIn } from "@/server/projects/api";
 import type { ServerResult } from "@/server/result";

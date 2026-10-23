@@ -1,5 +1,5 @@
 import { isOverBudget } from "@/fsd/entities/board-item";
-import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline.mjs";
+import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline/pipeline.mjs";
 import { daysBetween } from "@/fsd/shared/lib/relative-time";
 
 type BoardRow = {

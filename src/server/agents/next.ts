@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { REPORT_AGENTS, allowsAgent } from "@harness/core/entitlement.mjs";
-import { renderTemplate } from "@harness/core/render.mjs";
-import { parseClient, runtimeEcho, type Client } from "@harness/core/client-runtime.mjs";
-import { STATUSES, canPropose } from "@harness/core/transitions.mjs";
+import { REPORT_AGENTS, allowsAgent } from "@harness/core/plans/entitlement.mjs";
+import { renderTemplate } from "@harness/core/templates/render.mjs";
+import { parseClient, runtimeEcho, type Client } from "@harness/core/execution/client-runtime.mjs";
+import { STATUSES, canPropose } from "@harness/core/pipeline/transitions.mjs";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { ServerResult, UsageLimitFailure } from "@/server/result";
 import type { PipelineEntry } from "@/server/pipeline/contracts";

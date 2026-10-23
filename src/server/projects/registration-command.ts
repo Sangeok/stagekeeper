@@ -1,4 +1,4 @@
-import { capError } from "@harness/core/entitlement.mjs";
+import { capError } from "@harness/core/plans/entitlement.mjs";
 import type { Prisma } from "@/generated/prisma/client";
 import { appendAvailabilityEventIn, findOwnedRepository, lockProjectOwnerIn, readOwnerAvailabilityIn, type OwnerAvailability } from "./availability-service";
 import { DISCONNECTED_REASON, ProjectIntegrityError } from "./access-query";

@@ -1,5 +1,5 @@
-import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON, AUTO_PROPOSE_DISABLED_REASON } from "@harness/core/pipeline.mjs";
-import { canPropose } from "@harness/core/transitions.mjs";
+import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON, AUTO_PROPOSE_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
+import { canPropose } from "@harness/core/pipeline/transitions.mjs";
 
 import type { PipelineEntry, GateEntry } from "./run-service";
 import type { UsageLimitFailure } from "@/server/result";

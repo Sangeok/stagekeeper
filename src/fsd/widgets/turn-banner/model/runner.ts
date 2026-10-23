@@ -1,4 +1,4 @@
-import { runnerSignalAt, runnerStatus } from "@harness/core/runner.mjs";
+import { runnerSignalAt, runnerStatus } from "@harness/core/execution/runner.mjs";
 
 export type TurnRunner = {
   mode: "session" | "resident";

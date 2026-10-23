@@ -1,5 +1,5 @@
 import { validateWorkspaceSemantics } from "./workspaces.mjs";
-import { parseQaConfig } from "./qa.mjs";
+import { parseQaConfig } from "../qa.mjs";
 
 const EXECUTORS = new Set(["local", "routine"]);
 const RELEASE_AUTH = new Set(["none", "verifier"]);

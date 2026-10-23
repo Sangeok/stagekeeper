@@ -1,6 +1,6 @@
 import { useState, useTransition, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
-import { parseTokenExpiryInput } from "@harness/core/token-validity.mjs";
+import { parseTokenExpiryInput } from "@harness/core/tokens/token-validity.mjs";
 
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";

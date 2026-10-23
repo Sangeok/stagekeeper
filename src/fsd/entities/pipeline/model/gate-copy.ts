@@ -1,4 +1,4 @@
-import { gateKind, slotAgent } from "@harness/core/pipeline.mjs";
+import { gateKind, slotAgent } from "@harness/core/pipeline/pipeline.mjs";
 
 const GATE_COPY: Record<string, { label: string; hint: string }> = {
   "before-plan": { label: "Request plan", hint: "Requesting lets dev write a plan. Then continue in your coding client. Nothing changes in the code yet." },

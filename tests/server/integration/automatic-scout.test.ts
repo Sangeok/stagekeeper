@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline.mjs";
+import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
 import { setAutomaticScout } from "../../../src/server/pipeline/api";
 import { headFor } from "../../../src/server/pipeline/api";
 import { createNextDeps } from "../../../src/server/agents/api";

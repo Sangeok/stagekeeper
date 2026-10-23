@@ -1,5 +1,5 @@
 import os from "node:os";
-import { RUNNER_HOST_MAX } from "../lib/runner.mjs";
+import { RUNNER_HOST_MAX } from "../lib/execution/runner.mjs";
 
 const BODY_LIMIT = 64 * 1024;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);

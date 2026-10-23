@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AUTO_PROPOSE_DISABLED_REASON, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline.mjs";
+import { AUTO_PROPOSE_DISABLED_REASON, PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline/pipeline.mjs";
 import { AutomaticPickControl } from "./automatic-pick-control";
 
 it("automatic picking shares the core off reason and disables writes for Free, unavailable projects and pending changes", () => {

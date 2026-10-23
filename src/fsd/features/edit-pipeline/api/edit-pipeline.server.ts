@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { allowsPipelineEdit } from "@harness/core/pipeline.mjs";
+import { allowsPipelineEdit } from "@harness/core/pipeline/pipeline.mjs";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";

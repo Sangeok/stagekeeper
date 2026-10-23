@@ -1,6 +1,6 @@
 import { blobHref, type RepoRef } from "@/fsd/entities/board-item";
 import type { ActionResult } from "@/fsd/shared/api/result";
-import { isGateId } from "@harness/core/pipeline.mjs";
+import { isGateId } from "@harness/core/pipeline/pipeline.mjs";
 import { needsHumanDecision } from "./gate-source";
 import type { ApproveGateInput, DiscardInput, RetryAcceptanceInput, TransitionInput } from "./review-gate-input";
 

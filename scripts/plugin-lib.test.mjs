@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, it } from "node:test";
+import { pathToFileURL } from "node:url";
 import { diffPluginLib, syncPluginLib } from "./plugin-lib.mjs";
 
 const temporaryProjects = [];
@@ -82,5 +83,42 @@ describe("plugin-lib", () => {
     assert.throws(() => diffPluginLib(root), /packages\/core not found/);
     assert.throws(() => syncPluginLib(root), /packages\/core not found/);
     assert.equal(existsSync(join(root, "plugin/lib/config.mjs")), true);
+  });
+
+  it("reports nested drift and orphans using their complete relative paths", () => {
+    const root = project();
+    write(root, "packages/core/plans/limits.mjs", "export const limit = 20;\n");
+    write(root, "packages/core/templates/render.mjs");
+    write(root, "plugin/lib/plans/limits.mjs", "export const limit = 10;\n");
+    write(root, "plugin/lib/templates/retired.mjs");
+
+    assert.deepEqual(diffPluginLib(root), {
+      drift: ["plans/limits.mjs", "templates/render.mjs"],
+      orphan: ["templates/retired.mjs"],
+    });
+  });
+
+  it("preserves nested imports and same-named modules when replacing a flat copy", async () => {
+    const root = project();
+    write(root, "packages/core/plans/rules.mjs", "export const limit = 20;\n");
+    write(root, "packages/core/templates/rules.mjs", 'import { limit } from "../plans/rules.mjs";\nexport const allowed = limit > 0;\n');
+    write(root, "packages/core/templates/rules.test.mjs", "test only\n");
+    write(root, "packages/core/templates/rules.d.mts", "export declare const allowed: boolean;\n");
+    write(root, "packages/core/README.md", "module map\n");
+    write(root, "plugin/lib/rules.mjs");
+    write(root, "plugin/lib/obsolete/nested/rules.mjs");
+    write(root, "plugin/lib/obsolete/.gitkeep", "");
+
+    assert.deepEqual(syncPluginLib(root), {
+      drift: ["plans/rules.mjs", "templates/rules.mjs"],
+      orphan: ["obsolete/nested/rules.mjs", "rules.mjs"],
+    });
+    const copied = await import(pathToFileURL(join(root, "plugin/lib/templates/rules.mjs")).href);
+    assert.equal(copied.allowed, true);
+    for (const file of ["rules.mjs", "obsolete/nested/rules.mjs", "templates/rules.test.mjs", "templates/rules.d.mts", "README.md"]) {
+      assert.equal(existsSync(join(root, "plugin/lib", file)), false, file);
+    }
+    assert.equal(existsSync(join(root, "plugin/lib/obsolete/.gitkeep")), true);
+    assert.deepEqual(syncPluginLib(root), { drift: [], orphan: [] });
   });
 });

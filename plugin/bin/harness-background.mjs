@@ -5,9 +5,9 @@ import { appendFileSync, createWriteStream, existsSync, mkdirSync, openSync, rea
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { RESIDENT_RUNNER_PLAN_GATE } from "../lib/entitlement.mjs";
-import { parseBearer } from "../lib/token.mjs";
-import { actionableWork } from "../lib/watch.mjs";
+import { RESIDENT_RUNNER_PLAN_GATE } from "../lib/plans/entitlement.mjs";
+import { parseBearer } from "../lib/tokens/token.mjs";
+import { actionableWork } from "../lib/execution/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
   readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
 import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, matchesBinding, readState, registerChild, settleChild, stateFiles,

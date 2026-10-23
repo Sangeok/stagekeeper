@@ -1,4 +1,4 @@
-import type { Plan } from "@harness/core/entitlement.mjs";
+import type { Plan } from "@harness/core/plans/entitlement.mjs";
 import { countNoun } from "@/fsd/shared/lib/count-noun";
 import type { SelectProjectInput } from "./select-project-input";
 

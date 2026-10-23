@@ -67,7 +67,7 @@ from your own session with an owner token. Everything else runs in your own Clau
 ### Your pipeline, your gates
 
 The order lives on the server as a per-project pipeline graph, not in runbook text, so the
-server can enforce it. The rules are in `packages/core/pipeline.mjs`.
+server can enforce it. The rules are in `packages/core/pipeline/pipeline.mjs`.
 
 - **Nodes:** `propose`, `plan`, `verify`, `implement`, `impl-verify`, `qa`, `accept`,
   `doc-audit`, `scout`. `plan`, `implement`, and `accept` can't be removed. `scout`,
@@ -136,7 +136,7 @@ records validation, and performs acceptance. Agents don't dispatch each other.
 | `done` | Done | dev reported it finished. Accepted once the acceptance record is in |
 | `on_hold` | On hold | Parked. Resume to continue |
 
-Allowed transitions are defined in one place, `packages/core/transitions.mjs`.
+Allowed transitions are defined in one place, `packages/core/pipeline/transitions.mjs`.
 
 ## Plans
 
@@ -153,7 +153,7 @@ Plans belong to the user, and every project follows its owner's plan.
 | Edit the pipeline graph | No | Yes | Yes |
 | New agent runs per 5-hour window | 20 | 100 | Unlimited |
 
-- Limits come from `LIMITS` in `packages/core/entitlement.mjs`.
+- Limits come from `LIMITS` in `packages/core/plans/entitlement.mjs`.
 - The run limit never blocks resuming an agent run that is already open.
 - The history window limits what the History tab shows; everything is stored.
 - After a downgrade, projects over the limit are kept as **Not selected** and are read only.

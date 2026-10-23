@@ -1,5 +1,5 @@
-import { buildVars, buildWorkspaceVars } from "@harness/core/vars.mjs";
-import type { Client } from "@harness/core/client-runtime.mjs";
+import { buildVars, buildWorkspaceVars } from "@harness/core/templates/vars.mjs";
+import type { Client } from "@harness/core/execution/client-runtime.mjs";
 
 export type ProjectRow = { owner: string; repo: string; branch: string; name: string };
 export type WorkspaceRow = { wsId: string; path: string; agent: string; verify: string[]; knowledge: string | null; readOnly: string[] };

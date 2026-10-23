@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runbookVersion } from "../../packages/core/runbook.mjs";
+import { runbookVersion } from "../../packages/core/templates/runbook.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 import { runbookStale } from "../../src/server/templates/api";
 

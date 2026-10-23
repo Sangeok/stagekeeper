@@ -1,4 +1,4 @@
-import { limitsFor } from "./entitlement.mjs";
+import { limitsFor } from "../plans/entitlement.mjs";
 
 export const NODE_KINDS = ["propose", "plan", "verify", "implement", "impl-verify", "qa", "accept", "doc-audit", "scout"];
 export const REQUIRED_NODES = ["plan", "implement", "accept"];

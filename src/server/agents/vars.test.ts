@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { parseHarnessConfig } from "@harness/core/config.mjs";
-import { DEFAULT_SCOUT_QUESTION, buildVars, buildWorkspaceVars } from "@harness/core/vars.mjs";
+import { parseHarnessConfig } from "@harness/core/configuration/harness-config.mjs";
+import { DEFAULT_SCOUT_QUESTION, buildVars, buildWorkspaceVars } from "@harness/core/templates/vars.mjs";
 
 import { serverVars, type WorkspaceRow } from "./vars";
 

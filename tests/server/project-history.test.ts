@@ -6,7 +6,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { loadModule } from "./fixtures/load-module";
 import type { ReactElement } from "react";
-import { historyCutoff } from "../../packages/core/entitlement.mjs";
+import { historyCutoff } from "../../packages/core/plans/entitlement.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 import { createBoardService } from "../../src/server/pipeline/api";
 import { currentRoundIds, hasProjectHistoryBefore, projectHistory, projectHistoryItems } from "../../src/server/pipeline/api.server";
@@ -48,7 +48,7 @@ it("the actual route stops before reads on auth failure and derives scope only f
     path: "docs/r.md", commit: "abcdef123", isAcceptance: false, acceptedAt: null };
   const options: { view: string; since: Date | null; before: unknown }[] = [];
   const page = isolatedHistoryRoute({
-    "@harness/core/entitlement.mjs": { historyCutoff },
+    "@harness/core/plans/entitlement.mjs": { historyCutoff },
     "@/fsd/pages/project-history": { ProjectHistoryPage: () => null, readHistoryQuery },
     "@/server/auth/guard": { requireProjectOwner: async (slug: string) => {
       calls.push("guard"); assert.equal(slug, "sample"); if (rejectAccess) throw denied; return { projectId: "owned" };
@@ -205,7 +205,7 @@ it("defaults to item summaries, ignores malformed cursors and fetches only an ex
   const itemOptions: itemCursorModule.HistoryItemsOptions[] = [];
   const detailOptions: { key: string; view: string; since: Date | null; before: cursorModule.HistoryCursor | null }[] = [];
   const route = isolatedHistoryRoute({
-    "@harness/core/entitlement.mjs": { historyCutoff },
+    "@harness/core/plans/entitlement.mjs": { historyCutoff },
     "@/fsd/pages/project-history": { ProjectHistoryPage: () => null, readHistoryQuery },
     "@/server/auth/guard": { requireProjectOwner: async () => {
       calls.push("guard"); if (!authorized) throw denied; return { projectId: "owned" };

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { ITEM_TYPES } from "@harness/core/backlog.mjs";
+import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
 import { createBoardService as createBoardQueries } from "../../../src/server/pipeline/api";
 import { savePipelineDefinition } from "../../../src/server/pipeline/api";
 import { setPipelineRule, archivePipeline } from "../../../src/server/pipeline/api";
