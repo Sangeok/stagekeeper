@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "draft"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-23"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "user (완료 정리)"
+approved-at: "2026-10-23"
+approval-scope: "PR #204로 구현·검증·dev 병합된 A1·A2·B1~B8 및 아키텍처 목록 정합화의 완료 확인과 문서 completed 처리. 신규 제품 코드 변경·배포는 포함하지 않음"
+completed-at: "2026-10-23"
+verification-summary: "A1 상수 1개·A2 싱글턴 바인딩 7개·B1~B8 재export 9개와 아키텍처 정합화 완료. PR #204 check CI 성공 후 dev 병합. 구현 시 check·build·회귀 통과 보고와 완료 확인 시 18개 모듈의 제거/보존 export·미러 동일성 확인"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -21,16 +21,20 @@ related:
   - "docs/proposals/completed/2026-10-07-test-only-code-cleanup-candidates.md"
 ---
 
-# 미사용 상수·싱글턴 바인딩·재export 정리 제안
+# 미사용 상수·싱글턴 바인딩·재export 정리 완료 기록
 
 ## Summary
+
+A1·A2·B1~B8의 전체 Core와 두 아키텍처 목록 정합화를 완료했다.
+[PR #204](https://github.com/Sangeok/stagekeeper/pull/204)는 `check` CI 성공 후 `dev`에
+병합됐다. 이 문서에는 미선택 Phase 2가 없으며 아래 계획은 당시 근거를 보존한 기록이다.
 
 2026-10-23 코드 감사에서 저장소 내 소비자가 없는 **상수 1개, 싱글턴 바인딩 7개,
 재export 9개**를 확인했다. 상수의 플러그인 복사본은 같은 항목으로 집계한다.
 전체 파일이 미사용인 제품 모듈은 발견하지 못했다.
 
-이 문서는 사용자의 직전 감사 결과 문서화 요청에 따른 독립 정리 계획이다.
-현재 작성 범위는 이 Markdown 파일 하나이며 코드 제거는 수행하지 않는다.
+최초 문서는 사용자의 감사 결과 문서화 요청에 따른 독립 정리 계획이었다.
+당시 작성 범위는 이 Markdown 파일 하나였고 코드 제거는 수행하지 않았다.
 기능 오류 수정이나 성능 개선을 목표로 삼지 않는다. 정리로 얻는 이익은 미사용 선언과
 공개 경로를 줄이는 것이며, 번들 크기·성능 개선량을 측정한 근거는 없다.
 
@@ -68,11 +72,11 @@ DB·권한·런타임 상태 전이는 바꾸지 않으며, 하나의 정리 범
 과거 정리 제안서는 유지 결정의 배경으로만 사용하고 현재 아키텍처를 덮어쓰지 않는다.
 아래 `REQ`·`CON`·`TASK`·`VFY`의 canonical 정의는 이 문서에만 둔다.
 
-### 이번 reconciliation의 현재 기준
+### 구현 전 reconciliation 기준
 
-사용자의 현재 지시는 이 제안서의 검증·개선이며 쓰기 권한은 이 파일 하나에 한정한다.
-이는 같은 제안서 작성의 연속 작업으로, 기존 branch와 두 untracked 문서를 보존한다.
-코드 기준 HEAD는 위와 같고 제품·테스트·아키텍처 문서의 변경은 없다.
+당시 사용자 지시는 이 제안서의 검증·개선이었고 쓰기 권한은 이 파일 하나에 한정됐다.
+같은 제안서 작성의 연속 작업으로 기존 branch와 두 untracked 문서를 보존했다.
+당시 코드 기준 HEAD는 위와 같고 제품·테스트·아키텍처 문서 변경은 없었다.
 
 초기 감사의 파일·export 수는 그 감사의 기록이다. 이번에는 A1·A2·B1~B8의 전체
 제거 목록, 모든 보존 목적지와 검증 의존 파일을 재대조한다. 검사 대상은 `src`,
@@ -149,7 +153,7 @@ public API를 사용해야 한다. 이번 계획은 내부 사용 중인 구현�
 **Observed:** `docs/architecture/server.md`의 `pipeline/api.ts` 목록에는 `handoffIsLive`,
 `runners/api.ts` 목록에는 `readRunnerSummaries`가 있다. 구현 시 B1·B5와 함께 그 두 행을
 정합화하는 작업을 포함한다. `runners/api.server.ts`의 `readRunnerSummaries`는 유지한다.
-현재 문서 작성 단계에서는 아키텍처 문서를 수정하지 않는다.
+최초 문서 작성 단계에서는 아키텍처 문서를 수정하지 않았으며 후속 구현에서 정합화했다.
 
 | 제외 대상 | 유지 근거 |
 | --- | --- |
@@ -221,7 +225,7 @@ stage하지 않는다. 테스트 수정이 필요해지면 원인을 기록하�
 `tsconfig.tsbuildinfo`를 만들거나 갱신할 수 있다. 이는 제품 파일 추가 허용과 구분한다.
 `npm run check`는 `next typegen`, `npm run build`는 Prisma generate와 Next build를
 실행한다. 관련 산출물을 자동 삭제하거나 검증 명목으로 DB migration·seed를 실행하지 않는다.
-현재 문서 개선 요청의 쓰기 범위는 계속 이 제안서 하나다.
+당시 문서 개선 요청의 쓰기 범위는 이 제안서 하나였다.
 
 ## Implementation Plan
 
@@ -309,7 +313,7 @@ node scripts/plugin-lib.mjs --check
   `src/fsd/widgets/turn-banner/model/runner.test.ts`,
   `src/fsd/widgets/turn-banner/ui/turn-banner.test.ts`,
   `src/fsd/pages/project-list/ui/project-list-page.test.mjs`의 기존 표시 검증이 유지된다.
-- evidence state: Planned. 현재 제거 작업을 수행하지 않았으므로 미실행이다.
+- evidence state: Passed. PR #204의 구현 검증에서 해당 기존 회귀를 실행했고 check CI도 성공했다. 아래 완료 기록에서 당시 보고와 이번 직접 확인을 구분한다.
 
 ### VFY-DEADCLEAN-02: 파이프라인·MCP·UI 회귀 검증
 
@@ -320,7 +324,7 @@ node scripts/plugin-lib.mjs --check
   `mcp/tools.test.mjs`, `mcp/owner-tools.test.mjs`와 runtime public API 시험이 통과하고,
   `review-gate/model/inbox-item.test.ts`, `edit-pipeline/ui/pipeline-rail.test.mjs`,
   `pipeline-list.test.ts` 등 기존 렌더·입력 계약 검증을 보존한다.
-- evidence state: Planned. DB·브라우저 통합 인수를 새로 실행했다는 의미가 아니다.
+- evidence state: Passed. PR #204의 구현 검증에서 서비스·MCP·렌더 회귀가 통과했다. 실제 브라우저·운영 DB 인수 완료로 확대하지 않는다.
 
 ### VFY-DEADCLEAN-03: 제거 범위·타입·경계·빌드 검증
 
@@ -332,7 +336,7 @@ node scripts/plugin-lib.mjs --check
 - 관찰: 허용된 목적지의 지정 제거·목록 정합화만 diff에 있고, core 원본과 복사본이 일치한다.
   미사용 공개 경로는 사라지며 표에 명시한 원본·내부 import·다른 export는 유지된다.
   타입·경계·정적 검사와 build가 통과한다. 테스트 통과만으로 무사용을 판정하지 않는다.
-- evidence state: Planned. 새 소비자나 예상 밖 복사본 diff를 발견하면 해당 제거를 중지한다.
+- evidence state: Passed. PR #204의 범위·타입·경계·빌드 검사와 아래 직접 export·미러 확인으로 완료했다.
 
 VFY-DEADCLEAN-03의 공개 표면 검사는 아래 명령을 기준으로 한다. 저장소 루트의
 zsh/bash에서 구현 전에는 인자 `before`, 구현 후에는 `after`로 실행한다. 결과의 전체
@@ -428,9 +432,9 @@ NODE
 - 상대 Markdown 링크와 frontmatter의 related 경로 존재 확인 통과.
 - 신규 문서의 whitespace 검사 통과.
 
-구현 후 VFY 전체와 build·회귀 테스트는 현재 미실행이며, 제품 코드를 변경하지 않았다.
+위 표는 제거 전 문서화 당시 기록이다. 구현 후 VFY·build·회귀 결과는 아래 완료 기록에 별도로 남긴다.
 
-### 이번 reconciliation에서 실행한 검증
+### 구현 전 reconciliation에서 실행한 검증
 
 아래 결과는 같은 HEAD의 **제거 전 코드**와 저장소 밖 메모리 검증에 대한 새 증거다.
 
@@ -466,7 +470,8 @@ src/fsd/pages/project-list/ui/project-list-page.test.mjs
 private 템플릿은 현재 checkout에서 확인하지 못한 한계로 남긴다. 구현 시 해당 소스나
 새 소비자가 제공되면 제거 전에 다시 검색하고 충돌 항목만 보류한다.
 
-문서는 draft이므로 표준 traceability 검증을 사용하고 strict 완료 판정은 요구하지 않는다.
+최초 draft에는 표준 traceability 검증을 사용했다. 완료 정리에서는 strict 추적 검증으로
+세 Task와 VFY의 요구사항 연결을 확인한다.
 세 요구사항은 각 Task와 VFY에 연결하며 VFY는 기존 동작의 보존을 검증한다.
 도달 가능한 코드가 없다는 판정은 후보별 참조 대조와 diff 검토가 담당한다.
 
@@ -478,11 +483,27 @@ private 템플릿은 현재 checkout에서 확인하지 못한 한계로 남긴�
 복구가 필요하면 이번 변경만 되돌리고 core 동기화를 재확인한다. 사용자 작업을 일괄
 reset하거나 다른 수정과 함께 폐기하지 않는다.
 
-이 문서의 변경은 기존 readiness를 무효화한다. 수정 후 최신 저장본 전체에 대해
-INV-1~INV-6 무편집 재검토, Coverage Stability Check와 High-Risk Closure Checklist,
-INV-7을 완료한 응답만 canonical reconciliation Status를 보고한다. 그 응답에는
-문서·코드 기준, 정확한 inventory·명령·본문 의존성, 최종 무편집 pass와 적용 한계를
-식별하는 Minimal Replay Anchor 및 Durable Receipt를 포함한다. 문서에 clean 결과를
-나중에 덧붙이면 다시 검토하며, 현재 문서의 표준 traceability 통과만으로 clean을 주장하지 않는다.
+### 구현·검증 완료 근거
 
-이 요청은 문서 작성 범위이며 구현·PR 생성·병합·릴리스를 시작하는 지시로 해석하지 않는다.
+구현 commit은 `a9c361a4b1c20cbbfe2e09d1823aef5d20003f3a`이고, PR #204가
+merge commit `9f0fac43ee526dc79055d7a01a070a1caee229c6`으로 `dev`에 병합됐다.
+GitHub Actions의 `check` run 525는 `completed/success`임을 직접 확인했다.
+
+| 대상 | 구현·검증 근거 | 상태 |
+| --- | --- | --- |
+| TASK-DEADCLEAN-01 / A1 | core와 미러의 RUNNER_STATES 한 줄만 제거. 나머지 runner 정책·본문 보존 | Completed |
+| TASK-DEADCLEAN-02 / A2 | 싱글턴 바인딩 7개만 제거. factory·반환 메서드·구현·소비자는 보존 | Completed |
+| TASK-DEADCLEAN-03 / B1~B8 | 재export 9개 제거, server.md 두 목록 정합화. 내부 import·원본·다른 export는 보존 | Completed |
+| VFY-DEADCLEAN-01·02 | PR #204 구현 기록: npm test 477 pass / 17 플랫폼 skip, test:web 741 pass, test:server 139 pass / opt-in 1 skip | Passed |
+| VFY-DEADCLEAN-03 | PR #204 구현 기록: verify:fsd·verify:server·test:architecture·check·build 통과, 기존 lint 경고 3개 유지 | Passed |
+| opt-in 검사 보완 | PR #204 구현 기록: fresh build 후 SRC_CHECK_INBOX_MANIFEST=true 검사 5 pass / 0 skip | Passed |
+| 이번 직접 확인 | 병합된 dev에서 문서의 after verifier를 실행. 18개 모듈의 제거 export 부재·보존 export 존재, runner core/미러 전체 바이트 동일 | Passed |
+
+구현 시 테스트 수치는 PR #204의 보고이며 이번 문서 정리에서 전체 테스트를 재실행한
+결과로 표시하지 않는다. 이번에는 GitHub의 CI·병합 상태, 실제 commit diff, export와
+미러를 직접 확인했다. 초기 감사의 복사 모듈 수 21개는 당시 snapshot 기록이며,
+다른 PR이 추가한 모듈까지 삭제하거나 동기화 범위를 축소하는 지시가 아니다.
+
+이 문서는 승인된 전체 Core의 완료 기록으로 completed에 보관한다. 제외 표의 private
+템플릿·운영 DB·설치·배포는 수행 완료로 표시하지 않는다. 과거 reconciliation 기록은
+새 구현의 readiness 인증으로 재사용하지 않으며, 새 정리 항목은 새 제안서에서 대조한다.
