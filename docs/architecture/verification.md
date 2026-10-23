@@ -283,7 +283,7 @@ Next 폰트는 `src/app/_fonts/`의 원본·라이선스·출처/hash를 포함�
 이 저장소는 Windows 역할의 `npm run build`에서만 Webpack을 선택한다. Next 설정은
 SWC의 TS 설정 변환을 거치지 않는 `next.config.mjs`다. 원본 tsconfig와 Webpack의
 경로 별칭 해석은 유지하며, SWC loader의 중복 별칭 변환만 제외한다. native Rust의
-DOS 경로 canonicalize 제한을 피하기 위한 현재 Next 16.3.3 호환 경로다. loader 구조는
+DOS 경로 canonicalize 제한을 피하기 위한 현재 Next 16.4.2 호환 경로다. loader 구조는
 semver 보장 API가 아니므로 지원한 구조가 없으면 실패하며 CI의 실제 전체 빌드가
 업그레이드 회귀를 확인한다. 타입 검사를 생략하지 않는다.
 
