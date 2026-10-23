@@ -1,7 +1,6 @@
-export const SLUG_MAX = 40;
-export const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,39}$/;
+import { SLUG_MAX, SLUG_RE, RESERVED_SLUGS } from "@harness/core/project-slug.mjs";
 
-export const RESERVED_SLUGS = new Set(["new"]);
+export { SLUG_MAX, SLUG_RE, RESERVED_SLUGS } from "@harness/core/project-slug.mjs";
 
 export const REPO_SEGMENT = /^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9_-])?$/;
 

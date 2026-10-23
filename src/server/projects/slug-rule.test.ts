@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import * as core from "@harness/core/project-slug.mjs";
 
 import { RESERVED_SLUGS, SLUG_RE } from "./slug-rule";
 import { SLUG_MAX, availableSlug, slugCandidate } from "./slug-rule";
+
+it("uses the same core slug policy for registration and automatic naming", () => {
+  assert.equal(SLUG_MAX, core.SLUG_MAX);
+  assert.equal(SLUG_RE, core.SLUG_RE);
+  assert.equal(RESERVED_SLUGS, core.RESERVED_SLUGS);
+});
 
 describe("slugCandidate", () => {
   it("passes through a name that is already a valid slug", () => {
@@ -64,5 +71,10 @@ describe("availableSlug", () => {
 
   it("never returns a reserved slug", () => {
     assert.ok(!RESERVED_SLUGS.has(availableSlug("new", new Set())));
+  });
+
+  it("reports exhaustion after all supported collision suffixes are taken", () => {
+    const taken = new Set(["project", ...Array.from({ length: 998 }, (_, index) => `project-${index + 2}`)]);
+    assert.throws(() => availableSlug("...", taken), /could not derive a free slug/);
   });
 });

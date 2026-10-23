@@ -31,7 +31,7 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   const [pending, startTransition] = useTransition();
   const saving = useRef(false), alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const state = editor.definition, baseline = editor.baseline;
+  const draftDefinition = editor.definition, baseline = editor.baseline;
   const busy = editor.request.status === "saving";
   const recoveryMessage = editor.request.status === "stale" ? PIPELINE_STALE
     : editor.request.status === "unknown" ? PIPELINE_UNKNOWN : null;
@@ -51,21 +51,23 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   for (const pipeline of pipelines) definitions[pipeline.id] = pipeline.definition;
   const context: CompositionContext = { pipelineId: id, definitions,
     mustRun: pipelines.filter(pipeline => pipeline.isDefault || pipeline.runnable !== null || Object.values(rules).includes(pipeline.id)).map(pipeline => pipeline.id) };
-  const composed = preview(state, plan, context);
-  const validation = check(state, plan, context);
-  const ungated = hasUngatedRunnable(composed);
-  const activeDefinitions = Object.assign(Object.create(null), definitions, { [id]: state });
-  const flat = expand(id, activeDefinitions);
+  const draftComposition = preview(draftDefinition, plan, context);
+  const validation = check(draftDefinition, plan, context);
+  const ungated = hasUngatedRunnable(draftComposition);
+  const draftDefinitions = Object.assign(Object.create(null), definitions, { [id]: draftDefinition });
+  const expandedDraft = expand(id, draftDefinitions);
+  const savedDefinitions = Object.assign(Object.create(null), definitions, { [id]: definition });
+  const savedGraph = expand(id, savedDefinitions);
   const names = (target: string): string => pipelines.find(pipeline => pipeline.id === target)?.name ?? target;
-  const affected = usersOf(id, activeDefinitions);
+  const affected = usersOf(id, draftDefinitions);
   const canEdit = editable && !busy && !pending;
-  const missing = STEP_KINDS.filter(kind => !isProjectSlot(kind) && !state.steps.includes(kind));
+  const missing = STEP_KINDS.filter(kind => !isProjectSlot(kind) && !draftDefinition.steps.includes(kind));
   const movesFor = (before: string | null): Move[] => [
-    ...(before === null ? [] : [{ label: "Add gate", step: insertGate(state, gateId(before), plan, context) }]),
-    ...PROJECT_AGENTS.map(agent => ({ label: `Add ${agent} here`, step: addSlot(state, agent, before, plan, context) })),
-    ...state.steps.filter(isProjectSlot).map(slot => ({ label: `Move ${slot} here`, step: moveSlot(state, slot, before, plan, context) })),
-    ...missing.map(kind => ({ label: `Add ${nodeLabel(kind)}`, step: addNode(state, kind, plan, context) })),
-    ...pipelines.filter(pipeline => pipeline.id !== id).map(pipeline => ({ label: `Use ${pipeline.name} here`, step: insertRef(state, pipeline.id, before, plan, context) })),
+    ...(before === null ? [] : [{ label: "Add gate", step: insertGate(draftDefinition, gateId(before), plan, context) }]),
+    ...PROJECT_AGENTS.map(agent => ({ label: `Add ${agent} here`, step: addSlot(draftDefinition, agent, before, plan, context) })),
+    ...draftDefinition.steps.filter(isProjectSlot).map(slot => ({ label: `Move ${slot} here`, step: moveSlot(draftDefinition, slot, before, plan, context) })),
+    ...missing.map(kind => ({ label: `Add ${nodeLabel(kind)}`, step: addNode(draftDefinition, kind, plan, context) })),
+    ...pipelines.filter(pipeline => pipeline.id !== id).map(pipeline => ({ label: `Use ${pipeline.name} here`, step: insertRef(draftDefinition, pipeline.id, before, plan, context) })),
   ];
   const applyIfValid = (step: Step): void => {
     if (!editable || saving.current || !step.ok) return;
@@ -102,41 +104,41 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   const tooltipForGate = (step: string): string => {
     const target = refId(step);
     if (target === null) return gateTooltip(gateId(step));
-    const block = expand(target, activeDefinitions);
+    const block = expand(target, draftDefinitions);
     return block.ok ? gateTooltip(gateId(block.graph.nodes[0])) : block.reason;
   };
   return <div className="flex flex-col gap-4">
     <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={expanded} onChange={event => setExpanded(event.target.checked)} />Show expanded</label>
     <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
-      {state.steps.map(kind => {
+      {draftDefinition.steps.map(kind => {
         const target = refId(kind);
-        const block = target === null ? null : expand(target, activeDefinitions);
+        const block = target === null ? null : expand(target, draftDefinitions);
         if (expanded) {
           const nodes = block?.ok ? block.graph.nodes : target === null ? [kind] : [];
           return <div key={kind} className="flex shrink-0 gap-2 rounded-lg border border-edge p-3" aria-label={target === null ? nodeLabel(kind) : names(target)}>
             {target !== null ? <span className="text-xs text-quiet">{names(target)}</span> : null}
-            {nodes.map(node => <div key={node} className="flex gap-2 text-sm">{flat.ok && flat.graph.gates.includes(gateId(node)) ? <Chip tone="mine">{gateLabel(gateId(node))}</Chip> : null}<span>{nodeLabel(node)}</span></div>)}
+            {nodes.map(node => <div key={node} className="flex gap-2 text-sm">{expandedDraft.ok && expandedDraft.graph.gates.includes(gateId(node)) ? <Chip tone="mine">{gateLabel(gateId(node))}</Chip> : null}<span>{nodeLabel(node)}</span></div>)}
             {block && !block.ok ? <span className="text-xs text-risk">{block.reason}</span> : null}
           </div>;
         }
         return <div key={kind} className="flex shrink-0 items-stretch gap-2">
-          <EdgeSlot gate={state.gates.includes(gateId(kind)) ? gateId(kind) : null} autoLabel={target === null ? autoEdgeLabel(kind) : null}
+          <EdgeSlot gate={draftDefinition.gates.includes(gateId(kind)) ? gateId(kind) : null} autoLabel={target === null ? autoEdgeLabel(kind) : null}
             label={labelForGate(gateId(kind))} tooltip={tooltipForGate(kind)} editable={canEdit} open={edgeMenu.kind === "open" && edgeMenu.before === kind}
             onToggle={() => { if (canEdit && !saving.current) setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === kind ? { kind: "closed" } : { kind: "open", before: kind }); }}
-            removeGateStep={removeGate(state, gateId(kind), plan, context)} onApply={applyIfValid} />
+            removeGateStep={removeGate(draftDefinition, gateId(kind), plan, context)} onApply={applyIfValid} />
           {target === null ? <NodeCard kind={kind} roster={roster} editable={canEdit}
             removable={!context.mustRun.includes(id) || !REQUIRED_NODES.includes(kind)}
-            swappable={TAIL_NODES.includes(kind) && state.steps.filter(step => TAIL_NODES.includes(step)).length === 2}
-            removeStep={removeNode(state, kind, plan, context)} swapStep={swapTail(state, plan, context)} onApply={applyIfValid} />
+            swappable={TAIL_NODES.includes(kind) && draftDefinition.steps.filter(step => TAIL_NODES.includes(step)).length === 2}
+            removeStep={removeNode(draftDefinition, kind, plan, context)} swapStep={swapTail(draftDefinition, plan, context)} onApply={applyIfValid} />
             : <div className="flex min-w-40 flex-col gap-3 rounded-lg border border-edge bg-field p-3">
               <span className="text-sm font-medium">{names(target)} · {block?.ok ? block.graph.nodes.length : "?"} nodes</span>
               <button type="button" className="text-left text-xs underline" disabled={busy || pending} onClick={() => onSelect?.(target)}>Edit {names(target)}</button>
-              {canEdit ? <button type="button" className="text-left text-xs underline" disabled={!removeNode(state, kind, plan, context).ok} onClick={() => applyIfValid(removeNode(state, kind, plan, context))}>Remove</button> : null}
+              {canEdit ? <button type="button" className="text-left text-xs underline" disabled={!removeNode(draftDefinition, kind, plan, context).ok} onClick={() => applyIfValid(removeNode(draftDefinition, kind, plan, context))}>Remove</button> : null}
             </div>}
         </div>;
       })}
     </div>
-    {editable && !expanded ? <button type="button" className="self-start text-xs underline" disabled={!canEdit} onClick={() => setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === null ? { kind: "closed" } : { kind: "open", before: null })}>{state.steps.length ? "Add at end" : "Add first step"}</button> : null}
+    {editable && !expanded ? <button type="button" className="self-start text-xs underline" disabled={!canEdit} onClick={() => setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === null ? { kind: "closed" } : { kind: "open", before: null })}>{draftDefinition.steps.length ? "Add at end" : "Add first step"}</button> : null}
     {edgeMenu.kind === "open" && !expanded ? <div className="flex w-72 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
       <p className="px-1.5 pb-1 text-xs text-quiet">{edgeMenu.before === null ? "At end" : labelForGate(gateId(edgeMenu.before))}</p>
       {movesFor(edgeMenu.before).map(move => <div key={move.label} className="flex flex-col">
@@ -159,7 +161,7 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
     {recoveryMessage ? <p role="alert" className="text-xs text-risk">{recoveryMessage}</p> : null}
     {externalChange ? <p role="alert" className="text-xs text-risk">The saved pipelines changed. Your draft is still here. The preview uses the latest references. Discard changes and reload to edit the latest saved definition.</p> : null}
     <details className="text-sm"><summary className="cursor-pointer text-xs text-quiet underline">Read as text</summary>
-      {flat.ok ? <ol className="mt-2 flex flex-col gap-1">{sequence(flat.graph).map((node, index) => <li key={node}>{index + 1}. {node.startsWith("before-") ? `${gateLabel(node)} — you` : nodeLabel(node)}</li>)}</ol> : <p>{flat.reason}</p>}
+      {savedGraph.ok ? <ol className="mt-2 flex flex-col gap-1">{sequence(savedGraph.graph).map((node, index) => <li key={node}>{index + 1}. {node.startsWith("before-") ? `${gateLabel(node)} — you` : nodeLabel(node)}</li>)}</ol> : <p>{savedGraph.reason}</p>}
     </details>
   </div>;
 }

@@ -10,7 +10,7 @@ import type { SavePipelineInput, SavePipelineResult } from "../../../src/fsd/fea
 import type { ActionResult } from "../../../src/fsd/shared/api/result";
 
 type Outcome = "success" | "error" | "stale" | "unknown";
-type Mode = "list" | "rail" | "change" | "propose";
+type Mode = "list" | "rail" | "change" | "propose" | "unsaved-default";
 const initial: PipelineSnapshot[] = [
   { id: "default", name: "Default", isDefault: true, saved: { version: 1, createdAt: new Date(0) }, definition: { steps: ["plan", "implement", "accept"], gates: ["before-plan"] }, runnable: { nodes: ["plan", "implement", "accept"], gates: ["before-plan"], format: "slots-v1" } },
   { id: "check", name: "Check", isDefault: false, saved: { version: 1, createdAt: new Date(0) }, definition: { steps: ["qa"], gates: ["before-qa"] }, runnable: null },
@@ -34,7 +34,10 @@ function pending<T>(kind: string, input: unknown, values: Record<Exclude<Outcome
   return new Promise<T>((resolve, reject) => { fixture.finish = outcome => outcome === "unknown" ? reject(new Error("response lost")) : resolve(values[outcome]); });
 }
 function Fixture({ mode, editable }: { mode: Mode; editable: boolean }) {
-  const [pipelines, setPipelines] = useState(initial), [identity, setIdentity] = useState("ITEM-01"), [preset, setPreset] = useState("default");
+  const [pipelines, setPipelines] = useState<PipelineSnapshot[]>(() => mode === "unsaved-default"
+    ? initial.map(row => row.id === "default" ? { ...row, saved: null, definition: { steps: ["plan", "verify", "implement", "accept"], gates: ["before-plan"] } } : row)
+    : initial);
+  const [identity, setIdentity] = useState("ITEM-01"), [preset, setPreset] = useState("default");
   const [writable, setWritable] = useState(editable), [plan, setPlan] = useState(editable ? "pro" : "free");
   useEffect(() => { fixture.update = setPipelines; fixture.identity = setIdentity; fixture.preset = setPreset; fixture.access = setWritable; fixture.plan = setPlan; }, []);
   const save = (input: SavePipelineInput): Promise<SavePipelineResult> => pending("save", input, {
