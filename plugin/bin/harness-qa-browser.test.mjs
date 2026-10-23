@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { it } from "node:test";
 import { realpathSync } from "node:fs";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 import { createQaBrowser, withQaBrowser } from "../runtime/qa-browser.mjs";
 
@@ -86,3 +89,128 @@ it("unrecognized or oversized snapshot files cannot become QA observations", asy
     } finally { await browser.close(); }
   }
 });
+
+const execFileAsync = promisify(execFile);
+const rehearsalPath = fileURLToPath(new URL("../../tests/browser/qa-browser.rehearsal.mjs", import.meta.url));
+
+async function runRehearsal(t, cliSource) {
+  const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "qa-rehearsal-test-"));
+  const cliPath = path.join(directory, "mcp.mjs");
+  const statePath = path.join(directory, "state.json");
+  let output = "";
+  t.after(async () => {
+    try {
+      const state = JSON.parse(await readFile(statePath, "utf8"));
+      try {
+        process.kill(state.pid, "SIGKILL");
+      } catch (error) {
+        if (error.code !== "ESRCH") throw error;
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+      const artifacts = /QA browser rehearsal artifacts: (.+)/.exec(output)?.[1];
+      if (artifacts) {
+        assert.equal(path.dirname(artifacts), realpathSync(tmpdir()));
+        assert.ok(path.basename(artifacts).startsWith("stagekeeper-qa-browser-"));
+        await rm(artifacts, { recursive: true, force: true });
+      }
+    }
+  });
+  if (cliSource) await writeFile(cliPath, cliSource(statePath));
+  try {
+    const result = await execFileAsync(process.execPath, [rehearsalPath, cliPath], {
+      timeout: 15000,
+      killSignal: "SIGKILL",
+    });
+    output = result.stderr;
+    return { ...result, code: 0, statePath, cliPath };
+  } catch (error) {
+    output = error.stderr ?? "";
+    assert.equal(error.killed, false, "Rehearsal must finish its own cleanup before the test timeout");
+    return { stdout: error.stdout, stderr: output, code: error.code, statePath, cliPath };
+  }
+}
+
+it("the browser rehearsal reports a missing MCP entrypoint instead of hiding it behind a connection error", async t => {
+  const result = await runRehearsal(t);
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Playwright MCP stopped \(code 1\)/);
+  assert.match(result.stderr, /MODULE_NOT_FOUND/);
+  assert.ok(result.stderr.includes(result.cliPath));
+  assert.equal(result.stdout, "");
+});
+
+it("the browser rehearsal retains the MCP startup exit code and diagnostic output", async t => {
+  const result = await runRehearsal(t, () => 'console.error("MCP_STARTUP_FAILURE"); process.exit(7);');
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Playwright MCP stopped \(code 7\)/);
+  assert.match(result.stderr, /MCP_STARTUP_FAILURE/);
+  assert.equal(result.stdout, "");
+});
+
+function failingBrowserMcp(statePath, mode) {
+  return `
+import { createServer } from "node:http";
+import { writeFileSync } from "node:fs";
+
+const port = Number(process.argv[process.argv.indexOf("--port") + 1]);
+const state = { pid: process.pid, port, browserCloseRequested: false };
+const saveState = () => writeFileSync(${JSON.stringify(statePath)}, JSON.stringify(state));
+if (${JSON.stringify(mode)} === "ignore-stop") process.on("SIGTERM", () => {});
+
+const server = createServer(async (request, response) => {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  if (request.method === "DELETE") {
+    response.writeHead(204).end();
+    return;
+  }
+  const message = JSON.parse(Buffer.concat(chunks).toString());
+  if (!message.id) {
+    response.writeHead(202).end();
+    return;
+  }
+  let result = {};
+  if (message.method === "tools/list") {
+    result = { tools: ${JSON.stringify(QA_BROWSER_TOOLS)}.map(name => ({ name, inputSchema: { properties: { ref: {} } } })) };
+  }
+  if (message.method === "tools/call") {
+    if (message.params.name === "browser_close") {
+      state.browserCloseRequested = true;
+      saveState();
+      if (${JSON.stringify(mode)} === "hang-close") return;
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, error: { code: -32603, message: "CLOSE_FAILURE" } }));
+      return;
+    }
+    state.baseUrl = message.params.arguments.url;
+    saveState();
+    result = { content: [{ type: "text", text: "- Page URL: " + state.baseUrl + "\\nWrong fixture identity" }] };
+  }
+  response.writeHead(200, { "Content-Type": "application/json", "Mcp-Session-Id": "rehearsal-test" });
+  response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
+});
+server.listen(port, "127.0.0.1", saveState);
+`;
+}
+
+for (const mode of ["ignore-stop", "hang-close"]) {
+  it(`the browser rehearsal preserves its assertion failure and releases resources when cleanup fails: ${mode}`, async t => {
+    const result = await runRehearsal(t, statePath => failingBrowserMcp(statePath, mode));
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /AssertionError/);
+    assert.match(result.stderr, /Disposable test environment/);
+    assert.match(result.stderr, /QA browser rehearsal cleanup failed/);
+    assert.match(result.stderr, /Failed to close QA browser/);
+    if (mode === "hang-close") assert.match(result.stderr, /QA browser close timed out/);
+    assert.equal(result.stdout, "");
+
+    const state = JSON.parse(await readFile(result.statePath, "utf8"));
+    assert.equal(state.browserCloseRequested, true);
+    assert.throws(() => process.kill(state.pid, 0), { code: "ESRCH" });
+    await assert.rejects(fetch(state.baseUrl, { signal: AbortSignal.timeout(1000) }));
+    await assert.rejects(fetch(`http://127.0.0.1:${state.port}`, { signal: AbortSignal.timeout(1000) }));
+  });
+}
