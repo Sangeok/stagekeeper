@@ -1,0 +1,366 @@
+{
+  "format": "stagekeeper-codex-windows-gates-v1",
+  "at": "2026-10-23T15:39:41.281Z",
+  "testedRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+  "environment": {
+    "os": "Windows 11 Home",
+    "version": "10.0.26200",
+    "architecture": "x64",
+    "codex": "0.164.0",
+    "claude": "2.1.309",
+    "bundledNode": "22.23.3",
+    "ownerNode": "22.13.1",
+    "postgres": "18.6",
+    "next": "16.4.2",
+    "browser": "headless Microsoft Edge",
+    "physicalCleanWindows": false,
+    "credentialsCopied": false,
+    "production": false
+  },
+  "package": {
+    "version": "0.5.20",
+    "sourceRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+    "files": 2225,
+    "packageSha256": "5d896290f89f3656eef2893538acd53bd80b6a1f489f21e1e1901f126bd81ad1",
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    }
+  },
+  "private": {
+    "revision": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+    "mergedMain": "fb6ef955ba3f6fc8320e173fbafc9ef03b83281b",
+    "rows": 13,
+    "sourceHash": "e49ac84385e131b3412df64b6c3335396ccb8cc2b1e22775294921152ce9f540"
+  },
+  "foreground": {
+    "result": "PASS",
+    "seconds": 1020,
+    "freshPlan": true,
+    "nodes": [
+      "plan",
+      "verify",
+      "implement",
+      "accept"
+    ],
+    "gates": [
+      {
+        "test": "actual-browser-owner-approval",
+        "result": "PASS",
+        "gate": "before-plan",
+        "status": "planning",
+        "pipelinePreserved": true,
+        "planCommitPreserved": true,
+        "gateWaitReplayed": true
+      },
+      {
+        "test": "actual-browser-owner-approval",
+        "result": "PASS",
+        "gate": "before-implement",
+        "status": "implementing",
+        "pipelinePreserved": true,
+        "planCommitPreserved": true,
+        "gateWaitReplayed": true
+      }
+    ],
+    "planReview": {
+      "result": "PASS",
+      "cases": 43,
+      "mutantsKilled": 28,
+      "utf16CodeUnits": 65536,
+      "noEditFinalPass": true
+    },
+    "independentVerifier": {
+      "test": "full-private-verifier",
+      "result": "PASS",
+      "cleanReport": true,
+      "recordedVerifyPass": true
+    },
+    "roles": [
+      {
+        "test": "actual-role",
+        "role": "dev",
+        "event": "paused",
+        "step": "plan",
+        "usageRuns": 1
+      },
+      {
+        "test": "actual-role",
+        "role": "plan-verifier",
+        "event": "done",
+        "step": null,
+        "usageRuns": 2
+      },
+      {
+        "test": "actual-role",
+        "role": "dev",
+        "event": "paused",
+        "step": "report",
+        "usageRuns": 3
+      }
+    ],
+    "handoffs": [
+      {
+        "test": "owner-commit-handoff-resume",
+        "result": "PASS",
+        "agent": "dev",
+        "event": "done",
+        "usageUnchanged": true,
+        "artifactUnchanged": true,
+        "status": "in_review",
+        "planCommit": "a843821704fa79f7a095084c6aa7434348676404"
+      },
+      {
+        "test": "owner-commit-handoff-resume",
+        "result": "PASS",
+        "agent": "dev",
+        "event": "done",
+        "usageUnchanged": true,
+        "artifactUnchanged": true,
+        "status": "implementing",
+        "planCommit": "a843821704fa79f7a095084c6aa7434348676404"
+      }
+    ],
+    "acceptance": {
+      "result": "PASS",
+      "checks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "tests": 12,
+      "plannedPairs": 43,
+      "utf16CodeUnits": 65536,
+      "acceptedAt": "2026-10-23T15:39:21.401Z"
+    }
+  },
+  "failures": [
+    {
+      "trial": "initial 0.5.19 fresh-plan cycle",
+      "result": "FAIL",
+      "stage": "private verifier command",
+      "seconds": 576,
+      "reason": "Generic role request refusal; exact rejected arguments were not captured. No complete verification, second gate or final acceptance claimed.",
+      "cleanup": "PASS"
+    },
+    {
+      "trial": "native root-cwd regression before fix",
+      "result": "FAIL",
+      "reason": "Exactly cwd . was rejected as Invalid native command bounds. Empty cwd executed the same saved verifier script successfully; its native child acknowledged quiescence.",
+      "directReplay": [
+        {
+          "cwd": ".",
+          "error": "Invalid native command bounds"
+        },
+        {
+          "cwd": "",
+          "status": "exited",
+          "exitCode": 0,
+          "snapshotHash": "5c628442fb062056c49c0f93fe41473d541ca25c466375a4f33428462a7c14c4",
+          "quiescent": true
+        }
+      ]
+    },
+    {
+      "trial": "operator setup/review corrections",
+      "result": "CORRECTED",
+      "reason": "Initial TSX working directory, npm path, probe runbook path, synthetic binding hash and review-code generation errors occurred outside product behavior. No failed setup was promoted to model or product acceptance.",
+      "probeCleanup": "PASS"
+    }
+  ],
+  "originalPlanReproduction": {
+    "packageVersion": "0.5.19",
+    "result": "PASS",
+    "seconds": 577,
+    "scope": "Same failed plan, separate independent verifier, valid command arguments; not a fresh-plan end-to-end cycle and not a conclusive attribution of the initial refusal."
+  },
+  "installedUpdates": [
+    {
+      "test": "no-global-node-path",
+      "result": "PASS",
+      "physicalCleanWindows": false
+    },
+    {
+      "test": "previous-install",
+      "client": "claude",
+      "result": "PASS",
+      "version": "0.5.19",
+      "packageSha256": "0e73f1dc8baf3e02812a53cba86030ae9bc4b50fbd4e661b569c582749be69f6",
+      "sourceRevision": "64db9e966a2adf26f47544f1b7dd833556751d17",
+      "files": 2225
+    },
+    {
+      "test": "previous-install",
+      "client": "codex",
+      "result": "PASS",
+      "version": "0.5.19",
+      "packageSha256": "0e73f1dc8baf3e02812a53cba86030ae9bc4b50fbd4e661b569c582749be69f6",
+      "sourceRevision": "64db9e966a2adf26f47544f1b7dd833556751d17",
+      "files": 2225,
+      "skills": [
+        "harness-init",
+        "harness-run",
+        "harness-resume",
+        "reconciling-proposals-with-codebase"
+      ]
+    },
+    {
+      "test": "current-update-installed-inventory",
+      "client": "claude",
+      "result": "PASS",
+      "version": "0.5.20",
+      "packageSha256": "5d896290f89f3656eef2893538acd53bd80b6a1f489f21e1e1901f126bd81ad1",
+      "sourceRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+      "files": 2225
+    },
+    {
+      "test": "current-update-installed-inventory",
+      "client": "codex",
+      "result": "PASS",
+      "version": "0.5.20",
+      "packageSha256": "5d896290f89f3656eef2893538acd53bd80b6a1f489f21e1e1901f126bd81ad1",
+      "sourceRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+      "files": 2225,
+      "skills": [
+        "harness-init",
+        "harness-run",
+        "harness-resume",
+        "reconciling-proposals-with-codebase"
+      ]
+    }
+  ],
+  "mainLoop": {
+    "packageVersion": "0.5.19",
+    "turns": 2,
+    "observations": [
+      {
+        "test": "bounded-main-loop-authority",
+        "result": "PASS",
+        "outsideReadDenied": true,
+        "productWriteDenied": true,
+        "ownerGateDenied": true,
+        "nestedRoleToolDenied": true,
+        "ownerCredentialEnvironmentExcluded": true
+      },
+      {
+        "test": "native-main-loop-effective-policy",
+        "result": "PASS",
+        "cliVersion": "codex-cli 0.164.0",
+        "namedPermission": "harness-probe",
+        "tools": [
+          "role_file_read",
+          "role_file_list",
+          "role_file_search",
+          "role_file_write",
+          "main_loop_commit_report",
+          "probe_wait"
+        ]
+      },
+      {
+        "test": "native-main-loop-completed",
+        "result": "PASS",
+        "terminalStatus": "completed"
+      },
+      {
+        "test": "native-main-loop-interrupted-and-released",
+        "result": "PASS",
+        "terminalStatus": "interrupted",
+        "earlyReleaseDenied": true,
+        "competingClientDenied": true,
+        "lateCommitDenied": true,
+        "ownedProcessEnded": true,
+        "bridgeHandlers": 0,
+        "localLockRemoved": true
+      },
+      {
+        "test": "bounded-main-loop-contract",
+        "result": "PASS",
+        "scope": "Real native App Server main-loop context, fixed report commit and pending MCP interruption. Test-only bridge and resident lock fixture; no product adapter, server lease, fresh-role orchestration, 110-minute idle or C4 readiness claim."
+      }
+    ],
+    "terminalStatuses": [
+      "completed",
+      "interrupted"
+    ],
+    "limitation": "Test-only narrow bridge and resident lock fixture. No production resident adapter, server lease, fresh-role orchestration, cycle restart, 110-minute idle or C4 readiness."
+  },
+  "checks": {
+    "focusedNative": {
+      "tests": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    "corePlugin": {
+      "tests": 503,
+      "passed": 501,
+      "failed": 0,
+      "skipped": 2
+    },
+    "static": {
+      "tests": 197,
+      "passed": 194,
+      "failed": 0,
+      "skipped": 3
+    },
+    "architecture": {
+      "tests": 150,
+      "passed": 148,
+      "failed": 0,
+      "skipped": 2
+    },
+    "build": {
+      "result": "PASS",
+      "command": "npm run build"
+    },
+    "boundaries": {
+      "result": "PASS",
+      "commands": [
+        "npm run verify:fsd",
+        "npm run verify:server"
+      ]
+    }
+  },
+  "cleanup": {
+    "result": "PASS",
+    "at": "2026-10-23T15:39:41.281Z",
+    "databaseCounts": {
+      "users": 0,
+      "projects": 0,
+      "templates": 0,
+      "agentRuns": 0
+    },
+    "localSessionLocksRemoved": true,
+    "ownedNextServicesStopped": true,
+    "ownedCodexHelpersRemaining": 0,
+    "postgresStopped": true,
+    "failedProbeMetadataPreserved": true,
+    "isolatedCachesAndRawEvidenceRetained": true
+  },
+  "operatorSha256": {
+    "prepare-windows.mjs": "2fced5d4a403f1630dc13799d5fbb2658f7c49e6d13fe1d8ec3c8c953dfb047b",
+    "test-windows-gates.mjs": "70354ebe84619d6616e516e7130c676db9cf11f7da627fe8788ca9330e6bf4e1",
+    "trace-installed.mjs": "6fd1c1532e00db5850a0bc26b5ad8c8bd71040903fa9f6e5544899de158b26ca",
+    "test-verifier-reproduction.mjs": "35da8a1b4ed5eff523876a61f069893153ae3983a702a573341bb919cce987b2",
+    "replay-verifier-command.mjs": "de9171b7ba7c04819997f8c261a1a6128e9e9312294938eaa3bd86e581be5fb2",
+    "probe-main-loop.mjs": "4a945dfc6d09959f55ba9e35f1f8ddc03a522949d9d89b1525f07fb028fd9d6f",
+    "cleanup-probe-fixture.mjs": "70f77c93d50aa35a3c78d1d9f39e275a3677194946d496f518e33131dd17f96d",
+    "test-install-0.5.20.mjs": "0af023d67953047ddf7a2ec63b079e6081e698b1898cf6cc3e0523b7dc8e2e72",
+    "test-windows-gates-final.mjs": "b4376805225122151994af597a8af4db0ab8ca5107789ce936fd8f4ae31357ae",
+    "trace-0.5.20.mjs": "0bec8df08eb68212ac55460e695d1789cdf2d1bec68c2e79d7c5dd96e9a460ad",
+    "review-final-plan.mjs": "37dc05eb389ffff6831bbe1c2905cd539d26aea2fdb00e4e2f9ed3b83566de4e",
+    "review-final-acceptance.mjs": "e176af54476dbc2571f92e5eb558ce4c06dd81fe6d4dca2949051ae2f2eec647",
+    "final-cleanup.mjs": "74a40ce423b9b71290d812467a4c2ffa43130e4b75ea0104ed856e75a378c537"
+  },
+  "modelTokenTotal": null,
+  "remaining": [
+    "Physical clean Windows without separately installed Node or verifier",
+    "Mixed-version physical-host acceptance",
+    "C4B product integration and C4C real 110-minute idle/lifecycle acceptance",
+    "macOS acceptance",
+    "Operational private seed, service release and package publication"
+  ]
+}

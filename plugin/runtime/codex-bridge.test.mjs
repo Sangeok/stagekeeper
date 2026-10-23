@@ -4,7 +4,35 @@ import { request } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { roleBridge } from "./codex-thread.mjs";
 import { ROLE_TOOLS } from "./codex-agent.mjs";
+import { createRoleCommands } from "./role-commands.mjs";
 import { z } from "zod";
+
+it("distinguishes correctable command parameters from ownership and filesystem refusals", async t => {
+  let active = true;
+  const receipt = { runId: "r", revision: 0, stepId: "verify" };
+  const backend = await createRoleCommands({ root: "", agent: "plan-verifier", runtime: {}, fileBroker: {
+    tools: [{ name: "role_file_read", inputSchema: { type: "object" } }],
+    call: () => { throw new Error("private filesystem diagnostic"); }, close: () => {},
+  } });
+  const bridge = await roleBridge({ binding: {} }, {}, "s", { agent: "plan-verifier", project: "p" }, {
+    listTools: async () => ROLE_TOOLS["plan-verifier"].map(name => ({ name })),
+    checkSession: async () => ({ event: "owned", lifecycle: active ? "active" : "stopping", client: "codex" }),
+    callTool: async () => ({ done: false, step: "verify", receipt }),
+  }, backend);
+  t.after(() => bridge.close());
+  const call = (name, args) => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) }).then(response => response.json());
+  const malformed = { command: "node verify.cjs", timeoutMs: 120001 };
+  assert.equal((await call("role_command_exec", malformed)).error.code, -32000);
+  assert.equal((await call("agent_next", {})).error, undefined);
+  const corrected = await call("role_command_exec", malformed);
+  assert.equal(corrected.error.code, -32602); assert.match(corrected.error.message, /100 through 120000/);
+  assert.equal((await call("agent_next", {})).error, undefined);
+  assert.equal((await call("role_command_exec", { ...malformed, project: "other" })).error.code, -32000);
+  const denied = await call("role_file_read", {});
+  assert.equal(denied.error.code, -32000); assert.doesNotMatch(denied.error.message, /private filesystem/);
+  active = false;
+  assert.equal((await call("role_command_exec", malformed)).error.code, -32000);
+});
 
 it("omits absent binding IDs and binds subsequent calls to the server-issued run", async t => {
   const entry = { runId: "pipeline", entryId: "entry", slotId: "verify" };

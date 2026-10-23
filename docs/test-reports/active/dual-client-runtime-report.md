@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-23T14:31:23.420Z"
-tested-revision: "775772efd6163117809c33e13e070adba9a8cff7"
+last-executed-at: "2026-10-23T15:39:41.281Z"
+tested-revision: "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "blocked: same-item private stop/resume acceptance, bounded native CLI/browser handover and current installed update/recovery passed; clean-host, mixed-host, release and C4 remain open"
+test-summary: "fail: historical required failures retained — installed 0.5.20 Windows two-gate acceptance passed; clean-host, mixed-host, release and C4 remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -23,6 +23,14 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 <!-- stagekeeper:dual-client-runtime:v1 -->
 
 ## Summary and Decision
+
+2026-10-24 Windows-first acceptance: actual installed 0.5.20 completed a new plan,
+both browser gates, complete independent verifier, implementation/report handoff and
+five-check acceptance. A native dot-root/command-parameter defect was repaired and
+regressed. The first 0.5.19 verifier refusal and passing same-plan replay remain
+separate; the initial rejected arguments were not captured. A bounded main-loop
+commit/interrupt experiment informs host contracts but does not establish a live
+resident adapter or 110-minute idle. [Scoped Windows report](../completed/2026-10-24-codex-windows-gates.md), [E114].
 
 2026-10-23 follow-up acceptance: actual private pending-command stop and same-item
 resume reached five-check final acceptance. Separate native Claude/Codex main-loop
@@ -290,6 +298,9 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T102 | R2 | required | Current installed package and bundled helper | 0.5.18→0.5.19 both clients, 2,225 files, actual private HTTP init/connection, modified role and ownership preservation; PATH isolation only | [E113] | PASS |
 | T103 | R2 | required | Current private transactional rollback and limited restore | Actual prior 12-row baseline restored after current 13-row seed; unrelated row preserved; isolated DB only | [E113] | PASS |
 | T104 | R2 | required | Remaining actual host/release/C4 acceptance | Physical clean Windows, mixed-version hosts, approved operational deployment/publication and C4 live/110-minute idle | [E113] | NOT RUN |
+| T105 | R2 | required | Installed Windows fresh plan through both browser gates | Complete private verifier, implementation/report handoff and five-check final acceptance | [E114] | PASS |
+| T106 | R2 | required | Native command parameter and installed update regression | Dot root accepted; invalid parameters distinguished from permission refusals; actual 0.5.19→0.5.20 inventories | [E114] | PASS |
+| T107 | R2 | required | Bounded actual main-loop terminal/commit/stop contract | Real completed/interrupted and cleanup; test-only bridge/lock, no live product/lease/110-minute claim | [E114] | PASS |
 
 ## Commands and Static Checks
 
@@ -441,6 +452,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E111 | Actual private working-template service trial | Application 0edfb7e044b0e2c19e4ce7a72966d0beea5f0690 and prior verified 0.5.2 install bundle. Real private working snapshot/fresh DB rollback and bounded restore/real browser approval/server and local-session handover PASS; dev implement blocked after Git diff inspection and hold failed. Three model starts, 223,481 reported tokens. Operator setup failures and invalid verifier/stop trials are preserved in [bounded FAIL report](../completed/2026-10-05-windows-private-template-acceptance.md) and [projected observations](../assets/2026-10-05-windows-private-template-acceptance/observations.json). | No private body/auth/session IDs/raw transcripts; unreleased working snapshot and future QA references do not certify released body/full verifier/active-command resume/native Claude/clean Windows/C4 |
 | E112 | Scoped Windows Git regression and private dev verification | Source 97f03030206f075ae6b7f4308da3314adb01478a: final 0.5.7 installed inventory 2,210 files, host 12 PASS/0 FAIL/0 SKIP, required check CI and actual HTTP bridge PASS. Intermediate 0.5.6 actual private dev accepted verify ok, report handoff pending. Four model starts, 800,812 reported tokens; server 3 runs/3 charges/11 steps. Failed verifier/resume/operator trials retained in [completed narrow report](../completed/2026-10-05-windows-role-git.md) and [observations](../assets/2026-10-05-windows-role-git/observations.json). | No private body/auth/session IDs/raw transcripts; service checkpoint and intermediate/final package versions distinguished; latest native CI pending at evidence freeze; full verifier/same-case controlled resume/release/C4 not certified |
 | E113 | Current private stop/resume, CLI/browser identity handover and installed update/recovery | [Scoped report](../completed/2026-10-23-codex-runtime-followups.md); [projected observations](../assets/2026-10-23-codex-runtime-followups/observations.json). Final actual trials passed; failed observers retained. | No private body, credentials, raw model transcript or local user paths |
+| E114 | Windows two-gate foreground acceptance, native command repair and bounded main-loop transport | [Scoped report](../completed/2026-10-24-codex-windows-gates.md); [projected observations](../assets/2026-10-24-codex-windows-gates/observations.json). Failed original trial and operator corrections retained. | No private body, credentials, raw transcript, session IDs or local user paths |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -516,7 +528,14 @@ An earlier writer implementation left its own draft when Windows handle/path dev
 
 ## Conclusion
 
-Current decision: keep active/result:null and stage:blocked. The fresh-plan baseline
+Result rationale: fail. The campaign validator includes every retained required row,
+including historical failed candidates. Those observations remain unchanged; the
+dated scoped reports identify later successful trials. This historical aggregate
+verdict does not turn E114 into a failure or certify the remaining support gates.
+
+Current decision: keep active/result:null and stage:blocked. E114 completes the
+installed 0.5.20 Windows fresh-plan cycle with both browser gates and final acceptance.
+The bounded native main-loop experiment does not close C4B/C4C. The earlier fresh-plan baseline
 and E113 same-item stop/resume acceptance are complete within their recorded scopes.
 Both CLI/browser open-run handovers and local current-package/recovery checks passed.
 Clean Windows, mixed-version physical hosts, supported OS acceptance, operational
