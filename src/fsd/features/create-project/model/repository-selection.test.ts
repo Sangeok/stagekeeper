@@ -11,7 +11,7 @@ it("submits only the current URL identity and drops the previous identity for bl
 it("picker requires a selection while direct entry requires both current fields", () => {
   assert.equal(selectedRepository({ source: "picker", repository: null }), null);
   const repository = { owner: "alpha", repo: "repo-a" };
-  assert.deepEqual(selectedRepository({ source: "picker", repository }), repository);
+  assert.deepEqual(selectedRepository({ source: "picker", repository: { ...repository, repositoryId: "1" } }), repository);
   assert.deepEqual(selectedRepository({ source: "direct", ...repository }), repository);
   for (const [owner, repo] of [["", "repo"], ["owner", ""], [" ", "repo"]]) assert.equal(selectedRepository({ source: "direct", owner, repo }), null);
 });

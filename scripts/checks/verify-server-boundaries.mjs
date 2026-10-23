@@ -4,12 +4,12 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const directions = {
-  projects: [], tokens: ["projects"], usage: ["projects"], templates: ["projects"],
+  github: [], projects: [], tokens: ["projects"], usage: ["projects"], templates: ["projects"],
   pipeline: ["projects", "usage"], agents: ["projects", "usage", "templates", "pipeline"],
   auth: ["projects"], runners: ["projects"], rest: ["projects", "tokens", "usage", "templates", "runners"],
   mcp: ["projects", "tokens", "usage", "templates", "agents", "pipeline"],
 };
-const rootFiles = new Set(["db.ts", "database-clock.ts", "github.ts", "public-url.ts", "result.ts"]);
+const rootFiles = new Set(["db.ts", "database-clock.ts", "public-url.ts", "result.ts"]);
 const authPublic = new Set(["auth/index.ts", "auth/guard.ts", "auth/config.base.ts"]);
 const authAssembly = new Set(["auth/guard.ts->auth/index.ts", "auth/config.ts->auth/config.base.ts"]);
 const runtimeAssembly = new Set([

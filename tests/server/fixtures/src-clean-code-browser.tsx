@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { PathnameContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
-import { NewProjectForm } from "../../../src/fsd/features/create-project/ui/new-project-form";
+import { NewProjectForm } from "../../../src/fsd/features/create-project";
 import { CopyButton } from "../../../src/fsd/shared/ui/copy-button";
 import { TokenReveal } from "../../../src/fsd/entities/project-token/ui/token-reveal";
 import { OwnerTokenReveal } from "../../../src/fsd/entities/project-token/ui/owner-token-reveal";
@@ -24,6 +24,7 @@ import { toItemDocs } from "../../../src/fsd/pages/board-item/model/item-docs";
 import type { ActionResult } from "../../../src/fsd/shared/api/result";
 import { defaultGraph } from "../../../packages/core/pipeline.mjs";
 import { runAcceptance } from "./src-clean-code-acceptance";
+import { installGitHubPickerFixture } from "./github-picker-browser";
 
 const controls = {
   submissions: [] as Record<string, FormDataEntryValue>[],
@@ -125,7 +126,8 @@ function ResumeFixture() {
 function FormFixture() {
   const picker = new URLSearchParams(location.search).has("picker") || fixturePicker;
   return <NewProjectForm defaultOwner="fixture-owner" repoLoadFailed={false} mcpUrl="https://fixture.test/api/mcp"
-    repos={picker ? [{ name: "picked-repo", defaultBranch: "release/picked" }, { name: "second-repo", defaultBranch: "main" }] : []}
+    picker={githubFixture?.initial}
+    repos={picker ? [{ source: "public", repositoryId: "1", owner: "fixture-owner", name: "picked-repo", defaultBranch: "release/picked" }, { source: "public", repositoryId: "2", owner: "fixture-owner", name: "second-repo", defaultBranch: "main" }] : []}
     action={async (_previous, data) => {
       controls.submissions.push(Object.fromEntries(data.entries()));
       await new Promise<void>(resolve => { pending.add(resolve); controls.finishRegistration = () => { pending.delete(resolve); resolve(); }; });
@@ -230,8 +232,10 @@ function BoundaryFixture() {
 
 let root: ReturnType<typeof createRoot> | undefined;
 let fixturePicker = false;
+let githubFixture: ReturnType<typeof installGitHubPickerFixture> | null = null;
 function cleanupFixture() {
   root?.unmount(); root = undefined;
+  githubFixture?.cleanup(); githubFixture = null;
   for (const finish of pending) finish(); pending.clear();
   restoreConsole(); restoreConsole = () => {};
   controls.finishAction = () => {};
@@ -252,6 +256,7 @@ function ProposeFixture() {
 }
 function renderMode(mode: string, picker = false) {
   cleanupFixture(); fixturePicker = picker;
+  if (mode.startsWith("private-")) githubFixture = installGitHubPickerFixture(mode);
   controls.writes.length = 0; controls.payloads.length = 0; controls.submissions.length = 0; controls.refreshes = 0; controls.duplicateKeyWarnings = 0;
   installClipboard();
   if (mode === "documents") {

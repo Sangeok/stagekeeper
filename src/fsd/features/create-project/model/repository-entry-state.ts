@@ -25,11 +25,14 @@ export function transitionRepositoryEntry(state: RepositoryEntryState, event: Re
     case "direct": return { state: { ...state, selection: { source: "direct", owner: event.owner, repo: event.repo } } };
     case "edit": {
       if (state.editing) return { state: { ...state, editing: false } };
+      if (state.selection.source === "authorized") return { state: { ...state, editing: true } };
       const repository = state.selection.source === "direct" ? state.selection : selectedRepository(state.selection);
       return { state: { ...state, editing: true, selection: { source: "direct", owner: repository?.owner || context.defaultOwner, repo: repository?.repo ?? "" } } };
     }
-    case "pick": return { state: { ...state, selection: { source: "picker", repository: { owner: context.defaultOwner, repo: event.option.name } } },
-      branch: event.option.defaultBranch, ...(!context.slugTouched ? { slug: slugFromRepo(event.option.name) } : {}) };
+    case "pick": return { state: { ...state, selection: event.option.source === "authorized" ? { source: "authorized", repository: event.option }
+      : { source: "picker", repository: { owner: event.option.owner, repo: event.option.name, repositoryId: event.option.repositoryId } },
+      editing: event.option.defaultBranch === null || state.editing },
+      branch: event.option.defaultBranch ?? "", ...(!context.slugTouched ? { slug: slugFromRepo(event.option.name) } : {}) };
     case "reset": return { state: initialRepositoryEntry(state.manual), slug: "", branch: "main", resetDetails: true };
     default: { const unreachable: never = event; return unreachable; }
   }

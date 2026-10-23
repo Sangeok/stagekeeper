@@ -10,7 +10,7 @@ it("preserves editing and URL draft through picker selection and collapse", () =
   state = transitionRepositoryEntry(state, { type: "edit" }, context).state;
   state = transitionRepositoryEntry(state, { type: "picker" }, context).state;
   assert.ok(state.editing); assert.equal(state.urlDraft, "https://github.com/o/original");
-  const picked = transitionRepositoryEntry(state, { type: "pick", option: { name: "chosen", defaultBranch: "release" } }, context);
+  const picked = transitionRepositoryEntry(state, { type: "pick", option: { source: "public", repositoryId: "1", owner: "me", name: "chosen", defaultBranch: "release" } }, context);
   assert.equal(picked.slug, "chosen"); assert.equal(picked.branch, "release");
   state = transitionRepositoryEntry(picked.state, { type: "edit" }, context).state;
   assert.equal(state.editing, false); assert.deepEqual(selectedRepository(state.selection), { owner: "me", repo: "chosen" });

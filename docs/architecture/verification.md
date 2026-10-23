@@ -168,7 +168,7 @@ PR·CI 재실행·조회 실패·squash 병합·동시 커밋 보존을 확인�
 
 | 위치 | 소유 책임 |
 | --- | --- |
-| 최상위 | build, 브랜치 정리, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여와 짝 테스트 |
+| 최상위 | build, 브랜치 정리, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여, GitHub 목록 credential 정리·회전과 짝 테스트 |
 | `checks/` | FSD·서버 경계 검사기, 문구·공개 계약 검사와 테스트 |
 | `windows/` | native Node 빌드·캐시·패키징·호환 처리·Windows 리허설과 테스트 |
 | `templates/` | 템플릿 seed·restore·쿼리 보조 모듈과 테스트 |
@@ -192,6 +192,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
 | `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | 병합·CI·로컬 보존 조건을 확인한 작업 브랜치의 로컬 ref만 정리. `main`·`dev`와 원격 ref는 삭제하지 않음 |
+| `maintain-github-connections.ts` | `npm run github:maintenance -- --apply [--rotate]` | 운영자는 최소 10분마다 실행하며 rotation은 명시적으로 요청 | 만료된 GitHub 시도·초안·delivery를 삭제하고 만료 credential을 중지한다. 회전은 current key로 재봉인하며 revision/tokenVersion과 기존 envelope의 CAS로 새 grant를 덮어쓰지 않는다. 실제 운영 실행·키 공급은 배포 승인 범위다 |
 | `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
 | `windows/package-windows-plugin.mjs` | `node scripts/windows/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source·runtime·변경하지 않은 완전한 owner verifier를 양쪽 skill 경로에 복사하고 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |

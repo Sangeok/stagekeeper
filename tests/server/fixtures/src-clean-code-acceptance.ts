@@ -1,5 +1,6 @@
 type Outcome = "success" | "error" | "stale" | "unknown";
 import { PIPELINE_STALE, PIPELINE_UNKNOWN } from "../../../src/fsd/features/edit-pipeline/model/pipeline-save-state";
+import { githubControls } from "./github-picker-browser";
 type Controls = { writes: string[]; payloads: unknown[]; submissions: Record<string, FormDataEntryValue>[]; refreshes: number; duplicateKeyWarnings: number; finishCopy: (success: boolean) => void; finishAction: (outcome: Outcome) => void; finishRegistration: () => void; setRoster: (roster: string[]) => void };
 type Result = { case: string; expected: string; observed: string; status: "Pass" | "Fail" };
 const tick = () => new Promise(resolve => setTimeout(resolve, 80));
@@ -24,6 +25,7 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     finally { cleanup(); await tick(); }
   };
   const mount = async (mode: string, picker = false) => { render(mode, picker); await tick(); };
+  if (!new URLSearchParams(location.search).has("private-only")) {
   await run("Documents preserve duplicate links across updates", "plan and every distinct report retain their DOM identity with no duplicate-key warnings", async () => {
     await mount("documents");
     const section = [...document.querySelectorAll("section")].find(section => section.querySelector("h2")?.textContent === "Documents");
@@ -439,6 +441,65 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     await click(label + (to === heldFrom ? "" : " instead"));
     check(JSON.stringify(controls.payloads[0]) === JSON.stringify({ key: "K-1", to, expectedUpdatedAt: "2026-10-04T00:00:00Z" }), "resume destination changed");
     controls.finishAction("success"); await tick();
+  });
+  }
+  await run("private consent and form isolation", "consent is explicit and helper buttons never submit registration", async () => {
+    await mount("private-consent");
+    check(githubControls.requests.every(path => !path.includes("/start")), "authorization started without consent");
+    await click("Connect private repositories");
+    check(document.body.textContent?.includes("No code access"), "permission explanation absent");
+    check(githubControls.requests.every(path => !path.includes("/start")), "first click skipped consent");
+    await click("Continue to GitHub");
+    check(githubControls.requests.filter(path => path.includes("/start")).length === 1 && controls.submissions.length === 0, "helper submitted the root form");
+  });
+  await run("private Edit preserves provenance", "branch and name edits retain authorized identity in actual FormData", async () => {
+    await mount("private-ready"); await click("private-org/private-service · Private release"); await click("Edit");
+    input('input[name="name"]', "My name"); input('input[name="branch"]', "custom-branch"); await tick();
+    await click("Create project");
+    check(controls.submissions[0]?.repositorySource === "authorized" && controls.submissions[0]?.repositoryId === "99" && controls.submissions[0]?.branch === "custom-branch", "authorized provenance lost through Edit");
+  });
+  await run("private null default branch", "missing metadata needs explicit branch without Contents access", async () => {
+    await mount("private-null"); await click("private-org/private-service · Private");
+    check(document.querySelector<HTMLInputElement>('input[name="branch"]')?.value === "" && find("Create project").disabled, "missing branch became main");
+    input('input[name="branch"]', "chosen"); await tick(); check(!find("Create project").disabled, "explicit branch not accepted");
+  });
+  await run("private newer edits beat restoration", "delayed restoration preserves new owner, slug, name and branch", async () => {
+    await mount("private-restoring"); await click("Paste a URL instead"); input('input[inputmode="url"]', "https://github.com/current/new"); await tick();
+    await click("Edit"); input('input[name="slug"]', "current-slug"); input('input[name="name"]', "Current name"); input('input[name="branch"]', "current-branch"); await tick();
+    githubControls.releaseDraft(); await tick(); await tick();
+    check(document.querySelector<HTMLInputElement>('input[name="slug"]')?.value === "current-slug" && document.querySelector<HTMLInputElement>('input[name="name"]')?.value === "Current name" && document.querySelector<HTMLInputElement>('input[name="branch"]')?.value === "current-branch", "late draft replaced local edits");
+    check(document.querySelector<HTMLInputElement>('input[name="owner"]')?.value === "current", "late draft restored private identity");
+  });
+  await run("private session-loss restoration race", "late draft cannot restore after a newer unauthenticated request", async () => {
+    await mount("private-session-race"); githubControls.expire(); window.dispatchEvent(new Event("focus")); await tick();
+    githubControls.releaseDraft(); await tick(); await tick();
+    check(!document.querySelector('input[name="slug"]') && !document.querySelector('input[name="repositoryId"]'), "private draft restored after session loss");
+    check(document.body.textContent?.includes("Sign in again"), "session recovery absent");
+  });
+  await run("private canceled loading settles", "failed Manage and Start over during pagination leave reload usable", async () => {
+    await mount("private-loading"); await click("Manage repository access");
+    check(!find("Reload repository list").disabled && !document.body.textContent?.includes("Loading repositories…"), "failed manage left loading stuck");
+    await mount("private-pagination"); await click("private-org/private-service · Private release"); await click("Load more"); await click("Start over");
+    check(!find("Reload repository list").disabled && !document.body.textContent?.includes("Loading repositories…"), "Start over left loading stuck");
+  });
+  await run("private late creation after session loss", "an old creation response cannot reveal its token after the account is invalidated", async () => {
+    await mount("private-ready"); await click("private-org/private-service · Private release"); await click("Create project");
+    githubControls.expire(); window.dispatchEvent(new Event("focus")); await tick(); controls.finishRegistration(); await tick();
+    check(!document.body.textContent?.includes("hs_fixture-created") && document.body.textContent?.includes("Sign in again"), "old-session token was revealed");
+  });
+  await run("private restoration focus and current failure", "focus follows the restoration event and later failures replace old success guidance", async () => {
+    await mount("private-focus"); githubControls.releaseDraft(); await tick(); await tick();
+    check(document.activeElement?.getAttribute("role") === "status" && document.activeElement.textContent?.includes("Loading repositories"), "restoration focus depended on success wording");
+    githubControls.releaseList(); await tick(); githubControls.failList(); await click("Reload repository list");
+    check(document.querySelector('[role="status"]')?.textContent?.includes("Fixture repository reload failed"), "old success hid query failure");
+  });
+  await run("private refresh and disconnect", "refresh preserves edits; confirmed disconnect clears selected identity and preserves project details", async () => {
+    await mount("private-ready"); await click("private-org/private-service · Private release"); await click("Edit");
+    input('input[name="slug"]', "mine"); input('input[name="name"]', "Keep name"); input('input[name="branch"]', "keep-branch"); await tick();
+    githubControls.changeBranch(); await click("Reload repository list");
+    check(document.querySelector<HTMLInputElement>('input[name="branch"]')?.value === "keep-branch" && document.querySelector<HTMLInputElement>('input[name="connectionRevision"]')?.value === "5", "refresh overwrote input or retained stale revision");
+    await click("Disconnect repository list"); await click("Confirm list disconnect");
+    check(!document.querySelector('input[name="repositoryId"]') && document.querySelector<HTMLInputElement>('input[name="owner"]')?.value === "" && document.querySelector<HTMLInputElement>('input[name="name"]')?.value === "Keep name", "disconnect retained private selection or erased project details");
   });
   const output = document.createElement("pre"); output.id = "acceptance-results"; output.textContent = JSON.stringify(results, null, 2);
   document.querySelector("#acceptance-results")?.remove(); document.body.append(output);

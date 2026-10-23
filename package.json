@@ -12,6 +12,7 @@
     "verify:plugin-version": "node scripts/checks/verify-plugin-version.mjs",
     "docs:check": "node scripts/checks/verify-docs.mjs",
     "branches:cleanup": "node scripts/cleanup-task-branches.mjs",
+    "github:maintenance": "node --conditions=react-server --import tsx scripts/maintain-github-connections.ts",
     "test:architecture": "node --test \"scripts/**/*.test.mjs\"",
     "test:scripts": "node --import tsx --test \"scripts/**/*.test.mjs\" \"scripts/**/*.test.ts\"",
     "check": "node scripts/plugin-lib.mjs --check && npm run lint && npm run docs:check && next typegen && tsc --noEmit && npm run test:scripts",

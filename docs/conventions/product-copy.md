@@ -733,8 +733,14 @@ and the quoted owner URL, never the token value.
 - List at `/projects`: title **Projects**, button **New project**. Empty: "No projects yet. Connect a
   repository to get a board, a backlog, and an inbox."
 - **New project**
-  - Picker: **Repository** · search placeholder "Search 20 repositories" · empty "No
-    repository matches." · footnote "Private repositories aren't listed. **Paste a URL** instead."
+  - Public picker: **Repository** · search placeholder "Search 20 public repositories" · empty "No
+    repository matches." · when the optional list is unavailable, footnote "Private repositories aren't listed. **Paste a URL** instead."
+  - Optional list: **Connect private repositories** → "Read repository names, owners and default branches. No code access. Choose which repositories to allow on GitHub."
+    and "You can paste a repository URL without connecting." → **Continue to GitHub** / **Cancel**.
+    Existing authorization shows **Manage repository access** and **Disconnect repository list**. The latter preserves projects and Stagekeeper tokens.
+    Search says "Search 20 loaded repositories" and covers only loaded rows; **Load more** and **Reload repository list** are explicit actions.
+    Authorized rows show `owner/name`, **Private** when applicable, and the known default branch. A missing default requires explicit branch input.
+    A failed or partial reload takes precedence over old restoration success guidance. **Start over** suppresses old draft restoration even when server cancellation cannot be confirmed.
   - Paste mode: **Repository URL** (placeholder `https://github.com/owner/repo`) · link **Pick
     from my repositories** · failure "Couldn't load your repositories. Paste a URL."; successful empty list "No public repositories found. Paste a URL." · parse
     error "That doesn't look like a GitHub repository URL. Use Edit to fill in the fields."
@@ -743,6 +749,7 @@ and the quoted owner URL, never the token value.
     letters, numbers, and dashes, 2–40 characters.") · Display name (placeholder "Defaults to the slug")
   - Button **Create project** / "Creating…". Footnote: "Stagekeeper doesn't read the
     repository. It only uses the name and the default branch."
+    When the optional list is available: "Stagekeeper reads repository metadata only. It does not read or write your code."
   - Success: **Project created** + token reveal + link "Open /p/mathgic"
   - Existing: **Project already connected** + `Use the existing project. No new token was created.` + link using the stored slug, without token reveal.
   - Disconnected existing: **Repository disconnected** + `Your data is preserved. Open the project and choose Reconnect repository.` + stored-slug link, without token reveal.

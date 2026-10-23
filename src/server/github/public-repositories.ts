@@ -1,10 +1,10 @@
 import "server-only";
 import { z } from "zod";
-
-export type PublicRepo = { name: string; defaultBranch: string };
-export type PublicReposResult = { ok: true; repos: PublicRepo[] } | { ok: false; category: "http" | "shape" | "request" };
+import type { PublicRepo, PublicReposResult } from "./contracts";
 
 const githubRepoSchema = z.object({
+  id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  owner: z.object({ login: z.string().min(1) }),
   name: z.string(),
   default_branch: z.string().catch("main"),
   archived: z.boolean().catch(false),
@@ -35,11 +35,11 @@ export async function listPublicRepos(login: string): Promise<PublicReposResult>
     for (const raw of body) {
       const parsed = githubRepoSchema.safeParse(raw);
       if (!parsed.success || parsed.data.archived) continue;
-      repos.push({ name: parsed.data.name, defaultBranch: parsed.data.default_branch });
+      repos.push({ source: "public", repositoryId: String(parsed.data.id), owner: parsed.data.owner.login, name: parsed.data.name, defaultBranch: parsed.data.default_branch });
     }
     return { ok: true, repos };
-  } catch (error) {
-    console.error("github repositories unavailable", { category: "request", error });
+  } catch {
+    console.error("github repositories unavailable", { category: "request" });
     return { ok: false, category: "request" };
   }
 }

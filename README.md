@@ -300,11 +300,46 @@ npm run dev              # http://localhost:3000
 | `npm run test:web` | `src/**/*.test.ts` and `src/**/*.test.mjs` |
 | `npm run test:server` | `tests/server/*.test.ts` with the server-only bootstrap |
 | `npm run test:server:integration` | Integration tests on an isolated PostgreSQL; `TEST_DATABASE_URL` must name a `stagekeeper_test_*` database |
+| `npm run github:maintenance -- --apply` | Delete expired repository-list attempts/delivery IDs and stop expired credentials; add `--rotate` to reseal with the active vault key |
 | `npm run test:templates` | Private template tests; needs `plugin/templates/` |
 | `npm run sync:plugin-lib` | Copy `packages/core` into `plugin/lib` after changing core |
 | `npm run db:generate` · `db:validate` · `db:migrate` | `prisma generate` · `prisma validate` · `prisma migrate dev` |
 
 Tests use the built-in Node.js test runner (`node --test`), with `tsx` for TypeScript.
+
+### Optional private repository list
+
+The normal GitHub login, Public picker, URL registration and existing projects work without this integration.
+The optional list uses a separate GitHub App with **Metadata read only** and user access tokens. Do not add `repo` to the normal login.
+App visibility must permit other users and organizations to install it; this does not make their repositories public.
+
+Apply the additive Prisma migration before deploying this code. Keep `GITHUB_REPOSITORY_PICKER_ENABLED=false` during setup.
+Configure the App ID, slug and separate client credentials using `GITHUB_REPOSITORY_APP_ID`, `GITHUB_REPOSITORY_APP_SLUG`,
+`GITHUB_REPOSITORY_APP_CLIENT_ID` and `GITHUB_REPOSITORY_APP_CLIENT_SECRET`. Use expiring user tokens,
+`request_oauth_on_install=false` and `setup_on_update=true`, with these fixed URLs under `HARNESS_PUBLIC_URL`:
+
+- OAuth callback: `/api/github/connection/callback`
+- Installation setup: `/api/github/connection/installation`
+- Webhook: `/api/github/webhook`; subscribe to installation and installation-repository changes. User authorization revocation is always delivered.
+
+Supply a random webhook secret of at least 32 characters through `GITHUB_REPOSITORY_WEBHOOK_SECRET`.
+Supply a separate vault keyring through `GITHUB_REPOSITORY_VAULT_KEYS` (a JSON object mapping key IDs to canonical base64-encoded 32-byte keys)
+and select its active ID with `GITHUB_REPOSITORY_VAULT_ACTIVE_KEY`. Generate and store keys in the deployment secret manager; never reuse `AUTH_SECRET`, commit keys, or paste them into a PR.
+
+Schedule `npm run github:maintenance -- --apply` at least every ten minutes. Attempts and encrypted drafts expire after ten minutes;
+delivery IDs expire after 24 hours. Consumption/cancellation/disconnection removes the relevant secret fields immediately.
+The browser stores only tab-local random flow/cancellation IDs in sessionStorage; draft content and GitHub credentials stay on the server.
+
+For rotation, add the new key alongside old keys, select the new active ID, run maintenance with `--apply --rotate`, and confirm no stored envelope references the old key before removing it.
+Keep previous keys available until every instance has the new configuration and rotation succeeds. A missing old key makes the affected operation unavailable; it does not silently destroy recoverable ciphertext.
+Use a stable HTTPS public origin in production. Redact code/state query parameters at the ingress/access-log layer; application logs contain only outcome classes and durations.
+
+Set `GITHUB_REPOSITORY_OPERATIONS_READY=true` and then enable the feature only after migration, maintenance scheduling, key recovery/rotation,
+App permission/callback verification, personal/organization/SSO authorization, revocation and rollback acceptance have succeeded.
+These deployment operations and live GitHub acceptance are separate from fixture and local DB tests.
+
+Turning the feature OFF stops new authorization and list queries. Keep the App configuration, disconnect/webhook handlers and maintenance available to settle existing attempts and credentials.
+Do not roll back to a version lacking those handlers until secrets, attempts, leases and deliveries are settled. Do not drop the new tables to roll back.
 
 CI ([`check.yml`](./.github/workflows/check.yml)) runs `npm run check`, `npm test`,
 `npm run test:web`, `npm run test:server`, and `npm run build` in parallel on Node.js 22
