@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-23T13:00:58.500Z"
-tested-revision: "64db9e966a2adf26f47544f1b7dd833556751d17"
+last-executed-at: "2026-10-23T14:31:23.420Z"
+tested-revision: "775772efd6163117809c33e13e070adba9a8cff7"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "blocked: dual-client runtime — committed private templates and fresh-plan Codex acceptance passed; broader host, handover and release gates remain open"
+test-summary: "blocked: same-item private stop/resume acceptance, bounded native CLI/browser handover and current installed update/recovery passed; clean-host, mixed-host, release and C4 remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -24,6 +24,17 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 
 ## Summary and Decision
 
+2026-10-23 follow-up acceptance: actual private pending-command stop and same-item
+resume reached five-check final acceptance. Separate native Claude/Codex main-loop
+probes and real browser before-implement approval preserved the open implement
+receipt in both directions; their outcome ledgers stayed empty and no post-handover
+implementation is claimed. Both clients updated to 0.5.19 with all 2,225 installed
+files checked. Bundled helpers connected to real private HTTP templates without
+global Node on their PATH; modified roles and template rollback/limited restore
+passed. Two failed observer trials remain recorded. Physical clean Windows, actual
+mixed-version hosts, operational release and C4B/C4C remain open.
+[Scoped follow-up report](../completed/2026-10-23-codex-runtime-followups.md), [E113].
+
 2026-10-23 committed private templates and fresh-plan acceptance: the native Codex
 candidate generated a new plan, resumed plan/report commits without byte or usage
 changes, passed the complete independent verifier and owner gate, implemented the
@@ -31,8 +42,9 @@ fixture and reached all five final acceptance checks with acceptedAt read-back.
 The trial found and corrected null optional binding IDs in the role bridge.
 The private tested revision is now merged in its own repository. Final serial
 core/plugin checks passed; two earlier parallel background-test failures remain
-recorded. The candidate is not published or production-seeded. Controlled actual
-private stop/resume, clean-host/cross-client acceptance and release/C4 remain open.
+recorded. At that checkpoint the candidate was not published or production-seeded; controlled
+private stop/resume and cross-client observations were still outstanding. The later
+follow-up above supersedes only the newly measured paths.
 [Bounded regression report](../completed/2026-10-23-codex-private-acceptance.md).
 
 2026-10-22 runtime recovery: actual native Codex roles resume committed plans and
@@ -273,6 +285,11 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T97 | R5 | informational | Later versioned 0.5.2 private package regression | Both real caches match all 2,209 files; no-global-Node helpers and modified ownership preservation; original staged skill selection before inference; ZIP exact round trip | [E110] | PASS |
 | T98 | R5 | informational | Actual private working bodies on a fresh Windows service | Installed helper connection, DB rollback/restore, browser approval and server/local-session handover PASS; dev Git inspection blocked, hold failed; full verifier and active-command stop/resume not established | [E111] | FAIL |
 | T99 | R5 | informational | Scoped native Windows Git regression and actual private dev verification | Final 0.5.7 host/installed HTTP bridge boundary checks and required source CI PASS; actual 0.5.6 dev Git/native tests and server verify ok; owner report handoff pending; no full verifier/same-case controlled resume certification | [E112] | PASS |
+| T100 | R2 | required | Actual current-private command stop/resume | Live command/child, early release and competing-client refusal, quiescence, same AgentRun/receipt/usage, fresh verification and final acceptance | [E113] | PASS |
+| T101 | R2 | required | Actual native CLI/browser handover in both directions | Browser before-implement approval and open implement receipt preserved; no post-handover outcome/implementation claim | [E113] | PASS |
+| T102 | R2 | required | Current installed package and bundled helper | 0.5.18→0.5.19 both clients, 2,225 files, actual private HTTP init/connection, modified role and ownership preservation; PATH isolation only | [E113] | PASS |
+| T103 | R2 | required | Current private transactional rollback and limited restore | Actual prior 12-row baseline restored after current 13-row seed; unrelated row preserved; isolated DB only | [E113] | PASS |
+| T104 | R2 | required | Remaining actual host/release/C4 acceptance | Physical clean Windows, mixed-version hosts, approved operational deployment/publication and C4 live/110-minute idle | [E113] | NOT RUN |
 
 ## Commands and Static Checks
 
@@ -423,6 +440,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 
 | E111 | Actual private working-template service trial | Application 0edfb7e044b0e2c19e4ce7a72966d0beea5f0690 and prior verified 0.5.2 install bundle. Real private working snapshot/fresh DB rollback and bounded restore/real browser approval/server and local-session handover PASS; dev implement blocked after Git diff inspection and hold failed. Three model starts, 223,481 reported tokens. Operator setup failures and invalid verifier/stop trials are preserved in [bounded FAIL report](../completed/2026-10-05-windows-private-template-acceptance.md) and [projected observations](../assets/2026-10-05-windows-private-template-acceptance/observations.json). | No private body/auth/session IDs/raw transcripts; unreleased working snapshot and future QA references do not certify released body/full verifier/active-command resume/native Claude/clean Windows/C4 |
 | E112 | Scoped Windows Git regression and private dev verification | Source 97f03030206f075ae6b7f4308da3314adb01478a: final 0.5.7 installed inventory 2,210 files, host 12 PASS/0 FAIL/0 SKIP, required check CI and actual HTTP bridge PASS. Intermediate 0.5.6 actual private dev accepted verify ok, report handoff pending. Four model starts, 800,812 reported tokens; server 3 runs/3 charges/11 steps. Failed verifier/resume/operator trials retained in [completed narrow report](../completed/2026-10-05-windows-role-git.md) and [observations](../assets/2026-10-05-windows-role-git/observations.json). | No private body/auth/session IDs/raw transcripts; service checkpoint and intermediate/final package versions distinguished; latest native CI pending at evidence freeze; full verifier/same-case controlled resume/release/C4 not certified |
+| E113 | Current private stop/resume, CLI/browser identity handover and installed update/recovery | [Scoped report](../completed/2026-10-23-codex-runtime-followups.md); [projected observations](../assets/2026-10-23-codex-runtime-followups/observations.json). Final actual trials passed; failed observers retained. | No private body, credentials, raw model transcript or local user paths |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -498,25 +516,32 @@ An earlier writer implementation left its own draft when Windows handle/path dev
 
 ## Conclusion
 
-Latest Git decision: retain active/result:null for this aggregate campaign.
+Current decision: keep active/result:null and stage:blocked. The fresh-plan baseline
+and E113 same-item stop/resume acceptance are complete within their recorded scopes.
+Both CLI/browser open-run handovers and local current-package/recovery checks passed.
+Clean Windows, mixed-version physical hosts, supported OS acceptance, operational
+release and C4B/C4C still require direct evidence. The dated checkpoints below retain
+their original failure and NOT RUN history; they are not current source verdicts.
+
+Historical Git checkpoint: retain active/result:null for this aggregate campaign.
 The narrow Git regression is complete, including actual private dev verify ok
 and final installed data-query fences. Full independent service verifier,
 controlled same-case pending stop/resume, owner final accept and release/C4
 remain unresolved. E112 does not replace historical failure records below.
 
-Latest command/bundle decision: active/result:null. Bounded native Windows model execution, full original verifier and private local package evidence now pass their stated scope. Operational release, integrated service acceptance and C4 are incomplete. Earlier decisions below remain historical.
+Historical command/bundle checkpoint: active/result:null. Bounded native Windows model execution, full original verifier and private local package evidence now pass their stated scope. Operational release, integrated service acceptance and C4 are incomplete. Earlier decisions below remain historical.
 
-Latest native Windows decision: active/result:null. Scoped file role behavior and loader/stop canaries passed; commands, full verifier/installed package/minimum setup and C4 remain unresolved. All earlier conclusions below describe their own checkpoints.
+Historical native Windows checkpoint: active/result:null. Scoped file role behavior and loader/stop canaries passed; commands, full verifier/installed package/minimum setup and C4 remain unresolved. All earlier conclusions below describe their own checkpoints.
 
-Latest decision: active/result:null. Bounded Linux actual role/full verifier/stop behavior now passed; actual approved dual CLI/browser cycle and C4 remain pending. Historical required failures and unimplemented gates retain the aggregate fail result.
+Historical Linux checkpoint: active/result:null. Bounded Linux actual role/full verifier/stop behavior now passed; actual approved dual CLI/browser cycle and C4 remain pending. Historical required failures and unimplemented gates retain the aggregate fail result.
 
 Earlier model-free WSL2 decision, before native login: remain active/result:null. Bounded WSL2 filesystem behavior passed; actual authenticated role/verifier and approved resumption had not been run. C4 remained unimplemented. This historical decision is superseded only for the bounded actual role/verifier/stop paths recorded above; its unexecuted resumption/C4 gates remain unresolved.
 
-Current decision: preserve active/result:null. Actual MCP execution/cancellation evidence is partial; Windows functional filesystem gate remains blocked. C4 and the 110-minute idle experiment were not performed. A compatible host must pass the unchanged-role basic acceptance before proceeding.
+Historical initial MCP checkpoint: preserve active/result:null. Actual MCP execution/cancellation evidence is partial; Windows functional filesystem gate remains blocked. C4 and the 110-minute idle experiment were not performed. A compatible host must pass the unchanged-role basic acceptance before proceeding.
 
-Result rationale: fail
+Historical initial result rationale: fail
 Required failure: automatic approval candidate wrote the protected disposable repository. Native role selection and strict fresh CLI candidates remain blocked or unproven. Static/unit/build PASS cannot repair these runtime outcomes.
-Rerun decision: keep this report active/result:null and the proposal blocked for actual acceptance/release. Local C1–C3 source is implemented under the follow-up instruction. Next run the current product host canary, full verifier, bidirectional approved DB/browser flow, installed package and seed/rollback trials before declaring support ready. Normal CLI login is available and is not the outstanding blocker.
+Historical initial rerun decision: keep this report active/result:null and the proposal blocked for actual acceptance/release. Local C1–C3 source is implemented under the follow-up instruction. Next run the current product host canary, full verifier, bidirectional approved DB/browser flow, installed package and seed/rollback trials before declaring support ready. Normal CLI login is available and is not the outstanding blocker.
 
 ## Review Checklist
 

@@ -1,0 +1,559 @@
+{
+  "format": "stagekeeper-codex-runtime-followup-acceptance-v1",
+  "at": "2026-10-23T14:31:23.420Z",
+  "testedRevision": "775772efd6163117809c33e13e070adba9a8cff7",
+  "private": {
+    "revision": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+    "mergedMain": "fb6ef955ba3f6fc8320e173fbafc9ef03b83281b",
+    "rows": 13,
+    "sourceHash": "e49ac84385e131b3412df64b6c3335396ccb8cc2b1e22775294921152ce9f540"
+  },
+  "package": {
+    "version": "0.5.19",
+    "sourceRevision": "64db9e966a2adf26f47544f1b7dd833556751d17",
+    "packageSha256": "0e73f1dc8baf3e02812a53cba86030ae9bc4b50fbd4e661b569c582749be69f6",
+    "files": 2225,
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    }
+  },
+  "environment": {
+    "codex": "0.164.0",
+    "claude": "2.1.309",
+    "ownerNode": "22.13.1",
+    "bundledNode": "22.23.3",
+    "postgres": "18.6",
+    "platform": "Windows 11 native",
+    "browser": "headless Microsoft Edge",
+    "physicalCleanWindows": false,
+    "credentialsCopied": false,
+    "production": false
+  },
+  "r3": {
+    "scope": "Prepared-plan actual private verifier and dev; active native command stop, same-item resume and final acceptance",
+    "stop": {
+      "result": "PASS",
+      "activeCommand": "npm run test:pending",
+      "step": "verify",
+      "earlyRelease": "quiescence-required",
+      "competingClient": "locked",
+      "ownedProcessesEnded": true,
+      "unchangedReceipt": true,
+      "usageBefore": 2,
+      "usageAfter": 2
+    },
+    "mainLoopReview": {
+      "result": "PASS",
+      "requiredPaths": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "literalCases": 44,
+      "killedMutants": 25
+    },
+    "acceptance": {
+      "result": "PASS",
+      "checks": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "tests": 45,
+      "literalAssertions": 44,
+      "utf16CodeUnits": 65536,
+      "planCommit": "ece03a705edb20458d551e5918a59b987196f167",
+      "reportCommit": "6dcc8d84c1e983fb0fcf6aaf92145d8bd54ca39f",
+      "pendingCommandCompleted": true
+    },
+    "observations": [
+      {
+        "test": "production-http-service",
+        "result": "PASS"
+      },
+      {
+        "test": "installed-helper-init",
+        "result": "PASS"
+      },
+      {
+        "test": "isolated-mcp-registration-and-sync",
+        "result": "PASS"
+      },
+      {
+        "test": "agent-owner-tool-separation",
+        "result": "PASS"
+      },
+      {
+        "test": "actual-service-list-contracts",
+        "result": "PASS",
+        "backlogItems": 1,
+        "boardItems": 1
+      },
+      {
+        "test": "authenticated-real-browser",
+        "result": "PASS",
+        "screenshot": "service-pipeline.png"
+      },
+      {
+        "test": "foreground-session-prepare",
+        "result": "PASS"
+      },
+      {
+        "test": "initial-pipeline",
+        "result": "PASS",
+        "action": "dispatch",
+        "agent": "plan-verifier"
+      },
+      {
+        "test": "controlled-stop-scenario",
+        "result": "RUNNING",
+        "scope": "Actual private dev pending command, same item/run/session policy through final acceptance"
+      },
+      {
+        "test": "prepared-plan-fixture",
+        "result": "PASS",
+        "scope": "R3 uses an explicit prepared plan; no fresh plan generation is claimed"
+      },
+      {
+        "test": "full-private-verifier",
+        "result": "PASS",
+        "cleanReport": true,
+        "recordedVerifyPass": true
+      },
+      {
+        "test": "real-owner-mcp-approval",
+        "result": "PASS"
+      },
+      {
+        "test": "actual-active-command-stop",
+        "result": "PASS",
+        "earlyRelease": "quiescence-required",
+        "competingClient": "locked",
+        "usageUnchanged": true,
+        "receiptUnchanged": true,
+        "ownedProcessesEnded": true
+      },
+      {
+        "test": "same-run-fresh-session-resume",
+        "result": "PASS",
+        "sameRun": true,
+        "sameReceipt": true
+      },
+      {
+        "test": "owner-commit-handoff-resume",
+        "result": "PASS",
+        "agent": "dev",
+        "event": "done",
+        "usageUnchanged": true,
+        "artifactUnchanged": true,
+        "status": "implementing",
+        "planCommit": "ece03a705edb20458d551e5918a59b987196f167"
+      },
+      {
+        "test": "actual-pipeline-acceptance",
+        "result": "PASS",
+        "checks": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "acceptedAt": "2026-10-23T14:19:15.506Z"
+      },
+      {
+        "test": "service-end-to-end",
+        "result": "PASS",
+        "seconds": 1047
+      },
+      {
+        "test": "service-local-session-cleanup",
+        "result": "PASS"
+      },
+      {
+        "test": "test-service-and-fixture-cleanup",
+        "result": "PASS"
+      }
+    ]
+  },
+  "r4": {
+    "scope": "Actual native CLI main-loop MCP observations through the package client/session helpers, browser before-implement gate, and deliberate pause/resume of an open implement step. Prepared plan. Target implementation/final acceptance and before-plan gate are outside these handover rows.",
+    "failedTrials": [
+      {
+        "direction": "claude-codex",
+        "result": "FAIL",
+        "cause": "Operator probe omitted per-tool MCP approval configuration; product configuration already contains it. Observer then awaited an already-closed process. All owned processes, session and fixture explicitly cleaned."
+      },
+      {
+        "direction": "codex-claude",
+        "result": "FAIL",
+        "cause": "Observed native Codex refusal: MCP tool call requires approval, but approval policy is never. No request reached the bridge. Session/service cleanup passed."
+      }
+    ],
+    "finalTrials": [
+      {
+        "direction": "claude-codex",
+        "usageBefore": 1,
+        "usageAfter": 1,
+        "preexistingLedgerRows": 0,
+        "observations": [
+          {
+            "test": "production-http-service",
+            "result": "PASS"
+          },
+          {
+            "test": "installed-helper-init",
+            "result": "PASS"
+          },
+          {
+            "test": "isolated-mcp-registration-and-sync",
+            "result": "PASS"
+          },
+          {
+            "test": "agent-owner-tool-separation",
+            "result": "PASS"
+          },
+          {
+            "test": "actual-service-list-contracts",
+            "result": "PASS",
+            "backlogItems": 1,
+            "boardItems": 1
+          },
+          {
+            "test": "authenticated-real-browser",
+            "result": "PASS",
+            "screenshot": "service-pipeline.png"
+          },
+          {
+            "test": "actual-source-gate-wait",
+            "result": "PASS",
+            "client": "claude"
+          },
+          {
+            "test": "actual-browser-owner-approval",
+            "result": "PASS",
+            "planCommit": "a1dd824f1e04901859ff689e80a2d57239c5e11d",
+            "pipelinePreserved": true
+          },
+          {
+            "test": "actual-bidirectional-client-receipt-resume",
+            "result": "PASS",
+            "first": "claude",
+            "second": "codex",
+            "sameBoard": true,
+            "samePipeline": true,
+            "sameOpenAgentRun": true,
+            "sameReceipt": true,
+            "sameLedger": true,
+            "sameApproval": true,
+            "sameUsage": true,
+            "sourceQuiescent": true,
+            "scope": "Prepared plan; actual browser before-implement approval and native CLI MCP resumption at the open implement step. No target implementation or final acceptance is claimed by this row."
+          },
+          {
+            "test": "service-end-to-end",
+            "result": "PASS",
+            "seconds": 53,
+            "scope": "R4 native CLI/browser identity handover only"
+          },
+          {
+            "test": "test-service-and-fixture-cleanup",
+            "result": "PASS"
+          }
+        ]
+      },
+      {
+        "direction": "codex-claude",
+        "usageBefore": 1,
+        "usageAfter": 1,
+        "preexistingLedgerRows": 0,
+        "observations": [
+          {
+            "test": "production-http-service",
+            "result": "PASS"
+          },
+          {
+            "test": "installed-helper-init",
+            "result": "PASS"
+          },
+          {
+            "test": "isolated-mcp-registration-and-sync",
+            "result": "PASS"
+          },
+          {
+            "test": "agent-owner-tool-separation",
+            "result": "PASS"
+          },
+          {
+            "test": "actual-service-list-contracts",
+            "result": "PASS",
+            "backlogItems": 1,
+            "boardItems": 1
+          },
+          {
+            "test": "authenticated-real-browser",
+            "result": "PASS",
+            "screenshot": "service-pipeline.png"
+          },
+          {
+            "test": "actual-source-gate-wait",
+            "result": "PASS",
+            "client": "codex"
+          },
+          {
+            "test": "actual-browser-owner-approval",
+            "result": "PASS",
+            "planCommit": "ab5903dc1a9da0aece181752ed88b9982df05ebf",
+            "pipelinePreserved": true
+          },
+          {
+            "test": "actual-bidirectional-client-receipt-resume",
+            "result": "PASS",
+            "first": "codex",
+            "second": "claude",
+            "sameBoard": true,
+            "samePipeline": true,
+            "sameOpenAgentRun": true,
+            "sameReceipt": true,
+            "sameLedger": true,
+            "sameApproval": true,
+            "sameUsage": true,
+            "sourceQuiescent": true,
+            "scope": "Prepared plan; actual browser before-implement approval and native CLI MCP resumption at the open implement step. No target implementation or final acceptance is claimed by this row."
+          },
+          {
+            "test": "service-end-to-end",
+            "result": "PASS",
+            "seconds": 56,
+            "scope": "R4 native CLI/browser identity handover only"
+          },
+          {
+            "test": "test-service-and-fixture-cleanup",
+            "result": "PASS"
+          }
+        ]
+      }
+    ]
+  },
+  "r1": {
+    "scope": "Actual installed bundled helper against real private HTTP service; Node absent only from helper PATH; no physical clean-host claim",
+    "observations": [
+      {
+        "test": "production-http-service",
+        "result": "PASS"
+      },
+      {
+        "test": "installed-bundled-helper",
+        "result": "PASS",
+        "client": "claude",
+        "operation": "init",
+        "globalNodeOnPath": false,
+        "version": "0.5.19"
+      },
+      {
+        "test": "installed-bundled-helper",
+        "result": "PASS",
+        "client": "codex",
+        "operation": "init",
+        "globalNodeOnPath": false,
+        "version": "0.5.19"
+      },
+      {
+        "test": "installed-helper-init",
+        "result": "PASS"
+      },
+      {
+        "test": "installed-bundled-helper",
+        "result": "PASS",
+        "client": "codex",
+        "operation": "complete-init",
+        "globalNodeOnPath": false,
+        "version": "0.5.19"
+      },
+      {
+        "test": "isolated-mcp-registration-and-sync",
+        "result": "PASS"
+      },
+      {
+        "test": "agent-owner-tool-separation",
+        "result": "PASS"
+      },
+      {
+        "test": "actual-service-list-contracts",
+        "result": "PASS",
+        "backlogItems": 1,
+        "boardItems": 1
+      },
+      {
+        "test": "authenticated-real-browser",
+        "result": "PASS",
+        "screenshot": "service-pipeline.png"
+      },
+      {
+        "test": "installed-bundled-helper",
+        "result": "PASS",
+        "client": "claude",
+        "operation": "init",
+        "globalNodeOnPath": false,
+        "version": "0.5.19"
+      },
+      {
+        "test": "modified-generated-role-preserved",
+        "result": "PASS",
+        "client": "claude",
+        "bytesPreserved": true,
+        "ownershipPreserved": true
+      },
+      {
+        "test": "installed-bundled-helper",
+        "result": "PASS",
+        "client": "codex",
+        "operation": "init",
+        "globalNodeOnPath": false,
+        "version": "0.5.19"
+      },
+      {
+        "test": "modified-generated-role-preserved",
+        "result": "PASS",
+        "client": "codex",
+        "bytesPreserved": true,
+        "ownershipPreserved": true
+      },
+      {
+        "test": "service-end-to-end",
+        "result": "PASS",
+        "scope": "Installed 0.5.19 bundled helper init, actual private HTTP service, no global Node on subprocess PATH, both modified role ownership checks. This is not a physical clean Windows host.",
+        "seconds": 17
+      },
+      {
+        "test": "test-service-and-fixture-cleanup",
+        "result": "PASS"
+      }
+    ]
+  },
+  "r5": {
+    "updates": [
+      {
+        "test": "no-global-node-path",
+        "result": "PASS",
+        "physicalCleanWindows": false
+      },
+      {
+        "test": "previous-install",
+        "client": "claude",
+        "result": "PASS",
+        "version": "0.5.18",
+        "packageSha256": "9e7207fb51f088838f419739632fb63e43019faa917783e687ff1684f41fd2f0",
+        "sourceRevision": "0b21056c6f095338679855b03d6a96dce0c5319d",
+        "files": 2225
+      },
+      {
+        "test": "previous-install",
+        "client": "codex",
+        "result": "PASS",
+        "version": "0.5.18",
+        "packageSha256": "9e7207fb51f088838f419739632fb63e43019faa917783e687ff1684f41fd2f0",
+        "sourceRevision": "0b21056c6f095338679855b03d6a96dce0c5319d",
+        "files": 2225,
+        "skills": [
+          "harness-init",
+          "harness-run",
+          "harness-resume",
+          "reconciling-proposals-with-codebase"
+        ]
+      },
+      {
+        "test": "current-update-installed-inventory",
+        "client": "claude",
+        "result": "PASS",
+        "version": "0.5.19",
+        "packageSha256": "0e73f1dc8baf3e02812a53cba86030ae9bc4b50fbd4e661b569c582749be69f6",
+        "sourceRevision": "64db9e966a2adf26f47544f1b7dd833556751d17",
+        "files": 2225
+      },
+      {
+        "test": "current-update-installed-inventory",
+        "client": "codex",
+        "result": "PASS",
+        "version": "0.5.19",
+        "packageSha256": "0e73f1dc8baf3e02812a53cba86030ae9bc4b50fbd4e661b569c582749be69f6",
+        "sourceRevision": "64db9e966a2adf26f47544f1b7dd833556751d17",
+        "files": 2225,
+        "skills": [
+          "harness-init",
+          "harness-run",
+          "harness-resume",
+          "reconciling-proposals-with-codebase"
+        ]
+      }
+    ],
+    "restore": {
+      "result": "PASS",
+      "privateRevision": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+      "sourceHash": "e49ac84385e131b3412df64b6c3335396ccb8cc2b1e22775294921152ce9f540",
+      "legacyRevision": "71505fe3f7583fa5ffaa6b721a134d3d2a40354f",
+      "baselineRows": 12,
+      "seedRows": 13,
+      "atomicRollback": true,
+      "legacyBytesRestored": true,
+      "onlyIntroducedCodexRowDeleted": true,
+      "unrelatedRowPreserved": true,
+      "production": false
+    },
+    "mixedVersionPhysicalHosts": "NOT RUN",
+    "operationalRelease": "NOT RUN"
+  },
+  "cleanup": {
+    "result": "PASS",
+    "databaseCounts": {
+      "users": 0,
+      "projects": 0,
+      "templates": 0,
+      "agentRuns": 0
+    },
+    "postgresStopped": true,
+    "allTrialLocksAbsent": true,
+    "originalWorktreesEditedByThisTask": false,
+    "rawEvidenceRetained": true
+  },
+  "operatorScripts": {
+    "test-service.mjs": "ec832066fcc3e5640d7de59a23c8bf9974abf8d9a49f81352fed78d5d92a654d",
+    "trace-r3.mjs": "e9b1d2fa7a29a4f9a36c4c8bb072d6e70a15bb11f97a72b9200c2aab15e0517e",
+    "stop-active-command.mjs": "9d8c568f2e1d3fb8c2a45293d553b80ea9b00cbca954781e06d42c13bc401065",
+    "review-plan.mjs": "dda87ec3095f021532a375c5a4a4174e30da190ecd7c3091fbf7997299d41b99",
+    "review-acceptance.mjs": "39ff3c71952b513abc2b147fc021d8b52b61cce2ccf10a2d2c61db1245add755",
+    "test-r4.mjs": "6486cd6f9352597955344f52705e7b12d6c821aebe0263034ddec2ba14066ff9",
+    "r4-clients.mjs": "fcbf8cc01c4dac5ffc61ea074989851ba501b306697a28717e0d89b05eaee122",
+    "test-install-update.mjs": "764f1b36a9c843b9d8e7041fc9b8bfc265bd473f82da82f172a68f6bf08be462",
+    "test-r1.mjs": "96045e759266632632aae10760ad45ec8f441eb9b3aab0d53b610315dad99eb2",
+    "test-restore.mjs": "2b372c438f0c2fd78f0755dd3aac23a7af613a7a2d15725671576f6c4a1ceb70",
+    "final-cleanup.mjs": "daddc7fa24292456fbf26f731014f02d43f7f68e319a5bf26deef5999ec43e3f"
+  },
+  "localChecks": {
+    "check": { "exitCode": 0, "passed": 194, "failed": 0, "skipped": 3 },
+    "architecture": { "exitCode": 0, "passed": 148, "failed": 0, "skipped": 2 },
+    "docs": { "exitCode": 0, "markdownFiles": 145, "relativeLinks": 558, "testReports": 37 },
+    "diffCheck": true
+  },
+  "remaining": [
+    "Physical clean Windows minimum setup acceptance",
+    "Current mixed-version physical-host ownership/quiescence",
+    "Required supported OS acceptance",
+    "Approved production seed/deployment/package publication",
+    "C4B live main-loop transport and permission/commit contract, after its prerequisites",
+    "C4C 110-minute no-model idle and OS/cancel/reentry acceptance"
+  ],
+  "limitations": [
+    "R3 prepared plan does not repeat fresh plan generation",
+    "R4 preserves an empty outcome ledger at the open implement step; no outcome continuation is claimed",
+    "No before-plan browser gate in these cases",
+    "No new application/runtime code change",
+    "Model token totals were not completely collected"
+  ]
+}
