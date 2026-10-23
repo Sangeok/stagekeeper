@@ -95,6 +95,7 @@ export function readState(files) {
     || (lock.mode !== undefined && !["watch", "foreground", "resident"].includes(lock.mode))
     || (lock.lifecycle !== undefined && !["active", "stopping"].includes(lock.lifecycle))
     || (lock.runnerLease !== undefined && typeof lock.runnerLease !== "boolean")
+    || (lock.unsettled !== undefined && typeof lock.unsettled !== "boolean")
     || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce))))) fail("corrupt-state");
   return { lock, policy };
 }

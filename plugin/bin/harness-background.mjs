@@ -246,8 +246,8 @@ function connection(root, options) {
 }
 
 function staleResident(state) {
-  return state.lock.mode === "resident" && state.lock.lifecycle !== "stopping" && !(state.lock.poller && isAlive(state.lock.poller.pid))
-    && (state.lock.children ?? []).length === 0;
+  return state.lock.mode === "resident" && state.lock.unsettled !== true && !(state.lock.poller && isAlive(state.lock.poller.pid))
+    && (state.lock.children ?? []).every(child => !isAlive(child.pid));
 }
 
 async function startChecks(location, files, options) {
@@ -543,6 +543,7 @@ async function resident(location, files, options) {
         const state = readState(files);
         if (state?.lock.id !== session) return;
         state.lock.lifecycle = "stopping";
+        state.lock.unsettled = true;
         atomicWrite(files.lock, state.lock);
         save({ state: "stopping", stopReason: "unsettled" });
       }).catch(() => {});

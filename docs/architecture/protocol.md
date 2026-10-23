@@ -297,13 +297,13 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 - push 차단: 접두어 거부 규칙에 더해, 자식 환경에만 `GIT_CONFIG_COUNT`/`KEY`/`VALUE`로 빈
   `url.stagekeeper-push-blocked://.pushInsteadOf`를 덧붙인다. 사용자 git 설정 파일은 바꾸지 않는다.
 - 멈춤: 로컬 `--stop`은 `lifecycle:"stopping"`을 쓰고, 상주 프로세스는 진행 중인 실행을 끝낸 뒤 stop(owner)을 보내고
-  잠금을 지운다. 상주 프로세스가 이미 없고 stopping 상태도 아니며 tracked child가 없을 때만
-  `--stop`이나 다음 start가 죽은 runner의 잠금을 정리할 수 있다.
+  잠금을 지운다. 상주 프로세스와 기록된 child가 모두 이미 없으면 `--stop`이나 다음 start(로그온 시작 포함)가
+  죽은 runner의 잠금을 지운다. 실행 중 재부팅이나 강제 종료로 죽은 runner도 같다. 아래 unsettled 잠금만 예외다.
   - 서버의 `stop:"plan"`·`RUNNER_REPLACED`·404와 5연속 요청 실패도 진행 중인 실행을 끝낸 뒤 멈춘다. stuck·error·plan은
     stop을 보내고, replaced·404는 보내지 않는다.
   - 종료 요청·child settlement가 실패하면 `resident-run-unsettled`로 구분하고 자기 lock을
-    stopping으로 보존한다. 서버 stop과 clearState를 호출하지 않으며 로컬 상태는 stopping/unsettled다.
-    다음 start나 반복 stop은 PID가 사라졌다는 이유로 stopping lock·미정리 child 기록을 지우지 않는다.
+    stopping으로 보존하고 잠금에 `unsettled:true`를 남긴다. 서버 stop과 clearState를 호출하지 않으며 로컬 상태는
+    stopping/unsettled다. 다음 start나 반복 stop은 PID가 사라졌다는 이유로 이 잠금과 미정리 child 기록을 지우지 않는다.
 - 로컬 파일(공통 Git 디렉터리의 `harness/`):
   - `background.json`: 상태(`--status`가 읽음)
   - `background-settings.json`: 허용 목록
