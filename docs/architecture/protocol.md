@@ -603,6 +603,8 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 
 Codex role dispatcher는 모델 없는 effective config와 플랫폼별 실행 preflight 후 새 App Server thread를 시작한다.
+역할의 `agent_next` 요청에서 선택적 `entry`·`agentRunId`의 null은 미지정으로 처리한다.
+현재 dispatch 또는 직전 서버 응답의 binding을 주입하며, 명시된 다른 entry·실행 ID는 계속 거부한다.
 공통 MCP parser는 기본적으로 객체 응답을 요구한다. 로컬 client의 `backlog_list`와
 `board_list` 호출만 객체 배열 계약을 선택하며, 빈 배열도 유효하다. 오류 본문은 여전히
 객체여야 하고 JSON-RPC ID·content 검사와 pipeline/agent 응답의 객체 계약은 유지한다.
