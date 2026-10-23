@@ -52,13 +52,13 @@ it("detects aliased imports, relation reads and unsafe projections while allowin
   assert.ok(violations('const data = { members: { create: { userId, role: "owner" } } };', "src/server/projects/registration-command.ts").length > 0);
 });
 
-it("removes retired ownership tools and keeps only the D3 cleanup commands", () => {
-  for (const file of ["scripts/backfill-project-availability.ts", "scripts/check-project-ownership.ts", "scripts/lib/project-availability-migration.ts", "scripts/project-availability-migration.test.ts", "scripts/rehearse-project-availability.ts", "scripts/rehearse-project-availability-d2.ts"]) {
+it("keeps read-only ownership checks after retiring migration and recovery tools", () => {
+  for (const file of ["scripts/backfill-project-availability.ts", "scripts/check-project-ownership.ts", "scripts/lib/project-availability-migration.ts", "scripts/project-availability-migration.test.ts", "scripts/rehearse-project-availability.ts", "scripts/rehearse-project-availability-d2.ts", "scripts/project-ownership/recovery", "scripts/project-ownership/restore-project-ownership-shadow.ts", "scripts/project-ownership/project-ownership-recovery.ts", "scripts/project-ownership/rehearse-project-availability-d3.ts"]) {
     assert.equal(existsSync(file), false, file);
   }
   const pkg = JSON.parse(readFileSync("package.json", "utf8"));
-  for (const script of ["check:project-ownership", "backfill:project-availability", "test:project-availability:db", "test:project-availability:d2:db"]) assert.equal(pkg.scripts[script], undefined, script);
-  for (const script of ["check:project-ownership:cleanup", "restore:project-ownership:shadow", "test:project-availability:d3:db"]) assert.equal(typeof pkg.scripts[script], "string", script);
+  for (const script of ["check:project-ownership", "backfill:project-availability", "test:project-availability:db", "test:project-availability:d2:db", "restore:project-ownership:shadow", "test:project-availability:d3:db"]) assert.equal(pkg.scripts[script], undefined, script);
+  assert.equal(typeof pkg.scripts["check:project-ownership:cleanup"], "string");
 });
 
 it("keeps the final Prisma schema and generated client free of membership storage", () => {

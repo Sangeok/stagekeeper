@@ -91,7 +91,6 @@
 | --- | --- | --- |
 | `scripts/rehearsals/rehearse-acceptance-failure.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
 | `scripts/rehearsals/rehearse-pipeline-agent-slots.ts` | agents | 격리 인수 fixture의 실제 내부 실행 경로 조립 (next, run-service) |
-| `scripts/project-ownership/rehearse-project-availability-d3.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (availability-service, registration-command) |
 | `scripts/rehearsals/rehearse-repository-disconnection.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |
 | `scripts/rehearsals/rehearse-repository-disconnection.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (availability-service, registration-command) |
 | `scripts/rehearsals/rehearse-request-rate-baseline.ts` | mcp | 격리 인수 fixture의 실제 내부 실행 경로 조립 (tools, owner-tools) |

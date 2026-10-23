@@ -197,7 +197,7 @@ const socket=net.connect({host:'127.0.0.1',port:${listener.address().port}});soc
     return { event: "native-command-ready", runtimeSha256: runtime.executableSha256 };
   } finally {
     for (const socket of sockets) socket.destroy(); if (listener?.listening) await new Promise(resolve => listener.close(resolve));
-    if (!unacknowledged && realpathSync(directory) === directory) await rm(directory, { recursive: true });
+    if (!unacknowledged && realpathSync(directory) === directory) await rm(directory, { recursive: true, maxRetries: 10, retryDelay: 100 });
   }
 }
 
@@ -231,7 +231,7 @@ export async function createRoleCommands({ root, scratch, agent, fileBroker, run
       return { ...result, nonce: undefined, sid: undefined, ...snapshot, repositorySnapshotHash: snapshot.snapshotHash, scratchSnapshot,
         snapshotHash: hash(JSON.stringify([snapshot.snapshotHash, scratchSnapshot?.snapshotHash ?? null])), snapshotWrites: "discarded", originalRepositoryWrites: false, timings };
     } finally {
-      if (!unacknowledged && realpathSync(directory) === directory && JSON.parse(readFileSync(path.join(directory, "owner.json"), "utf8")).own === own) await rm(directory, { recursive: true });
+      if (!unacknowledged && realpathSync(directory) === directory && JSON.parse(readFileSync(path.join(directory, "owner.json"), "utf8")).own === own) await rm(directory, { recursive: true, maxRetries: 10, retryDelay: 100 });
     }
   }
   return { tools: [...fileBroker.tools, roleCommandTool],

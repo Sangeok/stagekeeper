@@ -51,4 +51,6 @@ cleanup checker는 새 열의 nullable/default/type, CHECK 표현식·검증 상
 
 배포 환경에서 쓰기 요청을 중단하고 진행 중인 요청을 drain한다. 해제된 데이터는 그대로 보존하고 접근 차단을 유지한다. state-aware 호환 bundle으로 전환한다. 단순히 예전 코드로 돌아가거나 disconnectedAt을 null로 만들고 credential을 살리는 방법은 사용하지 않는다. 새 열과 event/폐기 token을 보존한 복구 또는 검증한 전체 backup 복원은 운영 증거와 별도 승인이 필요하다.
 
-과거 `restore-d2-shadow.sql`은 D3 cleanup의 고정 artifact용 보상 절차다. RDC schema의 rollback으로 실행하지 않는다. 운영 DB 복원·push·배포는 로컬 구현 작업에 포함되지 않는다.
+과거 D3 cleanup의 고정 artifact용 D2 복구 CLI·SQL과 리허설은 2026-10-23 폐기했다.
+당시 실행 증거와 코드는 완료 기록 및 Git 이력에서 확인한다. 기존 migration과 현행 소유권
+무결성의 읽기 전용 검사는 유지한다. 운영 DB 복원·push·배포는 로컬 구현 작업에 포함되지 않는다.
