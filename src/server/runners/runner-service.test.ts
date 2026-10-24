@@ -12,10 +12,12 @@ const MINE = "11111111-1111-4111-8111-111111111111";
 const OTHER = "22222222-2222-4222-8222-222222222222";
 
 type RunnerRow = {
+  client: string;
   session: string; mode: string; host: string; branch: string | null; permission: string | null; autostart: boolean; state: string;
   waitReason: string | null; lastResult: string | null; lastLog: string | null; stopReason: string | null; startedAt: Date; seenAt: Date;
 };
 const runnerRow = (patch: Partial<RunnerRow> = {}): RunnerRow => ({
+  client: "claude",
   session: OTHER, mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle",
   waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: ago(30), seenAt: ago(1), ...patch,
 });
@@ -71,12 +73,79 @@ const startAs = (session: string, patch: Partial<Extract<RunnerOp, { op: "start"
 const beat = (patch: Partial<Extract<RunnerOp, { op: "beat" }>> = {}): RunnerOp =>
   ({ op: "beat", session: MINE, state: null, waitReason: null, lastResult: null, lastLog: null, ...patch });
 
+describe("Codex resident ownership", () => {
+  const startCodex = (patch: Partial<Extract<RunnerOp, { op: "start" }>> = {}) => startAs(MINE,
+    { client: "codex", mode: "resident", branch: "dev", permission: "scoped", ...patch });
+  const codexRow = (patch: Partial<RunnerRow> = {}) => runnerRow({ client: "codex", session: MINE,
+    mode: "resident", host: "laptop", branch: "dev", permission: "scoped", ...patch });
+  const binding = { session: MINE, client: "codex", mode: "resident", permission: "scoped" };
+
+  it("echoes the stored client policy on start, pause and plan withdrawal", async () => {
+    const db = fakeDb();
+    assert.deepEqual(await op(db, startCodex()), { ok: true, body: { ok: true, paused: false, binding } });
+    assert.equal(db.state.runner?.client, "codex");
+    db.project.runnerPausedAt = NOW;
+    db.project.ownerUser.subscription.plan = "free";
+    assert.deepEqual(await op(db, beat({ client: "codex" })),
+      { ok: true, body: { ok: true, paused: true, stop: "plan", binding } });
+  });
+
+  it("rejects a different client even when its session id matches", async () => {
+    for (const client of ["claude", "codex"] as const) {
+      const db = fakeDb({ runner: client === "claude" ? codexRow() : runnerRow({ session: MINE }) });
+      for (const request of [startAs(MINE, { client }), beat({ client }), { op: "stop", client, session: MINE, reason: "owner" } as const]) {
+        const result = await op(db, request);
+        assert.ok(!result.ok && result.code === "RUNNER_REPLACED");
+      }
+      assert.deepEqual(db.state.writes, []);
+    }
+  });
+
+  it("allows only an identical active Codex start to refresh its session", async () => {
+    for (const patch of [{ host: "other" }, { branch: "other" }, { mode: "session" }, { permission: "auto" }, { state: "stopped", stopReason: "stuck" }]) {
+      const db = fakeDb({ runner: codexRow(patch) });
+      const result = await op(db, startCodex({ takeover: true }));
+      assert.ok(!result.ok && result.code === "RUNNER_REPLACED");
+      assert.deepEqual(db.state.writes, []);
+    }
+    const db = fakeDb({ runner: codexRow() });
+    assert.deepEqual(await op(db, startCodex()), { ok: true, body: { ok: true, paused: false, binding } });
+    assert.deepEqual(db.state.writes, ["runner.update:seenAt"]);
+  });
+
+  it("never changes a Codex row for any Claude sign-in operation", async () => {
+    for (const state of ["idle", "stopped"] as const) for (const host of ["laptop", "other"]) for (const stale of [false, true]) {
+      const db = fakeDb({ runner: codexRow({ state, host, seenAt: ago(stale ? 10 : 0), stopReason: state === "stopped" ? "stuck" : null }) });
+      const before = structuredClone(db.state.runner);
+      for (const operation of ["on", "off", "refused"] as const) {
+        assert.deepEqual(await op(db, { op: "autostart", session: OTHER, state: operation, host: "laptop", branch: "dev", code: operation === "refused" ? "dirty" : null }),
+          { ok: true, body: { ok: true, paused: false } });
+      }
+      assert.deepEqual(db.state.writes, []);
+      assert.deepEqual(db.state.runner, before);
+    }
+  });
+
+  it("keeps error records, deletes only its own owner stop and gives a Codex recovery command", async () => {
+    const db = fakeDb({ runner: codexRow() });
+    await op(db, { op: "stop", client: "codex", session: MINE, reason: "error" });
+    assert.equal(db.state.runner?.state, "stopped");
+    await op(db, { op: "stop", client: "codex", session: MINE, reason: "owner" });
+    assert.equal(db.state.runner, null);
+    const result = await op(fakeDb({ plan: "free" }), startCodex());
+    assert.ok(!result.ok && result.code === "PLAN_REQUIRED");
+    assert.match(result.reason, /\$harness-run.*\$harness-resume/);
+    assert.doesNotMatch(result.reason, /Claude/);
+  });
+});
+
 describe("runner start", () => {
   it("takes a free lease after locking the owner, then the project", async () => {
     const db = fakeDb();
     assert.deepEqual(await op(db, startAs(MINE)), { ok: true, body: { ok: true, paused: false } });
     assert.deepEqual(db.state.locks, ["user:u1", "project:p1"]);
     assert.deepEqual(db.state.runner, {
+      client: "claude",
       session: MINE, tokenId: "token-1", mode: "session", host: "laptop", branch: null, permission: null, autostart: false,
       state: "idle", waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: NOW, seenAt: NOW,
     });
@@ -94,7 +163,7 @@ describe("runner start", () => {
     const result = await op(db, startAs(MINE));
     assert.deepEqual(result, {
       ok: false, status: 409, code: "RUNNER_BUSY", reason: runnerBusyReason({ host: "desk", seenAt: ago(2) }),
-      holder: { mode: "session", host: "desk", seenAt: ago(2).toISOString() },
+      holder: { client: "claude", mode: "session", host: "desk", seenAt: ago(2).toISOString() },
     });
     assert.equal(runnerBusyReason({ host: "desk", seenAt: ago(2) }), "A runner is already running for this project on desk (last signal 2026-10-20 11:58 UTC). Stop it there, or take it over.");
     assert.deepEqual(db.state.writes, []);
@@ -218,7 +287,7 @@ describe("runner autostart report", () => {
     const db = fakeDb();
     assert.deepEqual(await op(db, report("on")), { ok: true, body: { ok: true, paused: false } });
     assert.deepEqual(db.state.runner, {
-      session: MINE, tokenId: "token-1", mode: "resident", host: "laptop", branch: "main", permission: null, autostart: true,
+      client: "claude", session: MINE, tokenId: "token-1", mode: "resident", host: "laptop", branch: "main", permission: null, autostart: true,
       state: "stopped", waitReason: null, lastResult: null, lastLog: null, stopReason: "owner", startedAt: NOW, seenAt: NOW,
     });
   });

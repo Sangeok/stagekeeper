@@ -161,11 +161,35 @@ describe("parseRunnerRequest", () => {
   });
 });
 
+describe("Codex runner request boundary", () => {
+  const codex = { op: "start", client: "codex", session: SESSION, mode: "resident", host: "desk", branch: "dev", permission: "scoped", autostart: false };
+  it("requires explicit scoped resident policy and rejects unknown clients on every operation", () => {
+    assert.equal(parseRunnerRequest(codex)?.client, "codex");
+    for (const patch of [{ client: null }, { client: "" }, { client: "other" }, { client: "claude" }, { client: undefined },
+      { mode: "session" }, { permission: "auto" }, { permission: "allowlist" }, { permission: null }, { branch: null }, { autostart: true }, { autostart: undefined }]) {
+      assert.equal(parseRunnerRequest({ ...codex, ...patch }), null, JSON.stringify(patch));
+    }
+    for (const body of [{ op: "beat", session: SESSION }, { op: "stop", session: SESSION, reason: "owner" },
+      { op: "autostart", session: SESSION, state: "off", host: "desk" }]) {
+      for (const client of [null, "", "other", undefined]) assert.equal(parseRunnerRequest({ ...body, client }), null);
+    }
+  });
+
+  it("refuses Codex sign-in operations before the service", async () => {
+    for (const state of ["on", "off", "refused"]) {
+      const { request, calls } = setup();
+      assert.deepEqual(await request(agentHeader, { op: "autostart", client: "codex", session: SESSION, host: "desk", branch: "dev", state, ...(state === "refused" ? { code: "dirty" } : {}) }),
+        { ok: false, status: 400, reason: INVALID_RUNNER_REQUEST });
+      assert.deepEqual(calls, []);
+    }
+  });
+});
+
 describe("runnerResponse", () => {
   it("keeps the code and holder that the runner CLI branches on", async () => {
-    const busy = runnerResponse({ ok: false, status: 409, code: "RUNNER_BUSY", reason: "busy", holder: { mode: "session", host: "desk", seenAt: "2026-10-20T12:00:00.000Z" } });
+    const busy = runnerResponse({ ok: false, status: 409, code: "RUNNER_BUSY", reason: "busy", holder: { client: "claude", mode: "session", host: "desk", seenAt: "2026-10-20T12:00:00.000Z" } });
     assert.equal(busy.status, 409);
-    assert.deepEqual(await busy.json(), { error: "busy", code: "RUNNER_BUSY", holder: { mode: "session", host: "desk", seenAt: "2026-10-20T12:00:00.000Z" } });
+    assert.deepEqual(await busy.json(), { error: "busy", code: "RUNNER_BUSY", holder: { client: "claude", mode: "session", host: "desk", seenAt: "2026-10-20T12:00:00.000Z" } });
     const plan = runnerResponse({ ok: false, status: 403, code: "PLAN_REQUIRED", reason: RESIDENT_RUNNER_PLAN_GATE });
     assert.deepEqual([plan.status, await plan.json()], [403, { error: RESIDENT_RUNNER_PLAN_GATE, code: "PLAN_REQUIRED" }]);
     const gone = runnerResponse({ ok: false, status: 409, code: "RUNNER_REPLACED", reason: "Another runner took over this project. This one stops." });

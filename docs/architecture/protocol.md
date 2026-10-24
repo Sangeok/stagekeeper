@@ -216,21 +216,25 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 
 - 인증·범위: 다른 REST 경로와 같다(hs_, 또는 hu_ + 본문 `project`; ho_ 거부). 선택되지 않았거나 연결이
   끊긴 프로젝트는 403과 사유다. 프로젝트 300회/10분 구간에 함께 센다.
-- 본문: `{op, session, project?}`와 op별 필드. `session`은 로컬 잠금의 UUID다.
-  - `start`: `mode`(session|resident), `host`(1–64자), `branch?`·`permission?`(auto|allowlist, resident 필수), `autostart?`, `takeover?`
+- 본문: `{op, session, project?, client?}`와 op별 필드. `session`은 로컬 잠금의 UUID다.
+  client 생략만 claude이며 null·빈 값·unknown은 거부한다.
+  - `start`: `mode`(session|resident), `host`(1–64자), `branch?`·`permission?`(auto|allowlist|scoped, resident 필수), `autostart?`, `takeover?`. Codex는 resident/scoped와 명시적 autostart:false만 허용한다.
   - `beat`: `state?`(idle|working|waiting, 없으면 유지), `waitReason?`(dirty|branch, waiting일 때만 그리고 반드시), `lastResult?`(150자), `lastLog?`(경로 구분자 없는 파일 이름, 100자)
   - `stop`: `reason`(owner|stuck|error|plan)
   - `autostart`: `state`(on|off|refused), `host`(1–64자), `branch?`(on·refused 필수), `code?`(refused일 때만 그리고 반드시:
     dirty|autostart-branch|detached|push-url|checkout-in-use|other). `session`은 이 보고를 위해 CLI가 새로 만든 UUID다.
   - 그 밖의 본문(모르는 키 포함)은 400 `Invalid runner request.`
-- 응답: 성공은 `{ok:true, paused}`(beat는 `stop:"plan"`을 더할 수 있다). 409 `RUNNER_BUSY`는 `holder:{mode, host, seenAt}`를,
+- 응답: 성공은 `{ok:true, paused}`(beat는 `stop:"plan"`을 더할 수 있다). Codex start/beat는
+  `binding:{session,client:"codex",mode:"resident",permission:"scoped"}`를 함께 돌려준다.
+  409 `RUNNER_BUSY`는 `holder:{client, mode, host, seenAt}`를,
   409 `RUNNER_REPLACED`와 403 `PLAN_REQUIRED`는 코드를 싣는다. 문장은 product-copy §12.
 - 잠금과 시계: 모든 op는 한 트랜잭션(READ COMMITTED)에서 User → Project `FOR UPDATE`를 잡은 뒤 접근·플랜·
   `Runner` 행을 읽는다. 시각은 DB 시계(`clock_timestamp()`)다.
 - 생존(`packages/core/execution/runner.mjs`, 웹 배너와 같은 함수): stopped가 아니고 마지막 신호 뒤 3분 안이면 lease를 잡고 있다.
   session·working만 신호와 프로젝트의 마지막 에이전트 활동(`AgentRun.openedAt`·`AgentRunStep.at`) 중 늦은 쪽 뒤 60분이다.
   응답 없는 행과 stopped 행은 새 start가 확인 없이 덮어쓰고, 살아 있는 행은 `takeover:true`로만 넘겨받는다.
-- 재전송: 같은 session의 start는 성공(seenAt만 갱신)이고 beat는 멱등, 행이 없는 stop은 성공이다. 행이 없거나 다른
+- 재전송: 같은 client/session의 start는 성공(seenAt만 갱신)이고 beat는 멱등, 행이 없는 stop은 성공이다. Codex start는
+  stopped 상태나 host/branch/mode/permission 변경을 거부한다. client 불일치도 RUNNER_REPLACED다. 행이 없거나 다른
   session이거나 stopped인 행에 대한 beat와 다른 session의 stop은 `RUNNER_REPLACED`다.
 - 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다.
 - 정지: owner는 행을 지운다. 다만 자동 시작이 켜진 resident 행은 `state=stopped`·`stopReason=owner`로 남긴다.
@@ -239,6 +243,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   resident 행에만 허용한다.
   stuck·error·plan은 `state=stopped`로 남아 배너가 이유를 보이고, 다음 start가 덮어쓴다.
 - 자동 시작 보고(`autostart`): 로그온 작업이 실행기를 띄우지 못한 이유를 웹에 남긴다. 알림을 놓쳐도 배너에 남는다.
+  Codex 요청은 거부하며 Claude 요청도 기존 Codex 행은 상태·host·생존과 무관하게 그대로 둔다.
   - on: 행이 없으면 `stopped`·`owner`·`autostart:true` 행을 만든다. 같은 PC의 resident 행이 있으면 `autostart`만 켠다.
     다른 행은 그대로 둔다.
   - refused: 살아 있는 행이 있으면 덮어쓰지 않는다(같은 PC면 `autostart`만 켠다). 없거나 stopped·응답 없는 행이면
@@ -258,20 +263,39 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 - 한계: 옛 플러그인 판과 수동 세션은 lease에 참여하지 않아 보이지도 막히지도 않는다. 서버를 롤백하면(404)
   CLI는 로컬 잠금만으로 계속 돈다.
 
-### Codex resident 연결 전 적용 제약
+### Codex resident 격리 후보와 적용 제약
 
-현재 `/api/runner`에는 client 필드와 scoped permission이 없으며 Codex foreground는
-이 lease를 사용하지 않는다. [C4B 구현 전 계약](../proposals/active/codex-resident-runner-plan.md)의
-필드·migration·호환성 설계는 아직 적용되지 않았다. 후속 구현은 client를 Runner
-metadata에만 두고 기존 token scope·파이프라인/receipt/usage identity를 유지해야 한다.
-Codex를 Claude auto/allowlist로 보고하거나 서버 계약 확인 없이 lease 없는 resident로
-실행하지 않는다. Codex의 권한과 실제 종료 확인은 adapter가 별도로 증명한다.
+2026-10-24 작업 트리의 `/api/runner`와 migration `20261024020000_runner_client`는
+client와 scoped permission을 연결한다. client는 Runner metadata에만 있으며 기존
+token scope·파이프라인/receipt/usage identity를 유지한다. Codex foreground는 lease를
+사용하지 않는다. Codex resident helper는 start/beat의 정확한 binding echo를 요구하며
+400/404/누락에 foreground나 lease 없는 모드로 전환하지 않는다. `harness-session --check`
+역시 Codex resident에서는 확인 실패를 오류로 돌려주고 release의 stop은 저장 client를 쓴다.
+
+`codex-main-loop.mjs`는 공통 루프의 interrupt adapter다. cycle마다 fresh App Server와
+capability bridge를 만들고, 실제 runbook과 읽기 전용으로 복사한 완전한 verifier를 준다.
+`codex-main-loop-tools.mjs`는 현재 서버가 지정한 fresh 역할·read/verify·인수 기록만 열며
+owner·임의 shell·nested agent·push는 열지 않는다. `resident-commit.mjs`는 명시된 현재
+artifact byte/hash와 branch/HEAD를 확인하고, index lock·임시 index·ref 비교로 사용자의
+staging을 보존한다. hooks·filters는 실행하지 않는다. foreground 런북의 수동 진입·handoff
+부분은 resident의 저장 정책과 전용 도구 계약으로 명시적으로 확장하며 private 본문은 바꾸지 않는다.
+handoff note의 상대·저장소 내부 절대 경로는 기존 `confirmCommitHandoff`처럼 정규화한다.
+commit의 파일 입력은 저장소 상대 경로와 SHA-256이다. 잘못된 artifact 인자는 -32602로
+교정 안내를 돌려주며, 권한·소유권 거부는 우회하지 않는다. Windows의 readOnly·다른
+workspace·관리 파일 판정은 대소문자를 구분하지 않고 실제 경로 표기와 다른 Git 경로는 거부한다.
+기존 staged 변경은 보존한다. ref 갱신 뒤 index 설치가 실패하면 자신의 index.lock을
+남기므로 복구 때 실제 ref/index와 파일을 확인해야 하며 자동 초기화하지 않는다.
+교정 가능한 입력·누락 경로 오류를 제외한 도구 거부는 bridge를 닫고 현재 turn을
+중단한다. 거부 전에 함께 요청된 대기열의 dispatch도 실행하지 않는다. policy 거부 뒤
+늦은 completed 응답이 와도 실패를 성공으로 분류하지 않는다.
+실제 설치·native 인수와 OS별 지원 판정은 [C4 계획](../proposals/active/codex-resident-runner-plan.md)에 별도로 기록한다.
 
 구 서버는 client를 검사하지 않고 session만으로 행을 삭제할 수 있다. 따라서 schema
 확장만으로 혼합 서버 운영을 허용하지 않는다. 모든 reader/writer의 호환성 확인 후
 Codex를 활성화하고, 롤백 때는 실제 실행 종료와 Codex 행 보존/정리 조건이 충족될 때까지
 호환 서버를 유지한다. [후보 DDL 리허설](../test-reports/completed/2026-10-24-codex-resident-contract.md)은
-이 적용 제약의 근거이며 현재 API 지원이나 정식 migration 완료의 근거가 아니다.
+이 적용 제약의 근거다. 현재 migration의 실제 legacy 보존·실패 시 rollback은
+`tests/server/integration/runner-client-migration.test.ts`가 원래 두 migration부터 재현한다.
 
 ## 상주 실행기 — `/harness:background` (plugin 0.5.14)
 
@@ -279,8 +303,9 @@ Codex를 활성화하고, 롤백 때는 실제 실행 종료와 Codex 행 보존
 루프는 `plugin/runtime/background.mjs`의 `runResident`다. 결정과 근거는 위 제안서 B-1~B-4와 spike 결정 B1~B7이다.
 
 공통 루프는 `execution.start/classify/stopMode`로 실행 시작·결과 판독·종료 전략을 받는다.
-현재 실제 연결은 Claude의 `drain`뿐이다. `interrupt` 전략은 Codex 상주 연결을 준비하는
-모의 시험에서 검증하며, Codex resident command/skill과 서버 지원은 아직 노출하지 않는다.
+Claude는 `drain`을 유지하고 Codex 격리 후보는 `interrupt`를 사용한다. 명시적
+`--start --client codex --propose yes|no`와 후보 `$harness-background` skill을 연결한다.
+Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성화하지 않는다.
 실행마다 generation을 증가시키고 해당 handle의 settlement만 소비한다. interrupt 전략은
 중지·소유권 상실 뒤 새 overview·dispatch·결과 보고를 막고 자식의 종료 확인을 기다린다.
 
@@ -311,10 +336,13 @@ Codex를 활성화하고, 롤백 때는 실제 실행 종료와 Codex 행 보존
   다른 OS는 자식을 자기 프로세스 그룹으로 띄우고 그룹에 SIGKILL을 보낸다.
 - push 차단: 접두어 거부 규칙에 더해, 자식 환경에만 `GIT_CONFIG_COUNT`/`KEY`/`VALUE`로 빈
   `url.stagekeeper-push-blocked://.pushInsteadOf`를 덧붙인다. 사용자 git 설정 파일은 바꾸지 않는다.
-- 멈춤: 로컬 `--stop`은 `lifecycle:"stopping"`을 쓰고, 상주 프로세스는 진행 중인 실행을 끝낸 뒤 stop(owner)을 보내고
-  잠금을 지운다. 상주 프로세스와 기록된 child가 모두 이미 없으면 `--stop`이나 다음 start(로그온 시작 포함)가
-  죽은 runner의 잠금을 지운다. 실행 중 재부팅이나 강제 종료로 죽은 runner도 같다. 아래 unsettled 잠금만 예외다.
-  - 서버의 `stop:"plan"`·`RUNNER_REPLACED`·404와 5연속 요청 실패도 진행 중인 실행을 끝낸 뒤 멈춘다. stuck·error·plan은
+- 멈춤: 로컬 `--stop`은 `lifecycle:"stopping"`을 쓴다. Claude는 진행 중인 실행을 마치고,
+  Codex는 interrupt와 실제 종료 확인 뒤 stop(owner)을 보낸다. 자기 guard 안에서 stopped
+  상태를 먼저 저장하고 잠금을 지워, 바로 시작한 successor의 상태를 이전 실행이 덮어쓰지 않는다.
+  상주 프로세스와 기록된 child가 모두 이미 없으면 `--stop`이나 다음 start(로그온 시작 포함)가
+  죽은 Claude runner의 잠금을 지운다. 실행 중 재부팅이나 강제 종료로 죽은 Claude runner도 같다.
+  Codex는 PID 사망만으로 잠금을 회수하지 않으며 terminal·child 정리가 확인되어야 한다. 아래 unsettled 잠금도 보존한다.
+  - 서버의 `stop:"plan"`·`RUNNER_REPLACED`·404와 5연속 요청 실패도 client의 drain/interrupt 전략으로 멈춘다. stuck·error·plan은
     stop을 보내고, replaced·404는 보내지 않는다.
   - 종료 요청·child settlement가 실패하면 `resident-run-unsettled`로 구분하고 자기 lock을
     stopping으로 보존하고 잠금에 `unsettled:true`를 남긴다. 서버 stop과 clearState를 호출하지 않으며 로컬 상태는
@@ -573,8 +601,10 @@ project_sync shares normalized workspace validation with the config parser. It r
 
 ## Dual-client 소스 계약
 
-2026-10-03 구현된 계약이다. 실제 Codex 모델 권한·설치·교차 클라이언트 인수 및 배포는
-[runtime 보고서](../test-reports/active/dual-client-runtime-report.md)의 required 미완료 항목이다.
+2026-10-03 구현한 공통 계약에 2026-10-24 Codex resident 후보를 연결했다. 현재 Windows의
+실제 모델·설치·기본 graph 검증과 후보별 범위는 [resident 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에
+기록한다. 물리적 clean host·다른 OS·혼합 호스트와 배포의 남은 required 조건은
+[runtime 보고서](../test-reports/active/dual-client-runtime-report.md)에서 추적한다.
 
 `GET /api/templates`, `pipeline_next`, `agent_next`의 선택적 `client`는 `claude|codex`이며
 생략은 Claude다. Codex 성공 응답은 REST body 또는 MCP `ServerResult.item`의 text JSON 내부에
@@ -648,6 +678,10 @@ Windows에서는 `plugin/runtime/role-files.mjs`가 역할별 localhost MCP brid
 root deny, 외부/인증 경로 차단, 다른 workspace deny, Git·관리 파일 read-only를 유지한다.
 관리 경로가 아직 없어도 쓰기를 거부하며 device/UNC/ADS·junction/symlink/hardlink 별칭을
 거부한다. 파일 쓰기는 현재 SHA-256 또는 신규 파일의 null을 요구하며 변경 시 거부한다.
+허용 경로의 잘못된 hash 형식은 `-32602`, 쓰기 전 읽은 현재 hash와의 불일치는
+`-32005`로 구분한다. 파일을 다시 읽고 현재 내용을 검토한 뒤 정확한 hash로 재시도할 수
+있으며 해당 실패는 파일을 변경하지 않는다. 쓰기 중 파일 identity·내용 변경과 실제
+권한·소유권 거부는 계속 일반 거부로 처리한다.
 허용된 파일의 최초 읽기 또는 디렉터리 조회·검색에서 대상이 없으면 bridge는
 `-32004`로 경로 부재를 알린다.
 이 응답은 쓰기 권한을 부여하지 않는다. 현재 단계가 신규 파일 생성을 요구할 때만
@@ -697,6 +731,10 @@ QA는 모든 플랫폼에서 파일·브라우저 도구만 사용하며 Git·�
 HEAD 또는 해당 dispatch에 기록된 planCommit을 허용한다. 인계 재개에서는 검증된
 commitHandoff.commit도 허용하되 그 인계 파일 하나에만 적용한다. 외부·다른 workspace·인증·환경
 파일·directory·glob은 거부하고 전체 저장소 검증으로 해석하지 않는다.
+여러 파일을 넣은 `show` 등 입력 형식 오류는 `RoleGitInputError`/MCP `-32602`로 반환한다.
+허용된 commit의 tree 조회가 성공했지만 선택 파일이 없으면 `RoleGitPathMissingError`/
+`-32004`로 부재를 알린다. 두 경우는 같은 범위에서 교정할 수 있다. 임의 ref·금지 경로·
+실제 Git 실행 실패·소유권 상실은 계속 일반 거부이며 resident cycle을 종료한다.
 현재 경로가 삭제되었거나 일반 파일로 바뀌어도 비교 commit에서 directory/tree·symlink·
 submodule이면 거부한다. literal pathspec의 역사 tree 재귀로 금지된 하위 파일을
 노출하지 않도록 HEAD와 조회 ref의 파일 type과 선택 범위를 먼저 확인한다.
@@ -715,7 +753,8 @@ lazy fetch·submodule 조회를 비활성화한다. system/global config와 attr
 이전 판 `mingw64`)을 호출한다. launcher의 종료만 reader 종료로 계산하지 않으며 확인되지 않는 shim은 거부한다.
 프로세스를 같은 소유권에 등록하고 중지 시 실제 종료와 reader EOF를 기다려 settle한다.
 
-`diff`는 HEAD/planCommit에서 만든 private index와 현재 허용 파일의 byte 내용을 비교한다.
+`diff`는 현재 HEAD에서 만든 private index와 현재 허용 파일을 사용해 선택한 HEAD/planCommit과
+비교한다. 따라서 계획 이후 HEAD에 추가로 commit된 파일도 diff에 포함된다.
 추적되지 않은 신규 파일은 `status`로 확인한다. `status`는 복사한 private index와 선택한
 현재 파일을 사용하고 선택 파일의 assume-unchanged·skip-worktree flag를 복사본에서만
 지운다. 이 flag로 실제 수정이 숨겨지면 검증 증거가 될 수 없다. 원본 index가 없으면

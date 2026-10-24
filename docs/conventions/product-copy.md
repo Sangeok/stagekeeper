@@ -257,6 +257,10 @@ says 0). Units join with " · ". One line wins, in this order: stopped → no si
 waiting → working or watching. "No signal" means no signal for 3 minutes; a session working on a
 step counts the latest agent activity and allows 60 minutes. The background runner adds
 ` · starts at sign-in` when sign-in start is on and ` · allow-list only` when it runs without auto mode.
+The manual Codex candidate prefixes full and short runner lines with `Codex · ` and adds
+` · scoped tools`. The stored runner client selects these lines and its recovery entry.
+The banner's client choice initially follows that stored client, otherwise Claude; an explicit
+choice remains until the project changes. This choice changes guidance, not runner ownership.
 While the background runner is working, ` · pause before you edit {branch}` follows "checked" — an
 edit in that checkout during a run can land in the runner's commit. A working session does not get it
 (the owner is watching that window), and neither does a paused line.
@@ -274,10 +278,12 @@ edit in that checkout during a run can land in the runner's commit. A working se
 > Work already running finishes first.
 > No signal from the runner on {host} for {n} min.
 > Runner on {host} stopped: {reason}. Start it again in Claude Code.
+> Runner on {host} stopped: {reason}. Start it again with $harness-background in Codex.
 > Runner on {host} stopped. It starts again when you sign in.
 > Runner on {host} did not start at sign-in: {reason}. It tries again at the next sign-in, or start it in Claude Code.
 > starts at sign-in
 > allow-list only
+> scoped tools
 > pause before you edit {branch}
 <!-- /copy-lock -->
 
@@ -306,7 +312,7 @@ name get the last phrase. Turning sign-in start off removes these lines.
 <!-- /copy-lock -->
 
 Next to the line, a quiet **Pause** (or **Resume** while paused) button. It shows only when a runner
-row exists or a pause is on. Pausing stops new work only — a role that is already running finishes;
+row exists or a pause is on. Pausing stops new work while existing local work settles;
 ending the process is the owner's local command. A lost response shows "The setting may have
 changed. Refresh to check before trying again." and is never retried automatically.
 
@@ -807,6 +813,7 @@ an agent) answers with a code the CLI branches on. `{time}` is `YYYY-MM-DD HH:mm
 | --- | --- |
 | `RUNNER_BUSY` (409, with `holder`) | `A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or take it over.` |
 | `PLAN_REQUIRED` (403) | `The background runner opens on Pro. Use /harness:watch in a Claude Code session for now.` (`RESIDENT_RUNNER_PLAN_GATE`) |
+| `PLAN_REQUIRED` (403, Codex resident) | `The background runner opens on Pro. Use $harness-run or $harness-resume in Codex for now.` (`CODEX_RESIDENT_RUNNER_PLAN_GATE`) |
 | `RUNNER_REPLACED` (409) | `Another runner took over this project. This one stops.` |
 | — (400) | `Invalid runner request.` |
 
@@ -1271,6 +1278,13 @@ Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, c
 
 ### Background runner — `/harness:background` (plugin 0.5.14, Pro and Max)
 
+The 0.5.21 isolated Windows Codex candidate exposes `$harness-background` for explicit
+start, stop and status. Its start line and applicable Windows notices substitute
+`$harness-background` for `/harness:background`; its log path is `background.log`.
+It uses scoped tools, interrupts on stop and has no sign-in start. The Claude skill's
+drain behavior and hand-off copy below remain specific to Claude. Candidate checks
+do not establish clean-host, macOS or public release acceptance.
+
 The background runner continues the pipeline on this PC without a Claude Code window. It runs one
 `claude -p "/harness:watch --once …"` per batch of ready work (§5 runner line). Every line in this
 subsection was confirmed with the owner on 2026-10-21. The five edit-guard notices and the start
@@ -1321,6 +1335,9 @@ Start and sign-in refusals (`harness-background.mjs`, `code` → sentence; print
 | locked | This checkout already has a watch or runner (started {startedAt}). Stop it first. |
 | busy | A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or take it over. |
 | plan | The background runner opens on Pro. Use /harness:watch in a Claude Code session for now. |
+| codex-plan | The background runner opens on Pro. Use $harness-run or $harness-resume in Codex for now. |
+| codex-route | This server did not confirm Codex resident ownership. Use $harness-run or $harness-resume until its server is updated. |
+| codex-config | Codex configuration or installed package verification failed. Reconnect with $harness-init. |
 | no-route | This Stagekeeper server does not take runners yet. Use /harness:watch in a Claude Code session. |
 | no-claude | Claude Code (claude.exe) was not found on PATH. Install the native Claude Code, then start again. |
 | claude-failed | Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again. |

@@ -153,7 +153,14 @@ it("fences native file tools with the current receipt and active owner, never fo
     assert.equal(missing.error.code, -32004); assert.match(missing.error.message, /does not exist/);
     assert.equal((await request("role_file_write", { path: missingPath, content: "NEW_ARTIFACT", expectedHash: null })).error, undefined);
     assert.equal(JSON.parse((await request("role_file_read", { path: missingPath })).result.content[0].text).text, "NEW_ARTIFACT");
-    assert.ok((await request("role_file_write", { path: missingPath, content: "OVERWRITE", expectedHash: null })).error);
+    const conflict = await request("role_file_write", { path: missingPath, content: "OVERWRITE", expectedHash: null });
+    assert.equal(conflict.error.code, -32005); assert.match(conflict.error.message, /read.*again/i);
+    assert.equal((await request("role_file_write", { path: missingPath, content: "OVERWRITE", expectedHash: "copied-incorrectly" })).error.code, -32602);
+    assert.equal((await request("role_file_write", { path: missingPath, content: "OVERWRITE", expectedHash: "0".repeat(64) })).error.code, -32005);
+    assert.equal(readFileSync(missingPath, "utf8"), "NEW_ARTIFACT");
+    const refreshed = JSON.parse((await request("role_file_read", { path: missingPath })).result.content[0].text);
+    assert.equal((await request("role_file_write", { path: missingPath, content: "CORRECTED", expectedHash: refreshed.hash })).error, undefined);
+    assert.equal(readFileSync(missingPath, "utf8"), "CORRECTED");
     assert.equal((await request("role_file_read", { path: path.join(f.root, "other/missing.md") })).error.code, -32000);
     assert.equal((await request("role_file_read", { path: path.join(f.root, "src/policy/missing.md") })).error.code, -32004);
     assert.equal((await request("role_file_write", { path: path.join(f.root, "src/policy/missing.md"), content: "FORBIDDEN", expectedHash: null })).error.code, -32000);

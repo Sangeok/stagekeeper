@@ -11,9 +11,15 @@ const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const identity = stat => [process.platform === "win32" ? "" : stat.dev, stat.ino, stat.size, stat.mtimeNs, stat.ctimeNs].join(":");
 const check = signal => signal?.throwIfAborted();
 const canonical = value => process.platform === "win32" ? value.toLowerCase() : value;
+export class RoleGitInputError extends Error {
+  constructor() { super("Invalid scoped Git parameters. head accepts no paths or ref; show requires exactly one absolute file; diff/status require 1 through 50 absolute files; only show/diff accept ref. Correct the parameters within the existing scope."); }
+}
+export class RoleGitPathMissingError extends Error {
+  constructor() { super("The selected file does not exist at this permitted commit. This is not a permission denial. Record its absence or use scoped diff/status for an added file; do not widen the ref or path scope."); }
+}
 export const roleGitTool = {
   name: "role_git_read",
-  description: "Read scoped Git evidence without a shell. head returns HEAD; show reads one file at HEAD, the supplied planCommit, or commitHandoff.commit for its confirmed path; diff compares committed paths at those refs with current bytes; status reports staged/worktree changes and untracked files for explicit files only. Paths must be absolute permitted regular files (deleted files allowed). No directory, glob, rename tracking, ignore rules, filters or line-ending conversion. Assume-unchanged/skip-worktree cannot conceal selected file changes. Original Git metadata and files are never written. Output is bounded; refusals are blocked, never passed.",
+  description: "Read scoped Git evidence without a shell. head returns HEAD and accepts no paths/ref; show requires exactly one file per call at HEAD, the supplied planCommit, or commitHandoff.commit for its confirmed path; diff compares committed paths at those refs with current bytes; status reports staged/worktree changes and untracked files for explicit files only and accepts no ref. Paths must be absolute permitted regular files (deleted files allowed). No directory, glob, rename tracking, ignore rules, filters or line-ending conversion. Assume-unchanged/skip-worktree cannot conceal selected file changes. Original Git metadata and files are never written. Parameter mistakes and a file absent at a permitted commit may be corrected without widening scope; other refusals are blocked, never passed.",
   inputSchema: { type: "object", properties: {
     operation: { type: "string", enum: ["head", "show", "diff", "status"] },
     paths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 50 },
@@ -192,11 +198,11 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
   const git = nativeGitExecutable(), controller = new AbortController(); let closed = false, pending = null;
   async function execute(args, outerSignal) {
     if (!args || typeof args !== "object" || Array.isArray(args) || Object.keys(args).some(key => !["operation", "paths", "ref"].includes(key))
-      || !["head", "show", "diff", "status"].includes(args.operation)) throw new Error("Invalid scoped Git arguments");
+      || !["head", "show", "diff", "status"].includes(args.operation)) throw new RoleGitInputError();
     const operation = args.operation, names = args.paths ?? [];
     if (!Array.isArray(names) || names.length > 50 || (operation === "head" ? names.length !== 0 || args.ref !== undefined : !names.length)
-      || (operation === "show" && names.length !== 1) || (operation === "status" && args.ref !== undefined)
-      || (args.ref !== undefined && args.ref !== "HEAD" && args.ref !== planCommit && args.ref !== commitHandoff?.commit)) throw new Error("Invalid scoped Git selection");
+      || (operation === "show" && names.length !== 1) || (operation === "status" && args.ref !== undefined)) throw new RoleGitInputError();
+    if (args.ref !== undefined && args.ref !== "HEAD" && args.ref !== planCommit && args.ref !== commitHandoff?.commit) throw new Error("Invalid scoped Git selection");
     const selected = names.map(name => {
       const target = fileBroker.resolveRead(name), relative = path.relative(root, target);
       if (!relative || relative.startsWith(".." + path.sep) || path.isAbsolute(relative) || relative.split(path.sep).some(part => [".git", ".codex", ".claude"].includes(part.toLowerCase()))
@@ -225,6 +231,7 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
       await copyObjects(location.common, path.join(directory, "git/objects"), combined);
       if (selected.length) for (const commit of new Set([location.head, ref])) {
         const entries = textPaths(await gitRead(directory, git, ["ls-tree", "-z", commit, "--", ...selected.map(row => row.relative)], lifecycle, combined));
+        if (operation === "show" && commit === ref && entries.length === 0) throw new RoleGitPathMissingError();
         for (const entry of entries) {
           const match = /^(100644|100755) blob ([a-f0-9]{40}|[a-f0-9]{64})\t(.+)$/.exec(entry);
           if (!match || !selected.some(row => canonical(row.relative) === canonical(match[3]))) throw new Error("Historical Git file type or scope refused");
@@ -247,7 +254,7 @@ export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, p
         snapshot.push({ path: row.target, hash: bytes === null ? null : hash(bytes) });
         if (bytes !== null) { const destination = path.join(directory, "repo", row.relative); await mkdir(path.dirname(destination), { recursive: true }); await writeFile(destination, bytes); }
       }
-      if (operation === "diff") await gitRead(directory, git, ["read-tree", ref], lifecycle, combined);
+      if (operation === "diff") await gitRead(directory, git, ["read-tree", location.head], lifecycle, combined);
       if (operation === "status") {
         const tracked = textPaths(await gitRead(directory, git, ["ls-files", "--cached", "-z", "--", ...selected.map(row => row.relative)], lifecycle, combined));
         if (tracked.some(name => !selected.some(row => canonical(row.relative) === canonical(name)))) throw new Error("Git index scope refused");

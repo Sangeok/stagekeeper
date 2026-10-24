@@ -53,7 +53,7 @@ it("maps the runner view to banner facts for the project it was asked about", as
     pipelineRun: { findMany: async () => [] }, project: { findUniqueOrThrow: async () => ({ autoScoutEnabled: true }) }, acceptanceFailure: { findMany: async () => [] },
   };
   const view = {
-    runner: { session: "s", mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "working", waitReason: null,
+    runner: { client: "codex", session: "s", mode: "resident", host: "desk", branch: "fixture", permission: "scoped", autostart: false, state: "working", waitReason: null,
       lastResult: "free text", lastLog: "a.jsonl", stopReason: null, startedAt: new Date(1_000), seenAt: new Date(2_000) },
     pausedAt: new Date(3_000), lastActivity: new Date(4_000), renderedAt: new Date(5_000),
   };
@@ -68,7 +68,7 @@ it("maps the runner view to banner facts for the project it was asked about", as
   const data = await exports.loadTurn("p");
   assert.deepEqual(asked, ["p"]);
   assert.deepEqual(JSON.parse(JSON.stringify(data.runner)), {
-    runner: { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "working", waitReason: null, stopReason: null, signinCode: null,
+    runner: { client: "codex", mode: "resident", host: "desk", branch: "fixture", permission: "scoped", autostart: false, state: "working", waitReason: null, stopReason: null, signinCode: null,
       seenAt: new Date(2_000).toISOString(), lastActivity: new Date(4_000).toISOString() },
     paused: true, renderedAt: new Date(5_000).toISOString(),
   });

@@ -35,7 +35,7 @@ it("renders both ready entries with Claude defaults and leaves compact tabs comp
 
 const RENDERED = "2026-10-20T12:00:00.000Z";
 const minutesAgo = (n: number) => new Date(Date.parse(RENDERED) - n * 60_000).toISOString();
-const live: TurnRunner = { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null, signinCode: null, seenAt: minutesAgo(1), lastActivity: null };
+const live: TurnRunner = { client: "claude", mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null, signinCode: null, seenAt: minutesAgo(1), lastActivity: null };
 const facts = (runner: TurnRunner | null, paused = false): RunnerFacts => ({ runner, paused, renderedAt: RENDERED });
 const working: Turn = { kind: "theirs", detail: "dev is implementing ITEM-01", next: [{ kind: "continue", key: "ITEM-02", line: "Continue the pipeline for ITEM-02: plan — dev writes the plan." }] };
 
@@ -44,6 +44,19 @@ function renderWith(turn: Turn, pathname: string, runner: RunnerFacts | undefine
   return renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: {} as ContextType<typeof AppRouterContext> },
     createElement(PathnameContext.Provider, { value: pathname }, banner)));
 }
+
+it("renders Codex identity, scoped permission, Pause and its own recovery entry in full and compact banners", () => {
+  const codex: TurnRunner = { ...live, client: "codex", mode: "resident", branch: "fixture", permission: "scoped" };
+  for (const pathname of ["/p/alpha", "/p/alpha/inbox", "/p/alpha/backlog"]) {
+    const text = visibleText(renderWith(working, pathname, facts(codex)));
+    assert.match(text, /Codex ·/);
+    assert.doesNotMatch(text, /Next, in Claude Code/);
+  }
+  const active = renderWith(working, "/p/alpha", facts(codex));
+  assert.match(visibleText(active), /scoped tools/); assert.match(active, />Pause<\/button>/);
+  const stopped = visibleText(renderWith(working, "/p/alpha", facts({ ...codex, state: "stopped", stopReason: "error" })));
+  assert.match(stopped, /\$harness-background in Codex/); assert.doesNotMatch(stopped, /Start it again in Claude Code/);
+});
 
 it("shows a live runner on Board and Inbox in every banner kind, with Pause, and hides the watch line", () => {
   for (const [turn, pathname] of [[working, "/p/alpha"], [working, "/p/alpha/inbox"], [deriveTurn([], { tokenIssued: true, rosterSynced: true }), "/p/alpha"], [{ kind: "none", detail: "Nothing" } as Turn, "/p/alpha"]] as const) {

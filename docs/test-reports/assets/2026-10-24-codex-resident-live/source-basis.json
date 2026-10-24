@@ -1,0 +1,391 @@
+{
+  "repository": "stagekeeper",
+  "source": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+  "base": "8ce600c0e9b92f7f0fc7d8bc49f5eaa5a85e5774",
+  "inventoryRecipe": "git diff --name-only 8ce600c0e9b92f7f0fc7d8bc49f5eaa5a85e5774 893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+  "pathSetSha256": "27ad02a3ae8afd65d6f3f232d049d2efa5917c7a5906e569b750b2a6402186cd",
+  "files": [
+    {
+      "path": "docs/architecture/README.md",
+      "committedSha256": "edf7b1fa968cb44f2fdf19b80ece24ae576df47b4bab6d920b8624ee3f79b5f3"
+    },
+    {
+      "path": "docs/architecture/protocol.md",
+      "committedSha256": "2420a6639680b01575641f919cf44b4e993977164e03481eceb393dfe2b38078"
+    },
+    {
+      "path": "docs/architecture/server.md",
+      "committedSha256": "1a57831464a2b51af62854011a979e45f3623753a03fd69ccaf6cb47bea50514"
+    },
+    {
+      "path": "docs/conventions/product-copy.md",
+      "committedSha256": "7ef1cb746ef348d1c9e0de944a7db746121e6e34d0dd5fc5dc0718e5f2c4ac0a"
+    },
+    {
+      "path": "packages/core/execution/runner.mjs",
+      "committedSha256": "89bee42fc691ec770e89fa2b2e77190124fa128b44c8e43b781377a5a09053a6"
+    },
+    {
+      "path": "packages/core/plans/entitlement.mjs",
+      "committedSha256": "14d4920702ba0a1020d10e9f49f51041c7c0a450c8948a6e7e6cc36573f20b0a"
+    },
+    {
+      "path": "plugin/.claude-plugin/plugin.json",
+      "committedSha256": "5474c8332688b5c1b0e167c6a3a4de33d2c9f0260addbd6f20892c994af229d3"
+    },
+    {
+      "path": "plugin/.codex-plugin/plugin.json",
+      "committedSha256": "734535a8cea519cb22e5dfce9d8a4cdee335c909e692e5cb1c6e73e901b83a3d"
+    },
+    {
+      "path": "plugin/bin/harness-background.mjs",
+      "committedSha256": "237773a8103e8ab35e3a2a9c8922442c9358b60c44ff8a372c7ba321aeb592a1"
+    },
+    {
+      "path": "plugin/bin/harness-background.test.mjs",
+      "committedSha256": "2cd2743357d6c9594a0c1403e1c8afcbb35f799fc9b5f4c250226ef0cd46429d"
+    },
+    {
+      "path": "plugin/bin/harness-role-files.test.mjs",
+      "committedSha256": "5491039ec093265e51f177c42ac86770f01e84af6d6b0817e34841daf45f3db4"
+    },
+    {
+      "path": "plugin/bin/harness-role-git.test.mjs",
+      "committedSha256": "d9df4def1f66f1d4768d33eaa0387182297fa288b06bd3b2c71e2efa7fbfe93b"
+    },
+    {
+      "path": "plugin/bin/harness-session.mjs",
+      "committedSha256": "cc63b4ffc10abe4ae7237c3b7fd5488a9356ede206fa2620f1e369faeccd2a65"
+    },
+    {
+      "path": "plugin/codex/skills/harness-background/SKILL.md",
+      "committedSha256": "bacba6761431833dd099b3d6f8c658e54f4a4a323b1dd96b043d1014cdde0def"
+    },
+    {
+      "path": "plugin/lib/execution/runner.mjs",
+      "committedSha256": "89bee42fc691ec770e89fa2b2e77190124fa128b44c8e43b781377a5a09053a6"
+    },
+    {
+      "path": "plugin/lib/plans/entitlement.mjs",
+      "committedSha256": "14d4920702ba0a1020d10e9f49f51041c7c0a450c8948a6e7e6cc36573f20b0a"
+    },
+    {
+      "path": "plugin/runtime/codex-bridge.test.mjs",
+      "committedSha256": "2b5c09db533a539aeb59c731143ea09c7158c9f8640e3f37f39403171c8985cf"
+    },
+    {
+      "path": "plugin/runtime/codex-main-loop-tools.mjs",
+      "committedSha256": "75e2c15be40b087ffa64597dffcd364edcd13e41423e270192b540a2fb144f85"
+    },
+    {
+      "path": "plugin/runtime/codex-main-loop-tools.test.mjs",
+      "committedSha256": "f77b1e06b331a2c42a5257a390ff9d2441122d3fec3cc24f93b70de916eb4bd0"
+    },
+    {
+      "path": "plugin/runtime/codex-main-loop.mjs",
+      "committedSha256": "6d84c02cbc730feab61bd18419e5da742cc85d40ac6cb8b40d0795ec47efa404"
+    },
+    {
+      "path": "plugin/runtime/codex-main-loop.test.mjs",
+      "committedSha256": "b0d7a901a11dd4d6fba67f93a8b05a30916e4a2e5b02da754b9f04144bcf55e7"
+    },
+    {
+      "path": "plugin/runtime/codex-resident-session.test.mjs",
+      "committedSha256": "30d380ca1d95d796106745b3f805700e4854e5a3ee9ac544b4e2b72befa82244"
+    },
+    {
+      "path": "plugin/runtime/codex-thread.mjs",
+      "committedSha256": "a016085b11587b47c7f84b634773a66ab2ef79963eee788770eb781d62e3fc89"
+    },
+    {
+      "path": "plugin/runtime/resident-commit.mjs",
+      "committedSha256": "1d3b94a5ef0adbeae6ef2b2bb854803455aeb80afa4d2a7da4025090ce38e946"
+    },
+    {
+      "path": "plugin/runtime/resident-commit.test.mjs",
+      "committedSha256": "acb449759f0f872cac718576b3b7edbe82ee30a9419dce761390effc5e70b9bc"
+    },
+    {
+      "path": "plugin/runtime/role-files.mjs",
+      "committedSha256": "526f14b07eb5728c45695d2ec250b500bf77593fae734c544c21089b4063b631"
+    },
+    {
+      "path": "plugin/runtime/role-git.mjs",
+      "committedSha256": "aee54303265c62e824ba35a2704b96a1697996855e36ac9f566b4b0ed59828f9"
+    },
+    {
+      "path": "plugin/runtime/runner-client.mjs",
+      "committedSha256": "e4b27336a1198880411c595a5af0b4d58ee58c6db22dd3075cb1d0c35bdb4dd1"
+    },
+    {
+      "path": "plugin/runtime/runner-client.test.mjs",
+      "committedSha256": "f44d68eb04baa5a3f56967408c4e6a14aa4970b2819334bb16b1ef997877cd4c"
+    },
+    {
+      "path": "prisma/migrations/20261024020000_runner_client/migration.sql",
+      "committedSha256": "2cf5622318289e191bd0acbef5439faaf1e0c28acfa98e7989170411b00c6aeb"
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "committedSha256": "43b06fe499faa60cf69e3beb6723968cc7270500e795c63c7e8829f30cefec06"
+    },
+    {
+      "path": "src/fsd/widgets/turn-banner/api/turn-data.server.ts",
+      "committedSha256": "2ba87f57c3a707b313792a6a53216dbc5d4b2893e706a730a7faf4a712099d44"
+    },
+    {
+      "path": "src/fsd/widgets/turn-banner/api/turn-data.test.ts",
+      "committedSha256": "8d38c08c82b7a650696023244ef3bda89a4d6cc1e97ea44690d97d9ea9de747c"
+    },
+    {
+      "path": "src/fsd/widgets/turn-banner/model/runner.test.ts",
+      "committedSha256": "c00e7dc0ed80102aa229728fff7b052578165b8abf1df4f9e4b2b2650782dd32"
+    },
+    {
+      "path": "src/fsd/widgets/turn-banner/model/runner.ts",
+      "committedSha256": "407e113efa5e9141f524e9080edfaa78c32e2d7d8871b5893970c2a55eb09139"
+    },
+    {
+      "path": "src/fsd/widgets/turn-banner/ui/turn-banner.test.ts",
+      "committedSha256": "837d822016fdc552e1a9d3efd6ed5ae394d997ca2dde9643c16c0bf815da9de6"
+    },
+    {
+      "path": "src/fsd/widgets/turn-banner/ui/turn-banner.tsx",
+      "committedSha256": "a3a5c415d50636d0d1b8b73b5310155e44cecc04cac62900e3ed864b2e85a6af"
+    },
+    {
+      "path": "src/server/rest/runner-handler.test.ts",
+      "committedSha256": "0f07df03b4efb5ff153b6e63cad381b705e5f94bb8040a221ab125f3922aa249"
+    },
+    {
+      "path": "src/server/rest/runner-handler.ts",
+      "committedSha256": "dae3743c4f73401af531038bcaaef51a325f7fc38578669eb859baded57c86a1"
+    },
+    {
+      "path": "src/server/runners/contracts.ts",
+      "committedSha256": "ba8cf516a0821927c688f5d41b90c5835dcf291161f09d7a2c9bd5f0c9e58e30"
+    },
+    {
+      "path": "src/server/runners/runner-service.test.ts",
+      "committedSha256": "2d89a9bc1c58585eba50a2463b4ced8b6260a38ea6f30ffdf26a368b45b1c6ea"
+    },
+    {
+      "path": "src/server/runners/runner-service.ts",
+      "committedSha256": "ef39708a92d19cda26ae02c8d1d0cbab28654c666895b3e73e975f256a52a70b"
+    },
+    {
+      "path": "tests/server/integration/runner-client-migration.test.ts",
+      "committedSha256": "7dfaee08a2c79d176416d5446472d8637312e01cf25c2728d94f99767a0dc494"
+    },
+    {
+      "path": "tests/server/integration/runner-client.test.ts",
+      "committedSha256": "d588865664d2a5324ee3fb75d0173badac0cf179949c7d3f4310a3fbf4e7e55f"
+    }
+  ],
+  "build": {
+    "snapshotBase": "8ce600c0e9b92f7f0fc7d8bc49f5eaa5a85e5774",
+    "sourceManifestSha256": "ea0938446750fefda0cfc34e27d4b6c26e0614fae11da9018b243bb0b35fddfc",
+    "identity": {
+      "test": "final-build-source-identity",
+      "result": "PASS",
+      "files": 801,
+      "at": "2026-10-24T03:51:36.063Z"
+    },
+    "postBuildDelta": "Resident Git and file-error modules and tests changed after the application snapshot. Server, UI, core policy, schema, package dependencies and Next configuration are unchanged from 49fa84b; final source build is also checked in CI."
+  },
+  "packageSourceIdentity": {
+    "result": "PASS",
+    "testedManifestSource": "93f0f543c998a3f79b5842ef865551860a09fbbb",
+    "committedSource": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+    "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+    "files": 2229,
+    "payloadBytesIdentical": true,
+    "manifestMetadataOnlyDifference": true
+  },
+  "codeCI": {
+    "source": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+    "check": {
+      "conclusion": "success",
+      "event": "pull_request",
+      "headSha": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40065228189",
+      "workflowName": "check"
+    },
+    "native": {
+      "conclusion": "success",
+      "event": "pull_request",
+      "headSha": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40065228194",
+      "workflowName": "windows-role-runtime"
+    }
+  },
+  "historicalFailures": [
+    {
+      "description": "A deterministic terminal completed response after fatal policy refusal was wrongly classified as success. Both interrupted and completed cases now remain error with one interrupt and cleanup.",
+      "logSha256": "1c607b3dc595e8ebf8416ee04c70bfae84189fe41fffe5a225e466a080548c07"
+    },
+    {
+      "description": "The native invalid-profile rejection test once lacked its expected structured diagnostic. Thirteen targeted repeats and the subsequent full 536-test suite passed with passive diagnostic capture; the original cause remains unconfirmed.",
+      "logSha256": "a2f907c666023dc3bc5a4ba745c1f93701db6c8d7f3322a7bdca61613f259b68"
+    },
+    {
+      "description": "Earlier native acceptance stopped after Git parameter refusals; exact replay captured invalid multi-file show. Correctable Git inputs and newly committed file diff were repaired.",
+      "logSha256": "d34e600077f07a17161576642dd02b153ffa4bf281532f409cfcba697b021cc0"
+    },
+    {
+      "description": "The added-file diff regression failed before seeding the temporary index from HEAD; the fixed 40-test suite passed.",
+      "logSha256": "c515036079684db1290ad9e23d462e0c86c2e46df7e650964c1457ef4370602b"
+    },
+    {
+      "description": "Native dev reported an incorrectly copied expectedHash and stopped at hold/report handoff. The operator stopped this blocked trial; it did not reach acceptance.",
+      "logSha256": "4a8ef42c54025201db1c4abb1bcae7877d9b53bba12e06183e0ae471fabb392d"
+    },
+    {
+      "description": "The real role bridge returned generic refusal for a permitted stale hash. The regression failed before typed input/revision errors and passed after correction.",
+      "logSha256": "5a0c607a14a5b5a9ea2d98df617e724a4c8d76b33f86fe8a6c15eb3e0ad4062c"
+    },
+    {
+      "description": "Earlier serial sign-in recovery failure retained; five targeted diagnostic retries and two subsequent full serial suites passed, with cause unconfirmed.",
+      "logSha256": "9f6ee7403f26ad8b8c5886f16ab4fdf374305e5c0f2488aa09fff4aafb3d206c"
+    },
+    {
+      "description": "Stored Codex runner still selected Claude next-step copy; default corrected and final 777-test/browser checks passed.",
+      "logSha256": "8b8e1220395cc5415490505f6aed22a4e85d9d74b0d8b2b7f0bec880e9f8316e"
+    },
+    {
+      "description": "Earlier parallel and serial sign-in recovery tests returned error instead of started. Five targeted repeats and the final serial suite passed; the intermittent cause remains unconfirmed.",
+      "logSha256": "6238a3d9c2dc3bcc99c0cbc50bc56be05838383bb75b05cc8779b4b14c13ef58"
+    },
+    {
+      "description": "Injected successor at old guard release reproduced late status overwrite; status persistence moved inside ownership guard.",
+      "logSha256": "2d7246228dc0ee3cd27d9e5e44146eb7f694a0d603e69e0cca2e05e5bd1d1d39"
+    }
+  ],
+  "artifactPolicy": "Public projections omit raw credentials, account/session IDs, absolute user paths, private bodies and transcripts.",
+  "documentationVerification": {
+    "docs": {
+      "result": "PASS",
+      "markdownFiles": 150,
+      "relativeLinks": 600,
+      "testReports": 41,
+      "logSha256": "3735157712eb6cfb037612354527f4384381d7c873237751ba5cf12e149b0d8a"
+    },
+    "traceability": {
+      "result": "PASS",
+      "mode": "standard",
+      "files": 3,
+      "requirements": 22,
+      "phaseOrTaskCovered": 22,
+      "verifierCovered": 22,
+      "errors": 0,
+      "logSha256": "fa540d609c1973569a044e03bf2aebfea0b9218461c575d1b1168fbc8bca5780"
+    },
+    "diffCheck": {
+      "result": "PASS",
+      "workingTree": true,
+      "index": true
+    }
+  },
+  "finalDocumentationReview": {
+    "profile": "High-Risk",
+    "status": "clean pass not completed",
+    "purpose": "Post-implementation evidence and propagation review; not a retroactive preimplementation readiness receipt",
+    "sourceChangedDuringThisReview": false,
+    "sourceBundle": [
+      {
+        "path": "docs/proposals/active/codex-resident-runner-plan.md",
+        "lfNormalizedSha256": "a9dd2eaf20558f8bbb7f0a7becc22e27c88b919b48366b0cb40af85ba57a05d9"
+      },
+      {
+        "path": "docs/proposals/active/codex-dual-client-runtime-follow-ups.md",
+        "lfNormalizedSha256": "71ccbf03747d2d8452872aeb9adae7616889a1997b3ba32c4dac7576076251e1"
+      },
+      {
+        "path": "docs/proposals/completed/2026-10-04-codex-dual-client-support.md",
+        "lfNormalizedSha256": "1e26504f178697e8645f93988067e910cf6464ac251e7d4dfd8e0f905677d69e"
+      },
+      {
+        "path": "docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md",
+        "lfNormalizedSha256": "e8dd2ffc65ee035939e0142c798b3e2ed91ac1c5a5f27ffbbeea249e1400edb9"
+      },
+      {
+        "path": "docs/architecture/README.md",
+        "lfNormalizedSha256": "383e3d4e83f3701676cf8b08e8da5271af45cf2df1d4b72aa1a3d89f3ad92205"
+      },
+      {
+        "path": "docs/architecture/protocol.md",
+        "lfNormalizedSha256": "26a44ce9b0f53ed45af5b6d6d18141f260d83d21ed07d91a591073e87133dd10"
+      },
+      {
+        "path": "docs/architecture/server.md",
+        "lfNormalizedSha256": "1a57831464a2b51af62854011a979e45f3623753a03fd69ccaf6cb47bea50514"
+      },
+      {
+        "path": "docs/architecture/verification.md",
+        "lfNormalizedSha256": "1c0a58255f3af412d9ce6c14fc2578c8b63794bc9f7ede7b7571fc2d925992f5"
+      },
+      {
+        "path": "docs/architecture/test-organization.md",
+        "lfNormalizedSha256": "b71969bf667dd82b1133d2b822e1e2f452d713ff4117947eb7785612f5492863"
+      },
+      {
+        "path": "docs/conventions/product-copy.md",
+        "lfNormalizedSha256": "7ef1cb746ef348d1c9e0de944a7db746121e6e34d0dd5fc5dc0718e5f2c4ac0a"
+      },
+      {
+        "path": "docs/test-reports/README.md",
+        "lfNormalizedSha256": "6f55af15d407323bb565aa633a76198249622c57414c7dbc8ac42cb196cd26d2"
+      },
+      {
+        "path": "docs/test-reports/completed/2026-10-24-codex-resident-live.md",
+        "lfNormalizedSha256": "2f2d56ff4e2674e1b622bd6e0fd24043615e4320275f7a58a653c569b0e9055a"
+      },
+      {
+        "path": "docs/test-reports/active/dual-client-runtime-report.md",
+        "lfNormalizedSha256": "2f57093d21c24f1aa2cc521e4d17e979eaeb315c045ee77527c25346d2cc8cce"
+      }
+    ],
+    "gates": [
+      {
+        "id": "INV-1",
+        "result": "Current implementation sources and canonical requirement owners identified; historical checkpoints kept separate from current scope"
+      },
+      {
+        "id": "INV-2",
+        "result": "All 44 committed delta paths inventoried above; runtime, CLI/skill, DB/REST, rendered UI and installed package destinations mapped in the child proposal"
+      },
+      {
+        "id": "INV-3",
+        "result": "Approved current-PC scope, precise retryable errors, termination semantics and remaining release gates propagated to both proposals and accepted architecture"
+      },
+      {
+        "id": "INV-4",
+        "result": "Actual A-to-Z, server ownership, native cancellation, pause, cap/auth and 110-minute common-poller idle backed by dated observations; deterministic and simulated failure boundaries distinguished"
+      },
+      {
+        "id": "INV-5",
+        "result": "Both installed loader bodies and complete payload/verifier checked; final app rendered UI and source/package reuse boundaries explicit"
+      },
+      {
+        "id": "INV-6",
+        "result": "VFY-C4B-01 through 06 map to scoped report, direct observations and post-change regression destinations; physical clean/other-OS/mixed-host/release remain unverified"
+      },
+      {
+        "id": "INV-7",
+        "result": "No source edit in this post-implementation review; global clean readiness is not claimed because release evidence remains open and no prior readiness receipt is reconstructed"
+      }
+    ],
+    "coverageStability": "Highest-impact ownership boundary has both native takeover/stop observations and deterministic successor/late-policy regressions; DB ownership has REST/DB integration plus real model-service read-back. Source and package comparisons bound reused checks.",
+    "remaining": [
+      "Physical clean Windows minimal installation",
+      "macOS resident and OS-specific acceptance",
+      "Actual mixed-version host acceptance",
+      "Full fixed release-candidate acceptance including remaining measurements",
+      "Operational seed, publication and release",
+      "Cause-unconfirmed intermittent sign-in/native diagnostic failures"
+    ],
+    "userDecisionRequiredForCurrentWindowsDelivery": false
+  }
+}

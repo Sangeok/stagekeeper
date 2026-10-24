@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
-import { limitsFor, RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
+import { limitsFor, RESIDENT_RUNNER_PLAN_GATE, CODEX_RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
 import { BEAT_WRITE_INTERVAL_MS, holdsRunnerLease, needsAgentActivity } from "@harness/core/execution/runner.mjs";
 import { readDatabaseClockIn } from "@/server/database-clock";
 import { lockProjectOwnerIn, READ_OPTIONS, readProjectAccessIn } from "@/server/projects/api";
@@ -20,7 +20,7 @@ export function runnerBusyReason(holder: { host: string; seenAt: Date }): string
 }
 
 const RUNNER_SELECT = {
-  session: true, mode: true, host: true, branch: true, permission: true, autostart: true, state: true,
+  client: true, session: true, mode: true, host: true, branch: true, permission: true, autostart: true, state: true,
   waitReason: true, lastResult: true, lastLog: true, stopReason: true, startedAt: true, seenAt: true,
 } as const satisfies Prisma.RunnerSelect;
 type RunnerRow = Prisma.RunnerGetPayload<{ select: typeof RUNNER_SELECT }>;
@@ -46,18 +46,23 @@ async function lockProjectIn(tx: Tx, projectId: string, userId?: string): Promis
 }
 
 const replaced = (): RunnerOpResult => ({ ok: false, status: 409, reason: RUNNER_REPLACED_REASON, code: "RUNNER_REPLACED" });
+const codexBinding = (client: string, session: string) => client === "codex"
+  ? { binding: { client: "codex" as const, session, mode: "resident" as const, permission: "scoped" as const } } : {};
 
 async function startIn(tx: Tx, projectId: string, tokenId: string, request: Extract<RunnerOp, { op: "start" }>, paused: boolean): Promise<RunnerOpResult> {
+  const client = request.client ?? "claude";
   const access = await readProjectAccessIn(tx, projectId);
   if (!access.available) return { ok: false, status: 403, reason: access.reason };
   if (request.mode === "resident" && !limitsFor(access.plan).residentRunner) {
-    return { ok: false, status: 403, reason: RESIDENT_RUNNER_PLAN_GATE, code: "PLAN_REQUIRED" };
+    return { ok: false, status: 403, reason: client === "codex" ? CODEX_RESIDENT_RUNNER_PLAN_GATE : RESIDENT_RUNNER_PLAN_GATE, code: "PLAN_REQUIRED" };
   }
   const now = await readDatabaseClockIn(tx);
   const row = await tx.runner.findUnique({ where: { projectId }, select: RUNNER_SELECT });
   if (row && row.session === request.session) {
+    if (row.client !== client || (client === "codex" && (row.state === "stopped" || row.mode !== request.mode
+      || row.host !== request.host || row.branch !== request.branch || row.permission !== request.permission))) return replaced();
     await tx.runner.update({ where: { projectId }, data: { seenAt: now } });
-    return { ok: true, body: { ok: true, paused } };
+    return { ok: true, body: { ok: true, paused, ...codexBinding(client, request.session) } };
   }
   if (row && !request.takeover) {
     const record = toRecord(row);
@@ -65,18 +70,18 @@ async function startIn(tx: Tx, projectId: string, tokenId: string, request: Extr
     if (holdsRunnerLease(record, lastActivity, now)) {
       return {
         ok: false, status: 409, code: "RUNNER_BUSY", reason: runnerBusyReason(record),
-        holder: { mode: record.mode, host: record.host, seenAt: record.seenAt.toISOString() },
+        holder: { client: record.client, mode: record.mode, host: record.host, seenAt: record.seenAt.toISOString() },
       };
     }
   }
   const resident = request.mode === "resident";
   const data = {
-    session: request.session, tokenId, mode: request.mode, host: request.host,
+    client, session: request.session, tokenId, mode: request.mode, host: request.host,
     branch: resident ? request.branch : null, permission: resident ? request.permission : null, autostart: resident && request.autostart,
     state: "idle", waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: now, seenAt: now,
   };
   await tx.runner.upsert({ where: { projectId }, create: { projectId, ...data }, update: data });
-  return { ok: true, body: { ok: true, paused } };
+  return { ok: true, body: { ok: true, paused, ...codexBinding(client, request.session) } };
 }
 
 async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op: "beat" }>, paused: boolean): Promise<RunnerOpResult> {
@@ -84,7 +89,7 @@ async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op
   if (!access.available) return { ok: false, status: 403, reason: access.reason };
   const now = await readDatabaseClockIn(tx);
   const row = await tx.runner.findUnique({ where: { projectId }, select: RUNNER_SELECT });
-  if (!row || row.session !== request.session || row.state === "stopped") return replaced();
+  if (!row || row.client !== (request.client ?? "claude") || row.session !== request.session || row.state === "stopped") return replaced();
   const state = request.state ?? row.state;
   const next = {
     state,
@@ -97,13 +102,13 @@ async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op
     await tx.runner.update({ where: { projectId }, data: { ...next, seenAt: now } });
   }
   const stop = row.mode === "resident" && !limitsFor(access.plan).residentRunner;
-  return { ok: true, body: { ok: true, paused, ...(stop ? { stop: "plan" as const } : {}) } };
+  return { ok: true, body: { ok: true, paused, ...codexBinding(row.client, row.session), ...(stop ? { stop: "plan" as const } : {}) } };
 }
 
 async function stopIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op: "stop" }>): Promise<RunnerOpResult> {
-  const row = await tx.runner.findUnique({ where: { projectId }, select: { session: true, mode: true, autostart: true } });
+  const row = await tx.runner.findUnique({ where: { projectId }, select: { client: true, session: true, mode: true, autostart: true } });
   if (!row) return { ok: true, body: { ok: true } };
-  if (row.session !== request.session) return replaced();
+  if (row.client !== (request.client ?? "claude") || row.session !== request.session) return replaced();
   if (request.reason === "owner" && !(row.mode === "resident" && row.autostart)) {
     await tx.runner.delete({ where: { projectId } });
     return { ok: true, body: { ok: true } };
@@ -117,7 +122,8 @@ async function autostartIn(tx: Tx, projectId: string, tokenId: string, request: 
   const access = await readProjectAccessIn(tx, projectId);
   if (!access.available) return { ok: false, status: 403, reason: access.reason };
   const row = await tx.runner.findUnique({ where: { projectId }, select: RUNNER_SELECT });
-  const ours = row !== null && row.mode === "resident" && row.host === request.host;
+  if (row?.client === "codex") return { ok: true, body: { ok: true, paused } };
+  const ours = row !== null && row.client === "claude" && row.mode === "resident" && row.host === request.host;
   if (request.state === "off") {
     if (!ours) return { ok: true, body: { ok: true, paused } };
     if (row.state === "stopped" && (row.stopReason === "owner" || row.stopReason === "signin")) await tx.runner.delete({ where: { projectId } });
@@ -136,7 +142,7 @@ async function autostartIn(tx: Tx, projectId: string, tokenId: string, request: 
   }
   const refused = request.state === "refused";
   const data = {
-    session: request.session, tokenId, mode: "resident", host: request.host, branch: request.branch, permission: null, autostart: true,
+    client: "claude", session: request.session, tokenId, mode: "resident", host: request.host, branch: request.branch, permission: null, autostart: true,
     state: "stopped", waitReason: null, lastResult: refused ? request.code : null, lastLog: null, stopReason: refused ? "signin" : "owner",
     startedAt: now, seenAt: now,
   };

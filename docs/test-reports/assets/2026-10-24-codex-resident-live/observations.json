@@ -1,0 +1,897 @@
+{
+  "source": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+  "scope": "Current Windows PC; installed isolated 0.5.21 resident candidate; no production publication or clean-host certification",
+  "environment": {
+    "os": "Windows",
+    "codex": "0.164.0",
+    "globalNodePresent": true,
+    "helperPathWithoutGlobalNode": true,
+    "bundledNode": "22.23.3",
+    "physicalCleanWindows": false
+  },
+  "package": {
+    "version": "0.5.21",
+    "result": "PASS",
+    "testedManifestSource": "93f0f543c998a3f79b5842ef865551860a09fbbb",
+    "committedSource": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+    "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+    "files": 2229,
+    "payloadBytesIdentical": true,
+    "manifestMetadataOnlyDifference": true,
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    }
+  },
+  "privateTemplates": {
+    "sourceRevision": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+    "rows": 13,
+    "hash": "e49ac84385e131b3412df64b6c3335396ccb8cc2b1e22775294921152ce9f540",
+    "sourceModified": false
+  },
+  "install": [
+    {
+      "test": "no-global-node-path",
+      "result": "PASS",
+      "physicalCleanWindows": false
+    },
+    {
+      "test": "previous-install",
+      "client": "claude",
+      "result": "PASS",
+      "version": "0.5.20",
+      "packageSha256": "5d896290f89f3656eef2893538acd53bd80b6a1f489f21e1e1901f126bd81ad1",
+      "sourceRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+      "files": 2225
+    },
+    {
+      "test": "previous-install",
+      "client": "codex",
+      "result": "PASS",
+      "version": "0.5.20",
+      "packageSha256": "5d896290f89f3656eef2893538acd53bd80b6a1f489f21e1e1901f126bd81ad1",
+      "sourceRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+      "files": 2225,
+      "skills": [
+        "harness-init",
+        "harness-run",
+        "harness-resume",
+        "reconciling-proposals-with-codebase"
+      ]
+    },
+    {
+      "test": "current-update-installed-inventory",
+      "client": "claude",
+      "result": "PASS",
+      "version": "0.5.21",
+      "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+      "sourceRevision": "93f0f543c998a3f79b5842ef865551860a09fbbb",
+      "files": 2229
+    },
+    {
+      "test": "current-update-installed-inventory",
+      "client": "codex",
+      "result": "PASS",
+      "version": "0.5.21",
+      "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+      "sourceRevision": "93f0f543c998a3f79b5842ef865551860a09fbbb",
+      "files": 2229,
+      "skills": [
+        "harness-init",
+        "harness-run",
+        "harness-resume",
+        "reconciling-proposals-with-codebase",
+        "harness-background"
+      ]
+    }
+  ],
+  "pipeline": [
+    {
+      "test": "actual-resident-start",
+      "result": "PASS",
+      "client": "codex",
+      "mode": "resident",
+      "permission": "scoped",
+      "at": "2026-10-24T04:58:02.083Z"
+    },
+    {
+      "test": "browser-owner-before-plan",
+      "result": "PASS",
+      "at": "2026-10-24T04:58:03.574Z"
+    },
+    {
+      "test": "actual-pipeline-state",
+      "status": "proposed",
+      "node": "before-plan",
+      "validation": false,
+      "accepted": false,
+      "at": "2026-10-24T04:58:03.579Z"
+    },
+    {
+      "test": "actual-pipeline-state",
+      "status": "planning",
+      "node": "plan",
+      "validation": false,
+      "accepted": false,
+      "at": "2026-10-24T04:58:08.600Z"
+    },
+    {
+      "test": "actual-pipeline-state",
+      "status": "in_review",
+      "node": "verify",
+      "validation": false,
+      "accepted": false,
+      "at": "2026-10-24T05:02:49.234Z"
+    },
+    {
+      "test": "actual-pipeline-state",
+      "status": "in_review",
+      "node": "before-implement",
+      "validation": true,
+      "accepted": false,
+      "at": "2026-10-24T05:10:50.212Z"
+    },
+    {
+      "test": "browser-owner-before-implement",
+      "result": "PASS",
+      "planCommitPreserved": true,
+      "at": "2026-10-24T05:15:26.215Z"
+    },
+    {
+      "test": "actual-pipeline-state",
+      "status": "implementing",
+      "node": "implement",
+      "validation": true,
+      "accepted": false,
+      "at": "2026-10-24T05:15:31.227Z"
+    },
+    {
+      "test": "actual-pipeline-state",
+      "status": "done",
+      "node": "accept",
+      "validation": true,
+      "accepted": false,
+      "at": "2026-10-24T05:19:46.747Z"
+    },
+    {
+      "test": "actual-pipeline-state",
+      "status": "done",
+      "node": "accept",
+      "validation": true,
+      "accepted": true,
+      "at": "2026-10-24T05:21:46.997Z"
+    },
+    {
+      "test": "actual-resident-a-to-z",
+      "result": "PASS",
+      "cycles": 2,
+      "uniqueContexts": 2,
+      "usageRuns": 3,
+      "agentRuns": 3,
+      "seconds": 1428,
+      "at": "2026-10-24T05:21:51.637Z"
+    },
+    {
+      "test": "resident-stop-cleanup",
+      "result": "PASS",
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T05:21:53.646Z"
+    }
+  ],
+  "idle": [
+    {
+      "test": "installed-helper-init",
+      "fixture": "idleGitParams",
+      "result": "PASS",
+      "version": "0.5.21",
+      "at": "2026-10-24T04:13:06.408Z"
+    },
+    {
+      "test": "actual-idle-start",
+      "result": "RUNNING",
+      "durationMinutes": 110,
+      "at": "2026-10-24T04:13:11.058Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 0,
+      "signals": 1,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T04:13:11.295Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 60,
+      "signals": 1,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T04:14:11.363Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 661,
+      "signals": 11,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T04:24:12.052Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 1262,
+      "signals": 21,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T04:34:12.791Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 1863,
+      "signals": 31,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T04:44:13.633Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 2463,
+      "signals": 41,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T04:54:14.548Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 3064,
+      "signals": 51,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T05:04:15.415Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 3665,
+      "signals": 61,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T05:14:16.012Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 4326,
+      "signals": 71,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T05:25:16.761Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 4926,
+      "signals": 81,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T05:35:17.430Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 5527,
+      "signals": 91,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T05:45:18.002Z"
+    },
+    {
+      "test": "actual-idle-observation",
+      "elapsedSeconds": 6128,
+      "signals": 101,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T05:55:19.024Z"
+    },
+    {
+      "test": "actual-110-minute-idle",
+      "result": "PASS",
+      "elapsedSeconds": 6600,
+      "signals": 108,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "at": "2026-10-24T06:03:11.063Z"
+    },
+    {
+      "test": "actual-idle-stop-cleanup",
+      "result": "PASS",
+      "at": "2026-10-24T06:03:13.661Z"
+    }
+  ],
+  "idlePackageBoundary": {
+    "result": "PASS",
+    "idleSource": "626403f1934f4a9ee408b297ca6389cc29290160",
+    "idlePackageSha256": "25aa5e958d659a60131637e298c06490564a179f519728ec74b06c7c3d73c71c",
+    "acceptancePackageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+    "files": 2229,
+    "identicalFiles": 2226,
+    "changedFiles": [
+      "runtime/codex-main-loop.mjs",
+      "runtime/codex-thread.mjs",
+      "runtime/role-files.mjs"
+    ],
+    "scope": "Long idle is tied to the Git-parameter package. Only model file-hash error handling and model terminal classification differ in the final package; poller, lease, heartbeat, local-session, CLI, native runtime and all other payload files are byte-identical. No claim of a second 110-minute run of the final package."
+  },
+  "planReview": {
+    "result": "PASS",
+    "planSha256": "783da406129f845526bb10ec32db4f008a56328a4837b09e5ce5fb41f7095066",
+    "literalPairs": 45,
+    "deterministicAdditionalNames": 32,
+    "allExpectedStringsMatchRequirement": true,
+    "scope": "Owner read of the complete fixture plan; finite literal cases and unspecified non-string behavior retained. This is separate from the native independent verifier result."
+  },
+  "supersededFileRevision": {
+    "result": "NOT COMPLETED",
+    "reason": "Operator superseded the candidate at the unapproved before-implement gate after fixing a separately reproduced late-policy terminal race.",
+    "planValidation": true,
+    "independentVerifierCompleted": true,
+    "ownerImplementationApproved": false,
+    "remainingRunnerRows": 0,
+    "packageSha256": "1b4fe346dd5739de58440240d6c7177ce6de70494196b5d42b43b036ae51396d"
+  },
+  "terminalCandidateBoundary": {
+    "result": "PASS",
+    "priorSource": "93f0f543c998a3f79b5842ef865551860a09fbbb",
+    "priorPackageSha256": "1b4fe346dd5739de58440240d6c7177ce6de70494196b5d42b43b036ae51396d",
+    "finalPackageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+    "identicalFiles": 2228,
+    "changedFiles": [
+      "runtime/codex-main-loop.mjs"
+    ],
+    "soleCodeChange": "A completed terminal can be success only when endedFor is absent; existing stop/branch/timeout classification remains unchanged.",
+    "scope": "Prior native takeover/resume, browser Pause/Resume, cap/auth and 20 PATH-without-Node startup controls are retained on the file-revision package. Final fresh A-to-Z uses the terminal package; late policy completion is independently reproduced and regressed."
+  },
+  "lifecycle": [
+    {
+      "test": "native-pending-role-takeover",
+      "result": "PASS",
+      "activeTurns": 2,
+      "interruptRequests": 2,
+      "interruptedTerminals": 2,
+      "successorPreserved": true,
+      "receiptUnchanged": true,
+      "usageUnchanged": true,
+      "at": "2026-10-24T04:45:44.670Z"
+    },
+    {
+      "test": "native-pending-role-resume-and-owner-stop",
+      "result": "PASS",
+      "freshContexts": 2,
+      "sameAgentRun": true,
+      "usageUnchanged": true,
+      "interruptRequests": 2,
+      "interruptedTerminals": 2,
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T04:47:03.358Z"
+    }
+  ],
+  "finalBuildBrowser": [
+    {
+      "test": "final-build-source-identity",
+      "result": "PASS",
+      "files": 801,
+      "at": "2026-10-24T03:51:36.063Z"
+    },
+    {
+      "test": "final-build-db-to-full-compact-project-list",
+      "result": "PASS",
+      "at": "2026-10-24T03:51:43.641Z"
+    },
+    {
+      "test": "final-build-stored-client-default-and-explicit-choice",
+      "result": "PASS",
+      "at": "2026-10-24T03:51:44.274Z"
+    },
+    {
+      "test": "final-build-pause-resume-and-stopped-recovery",
+      "result": "PASS",
+      "at": "2026-10-24T03:51:44.946Z"
+    }
+  ],
+  "pause": [
+    {
+      "test": "browser-pause-ready-work",
+      "result": "PASS",
+      "observedSeconds": 45,
+      "modelStarts": 0,
+      "agentRuns": 0,
+      "sameSession": true,
+      "at": "2026-10-24T04:45:36.584Z"
+    },
+    {
+      "test": "browser-resume-native-start-and-stop",
+      "result": "PASS",
+      "sameSession": true,
+      "actualInterrupted": true,
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T04:46:02.164Z"
+    }
+  ],
+  "capAndAuth": [
+    {
+      "test": "actual-usage-cap-no-model",
+      "result": "PASS",
+      "observedSeconds": 45,
+      "modelStarts": 0,
+      "newAgentRuns": 0,
+      "usageUnchanged": true,
+      "at": "2026-10-24T04:50:24.044Z"
+    },
+    {
+      "test": "actual-token-revocation-stops-resident",
+      "result": "PASS",
+      "modelStarts": 0,
+      "newAgentRuns": 0,
+      "localLockReleased": true,
+      "retainedUnauthenticatedLeaseRow": true,
+      "at": "2026-10-24T04:50:30.415Z"
+    },
+    {
+      "test": "cap-auth-fixture-cleanup",
+      "result": "PASS",
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T04:50:30.462Z"
+    }
+  ],
+  "startupCurrent": [
+    {
+      "test": "start-stop-repeat",
+      "iteration": 1,
+      "result": "PASS",
+      "at": "2026-10-24T04:51:32.175Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 2,
+      "result": "PASS",
+      "at": "2026-10-24T04:51:37.807Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 3,
+      "result": "PASS",
+      "at": "2026-10-24T04:51:43.345Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 4,
+      "result": "PASS",
+      "at": "2026-10-24T04:51:48.990Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 5,
+      "result": "PASS",
+      "at": "2026-10-24T04:51:54.589Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 6,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:00.013Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 7,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:05.763Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 8,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:11.367Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 9,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:17.048Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 10,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:22.781Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 11,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:28.366Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 12,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:34.103Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 13,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:39.606Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 14,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:45.579Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 15,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:51.024Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 16,
+      "result": "PASS",
+      "at": "2026-10-24T04:52:56.565Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 17,
+      "result": "PASS",
+      "at": "2026-10-24T04:53:02.440Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 18,
+      "result": "PASS",
+      "at": "2026-10-24T04:53:07.892Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 19,
+      "result": "PASS",
+      "at": "2026-10-24T04:53:13.645Z"
+    },
+    {
+      "test": "start-stop-repeat",
+      "iteration": 20,
+      "result": "PASS",
+      "at": "2026-10-24T04:53:19.423Z"
+    }
+  ],
+  "supersededIdleControls": [
+    {
+      "phase": "idle",
+      "result": "SUPERSEDED",
+      "reason": "Final acceptance exposed Git parameter handling; restart full 110-minute trial on repaired package",
+      "elapsedSeconds": 3421,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "controlledStop": "PASS",
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T04:10:58.743Z"
+    },
+    {
+      "phase": "idleScoped",
+      "result": "SUPERSEDED",
+      "reason": "Final acceptance exposed Git parameter handling; restart full 110-minute trial on repaired package",
+      "elapsedSeconds": 2792,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "controlledStop": "PASS",
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T04:11:01.268Z"
+    },
+    {
+      "phase": "idleFenced",
+      "result": "SUPERSEDED",
+      "reason": "Final acceptance exposed Git parameter handling; restart full 110-minute trial on repaired package",
+      "elapsedSeconds": 1879,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "controlledStop": "PASS",
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T04:11:03.147Z"
+    }
+  ],
+  "acceptanceReplay": {
+    "result": "BLOCKED",
+    "cause": "Fixture update introduced harness.lock.json and docs/harness/codex-package.json changes outside approved implementation plan; native acceptance correctly refused check 1",
+    "gitQueries": "PASS",
+    "actualTests": 43,
+    "correctAcceptanceRefusal": true,
+    "remainingRunnerRows": 0,
+    "at": "2026-10-24T04:17:11.901Z"
+  },
+  "startupEarlierCandidates": [
+    {
+      "phase": "startup-stress",
+      "iterations": 20
+    },
+    {
+      "phase": "startup-without-node",
+      "iterations": 20
+    },
+    {
+      "phase": "startup-scoped-without-node",
+      "iterations": 20
+    }
+  ],
+  "candidates": [
+    {
+      "phase": "initial",
+      "packageSha256": "fdd5440998f3d00067907bc8382a133eac8de890d4d85f4faba0779faec8e1e8",
+      "files": 2229
+    },
+    {
+      "phase": "pipeline",
+      "packageSha256": "144e411dd87a88fd400b19f1f4f6f981981875b255182331085cbd88acd08e0c",
+      "files": 2229
+    },
+    {
+      "phase": "observed",
+      "packageSha256": "cef7b4a564b587609706e778d286bdd16d31271d275e0582ddb2c862cce89737",
+      "files": 2229
+    },
+    {
+      "phase": "final",
+      "packageSha256": "bcc5226d653144a2a7e5477804162dfbb727e5d16a50b8b58a3df30c519b7514",
+      "files": 2229
+    },
+    {
+      "phase": "guarded",
+      "packageSha256": "96838469995c8a7ddc7ea5fdc1b150333a41532ec771a75f8c559bc0b6366961",
+      "files": 2229
+    },
+    {
+      "phase": "reviewed",
+      "packageSha256": "f28234f9327fe80899cd19da6c562a1cea62cb4019d2f4b763e2a086c70d73ac",
+      "files": 2229
+    },
+    {
+      "phase": "normalized",
+      "packageSha256": "266aec34c0a149a0824fc9fe3c0a55ba69ed4af771e76fbc1dddf92fbb6f59ba",
+      "files": 2229
+    },
+    {
+      "phase": "scoped",
+      "packageSha256": "ebf7e573338daa2b8c2a7980948b17bf7db30f3d6b10b561483c2bd9895bbc4e",
+      "files": 2229
+    },
+    {
+      "phase": "fenced",
+      "packageSha256": "beb097d4dd5ba5649521a5d8cc11239cb2b303a832b0ed3699612ec06ce3e8ae",
+      "files": 2229
+    },
+    {
+      "phase": "git-params",
+      "packageSha256": "25aa5e958d659a60131637e298c06490564a179f519728ec74b06c7c3d73c71c",
+      "files": 2229
+    },
+    {
+      "phase": "file-revision",
+      "packageSha256": "1b4fe346dd5739de58440240d6c7177ce6de70494196b5d42b43b036ae51396d",
+      "files": 2229
+    },
+    {
+      "phase": "terminal",
+      "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+      "files": 2229
+    }
+  ],
+  "cleanup": [
+    {
+      "test": "owned-fixture-locks-and-guards",
+      "result": "PASS",
+      "checkedFixtures": 26,
+      "remainingLocks": 0,
+      "remainingGuards": 0,
+      "at": "2026-10-24T06:03:29.232Z"
+    },
+    {
+      "test": "isolated-live-database-cleanup",
+      "result": "PASS",
+      "removedUsers": 23,
+      "removedTemplates": 13,
+      "remaining": {
+        "users": 0,
+        "projects": 0,
+        "runners": 0,
+        "agentRuns": 0,
+        "templates": 0
+      },
+      "productionTouched": false,
+      "at": "2026-10-24T06:03:29.233Z"
+    },
+    {
+      "test": "owned-next-services-stopped",
+      "result": "PASS",
+      "remainingListeners": 0,
+      "at": "2026-10-24T06:03:39.7266708Z"
+    },
+    {
+      "test": "owned-postgresql-cluster-stopped",
+      "result": "PASS",
+      "remainingListeners": 0,
+      "retainedLocalEvidence": true,
+      "productionTouched": false,
+      "at": "2026-10-24T06:03:40.4252950Z"
+    }
+  ],
+  "observationCandidates": {
+    "pipeline": "terminal",
+    "install": "terminal",
+    "idle": "git-params",
+    "lifecycle": "file-revision",
+    "pause": "file-revision",
+    "capAndAuth": "file-revision",
+    "startupCurrent": "file-revision"
+  },
+  "limitations": [
+    "No physical clean Windows host",
+    "No macOS resident or mixed-version-host acceptance",
+    "No optional QA/implementation-verifier resident support",
+    "No Codex sign-in autostart",
+    "No production seed, release publication or main promotion",
+    "Initial one-off corrupt-state startup cause remains unconfirmed; later deterministic successor-status race was independently reproduced and fixed",
+    "Active model token totals were not collected; server usage-run accounting was checked separately",
+    "Earlier intermittent sign-in recovery and native helper diagnostic failures remain cause-unconfirmed; subsequent focused/full runs are reported separately",
+    "Total HTTP poll requests during the 110-minute idle were not captured; distinct heartbeat observations are not request counts"
+  ],
+  "acceptanceProof": {
+    "result": "PASS",
+    "serverAccepted": true,
+    "finalReports": 2,
+    "allAgentRunsClosed": true,
+    "allRecordedStepsAccepted": true,
+    "acceptedHandoffsResumedToOk": 2,
+    "sourceAndReportChanges": [
+      "docs/agents/dev/K-1.md",
+      "docs/agents/main-loop/K-1.md",
+      "src/greet.mjs",
+      "src/greet.test.mjs"
+    ],
+    "planSha256": "783da406129f845526bb10ec32db4f008a56328a4837b09e5ce5fb41f7095066",
+    "acceptanceReportSha256": "b992c1a0223e70f790aba8815f24cfb7e3dc8fdda58dd8b2e86ce5630c84a79c",
+    "committedReportMatches": true,
+    "acceptanceChecks": 5,
+    "fixtureTests": 45,
+    "independentVerifier": {
+      "requiredPaths": 6,
+      "mutantsKilled": 22,
+      "literalCases": 45,
+      "defects": 0,
+      "scope": "Disposable fixture plan only; not the parent resident proposal"
+    },
+    "modelTurns": 7,
+    "mainLoopCycles": 2,
+    "freshRoleTurns": 5,
+    "allStartedModelProcessesSettled": true,
+    "failedToolCalls": [
+      "role_file_read"
+    ],
+    "ownerActionToModelStart": [
+      {
+        "trigger": "browser-owner-before-plan",
+        "seconds": 32.712
+      },
+      {
+        "trigger": "browser-owner-before-implement",
+        "seconds": 21.815
+      }
+    ],
+    "remainingRunnerRows": 0,
+    "at": "2026-10-24T05:24:00.741Z"
+  },
+  "proofObserverCorrection": {
+    "result": "PASS",
+    "scope": "Parent evidence read-back only",
+    "initialAssertion": "Every recorded step outcome must be ok",
+    "correction": "Accepted handoff outcomes are valid when each handoff resumed to ok; all AgentRuns must be closed and every recorded step accepted",
+    "acceptedHandoffsResumedToOk": 2,
+    "productOrFixtureChanged": false,
+    "finalProofSha256": "586676ad2c3f1e59a7a6eca1385dd4ef09b74fc1c838680a5c5abee0eba8ae1e"
+  },
+  "nativeDiagnosticHistory": {
+    "source": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+    "status": "cause-unconfirmed",
+    "original": {
+      "pass": 535,
+      "fail": 1,
+      "skip": 2,
+      "expected": "validation-profile",
+      "observed": "Native helper ended without acknowledgement; ownership retained",
+      "logSha256": "a2f907c666023dc3bc5a4ba745c1f93701db6c8d7f3322a7bdca61613f259b68"
+    },
+    "repeats": [
+      {
+        "phase": "native-sid-diagnostic-1",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "d074ef5920628b620412827baa3099c0f1310287f877286ff11db7bde5748038"
+      },
+      {
+        "phase": "native-sid-diagnostic-2",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "3eea7e23c7ec4eac1215659c950bc88c172ea614e6ca87ca89f78ed751ea5af5"
+      },
+      {
+        "phase": "native-sid-diagnostic-3",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "38ea6f7070b357987aae338ba5ad341eb2b35d9710c28c454221b76ac483b769"
+      },
+      {
+        "phase": "native-sid-stress-1",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "b91a5ae087ee5aae60139a5c7cb2ca414f7a050e82e2c9c162055782f758ed11"
+      },
+      {
+        "phase": "native-sid-stress-2",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "d12dea030933fe41874e75a8beb22fee9a06496bb905e4711244fc97c00ee66f"
+      },
+      {
+        "phase": "native-sid-stress-3",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "526067acb18ac577e686173be887848e12b57c70a669f3ad9a6a60c230752dad"
+      },
+      {
+        "phase": "native-sid-stress-4",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "54d5a20d81fe43bbbf489e2b4e82c9b3aef422917fc9d6be1deb91b71fd07348"
+      },
+      {
+        "phase": "native-sid-stress-5",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "ece90386d549cf83a45a9be6f015b8f64cc6730ac3401d05c55e202f4d111b4f"
+      },
+      {
+        "phase": "native-sid-stress-6",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "683b9610caa87143af15507b474b2b405eceaa61cef3f5da05d1c01e3a504440"
+      },
+      {
+        "phase": "native-sid-stress-7",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "83849996bf911e6d659cf6876043549bf7c16b77d6d799d00d9d2ee319d0c2ec"
+      },
+      {
+        "phase": "native-sid-stress-8",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "5e77cda4ecb4753e1f26c03bda925c830ef60e1715c8149324c1ef9fafc5e8eb"
+      },
+      {
+        "phase": "native-sid-stress-9",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "b8085f8c3c3e5d59117303a28d0bf9b56f9863a9daa7f9da7bae4911b76e4f45"
+      },
+      {
+        "phase": "native-sid-stress-10",
+        "result": "PASS",
+        "pass": 1,
+        "logSha256": "0c171d5e7e375df612064fc10a5edd23cfdc335299ebde5c86f3f4a8226d5479"
+      }
+    ],
+    "subsequentFull": {
+      "pass": 536,
+      "fail": 0,
+      "skip": 2,
+      "logSha256": "ff1983047c2c033e86fb07b98457aae70d39632840d7b94d1feee932faa75965"
+    },
+    "diagnosticCapture": "Passive native helper stdout/stderr observation; no changed product code, arguments or assertions",
+    "interpretation": "Subsequent successes do not establish that the original intermittent diagnostic failure was repaired"
+  }
+}

@@ -28,12 +28,14 @@ export function parseArguments(argv) {
 }
 
 const holdsLease = (lock, session) => lock?.id === session && lock.runnerLease === true
-  && ["watch", "resident"].includes(lock.mode ?? "watch") && (lock.client ?? "claude") === "claude";
+  && (((lock.client ?? "claude") === "claude" && ["watch", "resident"].includes(lock.mode ?? "watch"))
+    || (lock.client === "codex" && lock.mode === "resident"));
 
 async function beatOnCheck(event, files, input) {
   if (event.event !== "owned" || !holdsLease(readState(files)?.lock, event.session)) return event;
   const result = await runnerCallWithin({ server: input.server, token: input.token, project: input.config.project.slug },
-    { op: "beat", session: event.session }, RUNNER_TIMEOUT);
+    { op: "beat", session: event.session, ...(event.client === "codex" ? { client: "codex" } : {}) }, RUNNER_TIMEOUT);
+  if (event.client === "codex" && (result.kind !== "ok" || result.stop)) return { event: "error", session: event.session, code: "resident-lease-unconfirmed" };
   if (result.kind === "ok") return { ...event, paused: result.paused };
   if (result.kind === "missing") return event;
   if (result.kind === "replaced") return { event: "replaced", session: event.session, seenAt: null };
@@ -44,7 +46,7 @@ async function stopOnRelease(event, before) {
   if (event.event !== "released" || !holdsLease(before, event.session)) return;
   const token = process.env.HARNESS_TOKEN;
   if (!parseBearer(`Bearer ${token}`, "agent") && !parseBearer(`Bearer ${token}`, "user")) return;
-  await runnerCallWithin({ server: before.binding.server, token, project: before.binding.project },
+  await runnerCallWithin({ server: before.binding.server, token, project: before.binding.project, client: before.client },
     { op: "stop", session: event.session, reason: "owner" }, RUNNER_TIMEOUT);
 }
 

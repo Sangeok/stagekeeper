@@ -5,15 +5,17 @@ import { appendFileSync, createWriteStream, existsSync, mkdirSync, openSync, rea
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { RESIDENT_RUNNER_PLAN_GATE } from "../lib/plans/entitlement.mjs";
+import { RESIDENT_RUNNER_PLAN_GATE, CODEX_RESIDENT_RUNNER_PLAN_GATE } from "../lib/plans/entitlement.mjs";
 import { parseBearer } from "../lib/tokens/token.mjs";
 import { actionableWork } from "../lib/execution/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
   readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
 import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, matchesBinding, readState, registerChild, settleChild, stateFiles,
   withGuard } from "../runtime/local-session.mjs";
-import { callTool, connectionInput, verifyProject } from "../runtime/mcp-client.mjs";
+import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
+import { createCodexExecution } from "../runtime/codex-main-loop.mjs";
+import { codexExecutable } from "../runtime/codex-executable.mjs";
 
 const PLUGIN_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SELF = fileURLToPath(import.meta.url);
@@ -36,6 +38,9 @@ export const REASONS = {
   "locked": "This checkout already has a watch or runner (started {startedAt}). Stop it first.",
   "busy": "A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or take it over.",
   "plan": RESIDENT_RUNNER_PLAN_GATE,
+  "codex-plan": CODEX_RESIDENT_RUNNER_PLAN_GATE,
+  "codex-route": "This server did not confirm Codex resident ownership. Use $harness-run or $harness-resume until its server is updated.",
+  "codex-config": "Codex configuration or installed package verification failed. Reconnect with $harness-init.",
   "no-route": "This Stagekeeper server does not take runners yet. Use /harness:watch in a Claude Code session.",
   "no-claude": "Claude Code (claude.exe) was not found on PATH. Install the native Claude Code, then start again.",
   "claude-failed": "Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again.",
@@ -71,7 +76,7 @@ const now = () => new Date().toISOString();
 
 function parseArguments(argv) {
   const ops = new Set(["preflight", "start", "run", "stop", "status", "autostart-on", "autostart-off"]);
-  const values = new Set(["root", "server", "propose", "session", "interval", "run-limit"]);
+  const values = new Set(["root", "server", "client", "propose", "session", "interval", "run-limit"]);
   const flags = new Set([...ops, "takeover", "from-autostart"]);
   const options = {};
   for (let i = 0; i < argv.length; i++) {
@@ -87,6 +92,9 @@ function parseArguments(argv) {
   const selected = [...ops].filter(op => options[op]);
   if (selected.length !== 1) refuse("invalid-arguments");
   const op = selected[0];
+  if (options.client !== undefined && !["claude", "codex"].includes(options.client)) refuse("invalid-arguments");
+  if (options.client !== undefined && !["preflight", "start", "run"].includes(op)) refuse("invalid-arguments");
+  if (options.client === "codex" && options["from-autostart"]) refuse("invalid-arguments");
   const needsPropose = op === "start" || op === "autostart-on";
   if (needsPropose !== ["yes", "no"].includes(options.propose) || (!needsPropose && options.propose)) refuse("invalid-arguments");
   if ((op === "run") !== Boolean(options.session)) refuse("invalid-arguments");
@@ -240,12 +248,15 @@ function connection(root, options) {
   if (!parseBearer(`Bearer ${token}`, "agent") && !parseBearer(`Bearer ${token}`, "user")) refuse("invalid-token");
   if (!nonempty(options.server ?? process.env.HARNESS_SERVER)) refuse("missing-server");
   let input;
-  try { input = connectionInput(root, { client: "claude", server: options.server }); input.runbook = checkoutRunbookVersion(root); }
-  catch { refuse("invalid-config"); }
+  try {
+    input = connectionInput(root, { client: options.client ?? "claude", server: options.server });
+    if (input.client === "claude") input.runbook = checkoutRunbookVersion(root);
+  } catch { refuse(options.client === "codex" ? "codex-config" : "invalid-config"); }
   return input;
 }
 
 function staleResident(state) {
+  if (state.lock.client === "codex") return false;
   return state.lock.mode === "resident" && state.lock.unsettled !== true && !(state.lock.poller && isAlive(state.lock.poller.pid))
     && (state.lock.children ?? []).every(child => !isAlive(child.pid));
 }
@@ -264,7 +275,8 @@ async function startChecks(location, files, options) {
   if (remotes.length > 0) refuse("push-url", { remote: remotes[0] });
   const state = readState(files);
   if (state && !staleResident(state)) refuse("locked", { startedAt: state.lock.startedAt });
-  claudeCommand();
+  if (input.client === "codex") { codexExecutable(); await verifyCodexSupport(input); }
+  else claudeCommand();
   let identity;
   for (let failures = 0;;) {
     try { identity = await verifyProject(input); break; }
@@ -277,7 +289,7 @@ async function startChecks(location, files, options) {
   return { input, tree, identity, stale: state !== null };
 }
 
-const runnerTarget = input => ({ server: input.server, token: input.token, project: input.config.project.slug });
+const runnerTarget = input => ({ server: input.server, token: input.token, project: input.config.project.slug, client: input.client });
 
 async function retryingRunnerCall(target, payload) {
   let result;
@@ -294,9 +306,9 @@ async function start(location, files, options) {
   const directory = files.directory;
   mkdirSync(runsDirectory(directory), { recursive: true });
   const settings = settingsFile(directory);
-  writeFileSync(settings, JSON.stringify(backgroundSettings(input.config), null, 2) + "\n");
+  if (input.client === "claude") writeFileSync(settings, JSON.stringify(backgroundSettings(input.config), null, 2) + "\n");
   const env = pushBlockedEnv({ ...process.env, HARNESS_SERVER: input.server });
-  const permission = await probePermission(location.root, settings, env, directory);
+  const permission = input.client === "codex" ? "scoped" : await probePermission(location.root, settings, env, directory);
   const session = randomUUID();
   const host = runnerHost();
   await withGuard(files, () => {
@@ -305,23 +317,24 @@ async function start(location, files, options) {
     if (state) clearState(files);
     atomicWrite(files.policy, { schemaVersion: 1, session, commit: true, propose: options.propose === "yes" });
     atomicWrite(files.lock, { schemaVersion: 1, id: session, binding: input.binding, startedAt: now(), seenAt: now(), state: EMPTY_STATE,
-      poller: null, client: "claude", mode: "resident", lifecycle: "active", children: [], host, runnerLease: true });
+      poller: null, client: input.client, mode: "resident", lifecycle: "active", children: [], host, runnerLease: true });
   });
-  const autostart = existsSync(autostartFile(directory));
+  const autostart = input.client === "claude" && existsSync(autostartFile(directory));
   const result = await retryingRunnerCall(runnerTarget(input), { op: "start", session, mode: "resident", host, branch: tree.branch, permission, autostart,
     ...(options.takeover ? { takeover: true } : {}) });
   if (result.kind !== "ok") {
     await withGuard(files, () => { if (readState(files)?.lock.id === session) clearState(files); });
     if (result.kind === "busy") refuse("busy", { host: result.holder.host, time: result.holder.seenAt });
-    if (result.kind === "plan") refuse("plan");
-    if (result.kind === "missing") refuse("no-route");
+    if (result.kind === "plan") refuse(input.client === "codex" ? "codex-plan" : "plan");
+    if (result.kind === "missing" || (input.client === "codex" && result.kind === "refused")) refuse(input.client === "codex" ? "codex-route" : "no-route");
     if (result.kind === "transient") refuse("request-failed");
     refuse("request-failed");
   }
-  atomicWrite(statusFile(directory), { schemaVersion: 1, session, host, branch: tree.branch, permission, propose: options.propose === "yes",
+  atomicWrite(statusFile(directory), { schemaVersion: 1, session, client: input.client, host, branch: tree.branch, permission, propose: options.propose === "yes",
     autostart, state: "starting", startedAt: now(), updatedAt: now() });
   const out = openSync(path.join(directory, "background.log"), "a");
   const resident = spawn(process.execPath, [SELF, "--run", "--root", location.root, "--session", session,
+    ...(input.client === "codex" ? ["--client", "codex"] : []),
     ...(options.server ? ["--server", options.server] : []),
     ...(options.interval !== INTERVAL_MS ? ["--interval", String(options.interval / 1000)] : []),
     ...(options.runLimit !== RUN_LIMIT_MS ? ["--run-limit", String(options.runLimit / 60_000)] : [])],
@@ -333,7 +346,7 @@ async function start(location, files, options) {
       const state = readState(files);
       if (state?.lock.id === session && state.lock.poller === null) clearState(files);
     }).catch(() => {});
-    await runnerCallWithin({ server: input.server, token: input.token, project: input.config.project.slug },
+    await runnerCallWithin(runnerTarget(input),
       { op: "stop", session, reason: "error" }, REQUEST_TIMEOUT);
     refuse("runner-exited", { log: path.join(directory, "background.log") });
   };
@@ -342,8 +355,8 @@ async function start(location, files, options) {
     if (state?.lock.id !== session) await exited();
     if (state.lock.poller) {
       const lines = [START_LINES.started, START_LINES.logs, START_LINES.stop, START_LINES.edit, ...(permission === "allowlist" ? [START_LINES.allowlist] : [])]
-        .map(line => line.replaceAll("{host}", host).replaceAll("{branch}", tree.branch).replaceAll("{logs}", runsDirectory(directory)));
-      for (const line of lines) process.stdout.write(line + "\n");
+        .map(line => line.replaceAll("{host}", host).replaceAll("{branch}", tree.branch).replaceAll("{logs}", input.client === "codex" ? path.join(directory, "background.log") : runsDirectory(directory)));
+      for (const line of lines) process.stdout.write((input.client === "codex" ? line.replaceAll("/harness:background", "$harness-background") : line) + "\n");
       return { event: "started", session, host, branch: tree.branch, permission };
     }
     await delay(200);
@@ -367,7 +380,7 @@ async function stop(files) {
     return { event: "stopping", session: state.lock.id };
   });
   if (stopped && nonempty(process.env.HARNESS_TOKEN)) {
-    await runnerCallWithin({ server: stopped.binding.server, token: process.env.HARNESS_TOKEN, project: stopped.binding.project },
+    await runnerCallWithin({ server: stopped.binding.server, token: process.env.HARNESS_TOKEN, project: stopped.binding.project, client: stopped.client },
       { op: "stop", session: stopped.id, reason: "owner" }, REQUEST_TIMEOUT);
   }
   return event;
@@ -380,13 +393,13 @@ function status(files) {
   const saved = readOptional(statusFile(directory));
   const autostart = readOptional(autostartFile(directory));
   const running = state?.lock.mode === "resident" && state.lock.poller !== null && isAlive(state.lock.poller.pid);
-  return { event: "status", running, session: state?.lock.mode === "resident" ? state.lock.id : null,
+  return { event: "status", running, client: state?.lock.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : null,
     lifecycle: state?.lock.mode === "resident" ? state.lock.lifecycle : null,
     otherSession: state && state.lock.mode !== "resident" ? state.lock.mode ?? "watch" : null,
     host: saved?.host ?? null, branch: saved?.branch ?? null, permission: saved?.permission ?? null, state: saved?.state ?? null,
     waitReason: saved?.waitReason ?? null, waitFiles: saved?.waitFiles ?? [], interrupted: saved?.interrupted ?? null,
     lastResult: saved?.lastResult ?? null, lastLog: saved?.lastLog ?? null, stopReason: saved?.stopReason ?? null,
-    logs: runsDirectory(directory),
+    logs: (state?.lock.client ?? saved?.client) === "codex" ? path.join(directory, "background.log") : runsDirectory(directory),
     autostart: autostart ? { registered: true, branch: autostart.branch, propose: autostart.propose, pluginMatches: autostart.pluginRoot === PLUGIN_ROOT } : { registered: false } };
 }
 
@@ -460,18 +473,20 @@ async function resident(location, files, options) {
   const saved = readOptional(statusFile(directory));
   if (saved?.session !== session) return { event: "error", code: "corrupt-state", reason: REASONS["corrupt-state"] };
   const input = connection(location.root, options);
-  const target = { server: input.server, token: input.token, project: input.config.project.slug };
+  const target = runnerTarget(input);
   const nonce = randomUUID();
   await withGuard(files, () => {
     const state = readState(files);
     if (state?.lock.id !== session || state.lock.mode !== "resident" || !matchesBinding(state.lock.binding, input.binding)) refuse("corrupt-state");
+    if ((state.lock.client ?? "claude") !== input.client || (saved.client ?? "claude") !== input.client) refuse("corrupt-state");
+    if (state.lock.poller && isAlive(state.lock.poller.pid)) refuse("locked", { startedAt: state.lock.startedAt });
     state.lock.poller = { pid: process.pid, nonce };
     state.lock.seenAt = now();
     atomicWrite(files.lock, state.lock);
   });
   const env = pushBlockedEnv({ ...process.env, HARNESS_SERVER: input.server });
   const settings = settingsFile(directory);
-  const claude = claudeCommand();
+  const claude = input.client === "claude" ? claudeCommand() : null;
   const status = { ...saved, pid: process.pid };
   const save = values => { Object.assign(status, values, { updatedAt: now() }); atomicWrite(statusFile(directory), status); };
   save({ state: "idle" });
@@ -482,6 +497,7 @@ async function resident(location, files, options) {
       return state.lock.lifecycle === "stopping" ? "stopping" : "active";
     } catch { return "gone"; }
   };
+  let execution;
   const beat = async payload => {
     try {
       await withGuard(files, () => {
@@ -489,7 +505,9 @@ async function resident(location, files, options) {
         if (state?.lock.id === session) { state.lock.seenAt = now(); atomicWrite(files.lock, state.lock); }
       });
     } catch {   }
-    return runnerCallWithin(target, { op: "beat", session, ...payload }, REQUEST_TIMEOUT);
+    const result = await runnerCallWithin(target, { op: "beat", session, ...payload }, REQUEST_TIMEOUT);
+    execution?.observeLease?.(result);
+    return result;
   };
   const startRun = () => {
     const id = new Date().toISOString().replace(/[-:.]/g, "");
@@ -523,6 +541,9 @@ async function resident(location, files, options) {
     log(`run ${id} started`);
     return { done, end };
   };
+  execution = input.client === "codex"
+    ? createCodexExecution({ input, files, session, branch: saved.branch, beat, record: event => log(JSON.stringify(event)) })
+    : { start: startRun, classify: classifyRun, stopMode: "drain" };
   const deps = {
     lifecycle, beat, log, save, now: () => performance.now(),
     sleep: (ms, signal) => delay(ms, undefined, { signal }).catch(() => {}),
@@ -530,7 +551,7 @@ async function resident(location, files, options) {
     overview: async () => actionableWork(await callTool(input, "pipeline_next"), { commit: true, propose: saved.propose === true }),
     tree: () => treeState(location.root),
     branch: () => headBranch(location.root),
-    execution: { start: startRun, classify: classifyRun, stopMode: "drain" },
+    execution,
   };
   let reason;
   try {
@@ -551,19 +572,38 @@ async function resident(location, files, options) {
     }
     reason = "error";
   }
-  return finish(files, { session, target, reason, save, log, directory });
+  return finish(files, { session, target, reason, save, log, directory, nonce });
 }
 
 const NOTICE_FOR = { stuck: "stuck", error: "error", plan: "plan", replaced: "replaced", missing: "missing" };
 
-async function finish(files, { session, target, reason, save, log, directory }) {
+async function finish(files, { session, target, reason, save, log, directory, nonce }) {
   log(`runner ${session} stopping: ${reason}`);
+  const settled = await withGuard(files, () => {
+    const state = readState(files);
+    if (state?.lock.id !== session) return true;
+    if (state.lock.poller?.pid !== process.pid || state.lock.poller?.nonce !== nonce || (state.lock.children ?? []).length || state.lock.unsettled) {
+      state.lock.lifecycle = "stopping"; state.lock.unsettled = true; atomicWrite(files.lock, state.lock); return false;
+    }
+    return true;
+  }).catch(() => false);
+  if (!settled) { save({ state: "stopping", stopReason: "unsettled" }); return { event: "stopping", session, code: "resident-run-unsettled" }; }
   if (["owner", "stuck", "error", "plan"].includes(reason)) {
     await runnerCallWithin(target, { op: "stop", session, reason }, REQUEST_TIMEOUT);
   }
-  await withGuard(files, () => { if (readState(files)?.lock.id === session) clearState(files); }).catch(() => {});
-  save({ state: "stopped", stopReason: reason });
-  if (NOTICE_FOR[reason]) await notify(directory, fillNotice(NOTICE_FOR[reason]));
+  const cleared = await withGuard(files, () => {
+    const state = readState(files);
+    if (state?.lock.id !== session) return true;
+    if (state.lock.poller?.pid !== process.pid || state.lock.poller?.nonce !== nonce || (state.lock.children ?? []).length || state.lock.unsettled) return false;
+    save({ state: "stopped", stopReason: reason });
+    clearState(files); return true;
+  }).catch(() => false);
+  if (!cleared) { save({ state: "stopping", stopReason: "unsettled" }); return { event: "stopping", session, code: "resident-run-unsettled" }; }
+  if (NOTICE_FOR[reason]) {
+    const notice = fillNotice(NOTICE_FOR[reason]);
+    if (target.client === "codex") notice.body = notice.body.replaceAll("/harness:background", "$harness-background");
+    await notify(directory, notice);
+  }
   return { event: "stopped", session, reason };
 }
 
