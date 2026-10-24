@@ -38,6 +38,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
       - name: Record contract-test environment
         run: node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,scope:"model-free runtime contracts"}))'
       - name: Validate shared runtime contracts without client credentials
