@@ -121,6 +121,15 @@ Windows CI 40084130970의 브랜치 복귀 timeout과 같은 증상은 fixture�
 이 재현된 경쟁을 수정했으며 원본 CI 로그만으로 timeout의 유일 원인을 증명했다고 주장하지 않는다.
 수정 후 bundled Node의 전체 background 41개와 최종 Windows native CI가 통과했다.
 
+그 뒤 문서 커밋 `2975385`의 macOS Intel CI 40085056934에서 fatal-response 시험이
+종료 코드 1 대신 0을 받았다. 600ms poll deadline·200ms request timeout에 300ms 응답 지연을
+넣으면 같은 실패가 재현됐다. 해당 fatal-response 시험만 12초/5초로 분리하고 지연된 401,
+단일 요청·상태 정리·원문 비노출 단언을 유지해 통과했다. 제품 timeout과 별도 timeout 회귀는
+변경하지 않았다. 수정 후 watch 전체 39개도 통과했다. 시험 파일 Git blob은
+`6d62be2c77b7bd0ff932abb7973190a40438bcf1`이다.
+위 표의 고정 CI source는 `f66d0a8`이며, 이 마지막 시험 보완까지 포함한 전달 커밋의 CI와
+병합 SHA는 [PR #224](https://github.com/Sangeok/stagekeeper/pull/224)에 따로 기록한다.
+
 다음 macOS 작업은 세션/프로세스 그룹을 바꾼 자식을 포함해 모든 소유 프로세스를 추적·종료하고
 종료 완료를 입증하는 supervisor/backend 설계다. 단순 PGID kill이나 일시적인 PID 목록
 스캔만으로 acknowledgement를 발급하지 않는다. 명령 실행·Node/npm 패키징·scoped Git·

@@ -30,7 +30,13 @@
                                      "fail":  0,
                                      "skip":  0,
                                      "revision":  "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7"
-                                 }
+                                 },
+                  "watch":  {
+                                "pass":  39,
+                                "fail":  0,
+                                "skip":  0,
+                                "testGitBlob":  "6d62be2c77b7bd0ff932abb7973190a40438bcf1"
+                            }
               },
     "ciStatus":  "PASS",
     "testedRevision":  "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7",
