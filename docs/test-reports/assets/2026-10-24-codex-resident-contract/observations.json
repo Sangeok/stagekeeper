@@ -1,0 +1,668 @@
+{
+  "result": "pass",
+  "at": "2026-10-24T01:02:46.018Z",
+  "scope": "candidate DDL only, actual PostgreSQL and two existing Runner migrations; no product server/client implementation",
+  "database": "18.6",
+  "sourceRevision": "1eedf0de90d782763167a8c500f33ab1f19e7905",
+  "sources": [
+    {
+      "file": "prisma/migrations/20261020000000_runner/migration.sql",
+      "sha256": "554656c10ed2070bb62b675f28b89a7dd1df1233ff9f7d11959548ce1e398d89"
+    },
+    {
+      "file": "prisma/migrations/20261022000000_runner_signin_stop/migration.sql",
+      "sha256": "b429a9037bd0d6d30c47dd7402680f18e6d01db99c629e9e5afba40eacef8125"
+    }
+  ],
+  "candidateSqlSha256": "276bb557805f2bdc5f42a2d94033b3a6e5c81588f1d774f491f4e83521c916f9",
+  "observations": [
+    {
+      "name": "six legacy rows preserved byte-for-value with default Claude",
+      "expected": "preserve",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":null,\"autostart\":false,\"branch\":null}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":null,\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":null,\"autostart\":true,\"branch\":null}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":null,\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":false,\"branch\":null}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":true,\"branch\":null}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":null}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":null}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":null,\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":null,\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":null,\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":null,\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"claude\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":null,\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":null,\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":null,\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":null,\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":null,\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":null,\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":null,\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":null,\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"codex\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":null,\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":null,\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":null,\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":null,\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"auto\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"session\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":null,\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":null,\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":null,\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":null,\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"auto\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"allowlist\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":false,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":null}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "{\"client\":\"future\",\"mode\":\"resident\",\"permission\":\"scoped\",\"autostart\":true,\"branch\":\"fixture\"}",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "null client",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "unknown permission",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "Codex working",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "Codex waiting dirty",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "Codex waiting branch",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "Codex waiting missing reason",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "Codex stopped error",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "Codex stopped stuck",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "Codex stopped plan",
+      "expected": "accept",
+      "result": "pass"
+    },
+    {
+      "name": "Codex stopped owner",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "Codex stopped signin",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "legacy insert default and legacy update preserved",
+      "expected": "preserve",
+      "result": "pass"
+    },
+    {
+      "name": "legacy takeover values and sign-in setting cannot reinterpret Codex",
+      "expected": "reject",
+      "result": "pass"
+    },
+    {
+      "name": "old session-only delete is not fenced by schema",
+      "expected": "delete succeeds inside rolled-back transaction; mixed server rollout prohibited",
+      "result": "pass"
+    }
+  ],
+  "checksPassed": 111,
+  "checksFailed": 0,
+  "constraints": [
+    {
+      "conname": "Runner_autostart_not_null",
+      "definition": "NOT NULL autostart"
+    },
+    {
+      "conname": "Runner_client_check",
+      "definition": "CHECK ((client = ANY (ARRAY['claude'::text, 'codex'::text])))"
+    },
+    {
+      "conname": "Runner_client_not_null",
+      "definition": "NOT NULL client"
+    },
+    {
+      "conname": "Runner_client_permission_check",
+      "definition": "CHECK ((((client = 'claude'::text) AND ((permission IS NULL) OR (permission = ANY (ARRAY['auto'::text, 'allowlist'::text])))) OR ((client = 'codex'::text) AND (mode = 'resident'::text) AND (branch IS NOT NULL) AND (permission IS NOT NULL) AND (permission = 'scoped'::text) AND (NOT autostart))))"
+    },
+    {
+      "conname": "Runner_host_not_null",
+      "definition": "NOT NULL host"
+    },
+    {
+      "conname": "Runner_mode_check",
+      "definition": "CHECK ((mode = ANY (ARRAY['session'::text, 'resident'::text])))"
+    },
+    {
+      "conname": "Runner_mode_not_null",
+      "definition": "NOT NULL mode"
+    },
+    {
+      "conname": "Runner_permission_check",
+      "definition": "CHECK (((permission IS NULL) OR (permission = ANY (ARRAY['auto'::text, 'allowlist'::text, 'scoped'::text]))))"
+    },
+    {
+      "conname": "Runner_pkey",
+      "definition": "PRIMARY KEY (\"projectId\")"
+    },
+    {
+      "conname": "Runner_projectId_fkey",
+      "definition": "FOREIGN KEY (\"projectId\") REFERENCES \"Project\"(id) ON UPDATE CASCADE ON DELETE CASCADE"
+    },
+    {
+      "conname": "Runner_projectId_not_null",
+      "definition": "NOT NULL \"projectId\""
+    },
+    {
+      "conname": "Runner_resident_check",
+      "definition": "CHECK (((mode <> 'resident'::text) OR ((branch IS NOT NULL) AND (permission = ANY (ARRAY['auto'::text, 'allowlist'::text, 'scoped'::text])))))"
+    },
+    {
+      "conname": "Runner_seenAt_not_null",
+      "definition": "NOT NULL \"seenAt\""
+    },
+    {
+      "conname": "Runner_session_not_null",
+      "definition": "NOT NULL session"
+    },
+    {
+      "conname": "Runner_startedAt_not_null",
+      "definition": "NOT NULL \"startedAt\""
+    },
+    {
+      "conname": "Runner_state_check",
+      "definition": "CHECK ((state = ANY (ARRAY['idle'::text, 'working'::text, 'waiting'::text, 'stopped'::text])))"
+    },
+    {
+      "conname": "Runner_state_not_null",
+      "definition": "NOT NULL state"
+    },
+    {
+      "conname": "Runner_stop_check",
+      "definition": "CHECK ((((state = 'stopped'::text) = (\"stopReason\" IS NOT NULL)) AND ((\"stopReason\" IS NULL) OR (\"stopReason\" = ANY (ARRAY['stuck'::text, 'error'::text, 'plan'::text, 'owner'::text, 'signin'::text]))) AND ((\"stopReason\" IS NULL) OR (\"stopReason\" <> ALL (ARRAY['owner'::text, 'signin'::text])) OR ((mode = 'resident'::text) AND autostart))))"
+    },
+    {
+      "conname": "Runner_tokenId_not_null",
+      "definition": "NOT NULL \"tokenId\""
+    },
+    {
+      "conname": "Runner_wait_check",
+      "definition": "CHECK ((((state = 'waiting'::text) = (\"waitReason\" IS NOT NULL)) AND ((\"waitReason\" IS NULL) OR (\"waitReason\" = ANY (ARRAY['dirty'::text, 'branch'::text])))))"
+    }
+  ],
+  "cleanup": {
+    "publicTables": 0
+  },
+  "limitations": [
+    "not Prisma migrate deploy",
+    "not REST or runner integration acceptance",
+    "not a physical clean Windows trial",
+    "does not permit mixed old/new server writers after Codex activation"
+  ]
+}
