@@ -11,7 +11,11 @@ const identity = stat => process.platform === "win32" ? String(stat.ino) : `${st
 const canonical = name => process.platform === "win32" ? name.toLowerCase() : name;
 
 export class RoleFileInputError extends Error {
-  constructor() { super("Invalid read pagination. Use integer maxLines 1..500 and positive safe-integer startLine; follow nextLine for further pages. Correct parameters without changing target permissions."); this.name = "RoleFileInputError"; }
+  constructor(message = "Invalid read pagination. Use integer maxLines 1..500 and positive safe-integer startLine; follow nextLine for further pages. Correct parameters without changing target permissions.") { super(message); this.name = "RoleFileInputError"; }
+}
+
+export class RoleFileRevisionError extends Error {
+  constructor() { super("File revision differs. Read the permitted file again, review its current content, and use the exact returned hash as expectedHash before retrying. No write was applied; existing permissions still apply."); this.name = "RoleFileRevisionError"; }
 }
 
 export class RolePathMissingError extends Error {
@@ -135,10 +139,10 @@ export function createRoleFiles(filesystem, agent) {
 
   function write(target, args) {
     resolveTarget(target, true);
-    if (typeof args.content !== "string" || Buffer.byteLength(args.content, "utf8") > MAX_FILE_BYTES || args.content.includes("\0")
-      || (args.expectedHash !== null && !/^[a-f0-9]{64}$/.test(args.expectedHash ?? ""))) throw new Error("Invalid guarded text write");
+    if (typeof args.content !== "string" || Buffer.byteLength(args.content, "utf8") > MAX_FILE_BYTES || args.content.includes("\0")) throw new Error("Invalid guarded text write");
+    if (args.expectedHash !== null && !/^[a-f0-9]{64}$/.test(args.expectedHash ?? "")) throw new RoleFileInputError("expectedHash must be the exact 64-character lowercase SHA-256 from a current read, or null for a new file. Correct the input without changing target permissions.");
     const previous = existsSync(target) ? read(target) : null;
-    if ((previous?.hash ?? null) !== args.expectedHash) throw new Error("File revision differs; read it again");
+    if ((previous?.hash ?? null) !== args.expectedHash) throw new RoleFileRevisionError();
     mkdirSync(path.dirname(target), { recursive: true });
     resolveTarget(target, true);
     const temporary = path.join(path.dirname(target), `.harness-role-${randomUUID()}.tmp`);

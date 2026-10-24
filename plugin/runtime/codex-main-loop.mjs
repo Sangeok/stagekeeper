@@ -8,14 +8,14 @@ import { isDeepStrictEqual } from "node:util";
 import { AppServer, assertRolePolicy, childEnvironment, codexExecutable, inspectHostPolicy, stageVerifierPackage, verifyRoleExecution } from "./codex-thread.mjs";
 import { verifierPackage } from "./codex-agent.mjs";
 import { checkSession, readState, registerChild, settleChild } from "./local-session.mjs";
-import { createRoleFiles, RoleFileInputError, RolePathMissingError } from "./role-files.mjs";
+import { createRoleFiles, RoleFileInputError, RoleFileRevisionError, RolePathMissingError } from "./role-files.mjs";
 import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, RoleCommandInputError } from "./role-commands.mjs";
 import { createMainLoopTools } from "./codex-main-loop-tools.mjs";
 import { ResidentCommitInputError, residentGit } from "./resident-commit.mjs";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 
 const correctableInput = error => error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof ResidentCommitInputError
-  || error instanceof RolePathMissingError || error instanceof RoleGitInputError || error instanceof RoleGitPathMissingError;
+  || error instanceof RolePathMissingError || error instanceof RoleGitInputError || error instanceof RoleGitPathMissingError || error instanceof RoleFileRevisionError;
 
 export async function createMainLoopBridge(tools, signal, record = () => {}, onRefusal = () => {}) {
   const capability = randomUUID(), pending = new Set();
@@ -62,9 +62,10 @@ export async function createMainLoopBridge(tools, signal, record = () => {}, onR
       if (response.destroyed) return;
       const invalid = error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof ResidentCommitInputError || error instanceof RoleGitInputError;
       const missing = error instanceof RolePathMissingError || error instanceof RoleGitPathMissingError;
+      const conflict = error instanceof RoleFileRevisionError;
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ jsonrpc: "2.0", id, error: { code: invalid ? -32602 : missing ? -32004 : -32000,
-        message: invalid || missing ? error.message : "Resident request refused. Stop this cycle without bypassing ownership, permissions or a required handoff." } }));
+      response.end(JSON.stringify({ jsonrpc: "2.0", id, error: { code: invalid ? -32602 : missing ? -32004 : conflict ? -32005 : -32000,
+        message: invalid || missing || conflict ? error.message : "Resident request refused. Stop this cycle without bypassing ownership, permissions or a required handoff." } }));
     }
   }
   const server = createServer((request, response) => {

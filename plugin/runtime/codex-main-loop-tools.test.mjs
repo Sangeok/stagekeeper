@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
+import { createRoleFiles } from "./role-files.mjs";
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { it } from "node:test";
 import path from "node:path";
 import { createMainLoopTools } from "./codex-main-loop-tools.mjs";
@@ -124,4 +127,25 @@ it("keeps the resident bridge usable after correctable Git input or a missing ba
     assert.equal((await invoke()).error.code, -32602); assert.equal((await invoke()).error.code, -32004);
     assert.match((await invoke()).result.content[0].text, /verified/); assert.equal(calls, 3); assert.equal(refusals, 0);
   } finally { await bridge.close(); }
+});
+
+it("recovers guarded file writes after hash errors without relaxing protected paths", async () => {
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "resident-write-conflict-"));
+  const target = path.join(root, "report.md"), protectedFile = path.join(root, "protected.md");
+  writeFileSync(target, "original"); writeFileSync(protectedFile, "protected");
+  const files = createRoleFiles({ ":root": "deny", [root]: "read", [target]: "write" }, "dev");
+  let refusals = 0;
+  const bridge = await createMainLoopBridge(files, new AbortController().signal, () => {}, () => { refusals++; });
+  const invoke = (name, args) => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) }).then(response => response.json());
+  try {
+    assert.equal((await invoke("role_file_write", { path: target, content: "changed", expectedHash: "copied-incorrectly" })).error.code, -32602);
+    assert.equal((await invoke("role_file_write", { path: target, content: "changed", expectedHash: "0".repeat(64) })).error.code, -32005);
+    assert.equal(readFileSync(target, "utf8"), "original"); assert.equal(refusals, 0);
+    const current = JSON.parse((await invoke("role_file_read", { path: target })).result.content[0].text);
+    assert.equal((await invoke("role_file_write", { path: target, content: "changed", expectedHash: current.hash })).error, undefined);
+    assert.equal(readFileSync(target, "utf8"), "changed");
+    assert.equal((await invoke("role_file_write", { path: protectedFile, content: "forbidden", expectedHash: null })).error.code, -32000);
+    assert.equal(readFileSync(protectedFile, "utf8"), "protected"); assert.equal(refusals, 1);
+    assert.equal((await invoke("role_file_read", { path: target })).error.code, -32000);
+  } finally { await bridge.close(); files.close(); }
 });

@@ -675,6 +675,10 @@ Windows에서는 `plugin/runtime/role-files.mjs`가 역할별 localhost MCP brid
 root deny, 외부/인증 경로 차단, 다른 workspace deny, Git·관리 파일 read-only를 유지한다.
 관리 경로가 아직 없어도 쓰기를 거부하며 device/UNC/ADS·junction/symlink/hardlink 별칭을
 거부한다. 파일 쓰기는 현재 SHA-256 또는 신규 파일의 null을 요구하며 변경 시 거부한다.
+허용 경로의 잘못된 hash 형식은 `-32602`, 쓰기 전 읽은 현재 hash와의 불일치는
+`-32005`로 구분한다. 파일을 다시 읽고 현재 내용을 검토한 뒤 정확한 hash로 재시도할 수
+있으며 해당 실패는 파일을 변경하지 않는다. 쓰기 중 파일 identity·내용 변경과 실제
+권한·소유권 거부는 계속 일반 거부로 처리한다.
 허용된 파일의 최초 읽기 또는 디렉터리 조회·검색에서 대상이 없으면 bridge는
 `-32004`로 경로 부재를 알린다.
 이 응답은 쓰기 권한을 부여하지 않는다. 현재 단계가 신규 파일 생성을 요구할 때만

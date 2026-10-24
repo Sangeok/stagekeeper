@@ -10,7 +10,7 @@ import { ROLE_TOOLS, verifierPackage, readCodexRole } from "./codex-agent.mjs";
 import { callTool, listTools, McpDomainError } from "./mcp-client.mjs";
 import { checkSession, registerChild, settleChild, gitRoot } from "./local-session.mjs";
 import { safeTarget } from "./file-ownership.mjs";
-import { createRoleFiles, roleFileToolNames, RoleFileInputError, RolePathMissingError } from "./role-files.mjs";
+import { createRoleFiles, roleFileToolNames, RoleFileInputError, RoleFileRevisionError, RolePathMissingError } from "./role-files.mjs";
 import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, roleCommandTool, RoleCommandInputError } from "./role-commands.mjs";
 import { createQaBrowser, withQaBrowser } from "./qa-browser.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
@@ -161,6 +161,7 @@ export async function roleBridge(input, files, session, dispatch, operations = {
         : { error: error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof RoleGitInputError
         ? { code: -32602, message: error.message }
         : error instanceof RolePathMissingError || error instanceof RoleGitPathMissingError ? { code: -32004, message: error.message }
+        : error instanceof RoleFileRevisionError ? { code: -32005, message: error.message }
         : { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }) }));
     } finally { pending--; }
   }
