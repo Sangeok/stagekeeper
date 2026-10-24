@@ -14,7 +14,7 @@ import { createRoleFiles, roleFileToolNames, RoleFileInputError, RolePathMissing
 import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, roleCommandTool, RoleCommandInputError } from "./role-commands.mjs";
 import { createQaBrowser, withQaBrowser } from "./qa-browser.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
-import { createRoleGit, roleGitTool } from "./role-git.mjs";
+import { createRoleGit, roleGitTool, RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { codexExecutable } from "./codex-executable.mjs";
 import { assertCommitHandoff, assertHandoffSubmission } from "./commit-handoff.mjs";
 export { codexExecutable } from "./codex-executable.mjs";
@@ -158,9 +158,9 @@ export async function roleBridge(input, files, session, dispatch, operations = {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ jsonrpc: "2.0", id: requestId, ...(domainFailure
         ? { result: { isError: true, content: [{ type: "text", text: JSON.stringify(domainFailure) }] } }
-        : { error: error instanceof RoleFileInputError || error instanceof RoleCommandInputError
+        : { error: error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof RoleGitInputError
         ? { code: -32602, message: error.message }
-        : error instanceof RolePathMissingError ? { code: -32004, message: error.message }
+        : error instanceof RolePathMissingError || error instanceof RoleGitPathMissingError ? { code: -32004, message: error.message }
         : { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }) }));
     } finally { pending--; }
   }

@@ -6,6 +6,22 @@ import { roleBridge } from "./codex-thread.mjs";
 import { ROLE_TOOLS } from "./codex-agent.mjs";
 import { createRoleCommands } from "./role-commands.mjs";
 import { z } from "zod";
+import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
+
+it("returns correctable Git errors within the existing role ownership boundary", async t => {
+  let active = true, calls = 0;
+  const bridge = await roleBridge({ binding: {} }, {}, "s", { agent: "plan-verifier", project: "p" }, {
+    listTools: async () => ROLE_TOOLS["plan-verifier"].map(name => ({ name })),
+    checkSession: async () => ({ event: "owned", lifecycle: active ? "active" : "stopping", client: "codex" }),
+    callTool: async () => ({ done: false, step: "verify", receipt: { runId: "r", revision: 0, stepId: "verify" } }),
+  }, { tools: [{ name: "role_git_read" }], call: async () => { calls++; if (calls === 1) throw new RoleGitInputError(); if (calls === 2) throw new RoleGitPathMissingError(); return { output: "verified" }; }, close: async () => {} });
+  t.after(() => bridge.close());
+  const invoke = name => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: {} } }) }).then(response => response.json());
+  await invoke("agent_next");
+  assert.equal((await invoke("role_git_read")).error.code, -32602); assert.equal((await invoke("role_git_read")).error.code, -32004);
+  assert.match((await invoke("role_git_read")).result.content[0].text, /verified/);
+  active = false; assert.equal((await invoke("role_git_read")).error.code, -32000); assert.equal(calls, 3);
+});
 
 it("distinguishes correctable command parameters from ownership and filesystem refusals", async t => {
   let active = true;

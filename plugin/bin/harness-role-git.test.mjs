@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { createRoleFiles } from "../runtime/role-files.mjs";
-import { createRoleGit, nativeGitExecutable } from "../runtime/role-git.mjs";
+import { createRoleGit, nativeGitExecutable, RoleGitInputError, RoleGitPathMissingError } from "../runtime/role-git.mjs";
 
 const temporary = realpathSync(tmpdir()), digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const host = { skip: process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1" };
@@ -26,6 +26,20 @@ function fixture(t, lifecycle = {}) {
   return { base, root, file, head, git, files, broker };
 }
 const query = (f, operation, extra = {}) => f.broker.call("role_git_read", { operation, ...(operation === "head" ? {} : { paths: [f.file] }), ...extra });
+
+it("allows correction of multi-file show and absent baseline files while keeping ref and path denials fatal", host, async t => {
+  const f = fixture(t), added = path.join(f.root, "added.txt");
+  writeFileSync(added, "new\n"); f.git("add", "."); f.git("-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "add file");
+  const index = digest(readFileSync(path.join(f.root, ".git/index")));
+  await assert.rejects(query(f, "show", { paths: [f.file, added] }), RoleGitInputError);
+  assert.equal((await query(f, "show")).output, "before\n");
+  await assert.rejects(query(f, "show", { paths: [added], ref: f.head }), RoleGitPathMissingError);
+  assert.equal((await query(f, "show", { paths: [added] })).output, "new\n");
+  assert.match((await query(f, "diff", { paths: [added], ref: f.head })).output, /\+new/);
+  for (const extra of [{ ref: "HEAD~1" }, { paths: [path.join(f.root, "foreign/private.txt")] }, { paths: [f.root] }])
+    await assert.rejects(query(f, "show", extra), error => !(error instanceof RoleGitInputError) && !(error instanceof RoleGitPathMissingError));
+  assert.equal(digest(readFileSync(path.join(f.root, ".git/index"))), index);
+});
 
 it("reads a confirmed handoff commit after HEAD moves and restricts that ref to its artifact", host, async t => {
   const f = fixture(t), name = "docs/plans/A.md", file = path.join(f.root, name);

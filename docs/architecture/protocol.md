@@ -724,6 +724,10 @@ QA는 모든 플랫폼에서 파일·브라우저 도구만 사용하며 Git·�
 HEAD 또는 해당 dispatch에 기록된 planCommit을 허용한다. 인계 재개에서는 검증된
 commitHandoff.commit도 허용하되 그 인계 파일 하나에만 적용한다. 외부·다른 workspace·인증·환경
 파일·directory·glob은 거부하고 전체 저장소 검증으로 해석하지 않는다.
+여러 파일을 넣은 `show` 등 입력 형식 오류는 `RoleGitInputError`/MCP `-32602`로 반환한다.
+허용된 commit의 tree 조회가 성공했지만 선택 파일이 없으면 `RoleGitPathMissingError`/
+`-32004`로 부재를 알린다. 두 경우는 같은 범위에서 교정할 수 있다. 임의 ref·금지 경로·
+실제 Git 실행 실패·소유권 상실은 계속 일반 거부이며 resident cycle을 종료한다.
 현재 경로가 삭제되었거나 일반 파일로 바뀌어도 비교 commit에서 directory/tree·symlink·
 submodule이면 거부한다. literal pathspec의 역사 tree 재귀로 금지된 하위 파일을
 노출하지 않도록 HEAD와 조회 ref의 파일 type과 선택 범위를 먼저 확인한다.
@@ -742,7 +746,8 @@ lazy fetch·submodule 조회를 비활성화한다. system/global config와 attr
 이전 판 `mingw64`)을 호출한다. launcher의 종료만 reader 종료로 계산하지 않으며 확인되지 않는 shim은 거부한다.
 프로세스를 같은 소유권에 등록하고 중지 시 실제 종료와 reader EOF를 기다려 settle한다.
 
-`diff`는 HEAD/planCommit에서 만든 private index와 현재 허용 파일의 byte 내용을 비교한다.
+`diff`는 현재 HEAD에서 만든 private index와 현재 허용 파일을 사용해 선택한 HEAD/planCommit과
+비교한다. 따라서 계획 이후 HEAD에 추가로 commit된 파일도 diff에 포함된다.
 추적되지 않은 신규 파일은 `status`로 확인한다. `status`는 복사한 private index와 선택한
 현재 파일을 사용하고 선택 파일의 assume-unchanged·skip-worktree flag를 복사본에서만
 지운다. 이 flag로 실제 수정이 숨겨지면 검증 증거가 될 수 없다. 원본 index가 없으면

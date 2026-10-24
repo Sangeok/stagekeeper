@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { it } from "node:test";
 import path from "node:path";
 import { createMainLoopTools } from "./codex-main-loop-tools.mjs";
@@ -111,4 +112,16 @@ it("fences an already queued dispatch when a prior tool receives a policy refusa
     assert.equal((await invoke(3)).error.code, -32000);
     assert.equal(calls, 1); assert.equal(refusals, 1);
   } finally { release(); await bridge.close(); }
+});
+
+it("keeps the resident bridge usable after correctable Git input or a missing baseline file", async () => {
+  let calls = 0, refusals = 0;
+  const bridge = await createMainLoopBridge({ tools: [], call: async () => {
+    calls++; if (calls === 1) throw new RoleGitInputError(); if (calls === 2) throw new RoleGitPathMissingError(); return { output: "verified" };
+  } }, new AbortController().signal, () => {}, () => { refusals++; });
+  const invoke = () => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "resident_git", arguments: {} } }) }).then(response => response.json());
+  try {
+    assert.equal((await invoke()).error.code, -32602); assert.equal((await invoke()).error.code, -32004);
+    assert.match((await invoke()).result.content[0].text, /verified/); assert.equal(calls, 3); assert.equal(refusals, 0);
+  } finally { await bridge.close(); }
 });

@@ -413,7 +413,7 @@ it("starts at sign-in after a runner died mid-run", async t => {
   writeFileSync(path.join(f.directory, "autostart.json"), JSON.stringify({ schemaVersion: 1, branch: "main" }));
 
   const signIn = await f.run([...START, "--from-autostart"]);
-  assert.equal(signIn.event.event, "started");
+  assert.equal(signIn.event.event, "started", JSON.stringify({ event: signIn.event, status: f.status(), log: readFileSync(path.join(f.directory, "background.log"), "utf8").slice(-8000) }));
   assert.notEqual(signIn.event.session, first.event.session);
   assert.ok(f.runnerCalls.every(call => call.op !== "autostart"));
 });
