@@ -40,6 +40,7 @@ const policy = `(version 1)
 `;
 const profile = path.join(root, "probe.sb"); fs.writeFileSync(profile, policy);
 const env = { PATH: runtime, HOME: scratch, TMPDIR: scratch, LANG: "C", LC_ALL: "C" };
+process.env.STAGEKEEPER_PROBE_SECRET = "owned-parent-environment-canary";
 const listener = net.createServer(socket => socket.destroy());
 await new Promise(resolve => listener.listen(0, "127.0.0.1", resolve));
 const port = String(listener.address().port);
