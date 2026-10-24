@@ -490,6 +490,18 @@ x64에서 각각 521 PASS / 18 SKIP다. [GitHub runner 목록](https://docs.gith
 macOS native backend를 추가할 때 위 owner·도구 schema·runtime packaging·권한/종료 검증을
 같은 변경으로 연결해야 한다. 현재 CI에는 client 인증이나 private source를 전달하지 않는다.
 
+2026-10-24 [native 가능성 시험](../../test-reports/completed/2026-10-24-codex-runtime-portability.md)은
+Seatbelt 아래의 부모·자식이 합성 foreign/auth/Git/env 경로와 TCP loopback에 접근하지 못함을
+arm64/x64에서 확인했다. 그러나 `detached: true` 자식은 부모 그룹을 종료한 뒤에도 살아 있었다.
+시험 자식은 별도로 종료·확인했으며 제품 backend는 추가하지 않았다. **프로세스 그룹 종료를
+quiescence ack로 쓰는 구현은 불가**하다. 다음 backend는 세션/그룹을 이탈하는 자식과
+fork/exit 경쟁까지 포함한 소유권 추적·종료 근거를 마련한 뒤 위 command/Git/packaging 계약을
+연결해야 한다. 일시적인 PID 목록·부모 종료만으로 lock을 해제하지 않는다.
+
+같은 보고서의 0.5.21/0.5.22 양방향 인계는 현재 Windows의 공유 session 계약·Claude idle
+resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 resident의 실제 혼합 host,
+물리적 clean Windows, macOS 인증 A→Z와 출시 gate는 남아 있다.
+
 ## Readiness and Handoff
 
 C4A와 현재 Windows C4B의 구현·격리 연결 검증은 완료했다. C4C는 이 호스트의

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "historicalNativeDiagnosticCause": "unconfirmed; not closed by this change",
+  "historicalCorruptStateCause": "unconfirmed; not closed by this change",
+  "injectedNativeBoundaries": ["spawn", "helper-exit", "ack-json", "ack-shape", "ack-timeout"],
+  "injectedFailureAssertions": {
+    "result": "PASS",
+    "rawOutputPathsAndSecretsNotReflected": true,
+    "unknownAcknowledgementDoesNotSettleOwnership": true,
+    "corruptStateNotRepairedOrOverwritten": true,
+    "corruptStateStartsNoClientOrRequest": true
+  },
+  "developmentFailures": [
+    {"scope": "core-plugin first full suite", "pass": 543, "fail": 1, "skip": 2, "cause": "copied CLI fixture omitted the new state diagnostics dependency", "resolution": "copy dependency; final suite 544 pass, 0 fail, 2 skip"},
+    {"scope": "check and architecture first run", "cause": "runtime-cache checkout fixture omitted the new native diagnostics dependency", "resolution": "copy dependency; check 194 pass/3 skip and architecture 148 pass/2 skip"},
+    {"scope": "Windows handoff first run", "cause": "captured process close waited on pipes held by the detached resident", "resolution": "normal stop of the owned resident, then file-backed stdout/stderr capture; second run passed both directions"},
+    {"scope": "macOS native startup, initial profiles", "signal": "SIGABRT", "terminationNamespace": "0x23", "terminationCode": 2, "copiedRuntimeOutsideSeatbeltStarts": true, "affectedArchitectures": ["arm64", "x64"], "firstRun": 40082564876, "diagnosticRun": 40083141204, "resolution": "native probe starts after literal root-directory read is added; descendants still demonstrate the process-group containment blocker"},
+    {"scope": "Windows CI resident stop", "run": 40083489330, "pass": 40, "fail": 1, "observed": "stop event was error instead of stopping; original assertion did not capture its code", "cause": "unconfirmed", "followUp": "assertion now retains the refusal event and fixed state diagnostics; no product policy change"}
+  ],
+  "residentStopRepetitions": {"runtime": "bundled Node 22.23.3", "iterations": 20, "pass": 20, "fail": 0, "causeResolved": false}
+}

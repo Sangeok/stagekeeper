@@ -26,18 +26,21 @@ const FAKE_CLAUDE = `
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 const args = process.argv.slice(2);
 const count = Number(process.env.GIT_CONFIG_COUNT ?? 0);
-appendFileSync(process.env.FAKE_RECORD, JSON.stringify({ args, pid: process.pid, server: process.env.HARNESS_SERVER,
+const record = () => appendFileSync(process.env.FAKE_RECORD, JSON.stringify({ args, pid: process.pid, server: process.env.HARNESS_SERVER,
   count: process.env.GIT_CONFIG_COUNT ?? null, key: process.env["GIT_CONFIG_KEY_" + (count - 1)] ?? null,
   value: process.env["GIT_CONFIG_VALUE_" + (count - 1)] ?? null }) + "\\n");
 const out = value => process.stdout.write(JSON.stringify(value) + "\\n");
+if (args[1] === "Reply with OK.") record();
 out({ type: "system", subtype: "hook_started" });
 const mode = args[args.indexOf("--permission-mode") + 1];
 out({ type: "system", subtype: "init", permissionMode: process.env.FAKE_PERMISSION ?? mode });
 if (args[1] === "Reply with OK.") setInterval(() => {}, 1000);
 else {
+  if (process.env.STAGEKEEPER_TEST_PLAN_DELAY) await new Promise(resolve => setTimeout(resolve, Number(process.env.STAGEKEEPER_TEST_PLAN_DELAY)));
   const plan = JSON.parse(readFileSync(process.env.FAKE_PLAN, "utf8"));
   const step = plan.length > 1 ? plan.shift() : plan[0];
   writeFileSync(process.env.FAKE_PLAN, JSON.stringify(plan));
+  record();
   if (step.kind === "hang" && process.env.STAGEKEEPER_TEST_CRASH_CLIENT) writeFileSync(process.env.STAGEKEEPER_TEST_CRASH_CLIENT, JSON.stringify({ pid: process.pid }));
   if (step.touch) writeFileSync(step.touch, "partial\\n");
   if (step.kind === "hang") setInterval(() => {}, 1000);
@@ -323,7 +326,7 @@ it("waits on uncommitted changes with one notice and continues once the tree is 
 });
 
 it("ends a run when the branch changes, waits on the branch and resumes after switching back", async t => {
-  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "success" }] });
+  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "success" }], env: { STAGEKEEPER_TEST_PLAN_DELAY: "1500" } });
   const started = await f.run(["--start", "--propose", "no", "--interval", "0.3", "--run-limit", "5"]);
   assert.equal(started.event.event, "started");
   const hung = await waitFor(() => f.record().find(entry => entry.args[1] !== "Reply with OK."), 30000, "the first run");

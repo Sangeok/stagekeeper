@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "platform": "darwin",
+  "arch": "arm64",
+  "release": "24.6.0",
+  "node": "v22.23.2",
+  "nodeSha256": "18e387c90ab8a8400183e8bdd396376e1e875b91b4c874b894dcade7b35bf572",
+  "policySha256": "14ba4dada2a679ea2547bb2adbe34a57b64e15c4bdcfdb5e637409389794ca09",
+  "scope": "native feasibility probe; no model or production backend",
+  "boundaries": {
+    "mode": "parent",
+    "allowedReadWrite": true,
+    "denied": [
+      "foreign/secret",
+      "owner/.codex/auth.json",
+      "repository/.git/config",
+      "repository/.env"
+    ],
+    "environmentIsolated": true,
+    "networkDenied": true,
+    "descendant": {
+      "mode": "descendant",
+      "allowedReadWrite": true,
+      "denied": [
+        "foreign/secret",
+        "owner/.codex/auth.json",
+        "repository/.git/config",
+        "repository/.env"
+      ],
+      "environmentIsolated": true,
+      "networkDenied": true,
+      "descendant": null
+    }
+  },
+  "detachedChildSurvivesGroupKill": true,
+  "ownedProcessesGone": true,
+  "verdict": "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE",
+  "productionBackendEnabled": false
+}

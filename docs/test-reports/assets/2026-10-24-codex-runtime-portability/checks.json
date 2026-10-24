@@ -1,0 +1,30 @@
+{
+    "schema":  1,
+    "productRevision":  "f345d0096370316c9c9114d45e0c43c9276cc8b5",
+    "local":  {
+                  "check":  {
+                                "pass":  194,
+                                "fail":  0,
+                                "skip":  3
+                            },
+                  "corePlugin":  {
+                                     "pass":  544,
+                                     "fail":  0,
+                                     "skip":  2
+                                 },
+                  "architecture":  {
+                                       "pass":  148,
+                                       "fail":  0,
+                                       "skip":  2
+                                   },
+                  "fsd":  "PASS",
+                  "serverBoundaries":  "PASS",
+                  "build":  "PASS",
+                  "versionChange":  "0.5.21 -\u003e 0.5.22",
+                  "residentStopRepetitions":  {
+                                                  "pass":  20,
+                                                  "fail":  0
+                                              }
+              },
+    "ciStatus":  "pending final source checks"
+}

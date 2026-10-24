@@ -338,6 +338,9 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T114 | R2 | required | Exact final A-to-Z payload, real 110-minute idle with HTTP counts | Unchanged 2,229-file payload, 6601 seconds through final checks, 108 beats and 108 polls all HTTP 200; no models/AgentRuns/usage; owned cleanup | [E117] | PASS |
 | T115 | R2 | required | Recoverable crash versus abandoned state guard | Controlled crash outside guard restarts; abandoned guard refuses without state changes; 20 sign-in repetitions and full regression | [E117] | PASS |
 | T116 | R2 | required | macOS arm64/x64 model-free core/plugin contracts | Each 521 PASS / 18 SKIP; native macOS resident acceptance explicitly excluded | [E117] | PASS |
+| T117 | R2 | required | Redacted native/state diagnostics and fault injection | No raw output/path/secret reflection, no settlement without acknowledgement, corrupt state preserved | [E118] | PASS |
+| T118 | R2 | required | Actual 0.5.21 to 0.5.22 install and same-PC version handoff | Both client inventories verified; bidirectional session and Claude idle resident stop preserve ownership and successor | [E118] | PASS |
+| T119 | R2 | required | Native macOS feasibility and detached-child negative control | Parent/child synthetic path and TCP denials pass; detached child survival is detected and owned children cleaned up; production backend remains blocked | [E118] | PASS |
 
 ## Commands and Static Checks
 
@@ -493,8 +496,10 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E115 | Native Codex cycles through installed common resident loop with synthetic server responses | [Scoped report](../completed/2026-10-24-codex-native-cycles.md); [projected observations](../assets/2026-10-24-codex-native-cycles/observations.json). Native processes/model/commits/interrupt are real; adapter wiring, lease/overview/receipt are fixtures. | No canary values, credentials, private body, raw transcript, thread/turn/receipt IDs or local user paths |
 | E116 | Actual product Codex resident service, installed package, fresh A-to-Z and scoped long-idle evidence | [Scoped report](../completed/2026-10-24-codex-resident-live.md); [observations](../assets/2026-10-24-codex-resident-live/observations.json), [checks](../assets/2026-10-24-codex-resident-live/checks.json), [source boundaries and failure history](../assets/2026-10-24-codex-resident-live/source-basis.json). Historical failures and superseded candidates retained; model-free idle and real model paths distinguished. | No private body, credentials, raw transcript, real account/session IDs or local user paths |
 | E117 | Exact final payload idle, crash-test repair and macOS contract CI | [Scoped report](../completed/2026-10-24-codex-runtime-stability.md); [idle/HTTP/cleanup](../assets/2026-10-24-codex-runtime-stability/observations.json), [failure and repetition evidence](../assets/2026-10-24-codex-runtime-stability/failures.json), [checks](../assets/2026-10-24-codex-runtime-stability/checks.json), [source basis](../assets/2026-10-24-codex-runtime-stability/source-basis.json). Native diagnostic cause remains unconfirmed. | Fixed labels, counts and hashes only; no credentials, private bodies or real account/session IDs |
+| E118 | Runtime diagnostic and portability follow-up | [Scoped report](../completed/2026-10-24-codex-runtime-portability.md), [actual client updates](../assets/2026-10-24-codex-runtime-portability/windows-update.json), [same-PC handoff](../assets/2026-10-24-codex-runtime-portability/windows-handoff.json), [macOS arm64](../assets/2026-10-24-codex-runtime-portability/macos-arm64.json), [macOS x64](../assets/2026-10-24-codex-runtime-portability/macos-x64.json), [failures](../assets/2026-10-24-codex-runtime-portability/failures.json), [source basis](../assets/2026-10-24-codex-runtime-portability/source-basis.json), [checks](../assets/2026-10-24-codex-runtime-portability/checks.json). 0.5.22 payload has 2,231 files; historical diagnostic causes remain unconfirmed. | Fixed labels and hashes; no credentials/private bodies/session IDs; macOS process-group cancellation is explicitly insufficient |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
+
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
 
 Historical E48–E52 uncommitted C0 source SHA256: scripts/rehearse-dual-client-runtime.ts: f1e821ee44b9c0f9df1facafeef40a82bdc8afb01acd0fc7d0fecf3e4108ff5e; scripts/rehearse-dual-client-runtime.test.ts: f7417528786e04b8095af94ab24e86e2bde84799159e7360b69a890143af5a67. E41 onward records actual manual probes and regression commands; earlier rows are retained as historical observations. Verdicts apply to each tested candidate, not all possible Codex environments. No raw credential or conversation transcript is persisted here.
@@ -504,6 +509,13 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+E118 adds fixed-field diagnostics and actual installed-version compatibility on the current PC.
+It does not close historical cause-unconfirmed failures, T11's full mixed-version acceptance,
+physical clean-host or release gates. Its native macOS probe demonstrates inherited permission
+boundaries for synthetic paths and TCP, but a detached descendant survives parent group kill.
+Production macOS ownership/quiescence must therefore be implemented before connecting the
+command/Git/runtime backend and running authenticated A-to-Z acceptance.
 
 E117 resolves the reproduced sign-in test race without changing the product guard
 policy. The earlier native diagnostic and separate corrupt-state failures remain
