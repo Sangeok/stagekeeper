@@ -43,7 +43,7 @@ async function fixture(t, options = {}) {
           if (method === "skills/list") return { data: [] };
           if (method === "thread/start") { fail("thread"); return { thread: { id: "thread-" + servers.length } }; }
           if (method === "turn/start") { startedTurn.resolve(); if (options.startGate) await options.startGate.promise; return { turn: { id: "turn" } }; }
-          if (method === "turn/interrupt") { counts.interrupted++; this.emit("interrupted"); return {}; }
+          if (method === "turn/interrupt") { counts.interrupted++; this.emit(options.interruptStatus ?? "interrupted"); return {}; }
           throw new Error("Unexpected method " + method);
         }, close: async function () { counts.closed++; this.closed = true; },
       };
@@ -80,12 +80,12 @@ it("interrupts exactly once when ownership is lost before turn acknowledgement a
   assert.equal(f.execution.classify(result).outcome, "cancelled"); assert.equal(readState(f.files).lock.children.length, 0);
 });
 
-it("ends a fatal tool refusal with one interrupt and confirmed cleanup", async t => {
-  const f = await fixture(t), cycle = f.execution.start({ generation: 1 });
+for (const terminal of ["interrupted", "completed"]) it(`keeps a fatal tool refusal failed when the terminal is ${terminal}`, async t => {
+  const f = await fixture(t, { interruptStatus: terminal }), cycle = f.execution.start({ generation: 1 });
   while (!f.records.some(value => value.event === "model-start")) await new Promise(resolve => setImmediate(resolve));
   f.refusePolicy(); f.refusePolicy(); cycle.end("stop");
   const result = await cycle.done;
-  assert.equal(result.endedFor, "policy"); assert.equal(result.terminal, "interrupted");
+  assert.equal(result.endedFor, "policy"); assert.equal(result.terminal, terminal);
   assert.equal(f.execution.classify(result).outcome, "error"); assert.equal(f.counts.interrupted, 1);
   assert.equal(f.counts.closed, 1); assert.equal(f.counts.bridgeClosed, 1); assert.equal(f.counts.fileClosed, 1);
   assert.equal(readState(f.files).lock.children.length, 0);

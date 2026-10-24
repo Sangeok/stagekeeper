@@ -215,7 +215,7 @@ export function createCodexExecution(context, operations = {}) {
     },
     classify(result) {
       const outcome = result.endedFor === "stop" ? "cancelled" : result.endedFor === "branch" ? "branch" : result.endedFor === "timeout" ? "timeout"
-        : result.terminal === "completed" && !result.failed ? "success" : "error";
+        : !result.endedFor && result.terminal === "completed" && !result.failed ? "success" : "error";
       return { outcome, line: `Codex cycle ${result.generation}: ${outcome}` };
     },
   };
