@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -38,6 +38,7 @@ else {
   const plan = JSON.parse(readFileSync(process.env.FAKE_PLAN, "utf8"));
   const step = plan.length > 1 ? plan.shift() : plan[0];
   writeFileSync(process.env.FAKE_PLAN, JSON.stringify(plan));
+  if (step.kind === "hang" && process.env.STAGEKEEPER_TEST_CRASH_CLIENT) writeFileSync(process.env.STAGEKEEPER_TEST_CRASH_CLIENT, JSON.stringify({ pid: process.pid }));
   if (step.touch) writeFileSync(step.touch, "partial\\n");
   if (step.kind === "hang") setInterval(() => {}, 1000);
   else {
@@ -63,7 +64,7 @@ async function waitFor(predicate, limit = 30000, what = "condition") {
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code !== "ESRCH"; } };
 const lines = file => (existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line)) : []);
 
-async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}) {
+async function fixture(t, { plan = [{ kind: "success" }], env: extra = {}, controlledCrash = false } = {}) {
   const root = mkdtempSync(path.join(realpathSync.native(tmpdir()), "harness-background-test-"));
   const runnerCalls = [];
   let overview = READY;
@@ -98,6 +99,33 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}
   const directory = path.join(root, ".git", "harness");
   const env = { ...BASE_ENV, HARNESS_TOKEN: TOKEN, HARNESS_SERVER: url, STAGEKEEPER_TEST_CLAUDE: fake, STAGEKEEPER_TEST_NOTIFY_FILE: notices,
     FAKE_PLAN: planFile, FAKE_RECORD: record, ...extra };
+  const crashCheckpoint = path.join(tools, "crash-checkpoint.json");
+  if (controlledCrash) {
+    const preload = path.join(tools, "crash-checkpoint.mjs");
+    writeFileSync(preload, `
+import fs from "node:fs";
+import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
+const remove = fs.rmdirSync;
+fs.rmdirSync = function(directory, ...args) {
+  const result = remove.call(this, directory, ...args);
+  if (!process.argv.includes("--run") || path.basename(directory) !== "watch.guard") return result;
+  const lock = JSON.parse(fs.readFileSync(path.join(path.dirname(directory), "watch.lock.json"), "utf8"));
+  if (lock.poller?.pid !== process.pid || !lock.children?.length) return result;
+  try {
+    const client = JSON.parse(fs.readFileSync(process.env.STAGEKEEPER_TEST_CRASH_CLIENT, "utf8"));
+    process.kill(client.pid, 0);
+  } catch { return result; }
+  fs.writeFileSync(process.env.STAGEKEEPER_TEST_CRASH_CHECKPOINT, JSON.stringify({ session: lock.id, pid: process.pid }));
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+  return result;
+};
+syncBuiltinESMExports();
+`);
+    env.NODE_OPTIONS = `--import=${pathToFileURL(preload).href}`;
+    env.STAGEKEEPER_TEST_CRASH_CHECKPOINT = crashCheckpoint;
+    env.STAGEKEEPER_TEST_CRASH_CLIENT = path.join(tools, "crash-client.json");
+  }
   const run = (args, more = {}) => new Promise(resolve => {
     const child = spawn(process.execPath, [BIN, "--root", root, ...args], { env: { ...env, ...more }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     let stdout = "", stderr = "";
@@ -121,7 +149,7 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {} } = {}
     await new Promise(resolve => server.close(resolve));
     for (const dir of [root, tools]) rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
-  return { root, tools, url, git, run, runnerCalls, directory, lockPath, status, record: () => lines(record), notices: () => lines(notices),
+  return { root, tools, url, git, run, runnerCalls, directory, lockPath, crashCheckpoint, status, record: () => lines(record), notices: () => lines(notices),
     setRunner: handler => { runner = handler; }, setOverview: value => { overview = value; } };
 }
 
@@ -377,12 +405,18 @@ syncBuiltinESMExports();
 });
 
 async function killMidRun(f, session) {
+  const checkpoint = await waitFor(() => {
+    try { const value = JSON.parse(readFileSync(f.crashCheckpoint, "utf8")); return value.session === session ? value : null; }
+    catch { return null; }
+  }, 20000, "a run outside its state guard");
   const lock = await waitFor(() => {
     try {
       const value = JSON.parse(readFileSync(f.lockPath, "utf8"));
       return value.id === session && value.poller && value.children?.length ? value : null;
     } catch { return null; }
   }, 20000, "a run in progress");
+  assert.equal(checkpoint.pid, lock.poller.pid);
+  assert.equal(existsSync(path.join(f.directory, "watch.guard")), false);
   const client = await waitFor(() => f.record().findLast(entry => !entry.args.includes("Reply with OK.") && alive(entry.pid)), 20000, "the running client");
   const pids = [lock.poller.pid, ...lock.children.map(child => child.pid), client.pid];
   for (const pid of pids) { try { process.kill(pid, "SIGKILL"); } catch {   } }
@@ -390,7 +424,7 @@ async function killMidRun(f, session) {
 }
 
 it("clears a runner that died mid-run on the next start and on a stop", async t => {
-  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "hang" }, { kind: "success" }] });
+  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "hang" }, { kind: "success" }], controlledCrash: true });
   const first = await f.run(START);
   assert.equal(first.event.event, "started");
   await killMidRun(f, first.event.session);
@@ -406,7 +440,7 @@ it("clears a runner that died mid-run on the next start and on a stop", async t 
 });
 
 it("starts at sign-in after a runner died mid-run", async t => {
-  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "success" }] });
+  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "success" }], controlledCrash: true });
   const first = await f.run(START);
   assert.equal(first.event.event, "started");
   await killMidRun(f, first.event.session);
@@ -416,6 +450,25 @@ it("starts at sign-in after a runner died mid-run", async t => {
   assert.equal(signIn.event.event, "started", JSON.stringify({ event: signIn.event, status: f.status(), log: readFileSync(path.join(f.directory, "background.log"), "utf8").slice(-8000) }));
   assert.notEqual(signIn.event.session, first.event.session);
   assert.ok(f.runnerCalls.every(call => call.op !== "autostart"));
+});
+
+it("refuses sign-in recovery while an abandoned state guard remains", async t => {
+  const f = await fixture(t, { plan: [{ kind: "hang" }], controlledCrash: true });
+  const started = await f.run(START);
+  assert.equal(started.event.event, "started");
+  await killMidRun(f, started.event.session);
+  const guard = path.join(f.directory, "watch.guard"), owner = path.join(guard, "owner.json");
+  mkdirSync(guard);
+  writeFileSync(owner, JSON.stringify({ pid: f.status().pid, nonce: "abandoned-test-guard" }));
+  writeFileSync(path.join(f.directory, "autostart.json"), JSON.stringify({ schemaVersion: 1, branch: "main" }));
+  const before = [f.lockPath, path.join(f.directory, "watch.json"), owner].map(file => readFileSync(file));
+  try {
+    const refused = await f.run([...START, "--from-autostart"]);
+    assert.equal(refused.event.code, "guard-busy");
+    assert.deepEqual([f.lockPath, path.join(f.directory, "watch.json"), owner].map(file => readFileSync(file)), before);
+    assert.equal(f.runnerCalls.filter(call => call.op === "start").length, 1);
+    assert.equal(existsSync(guard), true);
+  } finally { unlinkSync(owner); rmdirSync(guard); }
 });
 
 it("refuses a Codex start without its installed configuration before starting a client or server lease", async t => {

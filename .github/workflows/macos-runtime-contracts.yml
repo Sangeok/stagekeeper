@@ -1,0 +1,44 @@
+name: macos-runtime-contracts
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+    paths:
+      - .github/workflows/macos-runtime-contracts.yml
+      - packages/core/**
+      - plugin/bin/**
+      - plugin/runtime/**
+      - plugin/lib/**
+      - plugin/.claude-plugin/plugin.json
+      - plugin/.codex-plugin/plugin.json
+      - package.json
+      - package-lock.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  contracts:
+    name: runtime contracts (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Record contract-test environment
+        run: node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,scope:"model-free runtime contracts"}))'
+      - name: Validate shared runtime contracts without client credentials
+        run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
