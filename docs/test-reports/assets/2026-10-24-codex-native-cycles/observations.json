@@ -1,0 +1,174 @@
+{
+  "result": "pass",
+  "executedAt": "2026-10-24T01:34:55.618Z",
+  "sourceRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+  "repositoryReviewBase": "d332261d2810ae4e93fd4e1dfcb6224326a263c5",
+  "environment": {
+    "os": "Windows 11 Home 10.0.26200 x64",
+    "operatorNode": "v22.13.1",
+    "physicalCleanHost": false,
+    "availableHosts": "User confirmed current PC only"
+  },
+  "scope": {
+    "real": [
+      "Installed common runResident modules",
+      "Native Codex App Server/model",
+      "Fresh thread and separate process per cycle",
+      "Guarded report file writes and commits",
+      "Interrupt/terminal/handler/child/local-lock settlement"
+    ],
+    "synthetic": [
+      "Execution adapter wiring",
+      "Lease responses",
+      "Overview responses",
+      "Receipt identity/cursor"
+    ],
+    "notTested": [
+      "Product server lease",
+      "Fresh-role orchestration",
+      "Real pipeline receipt or usage preservation",
+      "Actual 110-minute idle",
+      "Physical clean Windows",
+      "Mixed-version physical hosts",
+      "macOS",
+      "Operational release"
+    ]
+  },
+  "observations": [
+    {
+      "test": "installed-source-and-policy",
+      "result": "PASS",
+      "version": "0.5.20",
+      "cliVersion": "codex-cli 0.164.0",
+      "sourceRevision": "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5",
+      "files": 2225,
+      "packageSha256": "5d896290f89f3656eef2893538acd53bd80b6a1f489f21e1e1901f126bd81ad1",
+      "runbookSha256": "d11029ddff08e03833a6221ba25cc45e896cef57bc40510d5d0c501094bf118d",
+      "outsideReadDenied": true,
+      "productWriteDenied": true,
+      "ownerCredentialEnvironmentExcluded": true
+    },
+    {
+      "test": "fresh-cycle-context-1",
+      "result": "PASS",
+      "generation": 1,
+      "priorCanaryObserved": true,
+      "receiptIdentityPreserved": true,
+      "restoredCursor": 0
+    },
+    {
+      "test": "native-cycle-settled-1",
+      "result": "PASS",
+      "generation": 1,
+      "terminalStatus": "completed",
+      "children": 0,
+      "handlers": 0,
+      "sameLocalSession": true,
+      "policyUnchanged": true
+    },
+    {
+      "test": "prior-generation-bridge-refused",
+      "result": "PASS"
+    },
+    {
+      "test": "fresh-cycle-context-2",
+      "result": "PASS",
+      "generation": 2,
+      "priorCanaryObserved": false,
+      "receiptIdentityPreserved": true,
+      "restoredCursor": 1
+    },
+    {
+      "test": "native-cycle-settled-2",
+      "result": "PASS",
+      "generation": 2,
+      "terminalStatus": "completed",
+      "children": 0,
+      "handlers": 0,
+      "sameLocalSession": true,
+      "policyUnchanged": true
+    },
+    {
+      "test": "pending-native-stop-fenced",
+      "result": "PASS",
+      "earlyReleaseDenied": true,
+      "competingClientDenied": true,
+      "lateCommitDenied": true
+    },
+    {
+      "test": "native-cycle-settled-3",
+      "result": "PASS",
+      "generation": 3,
+      "terminalStatus": "interrupted",
+      "children": 0,
+      "handlers": 0,
+      "sameLocalSession": true,
+      "policyUnchanged": true
+    },
+    {
+      "test": "common-loop-native-cycles",
+      "result": "PASS",
+      "completedCycles": 2,
+      "interruptedCycles": 1,
+      "freshThreads": 3,
+      "maximumConcurrentNativeCycles": 1,
+      "stopInterrupts": 1,
+      "newOverviewAfterStop": 0,
+      "resultBeatsAfterStop": 0,
+      "newModelStartsAfterStop": 0,
+      "localLockRemoved": true,
+      "scope": "Installed common runResident plus test-only native execution adapter and synthetic lease/overview/receipt. Actual Codex model and file/commit/interrupt/process cleanup. No product server lease, role orchestration, physical clean host, 110-minute idle or C4 readiness."
+    }
+  ],
+  "loop": {
+    "starts": [
+      1,
+      2,
+      3
+    ],
+    "classifications": [
+      1,
+      2
+    ],
+    "interrupts": 1,
+    "beats": 63,
+    "overviews": 5,
+    "resultBeats": 2,
+    "modelTurns": 3,
+    "tokenTotals": null,
+    "tokenTotalsReason": "Not collected"
+  },
+  "identities": [
+    {
+      "file": "plugin/runtime/background.mjs",
+      "sha256": "4e8e20a757b6148fdf1eac7d873db79078f7fda4c9514bb5bb1b219d1f0a7ae8"
+    },
+    {
+      "file": "plugin/runtime/codex-thread.mjs",
+      "sha256": "5f2db42764539bdcfb640538960e6eeab3f8c65d6a4ef8e0f47d7b5bd179f169"
+    },
+    {
+      "file": "plugin/runtime/role-files.mjs",
+      "sha256": "339fa7b096ad0870533ff850c547d3286734e08388735b96beaf0febd6692ef8"
+    },
+    {
+      "file": "plugin/runtime/local-session.mjs",
+      "sha256": "66116588c6ca412d232e82b21377fb177b9e76bb138d132f36a21bd1d1b0be67"
+    }
+  ],
+  "operatorScriptSha256": "aa924cb5118edd19e6b5a15f8725453560b651fecc1de7594d2a00c83f949fbe",
+  "currentRegression": {
+    "command": "node --test plugin/bin/harness-background-loop.test.mjs plugin/bin/harness-resident-execution.test.mjs",
+    "pass": 34,
+    "fail": 0,
+    "skip": 0
+  },
+  "cleanup": {
+    "ownedMatchingProcesses": 0,
+    "activeBridgeHandlers": 0,
+    "trackedChildren": 0,
+    "localLockPresent": false,
+    "fixturesRetained": true
+  },
+  "readiness": "C4B/C4C and parent remain blocked; native observations expand partial BLK-C4R-01 evidence only"
+}
