@@ -1,0 +1,106 @@
+{
+  "base": "9b758af9f4cd169a7407c0622d33cd573838142c",
+  "source": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+  "version": "0.5.23",
+  "payload": {
+    "sha256": "902ec7cb379e80b339315e4bbbc3cfb400f5853df2c40f31cadd4393818605da",
+    "files": 2231,
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifier": {
+      "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+      "files": 8
+    }
+  },
+  "changedFiles": [
+    {
+      "path": "docs/architecture/protocol.md",
+      "committedSha256": "55ba9b5f185fb92e58a3e3e86fe15d8ee990f4efadaa5833becf6f8842459265"
+    },
+    {
+      "path": "plugin/.claude-plugin/plugin.json",
+      "committedSha256": "a134526d8140af734ee6df14917b0d2338638a6778cb31044b07adfd5635cb39"
+    },
+    {
+      "path": "plugin/.codex-plugin/plugin.json",
+      "committedSha256": "90aac74e0fb735a28f1bd2d90ffc9cc6e436f78b3d89011068a1d048f71993e3"
+    },
+    {
+      "path": "plugin/bin/harness-background.mjs",
+      "committedSha256": "572fd50b3f25f070e660488b6aa35d61446fd9b7b61d468867df234dfec4dcf3"
+    },
+    {
+      "path": "plugin/bin/harness-background.test.mjs",
+      "committedSha256": "e95aa3c8ddf6559879ca152e16ddd709b43cbdc114b27c92548cb37735d8de25"
+    }
+  ],
+  "privateTemplateRevision": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+  "build": {
+    "source": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+    "location": "isolated worktree production build",
+    "reusedOldBuild": false
+  },
+  "ci": [
+    {
+      "conclusion": "success",
+      "databaseId": 40089054982,
+      "headSha": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+      "name": "check",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40089054982"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 40089054915,
+      "headSha": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+      "name": "macos-runtime-contracts",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40089054915"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 40089054975,
+      "headSha": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+      "name": "windows-role-runtime",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40089054975"
+    }
+  ],
+  "ciCounts": {
+    "linuxCorePlugin": {
+      "pass": 529,
+      "skip": 20
+    },
+    "macosArm64": {
+      "pass": 529,
+      "skip": 20
+    },
+    "macosX64": {
+      "pass": 529,
+      "skip": 20
+    },
+    "windowsBackground": {
+      "pass": 44,
+      "skip": 0
+    },
+    "windowsRoleCommands": {
+      "pass": 43,
+      "skip": 0
+    },
+    "serverIntegration": {
+      "pass": 146,
+      "skip": 0
+    },
+    "web": {
+      "pass": 777,
+      "skip": 0
+    }
+  },
+  "scope": {
+    "physicalCleanWindows": false,
+    "globalNodeExcludedFromHelperPath": true,
+    "productionTouched": false,
+    "macosProductionBackend": false,
+    "actualMixedHostAcceptance": false
+  },
+  "artifactPolicy": "Only fixed results, counts, hashes and source links; no credentials, raw transcript, private template body, account/session ID or absolute user path"
+}

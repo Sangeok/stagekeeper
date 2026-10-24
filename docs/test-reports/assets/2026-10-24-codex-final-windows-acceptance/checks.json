@@ -1,0 +1,59 @@
+[
+  {
+    "command": "npm run check",
+    "result": "PASS",
+    "pass": 194,
+    "skip": 3,
+    "logSha256": "69f8115682025211b5c74220136fde8bdb4c32d19bc7af04915563bdaeb70f0f"
+  },
+  {
+    "command": "npm test before the final stop-write regression was added; shipped product code unchanged",
+    "result": "PASS",
+    "pass": 546,
+    "skip": 2,
+    "logSha256": "2075bd91d8d5becca29cba02ba997527a7e6fea59390ce2260fbc3b44bec95d7"
+  },
+  {
+    "command": "npm run test:architecture",
+    "result": "PASS",
+    "pass": 148,
+    "skip": 2,
+    "logSha256": "4b8b3426a508fc534761329eb30e7c8e3771ad049a41ed3be4252d35ce6e3659"
+  },
+  {
+    "command": "bundled Node: harness-background.test.mjs, including all three new regressions",
+    "result": "PASS",
+    "pass": 25,
+    "skip": 0,
+    "logSha256": "fae6a90da434464d39adcd3708f349b3efaa8674d7a9bc8d7ab88947a1ef47f3"
+  },
+  {
+    "command": "bundled Node: denied stop write regression",
+    "result": "PASS",
+    "pass": 1,
+    "skip": 0,
+    "logSha256": "d9dce3365da640cd1e34110bdec34e98f21067da5c2df2115ddcb7e19754e211"
+  },
+  {
+    "command": "bundled Node: start and runtime diagnostic regressions",
+    "result": "PASS",
+    "pass": 3,
+    "skip": 0,
+    "logSha256": "c1b7e6cdc7a2a79f4437493040cf581fdae6cd0c71779f2cbda19bf373fafef4"
+  },
+  {
+    "command": "npm run verify:fsd",
+    "result": "PASS",
+    "logSha256": "068d533e1c785fc91a8ef0bf57fee2456528097fa7dde167cad2545fac239e70"
+  },
+  {
+    "command": "npm run verify:server",
+    "result": "PASS",
+    "logSha256": "793032129af5b9081d092e71f2cb38f270e4b2dcde53bba6554e088b678625f7"
+  },
+  {
+    "command": "npm run build",
+    "result": "PASS",
+    "logSha256": "463e47e2e0347b157deb8152bf2f1953a6c0d016e665da41d585c6f7260db2b8"
+  }
+]

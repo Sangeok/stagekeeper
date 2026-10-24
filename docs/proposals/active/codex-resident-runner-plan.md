@@ -47,6 +47,19 @@ transport·도구 계약을 저장·검토한 뒤 실제 모델을 연결한다.
 시험은 구현의 완료 조건이며 아직 없는 구현의 착수 조건으로 순환 참조하지 않는다.
 청정 Windows·macOS·혼합 호스트를 현재 PC의 시험으로 대체하거나 PASS 처리하지 않는다.
 
+## Current Windows Acceptance — 2026-10-24
+
+현재 제품 source는 `1cae8cc0843124c25b9dc585e0ef01df63d19dd2`, 격리 설치 후보는 `0.5.23`이다.
+내부 상태 진단 누락을 수정했고, 실제 양쪽 client 업데이트의 전체 2,231개 파일을 확인했다.
+같은 payload로 Codex 새 계획·독립 verifier·두 browser gate·구현·보고서·최종 다섯 인수를
+통과했다. 실제 단일 110분 idle은 6600초, heartbeat 108회·pipeline poll 108회
+모두 HTTP 200, 모델·AgentRun·usage 증가는 0이었다. [최종 Windows 보고서](../../test-reports/completed/2026-10-24-codex-final-windows-acceptance.md)가
+source/hash·실제 측정·정리·회귀/CI와 실패 이력을 소유한다.
+
+현재 PC의 이 인수는 완료했다. 과거 native/state/CI stop의 개별 원인 미확정,
+물리적 clean Windows·macOS 제품 backend/실제 인수·실제 혼합 호스트·운영 출시 gate는
+남아 있으며 전체 `pending/blocked`를 유지한다. 아래 기록은 각 후보 당시의 checkpoint다.
+
 ## Selected Scope
 
 | 결정 | 범위 |
