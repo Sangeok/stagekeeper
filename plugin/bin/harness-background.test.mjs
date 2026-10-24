@@ -205,7 +205,10 @@ it("starts a resident runner that runs ready work with push blocked, logs it and
   assert.equal(status.event.running, true);
   assert.equal(status.event.branch, "main");
   const stopping = await f.run(["--stop"]);
-  assert.equal(stopping.event.event, "stopping");
+  if (stopping.event.event !== "stopping") {
+    for (const line of readFileSync(path.join(f.directory, "background.log"), "utf8").split(/\r?\n/).filter(line => line.includes('"event":"state-diagnostic"'))) t.diagnostic(line);
+  }
+  assert.equal(stopping.event.event, "stopping", JSON.stringify(stopping.event));
   await waitFor(() => !existsSync(f.lockPath) && f.status()?.state === "stopped", 15000, "the runner to stop");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "owner" && call.session === session));
   assert.equal(f.status().stopReason, "owner");
