@@ -24,8 +24,10 @@ Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 �
 서버 원장·승인·token 모델은 공통이고 여기에 client를 저장하지 않는다. Runner 실행
 metadata에는 2026-10-24 격리 후보부터 client를 저장한다. Codex 역할은
 `plugin/runtime/codex-thread.mjs`의 fresh App Server thread와 역할별 MCP bridge로 실행한다.
-실제 모델의 권한 격리·양방향 인수·DB seed·배포는 완료되지 않았다. 이 소스 구조를
-제품 지원 인증으로 해석하지 않는다. 미완료 근거는 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md),
+현재 Windows의 실제 모델·권한 경계·설치·resident 기본 graph 인수는
+[격리 시험 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에 기록했다.
+물리적 clean Windows·macOS·혼합 호스트·운영 seed와 배포는 남아 있다. 이 소스 구조를
+전체 제품 지원 인증으로 해석하지 않는다. 남은 조건은 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md),
 실제 source 계약은 [protocol.md](./protocol.md)의 dual-client 절을 따른다.
 
 사용자는 선택한 native 클라이언트의 기존 설치·로그인으로 연결할 수 있어야 한다.

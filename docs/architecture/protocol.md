@@ -286,7 +286,8 @@ workspace·관리 파일 판정은 대소문자를 구분하지 않고 실제 �
 기존 staged 변경은 보존한다. ref 갱신 뒤 index 설치가 실패하면 자신의 index.lock을
 남기므로 복구 때 실제 ref/index와 파일을 확인해야 하며 자동 초기화하지 않는다.
 교정 가능한 입력·누락 경로 오류를 제외한 도구 거부는 bridge를 닫고 현재 turn을
-중단한다. 거부 전에 함께 요청된 대기열의 dispatch도 실행하지 않는다.
+중단한다. 거부 전에 함께 요청된 대기열의 dispatch도 실행하지 않는다. policy 거부 뒤
+늦은 completed 응답이 와도 실패를 성공으로 분류하지 않는다.
 실제 설치·native 인수와 OS별 지원 판정은 [C4 계획](../proposals/active/codex-resident-runner-plan.md)에 별도로 기록한다.
 
 구 서버는 client를 검사하지 않고 session만으로 행을 삭제할 수 있다. 따라서 schema
@@ -600,8 +601,10 @@ project_sync shares normalized workspace validation with the config parser. It r
 
 ## Dual-client 소스 계약
 
-2026-10-03 구현된 계약이다. 실제 Codex 모델 권한·설치·교차 클라이언트 인수 및 배포는
-[runtime 보고서](../test-reports/active/dual-client-runtime-report.md)의 required 미완료 항목이다.
+2026-10-03 구현한 공통 계약에 2026-10-24 Codex resident 후보를 연결했다. 현재 Windows의
+실제 모델·설치·기본 graph 검증과 후보별 범위는 [resident 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에
+기록한다. 물리적 clean host·다른 OS·혼합 호스트와 배포의 남은 required 조건은
+[runtime 보고서](../test-reports/active/dual-client-runtime-report.md)에서 추적한다.
 
 `GET /api/templates`, `pipeline_next`, `agent_next`의 선택적 `client`는 `claude|codex`이며
 생략은 Claude다. Codex 성공 응답은 REST body 또는 MCP `ServerResult.item`의 text JSON 내부에

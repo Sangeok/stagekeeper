@@ -4,8 +4,8 @@ stage: "blocked"
 proposal-size: "standard"
 created-at: "2026-10-22"
 approved-by: "requesting-user"
-approved-at: "2026-10-22"
-approval-scope: "기존 runner 재사용과 Codex 실행·완료·취소 연결의 최소화 방향으로 실행 계획을 구체화한다. 첫 지원 범위는 사용자가 선택한 Pro/Max 상주형이며, 실제 인수 전에는 공통 실행 경계와 모의 테스트 준비 범위를 분리한다. 기존 실제 인수 승인과 출시 조건은 유지한다."
+approved-at: "2026-10-24"
+approval-scope: "2026-10-24 사용자 승인: 현재 Windows PC의 격리 DB·서비스에서 C4B 실제 연결 구현과 통합시험, 연결 후 Windows 110분 유휴 시험을 진행한다. 물리적 clean Windows·OS별 인수는 최종 지원·출시 조건으로 유지하며 운영 seed·main 승격·패키지 공개는 포함하지 않는다."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -34,11 +34,18 @@ INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
 [완료 기록](../completed/2026-10-04-codex-dual-client-support.md)의 canonical 정의를 참조한다.
 이 문서는 그 작업의 상세 계획이며 자동 watch 요구사항을 새로 정의하지 않는다.
 
-현재 Windows 인수 source는 `5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5`/plugin `0.5.20`이다.
-설치 후보와 private source는 상위 문서의 2026-10-24 Windows 기록을 따른다.
+앞선 Windows foreground 인수 source는 `5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5`/plugin `0.5.20`이다.
+C4B는 public base `8ce600c0e9b92f7f0fc7d8bc49f5eaa5a85e5774`에 구현한 `0.5.21` 격리 후보다.
+private source는 상위 문서의 2026-10-24 Windows 기록을 유지하며 이번에는 수정하지 않는다.
 아래 기존 runner 차이 표와 C4A 준비 기록은 당시 `e716847` 기준을 보존한다.
-현재 아키텍처는 Claude의 상주 실행기와 Codex foreground만 지원한다. 아래 Codex
-상주 동작과 경로는 **예정 설계**이며 현재 지원 기능으로 문서화하거나 배포하지 않는다.
+구현 전 아키텍처는 Claude resident와 Codex foreground를 제공했다. 현재 architecture에는
+검증한 Codex resident 계약을 반영했으며, 소스 구현·격리 시험과 공개 지원 판정을 구분한다.
+
+2026-10-24 사용자는 최소 설치 인수를 개발 착수 조건에서 최종 지원·출시 조건으로
+분리하는 순서 변경을 승인했다. C4B-01의 DB·REST 계약부터 구현하고, C4B-02의
+transport·도구 계약을 저장·검토한 뒤 실제 모델을 연결한다. 실제 lease·역할·receipt
+시험은 구현의 완료 조건이며 아직 없는 구현의 착수 조건으로 순환 참조하지 않는다.
+청정 Windows·macOS·혼합 호스트를 현재 PC의 시험으로 대체하거나 PASS 처리하지 않는다.
 
 ## Selected Scope
 
@@ -61,7 +68,8 @@ INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
 ## Current Implementation and Delta
 
 아래 표는 기준 source `e716847`에서 조사한 차이다. 2026-10-23 C4A 구현 결과는
-문서 끝의 실행 기록을 따르며 실제 Codex 연결에 관한 행은 계속 미완료다.
+문서 끝의 실행 기록을 따른다. 이 표의 미구현 표시는 역사적 기준이며, 현재 C4B의
+구현·인수 판정은 아래 목적지와 실행 기록으로 구분한다.
 
 | 현재 근거 | 판정 | 필요한 변경 |
 | --- | --- | --- |
@@ -82,7 +90,7 @@ INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
 재시작할 수 있는지다. 실행 adapter가 소유하는 것은 프로세스/transport, raw 결과 파싱,
 종료 요청, child/bridge/reader 정리다. 서버가 역할 절차와 영속 작업 상태를 계속 소유한다.
 
-예정 주입 지점은 `deps.execution` 하나다. `start`·`classify`·`stopMode`를 가진다.
+구현한 주입 지점은 `deps.execution` 하나다. `start`·`classify`·`stopMode`를 가진다.
 새 registry, 범용 plugin framework, 두 번째 polling loop는 만들지 않는다.
 
 - `start({ generation })`은 `{ done, end(reason) }`를 반환한다. 실행 identity와 로그는
@@ -92,7 +100,7 @@ INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
   error, timeout, branch와 취소를 구분하는 cancelled다. line은 기존 길이 제한을 따른다.
   모델 turn 완료는 item 완료의 증거가 아니며, 작업 진전과 최종 accept는 fresh 서버 상태로 판단한다.
 - `stopMode`는 `drain` 또는 `interrupt`다. 기본 Claude adapter는 drain,
-  Codex 모의 adapter는 interrupt를 명시한다. branch/timeout은 기존처럼 종료 요청을 한다.
+  Codex 실제 adapter와 모의 시험은 interrupt를 명시한다. branch/timeout은 기존처럼 종료 요청을 한다.
 - `end`는 멱등이며 종료 요청만 뜻한다. `done`은 실제 owned child·reader·bridge가 정리된
   terminal settlement 뒤에만 resolve한다. raw 마지막 메시지나 OS process exit만으로
   completion을 대신하지 않는다. 종료 증거가 없으면 reject하며 로컬 소유권을 보존한다.
@@ -105,7 +113,7 @@ INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
 | 신호 | 새 실행/제출 | 진행 중 실행 | 잠금/lease |
 | --- | --- | --- | --- |
 | idle, gate/handoff 대기 | actionable work가 없으면 시작하지 않음 | 없음 | 모델 없이 heartbeat |
-| 웹 Pause | 새 dispatch·인수·아직 시작하지 않은 제출 금지 | 이미 시작한 역할은 완료할 수 있음; 다음 단계는 대기 | 같은 session 유지 |
+| 웹 Pause | 새 dispatch·인수·아직 시작하지 않은 제출 금지 | 이미 시작한 로컬 작업의 종료를 기다리며 새 서버 제출·다음 단계는 차단 | 같은 session 유지 |
 | local stop | 감지 즉시 terminal latch | Claude drain 유지; Codex interrupt 1회 | 종료 확인 후 자신의 release와 stop 보고 |
 | lease replaced/소유권 상실 | 추가 dispatch·결과 제출·rearm 금지 | Codex bridge를 막고 interrupt | successor를 수정/반납하지 않음 |
 | plan/access 철회, 서버 경로 소실, 연속 실패 한도 | 새 실행 금지 | Codex interrupt; Claude의 기존 drain 정책 유지 | 종료 미확인 시 local lock 보존 |
@@ -120,11 +128,13 @@ heartbeat/stop은 작업 결과 제출과 구분한다. 이미 전송한 요청�
 headless 실행은 permission prompt에 자동 승인하지 않는다. 기존 preflight·named role
 policy·credential 격리를 유지하고, 추가 권한이 필요한 항목은 blocked/handoff로 남긴다.
 main-loop의 허용된 commit과 역할의 Git 쓰기를 분리한다. 이 계약을 만족하는 실제
-main-loop transport/commit 경계가 확인되기 전에는 Codex live adapter를 연결하지 않는다.
+main-loop transport/commit 경계는 기존 native cycle 증거와 구현 전 도구 계약 검토로
+고정한다. 실제 서버 연결의 성공 여부는 격리 통합시험에서 검증한다.
 
 ## Phase C4A: 실행 경계와 모델 없는 계약 테스트
 
-**소스 구현·로컬 검증 완료(2026-10-23).** 기본 실제 인수 전 허용한 준비 단계이며,
+**소스 구현·로컬 검증 완료(2026-10-23).** 이 절은 당시 C4A의 목표·검증 기록이다.
+foreground-only 노출 제한은 이후 승인된 C4B의 실제 연결 범위와 구분한다. 기본 실제 인수 전 허용한 준비 단계이며,
 Codex 자동 실행 기능을 노출하지 않는다. REQ-DUAL-018/019 완료에 기여하지만 실제
 요구사항 완료는 C4C가 소유한다. 사용자의 진행 지시에 따라 아래 세 작업을 구현했다.
 
@@ -134,7 +144,7 @@ governed-by: CON-DUAL-001, CON-DUAL-002, CON-DUAL-003, CON-DUAL-005, CON-DUAL-00
 허용 경로는 `plugin/runtime/background.mjs`, `plugin/bin/harness-background.mjs`,
 기존 `plugin/bin/harness-background-loop.test.mjs`, `harness-background.test.mjs`,
 필요한 신규 `plugin/runtime/resident-execution.mjs`와
-`plugin/bin/harness-resident-execution.test.mjs`다. 신규 경로는 제안이며 아직 없다.
+`plugin/bin/harness-resident-execution.test.mjs`다. 신규로 제안했던 경로는 C4A 구현으로 존재한다.
 테스트 fake는 테스트 파일 안에 두고 설치 runtime에 Codex stub을 배포하지 않는다.
 
 DB/schema/REST, private 템플릿, Codex skill/CLI 등록, 실제 프로세스 transport,
@@ -223,27 +233,26 @@ Windows 전용 Job/명령 검사는 현재 플랫폼의 skip과 CI의 실제 결
 
 ## Phase C4B: 실제 Codex main-loop와 서버 연결
 
-**BLOCKED.** BLK-MIN-01의 최소 설치·기본 인수와 실제 main-loop 연결 증거가 선행한다.
-아래는 2026-10-24 사용자 진행 지시에 따른 **구현 전 계약**이다. 현행 서버·DB·CLI·UI는
-바꾸지 않았으며 현재 PC의 foreground 성공을 clean Windows 또는 resident 인수로 승격하지 않는다.
+**현재 Windows의 구현·격리 연결 검증 완료.** 최종 source는 `893a24e7f1e4d5361727aa24724be3f9f8bc3503`이며
+기본 graph의 실제 서버·역할·browser 인수를 [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)에 기록했다.
+BLK-MIN-01과 다른 OS·출시 조건은 계속 유지한다.
 
-**BLK-C4R-01:** bounded host에서 실제 completed/interrupted, 고정 보고서 commit과
-child/bridge 정리를 관찰했다. 후속 시험은 설치된 공통 루프를 통해 두 정상 cycle과
-세 번째 중단, cycle별 새 프로세스/문맥과 합성 receipt 복원을 확인했다. 실제 서버
-lease에 묶인 main-loop, fresh 역할 전체 orchestration과 서버 receipt/usage 복원은
-미확인이다. 이 증거를 얻기 전 live transport 함수·MCP 도구별 payload/허용 목록은
-확정하지 않는다. 시험용 adapter를 제품 연결로 해석하지 않는다.
+**BLK-C4R-01:** 현재 Windows의 서버 lease, cycle별 fresh main-loop와 역할, 독립 verifier,
+commit handoff·receipt·usage, 최종 server acceptance 및 native takeover/stop/resume를
+직접 확인했다. 교정 가능한 Git/hash 입력과 실제 권한 거부를 구분하고 queued dispatch와
+늦은 completed의 성공 오분류를 회귀로 막았다. 이 호스트의 연결 검증 항목은 해소했으며
+macOS·혼합 호스트·출시 인수로 확대하지 않는다.
 
-**BLK-C4R-02:** permission/client 필드·호환성·배포 순서와 변경/검증 경로를 아래에
-고정했다. 후보 DDL의 실제 PostgreSQL 리허설 111개 관찰 항목도 통과했다. 설계 누락은
-보완했으나 정식 migration·REST/서비스/화면 연결은 미실행이므로 **연결 검증 대기**다.
-DB 제약만으로 구 서버의 session-only 삭제를 막지 못하는 관찰을 배포 조건에 반영했다.
+**BLK-C4R-02:** 정식 migration과 REST/서비스/UI 연결을 구현했다. 실제 PostgreSQL의
+legacy·NULL·client/session 충돌·autostart 보호와 응답 binding을 포함한 integration
+146개가 통과했다. 현재 격리 계약 검증은 해소했으며 운영 rollout은 미실행이다. 구 서버의
+session-only 삭제 위험과 전체 서버 갱신 순서는 아래 출시 조건으로 유지한다.
 
 ### 계약 기준과 보존 범위
 
-기준 public source는 `1eedf0de90d782763167a8c500f33ab1f19e7905`다. 현재 startIn은
-같은 session이면 seenAt만 갱신하고, autostartIn은 mode/host로 대상을 판단한다.
-runnerCall은 성공 body의 추가 필드를 버린다. 이 세 지점을 함께 바꾼다.
+구현 전 설계 기준은 `1eedf0de90d782763167a8c500f33ab1f19e7905`였다. 당시 startIn의
+session-only 재전송, autostartIn의 mode/host 판단, runnerCall의 추가 body 필드 폐기를
+아래 client·binding 계약에 맞춰 함께 변경했다.
 
 - client는 Runner 실행 metadata와 adapter 선택에만 둔다. BoardItem/PipelineRun/
   AgentRun/receipt/token/usage identity에는 추가하지 않으며 인증 권한을 부여하지 않는다.
@@ -306,7 +315,7 @@ named policy와 실제 도구 목록의 일치는 BLK-C4R-01에서 확인한다.
 | 새 cycle | 같은 local session/정책, 새 thread/turn, fresh next/receipt 복원 | 이전 문맥 canary 미노출, 열린 AgentRun/승인 commit/usage 보존 |
 | 역할 | 서버가 준 역할만 기존 fresh dispatcher로 호출 | 독립 verifier·기존 격리 유지, runner에 step graph 복제 금지 |
 | 정상 terminal | raw terminal 해석 뒤 reader/handler/owned child 정리 후 done | completed만으로 item 완료를 기록하지 않음. 서버 final accept와 다섯 인수 확인 유지 |
-| pause | 진행 중 역할 완료 허용, 새 dispatch·인수·미전송 제출 차단 | resume은 fresh 조회. paused/terminal 뒤 새 pipeline_next도 금지 |
+| pause | 진행 중 로컬 작업 정리 허용, 새 dispatch·인수·서버 제출 차단 | resume은 fresh 조회. paused/terminal 뒤 새 pipeline_next도 금지 |
 | stop/replaced/plan/access/한도 | terminal latch → bridge 신규 요청 차단 → interrupt 1회 → 실제 종료 확인 | 종료 전 release 0, 늦은 제출/rearm 0, successor 변경 0 |
 | 종료 미확인 | stopping/unsettled=true와 child 기록 보존 | PID 부재만으로 회수하지 않음. 소유 프로세스 정리 증거 뒤 복구 |
 | 서버 rollback/응답 불일치 | 신규 실행 차단, active interrupt, 종료 뒤 자기 local 상태 정리 | 404/replaced 뒤 successor stop 금지. 이미 전송된 요청 효과를 취소했다고 주장하지 않음 |
@@ -314,34 +323,80 @@ named policy와 실제 도구 목록의 일치는 BLK-C4R-01에서 확인한다.
 새 `plugin/runtime/codex-main-loop.mjs`가 main-loop transport를 소유하고 기존
 harness-background.mjs가 execution을 주입한다. foreground harness-codex.mjs의 mode
 검사는 완화하지 않는다. fresh 역할 연결은 session/client/mode/binding/generation과
-서버 lease를 대조하는 내부 경계로 둔다. 정확한 함수·payload·도구 목록은
-BLK-C4R-01 실측 뒤 추가해야 하며 현재 구현 준비 완료로 판정하지 않는다.
+서버 lease를 대조하는 내부 경계로 둔다. `createCodexExecution`은 기존 실행 경계의
+start/classify/interrupt를 구현한다. 한 cycle의 main-loop App Server는 새 ephemeral
+thread이며 역할은 `dispatchFreshRole`의 별도 프로세스·문맥에서 실행한다.
+
+### 격리 후보의 main-loop 도구 계약
+
+`codex-main-loop-tools.mjs`가 다음 허용 목록과 현재 서버 상태 확인을 소유한다.
+인증은 trusted helper에만 남기고 모델에는 임의 HTTP·shell·owner·nested-agent 도구를 주지 않는다.
+
+| 도구 | 입력·실행 계약 | 거부·검증 |
+| --- | --- | --- |
+| pipeline_next, board_get, backlog_get, backlog_list, project_get | 기존 서버 schema; 고정 project/client/runbook 전달 | project 변경, 중지·소유권 상실 뒤 조회 거부; pipeline_next의 지연 전진 유지 |
+| resident_dispatch | 선택 key와 독립 verifier용 requiredVerificationPaths만 전달 | fresh pipeline_next가 준 역할·entry·AgentRun으로 dispatchBinding 구성. agent 선택, 이전 결론 전달, opt-in qa/impl-verify 자동 실행 금지 |
+| resident_commit | key와 파일별 저장소 상대 path/SHA-256 hash. handoff note는 저장소 내부 절대 경로도 정규화 | 현재 handoff의 plan/report와 현재 구현 workspace 또는 accept의 main-loop 보고서만. 명시적 commit 정책, branch/HEAD·현재 byte·기존 index 확인, hooks/filter/push 실행 금지 |
+| resident_git | key, 기존 role_git_read의 operation/paths/ref | 현재 board의 planCommit과 현재 HEAD에 한정; 기존 격리 읽기 backend 재사용 |
+| validation_record | 현재 key와 150자 이하 기록 | 현재 in_review와 서버에 기록된 같은 plan의 verifier pass를 요구; owner 승인 권한은 없음 |
+| report_submit, acceptance_fail | 기존 서버 schema, main-loop actor·현재 key | fresh accept 확인. 성공 보고서는 실제 현재 main-loop artifact commit과 byte 일치 필요. 5개 인수 판단은 모델이 실제 파일/명령/서버 증거로 수행 |
+| role_file_read/list/search/write, role_command_exec | 기존 scoped broker schema | root 읽기, scratch와 현재 accept 보고서만 쓰기. 실제 build/test는 LPAC snapshot에서 실행; 결과·누락·실패를 그대로 전달 |
+
+`resident_dispatch`는 handoff를 보유한 경우 `confirmCommitHandoff`의 확정된 commit을
+전달해 같은 AgentRun을 fresh 역할에서 계속한다. 역할의 직접 Git 쓰기는 계속 금지한다.
+모든 모델 도구는 같은 local binding과 cycle generation을 검사한다. domain mutation과
+dispatch·commit 전에는 실제 runner beat/echo를 확인한다. 로컬 파일 읽기와 진행 중
+역할의 ownership monitor는 최근 공통 heartbeat 및 local lock을 확인한다. Pause 뒤
+새 dispatch·commit·서버 제출은 금지한다. terminal latch 뒤 도구 응답은 완료로 채택하지 않는다.
+기존 역할의 로컬 작업은 종료를 기다리지만 Pause 뒤 새 서버 제출을 허용하지 않는다.
+commit 목록의 현재 artifact 누락·파일 중복, Git 조회 인자와 파일 쓰기 hash 형식은
+-32602, 허용된 baseline blob 부재는 -32004, 쓰기 전
+현재 파일 hash 불일치는 -32005로 교정할 수 있다. 현재 내용을 다시 읽고 정확한 hash를
+사용해야 하며 실제 권한·소유권 거부와 쓰기 도중의 identity/내용 변경은 계속 거부한다.
+Windows에서는 readOnly·다른 workspace·관리 파일 경계를 대소문자 별칭으로 우회하지 못한다.
+ref를 갱신한 뒤 index 설치가 실패하면 소유 index.lock을 보존하고 자동 reset하지 않는다.
+
+도구 bridge는 요청을 직렬화하고 크기·개수·queue 상한을 적용한다. 중지 때 bridge의
+신규 요청을 차단하고 실제 역할·main-loop interrupt와 process/handler 정리를 기다린다. 확인하지 못한
+child는 registry에 남기고 기존 unsettled 경로로 lock을 보존한다. capability URL은
+cycle마다 새로 만들며 다음 cycle에서 이전 URL을 재사용하지 않는다.
+교정 가능한 인자·누락 경로 오류를 제외한 도구 거부도 같은 종료 경계를 적용한다.
+이미 대기열에 들어온 dispatch를 포함해 후속 호출을 막고 현재 turn을 interrupt한다.
+그 뒤 늦은 completed가 도착해도 policy 실패를 성공으로 분류하지 않는다.
+
+수동 명령은 `harness-background.mjs --start --client codex --root <checkout> --propose yes|no`
+및 기존 `--stop`·`--status`다. `--run`은 저장된 session/client/binding을 대조한다.
+Codex의 `--autostart-on/off`·`--from-autostart`는 모델/서버 호출 전에 거부한다.
+설치 skill은 이 명령만 연결하며 공개 지원·출시 인수를 대신하지 않는다.
 
 ### 변경 파일·공개 API·최종 산출물
 
-아래 경로는 구현 목적지다. 신규 모듈/시험 파일은 현재 없고 그 상위 디렉터리는 존재한다.
-신규 Codex skill은 기존 plugin/codex/skills 아래 harness-background 디렉터리를 먼저 만든다.
-새 migration은 구현 시 유일한 timestamp 디렉터리를 만든다.
+아래 경로는 현재 구현·검증 목적지다. 신규 runtime/skill/test와 migration이 존재한다.
+정식 migration 경로는 `prisma/migrations/20261024020000_runner_client/migration.sql`이다.
 
 | 소유 경로 | 변경·보존할 symbol/산출물 | 검증 목적지 |
 | --- | --- | --- |
 | packages/core/execution/runner.mjs, client-runtime.mjs | CLIENTS 유지, RUNNER_PERMISSIONS의 scoped·조합 판정 | runner.test.mjs; plugin/lib/execution/runner.mjs는 scripts/plugin-lib.mjs로 생성 |
 | packages/core/plans/entitlement.mjs | 기존 RESIDENT_RUNNER_PLAN_GATE 보존, CODEX_RESIDENT_RUNNER_PLAN_GATE 고정 문구 추가; server/helper가 client로 선택 | entitlement.test.mjs·실제 PLAN_REQUIRED body; plugin/lib/plans/entitlement.mjs 동기화 |
-| prisma/schema.prisma, 신규 migration | Runner.client·CHECK, 생성 src/generated/prisma | 신규 tests/server/integration/runner-client-migration.test.ts, 기존 runner-lease.test.ts |
+| prisma/schema.prisma, prisma/migrations/20261024020000_runner_client/migration.sql | Runner.client·CHECK, 생성 src/generated/prisma | tests/server/integration/runner-client-migration.test.ts, runner-client.test.ts, 기존 runner-lease.test.ts |
 | src/server/runners/contracts.ts, runner-service.ts | RunnerClient·Record/Holder/Op/Result, RUNNER_SELECT, 모든 op·readView/readSummaries | runner-service.test.ts, 실제 runner-lease.test.ts |
 | src/server/runners/api.ts, api.server.ts | runRunnerOp/readRunnerState/readRunnerSummaries의 기존 공개 경로 유지 | tests/server/server-public-api.test.ts; 시험 전용 export 금지 |
 | src/server/rest/runner-handler.ts | parseRunnerRequest·runnerResponse의 실제 body | runner-handler.test.ts, 실제 route integration |
 | src/server/rest/runner.ts, src/app/api/runner/route.ts | 기존 조립·인증 범위 유지 | /api/runner JSON·403/409/400과 DB 상태 |
-| plugin/runtime/runner-client.mjs, plugin/bin/harness-session.mjs | runnerCall binding, holdsLease/beatOnCheck/stopOnRelease의 Codex resident 분기 | harness-watch.test.mjs, harness-session.test.mjs, 신규 plugin/runtime/runner-client.test.mjs |
+| plugin/runtime/runner-client.mjs, plugin/bin/harness-session.mjs | runnerCall binding, holdsLease/beatOnCheck/stopOnRelease의 Codex resident 분기 | harness-watch.test.mjs, harness-session.test.mjs, plugin/runtime/runner-client.test.mjs, codex-resident-session.test.mjs |
 | plugin/bin/harness-background.mjs, plugin/runtime/background.mjs, local-session.mjs | client별 connection/start/finish/status·execution; Claude drain 보존 | 기존 background/loop/windows/resident-execution/session 시험 |
 | 신규 plugin/runtime/codex-main-loop.mjs, 기존 codex-thread.mjs | bound main-loop와 기존 fresh role, foreground 진입 검사 유지 | 신규 plugin/runtime/codex-main-loop.test.mjs, codex-bridge.test.mjs·native 역할 시험 |
+| plugin/runtime/codex-main-loop-tools.mjs | createMainLoopTools의 현재 server binding·도구 허용 목록·validation_record·commit/인수 연결 | codex-main-loop-tools.test.mjs의 HTTP 직렬화·abort·권한/인수 경계와 실제 native 파이프라인 |
+| plugin/runtime/resident-commit.mjs | commitResidentArtifacts·residentGit·ResidentCommitInputError; scoped commit·현재 byte·기존 index·Windows 경로 경계 | resident-commit.test.mjs의 실제 Git/HTTP·hook/filter 거부·index 보존·경로 교정·Windows 별칭 |
+| plugin/runtime/role-git.mjs, codex-thread.mjs, codex-main-loop.mjs | RoleGitInputError·RoleGitPathMissingError를 두 bridge에서 교정 가능하게 전달; 임의 ref/경로는 계속 거부. 현재 HEAD index로 계획 이후 commit된 신규 파일의 diff 보존 | plugin/bin/harness-role-git.test.mjs의 실제 Git·부재·신규 파일·금지 경로, codex-bridge.test.mjs와 codex-main-loop-tools.test.mjs의 HTTP 교정 후 계속 실행 |
+| plugin/runtime/role-files.mjs, codex-thread.mjs, codex-main-loop.mjs | RoleFileInputError·RoleFileRevisionError와 두 bridge의 -32602/-32005; 쓰기 전 hash 불일치의 재읽기만 허용하고 실제 권한·중간 변경은 계속 거부 | plugin/bin/harness-role-files.test.mjs 및 codex-main-loop-tools.test.mjs의 실제 HTTP·byte 불변·정확한 hash 재시도·protected 경로 |
 | src/fsd/widgets/turn-banner/api/turn-data.server.ts, model/runner.ts | runnerFacts→TurnRunner client 전달·scoped/Codex 복구 문구 | api/turn-data.test.ts, model/runner.test.ts, ui/turn-banner.test.ts |
 | 같은 slice의 index.ts, index.server.ts, ui/runner-line.tsx, ui/turn-banner.tsx, ui/next-step.tsx | 공개 API·Pause 보존; 저장 client로 full/compact 표시 | CLI 선택 UI 값과 별개인 실제 rendered body |
 | src/fsd/pages/project-list/api/project-list.server.ts, ui/project-list-page.tsx | readRunnerSummaries→공개 runnerFacts→RunnerShort | ui/project-list-page.test.mjs, model/project-list-copy.test.ts와 실제 목록 HTML |
 | docs/conventions/product-copy.md | Codex/scoped/복구·플랜 안내, 기존 Claude copy-lock 보존 | full/compact HTML, src/fsd/shared/lib/copy-lock.test.ts |
 | plugin/bin/harness.ps1, plugin/.claude-plugin/plugin.json, plugin/.codex-plugin/plugin.json | client에 맞는 helper dispatch·같은 상향 버전, Codex skills root 유지 | 기존 harness-background.test.mjs, harness-background-windows.test.mjs와 실제 설치 manifest |
-| plugin/skills/background/SKILL.md, 신규 plugin/codex/skills/harness-background/SKILL.md | manual start/stop/status; CLI payload는 BLK-C4R-01 뒤 확정, Codex 자동 시작 제외 | 실제 loader의 기존 init/run/resume/완전한 verifier 보존 및 새 skill body; C4C 전 공개 금지 |
-| scripts/windows/package-windows-plugin.mjs | 원본 plugin tree와 완전한 verifier를 합치는 기존 패키징 유지 | 실제 설치 cache 전량 hash와 windows-package.json inventory; 같은 버전의 다른 body 금지 |
+| plugin/skills/background/SKILL.md, plugin/codex/skills/harness-background/SKILL.md | Claude 기존 skill 보존; Codex manual start/stop/status는 위 저장 계약, 자동 시작 제외 | 실제 loader의 기존 init/run/resume/완전한 verifier 보존 및 새 skill body; 출시 인수 전 공개 금지 |
+| scripts/windows/package-windows-plugin.mjs | 원본 plugin tree와 완전한 verifier를 합치는 기존 패키징 유지 | 실제 설치 cache 전량 hash와 windows-package.json inventory; 공개된 같은 버전의 body 변경 금지. 격리 후보는 별도 catalog/profile/hash로 구분 |
 | docs/architecture/protocol.md, server.md, runtime 보고서 | 구현 시 현재 API·공개 symbol·지원 판정 갱신 | 문서 검사와 실제 서비스/설치 관찰 |
 
 서버 타입은 runners/contracts.ts를 통해 REST/FSD api adapter에 전달하고 FSD는
@@ -349,7 +404,8 @@ runnerFacts에서 날짜/client를 직렬화한다. 프로젝트 목록은 turn-
 index.server.ts/index.ts만 소비한다. 신규 server 내부 import나 public export는 필요 없다.
 UI·skill의 최종 근거는 계획 본문이 아니라 실제 copy-lock/HTML/설치된 body다.
 Codex manifest의 skills root 아래 신규 skill을 배치한다. 폴더 존재나 설명문만으로
-실행 지원을 선언하지 않으며 최종 명령 payload는 BLK-C4R-01 transport 증거 뒤 확정한다.
+실행 지원을 선언하지 않는다. 위 고정 명령 payload와 저장 client의 stop/status 동작을
+설치본에서 확인하고 OS별 지원 판정은 별도 인수로 남긴다.
 
 ### TASK-C4B-01: 계약과 migration 연결
 
@@ -357,8 +413,7 @@ satisfies: REQ-DUAL-018, REQ-DUAL-019
 preserves: INV-DUAL-001, INV-DUAL-005
 governed-by: CON-DUAL-002, CON-DUAL-003, CON-DUAL-008
 
-BLK-MIN-01·BLK-C4R-01 증거와 no-edit 구현 준비 검토 뒤 위 core/DB/REST/helper와
-UI serialization을 연결한다. legacy default·Codex NULL 거부·client 간 동일
+사용자가 승인한 계약에 따라 위 core/DB/REST/helper와 UI serialization을 연결했다. BLK-MIN-01은 출시 조건으로 유지한다. legacy default·Codex NULL 거부·client 간 동일
 session/host 충돌을 실제 DB에서 확인한다. 검증은 VFY-C4B-01/02/05다.
 
 ### TASK-C4B-02: bound main-loop와 종료 확인
@@ -384,27 +439,33 @@ C4C 전에는 격리 설치 후보로 시험하며 foreground 안내·Claude 자
 
 | 검증 | post-change 확인 내용 | 현재 판정 |
 | --- | --- | --- |
-| VFY-C4B-01 | 정식 migration legacy rows/default/NULL·unknown, 구 writer/rollback과 데이터 보존 | 후보 DDL 111항목 PASS, 정식 migration 미실행 |
-| VFY-C4B-02 | 실제 REST 모든 op, client/session/host 충돌, stopped 세션 재전송, silent/stopped Codex 행의 autostart 보호, busy/echo 누락/400/404, 인증·플랜·pause | 미실행 |
-| VFY-C4B-03 | native main-loop runbook·commit·fresh verifier·서버 lease, 두 cycle receipt/usage/문맥 | 공통 루프의 실제 두 cycle·새 문맥·합성 receipt PASS; 서버 lease/역할/usage 연결 미실행 |
-| VFY-C4B-04 | 각 await의 stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled | 공통 루프의 native interrupt·구 generation 거부·정리 PASS; 실제 lease 상실/전체 실패 경계는 미실행 |
-| VFY-C4B-05 | DB→select→RunnerView→runnerFacts→full/compact/project-list HTML, copy-lock·Pause/복구 | 미실행 |
-| VFY-C4B-06 | 실제 후보 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분 인수 | 미실행 |
+| VFY-C4B-01 | 정식 migration legacy rows/default/NULL·unknown, 구 writer/rollback과 데이터 보존 | 실제 정식 migration·integration PASS; 후보 DDL 111항목은 이전 별도 증거 |
+| VFY-C4B-02 | 실제 REST 모든 op, client/session/host 충돌, stopped 재전송, autostart 보호, busy/echo/400/404, 인증·플랜·pause | REST/DB integration 146개와 실제 cap/auth·Pause/Resume PASS |
+| VFY-C4B-03 | 실제 main-loop·commit·독립 verifier·서버 lease, cycle별 문맥·receipt/usage | 최종 fresh A→Z의 두 browser gate·역할·handoff·5개 인수 및 acceptedAt PASS |
+| VFY-C4B-04 | stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled | 실제 pending main-loop/역할 takeover·같은 AgentRun 재개·owner stop PASS; 세부 실패 경계는 결정적/모의 회귀로 구분 |
+| VFY-C4B-05 | DB→select→RunnerView→runnerFacts→full/compact/project-list, copy-lock·Pause/복구 | 최종 production snapshot의 실제 Edge와 web 777개 PASS |
+| VFY-C4B-06 | 실제 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분 | 현재 양쪽 0.5.20→0.5.21 설치와 2,229개 hash PASS; 공통 poller 110분 PASS. exact 후보 차이는 보고서에 기록, clean host·다른 OS·출시는 미완료 |
 
 실행한 [계약 리허설 보고서](../../test-reports/completed/2026-10-24-codex-resident-contract.md)와
-미래 구현 검증은 구분한다. 구현 뒤 npm run check, verify:fsd, verify:server,
-test:architecture, test, test:web, test:server, test:server:integration, build를 수행한다.
+현재 실제 구현 검증은 구분한다. npm run check, verify:fsd, verify:server,
+test:architecture, test, test:web, test:server, test:server:integration, build를 수행했고
+실패 후보와 최종 통과, source별 재사용한 범위는 실제 resident 보고서에 보존한다.
 새 integration 파일은 기존 glob에 포함하고 TEST_DATABASE_URL은 격리 DB만 사용한다.
 db:generate 산출물·plugin/lib 복사본·REST body·HTML·설치 캐시를 각각 확인한다.
 
-C4B 완료에는 모든 진입 blocker와 위 여섯 검증의 직접 증거가 필요하다.
-**현재 clean pass not completed**이며 후보 SQL PASS를 live 구현 착수 가능 판정으로
-승격하지 않는다. 남은 transport/명령 payload 결정은 BLK-C4R-01과 실제 인수 후 재검토한다.
+C4B 구현 완료에는 위 여섯 검증 중 현재 Windows 격리 후보에 해당하는 직접 증거가 필요하다.
+물리적 clean Windows·다른 OS·공개 배포는 별도 인수로 남긴다. 후보 SQL PASS는
+정식 migration의 통과를 대신하지 않는다. C4B-02 transport/명령 payload는 해당
+구현 전에 계약으로 고정하고, 실제 인수 결과를 BLK-C4R-01에 기록한다.
 
 
 ## Phase C4C: OS별 실제 인수와 안내
 
-**BLOCKED — C4B 이후.** TASK-C4-02/E12를 완료한다. Windows와 macOS 각각의 host,
+**부분 실측 완료, 전체 지원·출시 인수 BLOCKED.** 현재 Windows의 실제 A→Z·취소·재개와
+공통 poller 110분 유휴를 확인했다. 마지막 변경은 모델 도구 오류·terminal 분류에만 있으며
+유휴 시험 패키지와 최종 A→Z 패키지의 차이 및 동일한 poller byte는 보고서에 명시한다.
+110분 전체 HTTP poll 요청 수는 수집하지 않았고 heartbeat 관찰 수와 혼동하지 않는다.
+남은 실제 환경에서 TASK-C4-02/E12를 완료한다. Windows와 macOS 각각의 host,
 CLI/package hash와 방식으로 실제 110분 no-model idle, 작업 발견, browser gate,
 permission/handoff/cap, stop·늦은 이벤트·실제 자식 종료·동일 항목 재개를 기록한다.
 각 OS가 통과하기 전 그 OS 지원을 안내하지 않는다. 기존 Windows 최소 설치와 양방향
@@ -412,12 +473,12 @@ permission/handoff/cap, stop·늦은 이벤트·실제 자식 종료·동일 항
 
 ## Readiness and Handoff
 
-C4A는 **소스 구현·로컬 검증 완료**다. C4B의 서버 계약 설계와 후보 DDL 리허설은
-2026-10-24 보완했다. 실제 host/lease/main-loop 연결 증거와 정식 서버 구현 인수가
-남아 C4B/C4C는 **BLOCKED**다. 전체 proposal 상태를 유지하며 parent
-REQ-DUAL-018/019가 완료됐다고 표시하지 않는다.
+C4A와 현재 Windows C4B의 구현·격리 연결 검증은 완료했다. C4C는 이 호스트의
+A→Z·lifecycle 및 공통 poller 실측 증거를 추가했지만 물리적 clean Windows·macOS·
+혼합 호스트·출시 gate가 남아 있다. 전체 REQ-DUAL-018/019와 제안서의 pending/blocked는
+유지한다. [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)가 현재 결과와 패키지 차이의 기준이다.
 
-후속 구현 범위는 C4B의 선행 조건이 충족된 뒤 다시 고정한다. 이번 C4A 인계는 다음과
+이후 변경은 위 C4B 계약과 남은 C4C 인수 조건을 따른다. 과거 C4A 인계는 다음과
 같이 제한해 수행했다: 이 문서의 C4A 세 작업만 수행한다. 먼저 현재 HEAD·사용자 변경·architecture와
 기존 Claude 테스트를 재확인한다. execution 경계와 fake 시험을 완성하고 기존 Claude
 동작을 보존한다. live Codex 실행, DB/REST 변경, permission 완화나 사용자 command가
@@ -432,6 +493,21 @@ strict는 역사적/후속 범위가 섞인 전체 graph에 적용하지 않는�
 legacy verifies 경고 13개는 유지하며, 신규 Task 3개와 VFY 3개를 연결했다. 두 active
 문서의 로컬 링크와 `git diff --check`도 PASS다. 이번 변경은 문서뿐이며 C4A 구현,
 새 runtime 시험과 실제 모델 호출은 수행하지 않았다.
+
+## C4B Implementation and Windows Observation — 2026-10-24
+
+최종 source `893a24e7f1e4d5361727aa24724be3f9f8bc3503`의 설치 후보로 실제 새 계획·독립 verifier·두 browser gate·
+구현·보고서·server acceptance를 확인했다. 서버/DB 계약, 저장 client UI, 실제 설치
+전량 hash, native takeover·동일 receipt 재개·Pause/Resume·cap/auth를 범위별로 기록했다.
+공통 poller는 실제 6600초 동안 모델/AgentRun/사용량 증가 없이
+서로 다른 heartbeat 108회를 관찰했다. fake clock이나 여러 짧은 실행을
+합산한 결과가 아니다. 유휴 후보와 최종 후보의 모델 경로 차이는 전량 비교로 명시했다.
+
+최종 core/plugin 회귀는 536 PASS / 2 SKIP다. 앞선 sign-in recovery 및 native helper
+거부 진단의 간헐 실패 원인은 미확정으로 남기고, 후속 통과를 원인 해결로 단정하지 않는다.
+단발 corrupt-state와 별도로 재현·수정한 successor status race도 구분한다.
+전체 사전 reconciliation의 clean pass를 소급 주장하지 않으며, 현재 범위의 구현·실측과
+남은 외부 인수를 이 문서와 [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)에 연결한다.
 
 ## C4A Implementation Results — 2026-10-23
 

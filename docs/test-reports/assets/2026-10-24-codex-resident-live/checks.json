@@ -1,0 +1,101 @@
+[
+  {
+    "command": "npm.cmd run check",
+    "result": "PASS",
+    "pass": 194,
+    "skip": 3,
+    "logSha256": "5826e1d3ce50570e9a3ee6a2e6524843476c44bb86a598f79f09c8c416d68b90"
+  },
+  {
+    "command": "node --test --test-concurrency=1 \"packages/core/**/*.test.mjs\" \"plugin/bin/*.test.mjs\" \"plugin/runtime/*.test.mjs\" (passive native stdout/stderr diagnostic capture)",
+    "result": "PASS",
+    "pass": 536,
+    "skip": 2,
+    "logSha256": "ff1983047c2c033e86fb07b98457aae70d39632840d7b94d1feee932faa75965"
+  },
+  {
+    "command": "Scoped file broker and bridges: corrected hash retry, protected paths and late-policy terminal classification",
+    "result": "PASS",
+    "pass": 36,
+    "skip": 0,
+    "logSha256": "56331f0154a29a700bf1682bd40579431e58b38f8280b253d7102442ac12f58a"
+  },
+  {
+    "command": "node --test --test-concurrency=1 plugin/bin/harness-role-git.test.mjs plugin/runtime/codex-bridge.test.mjs plugin/runtime/codex-main-loop.test.mjs plugin/runtime/codex-main-loop-tools.test.mjs",
+    "result": "PASS",
+    "pass": 40,
+    "skip": 0,
+    "logSha256": "e5f38d2efff2d0550c187f5ce204388fd932e3d9ce4484f0f20a05ee8193d8f7"
+  },
+  {
+    "command": "node --test plugin/runtime/codex-main-loop.test.mjs",
+    "result": "PASS",
+    "pass": 11,
+    "skip": 0,
+    "logSha256": "d298eb89053532ac6bd49231e8c985ca3094c86adbf1f3802dfb7292ced18b08"
+  },
+  {
+    "command": "npm.cmd run test:architecture",
+    "result": "PASS",
+    "pass": 148,
+    "skip": 2,
+    "logSha256": "ec81a5170957f17a2dbb76e0a7bbf4ac3c32f46283487a7828b26a0e99786537"
+  },
+  {
+    "command": "npm.cmd run test:web",
+    "result": "PASS",
+    "pass": 777,
+    "skip": 0,
+    "logSha256": "4a720457ec02eb165a8947e7495c11fef8707c8322659412afe49c1ff0d81356"
+  },
+  {
+    "command": "npm.cmd run test:server",
+    "result": "PASS",
+    "pass": 155,
+    "skip": 2,
+    "logSha256": "51e72e1c2fd95855881fd7491384ba2d42654e6de69039634960e4d1e453ab4d"
+  },
+  {
+    "command": "npm.cmd run test:server:integration (isolated TEST_DATABASE_URL)",
+    "result": "PASS",
+    "pass": 146,
+    "skip": 0,
+    "logSha256": "ac0624041a7d8755558c030b43f9a22480ba2bad104b2ee335ff0c516e8defcc"
+  },
+  {
+    "command": "Windows runtime-backed scoped file/command/Job tests",
+    "result": "PASS",
+    "pass": 15,
+    "skip": 0,
+    "logSha256": "1d04140c989fcc77a1420ec6d0d1efa52bdf1b33eac28d4129f5c979761c618b"
+  },
+  {
+    "command": "Private template source/render tests",
+    "result": "PASS",
+    "pass": 61,
+    "skip": 0,
+    "logSha256": "62ca9e69ae7e9efc40fbb0dfa1320aab0234d675388781fd88cd4d18a8a3b7e7"
+  },
+  {
+    "command": "Codex manifest and CLI flag tests",
+    "result": "PASS",
+    "pass": 7,
+    "skip": 0,
+    "logSha256": "20a1b038474143f90a93990f47638a975c1e7bf0b763347aa0dfc4add1a971c2"
+  },
+  {
+    "command": "npm.cmd run verify:fsd",
+    "result": "PASS",
+    "logSha256": "068d533e1c785fc91a8ef0bf57fee2456528097fa7dde167cad2545fac239e70"
+  },
+  {
+    "command": "npm.cmd run verify:server",
+    "result": "PASS",
+    "logSha256": "793032129af5b9081d092e71f2cb38f270e4b2dcde53bba6554e088b678625f7"
+  },
+  {
+    "command": "npm.cmd run build (isolated source snapshot)",
+    "result": "PASS",
+    "logSha256": "b67d4aae47c1bedcb6436e7dfac79f199dfdd6bca2c3d6f2beeb2d4e76440a44"
+  }
+]

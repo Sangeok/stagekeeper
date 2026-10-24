@@ -4,8 +4,8 @@ stage: "blocked"
 proposal-size: "standard"
 created-at: "2026-10-04"
 approved-by: "requesting-user"
-approved-at: "2026-10-04"
-approval-scope: "사용자의 진행 지시와 최소 설치 요구에 따라 선택한 native 클라이언트의 기존 인증으로 연결하는 Windows 실행·의존성 패키징을 우선 해결하고, 기본 실행·재개·중지 인수 후 C4 자동 watch와 장시간·취소·중복 실행을 검증한다. WSL 및 다른 CLI 설치·추가 로그인은 사용자 진행 조건에서 제외한다. 로컬 disposable/test 환경의 bounded 시험은 허용하며 운영 DB seed·서비스 배포·패키지 공개는 별도 실행 범위다."
+approved-at: "2026-10-24"
+approval-scope: "2026-10-24 현재 Windows PC의 격리 C4B 실제 연결·C4C 실측을 승인했고 최소 설치·OS별 조건은 최종 출시 gate로 유지한다. 사용자의 진행 지시와 최소 설치 요구에 따라 선택한 native 클라이언트의 기존 인증으로 연결하는 Windows 실행·의존성 패키징을 우선 해결하고, 기본 실행·재개·중지 인수 후 C4 자동 watch와 장시간·취소·중복 실행을 검증한다. WSL 및 다른 CLI 설치·추가 로그인은 사용자 진행 조건에서 제외한다. 로컬 disposable/test 환경의 bounded 시험은 허용하며 운영 DB seed·서비스 배포·패키지 공개는 별도 실행 범위다."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -40,7 +40,7 @@ related:
 
 선택한 native 클라이언트의 기존 로그인 → Stagekeeper 플러그인 설치 → 프로젝트 연결로
 사용할 수 있게 한다. 기본 지원의 소스 구현 완료와 실제 실행·배포 완료를 각각 추적하고,
-미구현 Codex 자동 watch의 요구사항을 보존한다.
+Codex resident 구현과 아직 남은 OS별 실제 인수·출시 조건을 추적한다.
 
 ## Proposal Size
 
@@ -48,7 +48,25 @@ related:
 
 ## Current State
 
-### 2026-10-24 현재 PC의 native cycle 추가 검증
+### 2026-10-24 현재 Windows의 실제 resident 연결 검증
+
+최종 public source는 `893a24e7f1e4d5361727aa24724be3f9f8bc3503`, 격리 package는 `0.5.21`이다.
+[상주 실행기 계획](./codex-resident-runner-plan.md)의 C4B 서버·DB·scoped main-loop·
+CLI/skill·UI를 구현하고 실제 새 계획부터 독립 verifier·두 browser gate·구현·보고서와
+다섯 최종 인수를 통과했다. native pending takeover/stop·같은 AgentRun 재개, browser
+Pause/Resume, cap/auth와 양쪽 실제 설치 inventory 2,229개도 확인했다.
+
+공통 poller의 실제 6600초 유휴에서 모델·AgentRun·사용량은 0이었다.
+최종 A→Z와 유휴 후보의 모델 경로 변경 및 동일한 poller byte는 [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)에 기록했다.
+같은 최종 package를 다시 110분 실행했다거나 heartbeat 수가 HTTP poll 총수라고 주장하지 않는다.
+현재 PC에는 전역 Node가 있으며 PATH에서 제외한 시험을 physical clean host로 승격하지 않는다.
+
+C4B의 현재 Windows 연결 증거는 확보했으나 전체 C4C·REQ-MIN-001/002와 공개 지원은
+미완료다. 물리적 clean Windows·macOS·혼합 버전 실제 호스트·운영 출시가 남는다.
+앞선 sign-in recovery 및 native helper 진단의 간헐 실패 원인은 미확정이며 재발 시
+보존한 로그로 추적한다. 전체 `pending/blocked`를 유지하고 아래 기록은 당시 checkpoint로 읽는다.
+
+### 2026-10-24 앞선 checkpoint — 시험용 native cycle
 
 사용자는 현재 PC만 사용할 수 있음을 확인했다. 별도 clean Windows 게이트를 유지하고
 현재 설치된 0.5.20 공통 runResident에 시험용 adapter를 연결해 실제 Codex의 두 정상
@@ -59,7 +77,7 @@ lease/overview/receipt는 시험용 응답이며 제품 서버 lease·역할 orc
 idle·물리적 clean Windows의 완료 근거가 아니다. [native cycle 보고서](../../test-reports/completed/2026-10-24-codex-native-cycles.md)에
 범위와 증거를 기록했고 BLK-MIN-01·C4B/C4C는 유지한다.
 
-### 2026-10-24 C4B 계약 준비
+### 2026-10-24 앞선 checkpoint — C4B 계약 준비
 
 현재 Windows에서 가능한 후속 작업으로 [C4B 상세 계약](./codex-resident-runner-plan.md)의
 client/scoped permission, legacy 기본값, 동일 session/host 소유권, 응답 binding,
@@ -69,7 +87,7 @@ migration·rollout/rollback 및 변경 파일·검증 목적지를 구체화했�
 활성화하도록 순서를 고정했다. [계약 리허설](../../test-reports/completed/2026-10-24-codex-resident-contract.md)은
 설계 증거이며 제품 구현·clean Windows·C4B/C4C 인수는 아니다. 전체 pending/blocked를 유지한다.
 
-### 2026-10-24 Windows 우선 인수
+### 2026-10-24 앞선 checkpoint — Windows foreground 인수
 
 public `5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5` / plugin `0.5.20`을 실제 설치해 새 계획부터
 `before-plan`·`before-implement` 브라우저 승인, 독립 전체 verifier, 구현·보고서 handoff와
@@ -138,7 +156,7 @@ Windows 설치·실제 모델·서비스 인수를 통과했다는 뜻이 아니
 있다. private 본문·로그인 정보·설치 ZIP은 public Git에 넣지 않는다. 로컬 전달물은
 저장소 밖 `stagekeeper-runtime-acceptance-2026-10-22` 디렉터리에 보관한다.
 
-현재 `/harness:watch`는 Claude 대화 세션용이며 `/harness:background`는
+2026-10-22 기준 `/harness:watch`는 Claude 대화 세션용이며 `/harness:background`는
 `claude -p "/harness:watch --once --session …"`를 호출한다. 두 경로는 서버 lease와
 Pause/Resume를 사용하지만 Codex foreground는 그 보고 경로에 참여하지 않는다.
 [runner 완료 기록](../completed/2026-10-21-runner-status-and-background-runner.md)의
@@ -146,7 +164,8 @@ Codex 제외 범위와 [현재 protocol](../../architecture/protocol.md)을 따�
 C4의 첫 지원 범위로 **Pro/Max 상주형 우선**을 선택했다. 세션형 동시 개발은 제외하고
 [상주 실행기 상세 계획](./codex-resident-runner-plan.md)에서 기존 runner 재사용,
 결과 판독·취소 전략 분리, 모델 없는 준비 단계와 실제 연결 단계를 구분한다.
-Claude background가 이미 Codex를 지원한다는 뜻은 아니다.
+이 역사적 상태는 C4B 구현 결과가 아니다. 0.5.21 격리 후보는 같은 background helper에
+명시적 `--client codex`와 `$harness-background`를 연결하며 기본 Claude 경로를 보존한다.
 
 기본 재현은 **새 `slots-v1` 항목, `plan → verify → implement → accept`,
 `before-plan`·`before-implement` gate**로 고정한다. 선택적 `qa`·`impl-verify`는 이
@@ -194,7 +213,7 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 
 | 이관 항목 | 남은 작업 | 완료 증거 |
 | --- | --- | --- |
-| REQ-MIN-001/002, BLK-MIN-01, TASK-MIN-01/02 | Windows native 실행·최소 설치 패키징을 기본 인수보다 먼저 해결 | 추가 환경/CLI/Node/스킬 수동 설치 없이 실제 패키지의 허용·금지 파일 경계와 실행·중지 통과 |
+| REQ-MIN-001/002, BLK-MIN-01, TASK-MIN-01/02 | Windows native 실행·최소 설치 패키징을 최종 지원·출시 전에 해결; 승인된 현재 PC 격리 C4B 개발·실측은 선행 | 추가 환경/CLI/Node/스킬 수동 설치 없이 실제 패키지의 허용·금지 파일 경계와 실행·중지 통과 |
 | BLK-DUAL-01, T53 | 현재 fresh App Server 어댑터의 실제 역할·모델·권한·독립 문맥 확인 | 허용 읽기/scratch 성공, 금지 쓰기·owner/nested 도구 차단, 완전한 verifier와 fresh-context canary |
 | BLK-DUAL-02/03, T54 | 실제 두 CLI와 브라우저에서 양방향 승인·재개 | 동일 BoardItem/PipelineRun/open AgentRun, 승인 commit·receipt·usage 보존; DB-only PASS와 별도 기록 |
 | BLK-DUAL-02/03, T55 | private 소스 커밋/전달, 승인된 seed/복구와 실제 패키지 설치 | winning body/helper revision·hash, 양쪽 client 렌더·실행, atomic seed와 제한 복구의 직접 관찰 |
@@ -216,8 +235,10 @@ C4의 REQ-DUAL-018/019 watch 부분, BLK-DUAL-04, TASK-C4-01/02, E12와 E10의 w
 
 **BLK-MIN-01:** Windows scoped 파일 MCP와 별도 LPAC snapshot 명령 backend 및 Windows
 bundle 생성기는 구현했다. 실제 설치된 패키지의 최소 설치·완전한 verifier·현재 client
-loader/업데이트 인수가 모두 통과하기 전에는 기본 제품 지원과 C4의 실제 Codex 연결·
-실행을 계속 차단한다. 2026-10-22 상주형 우선 결정에 따라 상세 계획의 C4A(공통 실행
+loader/업데이트 인수가 모두 통과하기 전에는 기본 제품 지원과 C4의 공개 지원·출시를
+계속 차단한다. 2026-10-24 사용자 승인으로 현재 PC의 격리 C4B 개발·실제 서버 연결과
+연결 후 Windows 110분 시험은 먼저 진행한다. 이 순서 변경은 최종 인수 조건을 삭제하지 않는다.
+2026-10-22 상주형 우선 결정에 따라 상세 계획의 C4A(공통 실행
 경계와 모의 테스트)는 선행 준비로 진행할 수 있다. C4A는 실제 Codex adapter·command를
 노출하지 않으며 BLK-MIN-01을 해제하지 않는다.
 private 로컬 패키지의 실제 loader/init과 bounded 원본 verifier는 통과했다. Node가 전역
@@ -320,15 +341,15 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 **REQ-DUAL-019 watch/실제 취소 부분:** stop 또는 ownership 상실 후 새 dispatch·결과 제출·watch 재설정을 중단한다. 늦은 이벤트로 재진입하지 않는다. stopping 중 잠금을 유지하고 실제 자식 종료 확인 뒤 release한다.
 
-**BLK-DUAL-04의 현재 상태:** Codex의 파일 도구 권한, watch 대상 thread/turn 재진입·취소 및 장시간 idle에 필요한 증거가 아직 부족하다. C4의 실제 Codex 연결·자동 watch 안내를 차단하며 기본 명시적 재개 소스의 완료를 취소하지 않는다. 상세 계획의 C4A 모의 준비는 이 실제 호스트 증거의 완료를 주장하지 않는 범위에서 진행한다.
+**BLK-DUAL-04의 현재 상태:** 현재 Windows의 실제 resident lease·fresh 역할·승인·최종 인수·취소/재개 및 공통 poller 110분 증거를 확보했다. 파일·Git/hash 입력과 늦은 terminal 실패 경계를 수정했다. 물리적 clean Windows·macOS·혼합 호스트와 최종 출시 인수는 남아 있어 공개 지원 gate를 유지한다. 전체 E12·REQ-DUAL-018/019 완료로 표시하지 않는다.
 
 2026-10-04 최초 실행: fresh thread와 pending MCP turn 취소는 직접 관찰했지만 Windows 파일 도구 실행은 차단됐다. 설치된 CLI 0.160.0의 Windows backend는 `:root` 읽기를 요구하고 현재 역할 정책은 `:root="deny"`다. [동일 버전 공식 소스](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/resolved_permissions.rs)의 `validate_elevated_filesystem_policy`와 실제 오류가 일치한다. 당시 로컬 WSL 배포판·Docker/Podman은 없었다. 전체 디스크 읽기 허용이나 Windows 전역 설정 변경으로 대체하지 않았다.
 
-2026-10-04 후속 실행: 사용자의 진행 지시 후 [공식 WSL 안내](https://learn.chatgpt.com/docs/windows/wsl)에 따라 WSL2 Ubuntu와 Linux 파일시스템의 별도 checkout을 준비했다. 사용자 홈에 설치된 CLI 실행 파일은 sandbox의 최소 시스템 경로 밖이라 bubblewrap에서 실행되지 않았다. 같은 hash의 CLI와 리소스를 새 Linux 배포판의 `/usr/local/lib`에 root 소유로 설치하고 `/usr/local/bin`에서 실행하자 허용 읽기/scratch와 금지 경로 시험이 통과했다. 역할 정책·커널/AppArmor 설정은 완화하지 않았다. Windows 자격 증명은 복사하지 않고 [native device 로그인](https://learn.chatgpt.com/docs/auth)을 요청했다. 이 기록은 개발 시험의 경과이며 현재 사용자 지원 경로가 아니다. C4 착수는 REQ-MIN-001/002와 기본 인수의 통과를 먼저 요구한다.
+2026-10-04 후속 실행: 사용자의 진행 지시 후 [공식 WSL 안내](https://learn.chatgpt.com/docs/windows/wsl)에 따라 WSL2 Ubuntu와 Linux 파일시스템의 별도 checkout을 준비했다. 사용자 홈에 설치된 CLI 실행 파일은 sandbox의 최소 시스템 경로 밖이라 bubblewrap에서 실행되지 않았다. 같은 hash의 CLI와 리소스를 새 Linux 배포판의 `/usr/local/lib`에 root 소유로 설치하고 `/usr/local/bin`에서 실행하자 허용 읽기/scratch와 금지 경로 시험이 통과했다. 역할 정책·커널/AppArmor 설정은 완화하지 않았다. Windows 자격 증명은 복사하지 않고 [native device 로그인](https://learn.chatgpt.com/docs/auth)을 요청했다. 이 기록은 개발 시험의 경과이며 현재 사용자 지원 경로가 아니다. 당시에는 C4 착수 전에 REQ-MIN-001/002와 기본 인수를 요구했다. 2026-10-24 승인으로 현재 PC의 격리 C4B 개발·실측은 먼저 진행했고 이 조건은 최종 지원·출시 gate로 유지한다.
 
 2026-10-04 로그인 후 실행: 실제 모델은 MCP를 호출했지만 `inherit="none"` 셸의 PATH가 없어 `cat` 읽기가 실패했다. 상속 PATH를 전달하지 않고 고정 시스템 도구 경로를 설정했으며 POSIX preflight에 `cat` 경로 확인을 추가했다. 실제 전체 verifier는 owner 스킬을 읽지 못해 네 경로를 NOT RUN/blocked로 올바르게 보고했다. 원본 패키지 8개 파일만 scratch에 복사하고 원본·복사본 checksum과 파일 수를 재검증해, 이 하위 경로를 읽기 전용으로 제한했다. 실제 loader의 정확한 staged 경로만 활성화한 새 모델은 baseline·정확한 계획 sketch의 scratch destination·import/export·citation/최종 reread를 실행했다. 발견한 시험 문서 결함과 수정 후 별도 0-defect 실행, kernel write 거부 및 pending stop 증거는 [WSL 역할 관찰 기록](../../test-reports/assets/2026-10-04-codex-wsl-role-acceptance/observations.json)에 보존한다. 실제 승인 재개·혼합 CLI/host와 패키지 인수는 이 bounded 통과로 대체하지 않는다.
 
-**TASK-C4-01 실행 범위:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A에서 기존 runner 실행 경계와 모의 계약을 먼저 준비한다. C4B는 기본 인수·실제 호스트 기능 확인 후 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 local session/정책과 cycle별 새 main-loop, no-model idle, permission 처리, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 연결한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
+**TASK-C4-01 실행 범위:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A는 기존 runner 실행 경계와 모의 계약을 준비했다. 2026-10-24 승인된 C4B는 현재 Windows PC에서 Codex client/hash/echo poll transport, target thread/turn/session 고정, 동일 local session/정책과 cycle별 새 main-loop, no-model idle, permission 처리, active-turn 중복 방지, interrupt와 reader/timer/listener cleanup을 연결·검증한다. 물리적 clean Windows·다른 OS·혼합 host는 최종 지원·출시 조건으로 유지한다. 임의 앱 대화 재진입 가정·권한 우회·자동 승인·모델 idle polling은 중단 조건이다.
 
 **TASK-C4-02 검증 범위:** E12의 실제 thread/turn/session에서 110분 no-model idle, 작업 발견·재진입·gate 대기/승인·handoff·auth/cap/permission·stop/interrupt·늦은 이벤트·ownership 상실 후 rearm 없음과 Claude watch 회귀를 시험한다. latency·poll/model 호출 수·종료 이유를 기록한다. pending stop은 실제 종료 확인 전 잠금과 ownership을 유지해야 하며 확인 실패 시 잠금을 보존한다. E10의 watch 안내는 관찰한 호스트·버전·방식에 한정한다.
 
@@ -341,7 +362,8 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 | `plugin/runtime/codex-thread.mjs`, `codex-agent.mjs`, `local-session.mjs`; `plugin/bin/harness-session.mjs` | 실제 인수 및 발견된 결함 수정 | high — 권한·독립 문맥·소유권 |
 | `plugin/templates` 별도 private 저장소; `scripts/templates/seed-templates.ts`, `restore-dual-client-templates.ts` | 소스 전달·승인된 배포/복구 인수 | high — 데이터·배포 조합 |
 | 실제 설치한 Claude/Codex package, 기존 dual-client UI | 양방향 end-to-end 인수 | high — 승인·원장·사용량 |
-| C4 후보 `plugin/runtime/codex-session.mjs`, `plugin/bin/harness-codex-watch.mjs` 및 test, `plugin/codex/skills/harness-watch/SKILL.md` | 호스트 기능 확인 후 구현 위치 확정 | high — 재진입·취소·장시간 실행 |
+| `plugin/runtime/codex-main-loop.mjs`, `codex-main-loop-tools.mjs`, `resident-commit.mjs`, `plugin/bin/harness-background.mjs`, 대응 runtime/background 시험, `plugin/codex/skills/harness-background/SKILL.md` | 확정된 resident adapter·scoped 도구·commit·수동 진입; 별도 Codex session watcher는 만들지 않음 | high — 재진입·취소·장시간 실행 |
+| `prisma/migrations/20261024020000_runner_client/migration.sql`, `prisma/schema.prisma`, `src/server/runners`, `src/server/rest/runner-handler.ts`, turn-banner slice와 runner-client/session helper | client/scoped 계약·echo·호환성·표시·정식 migration; 상세 파일/검증 목록은 C4B 계획이 소유 | high — lease·이전 client·DB 보존 |
 | active runtime 보고서와 최종 watch 보고서 | revision·직접 관찰·정리 결과 기록 | medium — 증거 범위 과장 방지 |
 | `plugin/bin/harness-session.test.mjs`, `plugin/codex/skills/harness-run/SKILL.md`, `docs/architecture/protocol.md` | 실제 실행 preflight·역할 MCP 승인 정책의 회귀와 사용 지침 | high — 허용 도구 실행과 권한 경계 |
 | `scripts/rehearsals/rehearse-dual-client-runtime.ts` 및 test | 실제 기록 추가 중 발견한 CRLF 보고서 append 오류 수정 | medium — 기존 증거 행 보존 |
@@ -352,6 +374,11 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 기존 로컬 DB·UI PASS는 보존하고 실제 미실행 gate를 별도로 유지한다. 모델 시험은 경계가 정해진 disposable/test 환경에서 수행하며 credential·사용자 설정을 복사하지 않는다. 운영 seed·배포와 C4는 승인된 범위와 호스트 기능 증거를 확인한 뒤 수행한다.
 
 ## Approval
+
+2026-10-24 추가 결정: 사용자는 현재 Windows PC에서 가능한 C4B 구현·실제 연결과
+110분 유휴 시험을 진행하도록 승인했다. 최소 설치·OS별 인수는 개발 착수와 분리한
+최종 지원·출시 gate이며, 다음 과거 승인 기록의 C4A 제한을 이번 격리 개발에 적용하지 않는다.
+운영 seed·서비스 릴리스·패키지 공개·main 승격은 이 승인에 포함하지 않는다.
 
 2026-10-22 추가 결정: 사용자는 기존 runner 재사용과 최소 Codex 연결을 구체화하도록
 지시하고, 첫 지원 범위를 Pro/Max 상주형으로 선택했다. 실제 인수 전 진행할 범위는
@@ -370,25 +397,25 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 ## Execution Plan
 
-1. **현재 후보 유지:** 2026-10-24 Windows 인수의 public/private/runtime/verifier/package identity와 0.5.20 설치본을 사용한다. 이전 버전의 인수는 해당 source의 기록으로 보존한다. 다른 내용의 같은 버전을 새 설치 성공으로 취급하지 않는다.
+1. **현재 후보 유지:** [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)의 최종 public/private/runtime/verifier와 0.5.21 후보 identity를 사용한다. 미공개 중간 후보는 별도 catalog/profile/hash로 구분하고 0.5.20 및 각 이전 결과를 해당 source의 기록으로 보존한다. 공개된 같은 버전의 body를 덮어쓰지 않는다.
 2. **시험 환경:** 실제 Windows host·기존 인증·client와 새 격리 DB/서비스가 확보돼 기본 foreground 인수를 통과했다. 후속 사례마다 새 fixture·고정 source를 사용하며 물리적으로 Node가 없는 Windows 최소 설치는 별도 검증한다.
 3. **실행 인수:** 현재 private 버전의 R3 같은 항목 중지/재개/최종 인수와 R4 양방향 CLI/browser 인계는 명시한 범위에서 통과했다. 2026-10-24 기본 재현은 두 browser gate와 전체 pipeline을 통과했다. 물리적 clean Windows 및 실제 혼합 버전 host에서 남은 조건을 확인한다. 실패는 product·fixture·operator 원인을 구분하고 제품 수정 시 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
-4. **설치/복구:** 0.5.20 installed inventory·bundled helper 전체 흐름과 양쪽 버전 갱신을 통과했다. 수정 파일 보존과 실제 private atomic seed/제한 복구는 앞선 0.5.19 시험의 직접 증거를 유지한다. 다음은 물리적 clean Windows 최소 설치와 실제 혼합 host 인수다. 운영 릴리스는 별도 범위이며 BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
-5. **C4:** [상주 실행기 상세 계획](./codex-resident-runner-plan.md)의 C4A는 2026-10-23 소스 구현·로컬 검증을 완료했다. 최소 설치·기본 인수와 실제 main-loop host/권한 계약 확인 뒤 C4B를 연결하고, C4C에서 TASK-C4-02/E12와 OS별 인수를 완료한다. C4A 통과로 실제 gate를 해제하지 않는다.
+4. **설치/복구:** 현재 0.5.21의 양쪽 실제 loader·2,229개 inventory와 버전 갱신을 통과했다. 기존 bundled helper 흐름의 직접 증거도 유지한다. 수정 파일 보존과 실제 private atomic seed/제한 복구는 앞선 0.5.19 시험의 직접 증거를 유지한다. 다음은 물리적 clean Windows 최소 설치와 실제 혼합 host 인수다. 운영 릴리스는 별도 범위이며 BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
+5. **C4:** C4A와 현재 Windows C4B 구현·실제 연결 검증을 완료했다. C4C는 실제 A→Z·lifecycle·공통 poller 110분 증거를 추가했다. 다음은 물리적 clean Windows·macOS·혼합 host와 고정 출시 후보의 OS별 인수이며, 현재 결과로 공개 지원 gate를 해제하지 않는다.
 
 ### 실제 Windows 인수의 시작 조건
 
 - 담당 Windows host·기존 native client 로그인과 실제 CLI 버전·실행 파일 hash를 기록한다. 현재 macOS의 CLI 버전은 Windows 증거가 아니다.
-- 공개·private·package는 2026-10-23 현재 기준의 직접 시험 commit/hash와 일치시킨다. 10월 22일의 export commit·0.5.17 inventory를 현재 후보와 혼용하지 않는다. 변경이 있으면 새 후보 identity와 변경 범위를 먼저 기록한다.
-- DB는 `stagekeeper_test_*` 이름의 disposable PostgreSQL이고 운영 DB와 달라야 한다. `scripts/test-server-integration.mjs`의 `validateTestDatabase`를 통과한 뒤에만 시험 프로세스의 DATABASE_URL을 그 DB에 연결한다. production 환경 파일을 복사하지 않는다.
+- 공개·private·package는 최신 실제 resident 보고서의 직접 시험 commit/hash 및 명시된 검사 재사용 범위와 일치시킨다. 10월 22일의 export commit·0.5.17 inventory를 현재 후보와 혼용하지 않는다. 변경이 있으면 새 후보 identity와 변경 범위를 먼저 기록한다.
+- formal integration DB는 `stagekeeper_test_*`이며 `scripts/test-server-integration.mjs`의 `validateTestDatabase`를 통과해야 한다. C4B 실제 모델 서비스는 별도 신규 cluster의 `stagekeeper_resident_live`를 사용했고 loopback·고정 port·정확한 DB 이름·초기 user/template 0건을 확인했다. 이 별도 guard를 test DB 이름 validator 통과로 표현하지 않는다. 두 경로 모두 운영 DB와 분리하며 production 환경 파일을 복사하지 않는다.
 - `seed-templates.ts`의 `--snapshot`은 저장소 밖 private 경로에 쓴다. 제한 복구 시험은 기존 non-Codex 12행을 먼저 둔 legacy baseline에서 시작한다. 빈 DB에 전체 13행을 최초 생성한 snapshot은 `restoreTemplates`가 non-Codex 삭제를 거부하므로 그 상태를 제한 복구 PASS로 사용하지 않는다.
 - 승인된 시험 서비스의 실제 project identity로 fixture의 `harness.json`을 맞춘다. 원본 fixture는 보존하고 사례별 복사본을 쓴다. 서버 등록·양쪽 init 후 생긴 관리 파일과 초기 fixture를 먼저 owner가 commit한다.
-- 실제 항목 key가 정해진 뒤 `plan-candidate.md`를 `docs/plans/<KEY>.md`로 복사하고, main-loop 기록에 선택한 5개 verification paths를 고정한다. owner commit과 서버의 planPath/planCommit이 일치해야 한다. 예시 파일명이나 임의 commit을 receipt 대신 사용하지 않는다.
+- 새 계획 A→Z에서는 planner가 실제 key의 계획을 작성하고 main-loop가 현재 파일을 commit한다. 준비된 계획을 쓰는 R3 재현은 그 별도 범위를 명시한다. 선택한 verification paths와 실제 planPath/planCommit을 대조하며 예시 파일명이나 임의 commit을 receipt 대신 사용하지 않는다.
 
 ### 준비한 재현 순서와 판정
 
-아래 표는 인수 조건이다. 실행 상태는 위 2026-10-23 현황과 각 시험 보고서를 따른다.
-R3는 같은 항목의 최종 인수까지, R4는 표에 정의한 승인·open-run 인계까지 직접 확인했다. R1/R5의 로컬 설치·업데이트·제한 복구 증거도 추가했다. 물리적 clean Windows, 혼합 버전 host 및 운영/C4 조건은 미완료다.
+아래 표는 인수 조건이다. 실행 상태는 위 2026-10-24 최신 현황과 각 시험 보고서를 따른다.
+R3는 같은 항목의 최종 인수까지, R4는 표에 정의한 승인·open-run 인계까지 직접 확인했다. R1/R5의 로컬 설치·업데이트·제한 복구 증거도 추가했다. 물리적 clean Windows, 혼합 버전 host·다른 OS와 운영 출시 조건은 미완료다. 현재 Windows의 C4B 및 C4C 실측 범위는 최신 resident 보고서를 따른다.
 
 | 사례 | 대상 | 실행과 기대 관찰 | 중단 조건 |
 | --- | --- | --- | --- |
@@ -408,7 +435,8 @@ R3의 60초 대기 명령은 기존 120초 command 제한 안에 있으며 basel
 승인된 artifact/receipt의 일치를 복원한 뒤 같은 항목에서 재시도한다.
 
 다음 명령은 **설치·서비스 준비 후 Windows 운영자가 사용하는 형태**다. 변숫값은
-실제 설치 경로·시험 checkout·서버 응답으로 채우며 현재 준비에서는 실행하지 않았다.
+실제 설치 경로·시험 checkout·서버 응답으로 채운다. 이 명령 형태를 마련한 2026-10-22에는
+실행하지 않았으며 이후 실제 실행 결과는 각 source의 인수 보고서에 기록한다.
 
 ```powershell
 & "$pluginRoot\bin\harness.ps1" codex prepare --root $testCheckout --server $testServer --commit no --propose no
@@ -449,6 +477,11 @@ preflight 실패/불일치/transport 오류는 모델 시작 없이 고정된 �
 하며 민감한 원본 오류를 노출하거나 재초기화/추가 설치를 해결책으로 제시하지 않는다.
 
 ## Verification Results
+
+2026-10-24 실제 resident 결과는 [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)가 소유한다. 정식 migration·REST/DB,
+최종 fresh A→Z·독립 verifier·native lifecycle, UI production snapshot·설치와 실제
+공통 poller 유휴를 구분해 기록했다. 최종 회귀는 536 PASS / 2 SKIP이며 실패·중단한
+후보, source별 재사용 범위와 미확정 진단 원인을 보존했다. 아래 결과는 역사적 checkpoint다.
 
 2026-10-22 준비 검증: 고정 private 13행의 원본 blob·구조·양쪽 역할 렌더링,
 Windows runtime의 공식 artifact digest·build recipe·전체 inventory, 원본 verifier

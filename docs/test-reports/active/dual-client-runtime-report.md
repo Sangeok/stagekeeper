@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-24T01:34:55.618Z"
-tested-revision: "5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5"
+last-executed-at: "2026-10-24T06:03:40.4252950Z"
+tested-revision: "893a24e7f1e4d5361727aa24724be3f9f8bc3503"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
-observed-environments: ["local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "fail: historical required failures retained — 0.5.20 foreground and bounded native common-loop cycles passed; clean-host, mixed-host, release and C4 remain open"
+observed-environments: ["local | isolated Windows product resident service | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
+test-summary: "fail: historical required failures retained — Windows resident A-to-Z and common-poller 110-minute idle passed; clean-host, other-OS, mixed-host and release remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -24,14 +24,25 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 
 ## Summary and Decision
 
-2026-10-24 native-cycle follow-up: the installed common runResident loop drove two
+2026-10-24 product-resident follow-up: a final installed 0.5.21 candidate completed
+a fresh plan, both browser gates, full independent verifier, implementation/report
+handoffs and five-check service acceptance. Real lease/DB, pending takeover and
+same-run resume, Pause/Resume, cap/auth, installed inventory and final rendered UI
+were checked. The shared poller remained idle for 6600 real seconds
+with no models, AgentRuns or usage increase. The long-idle package differs from the
+final A-to-Z package only in model tool-error/terminal paths; byte-level boundaries
+and every retained trial are explicit in [E116]. Physical clean Windows, other OS,
+mixed-host and release conditions remain open.
+[Scoped resident report](../completed/2026-10-24-codex-resident-live.md).
+
+Earlier 2026-10-24 native-cycle checkpoint: the installed common runResident loop drove two
 completed native Codex cycles and interrupted a third. Fresh process/thread contexts,
 synthetic receipt recovery, old-generation rejection and owned cleanup passed.
 Lease/overview/receipt responses and adapter wiring were test-only; actual product
 lease, fresh-role orchestration and 110-minute idle remain open. The user has only
 the current PC, which has global Node. [Scoped report](../completed/2026-10-24-codex-native-cycles.md), [E115].
 
-2026-10-24 Windows-first acceptance: actual installed 0.5.20 completed a new plan,
+Earlier 2026-10-24 Windows foreground checkpoint: actual installed 0.5.20 completed a new plan,
 both browser gates, complete independent verifier, implementation/report handoff and
 five-check acceptance. A native dot-root/command-parameter defect was repaired and
 regressed. The first 0.5.19 verifier refusal and passing same-plan replay remain
@@ -310,6 +321,10 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T107 | R2 | required | Bounded actual main-loop terminal/commit/stop contract | Real completed/interrupted and cleanup; test-only bridge/lock, no live product/lease/110-minute claim | [E114] | PASS |
 | T108 | R2 | required | Installed common loop with actual native cycles | Two completed fresh process/thread cycles, same local session/policy, synthetic receipt recovery and old-generation bridge refusal; no product lease/receipt/usage claim | [E115] | PASS |
 | T109 | R2 | required | Common-loop stop during native pending MCP | One actual interrupt, no new overview/result beat/model start after stop, early release denied, real child/handler cleanup and owned release | [E115] | PASS |
+| T110 | R2 | required | Actual installed product resident A-to-Z | Fresh plan and verifier, both owner browser gates, implementation/report handoffs and five-check acceptedAt read-back | [E116] | PASS |
+| T111 | R2 | required | Product resident lifecycle and access controls | Native pending takeover, same AgentRun resume, owner stop, browser Pause/Resume, cap/auth and successor protection; candidate boundaries explicit | [E116] | PASS |
+| T112 | R2 | required | Actual shared-poller 110-minute idle on current Windows | No model/AgentRun/usage increase, recent heartbeat and owned cleanup; exact package recorded, no physical-clean/other-OS claim | [E116] | PASS |
+| T113 | R2 | required | Resident package, DB/REST and rendered UI | Formal migration, installed 2,229-file inventories and complete verifier, stored-client full/compact/list and recovery copy | [E116] | PASS |
 
 ## Commands and Static Checks
 
@@ -463,6 +478,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E113 | Current private stop/resume, CLI/browser identity handover and installed update/recovery | [Scoped report](../completed/2026-10-23-codex-runtime-followups.md); [projected observations](../assets/2026-10-23-codex-runtime-followups/observations.json). Final actual trials passed; failed observers retained. | No private body, credentials, raw model transcript or local user paths |
 | E114 | Windows two-gate foreground acceptance, native command repair and bounded main-loop transport | [Scoped report](../completed/2026-10-24-codex-windows-gates.md); [projected observations](../assets/2026-10-24-codex-windows-gates/observations.json). Failed original trial and operator corrections retained. | No private body, credentials, raw transcript, session IDs or local user paths |
 | E115 | Native Codex cycles through installed common resident loop with synthetic server responses | [Scoped report](../completed/2026-10-24-codex-native-cycles.md); [projected observations](../assets/2026-10-24-codex-native-cycles/observations.json). Native processes/model/commits/interrupt are real; adapter wiring, lease/overview/receipt are fixtures. | No canary values, credentials, private body, raw transcript, thread/turn/receipt IDs or local user paths |
+| E116 | Actual product Codex resident service, installed package, fresh A-to-Z and scoped long-idle evidence | [Scoped report](../completed/2026-10-24-codex-resident-live.md); [observations](../assets/2026-10-24-codex-resident-live/observations.json), [checks](../assets/2026-10-24-codex-resident-live/checks.json), [source boundaries and failure history](../assets/2026-10-24-codex-resident-live/source-basis.json). Historical failures and superseded candidates retained; model-free idle and real model paths distinguished. | No private body, credentials, raw transcript, real account/session IDs or local user paths |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -541,17 +557,17 @@ An earlier writer implementation left its own draft when Windows handle/path dev
 Result rationale: fail. The campaign validator includes every retained required row,
 including historical failed candidates. Those observations remain unchanged; the
 dated scoped reports identify later successful trials. This historical aggregate
-verdict does not turn E114 into a failure or certify the remaining support gates.
+verdict does not turn the dated scoped passes into failures or certify remaining support gates.
 
-Current decision: keep active/result:null and stage:blocked. E114 completes the
-installed 0.5.20 Windows fresh-plan cycle with both browser gates and final acceptance.
-E115 additionally exercises the common loop with actual native cycles and cleanup,
-but its synthetic server responses do not close C4B/C4C. The earlier fresh-plan baseline
-and E113 same-item stop/resume acceptance are complete within their recorded scopes.
-Both CLI/browser open-run handovers and local current-package/recovery checks passed.
-Clean Windows, mixed-version physical hosts, supported OS acceptance, operational
-release and C4B/C4C still require direct evidence. The dated checkpoints below retain
-their original failure and NOT RUN history; they are not current source verdicts.
+Current decision: keep active/result:null and stage:blocked. E116 adds actual
+Windows product-resident lease/roles/receipt/usage, fresh five-check A-to-Z and
+common-poller 110-minute idle to the earlier foreground, open-run handover and
+package/recovery evidence. Current Windows C4B is implemented and directly exercised;
+C4C remains partial. Candidate hashes and reused verification surfaces are explicit.
+Physical clean Windows, macOS, mixed-version hosts and operational release still
+require independent evidence. Intermittent sign-in/native helper diagnostic failures
+remain cause-unconfirmed despite subsequent passing focused/full runs. The dated
+checkpoints below retain their original failure/NOT RUN history.
 
 Historical Git checkpoint: retain active/result:null for this aggregate campaign.
 The narrow Git regression is complete, including actual private dev verify ok
@@ -580,7 +596,7 @@ Historical initial rerun decision: keep this report active/result:null and the p
 - [x] Fixed/projected diagnostics reviewed for sensitive content.
 - [x] Cleanup and retained fixtures documented.
 - [ ] Complete actual host isolation, product package, DB flow and mixed-version gates before support/release readiness.
-- [ ] Run repository-wide docs:check if it becomes available; currently absent.
+- [x] Run repository-wide docs:check; it validates documentation and does not replace runtime gates.
 - [x] This report uses the dedicated structural validator, which does not replace docs:check.
 - [x] Actual model usage, failed candidate writes, authentication-context distinction and legacy stop limits retained.
 - [x] Local regression checks and one skipped privilege-dependent test recorded separately from product acceptance.
