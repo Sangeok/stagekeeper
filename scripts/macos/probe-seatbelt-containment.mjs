@@ -29,6 +29,10 @@ const policy = `(version 1)
 (allow process-info* (target same-sandbox))
 (allow sysctl-read)
 (allow file-read-metadata)
+(allow file-map-executable (subpath "/System") (subpath "/usr/lib") (subpath "/Library/Apple") (subpath ${quote(runtime)}))
+(allow system-mac-syscall (mac-policy-name "vnguard"))
+(allow system-mac-syscall (require-all (mac-policy-name "Sandbox") (mac-syscall-number 67)))
+(allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo"))
 (allow file-read* (subpath "/System") (subpath "/usr/lib") (subpath "/usr/share") (subpath "/Library/Apple/System/Library") (subpath ${quote(runtime)}) (subpath ${quote(repository)}) (subpath ${quote(scratch)}) (literal "/dev/null") (literal "/dev/urandom") (literal "/dev/random"))
 (allow file-write* (subpath ${quote(repository)}) (subpath ${quote(scratch)}) (literal "/dev/null"))
 (deny file-read* file-write* (subpath ${quote(path.join(repository, ".git"))}) (literal ${quote(path.join(repository, ".env"))}))
@@ -64,6 +68,9 @@ try {
     nodeSha256: digest(node), policySha256: digest(profile), scope: "native feasibility probe; no model or production backend",
     boundaries, detachedChildSurvivesGroupKill, ownedProcessesGone: cleanup, verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", productionBackendEnabled: false }, null, 2) + "\n", { flag: "wx" });
   console.log(JSON.stringify({ verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", permissionsPassed: true, inheritedPermissionsPassed: true, ownedProcessesGone: cleanup, arch: process.arch }));
+} catch (error) {
+  try { process.stderr.write(execFileSync("/usr/bin/log", ["show", "--last", "1m", "--style", "compact", "--predicate", 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "node"'], { encoding: "utf8", timeout: 15000, maxBuffer: 256 * 1024 })); } catch { process.stderr.write("Native denial log unavailable\n"); }
+  throw error;
 } finally {
   if (leader?.pid && alive(leader.pid)) { try { process.kill(-leader.pid, "SIGKILL"); } catch (error) { if (error.code !== "ESRCH") throw error; } }
   if (descendantPid && alive(descendantPid)) { process.kill(descendantPid, "SIGKILL"); await until(() => !alive(descendantPid)); }
