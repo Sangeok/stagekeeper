@@ -238,6 +238,10 @@ function readOptional(file) {
   }
 }
 
+function recordStateFailure(directory, operation, error) {
+  backgroundLog(directory, JSON.stringify({ event: "state-diagnostic", operation, ...readStateDiagnostic(error) }));
+}
+
 function pruneRuns(runs) {
   const names = readdirSync(runs).filter(name => name.endsWith(".jsonl")).sort();
   for (const name of names.slice(0, Math.max(0, names.length - RUN_LOG_KEEP))) {
@@ -500,7 +504,7 @@ async function resident(location, files, options) {
       const state = readState(files);
       if (state?.lock.id !== session) return "gone";
       return state.lock.lifecycle === "stopping" ? "stopping" : "active";
-    } catch { return "gone"; }
+    } catch (error) { recordStateFailure(directory, "lifecycle", error); return "gone"; }
   };
   let execution;
   const beat = async payload => {
@@ -509,7 +513,7 @@ async function resident(location, files, options) {
         const state = readState(files);
         if (state?.lock.id === session) { state.lock.seenAt = now(); atomicWrite(files.lock, state.lock); }
       });
-    } catch {   }
+    } catch (error) { recordStateFailure(directory, "beat", error); }
     const result = await runnerCallWithin(target, { op: "beat", session, ...payload }, REQUEST_TIMEOUT);
     execution?.observeLease?.(result);
     return result;
@@ -563,6 +567,7 @@ async function resident(location, files, options) {
     log(`runner ${session} started on ${saved.branch} (${saved.permission})`);
     reason = await runResident({ branch: saved.branch, interval: options.interval, runLimit: options.runLimit }, deps);
   } catch (error) {
+    if (error?.code === "corrupt-state") recordStateFailure(directory, "run", error);
     log(`runner failed: ${error?.message ?? error}`);
     if (error instanceof ResidentRunUnsettled) {
       await withGuard(files, () => {
@@ -572,7 +577,7 @@ async function resident(location, files, options) {
         state.lock.unsettled = true;
         atomicWrite(files.lock, state.lock);
         save({ state: "stopping", stopReason: "unsettled" });
-      }).catch(() => {});
+      }).catch(error => recordStateFailure(directory, "unsettled", error));
       return { event: "stopping", session, code: error.code };
     }
     reason = "error";
@@ -591,7 +596,7 @@ async function finish(files, { session, target, reason, save, log, directory, no
       state.lock.lifecycle = "stopping"; state.lock.unsettled = true; atomicWrite(files.lock, state.lock); return false;
     }
     return true;
-  }).catch(() => false);
+  }).catch(error => { recordStateFailure(directory, "settle", error); return false; });
   if (!settled) { save({ state: "stopping", stopReason: "unsettled" }); return { event: "stopping", session, code: "resident-run-unsettled" }; }
   if (["owner", "stuck", "error", "plan"].includes(reason)) {
     await runnerCallWithin(target, { op: "stop", session, reason }, REQUEST_TIMEOUT);
@@ -602,7 +607,7 @@ async function finish(files, { session, target, reason, save, log, directory, no
     if (state.lock.poller?.pid !== process.pid || state.lock.poller?.nonce !== nonce || (state.lock.children ?? []).length || state.lock.unsettled) return false;
     save({ state: "stopped", stopReason: reason });
     clearState(files); return true;
-  }).catch(() => false);
+  }).catch(error => { recordStateFailure(directory, "clear", error); return false; });
   if (!cleared) { save({ state: "stopping", stopReason: "unsettled" }); return { event: "stopping", session, code: "resident-run-unsettled" }; }
   if (NOTICE_FOR[reason]) {
     const notice = fillNotice(NOTICE_FOR[reason]);
@@ -636,7 +641,7 @@ async function main() {
     const code = error instanceof Refusal ? error.code : error?.code && REASONS[error.code] ? error.code : "corrupt-state";
     const reason = error instanceof Refusal ? error.message : REASONS[code];
     event = { event: "error", code, reason };
-    if (code === "corrupt-state" && directory) backgroundLog(directory, JSON.stringify({ event: "state-diagnostic", operation: options.op, ...readStateDiagnostic(error) }));
+    if (code === "corrupt-state" && directory) recordStateFailure(directory, options.op, error);
     if (options?.["from-autostart"] && directory) {
       await notify(directory, fillNotice("startRefused", { reason }));
       const registered = readOptional(autostartFile(directory));

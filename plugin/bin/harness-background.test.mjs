@@ -172,6 +172,85 @@ it("records a redacted corrupt-state phase without repairing state or starting a
   } finally { unlinkSync(f.lockPath); unlinkSync(policy); }
 });
 
+it("records runtime state corruption and preserves the unreadable ownership", async t => {
+  const f = await fixture(t);
+  f.setOverview(EMPTY);
+  const started = await f.run(START);
+  assert.equal(started.event.event, "started");
+  await waitFor(() => f.status()?.state === "idle");
+  const body = '{"token":"SECRET_RUNTIME_STATE_CANARY",';
+  writeFileSync(f.lockPath, body);
+  await waitFor(() => f.status()?.stopReason === "unsettled");
+  await waitFor(() => !alive(f.status().pid));
+  try {
+    assert.equal(readFileSync(f.lockPath, "utf8"), body);
+    const log = readFileSync(path.join(f.directory, "background.log"), "utf8");
+    assert.match(log, /"operation":"lifecycle","phase":"read-json","target":"lock","errorKind":"SyntaxError"/);
+    assert.equal(log.includes("SECRET_RUNTIME_STATE_CANARY"), false);
+    assert.equal(log.includes(f.root), false);
+    assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 0);
+  } finally { unlinkSync(f.lockPath); unlinkSync(path.join(f.directory, "watch.json")); }
+});
+
+it("records an in-loop status write failure without reflecting the system message", async t => {
+  const f = await fixture(t), preload = path.join(f.tools, "status-write-failure.mjs");
+  writeFileSync(preload, `
+import fs from "node:fs";
+import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
+const rename = fs.renameSync;
+fs.renameSync = function(source, target, ...args) {
+  if (process.argv.includes("--run") && path.basename(target) === "background.json"
+    && JSON.parse(fs.readFileSync(source, "utf8")).state === "working") {
+    throw Object.assign(new Error("SECRET_STATUS_WRITE_CANARY " + target), { code: "EPERM" });
+  }
+  return rename.call(this, source, target, ...args);
+};
+syncBuiltinESMExports();
+`);
+  await f.run(START, { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` });
+  await waitFor(() => f.status()?.state === "stopped" && !existsSync(f.lockPath));
+  assert.equal(f.status().stopReason, "error");
+  const log = readFileSync(path.join(f.directory, "background.log"), "utf8");
+  assert.match(log, /"operation":"run","phase":"state-write","target":"status","errorKind":"Error","systemCode":"EPERM"/);
+  assert.equal(log.includes("SECRET_STATUS_WRITE_CANARY"), false);
+  assert.equal(log.includes(f.root), false);
+  assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 0);
+});
+
+it("preserves a live owner when the stop write is denied and accepts a later stop", async t => {
+  const f = await fixture(t), preload = path.join(f.tools, "stop-write-failure.mjs");
+  f.setOverview(EMPTY);
+  writeFileSync(preload, `
+import fs from "node:fs";
+import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
+const rename = fs.renameSync;
+fs.renameSync = function(source, target, ...args) {
+  if (process.argv.includes("--stop") && path.basename(target) === "watch.lock.json") {
+    throw Object.assign(new Error("SECRET_STOP_WRITE_CANARY " + target), { code: "EBUSY" });
+  }
+  return rename.call(this, source, target, ...args);
+};
+syncBuiltinESMExports();
+`);
+  const started = await f.run(["--start", "--propose", "no", "--interval", "60"]);
+  assert.equal(started.event.event, "started");
+  await waitFor(() => f.runnerCalls.some(call => call.op === "beat"));
+  const before = readFileSync(f.lockPath, "utf8");
+  const refused = await f.run(["--stop"], { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` });
+  assert.equal(refused.event.code, "corrupt-state");
+  assert.equal(readFileSync(f.lockPath, "utf8"), before);
+  assert.equal(alive(JSON.parse(before).poller.pid), true);
+  assert.equal(existsSync(f.lockPath + ".tmp"), false);
+  const log = readFileSync(path.join(f.directory, "background.log"), "utf8");
+  assert.match(log, /"operation":"stop","phase":"state-write","target":"lock","errorKind":"Error","systemCode":"EBUSY"/);
+  assert.equal(log.includes("SECRET_STOP_WRITE_CANARY"), false);
+  assert.equal(log.includes(f.root), false);
+  assert.equal((await f.run(["--stop"])).event.event, "stopping");
+  await waitFor(() => !existsSync(f.lockPath));
+});
+
 it("starts a resident runner that runs ready work with push blocked, logs it and stops on a local stop", async t => {
   const f = await fixture(t);
   const started = await f.run(START);
