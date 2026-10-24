@@ -48,6 +48,16 @@ related:
 
 ## Current State
 
+### 2026-10-24 C4B 계약 준비
+
+현재 Windows에서 가능한 후속 작업으로 [C4B 상세 계약](./codex-resident-runner-plan.md)의
+client/scoped permission, legacy 기본값, 동일 session/host 소유권, 응답 binding,
+migration·rollout/rollback 및 변경 파일·검증 목적지를 구체화했다. 후보 DDL은 실제
+격리 PostgreSQL에서 111개 관찰 항목을 통과했고 기존 Claude 데이터를 보존했다.
+구 서버의 session-only 삭제는 DB 제약으로 차단되지 않아 모든 서버 갱신 후 Codex를
+활성화하도록 순서를 고정했다. [계약 리허설](../../test-reports/completed/2026-10-24-codex-resident-contract.md)은
+설계 증거이며 제품 구현·clean Windows·C4B/C4C 인수는 아니다. 전체 pending/blocked를 유지한다.
+
 ### 2026-10-24 Windows 우선 인수
 
 public `5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5` / plugin `0.5.20`을 실제 설치해 새 계획부터

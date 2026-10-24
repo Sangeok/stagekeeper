@@ -258,6 +258,21 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 - 한계: 옛 플러그인 판과 수동 세션은 lease에 참여하지 않아 보이지도 막히지도 않는다. 서버를 롤백하면(404)
   CLI는 로컬 잠금만으로 계속 돈다.
 
+### Codex resident 연결 전 적용 제약
+
+현재 `/api/runner`에는 client 필드와 scoped permission이 없으며 Codex foreground는
+이 lease를 사용하지 않는다. [C4B 구현 전 계약](../proposals/active/codex-resident-runner-plan.md)의
+필드·migration·호환성 설계는 아직 적용되지 않았다. 후속 구현은 client를 Runner
+metadata에만 두고 기존 token scope·파이프라인/receipt/usage identity를 유지해야 한다.
+Codex를 Claude auto/allowlist로 보고하거나 서버 계약 확인 없이 lease 없는 resident로
+실행하지 않는다. Codex의 권한과 실제 종료 확인은 adapter가 별도로 증명한다.
+
+구 서버는 client를 검사하지 않고 session만으로 행을 삭제할 수 있다. 따라서 schema
+확장만으로 혼합 서버 운영을 허용하지 않는다. 모든 reader/writer의 호환성 확인 후
+Codex를 활성화하고, 롤백 때는 실제 실행 종료와 Codex 행 보존/정리 조건이 충족될 때까지
+호환 서버를 유지한다. [후보 DDL 리허설](../test-reports/completed/2026-10-24-codex-resident-contract.md)은
+이 적용 제약의 근거이며 현재 API 지원이나 정식 migration 완료의 근거가 아니다.
+
 ## 상주 실행기 — `/harness:background` (plugin 0.5.14)
 
 `plugin/bin/harness-background.mjs`(Windows는 `harness.ps1 background`)가 창 없이 도는 상주 프로세스를 띄운다.
