@@ -261,9 +261,9 @@ runnerCall은 성공 body의 추가 필드를 버린다. 이 세 지점을 함�
 | Codex 저장 | 모든 상태에서 codex/resident/scoped/autostart=false | null/auto/allowlist·session·자동 시작 거부. owner stop은 삭제, error/stuck/plan은 stopped 기록 |
 | REST 공통 | 기존 /api/runner에 선택 client 추가. **생략만** claude | null·빈 값·unknown은 400. parseClient(null)의 legacy 기본값을 외부 입력 검증에 사용하지 않음 |
 | start | Codex는 client와 resident/scoped/branch/autostart=false 명시 | session/자동 시작 조합 400. Claude 정규화는 유지 |
-| 같은 session start | row.client 일치 필수. Codex는 mode/host/branch/permission도 같을 때만 재전송 | 불일치 409 RUNNER_REPLACED, 쓰기 0. token 교체는 기존 scope로 인증하며 새 실행 identity를 만들지 않음 |
+| 같은 session start | row.client 일치 필수. Codex는 stopped가 아니고 mode/host/branch/permission도 같을 때만 재전송 | 불일치·Codex stopped 행은 409 RUNNER_REPLACED, 쓰기 0. 종료 후 재시작은 새 local session. token 교체는 기존 scope로 인증하며 새 실행 identity를 만들지 않음 |
 | beat·stop | client와 session을 저장 row와 대조. beat로 identity 변경 불가 | 다른 client/session은 RUNNER_REPLACED. 행 없는 stop의 멱등 성공 유지 |
-| autostart | Claude 전용. 기존 mode/host 판정에 row.client=claude 추가 | Codex op는 400. 같은 host의 Codex 행은 on/off/refused 어느 것도 수정·삭제하지 않음 |
+| autostart | Claude 전용. 기존 mode/host 판정에 row.client=claude 추가 | Codex op는 400. 기존 Codex 행은 host·live/silent/stopped 여부와 무관하게 on/off/refused 어느 것도 수정·삭제하지 않음 |
 | PLAN_REQUIRED | 코드·Pro/Max 판정 유지. Claude의 기존 사유 유지, Codex에는 자신의 foreground run/resume 안내 | Codex 사용자에게 다른 CLI 설치·로그인을 복구 조건으로 제시하지 않음 |
 | Codex start/beat 응답 | 기존 ok/paused/stop에 binding:{session,client,mode,permission} 추가 | 요청의 고정 identity와 값이 다르거나 없으면 실행 중단. Claude 성공 body는 유지 |
 | busy | holder에 저장 client 추가, 기존 mode/host/seenAt 유지 | 구 helper는 추가 필드를 무시. 표시값으로 token scope를 우회하지 않음 |
@@ -383,7 +383,7 @@ C4C 전에는 격리 설치 후보로 시험하며 foreground 안내·Claude 자
 | 검증 | post-change 확인 내용 | 현재 판정 |
 | --- | --- | --- |
 | VFY-C4B-01 | 정식 migration legacy rows/default/NULL·unknown, 구 writer/rollback과 데이터 보존 | 후보 DDL 111항목 PASS, 정식 migration 미실행 |
-| VFY-C4B-02 | 실제 REST 모든 op, client/session/host 충돌, busy/echo 누락/400/404, 인증·플랜·pause | 미실행 |
+| VFY-C4B-02 | 실제 REST 모든 op, client/session/host 충돌, stopped 세션 재전송, silent/stopped Codex 행의 autostart 보호, busy/echo 누락/400/404, 인증·플랜·pause | 미실행 |
 | VFY-C4B-03 | native main-loop runbook·commit·fresh verifier·서버 lease, 두 cycle receipt/usage/문맥 | bounded 일부 PASS, 연결 미실행 |
 | VFY-C4B-04 | 각 await의 stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled | C4A fake·bounded 일부 PASS, 실제 연결 미실행 |
 | VFY-C4B-05 | DB→select→RunnerView→runnerFacts→full/compact/project-list HTML, copy-lock·Pause/복구 | 미실행 |
