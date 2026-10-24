@@ -1,0 +1,100 @@
+{
+  "revision": "2e7996180f910b1a56c236454c8bec000ec24e39",
+  "local": {
+    "check": {
+      "tests": 197,
+      "passed": 194,
+      "failed": 0,
+      "skipped": 3
+    },
+    "corePlugin": {
+      "tests": 539,
+      "passed": 537,
+      "failed": 0,
+      "skipped": 2
+    },
+    "architecture": {
+      "tests": 150,
+      "passed": 148,
+      "failed": 0,
+      "skipped": 2
+    },
+    "fsd": "PASS",
+    "serverBoundaries": "PASS"
+  },
+  "macos": {
+    "arm64": {
+      "node": "22.23.2",
+      "tests": 539,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 18
+    },
+    "x64": {
+      "node": "22.23.2",
+      "tests": 539,
+      "passed": 521,
+      "failed": 0,
+      "skipped": 18
+    }
+  },
+  "ci": {
+    "check": {
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40072521226",
+      "revision": "2e7996180f910b1a56c236454c8bec000ec24e39",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "check (build)",
+          "conclusion": "success"
+        },
+        {
+          "name": "check (test-web)",
+          "conclusion": "success"
+        },
+        {
+          "name": "check (server-integration)",
+          "conclusion": "success"
+        },
+        {
+          "name": "check (test)",
+          "conclusion": "success"
+        },
+        {
+          "name": "check (static)",
+          "conclusion": "success"
+        },
+        {
+          "name": "check (server)",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "windows": {
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40072521287",
+      "revision": "2e7996180f910b1a56c236454c8bec000ec24e39",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "native-runtime",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "macos": {
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40072521340",
+      "revision": "2e7996180f910b1a56c236454c8bec000ec24e39",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "runtime contracts (macos-15-intel)",
+          "conclusion": "success"
+        },
+        {
+          "name": "runtime contracts (macos-15)",
+          "conclusion": "success"
+        }
+      ]
+    }
+  }
+}

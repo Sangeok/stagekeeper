@@ -80,6 +80,10 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   환경을 같은 변경에서 보완한다.
 - `npm test`: `packages/core/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
+- [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
+  `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
+  공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.
+  실제 Codex resident의 macOS 권한 격리·설치·로그인·A→Z·110분 인수는 이 CI의 범위가 아니다.
 - `npm run test:scripts`: `scripts/**/*.test.mjs`와 `scripts/**/*.test.ts`를 재귀 검색하고
   CI의 `npm run check`에서 실행한다. 외부 DB·모델 호출 없는 도구 테스트를 포함한다.
   Windows native 시험은 기존처럼 플랫폼과 전용 runtime이 필요하며 미준비 시 skip한다.

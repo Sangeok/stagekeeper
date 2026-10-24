@@ -5,16 +5,16 @@ result: null
 report-kind: "acceptance"
 report-size: "standard"
 test-levels: ["static","component","contract","integration","manual"]
-test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge"]
+test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge","GitHub Actions"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-24T06:03:40.4252950Z"
-tested-revision: "893a24e7f1e4d5361727aa24724be3f9f8bc3503"
+last-executed-at: "2026-10-24T08:42:06.415Z"
+tested-revision: "2e7996180f910b1a56c236454c8bec000ec24e39"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
-observed-environments: ["local | isolated Windows product resident service | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "fail: historical required failures retained — Windows resident A-to-Z and common-poller 110-minute idle passed; clean-host, other-OS, mixed-host and release remain open"
+observed-environments: ["CI | macOS 15 arm64 and x64 model-free runtime contracts | Node.js 22.23.2 | GitHub Actions", "local | isolated Windows product resident service | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
+test-summary: "fail: historical required failures retained — final Windows payload 110-minute idle and both macOS contract suites passed; clean-host, macOS native backend/acceptance, mixed-host and release remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -24,7 +24,17 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 
 ## Summary and Decision
 
-2026-10-24 product-resident follow-up: a final installed 0.5.21 candidate completed
+2026-10-24 stability follow-up: the exact final A-to-Z payload completed a single
+110-minute idle observation, with 6601 seconds through final checks, 108 heartbeat
+requests and 108 pipeline polls, all HTTP 200. Model starts, AgentRuns and usage
+increases were zero; package identity and owned cleanup passed. The reproduced
+sign-in test failure was a kill inside the state guard; recoverable-crash and
+abandoned-guard cases are now separate. Twenty sign-in repetitions and the full
+Windows regression passed. Both macOS contract suites passed 521 tests with
+18 skips, without native client credentials or models. [E117] records the bounds;
+macOS resident still requires a native backend and real acceptance.
+
+Earlier 2026-10-24 product-resident follow-up: a final installed 0.5.21 candidate completed
 a fresh plan, both browser gates, full independent verifier, implementation/report
 handoffs and five-check service acceptance. Real lease/DB, pending takeover and
 same-run resume, Pause/Resume, cap/auth, installed inventory and final rendered UI
@@ -325,6 +335,9 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T111 | R2 | required | Product resident lifecycle and access controls | Native pending takeover, same AgentRun resume, owner stop, browser Pause/Resume, cap/auth and successor protection; candidate boundaries explicit | [E116] | PASS |
 | T112 | R2 | required | Actual shared-poller 110-minute idle on current Windows | No model/AgentRun/usage increase, recent heartbeat and owned cleanup; exact package recorded, no physical-clean/other-OS claim | [E116] | PASS |
 | T113 | R2 | required | Resident package, DB/REST and rendered UI | Formal migration, installed 2,229-file inventories and complete verifier, stored-client full/compact/list and recovery copy | [E116] | PASS |
+| T114 | R2 | required | Exact final A-to-Z payload, real 110-minute idle with HTTP counts | Unchanged 2,229-file payload, 6601 seconds through final checks, 108 beats and 108 polls all HTTP 200; no models/AgentRuns/usage; owned cleanup | [E117] | PASS |
+| T115 | R2 | required | Recoverable crash versus abandoned state guard | Controlled crash outside guard restarts; abandoned guard refuses without state changes; 20 sign-in repetitions and full regression | [E117] | PASS |
+| T116 | R2 | required | macOS arm64/x64 model-free core/plugin contracts | Each 521 PASS / 18 SKIP; native macOS resident acceptance explicitly excluded | [E117] | PASS |
 
 ## Commands and Static Checks
 
@@ -479,6 +492,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E114 | Windows two-gate foreground acceptance, native command repair and bounded main-loop transport | [Scoped report](../completed/2026-10-24-codex-windows-gates.md); [projected observations](../assets/2026-10-24-codex-windows-gates/observations.json). Failed original trial and operator corrections retained. | No private body, credentials, raw transcript, session IDs or local user paths |
 | E115 | Native Codex cycles through installed common resident loop with synthetic server responses | [Scoped report](../completed/2026-10-24-codex-native-cycles.md); [projected observations](../assets/2026-10-24-codex-native-cycles/observations.json). Native processes/model/commits/interrupt are real; adapter wiring, lease/overview/receipt are fixtures. | No canary values, credentials, private body, raw transcript, thread/turn/receipt IDs or local user paths |
 | E116 | Actual product Codex resident service, installed package, fresh A-to-Z and scoped long-idle evidence | [Scoped report](../completed/2026-10-24-codex-resident-live.md); [observations](../assets/2026-10-24-codex-resident-live/observations.json), [checks](../assets/2026-10-24-codex-resident-live/checks.json), [source boundaries and failure history](../assets/2026-10-24-codex-resident-live/source-basis.json). Historical failures and superseded candidates retained; model-free idle and real model paths distinguished. | No private body, credentials, raw transcript, real account/session IDs or local user paths |
+| E117 | Exact final payload idle, crash-test repair and macOS contract CI | [Scoped report](../completed/2026-10-24-codex-runtime-stability.md); [idle/HTTP/cleanup](../assets/2026-10-24-codex-runtime-stability/observations.json), [failure and repetition evidence](../assets/2026-10-24-codex-runtime-stability/failures.json), [checks](../assets/2026-10-24-codex-runtime-stability/checks.json), [source basis](../assets/2026-10-24-codex-runtime-stability/source-basis.json). Native diagnostic cause remains unconfirmed. | Fixed labels, counts and hashes only; no credentials, private bodies or real account/session IDs |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 Sensitive-data review: only fixed/projected diagnostics are emitted; raw host output, credentials, session data and environment values are excluded.
@@ -490,6 +504,12 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+E117 resolves the reproduced sign-in test race without changing the product guard
+policy. The earlier native diagnostic and separate corrupt-state failures remain
+cause-unconfirmed despite passing repeats. Its macOS CI proves shared contracts;
+the Windows-dependent resident command/Git backend still requires implementation
+and native acceptance on macOS. Earlier findings below retain their original scope.
 
 E112 resolves the reproduced Git-inspection blocker through scoped data
 operations. The actual private dev reached verify ok, then awaited owner report
@@ -563,10 +583,13 @@ Current decision: keep active/result:null and stage:blocked. E116 adds actual
 Windows product-resident lease/roles/receipt/usage, fresh five-check A-to-Z and
 common-poller 110-minute idle to the earlier foreground, open-run handover and
 package/recovery evidence. Current Windows C4B is implemented and directly exercised;
-C4C remains partial. Candidate hashes and reused verification surfaces are explicit.
-Physical clean Windows, macOS, mixed-version hosts and operational release still
-require independent evidence. Intermittent sign-in/native helper diagnostic failures
-remain cause-unconfirmed despite subsequent passing focused/full runs. The dated
+C4C remains partial. E117 adds a real single 110-minute run of the exact final
+payload, HTTP counts, crash-fixture repair and both macOS contract suites. Candidate
+hashes and reused verification surfaces are explicit. Physical clean Windows,
+macOS native backend/acceptance, mixed-version hosts and operational release still
+require work and independent evidence. The reproduced guard-busy sign-in test race
+is repaired; historical native diagnostic and separate corrupt-state causes remain
+unconfirmed. The dated
 checkpoints below retain their original failure/NOT RUN history.
 
 Historical Git checkpoint: retain active/result:null for this aggregate campaign.

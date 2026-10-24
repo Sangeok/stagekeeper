@@ -56,15 +56,20 @@ CLI/skill·UI를 구현하고 실제 새 계획부터 독립 verifier·두 brows
 다섯 최종 인수를 통과했다. native pending takeover/stop·같은 AgentRun 재개, browser
 Pause/Resume, cap/auth와 양쪽 실제 설치 inventory 2,229개도 확인했다.
 
-공통 poller의 실제 6600초 유휴에서 모델·AgentRun·사용량은 0이었다.
-최종 A→Z와 유휴 후보의 모델 경로 변경 및 동일한 poller byte는 [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)에 기록했다.
-같은 최종 package를 다시 110분 실행했다거나 heartbeat 수가 HTTP poll 총수라고 주장하지 않는다.
+최종 A→Z와 같은 0.5.21 payload를 후속 단일 실행에서 실제 110분 관찰했다.
+최종 확인까지 6,601초, idle HTTP heartbeat·pipeline poll 각 108회가 모두 200이었으며
+모델·AgentRun·사용량 증가는 0이었다. timestamp 관찰 109회와 HTTP count를 구분한다.
+hash·phase별 count·정리 결과는 [안정성 후속 보고서](../../test-reports/completed/2026-10-24-codex-runtime-stability.md)에 있다.
+앞선 다른 유휴 후보와 최종 A→Z의 byte 차이는 [기존 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)의 역사적 기록으로 유지한다.
 현재 PC에는 전역 Node가 있으며 PATH에서 제외한 시험을 physical clean host로 승격하지 않는다.
 
 C4B의 현재 Windows 연결 증거는 확보했으나 전체 C4C·REQ-MIN-001/002와 공개 지원은
-미완료다. 물리적 clean Windows·macOS·혼합 버전 실제 호스트·운영 출시가 남는다.
-앞선 sign-in recovery 및 native helper 진단의 간헐 실패 원인은 미확정이며 재발 시
-보존한 로그로 추적한다. 전체 `pending/blocked`를 유지하고 아래 기록은 당시 checkpoint로 읽는다.
+미완료다. 물리적 clean Windows·macOS native backend와 실제 인수·혼합 버전 실제 호스트·운영 출시가 남는다.
+sign-in 시험은 guard 안에서의 임의 강제 종료를 재현해 복구 가능 종료와 abandoned guard
+거부를 분리했고 20회 반복 및 전체 회귀를 통과했다. 제품의 guard 보호 정책은 유지했다.
+native helper 진단과 별도 corrupt-state의 과거 간헐 실패 원인은 미확정이다.
+macOS arm64/x64 공통 계약 CI는 각각 521 PASS / 18 SKIP이며 실제 resident 지원 인수가 아니다.
+전체 `pending/blocked`를 유지하고 아래 기록은 당시 checkpoint로 읽는다.
 
 ### 2026-10-24 앞선 checkpoint — 시험용 native cycle
 
@@ -341,7 +346,7 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 
 **REQ-DUAL-019 watch/실제 취소 부분:** stop 또는 ownership 상실 후 새 dispatch·결과 제출·watch 재설정을 중단한다. 늦은 이벤트로 재진입하지 않는다. stopping 중 잠금을 유지하고 실제 자식 종료 확인 뒤 release한다.
 
-**BLK-DUAL-04의 현재 상태:** 현재 Windows의 실제 resident lease·fresh 역할·승인·최종 인수·취소/재개 및 공통 poller 110분 증거를 확보했다. 파일·Git/hash 입력과 늦은 terminal 실패 경계를 수정했다. 물리적 clean Windows·macOS·혼합 호스트와 최종 출시 인수는 남아 있어 공개 지원 gate를 유지한다. 전체 E12·REQ-DUAL-018/019 완료로 표시하지 않는다.
+**BLK-DUAL-04의 현재 상태:** 현재 Windows의 실제 resident lease·fresh 역할·승인·최종 인수·취소/재개 및 최종 A→Z payload의 실제 110분·HTTP count 증거를 확보했다. 파일·Git/hash 입력과 늦은 terminal 실패 경계를 수정했다. macOS 공통 계약 CI도 통과했으나 resident의 Windows native backend 의존은 남아 있다. 물리적 clean Windows·macOS backend와 실제 인수·혼합 호스트·최종 출시 인수가 남아 공개 지원 gate를 유지한다. 전체 E12·REQ-DUAL-018/019 완료로 표시하지 않는다.
 
 2026-10-04 최초 실행: fresh thread와 pending MCP turn 취소는 직접 관찰했지만 Windows 파일 도구 실행은 차단됐다. 설치된 CLI 0.160.0의 Windows backend는 `:root` 읽기를 요구하고 현재 역할 정책은 `:root="deny"`다. [동일 버전 공식 소스](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/windows-sandbox-rs/src/resolved_permissions.rs)의 `validate_elevated_filesystem_policy`와 실제 오류가 일치한다. 당시 로컬 WSL 배포판·Docker/Podman은 없었다. 전체 디스크 읽기 허용이나 Windows 전역 설정 변경으로 대체하지 않았다.
 
@@ -401,7 +406,7 @@ native npm/model/verifier/설치 시험 범위는 [runtime 보고서](../../test
 2. **시험 환경:** 실제 Windows host·기존 인증·client와 새 격리 DB/서비스가 확보돼 기본 foreground 인수를 통과했다. 후속 사례마다 새 fixture·고정 source를 사용하며 물리적으로 Node가 없는 Windows 최소 설치는 별도 검증한다.
 3. **실행 인수:** 현재 private 버전의 R3 같은 항목 중지/재개/최종 인수와 R4 양방향 CLI/browser 인계는 명시한 범위에서 통과했다. 2026-10-24 기본 재현은 두 browser gate와 전체 pipeline을 통과했다. 물리적 clean Windows 및 실제 혼합 버전 host에서 남은 조건을 확인한다. 실패는 product·fixture·operator 원인을 구분하고 제품 수정 시 필수 check·architecture·관련 test/build와 같은 사례를 다시 실행한다.
 4. **설치/복구:** 현재 0.5.21의 양쪽 실제 loader·2,229개 inventory와 버전 갱신을 통과했다. 기존 bundled helper 흐름의 직접 증거도 유지한다. 수정 파일 보존과 실제 private atomic seed/제한 복구는 앞선 0.5.19 시험의 직접 증거를 유지한다. 다음은 물리적 clean Windows 최소 설치와 실제 혼합 host 인수다. 운영 릴리스는 별도 범위이며 BLK-MIN-01을 해제하기 전 기본 지원 준비 완료를 선언하지 않는다.
-5. **C4:** C4A와 현재 Windows C4B 구현·실제 연결 검증을 완료했다. C4C는 실제 A→Z·lifecycle·공통 poller 110분 증거를 추가했다. 다음은 물리적 clean Windows·macOS·혼합 host와 고정 출시 후보의 OS별 인수이며, 현재 결과로 공개 지원 gate를 해제하지 않는다.
+5. **C4:** C4A와 현재 Windows C4B 구현·실제 연결 검증을 완료했다. C4C는 실제 A→Z·lifecycle·같은 최종 payload의 110분·HTTP count를 확보했다. macOS 공통 계약 CI는 후속 회귀 목적지다. 다음은 물리적 clean Windows, [resident 계획의 macOS backend 경계](./codex-resident-runner-plan.md#macos-native-실행의-남은-경계) 구현·실제 인수, 혼합 host와 고정 출시 후보의 OS별 인수이며 공개 지원 gate를 유지한다.
 
 ### 실제 Windows 인수의 시작 조건
 
@@ -478,7 +483,12 @@ preflight 실패/불일치/transport 오류는 모델 시작 없이 고정된 �
 
 ## Verification Results
 
-2026-10-24 실제 resident 결과는 [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)가 소유한다. 정식 migration·REST/DB,
+2026-10-24 안정성 후속 결과는 [후속 보고서](../../test-reports/completed/2026-10-24-codex-runtime-stability.md)가 소유한다.
+최종 payload의 실제 110분·HTTP count·정리, sign-in crash 경계 분리와 20회 반복,
+core/plugin 537 PASS / 2 SKIP, macOS arm64/x64 각 521 PASS / 18 SKIP 및 Windows native CI를 확인했다.
+제품 payload는 바꾸지 않았으며 macOS backend/실제 인수와 미확정 native 진단을 별도로 남겼다.
+
+앞선 2026-10-24 실제 resident 결과는 [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)가 소유한다. 정식 migration·REST/DB,
 최종 fresh A→Z·독립 verifier·native lifecycle, UI production snapshot·설치와 실제
 공통 poller 유휴를 구분해 기록했다. 최종 회귀는 536 PASS / 2 SKIP이며 실패·중단한
 후보, source별 재사용 범위와 미확정 진단 원인을 보존했다. 아래 결과는 역사적 checkpoint다.
@@ -571,6 +581,8 @@ permission 상속, private/public 버전 차이, pending host 종료·잠금 반
 - [x] 현재 private R3 active-command 중지·같은 run 재개·최종 인수를 통과하고 R4 양방향 browser/CLI 인계의 범위를 기록했다.
 - [x] 0.5.20 설치본의 새 계획·두 browser gate·독립 verifier·구현·보고서·최종 인수를 현재 Windows PC에서 통과했다.
 - [x] 현재 설치본의 bundled helper·버전 갱신·전체 inventory·수정 파일 보존과 private 제한 복구의 로컬 직접 증거를 추가했다.
+- [x] 최종 A→Z payload의 단일 110분 유휴·실제 HTTP count·모델/usage 0·정리를 확인했다.
+- [x] sign-in 복구 시험 경계를 분리하고 macOS 양쪽 공통 계약 CI를 추가했다.
 - [ ] REQ-MIN-001/002의 물리적 clean Windows 실행·추가 설치 없는 패키징 인수를 완료한다.
 - [ ] 실제 호스트·양방향 CLI·설치/배포·혼합 버전 인수 증거를 확보한다.
-- [ ] C4 실행 시 실제 장시간·취소 시험과 안내 검증을 완료한다.
+- [ ] macOS native backend를 구현하고 OS별 C4 실제 장시간·취소 인수와 출시 안내 검증을 완료한다.

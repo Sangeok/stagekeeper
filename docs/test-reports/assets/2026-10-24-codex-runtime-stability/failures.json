@@ -1,0 +1,294 @@
+{
+  "signin": {
+    "before": [
+      {
+        "iteration": 1,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12756
+      },
+      {
+        "iteration": 2,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 11661
+      },
+      {
+        "iteration": 3,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 11729
+      },
+      {
+        "iteration": 4,
+        "code": 1,
+        "result": "FAIL",
+        "elapsedMs": 35238
+      }
+    ],
+    "diagnostic": "guard-busy",
+    "cause": "The test killed the poller while its state guard existed. Abandoned guards deliberately refuse restart.",
+    "change": "Recoverable-crash fixtures pause after releasing the guard. A separate abandoned-guard case verifies refusal and unchanged state.",
+    "after": [
+      {
+        "iteration": 1,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10088
+      },
+      {
+        "iteration": 2,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10785
+      },
+      {
+        "iteration": 3,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10245
+      },
+      {
+        "iteration": 4,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10962
+      },
+      {
+        "iteration": 5,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12117
+      },
+      {
+        "iteration": 6,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 13994
+      },
+      {
+        "iteration": 7,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 14875
+      },
+      {
+        "iteration": 8,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12905
+      },
+      {
+        "iteration": 9,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 13841
+      },
+      {
+        "iteration": 10,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 16162
+      },
+      {
+        "iteration": 11,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 13712
+      },
+      {
+        "iteration": 12,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 16299
+      },
+      {
+        "iteration": 13,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 16247
+      },
+      {
+        "iteration": 14,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 15294
+      },
+      {
+        "iteration": 15,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 16037
+      },
+      {
+        "iteration": 16,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12171
+      },
+      {
+        "iteration": 17,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12562
+      },
+      {
+        "iteration": 18,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12542
+      },
+      {
+        "iteration": 19,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12704
+      },
+      {
+        "iteration": 20,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 12118
+      }
+    ],
+    "productGuardPolicyChanged": false
+  },
+  "native": {
+    "repetitions": [
+      {
+        "iteration": 1,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10377
+      },
+      {
+        "iteration": 2,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10784
+      },
+      {
+        "iteration": 3,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 11932
+      },
+      {
+        "iteration": 4,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 11433
+      },
+      {
+        "iteration": 5,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10189
+      },
+      {
+        "iteration": 6,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 9985
+      },
+      {
+        "iteration": 7,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10164
+      },
+      {
+        "iteration": 8,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 9925
+      },
+      {
+        "iteration": 9,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10115
+      },
+      {
+        "iteration": 10,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10022
+      },
+      {
+        "iteration": 11,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 9940
+      },
+      {
+        "iteration": 12,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10233
+      },
+      {
+        "iteration": 13,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10130
+      },
+      {
+        "iteration": 14,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 9999
+      },
+      {
+        "iteration": 15,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 9916
+      },
+      {
+        "iteration": 16,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10263
+      },
+      {
+        "iteration": 17,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10226
+      },
+      {
+        "iteration": 18,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 10164
+      },
+      {
+        "iteration": 19,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 9908
+      },
+      {
+        "iteration": 20,
+        "code": 0,
+        "result": "PASS",
+        "elapsedMs": 9943
+      }
+    ],
+    "fullRegressionPassed": true,
+    "earlierCause": "unconfirmed",
+    "capture": "Passive PowerShell helper close/code/signal/stdout/stderr capture on local disposable tests; raw data is not published"
+  },
+  "macosSetup": {
+    "firstArm64Job": "https://github.com/Sangeok/stagekeeper/actions/runs/40072238846/job/120807987551",
+    "failure": "ERR_MODULE_NOT_FOUND: zod",
+    "cause": "New workflow omitted npm ci",
+    "change": "Install locked dependencies before the complete contract suite",
+    "resolvedBy": "https://github.com/Sangeok/stagekeeper/actions/runs/40072521340"
+  },
+  "otherHistoricalFailure": {
+    "diagnostic": "corrupt-state",
+    "cause": "unconfirmed; distinct from the previously repaired successor-status race"
+  }
+}

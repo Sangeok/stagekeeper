@@ -1,0 +1,801 @@
+{
+  "package": {
+    "test": "final-package-identity",
+    "result": "PASS",
+    "version": "0.5.21",
+    "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+    "source": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+    "installedFiles": 2229,
+    "shippedSourceFiles": 62,
+    "at": "2026-10-24T06:51:12.172Z"
+  },
+  "idle": {
+    "test": "final-package-110-minute-idle",
+    "result": "PASS",
+    "elapsedSeconds": 6601,
+    "signals": 109,
+    "modelStarts": 0,
+    "agentRuns": 0,
+    "usageRuns": 0,
+    "runnerBeats": 108,
+    "pipelinePolls": 108,
+    "idleHttpRequests": 216,
+    "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+    "packageUnchanged": true,
+    "at": "2026-10-24T08:41:12.721Z",
+    "startedAt": "2026-10-24T06:51:12.173Z",
+    "stop": {
+      "test": "idle-stop-cleanup",
+      "result": "PASS",
+      "remainingLocks": 0,
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T08:41:14.577Z"
+    }
+  },
+  "http": {
+    "counts": {
+      "setup:/api/templates": 1,
+      "setup:mcp:project_get": 1,
+      "setup:runner:start": 1,
+      "setup:runner:beat": 1,
+      "setup:mcp:pipeline_next": 1,
+      "idle:runner:beat": 108,
+      "idle:mcp:pipeline_next": 108,
+      "stop:runner:stop": 1
+    },
+    "statuses": {
+      "setup:/api/templates:200": 1,
+      "setup:mcp:project_get:200": 1,
+      "setup:runner:start:200": 1,
+      "setup:runner:beat:200": 1,
+      "setup:mcp:pipeline_next:200": 1,
+      "idle:runner:beat:200": 108,
+      "idle:mcp:pipeline_next:200": 108,
+      "stop:runner:stop:200": 1
+    },
+    "latency": {
+      "setup:/api/templates": {
+        "count": 1,
+        "meanMs": 79,
+        "maxMs": 79
+      },
+      "setup:mcp:project_get": {
+        "count": 1,
+        "meanMs": 23,
+        "maxMs": 23
+      },
+      "setup:runner:start": {
+        "count": 1,
+        "meanMs": 29,
+        "maxMs": 29
+      },
+      "setup:runner:beat": {
+        "count": 1,
+        "meanMs": 28,
+        "maxMs": 28
+      },
+      "setup:mcp:pipeline_next": {
+        "count": 1,
+        "meanMs": 340,
+        "maxMs": 340
+      },
+      "idle:runner:beat": {
+        "count": 108,
+        "meanMs": 85,
+        "maxMs": 187
+      },
+      "idle:mcp:pipeline_next": {
+        "count": 108,
+        "meanMs": 197,
+        "maxMs": 362
+      },
+      "stop:runner:stop": {
+        "count": 1,
+        "meanMs": 66,
+        "maxMs": 66
+      }
+    },
+    "transportErrors": [],
+    "measurement": "Loopback relay forwards unmodified request bodies and records only fixed operation names, phases, counts, status codes and elapsed milliseconds; credentials and bodies are omitted"
+  },
+  "cleanup": {
+    "test": "isolated-idle-data-cleanup",
+    "result": "PASS",
+    "at": "2026-10-24T08:41:53.793Z",
+    "removedUsers": 1,
+    "removedTemplates": 13,
+    "remaining": {
+      "users": 0,
+      "projects": 0,
+      "runners": 0,
+      "agentRuns": 0,
+      "templates": 0
+    },
+    "remainingLocks": 0,
+    "remainingGuards": 0,
+    "productionTouched": false
+  },
+  "processes": {
+    "at": "2026-10-24T08:42:06.4149505Z",
+    "remainingListeners": 0,
+    "postgresStopped": true,
+    "closedPorts": [
+      58929,
+      58930,
+      58931
+    ],
+    "result": "PASS",
+    "serverStopped": true,
+    "test": "isolated-idle-process-cleanup"
+  },
+  "timeline": {
+    "columns": [
+      "elapsedSeconds",
+      "distinctHeartbeatObservations",
+      "idleHeartbeatRequests",
+      "idlePipelinePollRequests"
+    ],
+    "rows": [
+      [
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        60,
+        1,
+        0,
+        0
+      ],
+      [
+        120,
+        2,
+        1,
+        1
+      ],
+      [
+        180,
+        3,
+        2,
+        2
+      ],
+      [
+        240,
+        4,
+        3,
+        3
+      ],
+      [
+        300,
+        5,
+        4,
+        4
+      ],
+      [
+        361,
+        6,
+        5,
+        5
+      ],
+      [
+        421,
+        7,
+        6,
+        6
+      ],
+      [
+        481,
+        8,
+        7,
+        7
+      ],
+      [
+        541,
+        9,
+        8,
+        8
+      ],
+      [
+        601,
+        10,
+        9,
+        9
+      ],
+      [
+        662,
+        11,
+        10,
+        10
+      ],
+      [
+        722,
+        12,
+        11,
+        11
+      ],
+      [
+        782,
+        13,
+        12,
+        12
+      ],
+      [
+        842,
+        14,
+        13,
+        13
+      ],
+      [
+        902,
+        15,
+        14,
+        14
+      ],
+      [
+        962,
+        16,
+        15,
+        15
+      ],
+      [
+        1022,
+        17,
+        16,
+        16
+      ],
+      [
+        1083,
+        18,
+        17,
+        17
+      ],
+      [
+        1143,
+        19,
+        18,
+        18
+      ],
+      [
+        1203,
+        20,
+        19,
+        19
+      ],
+      [
+        1263,
+        21,
+        20,
+        20
+      ],
+      [
+        1323,
+        22,
+        21,
+        21
+      ],
+      [
+        1383,
+        23,
+        22,
+        22
+      ],
+      [
+        1443,
+        24,
+        23,
+        23
+      ],
+      [
+        1503,
+        25,
+        24,
+        24
+      ],
+      [
+        1564,
+        26,
+        25,
+        25
+      ],
+      [
+        1624,
+        27,
+        26,
+        26
+      ],
+      [
+        1684,
+        28,
+        27,
+        27
+      ],
+      [
+        1744,
+        29,
+        28,
+        28
+      ],
+      [
+        1804,
+        30,
+        29,
+        29
+      ],
+      [
+        1864,
+        31,
+        30,
+        30
+      ],
+      [
+        1924,
+        32,
+        31,
+        31
+      ],
+      [
+        1984,
+        33,
+        32,
+        32
+      ],
+      [
+        2045,
+        34,
+        33,
+        33
+      ],
+      [
+        2105,
+        35,
+        34,
+        34
+      ],
+      [
+        2165,
+        36,
+        35,
+        35
+      ],
+      [
+        2225,
+        37,
+        36,
+        36
+      ],
+      [
+        2285,
+        38,
+        37,
+        37
+      ],
+      [
+        2345,
+        39,
+        38,
+        38
+      ],
+      [
+        2405,
+        40,
+        39,
+        39
+      ],
+      [
+        2466,
+        41,
+        40,
+        40
+      ],
+      [
+        2526,
+        42,
+        41,
+        41
+      ],
+      [
+        2586,
+        43,
+        42,
+        42
+      ],
+      [
+        2646,
+        44,
+        43,
+        43
+      ],
+      [
+        2706,
+        45,
+        44,
+        44
+      ],
+      [
+        2766,
+        46,
+        45,
+        45
+      ],
+      [
+        2826,
+        47,
+        46,
+        46
+      ],
+      [
+        2887,
+        48,
+        47,
+        47
+      ],
+      [
+        2947,
+        49,
+        48,
+        48
+      ],
+      [
+        3007,
+        50,
+        49,
+        49
+      ],
+      [
+        3067,
+        51,
+        50,
+        50
+      ],
+      [
+        3127,
+        52,
+        51,
+        51
+      ],
+      [
+        3187,
+        53,
+        52,
+        52
+      ],
+      [
+        3248,
+        54,
+        53,
+        53
+      ],
+      [
+        3308,
+        55,
+        54,
+        54
+      ],
+      [
+        3368,
+        56,
+        55,
+        55
+      ],
+      [
+        3428,
+        57,
+        56,
+        56
+      ],
+      [
+        3488,
+        58,
+        57,
+        57
+      ],
+      [
+        3548,
+        59,
+        58,
+        58
+      ],
+      [
+        3609,
+        60,
+        59,
+        59
+      ],
+      [
+        3669,
+        61,
+        60,
+        60
+      ],
+      [
+        3729,
+        62,
+        61,
+        61
+      ],
+      [
+        3789,
+        63,
+        62,
+        62
+      ],
+      [
+        3849,
+        64,
+        63,
+        63
+      ],
+      [
+        3909,
+        65,
+        64,
+        64
+      ],
+      [
+        3969,
+        66,
+        65,
+        65
+      ],
+      [
+        4029,
+        67,
+        66,
+        66
+      ],
+      [
+        4090,
+        68,
+        67,
+        67
+      ],
+      [
+        4150,
+        69,
+        68,
+        68
+      ],
+      [
+        4210,
+        70,
+        69,
+        69
+      ],
+      [
+        4270,
+        71,
+        70,
+        70
+      ],
+      [
+        4330,
+        72,
+        71,
+        71
+      ],
+      [
+        4390,
+        73,
+        72,
+        72
+      ],
+      [
+        4450,
+        74,
+        73,
+        73
+      ],
+      [
+        4511,
+        75,
+        74,
+        74
+      ],
+      [
+        4571,
+        76,
+        75,
+        75
+      ],
+      [
+        4631,
+        77,
+        76,
+        76
+      ],
+      [
+        4691,
+        78,
+        77,
+        77
+      ],
+      [
+        4751,
+        79,
+        78,
+        78
+      ],
+      [
+        4811,
+        80,
+        79,
+        79
+      ],
+      [
+        4872,
+        81,
+        80,
+        80
+      ],
+      [
+        4932,
+        82,
+        81,
+        81
+      ],
+      [
+        4992,
+        83,
+        82,
+        82
+      ],
+      [
+        5052,
+        84,
+        83,
+        83
+      ],
+      [
+        5112,
+        85,
+        84,
+        84
+      ],
+      [
+        5172,
+        85,
+        84,
+        84
+      ],
+      [
+        5232,
+        86,
+        85,
+        85
+      ],
+      [
+        5293,
+        87,
+        86,
+        86
+      ],
+      [
+        5353,
+        88,
+        87,
+        87
+      ],
+      [
+        5413,
+        89,
+        88,
+        88
+      ],
+      [
+        5473,
+        90,
+        89,
+        89
+      ],
+      [
+        5533,
+        91,
+        90,
+        90
+      ],
+      [
+        5593,
+        92,
+        91,
+        91
+      ],
+      [
+        5653,
+        93,
+        92,
+        92
+      ],
+      [
+        5713,
+        94,
+        93,
+        93
+      ],
+      [
+        5774,
+        95,
+        94,
+        94
+      ],
+      [
+        5834,
+        96,
+        95,
+        95
+      ],
+      [
+        5894,
+        97,
+        96,
+        96
+      ],
+      [
+        5954,
+        98,
+        97,
+        97
+      ],
+      [
+        6014,
+        99,
+        98,
+        98
+      ],
+      [
+        6074,
+        100,
+        99,
+        99
+      ],
+      [
+        6134,
+        101,
+        100,
+        100
+      ],
+      [
+        6195,
+        102,
+        101,
+        101
+      ],
+      [
+        6255,
+        103,
+        102,
+        102
+      ],
+      [
+        6315,
+        104,
+        103,
+        103
+      ],
+      [
+        6375,
+        105,
+        104,
+        104
+      ],
+      [
+        6435,
+        106,
+        105,
+        105
+      ],
+      [
+        6495,
+        107,
+        106,
+        106
+      ],
+      [
+        6556,
+        108,
+        107,
+        107
+      ]
+    ]
+  }
+}
