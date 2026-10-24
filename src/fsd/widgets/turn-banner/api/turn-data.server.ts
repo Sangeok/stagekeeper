@@ -16,7 +16,7 @@ export function runnerFacts(view: RunnerView): RunnerFacts {
   const row = view.runner;
   return {
     runner: row === null ? null : {
-      mode: row.mode, host: row.host, branch: row.branch, permission: row.permission, autostart: row.autostart, state: row.state,
+      client: row.client, mode: row.mode, host: row.host, branch: row.branch, permission: row.permission, autostart: row.autostart, state: row.state,
       waitReason: row.waitReason, stopReason: row.stopReason, signinCode: row.stopReason === "signin" ? signinCode(row.lastResult) : null,
       seenAt: row.seenAt.toISOString(), lastActivity: view.lastActivity?.toISOString() ?? null,
     },

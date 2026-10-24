@@ -5,6 +5,7 @@ export const DEFAULT_PLAN = "free";
 export const UNLIMITED = Infinity;
 export const OWNER_TOKEN_PLAN_GATE = "Owner tokens open on Pro. Approve in the Inbox for now.";
 export const RESIDENT_RUNNER_PLAN_GATE = "The background runner opens on Pro. Use /harness:watch in a Claude Code session for now.";
+export const CODEX_RESIDENT_RUNNER_PLAN_GATE = "The background runner opens on Pro. Use $harness-run or $harness-resume in Codex for now.";
 export const REPORT_AGENTS = ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"];
 
 export const LIMITS = {

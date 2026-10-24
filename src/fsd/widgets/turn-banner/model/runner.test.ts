@@ -11,12 +11,26 @@ import {
 const RENDERED = Date.parse("2026-10-20T12:00:00.000Z");
 const ago = (minutes: number) => new Date(RENDERED - minutes * 60_000).toISOString();
 const runner = (patch: Partial<TurnRunner> = {}): TurnRunner => ({
+  client: "claude",
   mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle",
   waitReason: null, stopReason: null, signinCode: null, seenAt: ago(1), lastActivity: null, ...patch,
 });
 const facts = (value: TurnRunner | null, paused = false): RunnerFacts => ({ runner: value, paused, renderedAt: new Date(RENDERED).toISOString() });
 const text = (value: RunnerFacts, now = RENDERED) => { const line = runnerLine(value, now); return line === null ? null : lineText(line); };
 const short = (value: RunnerFacts, now = RENDERED) => { const line = runnerShortLine(value, now); return line === null ? null : lineText(line); };
+
+describe("Codex runner display", () => {
+  it("uses stored client in live, compact, paused and stopped views", () => {
+    const value = runner({ client: "codex", mode: "resident", branch: "dev", permission: "scoped" });
+    assert.match(text(facts(value))!, /^Codex · .*scoped tools$/);
+    assert.match(short(facts(value))!, /^Codex · /);
+    assert.match(text(facts(value, true))!, /^Codex · .*paused/);
+    const stopped = facts({ ...value, state: "stopped", stopReason: "error" });
+    assert.match(text(stopped)!, /\$harness-background in Codex/);
+    assert.doesNotMatch(text(stopped)!, /Claude Code|sign in|allow-list/);
+    assert.match(short(stopped)!, /^Codex · .*stopped/);
+  });
+});
 
 describe("runner copy", () => {
   it("locks every line, reason and short form to product-copy", () => {

@@ -1,10 +1,11 @@
 import { runnerSignalAt, runnerStatus } from "@harness/core/execution/runner.mjs";
 
 export type TurnRunner = {
+  client: "claude" | "codex";
   mode: "session" | "resident";
   host: string;
   branch: string | null;
-  permission: "auto" | "allowlist" | null;
+  permission: "auto" | "allowlist" | "scoped" | null;
   autostart: boolean;
   state: "idle" | "working" | "waiting" | "stopped";
   waitReason: "dirty" | "branch" | null;
@@ -29,10 +30,12 @@ export const RUNNER_LINES = {
   pausedWorking: "Work already running finishes first.",
   silent: "No signal from the runner on {host} for {n} min.",
   stopped: "Runner on {host} stopped: {reason}. Start it again in Claude Code.",
+  codexStopped: "Runner on {host} stopped: {reason}. Start it again with $harness-background in Codex.",
   stoppedUntilSignIn: "Runner on {host} stopped. It starts again when you sign in.",
   signInRefused: "Runner on {host} did not start at sign-in: {reason}. It tries again at the next sign-in, or start it in Claude Code.",
   autostart: "starts at sign-in",
   allowlist: "allow-list only",
+  scoped: "scoped tools",
   editGuard: "pause before you edit {branch}",
 } as const;
 
@@ -104,7 +107,7 @@ export function hasLiveRunner(facts: RunnerFacts | undefined, now: number): bool
 
 export const showsPauseControl = (facts: RunnerFacts | undefined): boolean => facts !== undefined && (facts.runner !== null || facts.paused);
 
-export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
+function fullRunnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   const { runner, paused } = facts;
   if (runner === null) return paused ? fillLine(RUNNER_LINES.paused, {}) : null;
   const values = { host: runner.host, branch: runner.branch ?? "" };
@@ -114,7 +117,8 @@ export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
     if (runner.stopReason === "signin") {
       return fillLine(RUNNER_LINES.signInRefused.replace("{reason}", RUNNER_SIGNIN_REASONS[runner.signinCode ?? "other"]), values);
     }
-    return fillLine(RUNNER_LINES.stopped, { ...values, reason: RUNNER_STOP_REASONS[runner.stopReason ?? "error"] });
+    return fillLine(runner.client === "codex" ? RUNNER_LINES.codexStopped : RUNNER_LINES.stopped,
+      { ...values, reason: RUNNER_STOP_REASONS[runner.stopReason ?? "error"] });
   }
   if (liveness === "silent") {
     const since = runnerSignalAt(toDates(runner), activity(runner)).toISOString();
@@ -123,6 +127,7 @@ export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   const suffixes: RunnerLine[] = [];
   if (runner.mode === "resident" && runner.autostart) suffixes.push(fillLine(RUNNER_LINES.autostart, {}));
   if (runner.mode === "resident" && runner.permission === "allowlist") suffixes.push(fillLine(RUNNER_LINES.allowlist, {}));
+  if (runner.client === "codex" && runner.permission === "scoped") suffixes.push(fillLine(RUNNER_LINES.scoped, {}));
   if (paused) {
     const line = runner.state === "working"
       ? [...fillLine(RUNNER_LINES.paused, {}), { text: " " }, ...fillLine(RUNNER_LINES.pausedWorking, {})]
@@ -142,7 +147,7 @@ export function runnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   return join(fillLine(main, values), fillLine(RUNNER_LINES.checked, { n: ago(runner.seenAt, now) }), ...guard, ...suffixes);
 }
 
-export function runnerShortLine(facts: RunnerFacts, now: number): RunnerLine | null {
+function shortRunnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   const { runner, paused } = facts;
   if (runner === null) return paused ? fillLine(RUNNER_SHORT.paused, {}) : null;
   const values = { host: runner.host };
@@ -154,3 +159,9 @@ export function runnerShortLine(facts: RunnerFacts, now: number): RunnerLine | n
   if (runner.state === "working") return fillLine(RUNNER_SHORT.working, values);
   return fillLine(runner.mode === "resident" ? RUNNER_SHORT.residentIdle : RUNNER_SHORT.sessionIdle, values);
 }
+
+const identifyClient = (facts: RunnerFacts, line: RunnerLine | null): RunnerLine | null =>
+  line !== null && facts.runner?.client === "codex" ? [{ text: "Codex · " }, ...line] : line;
+
+export const runnerLine = (facts: RunnerFacts, now: number): RunnerLine | null => identifyClient(facts, fullRunnerLine(facts, now));
+export const runnerShortLine = (facts: RunnerFacts, now: number): RunnerLine | null => identifyClient(facts, shortRunnerLine(facts, now));

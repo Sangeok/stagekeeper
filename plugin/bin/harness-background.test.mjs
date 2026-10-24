@@ -164,10 +164,44 @@ it("starts a resident runner that runs ready work with push blocked, logs it and
   assert.equal(status.event.branch, "main");
   const stopping = await f.run(["--stop"]);
   assert.equal(stopping.event.event, "stopping");
-  // 실행기는 잠금을 지운 뒤에 상태 파일에 정지를 쓴다 — 둘 다 끝날 때까지 기다린다.
   await waitFor(() => !existsSync(f.lockPath) && f.status()?.state === "stopped", 15000, "the runner to stop");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "owner" && call.session === session));
   assert.equal(f.status().stopReason, "owner");
+});
+
+it("preserves a successor status written immediately after the stop guard releases", async t => {
+  const f = await fixture(t);
+  f.setOverview(EMPTY);
+  const preload = path.join(f.tools, "successor-after-release.mjs");
+  writeFileSync(preload, `
+import fs from "node:fs";
+import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
+const original = fs.rmdirSync;
+let previous, installed = false;
+fs.rmdirSync = function(directory, ...args) {
+  const result = original.call(this, directory, ...args);
+  if (!process.argv.includes("--run") || path.basename(directory) !== "watch.guard" || installed) return result;
+  const root = path.dirname(directory), lock = path.join(root, "watch.lock.json"), policy = path.join(root, "watch.json"), status = path.join(root, "background.json");
+  if (fs.existsSync(lock)) previous = JSON.parse(fs.readFileSync(lock, "utf8"));
+  else if (previous) {
+    installed = true;
+    fs.writeFileSync(lock, JSON.stringify({ ...previous, id: "successor", poller: null, lifecycle: "active", children: [] }));
+    fs.writeFileSync(policy, JSON.stringify({ schemaVersion: 1, session: "successor", commit: true, propose: false }));
+    fs.writeFileSync(status, JSON.stringify({ session: "successor", state: "starting" }));
+  }
+  return result;
+};
+syncBuiltinESMExports();
+`);
+  const started = await f.run(START, { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` });
+  assert.equal(started.event.event, "started");
+  const pid = JSON.parse(readFileSync(f.lockPath, "utf8")).poller.pid;
+  await f.run(["--stop"]);
+  await waitFor(() => !alive(pid), 15000, "previous resident exit");
+  assert.deepEqual(f.status(), { session: "successor", state: "starting" });
+  assert.equal(JSON.parse(readFileSync(f.lockPath, "utf8")).id, "successor");
+  assert.equal(f.runnerCalls.filter(call => call.op === "stop" && call.session === "successor").length, 0);
 });
 
 it("falls back to acceptEdits with the allow list when auto mode is not available", async t => {
@@ -384,13 +418,24 @@ it("starts at sign-in after a runner died mid-run", async t => {
   assert.ok(f.runnerCalls.every(call => call.op !== "autostart"));
 });
 
-it("does not expose a Codex resident selector or start a client for an unknown option", async t => {
+it("refuses a Codex start without its installed configuration before starting a client or server lease", async t => {
   const f = await fixture(t);
   const result = await f.run([...START, "--client", "codex"]);
   assert.equal(result.code, 1);
+  assert.equal(result.event.code, "codex-config");
   assert.equal(f.record().length, 0);
   assert.equal(f.runnerCalls.length, 0);
   assert.equal(existsSync(f.lockPath), false);
+});
+
+it("refuses Codex autostart, inferred-client overrides and unknown clients before acquiring state", async t => {
+  const f = await fixture(t);
+  for (const args of [[...START, "--client", "unknown"], ["--autostart-on", "--client", "codex", "--propose", "no"],
+    ["--autostart-off", "--client", "codex"], [...START, "--client", "codex", "--from-autostart"],
+    ["--stop", "--client", "codex"], ["--status", "--client", "codex"]]) {
+    const result = await f.run(args); assert.equal(result.code, 1); assert.equal(result.event.code, "invalid-arguments");
+  }
+  assert.equal(f.record().length, 0); assert.equal(f.runnerCalls.length, 0); assert.equal(existsSync(f.lockPath), false);
 });
 
 it("keeps every refusal and start line in product copy", () => {

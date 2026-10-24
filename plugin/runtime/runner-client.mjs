@@ -23,12 +23,12 @@ async function readJson(response) {
 }
 
 /**
- * @param {{ server: string, token: string, project: string | null }} target
+ * @param {{ server: string, token: string, project: string | null, client?: string }} target
  * @param {Record<string, unknown>} payload op·session과 op별 필드
  * @param {{ signal?: AbortSignal }} [options]
  * @returns {Promise<
- *   | { kind: "ok", paused: boolean, stop: "plan" | null }
- *   | { kind: "busy", holder: { mode: string, host: string, seenAt: string } }
+ *   | { kind: "ok", paused: boolean, stop: "plan" | null, binding?: { session: string, client: string, mode: string, permission: string } }
+ *   | { kind: "busy", holder: { client?: string, mode: string, host: string, seenAt: string } }
  *   | { kind: "replaced" }
  *   | { kind: "plan" }
  *   | { kind: "missing" }
@@ -36,6 +36,7 @@ async function readJson(response) {
  *   | { kind: "refused", status: number, reason: string | null }>}
  */
 export async function runnerCall(target, payload, { signal } = {}) {
+  if (target.client === "codex") payload = { ...payload, client: "codex" };
   let response;
   try {
     response = await fetch(`${target.server}/api/runner`, { method: "POST", redirect: "manual", signal,
@@ -57,12 +58,21 @@ export async function runnerCall(target, payload, { signal } = {}) {
     return { kind: "transient", retryAfter: 0 };
   }
   if (response.status === 200 && isObject(body) && body.ok === true) {
+    if (payload.client === "codex" && ["start", "beat"].includes(payload.op)) {
+      const binding = body.binding;
+      if (!isObject(binding) || binding.session !== payload.session || binding.client !== "codex"
+        || binding.mode !== "resident" || binding.permission !== "scoped") {
+        return { kind: "refused", status: 200, reason: "Codex resident binding was not confirmed by the server." };
+      }
+      return { kind: "ok", paused: body.paused === true, stop: body.stop === "plan" ? "plan" : null,
+        binding: { session: binding.session, client: binding.client, mode: binding.mode, permission: binding.permission } };
+    }
     return { kind: "ok", paused: body.paused === true, stop: body.stop === "plan" ? "plan" : null };
   }
   const code = isObject(body) ? body.code : undefined;
   if (response.status === 409 && code === "RUNNER_BUSY" && isObject(body.holder)
     && typeof body.holder.mode === "string" && typeof body.holder.host === "string" && typeof body.holder.seenAt === "string") {
-    return { kind: "busy", holder: { mode: body.holder.mode, host: body.holder.host, seenAt: body.holder.seenAt } };
+    return { kind: "busy", holder: { ...(typeof body.holder.client === "string" ? { client: body.holder.client } : {}), mode: body.holder.mode, host: body.holder.host, seenAt: body.holder.seenAt } };
   }
   if (response.status === 409 && code === "RUNNER_REPLACED") return { kind: "replaced" };
   if (response.status === 403 && code === "PLAN_REQUIRED") return { kind: "plan" };

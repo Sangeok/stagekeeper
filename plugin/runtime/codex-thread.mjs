@@ -236,12 +236,12 @@ export function stageVerifierPackage(verifier, scratch) {
   return staged;
 }
 
-export function inheritedPolicyOverrides(config, url, tools) {
+export function inheritedPolicyOverrides(config, url, tools, toolTimeoutSec = null) {
   const overrides = [];
   const servers = Object.keys(config.mcp_servers ?? {}).filter(name => name !== "harness");
   const disabled = servers.map(name => `${JSON.stringify(name)}={enabled=false}`);
   const approvedTools = tools.map(name => `${JSON.stringify(name)}={approval_mode="approve"}`).join(",");
-  disabled.push(`harness={url=${JSON.stringify(url)},enabled=true,enabled_tools=${JSON.stringify(tools)},default_tools_approval_mode="prompt",tools={${approvedTools}},bearer_token_env_var="HARNESS_ROLE_CAPABILITY"}`);
+  disabled.push(`harness={url=${JSON.stringify(url)},enabled=true,enabled_tools=${JSON.stringify(tools)},default_tools_approval_mode="prompt",tools={${approvedTools}},bearer_token_env_var="HARNESS_ROLE_CAPABILITY"${toolTimeoutSec === null ? "" : `,tool_timeout_sec=${toolTimeoutSec}`}}`);
   overrides.push(`mcp_servers={${disabled.join(",")}}`);
   const plugins = Object.keys(config.plugins ?? {});
   if (plugins.length) overrides.push(`plugins={${plugins.map(name => `${JSON.stringify(name)}={enabled=false}`).join(",")}}`);
@@ -250,10 +250,10 @@ export function inheritedPolicyOverrides(config, url, tools) {
   return overrides;
 }
 
-export function assertRolePolicy(config, filesystem, url, agent, nativeFiles = false, nativeCommands = false, nativeGit = false) {
+export function assertRolePolicy(config, filesystem, url, agent, nativeFiles = false, nativeCommands = false, nativeGit = false, expectedTools = null) {
   const permission = config.permissions?.["harness-role"], actualFiles = permission?.filesystem ?? {};
   const paths = Object.fromEntries(Object.entries(actualFiles).filter(([name]) => name !== "glob_scan_max_depth"));
-  const tools = [...(ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev), ...(nativeFiles ? roleFileToolNames(agent) : []), ...(nativeCommands ? [roleCommandTool.name] : []), ...(nativeGit ? [roleGitTool.name] : []), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS : [])], harness = config.mcp_servers?.harness;
+  const tools = expectedTools ?? [...(ROLE_TOOLS[agent] ?? ROLE_TOOLS.dev), ...(nativeFiles ? roleFileToolNames(agent) : []), ...(nativeCommands ? [roleCommandTool.name] : []), ...(nativeGit ? [roleGitTool.name] : []), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS : [])], harness = config.mcp_servers?.harness;
   const disabled = ["multi_agent", "apps", "hooks", "memories", "goals", "view_image", "request_permissions_tool"];
   const featuresMatch = () => config.agents?.enabled === false && config.approval_policy === "never" && config.default_permissions === "harness-role"
     && config.sandbox_mode == null
@@ -311,7 +311,7 @@ export async function verifyRoleExecution(server, scratch, agent, platform = pro
   }
 }
 
-async function inspectHostPolicy(cli, config, scratch, files, session, binding, url, tools) {
+export async function inspectHostPolicy(cli, config, scratch, files, session, binding, url, tools, toolTimeoutSec = null) {
   const child = spawn(cli.executable, [...cli.prefix, ...config.flatMap(value => ["-c", value]), "app-server", "--stdio", "--strict-config"], { cwd: scratch, env: childEnvironment(), windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
   const server = new AppServer(child), identity = { pid: child.pid, nonce: randomUUID() };
   let registered = false;
@@ -320,7 +320,7 @@ async function inspectHostPolicy(cli, config, scratch, files, session, binding, 
     await registerChild(files, session, binding, identity); registered = true;
     await server.request("initialize", { clientInfo: { name: "stagekeeper-policy-preflight", version: "1" } });
     const result = await server.request("config/read", { includeLayers: false, cwd: scratch });
-    return inheritedPolicyOverrides(result.config, url, tools);
+    return inheritedPolicyOverrides(result.config, url, tools, toolTimeoutSec);
   } finally {
     await server.close();
     if (registered && server.closed) await settleChild(files, session, identity);
@@ -330,8 +330,9 @@ async function inspectHostPolicy(cli, config, scratch, files, session, binding, 
 export async function dispatchFreshRole(input, files, session, dispatch, operations = {}) {
   const runtime = { codexExecutable, verifierPackage, createRoleFiles, installedWindowsRuntime, verifyNativeRuntime,
     createRoleCommands, createRoleGit, createQaBrowser, roleBridge, inspectHostPolicy, spawn,
-    createAppServer: child => new AppServer(child), ...operations };
-  const owned = await checkSession(files, session, input.binding);
+    createAppServer: child => new AppServer(child), checkSession, listTools, callTool, ...operations };
+  runtime.signal?.throwIfAborted();
+  const owned = await runtime.checkSession(files, session, input.binding);
   if (owned.event !== "owned" || owned.lifecycle !== "active" || owned.client !== "codex") throw new Error("Active Codex session required");
   assertCommitHandoff(input.binding.root, dispatch);
   if (!/^[a-z][a-z0-9-]*$/.test(dispatch.agent)) throw new Error("Invalid role");
@@ -342,8 +343,18 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
   const expected = JSON.parse(readFileSync(path.join(input.binding.root, "docs/harness/codex-package.json"), "utf8")).verifier;
   if (verifier.path !== expected.path || verifier.checksum !== expected.checksum) throw new Error("Verifier package changed; rerun $harness-init");
   let fileBroker = null, bridge = null, server = null, hostChild;
-  let registered = false, threadId, turnId, settled = false, turnRequested = false, monitor, ownershipTimer, ownershipPending, complete;
-  let monitorStopped = false; const reports = [];
+  let registered = false, threadId, turnId, terminalTurnId, settled = false, turnRequested = false, monitor, ownershipTimer, ownershipPending, complete;
+  let monitorStopped = false, interruptRequested = false, interruptPending; const reports = [];
+  const interrupt = () => {
+    bridge?.abort();
+    if (interruptRequested || !threadId || !turnId || settled || server?.closed) return interruptPending;
+    interruptRequested = true;
+    interruptPending = server.request("turn/interrupt", { threadId, turnId });
+    void interruptPending.catch(() => {});
+    return interruptPending;
+  };
+  const abortRole = () => { void interrupt()?.catch(() => {}); };
+  runtime.signal?.addEventListener("abort", abortRole, { once: true });
   try {
     const scratch = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-role-")), filesystem = rolePermissions(input, dispatch.agent, dispatch.key, scratch);
     const roleVerifier = dispatch.agent === "plan-verifier" ? stageVerifierPackage(verifier, scratch) : null;
@@ -355,7 +366,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
       try { nativeRuntime = runtime.installedWindowsRuntime(); } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
     const commandLifecycle = { onSpawn: identity => registerChild(files, session, input.binding, identity), onSettled: identity => settleChild(files, session, identity),
-      beforeActivate: async () => { const state = await checkSession(files, session, input.binding); if (state.event !== "owned" || state.lifecycle !== "active") throw new Error("Native command owner no longer active"); } };
+      beforeActivate: async () => { runtime.signal?.throwIfAborted(); const state = await runtime.checkSession(files, session, input.binding); if (state.event !== "owned" || state.lifecycle !== "active") throw new Error("Native command owner no longer active"); } };
     if (nativeRuntime) { try { await runtime.verifyNativeRuntime(nativeRuntime, commandLifecycle); } catch { throw new RoleExecutionUnavailable(); } }
     const commandBroker = nativeRuntime ? await runtime.createRoleCommands({ root: input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;
     fileBroker = commandBroker;
@@ -365,7 +376,9 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     fileBroker = localFiles;
     if (dispatch.agent === "qa-verifier") fileBroker = withQaBrowser(localFiles, await runtime.createQaBrowser(input.config.qa ?? undefined));
     const tools = [...(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev), ...(fileBroker?.tools.map(tool => tool.name) ?? [])];
-    bridge = await runtime.roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug }, undefined, fileBroker);
+    bridge = await runtime.roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug },
+      { listTools: runtime.listTools, callTool: runtime.callTool, checkSession: runtime.checkSession }, fileBroker);
+    runtime.signal?.throwIfAborted();
     const config = [
       'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.view_image=false', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
       `features.shell_tool=${!nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)}`, 'features.unified_exec=false', 'default_permissions="harness-role"', 'permissions.harness-role.extends=":read-only"',
@@ -400,17 +413,21 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
       if (message.method === "transport/error") reject(new Error("Role transport failed"));
       if (message.method === "turn/completed" && message.params?.threadId === threadId) {
         if (turnId && message.params.turn?.id !== turnId) return;
+        terminalTurnId = message.params.turn?.id;
         settled = true; if (message.params.turn?.status === "completed") resolve(); else reject(new Error("Role turn failed or interrupted"));
       }
     }; server.listeners.add(complete); });
     void completion.catch(() => {});
+    runtime.signal?.throwIfAborted();
     turnRequested = true;
     const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, commitHandoff: dispatch.commitHandoff, requiredVerificationPaths: dispatch.requiredVerificationPaths, qaBriefing: dispatch.qaBriefing, entry: dispatch.entry ?? null, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path }) }] });
     turnId = turn.turn?.id;
     if (!turnId) throw new Error("Active turn identity missing");
+    if (terminalTurnId && terminalTurnId !== turnId) { settled = false; throw new Error("Role terminal identity differs"); }
+    if (runtime.signal?.aborted) await interrupt();
     const deadline = new Promise((_, reject) => { monitor = setTimeout(() => reject(new Error("Role turn deadline exceeded")), 15 * 60000); });
     const monitorOwnership = async () => {
-      try { const state = await checkSession(files, session, input.binding); if (state.event !== "owned" || state.lifecycle !== "active") { bridge.abort(); if (turnId) await server.request("turn/interrupt", { threadId, turnId }); } }
+      try { const state = await runtime.checkSession(files, session, input.binding); if (runtime.signal?.aborted || state.event !== "owned" || state.lifecycle !== "active") await interrupt(); }
       catch { bridge.abort(); if (!server.closed) server.child.kill(); }
       if (!monitorStopped && !settled) ownershipTimer = setTimeout(() => { ownershipPending = monitorOwnership(); }, 1000);
     };
@@ -422,13 +439,14 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     if (report.length > 1024 * 1024 || report.includes(input.token) || /\b(?:hs_|hu_|ho_)[A-Za-z0-9_-]+/.test(report)) throw new Error("Role report unsafe or too large");
     return { event: result.done ? "done" : "paused", threadId, report, ...result };
   } finally {
+    runtime.signal?.removeEventListener("abort", abortRole);
     clearTimeout(monitor);
     monitorStopped = true; clearTimeout(ownershipTimer);
     let processEnded = false;
     try {
       await ownershipPending;
       if (threadId && turnId && !settled && !server.closed) {
-        await server.request("turn/interrupt", { threadId, turnId }).catch(() => {});
+        await interrupt()?.catch(() => {});
         const limit = Date.now() + 20000;
         while (!settled && !server.closed && Date.now() < limit) await new Promise(resolve => setTimeout(resolve, 25));
       }

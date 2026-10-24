@@ -31,7 +31,8 @@ export function TurnBanner(props: TurnBannerProps): ReactElement {
 
 function TurnBannerContent({ turn, slug, runner, pause, plan }: TurnBannerProps): ReactElement {
   const pathname = usePathname();
-  const [client, setClient] = useState<RuntimeClient>("claude");
+  const [selectedClient, setClient] = useState<RuntimeClient | null>(null);
+  const client = selectedClient ?? runner?.runner?.client ?? "claude";
   const now = useRunnerNow(runner?.renderedAt);
   const tab = activeProjectTab(pathname, slug);
   const isFullBanner = tab === "board" || tab === "inbox";

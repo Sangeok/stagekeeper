@@ -78,6 +78,7 @@ model Project {
 
 model Runner {
   projectId  String   @id
+  client     String   @default("claude")
   session    String
   tokenId    String
   mode       String

@@ -25,7 +25,7 @@ const KEYS = {
   stop: ["reason"],
   autostart: ["state", "host", "branch", "code"],
 } as const;
-const COMMON = ["op", "project", "session"];
+const COMMON = ["op", "project", "session", "client"];
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const oneOf = <T extends string>(values: readonly T[], value: unknown): value is T => typeof value === "string" && (values as readonly string[]).includes(value);
@@ -38,6 +38,9 @@ const isLogName = (value: unknown): value is string => text(value, RUNNER_LOG_MA
 export function parseRunnerRequest(body: unknown): RunnerOp | null {
   if (!isRecord(body) || !oneOf(["start", "beat", "stop", "autostart"] as const, body.op)) return null;
   const op = body.op;
+  if (Object.hasOwn(body, "client") && !oneOf(["claude", "codex"] as const, body.client)) return null;
+  const client = body.client === "codex" ? "codex" : "claude";
+  const identity: Pick<RunnerOp, "client"> = Object.hasOwn(body, "client") ? { client } : {};
   if (Object.keys(body).some((key) => !COMMON.includes(key) && !(KEYS[op] as readonly string[]).includes(key))) return null;
   if (typeof body.session !== "string" || !SESSION_RE.test(body.session)) return null;
   const session = body.session.toLowerCase();
@@ -49,7 +52,9 @@ export function parseRunnerRequest(body: unknown): RunnerOp | null {
     const takeover = optional(body, "takeover", isBoolean);
     if (branch === undefined || permission === undefined || autostart === undefined || takeover === undefined) return null;
     if (body.mode === "resident" && (branch === null || permission === null)) return null;
-    return { op, session, mode: body.mode, host: body.host, branch, permission, autostart: autostart ?? false, takeover: takeover ?? false };
+    if (client === "codex" && (body.mode !== "resident" || permission !== "scoped" || body.autostart !== false)) return null;
+    if (client === "claude" && permission === "scoped") return null;
+    return { ...identity, op, session, mode: body.mode, host: body.host, branch, permission, autostart: autostart ?? false, takeover: takeover ?? false };
   }
   if (op === "beat") {
     const state = optional(body, "state", (value): value is "idle" | "working" | "waiting" => oneOf(["idle", "working", "waiting"] as const, value));
@@ -58,18 +63,19 @@ export function parseRunnerRequest(body: unknown): RunnerOp | null {
     const lastLog = optional(body, "lastLog", isLogName);
     if (state === undefined || waitReason === undefined || lastResult === undefined || lastLog === undefined) return null;
     if ((state === "waiting") !== (waitReason !== null)) return null;
-    return { op, session, state, waitReason, lastResult, lastLog };
+    return { ...identity, op, session, state, waitReason, lastResult, lastLog };
   }
   if (op === "autostart") {
+    if (client !== "claude") return null;
     if (!oneOf(RUNNER_AUTOSTART_STATES, body.state) || !text(body.host, RUNNER_HOST_MAX)) return null;
     const branch = optional(body, "branch", (value): value is string => text(value, RUNNER_BRANCH_MAX));
     const code = optional(body, "code", (value): value is (typeof RUNNER_SIGNIN_CODES)[number] => oneOf(RUNNER_SIGNIN_CODES, value));
     if (branch === undefined || code === undefined) return null;
     if ((body.state === "refused") !== (code !== null) || (body.state !== "off" && branch === null)) return null;
-    return { op, session, state: body.state, host: body.host, branch, code };
+    return { ...identity, op, session, state: body.state, host: body.host, branch, code };
   }
   if (!oneOf(RUNNER_STOP_REASONS, body.reason)) return null;
-  return { op, session, reason: body.reason };
+  return { ...identity, op, session, reason: body.reason };
 }
 
 const projectOf = (body: unknown): string | null => {
