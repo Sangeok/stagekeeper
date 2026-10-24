@@ -48,6 +48,17 @@ related:
 
 ## Current State
 
+### 2026-10-24 현재 PC의 native cycle 추가 검증
+
+사용자는 현재 PC만 사용할 수 있음을 확인했다. 별도 clean Windows 게이트를 유지하고
+현재 설치된 0.5.20 공통 runResident에 시험용 adapter를 연결해 실제 Codex의 두 정상
+cycle과 세 번째 pending MCP 중단을 확인했다. 새 프로세스/문맥, 이전 canary 미관찰,
+동일 local session/정책과 합성 receipt 복원, 구 generation 거부, interrupt 1회와
+중단 후 재실행/제출 없음, 실제 프로세스·handler·lock 정리가 통과했다.
+lease/overview/receipt는 시험용 응답이며 제품 서버 lease·역할 orchestration·110분
+idle·물리적 clean Windows의 완료 근거가 아니다. [native cycle 보고서](../../test-reports/completed/2026-10-24-codex-native-cycles.md)에
+범위와 증거를 기록했고 BLK-MIN-01·C4B/C4C는 유지한다.
+
 ### 2026-10-24 C4B 계약 준비
 
 현재 Windows에서 가능한 후속 작업으로 [C4B 상세 계약](./codex-resident-runner-plan.md)의

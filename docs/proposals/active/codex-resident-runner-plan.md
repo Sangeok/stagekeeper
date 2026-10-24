@@ -228,9 +228,11 @@ Windows 전용 Job/명령 검사는 현재 플랫폼의 skip과 CI의 실제 결
 바꾸지 않았으며 현재 PC의 foreground 성공을 clean Windows 또는 resident 인수로 승격하지 않는다.
 
 **BLK-C4R-01:** bounded host에서 실제 completed/interrupted, 고정 보고서 commit과
-child/bridge 정리를 관찰했다. 실제 서버 lease에 묶인 main-loop, fresh 역할 전체
-orchestration, cycle별 새 문맥·receipt 복원은 미확인이다. 이 증거를 얻기 전 live
-transport 함수·MCP 도구별 payload/허용 목록은 확정하지 않는다.
+child/bridge 정리를 관찰했다. 후속 시험은 설치된 공통 루프를 통해 두 정상 cycle과
+세 번째 중단, cycle별 새 프로세스/문맥과 합성 receipt 복원을 확인했다. 실제 서버
+lease에 묶인 main-loop, fresh 역할 전체 orchestration과 서버 receipt/usage 복원은
+미확인이다. 이 증거를 얻기 전 live transport 함수·MCP 도구별 payload/허용 목록은
+확정하지 않는다. 시험용 adapter를 제품 연결로 해석하지 않는다.
 
 **BLK-C4R-02:** permission/client 필드·호환성·배포 순서와 변경/검증 경로를 아래에
 고정했다. 후보 DDL의 실제 PostgreSQL 리허설 111개 관찰 항목도 통과했다. 설계 누락은
@@ -384,8 +386,8 @@ C4C 전에는 격리 설치 후보로 시험하며 foreground 안내·Claude 자
 | --- | --- | --- |
 | VFY-C4B-01 | 정식 migration legacy rows/default/NULL·unknown, 구 writer/rollback과 데이터 보존 | 후보 DDL 111항목 PASS, 정식 migration 미실행 |
 | VFY-C4B-02 | 실제 REST 모든 op, client/session/host 충돌, stopped 세션 재전송, silent/stopped Codex 행의 autostart 보호, busy/echo 누락/400/404, 인증·플랜·pause | 미실행 |
-| VFY-C4B-03 | native main-loop runbook·commit·fresh verifier·서버 lease, 두 cycle receipt/usage/문맥 | bounded 일부 PASS, 연결 미실행 |
-| VFY-C4B-04 | 각 await의 stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled | C4A fake·bounded 일부 PASS, 실제 연결 미실행 |
+| VFY-C4B-03 | native main-loop runbook·commit·fresh verifier·서버 lease, 두 cycle receipt/usage/문맥 | 공통 루프의 실제 두 cycle·새 문맥·합성 receipt PASS; 서버 lease/역할/usage 연결 미실행 |
+| VFY-C4B-04 | 각 await의 stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled | 공통 루프의 native interrupt·구 generation 거부·정리 PASS; 실제 lease 상실/전체 실패 경계는 미실행 |
 | VFY-C4B-05 | DB→select→RunnerView→runnerFacts→full/compact/project-list HTML, copy-lock·Pause/복구 | 미실행 |
 | VFY-C4B-06 | 실제 후보 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분 인수 | 미실행 |
 
@@ -464,7 +466,7 @@ unsettled 경로가 남기는 `unsettled:true` 잠금에만 적용한다. 그 �
 변경하지 않았다. 추가 설치 ZIP은 생성하지 않았으며, 앞선 0.5.17 준비물은 C4A 변경을
 포함하지 않는다. 향후 배포 후보는 버전을 올려 새 inventory로 패키징해야 한다.
 
-## Windows Host Contract Observation — 2026-10-24
+## Windows Host Contract Observation — 2026-10-24, 앞선 단일 문맥 시험
 
 현재 Windows에서 native Codex App Server의 실제 `turn/completed` 상태
 `completed`와 `interrupted`를 관찰했다. 별도 main-loop 문맥이 현재 runbook을 사용해
@@ -478,3 +480,19 @@ host 시험이다. 제품 main-loop adapter·서버 lease·fresh 역할 전체 o
 계약을 부분적으로 뒷받침하며 BLK-C4R-01/02 또는 C4B readiness를 해제하지 않는다.
 현재 foreground 0.5.20의 두 browser gate 전체 인수와도 구분한다.
 [범위별 증거](../../test-reports/completed/2026-10-24-codex-windows-gates.md)를 따른다.
+
+## Windows Native Cycle Observation — 2026-10-24
+
+현재 PC만 가능하다는 사용자 확인 뒤 설치된 0.5.20의 실제 runResident 루프에 시험용
+native execution adapter를 주입했다. 두 cycle이 별도 App Server 프로세스/ephemeral
+thread로 완료되고 세 번째는 pending MCP에서 interrupted로 끝났다. 첫 canary는
+두 번째 문맥에서 관찰되지 않았으며 같은 local session/정책과 합성 receipt id를
+유지했다. 구 generation bridge 요청은 거부됐다. native 동시 실행 최댓값은 1이었다.
+
+공통 루프가 interrupt를 1회 호출했고 stop 뒤 새 overview·result beat·model start는
+0회였다. 프로세스·listeners·handlers·tracked children 정리 뒤 자기 lock을 반납했다.
+공통 루프 회귀 34개도 통과했다. 실제 lease/overview/receipt 서버 대신 시험용 응답을
+사용했으며 operator Node로 설치 모듈을 로드했다. physical clean Windows, 제품 lease,
+fresh 역할 orchestration, 서버 receipt/usage, 실제 110분 idle은 이 결과에 포함되지 않는다.
+[native cycle 보고서](../../test-reports/completed/2026-10-24-codex-native-cycles.md)의 제한을
+유지하고 BLK-C4R-01/02·BLK-MIN-01 및 C4B/C4C 완료로 승격하지 않는다.
