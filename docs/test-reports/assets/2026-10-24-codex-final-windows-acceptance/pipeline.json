@@ -1,0 +1,40 @@
+{
+  "result": "PASS",
+  "at": "2026-10-24T11:37:49.693Z",
+  "version": "0.5.23",
+  "source": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+  "packageSha256": "902ec7cb379e80b339315e4bbbc3cfb400f5853df2c40f31cadd4393818605da",
+  "installedFiles": 2231,
+  "serverAccepted": true,
+  "acceptanceChecks": 5,
+  "fixtureTests": 43,
+  "agentRuns": 3,
+  "usageRuns": 3,
+  "acceptedHandoffsResumedToOk": 2,
+  "mainLoopCycles": 2,
+  "freshRoleTurns": 5,
+  "modelTurns": 7,
+  "allModelTurnsTerminal": true,
+  "allModelProcessesClosed": true,
+  "browserOwnerGates": 2,
+  "independentVerifier": {
+    "requiredPaths": 6,
+    "literalPairs": 43,
+    "mutantsKilled": 19,
+    "negativeControls": 2,
+    "scope": "Disposable fixture plan only"
+  },
+  "planSha256": "2e8bd82916efa4df65a05bf2fe249fa7a46d4954c56b0cfb03a7ab65f3516af6",
+  "acceptanceReportSha256": "aaed5b362d94a64296b95024bb59f4010b0521211c612e60ae9506eaf46f88d7",
+  "committedReportMatches": true,
+  "sourceAndReportChanges": [
+    "docs/agents/dev/K-1.md",
+    "docs/agents/main-loop/K-1.md",
+    "src/greet.mjs",
+    "src/greet.test.mjs"
+  ],
+  "failedToolCalls": [
+    "role_file_read"
+  ],
+  "remainingRunnerRows": 0
+}

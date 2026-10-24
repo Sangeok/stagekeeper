@@ -1,0 +1,28 @@
+{
+  "data": {
+    "result": "PASS",
+    "removedUsers": 2,
+    "removedTemplates": 13,
+    "remaining": {
+      "users": 0,
+      "projects": 0,
+      "runners": 0,
+      "agentRuns": 0,
+      "templates": 0
+    },
+    "remainingLocks": 0,
+    "remainingGuards": 0,
+    "productionTouched": false,
+    "at": "2026-10-24T13:05:44.132Z"
+  },
+  "processes": {
+    "result": "PASS",
+    "nativeModelProcessesClosed": 7,
+    "databaseStopped": true,
+    "remainingOwnedListeners": 0,
+    "at": "2026-10-24T13:06:28.5380995Z",
+    "serverStopped": true,
+    "privateFilesPreserved": 4,
+    "remainingEvidenceProcesses": 0
+  }
+}

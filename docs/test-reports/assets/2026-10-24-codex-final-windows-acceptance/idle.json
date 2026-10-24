@@ -1,0 +1,1230 @@
+{
+  "summary": {
+    "test": "final-package-110-minute-idle",
+    "result": "PASS",
+    "elapsedSeconds": 6600,
+    "signals": 109,
+    "modelStarts": 0,
+    "agentRuns": 0,
+    "usageRuns": 0,
+    "runnerBeats": 108,
+    "pipelinePolls": 108,
+    "idleHttpRequests": 216,
+    "packageSha256": "902ec7cb379e80b339315e4bbbc3cfb400f5853df2c40f31cadd4393818605da",
+    "packageUnchanged": true,
+    "at": "2026-10-24T13:05:16.158Z"
+  },
+  "observations": [
+    {
+      "test": "final-package-identity",
+      "result": "PASS",
+      "version": "0.5.23",
+      "packageSha256": "902ec7cb379e80b339315e4bbbc3cfb400f5853df2c40f31cadd4393818605da",
+      "source": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+      "installedFiles": 2231,
+      "shippedSourceFiles": 64,
+      "at": "2026-10-24T11:15:15.693Z"
+    },
+    {
+      "test": "idle-start",
+      "result": "RUNNING",
+      "durationSeconds": 6600,
+      "at": "2026-10-24T11:15:15.694Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 0,
+      "signals": 1,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 0,
+      "pipelinePolls": 0,
+      "at": "2026-10-24T11:15:15.910Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 60,
+      "signals": 1,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 0,
+      "pipelinePolls": 0,
+      "at": "2026-10-24T11:16:16.040Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 120,
+      "signals": 2,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 1,
+      "pipelinePolls": 1,
+      "at": "2026-10-24T11:17:16.160Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 180,
+      "signals": 3,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 2,
+      "pipelinePolls": 2,
+      "at": "2026-10-24T11:18:16.267Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 240,
+      "signals": 4,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 3,
+      "pipelinePolls": 3,
+      "at": "2026-10-24T11:19:16.375Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 300,
+      "signals": 5,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 4,
+      "pipelinePolls": 4,
+      "at": "2026-10-24T11:20:16.480Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 360,
+      "signals": 6,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 5,
+      "pipelinePolls": 5,
+      "at": "2026-10-24T11:21:16.680Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 421,
+      "signals": 7,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 6,
+      "pipelinePolls": 6,
+      "at": "2026-10-24T11:22:16.766Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 481,
+      "signals": 8,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 7,
+      "pipelinePolls": 7,
+      "at": "2026-10-24T11:23:16.887Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 541,
+      "signals": 9,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 8,
+      "pipelinePolls": 8,
+      "at": "2026-10-24T11:24:16.971Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 601,
+      "signals": 10,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 9,
+      "pipelinePolls": 9,
+      "at": "2026-10-24T11:25:17.072Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 661,
+      "signals": 11,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 10,
+      "pipelinePolls": 10,
+      "at": "2026-10-24T11:26:17.173Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 721,
+      "signals": 12,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 11,
+      "pipelinePolls": 11,
+      "at": "2026-10-24T11:27:17.271Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 781,
+      "signals": 13,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 12,
+      "pipelinePolls": 12,
+      "at": "2026-10-24T11:28:17.373Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 841,
+      "signals": 14,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 13,
+      "pipelinePolls": 13,
+      "at": "2026-10-24T11:29:17.495Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 901,
+      "signals": 15,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 14,
+      "pipelinePolls": 14,
+      "at": "2026-10-24T11:30:17.596Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 962,
+      "signals": 16,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 15,
+      "pipelinePolls": 15,
+      "at": "2026-10-24T11:31:17.806Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1022,
+      "signals": 17,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 16,
+      "pipelinePolls": 16,
+      "at": "2026-10-24T11:32:18.110Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1082,
+      "signals": 18,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 17,
+      "pipelinePolls": 17,
+      "at": "2026-10-24T11:33:18.204Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1142,
+      "signals": 19,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 18,
+      "pipelinePolls": 18,
+      "at": "2026-10-24T11:34:18.295Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1202,
+      "signals": 20,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 19,
+      "pipelinePolls": 19,
+      "at": "2026-10-24T11:35:18.385Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1262,
+      "signals": 21,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 20,
+      "pipelinePolls": 20,
+      "at": "2026-10-24T11:36:18.480Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1322,
+      "signals": 22,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 21,
+      "pipelinePolls": 21,
+      "at": "2026-10-24T11:37:18.574Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1382,
+      "signals": 23,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 22,
+      "pipelinePolls": 22,
+      "at": "2026-10-24T11:38:18.682Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1443,
+      "signals": 24,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 23,
+      "pipelinePolls": 23,
+      "at": "2026-10-24T11:39:18.771Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1503,
+      "signals": 25,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 24,
+      "pipelinePolls": 24,
+      "at": "2026-10-24T11:40:18.860Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1563,
+      "signals": 26,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 25,
+      "pipelinePolls": 25,
+      "at": "2026-10-24T11:41:19.072Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1623,
+      "signals": 27,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 26,
+      "pipelinePolls": 26,
+      "at": "2026-10-24T11:42:19.276Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1683,
+      "signals": 28,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 27,
+      "pipelinePolls": 27,
+      "at": "2026-10-24T11:43:19.469Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1743,
+      "signals": 29,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 28,
+      "pipelinePolls": 28,
+      "at": "2026-10-24T11:44:19.568Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1803,
+      "signals": 30,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 29,
+      "pipelinePolls": 29,
+      "at": "2026-10-24T11:45:19.683Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1864,
+      "signals": 31,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 30,
+      "pipelinePolls": 30,
+      "at": "2026-10-24T11:46:19.784Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1924,
+      "signals": 32,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 31,
+      "pipelinePolls": 31,
+      "at": "2026-10-24T11:47:19.880Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1984,
+      "signals": 33,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 32,
+      "pipelinePolls": 32,
+      "at": "2026-10-24T11:48:19.979Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2044,
+      "signals": 34,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 33,
+      "pipelinePolls": 33,
+      "at": "2026-10-24T11:49:20.064Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2104,
+      "signals": 35,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 34,
+      "pipelinePolls": 34,
+      "at": "2026-10-24T11:50:20.160Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2164,
+      "signals": 36,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 35,
+      "pipelinePolls": 35,
+      "at": "2026-10-24T11:51:20.264Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2224,
+      "signals": 37,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 36,
+      "pipelinePolls": 36,
+      "at": "2026-10-24T11:52:20.346Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2284,
+      "signals": 38,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 37,
+      "pipelinePolls": 37,
+      "at": "2026-10-24T11:53:20.437Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2344,
+      "signals": 39,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 38,
+      "pipelinePolls": 38,
+      "at": "2026-10-24T11:54:20.631Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2405,
+      "signals": 40,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 39,
+      "pipelinePolls": 39,
+      "at": "2026-10-24T11:55:20.727Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2465,
+      "signals": 41,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 40,
+      "pipelinePolls": 40,
+      "at": "2026-10-24T11:56:20.811Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2525,
+      "signals": 42,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 41,
+      "pipelinePolls": 41,
+      "at": "2026-10-24T11:57:20.905Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2585,
+      "signals": 43,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 42,
+      "pipelinePolls": 42,
+      "at": "2026-10-24T11:58:20.999Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2645,
+      "signals": 44,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 43,
+      "pipelinePolls": 43,
+      "at": "2026-10-24T11:59:21.087Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2705,
+      "signals": 45,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 44,
+      "pipelinePolls": 44,
+      "at": "2026-10-24T12:00:21.204Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2765,
+      "signals": 46,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 45,
+      "pipelinePolls": 45,
+      "at": "2026-10-24T12:01:21.300Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2825,
+      "signals": 47,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 46,
+      "pipelinePolls": 46,
+      "at": "2026-10-24T12:02:21.511Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2885,
+      "signals": 48,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 47,
+      "pipelinePolls": 47,
+      "at": "2026-10-24T12:03:21.605Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2946,
+      "signals": 49,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 48,
+      "pipelinePolls": 48,
+      "at": "2026-10-24T12:04:21.720Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3006,
+      "signals": 50,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 49,
+      "pipelinePolls": 49,
+      "at": "2026-10-24T12:05:21.814Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3066,
+      "signals": 51,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 50,
+      "pipelinePolls": 50,
+      "at": "2026-10-24T12:06:22.025Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3126,
+      "signals": 52,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 51,
+      "pipelinePolls": 51,
+      "at": "2026-10-24T12:07:22.123Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3186,
+      "signals": 53,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 52,
+      "pipelinePolls": 52,
+      "at": "2026-10-24T12:08:22.214Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3246,
+      "signals": 54,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 53,
+      "pipelinePolls": 53,
+      "at": "2026-10-24T12:09:22.302Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3306,
+      "signals": 55,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 54,
+      "pipelinePolls": 54,
+      "at": "2026-10-24T12:10:22.397Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3366,
+      "signals": 56,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 55,
+      "pipelinePolls": 55,
+      "at": "2026-10-24T12:11:22.493Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3426,
+      "signals": 57,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 56,
+      "pipelinePolls": 56,
+      "at": "2026-10-24T12:12:22.592Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3487,
+      "signals": 58,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 57,
+      "pipelinePolls": 57,
+      "at": "2026-10-24T12:13:22.798Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3547,
+      "signals": 59,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 58,
+      "pipelinePolls": 58,
+      "at": "2026-10-24T12:14:22.876Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3607,
+      "signals": 60,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 59,
+      "pipelinePolls": 59,
+      "at": "2026-10-24T12:15:22.965Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3667,
+      "signals": 61,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 60,
+      "pipelinePolls": 60,
+      "at": "2026-10-24T12:16:23.049Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3727,
+      "signals": 62,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 61,
+      "pipelinePolls": 61,
+      "at": "2026-10-24T12:17:23.136Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3787,
+      "signals": 63,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 62,
+      "pipelinePolls": 62,
+      "at": "2026-10-24T12:18:23.241Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3847,
+      "signals": 64,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 63,
+      "pipelinePolls": 63,
+      "at": "2026-10-24T12:19:23.327Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3907,
+      "signals": 65,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 64,
+      "pipelinePolls": 64,
+      "at": "2026-10-24T12:20:23.537Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3967,
+      "signals": 66,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 65,
+      "pipelinePolls": 65,
+      "at": "2026-10-24T12:21:23.636Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4028,
+      "signals": 67,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 66,
+      "pipelinePolls": 66,
+      "at": "2026-10-24T12:22:23.728Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4088,
+      "signals": 68,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 67,
+      "pipelinePolls": 67,
+      "at": "2026-10-24T12:23:23.820Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4148,
+      "signals": 69,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 68,
+      "pipelinePolls": 68,
+      "at": "2026-10-24T12:24:24.030Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4208,
+      "signals": 70,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 69,
+      "pipelinePolls": 69,
+      "at": "2026-10-24T12:25:24.127Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4268,
+      "signals": 71,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 70,
+      "pipelinePolls": 70,
+      "at": "2026-10-24T12:26:24.217Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4328,
+      "signals": 72,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 71,
+      "pipelinePolls": 71,
+      "at": "2026-10-24T12:27:24.306Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4388,
+      "signals": 73,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 72,
+      "pipelinePolls": 72,
+      "at": "2026-10-24T12:28:24.394Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4448,
+      "signals": 74,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 73,
+      "pipelinePolls": 73,
+      "at": "2026-10-24T12:29:24.486Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4508,
+      "signals": 75,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 74,
+      "pipelinePolls": 74,
+      "at": "2026-10-24T12:30:24.571Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4569,
+      "signals": 76,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 75,
+      "pipelinePolls": 75,
+      "at": "2026-10-24T12:31:24.776Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4629,
+      "signals": 77,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 76,
+      "pipelinePolls": 76,
+      "at": "2026-10-24T12:32:24.866Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4689,
+      "signals": 78,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 77,
+      "pipelinePolls": 77,
+      "at": "2026-10-24T12:33:24.966Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4749,
+      "signals": 79,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 78,
+      "pipelinePolls": 78,
+      "at": "2026-10-24T12:34:25.060Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4809,
+      "signals": 80,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 79,
+      "pipelinePolls": 79,
+      "at": "2026-10-24T12:35:25.141Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4869,
+      "signals": 81,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 80,
+      "pipelinePolls": 80,
+      "at": "2026-10-24T12:36:25.234Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4929,
+      "signals": 82,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 81,
+      "pipelinePolls": 81,
+      "at": "2026-10-24T12:37:25.342Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4989,
+      "signals": 83,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 82,
+      "pipelinePolls": 82,
+      "at": "2026-10-24T12:38:25.441Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5049,
+      "signals": 84,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 83,
+      "pipelinePolls": 83,
+      "at": "2026-10-24T12:39:25.533Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5109,
+      "signals": 85,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 84,
+      "pipelinePolls": 84,
+      "at": "2026-10-24T12:40:25.616Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5170,
+      "signals": 86,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 85,
+      "pipelinePolls": 85,
+      "at": "2026-10-24T12:41:25.835Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5230,
+      "signals": 87,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 86,
+      "pipelinePolls": 86,
+      "at": "2026-10-24T12:42:25.933Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5290,
+      "signals": 88,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 87,
+      "pipelinePolls": 87,
+      "at": "2026-10-24T12:43:26.025Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5350,
+      "signals": 89,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 88,
+      "pipelinePolls": 88,
+      "at": "2026-10-24T12:44:26.117Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5410,
+      "signals": 90,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 89,
+      "pipelinePolls": 89,
+      "at": "2026-10-24T12:45:26.217Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5470,
+      "signals": 90,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 89,
+      "pipelinePolls": 89,
+      "at": "2026-10-24T12:46:26.303Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5530,
+      "signals": 91,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 90,
+      "pipelinePolls": 90,
+      "at": "2026-10-24T12:47:26.397Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5590,
+      "signals": 92,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 91,
+      "pipelinePolls": 91,
+      "at": "2026-10-24T12:48:26.491Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5650,
+      "signals": 93,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 92,
+      "pipelinePolls": 92,
+      "at": "2026-10-24T12:49:26.686Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5711,
+      "signals": 94,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 93,
+      "pipelinePolls": 93,
+      "at": "2026-10-24T12:50:26.788Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5771,
+      "signals": 95,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 94,
+      "pipelinePolls": 94,
+      "at": "2026-10-24T12:51:26.876Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5831,
+      "signals": 96,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 95,
+      "pipelinePolls": 95,
+      "at": "2026-10-24T12:52:26.974Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5891,
+      "signals": 97,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 96,
+      "pipelinePolls": 96,
+      "at": "2026-10-24T12:53:27.055Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5951,
+      "signals": 98,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 97,
+      "pipelinePolls": 97,
+      "at": "2026-10-24T12:54:27.153Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6011,
+      "signals": 99,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 98,
+      "pipelinePolls": 98,
+      "at": "2026-10-24T12:55:27.240Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6071,
+      "signals": 100,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 99,
+      "pipelinePolls": 99,
+      "at": "2026-10-24T12:56:27.349Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6131,
+      "signals": 101,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 100,
+      "pipelinePolls": 100,
+      "at": "2026-10-24T12:57:27.434Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6191,
+      "signals": 102,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 101,
+      "pipelinePolls": 101,
+      "at": "2026-10-24T12:58:27.540Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6251,
+      "signals": 103,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 102,
+      "pipelinePolls": 102,
+      "at": "2026-10-24T12:59:27.625Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6312,
+      "signals": 104,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 103,
+      "pipelinePolls": 103,
+      "at": "2026-10-24T13:00:27.704Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6372,
+      "signals": 105,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 104,
+      "pipelinePolls": 104,
+      "at": "2026-10-24T13:01:27.787Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6432,
+      "signals": 106,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 105,
+      "pipelinePolls": 105,
+      "at": "2026-10-24T13:02:27.878Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6492,
+      "signals": 107,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 106,
+      "pipelinePolls": 106,
+      "at": "2026-10-24T13:03:27.973Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6552,
+      "signals": 108,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 107,
+      "pipelinePolls": 107,
+      "at": "2026-10-24T13:04:28.167Z"
+    },
+    {
+      "test": "final-package-110-minute-idle",
+      "result": "PASS",
+      "elapsedSeconds": 6600,
+      "signals": 109,
+      "modelStarts": 0,
+      "agentRuns": 0,
+      "usageRuns": 0,
+      "runnerBeats": 108,
+      "pipelinePolls": 108,
+      "idleHttpRequests": 216,
+      "packageSha256": "902ec7cb379e80b339315e4bbbc3cfb400f5853df2c40f31cadd4393818605da",
+      "packageUnchanged": true,
+      "at": "2026-10-24T13:05:16.158Z"
+    },
+    {
+      "test": "idle-stop-cleanup",
+      "result": "PASS",
+      "remainingLocks": 0,
+      "remainingRunnerRows": 0,
+      "at": "2026-10-24T13:05:18.782Z"
+    }
+  ],
+  "http": {
+    "counts": {
+      "setup:/api/templates": 4,
+      "setup:mcp:project_get": 3,
+      "setup:mcp:project_sync": 1,
+      "setup:runner:start": 1,
+      "setup:runner:beat": 1,
+      "setup:mcp:pipeline_next": 1,
+      "idle:runner:beat": 108,
+      "idle:mcp:pipeline_next": 108,
+      "stop:runner:stop": 1
+    },
+    "statuses": {
+      "setup:/api/templates:200": 4,
+      "setup:mcp:project_get:200": 3,
+      "setup:mcp:project_sync:200": 1,
+      "setup:runner:start:200": 1,
+      "setup:runner:beat:200": 1,
+      "setup:mcp:pipeline_next:200": 1,
+      "idle:runner:beat:200": 108,
+      "idle:mcp:pipeline_next:200": 108,
+      "stop:runner:stop:200": 1
+    },
+    "latency": {
+      "setup:/api/templates": {
+        "count": 4,
+        "meanMs": 99,
+        "maxMs": 322
+      },
+      "setup:mcp:project_get": {
+        "count": 3,
+        "meanMs": 60,
+        "maxMs": 132
+      },
+      "setup:mcp:project_sync": {
+        "count": 1,
+        "meanMs": 39,
+        "maxMs": 39
+      },
+      "setup:runner:start": {
+        "count": 1,
+        "meanMs": 37,
+        "maxMs": 37
+      },
+      "setup:runner:beat": {
+        "count": 1,
+        "meanMs": 29,
+        "maxMs": 29
+      },
+      "setup:mcp:pipeline_next": {
+        "count": 1,
+        "meanMs": 185,
+        "maxMs": 185
+      },
+      "idle:runner:beat": {
+        "count": 108,
+        "meanMs": 61,
+        "maxMs": 166
+      },
+      "idle:mcp:pipeline_next": {
+        "count": 108,
+        "meanMs": 155,
+        "maxMs": 359
+      },
+      "stop:runner:stop": {
+        "count": 1,
+        "meanMs": 52,
+        "maxMs": 52
+      }
+    },
+    "transportErrors": [],
+    "measurement": "Loopback relay forwards unmodified request bodies and records only fixed operation names, phases, counts, status codes and elapsed milliseconds; credentials and bodies are omitted"
+  }
+}

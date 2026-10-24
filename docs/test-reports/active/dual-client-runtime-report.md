@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge","GitHub Actions"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-24T10:12:59Z"
-tested-revision: "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7"
+last-executed-at: "2026-10-24T13:05:44.132Z"
+tested-revision: "1cae8cc0843124c25b9dc585e0ef01df63d19dd2"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["CI | macOS 15 arm64 and x64 model-free runtime contracts | Node.js 22.23.2 | GitHub Actions", "local | isolated Windows product resident service | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "fail: historical required failures retained — 0.5.22 diagnostics, actual client updates and same-PC version handoff passed; native macOS probe demonstrates that process-group kill is not quiescence; unresolved diagnostics, clean-host, native backend/acceptance, mixed-host and release remain open"
+test-summary: "fail: historical required failures retained — final 0.5.23 actual Windows A-to-Z and same-payload 110-minute idle passed; historical causes, physical clean host, native macOS backend/acceptance, mixed-host and release remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -24,7 +24,17 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 
 ## Summary and Decision
 
-2026-10-24 stability follow-up: the exact final A-to-Z payload completed a single
+Final 0.5.23 Windows acceptance: actual client updates verified all 2,231 payload files.
+The exact installed payload completed both browser gates, full independent verifier,
+implementation/report handoffs and five-check server acceptance (2 main-loop cycles,
+5 fresh roles, 3 AgentRuns/usage, 43 fixture tests). Its separate single 110-minute
+idle lasted 6600 seconds with 108 heartbeat and 108 pipeline HTTP requests,
+all 200, and zero idle model/AgentRun/usage increase. Owned cleanup and source CI
+passed. Runtime state-diagnostic loss was reproduced and fixed; individual historical
+native/state/CI-stop causes remain unconfirmed. [E119] is scoped to this Windows PC;
+the proposal stays pending/blocked for external-host and release gates.
+
+Earlier 2026-10-24 stability follow-up: the exact final A-to-Z payload completed a single
 110-minute idle observation, with 6601 seconds through final checks, 108 heartbeat
 requests and 108 pipeline polls, all HTTP 200. Model starts, AgentRuns and usage
 increases were zero; package identity and owned cleanup passed. The reproduced
@@ -341,6 +351,8 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T117 | R2 | required | Redacted native/state diagnostics and fault injection | No raw output/path/secret reflection, no settlement without acknowledgement, corrupt state preserved | [E118] | PASS |
 | T118 | R2 | required | Actual 0.5.21 to 0.5.22 install and same-PC version handoff | Both client inventories verified; bidirectional session and Claude idle resident stop preserve ownership and successor | [E118] | PASS |
 | T119 | R2 | required | Native macOS feasibility and detached-child negative control | Parent/child synthetic path and TCP denials pass; detached child survival is detected and owned children cleaned up; production backend remains blocked | [E118] | PASS |
+| T120 | R2 | required | Runtime state diagnostic failure injection | Running corrupt lock and denied status/stop writes retain fixed diagnostics and ownership | [E119] | PASS |
+| T121 | R2 | required | Final 0.5.23 installed Windows A-to-Z and 110-minute idle | Same complete payload, actual browser/model/server acceptance, HTTP counts and owned cleanup | [E119] | PASS |
 
 ## Commands and Static Checks
 
@@ -497,6 +509,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E116 | Actual product Codex resident service, installed package, fresh A-to-Z and scoped long-idle evidence | [Scoped report](../completed/2026-10-24-codex-resident-live.md); [observations](../assets/2026-10-24-codex-resident-live/observations.json), [checks](../assets/2026-10-24-codex-resident-live/checks.json), [source boundaries and failure history](../assets/2026-10-24-codex-resident-live/source-basis.json). Historical failures and superseded candidates retained; model-free idle and real model paths distinguished. | No private body, credentials, raw transcript, real account/session IDs or local user paths |
 | E117 | Exact final payload idle, crash-test repair and macOS contract CI | [Scoped report](../completed/2026-10-24-codex-runtime-stability.md); [idle/HTTP/cleanup](../assets/2026-10-24-codex-runtime-stability/observations.json), [failure and repetition evidence](../assets/2026-10-24-codex-runtime-stability/failures.json), [checks](../assets/2026-10-24-codex-runtime-stability/checks.json), [source basis](../assets/2026-10-24-codex-runtime-stability/source-basis.json). Native diagnostic cause remains unconfirmed. | Fixed labels, counts and hashes only; no credentials, private bodies or real account/session IDs |
 | E118 | Runtime diagnostic and portability follow-up | [Scoped report](../completed/2026-10-24-codex-runtime-portability.md), [actual client updates](../assets/2026-10-24-codex-runtime-portability/windows-update.json), [same-PC handoff](../assets/2026-10-24-codex-runtime-portability/windows-handoff.json), [macOS arm64](../assets/2026-10-24-codex-runtime-portability/macos-arm64.json), [macOS x64](../assets/2026-10-24-codex-runtime-portability/macos-x64.json), [failures](../assets/2026-10-24-codex-runtime-portability/failures.json), [source basis](../assets/2026-10-24-codex-runtime-portability/source-basis.json), [checks](../assets/2026-10-24-codex-runtime-portability/checks.json). 0.5.22 payload has 2,231 files; historical diagnostic causes remain unconfirmed. | Fixed labels and hashes; no credentials/private bodies/session IDs; macOS process-group cancellation is explicitly insufficient |
+| E119 | Final 0.5.23 current Windows acceptance | [Scoped report](../completed/2026-10-24-codex-final-windows-acceptance.md), [pipeline](../assets/2026-10-24-codex-final-windows-acceptance/pipeline.json), [idle](../assets/2026-10-24-codex-final-windows-acceptance/idle.json), [updates](../assets/2026-10-24-codex-final-windows-acceptance/windows-update.json), [failures](../assets/2026-10-24-codex-final-windows-acceptance/failures.json), [source/checks](../assets/2026-10-24-codex-final-windows-acceptance/source-basis.json), [cleanup](../assets/2026-10-24-codex-final-windows-acceptance/cleanup.json). | Fixed results/counts/hashes; no credentials, transcript or private template body; external-host and release gates remain open |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 
@@ -509,6 +522,11 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+E119 closes the final-current-Windows payload A-to-Z/110-minute rerun and the reproduced
+internal diagnostic-loss defects. It preserves the historical cause-unconfirmed failures
+and one handled file-read failure whose details the observer did not retain. It does not
+close physical clean Windows, native macOS, full mixed-host or operational release gates.
 
 E118 adds fixed-field diagnostics and actual installed-version compatibility on the current PC.
 It does not close historical cause-unconfirmed failures, T11's full mixed-version acceptance,
@@ -591,7 +609,10 @@ including historical failed candidates. Those observations remain unchanged; the
 dated scoped reports identify later successful trials. This historical aggregate
 verdict does not turn the dated scoped passes into failures or certify remaining support gates.
 
-Current decision: keep active/result:null and stage:blocked. E116 adds actual
+Current decision after E119: keep active/result:null and stage:blocked.
+The final 0.5.23 installed Windows A-to-Z and same-payload 110-minute idle pass only their stated scope.
+
+Earlier decision: keep active/result:null and stage:blocked. E116 adds actual
 Windows product-resident lease/roles/receipt/usage, fresh five-check A-to-Z and
 common-poller 110-minute idle to the earlier foreground, open-run handover and
 package/recovery evidence. Current Windows C4B is implemented and directly exercised;

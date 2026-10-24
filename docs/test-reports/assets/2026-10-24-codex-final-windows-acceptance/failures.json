@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "historicalNativeDiagnosticCause": "unconfirmed",
+  "historicalCorruptStateCause": "unconfirmed",
+  "historicalWindowsCiStopCause": "unconfirmed",
+  "reproducedDefect": "Runtime lifecycle and in-loop state-write failures lost their structured diagnostics in internal catch paths",
+  "before": {
+    "pass": 0,
+    "fail": 2,
+    "logSha256": "95fa7e05507c3dd902a989130d5d147894054838360d94c1224232de21dfd36a"
+  },
+  "after": {
+    "pass": 3,
+    "fail": 0,
+    "logSha256": "c1b7e6cdc7a2a79f4437493040cf581fdae6cd0c71779f2cbda19bf373fafef4"
+  },
+  "newRegressions": [
+    "Unreadable running lock is preserved, no work starts, redacted read-json/lock/lifecycle diagnostic remains",
+    "Denied in-loop status write logs state-write/status/run with EPERM and stops without starting work",
+    "Denied stop write logs state-write/lock/stop with EBUSY, preserves the live lock, removes only its own temporary file and permits a later normal stop"
+  ],
+  "nativeRepetitions": 10,
+  "stopRepetitions": 10,
+  "allRepetitionsPassed": true,
+  "ownershipPolicyChanged": false,
+  "rawPathsAndSecretCanariesReflected": false,
+  "developmentObserverFailures": [
+    {
+      "scope": "New stop fixture first invocation",
+      "cause": "Repeated interval argument was rejected by the existing parser",
+      "resolution": "Use one explicit interval; regression passes"
+    },
+    {
+      "scope": "Actual client installer first invocation",
+      "cause": "Fixture generator accidentally renamed the prior cache path while changing marketplace names",
+      "resolution": "Correct the owned junction target; repeat both full installs/updates and verify the entire inventory"
+    },
+    {
+      "scope": "Post-run acceptance observer first invocation",
+      "cause": "Observer expected Markdown headings, while the valid generated report used five numbered paragraphs",
+      "resolution": "Read all five checks and accept the observed numbered format; DB acceptance, committed artifact equality and test counts remain required"
+    }
+  ],
+  "handledToolFailure": {
+    "tool": "role_file_read",
+    "count": 1,
+    "cause": "not retained by the bounded observer; no root cause claim",
+    "terminalOutcome": "Both cycles and all roles completed; server final acceptance passed"
+  }
+}

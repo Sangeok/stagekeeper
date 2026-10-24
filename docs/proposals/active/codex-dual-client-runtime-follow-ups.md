@@ -48,9 +48,22 @@ Codex resident 구현과 아직 남은 OS별 실제 인수·출시 조건을 추
 
 ## Current State
 
-### 2026-10-24 현재 Windows의 실제 resident 연결 검증
+### 2026-10-24 최종 0.5.23 현재 Windows 인수
 
-최종 public source는 `893a24e7f1e4d5361727aa24724be3f9f8bc3503`, 격리 package는 `0.5.21`이다.
+현재 제품 source는 `1cae8cc0843124c25b9dc585e0ef01df63d19dd2`, 격리 설치 후보는 `0.5.23`이다.
+내부 상태 진단 누락을 수정했고, 실제 양쪽 client 업데이트의 전체 2,231개 파일을 확인했다.
+같은 payload로 Codex 새 계획·독립 verifier·두 browser gate·구현·보고서·최종 다섯 인수를
+통과했다. 실제 단일 110분 idle은 6600초, heartbeat 108회·pipeline poll 108회
+모두 HTTP 200, 모델·AgentRun·usage 증가는 0이었다. [최종 Windows 보고서](../../test-reports/completed/2026-10-24-codex-final-windows-acceptance.md)가
+source/hash·실제 측정·정리·회귀/CI와 실패 이력을 소유한다.
+
+현재 PC의 이 인수는 완료했다. 과거 native/state/CI stop의 개별 원인 미확정,
+물리적 clean Windows·macOS 제품 backend/실제 인수·실제 혼합 호스트·운영 출시 gate는
+남아 있으며 전체 `pending/blocked`를 유지한다. 아래 기록은 각 후보 당시의 checkpoint다.
+
+### 2026-10-24 앞선 checkpoint — 0.5.21 실제 resident 연결 검증
+
+당시 최종 public source는 `893a24e7f1e4d5361727aa24724be3f9f8bc3503`, 격리 package는 `0.5.21`이다.
 [상주 실행기 계획](./codex-resident-runner-plan.md)의 C4B 서버·DB·scoped main-loop·
 CLI/skill·UI를 구현하고 실제 새 계획부터 독립 verifier·두 browser gate·구현·보고서와
 다섯 최종 인수를 통과했다. native pending takeover/stop·같은 AgentRun 재개, browser
