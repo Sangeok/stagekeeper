@@ -63,17 +63,19 @@ let globalNode = true;
 try { execFileSync(path.join(process.env.SystemRoot, "System32/where.exe"), ["node"], { env, windowsHide: true, stdio: "ignore" }); } catch { globalNode = false; }
 assert.equal(globalNode, false);
 const powershell = path.join(process.env.SystemRoot, "System32/WindowsPowerShell/v1.0/powershell.exe");
+let sequence = 0;
 async function command(bundle, args, task = "session") {
-  const child = spawn(powershell, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(bundle, "bin/harness.ps1"), task, "--root", root, ...args], { env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
-  let stdout = "", stderr = "";
-  child.stdout.on("data", data => { stdout += data; }); child.stderr.on("data", data => { stderr += data; });
+  const stdoutPath = path.join(output, `command-${++sequence}.stdout`), stderrPath = path.join(output, `command-${sequence}.stderr`);
+  const stdoutFile = fs.openSync(stdoutPath, "wx"), stderrFile = fs.openSync(stderrPath, "wx");
+  const child = spawn(powershell, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(bundle, "bin/harness.ps1"), task, "--root", root, ...args], { env, windowsHide: true, stdio: ["ignore", stdoutFile, stderrFile] });
   const timer = setTimeout(() => child.kill(), 30000);
   try {
     const code = await new Promise((resolve, reject) => { child.once("close", resolve); child.once("error", reject); });
+    const stdout = fs.readFileSync(stdoutPath, "utf8"), stderr = fs.readFileSync(stderrPath, "utf8");
     assert.equal(stderr, "");
     const event = JSON.parse(stdout.trim().split(/\r?\n/).at(-1)); assert.equal(code, event.event === "error" ? 1 : 0);
     return event;
-  } finally { clearTimeout(timer); }
+  } finally { clearTimeout(timer); fs.closeSync(stdoutFile); fs.closeSync(stderrFile); }
 }
 const modules = new Map();
 for (const bundle of [previous, current]) modules.set(bundle, await import(pathToFileURL(path.join(bundle, "runtime/local-session.mjs")).href));

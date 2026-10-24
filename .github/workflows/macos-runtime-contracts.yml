@@ -40,11 +40,6 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --no-audit --no-fund
-      - name: Record contract-test environment
-        run: node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,scope:"model-free runtime contracts"}))'
-      - name: Validate shared runtime contracts without client credentials
-        run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
       - name: Probe native permissions and detached-child containment
         run: node scripts/macos/probe-seatbelt-containment.mjs "$RUNNER_TEMP/seatbelt-containment.json"
       - uses: actions/upload-artifact@v4
@@ -53,3 +48,8 @@ jobs:
           name: seatbelt-containment-${{ matrix.runner }}
           path: ${{ runner.temp }}/seatbelt-containment.json
           if-no-files-found: warn
+      - run: npm ci --no-audit --no-fund
+      - name: Record contract-test environment
+        run: node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,scope:"model-free runtime contracts"}))'
+      - name: Validate shared runtime contracts without client credentials
+        run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"

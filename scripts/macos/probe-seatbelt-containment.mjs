@@ -69,6 +69,15 @@ try {
     boundaries, detachedChildSurvivesGroupKill, ownedProcessesGone: cleanup, verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", productionBackendEnabled: false }, null, 2) + "\n", { flag: "wx" });
   console.log(JSON.stringify({ verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", permissionsPassed: true, inheritedPermissionsPassed: true, ownedProcessesGone: cleanup, arch: process.arch }));
 } catch (error) {
+  try { process.stderr.write(`Copied runtime version: ${execFileSync(node, ["--version"], { encoding: "utf8", timeout: 5000 }).trim()}\n`); } catch { process.stderr.write("Copied runtime could not start outside Seatbelt\n"); }
+  await delay(3000);
+  const reports = path.join(os.homedir(), "Library/Logs/DiagnosticReports");
+  if (fs.existsSync(reports)) for (const name of fs.readdirSync(reports).filter(name => name.startsWith("node-") && name.endsWith(".ips"))) {
+    try {
+      const lines = fs.readFileSync(path.join(reports, name), "utf8").split("\n"), data = JSON.parse(lines.slice(1).join("\n"));
+      if (data.pid === error.pid) process.stderr.write(JSON.stringify({ exception: data.exception, termination: data.termination, applicationSpecificInformation: data.asi }) + "\n");
+    } catch { process.stderr.write("Native crash report could not be projected\n"); }
+  }
   try { process.stderr.write(execFileSync("/usr/bin/log", ["show", "--last", "1m", "--style", "compact", "--predicate", 'eventMessage CONTAINS "Sandbox:" AND eventMessage CONTAINS "node"'], { encoding: "utf8", timeout: 15000, maxBuffer: 256 * 1024 })); } catch { process.stderr.write("Native denial log unavailable\n"); }
   throw error;
 } finally {
