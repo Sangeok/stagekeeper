@@ -352,6 +352,7 @@ it("fails closed on fatal HTTP/RPC/tool/schema/oversize responses without reflec
     f.setHandler(async (request, res) => send(res, request, IDENTITY));
     const session = (await f.start()).event.session;
     f.setHandler(async (request, res) => {
+      if (mode === "401") await delay(300);
       if (/^\d+$/.test(mode)) { res.writeHead(Number(mode), { "content-type": "application/json" }); res.end(JSON.stringify({ error: `Bearer ${TOKEN}` })); }
       else if (mode === "redirect") { res.writeHead(302, { location: `${f.url}/stolen` }); res.end(); }
       else if (mode === "tool") send(res, request, { error: `Secret ${TOKEN}` }, { isError: true });
@@ -359,8 +360,8 @@ it("fails closed on fatal HTTP/RPC/tool/schema/oversize responses without reflec
       else { res.setHeader("content-type", "application/json"); res.end(mode === "oversize" ? "x".repeat(1024 * 1024 + 1) : JSON.stringify({ jsonrpc: "2.0", id: request.id, error: { code: -1, message: TOKEN } })); }
     });
     const before = f.calls.length;
-    const result = await f.poll(session).result;
-    assert.equal(result.code, 1); assert.equal(result.event.event, "error");
+    const result = await f.run(["--session", session, "--interval", "0.02", "--deadline", "0.2", "--request-timeout", "5"]).result;
+    assert.equal(result.code, 1, JSON.stringify({ mode, event: result.event })); assert.equal(result.event.event, "error");
     assert.equal(f.calls.length, before + 1);
     assert.ok(!result.stdout.includes(TOKEN)); assert.ok(!result.stdout.includes("Bearer"));
     assert.equal(existsSync(f.lockPath), false); assert.equal(existsSync(f.policyPath), false);
@@ -457,7 +458,7 @@ it("runs the real CLI with shell-safe plugin/root arguments containing spaces an
   mkdirSync(path.join(pluginRoot, "bin"), { recursive: true });
   mkdirSync(path.join(pluginRoot, "lib"));
   mkdirSync(path.join(pluginRoot, "runtime"));
-  for (const name of ["local-session", "file-ownership", "runner-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
+  for (const name of ["local-session", "state-diagnostics", "file-ownership", "runner-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
   const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
   copyFileSync(BIN, cli);
   for (const name of ["execution/watch", "configuration/harness-config", "qa", "tokens/token", "templates/runbook", "configuration/workspaces", "plans/entitlement", "execution/runner"]) {

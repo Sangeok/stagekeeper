@@ -6,6 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { STUCK_AFTER } from "../lib/execution/watch.mjs";
 import { isRunbookVersion } from "../lib/templates/runbook.mjs";
 import { atomicWrite as atomicText, safeTarget } from "./file-ownership.mjs";
+import { stateDiagnostic } from "./state-diagnostics.mjs";
 const REASONS = {
   "invalid-arguments": "Invalid watch arguments. Check the mode, required values, and positive timing limits.",
   "invalid-config": "Watch configuration is invalid. Run /harness:init and start again.",
@@ -24,9 +25,9 @@ const REASONS = {
 const GUARD_LIMIT = 5000;
 const isObject = value => value !== null && typeof value === "object" && !Array.isArray(value);
 const nonempty = value => typeof value === "string" && value.trim().length > 0;
-const fail = (code, reason) => { throw new WatchFailure(code, reason); };
+const fail = (code, reason, diagnostic) => { throw new WatchFailure(code, reason, diagnostic); };
 export class WatchFailure extends Error {
-  constructor(code, reason = REASONS[code]) { super(reason); this.code = code; }
+  constructor(code, reason = REASONS[code], diagnostic) { super(reason); this.code = code; if (diagnostic) this.diagnostic = diagnostic; }
 }
 export class Interrupted extends Error {
   constructor(event) { super(event.event); this.event = event; }
@@ -67,7 +68,7 @@ export function stateFiles(directory) {
 }
 export function readJson(file) {
   try { return JSON.parse(readFileSync(file, "utf8")); }
-  catch { fail("corrupt-state"); }
+  catch (error) { fail("corrupt-state", undefined, stateDiagnostic("read-json", file, error)); }
 }
 export function readState(files) {
   const directory = path.dirname(files.lock), common = path.dirname(directory);
@@ -96,10 +97,13 @@ export function readState(files) {
     || (lock.lifecycle !== undefined && !["active", "stopping"].includes(lock.lifecycle))
     || (lock.runnerLease !== undefined && typeof lock.runnerLease !== "boolean")
     || (lock.unsettled !== undefined && typeof lock.unsettled !== "boolean")
-    || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce))))) fail("corrupt-state");
+    || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce))))) fail("corrupt-state", undefined, stateDiagnostic("state-schema", files.lock));
   return { lock, policy };
 }
-export function atomicWrite(file, value) { atomicText(file, JSON.stringify(value) + "\n"); }
+export function atomicWrite(file, value) {
+  try { atomicText(file, JSON.stringify(value) + "\n"); }
+  catch (error) { fail("corrupt-state", undefined, stateDiagnostic("state-write", file, error)); }
+}
 export function isAlive(pid) {
   try { process.kill(pid, 0); return true; }
   catch (error) { return error.code !== "ESRCH"; }
@@ -114,7 +118,7 @@ export async function withGuard(files, action, expires = Infinity) {
   for (;;) {
     try { mkdirSync(files.guard); break; }
     catch (error) {
-      if (error.code !== "EEXIST") fail("corrupt-state");
+      if (error.code !== "EEXIST") fail("corrupt-state", undefined, stateDiagnostic("guard-create", files.guard, error));
       if (performance.now() >= expires) throw new Interrupted({ event: "idle" });
       if (performance.now() >= limit) fail("guard-busy");
       await delay(Math.min(25, Math.max(1, limit - performance.now())));

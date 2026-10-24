@@ -785,6 +785,10 @@ tracked helper를 settle한다. 오류·ack 누락은 ownership과 owned 복사�
 끝난 트리에 ACL 변경을 전파하지 않으며 확인된 owned root만 삭제한다. 비정상 helper 종료의
 남은 profile/drive는 명시적 복구 대상이며 자동 잠금 회수 근거가 아니다.
 
+ack 누락 진단은 실패 경계·종료 코드·고정 stage·숫자 HRESULT/Win32·출력 바이트 수만 담는다.
+stderr의 다른 줄이나 임의 메시지·경로·토큰은 반영하지 않는다. background의 손상 상태 진단도
+고정 phase·파일 역할·오류 종류·허용된 시스템 코드만 기록하며, 기존 상태 보존과 시작 거부를 유지한다.
+
 종료 확인을 마친 owned 복사본을 삭제할 때는 Windows의 일시적인 실행 파일 잠금에 대해
 Node의 100ms 선형 backoff로 최대 10회 재시도한다. 재시도 후에도 삭제가 실패하면 오류를
 전파하며, 종료 미확인 상태의 소유권·복사본 보존 조건은 유지한다.

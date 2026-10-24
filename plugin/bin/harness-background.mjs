@@ -15,6 +15,7 @@ import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, matc
 import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 import { createCodexExecution } from "../runtime/codex-main-loop.mjs";
+import { stateDiagnostic, readStateDiagnostic } from "../runtime/state-diagnostics.mjs";
 import { codexExecutable } from "../runtime/codex-executable.mjs";
 
 const PLUGIN_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -230,7 +231,11 @@ const autostartFile = directory => path.join(directory, "autostart.json");
 const runsDirectory = directory => path.join(directory, "runs");
 const settingsFile = directory => path.join(directory, "background-settings.json");
 function readOptional(file) {
-  try { return JSON.parse(readFileSync(file, "utf8")); } catch { return null; }
+  try { return JSON.parse(readFileSync(file, "utf8")); }
+  catch (error) {
+    if (error.code !== "ENOENT") backgroundLog(path.dirname(file), JSON.stringify({ event: "state-diagnostic", ...stateDiagnostic("read-json", file, error) }));
+    return null;
+  }
 }
 
 function pruneRuns(runs) {
@@ -631,6 +636,7 @@ async function main() {
     const code = error instanceof Refusal ? error.code : error?.code && REASONS[error.code] ? error.code : "corrupt-state";
     const reason = error instanceof Refusal ? error.message : REASONS[code];
     event = { event: "error", code, reason };
+    if (code === "corrupt-state" && directory) backgroundLog(directory, JSON.stringify({ event: "state-diagnostic", operation: options.op, ...readStateDiagnostic(error) }));
     if (options?.["from-autostart"] && directory) {
       await notify(directory, fillNotice("startRefused", { reason }));
       const registered = readOptional(autostartFile(directory));

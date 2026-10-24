@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "baseRevision": "e85430eb04edcf656f7cc34f9239d506206646d8",
+  "productRevision": "f345d0096370316c9c9114d45e0c43c9276cc8b5",
+  "verificationRevision": "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7",
+  "version": "0.5.22",
+  "files": 2231,
+  "packageSha256": "d2ba0a9d492f4634087dd1569411e974d9c7ee6c5d5e6733676e7becf3215a19",
+  "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+  "verifier": {
+    "checksum": "89f61697dbdd711d600c74221cbf3e4ac5fc60fd520c51c365ef8a0450b3bad6",
+    "files": 8
+  },
+  "shippedSourceFiles": 64,
+  "shippedSourceBytesMatch": true,
+  "completeInventoryMatches": true,
+  "privateUserFilesUnchanged": 4,
+  "priorInstalledManifestRevision": "93f0f543c998a3f79b5842ef865551860a09fbbb",
+  "priorSourceLockedRevision": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+  "priorPayloadSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23"
+}

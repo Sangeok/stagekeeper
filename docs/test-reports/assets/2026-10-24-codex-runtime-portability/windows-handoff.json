@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "result": "PASS",
+  "scope": "same-PC installed-version session and Claude idle resident contracts; model-free loopback server",
+  "identities": {
+    "previous": {
+      "version": "0.5.21",
+      "files": 2229,
+      "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+      "sourceRevision": "93f0f543c998a3f79b5842ef865551860a09fbbb"
+    },
+    "current": {
+      "version": "0.5.22",
+      "files": 2231,
+      "packageSha256": "d2ba0a9d492f4634087dd1569411e974d9c7ee6c5d5e6733676e7becf3215a19",
+      "sourceRevision": "f345d0096370316c9c9114d45e0c43c9276cc8b5"
+    }
+  },
+  "globalNodeOnPath": false,
+  "rows": [
+    {
+      "owner": "0.5.21",
+      "controller": "0.5.22",
+      "check": true,
+      "duplicateStartRefused": true,
+      "liveChildReleaseRefused": true,
+      "deadUnsettledChildReleaseRefused": true,
+      "acknowledgedRelease": true,
+      "lateStopReleaseSettlementPreservedSuccessor": true
+    },
+    {
+      "owner": "0.5.22",
+      "controller": "0.5.21",
+      "check": true,
+      "duplicateStartRefused": true,
+      "liveChildReleaseRefused": true,
+      "deadUnsettledChildReleaseRefused": true,
+      "acknowledgedRelease": true,
+      "lateStopReleaseSettlementPreservedSuccessor": true
+    }
+  ],
+  "residentRows": [
+    {
+      "owner": "0.5.21",
+      "controller": "0.5.22",
+      "duplicateStartRefused": true,
+      "statusRecognized": true,
+      "crossVersionStop": true,
+      "pollerAndStateGone": true
+    },
+    {
+      "owner": "0.5.22",
+      "controller": "0.5.21",
+      "duplicateStartRefused": true,
+      "statusRecognized": true,
+      "crossVersionStop": true,
+      "pollerAndStateGone": true
+    }
+  ],
+  "corruptStatePreserved": true,
+  "serverCalls": 108,
+  "modelStarts": 0,
+  "remainingOwnedProcesses": 0,
+  "remainingLocks": 0,
+  "mixedHostAcceptance": false
+}

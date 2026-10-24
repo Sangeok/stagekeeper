@@ -483,6 +483,20 @@ preflight 실패/불일치/transport 오류는 모델 시작 없이 고정된 �
 
 ## Verification Results
 
+2026-10-24 추가 진단·호환성 결과는 [이식성 후속 보고서](../../test-reports/completed/2026-10-24-codex-runtime-portability.md)가 소유한다.
+0.5.22는 고정 필드의 native helper/state 진단과 원문 비노출·ownership 보존 fault 시험을 추가했다.
+실제 Codex·Claude 격리 설치의 0.5.21 → 0.5.22 업데이트와 전체 2,231개 inventory,
+동일 Windows PC의 양방향 session 인계·Claude idle resident 중지를 통과했다. 실제 혼합
+호스트나 새 payload의 모델 A→Z·110분 인수로 확대하지 않는다. 과거 native/state 원인은 미확정이다.
+후속 Windows CI의 resident stop 오류 1건도 원인 미확정이며, 거부 응답·정제 진단 보강과
+bundled Node 20회 PASS를 구분해 보고서에 보존했다.
+
+macOS arm64/x64 native probe는 합성 파일·TCP loopback·자식 권한 상속을 검사했고,
+detached 자식이 부모 프로세스 그룹 종료 후에도 생존함을 확인했다. 따라서 다음 구현은
+그룹을 이탈한 자식까지 포괄하는 소유권 추적·종료 acknowledgement를 먼저 설계하고,
+명령/Git/runtime 패키징과 실제 기존 인증 인수를 연결하는 것이다. 현재 제품의 macOS backend는
+활성화하지 않는다. 관련 경계는 [resident 계획](./codex-resident-runner-plan.md#macos-native-실행의-남은-경계)에 기록한다.
+
 2026-10-24 안정성 후속 결과는 [후속 보고서](../../test-reports/completed/2026-10-24-codex-runtime-stability.md)가 소유한다.
 최종 payload의 실제 110분·HTTP count·정리, sign-in crash 경계 분리와 20회 반복,
 core/plugin 537 PASS / 2 SKIP, macOS arm64/x64 각 521 PASS / 18 SKIP 및 Windows native CI를 확인했다.
@@ -583,6 +597,8 @@ permission 상속, private/public 버전 차이, pending host 종료·잠금 반
 - [x] 현재 설치본의 bundled helper·버전 갱신·전체 inventory·수정 파일 보존과 private 제한 복구의 로컬 직접 증거를 추가했다.
 - [x] 최종 A→Z payload의 단일 110분 유휴·실제 HTTP count·모델/usage 0·정리를 확인했다.
 - [x] sign-in 복구 시험 경계를 분리하고 macOS 양쪽 공통 계약 CI를 추가했다.
+- [x] 정제된 native/state 진단과 0.5.21/0.5.22 실제 설치·동일 PC 양방향 인계 증거를 추가했다.
+- [x] macOS 양쪽 kernel에서 권한 상속을 시험하고 process-group 종료가 충분하지 않은 반례를 확인했다.
 - [ ] REQ-MIN-001/002의 물리적 clean Windows 실행·추가 설치 없는 패키징 인수를 완료한다.
 - [ ] 실제 호스트·양방향 CLI·설치/배포·혼합 버전 인수 증거를 확보한다.
 - [ ] macOS native backend를 구현하고 OS별 C4 실제 장시간·취소 인수와 출시 안내 검증을 완료한다.

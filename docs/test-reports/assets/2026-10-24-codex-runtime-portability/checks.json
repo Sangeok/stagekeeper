@@ -1,0 +1,117 @@
+{
+    "schema":  1,
+    "productRevision":  "f345d0096370316c9c9114d45e0c43c9276cc8b5",
+    "local":  {
+                  "check":  {
+                                "pass":  194,
+                                "fail":  0,
+                                "skip":  3
+                            },
+                  "corePlugin":  {
+                                     "pass":  544,
+                                     "fail":  0,
+                                     "skip":  2
+                                 },
+                  "architecture":  {
+                                       "pass":  148,
+                                       "fail":  0,
+                                       "skip":  2
+                                   },
+                  "fsd":  "PASS",
+                  "serverBoundaries":  "PASS",
+                  "build":  "PASS",
+                  "versionChange":  "0.5.21 -\u003e 0.5.22",
+                  "residentStopRepetitions":  {
+                                                  "pass":  20,
+                                                  "fail":  0
+                                              },
+                  "background":  {
+                                     "pass":  41,
+                                     "fail":  0,
+                                     "skip":  0,
+                                     "revision":  "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7"
+                                 },
+                  "watch":  {
+                                "pass":  39,
+                                "fail":  0,
+                                "skip":  0,
+                                "testGitBlob":  "6d62be2c77b7bd0ff932abb7973190a40438bcf1"
+                            }
+              },
+    "ciStatus":  "PASS",
+    "testedRevision":  "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7",
+    "ci":  [
+               {
+                   "id":  40084611265,
+                   "name":  "check",
+                   "head":  "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7",
+                   "result":  "success",
+                   "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611265",
+                   "jobs":  [
+                                {
+                                    "name":  "check (server-integration)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611265/job/120844862052"
+                                },
+                                {
+                                    "name":  "check (test)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611265/job/120844862241"
+                                },
+                                {
+                                    "name":  "check (server)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611265/job/120844862246"
+                                },
+                                {
+                                    "name":  "check (static)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611265/job/120844862272"
+                                },
+                                {
+                                    "name":  "check (test-web)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611265/job/120844862314"
+                                },
+                                {
+                                    "name":  "check (build)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611265/job/120844862353"
+                                }
+                            ]
+               },
+               {
+                   "id":  40084611145,
+                   "name":  "windows-role-runtime",
+                   "head":  "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7",
+                   "result":  "success",
+                   "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611145",
+                   "jobs":  [
+                                {
+                                    "name":  "native-runtime",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611145/job/120844861378"
+                                }
+                            ]
+               },
+               {
+                   "id":  40084611180,
+                   "name":  "macos-runtime-contracts",
+                   "head":  "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7",
+                   "result":  "success",
+                   "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611180",
+                   "jobs":  [
+                                {
+                                    "name":  "runtime contracts (macos-15)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611180/job/120844862005"
+                                },
+                                {
+                                    "name":  "runtime contracts (macos-15-intel)",
+                                    "conclusion":  "success",
+                                    "url":  "https://github.com/Sangeok/stagekeeper/actions/runs/40084611180/job/120844862088"
+                                }
+                            ]
+               }
+           ]
+}

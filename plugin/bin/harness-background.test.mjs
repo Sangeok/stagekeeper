@@ -26,18 +26,21 @@ const FAKE_CLAUDE = `
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 const args = process.argv.slice(2);
 const count = Number(process.env.GIT_CONFIG_COUNT ?? 0);
-appendFileSync(process.env.FAKE_RECORD, JSON.stringify({ args, pid: process.pid, server: process.env.HARNESS_SERVER,
+const record = () => appendFileSync(process.env.FAKE_RECORD, JSON.stringify({ args, pid: process.pid, server: process.env.HARNESS_SERVER,
   count: process.env.GIT_CONFIG_COUNT ?? null, key: process.env["GIT_CONFIG_KEY_" + (count - 1)] ?? null,
   value: process.env["GIT_CONFIG_VALUE_" + (count - 1)] ?? null }) + "\\n");
 const out = value => process.stdout.write(JSON.stringify(value) + "\\n");
+if (args[1] === "Reply with OK.") record();
 out({ type: "system", subtype: "hook_started" });
 const mode = args[args.indexOf("--permission-mode") + 1];
 out({ type: "system", subtype: "init", permissionMode: process.env.FAKE_PERMISSION ?? mode });
 if (args[1] === "Reply with OK.") setInterval(() => {}, 1000);
 else {
+  if (process.env.STAGEKEEPER_TEST_PLAN_DELAY) await new Promise(resolve => setTimeout(resolve, Number(process.env.STAGEKEEPER_TEST_PLAN_DELAY)));
   const plan = JSON.parse(readFileSync(process.env.FAKE_PLAN, "utf8"));
   const step = plan.length > 1 ? plan.shift() : plan[0];
   writeFileSync(process.env.FAKE_PLAN, JSON.stringify(plan));
+  record();
   if (step.kind === "hang" && process.env.STAGEKEEPER_TEST_CRASH_CLIENT) writeFileSync(process.env.STAGEKEEPER_TEST_CRASH_CLIENT, JSON.stringify({ pid: process.pid }));
   if (step.touch) writeFileSync(step.touch, "partial\\n");
   if (step.kind === "hang") setInterval(() => {}, 1000);
@@ -155,6 +158,20 @@ syncBuiltinESMExports();
 
 const START = ["--start", "--propose", "no", "--interval", "0.2", "--run-limit", "0.2"];
 
+it("records a redacted corrupt-state phase without repairing state or starting a client", async t => {
+  const f = await fixture(t), policy = path.join(f.directory, "watch.json"), body = '{"token":"SECRET_STATE_CANARY",';
+  mkdirSync(f.directory, { recursive: true }); writeFileSync(f.lockPath, body); writeFileSync(policy, "{}");
+  try {
+    const refused = await f.run(START);
+    assert.equal(refused.event.code, "corrupt-state"); assert.deepEqual(Object.keys(refused.event), ["event", "code", "reason"]);
+    assert.equal(readFileSync(f.lockPath, "utf8"), body); assert.equal(readFileSync(policy, "utf8"), "{}");
+    const log = readFileSync(path.join(f.directory, "background.log"), "utf8");
+    assert.match(log, /"phase":"read-json","target":"lock","errorKind":"SyntaxError"/);
+    assert.equal(log.includes("SECRET_STATE_CANARY"), false); assert.equal(log.includes(f.root), false);
+    assert.equal(f.record().length, 0); assert.equal(f.runnerCalls.length, 0);
+  } finally { unlinkSync(f.lockPath); unlinkSync(policy); }
+});
+
 it("starts a resident runner that runs ready work with push blocked, logs it and stops on a local stop", async t => {
   const f = await fixture(t);
   const started = await f.run(START);
@@ -191,7 +208,10 @@ it("starts a resident runner that runs ready work with push blocked, logs it and
   assert.equal(status.event.running, true);
   assert.equal(status.event.branch, "main");
   const stopping = await f.run(["--stop"]);
-  assert.equal(stopping.event.event, "stopping");
+  if (stopping.event.event !== "stopping") {
+    for (const line of readFileSync(path.join(f.directory, "background.log"), "utf8").split(/\r?\n/).filter(line => line.includes('"event":"state-diagnostic"'))) t.diagnostic(line);
+  }
+  assert.equal(stopping.event.event, "stopping", JSON.stringify(stopping.event));
   await waitFor(() => !existsSync(f.lockPath) && f.status()?.state === "stopped", 15000, "the runner to stop");
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "owner" && call.session === session));
   assert.equal(f.status().stopReason, "owner");
@@ -306,7 +326,7 @@ it("waits on uncommitted changes with one notice and continues once the tree is 
 });
 
 it("ends a run when the branch changes, waits on the branch and resumes after switching back", async t => {
-  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "success" }] });
+  const f = await fixture(t, { plan: [{ kind: "hang" }, { kind: "success" }], env: { STAGEKEEPER_TEST_PLAN_DELAY: "1500" } });
   const started = await f.run(["--start", "--propose", "no", "--interval", "0.3", "--run-limit", "5"]);
   assert.equal(started.event.event, "started");
   const hung = await waitFor(() => f.record().find(entry => entry.args[1] !== "Reply with OK."), 30000, "the first run");

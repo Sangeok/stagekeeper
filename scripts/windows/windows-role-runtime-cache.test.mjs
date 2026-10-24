@@ -64,7 +64,7 @@ it("invalidates for recipe and verification changes while app changes keep the r
   const checkout = path.join(root, "checkout");
   for (const folder of ["scripts/windows", "src", "plugin/runtime/windows"]) mkdirSync(path.join(checkout, folder), { recursive: true });
   for (const name of ["scripts/windows/windows-role-runtime-cache.mjs", "scripts/windows/build-windows-role-node.ps1",
-    "plugin/runtime/role-commands.mjs", "plugin/runtime/windows/RoleProcess.cs", "plugin/runtime/windows/role-process.ps1"]) {
+    "plugin/runtime/role-commands.mjs", "plugin/runtime/native-command-diagnostics.mjs", "plugin/runtime/windows/RoleProcess.cs", "plugin/runtime/windows/role-process.ps1"]) {
     copyFileSync(new URL(`../../${name}`, import.meta.url), path.join(checkout, name));
   }
   const copiedCli = path.join(checkout, "scripts/windows/windows-role-runtime-cache.mjs");
