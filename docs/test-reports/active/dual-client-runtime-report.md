@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge","GitHub Actions"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-24T08:42:06.415Z"
-tested-revision: "2e7996180f910b1a56c236454c8bec000ec24e39"
+last-executed-at: "2026-10-24T10:12:59Z"
+tested-revision: "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["CI | macOS 15 arm64 and x64 model-free runtime contracts | Node.js 22.23.2 | GitHub Actions", "local | isolated Windows product resident service | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "fail: historical required failures retained — final Windows payload 110-minute idle and both macOS contract suites passed; clean-host, macOS native backend/acceptance, mixed-host and release remain open"
+test-summary: "fail: historical required failures retained — 0.5.22 diagnostics, actual client updates and same-PC version handoff passed; native macOS probe demonstrates that process-group kill is not quiescence; unresolved diagnostics, clean-host, native backend/acceptance, mixed-host and release remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 

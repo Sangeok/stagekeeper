@@ -8,8 +8,8 @@ test-levels: ["static", "component", "contract", "integration", "manual"]
 test-tools: ["Node.js test runner", "PowerShell", "Codex CLI", "Claude Code CLI", "GitHub Actions", "Seatbelt"]
 created-at: "2026-10-24"
 completed-at: "2026-10-24"
-last-executed-at: "2026-10-24T09:49:36Z"
-tested-revision: "7da33e96bfc5379830a8aba62aadff9ca76d863d"
+last-executed-at: "2026-10-24T10:12:59Z"
+tested-revision: "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/224"]
 primary-area: "harness/runtime-portability"
@@ -85,7 +85,7 @@ namespace `0x23`, code 2였고, 동일 실행 파일은 sandbox 밖에서 시작
 | C2 | R1 | required | serial core/plugin test suite | 실패 0 | 544 PASS / 2 SKIP, E5 | PASS |
 | C3 | R1/R2 | required | `verify:fsd`, `verify:server`, `test:architecture`, `build` | 경계·build 오류 0 | PASS; architecture 148 PASS / 2 SKIP, E5 | PASS |
 | C4 | R2 | required | `verify:plugin-version -- --base origin/dev --head HEAD` | 양쪽 manifest 상승 | 0.5.21 → 0.5.22, shipped 7개 변경 PASS, E5 | PASS |
-| C5 | R1/R2/R3 | required | PR check·Windows native·macOS CI | 최종 source 전 job success | 최종 CI 확인 중, E5 | NOT RUN |
+| C5 | R1/R2/R3 | required | PR check·Windows native·macOS CI | 기록한 source 전 job success | 40084611265 / 40084611145 / 40084611180 PASS; macOS 각 526 PASS / 20 SKIP, E5 | PASS |
 
 재현 도구는 [버전 인계](../../../scripts/windows/rehearse-plugin-version-handoff.mjs)와
 [macOS native probe](../../../scripts/macos/probe-seatbelt-containment.mjs)다. Windows는
@@ -113,6 +113,13 @@ Windows CI 40083489330에서는 기존 resident stop 시험이 한 번 `stopping
 받았다(40 PASS / 1 FAIL). 당시 단언에 거부 코드가 없어 원인은 확정하지 못했다. 실패 시
 응답과 정제된 상태 진단을 남기도록 보강했고 bundled Node의 동일 시나리오 20회는 모두
 통과했다. 재현되지 않았다는 사실을 원인 해결로 바꾸지 않으며 재발 시 해당 진단으로 추적한다.
+
+Windows CI 40084130970의 브랜치 복귀 timeout과 같은 증상은 fixture의 준비 신호 경쟁으로
+결정적으로 재현했다. 이전 fake client는 계획 작업을 소비하기 전에 PID를 기록했고, 그 사이
+중지되면 다음 실행이 `hang` 작업을 다시 받았다. 소비 앞에 1,500ms 지연을 넣은 이전 fixture는
+같은 timeout으로 실패했다. 기록을 작업 소비 뒤로 옮기고 지연을 유지한 회귀는 통과했다.
+이 재현된 경쟁을 수정했으며 원본 CI 로그만으로 timeout의 유일 원인을 증명했다고 주장하지 않는다.
+수정 후 bundled Node의 전체 background 41개와 최종 Windows native CI가 통과했다.
 
 다음 macOS 작업은 세션/프로세스 그룹을 바꾼 자식을 포함해 모든 소유 프로세스를 추적·종료하고
 종료 완료를 입증하는 supervisor/backend 설계다. 단순 PGID kill이나 일시적인 PID 목록

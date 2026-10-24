@@ -5,7 +5,7 @@
   "release": "24.6.0",
   "node": "v22.23.2",
   "nodeSha256": "0b4f059915f3bf3c6cbb02422f4a529bfb21cbbec2d29851c9a5d833f78a04f6",
-  "policySha256": "57e9eb3a5adb16f478fa10e6b69ad90f16383ccce459b53c0959a38d1f6353c0",
+  "policySha256": "73c405c5e4f8207faea69f7678c4fdcaf6feb57f587faf13a619849e9d29bd78",
   "scope": "native feasibility probe; no model or production backend",
   "boundaries": {
     "mode": "parent",
