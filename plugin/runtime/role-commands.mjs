@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "node:net";
+import { nativeCommandFailure } from "./native-command-diagnostics.mjs";
 
 const hash = bytes => createHash("sha256").update(bytes).digest("hex");
 const helperSources = Object.fromEntries(["role-process.ps1", "RoleProcess.cs"].map(name => [name, readFileSync(new URL(`./windows/${name}`, import.meta.url))]));
@@ -129,33 +130,29 @@ export async function runNativeCommand(request, { signal, onSpawn = async () => 
   });
   child.stderr.on("data", chunk => { stderrBytes += chunk.length; if (stderrBytes <= 8192) stderr += chunk.toString("utf8"); else { stop(); child.kill(); } });
   child.stdin.on("error", () => {});
-  const ended = new Promise((resolve, reject) => { child.once("error", reject); child.once("close", (code, terminalSignal) => resolve({ code, terminalSignal })); });
-  void ended.catch(() => {}); signal?.addEventListener("abort", stop, { once: true });
+  const ended = new Promise(resolve => { child.once("error", error => resolve({ spawnError: true, systemCode: error.code })); child.once("close", (code, terminalSignal) => resolve({ code, terminalSignal })); });
+  signal?.addEventListener("abort", stop, { once: true });
   let timer, ownershipTimer, ownershipPending, monitorStopped = false;
   async function monitorOwnership() {
     try { await beforeActivate(); } catch { stop(); }
     if (!monitorStopped) ownershipTimer = setTimeout(() => { ownershipPending = monitorOwnership(); }, 200);
   }
   try {
-    if (!child.pid) throw new Error("Native helper did not start");
+    if (!child.pid) { const terminal = await ended; throw nativeCommandFailure("spawn", { terminal, systemCode: terminal.systemCode }); }
     await onSpawn(identity); registered = true;
     await beforeActivate();
     signal?.throwIfAborted(); child.stdin.write("start\n"); activated = true;
     ownershipTimer = setTimeout(() => { ownershipPending = monitorOwnership(); }, 200);
-    const terminal = await Promise.race([ended, new Promise((_, reject) => { timer = setTimeout(() => { stop(); child.kill(); reject(new Error("Native helper did not acknowledge termination; ownership retained")); }, request.timeoutMs + 45000); })]);
+    const terminal = await Promise.race([ended, new Promise((_, reject) => { timer = setTimeout(() => { stop(); child.kill(); reject(nativeCommandFailure("ack-timeout", { stdout, stderr, stderrBytes })); }, request.timeoutMs + 45000); })]);
     if (terminal.code !== 0 || terminal.terminalSignal) {
-      let diagnostic = "";
-      try {
-        const failure = JSON.parse(stderr.trim());
-        if (failure.error === "native-helper-failed" && /^[a-z-]{1,40}$/.test(failure.stage) && Number.isInteger(failure.hresult))
-          diagnostic = ` (${failure.stage}; HRESULT ${failure.hresult}${Number.isInteger(failure.nativeErrorCode) ? `; Win32 ${failure.nativeErrorCode}` : ""})`;
-      } catch {   }
-      throw new Error(`Native helper ended without acknowledgement${diagnostic}; ownership retained`);
+      throw nativeCommandFailure(terminal.spawnError ? "spawn" : "helper-exit", { terminal, stdout, stderr, stderrBytes, systemCode: terminal.systemCode });
     }
     await started;
-    const result = JSON.parse(stdout.startsWith(startMarker + "\r\n") ? stdout.slice(startMarker.length + 2).trim() : stdout.trim());
-    if (result.nonce !== nonce || result.quiescent !== true || !["exited", "timeout", "stopped", "output-limit"].includes(result.status)
-      || !Number.isInteger(result.exitCode) || typeof result.stdout !== "string" || typeof result.stderr !== "string" || typeof result.outputTruncated !== "boolean") throw new Error("Native helper acknowledgement differs; ownership retained");
+    let result;
+    try { result = JSON.parse(stdout.startsWith(startMarker + "\r\n") ? stdout.slice(startMarker.length + 2).trim() : stdout.trim()); }
+    catch { throw nativeCommandFailure("ack-json", { terminal, stdout, stderr, stderrBytes }); }
+    if (!result || typeof result !== "object" || Array.isArray(result) || result.nonce !== nonce || result.quiescent !== true || !["exited", "timeout", "stopped", "output-limit"].includes(result.status)
+      || !Number.isInteger(result.exitCode) || typeof result.stdout !== "string" || typeof result.stderr !== "string" || typeof result.outputTruncated !== "boolean") throw nativeCommandFailure("ack-shape", { terminal, stdout, stderr, stderrBytes });
     await onSettled(identity); registered = false; return result;
   } finally {
     monitorStopped = true; clearTimeout(ownershipTimer); await ownershipPending;

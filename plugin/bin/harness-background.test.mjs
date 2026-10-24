@@ -155,6 +155,20 @@ syncBuiltinESMExports();
 
 const START = ["--start", "--propose", "no", "--interval", "0.2", "--run-limit", "0.2"];
 
+it("records a redacted corrupt-state phase without repairing state or starting a client", async t => {
+  const f = await fixture(t), policy = path.join(f.directory, "watch.json"), body = '{"token":"SECRET_STATE_CANARY",';
+  mkdirSync(f.directory, { recursive: true }); writeFileSync(f.lockPath, body); writeFileSync(policy, "{}");
+  try {
+    const refused = await f.run(START);
+    assert.equal(refused.event.code, "corrupt-state"); assert.deepEqual(Object.keys(refused.event), ["event", "code", "reason"]);
+    assert.equal(readFileSync(f.lockPath, "utf8"), body); assert.equal(readFileSync(policy, "utf8"), "{}");
+    const log = readFileSync(path.join(f.directory, "background.log"), "utf8");
+    assert.match(log, /"phase":"read-json","target":"lock","errorKind":"SyntaxError"/);
+    assert.equal(log.includes("SECRET_STATE_CANARY"), false); assert.equal(log.includes(f.root), false);
+    assert.equal(f.record().length, 0); assert.equal(f.runnerCalls.length, 0);
+  } finally { unlinkSync(f.lockPath); unlinkSync(policy); }
+});
+
 it("starts a resident runner that runs ready work with push blocked, logs it and stops on a local stop", async t => {
   const f = await fixture(t);
   const started = await f.run(START);

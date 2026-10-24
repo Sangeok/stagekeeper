@@ -6,6 +6,9 @@ import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+import { setTimeout as delay } from "node:timers/promises";
 import { gitRoot, stateFiles, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
 import { createRoleFiles } from "../runtime/role-files.mjs";
 import { snapshotRepository, runNativeCommand, prepareNativeRoot, createRoleCommands, installedWindowsRuntime, verifyNativeRuntime } from "../runtime/role-commands.mjs";
@@ -72,6 +75,50 @@ async function nativeFixture(t) {
   return { ...f, directory, prepared };
 }
 const native = { skip: process.platform !== "win32" || process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1", timeout: 120000 };
+
+it("retains ownership and redacts injected helper exit, spawn and acknowledgement failures", native, async t => {
+  const f = fixture(t), originalSpawn = childProcess.spawn;
+  for (const mode of ["spawn", "helper-exit", "ack-json", "ack-shape"]) {
+    const directory = path.join(f.base, mode); await mkdir(directory); let registered = 0, settled = 0, launched;
+    childProcess.spawn = (executable, args, options) => {
+      if (!String(executable).endsWith("powershell.exe") || !args.some(arg => String(arg).endsWith("role-process.ps1"))) return originalSpawn(executable, args, options);
+      if (mode === "spawn") return originalSpawn(path.join(directory, "SECRET_HELPER_CANARY.exe"), [], options);
+      const stdout = mode === "ack-shape" ? "null" : mode === "ack-json" ? "SECRET_HELPER_CANARY" : "";
+      const stderr = mode === "helper-exit" ? "SECRET_HELPER_CANARY" : "";
+      const source = `process.stdin.once('data',()=>{process.stdout.write(${JSON.stringify(stdout)},()=>process.stderr.write(${JSON.stringify(stderr)},()=>process.exit(${mode === "helper-exit" ? 7 : 0})))})`;
+      launched = originalSpawn(process.execPath, ["-e", source], options); return launched;
+    };
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(runNativeCommand({ root: directory, command: "unused", timeoutMs: 100 }, {
+        onSpawn: async () => registered++, onSettled: async () => settled++,
+      }), error => {
+        assert.equal(error.code, "native-helper-unacknowledged"); assert.equal(error.diagnostic.boundary, mode);
+        assert.equal(error.message.includes("SECRET_HELPER_CANARY"), false); assert.equal(JSON.stringify(error).includes("SECRET_HELPER_CANARY"), false);
+        assert.match(error.message, /ownership retained/); return true;
+      });
+      assert.equal(registered, mode === "spawn" ? 0 : 1); assert.equal(settled, 0);
+      if (mode === "spawn") assert.equal(launched, undefined);
+      else assert.notEqual(launched.exitCode, null);
+    } finally { childProcess.spawn = originalSpawn; syncBuiltinESMExports(); if (launched?.exitCode === null) launched.kill(); }
+  }
+});
+
+it("reports an acknowledgement deadline without claiming child settlement", native, async t => {
+  const f = fixture(t), originalSpawn = childProcess.spawn;
+  const directory = path.join(f.base, "ack-deadline"); await mkdir(directory); let settled = 0, launched;
+  childProcess.spawn = (executable, args, options) => {
+    if (!String(executable).endsWith("powershell.exe") || !args.some(arg => String(arg).endsWith("role-process.ps1"))) return originalSpawn(executable, args, options);
+    launched = originalSpawn(process.execPath, ["-e", "process.stdin.resume();setInterval(()=>{},1000)"], options); return launched;
+  };
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(runNativeCommand({ root: directory, command: "unused", timeoutMs: 100 }, { onSettled: async () => settled++ }), error => error.diagnostic?.boundary === "ack-timeout");
+    assert.equal(settled, 0);
+    for (let attempt = 0; attempt < 30 && launched.exitCode === null && launched.signalCode === null; attempt++) await delay(100);
+    assert.ok(launched.exitCode !== null || launched.signalCode !== null);
+  } finally { childProcess.spawn = originalSpawn; syncBuiltinESMExports(); if (launched?.exitCode === null && launched.signalCode === null) launched.kill(); }
+});
 
 it("uses actual LPAC file denial and leaves the original repository unchanged", native, async t => {
   const f = await nativeFixture(t), outside = path.join(f.base, "external.txt"), source = path.join(f.root, "src/source.cjs");

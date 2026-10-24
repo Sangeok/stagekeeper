@@ -457,7 +457,7 @@ it("runs the real CLI with shell-safe plugin/root arguments containing spaces an
   mkdirSync(path.join(pluginRoot, "bin"), { recursive: true });
   mkdirSync(path.join(pluginRoot, "lib"));
   mkdirSync(path.join(pluginRoot, "runtime"));
-  for (const name of ["local-session", "file-ownership", "runner-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
+  for (const name of ["local-session", "state-diagnostics", "file-ownership", "runner-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
   const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
   copyFileSync(BIN, cli);
   for (const name of ["execution/watch", "configuration/harness-config", "qa", "tokens/token", "templates/runbook", "configuration/workspaces", "plans/entitlement", "execution/runner"]) {
