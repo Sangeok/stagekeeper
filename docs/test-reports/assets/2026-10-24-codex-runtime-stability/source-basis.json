@@ -1,0 +1,25 @@
+{
+  "revision": "2e7996180f910b1a56c236454c8bec000ec24e39",
+  "productSource": "893a24e7f1e4d5361727aa24724be3f9f8bc3503",
+  "packageVersion": "0.5.21",
+  "packageSha256": "6bfb3bae8c0aee5ee473a7b9feab5e49df015a93bc38c886afa5a3edd3054b23",
+  "installedFiles": 2229,
+  "shippedSourceFiles": 62,
+  "packageUnchangedBeforeAndAfter": true,
+  "serviceBuild": {
+    "result": "PASS",
+    "surface": "Application/server/core/schema/dependencies/plugin-version inputs",
+    "files": 445,
+    "source": "ae6e7d6c1e51bada9959636dc15a749b12dd2b05",
+    "reusedBuild": true
+  },
+  "privateSource": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+  "privateSourceChanged": false,
+  "scope": "Tests, CI and documentation only; no shipped plugin bytes changed",
+  "limits": [
+    "Current Windows PC has global Node; helper PATH exclusion is not a physical-clean-host test",
+    "macOS contracts use mock clients and skip Windows native tests; no authenticated macOS resident A-to-Z",
+    "Actual model A-to-Z evidence is the preceding final-package trial, not a new model run",
+    "Mixed-version real hosts and release remain open"
+  ]
+}

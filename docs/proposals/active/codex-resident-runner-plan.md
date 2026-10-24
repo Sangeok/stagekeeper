@@ -141,10 +141,10 @@ Codex 자동 실행 기능을 노출하지 않는다. REQ-DUAL-018/019 완료에
 preserves: INV-DUAL-001, INV-DUAL-002, INV-DUAL-003, INV-DUAL-005
 governed-by: CON-DUAL-001, CON-DUAL-002, CON-DUAL-003, CON-DUAL-005, CON-DUAL-008
 
-허용 경로는 `plugin/runtime/background.mjs`, `plugin/bin/harness-background.mjs`,
-기존 `plugin/bin/harness-background-loop.test.mjs`, `harness-background.test.mjs`,
-필요한 신규 `plugin/runtime/resident-execution.mjs`와
-`plugin/bin/harness-resident-execution.test.mjs`다. 신규로 제안했던 경로는 C4A 구현으로 존재한다.
+실제 C4A 구현 경로는 `plugin/runtime/background.mjs`, `plugin/bin/harness-background.mjs`,
+기존 `plugin/bin/harness-background-loop.test.mjs`, `harness-background.test.mjs`와
+신규 `plugin/bin/harness-resident-execution.test.mjs`다. 제안했던
+`plugin/runtime/resident-execution.mjs`는 만들지 않았으며 공통 실행 경계는 기존 두 runtime/CLI 파일에 있다.
 테스트 fake는 테스트 파일 안에 두고 설치 runtime에 Codex stub을 배포하지 않는다.
 
 DB/schema/REST, private 템플릿, Codex skill/CLI 등록, 실제 프로세스 transport,
@@ -444,7 +444,7 @@ C4C 전에는 격리 설치 후보로 시험하며 foreground 안내·Claude 자
 | VFY-C4B-03 | 실제 main-loop·commit·독립 verifier·서버 lease, cycle별 문맥·receipt/usage | 최종 fresh A→Z의 두 browser gate·역할·handoff·5개 인수 및 acceptedAt PASS |
 | VFY-C4B-04 | stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled | 실제 pending main-loop/역할 takeover·같은 AgentRun 재개·owner stop PASS; 세부 실패 경계는 결정적/모의 회귀로 구분 |
 | VFY-C4B-05 | DB→select→RunnerView→runnerFacts→full/compact/project-list, copy-lock·Pause/복구 | 최종 production snapshot의 실제 Edge와 web 777개 PASS |
-| VFY-C4B-06 | 실제 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분 | 현재 양쪽 0.5.20→0.5.21 설치와 2,229개 hash PASS; 공통 poller 110분 PASS. exact 후보 차이는 보고서에 기록, clean host·다른 OS·출시는 미완료 |
+| VFY-C4B-06 | 실제 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분 | 양쪽 0.5.20→0.5.21 설치와 2,229개 hash PASS; 최종 A→Z payload의 단일 110분·HTTP count PASS. clean host·다른 OS native·출시는 미완료 |
 
 실행한 [계약 리허설 보고서](../../test-reports/completed/2026-10-24-codex-resident-contract.md)와
 현재 실제 구현 검증은 구분한다. npm run check, verify:fsd, verify:server,
@@ -462,21 +462,41 @@ C4B 구현 완료에는 위 여섯 검증 중 현재 Windows 격리 후보에 �
 ## Phase C4C: OS별 실제 인수와 안내
 
 **부분 실측 완료, 전체 지원·출시 인수 BLOCKED.** 현재 Windows의 실제 A→Z·취소·재개와
-공통 poller 110분 유휴를 확인했다. 마지막 변경은 모델 도구 오류·terminal 분류에만 있으며
-유휴 시험 패키지와 최종 A→Z 패키지의 차이 및 동일한 poller byte는 보고서에 명시한다.
-110분 전체 HTTP poll 요청 수는 수집하지 않았고 heartbeat 관찰 수와 혼동하지 않는다.
+같은 최종 0.5.21 payload의 단일 110분 유휴를 확인했다. 최종 확인까지 6,601초 동안
+모델·AgentRun·사용량 증가는 0이고 idle HTTP heartbeat·pipeline poll은 각각 108회,
+모두 200이었다. timestamp 관찰 109회는 setup의 첫 신호를 포함하므로 HTTP count와 구분한다.
+[안정성 후속 보고서](../../test-reports/completed/2026-10-24-codex-runtime-stability.md)에
+시작·종료 전량 hash, phase별 요청, 실제 정리와 이전 후보의 경계를 연결한다.
 남은 실제 환경에서 TASK-C4-02/E12를 완료한다. Windows와 macOS 각각의 host,
 CLI/package hash와 방식으로 실제 110분 no-model idle, 작업 발견, browser gate,
 permission/handoff/cap, stop·늦은 이벤트·실제 자식 종료·동일 항목 재개를 기록한다.
 각 OS가 통과하기 전 그 OS 지원을 안내하지 않는다. 기존 Windows 최소 설치와 양방향
 인수도 유지한다. 검증된 범위에서만 Codex background skill/CLI와 제품 안내를 공개한다.
 
+### macOS native 실행의 남은 경계
+
+[공통 계약 CI](../../../.github/workflows/macos-runtime-contracts.yml)는 macOS 15 arm64와
+x64에서 각각 521 PASS / 18 SKIP다. [GitHub runner 목록](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)의
+`macos-15`·`macos-15-intel`을 사용하며 실제 실행 로그의 `darwin/arm64`·`darwin/x64`도 확인했다.
+이 결과는 아래 Windows 의존을 없애거나 실제 client 권한·인증·종료를 검증한 결과가 아니다.
+
+| 현재 owner와 경계 | 남은 구현·검증 |
+| --- | --- |
+| `plugin/runtime/codex-main-loop.mjs:createCodexExecution`의 `installedWindowsRuntime`·`verifyNativeRuntime`·`createRoleCommands` | macOS resident용 bounded 실행 backend를 연결하고 원본 파일·인증·network 접근 차단 및 실제 종료 acknowledgement 검증 |
+| `plugin/runtime/role-commands.mjs:runNativeCommand`의 win32 검사, PowerShell helper, `role_command_exec`의 cmd.exe 계약 | OS별 command/snapshot/runtime 계약과 설치 manifest를 정한 뒤 실제 macOS 허용·거부·취소 시험. shell 권한을 넓혀 우회하지 않음 |
+| `plugin/runtime/codex-main-loop-tools.mjs`의 `createRoleGit`, `role-git.mjs`와 command backend | data-only Git 읽기·허용 ref/path·snapshot 결과·원본 write 차단을 새 backend에서 재검증 |
+| `plugin/runtime/codex-thread.mjs:dispatchFreshRole`의 기존 POSIX foreground 경로 | foreground의 shell 허용 조건을 resident 지원으로 간주하지 않음. fresh 역할·main-loop·receipt·ownership의 실제 연결 인수 필요 |
+
+macOS native backend를 추가할 때 위 owner·도구 schema·runtime packaging·권한/종료 검증을
+같은 변경으로 연결해야 한다. 현재 CI에는 client 인증이나 private source를 전달하지 않는다.
+
 ## Readiness and Handoff
 
 C4A와 현재 Windows C4B의 구현·격리 연결 검증은 완료했다. C4C는 이 호스트의
-A→Z·lifecycle 및 공통 poller 실측 증거를 추가했지만 물리적 clean Windows·macOS·
+A→Z·lifecycle 및 최종 payload의 110분·HTTP count를 추가했지만 물리적 clean Windows·macOS native backend/실제 인수·
 혼합 호스트·출시 gate가 남아 있다. 전체 REQ-DUAL-018/019와 제안서의 pending/blocked는
-유지한다. [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)가 현재 결과와 패키지 차이의 기준이다.
+유지한다. [실제 resident 보고서](../../test-reports/completed/2026-10-24-codex-resident-live.md)는 A→Z와 이전 후보,
+[안정성 후속 보고서](../../test-reports/completed/2026-10-24-codex-runtime-stability.md)는 최종 payload idle·복구·macOS 공통 CI의 기준이다.
 
 이후 변경은 위 C4B 계약과 남은 C4C 인수 조건을 따른다. 과거 C4A 인계는 다음과
 같이 제한해 수행했다: 이 문서의 C4A 세 작업만 수행한다. 먼저 현재 HEAD·사용자 변경·architecture와
@@ -494,7 +514,17 @@ legacy verifies 경고 13개는 유지하며, 신규 Task 3개와 VFY 3개를 �
 문서의 로컬 링크와 `git diff --check`도 PASS다. 이번 변경은 문서뿐이며 C4A 구현,
 새 runtime 시험과 실제 모델 호출은 수행하지 않았다.
 
-## C4B Implementation and Windows Observation — 2026-10-24
+## Runtime Stability Follow-up — 2026-10-24
+
+테스트·CI source `2e7996180f910b1a56c236454c8bec000ec24e39`에서 sign-in 실패를 4번째 반복에
+`guard-busy`로 재현했다. fixture가 guard 기록 중 poller를 강제 종료하는 경쟁이었다.
+복구 가능 종료를 guard 밖에서 재현하고 abandoned guard의 거부·상태 불변을 별도 검증했다.
+제품 정책·shipped payload는 바꾸지 않았다. 수정 후 sign-in 20회와 core/plugin
+537 PASS / 2 SKIP, macOS 양쪽 각 521 PASS / 18 SKIP 및 Windows native CI가 통과했다.
+native helper 진단은 passive capture를 붙인 20회와 전체 회귀에서 통과했으나 과거 원인은
+미확정이며, 별도 corrupt-state도 해결로 표시하지 않는다. 실제 최종 payload idle와 정리는 C4C 기록을 따른다.
+
+## C4B Implementation and Windows Observation — 2026-10-24, 앞선 checkpoint
 
 최종 source `893a24e7f1e4d5361727aa24724be3f9f8bc3503`의 설치 후보로 실제 새 계획·독립 verifier·두 browser gate·
 구현·보고서·server acceptance를 확인했다. 서버/DB 계약, 저장 client UI, 실제 설치
