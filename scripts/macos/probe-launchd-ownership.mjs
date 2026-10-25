@@ -60,7 +60,11 @@ for (const kind of ["user", "gui"]) {
       const absent = spawnSync("/bin/launchctl", ["print", target], options);
       assert.ifError(absent.error);
       assert.notEqual(absent.status, 0, "The owned launchd service must be removed");
-      observations.push({ domain: kind, ...result, serviceAbsentAfterCleanup: true });
+      assert.ok(absent.stderr.includes("Could not find service") && absent.stderr.includes(label), "The query must explicitly identify the missing owned service");
+      const domainCheck = spawnSync("/bin/launchctl", ["print", domain], options);
+      assert.ifError(domainCheck.error);
+      assert.equal(domainCheck.status, 0, "The domain must remain accessible after service cleanup");
+      observations.push({ domain: kind, ...result, serviceAbsentAfterCleanup: true, servicePrintExitCode: absent.status, domainAccessibleAfterCleanup: true });
     } finally {
       spawnSync("/bin/launchctl", ["bootout", target], options);
     }
@@ -69,6 +73,7 @@ for (const kind of ["user", "gui"]) {
 const result = {
   schema: 1, platform: process.platform, arch: process.arch, release: os.release(), node: process.version,
   sourceSha256: digest(source), binarySha256: digest(binary),
+  driverSha256: digest(fileURLToPath(import.meta.url)),
   sdk: execFileSync("/usr/bin/xcrun", ["--show-sdk-version"], options).trim(), domains, observations,
   scope: "ordinary-user launchd lifecycle counterexamples; cooperative fixture oracle and cleanup only; no client authentication or production backend",
   verdict: "BLOCKED_LAUNCHD_JOB_REMOVAL_NOT_DESCENDANT_QUIESCENCE", productionBackendEnabled: false,
