@@ -547,6 +547,13 @@ resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 res
 
 ## Readiness and Handoff
 
+2026-10-25 [상태 조회·역할 진단 회귀 수정](../../test-reports/completed/2026-10-25-runtime-state-and-role-diagnostics.md)은
+0.5.24 후보에 반영했다. 실제 저장 중간 상태의 잘못된 corrupt-state와 역할 도구 진단
+누락은 재현·수정했지만 과거 세 intermittent 및 관찰 누락 파일 읽기의 개별 원인은
+확정하지 못했다. macOS 27 descendant-scoped Endpoint Security에는 root/TCC가 필요
+없다는 Apple 문서를 확인했으나 entitlement·전체 종료·helper death 검증은 별개다.
+새 후보의 실제 모델 A→Z·110분 인수와 macOS backend는 이번 회귀 범위에 포함하지 않는다.
+
 C4A와 현재 Windows C4B의 구현·격리 연결 검증은 완료했다. C4C는 이 호스트의
 A→Z·lifecycle 및 최종 payload의 110분·HTTP count를 추가했지만 물리적 clean Windows·macOS native backend/실제 인수·
 혼합 호스트·출시 gate가 남아 있다. 전체 REQ-DUAL-018/019와 제안서의 pending/blocked는

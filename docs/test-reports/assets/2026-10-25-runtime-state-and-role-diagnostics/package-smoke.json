@@ -1,0 +1,15 @@
+{
+  "result": "PASS",
+  "sourceRevision": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+  "version": "0.5.24",
+  "files": 2232,
+  "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+  "bundledNode": "v22.23.3",
+  "nativePreflight": true,
+  "spawned": 2,
+  "settled": 2,
+  "actualClientInstall": false,
+  "authenticatedAtoZ": false,
+  "idle110Minutes": false,
+  "executedAt": "2026-10-25T13:04:49.535Z"
+}

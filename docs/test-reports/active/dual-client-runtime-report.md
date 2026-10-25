@@ -356,6 +356,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T122 | R2 | informational | macOS recursive tracking and PID snapshot counterexamples | Both architectures reject NOTE_TRACK; detached orphans survive root exit/group kill, output EOF and empty child scan; owned fixtures exit | [E120] | PASS |
 | T123 | R2 | informational | macOS launchd user/gui lifecycle counterexamples | 20 architecture/domain/scenario combinations retain detached descendants after service removal; 88 monitored fixture processes exit and 20 services are removed | [E121] | PASS |
 | T124 | R2 | informational | macOS ordinary-user coalition access | Both architectures permit membership queries/inheritance but reject creation and explicit spawn with EPERM; four control children reaped; live coalition termination not run | [E122] | PASS |
+| T125 | R2 | informational | Guarded session snapshots and retained role failures | Both newly reproduced defects fixed in 0.5.24; Windows regressions and package preflight pass; historical causes and macOS ownership remain unresolved | [E123] | PASS |
 
 ## Commands and Static Checks
 
@@ -516,6 +517,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E120 | macOS descendant ownership API counterexamples | [Scoped report](../completed/2026-10-25-macos-descendant-ownership.md), [arm64](../assets/2026-10-25-macos-descendant-ownership/macos-arm64.json), [x64](../assets/2026-10-25-macos-descendant-ownership/macos-x64.json), [source basis](../assets/2026-10-25-macos-descendant-ownership/source-basis.json). | Fixed observations/hashes only; cooperative cleanup oracle is not product ownership; backend remains blocked |
 | E121 | macOS launchd lifecycle and descendant counterexamples | [Scoped report](../completed/2026-10-25-macos-launchd-ownership.md), [arm64](../assets/2026-10-25-macos-launchd-ownership/macos-arm64.json), [x64](../assets/2026-10-25-macos-launchd-ownership/macos-x64.json), [source/failures/checks](../assets/2026-10-25-macos-launchd-ownership/source-basis.json). | Fixed observations/counts/hashes; no real PID, service UUID, private source or credentials; backend remains blocked |
 | E122 | macOS coalition creation and explicit spawn denial | [Scoped report](../completed/2026-10-25-macos-coalition-access.md), [arm64](../assets/2026-10-25-macos-coalition-access/macos-arm64.json), [x64](../assets/2026-10-25-macos-coalition-access/macos-x64.json), [source/checks](../assets/2026-10-25-macos-coalition-access/source-basis.json). | Fixed observations/hashes; no existing coalition termination or credentials; product backend remains blocked |
+| E123 | Session read race and role failure diagnostics | [Scoped report](../completed/2026-10-25-runtime-state-and-role-diagnostics.md), [verification](../assets/2026-10-25-runtime-state-and-role-diagnostics/verification.json), [findings](../assets/2026-10-25-runtime-state-and-role-diagnostics/findings.json), [package](../assets/2026-10-25-runtime-state-and-role-diagnostics/package-smoke.json). | Redacted fixed diagnostics; no inference that the historical failures share this cause; no new authenticated A-to-Z or 110-minute claim |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 
@@ -528,6 +530,15 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+2026-10-25 runtime repair (E123): guarded writer/unguarded reader overlap produced a
+false corrupt-state result, and role bridge failures had no retained classification.
+Both regressions fail before and pass after the 0.5.24 fix. Core/plugin tests pass
+549 with two skips; all 2,232 packaged files and native preflight pass. Three
+historical Windows intermittent causes and the old role_file_read failure remain
+unconfirmed. Apple's macOS 27 descendants ES API requires an entitlement, not root
+or TCC; this does not establish full termination after helper death. No new macOS
+backend, authenticated acceptance or release claim follows.
 
 2026-10-25 coalition follow-up (E122): ordinary-user creation and explicit spawn both
 returned EPERM for resource/jetsam on arm64/x64. Existing membership was readable and
@@ -640,7 +651,12 @@ including historical failed candidates. Those observations remain unchanged; the
 dated scoped reports identify later successful trials. This historical aggregate
 verdict does not turn the dated scoped passes into failures or certify remaining support gates.
 
-Current decision after E121: keep active/result:null and stage:blocked.
+Current decision after E123: keep active/result:null and stage:blocked.
+The two reproduced runtime defects are fixed. Historical missing causes, macOS
+ownership and remaining acceptance/release gates remain open. The 0.5.24 regression
+candidate does not inherit 0.5.23's authenticated A-to-Z or 110-minute evidence.
+
+Decision after E121: keep active/result:null and stage:blocked.
 Ordinary-user launchd lifecycle counterexamples pass their probe scope; full
 descendant ownership, macOS backend integration and authenticated acceptance remain blocked.
 

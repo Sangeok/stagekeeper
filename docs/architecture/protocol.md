@@ -182,7 +182,10 @@ work/idle 통지 이후 세션은 저장된 정책과 현재 소유권을 확인
 push하지 않으며 commit:no의 acceptance/report는 소유자의 실제 commit·명시적 재개를 기다린다.
 
 상태는 realpath로 확인한 공통 Git 디렉터리의 harness/에 있다. mkdir guard로 짧은 동기 파일
-구간을 직렬화하고 정책을 먼저·잠금을 commit 지점으로 원자 교체한다. session/poller nonce를
+구간을 직렬화하고 정책을 먼저·잠금을 commit 지점으로 원자 교체한다.
+foreground와 resident 조회도 같은 guard 안에서 두 파일을 함께 읽는다.
+resident lifecycle 조회는 비동기로 guard 해제를 기다리며 부분 저장을 손상으로 오인하지 않는다.
+실제 손상과 abandoned guard의 거부는 유지한다. session/poller nonce를
 응답 뒤·cleanup 때에도 다시 확인하여 이전 응답이 새 소유자를 덮어쓰지 못한다. 각 session의
 poller는 하나이며 ESRCH만 죽음 증거로 쓴다. work/idle은 session을 보존하고 poller만 해제한다.
 stop은 root/session만으로 자기 상태를 해제하며 config/token/server 부재에도 실행할 수 있다.
@@ -695,6 +698,11 @@ Windows preflight는 이 파일 backend의 실제 scratch 생성·읽기·hash �
 receipt와 active 소유권을 확인하고, 중지하면 대기 요청을 실행하지 않는다. bridge 종료는
 진행 중 요청의 종료를 기다린다. broker는 고정 데이터 연산만 수행하며 모델 코드나
 임의 명령을 실행하지 않는다. shell/unified exec는 Windows에서 비활성화한다.
+역할 도구 실패는 `role-tool-failed`의 고정 reason/systemCode로 기록한다. resident는
+generation과 함께 background log에, foreground는 stderr에 남긴다. native helper 실패는
+검증된 stage·exit·출력 크기 진단을 포함한다. 도구 인자·경로·파일 본문·요청 ID·토큰과
+임의 exception 문구는 남기지 않는다. 이 기록은 실패 원인 관찰이며 실행 권한이나 재시도
+허용 범위를 바꾸지 않는다.
 `view_image`와 `request_permissions_tool`도 모든 역할에서 비활성화하며 effective config로
 확인한다. 기존 named filesystem/network policy와 승인 거부는 유지한다.
 
