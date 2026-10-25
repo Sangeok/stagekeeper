@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "baseRevision": "701e65bdc8fac6cab05e1cd276e750bb0001f484",
+  "testedRevision": "fe98480d3a3c2536bb9ce0fbdd3575fd6f689dce",
+  "nativeProbeCompletedAt": "2026-10-25T12:06:49Z",
+  "cSourceSha256": "7c684a11faa010e7b678b36af18f4a5bef38ad5cacc11dc694519c56dcf03192",
+  "driverSha256": "1fb41884bc1b731e3df2e6dd0c162d698ee6d5b832efa0ac37383927e1e086ef",
+  "ci": [
+    {
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40191644013",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "fe98480d3a3c2536bb9ce0fbdd3575fd6f689dce"
+    },
+    {
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40191644014",
+      "status": "completed",
+      "conclusion": "success",
+      "headSha": "fe98480d3a3c2536bb9ce0fbdd3575fd6f689dce"
+    }
+  ],
+  "totals": {
+    "architectures": 2,
+    "creationDenials": 4,
+    "explicitSpawnDenials": 4,
+    "reapedControlChildren": 4,
+    "createdCoalitions": 0,
+    "liveCoalitionTerminationTests": 0
+  },
+  "sources": [
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/osfmk/mach/coalition.h",
+      "sha256": "d0bf59956b735fb239b26f4a9aabc2640951259564dba9b0dd0eb0d329bca754"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/libsyscall/wrappers/coalition.c",
+      "sha256": "5ffb12265c7110d5a895a6f93bef02e04c5a5d48b63d00935f2fabc61d0acaf6"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/proc_info_private.h",
+      "sha256": "ccc01e88d5bf47bc9c3f5ba3a25c3e6202bbcd7b86aa967af31d714657571c3b"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/sys_coalition.c",
+      "sha256": "1f252b9329751286f670a8d6824117c2712b4bf20bbf82376fe12c3d39835545"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/libsyscall/wrappers/spawn/posix_spawn.c",
+      "sha256": "15392bdbd233e899de34b238afdb2f991a71a24583dec92ae503cb42bc5f9fad"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/kern_exec.c",
+      "sha256": "89531d33618b8361064236189212c3c96be1b32e098690b17802b6b15d932d1a"
+    }
+  ],
+  "sourceLimit": "ABI and static privilege checks; exact runner kernel source and public API support are not certified",
+  "local": {
+    "check": {
+      "pass": 194,
+      "skip": 3
+    },
+    "architecture": {
+      "pass": 148,
+      "skip": 2
+    },
+    "fsd": "pass",
+    "server": "pass",
+    "build": "pass",
+    "targetedEslint": "pass",
+    "windowsGuard": "pass; no evidence output"
+  },
+  "product": {
+    "version": "0.5.23",
+    "shippedPayloadChanged": false,
+    "macosBackendEnabled": false,
+    "quiescenceProven": false,
+    "clientCredentialsUsed": false,
+    "proposalStatus": "pending/blocked"
+  }
+}

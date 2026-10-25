@@ -43,6 +43,13 @@ helper·coalition·Endpoint Security와 별도 실행 환경의 요구 조건은
 관리자 권한 추가만으로 해결된다는 근거는 없으며, 현행 설치·권한 조건을 바꾸는 후보는
 구체적인 별도 설계 검토가 선행되어야 한다. 제품 backend는 여전히 미연결 상태다.
 
+같은 날 [coalition 일반 사용자 실측](../../test-reports/completed/2026-10-25-macos-coalition-access.md)도
+완료했다. arm64/x64에서 조회·fork/setsid/exec 상속은 가능했으나 resource/jetsam 생성 네 건과
+현재 소속을 명시한 spawn 네 건 모두 EPERM이었다. 전용 coalition을 만들지 못해 live 후손
+종료는 미실행이다. 이 후보의 검증은 종료하며, 현재 설치·권한 조건에서 검증된 macOS
+backend 해법은 아직 없다. 추가 특권·별도 실행 환경은 해결책으로 확정하지 않는다.
+현재 Windows 완료 범위와 아래 세 미완료 체크 항목은 유지한다.
+
 ## Summary
 
 2026-10-04 사용자는 기본 dual-client 제안서를 코드 구현 기준으로 완료 처리하도록 지시했다.
