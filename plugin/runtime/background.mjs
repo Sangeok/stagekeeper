@@ -147,14 +147,14 @@ export async function runResident(context, deps) {
     try { return deps.branch() !== branch; }
     catch (error) { deps.log(`branch check failed: ${error?.message ?? error}`); return false; }
   };
-  const localStop = () => {
-    const life = deps.lifecycle();
+  const localStop = async () => {
+    const life = await deps.lifecycle();
     return life === "active" ? null : life === "stopping" ? "owner" : "replaced";
   };
   const interruptReason = () => interruptOnStop ? localStop() : null;
   const sleepActive = async ms => {
     for (let left = ms; left > 0; left -= 1000) {
-      if (deps.lifecycle() !== "active") return;
+      if (await deps.lifecycle() !== "active") return;
       await deps.sleep(Math.min(1000, left));
     }
   };
@@ -177,7 +177,7 @@ export async function runResident(context, deps) {
     let beatAt = null;
     try {
       while (!finished) {
-        if (interruptOnStop) stopAfter ??= localStop();
+        if (interruptOnStop) stopAfter ??= await localStop();
         if ((!interruptOnStop || !stopAfter) && (beatAt === null || deps.now() - beatAt >= interval)) {
           beatAt = deps.now();
           const result = verdict(await deps.beat({ state: "working" }));
@@ -185,7 +185,7 @@ export async function runResident(context, deps) {
           signalFailures = result.transient ? signalFailures + 1 : 0;
           if (!stopAfter) stopAfter = result.stop ?? (signalFailures >= REQUEST_FAILURE_LIMIT ? "error" : null);
         }
-        stopAfter ??= localStop();
+        stopAfter ??= await localStop();
         if (interruptOnStop && stopAfter) await endRun("stop");
         else {
           if (branchMoved()) await endRun("branch");
@@ -198,7 +198,7 @@ export async function runResident(context, deps) {
         }
       }
       const end = await done;
-      if (interruptOnStop) stopAfter ??= localStop();
+      if (interruptOnStop) stopAfter ??= await localStop();
       return { end, endedFor, stopAfter, pausedDuringRun };
     } catch (error) {
       if (!finished && !endedFor) {
@@ -209,10 +209,10 @@ export async function runResident(context, deps) {
   };
 
   for (;;) {
-    const life = deps.lifecycle();
+    const life = await deps.lifecycle();
     if (life !== "active") return life === "stopping" ? "owner" : "replaced";
     const beat = verdict(await deps.beat(wait ? { state: "waiting", waitReason: wait.reason } : { state: "idle" }));
-    const stoppedAfterBeat = interruptReason();
+    const stoppedAfterBeat = await interruptReason();
     if (stoppedAfterBeat) return stoppedAfterBeat;
     if (beat.transient) {
       if (++transient >= REQUEST_FAILURE_LIMIT) return "error";
@@ -231,7 +231,7 @@ export async function runResident(context, deps) {
       await sleepActive(interval);
       continue;
     }
-    const stoppedAfterOverview = interruptReason();
+    const stoppedAfterOverview = await interruptReason();
     if (stoppedAfterOverview) return stoppedAfterOverview;
     if (!hasWork(work) && !wait) { await sleepActive(interval); continue; }
 
@@ -254,7 +254,7 @@ export async function runResident(context, deps) {
     const before = workSignature(work);
     if (interruptOnStop) {
       const ready = verdict(await deps.beat({ state: "working" }));
-      const stoppedBeforeStart = localStop();
+      const stoppedBeforeStart = await localStop();
       if (stoppedBeforeStart || ready.stop) return stoppedBeforeStart ?? ready.stop;
       if (ready.transient) {
         if (++startFailures >= REQUEST_FAILURE_LIMIT) return "error";
@@ -273,7 +273,7 @@ export async function runResident(context, deps) {
     let paused = false;
     if (interruptOnStop) {
       const current = verdict(await deps.beat({ state: "working" }));
-      const stoppedAfterRun = localStop();
+      const stoppedAfterRun = await localStop();
       if (stoppedAfterRun || current.stop) return stoppedAfterRun ?? current.stop;
       paused = current.paused || current.transient;
     }
@@ -285,7 +285,7 @@ export async function runResident(context, deps) {
     if (!paused) {
       try { progressed = workSignature(await deps.overview()) !== before; } catch { progressed = null; }
     }
-    const stoppedAfterProgress = interruptReason();
+    const stoppedAfterProgress = await interruptReason();
     if (stoppedAfterProgress) return stoppedAfterProgress;
     if (outcome === "branch") {   }
     else if (outcome !== "success") { failures++; failureKinds.push("error"); }
@@ -304,7 +304,7 @@ export async function runResident(context, deps) {
       const report = await deps.beat({ state: wait ? "waiting" : "idle", ...(wait ? { waitReason: wait.reason } : {}),
         lastResult: line, ...(end.log ? { lastLog: end.log } : {}) });
       const settled = verdict(report);
-      const stoppedAfterReport = interruptReason();
+      const stoppedAfterReport = await interruptReason();
       if (stoppedAfterReport) return stoppedAfterReport;
       if (settled.stop && !stopAfter) stopAfter = settled.stop;
       if (pausedDuringRun && settled.paused) deps.notify(fillNotice("pausedFinished", { branch }));

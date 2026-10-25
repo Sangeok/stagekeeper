@@ -7,6 +7,49 @@ import { ROLE_TOOLS } from "./codex-agent.mjs";
 import { createRoleCommands } from "./role-commands.mjs";
 import { z } from "zod";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
+import { createRoleFiles } from "./role-files.mjs";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { nativeCommandFailure } from "./native-command-diagnostics.mjs";
+
+it("records bounded role file failure causes without retaining paths, arguments or private errors", async t => {
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "role-diagnostic-")), events = [];
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const target = path.join(root, "PRIVATE_PATH_CANARY.txt"); writeFileSync(target, "PRIVATE_BODY_CANARY");
+  const files = createRoleFiles({ ":root": "deny", [root]: "read" }, "plan-verifier");
+  let fault = null, active = true;
+  const bridge = await roleBridge({ binding: {} }, {}, "s", { agent: "plan-verifier", project: "p" }, {
+    listTools: async () => ROLE_TOOLS["plan-verifier"].map(name => ({ name })),
+    checkSession: async () => ({ event: "owned", lifecycle: active ? "active" : "stopping", client: "codex" }),
+    callTool: async () => ({ done: false, step: "verify", receipt: { runId: "r", revision: 0, stepId: "verify" } }),
+    record: event => events.push(event),
+  }, { ...files, call: (name, args) => { if (fault) throw fault; return files.call(name, args); } });
+  t.after(() => bridge.close());
+  const call = (name, args) => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: "PRIVATE_REQUEST_CANARY", method: "tools/call", params: { name, arguments: args } }) }).then(response => response.json());
+  await call("agent_next", {});
+  assert.equal((await call("role_file_read", { path: target, maxLines: 501 })).error.code, -32602);
+  assert.equal((await call("role_file_read", { path: path.join(root, "PRIVATE_MISSING_CANARY") })).error.code, -32004);
+  assert.equal((await call("role_file_read", { path: path.dirname(root) })).error.code, -32000);
+  assert.deepEqual(events.map(event => event.reason), ["invalid-input", "path-missing", "file-permission"]);
+  for (const event of events) assert.deepEqual(Object.keys(event), ["event", "agent", "tool", "reason", "systemCode"]);
+  assert.equal(events.every(event => event.event === "role-tool-failed" && event.tool === "role_file_read"), true);
+  assert.equal((await call("role_file_read", { path: target })).result.isError, false);
+  fault = Object.assign(new Error("PRIVATE_ERROR_CANARY hu_SECRET_TOKEN"), { code: "PRIVATE_CODE_CANARY" });
+  assert.equal((await call("role_file_read", { path: target })).error.code, -32000);
+  assert.equal(events.at(-1).reason, "unclassified"); assert.equal(events.at(-1).systemCode, null);
+  fault.code = "EBUSY";
+  await call("role_file_read", { path: target }); assert.equal(events.at(-1).systemCode, "EBUSY");
+  fault = nativeCommandFailure("helper-exit", { terminal: { code: 1 }, stderr: JSON.stringify({ error: "native-helper-failed", stage: "validation-profile", hresult: -1 }), stderrBytes: 100 });
+  await call("role_file_read", { path: target });
+  assert.equal(events.at(-1).reason, "native-helper"); assert.equal(events.at(-1).native.helperStage, "validation-profile");
+  fault.diagnostic = { helperStage: "PRIVATE_STAGE_CANARY", boundary: "PRIVATE_BOUNDARY_CANARY", stderrKind: "PRIVATE_STDERR_CANARY", stdoutBytes: -1 };
+  await call("role_file_read", { path: target });
+  assert.equal(events.at(-1).native.helperStage, null); assert.equal(events.at(-1).native.boundary, "unknown");
+  active = false;
+  await call("role_file_read", { path: target }); assert.equal(events.at(-1).reason, "ownership");
+  assert.doesNotMatch(JSON.stringify(events), /PRIVATE_|hu_SECRET|role-diagnostic-|[A-Z]:\\\\/);
+});
 
 it("returns correctable Git errors within the existing role ownership boundary", async t => {
   let active = true, calls = 0;

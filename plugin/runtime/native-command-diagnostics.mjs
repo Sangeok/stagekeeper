@@ -9,6 +9,16 @@ const signals = new Set(["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV", "
 const systemCodes = new Set(["ENOENT", "EACCES", "EPERM", "EAGAIN", "EMFILE", "ENFILE", "ENOMEM", "EINVAL", "UNKNOWN"]);
 const integer = value => Number.isSafeInteger(value) ? value : null;
 
+export function readNativeCommandDiagnostic(error) {
+  if (error?.code !== "native-helper-unacknowledged") return null;
+  const value = error.diagnostic;
+  return { boundary: boundaries.has(value?.boundary) ? value.boundary : "unknown", exitCode: integer(value?.exitCode),
+    signal: signals.has(value?.signal) ? value.signal : null, systemCode: systemCodes.has(value?.systemCode) ? value.systemCode : null,
+    helperStage: stages.has(value?.helperStage) ? value.helperStage : null, hresult: integer(value?.hresult), nativeErrorCode: integer(value?.nativeErrorCode),
+    stdoutBytes: Math.max(0, integer(value?.stdoutBytes) ?? 0), stderrBytes: Math.max(0, integer(value?.stderrBytes) ?? 0),
+    stderrKind: ["overflow", "empty", "structured", "unrecognized"].includes(value?.stderrKind) ? value.stderrKind : "unrecognized" };
+}
+
 export function nativeCommandFailure(boundary, { terminal = {}, stdout = "", stderr = "", stderrBytes = 0, systemCode } = {}) {
   const failures = stderr.split(/\r?\n/).flatMap(line => {
     try {

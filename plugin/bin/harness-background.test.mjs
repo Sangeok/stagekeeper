@@ -9,6 +9,7 @@ import { it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runnerHost } from "../runtime/runner-client.mjs";
 import { REASONS, START_LINES } from "./harness-background.mjs";
+import { atomicWrite, clearState, readState, startSession, stateFiles, withGuard } from "../runtime/local-session.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-background.mjs", import.meta.url));
 const TOKEN = "hu_" + "b".repeat(43);
@@ -157,6 +158,35 @@ syncBuiltinESMExports();
 }
 
 const START = ["--start", "--propose", "no", "--interval", "0.2", "--run-limit", "0.2"];
+
+it("waits for a session creation transaction before checking whether the checkout is locked", async t => {
+  const f = await fixture(t), files = stateFiles(f.directory);
+  await startSession(files, { root: f.root, server: f.url, project: "owner-repo", configHash: "a".repeat(64), tokenHash: "b".repeat(64) },
+    { client: "claude", commit: false, propose: false });
+  const state = readState(files);
+  await withGuard(files, () => clearState(files));
+  let release, entered;
+  const ready = new Promise(resolve => { entered = resolve; }), gate = new Promise(resolve => { release = resolve; });
+  const writing = withGuard(files, async () => {
+    atomicWrite(files.policy, state.policy); entered();
+    await gate;
+    atomicWrite(files.lock, state.lock);
+  });
+  await ready;
+  let result;
+  const checking = f.run(["--preflight"]).then(value => { result = value; return value; });
+  try {
+    await delay(500);
+    assert.equal(result, undefined, JSON.stringify(result?.event));
+    release(); await writing;
+    assert.equal((await checking).event.code, "locked");
+    assert.equal(f.record().length, 0);
+    assert.equal(f.runnerCalls.length, 0);
+  } finally {
+    release(); await writing; await checking;
+    await withGuard(files, () => clearState(files));
+  }
+});
 
 it("records a redacted corrupt-state phase without repairing state or starting a client", async t => {
   const f = await fixture(t), policy = path.join(f.directory, "watch.json"), body = '{"token":"SECRET_STATE_CANARY",';

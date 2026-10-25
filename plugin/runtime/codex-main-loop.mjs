@@ -142,7 +142,8 @@ export function createCodexExecution(context, operations = {}) {
           await runtime.verifyNativeRuntime(native, lifecycle);
           await guard({ remote: true });
           backend = await runtime.createRoleCommands({ root, scratch, agent: "main-loop", fileBroker, runtime: native }, lifecycle);
-          const tools = await runtime.createMainLoopTools({ input, files, session, branch, scratch, fileBroker, commandBroker: backend, guard, lifecycle, signal });
+          const tools = await runtime.createMainLoopTools({ input, files, session, branch, scratch, fileBroker, commandBroker: backend, guard, lifecycle, signal,
+            record: event => record({ ...event, generation }) });
           bridge = await runtime.createMainLoopBridge(tools, signal, event => record({ ...event, generation }), () => end("policy"));
           const names = tools.tools.map(tool => tool.name), cli = runtime.codexExecutable();
           const config = ['approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false',

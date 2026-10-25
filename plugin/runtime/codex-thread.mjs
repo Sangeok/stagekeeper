@@ -17,6 +17,7 @@ import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 import { createRoleGit, roleGitTool, RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { codexExecutable } from "./codex-executable.mjs";
 import { assertCommitHandoff, assertHandoffSubmission } from "./commit-handoff.mjs";
+import { roleToolDiagnostic } from "./role-tool-diagnostics.mjs";
 export { codexExecutable } from "./codex-executable.mjs";
 
 export function childEnvironment(environment = process.env) {
@@ -131,13 +132,14 @@ export async function roleBridge(input, files, session, dispatch, operations = {
   async function handleRequest(request, response) {
     if (request.url !== `/mcp/${capability}`) { response.writeHead(404); response.end(); return; }
     if (request.method !== "POST") { response.writeHead(405, { Allow: "POST" }); response.end(); return; }
-    pending++; let requestId = null;
+    pending++; let requestId = null, requestTool = null;
     try {
       if (pending > 32 || controller.signal.aborted) throw new Error("Role request limit or stop");
       const chunks = []; let bytes = 0;
       for await (const chunk of request) { if ((bytes += chunk.length) > 65536) throw new Error("Bridge request too large"); chunks.push(chunk); }
       const message = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       requestId = message.id ?? null;
+      if (message.method === "tools/call") requestTool = names.includes(message.params?.name) ? message.params.name : "unknown";
       let result;
       if (message.method === "initialize") result = { protocolVersion: message.params?.protocolVersion ?? "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "harness-role", version: "1" } };
       else if (message.method?.startsWith("notifications/")) { response.writeHead(202); response.end(); return; }
@@ -147,6 +149,9 @@ export async function roleBridge(input, files, session, dispatch, operations = {
       response.writeHead(200, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
     } catch (error) {
+      if (requestTool !== null) {
+        try { await operations.record?.(roleToolDiagnostic(logical, requestTool, error)); } catch { }
+      }
       if (response.destroyed) return;
       let domainFailure = null;
       if (error instanceof McpDomainError && !controller.signal.aborted) {
@@ -331,7 +336,8 @@ export async function inspectHostPolicy(cli, config, scratch, files, session, bi
 export async function dispatchFreshRole(input, files, session, dispatch, operations = {}) {
   const runtime = { codexExecutable, verifierPackage, createRoleFiles, installedWindowsRuntime, verifyNativeRuntime,
     createRoleCommands, createRoleGit, createQaBrowser, roleBridge, inspectHostPolicy, spawn,
-    createAppServer: child => new AppServer(child), checkSession, listTools, callTool, ...operations };
+    createAppServer: child => new AppServer(child), checkSession, listTools, callTool,
+    record: event => process.stderr.write(JSON.stringify(event) + "\n"), ...operations };
   runtime.signal?.throwIfAborted();
   const owned = await runtime.checkSession(files, session, input.binding);
   if (owned.event !== "owned" || owned.lifecycle !== "active" || owned.client !== "codex") throw new Error("Active Codex session required");
@@ -378,7 +384,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     if (dispatch.agent === "qa-verifier") fileBroker = withQaBrowser(localFiles, await runtime.createQaBrowser(input.config.qa ?? undefined));
     const tools = [...(ROLE_TOOLS[dispatch.agent] ?? ROLE_TOOLS.dev), ...(fileBroker?.tools.map(tool => tool.name) ?? [])];
     bridge = await runtime.roleBridge(input, files, session, { ...dispatch, project: input.config.project.slug },
-      { listTools: runtime.listTools, callTool: runtime.callTool, checkSession: runtime.checkSession }, fileBroker);
+      { listTools: runtime.listTools, callTool: runtime.callTool, checkSession: runtime.checkSession, record: runtime.record }, fileBroker);
     runtime.signal?.throwIfAborted();
     const config = [
       'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.view_image=false', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',

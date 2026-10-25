@@ -15,7 +15,7 @@ function harness({ overviews = [WORK, NONE], trees = [], heads = null, beats = [
   let clock = 0, loops = 0;
   const next = (list, fallback) => (list.length > 1 ? list.shift() : list[0] ?? fallback);
   const deps = {
-    lifecycle: () => {
+    lifecycle: async () => {
       if (++loops > maxLoops * 50) return "stopping";
       return next(lifecycle, "active");
     },
