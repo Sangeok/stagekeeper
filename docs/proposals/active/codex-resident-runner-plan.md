@@ -526,6 +526,15 @@ launchd 기본 그룹 정리·coalition·Endpoint Security의 문서상 범위�
 아키텍처의 stop·timeout·helper death·fork 경쟁 인수가 갖춰지기 전에는 command/Git/
 packaging backend를 연결하지 않는다. 이번 시험은 새 sandbox나 실제 client 인수가 아니다.
 
+이후 [launchd lifecycle 실측](../../test-reports/completed/2026-10-25-macos-launchd-ownership.md)은
+두 아키텍처의 user/gui 영역에서 자연 종료·서비스 루트 SIGKILL·bootout·timeout·fork
+요청 20조합을 검증했다. 같은 그룹의 자식은 정리됐지만 detached survivor가 남았다.
+검증한 launchd job 설정을 quiescence 경계로 채택하지 않는다. 88개 관찰 대상의 종료와
+20개 서비스 제거는 fixture cleanup이며 제품 명령의 종료 보장이 아니다.
+coalition 종료 요청도 살아 있는 task의 일괄 kill로 해석하지 않는다. 다음 구조 후보의
+지원 API·전체 종료·설치·권한·명령 호환성 조건을 먼저 입증하며, 아직 모든 macOS 해법이
+불가능하다고 결론 내리지 않는다. 기존 Windows payload와 실제 인수 상태는 유지한다.
+
 같은 보고서의 0.5.21/0.5.22 양방향 인계는 현재 Windows의 공유 session 계약·Claude idle
 resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 resident의 실제 혼합 host,
 물리적 clean Windows, macOS 인증 A→Z와 출시 gate는 남아 있다.

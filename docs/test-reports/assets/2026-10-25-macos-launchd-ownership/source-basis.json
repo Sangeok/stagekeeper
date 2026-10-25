@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "baseRevision": "9381e3c21dde2502a4375f31f466ef42327d8240",
+  "testedRevision": "ab2fbaef023ed0e37215c047e6444238f00b963e",
+  "nativeProbeCompletedAt": "2026-10-25T05:50:09Z",
+  "cSourceSha256": "c8c21b015115a9bb6c6b1671eff354dbf39b5ddfa2dfeb7374113208b08e563a",
+  "driverSha256": "5a38ad56b93717fdd4ced414e55f6a719298c711f31201c7f7145e3bbf566767",
+  "ci": [
+    {
+      "name": "check",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40166924251",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "macos-runtime-contracts",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40166924217",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "totals": {
+    "combinations": 20,
+    "monitoredFixtureExitEvents": 88,
+    "detachedSurvivorsBeforeCooperativeCleanup": 44,
+    "removedOwnedServices": 20
+  },
+  "failureHistory": [
+    {
+      "revision": "53b91bb2a3c6788aa1329cf438ee3996ef785271",
+      "run": 40166152331,
+      "stage": "bootstrap",
+      "result": "failed on both architectures before ownership observations",
+      "exitCode": null
+    },
+    {
+      "revision": "23009db7e033ae2ad8baf668173c5e39b68bacfa",
+      "run": 40166268767,
+      "stage": "bootstrap with absolute plist path",
+      "result": "failed on both architectures",
+      "exitCode": 5
+    },
+    {
+      "revision": "754ddf3fdd864efddc981cb7491caa9cb3ada85a",
+      "run": 40166341643,
+      "stage": "explicit Background/Aqua session type",
+      "nativeProbeResult": "all 20 combinations passed",
+      "workflowConclusion": "cancelled after the evidence-field correction was pushed; not a full workflow pass"
+    },
+    {
+      "revision": "12c9f7d1a596168834c4942b7f050a0e204b5dd5",
+      "run": 40166555631,
+      "stage": "request ordering distinguished from kernel event ordering",
+      "workflowConclusion": "success",
+      "supersededBy": "explicit missing-service message and accessible-domain assertions"
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://developer.apple.com/forums/thread/783780",
+      "role": "Apple DTS explains default Aqua session type"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/osfmk/kern/coalition.c#L2179",
+      "sha256": "244a162e8d29296b766c4dae07f7c8072bf67a742d8be5f233c71dae8e247976",
+      "scope": "static upstream source; not proof of exact runner kernel source or privileged API execution"
+    }
+  ],
+  "local": {
+    "check": {
+      "pass": 194,
+      "skip": 3
+    },
+    "architecture": {
+      "pass": 148,
+      "skip": 2
+    },
+    "fsd": "pass",
+    "server": "pass",
+    "build": "pass",
+    "targetedEslint": "pass",
+    "nonMacosProbeRefusesAndCreatesNoEvidence": true
+  },
+  "product": {
+    "version": "0.5.23",
+    "shippedPayloadChanged": false,
+    "macosBackendEnabled": false,
+    "quiescenceProven": false,
+    "clientCredentialsUsed": false
+  }
+}

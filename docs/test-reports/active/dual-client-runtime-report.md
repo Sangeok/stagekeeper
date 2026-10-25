@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge","GitHub Actions"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-25T05:03:11Z"
-tested-revision: "e69fdd24556c7dadcf3d2ec8951ac6f05ebfd99f"
+last-executed-at: "2026-10-25T05:50:09Z"
+tested-revision: "ab2fbaef023ed0e37215c047e6444238f00b963e"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -354,6 +354,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T120 | R2 | required | Runtime state diagnostic failure injection | Running corrupt lock and denied status/stop writes retain fixed diagnostics and ownership | [E119] | PASS |
 | T121 | R2 | required | Final 0.5.23 installed Windows A-to-Z and 110-minute idle | Same complete payload, actual browser/model/server acceptance, HTTP counts and owned cleanup | [E119] | PASS |
 | T122 | R2 | informational | macOS recursive tracking and PID snapshot counterexamples | Both architectures reject NOTE_TRACK; detached orphans survive root exit/group kill, output EOF and empty child scan; owned fixtures exit | [E120] | PASS |
+| T123 | R2 | informational | macOS launchd user/gui lifecycle counterexamples | 20 architecture/domain/scenario combinations retain detached descendants after service removal; 88 monitored fixture processes exit and 20 services are removed | [E121] | PASS |
 
 ## Commands and Static Checks
 
@@ -512,6 +513,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E118 | Runtime diagnostic and portability follow-up | [Scoped report](../completed/2026-10-24-codex-runtime-portability.md), [actual client updates](../assets/2026-10-24-codex-runtime-portability/windows-update.json), [same-PC handoff](../assets/2026-10-24-codex-runtime-portability/windows-handoff.json), [macOS arm64](../assets/2026-10-24-codex-runtime-portability/macos-arm64.json), [macOS x64](../assets/2026-10-24-codex-runtime-portability/macos-x64.json), [failures](../assets/2026-10-24-codex-runtime-portability/failures.json), [source basis](../assets/2026-10-24-codex-runtime-portability/source-basis.json), [checks](../assets/2026-10-24-codex-runtime-portability/checks.json). 0.5.22 payload has 2,231 files; historical diagnostic causes remain unconfirmed. | Fixed labels and hashes; no credentials/private bodies/session IDs; macOS process-group cancellation is explicitly insufficient |
 | E119 | Final 0.5.23 current Windows acceptance | [Scoped report](../completed/2026-10-24-codex-final-windows-acceptance.md), [pipeline](../assets/2026-10-24-codex-final-windows-acceptance/pipeline.json), [idle](../assets/2026-10-24-codex-final-windows-acceptance/idle.json), [updates](../assets/2026-10-24-codex-final-windows-acceptance/windows-update.json), [failures](../assets/2026-10-24-codex-final-windows-acceptance/failures.json), [source/checks](../assets/2026-10-24-codex-final-windows-acceptance/source-basis.json), [cleanup](../assets/2026-10-24-codex-final-windows-acceptance/cleanup.json). | Fixed results/counts/hashes; no credentials, transcript or private template body; external-host and release gates remain open |
 | E120 | macOS descendant ownership API counterexamples | [Scoped report](../completed/2026-10-25-macos-descendant-ownership.md), [arm64](../assets/2026-10-25-macos-descendant-ownership/macos-arm64.json), [x64](../assets/2026-10-25-macos-descendant-ownership/macos-x64.json), [source basis](../assets/2026-10-25-macos-descendant-ownership/source-basis.json). | Fixed observations/hashes only; cooperative cleanup oracle is not product ownership; backend remains blocked |
+| E121 | macOS launchd lifecycle and descendant counterexamples | [Scoped report](../completed/2026-10-25-macos-launchd-ownership.md), [arm64](../assets/2026-10-25-macos-launchd-ownership/macos-arm64.json), [x64](../assets/2026-10-25-macos-launchd-ownership/macos-x64.json), [source/failures/checks](../assets/2026-10-25-macos-launchd-ownership/source-basis.json). | Fixed observations/counts/hashes; no real PID, service UUID, private source or credentials; backend remains blocked |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 
@@ -524,6 +526,16 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+E121 extends the previous documentation-only launchd assessment with real user/gui
+lifecycle trials on both macOS architectures. Same-group cleanup succeeds while
+detached descendants survive root exit, service SIGKILL, bootout, timeout and a
+concurrent fork request scenario. All 88 monitored fixture processes exit and 20
+owned services are absent afterward. Exact kernel event simultaneity is not claimed.
+The inspected coalition termination request does not itself kill active tasks, so
+a privileged helper is not an established solution. Alternative installation,
+privilege and execution compatibility requirements are compared in the scoped report.
+No product ownership requirement or backend permission was relaxed.
 
 E120 excludes kqueue recursive tracking and fork notifications plus PID polling as
 a complete descendant-ownership mechanism. Native arm64/x64 counterexamples are
@@ -620,7 +632,11 @@ including historical failed candidates. Those observations remain unchanged; the
 dated scoped reports identify later successful trials. This historical aggregate
 verdict does not turn the dated scoped passes into failures or certify remaining support gates.
 
-Current decision after E120: keep active/result:null and stage:blocked.
+Current decision after E121: keep active/result:null and stage:blocked.
+Ordinary-user launchd lifecycle counterexamples pass their probe scope; full
+descendant ownership, macOS backend integration and authenticated acceptance remain blocked.
+
+Decision after E120: keep active/result:null and stage:blocked.
 macOS native counterexamples pass their bounded probe scope; product descendant
 ownership, backend integration and authenticated acceptance remain blocked.
 

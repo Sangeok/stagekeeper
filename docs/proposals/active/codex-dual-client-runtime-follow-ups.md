@@ -35,6 +35,14 @@ privileged broker나 별도 격리 환경이 필요하면 그 계약 변경을 �
 검토한다. 상세 선행 조건은 [resident 계획](./codex-resident-runner-plan.md)의 macOS 절을
 따르며, production backend·실제 macOS client 인수와 이 제안서의 pending/blocked는 유지한다.
 
+같은 날 추가 지시로 [launchd 실제 시험](../../test-reports/completed/2026-10-25-macos-launchd-ownership.md)을
+수행했다. arm64/x64 × user/gui × 다섯 lifecycle의 20조합 모두 서비스 루트·같은 그룹
+자식은 종료됐지만 detached 후손이 남았다. 임시 서비스와 관찰 대상 88개 프로세스는
+정리했다. 검증한 launchd job도 전체 후손 소유권 경계로 채택하지 않는다. privileged
+helper·coalition·Endpoint Security와 별도 실행 환경의 요구 조건은 보고서에서 구분했다.
+관리자 권한 추가만으로 해결된다는 근거는 없으며, 현행 설치·권한 조건을 바꾸는 후보는
+구체적인 별도 설계 검토가 선행되어야 한다. 제품 backend는 여전히 미연결 상태다.
+
 ## Summary
 
 2026-10-04 사용자는 기본 dual-client 제안서를 코드 구현 기준으로 완료 처리하도록 지시했다.
