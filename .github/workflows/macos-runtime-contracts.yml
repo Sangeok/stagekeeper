@@ -46,6 +46,14 @@ jobs:
         run: node scripts/macos/probe-descendant-ownership.mjs "$RUNNER_TEMP/descendant-ownership.json"
       - name: Probe launchd lifecycle and detached descendants
         run: node scripts/macos/probe-launchd-ownership.mjs "$RUNNER_TEMP/launchd-ownership.json"
+      - name: Probe ordinary-user coalition control
+        run: node scripts/macos/probe-coalition-access.mjs "$RUNNER_TEMP/coalition-access.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coalition-access-${{ matrix.runner }}
+          path: ${{ runner.temp }}/coalition-access.json
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: always()
         with:
