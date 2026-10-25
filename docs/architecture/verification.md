@@ -83,6 +83,11 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 - [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
   `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
   공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.
+  npm 의존성 설치 전 native probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
+  `probe-descendant-ownership.mjs`는 Clang으로 C fixture를 빌드해 NOTE_TRACK 거부,
+  fork 알림의 합침·자식 신원 부재, orphan 생존 및 알려진 fixture의 종료를 검사한다.
+  예상 반례 검출의 PASS는 제품 소유권·quiescence PASS가 아니다. 후손 identity를 받는
+  협조적 oracle은 시험 정리에만 사용하며 제품 backend에 연결하지 않는다.
   실제 Codex resident의 macOS 권한 격리·설치·로그인·A→Z·110분 인수는 이 CI의 범위가 아니다.
 - `npm run test:scripts`: `scripts/**/*.test.mjs`와 `scripts/**/*.test.ts`를 재귀 검색하고
   CI의 `npm run check`에서 실행한다. 외부 DB·모델 호출 없는 도구 테스트를 포함한다.
@@ -175,6 +180,7 @@ PR·CI 재실행·조회 실패·squash 병합·동시 커밋 보존을 확인�
 | 최상위 | build, 브랜치 정리, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여, GitHub 목록 credential 정리·회전과 짝 테스트 |
 | `checks/` | FSD·서버 경계 검사기, 문구·공개 계약 검사와 테스트 |
 | `windows/` | native Node 빌드·캐시·패키징·호환 처리·Windows 리허설과 테스트 |
+| `macos/` | native 권한·자식 소유권 가능성 probe, C fixture와 macOS CI 증거 |
 | `templates/` | 템플릿 seed·restore·쿼리 보조 모듈과 테스트 |
 | `project-ownership/` | 소유권 무결성의 읽기 전용 검사·보조 모듈과 테스트 |
 | `rehearsals/` | 위 책임에 속하지 않는 제품 기능 인수 리허설과 도구 자체의 테스트 |
