@@ -297,7 +297,7 @@ static int controller(char *domain, char *target, char *scenario) {
     for (int role = ROOT; role < registered; role++) close(processes[role].socket);
     close(queue); close(listener);
     require(unlink("channel.sock") == 0, "socket-cleanup");
-    printf("{\"scenario\":\"%s\",\"ordinaryUser\":true,\"registeredProcesses\":%d,\"rootExitObserved\":true,\"sameGroupExitObserved\":true,\"serviceBootoutSucceeded\":true,\"detachedSurvivorsAfterBootout\":%d,\"termIgnoredBeforeBootout\":%s,\"forksConcurrentWithBootout\":%d,\"actionDurationMs\":%llu,\"fixtureExitEvents\":%d,\"ownedFixtureProcessesExited\":true}\n", scenario, registered, survivor_count, timeout ? "true" : "false", race ? 2 : 0, (unsigned long long)action_duration, exited);
+    printf("{\"scenario\":\"%s\",\"ordinaryUser\":true,\"registeredProcesses\":%d,\"rootExitObserved\":true,\"sameGroupExitObserved\":true,\"serviceBootoutSucceeded\":true,\"detachedSurvivorsAfterBootout\":%d,\"termIgnoredBeforeBootout\":%s,\"forksRequestedAlongsideBootout\":%d,\"actionDurationMs\":%llu,\"fixtureExitEvents\":%d,\"ownedFixtureProcessesExited\":true}\n", scenario, registered, survivor_count, timeout ? "true" : "false", race ? 2 : 0, (unsigned long long)action_duration, exited);
     return 0;
 }
 

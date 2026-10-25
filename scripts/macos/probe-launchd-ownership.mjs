@@ -53,6 +53,9 @@ for (const kind of ["user", "gui"]) {
       assert.equal(result.scenario, scenario);
       for (const key of ["ordinaryUser", "rootExitObserved", "sameGroupExitObserved", "serviceBootoutSucceeded", "ownedFixtureProcessesExited"]) assert.equal(result[key], true);
       assert.equal(result.detachedSurvivorsAfterBootout, scenario === "fork-during-bootout" ? 3 : 2);
+      assert.equal(result.registeredProcesses, scenario === "fork-during-bootout" ? 6 : 4);
+      assert.equal(result.forksRequestedAlongsideBootout, scenario === "fork-during-bootout" ? 2 : 0);
+      assert.equal(result.termIgnoredBeforeBootout, scenario === "timeout-bootout");
       assert.equal(result.fixtureExitEvents, result.registeredProcesses);
       const absent = spawnSync("/bin/launchctl", ["print", target], options);
       assert.ifError(absent.error);
