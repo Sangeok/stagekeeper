@@ -5,6 +5,7 @@
 #include <sys/un.h>
 #include <sys/wait.h>
 #include <libproc.h>
+#include <limits.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -165,7 +166,6 @@ static pid_t launchctl_start(char *const arguments[]) {
     posix_spawn_file_actions_t actions;
     require(posix_spawn_file_actions_init(&actions) == 0, "spawn-actions");
     require(posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0) == 0, "spawn-output");
-    require(posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0) == 0, "spawn-error");
     pid_t child;
     int error = posix_spawn(&child, "/bin/launchctl", &actions, NULL, arguments, environ);
     posix_spawn_file_actions_destroy(&actions);
@@ -175,7 +175,9 @@ static pid_t launchctl_start(char *const arguments[]) {
 
 static void launchctl_wait(pid_t child) {
     int status;
-    require(waitpid(child, &status, 0) == child && WIFEXITED(status) && WEXITSTATUS(status) == 0, "launchctl-success");
+    require(waitpid(child, &status, 0) == child, "launchctl-wait");
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) fprintf(stderr, "launchd-probe:launchctl-status=%d\n", status);
+    require(WIFEXITED(status) && WEXITSTATUS(status) == 0, "launchctl-success");
 }
 
 static void accept_process(int listener, int queue, struct owned_process processes[LIMIT]) {
@@ -231,7 +233,12 @@ static int controller(char *domain, char *target, char *scenario) {
     require(listener >= 0 && queue >= 0 && fcntl(listener, F_SETFD, FD_CLOEXEC) == 0, "controller-handles");
     struct sockaddr_un value = address();
     require(bind(listener, (struct sockaddr *)&value, sizeof(value)) == 0 && listen(listener, LIMIT) == 0, "controller-listen");
-    char *bootstrap[] = {"launchctl", "bootstrap", domain, "job.plist", NULL};
+    char plist[PATH_MAX];
+    require(getcwd(plist, sizeof(plist)) != NULL, "plist-working-directory");
+    size_t used = strlen(plist);
+    require(used + sizeof("/job.plist") <= sizeof(plist), "plist-path-length");
+    strcpy(plist + used, "/job.plist");
+    char *bootstrap[] = {"launchctl", "bootstrap", domain, plist, NULL};
     launchctl_wait(launchctl_start(bootstrap));
     for (int role = ROOT; role <= DETACHED_LEAF; role++) accept_process(listener, queue, processes);
     require(processes[SAME_GROUP].identity.group == processes[ROOT].identity.group, "same-group-positive-control");
