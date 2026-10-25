@@ -40,12 +40,14 @@ for (const kind of ["user", "gui"]) {
 <key>Label</key><string>${label}</string>
 <key>ProgramArguments</key><array><string>${escape(binary)}</string><string>worker</string><string>${scenario}</string></array>
 <key>WorkingDirectory</key><string>${escape(directory)}</string>
+<key>LimitLoadToSessionType</key><string>${kind === "user" ? "Background" : "Aqua"}</string>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><false/>
 <key>AbandonProcessGroup</key><false/><key>ExitTimeOut</key><integer>1</integer>
 <key>StandardOutPath</key><string>/dev/null</string><key>StandardErrorPath</key><string>/dev/null</string>
 </dict></plist>
 `;
     fs.writeFileSync(path.join(directory, "job.plist"), plist, { flag: "wx", mode: 0o600 });
+    execFileSync("/usr/bin/plutil", ["-lint", path.join(directory, "job.plist")], options);
     try {
       const result = JSON.parse(execFileSync(binary, [domain, target, scenario], { ...options, cwd: directory }));
       assert.equal(result.scenario, scenario);
