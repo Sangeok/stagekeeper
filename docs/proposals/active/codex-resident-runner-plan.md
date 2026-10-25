@@ -539,6 +539,12 @@ coalition 종료 요청도 살아 있는 task의 일괄 kill로 해석하지 않
 resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 resident의 실제 혼합 host,
 물리적 clean Windows, macOS 인증 A→Z와 출시 gate는 남아 있다.
 
+2026-10-25 [coalition 실제 검증](../../test-reports/completed/2026-10-25-macos-coalition-access.md):
+양쪽 macOS 일반 사용자에서 resource/jetsam 생성과 명시적 spawn은 모두 EPERM이었다.
+소속 조회·상속은 가능하지만 부모와 공유하는 coalition이며 전용 실행 소유권이 아니다.
+생성이 거부돼 전체 후손 종료는 미실행이다. 이 후보는 현행 권한 조건에서 채택하지 않으며,
+검증된 대안이 없는 상태에서 backend 연결·권한 완화·지원 선언으로 진행하지 않는다.
+
 ## Readiness and Handoff
 
 C4A와 현재 Windows C4B의 구현·격리 연결 검증은 완료했다. C4C는 이 호스트의

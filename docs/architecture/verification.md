@@ -89,6 +89,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   `probe-launchd-ownership.mjs`는 user/gui 영역의 자연 종료·서비스 SIGKILL·bootout·
   timeout·fork 요청을 비교한다. 존재하는 GUI 영역을 명시적으로 기록하며, 같은 그룹의
   자식과 detached 후손을 각각 관찰하고 owned 서비스 제거와 fixture 종료를 확인한다.
+  `probe-coalition-access.mjs`는 일반 사용자에서 coalition 조회·fork/setsid/exec 상속과
+  생성·명시적 spawn 권한을 구분한다. 기존 coalition에는 종료 요청을 보내지 않으며,
+  예상과 다른 성공은 증거를 보존하고 검사를 실패시켜 지원 상태를 재검토하게 한다.
   예상 반례 검출의 PASS는 제품 소유권·quiescence PASS가 아니다. 후손 identity를 받는
   협조적 oracle은 시험 정리에만 사용하며 제품 backend에 연결하지 않는다.
   실제 Codex resident의 macOS 권한 격리·설치·로그인·A→Z·110분 인수는 이 CI의 범위가 아니다.
