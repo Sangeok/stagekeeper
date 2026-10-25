@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "platform": "darwin",
+  "arch": "arm64",
+  "release": "24.6.0",
+  "node": "v22.23.2",
+  "sourceSha256": "e438f9a63937fe76f0783537ebcbfadd9c5d5c9e2b41bcdf210befb33e41b4d7",
+  "binarySha256": "76ef9a15d56eef24b3e3d3022693589b56daef512d2432ebaef87427987a03bb",
+  "sdk": "15.5",
+  "scope": "native API counterexamples; cooperative oracle for fixture cleanup only; no production backend or client authentication",
+  "observations": {
+    "ordinaryUser": true,
+    "scenarios": [
+      {
+        "scenario": "root-exit",
+        "recursiveTrackingErrno": 45,
+        "recursiveTrackingRejected": true,
+        "rootTerminal": true,
+        "outputEof": true,
+        "rootChildSnapshotEmpty": true,
+        "directForks": 4,
+        "coalescedRootEvents": 1,
+        "descendantIdentityInEvent": false,
+        "detachedOrphansAlive": 4,
+        "knownIdentityExitEvents": 4,
+        "ownedDescendantsExited": true
+      },
+      {
+        "scenario": "group-kill",
+        "recursiveTrackingErrno": 45,
+        "recursiveTrackingRejected": true,
+        "rootTerminal": true,
+        "outputEof": true,
+        "rootChildSnapshotEmpty": true,
+        "directForks": 4,
+        "coalescedRootEvents": 1,
+        "descendantIdentityInEvent": false,
+        "detachedOrphansAlive": 4,
+        "knownIdentityExitEvents": 4,
+        "ownedDescendantsExited": true
+      }
+    ]
+  },
+  "verdict": "BLOCKED_KQUEUE_AND_PID_SNAPSHOTS_NOT_OWNERSHIP",
+  "productionBackendEnabled": false
+}

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "baseRevision": "6d6db1b19364524fd71cd22303ec1fc4ddd1de60",
+  "testedRevision": "e69fdd24556c7dadcf3d2ec8951ac6f05ebfd99f",
+  "nativeProbeCompletedAt": "2026-10-25T05:03:11Z",
+  "cSourceSha256": "e438f9a63937fe76f0783537ebcbfadd9c5d5c9e2b41bcdf210befb33e41b4d7",
+  "ci": [
+    {
+      "name": "check",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40164085189",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "macos-runtime-contracts",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40164085054",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "upstreamSources": [
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/sys/event.h",
+      "sha256": "a172b971272e10ced09ea58b2d74aea333901b8a7ed27864a261df79adc4714c"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/kern_event.c",
+      "sha256": "d6bd6351f97713c24d05235179d67ec6947be0114dec1298f77e4deb457b618d"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/xnu/blob/f6217f891ac0bb64f3d375211650a4c1ff8ca1ea/bsd/kern/sys_coalition.c",
+      "sha256": "1f252b9329751286f670a8d6824117c2712b4bf20bbf82376fe12c3d39835545"
+    },
+    {
+      "url": "https://github.com/apple-oss-distributions/launchd/blob/d448a1c8f70a61202f8705f94337f686b87c30c4/man/launchd.plist.5",
+      "sha256": "9d524845e3d92d8c31ffacb65ed565025e4c26a7636ec161fc5683b19dd282c7"
+    },
+    {
+      "url": "https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.endpoint-security.client.md",
+      "sha256": "c4cce9209b486117833a7d75a8c3a728741ab5757735792d47db4830e91bf32c"
+    },
+    {
+      "url": "https://developer.apple.com/documentation/endpointsecurity/es_new_client_result_err_not_privileged.md",
+      "sha256": "bd836e1adad74c5148f90e6796bdb291222f5ebba6c624d5dd75df4ef845bf88"
+    }
+  ],
+  "upstreamSourceIsExactRunnerKernelBuild": false,
+  "local": {
+    "check": {
+      "pass": 194,
+      "skip": 3
+    },
+    "architecture": {
+      "pass": 148,
+      "skip": 2
+    },
+    "fsd": "pass",
+    "server": "pass",
+    "build": "pass",
+    "nonMacosProbeRefusesAndCreatesNoEvidence": true
+  },
+  "product": {
+    "version": "0.5.23",
+    "shippedPayloadChanged": false,
+    "macosBackendEnabled": false,
+    "quiescenceProven": false,
+    "clientCredentialsUsed": false
+  }
+}

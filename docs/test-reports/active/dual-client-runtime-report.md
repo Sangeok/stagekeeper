@@ -8,8 +8,8 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge","GitHub Actions"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-24T13:05:44.132Z"
-tested-revision: "1cae8cc0843124c25b9dc585e0ef01df63d19dd2"
+last-executed-at: "2026-10-25T05:03:11Z"
+tested-revision: "e69fdd24556c7dadcf3d2ec8951ac6f05ebfd99f"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
@@ -353,6 +353,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T119 | R2 | required | Native macOS feasibility and detached-child negative control | Parent/child synthetic path and TCP denials pass; detached child survival is detected and owned children cleaned up; production backend remains blocked | [E118] | PASS |
 | T120 | R2 | required | Runtime state diagnostic failure injection | Running corrupt lock and denied status/stop writes retain fixed diagnostics and ownership | [E119] | PASS |
 | T121 | R2 | required | Final 0.5.23 installed Windows A-to-Z and 110-minute idle | Same complete payload, actual browser/model/server acceptance, HTTP counts and owned cleanup | [E119] | PASS |
+| T122 | R2 | informational | macOS recursive tracking and PID snapshot counterexamples | Both architectures reject NOTE_TRACK; detached orphans survive root exit/group kill, output EOF and empty child scan; owned fixtures exit | [E120] | PASS |
 
 ## Commands and Static Checks
 
@@ -510,6 +511,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E117 | Exact final payload idle, crash-test repair and macOS contract CI | [Scoped report](../completed/2026-10-24-codex-runtime-stability.md); [idle/HTTP/cleanup](../assets/2026-10-24-codex-runtime-stability/observations.json), [failure and repetition evidence](../assets/2026-10-24-codex-runtime-stability/failures.json), [checks](../assets/2026-10-24-codex-runtime-stability/checks.json), [source basis](../assets/2026-10-24-codex-runtime-stability/source-basis.json). Native diagnostic cause remains unconfirmed. | Fixed labels, counts and hashes only; no credentials, private bodies or real account/session IDs |
 | E118 | Runtime diagnostic and portability follow-up | [Scoped report](../completed/2026-10-24-codex-runtime-portability.md), [actual client updates](../assets/2026-10-24-codex-runtime-portability/windows-update.json), [same-PC handoff](../assets/2026-10-24-codex-runtime-portability/windows-handoff.json), [macOS arm64](../assets/2026-10-24-codex-runtime-portability/macos-arm64.json), [macOS x64](../assets/2026-10-24-codex-runtime-portability/macos-x64.json), [failures](../assets/2026-10-24-codex-runtime-portability/failures.json), [source basis](../assets/2026-10-24-codex-runtime-portability/source-basis.json), [checks](../assets/2026-10-24-codex-runtime-portability/checks.json). 0.5.22 payload has 2,231 files; historical diagnostic causes remain unconfirmed. | Fixed labels and hashes; no credentials/private bodies/session IDs; macOS process-group cancellation is explicitly insufficient |
 | E119 | Final 0.5.23 current Windows acceptance | [Scoped report](../completed/2026-10-24-codex-final-windows-acceptance.md), [pipeline](../assets/2026-10-24-codex-final-windows-acceptance/pipeline.json), [idle](../assets/2026-10-24-codex-final-windows-acceptance/idle.json), [updates](../assets/2026-10-24-codex-final-windows-acceptance/windows-update.json), [failures](../assets/2026-10-24-codex-final-windows-acceptance/failures.json), [source/checks](../assets/2026-10-24-codex-final-windows-acceptance/source-basis.json), [cleanup](../assets/2026-10-24-codex-final-windows-acceptance/cleanup.json). | Fixed results/counts/hashes; no credentials, transcript or private template body; external-host and release gates remain open |
+| E120 | macOS descendant ownership API counterexamples | [Scoped report](../completed/2026-10-25-macos-descendant-ownership.md), [arm64](../assets/2026-10-25-macos-descendant-ownership/macos-arm64.json), [x64](../assets/2026-10-25-macos-descendant-ownership/macos-x64.json), [source basis](../assets/2026-10-25-macos-descendant-ownership/source-basis.json). | Fixed observations/hashes only; cooperative cleanup oracle is not product ownership; backend remains blocked |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 
@@ -522,6 +524,15 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+E120 excludes kqueue recursive tracking and fork notifications plus PID polling as
+a complete descendant-ownership mechanism. Native arm64/x64 counterexamples are
+reproduced; the cooperative fixture oracle proves cleanup only. A supported
+ownership mechanism with atomic descendant inheritance and helper-death shutdown
+remains required before macOS command/Git/packaging integration. The scoped report
+separates launchd documentation, privileged coalition checks and Endpoint Security
+requirements from actual kernel observations. No privilege or installation contract
+was changed; the product backend remains blocked.
 
 E119 closes the final-current-Windows payload A-to-Z/110-minute rerun and the reproduced
 internal diagnostic-loss defects. It preserves the historical cause-unconfirmed failures
@@ -609,7 +620,11 @@ including historical failed candidates. Those observations remain unchanged; the
 dated scoped reports identify later successful trials. This historical aggregate
 verdict does not turn the dated scoped passes into failures or certify remaining support gates.
 
-Current decision after E119: keep active/result:null and stage:blocked.
+Current decision after E120: keep active/result:null and stage:blocked.
+macOS native counterexamples pass their bounded probe scope; product descendant
+ownership, backend integration and authenticated acceptance remain blocked.
+
+Decision after E119: keep active/result:null and stage:blocked.
 The final 0.5.23 installed Windows A-to-Z and same-payload 110-minute idle pass only their stated scope.
 
 Earlier decision: keep active/result:null and stage:blocked. E116 adds actual

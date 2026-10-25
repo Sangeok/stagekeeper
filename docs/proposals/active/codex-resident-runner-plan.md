@@ -489,7 +489,7 @@ permission/handoff/cap, stop·늦은 이벤트·실제 자식 종료·동일 항
 ### macOS native 실행의 남은 경계
 
 [공통 계약 CI](../../../.github/workflows/macos-runtime-contracts.yml)는 macOS 15 arm64와
-x64에서 각각 521 PASS / 18 SKIP다. [GitHub runner 목록](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)의
+x64에서 2026-10-25 기준 각각 529 PASS / 20 SKIP다. [GitHub runner 목록](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)의
 `macos-15`·`macos-15-intel`을 사용하며 실제 실행 로그의 `darwin/arm64`·`darwin/x64`도 확인했다.
 이 결과는 아래 Windows 의존을 없애거나 실제 client 권한·인증·종료를 검증한 결과가 아니다.
 
@@ -510,6 +510,21 @@ arm64/x64에서 확인했다. 그러나 `detached: true` 자식은 부모 그룹
 quiescence ack로 쓰는 구현은 불가**하다. 다음 backend는 세션/그룹을 이탈하는 자식과
 fork/exit 경쟁까지 포함한 소유권 추적·종료 근거를 마련한 뒤 위 command/Git/packaging 계약을
 연결해야 한다. 일시적인 PID 목록·부모 종료만으로 lock을 해제하지 않는다.
+
+2026-10-25 사용자의 진행 지시에 따라 [소유권 API 시험](../../test-reports/completed/2026-10-25-macos-descendant-ownership.md)을
+arm64/x64에서 수행했다. 두 환경 모두 NOTE_TRACK을 ENOTSUP 45로 거부하며, 부모
+종료·출력 EOF·빈 PID snapshot 뒤에도 orphan 4개가 남았다. 일반 fork 알림은 여러
+fork를 합치고 자식 PID를 주지 않았다. 따라서 kqueue 알림과 PID polling을 조합하는
+구현은 전체 소유권 해법으로 채택하지 않는다. 시험용 oracle로 확인한 후손은 모두 종료했다.
+
+다음 단계의 선행 조건은 실행 전 등록, fork/exec/setsid 이후의 원자적 소유권 상속,
+helper 강제 종료 시 전체 중단, 재사용 안전한 identity와 전체 종료 관찰을 제공하는
+지원 메커니즘의 확보다. 현재 확인한 일반 plugin 경로에는 그 근거가 없다.
+launchd 기본 그룹 정리·coalition·Endpoint Security의 문서상 범위와 권한 제약은
+위 보고서에 구분했다. privileged broker나 별도 격리 환경이 필요하면 설치·권한 계약을
+별도 제안에서 먼저 검토한다. 현행 최소 설치 요구를 임의로 변경하지 않으며, 두
+아키텍처의 stop·timeout·helper death·fork 경쟁 인수가 갖춰지기 전에는 command/Git/
+packaging backend를 연결하지 않는다. 이번 시험은 새 sandbox나 실제 client 인수가 아니다.
 
 같은 보고서의 0.5.21/0.5.22 양방향 인계는 현재 Windows의 공유 session 계약·Claude idle
 resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 resident의 실제 혼합 host,

@@ -26,6 +26,15 @@ related:
 
 # Codex dual-client 실행·배포 인수와 조건부 자동 watch 후속 작업
 
+2026-10-25 추가 실행: 사용자의 진행 지시에 따라 macOS arm64/x64의 자식 소유권
+후보 API를 실제 kernel에서 검증했다. [결과](../../test-reports/completed/2026-10-25-macos-descendant-ownership.md)는
+NOTE_TRACK 거부와 부모 종료·EOF·빈 PID snapshot 뒤의 orphan 생존이다. kqueue/PID
+polling 보강은 해결책으로 채택하지 않는다. 다음 단계는 현재 설치·권한 계약 아래에서
+전체 후손의 원자적 소유권과 helper death 중단을 보장하는 지원 메커니즘 확보다.
+privileged broker나 별도 격리 환경이 필요하면 그 계약 변경을 먼저 별도 제안으로
+검토한다. 상세 선행 조건은 [resident 계획](./codex-resident-runner-plan.md)의 macOS 절을
+따르며, production backend·실제 macOS client 인수와 이 제안서의 pending/blocked는 유지한다.
+
 ## Summary
 
 2026-10-04 사용자는 기본 dual-client 제안서를 코드 구현 기준으로 완료 처리하도록 지시했다.

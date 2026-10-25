@@ -42,11 +42,19 @@ jobs:
           cache: npm
       - name: Probe native permissions and detached-child containment
         run: node scripts/macos/probe-seatbelt-containment.mjs "$RUNNER_TEMP/seatbelt-containment.json"
+      - name: Probe recursive tracking and orphan ownership
+        run: node scripts/macos/probe-descendant-ownership.mjs "$RUNNER_TEMP/descendant-ownership.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: seatbelt-containment-${{ matrix.runner }}
           path: ${{ runner.temp }}/seatbelt-containment.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: descendant-ownership-${{ matrix.runner }}
+          path: ${{ runner.temp }}/descendant-ownership.json
           if-no-files-found: warn
       - run: npm ci --no-audit --no-fund
       - name: Record contract-test environment
