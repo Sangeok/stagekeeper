@@ -67,7 +67,7 @@ export async function createMainLoopTools(context, operations = {}) {
     } else if (args.requiredVerificationPaths !== undefined) throw new Error("Only the independent verifier accepts verification paths");
     await guard({ remote: true });
     const result = await runtime.dispatchFreshRole(input, files, session, binding, {
-      signal, checkSession: async () => guard({ allowPaused: true }),
+      signal, record: context.record, checkSession: async () => guard({ allowPaused: true }),
       callTool: async (target, name, values, roleSignal) => {
         await guard({ remote: true });
         const value = await runtime.callTool(target, name, values, roleSignal ? AbortSignal.any([signal, roleSignal]) : signal);

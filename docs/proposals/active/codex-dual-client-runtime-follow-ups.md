@@ -72,9 +72,23 @@ Codex resident 구현과 아직 남은 OS별 실제 인수·출시 조건을 추
 
 ## Current State
 
+### 2026-10-25 재현 결함 수정 — 0.5.24
+
+사용자의 전체 해결 지시로 상태 파일 조회 경쟁과 역할 도구의 실패 원인 누락을 재현해
+수정했다. foreground/resident 조회는 writer와 같은 guard를 사용하며 역할 도구의 고정
+실패 코드와 native 진단을 보존한다. [회귀 보고서](../../test-reports/completed/2026-10-25-runtime-state-and-role-diagnostics.md)가
+수정 전/후 결과와 0.5.24 검증 범위를 소유한다. 아래 0.5.23 실제 A→Z·110분 결과를
+새 payload의 실제 인수로 승계하지 않는다.
+
+과거 native diagnostic·별도 corrupt-state·Windows CI stop 세 건과 당시 상세 관찰이
+없던 role_file_read 한 건은 개별 원인이 아직 확정되지 않았다. 이번 경쟁 조건을 그
+원인으로 단정하지 않는다. macOS 27의 descendant-scoped Endpoint Security는 Apple
+문서상 root/TCC가 필요 없지만 별도 entitlement가 필요하며 helper death 전체 종료는
+입증되지 않았다. 기존 macOS backend·실제 인수·출시 gate를 유지한다.
+
 ### 2026-10-24 최종 0.5.23 현재 Windows 인수
 
-현재 제품 source는 `1cae8cc0843124c25b9dc585e0ef01df63d19dd2`, 격리 설치 후보는 `0.5.23`이다.
+이 인수의 제품 source는 `1cae8cc0843124c25b9dc585e0ef01df63d19dd2`, 격리 설치 후보는 `0.5.23`이다.
 내부 상태 진단 누락을 수정했고, 실제 양쪽 client 업데이트의 전체 2,231개 파일을 확인했다.
 같은 payload로 Codex 새 계획·독립 verifier·두 browser gate·구현·보고서·최종 다섯 인수를
 통과했다. 실제 단일 110분 idle은 6600초, heartbeat 108회·pipeline poll 108회

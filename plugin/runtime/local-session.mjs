@@ -104,6 +104,10 @@ export function atomicWrite(file, value) {
   try { atomicText(file, JSON.stringify(value) + "\n"); }
   catch (error) { fail("corrupt-state", undefined, stateDiagnostic("state-write", file, error)); }
 }
+export async function readStateWithGuard(files) {
+  if (!existsSync(path.dirname(files.lock))) return null;
+  return withGuard(files, () => readState(files));
+}
 export function isAlive(pid) {
   try { process.kill(pid, 0); return true; }
   catch (error) { return error.code !== "ESRCH"; }

@@ -10,7 +10,7 @@ import { parseBearer } from "../lib/tokens/token.mjs";
 import { actionableWork } from "../lib/execution/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
   readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
-import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, matchesBinding, readState, registerChild, settleChild, stateFiles,
+import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, matchesBinding, readState, readStateWithGuard, registerChild, settleChild, stateFiles,
   withGuard } from "../runtime/local-session.mjs";
 import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
@@ -282,7 +282,7 @@ async function startChecks(location, files, options) {
   if (tree.dirty.length > 0) refuse("dirty", { files: fileList(tree.dirty) });
   const remotes = pushUrlRemotes(location.root);
   if (remotes.length > 0) refuse("push-url", { remote: remotes[0] });
-  const state = readState(files);
+  const state = await readStateWithGuard(files);
   if (state && !staleResident(state)) refuse("locked", { startedAt: state.lock.startedAt });
   if (input.client === "codex") { codexExecutable(); await verifyCodexSupport(input); }
   else claudeCommand();
@@ -360,7 +360,7 @@ async function start(location, files, options) {
     refuse("runner-exited", { log: path.join(directory, "background.log") });
   };
   while (performance.now() < expires) {
-    const state = readState(files);
+    const state = await readStateWithGuard(files);
     if (state?.lock.id !== session) await exited();
     if (state.lock.poller) {
       const lines = [START_LINES.started, START_LINES.logs, START_LINES.stop, START_LINES.edit, ...(permission === "allowlist" ? [START_LINES.allowlist] : [])]
@@ -395,10 +395,11 @@ async function stop(files) {
   return event;
 }
 
-function status(files) {
+async function status(files) {
   const directory = files.directory;
   let state = null;
-  try { state = existsSync(directory) ? readState(files) : null; } catch { state = null; }
+  try { state = await readStateWithGuard(files); }
+  catch (error) { recordStateFailure(directory, "status", error); state = null; }
   const saved = readOptional(statusFile(directory));
   const autostart = readOptional(autostartFile(directory));
   const running = state?.lock.mode === "resident" && state.lock.poller !== null && isAlive(state.lock.poller.pid);
@@ -499,9 +500,9 @@ async function resident(location, files, options) {
   const status = { ...saved, pid: process.pid };
   const save = values => { Object.assign(status, values, { updatedAt: now() }); atomicWrite(statusFile(directory), status); };
   save({ state: "idle" });
-  const lifecycle = () => {
+  const lifecycle = async () => {
     try {
-      const state = readState(files);
+      const state = await readStateWithGuard(files);
       if (state?.lock.id !== session) return "gone";
       return state.lock.lifecycle === "stopping" ? "stopping" : "active";
     } catch (error) { recordStateFailure(directory, "lifecycle", error); return "gone"; }
@@ -634,7 +635,7 @@ async function main() {
     } else if (options.op === "start") event = await start(location, files, options);
     else if (options.op === "run") event = await resident(location, files, options);
     else if (options.op === "stop") event = await stop(files);
-    else if (options.op === "status") event = status(files);
+    else if (options.op === "status") event = await status(files);
     else if (options.op === "autostart-on") event = await autostartOn(location, files, options);
     else event = await autostartOff(location, files, options);
   } catch (error) {

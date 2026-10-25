@@ -1,0 +1,104 @@
+{
+  "sourceRevision": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+  "baselineRevision": "7be89c1f67effc05eb8b71262dd5c18c8bfb4253",
+  "before": {
+    "tests": 2,
+    "pass": 0,
+    "fail": 2,
+    "skipped": 0,
+    "logSha256": "064ff80ab115d577c1f5b3451ee01de06045decd0f39aef9b08b37eeb929964c"
+  },
+  "after": {
+    "tests": 2,
+    "pass": 2,
+    "fail": 0,
+    "skipped": 0,
+    "logSha256": "73712f74a38f982550fc21567d1fb7a2822771f4c8859b8531ab705c3e655470"
+  },
+  "finalDiagnostics": {
+    "tests": 2,
+    "pass": 2,
+    "fail": 0,
+    "skipped": 0,
+    "logSha256": "dfe97b112009cc40b39f1ed0aa0b4212f7c03c93f763f971545194f2cd6fa3a0"
+  },
+  "corePlugin": {
+    "tests": 551,
+    "pass": 549,
+    "fail": 0,
+    "skipped": 2,
+    "logSha256": "0e5f34c045050fdef83711ca358403b817ac8dd7cc9098bab5afe0c491041772"
+  },
+  "check": {
+    "tests": 197,
+    "pass": 194,
+    "fail": 0,
+    "skipped": 3,
+    "logSha256": "7bd006fc273a47807c15622afc8f4988ea7b4f70de72d40bcc6266da34a3d4ba"
+  },
+  "architecture": {
+    "tests": 150,
+    "pass": 148,
+    "fail": 0,
+    "skipped": 2,
+    "logSha256": "5a2e6c853e0042361bfe0d4437286c7a86d74396a6797942129575318331aafe"
+  },
+  "static": {
+    "fsd": {
+      "result": "PASS",
+      "logSha256": "068d533e1c785fc91a8ef0bf57fee2456528097fa7dde167cad2545fac239e70"
+    },
+    "server": {
+      "result": "PASS",
+      "logSha256": "793032129af5b9081d092e71f2cb38f270e4b2dcde53bba6554e088b678625f7"
+    },
+    "build": {
+      "result": "PASS",
+      "logSha256": "1be93d775c20c005d050b5ea861221953f14f92cc24530321bf6f2ac7d6d031d"
+    }
+  },
+  "baselineRepeats": {
+    "native": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0
+    },
+    "stop": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0
+    },
+    "signin": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0
+    }
+  },
+  "ci": [
+    {
+      "conclusion": "success",
+      "databaseId": 40195779380,
+      "headSha": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "name": "check",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40195779380"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 40195779366,
+      "headSha": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "name": "macos-runtime-contracts",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40195779366"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 40195779309,
+      "headSha": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "name": "windows-role-runtime",
+      "status": "completed",
+      "url": "https://github.com/Sangeok/stagekeeper/actions/runs/40195779309"
+    }
+  ],
+  "exportedAt": "2026-10-25T13:08:44.240Z"
+}

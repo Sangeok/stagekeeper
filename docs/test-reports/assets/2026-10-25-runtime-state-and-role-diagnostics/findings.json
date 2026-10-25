@@ -1,0 +1,60 @@
+{
+  "fixed": [
+    {
+      "issue": "unguarded policy/lock reads during a guarded write",
+      "status": "reproduced-and-fixed",
+      "historicalCausality": "not-established"
+    },
+    {
+      "issue": "role bridge failure causes not retained",
+      "status": "reproduced-and-fixed",
+      "privatePayloadLogging": false
+    }
+  ],
+  "unresolved": [
+    {
+      "issue": "historical native validation-profile diagnostic absence",
+      "cause": "unconfirmed",
+      "missingEvidence": "original helper stderr and terminal diagnostic"
+    },
+    {
+      "issue": "historical separate corrupt-state failure",
+      "cause": "unconfirmed",
+      "missingEvidence": "failing phase and operation diagnostic"
+    },
+    {
+      "issue": "historical Windows CI stop error",
+      "cause": "unconfirmed",
+      "run": "https://github.com/Sangeok/stagekeeper/actions/runs/40083489330",
+      "missingEvidence": "error event code"
+    },
+    {
+      "issue": "historical actual role_file_read failure",
+      "cause": "unconfirmed",
+      "missingEvidence": "arguments and error; original trace only retained tool/status",
+      "roleCompleted": true
+    },
+    {
+      "issue": "macOS descendant ownership and helper-death termination",
+      "status": "blocked",
+      "backendImplemented": false,
+      "documentedCandidate": {
+        "api": "es_new_descendants_client",
+        "minimumMacOS": "27.0",
+        "rootRequired": false,
+        "tccRequired": false,
+        "entitlementRequired": "com.apple.developer.endpoint-security.client",
+        "entitledNativeTrial": false,
+        "helperDeathTerminationProven": false,
+        "source": "https://developer.apple.com/documentation/endpointsecurity/es_new_descendants_client(_:_:)",
+        "inspectedAt": "2026-10-25",
+        "downloadedSourceSha256": "e79af63154a091c54232ac4cd440e553b450b95547276ee1db9dc446c84dc48e"
+      }
+    }
+  ],
+  "overallProposalCompleted": false,
+  "version": "0.5.24",
+  "priorAtoZAnd110MinuteEvidenceVersion": "0.5.23",
+  "repeatedAtoZ": false,
+  "repeated110MinuteIdle": false
+}

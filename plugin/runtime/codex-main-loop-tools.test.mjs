@@ -10,7 +10,7 @@ import { createMainLoopBridge } from "./codex-main-loop.mjs";
 
 const names = ["pipeline_next", "board_get", "backlog_get", "backlog_list", "project_get", "validation_record", "report_submit", "acceptance_fail"];
 async function fixture(overrides = {}) {
-  const controller = new AbortController(), calls = [], roles = [], commits = [];
+  const controller = new AbortController(), calls = [], roles = [], commits = [], records = [];
   const root = path.resolve("test-resident-root"), scratch = path.resolve("test-resident-scratch");
   const state = { active: true, paused: false, policy: { commit: true, propose: false },
     next: { key: "K-1", action: "dispatch", agent: "dev", format: "slots-v1", entry: { runId: "p", entryId: "e", slotId: "plan" }, agentRunId: "a" },
@@ -21,7 +21,7 @@ async function fixture(overrides = {}) {
     return { policy: state.policy };
   };
   const context = { input: { binding: { root }, config: { project: { slug: "test-project" }, workspaces: [{ agent: "dev", path: "src" }] } },
-    files: { lock: path.join(root, ".git/harness/watch.lock.json") }, session: "session", branch: "fixture", scratch, fileBroker: {}, lifecycle: {}, signal: controller.signal, guard,
+    files: { lock: path.join(root, ".git/harness/watch.lock.json") }, session: "session", branch: "fixture", scratch, fileBroker: {}, lifecycle: {}, signal: controller.signal, guard, record: event => records.push(event),
     commandBroker: { tools: [{ name: "role_file_write" }, { name: "role_file_read" }], call: async (name, args) => { calls.push({ name, args }); return {}; } } };
   const tools = await createMainLoopTools(context, {
     listTools: async () => [...names.map(name => ({ name })), { name: "gate_approve" }, { name: "agent_next" }],
@@ -30,7 +30,7 @@ async function fixture(overrides = {}) {
     dispatchFreshRole: async (...args) => { roles.push(args); return { event: "completed", threadId: "fresh", done: true, receipt: { receipt: { runId: "a", revision: 1, stepId: "plan" } }, report: "evidence" }; },
     ...overrides,
   });
-  return { tools, state, calls, roles, commits, controller, root, scratch };
+  return { tools, state, calls, roles, commits, records, controller, root, scratch };
 }
 
 it("exposes only bounded main-loop tools and rejects owner, role cursor, identity and extra arguments", async () => {
@@ -46,6 +46,8 @@ it("dispatches only the fresh current binding and never inherits a prior reviewe
   const result = await f.tools.call("resident_dispatch", { key: "K-1" });
   assert.equal(result.threadId, "fresh"); assert.deepEqual(result.receipt, { runId: "a", revision: 1, stepId: "plan" });
   assert.deepEqual(f.roles[0][3].entry, f.state.next.entry); assert.equal(f.roles[0][3].agentRunId, "a");
+  const diagnostic = { event: "role-tool-failed", agent: "dev", tool: "role_file_read", reason: "path-missing", systemCode: null };
+  f.roles[0][4].record(diagnostic); assert.deepEqual(f.records, [diagnostic]);
   f.state.next = { ...f.state.next, agent: "plan-verifier" };
   await assert.rejects(f.tools.call("resident_dispatch", { key: "K-1" }), /verification paths/);
   await f.tools.call("resident_dispatch", { key: "K-1", requiredVerificationPaths: ["Run the exact test command and inspect its inputs"] });

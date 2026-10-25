@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
+import { gitRoot, stateFiles, readStateWithGuard, startSession, checkSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
 import { connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin } from "../runtime/runner-client.mjs";
 import { parseClient } from "../lib/execution/client-runtime.mjs";
@@ -32,7 +32,7 @@ const holdsLease = (lock, session) => lock?.id === session && lock.runnerLease =
     || (lock.client === "codex" && lock.mode === "resident"));
 
 async function beatOnCheck(event, files, input) {
-  if (event.event !== "owned" || !holdsLease(readState(files)?.lock, event.session)) return event;
+  if (event.event !== "owned" || !holdsLease((await readStateWithGuard(files))?.lock, event.session)) return event;
   const result = await runnerCallWithin({ server: input.server, token: input.token, project: input.config.project.slug },
     { op: "beat", session: event.session, ...(event.client === "codex" ? { client: "codex" } : {}) }, RUNNER_TIMEOUT);
   if (event.client === "codex" && (result.kind !== "ok" || result.stop)) return { event: "error", session: event.session, code: "resident-lease-unconfirmed" };
@@ -59,11 +59,11 @@ async function main() {
     if (options.mode === "stop") event = await requestStop(files, options.session);
     else if (options.mode === "release") {
       let before = null;
-      try { before = readState(files)?.lock ?? null; } catch { before = null; }
+      try { before = (await readStateWithGuard(files))?.lock ?? null; } catch { before = null; }
       event = await releaseSession(files, options.session);
       await stopOnRelease(event, before);
     } else {
-      const client = options.client ?? (options.mode === "check" ? readState(files)?.lock.client ?? "claude" : "claude");
+      const client = options.client ?? (options.mode === "check" ? (await readStateWithGuard(files))?.lock.client ?? "claude" : "claude");
       const input = connectionInput(location.root, { ...options, client });
       if (options.mode === "check") event = await beatOnCheck(await checkSession(files, options.session, input.binding), files, input);
       else {
