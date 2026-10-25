@@ -86,6 +86,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   npm 의존성 설치 전 native probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
   `probe-descendant-ownership.mjs`는 Clang으로 C fixture를 빌드해 NOTE_TRACK 거부,
   fork 알림의 합침·자식 신원 부재, orphan 생존 및 알려진 fixture의 종료를 검사한다.
+  `probe-launchd-ownership.mjs`는 user/gui 영역의 자연 종료·서비스 SIGKILL·bootout·
+  timeout·fork 요청을 비교한다. 존재하는 GUI 영역을 명시적으로 기록하며, 같은 그룹의
+  자식과 detached 후손을 각각 관찰하고 owned 서비스 제거와 fixture 종료를 확인한다.
   예상 반례 검출의 PASS는 제품 소유권·quiescence PASS가 아니다. 후손 identity를 받는
   협조적 oracle은 시험 정리에만 사용하며 제품 backend에 연결하지 않는다.
   실제 Codex resident의 macOS 권한 격리·설치·로그인·A→Z·110분 인수는 이 CI의 범위가 아니다.
