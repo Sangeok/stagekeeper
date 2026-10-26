@@ -28,7 +28,8 @@
     "sync:plugin-lib": "node scripts/plugin-lib.mjs",
     "test:project-availability": "node --import tsx --test \"scripts/project-ownership/project-availability*.test.ts\"",
     "test:server": "node --import ./tests/server/register-server-only.mjs --import tsx --test \"tests/server/*.test.ts\"",
-    "test:server:integration": "node scripts/test-server-integration.mjs"
+    "test:server:integration": "node scripts/test-server-integration.mjs",
+    "test:acceptance:backlog-pipeline": "node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-src-clean-code-fourth-pass.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",
