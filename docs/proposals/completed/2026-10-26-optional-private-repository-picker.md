@@ -1,19 +1,20 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-23"
-updated-at: "2026-10-23"
+updated-at: "2026-10-26"
 approved-by: "user:Sangeok"
 approved-at: "2026-10-23"
 approval-scope: "제안서 기반 코드·계약·마이그레이션·시험 구현, 별도 worktree에서 commit·push·dev PR 생성 및 worktree 제거. 실제 App 생성·운영 비밀 공급·운영 활성화는 제외"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-26"
+verification-summary: "PR #214의 서버·UI·마이그레이션·시험 구현과 로컬 검증 기록 확인. 2026-10-23 dev 병합(6cc102a), 2026-10-26 최신 dev 포함 확인. 실제 App 설정·운영 비밀 공급·외부 인수·활성화는 후속 작업으로 유지"
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: ["user:Sangeok"]
 related:
+  - "docs/ADR/0006-optional-github-repository-list.md"
   - "docs/architecture/README.md"
   - "docs/architecture/fsd.md"
   - "docs/architecture/server.md"
@@ -24,9 +25,15 @@ related:
   - "docs/proposals/completed/2026-10-22-public-docs-pages.md"
 ---
 
-# 선택형 Private 저장소 목록 연동 SDD
+# 선택형 Private 저장소 목록 연동 구현 완료 기록
 
 ## Summary
+
+승인된 서버·UI·마이그레이션·시험 구현과 로컬 검증을 완료했다.
+[PR #214](https://github.com/Sangeok/stagekeeper/pull/214)는 2026-10-23 `dev`에 병합됐으며,
+2026-10-26 사용자의 완료 처리 요청에 따라 이 문서를 `completed/`로 이동했다.
+완료 범위는 기본 OFF인 코드 구현과 검증·병합이다. 실제 App 설정·운영 인수·활성화는
+[완료 기록과 후속 작업](#completion-or-closure-notes)에 남긴다. 아래 설계·Phase·VFY는 당시 요구사항과 검증 계획의 기록이다.
 
 기존 GitHub 로그인·Public 저장소 선택·URL 직접 입력·등록된 프로젝트 사용을 유지하면서,
 원하는 사용자에게만 GitHub App을 통한 Private 저장소 목록 선택을 제공한다.
@@ -40,7 +47,7 @@ related:
 - Drafting mode: `WHOLE_SDD`.
 - 위험 분류: `HIGH-RISK`; 선택형 인증, 외부 토큰 보관, Private 메타데이터와 조직 권한을 다룬다.
 - 전체 설계 상태: 승인된 제품 방향에 따라 서버·UI·마이그레이션·검증 코드를 구현했다. 실제 App 등록과 일반 공개는 별도 게이트다.
-- 구현 상태: 기본 OFF인 코드와 로컬 검증을 PR로 제출한다. 운영 자격 증명·App·조직 인수는 아래 blocker와 Implementation Results를 따른다.
+- 구현 상태: 기본 OFF인 코드와 로컬 검증을 완료하고 `dev`에 병합했다. 운영 자격 증명·App·조직 인수는 후속 작업으로 남아 있다.
 - 근거 기준: `e3fd4f939bb27271ab86cb904ef7c16e2218a0e8`, 2026-10-23, Next.js 16.3.3.
 - 작성 시작 브랜치: `harness/private-repository-picker-spec`; 시작 시 미커밋·미추적 변경 없음. 구현 시에는 브랜치·커밋·작업 트리를 다시 확인한다.
 - 현재 쓰기 권한은 front matter의 implementation approval-scope를 따른다. 실제 App 등록·운영 비밀 공급·배포·live 사용자 API 인수는 수행하지 않는다.
@@ -980,28 +987,40 @@ OFF 상태에서도 incoming webhook의 서명 검증·폐기 처리와 비밀 �
 
 ## Approval
 
-현재 승인 기록은 front matter가 소유한다. 이번 요청의 코드·계약·마이그레이션·시험·commit·push·dev PR 제출을 진행한다.
-실제 App 생성·운영 비밀 공급·일반 공개와 PR 병합은 수행하지 않는다. 구현 PR이 운영 활성화 승인으로 해석되지 않게 한다.
+원래 구현 승인 기록은 front matter에 보존한다. 승인된 코드·계약·마이그레이션·시험·PR 제출은 완료됐고,
+이후 확인한 병합 결과는 Completion or Closure Notes에 기록한다. 이번 완료 처리는 운영 활성화 승인을 포함하지 않는다.
 
 ## Definition of Done
 
-아래는 **향후 제품 구현 완료 조건**이며 이번 문서 수정으로 체크하지 않는다.
+완료 판정은 승인된 코드 구현·검증·`dev` 병합 범위에 적용한다. 제품 출시를 위한 실제 외부·운영 인수는
+다음 절의 후속 작업이며, 기존 Behavioral Requirements·VFY의 인수 기준은 유지한다.
 
-- [ ] P0의 아키텍처·비밀 운영·지원 범위 결정과 P1의 승인된 schema·migration·정리 정책이 source에 반영됐다.
-- [ ] 루트 `src/server/github.ts`가 제거되고 새 구현·공개 경로·모든 caller/fixture가 전환됐으며 private import 우회·wildcard 공개가 없다.
-- [ ] 8개 route/9개 method의 실제 body·Location·인증·Origin·flag 상태, 최초 승인/설치 관리와 두 탭의 최신 시도·취소 경계가 검증됐다.
-- [ ] 기존 Public/URL·명시적 pick·Start over·등록 결과를 보존하고 linked repository의 ID/owner·nullable 기본 브랜치·늦은 응답을 검증했다.
-- [ ] 실제 createProject Action만 프로젝트/Stagekeeper 토큰을 만들고 callback·재시도·검증 실패의 무쓰기를 DB로 확인했다.
-- [ ] 토큰 갱신·revision 기반 해제·개별 provider 폐기·event별 webhook·세션/초안/캐시 격리를 검증했다.
-- [ ] 새 loader·secret helper가 원격 Action으로 등록되지 않고, 새 schema/generated client/manifest와 노출된 HTML·RSC·JSON body를 실제 destination에서 확인했다.
-- [ ] 모든 mock·fetch 대체·timer·listener·fixture DB·프로세스를 정리했고 시험을 재실행해 전역 상태 누출이 없다.
-- [ ] BLK-PRV-03/04의 실제 App public 설정·owner 외 사용자/조직 설치·허용 범위 관리·철회·키 교체·rollback 증거가 있으며 승인된 범위만 활성화했다.
-- [ ] 요구사항별 실제 증거와 미실행 항목을 기록했다. 구조 검사·fixture 통과만으로 제품 전체 완료를 선언하지 않았다.
+- [x] ADR-0006, 서버 모듈·공개 API, schema·migration·정리 정책과 선택형 UI·등록 재검증을 구현했다.
+- [x] 기존 로그인·Public/URL 등록 보존과 시도·토큰·철회·초안 수명주기의 로컬·fixture·격리 DB 검증 결과를 Implementation Results에 기록했다.
+- [x] 경계 검사·lint·타입·테스트·production build와 Action manifest·Private 브라우저 인수의 통과 기록을 확인했다.
+- [x] 공통 Pipeline 리허설의 기존 실패 11개와 미실행 외부·운영 인수를 구분해 남겼다.
+- [x] PR #214의 `dev` 병합과 최신 `dev`의 병합 커밋 포함을 확인했다.
+- [x] 완료 metadata·문서 위치를 갱신하고 운영 활성화 전 후속 작업과 담당자를 남겼다.
 
 ## Completion or Closure Notes
 
-구현 전 문서다. 완료·닫힘 metadata를 채우지 않는다.
-추후 구현이 끝나면 Phase별 실제 증거·미실행 환경 인수·운영 범위를 구분해 기록하고 제안서 규칙에 따라 이동한다.
+2026-10-26 승인된 구현 범위의 수행 기록으로 완료 처리했다.
+
+- 구현 PR: [#214](https://github.com/Sangeok/stagekeeper/pull/214), `feat: add optional private repository picker`.
+- 병합: 2026-10-23 16:51:51 KST, 대상 `dev`, 커밋 `6cc102aa3a5c04a7943cb230b5618c9cfd52b690`.
+- 완료 확인 기준: `origin/dev`의 `105100232119381a2729a847fad2fac5ea504820`. 병합 커밋이 해당 이력의 조상임을 확인했다.
+- 구현 당시 자동·DB·브라우저·build 검증은 아래 Implementation Results와 PR 기록을 근거로 한다. 이번 문서 정리에서 제품 시험을 재실행한 것으로 표기하지 않는다.
+- 문서 정리 검증: `npm run docs:check`, 완료 metadata와 파일명 일치 확인, `git diff --check`.
+
+### 운영 활성화 전 후속 작업
+
+아래 항목은 미완료다. 기능과 operations-ready gate의 기본 OFF를 유지하며,
+실행 기준은 [ADR-0006](../../ADR/0006-optional-github-repository-list.md), README의 운영 설정,
+기존 BLK-PRV-02/03/04와 VFY-PRV-09를 따른다.
+
+- [ ] 배포 운영자: 운영 migration 적용, 별도 keyring·webhook secret 공급, 키 회전·복구 및 최소 10분마다 maintenance 실행 증거 확보(BLK-PRV-02).
+- [ ] GitHub App 관리자: 실제 App의 public·Metadata read·만료 토큰 정책과 환경별 callback/setup/webhook URL 검증(BLK-PRV-03).
+- [ ] 저장소 소유자·배포 운영자: 실제 개인·조직/SSO·owner 외 설치·허용 범위 변경·철회·rollback 인수 후 승인된 범위에서 활성화(BLK-PRV-04).
 
 ## Review Checklist
 
@@ -1019,7 +1038,7 @@ OFF 상태에서도 incoming webhook의 서명 검증·폐기 처리와 비밀 �
 - [x] 명시적 pick과 비동기 reconcile의 입력 우선순위, nullable 기본 브랜치를 구분했다.
 - [x] 개별 토큰 폐기 순서·event별 webhook body·구버전 rollback 중 보안 handler 보존을 명시했다.
 - [x] Web Action·REST·runtime/pure 시험·브라우저·최종 body 검증의 목적지를 구분했다.
-- [ ] 구현·외부 App 설정·운영 배포 승인이 완료됐다.
+- [x] 구현 완료와 미완료 외부 App 설정·운영 인수·활성화를 구분해 기록했다.
 
 ## Reconciliation Review
 
@@ -1060,7 +1079,7 @@ BLK-PRV-03/04의 실제 App 설정·외부 인수와 운영 key 공급·주기 �
 
 ## Implementation Results — 2026-10-23
 
-코드는 별도 `harness/optional-private-repository-picker-20261023` worktree에서 구현한다. 기본 로그인 scope와 기존 프로젝트 권한·등록 서비스를 바꾸지 않았다.
+코드는 별도 `harness/optional-private-repository-picker-20261023` worktree에서 구현했고 PR #214로 `dev`에 병합됐다. 기본 로그인 scope와 기존 프로젝트 권한·등록 서비스를 바꾸지 않았다.
 기능과 operations-ready gate는 기본 OFF다. 실제 App·비밀·운영 DB·배포를 설정하거나 활성화하지 않았다.
 
 | 구현 대상 | 현재 산출물과 검증 |
