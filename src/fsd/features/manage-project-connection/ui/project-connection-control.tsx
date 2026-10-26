@@ -7,6 +7,10 @@ import { reconnectBlock, STALE_CONNECTION_MESSAGE, UNKNOWN_CONNECTION_MESSAGE, t
 
 type Props = { target: ProjectConnectionTarget; summary: ProjectConnectionSummary; disconnect: ProjectConnectionAction; reconnect: ProjectConnectionAction };
 
+function focusIfLost(element: HTMLElement | null) {
+  if (document.activeElement === null || document.activeElement === document.body) element?.focus();
+}
+
 export function ProjectConnectionControl({ target, summary, disconnect, reconnect }: Props) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17,6 +21,8 @@ export function ProjectConnectionControl({ target, summary, disconnect, reconnec
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRef = useRef<HTMLButtonElement>(null);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
   useEffect(() => {
     if (!menuOpen) return;
     itemRef.current?.focus();
@@ -28,10 +34,19 @@ export function ProjectConnectionControl({ target, summary, disconnect, reconnec
   const label = disconnected ? "Reconnect repository" : "Disconnect repository";
   const busy = pending || refreshing;
   const blocked = disconnected ? reconnectBlock(summary) : null;
+  const triggerId = `project-connection-${target.id}`;
+  useEffect(() => {
+    if (busy || !returnFocus.current) return;
+    returnFocus.current = false;
+    focusIfLost(confirming ? actionRef.current : document.getElementById(triggerId));
+  }, [busy, confirming, triggerId]);
+  useEffect(() => () => { if (returnFocus.current) focusIfLost(document.getElementById(triggerId)); }, [triggerId]);
   const reset = () => { setConfirming(false); setError(null); };
+  const cancel = () => { returnFocus.current = true; reset(); };
   const refreshState = () => refresh(() => router.refresh());
   const send = () => {
     setError(null);
+    returnFocus.current = true;
     start(async () => {
       try {
         const result = await (disconnected ? reconnect : disconnect)({ targetProjectId: target.id, expectedVersion: summary.version });
@@ -51,12 +66,12 @@ export function ProjectConnectionControl({ target, summary, disconnect, reconnec
 
   const trigger = disconnected ? (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <Button size="sm" variant="mine-outline" disabled={busy || blocked !== null} onClick={() => setConfirming(true)}>{label}</Button>
+      <Button id={triggerId} size="sm" variant="mine-outline" disabled={busy || blocked !== null} onClick={() => setConfirming(true)}>{label}</Button>
       {blocked ? <p className="text-xs text-quiet">{blocked}</p> : null}
     </div>
   ) : (
     <div ref={menuRef} className="relative" onKeyDown={(event) => { if (event.key === "Escape" && menuOpen) closeMenu(); }}>
-      <button ref={triggerRef} type="button" aria-label={`More actions for ${target.name}`} aria-haspopup="menu" aria-expanded={menuOpen} disabled={busy}
+      <button ref={triggerRef} id={triggerId} type="button" aria-label={`More actions for ${target.name}`} aria-haspopup="menu" aria-expanded={menuOpen} disabled={busy}
         onClick={() => setMenuOpen(!menuOpen)}
         className="inline-flex size-[30px] items-center justify-center rounded-md border border-transparent text-base leading-none text-quiet hover:border-rule hover:bg-field hover:text-ink aria-expanded:border-rule aria-expanded:bg-field aria-expanded:text-ink disabled:opacity-50">⋯</button>
       {menuOpen ? <div role="menu" className="absolute top-full right-0 z-10 mt-1 flex min-w-56 flex-col rounded-lg border border-edge bg-paper p-1 text-sm">
@@ -78,8 +93,8 @@ export function ProjectConnectionControl({ target, summary, disconnect, reconnec
           <p>Project tokens (hs_/ho_) are revoked. Your data stays readable, and hu_ keeps working.</p>
         </>}
         <div className="flex gap-2">
-          <Button size="sm" variant={disconnected ? "mine" : "risk"} disabled={busy} onClick={send}>{busy ? "Updating…" : label}</Button>
-          <Button size="sm" disabled={busy} onClick={reset} autoFocus>Cancel</Button>
+          <Button ref={actionRef} size="sm" variant={disconnected ? "mine" : "risk"} disabled={busy} onClick={send}>{busy ? "Updating…" : label}</Button>
+          <Button size="sm" disabled={busy} onClick={cancel} autoFocus>Cancel</Button>
         </div>
         {!disconnected ? <p className="text-xs text-quiet">New requests stop. Approved ones may finish, and local Claude Code keeps running.</p> : null}
         {error ? <p role="alert" className="text-risk">{error}</p> : null}
