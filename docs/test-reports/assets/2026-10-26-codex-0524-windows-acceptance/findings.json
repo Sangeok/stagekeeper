@@ -1,0 +1,66 @@
+{
+  "result": "PASS",
+  "productPayloadChanged": false,
+  "unhandledProductFailures": 0,
+  "diagnosticLogs": {
+    "result": "PASS",
+    "logs": [
+      {
+        "fixture": "idle",
+        "stateDiagnostics": 0,
+        "finalState": "stopped",
+        "stopReason": "owner",
+        "logSha256": "ccddbded4fbcdd2ec9b49bb85c7c8d2112ff69feb52aa2cadfa237a852982e10"
+      },
+      {
+        "fixture": "pipeline",
+        "stateDiagnostics": 0,
+        "finalState": "stopped",
+        "stopReason": "owner",
+        "logSha256": "2be7188b25e9060c51340b8fc68d317f85f9db961ef97a400cc8bb2700da3133"
+      },
+      {
+        "fixture": "lifecycle",
+        "stateDiagnostics": 0,
+        "finalState": "stopped",
+        "stopReason": "owner",
+        "logSha256": "7437b5043e1f154e808d50ef0ca490b2b9b635042a9c1ed35198cc422b5e4758"
+      }
+    ]
+  },
+  "handledPathAbsence": [
+    {
+      "agent": "dev",
+      "tool": "role_file_list",
+      "reason": "path-missing",
+      "systemCode": null
+    },
+    {
+      "agent": "main-loop",
+      "tool": "role_file_read",
+      "reason": "path-missing"
+    }
+  ],
+  "historicalFailures": {
+    "nativeDiagnostic": "cause-unconfirmed",
+    "separateCorruptState": "cause-unconfirmed",
+    "windowsCiStop": "cause-unconfirmed",
+    "oldRoleFileRead": "cause-unconfirmed"
+  },
+  "scope": "Current Windows PC, disposable native installations, authenticated Codex fixture and one same-payload continuous 110-minute idle run",
+  "remainingExternalGates": [
+    "physical clean Windows",
+    "native macOS backend and authenticated acceptance",
+    "mixed physical hosts",
+    "operational release"
+  ],
+  "observerAdjustments": {
+    "productPayloadChanged": false,
+    "changes": [
+      "The prior fixture parser assumed exactly 43 double-quoted pairs with name-00..31 inputs. This run produced 47 valid literal pairs, including additional whitespace cases and sequence-00..31. Parse single/double JS string literals without evaluation and verify required categories, exact expected values and all 32 deterministic names.",
+      "The prior proof parser assumed one Markdown numbering style, exactly seven turns and nineteen verifier mutants. Check the actual five numbered PASS headings, unique terminal/closed contexts, receipts, committed hashes and observed mutation totals; retain the minimum expected controls.",
+      "The trace observer retains tool names/status and lifecycle identities without tool arguments. Current product diagnostics classify two recoverable missing permitted paths; both are included in the acceptance proof.",
+      "Add independent owner checks over the final implementation, supplemental strings, a correct control and nineteen mutation controls."
+    ]
+  }
+}

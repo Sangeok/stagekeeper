@@ -1,0 +1,24 @@
+[
+  {
+    "test": "native-pending-role-takeover",
+    "result": "PASS",
+    "activeTurns": 2,
+    "interruptRequests": 2,
+    "interruptedTerminals": 2,
+    "successorPreserved": true,
+    "receiptUnchanged": true,
+    "usageUnchanged": true,
+    "at": "2026-10-25T23:38:11.398Z"
+  },
+  {
+    "test": "native-pending-role-resume-and-owner-stop",
+    "result": "PASS",
+    "freshContexts": 2,
+    "sameAgentRun": true,
+    "usageUnchanged": true,
+    "interruptRequests": 2,
+    "interruptedTerminals": 2,
+    "remainingRunnerRows": 0,
+    "at": "2026-10-25T23:39:17.363Z"
+  }
+]

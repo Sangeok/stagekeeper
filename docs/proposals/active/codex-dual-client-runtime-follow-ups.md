@@ -72,7 +72,22 @@ Codex resident 구현과 아직 남은 OS별 실제 인수·출시 조건을 추
 
 ## Current State
 
-### 2026-10-25 재현 결함 수정 — 0.5.24
+### 2026-10-26 현재 Windows — 0.5.24 세 가지 인수 완료
+
+사용자가 요청한 양쪽 신규 설치/업데이트, 실제 Codex A→Z, 같은 설치본의 실제 110분
+시험을 완료했다. 각 설치본의 2,232개 파일 hash가 일치하며 전역 Node 없는 PATH에서
+bundled helper를 실행했다. A→Z는 두 owner browser gate, 독립 verifier, 구현/report
+handoff와 최종 다섯 인수를 통과했다. 테스트 47개, 모델 7회, AgentRun/usage 3회이며
+모든 모델 terminal/close와 정리를 확인했다. 실제 실행 중 takeover·같은 AgentRun 재개와
+owner stop도 통과했다. 별도 단일 6623초 idle의 heartbeat 107회·poll 107회는 모두
+HTTP 200이고 모델·AgentRun·사용량 증가는 0이다. 제품 payload 수정은 없었다.
+
+[현재 Windows 보고서](../../test-reports/completed/2026-10-26-codex-0524-windows-acceptance.md)가
+source·설치 hash·두 경로 부재 안내의 처리·측정과 정리 증거를 소유한다. 이 세 가지
+현재 PC 인수는 완료했다. 과거 네 관찰의 원인 미확정과 물리적 clean Windows,
+macOS backend/실제 인수, 혼합 호스트 및 운영 출시 gate는 기존 범위대로 유지한다.
+
+### 2026-10-25 이전 checkpoint — 재현 결함 수정 0.5.24
 
 사용자의 전체 해결 지시로 상태 파일 조회 경쟁과 역할 도구의 실패 원인 누락을 재현해
 수정했다. foreground/resident 조회는 writer와 같은 guard를 사용하며 역할 도구의 고정
@@ -86,7 +101,7 @@ Codex resident 구현과 아직 남은 OS별 실제 인수·출시 조건을 추
 문서상 root/TCC가 필요 없지만 별도 entitlement가 필요하며 helper death 전체 종료는
 입증되지 않았다. 기존 macOS backend·실제 인수·출시 gate를 유지한다.
 
-### 2026-10-24 최종 0.5.23 현재 Windows 인수
+### 2026-10-24 이전 checkpoint — 0.5.23 Windows 인수
 
 이 인수의 제품 source는 `1cae8cc0843124c25b9dc585e0ef01df63d19dd2`, 격리 설치 후보는 `0.5.23`이다.
 내부 상태 진단 누락을 수정했고, 실제 양쪽 client 업데이트의 전체 2,231개 파일을 확인했다.

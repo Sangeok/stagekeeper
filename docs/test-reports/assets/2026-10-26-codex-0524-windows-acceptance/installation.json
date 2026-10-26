@@ -1,0 +1,91 @@
+{
+  "fresh": [
+    {
+      "test": "no-global-node-path",
+      "result": "PASS",
+      "physicalCleanWindows": false
+    },
+    {
+      "test": "fresh-current-install",
+      "client": "claude",
+      "result": "PASS",
+      "version": "0.5.24",
+      "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+      "sourceRevision": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "files": 2232
+    },
+    {
+      "test": "fresh-current-install",
+      "client": "codex",
+      "result": "PASS",
+      "version": "0.5.24",
+      "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+      "sourceRevision": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "files": 2232,
+      "skills": [
+        "harness-init",
+        "harness-run",
+        "harness-resume",
+        "reconciling-proposals-with-codebase",
+        "harness-background"
+      ]
+    }
+  ],
+  "update": [
+    {
+      "test": "no-global-node-path",
+      "result": "PASS",
+      "physicalCleanWindows": false
+    },
+    {
+      "test": "previous-install",
+      "client": "claude",
+      "result": "PASS",
+      "version": "0.5.23",
+      "packageSha256": "902ec7cb379e80b339315e4bbbc3cfb400f5853df2c40f31cadd4393818605da",
+      "sourceRevision": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+      "files": 2231
+    },
+    {
+      "test": "previous-install",
+      "client": "codex",
+      "result": "PASS",
+      "version": "0.5.23",
+      "packageSha256": "902ec7cb379e80b339315e4bbbc3cfb400f5853df2c40f31cadd4393818605da",
+      "sourceRevision": "1cae8cc0843124c25b9dc585e0ef01df63d19dd2",
+      "files": 2231,
+      "skills": [
+        "harness-init",
+        "harness-run",
+        "harness-resume",
+        "reconciling-proposals-with-codebase",
+        "harness-background"
+      ]
+    },
+    {
+      "test": "current-update-installed-inventory",
+      "client": "claude",
+      "result": "PASS",
+      "version": "0.5.24",
+      "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+      "sourceRevision": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "files": 2232
+    },
+    {
+      "test": "current-update-installed-inventory",
+      "client": "codex",
+      "result": "PASS",
+      "version": "0.5.24",
+      "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+      "sourceRevision": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "files": 2232,
+      "skills": [
+        "harness-init",
+        "harness-run",
+        "harness-resume",
+        "reconciling-proposals-with-codebase",
+        "harness-background"
+      ]
+    }
+  ]
+}

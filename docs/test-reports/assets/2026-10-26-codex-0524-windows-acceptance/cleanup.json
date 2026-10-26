@@ -1,0 +1,26 @@
+{
+  "data": {
+    "result": "PASS",
+    "removedUsers": 3,
+    "removedTemplates": 13,
+    "remaining": {
+      "users": 0,
+      "projects": 0,
+      "runners": 0,
+      "agentRuns": 0,
+      "templates": 0
+    },
+    "remainingLocks": 0,
+    "remainingGuards": 0,
+    "productionTouched": false,
+    "at": "2026-10-26T01:21:39.245Z"
+  },
+  "processes": {
+    "result": "PASS",
+    "serviceStopped": true,
+    "postgresStopped": true,
+    "remainingListeners": 0,
+    "stoppedOnlyOwnedProcesses": true,
+    "at": "2026-10-26T01:21:42.8636899Z"
+  }
+}

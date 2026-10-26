@@ -547,6 +547,13 @@ resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 res
 
 ## Readiness and Handoff
 
+2026-10-26 [0.5.24 현재 Windows 인수](../../test-reports/completed/2026-10-26-codex-0524-windows-acceptance.md)를
+완료했다. 양쪽 실제 신규 설치·업데이트, 47개 테스트와 다섯 최종 인수를 포함한
+Codex A→Z, 실행 중 takeover/동일 AgentRun 재개·중지 및 같은 payload의 단일 110분을
+통과했다. 모델/usage 없는 idle의 heartbeat 107회·poll 107회는 모두 HTTP 200이었다.
+0.5.24 회귀 후보의 실제 모델·장시간 재인수 누락은 이 범위에서 해소했다. 물리적 clean
+Windows·macOS backend와 실제 인수·혼합 호스트·운영 출시는 기존 gate로 유지한다.
+
 2026-10-25 [상태 조회·역할 진단 회귀 수정](../../test-reports/completed/2026-10-25-runtime-state-and-role-diagnostics.md)은
 0.5.24 후보에 반영했다. 실제 저장 중간 상태의 잘못된 corrupt-state와 역할 도구 진단
 누락은 재현·수정했지만 과거 세 intermittent 및 관찰 누락 파일 읽기의 개별 원인은

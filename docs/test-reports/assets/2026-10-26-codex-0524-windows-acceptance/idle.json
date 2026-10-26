@@ -1,0 +1,1239 @@
+{
+  "identity": {
+    "test": "final-package-identity",
+    "result": "PASS",
+    "version": "0.5.24",
+    "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+    "source": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+    "installedFiles": 2232,
+    "shippedSourceFiles": 65,
+    "at": "2026-10-25T23:30:38.642Z"
+  },
+  "observations": [
+    {
+      "test": "final-package-identity",
+      "result": "PASS",
+      "version": "0.5.24",
+      "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+      "source": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "installedFiles": 2232,
+      "shippedSourceFiles": 65,
+      "at": "2026-10-25T23:30:38.642Z"
+    },
+    {
+      "test": "idle-start",
+      "result": "RUNNING",
+      "durationSeconds": 6600,
+      "at": "2026-10-25T23:30:38.644Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 0,
+      "signals": 1,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 0,
+      "pipelinePolls": 0,
+      "at": "2026-10-25T23:30:38.953Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 60,
+      "signals": 1,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 0,
+      "pipelinePolls": 0,
+      "at": "2026-10-25T23:31:39.112Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 120,
+      "signals": 2,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 1,
+      "pipelinePolls": 1,
+      "at": "2026-10-25T23:32:39.222Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 180,
+      "signals": 3,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 2,
+      "pipelinePolls": 2,
+      "at": "2026-10-25T23:33:39.316Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 240,
+      "signals": 4,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 3,
+      "pipelinePolls": 3,
+      "at": "2026-10-25T23:34:39.455Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 301,
+      "signals": 5,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 4,
+      "pipelinePolls": 4,
+      "at": "2026-10-25T23:35:39.641Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 361,
+      "signals": 6,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 5,
+      "pipelinePolls": 5,
+      "at": "2026-10-25T23:36:39.762Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 421,
+      "signals": 7,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 6,
+      "pipelinePolls": 6,
+      "at": "2026-10-25T23:37:39.898Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 481,
+      "signals": 8,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 7,
+      "pipelinePolls": 7,
+      "at": "2026-10-25T23:38:40.001Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 541,
+      "signals": 9,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 8,
+      "pipelinePolls": 8,
+      "at": "2026-10-25T23:39:40.099Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 601,
+      "signals": 10,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 9,
+      "pipelinePolls": 9,
+      "at": "2026-10-25T23:40:40.326Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 661,
+      "signals": 11,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 10,
+      "pipelinePolls": 10,
+      "at": "2026-10-25T23:41:40.436Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 721,
+      "signals": 12,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 11,
+      "pipelinePolls": 11,
+      "at": "2026-10-25T23:42:40.539Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 782,
+      "signals": 13,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 12,
+      "pipelinePolls": 12,
+      "at": "2026-10-25T23:43:40.644Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 842,
+      "signals": 14,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 13,
+      "pipelinePolls": 13,
+      "at": "2026-10-25T23:44:40.770Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 902,
+      "signals": 15,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 14,
+      "pipelinePolls": 14,
+      "at": "2026-10-25T23:45:41.069Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 962,
+      "signals": 16,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 15,
+      "pipelinePolls": 15,
+      "at": "2026-10-25T23:46:41.293Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1022,
+      "signals": 17,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 16,
+      "pipelinePolls": 16,
+      "at": "2026-10-25T23:47:41.397Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1082,
+      "signals": 18,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 17,
+      "pipelinePolls": 17,
+      "at": "2026-10-25T23:48:41.503Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1143,
+      "signals": 19,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 18,
+      "pipelinePolls": 18,
+      "at": "2026-10-25T23:49:41.731Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1203,
+      "signals": 20,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 19,
+      "pipelinePolls": 19,
+      "at": "2026-10-25T23:50:41.848Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1263,
+      "signals": 21,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 20,
+      "pipelinePolls": 20,
+      "at": "2026-10-25T23:51:41.955Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1323,
+      "signals": 22,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 21,
+      "pipelinePolls": 21,
+      "at": "2026-10-25T23:52:42.058Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1383,
+      "signals": 23,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 22,
+      "pipelinePolls": 22,
+      "at": "2026-10-25T23:53:42.265Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1443,
+      "signals": 24,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 23,
+      "pipelinePolls": 23,
+      "at": "2026-10-25T23:54:42.365Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1503,
+      "signals": 25,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 24,
+      "pipelinePolls": 24,
+      "at": "2026-10-25T23:55:42.468Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1564,
+      "signals": 26,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 25,
+      "pipelinePolls": 25,
+      "at": "2026-10-25T23:56:42.673Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1624,
+      "signals": 27,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 26,
+      "pipelinePolls": 26,
+      "at": "2026-10-25T23:57:42.871Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1684,
+      "signals": 28,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 27,
+      "pipelinePolls": 27,
+      "at": "2026-10-25T23:58:42.973Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1744,
+      "signals": 29,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 28,
+      "pipelinePolls": 28,
+      "at": "2026-10-25T23:59:43.075Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1804,
+      "signals": 30,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 29,
+      "pipelinePolls": 29,
+      "at": "2026-10-26T00:00:43.175Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1864,
+      "signals": 31,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 30,
+      "pipelinePolls": 30,
+      "at": "2026-10-26T00:01:43.281Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1924,
+      "signals": 32,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 31,
+      "pipelinePolls": 31,
+      "at": "2026-10-26T00:02:43.379Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 1984,
+      "signals": 33,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 32,
+      "pipelinePolls": 32,
+      "at": "2026-10-26T00:03:43.473Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2044,
+      "signals": 34,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 33,
+      "pipelinePolls": 33,
+      "at": "2026-10-26T00:04:43.573Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2105,
+      "signals": 35,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 34,
+      "pipelinePolls": 34,
+      "at": "2026-10-26T00:05:43.664Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2165,
+      "signals": 36,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 35,
+      "pipelinePolls": 35,
+      "at": "2026-10-26T00:06:43.763Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2225,
+      "signals": 37,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 36,
+      "pipelinePolls": 36,
+      "at": "2026-10-26T00:07:43.852Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2285,
+      "signals": 38,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 37,
+      "pipelinePolls": 37,
+      "at": "2026-10-26T00:08:43.941Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2345,
+      "signals": 39,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 38,
+      "pipelinePolls": 38,
+      "at": "2026-10-26T00:09:44.033Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2405,
+      "signals": 40,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 39,
+      "pipelinePolls": 39,
+      "at": "2026-10-26T00:10:44.129Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2465,
+      "signals": 41,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 40,
+      "pipelinePolls": 40,
+      "at": "2026-10-26T00:11:44.229Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2525,
+      "signals": 42,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 41,
+      "pipelinePolls": 41,
+      "at": "2026-10-26T00:12:44.322Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2585,
+      "signals": 43,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 42,
+      "pipelinePolls": 42,
+      "at": "2026-10-26T00:13:44.519Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2645,
+      "signals": 44,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 43,
+      "pipelinePolls": 43,
+      "at": "2026-10-26T00:14:44.614Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2706,
+      "signals": 45,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 44,
+      "pipelinePolls": 44,
+      "at": "2026-10-26T00:15:44.701Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2766,
+      "signals": 46,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 45,
+      "pipelinePolls": 45,
+      "at": "2026-10-26T00:16:44.792Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2826,
+      "signals": 47,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 46,
+      "pipelinePolls": 46,
+      "at": "2026-10-26T00:17:44.888Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2886,
+      "signals": 48,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 47,
+      "pipelinePolls": 47,
+      "at": "2026-10-26T00:18:45.086Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 2946,
+      "signals": 49,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 48,
+      "pipelinePolls": 48,
+      "at": "2026-10-26T00:19:45.184Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3006,
+      "signals": 49,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 48,
+      "pipelinePolls": 48,
+      "at": "2026-10-26T00:20:45.279Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3066,
+      "signals": 50,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 49,
+      "pipelinePolls": 49,
+      "at": "2026-10-26T00:21:45.363Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3126,
+      "signals": 51,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 50,
+      "pipelinePolls": 50,
+      "at": "2026-10-26T00:22:45.469Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3186,
+      "signals": 52,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 51,
+      "pipelinePolls": 51,
+      "at": "2026-10-26T00:23:45.568Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3247,
+      "signals": 53,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 52,
+      "pipelinePolls": 52,
+      "at": "2026-10-26T00:24:45.753Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3307,
+      "signals": 54,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 53,
+      "pipelinePolls": 53,
+      "at": "2026-10-26T00:25:45.840Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3367,
+      "signals": 55,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 54,
+      "pipelinePolls": 54,
+      "at": "2026-10-26T00:26:45.933Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3427,
+      "signals": 56,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 55,
+      "pipelinePolls": 55,
+      "at": "2026-10-26T00:27:46.036Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3487,
+      "signals": 57,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 56,
+      "pipelinePolls": 56,
+      "at": "2026-10-26T00:28:46.129Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3547,
+      "signals": 58,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 57,
+      "pipelinePolls": 57,
+      "at": "2026-10-26T00:29:46.333Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3607,
+      "signals": 59,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 58,
+      "pipelinePolls": 58,
+      "at": "2026-10-26T00:30:46.418Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3667,
+      "signals": 60,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 59,
+      "pipelinePolls": 59,
+      "at": "2026-10-26T00:31:46.514Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3727,
+      "signals": 61,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 60,
+      "pipelinePolls": 60,
+      "at": "2026-10-26T00:32:46.598Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3788,
+      "signals": 62,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 61,
+      "pipelinePolls": 61,
+      "at": "2026-10-26T00:33:46.800Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3848,
+      "signals": 63,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 62,
+      "pipelinePolls": 62,
+      "at": "2026-10-26T00:34:46.894Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3908,
+      "signals": 64,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 63,
+      "pipelinePolls": 63,
+      "at": "2026-10-26T00:35:46.995Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 3968,
+      "signals": 65,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 64,
+      "pipelinePolls": 64,
+      "at": "2026-10-26T00:36:47.204Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4028,
+      "signals": 66,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 65,
+      "pipelinePolls": 65,
+      "at": "2026-10-26T00:37:47.305Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4088,
+      "signals": 67,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 66,
+      "pipelinePolls": 66,
+      "at": "2026-10-26T00:38:47.497Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4148,
+      "signals": 68,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 67,
+      "pipelinePolls": 67,
+      "at": "2026-10-26T00:39:47.593Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4209,
+      "signals": 69,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 68,
+      "pipelinePolls": 68,
+      "at": "2026-10-26T00:40:47.689Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4269,
+      "signals": 70,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 69,
+      "pipelinePolls": 69,
+      "at": "2026-10-26T00:41:47.773Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4329,
+      "signals": 71,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 70,
+      "pipelinePolls": 70,
+      "at": "2026-10-26T00:42:47.964Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4389,
+      "signals": 72,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 71,
+      "pipelinePolls": 71,
+      "at": "2026-10-26T00:43:48.058Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4449,
+      "signals": 73,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 72,
+      "pipelinePolls": 72,
+      "at": "2026-10-26T00:44:48.267Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4509,
+      "signals": 74,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 73,
+      "pipelinePolls": 73,
+      "at": "2026-10-26T00:45:48.354Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4569,
+      "signals": 75,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 74,
+      "pipelinePolls": 74,
+      "at": "2026-10-26T00:46:48.448Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4629,
+      "signals": 76,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 75,
+      "pipelinePolls": 75,
+      "at": "2026-10-26T00:47:48.527Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4690,
+      "signals": 77,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 76,
+      "pipelinePolls": 76,
+      "at": "2026-10-26T00:48:48.719Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4750,
+      "signals": 78,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 77,
+      "pipelinePolls": 77,
+      "at": "2026-10-26T00:49:48.827Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4810,
+      "signals": 79,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 78,
+      "pipelinePolls": 78,
+      "at": "2026-10-26T00:50:48.926Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4870,
+      "signals": 80,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 79,
+      "pipelinePolls": 79,
+      "at": "2026-10-26T00:51:49.122Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4930,
+      "signals": 81,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 80,
+      "pipelinePolls": 80,
+      "at": "2026-10-26T00:52:49.223Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 4990,
+      "signals": 82,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 81,
+      "pipelinePolls": 81,
+      "at": "2026-10-26T00:53:49.318Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5050,
+      "signals": 83,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 82,
+      "pipelinePolls": 82,
+      "at": "2026-10-26T00:54:49.416Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5110,
+      "signals": 84,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 83,
+      "pipelinePolls": 83,
+      "at": "2026-10-26T00:55:49.524Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5170,
+      "signals": 85,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 84,
+      "pipelinePolls": 84,
+      "at": "2026-10-26T00:56:49.618Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5231,
+      "signals": 86,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 85,
+      "pipelinePolls": 85,
+      "at": "2026-10-26T00:57:50.017Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5291,
+      "signals": 87,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 86,
+      "pipelinePolls": 86,
+      "at": "2026-10-26T00:58:50.106Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5351,
+      "signals": 88,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 87,
+      "pipelinePolls": 87,
+      "at": "2026-10-26T00:59:50.186Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5411,
+      "signals": 89,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 88,
+      "pipelinePolls": 88,
+      "at": "2026-10-26T01:00:50.283Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5471,
+      "signals": 90,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 89,
+      "pipelinePolls": 89,
+      "at": "2026-10-26T01:01:50.483Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5532,
+      "signals": 91,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 90,
+      "pipelinePolls": 90,
+      "at": "2026-10-26T01:02:50.688Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5592,
+      "signals": 92,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 91,
+      "pipelinePolls": 91,
+      "at": "2026-10-26T01:03:50.776Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5652,
+      "signals": 93,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 92,
+      "pipelinePolls": 92,
+      "at": "2026-10-26T01:04:50.968Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5712,
+      "signals": 94,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 93,
+      "pipelinePolls": 93,
+      "at": "2026-10-26T01:05:51.055Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5772,
+      "signals": 95,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 94,
+      "pipelinePolls": 94,
+      "at": "2026-10-26T01:06:51.160Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5832,
+      "signals": 96,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 95,
+      "pipelinePolls": 95,
+      "at": "2026-10-26T01:07:51.365Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5892,
+      "signals": 97,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 96,
+      "pipelinePolls": 96,
+      "at": "2026-10-26T01:08:51.459Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 5953,
+      "signals": 98,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 97,
+      "pipelinePolls": 97,
+      "at": "2026-10-26T01:09:51.672Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6013,
+      "signals": 99,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 98,
+      "pipelinePolls": 98,
+      "at": "2026-10-26T01:10:51.764Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6073,
+      "signals": 100,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 99,
+      "pipelinePolls": 99,
+      "at": "2026-10-26T01:11:51.868Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6133,
+      "signals": 101,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 100,
+      "pipelinePolls": 100,
+      "at": "2026-10-26T01:12:52.062Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6193,
+      "signals": 102,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 101,
+      "pipelinePolls": 101,
+      "at": "2026-10-26T01:13:52.256Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6253,
+      "signals": 102,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 101,
+      "pipelinePolls": 101,
+      "at": "2026-10-26T01:14:52.350Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6313,
+      "signals": 103,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 102,
+      "pipelinePolls": 102,
+      "at": "2026-10-26T01:15:52.444Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6374,
+      "signals": 104,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 103,
+      "pipelinePolls": 103,
+      "at": "2026-10-26T01:16:52.645Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6434,
+      "signals": 105,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 104,
+      "pipelinePolls": 104,
+      "at": "2026-10-26T01:17:52.742Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6494,
+      "signals": 106,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 105,
+      "pipelinePolls": 105,
+      "at": "2026-10-26T01:18:52.836Z"
+    },
+    {
+      "test": "idle-observation",
+      "elapsedSeconds": 6554,
+      "signals": 107,
+      "modelStarts": 0,
+      "usageRuns": 0,
+      "runnerBeats": 106,
+      "pipelinePolls": 106,
+      "at": "2026-10-26T01:19:52.939Z"
+    },
+    {
+      "test": "final-package-110-minute-idle",
+      "result": "PASS",
+      "elapsedSeconds": 6623,
+      "signals": 108,
+      "modelStarts": 0,
+      "agentRuns": 0,
+      "usageRuns": 0,
+      "runnerBeats": 107,
+      "pipelinePolls": 107,
+      "idleHttpRequests": 214,
+      "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+      "packageUnchanged": true,
+      "at": "2026-10-26T01:21:01.354Z"
+    },
+    {
+      "test": "idle-stop-cleanup",
+      "result": "PASS",
+      "remainingLocks": 0,
+      "remainingRunnerRows": 0,
+      "at": "2026-10-26T01:21:03.886Z"
+    }
+  ],
+  "http": {
+    "counts": {
+      "setup:/api/templates": 4,
+      "setup:mcp:project_get": 3,
+      "setup:mcp:project_sync": 1,
+      "setup:runner:start": 1,
+      "setup:runner:beat": 1,
+      "setup:mcp:pipeline_next": 1,
+      "idle:runner:beat": 107,
+      "idle:mcp:pipeline_next": 107,
+      "stop:runner:beat": 1,
+      "stop:mcp:pipeline_next": 1,
+      "stop:runner:stop": 1
+    },
+    "statuses": {
+      "setup:/api/templates:200": 4,
+      "setup:mcp:project_get:200": 3,
+      "setup:mcp:project_sync:200": 1,
+      "setup:runner:start:200": 1,
+      "setup:runner:beat:200": 1,
+      "setup:mcp:pipeline_next:200": 1,
+      "idle:runner:beat:200": 107,
+      "idle:mcp:pipeline_next:200": 107,
+      "stop:runner:beat:200": 1,
+      "stop:mcp:pipeline_next:200": 1,
+      "stop:runner:stop:200": 1
+    },
+    "latency": {
+      "setup:/api/templates": {
+        "count": 4,
+        "meanMs": 130,
+        "maxMs": 457
+      },
+      "setup:mcp:project_get": {
+        "count": 3,
+        "meanMs": 72,
+        "maxMs": 171
+      },
+      "setup:mcp:project_sync": {
+        "count": 1,
+        "meanMs": 47,
+        "maxMs": 47
+      },
+      "setup:runner:start": {
+        "count": 1,
+        "meanMs": 41,
+        "maxMs": 41
+      },
+      "setup:runner:beat": {
+        "count": 1,
+        "meanMs": 42,
+        "maxMs": 42
+      },
+      "setup:mcp:pipeline_next": {
+        "count": 1,
+        "meanMs": 233,
+        "maxMs": 233
+      },
+      "idle:runner:beat": {
+        "count": 107,
+        "meanMs": 64,
+        "maxMs": 175
+      },
+      "idle:mcp:pipeline_next": {
+        "count": 107,
+        "meanMs": 149,
+        "maxMs": 266
+      },
+      "stop:runner:beat": {
+        "count": 1,
+        "meanMs": 66,
+        "maxMs": 66
+      },
+      "stop:mcp:pipeline_next": {
+        "count": 1,
+        "meanMs": 124,
+        "maxMs": 124
+      },
+      "stop:runner:stop": {
+        "count": 1,
+        "meanMs": 22,
+        "maxMs": 22
+      }
+    },
+    "transportErrors": [],
+    "measurement": "Loopback relay forwards unmodified request bodies and records only fixed operation names, phases, counts, status codes and elapsed milliseconds; credentials and bodies are omitted"
+  }
+}
