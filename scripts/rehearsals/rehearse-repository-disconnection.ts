@@ -164,7 +164,8 @@ async function main(): Promise<void> {
             if (loseNextAction) { loseNextAction = false; req.socket.destroy(); return; }
           }
           res.statusCode = upstream.status;
-          upstream.headers.forEach((value, name) => { if (!["content-encoding", "content-length", "transfer-encoding"].includes(name)) res.setHeader(name, value); });
+          upstream.headers.forEach((value, name) => { if (!["connection", "content-encoding", "content-length", "keep-alive", "transfer-encoding"].includes(name)) res.setHeader(name, value); });
+          res.setHeader("connection", "close");
           res.end(body);
         } catch { if (!res.headersSent) res.writeHead(502); res.end("Fixture proxy failed"); }
       });
