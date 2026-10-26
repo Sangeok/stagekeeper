@@ -130,8 +130,8 @@ follow-up: []
 
 | ID | 심각도 | 발견 사항과 Evidence ID | 추적 위치 | 재검증 조건 |
 | --- | --- | --- | --- | --- |
-| N1 | low | 재연결 상한 오류 문장이 소문자로 시작하고 마침표가 두 번 붙는다(E2). `capError`가 이미 마침표로 끝나는 문장에 `src/server/projects/connection-service.ts`가 `. Disconnect another repository first.`를 덧붙인다. product-copy에 이 문장은 없다. 화면의 상한 표시와 서버 플랜이 version 변경 없이 어긋날 때만 보인다 | 2026-10-26 사용자에게 수정 여부 확인 | 문장 계약을 정한 뒤 같은 오류 경로 재확인 |
-| N2 | informational | 응답 유실 fixture에서 Chromium이 재사용 keep-alive 연결의 빈 응답이면 같은 POST를 한 번 다시 보낸다. 그 재전송이 stale을 받아 결과 불명 대신 stale 알림이 뜬다. 서버 반영은 version 검사로 한 번이고 포커스 결과는 같다. 유휴 연결이 닫힌 뒤 실행하면 결과 불명 경로가 재현된다(E3) | 없음 | 응답 유실을 다시 볼 때 새 연결에서 실행 |
+| N1 | low | 재연결 상한 오류 문장이 소문자로 시작하고 마침표가 두 번 붙는다(E2). `capError`가 이미 마침표로 끝나는 문장에 `src/server/projects/connection-service.ts`가 `. Disconnect another repository first.`를 덧붙인다. product-copy에 이 문장은 없다. 화면의 상한 표시와 서버 플랜이 version 변경 없이 어긋날 때만 보인다 | 2026-10-26 사용자에게 수정 여부 확인. 같은 날 수정·재확인: [후속 보고서](./2026-10-26-reconnect-cap-message.md) | 문장 계약을 정한 뒤 같은 오류 경로 재확인 |
+| N2 | informational | 응답 유실 fixture에서 Chromium이 재사용 keep-alive 연결의 빈 응답이면 같은 POST를 한 번 다시 보낸다. 그 재전송이 stale을 받아 결과 불명 대신 stale 알림이 뜬다. 서버 반영은 version 검사로 한 번이고 포커스 결과는 같다. 유휴 연결이 닫힌 뒤 실행하면 결과 불명 경로가 재현된다(E3) | 같은 날 proxy가 응답마다 연결을 닫도록 수정: [후속 보고서](./2026-10-26-reconnect-cap-message.md) | 응답 유실을 다시 볼 때 새 연결에서 실행 |
 
 ## Test Data and Cleanup
 
