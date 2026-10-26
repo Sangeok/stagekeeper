@@ -109,7 +109,7 @@ follow-up: []
 
 | ID | 심각도 | 발견 사항과 Evidence ID | 추적 위치 | 재검증 조건 |
 | --- | --- | --- | --- | --- |
-| F1 | low | 확인 창에서 Cancel을 누르거나 해제·재연결이 끝나면 포커스가 `BODY`로 빠진다. 메뉴의 Escape(`closeMenu`)는 ⋯로 포커스를 돌려주지만 확인 창의 `reset`은 돌려주지 않는다(`src/fsd/features/manage-project-connection/ui/project-connection-control.tsx`). 계약 문서에는 포커스 규칙이 없다 (E1, E2) | 2026-10-23 사용자에게 수정 여부 확인 | 수정 시 같은 키보드 순서로 포커스 위치 재확인 |
+| F1 | low | 확인 창에서 Cancel을 누르거나 해제·재연결이 끝나면 포커스가 `BODY`로 빠진다. 메뉴의 Escape(`closeMenu`)는 ⋯로 포커스를 돌려주지만 확인 창의 `reset`은 돌려주지 않는다(`src/fsd/features/manage-project-connection/ui/project-connection-control.tsx`). 계약 문서에는 포커스 규칙이 없다 (E1, E2) | 2026-10-23 사용자에게 수정 여부 확인. 2026-10-26 수정·재확인: [후속 보고서](./2026-10-26-connection-focus-and-narrow-width.md) | 수정 시 같은 키보드 순서로 포커스 위치 재확인 |
 | F2 | informational | 행 안 확인 영역은 dialog가 아니며 Escape로 닫히지 않는다. 계약에 Escape 요구는 없다 | 없음 | 없음 |
 
 ## Test Data and Cleanup

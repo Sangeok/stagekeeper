@@ -109,7 +109,7 @@ History 탭, 두 원천의 커서 조회, 공용 이력 위젯과 항목 상세 
 | ID | 구분 | 발견 사항·Evidence | 추적 위치·재검증 조건 |
 | --- | --- | --- | --- |
 | F1 | 필수 인수 차단 | 실제 DB·로그인 응답 검증 미실행 — E8 | [제안서 V3·V4·V6·V7](../../proposals/completed/2026-09-30-project-history-tab.md#verification-plan). 격리 DB·OAuth 준비 후 새 보고서에서 실행 |
-| F2 | 기존 범위 밖 UI | `app-header.tsx`의 사용자 이름 영역이 360px에서 약 7px 넘침 — E2·E6 | 이 보고서의 T9 기록. 공용 헤더 반응형 개선 범위에서 사용자 이름 길이별 재검토; 이 작업에서 해당 파일 변경 없음 |
+| F2 | 기존 범위 밖 UI | `app-header.tsx`의 사용자 이름 영역이 360px에서 약 7px 넘침 — E2·E6 | 이 보고서의 T9 기록. 공용 헤더 반응형 개선 범위에서 사용자 이름 길이별 재검토; 이 작업에서 해당 파일 변경 없음. 2026-10-26 수정·재확인: [후속 보고서](./2026-10-26-connection-focus-and-narrow-width.md) |
 | F3 | 수정 완료 | 여섯 탭 추가 시 세로 scrollbar와 랜딩 grid 확장 발견 — E6 | 탭의 음수 margin 제거·세로 넘침 차단·landing grid 자식 `min-w-0` 적용 후 재렌더 확인 |
 
 ## Test Data and Cleanup
