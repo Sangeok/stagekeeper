@@ -8,13 +8,13 @@ test-levels: ["static","component","contract","integration","manual"]
 test-tools: ["Node.js","Codex CLI","Claude Code CLI","PostgreSQL","headless Microsoft Edge","GitHub Actions"]
 created-at: "2026-10-03"
 completed-at: null
-last-executed-at: "2026-10-25T12:06:49Z"
-tested-revision: "fe98480d3a3c2536bb9ce0fbdd3575fd6f689dce"
+last-executed-at: "2026-10-26T01:21:03.886Z"
+tested-revision: "af2b1d3aefc27b404b89165baca8ef0336d55ef6"
 owners: ["user:Sangeok"]
 related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["CI | macOS 15 arm64 and x64 model-free runtime contracts | Node.js 22.23.2 | GitHub Actions", "local | isolated Windows product resident service | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
-test-summary: "fail: historical required failures retained — final 0.5.23 actual Windows A-to-Z and same-payload 110-minute idle passed; historical causes, physical clean host, native macOS backend/acceptance, mixed-host and release remain open"
+test-summary: "fail: historical required failures retained — current 0.5.24 Windows fresh/update installation, actual A-to-Z, pending stop/resume and same-payload 110-minute idle passed; external-host and release gates remain open"
 follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
@@ -24,7 +24,18 @@ follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 
 ## Summary and Decision
 
-Final 0.5.23 Windows acceptance: actual client updates verified all 2,231 payload files.
+Current 0.5.24 Windows acceptance [E124]: both native client loaders passed fresh
+installation and 0.5.23 updates with all 2,232 payload hashes. The exact installed
+package completed both owner gates, the full independent verifier, implementation
+and report handoffs, 47 fixture tests and five-check server acceptance. All 7
+model turns reached terminal and process close (2 main-loop cycles, 5 fresh roles,
+3 AgentRuns/usage). Pending takeover, same-run resumption and owner stop passed.
+The separate continuous 6623-second idle produced 107 heartbeat and 107 pipeline
+HTTP 200 responses with no idle model/AgentRun/usage increase. Two missing permitted
+paths were classified and handled before acceptance; no unhandled product failure
+was observed. No product payload changed. External-host and release gates remain.
+
+Previous 0.5.23 Windows acceptance: actual client updates verified all 2,231 payload files.
 The exact installed payload completed both browser gates, full independent verifier,
 implementation/report handoffs and five-check server acceptance (2 main-loop cycles,
 5 fresh roles, 3 AgentRuns/usage, 43 fixture tests). Its separate single 110-minute
@@ -357,6 +368,7 @@ Manual model trials used the normal user's logged-in CLI after the user selected
 | T123 | R2 | informational | macOS launchd user/gui lifecycle counterexamples | 20 architecture/domain/scenario combinations retain detached descendants after service removal; 88 monitored fixture processes exit and 20 services are removed | [E121] | PASS |
 | T124 | R2 | informational | macOS ordinary-user coalition access | Both architectures permit membership queries/inheritance but reject creation and explicit spawn with EPERM; four control children reaped; live coalition termination not run | [E122] | PASS |
 | T125 | R2 | informational | Guarded session snapshots and retained role failures | Both newly reproduced defects fixed in 0.5.24; Windows regressions and package preflight pass; historical causes and macOS ownership remain unresolved | [E123] | PASS |
+| T126 | R2 | informational | 0.5.24 actual Windows final acceptance | Fresh/update native loaders, actual model A-to-Z and pending stop/resume pass; same-payload 6623s idle with 107 beats/107 polls, HTTP 200 and no idle models/usage | [E124] | PASS |
 
 ## Commands and Static Checks
 
@@ -518,6 +530,7 @@ Explicit local gates below were executed. The new TS test requires its own comma
 | E121 | macOS launchd lifecycle and descendant counterexamples | [Scoped report](../completed/2026-10-25-macos-launchd-ownership.md), [arm64](../assets/2026-10-25-macos-launchd-ownership/macos-arm64.json), [x64](../assets/2026-10-25-macos-launchd-ownership/macos-x64.json), [source/failures/checks](../assets/2026-10-25-macos-launchd-ownership/source-basis.json). | Fixed observations/counts/hashes; no real PID, service UUID, private source or credentials; backend remains blocked |
 | E122 | macOS coalition creation and explicit spawn denial | [Scoped report](../completed/2026-10-25-macos-coalition-access.md), [arm64](../assets/2026-10-25-macos-coalition-access/macos-arm64.json), [x64](../assets/2026-10-25-macos-coalition-access/macos-x64.json), [source/checks](../assets/2026-10-25-macos-coalition-access/source-basis.json). | Fixed observations/hashes; no existing coalition termination or credentials; product backend remains blocked |
 | E123 | Session read race and role failure diagnostics | [Scoped report](../completed/2026-10-25-runtime-state-and-role-diagnostics.md), [verification](../assets/2026-10-25-runtime-state-and-role-diagnostics/verification.json), [findings](../assets/2026-10-25-runtime-state-and-role-diagnostics/findings.json), [package](../assets/2026-10-25-runtime-state-and-role-diagnostics/package-smoke.json). | Redacted fixed diagnostics; no inference that the historical failures share this cause; no new authenticated A-to-Z or 110-minute claim |
+| E124 | 0.5.24 current Windows three-test acceptance | [Scoped report](../completed/2026-10-26-codex-0524-windows-acceptance.md), [installation](../assets/2026-10-26-codex-0524-windows-acceptance/installation.json), [pipeline](../assets/2026-10-26-codex-0524-windows-acceptance/pipeline.json), [lifecycle](../assets/2026-10-26-codex-0524-windows-acceptance/lifecycle.json), [110-minute measurement](../assets/2026-10-26-codex-0524-windows-acceptance/idle.json), [cleanup](../assets/2026-10-26-codex-0524-windows-acceptance/cleanup.json), [source/checks](../assets/2026-10-26-codex-0524-windows-acceptance/source-and-checks.json). | Same immutable package; fixed diagnostics and hashes; no credentials or real service data; physical-host/macOS/release gates retained |
 
 Existing failures versus new failures: host/environment gaps remain separate from product regressions.
 
@@ -530,6 +543,13 @@ Historical E53–E63 uncommitted product inventory: 59 changed/untracked public 
 Final E64–E66 uncommitted source inventory: 59 changed/untracked public files under packages/plugin/scripts/src, same sorted path:SHA256 UTF-8 algorithm, SHA256 4687def83b992fd52ca156e69abfe752e466d877ce3282c02f2d975c1375e8fe. This inventory excludes top-level docs, unrelated user changes and tests/; the new DB test hash is recorded separately in E65. Private source/test hashes remain the E55 values. C3 acceptance runner/report changes supersede the historical script bodies without rewriting their evidence. No source is committed, privately seeded or published.
 
 ## Findings and Follow-up
+
+2026-10-26 current Windows acceptance (E124) closes the 0.5.24 candidate's local
+fresh/update installation, actual authenticated A-to-Z, stop/resume and same-payload
+110-minute gaps. Two permitted-path absence calls were classified, safely handled
+and retained. Original private edits were preserved; fixtures and owned processes
+were cleaned. This does not retroactively establish the four historical causes or
+close clean physical Windows, native macOS, mixed-host or operational release gates.
 
 2026-10-25 runtime repair (E123): guarded writer/unguarded reader overlap produced a
 false corrupt-state result, and role bridge failures had no retained classification.
@@ -651,7 +671,11 @@ including historical failed candidates. Those observations remain unchanged; the
 dated scoped reports identify later successful trials. This historical aggregate
 verdict does not turn the dated scoped passes into failures or certify remaining support gates.
 
-Current decision after E123: keep active/result:null and stage:blocked.
+Current decision after E124: keep active/result:null and stage:blocked.
+The requested three current-Windows acceptance tests pass on 0.5.24. Historical
+unknown causes and existing external-host/release gates retain their scope.
+
+Decision after E123: keep active/result:null and stage:blocked.
 The two reproduced runtime defects are fixed. Historical missing causes, macOS
 ownership and remaining acceptance/release gates remain open. The 0.5.24 regression
 candidate does not inherit 0.5.23's authenticated A-to-Z or 110-minute evidence.

@@ -1,0 +1,80 @@
+{
+  "source": {
+    "taskBase": "af2b1d3aefc27b404b89165baca8ef0336d55ef6",
+    "packageSource": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+    "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+    "version": "0.5.24",
+    "files": 2232,
+    "privateTemplateCommit": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+    "preparedAt": "2026-10-25T23:28:01.678Z"
+  },
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "osRelease": "10.0.26200",
+    "observerNode": "v22.13.1",
+    "bundledNode": "v22.23.3",
+    "codex": "codex-cli 0.164.0",
+    "claude": "2.1.310 (Claude Code)",
+    "git": "git version 2.47.1.windows.2",
+    "buildIdSha256": "1182894ffba7f2267f01ab3a82cf4d74956ec8feada2c5c959007a3302def164",
+    "observerScripts": {
+      "install-update.mjs": "033d12e667b6c0497c2478404888e7ad8b33a42c192e7ba90095ff1134d87e52",
+      "install-first.mjs": "212a9389866c7ca970ed1d34319f2bf7c69a10cc04457dfdad78d77db43cff74",
+      "idle-with-poll-counts.mjs": "00c82fa3b1be590cd6f1f5b81da80bd261c530729ba652f1cf5c5205152b355b",
+      "pipeline-live.mjs": "d2207d99379d0d55e8d8d23af9bfb7154c2038f46364be9a1180ac42ff067bfb",
+      "trace-final.mjs": "a36e4211a6fafa50dc0c4f4cefeab7c6add59e2bf88533ed926eec5539bcd342",
+      "lifecycle-live.mjs": "84b463b9a9f12e3944ae9030f0c9f6adc18ab2bae16014bb1b258d94ebb65a1c",
+      "trace-lifecycle.mjs": "7de29860bc65dd1666032ecc786e7853ae74de828b46f169d9ba095350b5b0bc",
+      "approve-plan.mjs": "81fbbfdb0748a5627648071ce20ed093400adbc627825aa6d2ab263e39709601",
+      "owner-check-implementation.mjs": "c7ee998b8f9af9d999fbb51f0d45216fa8e23cd0312563ae26648444dbcb34b1",
+      "verify-pipeline.mjs": "c21848f758d4105df6962c295d8a8aaea9ba4dc11ad0f5d612a594415ca1884a",
+      "cleanup-data.mjs": "8bd96da713f4fdbfe0798c4af3821d57760e0f9efc684423e363a1e4f20fedf4",
+      "cleanup-processes.ps1": "36bb35ddef4a808d22ac790f4b6960b425fe1513e36dc4299b97f25722154441"
+    },
+    "recordedAt": "2026-10-25T23:43:40.471Z",
+    "observerScriptsRecordedAt": "2026-10-26T01:21:28.808Z"
+  },
+  "sourceCi": [
+    {
+      "conclusion": "success",
+      "databaseId": 40196850815,
+      "headSha": "af2b1d3aefc27b404b89165baca8ef0336d55ef6",
+      "name": "check",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 40196850841,
+      "headSha": "af2b1d3aefc27b404b89165baca8ef0336d55ef6",
+      "name": "macos-runtime-contracts",
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 40196850801,
+      "headSha": "af2b1d3aefc27b404b89165baca8ef0336d55ef6",
+      "name": "windows-role-runtime",
+      "status": "completed"
+    }
+  ],
+  "logHashes": {
+    "install-first.log": "cf956bcc55a5b5313810d2c362799bf31c3aa56d13cc95bba8fb2d28ef92bb9d",
+    "install-update.log": "378d8e46dd160113e930bcb3eb7c2fc6f6707d2657aa7b77dbcdc3552d73316b",
+    "pipeline-live.log": "19f9a1fe72a206ed5d807745376abc4a7839e0849db04e5c4ec2ae18305b61dd",
+    "native-final-trace.jsonl": "0b08ef8e26280570670de903f32e3759e86d7c13cc6fb37af91e57771bb6a234",
+    "lifecycle-live.log": "7b037cebcc0aa15341bce8fd9d23773392d9a2a80eada14d4253fbb6a9fa5064",
+    "native-lifecycle-trace.jsonl": "5cb0438c79b9421369d155f48c6dd5ae81cd0b173467ba23cbaf236904ba0f7b",
+    "final-fixture-test.log": "9f99cd5a69351073b67f1c02143ce473d5eb9891f08a3ef0e17a351376c4d5ca",
+    "owner-implementation.log": "f70603e21506786ec9bcb96f94a22152e46c6b793e63ca88325c88379cffc999",
+    "final-idle.log": "93ce2cea84573cf1c5af5a8475f1d2f57ed4409d8427495e23adfb8989b9e016",
+    "owner-verifier-notes.md": "8fd26b7a16e42c247e0ecbb1aa61609deda18e4076f4099121fb49162ff2c05a"
+  },
+  "privateWork": {
+    "result": "PASS",
+    "files": 4,
+    "changed": 0,
+    "verifiedAt": "2026-10-26T01:21:28.787Z"
+  },
+  "createdAt": "2026-10-26T01:21:43.022Z"
+}

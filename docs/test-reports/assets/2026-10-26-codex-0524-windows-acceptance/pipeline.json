@@ -1,0 +1,61 @@
+{
+  "result": "PASS",
+  "at": "2026-10-25T23:55:43.212Z",
+  "version": "0.5.24",
+  "source": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+  "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+  "installedFiles": 2232,
+  "serverAccepted": true,
+  "acceptanceChecks": 5,
+  "fixtureTests": 47,
+  "agentRuns": 3,
+  "usageRuns": 3,
+  "acceptedHandoffsResumedToOk": 2,
+  "mainLoopCycles": 2,
+  "freshRoleTurns": 5,
+  "modelTurns": 7,
+  "allModelTurnsTerminal": true,
+  "allModelProcessesClosed": true,
+  "browserOwnerGates": 2,
+  "independentVerifier": {
+    "requiredPaths": 6,
+    "literalPairs": 47,
+    "mutantsKilled": 23,
+    "scope": "Disposable fixture plan only; verifier receipt and terminal observations"
+  },
+  "ownerChecks": {
+    "literalPairs": 47,
+    "additionalStringCases": 76,
+    "mutantsKilled": 19,
+    "correctControlPassed": true
+  },
+  "planSha256": "cae24d59c26cf74f0a47f565415351ad15373cb9b38ee76b3e7b2b6ee321103c",
+  "acceptanceReportSha256": "403a5e38c134b4e65e8b2e162b5522c1dd03c4b6ff3c55f91bc19dba5e0880b9",
+  "committedReportMatches": true,
+  "sourceAndReportChanges": [
+    "docs/agents/dev/K-1.md",
+    "docs/agents/main-loop/K-1.md",
+    "src/greet.mjs",
+    "src/greet.test.mjs"
+  ],
+  "failedToolCalls": [
+    "role_file_list",
+    "role_file_read"
+  ],
+  "roleFailureDiagnostics": [
+    {
+      "agent": "dev",
+      "tool": "role_file_list",
+      "reason": "path-missing",
+      "systemCode": null
+    }
+  ],
+  "mainLoopFailureDiagnostics": [
+    {
+      "agent": "main-loop",
+      "tool": "role_file_read",
+      "reason": "path-missing"
+    }
+  ],
+  "remainingRunnerRows": 0
+}
