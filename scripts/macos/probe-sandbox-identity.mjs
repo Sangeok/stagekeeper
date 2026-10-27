@@ -58,6 +58,13 @@ async function until(predicate, ms, stage) {
 const readJson = name => JSON.parse(fs.readFileSync(at("scratch", name), "utf8"));
 const lines = name => fs.existsSync(at("scratch", name)) ? fs.readFileSync(at("scratch", name), "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line)) : [];
 const pgrep = name => spawnSync("/usr/bin/pgrep", ["-x", name]).status === 0;
+const beating = async name => {
+  const read = () => { try { return fs.readFileSync(at("scratch", name), "utf8"); } catch { return null; } };
+  const first = read();
+  await delay(800);
+  const second = read();
+  return first !== null && second !== null && first !== second;
+};
 const describe = pids => pids.length ? spawnSync("/bin/ps", ["-o", "pid=,ppid=,pgid=,stat=,comm=", "-p", pids.slice(0, 20).join(",")], { encoding: "utf8" }).stdout.trim().split("\n") : [];
 const label = `dev.stagekeeper.escape.${randomUUID()}`, agent = path.join(os.homedir(), "Library", "LaunchAgents", `${label}.plist`);
 const cronBefore = spawnSync("/usr/bin/crontab", ["-l"], { encoding: "utf8" });
@@ -108,31 +115,36 @@ try {
     crontab: (spawnSync("/usr/bin/crontab", ["-l"], { encoding: "utf8" }).stdout ?? "").includes(child),
     calculator: !calculatorBefore && pgrep("Calculator"), controlAlive: alive(plain.pid),
   };
-  progress.stage = "hopper start";
-  await until(() => Number.isSafeInteger(readJson("hopper.json").pid), 30000, "hopper start");
+  progress.stage = "hopper A start";
+  await until(() => Number.isSafeInteger(readJson("hopper.json").pid), 30000, "hopper A start");
   await delay(1500);
-  progress.hopper = { aliveBeforeKill: pgrep("hopper") };
-  progress.stage = "kill until quiescent";
+  progress.hopper = { a: { before: await beating("hopper-a.beat") } };
+  progress.stage = "kill until first empty scan";
   const killLoop = scan("kill");
   progress.killLoop = summary(killLoop);
   await until(() => [...known()].every(pid => !alive(pid)), 15000, "survivor exit").catch(() => {});
   progress.remaining = describe([...known()].filter(alive));
-  progress.hopper.afterKill = pgrep("hopper");
-  await delay(2000);
+  progress.hopper.a.after = await beating("hopper-a.beat");
   progress.finalScan = summary(scan("scan"));
   progress.controlsAlive = [plain.pid, controlPid].map(alive);
-  const quiesced = killLoop.quiescent && progress.remaining.length === 0 && !progress.hopper.afterKill && progress.finalScan.quiescent && progress.controlsAlive.every(Boolean);
-  let quiescedWithFreeze = null;
-  if (!quiesced) {
-    progress.stage = "freeze until quiescent";
-    const freezeLoop = scan("freeze");
-    progress.freezeLoop = summary(freezeLoop);
-    await delay(2000);
-    progress.hopper.afterFreeze = pgrep("hopper");
-    progress.finalAfterFreeze = summary(scan("scan"));
-    progress.controlsAliveAfterFreeze = [plain.pid, controlPid].map(alive);
-    quiescedWithFreeze = freezeLoop.quiescent && !progress.hopper.afterFreeze && progress.finalAfterFreeze.quiescent && progress.controlsAliveAfterFreeze.every(Boolean);
+  const quiesced = killLoop.quiescent && progress.remaining.length === 0 && !progress.hopper.a.after && progress.finalScan.quiescent && progress.controlsAlive.every(Boolean);
+  if (progress.hopper.a.after) {
+    progress.cleanupA = summary(scan("freeze"));
+    progress.hopper.a.afterCleanup = await beating("hopper-a.beat");
   }
+  progress.stage = "hopper B start";
+  const second = spawn("/usr/bin/sandbox-exec", ["-f", at("runtime", "run.sb"), hopper, at("scratch", "hopper-b.beat")], { cwd: at("snapshot"), env, detached: true, stdio: "ignore" });
+  second.unref();
+  await delay(1500);
+  progress.hopper.b = { before: await beating("hopper-b.beat") };
+  progress.stage = "freeze until three empty scans";
+  const freezeLoop = scan("freeze");
+  progress.freezeLoop = summary(freezeLoop);
+  progress.hopper.b.after = await beating("hopper-b.beat");
+  progress.finalAfterFreeze = summary(scan("scan"));
+  progress.controlsAliveAfterFreeze = [plain.pid, controlPid].map(alive);
+  const freezeQuiesced = progress.hopper.b.before && freezeLoop.quiescent && !progress.hopper.b.after && progress.finalAfterFreeze.quiescent
+    && progress.controlsAliveAfterFreeze.every(Boolean);
   progress.spawned = lines("spawned.jsonl").length;
   progress.spawnErrors = lines("errors.jsonl");
   const attacks = progress.attacks, escapes = progress.escapes;
@@ -140,7 +152,7 @@ try {
     confined: ["writeCheckout", "readSecret", "writeLaunchAgent", "signalControl"].every(name => attacks[name]?.allowed === false) && attacks.network?.allowed === false
       && !escapes.checkout && !escapes.launchAgent && escapes.markers.length === 0 && !escapes.launchdJob && !escapes.crontab && !escapes.calculator && escapes.controlAlive,
     identified: [progress.baseline, progress.afterLeader].every(check => check.matched > 0 && check.missing.length === 0 && check.unknown.length === 0 && check.controlsMatched.length === 0),
-    quiesced, quiescedWithFreeze,
+    hopperExercised: progress.hopper.a.before && progress.hopper.b.before, quiesced, freezeQuiesced,
   };
   progress.stage = "complete";
 } catch (error) {
@@ -174,4 +186,5 @@ try {
 console.log(JSON.stringify({ verdict: progress.verdict, arch: process.arch }));
 assert.equal(progress.verdict.confined, true);
 assert.equal(progress.verdict.identified, true);
-assert.ok(progress.verdict.quiesced || progress.verdict.quiescedWithFreeze, "No kill strategy reached quiescence");
+assert.equal(progress.verdict.hopperExercised, true);
+assert.equal(progress.verdict.freezeQuiesced, true);
