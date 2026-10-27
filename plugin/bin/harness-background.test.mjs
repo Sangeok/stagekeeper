@@ -482,15 +482,36 @@ it("stops without a server stop when another runner takes over", async t => {
 it("clears a dead runner's lock on the next start and keeps only the newest fifty run logs", async t => {
   const f = await fixture(t);
   f.setOverview(EMPTY);
-  const first = await f.run(START);
-  const pid = await waitFor(() => f.status()?.pid, 15000, "the runner pid");
+  const preload = path.join(f.tools, "idle-checkpoint.mjs"), checkpoint = path.join(f.tools, "idle-checkpoint.json");
+  writeFileSync(preload, `
+import fs from "node:fs";
+import path from "node:path";
+import { syncBuiltinESMExports } from "node:module";
+const remove = fs.rmdirSync;
+fs.rmdirSync = function(directory, ...args) {
+  const result = remove.call(this, directory, ...args);
+  if (!process.argv.includes("--run") || path.basename(directory) !== "watch.guard") return result;
+  try {
+    const lock = JSON.parse(fs.readFileSync(path.join(path.dirname(directory), "watch.lock.json"), "utf8"));
+    if (lock.poller?.pid !== process.pid) return result;
+  } catch { return result; }
+  fs.writeFileSync(${JSON.stringify(checkpoint)}, JSON.stringify({ pid: process.pid }));
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+  return result;
+};
+syncBuiltinESMExports();
+`);
+  const first = await f.run(START, { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` });
+  assert.equal(first.event.event, "started", JSON.stringify(first.event));
+  const { pid } = await waitFor(() => { try { return JSON.parse(readFileSync(checkpoint, "utf8")); } catch { return null; } }, 15000, "the runner outside its guard");
+  assert.equal(existsSync(path.join(f.directory, "watch.guard")), false);
   process.kill(pid);
   await waitFor(() => !alive(pid), 15000, "the runner to die");
   const runs = path.join(f.directory, "runs");
   for (let i = 0; i < 55; i++) writeFileSync(path.join(runs, `20200101T0000${String(i).padStart(5, "0")}Z.jsonl`), "");
   f.setOverview(READY);
   const second = await f.run(START);
-  assert.equal(second.event.event, "started");
+  assert.equal(second.event.event, "started", JSON.stringify(second.event));
   assert.notEqual(second.event.session, first.event.session);
   await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult && call.session === second.event.session), 30000, "a run");
   assert.equal(readdirSync(runs).filter(name => name.endsWith(".jsonl")).length, 50);
