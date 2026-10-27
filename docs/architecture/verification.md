@@ -75,6 +75,11 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 [package.json](../../package.json), CI 연결은
 [check.yml](../../.github/workflows/check.yml)을 기준으로 한다.
 
+`check`는 기존 여섯 작업을 병렬 실행한다. 같은 PR에 새 커밋이 올라오면 이전 실행을
+취소하며, `dev`·`main` push는 실행별 concurrency group을 사용해 서로 취소하거나
+대기 실행을 대체하지 않는다. build 작업은 `npm run build` 내부에서 Prisma Client를
+생성하므로 공통 `db:generate` 단계를 생략한다.
+
 - `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
   연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
   환경을 같은 변경에서 보완한다.
@@ -103,9 +108,13 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   두 부분 집합의 테스트는 `test:scripts`에도 포함되며 `check`에서 중복 실행하지 않는다.
   이 명령들 자체가 테스트 배치 규칙 전체를 검증하는 것은 아니다.
 - `npm run test:server`: 서버 전용 bootstrap과 함께 `tests/server/*.test.ts`를 실행하며
-  `check` workflow의 `server` 항목으로 연결되어 있다. build 뒤 manifest 검사
-  (`RDC_CHECK_ACTION_MANIFEST`·`SRC_CHECK_INBOX_MANIFEST`)는 환경 변수를 지정할 때만
-  실행되며 CI는 지정하지 않는다.
+  `check` workflow의 `server` 항목으로 연결되어 있다. build 뒤 manifest 검사는
+  같은 workflow의 `build` 작업에서 빌드 성공 후 실행한다. 이 단계에만
+  `RDC_CHECK_ACTION_MANIFEST`·`SRC_CHECK_INBOX_MANIFEST`·`GITHUB_CHECK_ACTION_MANIFEST`를
+  `true`로 지정하고, `--test-name-pattern='\bfresh\b'`로 기존 산출물 검사만 선택한다.
+  빌드 산출물 검사의 이름에는 독립된 단어 `fresh`를 포함하며, 현재 10개 검사가
+  실제 Action 등록·비공개 helper 비노출·클라이언트 경계·라우트 산출물을 확인한다.
+  빌드 실패 시 이 단계는 실행하지 않으며, 별도 `server` 작업의 일반 테스트는 그대로 유지한다.
 - `npm run test:server:integration`: 격리 PostgreSQL과 전용 실행 스크립트를 사용한다.
   `check` workflow의 `server-integration` job이 일회용 PostgreSQL 18 서비스 컨테이너의
   `stagekeeper_test_ci` DB로 실행한다. 운영 DB나 secret을 사용하지 않는다.
