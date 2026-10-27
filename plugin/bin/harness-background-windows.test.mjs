@@ -55,13 +55,15 @@ async function tree(t) {
   writeFileSync(resident, RESIDENT);
   const child = spawn(process.execPath, [resident, LAUNCHER, path.join(dir, "request.json"), launched, fake, pidsFile],
     { cwd: dir, stdio: "ignore", windowsHide: true });
-  const ids = await waitFor(() => (existsSync(pidsFile) ? JSON.parse(readFileSync(pidsFile, "utf8")) : null), 30000, "the fake claude");
-  const { launcher } = JSON.parse(readFileSync(launched, "utf8"));
+  const recorded = file => { try { return JSON.parse(readFileSync(file, "utf8")); } catch { return {}; } };
   t.after(async () => {
-    for (const pid of [child.pid, launcher, ids.claude, ids.grandchild]) { try { process.kill(pid); } catch {   } }
+    const owned = [child.pid, recorded(launched).launcher, recorded(pidsFile).claude, recorded(pidsFile).grandchild];
+    for (const pid of owned.filter(Boolean)) { try { process.kill(pid); } catch {   } }
     await delay(300);
     rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
+  const ids = await waitFor(() => (existsSync(pidsFile) ? JSON.parse(readFileSync(pidsFile, "utf8")) : null), 30000, "the fake claude");
+  const { launcher } = JSON.parse(readFileSync(launched, "utf8"));
   return { resident: child.pid, launcher, ...ids };
 }
 
