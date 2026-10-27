@@ -3,8 +3,9 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
+import type { ChangePipelineInput } from "../model/change-input";
 
-export type ChangePipelineAction = (input: { key: string; pipelineId: string; expectedUpdatedAt: string }) => Promise<ActionResult<null>>;
+export type ChangePipelineAction = (input: ChangePipelineInput) => Promise<ActionResult<null>>;
 type Props = { itemKey: string; updatedAt: string; pipelines: { id: string; name: string }[]; change: ChangePipelineAction };
 export function ChangePipelineControl({ itemKey, updatedAt, pipelines, change }: Props) {
   const router = useRouter();

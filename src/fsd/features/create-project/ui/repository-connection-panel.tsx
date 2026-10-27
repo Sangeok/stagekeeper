@@ -1,21 +1,23 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactElement } from "react";
-import type { ConnectionView, QueryState } from "../model/github-connection-state";
+import type { ConnectionView, QueryState, RepositoryConnectionOperation } from "../model/github-connection-state";
 
-type Props = { connection: ConnectionView; query: QueryState; busy: boolean; message: string | null; canRetry: boolean;
+type Props = { connection: ConnectionView; query: QueryState; operation: RepositoryConnectionOperation; message: string | null; canRetry: boolean;
   restoredDraftId?: string | null;
   authorize: () => void; manage: () => void; disconnect: (revision: number) => void; retry: () => void; loadMore: () => void; paste: () => void };
 
-export function connectionStatusText({ busy, query, message }: Pick<Props, "busy" | "query" | "message">): string {
-  if (busy) return "Opening repository connection…";
+export function connectionStatusText({ operation, query, message }: Pick<Props, "operation" | "query" | "message">): string {
+  if (operation === "opening") return "Opening repository connection…";
+  if (operation === "disconnecting") return "Disconnecting repository list…";
   if (query.status === "loading") return "Loading repositories…";
   if (query.message) return query.message;
   if (message) return message;
   return query.status === "empty" ? "No repositories loaded. Check access on GitHub or paste a URL." : "";
 }
 
-export function RepositoryConnectionPanel({ connection, query, busy, message, canRetry, restoredDraftId, authorize, manage, disconnect, retry, loadMore, paste }: Props): ReactElement | null {
+export function RepositoryConnectionPanel({ connection, query, operation, message, canRetry, restoredDraftId, authorize, manage, disconnect, retry, loadMore, paste }: Props): ReactElement | null {
+  const busy = operation !== "idle";
   const [consent, setConsent] = useState(false);
   const [disconnectRevision, setDisconnectRevision] = useState<number | null>(null);
   const status = useRef<HTMLParagraphElement>(null);
@@ -41,7 +43,7 @@ export function RepositoryConnectionPanel({ connection, query, busy, message, ca
     {disconnectRevision !== null ? <div className="text-sm"><p>Disconnect this repository list? Existing projects and their tokens will stay as they are.</p>
       <div className="flex gap-3"><button type="button" className={actionClass} disabled={busy} onClick={() => { disconnect(disconnectRevision); setDisconnectRevision(null); }}>Confirm list disconnect</button>
         <button type="button" className={actionClass} disabled={busy} onClick={() => setDisconnectRevision(null)}>Cancel disconnect</button></div></div> : null}
-    <p ref={status} tabIndex={-1} role="status" aria-live="polite" className="text-xs text-quiet">{connectionStatusText({ busy, query, message })}</p>
+    <p ref={status} tabIndex={-1} role="status" aria-live="polite" className="text-xs text-quiet">{connectionStatusText({ operation, query, message })}</p>
     {!connection.available && connection.status === "not-connected" && message ? <Link href="/login" className={actionClass}>Sign in again</Link> : null}
     {query.unsupportedCount ? <p className="text-xs text-quiet">{query.unsupportedCount} archived or unsupported repositories were omitted.</p> : null}
     {connection.available && connection.status === "connected" ? <div className="flex flex-wrap gap-3">

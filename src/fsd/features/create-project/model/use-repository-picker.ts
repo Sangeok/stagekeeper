@@ -2,12 +2,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { navigateToGitHub, repositoryPickerRequest } from "../api/repository-picker";
-import { EMPTY_QUERY, repositoryPageSchema, restorableDraftSchema, type ConnectionView, type PickerInitialState, type QueryState, type SavedDraft } from "./github-connection-state";
+import { EMPTY_QUERY, repositoryPageSchema, restorableDraftSchema, type ConnectionView, type PickerInitialState, type QueryState, type RepositoryConnectionOperation, type SavedDraft } from "./github-connection-state";
 
 const UNAVAILABLE = "The repository list is unavailable. You can still paste a repository URL.";
 const startResponse = z.object({ redirectTo: z.string(), attemptId: z.uuid() });
 
-type RepositoryPickerController = { connection: ConnectionView; query: QueryState; busy: boolean; message: string | null; canRetry: boolean;
+type RepositoryPickerController = { connection: ConnectionView; query: QueryState; operation: RepositoryConnectionOperation; message: string | null; canRetry: boolean;
   restoredDraftId: string | null;
   start(action: "authorize" | "manage", draft: SavedDraft): Promise<void>; discardDraft(): Promise<void>; disconnect(revision: number): Promise<void>;
   reload(): Promise<void>; loadMore(): Promise<void> };
@@ -15,9 +15,10 @@ type RepositoryPickerController = { connection: ConnectionView; query: QueryStat
 export function useRepositoryPicker(initial: PickerInitialState, restore: (draft: SavedDraft) => boolean, sessionLost: () => void, invalidateSelection: () => void): RepositoryPickerController {
   const [connection, setConnection] = useState(initial.connection);
   const [query, setQuery] = useState<QueryState>(EMPTY_QUERY);
-  const [busy, setBusy] = useState(false);
+  const [operation, setOperation] = useState<RepositoryConnectionOperation>("idle");
   const [message, setMessage] = useState<string | null>(initial.connection.notice);
   const [retryAt, setRetryAt] = useState(0);
+  const retryDeadline = useRef(0);
   const [applied, setApplied] = useState<z.infer<typeof restorableDraftSchema> | null>(null);
   const generation = useRef(0);
   const flowGeneration = useRef(0);
@@ -25,16 +26,22 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
   const flowKey = `stagekeeper.github.flow.${initial.userKey}`;
   const cancelKey = `stagekeeper.github.cancel.${initial.userKey}`;
   const invalidateRequests = useCallback(() => { generation.current++; flowGeneration.current++; activeRequest.current?.abort(); }, []);
+  const updateRetryDeadline = useCallback((deadline: number) => {
+    retryDeadline.current = deadline;
+    setRetryAt(deadline);
+  }, []);
 
   const lostSession = useCallback(() => {
-    invalidateRequests(); setApplied(null); setBusy(false); setRetryAt(0);
+    invalidateRequests(); setApplied(null); setOperation("idle"); updateRetryDeadline(0);
     setQuery(EMPTY_QUERY);
     setConnection({ available: false, status: "not-connected", revision: null, notice: null });
     setMessage("Your session changed or expired. Sign in again to load repositories.");
     sessionLost();
-  }, [sessionLost, invalidateRequests]);
+  }, [sessionLost, invalidateRequests, updateRetryDeadline]);
 
   const load = useCallback(async (cursor: string | null = null) => {
+    if (retryDeadline.current > Date.now()) return;
+    if (retryDeadline.current) updateRetryDeadline(0);
     activeRequest.current?.abort();
     const controller = new AbortController();
     activeRequest.current = controller;
@@ -47,7 +54,7 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
         setQuery({ ...EMPTY_QUERY, status: "error", message: result.message });
         if (result.code === "UNAUTHENTICATED") lostSession();
         if (result.code === "REAUTH_REQUIRED") { setConnection(previous => ({ ...previous, status: "reauth-required" })); invalidateSelection(); }
-        if (result.retryAfter) setRetryAt(Date.now() + result.retryAfter * 1000);
+        if (result.retryAfter) updateRetryDeadline(Date.now() + result.retryAfter * 1000);
         return;
       }
       const page = repositoryPageSchema.parse(result.value);
@@ -61,7 +68,9 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
     } catch {
       if (version === generation.current && !controller.signal.aborted) setQuery({ ...EMPTY_QUERY, status: "error", message: UNAVAILABLE });
     }
-  }, [initial.userKey, lostSession, invalidateSelection]);
+  }, [initial.userKey, lostSession, invalidateSelection, updateRetryDeadline]);
+
+  useEffect(() => () => { retryDeadline.current = 0; }, []);
 
   useEffect(() => {
     if (!initial.connection.available) return;
@@ -106,10 +115,13 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
     let controller: AbortController | null = null;
     const refresh = () => {
       if (document.visibilityState !== "visible") return;
-      if (connection.status === "connected") { void load(); return; }
-      controller?.abort(); controller = new AbortController();
-      void repositoryPickerRequest(initial.userKey, "connection/draft", { signal: controller.signal }).then(result => {
-        if (live && !result.ok && result.code === "UNAUTHENTICATED") lostSession();
+      controller?.abort();
+      if (connection.status === "connected" && retryDeadline.current <= Date.now()) { void load(); return; }
+      const request = new AbortController();
+      controller = request;
+      const version = flowGeneration.current;
+      void repositoryPickerRequest(initial.userKey, "connection/draft", { signal: request.signal }).then(result => {
+        if (live && !request.signal.aborted && version === flowGeneration.current && !result.ok && result.code === "UNAUTHENTICATED") lostSession();
       }).catch(() => undefined);
     };
     window.addEventListener("focus", refresh);
@@ -135,16 +147,18 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
 
   useEffect(() => {
     if (!retryAt) return;
-    const timer = setTimeout(() => setRetryAt(0), Math.max(0, retryAt - Date.now()));
+    const timer = setTimeout(() => {
+      if (retryDeadline.current === retryAt) updateRetryDeadline(0);
+    }, Math.max(0, retryAt - Date.now()));
     return () => clearTimeout(timer);
-  }, [retryAt]);
+  }, [retryAt, updateRetryDeadline]);
 
   async function start(action: "authorize" | "manage", draft: SavedDraft): Promise<void> {
     activeRequest.current?.abort();
     const version = ++flowGeneration.current;
     generation.current++;
     setQuery(previous => previous.status === "loading" ? { ...previous, status: previous.repositories.length ? "ready" : "idle" } : previous);
-    setBusy(true); setMessage(null);
+    setOperation("opening"); setMessage(null);
     try {
       const result = await repositoryPickerRequest(initial.userKey, "connection/start", { body: { action, draft } });
       if (!result.ok) {
@@ -158,11 +172,11 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
       sessionStorage.setItem(flowKey, value.attemptId);
       navigateToGitHub(value.redirectTo);
     } catch { if (version === flowGeneration.current) setMessage("Couldn't start the connection. Try again or paste a repository URL."); }
-    finally { if (version === flowGeneration.current) setBusy(false); }
+    finally { if (version === flowGeneration.current) setOperation("idle"); }
   }
 
   async function discardDraft(): Promise<void> {
-    generation.current++; flowGeneration.current++; activeRequest.current?.abort(); setBusy(false); setApplied(null);
+    generation.current++; flowGeneration.current++; activeRequest.current?.abort(); setOperation("idle"); setApplied(null);
     setQuery(previous => previous.status === "loading" ? { ...previous, status: previous.repositories.length ? "ready" : "idle" } : previous);
     try {
       const id = sessionStorage.getItem(flowKey) ?? sessionStorage.getItem(cancelKey);
@@ -178,7 +192,7 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
   async function disconnect(revision: number): Promise<void> {
     const version = ++flowGeneration.current;
     generation.current++;
-    activeRequest.current?.abort(); setBusy(true);
+    activeRequest.current?.abort(); setOperation("disconnecting");
     try {
       const result = await repositoryPickerRequest(initial.userKey, "connection/disconnect", { body: { revision } });
       if (version !== flowGeneration.current) return;
@@ -190,8 +204,8 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
       invalidateSelection();
       setMessage(value.providerRevoked ? "Repository list disconnected. Existing projects are unchanged." : "Repository list stopped here. Revoke this app's authorization in GitHub settings to confirm external revocation.");
     } catch { if (version === flowGeneration.current) { setQuery(EMPTY_QUERY); setMessage("Couldn't confirm the disconnect. Reload before trying again."); } }
-    finally { if (version === flowGeneration.current) setBusy(false); }
+    finally { if (version === flowGeneration.current) setOperation("idle"); }
   }
 
-  return { connection, query, busy, message, restoredDraftId: applied?.id ?? null, canRetry: retryAt === 0, start, discardDraft, disconnect, reload: () => load(), loadMore: () => load(query.nextCursor) };
+  return { connection, query, operation, message, restoredDraftId: applied?.id ?? null, canRetry: retryAt === 0, start, discardDraft, disconnect, reload: () => load(), loadMore: () => load(query.nextCursor) };
 }

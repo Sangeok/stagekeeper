@@ -746,6 +746,7 @@ and the quoted owner URL, never the token value.
   - Optional list: **Connect private repositories** → "Read repository names, owners and default branches. No code access. Choose which repositories to allow on GitHub."
     and "You can paste a repository URL without connecting." → **Continue to GitHub** / **Cancel**.
     Existing authorization shows **Manage repository access** and **Disconnect repository list**. The latter preserves projects and Stagekeeper tokens.
+    Pending authorization says "Opening repository connection…"; pending disconnection says "Disconnecting repository list…".
     Search says "Search 20 loaded repositories" and covers only loaded rows; **Load more** and **Reload repository list** are explicit actions.
     Authorized rows show `owner/name`, **Private** when applicable, and the known default branch. A missing default requires explicit branch input.
     A failed or partial reload takes precedence over old restoration success guidance. **Start over** suppresses old draft restoration even when server cancellation cannot be confirmed.

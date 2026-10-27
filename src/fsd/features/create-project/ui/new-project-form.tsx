@@ -141,7 +141,7 @@ function NewProjectFormContents({ action, mcpUrl, defaultOwner, repos, repoLoadF
         <input type="hidden" name="repositoryPage" value={effectiveSelection.repository.repositoryPage} />
         <input type="hidden" name="connectionRevision" value={effectiveSelection.repository.connectionRevision} />
       </> : null}
-      <RepositoryConnectionPanel connection={github.connection} query={github.query} busy={github.busy} message={github.message} canRetry={github.canRetry} restoredDraftId={github.restoredDraftId}
+      <RepositoryConnectionPanel connection={github.connection} query={github.query} operation={github.operation} message={github.message} canRetry={github.canRetry} restoredDraftId={github.restoredDraftId}
         authorize={() => void github.start("authorize", draft)} manage={() => void github.start("manage", draft)} disconnect={revision => void github.disconnect(revision)}
         retry={() => void github.reload()} loadMore={() => void github.loadMore()} paste={showManualEntry} />
       {mode === "chosen" ? (

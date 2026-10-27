@@ -2,6 +2,8 @@ import "server-only";
 import { z } from "zod";
 import type { PublicRepo, PublicReposResult } from "./contracts";
 
+const PUBLIC_REPOSITORY_TIMEOUT_MS = 10_000;
+
 const githubRepoSchema = z.object({
   id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   owner: z.object({ login: z.string().min(1) }),
@@ -15,6 +17,7 @@ export async function listPublicRepos(login: string): Promise<PublicReposResult>
     const response = await fetch(
       `https://api.github.com/users/${encodeURIComponent(login)}/repos?sort=updated&per_page=100`,
       {
+        signal: AbortSignal.timeout(PUBLIC_REPOSITORY_TIMEOUT_MS),
         headers: {
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",

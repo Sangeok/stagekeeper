@@ -22,6 +22,16 @@ it("renders different copy for empty success and failure while preserving URL en
   for (const failed of [false, true]) assert.match(render(failed), /Repository URL/);
 });
 
+it("keeps the connected picker and explicit paste action when the public list fails", () => {
+  const html = renderToStaticMarkup(createElement(NewProjectForm, {
+    action: async () => ({ status: "idle" as const }), mcpUrl: "https://example.test/api/mcp", defaultOwner: "user", repos: [], repoLoadFailed: true,
+    picker: { userKey: "user", connection: { available: true, status: "connected", revision: 3, notice: null } },
+  }));
+  assert.match(html, /Manage repository access/);
+  assert.match(html, /Paste a repository URL/);
+  assert.doesNotMatch(html, /Couldn't load your repositories/);
+});
+
 it("renders actual stored identity and reveals a token only for a created registration", () => {
   const token = "hs_just-stored";
   for (const result of [{ status: "created", slug: "stored", projectId: "p" }, { status: "existing", slug: "preserved", projectId: "p" }, { status: "disconnected", slug: "preserved", reason: "disconnected" }] as const) {

@@ -19,6 +19,8 @@ it("renders account scope, all usage states and seven-column empty layout", () =
   assert.equal((html.match(/>Revoke</g) ?? []).length, 2);
   assert.equal((html.match(/<h2 /g) ?? []).length, 2);
   assert.equal((html.match(/>Save name</g) ?? []).length, 3);
+  const requiredNames = [...html.matchAll(/<input\b[^>]*>/g)].filter(([input]) => input.includes('name="label"') && input.includes('required=""'));
+  assert.equal(requiredNames.length, 3);
   assert.match(html, /Name the device or purpose so you can recognize this token later\./);
   assert.match(html, /name="label"/);
   const issuance = [...html.matchAll(/<form\b[\s\S]*?<\/form>/g)].map(([form]) => form).find(form => form.includes(">Issue token<"));
