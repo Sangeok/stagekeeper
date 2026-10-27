@@ -60,7 +60,7 @@ it("reconnects the same identity without resurrecting credentials and rejects a 
   for (const count of [1, 2]) {
     const full = fixture([project("a", false, new Date()), ...Array.from({ length: count }, (_, i) => project(`b${i}`, i === 0))]);
     const snapshot = structuredClone(full.state()); const result = await reconnectProject(full.client, input);
-    assert.equal(result.status === "error" && result.code, "capped"); assert.deepEqual(full.state(), snapshot);
+    assert.deepEqual(result, { status: "error", code: "capped", plan: "free", limit: 1 }); assert.deepEqual(full.state(), snapshot);
   }
 });
 

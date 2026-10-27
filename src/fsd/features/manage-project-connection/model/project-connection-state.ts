@@ -16,9 +16,15 @@ export function connectionControlKey(targetId: string, model: ProjectConnectionS
   return `connection:${targetId}:${model.version}:${model.plan}`;
 }
 
+function noFreeSlot(plan: Plan, limit: number): string {
+  return `No free slot. The ${planLabel(plan)} plan allows ${countNoun(limit, "connected repository", "connected repositories")}.`;
+}
+
 export function reconnectBlock(model: Pick<ProjectConnectionSummary, "plan" | "limit" | "connectedCount">): string | null {
-  if (model.limit !== null && model.connectedCount >= model.limit) {
-    return `No free slot. The ${planLabel(model.plan)} plan allows ${countNoun(model.limit, "connected repository", "connected repositories")}.`;
-  }
+  if (model.limit !== null && model.connectedCount >= model.limit) return noFreeSlot(model.plan, model.limit);
   return null;
+}
+
+export function reconnectCapReason(plan: Plan, limit: number): string {
+  return `${noFreeSlot(plan, limit)} Disconnect another repository first.`;
 }

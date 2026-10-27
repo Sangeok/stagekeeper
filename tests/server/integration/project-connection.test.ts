@@ -271,7 +271,7 @@ it("permits zero-connected plan changes/new registration and preserves account d
     assert.equal(retained.usageWindowStartedAt?.getTime(), usageAnchor.getTime());
     assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 1);
     const full = await reconnectProject(db, { userId: f.userId, targetProjectId: f.projectId, expectedVersion: 3 });
-    assert.equal(full.status === "error" && full.code, "capped");
+    assert.deepEqual(full, { status: "error", code: "capped", plan: "free", limit: 1 });
   } finally { gate.release(); await Promise.allSettled([pending]); await cleanup(db, f?.userId); await pool.disconnect(); }
 });
 
