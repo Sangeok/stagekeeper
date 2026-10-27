@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -8,8 +9,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runnerHost } from "../runtime/runner-client.mjs";
-import { REASONS, START_LINES } from "./harness-background.mjs";
-import { atomicWrite, clearState, LEGACY_RECLAIM_GUARD, readState, recordedChildren, startSession, stateFiles, withGuard } from "../runtime/local-session.mjs";
+import { REASONS, RELEASE_LINES, START_LINES } from "./harness-background.mjs";
+import { atomicWrite, clearState, LEGACY_RECLAIM_GUARD, readState, recordedChildren, residentLock, startSession, stateFiles, withGuard } from "../runtime/local-session.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-background.mjs", import.meta.url));
 const TOKEN = "hu_" + "b".repeat(43);
@@ -494,7 +495,7 @@ it("clears a dead runner's lock on the next start and keeps only the newest fift
   assert.equal(readdirSync(runs).filter(name => name.endsWith(".jsonl")).length, 50);
 });
 
-it("preserves an unconfirmed child settlement and refuses a new start or repeated stop", async t => {
+it("holds an unconfirmed child settlement until the owner releases it", async t => {
   const f = await fixture(t);
   const preload = path.join(f.tools, "fail-settlement.mjs");
   writeFileSync(preload, `
@@ -527,11 +528,73 @@ syncBuiltinESMExports();
   assert.ok(recordedChildren(lock).every(child => !alive(child.pid)));
   assert.deepEqual(lock.children.filter(child => child.nonce === LEGACY_RECLAIM_GUARD.nonce), [LEGACY_RECLAIM_GUARD]);
   assert.ok(f.runnerCalls.every(call => call.op !== "stop" && !call.lastResult));
-  assert.equal((await f.run(START)).event.code, "locked");
-  assert.equal((await f.run(["--stop"])).event.event, "stopping");
-  assert.equal(JSON.parse(readFileSync(f.lockPath, "utf8")).id, lock.id);
+  const held = REASONS.held.replace("{startedAt}", lock.startedAt);
+  for (const args of [START, ["--stop"]]) {
+    const refused = await f.run(args);
+    assert.deepEqual([refused.code, refused.event.code, refused.event.reason], [1, "held", held]);
+  }
+  assert.equal((await f.run(["--status"])).event.held, true);
+  assert.deepEqual(JSON.parse(readFileSync(f.lockPath, "utf8")), lock);
   assert.ok(f.runnerCalls.every(call => call.op !== "stop"));
-  unlinkSync(f.lockPath);
+
+  const runs = path.join(f.directory, "runs");
+  const log = path.join(runs, readdirSync(runs).filter(name => name.endsWith(".jsonl")).sort().at(-1));
+  const check = await f.run(["--release"]);
+  assert.deepEqual([check.code, check.event.event, check.event.session, check.event.unsettled], [0, "release-check", lock.id, true]);
+  assert.deepEqual(check.text, [RELEASE_LINES.process.replace("{startedAt}", lock.startedAt), RELEASE_LINES.unsettled, RELEASE_LINES.log.replace("{log}", log)]);
+  const changed = await f.run(["--release", "--session", "another-session"]);
+  assert.deepEqual([changed.code, changed.event.code, changed.event.reason], [1, "release-changed", REASONS["release-changed"]]);
+  assert.deepEqual(JSON.parse(readFileSync(f.lockPath, "utf8")), lock);
+
+  const released = await f.run(["--release", "--session", lock.id]);
+  assert.deepEqual([released.code, released.event.event, released.text], [0, "released", [RELEASE_LINES.released]]);
+  assert.equal(existsSync(f.lockPath), false);
+  assert.deepEqual([f.status().state, f.status().stopReason], ["stopped", "owner"]);
+  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.session === lock.id && call.reason === "owner"));
+  assert.equal((await f.run(["--status"])).event.held, false);
+});
+
+it("refuses to release a runner that is still running", async t => {
+  const f = await fixture(t);
+  f.setOverview(EMPTY);
+  const started = await f.run(START);
+  assert.equal(started.event.event, "started");
+  for (const args of [["--release"], ["--release", "--session", started.event.session]]) {
+    const refused = await f.run(args);
+    assert.deepEqual([refused.code, refused.event.code, refused.event.reason], [1, "still-running", REASONS["still-running"]]);
+  }
+  assert.equal(JSON.parse(readFileSync(f.lockPath, "utf8")).id, started.event.session);
+});
+
+it("names Codex commands for a crashed Codex runner and treats a fresh lock as still starting", async t => {
+  const f = await fixture(t), files = stateFiles(f.directory);
+  const binding = { root: f.root, server: f.url, project: "owner-repo", configHash: "a".repeat(64), tokenHash: "b".repeat(64) };
+  const install = lock => {
+    mkdirSync(f.directory, { recursive: true });
+    atomicWrite(files.policy, { schemaVersion: 1, session: lock.id, commit: true, propose: false });
+    atomicWrite(files.lock, lock);
+  };
+  const codex = text => text.replaceAll("/harness:background", "$harness-background");
+  const starting = residentLock({ session: randomUUID(), binding, client: "codex", host: "test", at: new Date().toISOString() });
+  install(starting);
+  assert.deepEqual((await f.run(["--release"])).event.reason, codex(REASONS["still-running"]));
+  assert.equal(existsSync(f.lockPath), true);
+
+  const crashed = residentLock({ session: randomUUID(), binding, client: "codex", host: "test", at: new Date(Date.now() - 3_600_000).toISOString() });
+  crashed.poller = { pid: spawnSync(process.execPath, ["-e", ""], { windowsHide: true }).pid, nonce: randomUUID() };
+  install(crashed);
+  const held = REASONS.held.replace("{startedAt}", crashed.startedAt);
+  assert.deepEqual((await f.run(["--stop"])).event.reason, codex(held));
+  assert.deepEqual((await f.run(START)).event.reason, held);
+  assert.equal((await f.run(["--status"])).event.held, true);
+
+  const check = await f.run(["--release"]);
+  assert.deepEqual([check.event.event, check.event.client, check.event.unsettled], ["release-check", "codex", false]);
+  assert.equal(check.text.at(-1), RELEASE_LINES.log.replace("{log}", path.join(f.directory, "background.log")));
+  assert.equal((await f.run(["--release", "--session", starting.id])).event.reason, codex(REASONS["release-changed"]));
+  assert.equal((await f.run(["--release", "--session", crashed.id])).event.event, "released");
+  assert.equal(existsSync(f.lockPath), false);
+  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.session === crashed.id && call.client === "codex" && call.reason === "owner"));
 });
 
 async function killMidRun(f, session) {
@@ -626,7 +689,7 @@ it("keeps every refusal and start line in product copy", () => {
     const sentence = reason.replace(/\{\w+\}/g, "{}");
     assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(sentence), `${code} is missing from product-copy §15`);
   }
-  for (const line of Object.values(START_LINES)) assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(line.replace(/\{\w+\}/g, "{}")), line);
+  for (const line of [...Object.values(START_LINES), ...Object.values(RELEASE_LINES)]) assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(line.replace(/\{\w+\}/g, "{}")), line);
 });
 
 it("reports a refused sign-in start to the Board with a fixed code, and a manual start never does", async t => {

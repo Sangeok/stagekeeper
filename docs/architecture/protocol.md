@@ -315,7 +315,8 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
 - 시작: 사용자가 스킬이 보여 준 `!` 명령으로 `--start`를 실행한다. auto 모드 분류기는 세션 뒤에도 남는 프로세스를 띄우는
   명령을 거절하므로 스킬이 직접 실행하지 않는다. 시작 검사는 다음과 같다.
   - 작업 트리가 깨끗한지(`git --no-optional-locks status --porcelain -z`, 추적되지 않은 파일 포함), 브랜치 위인지 본다.
-    `pushurl`을 따로 둔 원격이 없는지 보고, 로컬 잠금이 없는지(죽은 resident의 잠금은 지운다) 본다.
+    `pushurl`을 따로 둔 원격이 없는지 보고, 로컬 잠금이 없는지(죽은 Claude resident의 잠금은 지우고, 지울 수 없는 잠금은
+    `held`로 거부한다) 본다.
   - `project_get`을 확인하고 `claude.exe`가 있는지 본다. `claude -p`를 한 번 띄워 init 메시지의 `permissionMode`를
     읽고 모델 요청 전에 끝낸다.
   - auto면 `permission:auto`다. 아니면 `allowlist`이고, 실행은 `--permission-mode acceptEdits` + 허용 목록이다.
@@ -354,6 +355,13 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
     그 밖은 PID 1)을 둔다. plugin 0.5.14~0.5.18의 start·`--stop`은 기록된 PID가 모두 죽어야 잠금을 지우고 권한 오류도
     살아 있음으로 보므로, 이 항목이 있으면 그 판들은 잠금을 지우지 않고 `--stop`은 stopping만 기록한다.
     새 판은 이 항목을 child로 세지 않는다. 2026-10-27 혼합 호스트 인수에서 0.5.18이 죽은 Codex 잠금을 지운 F1의 수정이다.
+  - 남은 프로세스가 없는데 PID 사망만으로 지울 수 없는 잠금(Codex 상주 잠금·unsettled 잠금)은 start와 `--stop`이
+    `held`로 거부하고 `--status`가 `held:true`를 보인다. poller가 없는 잠금은 시작 대기 20초에 30초를 더한 시간이
+    지나야 프로세스가 끝난 것으로 본다. owner가 `--release`로 확인하면 runner와 기록된 child가 모두 끝났는지 보고
+    세션·시작 시각·unsettled 여부·커밋 안 된 파일·실행 로그를 보여 준다. 그 세션으로 `--release --session`을 실행하면
+    guard 안에서 같은 세션과 남은 프로세스 없음을 다시 확인한 뒤 잠금을 지우고 서버에 stop(owner)을 보내 lease를 바로 푼다.
+    스킬은 확인 결과를 보여 주고 한 번 묻고, 명시적 동의가 있을 때만 이 명령을 실행한다. 이 owner 확인이 Codex 계약의
+    terminal·child 확인을 대신하는 유일한 해제 경로다(2026-10-27 혼합 호스트 인수 F2의 수정).
 - 로컬 파일(공통 Git 디렉터리의 `harness/`):
   - `background.json`: 상태(`--status`가 읽음)
   - `background-settings.json`: 허용 목록
