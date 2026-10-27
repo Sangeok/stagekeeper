@@ -172,7 +172,7 @@ it("reports an owner stop during native preflight as the stop, not as unavailabl
 });
 
 function fixture() {
-  const root = mkdtempSync(path.join(realpathSync(tmpdir()),"harness-session-test-"));
+  const root = mkdtempSync(path.join(realpathSync.native(tmpdir()),"harness-session-test-"));
   execFileSync("git", ["init", root], { stdio: "ignore" });
   const location = gitRoot(root), files = stateFiles(location.directory);
   const binding = { root: location.root, server: "http://127.0.0.1:1", project: "test", configHash: "1".repeat(64), tokenHash: "2".repeat(64) };
