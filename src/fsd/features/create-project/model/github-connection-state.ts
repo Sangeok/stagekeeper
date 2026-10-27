@@ -7,6 +7,7 @@ export const authorizedRepositorySchema = z.object({ source: z.literal("authoriz
 export type AuthorizedRepository = z.infer<typeof authorizedRepositorySchema>;
 export type ConnectionView = { available: boolean; status: "not-connected" | "connected" | "reauth-required"; revision: number | null; notice: string | null };
 export type PickerInitialState = { userKey: string; connection: ConnectionView };
+export type RepositoryConnectionOperation = "idle" | "opening" | "disconnecting";
 export const OFF_PICKER: PickerInitialState = { userKey: "", connection: { available: false, status: "not-connected", revision: null, notice: null } };
 
 export const savedDraftSchema = z.object({ selection: z.discriminatedUnion("source", [

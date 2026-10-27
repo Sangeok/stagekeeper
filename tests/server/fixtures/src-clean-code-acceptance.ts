@@ -26,6 +26,26 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
   };
   const mount = async (mode: string, picker = false) => { render(mode, picker); await tick(); };
   if (!new URLSearchParams(location.search).has("private-only")) {
+  for (const kind of ["hs", "hu", "ho"] as const) for (const outcome of ["success", "error", "unknown"] as const) {
+    await run(`rename ${kind} ${outcome}`, "the shared form preserves required input, one pending request, scope, reset/refresh and server label updates", async () => {
+      await mount("token-rename");
+      const scope = document.getElementById(`rename-${kind}`)!;
+      const selector = `#rename-${kind} input[name="label"]`;
+      const original = document.querySelector<HTMLInputElement>(selector)!.value;
+      input(selector, ""); await click("Save name", scope);
+      check(controls.payloads.length === 0, "empty name reached the Action");
+      input(selector, "Renamed"); await click("Save name", scope);
+      check(find("Saving…", scope).disabled && scope.querySelector<HTMLInputElement>("input")?.disabled, "pending rename was not locked");
+      await click("Saving…", scope);
+      check(JSON.stringify(controls.payloads) === JSON.stringify([{ kind, label: "Renamed" }]), "rename scope changed or duplicate request sent");
+      controls.finishAction(outcome); await tick(); await tick();
+      check(scope.querySelector<HTMLInputElement>("input")?.value === (outcome === "success" ? "Renamed" : original), "rename result/reset differs");
+      check(controls.refreshes === (outcome === "success" ? 0 : 1), "rename refresh contract differs");
+      check(outcome === "success" ? !scope.querySelector('[role="alert"]') : scope.querySelector('[role="alert"]')?.textContent === (outcome === "error" ? "Refused" : "Could not save the name. The list will be refreshed."), "rename error guidance differs");
+      await click("Receive token labels");
+      check(scope.querySelector<HTMLInputElement>("input")?.value === `server-${original}`, "new server label did not update the input");
+    });
+  }
   await run("Documents preserve duplicate links across updates", "plan and every distinct report retain their DOM identity with no duplicate-key warnings", async () => {
     await mount("documents");
     const section = [...document.querySelectorAll("section")].find(section => section.querySelector("h2")?.textContent === "Documents");
@@ -500,6 +520,82 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     check(document.querySelector<HTMLInputElement>('input[name="branch"]')?.value === "keep-branch" && document.querySelector<HTMLInputElement>('input[name="connectionRevision"]')?.value === "5", "refresh overwrote input or retained stale revision");
     await click("Disconnect repository list"); await click("Confirm list disconnect");
     check(!document.querySelector('input[name="repositoryId"]') && document.querySelector<HTMLInputElement>('input[name="owner"]')?.value === "" && document.querySelector<HTMLInputElement>('input[name="name"]')?.value === "Keep name", "disconnect retained private selection or erased project details");
+  });
+  const listRequests = () => githubControls.requests.filter(path => path === "GET /api/github/repositories").length;
+  const beginCooldown = async () => {
+    await mount("private-cooldown"); await click("private-org/private-service · Private release");
+    githubControls.limitList(); await click("Reload repository list");
+    check(find("Reload repository list").disabled && document.querySelector('[role="status"]')?.textContent === "Wait before retrying repositories.", "rate limit did not lock retry with its message");
+    check(githubControls.cooldownTimerCount() === 1, "cooldown timer missing");
+  };
+  await run("private cooldown event policy", "all visibility/focus events suppress list requests while session probes remain active; expiry only unlocks retry", async () => {
+    await beginCooldown(); const calls = listRequests();
+    for (const [target, event] of [[window, "focus"], [window, "pageshow"], [document, "visibilitychange"]] as const) {
+      target.dispatchEvent(new Event(event)); await tick();
+      check(listRequests() === calls, `${event} bypassed cooldown`);
+      check(document.querySelector('[role="status"]')?.textContent === "Wait before retrying repositories.", `${event} replaced rate guidance`);
+    }
+    check(githubControls.requests.filter(path => path === "GET /api/github/connection/draft").length === 3, "session probes were omitted or repeated");
+    await click("Reload repository list"); check(listRequests() === calls, "disabled retry requested a list");
+    await click("Start over"); check(find("Reload repository list").disabled, "Start over bypassed cooldown");
+    githubControls.allowList(); githubControls.expireCooldown(); await tick();
+    check(listRequests() === calls && !find("Reload repository list").disabled, "expiry fetched or failed to unlock retry");
+    await click("Reload repository list");
+    check(listRequests() === calls + 1 && githubControls.cooldownTimerCount() === 0, "explicit retry did not run once");
+  });
+  for (const failure of ["rate", "unavailable"] as const) await run(`private cooldown probe ${failure}`, "a failed session probe leaves the list deadline and rate guidance unchanged", async () => {
+    await beginCooldown(); const calls = listRequests();
+    if (failure === "rate") githubControls.limitProbe(); else githubControls.failProbe();
+    window.dispatchEvent(new Event("focus")); await tick();
+    check(listRequests() === calls && find("Reload repository list").disabled && githubControls.cooldownTimerCount() === 1, "probe error altered cooldown");
+    check(document.querySelector('[role="status"]')?.textContent === "Wait before retrying repositories.", "probe error replaced list guidance");
+  });
+  await run("private cooldown session loss", "an expired account still leaves the form during cooldown and clears the timer", async () => {
+    await beginCooldown(); const calls = listRequests();
+    githubControls.expire(); window.dispatchEvent(new Event("focus")); await tick();
+    check(listRequests() === calls && document.body.textContent?.includes("Sign in again before creating a project"), "cooldown hid session loss");
+    check(!document.querySelector('input[name="repositoryId"]') && githubControls.cooldownTimerCount() === 0, "lost session retained a selection or timer");
+  });
+  await run("private cooldown stale probe", "Start over invalidates a late session response without bypassing the list deadline", async () => {
+    await beginCooldown(); githubControls.holdProbe(); window.dispatchEvent(new Event("focus")); await tick();
+    check(githubControls.pendingCount() === 1, "session probe not held");
+    await click("Start over"); githubControls.releaseProbe(); await tick();
+    check(!document.body.textContent?.includes("Sign in again before creating a project") && find("Reload repository list").disabled, "stale probe replaced the current form");
+  });
+  await run("private cooldown delayed timer", "an elapsed absolute deadline allows refresh even before the delayed timer fires", async () => {
+    await beginCooldown(); const calls = listRequests();
+    githubControls.allowList(); githubControls.elapseCooldown(); window.dispatchEvent(new Event("focus")); await tick();
+    check(listRequests() === calls + 1 && !find("Reload repository list").disabled && githubControls.cooldownTimerCount() === 0, "delayed timer trapped the list");
+  });
+  await run("private cooldown unmount cleanup", "unmount cancels the deadline and held probe; the next form starts without stale state", async () => {
+    await beginCooldown(); githubControls.holdProbe(); window.dispatchEvent(new Event("focus")); await tick();
+    const pendingCount = githubControls.pendingCount, timerCount = githubControls.cooldownTimerCount, release = githubControls.releaseProbe;
+    cleanup(); await tick(); release(); await tick();
+    check(pendingCount() === 0 && timerCount() === 0, "fixture retained a probe or timer");
+    await mount("private-ready"); check(!find("Reload repository list").disabled && !document.body.textContent?.includes("Sign in again before creating a project"), "old state leaked into new mount");
+  });
+  await run("private operation messages", "opening and disconnecting announce different pending actions and retain button locks", async () => {
+    await mount("private-operation"); await click("private-org/private-service · Private release");
+    await click("Manage repository access");
+    check(document.querySelector('[role="status"]')?.textContent === "Opening repository connection…" && find("Disconnect repository list").disabled, "opening state/lock wrong");
+    githubControls.releaseStart(); await tick();
+    await click("Disconnect repository list"); await click("Confirm list disconnect");
+    check(document.querySelector('[role="status"]')?.textContent === "Disconnecting repository list…" && find("Manage repository access").disabled, "disconnect announced opening or unlocked controls");
+    githubControls.releaseDisconnect(); await tick();
+    check(document.body.textContent?.includes("Repository list stopped here.") && !document.querySelector('input[name="repositoryId"]'), "disconnect did not settle");
+  });
+  await run("private operation stale finally", "an old opening response cannot clear a newer pending operation after Start over", async () => {
+    await mount("private-operation"); await click("private-org/private-service · Private release");
+    await click("Manage repository access"); await click("Start over");
+    await click("Manage repository access"); githubControls.releaseStart(); await tick();
+    check(document.querySelector('[role="status"]')?.textContent === "Opening repository connection…" && find("Manage repository access").disabled, "old finally unlocked the new operation");
+    githubControls.releaseStart(); await tick(); check(!find("Manage repository access").disabled, "new operation did not settle");
+  });
+  await run("private operation session loss", "session loss unmounts a pending disconnect and a late response cannot restore it", async () => {
+    await mount("private-operation"); await click("Disconnect repository list"); await click("Confirm list disconnect");
+    githubControls.expire(); window.dispatchEvent(new Event("focus")); await tick();
+    githubControls.releaseDisconnect(); await tick();
+    check(document.body.textContent?.includes("Sign in again before creating a project") && !document.body.textContent?.includes("Repository list stopped here."), "late disconnect changed the expired form");
   });
   const output = document.createElement("pre"); output.id = "acceptance-results"; output.textContent = JSON.stringify(results, null, 2);
   document.querySelector("#acceptance-results")?.remove(); document.body.append(output);

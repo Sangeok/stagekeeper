@@ -4,9 +4,9 @@ import { failure, success, type ActionResult } from "@/fsd/shared/api/result";
 import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import { changePipeline } from "@/server/pipeline/api.server";
-import { changePipelineInputSchema } from "../model/change-input";
+import { changePipelineInputSchema, type ChangePipelineInput } from "../model/change-input";
 
-export async function changeItemPipeline(slug: string, input: { key: string; pipelineId: string; expectedUpdatedAt: string }): Promise<ActionResult<null>> {
+export async function changeItemPipeline(slug: string, input: ChangePipelineInput): Promise<ActionResult<null>> {
   const access = await requireProjectWrite(slug);
   if (!access.ok) return failure(access.reason);
   const parsed = changePipelineInputSchema.safeParse(input);

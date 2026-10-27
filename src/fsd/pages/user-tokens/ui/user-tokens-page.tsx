@@ -1,8 +1,7 @@
 import type { ReactElement } from "react";
 import type { TokenRow } from "@/fsd/entities/project-token";
 import { TokenTable } from "@/fsd/entities/project-token/index.server";
-import { NewUserTokenForm } from "@/fsd/features/manage-token";
-import { RenameUserTokenForm } from "@/fsd/features/manage-user-token";
+import { NewUserTokenForm, RenameTokenForm } from "@/fsd/features/manage-token";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { Button } from "@/fsd/shared/ui/button";
 import { Code } from "@/fsd/shared/ui/code";
@@ -46,7 +45,7 @@ export function UserTokensPage({ mcpUrl, tokens, issue, revoke, rename, at }: Pr
       <NewUserTokenForm issue={issue} mcpUrl={mcpUrl} />
 
       <TokenTable tokens={tokens} at={at} reference="user" headingLevel={2} empty="No tokens yet. Issue one above."
-        renderName={(row) => <RenameUserTokenForm label={row.label} rename={rename.bind(null, row.id)} />}
+        renderName={(row) => <RenameTokenForm label={row.label} rename={rename.bind(null, row.id)} />}
         renderRevoke={(row) => <form action={revoke.bind(null, row.id)}><Button size="sm" type="submit">Revoke</Button></form>} />
     </main>
   );

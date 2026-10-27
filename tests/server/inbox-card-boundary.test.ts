@@ -162,7 +162,9 @@ it("checks the fresh inbox client-reference manifest when explicitly run after b
   }
   assert.ok(!allModules.some(name => /[\\/](token-table|project-inbox-page|project-tokens-page|user-tokens-page)\.tsx$/.test(name)));
   assert.ok(allModules.some(name => name.includes("rename-token-form.tsx")));
-  assert.ok(allModules.some(name => name.includes("rename-user-token-form.tsx")));
+  assert.ok(!allModules.some(name => name.includes("rename-user-token-form.tsx")));
+  assert.equal(existsSync("src/fsd/features/manage-user-token/ui/rename-user-token-form.tsx"), false);
+  assert.equal(existsSync("src/fsd/features/manage-user-token/index.ts"), false);
   const routes = JSON.parse(read(".next/server/app-paths-manifest.json"));
   for (const route of ["/page", "/(app)/p/[slug]/page", "/(app)/p/[slug]/backlog/page", "/(app)/p/[slug]/tokens/page", "/(app)/p/[slug]/inbox/page", "/(app)/p/[slug]/items/[key]/page", "/(app)/settings/tokens/page", "/(app)/p/new/page"]) { assert.equal(typeof routes[route], "string", route); assert.ok(existsSync(join(".next/server", routes[route]))); }
   assert.equal(existsSync("app"), false);

@@ -6,7 +6,7 @@ import { NewProjectForm } from "../../../src/fsd/features/create-project";
 import { CopyButton } from "../../../src/fsd/shared/ui/copy-button";
 import { TokenReveal } from "../../../src/fsd/entities/project-token/ui/token-reveal";
 import { OwnerTokenReveal } from "../../../src/fsd/entities/project-token/ui/owner-token-reveal";
-import { NewTokenForm, NewUserTokenForm, NewOwnerTokenForm } from "@/fsd/features/manage-token";
+import { NewTokenForm, NewUserTokenForm, NewOwnerTokenForm, RenameTokenForm } from "@/fsd/features/manage-token";
 import { NextStepContent } from "../../../src/fsd/widgets/turn-banner/ui/next-step";
 import { TurnBanner } from "../../../src/fsd/widgets/turn-banner/ui/turn-banner";
 import { deriveTurn, type Turn } from "../../../src/fsd/widgets/turn-banner/model/turn";
@@ -24,7 +24,7 @@ import { toItemDocs } from "../../../src/fsd/pages/board-item/model/item-docs";
 import type { ActionResult } from "../../../src/fsd/shared/api/result";
 import { defaultGraph } from "../../../packages/core/pipeline/pipeline.mjs";
 import { runAcceptance } from "./src-clean-code-acceptance";
-import { installGitHubPickerFixture } from "./github-picker-browser";
+import { githubControls, installGitHubPickerFixture } from "./github-picker-browser";
 
 const controls = {
   submissions: [] as Record<string, FormDataEntryValue>[],
@@ -125,7 +125,7 @@ function ResumeFixture() {
 
 function FormFixture() {
   const picker = new URLSearchParams(location.search).has("picker") || fixturePicker;
-  return <NewProjectForm defaultOwner="fixture-owner" repoLoadFailed={false} mcpUrl="https://fixture.test/api/mcp"
+  return <>{new URLSearchParams(location.search).get("mode") === "private-cooldown" ? <RepositoryFixtureControls /> : null}<NewProjectForm defaultOwner="fixture-owner" repoLoadFailed={false} mcpUrl="https://fixture.test/api/mcp"
     picker={githubFixture?.initial}
     repos={picker ? [{ source: "public", repositoryId: "1", owner: "fixture-owner", name: "picked-repo", defaultBranch: "release/picked" }, { source: "public", repositoryId: "2", owner: "fixture-owner", name: "second-repo", defaultBranch: "main" }] : []}
     action={async (_previous, data) => {
@@ -134,7 +134,19 @@ function FormFixture() {
       return controls.registration === "created"
         ? { status: "created", slug: "actual-slug", token: "hs_fixture-created" }
         : { status: controls.registration, slug: "actual-slug" };
-    }} />;
+    }} /></>;
+}
+
+function RepositoryFixtureControls() {
+  const [requests, setRequests] = useState<string[]>([]);
+  return <section aria-label="Repository fixture controls">
+    <button onClick={() => githubControls.limitList()}>Rate limit next list</button>
+    <button onClick={() => githubControls.allowList()}>Allow list requests</button>
+    <button onClick={() => githubControls.expireCooldown()}>Expire cooldown</button>
+    <button onClick={() => githubControls.expire()}>Expire session</button>
+    <button onClick={() => setRequests([...githubControls.requests])}>Read request log</button>
+    <pre aria-label="Repository request log">{JSON.stringify(requests)}</pre>
+  </section>;
 }
 
 function NextStepFixture({ steps }: Pick<Parameters<typeof NextStepContent>[0], "steps">) {
@@ -173,6 +185,20 @@ function TokenIssuanceFixture() {
     <section id="issue-hs"><NewTokenForm issue={issue("hs")} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="issue-hu"><NewUserTokenForm issue={issue("hu")} mcpUrl="https://fixture.test/api/mcp" /></section>
     <section id="issue-ho"><NewOwnerTokenForm issue={issue("ho")} ownerMcpUrl="https://fixture.test/api/mcp/owner" /></section>
+  </>;
+}
+
+function TokenRenameFixture() {
+  const [labels, setLabels] = useState({ hs: "agent", hu: "user", ho: "owner" });
+  return <>
+    <button onClick={() => setLabels({ hs: "server-agent", hu: "server-user", ho: "server-owner" })}>Receive token labels</button>
+    {(["hs", "hu", "ho"] as const).map(kind => <section id={`rename-${kind}`} key={kind}>
+      <RenameTokenForm label={labels[kind]} rename={async label => {
+        const result = await action<ActionResult<null>>({ kind, label }, { success: { success: true, data: null }, error: { success: false, error: "Refused" }, stale: { success: false, error: "stale" } });
+        if (result.success) setLabels(previous => ({ ...previous, [kind]: label }));
+        return result;
+      }} />
+    </section>)}
   </>;
 }
 
@@ -268,7 +294,7 @@ function renderMode(mode: string, picker = false) {
     restoreConsole = () => { console.error = originalError; };
   }
   root = createRoot(document.getElementById("root")!);
-  root.render(<AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+  root.render(<AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
 }
 const toolbar = document.createElement("div");
 const run = document.createElement("button"); run.textContent = "Run acceptance";
