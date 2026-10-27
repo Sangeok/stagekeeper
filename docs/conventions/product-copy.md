@@ -1270,6 +1270,7 @@ both). Below: each file's title, its section headings, and the sentences that se
 | poller-active | A watcher is already running for this session. |
 | protocol-error | Unexpected MCP response. Update the compatible plugin and server before restarting. |
 | request-failed | Five consecutive watch requests failed. Resolve the server or connection error before restarting. |
+| newer-state | A newer Stagekeeper plugin holds this checkout. You can stop it from here, but update this plugin before you start or release here. |
 | access-refused | Safe server refusal data; not a fixed sentence. |
 
 HTTP authentication fallback: "The server refused HARNESS_TOKEN (401)." (403 uses 403).
@@ -1298,7 +1299,7 @@ output's edit line were settled first, and the rest followed.
 - Policy question, once per start: "Should the runner also start new work, or only continue items already on the board?" New work defaults to no. The skill also says: "The runner commits its work in this checkout and never pushes."
 - Start hand-off. The skill never starts the runner itself. Claude Code's auto mode refuses a command that leaves a process running after the session, so the skill hands the command to the owner: "Starting a process that keeps running after this session is your call. Run this yourself:" — followed by one `!` line. Sign-in start uses the same hand-off.
 - Stop: "The runner finishes the run in progress, then stops." (`stopping`) · "The runner stopped." (`stopped`). A runner with no process left whose lock cannot be cleared on its own (a Codex runner, or a run that did not settle) gives the `held` refusal instead.
-- Status: plain lines from `--status`. A sign-in task registered by an older plugin adds: "Sign-in start points at an older plugin. Turn it off and on again." A `held` status adds the `held` sentence.
+- Status: plain lines from `--status`. A sign-in task registered by an older plugin adds: "Sign-in start points at an older plugin. Turn it off and on again." A `held` status adds the `held` sentence. A `newer` status adds the `newer-state` sentence, confirmed with the owner on 2026-10-27.
 - Release, confirmed with the owner on 2026-10-27. After a `held` refusal or status, the skill runs `--release` and repeats its lines, then asks once: "No runner process is left, but this checkout is still held. Release it so a runner can start here again?" Only an explicit yes runs `--release --session {session}`; the skill runs both itself because neither starts a process. Lines, one each before the JSON line:
   - "The runner that started {startedAt} has no process left."
   - "Its last run did not finish cleanly." (only when the run did not settle)
@@ -1356,6 +1357,7 @@ Start and sign-in refusals (`harness-background.mjs`, `code` → sentence; print
 | held | A stopped runner still holds this checkout (started {startedAt}). No runner process is left. Check the checkout, then release it with /harness:background release. |
 | still-running | The runner is still running. Stop it with /harness:background stop, then wait until it stops. |
 | release-changed | The runner in this checkout changed after you checked it. Check it again with /harness:background release. |
+| newer-state | A newer Stagekeeper plugin holds this checkout. You can stop it from here, but update this plugin before you start or release here. |
 | autostart-branch | Sign-in start was set up on {branch}, but this checkout is on {current}. Switch back, or turn sign-in start off and on again. |
 | autostart-missing | Sign-in start is not set up for this checkout. |
 | autostart-windows | Sign-in start is available on Windows only. |

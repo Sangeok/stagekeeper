@@ -7,7 +7,8 @@ import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
 import { parseBearer } from "../lib/tokens/token.mjs";
 import { actionableWork, hasWork, nextWatchState, parseToolResponse, workSignature } from "../lib/execution/watch.mjs";
 
-import { WatchFailure, Interrupted, gitRoot, stateFiles, readState, atomicWrite, isAlive, withGuard, replaced, matchesBinding, requireOwnership, clearState, checkoutRunbookVersion } from "../runtime/local-session.mjs";
+import { WatchFailure, Interrupted, NewerState, gitRoot, stateFiles, readState, atomicWrite, isAlive, withGuard, replaced, matchesBinding, requireOwnership, clearState,
+  checkoutRunbookVersion, writeStopRequest } from "../runtime/local-session.mjs";
 import { runnerCall, runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 
 const REASONS = {
@@ -429,12 +430,20 @@ async function main() {
     if (options.mode === "stop") {
       if (!existsSync(location.directory)) event = { event: "stopped", session: options.session };
       else event = await withGuard(files, () => {
-        const state = readState(files);
+        let state;
+        try { state = readState(files); }
+        catch (error) {
+          if (!(error instanceof NewerState) || error.session === null) throw error;
+          if (error.session !== options.session) return replaced(options.session, null);
+          writeStopRequest(files, options.session);
+          return { event: "stopping", session: options.session };
+        }
         if (state === null) return { event: "stopped", session: options.session };
         if (state.lock.id !== options.session) return replaced(options.session, state);
         if (state.lock.lifecycle !== undefined) {
           state.lock.lifecycle = "stopping";
           atomicWrite(files.lock, state.lock);
+          writeStopRequest(files, options.session);
           return { event: "stopping", session: options.session };
         }
         clearState(files);

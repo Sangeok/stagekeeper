@@ -10,8 +10,8 @@ import { parseBearer } from "../lib/tokens/token.mjs";
 import { actionableWork } from "../lib/execution/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
   readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
-import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, markUnsettled, matchesBinding, readState, readStateWithGuard, recordedChildren,
-  registerChild, residentLock, settleChild, stateFiles, withGuard } from "../runtime/local-session.mjs";
+import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, lifecycleOf, markUnsettled, matchesBinding, NewerState, readState, readStateWithGuard,
+  recordedChildren, registerChild, residentLock, settleChild, stateFiles, withGuard, writeStopRequest } from "../runtime/local-session.mjs";
 import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 import { createCodexExecution } from "../runtime/codex-main-loop.mjs";
@@ -50,6 +50,7 @@ export const REASONS = {
   "held": "A stopped runner still holds this checkout (started {startedAt}). No runner process is left. Check the checkout, then release it with /harness:background release.",
   "still-running": "The runner is still running. Stop it with /harness:background stop, then wait until it stops.",
   "release-changed": "The runner in this checkout changed after you checked it. Check it again with /harness:background release.",
+  "newer-state": "A newer Stagekeeper plugin holds this checkout. You can stop it from here, but update this plugin before you start or release here.",
   "autostart-branch": "Sign-in start was set up on {branch}, but this checkout is on {current}. Switch back, or turn sign-in start off and on again.",
   "autostart-missing": "Sign-in start is not set up for this checkout.",
   "autostart-windows": "Sign-in start is available on Windows only.",
@@ -398,7 +399,13 @@ async function stop(files) {
   if (!existsSync(files.directory)) return { event: "error", code: "not-running", reason: REASONS["not-running"] };
   let stopped = null;
   const event = await withGuard(files, () => {
-    const state = readState(files);
+    let state;
+    try { state = readState(files); }
+    catch (error) {
+      if (!(error instanceof NewerState) || error.session === null) throw error;
+      writeStopRequest(files, error.session);
+      return { event: "stopping", session: error.session };
+    }
     if (state === null || state.lock.mode !== "resident") return { event: "error", code: "not-running", reason: REASONS["not-running"] };
     if (staleResident(state)) {
       stopped = state.lock;
@@ -408,6 +415,7 @@ async function stop(files) {
     if (heldResident(state)) refuse("held", { startedAt: state.lock.startedAt }, state.lock.client);
     state.lock.lifecycle = "stopping";
     atomicWrite(files.lock, state.lock);
+    writeStopRequest(files, state.lock.id);
     return { event: "stopping", session: state.lock.id };
   });
   if (stopped) await stopRunnerLease(stopped);
@@ -457,13 +465,18 @@ async function release(location, files, options) {
 
 async function status(files) {
   const directory = files.directory;
-  let state = null;
+  let state = null, newer = null;
   try { state = await readStateWithGuard(files); }
-  catch (error) { recordStateFailure(directory, "status", error); state = null; }
+  catch (error) {
+    if (error instanceof NewerState) newer = error;
+    else recordStateFailure(directory, "status", error);
+    state = null;
+  }
   const saved = readOptional(statusFile(directory));
   const autostart = readOptional(autostartFile(directory));
   const running = state?.lock.mode === "resident" && state.lock.poller !== null && isAlive(state.lock.poller.pid);
-  return { event: "status", running, held: state !== null && heldResident(state), client: state?.lock.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : null,
+  return { event: "status", running, held: state !== null && heldResident(state), newer: newer !== null,
+    client: state?.lock.client ?? newer?.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : newer?.session ?? null,
     lifecycle: state?.lock.mode === "resident" ? state.lock.lifecycle : null,
     otherSession: state && state.lock.mode !== "resident" ? state.lock.mode ?? "watch" : null,
     host: saved?.host ?? null, branch: saved?.branch ?? null, permission: saved?.permission ?? null, state: saved?.state ?? null,
@@ -482,7 +495,7 @@ function userEnvironment(name) {
 }
 
 const SIGNIN_CODES = { dirty: "dirty", "autostart-branch": "autostart-branch", detached: "detached", "push-url": "push-url", locked: "checkout-in-use",
-  held: "checkout-in-use" };
+  held: "checkout-in-use", "newer-state": "checkout-in-use" };
 const SIGNIN_UNREPORTED = new Set(["invalid-arguments", "invalid-config", "missing-server", "invalid-token", "identity-mismatch", "busy", "plan",
   "no-route", "autostart-missing"]);
 
@@ -565,7 +578,7 @@ async function resident(location, files, options) {
     try {
       const state = await readStateWithGuard(files);
       if (state?.lock.id !== session) return "gone";
-      return state.lock.lifecycle === "stopping" ? "stopping" : "active";
+      return lifecycleOf(state) === "stopping" ? "stopping" : "active";
     } catch (error) { recordStateFailure(directory, "lifecycle", error); return "gone"; }
   };
   let execution;

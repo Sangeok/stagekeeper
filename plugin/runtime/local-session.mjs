@@ -20,6 +20,7 @@ const REASONS = {
   "poller-active": "A watcher is already running for this session.",
   "protocol-error": "Unexpected MCP response. Update the compatible plugin and server before restarting.",
   "request-failed": "Five consecutive watch requests failed. Resolve the server or connection error before restarting.",
+  "newer-state": "A newer Stagekeeper plugin holds this checkout. You can stop it from here, but update this plugin before you start or release here.",
 };
 
 const GUARD_LIMIT = 5000;
@@ -29,6 +30,14 @@ const fail = (code, reason, diagnostic) => { throw new WatchFailure(code, reason
 export class WatchFailure extends Error {
   constructor(code, reason = REASONS[code], diagnostic) { super(reason); this.code = code; if (diagnostic) this.diagnostic = diagnostic; }
 }
+export class NewerState extends WatchFailure {
+  constructor(lock) {
+    super("newer-state");
+    this.session = nonempty(lock?.id) ? lock.id : null;
+    this.client = ["claude", "codex"].includes(lock?.client) ? lock.client : null;
+  }
+}
+const newerThanKnown = value => isObject(value) && Number.isInteger(value.schemaVersion) && value.schemaVersion > 1;
 export class Interrupted extends Error {
   constructor(event) { super(event.event); this.event = event; }
 }
@@ -64,7 +73,15 @@ export function checkoutRunbookVersion(root) {
 }
 
 export function stateFiles(directory) {
-  return { policy: path.join(directory, "watch.json"), lock: path.join(directory, "watch.lock.json"), guard: path.join(directory, "watch.guard") };
+  return { policy: path.join(directory, "watch.json"), lock: path.join(directory, "watch.lock.json"), guard: path.join(directory, "watch.guard"),
+    stop: path.join(directory, "watch.stop.json") };
+}
+function stopRequestSession(files) {
+  if (!files.stop || !existsSync(files.stop)) return null;
+  try {
+    const request = JSON.parse(readFileSync(files.stop, "utf8"));
+    return isObject(request) && request.schemaVersion === 1 && nonempty(request.session) ? request.session : null;
+  } catch { return null; }
 }
 export function readJson(file) {
   try { return JSON.parse(readFileSync(file, "utf8")); }
@@ -72,10 +89,12 @@ export function readJson(file) {
 }
 export function readState(files) {
   const directory = path.dirname(files.lock), common = path.dirname(directory);
-  for (const file of [files.policy, files.lock, files.guard]) safeTarget(common, path.relative(common, file));
+  for (const file of [files.policy, files.lock, files.guard, files.stop].filter(Boolean)) safeTarget(common, path.relative(common, file));
   if (!existsSync(files.lock) && !existsSync(files.policy)) return null;
   const lock = readJson(files.lock);
+  if (newerThanKnown(lock)) throw new NewerState(lock);
   const policy = readJson(files.policy);
+  if (newerThanKnown(policy)) throw new NewerState(lock);
   const binding = lock?.binding;
   const state = lock?.state;
   const poller = lock?.poller;
@@ -98,8 +117,9 @@ export function readState(files) {
     || (lock.runnerLease !== undefined && typeof lock.runnerLease !== "boolean")
     || (lock.unsettled !== undefined && typeof lock.unsettled !== "boolean")
     || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce))))) fail("corrupt-state", undefined, stateDiagnostic("state-schema", files.lock));
-  return { lock, policy };
+  return { lock, policy, stopRequested: stopRequestSession(files) === lock.id };
 }
+export const lifecycleOf = state => (state.stopRequested || state.lock.lifecycle === "stopping" ? "stopping" : state.lock.lifecycle ?? "active");
 export function atomicWrite(file, value) {
   try { atomicText(file, JSON.stringify(value) + "\n"); }
   catch (error) { fail("corrupt-state", undefined, stateDiagnostic("state-write", file, error)); }
@@ -146,9 +166,14 @@ export function requireOwnership(state, session, binding, nonce) {
   if (state === null || state.lock.id !== session) throw new Interrupted(replaced(session, state));
   if (!matchesBinding(state.lock.binding, binding)) fail("binding-changed");
   if (nonce !== undefined && state.lock.poller?.nonce !== nonce) throw new Interrupted(replaced(session, state));
-  if (state.lock.lifecycle === "stopping") throw new Interrupted({ event: "stopping", session });
+  if (lifecycleOf(state) === "stopping") throw new Interrupted({ event: "stopping", session });
 }
-export function clearState(files) { unlinkSync(files.lock); unlinkSync(files.policy); }
+export function clearState(files) {
+  unlinkSync(files.lock);
+  unlinkSync(files.policy);
+  if (files.stop && existsSync(files.stop)) unlinkSync(files.stop);
+}
+export function writeStopRequest(files, session) { atomicWrite(files.stop, { schemaVersion: 1, session, requestedAt: new Date().toISOString() }); }
 
 const LEGACY_RECLAIM_GUARD_NONCE = "legacy-reclaim-guard";
 export const LEGACY_RECLAIM_GUARD = Object.freeze({ pid: process.platform === "win32" ? 4 : 1, nonce: LEGACY_RECLAIM_GUARD_NONCE });
@@ -170,7 +195,7 @@ export function residentLock({ session, binding, client, host, at }) {
 
 export function sessionView(state) {
   return { session: state.lock.id, client: state.lock.client ?? "claude", mode: state.lock.mode ?? "watch",
-    lifecycle: state.lock.lifecycle ?? "active", host: state.lock.host ?? null,
+    lifecycle: lifecycleOf(state), host: state.lock.host ?? null,
     policy: { commit: state.policy.commit, propose: state.policy.propose } };
 }
 
@@ -204,11 +229,19 @@ export async function checkSession(files, session, binding) {
 export async function requestStop(files, session) {
   if (!existsSync(path.dirname(files.lock))) return { event: "stopped", session };
   return withGuard(files, () => {
-    const state = readState(files);
+    let state;
+    try { state = readState(files); }
+    catch (error) {
+      if (!(error instanceof NewerState) || error.session === null) throw error;
+      if (error.session !== session) return replaced(session, null);
+      writeStopRequest(files, session);
+      return { event: "stopping", session };
+    }
     if (state === null) return { event: "stopped", session };
     if (state.lock.id !== session) return replaced(session, state);
     state.lock.lifecycle = "stopping";
     atomicWrite(files.lock, state.lock);
+    writeStopRequest(files, session);
     return { event: "stopping", ...sessionView(state) };
   });
 }
@@ -219,7 +252,7 @@ export async function releaseSession(files, session) {
     const state = readState(files);
     if (state === null) return { event: "released", session };
     if (state.lock.id !== session) return replaced(session, state);
-    if (state.lock.lifecycle !== "stopping") return { event: "error", code: "stop-required", session };
+    if (lifecycleOf(state) !== "stopping") return { event: "error", code: "stop-required", session };
     if (state.lock.poller !== null || recordedChildren(state.lock).length !== 0) return { event: "error", code: "quiescence-required", session };
     clearState(files);
     return { event: "released", session };

@@ -8,7 +8,8 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
+import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild, lifecycleOf, NewerState,
+  writeStopRequest } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
 import { dispatchBinding, codexFailure, qaWorkflowFile } from "./harness-codex.mjs";
 import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, dispatchFreshRole, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
@@ -215,6 +216,38 @@ it("legacy v1 defaults remain Claude/watch/active and a poller cannot be release
   assert.equal(view.client, "claude"); assert.equal(view.mode, "watch"); assert.equal(view.lifecycle, "active");
   assert.equal((await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false })).event, "locked");
   await requestStop(f.files, start.session); assert.equal((await releaseSession(f.files, start.session)).code, "quiescence-required");
+});
+
+it("treats a stop request file as stopping without the lock lifecycle and clears it with the lock", async () => {
+  const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  writeStopRequest(f.files, started.session);
+  assert.equal(readState(f.files).lock.lifecycle, "active");
+  assert.equal(lifecycleOf(readState(f.files)), "stopping");
+  assert.equal((await checkSession(f.files, started.session, f.binding)).lifecycle, "stopping");
+  assert.equal((await releaseSession(f.files, started.session)).event, "released");
+  assert.equal(existsSync(f.files.stop), false);
+
+  const next = await startSession(f.files, f.binding, { client: "claude", commit: false, propose: false });
+  for (const body of [JSON.stringify({ schemaVersion: 1, session: started.session }), "{"]) {
+    writeFileSync(f.files.stop, body);
+    assert.equal((await checkSession(f.files, next.session, f.binding)).lifecycle, "active");
+  }
+  assert.equal((await requestStop(f.files, next.session)).lifecycle, "stopping");
+  assert.equal(JSON.parse(readFileSync(f.files.stop, "utf8")).session, next.session);
+});
+
+it("reads a newer lock only to show it and to request its stop", async () => {
+  const f = fixture(), session = randomUUID();
+  mkdirSync(path.dirname(f.files.lock), { recursive: true });
+  writeFileSync(f.files.lock, JSON.stringify({ schemaVersion: 2, id: session, client: "codex", shape: "future" }));
+  writeFileSync(f.files.policy, JSON.stringify({ schemaVersion: 2, session }));
+  assert.throws(() => readState(f.files), error => error instanceof NewerState && error.code === "newer-state" && error.session === session && error.client === "codex");
+  await assert.rejects(startSession(f.files, f.binding, { client: "claude", commit: false, propose: false }), { code: "newer-state" });
+  await assert.rejects(releaseSession(f.files, session), { code: "newer-state" });
+  assert.equal((await requestStop(f.files, randomUUID())).event, "replaced");
+  assert.deepEqual(await requestStop(f.files, session), { event: "stopping", session });
+  assert.equal(JSON.parse(readFileSync(f.files.stop, "utf8")).session, session);
+  assert.equal(JSON.parse(readFileSync(f.files.lock, "utf8")).shape, "future");
 });
 
 it("binds the original legacy/slots key and receipt while refusing owner and other-run writes", () => {
