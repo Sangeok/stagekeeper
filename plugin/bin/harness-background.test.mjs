@@ -10,7 +10,8 @@ import { it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runnerHost } from "../runtime/runner-client.mjs";
 import { REASONS, RELEASE_LINES, START_LINES } from "./harness-background.mjs";
-import { atomicWrite, clearState, LEGACY_RECLAIM_GUARD, readState, recordedChildren, residentLock, startSession, stateFiles, withGuard } from "../runtime/local-session.mjs";
+import { atomicWrite, clearState, LEGACY_RECLAIM_GUARD, readState, recordedChildren, residentLock, startSession, stateFiles, withGuard,
+  writeStopRequest } from "../runtime/local-session.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-background.mjs", import.meta.url));
 const TOKEN = "hu_" + "b".repeat(43);
@@ -595,6 +596,36 @@ it("names Codex commands for a crashed Codex runner and treats a fresh lock as s
   assert.equal((await f.run(["--release", "--session", crashed.id])).event.event, "released");
   assert.equal(existsSync(f.lockPath), false);
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.session === crashed.id && call.client === "codex" && call.reason === "owner"));
+});
+
+it("stops a runner from a stop request file alone and removes the request with its lock", async t => {
+  const f = await fixture(t);
+  f.setOverview(EMPTY);
+  const started = await f.run(START);
+  assert.equal(started.event.event, "started");
+  await waitFor(() => f.status()?.state === "idle");
+  const files = stateFiles(f.directory);
+  writeStopRequest(files, started.event.session);
+  await waitFor(() => !existsSync(f.lockPath), 20000, "the runner to stop on the request");
+  assert.equal(existsSync(files.stop), false);
+  assert.equal(f.status().state, "stopped");
+});
+
+it("shows a lock written by a newer plugin and only requests its stop", async t => {
+  const f = await fixture(t), files = stateFiles(f.directory), session = randomUUID();
+  mkdirSync(f.directory, { recursive: true });
+  writeFileSync(files.lock, JSON.stringify({ schemaVersion: 2, id: session, client: "codex", shape: "future" }));
+  writeFileSync(files.policy, JSON.stringify({ schemaVersion: 2, session }));
+  const status = (await f.run(["--status"])).event;
+  assert.deepEqual([status.newer, status.session, status.client, status.held, status.running], [true, session, "codex", false, false]);
+  for (const args of [START, ["--release"], ["--release", "--session", session]]) {
+    const refused = await f.run(args);
+    assert.deepEqual([refused.code, refused.event.code, refused.event.reason], [1, "newer-state", REASONS["newer-state"]]);
+  }
+  assert.deepEqual((await f.run(["--stop"])).event, { event: "stopping", session });
+  assert.equal(JSON.parse(readFileSync(files.stop, "utf8")).session, session);
+  assert.equal(JSON.parse(readFileSync(files.lock, "utf8")).shape, "future");
+  for (const file of [files.lock, files.policy, files.stop]) unlinkSync(file);
 });
 
 async function killMidRun(f, session) {

@@ -662,11 +662,22 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 업데이트된 watch는 `--start --managed`를 사용한다. metadata 없는 legacy stop의 즉시 정리 계약은 유지하되
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 
+정지 요청은 잠금의 `lifecycle:"stopping"`과 함께 `harness/watch.stop.json`(`{schemaVersion:1, session, requestedAt}`)에도
+남긴다. session·background·legacy watch의 stop이 이 파일을 쓰고, 소유자는 잠금의 lifecycle이나 이 파일 가운데 하나가
+자기 session을 가리키면 stopping으로 다룬다(`lifecycleOf`). release는 둘 중 하나만 있어도 stopping으로 본다. 잠금을 지울 때
+이 파일도 지운다. 형식을 읽을 수 없는 파일은 요청이 없는 것으로 본다. 이 파일의 형식은 잠금 형식과 따로 고정해,
+잠금 형식이 바뀌어도 판이 다른 reader가 정지를 요청할 수 있게 한다. 옛 판 소유자는 이 파일을 모르므로 lifecycle도 계속 쓴다.
+
 잠금의 회수 조건을 바꾸는 변경은 출시된 판의 reader가 새 잠금을 지우지 않도록 옛 판이 이해하는 값으로 표현한다.
 옛 판이 무시하는 key에는 잃어도 안전한 정보만 둔다. `plugin/bin/harness-released-readers.test.mjs`는
 `origin/main` 이력에서 찾은 출시 판과 현재 판의 release·legacy stop·status·`--stop`을 현재 writer가 만든
 Codex·unsettled 잠금에 실행해 잠금이 남는지 확인한다. 살아 있는 Codex 실행기를 옛 판이 멈출 수 있는지와
 죽은 Claude 실행기의 잠금이 여전히 회수되는지도 함께 확인한다.
+
+이 판부터 reader는 `schemaVersion`이 1보다 큰 잠금이나 정책을 `newer-state`로 다룬다. status는 `newer:true`와 session을
+보이고, `--stop`은 그 session에 정지 요청 파일만 남기며, start·release·회수는 하지 않는다(읽기는 관대하게, 지우기는 엄격하게).
+그래서 이 판 이후의 reader만 남은 뒤에는 회수 의미를 바꿀 때 `schemaVersion`을 올리면 된다. 그보다 옛 판이 아직 쓰이면,
+옛 판은 1이 아닌 `schemaVersion`을 손상으로 보고 정지도 못 하므로 PID 4 항목처럼 옛 판이 회수하지 않는 표현을 함께 둔다.
 
 Codex role dispatcher는 모델 없는 effective config와 플랫폼별 실행 preflight 후 새 App Server thread를 시작한다.
 역할의 `agent_next` 요청에서 선택적 `entry`·`agentRunId`의 null은 미지정으로 처리한다.

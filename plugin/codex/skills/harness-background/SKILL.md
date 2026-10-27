@@ -35,6 +35,9 @@ Run --release --root <absolute checkout>, repeat the lines it printed and ask on
 "No runner process is left, but this checkout is still held. Release it so a runner can start
 here again?" Only an explicit yes runs --release --session <session from that check> --root
 <absolute checkout>. Never pass any other session ID and never remove state files yourself.
+A newer status or refusal means a newer Stagekeeper plugin holds the checkout: stop still works,
+but say "A newer Stagekeeper plugin holds this checkout. You can stop it from here, but update
+this plugin before you start or release here." and do not start or release.
 
 The Board's Pause stops new work while the current role settles. Wait for the runner's
 paused state before editing. Resume rereads current server work. Branch, dirty-tree,
