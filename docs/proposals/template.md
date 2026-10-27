@@ -112,6 +112,7 @@ Metadata rules:
 - [ ] 타입 선언, 전역 선언, ambient module 영향
 - [ ] 런타임 side effect 또는 초기화 코드
 - [ ] API, localStorage/sessionStorage, analytics, 외부 SDK 영향
+- [ ] 출시된 plugin·서버와 함께 쓰는 상태(로컬 잠금, 서버 행, 응답 형식)를 바꾸면 출시된 각 판이 새 값을 무시·거부·삭제 중 무엇으로 처리하는지 표로 확인했다. 로컬 잠금은 `protocol.md`의 잠금 호환 규칙과 `plugin/bin/harness-released-readers.test.mjs`로 확인한다
 
 `proposal-size: "small"`인 문서에서는 관련 없는 항목을 제거해도 됩니다. 제거하지 않고 남기는 경우에는 확인하지 않은 항목을 체크하지 않은 상태로 둡니다. `proposal-size: "standard"`인 문서에서는 해당 작업과 무관한 항목만 제거합니다.
 

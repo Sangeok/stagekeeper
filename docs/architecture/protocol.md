@@ -350,6 +350,10 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
   - 종료 요청·child settlement가 실패하면 `resident-run-unsettled`로 구분하고 자기 lock을
     stopping으로 보존하고 잠금에 `unsettled:true`를 남긴다. 서버 stop과 clearState를 호출하지 않으며 로컬 상태는
     stopping/unsettled다. 다음 start나 반복 stop은 PID가 사라졌다는 이유로 이 잠금과 미정리 child 기록을 지우지 않는다.
+  - Codex 상주 잠금과 unsettled 잠금의 `children`에는 고정 항목 `{pid, nonce:"legacy-reclaim-guard"}`(Windows는 PID 4,
+    그 밖은 PID 1)을 둔다. plugin 0.5.14~0.5.18의 start·`--stop`은 기록된 PID가 모두 죽어야 잠금을 지우고 권한 오류도
+    살아 있음으로 보므로, 이 항목이 있으면 그 판들은 잠금을 지우지 않고 `--stop`은 stopping만 기록한다.
+    새 판은 이 항목을 child로 세지 않는다. 2026-10-27 혼합 호스트 인수에서 0.5.18이 죽은 Codex 잠금을 지운 F1의 수정이다.
 - 로컬 파일(공통 Git 디렉터리의 `harness/`):
   - `background.json`: 상태(`--status`가 읽음)
   - `background-settings.json`: 허용 목록
@@ -649,6 +653,12 @@ Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를
 미확인 turn을 정리하지 않는다. Claude host는 자신의 native role/tool 완료를 직접 확인해야 한다.
 업데이트된 watch는 `--start --managed`를 사용한다. metadata 없는 legacy stop의 즉시 정리 계약은 유지하되
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
+
+잠금의 회수 조건을 바꾸는 변경은 출시된 판의 reader가 새 잠금을 지우지 않도록 옛 판이 이해하는 값으로 표현한다.
+옛 판이 무시하는 key에는 잃어도 안전한 정보만 둔다. `plugin/bin/harness-released-readers.test.mjs`는
+`origin/main` 이력에서 찾은 출시 판과 현재 판의 release·legacy stop·status·`--stop`을 현재 writer가 만든
+Codex·unsettled 잠금에 실행해 잠금이 남는지 확인한다. 살아 있는 Codex 실행기를 옛 판이 멈출 수 있는지와
+죽은 Claude 실행기의 잠금이 여전히 회수되는지도 함께 확인한다.
 
 Codex role dispatcher는 모델 없는 effective config와 플랫폼별 실행 preflight 후 새 App Server thread를 시작한다.
 역할의 `agent_next` 요청에서 선택적 `entry`·`agentRunId`의 null은 미지정으로 처리한다.
