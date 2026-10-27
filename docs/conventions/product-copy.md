@@ -1371,6 +1371,16 @@ The server keeps one result line per run (`lastResult`, fixed words only, never 
 turns, {n} denied" · "error: {subtype}" · "error: exit {code}" · "ended: the branch changed" · "ended: time
 limit" · "ended: runner stopping".
 
+### Codex foreground session release — `$harness-run`, `$harness-resume`
+
+An earlier Codex foreground session whose host closed can leave a stopped lock with child records whose
+processes are gone, so a normal release keeps answering quiescence-required. Every line below was confirmed
+with the owner on 2026-10-27.
+
+- `prepare` locked by an earlier Codex foreground session: "An earlier Codex session still holds this checkout (started {startedAt}). If that session is closed, I can check whether any of its processes are left."
+- After the owner confirms that session is closed, the skill stops and releases it. When release answers quiescence-required with `processLeft:false`, it asks once: "No Codex process is left for that session, but its last turn did not finish cleanly. Release this checkout so work can start here again?" Only an explicit yes runs `release --session {session} --abandoned yes`.
+- After a release: "Released this checkout." and, only when git status shows changes, "Check uncommitted changes from its last turn before you continue."
+
 ## 16. Landing — public `/` (built 2026-08-30, landing-v2)
 
 - Headline: **Your agents build. You set the rules.** (one line each — a longer second line

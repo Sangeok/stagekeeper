@@ -659,6 +659,12 @@ helper는 full SHA·파일 경로·LF 정규화 내용 hash·agent/key·기존 r
 공통 session CLI의 stop은 token/config 없이 stopping을 기록하고 release는 stopping·poller null·children empty를 요구한다.
 Codex adapter는 terminal turn 확인과 실제 child/bridge 종료 뒤 child를 정리한다. process death만으로
 미확인 turn을 정리하지 않는다. Claude host는 자신의 native role/tool 완료를 직접 확인해야 한다.
+포그라운드 잠금은 호스트 프로세스를 기록하지 않으므로, 호스트가 닫히면 stopping과 끝난 child 기록이 남아 release가
+계속 quiescence-required가 된다. 이때 release는 foreground 잠금에 `processLeft`(poller 또는 살아 있는 child가 있는지)를
+함께 돌려준다. owner가 그 세션이 닫혔다고 확인하고 `processLeft:false`에서 한 번 더 동의하면, Codex skill이
+`release --session <id> --abandoned yes`를 실행한다. guard 안에서 같은 세션·stopping·foreground·poller 없음·기록된
+child 모두 종료를 다시 확인한 뒤 잠금을 지운다. watch·resident 잠금과 살아 있는 child가 있는 세션에는 쓰지 않는다
+(2026-10-27). 거부한 `prepare`의 locked 응답은 이 안내를 위해 `startedAt`을 함께 준다.
 업데이트된 watch는 `--start --managed`를 사용한다. metadata 없는 legacy stop의 즉시 정리 계약은 유지하되
 새 skill/adapter는 그 경로로 managed 잠금을 반납하지 않는다. guard·successor의 ID/nonce를 확인하며 자동 회수하지 않는다.
 

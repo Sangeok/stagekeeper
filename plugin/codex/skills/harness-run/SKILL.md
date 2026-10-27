@@ -20,6 +20,16 @@ Confirm the old Claude/Codex main loop, watch and child roles have actually stop
 a client switch. Reuse durable server approval, never old local commit/proposal permission.
 Use the user's explicit current commit/proposal policy; ask only when it is absent.
 Run `prepare --commit yes|no --propose yes|no`. A locked result is a refusal to start.
+When it names an earlier Codex foreground session (client codex, mode foreground), say
+"An earlier Codex session still holds this checkout (started {startedAt}). If that session is
+closed, I can check whether any of its processes are left." Only after the owner confirms that
+session is closed, run `stop --session <that id>` and then `release --session <that id>`. If
+release answers quiescence-required with processLeft false, ask once: "No Codex process is left
+for that session, but its last turn did not finish cleanly. Release this checkout so work can
+start here again?" Only an explicit yes runs `release --session <that id> --abandoned yes`.
+After either release succeeds, say "Released this checkout." and, when git status shows
+changes, "Check uncommitted changes from its last turn before you continue." Then prepare
+again. Never use this for a watch, a resident runner or a session that still has a process.
 Record the returned session; all work uses that exact active foreground session and policy.
 Check branch, remote, approved commit and local artifacts without reset, stash or auto-commit.
 
@@ -70,4 +80,5 @@ Before parent file writes or outcome/report submissions, check session via harne
 stopping/replacement must not mutate. Stop with `stop --session <id>`, wait for all owned roles,
 turns, requests and tools to settle, then `release --session <id>`. Never call legacy watch --stop
 to release early. A quiescence-required result preserves the lock; do not erase it or steal it.
+Only the owner-confirmed abandoned release above may follow it, and only with processLeft false.
 On error stop the cycle, retain unresolved ownership, and report the specific missing evidence.

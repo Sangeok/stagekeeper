@@ -203,7 +203,7 @@ export async function startSession(files, binding, options) {
   mkdirSync(path.dirname(files.lock), { recursive: true });
   return withGuard(files, () => {
     const state = readState(files);
-    if (state) return { event: "locked", ...sessionView(state) };
+    if (state) return { event: "locked", ...sessionView(state), startedAt: state.lock.startedAt };
     const session = randomUUID(), timestamp = new Date().toISOString();
     const policy = { schemaVersion: 1, session, commit: options.commit, propose: options.propose };
     atomicWrite(files.policy, policy);
@@ -246,14 +246,19 @@ export async function requestStop(files, session) {
   });
 }
 
-export async function releaseSession(files, session) {
+export async function releaseSession(files, session, { abandoned = false } = {}) {
   if (!existsSync(path.dirname(files.lock))) return { event: "released", session };
   return withGuard(files, () => {
     const state = readState(files);
     if (state === null) return { event: "released", session };
     if (state.lock.id !== session) return replaced(session, state);
     if (lifecycleOf(state) !== "stopping") return { event: "error", code: "stop-required", session };
-    if (state.lock.poller !== null || recordedChildren(state.lock).length !== 0) return { event: "error", code: "quiescence-required", session };
+    const children = recordedChildren(state.lock);
+    if (state.lock.poller !== null || children.length !== 0) {
+      const foreground = state.lock.mode === "foreground";
+      const processLeft = state.lock.poller !== null || children.some(child => isAlive(child.pid));
+      if (!(abandoned && foreground && !processLeft)) return { event: "error", code: "quiescence-required", session, ...(foreground ? { processLeft } : {}) };
+    }
     clearState(files);
     return { event: "released", session };
   });

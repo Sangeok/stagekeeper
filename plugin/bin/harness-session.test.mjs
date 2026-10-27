@@ -3,7 +3,7 @@ import { it } from "node:test";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { createServer } from "node:http";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -248,6 +248,39 @@ it("reads a newer lock only to show it and to request its stop", async () => {
   assert.deepEqual(await requestStop(f.files, session), { event: "stopping", session });
   assert.equal(JSON.parse(readFileSync(f.files.stop, "utf8")).session, session);
   assert.equal(JSON.parse(readFileSync(f.files.lock, "utf8")).shape, "future");
+});
+
+const deadPid = () => spawnSync(process.execPath, ["-e", ""], { windowsHide: true }).pid;
+
+it("releases an abandoned Codex foreground session only after the owner stops it and its children are gone", async () => {
+  const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  await registerChild(f.files, started.session, f.binding, { pid: deadPid(), nonce: randomUUID() });
+  const locked = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  assert.deepEqual([locked.event, locked.session, locked.mode, locked.startedAt], ["locked", started.session, "foreground", readState(f.files).lock.startedAt]);
+  assert.equal((await releaseSession(f.files, started.session, { abandoned: true })).code, "stop-required");
+  await requestStop(f.files, started.session);
+  assert.deepEqual(await releaseSession(f.files, started.session), { event: "error", code: "quiescence-required", session: started.session, processLeft: false });
+  const codex = args => spawnSync(process.execPath, ["plugin/bin/harness-codex.mjs", ...args, "--root", f.root], { env: childEnvironment(), encoding: "utf8", windowsHide: true });
+  for (const args of [["release", "--session", started.session, "--abandoned", "no"], ["stop", "--session", started.session, "--abandoned", "yes"]]) {
+    assert.equal(codex(args).status, 1);
+    assert.equal(existsSync(f.files.lock), true);
+  }
+  const released = codex(["release", "--session", started.session, "--abandoned", "yes"]);
+  assert.deepEqual([released.status, JSON.parse(released.stdout)], [0, { event: "released", session: started.session }]);
+  assert.equal(existsSync(f.files.lock), false);
+});
+
+it("keeps a live child and a resident lock out of the abandoned release", async () => {
+  const live = fixture(), session = (await startSession(live.files, live.binding, { client: "codex", commit: false, propose: false })).session;
+  await registerChild(live.files, session, live.binding, { pid: process.pid, nonce: randomUUID() });
+  await requestStop(live.files, session);
+  assert.deepEqual(await releaseSession(live.files, session, { abandoned: true }), { event: "error", code: "quiescence-required", session, processLeft: true });
+
+  const resident = fixture(), owner = (await startSession(resident.files, resident.binding, { client: "codex", commit: false, propose: false })).session;
+  const state = readState(resident.files);
+  writeFileSync(resident.files.lock, JSON.stringify({ ...state.lock, mode: "resident", lifecycle: "stopping", children: [{ pid: deadPid(), nonce: randomUUID() }] }));
+  assert.deepEqual(await releaseSession(resident.files, owner, { abandoned: true }), { event: "error", code: "quiescence-required", session: owner });
+  assert.equal(existsSync(resident.files.lock), true);
 });
 
 it("binds the original legacy/slots key and receipt while refusing owner and other-run writes", () => {
