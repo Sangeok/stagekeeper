@@ -716,7 +716,7 @@ it("refuses sign-in recovery while an abandoned state guard remains", async t =>
   } finally { unlinkSync(owner); rmdirSync(guard); }
 });
 
-it("refuses a Codex start without its installed configuration before starting a client or server lease", async t => {
+it("refuses a Codex start without its installed configuration before starting a client or server lease", { skip: process.platform !== "win32" }, async t => {
   const f = await fixture(t);
   const result = await f.run([...START, "--client", "codex"]);
   assert.equal(result.code, 1);
@@ -724,6 +724,15 @@ it("refuses a Codex start without its installed configuration before starting a 
   assert.equal(f.record().length, 0);
   assert.equal(f.runnerCalls.length, 0);
   assert.equal(existsSync(f.lockPath), false);
+});
+
+it("refuses a Codex runner outside Windows before reading the token or contacting the server", { skip: process.platform === "win32" }, async t => {
+  const f = await fixture(t);
+  for (const args of [[...START, "--client", "codex"], ["--preflight", "--client", "codex"]]) {
+    const result = await f.run(args, { HARNESS_TOKEN: "" });
+    assert.deepEqual([result.code, result.event.code, result.event.reason, result.text.at(-1)], [1, "codex-windows", REASONS["codex-windows"], REASONS["codex-windows"]]);
+  }
+  assert.equal(f.record().length, 0); assert.equal(f.runnerCalls.length, 0); assert.equal(existsSync(f.directory), false);
 });
 
 it("refuses Codex autostart, inferred-client overrides and unknown clients before acquiring state", async t => {
@@ -742,6 +751,11 @@ it("keeps every refusal and start line in product copy", () => {
     assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(sentence), `${code} is missing from product-copy §15`);
   }
   for (const line of [...Object.values(START_LINES), ...Object.values(RELEASE_LINES)]) assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(line.replace(/\{\w+\}/g, "{}")), line);
+});
+
+it("gives the Codex skill the same outside-Windows sentence the helper prints", () => {
+  const skill = readFileSync(new URL("../codex/skills/harness-background/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+  assert.ok(skill.includes(`"${REASONS["codex-windows"]}"`));
 });
 
 it("reports a refused sign-in start to the Board with a fixed code, and a manual start never does", async t => {

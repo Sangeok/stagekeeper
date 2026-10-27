@@ -81,7 +81,7 @@ it("does not publish a domain refusal arriving after bridge abort", async t => {
 });
 
 async function dispatcherFixture(mode) {
-  const f = fixture(), agent = ["cli", "wrapper", "native-provenance", "native-preflight", "command-broker", "git-broker"].includes(mode) ? "doc-auditor" : "qa-verifier";
+  const f = fixture(), agent = ["cli", "wrapper", "native-provenance", "native-preflight", "native-preflight-stopped", "command-broker", "git-broker"].includes(mode) ? "doc-auditor" : "qa-verifier";
   const started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
   mkdirSync(path.join(f.root, ".codex/agents"), { recursive: true }); mkdirSync(path.join(f.root, "docs/harness"), { recursive: true });
   const roleTools = [...ROLE_TOOLS[agent].map(name => "mcp__harness__" + name), ...(agent === "qa-verifier" ? QA_BROWSER_TOOLS.map(name => "mcp__harness_qa_browser__" + name) : [])];
@@ -100,10 +100,13 @@ async function dispatcherFixture(mode) {
     },
     installedWindowsRuntime: () => {
       if (mode === "native-provenance") fail();
-      if (["native-preflight", "command-broker", "git-broker"].includes(mode)) return {};
+      if (["native-preflight", "native-preflight-stopped", "command-broker", "git-broker"].includes(mode)) return {};
       throw Object.assign(new Error("no source runtime"), { code: "ENOENT" });
     },
-    verifyNativeRuntime: async () => { if (mode === "native-preflight") fail(); },
+    verifyNativeRuntime: async () => {
+      if (mode === "native-preflight-stopped") await requestStop(f.files, started.session);
+      if (["native-preflight", "native-preflight-stopped"].includes(mode)) fail();
+    },
     createRoleCommands: async ({ fileBroker }) => { if (mode === "command-broker") fail(); return fileBroker; },
     createRoleGit: ({ backend }) => { if (mode === "git-broker") fail(); return backend; },
     createQaBrowser: async () => {
@@ -143,9 +146,9 @@ async function dispatcherFixture(mode) {
   return { ...f, counts, started, getBridge: () => bridge, run: () => dispatchFreshRole(input, f.files, started.session, { agent, agentKey: "A", key: "A" }, operations) };
 }
 
-for (const mode of ["cli", "wrapper", "native-provenance", "native-preflight", "command-broker", "git-broker", "qa-init", "inventory", "allowlist", "tool-conflict", "host-policy", "spawn", "initialize", "effective-policy", "browser-close", "server-close", "unacknowledged-turn"]) {
+for (const mode of ["cli", "wrapper", "native-provenance", "native-preflight", "native-preflight-stopped", "command-broker", "git-broker", "qa-init", "inventory", "allowlist", "tool-conflict", "host-policy", "spawn", "initialize", "effective-policy", "browser-close", "server-close", "unacknowledged-turn"]) {
   it(`dispatcher cleans partial acquisition after ${mode} and preserves unsettled ownership`, {
-    skip: process.platform !== "win32" && ["native-provenance", "native-preflight", "command-broker", "git-broker"].includes(mode),
+    skip: process.platform !== "win32" && ["native-provenance", "native-preflight", "native-preflight-stopped", "command-broker", "git-broker"].includes(mode),
   }, async () => {
     const f = await dispatcherFixture(mode);
     await assert.rejects(f.run());
@@ -159,6 +162,14 @@ for (const mode of ["cli", "wrapper", "native-provenance", "native-preflight", "
     assert.equal((await checkSession(f.files, f.started.session, f.binding)).event, "owned");
   });
 }
+
+it("reports an owner stop during native preflight as the stop, not as unavailable role execution", { skip: process.platform !== "win32" }, async () => {
+  const active = await dispatcherFixture("native-preflight");
+  await assert.rejects(active.run(), error => error instanceof RoleExecutionUnavailable);
+  const stopped = await dispatcherFixture("native-preflight-stopped");
+  await assert.rejects(stopped.run(), error => !(error instanceof RoleExecutionUnavailable) && error.message === "Native command owner no longer active");
+  assert.equal((await checkSession(stopped.files, stopped.started.session, stopped.binding)).lifecycle, "stopping");
+});
 
 function fixture() {
   const root = mkdtempSync(path.join(realpathSync(tmpdir()),"harness-session-test-"));

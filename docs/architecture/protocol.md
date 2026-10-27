@@ -620,6 +620,8 @@ project_sync shares normalized workspace validation with the config parser. It r
 실제 모델·설치·기본 graph 검증과 후보별 범위는 [resident 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에
 기록한다. 물리적 clean host·다른 OS·혼합 호스트와 배포의 남은 required 조건은
 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md)에서 추적한다.
+Codex resident는 Windows에서만 시작한다. 다른 OS에서 `harness-background --client codex`는 인자 해석 단계에서
+token·서버 호출·상태 파일보다 먼저 `codex-windows`로 거부하며 Claude resident와 status·stop·release는 막지 않는다.
 
 `GET /api/templates`, `pipeline_next`, `agent_next`의 선택적 `client`는 `claude|codex`이며
 생략은 Claude다. Codex 성공 응답은 REST body 또는 MCP `ServerResult.item`의 text JSON 내부에
@@ -703,6 +705,8 @@ owner 도구·권한 상승 요청은 거부한다. legacy sandbox 설정이 nam
 파일 도구가 없는 PM을 제외하고, POSIX는 동일 named policy의 `command/exec`로 고정 marker를 먼저 확인한다.
 POSIX preflight는 `cat` 명령의 경로 해석도 확인해 읽기 도구가 없는 셸에서 모델을 시작하지 않는다.
 실행 불가 시 모델을 호출하지 않고 `codex-role-execution-unavailable`로 실패한다.
+Windows native preflight가 실패했을 때 세션이 정지됐거나 소유권이 끝났으면 실행 불가로 보고하지 않고
+그 소유권 오류로 끝낸다.
 이를 재초기화·WSL 설치·다른 클라이언트 로그인으로 복구하도록 안내하지 않는다.
 Stagekeeper 런타임 호환성 결함으로 보고하고 미확인 소유권과 역할 권한을 유지한다.
 marker 성공만으로 파일 읽기/쓰기 격리 인수 통과를 선언하지 않는다.

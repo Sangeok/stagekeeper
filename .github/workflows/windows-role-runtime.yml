@@ -25,6 +25,8 @@ on:
       - plugin/bin/harness-role-git.test.mjs
       - plugin/bin/harness-background.mjs
       - plugin/bin/harness-background*.test.mjs
+      - plugin/bin/harness-codex.mjs
+      - plugin/bin/harness-session.test.mjs
       - plugin/runtime/background.mjs
       - scripts/windows/rehearse-windows-project-build.mjs
       - scripts/build.mjs
@@ -66,6 +68,11 @@ jobs:
         run: |
           node --test plugin/bin/harness-background-windows.test.mjs plugin/bin/harness-background.test.mjs plugin/bin/harness-background-loop.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Background runner acceptance failed' }
+      - name: Validate Codex role dispatch ownership
+        shell: pwsh
+        run: |
+          node --test plugin/bin/harness-session.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Codex role dispatch tests failed' }
       - name: Calculate runtime cache identity
         id: runtime-key
         shell: pwsh

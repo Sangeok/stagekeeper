@@ -42,6 +42,7 @@ export const REASONS = {
   "codex-plan": CODEX_RESIDENT_RUNNER_PLAN_GATE,
   "codex-route": "This server did not confirm Codex resident ownership. Use $harness-run or $harness-resume until its server is updated.",
   "codex-config": "Codex configuration or installed package verification failed. Reconnect with $harness-init.",
+  "codex-windows": "The Codex background runner runs on Windows only for now. Use $harness-run or $harness-resume in Codex.",
   "no-route": "This Stagekeeper server does not take runners yet. Use /harness:watch in a Claude Code session.",
   "no-claude": "Claude Code (claude.exe) was not found on PATH. Install the native Claude Code, then start again.",
   "claude-failed": "Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again.",
@@ -110,6 +111,7 @@ function parseArguments(argv) {
   if (options.client !== undefined && !["claude", "codex"].includes(options.client)) refuse("invalid-arguments");
   if (options.client !== undefined && !["preflight", "start", "run"].includes(op)) refuse("invalid-arguments");
   if (options.client === "codex" && options["from-autostart"]) refuse("invalid-arguments");
+  if (options.client === "codex" && process.platform !== "win32") refuse("codex-windows");
   const needsPropose = op === "start" || op === "autostart-on";
   if (needsPropose !== ["yes", "no"].includes(options.propose) || (!needsPropose && options.propose)) refuse("invalid-arguments");
   if (op === "run" && !options.session) refuse("invalid-arguments");
