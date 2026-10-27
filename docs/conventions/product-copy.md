@@ -732,6 +732,8 @@ and the quoted owner URL, never the token value.
   Stale: `Your project list changed. Review the latest connection details and try again.`
   Unknown response: `Couldn't confirm the result. Refresh to check the latest repository connection.`
   Both close confirmation and refresh; neither resubmits automatically.
+  Server cap on reconnect (the page still showed a free slot): the confirmation stays open with
+  `No free slot. The {Plan} plan allows {n} connected repositories. Disconnect another repository first.` (singular for one).
 - Recovery: `This repository is disconnected. Open Stagekeeper → Projects and choose Reconnect repository.`
   The current detail title/tabs/History remain visible. Inbox read-only badges are **Disconnected**,
   **Not selected**, or **Read only**, matching the access reason; mutation controls and execution guidance are hidden.

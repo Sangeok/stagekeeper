@@ -1,12 +1,13 @@
-import { capError } from "@harness/core/plans/entitlement.mjs";
-import { ProjectIntegrityError, type TransactionHost } from "./access-query";
+import { limitsFor, withinLimit } from "@harness/core/plans/entitlement.mjs";
+import { ProjectIntegrityError, type Plan, type TransactionHost } from "./access-query";
 import { appendAvailabilityEventIn, AvailabilityConflict, findOwnedRepository, lockProjectOwnerIn, readOwnerAvailabilityIn, withAvailabilityTransaction } from "./availability-service";
 
 export type ProjectConnectionInput = { userId: string; targetProjectId: string; expectedVersion: number };
 export type ProjectConnectionResult =
   | { status: "success"; changed: boolean; version: number }
   | { status: "stale"; currentVersion: number }
-  | { status: "error"; code: "invalid-input" | "not-found" | "capped" | "integrity" | "conflict"; reason: string };
+  | { status: "error"; code: "capped"; plan: Plan; limit: number }
+  | { status: "error"; code: "invalid-input" | "not-found" | "integrity" | "conflict"; reason: string };
 
 export async function disconnectProject(client: TransactionHost, input: ProjectConnectionInput): Promise<ProjectConnectionResult> {
   return changeConnection(client, input, "disconnect");
@@ -32,9 +33,8 @@ async function changeConnection(client: TransactionHost, input: ProjectConnectio
       const disconnected = target.disconnectedAt != null;
       if (disconnected === (operation === "disconnect")) return { status: "success", changed: false, version: owner.version };
 
-      if (operation === "reconnect") {
-        const reason = capError(owner.plan, "projects", owner.projects.filter((p) => p.disconnectedAt == null).length);
-        if (reason) return { status: "error", code: "capped", reason: `${reason}. Disconnect another repository first.` };
+      if (operation === "reconnect" && !withinLimit(owner.plan, "projects", owner.projects.filter((p) => p.disconnectedAt == null).length + 1)) {
+        return { status: "error", code: "capped", plan: owner.plan, limit: limitsFor(owner.plan).projects };
       }
       const now = new Date();
       const available = owner.projects.filter((p) => p.available).map((p) => p.id);
