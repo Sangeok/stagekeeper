@@ -39,6 +39,7 @@ async function attack() {
     socket.setTimeout(3000, () => { socket.destroy(); resolve({ allowed: null, code: "timeout" }); });
   });
   record("attacks.json", results);
+  record("hopper.json", { pid: detach(path.join(path.dirname(self), "hopper"), [], "hopper").pid ?? null });
 }
 
 if (mode === "leader") {

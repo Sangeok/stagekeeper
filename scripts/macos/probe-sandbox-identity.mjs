@@ -23,7 +23,8 @@ fs.copyFileSync(process.execPath, node); fs.chmodSync(node, 0o755);
 fs.copyFileSync(fileURLToPath(new URL("./probe-sandbox-identity-child.mjs", import.meta.url)), child);
 const digest = file => createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 const options = { encoding: "utf8", timeout: 60000, maxBuffer: 8 * 1024 * 1024 };
-execFileSync("/usr/bin/xcrun", ["clang", "-std=c11", "-Wall", "-Wextra", "-Werror", source, "-o", scanner], options);
+const hopperSource = fileURLToPath(new URL("./probe-sandbox-identity-hopper.c", import.meta.url)), hopper = at("runtime", "hopper");
+for (const [input, binary] of [[source, scanner], [hopperSource, hopper]]) execFileSync("/usr/bin/xcrun", ["clang", "-std=c11", "-Wall", "-Wextra", "-Werror", input, "-o", binary], options);
 const quote = value => JSON.stringify(value);
 const readable = ["/System", "/usr/lib", "/usr/share", "/Library/Apple/System/Library", "/bin", "/usr/bin", "/usr/sbin", "/private/var/select", "/private/etc"];
 const profile = (allow, deny) => `(version 1)
@@ -63,7 +64,7 @@ const cronBefore = spawnSync("/usr/bin/crontab", ["-l"], { encoding: "utf8" });
 const calculatorBefore = pgrep("Calculator");
 const listener = net.createServer(socket => socket.destroy());
 await new Promise(resolve => listener.listen(0, "127.0.0.1", resolve));
-const scan = (mode, nonces = [allowed, denied]) => JSON.parse(execFileSync(scanner, [...nonces, mode === "kill" ? "100" : "1", mode], options));
+const scan = (mode, nonces = [allowed, denied]) => JSON.parse(execFileSync(scanner, [...nonces, mode === "scan" ? "1" : "100", mode], options));
 const SURVIVORS = ["detached", "attacker", "spawner", "orphan", "exec"];
 const oracle = () => Object.fromEntries(["leader", ...SURVIVORS].map(kind => [kind, readJson(kind === "leader" ? "leader.json" : `oracle-${kind}.json`).pid]));
 const known = () => new Set([...Object.values(oracle()), ...lines("spawned.jsonl").map(entry => entry.pid)].filter(Number.isSafeInteger));
@@ -107,14 +108,31 @@ try {
     crontab: (spawnSync("/usr/bin/crontab", ["-l"], { encoding: "utf8" }).stdout ?? "").includes(child),
     calculator: !calculatorBefore && pgrep("Calculator"), controlAlive: alive(plain.pid),
   };
+  progress.stage = "hopper start";
+  await until(() => Number.isSafeInteger(readJson("hopper.json").pid), 30000, "hopper start");
+  await delay(1500);
+  progress.hopper = { aliveBeforeKill: pgrep("hopper") };
   progress.stage = "kill until quiescent";
   const killLoop = scan("kill");
   progress.killLoop = summary(killLoop);
   await until(() => [...known()].every(pid => !alive(pid)), 15000, "survivor exit").catch(() => {});
   progress.remaining = describe([...known()].filter(alive));
+  progress.hopper.afterKill = pgrep("hopper");
   await delay(2000);
   progress.finalScan = summary(scan("scan"));
   progress.controlsAlive = [plain.pid, controlPid].map(alive);
+  const quiesced = killLoop.quiescent && progress.remaining.length === 0 && !progress.hopper.afterKill && progress.finalScan.quiescent && progress.controlsAlive.every(Boolean);
+  let quiescedWithFreeze = null;
+  if (!quiesced) {
+    progress.stage = "freeze until quiescent";
+    const freezeLoop = scan("freeze");
+    progress.freezeLoop = summary(freezeLoop);
+    await delay(2000);
+    progress.hopper.afterFreeze = pgrep("hopper");
+    progress.finalAfterFreeze = summary(scan("scan"));
+    progress.controlsAliveAfterFreeze = [plain.pid, controlPid].map(alive);
+    quiescedWithFreeze = freezeLoop.quiescent && !progress.hopper.afterFreeze && progress.finalAfterFreeze.quiescent && progress.controlsAliveAfterFreeze.every(Boolean);
+  }
   progress.spawned = lines("spawned.jsonl").length;
   progress.spawnErrors = lines("errors.jsonl");
   const attacks = progress.attacks, escapes = progress.escapes;
@@ -122,7 +140,7 @@ try {
     confined: ["writeCheckout", "readSecret", "writeLaunchAgent", "signalControl"].every(name => attacks[name]?.allowed === false) && attacks.network?.allowed === false
       && !escapes.checkout && !escapes.launchAgent && escapes.markers.length === 0 && !escapes.launchdJob && !escapes.crontab && !escapes.calculator && escapes.controlAlive,
     identified: [progress.baseline, progress.afterLeader].every(check => check.matched > 0 && check.missing.length === 0 && check.unknown.length === 0 && check.controlsMatched.length === 0),
-    quiesced: killLoop.quiescent && progress.remaining.length === 0 && progress.finalScan.quiescent && progress.controlsAlive.every(Boolean),
+    quiesced, quiescedWithFreeze,
   };
   progress.stage = "complete";
 } catch (error) {
@@ -132,11 +150,12 @@ try {
   const sw = spawnSync("/usr/bin/sw_vers", [], { encoding: "utf8" }).stdout ?? "";
   const evidence = { schema: 1, platform: process.platform, arch: process.arch, release: os.release(),
     macos: Object.fromEntries(sw.trim().split("\n").filter(Boolean).map(line => line.split(":").map(part => part.trim()))), node: process.version,
-    hashes: { driver: digest(fileURLToPath(import.meta.url)), child: digest(child), source: digest(source), scanner: digest(scanner), profile: digest(at("runtime", "run.sb")) },
+    hashes: { driver: digest(fileURLToPath(import.meta.url)), child: digest(child), source: digest(source), scanner: digest(scanner), hopperSource: digest(hopperSource), profile: digest(at("runtime", "run.sb")) },
     scope: "per-run Seatbelt profile identity scan, detached survivor confinement and kill-until-quiescent on a hosted runner; no model, client credentials or production backend",
     ...progress, leaderStderr: stderr.slice(0, 600), productionBackendEnabled: false };
   if (leader?.pid && alive(leader.pid)) { try { process.kill(-leader.pid, "SIGKILL"); } catch { } }
-  for (const nonces of [[allowed, denied], [controlAllowed, controlDenied]]) { try { scan("kill", nonces); } catch { } }
+  for (const nonces of [[allowed, denied], [controlAllowed, controlDenied]]) { try { scan("freeze", nonces); } catch { } }
+  spawnSync("/usr/bin/pkill", ["-9", "-x", "hopper"]);
   try { for (const pid of known()) if (alive(pid)) process.kill(pid, "SIGKILL"); } catch { }
   if (plain?.pid && alive(plain.pid)) process.kill(plain.pid, "SIGKILL");
   spawnSync("/bin/launchctl", ["remove", label]);
@@ -153,4 +172,6 @@ try {
   fs.rmSync(root, { recursive: true, force: true });
 }
 console.log(JSON.stringify({ verdict: progress.verdict, arch: process.arch }));
-assert.deepEqual(progress.verdict, { confined: true, identified: true, quiesced: true });
+assert.equal(progress.verdict.confined, true);
+assert.equal(progress.verdict.identified, true);
+assert.ok(progress.verdict.quiesced || progress.verdict.quiescedWithFreeze, "No kill strategy reached quiescence");
