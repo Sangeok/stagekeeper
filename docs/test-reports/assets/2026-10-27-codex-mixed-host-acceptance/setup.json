@@ -1,0 +1,147 @@
+{
+  "packages": {
+    "claude": {
+      "version": "0.5.18",
+      "packageSha256": "1ace8c0c4b3187c0bc29e0999b6e19274a7bd41c276d933fe03e785ae03336e3",
+      "files": 2223,
+      "sourceRevision": "7e6e7339342aba54053cb851f6e4dbd6cee548cf",
+      "install": "existing user-scope Claude install, unchanged"
+    },
+    "codex": {
+      "version": "0.5.24",
+      "packageSha256": "82e9b0cb6abf76ace6f23ef22421ac1e5c8148ee56ad6e636ccaaa41d6534248",
+      "files": 2232,
+      "sourceRevision": "0d63e2c6745fee3b4049b118f27b63bbd5a1c016",
+      "install": "isolated CODEX_HOME via codex plugin add; all 2232 hashes matched"
+    },
+    "legacy": {
+      "version": "0.4.1",
+      "gitRevision": "9675a3efdaf12bb7c419d11c4164beaa55c89821",
+      "install": "git archive of plugin/ run with the system Node"
+    }
+  },
+  "service": {
+    "sourceRevision": "a6d69335",
+    "database": "disposable PostgreSQL 18 on loopback, all migrations including 20261024020000_runner_client",
+    "templatesRevision": "7f34e7b",
+    "templateRows": 13
+  },
+  "routing": {
+    "check": "claude -p in a fixture checkout called mcp__harness__project_get",
+    "slugMatchedDisposableFixture": true,
+    "denials": 0
+  },
+  "init": [
+    {
+      "at": "2026-10-27T08:13:49.545Z",
+      "fixture": "s1",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T08:13:51.779Z",
+      "fixture": "s1",
+      "step": "codex-init-0.5.24",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T08:13:53.952Z",
+      "fixture": "s1",
+      "step": "codex-complete-init-0.5.24",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T08:13:54.229Z",
+      "fixture": "s1",
+      "step": "commit",
+      "head": "3f45224",
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T08:14:02.764Z",
+      "fixture": "s2",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T08:14:04.113Z",
+      "fixture": "s2",
+      "step": "codex-init-0.5.24",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T08:14:06.164Z",
+      "fixture": "s2",
+      "step": "codex-complete-init-0.5.24",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T08:14:06.469Z",
+      "fixture": "s2",
+      "step": "commit",
+      "head": "700a7b3",
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T08:14:07.888Z",
+      "fixture": "s3",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T08:14:09.283Z",
+      "fixture": "s3",
+      "step": "codex-init-0.5.24",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T08:14:11.343Z",
+      "fixture": "s3",
+      "step": "codex-complete-init-0.5.24",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T08:14:11.648Z",
+      "fixture": "s3",
+      "step": "commit",
+      "head": "a74ea45",
+      "dirty": ""
+    }
+  ]
+}
