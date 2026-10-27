@@ -150,6 +150,24 @@ export function requireOwnership(state, session, binding, nonce) {
 }
 export function clearState(files) { unlinkSync(files.lock); unlinkSync(files.policy); }
 
+const LEGACY_RECLAIM_GUARD_NONCE = "legacy-reclaim-guard";
+export const LEGACY_RECLAIM_GUARD = Object.freeze({ pid: process.platform === "win32" ? 4 : 1, nonce: LEGACY_RECLAIM_GUARD_NONCE });
+export const recordedChildren = lock => (lock.children ?? []).filter(child => child.nonce !== LEGACY_RECLAIM_GUARD_NONCE);
+export function guardLegacyReclaim(lock) {
+  if (recordedChildren(lock).length === (lock.children ?? []).length) lock.children = [...(lock.children ?? []), { ...LEGACY_RECLAIM_GUARD }];
+  return lock;
+}
+export function markUnsettled(lock) {
+  lock.lifecycle = "stopping";
+  lock.unsettled = true;
+  return guardLegacyReclaim(lock);
+}
+export function residentLock({ session, binding, client, host, at }) {
+  const lock = { schemaVersion: 1, id: session, binding, startedAt: at, seenAt: at, state: { lastSignature: null, repeats: 0, stuck: false },
+    poller: null, client, mode: "resident", lifecycle: "active", children: [], host, runnerLease: true };
+  return client === "codex" ? guardLegacyReclaim(lock) : lock;
+}
+
 export function sessionView(state) {
   return { session: state.lock.id, client: state.lock.client ?? "claude", mode: state.lock.mode ?? "watch",
     lifecycle: state.lock.lifecycle ?? "active", host: state.lock.host ?? null,
@@ -202,7 +220,7 @@ export async function releaseSession(files, session) {
     if (state === null) return { event: "released", session };
     if (state.lock.id !== session) return replaced(session, state);
     if (state.lock.lifecycle !== "stopping") return { event: "error", code: "stop-required", session };
-    if (state.lock.poller !== null || (state.lock.children ?? []).length !== 0) return { event: "error", code: "quiescence-required", session };
+    if (state.lock.poller !== null || recordedChildren(state.lock).length !== 0) return { event: "error", code: "quiescence-required", session };
     clearState(files);
     return { event: "released", session };
   });

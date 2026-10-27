@@ -7,7 +7,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { AppServer, assertRolePolicy, childEnvironment, codexExecutable, inspectHostPolicy, stageVerifierPackage, verifyRoleExecution } from "./codex-thread.mjs";
 import { verifierPackage } from "./codex-agent.mjs";
-import { checkSession, readState, registerChild, settleChild } from "./local-session.mjs";
+import { checkSession, readState, recordedChildren, registerChild, settleChild } from "./local-session.mjs";
 import { createRoleFiles, RoleFileInputError, RoleFileRevisionError, RolePathMissingError } from "./role-files.mjs";
 import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, RoleCommandInputError } from "./role-commands.mjs";
 import { createMainLoopTools } from "./codex-main-loop-tools.mjs";
@@ -205,7 +205,7 @@ export function createCodexExecution(context, operations = {}) {
           finally { try { if (bridge) await bridge.close(); } finally { await backend?.close(); } }
           if (listener) server?.listeners.delete(listener);
           if (registered && server.closed && (!turnRequested || terminalStatus)) await settleChild(files, session, identity);
-          if ((readState(files)?.lock.children ?? []).length) throw new Error("Resident child termination unconfirmed");
+          if (recordedChildren(readState(files)?.lock ?? {}).length) throw new Error("Resident child termination unconfirmed");
           current = null;
         }
         record({ event: "model-settled", generation, terminal: terminalStatus ?? "not-started", endedFor, failed: failure !== null,

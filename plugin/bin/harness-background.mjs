@@ -10,8 +10,8 @@ import { parseBearer } from "../lib/tokens/token.mjs";
 import { actionableWork } from "../lib/execution/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
   readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
-import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, matchesBinding, readState, readStateWithGuard, registerChild, settleChild, stateFiles,
-  withGuard } from "../runtime/local-session.mjs";
+import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, markUnsettled, matchesBinding, readState, readStateWithGuard, recordedChildren,
+  registerChild, residentLock, settleChild, stateFiles, withGuard } from "../runtime/local-session.mjs";
 import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 import { createCodexExecution } from "../runtime/codex-main-loop.mjs";
@@ -21,7 +21,6 @@ import { codexExecutable } from "../runtime/codex-executable.mjs";
 const PLUGIN_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SELF = fileURLToPath(import.meta.url);
 const REQUEST_TIMEOUT = 20_000;
-const EMPTY_STATE = { lastSignature: null, repeats: 0, stuck: false };
 const PROBE_LIMIT = 120_000;
 const START_WAIT = 20_000;
 const BACKGROUND_LOG_MAX = 1024 * 1024;
@@ -267,7 +266,7 @@ function connection(root, options) {
 function staleResident(state) {
   if (state.lock.client === "codex") return false;
   return state.lock.mode === "resident" && state.lock.unsettled !== true && !(state.lock.poller && isAlive(state.lock.poller.pid))
-    && (state.lock.children ?? []).every(child => !isAlive(child.pid));
+    && recordedChildren(state.lock).every(child => !isAlive(child.pid));
 }
 
 async function startChecks(location, files, options) {
@@ -325,8 +324,7 @@ async function start(location, files, options) {
     if (state && !(stale && staleResident(state))) refuse("locked", { startedAt: state.lock.startedAt });
     if (state) clearState(files);
     atomicWrite(files.policy, { schemaVersion: 1, session, commit: true, propose: options.propose === "yes" });
-    atomicWrite(files.lock, { schemaVersion: 1, id: session, binding: input.binding, startedAt: now(), seenAt: now(), state: EMPTY_STATE,
-      poller: null, client: input.client, mode: "resident", lifecycle: "active", children: [], host, runnerLease: true });
+    atomicWrite(files.lock, residentLock({ session, binding: input.binding, client: input.client, host, at: now() }));
   });
   const autostart = input.client === "claude" && existsSync(autostartFile(directory));
   const result = await retryingRunnerCall(runnerTarget(input), { op: "start", session, mode: "resident", host, branch: tree.branch, permission, autostart,
@@ -574,9 +572,7 @@ async function resident(location, files, options) {
       await withGuard(files, () => {
         const state = readState(files);
         if (state?.lock.id !== session) return;
-        state.lock.lifecycle = "stopping";
-        state.lock.unsettled = true;
-        atomicWrite(files.lock, state.lock);
+        atomicWrite(files.lock, markUnsettled(state.lock));
         save({ state: "stopping", stopReason: "unsettled" });
       }).catch(error => recordStateFailure(directory, "unsettled", error));
       return { event: "stopping", session, code: error.code };
@@ -593,8 +589,8 @@ async function finish(files, { session, target, reason, save, log, directory, no
   const settled = await withGuard(files, () => {
     const state = readState(files);
     if (state?.lock.id !== session) return true;
-    if (state.lock.poller?.pid !== process.pid || state.lock.poller?.nonce !== nonce || (state.lock.children ?? []).length || state.lock.unsettled) {
-      state.lock.lifecycle = "stopping"; state.lock.unsettled = true; atomicWrite(files.lock, state.lock); return false;
+    if (state.lock.poller?.pid !== process.pid || state.lock.poller?.nonce !== nonce || recordedChildren(state.lock).length || state.lock.unsettled) {
+      atomicWrite(files.lock, markUnsettled(state.lock)); return false;
     }
     return true;
   }).catch(error => { recordStateFailure(directory, "settle", error); return false; });
@@ -605,7 +601,7 @@ async function finish(files, { session, target, reason, save, log, directory, no
   const cleared = await withGuard(files, () => {
     const state = readState(files);
     if (state?.lock.id !== session) return true;
-    if (state.lock.poller?.pid !== process.pid || state.lock.poller?.nonce !== nonce || (state.lock.children ?? []).length || state.lock.unsettled) return false;
+    if (state.lock.poller?.pid !== process.pid || state.lock.poller?.nonce !== nonce || recordedChildren(state.lock).length || state.lock.unsettled) return false;
     save({ state: "stopped", stopReason: reason });
     clearState(files); return true;
   }).catch(error => { recordStateFailure(directory, "clear", error); return false; });

@@ -30,6 +30,8 @@ jobs:
             command: npm run build
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -38,6 +40,8 @@ jobs:
       - run: npm run db:generate
         if: matrix.part != 'build'
       - run: ${{ matrix.command }}
+        env:
+          STAGEKEEPER_RELEASED_READERS: required
       - name: Check fresh build manifests
         if: matrix.part == 'build'
         env:

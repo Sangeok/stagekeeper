@@ -85,6 +85,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   환경을 같은 변경에서 보완한다.
 - `npm test`: `packages/core/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
+  `plugin/bin/harness-released-readers.test.mjs`는 `origin/main` 이력에서 출시된 plugin을 꺼내 실행하므로 `check`
+  workflow는 전체 이력을 가져오고 `STAGEKEEPER_RELEASED_READERS=required`로 이력 누락을 실패로 만든다.
+  이력이 없는 환경(macOS runtime contracts의 shallow checkout 등)에서는 출시 판 시험만 skip한다.
 - [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
   `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
   공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.

@@ -6,7 +6,7 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import { it } from "node:test";
 import { createCodexExecution } from "./codex-main-loop.mjs";
-import { atomicWrite, readState, startSession, stateFiles } from "./local-session.mjs";
+import { atomicWrite, guardLegacyReclaim, LEGACY_RECLAIM_GUARD, readState, startSession, stateFiles } from "./local-session.mjs";
 
 const deferred = () => { let resolve; const promise = new Promise(yes => { resolve = yes; }); return { promise, resolve }; };
 async function fixture(t, options = {}) {
@@ -18,7 +18,7 @@ async function fixture(t, options = {}) {
   const binding = { root, server: "http://127.0.0.1:1", project: "test", configHash: "a".repeat(64), tokenHash: "b".repeat(64) };
   const files = stateFiles(path.join(root, ".git/harness"));
   const started = await startSession(files, binding, { client: "codex", commit: true, propose: false });
-  const owned = readState(files); owned.lock.mode = "resident"; atomicWrite(files.lock, owned.lock);
+  const owned = readState(files); owned.lock.mode = "resident"; atomicWrite(files.lock, guardLegacyReclaim(owned.lock));
   mkdirSync(path.join(root, "docs/harness"), { recursive: true });
   const verifier = { path: "fixture/SKILL.md", checksum: "fixture" }; writeFileSync(path.join(root, "docs/harness/codex-package.json"), JSON.stringify({ verifier }));
   const startedTurn = deferred(), records = [], servers = [], counts = { file: 0, fileClosed: 0, bridge: 0, bridgeClosed: 0, spawned: 0, interrupted: 0, closed: 0, tools: 0 };
@@ -63,7 +63,7 @@ it("starts fresh serial native contexts and settles each child before the next g
     while (f.records.filter(value => value.event === "model-start").length < generation) await new Promise(resolve => setImmediate(resolve));
     f.servers.at(-1).emit();
     const result = await cycle.done; assert.equal(f.execution.classify(result).outcome, "success");
-    assert.equal(readState(f.files).lock.children.length, 0);
+    assert.deepEqual(readState(f.files).lock.children, [LEGACY_RECLAIM_GUARD]);
   }
   assert.deepEqual(f.records.filter(value => value.event === "model-start").map(value => value.threadId), ["thread-1", "thread-2"]);
   assert.equal(f.counts.closed, 2); assert.equal(f.counts.fileClosed, 2); assert.equal(f.counts.bridgeClosed, 2);
@@ -77,7 +77,7 @@ it("interrupts exactly once when ownership is lost before turn acknowledgement a
   const result = await cycle.done;
   assert.equal(f.counts.interrupted, 1); assert.equal(result.terminal, "interrupted"); assert.equal(f.execution.classify(result).outcome, "cancelled");
   f.servers[0].emit("completed");
-  assert.equal(f.execution.classify(result).outcome, "cancelled"); assert.equal(readState(f.files).lock.children.length, 0);
+  assert.equal(f.execution.classify(result).outcome, "cancelled"); assert.deepEqual(readState(f.files).lock.children, [LEGACY_RECLAIM_GUARD]);
 });
 
 for (const terminal of ["interrupted", "completed"]) it(`keeps a fatal tool refusal failed when the terminal is ${terminal}`, async t => {
@@ -88,13 +88,13 @@ for (const terminal of ["interrupted", "completed"]) it(`keeps a fatal tool refu
   assert.equal(result.endedFor, "policy"); assert.equal(result.terminal, terminal);
   assert.equal(f.execution.classify(result).outcome, "error"); assert.equal(f.counts.interrupted, 1);
   assert.equal(f.counts.closed, 1); assert.equal(f.counts.bridgeClosed, 1); assert.equal(f.counts.fileClosed, 1);
-  assert.equal(readState(f.files).lock.children.length, 0);
+  assert.deepEqual(readState(f.files).lock.children, [LEGACY_RECLAIM_GUARD]);
 });
 
 for (const fail of ["native", "commands", "inventory", "policy", "initialize", "effective", "thread"]) it(`cleans partial main-loop acquisition after ${fail} without starting a model`, async t => {
   const f = await fixture(t, { fail }), result = await f.execution.start({ generation: 1 }).done;
   assert.equal(result.failed, true); assert.equal(f.execution.classify(result).outcome, "error");
-  assert.equal(f.records.some(value => value.event === "model-start"), false); assert.equal(readState(f.files).lock.children.length, 0);
+  assert.equal(f.records.some(value => value.event === "model-start"), false); assert.deepEqual(readState(f.files).lock.children, [LEGACY_RECLAIM_GUARD]);
   assert.equal(f.counts.fileClosed, f.counts.file); assert.equal(f.counts.bridgeClosed, f.counts.bridge); assert.equal(f.counts.closed, f.counts.spawned);
 });
 
