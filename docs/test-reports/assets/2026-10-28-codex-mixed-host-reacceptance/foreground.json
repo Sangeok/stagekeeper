@@ -1,0 +1,367 @@
+{
+  "m5_abandoned_foreground": [
+    {
+      "at": "2026-10-27T15:51:46.819Z",
+      "step": "A-prepare",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "a9827369-eb88-4227-81b8-de4e1b69eeee",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "a9827369",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "guard": false,
+        "children": []
+      },
+      "log": "m5-001-0.5.25-A-prepare.log"
+    },
+    {
+      "at": "2026-10-27T15:51:48.616Z",
+      "step": "A-next-head",
+      "code": 0,
+      "head": {
+        "action": "dispatch",
+        "agent": "dev",
+        "key": "K-1",
+        "node": "plan"
+      }
+    },
+    {
+      "at": "2026-10-27T15:52:22.441Z",
+      "step": "B-role-turn-in-progress",
+      "dispatcher": 66644,
+      "child": 66640,
+      "tree": [
+        {
+          "pid": 44740,
+          "name": "conhost.exe"
+        },
+        {
+          "pid": 5572,
+          "name": "node.exe"
+        },
+        {
+          "pid": 50032,
+          "name": "node.exe"
+        },
+        {
+          "pid": 68020,
+          "name": "conhost.exe"
+        },
+        {
+          "pid": 24192,
+          "name": "codex.exe"
+        },
+        {
+          "pid": 13132,
+          "name": "codex-code-mode-host.exe"
+        },
+        {
+          "pid": 54884,
+          "name": "conhost.exe"
+        }
+      ],
+      "lock": {
+        "id": "a9827369",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "guard": false,
+        "children": [
+          {
+            "pid": 50032,
+            "alive": true
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-27T15:52:25.107Z",
+      "step": "C-dispatcher-output",
+      "exit": 1,
+      "tail": "p\\\\mh2-codex-home\\\\plugins\\\\cache\\\\stagekeeper-mixedhost-0525\\\\harness\\\\0.5.25\\\\runtime\\\\windows\\\\node\\\\node.exe\",\"prefix\":[\"C:\\\\Users\\\\<user>\\\\AppData\\\\Roaming\\\\npm\\\\node_modules\\\\@openai\\\\codex\\\\bin\\\\codex.js\"],\"source\":\"C:\\\\Users\\\\<user>\\\\AppData\\\\Roaming\\\\npm\\\\codex.cmd\",\"version\":\"codex-cli 0.164.0\",\"skipped\":[{\"path\":\"C:\\\\Users\\\\<user>\\\\.local\\\\bin\\\\codex.cmd\",\"reason\":\"unsupported-wrapper\"}]}\n"
+    },
+    {
+      "at": "2026-10-27T15:52:25.156Z",
+      "step": "C-host-killed",
+      "lock": {
+        "id": "a9827369",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "guard": false,
+        "children": [
+          {
+            "pid": 50032,
+            "alive": false
+          }
+        ]
+      },
+      "survivors": [],
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T15:52:27.120Z",
+      "step": "D-prepare-on-abandoned-lock",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "session": "a9827369-eb88-4227-81b8-de4e1b69eeee",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        },
+        "startedAt": "2026-10-27T15:51:46.457Z"
+      },
+      "lock": {
+        "id": "a9827369",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "guard": false,
+        "children": [
+          {
+            "pid": 50032,
+            "alive": false
+          }
+        ]
+      },
+      "log": "m5-003-0.5.25-D-prepare-on-abandoned-lock.log"
+    },
+    {
+      "at": "2026-10-27T15:52:28.766Z",
+      "step": "D-stop-abandoned-session",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "a9827369-eb88-4227-81b8-de4e1b69eeee",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "a9827369",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "poller": null,
+        "guard": false,
+        "children": [
+          {
+            "pid": 50032,
+            "alive": false
+          }
+        ]
+      },
+      "log": "m5-004-0.5.25-D-stop-abandoned-session.log"
+    },
+    {
+      "at": "2026-10-27T15:52:30.446Z",
+      "step": "D-release",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "quiescence-required",
+        "session": "a9827369-eb88-4227-81b8-de4e1b69eeee",
+        "processLeft": false
+      },
+      "lock": {
+        "id": "a9827369",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "poller": null,
+        "guard": false,
+        "children": [
+          {
+            "pid": 50032,
+            "alive": false
+          }
+        ]
+      },
+      "log": "m5-005-0.5.25-D-release.log"
+    },
+    {
+      "at": "2026-10-27T15:52:32.105Z",
+      "step": "D-release-abandoned",
+      "code": 0,
+      "event": {
+        "event": "released",
+        "session": "a9827369-eb88-4227-81b8-de4e1b69eeee"
+      },
+      "lock": null,
+      "log": "m5-006-0.5.25-D-release-abandoned.log"
+    },
+    {
+      "at": "2026-10-27T15:52:33.890Z",
+      "step": "E-prepare-fresh",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "3bf6a290-07bb-4ae8-9022-83863e3fac54",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "3bf6a290",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "guard": false,
+        "children": []
+      },
+      "log": "m5-007-0.5.25-E-prepare-fresh.log"
+    },
+    {
+      "at": "2026-10-27T15:52:35.538Z",
+      "step": "E-stop",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "3bf6a290-07bb-4ae8-9022-83863e3fac54",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "3bf6a290",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "poller": null,
+        "guard": false,
+        "children": []
+      },
+      "log": "m5-008-0.5.25-E-stop.log"
+    },
+    {
+      "at": "2026-10-27T15:52:37.232Z",
+      "step": "E-release",
+      "code": 0,
+      "event": {
+        "event": "released",
+        "session": "3bf6a290-07bb-4ae8-9022-83863e3fac54"
+      },
+      "lock": null,
+      "log": "m5-009-0.5.25-E-release.log"
+    },
+    {
+      "at": "2026-10-27T15:52:37.234Z",
+      "step": "E-end",
+      "lock": null,
+      "present": false
+    }
+  ],
+  "m5_first_attempt_wrong_head": [
+    {
+      "at": "2026-10-27T15:45:48.928Z",
+      "step": "A-prepare",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "1cba4a35-8048-4684-8c04-8ec16514badf",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "1cba4a35",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "guard": false,
+        "children": []
+      },
+      "log": "m5-001-0.5.25-A-prepare.log"
+    },
+    {
+      "at": "2026-10-27T15:45:50.973Z",
+      "step": "A-next-head",
+      "code": 0,
+      "head": {
+        "action": "dispatch",
+        "agent": "feature-scout"
+      }
+    }
+  ],
+  "m5_first_attempt_cleanup": [
+    {
+      "at": "2026-10-27T15:51:21.152Z",
+      "step": "pre-cleanup-stop",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "1cba4a35-8048-4684-8c04-8ec16514badf",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "1cba4a35",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "poller": null,
+        "guard": false,
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T15:51:22.818Z",
+      "step": "pre-cleanup-release",
+      "code": 0,
+      "event": {
+        "event": "released",
+        "session": "1cba4a35-8048-4684-8c04-8ec16514badf"
+      },
+      "lock": null
+    }
+  ]
+}

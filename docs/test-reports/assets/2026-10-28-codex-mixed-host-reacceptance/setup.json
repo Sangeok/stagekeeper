@@ -1,0 +1,223 @@
+{
+  "service": {
+    "revision": "36b00ac5c42803e2775624d54e18899eb4f780b5",
+    "server": "next start on 127.0.0.1",
+    "database": "disposable PostgreSQL 18, all migrations",
+    "templates": {
+      "revision": "7f34e7b0a4e6e302b8559f54ca4894ee78b8964f",
+      "rows": 13
+    }
+  },
+  "clients": {
+    "claudeCode": "2.1.311",
+    "codexCli": "0.164.0"
+  },
+  "packages": {
+    "claude-0.5.18": {
+      "use": "existing user install",
+      "files": 2223,
+      "packageSha256": "1ace8c0c4b3187c0bc29e0999b6e19274a7bd41c276d933fe03e785ae03336e3",
+      "source": "7e6e7339342a"
+    },
+    "codex-0.5.25": {
+      "use": "isolated CODEX_HOME via codex plugin add",
+      "files": 2232,
+      "packageSha256": "8eb1ccf1f68addd2d93e05c8e930315e58a00c5b79c89bf8572f37704e6a7054",
+      "source": "36b00ac5c428",
+      "installedMismatches": 0,
+      "missing": 0
+    },
+    "claude-0.5.25": {
+      "use": "helpers run from the same 0.5.25 package root",
+      "files": 2232
+    }
+  },
+  "routing": "fixture checkouts only: local scope harness MCP to the isolated server; HARNESS_TOKEN/HARNESS_SERVER replaced in every test process",
+  "init": [
+    {
+      "at": "2026-10-27T15:24:08.695Z",
+      "fixture": "m1",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T15:24:11.299Z",
+      "fixture": "m1",
+      "step": "codex-init-0.5.25",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T15:24:13.891Z",
+      "fixture": "m1",
+      "step": "codex-complete-init-0.5.25",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T15:24:14.211Z",
+      "fixture": "m1",
+      "step": "commit",
+      "head": "b79572e",
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T15:24:15.981Z",
+      "fixture": "m2",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T15:24:17.733Z",
+      "fixture": "m2",
+      "step": "codex-init-0.5.25",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T15:24:20.208Z",
+      "fixture": "m2",
+      "step": "codex-complete-init-0.5.25",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T15:24:20.485Z",
+      "fixture": "m2",
+      "step": "commit",
+      "head": "435e11f",
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T15:24:22.274Z",
+      "fixture": "m3",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T15:24:24.084Z",
+      "fixture": "m3",
+      "step": "codex-init-0.5.25",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T15:24:26.592Z",
+      "fixture": "m3",
+      "step": "codex-complete-init-0.5.25",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T15:24:26.901Z",
+      "fixture": "m3",
+      "step": "commit",
+      "head": "0aaa35b",
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T15:24:28.754Z",
+      "fixture": "m4",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T15:24:30.555Z",
+      "fixture": "m4",
+      "step": "codex-init-0.5.25",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T15:24:33.007Z",
+      "fixture": "m4",
+      "step": "codex-complete-init-0.5.25",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T15:24:33.323Z",
+      "fixture": "m4",
+      "step": "commit",
+      "head": "a847fc9",
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T15:24:35.161Z",
+      "fixture": "m5",
+      "step": "claude-init-0.5.18",
+      "code": 0,
+      "tail": [
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 11 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T15:24:36.882Z",
+      "fixture": "m5",
+      "step": "codex-init-0.5.25",
+      "code": 0,
+      "event": null
+    },
+    {
+      "at": "2026-10-27T15:24:39.321Z",
+      "fixture": "m5",
+      "step": "codex-complete-init-0.5.25",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      }
+    },
+    {
+      "at": "2026-10-27T15:24:39.643Z",
+      "fixture": "m5",
+      "step": "commit",
+      "head": "d95c2ec",
+      "dirty": ""
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+[
+  {
+    "fixture": "m1",
+    "runners": [],
+    "agentRuns": [
+      {
+        "id": "cmvqua0d",
+        "agent": "dev",
+        "key": "K-1",
+        "closed": true,
+        "revision": 1,
+        "refused": 0
+      }
+    ],
+    "board": {
+      "status": "on_hold",
+      "node": "plan"
+    },
+    "usageRunCount": 1
+  },
+  {
+    "fixture": "m2",
+    "runners": [],
+    "agentRuns": [],
+    "board": {
+      "status": "planning",
+      "node": "plan"
+    },
+    "usageRunCount": 0
+  },
+  {
+    "fixture": "m3",
+    "runners": [],
+    "agentRuns": [
+      {
+        "id": "cmvqv1im",
+        "agent": "dev",
+        "key": "K-1",
+        "closed": false,
+        "revision": 0,
+        "refused": 0
+      }
+    ],
+    "board": {
+      "status": "planning",
+      "node": "plan"
+    },
+    "usageRunCount": 1
+  },
+  {
+    "fixture": "m4",
+    "runners": [],
+    "agentRuns": [],
+    "board": {
+      "status": "planning",
+      "node": "plan"
+    },
+    "usageRunCount": 0
+  },
+  {
+    "fixture": "m5",
+    "runners": [],
+    "agentRuns": [
+      {
+        "id": "cmvqv5yp",
+        "agent": "dev",
+        "key": "K-1",
+        "closed": false,
+        "revision": 0,
+        "refused": 0
+      }
+    ],
+    "board": {
+      "status": "planning",
+      "node": "plan"
+    },
+    "usageRunCount": 1
+  }
+]
