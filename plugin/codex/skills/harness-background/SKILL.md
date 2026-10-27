@@ -1,7 +1,11 @@
 ---
 name: harness-background
-description: Explicitly start, inspect, stop or release the Stagekeeper Codex background runner on a validated Windows candidate installation.
+description: Explicitly start, inspect, stop or release the Stagekeeper Codex background runner on Windows.
 ---
+
+The background runner runs on Windows only. On macOS or Linux, do not run the helper or work
+around it; say "The Codex background runner runs on Windows only for now. Use $harness-run or
+$harness-resume in Codex." and stop.
 
 Resolve the installed package from this SKILL.md (three parents above this skill directory).
 Read its .codex-plugin/plugin.json and this checkout's harness.json and
@@ -10,8 +14,6 @@ powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <absolut
 The helper validates its included runtime. Never install Node, use WSL, copy credentials,
 broaden permissions or fall back to Claude Code when this entry fails.
 
-This candidate supports an explicit Windows start. Clean Windows, macOS and mixed-host
-release acceptance remain separate; do not promise support from a successful local start.
 Never start it automatically from init, a client switch, sign-in or a foreground run.
 
 Use --status --root <absolute checkout> to inspect ownership. For an explicit start, ensure

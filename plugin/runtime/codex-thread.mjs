@@ -374,7 +374,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     }
     const commandLifecycle = { onSpawn: identity => registerChild(files, session, input.binding, identity), onSettled: identity => settleChild(files, session, identity),
       beforeActivate: async () => { runtime.signal?.throwIfAborted(); const state = await runtime.checkSession(files, session, input.binding); if (state.event !== "owned" || state.lifecycle !== "active") throw new Error("Native command owner no longer active"); } };
-    if (nativeRuntime) { try { await runtime.verifyNativeRuntime(nativeRuntime, commandLifecycle); } catch { throw new RoleExecutionUnavailable(); } }
+    if (nativeRuntime) { try { await runtime.verifyNativeRuntime(nativeRuntime, commandLifecycle); } catch { await commandLifecycle.beforeActivate(); throw new RoleExecutionUnavailable(); } }
     const commandBroker = nativeRuntime ? await runtime.createRoleCommands({ root: input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;
     fileBroker = commandBroker;
     const nativeGit = nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent);
