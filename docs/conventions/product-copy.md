@@ -1282,8 +1282,9 @@ Refusals preserve only safe server data: no token, Authorization/Bearer, HTML, c
 ### Background runner — `/harness:background` (plugin 0.5.14, Pro and Max)
 
 The 0.5.21 isolated Windows Codex candidate exposes `$harness-background` for explicit
-start, stop and status. Its start line and applicable Windows notices substitute
-`$harness-background` for `/harness:background`; its log path is `background.log`.
+start, stop, status and release. Its start line, applicable Windows notices, and the release
+lines and refusals for a Codex runner substitute `$harness-background` for `/harness:background`;
+its log path is `background.log`.
 It uses scoped tools, interrupts on stop and has no sign-in start. The Claude skill's
 drain behavior and hand-off copy below remain specific to Claude. Candidate checks
 do not establish clean-host, macOS or public release acceptance.
@@ -1293,11 +1294,17 @@ The background runner continues the pipeline on this PC without a Claude Code wi
 subsection was confirmed with the owner on 2026-10-21. The five edit-guard notices and the start
 output's edit line were settled first, and the rest followed.
 
-- Skill description: "Run the Stagekeeper pipeline on this PC without a Claude Code window — the background runner continues web approvals on Pro and Max. Use when the user says "/harness:background" with start, stop, status, or autostart on or off."
+- Skill description: "Run the Stagekeeper pipeline on this PC without a Claude Code window — the background runner continues web approvals on Pro and Max. Use when the user says "/harness:background" with start, stop, status, release, or autostart on or off."
 - Policy question, once per start: "Should the runner also start new work, or only continue items already on the board?" New work defaults to no. The skill also says: "The runner commits its work in this checkout and never pushes."
 - Start hand-off. The skill never starts the runner itself. Claude Code's auto mode refuses a command that leaves a process running after the session, so the skill hands the command to the owner: "Starting a process that keeps running after this session is your call. Run this yourself:" — followed by one `!` line. Sign-in start uses the same hand-off.
-- Stop: "The runner finishes the run in progress, then stops." (`stopping`) · "The runner stopped." (`stopped`)
-- Status: plain lines from `--status`. A sign-in task registered by an older plugin adds: "Sign-in start points at an older plugin. Turn it off and on again."
+- Stop: "The runner finishes the run in progress, then stops." (`stopping`) · "The runner stopped." (`stopped`). A runner with no process left whose lock cannot be cleared on its own (a Codex runner, or a run that did not settle) gives the `held` refusal instead.
+- Status: plain lines from `--status`. A sign-in task registered by an older plugin adds: "Sign-in start points at an older plugin. Turn it off and on again." A `held` status adds the `held` sentence.
+- Release, confirmed with the owner on 2026-10-27. After a `held` refusal or status, the skill runs `--release` and repeats its lines, then asks once: "No runner process is left, but this checkout is still held. Release it so a runner can start here again?" Only an explicit yes runs `--release --session {session}`; the skill runs both itself because neither starts a process. Lines, one each before the JSON line:
+  - "The runner that started {startedAt} has no process left."
+  - "Its last run did not finish cleanly." (only when the run did not settle)
+  - "Uncommitted changes: {files}." (only with uncommitted changes)
+  - "Run log: {log}"
+  - After the release: "Released this checkout. A runner can start here again." and, with uncommitted changes, "Check the uncommitted changes from its last run before you start."
 - Start output, one line each, before the JSON line:
   - "Background runner started on {host} for {branch}."
   - "Run logs: {logs}"
@@ -1346,6 +1353,9 @@ Start and sign-in refusals (`harness-background.mjs`, `code` → sentence; print
 | claude-failed | Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again. |
 | runner-exited | The runner exited before it started work. Check {log}. |
 | not-running | No background runner is running in this checkout. |
+| held | A stopped runner still holds this checkout (started {startedAt}). No runner process is left. Check the checkout, then release it with /harness:background release. |
+| still-running | The runner is still running. Stop it with /harness:background stop, then wait until it stops. |
+| release-changed | The runner in this checkout changed after you checked it. Check it again with /harness:background release. |
 | autostart-branch | Sign-in start was set up on {branch}, but this checkout is on {current}. Switch back, or turn sign-in start off and on again. |
 | autostart-missing | Sign-in start is not set up for this checkout. |
 | autostart-windows | Sign-in start is available on Windows only. |

@@ -23,6 +23,7 @@ const SELF = fileURLToPath(import.meta.url);
 const REQUEST_TIMEOUT = 20_000;
 const PROBE_LIMIT = 120_000;
 const START_WAIT = 20_000;
+const START_SETTLE = START_WAIT + 30_000;
 const BACKGROUND_LOG_MAX = 1024 * 1024;
 
 export const REASONS = {
@@ -46,6 +47,9 @@ export const REASONS = {
   "claude-failed": "Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again.",
   "runner-exited": "The runner exited before it started work. Check {log}.",
   "not-running": "No background runner is running in this checkout.",
+  "held": "A stopped runner still holds this checkout (started {startedAt}). No runner process is left. Check the checkout, then release it with /harness:background release.",
+  "still-running": "The runner is still running. Stop it with /harness:background stop, then wait until it stops.",
+  "release-changed": "The runner in this checkout changed after you checked it. Check it again with /harness:background release.",
   "autostart-branch": "Sign-in start was set up on {branch}, but this checkout is on {current}. Switch back, or turn sign-in start off and on again.",
   "autostart-missing": "Sign-in start is not set up for this checkout.",
   "autostart-windows": "Sign-in start is available on Windows only.",
@@ -62,20 +66,30 @@ export const START_LINES = {
   edit: "The runner works in this checkout on {branch}. Pause it on the Stagekeeper Board before you edit files here.",
   allowlist: "Auto mode is not available here, so the runner runs only the commands on its allow list.",
 };
+export const RELEASE_LINES = {
+  process: "The runner that started {startedAt} has no process left.",
+  unsettled: "Its last run did not finish cleanly.",
+  files: "Uncommitted changes: {files}.",
+  log: "Run log: {log}",
+  released: "Released this checkout. A runner can start here again.",
+  check: "Check the uncommitted changes from its last run before you start.",
+};
 
+const fill = (text, values = {}) => text.replace(/\{(\w+)\}/g, (match, key) => (Object.hasOwn(values, key) ? String(values[key]) : match));
+const forClient = (text, client) => (client === "codex" ? text.replaceAll("/harness:background", "$harness-background") : text);
 class Refusal extends Error {
-  constructor(code, values = {}) {
-    super(REASONS[code].replace(/\{(\w+)\}/g, (match, key) => (Object.hasOwn(values, key) ? String(values[key]) : match)));
+  constructor(code, values = {}, client = "claude") {
+    super(forClient(fill(REASONS[code], values), client));
     this.code = code;
   }
 }
-const refuse = (code, values) => { throw new Refusal(code, values); };
+const refuse = (code, values, client) => { throw new Refusal(code, values, client); };
 const nonempty = value => typeof value === "string" && value.trim().length > 0;
 const hash = value => createHash("sha256").update(value).digest("hex");
 const now = () => new Date().toISOString();
 
 function parseArguments(argv) {
-  const ops = new Set(["preflight", "start", "run", "stop", "status", "autostart-on", "autostart-off"]);
+  const ops = new Set(["preflight", "start", "run", "stop", "status", "release", "autostart-on", "autostart-off"]);
   const values = new Set(["root", "server", "client", "propose", "session", "interval", "run-limit"]);
   const flags = new Set([...ops, "takeover", "from-autostart"]);
   const options = {};
@@ -97,7 +111,8 @@ function parseArguments(argv) {
   if (options.client === "codex" && options["from-autostart"]) refuse("invalid-arguments");
   const needsPropose = op === "start" || op === "autostart-on";
   if (needsPropose !== ["yes", "no"].includes(options.propose) || (!needsPropose && options.propose)) refuse("invalid-arguments");
-  if ((op === "run") !== Boolean(options.session)) refuse("invalid-arguments");
+  if (op === "run" && !options.session) refuse("invalid-arguments");
+  if (options.session && !["run", "release"].includes(op)) refuse("invalid-arguments");
   if (options.takeover && op !== "start") refuse("invalid-arguments");
   if (options["from-autostart"] && op !== "start") refuse("invalid-arguments");
   const timing = (name, fallback, unit) => {
@@ -269,6 +284,14 @@ function staleResident(state) {
     && recordedChildren(state.lock).every(child => !isAlive(child.pid));
 }
 
+function processLeft(lock) {
+  const runner = lock.poller === null ? Date.now() - Date.parse(lock.startedAt) <= START_SETTLE : isAlive(lock.poller.pid);
+  return runner || recordedChildren(lock).some(child => isAlive(child.pid));
+}
+
+const heldResident = state => state.lock.mode === "resident" && !processLeft(state.lock) && !staleResident(state);
+const occupied = (state, client) => refuse(heldResident(state) ? "held" : "locked", { startedAt: state.lock.startedAt }, client);
+
 async function startChecks(location, files, options) {
   const input = connection(location.root, options);
   const tree = treeState(location.root);
@@ -282,7 +305,7 @@ async function startChecks(location, files, options) {
   const remotes = pushUrlRemotes(location.root);
   if (remotes.length > 0) refuse("push-url", { remote: remotes[0] });
   const state = await readStateWithGuard(files);
-  if (state && !staleResident(state)) refuse("locked", { startedAt: state.lock.startedAt });
+  if (state && !staleResident(state)) occupied(state, input.client);
   if (input.client === "codex") { codexExecutable(); await verifyCodexSupport(input); }
   else claudeCommand();
   let identity;
@@ -321,7 +344,7 @@ async function start(location, files, options) {
   const host = runnerHost();
   await withGuard(files, () => {
     const state = readState(files);
-    if (state && !(stale && staleResident(state))) refuse("locked", { startedAt: state.lock.startedAt });
+    if (state && !(stale && staleResident(state))) occupied(state, input.client);
     if (state) clearState(files);
     atomicWrite(files.policy, { schemaVersion: 1, session, commit: true, propose: options.propose === "yes" });
     atomicWrite(files.lock, residentLock({ session, binding: input.binding, client: input.client, host, at: now() }));
@@ -363,7 +386,7 @@ async function start(location, files, options) {
     if (state.lock.poller) {
       const lines = [START_LINES.started, START_LINES.logs, START_LINES.stop, START_LINES.edit, ...(permission === "allowlist" ? [START_LINES.allowlist] : [])]
         .map(line => line.replaceAll("{host}", host).replaceAll("{branch}", tree.branch).replaceAll("{logs}", input.client === "codex" ? path.join(directory, "background.log") : runsDirectory(directory)));
-      for (const line of lines) process.stdout.write((input.client === "codex" ? line.replaceAll("/harness:background", "$harness-background") : line) + "\n");
+      for (const line of lines) process.stdout.write(forClient(line, input.client) + "\n");
       return { event: "started", session, host, branch: tree.branch, permission };
     }
     await delay(200);
@@ -382,15 +405,54 @@ async function stop(files) {
       clearState(files);
       return { event: "stopped", session: state.lock.id };
     }
+    if (heldResident(state)) refuse("held", { startedAt: state.lock.startedAt }, state.lock.client);
     state.lock.lifecycle = "stopping";
     atomicWrite(files.lock, state.lock);
     return { event: "stopping", session: state.lock.id };
   });
-  if (stopped && nonempty(process.env.HARNESS_TOKEN)) {
-    await runnerCallWithin({ server: stopped.binding.server, token: process.env.HARNESS_TOKEN, project: stopped.binding.project, client: stopped.client },
-      { op: "stop", session: stopped.id, reason: "owner" }, REQUEST_TIMEOUT);
-  }
+  if (stopped) await stopRunnerLease(stopped);
   return event;
+}
+
+async function stopRunnerLease(lock) {
+  if (!nonempty(process.env.HARNESS_TOKEN)) return;
+  await runnerCallWithin({ server: lock.binding.server, token: process.env.HARNESS_TOKEN, project: lock.binding.project, client: lock.client },
+    { op: "stop", session: lock.id, reason: "owner" }, REQUEST_TIMEOUT);
+}
+
+function lastRunLog(directory, client) {
+  if (client === "codex") return path.join(directory, "background.log");
+  const runs = runsDirectory(directory);
+  const latest = existsSync(runs) ? readdirSync(runs).filter(name => name.endsWith(".jsonl")).sort().at(-1) : undefined;
+  return latest ? path.join(runs, latest) : runs;
+}
+
+async function release(location, files, options) {
+  const state = existsSync(files.directory) ? await readStateWithGuard(files) : null;
+  if (state === null || state.lock.mode !== "resident") return { event: "error", code: "not-running", reason: REASONS["not-running"] };
+  const client = state.lock.client ?? "claude";
+  if (processLeft(state.lock)) refuse("still-running", {}, client);
+  const dirty = treeState(location.root).dirty;
+  const print = lines => { for (const line of lines) process.stdout.write(forClient(line, client) + "\n"); };
+  if (!options.session) {
+    const values = { startedAt: state.lock.startedAt, files: fileList(dirty), log: lastRunLog(files.directory, client) };
+    print([RELEASE_LINES.process, ...(state.lock.unsettled ? [RELEASE_LINES.unsettled] : []), ...(dirty.length ? [RELEASE_LINES.files] : []), RELEASE_LINES.log]
+      .map(line => fill(line, values)));
+    return { event: "release-check", session: state.lock.id, client, startedAt: state.lock.startedAt, unsettled: state.lock.unsettled === true, files: dirty };
+  }
+  const released = await withGuard(files, () => {
+    const current = readState(files);
+    if (current?.lock.id !== options.session) refuse("release-changed", {}, client);
+    if (processLeft(current.lock)) refuse("still-running", {}, client);
+    clearState(files);
+    return current.lock;
+  });
+  backgroundLog(files.directory, `runner ${released.id} released by the owner`);
+  const saved = readOptional(statusFile(files.directory));
+  if (saved?.session === released.id) atomicWrite(statusFile(files.directory), { ...saved, state: "stopped", stopReason: "owner", updatedAt: now() });
+  await stopRunnerLease(released);
+  print([RELEASE_LINES.released, ...(dirty.length ? [RELEASE_LINES.check] : [])]);
+  return { event: "released", session: released.id, files: dirty };
 }
 
 async function status(files) {
@@ -401,7 +463,7 @@ async function status(files) {
   const saved = readOptional(statusFile(directory));
   const autostart = readOptional(autostartFile(directory));
   const running = state?.lock.mode === "resident" && state.lock.poller !== null && isAlive(state.lock.poller.pid);
-  return { event: "status", running, client: state?.lock.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : null,
+  return { event: "status", running, held: state !== null && heldResident(state), client: state?.lock.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : null,
     lifecycle: state?.lock.mode === "resident" ? state.lock.lifecycle : null,
     otherSession: state && state.lock.mode !== "resident" ? state.lock.mode ?? "watch" : null,
     host: saved?.host ?? null, branch: saved?.branch ?? null, permission: saved?.permission ?? null, state: saved?.state ?? null,
@@ -419,7 +481,8 @@ function userEnvironment(name) {
   } catch { return null; }
 }
 
-const SIGNIN_CODES = { dirty: "dirty", "autostart-branch": "autostart-branch", detached: "detached", "push-url": "push-url", locked: "checkout-in-use" };
+const SIGNIN_CODES = { dirty: "dirty", "autostart-branch": "autostart-branch", detached: "detached", "push-url": "push-url", locked: "checkout-in-use",
+  held: "checkout-in-use" };
 const SIGNIN_UNREPORTED = new Set(["invalid-arguments", "invalid-config", "missing-server", "invalid-token", "identity-mismatch", "busy", "plan",
   "no-route", "autostart-missing"]);
 
@@ -608,7 +671,7 @@ async function finish(files, { session, target, reason, save, log, directory, no
   if (!cleared) { save({ state: "stopping", stopReason: "unsettled" }); return { event: "stopping", session, code: "resident-run-unsettled" }; }
   if (NOTICE_FOR[reason]) {
     const notice = fillNotice(NOTICE_FOR[reason]);
-    if (target.client === "codex") notice.body = notice.body.replaceAll("/harness:background", "$harness-background");
+    notice.body = forClient(notice.body, target.client);
     await notify(directory, notice);
   }
   return { event: "stopped", session, reason };
@@ -632,6 +695,7 @@ async function main() {
     else if (options.op === "run") event = await resident(location, files, options);
     else if (options.op === "stop") event = await stop(files);
     else if (options.op === "status") event = await status(files);
+    else if (options.op === "release") event = await release(location, files, options);
     else if (options.op === "autostart-on") event = await autostartOn(location, files, options);
     else event = await autostartOff(location, files, options);
   } catch (error) {
