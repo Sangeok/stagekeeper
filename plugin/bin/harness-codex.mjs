@@ -41,7 +41,7 @@ function optionsFor(argv) {
   const [operation, ...args] = argv;
   if (!["prepare", "next", "dispatch", "stop", "release", "complete-init"].includes(operation)) throw new Error("Unknown Codex operation");
   const options = { operation };
-  const accepted = new Set(["root", "server", "session", "key", "commit", "propose", "briefing", "handoff-commit", "retry-qa"]);
+  const accepted = new Set(["root", "server", "session", "key", "commit", "propose", "briefing", "handoff-commit", "retry-qa", "abandoned"]);
   for (let i = 0; i < args.length; i += 2) {
     const name = args[i].slice(2), value = args[i + 1];
     if (!args[i].startsWith("--") || !accepted.has(name) || Object.hasOwn(options, name) || !value || value.startsWith("--")) throw new Error("Invalid Codex arguments");
@@ -52,6 +52,7 @@ function optionsFor(argv) {
   } else if (options.commit || options.propose) throw new Error("Stored policy cannot be replaced");
   if (["next", "dispatch", "stop", "release"].includes(operation) && !options.session) throw new Error("Session required");
   if (operation === "complete-init" && (options.session || options.key)) throw new Error("Init cannot dispatch a role");
+  if (options.abandoned !== undefined && (operation !== "release" || options.abandoned !== "yes")) throw new Error("Only release accepts --abandoned yes");
   return { ...options, root: options.root ?? "." };
 }
 
@@ -61,7 +62,8 @@ async function main() {
     options = optionsFor(process.argv.slice(2));
     const location = gitRoot(options.root), files = stateFiles(location.directory);
     if (["stop", "release"].includes(options.operation)) {
-      const result = await (options.operation === "stop" ? requestStop(files, options.session) : releaseSession(files, options.session));
+      const result = await (options.operation === "stop" ? requestStop(files, options.session)
+        : releaseSession(files, options.session, { abandoned: options.abandoned === "yes" }));
       console.log(JSON.stringify(result)); process.exitCode = result.event === "error" ? 1 : 0; return;
     }
     const input = connectionInput(location.root, { ...options, client: "codex" });
