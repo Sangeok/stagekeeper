@@ -1,0 +1,654 @@
+{
+  "s3": [
+    {
+      "at": "2026-10-27T08:39:16.250Z",
+      "step": "A-codex-0.5.24-resident-start",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "8593b683-0f83-4a6a-bed3-53f49098667d",
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped"
+      },
+      "lock": {
+        "id": "8593b683",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 70328,
+          "alive": true
+        },
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:40:21.119Z",
+      "step": "A-model-turn-in-progress",
+      "runner": 70328,
+      "runChild": 64972,
+      "runnerTree": [
+        {
+          "pid": 64972,
+          "ppid": 70328,
+          "name": "node.exe"
+        },
+        {
+          "pid": 61692,
+          "ppid": 70328,
+          "name": "node.exe"
+        },
+        {
+          "pid": 53360,
+          "ppid": 64972,
+          "name": "conhost.exe"
+        },
+        {
+          "pid": 29604,
+          "ppid": 64972,
+          "name": "codex.exe"
+        },
+        {
+          "pid": 67352,
+          "ppid": 61692,
+          "name": "conhost.exe"
+        },
+        {
+          "pid": 65356,
+          "ppid": 61692,
+          "name": "codex.exe"
+        },
+        {
+          "pid": 68780,
+          "ppid": 29604,
+          "name": "codex-code-mode-host.exe"
+        },
+        {
+          "pid": 22968,
+          "ppid": 68780,
+          "name": "conhost.exe"
+        }
+      ],
+      "lock": {
+        "id": "8593b683",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 70328,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 64972,
+            "alive": true
+          },
+          {
+            "pid": 61692,
+            "alive": true
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-27T08:40:21.732Z",
+      "step": "B-killed-registered-run-child",
+      "pid": 64972
+    },
+    {
+      "at": "2026-10-27T08:40:21.734Z",
+      "step": "B-after-fault",
+      "lock": {
+        "id": "8593b683",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 70328,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 64972,
+            "alive": false
+          },
+          {
+            "pid": 61692,
+            "alive": true
+          }
+        ]
+      },
+      "runnerAlive": true,
+      "survivors": [
+        61692,
+        67352,
+        65356,
+        22968
+      ]
+    },
+    {
+      "at": "2026-10-27T08:40:22.745Z",
+      "step": "B-after-fault",
+      "lock": {
+        "id": "8593b683",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "unsettled": true,
+        "runnerLease": true,
+        "poller": {
+          "pid": 70328,
+          "alive": false
+        },
+        "children": [
+          {
+            "pid": 64972,
+            "alive": false
+          }
+        ]
+      },
+      "runnerAlive": false,
+      "survivors": []
+    },
+    {
+      "at": "2026-10-27T08:40:24.760Z",
+      "step": "C-state-after-runner-exit",
+      "lock": {
+        "id": "8593b683",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "unsettled": true,
+        "runnerLease": true,
+        "poller": {
+          "pid": 70328,
+          "alive": false
+        },
+        "children": [
+          {
+            "pid": 64972,
+            "alive": false
+          }
+        ]
+      },
+      "unsettled": true,
+      "runnerAlive": false,
+      "survivors": []
+    },
+    {
+      "at": "2026-10-27T08:40:26.761Z",
+      "step": "C-0.5.24-status",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": false,
+        "client": "codex",
+        "session": "8593b683-0f83-4a6a-bed3-53f49098667d",
+        "lifecycle": "stopping",
+        "otherSession": null,
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped",
+        "state": "stopping",
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": "unsettled",
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s3\\.git\\harness\\background.log",
+        "autostart": {
+          "registered": false
+        }
+      },
+      "lockBefore": "8593b683",
+      "lockAfter": "8593b683",
+      "lockBytesUnchanged": true,
+      "log": "s3-002-0.5.24-C-0.5.24-status.log"
+    },
+    {
+      "at": "2026-10-27T08:40:28.870Z",
+      "step": "C-0.5.24-codex-resident-start",
+      "version": "0.5.24",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:39:13.376Z). Stop it first."
+      },
+      "lockBefore": "8593b683",
+      "lockAfter": "8593b683",
+      "lockBytesUnchanged": true,
+      "log": "s3-003-0.5.24-C-0.5.24-codex-resident-start.log"
+    },
+    {
+      "at": "2026-10-27T08:40:30.834Z",
+      "step": "C-0.5.24-codex-session-start",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "session": "8593b683-0f83-4a6a-bed3-53f49098667d",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "host": "<host>",
+        "policy": {
+          "commit": true,
+          "propose": false
+        }
+      },
+      "lockBefore": "8593b683",
+      "lockAfter": "8593b683",
+      "lockBytesUnchanged": true,
+      "log": "s3-004-0.5.24-C-0.5.24-codex-session-start.log"
+    },
+    {
+      "at": "2026-10-27T08:40:32.637Z",
+      "step": "C-0.5.18-status",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": false,
+        "session": "8593b683-0f83-4a6a-bed3-53f49098667d",
+        "lifecycle": "stopping",
+        "otherSession": null,
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped",
+        "state": "stopping",
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": "unsettled",
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s3\\.git\\harness\\runs",
+        "autostart": {
+          "registered": false
+        }
+      },
+      "lockBefore": "8593b683",
+      "lockAfter": "8593b683",
+      "lockBytesUnchanged": true,
+      "log": "s3-005-0.5.18-C-0.5.18-status.log"
+    },
+    {
+      "at": "2026-10-27T08:40:34.540Z",
+      "step": "C-0.5.18-session-start",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "session": "8593b683-0f83-4a6a-bed3-53f49098667d",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "host": "<host>",
+        "policy": {
+          "commit": true,
+          "propose": false
+        }
+      },
+      "lockBefore": "8593b683",
+      "lockAfter": "8593b683",
+      "lockBytesUnchanged": true,
+      "log": "s3-006-0.5.18-C-0.5.18-session-start.log"
+    },
+    {
+      "at": "2026-10-27T08:40:36.470Z",
+      "step": "C-0.5.18-watch-start",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "startedAt": "2026-10-27T08:39:13.376Z",
+        "seenAt": "2026-10-27T08:40:20.842Z"
+      },
+      "lockBefore": "8593b683",
+      "lockAfter": "8593b683",
+      "lockBytesUnchanged": true,
+      "log": "s3-007-0.5.18-C-0.5.18-watch-start.log"
+    },
+    {
+      "at": "2026-10-27T08:40:44.270Z",
+      "step": "C-0.5.18-resident-start",
+      "version": "0.5.18",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "busy",
+        "reason": "A runner is already running for this project on <host> (last signal 2026-10-27T08:40:20.010Z UTC). Stop it there, or take it over."
+      },
+      "lockBefore": "8593b683",
+      "lockAfter": null,
+      "lockBytesUnchanged": false,
+      "log": "s3-008-0.5.18-C-0.5.18-resident-start.log"
+    },
+    {
+      "at": "2026-10-27T08:40:44.271Z",
+      "step": "C-after-0.5.18-resident-start",
+      "lock": null,
+      "survivors": []
+    },
+    {
+      "at": "2026-10-27T08:40:46.741Z",
+      "step": "C-0.5.24-codex-start-right-after-0.5.18-attempt",
+      "version": "0.5.24",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "busy",
+        "reason": "A runner is already running for this project on <host> (last signal 2026-10-27T08:40:20.010Z UTC). Stop it there, or take it over."
+      },
+      "lockBefore": null,
+      "lockAfter": null,
+      "lockBytesUnchanged": true,
+      "log": "s3-009-0.5.24-C-0.5.24-codex-start-right-after-0.5.18-attempt.log"
+    },
+    {
+      "at": "2026-10-27T08:43:46.171Z",
+      "step": "C-0.5.24-codex-start-after-server-lease-expiry",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "fbb9d28f-bfe6-4d75-8fde-bfb0cff97f8e",
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped"
+      },
+      "lockBefore": null,
+      "lockAfter": "fbb9d28f",
+      "lockBytesUnchanged": false,
+      "log": "s3-010-0.5.24-C-0.5.24-codex-start-after-server-lease-expiry.log"
+    },
+    {
+      "at": "2026-10-27T08:43:48.176Z",
+      "step": "C-0.5.24-stop-restarted-runner",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "fbb9d28f-bfe6-4d75-8fde-bfb0cff97f8e"
+      },
+      "lockBefore": "fbb9d28f",
+      "lockAfter": "fbb9d28f",
+      "lockBytesUnchanged": false,
+      "log": "s3-011-0.5.24-C-0.5.24-stop-restarted-runner.log"
+    },
+    {
+      "at": "2026-10-27T08:43:48.178Z",
+      "step": "C-end",
+      "lock": {
+        "id": "fbb9d28f",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "runnerLease": true,
+        "poller": {
+          "pid": 56116,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 62344,
+            "alive": true
+          }
+        ]
+      },
+      "claudeStarted": false
+    },
+    {
+      "at": "2026-10-27T08:44:21.386Z",
+      "step": "D-restarted-runner-released",
+      "released": true,
+      "lock": null,
+      "runnerAlive": false,
+      "childAlive": false
+    }
+  ],
+  "crashWithoutUnsettled": [
+    {
+      "at": "2026-10-27T08:45:01.746Z",
+      "step": "S3b-codex-idle-resident-start",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "eba874b5-ac57-4573-8014-c2cf0e5e218d",
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped"
+      },
+      "lock": {
+        "id": "eba874b5",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 65992,
+          "alive": true
+        },
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:45:04.345Z",
+      "step": "S3b-runner-tree-killed",
+      "lock": {
+        "id": "eba874b5",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 65992,
+          "alive": false
+        },
+        "children": []
+      },
+      "survivors": []
+    },
+    {
+      "at": "2026-10-27T08:45:06.605Z",
+      "step": "S3b-0.5.24-start-on-crashed-codex-lock",
+      "version": "0.5.24",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:44:59.102Z). Stop it first."
+      },
+      "lockBefore": "eba874b5",
+      "lockAfter": "eba874b5",
+      "log": "s4-002-0.5.24-S3b-0.5.24-start-on-crashed-codex-lock.log"
+    },
+    {
+      "at": "2026-10-27T08:45:14.025Z",
+      "step": "S3b-0.5.18-start-on-crashed-codex-lock",
+      "version": "0.5.18",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "busy",
+        "reason": "A runner is already running for this project on <host> (last signal 2026-10-27T08:44:59.133Z UTC). Stop it there, or take it over."
+      },
+      "lockBefore": "eba874b5",
+      "lockAfter": null,
+      "log": "s4-003-0.5.18-S3b-0.5.18-start-on-crashed-codex-lock.log"
+    },
+    {
+      "at": "2026-10-27T08:48:28.928Z",
+      "step": "S3b-0.5.24-start-after-lease-expiry",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "787b96b8-2d95-4e23-b5a5-3429b0fb99ab",
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped"
+      },
+      "lockBefore": null,
+      "lockAfter": "787b96b8",
+      "log": "s4-004-0.5.24-S3b-0.5.24-start-after-lease-expiry.log"
+    },
+    {
+      "at": "2026-10-27T08:48:30.695Z",
+      "step": "S3b-0.5.24-stop",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "787b96b8-2d95-4e23-b5a5-3429b0fb99ab"
+      },
+      "lockBefore": "787b96b8",
+      "lockAfter": "787b96b8",
+      "log": "s4-005-0.5.24-S3b-0.5.24-stop.log"
+    },
+    {
+      "at": "2026-10-27T08:48:31.213Z",
+      "step": "S3b-end",
+      "lock": null
+    }
+  ],
+  "codexOnlyRecovery": [
+    {
+      "at": "2026-10-27T08:48:56.595Z",
+      "step": "R-codex-idle-start",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "83e23975-4d29-48e9-864d-a976d24f57f9",
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped"
+      }
+    },
+    {
+      "at": "2026-10-27T08:48:57.366Z",
+      "step": "R-runner-tree-killed",
+      "lock": {
+        "id": "83e23975",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 65228,
+          "alive": false
+        },
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:48:59.142Z",
+      "step": "R-0.5.24-status",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": false,
+        "client": "codex",
+        "session": "83e23975-4d29-48e9-864d-a976d24f57f9",
+        "lifecycle": "active",
+        "otherSession": null,
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped",
+        "state": "idle",
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": null,
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s4\\.git\\harness\\background.log",
+        "autostart": {
+          "registered": false
+        }
+      },
+      "lock": {
+        "id": "83e23975",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 65228,
+          "alive": false
+        },
+        "children": []
+      },
+      "present": true
+    },
+    {
+      "at": "2026-10-27T08:49:00.927Z",
+      "step": "R-0.5.24-stop-on-crashed-lock",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "83e23975-4d29-48e9-864d-a976d24f57f9"
+      },
+      "lock": {
+        "id": "83e23975",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "runnerLease": true,
+        "poller": {
+          "pid": 65228,
+          "alive": false
+        },
+        "children": []
+      },
+      "present": true
+    },
+    {
+      "at": "2026-10-27T08:49:02.677Z",
+      "step": "R-0.5.24-status-after-stop",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": false,
+        "client": "codex",
+        "session": "83e23975-4d29-48e9-864d-a976d24f57f9",
+        "lifecycle": "stopping",
+        "otherSession": null,
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped",
+        "state": "idle",
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": null,
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s4\\.git\\harness\\background.log",
+        "autostart": {
+          "registered": false
+        }
+      },
+      "lock": {
+        "id": "83e23975",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "runnerLease": true,
+        "poller": {
+          "pid": 65228,
+          "alive": false
+        },
+        "children": []
+      },
+      "present": true
+    }
+  ]
+}

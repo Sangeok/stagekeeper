@@ -1,0 +1,399 @@
+{
+  "s4": [
+    {
+      "at": "2026-10-27T08:27:13.689Z",
+      "step": "legacy-0.4.1-claude-init",
+      "code": 0,
+      "tail": [
+        "write: .claude/agents/dev.md",
+        "write: CLAUDE.md (runbook inserted)",
+        "done: write 9 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ],
+      "stderr": ""
+    },
+    {
+      "at": "2026-10-27T08:27:24.572Z",
+      "step": "codex-0.5.24-init-codex",
+      "code": 0,
+      "event": null,
+      "tail": [
+        "files-written: write 13 · skip 0",
+        "server: http://127.0.0.1:3190"
+      ]
+    },
+    {
+      "at": "2026-10-27T08:27:27.237Z",
+      "step": "codex-0.5.24-codex-complete-init",
+      "code": 0,
+      "event": {
+        "event": "connected",
+        "client": "codex",
+        "protocol": "harness-runtime-v1",
+        "runtimeVerificationRequired": true
+      },
+      "tail": [
+        "{\"event\":\"project-synced\",\"client\":\"codex\",\"protocol\":\"harness-runtime-v1\"}",
+        "{\"event\":\"connected\",\"client\":\"codex\",\"protocol\":\"harness-runtime-v1\",\"runtimeVerificationRequired\":true}"
+      ]
+    },
+    {
+      "at": "2026-10-27T08:27:27.548Z",
+      "step": "commit",
+      "head": "e37fae2",
+      "dirty": ""
+    },
+    {
+      "at": "2026-10-27T08:28:26.394Z",
+      "step": "L1-legacy-start",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "51eed3e8-b2f4-41b5-9ffd-e57d10765475",
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "51eed3e8",
+        "poller": null,
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:28:29.012Z",
+      "step": "L1-legacy-poller-registered",
+      "pollerPid": 69080,
+      "lock": {
+        "id": "51eed3e8",
+        "poller": {
+          "pid": 69080,
+          "alive": true
+        },
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:28:31.368Z",
+      "step": "L1-new-session-start",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "session": "51eed3e8-b2f4-41b5-9ffd-e57d10765475",
+        "client": "claude",
+        "mode": "watch",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "ownerUnchanged": true,
+      "log": "s4-003-0.5.24-L1-new-session-start.log"
+    },
+    {
+      "at": "2026-10-27T08:28:33.596Z",
+      "step": "L1-new-background-start",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:28:26.168Z). Stop it first."
+      },
+      "ownerUnchanged": true,
+      "log": "s4-004-0.5.24-L1-new-background-start.log"
+    },
+    {
+      "at": "2026-10-27T08:28:35.456Z",
+      "step": "L1-new-background-status",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": false,
+        "client": "claude",
+        "session": null,
+        "lifecycle": null,
+        "otherSession": "watch",
+        "host": null,
+        "branch": null,
+        "permission": null,
+        "state": null,
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": null,
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s4\\.git\\harness\\runs",
+        "autostart": {
+          "registered": false
+        }
+      },
+      "ownerUnchanged": true,
+      "log": "s4-005-0.5.24-L1-new-background-status.log"
+    },
+    {
+      "at": "2026-10-27T08:28:37.329Z",
+      "step": "L1-new-session-check",
+      "code": 0,
+      "event": {
+        "event": "owned",
+        "session": "51eed3e8-b2f4-41b5-9ffd-e57d10765475",
+        "client": "claude",
+        "mode": "watch",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "ownerUnchanged": true,
+      "log": "s4-006-0.5.24-L1-new-session-check.log"
+    },
+    {
+      "at": "2026-10-27T08:28:39.470Z",
+      "step": "L1-0.5.18-background-start",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:28:26.168Z). Stop it first."
+      },
+      "ownerUnchanged": true,
+      "log": "s4-007-0.5.18-L1-old-background-start.log"
+    },
+    {
+      "at": "2026-10-27T08:28:41.460Z",
+      "step": "L1-0.5.18-session-start",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "session": "51eed3e8-b2f4-41b5-9ffd-e57d10765475",
+        "client": "claude",
+        "mode": "watch",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "ownerUnchanged": true,
+      "log": "s4-008-0.5.18-L1-old-session-start.log"
+    },
+    {
+      "at": "2026-10-27T08:28:41.840Z",
+      "step": "L1-legacy-stop",
+      "code": 0,
+      "event": {
+        "event": "stopped",
+        "session": "51eed3e8-b2f4-41b5-9ffd-e57d10765475"
+      },
+      "lockAfter": null,
+      "legacyPollerAlive": true
+    },
+    {
+      "at": "2026-10-27T08:28:43.943Z",
+      "step": "L1-new-successor-start-right-after-legacy-stop",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "8d22ca0e-bdd6-4f28-975a-7e7cdf99da85",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "legacyPollerAlive": false
+    },
+    {
+      "at": "2026-10-27T08:28:44.458Z",
+      "step": "L1-after-legacy-poller-exit",
+      "successorUnchanged": true,
+      "lock": {
+        "id": "8d22ca0e",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:28:46.284Z",
+      "step": "L1-successor--stop",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "8d22ca0e-bdd6-4f28-975a-7e7cdf99da85",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      }
+    },
+    {
+      "at": "2026-10-27T08:28:48.191Z",
+      "step": "L1-successor--release",
+      "code": 0,
+      "event": {
+        "event": "released",
+        "session": "8d22ca0e-bdd6-4f28-975a-7e7cdf99da85"
+      }
+    },
+    {
+      "at": "2026-10-27T08:28:53.329Z",
+      "step": "L2-new-idle-resident-start",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "67854709-4d0f-4f03-9b4e-2c1a4f8ed051",
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped"
+      },
+      "lock": {
+        "id": "67854709",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 11468,
+          "alive": true
+        },
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:29:18.334Z",
+      "step": "L2-resident-heartbeat",
+      "seenAtAgeSeconds": 4,
+      "lock": {
+        "id": "67854709",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 11468,
+          "alive": true
+        },
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:29:18.881Z",
+      "step": "L2-legacy-start",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "startedAt": "2026-10-27T08:28:50.187Z",
+        "seenAt": "2026-10-27T08:29:13.958Z"
+      },
+      "ownerUnchanged": true,
+      "log": "s4-014-0.4.1-L2-legacy-start.log"
+    },
+    {
+      "at": "2026-10-27T08:29:19.387Z",
+      "step": "L2-legacy-stop-own-stale-session",
+      "code": 0,
+      "event": {
+        "event": "replaced",
+        "session": "51eed3e8-b2f4-41b5-9ffd-e57d10765475",
+        "seenAt": "2026-10-27T08:29:13.958Z"
+      },
+      "ownerUnchanged": true,
+      "log": "s4-015-0.4.1-L2-legacy-stop-own-stale.log"
+    },
+    {
+      "at": "2026-10-27T08:29:19.938Z",
+      "step": "L2-legacy-force-start-after-confirmed-takeover",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "a63c987d-5b81-4c07-a4fd-b46474d88460",
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "a63c987d",
+        "poller": null,
+        "children": []
+      },
+      "codexRunnerAlive": true
+    },
+    {
+      "at": "2026-10-27T08:29:21.959Z",
+      "step": "L2-codex-runner-after-force",
+      "runnerExited": true,
+      "legacyLockUnchanged": true,
+      "lock": {
+        "id": "a63c987d",
+        "poller": null,
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:29:22.341Z",
+      "step": "L2-legacy-stop-forced-session",
+      "code": 0,
+      "event": {
+        "event": "stopped",
+        "session": "a63c987d-5b81-4c07-a4fd-b46474d88460"
+      },
+      "state": "absent"
+    },
+    {
+      "at": "2026-10-27T08:29:24.583Z",
+      "step": "L2-new-status-end",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": false,
+        "client": "codex",
+        "session": null,
+        "lifecycle": null,
+        "otherSession": null,
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped",
+        "state": "idle",
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": null,
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s4\\.git\\harness\\background.log",
+        "autostart": {
+          "registered": false
+        }
+      }
+    },
+    {
+      "at": "2026-10-27T08:30:07.149Z",
+      "step": "L3-new-resident-start-with-stale-server-row",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "busy",
+        "reason": "A runner is already running for this project on <host> (last signal 2026-10-27T08:28:50.221Z UTC). Stop it there, or take it over."
+      },
+      "lock": null
+    }
+  ]
+}

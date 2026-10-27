@@ -1,0 +1,859 @@
+{
+  "s1": [
+    {
+      "at": "2026-10-27T08:23:39.550Z",
+      "step": "contend-begin",
+      "owner": "codex-0.5.24-resident",
+      "lock": {
+        "id": "5bb8b6e3",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 68616,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 24052,
+            "alive": true
+          },
+          {
+            "pid": 10888,
+            "alive": true
+          }
+        ]
+      },
+      "holdProcesses": [
+        64800
+      ]
+    },
+    {
+      "at": "2026-10-27T08:23:44.049Z",
+      "step": "background-start",
+      "version": "0.5.18",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:16:20.554Z). Stop it first."
+      },
+      "lockBytesUnchanged": false,
+      "policyBytesUnchanged": true,
+      "holdProcesses": [
+        64800
+      ],
+      "log": "s1-001-0.5.18-background-start.log"
+    },
+    {
+      "at": "2026-10-27T08:23:48.381Z",
+      "step": "session-start",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "session": "5bb8b6e3-da52-48ac-a4dc-da57a8fb225b",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "host": "<host>",
+        "policy": {
+          "commit": true,
+          "propose": false
+        }
+      },
+      "lockBytesUnchanged": false,
+      "policyBytesUnchanged": true,
+      "holdProcesses": [
+        64800
+      ],
+      "log": "s1-002-0.5.18-session-start.log"
+    },
+    {
+      "at": "2026-10-27T08:23:52.810Z",
+      "step": "watch-start",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "startedAt": "2026-10-27T08:16:20.554Z",
+        "seenAt": "2026-10-27T08:23:49.956Z"
+      },
+      "lockBytesUnchanged": false,
+      "policyBytesUnchanged": true,
+      "holdProcesses": [
+        64800
+      ],
+      "log": "s1-003-0.5.18-watch-start.log"
+    },
+    {
+      "at": "2026-10-27T08:23:56.874Z",
+      "step": "background-status",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": true,
+        "session": "5bb8b6e3-da52-48ac-a4dc-da57a8fb225b",
+        "lifecycle": "active",
+        "otherSession": null,
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "scoped",
+        "state": "working",
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": null,
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s1\\.git\\harness\\runs",
+        "autostart": {
+          "registered": false
+        }
+      },
+      "lockBytesUnchanged": false,
+      "policyBytesUnchanged": true,
+      "holdProcesses": [
+        64800
+      ],
+      "log": "s1-004-0.5.18-background-status.log"
+    },
+    {
+      "at": "2026-10-27T08:24:00.777Z",
+      "step": "session-check",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "owned",
+        "session": "5bb8b6e3-da52-48ac-a4dc-da57a8fb225b",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "host": "<host>",
+        "policy": {
+          "commit": true,
+          "propose": false
+        }
+      },
+      "lockBytesUnchanged": false,
+      "policyBytesUnchanged": true,
+      "holdProcesses": [
+        64800
+      ],
+      "log": "s1-005-0.5.18-session-check.log"
+    },
+    {
+      "at": "2026-10-27T08:24:04.990Z",
+      "step": "same-version-background-start",
+      "version": "0.5.24",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:16:20.554Z). Stop it first."
+      },
+      "lockBytesUnchanged": false,
+      "policyBytesUnchanged": true,
+      "holdProcesses": [
+        64800
+      ],
+      "log": "s1-006-0.5.24-same-version-background-start.log"
+    },
+    {
+      "at": "2026-10-27T08:24:04.992Z",
+      "step": "contend-end",
+      "lock": {
+        "id": "5bb8b6e3",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 68616,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 24052,
+            "alive": true
+          },
+          {
+            "pid": 10888,
+            "alive": true
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-27T08:24:08.798Z",
+      "step": "stop-begin",
+      "stopper": "0.5.18",
+      "lock": {
+        "id": "5bb8b6e3",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 68616,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 24052,
+            "alive": true
+          },
+          {
+            "pid": 10888,
+            "alive": true
+          }
+        ]
+      },
+      "holdProcesses": [
+        64800
+      ],
+      "ownerTree": [
+        30176,
+        24780,
+        56144,
+        32704,
+        48460,
+        30048,
+        68616,
+        24052,
+        63684,
+        44764
+      ]
+    },
+    {
+      "at": "2026-10-27T08:24:12.826Z",
+      "step": "cross-version-background-stop",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "5bb8b6e3-da52-48ac-a4dc-da57a8fb225b"
+      },
+      "lock": {
+        "id": "5bb8b6e3",
+        "client": "codex",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "runnerLease": true,
+        "poller": {
+          "pid": 68616,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 24052,
+            "alive": false
+          }
+        ]
+      },
+      "holdProcesses": []
+    },
+    {
+      "at": "2026-10-27T08:24:18.239Z",
+      "step": "released",
+      "seconds": 2,
+      "holdProcesses": [],
+      "ownerTree": [
+        30176,
+        24780,
+        56144,
+        32704,
+        48460,
+        30048
+      ],
+      "runnerAlive": false,
+      "state": {
+        "lock": null,
+        "policy": null,
+        "guard": false
+      }
+    },
+    {
+      "at": "2026-10-27T08:24:20.305Z",
+      "step": "successor-session-start",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "1506efee-22d6-49c6-b40e-a8391a763a59",
+        "client": "claude",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "1506efee",
+        "client": "claude",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:24:22.111Z",
+      "step": "late-owner-session-stop",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "replaced",
+        "session": "5bb8b6e3-da52-48ac-a4dc-da57a8fb225b",
+        "seenAt": "2026-10-27T08:24:19.925Z"
+      },
+      "successorBytesUnchanged": true
+    },
+    {
+      "at": "2026-10-27T08:24:23.822Z",
+      "step": "late-owner-session-release",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "replaced",
+        "session": "5bb8b6e3-da52-48ac-a4dc-da57a8fb225b",
+        "seenAt": "2026-10-27T08:24:19.925Z"
+      },
+      "successorBytesUnchanged": true
+    },
+    {
+      "at": "2026-10-27T08:24:25.626Z",
+      "step": "late-owner-background-stop",
+      "version": "0.5.24",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "not-running",
+        "reason": "No background runner is running in this checkout."
+      },
+      "successorBytesUnchanged": true
+    },
+    {
+      "at": "2026-10-27T08:24:27.416Z",
+      "step": "successor-stop",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "1506efee-22d6-49c6-b40e-a8391a763a59",
+        "client": "claude",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      }
+    },
+    {
+      "at": "2026-10-27T08:24:29.155Z",
+      "step": "successor-release",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "released",
+        "session": "1506efee-22d6-49c6-b40e-a8391a763a59"
+      }
+    },
+    {
+      "at": "2026-10-27T08:24:32.802Z",
+      "step": "end",
+      "state": {
+        "lock": null,
+        "policy": null,
+        "guard": false
+      },
+      "holdProcesses": [],
+      "ownerTree": [
+        30176,
+        24780,
+        56144,
+        32704,
+        48460,
+        30048
+      ]
+    }
+  ],
+  "s2": [
+    {
+      "at": "2026-10-27T08:25:44.361Z",
+      "step": "claude-0.5.18-resident-start",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "f3f2ece5-32db-4cbf-9204-51c4e629c93f",
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "auto"
+      },
+      "stdoutTail": [
+        "Run logs: <home>\\AppData\\Local\\Temp\\mh-s2\\.git\\harness\\runs",
+        "Stop it with /harness:background stop.",
+        "The runner works in this checkout on fixture. Pause it on the Stagekeeper Board before you edit files here.",
+        "{\"event\":\"started\",\"session\":\"f3f2ece5-32db-4cbf-9204-51c4e629c93f\",\"host\":\"<host>\",\"branch\":\"fixture\",\"permission\":\"auto\"}"
+      ],
+      "lock": {
+        "id": "f3f2ece5",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 18784,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 44800,
+            "alive": true
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-27T08:32:47.579Z",
+      "step": "contend-begin",
+      "owner": "claude-0.5.18-resident",
+      "lock": {
+        "id": "f3f2ece5",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 18784,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 44800,
+            "alive": true
+          }
+        ]
+      },
+      "holdProcesses": [
+        68604,
+        64752
+      ]
+    },
+    {
+      "at": "2026-10-27T08:32:52.420Z",
+      "step": "background-start",
+      "version": "0.5.24",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:25:41.559Z). Stop it first."
+      },
+      "ownerUnchanged": true,
+      "holdProcesses": [
+        68604,
+        64752
+      ],
+      "log": "s2-001-0.5.24-background-start.log"
+    },
+    {
+      "at": "2026-10-27T08:32:56.555Z",
+      "step": "session-start",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "locked",
+        "session": "f3f2ece5-32db-4cbf-9204-51c4e629c93f",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "active",
+        "host": "<host>",
+        "policy": {
+          "commit": true,
+          "propose": false
+        }
+      },
+      "ownerUnchanged": true,
+      "holdProcesses": [
+        68604,
+        64752
+      ],
+      "log": "s2-002-0.5.24-session-start.log"
+    },
+    {
+      "at": "2026-10-27T08:33:00.566Z",
+      "step": "background-status",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "status",
+        "running": true,
+        "client": "claude",
+        "session": "f3f2ece5-32db-4cbf-9204-51c4e629c93f",
+        "lifecycle": "active",
+        "otherSession": null,
+        "host": "<host>",
+        "branch": "fixture",
+        "permission": "auto",
+        "state": "working",
+        "waitReason": null,
+        "waitFiles": [],
+        "interrupted": null,
+        "lastResult": null,
+        "lastLog": null,
+        "stopReason": null,
+        "logs": "<home>\\AppData\\Local\\Temp\\mh-s2\\.git\\harness\\runs",
+        "autostart": {
+          "registered": false
+        }
+      },
+      "ownerUnchanged": true,
+      "holdProcesses": [
+        68604,
+        64752
+      ],
+      "log": "s2-003-0.5.24-background-status.log"
+    },
+    {
+      "at": "2026-10-27T08:33:04.595Z",
+      "step": "session-check",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "owned",
+        "session": "f3f2ece5-32db-4cbf-9204-51c4e629c93f",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "active",
+        "host": "<host>",
+        "policy": {
+          "commit": true,
+          "propose": false
+        },
+        "paused": false
+      },
+      "ownerUnchanged": true,
+      "holdProcesses": [
+        68604,
+        64752
+      ],
+      "log": "s2-004-0.5.24-session-check.log"
+    },
+    {
+      "at": "2026-10-27T08:33:08.825Z",
+      "step": "same-version-background-start",
+      "version": "0.5.18",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:25:41.559Z). Stop it first."
+      },
+      "ownerUnchanged": true,
+      "holdProcesses": [
+        68604,
+        64752
+      ],
+      "log": "s2-005-0.5.18-same-version-background-start.log"
+    },
+    {
+      "at": "2026-10-27T08:33:08.828Z",
+      "step": "contend-end",
+      "lock": {
+        "id": "f3f2ece5",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 18784,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 44800,
+            "alive": true
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-27T08:33:12.560Z",
+      "step": "stop-begin",
+      "stopper": "0.5.24",
+      "lock": {
+        "id": "f3f2ece5",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "active",
+        "runnerLease": true,
+        "poller": {
+          "pid": 18784,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 44800,
+            "alive": true
+          }
+        ]
+      },
+      "holdProcesses": [
+        68604,
+        64752
+      ],
+      "ownerTree": [
+        57788
+      ]
+    },
+    {
+      "at": "2026-10-27T08:33:16.577Z",
+      "step": "cross-version-background-stop",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "f3f2ece5-32db-4cbf-9204-51c4e629c93f"
+      },
+      "lock": {
+        "id": "f3f2ece5",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "runnerLease": true,
+        "poller": {
+          "pid": 18784,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 44800,
+            "alive": true
+          }
+        ]
+      },
+      "holdProcesses": [
+        68604,
+        64752
+      ]
+    },
+    {
+      "at": "2026-10-27T08:33:18.281Z",
+      "step": "while-stopping",
+      "seconds": 2,
+      "summary": {
+        "id": "f3f2ece5",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "runnerLease": true,
+        "poller": {
+          "pid": 18784,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 44800,
+            "alive": true
+          }
+        ]
+      },
+      "holds": [
+        68604,
+        64752
+      ]
+    },
+    {
+      "at": "2026-10-27T08:33:20.559Z",
+      "step": "start-during-stopping-other-version",
+      "version": "0.5.24",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:25:41.559Z). Stop it first."
+      },
+      "ownerUnchanged": true,
+      "lockStillPresent": true
+    },
+    {
+      "at": "2026-10-27T08:33:22.543Z",
+      "step": "start-during-stopping-owner-version",
+      "version": "0.5.18",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "locked",
+        "reason": "This checkout already has a watch or runner (started 2026-10-27T08:25:41.559Z). Stop it first."
+      },
+      "ownerUnchanged": true,
+      "lockStillPresent": true
+    },
+    {
+      "at": "2026-10-27T08:36:45.003Z",
+      "step": "while-stopping",
+      "seconds": 208,
+      "summary": {
+        "id": "f3f2ece5",
+        "client": "claude",
+        "mode": "resident",
+        "lifecycle": "stopping",
+        "runnerLease": true,
+        "poller": {
+          "pid": 18784,
+          "alive": true
+        },
+        "children": [
+          {
+            "pid": 44800,
+            "alive": true
+          }
+        ]
+      },
+      "holds": []
+    },
+    {
+      "at": "2026-10-27T08:37:50.700Z",
+      "step": "released",
+      "seconds": 271,
+      "holdProcesses": [],
+      "ownerTree": [],
+      "runnerAlive": false,
+      "state": {
+        "lock": null,
+        "policy": null,
+        "guard": false
+      }
+    },
+    {
+      "at": "2026-10-27T08:37:52.887Z",
+      "step": "successor-session-start",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "started",
+        "session": "b5720fa5-a01b-4f24-8ff3-28ac2d4fa270",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      },
+      "lock": {
+        "id": "b5720fa5",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "active",
+        "poller": null,
+        "children": []
+      }
+    },
+    {
+      "at": "2026-10-27T08:37:54.881Z",
+      "step": "late-owner-session-stop",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "replaced",
+        "session": "f3f2ece5-32db-4cbf-9204-51c4e629c93f",
+        "seenAt": "2026-10-27T08:37:52.487Z"
+      },
+      "successorBytesUnchanged": true
+    },
+    {
+      "at": "2026-10-27T08:37:56.745Z",
+      "step": "late-owner-session-release",
+      "version": "0.5.18",
+      "code": 0,
+      "event": {
+        "event": "replaced",
+        "session": "f3f2ece5-32db-4cbf-9204-51c4e629c93f",
+        "seenAt": "2026-10-27T08:37:52.487Z"
+      },
+      "successorBytesUnchanged": true
+    },
+    {
+      "at": "2026-10-27T08:37:58.630Z",
+      "step": "late-owner-background-stop",
+      "version": "0.5.18",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "not-running",
+        "reason": "No background runner is running in this checkout."
+      },
+      "successorBytesUnchanged": true
+    },
+    {
+      "at": "2026-10-27T08:38:00.670Z",
+      "step": "successor-stop",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "stopping",
+        "session": "b5720fa5-a01b-4f24-8ff3-28ac2d4fa270",
+        "client": "codex",
+        "mode": "foreground",
+        "lifecycle": "stopping",
+        "host": null,
+        "policy": {
+          "commit": false,
+          "propose": false
+        }
+      }
+    },
+    {
+      "at": "2026-10-27T08:38:02.516Z",
+      "step": "successor-release",
+      "version": "0.5.24",
+      "code": 0,
+      "event": {
+        "event": "released",
+        "session": "b5720fa5-a01b-4f24-8ff3-28ac2d4fa270"
+      }
+    },
+    {
+      "at": "2026-10-27T08:38:05.978Z",
+      "step": "end",
+      "state": {
+        "lock": null,
+        "policy": null,
+        "guard": false
+      },
+      "holdProcesses": [],
+      "ownerTree": []
+    },
+    {
+      "at": "2026-10-27T08:38:45.407Z",
+      "step": "after-stop-codex-start",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "dirty",
+        "reason": "Uncommitted changes: docs/agents/main-loop/. Commit or stash them before you start the runner."
+      },
+      "lock": null
+    },
+    {
+      "at": "2026-10-27T08:38:47.334Z",
+      "step": "after-stop-claude-start",
+      "code": 1,
+      "event": {
+        "event": "error",
+        "code": "dirty",
+        "reason": "Uncommitted changes: docs/agents/main-loop/. Commit or stash them before you start the runner."
+      },
+      "lock": null
+    }
+  ]
+}
