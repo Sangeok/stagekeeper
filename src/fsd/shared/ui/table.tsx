@@ -4,7 +4,7 @@ import { cn } from "@/fsd/shared/lib/class-name";
 
 export function Table({ className, ...rest }: TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-rule bg-paper">
+    <div className="relative overflow-x-auto rounded-lg border border-rule bg-paper">
       <table className={cn("w-full text-left text-sm", className)} {...rest} />
     </div>
   );

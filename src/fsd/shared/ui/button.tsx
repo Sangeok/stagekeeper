@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ButtonHTMLAttributes, ComponentProps } from "react";
+import type { ComponentProps } from "react";
 
 import { cn } from "@/fsd/shared/lib/class-name";
 
@@ -26,7 +26,7 @@ export function buttonClass(variant: ButtonVariant, size: ButtonSize = "md", cla
   return cn(BASE, VARIANT[variant], SIZE[size], className);
 }
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = ComponentProps<"button"> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
 };

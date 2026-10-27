@@ -28,6 +28,8 @@
 
 성공/no-op은 `/projects`와 `/(app)/p/[slug]` layout을 재검증한다. stale/결과 불명에서는 확인 창을 닫고 로컬 상태를 버린 뒤 refresh한다. 확인 UI key는 대상/version/plan에 묶인다. 다른 브라우저의 즉시 갱신은 보장하지 않는다.
 
+Cancel이나 요청이 끝난 뒤 포커스가 문서로 빠졌으면 같은 대상의 ⋯ 또는 **Reconnect repository** 버튼으로 돌린다. 행이 다른 묶음으로 옮겨 새로 그려져도 같은 대상의 버튼으로 넘기며, 오류 응답이면 확인 창의 실행 버튼에 둔다. 요청 중 사용자가 포커스를 옮겼거나, 돌려줄 버튼이 없거나(프로젝트 화면 배너의 재연결 성공) 비활성이면 옮기지 않는다.
+
 ## 마이그레이션과 유지보수
 
 `20260927000000_repository_disconnection`은 nullable disconnectedAt/targetProjectId, owner/disconnectedAt 인덱스, `Project_disconnected_available_check`만 추가한다. 기존 18개 모델과 FK/unique/index 및 이전 SQL은 유지한다.
