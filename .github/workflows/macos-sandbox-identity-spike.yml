@@ -26,13 +26,13 @@ jobs:
         with:
           node-version: 22
       - name: Probe per-run sandbox identity, survivor confinement and kill-until-quiescent
-        run: node scripts/macos/probe-sandbox-identity.mjs "$RUNNER_TEMP/sandbox-identity.json"
+        run: for run in 1 2 3; do node scripts/macos/probe-sandbox-identity.mjs "$RUNNER_TEMP/sandbox-identity-$run.json" || exit 1; done
       - name: Show evidence
         if: always()
-        run: cat "$RUNNER_TEMP/sandbox-identity.json" || true
+        run: cat "$RUNNER_TEMP"/sandbox-identity-*.json || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: sandbox-identity-${{ matrix.runner }}
-          path: ${{ runner.temp }}/sandbox-identity.json
+          path: ${{ runner.temp }}/sandbox-identity-*.json
           if-no-files-found: warn

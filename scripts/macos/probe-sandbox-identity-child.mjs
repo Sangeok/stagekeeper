@@ -31,6 +31,7 @@ async function attack() {
   fs.writeFileSync(path.join(scratch, "cron.txt"), `* * * * * ${process.execPath} ${self} escaped ${root} cron\n`);
   run("crontab", "/usr/bin/crontab", [path.join(scratch, "cron.txt")]);
   run("open", "/usr/bin/open", ["-g", "-j", "-a", "Calculator"]);
+  run("openPath", "/usr/bin/open", ["-g", "-j", "-n", "/System/Applications/Calculator.app"]);
   results.network = await new Promise(resolve => {
     const socket = net.connect({ host: "127.0.0.1", port: config.port });
     socket.once("connect", () => { socket.destroy(); resolve({ allowed: true }); });
