@@ -43,15 +43,18 @@ jobs:
       - name: Probe native permissions and detached-child containment
         run: node scripts/macos/probe-seatbelt-containment.mjs "$RUNNER_TEMP/seatbelt-containment.json"
       - name: Probe recursive tracking and orphan ownership
+        if: github.event_name == 'workflow_dispatch'
         run: node scripts/macos/probe-descendant-ownership.mjs "$RUNNER_TEMP/descendant-ownership.json"
       - name: Probe launchd lifecycle and detached descendants
+        if: github.event_name == 'workflow_dispatch'
         run: node scripts/macos/probe-launchd-ownership.mjs "$RUNNER_TEMP/launchd-ownership.json"
       - name: Probe ordinary-user coalition control
+        if: github.event_name == 'workflow_dispatch'
         run: node scripts/macos/probe-coalition-access.mjs "$RUNNER_TEMP/coalition-access.json"
       - name: Probe per-run sandbox identity, survivor confinement and quiescence
         run: node scripts/macos/probe-sandbox-identity.mjs "$RUNNER_TEMP/sandbox-identity.json"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         with:
           name: coalition-access-${{ matrix.runner }}
           path: ${{ runner.temp }}/coalition-access.json
@@ -69,13 +72,13 @@ jobs:
           path: ${{ runner.temp }}/seatbelt-containment.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         with:
           name: descendant-ownership-${{ matrix.runner }}
           path: ${{ runner.temp }}/descendant-ownership.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         with:
           name: launchd-ownership-${{ matrix.runner }}
           path: ${{ runner.temp }}/launchd-ownership.json

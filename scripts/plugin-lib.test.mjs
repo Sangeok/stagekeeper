@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { diffPluginLib, syncPluginLib } from "./plugin-lib.mjs";
 
 const temporaryProjects = [];
@@ -27,6 +28,42 @@ afterEach(() => {
 });
 
 describe("plugin-lib", () => {
+  it("rejects unsupported arguments before changing drifted or orphaned copies", () => {
+    const root = project();
+    write(root, "packages/core/config.mjs", "export const a = 1;\n");
+    write(root, "plugin/lib/config.mjs", "export const a = 0;\n");
+    write(root, "plugin/lib/orphan.mjs", "export const old = true;\n");
+    for (const args of [["--chek"], ["--check", "unexpected"], ["--help", "--check"]]) {
+      const result = spawnSync(process.execPath, [fileURLToPath(new URL("./plugin-lib.mjs", import.meta.url)), ...args], { cwd: root, encoding: "utf8" });
+      assert.equal(result.status, 2, result.stderr);
+      assert.match(result.stderr, /Usage:/);
+      assert.equal(readFileSync(join(root, "plugin/lib/config.mjs"), "utf8"), "export const a = 0;\n");
+      assert.equal(existsSync(join(root, "plugin/lib/orphan.mjs")), true);
+    }
+  });
+
+  it("prints help without requiring a project or writing plugin copies", () => {
+    const root = project();
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL("./plugin-lib.mjs", import.meta.url)), "--help"], { cwd: root, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Usage:/);
+    assert.equal(existsSync(join(root, "plugin")), false);
+  });
+
+  it("keeps check read-only and reports failure until the normal CLI synchronizes copies", () => {
+    const root = project();
+    write(root, "packages/core/config.mjs", "export const a = 1;\n");
+    write(root, "plugin/lib/config.mjs", "export const a = 0;\n");
+    const script = fileURLToPath(new URL("./plugin-lib.mjs", import.meta.url));
+    const check = spawnSync(process.execPath, [script, "--check"], { cwd: root, encoding: "utf8" });
+    assert.equal(check.status, 1, check.stderr);
+    assert.equal(readFileSync(join(root, "plugin/lib/config.mjs"), "utf8"), "export const a = 0;\n");
+    const sync = spawnSync(process.execPath, [script], { cwd: root, encoding: "utf8" });
+    assert.equal(sync.status, 0, sync.stderr);
+    assert.equal(readFileSync(join(root, "plugin/lib/config.mjs"), "utf8"), "export const a = 1;\n");
+    assert.equal(spawnSync(process.execPath, [script, "--check"], { cwd: root }).status, 0);
+  });
+
   it("reports nothing when every core module has an identical copy", () => {
     const root = project();
     write(root, "packages/core/config.mjs", "export const a = 1;\n");

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import { RUNTIME_MARKER } from "@harness/core/execution/client-runtime.mjs";
 import { COMMON_DOCS } from "@harness/core/templates/codex-bundle.mjs";
 import { limitsFor } from "@harness/core/plans/entitlement.mjs";
-import { seedTemplates, snapshotTemplates, restoreTemplates, type TemplateSource } from "./template-seed-query";
+import { prismaErrorCode, seedTemplates, snapshotTemplates, restoreTemplates, TEMPLATE_TRANSACTION_OPTIONS, type TemplateSource } from "./template-seed-query";
 
 const rows: TemplateSource[] = [
   { lang: "en", path: "CODEX.runbook.md", body: RUNTIME_MARKER + "\nsource" },
@@ -58,4 +59,18 @@ it("rejects current-body drift or a new non-Codex row before any restoration", a
     if (changed) db.data.set("en/agents/dev.md", "newer source");
     db.writes.length = 0; await assert.rejects(() => restoreTemplates(db.store, snapshot)); assert.deepEqual(db.writes, []);
   }
+});
+
+it("gives seed and restore transactions time to start against a remote database", () => {
+  assert.deepEqual(TEMPLATE_TRANSACTION_OPTIONS, { isolationLevel: "Serializable", maxWait: 15000, timeout: 30000 });
+  for (const script of ["seed-templates.ts", "restore-dual-client-templates.ts"]) {
+    assert.match(readFileSync(new URL(`./${script}`, import.meta.url), "utf8"), /\$transaction\([\s\S]*TEMPLATE_TRANSACTION_OPTIONS\)\)/, script);
+  }
+});
+
+it("reports only a Prisma error code when a seed or restore fails", () => {
+  assert.equal(prismaErrorCode(Object.assign(new Error("Transaction API error: Unable to start a transaction in the given time."), { code: "P2028" })), "P2028");
+  assert.equal(prismaErrorCode(new Error("Invalid or duplicate template: en/agents/x.md")), null);
+  assert.equal(prismaErrorCode({ code: "ECONNREFUSED" }), null);
+  assert.equal(prismaErrorCode(null), null);
 });

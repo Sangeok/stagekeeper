@@ -41,11 +41,19 @@ export function syncPluginLib(projectRoot = process.cwd()) {
 }
 
 function runCli() {
-  if (process.argv.includes("--check")) {
+  const args = process.argv.slice(2);
+  const usage = "Usage: node scripts/plugin-lib.mjs [--check | --help] (run from the repository root; no arguments synchronizes plugin/lib)";
+  if (args.length === 1 && args[0] === "--help") { console.log(usage); return; }
+  if (args.length && !(args.length === 1 && args[0] === "--check")) {
+    console.error(usage);
+    process.exitCode = 2;
+    return;
+  }
+  if (args[0] === "--check") {
     const { drift, orphan } = diffPluginLib();
     for (const name of drift) console.log(`drift: ${LIB}/${name}`);
     for (const name of orphan) console.log(`orphan: ${LIB}/${name}`);
-    if (drift.length || orphan.length) { console.log("run: npm run sync:plugin-lib"); process.exit(1); }
+    if (drift.length || orphan.length) { console.log("run: npm run sync:plugin-lib"); process.exitCode = 1; return; }
     console.log("plugin/lib in sync");
     return;
   }

@@ -768,3 +768,16 @@ describe("harness-init (v2)", () => {
     });
   });
 });
+
+it("asks for the dry-run yes on every run, in the words product-copy gives the init skill", () => {
+  const squeeze = (text) => text.replace(/\s+/g, " ");
+  const skill = squeeze(readFileSync(new URL("../skills/init/SKILL.md", import.meta.url), "utf8"));
+  const copy = squeeze(readFileSync(new URL("../../docs/conventions/product-copy.md", import.meta.url), "utf8"));
+  for (const sentence of [
+    "Show the dry run and get a yes before writing.",
+    "Ask on every run: a rerun with an existing `harness.json`, a clean tree, or a dry run that lists only managed files still waits for the yes, and the request to run init is not that yes.",
+  ]) {
+    assert.ok(copy.includes(`"${sentence}"`), `product-copy: ${sentence}`);
+    assert.ok(skill.includes(sentence), `init skill: ${sentence}`);
+  }
+});

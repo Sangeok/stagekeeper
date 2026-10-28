@@ -6,16 +6,19 @@ description: Connect this repository to Stagekeeper — write harness.json, gene
 # harness:init
 
 Use the owner's existing native Claude Code installation and login. Do not require WSL,
-a VM/container, another client login, or manual Node/verifier-skill installation to connect
+a VM/container, another client login, or manual verifier-skill installation to connect
 Stagekeeper. On Windows execute this package's helpers through
 `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <absolute-plugin-root>/bin/harness.ps1 <task> <existing arguments>`.
 Use task `init` for harness-init.mjs, `session` for harness-session.mjs and `watch` for
 harness-watch.mjs. Translate every Node helper command below through this launcher on
 Windows and quote its absolute path when it contains spaces.
-This uses the verified included Node without changing persistent execution policy. Read the
-complete original verifier included at `skills/reconciling-proposals-with-codebase` and follow
-the reconciliation contract below. If the installed bundle lacks either dependency, report a
-Stagekeeper packaging failure and stop; do not turn it into extra owner setup steps.
+The launcher uses the verified Node an install bundle includes, or the Node.js in PATH for a
+plugin installed from source, without changing persistent execution policy. A plugin installed
+from source needs Node.js in PATH on every operating system; if it is missing, say so and stop.
+Read the complete verifier this plugin includes at `skills/reconciling-proposals-with-codebase`
+and follow the reconciliation contract below. If an install bundle lacks its Node runtime or the
+plugin lacks the verifier, report a Stagekeeper packaging failure and stop; do not turn it into
+extra owner setup steps.
 
 Precondition: the user has created the project on the web and has a token. The token must be
 in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).
@@ -26,7 +29,9 @@ in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).
   `setx HARNESS_SERVER "<base>"`. POSIX: append `export HARNESS_SERVER="<base>"` to the login
   profile, **only if that line is not already there** — init is rerun routinely and a second
   copy is noise. The base is the web address without `/api/mcp`. Both take effect in the *next*
-  shell, which is why step 4 restarts.
+  shell, which is why step 4 restarts. A repository that uses its own server (end of step 4) is
+  the exception: pass that server with `--server` and leave `HARNESS_SERVER` as it is, because
+  every repository reads it.
 - `HARNESS_TOKEN` — **do not take the value into this conversation.** Open the issue page for
   them (`/settings/tokens` for a user token, `/p/<slug>/tokens` for a project token) and say
   plainly why you are not doing this part: anything pasted into the chat lands in the session
@@ -75,12 +80,12 @@ caller: it has not sent the project scope. Update the harness plugin and reload 
 skill when using an older version; for a direct MCP call, include `project` explicitly.
 Repeating the same unscoped request or merely rerunning an older init does not fix it.
 
-Before creating or updating any repository files, complete the bundled verification-skill
+Before creating or updating any repository files, complete the verification-skill
 preflight in [references/reconciliation-contract.md](references/reconciliation-contract.md).
-Stagekeeper bundles the complete original package. Check the actual resolved skill and
-its supporting files, not just its name in a list. If the installed bundle is missing or
+The plugin includes the complete package. Check the actual resolved skill and
+its supporting files, not just its name in a list. If the plugin's copy is missing or
 incompatible, report a Stagekeeper packaging failure and stop before step 1; repair/update
-the bundle and repeat preflight. Source-development fallback is described in that reference.
+the plugin and repeat preflight.
 
 1. If there's no `harness.json`, **do not interview the user.** Build one draft and show it once.
    - `project`: **which command depends on the token in the shell.** Check the prefix of
@@ -137,17 +142,19 @@ the bundle and repeat preflight. Source-development fallback is described in tha
    `harness` entry in an existing `.mcp.json`. Ask for the URL from the web Tokens page only when
    it stops with `Server URL required`; a pasted value may keep its `/api/mcp` tail, which the
    generator strips. **There is still no default server URL** — without a source it stops.
-   Show the files it would write **together with the draft from step 1** and take one yes for
-   both. If the output has `refuse:` lines, ask whether to `--adopt` — that is the only second
-   question, and a clean repository never reaches it.
+   Show the dry run and get a yes before writing. If step 1 built a draft, show it in the same
+   message, so one yes covers both. Ask on every run: a rerun with an existing `harness.json`, a
+   clean tree, or a dry run that lists only managed files still waits for the yes, and the
+   request to run init is not that yes. If the output has `refuse:` lines, ask whether to
+   `--adopt` — that is the only second question, and a clean repository never reaches it.
    Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If it is set, the user issued an
    **owner token** on the web Tokens tab (it lets their own session open gates). Remember that
    answer for step 4 — **do not pass `--owner`**: the generator no longer writes any server, so the
    flag has no job and only prints a note saying where the owner server moved. If it is not set,
    do not ask for the token. Never print the token value.
-3. Run it for real. Report the `plan:`, `write:`, `skip(modified):` and `skip(plan):` lines as
-   they are. `skip(plan):` means the project's plan does not include that agent — the server did
-   not send it; the user upgrades on the web and reruns. If the run stops with
+3. After the yes, run it for real. Report the `plan:`, `write:`, `skip(modified):` and
+   `skip(plan):` lines as they are. `skip(plan):` means the project's plan does not include that
+   agent — the server did not send it; the user upgrades on the web and reruns. If the run stops with
    `workspace cap reached on the <plan> plan`, nothing was written: `harness.json` names more
    workspaces than the plan allows — drop some or upgrade, then rerun.
    **Keep the `server:` line from the output** — it is the resolved base URL and step 4 needs it.
@@ -155,7 +162,8 @@ the bundle and repeat preflight. Source-development fallback is described in tha
    `.mcp.json`) and the tail normalization both live there. If the run also prints
    `note: that entry was also this repository's only record of the server URL`, the generator just
    removed the last per-repo copy of the address — make sure `HARNESS_SERVER` holds it (step 0
-   persists it) so the next rerun does not stop with `Server URL required`.
+   persists it) so the next rerun does not stop with `Server URL required`. If that address was
+   this repository's own server, follow the end of step 4 instead of changing `HARNESS_SERVER`.
    If identity, registration, or templates is refused with 401/403/409, stop at the reported
    error. Do not fall back to manual registration or another project; only the documented
    missing-route 404 supports legacy identity recovery. A disconnected repository requires
@@ -172,10 +180,13 @@ the bundle and repeat preflight. Source-development fallback is described in tha
    - Check first: `claude mcp get harness`. This is **required, not defensive** — adding a name
      that already exists fails with `already exists in user config` (exit 1) and changes nothing,
      and init is rerun routinely.
+   - Its `Scope:` line says `Local config` → this repository uses its own server (end of this
+     step). If its URL is `<base>/api/mcp`, change nothing in either scope; otherwise stop and ask
+     which server this repository uses. Never change the user-scope entry for it.
    - Absent → add it. **Single quotes around the header**, or the shell expands the variable before
      the CLI sees it and the token is written into the config as plaintext:
      `claude mcp add --transport http --scope user harness <base>/api/mcp -H 'Authorization: Bearer ${HARNESS_TOKEN}'`
-   - Present but pointing at a different URL → `claude mcp remove harness -s user`, then add.
+   - Present at user scope but pointing at a different URL → `claude mcp remove harness -s user`, then add.
      Re-adding alone does not update it; the old address would silently stay.
    - If `HARNESS_OWNER_TOKEN` was set in step 2, register the owner server the same way:
      `harness_owner` at `<base>/api/mcp/owner` referencing `${HARNESS_OWNER_TOKEN}`. Skip it
@@ -193,8 +204,15 @@ the bundle and repeat preflight. Source-development fallback is described in tha
    saved token before starting Claude Code. Restarting does not expire the token. Apply the same
    reuse and secure-storage guidance to `HARNESS_OWNER_TOKEN`, which connects only to the owner
    server. A saved user token (`hu_`) works from any terminal.
-   A repository that must talk to a *different* server keeps its own `.mcp.json`: project scope
-   outranks user scope, so that file stays the deliberate per-repo override.
+   A repository that must talk to a *different* server than the rest of this machine uses a
+   local-scope registration instead, which only this repository sees:
+   `claude mcp add --transport http --scope local harness <base>/api/mcp -H 'Authorization: Bearer ${HARNESS_TOKEN}'`
+   (and `harness_owner` the same way when step 2 found `HARNESS_OWNER_TOKEN`). Local scope
+   outranks user scope and is stored in the user's Claude Code configuration, not in the
+   repository, so rerunning init leaves it in place. A `harness` entry in `.mcp.json` does not
+   work for this: the generator removes `harness` and `harness_owner` from that file on every
+   run. Pass that server to init and `/harness:watch` with `--server`, and start Claude Code
+   there with a `HARNESS_TOKEN` that server issued.
 5. Read the current `harness.json` and call `mcp__harness__project_sync` with
    `{ project: slug, workspaces, language }`, using `project.slug`, `workspaces`, and
    `language` (default `en`) from that file. Only an `hs_` configuration without a slug

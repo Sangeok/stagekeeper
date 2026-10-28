@@ -91,7 +91,15 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 - [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
   `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
   공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.
-  npm 의존성 설치 전 native probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
+  PR·`dev` push에서는 npm 의존성 설치 전 `probe-seatbelt-containment.mjs`와
+  `probe-sandbox-identity.mjs`를 실행하고 각 증거를 artifact로 보존한다.
+  앞의 probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
+  뒤의 probe는 실행별 sandbox 식별·생존 후손의 가두기·종료 확인을 검사한다.
+  아래 세 probe와 해당 artifact 업로드는 기존 workflow의 수동 실행(`workflow_dispatch`)에서만 수행한다.
+  채택하지 않은 접근법의 한계를 재현하는 조사 도구이므로 일반 제품 변경 때마다 반복하지 않는다.
+  스크립트·C fixture·기존 보고서는 보존하며, OS 변경이나 설계 재검토 시
+  `gh workflow run macos-runtime-contracts.yml --ref dev`로 두 아키텍처에서 재실행한다.
+  수동 실행에서도 공통 런타임 테스트와 앞의 두 probe는 함께 수행하며, probe 실패 시에도 artifact 업로드를 시도한다.
   `probe-descendant-ownership.mjs`는 Clang으로 C fixture를 빌드해 NOTE_TRACK 거부,
   fork 알림의 합침·자식 신원 부재, orphan 생존 및 알려진 fixture의 종료를 검사한다.
   `probe-launchd-ownership.mjs`는 user/gui 영역의 자연 종료·서비스 SIGKILL·bootout·
@@ -193,6 +201,57 @@ PR·CI 재실행·조회 실패·squash 병합·동시 커밋 보존을 확인�
 `scripts/`는 앱 런타임 코드가 아니다. 저장소 도구·운영 도구·수동 리허설과 그 테스트를 둔다.
 배치는 실행 종류보다 함께 변경되는 책임을 기준으로 한다([ADR-0004](../ADR/0004-organize-repository-scripts.md)).
 
+### 스크립트와 CI의 경계
+
+CI에서 호출된다는 사실만으로 CI 전용 코드가 되지는 않는다. 빌드·검사·운영 도구는
+아래 책임별 위치에 두고, GitHub Actions의 이벤트·실행 정보·출력 형식에 의존하는
+연결 코드만 CI 영역에서 소유한다.
+
+- `.github/workflows/`는 실행 조건, runner·서비스, 권한, 작업 순서·병렬화,
+  캐시·artifact 전달과 도구 호출을 소유한다. 짧은 연결 명령은 workflow 안에 둔다.
+- 공통 도구는 인자·환경 변수로 입력을 받고 결과·종료 코드·산출물을 제공한다.
+  `GITHUB_OUTPUT`·`GITHUB_STEP_SUMMARY` 기록과 runner 경로의 선택은 호출자가 맡는다.
+  CI 연결 코드가 공통 도구를 호출하며, 공통 도구는 CI 연결 코드를 import하거나 실행하지 않는다.
+- 독립적인 테스트나 여러 workflow의 재사용이 필요한 GitHub 연결 코드는
+  `.github/scripts/`에 둘 수 있다. 반복되는 Actions 단계는 `.github/actions/`의
+  composite action, runner·여러 job을 포함한 흐름은 reusable workflow로 묶는다.
+  이 위치들은 필요할 때 도입하는 선택지이며 빈 폴더나 범용 실행기를 미리 만들지 않는다.
+- GitHub API를 사용하더라도 저장소 관리가 본래 책임이면 운영 도구다.
+  `cleanup-task-branches.mjs`의 PR·CI 결과 조회는 Actions 실행 환경에 대한 의존이
+  아니므로 기존 위치를 유지한다. OS·DB·인증이 필요하다는 이유만으로도 CI 전용으로 분류하지 않는다.
+
+현재 Windows 캐시 도구는 키 계산·runtime 검증을 제공하고 workflow가 키를
+`GITHUB_OUTPUT`에 기록한다. macOS probe는 증거 파일 경로를 인자로 받고 workflow가 runner 임시 경로와
+artifact 업로드를 정한다. 도구와 CI 연결의 경계는 이 방식으로 유지한다.
+
+### 실행 계약과 재사용
+
+1. 같은 검증은 로컬과 CI에서 같은 구현을 호출한다. 기존 npm 진입점을 우선 사용하며,
+   OS별 동시성이나 검사 부분 집합이 다르면 같은 테스트를 명시적인 명령·옵션으로
+   선택하고 차이를 실행 설명에 기록한다. CI용 검사 구현을 별도로 복사하지 않는다.
+2. 도구를 추가·변경할 때 작업 디렉터리, 인자·필수 환경 변수, 필요한 도구·버전,
+   DB·native runtime 등 실행 조건과 파일·DB 쓰기 범위를 기존 명령 설명에 기록한다.
+   같은 명령이라도 입력과 환경이 다르면 같은 검증 결과를 보장하지 않는다.
+3. 실패는 0이 아닌 종료 코드로 전달하고 호출자가 이를 보존한다. 필수 입력 누락을
+   성공으로 처리하지 않는다. 테스트의 의도된 skip은 지원하지 않는 OS나 미준비된
+   runtime 등 사유와 함께 표시하고, 해당 환경의 인수 통과로 보고하지 않는다.
+4. 함께 변경해야 하는 실제 중복이 생기면 가장 작은 단위로 재사용한다. 계산·검사
+   로직은 일반 모듈·스크립트, Actions 단계와 job은 위의 CI 재사용 단위로 묶는다.
+   짧은 호출 명령이 비슷하다는 이유만으로 추상화하지 않는다. 테스트는 소유 코드 옆에 둔다.
+
+실행 명령·테스트 검색 패턴은 [package.json](../../package.json), 자동 실행 조건은
+각 [workflow](../../.github/workflows/)가 기준이다. 아래 목록에는 실행 방법·환경·부작용을
+설명하며 별도의 CI 실행 파일 목록을 중복 관리하지 않는다. 도구의 테스트가 CI에서
+실행되는 것과 운영 명령 자체가 실행되는 것은 구분한다.
+
+이 경계와 재사용 판단에는 전용 자동 검사기가 없다. 변경 리뷰에서 실제 호출·import,
+입출력·종료 코드와 로컬 재현 경로를 확인한다. 경로를 옮기거나 CI 연결 코드를 추출하면
+테스트 검색·lint·타입 검사 범위와 workflow 경로 필터도 함께 갱신하고 실제 실행을 확인한다.
+기존 `test:scripts`·`test:architecture`는 `scripts/` 아래만 검색하므로 `.github/`에 추가한
+테스트까지 자동으로 검증한다고 가정하지 않는다.
+
+### 책임별 위치와 명령
+
 | 위치 | 소유 책임 |
 | --- | --- |
 | 최상위 | build, 브랜치 정리, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여, GitHub 목록 credential 정리·회전과 짝 테스트 |
@@ -217,13 +276,20 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 완료 제안서·검증 보고서에 남은 이전 경로는 당시 실행 기록으로 보존한다.
 현재 실행 명령은 아래 목록과 `package.json`을 따른다.
 
+`build.mjs`, `plugin-lib.mjs`, `test-server-integration.mjs`는 저장소 루트에서 실행한다.
+세 진입점은 단독 `--help`를 받으면 환경 설정·파일 동기화·Prisma 생성·migration 전에
+사용법을 출력하고 0으로 종료한다. 지원하지 않는 인자나 옵션 조합은 작업 전에 2로
+종료한다. build·통합 시험은 일반 실행 시 인자를 받지 않으며, plugin-lib는 인자 없이
+동기화하고 단독 `--check`로 읽기 전용 검사한다. build 인자를 Next CLI로 전달하지 않는다.
+동작 실패는 0이 아닌 종료 코드로 전달하며 build는 실패한 자식의 코드를 보존하고 후속 단계를 중단한다.
+
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
 | `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | 병합·CI·로컬 보존 조건을 확인한 작업 브랜치의 로컬 ref만 정리. `main`·`dev`와 원격 ref는 삭제하지 않음 |
 | `maintain-github-connections.ts` | `npm run github:maintenance -- --apply [--rotate]` | 운영자는 최소 10분마다 실행하며 rotation은 명시적으로 요청 | 만료된 GitHub 시도·초안·delivery를 삭제하고 만료 credential을 중지한다. 회전은 current key로 재봉인하며 revision/tokenVersion과 기존 envelope의 CAS로 새 grant를 덮어쓰지 않는다. 실제 운영 실행·키 공급은 배포 승인 범위다 |
 | `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
-| `windows/package-windows-plugin.mjs` | `node scripts/windows/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source·runtime·변경하지 않은 완전한 owner verifier를 양쪽 skill 경로에 복사하고 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |
+| `windows/package-windows-plugin.mjs` | `node scripts/windows/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>` | Windows private 배포물 검토 시 | 추적된 plugin source(검증 스킬 포함)·runtime을 복사하고, 검증 스킬을 Codex skill 경로에 같은 checksum으로 복사해 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다 |
 | `windows/rehearse-windows-project-build.mjs` | `node scripts/windows/rehearse-windows-project-build.mjs --root <npm ci로 준비한 공개 checkout> --runtime <검증된 Windows runtime>` | `windows-role-runtime` CI/전체 프로젝트 빌드 회귀 시 | Prisma 엔진을 포함한 정상 의존성 설치 후, DB URL·환경 파일·network 없는 실제 LPAC snapshot에서 전체 `npm run build`와 원본 source/build ID 불변·산출물 폐기·종료 acknowledgement를 확인한다. 모델·DB·로그인·배포를 실행하지 않는다 |
 | `build.mjs`, `windows/windows-role-readlink.cjs` | `npm run build` | 프로젝트 production build | 기본 Next 빌드를 유지하고 Windows 역할 복사본에서만 Webpack·readlink 오류 호환 preload와 TypeScript compiler API 검사를 선택한다. 타입 검사를 생략하지 않으며 API가 없는 TypeScript로의 업그레이드는 실제 native CI에서 검증해야 한다. 일반 파일임을 실제 lstat로 확인할 때만 EPERM/EACCES를 EINVAL로 바꾸며 링크·metadata 거부는 유지한다. owner 프로세스·커널·ACL·network 권한은 변경하지 않는다 |
 | `windows/windows-role-readlink.test.mjs` | `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows/windows-role-readlink.test.mjs` | native Windows CI/호환 preload 변경 시 | 실제 LPAC의 sync/callback/promises/ESM readlink·callback validation·외부 metadata/data 거부를 확인한다. 다른 플랫폼/미준비된 runtime의 skip은 전체 Windows 인수 PASS를 대신하지 않는다 |
@@ -234,7 +300,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `checks/verify-plugin-version.mjs`, `checks/verify-plugin-version.test.mjs` | `npm run verify:plugin-version [-- --base <ref> --head <ref>]`; `test:scripts` | `main` 승격 직전 | `origin`의 `main`·`dev`를 fetch한 뒤 기본값 `origin/main`→`origin/dev` 사이에서 출하 대상 `plugin/` 파일(Windows 패키지와 같은 기준: `plugin/templates/`·`*.test.mjs` 제외)이 바뀌었으면 두 plugin manifest의 판이 같고 둘 다 base보다 높은지 검사한다. dev CI에는 넣지 않는다. 판은 배포 때 올리므로 dev는 이 검사에서 실패하는 상태일 수 있다 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | CI마다, 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | CI마다(일회용 PostgreSQL 18), 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. migrate 출력은 숨기고 시험 출력은 그대로 보인다. DB 생성·삭제·reset 없음 |
-| `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
+| `build.test.mjs`, `plugin-lib.test.mjs`, `test-server-integration.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 실제 CLI의 잘못된 인자·도움말을 작업 전에 처리하는지, check의 무쓰기·동기화 동작, 빌드 순서·실패 코드 보존, URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |

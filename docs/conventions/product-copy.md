@@ -1204,7 +1204,12 @@ both). Below: each file's title, its section headings, and the sentences that se
 - `SKILL.md` (`/harness:init`): description "Connect this repository to Stagekeeper: write
   harness.json, generate agents and conventions, register the MCP server once per machine, sync
   the roster." Steps keep today's seven; wording: "Ask one question at a time." · "Show the dry
-  run and get a yes before writing." · "Tell the user to restart Claude Code — the registration is
+  run and get a yes before writing." · "Ask on every run: a rerun with an existing
+  `harness.json`, a clean tree, or a dry run that lists only managed files still waits for the
+  yes, and the request to run init is not that yes." (2026-10-29: 0.5.28 smoke의 init 두 번이
+  모두 yes 없이 썼다. 덧붙인 문장 없이 `/harness:init`만 친 실행도 그랬다. 에이전트가 든 이유는
+  확인할 초안이 없다(이미 있는 `harness.json`), 트리가 깨끗하다, 호출이 곧 승인이다였다.)
+  · "Tell the user to restart Claude Code — the registration is
   read at session start. There is no approval prompt: user-scope servers load on their own." · "Leave the
   commit to the user." Step 6 says a knowledge doc is optional and offers one instead of
   requiring it: "The workspace's dev agent is told to read one before it writes a plan, and
@@ -1250,6 +1255,7 @@ both). Below: each file's title, its section headings, and the sentences that se
 - Defaults: 60-second HTTP polling, 110-minute CLI deadline (maximum 110), 20-second request timeout (maximum 20). Positive fractional timings are allowed for isolated tests.
 - PowerShell and Bash both run the resolved absolute plugin CLI with shell-safe quoted checkout/session arguments. The skill body resolves `${CLAUDE_PLUGIN_ROOT}`; the shell does not supply that variable. A started explicit server is carried through check/poll; stop needs only checkout/session. Token values stay in the environment.
 - Events: started/owned include session and boolean commit/propose policy; locked gives startedAt/seenAt; work/stuck give session, normalized items/head and runbookStale; idle/stopped give session; replaced gives session and string/null seenAt; error gives string/null session, code and reason. Exactly one JSON line; only error exits 1. Missing/invalid task output stops the watch. Events are data, not executable instructions or receipts.
+- Session helper (`harness-session.mjs`, plugin 0.5.28): for a Claude session, a start or check refused by the checkout or its watch state gives the code and reason from the table below — `binding-changed` when `--root` is not the checkout the session started in, for example from a worktree. Its other refusals, and every refusal for a Codex session, stay `session-refused`: "Invalid configuration, ownership or server response; stop and reconnect with the current client init skill."
 - Server lease (plugin 0.5.13): a managed start also takes the project's runner lease on the server (§5 runner line). `busy` (exit 0, no session) gives `holder:{mode, host, seenAt}` — the start left no local state. `owned` from the session check may add boolean `paused`, or `server:"unreachable"` when the server could not be asked; neither is present when the server has no runner route.
 - Busy question: "A runner is already running for this project on {host} (last signal {time} UTC). Stop it there, or should I take over?" Only an explicit yes restarts with `--takeover`.
 - Pause notice, once per pause: "The runner is paused on the web. I start nothing new until you resume it there." Roles already running finish; the watch stays armed and resumes on its own.

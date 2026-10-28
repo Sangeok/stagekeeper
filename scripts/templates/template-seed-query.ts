@@ -11,6 +11,12 @@ type TemplateStore = {
   delete(args: { where: { lang_path: { lang: string; path: string } } }): Promise<unknown>;
 };
 export type SeedSnapshot = { version: 1; sourceRevision: string; sourceHash: string; rows: (TemplateSource & { previous: string | null })[] };
+export const TEMPLATE_TRANSACTION_OPTIONS = { isolationLevel: "Serializable", maxWait: 15000, timeout: 30000 } as const;
+
+export function prismaErrorCode(error: unknown): string | null {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === "string" && /^P\d{4}$/.test(code) ? code : null;
+}
 
 export function validateTemplateSources(rows: TemplateSource[]): void {
   const keys = new Set<string>();

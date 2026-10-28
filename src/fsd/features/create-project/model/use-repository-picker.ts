@@ -49,11 +49,15 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
     setQuery(previous => ({ ...(cursor ? previous : EMPTY_QUERY), status: "loading" }));
     try {
       const result = await repositoryPickerRequest(initial.userKey, `repositories${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal: controller.signal });
-      if (version !== generation.current) return;
+      if (version !== generation.current || controller.signal.aborted) return;
       if (!result.ok) {
         setQuery({ ...EMPTY_QUERY, status: "error", message: result.message });
         if (result.code === "UNAUTHENTICATED") lostSession();
-        if (result.code === "REAUTH_REQUIRED") { setConnection(previous => ({ ...previous, status: "reauth-required" })); invalidateSelection(); }
+        if (result.code === "REAUTH_REQUIRED") {
+          flowGeneration.current++;
+          setConnection(previous => ({ ...previous, status: "reauth-required" }));
+          invalidateSelection();
+        }
         if (result.retryAfter) updateRetryDeadline(Date.now() + result.retryAfter * 1000);
         return;
       }
@@ -77,19 +81,23 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
     let live = true;
     const controller = new AbortController();
     const version = flowGeneration.current;
+    const isCurrent = () => live && !controller.signal.aborted && flowGeneration.current === version;
     async function resume() {
       try {
         const pendingCancel = sessionStorage.getItem(cancelKey);
         if (pendingCancel) {
           const result = await repositoryPickerRequest(initial.userKey, "connection/cancel", { body: { id: pendingCancel }, signal: controller.signal });
-          if (result.ok) sessionStorage.removeItem(cancelKey);
+          if (!isCurrent()) return;
+          if (!result.ok && result.code === "UNAUTHENTICATED") { lostSession(); return; }
+          if (result.ok && sessionStorage.getItem(cancelKey) === pendingCancel) sessionStorage.removeItem(cancelKey);
         }
         const flowId = sessionStorage.getItem(flowKey);
         if (flowId) {
           const result = await repositoryPickerRequest(initial.userKey, `connection/draft?flowId=${encodeURIComponent(flowId)}`, { signal: controller.signal });
-          if (!result.ok) { if (result.code === "UNAUTHENTICATED" && live) lostSession(); return; }
+          if (!isCurrent()) return;
+          if (!result.ok) { if (result.code === "UNAUTHENTICATED") lostSession(); return; }
           const parsed = z.object({ draft: restorableDraftSchema.nullable() }).safeParse(result.value);
-          if (parsed.success && parsed.data.draft && live && flowGeneration.current === version && sessionStorage.getItem(flowKey) === parsed.data.draft.flowId) {
+          if (parsed.success && parsed.data.draft && sessionStorage.getItem(flowKey) === parsed.data.draft.flowId) {
             if (restore(parsed.data.draft.value)) {
               setApplied(parsed.data.draft);
               setMessage("Your draft was restored.");
@@ -97,15 +105,19 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
               sessionStorage.removeItem(flowKey);
               sessionStorage.setItem(cancelKey, flowId);
               const cancelled = await repositoryPickerRequest(initial.userKey, "connection/cancel", { body: { id: flowId }, signal: controller.signal });
+              if (!isCurrent()) return;
+              if (!cancelled.ok && cancelled.code === "UNAUTHENTICATED") { lostSession(); return; }
               if (cancelled.ok && sessionStorage.getItem(cancelKey) === flowId) sessionStorage.removeItem(cancelKey);
-              if (live) setMessage("Your current inputs were kept.");
+              setMessage("Your current inputs were kept.");
             }
           }
         }
-      } catch { if (live && !controller.signal.aborted) setMessage("Your draft couldn't be restored. You can paste a repository URL."); }
-      finally { if (live && flowGeneration.current === version && initial.connection.status === "connected") void load(); }
+      } catch { if (isCurrent()) setMessage("Your draft couldn't be restored. You can paste a repository URL."); }
     }
     void resume();
+    if (initial.connection.status === "connected") {
+      queueMicrotask(() => { if (isCurrent()) void load(); });
+    }
     return () => { live = false; controller.abort(); invalidateRequests(); };
   }, [initial.connection.available, initial.connection.status, initial.userKey, flowKey, cancelKey, load, lostSession, restore, invalidateRequests]);
 
