@@ -463,6 +463,144 @@ export async function runAcceptance(render: (mode: string, picker?: boolean) => 
     controls.finishAction("success"); await tick();
   });
   }
+  const initialLists = () => githubControls.requestRecords.filter(request => request.path.endsWith("/repositories"));
+  const releaseInitial = async (...args: Parameters<typeof githubControls.releaseInitial>) => {
+    githubControls.releaseInitial(...args); await tick(); await tick();
+  };
+  const hasPrivateChoice = () => buttons().some(button => button.textContent?.includes("private-org/private-service"));
+  const hasSessionFailure = () => document.body.textContent?.includes("Sign in again before creating a project");
+  for (const endpoint of ["cancel", "draft"] as const) await run(`initial list independent of ${endpoint}`, "the list appears before held draft I/O and completion never reloads it", async () => {
+    await mount(`private-initial-${endpoint}`);
+    check(initialLists().length === 1 && hasPrivateChoice(), "initial list waited for draft I/O");
+    check(githubControls.pendingCount() === 1, "draft request was not held");
+    await releaseInitial(endpoint);
+    check(initialLists().length === 1 && githubControls.pendingCount() === 0, "draft completion reloaded or leaked a request");
+    if (endpoint === "draft") {
+      check(document.querySelector<HTMLInputElement>('input[name="slug"]')?.value === "saved-slug", "untouched draft was not restored");
+      const acknowledgements = githubControls.requestRecords.filter(request => request.method === "POST" && request.path.endsWith("/draft"));
+      check(acknowledgements.length === 1 && JSON.stringify(acknowledgements[0].body) === JSON.stringify({ id: "f44789cb-40c6-42cb-bdbe-c0995bcaa07c", generation: 4 }), "server acknowledgement generation changed");
+    }
+  });
+  await run("initial list preserves cancel before draft", "list I/O is independent while cancellation still precedes restoration", async () => {
+    await mount("private-initial-serial");
+    check(hasPrivateChoice() && initialLists().length === 1, "list is blocked by cancellation");
+    check(!githubControls.requestRecords.some(request => request.path.endsWith("/draft")), "draft bypassed pending cancellation");
+    await releaseInitial("cancel");
+    check(githubControls.requestRecords.some(request => request.method === "GET" && request.search.includes("flowId=")), "draft did not follow cancellation");
+    await releaseInitial("draft");
+    check(initialLists().length === 1, "serial draft flow requested another list");
+  });
+  await run("initial choice beats late restoration", "a choice from the early list preserves user inputs and authorized provenance", async () => {
+    await mount("private-initial-draft"); await click("private-org/private-service · Private release"); await click("Edit");
+    input('input[name="name"]', "Early choice"); input('input[name="slug"]', "early-slug"); input('input[name="branch"]', "early-branch"); await tick();
+    await releaseInitial("draft");
+    check(document.querySelector<HTMLInputElement>('input[name="slug"]')?.value === "early-slug" && document.querySelector<HTMLInputElement>('input[name="name"]')?.value === "Early choice" && document.querySelector<HTMLInputElement>('input[name="branch"]')?.value === "early-branch", "late draft overwrote early edits");
+    await click("Create project");
+    const submitted = controls.submissions[0];
+    check(submitted?.repositorySource === "authorized" && submitted.repositoryId === "99" && submitted.installationId === "9" && submitted.repositoryPage === "1" && submitted.connectionRevision === "4", "early list lost submission provenance");
+  });
+  for (const first of ["list", "draft"] as const) await run(`initial ${first} session loss`, "a late peer response cannot restore a session-expired form even if abort is ignored", async () => {
+    await mount("private-initial-late");
+    const peer = first === "list" ? "draft" : "list";
+    await releaseInitial(first, "unauthenticated");
+    check(hasSessionFailure(), "session loss did not leave the form");
+    await releaseInitial(peer);
+    check(hasSessionFailure() && !document.querySelector('input[name="slug"]') && !document.querySelector('input[name="repositoryId"]'), "late peer revived the old form");
+    check(githubControls.requestRecords.every(request => request.settled), "late response was not settled");
+  });
+  await run("initial cancellation detects session loss", "a cancellation 401 invalidates an already displayed list", async () => {
+    await mount("private-initial-cancel-both"); await releaseInitial("list");
+    check(hasPrivateChoice(), "list was not displayed before cancellation");
+    await releaseInitial("cancel", "unauthenticated");
+    check(hasSessionFailure() && !hasPrivateChoice(), "cancel 401 left private choices visible");
+  });
+  await run("initial reauthorization fences restoration", "a reauthorization result prevents a late authorized draft from restoring selection", async () => {
+    await mount("private-initial-both"); await releaseInitial("list", "reauth-required");
+    await releaseInitial("draft");
+    check(find("Reconnect repository list") && !document.querySelector('input[name="repositoryId"]'), "late draft restored expired authorization");
+    check(!hasSessionFailure(), "reauthorization was treated as account session loss");
+  });
+  for (const outcome of ["unauthenticated", "unavailable", "network"] as const) await run(`initial stale draft ${outcome}`, "Start over invalidates late failure responses and preserves the current form", async () => {
+    await mount("private-initial-draft"); await click("private-org/private-service · Private release"); await click("Start over");
+    await releaseInitial("draft", outcome);
+    check(!hasSessionFailure() && document.querySelector("form"), "old failure expired the current form");
+    check(!document.body.textContent?.includes("Your draft couldn't be restored") && !document.querySelector('input[name="repositoryId"]'), "old failure changed reset state");
+  });
+  await run("initial stale cancel preserves new cleanup", "an old cancellation cannot expire the form or erase a newer cancel key", async () => {
+    await mount("private-initial-cancel"); await click("private-org/private-service · Private release");
+    const newer = "c40a5984-f8f3-4a23-aac5-301f6d6ee25b";
+    sessionStorage.setItem("stagekeeper.github.flow.fixture-private-user", newer);
+    await click("Start over");
+    await releaseInitial("cancel", "unauthenticated");
+    check(!hasSessionFailure() && sessionStorage.getItem("stagekeeper.github.cancel.fixture-private-user") === newer, "old cancel changed current session or storage");
+    await releaseInitial("cancel");
+    check(sessionStorage.getItem("stagekeeper.github.cancel.fixture-private-user") === null, "current cancellation did not clear its key");
+  });
+  await run("initial late list after manage", "a canceled list cannot repopulate choices after a newer connection operation", async () => {
+    await mount("private-initial-late"); await click("Manage repository access");
+    const record = initialLists()[0];
+    check(record.aborted, "Manage did not abort the active list");
+    await releaseInitial("list"); await releaseInitial("draft", "unauthenticated");
+    check(record.settled && !hasPrivateChoice() && !hasSessionFailure(), "stale list or draft changed the newer operation");
+  });
+  await run("initial draft after disconnect", "confirmed disconnection cannot be undone by a late draft", async () => {
+    await mount("private-initial-late"); await releaseInitial("list"); await click("private-org/private-service · Private release");
+    await click("Disconnect repository list"); await click("Confirm list disconnect"); await releaseInitial("draft");
+    check(!document.querySelector('input[name="repositoryId"]') && !hasPrivateChoice() && find("Connect private repositories"), "late draft revived disconnected selection");
+  });
+  for (const outcome of ["unavailable", "invalid", "invalid-value", "network"] as const) await run(`initial list ${outcome}`, "list failures settle loading and preserve URL input and retry", async () => {
+    await mount("private-initial-list"); await releaseInitial("list", outcome);
+    check(!find("Reload repository list").disabled && !hasPrivateChoice(), "failed list retained loading or choices");
+    await click("Paste a repository URL");
+    check(document.querySelector('input[inputmode="url"]') && !hasSessionFailure(), "list failure removed manual input");
+  });
+  for (const endpoint of ["cancel", "draft"] as const) for (const outcome of ["unavailable", "invalid", "network"] as const) await run(`initial ${endpoint} ${outcome}`, "draft cleanup failures leave the independent list usable without another list request", async () => {
+    await mount(`private-initial-${endpoint}`); await releaseInitial(endpoint, outcome);
+    check(initialLists().length === 1 && hasPrivateChoice() && !hasSessionFailure(), "draft failure blocked or reloaded the list");
+  });
+  await run("initial malformed draft value", "an invalid draft body never restores form data", async () => {
+    await mount("private-initial-draft"); await releaseInitial("draft", "invalid-value");
+    check(hasPrivateChoice() && !document.querySelector('input[name="repositoryId"]') && document.querySelector<HTMLInputElement>('input[name="slug"]')?.value === "", "invalid draft was applied");
+  });
+  for (const mode of ["off", "disconnected"] as const) await run(`initial ${mode} list policy`, "an unavailable or disconnected picker does not automatically request a list", async () => {
+    await mount(`private-initial-${mode}`);
+    check(initialLists().length === 0 && controls.submissions.length === 0, "disabled connection started a list or registration");
+  });
+  for (const mode of ["empty", "partial"] as const) await run(`initial ${mode} list response`, "empty and partial responses retain the existing guidance and selection policy", async () => {
+    await mount(`private-initial-${mode}`);
+    check(!find("Reload repository list").disabled, "list response left loading active");
+    if (mode === "empty") check(!hasPrivateChoice() && document.body.textContent?.includes("No repositories loaded"), "empty state guidance missing");
+    else {
+      check(hasPrivateChoice() && document.body.textContent?.includes("Some repository access couldn't be checked") && document.body.textContent?.includes("2 archived or unsupported"), "partial state was hidden");
+      await click("private-org/private-service · Private release");
+      check(document.querySelector<HTMLInputElement>('input[name="repositoryId"]')?.value === "99", "partial list selection failed");
+    }
+  });
+  await run("initial unmount and event cleanup", "unmount aborts initial I/O and remount has exactly one listener for each refresh event", async () => {
+    await mount("private-initial-both");
+    const oldRequests = [...githubControls.requestRecords], oldPending = githubControls.pendingCount;
+    await mount("private-initial-ready");
+    check(oldRequests.length === 2 && oldRequests.every(request => request.aborted && request.settled) && oldPending() === 0, "old initial requests survived unmount");
+    for (const event of ["focus", "pageshow", "visibilitychange"]) {
+      const before = initialLists().length;
+      (event === "visibilitychange" ? document : window).dispatchEvent(new Event(event)); await tick();
+      check(initialLists().length === before + 1, `${event} retained or duplicated an old listener`);
+    }
+  });
+  await run("initial strict effect lifetime", "StrictMode discards the first effect lifetime and the current lifetime settles without duplicate completion reloads", async () => {
+    await mount("private-initial-strict");
+    const attempts = process.env.NODE_ENV === "development" ? 2 : 1;
+    const drafts = githubControls.requestRecords.filter(request => request.method === "GET" && request.search.includes("flowId="));
+    check(drafts.length === attempts && initialLists().length === 1, "invalidated effect started an initial list");
+    if (attempts === 2) check(drafts[0].aborted && drafts[0].settled, "first StrictMode draft stayed live");
+    check(githubControls.pendingCount() === 2, "StrictMode retained old draft or list requests");
+    await releaseInitial("list"); await releaseInitial("draft");
+    check(initialLists().length === 1 && githubControls.pendingCount() === 0 && document.querySelector<HTMLInputElement>('input[name="slug"]')?.value === "saved-slug", "current StrictMode lifetime failed to settle");
+    const before = initialLists().length;
+    window.dispatchEvent(new Event("focus")); await tick();
+    check(initialLists().length === before + 1, "StrictMode duplicated refresh listeners");
+    await releaseInitial("list");
+  });
   await run("private consent and form isolation", "consent is explicit and helper buttons never submit registration", async () => {
     await mount("private-consent");
     check(githubControls.requests.every(path => !path.includes("/start")), "authorization started without consent");
