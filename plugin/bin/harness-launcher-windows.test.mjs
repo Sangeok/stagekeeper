@@ -42,11 +42,19 @@ function bundle(root, executable) {
   return node;
 }
 
-function run(fixture, args, searchPath) {
+function powershell7Modules(root) {
+  const directory = path.join(root, "pwsh-modules", "Microsoft.PowerShell.Utility");
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(path.join(directory, "Microsoft.PowerShell.Utility.psd1"),
+    "@{ ModuleVersion = '7.0.0.0'; CompatiblePSEditions = @('Core'); CmdletsToExport = @('ConvertFrom-Json', 'Get-FileHash'); FunctionsToExport = @() }\r\n");
+  return path.dirname(directory);
+}
+
+function run(fixture, args, searchPath, modulePath = process.env.PSModulePath) {
   rmSync(fixture.launch, { force: true });
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "path"));
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !["path", "psmodulepath"].includes(key.toLowerCase())));
   const result = spawnSync(POWERSHELL, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", fixture.launcher, ...args],
-    { encoding: "utf8", windowsHide: true, env: { ...env, Path: searchPath, STAGEKEEPER_TEST_LAUNCH: fixture.launch } });
+    { encoding: "utf8", windowsHide: true, env: { ...env, Path: searchPath, PSModulePath: modulePath, STAGEKEEPER_TEST_LAUNCH: fixture.launch } });
   return { status: result.status, stderr: result.stderr.trim(), launch: existsSync(fixture.launch) ? JSON.parse(readFileSync(fixture.launch, "utf8")) : null };
 }
 
@@ -90,6 +98,14 @@ it("prefers a valid bundled runtime over the Node.js in PATH for both clients", 
     assert.equal(result.status, 3, result.stderr);
     assert.equal(result.launch.execPath.toLowerCase(), bundled.toLowerCase());
   }
+});
+
+it("validates a bundled runtime when the host module path lists PowerShell 7 modules first", { skip }, t => {
+  const fixture = plugin(t);
+  const bundled = bundle(fixture.root, process.execPath);
+  const result = run(fixture, ["watch", "--session", "s"], withNode, `${powershell7Modules(fixture.root)};${process.env.PSModulePath}`);
+  assert.equal(result.status, 3, result.stderr);
+  assert.equal(result.launch.execPath.toLowerCase(), bundled.toLowerCase());
 });
 
 it("refuses an invalid bundled runtime without falling back to PATH", { skip }, t => {

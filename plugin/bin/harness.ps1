@@ -3,6 +3,8 @@ param(
   [Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments
 )
 $ErrorActionPreference = 'Stop'
+Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Management\Microsoft.PowerShell.Management.psd1"
+Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1"
 $pluginPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $runtimePath = Join-Path $pluginPath 'runtime/windows/node'
 $packagingFailure = 'Stagekeeper Windows package is missing or invalid. Report a packaging failure; do not install Node or WSL as a workaround.'
