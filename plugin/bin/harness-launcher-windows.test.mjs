@@ -21,7 +21,7 @@ process.exitCode = 3;
 
 function plugin(t) {
   const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), "stagekeeper-launcher-")));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  t.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }));
   const bin = path.join(root, "bin");
   mkdirSync(bin);
   copyFileSync(LAUNCHER, path.join(bin, "harness.ps1"));
