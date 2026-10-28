@@ -30,6 +30,29 @@ export function ProposeButton({ itemKey, roster, propose, pipelines, preselected
     setSelectionSource({ itemKey, preselected });
   }
 
+  function handlePropose(): void {
+    if (submitting.current) return;
+    submitting.current = true;
+    const input = { key: itemKey, agent, reason, pipelineId };
+    startTransition(async () => {
+      try {
+        const result = await propose(input);
+        if (!alive.current) return;
+        if (!result.success) {
+          setError(result.error);
+          if (result.resetPipeline) setPipelineId(preselected);
+          return;
+        }
+        setError(null);
+        setOpen(false);
+        toast.success(`Put on the board · ${itemKey}`);
+      } catch {
+        if (!alive.current) return;
+        setError("Couldn't put it on the board. Try again.");
+      } finally { submitting.current = false; }
+    });
+  }
+
   if (!open) {
     return (
       <Button size="sm" variant="mine-outline" onClick={() => setOpen(true)}>
@@ -68,28 +91,7 @@ export function ProposeButton({ itemKey, roster, propose, pipelines, preselected
           size="sm"
           variant="mine"
           disabled={pending || agent === ""}
-          onClick={() => {
-            if (submitting.current) return;
-            submitting.current = true;
-            const input = { key: itemKey, agent, reason, pipelineId };
-            startTransition(async () => {
-              try {
-                const result = await propose(input);
-                if (!alive.current) return;
-                if (!result.success) {
-                  setError(result.error);
-                  if (result.resetPipeline) setPipelineId(preselected);
-                  return;
-                }
-                setError(null);
-                setOpen(false);
-                toast.success(`Put on the board · ${itemKey}`);
-              } catch {
-                if (!alive.current) return;
-                setError("Couldn't put it on the board. Try again.");
-              } finally { submitting.current = false; }
-            });
-          }}
+          onClick={handlePropose}
         >
           {pending ? "Putting…" : "Put on the board"}
         </Button>

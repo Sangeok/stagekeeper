@@ -45,14 +45,21 @@ function summaryLine(row: BoardRow): string {
 }
 
 function activityItem(row: BoardRow, today: Date): ActivityItem {
-  const slot = slotAgent(row.node);
-  if (slot !== null && (PROJECT_AGENTS.includes(slot) || ["qa-verifier", "impl-verifier"].includes(slot)) && row.status !== "on_hold") return { pipelineName: row.pipelineName ?? "Default", key: row.backlogItem.key, status: row.status, line: `${row.dispatched ? "working: " : "waiting for "}${slot} · ${row.node}`, tone: row.dispatched ? "active" : "pending", overBudget: isOverBudget([row.reason, ...row.results]) };
   const item = {
     pipelineName: row.pipelineName ?? "Default",
     key: row.backlogItem.key,
     status: row.status,
     overBudget: isOverBudget([row.reason, ...row.results]),
   };
+  const slot = slotAgent(row.node);
+  const isProjectAgentOrVerifier = slot !== null && (PROJECT_AGENTS.includes(slot) || ["qa-verifier", "impl-verifier"].includes(slot));
+  if (isProjectAgentOrVerifier && row.status !== "on_hold") {
+    return {
+      ...item,
+      line: `${row.dispatched ? "working: " : "waiting for "}${slot} · ${row.node}`,
+      tone: row.dispatched ? "active" : "pending",
+    };
+  }
   switch (row.status) {
     case "proposed": {
       const days = dayTag(row.proposedOn, today);
