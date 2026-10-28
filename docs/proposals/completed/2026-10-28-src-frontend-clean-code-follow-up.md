@@ -7,7 +7,7 @@ approved-by: "user"
 approved-at: "2026-10-28"
 approval-scope: "CC-001–004 전체 구현·검증 및 후속 요청에 따른 commit·push·dev 대상 PR 생성. 병합·main 승격·배포는 제외"
 completed-at: "2026-10-28"
-verification-summary: "CC-001–004 구현 완료. 신규 브라우저 31개 production/development 모두 통과, 기존 사례 퇴행 0. 타입·lint·경계·web/server/scripts·build·fresh manifest 검증 통과. npm run check는 별도 문서 이동의 Git index 경로 불일치로 중단되어 하위 검증을 개별 실행."
+verification-summary: "CC-001–004 구현 완료. 신규 브라우저 31개 두 모드 통과·퇴행 0, build·fresh manifest 통과. 최초 작업 트리의 문서 이동 제약을 분리한 최신 dev 기반 PR 브랜치에서 전체 check·web 779개·server 158개 재검증 통과."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -665,7 +665,7 @@ StrictMode의 첫 effect는 정리 전에 복원 요청을 시작할 수 있지�
 | 새 프로젝트·Backlog client manifest와 chunk 파일 | 두 entry 및 각 4개 chunk 모두 구조·존재 확인 Pass |
 | 실제 작업 트리의 추적·미추적 존재 파일을 사용한 `inspectDocs` | Pass — 166 Markdown, 863 상대 링크, 54 test reports |
 
-`npm run check` 전체 명령은 lint·경계 검사 후 docs 단계에서 중단됐다. 별도 작업으로 이동된
+최초 작업 트리의 `npm run check` 전체 명령은 lint·경계 검사 후 docs 단계에서 중단됐다. 별도 작업으로 이동된
 이전 제안서의 옛 경로가 아직 Git index에 남아 있어 `verify-docs`의 `git ls-files` 기반 읽기가
 ENOENT로 실패한 것이다. 그 파일을 복원하거나 타 작업을 stage하지 않았다. 실제 존재하는 작업 트리 파일로
 동일한 `inspectDocs`를 실행했고, 이후 typegen·TypeScript·scripts 시험도 개별 실행해 통과했다.
@@ -675,6 +675,21 @@ ENOENT로 실패한 것이다. 그 파일을 복원하거나 타 작업을 stage
 빌드는 승인된 재실행에도 기존 실패 캐시를 재사용해 같은 오류를 냈다. `.next/cache`를 임시 경로에
 보존해 분리한 뒤 동일한 기본 build가 성공했고 그 산출물로 fresh manifest 검증을 수행했다.
 설정 변경이나 lint·manifest 검사 완화는 없었다.
+
+### 최신 dev 기준 PR 인계 검증
+
+후속 commit·PR 요청으로 최신 `origin/dev`의 `35363d7b7f46d41b3e36ed1d1400c2f68b746465`에서
+`harness/src-clean-code-follow-up-20261028`을 만들고 이번 변경 9개 파일만 반영했다.
+원래 작업 트리의 별도 문서 이동은 포함하지 않았으며 선행 자료는 기준 commit 링크로 고정했다.
+제품·fixture·계약 테스트 8개 파일은 구현 검증본과 바이트 동일하다.
+
+- `npm run check`: **Pass** — lint·FSD·서버 경계·추적 문서 검사·typegen·TypeScript, scripts 218 pass / 2 platform skip / 0 fail.
+- `npm run test:web`: **779 pass, 0 fail**. 최초 sandbox 포트 제한 후 승인된 환경에서 재실행했다.
+- `npm run test:server`: **158 pass, 2 manifest opt-in skip, 0 fail**.
+- 문서·traceability 재확인 후 commit·push·`dev` 대상 PR을 생성한다. 병합·main 승격·배포는 수행하지 않는다.
+
+이 결과로 최초 작업 트리에서 중단됐던 aggregate check의 인계 검증을 닫는다.
+아래 브라우저 기준선·신규 회귀와 앞의 production build·fresh manifest 결과는 구현 검증 기록으로 보존한다.
 
 ### 브라우저 인수
 

@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { resolve, relative, isAbsolute, sep } from "node:path";
-import { readTemplateSources, seedTemplates, snapshotTemplates } from "./template-seed-query";
+import { prismaErrorCode, readTemplateSources, seedTemplates, snapshotTemplates, TEMPLATE_TRANSACTION_OPTIONS } from "./template-seed-query";
 import { withPrisma } from "../lib/prisma";
 
 async function main() {
@@ -23,7 +23,7 @@ async function main() {
     const snapshot = await snapshotTemplates(tx.template, rows, revision);
     if (options["--snapshot"]) writeFileSync(options["--snapshot"], JSON.stringify(snapshot, null, 2) + "\n", { flag: "wx", mode: 0o600 });
     return seedTemplates(tx.template, rows);
-  }, { isolationLevel: "Serializable", timeout: 30000 }));
+  }, TEMPLATE_TRANSACTION_OPTIONS));
   console.log(`done: ${total} templates atomically seeded from ${revision}`);
 }
-main().catch(() => { console.error("Template preflight/transaction failed; no partial database seed. Keep the private snapshot and inspect the approved source/DB state."); process.exitCode = 1; });
+main().catch(error => { const code = prismaErrorCode(error); console.error(`Template preflight/transaction failed${code ? ` (${code})` : ""}; no partial database seed. Keep the private snapshot and inspect the approved source/DB state.`); process.exitCode = 1; });
