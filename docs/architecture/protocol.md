@@ -845,7 +845,12 @@ Node의 100ms 선형 backoff로 최대 10회 재시도한다. 재시도 후에�
 운영자는 고정 Node source와 libuv pipe backport로 만든 runtime·원본 npm·license를
 `package-windows-plugin.mjs`로 완전한 원본 verifier와 함께 전달한다. verifier는 양쪽 client의
 skill 경로에 같은 checksum으로 복사한다. Windows helper는 `bin/harness.ps1`에서 bundled
-Node를 검증해 실행하며 별도 Node/검증 스킬 설치를 요구하지 않는다. generated binary와
+Node를 검증해 실행하며 별도 Node/검증 스킬 설치를 요구하지 않는다. `runtime/windows/node`가
+없는 source 설치에서는 `bin/harness.ps1`이 Claude helper를 PATH의 `node.exe`로 실행한다.
+`codex` 작업이나 `--client codex` 호출은 같은 packaging 실패로 거부한다. runtime 디렉터리가
+있으면 검증에 실패해도 PATH의 Node로 넘어가지 않는다. `bin/harness.ps1`도 Management·Utility
+모듈을 `$PSHOME`에서 절대 경로로 먼저 로드한다. PowerShell 7의 모듈 경로를 물려받은 Windows
+PowerShell은 `Get-FileHash`를 찾지 못해 올바른 bundle도 거부했다. generated binary와
 private verifier 본문은 public Git에 넣지 않는다. private 로컬 패키지 생성·시험과 실제
 패키지 공개/설치는 별도 상태이며 완전한 Windows 인수와 출시 승인 전 readiness를 선언하지 않는다.
 

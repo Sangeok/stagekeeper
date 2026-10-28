@@ -7,18 +7,20 @@ description: 'Keep this Claude Code session running the Stagekeeper pipeline —
 
 ## 1. Preflight
 
-Use the owner's existing native Claude Code installation and login. Missing helper runtime
-or verifier dependencies are Stagekeeper packaging requirements. Do not ask the owner to
-install WSL, another client, Node or a verifier skill manually. Stop if the installed package
-cannot supply the dependencies; do not start a watcher or claim readiness.
+Use the owner's existing native Claude Code installation and login. Missing verifier
+dependencies are Stagekeeper packaging requirements. Do not ask the owner to install WSL,
+another client or a verifier skill manually. An install bundle includes Node; a plugin
+installed from source needs Node.js in PATH, and without it say so. Stop if the installed
+package cannot supply the dependencies; do not start a watcher or claim readiness.
 
 On Windows use this package's `bin/harness.ps1 <task> <existing arguments>` through
 `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <absolute helper>`.
 Use task `watch` for harness-watch.mjs and `session` for harness-session.mjs. Translate
 every Node helper command below through this launcher on Windows and quote its path.
-The launcher validates the included Node; the policy is process-only. Use the complete
-original verifier bundled under `skills/reconciling-proposals-with-codebase`, preserving
-the actual loader/checksum checks below. A source-only checkout is not an install bundle.
+The launcher validates an install bundle's included Node and otherwise uses the Node.js in
+PATH; the policy is process-only. Use the complete original verifier bundled under
+`skills/reconciling-proposals-with-codebase`, preserving the actual loader/checksum checks
+below. A source-only checkout is not an install bundle.
 
 Read the current checkout's `harness.json`, `CLAUDE.md` and generated
 `.claude/agents/` stubs. Follow the runbook's project scope, briefing, entry,

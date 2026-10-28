@@ -21,11 +21,12 @@ Read the [documentation](https://stagekeeper.dev/docs) or
   sessions, cross-client acceptance, and release are still open, so Codex is not a supported
   client yet. See the [dual-client runtime report](./docs/test-reports/active/dual-client-runtime-report.md).
 - **Packaging:** the release bar is that connecting a repository needs nothing beyond your
-  existing client login and the plugin. On Windows the helpers run only on the verified
-  Node.js runtime that an install bundle carries, and the bundle also carries the
-  verification skill that plan review relies on. Bundles are built with
-  `scripts/windows/package-windows-plugin.mjs` and are not published yet; the plugin source in this
-  repository is not an install bundle.
+  existing client login and the plugin. A Windows install bundle carries a verified Node.js
+  runtime for the helpers and the verification skill that plan review relies on. Bundles are
+  built with `scripts/windows/package-windows-plugin.mjs` and are not published yet; the plugin
+  source in this repository is not an install bundle. Installed from this source, the Claude Code
+  plugin runs its helpers on the Node.js in your `PATH` on every platform, so that route needs
+  Node.js. Codex on Windows still needs an install bundle.
 - **No payments:** plans are granted manually and `/billing` is read-only.
 - **Private templates:** the step bodies agents follow are not in this repository. They are
   kept in a private repository, published to the database, and served only to authenticated
@@ -164,8 +165,9 @@ Plans belong to the user, and every project follows its owner's plan.
 ## Connect a repository (Claude Code)
 
 You need your existing Claude Code installation and login, and a Stagekeeper server you can
-sign in to. From the plugin source, the helpers run on the `node` in your `PATH` on macOS and
-Linux; Windows needs an install bundle (see [Status](#status)). Before it writes anything,
+sign in to. From the plugin source, the helpers run on the `node` in your `PATH`; on Windows
+`bin/harness.ps1` starts them and uses an install bundle's runtime instead when one is present
+(see [Status](#status)). Before it writes anything,
 `/harness:init` also checks that the session has a complete, compatible
 `reconciling-proposals-with-codebase` skill, which plan review relies on, and stops if it
 doesn't ([contract](./plugin/skills/init/references/reconciliation-contract.md)).

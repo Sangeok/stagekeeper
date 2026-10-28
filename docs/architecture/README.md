@@ -32,7 +32,9 @@ metadata에는 2026-10-24 격리 후보부터 client를 저장한다. Codex 역�
 
 사용자는 선택한 native 클라이언트의 기존 설치·로그인으로 연결할 수 있어야 한다.
 WSL이나 다른 클라이언트 로그인, 별도 Node·검증 스킬 설치를 사용자에게 요구하는
-경로는 출시 기준을 충족하지 않는다. [system-overview.md](./system-overview.md)의
+경로는 출시 기준을 충족하지 않는다. 예외로 2026-10-28 결정에 따라 source에서 설치한 Claude
+Code 플러그인은 모든 OS에서 PATH의 Node.js로 helper를 실행하며, 이 경로는 Node.js를 요구한다.
+별도 Node 없이 연결하는 경로는 install bundle이다. [system-overview.md](./system-overview.md)의
 최소 설치 기준과 [후속 계획](../proposals/active/codex-dual-client-runtime-follow-ups.md)의
 Windows 실행·패키징 게이트를 자동 watch의 공개 지원·출시 전에 해결한다. 현재 PC의
 격리 개발·통합시험은 2026-10-24 승인된 후속 계획의 순서에 따라 먼저 진행할 수 있다.

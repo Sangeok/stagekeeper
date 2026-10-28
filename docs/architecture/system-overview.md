@@ -17,6 +17,9 @@ WSL·VM·컨테이너·별도 Linux checkout이나 선택하지 않은 클라이
 이 기준은 출시 게이트다. Windows bundle 생성기는 Node/npm·license와 완전한 원본
 verifier를 포함하고 `bin/harness.ps1`이 검증된 runtime으로 양쪽 helper를 실행한다.
 source-only checkout에는 생성 runtime/스킬이 없으며 일반 사용자용 설치 배포물이 아니다.
+source에서 설치한 Claude Code 플러그인은 예외로 모든 OS에서 PATH의 Node.js로 helper를 실행한다
+(2026-10-28 결정). Windows에서는 `bin/harness.ps1`이 runtime 디렉터리가 없을 때만 PATH의
+`node.exe`를 쓰고, Codex 호출은 bundle 없이 실행하지 않는다.
 Windows Codex는 scoped 파일 MCP와 실제 격리 preflight 뒤 LPAC snapshot 명령을 사용한다.
 새 source의 구현·private 로컬 package 시험과 실제 설치 배포·전체 Windows 인수는 별도다.
 현재 판정은 runtime 보고서를 따르며 파일/명령 fixture의 성공을 전체 출시로 해석하지 않는다.

@@ -26,6 +26,8 @@ on:
       - plugin/bin/harness-background.mjs
       - plugin/bin/harness-background*.test.mjs
       - plugin/bin/harness-codex.mjs
+      - plugin/bin/harness.ps1
+      - plugin/bin/harness-launcher-windows.test.mjs
       - plugin/bin/harness-session.test.mjs
       - plugin/runtime/background.mjs
       - scripts/windows/rehearse-windows-project-build.mjs
@@ -63,6 +65,11 @@ jobs:
         run: |
           node --test scripts/windows/windows-role-runtime-cache.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Runtime cache contract tests failed' }
+      - name: Validate helper launcher runtime selection
+        shell: pwsh
+        run: |
+          node --test plugin/bin/harness-launcher-windows.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Helper launcher tests failed' }
       - name: Validate background runner job launcher
         shell: pwsh
         run: |
