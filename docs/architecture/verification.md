@@ -91,7 +91,15 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 - [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
   `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
   공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.
-  npm 의존성 설치 전 native probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
+  PR·`dev` push에서는 npm 의존성 설치 전 `probe-seatbelt-containment.mjs`와
+  `probe-sandbox-identity.mjs`를 실행하고 각 증거를 artifact로 보존한다.
+  앞의 probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
+  뒤의 probe는 실행별 sandbox 식별·생존 후손의 가두기·종료 확인을 검사한다.
+  아래 세 probe와 해당 artifact 업로드는 기존 workflow의 수동 실행(`workflow_dispatch`)에서만 수행한다.
+  채택하지 않은 접근법의 한계를 재현하는 조사 도구이므로 일반 제품 변경 때마다 반복하지 않는다.
+  스크립트·C fixture·기존 보고서는 보존하며, OS 변경이나 설계 재검토 시
+  `gh workflow run macos-runtime-contracts.yml --ref dev`로 두 아키텍처에서 재실행한다.
+  수동 실행에서도 공통 런타임 테스트와 앞의 두 probe는 함께 수행하며, probe 실패 시에도 artifact 업로드를 시도한다.
   `probe-descendant-ownership.mjs`는 Clang으로 C fixture를 빌드해 NOTE_TRACK 거부,
   fork 알림의 합침·자식 신원 부재, orphan 생존 및 알려진 fixture의 종료를 검사한다.
   `probe-launchd-ownership.mjs`는 user/gui 영역의 자연 종료·서비스 SIGKILL·bootout·
