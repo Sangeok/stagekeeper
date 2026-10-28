@@ -35,6 +35,10 @@ describe("parseHarnessConfig", () => {
     assert.deepEqual(config.release, release);
     assert.deepEqual(config.scout, scout);
   });
+  it("normalizes an explicit local executor", () => {
+    const config = parseHarnessConfig({ ...base(), executor: { kind: "local" } });
+    assert.deepEqual(config.executor, { kind: "local", commandIssue: null });
+  });
   it("defaults: language en, executor local, release null, scout null, name=repo", () => {
     const c = parseHarnessConfig(base());
     assert.equal(c.language, "en");
