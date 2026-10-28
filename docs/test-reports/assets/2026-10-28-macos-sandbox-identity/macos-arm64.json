@@ -1,0 +1,460 @@
+{
+  "schema": 1,
+  "run": 40605571354,
+  "revision": "ddb18a4dad6e301cf27db35dc63370ae84e96e26",
+  "arch": "arm64",
+  "release": "24.6.0",
+  "macos": "15.7.9 (24G830)",
+  "node": "v22.23.2",
+  "hashes": {
+    "driver": "d21403a3573b89dd568d9ffaa48512dd04ac93a48c7bab20f65da8004bdb2c53",
+    "child": "5a5aae74a3eca5bb1e5e5b2e4250786ce30b97635a4a6a91677be5b7aa37f98e",
+    "scannerSource": "fccd9a870bb768781471785e211f2b242bf49453e96029d4aea8340eaf4f3145",
+    "hopperSource": "f7f7a94d38dac348e07a64b83d08246e0f3f502a72302a0f7aea62cf9d3bd731",
+    "scanner": "31bb95b8a98f9fbf33c88f5c662d4be08ec31f432b4987d29ba8bdd05ad45e04"
+  },
+  "scope": "per-run Seatbelt profile identity scan, detached survivor confinement and kill-until-quiescent on a hosted runner; no model, client credentials or production backend",
+  "executions": [
+    {
+      "execution": 1,
+      "verdict": {
+        "confined": true,
+        "identified": true,
+        "hopperExercised": true,
+        "quiesced": true,
+        "freezeQuiesced": true
+      },
+      "identification": {
+        "leaderAlive": {
+          "matched": 11,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 439,
+          "otherSandboxed": 276,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 16.4
+        },
+        "afterGroupKill": {
+          "matched": 14,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 442,
+          "otherSandboxed": 276,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 5
+        }
+      },
+      "survivorsAfterGroupKill": {
+        "detached": true,
+        "attacker": true,
+        "spawner": true,
+        "orphan": true,
+        "exec": true
+      },
+      "confinement": {
+        "writeCheckout": "denied EPERM",
+        "readSecret": "denied EPERM",
+        "writeLaunchAgent": "denied EPERM",
+        "signalControl": "denied EPERM",
+        "launchctlSubmit": "exit 1",
+        "nestedSandbox": "exit 71: sandbox-exec: sandbox_apply: Operation not permitted",
+        "crontab": "not started EPERM",
+        "open": "exit 1: Unable to find application named 'Calculator'",
+        "openPath": "exit 1: The application cannot be opened for an unexpected reason, error=Error Domain=NSOSStatusErrorDomain Code=-10827 \"kLSNoExecutableErr: The executable is missing\" UserInfo={_LSLine=4261, _LSFunction=_LSOpenStuffCallLocal}",
+        "network": "denied EPERM"
+      },
+      "escapes": {
+        "checkout": false,
+        "launchAgent": false,
+        "markers": [],
+        "launchdJob": false,
+        "crontab": false,
+        "calculator": false,
+        "controlAlive": true
+      },
+      "hopper": {
+        "a": {
+          "before": true,
+          "after": false
+        },
+        "b": {
+          "before": true,
+          "after": false
+        }
+      },
+      "killUntilFirstEmptyScan": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 95,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 15.2
+          },
+          {
+            "matched": 2,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 5.1
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 6.3
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 4.4
+          }
+        ]
+      },
+      "knownProcessesLeft": 0,
+      "scanAfterKill": 0,
+      "freezeUntilThreeEmptyScans": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 0,
+            "milliseconds": 6.8
+          },
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 1,
+            "milliseconds": 5.1
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 4.2
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 7.8
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 7.1
+          }
+        ]
+      },
+      "scanAfterFreeze": 0,
+      "controlsAlive": [
+        true,
+        true
+      ],
+      "spawnedSleepers": 89,
+      "spawnErrors": 0
+    },
+    {
+      "execution": 2,
+      "verdict": {
+        "confined": true,
+        "identified": true,
+        "hopperExercised": true,
+        "quiesced": true,
+        "freezeQuiesced": true
+      },
+      "identification": {
+        "leaderAlive": {
+          "matched": 11,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 438,
+          "otherSandboxed": 276,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 5.2
+        },
+        "afterGroupKill": {
+          "matched": 13,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 440,
+          "otherSandboxed": 276,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 5
+        }
+      },
+      "survivorsAfterGroupKill": {
+        "detached": true,
+        "attacker": true,
+        "spawner": true,
+        "orphan": true,
+        "exec": true
+      },
+      "confinement": {
+        "writeCheckout": "denied EPERM",
+        "readSecret": "denied EPERM",
+        "writeLaunchAgent": "denied EPERM",
+        "signalControl": "denied EPERM",
+        "launchctlSubmit": "exit 1",
+        "nestedSandbox": "exit 71: sandbox-exec: sandbox_apply: Operation not permitted",
+        "crontab": "not started EPERM",
+        "open": "exit 1: Unable to find application named 'Calculator'",
+        "openPath": "exit 1: The application cannot be opened for an unexpected reason, error=Error Domain=NSOSStatusErrorDomain Code=-10827 \"kLSNoExecutableErr: The executable is missing\" UserInfo={_LSLine=4261, _LSFunction=_LSOpenStuffCallLocal}",
+        "network": "denied EPERM"
+      },
+      "escapes": {
+        "checkout": false,
+        "launchAgent": false,
+        "markers": [],
+        "launchdJob": false,
+        "crontab": false,
+        "calculator": false,
+        "controlAlive": true
+      },
+      "hopper": {
+        "a": {
+          "before": true,
+          "after": false
+        },
+        "b": {
+          "before": true,
+          "after": false
+        }
+      },
+      "killUntilFirstEmptyScan": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 96,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 25.4
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 4.6
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 4.1
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 3.9
+          }
+        ]
+      },
+      "knownProcessesLeft": 0,
+      "scanAfterKill": 0,
+      "freezeUntilThreeEmptyScans": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 0,
+            "milliseconds": 7.1
+          },
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 1,
+            "milliseconds": 5.8
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 6
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 6.3
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 4.5
+          }
+        ]
+      },
+      "scanAfterFreeze": 0,
+      "controlsAlive": [
+        true,
+        true
+      ],
+      "spawnedSleepers": 90,
+      "spawnErrors": 0
+    },
+    {
+      "execution": 3,
+      "verdict": {
+        "confined": true,
+        "identified": true,
+        "hopperExercised": true,
+        "quiesced": true,
+        "freezeQuiesced": true
+      },
+      "identification": {
+        "leaderAlive": {
+          "matched": 11,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 439,
+          "otherSandboxed": 276,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 10.9
+        },
+        "afterGroupKill": {
+          "matched": 13,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 441,
+          "otherSandboxed": 276,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 10.3
+        }
+      },
+      "survivorsAfterGroupKill": {
+        "detached": true,
+        "attacker": true,
+        "spawner": true,
+        "orphan": true,
+        "exec": true
+      },
+      "confinement": {
+        "writeCheckout": "denied EPERM",
+        "readSecret": "denied EPERM",
+        "writeLaunchAgent": "denied EPERM",
+        "signalControl": "denied EPERM",
+        "launchctlSubmit": "exit 1",
+        "nestedSandbox": "exit 71: sandbox-exec: sandbox_apply: Operation not permitted",
+        "crontab": "not started EPERM",
+        "open": "exit 1: Unable to find application named 'Calculator'",
+        "openPath": "exit 1: The application cannot be opened for an unexpected reason, error=Error Domain=NSOSStatusErrorDomain Code=-10827 \"kLSNoExecutableErr: The executable is missing\" UserInfo={_LSLine=4261, _LSFunction=_LSOpenStuffCallLocal}",
+        "network": "denied EPERM"
+      },
+      "escapes": {
+        "checkout": false,
+        "launchAgent": false,
+        "markers": [],
+        "launchdJob": false,
+        "crontab": false,
+        "calculator": false,
+        "controlAlive": true
+      },
+      "hopper": {
+        "a": {
+          "before": true,
+          "after": false
+        },
+        "b": {
+          "before": true,
+          "after": false
+        }
+      },
+      "killUntilFirstEmptyScan": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 93,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 27.1
+          },
+          {
+            "matched": 2,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 4.1
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 3.5
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 3.4
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 3.3
+          }
+        ]
+      },
+      "knownProcessesLeft": 0,
+      "scanAfterKill": 0,
+      "freezeUntilThreeEmptyScans": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 0,
+            "milliseconds": 5.1
+          },
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 0,
+            "milliseconds": 4.8
+          },
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 1,
+            "milliseconds": 3.7
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 5.9
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 4.6
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 4.2
+          }
+        ]
+      },
+      "scanAfterFreeze": 0,
+      "controlsAlive": [
+        true,
+        true
+      ],
+      "spawnedSleepers": 88,
+      "spawnErrors": 0
+    }
+  ]
+}

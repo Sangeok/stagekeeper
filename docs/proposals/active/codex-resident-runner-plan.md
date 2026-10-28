@@ -535,6 +535,16 @@ coalition 종료 요청도 살아 있는 task의 일괄 kill로 해석하지 않
 지원 API·전체 종료·설치·권한·명령 호환성 조건을 먼저 입증하며, 아직 모든 macOS 해법이
 불가능하다고 결론 내리지 않는다. 기존 Windows payload와 실제 인수 상태는 유지한다.
 
+2026-10-28 [실행별 sandbox 식별 시험](../../test-reports/completed/2026-10-28-macos-sandbox-identity.md)은 다른 경계를
+확인했다. 명령마다 무작위 경로 하나를 허용하고 다른 하나를 거부하는 Seatbelt profile을 쓰면, 일반 사용자의
+`sandbox_check` 검사로 분리·고아·exec·연속 생성 후손을 누락이나 오탐 없이 찾았다. 발견 즉시 정지하고 빈 검사를
+3회 확인하는 방식으로 2 ms fork-후-종료 hopper까지 끝냈다. leader 그룹이 죽은 뒤 살아남은 후손은 원본, 비밀,
+네트워크, 다른 프로세스, launchd, LaunchServices에 접근하지 못했다. 이 결과는 위 선행 조건 중 원자적 상속과
+재사용 안전한 신원·전체 종료 관찰의 후보다. 다만 비공개 심볼과 deprecated `sandbox-exec`에 의존하고, 빈 검사는
+확률적 확인이며, hosted runner의 최소 profile에서만 시험했다. 실제 도구를 허용하는 profile, runner 비정상 종료
+뒤의 서명 복구, scanner 패키징, 실제 Mac 인수를 담은 backend 설계가 승인되기 전에는 command/Git/packaging
+backend를 연결하지 않는다.
+
 같은 보고서의 0.5.21/0.5.22 양방향 인계는 현재 Windows의 공유 session 계약·Claude idle
 resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 resident의 실제 혼합 host,
 물리적 clean Windows, macOS 인증 A→Z와 출시 gate는 남아 있다.

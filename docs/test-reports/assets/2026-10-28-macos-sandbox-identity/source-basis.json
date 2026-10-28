@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "devBase": "1fb8a8a4e3155d2cbe3b2e31baa0c9b8607c2a90",
+  "testedRevision": "ddb18a4dad6e301cf27db35dc63370ae84e96e26",
+  "workflow": ".github/workflows/macos-sandbox-identity-spike.yml at the run commits, removed when the probe moved into macos-runtime-contracts.yml",
+  "runners": [
+    "macos-15 (arm64)",
+    "macos-15-intel (x64)"
+  ],
+  "runs": [
+    {
+      "run": 40604192931,
+      "commit": "22d573e630d545393b412549edaef9cc19841f1d",
+      "completed": "2026-10-27T23:45:30Z",
+      "executions": 2,
+      "result": "pass",
+      "change": "first identity, confinement and kill-until-empty probe"
+    },
+    {
+      "run": 40604496338,
+      "commit": "3d2774324f64f3a1d26ecc442dcede3fe28f09a9",
+      "completed": "2026-10-27T23:48:28Z",
+      "executions": 6,
+      "result": "pass",
+      "change": "identity and start time rechecked before each kill, LaunchServices opened by path, three executions per runner"
+    },
+    {
+      "run": 40605102401,
+      "commit": "d802a9727b9c191eadc13c46d600de5dd5fb1b5f",
+      "completed": "2026-10-27T23:54:07Z",
+      "executions": 6,
+      "result": "pass, hopper not counted",
+      "change": "fast fork-and-exit hopper and the freeze strategy; pgrep reported the live hopper absent in five of six executions, so this run is not hopper evidence"
+    },
+    {
+      "run": 40605571354,
+      "commit": "ddb18a4dad6e301cf27db35dc63370ae84e96e26",
+      "completed": "2026-10-27T23:58:54Z",
+      "executions": 6,
+      "result": "pass",
+      "change": "hopper liveness from its own heartbeat; each kill strategy measured against its own live hopper"
+    }
+  ]
+}
