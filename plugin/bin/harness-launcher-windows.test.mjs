@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
@@ -13,13 +13,14 @@ const POWERSHELL = path.join(SYSTEM32, "WindowsPowerShell", "v1.0", "powershell.
 const NODE_DIRECTORY = path.dirname(process.execPath);
 const PACKAGING = /^Stagekeeper Windows package is missing or invalid\. Report a packaging failure; do not install Node or WSL as a workaround\./;
 const skip = process.platform !== "win32" && "Windows only";
+const samePath = (actual, expected) => assert.equal(realpathSync.native(actual).toLowerCase(), realpathSync.native(expected).toLowerCase());
 const ENTRY = `import { writeFileSync } from "node:fs";
 writeFileSync(process.env.STAGEKEEPER_TEST_LAUNCH, JSON.stringify({ execPath: process.execPath, argv: process.argv.slice(2) }));
 process.exitCode = 3;
 `;
 
 function plugin(t) {
-  const root = mkdtempSync(path.join(tmpdir(), "stagekeeper-launcher-"));
+  const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), "stagekeeper-launcher-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const bin = path.join(root, "bin");
   mkdirSync(bin);
@@ -67,7 +68,7 @@ it("runs Claude helpers from a source install on the Node.js in PATH", { skip },
     ["background", ["--status"]], ["init", ["--dry-run"]]]) {
     const result = run(fixture, [task, ...args], withNode);
     assert.equal(result.status, 3, result.stderr);
-    assert.equal(result.launch.execPath.toLowerCase(), process.execPath.toLowerCase());
+    samePath(result.launch.execPath, process.execPath);
     assert.deepEqual(result.launch.argv, args);
   }
 });
@@ -96,7 +97,7 @@ it("prefers a valid bundled runtime over the Node.js in PATH for both clients", 
   for (const args of [["watch", "--session", "s"], ["codex", "next"], ["init", "--client", "codex", "--dry-run"]]) {
     const result = run(fixture, args, withNode);
     assert.equal(result.status, 3, result.stderr);
-    assert.equal(result.launch.execPath.toLowerCase(), bundled.toLowerCase());
+    samePath(result.launch.execPath, bundled);
   }
 });
 
@@ -105,7 +106,7 @@ it("validates a bundled runtime when the host module path lists PowerShell 7 mod
   const bundled = bundle(fixture.root, process.execPath);
   const result = run(fixture, ["watch", "--session", "s"], withNode, `${powershell7Modules(fixture.root)};${process.env.PSModulePath}`);
   assert.equal(result.status, 3, result.stderr);
-  assert.equal(result.launch.execPath.toLowerCase(), bundled.toLowerCase());
+  samePath(result.launch.execPath, bundled);
 });
 
 it("refuses an invalid bundled runtime without falling back to PATH", { skip }, t => {
