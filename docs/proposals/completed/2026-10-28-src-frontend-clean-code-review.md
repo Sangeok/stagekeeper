@@ -1,13 +1,14 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-27"
+updated-at: "2026-10-28"
 approved-by: "user"
 approved-at: "2026-10-27"
 approval-scope: "SRC-CC-001–007 전체 코드 수정·검증 및 후속 요청에 따른 commit·push·dev 대상 PR 생성. PR 승인·check 통과 후 dev 병합 확인과 작업 브랜치 정리. main 승격·배포는 제외"
-completed-at: null
-verification-summary: null
+completed-at: "2026-10-28"
+verification-summary: "SRC-CC-001–007 전체 구현·자동 검증·신규 브라우저 사례 19건 완료. PR #237의 check 6개 작업 통과 및 dev 병합(0556dfd) 확인. 실제 창 전환 검증 1건은 미완료 후속 항목으로 유지하며 기존 fixture 실패 11건과 구분"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -24,14 +25,19 @@ related:
   - "docs/proposals/completed/2026-10-23-fsd-frontend-clean-code-review.md"
 ---
 
-# src 프런트엔드 클린 코드 개선 제안
+# src 프런트엔드 클린 코드 개선 완료 기록
 
 ## Summary
 
+SRC-CC-001–007의 코드 구현·자동 검증·로컬 브라우저 회귀를 완료했고,
+[PR #237](https://github.com/Sangeok/stagekeeper/pull/237)이 `check` 통과 후 `dev`에 병합됐다.
+2026-10-28 사용자의 완료 처리 요청에 따라 이 구현 범위를 완료 기록으로 정리했다.
+실제 창 전환 검증 1건은 미완료 후속 항목으로 남기며, 아래 검토 근거와 계획은 당시 기록을 보존한다.
+
 `frontend-clean-code-orchestrator`의 여섯 독립 렌즈와 별도 품질 게이트로 `src`를 검토했다.
 원시 후보 8개를 **Should 2건, Consider 5건**으로 정리했다. Must는 없다.
-우선 권고는 저장소 목록의 재시도 대기 정책을 실제 요청 경계에 적용하고,
-공개 목록 조회의 외부 지연이 수동 URL 입력까지 기다리게 하는 경로에 제한시간을 두는 것이다.
+검토 당시 우선 권고는 저장소 목록의 재시도 대기 정책을 실제 요청 경계에 적용하고,
+공개 목록 조회의 외부 지연이 수동 URL 입력까지 기다리게 하는 경로에 제한시간을 두는 것이었다.
 
 | 우선순위 | ID | 개선 항목 | 기여 렌즈 | 이력 구분 |
 | --- | --- | --- | --- | --- |
@@ -410,8 +416,9 @@ React state 보존·Next fetch의 signal/revalidate·Server Function 직렬화�
 
 ## Approval
 
-전체 문서를 바탕으로 실제 수정하라는 후속 요청과 범위 확인에 따라 001–007을 구현한다.
-이 문서의 승인 기록은 현재 작업에만 적용하며 과거 완료 제안서의 기록을 소급 변경하지 않는다.
+전체 문서를 바탕으로 실제 수정하라는 후속 요청과 범위 확인에 따라 001–007을 구현했다.
+원래 구현 승인 기록은 front matter에 보존한다. 이번 완료 정리는 남은 수동 검증을 후속 항목으로
+분리하며, 과거 완료 제안서의 기록을 소급 변경하지 않는다.
 
 ## Execution Plan
 
@@ -486,6 +493,10 @@ timer/AbortSignal/fetch를 대체할 때 원본을 저장하고 case 종료·unm
 새 실패가 나오면 같은 환경의 변경 전 기준선과 비교하고, 환경 skip·미실행 인수를 통과로 기록하지 않는다.
 
 ### Definition of Done
+
+이번 완료 판정은 001–007의 구현·실행된 자동/fixture 검증과 `dev` 병합에 적용한다.
+실제 창 전환 확인은 Completion or Closure Notes의 미완료 후속 항목으로 분리하며,
+이 문서의 완료 상태를 해당 수동 검증의 통과 증거로 사용하지 않는다.
 
 - 승인된 Core/Phase 2 ID만 수정했고 위 inventory 밖의 제품 동작·권한·schema·배포 범위를 확장하지 않았다.
 - 선택 ID의 Runtime Behavior Matrix와 Final Artifact Map을 **최종 목적지**에서 확인했다.
@@ -589,12 +600,14 @@ Webpack 산출물을 임시 보존한 뒤 빈 `.next`에서 기본 `npm run buil
 focus/pageshow/visibilitychange의 **합성 이벤트** 회귀는 통과했다. 실제 창 활성화·탭 전환에 따른 native 이벤트는
 연결된 브라우저가 visibility 제어를 제공하지 않고 native 앱이 다른 사용자 창을 가리켜 검증을 완료하지 못했다.
 그 시도에서 요청 수가 변하지 않았다는 사실을 native 이벤트 성공 증거로 사용하지 않는다.
-따라서 계획의 실제 창 전환 확인 1건은 남은 수동 검증이며, 이 이유로 문서는 `pending/approved`에 유지한다.
+계획의 실제 창 전환 확인 1건은 미완료 후속 수동 검증으로 유지한다.
+이번 문서 완료 처리는 이 검증을 실행했거나 통과했다는 의미가 아니다.
 
 모든 실행 후 Finish로 root·fetch·clock/timer·sessionStorage·보류 응답을 정리하고 로컬 fixture 서버 종료를 확인했다.
 실제 GitHub 승인·폐기, 운영 DB, 실제 Next RSC 네트워크 인수, 배포는 수행하지 않았다.
-최초 구현 검증 시점에는 커밋·push·PR·병합을 실행하지 않았다. 후속 요청으로 commit·push·dev 대상 PR을 진행한다.
-브랜치는 PR 승인만으로 삭제하지 않고, 최종 커밋의 `check` 통과와 `dev` 병합을 확인한 뒤 저장소 cleanup 절차로 정리한다.
+구현 커밋 `531da8adaa20a1714d0992f5c081591f4a057037`은 PR #237로 제출됐고,
+[check 6개 작업](https://github.com/Sangeok/stagekeeper/actions/runs/40471384393)이 모두 통과한 뒤
+2026-10-27 21:21:25 KST에 `dev`로 병합됐다. 병합 커밋은 `0556dfdd8aa6d21a5f1b7ce62c2a880d1616e1ea`다.
 
 ## Risks and Rollback
 
@@ -614,9 +627,17 @@ focus/pageshow/visibilitychange의 **합성 이벤트** 회귀는 통과했다. 
 
 ## Completion or Closure Notes
 
-001–007 코드 구현과 자동 검증·로컬 브라우저 회귀는 완료했다. 실제 native 창 전환 확인은 도구 제약으로 남아
-`pending/approved`를 유지한다. 해당 수동 검증까지 닫거나 실행 범위를 명시적으로 조정한 뒤 완료 기록으로 이동한다.
-후속 요청에 따라 커밋·PR로 인계한다. 병합 전에는 작업 브랜치를 보존하며 main 승격·배포는 수행하지 않는다.
+2026-10-28 사용자의 완료 처리 요청에 따라 001–007의 구현·검증·병합 범위를 `completed`로 정리했다.
+
+- [x] 선택한 001–007 전체 구현과 자동 검사·fresh build manifest·신규 브라우저 사례 19건의 통과 기록을 확인했다.
+- [x] PR #237의 `check` 성공과 `dev` 병합을 확인했다. 완료 확인 기준 `origin/dev`의
+  `f5280ea7077b5ee78286da8ce2d57aaddd84cdd2`에 병합 커밋이 포함돼 있다.
+- [x] 완료 metadata·문서 위치를 갱신했다. 이번 정리에서는 문서 검사와 병합 근거를 확인하며 제품 시험을 재실행한 것으로 기록하지 않는다.
+- [ ] 실제 창 활성화·탭 전환으로 발생한 native focus/pageshow/visibilitychange에서 재시도 대기와 복귀 동작을 확인한다.
+  실제 이벤트를 제어·관찰할 수 있는 브라우저 환경에서 기존 Verification Plan에 따라 실행하고 별도 증거를 남긴다.
+
+기존 파이프라인 fixture 실패 11건은 이번 구현의 신규 실패와 구분한 기록으로 보존한다.
+해당 실패와 후속 수동 검증을 해결된 것으로 표시하지 않으며, main 승격·운영 배포 완료도 이 기록에 포함하지 않는다.
 
 ## Reconciliation Notes
 
