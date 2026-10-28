@@ -1204,7 +1204,12 @@ both). Below: each file's title, its section headings, and the sentences that se
 - `SKILL.md` (`/harness:init`): description "Connect this repository to Stagekeeper: write
   harness.json, generate agents and conventions, register the MCP server once per machine, sync
   the roster." Steps keep today's seven; wording: "Ask one question at a time." · "Show the dry
-  run and get a yes before writing." · "Tell the user to restart Claude Code — the registration is
+  run and get a yes before writing." · "Ask on every run: a rerun with an existing
+  `harness.json`, a clean tree, or a dry run that lists only managed files still waits for the
+  yes, and the request to run init is not that yes." (2026-10-29: 0.5.28 smoke의 init 두 번이
+  모두 yes 없이 썼다. 덧붙인 문장 없이 `/harness:init`만 친 실행도 그랬다. 에이전트가 든 이유는
+  확인할 초안이 없다(이미 있는 `harness.json`), 트리가 깨끗하다, 호출이 곧 승인이다였다.)
+  · "Tell the user to restart Claude Code — the registration is
   read at session start. There is no approval prompt: user-scope servers load on their own." · "Leave the
   commit to the user." Step 6 says a knowledge doc is optional and offers one instead of
   requiring it: "The workspace's dev agent is told to read one before it writes a plan, and
