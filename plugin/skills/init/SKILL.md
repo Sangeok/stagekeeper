@@ -15,9 +15,10 @@ Windows and quote its absolute path when it contains spaces.
 The launcher uses the verified Node an install bundle includes, or the Node.js in PATH for a
 plugin installed from source, without changing persistent execution policy. A plugin installed
 from source needs Node.js in PATH on every operating system; if it is missing, say so and stop.
-Read the complete original verifier included at `skills/reconciling-proposals-with-codebase`
-and follow the reconciliation contract below. If the installed bundle lacks either dependency,
-report a Stagekeeper packaging failure and stop; do not turn it into extra owner setup steps.
+Read the complete verifier this plugin includes at `skills/reconciling-proposals-with-codebase`
+and follow the reconciliation contract below. If an install bundle lacks its Node runtime or the
+plugin lacks the verifier, report a Stagekeeper packaging failure and stop; do not turn it into
+extra owner setup steps.
 
 Precondition: the user has created the project on the web and has a token. The token must be
 in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).
@@ -77,12 +78,12 @@ caller: it has not sent the project scope. Update the harness plugin and reload 
 skill when using an older version; for a direct MCP call, include `project` explicitly.
 Repeating the same unscoped request or merely rerunning an older init does not fix it.
 
-Before creating or updating any repository files, complete the bundled verification-skill
+Before creating or updating any repository files, complete the verification-skill
 preflight in [references/reconciliation-contract.md](references/reconciliation-contract.md).
-Stagekeeper bundles the complete original package. Check the actual resolved skill and
-its supporting files, not just its name in a list. If the installed bundle is missing or
+The plugin includes the complete package. Check the actual resolved skill and
+its supporting files, not just its name in a list. If the plugin's copy is missing or
 incompatible, report a Stagekeeper packaging failure and stop before step 1; repair/update
-the bundle and repeat preflight. Source-development fallback is described in that reference.
+the plugin and repeat preflight.
 
 1. If there's no `harness.json`, **do not interview the user.** Build one draft and show it once.
    - `project`: **which command depends on the token in the shell.** Check the prefix of
