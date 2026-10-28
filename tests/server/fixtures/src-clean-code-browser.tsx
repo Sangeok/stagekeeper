@@ -294,7 +294,8 @@ function renderMode(mode: string, picker = false) {
     restoreConsole = () => { console.error = originalError; };
   }
   root = createRoot(document.getElementById("root")!);
-  root.render(<AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>);
+  const content = <AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>;
+  root.render(mode === "private-initial-strict" ? <React.StrictMode>{content}</React.StrictMode> : content);
 }
 const toolbar = document.createElement("div");
 const run = document.createElement("button"); run.textContent = "Run acceptance";
