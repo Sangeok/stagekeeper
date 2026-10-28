@@ -30,13 +30,18 @@ or replace a modified stub. If setup is missing, direct the owner to
 
 The actual plugin root is **`${CLAUDE_PLUGIN_ROOT}`**. Claude Code substitutes
 this value in this Markdown body when it loads the skill. It is not a Bash or
-PowerShell environment variable. Resolve that absolute root, and verify:
+PowerShell environment variable. Resolve that absolute root, and verify these
+files under it:
 
-- `${CLAUDE_PLUGIN_ROOT}/bin/harness-watch.mjs`
-- `${CLAUDE_PLUGIN_ROOT}/bin/harness-session.mjs` and `runtime/` modules
-- `${CLAUDE_PLUGIN_ROOT}/lib/watch.mjs`, `config.mjs`, `token.mjs`, `runbook.mjs`,
-  `runner.mjs` and the transitive `workspaces.mjs` and `entitlement.mjs`
-- `${CLAUDE_PLUGIN_ROOT}/skills/init/references/reconciliation-contract.md`
+- `bin/harness-watch.mjs` and `bin/harness-session.mjs`
+- the modules those two helpers load: `runtime/local-session.mjs`,
+  `runtime/mcp-client.mjs`, `runtime/runner-client.mjs`, `runtime/file-ownership.mjs`,
+  `runtime/state-diagnostics.mjs`, `lib/execution/watch.mjs`, `lib/execution/runner.mjs`,
+  `lib/execution/client-runtime.mjs`, `lib/configuration/harness-config.mjs`,
+  `lib/configuration/workspaces.mjs`, `lib/tokens/token.mjs`, `lib/templates/runbook.mjs`,
+  `lib/templates/codex-bundle.mjs`, `lib/templates/template-boundary.mjs`,
+  `lib/plans/entitlement.mjs` and `lib/qa.mjs`
+- `skills/init/references/reconciliation-contract.md`
 
 Read that exact reconciliation contract and preflight the **effective**
 `reconciling-proposals-with-codebase` package and all its required supporting
@@ -244,6 +249,11 @@ Construct commands from verified real values. Never execute the placeholders
 below. The substituted plugin root determines the absolute CLI path; neither
 `$CLAUDE_PLUGIN_ROOT` nor `$env:CLAUDE_PLUGIN_ROOT` is read from the shell.
 Tokens are inherited from the environment only.
+
+`<absolute-checkout>` is the checkout saved at start. Keep passing that checkout
+after start, also once Claude Code isolates this session in a worktree: the
+session belongs to the checkout it started in, and a check from another checkout
+of the repository answers `binding-changed`.
 
 PowerShell: quote each path/root/session/server as a single-quoted literal,
 doubling each embedded `'`. Bash (including Git Bash): shell-quote each

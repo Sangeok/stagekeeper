@@ -7,8 +7,9 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { releaseSession, stateFiles } from "../runtime/local-session.mjs";
+import { releaseSession, startSession, stateFiles } from "../runtime/local-session.mjs";
 import { runnerHost } from "../runtime/runner-client.mjs";
+import { RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-watch.mjs", import.meta.url));
 const TOKEN = "hu_" + "a".repeat(43);
@@ -508,9 +509,9 @@ const LEASE_OK = runnerReply(200, { ok: true, paused: false });
 const byOp = (replies) => (request, res) => (replies[request.op] ?? runnerReply(404, {}))(request, res);
 const ops = (f) => f.runnerCalls.map((call) => call.body.op === "beat" ? `beat:${call.body.state ?? "-"}` : call.body.op);
 
-function runSession(f, args) {
+function runSession(f, args, checkout = f.root) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [SESSION_BIN, "--root", f.root, ...args], {
+    const child = spawn(process.execPath, [SESSION_BIN, "--root", checkout, ...args], {
       env: { ...BASE_ENV, HARNESS_TOKEN: TOKEN, HARNESS_SERVER: f.url }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     let stdout = "", stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -695,4 +696,43 @@ it("foreground sessions never call the runner route, even with a lease record", 
   await runSession(f, ["--stop", "--session", started.event.session]);
   assert.equal((await runSession(f, ["--release", "--session", started.event.session])).event.event, "released");
   assert.equal(f.runnerCalls.length, 0);
+});
+
+it("a session check from another checkout names the changed checkout for Claude and keeps the Codex refusal", async (t) => {
+  const f = await fixture(t);
+  f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "add", "harness.json", "CLAUDE.md");
+  f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture");
+  const linked = path.join(f.root, "linked");
+  f.git("worktree", "add", "--detach", linked, "HEAD");
+  const check = (client, session, checkout) => runSession(f, ["--check", "--client", client, "--session", session], checkout);
+  const claude = (await f.start(["--managed"])).event.session, binding = json(f.lockPath).binding;
+  assert.equal((await check("claude", claude)).event.event, "owned");
+  const moved = await check("claude", claude, linked);
+  const row = COPY.split(/\r?\n/).find((line) => line.startsWith("| binding-changed |"));
+  assert.deepEqual([moved.code, moved.event.code, moved.event.reason], [1, "binding-changed", row.split("|")[2].trim()]);
+  assert.equal((await runSession(f, ["--stop", "--session", claude])).event.event, "stopping");
+  assert.equal((await runSession(f, ["--release", "--session", claude])).event.event, "released");
+  for (const checkout of [f.root, linked]) {
+    mkdirSync(path.join(checkout, "docs", "harness"), { recursive: true });
+    writeFileSync(path.join(checkout, "docs", "harness", "codex-package.json"), JSON.stringify({ client: "codex", protocol: RUNTIME_PROTOCOL, runbook: VERSION }));
+  }
+  const codex = (await startSession(stateFiles(f.directory), binding, { client: "codex", commit: false, propose: false })).session;
+  assert.equal((await check("codex", codex)).event.event, "owned");
+  const refused = await check("codex", codex, linked);
+  assert.deepEqual([refused.code, refused.event.code, refused.event.reason],
+    [1, "session-refused", "Invalid configuration, ownership or server response; stop and reconnect with the current client init skill."]);
+});
+
+it("the watch skill preflight lists exactly the modules the watch and session helpers load", () => {
+  const plugin = fileURLToPath(new URL("..", import.meta.url)), loaded = new Set();
+  const visit = (file) => {
+    const name = path.relative(plugin, file).replaceAll("\\", "/");
+    if (loaded.has(name)) return;
+    loaded.add(name);
+    for (const [, specifier] of readFileSync(file, "utf8").matchAll(/\b(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)) visit(path.resolve(path.dirname(file), specifier));
+  };
+  for (const entry of ["bin/harness-watch.mjs", "bin/harness-session.mjs"]) visit(path.join(plugin, entry));
+  const skill = readFileSync(new URL("../skills/watch/SKILL.md", import.meta.url), "utf8");
+  const preflight = skill.slice(skill.indexOf("Resolve that absolute root"), skill.indexOf("Read that exact reconciliation contract"));
+  assert.deepEqual([...preflight.matchAll(/`((?:bin|lib|runtime)\/[^`]+)`/g)].map(([, name]) => name).sort(), [...loaded].sort());
 });
