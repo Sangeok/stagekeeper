@@ -1,33 +1,41 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { parseHarnessConfig } from "../configuration/harness-config.mjs";
 import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "./vars.mjs";
 
-const cfg = parseHarnessConfig(readFileSync(new URL("../../../examples/apch/harness.json", import.meta.url), "utf8"));
+const project = { owner: "team", repo: "tools", branch: "release", name: "Team tools" };
 
 describe("vars", () => {
   it("roster table has one row per workspace in order", () => {
-    const v = buildVars(cfg);
-    assert.match(v.roster_table, /^\| agent \| owns \|\n\| --- \| --- \|\n/);
-    assert.match(v.roster_table, /\| `web-dev` \| `apps\/web\/\*\*` \|\n\| `admin-dev` \| `apps\/admin\/\*\*` \|\n\| `backend-dev` \| `apps\/backend\/\*\*` \|$/);
-    assert.equal(v.roster_names, "`web-dev`·`admin-dev`·`backend-dev`");
-    assert.equal(v.board_branch, "dev");
+    const v = buildVars({ project, workspaces: [
+      { agent: "jobs-dev", path: "workers/jobs" },
+      { agent: "api-dev", path: "services/api" },
+    ] });
+    assert.equal(v.roster_table, "| agent | owns |\n| --- | --- |\n| `jobs-dev` | `workers/jobs/**` |\n| `api-dev` | `services/api/**` |");
+    assert.equal(v.roster_names, "`jobs-dev`·`api-dev`");
+    assert.equal(v.board_branch, "release");
+    assert.deepEqual(v.project, project);
   });
   it("workspace vars: verify block, result line, read-only and out-of-scope lists", () => {
-    const v = buildWorkspaceVars(cfg, cfg.workspaces[2]);
-    assert.equal(v.ws.agent, "backend-dev");
-    assert.equal(v.ws.verify_block, "```bash\npython -m unittest discover -s apps/backend -p \"test_*.py\"\npython -m py_compile apps/backend/main.py\n```");
-    assert.equal(v.ws.verify_result_line, "Verification: python -m unittest discover -s apps/backend -p \"test_*.py\" <result> / python -m py_compile apps/backend/main.py <result>");
-    assert.equal(v.ws.read_only_list, "- `apps/backend/asd/**`\n- `apps/backend/requirements.txt`");
-    assert.equal(v.ws.out_of_scope_list, "- `apps/web/**`\n- `apps/admin/**`");
-    assert.equal(v.ws.knowledge, "apps/backend/CLAUDE.md");
-    assert.equal(v.ws.knowledge_line, "Your workspace knowledge doc is `apps/backend/CLAUDE.md` — read it before you write.");
+    const workspace = {
+      agent: "api-dev", path: "services/api", verify: ['node --test "test/*.test.mjs"', "npm run lint"],
+      readOnly: ["packages/contracts/**", "config/runtime.json"], knowledge: "services/api/AGENTS.md",
+    };
+    const config = { project, workspaces: [
+      { agent: "cli-dev", path: "apps/cli" }, workspace, { agent: "jobs-dev", path: "workers/jobs" },
+    ] };
+    const v = buildWorkspaceVars(config, workspace);
+    assert.equal(v.ws.agent, "api-dev");
+    assert.equal(v.ws.path, "services/api");
+    assert.equal(v.ws.verify_block, '```bash\nnode --test "test/*.test.mjs"\nnpm run lint\n```');
+    assert.equal(v.ws.verify_result_line, 'Verification: node --test "test/*.test.mjs" <result> / npm run lint <result>');
+    assert.equal(v.ws.read_only_list, "- `packages/contracts/**`\n- `config/runtime.json`");
+    assert.equal(v.ws.out_of_scope_list, "- `apps/cli/**`\n- `workers/jobs/**`");
+    assert.equal(v.ws.knowledge, "services/api/AGENTS.md");
+    assert.equal(v.ws.knowledge_line, "Your workspace knowledge doc is `services/api/AGENTS.md` — read it before you write.");
   });
   it("empty lists render as 'none'", () => {
-    const one = parseHarnessConfig({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
-      workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
-    const v = buildWorkspaceVars(one, one.workspaces[0]);
+    const workspace = { agent: "dev", path: ".", verify: ["npm test"], readOnly: [], knowledge: null };
+    const v = buildWorkspaceVars({ project, workspaces: [workspace] }, workspace);
     assert.equal(v.ws.read_only_list, "none"); assert.equal(v.ws.out_of_scope_list, "none");
     assert.equal(v.ws.knowledge, "(none — this workspace has no knowledge doc yet. Say so in the plan)");
     assert.equal(v.ws.knowledge_line, "This workspace has no knowledge doc. Say so in the plan rather than inventing its conventions.");

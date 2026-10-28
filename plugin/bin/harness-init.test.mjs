@@ -12,7 +12,6 @@ import { REPORT_AGENTS } from "../lib/plans/entitlement.mjs";
 import { runbookVersion } from "../lib/templates/runbook.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));
-const APCH = readFileSync(new URL("../../examples/apch/harness.json", import.meta.url), "utf8");
 
 const FIXTURES = {
   "docs/plans/README.md": "# Plans — {{project.name}}\n",
@@ -52,8 +51,8 @@ const runBare = (env, root, ...args) => {
 };
 const run = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR }, root, "https://h.example", ...args);
 const runFree = (root, ...args) => runWith({ HARNESS_TEMPLATES_DIR: TPL_DIR, HARNESS_PLAN: "free" }, root, "https://h.example", ...args);
-const fresh = (cfg = APCH) => { const root = mkdtempSync(join(realpathSync(tmpdir()),"harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
-const ONE_WS = JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }], scout: { question: "q" } });
+const ONE_WS = JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
+const fresh = (cfg = ONE_WS) => { const root = mkdtempSync(join(realpathSync(tmpdir()),"harness-")); writeFileSync(join(root, "harness.json"), cfg); return root; };
 
 for (const field of ["project", "executor", "release", "scout"]) it(`reports null ${field} as a field-path config error without generating files`, () => {
   const invalid = { ...JSON.parse(ONE_WS), [field]: null }, root = fresh(JSON.stringify(invalid));
@@ -149,17 +148,27 @@ const withServer = async (body, fn, { postStatus = 200, postError = null, projec
 };
 
 describe("harness-init (v2)", () => {
-  it("materializes agents, docs, runbook, lock — no state files and no .mcp.json", () => {
-    const root = fresh();
+  const MULTI_WS = JSON.stringify({
+    ...JSON.parse(ONE_WS),
+    workspaces: [
+      { id: "queue", path: "workers/queue", agent: "queue-dev", verify: ["npm test"] },
+      { id: "http", path: "services/http", agent: "http-dev", verify: ["npm run check", "npm test"] },
+    ],
+  });
+
+  it("materializes multiple workspace agents, docs, runbook, lock — no state files and no .mcp.json", () => {
+    const root = fresh(MULTI_WS);
     const r = run(root);
     assert.equal(r.code, 0, r.out);
     for (const p of ["CLAUDE.md", "harness.lock.json", "docs/plans/README.md", "docs/plans/template.md", "docs/plans/verification-paths.md",
       "docs/agents/README.md", ".claude/agents/pm.md", ".claude/agents/plan-verifier.md", ".claude/agents/doc-auditor.md", ".claude/agents/feature-scout.md",
-      ".claude/agents/web-dev.md", ".claude/agents/admin-dev.md", ".claude/agents/backend-dev.md"]) assert.ok(existsSync(join(root, p)), `missing ${p}`);
+      ".claude/agents/queue-dev.md", ".claude/agents/http-dev.md"]) assert.ok(existsSync(join(root, p)), `missing ${p}`);
     for (const p of ["PROJECT_BOARD.md", "TASK_BACKLOG.md", "docs/release-checks.md", "scripts", ".mcp.json"]) assert.ok(!existsSync(join(root, p)), `unexpected ${p}`);
     assert.match(r.out, /^server: https:\/\/h\.example$/m);
     assert.doesNotMatch(r.out, /write: \.mcp\.json/);
-    assert.doesNotMatch(readFileSync(join(root, ".claude/agents/backend-dev.md"), "utf8"), /\{\{/);
+    assert.doesNotMatch(readFileSync(join(root, ".claude/agents/http-dev.md"), "utf8"), /\{\{/);
+    assert.match(readFileSync(join(root, ".claude/agents/queue-dev.md"), "utf8"), /owns workers\/queue\n```bash\nnpm test\n```/);
+    assert.match(readFileSync(join(root, ".claude/agents/http-dev.md"), "utf8"), /owns services\/http\n```bash\nnpm run check\nnpm test\n```/);
     const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
     assert.equal(lock.version, 1);
     assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files));
@@ -178,14 +187,14 @@ describe("harness-init (v2)", () => {
     assert.doesNotMatch(p.out, /--owner no longer writes/);
   });
   it("agent files are stubs — no step body reaches disk", () => {
-    const root = fresh();
+    const root = fresh(MULTI_WS);
     assert.equal(run(root).code, 0);
-    for (const a of ["pm", "plan-verifier", "doc-auditor", "feature-scout", "web-dev", "admin-dev", "backend-dev"]) {
+    for (const a of ["pm", "plan-verifier", "doc-auditor", "feature-scout", "queue-dev", "http-dev"]) {
       const body = readFileSync(join(root, `.claude/agents/${a}.md`), "utf8");
       assert.doesNotMatch(body, /## step:/, a);
       assert.doesNotMatch(body, /step body/, a);
     }
-    assert.match(readFileSync(join(root, ".claude/agents/web-dev.md"), "utf8"), /^name: web-dev$/m);
+    assert.match(readFileSync(join(root, ".claude/agents/queue-dev.md"), "utf8"), /^name: queue-dev$/m);
     assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
   });
   it("removes our entries from .mcp.json, preserving other servers", () => {
@@ -206,7 +215,7 @@ describe("harness-init (v2)", () => {
   });
   it("QA configuration installs its dedicated local browser entry and preserves conflicting user configuration", () => {
     const qa = { environment: "test", baseUrl: "http://127.0.0.1:3000", mcpUrl: "http://127.0.0.1:8931/mcp", scenariosPath: "docs/qa/scenarios.md" };
-    const root = fresh(JSON.stringify({ ...JSON.parse(APCH), qa }));
+    const root = fresh(JSON.stringify({ ...JSON.parse(ONE_WS), qa }));
     const result = run(root);
     assert.equal(result.code, 0, result.out);
     assert.deepEqual(JSON.parse(readFileSync(join(root, ".mcp.json"), "utf8")).mcpServers.harness_qa_browser, { type: "http", url: qa.mcpUrl });
@@ -404,10 +413,10 @@ describe("harness-init (v2)", () => {
       assert.ok(!(".claude/agents/plan-verifier.md" in lock.files));
     });
     it("free: refuses before writing when harness.json has more workspaces than the plan allows", () => {
-      const root = fresh();
+      const root = fresh(MULTI_WS);
       const r = runFree(root);
       assert.equal(r.code, 1, r.out);
-      assert.match(r.out, /workspace cap reached on the free plan \(1\): harness\.json has 3 workspaces/);
+      assert.match(r.out, /workspace cap reached on the free plan \(1\): harness\.json has 2 workspaces/);
       assert.ok(!existsSync(join(root, "harness.lock.json")));
       assert.ok(!existsSync(join(root, ".claude")));
     });

@@ -1,42 +1,50 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { parseHarnessConfig } from "./harness-config.mjs";
 
-const APCH = readFileSync(new URL("../../../examples/apch/harness.json", import.meta.url), "utf8");
+const base = () => ({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
+  workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
 
 for (const field of ["project", "executor", "release", "scout"]) it(`rejects non-object ${field} with its config field path`, () => {
-  const base = { version: 1, project: { owner: "o", repo: "r", branch: "main" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] };
   for (const value of [null, [], "wrong", 1, true]) {
-    assert.throws(() => parseHarnessConfig({ ...base, [field]: value }), {
+    assert.throws(() => parseHarnessConfig({ ...base(), [field]: value }), {
       name: "Error", message: `harness.json ${field}: must be an object`,
     });
   }
 });
 
 describe("parseHarnessConfig", () => {
-  it("accepts the ApcH example and normalizes defaults", () => {
-    const c = parseHarnessConfig(APCH);
-    assert.equal(c.project.name, "ApcH");
-    assert.equal(c.workspaces.length, 3);
-    assert.deepEqual(c.workspaces.map((w) => w.agent), ["web-dev", "admin-dev", "backend-dev"]);
-    assert.equal(c.executor.kind, "local");
-    assert.equal(c.executor.commandIssue, null);
-    assert.equal(c.release.baseUrl, "https://admin.a-pch.com");
-    assert.equal(c.release.auth, "verifier");
+  it("accepts JSON text and preserves explicit project identity and language", () => {
+    const input = { ...base(), project: { owner: "team", repo: "tools", branch: "release", name: "Team tools", slug: "tools-1" }, language: "ko" };
+    const config = parseHarnessConfig(JSON.stringify(input));
+    assert.deepEqual(config.project, input.project);
+    assert.equal(config.language, "ko");
+  });
+  it("preserves workspace order and optional metadata while normalizing omissions", () => {
+    const workspaces = [
+      { id: "jobs", path: "workers/jobs", agent: "jobs-dev", verify: ["npm run check", "npm test"], knowledge: "workers/jobs/AGENTS.md", readOnly: ["packages/contracts/**"] },
+      { id: "api", path: "services/api", agent: "api-dev", verify: ["npm test"] },
+    ];
+    const config = parseHarnessConfig({ ...base(), workspaces });
+    assert.deepEqual(config.workspaces, [workspaces[0], { ...workspaces[1], knowledge: null, readOnly: [] }]);
+  });
+  it("preserves configured release authentication and scout question", () => {
+    const release = { baseUrl: "https://preview.example.test", auth: "verifier" };
+    const scout = { question: "Which failing workflow should be fixed next?" };
+    const config = parseHarnessConfig({ ...base(), release, scout });
+    assert.deepEqual(config.release, release);
+    assert.deepEqual(config.scout, scout);
   });
   it("defaults: language en, executor local, release null, scout null, name=repo", () => {
-    const c = parseHarnessConfig({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
-      workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
+    const c = parseHarnessConfig(base());
     assert.equal(c.language, "en");
     assert.equal(c.executor.kind, "local");
     assert.equal(c.executor.commandIssue, null);
     assert.equal(c.release, null);
     assert.equal(c.scout, null);
     assert.equal(c.project.name, "r");
+    assert.equal(c.project.slug, null);
   });
-  const base = () => ({ version: 1, project: { owner: "o", repo: "r", branch: "main" },
-    workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] });
   it("rejects wrong version", () => assert.throws(() => parseHarnessConfig({ ...base(), version: 2 }), /version/));
   it("rejects empty workspaces", () => assert.throws(() => parseHarnessConfig({ ...base(), workspaces: [] }), /workspaces/));
   it("rejects bad agent id", () => { const b = base(); b.workspaces[0].agent = "Web Dev"; assert.throws(() => parseHarnessConfig(b), /agent/); });

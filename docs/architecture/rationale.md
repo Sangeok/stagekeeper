@@ -15,7 +15,7 @@
 
 ## 골든 diff — 통일 dev 템플릿이 원본과 어디서 갈라지나
 
-`examples/apch/harness.json`의 세 워크스페이스로 `plugin/templates/ko/agents/dev.md`를 렌더해
+당시 ApcH의 세 워크스페이스 설정으로 `plugin/templates/ko/agents/dev.md`를 렌더해
 ApcH 원본 `.claude/agents/{web,admin,backend}-dev.md`와 대조했다(2026-08-29 실측).
 
 | | 줄 | `##` 절 |
