@@ -13,7 +13,10 @@ DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-repor
 설치 → 프로젝트 연결이다. WSL·다른 CLI 로그인·별도 Node·검증 스킬 설치를 사용자에게
 요구하지 않는다. Windows install bundle은 검증된 Node·원본 npm·license와 변경하지 않은
 완전한 verifier를 포함하며 `bin/harness.ps1`이 helper를 실행한다. source-only checkout에는
-이 생성 배포물이 없다. bundle 생성·인수·실제 배포는 각각 별도 상태이며 배포 전에 일반
+이 생성 배포물이 없다. source에서 설치한 Claude Code 플러그인은 모든 OS에서 PATH의 Node.js로
+helper를 실행하므로 Node.js가 필요하다. Windows에서는 `bin/harness.ps1`이 runtime 디렉터리가
+없을 때 Claude helper를 PATH의 `node.exe`로 실행하고, `codex` 작업이나 `--client codex` 호출은
+packaging 실패로 거부한다. bundle 생성·인수·실제 배포는 각각 별도 상태이며 배포 전에 일반
 사용자에게 추가 설치를 안내하거나 준비 완료를 선언하지 않는다. WSL 검증은 내부 개발 기록이다.
 
 새 설치 배포물의 내용이 바뀌면 양쪽 manifest의 버전을 함께 올린다. Claude Code는
