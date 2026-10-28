@@ -142,17 +142,19 @@ the plugin and repeat preflight.
    `harness` entry in an existing `.mcp.json`. Ask for the URL from the web Tokens page only when
    it stops with `Server URL required`; a pasted value may keep its `/api/mcp` tail, which the
    generator strips. **There is still no default server URL** — without a source it stops.
-   Show the files it would write **together with the draft from step 1** and take one yes for
-   both. If the output has `refuse:` lines, ask whether to `--adopt` — that is the only second
-   question, and a clean repository never reaches it.
+   Show the dry run and get a yes before writing. If step 1 built a draft, show it in the same
+   message, so one yes covers both. Ask on every run: a rerun with an existing `harness.json`, a
+   clean tree, or a dry run that lists only managed files still waits for the yes, and the
+   request to run init is not that yes. If the output has `refuse:` lines, ask whether to
+   `--adopt` — that is the only second question, and a clean repository never reaches it.
    Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If it is set, the user issued an
    **owner token** on the web Tokens tab (it lets their own session open gates). Remember that
    answer for step 4 — **do not pass `--owner`**: the generator no longer writes any server, so the
    flag has no job and only prints a note saying where the owner server moved. If it is not set,
    do not ask for the token. Never print the token value.
-3. Run it for real. Report the `plan:`, `write:`, `skip(modified):` and `skip(plan):` lines as
-   they are. `skip(plan):` means the project's plan does not include that agent — the server did
-   not send it; the user upgrades on the web and reruns. If the run stops with
+3. After the yes, run it for real. Report the `plan:`, `write:`, `skip(modified):` and
+   `skip(plan):` lines as they are. `skip(plan):` means the project's plan does not include that
+   agent — the server did not send it; the user upgrades on the web and reruns. If the run stops with
    `workspace cap reached on the <plan> plan`, nothing was written: `harness.json` names more
    workspaces than the plan allows — drop some or upgrade, then rerun.
    **Keep the `server:` line from the output** — it is the resolved base URL and step 4 needs it.
