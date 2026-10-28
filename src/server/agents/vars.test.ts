@@ -1,29 +1,59 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 
-import { parseHarnessConfig } from "@harness/core/configuration/harness-config.mjs";
-import { DEFAULT_SCOUT_QUESTION, buildVars, buildWorkspaceVars } from "@harness/core/templates/vars.mjs";
+import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
+import { DEFAULT_SCOUT_QUESTION } from "@harness/core/templates/vars.mjs";
 
-import { serverVars, type WorkspaceRow } from "./vars";
+import { serverVars, type ProjectRow, type WorkspaceRow } from "./vars";
 
-const cfg = parseHarnessConfig(readFileSync(new URL("../../../examples/apch/harness.json", import.meta.url), "utf8"));
-const project = { owner: cfg.project.owner, repo: cfg.project.repo, branch: cfg.project.branch, name: cfg.project.name };
-type Ws = (typeof cfg.workspaces)[number];
-const rows: WorkspaceRow[] = cfg.workspaces.map((w: Ws) => ({
-  wsId: w.id, path: w.path, agent: w.agent, verify: w.verify, knowledge: w.knowledge ?? null, readOnly: w.readOnly ?? [],
-}));
+const project: ProjectRow = { owner: "stored-org", repo: "stored-repo", branch: "stable", name: "Stored project" };
+const workspaceRows = (): WorkspaceRow[] => [
+  {
+    wsId: "queue", path: "workers/queue", agent: "queue-dev", verify: ["npm run check", "npm test"],
+    knowledge: "workers/queue/AGENTS.md", readOnly: ["packages/events/**"],
+  },
+  { wsId: "http", path: "services/http", agent: "http-dev", verify: ["npm test"], knowledge: null, readOnly: [] },
+];
+const expectedReportVars = {
+  runtime: clientRuntime("claude"),
+  project,
+  board_branch: "stable",
+  roster_table: "| agent | owns |\n| --- | --- |\n| `queue-dev` | `workers/queue/**` |\n| `http-dev` | `services/http/**` |",
+  roster_names: "`queue-dev`·`http-dev`",
+  scout: { question: DEFAULT_SCOUT_QUESTION },
+  release: { baseUrl: "", auth: "none" },
+};
 
 describe("serverVars", () => {
-  it("a workspace agent gets buildWorkspaceVars for its row", () => {
-    for (const ws of cfg.workspaces) {
-      const expected = { ...buildWorkspaceVars(cfg, ws), scout: { question: DEFAULT_SCOUT_QUESTION }, release: { baseUrl: "", auth: "none" } };
-      assert.deepEqual(serverVars(project, rows, ws.agent), expected, ws.agent);
+  for (const [agent, expectedWorkspace] of [
+    ["queue-dev", {
+      agent: "queue-dev",
+      path: "workers/queue",
+      knowledge: "workers/queue/AGENTS.md",
+      knowledge_line: "Your workspace knowledge doc is `workers/queue/AGENTS.md` — read it before you write.",
+      verify_block: "```bash\nnpm run check\nnpm test\n```",
+      verify_result_line: "Verification: npm run check <result> / npm test <result>",
+      read_only_list: "- `packages/events/**`",
+      out_of_scope_list: "- `services/http/**`",
+    }],
+    ["http-dev", {
+      agent: "http-dev",
+      path: "services/http",
+      knowledge: "(none — this workspace has no knowledge doc yet. Say so in the plan)",
+      knowledge_line: "This workspace has no knowledge doc. Say so in the plan rather than inventing its conventions.",
+      verify_block: "```bash\nnpm test\n```",
+      verify_result_line: "Verification: npm test <result>",
+      read_only_list: "none",
+      out_of_scope_list: "- `workers/queue/**`",
+    }],
+  ] as const) {
+    it(`maps the stored workspace for ${agent} without leaking the other workspace's fields`, () => {
+      assert.deepEqual(serverVars(project, workspaceRows(), agent), { ...expectedReportVars, ws: expectedWorkspace });
+    });
+  }
+  it("gives report agents the stored roster and defaults without workspace fields", () => {
+    for (const agent of ["pm", "plan-verifier"]) {
+      assert.deepEqual(serverVars(project, workspaceRows(), agent), expectedReportVars);
     }
-  });
-  it("a report agent gets buildVars — roster from the rows, scout and release at their defaults", () => {
-    const expected = { ...buildVars(cfg), scout: { question: DEFAULT_SCOUT_QUESTION }, release: { baseUrl: "", auth: "none" } };
-    assert.deepEqual(serverVars(project, rows, "pm"), expected);
-    assert.equal("ws" in serverVars(project, rows, "plan-verifier"), false);
   });
 });

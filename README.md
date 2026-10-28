@@ -222,8 +222,7 @@ What `/harness:init` writes:
 | `harness.lock.json` | Hashes of generated files. Reruns keep files you edited (`skip(modified)`) |
 
 A minimal `harness.json` looks like this. Init fills in `project` from the server; never
-invent a `slug`. See [`examples/apch/harness.json`](./examples/apch/harness.json) for a fuller
-one.
+invent a `slug`.
 
 ```json
 {
@@ -367,7 +366,6 @@ stagekeeper/
 ├── prisma/           # Schema and migrations
 ├── scripts/          # Repository checks, sync, and manual operations (not app runtime)
 ├── tests/server/     # Server-only and cross-module tests; integration/ needs PostgreSQL
-├── examples/         # Example harness.json
 └── docs/             # Architecture, ADRs, proposals, investigations, test reports, conventions
 ```
 
