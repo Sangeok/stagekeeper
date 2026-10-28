@@ -14,9 +14,10 @@ Codex foreground 어댑터 소스도 같은 HTTP MCP·원장을 사용한다. Co
 WSL·VM·컨테이너·별도 Linux checkout이나 선택하지 않은 클라이언트의 설치·로그인을
 지원 조건이나 오류 복구 절차로 요구하지 않는다. helper 실행 환경과 완전한 검증 스킬의
 전달은 Stagekeeper 패키징 책임이며 사용자가 Node나 외부 스킬을 별도로 설치하게 하지 않는다.
-이 기준은 출시 게이트다. Windows bundle 생성기는 Node/npm·license와 완전한 원본
-verifier를 포함하고 `bin/harness.ps1`이 검증된 runtime으로 양쪽 helper를 실행한다.
-source-only checkout에는 생성 runtime/스킬이 없으며 일반 사용자용 설치 배포물이 아니다.
+이 기준은 출시 게이트다. 완전한 검증 스킬은 2026-10-28 결정에 따라 plugin source의
+`skills/reconciling-proposals-with-codebase`에 포함한다. Windows bundle 생성기는 Node/npm·license를
+더하고 같은 검증 스킬을 Codex skill 경로에도 두며, `bin/harness.ps1`이 검증된 runtime으로 양쪽
+helper를 실행한다. source-only checkout에는 생성 runtime이 없으며 일반 사용자용 설치 배포물이 아니다.
 source에서 설치한 Claude Code 플러그인은 예외로 모든 OS에서 PATH의 Node.js로 helper를 실행한다
 (2026-10-28 결정). Windows에서는 `bin/harness.ps1`이 runtime 디렉터리가 없을 때만 PATH의
 `node.exe`를 쓰고, Codex 호출은 bundle 없이 실행하지 않는다.

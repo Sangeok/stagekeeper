@@ -1,22 +1,20 @@
-# Bundled reconciliation skill — harness contract v1
+# Included reconciliation skill — harness contract v1
 
-Stagekeeper's installed bundle includes the complete original
-`skills/reconciling-proposals-with-codebase/` package, including every referenced file.
-Packaging uses an owner-approved source; init does not download, synthesize or replace it.
+The Stagekeeper plugin includes the complete `skills/reconciling-proposals-with-codebase/`
+package, including every referenced file, in its source and in every install bundle.
+init does not download, synthesize or replace it.
 
 ## Supply and resolved loader
 
-Read the installed bundle's `skills/reconciling-proposals-with-codebase/SKILL.md`
+Read the installed plugin's `skills/reconciling-proposals-with-codebase/SKILL.md`
 and its required supporting files. Confirm the actual Claude Skill invocation resolves
-that compatible package; a same-named personal/project skill can shadow the bundle.
+that compatible package; a same-named personal/project skill can shadow the plugin's copy.
 Do not overwrite conflicting packages during init. Record the winning absolute path and
-bundle version/commit or package checksum, then repeat preflight after reconciliation.
+plugin version/commit or package checksum, then repeat preflight after reconciliation.
 
-An installed bundle missing this dependency is a Stagekeeper packaging failure: stop and
-repair/update the complete Stagekeeper package. Do not require manual Node or verifier
-installation as the user's default recovery. A source-only development checkout may use
-an explicitly approved complete project/personal package, but that does not certify the
-installed bundle or its actual winning loader.
+An installed plugin missing this dependency is a Stagekeeper packaging failure: stop and
+repair/update the complete Stagekeeper plugin. Do not require manual Node or verifier
+installation as the user's default recovery.
 
 ## Preflight — inspect without starting a review
 
@@ -34,9 +32,9 @@ installed bundle or its actual winning loader.
 
 All checks must pass before init writes files. If any fails, report
 `Verification skill unavailable or incompatible: <specific missing requirement>` and stop.
-Repair/update the complete Stagekeeper bundle (or reconcile the winning loader conflict),
+Repair/update the complete Stagekeeper plugin (or reconcile the winning loader conflict),
 then rerun `/harness:init`. Do not bypass verification or generate a replacement
 skill during init. Recheck after the package changes and before a new review session.
 
-This is a compatibility contract, not a claim that a particular unversioned personal skill
-is supported forever. Plan reviewers still load and inspect their own resolved copy.
+The package ships and updates with the plugin. Plan reviewers still load and inspect their
+own resolved copy, which must pass the same checks.

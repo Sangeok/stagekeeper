@@ -7,6 +7,7 @@ import { installedWindowsRuntime } from "../../plugin/runtime/role-commands.mjs"
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
+const VERIFIER = "skills/reconciling-proposals-with-codebase", CODEX_VERIFIER = "codex/skills/reconciling-proposals-with-codebase";
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 export const isShippedPluginFile = name => name.startsWith("plugin/") && !name.startsWith("plugin/templates/") && !name.endsWith(".test.mjs");
 function regularTree(directory) {
@@ -22,9 +23,9 @@ function regularTree(directory) {
   visit(directory); return files;
 }
 
-export function packageWindowsPlugin({ output, runtimeDirectory, verifierDirectory }) {
+export function packageWindowsPlugin({ output, runtimeDirectory }) {
   if (!path.isAbsolute(output) || existsSync(output) || path.relative(repository, output).split(path.sep)[0] !== "..") throw new Error("A new output directory outside the repository is required");
-  const runtime = installedWindowsRuntime(runtimeDirectory), verifier = verifierPackage(verifierDirectory);
+  const runtime = installedWindowsRuntime(runtimeDirectory), verifier = verifierPackage(path.join(repository, "plugin", VERIFIER));
   regularTree(path.dirname(verifier.path));
   const runtimeRows = regularTree(runtime.directory).filter(([name]) => name !== "provenance.json");
   if (digest(JSON.stringify(runtimeRows)) !== runtime.packageSha256 || digest(readFileSync(path.join(runtime.directory, "node.exe"))) !== runtime.executableSha256) throw new Error("Runtime build artifact changed");
@@ -38,13 +39,12 @@ export function packageWindowsPlugin({ output, runtimeDirectory, verifierDirecto
   }
   const packagedRuntime = path.join(output, "runtime/windows/node");
   cpSync(runtime.directory, packagedRuntime, { recursive: true, errorOnExist: true, force: false });
-  const verifierRoot = path.dirname(verifier.path);
-  for (const destination of ["codex/skills/reconciling-proposals-with-codebase", "skills/reconciling-proposals-with-codebase"]) {
-    const target = path.join(output, destination); cpSync(verifierRoot, target, { recursive: true, errorOnExist: true, force: false });
-    const copied = verifierPackage(target);
+  cpSync(path.join(output, VERIFIER), path.join(output, CODEX_VERIFIER), { recursive: true, errorOnExist: true, force: false });
+  for (const destination of [VERIFIER, CODEX_VERIFIER]) {
+    const copied = verifierPackage(path.join(output, destination));
     if (copied.checksum !== verifier.checksum || copied.files !== verifier.files) throw new Error("Complete verifier copy differs");
   }
-  if (verifierPackage(verifierRoot).checksum !== verifier.checksum) throw new Error("Owner verifier changed while packaging");
+  if (verifierPackage(path.dirname(verifier.path)).checksum !== verifier.checksum) throw new Error("Plugin verifier changed while packaging");
   for (const needed of ["bin/harness.ps1", "runtime/windows/RoleProcess.cs", "runtime/windows/role-process.ps1", "runtime/windows/job-launch.ps1", "runtime/windows/notify.ps1", "runtime/windows/autostart.ps1"]) if (!existsSync(path.join(output, needed))) throw new Error("Native plugin source is incomplete; stage its new tracked files before packaging");
   const inventory = regularTree(output);
   const manifest = { format: "stagekeeper-windows-plugin-v1", sourceRevision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repository, encoding: "utf8" }).trim(),
@@ -57,9 +57,9 @@ export function packageWindowsPlugin({ output, runtimeDirectory, verifierDirecto
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2), values = {};
   for (let i = 0; i < args.length; i += 2) {
-    if (!["--output", "--runtime", "--verifier"].includes(args[i]) || !args[i + 1] || Object.hasOwn(values, args[i])) throw new Error("Expected --output, --runtime and optional --verifier absolute directories");
+    if (!["--output", "--runtime"].includes(args[i]) || !args[i + 1] || Object.hasOwn(values, args[i])) throw new Error("Expected --output and --runtime absolute directories");
     values[args[i]] = args[i + 1];
   }
   if (!values["--output"] || !values["--runtime"]) throw new Error("Output and built runtime are required");
-  console.log(JSON.stringify(packageWindowsPlugin({ output: values["--output"], runtimeDirectory: values["--runtime"], verifierDirectory: values["--verifier"] })));
+  console.log(JSON.stringify(packageWindowsPlugin({ output: values["--output"], runtimeDirectory: values["--runtime"] })));
 }

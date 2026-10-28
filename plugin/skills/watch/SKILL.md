@@ -18,9 +18,9 @@ On Windows use this package's `bin/harness.ps1 <task> <existing arguments>` thro
 Use task `watch` for harness-watch.mjs and `session` for harness-session.mjs. Translate
 every Node helper command below through this launcher on Windows and quote its path.
 The launcher validates an install bundle's included Node and otherwise uses the Node.js in
-PATH; the policy is process-only. Use the complete original verifier bundled under
+PATH; the policy is process-only. Use the complete verifier this plugin includes under
 `skills/reconciling-proposals-with-codebase`, preserving the actual loader/checksum checks
-below. A source-only checkout is not an install bundle.
+below.
 
 Read the current checkout's `harness.json`, `CLAUDE.md` and generated
 `.claude/agents/` stubs. Follow the runbook's project scope, briefing, entry,
