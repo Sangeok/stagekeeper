@@ -268,6 +268,13 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 완료 제안서·검증 보고서에 남은 이전 경로는 당시 실행 기록으로 보존한다.
 현재 실행 명령은 아래 목록과 `package.json`을 따른다.
 
+`build.mjs`, `plugin-lib.mjs`, `test-server-integration.mjs`는 저장소 루트에서 실행한다.
+세 진입점은 단독 `--help`를 받으면 환경 설정·파일 동기화·Prisma 생성·migration 전에
+사용법을 출력하고 0으로 종료한다. 지원하지 않는 인자나 옵션 조합은 작업 전에 2로
+종료한다. build·통합 시험은 일반 실행 시 인자를 받지 않으며, plugin-lib는 인자 없이
+동기화하고 단독 `--check`로 읽기 전용 검사한다. build 인자를 Next CLI로 전달하지 않는다.
+동작 실패는 0이 아닌 종료 코드로 전달하며 build는 실패한 자식의 코드를 보존하고 후속 단계를 중단한다.
+
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
 | `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | 병합·CI·로컬 보존 조건을 확인한 작업 브랜치의 로컬 ref만 정리. `main`·`dev`와 원격 ref는 삭제하지 않음 |
@@ -285,7 +292,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `checks/verify-plugin-version.mjs`, `checks/verify-plugin-version.test.mjs` | `npm run verify:plugin-version [-- --base <ref> --head <ref>]`; `test:scripts` | `main` 승격 직전 | `origin`의 `main`·`dev`를 fetch한 뒤 기본값 `origin/main`→`origin/dev` 사이에서 출하 대상 `plugin/` 파일(Windows 패키지와 같은 기준: `plugin/templates/`·`*.test.mjs` 제외)이 바뀌었으면 두 plugin manifest의 판이 같고 둘 다 base보다 높은지 검사한다. dev CI에는 넣지 않는다. 판은 배포 때 올리므로 dev는 이 검사에서 실패하는 상태일 수 있다 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | CI마다, 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | CI마다(일회용 PostgreSQL 18), 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. migrate 출력은 숨기고 시험 출력은 그대로 보인다. DB 생성·삭제·reset 없음 |
-| `test-server-integration.test.mjs` | `npm run test:architecture` | CI마다 | URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
+| `build.test.mjs`, `plugin-lib.test.mjs`, `test-server-integration.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 실제 CLI의 잘못된 인자·도움말을 작업 전에 처리하는지, check의 무쓰기·동기화 동작, 빌드 순서·실패 코드 보존, URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |

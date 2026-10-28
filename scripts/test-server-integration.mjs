@@ -43,9 +43,18 @@ function runChild(command, args, env) {
   });
 }
 
-if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+async function main() {
+  const args = process.argv.slice(2);
+  const usage = "Usage: npm run test:server:integration [-- --help] (run from the repository root with an isolated TEST_DATABASE_URL; applies migrations before tests)";
+  if (args.length === 1 && args[0] === "--help") { console.log(usage); return; }
+  if (args.length) { console.error(usage); process.exitCode = 2; return; }
   config({ quiet: true });
-  runIntegration().then(() => console.log("Server integration migration and tests passed."), (error) => {
+  await runIntegration();
+  console.log("Server integration migration and tests passed.");
+}
+
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  main().catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
   });
