@@ -29,7 +29,9 @@ in the `HARNESS_TOKEN` environment variable (`test -n "$HARNESS_TOKEN"`).
   `setx HARNESS_SERVER "<base>"`. POSIX: append `export HARNESS_SERVER="<base>"` to the login
   profile, **only if that line is not already there** — init is rerun routinely and a second
   copy is noise. The base is the web address without `/api/mcp`. Both take effect in the *next*
-  shell, which is why step 4 restarts.
+  shell, which is why step 4 restarts. A repository that uses its own server (end of step 4) is
+  the exception: pass that server with `--server` and leave `HARNESS_SERVER` as it is, because
+  every repository reads it.
 - `HARNESS_TOKEN` — **do not take the value into this conversation.** Open the issue page for
   them (`/settings/tokens` for a user token, `/p/<slug>/tokens` for a project token) and say
   plainly why you are not doing this part: anything pasted into the chat lands in the session
@@ -158,7 +160,8 @@ the plugin and repeat preflight.
    `.mcp.json`) and the tail normalization both live there. If the run also prints
    `note: that entry was also this repository's only record of the server URL`, the generator just
    removed the last per-repo copy of the address — make sure `HARNESS_SERVER` holds it (step 0
-   persists it) so the next rerun does not stop with `Server URL required`.
+   persists it) so the next rerun does not stop with `Server URL required`. If that address was
+   this repository's own server, follow the end of step 4 instead of changing `HARNESS_SERVER`.
    If identity, registration, or templates is refused with 401/403/409, stop at the reported
    error. Do not fall back to manual registration or another project; only the documented
    missing-route 404 supports legacy identity recovery. A disconnected repository requires
@@ -175,10 +178,13 @@ the plugin and repeat preflight.
    - Check first: `claude mcp get harness`. This is **required, not defensive** — adding a name
      that already exists fails with `already exists in user config` (exit 1) and changes nothing,
      and init is rerun routinely.
+   - Its `Scope:` line says `Local config` → this repository uses its own server (end of this
+     step). If its URL is `<base>/api/mcp`, change nothing in either scope; otherwise stop and ask
+     which server this repository uses. Never change the user-scope entry for it.
    - Absent → add it. **Single quotes around the header**, or the shell expands the variable before
      the CLI sees it and the token is written into the config as plaintext:
      `claude mcp add --transport http --scope user harness <base>/api/mcp -H 'Authorization: Bearer ${HARNESS_TOKEN}'`
-   - Present but pointing at a different URL → `claude mcp remove harness -s user`, then add.
+   - Present at user scope but pointing at a different URL → `claude mcp remove harness -s user`, then add.
      Re-adding alone does not update it; the old address would silently stay.
    - If `HARNESS_OWNER_TOKEN` was set in step 2, register the owner server the same way:
      `harness_owner` at `<base>/api/mcp/owner` referencing `${HARNESS_OWNER_TOKEN}`. Skip it
@@ -196,8 +202,15 @@ the plugin and repeat preflight.
    saved token before starting Claude Code. Restarting does not expire the token. Apply the same
    reuse and secure-storage guidance to `HARNESS_OWNER_TOKEN`, which connects only to the owner
    server. A saved user token (`hu_`) works from any terminal.
-   A repository that must talk to a *different* server keeps its own `.mcp.json`: project scope
-   outranks user scope, so that file stays the deliberate per-repo override.
+   A repository that must talk to a *different* server than the rest of this machine uses a
+   local-scope registration instead, which only this repository sees:
+   `claude mcp add --transport http --scope local harness <base>/api/mcp -H 'Authorization: Bearer ${HARNESS_TOKEN}'`
+   (and `harness_owner` the same way when step 2 found `HARNESS_OWNER_TOKEN`). Local scope
+   outranks user scope and is stored in the user's Claude Code configuration, not in the
+   repository, so rerunning init leaves it in place. A `harness` entry in `.mcp.json` does not
+   work for this: the generator removes `harness` and `harness_owner` from that file on every
+   run. Pass that server to init and `/harness:watch` with `--server`, and start Claude Code
+   there with a `HARNESS_TOKEN` that server issued.
 5. Read the current `harness.json` and call `mcp__harness__project_sync` with
    `{ project: slug, workspaces, language }`, using `project.slug`, `workspaces`, and
    `language` (default `en`) from that file. Only an `hs_` configuration without a slug

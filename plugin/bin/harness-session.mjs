@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { gitRoot, stateFiles, readStateWithGuard, startSession, checkSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
+import { WatchFailure, gitRoot, stateFiles, readStateWithGuard, startSession, checkSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
 import { connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin } from "../runtime/runner-client.mjs";
 import { parseClient } from "../lib/execution/client-runtime.mjs";
@@ -51,9 +51,10 @@ async function stopOnRelease(event, before) {
 }
 
 async function main() {
-  let options;
+  let options, client;
   try {
     options = parseArguments(process.argv.slice(2));
+    client = options.client;
     const location = gitRoot(options.root), files = stateFiles(location.directory);
     let event;
     if (options.mode === "stop") event = await requestStop(files, options.session);
@@ -63,7 +64,7 @@ async function main() {
       event = await releaseSession(files, options.session);
       await stopOnRelease(event, before);
     } else {
-      const client = options.client ?? (options.mode === "check" ? (await readStateWithGuard(files))?.lock.client ?? "claude" : "claude");
+      client ??= options.mode === "check" ? (await readStateWithGuard(files))?.lock.client ?? "claude" : "claude";
       const input = connectionInput(location.root, { ...options, client });
       if (options.mode === "check") event = await beatOnCheck(await checkSession(files, options.session, input.binding), files, input);
       else {
@@ -74,7 +75,11 @@ async function main() {
     }
     console.log(JSON.stringify(event));
     process.exitCode = event.event === "error" ? 1 : 0;
-  } catch { console.log(JSON.stringify({ event: "error", session: options?.session ?? null, code: "session-refused", reason: "Invalid configuration, ownership or server response; stop and reconnect with the current client init skill." })); process.exitCode = 1; }
+  } catch (error) {
+    const refusal = client === "claude" && error instanceof WatchFailure ? { code: error.code, reason: error.message }
+      : { code: "session-refused", reason: "Invalid configuration, ownership or server response; stop and reconnect with the current client init skill." };
+    console.log(JSON.stringify({ event: "error", session: options?.session ?? null, ...refusal })); process.exitCode = 1;
+  }
 }
 
 if (process.argv[1]?.replaceAll("\\", "/").endsWith("/harness-session.mjs")) void main();
