@@ -1,0 +1,496 @@
+{
+  "schema": 1,
+  "run": 40605571354,
+  "revision": "ddb18a4dad6e301cf27db35dc63370ae84e96e26",
+  "arch": "x64",
+  "release": "24.6.0",
+  "macos": "15.7.9 (24G830)",
+  "node": "v22.23.2",
+  "hashes": {
+    "driver": "d21403a3573b89dd568d9ffaa48512dd04ac93a48c7bab20f65da8004bdb2c53",
+    "child": "5a5aae74a3eca5bb1e5e5b2e4250786ce30b97635a4a6a91677be5b7aa37f98e",
+    "scannerSource": "fccd9a870bb768781471785e211f2b242bf49453e96029d4aea8340eaf4f3145",
+    "hopperSource": "f7f7a94d38dac348e07a64b83d08246e0f3f502a72302a0f7aea62cf9d3bd731",
+    "scanner": "207d7b37026785f4d745b400175c21cebb22591d1439d9b7df31d748939289b8"
+  },
+  "scope": "per-run Seatbelt profile identity scan, detached survivor confinement and kill-until-quiescent on a hosted runner; no model, client credentials or production backend",
+  "executions": [
+    {
+      "execution": 1,
+      "verdict": {
+        "confined": true,
+        "identified": true,
+        "hopperExercised": true,
+        "quiesced": true,
+        "freezeQuiesced": true
+      },
+      "identification": {
+        "leaderAlive": {
+          "matched": 40,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 490,
+          "otherSandboxed": 295,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 246.9
+        },
+        "afterGroupKill": {
+          "matched": 46,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 497,
+          "otherSandboxed": 295,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 69.8
+        }
+      },
+      "survivorsAfterGroupKill": {
+        "detached": true,
+        "attacker": true,
+        "spawner": true,
+        "orphan": true,
+        "exec": true
+      },
+      "confinement": {
+        "writeCheckout": "denied EPERM",
+        "readSecret": "denied EPERM",
+        "writeLaunchAgent": "denied EPERM",
+        "signalControl": "denied EPERM",
+        "launchctlSubmit": "exit 1",
+        "nestedSandbox": "exit 71: sandbox-exec: sandbox_apply: Operation not permitted",
+        "crontab": "not started EPERM",
+        "open": "exit 1: Unable to find application named 'Calculator'",
+        "openPath": "exit 1: The application cannot be opened for an unexpected reason, error=Error Domain=NSOSStatusErrorDomain Code=-10827 \"kLSNoExecutableErr: The executable is missing\" UserInfo={_LSLine=4261, _LSFunction=_LSOpenStuffCallLocal}",
+        "network": "denied EPERM"
+      },
+      "escapes": {
+        "checkout": false,
+        "launchAgent": false,
+        "markers": [],
+        "launchdJob": false,
+        "crontab": false,
+        "calculator": false,
+        "controlAlive": true
+      },
+      "hopper": {
+        "a": {
+          "before": true,
+          "after": false
+        },
+        "b": {
+          "before": true,
+          "after": false
+        }
+      },
+      "killUntilFirstEmptyScan": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 150,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 215.7
+          },
+          {
+            "matched": 3,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 25.6
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 27.6
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 32.7
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 41.7
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 29.4
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 28.7
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 35.2
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 24.1
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 32.5
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 26.5
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 21.5
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 18.3
+          }
+        ]
+      },
+      "knownProcessesLeft": 0,
+      "scanAfterKill": 0,
+      "freezeUntilThreeEmptyScans": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 0,
+            "milliseconds": 22
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 18.1
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 25.6
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 17.9
+          }
+        ]
+      },
+      "scanAfterFreeze": 0,
+      "controlsAlive": [
+        true,
+        true
+      ],
+      "spawnedSleepers": 146,
+      "spawnErrors": 0
+    },
+    {
+      "execution": 2,
+      "verdict": {
+        "confined": true,
+        "identified": true,
+        "hopperExercised": true,
+        "quiesced": true,
+        "freezeQuiesced": true
+      },
+      "identification": {
+        "leaderAlive": {
+          "matched": 11,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 460,
+          "otherSandboxed": 295,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 21.1
+        },
+        "afterGroupKill": {
+          "matched": 14,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 463,
+          "otherSandboxed": 295,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 18.4
+        }
+      },
+      "survivorsAfterGroupKill": {
+        "detached": true,
+        "attacker": true,
+        "spawner": true,
+        "orphan": true,
+        "exec": true
+      },
+      "confinement": {
+        "writeCheckout": "denied EPERM",
+        "readSecret": "denied EPERM",
+        "writeLaunchAgent": "denied EPERM",
+        "signalControl": "denied EPERM",
+        "launchctlSubmit": "exit 1",
+        "nestedSandbox": "exit 71: sandbox-exec: sandbox_apply: Operation not permitted",
+        "crontab": "not started EPERM",
+        "open": "exit 1: Unable to find application named 'Calculator'",
+        "openPath": "exit 1: The application cannot be opened for an unexpected reason, error=Error Domain=NSOSStatusErrorDomain Code=-10827 \"kLSNoExecutableErr: The executable is missing\" UserInfo={_LSLine=4261, _LSFunction=_LSOpenStuffCallLocal}",
+        "network": "denied EPERM"
+      },
+      "escapes": {
+        "checkout": false,
+        "launchAgent": false,
+        "markers": [],
+        "launchdJob": false,
+        "crontab": false,
+        "calculator": false,
+        "controlAlive": true
+      },
+      "hopper": {
+        "a": {
+          "before": true,
+          "after": false
+        },
+        "b": {
+          "before": true,
+          "after": false
+        }
+      },
+      "killUntilFirstEmptyScan": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 107,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 30.2
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 9.5
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 9.1
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 8.4
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 8.2
+          }
+        ]
+      },
+      "knownProcessesLeft": 0,
+      "scanAfterKill": 0,
+      "freezeUntilThreeEmptyScans": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 0,
+            "milliseconds": 18.6
+          },
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 1,
+            "milliseconds": 16
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 16.3
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 13.5
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 12.9
+          }
+        ]
+      },
+      "scanAfterFreeze": 0,
+      "controlsAlive": [
+        true,
+        true
+      ],
+      "spawnedSleepers": 101,
+      "spawnErrors": 0
+    },
+    {
+      "execution": 3,
+      "verdict": {
+        "confined": true,
+        "identified": true,
+        "hopperExercised": true,
+        "quiesced": true,
+        "freezeQuiesced": true
+      },
+      "identification": {
+        "leaderAlive": {
+          "matched": 11,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 460,
+          "otherSandboxed": 295,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 10.9
+        },
+        "afterGroupKill": {
+          "matched": 13,
+          "missing": 0,
+          "unknown": 0,
+          "controlsMatched": 0,
+          "processes": 463,
+          "otherSandboxed": 295,
+          "sandboxCheckErrors": 0,
+          "milliseconds": 10.6
+        }
+      },
+      "survivorsAfterGroupKill": {
+        "detached": true,
+        "attacker": true,
+        "spawner": true,
+        "orphan": true,
+        "exec": true
+      },
+      "confinement": {
+        "writeCheckout": "denied EPERM",
+        "readSecret": "denied EPERM",
+        "writeLaunchAgent": "denied EPERM",
+        "signalControl": "denied EPERM",
+        "launchctlSubmit": "exit 1",
+        "nestedSandbox": "exit 71: sandbox-exec: sandbox_apply: Operation not permitted",
+        "crontab": "not started EPERM",
+        "open": "exit 1: Unable to find application named 'Calculator'",
+        "openPath": "exit 1: The application cannot be opened for an unexpected reason, error=Error Domain=NSOSStatusErrorDomain Code=-10827 \"kLSNoExecutableErr: The executable is missing\" UserInfo={_LSLine=4261, _LSFunction=_LSOpenStuffCallLocal}",
+        "network": "denied EPERM"
+      },
+      "escapes": {
+        "checkout": false,
+        "launchAgent": false,
+        "markers": [],
+        "launchdJob": false,
+        "crontab": false,
+        "calculator": false,
+        "controlAlive": true
+      },
+      "hopper": {
+        "a": {
+          "before": true,
+          "after": false
+        },
+        "b": {
+          "before": true,
+          "after": false
+        }
+      },
+      "killUntilFirstEmptyScan": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 102,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 32.8
+          },
+          {
+            "matched": 2,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 10.2
+          },
+          {
+            "matched": 1,
+            "frozen": 0,
+            "skipped": 1,
+            "milliseconds": 10.6
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 9.5
+          }
+        ]
+      },
+      "knownProcessesLeft": 0,
+      "scanAfterKill": 0,
+      "freezeUntilThreeEmptyScans": {
+        "quiescent": true,
+        "rounds": [
+          {
+            "matched": 1,
+            "frozen": 1,
+            "skipped": 0,
+            "milliseconds": 9.8
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 9
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 9.3
+          },
+          {
+            "matched": 0,
+            "frozen": 0,
+            "skipped": 0,
+            "milliseconds": 9.7
+          }
+        ]
+      },
+      "scanAfterFreeze": 0,
+      "controlsAlive": [
+        true,
+        true
+      ],
+      "spawnedSleepers": 96,
+      "spawnErrors": 0
+    }
+  ]
+}

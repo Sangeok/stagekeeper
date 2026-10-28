@@ -48,11 +48,19 @@ jobs:
         run: node scripts/macos/probe-launchd-ownership.mjs "$RUNNER_TEMP/launchd-ownership.json"
       - name: Probe ordinary-user coalition control
         run: node scripts/macos/probe-coalition-access.mjs "$RUNNER_TEMP/coalition-access.json"
+      - name: Probe per-run sandbox identity, survivor confinement and quiescence
+        run: node scripts/macos/probe-sandbox-identity.mjs "$RUNNER_TEMP/sandbox-identity.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coalition-access-${{ matrix.runner }}
           path: ${{ runner.temp }}/coalition-access.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sandbox-identity-${{ matrix.runner }}
+          path: ${{ runner.temp }}/sandbox-identity.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: always()
