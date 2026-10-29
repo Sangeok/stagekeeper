@@ -334,7 +334,9 @@ node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
 - **사례 설계:** PC 전체 설정을 바꾸는 단계(서버 주소 저장, MCP 등록)는 샌드박스가 막는다. 그래서 사례는 "쓰기 전에
   묻는가"와 "yes 뒤 생성하는가"까지만 판정하고, 나머지는 1단이 맡는다.
   - 서버와 비공개 템플릿 없이 돌리기 위해 생성기의 로컬 모드를 쓴다(`plugin/bin/harness-init.mjs:80-81`의
-    `HARNESS_TEMPLATES_DIR`, `HARNESS_PLAN`). 가짜 토큰과 함께 사례의 `execution.env`로 준다.
+    `HARNESS_TEMPLATES_DIR`, `HARNESS_PLAN`).
+  - 이 변수와 가짜 토큰은 `case.yaml`로 넣을 수 없다(`EVAL_*`만 허용). 워크플로가 export 파일을 만들고
+    `CLAUDE_ENV_FILE` 또는 `CLAUDE_CODE_SHELL_PREFIX`로 넘긴다(0C에서 확정).
   - `fixture.sh`(`context.scaffold_script`)가 시험 저장소를 만든다.
   - 사례 3은 `context.history_file`로 "질문까지 끝난 대화"를 이어받아 `yes`를 다음 턴으로 준다.
 - **판정(결정적, 판정 모델 없음):**
@@ -430,8 +432,23 @@ After:
   - `#<sha>`: 실패(`Remote branch <sha> not found in upstream origin`)
   - 로컬 export: "Read from: <export>/plugin"(캐시 복사 없음)
   - Claude Code 2.1.312 설치는 10~32초였고, 플러그인 명령은 로그인 없이 동작했다.
-- **0C (`E2E_CLAUDE_OAUTH_TOKEN` 필요):** macOS 러너에서 사례 1 하나를 `claude plugin eval`로 끝까지 돌린다.
-  - 구독 토큰 인증, `--trust-plugin`, `--scaffold`, 샌드박스 안 Bash, 로컬 템플릿 모드, 보고된 비용을 확인한다.
+- **0C (진행 중, 나머지는 `E2E_CLAUDE_OAUTH_TOKEN` 필요):** macOS 러너에서 사례 1(`plugin/evals/rerun-asks-first`)을
+  `claude plugin eval`로 돌린다.
+  - 토큰 없이 확인한 것(2026-10-29, run 40833608411 등)
+    - 준비 스크립트가 macOS에서 커밋 1개·파일 15개·깨끗한 트리를 만든다.
+    - 로컬 템플릿 모드로 dry-run(`plan: max`, `write:` 11줄, `server:`)과 바이트 동일 재생성이 된다.
+    - 사례 검증을 통과하고, 실행이 모델 호출 직전에 `Not logged in · Please run /login`으로 멈춘다.
+  - 실측으로 바뀐 설계
+    - `case.yaml`의 `execution.env`는 `EVAL_*` 키만 허용한다(실측 오류: `execution.env key "HARNESS_TEMPLATES_DIR" is
+      not allowed — only EVAL_* keys`).
+    - 실행은 운영자 셸에서 정해진 허용 목록만 물려받는다. 공식 문서 기준으로 PATH·로케일, 프록시·인증서, 모델 인증
+      변수, 대부분의 `ANTHROPIC_*`·`CLAUDE_CODE_*`, `EVAL_*`다.
+    - 그래서 `HARNESS_*` 변수는 공식 설정 `CLAUDE_ENV_FILE`(각 셸 명령 전에 실행할 스크립트) 또는
+      `CLAUDE_CODE_SHELL_PREFIX`(셸 명령을 감싸는 스크립트)로 넣는다. 어느 쪽이 허용 목록을 통과하는지 실측한다.
+    - 판정 규칙 `no-write-before-yes`는 처음 안에서 파일을 읽기만 해도 "실제 생성"으로 셌다. `node ...
+      harness-init.mjs`를 한 명령 안에서 실행할 때만 세도록 고쳤고, 명령 예시 10개와 질문 문장 3개로 확인했다.
+  - 남은 것(토큰 필요): 구독 토큰 인증, 두 환경 변수 방법 중 통과하는 쪽, 샌드박스 안에서 질문까지 가는지, 보고된
+    비용, 0.5.28(`a750b76`)에서 사례가 실패하는지.
 - **검증:** 항목마다 결과와 실제 명령, 시간을 이 문서에 기록한다.
 
 ### Phase 1: 0단
