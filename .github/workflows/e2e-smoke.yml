@@ -1,0 +1,135 @@
+name: e2e-smoke
+
+on:
+  push:
+    branches: [harness/e2e-smoke-workflow]
+    paths:
+      - "scripts/rehearsals/rehearse-client-init-smoke.ts"
+      - "scripts/rehearsals/client-init-smoke-steps.mjs"
+      - ".github/workflows/e2e-smoke.yml"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "plugin/**"
+      - "src/server/**"
+      - "src/app/api/**"
+      - "prisma/**"
+      - "scripts/rehearsals/rehearse-client-init-smoke.ts"
+      - "scripts/rehearsals/client-init-smoke-steps.mjs"
+      - ".github/workflows/e2e-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  claude:
+    name: claude (${{ matrix.os }}, ${{ matrix.scenario }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            scenario: new-user
+            pg: windows-x64
+    env:
+      PG_PORT: "55432"
+      TEST_DB: postgresql://postgres@127.0.0.1:55432/stagekeeper_test_e2e
+      DISABLE_AUTOUPDATER: "1"
+    steps:
+      - name: Check that the smoke secrets are available
+        id: gate
+        shell: bash
+        env:
+          TEMPLATES_TOKEN: ${{ secrets.E2E_TEMPLATES_TOKEN }}
+        run: |
+          if [ -z "$TEMPLATES_TOKEN" ]; then
+            echo "::notice::E2E_TEMPLATES_TOKEN is not available to this run, so the client smoke is skipped"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        if: steps.gate.outputs.ready == 'true'
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        if: steps.gate.outputs.ready == 'true'
+        run: npm run db:generate
+      - name: Start portable PostgreSQL 18 (Windows)
+        if: steps.gate.outputs.ready == 'true' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'pg'
+          npm install --prefix $root --no-save --no-audit --no-fund "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17"
+          if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+          $bin = Join-Path $root 'node_modules/@embedded-postgres/${{ matrix.pg }}/native/bin'
+          $data = Join-Path $env:RUNNER_TEMP 'pgdata'
+          & (Join-Path $bin 'initdb.exe') -D $data -U postgres --auth=trust -E UTF8 --no-locale
+          if ($LASTEXITCODE -ne 0) { throw 'initdb failed' }
+          $env:PGPORT = $env:PG_PORT
+          $log = Join-Path $env:RUNNER_TEMP 'pg.log'
+          $process = Start-Process -FilePath (Join-Path $bin 'pg_ctl.exe') -ArgumentList @('-D', $data, '-l', $log, '-w', 'start') -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP 'pgctl.out') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'pgctl.err')
+          $null = $process.Handle
+          if (-not $process.WaitForExit(120000)) { throw 'pg_ctl did not return' }
+          if ($process.ExitCode -ne 0) { throw 'pg_ctl start failed' }
+      - name: Create the test database
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: >-
+          node -e 'const { Client } = require("pg");
+          (async () => { const c = new Client({ host: "127.0.0.1", port: Number(process.env.PG_PORT), user: "postgres", database: "postgres" });
+          await c.connect(); await c.query("CREATE DATABASE stagekeeper_test_e2e"); await c.end(); })().catch(e => { console.error(e.message); process.exit(1); });'
+      - name: Apply migrations
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: DATABASE_URL="$TEST_DB" node node_modules/prisma/build/index.js migrate deploy
+      - name: Build the server
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: DATABASE_URL="$TEST_DB" npm run build
+      - name: Check out the private templates
+        if: steps.gate.outputs.ready == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: Sangeok/harness-templates
+          token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
+          path: plugin/templates
+          persist-credentials: false
+      - name: Install Claude Code (Windows)
+        if: steps.gate.outputs.ready == 'true' && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://claude.ai/install.ps1 | iex
+          "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Run the client init smoke
+        if: steps.gate.outputs.ready == 'true'
+        shell: pwsh
+        env:
+          TEST_DATABASE_URL: ${{ env.TEST_DB }}
+          PLUGIN_BRANCH: ${{ github.head_ref || github.ref_name }}
+          PLUGIN_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          SCENARIO: ${{ matrix.scenario }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          claude --version
+          $templates = Join-Path $env:GITHUB_WORKSPACE 'plugin/templates'
+          $summary = Join-Path $env:RUNNER_TEMP 'smoke-summary.json'
+          node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts --client claude --scenario $env:SCENARIO --templates $templates --plugin-source github-branch --plugin-branch $env:PLUGIN_BRANCH --plugin-commit $env:PLUGIN_COMMIT | Tee-Object -FilePath $summary
+          $code = $LASTEXITCODE
+          if (Test-Path $summary) { "``````json`n$((Get-Content $summary | Select-Object -Last 1))`n``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
+          exit $code
