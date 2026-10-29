@@ -79,7 +79,7 @@ export function parseArguments(args: string[]): Options {
 type Command = { code: number; stdout: string; stderr: string };
 type Step = { step: string; result: "pass" | "fail" | "skip" };
 type McpClient = {
-  connectionInput(root: string, options: { server: string }): unknown;
+  connectionInput(root: string, options: { server: string }): { config: { workspaces: unknown[]; language: string } };
   verifyProject(input: unknown): Promise<unknown>;
   callTool(input: unknown, name: string, args: Record<string, unknown>): Promise<unknown>;
 };
@@ -225,8 +225,7 @@ function persistServer(run: Run, env: NodeJS.ProcessEnv): void {
 async function sync(client: McpClient, repo: string): Promise<void> {
   const input = client.connectionInput(repo, { server: ORIGIN });
   await client.verifyProject(input);
-  const config = JSON.parse(readFileSync(path.join(repo, "harness.json"), "utf8")) as { workspaces: unknown[]; language?: string };
-  const result = await client.callTool(input, "project_sync", { workspaces: config.workspaces, language: config.language ?? "en" }) as { synced?: unknown } | null;
+  const result = await client.callTool(input, "project_sync", { workspaces: input.config.workspaces, language: input.config.language }) as { synced?: unknown } | null;
   if (typeof result?.synced !== "number") throw new Error("project_sync did not report a synced count");
 }
 
