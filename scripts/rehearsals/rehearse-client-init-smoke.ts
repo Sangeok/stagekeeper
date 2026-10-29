@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileS
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
 import { containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
@@ -83,12 +83,21 @@ export function parseArguments(args: string[]): Options {
 
 type Command = { code: number; stdout: string; stderr: string };
 type Step = { step: string; result: "pass" | "fail" | "skip" };
-type McpClient = {
-  connectionInput(root: string, options: { server: string }): { config: { workspaces: unknown[]; language: string } };
-  verifyProject(input: unknown): Promise<unknown>;
-  callTool(input: unknown, name: string, args: Record<string, unknown>): Promise<unknown>;
-};
-type Plugin = { root: string; commit: string; client: McpClient };
+type Plugin = { root: string; commit: string };
+
+const SYNC = [
+  "const [root, repo, server] = process.argv.slice(1);",
+  "const client = await import(new URL(\"runtime/mcp-client.mjs\", require(\"node:url\").pathToFileURL(root + \"/\")).href);",
+  "try {",
+  "  const input = client.connectionInput(repo, { server });",
+  "  await client.verifyProject(input);",
+  "  const result = await client.callTool(input, \"project_sync\", { workspaces: input.config.workspaces, language: input.config.language });",
+  "  console.log(JSON.stringify({ synced: result?.synced }));",
+  "} catch (error) {",
+  "  console.error(`sync: ${error.message}${error.cause?.code ? ` (${error.cause.code})` : \"\"}`);",
+  "  process.exitCode = 1;",
+  "}",
+].join("\n");
 type Connection = { slug: string; syncedAt: Date };
 
 class Run {
@@ -168,10 +177,10 @@ class Smoke {
 
   async sync(plugin: Plugin, name: string, slug: string, after?: Date): Promise<Date> {
     return this.run.step(name, async () => {
-      const input = plugin.client.connectionInput(this.repo, { server: ORIGIN });
-      await plugin.client.verifyProject(input);
-      const result = await plugin.client.callTool(input, "project_sync", { workspaces: input.config.workspaces, language: input.config.language }) as { synced?: unknown } | null;
-      if (typeof result?.synced !== "number") throw new Error("project_sync did not report a synced count");
+      const outcome = this.run.command(process.execPath, ["--input-type=commonjs", "-e", `(async () => {\n${SYNC}\n})()`, plugin.root, this.repo, ORIGIN], this.repo, this.helperEnv);
+      if (outcome.code !== 0) throw new Error(outcome.stderr.split(/\r?\n/).find(line => line.startsWith("sync: ")) ?? `project_sync exited ${outcome.code}`);
+      const line = outcome.stdout.split(/\r?\n/).map(text => text.trim()).filter(text => text.startsWith("{")).at(-1);
+      if (typeof (line ? JSON.parse(line) as { synced?: unknown } : null)?.synced !== "number") throw new Error("project_sync did not report a synced count");
       const state = await projectState(slug, this.userId);
       if (!state.runbookVersion) throw new Error("the generator did not record the runbook version");
       if (!state.lastSyncedAt) throw new Error("project_sync did not record lastSyncedAt");
@@ -265,10 +274,6 @@ async function stopServer(server: ChildProcess | undefined): Promise<void> {
   await Promise.race([stopped, delay(10_000)]);
 }
 
-async function loadClient(root: string): Promise<McpClient> {
-  return await import(pathToFileURL(path.join(root, "runtime", "mcp-client.mjs")).href) as McpClient;
-}
-
 function exportPlugin(commit: string, directory: string): string {
   mkdirSync(directory);
   const archive = `${directory}.tar`;
@@ -287,13 +292,13 @@ async function installPlugin(run: Run, options: Options, work: string, env: Node
     const version = (JSON.parse(readFileSync(path.join(clone, "plugin", ".claude-plugin", "plugin.json"), "utf8")) as { version: string }).version;
     const root = path.join(homedir(), ".claude", "plugins", "cache", MARKETPLACE, "harness", version);
     if (!existsSync(path.join(root, "bin", "harness-init.mjs"))) throw new Error("installed plugin cache has no generator");
-    return { root, commit, client: await loadClient(root) };
+    return { root, commit };
   }
   const exported = exportPlugin(options.pluginCommit, path.join(work, "plugin-export"));
   run.succeed("claude", ["plugin", "marketplace", "add", exported], REPO, env, "marketplace add");
   run.succeed("claude", ["plugin", "install", `harness@${MARKETPLACE}`], REPO, env, "plugin install");
   const root = path.join(exported, "plugin");
-  return { root, commit: options.pluginCommit, client: await loadClient(root) };
+  return { root, commit: options.pluginCommit };
 }
 
 function createRepository(work: string, scenario: string): string {
@@ -375,7 +380,6 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
   process.env.DATABASE_URL = databaseUrl;
-  process.env.HARNESS_TOKEN = token.plain;
   let server: ChildProcess | undefined;
   let userId: string | undefined;
   try {
@@ -405,7 +409,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
       const previousRef = options.previousRef!;
       const previous = await run.step("previous-plugin", async () => {
         const root = path.join(exportPlugin(previousRef, path.join(work, "previous-plugin")), "plugin");
-        return { root, commit: previousRef, client: await loadClient(root) };
+        return { root, commit: previousRef };
       });
       record.previousCommit = previous.commit;
       const plugin = await update(smoke, previous, () => installPlugin(run, options, work, helperEnv), options, token.plain);
@@ -417,6 +421,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`step ${run.failure ?? "unknown"} failed: ${containsSecret(message, token.plain) ? "details withheld because they contain a token" : message.slice(0, 500)}`);
+    console.error(`server: ${!server ? "not started" : server.exitCode === null ? "running" : `exited ${server.exitCode}`}`);
     run.failure ??= "unexpected";
   } finally {
     await stopServer(server);
@@ -424,7 +429,6 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
       const { withPrisma } = await import("../lib/prisma");
       await withPrisma(prisma => prisma.user.delete({ where: { id: userId } })).catch(() => console.error("cleanup: the fixture user was not deleted"));
     }
-    delete process.env.HARNESS_TOKEN;
   }
   record.failure = run.failure;
   record.seconds = Math.round((Date.now() - started) / 1000);
