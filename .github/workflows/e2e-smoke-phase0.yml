@@ -42,7 +42,39 @@ jobs:
           cp -R plugin/evals "$EVAL_BASE/v0528/plugin/evals"
           printf '%s\n' '#!/usr/bin/env bash' 'export HARNESS_TOKEN=hu_evalFixtureOnlyNoNetwork0000000000000000000' 'export HARNESS_SERVER=https://stagekeeper.invalid' 'export HARNESS_TEMPLATES_DIR=.stagekeeper-eval/templates' 'exec bash -c "$1"' > "$EVAL_BASE/shell-prefix.sh"
           chmod 755 "$EVAL_BASE/shell-prefix.sh"
-          for label in v0529 v0528; do grep -m1 '"version"' "$EVAL_BASE/$label/plugin/.claude-plugin/plugin.json"; done
+          for label in v0529 v0528; do
+            mkdir -p "$EVAL_BASE/$label/plugin/eval-runtime"
+            cp "$EVAL_BASE/shell-prefix.sh" "$EVAL_BASE/$label/plugin/eval-runtime/shell-prefix.sh"
+            grep -m1 '"version"' "$EVAL_BASE/$label/plugin/.claude-plugin/plugin.json"
+          done
+          mkdir -p "$HOME/.local/bin"
+          cp "$EVAL_BASE/shell-prefix.sh" "$HOME/.local/bin/sk-eval-prefix"
+          cp "$EVAL_BASE/shell-prefix.sh" /opt/homebrew/bin/sk-eval-prefix || echo "no /opt/homebrew/bin copy"
+          sudo install -m 755 "$EVAL_BASE/shell-prefix.sh" /usr/local/bin/sk-eval-prefix || echo "no /usr/local/bin copy"
+          candidates="$EVAL_BASE/v0529/plugin/eval-runtime/shell-prefix.sh $EVAL_BASE/shell-prefix.sh $HOME/.local/bin/sk-eval-prefix /opt/homebrew/bin/sk-eval-prefix /usr/local/bin/sk-eval-prefix"
+          echo "EVAL_PREFIX_CANDIDATES=$candidates" >> "$GITHUB_ENV"
+          mkdir -p "$EVAL_BASE/v0529/plugin/evals/probe-sandbox"
+          node -e '
+            const [candidates, plugin, out] = process.argv.slice(1);
+            const command = `for f in ${candidates}; do r=$(cat "$f" >/dev/null 2>&1 && echo read-ok || echo read-denied); x=$("$f" true >/dev/null 2>&1 && echo exec-ok || echo exec-denied); b=$(/bin/bash "$f" true >/dev/null 2>&1 && echo bash-ok || echo bash-denied); echo "$f $r $x $b"; done; node -e '"'"'require("fs").readFileSync(process.argv[1]); console.log("generator read-ok")'"'"' ${plugin}/bin/harness-init.mjs 2>&1 | tail -1`;
+            const prompt = `Run this exact command once with the Bash tool, without changing it, then reply with its complete output and nothing else.\n\n${command}\n`;
+            const yaml = [
+              `schema_version: "1.1"`,
+              `name: probe-sandbox`,
+              `runs: 1`,
+              `execution:`,
+              `  prompt: ${JSON.stringify(prompt)}`,
+              `  max_turns: 4`,
+              `  timeout_seconds: 180`,
+              `graders:`,
+              `  - name: output-returned`,
+              `    type: regex`,
+              `    target: last_message`,
+              `    pattern: "read-"`,
+            ].join("\n");
+            require("fs").writeFileSync(out, yaml + "\n");
+          ' "$candidates" "$EVAL_BASE/v0529/plugin" "$EVAL_BASE/v0529/plugin/evals/probe-sandbox/case.yaml"
+          cat "$EVAL_BASE/v0529/plugin/evals/probe-sandbox/case.yaml"
       - name: Write the eval summarizer
         shell: bash
         run: |
@@ -56,6 +88,7 @@ jobs:
           const tail = (text, limit) => { const value = flat(text); return value.length > limit ? `(${value.length} chars)… ${value.slice(-limit)}` : value; };
 
           const result = JSON.parse(readFileSync(process.argv[2], "utf8"));
+          const resultClip = Number(process.argv[3] ?? 200);
           console.log(`cost ${result.costUsd} duration ${result.durationSeconds}s partial ${result.partial} ${result.partialReason ?? ""}`);
           for (const testCase of result.cases ?? []) {
             console.log(`case ${testCase.name} score ${testCase.aggregates?.score} passRate ${testCase.aggregates?.passRate}`);
@@ -74,7 +107,7 @@ jobs:
                 const blocks = Array.isArray(entry?.message?.content) ? entry.message.content : [];
                 for (const block of blocks) {
                   if (block.type === "tool_use") console.log(`  call ${block.name}: ${head(block.input?.command ?? block.input?.skill ?? JSON.stringify(block.input), 260)}`);
-                  else if (block.type === "tool_result") console.log(`  result: ${head(typeof block.content === "string" ? block.content : JSON.stringify(block.content), 200)}`);
+                  else if (block.type === "tool_result") console.log(`  result: ${head(typeof block.content === "string" ? block.content : JSON.stringify(block.content), resultClip)}`);
                   else if (block.type === "text" && entry.type === "assistant") lastText = block.text;
                 }
               }
@@ -96,12 +129,33 @@ jobs:
             echo "credentials: none, so this run checks case loading only"
           fi
           unset E2E_TOKEN
+          echo "::group::sandbox probe"
+          claude plugin eval "$EVAL_BASE/v0529/plugin" --case probe-sandbox --runs 1 --model claude-haiku-5-5 --trust-plugin --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/eval-probe.json"
+          echo "eval exit $?"
+          [ -f "$RUNNER_TEMP/eval-probe.json" ] && node "$RUNNER_TEMP/summarize.mjs" "$RUNNER_TEMP/eval-probe.json" 1200
+          echo "::endgroup::"
+          prefix_file=$(node -e '
+            const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const trace = result.cases?.[0]?.arms?.with?.[0]?.tracePath;
+            const text = trace ? require("fs").readFileSync(trace, "utf8") : "";
+            for (const candidate of process.argv[2].split(" ")) {
+              const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              if (new RegExp(`${escaped} read-ok exec-(?:ok|denied) bash-ok`).test(text)) { console.log(candidate); break; }
+            }
+          ' "$RUNNER_TEMP/eval-probe.json" "$EVAL_PREFIX_CANDIDATES")
+          if [ -z "$prefix_file" ]; then
+            echo "no readable wrapper location, so the case runs are skipped"
+            exit 0
+          fi
+          echo "wrapper: $prefix_file"
           run_eval() {
             label="$1"
             runs="$2"
             out="$RUNNER_TEMP/eval-$label-$runs.json"
+            wrapper="$prefix_file"
+            [ "$prefix_file" = "$EVAL_BASE/v0529/plugin/eval-runtime/shell-prefix.sh" ] && wrapper="$EVAL_BASE/$label/plugin/eval-runtime/shell-prefix.sh"
             echo "::group::$label runs $runs"
-            CLAUDE_CODE_SHELL_PREFIX="$EVAL_BASE/shell-prefix.sh" claude plugin eval "$EVAL_BASE/$label/plugin" --case rerun-asks-first --runs "$runs" -j "$runs" --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$out"
+            CLAUDE_CODE_SHELL_PREFIX="/bin/bash $wrapper" claude plugin eval "$EVAL_BASE/$label/plugin" --case rerun-asks-first --runs "$runs" -j "$runs" --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$out"
             echo "eval exit $?"
             if [ -f "$out" ]; then node "$RUNNER_TEMP/summarize.mjs" "$out"; else echo "no result file"; fi
             echo "::endgroup::"
