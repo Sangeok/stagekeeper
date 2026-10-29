@@ -248,7 +248,8 @@ Claude와 Codex가 실제로 동작하는지 자동으로 확인해야 한다. �
 node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
   --client <claude|codex> --scenario <new-user|update> \
   --templates <비공개 템플릿 checkout 절대 경로> --plugin-source <github-branch|export|bundle> \
-  [--previous-ref <커밋>] [--snapshot <공개 저장소 밖 절대 경로>]
+  --plugin-commit <시험 커밋 40자> [--plugin-branch <브랜치, github-branch일 때>] \
+  [--previous-ref <지난 판 커밋 40자, update일 때>] [--snapshot <공개 저장소 밖 절대 경로>]
 환경: TEST_DATABASE_URL(stagekeeper_test_*), CI=true 또는 --allow-machine-changes
 ```
 
@@ -269,7 +270,8 @@ node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
   - `update`는 다른 사용자를 쓴다. Free는 프로젝트가 1개뿐이라 시나리오를 분리한다.
 - **시험 저장소:** runner 임시 경로에 `git init -b main`으로 만들고, origin은
   `https://github.com/stagekeeper-e2e/<scenario>-<os>.git`로 둔다. 등록은 GitHub을 호출하지 않는다
-  (`src/server/rest/project-registration.ts`의 `registerProject`).
+  (`src/server/rest/project-registration.ts`의 `registerProject`). `refs/remotes/origin/HEAD`를 `main`으로 걸어 두어
+  생성기가 기본 브랜치를 찾을 때 네트워크(`git ls-remote`)를 쓰지 않게 한다.
 
 **스킬 절차 실행(모델 없음)**
 
@@ -278,18 +280,25 @@ node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
   - macOS: `node <plugin>/bin/harness-init.mjs ...`
 - 처음 연결(`new-user` 1회차):
   1. `--register`
-  2. 돌려받은 slug로 `harness.json` 작성
+  2. 돌려받은 slug로 `harness.json` 작성(작업 공간 `app`, 에이전트 `app-dev`, `knowledge`·`readOnly`·`language`는 쓰지
+     않는다)
   3. `--dry-run`
   4. 생성
   5. `HARNESS_SERVER` 영구 저장(Windows `setx`, macOS 로그인 프로필)
   6. `claude mcp add --transport http --scope user harness <base>/api/mcp -H 'Authorization: Bearer ${HARNESS_TOKEN}'`
   7. `claude mcp get harness`가 `Connected`인지 확인
-  8. `plugin/runtime/mcp-client.mjs`의 `verifyProject`(project_get + owner·repo·slug 대조)와 `callTool(..., "project_sync", ...)`
+  8. 설치된 플러그인의 `runtime/mcp-client.mjs`로 `verifyProject`(project_get + owner·repo·slug 대조)와
+     `callTool(..., "project_sync", ...)`를 부른다.
+     - 매번 새 Node 프로세스에서 부른다. 클라이언트가 서버를 부르는 실제 모습과 같고, 리허설 프로세스 안에서 연결을
+       재사용하지 않는다.
+     - 작업 공간은 플러그인의 설정 파서가 돌려준 값(`knowledge: null`, `readOnly: []`, `language: "en"`)을 보낸다.
+       서버 스키마가 두 필드를 요구하고, `harness-codex.mjs`도 같은 값을 보낸다.
 - 재실행과 업그레이드 뒤 재실행은 3~4단계와 8단계를 반복한다. 업그레이드는 `npm run plan:grant -- <login> pro`다.
 - `update`:
-  - `previous-ref`의 추적 파일에서 플러그인을 내보내 그 판 생성기로 위 1~6단계를 하고 커밋한다.
-  - 로스터는 DB `Workspace` 행과 과거 시각의 `lastSyncedAt`으로 맞춘다.
-  - 그다음 새 판으로 3·4·8단계를 실행한다.
+  - `previous-ref`(워크플로가 `origin/main`을 넘긴다)의 추적 파일에서 플러그인을 내보내, 그 판의 생성기와
+    클라이언트로 위 1~8단계를 하고 커밋한다. 지난 판 클라이언트가 새 서버와 동기화되는지도 이 단계에서 확인된다.
+  - 그다음 시험 브랜치의 플러그인을 설치하고, MCP 등록을 바꾸지 않은 채 `Connected`를 확인한 뒤 새 판으로
+    3·4·8단계를 실행한다. `lastSyncedAt`이 앞으로 가야 한다.
 - Codex:
   - `node scripts/windows/package-windows-plugin.mjs --output <새 디렉터리> --runtime <runtime>`으로 번들을 만들고,
     marketplace 매니페스트를 붙여 `codex plugin add`로 설치한다. 설치 경로는
@@ -485,21 +494,38 @@ After:
 
 - **작업 내용:** `plugin/bin/harness-skill-references.test.mjs`
 - **검증:** `npm test` 녹색. 스킬에서 경로 하나를 일부러 틀리게 바꾸면 실패하는지도 본다.
+- **결과(완료, 2026-10-29, `e08f98a`):** 스킬 파일 8개의 경로 참조 24개와 생성기 문구를 본다. 사본에서 watch 스킬의
+  경로 하나를 없는 파일로 바꾸면 1번 시험이, 생성기 문구 `Server URL required`를 바꾸면 2번 시험이 그 이름을 대며
+  실패했다. `npm test` 576개 통과, 실패 0이다.
 
 ### Phase 2: 1단 Windows `new-user` (`E2E_TEMPLATES_TOKEN` 필요)
 
 - **작업 내용:** 리허설, helper와 그 시험, 워크플로의 `claude (windows-2022, new-user)`
 - **검증:** 브랜치에서 녹색. 로그에서 토큰과 템플릿 문구를 검색해 0건인지 본다.
+- **결과(완료, run 40906716492, `4d59ea1`):** 20단계가 모두 통과했다. 첫 실행(run 40906126367)은 `project_sync`에서
+  `protocol-error`로 실패했다. `harness.json`의 작업 공간을 그대로 보내 서버 스키마의 필수 필드(`knowledge`,
+  `readOnly`)가 빠졌기 때문이다. 플러그인 설정 파서의 값을 보내도록 고쳤다. 공개 로그에서 토큰 모양 문자열 0건,
+  비공개 템플릿의 40자 이상 줄 1,806개 중 로그에 나온 줄 0건이었다.
 
 ### Phase 3: 1단 `update`와 macOS
 
 - **작업 내용:** 사전 상태 생성, matrix에 `macos-15` 추가
 - **검증:** 네 job 녹색
+- **결과(완료, run 40910451049, `df40321`):** 네 job이 모두 녹색이다. job은 1~3분, 리허설 본체는 8~17초였다. 공개
+  로그의 토큰과 템플릿 줄은 0건이었다. 지난 판은 `7b6103d`(0.5.29)였다.
+  - 첫 실행(run 40907995204)에서 Windows `update`만 마지막 `update-sync`가 `fetch failed`로 실패했다. 바로 앞의
+    `claude mcp get`과 새 생성기는 같은 서버와 통신해 성공했다. 당시에는 원인 코드를 남기지 않아 원인은 확인하지
+    못했다. 동기화를 리허설 프로세스 안에서 부르던 것을 단계마다 새 프로세스로 바꾸고, 실패하면 원인 코드와 서버
+    생존 여부를 출력하게 했다. 그 뒤로는 재현되지 않았다.
 
 ### Phase 4: 1단 Codex Windows
 
 - **작업 내용:** runtime 캐시 복원, 번들, `complete-init`
 - **검증:** 녹색. 캐시가 없을 때 정해진 사유로 실패하는지도 본다.
+- **확인한 제약(2026-10-29):** runtime 캐시는 `windows-role-runtime.yml`이 `dev`의 push·PR에서만 저장한다. GitHub
+  캐시는 기능 브랜치의 push 실행에서는 자기 브랜치와 기본 브랜치(`main`)의 캐시만 복원하고, `dev`를 향한 PR 실행은
+  `dev`의 캐시도 복원한다. 그래서 이 job은 PR에서만 캐시를 쓸 수 있고, 개발 중 시험도 `dev`를 향한 PR이 필요하다.
+  캐시 없이 빌드하면 약 47분이 걸린다. 진행 여부는 Open Questions의 Codex 항목에 따른다.
 
 ### Phase 5: 2단
 
@@ -657,7 +683,9 @@ it("the generator prints every marker the init skill tells the agent to read", (
 - **[범위] 클라이언트 버전:** 1·2단의 Claude Code를 `latest`로 둘지 고정 판으로 둘지 정해야 한다. 2단 모델은
   `claude-opus-5-5`로 고정한다(2단 설계).
 - **[소유] Codex job:** Codex 실행기 영역을 Codex가 처리하기로 한 결정과 겹치는지 확인해야 한다. 1단 Codex job은
-  init과 `complete-init`만 보고 런타임 코드를 바꾸지 않는다.
+  init과 `complete-init`만 보고 런타임 코드를 바꾸지 않는다. 다만 `plugin/**`을 바꾸는 PR마다 돌기 때문에 Codex가
+  진행 중인 PR에서도 돌고, 그 PR의 init 동작이 바뀌면 이 job이 실패해 그 PR을 막을 수 있다. 또 개발 중 시험에
+  `dev`를 향한 PR이 필요하다(Phase 4).
 - **[별도 후속] 사용자가 고친 파일 보존:** Codex 쪽은 생성기 시험이 있다(`plugin/bin/harness-init-dual.test.mjs:143`).
   Claude 쪽은 이름으로 찾은 시험이 없다. 모델 없는 생성기 시험으로 추가하기를 권한다.
 
