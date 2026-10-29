@@ -42,9 +42,10 @@ Claude와 Codex가 실제로 동작하는지 자동으로 확인해야 한다. �
 | 실행 시점 | 0단은 모든 PR. 1단은 플러그인·서버를 바꾼 PR과 승격 전. 2단은 플러그인이 바뀐 승격 전과 주 1회. 실패하면 승격하지 않는다 |
 | 실행 위치 | 공개 저장소 `Sangeok/stagekeeper`. 로그에는 요약만 남긴다 |
 | 인증 | 모델은 2단만 쓴다. Claude 구독 토큰(`claude setup-token`)을 쓰고 API 키는 쓰지 않는다. 상용화 뒤 팀·회사 CI가 되면 회사 API 키로 바꾼다 |
-| 대상 | 1단은 Windows Claude, macOS Claude, Windows Codex. 2단은 macOS Claude |
+| 대상 | 1단은 Windows Claude, macOS Claude(Windows Codex는 보류). 2단은 macOS Claude |
 | 1단 시나리오 | new-user(Free로 처음 연결 → 재실행 → Pro로 올린 뒤 재실행), update(지난 판으로 연결해 둔 저장소를 새 판으로 재실행) |
 | Codex 실제 모델 평가 | Codex 공개 배포에 착수할 때 추가한다 |
+| 1단 Codex job | 보류한다(2026-10-30). Codex 공개 배포에 착수할 때 붙인다. runtime 캐시가 `dev`의 PR 실행에서만 복원되고, `plugin/**`을 바꾸는 Codex의 PR을 막을 수 있어서다 |
 | 2단 범위 | 사례 1개(`rerun-asks-first`)로 유지한다. 0C에서 F4가 재현되지 않고, 처음 연결과 yes 뒤 생성은 eval에서 돌릴 수 없다는 결과를 본 뒤 정했다. F4 회귀는 #257의 문장 고정 시험이 맡는다 |
 
 **검토 과정에서 기각한 안과 이유.**
@@ -77,9 +78,9 @@ Claude와 Codex가 실제로 동작하는지 자동으로 확인해야 한다. �
 ### 목표
 
 - **0단:** 스킬 문서가 가리키는 플러그인 경로와 생성기 출력 문구가 실제 패키지·코드와 맞지 않으면 PR이 실패한다.
-- **1단:** 다섯 job이 동시에 돌며 사용자 흐름을 모델 없이 처음부터 끝까지 확인한다.
+- **1단:** 네 job이 동시에 돌며 사용자 흐름을 모델 없이 처음부터 끝까지 확인한다.
   - job은 `claude (windows-2022, new-user)`, `claude (windows-2022, update)`, `claude (macos-15, new-user)`,
-    `claude (macos-15, update)`, `codex (windows-2022)`다.
+    `claude (macos-15, update)`다. `codex (windows-2022)`는 보류했다(1장 결정 표).
 - **2단:** macOS 러너에서 `claude plugin eval`이 사례 `rerun-asks-first`를 실제 모델로 3회 돌린다. 깨끗한
   환경에서 스킬이 dry-run까지 가서 쓰기 전에 묻는지 보고, 한 번이라도 어기면 실패한다.
 - **승격 절차:** `main` 승격 절차에 "승격할 dev 커밋에서 1단(과 플러그인이 바뀐 경우 2단)이 녹색이어야 한다"를
@@ -127,7 +128,7 @@ Claude와 Codex가 실제로 동작하는지 자동으로 확인해야 한다. �
 - 지난 판 생성기가 새 서버에 대해 성공하는 것도 확인한다. 승격하면 서버가 먼저 배포되므로 기존 사용자가 바로
   겪는 조합이다.
 
-**1단 `codex` job** (Windows, Pro)
+**1단 `codex` job** (Windows, Pro, 보류. Codex 공개 배포 착수 때의 기준으로 남긴다)
 
 - 번들을 설치하고 `harness.ps1 init --client codex`와 `harness-codex.mjs complete-init`을 실행한다.
 - `.codex/agents/*.toml`과 `docs/harness/codex-runbook.md`가 생긴다.
@@ -209,7 +210,7 @@ Claude와 Codex가 실제로 동작하는지 자동으로 확인해야 한다. �
 | 파일 | 단 | 역할 |
 |------|----|------|
 | `plugin/bin/harness-skill-references.test.mjs` | 0단 | 스킬이 가리키는 플러그인 경로와 생성기 출력 문구 대조. `npm test`가 찾는 `plugin/bin/*.test.mjs` 위치다 |
-| `.github/workflows/e2e-smoke.yml` | 1단 | `pull_request`(dev, 경로 필터)와 `workflow_dispatch`. matrix 다섯 job. PostgreSQL 준비, 플러그인 설치, 리허설 실행, 요약 기록 |
+| `.github/workflows/e2e-smoke.yml` | 1단 | `pull_request`(dev, 경로 필터)와 `workflow_dispatch`. matrix 네 job. PostgreSQL 준비, 플러그인 설치, 리허설 실행, 요약 기록 |
 | `scripts/rehearsals/rehearse-client-init-smoke.ts` | 1단 | 공통 도구. 시험 DB, 템플릿 시드, fixture, `next start`, 시험 저장소, 스킬 절차 실행, 판정, 정리. 표준 출력에는 요약 JSON 한 줄. `parseArguments`·`main` export |
 | `scripts/rehearsals/rehearse-client-init-smoke.test.ts` | 1단 | 진입점 시험(`--help` 0, 모르는 인자 2, `CI`·`--allow-machine-changes` 없으면 거부) |
 | `scripts/rehearsals/client-init-smoke-steps.mjs` | 1단 | 순수 helper. `helperCommand`(OS별 스킬 명령), `summarize`(허용 필드만), `containsSecret`(원문 반환 없음) |
@@ -299,7 +300,7 @@ node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
     클라이언트로 위 1~8단계를 하고 커밋한다. 지난 판 클라이언트가 새 서버와 동기화되는지도 이 단계에서 확인된다.
   - 그다음 시험 브랜치의 플러그인을 설치하고, MCP 등록을 바꾸지 않은 채 `Connected`를 확인한 뒤 새 판으로
     3·4·8단계를 실행한다. `lastSyncedAt`이 앞으로 가야 한다.
-- Codex:
+- Codex(보류, 1장 결정 표):
   - `node scripts/windows/package-windows-plugin.mjs --output <새 디렉터리> --runtime <runtime>`으로 번들을 만들고,
     marketplace 매니페스트를 붙여 `codex plugin add`로 설치한다. 설치 경로는
     `docs/test-reports/completed/2026-10-05-windows-package-update.md`가 기록한 방식이다.
@@ -525,7 +526,8 @@ After:
 - **확인한 제약(2026-10-29):** runtime 캐시는 `windows-role-runtime.yml`이 `dev`의 push·PR에서만 저장한다. GitHub
   캐시는 기능 브랜치의 push 실행에서는 자기 브랜치와 기본 브랜치(`main`)의 캐시만 복원하고, `dev`를 향한 PR 실행은
   `dev`의 캐시도 복원한다. 그래서 이 job은 PR에서만 캐시를 쓸 수 있고, 개발 중 시험도 `dev`를 향한 PR이 필요하다.
-  캐시 없이 빌드하면 약 47분이 걸린다. 진행 여부는 Open Questions의 Codex 항목에 따른다.
+  캐시 없이 빌드하면 약 47분이 걸린다.
+- **결정(2026-10-30):** 보류한다. Codex 공개 배포에 착수할 때 붙인다(1장 결정 표).
 
 ### Phase 5: 2단
 
@@ -555,7 +557,6 @@ After:
 - **외부 의존성:**
   - GitHub-hosted runner `windows-2022`·`macos-15`
   - Claude Code 공식 설치 스크립트와 `claude plugin eval`
-  - Codex CLI(1단 설치만)
   - `@embedded-postgres/*` 18.4
   - 비밀값 2개: `E2E_TEMPLATES_TOKEN`(`Sangeok/harness-templates` 읽기 전용), `E2E_CLAUDE_OAUTH_TOKEN`(2단)
 - **소비자/사용처 영향:**
@@ -682,10 +683,6 @@ it("the generator prints every marker the init skill tells the agent to read", (
     지금 스킬 순서를 그대로 따른다.
 - **[범위] 클라이언트 버전:** 1·2단의 Claude Code를 `latest`로 둘지 고정 판으로 둘지 정해야 한다. 2단 모델은
   `claude-opus-5-5`로 고정한다(2단 설계).
-- **[소유] Codex job:** Codex 실행기 영역을 Codex가 처리하기로 한 결정과 겹치는지 확인해야 한다. 1단 Codex job은
-  init과 `complete-init`만 보고 런타임 코드를 바꾸지 않는다. 다만 `plugin/**`을 바꾸는 PR마다 돌기 때문에 Codex가
-  진행 중인 PR에서도 돌고, 그 PR의 init 동작이 바뀌면 이 job이 실패해 그 PR을 막을 수 있다. 또 개발 중 시험에
-  `dev`를 향한 PR이 필요하다(Phase 4).
 - **[별도 후속] 사용자가 고친 파일 보존:** Codex 쪽은 생성기 시험이 있다(`plugin/bin/harness-init-dual.test.mjs:143`).
   Claude 쪽은 이름으로 찾은 시험이 없다. 모델 없는 생성기 시험으로 추가하기를 권한다.
 

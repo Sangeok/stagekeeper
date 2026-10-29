@@ -37,6 +37,8 @@ nul
 
 /plugin/templates/
 
+/plugin/evals/results/
+
 /plugin/runtime/windows/node/
 
 /.playwright-mcp/

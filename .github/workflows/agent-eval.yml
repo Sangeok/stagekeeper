@@ -1,0 +1,118 @@
+name: agent-eval
+
+on:
+  push:
+    branches: [harness/e2e-smoke-workflow]
+    paths:
+      - "plugin/evals/**"
+      - ".github/workflows/agent-eval.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  init-skill:
+    name: init skill eval (macos-15)
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DISABLE_AUTOUPDATER: "1"
+      EVAL_PLUGIN: /private/tmp/stagekeeper-eval/plugin
+    steps:
+      - name: Check that the eval token is available
+        id: gate
+        shell: bash
+        env:
+          EVAL_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "$EVAL_TOKEN" ]; then
+            echo "::notice::E2E_CLAUDE_OAUTH_TOKEN is not available to this run, so the agent eval is skipped"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Copy the plugin and install the shell prefix
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        run: |
+          rm -rf "$(dirname "$EVAL_PLUGIN")"
+          mkdir -p "$(dirname "$EVAL_PLUGIN")" "$HOME/.local/bin"
+          cp -R plugin "$EVAL_PLUGIN"
+          cat > "$HOME/.local/bin/stagekeeper-eval-shell" <<'SH'
+          #!/usr/bin/env bash
+          export HARNESS_TOKEN=hu_evalFixtureOnlyNoNetwork0000000000000000000
+          export HARNESS_SERVER=https://stagekeeper.invalid
+          export HARNESS_TEMPLATES_DIR=.stagekeeper-eval/templates
+          workspace="$HOME/cwd"
+          [ -d "$workspace/.git" ] || workspace="$PWD"
+          baseline="$workspace/.stagekeeper-eval/.baseline"
+          [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
+          bash -c "$1"
+          status=$?
+          if [ -f "$baseline" ] && [ -n "$(find "$workspace/docs" "$workspace/.claude" "$workspace/CLAUDE.md" -newer "$baseline" -type f 2>/dev/null | head -n 1)" ]; then
+            : > "$workspace/.eval-managed-write"
+          fi
+          exit "$status"
+          SH
+          chmod 755 "$HOME/.local/bin/stagekeeper-eval-shell"
+      - name: Prove the write detection with a control run
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+        run: |
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case control-real-write --runs 1 --model claude-haiku-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/control.json" || true
+          node -e '
+            const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const graders = Object.fromEntries((result.cases?.[0]?.arms?.with?.[0]?.graders ?? []).map(grader => [grader.name, grader.passed]));
+            if (graders["shell-prefix-active"] !== true || graders["no-write-before-yes"] !== false) {
+              console.error(`control: write detection is broken (${JSON.stringify(graders)})`);
+              process.exit(1);
+            }
+            console.log("control: a real generator run was detected");
+          ' "$RUNNER_TEMP/control.json"
+      - name: Run the init skill eval
+        if: steps.gate.outputs.ready == 'true'
+        shell: bash
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+        run: |
+          set +e
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case rerun-asks-first --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/eval.json"
+          code=$?
+          node -e '
+            const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+            const lines = [];
+            for (const testCase of result.cases ?? []) {
+              lines.push(`${testCase.name}: score ${testCase.aggregates?.score} over ${testCase.arms?.with?.length ?? 0} runs`);
+              for (const [index, run] of (testCase.arms?.with ?? []).entries()) {
+                const graders = (run.graders ?? []).map(grader => `${grader.name}=${grader.passed ? "pass" : "fail"}`).join(" ");
+                lines.push(`  run ${index + 1}: ${graders}${run.error ? " error" : ""}`);
+              }
+            }
+            lines.push(`cost estimate $${Number(result.costUsd ?? 0).toFixed(2)}, ${result.durationSeconds}s`);
+            console.log(lines.join("\n"));
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "```\n" + lines.join("\n") + "\n```\n");
+          ' "$RUNNER_TEMP/eval.json" || echo "no eval result"
+          exit $code

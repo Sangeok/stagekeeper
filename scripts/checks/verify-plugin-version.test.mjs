@@ -10,11 +10,11 @@ import { inspectPluginVersion, pluginManifests, readPluginRelease } from "./veri
 const problems = input => inspectPluginVersion(input).problems;
 
 test("shipped files follow the Windows package rules", () => {
-  assert.deepEqual(["plugin/bin/harness.mjs", "plugin/.claude-plugin/plugin.json", "plugin/bin/harness.test.mjs", "plugin/templates/en/CLAUDE.runbook.md", "scripts/build.mjs"].filter(isShippedPluginFile), ["plugin/bin/harness.mjs", "plugin/.claude-plugin/plugin.json"]);
+  assert.deepEqual(["plugin/bin/harness.mjs", "plugin/.claude-plugin/plugin.json", "plugin/bin/harness.test.mjs", "plugin/templates/en/CLAUDE.runbook.md", "plugin/evals/rerun-asks-first/case.yaml", "scripts/build.mjs"].filter(isShippedPluginFile), ["plugin/bin/harness.mjs", "plugin/.claude-plugin/plugin.json"]);
 });
 
 test("passes when no shipped plugin file changed", () => {
-  assert.deepEqual(problems({ changed: ["plugin/bin/harness.test.mjs", "plugin/templates/en/CLAUDE.runbook.md"], base: ["0.5.18", "0.5.18"], head: ["0.5.18", "0.5.18"] }), []);
+  assert.deepEqual(problems({ changed: ["plugin/bin/harness.test.mjs", "plugin/templates/en/CLAUDE.runbook.md", "plugin/evals/fixtures/templates/en/CLAUDE.runbook.md"], base: ["0.5.18", "0.5.18"], head: ["0.5.18", "0.5.18"] }), []);
   assert.deepEqual(problems({ changed: [], base: ["0.5.18", "0.5.18"], head: ["0.5.18", "0.5.18"] }), []);
 });
 
