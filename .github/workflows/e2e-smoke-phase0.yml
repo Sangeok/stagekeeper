@@ -15,7 +15,7 @@ jobs:
   server:
     name: server (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -45,34 +45,26 @@ jobs:
         shell: pwsh
         run: |
           $root = Join-Path $env:RUNNER_TEMP 'pg'
-          New-Item -ItemType Directory -Force $root | Out-Null
-          Push-Location $root
-          npm pack "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17" --silent
-          if ($LASTEXITCODE -ne 0) { throw 'npm pack failed' }
-          tar -xzf (Get-ChildItem *.tgz).FullName
-          if ($LASTEXITCODE -ne 0) { throw 'extract failed' }
-          Pop-Location
-          $bin = Join-Path $root 'package/native/bin'
-          (Get-ChildItem $bin).Name -join ' '
+          npm install --prefix $root --no-save --no-audit --no-fund "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17"
+          if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
+          $bin = Join-Path $root 'node_modules/@embedded-postgres/${{ matrix.pg }}/native/bin'
           $data = Join-Path $env:RUNNER_TEMP 'pgdata'
           & (Join-Path $bin 'initdb.exe') -D $data -U postgres --auth=trust -E UTF8 --no-locale
           if ($LASTEXITCODE -ne 0) { throw 'initdb failed' }
           $env:PGPORT = $env:PG_PORT
           $log = Join-Path $env:RUNNER_TEMP 'pg.log'
-          $process = Start-Process -FilePath (Join-Path $bin 'pg_ctl.exe') -ArgumentList @('-D', $data, '-l', $log, '-w', 'start') -NoNewWindow -PassThru -Wait -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP 'pgctl.out') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'pgctl.err')
+          $process = Start-Process -FilePath (Join-Path $bin 'pg_ctl.exe') -ArgumentList @('-D', $data, '-l', $log, '-w', 'start') -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP 'pgctl.out') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'pgctl.err')
+          $null = $process.Handle
+          if (-not $process.WaitForExit(120000)) { throw 'pg_ctl did not return' }
           if ($process.ExitCode -ne 0) { Get-Content $log -Tail 30; throw 'pg_ctl start failed' }
+          'pg_ctl returned 0'
       - name: Start portable PostgreSQL 18 (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: |
           root="$RUNNER_TEMP/pg"
-          mkdir -p "$root"
-          cd "$root"
-          npm pack "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17" --silent
-          tar -xzf ./*.tgz
-          bin="$root/package/native/bin"
-          ls "$bin" | tr '\n' ' '
-          echo
+          npm install --prefix "$root" --no-save --no-audit --no-fund "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17"
+          bin="$root/node_modules/@embedded-postgres/${{ matrix.pg }}/native/bin"
           data="$RUNNER_TEMP/pgdata"
           "$bin/initdb" -D "$data" -U postgres --auth=trust -E UTF8 --no-locale
           PGPORT="$PG_PORT" "$bin/pg_ctl" -D "$data" -l "$RUNNER_TEMP/pg.log" -w start < /dev/null > "$RUNNER_TEMP/pgctl.out" 2>&1 || { tail -30 "$RUNNER_TEMP/pg.log"; exit 1; }
