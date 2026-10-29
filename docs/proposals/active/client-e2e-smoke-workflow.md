@@ -287,15 +287,15 @@ node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
 
 #### 플러그인 설치 경로
 
-- **Claude:**
-  - GitHub 설치는 저장소를 받아 `~/.claude/plugins/cache/<marketplace>/<plugin>/<판>`에 복사한다. 반면 로컬 폴더
-    marketplace는 그 자리에서 읽는다. 이 PC의 `stagekeeper-windows`도 `claude plugin list`에 "Read from: <폴더>"로
-    나온다.
-  - 그래서 Phase 0에서 먼저 GitHub 주소로 검사 커밋을 지정해 설치하는 방법을 확인한다.
-    `claude plugin marketplace add`의 도움말은 소스로 "URL, path, or GitHub repo"를 받는다고 한다.
-  - 커밋을 지정할 수 없으면 루트 `.claude-plugin/marketplace.json`(이름 `stagekeeper-local`, 소스 `./plugin`)과
-    `git ls-files -- plugin`의 추적 파일을 내보내 로컬 경로로 설치한다. 이때는 설치 방식이 다르다는 점을 요약에
-    남긴다.
+- **Claude:** Phase 0B 실측 결과에 따라 실제 GitHub 설치 방식 그대로 설치한다.
+  - 명령은 `claude plugin marketplace add "https://github.com/Sangeok/stagekeeper.git#<브랜치>"` →
+    `claude plugin install harness@stagekeeper-local`다. 브랜치는 dev 또는 작업 브랜치다.
+  - 설치 뒤 `~/.claude/plugins/marketplaces/stagekeeper-local`의 `git rev-parse HEAD`가 시험할 커밋과 같은지
+    확인한다. 다르면, 예를 들어 실행 중에 dev가 움직였으면 사유 코드와 함께 실패한다.
+  - 커밋 해시 fragment(`#<sha>`)는 쓸 수 없다. 실측에서 git이 해시를 브랜치로 찾다가 실패했다.
+  - 그래서 회귀 증명용 옛 커밋(`a750b76`)처럼 브랜치가 없는 커밋은 로컬 export로 설치한다. 루트
+    `.claude-plugin/marketplace.json`과 `git ls-files -- plugin`의 추적 파일을 내보낸다. 로컬 경로는 캐시에 복사하지
+    않고 그 자리에서 읽으므로("Read from"), 설치 방식이 다르다는 점을 요약에 남긴다.
 - **Codex:**
   - `node scripts/windows/package-windows-plugin.mjs --output <새 디렉터리> --runtime <runtime>`으로 번들을 만들고,
     marketplace 매니페스트를 붙여 설치한다.
@@ -371,7 +371,7 @@ jobs:
 
 | 단계 | 내용 |
 | --- | --- |
-| PostgreSQL 18 | 1안은 npm의 포터블 배포본 `@embedded-postgres/<platform>@18.4.0-beta.17`이다. npm 무결성 해시로 고정되며 Windows x64·macOS arm64 모두 있다. 받은 뒤 `initdb --auth=trust`, `pg_ctl -w start`로 띄우고 `stagekeeper_test_e2e`를 만든다. Phase 0에서 확정한다 |
+| PostgreSQL 18 | `npm install --prefix <임시> @embedded-postgres/<platform>@18.4.0-beta.17`(Windows `windows-x64`, macOS `darwin-arm64`, npm 무결성 해시로 고정) → `initdb -U postgres --auth=trust -E UTF8 --no-locale` → `PGPORT=<포트> pg_ctl -D <data> -l <log> -w start` → `pg`로 `CREATE DATABASE stagekeeper_test_e2e`. Phase 0A에서 확정했다. `npm pack`은 설치 스크립트(`hydrate-symlinks.js`)를 건너뛰어 macOS dylib 링크가 빠지므로 쓰지 않는다. Windows에서는 `Start-Process -Wait`가 postgres 서버까지 기다려 멈추므로 pg_ctl 프로세스만 기다린다 |
 | 서버 빌드 | `npm ci` → `npm run db:generate` → `npm run build`. `check.yml`의 build part는 DB 환경 없이 `npm run build`를 돌린다 |
 | Claude 설치 | 공식 설치 스크립트로 버전을 고정해 설치한다. macOS는 `curl -fsSL https://claude.ai/install.sh \| bash -s <version>`, Windows PowerShell은 `& ([scriptblock]::Create((irm https://claude.ai/install.ps1))) <version>`이다. 실행 중 자동 갱신은 `DISABLE_AUTOUPDATER=1`로 막는다 |
 | 리허설 | `ANTHROPIC_API_KEY: ${{ secrets.E2E_ANTHROPIC_API_KEY }}`로 위 명령을 `--scenario ${{ matrix.scenario }}`로 실행한다. 출력 한 줄을 `GITHUB_STEP_SUMMARY`에 덧붙인다 |
@@ -427,11 +427,27 @@ After:
 임시 워크플로를 작업 브랜치의 `push` 트리거로 돌린다. `workflow_dispatch`는 기본 브랜치에 파일이 있어야 하기
 때문이다.
 
-- **0A (비밀값 없음):** `windows-2022`·`macos-15`에서 다음을 확인하고 단계별 시간을 잰다.
-  - 포터블 PostgreSQL 18 기동
-  - `migrate deploy`, `npm run build`, `next start` → `/login` 200
-- **0B (비밀값 없음):** Claude Code 설치, GitHub 주소로 커밋을 지정한 marketplace 추가·설치, 설치 위치(cache인지
-  그 자리인지), 파일 집합 비교.
+- **0A (비밀값 없음): 완료**
+  - 2026-10-29 run 40822645837은 실측 스크립트 문제로 실패했다. macOS는 `npm pack` 때문에 dylib 링크가 빠졌고,
+    Windows는 `Start-Process -Wait`에서 멈췄다.
+  - 고친 run 40827212076은 두 OS에서 통과했다.
+
+    | 단계 | windows-2022 | macos-15 |
+    | --- | --- | --- |
+    | `npm ci` | 34초 | 18초 |
+    | PostgreSQL 설치·기동 | 12초 | 4초 |
+    | migrate deploy(31개) | 2초 | 1초 |
+    | `npm run build` | 31초 | 26초 |
+    | `/login` 200까지 | 1초 | 2초 |
+
+  - 두 OS 모두 PostgreSQL은 18.4였다. 토큰 없는 `POST /api/mcp`와 `POST /api/projects`는 401로 거부됐다.
+- **0B (비밀값 없음): 완료**
+  - Claude Code 2.1.312 설치는 10~32초 걸렸다. 플러그인 명령은 로그인 없이 동작했다.
+  - 소스별 결과는 두 OS에서 같았다.
+    - 기본 주소(`Sangeok/stagekeeper`): main(`7b6103d`)을 받아 캐시에 설치했다. 파일 97개로 추적 파일 수와 같다.
+    - `#harness/e2e-smoke-workflow`: 그 브랜치의 실행 커밋(`719a73d`)을 받아 캐시에 설치했다. 파일 97개다.
+    - `#<sha>`: 실패했다(`Remote branch <sha> not found in upstream origin`).
+    - 로컬 export: 캐시에 복사하지 않고 "Read from: <export>/plugin"으로 그 자리에서 읽었다.
 - **0C (`E2E_ANTHROPIC_API_KEY` 필요):** 다음을 확인한다.
   - `claude -p`가 API 키로 승인 질문 없이 도는지
   - `--dangerously-skip-permissions`가 러너 계정에서 허용되는지
@@ -617,8 +633,10 @@ it("reports a token value without returning it", () => {
   - 회귀 감지 증명: `plugin-ref=a750b76`이면 `new-user` job이 2회차에서 실패해야 한다
   - 공개 로그에 토큰, 템플릿 문구, 대화 기록이 없는지 검색
 - **비용·시간 추정**
-  - 2026-10-29 이 PC에서 init 세션 6번이 각각 0.6~2.6분 걸렸다.
-  - 동시 실행 기준 대기는 가장 느린 job 기준 약 15~25분으로 추정한다. Phase 0A에서 실측한다.
+  - 서버 쪽 준비(의존성 설치부터 `/login` 200까지)는 Phase 0A에서 job당 약 1~1.5분으로 실측했다. Claude 설치는
+    10~32초다.
+  - init 세션은 2026-10-29 이 PC에서 6번 돌렸고, 각각 0.6~2.6분 걸렸다.
+  - 그래서 가장 느린 `new-user` job도 약 10~15분으로 추정한다. job들이 동시에 돌므로 승격 전 대기도 이 정도다.
   - 모델 비용은 Claude 두 OS 합쳐 약 $11~12다. Codex는 Phase 0D에서 측정한다.
 
 ---
@@ -626,9 +644,6 @@ it("reports a token value without returning it", () => {
 <!-- doc-validation-skip -->
 ## Open Questions
 
-- **[Phase 0A] PostgreSQL:** `@embedded-postgres` 18.4가 두 러너에서 `initdb`·`pg_ctl`로 뜨고 `migrate deploy`를
-  통과하는지 확인하지 않았다.
-- **[Phase 0B] 설치 방식:** GitHub 주소로 검사 커밋을 지정해 marketplace를 추가할 수 있는지 확인하지 않았다.
 - **[Phase 0C] 헤드리스 실행:** 공식 문서는 `ANTHROPIC_API_KEY`를 쓸 때 대화형에서 승인을 묻는다고만 적었다.
   `-p` 모드, 권한 생략, `--max-budget-usd`가 러너에서 어떻게 동작하는지 확인한다.
 - **[Phase 0D] Codex 비대화형 init:** `codex exec`로 `$harness-init`을 부르는 방법, 샌드박스·승인 플래그, API 키
