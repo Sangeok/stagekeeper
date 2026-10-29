@@ -3,6 +3,7 @@ name: e2e-smoke-phase0
 on:
   push:
     branches: [harness/e2e-smoke-workflow]
+    paths: ["plugin/evals/**"]
 
 permissions:
   contents: read

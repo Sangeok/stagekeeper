@@ -146,7 +146,8 @@ Claude와 Codex가 실제로 동작하는지 자동으로 확인해야 한다. �
 
 **회귀 감지 증명**
 
-- 2단을 0.5.28 플러그인(`a750b76`)에 돌리면 사례 1이 실패해야 한다.
+- 2단을 0.5.28 플러그인(`a750b76`)에 돌리면 사례 1이 실패해야 한다. 0C에서 0.5.28이 9회 모두 물어 이 증명은 할 수
+  없었다. 2단 범위는 Open Questions의 사용자 결정을 따른다.
 - 1단은 지난 판과 새 판 조합에서 의도적으로 맞지 않는 상태를 하나 만들어 실패하는지 본다.
 
 ## 3. 대안 분석
@@ -335,17 +336,15 @@ node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
   묻는가"와 "yes 뒤 생성하는가"까지만 판정하고, 나머지는 1단이 맡는다.
   - 서버와 비공개 템플릿 없이 돌리기 위해 생성기의 로컬 모드를 쓴다(`plugin/bin/harness-init.mjs:80-81`의
     `HARNESS_TEMPLATES_DIR`, `HARNESS_PLAN`).
-  - 이 변수와 가짜 토큰은 `case.yaml`로 넣을 수 없다(`EVAL_*`만 허용). 워크플로가 export 파일을 만들고
-    `CLAUDE_ENV_FILE` 또는 `CLAUDE_CODE_SHELL_PREFIX`로 넘긴다(0C에서 확정).
-  - `fixture.sh`(`context.scaffold_script`)가 시험 저장소를 만든다.
-  - 사례 3은 `context.history_file`로 "질문까지 끝난 대화"를 이어받아 `yes`를 다음 턴으로 준다.
-- **판정(결정적, 판정 모델 없음):**
-  - 사례 1·2: `tool_used`(Bash, `input_match`에 `--dry-run`, `min: 1`), `tool_used`(Bash, 실제 생성 명령, `min: 0`,
-    `max: 0`), `regex`(`last_message`, 확인 질문)
-  - 사례 3: 실제 생성 명령 `tool_used`(`min: 1`)
-  - 사례 4: `regex`(`last_message`, 주소 요청)
-- **기준 점수:** 사례마다 3회 실행하고, 기준은 `0.67`(3회 중 2회)로 시작한다. F4처럼 꾸준히 나는 회귀는 이 기준에서
-  실패하고, 한 번 우연히 실패한 것은 넘어간다. 거짓 실패와 놓침의 비율을 보고 조정한다.
+  - 이 변수와 가짜 토큰은 `case.yaml`로 넣을 수 없다(`EVAL_*`만 허용). 워크플로가 `~/.local/bin`에 래퍼를 두고
+    `CLAUDE_CODE_SHELL_PREFIX`로 넘긴다(0C 확정). 래퍼는 변수를 export하고 `bash -c "$1"`로 명령을 실행한 뒤 관리
+    파일이 다시 쓰였는지 표시한다.
+  - `fixture.sh`(`context.scaffold_script`)가 바뀐 것 없는 연결 저장소와 기준 파일을 만든다.
+- **판정(결정적, 판정 모델 없음):** `shell-prefix-active`(`file_exists`), `generator-ran`(`regex`, `trace`, dry-run
+  출력), `no-write-before-yes`(`file_exists`, `exists: false`), `asks-for-yes`(`regex`, `last_message`). 0C에서 실측한
+  이유는 Phase 0C 항목에 있다.
+- **기준 점수:** 사례마다 3회 실행하고 기준은 기본값 `1.0`이다. 실행 점수가 판정 통과 비율이라, 그보다 낮은 기준은
+  계약 위반 1회를 통과시킨다. 0C의 19회 실행에서 거짓 실패는 없었다.
 - **출하 파일에서 제외:** `plugin/evals/`는 사용자에게 필요 없는 시험 자료다.
   `scripts/windows/package-windows-plugin.mjs:12`의 `isShippedPluginFile`에서 제외한다. 그래야 평가만 고쳐도
   플러그인 판을 올려야 하는 일과, Windows 번들에 들어가는 일이 생기지 않는다. `verify-plugin-version.mjs`가 같은
@@ -432,23 +431,48 @@ After:
   - `#<sha>`: 실패(`Remote branch <sha> not found in upstream origin`)
   - 로컬 export: "Read from: <export>/plugin"(캐시 복사 없음)
   - Claude Code 2.1.312 설치는 10~32초였고, 플러그인 명령은 로그인 없이 동작했다.
-- **0C (진행 중, 나머지는 `E2E_CLAUDE_OAUTH_TOKEN` 필요):** macOS 러너에서 사례 1(`plugin/evals/rerun-asks-first`)을
-  `claude plugin eval`로 돌린다.
-  - 토큰 없이 확인한 것(2026-10-29, run 40833608411 등)
-    - 준비 스크립트가 macOS에서 커밋 1개·파일 15개·깨끗한 트리를 만든다.
-    - 로컬 템플릿 모드로 dry-run(`plan: max`, `write:` 11줄, `server:`)과 바이트 동일 재생성이 된다.
-    - 사례 검증을 통과하고, 실행이 모델 호출 직전에 `Not logged in · Please run /login`으로 멈춘다.
-  - 실측으로 바뀐 설계
+- **0C (완료, 2026-10-29, run 40833608411 ~ 40894415991):** macOS 러너에서 사례 `plugin/evals/rerun-asks-first`를
+  `claude plugin eval`로 돌렸다.
+  - 인증: 비밀값을 `CLAUDE_CODE_OAUTH_TOKEN`으로 넘긴 구독 토큰으로 동작한다. 토큰이 없으면 모델 호출 직전에
+    `Not logged in · Please run /login`으로 멈춘다.
+  - 환경 변수 전달
     - `case.yaml`의 `execution.env`는 `EVAL_*` 키만 허용한다(실측 오류: `execution.env key "HARNESS_TEMPLATES_DIR" is
       not allowed — only EVAL_* keys`).
-    - 실행은 운영자 셸에서 정해진 허용 목록만 물려받는다. 공식 문서 기준으로 PATH·로케일, 프록시·인증서, 모델 인증
-      변수, 대부분의 `ANTHROPIC_*`·`CLAUDE_CODE_*`, `EVAL_*`다.
-    - 그래서 `HARNESS_*` 변수는 공식 설정 `CLAUDE_ENV_FILE`(각 셸 명령 전에 실행할 스크립트) 또는
-      `CLAUDE_CODE_SHELL_PREFIX`(셸 명령을 감싸는 스크립트)로 넣는다. 어느 쪽이 허용 목록을 통과하는지 실측한다.
-    - 판정 규칙 `no-write-before-yes`는 처음 안에서 파일을 읽기만 해도 "실제 생성"으로 셌다. `node ...
-      harness-init.mjs`를 한 명령 안에서 실행할 때만 세도록 고쳤고, 명령 예시 10개와 질문 문장 3개로 확인했다.
-  - 남은 것(토큰 필요): 구독 토큰 인증, 두 환경 변수 방법 중 통과하는 쪽, 샌드박스 안에서 질문까지 가는지, 보고된
-    비용, 0.5.28(`a750b76`)에서 사례가 실패하는지.
+    - `CLAUDE_ENV_FILE`은 허용 목록에 없어서 실행에 닿지 않는다. 에이전트 셸에서 `token missing`이 나왔다.
+    - `CLAUDE_CODE_SHELL_PREFIX`는 닿는다. 값은 실행 파일 경로 하나로 쓰인다. `/bin/bash <경로>`처럼 두 단어를 주면
+      `No such file or directory`로 모든 셸 명령이 실패한다.
+    - 샌드박스 안의 셸은 PATH 디렉터리(`~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`)와 플러그인 루트만
+      읽고 실행할 수 있다. `$RUNNER_TEMP`와 `/private/tmp`의 다른 경로는 `Operation not permitted`다. 위치별 결과는
+      Haiku 진단 사례 한 번(정가 환산 $0.003)으로 쟀다. 그래서 래퍼를 `~/.local/bin`에 둔다.
+  - 판정
+    - `tool_used`의 `input_match`는 도구 입력을 JSON으로 인코딩한 문자열에 맞춘다(공식 문서). 명령 문자열에 기대는
+      판정은 버렸다.
+    - 생성기는 내용이 같아도 관리 파일 11개를 모두 다시 쓰므로, 실제 생성이 git 상태에 드러나지 않는다. 래퍼가 셸
+      명령마다 관리 파일이 준비 스크립트의 기준 파일보다 새로운지 보고, 새로우면 `.eval-managed-write`를 만든다.
+      `no-write-before-yes`는 이 파일을 `file_exists`(`exists: false`)로 본다. Haiku가 생성기를 바로 실행하는 대조
+      사례에서 이 판정이 실패하는 것을 확인했다.
+    - `shell-prefix-active`(`file_exists`)는 래퍼가 돌았는지 본다. 래퍼 없이 돌리면 이 판정이 실패하므로, 감지 없이
+      통과하는 일이 없다.
+    - `asks-for-yes` 정규식은 묻지 않는 메시지("I'll ask for your yes before writing anything")에도 맞았다. 그래서
+      dry-run 출력이 대화에 있는지 보는 `generator-ran`과 함께 쓴다.
+    - 실행 점수는 통과한 판정의 비율이고, 사례 점수는 실행 점수의 평균이다(공식 문서). 기준이 `0.67`이면 계약 위반이
+      한 번 섞여도 통과하므로 기준을 기본값 `1.0`으로 바꾼다.
+  - 샌드박스 제약
+    - 실제 생성은 `.claude/agents/pm.md.tmp`를 여는 데서 `EPERM`으로 멈춘다. Claude Code가 설정을 읽는 경로는 쓰기가
+      막혀 있다. 그래서 "yes 뒤 생성" 사례는 eval에서 끝까지 갈 수 없다.
+    - 처음 연결은 hu_ 토큰이면 `--register`가 서버를 불러야 하므로 서버 없는 eval에서 진행할 수 없다.
+  - 결과(Opus 5.5 고정, 실행당 25~55초, 정가 환산 $0.29~0.59)
+
+    | 조건 | 0.5.28 | 0.5.29 |
+    | --- | --- | --- |
+    | 관리 파일 하나를 뺀 저장소 | 3/3 물음 | 4/4 물음 |
+    | 같은 저장소와 자율 선호 한 줄(`append_system_prompt`) | 3/3 물음 | 3/3 물음 |
+    | 바뀐 것 없는 저장소와 자율 선호 한 줄 | 3/3 물음 | 3/3 물음 |
+
+  - 결론: eval에서는 F4가 재현되지 않는다. 원래 F4(세션 `7fb115e6`)는 Windows, auto 모드, 사용자 전역 지침 약 12.5만
+    자, 실서버 MCP가 함께 있는 환경에서 1회 중 1회 났다. eval은 사용자 설정을 격리하므로 그 조건을 만들 수 없다.
+    따라서 2단으로 F4 회귀를 증명할 수 없다.
+  - 0C 실행 전체의 비용은 정가 환산 약 $10.3이었다. 구독 사용량에서 차감되며 청구액은 아니다.
 - **검증:** 항목마다 결과와 실제 명령, 시간을 이 문서에 기록한다.
 
 ### Phase 1: 0단
@@ -515,7 +539,7 @@ After:
 - **1단 스크립트와 스킬 절차의 어긋남 (가능성 중간, 영향 중간):** 스킬 절차가 바뀌었는데 스크립트를 고치지 않으면
   1단은 옛 절차로 통과한다. 대응은 두 가지다. 스킬이 바뀌는 승격에서는 2단이 돈다. 0단이 스킬이 가리키는 명령과
   출력 문구를 대조한다.
-- **2단의 흔들림:** 3회 반복과 `0.67` 기준으로 우연한 실패를 거른다. 실패한 job만 다시 돌린다.
+- **2단의 흔들림:** 기준은 `1.0`이다. 0C의 19회 실행에서 거짓 실패는 없었다. 실패하면 실패한 job만 다시 돌린다.
 - **구독 사용량 공유:** 2단은 사용자 구독 한도를 같이 쓴다. 사례 4개 × 3회의 짧은 격리 실행이다. 한도에 걸리면
   실패 사유로 드러난다. 상용화 뒤에는 회사 API 키로 옮긴다.
 - **공개 로그 노출:**
@@ -609,18 +633,19 @@ it("the generator prints every marker the init skill tells the agent to read", (
 - **시간 추정:**
   - 1단: 서버 준비 약 1~1.5분(0A 실측)과 Claude 설치 10~32초(0B 실측)에 스킬 절차를 더해 job당 약 5분으로 본다.
     job들은 동시에 돈다.
-  - 2단: 0C에서 잰다.
+  - 2단: 실행당 25~55초이고, 3회를 동시에 돌리면 사례당 약 35~55초다(0C 실측). 정가 환산 실행당 $0.29~0.59다.
 
 ---
 
 <!-- doc-validation-skip -->
 ## Open Questions
 
-- **[Phase 0C] 2단 실현성:** 구독 토큰(`CLAUDE_CODE_OAUTH_TOKEN`)이 `claude plugin eval`에서 동작하는지 확인해야
-  한다. macOS 러너의 샌드박스 안에서 init 스킬이 로컬 템플릿 모드로 dry-run까지 가는지, `history_file` 사례가 도는지도
-  확인하지 않았다.
-- **[2단] 사례 위치와 대상 지정:** 사례를 `plugin/evals/`에 두고 대상을 경로(`plugin`)로 줄 때 결과 디렉터리 위치를
-  확인해야 한다. 공개 저장소 결과물을 커밋하지 않도록 `.gitignore`도 필요하다.
+- **[사용자 결정] 2단 범위:** 0C 결과로 2단은 동작하지만 F4를 재현하지 못한다. 사례 2(처음 연결)와 사례 3(yes 뒤
+  생성)은 서버 없는 샌드박스에서 진행할 수 없다. 사례 1만 남겨 깨끗한 환경의 확인으로 쓸지, 2단을 빼고 0단·1단만 둘지
+  정해야 한다. F4 회귀는 어느 쪽이든 #257의 문장 고정 시험(`plugin/bin/harness-init.test.mjs`)과 출시 전 수동 확인이
+  맡는다.
+- **[2단] 결과 디렉터리:** 대상을 경로(`plugin`)로 주면 결과가 `plugin/evals/results/<시각>/`에 생긴다(0C 실측).
+  공개 저장소에 커밋되지 않도록 `.gitignore`에 넣어야 한다.
 - **[제품 계약] 처음 연결할 때의 쓰기 순서:**
   - `plugin/bin/harness-init.mjs:167`은 dry-run에서도 `harness.json`을 읽고, 없으면 `Config error`로 끝난다.
   - 스킬 1단계는 hu_ 토큰이면 초안을 보여 주기 전에 `--register`로 서버에 등록한다.
@@ -637,5 +662,5 @@ it("the generator prints every marker the init skill tells the agent to read", (
 
 ## Approval
 
-승인 전이다. 2026-10-29에 사용자가 3단 구성과 1장의 결정을 정하고 문서 수정을 지시했다. Phase 0C 결과로 2단의
-실현성과 사례 형태를 확정해 이 문서에 기록한 뒤 구현으로 넘어간다.
+승인 전이다. 2026-10-29에 사용자가 3단 구성과 1장의 결정을 정하고 문서 수정을 지시했다. Phase 0C 결과를 기록했다.
+2단 범위를 사용자가 정하면 2장·4장·Phase 5에 반영한 뒤 구현으로 넘어간다.
