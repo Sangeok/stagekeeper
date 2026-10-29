@@ -38,6 +38,15 @@ jobs:
           - os: windows-2022
             scenario: new-user
             pg: windows-x64
+          - os: windows-2022
+            scenario: update
+            pg: windows-x64
+          - os: macos-15
+            scenario: new-user
+            pg: darwin-arm64
+          - os: macos-15
+            scenario: update
+            pg: darwin-arm64
     env:
       PG_PORT: "55432"
       TEST_DB: postgresql://postgres@127.0.0.1:55432/stagekeeper_test_e2e
@@ -87,6 +96,16 @@ jobs:
           $null = $process.Handle
           if (-not $process.WaitForExit(120000)) { throw 'pg_ctl did not return' }
           if ($process.ExitCode -ne 0) { throw 'pg_ctl start failed' }
+      - name: Start portable PostgreSQL 18 (macOS)
+        if: steps.gate.outputs.ready == 'true' && runner.os == 'macOS'
+        shell: bash
+        run: |
+          root="$RUNNER_TEMP/pg"
+          npm install --prefix "$root" --no-save --no-audit --no-fund "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17"
+          bin="$root/node_modules/@embedded-postgres/${{ matrix.pg }}/native/bin"
+          data="$RUNNER_TEMP/pgdata"
+          "$bin/initdb" -D "$data" -U postgres --auth=trust -E UTF8 --no-locale
+          PGPORT="$PG_PORT" "$bin/pg_ctl" -D "$data" -l "$RUNNER_TEMP/pg.log" -w start < /dev/null > "$RUNNER_TEMP/pgctl.out" 2>&1
       - name: Create the test database
         if: steps.gate.outputs.ready == 'true'
         shell: bash
@@ -116,6 +135,19 @@ jobs:
         run: |
           irm https://claude.ai/install.ps1 | iex
           "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Install Claude Code (macOS)
+        if: steps.gate.outputs.ready == 'true' && runner.os == 'macOS'
+        shell: bash
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Resolve the previous release
+        id: previous
+        if: steps.gate.outputs.ready == 'true' && matrix.scenario == 'update'
+        shell: bash
+        run: |
+          git fetch --no-tags --depth 1 origin main
+          echo "commit=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
       - name: Run the client init smoke
         if: steps.gate.outputs.ready == 'true'
         shell: pwsh
@@ -124,12 +156,15 @@ jobs:
           PLUGIN_BRANCH: ${{ github.head_ref || github.ref_name }}
           PLUGIN_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
           SCENARIO: ${{ matrix.scenario }}
+          PREVIOUS_REF: ${{ steps.previous.outputs.commit }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
           claude --version
           $templates = Join-Path $env:GITHUB_WORKSPACE 'plugin/templates'
           $summary = Join-Path $env:RUNNER_TEMP 'smoke-summary.json'
-          node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts --client claude --scenario $env:SCENARIO --templates $templates --plugin-source github-branch --plugin-branch $env:PLUGIN_BRANCH --plugin-commit $env:PLUGIN_COMMIT | Tee-Object -FilePath $summary
+          $arguments = @('--import', 'tsx', 'scripts/rehearsals/rehearse-client-init-smoke.ts', '--client', 'claude', '--scenario', $env:SCENARIO, '--templates', $templates, '--plugin-source', 'github-branch', '--plugin-branch', $env:PLUGIN_BRANCH, '--plugin-commit', $env:PLUGIN_COMMIT)
+          if ($env:PREVIOUS_REF) { $arguments += @('--previous-ref', $env:PREVIOUS_REF) }
+          node @arguments | Tee-Object -FilePath $summary
           $code = $LASTEXITCODE
           if (Test-Path $summary) { "``````json`n$((Get-Content $summary | Select-Object -Last 1))`n``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
           exit $code

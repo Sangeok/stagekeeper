@@ -14,6 +14,14 @@ it("accepts the Claude new-user run from a GitHub branch", () => {
   assert.equal(options.allowMachineChanges, false);
 });
 
+it("accepts the update run only with a previous release commit", () => {
+  const update = VALID.map(value => value === "new-user" ? "update" : value);
+  assert.equal(parseArguments([...update, "--previous-ref", "b".repeat(40)]).previousRef, "b".repeat(40));
+  assert.throws(() => parseArguments(update));
+  assert.throws(() => parseArguments([...update, "--previous-ref", "main"]));
+  assert.throws(() => parseArguments([...VALID, "--previous-ref", "b".repeat(40)]));
+});
+
 it("rejects unknown, duplicate, missing, relative and unimplemented arguments before any work", () => {
   const invalid = [
     [],

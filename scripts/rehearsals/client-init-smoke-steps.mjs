@@ -27,6 +27,7 @@ export function summarize(record) {
   if (SCENARIOS.includes(record.scenario)) summary.scenario = record.scenario;
   if (SOURCES.includes(record.pluginSource)) summary.pluginSource = record.pluginSource;
   if (COMMIT.test(record.pluginCommit ?? "")) summary.pluginCommit = record.pluginCommit;
+  if (COMMIT.test(record.previousCommit ?? "")) summary.previousCommit = record.previousCommit;
   if (COMMIT.test(record.templatesCommit ?? "")) summary.templatesCommit = record.templatesCommit;
   if (Array.isArray(record.steps)) {
     summary.steps = record.steps.filter(entry => NAME.test(entry?.step ?? "") && RESULTS.includes(entry?.result)).map(entry => ({ step: entry.step, result: entry.result }));

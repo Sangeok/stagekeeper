@@ -17,12 +17,13 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 const FREE_AGENTS = 3;
 const PRO_AGENTS = 7;
 const PLAN_SKIPS_ON_FREE = 4;
+const COMMIT = /^[0-9a-f]{40}$/;
 
 export const USAGE = [
   "usage: node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts",
-  "  --client claude --scenario new-user --templates <private templates checkout>",
+  "  --client claude --scenario <new-user|update> --templates <private templates checkout>",
   "  --plugin-source <github-branch|export> --plugin-commit <40-hex commit> [--plugin-branch <branch>]",
-  "  [--snapshot <path outside this repository>] [--allow-machine-changes]",
+  "  [--previous-ref <40-hex commit, update only>] [--snapshot <path outside this repository>] [--allow-machine-changes]",
   "environment: TEST_DATABASE_URL (stagekeeper_test_*), CI=true unless --allow-machine-changes",
 ].join("\n");
 
@@ -33,12 +34,13 @@ export type Options = {
   pluginSource: "github-branch" | "export" | "bundle";
   pluginCommit: string;
   pluginBranch?: string;
+  previousRef?: string;
   snapshot?: string;
   allowMachineChanges: boolean;
   help: boolean;
 };
 
-const VALUED = ["--client", "--scenario", "--templates", "--plugin-source", "--plugin-commit", "--plugin-branch", "--snapshot"];
+const VALUED = ["--client", "--scenario", "--templates", "--plugin-source", "--plugin-commit", "--plugin-branch", "--previous-ref", "--snapshot"];
 const FLAGS = ["--allow-machine-changes", "--help"];
 
 export function parseArguments(args: string[]): Options {
@@ -64,16 +66,19 @@ export function parseArguments(args: string[]): Options {
   const pluginSource = values.get("--plugin-source");
   const templates = values.get("--templates");
   const pluginCommit = values.get("--plugin-commit");
+  const previousRef = values.get("--previous-ref");
   if (client !== "claude" && client !== "codex") throw new Error("--client must be claude or codex");
   if (scenario !== "new-user" && scenario !== "update") throw new Error("--scenario must be new-user or update");
   if (pluginSource !== "github-branch" && pluginSource !== "export" && pluginSource !== "bundle") throw new Error("--plugin-source must be github-branch, export or bundle");
   if (!templates || !path.isAbsolute(templates)) throw new Error("--templates must be an absolute path");
-  if (!pluginCommit || !/^[0-9a-f]{40}$/.test(pluginCommit)) throw new Error("--plugin-commit must be a 40-hex commit");
+  if (!pluginCommit || !COMMIT.test(pluginCommit)) throw new Error("--plugin-commit must be a 40-hex commit");
   if (pluginSource === "github-branch" && !values.get("--plugin-branch")) throw new Error("--plugin-source github-branch needs --plugin-branch");
+  if (scenario === "update" && (!previousRef || !COMMIT.test(previousRef))) throw new Error("--scenario update needs --previous-ref with a 40-hex commit");
+  if (scenario === "new-user" && previousRef) throw new Error("--previous-ref applies only to --scenario update");
   const snapshot = values.get("--snapshot");
   if (snapshot && !path.isAbsolute(snapshot)) throw new Error("--snapshot must be an absolute path");
-  if (client !== "claude" || scenario !== "new-user" || pluginSource === "bundle") throw new Error(`${client} ${scenario} from ${pluginSource} is not implemented yet`);
-  return { client, scenario, templates, pluginSource, pluginCommit, pluginBranch: values.get("--plugin-branch"), snapshot, allowMachineChanges: flags.has("--allow-machine-changes"), help };
+  if (client !== "claude" || pluginSource === "bundle") throw new Error(`${client} from ${pluginSource} is not implemented yet`);
+  return { client, scenario, templates, pluginSource, pluginCommit, pluginBranch: values.get("--plugin-branch"), previousRef, snapshot, allowMachineChanges: flags.has("--allow-machine-changes"), help };
 }
 
 type Command = { code: number; stdout: string; stderr: string };
@@ -83,6 +88,8 @@ type McpClient = {
   verifyProject(input: unknown): Promise<unknown>;
   callTool(input: unknown, name: string, args: Record<string, unknown>): Promise<unknown>;
 };
+type Plugin = { root: string; commit: string; client: McpClient };
+type Connection = { slug: string; syncedAt: Date };
 
 class Run {
   readonly steps: Step[] = [];
@@ -115,6 +122,95 @@ class Run {
     const outcome = this.command(file, args, cwd, env, timeout);
     if (outcome.code !== 0) throw new Error(`${label} exited ${outcome.code}${markerLine(outcome)}`);
     return outcome;
+  }
+}
+
+class Smoke {
+  constructor(
+    readonly run: Run,
+    readonly repo: string,
+    readonly helperEnv: NodeJS.ProcessEnv,
+    readonly userId: string,
+  ) {}
+
+  helper(plugin: Plugin, args: string[], label: string): Command {
+    const command = helperCommand(process.platform, plugin.root, "init", args);
+    return this.run.succeed(command.file, command.args, this.repo, this.helperEnv, label);
+  }
+
+  claude(args: string[], label: string): Command {
+    return this.run.succeed("claude", args, this.repo, this.helperEnv, label);
+  }
+
+  async dryRun(plugin: Plugin, name: string, plan: "free" | "pro", skips: number, fresh = false): Promise<void> {
+    await this.run.step(name, () => {
+      const output = this.helper(plugin, ["--dry-run"], name).stdout;
+      if (countLines(output, new RegExp(`^plan: ${plan}$`)) !== 1) throw new Error(`dry-run did not report plan: ${plan}`);
+      if (countLines(output, /^skip\(plan\):/) !== skips) throw new Error(`dry-run did not skip ${skips} agents for the ${plan} plan`);
+      if (countLines(output, new RegExp(`^server: ${ORIGIN.replace(/[.]/g, "\\.")}$`)) !== 1) throw new Error("dry-run did not report the server");
+      if (fresh && existsSync(path.join(this.repo, "CLAUDE.md"))) throw new Error("dry-run wrote CLAUDE.md");
+    });
+  }
+
+  async generate(plugin: Plugin, name: string, agents: number): Promise<void> {
+    await this.run.step(name, () => {
+      this.helper(plugin, [], name);
+      if (agentFiles(this.repo) !== agents) throw new Error(`generation wrote ${agentFiles(this.repo)} agent files instead of ${agents}`);
+      if (!existsSync(path.join(this.repo, "CLAUDE.md"))) throw new Error("generation did not write CLAUDE.md");
+    });
+  }
+
+  async connected(name: string): Promise<void> {
+    await this.run.step(name, () => {
+      if (!/Connected/.test(this.claude(["mcp", "get", "harness"], name).stdout)) throw new Error("claude mcp get harness did not report Connected");
+    });
+  }
+
+  async sync(plugin: Plugin, name: string, slug: string, after?: Date): Promise<Date> {
+    return this.run.step(name, async () => {
+      const input = plugin.client.connectionInput(this.repo, { server: ORIGIN });
+      await plugin.client.verifyProject(input);
+      const result = await plugin.client.callTool(input, "project_sync", { workspaces: input.config.workspaces, language: input.config.language }) as { synced?: unknown } | null;
+      if (typeof result?.synced !== "number") throw new Error("project_sync did not report a synced count");
+      const state = await projectState(slug, this.userId);
+      if (!state.runbookVersion) throw new Error("the generator did not record the runbook version");
+      if (!state.lastSyncedAt) throw new Error("project_sync did not record lastSyncedAt");
+      if (after && state.lastSyncedAt.getTime() <= after.getTime()) throw new Error("project_sync did not advance lastSyncedAt");
+      if (state.workspaces !== 1) throw new Error(`the roster has ${state.workspaces} workspaces instead of 1`);
+      return state.lastSyncedAt;
+    });
+  }
+
+  async firstConnection(plugin: Plugin, prefix: string, scenario: string, token: string): Promise<Connection> {
+    const project = await this.run.step(`${prefix}register`, () => {
+      const line = this.helper(plugin, ["--register"], "register").stdout.split(/\r?\n/).map(text => text.trim()).filter(text => text.startsWith("{")).at(-1);
+      const value = line ? JSON.parse(line) as Record<string, unknown> : null;
+      if (!value || value.owner !== "stagekeeper-e2e" || value.repo !== `${scenario}-${osLabel()}` || typeof value.slug !== "string" || !value.slug) throw new Error("register did not return the repository with a slug");
+      return { owner: value.owner, repo: value.repo, branch: value.branch, name: value.name, slug: value.slug };
+    });
+    await this.run.step(`${prefix}harness-json`, () => {
+      const config = { version: 1, project, workspaces: [{ id: "app", path: ".", agent: "app-dev", verify: ["npm test"] }] };
+      writeFileSync(path.join(this.repo, "harness.json"), `${JSON.stringify(config, null, 2)}\n`);
+    });
+    await this.dryRun(plugin, `${prefix}dry-run`, "free", PLAN_SKIPS_ON_FREE, true);
+    await this.generate(plugin, `${prefix}generate`, FREE_AGENTS);
+    await this.run.step(`${prefix}persist-server`, () => persistServer(this.run, this.helperEnv));
+    await this.run.step(`${prefix}mcp-add`, () => {
+      if (this.run.command("claude", ["mcp", "get", "harness"], this.repo, this.helperEnv).code === 0) throw new Error("harness is already registered on this machine");
+      this.claude(["mcp", "add", "--transport", "http", "--scope", "user", "harness", `${ORIGIN}/api/mcp`, "-H", "Authorization: Bearer ${HARNESS_TOKEN}"], "claude mcp add");
+    });
+    await this.connected(`${prefix}mcp-connected`);
+    await this.run.step(`${prefix}client-config`, () => {
+      const config = readFileSync(path.join(homedir(), ".claude.json"), "utf8");
+      if (containsSecret(config, token)) throw new Error("the Claude configuration stores a token value");
+      if (!config.includes("${HARNESS_TOKEN}")) throw new Error("the Claude configuration does not reference ${HARNESS_TOKEN}");
+    });
+    const syncedAt = await this.sync(plugin, `${prefix}project-sync`, project.slug);
+    await this.run.step(`${prefix}commit`, () => {
+      git(this.repo, ["add", "-A"]);
+      git(this.repo, ["commit", "-q", "-m", "chore: connect to Stagekeeper"]);
+    });
+    return { slug: project.slug, syncedAt };
   }
 }
 
@@ -169,7 +265,19 @@ async function stopServer(server: ChildProcess | undefined): Promise<void> {
   await Promise.race([stopped, delay(10_000)]);
 }
 
-function installPlugin(run: Run, options: Options, work: string, env: NodeJS.ProcessEnv): { root: string; commit: string } {
+async function loadClient(root: string): Promise<McpClient> {
+  return await import(pathToFileURL(path.join(root, "runtime", "mcp-client.mjs")).href) as McpClient;
+}
+
+function exportPlugin(commit: string, directory: string): string {
+  mkdirSync(directory);
+  const archive = `${directory}.tar`;
+  writeFileSync(archive, execFileSync("git", ["archive", "--format=tar", commit, ".claude-plugin", "plugin"], { cwd: REPO, maxBuffer: 256 * 1024 * 1024, windowsHide: true }));
+  execFileSync("tar", ["-xf", archive, "-C", directory], { windowsHide: true });
+  return directory;
+}
+
+async function installPlugin(run: Run, options: Options, work: string, env: NodeJS.ProcessEnv): Promise<Plugin> {
   if (options.pluginSource === "github-branch") {
     run.succeed("claude", ["plugin", "marketplace", "add", `${PLUGIN_REPOSITORY}#${options.pluginBranch}`], REPO, env, "marketplace add");
     run.succeed("claude", ["plugin", "install", `harness@${MARKETPLACE}`], REPO, env, "plugin install");
@@ -179,16 +287,13 @@ function installPlugin(run: Run, options: Options, work: string, env: NodeJS.Pro
     const version = (JSON.parse(readFileSync(path.join(clone, "plugin", ".claude-plugin", "plugin.json"), "utf8")) as { version: string }).version;
     const root = path.join(homedir(), ".claude", "plugins", "cache", MARKETPLACE, "harness", version);
     if (!existsSync(path.join(root, "bin", "harness-init.mjs"))) throw new Error("installed plugin cache has no generator");
-    return { root, commit };
+    return { root, commit, client: await loadClient(root) };
   }
-  const exported = path.join(work, "plugin-export");
-  mkdirSync(exported);
-  const archive = path.join(work, "plugin-export.tar");
-  writeFileSync(archive, execFileSync("git", ["archive", "--format=tar", options.pluginCommit, ".claude-plugin", "plugin"], { cwd: REPO, maxBuffer: 256 * 1024 * 1024, windowsHide: true }));
-  execFileSync("tar", ["-xf", archive, "-C", exported], { windowsHide: true });
+  const exported = exportPlugin(options.pluginCommit, path.join(work, "plugin-export"));
   run.succeed("claude", ["plugin", "marketplace", "add", exported], REPO, env, "marketplace add");
   run.succeed("claude", ["plugin", "install", `harness@${MARKETPLACE}`], REPO, env, "plugin install");
-  return { root: path.join(exported, "plugin"), commit: options.pluginCommit };
+  const root = path.join(exported, "plugin");
+  return { root, commit: options.pluginCommit, client: await loadClient(root) };
 }
 
 function createRepository(work: string, scenario: string): string {
@@ -222,13 +327,6 @@ function persistServer(run: Run, env: NodeJS.ProcessEnv): void {
   if (saved !== ORIGIN) throw new Error("a new login shell does not see HARNESS_SERVER");
 }
 
-async function sync(client: McpClient, repo: string): Promise<void> {
-  const input = client.connectionInput(repo, { server: ORIGIN });
-  await client.verifyProject(input);
-  const result = await client.callTool(input, "project_sync", { workspaces: input.config.workspaces, language: input.config.language }) as { synced?: unknown } | null;
-  if (typeof result?.synced !== "number") throw new Error("project_sync did not report a synced count");
-}
-
 async function projectState(slug: string, userId: string): Promise<{ runbookVersion: string | null; lastSyncedAt: Date | null; workspaces: number }> {
   const { withPrisma } = await import("../lib/prisma");
   return withPrisma(async prisma => {
@@ -238,7 +336,34 @@ async function projectState(slug: string, userId: string): Promise<{ runbookVers
   });
 }
 
-async function runNewUser(options: Options, databaseUrl: string, env: NodeJS.ProcessEnv): Promise<number> {
+async function newUser(smoke: Smoke, plugin: Plugin, options: Options, login: string, token: string, childEnv: NodeJS.ProcessEnv): Promise<void> {
+  const connection = await smoke.firstConnection(plugin, "", options.scenario, token);
+  await smoke.run.step("rerun-unchanged", () => {
+    smoke.helper(plugin, ["--dry-run"], "rerun dry-run");
+    smoke.helper(plugin, [], "rerun generate");
+    if (git(smoke.repo, ["status", "--porcelain"]) !== "") throw new Error("a rerun changed committed files");
+  });
+  const rerunAt = await smoke.sync(plugin, "rerun-sync", connection.slug, connection.syncedAt);
+  await smoke.run.step("upgrade-pro", () => {
+    const output = smoke.run.succeed(process.execPath, ["--import", "tsx", "scripts/grant-plan.ts", login, "pro", "e2e smoke"], REPO, childEnv, "plan:grant").stdout;
+    if (!output.includes(`granted: ${login} -> pro`)) throw new Error("plan:grant did not report the Pro plan");
+  });
+  await smoke.dryRun(plugin, "pro-dry-run", "pro", 0);
+  await smoke.generate(plugin, "pro-generate", PRO_AGENTS);
+  await smoke.sync(plugin, "pro-sync", connection.slug, rerunAt);
+}
+
+async function update(smoke: Smoke, previous: Plugin, installNew: () => Promise<Plugin>, options: Options, token: string): Promise<Plugin> {
+  const connection = await smoke.firstConnection(previous, "previous-", options.scenario, token);
+  const plugin = await smoke.run.step("plugin-install", installNew);
+  await smoke.connected("mcp-unchanged");
+  await smoke.dryRun(plugin, "update-dry-run", "free", PLAN_SKIPS_ON_FREE);
+  await smoke.generate(plugin, "update-generate", FREE_AGENTS);
+  await smoke.sync(plugin, "update-sync", connection.slug, connection.syncedAt);
+  return plugin;
+}
+
+async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.ProcessEnv): Promise<number> {
   const started = Date.now();
   const work = realpathSync.native(mkdtempSync(path.join(env.RUNNER_TEMP ?? tmpdir(), "stagekeeper-e2e-")));
   const run = new Run(path.join(work, "commands.log"));
@@ -250,6 +375,7 @@ async function runNewUser(options: Options, databaseUrl: string, env: NodeJS.Pro
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
   process.env.DATABASE_URL = databaseUrl;
+  process.env.HARNESS_TOKEN = token.plain;
   let server: ChildProcess | undefined;
   let userId: string | undefined;
   try {
@@ -268,84 +394,23 @@ async function runNewUser(options: Options, databaseUrl: string, env: NodeJS.Pro
         return user.id;
       });
     });
-    server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), env));
-    const plugin = await run.step("plugin-install", () => installPlugin(run, options, work, env));
-    record.pluginCommit = plugin.commit;
-    const client = await import(pathToFileURL(path.join(plugin.root, "runtime", "mcp-client.mjs")).href) as McpClient;
+    server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
     const repo = await run.step("repository", () => createRepository(work, options.scenario));
-    const helper = (args: string[], label: string) => {
-      const command = helperCommand(process.platform, plugin.root, "init", args);
-      return run.succeed(command.file, command.args, repo, helperEnv, label);
-    };
-    const project = await run.step("register", () => {
-      const line = helper(["--register"], "register").stdout.split(/\r?\n/).map(text => text.trim()).filter(text => text.startsWith("{")).at(-1);
-      const value = line ? JSON.parse(line) as Record<string, unknown> : null;
-      if (!value || value.owner !== "stagekeeper-e2e" || value.repo !== `${options.scenario}-${osLabel()}` || typeof value.slug !== "string" || !value.slug) throw new Error("register did not return the repository with a slug");
-      return { owner: value.owner, repo: value.repo, branch: value.branch, name: value.name, slug: value.slug };
-    });
-    await run.step("harness-json", () => {
-      const config = { version: 1, project, workspaces: [{ id: "app", path: ".", agent: "app-dev", verify: ["npm test"] }] };
-      writeFileSync(path.join(repo, "harness.json"), `${JSON.stringify(config, null, 2)}\n`);
-    });
-    await run.step("dry-run", () => {
-      const output = helper(["--dry-run"], "dry-run").stdout;
-      if (countLines(output, /^plan: free$/) !== 1) throw new Error("dry-run did not report plan: free");
-      if (countLines(output, /^skip\(plan\):/) !== PLAN_SKIPS_ON_FREE) throw new Error(`dry-run did not skip ${PLAN_SKIPS_ON_FREE} agents for the Free plan`);
-      if (countLines(output, new RegExp(`^server: ${ORIGIN.replace(/[.]/g, "\\.")}$`)) !== 1) throw new Error("dry-run did not report the server");
-      if (existsSync(path.join(repo, "CLAUDE.md"))) throw new Error("dry-run wrote CLAUDE.md");
-    });
-    await run.step("generate", () => {
-      helper([], "generate");
-      if (agentFiles(repo) !== FREE_AGENTS) throw new Error(`generation wrote ${agentFiles(repo)} agent files instead of ${FREE_AGENTS}`);
-      if (!existsSync(path.join(repo, "CLAUDE.md"))) throw new Error("generation did not write CLAUDE.md");
-    });
-    await run.step("persist-server", () => persistServer(run, env));
-    await run.step("mcp-add", () => {
-      if (run.command("claude", ["mcp", "get", "harness"], repo, helperEnv).code === 0) throw new Error("harness is already registered on this machine");
-      run.succeed("claude", ["mcp", "add", "--transport", "http", "--scope", "user", "harness", `${ORIGIN}/api/mcp`, "-H", "Authorization: Bearer ${HARNESS_TOKEN}"], repo, helperEnv, "claude mcp add");
-    });
-    await run.step("mcp-connected", () => {
-      const output = run.succeed("claude", ["mcp", "get", "harness"], repo, helperEnv, "claude mcp get").stdout;
-      if (!/Connected/.test(output)) throw new Error("claude mcp get harness did not report Connected");
-    });
-    await run.step("client-config", () => {
-      const config = readFileSync(path.join(homedir(), ".claude.json"), "utf8");
-      if (containsSecret(config, token.plain)) throw new Error("the Claude configuration stores a token value");
-      if (!config.includes("${HARNESS_TOKEN}")) throw new Error("the Claude configuration does not reference ${HARNESS_TOKEN}");
-    });
-    process.env.HARNESS_TOKEN = token.plain;
-    await run.step("project-sync", () => sync(client, repo));
-    const first = await run.step("project-row", async () => {
-      const state = await projectState(project.slug, userId!);
-      if (!state.runbookVersion) throw new Error("the generator did not record the runbook version");
-      if (!state.lastSyncedAt) throw new Error("project_sync did not record lastSyncedAt");
-      if (state.workspaces !== 1) throw new Error(`the roster has ${state.workspaces} workspaces instead of 1`);
-      return state.lastSyncedAt;
-    });
-    await run.step("commit", () => {
-      git(repo, ["add", "-A"]);
-      git(repo, ["commit", "-q", "-m", "chore: connect to Stagekeeper"]);
-    });
-    await run.step("rerun-unchanged", async () => {
-      helper(["--dry-run"], "rerun dry-run");
-      helper([], "rerun generate");
-      if (git(repo, ["status", "--porcelain"]) !== "") throw new Error("a rerun changed committed files");
-      await sync(client, repo);
-      const state = await projectState(project.slug, userId!);
-      if (!state.lastSyncedAt || state.lastSyncedAt.getTime() <= first.getTime()) throw new Error("the rerun did not advance lastSyncedAt");
-    });
-    await run.step("upgrade-pro", () => {
-      const output = run.succeed(process.execPath, ["--import", "tsx", "scripts/grant-plan.ts", login, "pro", "e2e smoke"], REPO, childEnv, "plan:grant").stdout;
-      if (!output.includes(`granted: ${login} -> pro`)) throw new Error("plan:grant did not report the Pro plan");
-    });
-    await run.step("rerun-pro", async () => {
-      const output = helper(["--dry-run"], "pro dry-run").stdout;
-      if (countLines(output, /^plan: pro$/) !== 1) throw new Error("dry-run did not report plan: pro");
-      if (countLines(output, /^skip\(plan\):/) !== 0) throw new Error("dry-run still skips agents on the Pro plan");
-      helper([], "pro generate");
-      if (agentFiles(repo) !== PRO_AGENTS) throw new Error(`generation wrote ${agentFiles(repo)} agent files instead of ${PRO_AGENTS}`);
-      await sync(client, repo);
-    });
+    const smoke = new Smoke(run, repo, helperEnv, userId);
+    if (options.scenario === "new-user") {
+      const plugin = await run.step("plugin-install", () => installPlugin(run, options, work, helperEnv));
+      record.pluginCommit = plugin.commit;
+      await newUser(smoke, plugin, options, login, token.plain, childEnv);
+    } else {
+      const previousRef = options.previousRef!;
+      const previous = await run.step("previous-plugin", async () => {
+        const root = path.join(exportPlugin(previousRef, path.join(work, "previous-plugin")), "plugin");
+        return { root, commit: previousRef, client: await loadClient(root) };
+      });
+      record.previousCommit = previous.commit;
+      const plugin = await update(smoke, previous, () => installPlugin(run, options, work, helperEnv), options, token.plain);
+      record.pluginCommit = plugin.commit;
+    }
     await run.step("secret-scan", () => {
       if (run.outputs.some(output => containsSecret(output, token.plain))) throw new Error("a command printed a token value");
     });
@@ -390,7 +455,7 @@ export async function main(args: string[], env: Record<string, string | undefine
     console.error((error as Error).message);
     return 2;
   }
-  return runNewUser(options, databaseUrl, env as NodeJS.ProcessEnv);
+  return runSmoke(options, databaseUrl, env as NodeJS.ProcessEnv);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
