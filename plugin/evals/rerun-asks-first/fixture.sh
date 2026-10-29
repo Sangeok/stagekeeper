@@ -16,6 +16,7 @@ cat > harness.json <<'JSON'
 JSON
 printf '{ "name": "rerun-asks-first", "private": true, "scripts": { "test": "node --test" } }\n' > package.json
 HARNESS_TEMPLATES_DIR=.stagekeeper-eval/templates HARNESS_SERVER=https://stagekeeper.invalid node "$plugin/bin/harness-init.mjs" > /dev/null
+rm docs/plans/verification-paths.md
 printf '.stagekeeper-eval/\n' >> .git/info/exclude
 git add -A
 git commit -q -m "chore: connect to Stagekeeper"
