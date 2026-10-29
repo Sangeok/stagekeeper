@@ -40,9 +40,8 @@ jobs:
           env -i PATH="$PATH" HOME="$work/home" TMPDIR="$work" bash "$GITHUB_WORKSPACE/plugin/evals/rerun-asks-first/fixture.sh"
           echo "scaffold exit $?"
           echo "commits: $(git log --oneline | wc -l | tr -d ' ') files: $(git ls-files | wc -l | tr -d ' ') status: [$(git status --short | tr '\n' ' ')]"
-          HARNESS_TEMPLATES_DIR=.stagekeeper-eval/templates HARNESS_SERVER=https://stagekeeper.invalid node "$GITHUB_WORKSPACE/plugin/bin/harness-init.mjs" --dry-run | head -3
           exit 0
-      - name: Run the rerun case once
+      - name: Run the rerun case once per environment mechanism
         shell: bash
         env:
           E2E_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
@@ -53,12 +52,14 @@ jobs:
             export CLAUDE_CODE_OAUTH_TOKEN="$E2E_TOKEN"
             echo "credentials: subscription token"
           else
-            echo "credentials: none, so this run checks case loading and the scaffold only"
+            echo "credentials: none, so this run checks case loading only"
           fi
           unset E2E_TOKEN
-          claude plugin eval plugin --case rerun-asks-first --runs 1 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --threshold 0.67 --json "$RUNNER_TEMP/eval.json"
-          echo "eval exit $?"
-          if [ -f "$RUNNER_TEMP/eval.json" ]; then
+          printf '%s\n' 'export HARNESS_TOKEN=hu_evalFixtureOnlyNoNetwork0000000000000000000' 'export HARNESS_SERVER=https://stagekeeper.invalid' 'export HARNESS_TEMPLATES_DIR=.stagekeeper-eval/templates' > "$RUNNER_TEMP/eval-env.sh"
+          printf '%s\n' '#!/usr/bin/env bash' ". \"$RUNNER_TEMP/eval-env.sh\"" 'exec bash -c "$1"' > "$RUNNER_TEMP/eval-wrap.sh"
+          chmod +x "$RUNNER_TEMP/eval-wrap.sh"
+          summarize() {
+            if [ ! -f "$1" ]; then echo "no result file"; return; fi
             node -e '
               const value = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
               const walk = (node, path, depth) => {
@@ -69,13 +70,23 @@ jobs:
                 }
                 if (depth > 6) { console.log(`${path} = <nested>`); return; }
                 for (const [key, child] of Object.entries(node)) {
+                  if (["prompt", "trace", "transcript", "messages", "stdout", "stderr", "suite", "graders"].includes(key) && path === "result.cases.0") { console.log(`${path}.${key} = <omitted>`); continue; }
                   if (["prompt", "trace", "transcript", "messages", "stdout", "stderr"].includes(key)) { console.log(`${path}.${key} = <omitted>`); continue; }
                   walk(child, `${path}.${key}`, depth + 1);
                 }
               };
               walk(value, "result", 0);
-            ' "$RUNNER_TEMP/eval.json" | head -150
-          else
-            echo "no result file"
-          fi
+            ' "$1" | grep -v -E '^result\.suite\.' | head -80
+          }
+          for mode in env-file shell-prefix; do
+            echo "::group::$mode"
+            if [ "$mode" = env-file ]; then
+              CLAUDE_ENV_FILE="$RUNNER_TEMP/eval-env.sh" claude plugin eval plugin --case rerun-asks-first --runs 1 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --threshold 0.67 --json "$RUNNER_TEMP/eval-$mode.json"
+            else
+              CLAUDE_CODE_SHELL_PREFIX="$RUNNER_TEMP/eval-wrap.sh" claude plugin eval plugin --case rerun-asks-first --runs 1 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --threshold 0.67 --json "$RUNNER_TEMP/eval-$mode.json"
+            fi
+            echo "eval exit $?"
+            summarize "$RUNNER_TEMP/eval-$mode.json"
+            echo "::endgroup::"
+          done
           exit 0
