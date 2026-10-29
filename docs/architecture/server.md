@@ -103,8 +103,8 @@
 | `scripts/rehearsals/rehearse-repository-disconnection.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |
 | `scripts/rehearsals/rehearse-repository-disconnection.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (availability-service, registration-command) |
 | `scripts/rehearsals/rehearse-request-rate-baseline.ts` | mcp | 격리 인수 fixture의 실제 내부 실행 경로 조립 (tools, owner-tools) |
-| `scripts/rehearsals/rehearse-src-clean-code-fifth-pass.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
-| `scripts/rehearsals/rehearse-src-clean-code-fifth-pass.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (access-query) |
+| `scripts/rehearsals/rehearse-web-http-contracts.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
+| `scripts/rehearsals/rehearse-web-http-contracts.ts` | projects | 격리 인수 fixture의 실제 내부 실행 경로 조립 (access-query) |
 | `scripts/rehearsals/rehearse-src-clean-code.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (run-service) |
 | `src/server/agents/next.test.ts` | projects | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (entitlement) |
 | `src/server/mcp/tools.test.mjs` | agents | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (next) |

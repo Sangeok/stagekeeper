@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { fork, spawn, type ChildProcess, type ForkOptions } from "node:child_process";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
-import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve, relative, dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -13,12 +13,12 @@ import { SLOT_FORMAT } from "../../packages/core/pipeline/pipeline.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
 import { manifestEntries } from "../../tests/server/fixtures/action-manifest";
 import type { Fixture } from "../../tests/server/integration/support";
+import { FLIGHT_PROBE_CASES, WEB_HTTP_USAGE, parseWebHttpArguments, prepareWebHttpReport, writeWebHttpReport, type WebHttpCaseResult, type WebHttpReportRun } from "./web-http-report";
 
 const require = createRequire(import.meta.url);
 const script = fileURLToPath(import.meta.url);
 const timeout = 20_000;
-const reportPath = "docs/test-reports/active/2026-10-04-src-clean-code-fifth-pass.md";
-type Result = { case: string; expected: string; observed: string; status: "Pass" | "Fail" | "Not run" };
+type Result = WebHttpCaseResult;
 type Decoder = { encodeReply: (args: unknown[]) => Promise<string | FormData>; createFromFetch: (response: Promise<Response>, options: object) => PromiseLike<unknown> };
 type Loader = { require: (id: unknown) => unknown; loadChunk: (id: unknown) => unknown };
 type Reply = { id: number; ok: boolean; result?: unknown; diagnostics?: object };
@@ -130,9 +130,8 @@ async function flightWorker(route: string): Promise<void> {
   process.send?.({ ready: true });
 }
 
-const probeCases = ["positive", "turbopack-chunks", "missing-loader", "missing-mapping", "chunk-reject", "module-throw", "truncated-reference"];
 async function probeWorker(kind: string): Promise<void> {
-  assert.ok(probeCases.includes(kind), "fifth-pass assertion 10");
+  assert.ok(FLIGHT_PROBE_CASES.some(probe => probe === kind), "fifth-pass assertion 10");
   let componentCalls = 0;
   const loaded = new Set<unknown>();
   const component = () => { componentCalls++; };
@@ -176,7 +175,7 @@ function messageFrom(child: ChildProcess, predicate: (message: unknown) => boole
   });
 }
 async function consumerSelfTest(results: Result[]): Promise<void> {
-  for (const kind of probeCases) {
+  for (const kind of FLIGHT_PROBE_CASES) {
     const child = spawnWorker(["--flight-probe-worker", kind], process.env);
     try {
       const message = await messageFrom(child, message => isRecord(message) && message.probe === kind);
@@ -188,11 +187,6 @@ async function consumerSelfTest(results: Result[]): Promise<void> {
   }
 }
 
-function report(results: Result[], build: string, cleanup: boolean): void {
-  const safe = (text: string) => text.replace(/[|\r\n]/g, " ");
-  writeFileSync(reportPath, `---\nstatus: "${results.every(row => row.status === "Pass") && cleanup ? "passed" : "incomplete"}"\ncreated-at: "2026-10-04"\n---\n\n# src clean-code fifth-pass HTTP acceptance\n\nBuild identity: ${safe(build)}. No sessions, credentials, tokens or raw responses are recorded.\n\n| Case | Expected | Observed | Status |\n| --- | --- | --- | --- |\n${results.map(row => `| ${safe(row.case)} | ${safe(row.expected)} | ${safe(row.observed)} | ${row.status} |`).join("\n")}\n\nCleanup: ${cleanup ? "Pass" : "Not completed"}. Browser DOM, repository commands and DB integration are separate required gates and are not inferred from HTTP results.\n`);
-}
-
 function productSources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
     const path = join(dir, entry.name);
@@ -201,19 +195,24 @@ function productSources(dir: string): string[] {
   });
 }
 
-async function main(): Promise<void> {
+async function main(options: { mode: "run"; report: WebHttpReportRun } | { mode: "self-test" }): Promise<void> {
   const results: Result[] = [];
+  const report = (build: string, cleanup: boolean) => {
+    if (options.mode !== "run") return;
+    try { writeWebHttpReport({ run: options.report, results, build, cleanup }); }
+    catch { console.error("HTTP report write failed; existing records were preserved."); process.exitCode = 1; }
+  };
   try { await consumerSelfTest(results); }
   catch (error) {
     results.push({ case: "Flight consumer preparation", expected: "all positive and negative real-decoder controls plus child cleanup", observed: "consumer preparation failed before DB writes or product workers", status: "Fail" });
-    if (!process.argv.includes("--consumer-self-test")) report(results, "Not run", false);
+    report("Not run", false);
     throw error;
   }
-  if (process.argv.includes("--consumer-self-test")) { console.log(JSON.stringify(results)); return; }
+  if (options.mode === "self-test") { console.log(JSON.stringify(results)); return; }
   config({ quiet: true });
   let url: string;
   try { url = validateTestDatabase(process.env); }
-  catch { results.push({ case: "DB/Next acceptance", expected: "validated separate TEST_DATABASE_URL before writes or product workers", observed: "TEST_DATABASE_URL not prepared; zero DB writes and zero product workers", status: "Not run" }); report(results, "Not run", true); throw new Error("isolated test database required"); }
+  catch { results.push({ case: "DB/Next acceptance", expected: "validated separate TEST_DATABASE_URL before writes or product workers", observed: "TEST_DATABASE_URL not prepared; zero DB writes and zero product workers", status: "Not run" }); report("Not run", true); throw new Error("isolated test database required"); }
   const previousDatabase = process.env.DATABASE_URL;
   process.env.DATABASE_URL = url;
   let stopNext: ChildProcess | undefined, worker: ChildProcess | undefined;
@@ -325,7 +324,7 @@ async function main(): Promise<void> {
     process.removeListener("SIGINT", interrupt); process.removeListener("SIGTERM", interrupt);
     cleaned = failures.length === 0;
     results.push({ case: "cleanup", expected: "own fixture IDs, worker, Next process, pools and parent env settled", observed: cleaned ? "all owned resources closed/restored" : "cleanup failed", status: cleaned ? "Pass" : "Fail" });
-    report(results, buildIdentity, cleaned);
+    report(buildIdentity, cleaned);
     if (!cleaned) throw new Error("acceptance cleanup failed");
   }
 }
@@ -538,11 +537,34 @@ async function acceptanceCases(context: AcceptanceContext): Promise<void> {
   });
 }
 
-const mode = process.argv[2];
-const work = mode === "--flight-worker" ? flightWorker(process.argv[3]) : mode === "--flight-probe-worker" ? probeWorker(process.argv[3]) : main();
-void work.catch(error => {
-  if (mode === "--flight-probe-worker" && process.connected) process.send?.({ probe: process.argv[3], diagnostic: error instanceof Error ? error.message : "probe failed" });
-  if (process.argv.includes("--consumer-self-test")) console.error(error instanceof Error ? error.message : "consumer self-test failed");
-  else console.error("Fifth-pass acceptance failed; no credentials or response body logged.");
+async function runCli(): Promise<void> {
+  const parsed = parseWebHttpArguments(process.argv.slice(2));
+  if (!parsed.ok) { console.error(WEB_HTTP_USAGE); process.exitCode = 2; return; }
+  const options = parsed.options;
+  switch (options.mode) {
+    case "help": console.log(WEB_HTTP_USAGE); return;
+    case "self-test": await main(options); return;
+    case "run": {
+      let report: WebHttpReportRun;
+      try { report = prepareWebHttpReport({ reportPath: options.reportPath }); }
+      catch { console.error(`Report destination refused. ${WEB_HTTP_USAGE}`); process.exitCode = 2; return; }
+      await main({ mode: "run", report }); return;
+    }
+    case "flight-worker":
+    case "probe-worker":
+      if (!process.connected) { console.error("Internal worker requires parent IPC."); process.exitCode = 2; return; }
+      if (options.mode === "flight-worker") await flightWorker(options.route);
+      else {
+        try { await probeWorker(options.probe); }
+        catch (error) { process.send?.({ probe: options.probe, diagnostic: error instanceof Error ? error.message : "probe failed" }); throw error; }
+      }
+      return;
+    default: { const unhandled: never = options; throw new Error(`Unsupported mode: ${unhandled}`); }
+  }
+}
+
+void runCli().catch(error => {
+  if (process.argv[2] === "--consumer-self-test") console.error(error instanceof Error ? error.message : "consumer self-test failed");
+  else console.error("Web HTTP acceptance failed; no credentials or response body logged.");
   process.exitCode = 1; if (process.connected) process.disconnect();
 });

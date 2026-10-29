@@ -309,7 +309,9 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 8종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
 | `rehearsals/rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 별도 기능 설정 없이 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리. proxy는 응답마다 연결을 닫는다. 재사용 연결에서 응답을 잃으면 브라우저가 같은 POST를 다시 보내 stale 경로로 바뀌기 때문이다 |
 | `rehearsals/rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
-| `rehearsals/rehearse-src-clean-code-fourth-pass.ts` | `npm run test:acceptance:backlog-pipeline` | 백로그 Action·파이프라인 저장 계약 변경 시 수동 | 현재 definition 입력, 정의/실행 버전 분리, 동시 stale, commit 전후 응답 유실, 권한·플랜 거부, 네 GET의 무쓰기·보고서 링크와 자기 fixture/process 정리를 검증한다. 현재 의존성·Prisma client·fresh build, 운영 DB와 분리된 `TEST_DATABASE_URL`, 비어 있는 loopback 55449/55450 포트가 필요하다. 일반 check/CI에서 자동 실행하지 않는다 |
+| `rehearsals/rehearse-backlog-pipeline.ts` | `npm run test:acceptance:backlog-pipeline [-- --help]` | 백로그 Action·파이프라인 저장 계약 변경 시 수동 | 현재 definition 입력, 정의/실행 버전 분리, 동시 stale, commit 전후 응답 유실, 권한·플랜 거부, 네 GET의 무쓰기·보고서 링크와 자기 fixture/process 정리를 검증한다. 현재 의존성·Prisma client·fresh build, 운영 DB와 분리된 `TEST_DATABASE_URL`, 비어 있는 loopback 55449/55450 포트가 필요하다. 일반 check/CI에서 자동 실행하지 않는다 |
+| `rehearsals/rehearse-web-http-contracts.ts` | 아래 웹 HTTP 리허설 명령 | 실제 웹 Action·Flight·화면 읽기 계약 변경 시 수동 | fresh production build·격리 `TEST_DATABASE_URL`·loopback 55455에서 실제 HTTP/Flight·권한·입력·무쓰기·owned cleanup을 검증한다. 전체 실행은 새 `--report` 경로가 필수이며 기존 기록을 덮어쓰지 않는다. `--consumer-self-test`는 DB·Next 서버·보고서 없이 decoder 양성·음성 제어만 실행한다 |
+| `rehearsals/web-http-report.ts`, `web-http-report.test.ts`, `rehearsal-cli.test.mjs` | `npm run test:scripts`; CLI 시험은 `test:architecture`에도 포함 | CI와 리허설 실행 계약 변경 시 | CLI 거부·도움말·독립 decoder·DB 미준비 경로, 보고서 전체 metadata·본문·참조·JSON 재실행 데이터와 판정, 원자적 공개·IO 실패·경합·자기 temp/descriptor 정리와 기존 기록 보존을 검사한다. 실제 HTTP·DB 인수의 통과를 대신하지 않는다 |
 | `checks/verify-fsd-boundaries.test.mjs`, `checks/verify-server-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `checks/retired-copy.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
@@ -331,6 +333,59 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 동기화와 drift·고아 검사는 하위 디렉터리까지 재귀 탐색하며 `.test.mjs`와 타입 선언은
 배포하지 않는다. 중첩 경로·같은 basename·이동 후 고아 제거와 복사본의 상대 import는
 `plugin-lib.test.mjs`가 검증한다. 책임별 배치는 [core.md](./core.md)를 따른다.
+
+### 웹 HTTP 계약 리허설
+
+백로그·파이프라인의 현재 소스는 `rehearse-backlog-pipeline.ts`다. 과거 완료 문서의
+직접 링크와 기존 CLI 호출을 보존하기 위해 `rehearse-src-clean-code-fourth-pass.ts`는
+새 진입점을 불러오는 한 줄짜리 호환 파일로 남긴다. 검증 구현을 복제하지 않는다.
+
+저장소 루트에서 실행한다. 도움말·지원하지 않는 인자·보고서 누락/기존 경로는
+decoder worker·DB fixture·Next 서버 실행 전에 처리한다. 전체 실행에는 migration이
+적용된 격리 `TEST_DATABASE_URL`, 현재 source의 production build와 빈 55455 포트가 필요하다.
+
+```sh
+node --import tsx scripts/rehearsals/rehearse-web-http-contracts.ts --help
+node --import tsx scripts/rehearsals/rehearse-web-http-contracts.ts --consumer-self-test
+```
+
+전체 실행에서 새 출력 경로를 만드는 예는 다음과 같다. 보호된 테스트 DB와 fresh build를
+먼저 준비한다. child CLI가 DB 대상을 검증하며 아래 명령은 운영 DB를 테스트 대상으로 바꾸지 않는다.
+
+```sh
+node --input-type=module - <<'JS'
+import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const report = join(realpathSync(tmpdir()), 'stagekeeper-web-http-' + randomUUID() + '.md');
+console.log('HTTP report path:', report);
+execFileSync(process.execPath, ['--import', './tests/server/register-server-only.mjs', '--import', 'tsx', 'scripts/rehearsals/rehearse-web-http-contracts.ts', '--report', report], { stdio: 'inherit' });
+JS
+```
+
+보존할 결과는 `docs/test-reports/completed/YYYY-MM-DD-web-http-contracts-<식별자>.md`의
+새 경로를 지정한다. 날짜는 실행 시점 UTC 날짜와 맞추고 부모 디렉터리는 미리 준비한다.
+일시 산출물은 저장소 밖의 기존 디렉터리에 새 `.md`로 기록할 수 있다. 기존 파일·
+`active/` 캠페인을 수정하지 않는다. 같은 parent의 무작위 `.tmp`에 완전한 본문을 쓴 뒤
+hard link의 배타적 생성으로 최종 파일을 공개한다. 현재 umask·생성 권한을 유지하고
+dev/ino로 확인한 자기 임시 파일·descriptor만 정리한다. 쓰기·close·link 실패는 부분
+최종 파일을 남기지 않으며 기존/경쟁 파일을 덮어쓰는 rename·copy로 우회하지 않는다.
+공개 후 자기 temp 정리가 실패하면 완전한 보고서가 있어도 CLI는 실패할 수 있다.
+저장소 안 날짜형 경로가 UTC 자정을 넘으면 최종 검사에서 거부되므로 날짜에 걸칠 수
+있는 실행은 처음부터 저장소 밖 새 경로를 사용한다. 자동 재명명·대체 저장은 하지 않는다.
+
+전체 실행 결과는 현재 보고서 계약의 `status: completed`, `stage: null`, 별도의
+`result`와 실제 시각·revision·dirty 여부로 기록한다. `NOT RUN`은 통과가 아니며,
+HTTP 범위 밖 브라우저·native client·운영 검증을 이 결과로 대신하지 않는다.
+Commands의 CMD1은 실행하지 않은 정규화된 재실행 manifest로 `informational`·`NOT RUN`이다.
+`command`, `cwd`, `args`를 fenced JSON에 기록하며 args에는 실제 선택한 출력 경로를
+문자열로 보존한다. 새 출력 경로를 선택하고 배열로 실행하며 shell 문자열로 합치지 않는다.
+보고서 판정은 required T/CLEANUP과 그 Evidence 참조에서 집계한다. metadata만 읽지 않고
+17개 필드·11개 standard section·본문 참조와 CLI 종료 코드를 함께 검사한다.
+도움말은 0, 인자/출력 경로 오류는 2, 실행·정리·보고서 저장 실패는 1로 종료한다.
+`--consumer-self-test`와 도움말에는 보고서 경로를 함께 전달하지 않는다.
 
 ## Windows CI 런타임 재사용
 
