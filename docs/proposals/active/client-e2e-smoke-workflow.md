@@ -1,6 +1,6 @@
 ---
 status: "pending"
-stage: "draft"
+stage: "awaiting-approval"
 proposal-size: "standard"
 created-at: "2026-10-29"
 approved-by: null
@@ -534,6 +534,8 @@ After:
 - **작업 내용:** 대조 사례, `agent-eval.yml`, `isShippedPluginFile` 제외와 그 시험, `plugin/evals/results/`의
   `.gitignore`. 사례 `rerun-asks-first`와 가짜 템플릿은 0C에서 만들었다.
 - **검증:** 녹색. 대조 사례에서 `no-write-before-yes`가 실패한다.
+- **결과(완료, run 40968525240, `c7dcb48`):** 대조 실행이 실제 생성기 실행을 감지했고, `rerun-asks-first`는 3회 모두 네
+  판정을 통과했다(점수 1.0, 정가 환산 $1.15, 59초). 임시 probe 워크플로는 지웠다.
 
 ### Phase 6: 문서와 승격 절차
 
@@ -690,5 +692,7 @@ it("the generator prints every marker the init skill tells the agent to read", (
 
 ## Approval
 
-승인 전이다. 2026-10-29에 사용자가 3단 구성과 1장의 결정을 정하고 문서 수정을 지시했다. Phase 0C 결과를 본 뒤
-2단을 사례 1개로 유지하기로 정했다(1장 결정 표). 구현은 Phase 1부터다.
+승인 기록 전이다. 2026-10-29에 사용자가 3단 구성과 1장의 결정을 정하고 문서 수정을 지시했다. Phase 0C 결과를 본 뒤
+2단을 사례 1개로 유지하기로 했고(1장 결정 표), 2026-10-30에 Codex job을 보류하기로 했다. Phase 1~3·5는 구현해
+브랜치에서 녹색을 확인했다. 이 문서의 승인과 `completed/` 이동은 사용자가 PR을 검토하고 첫 승격에서 실제로 적용한 뒤에
+한다.
