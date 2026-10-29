@@ -1,0 +1,171 @@
+name: e2e-smoke-phase0
+
+on:
+  push:
+    branches: [harness/e2e-smoke-workflow]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-smoke-phase0
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: server (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            pg: windows-x64
+          - os: macos-15
+            pg: darwin-arm64
+    env:
+      PG_PORT: "55432"
+      APP_PORT: "55438"
+      DATABASE_URL: postgresql://postgres@127.0.0.1:55432/stagekeeper_test_e2e
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Start portable PostgreSQL 18 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $root = Join-Path $env:RUNNER_TEMP 'pg'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          Push-Location $root
+          npm pack "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17" --silent
+          if ($LASTEXITCODE -ne 0) { throw 'npm pack failed' }
+          tar -xzf (Get-ChildItem *.tgz).FullName
+          if ($LASTEXITCODE -ne 0) { throw 'extract failed' }
+          Pop-Location
+          $bin = Join-Path $root 'package/native/bin'
+          (Get-ChildItem $bin).Name -join ' '
+          $data = Join-Path $env:RUNNER_TEMP 'pgdata'
+          & (Join-Path $bin 'initdb.exe') -D $data -U postgres --auth=trust -E UTF8 --no-locale
+          if ($LASTEXITCODE -ne 0) { throw 'initdb failed' }
+          $env:PGPORT = $env:PG_PORT
+          $log = Join-Path $env:RUNNER_TEMP 'pg.log'
+          $process = Start-Process -FilePath (Join-Path $bin 'pg_ctl.exe') -ArgumentList @('-D', $data, '-l', $log, '-w', 'start') -NoNewWindow -PassThru -Wait -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP 'pgctl.out') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'pgctl.err')
+          if ($process.ExitCode -ne 0) { Get-Content $log -Tail 30; throw 'pg_ctl start failed' }
+      - name: Start portable PostgreSQL 18 (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          root="$RUNNER_TEMP/pg"
+          mkdir -p "$root"
+          cd "$root"
+          npm pack "@embedded-postgres/${{ matrix.pg }}@18.4.0-beta.17" --silent
+          tar -xzf ./*.tgz
+          bin="$root/package/native/bin"
+          ls "$bin" | tr '\n' ' '
+          echo
+          data="$RUNNER_TEMP/pgdata"
+          "$bin/initdb" -D "$data" -U postgres --auth=trust -E UTF8 --no-locale
+          PGPORT="$PG_PORT" "$bin/pg_ctl" -D "$data" -l "$RUNNER_TEMP/pg.log" -w start < /dev/null > "$RUNNER_TEMP/pgctl.out" 2>&1 || { tail -30 "$RUNNER_TEMP/pg.log"; exit 1; }
+      - name: Create test database
+        shell: bash
+        run: >-
+          node -e 'const { Client } = require("pg");
+          (async () => { const c = new Client({ host: "127.0.0.1", port: Number(process.env.PG_PORT), user: "postgres", database: "postgres" });
+          await c.connect(); await c.query("CREATE DATABASE stagekeeper_test_e2e"); const v = await c.query("SHOW server_version"); await c.end();
+          console.log("created stagekeeper_test_e2e on PostgreSQL " + v.rows[0].server_version); })().catch(e => { console.error(e.message); process.exit(1); });'
+      - name: Apply migrations
+        run: node node_modules/prisma/build/index.js migrate deploy
+      - name: Build
+        run: npm run build
+      - name: Start server and probe
+        shell: bash
+        env:
+          AUTH_URL: http://127.0.0.1:55438
+          AUTH_TRUST_HOST: "true"
+          HARNESS_PUBLIC_URL: http://127.0.0.1:55438
+        run: |
+          export AUTH_SECRET="$(node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))')"
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$APP_PORT" > "$RUNNER_TEMP/next.log" 2>&1 &
+          started=$(date +%s)
+          code=000
+          for attempt in $(seq 1 180); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$APP_PORT/login" || true)
+            [ "$code" = "200" ] && break
+            sleep 1
+          done
+          echo "login status $code after $(( $(date +%s) - started ))s"
+          echo "mcp without token: $(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$APP_PORT/api/mcp" -H 'content-type: application/json' -d '{}')"
+          echo "projects without token: $(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$APP_PORT/api/projects" -H 'content-type: application/json' -d '{}')"
+          [ "$code" = "200" ] || { tail -40 "$RUNNER_TEMP/next.log"; exit 1; }
+
+  plugin-install:
+    name: plugin install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-15]
+    env:
+      DISABLE_AUTOUPDATER: "1"
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install Claude Code (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://claude.ai/install.ps1 | iex
+          "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Install Claude Code (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Compare plugin install sources
+        shell: bash
+        run: |
+          set +e
+          claude --version
+          tracked=$(git ls-files plugin | wc -l | tr -d ' ')
+          echo "tracked plugin files: $tracked"
+          if command -v cygpath >/dev/null; then temp="$(cygpath -m "$RUNNER_TEMP")"; else temp="$RUNNER_TEMP"; fi
+          export_dir="$temp/export"
+          mkdir -p "$export_dir"
+          git archive HEAD .claude-plugin plugin | tar -x -C "$export_dir"
+          probe() {
+            echo "::group::$1"
+            claude plugin marketplace add "$2"
+            echo "add exit $?"
+            clone="$HOME/.claude/plugins/marketplaces/stagekeeper-local"
+            if [ -d "$clone/.git" ]; then echo "clone HEAD $(git -C "$clone" rev-parse HEAD) run $GITHUB_SHA"; else echo "no git clone at marketplaces/stagekeeper-local"; fi
+            claude plugin install harness@stagekeeper-local
+            echo "install exit $?"
+            claude plugin list 2>&1 | grep -A4 'harness@'
+            cache="$HOME/.claude/plugins/cache/stagekeeper-local/harness"
+            if [ -d "$cache" ]; then for version in "$cache"/*; do echo "cache $(basename "$version") files $(find "$version" -type f | wc -l | tr -d ' ')"; done; else echo "no cache copy"; fi
+            claude plugin uninstall harness@stagekeeper-local > /dev/null 2>&1
+            claude plugin marketplace remove stagekeeper-local > /dev/null 2>&1
+            echo "::endgroup::"
+          }
+          probe "default branch" "Sangeok/stagekeeper"
+          probe "branch fragment" "https://github.com/Sangeok/stagekeeper.git#harness/e2e-smoke-workflow"
+          probe "commit fragment" "https://github.com/Sangeok/stagekeeper.git#$GITHUB_SHA"
+          probe "local export" "$export_dir"
+          exit 0
