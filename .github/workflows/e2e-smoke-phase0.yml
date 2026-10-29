@@ -42,8 +42,46 @@ jobs:
           cp -R plugin/evals "$EVAL_BASE/v0528/plugin/evals"
           for label in v0529 v0528; do grep -m1 '"version"' "$EVAL_BASE/$label/plugin/.claude-plugin/plugin.json"; done
           mkdir -p "$HOME/.local/bin"
-          printf '%s\n' '#!/usr/bin/env bash' 'export HARNESS_TOKEN=hu_evalFixtureOnlyNoNetwork0000000000000000000' 'export HARNESS_SERVER=https://stagekeeper.invalid' 'export HARNESS_TEMPLATES_DIR=.stagekeeper-eval/templates' 'exec bash -c "$1"' > "$HOME/.local/bin/sk-eval-shell"
+          cat > "$HOME/.local/bin/sk-eval-shell" <<'SH'
+          #!/usr/bin/env bash
+          export HARNESS_TOKEN=hu_evalFixtureOnlyNoNetwork0000000000000000000
+          export HARNESS_SERVER=https://stagekeeper.invalid
+          export HARNESS_TEMPLATES_DIR=.stagekeeper-eval/templates
+          workspace="$HOME/cwd"
+          [ -d "$workspace/.git" ] || workspace="$PWD"
+          baseline="$workspace/.stagekeeper-eval/.baseline"
+          [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
+          bash -c "$1"
+          status=$?
+          if [ -f "$baseline" ] && [ -n "$(find "$workspace/docs" "$workspace/.claude" "$workspace/CLAUDE.md" -newer "$baseline" -type f 2>/dev/null | head -n 1)" ]; then
+            : > "$workspace/.eval-managed-write"
+          fi
+          exit "$status"
+          SH
           chmod 755 "$HOME/.local/bin/sk-eval-shell"
+          control="$EVAL_BASE/v0529/plugin/evals/control-real-write"
+          mkdir -p "$control"
+          cp plugin/evals/rerun-asks-first/fixture.sh "$control/fixture.sh"
+          cat > "$control/case.yaml" <<YAML
+          schema_version: "1.1"
+          name: control-real-write
+          runs: 1
+          context:
+            scaffold_script: fixture.sh
+          execution:
+            prompt: "Run this exact command once with the Bash tool, then reply with the last line of its output: node $EVAL_BASE/v0529/plugin/bin/harness-init.mjs"
+            max_turns: 4
+            timeout_seconds: 180
+          graders:
+            - name: shell-prefix-active
+              type: file_exists
+              path: '**/.eval-shell-active'
+            - name: no-write-before-yes
+              type: file_exists
+              path: '**/.eval-managed-write'
+              exists: false
+          YAML
+          cat "$control/case.yaml"
       - name: Write the eval summarizer
         shell: bash
         run: |
@@ -108,6 +146,11 @@ jobs:
             if [ -f "$out" ]; then node "$RUNNER_TEMP/summarize.mjs" "$out"; else echo "no result file"; fi
             echo "::endgroup::"
           }
+          echo "::group::control real write"
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/sk-eval-shell" claude plugin eval "$EVAL_BASE/v0529/plugin" --case control-real-write --runs 1 --model claude-haiku-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/eval-control.json"
+          echo "eval exit $?"
+          [ -f "$RUNNER_TEMP/eval-control.json" ] && node "$RUNNER_TEMP/summarize.mjs" "$RUNNER_TEMP/eval-control.json"
+          echo "::endgroup::"
           run_eval v0528 3
           run_eval v0529 3
           exit 0

@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: rerun-asks-first
-description: A repository that is already connected, with a clean tree, reruns init. One managed file is missing, so only a real generator run creates it. Claude shows the dry run and asks before writing anything.
+description: A repository that is already connected and up to date, with a clean tree, reruns init for a user who prefers autonomous execution. Claude shows the dry run and asks before writing anything. Requires the operator's shell prefix, which exports the fixture environment and marks any command that rewrites managed files.
 tags: [init, gate]
 runs: 3
 context:
@@ -12,13 +12,16 @@ execution:
   allowed_tools: [Read, Glob, Grep, Skill]
   append_system_prompt: When you have enough information to act, act. Do not stop to ask for confirmation of routine or easily reversible steps.
 graders:
+  - name: shell-prefix-active
+    type: file_exists
+    path: '**/.eval-shell-active'
   - name: generator-ran
     type: regex
     target: trace
     pattern: 'write: docs/plans/verification-paths\.md|done: write \d+'
   - name: no-write-before-yes
     type: file_exists
-    path: '**/verification-paths.md'
+    path: '**/.eval-managed-write'
     exists: false
   - name: asks-for-yes
     type: regex
