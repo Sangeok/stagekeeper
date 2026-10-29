@@ -89,6 +89,10 @@ commits that were already green on `dev`.
   shipped `plugin/` files differ between `origin/main` and `origin/dev`, both plugin
   manifests must carry the same, higher version; otherwise the server deploys while
   installed plugins never update.
+- Before promoting, run the `e2e-smoke` workflow on the `dev` commit being promoted
+  (`gh workflow run e2e-smoke.yml --ref dev`), and also `agent-eval` when shipped
+  `plugin/` files changed. Stop unless every job is green, and promote only the
+  commit their summaries name.
 - **Neither `main` nor `dev` may be the head of a pull request.** Release promotion
   remains fast-forward only. The active GitHub ruleset `Keep dev and main` forbids
   deletion of both protected refs and has no bypass actors; retain that protection.

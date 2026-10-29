@@ -9,7 +9,7 @@ import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const VERIFIER = "skills/reconciling-proposals-with-codebase", CODEX_VERIFIER = "codex/skills/reconciling-proposals-with-codebase";
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
-export const isShippedPluginFile = name => name.startsWith("plugin/") && !name.startsWith("plugin/templates/") && !name.endsWith(".test.mjs");
+export const isShippedPluginFile = name => name.startsWith("plugin/") && !name.startsWith("plugin/templates/") && !name.startsWith("plugin/evals/") && !name.endsWith(".test.mjs");
 function regularTree(directory) {
   const files = [];
   function visit(current, relative = "") {
