@@ -69,8 +69,8 @@ jobs:
           baseline="$workspace/.stagekeeper-eval/.baseline"
           [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
           if [ -f "$baseline" ]; then
-            printf '%s\n' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-240)" >> "$workspace/.eval-commands.log"
-            generator='(^|[[:space:];&|(])node[[:space:]]+([^[:space:]]+[[:space:]]+)*[^[:space:]]*harness-init\.mjs'
+            printf '%s\n' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-400)" >> "$workspace/.eval-commands.log"
+            generator='(^|[^[:alnum:]_./-])node[[:space:]]+([^[:space:]]+[[:space:]]+)*[^[:space:]]*harness-init\.mjs'
             if [[ "$1" =~ $generator ]]; then
               case "$1" in
                 *--register*)
@@ -81,7 +81,7 @@ jobs:
                   printf '{"owner":"%s","repo":"%s","branch":"main","name":"%s","slug":"%s"}\n' "$owner" "$repo" "$repo" "$repo"
                   exit 0
                   ;;
-                *--dry-run*|*--print-project*|*--help*) ;;
+                *--dry-run*|*--print-project*|*--help*|*--check*) ;;
                 *) : > "$workspace/.eval-generate-called" ;;
               esac
             fi
@@ -100,7 +100,12 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
         run: |
-          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case control-real-write --runs 1 --model claude-haiku-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/control.json" || true
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case control-real-write --runs 1 --model claude-haiku-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/control.json" || true
+          find "${TMPDIR:-/tmp}" /private/tmp -name .eval-commands.log 2>/dev/null | sort -u | while read -r log; do
+            echo "control shell commands in ${log%/.eval-commands.log}:"
+            sed 's/^/  /' "$log"
+            rm -f "$log"
+          done
           node -e '
             const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
             const graders = Object.fromEntries((result.cases?.[0]?.arms?.with?.[0]?.graders ?? []).map(grader => [grader.name, grader.passed]));
