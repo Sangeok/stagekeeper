@@ -133,6 +133,24 @@ for (const order of [["claude", "codex"], ["codex", "claude"]]) it(`initializes 
   assert.equal(f.requests.filter(request => request.startsWith("/api/runbook")).length, 1);
 });
 
+for (const newline of ["\n", "\r\n"]) it(`gives only the Claude plan-verifier a scratch Write tool and keeps its Codex role read-only: ${JSON.stringify(newline)}`, async t => {
+  const raw = rows.map(row => ({ ...row, body: row.body.replaceAll("\n", newline) }));
+  const f = await fixture(t, (request, response) => {
+    const url = new URL(request.url, "http://localhost");
+    response.setHeader("Content-Type", "application/json");
+    response.end(url.pathname === "/api/templates" ? JSON.stringify(deliverable(raw, "max", url.searchParams.get("client") ?? "claude")) : "{}");
+  });
+
+  for (const client of ["claude", "codex"]) { const result = await f.run(client); assert.equal(result.code, 0, result.output); }
+
+  const claudeTools = role => /^tools: ([^\r\n]*)/m.exec(readFileSync(join(f.root, `.claude/agents/${role}.md`), "utf8"))[1];
+  assert.equal(claudeTools("plan-verifier"), "Read, Write, Glob, Grep, Bash, Skill, mcp__harness__agent_next, mcp__harness__board_get");
+  assert.equal(claudeTools("doc-auditor"), "Read, Glob, Grep, mcp__harness__agent_next, mcp__harness__backlog_list");
+  assert.equal(claudeTools("web-dev"), "Read, Glob, Grep, Bash, Write, Edit, MultiEdit, mcp__harness__agent_next, mcp__harness__backlog_get, mcp__harness__board_get, mcp__harness__board_transition, mcp__harness__plan_submit, mcp__harness__report_submit");
+  const codex = readCodexRole(readFileSync(join(f.root, ".codex/agents/plan-verifier.toml"), "utf8"), "plan-verifier", "plan-verifier");
+  assert.equal(codex.sandbox_mode, "read-only");
+});
+
 it("dry-run leaves no guard, role, lock or package output and rejects dry-run registration", async t => {
   const f = await fixture(t), result = await f.run("codex", "--dry-run");
   assert.equal(result.code, 0, result.output); assert.match(result.output, /planned:/); assert.doesNotMatch(result.output, /ready:/);

@@ -636,6 +636,12 @@ MCP는 프로젝트 언어에 `CODEX.runbook.md` 행이 없을 때만 전체 영
 `agent_next`는 모든 단계 body를 먼저 render한 뒤 cursor/outcome transaction을 시작한다.
 `pipeline_next`는 Codex bundle과 source hash를 확인한 뒤 lazy advance를 수행한다.
 
+Claude 생성기는 받은 스텁을 그대로 쓰되 `plugin/runtime/claude-agent.mjs`의 `renderClaudeRole`로
+plan-verifier의 `tools:`에만 `Write`를 더한다. Claude Code가 세션을 worktree에 격리하면 해석할 수 없는
+Bash 명령(코드를 담은 heredoc 등)을 거부하므로, 스크래치 하네스를 셸로 만들 수 없기 때문이다.
+저장소를 바꾸지 않는 계약은 스텁의 Never 규칙과 런북의 *Verifier tree check*가 그대로 지킨다.
+템플릿과 Codex 역할은 바뀌지 않으며 Codex plan-verifier는 계속 read-only sandbox다.
+
 Codex `pipeline_next`는 매 호출에 현재 raw source의 `codexRunbookVersion`을 보낸다.
 CRLF를 LF로 정규화한 치환 전 런북의 hash이며 생성 body의 hash가 아니다.
 Claude의 기존 `runbookVersion` 함수와 init/seed의 정규화·stale 판정은 유지한다.

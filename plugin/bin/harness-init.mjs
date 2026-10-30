@@ -11,6 +11,7 @@ import { renderTemplate } from "../lib/templates/render.mjs";
 import { runbookVersion, codexRunbookVersion } from "../lib/templates/runbook.mjs";
 import { parseClient, RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
 import { validateCodexBundle } from "../lib/templates/codex-bundle.mjs";
+import { renderClaudeRole } from "../runtime/claude-agent.mjs";
 import { renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { acquireInitGuard, atomicWrite, safeTarget, writeGenerated } from "../runtime/file-ownership.mjs";
 import { serverUrl } from "../runtime/mcp-client.mjs";
@@ -253,11 +254,11 @@ async function init() {
     add(`docs/${d}`, `${lang}/docs/${d}`, renderTemplate(tpl(`docs/${d}`), vars));
   for (const a of delivered) {
     const body = renderTemplate(tpl(`agents/${a}.md`), vars);
-    add(CLIENT === "codex" ? `.codex/agents/${a}.toml` : `.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, CLIENT === "codex" ? renderCodexRole(body, a) : body);
+    add(CLIENT === "codex" ? `.codex/agents/${a}.toml` : `.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, CLIENT === "codex" ? renderCodexRole(body, a) : renderClaudeRole(body, a));
   }
   for (const ws of config.workspaces) {
     const body = renderTemplate(tpl("agents/dev.md"), buildWorkspaceVars(config, ws, CLIENT));
-    add(CLIENT === "codex" ? `.codex/agents/${ws.agent}.toml` : `.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, CLIENT === "codex" ? renderCodexRole(body, "dev") : body);
+    add(CLIENT === "codex" ? `.codex/agents/${ws.agent}.toml` : `.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, CLIENT === "codex" ? renderCodexRole(body, "dev") : renderClaudeRole(body, "dev"));
   }
   if (CLIENT === "codex") {
     add("docs/harness/codex-runbook.md", `${lang}/CODEX.runbook.md`, renderTemplate(tpl("CODEX.runbook.md"), { ...vars, runbook_version: runbookVersionNow }));
