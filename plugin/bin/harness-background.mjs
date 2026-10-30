@@ -21,6 +21,9 @@ import { codexExecutable } from "../runtime/codex-executable.mjs";
 const PLUGIN_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SELF = fileURLToPath(import.meta.url);
 const REQUEST_TIMEOUT = 20_000;
+const STOP_ATTEMPTS = 3;
+const STOP_RETRY_DELAY = 250;
+const STOP_QUICK_FAILURE = 2_000;
 const PROBE_LIMIT = 120_000;
 const START_WAIT = 20_000;
 const START_SETTLE = START_WAIT + 30_000;
@@ -426,8 +429,17 @@ async function stop(files) {
 
 async function stopRunnerLease(lock) {
   if (!nonempty(process.env.HARNESS_TOKEN)) return;
-  await runnerCallWithin({ server: lock.binding.server, token: process.env.HARNESS_TOKEN, project: lock.binding.project, client: lock.client },
-    { op: "stop", session: lock.id, reason: "owner" }, REQUEST_TIMEOUT);
+  await reportStop({ server: lock.binding.server, token: process.env.HARNESS_TOKEN, project: lock.binding.project, client: lock.client },
+    lock.id, "owner");
+}
+
+async function reportStop(target, session, reason) {
+  for (let attempt = 1; ; attempt++) {
+    const started = performance.now();
+    const result = await runnerCallWithin(target, { op: "stop", session, reason }, REQUEST_TIMEOUT);
+    if (result.kind !== "transient" || attempt === STOP_ATTEMPTS || performance.now() - started > STOP_QUICK_FAILURE) return result;
+    await delay(STOP_RETRY_DELAY);
+  }
 }
 
 function lastRunLog(directory, client) {
@@ -674,7 +686,8 @@ async function finish(files, { session, target, reason, save, log, directory, no
   }).catch(error => { recordStateFailure(directory, "settle", error); return false; });
   if (!settled) { save({ state: "stopping", stopReason: "unsettled" }); return { event: "stopping", session, code: "resident-run-unsettled" }; }
   if (["owner", "stuck", "error", "plan"].includes(reason)) {
-    await runnerCallWithin(target, { op: "stop", session, reason }, REQUEST_TIMEOUT);
+    const stop = await reportStop(target, session, reason);
+    if (stop.kind === "transient") log(`runner ${session} could not report its stop to the server`);
   }
   const cleared = await withGuard(files, () => {
     const state = readState(files);

@@ -54,7 +54,7 @@ function hasFileErrorCode(error: unknown, code: string): boolean {
 }
 
 function sameFileIdentity(left: FileIdentity, right: FileIdentity): boolean {
-  return left.dev === right.dev && left.ino === right.ino;
+  return left.ino === right.ino && (left.dev === right.dev || !left.dev || !right.dev);
 }
 
 function removeOwnedReportTemp(path: string, identity: FileIdentity): void {
