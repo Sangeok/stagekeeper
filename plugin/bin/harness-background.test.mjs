@@ -69,6 +69,7 @@ async function waitFor(predicate, limit = 30000, what = "condition") {
 }
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code !== "ESRCH"; } };
 const lines = file => (existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map(line => JSON.parse(line)) : []);
+const startedSession = f => f.runnerCalls.find(call => call.op === "start")?.session;
 const stopEvidence = (f, session) => {
   const log = path.join(f.directory, "background.log");
   return JSON.stringify({ calls: f.runnerCalls.map(call => [call.op, call.reason ?? null, call.session === session]),
@@ -460,18 +461,20 @@ it("ends a run when the branch changes, waits on the branch and resumes after sw
 
 it("stops with an error after three failed runs and tells the server", async t => {
   const f = await fixture(t, { plan: [{ kind: "fail" }] });
-  const started = await f.run(START);
+  await f.run(START);
   // 실행기는 잠금을 지운 뒤에 알림을 쓴다 — 둘 다 끝날 때까지 기다린다.
   await waitFor(() => !existsSync(f.lockPath) && f.notices().some(notice => notice.kind === "error"), 60000, "the error stop and its notice");
-  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "error" && call.session === started.event.session), stopEvidence(f, started.event.session));
+  const session = startedSession(f);
+  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "error" && call.session === session), stopEvidence(f, session));
   assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 3);
 });
 
 it("stops as stuck after three runs that leave the same work", async t => {
   const f = await fixture(t, { plan: [{ kind: "noop" }] });
-  const started = await f.run(START);
+  await f.run(START);
   await waitFor(() => !existsSync(f.lockPath) && f.notices().some(notice => notice.kind === "stuck"), 60000, "the stuck stop and its notice");
-  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "stuck" && call.session === started.event.session), stopEvidence(f, started.event.session));
+  const session = startedSession(f);
+  assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "stuck" && call.session === session), stopEvidence(f, session));
 });
 
 it("reports the stop again when its connection drops", async t => {
@@ -482,10 +485,11 @@ it("reports the stop again when its connection drops", async t => {
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify({ ok: true, paused: false }));
   });
-  const started = await f.run(START);
+  await f.run(START);
   await waitFor(() => !existsSync(f.lockPath) && f.notices().some(notice => notice.kind === "stuck"), 60000, "the stuck stop and its notice");
-  const stops = f.runnerCalls.filter(call => call.op === "stop" && call.reason === "stuck" && call.session === started.event.session);
-  assert.equal(stops.length, 2, stopEvidence(f, started.event.session));
+  const session = startedSession(f);
+  const stops = f.runnerCalls.filter(call => call.op === "stop" && call.reason === "stuck" && call.session === session);
+  assert.equal(stops.length, 2, stopEvidence(f, session));
 });
 
 it("stops without a server stop when another runner takes over", async t => {
