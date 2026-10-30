@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { deliverable } from "../lib/templates/deliver.mjs";
 import { DEFAULT_SCOUT_QUESTION } from "../lib/templates/vars.mjs";
-import { REPORT_AGENTS } from "../lib/plans/entitlement.mjs";
+import { REPORT_AGENTS, limitsFor } from "../lib/plans/entitlement.mjs";
 import { runbookVersion } from "../lib/templates/runbook.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));
@@ -774,10 +774,22 @@ it("asks for the dry-run yes on every run, in the words product-copy gives the i
   const skill = squeeze(readFileSync(new URL("../skills/init/SKILL.md", import.meta.url), "utf8"));
   const copy = squeeze(readFileSync(new URL("../../docs/conventions/product-copy.md", import.meta.url), "utf8"));
   for (const sentence of [
+    "Ask one question at a time.",
+    "Run `--register` or write `harness.json` only after a yes.",
     "Show the dry run and get a yes before writing.",
+    "The draft's yes in step 1 covers registering and `harness.json`, not these files: show the dry run and ask again.",
     "Ask on every run: a rerun with an existing `harness.json`, a clean tree, or a dry run that lists only managed files still waits for the yes, and the request to run init is not that yes.",
   ]) {
     assert.ok(copy.includes(`"${sentence}"`), `product-copy: ${sentence}`);
     assert.ok(skill.includes(sentence), `init skill: ${sentence}`);
   }
+});
+
+it("tells a user token which project limits registration uses, in the numbers the plans carry", () => {
+  const squeeze = (text) => text.replace(/\s+/g, " ");
+  const skill = squeeze(readFileSync(new URL("../skills/init/SKILL.md", import.meta.url), "utf8"));
+  const copy = squeeze(readFileSync(new URL("../../docs/conventions/product-copy.md", import.meta.url), "utf8"));
+  const limits = `connected repositories (Free: ${limitsFor("free").projects}, Pro: ${limitsFor("pro").projects})`;
+  assert.ok(skill.includes(limits), `init skill: ${limits}`);
+  assert.ok(copy.includes(limits), `product-copy: ${limits}`);
 });

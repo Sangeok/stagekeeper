@@ -87,10 +87,12 @@ its supporting files, not just its name in a list. If the plugin's copy is missi
 incompatible, report a Stagekeeper packaging failure and stop before step 1; repair/update
 the plugin and repeat preflight.
 
+Ask one question at a time. **Run `--register` or write `harness.json` only after a yes.**
+
 1. If there's no `harness.json`, **do not interview the user.** Build one draft and show it once.
    - `project`: **which command depends on the token in the shell.** Check the prefix of
-     `$HARNESS_TOKEN` once and pick one — they print the same five fields
-     (`owner`·`repo`·`branch`·`name`·`slug`), so the rest of this step is identical either way.
+     `$HARNESS_TOKEN` once and pick one — both print the same five fields
+     (`owner`·`repo`·`branch`·`name`·`slug`).
      - `hs_` (**project token** — it already knows its project):
        `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --print-project`. It writes nothing and
        needs no `harness.json`. **Do not guess the values from `git remote -v`**: the repository
@@ -100,6 +102,10 @@ the plugin and repeat preflight.
        `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --register`. It reads `origin` and the
        repository's default branch from git and registers the repository, **or returns the existing project
        when it is already registered** — rerunning is safe and creates nothing the second time.
+       **Run it only after the draft's yes.** Until then, take `owner`/`repo` from `origin` by the
+       rules in the plugin's `lib/repo-url.mjs` and `branch` from the repository's default
+       branch, and leave `slug` to the registration; after it, confirm the returned owner/repo
+       matches the draft.
        If it says the server has no `/api/projects`, that server predates this route; fall back
        to asking. Do **not** run `--register` with an `hs_` token — it answers 401 and tells you
        to use `--print-project`.
@@ -117,24 +123,30 @@ the plugin and repeat preflight.
    - **Never write `language`.** The default (`en`) is the seeded template language; copying the
      project's stored language into `harness.json` makes the template fetch ask for a language
      that has no templates, and init fails with 404.
-   - Show the finished draft once, take corrections, then write it.
+   - Show the finished draft once and take corrections. With `hu_`, say in the same message which
+     repository registration adds: each plan allows a set number of connected repositories
+     (Free: 1, Pro: 5), a repository registered for the first time uses one of them, and one
+     already registered on the web does not. After the yes, register (with `hu_`), add the
+     returned slug, and write the file.
    If `harness.json` already exists, preserve it. If `project.slug` is missing:
    - With `hu_`, recover a verified slug before generation or project-scoped MCP calls.
      Parse `origin` using the rules in the plugin's `lib/repo-url.mjs`, then compare its
      owner/repo with the configured `project.owner`/`project.repo` before running
      `--register`. Resolve any mismatch explicitly before registration; do not register
      a different repository or silently replace the configured project identity.
-     Run `--register`, confirm its returned owner/repo matches the configuration, and
-     require a valid returned slug. Missing or conflicting identity blocks this recovery.
+     Show which repository `--register` will add or confirm, with the same plan note as a new
+     draft, and get a yes. Then run `--register`, confirm its returned owner/repo matches the
+     configuration, and require a valid returned slug. Missing or conflicting identity blocks
+     this recovery.
    - With `hs_`, slug recovery is optional. Use `--print-project` if recovering it.
      If the server reports the documented missing `/api/project` route (404), or returns
      a matching legacy identity without a slug, preserve the configuration and continue
      omitting `project` from requests. A returned owner/repo mismatch still requires
      explicit resolution before continuing. Never invent a slug.
-   - When recovery succeeds, show the proposed addition, take corrections, and add only
-     `project.slug`. Preserve every other field, including workspaces, agent names,
-     branch, language, knowledge, scout, and readOnly. Do not rebuild or globally replace
-     the existing configuration.
+   - When recovery succeeds, add only `project.slug`. With `hu_` the yes before `--register`
+     covers it; with `hs_`, show the proposed addition and get a yes first. Preserve every
+     other field, including workspaces, agent names, branch, language, knowledge, scout, and
+     readOnly. Do not rebuild or globally replace the existing configuration.
    If a slug already exists, retain it; do not register or replace it merely because a
    request omitted `project`.
 2. Run `node "$CLAUDE_PLUGIN_ROOT/bin/harness-init.mjs" --dry-run`. **Do not ask for the server
@@ -142,11 +154,11 @@ the plugin and repeat preflight.
    `harness` entry in an existing `.mcp.json`. Ask for the URL from the web Tokens page only when
    it stops with `Server URL required`; a pasted value may keep its `/api/mcp` tail, which the
    generator strips. **There is still no default server URL** — without a source it stops.
-   Show the dry run and get a yes before writing. If step 1 built a draft, show it in the same
-   message, so one yes covers both. Ask on every run: a rerun with an existing `harness.json`, a
-   clean tree, or a dry run that lists only managed files still waits for the yes, and the
-   request to run init is not that yes. If the output has `refuse:` lines, ask whether to
-   `--adopt` — that is the only second question, and a clean repository never reaches it.
+   Show the dry run and get a yes before writing. The draft's yes in step 1 covers registering
+   and `harness.json`, not these files: show the dry run and ask again. Ask on every run: a rerun
+   with an existing `harness.json`, a clean tree, or a dry run that lists only managed files still
+   waits for the yes, and the request to run init is not that yes. If the output has `refuse:`
+   lines, ask whether to `--adopt` as its own question — a clean repository never reaches it.
    Before running, check `test -n "$HARNESS_OWNER_TOKEN"`. If it is set, the user issued an
    **owner token** on the web Tokens tab (it lets their own session open gates). Remember that
    answer for step 4 — **do not pass `--owner`**: the generator no longer writes any server, so the

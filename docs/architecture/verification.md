@@ -141,10 +141,14 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   허용 필드의 요약 한 줄만 남긴다. 브라우저 E2E가 아니므로 `tests/e2e/`가 아니라 리허설로 둔다. Codex job은 Codex 공개
   배포에 착수할 때 붙인다.
 - [agent-eval](../../.github/workflows/agent-eval.yml)은 `macos-15`에서 `claude plugin eval`로 실제 모델이 init 스킬을
-  따르는지 본다. Haiku 대조 실행으로 쓰기 감지가 동작하는지 증명한 뒤 `plugin/evals/rerun-asks-first`를 Opus 5.5로 3회
-  돌리고, 한 번이라도 판정이 어긋나면 실패한다. 주 1회와 수동 실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을
-  쓴다(1회 정가 환산 약 $1.2). eval은 사용자 설정을 격리하므로 사용자 환경에서만 나는 오독은 잡지 못한다.
-  `plugin/evals/`는 출하 파일이 아니다.
+  따르는지 본다. Haiku 대조 실행으로 등록, 생성기 실행, 관리 파일 쓰기의 감지가 모두 동작하는지 증명한 뒤 `gate`
+  태그 사례 3개를 Opus 5.5로 3회씩 돌리고, 한 번이라도 판정이 어긋나면 실패한다. 사례는 연결된 저장소의
+  재실행(`rerun-asks-first`), 처음 연결에서 등록과 `harness.json` 쓰기 전에 묻는지
+  (`first-connection-asks-before-register`), 초안을 승인한 뒤에도 생성 전에 다시 묻는지
+  (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
+  실행마다 셸 명령을 기록해 job 로그에 남긴다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
+  실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
+  사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 

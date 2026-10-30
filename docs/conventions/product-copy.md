@@ -1209,6 +1209,14 @@ both). Below: each file's title, its section headings, and the sentences that se
   yes, and the request to run init is not that yes." (2026-10-29: 0.5.28 smoke의 init 두 번이
   모두 yes 없이 썼다. 덧붙인 문장 없이 `/harness:init`만 친 실행도 그랬다. 에이전트가 든 이유는
   확인할 초안이 없다(이미 있는 `harness.json`), 트리가 깨끗하다, 호출이 곧 승인이다였다.)
+  · "Run `--register` or write `harness.json` only after a yes." · "The draft's yes in step 1
+  covers registering and `harness.json`, not these files: show the dry run and ask again."
+  hu_ 토큰이면 초안과 같은 메시지에서 등록할 저장소와 "each plan allows a set number of connected
+  repositories (Free: 1, Pro: 5), a repository registered for the first time uses one of them, and
+  one already registered on the web does not"를 알린다. (2026-10-30: 처음 연결이 묻기 전에 저장소를
+  등록하고 `harness.json`을 썼다. 등록은 플랜의 프로젝트 자리를 쓰므로, Free 사용자가 dry-run을 보고
+  거절해도 하나뿐인 자리가 이미 찼다. 처음 연결은 초안 승인과 생성 승인을 따로 묻고, 재실행은 지금처럼
+  한 번 묻는다.)
   · "Tell the user to restart Claude Code — the registration is
   read at session start. There is no approval prompt: user-scope servers load on their own." · "Leave the
   commit to the user." Step 6 says a knowledge doc is optional and offers one instead of

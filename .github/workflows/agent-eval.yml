@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 3 * * 1"
   workflow_dispatch:
+    inputs:
+      case:
+        description: "Run only the cases whose name matches this glob (default: every case tagged gate)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -63,6 +68,31 @@ jobs:
           [ -d "$workspace/.git" ] || workspace="$PWD"
           baseline="$workspace/.stagekeeper-eval/.baseline"
           [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
+          if [ -f "$baseline" ]; then
+            log="$workspace/.stagekeeper-eval/shell.log"
+            [ -e "$log" ] || printf 'run %s\n' "${EVAL_CASE:-unknown}" > "$log"
+            entry="$1"
+            case "$entry" in
+              *"eval '"*) entry="${entry#*"eval '"}"; entry="${entry%"' "*}" ;;
+              *) [ "${#entry}" -le 300 ] || entry="${entry: -300}" ;;
+            esac
+            printf '%s\n' "$(printf '%s' "$entry" | tr '\n' ' ' | cut -c1-300)" >> "$log"
+            generator='(^|[^[:alnum:]_./-])node[[:space:]]+([^[:space:]]+[[:space:]]+)*[^[:space:]]*harness-init\.mjs'
+            if [[ "$1" =~ $generator ]]; then
+              case "$1" in
+                *--register*)
+                  : > "$workspace/.eval-register-called"
+                  origin="$(git -C "$workspace" remote get-url origin 2>/dev/null)"
+                  repo="$(basename "$origin" .git)"
+                  owner="$(basename "$(dirname "$origin")")"
+                  printf '{"owner":"%s","repo":"%s","branch":"main","name":"%s","slug":"%s"}\n' "$owner" "$repo" "$repo" "$repo"
+                  exit 0
+                  ;;
+                *--dry-run*|*--print-project*|*--help*|*--check*) ;;
+                *) : > "$workspace/.eval-generate-called" ;;
+              esac
+            fi
+          fi
           bash -c "$1"
           status=$?
           if [ -f "$baseline" ] && [ -n "$(find "$workspace/docs" "$workspace/.claude" "$workspace/CLAUDE.md" -newer "$baseline" -type f 2>/dev/null | head -n 1)" ]; then
@@ -71,30 +101,43 @@ jobs:
           exit "$status"
           SH
           chmod 755 "$HOME/.local/bin/stagekeeper-eval-shell"
-      - name: Prove the write detection with a control run
+      - name: Prove the detection with a control run
         if: steps.gate.outputs.ready == 'true'
         shell: bash
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
         run: |
-          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case control-real-write --runs 1 --model claude-haiku-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/control.json" || true
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case control-real-write --runs 1 --model claude-haiku-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/control.json" || true
+          for kept in /private/tmp/e-*; do
+            [ -d "$kept" ] || continue
+            chmod -R u+rwx "$kept" 2>/dev/null || true
+            find "$kept" -path '*/.stagekeeper-eval/shell.log' -exec sed 's/^/  /' {} \; 2>/dev/null || true
+            rm -rf "$kept" || true
+          done
           node -e '
             const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
             const graders = Object.fromEntries((result.cases?.[0]?.arms?.with?.[0]?.graders ?? []).map(grader => [grader.name, grader.passed]));
-            if (graders["shell-prefix-active"] !== true || graders["no-write-before-yes"] !== false) {
-              console.error(`control: write detection is broken (${JSON.stringify(graders)})`);
+            const detected = ["no-register-before-yes", "no-generate-before-yes", "no-write-before-yes"].every(name => graders[name] === false);
+            if (graders["shell-prefix-active"] !== true || !detected) {
+              console.error(`control: detection is broken (${JSON.stringify(graders)})`);
               process.exit(1);
             }
-            console.log("control: a real generator run was detected");
+            console.log("control: a registration, a generator run and its writes were detected");
           ' "$RUNNER_TEMP/control.json"
       - name: Run the init skill eval
         if: steps.gate.outputs.ready == 'true'
         shell: bash
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          CASE_GLOB: ${{ inputs.case }}
         run: |
           set +e
-          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case rerun-asks-first --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/eval.json"
+          selector=(--tag gate)
+          if [ -n "$CASE_GLOB" ]; then
+            [[ "$CASE_GLOB" =~ ^[a-z0-9*-]+$ ]] || { echo "::error::case must be a case name glob"; exit 2; }
+            selector=(--case "$CASE_GLOB")
+          fi
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" "${selector[@]}" --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/eval.json"
           code=$?
           node -e '
             const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
@@ -110,4 +153,14 @@ jobs:
             console.log(lines.join("\n"));
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "```\n" + lines.join("\n") + "\n```\n");
           ' "$RUNNER_TEMP/eval.json" || echo "no eval result"
+          for kept in /private/tmp/e-*; do
+            [ -d "$kept" ] || continue
+            chmod -R u+rwx "$kept" 2>/dev/null
+            find "$kept" -path '*/.stagekeeper-eval/shell.log' 2>/dev/null | while read -r log; do
+              id="$(head -n 1 "$log" | cut -d ' ' -f 2)"
+              name="$(grep -l "EVAL_CASE: $id\$" "$EVAL_PLUGIN"/evals/*/case.yaml 2>/dev/null | head -n 1)"
+              echo "commands of one run of $(basename "$(dirname "${name:-?/?}")"):"
+              tail -n +2 "$log" | sed 's/^/  /'
+            done
+          done
           exit $code
