@@ -108,6 +108,8 @@ stagekeeper/
 - [fsd.md](./fsd.md): FSD layer·slice·segment, import 방향, public API,
   Next.js Server/Client 경계
 - [server.md](./server.md): 서버 모듈 소유권·공개 API·초기화 경계·시험 내부 참조 목록
+- [test-writing.md](./test-writing.md): 테스트의 동작 계약·위험·검증 환경·거부와
+  부수효과·재현성·실행 근거에 대한 작성 기준
 - [test-organization.md](./test-organization.md): 테스트의 위치·이름·소유권,
   fixture와 운영 코드의 의존성 경계
 - [verification.md](./verification.md): 자동 경계 검사, 저장소 스크립트 목록, 리뷰 체크리스트
@@ -165,8 +167,9 @@ stagekeeper/
 
 코드를 작성하기 전에 이 문서와 작업에 관련된 세부 문서를 읽는다. Next.js 파일을
 바꾸기 전에는 `node_modules/next/dist/docs/`의 해당 버전 문서도 읽는다.
-테스트를 추가·수정·이동할 때는 [test-organization.md](./test-organization.md)를
-읽고, 실행 명령과 자동 검사 범위는 [verification.md](./verification.md)를 확인한다.
+테스트를 추가·수정·이동할 때는 [test-writing.md](./test-writing.md)의 작성 기준과
+[test-organization.md](./test-organization.md)의 배치 규칙을 읽고, 실행 명령과 자동
+검사 범위는 [verification.md](./verification.md)를 확인한다.
 
 ```powershell
 npm run check      # CI와 같은 게이트 — 복사본 동기화 검사 · lint · 타입 · 아키텍처 테스트

@@ -30,7 +30,12 @@ For frontend code, follow `docs/architecture/fsd.md`:
   state. Until the existing root `app/` is migrated as one operation, do not create a
   parallel `src/app/`.
 
-For test placement, follow `docs/architecture/test-organization.md`:
+Before adding, modifying, or moving tests, read and follow
+`docs/architecture/test-writing.md` for writing criteria and
+`docs/architecture/test-organization.md` for placement. Use
+`docs/architecture/verification.md` for execution commands and CI integration.
+
+For test placement:
 
 - Do not put test files or test-only code directly in `src/` (alongside `app/`) or
   directly in `src/app/` (alongside `page.tsx`). Examples of forbidden paths include

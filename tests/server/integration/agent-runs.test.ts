@@ -24,12 +24,14 @@ for (const winner of [0, 1]) {
       const run = await openRun(a, f.projectId, f.key);
       const input = commit(f.projectId, f.key, run.id, { kind: "step", stepId: "report" });
       const race = ordered();
-      const first = createNextDeps(beforeRunClaim(all[winner], race.winner)).commitOutcome(input);
-      const second = createNextDeps(beforeRunClaim(all[1 - winner], race.loser)).commitOutcome(input);
-
-      assert.deepEqual((await first).kind, "accepted");
-      race.finish();
-      assert.deepEqual(await second, { kind: "stale" });
+      const settlements: Promise<unknown>[] = [];
+      try {
+        const first = createNextDeps(beforeRunClaim(all[winner], race.winner)).commitOutcome(input); settlements.push(Promise.allSettled([first]));
+        const second = createNextDeps(beforeRunClaim(all[1 - winner], race.loser)).commitOutcome(input); settlements.push(Promise.allSettled([second]));
+        assert.deepEqual((await first).kind, "accepted");
+        race.finish();
+        assert.deepEqual(await second, { kind: "stale" });
+      } finally { race.cancel(); await Promise.all(settlements); }
 
       const after = await a.agentRun.findUniqueOrThrow({ where: { id: run.id }, include: { steps: { orderBy: { at: "asc" } } } });
       assert.equal(after.revision, 1);
@@ -42,8 +44,11 @@ for (const winner of [0, 1]) {
       assert.equal(await a.agentRunStep.count({ where: { runId: run.id, callerTokenId: "caller", run: { projectId: "another-project" } } }), 0);
       assert.equal(await createNextDeps(a).verifyOk(f.projectId, "dev", f.key), true);
     } finally {
-      await cleanup(a, userId);
-      await disconnect();
+      try {
+        await cleanup(a, userId);
+      } finally {
+        await disconnect();
+      }
     }
   });
 }
@@ -58,17 +63,22 @@ it("a CAS loser does not consume the run's refusal counter", async () => {
     const run = await openRun(a, f.projectId, f.key);
     const input = commit(f.projectId, f.key, run.id, { kind: "stay", refused: true });
     const race = ordered();
-    const first = createNextDeps(beforeRunClaim(all[0], race.winner)).commitOutcome(input);
-    const second = createNextDeps(beforeRunClaim(all[1], race.loser)).commitOutcome(input);
-
-    const accepted = await first;
-    race.finish();
-    assert.deepEqual(await second, { kind: "stale" });
-    assert.equal(accepted.kind === "accepted" && accepted.refused, 1);
+    const settlements: Promise<unknown>[] = [];
+    try {
+      const first = createNextDeps(beforeRunClaim(all[0], race.winner)).commitOutcome(input); settlements.push(Promise.allSettled([first]));
+      const second = createNextDeps(beforeRunClaim(all[1], race.loser)).commitOutcome(input); settlements.push(Promise.allSettled([second]));
+      const accepted = await first;
+      race.finish();
+      assert.deepEqual(await second, { kind: "stale" });
+      assert.equal(accepted.kind === "accepted" && accepted.refused, 1);
+    } finally { race.cancel(); await Promise.all(settlements); }
     assert.equal((await a.agentRun.findUniqueOrThrow({ where: { id: run.id } })).refused, 1);
   } finally {
-    await cleanup(a, userId);
-    await disconnect();
+    try {
+      await cleanup(a, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });
 
@@ -89,7 +99,10 @@ it("a failed audit row leaves the ledger, the cursor, and the refusal counter un
     assert.equal(after.refused, 0);
     assert.deepEqual(after.steps, []);
   } finally {
-    await cleanup(a, userId);
-    await disconnect();
+    try {
+      await cleanup(a, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });

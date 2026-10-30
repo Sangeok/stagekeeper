@@ -12,6 +12,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { DISCONNECTED_REASON } from "../../src/server/projects/access-query";
 import { registerRepositoryProject, REPO_SEGMENT } from "../../src/server/projects/api";
 import { Prisma } from "../../src/generated/prisma/client";
+import { loadModule } from "./fixtures/load-module";
 
 const adapterPath = "src/fsd/features/manage-project-connection/api/manage-project-connection.server.ts";
 const read = (path: string) => readFileSync(path, "utf8");
@@ -28,7 +29,10 @@ it("exposes exactly two inline session mutations and keeps the ordinary loader b
   assert.ok(!directive(loader.body?.statements[0], "use server"));
   for (const action of actions) {
     const body = action.body!.getText(ast);
-    assert.ok(body.indexOf("await requireUser()") < body.indexOf("inputSchema.safeParse(input)"));
+    const authentication = body.indexOf("await requireUser()");
+    const validation = body.indexOf("inputSchema.safeParse(input)");
+    assert.ok(authentication >= 0);
+    assert.ok(validation > authentication);
     assert.match(body, /targetProjectId: parsed\.data\.targetProjectId, expectedVersion: parsed\.data\.expectedVersion, userId/);
     assert.doesNotMatch(body, /input\.userId|parsed\.data\.userId|authorization|Bearer/);
     assert.match(body, /revalidatePath\(projectsPath\(\)\)/);
@@ -46,6 +50,53 @@ it("exposes exactly two inline session mutations and keeps the ordinary loader b
   assert.match(tokens, /await issueProjectOwnerToken\(\{ projectId, userId, label, expiresAt \}\)/);
   assert.doesNotMatch(tokens, /projectToken\.create|ownerToken\.create|newToken/);
 });
+
+type ConnectionActions = Pick<typeof import("../../src/fsd/features/manage-project-connection/index.server"), "disconnectRepository" | "reconnectRepository">;
+type ConnectionCommand = typeof import("../../src/server/projects/api.server").disconnectProject;
+
+function connectionActions(authenticate: () => Promise<{ userId: string }>, result: Awaited<ReturnType<ConnectionCommand>> = { status: "success", changed: true, version: 4 }) {
+  const calls: { operation: string; input: Parameters<ConnectionCommand>[0] }[] = [];
+  const refreshes: unknown[][] = [];
+  const command = (operation: string) => async (input: Parameters<ConnectionCommand>[0]) => { calls.push({ operation, input }); return result; };
+  const actions = loadModule<ConnectionActions>(adapterPath, {
+    "@/server/auth/guard": { requireUser: authenticate },
+    "@/server/projects/api.server": { disconnectProject: command("disconnect"), reconnectProject: command("reconnect") },
+    "next/cache": { revalidatePath: (...args: unknown[]) => { refreshes.push(args); } },
+  });
+  return { actions, calls, refreshes };
+}
+
+for (const name of ["disconnectRepository", "reconnectRepository"] as const) {
+  it(`${name} rejects unauthenticated valid and malformed requests before mutations or revalidation`, async () => {
+    const denied = new Error("session denied");
+    let authentications = 0;
+    const f = connectionActions(async () => { authentications++; throw denied; });
+
+    for (const input of [{ targetProjectId: "p", expectedVersion: 3 }, null]) {
+      await assert.rejects(f.actions[name](input as Parameters<ConnectionActions[typeof name]>[0]), error => error === denied);
+    }
+
+    assert.equal(authentications, 2);
+    assert.equal(f.calls.length, 0);
+    assert.equal(f.refreshes.length, 0);
+  });
+
+  it(`${name} uses the session owner and revalidates only a successful command`, async () => {
+    const input = { targetProjectId: "p", expectedVersion: 3, userId: "forged" };
+    for (const result of [{ status: "error", code: "not-found", reason: "Project not found." }, { status: "stale", currentVersion: 4 }, { status: "success", changed: true, version: 4 }] as const) {
+      const f = connectionActions(async () => ({ userId: "trusted-owner" }), result);
+
+      assert.equal((await f.actions[name](input)).status, result.status);
+
+      assert.equal(f.calls.length, 1);
+      assert.equal(f.calls[0].operation, name === "disconnectRepository" ? "disconnect" : "reconnect");
+      assert.equal(f.calls[0].input.userId, "trusted-owner");
+      assert.equal(f.calls[0].input.targetProjectId, "p");
+      assert.equal(f.calls[0].input.expectedVersion, 3);
+      assert.deepEqual(f.refreshes, result.status === "success" ? [["/projects"], ["/(app)/p/[slug]", "layout"]] : []);
+    }
+  });
+}
 
 it("keeps every owner detail GET guarded and the app header connected-only", () => {
   for (const leaf of ["page.tsx", "inbox/page.tsx", "backlog/page.tsx", "items/[key]/page.tsx", "pipeline/page.tsx", "history/page.tsx", "tokens/page.tsx"]) {

@@ -17,13 +17,16 @@ it("two clients cannot grow a Free roster beyond its cap, and omitted agents are
     const project = await a.project.create({ data: { slug: id, name: id, repoOwner: id, repo: id, branch: "main", ownerUserId: user.id } });
 
     const race = ordered();
-    const first = syncProject(afterWorkspaceRead(a, race.winner), { projectId: project.id, language: "en", workspaces: [workspace("a")] });
-    const second = syncProject(afterWorkspaceRead(b, race.loser), { projectId: project.id, language: "ko", workspaces: [workspace("b")] });
-    assert.equal((await first).ok, true);
-    race.finish();
-    const lost = await second;
-    assert.equal(lost.ok, false);
-    assert.ok(!lost.ok && /conflicted/.test(lost.reason));
+    const settlements: Promise<unknown>[] = [];
+    try {
+      const first = syncProject(afterWorkspaceRead(a, race.winner), { projectId: project.id, language: "en", workspaces: [workspace("a")] }); settlements.push(Promise.allSettled([first]));
+      const second = syncProject(afterWorkspaceRead(b, race.loser), { projectId: project.id, language: "ko", workspaces: [workspace("b")] }); settlements.push(Promise.allSettled([second]));
+      assert.equal((await first).ok, true);
+      race.finish();
+      const lost = await second;
+      assert.equal(lost.ok, false);
+      assert.ok(!lost.ok && /conflicted/.test(lost.reason));
+    } finally { race.cancel(); await Promise.all(settlements); }
 
     const rows = await a.workspace.findMany({ where: { projectId: project.id } });
     assert.equal(rows.length, 1);
@@ -38,7 +41,10 @@ it("two clients cannot grow a Free roster beyond its cap, and omitted agents are
     assert.equal(view.workspaces[0].agent, rows[0].agent);
     assert.equal(view.owner, id);
   } finally {
-    await cleanup(a, userId);
-    await disconnect();
+    try {
+      await cleanup(a, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });

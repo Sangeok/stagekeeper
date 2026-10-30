@@ -58,8 +58,12 @@ for (const plan of ["free", "pro"] as const) {
       assert.ok((await agentNext(createNextDeps(b), winner.scope, winner.input)).ok);
       assert.equal((await a.user.findUniqueOrThrow({ where: { id: userId } })).usageRunCount, count + 1);
     } finally {
-      locked.release(); waiting.release(); await Promise.allSettled([first, secondRequest].filter(Boolean));
-      await cleanup(a, userId); if (lang) await a.template.deleteMany({ where: { lang } }); await pool.disconnect();
+      try {
+        locked.release(); waiting.release(); await Promise.allSettled([first, secondRequest].filter(Boolean));
+        await cleanup(a, userId); if (lang) await a.template.deleteMany({ where: { lang } });
+      } finally {
+        await pool.disconnect();
+      }
     }
   });
 }
@@ -84,8 +88,12 @@ it("uses the clock after the owner lock and does not refund committed usage when
     await db.agentRun.deleteMany({ where: { projectId: f.projectId } });
     assert.equal((await db.user.findUniqueOrThrow({ where: { id: userId } })).usageRunCount, 1);
   } finally {
-    gate.release(); await Promise.allSettled([pending].filter(Boolean));
-    await cleanup(db, userId); if (lang) await db.template.deleteMany({ where: { lang } }); await pool.disconnect();
+    try {
+      gate.release(); await Promise.allSettled([pending].filter(Boolean));
+      await cleanup(db, userId); if (lang) await db.template.deleteMany({ where: { lang } });
+    } finally {
+      await pool.disconnect();
+    }
   }
 });
 
@@ -107,7 +115,11 @@ it("run storage failure rolls back usage; invalid instructions are refused befor
     assert.equal(user.usageRunCount, 0); assert.equal(user.usageWindowStartedAt, null);
     assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 0);
   } finally {
-    await cleanup(db, userId); if (lang) await db.template.deleteMany({ where: { lang } }); await pool.disconnect();
+    try {
+      await cleanup(db, userId); if (lang) await db.template.deleteMany({ where: { lang } });
+    } finally {
+      await pool.disconnect();
+    }
   }
 });
 
@@ -125,7 +137,11 @@ it("reads expired state without writing and starts the next run with the databas
     assert.equal(user.usageRunCount, 1); assert.equal(user.usageWindowStartedAt?.getTime(), run.openedAt.getTime());
     assert.ok(run.openedAt > old);
   } finally {
-    await cleanup(db, userId); if (lang) await db.template.deleteMany({ where: { lang } }); await pool.disconnect();
+    try {
+      await cleanup(db, userId); if (lang) await db.template.deleteMany({ where: { lang } });
+    } finally {
+      await pool.disconnect();
+    }
   }
 });
 
@@ -141,5 +157,5 @@ it("keeps Max's stored usage on downgrade and rejects malformed counters at the 
     await assert.rejects(db.user.update({ where: { id: userId }, data: { usageRunCount: -1 } }));
     await assert.rejects(db.user.update({ where: { id: userId }, data: { usageWindowStartedAt: null } }));
     assert.equal((await db.user.findUniqueOrThrow({ where: { id: userId } })).usageRunCount, 150);
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });

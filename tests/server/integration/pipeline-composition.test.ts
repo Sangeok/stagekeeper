@@ -30,7 +30,7 @@ it("a used pipeline's save writes new runnable versions for its users and refuse
     const broken = await savePipelineDefinition(db, { ...base, pipelineId: checkId, definition: { steps: ["verify", "qa"], gates: [] }, expectedVersion: 2 });
     assert.ok(broken.status === "error" && broken.reason.includes("Feature"));
     assert.equal(await db.pipelineDefinition.count({ where: { pipeline: { projectId: f.projectId } } }), definitionsBefore);
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });
 
 it("nested users recompose transitively, legacy graphs get slots versions, unchanged graphs reuse, and old runs stay pinned", async () => {
@@ -60,5 +60,5 @@ it("nested users recompose transitively, legacy graphs get slots versions, uncha
     assert.equal(broken.status, "error"); assert.deepEqual(await pipelineState(db, f.projectId), before);
     const duplicate = await savePipelineDefinition(db, { ...identity, pipelineId: null, name: "Delivery", expectedVersion: 0, definition: { steps: ["qa"], gates: [] } });
     assert.equal(duplicate.status, "error"); assert.deepEqual(await pipelineState(db, f.projectId), before);
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });

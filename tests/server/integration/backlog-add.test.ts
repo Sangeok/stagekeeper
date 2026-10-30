@@ -33,7 +33,7 @@ it("pipeline completion removes as done and reopening clears both removal fields
     assert.ok(reopened.ok);
     const live = await db.backlogItem.findUniqueOrThrow({ where: { id: f.backlogItemId } });
     assert.equal(live.removedAt, null); assert.equal(live.removedReason, null);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("owner and scout additions assign immutable numeric keys, provenance and public views", async () => {
@@ -63,7 +63,7 @@ it("owner and scout additions assign immutable numeric keys, provenance and publ
     assert.match(JSON.stringify(detail), /"source":"test"/);
     assert.match(JSON.stringify(responses[0]), /"addedBy":"feature-scout"/);
     assert.match(JSON.stringify(responses[2]), /"type":"docs"/);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("scout allowance counts removed writes and refuses foreign, closed, missing and non-scout runs", async () => {
@@ -84,7 +84,7 @@ it("scout allowance counts removed writes and refuses foreign, closed, missing a
       assert.deepEqual(await service.addBacklog(f.projectId, scoutInput(id)), { ok: false, reason: "backlog_add needs an open feature-scout run" });
     }
     assert.equal(await db.backlogItem.count({ where: { projectId: f.projectId } }), 4);
-  } finally { await cleanup(db, f?.userId); await cleanup(db, other?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); await cleanup(db, other?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("type edits preserve ownership, reject stale drafts atomically and clear to null", async () => {
@@ -115,7 +115,7 @@ it("type edits preserve ownership, reject stale drafts atomically and clear to n
     assert.equal((await db.backlogItem.findUniqueOrThrow({ where })).type, "refactor");
     const noType = await service.submitPlan(f.projectId, { key: f.key, path: "p", commit: "c5" }, "dev"); assert.ok(noType.ok);
     assert.equal((await db.backlogItem.findUniqueOrThrow({ where })).type, "refactor");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("planning submission also keeps owner type, and proposed discard removes only after a valid CAS", async () => {
@@ -135,7 +135,7 @@ it("planning submission also keeps owner type, and proposed discard removes only
     const removed = await db.backlogItem.findUniqueOrThrow({ where: { id: f.backlogItemId } });
     assert.ok(removed.removedAt); assert.equal(removed.removedReason, "discarded");
     assert.equal((await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "agent", actorRef: "pm" })).ok, false);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 const settled = <T>(promise: Promise<T>) => promise.then((value) => ({ ok: true as const, value }), (error: unknown) => ({ ok: false as const, error }));
@@ -159,7 +159,7 @@ for (const quota of ["live", "run"] as const) it(`serialized additions enforce t
     const loser = await second; assert.ok(loser.ok && !loser.value.ok);
     assert.match(loser.value.reason, quota === "run" ? /already added 3 items/ : /backlog cap/);
     assert.equal(await a.backlogItem.count({ where: quota === "run" ? { addedByRunId: run.id } : { projectId: f.projectId, removedAt: null } }), quota === "run" ? 3 : 10);
-  } finally { counted.release(); rivalRead.release(); await Promise.allSettled(pending); await cleanup(a, f?.userId); await pool.disconnect(); }
+  } finally { try { counted.release(); rivalRead.release(); await Promise.allSettled(pending); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 for (const materialized of [false, true]) for (const winner of ["remove", "propose"] as const) it(`remove/propose race: ${winner} wins with materialized=${materialized} without a removed open item`, async () => {
@@ -189,7 +189,7 @@ for (const materialized of [false, true]) for (const winner of ["remove", "propo
       assert.ok(removed.ok && !removed.value.ok); assert.match(removed.value.reason, /item changed|open on the board/);
       assert.equal(item.removedAt, null); assert.equal(open.length, 1);
     }
-  } finally { removePaused.release(); proposalRead.release(); await Promise.allSettled(pending); await cleanup(a, f?.userId); await pool.disconnect(); }
+  } finally { try { removePaused.release(); proposalRead.release(); await Promise.allSettled(pending); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 function reportDeps(db: PrismaClient): NextDeps {
@@ -223,5 +223,5 @@ for (const winner of ["close", "add"] as const) it(`run close/add race: ${winner
     assert.equal(await a.backlogItem.count({ where: { addedByRunId: run.id } }), winner === "add" ? 1 : 0);
     const closed = await a.agentRun.findUniqueOrThrow({ where: { id: run.id }, include: { steps: true } });
     assert.ok(closed.closedAt); assert.equal(closed.steps[0]?.accepted, true); assert.equal(closed.steps[0]?.outcome, "ok");
-  } finally { paused.release(); rivalRead.release(); await Promise.allSettled(pending); await cleanup(a, f?.userId); await pool.disconnect(); }
+  } finally { try { paused.release(); rivalRead.release(); await Promise.allSettled(pending); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
 });

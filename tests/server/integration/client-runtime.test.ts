@@ -56,8 +56,12 @@ for (const format of [null, "slots-v1"] as const) for (const [first, second] of 
       const ledger = await db.agentRunStep.findMany({ where: { runId: opened.item.receipt.runId } });
       assert.equal(ledger.length, 1); assert.equal(ledger[0].callerTokenId, "second-caller"); assert.equal(ledger[0].accepted, true);
     } finally {
-      if (lang) await db.template.deleteMany({ where: { lang } });
-      await cleanup(db, userId); await disconnect();
+      try {
+        if (lang) await db.template.deleteMany({ where: { lang } });
+        await cleanup(db, userId);
+      } finally {
+        await disconnect();
+      }
     }
   });
 }
@@ -74,8 +78,12 @@ it("Codex bundle failure precedes lazy pipeline mutation in the actual DB adapte
     assert.equal(result.ok, false); assert.equal(await db.pipelineRun.count({ where: { boardItemId: f.boardItemId } }), 0);
     assert.deepEqual(await db.boardItem.findUniqueOrThrow({ where: { id: f.boardItemId } }), before);
   } finally {
-    if (lang) await db.template.deleteMany({ where: { lang } });
-    await cleanup(db, userId); await disconnect();
+    try {
+      if (lang) await db.template.deleteMany({ where: { lang } });
+      await cleanup(db, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });
 

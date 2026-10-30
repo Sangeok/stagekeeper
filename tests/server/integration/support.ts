@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type PipelineVersion, type Prisma } from "../../../src/generated/prisma/client";
 import { prisma as singleton } from "../../../src/server/db";
+import type { Hook } from "../fixtures/async-control";
+
+export { checkpoint, ordered } from "../fixtures/async-control";
+export type { Hook } from "../fixtures/async-control";
 
 export function testDatabaseUrl(): string {
   const url = process.env.TEST_DATABASE_URL;
@@ -30,6 +35,10 @@ export type FixtureOptions = {
 };
 
 export async function fixture(db: PrismaClient, options: FixtureOptions = {}): Promise<Fixture> {
+  return db.$transaction(tx => createFixture(tx, options));
+}
+
+async function createFixture(db: Prisma.TransactionClient, options: FixtureOptions): Promise<Fixture> {
   const id = randomUUID();
   const agent = options.agent ?? "dev";
   const user = await db.user.create({ data: { login: id, githubId: -Math.floor(Math.random() * 2_000_000_000) } });
@@ -75,22 +84,6 @@ export async function pipelineState(db: PrismaClient, projectId: string) {
   };
 }
 
-export type Hook = () => Promise<void>;
-
-export function ordered() {
-  let arrived = 0;
-  let bothRead!: () => void;
-  const read = new Promise<void>((resolve) => { bothRead = resolve; });
-  let winnerCommitted!: () => void;
-  const committed = new Promise<void>((resolve) => { winnerCommitted = resolve; });
-  const meet = async () => { if (++arrived === 2) bothRead(); await read; };
-  return {
-    winner: meet as Hook,
-    loser: (async () => { await meet(); await committed; }) as Hook,
-    finish: () => winnerCommitted(),
-  };
-}
-
 export const afterWorkspaceRead = (db: PrismaClient, hook: Hook): PrismaClient =>
   db.$extends({ query: { workspace: { async findMany({ args, query }) {
     const rows = await query(args);
@@ -131,20 +124,18 @@ export const afterBacklogCount = (db: PrismaClient, hook: (where: Prisma.Backlog
     return count;
   } } } }) as unknown as PrismaClient;
 
-export function checkpoint() {
-  let notify!: () => void;
-  let release!: () => void;
-  const entered = new Promise<void>((resolve) => { notify = resolve; });
-  const released = new Promise<void>((resolve) => { release = resolve; });
-  let first = true;
-  return {
-    hook: async () => { if (!first) return; first = false; notify(); await released; },
-    entered: async () => {
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([entered, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("query checkpoint did not arrive")), 8000); })]);
-      } finally { clearTimeout(timer); }
-    },
-    release,
-  };
+export async function waitForDatabaseLock(db: PrismaClient, timeoutMs = 4000): Promise<void> {
+  const deadline = performance.now() + timeoutMs;
+  while (performance.now() < deadline) {
+    const [state] = await db.$queryRaw<{ blocked: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND wait_event_type = 'Lock'
+          AND cardinality(pg_blocking_pids(pid)) > 0
+      ) AS blocked`;
+    if (state.blocked) return;
+    await delay(10);
+  }
+  throw new Error("database lock wait did not arrive");
 }

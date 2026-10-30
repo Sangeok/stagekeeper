@@ -31,5 +31,5 @@ it("invalid direct token/backlog selectors leave every row unchanged and valid o
     assert.ok((await renameUserToken(db, { tokenId: users[0].id, label: "changed", userId: f.userId })).ok);
     assert.equal((await board.removeBacklog(f.projectId, "K-1")).ok, false, "open item protected");
     assert.ok((await board.removeBacklog(f.projectId, "K-2")).ok);
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });

@@ -30,7 +30,7 @@ it("all type rules route agent proposals, null falls back to default, and web ch
     const proposed = await board.propose(f.projectId, { key, pipelineId: saved.pipelineId, agent: "dev", reason: "owner" }, { actor: "human", actorRef: f.userId, channel: "web" });
     assert.ok(proposed.ok);
     assert.equal((await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: proposed.item.id }, include: { version: true } })).version.pipelineId, saved.pipelineId);
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("two pipelines share the project-wide open cap and keep the exact public board response keys", async () => {
@@ -54,7 +54,7 @@ it("two pipelines share the project-wide open cap and keep the exact public boar
     const detail = await tools.boardGet(f.projectId, "CAP-0"); assert.ok(detail);
     assert.deepEqual(Object.keys(detail).sort(), [...keys, "events", "reports", "acceptanceFailures"].sort());
     assert.deepEqual(Object.keys(detail.backlogItem).sort(), ["id", "projectId", "key", "title", "area", "source", "type", "addedBy", "removedReason", "createdAt", "removedAt"].sort());
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("virtual default selection succeeds; unavailable targets and held-key proposals have zero writes", async () => {
@@ -81,5 +81,5 @@ it("virtual default selection succeeds; unavailable targets and held-key proposa
     const snapshot = await pipelineState(db, f.projectId);
     assert.deepEqual(await board.propose(f.projectId, { ...input, pipelineId: fragment.pipelineId }, by), { ok: false, reason: PIPELINE_NOT_FOUND });
     assert.deepEqual(await pipelineState(db, f.projectId), snapshot);
-  } finally { await cleanup(db, f.userId); await cleanup(db, other.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); await cleanup(db, other.userId); } finally { await pool.disconnect(); } }
 });

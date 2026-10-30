@@ -30,7 +30,7 @@ it("head scouts only after a backlog change, and only accepted report completion
     assert.equal((await read()).action, "none", "an empty project still remembers a completed scout");
     await db.agentRun.update({ where: { id: run.id }, data: { key: "K-1" } });
     assert.equal((await read()).action, "dispatch", "head evidence must be project-scoped");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("at the dispatch cap only a matching unbound scout can resume the empty head", async () => {
@@ -54,7 +54,7 @@ it("at the dispatch cap only a matching unbound scout can resume the empty head"
     if (candidateHead.action === "dispatch") assert.equal(candidateHead.agent, "pm");
     await db.agentRun.update({ where: { id: pm.id }, data: { closedAt: new Date() } });
     assert.equal((await headFor(db, f.projectId, 0, 1, false)).action, "none", "scout resume cannot bypass PM cap");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("a real overview dispatches its trailing Scout slot once, then remembers the bound report", async () => {
@@ -78,5 +78,5 @@ it("a real overview dispatches its trailing Scout slot once, then remembers the 
     const second = JSON.stringify(await tools.pipelineNext(f.projectId, undefined));
     assert.match(second, /feature-scout already looked/); assert.doesNotMatch(second, /"action":"dispatch"/);
     assert.ok((await db.pipelineRun.findUniqueOrThrow({ where: { id: pipeline.id } })).closedAt);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });

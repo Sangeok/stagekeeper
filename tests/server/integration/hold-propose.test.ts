@@ -29,7 +29,7 @@ for (const legacy of [false, true]) it(`a held item is neither proposable nor a 
     assert.ok((await service.addBacklog(f.projectId, ownerInput)).ok);
     assert.equal(await service.availableBacklogCount(f.projectId), 1);
     assert.equal(isPm(await head(db, f.projectId)), true, "a pickable item brings pm back");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("after the owner resumes a held item, proposing it is refused as already open", async () => {
@@ -40,5 +40,5 @@ it("after the owner resumes a held item, proposing it is refused as already open
     const resumed = await service.transition(f.projectId, { key: f.key, to: "planning" }, { actor: "human", actorRef: f.userId, channel: "web", expectedUpdatedAt: f.updatedAt });
     assert.ok(resumed.ok, JSON.stringify(resumed));
     assert.deepEqual(await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "agent", actorRef: "pm" }), { ok: false, reason: "already open" });
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });

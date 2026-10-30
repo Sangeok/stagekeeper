@@ -72,8 +72,11 @@ it("the templates route answers with real bodies, the lock reason, and auth fail
       assert.equal(denied.status, 401);
     }
   } finally {
-    await db.template.deleteMany({ where: { lang } });
-    await cleanup(db, userId);
-    await disconnect();
+    try {
+      await db.template.deleteMany({ where: { lang } });
+      await cleanup(db, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });
