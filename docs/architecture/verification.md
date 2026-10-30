@@ -145,9 +145,10 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   태그 사례 3개를 Opus 5.5로 3회씩 돌리고, 한 번이라도 판정이 어긋나면 실패한다. 사례는 연결된 저장소의
   재실행(`rerun-asks-first`), 처음 연결에서 등록과 `harness.json` 쓰기 전에 묻는지
   (`first-connection-asks-before-register`), 초안을 승인한 뒤에도 생성 전에 다시 묻는지
-  (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답한다.
-  주 1회와 수동 실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4). eval은 사용자 설정을
-  격리하므로 사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
+  (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
+  실행마다 셸 명령을 기록해 job 로그에 남긴다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
+  실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
+  사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 
