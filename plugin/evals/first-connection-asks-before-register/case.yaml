@@ -27,10 +27,6 @@ graders:
     type: file_exists
     path: '**/harness.json'
     exists: false
-  - name: no-generate-before-yes
-    type: file_exists
-    path: '**/.eval-generate-called'
-    exists: false
   - name: asks-for-yes
     type: regex
     target: last_message

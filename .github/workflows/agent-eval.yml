@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "0 3 * * 1"
   workflow_dispatch:
+    inputs:
+      case:
+        description: "Run only the cases whose name matches this glob (default: every case tagged gate)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -64,22 +69,22 @@ jobs:
           baseline="$workspace/.stagekeeper-eval/.baseline"
           [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
           if [ -f "$baseline" ]; then
-            case "$1" in
-              *--register*)
-                : > "$workspace/.eval-register-called"
-                origin="$(git -C "$workspace" remote get-url origin 2>/dev/null)"
-                repo="$(basename "$origin" .git)"
-                owner="$(basename "$(dirname "$origin")")"
-                printf '{"owner":"%s","repo":"%s","branch":"main","name":"%s","slug":"%s"}\n' "$owner" "$repo" "$repo" "$repo"
-                exit 0
-                ;;
-              *harness-init.mjs*)
-                case "$1" in
-                  *--dry-run*|*--print-project*|*--help*) ;;
-                  *) : > "$workspace/.eval-generate-called" ;;
-                esac
-                ;;
-            esac
+            printf '%s\n' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-240)" >> "$workspace/.eval-commands.log"
+            generator='(^|[[:space:];&|(])node[[:space:]]+([^[:space:]]+[[:space:]]+)*[^[:space:]]*harness-init\.mjs'
+            if [[ "$1" =~ $generator ]]; then
+              case "$1" in
+                *--register*)
+                  : > "$workspace/.eval-register-called"
+                  origin="$(git -C "$workspace" remote get-url origin 2>/dev/null)"
+                  repo="$(basename "$origin" .git)"
+                  owner="$(basename "$(dirname "$origin")")"
+                  printf '{"owner":"%s","repo":"%s","branch":"main","name":"%s","slug":"%s"}\n' "$owner" "$repo" "$repo" "$repo"
+                  exit 0
+                  ;;
+                *--dry-run*|*--print-project*|*--help*) ;;
+                *) : > "$workspace/.eval-generate-called" ;;
+              esac
+            fi
           fi
           bash -c "$1"
           status=$?
@@ -111,9 +116,15 @@ jobs:
         shell: bash
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
+          CASE_GLOB: ${{ inputs.case }}
         run: |
           set +e
-          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --tag gate --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/eval.json"
+          selector=(--tag gate)
+          if [ -n "$CASE_GLOB" ]; then
+            [[ "$CASE_GLOB" =~ ^[a-z0-9*-]+$ ]] || { echo "::error::case must be a case name glob"; exit 2; }
+            selector=(--case "$CASE_GLOB")
+          fi
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" "${selector[@]}" --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/eval.json"
           code=$?
           node -e '
             const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
@@ -129,4 +140,8 @@ jobs:
             console.log(lines.join("\n"));
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "```\n" + lines.join("\n") + "\n```\n");
           ' "$RUNNER_TEMP/eval.json" || echo "no eval result"
+          find "${TMPDIR:-/tmp}" /private/tmp -name .eval-commands.log 2>/dev/null | sort -u | while read -r log; do
+            echo "shell commands in ${log%/.eval-commands.log}:"
+            sed 's/^/  /' "$log"
+          done
           exit $code
