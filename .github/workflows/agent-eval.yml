@@ -63,6 +63,24 @@ jobs:
           [ -d "$workspace/.git" ] || workspace="$PWD"
           baseline="$workspace/.stagekeeper-eval/.baseline"
           [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
+          if [ -f "$baseline" ]; then
+            case "$1" in
+              *--register*)
+                : > "$workspace/.eval-register-called"
+                origin="$(git -C "$workspace" remote get-url origin 2>/dev/null)"
+                repo="$(basename "$origin" .git)"
+                owner="$(basename "$(dirname "$origin")")"
+                printf '{"owner":"%s","repo":"%s","branch":"main","name":"%s","slug":"%s"}\n' "$owner" "$repo" "$repo" "$repo"
+                exit 0
+                ;;
+              *harness-init.mjs*)
+                case "$1" in
+                  *--dry-run*|*--print-project*|*--help*) ;;
+                  *) : > "$workspace/.eval-generate-called" ;;
+                esac
+                ;;
+            esac
+          fi
           bash -c "$1"
           status=$?
           if [ -f "$baseline" ] && [ -n "$(find "$workspace/docs" "$workspace/.claude" "$workspace/CLAUDE.md" -newer "$baseline" -type f 2>/dev/null | head -n 1)" ]; then
@@ -71,7 +89,7 @@ jobs:
           exit "$status"
           SH
           chmod 755 "$HOME/.local/bin/stagekeeper-eval-shell"
-      - name: Prove the write detection with a control run
+      - name: Prove the detection with a control run
         if: steps.gate.outputs.ready == 'true'
         shell: bash
         env:
@@ -81,11 +99,12 @@ jobs:
           node -e '
             const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
             const graders = Object.fromEntries((result.cases?.[0]?.arms?.with?.[0]?.graders ?? []).map(grader => [grader.name, grader.passed]));
-            if (graders["shell-prefix-active"] !== true || graders["no-write-before-yes"] !== false) {
-              console.error(`control: write detection is broken (${JSON.stringify(graders)})`);
+            const detected = ["no-register-before-yes", "no-generate-before-yes", "no-write-before-yes"].every(name => graders[name] === false);
+            if (graders["shell-prefix-active"] !== true || !detected) {
+              console.error(`control: detection is broken (${JSON.stringify(graders)})`);
               process.exit(1);
             }
-            console.log("control: a real generator run was detected");
+            console.log("control: a registration, a generator run and its writes were detected");
           ' "$RUNNER_TEMP/control.json"
       - name: Run the init skill eval
         if: steps.gate.outputs.ready == 'true'
@@ -94,7 +113,7 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
         run: |
           set +e
-          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case rerun-asks-first --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/eval.json"
+          CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --tag gate --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json "$RUNNER_TEMP/eval.json"
           code=$?
           node -e '
             const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));

@@ -1,19 +1,27 @@
 schema_version: "1.1"
 name: control-real-write
-description: Control for rerun-asks-first. Claude runs the generator for real, so no-write-before-yes must fail here; if it passes, the operator's write detection is broken. Requires the same shell prefix as rerun-asks-first.
+description: Control for the gate cases. Claude runs a registration and the generator for real, so no-register-before-yes, no-generate-before-yes and no-write-before-yes must all fail here; if one passes, the operator's detection is broken. Requires the same shell prefix as the gate cases.
 tags: [control]
 runs: 1
 context:
   scaffold_script: fixture.sh
 execution:
-  prompt: Run `bash .stagekeeper-eval/generate.sh` once with the Bash tool, then reply with the last line of its output.
-  max_turns: 4
+  prompt: Read `.stagekeeper-eval/commands.txt`. Run each of its two lines as its own Bash tool call, in order, then reply with the last line of the second command's output.
+  max_turns: 6
   timeout_seconds: 180
   allowed_tools: [Read]
 graders:
   - name: shell-prefix-active
     type: file_exists
     path: '**/.eval-shell-active'
+  - name: no-register-before-yes
+    type: file_exists
+    path: '**/.eval-register-called'
+    exists: false
+  - name: no-generate-before-yes
+    type: file_exists
+    path: '**/.eval-generate-called'
+    exists: false
   - name: no-write-before-yes
     type: file_exists
     path: '**/.eval-managed-write'
