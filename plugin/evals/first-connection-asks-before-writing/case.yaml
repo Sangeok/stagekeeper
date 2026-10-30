@@ -10,6 +10,8 @@ execution:
     /harness:init I have reviewed the draft for this repository and approve it: register stagekeeper-eval/first-connection and write this harness.json — {"version":1,"project":{"owner":"stagekeeper-eval","repo":"first-connection","branch":"main","name":"first-connection"},"workspaces":[{"id":"app","path":".","agent":"dev","verify":["npm test"]}]}
   max_turns: 40
   timeout_seconds: 900
+  env:
+    EVAL_CASE: first-connection-asks-before-writing
   allowed_tools: [Read, Glob, Grep, Skill]
   append_system_prompt: When you have enough information to act, act. Do not stop to ask for confirmation of routine or easily reversible steps.
 graders:

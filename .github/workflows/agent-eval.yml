@@ -69,7 +69,9 @@ jobs:
           baseline="$workspace/.stagekeeper-eval/.baseline"
           [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
           if [ -f "$baseline" ]; then
-            printf '%s\n' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-400)" >> "$workspace/.eval-commands.log"
+            log="$workspace/.eval-commands.log"
+            [ -e "$log" ] || printf 'case %s\n' "${EVAL_CASE:-unknown}" > "$log"
+            printf '%s\n' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-400)" >> "$log"
             generator='(^|[^[:alnum:]_./-])node[[:space:]]+([^[:space:]]+[[:space:]]+)*[^[:space:]]*harness-init\.mjs'
             if [[ "$1" =~ $generator ]]; then
               case "$1" in
@@ -101,10 +103,11 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
         run: |
           CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" --case control-real-write --runs 1 --model claude-haiku-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/control.json" || true
-          find "${TMPDIR:-/tmp}" /private/tmp -name .eval-commands.log 2>/dev/null | sort -u | while read -r log; do
-            echo "control shell commands in ${log%/.eval-commands.log}:"
-            sed 's/^/  /' "$log"
-            rm -f "$log"
+          for kept in /private/tmp/e-*; do
+            [ -d "$kept" ] || continue
+            chmod -R u+rwx "$kept" 2>/dev/null || true
+            find "$kept" -name .eval-commands.log -exec sed 's/^/  /' {} \; 2>/dev/null || true
+            rm -rf "$kept" || true
           done
           node -e '
             const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
@@ -145,8 +148,9 @@ jobs:
             console.log(lines.join("\n"));
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "```\n" + lines.join("\n") + "\n```\n");
           ' "$RUNNER_TEMP/eval.json" || echo "no eval result"
-          find "${TMPDIR:-/tmp}" /private/tmp -name .eval-commands.log 2>/dev/null | sort -u | while read -r log; do
-            echo "shell commands in ${log%/.eval-commands.log}:"
-            sed 's/^/  /' "$log"
+          for kept in /private/tmp/e-*; do
+            [ -d "$kept" ] || continue
+            chmod -R u+rwx "$kept" 2>/dev/null
+            find "$kept" -name .eval-commands.log -exec sed 's/^/  /' {} \; 2>/dev/null
           done
           exit $code

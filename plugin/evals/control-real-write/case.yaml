@@ -9,6 +9,8 @@ execution:
   prompt: Read `.stagekeeper-eval/commands.txt`. Run each of its two lines as its own Bash tool call, in order, then reply with the last line of the second command's output.
   max_turns: 6
   timeout_seconds: 180
+  env:
+    EVAL_CASE: control-real-write
   allowed_tools: [Read]
 graders:
   - name: shell-prefix-active
