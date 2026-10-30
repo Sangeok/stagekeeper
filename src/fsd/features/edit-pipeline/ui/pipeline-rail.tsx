@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { STEP_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId, refId, expand, sequence, usersOf, type Definition } from "@harness/core/pipeline/pipeline.mjs";
 import { autoEdgeLabel, gateLabel, gateTooltip, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
@@ -10,6 +10,7 @@ import { PIPELINE_EDIT_PLAN_GATE } from "../model/plan-gate";
 import { PIPELINE_STALE, PIPELINE_UNKNOWN, type SavePipelineInput, type SavePipelineResult } from "../model/pipeline-save-state";
 import { beginPipelineSave, createPipelineDraft, discardPipelineDraft, finishPipelineSave, isPipelineDirty, receivePipelineSnapshot, editPipelineDraft } from "../model/pipeline-draft-state";
 import { addNode, addSlot, check, hasUngatedRunnable, insertRef, isProjectSlot, moveSlot, insertGate, removeGate, removeNode, preview, swapTail, type CompositionContext, type PipelineSnapshot, type Step } from "../model/rail-state";
+import { findInsertionConflicts, type InsertionConflicts } from "../model/insertion-conflicts";
 
 export type SavePipelineAction = (input: SavePipelineInput) => Promise<SavePipelineResult>;
 type Props = {
@@ -19,8 +20,12 @@ type Props = {
   onSelect?: (id: string) => void; onDirtyChange?: (dirty: boolean) => void;
   onBusyChange?: (busy: boolean) => void; onSaved?: (id: string) => void;
 };
-type Move = { label: string; step: Step };
-type EdgeMenuState = { kind: "closed" } | { kind: "open"; before: string | null };
+type Move = {
+  label: string;
+  step: Step;
+  reference?: { id: string; name: string; conflicts: InsertionConflicts | null };
+};
+type EdgeMenuState = { kind: "closed" } | { kind: "open"; before: string | null; inspectedPipelineId?: string };
 
 export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0, pipelines, rules, plan, roster, editable, save, unavailableReason, onSelect, onDirtyChange, onBusyChange, onSaved }: Props) {
   const [editor, setEditor] = useState(() => createPipelineDraft({ definition, version: expectedVersion }));
@@ -29,6 +34,8 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   const [confirmingNoGate, setConfirmingNoGate] = useState(false);
   const [externalChange, setExternalChange] = useState(false);
   const [pending, startTransition] = useTransition();
+  const conflictDescriptionId = useId();
+  const stepElements = useRef(new Map<string, HTMLDivElement>());
   const saving = useRef(false), alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const draftDefinition = editor.definition, baseline = editor.baseline;
@@ -67,8 +74,33 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
     ...PROJECT_AGENTS.map(agent => ({ label: `Add ${agent} here`, step: addSlot(draftDefinition, agent, before, plan, context) })),
     ...draftDefinition.steps.filter(isProjectSlot).map(slot => ({ label: `Move ${slot} here`, step: moveSlot(draftDefinition, slot, before, plan, context) })),
     ...missing.map(kind => ({ label: `Add ${nodeLabel(kind)}`, step: addNode(draftDefinition, kind, plan, context) })),
-    ...pipelines.filter(pipeline => pipeline.id !== id).map(pipeline => ({ label: `Use ${pipeline.name} here`, step: insertRef(draftDefinition, pipeline.id, before, plan, context) })),
+    ...pipelines.filter(pipeline => pipeline.id !== id).map(pipeline => {
+      const step = insertRef(draftDefinition, pipeline.id, before, plan, context);
+      const hasDuplicates = !step.ok && (step.reason === "a node appears twice" || step.reason === "a step appears twice");
+      return {
+        label: `Use ${pipeline.name} here`, step,
+        reference: {
+          id: pipeline.id, name: pipeline.name,
+          conflicts: hasDuplicates ? findInsertionConflicts(draftDefinition, pipeline.id, draftDefinitions) : null,
+        },
+      };
+    }),
   ];
+  const moves = edgeMenu.kind === "open" ? movesFor(edgeMenu.before) : [];
+  const inspectedPipelineId = edgeMenu.kind === "open" ? edgeMenu.inspectedPipelineId : undefined;
+  const inspectedReference = moves.find(move => move.reference !== undefined && move.reference.id === inspectedPipelineId)?.reference;
+  const conflictingSteps = new Set(inspectedReference?.conflicts?.stepIds ?? []);
+  const conflictingNodes = new Set(inspectedReference?.conflicts?.nodes ?? []);
+  const registerStep = (step: string, element: HTMLDivElement | null): void => {
+    if (element) stepElements.current.set(step, element);
+    else stepElements.current.delete(step);
+  };
+  const showConflicts = (move: Move): void => {
+    const reference = move.reference;
+    if (edgeMenu.kind !== "open" || !reference?.conflicts) return;
+    setEdgeMenu({ ...edgeMenu, inspectedPipelineId: reference.id });
+    stepElements.current.get(reference.conflicts.stepIds[0])?.scrollIntoView({ block: "nearest", inline: "center" });
+  };
   const applyIfValid = (step: Step): void => {
     if (!editable || saving.current || !step.ok) return;
     setEditor(current => editPipelineDraft(current, step.definition)); setEdgeMenu({ kind: "closed" }); setConfirmingNoGate(false);
@@ -109,15 +141,18 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   };
   return <div className="flex flex-col gap-4">
     <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={expanded} onChange={event => setExpanded(event.target.checked)} />Show expanded</label>
-    <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
+    <div className="flex items-stretch gap-2 overflow-x-auto p-1">
       {draftDefinition.steps.map(kind => {
         const target = refId(kind);
         const block = target === null ? null : expand(target, draftDefinitions);
+        const hasConflict = conflictingSteps.has(kind);
         if (expanded) {
           const nodes = block?.ok ? block.graph.nodes : target === null ? [kind] : [];
-          return <div key={kind} className="flex shrink-0 gap-2 rounded-lg border border-edge p-3" aria-label={target === null ? nodeLabel(kind) : names(target)}>
+          return <div key={kind} ref={element => registerStep(kind, element)}
+            className={cn("flex shrink-0 gap-2 rounded-lg border border-edge p-3", hasConflict && "border-risk bg-risk-soft")}
+            role="group" aria-label={target === null ? nodeLabel(kind) : names(target)} aria-describedby={hasConflict ? conflictDescriptionId : undefined}>
             {target !== null ? <span className="text-xs text-quiet">{names(target)}</span> : null}
-            {nodes.map(node => <div key={node} className="flex gap-2 text-sm">{expandedDraft.ok && expandedDraft.graph.gates.includes(gateId(node)) ? <Chip tone="mine">{gateLabel(gateId(node))}</Chip> : null}<span>{nodeLabel(node)}</span></div>)}
+            {nodes.map(node => <div key={node} className={cn("flex gap-2 text-sm", conflictingNodes.has(node) && "text-risk")}>{expandedDraft.ok && expandedDraft.graph.gates.includes(gateId(node)) ? <Chip tone="mine">{gateLabel(gateId(node))}</Chip> : null}<span>{nodeLabel(node)}</span>{conflictingNodes.has(node) ? <span className="text-xs">Already used</span> : null}</div>)}
             {block && !block.ok ? <span className="text-xs text-risk">{block.reason}</span> : null}
           </div>;
         }
@@ -126,6 +161,9 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
             label={labelForGate(gateId(kind))} tooltip={tooltipForGate(kind)} editable={canEdit} open={edgeMenu.kind === "open" && edgeMenu.before === kind}
             onToggle={() => { if (canEdit && !saving.current) setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === kind ? { kind: "closed" } : { kind: "open", before: kind }); }}
             removeGateStep={removeGate(draftDefinition, gateId(kind), plan, context)} onApply={applyIfValid} />
+          <div ref={element => registerStep(kind, element)} role="group" aria-label={target === null ? nodeLabel(kind) : names(target)}
+            aria-describedby={hasConflict ? conflictDescriptionId : undefined}
+            className={cn("flex flex-col gap-1 rounded-lg", hasConflict && "outline-2 outline-offset-2 outline-risk")}>
           {target === null ? <NodeCard kind={kind} roster={roster} editable={canEdit}
             removable={!context.mustRun.includes(id) || !REQUIRED_NODES.includes(kind)}
             swappable={TAIL_NODES.includes(kind) && draftDefinition.steps.filter(step => TAIL_NODES.includes(step)).length === 2}
@@ -135,15 +173,26 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
               <button type="button" className="text-left text-xs underline" disabled={busy || pending} onClick={() => onSelect?.(target)}>Edit {names(target)}</button>
               {canEdit ? <button type="button" className="text-left text-xs underline" disabled={!removeNode(draftDefinition, kind, plan, context).ok} onClick={() => applyIfValid(removeNode(draftDefinition, kind, plan, context))}>Remove</button> : null}
             </div>}
+          {hasConflict ? <span className="max-w-48 px-1 text-xs text-risk">Already used{target !== null && block?.ok ? `: ${block.graph.nodes.filter(node => conflictingNodes.has(node)).map(nodeLabel).join(", ")}` : ""}</span> : null}
+          </div>
         </div>;
       })}
     </div>
+    {inspectedReference?.conflicts ? <p id={conflictDescriptionId} role="status" className="rounded-lg border border-risk bg-risk-soft px-3 py-2 text-sm text-risk">
+      Cannot add {inspectedReference.name} here. Already used: {inspectedReference.conflicts.nodes.map(nodeLabel).join(", ")}. The same step cannot appear twice in one pipeline.
+    </p> : null}
     {editable && !expanded ? <button type="button" className="self-start text-xs underline" disabled={!canEdit} onClick={() => setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === null ? { kind: "closed" } : { kind: "open", before: null })}>{draftDefinition.steps.length ? "Add at end" : "Add first step"}</button> : null}
     {edgeMenu.kind === "open" && !expanded ? <div className="flex w-72 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
       <p className="px-1.5 pb-1 text-xs text-quiet">{edgeMenu.before === null ? "At end" : labelForGate(gateId(edgeMenu.before))}</p>
-      {movesFor(edgeMenu.before).map(move => <div key={move.label} className="flex flex-col">
+      {moves.map(move => <div key={move.label} className="flex flex-col">
         <button type="button" disabled={!canEdit || !move.step.ok} className="rounded px-1.5 py-1 text-left text-xs hover:bg-field disabled:opacity-50" onClick={() => applyIfValid(move.step)}>{move.label}</button>
-        {move.step.ok ? null : <span className="px-1.5 text-[11px] text-quiet">{move.step.reason}</span>}
+        {move.step.ok ? null : <p className="px-1.5 text-xs text-quiet">{move.reference?.conflicts
+          ? `Cannot add here. Already used: ${move.reference.conflicts.nodes.map(nodeLabel).join(", ")}. The same step cannot appear twice in one pipeline.`
+          : move.step.reason}</p>}
+        {move.reference?.conflicts ? <button type="button" disabled={!canEdit} aria-pressed={move.reference.id === inspectedPipelineId}
+          aria-label={`Show conflicting steps for ${move.reference.name}`}
+          className="self-start px-1.5 py-1 text-xs underline underline-offset-2 disabled:opacity-50"
+          onClick={() => showConflicts(move)}>Show conflicting steps</button> : null}
       </div>)}
     </div> : null}
     {affected.length ? <p className="text-xs text-quiet">Also changes: {affected.map(names).join(", ")}</p> : null}
@@ -213,6 +262,7 @@ function EdgeSlot({
       {autoLabel ? <span className="text-[11px] text-quiet">{autoLabel}</span> : null}
       {editable ? <button
         type="button"
+        aria-label={label === undefined ? "Insert step" : `Insert ${label}`}
         aria-expanded={open}
         onClick={onToggle}
         className={cn(
