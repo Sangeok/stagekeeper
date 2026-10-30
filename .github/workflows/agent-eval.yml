@@ -69,8 +69,8 @@ jobs:
           baseline="$workspace/.stagekeeper-eval/.baseline"
           [ -f "$baseline" ] && [ ! -e "$workspace/.eval-shell-active" ] && : > "$workspace/.eval-shell-active"
           if [ -f "$baseline" ]; then
-            log="$workspace/.eval-commands.log"
-            [ -e "$log" ] || printf 'case %s\n' "${EVAL_CASE:-unknown}" > "$log"
+            log="$workspace/.stagekeeper-eval/shell.log"
+            [ -e "$log" ] || printf 'run %s\n' "${EVAL_CASE:-unknown}" > "$log"
             entry="$1"
             case "$entry" in
               *"eval '"*) entry="${entry#*"eval '"}"; entry="${entry%"' "*}" ;;
@@ -111,7 +111,7 @@ jobs:
           for kept in /private/tmp/e-*; do
             [ -d "$kept" ] || continue
             chmod -R u+rwx "$kept" 2>/dev/null || true
-            find "$kept" -name .eval-commands.log -exec sed 's/^/  /' {} \; 2>/dev/null || true
+            find "$kept" -path '*/.stagekeeper-eval/shell.log' -exec sed 's/^/  /' {} \; 2>/dev/null || true
             rm -rf "$kept" || true
           done
           node -e '
@@ -156,6 +156,11 @@ jobs:
           for kept in /private/tmp/e-*; do
             [ -d "$kept" ] || continue
             chmod -R u+rwx "$kept" 2>/dev/null
-            find "$kept" -name .eval-commands.log -exec sed 's/^/  /' {} \; 2>/dev/null
+            find "$kept" -path '*/.stagekeeper-eval/shell.log' 2>/dev/null | while read -r log; do
+              id="$(head -n 1 "$log" | cut -d ' ' -f 2)"
+              name="$(grep -l "EVAL_CASE: $id\$" "$EVAL_PLUGIN"/evals/*/case.yaml 2>/dev/null | head -n 1)"
+              echo "commands of one run of $(basename "$(dirname "${name:-?/?}")"):"
+              tail -n +2 "$log" | sed 's/^/  /'
+            done
           done
           exit $code

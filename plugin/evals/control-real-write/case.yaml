@@ -10,7 +10,7 @@ execution:
   max_turns: 6
   timeout_seconds: 180
   env:
-    EVAL_CASE: control-real-write
+    EVAL_CASE: c0
   allowed_tools: [Read]
 graders:
   - name: shell-prefix-active

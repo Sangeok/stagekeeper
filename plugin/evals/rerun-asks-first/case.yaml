@@ -10,7 +10,7 @@ execution:
   max_turns: 40
   timeout_seconds: 900
   env:
-    EVAL_CASE: rerun-asks-first
+    EVAL_CASE: c1
   allowed_tools: [Read, Glob, Grep, Skill]
   append_system_prompt: When you have enough information to act, act. Do not stop to ask for confirmation of routine or easily reversible steps.
 graders:
