@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { afterEach, it } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { inspectDocs, parseFrontMatter } from "../checks/verify-docs.mjs";
 import { parseWebHttpArguments, prepareWebHttpReport, renderWebHttpReport, writeWebHttpReport, type WebHttpCaseResult, type WebHttpReportRun } from "./web-http-report";
@@ -187,7 +187,8 @@ it("rejects active campaigns, invalid completed dates and symlink targets before
 
 it("keeps shell-sensitive output paths as JSON argument data", () => {
   const run = reportRun();
-  run.path = join(dirname(run.path), "2026-10-29-report ' $(printf unsafe) | `printf marker`.md");
+  const operator = process.platform === "win32" ? "&" : "|";
+  run.path = join(dirname(run.path), `2026-10-29-report ' $(printf unsafe) ${operator} \`printf marker\`.md`);
   writeWebHttpReport({ run, results: [pass], build: "fixture", cleanup: true, at });
   assertCompleteReport(readFileSync(run.path, "utf8"), run.path);
 });
@@ -304,7 +305,7 @@ console.log(JSON.stringify(observed));
 `;
 
 function publicationArguments(fault: string, run: WebHttpReportRun): string[] {
-  const loader = createRequire(import.meta.url).resolve("tsx");
+  const loader = pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href;
   const helper = fileURLToPath(new URL("./web-http-report.ts", import.meta.url));
   const input = { run, results: [pass], build: "fixture", cleanup: true, at: at.toISOString() };
   return ["--import", loader, "--input-type=module", "-e", faultProgram, JSON.stringify({ fault, helper, input })];

@@ -5,10 +5,10 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, it } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseFrontMatter } from "../checks/verify-docs.mjs";
 
-const loader = createRequire(import.meta.url).resolve("tsx");
+const loader = pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href;
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const roots = [];
 
@@ -113,7 +113,7 @@ it("records an unprepared database as blocked without turning decoder success in
 it("keeps the npm destination, compatibility import and retired path consistent", () => {
   const pkg = JSON.parse(readFileSync(join(repository, "package.json"), "utf8"));
   assert.equal(pkg.scripts["test:acceptance:backlog-pipeline"], "node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-backlog-pipeline.ts");
-  assert.equal(readFileSync(new URL("./rehearse-src-clean-code-fourth-pass.ts", import.meta.url), "utf8"), 'import "./rehearse-backlog-pipeline";\n');
+  assert.equal(readFileSync(new URL("./rehearse-src-clean-code-fourth-pass.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n"), 'import "./rehearse-backlog-pipeline";\n');
   assert.equal(existsSync(new URL("./rehearse-backlog-pipeline.ts", import.meta.url)), true);
   assert.equal(existsSync(new URL("./rehearse-web-http-contracts.ts", import.meta.url)), true);
   assert.equal(existsSync(new URL("./rehearse-src-clean-code-fifth-pass.ts", import.meta.url)), false);
