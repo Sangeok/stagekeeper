@@ -71,7 +71,12 @@ jobs:
           if [ -f "$baseline" ]; then
             log="$workspace/.eval-commands.log"
             [ -e "$log" ] || printf 'case %s\n' "${EVAL_CASE:-unknown}" > "$log"
-            printf '%s\n' "$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-400)" >> "$log"
+            entry="$1"
+            case "$entry" in
+              *"eval '"*) entry="${entry#*"eval '"}"; entry="${entry%"' "*}" ;;
+              *) [ "${#entry}" -le 300 ] || entry="${entry: -300}" ;;
+            esac
+            printf '%s\n' "$(printf '%s' "$entry" | tr '\n' ' ' | cut -c1-300)" >> "$log"
             generator='(^|[^[:alnum:]_./-])node[[:space:]]+([^[:space:]]+[[:space:]]+)*[^[:space:]]*harness-init\.mjs'
             if [[ "$1" =~ $generator ]]; then
               case "$1" in
