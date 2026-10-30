@@ -50,7 +50,7 @@ it("settings validate names, targets, defaults, direct references and rules with
     assert.equal((await archivePipeline(db, { ...identity, pipelineId: fragment })).ok, true, "archived users no longer block archiving");
     assert.equal((await renamePipeline(db, { ...identity, pipelineId: runnable, name: "Again" })).ok, false);
     await add("Feature", ["qa"]);
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("definition and automatic-picking writes recheck a downgrade committed while they wait for owner locks", async () => {
@@ -93,5 +93,5 @@ it("all settings recheck owner, availability and Free plan and leave no material
     await db.project.update({ where: { id: f.projectId }, data: { disconnectedAt: new Date() } }); await unchanged(operations());
     await db.project.update({ where: { id: f.projectId }, data: { available: true, disconnectedAt: null } });
     await db.subscription.update({ where: { userId: f.userId }, data: { plan: "free" } }); await unchanged(operations(), PIPELINE_EDIT_PLAN_GATE);
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });

@@ -34,7 +34,7 @@ it("rename changes only labels, preserves ended credentials and cannot cross a u
     await db.project.update({ where: { id: f.projectId }, data: { available: false } });
     assert.equal((await renameProjectToken(db, { userId, projectId: f.projectId, tokenId: agent.id, label: "unavailable", kind: "agent" })).ok, false);
     assert.equal((await db.projectToken.findUniqueOrThrow({ where: { id: agent.id } })).label, "new");
-  } finally { await cleanup(db, userId); await cleanup(db, otherUserId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); await cleanup(db, otherUserId); } finally { await pool.disconnect(); } }
 });
 
 it("project issuance validates canonical future expiry and retains unlimited multi-token issuance", async () => {
@@ -53,7 +53,7 @@ it("project issuance validates canonical future expiry and retains unlimited mul
       assert.equal(rows.length, 2); assert.equal(rows.filter((row) => row.expiresAt === null).length, 1);
       assert.ok(rows.every((row) => row.lastUsedAt === null && row.usageTrackingStartedAt instanceof Date));
     }
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });
 
 it("all token recorders accept the captured pre-expiry time but never update on or after expiry", async () => {
@@ -74,7 +74,7 @@ it("all token recorders accept the captured pre-expiry time but never update on 
       assert.equal((await read()).lastUsedAt, null);
       await record(kind, row.id, before); assert.equal((await read()).lastUsedAt?.getTime(), before.getTime());
     }
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });
 
 it("rename and disconnect serialize in either order without reviving a credential", async () => {
@@ -94,6 +94,6 @@ it("rename and disconnect serialize in either order without reviving a credentia
       assert.equal((results[disconnectFirst ? 1 : 0] as { ok: boolean }).ok, !disconnectFirst);
       const after = await a.projectToken.findUniqueOrThrow({ where: { id: token.id } });
       assert.equal(after.label, disconnectFirst ? "old" : "new"); assert.ok(after.revokedAt); assert.equal(after.hash, token.hash);
-    } finally { gate.release(); arrived.release(); await Promise.allSettled([first, second]); await cleanup(a, userId); await pool.disconnect(); }
+    } finally { try { gate.release(); arrived.release(); await Promise.allSettled([first, second]); await cleanup(a, userId); } finally { await pool.disconnect(); } }
   }
 });

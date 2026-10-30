@@ -49,7 +49,7 @@ it("reads a narrow connection projection without changing populated owner rows",
       assert.deepEqual(await preserved(db, f), before);
       assert.deepEqual(await Promise.all([db.user.findUniqueOrThrow({ where: { id: f.userId } }), db.project.findMany({ where: { ownerUserId: f.userId }, orderBy: { id: "asc" } }), db.projectAvailabilityEvent.findMany({ where: { ownerUserId: f.userId } })]), owners);
     }
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 async function preserved(db: PrismaClient, f: Fixture): Promise<unknown> {
@@ -209,7 +209,7 @@ it("preserves project identity and every populated child, revokes project creden
       assert.equal(result.status === "error" && result.code, "integrity");
     }
     assert.equal(await db.projectAvailabilityEvent.count({ where: { ownerUserId: f.userId } }), 3);
-  } finally { if (f) await db.template.deleteMany({ where: { lang: f.id } }); await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { if (f) await db.template.deleteMany({ where: { lang: f.id } }); await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("rolls project, credentials, version and events back when event storage or CAS fails", async () => {
@@ -234,7 +234,7 @@ it("rolls project, credentials, version and events back when event storage or CA
     } } } }) as unknown as TransactionHost;
     assert.equal((await disconnectProject(retried, input)).status, "success");
     assert.equal(attempts, 2); assert.equal(await db.projectAvailabilityEvent.count({ where: { ownerUserId: f.userId, reason: "disconnect-project" } }), 1);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("permits zero-connected plan changes/new registration and preserves account dispatch usage and approved in-flight writes", async () => {
@@ -272,7 +272,7 @@ it("permits zero-connected plan changes/new registration and preserves account d
     assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 1);
     const full = await reconnectProject(db, { userId: f.userId, targetProjectId: f.projectId, expectedVersion: 3 });
     assert.deepEqual(full, { status: "error", code: "capped", plan: "free", limit: 1 });
-  } finally { gate.release(); await Promise.allSettled([pending]); await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { gate.release(); await Promise.allSettled([pending]); await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("serializes disconnect with both token issuers in either lock order without leaving a usable credential", async () => {
@@ -296,7 +296,7 @@ it("serializes disconnect with both token issuers in either lock order without l
       const tokens = issue === issueProjectToken ? await a.projectToken.findMany({ where: { projectId: f.projectId } }) : await a.ownerToken.findMany({ where: { projectId: f.projectId } });
       assert.equal(tokens.length, disconnectFirst ? 0 : 1); assert.ok(tokens.every((token) => token.revokedAt !== null));
       assert.equal(await a.projectAvailabilityEvent.count({ where: { ownerUserId: f.userId, reason: "disconnect-project" } }), 1);
-    } finally { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); await pool.disconnect(); }
+    } finally { try { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
   }
 });
 
@@ -321,7 +321,7 @@ it("serializes registration, plan changes and project selection against disconne
       assert.equal((await readProjectAccess(a, f.projectId)).available, false);
       assert.equal(await a.project.count({ where: { ownerUserId: f.userId } }), 1);
       assert.equal(await a.projectAvailabilityEvent.count({ where: { ownerUserId: f.userId, reason: "disconnect-project" } }), 1);
-    } finally { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); await pool.disconnect(); }
+    } finally { try { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
   }
 });
 
@@ -348,7 +348,7 @@ it("serializes reconnection and new registration at the Free cap in both orders"
       assert.equal(await a.project.count({ where: { ownerUserId: f.userId, disconnectedAt: null } }), 1);
       assert.equal((await a.user.findUniqueOrThrow({ where: { id: f.userId } })).projectAvailabilityVersion, version + 1);
       assert.equal(await a.projectAvailabilityEvent.count({ where: { ownerUserId: f.userId, version: { gt: version } } }), 1);
-    } finally { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); await pool.disconnect(); }
+    } finally { try { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
   }
 });
 
@@ -371,5 +371,5 @@ it("registers a case-insensitive repository once when two requests compete", asy
     assert.equal(await a.project.count({ where: { ownerUserId: f.userId, disconnectedAt: null } }), 1);
     assert.equal((await a.user.findUniqueOrThrow({ where: { id: f.userId } })).projectAvailabilityVersion, version + 1);
     assert.equal(await a.projectAvailabilityEvent.count({ where: { ownerUserId: f.userId, version: { gt: version } } }), 1);
-  } finally { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); await pool.disconnect(); }
+  } finally { try { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
 });

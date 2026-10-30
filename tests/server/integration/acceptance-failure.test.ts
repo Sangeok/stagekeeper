@@ -54,7 +54,7 @@ for (const format of [null, "slots-v1"] as const) it(`persists failure → owner
     assert.ok((await board.submitReport(f.projectId, reportInput(f), "token:agent")).ok);
     assert.ok((await current(db, f)).acceptedAt); assert.ok((await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } })).closedAt);
     assert.equal(await db.acceptanceFailure.count({ where: { boardItemId: f.boardItemId } }), 1);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 for (const to of ["planning", "implementing"]) it(`Reopen ${to} clears failures at its event time and restores backlog`, async () => {
@@ -69,7 +69,7 @@ for (const to of ["planning", "implementing"]) it(`Reopen ${to} clears failures 
     const event = await db.transitionEvent.findFirstOrThrow({ where: { boardItemId: f.boardItemId, to, from: "done" } });
     const failure = await db.acceptanceFailure.findFirstOrThrow({ where: { boardItemId: f.boardItemId } });
     assert.equal(failure.clearedAt?.getTime(), event.at.getTime());
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("rolls back event faults for both writers and retains old failures outside the History window", async () => {
@@ -88,7 +88,7 @@ it("rolls back event faults for both writers and retains old failures outside th
     await db.boardItem.create({ data: { projectId: f.projectId, backlogItemId: f.backlogItemId, status: "done", agent: "dev", reason: "new", proposedOn: new Date(Date.now() + 120000) } });
     assert.equal((await createBoardService(db).retryAcceptance(f.projectId, { key: f.key, userId: f.userId, expectedUpdatedAt: active.updatedAt })).ok, false);
     assert.equal((await db.acceptanceFailure.findUniqueOrThrow({ where: { id: saved.item.id } })).clearedAt, null);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 type Operation = "fail" | "retry" | "report" | "reopen";
@@ -119,7 +119,7 @@ it("refuses unsupported/missing entries, closed or wrong cursors, accepted, disc
     await db.project.update({ where: { id: f.projectId }, data: { available: true } });
     assert.equal((await board.failAcceptance(f.projectId, { ...failInput(f), key: "other-project-key" }, "agent")).ok, false);
     await db.boardItem.update({ where: { id: f.boardItemId }, data: { updatedAt: original.updatedAt } });
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 for (const [first, second, initiallyFailed, expected] of [
   ["fail", "fail", false, [true, false]], ["retry", "retry", true, [true, false]],
@@ -156,7 +156,11 @@ for (const [first, second, initiallyFailed, expected] of [
     assert.equal(events.length, Number(initiallyFailed) + expected.filter(Boolean).length);
     assert.equal((await current(a, f)).updatedAt.getTime(), f.updatedAt.getTime() + Number(initiallyFailed) + expected.filter(Boolean).length + (first === "report" ? 1 : 0));
   } finally {
-    locked.release(); attempted.release(); await Promise.allSettled([one, two].filter(Boolean));
-    await cleanup(a, f?.userId); await pool.disconnect();
+    try {
+      locked.release(); attempted.release(); await Promise.allSettled([one, two].filter(Boolean));
+      await cleanup(a, f?.userId);
+    } finally {
+      await pool.disconnect();
+    }
   }
 });

@@ -24,7 +24,7 @@ it("Free owners can disable and re-enable automatic scouting without changing th
     assert.deepEqual(await count(), [0, 0, 0]);
     assert.deepEqual(await write(true), { ok: true, item: true });
     assert.equal((await headFor(db, f.projectId, 0, 0, false)).action, "dispatch");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("disabling closes only unbound scout runs, blocks their additions and new instructions, and preserves bound slots", async () => {
@@ -51,7 +51,7 @@ it("disabling closes only unbound scout runs, blocks their additions and new ins
     assert.equal(served, 0);
     assert.equal((await execute({ projectId: f.projectId, tokenId: "t" }, { agent: "feature-scout", entry: { runId: pipeline.id, entryId: "entry", slotId: "feature-scout" } }, null, work)).ok, true);
     assert.equal(served, 1);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("refuses non-owners and unavailable projects before changing the setting or closing runs", async () => {
@@ -64,7 +64,7 @@ it("refuses non-owners and unavailable projects before changing the setting or c
     assert.equal((await setAutomaticScout(db, { projectId: f.projectId, userId: f.userId, enabled: false })).ok, false);
     assert.equal((await db.project.findUniqueOrThrow({ where: { id: f.projectId } })).autoScoutEnabled, true);
     assert.equal((await db.agentRun.findUniqueOrThrow({ where: { id: run.id } })).closedAt, null);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("preserves a legacy Scout slot's shared run while automatic head scouting is off", async () => {
@@ -84,7 +84,7 @@ it("preserves a legacy Scout slot's shared run while automatic head scouting is 
     assert.deepEqual(await execute({ projectId: f.projectId, tokenId: "t" }, { agent: "feature-scout" }, null, work), { ok: false, reason: AUTO_SCOUT_DISABLED_REASON });
     const add = await createBoardQueries(db).addBacklog(f.projectId, { title: "Old result", area: "web", source: "test", type: "fix", addedBy: "feature-scout", addedByRunId: scout.id });
     assert.deepEqual(add, { ok: false, reason: AUTO_SCOUT_DISABLED_REASON });
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("a stale backlog_add queued behind disabling cannot add an item after the switch commits", async () => {
@@ -106,7 +106,11 @@ it("a stale backlog_add queued behind disabling cannot add an item after the swi
     if (!refused.ok) assert.equal(refused.reason, "backlog_add needs an open feature-scout run");
     assert.equal(await a.backlogItem.count({ where: { projectId: f.projectId } }), 1);
   } finally {
-    saveGate.release(); addReached.release();
-    await Promise.allSettled([saving, adding]); await cleanup(a, f?.userId); await pool.disconnect();
+    try {
+      saveGate.release(); addReached.release();
+      await Promise.allSettled([saving, adding]); await cleanup(a, f?.userId);
+    } finally {
+      await pool.disconnect();
+    }
   }
 });

@@ -27,7 +27,7 @@ it("GET and head are read-only; the first root ensureRun creates one definition 
     assert.equal(await db.pipelineVersion.count({ where: { projectId: f.projectId } }), 1);
     await db.subscription.update({ where: { userId: f.userId }, data: { plan: "free" } });
     assert.deepEqual(await ensureRun(db, f.projectId, f.boardItemId, "in_review", false), first, "downgrades do not rewrite stored defaults");
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("a Serializable proposal waiting before first definition creation fails as P2034, never P2002, and retries against the committed default", async () => {
@@ -48,7 +48,7 @@ it("a Serializable proposal waiting before first definition creation fails as P2
     assert.deepEqual(await pipelineState(a, f.projectId), before);
     assert.equal((await createBoardQueries(b).propose(f.projectId, { key: f.key, agent: "dev", reason: "retry" }, { actor: "agent", actorRef: "pm" })).ok, true);
     assert.equal(await a.pipelineVersion.count({ where: { projectId: f.projectId } }), 1);
-  } finally { waiting.release(); await pending; await cleanup(a, f.userId); await pool.disconnect(); }
+  } finally { try { waiting.release(); await pending; await cleanup(a, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("default integrity errors, id collisions and version overflow roll materialization back completely", async () => {
@@ -80,7 +80,7 @@ it("new pipeline and definition/version writes all roll back if a later version 
     const broken = db.$extends({ query: { pipelineVersion: { create() { throw error; } } } }) as unknown as typeof db;
     await assert.rejects(savePipelineDefinition(broken, { projectId: f.projectId, userId: f.userId, pipelineId: null, name: "Feature", definition: { steps: ["plan", "implement", "accept"], gates: [] }, expectedVersion: 0 }), value => value === error);
     assert.deepEqual(await pipelineState(db, f.projectId), before);
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("an expired transaction rolls a complete definition save back without automatic resubmission", async () => {
@@ -98,5 +98,5 @@ it("an expired transaction rolls a complete definition save back without automat
     const before = await pipelineState(db, f.projectId);
     await assert.rejects(savePipelineDefinition(timed, { projectId: f.projectId, userId: f.userId, pipelineId: null, name: "Timed out", expectedVersion: 0, definition: { steps: ["plan", "implement", "accept"], gates: [] } }), /expired|closed|timed out/i);
     assert.equal(attempts, 1); assert.deepEqual(await pipelineState(db, f.projectId), before);
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });

@@ -46,7 +46,7 @@ it("fences client, stopped-session and sign-in operations through the real REST 
     assert.equal((await call({ op: "stop", client: "codex", session: SESSION, reason: "owner" })).status, 409);
     assert.equal((await call({ op: "stop", client: "codex", session: OTHER, reason: "owner" })).status, 200);
     assert.equal(await db.runner.count({ where: { projectId: f.projectId } }), 0);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("defaults legacy rows to Claude and rejects every invalid Codex database policy including NULL", async () => {
@@ -62,5 +62,5 @@ it("defaults legacy rows to Claude and rejects every invalid Codex database poli
       await assert.rejects(db.runner.create({ data: { ...codex, ...patch } }));
     }
     assert.equal((await db.runner.create({ data: codex })).permission, "scoped");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });

@@ -41,5 +41,5 @@ for (const verdict of ["pass", "fail", "blocked"] as const) it(`QA ${verdict} bi
       const reset = await db.pipelineRun.findUniqueOrThrow({ where: { id: pipeline.id } }); assert.equal(reset.node, "implement"); assert.notEqual(reset.entryId, entered.entryId);
       assert.equal((await board.submitReport(f.projectId, submission, "test")).ok, false);
     }
-  } finally { await cleanup(db, userId); await disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await disconnect(); } }
 });

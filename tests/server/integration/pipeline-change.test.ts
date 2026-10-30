@@ -35,7 +35,7 @@ it("changing a Proposed item replaces its version and entry once, audits names, 
     const changes = await loadPipelineChanges(db, f.projectId, [note, "pipeline-changed:bad:missing", "pipeline-changed:bad:too:many", null]);
     assert.deepEqual({ ...changes }, { [note]: { fromName: "Default", toName: "Hotfix" } });
     assert.equal((await loadItemPipelineView(db, f.projectId, f.boardItemId)).name, "Hotfix");
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("changing a pipeline and opening its pre-plan slot serialize in both orders; only one commits", async () => {
@@ -100,7 +100,7 @@ it("change refuses non-owners, unavailable projects, advanced or consumed runs, 
     assert.deepEqual(await pipelineState(db, f.projectId), before);
     await db.pipelineRun.delete({ where: { id: run.id } }); await refusal({}, PIPELINE_CHANGE_UNAVAILABLE);
     await db.boardItem.update({ where: { id: f.boardItemId }, data: { discardedAt: new Date() } }); await refusal();
-  } finally { await cleanup(db, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("concurrent duplicate pipeline changes have one CAS winner and one audit event", async () => {
@@ -113,5 +113,5 @@ it("concurrent duplicate pipeline changes have one CAS winner and one audit even
     const results = await Promise.all([createBoardQueries(a).changePipeline(f.projectId, input), createBoardQueries(b).changePipeline(f.projectId, input)]);
     assert.equal(results.filter(row => row.ok).length, 1); assert.deepEqual(results.find(row => !row.ok), { ok: false, reason: "stale" });
     assert.equal(await a.transitionEvent.count({ where: { boardItemId: f.boardItemId, note: { startsWith: "pipeline-changed:" } } }), 1);
-  } finally { await cleanup(a, f.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(a, f.userId); } finally { await pool.disconnect(); } }
 });

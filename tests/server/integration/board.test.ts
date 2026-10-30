@@ -26,8 +26,11 @@ it("competing plan submissions serialize owner writes and retain both audit even
     assert.equal(row.planCommit, events[1].actorId);
     assert.equal(row.updatedAt.getTime(), f.updatedAt.getTime() + 2);
   } finally {
-    await cleanup(a, userId);
-    await disconnect();
+    try {
+      await cleanup(a, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });
 
@@ -55,8 +58,11 @@ it("the updatedAt a screen read before another write is stale for transition, di
     assert.equal((await board.gate(f.projectId, { key: f.key, gate: "before-implement", gateEntry }, human(f, moved.updatedAt))).ok, true);
     assert.equal((await a.boardItem.findUniqueOrThrow({ where: { id: f.boardItemId } })).status, "implementing");
   } finally {
-    await cleanup(a, userId);
-    await disconnect();
+    try {
+      await cleanup(a, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });
 
@@ -74,7 +80,10 @@ it("an event write failure rolls back the board claim in the same transaction", 
     assert.deepEqual(await a.boardItem.findUniqueOrThrow({ where: { id: f.boardItemId } }), before);
     assert.equal(await a.transitionEvent.count({ where: { boardItemId: f.boardItemId } }), 0);
   } finally {
-    await cleanup(a, userId);
-    await disconnect();
+    try {
+      await cleanup(a, userId);
+    } finally {
+      await disconnect();
+    }
   }
 });

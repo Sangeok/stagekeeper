@@ -63,7 +63,7 @@ for (const verdict of ["pass", "fail", "blocked"] as const) it(`impl-verifier ${
       assert.ok((await board.submitReport(f.projectId, acceptance, "test")).ok);
       assert.ok((await db.boardItem.findUniqueOrThrow({ where: { id: f.boardItemId } })).acceptedAt);
     }
-  } finally { await cleanup(db, userId); await disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await disconnect(); } }
 });
 
 for (const [title, nodes, node] of [
@@ -78,5 +78,5 @@ for (const [title, nodes, node] of [
     await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node, entryId: "verification-entry" } });
     const result = await createBoardService(db).submitReport(f.projectId, { key: f.key, actor: "main-loop", path: `docs/agents/main-loop/${f.key}.md`, commit: "b".repeat(40) }, "test");
     assert.ok(!result.ok && /^Implementation verification has not completed/.test(result.reason));
-  } finally { await cleanup(db, userId); await disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await disconnect(); } }
 });

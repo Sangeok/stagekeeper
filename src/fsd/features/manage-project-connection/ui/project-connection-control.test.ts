@@ -17,7 +17,7 @@ it("keeps disconnect in More actions and blocks reconnect above the current cap"
   assert.match(render(true), /Reconnect repository/); assert.match(render(true), /No free slot/); assert.match(render(true), /disabled/);
 });
 
-it("returns focus through the same trigger id in both connection states", () => {
+it("preserves the trigger id and state-specific label in both connection states", () => {
   assert.match(focusTrigger(render(false)), /aria-label="More actions for Alpha"[^>]*>⋯$/);
   assert.match(focusTrigger(render(true)), />Reconnect repository$/);
 });

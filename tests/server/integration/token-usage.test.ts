@@ -4,7 +4,7 @@ import { it } from "node:test";
 import { newToken } from "@harness/core/tokens/token.mjs";
 import { makeVerifyOwnerToken, makeVerifyToken } from "../../../src/server/mcp/auth";
 import { makeRecordTokenUsage } from "../../../src/server/tokens/usage-recorder";
-import { cleanup, connections, checkpoint } from "./support";
+import { cleanup, connections, checkpoint, waitForDatabaseLock } from "./support";
 
 it("all three real token tables preserve legacy nulls, throttle boundaries and concurrent monotonicity", async () => {
   const { all: [a, b], disconnect } = connections(); let userId: string | undefined;
@@ -33,7 +33,7 @@ it("all three real token tables preserve legacy nulls, throttle boundaries and c
     }
     await recordA("agent", legacy.id, initial);
     assert.equal((await a.projectToken.findUniqueOrThrow({ where: { id: legacy.id } })).usageTrackingStartedAt, null, "legacy history is not backfilled");
-  } finally { await cleanup(a, userId); await disconnect(); }
+  } finally { try { await cleanup(a, userId); } finally { await disconnect(); } }
 });
 
 it("real row locks order both revocation races for every kind and keep authentication after delayed recording", async () => {
@@ -77,7 +77,7 @@ it("real row locks order both revocation races for every kind and keep authentic
           }
           const done = pending.then(() => { settled = true; });
           if (revokeFirst) await arrived.entered();
-          await new Promise((resolve) => setTimeout(resolve, 50)); assert.equal(settled, false);
+          await waitForDatabaseLock(a); assert.equal(settled, false);
           gate.release(); await holding; await done;
           const saved = await read(); assert.ok(saved.revokedAt);
           assert.equal(saved.lastUsedAt?.getTime() ?? null, revokeFirst ? null : at.getTime());
@@ -93,14 +93,12 @@ it("real row locks order both revocation races for every kind and keep authentic
     const verify = makeVerifyToken((hash) => b.projectToken.findUnique({ where: { hash }, select: { id: true, projectId: true, expiresAt: true, revokedAt: true } }), undefined, makeRecordTokenUsage(observed));
     try {
       holding = a.$transaction(async (tx) => { await tx.projectToken.updateMany({ where: { id: token.id }, data: { lastUsedAt: null } }); await gate.hook(); }, { timeout: 10_000 });
-      await gate.entered(); let settled = false; const started = performance.now();
+      await gate.entered(); let settled = false;
       pending = verify(new Request("http://example.test/api/mcp"), credential.plain).then((info) => { settled = true; assert.equal(info?.extra?.tokenId, token.id); });
-      await new Promise((resolve) => setTimeout(resolve, 80)); assert.equal(settled, false);
+      await waitForDatabaseLock(a); assert.equal(settled, false);
       gate.release(); await holding; await pending;
-      assert.ok(performance.now() - started >= 75);
       await verify(new Request("http://example.test/api/mcp"), credential.plain);
       assert.equal(queries, 2); assert.deepEqual(counts, [1, 0]);
-      console.log("token usage lock wait verified (>=75ms); 2 queries, 1 row change");
     } finally { gate.release(); await Promise.allSettled([holding, pending].filter((value) => value !== undefined)); }
 
     const original = console.warn;
@@ -111,5 +109,5 @@ it("real row locks order both revocation races for every kind and keep authentic
       const verifyOwner = makeVerifyOwnerToken((hash) => b.ownerToken.findUnique({ where: { hash } }), failed);
       assert.equal((await verifyOwner(new Request("http://example.test/api/mcp/owner"), owner.plain))?.extra?.ownerTokenId, stored.id);
     } finally { console.warn = original; }
-  } finally { await cleanup(a, userId); await disconnect(); }
+  } finally { try { await cleanup(a, userId); } finally { await disconnect(); } }
 });

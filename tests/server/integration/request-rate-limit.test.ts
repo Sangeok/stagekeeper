@@ -37,7 +37,7 @@ it("creates one pair of windows and atomically admits exactly one last slot unde
     assert.equal(results[0], null); assert.ok(results[1] && (results[1] as { code: string }).code === "RATE_LIMITED");
     assert.equal((await a.requestRateWindow.findUniqueOrThrow({ where: { scope_subjectId: { scope: "account", subjectId: userId } } })).count, REQUEST_LIMITS.account);
     assert.equal((await a.requestRateWindow.findUniqueOrThrow({ where: { scope_subjectId: { scope: "project", subjectId: f.projectId } } })).count, REQUEST_LIMITS.project);
-  } finally { gate.release(); attempt.release(); await Promise.allSettled([first, second]); await cleanup(a, userId); await pool.disconnect(); }
+  } finally { try { gate.release(); attempt.release(); await Promise.allSettled([first, second]); await cleanup(a, userId); } finally { await pool.disconnect(); } }
 });
 
 it("denial rolls back the other window's insert, reset and increment, and uses the longest recovery", async () => {
@@ -66,7 +66,7 @@ it("denial rolls back the other window's insert, reset and increment, and uses t
     } } } }) as unknown as PrismaClient;
     await assert.rejects(consumeRequestBudget(failing, userId, f.projectId), /Injected budget/);
     assert.ok((await db.requestRateWindow.findMany({ where: { ownerUserId: userId } })).every((row) => row.count === 1));
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });
 
 it("admits the agreed four-project, four-session 10-minute burst without false limits", async () => {
@@ -93,7 +93,7 @@ it("admits the agreed four-project, four-session 10-minute burst without false l
     const withWatch = await db.requestRateWindow.findMany({ where: { ownerUserId: userId } });
     assert.equal(withWatch.find((row) => row.scope === "account")?.count, 1168);
     assert.ok(withWatch.filter((row) => row.scope === "project").every((row) => row.count === 292));
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });
 
 it("uses UTC after locks, rejects SQL subject corruption and cascades only the deleted subject", async () => {
@@ -114,7 +114,7 @@ it("uses UTC after locks, rejects SQL subject corruption and cascades only the d
     await db.project.delete({ where: { id: f.projectId } });
     assert.deepEqual((await db.requestRateWindow.findMany({ where: { ownerUserId: userId } })).map((row) => row.scope), ["account"]);
     await cleanup(db, userId); assert.equal(await db.requestRateWindow.count({ where: { ownerUserId: userId } }), 0); userId = undefined;
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });
 
 it("all six actual transports return rate metadata and denied calls cannot create domain or usage state", async () => {
@@ -149,5 +149,5 @@ it("all six actual transports return rate metadata and denied calls cannot creat
     assert.equal(await db.project.count({ where: { ownerUserId: userId } }), 1);
     assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 0);
     const user = await db.user.findUniqueOrThrow({ where: { id: userId } }); assert.equal(user.usageRunCount, 0); assert.equal(user.usageWindowStartedAt, null);
-  } finally { await cleanup(db, userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, userId); } finally { await pool.disconnect(); } }
 });

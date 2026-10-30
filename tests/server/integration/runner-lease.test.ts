@@ -5,7 +5,7 @@ import { newToken } from "../../../packages/core/tokens/token.mjs";
 import { readRunnerState, runRunnerOp, setRunnerPaused } from "../../../src/server/runners/api";
 import type { RunnerOp } from "../../../src/server/runners/contracts";
 import { POST as runnerRoute } from "../../../src/app/api/runner/route";
-import { checkpoint, cleanup, connections, fixture, type Fixture } from "./support";
+import { checkpoint, cleanup, connections, fixture, waitForDatabaseLock, type Fixture } from "./support";
 
 const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -23,7 +23,7 @@ it("lets exactly one of two racing runners take a free lease under the real row 
     const held = a.$extends({ query: { runner: { async findUnique({ args, query }) { const row = await query(args); await gate.hook(); return row; } } } }) as unknown as PrismaClient;
     first = op(held, f, start(A)); await gate.entered();
     second = op(b, f, start(B));
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await waitForDatabaseLock(a);
     gate.release();
     const results = await Promise.all([first, second]) as Awaited<ReturnType<typeof runRunnerOp>>[];
     assert.deepEqual(results.map((result) => result.ok), [true, false]);
@@ -31,7 +31,7 @@ it("lets exactly one of two racing runners take a free lease under the real row 
     assert.ok(!busy.ok && busy.code === "RUNNER_BUSY");
     assert.equal((busy as { holder: { host: string } }).holder.host, "host-a");
     assert.equal((await a.runner.findUniqueOrThrow({ where: { projectId: f.projectId } })).session, A);
-  } finally { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); await pool.disconnect(); }
+  } finally { try { gate.release(); await Promise.allSettled([first, second]); await cleanup(a, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("expires a lease by the database clock and never lets a stopped row hold it", async () => {
@@ -50,7 +50,7 @@ it("expires a lease by the database clock and never lets a stopped row hold it",
     await age(db, f, 90);
     await db.agentRun.create({ data: { projectId: f.projectId, agent: "dev", tokenId: "t", stepId: "plan" } });
     assert.equal((await op(db, f, start(B))).ok, false, "recent agent activity keeps a working session");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("treats a resent start as success, keeps the stored state on a stateless beat and replaces a stale session", async () => {
@@ -71,7 +71,7 @@ it("treats a resent start as success, keeps the stored state on a stateless beat
     await op(db, f, { op: "stop", session: B, reason: "owner" });
     assert.equal(await db.runner.count({ where: { projectId: f.projectId } }), 0);
     assert.deepEqual(await op(db, f, { op: "stop", session: B, reason: "owner" }), { ok: true, body: { ok: true } });
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("pauses idempotently, reports it to the runner and reads it back for the banner", async () => {
@@ -91,7 +91,7 @@ it("pauses idempotently, reports it to the runner and reads it back for the bann
     assert.deepEqual(await pause(false), { ok: true, item: false });
     await pause(false);
     assert.equal((await db.project.findUniqueOrThrow({ where: { id: f.projectId } })).runnerPausedAt, null);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("opens the background runner on Pro only and stops it after a downgrade without refusing its signal", async () => {
@@ -106,7 +106,7 @@ it("opens the background runner on Pro only and stops it after a downgrade witho
     await db.subscription.update({ where: { userId: pro.userId }, data: { plan: "free" } });
     assert.deepEqual(await op(db, pro, { op: "beat", session: A, state: "working", waitReason: null, lastResult: null, lastLog: null }),
       { ok: true, body: { ok: true, paused: false, stop: "plan" } });
-  } finally { await cleanup(db, free?.userId); await cleanup(db, pro?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, free?.userId); await cleanup(db, pro?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("keeps impossible rows out with the migration's checks", async () => {
@@ -127,7 +127,7 @@ it("keeps impossible rows out with the migration's checks", async () => {
       await db.runner.delete({ where: { projectId: f.projectId } });
       assert.ok(await db.runner.create({ data: { ...base, mode: "resident", branch: "main", autostart: true, stopReason, state: "stopped" } }), stopReason);
     }
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("answers through the real REST route with the codes and holder the CLI branches on", async () => {
@@ -148,7 +148,7 @@ it("answers through the real REST route with the codes and holder the CLI branch
     const invalid = await call({ op: "start", session: B, mode: "session" });
     assert.deepEqual([invalid.status, await invalid.json()], [400, { error: "Invalid runner request." }]);
     assert.equal((await call({ op: "beat", session: A }, "Bearer nope")).status, 401);
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
 it("keeps sign-in start rows through the migration's checks: on, a refused start, an owner stop and off", async () => {
@@ -169,5 +169,5 @@ it("keeps sign-in start rows through the migration's checks: on, a refused start
     assert.deepEqual(await op(db, f, { op: "stop", session: A, reason: "owner" }), { ok: true, body: { ok: true } });
     assert.deepEqual(await row(), { session: A, state: "stopped", stopReason: "owner", lastResult: null, autostart: true, permission: "auto" });
     assert.equal((await op(db, f, start(B, { mode: "resident", host: "pc", branch: "main", permission: "auto", autostart: true }))).ok, true, "the next start replaces it");
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });

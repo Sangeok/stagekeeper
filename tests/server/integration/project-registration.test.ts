@@ -35,5 +35,5 @@ it("invalid explicit slugs never change a real database, including an already re
       const existing = await post(repo, "different-slug");
       assert.equal(existing.status, 200); assert.equal((await existing.json()).project.slug, slug.trim());
     }
-  } finally { await cleanup(db, f?.userId); await pool.disconnect(); }
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
