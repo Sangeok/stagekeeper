@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "awaiting-approval"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-29"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "user"
+approved-at: "2026-10-30"
+approval-scope: "0단 시험, 1단 e2e-smoke 워크플로와 리허설, 2단 agent-eval 워크플로와 eval 사례, 출하 파일 판정 변경, AGENTS.md 승격 조건과 verification.md 반영, commit·push·dev 대상 PR(#261), 첫 main 승격 적용. 1단 Codex job은 보류"
+completed-at: "2026-10-30"
+verification-summary: "0단 시험 추가(스킬 경로 24개와 생성기 문구, 깨뜨린 사본에서 실패 확인). 1단 e2e-smoke 4 job 녹색(작업 브랜치 run 40910451049, PR #261, dev 55b027c run 40979770201), 의도적인 지난 판·새 판 불일치에서는 update 2 job만 실패(run 40984869095). 2단 agent-eval 대조 감지와 3/3 통과(run 40968525240). npm run check, npm test 576 통과, verify:server, verify:fsd 통과. PR #261 dev 머지(426ced8), 2026-10-30 main 55b027c 승격에 첫 적용하고 운영 배포 확인"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -27,6 +27,10 @@ related: []
 | 2단 | Claude Code 내장 `claude plugin eval`로, 깨끗한 환경에서 실제 모델이 init 스킬을 따라 쓰기 전에 묻는지 본다(사례 1개) | 플러그인이 바뀐 승격 전, 주 1회 | 구독 사용량, 1회 정가 환산 약 $1.4 |
 
 제품 코드(서버·플러그인 동작)는 바꾸지 않는다. 바꾸는 것은 시험, 워크플로, 출하 파일 판정 한 줄, 승격 절차 문서다.
+
+**완료(2026-10-30):** 0·1·2단을 구현해 PR #261로 `dev`에 넣었고, 같은 날 `main` `55b027c` 승격에 새 승격 조건을 처음
+적용했다. 1단 Codex job은 보류했다. 실행 결과는 5장의 Phase 항목, `Verification Results`, `Completion or Closure Notes`에
+있다.
 
 ## 1. 배경/동기
 
@@ -151,6 +155,10 @@ Claude와 Codex가 실제로 동작하는지 자동으로 확인해야 한다. �
 - 2단의 쓰기 감지는 대조 사례로 증명한다(0C 실측). 0.5.28(`a750b76`)로 F4 회귀를 증명하는 것은 0C에서 0.5.28이 9회
   모두 물어 할 수 없었다.
 - 1단은 지난 판과 새 판 조합에서 의도적으로 맞지 않는 상태를 하나 만들어 실패하는지 본다.
+  - 결과(2026-10-30, run 40984869095): 임시 브랜치에서 서버의 `project_sync` 작업 공간 스키마에 새 필수 필드를 넣고,
+    그 브랜치의 플러그인만 그 필드를 보내게 했다. 승격 때 서버가 먼저 배포돼 기존 사용자의 플러그인이 동기화에서
+    거부되는 경우다. `new-user` 두 job은 22/22로 통과했고, `update` 두 job은 지난 판(`main` `55b027c`) 클라이언트의
+    `previous-project-sync`에서 실패했다. 임시 브랜치는 확인한 뒤 지웠다.
 
 ## 3. 대안 분석
 
@@ -339,10 +347,11 @@ node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts \
 ### 2단 설계
 
 - **실행:** macOS 러너에서 0C에서 검증한 명령을 쓴다.
-  `CLAUDE_CODE_SHELL_PREFIX=~/.local/bin/sk-eval-shell claude plugin eval <플러그인> --case rerun-asks-first --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json <경로>`
+  `CLAUDE_CODE_SHELL_PREFIX=~/.local/bin/stagekeeper-eval-shell claude plugin eval <플러그인> --case rerun-asks-first --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --json <경로>`
   - 대조 사례는 같은 명령에 `--case control-real-write --runs 1 --model claude-haiku-5-5`로 먼저 돌린다.
   - 모델은 공식 문서의 CI 권고대로 고정한다. 0C 결과가 Opus 5.5 기준이다.
-  - `--keep-temp`는 요약 스크립트가 실행 기록에서 호출과 마지막 메시지를 줄여 출력하는 데 쓴다.
+  - 요약은 `--json` 결과에서 실행마다 판정별 통과 여부와 비용 추정을 출력한다. 처음 계획한 `--keep-temp` 기반 요약은
+    쓰지 않았다.
   - 인증은 비밀값 `E2E_CLAUDE_OAUTH_TOKEN`을 `CLAUDE_CODE_OAUTH_TOKEN`으로 넘긴다.
   - 공식 문서에 따르면 평가 실행은 평소 Claude Code와 같은 인증을 쓰고 "plan's usage limits or your API bill"로
     계산된다.
@@ -424,8 +433,9 @@ After:
 
 ### Phase 0: 실현 가능성 실측
 
-임시 워크플로를 작업 브랜치의 `push` 트리거로 돌린다. `workflow_dispatch`는 기본 브랜치에 파일이 있어야 하기
-때문이다.
+임시 워크플로를 작업 브랜치의 `push` 트리거로 돌렸다. 당시에는 `workflow_dispatch`가 기본 브랜치에 파일이 있어야
+동작한다고 보았다. 이 판단은 틀렸다. 한 번 실행돼 등록된 워크플로는 기본 브랜치에 없어도 `gh workflow run --ref`로
+실행됐다(7장 리스크).
 
 - **0A (완료):** 포터블 PostgreSQL 18, migrate, build, `next start`.
   - 2026-10-29 run 40822645837은 실측 스크립트 문제로 실패했다. macOS는 `npm pack`이 postinstall
@@ -543,6 +553,15 @@ After:
 - **검증:**
   - `npm run check`, `npm run verify:server`, `npm run test:architecture`, `npm test`
   - 첫 승격 때 실제 적용
+- **결과(완료, `2768cea`, PR #261):**
+  - 로컬 `npm run check`가 통과했다. 경고 1건은 이 작업이 건드리지 않은 `plugin/runtime/codex-main-loop-tools.mjs`의
+    기존 경고다. `npm test`는 576개 통과, 실패 0, 건너뜀 3이다. `test:architecture`가 도는 `scripts/**/*.test.mjs`는
+    `npm run check`의 `test:scripts`에 들어 있다. `verify:server`와 `verify:fsd`는 머지 뒤 `dev`(`55b027c`)에서 통과했다.
+  - PR #261은 check 6개, e2e-smoke 4개, runtime contracts 2개, Vercel이 모두 녹색이었고 2026-10-29에 `dev`로
+    머지됐다(`426ced8`).
+  - 첫 승격(2026-10-30)에 적용했다. `dev` `55b027c`에서 e2e-smoke 네 job이 녹색이었고(run 40979770201), 출하 파일이
+    바뀌지 않아 `verify:plugin-version`이 통과했으므로 판 상승과 2단은 필요 없었다. `main`을 빨리 감기로 올린 뒤 운영
+    사이트가 승격 커밋의 배포를 내보내는 것과 `main`의 check 녹색(run 40982663924)을 확인했다.
 
 ## 6. 영향 범위
 
@@ -550,7 +569,7 @@ After:
   - 신규: 0단 시험 1개, 1단 파일 5개(워크플로·리허설·리허설 시험·helper·helper 시험), 2단 워크플로 1개, 2단
     사례 디렉터리
   - 수정: `scripts/windows/package-windows-plugin.mjs`(한 줄), `scripts/checks/verify-plugin-version.test.mjs`,
-    `AGENTS.md`, `docs/architecture/verification.md`
+    `AGENTS.md`, `docs/architecture/verification.md`, `.gitignore`(`plugin/evals/results/`)
 - **import 변경 필요:** 새 리허설은 다음만 import한다. 서버 내부 모듈은 직접 import하지 않는다.
   - `validateTestDatabase`, `withPrisma`, `newToken`
   - `plugin/runtime/mcp-client.mjs`의 `connectionInput`·`verifyProject`·`callTool`
@@ -566,7 +585,8 @@ After:
   - `isShippedPluginFile`은 `verify-plugin-version.mjs`와 `package-windows-plugin.mjs`가 쓴다(2026-10-29 검색).
     `plugin/evals/` 밖은 판정이 그대로다.
   - 승격 절차가 바뀐다.
-  - 서버 경계 검사기 통과 여부는 구현 때 `npm run verify:server`로 확인한다. 동적 참조는 따로 열거하지 않았다.
+  - 서버 경계 검사기는 머지 뒤 `dev`(`55b027c`)에서 `npm run verify:server`로 통과했다. 동적 참조는 따로 열거하지
+    않았다.
 
 ## 7. 리스크 + 롤백 전략
 
@@ -588,12 +608,14 @@ After:
 - **Windows 실제 모델 동작 미검증:** 받아들이는 빈틈이다. Windows에서만 생기는 에이전트 문제가 실제로 나오면 주 1회
   Windows 실측을 추가한다.
 - **러너와 실제 PC의 차이:** Windows Server 2022, 관리자 계정, 화면 없음. 해당 영역을 바꿀 때만 실기로 확인한다.
-- **`workflow_dispatch` 제약:** 워크플로 파일이 `main`에 있어야 실행할 수 있다. 개발 중에는 임시 `push` 트리거를
-  쓰고, 첫 승격은 작업 브랜치에서 돌린 결과로 판단한다.
+- **`workflow_dispatch` 제약(해소):** 처음에는 워크플로 파일이 `main`에 있어야 실행할 수 있다고 보았다. 실제로는
+  작업 브랜치에서 한 번 실행돼 등록된 워크플로를 `main`에 파일이 없는 상태에서 `dev`로 실행할 수 있었다(2026-10-30
+  run 40979770201). 그래서 첫 승격도 승격할 `dev` 커밋에서 돌린 결과로 판단했다. 예약 실행(`schedule`)은 기본 브랜치의
+  워크플로로만 돌므로, 2단의 주 1회 실행은 `main` 승격(2026-10-30) 뒤부터 돈다.
 
 ### 롤백 전략
 
-- 신규 파일을 지우고 수정한 네 파일을 되돌린다. 단순 revert다.
+- `dev`에서 머지 커밋 `426ced8`을 되돌린다(revert). 신규 파일이 지워지고 수정한 다섯 파일이 원래대로 돌아간다.
 - 제품 동작, DB, 배포에는 영향이 없다.
 - 비밀값은 저장소 설정에서 지운다.
 
@@ -678,6 +700,8 @@ it("the generator prints every marker the init skill tells the agent to read", (
 <!-- doc-validation-skip -->
 ## Open Questions
 
+완료 시점까지 정하지 않은 항목이다. 이 작업의 완료 조건은 아니며, `Completion or Closure Notes`의 후속 작업으로 넘긴다.
+
 - **[제품 계약] 처음 연결할 때의 쓰기 순서:**
   - `plugin/bin/harness-init.mjs:167`은 dry-run에서도 `harness.json`을 읽고, 없으면 `Config error`로 끝난다.
   - 스킬 1단계는 hu_ 토큰이면 초안을 보여 주기 전에 `--register`로 서버에 등록한다.
@@ -692,7 +716,49 @@ it("the generator prints every marker the init skill tells the agent to read", (
 
 ## Approval
 
-승인 기록 전이다. 2026-10-29에 사용자가 3단 구성과 1장의 결정을 정하고 문서 수정을 지시했다. Phase 0C 결과를 본 뒤
-2단을 사례 1개로 유지하기로 했고(1장 결정 표), 2026-10-30에 Codex job을 보류하기로 했다. Phase 1~3·5는 구현해
-브랜치에서 녹색을 확인했다. 이 문서의 승인과 `completed/` 이동은 사용자가 PR을 검토하고 첫 승격에서 실제로 적용한 뒤에
-한다.
+승인 메모:
+
+- 작업 중 결정은 사용자가 단계마다 내렸다(1장 결정 표). 2026-10-29에 3단 구성을 정했고, Phase 0C 결과를 본 뒤 2단을
+  사례 1개로 유지하기로 했으며, 2026-10-30에 1단 Codex job을 보류했다.
+- front matter의 승인 기록은 PR #261 머지와 첫 승격 적용을 확인한 뒤 남긴 사후 기록이다. 추가 조건은 없다.
+
+## Verification Results
+
+| 검증 | 결과 | 비고 |
+| --- | --- | --- |
+| `npm run check` | 통과 | 경고 1건은 이 작업이 건드리지 않은 `plugin/runtime/codex-main-loop-tools.mjs`의 기존 경고 |
+| `npm test` | 576 통과, 실패 0, 건너뜀 3 | |
+| `npm run verify:server`, `npm run verify:fsd` | 통과 | 머지 뒤 `dev` `55b027c` |
+| 0단 시험의 감지 | 통과 | 사본에서 스킬 경로 하나와 생성기 문구 하나를 깨뜨리자 각각 해당 시험이 실패(Phase 1) |
+| e2e-smoke, 작업 브랜치 | 4/4 녹색 | run 40910451049. 공개 로그의 토큰 0건, 비공개 템플릿 줄 0건 |
+| e2e-smoke, PR #261 | 4/4 녹색 | PR의 check 6개, runtime contracts 2개, Vercel도 녹색 |
+| e2e-smoke, `dev` `55b027c` 수동 실행 | 4/4 녹색 | run 40979770201. 단계 22/22(`new-user`), 21/21(`update`), 공개 로그의 토큰 0건 |
+| e2e-smoke, 의도적인 불일치 | `new-user` 2개 통과, `update` 2개 실패 | run 40984869095. 실패 단계는 `previous-project-sync` |
+| agent-eval, 작업 브랜치 | 대조 감지, 3/3 통과 | run 40968525240. 점수 1.0, 정가 환산 $1.15 |
+| `verify:plugin-version`(`origin/main` → `55b027c`) | 통과 | 출하 파일 변화 없음 |
+| 승격 뒤 `main`의 check | 6/6 녹색 | run 40982663924. 운영 사이트가 승격 커밋의 배포를 내보냄 |
+
+신규 실패와 기존 실패:
+
+- Phase 3의 Windows `update`에서 `fetch failed`가 1회 났다. 이 작업 중 생긴 실패이고 원인은 확인하지 못했다. 동기화를
+  단계마다 새 프로세스로 바꾼 뒤로는 재현되지 않았다.
+- `npm run check`의 경고 1건은 이 작업 전부터 있던 경고다.
+
+## Completion or Closure Notes
+
+완료 기록:
+
+- completed-at: 2026-10-30
+- verification-summary: front matter와 같다. 세부 결과는 `Verification Results`에 있다.
+- implementation PR/commit: PR #261(head `2768cea`, `dev` 머지 `426ced8`), `main` 승격 `55b027c`
+- changed files summary:
+  - 신규: 0단 시험 1개, 1단 리허설·helper와 그 시험 4개, 워크플로 2개(`e2e-smoke.yml`, `agent-eval.yml`),
+    `plugin/evals/`의 사례 2개와 가짜 템플릿
+  - 수정: `scripts/windows/package-windows-plugin.mjs`, `scripts/checks/verify-plugin-version.test.mjs`, `AGENTS.md`,
+    `docs/architecture/verification.md`, `.gitignore`
+  - Phase 0의 임시 probe 워크플로는 머지 전에 지웠다.
+- remaining follow-up:
+  - 1단 Codex job은 Codex 공개 배포에 착수할 때 붙인다. Phase 4의 기준과 제약을 그대로 쓴다.
+  - Open Questions의 세 항목: 처음 연결의 쓰기 순서 계약, 1·2단 Claude Code 판 고정 여부, Claude 쪽 수정 파일 보존 시험
+  - Windows `update`의 `fetch failed`가 다시 나면 출력되는 원인 코드로 조사한다.
+  - F4처럼 사용자 환경에서만 나는 오독은 2단이 잡지 못한다. #257의 문장 고정 시험과 출시 전 수동 확인이 맡는다.
