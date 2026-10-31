@@ -78,6 +78,11 @@ describe("decideNext (H.4)", () => {
     assert.match(HINT.accept, /report_submit/);
   });
 
+  it("the verify hint closes main-loop reports once validation_record moves the item on and calls for none", () => {
+    assert.match(HINT.verify, /Once validation_record moves the item on, the board takes no main-loop report until the acceptance in done\./);
+    assert.doesNotMatch(HINT.verify, /report_submit/);
+  });
+
   it("product-copy.md §13 hint table holds exactly the HINT sentences", () => {
     const copy = readFileSync(new URL("../../../docs/conventions/product-copy.md", import.meta.url), "utf8");
     const lines = copy.slice(copy.indexOf("**Hints** —")).split(/\r?\n/);

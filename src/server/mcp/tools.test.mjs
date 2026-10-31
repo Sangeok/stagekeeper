@@ -88,13 +88,18 @@ describe("agent-scoped MCP tools", () => {
     }
     assert.ok(COPY.includes(PROJECT_REQUIRED), "product-copy must document the actual missing-scope error");
   });
-  it("board_transition and plan_submit read exactly as product-copy §13 writes them", () => {
+  it("pinned tool descriptions read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
-    for (const tool of ["board_transition", "plan_submit", "report_submit", "agent_next", "backlog_add", "acceptance_fail", "board_propose"]) {
+    for (const tool of ["board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "backlog_add", "acceptance_fail", "board_propose"]) {
       const expected = copyRow(tool);
       assert.ok(expected, `no product-copy row for ${tool}`);
       assert.equal(meta[tool].description, expected, tool);
     }
+  });
+  it("report_submit and validation_record close main-loop reports from validation_record until the acceptance", () => {
+    const meta = descriptions();
+    assert.match(meta.report_submit.description, /In done, a main-loop report is the acceptance record; once validation_record moves the item on, the board takes no other main-loop report\./);
+    assert.match(meta.validation_record.description, /Once this record moves the item on, the board takes no main-loop report until the acceptance in done\./);
   });
   it("no tool still calls planning → in_review an agent transition", () => {
     for (const [name, m] of Object.entries(descriptions())) {
