@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { PipelineList } from "./pipeline-list";
 
-it("shows pipeline editing and picking controls without the old routing dropdowns", () => {
+it("opens a browsable catalog without mounting an editor or exposing routing dropdowns", () => {
   const router = { refresh() {} } as ContextType<typeof AppRouterContext>;
   const success = async () => ({ success: true as const, data: null });
   for (const editable of [true, false]) {
@@ -14,8 +14,10 @@ it("shows pipeline editing and picking controls without the old routing dropdown
         runnable: { nodes: ["plan", "implement", "accept"], gates: ["before-plan"], format: "slots-v1" } }], rules: {}, autoProposeEnabled: true, now: new Date(), plan: editable ? "pro" : "free", roster: ["dev"], editable,
       save: async () => ({ status: "stale" as const }), actions: { archive: success, rename: success, setDefault: success, setRule: success, setAutomaticPick: success },
     })));
-    assert.match(html, /Runs items/); assert.match(html, /Default pipeline · not saved yet/);
-    for (const label of ["New pipeline", "Rename", "Archive"]) assert.equal(html.includes(`>${label}</button>`), editable);
+    assert.match(html, /All pipelines/); assert.match(html, /Plan → Implement → Accept/);
+    assert.match(html, /Search by name or step/);
+    assert.equal(html.includes('>New pipeline</button>'), editable);
+    assert.doesNotMatch(html, /Pipeline editor|>Rename<|>Archive<|Runs items|Used inside/);
     assert.doesNotMatch(html, /<select\b|aria-label="Pipeline routing"/);
     assert.equal(/<button[^>]*aria-label="Automatic picking"[^>]*disabled/.test(html), !editable);
   }

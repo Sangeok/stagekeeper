@@ -3,6 +3,7 @@ import { it } from "node:test";
 import { createElement, isValidElement, type ContextType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { PipelineList, AutomaticScoutControl, type SavePipelineAction, type SaveAutomaticScoutAction } from "@/fsd/features/edit-pipeline";
 import { ProjectPipelinePage } from "./project-pipeline-page";
 
@@ -42,9 +43,10 @@ it("renders saved definition descriptions and read-only controls without invokin
   for (const saved of [null, { version: 4, createdAt: now }]) {
     const html = renderToStaticMarkup(createElement(AppRouterContext.Provider,
       { value: {} as ContextType<typeof AppRouterContext> },
-      createElement(ProjectPipelinePage, { ...props, pipelines: [{ ...props.pipelines[0], saved }], editable: false, canChangeAutoScout: false, unavailableReason: "Not selected" })));
-    assert.ok(html.includes(saved ? "Version 4" : "Default pipeline · not saved yet"));
-    assert.ok(html.includes("Runs items"));
+      createElement(SearchParamsContext.Provider, { value: new URLSearchParams("pipeline=default") },
+        createElement(ProjectPipelinePage, { ...props, pipelines: [{ ...props.pipelines[0], saved }], editable: false, canChangeAutoScout: false, unavailableReason: "Not selected" }))));
+    assert.ok(html.includes(saved ? "Version 4" : "Initial configuration"));
+    assert.ok(html.includes("Switch pipeline"));
     assert.ok(html.includes("Read as text"));
     assert.ok(html.includes("before Plan — you"));
     assert.ok(html.includes("Not selected"));
