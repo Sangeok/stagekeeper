@@ -16,9 +16,10 @@ export function isProjectSlot(id: string): boolean {
 export function normalizeSlots(definition: Definition): Definition {
   const normalize = (id: string): string => {
     const agent = slotAgent(id);
+    if (agent === "work-discoverer") return id.replace(/^work-discoverer/, "discover-work");
     return agent !== null && PROJECT_AGENTS.includes(agent) && !id.includes("#") ? agent : id;
   };
-  return { steps: definition.steps.map(normalize), gates: definition.gates.map(id => gateId(normalize(gateKind(id) ?? id))) };
+  return { ...definition, steps: definition.steps.map(normalize), gates: definition.gates.map(id => gateId(normalize(gateKind(id) ?? id))) };
 }
 export function preview(definition: Definition, plan: string, context: CompositionContext): Recompose {
   const definitions = Object.assign(Object.create(null), context.definitions, { [context.pipelineId]: definition });
@@ -47,8 +48,9 @@ export function addSlot(definition: Definition, agent: string, before: string | 
     const expanded = expand(id, context.definitions);
     if (expanded.ok) for (const node of expanded.graph.nodes) reserved.add(node);
   }
-  let id = agent, index = 2;
-  while (reserved.has(id)) id = `${agent}#${index++}`;
+  const base = agent === "work-discoverer" ? "discover-work" : agent;
+  let id = base, index = 2;
+  while (reserved.has(id)) id = `${base}#${index++}`;
   const destination = before === null ? null : normalizeSlots({ steps: [before], gates: [] }).steps[0];
   if (destination !== null && !draft.steps.includes(destination)) return { ok: false, reason: "unknown destination" };
   const steps = [...draft.steps];
@@ -58,7 +60,7 @@ export function addSlot(definition: Definition, agent: string, before: string | 
 export function moveSlot(definition: Definition, id: string, before: string | null, plan: string, context?: CompositionContext): Step {
   if (!definition.steps.includes(id)) return { ok: false, reason: "unknown source" };
   if (before !== null && !definition.steps.includes(before)) return { ok: false, reason: "unknown destination" };
-  if (!isProjectSlot(id)) return { ok: false, reason: "only project slots can move" };
+  if (!isProjectSlot(id) && id !== "assign-work") return { ok: false, reason: "only project slots can move" };
   if (id === before) return check(definition, plan, context);
   const steps = definition.steps.filter(step => step !== id);
   steps.splice(before === null ? steps.length : steps.indexOf(before), 0, id);
@@ -73,11 +75,11 @@ export function insertRef(definition: Definition, pipelineId: string, before: st
 export const insertGate = (definition: Definition, id: string, plan: string, context?: CompositionContext): Step => check({ ...definition, gates: [...definition.gates, id] }, plan, context);
 export const removeGate = (definition: Definition, id: string, plan: string, context?: CompositionContext): Step => check({ ...definition, gates: definition.gates.filter(gate => gate !== id) }, plan, context);
 export const removeNode = (definition: Definition, kind: string, plan: string, context?: CompositionContext): Step =>
-  check({ steps: definition.steps.filter(step => step !== kind), gates: definition.gates.filter(gate => gate !== gateId(kind)) }, plan, context);
-export function addNode(definition: Definition, kind: string, plan: string, context?: CompositionContext): Step {
+  check({ ...definition, steps: definition.steps.filter(step => step !== kind), gates: definition.gates.filter(gate => gate !== gateId(kind)) }, plan, context);
+export function addNode(definition: Definition, kind: string, plan: string, context?: CompositionContext, before?: string | null): Step {
   const steps = [...definition.steps];
   const anchor = kind === "verify" ? "implement" : kind === "impl-verify" ? (steps.includes("qa") ? "qa" : "accept") : kind === "qa" ? "accept" : null;
-  const at = anchor === null ? -1 : steps.indexOf(anchor);
+  const at = before !== undefined ? before === null ? -1 : steps.indexOf(before) : anchor === null ? -1 : steps.indexOf(anchor);
   steps.splice(at < 0 ? steps.length : at, 0, kind);
   return check({ ...definition, steps }, plan, context);
 }

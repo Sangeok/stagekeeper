@@ -5,7 +5,6 @@ import { Button } from "@/fsd/shared/ui/button";
 import type { PipelineSnapshot } from "../model/rail-state";
 import type { PipelineSettingsActions } from "./pipeline-list";
 import { PipelinePanel } from "./pipeline-panel";
-import { AutomaticPickControl } from "./automatic-pick-control";
 
 type Props = {
   pipelines: PipelineSnapshot[]; rules: Record<string, string>; autoProposeEnabled: boolean;
@@ -13,7 +12,7 @@ type Props = {
   actions: PipelineSettingsActions; change: (action: () => ReturnType<PipelineSettingsActions["setDefault"]>) => void;
   automationControls?: ReactNode; onClose: () => void;
 };
-export function PipelineRulesPanel({ pipelines, rules, autoProposeEnabled, editable, busy, error, unavailableReason, actions, change, automationControls, onClose }: Props) {
+export function PipelineRulesPanel({ pipelines, rules, editable, busy, error, actions, change, onClose }: Props) {
   const defaultId = pipelines.find(pipeline => pipeline.isDefault)!.id;
   const availableTypes = ITEM_TYPES.filter(type => !Object.hasOwn(rules, type));
   const [addingType, setAddingType] = useState<string>("");
@@ -38,8 +37,6 @@ export function PipelineRulesPanel({ pipelines, rules, autoProposeEnabled, edita
           <Button size="sm" variant="quiet" disabled={busy} onClick={() => change(() => actions.setRule(typeToAdd, defaultId))}>Add type override</Button></div> : null}
         <p className="text-xs text-quiet">New work needs a complete development flow. Pipelines that need a plan or implementation can run directly on compatible existing work.</p>
       </section>
-      <AutomaticPickControl enabled={autoProposeEnabled} writable={editable} pending={busy} unavailableReason={unavailableReason} onToggle={() => change(() => actions.setAutomaticPick(!autoProposeEnabled))} />
-      {automationControls}
       {error ? <p role="alert" className="text-sm text-risk">{error}</p> : null}
       <p className="text-xs text-quiet">Changes save immediately and apply to new work. Running pipelines keep their saved configuration.</p>
     </div>

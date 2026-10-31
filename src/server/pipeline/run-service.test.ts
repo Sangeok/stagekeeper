@@ -11,12 +11,12 @@ it("loads saved pipelines and relations without overlapping Prisma driver querie
   let executing = false;
   const createdAt = new Date("2026-10-01T00:00:00.000Z");
   const records: Record<string, Record<string, unknown>> = {
-    Project: { id: "project", defaultPipelineId: "pipeline", autoProposeEnabled: true, ownerUserId: "owner", repoOwner: "owner", available: true, disconnectedAt: null },
+    Project: { id: "project", defaultPipelineId: "pipeline", autoProposeEnabled: true, autoScoutEnabled: true, ownerUserId: "owner", repoOwner: "owner", available: true, disconnectedAt: null },
     User: { id: "owner" },
     Subscription: { id: "subscription", userId: "owner", plan: "pro" },
     Pipeline: { id: "pipeline", projectId: "project", name: "Feature", createdBy: "test", createdAt: createdAt.toISOString(), archivedAt: null },
-    PipelineDefinition: { id: "definition", pipelineId: "pipeline", version: 2, steps: ["plan", "implement", "accept"], gates: [], createdAt: createdAt.toISOString(), createdBy: "test" },
-    PipelineVersion: { id: "version", projectId: "project", pipelineId: "pipeline", version: 2, nodes: ["plan", "implement", "accept"], gates: [], format: "slots-v1", createdAt: createdAt.toISOString(), createdBy: "test" },
+    PipelineDefinition: { selectionPolicy: null, id: "definition", pipelineId: "pipeline", version: 2, steps: ["plan", "implement", "accept"], gates: [], createdAt: createdAt.toISOString(), createdBy: "test" },
+    PipelineVersion: { id: "version", projectId: "project", pipelineId: "pipeline", version: 2, nodes: ["plan", "implement", "accept"], gates: [], format: "slots-v1", selectionPolicy: null, createdAt: createdAt.toISOString(), createdBy: "test" },
     PipelineRule: { id: "rule", projectId: "project", type: "feature", pipelineId: "pipeline" },
   };
   const columnType = { integer: 0, boolean: 5, text: 7, dateTime: 10, textArray: 71 } as const;
@@ -61,7 +61,7 @@ it("loads saved pipelines and relations without overlapping Prisma driver querie
       pipelines: [{ id: "pipeline", name: "Feature", isDefault: true,
         definition: { steps: ["plan", "implement", "accept"], gates: [] },
         saved: { version: 2, createdAt },
-        runnable: { nodes: ["plan", "implement", "accept"], gates: [], format: "slots-v1" },
+        runnable: { selectionPolicy: null, nodes: ["plan", "implement", "accept"], gates: [], format: "slots-v1" },
       }],
       rules: { feature: "pipeline" }, autoProposeEnabled: true,
     });

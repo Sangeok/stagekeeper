@@ -23,7 +23,7 @@ export class RolePathMissingError extends Error {
 }
 
 export function roleFileToolNames(agent) {
-  if (agent === "pm") return [];
+  if (["pm", "work-assigner"].includes(agent)) return [];
   return [...READ_TOOLS, "role_file_write"];
 }
 

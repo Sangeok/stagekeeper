@@ -1,5 +1,8 @@
-export type Graph = { nodes: string[]; gates: string[] };
-export type GraphInput = { readonly nodes: readonly string[]; readonly gates: readonly string[] };
+export type Graph = { nodes: string[]; gates: string[]; selectionPolicy?: string };
+export type GraphInput = { readonly nodes: readonly string[]; readonly gates: readonly string[]; readonly selectionPolicy?: string | null };
+export const DEFAULT_SELECTION_POLICY: string;
+export function workPrefix(graph: GraphInput): Graph;
+export function itemGraph(graph: GraphInput): Graph;
 export type Boundary = { from: string; to: string };
 export type GraphValidation = { ok: true } | { ok: false; reason: string };
 
@@ -45,8 +48,8 @@ export function cursorForStatus(graph: GraphInput, status: string): string | nul
 export function nodeDone(kind: string, facts: NodeFacts): boolean;
 export function advance(graph: GraphInput, cursor: string | null, facts: AdvanceFacts): Advance;
 
-export type Definition = { steps: string[]; gates: string[] };
-export type DefinitionInput = { readonly steps: readonly string[]; readonly gates: readonly string[] };
+export type Definition = { steps: string[]; gates: string[]; selectionPolicy?: string };
+export type DefinitionInput = { readonly steps: readonly string[]; readonly gates: readonly string[]; readonly selectionPolicy?: string };
 export type Definitions = Readonly<Record<string, DefinitionInput>>;
 export type Expansion = { ok: true; graph: Graph } | { ok: false; pipelineId: string; reason: string };
 export type Recompose = { ok: true; runnable: Record<string, Graph | null> } | { ok: false; pipelineId: string; reason: string };

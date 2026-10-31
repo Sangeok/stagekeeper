@@ -39,7 +39,7 @@ describe("stubOf", () => {
 describe("deliverable", () => {
   it("max: every agent as a stub, the full runbook, docs as they are; the free runbook key is never a template", () => {
     const d = deliverable(ROWS, "max");
-    assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/doc-auditor.md", "agents/feature-scout.md", "agents/plan-verifier.md", "agents/pm.md", "docs/plans/README.md"]);
+    assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/doc-auditor.md", "agents/feature-scout.md", "agents/plan-verifier.md", "agents/pm.md", "agents/work-assigner.md", "agents/work-discoverer.md", "docs/plans/README.md"]);
     for (const a of ["pm", "plan-verifier", "doc-auditor", "feature-scout", "dev"]) assert.doesNotMatch(d.templates[`agents/${a}.md`], /## step:/, a);
     assert.match(d.templates["agents/dev.md"], /\{\{ws\.agent\}\}/);
     assert.equal(d.templates["CLAUDE.runbook.md"], "## Harness\nfull pipeline\n");
@@ -48,9 +48,9 @@ describe("deliverable", () => {
   });
   it("free: plan-verifier and doc-auditor stubs are left out; the runbook is the single full one, not a free variant", () => {
     const d = deliverable(ROWS, "free");
-    assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/feature-scout.md", "agents/pm.md", "docs/plans/README.md"]);
+    assert.deepEqual(keys(d), ["CLAUDE.runbook.md", "agents/dev.md", "agents/feature-scout.md", "agents/pm.md", "agents/work-assigner.md", "agents/work-discoverer.md", "docs/plans/README.md"]);
     assert.equal(d.templates["CLAUDE.runbook.md"], "## Harness\nfull pipeline\n");
-    assert.deepEqual(d.entitlement, { plan: "free", agents: ["pm", "feature-scout"] });
+    assert.deepEqual(d.entitlement, { plan: "free", agents: ["pm", "feature-scout", "work-assigner", "work-discoverer"] });
   });
   it("pro: same agents as max", () => {
     assert.deepEqual(deliverable(ROWS, "pro").entitlement.agents, REPORT_AGENTS);

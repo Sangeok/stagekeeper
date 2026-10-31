@@ -1,7 +1,44 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { it } from "node:test";
-import { containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
+import { assertGeneratedAgents, containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
+
+const currentPlugin = fileURLToPath(new URL("../../plugin/", import.meta.url));
+const freeAgents = ["app-dev", "pm", "feature-scout", "work-assigner", "work-discoverer"];
+
+function fixture(t, agents) {
+  const root = mkdtempSync(join(tmpdir(), "stagekeeper-smoke-agents-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const directory = join(root, ".claude", "agents");
+  mkdirSync(directory, { recursive: true });
+  for (const agent of agents) writeFileSync(join(directory, `${agent}.md`), `# ${agent}\n`);
+  return root;
+}
+
+it("checks the previous plugin's own roles before requiring new roles after an update", async t => {
+  const repo = fixture(t, ["app-dev", "pm", "feature-scout"]);
+  const previousPlugin = join(repo, "previous-plugin");
+  mkdirSync(join(previousPlugin, "lib", "plans"), { recursive: true });
+  writeFileSync(join(previousPlugin, "lib", "plans", "entitlement.mjs"), 'export const limitsFor = () => ({ agents: ["pm", "feature-scout"] });\n');
+  await assertGeneratedAgents(previousPlugin, repo, "free", ["app-dev"]);
+  await assert.rejects(assertGeneratedAgents(currentPlugin, repo, "free", ["app-dev"]), /missing \[work-assigner.md, work-discoverer.md\]/);
+  for (const agent of ["work-assigner", "work-discoverer"]) writeFileSync(join(repo, ".claude", "agents", `${agent}.md`), `# ${agent}\n`);
+  await assertGeneratedAgents(currentPlugin, repo, "free", ["app-dev"]);
+});
+
+it("accepts the current Pro roles and rejects them for Free", async t => {
+  const repo = fixture(t, [...freeAgents, "plan-verifier", "doc-auditor", "qa-verifier", "impl-verifier"]);
+  await assertGeneratedAgents(currentPlugin, repo, "pro", ["app-dev"]);
+  await assert.rejects(assertGeneratedAgents(currentPlugin, repo, "free", ["app-dev"]), /unexpected \[doc-auditor.md, impl-verifier.md, plan-verifier.md, qa-verifier.md\]/);
+});
+
+it("rejects the wrong role even when the generated file count matches", async t => {
+  const repo = fixture(t, ["app-dev", "pm", "feature-scout", "work-assigner", "unknown-role"]);
+  await assert.rejects(assertGeneratedAgents(currentPlugin, repo, "free", ["app-dev"]), /missing \[work-discoverer.md\], unexpected \[unknown-role.md\]/);
+});
 
 it("runs the helper through the launcher on Windows and through node elsewhere, as the init skill says", () => {
   assert.deepEqual(helperCommand("win32", "C:/p", "init", ["--dry-run"]), {

@@ -156,11 +156,12 @@ describe("templatesFor", () => {
       templates: {
         "agents/dev.md": agentStub,
         "agents/pm.md": agentStub,
+        "agents/work-assigner.md": agentStub, "agents/work-discoverer.md": agentStub,
         "agents/feature-scout.md": agentStub,
         "CLAUDE.runbook.md": "Full runbook",
         "docs/plans/README.md": "Plan documentation",
       },
-      entitlement: { plan: "free", agents: ["pm", "feature-scout"] },
+      entitlement: { plan: "free", agents: ["pm", "feature-scout", "work-assigner", "work-discoverer"] },
     });
     assert.deepEqual(calls, { tokenHashes: [tokenHash], projectIds: [tokenRecord.projectId], languages: ["ko"] });
   });
@@ -172,10 +173,11 @@ describe("templatesFor", () => {
       const result = await templatesFor(authorizationHeader, "en");
 
       assert.ok(result.ok);
-      assert.deepEqual(result.entitlement, { plan, agents: ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"] });
+      assert.deepEqual(result.entitlement, { plan, agents: ["pm", "work-assigner", "work-discoverer", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"] });
       assert.deepEqual(result.templates, {
         "agents/dev.md": agentStub,
         "agents/pm.md": agentStub,
+        "agents/work-assigner.md": agentStub, "agents/work-discoverer.md": agentStub,
         "agents/plan-verifier.md": agentStub,
         "agents/qa-verifier.md": agentStub,
         "agents/impl-verifier.md": agentStub,

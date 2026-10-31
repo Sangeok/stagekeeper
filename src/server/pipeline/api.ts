@@ -23,3 +23,5 @@ export { setAutomaticPick } from "./settings-service";
 export { setAutomaticScout } from "./automatic-scout";
 export { setDefaultPipeline } from "./settings-service";
 export { setPipelineRule } from "./settings-service";
+
+export { assignmentContext, startProjectWork, stopProjectWork, approveWorkGate } from "./work-run";

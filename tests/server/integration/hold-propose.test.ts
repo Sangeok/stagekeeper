@@ -6,7 +6,7 @@ import { createToolDeps } from "../../../src/server/mcp/deps";
 import { cleanup, connections, fixture, type Fixture } from "./support";
 
 const HELD = "on hold — only the owner resumes it, on the web";
-const ownerInput = { title: "Another item", area: "", source: "", type: null, addedBy: "owner" as const, addedByRunId: null };
+const ownerInput = { title: "Another item", area: "web", source: "Observed issue", type: null, addedBy: "owner" as const, addedByRunId: null };
 
 type Head = { action: string; agent?: string };
 async function head(db: PrismaClient, projectId: string): Promise<Head> {
@@ -14,9 +14,9 @@ async function head(db: PrismaClient, projectId: string): Promise<Head> {
   assert.ok(overview.ok);
   return (overview.item as { head: Head }).head;
 }
-const isPm = (h: Head) => h.action === "dispatch" && h.agent === "pm";
+const isAssignment = (h: Head) => h.action === "dispatch" && h.agent === "work-assigner";
 
-for (const legacy of [false, true]) it(`a held item is neither proposable nor a pm candidate${legacy ? " (two held rows)" : ""}`, async () => {
+for (const legacy of [false, true]) it(`a held item is neither proposable nor an assignment candidate${legacy ? " (two held rows)" : ""}`, async () => {
   const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
   try {
     f = await fixture(db, { status: "on_hold" });
@@ -25,10 +25,10 @@ for (const legacy of [false, true]) it(`a held item is neither proposable nor a 
     assert.deepEqual(await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "agent", actorRef: "pm" }), { ok: false, reason: HELD });
     assert.deepEqual(await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "human", actorRef: f.userId, channel: "web" }), { ok: false, reason: HELD });
     assert.equal(await service.availableBacklogCount(f.projectId), 0);
-    assert.equal(isPm(await head(db, f.projectId)), false, "only held items left: not pm's turn");
+    assert.equal(isAssignment(await head(db, f.projectId)), false, "only held items left: not pm's turn");
     assert.ok((await service.addBacklog(f.projectId, ownerInput)).ok);
     assert.equal(await service.availableBacklogCount(f.projectId), 1);
-    assert.equal(isPm(await head(db, f.projectId)), true, "a pickable item brings pm back");
+    assert.equal(isAssignment(await head(db, f.projectId)), true, "an eligible item reaches Assign work");
   } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 

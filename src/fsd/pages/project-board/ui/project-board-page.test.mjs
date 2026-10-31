@@ -54,7 +54,7 @@ describe("ProjectBoardPage", () => {
   it("renders Team handles and their states in the model order", () => {
     const html = renderBoard();
     const handles = Array.from(html.matchAll(/<b\b[^>]*>([^<]+)<\/b>/g), ([, handle]) => handle);
-    assert.deepEqual(handles, ["pm", ...ROSTER, "plan-verifier", "impl-verifier", "qa-verifier", "doc-auditor", "feature-scout"]);
+    assert.deepEqual(handles, ["work-discoverer", "work-assigner", ...ROSTER, "plan-verifier", "impl-verifier", "qa-verifier", "doc-auditor", "feature-scout"]);
     assert.match(html, /web-dev<\/b>Working on FEAT-07/);
     assert.match(html, /plan-verifier<\/b>Idle/);
   });
@@ -64,7 +64,7 @@ describe("ProjectBoardPage", () => {
     assert.match(html, />Activity<\/h2>/);
     assert.match(html, /No activity yet\./);
     assert.match(html, />Team<\/h2>/);
-    assert.match(html, /pm<\/b>No new proposals/);
+    assert.match(html, /work-assigner<\/b>No new proposals/);
   });
 });
 

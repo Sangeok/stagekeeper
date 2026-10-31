@@ -126,7 +126,8 @@ describe("buildBriefing", () => {
 
   it("derives the fixed and workspace team order with current state wording", () => {
     assert.deepEqual(buildBriefing(BOARD, TODAY, ROSTER, NODE_KINDS).team, [
-      { agent: "pm", state: "2 awaiting your approval" },
+      { agent: "work-discoverer", state: "Idle" },
+      { agent: "work-assigner", state: "2 awaiting your approval" },
       { agent: "web-dev", state: "Working on FEAT-07" },
       { agent: "admin-dev", state: "Awaiting review" },
       { agent: "backend-dev", state: "On hold" },
@@ -179,7 +180,7 @@ describe("buildBriefing", () => {
   it("lists only the agents the current graph dispatches, in graph order", () => {
     assert.deepEqual(
       buildBriefing(BOARD, TODAY, ROSTER, defaultGraph("free").nodes).team.map((m) => m.agent),
-      ["pm", ...ROSTER],
+      ["work-discoverer", "work-assigner", ...ROSTER],
     );
     assert.deepEqual(
       buildBriefing(BOARD, TODAY, ROSTER, ["propose", "plan", "implement", "accept", "doc-audit"], false).team.map((m) => m.agent),
@@ -204,7 +205,8 @@ describe("buildBriefing", () => {
     assert.deepEqual(buildBriefing([], TODAY, [], NODE_KINDS), {
       activity: [],
       team: [
-        { agent: "pm", state: "No new proposals" },
+        { agent: "work-discoverer", state: "Idle" },
+      { agent: "work-assigner", state: "No new proposals" },
         { agent: "plan-verifier", state: "Idle" },
         { agent: "impl-verifier", state: "Idle" },
         { agent: "qa-verifier", state: "Idle" },
@@ -216,8 +218,8 @@ describe("buildBriefing", () => {
 
   it("keeps a dynamic workspace agent's handle and work state", () => {
     const briefing = buildBriefing([row({ key: "M-1", status: "planning", agent: "mobile-dev" })], TODAY, ["mobile-dev"], NODE_KINDS);
-    assert.equal(briefing.team[1].agent, "mobile-dev");
-    assert.equal(briefing.team[1].state, "Working on M-1");
+    assert.equal(briefing.team[2].agent, "mobile-dev");
+    assert.equal(briefing.team[2].state, "Working on M-1");
   });
 
   it("does not claim work is happening before anyone was dispatched", () => {

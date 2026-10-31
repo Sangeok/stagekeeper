@@ -1,21 +1,19 @@
 import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { randomBytes, randomInt } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
-import { containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
+import { assertGeneratedAgents, containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
 
 const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
 const MARKETPLACE = "stagekeeper-local";
 const PLUGIN_REPOSITORY = "https://github.com/Sangeok/stagekeeper.git";
 const PORT = 55438;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
-const FREE_AGENTS = 3;
-const PRO_AGENTS = 7;
 const PLAN_SKIPS_ON_FREE = 4;
 const COMMIT = /^[0-9a-f]{40}$/;
 
@@ -161,10 +159,10 @@ class Smoke {
     });
   }
 
-  async generate(plugin: Plugin, name: string, agents: number): Promise<void> {
-    await this.run.step(name, () => {
+  async generate(plugin: Plugin, name: string, plan: "free" | "pro"): Promise<void> {
+    await this.run.step(name, async () => {
       this.helper(plugin, [], name);
-      if (agentFiles(this.repo) !== agents) throw new Error(`generation wrote ${agentFiles(this.repo)} agent files instead of ${agents}`);
+      await assertGeneratedAgents(plugin.root, this.repo, plan, ["app-dev"]);
       if (!existsSync(path.join(this.repo, "CLAUDE.md"))) throw new Error("generation did not write CLAUDE.md");
     });
   }
@@ -202,7 +200,7 @@ class Smoke {
       writeFileSync(path.join(this.repo, "harness.json"), `${JSON.stringify(config, null, 2)}\n`);
     });
     await this.dryRun(plugin, `${prefix}dry-run`, "free", PLAN_SKIPS_ON_FREE, true);
-    await this.generate(plugin, `${prefix}generate`, FREE_AGENTS);
+    await this.generate(plugin, `${prefix}generate`, "free");
     await this.run.step(`${prefix}persist-server`, () => persistServer(this.run, this.helperEnv));
     await this.run.step(`${prefix}mcp-add`, () => {
       if (this.run.command("claude", ["mcp", "get", "harness"], this.repo, this.helperEnv).code === 0) throw new Error("harness is already registered on this machine");
@@ -234,11 +232,6 @@ function git(cwd: string, args: string[]): string {
 
 function countLines(text: string, pattern: RegExp): number {
   return text.split(/\r?\n/).filter(line => pattern.test(line.trim())).length;
-}
-
-function agentFiles(repo: string): number {
-  const directory = path.join(repo, ".claude", "agents");
-  return existsSync(directory) ? readdirSync(directory).filter(name => name.endsWith(".md")).length : 0;
 }
 
 function osLabel(): string {
@@ -354,7 +347,7 @@ async function newUser(smoke: Smoke, plugin: Plugin, options: Options, login: st
     if (!output.includes(`granted: ${login} -> pro`)) throw new Error("plan:grant did not report the Pro plan");
   });
   await smoke.dryRun(plugin, "pro-dry-run", "pro", 0);
-  await smoke.generate(plugin, "pro-generate", PRO_AGENTS);
+  await smoke.generate(plugin, "pro-generate", "pro");
   await smoke.sync(plugin, "pro-sync", connection.slug, rerunAt);
 }
 
@@ -363,7 +356,7 @@ async function update(smoke: Smoke, previous: Plugin, installNew: () => Promise<
   const plugin = await smoke.run.step("plugin-install", installNew);
   await smoke.connected("mcp-unchanged");
   await smoke.dryRun(plugin, "update-dry-run", "free", PLAN_SKIPS_ON_FREE);
-  await smoke.generate(plugin, "update-generate", FREE_AGENTS);
+  await smoke.generate(plugin, "update-generate", "free");
   await smoke.sync(plugin, "update-sync", connection.slug, connection.syncedAt);
   return plugin;
 }

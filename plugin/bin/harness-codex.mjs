@@ -102,7 +102,7 @@ async function main() {
       next = { action: "dispatch", ...next.resume };
     } else if (options["handoff-commit"]) throw new Error("No current handoff to continue");
     if (next.action !== "dispatch") { console.log(JSON.stringify({ event: "paused", session: options.session, pipeline })); return; }
-    if (["pm", "feature-scout"].includes(next.agent) && !next.entry && !owned.policy.propose) throw new Error("New-work permission is disabled for this session");
+    if (!next.key && !owned.policy.propose) throw new Error("New-work permission is disabled for this session");
     const dispatch = dispatchBinding(next, input.config.workspaces);
     if (commitHandoff) dispatch.commitHandoff = commitHandoff;
     if (dispatch.key) {

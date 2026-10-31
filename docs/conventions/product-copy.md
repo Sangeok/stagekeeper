@@ -180,9 +180,9 @@ Selected-out projects keep their selection recovery banner and show no turn stri
 | Owner | Headline | Detail |
 | --- | --- | --- |
 | you | **Waiting on you** | ITEM-01 is ready for your approval / ITEM-01 needs a plan request / FEAT-06 is waiting before Verify / FEAT-02 failed acceptance / ITEM-01 is waiting for your commit. Several: "2 plans are ready for your approval" · "2 items need a plan request" · "2 items are waiting at a gate" · "2 items failed acceptance" · "2 items are waiting for your commit", joined with " · " |
-| you, pm blocked | (same) | second line "pm can't propose anything new until you clear one." — strip: "… · pm is blocked until you clear one" |
+| you, pm blocked | (same) | second line "Assign work waits until you clear one." — strip: "… · Assign work waits until you clear one" |
 | agents | **Agents are working** (with a breathing dot — the only motion in the product) | dev is writing the plan for ITEM-01 / the plan for ITEM-01 is being verified / dev is implementing ITEM-01 / ITEM-02 is waiting for acceptance. **Nobody dispatched yet:** "ITEM-01 is waiting for dev" · "FEAT-04 is waiting for verification" — opening a gate moves the item, it does not start an agent |
-| nobody | **Nothing open** | Pick the next item from the backlog, or run the pipeline in your coding client — when the backlog is empty, feature-scout looks for items to add. — button **Open backlog** |
+| nobody | **Nothing open** | Add work to the backlog or run a pipeline. Discover work finds candidates when included; Assign work selects and assigns eligible backlog items. — button **Open backlog** |
 | first run | **Set up in three steps** | the checklist below |
 
 Rules: one item → name it; several → count them. Your turn is where the item's pipeline run
@@ -332,9 +332,7 @@ The strip on other tabs and the project card (§10) end with the short form — 
 **First run** (no board rows yet) — **Set up in three steps**: 1 Token issued "Shown once when
 you created the project. Issue another on the Tokens tab." (link Tokens) · 2 Connect the
 repository — the detail line is the lock block below (chip **Not connected yet**) · 3 Run the
-pipeline in Claude Code "feature-scout reads the code and adds up to three backlog items; pm
-puts up to two on the board for your approval. With automatic picking off, put one on the board
-from the Backlog tab." Strip: "Setting up · Step 3 of 3 — Run the pipeline in your coding client."
+pipeline in Claude Code "Discover work finds candidates when included. Assign work follows the saved selection policy and records why a task and assignee were chosen. The runner follows the nodes and waits at approval gates." Strip: "Setting up · Step 3 of 3 — Run the pipeline in your coding client."
 
 
 Step 2's detail line. It stops at `/harness:init` on purpose — the restart and the connection
@@ -421,10 +419,7 @@ model is in git history).
 moves the item; it does not start an agent. Until someone runs the session, nothing is happening —
 the banner, the Activity line and the Team row all say so rather than claiming work in progress.
 
-**Team row** — the union of agents dispatched by active pipelines that run items. The default pipeline comes first, then creation time and id; each agent appears once at its first position. pm appears first when Automatic picking is on, plan-verifier with Verify, impl-verifier with Implementation check,
-qa-verifier with QA, doc-auditor with Doc audit, feature-scout with Scout; the workspace roster (dev and friends) appears once, for Plan and Implement. Accept
-dispatches nobody — the main loop runs it. feature-scout also runs outside the graph when nothing is left to pick and the backlog has changed since it last looked; the Team row lists graph nodes only, so it appears there only with a Scout node. The default pipeline has no feature-scout, impl-verifier or qa-verifier, and the Free
-default has no plan-verifier or doc-auditor either.
+**Team row** — lists only executors present in saved pipeline graphs, in graph order. Discover work uses `work-discoverer`; Assign work uses `work-assigner`. No PM executor is inserted. Workspace agents execute Plan and Implement. Legacy executor identifiers remain visible only when an existing graph still contains them. Accept dispatches nobody.
 
 One dense line, mono handle + state, no avatars: pm "2 awaiting your approval" /
 "No new proposals" · verifier "Verifying FEAT-04" / "Idle" · dev "Awaiting review" / "Working on
@@ -888,7 +883,7 @@ are terse on purpose — agents parse them.
 | `it uses a pipeline that is archived or missing` | shown as is |
 | `pipelines can't use each other in a loop` | shown as is |
 | `<a> must come before <b>` | shown as is |
-| `propose is no longer a node — turn on Automatic picking in the Pipeline tab` | shown as is |
+| `Use Assign work instead of the legacy Propose node.` | shown as is |
 | `This pipeline can't run items on its own. Use it inside another pipeline.` | shown as is |
 | `Saving would break <name>: <reason>` | shown as is |
 | `Pipeline not found.` | shown as is |
@@ -913,7 +908,7 @@ are terse on purpose — agents parse them.
 | `don't mix doc-audit with doc-auditor slots` | shown as is |
 | `a gate appears twice` | shown as is |
 | `gate before-scout has no node after it` | shown as is |
-| — (pipeline definition save and all five settings, including Automatic picking, plan) | Pipeline editing opens on Pro. The default pipeline stays as is. |
+| — (pipeline definition, selection policy and Run rules save) | Pipeline editing opens on Pro. The default pipeline stays as is. |
 | — (pipeline save, race) | The pipeline changed. Your draft is still here. Discard changes and reload to edit the latest version. |
 | — (put on the board, race) | The board changed. Refresh and try again. |
 
@@ -934,16 +929,17 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `project_sync` | Push `harness.json.workspaces` to the service. Updates the roster. |
 | `backlog_list` | Backlog items with each item's latest board status. |
 | `backlog_get` | One backlog item, full evidence. |
-| `backlog_add` | feature-scout: add one backlog item you have evidence for. The server assigns the key (ITEM-NN). Pass runId = the runId of the receipt your current agent_next step returned. At most 3 per run, and never an item the owner removed or discarded (backlog_list includeRemoved shows them). After a failed or timed-out call, check backlog_list before calling again. |
+| `backlog_add` | Discover work: add one backlog item you have evidence for. The server assigns the key (ITEM-NN). Pass runId = the runId of the receipt your current agent_next step returned. At most 3 per run, and never an item the owner removed or discarded (backlog_list includeRemoved shows them). After a failed or timed-out call, check backlog_list before calling again. |
 | `board_list` | Latest board item per backlog item. `open: true` → only open ones. |
 | `board_get` | Latest board item with its transition history and reports. |
-| `board_propose` | pm: create a `proposed` item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, the key is already open, or the key is on hold (only the owner resumes it, on the web). |
+| `assignment_context` | Assign work: read the saved selection policy and current eligible candidates with their Source evidence. Pass your agent_next receipt runId. Read again after a stale selection refusal. |
+| `board_propose` | Assign work: register one selected item with its assignee, reason and selection record. Read assignment_context first. Source quotes, candidate comparisons, policy and contextKey are validated. Missing evidence, stale input, invalid assignee or full board refuses the write. |
 | `board_transition` | Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. `plan_submit` already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here. |
 | `plan_submit` | Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing. Optional type (feat, fix, refactor, docs) fills an empty type or revises an agent-set type; an owner-set type is preserved (typeKept: owner when it differs). |
 | `report_submit` | Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires `runId` and `qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}`. impl-verifier additionally requires `runId`. Only in `in_review`, `implementing`, or `done`. In `done`, a main-loop report is the acceptance record; once `validation_record` moves the item on, the board takes no other main-loop report. |
 | `acceptance_fail` | main-loop: record a failed acceptance at the accept node — the failed checks (1–5, the runbook's five acceptance checks) and a note of 150 characters or fewer; a committed write-up's path and commit are optional, together. The item then waits for the owner, who runs acceptance again or reopens it on the item page. Don't run the checks again until pipeline_next answers accept. |
 | `validation_record` | main-loop: record a clean validation pass. Only in `in_review`, 150 characters or fewer, and only after a plan-verifier pass is on record for the current plan. Once this record moves the item on, the board takes no main-loop report until the acceptance in `done`. |
-| `pipeline_next` | The pipeline's next thing for this project. Without a key: `{ head, items }` — `head` says whether it is feature-scout's turn (no candidates) or pm's turn (candidates remain) (`dispatch` with a hint, or `none` with a reason: "Automatic picking is off. Put an item on the board from the Backlog tab, or turn it on in the Pipeline tab." · "open items: 2 (max 2)" · "a Scout node in items dispatches feature-scout — that run looks for items to add" · "feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab" · the dispatch cap sentence). The cap sentence is withheld when a run is already open that can simply be resumed — the selected pm or unbound feature-scout run for the head, or the item's dispatcher for that item — because resuming is not a new dispatch; `agent_next` still counts and refuses at the cap when it opens a run. `items` covers every item whose run is still walking, including one already accepted whose tail nodes remain. Without a key the answer also carries `runbook: { stale: true, note }` when this repository's `CLAUDE.md` was generated from an older template — the note reads "This repository's runbook does not match the current template, or its version was never recorded. Ask the owner to run /harness:init. Until then take the order of execution from pipeline_next, not from CLAUDE.md." The field is absent when the runbook is current. Pass `runbook` — the version written in the calling checkout's `CLAUDE.md` — and the answer judges that copy; without it, the version the last init reported. With a key: that item's answer. Answers are `dispatch` (with the agent and a one-sentence `hint`), `wait` on a `gate` · `handoff` · `cap` · `acceptance` · `impl-verify` · `qa`, `accept` (also with a `hint` — the main loop runs that one itself), or `done`. |
+| `pipeline_next` | Without a key, returns `{ head, items }`. The head follows the configured project work nodes and includes an exact pipeline entry. Discover work runs only when included, and before Assign work it runs only when no eligible candidates exist. Assign work uses the saved selection policy and records evidence. Missing candidates or evidence, approval gates and capacity cause waiting. Items retain their own immutable execution versions, including tail nodes after acceptance. Existing bound runs can resume at the usage cap. Pass the installed runbook version; stale runbooks require init again. With a key, returns only that item’s next step. |
 | `agent_next` | Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step. |
 
 **Owner server** — `harness_owner` at `/api/mcp/owner`, owner token only, one tool:
@@ -966,6 +962,7 @@ does not use this recorded-approval reason.
 | node | hint |
 | --- | --- |
 | `propose` | Dispatch pm with no key. |
+| `discover-work` | Dispatch work-discoverer with no key and this exact pipeline entry. Add evidence-backed candidates to the backlog and finish agent_next. This step does not assign work. |
 | `plan` | Dispatch with the item key. One item per dispatch. |
 | `verify` | Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record. The round log states the decision, never that it was recorded; the board holds the record. Once validation_record moves the item on, the board takes no main-loop report until the acceptance in done. |
 | `implement` | Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate. |
@@ -1557,7 +1554,7 @@ never existed look the same from here.
 - Each edge carries a **+**. It opens one panel **below the rail** — never inside the edge, which
   would widen it and shove the rest of the row sideways. The panel is titled with the edge
   ("before Plan"), only one is open at a time, and the **+** it belongs to is shown pressed. It
-  offers **Add gate**, **Add doc-auditor here** / **Add feature-scout here**, **Move `<id>` here**
+  offers **Add gate**, **Add Doc audit here** / **Add Discover work here**, **Move `<id>` here**
   for each project-agent slot already on the rail, and **Add `<Node>`** for an optional node the
   graph does not have (a removed one, or the opt-in Scout, Implementation check or QA). Choosing anything closes it.
 - **Add first step** on an empty rail and **Add at end** open the same Add/Use panel at the end. Existing project-agent slots can be moved there; new slot ids account for referenced definitions too.
@@ -1570,21 +1567,13 @@ never existed look the same from here.
   your approval. Acceptance is still required. Reopen and discard stay on the web." The Save
   button reads **Save without a gate** until it is pressed a second time.
 - **Use <name> here** adds a named block with **Edit <name>**. **Show expanded** previews the flattened nodes and gates without editing the child definition. **Also changes** lists users affected by a save. Empty rails and the end have Add/Use controls. New project-agent slots reserve ids across local and referenced steps. A dependency-only update refreshes preview, users, slot reservations and gate warnings even if this definition version is unchanged; keep dirty drafts, show the external-change warning and invalidate prior no-gate confirmation.
-- **Automatic picking**, handle `pm`, follows the Automatic scouting section. On/off changes apply immediately and do not close an open PM run. Off: "Automatic picking is off. Put an item on the board from the Backlog tab, or turn it on in the Pipeline tab." Free shows a disabled switch with "Pipeline editing opens on Pro. The default pipeline stays as is." Lost response: "The setting may have changed. Refresh to check before trying again." Never retry automatically.
-- The conditional Scout section appears before the item rail on every plan, including Free.
-  Eyebrow **Before picking an item** · title **Scout** · handle `feature-scout` · switch **Automatic scouting**, **On** / **Off** / **Saving…**.
-  Intro: "When no backlog items are available, feature-scout looks for up to three items to add before pm picks work."
-  On: "Runs once after the backlog changes, when there is room on the board. Turning it off stops the current automatic scout run and further additions."
-  Off: "Automatic scouting is off. Add an item on the Backlog tab to continue."
-  Footer: "Changes take effect immediately. Scout slots in the item pipeline below follow their saved order."
-  Unavailable projects show a disabled switch and the project recovery reason. Saves happen immediately, separately from the item graph Save button.
-  Success: **Automatic scouting on** / **Automatic scouting off**. A lost response refreshes the server state and says "The setting may have changed. Refresh to check before trying again." It does not retry the mutation.
-- The editor is headed by the selected pipeline name. Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is." Automatic scouting can still be changed on Free. Automatic picking cannot.
-- Scout graph slots are opt-in and run in their saved positions independently of automatic scouting.
-- **Read as text** is a `<details>` that renders the graph as a numbered list, in cursor order.
-  The separate Automatic scouting section explains the head scout behavior.
-  When automatic scouting is off, the shared Nothing open detail reads "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab."
-  The first-run checklist appends "Then run the pipeline in your coding client, or put the item on the board from the Backlog tab." to that off detail.
+- **Discover work** is an optional node. It finds evidence-backed backlog candidates and can appear before assignment, later in the flow or be omitted. Before Assign work it runs when eligible backlog work is absent.
+- **Assign work** selects and assigns one candidate using the saved **Selection policy**. It records evidence, comparisons, readiness and assignment reasons. Insufficient facts cause waiting. No PM node or separate automatic picking/scouting switches are shown.
+- **Run** can start without a work item when the graph starts with project work. It shows the current step, waiting reason, approval button and **Stop new work**. Specific-item runs use the task portion after Assign work. A connected runner is required. Stopping new work leaves assigned task pipelines intact.
+- The editor is headed by the selected pipeline name. Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is." The default graph remains available on Free.
+- Discover work nodes run in their saved positions; without a node there is no implicit discovery.
+- **Read as text** renders the graph in cursor order. Assignment decisions are shown in the task detail with policy, criterion, readiness, assignee rationale, source quotes and alternative comparisons.
+
 
 A new server snapshot preserves an edited draft and its original save version. A newer persisted version shows the stale recovery below; plan or availability changes immediately restrict editing without erasing the draft. Clean drafts follow the latest snapshot. The version line and Read as text describe the saved server graph, while the rail shows the draft.
 

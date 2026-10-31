@@ -6,10 +6,10 @@ export const UNLIMITED = Infinity;
 export const OWNER_TOKEN_PLAN_GATE = "Owner tokens open on Pro. Approve in the Inbox for now.";
 export const RESIDENT_RUNNER_PLAN_GATE = "The background runner opens on Pro. Use /harness:watch in a Claude Code session for now.";
 export const CODEX_RESIDENT_RUNNER_PLAN_GATE = "The background runner opens on Pro. Use $harness-run or $harness-resume in Codex for now.";
-export const REPORT_AGENTS = ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"];
+export const REPORT_AGENTS = ["pm", "work-assigner", "work-discoverer", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"];
 
 export const LIMITS = {
-  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout"], sessionApprovals: false, pipelineEdit: false, dispatches: 20, residentRunner: false },
+  free: { projects: 1, workspaces: 1, backlog: 10, historyDays: 30, agents: ["pm", "feature-scout", "work-assigner", "work-discoverer"], sessionApprovals: false, pipelineEdit: false, dispatches: 20, residentRunner: false },
   pro: { projects: 5, workspaces: 10, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: 100, residentRunner: true },
   max: { projects: UNLIMITED, workspaces: UNLIMITED, backlog: UNLIMITED, historyDays: null, agents: REPORT_AGENTS, sessionApprovals: true, pipelineEdit: true, dispatches: UNLIMITED, residentRunner: true },
 };

@@ -52,7 +52,7 @@ export async function createMainLoopTools(context, operations = {}) {
     }
     if (next.action !== "dispatch") return { event: "waiting", next };
     if (["qa-verifier", "impl-verifier"].includes(next.agent)) throw new Error("Optional verifier requires an explicit foreground handoff");
-    if (!next.entry && ["pm", "feature-scout"].includes(next.agent) && !owned.policy.propose) throw new Error("New work is disabled");
+    if (!next.key && !owned.policy.propose) throw new Error("New work is disabled");
     const binding = dispatchBinding(next, input.config.workspaces);
     if (handoff) binding.commitHandoff = handoff;
     if (binding.key) {

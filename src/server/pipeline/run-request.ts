@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expand, type GraphInput } from "@harness/core/pipeline/pipeline.mjs";
+import { DEFAULT_SELECTION_POLICY, expand, workPrefix, type GraphInput } from "@harness/core/pipeline/pipeline.mjs";
 import { pipelineInputReason, validateExecutionGraph } from "@harness/core/pipeline/run-input.mjs";
 import { readProjectAccessIn, READ_OPTIONS } from "@/server/projects/api";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
@@ -8,14 +8,14 @@ import { loadPipelinesViewIn, PIPELINE_NOT_FOUND } from "./run-service";
 import { PipelineRejection } from "./lock-pipeline";
 
 export type RunTarget = { id: string; kind: "backlog" | "board"; key: string; title: string; agent: string | null; updatedAt: string | null; reason: string | null };
-export type RunPreparation = { pipelineId: string; name: string; graphKey: string; nodes: string[]; gates: string[]; agents: string[]; targets: RunTarget[] };
+export type RunPreparation = { pipelineId: string; name: string; graphKey: string; nodes: string[]; gates: string[]; agents: string[]; targets: RunTarget[]; projectRun?: { id: string; pipelineName: string; entryId: string; node: string; reason: string | null; closed: boolean }; canStartWithoutWork: boolean };
 export type StartPipelineInput = { pipelineId: string; graphKey: string; targetId: string; targetKind: "backlog" | "board"; agent: string; expectedUpdatedAt: string | null };
 
 export function executionKey(graph: GraphInput): string {
-  return createHash("sha256").update(JSON.stringify([graph.nodes, [...graph.gates].sort()])).digest("hex");
+  return createHash("sha256").update(JSON.stringify([graph.nodes, [...graph.gates].sort(), graph.nodes.includes("assign-work") ? graph.selectionPolicy ?? DEFAULT_SELECTION_POLICY : null])).digest("hex");
 }
 
-export async function readExecutionGraph(tx: Prisma.TransactionClient, projectId: string, pipelineId: string, plan: string): Promise<{ name: string; nodes: string[]; gates: string[] }> {
+export async function readExecutionGraph(tx: Prisma.TransactionClient, projectId: string, pipelineId: string, plan: string): Promise<{ name: string; nodes: string[]; gates: string[]; selectionPolicy?: string }> {
   const view = await loadPipelinesViewIn(tx, projectId);
   const pipeline = view.pipelines.find(candidate => candidate.id === pipelineId);
   if (!pipeline) throw new PipelineRejection(PIPELINE_NOT_FOUND);
@@ -49,7 +49,8 @@ export async function preparePipelineRun(db: PrismaClient, projectId: string, us
         targets.push({ id: item.id, kind: "backlog", key: item.key, title: item.title, agent: null, updatedAt: null,
           reason: pipelineInputReason(graph, { status: "proposed", active: false, hasPlan: false, hasValidation: false, hasImplementation: false }) });
       }
-      return { ok: true, item: { pipelineId, name: graph.name, graphKey: executionKey(graph), nodes: graph.nodes, gates: graph.gates, agents, targets } };
+      const workRun = await tx.pipelineWorkRun.findFirst({ where: { projectId, OR: [{ closedAt: null }, { version: { pipelineId } }] }, orderBy: [{ closedAt: { sort: "asc", nulls: "first" } }, { createdAt: "desc" }], include: { version: { select: { pipeline: { select: { name: true } } } } } });
+      return { ok: true, item: { canStartWithoutWork: workPrefix(graph).nodes.length > 0, ...(workRun ? { projectRun: { id: workRun.id, pipelineName: workRun.version.pipeline.name, entryId: workRun.entryId, node: workRun.node, reason: workRun.waitReason, closed: workRun.closedAt !== null } } : {}), pipelineId, name: graph.name, graphKey: executionKey(graph), nodes: graph.nodes, gates: graph.gates, agents, targets } };
     }, READ_OPTIONS);
   } catch (error) {
     if (error instanceof PipelineRejection) return { ok: false, reason: error.message };
