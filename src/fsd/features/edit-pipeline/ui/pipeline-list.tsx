@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { agoLabel } from "@/fsd/shared/lib/relative-time";
 import { Button } from "@/fsd/shared/ui/button";
@@ -58,7 +57,6 @@ export function PipelineList({ projectId, pipelines, rules, autoProposeEnabled, 
       } finally { working.current = false; }
     });
   };
-  const runnable = pipelines.filter(pipeline => pipeline.runnable !== null);
   return <div className="flex flex-col gap-6">
     <AutomaticPickControl enabled={autoProposeEnabled} writable={editable} pending={busy || unknown}
       unavailableReason={unavailableReason} onToggle={() => mutate(() => actions.setAutomaticPick(!autoProposeEnabled))} />
@@ -82,14 +80,6 @@ export function PipelineList({ projectId, pipelines, rules, autoProposeEnabled, 
       </form> : null}
       {error ? <p role="alert" className="text-xs text-risk">{error}</p> : null}
       {unknown ? <Button size="sm" onClick={() => window.location.reload()}>Refresh</Button> : null}
-    </section>
-    <section className="flex flex-col gap-3" aria-label="Pipeline routing">
-      <label className="flex items-center gap-3 text-sm">Default<select aria-label="Default pipeline" className="min-w-0 max-w-full rounded border border-edge bg-paper p-1" value={defaultId} disabled={!editable || busy || unknown} onChange={event => mutate(() => actions.setDefault(event.target.value))}>
-        {runnable.map(pipeline => <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>)}
-      </select></label>
-      <div className="flex flex-wrap gap-4">{ITEM_TYPES.map(type => <label key={type} className="flex min-w-0 max-w-full items-center gap-2 text-xs">{type}<select aria-label={`${type} pipeline rule`} className="min-w-0 max-w-full rounded border border-edge bg-paper p-1" value={rules[type] ?? ""} disabled={!editable || busy || unknown} onChange={event => { const value = event.target.value; mutate(() => actions.setRule(type, value || null)); }}>
-        <option value="">Default</option>{runnable.map(pipeline => <option key={pipeline.id} value={pipeline.id}>{pipeline.name}</option>)}
-      </select></label>)}</div>
     </section>
     <section className="flex flex-col gap-4" aria-label="Pipeline editor">
       <h2 className="break-words text-sm font-medium">{selected === null ? "New pipeline" : current?.name}</h2>

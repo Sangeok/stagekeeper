@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { PipelineList } from "./pipeline-list";
 
-it("the virtual default runs items and list, routing and picking controls share write availability", () => {
+it("shows pipeline editing and picking controls without the old routing dropdowns", () => {
   const router = { refresh() {} } as ContextType<typeof AppRouterContext>;
   const success = async () => ({ success: true as const, data: null });
   for (const editable of [true, false]) {
@@ -16,7 +16,7 @@ it("the virtual default runs items and list, routing and picking controls share 
     })));
     assert.match(html, /Runs items/); assert.match(html, /Default pipeline · not saved yet/);
     for (const label of ["New pipeline", "Rename", "Archive"]) assert.equal(html.includes(`>${label}</button>`), editable);
-    assert.equal([...html.matchAll(/<select[^>]*disabled/g)].length, editable ? 0 : 5);
+    assert.doesNotMatch(html, /<select\b|aria-label="Pipeline routing"/);
     assert.equal(/<button[^>]*aria-label="Automatic picking"[^>]*disabled/.test(html), !editable);
   }
 });
