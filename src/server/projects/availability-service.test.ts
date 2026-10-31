@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Prisma } from "@/generated/prisma/client";
 import { changeUserPlan, withAvailabilityTransaction, AvailabilityConflict } from "./availability-service";
-import { loadProjectConnection, selectProjectForUse } from "./availability-service";
+import { loadProjectAvailability, loadProjectConnection, selectProjectForUse } from "./availability-service";
 import { ProjectIntegrityError, READ_OPTIONS } from "./access-query";
 import { type TransactionHost } from "./access-query";
 
@@ -11,6 +11,39 @@ const project = (id: string, available = true) => ({
   lastSelectedAt: null as Date | null, lastSyncedAt: null as Date | null, createdAt: new Date(`2026-01-0${id === "a" ? 1 : 2}`),
 });
 type Event = { version: number; reason: string; availableProjectIds: string[]; addedProjectIds: string[]; removedProjectIds: string[] };
+
+it("loads availability counts and downgrade notice without overlapping snapshot queries", async () => {
+  let executing = false;
+  async function query<T>(value: T): Promise<T> {
+    assert.equal(executing, false, "The transaction connection is already executing a query");
+    executing = true;
+    try {
+      await Promise.resolve();
+      return value;
+    } finally {
+      executing = false;
+    }
+  }
+  const at = new Date("2026-10-01T00:00:00.000Z");
+  const tx = {
+    $executeRaw: () => query(0),
+    user: { findUniqueOrThrow: () => query({ login: "test", projectAvailabilityVersion: 7, subscription: { plan: "free" } }) },
+    project: { findMany: () => query([{ ...project("a"), branch: "main", disconnectedAt: null }]) },
+    boardItem: { findMany: () => query([{ projectId: "a", status: "implementing" }, { projectId: "a", status: "done" }]) },
+    agentRun: { groupBy: () => query([{ projectId: "a", _count: { _all: 2 } }]) },
+    projectAvailabilityEvent: { findFirst: () => query({ actor: "system", reason: "plan-downgrade", toPlan: "free", basis: "recent-activity", availableProjectIds: ["a"], at }) },
+  };
+  const client = { $transaction: async (run: (db: Prisma.TransactionClient) => Promise<unknown>, options: unknown) => {
+    assert.deepEqual(options, READ_OPTIONS);
+    return run(tx as unknown as Prisma.TransactionClient);
+  } } as unknown as TransactionHost;
+
+  assert.deepEqual(await loadProjectAvailability(client, "u"), {
+    userId: "u", login: "test", plan: "free", limit: 1, version: 7, connectedCount: 1, availableCount: 1,
+    projects: [{ id: "a", slug: "a", name: "a", repoOwner: "repo-owner", repo: "a", branch: "main", available: true, disconnectedAt: null, openItems: 1, openRuns: 2 }],
+    notice: { basis: "recent-activity", availableProjectIds: ["a"], at: at.toISOString() },
+  });
+});
 
 function connectionFixture(plan: string | null, target: Omit<ReturnType<typeof project>, "repoOwner"> & { disconnectedAt: Date | null; repoOwner: string | null } = {
   ...project("a", false), disconnectedAt: new Date("2026-10-01"), repoOwner: "repo-owner" as string | null,
