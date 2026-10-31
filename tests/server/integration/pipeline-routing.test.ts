@@ -20,7 +20,7 @@ it("all type rules route agent proposals, null falls back to default, and web ch
       await db.backlogItem.create({ data: { projectId: f.projectId, key, title: key, area: "web", source: "test", type } });
       const proposed = await board.propose(f.projectId, { key, agent: "dev", reason: "test" }, { actor: "agent", actorRef: "pm" });
       assert.ok(proposed.ok);
-      const run = await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: proposed.item.id }, include: { version: true } });
+      const run = await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: proposed.item.id }, include: { version: true } });
       assert.equal(run.version.pipelineId, type === null ? `default_${f.projectId}` : saved.pipelineId);
       await db.boardItem.update({ where: { id: proposed.item.id }, data: { status: "done" } });
     }
@@ -29,7 +29,7 @@ it("all type rules route agent proposals, null falls back to default, and web ch
     await db.backlogItem.create({ data: { projectId: f.projectId, key, title: key, area: "web", source: "test" } });
     const proposed = await board.propose(f.projectId, { key, pipelineId: saved.pipelineId, agent: "dev", reason: "owner" }, { actor: "human", actorRef: f.userId, channel: "web" });
     assert.ok(proposed.ok);
-    assert.equal((await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: proposed.item.id }, include: { version: true } })).version.pipelineId, saved.pipelineId);
+    assert.equal((await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: proposed.item.id }, include: { version: true } })).version.pipelineId, saved.pipelineId);
   } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 

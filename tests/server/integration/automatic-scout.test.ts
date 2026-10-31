@@ -73,7 +73,8 @@ it("preserves a legacy Scout slot's shared run while automatic head scouting is 
     f = await fixture(db, { plan: "pro", status: "done" });
     const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, createdBy: f.userId,
       nodes: ["plan", "implement", "accept", "scout"], gates: [] });
-    await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "scout" } });
+    const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "scout" } });
+    await db.boardItem.update({ where: { id: f.boardItemId }, data: { currentRunId: pipeline.id } });
     const scout = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "write" } });
     assert.equal((await setAutomaticScout(db, { projectId: f.projectId, userId: f.userId, enabled: false })).ok, true);
     assert.equal((await db.agentRun.findUniqueOrThrow({ where: { id: scout.id } })).closedAt, null);

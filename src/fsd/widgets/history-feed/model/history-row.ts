@@ -25,6 +25,9 @@ export const HISTORY_TRUNCATED_NOTE = "History older than 30 days opens on Pro."
 
 function eventContent(event: HistoryEventInput): { text: string; note: string | null } {
   if (event.from === event.to) {
+    const started = event.note?.match(/^pipeline-started:[^:]+:(.+)$/);
+    if (started) return { text: "Pipeline started", note: started[1] };
+    if (event.note?.startsWith("pipeline-completed:")) return { text: "Pipeline run completed", note: "Run completion is separate from work acceptance." };
     if (event.pipelineChange && /^pipeline-changed:[^:]+:[^:]+$/.test(event.note ?? "")) return { text: "Pipeline changed", note: `${event.pipelineChange.fromName} → ${event.pipelineChange.toName}` };
     if (event.note === "acceptance-failed") return { text: "Acceptance failed", note: null };
     if (event.note === "acceptance-retry") return { text: "Acceptance run again", note: null };

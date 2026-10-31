@@ -39,7 +39,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           const pipeline = await tx.pipelineRun.findUnique({ where: { id: entry.runId }, include: { version: true, boardItem: { include: { backlogItem: true } } } });
           if (!pipeline || pipeline.boardItem.projectId !== projectId || pipeline.boardItem.discardedAt || pipeline.version.format !== SLOT_FORMAT) throw new StaleCursor();
           const latest = await tx.boardItem.findFirst({ where: { projectId, backlogItemId: pipeline.boardItem.backlogItemId, discardedAt: null }, orderBy: { proposedOn: "desc" }, select: { id: true } });
-          if (latest?.id !== pipeline.boardItemId || dispatcherFor(entry.slotId, pipeline.boardItem.agent) !== input.agent) throw new StaleCursor();
+          if (latest?.id !== pipeline.boardItemId || (pipeline.boardItem.currentRunId && pipeline.boardItem.currentRunId !== pipeline.id) || dispatcherFor(entry.slotId, pipeline.boardItem.agent) !== input.agent) throw new StaleCursor();
           const expectedKey = isItemNode(entry.slotId) ? pipeline.boardItem.backlogItem.key : null;
           if (key !== expectedKey) throw new StaleCursor();
           if (claim && (input.agentRunId !== undefined && input.agentRunId !== claim.runId || input.stepId !== undefined && input.stepId !== claim.stepId)) throw new StaleCursor();

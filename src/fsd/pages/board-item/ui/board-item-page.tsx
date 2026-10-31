@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { blobHref, DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
 import { ChangePipelineControl, type ChangePipelineAction } from "@/fsd/features/change-item-pipeline";
 import { AcceptanceFailure, ReopenActions, type RetryAcceptanceAction, type TransitionAction } from "@/fsd/features/review-gate";
@@ -10,7 +11,7 @@ export type ItemDoc = { id: string; label: string; path: string; href: string };
 
 export type BoardItemView = {
   id: string;
-  pipeline: { pipelineId: string | null; name: string; canChange: boolean };
+  pipeline: { pipelineId: string | null; name: string; canChange: boolean; runState?: "running" | "completed" | "closed" | null };
   key: string;
   title: string;
   area: string;
@@ -45,7 +46,9 @@ export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrit
         </p>
       </header>
 
-      <p className="text-sm text-quiet">Pipeline · {item.pipeline.name}</p>
+      <p className="text-sm text-quiet">Pipeline · {item.pipeline.name}{item.pipeline.runState === "completed" ? " · Run completed" : item.pipeline.runState === "closed" ? " · Run closed" : item.pipeline.runState === "running" ? " · Run in progress" : ""}</p>
+      {canWrite ? <Link href={`/p/${slug}/pipeline?work=${encodeURIComponent(item.key)}`} className="self-start text-sm underline underline-offset-2">Run pipeline</Link> : null}
+      {item.pipeline.runState === "completed" && item.acceptedAt === null ? <p className="text-xs text-quiet">The pipeline finished. This work has not been accepted.</p> : null}
       {canWrite && item.pipeline.canChange && pipelineChoices.length > 0 ? <ChangePipelineControl
         key={JSON.stringify([item.id, item.pipeline.pipelineId, item.updatedAt])} itemKey={item.key} updatedAt={item.updatedAt}
         pipelines={pipelineChoices} change={changePipeline} /> : null}

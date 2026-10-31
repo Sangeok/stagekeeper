@@ -10,7 +10,7 @@ const client = {} as PrismaClient;
 it("gate returns only the saved row, preserving commit and unknown-commit exception boundaries", async () => {
   for (const outcome of ["success", "precommit", "commit-unknown"] as const) {
     const original = new Error(outcome); let events = 0; let moves = 0; let committed = false;
-    const row = { id: "item", status: "done", validation: null, acceptedAt: null, updatedAt: new Date(0), backlogItemId: "backlog", agent: "dev", backlogItem: { key: "KEY" }, _count: { reports: 1 } };
+    const row = { id: "item", currentRunId: "pipeline", status: "done", validation: null, acceptedAt: null, updatedAt: new Date(0), backlogItemId: "backlog", agent: "dev", backlogItem: { key: "KEY" }, _count: { reports: 1 } };
     const version = { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: ["before-accept"] };
     const run = { id: "pipeline", node: "before-accept", entryId: "entry", enteredAt: new Date(0), closedAt: null, version };
     const tx = {
@@ -45,7 +45,7 @@ it("a matching gateEntry is the only thing that opens the cursor's gate", async 
       moves,
       tx: asTx({
         $queryRaw: async () => [],
-        boardItem: { findFirst: async () => ({ id: "item", status: "done", validation: null, acceptedAt: null, updatedAt: new Date(0), backlogItemId: "backlog", agent: "dev", backlogItem: { key: "KEY" }, _count: { reports: 1 } }) },
+        boardItem: { findFirst: async () => ({ id: "item", currentRunId: "pipeline", status: "done", validation: null, acceptedAt: null, updatedAt: new Date(0), backlogItemId: "backlog", agent: "dev", backlogItem: { key: "KEY" }, _count: { reports: 1 } }) },
         pipelineRun: {
           findUnique: async () => run,
           updateMany: async (args: { where: { node: string }; data: { node: string } }) => { moves.push(args); return { count: 1 }; },
@@ -75,8 +75,8 @@ function spanFixture({ slotClosed = true } = {}) {
   const tx = asTx({
     $queryRaw: async () => [],
     boardItem: {
-      findFirst: async () => ({ id: "item", status: "implementing", validation: null, acceptedAt: null, planPath: "docs/plans/KEY.md", results: [], updatedAt: new Date(0), backlogItemId: "backlog", agent: "dev", backlogItem: { key: "KEY" }, _count: { reports: 1 } }),
-      findUniqueOrThrow: async () => ({ id: "item", status: "done" }),
+      findFirst: async () => ({ id: "item", currentRunId: "pipeline", status: "implementing", validation: null, acceptedAt: null, planPath: "docs/plans/KEY.md", results: [], updatedAt: new Date(0), backlogItemId: "backlog", agent: "dev", backlogItem: { key: "KEY" }, _count: { reports: 1 } }),
+      findUniqueOrThrow: async () => ({ id: "item", currentRunId: "pipeline", status: "done" }),
       updateMany: async (args: { data: { status?: string } }) => { writes.push(args.data); return { count: 1 }; },
     },
     backlogItem: { update: async () => ({}) },
@@ -132,7 +132,7 @@ it("failed approval rolls back lazy PipelineRun materialization", async () => {
       materialized = { id: values[0], boardItemId: values[1], versionId: values[2], node: values[3], entryId: values[4], version, closedAt: null };
       return 1;
     },
-    boardItem: { findFirst: async () => ({ id: "item", status: "proposed", validation: null, planCommit: null, updatedAt: new Date(0) }) },
+    boardItem: { findFirst: async () => ({ id: "item", currentRunId: null, status: "proposed", validation: null, planCommit: null, updatedAt: new Date(0) }), update: async () => ({}) },
     project: {
       findUnique: async () => ({ ownerUserId: "owner", repoOwner: "repo", available: true, ownerUser: { subscription: { plan: "pro" } } }),
       findUniqueOrThrow: async () => ({ ownerUserId: "owner", defaultPipelineId: "default" }),
@@ -140,7 +140,9 @@ it("failed approval rolls back lazy PipelineRun materialization", async () => {
     pipeline: { findFirst: async () => ({ id: "default" }) },
     pipelineVersion: { findFirst: async () => version },
     pipelineRun: {
+      findFirst: async () => materialized,
       findUnique: async () => materialized,
+      create: async ({ data }: { data: object }) => { creates++; materialized = { id: "new-run", ...data, version, closedAt: null }; return materialized; },
       findUniqueOrThrow: async () => materialized,
     },
   };

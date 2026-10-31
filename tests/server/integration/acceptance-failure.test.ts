@@ -23,11 +23,11 @@ for (const format of [null, "slots-v1"] as const) it(`persists failure → owner
   const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
   try {
     f = await acceptanceFixture(db, format); const board = createBoardService(db);
-    const before = await current(db, f); const cursor = await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } });
+    const before = await current(db, f); const cursor = await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: f.boardItemId } });
     const saved = await board.failAcceptance(f.projectId, { ...failInput(f), path: "failure.md", commit: "def" }, "token:agent");
     assert.ok(saved.ok); assert.equal(saved.item.actorId, "token:agent");
     assert.equal((await current(db, f)).updatedAt.getTime(), before.updatedAt.getTime() + 1);
-    assert.deepEqual(await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } }), cursor);
+    assert.deepEqual(await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: f.boardItemId } }), cursor);
     const expected = { key: f.key, node: "accept", version: 1, action: "wait", on: "acceptance", checks: [3, 5], note: "missing push" };
     assert.deepEqual(await nextFor(db, f.projectId, f.key), expected);
     const deps = createToolDeps(db);
@@ -52,7 +52,7 @@ for (const format of [null, "slots-v1"] as const) it(`persists failure → owner
     assert.equal((await db.backlogItem.findUniqueOrThrow({ where: { id: f.backlogItemId } })).removedReason, "done");
     assert.equal((await nextFor(db, f.projectId, f.key)).action, "accept");
     assert.ok((await board.submitReport(f.projectId, reportInput(f), "token:agent")).ok);
-    assert.ok((await current(db, f)).acceptedAt); assert.ok((await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } })).closedAt);
+    assert.ok((await current(db, f)).acceptedAt); assert.ok((await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: f.boardItemId } })).closedAt);
     assert.equal(await db.acceptanceFailure.count({ where: { boardItemId: f.boardItemId } }), 1);
   } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
@@ -98,7 +98,7 @@ it("refuses unsupported/missing entries, closed or wrong cursors, accepted, disc
   try {
     f = await acceptanceFixture(db); const board = createBoardService(db);
     const original = await current(db, f);
-    const run = await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } });
+    const run = await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: f.boardItemId } });
     const refuse = async () => {
       const before = await current(db, f!);
       assert.equal((await board.failAcceptance(f!.projectId, failInput(f!), "agent")).ok, false);
@@ -153,7 +153,7 @@ for (const [first, second, initiallyFailed, expected] of [
     const p2 = operate(contender, second); two = p2; await attempted.entered(); locked.release();
     const result = await Promise.all([p1, p2]); assert.deepEqual(result.map(r => r.ok), expected);
     const events = await a.transitionEvent.findMany({ where: { boardItemId: f.boardItemId } });
-    assert.equal(events.length, Number(initiallyFailed) + expected.filter(Boolean).length);
+    assert.equal(events.filter(event => !event.note?.startsWith("pipeline-completed:")).length, Number(initiallyFailed) + expected.filter(Boolean).length);
     assert.equal((await current(a, f)).updatedAt.getTime(), f.updatedAt.getTime() + Number(initiallyFailed) + expected.filter(Boolean).length + (first === "report" ? 1 : 0));
   } finally {
     try {

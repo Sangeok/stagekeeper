@@ -226,7 +226,9 @@ model BoardItem {
   events        TransitionEvent[]
   reports       Report[]
   acceptanceFailures AcceptanceFailure[]
-  run           PipelineRun?
+  currentRunId  String?           @unique
+  run           PipelineRun?      @relation("CurrentPipelineRun", fields: [currentRunId], references: [id], onDelete: SetNull)
+  pipelineRuns  PipelineRun[]     @relation("ItemPipelineRuns")
   @@index([projectId, status])
 }
 
@@ -353,15 +355,20 @@ model PipelineVersion {
 
 model PipelineRun {
   id          String          @id @default(cuid())
-  boardItemId String          @unique
+  boardItemId String
+  createdAt   DateTime        @default(now())
+  startedBy   String?
+  inputReportId String?
   versionId   String
   entryId     String?
   agentRuns   AgentRun[]
   node        String
   enteredAt   DateTime        @default(now())
   closedAt    DateTime?
-  boardItem   BoardItem       @relation(fields: [boardItemId], references: [id], onDelete: Cascade)
+  boardItem   BoardItem       @relation("ItemPipelineRuns", fields: [boardItemId], references: [id], onDelete: Cascade)
+  currentFor  BoardItem?      @relation("CurrentPipelineRun")
   version     PipelineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  @@index([boardItemId, createdAt])
 }
 
 model Pipeline {

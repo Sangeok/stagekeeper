@@ -42,7 +42,7 @@ export function AutomaticScoutControl({ enabled, writable, save, unavailableReas
       <p className="text-xs text-quiet">{enabled
         ? "Runs once after the backlog changes, when there is room on the board. Turning it off stops the current automatic scout run and further additions."
         : "Automatic scouting is off. Add an item on the Backlog tab to continue."}</p>
-      <p className="text-xs text-quiet">Changes take effect immediately. Scout slots in the item pipeline below follow their saved order.</p>
+      <p className="text-xs text-quiet">Changes take effect immediately. Scout steps inside pipelines follow their saved order.</p>
       {!writable && unavailableReason ? <p className="text-xs text-quiet">{unavailableReason}</p> : null}
       {error ? <p role="alert" className="text-xs text-risk">{error}</p> : null}
     </section>

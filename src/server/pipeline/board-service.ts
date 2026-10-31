@@ -14,6 +14,9 @@ import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } f
 import { parseQaReport } from "@harness/core/qa.mjs";
 import { implementationReport } from "./qa-query";
 import { IMPL_VERIFIER, IMPL_VERIFY_PENDING, implVerifierReportPath } from "./impl-verify-query";
+import { ensureExecutionVersion, loadPipelinesViewIn } from "./run-service";
+import { pipelineInputReason } from "@harness/core/pipeline/run-input.mjs";
+import { executionKey, readExecutionGraph, type StartPipelineInput } from "./run-request";
 
 import { PipelineRejection, rethrowPipelineConflict } from "./lock-pipeline";
 
@@ -137,7 +140,7 @@ async function changePipeline(projectId: string, input: { key: string; pipelineI
     if (!row) return fail(`no such board item: ${input.key}`);
     if (row.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()) throw new BoardRejection("stale");
     if (row.status !== "proposed") throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
-    const run = await tx.pipelineRun.findUnique({ where: { boardItemId: row.id }, include: { version: true } });
+    const run = await tx.pipelineRun.findUnique({ where: { id: row.currentRunId ?? "" }, include: { version: true } });
     if (!run) throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
     if (run.closedAt || run.version.format !== SLOT_FORMAT) throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
     if (await tx.agentRun.findFirst({ where: { pipelineRunId: run.id }, select: { id: true } })) throw new BoardRejection(PIPELINE_CHANGE_UNAVAILABLE);
@@ -164,13 +167,22 @@ async function changePipeline(projectId: string, input: { key: string; pipelineI
 }
 
 async function latestBoard(projectId: string, openOnly = false, db: Db = prisma) {
+  const rows = await latestBoardRows(projectId, db);
+  return (openOnly ? rows.filter(row => isOpen(row.status)) : rows).map(({ run, ...row }) => {
+    void run;
+    return row;
+  });
+}
+
+async function latestBoardRows(projectId: string, db: Db) {
   const rows = await db.boardItem.findMany({
+    omit: { currentRunId: true },
     where: { projectId, discardedAt: null },
     orderBy: { proposedOn: "desc" },
     distinct: ["backlogItemId"],
-    include: { backlogItem: { select: { key: true, title: true, area: true, type: true } } },
+    include: { backlogItem: { select: { key: true, title: true, area: true, type: true } }, run: { select: { closedAt: true } } },
   });
-  return openOnly ? rows.filter((r) => isOpen(r.status)) : rows;
+  return rows;
 }
 
 async function walkingKeys(projectId: string): Promise<string[]> {
@@ -195,7 +207,7 @@ async function latestBoardWithEvents(projectId: string) {
 }
 
 async function latestRow(db: Db, projectId: string, key: string) {
-  if (db !== prisma) await db.$queryRaw`SELECT p."id" FROM "PipelineRun" p JOIN "BoardItem" b ON b."id" = p."boardItemId" JOIN "BacklogItem" k ON k."id" = b."backlogItemId" WHERE b."projectId" = ${projectId} AND k."key" = ${key} AND b."discardedAt" IS NULL ORDER BY b."proposedOn" DESC LIMIT 1 FOR UPDATE OF p`;
+  if (db !== prisma) await db.$queryRaw`SELECT p."id" FROM "PipelineRun" p JOIN "BoardItem" b ON b."currentRunId" = p."id" JOIN "BacklogItem" k ON k."id" = b."backlogItemId" WHERE b."projectId" = ${projectId} AND k."key" = ${key} AND b."discardedAt" IS NULL ORDER BY b."proposedOn" DESC LIMIT 1 FOR UPDATE OF p`;
   return db.boardItem.findFirst({
     where: { projectId, discardedAt: null, backlogItem: { key } },
     orderBy: { proposedOn: "desc" },
@@ -227,6 +239,7 @@ async function backlogWithStatus(projectId: string, includeRemoved: boolean) {
 async function getWithHistory(projectId: string, key: string, since?: Date | null) {
   const at = since ? { gte: since } : undefined;
   return prisma.boardItem.findFirst({
+    omit: { currentRunId: true },
     where: { projectId, discardedAt: null, backlogItem: { key } },
     orderBy: { proposedOn: "desc" },
     include: {
@@ -308,15 +321,18 @@ async function currentRoundIds(projectId: string, keys: readonly string[]): Prom
 }
 
 async function propose(projectId: string, input: { key: string; agent: string; reason: string; pipelineId?: string }, by: Proposer) {
-  return inProjectTransaction(projectId, async (tx) => {
+  return inProjectTransaction(projectId, tx => proposeIn(tx, projectId, input, by), { isolationLevel: "Serializable" });
+}
+
+async function proposeIn(tx: Prisma.TransactionClient, projectId: string, input: { key: string; agent: string; reason: string; pipelineId?: string }, by: Proposer, options: { direct?: boolean } = {}) {
     const backlog = await tx.backlogItem.findUnique({ where: { projectId_key: { projectId, key: input.key } } });
     const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
-    const latest = await latestBoard(projectId, false, tx);
+    const latest = await latestBoardRows(projectId, tx);
     const open = latest.filter((r) => isOpen(r.status));
     const mine = backlog ? latest.find((r) => r.backlogItemId === backlog.id) : undefined;
     const d = decidePropose({
       backlogExists: !!backlog && backlog.removedAt === null,
-      hasOpenRow: mine !== undefined && isOpen(mine.status),
+      hasOpenRow: mine !== undefined && (isOpen(mine.status) || (options.direct === true && mine.run !== null && mine.run.closedAt === null)),
       onHold: mine?.status === "on_hold",
       openCount: open.length, roster, agent: input.agent, reason: input.reason,
     });
@@ -324,7 +340,12 @@ async function propose(projectId: string, input: { key: string; agent: string; r
     await ensureDefaultPipeline(tx, projectId);
     const pipelineId = by.actor === "human" && input.pipelineId !== undefined
       ? input.pipelineId : await routedPipelineId(tx, projectId, backlog.type);
-    const unrunnable = await runnableReason(tx, projectId, pipelineId);
+    if (!options.direct) {
+      const reason = await runnableReason(tx, projectId, pipelineId);
+      if (reason) return fail(reason);
+    }
+    const graph = await readExecutionGraph(tx, projectId, pipelineId, "max");
+    const unrunnable = pipelineInputReason(graph, { status: "proposed", active: false, hasPlan: false, hasValidation: false, hasImplementation: false });
     if (unrunnable !== null) return fail(unrunnable);
     const item = await tx.boardItem.create({
       data: { projectId, backlogItemId: backlog.id, agent: input.agent, status: "proposed", reason: input.reason,
@@ -333,7 +354,6 @@ async function propose(projectId: string, input: { key: string; agent: string; r
     await ensureRunIn(tx, projectId, item.id, "proposed", true, pipelineId);
     await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: item.id } }) };
-  }, { isolationLevel: "Serializable" });
 }
 
 async function routedPipelineId(tx: Prisma.TransactionClient, projectId: string, type: string | null): Promise<string> {
@@ -342,11 +362,47 @@ async function routedPipelineId(tx: Prisma.TransactionClient, projectId: string,
   return routePipeline(type, Object.fromEntries(rules.map((r) => [r.type, r.pipelineId])), defaultId);
 }
 
+async function startPipeline(projectId: string, userId: string, input: StartPipelineInput): Promise<ServerResult<{ key: string; runId: string }>> {
+  return inProjectTransaction(projectId, async tx => {
+    const owner = await tx.project.findFirst({ where: { id: projectId, ownerUserId: userId }, select: { id: true } });
+    if (!owner) throw new BoardRejection("Project not found.");
+    const graph = await readExecutionGraph(tx, projectId, input.pipelineId, await readProjectPlanIn(tx, projectId));
+    if (executionKey(graph) !== input.graphKey) throw new BoardRejection("The pipeline changed. Reopen Run to review the latest steps.");
+    if (input.targetKind === "backlog") {
+      const backlog = await tx.backlogItem.findFirst({ where: { id: input.targetId, projectId, removedAt: null }, select: { key: true } });
+      if (!backlog) throw new BoardRejection("This backlog item is no longer available.");
+      const result = await proposeIn(tx, projectId, { key: backlog.key, pipelineId: input.pipelineId, agent: input.agent, reason: "Started from Pipeline" }, { actor: "human", actorRef: userId, channel: "web" }, { direct: true });
+      if (!result.ok) throw new BoardRejection(result.reason);
+      const item = await tx.boardItem.findUniqueOrThrow({ where: { id: result.item.id }, select: { currentRunId: true } });
+      if (!item.currentRunId) throw new Error("Started work has no pipeline run.");
+      await tx.pipelineRun.update({ where: { id: item.currentRunId }, data: { startedBy: userId } });
+      return { ok: true, item: { key: backlog.key, runId: item.currentRunId } };
+    }
+    const target = await tx.boardItem.findFirst({ where: { id: input.targetId, projectId, discardedAt: null }, include: { backlogItem: true, run: true } });
+    if (!target) throw new BoardRejection("This work is no longer available.");
+    const latest = await latestRow(tx, projectId, target.backlogItem.key);
+    if (latest?.id !== target.id || target.updatedAt.toISOString() !== input.expectedUpdatedAt) throw new BoardRejection("This work changed. Reopen Run to check its current state.");
+    const report = await tx.report.findFirst({ where: { boardItemId: target.id, actor: target.agent,
+      agentRun: { stepId: "report", closedAt: { not: null }, steps: { some: { stepId: "report", outcome: "ok", accepted: true } } } }, orderBy: { at: "desc" } });
+    const reason = pipelineInputReason(graph, { status: target.status, active: !!target.run && !target.run.closedAt,
+      hasPlan: !!target.planPath && !!target.planCommit, hasValidation: !!target.validation, hasImplementation: !!report });
+    if (reason) throw new BoardRejection(reason);
+    if (graph.nodes.includes("accept") && target.acceptedAt) throw new BoardRejection("This work is already accepted. Choose a pipeline without Accept to check it again.");
+    const version = await ensureExecutionVersion(tx, projectId, input.pipelineId);
+    const run = await tx.pipelineRun.create({ data: { boardItemId: target.id, versionId: version.id, startedBy: userId,
+      inputReportId: graph.nodes.includes("implement") ? null : report?.id, node: sequence(graph)[0], entryId: randomUUID() } });
+    await claim(tx, target, { currentRunId: run.id, ...(graph.nodes.includes("verify") ? { validation: null } : {}) });
+    await tx.transitionEvent.create({ data: { boardItemId: target.id, from: target.status, to: target.status, actor: "human", actorId: userId, channel: "web", note: `pipeline-started:${run.id}:${graph.name}` } });
+    await advanceRun(tx, projectId, target.backlogItem.key);
+    return { ok: true, item: { key: target.backlogItem.key, runId: run.id } };
+  });
+}
+
 async function runnableReason(tx: Prisma.TransactionClient, projectId: string, pipelineId: string): Promise<string | null> {
-  const pipeline = await tx.pipeline.findFirst({ where: { id: pipelineId, projectId, archivedAt: null },
-    select: { versions: { select: { id: true }, take: 1 }, defaultOf: { where: { id: projectId }, select: { id: true } } } });
-  if (pipeline === null) return PIPELINE_NOT_FOUND;
-  return pipeline.versions.length > 0 || pipeline.defaultOf.length > 0 ? null : PIPELINE_CANNOT_RUN_ITEMS;
+  const view = await loadPipelinesViewIn(tx, projectId);
+  const pipeline = view.pipelines.find(candidate => candidate.id === pipelineId);
+  if (!pipeline) return PIPELINE_NOT_FOUND;
+  return pipeline.runnable ? null : PIPELINE_CANNOT_RUN_ITEMS;
 }
 
 async function transitionIn(
@@ -444,8 +500,8 @@ async function gate(
 }
 
 async function closeRuns(tx: Db, projectId: string, key: string, closedAt = new Date()) {
-  const row = await tx.boardItem.findFirst({ where: { projectId, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { id: true } });
-  const run = row ? await tx.pipelineRun.findUnique({ where: { boardItemId: row.id }, select: { id: true } }) : null;
+  const row = await tx.boardItem.findFirst({ where: { projectId, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { id: true, currentRunId: true } });
+  const run = row ? await tx.pipelineRun.findUnique({ where: { id: row.currentRunId ?? "" }, select: { id: true } }) : null;
   return tx.agentRun.updateMany({ where: { projectId, OR: [{ key }, ...(run ? [{ pipelineRunId: run.id }] : [])], closedAt: null }, data: { closedAt } });
 }
 
@@ -520,6 +576,7 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
     const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep, acceptanceFailed });
     if (!d.ok) throw new BoardRejection(d.reason);
     const pipeline = await ensureRunIn(tx, projectId, row.id, row.status, false);
+    if (d.value.accepts && !pipeline.version.nodes.includes("accept")) throw new BoardRejection("Acceptance requires an Accept step. Completing a pipeline does not accept the work.");
     if (d.value.accepts && !pipeline.closedAt && ["impl-verify", gateId("impl-verify")].includes(pipeline.node)) throw new BoardRejection(IMPL_VERIFY_PENDING);
     if (d.value.accepts && pipeline.version.nodes.includes("qa") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection("QA has not completed; acceptance is only available at accept");
     if (d.value.accepts && pipeline.version.nodes.includes("impl-verify") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection(IMPL_VERIFY_PENDING);
@@ -629,6 +686,9 @@ async function advanceRun(tx: Db, projectId: string, key: string, approval?: Gat
     data: { node: a.cursor ?? run.node, entryId: run.version.format === SLOT_FORMAT ? randomUUID() : null, enteredAt: new Date(), closedAt: a.cursor === null ? new Date() : undefined },
   });
   if (!moved.count) throw new BoardRejection("stale pipeline entry");
+  const finalStatus = a.transitions.at(-1)?.to ?? row.status;
+  if (a.cursor === null) await tx.transitionEvent.create({ data: { boardItemId: row.id, from: finalStatus, to: finalStatus,
+    actor: "pipeline", actorId: run.id, note: `pipeline-completed:${run.id}` } });
 }
 
 async function resetRun(tx: Db, projectId: string, key: string, status: string) {
@@ -637,6 +697,17 @@ async function resetRun(tx: Db, projectId: string, key: string, status: string) 
   const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
   const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
   const node = cursorForStatus(graph, status);
+  if (node !== null && !sequence(graph).includes(node)) {
+    const requiredNode = node.startsWith("before-") ? node.slice(7) : node;
+    const previous = await tx.pipelineRun.findFirst({ where: { boardItemId: row.id, version: { nodes: { has: requiredNode } } }, orderBy: { createdAt: "desc" }, include: { version: true } });
+    const version = previous?.version ?? await ensureRunnableVersion(tx, projectId);
+    const nextNode = cursorForStatus(version, status);
+    if (nextNode === null || !sequence(version).includes(nextNode)) throw new BoardRejection("Choose a pipeline that supports reopening this work.");
+    await closeRun(tx, row.id);
+    const resumed = await tx.pipelineRun.create({ data: { boardItemId: row.id, versionId: version.id, node: nextNode, entryId: version.format === SLOT_FORMAT ? randomUUID() : null } });
+    await tx.boardItem.update({ where: { id: row.id }, data: { currentRunId: resumed.id, updatedAt: row.updatedAt } });
+    return;
+  }
   await tx.pipelineRun.update({ where: { id: run.id }, data: { node: node ?? run.node, entryId: run.version.format === SLOT_FORMAT ? randomUUID() : null, enteredAt: new Date(), closedAt: null } });
 }
 
@@ -648,14 +719,14 @@ function closeRun(tx: Db, boardItemId: string) {
   return tx.pipelineRun.updateMany({ where: { boardItemId, closedAt: null }, data: { closedAt: new Date() } });
 }
 
-return { addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, projectHistory, projectHistoryItems, hasProjectHistoryBefore, currentRoundIds, propose: reportFailure(propose), changePipeline: reportFailure(changePipeline), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), failAcceptance: reportFailure(failAcceptance), retryAcceptance: reportFailure(retryAcceptance), advancePipeline: reportFailure(advancePipeline) };
+return { startPipeline: reportFailure(startPipeline), addBacklog: reportFailure(addBacklog), updateBacklog: reportFailure(updateBacklog), removeBacklog: reportFailure(removeBacklog), transitionIn, advanceRun, resetRun, latestBoard, walkingKeys, latestBoardWithEvents, latestRowFor, availableBacklogCount, backlogWithStatus, getWithHistory, hasHistoryBefore, projectHistory, projectHistoryItems, hasProjectHistoryBefore, currentRoundIds, propose: reportFailure(propose), changePipeline: reportFailure(changePipeline), transition: reportFailure(transition), discard: reportFailure(discard), gate: reportFailure(gate), recordValidation: reportFailure(recordValidation), submitPlan: reportFailure(submitPlan), submitReport: reportFailure(submitReport), failAcceptance: reportFailure(failAcceptance), retryAcceptance: reportFailure(retryAcceptance), advancePipeline: reportFailure(advancePipeline) };
 }
 
 function isRejection(value: unknown): value is { ok: false; reason: string } {
   return typeof value === "object" && value !== null && "ok" in value && value.ok === false && "reason" in value && typeof value.reason === "string";
 }
 function nextTimestamp(previous: Date): Date { return new Date(Math.max(Date.now(), previous.getTime() + 1)); }
-async function claim(tx: Db, row: { id: string; status: string; updatedAt: Date }, data: Prisma.BoardItemUpdateManyMutationInput): Promise<void> {
+async function claim(tx: Db, row: { id: string; status: string; updatedAt: Date }, data: Prisma.BoardItemUncheckedUpdateManyInput): Promise<void> {
   const result = await tx.boardItem.updateMany({
     where: { id: row.id, updatedAt: row.updatedAt, status: row.status, discardedAt: null },
     data: { ...data, updatedAt: nextTimestamp(row.updatedAt) },

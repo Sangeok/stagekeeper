@@ -49,7 +49,7 @@ export async function savePipelineDefinition(client: PrismaClient, input: SaveIn
       const definitions: Record<string, Definition> = Object.create(null);
       for (const pipeline of view.pipelines) definitions[pipeline.id] = pipeline.definition;
       definitions[changedId] = input.definition;
-      const mustRun = view.pipelines.filter(pipeline => pipeline.isDefault || pipeline.runnable !== null || Object.values(view.rules).includes(pipeline.id)).map(pipeline => pipeline.id);
+      const mustRun = view.pipelines.filter(pipeline => pipeline.isDefault || Object.values(view.rules).includes(pipeline.id)).map(pipeline => pipeline.id);
       const composed = recompose(changedId, definitions, mustRun, plan);
       if (!composed.ok) {
         const broken = view.pipelines.find(pipeline => pipeline.id === composed.pipelineId);
