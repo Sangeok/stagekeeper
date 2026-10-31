@@ -77,7 +77,7 @@ export function PipelineList({ projectId, pipelines, rules, autoProposeEnabled, 
   };
   return <div className="flex min-w-0 flex-col gap-6">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-edge pb-4">
-      <p className="text-sm text-quiet">Default selection: <span className="font-medium text-ink">{defaultPipeline.name}</span> ? {ruleCount ? `${ruleCount} type override${ruleCount === 1 ? "" : "s"}` : "All types"}</p>
+      <p className="text-sm text-quiet">Default selection: <span className="font-medium text-ink">{defaultPipeline.name}</span> · {ruleCount ? `${ruleCount} type override${ruleCount === 1 ? "" : "s"}` : "All types"}</p>
       <Button size="sm" variant="quiet" disabled={busy} onClick={() => setPanel({ kind: "rules" })}>Run rules</Button>
     </div>
     {targetKey ? <p className="text-sm">Choose a pipeline to run on <strong>{targetKey}</strong>.</p> : null}
