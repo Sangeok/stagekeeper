@@ -81,19 +81,23 @@ export async function ensureRunnableVersion(tx: Prisma.TransactionClient, projec
 export async function loadPipelinesViewIn(tx: Prisma.TransactionClient, projectId: string): Promise<PipelinesView> {
   const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { defaultPipelineId: true, autoProposeEnabled: true } });
   const defaultId = project.defaultPipelineId ?? defaultPipelineIdOf(projectId);
-  const [rows, rules, plan] = await Promise.all([
-    tx.pipeline.findMany({ where: { projectId, archivedAt: null }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      include: { definitions: { orderBy: { version: "desc" }, take: 1 }, versions: { where: { projectId }, orderBy: { version: "desc" }, take: 1 } } }),
-    tx.pipelineRule.findMany({ where: { projectId }, select: { type: true, pipelineId: true } }),
-    readProjectPlanIn(tx, projectId),
-  ]);
+  const rows = await tx.pipeline.findMany({ where: { projectId, archivedAt: null }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: { definitions: { orderBy: { version: "desc" }, take: 1 } } });
+  const versions = await tx.pipelineVersion.findMany({
+    where: { projectId, pipelineId: { in: rows.map(row => row.id) } },
+    orderBy: { version: "desc" }, distinct: ["pipelineId"],
+    select: { pipelineId: true, nodes: true, gates: true, format: true },
+  });
+  const versionByPipeline = new Map(versions.map(version => [version.pipelineId, version]));
+  const rules = await tx.pipelineRule.findMany({ where: { projectId }, select: { type: true, pipelineId: true } });
+  const plan = await readProjectPlanIn(tx, projectId);
   if (project.defaultPipelineId !== null && !rows.some(row => row.id === defaultId)) throw new Error("Default pipeline is missing or archived.");
   const virtual = (): PipelineView => {
     const graph = defaultGraph(plan);
     return { id: defaultId, name: DEFAULT_PIPELINE_NAME, isDefault: true, definition: { steps: graph.nodes, gates: graph.gates }, saved: null, runnable: { ...graph, format: SLOT_FORMAT } };
   };
   const pipelines: PipelineView[] = rows.map(row => {
-    const definition = row.definitions[0], version = row.versions[0];
+    const definition = row.definitions[0], version = versionByPipeline.get(row.id);
     if (!definition) {
       if (row.id !== defaultId || version) throw new Error("Pipeline definition is missing.");
       return { ...virtual(), name: row.name };

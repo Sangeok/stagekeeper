@@ -210,11 +210,9 @@ export async function loadProjectAvailability(client: TransactionHost, userId: s
     await tx.$executeRaw`SET TRANSACTION READ ONLY`;
     const owner = await readOwnerAvailabilityIn(tx, userId);
     const ids = owner.projects.map((p) => p.id);
-    const [board, runs, event] = await Promise.all([
-      tx.boardItem.findMany({ where: { projectId: { in: ids }, discardedAt: null }, orderBy: { proposedOn: "desc" }, distinct: ["backlogItemId"], select: { projectId: true, status: true } }),
-      tx.agentRun.groupBy({ by: ["projectId"], where: { projectId: { in: ids }, closedAt: null }, _count: { _all: true } }),
-      tx.projectAvailabilityEvent.findFirst({ where: { ownerUserId: userId }, orderBy: { version: "desc" } }),
-    ]);
+    const board = await tx.boardItem.findMany({ where: { projectId: { in: ids }, discardedAt: null }, orderBy: { proposedOn: "desc" }, distinct: ["backlogItemId"], select: { projectId: true, status: true } });
+    const runs = await tx.agentRun.groupBy({ by: ["projectId"], where: { projectId: { in: ids }, closedAt: null }, _count: { _all: true } });
+    const event = await tx.projectAvailabilityEvent.findFirst({ where: { ownerUserId: userId }, orderBy: { version: "desc" } });
     const limit = limitsFor(owner.plan).projects;
     return {
       userId, login: owner.login, plan: owner.plan, limit: Number.isFinite(limit) ? limit : null, version: owner.version,

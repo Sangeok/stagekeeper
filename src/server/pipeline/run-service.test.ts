@@ -1,11 +1,74 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import type { PrismaClient } from "@/generated/prisma/client";
-import { nextFor } from "./run-service";
+import { PrismaClient, type Prisma } from "@/generated/prisma/client";
+import { loadPipelinesView, nextFor } from "./run-service";
 import { readFacts, type PipelineRunRow } from "./run-service";
 
 const cursor: PipelineRunRow = { id: "pipeline", node: "implement", entryId: "entry", enteredAt: new Date(100), closedAt: null, version: { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: [] } };
 const row = { id: "item", status: "implementing", validation: null, acceptedAt: null };
+
+it("loads saved pipelines and relations without overlapping Prisma driver queries", async () => {
+  let executing = false;
+  const createdAt = new Date("2026-10-01T00:00:00.000Z");
+  const records: Record<string, Record<string, unknown>> = {
+    Project: { id: "project", defaultPipelineId: "pipeline", autoProposeEnabled: true, ownerUserId: "owner", repoOwner: "owner", available: true, disconnectedAt: null },
+    User: { id: "owner" },
+    Subscription: { id: "subscription", userId: "owner", plan: "pro" },
+    Pipeline: { id: "pipeline", projectId: "project", name: "Feature", createdBy: "test", createdAt: createdAt.toISOString(), archivedAt: null },
+    PipelineDefinition: { id: "definition", pipelineId: "pipeline", version: 2, steps: ["plan", "implement", "accept"], gates: [], createdAt: createdAt.toISOString(), createdBy: "test" },
+    PipelineVersion: { id: "version", projectId: "project", pipelineId: "pipeline", version: 2, nodes: ["plan", "implement", "accept"], gates: [], format: "slots-v1", createdAt: createdAt.toISOString(), createdBy: "test" },
+    PipelineRule: { id: "rule", projectId: "project", type: "feature", pipelineId: "pipeline" },
+  };
+  const columnType = { integer: 0, boolean: 5, text: 7, dateTime: 10, textArray: 71 } as const;
+  type Adapter = Awaited<ReturnType<NonNullable<Prisma.PrismaClientOptions["adapter"]>["connect"]>>;
+  const adapter: Adapter = {
+    provider: "postgres", adapterName: "single-connection-test",
+    async queryRaw({ sql }) {
+      assert.equal(executing, false, "The transaction connection is already executing a query");
+      executing = true;
+      try {
+        await new Promise<void>(resolve => setImmediate(resolve));
+        const table = sql.match(/FROM "public"\."([^"]+)"/)?.[1];
+        assert.ok(table && records[table], "Expected a fixture table");
+        const record = records[table];
+        const columnNames = Object.keys(record);
+        return {
+          columnNames,
+          columnTypes: columnNames.map(name => {
+            if (name.endsWith("At")) return columnType.dateTime;
+            if (Array.isArray(record[name])) return columnType.textArray;
+            if (typeof record[name] === "boolean") return columnType.boolean;
+            if (typeof record[name] === "number") return columnType.integer;
+            return columnType.text;
+          }),
+          rows: [Object.values(record)],
+        };
+      } finally {
+        executing = false;
+      }
+    },
+    async executeRaw({ sql }) { assert.equal(sql, "SET TRANSACTION READ ONLY"); return 0; },
+    async executeScript() { throw new Error("Unexpected SQL script"); },
+    async startTransaction() {
+      return { ...adapter, options: { usePhantomQuery: true }, async commit() {}, async rollback() {} };
+    },
+    async dispose() {},
+  };
+  const db = new PrismaClient({ adapter: { provider: "postgres", adapterName: adapter.adapterName, async connect() { return adapter; } } });
+
+  try {
+    assert.deepEqual(await loadPipelinesView(db, "project"), {
+      pipelines: [{ id: "pipeline", name: "Feature", isDefault: true,
+        definition: { steps: ["plan", "implement", "accept"], gates: [] },
+        saved: { version: 2, createdAt },
+        runnable: { nodes: ["plan", "implement", "accept"], gates: [], format: "slots-v1" },
+      }],
+      rules: { feature: "pipeline" }, autoProposeEnabled: true,
+    });
+  } finally {
+    await db.$disconnect();
+  }
+});
 
 it("nextFor reads active failures only at the open accept node", async () => {
   for (const [node, closedAt, expected] of [["accept", null, 1], ["accept", new Date(0), 0], ["before-accept", null, 0]] as const) {
