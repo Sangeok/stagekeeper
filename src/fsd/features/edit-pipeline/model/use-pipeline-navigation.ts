@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export type PipelineView = { kind: "catalog" } | { kind: "new" } | { kind: "pipeline"; id: string };
@@ -31,6 +31,8 @@ export function usePipelineNavigation({ canLeave, onLeave, unsaved }: { canLeave
       const next = event.state?.pipelinePosition as Position | undefined;
       const previous = position.current;
       if (!previous || next?.session !== previous.session) return;
+      const destination = viewFromQuery(new URLSearchParams(window.location.search).get("pipeline"));
+      if (viewKey(destination) === viewKey(view)) { position.current = next; return; }
       if (!canLeave()) {
         restoring.current = true;
         window.history.go(previous.index - next.index);
@@ -38,7 +40,7 @@ export function usePipelineNavigation({ canLeave, onLeave, unsaved }: { canLeave
       }
       position.current = next;
       onLeave();
-      setView(viewFromQuery(new URLSearchParams(window.location.search).get("pipeline")));
+      setView(destination);
     }
     function onBeforeUnload(event: BeforeUnloadEvent): void {
       if (unsaved) { event.preventDefault(); event.returnValue = ""; }
@@ -46,7 +48,17 @@ export function usePipelineNavigation({ canLeave, onLeave, unsaved }: { canLeave
     window.addEventListener("popstate", onPopState);
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => { window.removeEventListener("popstate", onPopState); window.removeEventListener("beforeunload", onBeforeUnload); };
-  }, [canLeave, onLeave, unsaved]);
+  }, [canLeave, onLeave, unsaved, view]);
+
+  const requested = query?.get("pipeline") ?? null;
+  const synchronizeUrl = useEffectEvent(() => {
+    if (restoring.current || requested === viewKey(view)) return;
+    if (!canLeave()) { update(view, "replace"); return; }
+    onLeave();
+    if (!window.history.state?.pipelinePosition && position.current) position.current = { ...position.current, index: position.current.index + 1 };
+    update(viewFromQuery(requested), "replace");
+  });
+  useEffect(() => { synchronizeUrl(); }, [requested]);
 
   function update(next: PipelineView, mode: "push" | "replace"): void {
     const url = new URL(window.location.href);

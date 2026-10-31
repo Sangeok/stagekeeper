@@ -21,14 +21,14 @@ export function PipelineCatalog({ entries, query, onQueryChange, onSelect, selec
     </div>
     <p role="status" className="text-xs text-quiet">{query.trim() ? `${visible.length} of ${entries.length}` : entries.length} pipeline{entries.length === 1 ? "" : "s"}</p>
     {visible.length ? <ul className="divide-y divide-edge rounded-lg border border-edge">{visible.map(entry => <li key={entry.id}>
-      <button type="button" disabled={disabled} aria-current={entry.id === selectedId ? "true" : undefined}
+      <button type="button" disabled={disabled} aria-label={entry.name} aria-describedby={`${searchId}-${entry.id}`} aria-current={entry.id === selectedId ? "true" : undefined}
         className="flex w-full min-w-0 items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-field focus-visible:bg-field aria-current:bg-field disabled:opacity-50"
         onClick={() => onSelect(entry.id)}>
         <span className="flex min-w-0 flex-col gap-1">
           <span className="break-words text-sm font-medium">{entry.name}</span>
-          <span className="break-words text-xs text-quiet" title={entry.steps.join(" → ")}>{entry.summary}</span>
+          <span id={`${searchId}-${entry.id}`} className="break-words text-xs text-quiet" title={entry.steps.join(" → ")}>{entry.summary}</span>
         </span>
-        <span className="shrink-0 text-xs text-quiet">{entry.id === selectedId ? "Current" : `${entry.steps.length} steps`} <span aria-hidden="true">→</span></span>
+        <span className="shrink-0 text-xs text-quiet">{entry.id === selectedId ? "Current" : `${entry.steps.length} step${entry.steps.length === 1 ? "" : "s"}`} <span aria-hidden="true">→</span></span>
       </button>
     </li>)}</ul> : <div className="rounded-lg border border-dashed border-edge px-4 py-8 text-center">
       <p className="text-sm">{entries.length ? "No matching pipelines" : "No pipelines yet"}</p>
