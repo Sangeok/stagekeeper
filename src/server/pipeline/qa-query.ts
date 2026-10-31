@@ -3,7 +3,11 @@ import type { Prisma, PrismaClient, Report } from "@/generated/prisma/client";
 
 type Db = PrismaClient | Prisma.TransactionClient;
 export async function implementationReport(db: Db, boardItemId: string, agent: string, pipelineRunId: string): Promise<Report | null> {
-  return db.report.findFirst({ where: { boardItemId, actor: agent, agentRun: { pipelineRunId, stepId: "report", closedAt: { not: null }, steps: { some: { stepId: "report", outcome: "ok", accepted: true } } } }, orderBy: { at: "desc" } });
+  const own = await db.report.findFirst({ where: { boardItemId, actor: agent, agentRun: { pipelineRunId, stepId: "report", closedAt: { not: null }, steps: { some: { stepId: "report", outcome: "ok", accepted: true } } } }, orderBy: { at: "desc" } });
+  if (own) return own;
+  const run = await db.pipelineRun.findFirst({ where: { id: pipelineRunId, boardItemId }, select: { inputReportId: true } });
+  return run?.inputReportId ? db.report.findFirst({ where: { id: run.inputReportId, boardItemId, actor: agent,
+    agentRun: { stepId: "report", closedAt: { not: null }, steps: { some: { stepId: "report", outcome: "ok", accepted: true } } } } }) : null;
 }
 export async function qaEntryResult(db: Db, projectId: string, boardItemId: string, agent: string, pipelineRunId: string, entryId: string): Promise<{ complete: boolean; failure: { note: string; path: string; commit: string } | null }> {
   const run = await db.agentRun.findFirst({ where: { projectId, agent: "qa-verifier", pipelineRunId, pipelineEntryId: entryId, closedAt: { not: null } }, orderBy: { openedAt: "desc" }, include: { reports: { where: { boardItemId }, orderBy: { at: "desc" }, take: 1 }, steps: { where: { accepted: true } } } });

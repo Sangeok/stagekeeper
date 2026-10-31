@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence } from "@harness/core/pipeline/pipeline.mjs";
+import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence, expand, validateGraph } from "@harness/core/pipeline/pipeline.mjs";
+import { validateExecutionGraph } from "@harness/core/pipeline/run-input.mjs";
 import { qaEntryResult } from "./qa-query";
 import { implVerifyEntryResult } from "./impl-verify-query";
 import { readProjectUsageCapIn } from "@/server/usage/api";
@@ -17,7 +18,7 @@ export type PipelineRunRow = { id: string; node: string; entryId: string | null;
 export type PipelineFacts = { status: string; validation: string | null; accepted: boolean; approvedGates: string[]; closedAgents: string[]; format: string | null; slotComplete: boolean; implementationComplete: boolean; qaComplete?: boolean; implVerifyComplete?: boolean };
 
 export const DEFAULT_PIPELINE_NAME = "Default";
-export const PIPELINE_CANNOT_RUN_ITEMS = "This pipeline can't run items on its own. Use it inside another pipeline.";
+export const PIPELINE_CANNOT_RUN_ITEMS = "This pipeline needs existing work as input. Use Run to choose a compatible task.";
 export const PIPELINE_NOT_FOUND = "Pipeline not found.";
 export const PIPELINE_VERSION_LIMIT = 2_147_483_647;
 export const defaultPipelineIdOf = (projectId: string): string => `default_${projectId}`;
@@ -30,7 +31,7 @@ export type PipelineView = {
 };
 export type PipelinesView = { pipelines: PipelineView[]; rules: Record<string, string>; autoProposeEnabled: boolean };
 export type PipelineChangeView = { fromName: string; toName: string };
-export type ItemPipelineView = { pipelineId: string | null; name: string; canChange: boolean };
+export type ItemPipelineView = { pipelineId: string | null; name: string; canChange: boolean; runState: "running" | "completed" | "closed" | null };
 
 export async function ensureDefaultPipeline(tx: Prisma.TransactionClient, projectId: string): Promise<string> {
   const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { defaultPipelineId: true } });
@@ -102,9 +103,14 @@ export async function loadPipelinesViewIn(tx: Prisma.TransactionClient, projectI
     if (version && version.format !== null && version.format !== SLOT_FORMAT) throw new Error("Unsupported pipeline format; update the compatible bundle.");
     return { id: row.id, name: row.name, isDefault: row.id === defaultId,
       definition: { steps: definition.steps, gates: definition.gates }, saved: { version: definition.version, createdAt: definition.createdAt },
-      runnable: version ? { nodes: version.nodes, gates: version.gates, format: version.format } : null };
+      runnable: version && validateGraph(version, plan).ok ? { nodes: version.nodes, gates: version.gates, format: version.format } : null };
   });
   if (!pipelines.some(row => row.id === defaultId)) pipelines.unshift(virtual());
+  const definitions = Object.fromEntries(pipelines.map(pipeline => [pipeline.id, pipeline.definition]));
+  for (const pipeline of pipelines) {
+    const expanded = expand(pipeline.id, definitions);
+    if (!expanded.ok || !validateGraph(expanded.graph, plan).ok) pipeline.runnable = null;
+  }
   pipelines.sort((a, b) => Number(b.isDefault) - Number(a.isDefault));
   return { pipelines, rules: Object.fromEntries(rules.map(rule => [rule.type, rule.pipelineId])), autoProposeEnabled: project.autoProposeEnabled };
 }
@@ -119,10 +125,13 @@ export async function loadPipelinesView(client: PrismaClient, projectId: string)
 export async function loadItemPipelineView(client: PrismaClient, projectId: string, boardItemId: string): Promise<ItemPipelineView> {
   const row = await client.boardItem.findFirst({ where: { id: boardItemId, projectId }, select: {
     status: true, discardedAt: true,
-    run: { select: { closedAt: true, version: { select: { pipelineId: true, format: true, pipeline: { select: { name: true } } } }, agentRuns: { take: 1, select: { id: true } } } },
+    run: { select: { id: true, enteredAt: true, closedAt: true, version: { select: { pipelineId: true, format: true, pipeline: { select: { name: true } } } }, agentRuns: { take: 1, select: { id: true } } } },
+    events: { where: { note: { startsWith: "pipeline-completed:" } }, orderBy: { at: "desc" }, take: 1, select: { note: true, at: true } },
   } });
   const run = row?.run;
+  const completed = !!run && row?.events.some(event => event.note === `pipeline-completed:${run.id}` && event.at >= run.enteredAt);
   return { pipelineId: run?.version.pipelineId ?? null, name: run?.version.pipeline?.name ?? DEFAULT_PIPELINE_NAME,
+    runState: run ? (run.closedAt ? (completed ? "completed" : "closed") : "running") : null,
     canChange: !!row && row.discardedAt === null && row.status === "proposed" && !!run && run.closedAt === null && run.version.format === SLOT_FORMAT && run.agentRuns.length === 0 };
 }
 
@@ -144,17 +153,37 @@ export async function loadPipelineChanges(client: PrismaClient, projectId: strin
 }
 
 export async function ensureRunIn(tx: Prisma.TransactionClient, projectId: string, boardItemId: string, status: string, fresh: boolean, pipelineId?: string): Promise<PipelineRunRow> {
-  const item = await tx.boardItem.findFirst({ where: { id: boardItemId, projectId }, select: { id: true } });
+  const item = await tx.boardItem.findFirst({ where: { id: boardItemId, projectId }, select: { id: true, currentRunId: true, updatedAt: true } });
   if (!item) throw new PipelineRejection("Board item not found.");
-  const found = await tx.pipelineRun.findUnique({ where: { boardItemId }, include: { version: true } });
-  if (found) return found;
-  const version = await ensureRunnableVersion(tx, projectId, pipelineId);
+  const found = item.currentRunId
+    ? await tx.pipelineRun.findUnique({ where: { id: item.currentRunId, boardItemId }, include: { version: true } })
+    : await tx.pipelineRun.findFirst({ where: { boardItemId }, orderBy: { createdAt: "desc" }, include: { version: true } });
+  if (found) {
+    if (!item.currentRunId) await tx.boardItem.update({ where: { id: boardItemId }, data: { currentRunId: found.id, updatedAt: item.updatedAt } });
+    return found;
+  }
+  const version = pipelineId ? await ensureExecutionVersion(tx, projectId, pipelineId) : await ensureRunnableVersion(tx, projectId);
   const graph: Graph = { nodes: version.nodes, gates: version.gates };
   const node = (fresh ? sequence(graph)[0] : cursorForStatus(graph, status)) ?? sequence(graph)[0];
-  await tx.$executeRaw`INSERT INTO "PipelineRun" ("id", "boardItemId", "versionId", "node", "entryId")
-    VALUES (${randomUUID()}, ${boardItemId}, ${version.id}, ${node}, ${version.format === SLOT_FORMAT ? randomUUID() : null})
-    ON CONFLICT ("boardItemId") DO NOTHING`;
-  return tx.pipelineRun.findUniqueOrThrow({ where: { boardItemId }, include: { version: true } });
+  const run = await tx.pipelineRun.create({ data: { boardItemId, versionId: version.id, node, entryId: version.format === SLOT_FORMAT ? randomUUID() : null }, include: { version: true } });
+  await tx.boardItem.update({ where: { id: boardItemId }, data: { currentRunId: run.id, updatedAt: item.updatedAt } });
+  return run;
+}
+
+export async function ensureExecutionVersion(tx: Prisma.TransactionClient, projectId: string, pipelineId: string): Promise<PipelineVersion> {
+  const view = await loadPipelinesViewIn(tx, projectId);
+  const pipeline = view.pipelines.find(candidate => candidate.id === pipelineId);
+  if (!pipeline) throw new PipelineRejection(PIPELINE_NOT_FOUND);
+  const composed = expand(pipelineId, Object.fromEntries(view.pipelines.map(candidate => [candidate.id, candidate.definition])));
+  if (!composed.ok) throw new PipelineRejection(composed.reason);
+  const valid = validateExecutionGraph(composed.graph, await readProjectPlanIn(tx, projectId));
+  if (!valid.ok) throw new PipelineRejection(valid.reason);
+  if (!pipeline.saved && pipeline.isDefault) return ensureRunnableVersion(tx, projectId, pipelineId);
+  const latest = await tx.pipelineVersion.findFirst({ where: { projectId, pipelineId }, orderBy: { version: "desc" } });
+  if (latest?.format === SLOT_FORMAT && JSON.stringify(latest.nodes) === JSON.stringify(composed.graph.nodes)
+    && JSON.stringify([...latest.gates].sort()) === JSON.stringify([...composed.graph.gates].sort())) return latest;
+  return tx.pipelineVersion.create({ data: { projectId, pipelineId, version: await nextPipelineVersion(tx, projectId),
+    ...composed.graph, format: SLOT_FORMAT, createdBy: "pipeline" } });
 }
 
 export async function ensureRun(client: PrismaClient, projectId: string, boardItemId: string, status: string, fresh: boolean, pipelineId?: string): Promise<PipelineRunRow> {

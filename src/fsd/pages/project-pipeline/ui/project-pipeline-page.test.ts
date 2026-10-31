@@ -3,7 +3,7 @@ import { it } from "node:test";
 import { createElement, isValidElement, type ContextType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { PipelineList, AutomaticScoutControl, type SavePipelineAction, type SaveAutomaticScoutAction } from "@/fsd/features/edit-pipeline";
+import { PipelineList, type SavePipelineAction, type SaveAutomaticScoutAction } from "@/fsd/features/edit-pipeline";
 import { ProjectPipelinePage } from "./project-pipeline-page";
 
 const graph = { nodes: ["plan", "implement", "accept"], gates: ["before-plan"] };
@@ -24,7 +24,7 @@ it("keys the pipeline editor by project identity while preserving the exact inje
     const page = ProjectPipelinePage(input);
     assert.ok(isValidElement<{ children: unknown[] }>(page));
     const list = page.props.children.find(child => isValidElement(child) && child.type === PipelineList);
-    const scout = page.props.children.find(child => isValidElement(child) && child.type === AutomaticScoutControl);
+    const scout = isValidElement<Parameters<typeof PipelineList>[0]>(list) ? list.props.automationControls : null;
     assert.ok(isValidElement<Parameters<typeof PipelineList>[0]>(list));
     assert.ok(isValidElement<{ save: SaveAutomaticScoutAction }>(scout));
     assert.equal(list.props.save, save);
@@ -43,8 +43,10 @@ it("renders saved definition descriptions and read-only controls without invokin
     const html = renderToStaticMarkup(createElement(AppRouterContext.Provider,
       { value: {} as ContextType<typeof AppRouterContext> },
       createElement(ProjectPipelinePage, { ...props, pipelines: [{ ...props.pipelines[0], saved }], editable: false, canChangeAutoScout: false, unavailableReason: "Not selected" })));
-    assert.ok(html.includes(saved ? "Version 4" : "Default pipeline · not saved yet"));
-    assert.ok(html.includes("Runs items"));
+    assert.ok(html.includes(saved ? "Version 4" : "Initial configuration"));
+    assert.ok(html.includes("Default selection:"));
+    assert.ok(!html.includes("Runs items"));
+    assert.ok(!html.includes("Used inside"));
     assert.ok(html.includes("Read as text"));
     assert.ok(html.includes("before Plan — you"));
     assert.ok(html.includes("Not selected"));

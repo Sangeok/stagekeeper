@@ -45,7 +45,7 @@ it("the updatedAt a screen read before another write is stale for transition, di
     const screenToken = f.updatedAt;
     assert.equal((await board.submitPlan(f.projectId, { key: f.key, path: "p.md", commit: "c" }, "dev")).ok, true);
     const moved = await a.boardItem.findUniqueOrThrow({ where: { id: f.boardItemId } });
-    const pipeline = await a.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } });
+    const pipeline = await a.pipelineRun.findFirstOrThrow({ where: { boardItemId: f.boardItemId } });
     const gateEntry = { runId: pipeline.id, entryId: pipeline.entryId! };
 
     assert.deepEqual(await board.transition(f.projectId, { key: f.key, to: "planning", result: "bounce" }, human(f, screenToken)), { ok: false, reason: "stale" });

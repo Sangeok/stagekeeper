@@ -145,7 +145,7 @@ export function advance(graph, cursor, facts) {
     if (facts.format === SLOT_FORMAT) {
       const boundary = boundaryOf(gateId(next));
       if (boundary && status === boundary.from && !graph.gates.includes(gateId(next))) transitions.push(boundary);
-      if (["impl-verify", gateId("impl-verify"), "accept", gateId("accept"), "qa", gateId("qa")].includes(next) && status === "implementing") {
+      if ((next === null || ["impl-verify", gateId("impl-verify"), "accept", gateId("accept"), "qa", gateId("qa")].includes(next)) && status === "implementing" && graph.nodes.includes("implement")) {
         transitions.push({ from: "implementing", to: "done" });
       }
       return { cursor: next, entered, transitions };

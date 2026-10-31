@@ -9,6 +9,7 @@ export { loadItemPipelineView } from "./run-service";
 export { loadExecutionFacts } from "./current-execution-query";
 export { loadPipelineChanges } from "./run-service";
 export { loadPipelinesView } from "./run-service";
+export { preparePipelineRun } from "./run-request";
 export { nextFor } from "./run-service";
 export { parseHistoryCursor } from "./history-page";
 export { parseHistoryItemCursor } from "./history-items";

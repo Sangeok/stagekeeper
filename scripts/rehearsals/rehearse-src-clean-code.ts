@@ -166,7 +166,7 @@ async function main(): Promise<void> {
       await ensureRun(db, owner.projectId, board.id, status, false);
       if (status === "in_review") {
         await db.boardItem.update({ where: { id: board.id }, data: { planPath: "docs/fixture-plan.md", planCommit: "abcdef123456" } });
-        await db.pipelineRun.update({ where: { boardItemId: board.id }, data: { node: "before-implement" } });
+        await db.pipelineRun.updateMany({ where: { boardItemId: board.id }, data: { node: "before-implement" } });
       }
     }
     const reopenBacklog = await db.backlogItem.create({ data: { projectId: owner.projectId, key: "R-1", title: "Reopen without losing evidence", area: "web", source: "fixture", removedAt: new Date(), removedReason: "done" } });

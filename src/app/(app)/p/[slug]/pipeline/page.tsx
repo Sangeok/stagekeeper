@@ -1,5 +1,5 @@
 import { allowsPipelineEdit } from "@harness/core/pipeline/pipeline.mjs";
-import { saveAutomaticScout, savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, setAutomaticPickAction } from "@/fsd/features/edit-pipeline/index.server";
+import { saveAutomaticScout, savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, setAutomaticPickAction, prepareRunAction, startRunAction } from "@/fsd/features/edit-pipeline/index.server";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
@@ -7,8 +7,9 @@ import { projectAccess } from "@/server/projects/api.server";
 import { loadProjectRoster } from "@/server/projects/api";
 import { loadPipelinesView } from "@/server/pipeline/api";
 
-export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) {
+export default async function Page({ params, searchParams }: PageProps<"/p/[slug]/pipeline">) {
   const { slug } = await params;
+  const { work } = await searchParams;
   const { projectId } = await requireProjectOwner(slug);
 
   const [view, access, roster, project] = await Promise.all([
@@ -29,6 +30,9 @@ export default async function Page({ params }: PageProps<"/p/[slug]/pipeline">) 
       editable={access.available && allowsPipelineEdit(access.plan)}
       unavailableReason={access.available ? undefined : access.reason}
       save={savePipeline.bind(null, slug)}
+      canRun={access.available}
+      targetKey={typeof work === "string" && work.length <= 100 ? work : undefined}
+      runActions={{ prepare: prepareRunAction.bind(null, slug), start: startRunAction.bind(null, slug) }}
       autoScoutEnabled={project.autoScoutEnabled}
       canChangeAutoScout={access.available}
       saveAutoScout={saveAutomaticScout.bind(null, slug)}

@@ -5,7 +5,7 @@ import { nextFor } from "./run-service";
 import { readFacts, type PipelineRunRow } from "./run-service";
 
 const cursor: PipelineRunRow = { id: "pipeline", node: "implement", entryId: "entry", enteredAt: new Date(100), closedAt: null, version: { id: "version", version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: [] } };
-const row = { id: "item", status: "implementing", validation: null, acceptedAt: null };
+const row = { id: "item", currentRunId: "pipeline", status: "implementing", validation: null, acceptedAt: null };
 
 it("nextFor reads active failures only at the open accept node", async () => {
   for (const [node, closedAt, expected] of [["accept", null, 1], ["accept", new Date(0), 0], ["before-accept", null, 0]] as const) {

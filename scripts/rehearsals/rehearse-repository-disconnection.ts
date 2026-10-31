@@ -97,7 +97,7 @@ async function main(): Promise<void> {
     await db.report.create({ data: { boardItemId: owner.boardItemId, actor: "dev", path: "retained.md", commit: "1234567" } });
     const { ensureRun } = await import("../../src/server/pipeline/run-service");
     await ensureRun(db, owner.projectId, owner.boardItemId, "in_review", false);
-    await db.pipelineRun.update({ where: { boardItemId: owner.boardItemId }, data: { node: "before-implement" } });
+    await db.pipelineRun.updateMany({ where: { boardItemId: owner.boardItemId }, data: { node: "before-implement" } });
     const ownedCookie = await cookie(owner.userId); const foreignCookie = await cookie(foreign.userId);
     const body = JSON.stringify([{ targetProjectId: owner.projectId, expectedVersion: 1, userId: owner.userId }]);
     await start();

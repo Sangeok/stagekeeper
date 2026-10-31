@@ -4,7 +4,7 @@ import type { BoardItem } from "../../src/generated/prisma/client";
 import { APPROVED_ADVICE_FAILURE, createOwnerGate } from "../../src/server/mcp/owner-gate";
 import type { PipelineNext } from "../../src/server/pipeline/contracts";
 
-const item: BoardItem = { id: "item", projectId: "p", backlogItemId: "b", agent: "dev", status: "done", reason: "evidence", results: ["result"],
+const item: BoardItem = { currentRunId: null, id: "item", projectId: "p", backlogItemId: "b", agent: "dev", status: "done", reason: "evidence", results: ["result"],
   validation: null, acceptedAt: null, planPath: "docs/plan.md", planCommit: "abcdef1", proposedOn: new Date(0), updatedAt: new Date(1), discardedAt: null };
 const input = { key: "KEY", gate: "before-accept", gateEntry: { runId: "run", entryId: "entry" } };
 const next: PipelineNext = { key: "KEY", node: "accept", version: 1, action: "accept", hint: "Accept" };

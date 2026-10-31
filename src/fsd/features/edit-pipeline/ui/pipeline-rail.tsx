@@ -57,7 +57,7 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   const definitions: Record<string, Definition> = Object.create(null);
   for (const pipeline of pipelines) definitions[pipeline.id] = pipeline.definition;
   const context: CompositionContext = { pipelineId: id, definitions,
-    mustRun: pipelines.filter(pipeline => pipeline.isDefault || pipeline.runnable !== null || Object.values(rules).includes(pipeline.id)).map(pipeline => pipeline.id) };
+    mustRun: pipelines.filter(pipeline => pipeline.isDefault || Object.values(rules).includes(pipeline.id)).map(pipeline => pipeline.id) };
   const draftComposition = preview(draftDefinition, plan, context);
   const validation = check(draftDefinition, plan, context);
   const ungated = hasUngatedRunnable(draftComposition);
@@ -78,7 +78,7 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
       const step = insertRef(draftDefinition, pipeline.id, before, plan, context);
       const hasDuplicates = !step.ok && (step.reason === "a node appears twice" || step.reason === "a step appears twice");
       return {
-        label: `Use ${pipeline.name} here`, step,
+        label: `Insert pipeline: ${pipeline.name}`, step,
         reference: {
           id: pipeline.id, name: pipeline.name,
           conflicts: hasDuplicates ? findInsertionConflicts(draftDefinition, pipeline.id, draftDefinitions) : null,
@@ -169,8 +169,11 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
             swappable={TAIL_NODES.includes(kind) && draftDefinition.steps.filter(step => TAIL_NODES.includes(step)).length === 2}
             removeStep={removeNode(draftDefinition, kind, plan, context)} swapStep={swapTail(draftDefinition, plan, context)} onApply={applyIfValid} />
             : <div className="flex min-w-40 flex-col gap-3 rounded-lg border border-edge bg-field p-3">
-              <span className="text-sm font-medium">{names(target)} · {block?.ok ? block.graph.nodes.length : "?"} nodes</span>
-              <button type="button" className="text-left text-xs underline" disabled={busy || pending} onClick={() => onSelect?.(target)}>Edit {names(target)}</button>
+              <span className="text-sm font-medium">{names(target)}</span>
+              <details><summary className="cursor-pointer text-xs text-quiet">{block?.ok ? block.graph.nodes.length : "?"} steps</summary>
+                {block?.ok ? <ol className="mt-2 flex flex-col gap-2 text-xs">{block.graph.nodes.map(node => <li key={node}>{block.graph.gates.includes(gateId(node)) ? `${gateLabel(gateId(node))} · ` : ""}{nodeLabel(node)}</li>)}</ol> : <p className="mt-2 text-xs text-risk">{block && !block.ok ? block.reason : "Pipeline not found"}</p>}
+              </details>
+              <button type="button" className="text-left text-xs underline" disabled={busy || pending} onClick={() => onSelect?.(target)}>Open pipeline</button>
               {canEdit ? <button type="button" className="text-left text-xs underline" disabled={!removeNode(draftDefinition, kind, plan, context).ok} onClick={() => applyIfValid(removeNode(draftDefinition, kind, plan, context))}>Remove</button> : null}
             </div>}
           {hasConflict ? <span className="max-w-48 px-1 text-xs text-risk">Already used{target !== null && block?.ok ? `: ${block.graph.nodes.filter(node => conflictingNodes.has(node)).map(nodeLabel).join(", ")}` : ""}</span> : null}
@@ -182,9 +185,11 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
       Cannot add {inspectedReference.name} here. Already used: {inspectedReference.conflicts.nodes.map(nodeLabel).join(", ")}. The same step cannot appear twice in one pipeline.
     </p> : null}
     {editable && !expanded ? <button type="button" className="self-start text-xs underline" disabled={!canEdit} onClick={() => setEdgeMenu(edgeMenu.kind === "open" && edgeMenu.before === null ? { kind: "closed" } : { kind: "open", before: null })}>{draftDefinition.steps.length ? "Add at end" : "Add first step"}</button> : null}
-    {edgeMenu.kind === "open" && !expanded ? <div className="flex w-72 flex-col gap-1 rounded-md border border-edge bg-paper p-2">
+    {edgeMenu.kind === "open" && !expanded ? <div className="flex w-72 max-w-full flex-col gap-1 rounded-md border border-edge bg-paper p-2">
       <p className="px-1.5 pb-1 text-xs text-quiet">{edgeMenu.before === null ? "At end" : labelForGate(gateId(edgeMenu.before))}</p>
-      {moves.map(move => <div key={move.label} className="flex flex-col">
+      {([false, true] as const).map(references => <section key={String(references)} className="flex flex-col gap-1" aria-label={references ? "Insert pipeline" : "Add step"}>
+      <h3 className="mt-2 px-1.5 text-xs font-medium">{references ? "Insert pipeline" : "Add step"}</h3>
+      {moves.filter(move => !!move.reference === references).map(move => <div key={move.label} className="flex flex-col">
         <button type="button" disabled={!canEdit || !move.step.ok} className="rounded px-1.5 py-1 text-left text-xs hover:bg-field disabled:opacity-50" onClick={() => applyIfValid(move.step)}>{move.label}</button>
         {move.step.ok ? null : <p className="px-1.5 text-xs text-quiet">{move.reference?.conflicts
           ? `Cannot add here. Already used: ${move.reference.conflicts.nodes.map(nodeLabel).join(", ")}. The same step cannot appear twice in one pipeline.`
@@ -193,11 +198,11 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
           aria-label={`Show conflicting steps for ${move.reference.name}`}
           className="self-start px-1.5 py-1 text-xs underline underline-offset-2 disabled:opacity-50"
           onClick={() => showConflicts(move)}>Show conflicting steps</button> : null}
-      </div>)}
+      </div>)}</section>)}
     </div> : null}
     {affected.length ? <p className="text-xs text-quiet">Also changes: {affected.map(names).join(", ")}</p> : null}
     {!validation.ok ? <p className="text-xs text-risk">{validation.reason}</p> : null}
-    {ungated ? <p className="text-xs text-risk">No gate: plan and implementation start without your approval. Acceptance is still required. Reopen and discard stay on the web.</p> : null}
+    {ungated ? <p className="text-xs text-risk">No approval gates: these steps continue automatically once the run starts.</p> : null}
     {!editable ? <p className="text-xs text-quiet">{unavailableReason ?? PIPELINE_EDIT_PLAN_GATE}</p> : null}
     {editable || dirty || recoveryMessage !== null || externalChange ? <div className="flex items-center gap-3">
       {editable ? <Button variant="mine" disabled={!dirty || !canEdit || !validation.ok || recoveryMessage !== null} onClick={onSave}>{busy || pending ? "Saving…" : confirmingNoGate ? "Save without a gate" : "Save"}</Button> : null}

@@ -141,10 +141,10 @@ it("preserves project identity and every populated child, revokes project creden
     const normalAgent = await callMcp(agentMcp, hu.plain, "project_get", { project: f.id });
     assert.equal(normalAgent.result?.isError, undefined);
     await ensureRun(db, f.projectId, f.boardItemId, "proposed", false);
-    const gateRun = await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } });
+    const gateRun = await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: f.boardItemId } });
     const normalOwner = await callMcp(ownerMcp, ho.plain, "gate_approve", { key: f.key, gate: "before-plan", gateEntry: { runId: gateRun.id, entryId: gateRun.entryId } });
     assert.ok(!normalOwner.result?.isError, normalOwner.body);
-    const pipeline = await db.pipelineRun.findUniqueOrThrow({ where: { boardItemId: f.boardItemId } });
+    const pipeline = await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: f.boardItemId } });
     const run = await db.agentRun.create({ data: { projectId: f.projectId, agent: "dev", key: f.key, tokenId: "preserved", stepId: "start", pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId } });
     await db.agentRunStep.create({ data: { runId: run.id, stepId: "start", outcome: "handoff", note: "preserved", accepted: true, callerTokenId: "old-token", receiptRevision: 0 } });
     await db.report.create({ data: { boardItemId: f.boardItemId, agentRunId: run.id, actor: "dev", path: "preserved.md", commit: "1234567" } });

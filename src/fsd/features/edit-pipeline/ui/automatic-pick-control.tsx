@@ -12,7 +12,7 @@ export function AutomaticPickControl({ enabled, writable, pending, onToggle, una
         disabled={!writable || pending} onClick={onToggle}>{pending ? "Saving…" : enabled ? "On" : "Off"}</Button>
     </div>
     <p className="text-sm">Let pm pick available backlog items when there is room on the board.</p>
-    <p className="text-xs text-quiet">{enabled ? "New items follow the type rules and default pipeline below. Changes take effect immediately." : AUTO_PROPOSE_DISABLED_REASON}</p>
+    <p className="text-xs text-quiet">{enabled ? "New work follows the default selection and type overrides in Run rules." : AUTO_PROPOSE_DISABLED_REASON}</p>
     {!writable ? <p className="text-xs text-quiet">{unavailableReason ?? PIPELINE_EDIT_PLAN_GATE}</p> : null}
   </section>;
 }
