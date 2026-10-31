@@ -4,57 +4,36 @@ import { headFor } from "../../../src/server/pipeline/api";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 import { seedPipelineVersion, cleanup, connections, fixture, type Fixture } from "./support";
 
-it("head scouts only after a backlog change, and only accepted report completion suppresses it", async () => {
-  const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
+it("only completion bound to the current work entry advances discovery", async () => {
+  const pool = connections(1); const [db] = pool.all; const f = await fixture(db, { status: "done" });
   try {
-    f = await fixture(db);
-    const before = new Date(Date.now() - 60_000); const closedAt = new Date(before.getTime() + 1000);
-    await db.backlogItem.update({ where: { id: f.backlogItemId }, data: { createdAt: before } });
-    const read = () => headFor(db, f!.projectId, 0, 0, false);
-    assert.equal((await read()).action, "dispatch");
-    const run = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "report", closedAt } });
-    assert.equal((await read()).action, "dispatch", "interrupted close is not completion");
-    const report = await db.agentRunStep.create({ data: { runId: run.id, stepId: "report", outcome: "ok", accepted: false } });
-    assert.equal((await read()).action, "dispatch", "refused report is not evidence");
-    for (const accepted of [true, null]) {
-      await db.agentRunStep.update({ where: { id: report.id }, data: { accepted } });
-      const head = await read(); assert.equal(head.action, "none"); if (head.action === "none") assert.match(head.reason, /already looked/);
-    }
-    await db.backlogItem.update({ where: { id: f.backlogItemId }, data: { title: "Editing does not restart scout" } });
-    assert.equal((await read()).action, "none");
-    await db.backlogItem.update({ where: { id: f.backlogItemId }, data: { createdAt: closedAt } });
-    assert.equal((await read()).action, "dispatch", "equal timestamps are not strictly after");
-    await db.backlogItem.update({ where: { id: f.backlogItemId }, data: { createdAt: before, removedAt: new Date(closedAt.getTime() + 1), removedReason: "done" } });
-    assert.equal((await read()).action, "dispatch", "completion/removal is a change");
-    await db.backlogItem.delete({ where: { id: f.backlogItemId } });
-    assert.equal((await read()).action, "none", "an empty project still remembers a completed scout");
-    await db.agentRun.update({ where: { id: run.id }, data: { key: "K-1" } });
-    assert.equal((await read()).action, "dispatch", "head evidence must be project-scoped");
-  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
+    const head = await headFor(db, f.projectId); assert.ok(head.action === "dispatch");
+    await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "report", closedAt: new Date(), steps: { create: { stepId: "report", outcome: "ok", accepted: true } } } });
+    assert.equal((await headFor(db, f.projectId)).action, "dispatch");
+    await db.agentRun.create({ data: { projectId: f.projectId, agent: "work-discoverer", tokenId: "t", stepId: "report", closedAt: new Date(), workRunId: head.entry.runId, workEntryId: head.entry.entryId,
+      steps: { create: { stepId: "report", outcome: "ok", accepted: true } } } });
+    assert.equal((await headFor(db, f.projectId)).action, "none");
+    assert.equal((await db.pipelineWorkRun.findUniqueOrThrow({ where: { id: head.entry.runId } })).node, "assign-work");
+    await db.backlogItem.create({ data: { projectId: f.projectId, key: "K-2", title: "New work", area: "web", source: "Observed failure" } });
+    const assign = await headFor(db, f.projectId);
+    assert.ok(assign.action === "dispatch" && assign.agent === "work-assigner");
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
-it("at the dispatch cap only a matching unbound scout can resume the empty head", async () => {
-  const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
+it("the usage cap allows only an existing execution bound to the current project entry to resume", async () => {
+  const pool = connections(1); const [db] = pool.all; const f = await fixture(db, { status: "done" });
   try {
-    f = await fixture(db);
-    await db.agentRun.createMany({ data: Array.from({ length: 60 }, (_, i) => ({ projectId: f!.projectId, agent: "pm", tokenId: `cap-${i}`, stepId: "report", closedAt: new Date() })) });
+    const head = await headFor(db, f.projectId); assert.ok(head.action === "dispatch");
     await db.user.update({ where: { id: f.userId }, data: { usageWindowStartedAt: new Date(), usageRunCount: 20 } });
-    const read = () => headFor(db, f!.projectId, 0, 0, false);
-    const capped = await read(); assert.equal(capped.action, "none"); if (capped.action === "none") assert.match(capped.reason, /Usage limit reached/);
-    const pm = await db.agentRun.create({ data: { projectId: f.projectId, agent: "pm", tokenId: "t", stepId: "start" } });
-    assert.equal((await read()).action, "none", "PM cannot resume as scout");
-    const version = await seedPipelineVersion(db, { projectId: f.projectId, version: 1, format: "slots-v1", nodes: ["plan", "implement", "accept"], gates: ["before-plan"], createdBy: f.userId });
-    const pipeline = await db.pipelineRun.create({ data: { boardItemId: f.boardItemId, versionId: version.id, node: "feature-scout", entryId: "entry" } });
-    const scout = await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "write", pipelineRunId: pipeline.id, pipelineEntryId: "entry" } });
-    assert.equal((await read()).action, "none", "bound runs belong to their slot");
-    await db.agentRun.update({ where: { id: scout.id }, data: { pipelineRunId: null, pipelineEntryId: null } });
-    const resumed = await read(); assert.equal(resumed.action, "dispatch"); if (resumed.action === "dispatch") assert.equal(resumed.agent, "feature-scout");
-    assert.equal((await headFor(db, f.projectId, 2, 0, false)).action, "none", "resume never bypasses open-item limit");
-    const candidateHead = await headFor(db, f.projectId, 0, 1, false); assert.equal(candidateHead.action, "dispatch");
-    if (candidateHead.action === "dispatch") assert.equal(candidateHead.agent, "pm");
-    await db.agentRun.update({ where: { id: pm.id }, data: { closedAt: new Date() } });
-    assert.equal((await headFor(db, f.projectId, 0, 1, false)).action, "none", "scout resume cannot bypass PM cap");
-  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
+    const capped = await headFor(db, f.projectId);
+    assert.ok(capped.action === "none" && capped.code === "USAGE_LIMIT_REACHED");
+    await db.agentRun.create({ data: { projectId: f.projectId, agent: "work-discoverer", tokenId: "t", stepId: "write" } });
+    assert.equal((await headFor(db, f.projectId)).action, "none");
+    await db.agentRun.create({ data: { projectId: f.projectId, agent: "work-discoverer", tokenId: "t", stepId: "write", workRunId: head.entry.runId, workEntryId: head.entry.entryId } });
+    const resumed = await headFor(db, f.projectId);
+    assert.ok(resumed.action === "dispatch" && resumed.agent === "work-discoverer");
+    assert.deepEqual(resumed.entry, head.entry);
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("a real overview dispatches its trailing Scout slot once, then remembers the bound report", async () => {
@@ -70,13 +49,13 @@ it("a real overview dispatches its trailing Scout slot once, then remembers the 
     const tools = createToolDeps(db);
     const first = await tools.pipelineNext(f.projectId, undefined);
     const firstJson = JSON.stringify(first);
-    assert.match(firstJson, /a Scout node in items dispatches feature-scout/);
+    assert.match(firstJson, /no Assign work step/);
     assert.equal([...firstJson.matchAll(/"action":"dispatch"/g)].length, 1);
     assert.match(firstJson, /"slotId":"feature-scout"/);
     await db.agentRun.create({ data: { projectId: f.projectId, agent: "feature-scout", tokenId: "t", stepId: "report", closedAt: new Date(),
       pipelineRunId: pipeline.id, pipelineEntryId: "entry", steps: { create: { stepId: "report", outcome: "ok", accepted: true } } } });
     const second = JSON.stringify(await tools.pipelineNext(f.projectId, undefined));
-    assert.match(second, /feature-scout already looked/); assert.doesNotMatch(second, /"action":"dispatch"/);
+    assert.match(second, /no Assign work step/); assert.doesNotMatch(second, /"action":"dispatch"/);
     assert.ok((await db.pipelineRun.findUniqueOrThrow({ where: { id: pipeline.id } })).closedAt);
   } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });

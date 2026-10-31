@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import { allowsSessionApprovals, capError } from "@harness/core/plans/entitlement.mjs";
 import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/pipeline/backlog.mjs";
 import { readProjectAccessIn, readProjectPlanIn } from "@/server/projects/api";
-import { advance, sequence, routePipeline, cursorForStatus, gateId, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
+import { advance, sequence, itemGraph, routePipeline, cursorForStatus, gateId, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
+import { selectionContextIn } from "./work-run";
+import { selectionReason, type SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
 import { hasActiveLegacyScoutSlot } from "./automatic-scout";
 import { isOpen } from "@harness/core/pipeline/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem, type AcceptanceFailure } from "@/generated/prisma/client";
@@ -61,16 +63,17 @@ async function inProjectTransaction<Result>(projectId: string, work: (tx: Prisma
 }
 async function addBacklog(projectId: string, input: {
   title: string; area: string; source: string; type: string | null;
-  addedBy: "owner" | "feature-scout"; addedByRunId: string | null;
+  addedBy: "owner" | "feature-scout" | "work-discoverer"; addedByRunId: string | null;
 }): Promise<ServerResult<{ key: string }>> {
   if (!input.title.trim()) return fail("Title is required.");
   return inProjectTransaction(projectId, async (tx) => {
     if (input.addedByRunId !== null) {
       const run = await tx.agentRun.findFirst({ where: {
-        id: input.addedByRunId, projectId, agent: "feature-scout", closedAt: null,
-      }, select: { id: true, pipelineRunId: true, pipelineEntryId: true, project: { select: { autoScoutEnabled: true } } } });
+        id: input.addedByRunId, projectId, agent: { in: ["feature-scout", "work-discoverer"] }, closedAt: null,
+      }, select: { id: true, agent: true, pipelineRunId: true, pipelineEntryId: true, workRunId: true, workEntryId: true, workRun: true, project: { select: { autoScoutEnabled: true } } } });
       if (!run) return fail("backlog_add needs an open feature-scout run");
-      if (run.pipelineRunId === null && run.pipelineEntryId === null && !run.project.autoScoutEnabled
+      if (run.workRun && (run.workRun.closedAt || run.workEntryId !== run.workRun.entryId)) return fail("This Discover work run is no longer current.");
+      if (run.agent === "feature-scout" && run.pipelineRunId === null && run.pipelineEntryId === null && !run.project.autoScoutEnabled
         && !await hasActiveLegacyScoutSlot(tx, projectId)) return fail(AUTO_SCOUT_DISABLED_REASON);
     }
     const plan = await readProjectPlanIn(tx, projectId);
@@ -153,7 +156,7 @@ async function changePipeline(projectId: string, input: { key: string; pipelineI
       data: { updatedAt: nextTimestamp(row.updatedAt) },
     });
     if (claimed.count !== 1) throw new BoardRejection("stale");
-    const graph: Graph = { nodes: version.nodes, gates: version.gates };
+    const graph: Graph = itemGraph(version);
     await tx.pipelineRun.update({ where: { id: run.id }, data: {
       versionId: version.id, node: sequence(graph)[0], entryId: version.format === SLOT_FORMAT ? randomUUID() : null, enteredAt: new Date(), closedAt: null,
     } });
@@ -320,11 +323,19 @@ async function currentRoundIds(projectId: string, keys: readonly string[]): Prom
   return current;
 }
 
-async function propose(projectId: string, input: { key: string; agent: string; reason: string; pipelineId?: string }, by: Proposer) {
-  return inProjectTransaction(projectId, tx => proposeIn(tx, projectId, input, by), { isolationLevel: "Serializable" });
+async function propose(projectId: string, input: { key: string; agent: string; reason: string; pipelineId?: string; assignmentRunId?: string; selectionDecision?: SelectionDecision }, by: Proposer) {
+  try {
+    return await inProjectTransaction(projectId, tx => proposeIn(tx, projectId, input, by), { isolationLevel: "Serializable" });
+  } catch (error) {
+    if (by.actor === "agent" && error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      return fail("The board changed during assignment. Read assignment_context again before assigning work.");
+    }
+    throw error;
+  }
 }
 
-async function proposeIn(tx: Prisma.TransactionClient, projectId: string, input: { key: string; agent: string; reason: string; pipelineId?: string }, by: Proposer, options: { direct?: boolean } = {}) {
+async function proposeIn(tx: Prisma.TransactionClient, projectId: string, input: { key: string; agent: string; reason: string; pipelineId?: string; assignmentRunId?: string; selectionDecision?: SelectionDecision }, by: Proposer, options: { direct?: boolean } = {}) {
+    let assignment: { id: string; versionId: string } | null = null;
     const backlog = await tx.backlogItem.findUnique({ where: { projectId_key: { projectId, key: input.key } } });
     const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
     const latest = await latestBoardRows(projectId, tx);
@@ -337,21 +348,39 @@ async function proposeIn(tx: Prisma.TransactionClient, projectId: string, input:
       openCount: open.length, roster, agent: input.agent, reason: input.reason,
     });
     if (!d.ok || !backlog) return fail(d.ok ? "no such backlog item" : d.reason);
+    if (by.actor === "agent") {
+      if (!input.assignmentRunId || !input.selectionDecision) return fail("Assign work requires assignmentRunId and a structured selectionDecision. Read assignment_context first.");
+      const agentRun = await tx.agentRun.findFirst({ where: { id: input.assignmentRunId, projectId, agent: "work-assigner", tokenId: by.actorRef.replace(/^token:/, ""), closedAt: null }, include: { workRun: true } });
+      if (!agentRun?.workRun || agentRun.workRun.closedAt || agentRun.workRun.assignedBoardItemId || agentRun.workEntryId !== agentRun.workRun.entryId) return fail("This assignment run is no longer current.");
+      const context = await selectionContextIn(tx, projectId, input.assignmentRunId);
+      const rejection = selectionReason(input.selectionDecision, context, input.key, input.agent);
+      if (rejection) return fail(rejection);
+      assignment = agentRun.workRun;
+    }
     await ensureDefaultPipeline(tx, projectId);
-    const pipelineId = by.actor === "human" && input.pipelineId !== undefined
-      ? input.pipelineId : await routedPipelineId(tx, projectId, backlog.type);
-    if (!options.direct) {
+    const assignedVersion = assignment ? await tx.pipelineVersion.findUniqueOrThrow({ where: { id: assignment.versionId } }) : null;
+    const rule = assignment && backlog.type ? await tx.pipelineRule.findUnique({ where: { projectId_type: { projectId, type: backlog.type } } }) : null;
+    const pipelineId = by.actor === "human" && input.pipelineId !== undefined ? input.pipelineId
+      : rule?.pipelineId ?? (assignedVersion && itemGraph(assignedVersion).nodes.length ? assignedVersion.pipelineId : null) ?? await routedPipelineId(tx, projectId, backlog.type);
+    const executionVersion = assignment ? assignedVersion?.pipelineId === pipelineId ? assignedVersion : await ensureExecutionVersion(tx, projectId, pipelineId) : null;
+    if (!options.direct && !assignment) {
       const reason = await runnableReason(tx, projectId, pipelineId);
       if (reason) return fail(reason);
     }
-    const graph = await readExecutionGraph(tx, projectId, pipelineId, "max");
+    const graph = executionVersion ? itemGraph(executionVersion) : itemGraph(await readExecutionGraph(tx, projectId, pipelineId, "max"));
+    if (!graph.nodes.length) return fail("Assign work needs subsequent task steps or a Run rule pointing to a task pipeline.");
     const unrunnable = pipelineInputReason(graph, { status: "proposed", active: false, hasPlan: false, hasValidation: false, hasImplementation: false });
     if (unrunnable !== null) return fail(unrunnable);
     const item = await tx.boardItem.create({
       data: { projectId, backlogItemId: backlog.id, agent: input.agent, status: "proposed", reason: input.reason,
+        ...(input.selectionDecision ? { selectionDecision: JSON.parse(JSON.stringify(input.selectionDecision)) as Prisma.InputJsonValue } : {}),
         events: { create: { from: null, to: "proposed", actor: by.actor, actorId: by.actorRef, channel: by.actor === "human" ? by.channel : null } } },
     });
-    await ensureRunIn(tx, projectId, item.id, "proposed", true, pipelineId);
+    if (assignment && executionVersion) {
+      const run = await tx.pipelineRun.create({ data: { boardItemId: item.id, versionId: executionVersion.id, node: sequence(graph)[0], entryId: randomUUID() } });
+      await tx.boardItem.update({ where: { id: item.id }, data: { currentRunId: run.id } });
+      await tx.pipelineWorkRun.update({ where: { id: assignment.id }, data: { assignedBoardItemId: item.id } });
+    } else await ensureRunIn(tx, projectId, item.id, "proposed", true, pipelineId);
     await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: item.id } }) };
 }
@@ -390,7 +419,7 @@ async function startPipeline(projectId: string, userId: string, input: StartPipe
     if (graph.nodes.includes("accept") && target.acceptedAt) throw new BoardRejection("This work is already accepted. Choose a pipeline without Accept to check it again.");
     const version = await ensureExecutionVersion(tx, projectId, input.pipelineId);
     const run = await tx.pipelineRun.create({ data: { boardItemId: target.id, versionId: version.id, startedBy: userId,
-      inputReportId: graph.nodes.includes("implement") ? null : report?.id, node: sequence(graph)[0], entryId: randomUUID() } });
+      inputReportId: graph.nodes.includes("implement") ? null : report?.id, node: sequence(itemGraph(graph))[0], entryId: randomUUID() } });
     await claim(tx, target, { currentRunId: run.id, ...(graph.nodes.includes("verify") ? { validation: null } : {}) });
     await tx.transitionEvent.create({ data: { boardItemId: target.id, from: target.status, to: target.status, actor: "human", actorId: userId, channel: "web", note: `pipeline-started:${run.id}:${graph.name}` } });
     await advanceRun(tx, projectId, target.backlogItem.key);

@@ -34,7 +34,12 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         const claim = input.outcome ? input.receipt ?? null : null;
         if (input.outcome && !claim) throw new StaleCursor();
         let closedTerminal = false;
-        if (entry) {
+        const workRun = entry && key === null ? await tx.pipelineWorkRun.findUnique({ where: { id: entry.runId }, include: { version: true } }) : null;
+        if (["work-assigner", "work-discoverer"].includes(input.agent) && !entry) throw new StaleCursor();
+        if (workRun && entry) {
+          if (workRun.projectId !== projectId || workRun.closedAt || workRun.entryId !== entry.entryId || workRun.node !== entry.slotId
+            || dispatcherFor(entry.slotId, "") !== input.agent || key !== null) throw new StaleCursor();
+        } else if (entry) {
           await tx.$queryRaw`SELECT "id" FROM "PipelineRun" WHERE "id" = ${entry.runId} FOR UPDATE`;
           const pipeline = await tx.pipelineRun.findUnique({ where: { id: entry.runId }, include: { version: true, boardItem: { include: { backlogItem: true } } } });
           if (!pipeline || pipeline.boardItem.projectId !== projectId || pipeline.boardItem.discardedAt || pipeline.version.format !== SLOT_FORMAT) throw new StaleCursor();
@@ -64,7 +69,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           const item = await tx.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, include: { run: { include: { version: true } } } });
           if (item?.run?.version.format !== null && item?.run?.version.format !== undefined) throw new StaleCursor();
         }
-        const binding = { pipelineRunId: entry?.runId ?? null, pipelineEntryId: entry?.entryId ?? null };
+        const binding = { pipelineRunId: workRun ? null : entry?.runId ?? null, pipelineEntryId: workRun ? null : entry?.entryId ?? null, workRunId: workRun?.id ?? null, workEntryId: workRun ? entry?.entryId ?? null : null };
         const where = { projectId, agent: input.agent, key, ...binding };
         let open = await tx.agentRun.findFirst({ where: { ...where, closedAt: null }, orderBy: { openedAt: "desc" } });
         const claimedRun = claim ? await tx.agentRun.findFirst({ where: { ...where, id: claim.runId } }) : open;

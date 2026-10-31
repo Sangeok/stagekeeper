@@ -33,11 +33,11 @@ describe("entitlement", () => {
     assert.throws(() => limitsFor("enterprise"), /unknown plan: enterprise/);
   });
 
-  it("free gets pm + feature-scout only; pro and max get all four report agents", () => {
-    assert.deepEqual(LIMITS.free.agents, ["pm", "feature-scout"]);
+  it("free includes discovery and assignment with legacy aliases; pro and max include all report agents", () => {
+    assert.deepEqual(LIMITS.free.agents, ["pm", "feature-scout", "work-assigner", "work-discoverer"]);
     assert.deepEqual(LIMITS.pro.agents, REPORT_AGENTS);
     assert.deepEqual(LIMITS.max.agents, REPORT_AGENTS);
-    assert.deepEqual(REPORT_AGENTS, ["pm", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"]);
+    assert.deepEqual(REPORT_AGENTS, ["pm", "work-assigner", "work-discoverer", "plan-verifier", "doc-auditor", "feature-scout", "qa-verifier", "impl-verifier"]);
   });
 
   describe("withinLimit", () => {

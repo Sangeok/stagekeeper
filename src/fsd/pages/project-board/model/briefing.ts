@@ -90,7 +90,7 @@ function activityItem(row: BoardRow, today: Date): ActivityItem {
   }
 }
 
-function pmState(rows: readonly BoardRow[]): string {
+function assignmentState(rows: readonly BoardRow[]): string {
   const pending = rows.filter((row) => row.status === "proposed").length;
   return pending > 0 ? `${pending} awaiting your approval` : "No new proposals";
 }
@@ -125,7 +125,7 @@ function teamState(agent: string, rows: readonly BoardRow[]): string {
     const current = eligible.find((row) => row.dispatched) ?? eligible[0];
     return current ? `${current.dispatched ? "Working on" : "Ready for"} ${current.backlogItem.key}` : "Idle";
   }
-  if (agent === "pm") return pmState(rows);
+  if (agent === "work-assigner") return assignmentState(rows);
   if (agent === "plan-verifier") return verifierState(rows);
   return workerState(agent, rows);
 }
@@ -135,7 +135,6 @@ export function buildBriefing(
   today: Date,
   roster: readonly string[],
   nodes: readonly string[],
-  autoProposeEnabled = true,
 ): Briefing {
   const gateItems: ActivityItem[] = [];
   const otherItems: ActivityItem[] = [];
@@ -149,6 +148,6 @@ export function buildBriefing(
     const agent = slotAgent(kind);
     return agent !== null ? [agent] : [];
   };
-  const team = [...new Set([...(autoProposeEnabled ? ["pm"] : []), ...nodes.filter(kind => kind !== "propose").flatMap(agentsOf)])].map((agent) => ({ agent, state: teamState(agent, rows) }));
+  const team = [...new Set(nodes.filter(kind => kind !== "propose").flatMap(agentsOf))].map((agent) => ({ agent, state: teamState(agent, rows) }));
   return { activity: [...gateItems, ...otherItems], team };
 }

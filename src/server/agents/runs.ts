@@ -17,15 +17,18 @@ export function createNextDeps(db: PrismaClient): NextDeps {
     access: (projectId) => readProjectAccess(db, projectId),
     roster: (projectId) => loadProjectRoster(db, projectId),
     template: async (projectId, path, client) => {
+      const original = path;
+      path = path.replace("work-assigner.md", "pm.md").replace("work-discoverer.md", "feature-scout.md");
+      const adapt = (body: string | null): string | null => body === null ? null : original.includes("work-assigner") ? body.replace(/\bpm\b/g, "work-assigner") : original.includes("work-discoverer") ? body.replace(/feature-scout/g, "work-discoverer") : body;
       if (client === "codex") {
         const bundle = await resolveCodexBundle(projectId, db);
         if (!bundle.ok) throw new Error(bundle.reason);
-        return bundle.item.templates[path] ?? null;
+        return adapt(bundle.item.templates[path] ?? null);
       }
       const { language } = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { language: true } });
       const find = (lang: string) => db.template.findUnique({ where: { lang_path: { lang, path } }, select: { body: true } });
       const row = (await find(language)) ?? (language === TEMPLATE_FALLBACK_LANG ? null : await find(TEMPLATE_FALLBACK_LANG));
-      return row?.body ?? null;
+      return adapt(row?.body ?? null);
     },
     vars: async (projectId, agent, client) => {
       const project = await db.project.findUniqueOrThrow({

@@ -8,7 +8,7 @@ import { PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND } from "../../../src/serv
 import { cleanup, connections, fixture, pipelineState } from "./support";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 
-it("all type rules route agent proposals, null falls back to default, and web choice survives downgrade", async () => {
+it("all type rules route manual proposals, null falls back to default, and web choice survives downgrade", async () => {
   const pool = connections(1); const [db] = pool.all; const f = await fixture(db, { plan: "pro", status: "done" });
   try {
     const identity = { projectId: f.projectId, userId: f.userId }, board = createBoardQueries(db);
@@ -18,7 +18,7 @@ it("all type rules route agent proposals, null falls back to default, and web ch
     for (const [index, type] of [...ITEM_TYPES, null].entries()) {
       const key = `ROUTE-${index}`;
       await db.backlogItem.create({ data: { projectId: f.projectId, key, title: key, area: "web", source: "test", type } });
-      const proposed = await board.propose(f.projectId, { key, agent: "dev", reason: "test" }, { actor: "agent", actorRef: "pm" });
+      const proposed = await board.propose(f.projectId, { key, agent: "dev", reason: "test" }, { actor: "human", actorRef: f.userId, channel: "web" });
       assert.ok(proposed.ok);
       const run = await db.pipelineRun.findFirstOrThrow({ where: { boardItemId: proposed.item.id }, include: { version: true } });
       assert.equal(run.version.pipelineId, type === null ? `default_${f.projectId}` : saved.pipelineId);
@@ -48,7 +48,7 @@ it("two pipelines share the project-wide open cap and keep the exact public boar
       if (index < 2) assert.equal(result.ok, true);
       else { assert.deepEqual(result, { ok: false, reason: "open items: 2 (max 2)" }); assert.deepEqual(await pipelineState(db, f.projectId), before); }
     }
-    const keys = ["id", "projectId", "backlogItemId", "agent", "status", "reason", "results", "validation", "acceptedAt", "planPath", "planCommit", "proposedOn", "updatedAt", "discardedAt", "backlogItem"];
+    const keys = ["id", "projectId", "backlogItemId", "agent", "status", "reason", "selectionDecision", "results", "validation", "acceptedAt", "planPath", "planCommit", "proposedOn", "updatedAt", "discardedAt", "backlogItem"];
     const listed = await tools.boardList(f.projectId, true); assert.equal(listed.length, 2);
     for (const row of listed) { assert.deepEqual(Object.keys(row).sort(), [...keys].sort()); assert.deepEqual(Object.keys(row.backlogItem).sort(), ["area", "key", "title", "type"]); }
     const detail = await tools.boardGet(f.projectId, "CAP-0"); assert.ok(detail);

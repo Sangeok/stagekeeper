@@ -114,7 +114,7 @@ function compactView(turn: Turn, tab: Tab, slug: string, pathname: string): Comp
     }
     case "mine":
       return {
-        detail: turn.why === null ? turn.detail : `${turn.detail} · pm is blocked until you clear one`,
+        detail: turn.why === null ? turn.detail : `${turn.detail} · Assign work waits until you clear one`,
         action: compactAction(turn.open, slug, pathname),
       };
     case "theirs":

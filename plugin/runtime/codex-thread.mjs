@@ -27,10 +27,10 @@ export function childEnvironment(environment = process.env) {
 
 export function rolePermissions(input, agent, key, scratch) {
   const root = input.binding.root, workspace = input.config.workspaces.find(ws => ws.agent === agent);
-  const filesystem = { ":root": "deny", ...(agent === "pm" ? {} : { ":minimal": "read" }), [root]: "read", [scratch]: "write", [path.join(homedir(), ".codex")]: "deny",
+  const filesystem = { ":root": "deny", ...(["pm", "work-assigner"].includes(agent) ? {} : { ":minimal": "read" }), [root]: "read", [scratch]: "write", [path.join(homedir(), ".codex")]: "deny",
     [path.join(root, ".git")]: "read", [path.join(root, ".codex")]: "read", [path.join(root, ".claude")]: "deny" };
-  filesystem[path.dirname(gitRoot(root).directory)] = agent === "pm" ? "deny" : "read";
-  if (agent === "pm") { filesystem[root] = "deny"; filesystem[scratch] = "deny"; filesystem[path.join(root, ".codex")] = "deny"; }
+  filesystem[path.dirname(gitRoot(root).directory)] = ["pm", "work-assigner"].includes(agent) ? "deny" : "read";
+  if (["pm", "work-assigner"].includes(agent)) { filesystem[root] = "deny"; filesystem[scratch] = "deny"; filesystem[path.join(root, ".codex")] = "deny"; }
   if (agent === "qa-verifier") {
     if (!key || !/^[A-Za-z0-9_-]+$/.test(key)) throw new Error("QA requires a safe item key");
     filesystem[safeTarget(root, `docs/agents/qa-verifier/${key}.md`)] = "write";
@@ -263,9 +263,9 @@ export function assertRolePolicy(config, filesystem, url, agent, nativeFiles = f
   const disabled = ["multi_agent", "apps", "hooks", "memories", "goals", "view_image", "request_permissions_tool"];
   const featuresMatch = () => config.agents?.enabled === false && config.approval_policy === "never" && config.default_permissions === "harness-role"
     && config.sandbox_mode == null
-    && config.web_search === (agent === "feature-scout" ? "live" : "disabled") && config.project_doc_max_bytes === 0 && config.features?.code_mode?.enabled === false
+    && config.web_search === (["feature-scout", "work-discoverer"].includes(agent) ? "live" : "disabled") && config.project_doc_max_bytes === 0 && config.features?.code_mode?.enabled === false
     && disabled.every(name => config.features?.[name] === false)
-    && config.features?.shell_tool === (!nativeFiles && !["pm", "qa-verifier"].includes(agent)) && config.features?.unified_exec === false
+    && config.features?.shell_tool === (!nativeFiles && !["pm", "work-assigner", "qa-verifier"].includes(agent)) && config.features?.unified_exec === false
     && !(agent === "qa-verifier" && (nativeCommands || nativeGit));
   const inheritedToolsDisabled = () => Object.entries(config.mcp_servers ?? {}).every(([name, server]) => name === "harness" || server.enabled === false)
     && Object.values(config.plugins ?? {}).every(plugin => plugin.enabled === false);
@@ -292,7 +292,7 @@ export class RoleExecutionUnavailable extends Error {
 }
 
 export async function verifyRoleExecution(server, scratch, agent, platform = process.platform, fileBroker = null) {
-  if (agent === "pm") return;
+  if (["pm", "work-assigner"].includes(agent)) return;
   const marker = "harness-role-execution-ready";
   if (fileBroker) {
     try {
@@ -369,7 +369,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     const nativeFiles = process.platform === "win32" || dispatch.agent === "qa-verifier", nativeFileBroker = nativeFiles ? runtime.createRoleFiles(filesystem, dispatch.agent) : null;
     fileBroker = nativeFileBroker;
     let nativeRuntime = null;
-    if (nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)) {
+    if (nativeFiles && !["pm", "work-assigner", "qa-verifier"].includes(dispatch.agent)) {
       try { nativeRuntime = runtime.installedWindowsRuntime(); } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
     const commandLifecycle = { onSpawn: identity => registerChild(files, session, input.binding, identity), onSettled: identity => settleChild(files, session, identity),
@@ -377,7 +377,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     if (nativeRuntime) { try { await runtime.verifyNativeRuntime(nativeRuntime, commandLifecycle); } catch { await commandLifecycle.beforeActivate(); throw new RoleExecutionUnavailable(); } }
     const commandBroker = nativeRuntime ? await runtime.createRoleCommands({ root: input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;
     fileBroker = commandBroker;
-    const nativeGit = nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent);
+    const nativeGit = nativeFiles && !["pm", "work-assigner", "qa-verifier"].includes(dispatch.agent);
     const localFiles = nativeGit ? runtime.createRoleGit({ root: input.binding.root, agent: dispatch.agent, fileBroker: nativeFileBroker, backend: commandBroker,
       planCommit: dispatch.planCommit ?? null, commitHandoff: dispatch.commitHandoff ?? null, commonDirectory: path.dirname(path.dirname(files.lock)) }, commandLifecycle) : commandBroker;
     fileBroker = localFiles;
@@ -387,8 +387,8 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
       { listTools: runtime.listTools, callTool: runtime.callTool, checkSession: runtime.checkSession, record: runtime.record }, fileBroker);
     runtime.signal?.throwIfAborted();
     const config = [
-      'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.view_image=false', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(dispatch.agent === "feature-scout" ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
-      `features.shell_tool=${!nativeFiles && !["pm", "qa-verifier"].includes(dispatch.agent)}`, 'features.unified_exec=false', 'default_permissions="harness-role"', 'permissions.harness-role.extends=":read-only"',
+      'approval_policy="never"', 'agents.enabled=false', 'features.multi_agent=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.view_image=false', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', `web_search=${JSON.stringify(["feature-scout", "work-discoverer"].includes(dispatch.agent) ? "live" : "disabled")}`, 'project_doc_max_bytes=0',
+      `features.shell_tool=${!nativeFiles && !["pm", "work-assigner", "qa-verifier"].includes(dispatch.agent)}`, 'features.unified_exec=false', 'default_permissions="harness-role"', 'permissions.harness-role.extends=":read-only"',
       `permissions.harness-role.filesystem={${Object.entries(filesystem).map(([file, access]) => `${JSON.stringify(file)}=${JSON.stringify(access)}`).join(",")}}`, 'permissions.harness-role.network.enabled=false',
       `mcp_servers={harness={url=${JSON.stringify(bridge.url)},enabled_tools=${JSON.stringify(tools)}}}`, 'shell_environment_policy.inherit="none"',
     ];
@@ -406,7 +406,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     const skills = (inventory.data ?? []).flatMap(value => value.skills ?? []);
     const isRoleVerifier = skill => roleVerifier !== null && skill.name === "reconciling-proposals-with-codebase" && realpathSync(skill.path) === realpathSync(roleVerifier.path);
     if (roleVerifier && skills.filter(isRoleVerifier).length !== 1) throw new Error("Actual staged verifier loader path differs");
-    const nativeInstructions = nativeFiles && dispatch.agent !== "pm" ? "\nWindows native file operations use only mcp__harness__role_file_read/list/search/write with absolute paths. role_file_read accepts maxLines 1..500 (default 200); follow nextLine until null to read the full file. Invalid read pagination (-32602) may be corrected within those bounds; permission or ownership refusals must not be bypassed. File writes require the current hash (null only for an absent file). These operations preserve role filesystem permissions. Literal search reports incomplete/truncated/skipped scans; finish reading the affected files before claiming a complete review. "
+    const nativeInstructions = nativeFiles && !["pm", "work-assigner"].includes(dispatch.agent) ? "\nWindows native file operations use only mcp__harness__role_file_read/list/search/write with absolute paths. role_file_read accepts maxLines 1..500 (default 200); follow nextLine until null to read the full file. Invalid read pagination (-32602) may be corrected within those bounds; permission or ownership refusals must not be bypassed. File writes require the current hash (null only for an absent file). These operations preserve role filesystem permissions. Literal search reports incomplete/truncated/skipped scans; finish reading the affected files before claiming a complete review. "
       + (nativeRuntime ? "Run build/test commands through mcp__harness__role_command_exec using relative paths in its fresh disposable repository snapshot. For repository-root cwd, omit cwd or use an empty string or exactly .; timeoutMs is 100..120000. Invalid command parameters (-32602) may be corrected within those bounds without changing permissions. STAGEKEEPER_ROLE_SCRATCH points to a fresh copy of the supplied role scratch, including any prepared verification sketches and staged skill files. Original absolute repository/scratch paths cannot be used by commands. It excludes Git metadata, .env files and denied paths; no owner environment or network is available. All snapshot writes and generated outputs are discarded. Edit originals through guarded file tools and run a fresh command afterward. Record the snapshot hash and omissions in verification evidence; a zero exit alone does not cover omitted dependencies or original files changed afterward. Timeout, stop and output-limit are blocked/failed, never passed. " : "Shell commands, builds and tests are unavailable in this backend: report requested command checks as blocked, never passed. ")
       + (nativeGit ? "Git read checks use mcp__harness__role_git_read, never role_command_exec. Translate git diff/status/show/rev-parse checks in the supplied role or skill to its fixed operations. Select concrete permitted absolute file paths through file tools; directories, wildcards and repository-wide claims are unavailable. show/diff accept HEAD, the exact supplied planCommit, or commitHandoff.commit for its one confirmed path; show reads one file. diff compares committed content with current original bytes. status uses a private index copy and explicit files; ignore rules, rename tracking, filters and line-ending conversion are unavailable. Record its head, ref, file hashes and explicit-files scope. Original Git metadata stays private and unchanged; commit remains an owner handoff. " : "")
       + "Do not request WSL, another login, or permission escalation. Load the supplied verifier SKILL.md and its referenced files through role_file_read when required." : "";

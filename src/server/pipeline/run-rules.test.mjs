@@ -70,7 +70,7 @@ describe("decideNext (H.4)", () => {
     assert.equal(decideNext({ ...base, node: "propose", status: "proposed" }).agent, "pm");
   });
   it("HINT covers every node the pipeline can stop on, accept included", () => {
-    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "doc-audit", "impl-verify", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
+    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "discover-work", "doc-audit", "impl-verify", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
     assert.match(HINT.verify, /validation_record/);
     assert.match(HINT.verify, /verification-paths\.md/);
     assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);

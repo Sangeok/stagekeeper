@@ -125,7 +125,7 @@ describe("rail-state", () => {
     assert.equal(r.ok, true);
     if (r.ok) {
       assert.deepEqual(r.definition.steps.slice(-2), ["scout", "doc-audit"]);
-      assert.deepEqual(r.definition.steps.slice(0, 4), ["plan", "verify", "implement", "accept"]);
+      assert.deepEqual(r.definition.steps.slice(0, 6), ["discover-work", "assign-work", "plan", "verify", "implement", "accept"]);
     }
   });
 

@@ -8,7 +8,8 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma as defaultDb } from "@/server/db";
 import { readProjectAccess } from "@/server/projects/api";
 import { createBoardService } from "@/server/pipeline/api";
-import { RUNBOOK_STALE_NOTE, scoutNodePending } from "@/server/pipeline/api";
+import { RUNBOOK_STALE_NOTE } from "@/server/pipeline/api";
+import { assignmentContext } from "@/server/pipeline/api";
 import { headFor, nextFor } from "@/server/pipeline/api";
 import { runbookStale, resolveCodexBundle } from "@/server/templates/api";
 import { checkCodexRunbook } from "@/server/templates/api";
@@ -29,7 +30,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
     projectGet: (projectId) => loadProjectView((args) => prisma.project.findUniqueOrThrow(args), projectId),
     projectSync: (projectId, workspaces, language) => syncProject(prisma, { projectId, workspaces, language }),
     backlogAdd: (projectId, input) => board.addBacklog(projectId, { title: input.title, area: input.area, source: input.source,
-      type: input.type, addedBy: "feature-scout", addedByRunId: input.runId }),
+      type: input.type, addedBy: "work-discoverer", addedByRunId: input.runId }),
     backlogList: async (projectId, includeRemoved) => (await board.backlogWithStatus(projectId, includeRemoved)).map(backlogWithStatusView),
     backlogGet: async (projectId, key) => {
       const row = await prisma.backlogItem.findUnique({ where: { projectId_key: { projectId, key } } });
@@ -40,6 +41,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
       const row = await board.getWithHistory(projectId, key, historyCutoff((await readProjectAccess(prisma, projectId)).plan, new Date()));
       return row === null ? null : boardWithBacklogView(row);
     },
+    assignmentContext: (projectId, runId) => assignmentContext(prisma, projectId, runId),
     propose: (projectId, input, actorRef) => board.propose(projectId, input, { actor: "agent", actorRef }),
     transition: async (projectId, input, actorRef) => {
       const result = await board.transition(projectId, input, { actor: "agent", actorRef });
@@ -75,7 +77,7 @@ export function createToolDeps(prisma: PrismaClient): ToolDeps {
         const next = await nextFor(prisma, projectId, key);
         items.push(client === "codex" ? await codexHandoffView(prisma, projectId, next) : next);
       }
-      const head = await headFor(prisma, projectId, open.length, await board.availableBacklogCount(projectId), scoutNodePending(items));
+      const head = await headFor(prisma, projectId);
       const stale = client === "codex" ? false : await runbookStale(projectId, prisma, runbook);
       return { ok: true as const, item: { head, items, ...(runtime ? { runtime } : {}), ...(stale ? { runbook: { stale: true as const, note: RUNBOOK_STALE_NOTE } } : {}) } };
     },

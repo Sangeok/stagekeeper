@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence, expand, validateGraph } from "@harness/core/pipeline/pipeline.mjs";
+import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence, expand, validateGraph, itemGraph, DEFAULT_SELECTION_POLICY } from "@harness/core/pipeline/pipeline.mjs";
 import { validateExecutionGraph } from "@harness/core/pipeline/run-input.mjs";
 import { qaEntryResult } from "./qa-query";
 import { implVerifyEntryResult } from "./impl-verify-query";
 import { readProjectUsageCapIn } from "@/server/usage/api";
 import { Prisma, type PrismaClient, type PipelineVersion } from "@/generated/prisma/client";
 import { readProjectPlanIn, READ_OPTIONS } from "@/server/projects/api";
-import { decideHead, decideNext, handoffIsLive, type HeadNext, type PipelineNext } from "./run-rules";
+import { decideNext, handoffIsLive, type PipelineNext } from "./run-rules";
+
+import { projectWorkNext, type WorkNext } from "./work-run";
 
 import { PipelineRejection, withPipelineWrite } from "./lock-pipeline";
 
@@ -25,9 +27,9 @@ export const defaultPipelineIdOf = (projectId: string): string => `default_${pro
 
 export type PipelineView = {
   id: string; name: string; isDefault: boolean;
-  definition: { steps: string[]; gates: string[] };
+  definition: { steps: string[]; gates: string[]; selectionPolicy?: string };
   saved: { version: number; createdAt: Date } | null;
-  runnable: { nodes: string[]; gates: string[]; format: string | null } | null;
+  runnable: { nodes: string[]; gates: string[]; format: string | null; selectionPolicy?: string | null } | null;
 };
 export type PipelinesView = { pipelines: PipelineView[]; rules: Record<string, string>; autoProposeEnabled: boolean };
 export type PipelineChangeView = { fromName: string; toName: string };
@@ -66,7 +68,8 @@ export async function ensureRunnableVersion(tx: Prisma.TransactionClient, projec
   if (id !== defaultId) throw new PipelineRejection(PIPELINE_CANNOT_RUN_ITEMS);
   const definition = await tx.pipelineDefinition.findFirst({ where: { pipelineId: id }, select: { id: true } });
   if (definition) throw new Error("Default pipeline has a definition without a runnable version.");
-  const graph = defaultGraph(await readProjectPlanIn(tx, projectId));
+  const flags = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true, autoProposeEnabled: true } });
+  const graph = initialGraph(await readProjectPlanIn(tx, projectId), flags);
   const version = await nextPipelineVersion(tx, projectId);
   const definitionId = randomUUID(), versionId = randomUUID();
   const definitions = await tx.$queryRaw<{ id: string }[]>`INSERT INTO "PipelineDefinition" ("id", "pipelineId", "version", "steps", "gates", "createdBy")
@@ -80,21 +83,21 @@ export async function ensureRunnableVersion(tx: Prisma.TransactionClient, projec
 }
 
 export async function loadPipelinesViewIn(tx: Prisma.TransactionClient, projectId: string): Promise<PipelinesView> {
-  const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { defaultPipelineId: true, autoProposeEnabled: true } });
+  const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { defaultPipelineId: true, autoProposeEnabled: true, autoScoutEnabled: true } });
   const defaultId = project.defaultPipelineId ?? defaultPipelineIdOf(projectId);
   const rows = await tx.pipeline.findMany({ where: { projectId, archivedAt: null }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: { definitions: { orderBy: { version: "desc" }, take: 1 } } });
   const versions = await tx.pipelineVersion.findMany({
     where: { projectId, pipelineId: { in: rows.map(row => row.id) } },
     orderBy: { version: "desc" }, distinct: ["pipelineId"],
-    select: { pipelineId: true, nodes: true, gates: true, format: true },
+    select: { pipelineId: true, nodes: true, gates: true, format: true, selectionPolicy: true },
   });
   const versionByPipeline = new Map(versions.map(version => [version.pipelineId, version]));
   const rules = await tx.pipelineRule.findMany({ where: { projectId }, select: { type: true, pipelineId: true } });
   const plan = await readProjectPlanIn(tx, projectId);
   if (project.defaultPipelineId !== null && !rows.some(row => row.id === defaultId)) throw new Error("Default pipeline is missing or archived.");
   const virtual = (): PipelineView => {
-    const graph = defaultGraph(plan);
+    const graph = initialGraph(plan, project);
     return { id: defaultId, name: DEFAULT_PIPELINE_NAME, isDefault: true, definition: { steps: graph.nodes, gates: graph.gates }, saved: null, runnable: { ...graph, format: SLOT_FORMAT } };
   };
   const pipelines: PipelineView[] = rows.map(row => {
@@ -106,8 +109,8 @@ export async function loadPipelinesViewIn(tx: Prisma.TransactionClient, projectI
     if (row.id === defaultId && !version) throw new Error("Default pipeline has no runnable version.");
     if (version && version.format !== null && version.format !== SLOT_FORMAT) throw new Error("Unsupported pipeline format; update the compatible bundle.");
     return { id: row.id, name: row.name, isDefault: row.id === defaultId,
-      definition: { steps: definition.steps, gates: definition.gates }, saved: { version: definition.version, createdAt: definition.createdAt },
-      runnable: version && validateGraph(version, plan).ok ? { nodes: version.nodes, gates: version.gates, format: version.format } : null };
+      definition: { steps: definition.steps, gates: definition.gates, ...(definition.selectionPolicy ? { selectionPolicy: definition.selectionPolicy } : {}) }, saved: { version: definition.version, createdAt: definition.createdAt },
+      runnable: version && validateGraph(version, plan).ok ? { nodes: version.nodes, gates: version.gates, format: version.format, selectionPolicy: version.selectionPolicy } : null };
   });
   if (!pipelines.some(row => row.id === defaultId)) pipelines.unshift(virtual());
   const definitions = Object.fromEntries(pipelines.map(pipeline => [pipeline.id, pipeline.definition]));
@@ -167,7 +170,7 @@ export async function ensureRunIn(tx: Prisma.TransactionClient, projectId: strin
     return found;
   }
   const version = pipelineId ? await ensureExecutionVersion(tx, projectId, pipelineId) : await ensureRunnableVersion(tx, projectId);
-  const graph: Graph = { nodes: version.nodes, gates: version.gates };
+  const graph: Graph = itemGraph(version);
   const node = (fresh ? sequence(graph)[0] : cursorForStatus(graph, status)) ?? sequence(graph)[0];
   const run = await tx.pipelineRun.create({ data: { boardItemId, versionId: version.id, node, entryId: version.format === SLOT_FORMAT ? randomUUID() : null }, include: { version: true } });
   await tx.boardItem.update({ where: { id: boardItemId }, data: { currentRunId: run.id, updatedAt: item.updatedAt } });
@@ -185,7 +188,8 @@ export async function ensureExecutionVersion(tx: Prisma.TransactionClient, proje
   if (!pipeline.saved && pipeline.isDefault) return ensureRunnableVersion(tx, projectId, pipelineId);
   const latest = await tx.pipelineVersion.findFirst({ where: { projectId, pipelineId }, orderBy: { version: "desc" } });
   if (latest?.format === SLOT_FORMAT && JSON.stringify(latest.nodes) === JSON.stringify(composed.graph.nodes)
-    && JSON.stringify([...latest.gates].sort()) === JSON.stringify([...composed.graph.gates].sort())) return latest;
+    && JSON.stringify([...latest.gates].sort()) === JSON.stringify([...composed.graph.gates].sort())
+    && (latest.selectionPolicy ?? DEFAULT_SELECTION_POLICY) === (composed.graph.selectionPolicy ?? DEFAULT_SELECTION_POLICY)) return latest;
   return tx.pipelineVersion.create({ data: { projectId, pipelineId, version: await nextPipelineVersion(tx, projectId),
     ...composed.graph, format: SLOT_FORMAT, createdBy: "pipeline" } });
 }
@@ -282,27 +286,12 @@ export async function nextFor(db: PrismaClient, projectId: string, key: string):
   });
 }
 
-export async function headFor(db: Db, projectId: string, openCount: number, availableBacklog: number, scoutNodePending: boolean): Promise<HeadNext> {
-  const cap = await readProjectUsageCapIn(db, projectId);
-  const [lastScout, backlogChange, resumableScout, project] = await Promise.all([
-    db.agentRun.findFirst({ where: { projectId, agent: "feature-scout", key: null, closedAt: { not: null },
-      steps: { some: { stepId: "report", outcome: "ok", OR: [{ accepted: true }, { accepted: null }] } },
-    }, orderBy: { closedAt: "desc" }, select: { closedAt: true } }),
-    db.backlogItem.aggregate({ where: { projectId }, _max: { createdAt: true, removedAt: true } }),
-    db.agentRun.findFirst({ where: { projectId, agent: "feature-scout", key: null,
-      pipelineRunId: null, pipelineEntryId: null, closedAt: null }, select: { id: true } }),
-    db.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true, autoProposeEnabled: true } }),
-  ]);
-  const changedAt = Math.max(backlogChange._max.createdAt?.getTime() ?? 0, backlogChange._max.removedAt?.getTime() ?? 0);
-  return decideHead({
-    autoScoutEnabled: project.autoScoutEnabled,
-    scoutNodePending,
-    hasResumableScoutRun: resumableScout !== null,
-    scoutedSinceChange: lastScout?.closedAt !== null && lastScout?.closedAt !== undefined && lastScout.closedAt.getTime() > changedAt,
-    autoProposeEnabled: project.autoProposeEnabled,
-    openCount,
-    availableBacklog,
-    hasResumablePmRun: await db.agentRun.findFirst({ where: { projectId, agent: "pm", key: null, pipelineRunId: null, pipelineEntryId: null, closedAt: null }, select: { id: true } }) !== null,
-    cap,
-  });
+export async function headFor(db: PrismaClient, projectId: string): Promise<WorkNext> {
+  return projectWorkNext(db, projectId);
+}
+
+function initialGraph(plan: string, flags: { autoScoutEnabled: boolean; autoProposeEnabled: boolean }): Graph {
+  const graph = defaultGraph(plan);
+  const nodes = graph.nodes.filter(node => node !== "assign-work" || flags.autoProposeEnabled).filter(node => node !== "discover-work" || flags.autoScoutEnabled);
+  return { nodes, gates: graph.gates };
 }

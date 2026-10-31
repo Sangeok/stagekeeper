@@ -128,13 +128,13 @@ it("planning submission also keeps owner type, and proposed discard removes only
     const removeOpen = await service.removeBacklog(f.projectId, f.key); assert.equal(removeOpen.ok, false);
     assert.equal((await service.discard(f.projectId, { key: f.key, userId: f.userId, expectedUpdatedAt: plan.item.updatedAt })).ok, true);
     assert.equal((await db.backlogItem.findUniqueOrThrow({ where: { id: f.backlogItemId } })).removedAt, null);
-    const proposed = await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "agent", actorRef: "pm" }); assert.ok(proposed.ok);
+    const proposed = await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "human", actorRef: f.userId, channel: "web" }); assert.ok(proposed.ok);
     assert.equal((await service.discard(f.projectId, { key: f.key, userId: f.userId, expectedUpdatedAt: new Date(0) })).ok, false);
     assert.equal((await db.backlogItem.findUniqueOrThrow({ where: { id: f.backlogItemId } })).removedAt, null);
     assert.equal((await service.discard(f.projectId, { key: f.key, userId: f.userId, expectedUpdatedAt: proposed.item.updatedAt })).ok, true);
     const removed = await db.backlogItem.findUniqueOrThrow({ where: { id: f.backlogItemId } });
     assert.ok(removed.removedAt); assert.equal(removed.removedReason, "discarded");
-    assert.equal((await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "agent", actorRef: "pm" })).ok, false);
+    assert.equal((await service.propose(f.projectId, { key: f.key, agent: "dev", reason: "again" }, { actor: "human", actorRef: f.userId, channel: "web" })).ok, false);
   } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
@@ -174,7 +174,7 @@ for (const materialized of [false, true]) for (const winner of ["remove", "propo
     const remove = settled(createBoardService(removeDb).removeBacklog(f.projectId, f.key)); pending.push(remove);
     await removePaused.entered();
     const propose = settled(createBoardService(afterProjectRead(b, proposalRead.hook)).propose(f.projectId,
-      { key: f.key, agent: "dev", reason: "test" }, { actor: "agent", actorRef: "pm" })); pending.push(propose);
+      { key: f.key, agent: "dev", reason: "test" }, { actor: "human", actorRef: f.userId, channel: "web" })); pending.push(propose);
     await proposalRead.entered();
     if (winner === "propose") { const result = await propose; assert.ok(result.ok && result.value.ok); }
     removePaused.release();

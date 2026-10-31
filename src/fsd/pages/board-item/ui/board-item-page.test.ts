@@ -23,6 +23,12 @@ const router = { back: noop, forward: noop, refresh: noop, push: noop, replace: 
 const render = (patch: Partial<BoardItemView> = {}, canWrite = true) => renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: router },
   createElement(BoardItemPage, { slug: "example", pipelineChoices: [], changePipeline: async () => ({ success: true as const, data: null }), retryAcceptance: async () => ({ success: true as const, data: undefined }), item: { ...item, ...patch }, canWrite, transition: async () => ({ success: true as const, data: undefined }) })));
 
+it("shows saved assignment policy, evidence, alternatives and assignee rationale", () => {
+  const html = render({ selectionDecision: { contextKey: "snapshot", policy: "Oldest first", criterion: "First eligible issue", readiness: "Dependencies checked", assignmentReason: "Owns web", uncertainties: [], evidence: [{ key: "K-1", quote: "Submit fails <script>" }], comparisons: [{ key: "K-2", reason: "Newer issue" }] } });
+  for (const text of ["Assignment decision", "Oldest first", "First eligible issue", "Dependencies checked", "Owns web", "K-2", "Newer issue", "Submit fails &lt;script&gt;"]) assert.ok(html.includes(text), text);
+  assert.ok(!render().includes("Assignment decision"));
+});
+
 it("Documents, History and the direct Failure record anchor all retain reserved path data", () => {
   const path = "docs/#?% 한글.md";
   const encodedReports = reports.map(report => ({ ...report, path, commit: "commit" }));

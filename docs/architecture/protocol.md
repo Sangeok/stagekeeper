@@ -3,6 +3,18 @@
 에이전트가 서비스에 말을 거는 방법(MCP 도구)과 보드 항목이 지켜야 하는 기록 규약을
 한곳에 둔다. 왜 이래야 하는지는 [invariants.md](./invariants.md)에 있다.
 
+## 작업 노드 실행 계약
+
+Discover work와 Assign work의 실행·선택 근거 계약은 [pipeline-execution.md](./pipeline-execution.md)를 따른다.
+`pipeline_next`의 head dispatch도 `{runId, entryId, slotId}`를 전달하며 runner와 `agent_next`는 그대로 보존한다.
+`assignment_context({runId})`의 runId는 현재 work-assigner의 agent_next receipt ID다.
+자동 `board_propose`에는 `assignmentRunId`와 `selectionDecision`이 필요하다.
+선택 기록의 필드는 `contextKey`, `policy`, `criterion`, `evidence:[{key,quote}]`,
+`comparisons:[{key,reason}]`, `readiness`, `assignmentReason`, `uncertainties:[]`다.
+후보나 출처가 바뀌면 문맥을 다시 읽고 판단해야 한다. 한 배정 실행에서 한 작업만 등록한다.
+프로젝트 승인 게이트는 Pipeline의 Run 패널에서 소유자가 승인한다. 기존 owner MCP gate_approve는
+보드 작업의 게이트 계약을 유지한다. 새 실행자는 work-discoverer와 work-assigner이며 PM은 새 head에서 실행하지 않는다.
+
 ## 템플릿 다운로드 — `GET /api/templates`
 
 `/harness:init`은 `Authorization: Bearer <토큰>`과 `lang` 쿼리(생략 시 `en`)로 템플릿을 요청한다.

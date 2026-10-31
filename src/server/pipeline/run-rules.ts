@@ -33,6 +33,7 @@ export type PipelineNextInput = {
 };
 
 export const HINT: Record<string, string> = {
+  "discover-work": "Dispatch work-discoverer with no key and this exact pipeline entry. Add evidence-backed candidates to the backlog and finish agent_next. This step does not assign work.",
   propose: "Dispatch pm with no key.",
   accept: "You run this one — reproduce the five acceptance checks yourself. All pass: write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }). Any fails: record it with acceptance_fail and tell the owner; don't reopen.",
   plan: "Dispatch with the item key. One item per dispatch.",
@@ -74,7 +75,7 @@ export const RUNBOOK_STALE_NOTE =
 
 export function hintFor(node: string): string {
   const agent = slotAgent(node);
-  return HINT[node] ?? (agent === "doc-auditor" ? HINT["doc-audit"] : agent === "feature-scout" ? HINT.scout : "");
+  return HINT[node] ?? (agent === "doc-auditor" ? HINT["doc-audit"] : agent === "feature-scout" ? HINT.scout : agent === "work-discoverer" ? HINT["discover-work"] : "");
 }
 
 export type HeadInput = {

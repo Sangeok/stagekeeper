@@ -128,9 +128,11 @@ export function actionableWork(overview, policy) {
   requireValue(object(overview) && object(overview.head) && Array.isArray(overview.items));
   requireValue(object(policy) && typeof policy.propose === "boolean" && typeof policy.commit === "boolean");
   const head = overview.head;
-  if (head.action === "dispatch") requireValue((head.agent === "pm" || head.agent === "feature-scout")
+  if (head.action === "dispatch") requireValue(["pm", "feature-scout", "work-assigner", "work-discoverer", "doc-auditor"].includes(head.agent)
     && typeof head.hint === "string");
   else requireValue(head.action === "none" && typeof head.reason === "string");
+  if (head.entry !== undefined) validateEntry(head.entry);
+  if (head.action === "dispatch" && ["work-assigner", "work-discoverer", "doc-auditor"].includes(head.agent)) validateEntry(head.entry);
   if (overview.runbook !== undefined) requireValue(object(overview.runbook)
     && overview.runbook.stale === true && typeof overview.runbook.note === "string");
   const keys = new Set();
@@ -149,7 +151,7 @@ export function actionableWork(overview, policy) {
     });
   }
   return {
-    items, head: policy.propose && head.action === "dispatch" ? { agent: head.agent } : null,
+    items, head: policy.propose && head.action === "dispatch" ? { agent: head.agent, ...(head.entry ? { entry: head.entry } : {}) } : null,
     runbookStale: overview.runbook?.stale === true,
   };
 }
@@ -163,7 +165,7 @@ export function workSignature(work) {
   const tuples = work.items.map((item) => [item.key, item.node, item.version, item.action, item.agent,
     item.format, item.entry?.runId ?? null, item.entry?.entryId ?? null, item.entry?.slotId ?? null]);
   tuples.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  return JSON.stringify([tuples, work.head?.agent ?? null]);
+  return JSON.stringify([tuples, work.head?.agent ?? null, work.head?.entry ?? null]);
 }
 
 export function nextWatchState(state, signature) {
