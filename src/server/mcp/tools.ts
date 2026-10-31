@@ -184,7 +184,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.submitPlan(projectId, args, actorRef));
   });
-  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires runId and qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}. impl-verifier additionally requires runId. Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record.", inputSchema: z.object({ ...project, key: z.string(), actor: z.string(), path: z.string(), commit: z.string(), runId: z.string().optional(), qa: z.unknown().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("report_submit", { description: "Record where an actor's report is (docs/agents/<actor>/<KEY>.md, commit). QA additionally requires runId and qa {verdict, targetCommit, baseUrl, scenarios:[{id,status,expected,actual,evidence:[]}]}. impl-verifier additionally requires runId. Only in in_review, implementing, or done. In done, a main-loop report is the acceptance record; once validation_record moves the item on, the board takes no other main-loop report.", inputSchema: z.object({ ...project, key: z.string(), actor: z.string(), path: z.string(), commit: z.string(), runId: z.string().optional(), qa: z.unknown().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;
@@ -192,7 +192,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.submitReport(projectId, args, actorRef));
   });
-  server.registerTool("validation_record", { description: "main-loop: record a clean validation pass. Only in in_review, 150 characters or fewer, and only after a plan-verifier pass is on record for the current plan.", inputSchema: z.object({ ...project, key: z.string(), text: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("validation_record", { description: "main-loop: record a clean validation pass. Only in in_review, 150 characters or fewer, and only after a plan-verifier pass is on record for the current plan. Once this record moves the item on, the board takes no main-loop report until the acceptance in done.", inputSchema: z.object({ ...project, key: z.string(), text: z.string() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;
