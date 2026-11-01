@@ -268,7 +268,7 @@ npm run dev              # http://localhost:3000
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL connection string. The server and migrations need it; `db:generate` and `build` don't |
+| `DATABASE_URL` | PostgreSQL connection string for a development database, not production: `db:migrate` changes its schema immediately. The server and migrations need it; `db:generate` and `build` don't |
 | `AUTH_SECRET` | Auth.js secret, e.g. `openssl rand -base64 32` |
 | `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET` | GitHub OAuth app. Callback URL: `<your site>/api/auth/callback/github` (locally `http://localhost:3000/api/auth/callback/github`) |
 | `HARNESS_PUBLIC_URL` | The service's public base URL. Token pages show `<HARNESS_PUBLIC_URL>/api/mcp`. Defaults to `http://localhost:3000`; set it at build time for production too |
@@ -282,6 +282,13 @@ npm run dev              # http://localhost:3000
   answers 404 and `/harness:init` stops.
 - **Plans.** Sign in once, then grant a plan:
   `npm run plan:grant -- <github-login> <free|pro|max> [note]`.
+- **Production database.** `build` does not run migrations. Apply them, seed templates,
+  and grant plans on production with its connection string in a separate env file passed
+  to Node, for example
+  `node --env-file=<production env file> node_modules/prisma/build/index.js migrate deploy`
+  or `node --env-file=<production env file> --import tsx scripts/grant-plan.ts <github-login> <plan>`.
+  Values from `--env-file` take precedence over `.env`. Keep that file outside the
+  repository: Next.js loads `.env.local` and `.env.production*` on its own.
 
 ## Development
 

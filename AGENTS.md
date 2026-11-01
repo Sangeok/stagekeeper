@@ -98,6 +98,15 @@ commits that were already green on `dev`.
   (`gh workflow run e2e-smoke.yml --ref dev`), and also `agent-eval` when shipped
   `plugin/` files changed. Stop unless every job is green, and promote only the
   commit their summaries name.
+- Before promoting, check the production database's migrations; `npm run build`
+  only generates the Prisma client. The local `.env` `DATABASE_URL` must point at a
+  development database, never production, because `npm run db:migrate` changes its
+  schema immediately. Pass the production connection string explicitly, for example
+  `node --env-file=<production env file> node_modules/prisma/build/index.js migrate status`,
+  and keep that file outside the repository. Apply pending migrations with
+  `migrate deploy` before the `main` push. When a pending migration is not
+  backward-compatible with the deployed `main` (it drops or renames objects or
+  rewrites existing rows), run `migrate deploy` and the `main` push back to back.
 - **Neither `main` nor `dev` may be the head of a pull request.** Release promotion
   remains fast-forward only. The active GitHub ruleset `Keep dev and main` forbids
   deletion of both protected refs and has no bypass actors; retain that protection.
