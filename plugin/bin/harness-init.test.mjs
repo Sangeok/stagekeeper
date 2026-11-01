@@ -393,7 +393,7 @@ describe("harness-init (v2)", () => {
       const root = fresh();
       assert.equal(run(root).code, 0);
       assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"),
-        /\| agent \| does \|\n\| --- \| --- \|\n\| `pm` \| Picks work\. \|\n\| `plan-verifier` \| Verifies plans\. \|\n\| `doc-auditor` \| Audits docs\. \|\n\| `feature-scout` \| Scouts features\. \|\n/);
+        /\| agent \| does \|\n\| --- \| --- \|\n\| `pm` \| Picks work\. \|\n\| `work-assigner` \| Picks work\. \|\n\| `work-discoverer` \| Scouts features\. \|\n\| `plan-verifier` \| Verifies plans\. \|\n\| `doc-auditor` \| Audits docs\. \|\n\| `feature-scout` \| Scouts features\. \|\n/);
     });
     it("free: report agents outside the plan are skipped, the same runbook lands in CLAUDE.md", () => {
       const root = fresh(ONE_WS);
@@ -407,7 +407,7 @@ describe("harness-init (v2)", () => {
       }
       const runbook = readFileSync(join(root, "CLAUDE.md"), "utf8");
       assert.match(runbook, /full pipeline/);
-      assert.match(runbook, /\| `pm` \| Picks work\. \|\n\| `feature-scout` \| Scouts features\. \|/);
+      assert.match(runbook, /\| `pm` \| Picks work\. \|\n\| `work-assigner` \| Picks work\. \|\n\| `work-discoverer` \| Scouts features\. \|\n\| `feature-scout` \| Scouts features\. \|/);
       assert.doesNotMatch(runbook, /plan-verifier|doc-auditor/);
       const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
       assert.ok(!(".claude/agents/plan-verifier.md" in lock.files));

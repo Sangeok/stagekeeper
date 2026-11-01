@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@/generated/prisma/client";
-import { recompose, SLOT_FORMAT, validateDefinition, type Definition, type GraphInput } from "@harness/core/pipeline/pipeline.mjs";
+import { DEFAULT_SELECTION_POLICY, recompose, SLOT_FORMAT, validateDefinition, type Definition, type GraphInput } from "@harness/core/pipeline/pipeline.mjs";
 import { PipelineRejection, requirePipelineEdit, withPipelineWrite } from "./lock-pipeline";
 import { ensureDefaultPipeline, ensureRunnableVersion, loadPipelinesViewIn, nextPipelineVersion, PIPELINE_NOT_FOUND } from "./run-service";
 
@@ -25,6 +25,7 @@ function validInput(input: SaveInput): boolean {
 function sameGraph(before: GraphInput & { format: string | null }, after: GraphInput): boolean {
   return before.format === SLOT_FORMAT && before.nodes.length === after.nodes.length
     && before.nodes.every((node, index) => node === after.nodes[index])
+    && (before.selectionPolicy ?? DEFAULT_SELECTION_POLICY) === (after.selectionPolicy ?? DEFAULT_SELECTION_POLICY)
     && new Set(before.gates).size === new Set(after.gates).size
     && after.gates.every(gate => before.gates.includes(gate));
 }
@@ -75,8 +76,15 @@ export async function savePipelineDefinition(client: PrismaClient, input: SaveIn
       for (const write of writes) {
         await tx.pipelineVersion.create({ data: {
           projectId: input.projectId, pipelineId: write.id === changedId ? pipelineId : write.id,
-          version: version++, nodes: write.graph.nodes, gates: write.graph.gates, format: SLOT_FORMAT, createdBy: input.userId,
+          version: version++, nodes: write.graph.nodes, gates: write.graph.gates, selectionPolicy: write.graph.selectionPolicy, format: SLOT_FORMAT, createdBy: input.userId,
         } });
+      }
+      const affectedIds = [...new Set([pipelineId, ...Object.keys(composed.runnable)])];
+      const active = await tx.pipelineWorkRun.findMany({ where: { projectId: input.projectId, closedAt: null, assignedBoardItemId: null, version: { pipelineId: { in: affectedIds } } }, select: { id: true } });
+      const workRunIds = active.map(run => run.id);
+      if (workRunIds.length) {
+        await tx.agentRun.updateMany({ where: { workRunId: { in: workRunIds }, closedAt: null }, data: { closedAt: new Date() } });
+        await tx.pipelineWorkRun.updateMany({ where: { id: { in: workRunIds } }, data: { closedAt: new Date(), waitReason: "The pipeline changed. The next cycle uses the saved definition." } });
       }
       return { status: "success", pipelineId, version: definitionVersion };
     });

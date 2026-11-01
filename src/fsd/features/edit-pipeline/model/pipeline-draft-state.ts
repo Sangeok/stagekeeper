@@ -15,12 +15,13 @@ export type PipelineDraftState = {
 };
 
 function copyDefinition(definition: Definition): Definition {
-  return { steps: [...definition.steps], gates: [...definition.gates] };
+  return { ...definition, steps: [...definition.steps], gates: [...definition.gates] };
 }
 
 function sameDefinition(left: Definition, right: Definition): boolean {
   return JSON.stringify(left.steps) === JSON.stringify(right.steps)
-    && JSON.stringify(left.gates) === JSON.stringify(right.gates);
+    && JSON.stringify(left.gates) === JSON.stringify(right.gates)
+    && (left.selectionPolicy ?? null) === (right.selectionPolicy ?? null);
 }
 
 export function createPipelineDraft(snapshot: PipelineSnapshot): PipelineDraftState {

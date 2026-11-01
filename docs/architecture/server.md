@@ -54,6 +54,9 @@
 파이프라인의 직접 실행과 현재 실행/과거 실행의 저장 계약은 [pipeline-execution.md](./pipeline-execution.md)를 따른다.
 `pipeline/api.ts`의 `preparePipelineRun`은 `run-request`가 소유하고 edit-pipeline 서버 Action이 사용한다.
 실행 생성은 기존 `createBoardService`의 `startPipeline`이며 동일한 소유권·프로젝트 쓰기 transaction 경계를 사용한다.
+`pipeline/api.ts`의 `assignmentContext`, `startProjectWork`, `stopProjectWork`, `approveWorkGate`는
+`work-run.ts`가 소유한다. MCP 조립부가 선택 문맥을 조회하고 edit-pipeline의 서버 Action이
+프로젝트 실행을 시작·중지·승인한다. `headFor`는 프로젝트 실행을 생성·전진하므로 읽기 전용 조회가 아니다.
 
 다음은 현재 공개 계약이다. 구현 소유자와 실제 제품 소비자를 함께 기록한다.
 

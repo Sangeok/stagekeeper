@@ -49,6 +49,8 @@ model Project {
   autoScoutEnabled Boolean     @default(true)
   autoProposeEnabled Boolean   @default(true)
   defaultPipelineId String?
+  workPipelineId String?
+  workAutomationPaused Boolean @default(false)
   runnerPausedAt DateTime?
   runner       Runner?
   createdAt    DateTime        @default(now())
@@ -63,6 +65,7 @@ model Project {
   pipelines    Pipeline[]      @relation("ProjectPipelines")
   defaultPipeline Pipeline?    @relation("ProjectDefaultPipeline", fields: [defaultPipelineId], references: [id], onDelete: SetNull)
   pipelineRules PipelineRule[]
+  workRuns PipelineWorkRun[]
   ownerUserId   String
   repoOwner     String
   available     Boolean   @default(true)
@@ -213,6 +216,7 @@ model BoardItem {
   agent         String
   status        String
   reason        String
+  selectionDecision Json?
   results       String[]
   validation    String?
   acceptedAt    DateTime?
@@ -311,12 +315,16 @@ model AgentRun {
   steps     AgentRunStep[]
   pipelineRunId String?
   pipelineEntryId String?
+  workRunId String?
+  workEntryId String?
+  workRun PipelineWorkRun? @relation(fields: [workRunId], references: [id], onDelete: Cascade)
   pipelineRun PipelineRun? @relation(fields: [pipelineRunId], references: [id], onDelete: Cascade)
   reports Report[]
 
   @@index([projectId, pipelineRunId, pipelineEntryId, agent, closedAt], map: "AgentRun_pipeline_entry_dispatch_idx")
   @@index([projectId, agent, key, closedAt])
   @@index([tokenId])
+  @@index([workRunId, workEntryId])
 }
 
 model AgentRunStep {
@@ -344,11 +352,13 @@ model PipelineVersion {
   nodes      String[]
   gates      String[]
   format     String?
+  selectionPolicy String?
   createdAt  DateTime  @default(now())
   createdBy  String
   project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   pipeline   Pipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   runs       PipelineRun[]
+  workRuns   PipelineWorkRun[]
   @@unique([projectId, version])
   @@index([pipelineId, version])
 }
@@ -369,6 +379,24 @@ model PipelineRun {
   currentFor  BoardItem?      @relation("CurrentPipelineRun")
   version     PipelineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
   @@index([boardItemId, createdAt])
+}
+
+model PipelineWorkRun {
+  id String @id @default(cuid())
+  projectId String
+  versionId String
+  node String
+  entryId String
+  inputKey String
+  waitReason String?
+  assignedBoardItemId String?
+  approvals           Json     @default("[]")
+  createdAt DateTime @default(now())
+  closedAt DateTime?
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version PipelineVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  agentRuns AgentRun[]
+  @@index([projectId, closedAt, createdAt])
 }
 
 model Pipeline {
@@ -392,6 +420,7 @@ model PipelineDefinition {
   version    Int
   steps      String[]
   gates      String[]
+  selectionPolicy String?
   createdAt  DateTime @default(now())
   createdBy  String
   pipeline   Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)

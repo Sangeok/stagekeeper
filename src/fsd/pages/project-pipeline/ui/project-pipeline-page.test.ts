@@ -27,10 +27,9 @@ it("keys the pipeline editor by project identity while preserving the exact inje
     const list = page.props.children.find(child => isValidElement(child) && child.type === PipelineList);
     const scout = isValidElement<Parameters<typeof PipelineList>[0]>(list) ? list.props.automationControls : null;
     assert.ok(isValidElement<Parameters<typeof PipelineList>[0]>(list));
-    assert.ok(isValidElement<{ save: SaveAutomaticScoutAction }>(scout));
+    assert.equal(scout, undefined);
     assert.equal(list.props.save, save);
     assert.equal(list.props.actions, props.actions);
-    assert.equal(scout.props.save, saveAutoScout);
     assert.equal(list.props.pipelines, input.pipelines);
     return list.key;
   };

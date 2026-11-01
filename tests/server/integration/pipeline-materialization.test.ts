@@ -8,7 +8,7 @@ import { createBoardService as createBoardQueries } from "../../../src/server/pi
 import { Prisma } from "../../../src/generated/prisma/client";
 import { afterProjectRead, checkpoint, cleanup, connections, fixture, pipelineState } from "./support";
 
-it("GET and head are read-only; the first root ensureRun creates one definition and version and later reads preserve it", async () => {
+it("GET is read-only; head materializes one definition shared by subsequent task runs", async () => {
   const pool = connections(1); const [db] = pool.all; const f = await fixture(db, { plan: "pro" });
   try {
     const before = await pipelineState(db, f.projectId);
@@ -16,8 +16,9 @@ it("GET and head are read-only; the first root ensureRun creates one definition 
     assert.equal(view.pipelines.length, 1); assert.equal(view.pipelines[0].saved, null);
     assert.deepEqual(view.pipelines[0].definition.steps, defaultGraph("pro").nodes);
     assert.ok(view.pipelines[0].runnable);
-    await headFor(db, f.projectId, 0, 1, false);
     assert.deepEqual(await pipelineState(db, f.projectId), before);
+    await headFor(db, f.projectId);
+    assert.equal(await db.pipelineWorkRun.count({ where: { projectId: f.projectId } }), 1);
     const first = await ensureRun(db, f.projectId, f.boardItemId, "in_review", false);
     assert.equal(first.version.version, 1); assert.ok(first.entryId);
     await nextFor(db, f.projectId, f.key);
@@ -38,7 +39,7 @@ it("a Serializable proposal waiting before first definition creation fails as P2
     const pipelineId = `default_${f.projectId}`;
     await a.pipeline.create({ data: { id: pipelineId, projectId: f.projectId, name: "Default", createdBy: "pipeline" } });
     await a.project.update({ where: { id: f.projectId }, data: { defaultPipelineId: pipelineId } });
-    const delayed = createBoardQueries(afterProjectRead(b, waiting.hook)).propose(f.projectId, { key: f.key, agent: "dev", reason: "race" }, { actor: "agent", actorRef: "pm" });
+    const delayed = createBoardQueries(afterProjectRead(b, waiting.hook)).propose(f.projectId, { key: f.key, agent: "dev", reason: "race" }, { actor: "human", actorRef: f.userId, channel: "web" });
     pending = delayed.catch(error => error);
     await waiting.entered();
     assert.equal((await savePipelineDefinition(a, { projectId: f.projectId, userId: f.userId, pipelineId, expectedVersion: 0, definition: { steps: ["plan", "implement", "accept"], gates: ["before-plan"] } })).status, "success");
@@ -46,7 +47,7 @@ it("a Serializable proposal waiting before first definition creation fails as P2
     const conflict = await pending;
     assert.ok(conflict instanceof Prisma.PrismaClientKnownRequestError); assert.equal(conflict.code, "P2034");
     assert.deepEqual(await pipelineState(a, f.projectId), before);
-    assert.equal((await createBoardQueries(b).propose(f.projectId, { key: f.key, agent: "dev", reason: "retry" }, { actor: "agent", actorRef: "pm" })).ok, true);
+    assert.equal((await createBoardQueries(b).propose(f.projectId, { key: f.key, agent: "dev", reason: "retry" }, { actor: "human", actorRef: f.userId, channel: "web" })).ok, true);
     assert.equal(await a.pipelineVersion.count({ where: { projectId: f.projectId } }), 1);
   } finally { try { waiting.release(); await pending; await cleanup(a, f.userId); } finally { await pool.disconnect(); } }
 });

@@ -14,15 +14,15 @@ it("unknown and inherited keys remain strings in node and auto-edge labels", () 
 });
 
 it("auto labels cover every non-Propose node and repeated project slots", () => {
-  assert.deepEqual((NODE_KINDS as string[]).map(autoEdgeLabel), [null, "auto → planning", "auto → verify", "auto → implementing", "auto → implementation check", "auto → qa", "auto → accept", "auto → doc audit", "auto → scout"]);
-  for (const [kind, label] of [["doc-auditor", "doc audit"], ["feature-scout", "scout"], ["doc-auditor#2", "doc audit #2"], ["feature-scout#2", "scout #2"]]) assert.equal(autoEdgeLabel(kind), `auto → ${label}`);
+  assert.deepEqual((NODE_KINDS as string[]).map(autoEdgeLabel), [null, "auto → discover work", "auto → assign work", "auto → planning", "auto → verify", "auto → implementing", "auto → implementation check", "auto → qa", "auto → accept", "auto → doc audit", "auto → discover work"]);
+  for (const [kind, label] of [["doc-auditor", "doc audit"], ["feature-scout", "discover work"], ["doc-auditor#2", "doc audit #2"], ["feature-scout#2", "discover work #2"]]) assert.equal(autoEdgeLabel(kind), `auto → ${label}`);
 });
 
 describe("nodeLabel · gateLabel", () => {
   it("names every node kind in the skeleton", () => {
     assert.deepEqual(
       (NODE_KINDS as string[]).map(nodeLabel),
-      ["Propose", "Plan", "Verify", "Implement", "Implementation check", "QA", "Accept", "Doc audit", "Scout"],
+      ["Assign work", "Discover work", "Assign work", "Plan", "Verify", "Implement", "Implementation check", "QA", "Accept", "Doc audit", "Discover work"],
     );
   });
 

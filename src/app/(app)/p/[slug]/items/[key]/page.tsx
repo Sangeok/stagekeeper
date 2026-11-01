@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { historyCutoff } from "@harness/core/plans/entitlement.mjs";
+import { readSelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
 import { prisma } from "@/server/db";
 import { loadPipelinesView, loadItemPipelineView, loadPipelineChanges } from "@/server/pipeline/api";
 import { changeItemPipeline } from "@/fsd/features/change-item-pipeline/index.server";
@@ -39,6 +40,7 @@ export default async function Page({ params }: PageProps<"/p/[slug]/items/[key]"
         agent: row.agent,
         status: row.status,
         reason: row.reason,
+        selectionDecision: readSelectionDecision(row.selectionDecision),
         results: row.results,
         validation: row.validation,
         proposedOn: row.proposedOn,

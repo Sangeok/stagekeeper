@@ -67,6 +67,18 @@ it("blocks new work, commits and remote calls after pause, ownership loss or can
   assert.equal(f.roles.length, 0); assert.equal(f.commits.length, 0);
 });
 
+it("requires new-work permission for every project head even when an entry is supplied", async () => {
+  for (const [agent, slotId] of [["work-assigner", "assign-work"], ["work-discoverer", "discover-work"], ["doc-auditor", "doc-audit"]]) {
+    const head = { action: "dispatch", agent, entry: { runId: "project-run", entryId: "entry", slotId } };
+    const f = await fixture({ callTool: async () => ({ head, items: [] }) });
+    await assert.rejects(f.tools.call("resident_dispatch", {}), /New work is disabled/);
+    assert.equal(f.roles.length, 0);
+    f.state.policy.propose = true;
+    await f.tools.call("resident_dispatch", {});
+    assert.deepEqual(f.roles[0][3].entry, head.entry);
+  }
+});
+
 it("checks the lease again after a remote response and before any dependent mutation", async () => {
   let state;
   const f = await fixture({ callTool: async (_input, name) => { if (name === "pipeline_next") state.active = false; return { action: "accept", key: "K-1" }; } });

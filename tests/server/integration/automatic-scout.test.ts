@@ -8,23 +8,17 @@ import { createBoardService as createBoardQueries } from "../../../src/server/pi
 import { seedPipelineVersion, afterProjectRead, checkpoint, cleanup, connections, fixture, type Fixture } from "./support";
 import type { PrismaClient } from "../../../src/generated/prisma/client";
 
-it("Free owners can disable and re-enable automatic scouting without changing the saved item graph", async () => {
-  const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
+it("legacy scouting preferences initialize the default once; saved nodes control later dispatch", async () => {
+  const pool = connections(1); const [db] = pool.all; const f = await fixture(db, { status: "done" });
   try {
-    f = await fixture(db);
-    const initial = await headFor(db, f.projectId, 0, 0, false);
-    assert.equal(initial.action, "dispatch");
-    const count = async () => Promise.all([db.pipeline.count({ where: { projectId: f!.projectId } }), db.pipelineDefinition.count({ where: { pipeline: { projectId: f!.projectId } } }), db.pipelineVersion.count({ where: { projectId: f!.projectId } })]);
-    assert.deepEqual(await count(), [0, 0, 0]);
-    const write = (enabled: boolean) => setAutomaticScout(db, { projectId: f!.projectId, userId: f!.userId, enabled });
-    assert.deepEqual(await write(false), { ok: true, item: false });
-    assert.deepEqual(await headFor(db, f.projectId, 0, 0, false), { action: "none", reason: AUTO_SCOUT_DISABLED_REASON });
-    const pm = await headFor(db, f.projectId, 0, 1, false);
-    assert.equal(pm.action, "dispatch"); if (pm.action === "dispatch") assert.equal(pm.agent, "pm");
-    assert.deepEqual(await count(), [0, 0, 0]);
-    assert.deepEqual(await write(true), { ok: true, item: true });
-    assert.equal((await headFor(db, f.projectId, 0, 0, false)).action, "dispatch");
-  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
+    assert.ok((await setAutomaticScout(db, { projectId: f.projectId, userId: f.userId, enabled: false })).ok);
+    assert.equal((await headFor(db, f.projectId)).action, "none");
+    const version = await db.pipelineVersion.findFirstOrThrow({ where: { projectId: f.projectId } });
+    assert.deepEqual(version.nodes, ["assign-work", "plan", "implement", "accept"]);
+    assert.ok((await setAutomaticScout(db, { projectId: f.projectId, userId: f.userId, enabled: true })).ok);
+    assert.equal((await headFor(db, f.projectId)).action, "none");
+    assert.deepEqual(await db.pipelineVersion.findUniqueOrThrow({ where: { id: version.id } }), version);
+  } finally { try { await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
 });
 
 it("disabling closes only unbound scout runs, blocks their additions and new instructions, and preserves bound slots", async () => {

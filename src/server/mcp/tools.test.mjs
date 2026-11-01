@@ -72,7 +72,7 @@ describe("agent-scoped MCP tools", () => {
   it("registers exactly the §5 Phase-1 agent scope, underscore names only", () => {
     const names = [];
     registerTools({ registerTool: (name) => { names.push(name); } }, {});
-    const expected = ["project_get", "project_sync", "backlog_list", "backlog_get", "backlog_add", "board_list", "board_get", "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next", "acceptance_fail"].sort();
+    const expected = ["assignment_context", "project_get", "project_sync", "backlog_list", "backlog_get", "backlog_add", "board_list", "board_get", "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next", "acceptance_fail"].sort();
     assert.deepEqual([...names].sort(), expected);
     assert.deepEqual([...AGENT_TOOL_NAMES].sort(), expected);
     for (const n of WEB_ONLY) assert.ok(!names.includes(n), `web-only tool registered: ${n}`);

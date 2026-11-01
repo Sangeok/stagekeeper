@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { expand, recompose, refStep, routePipeline, usersOf, validateDefinition, PROPOSE_SETTING_REASON, advance, cursorForStatus, DEFAULT_GATES, defaultGraph, dispatcherFor, gateId, isItemNode, NODE_KINDS, nodeDone, sequence, validateGraph } from "./pipeline.mjs";
 
-const full = { nodes: NODE_KINDS.filter(kind => !["impl-verify", "qa"].includes(kind)), gates: [...DEFAULT_GATES] };
+const full = { nodes: NODE_KINDS.filter(kind => !["discover-work", "assign-work", "impl-verify", "qa"].includes(kind)), gates: [...DEFAULT_GATES] };
 const facts = (o = {}) => ({ status: "proposed", validation: null, accepted: false, approvedGates: [], closedAgents: [], ...o });
 
 for (const format of [null, "slots-v1"]) describe(`verify validation contract: ${format ?? "legacy"}`, () => {
@@ -66,7 +66,7 @@ describe("slot execution isolation", () => {
 
 describe("defaultGraph", () => {
   it("free has no verify or doc-audit; pro and max have every node but scout; gates are the two boundaries", () => {
-    assert.deepEqual(defaultGraph("free").nodes, ["plan", "implement", "accept"]);
+    assert.deepEqual(defaultGraph("free").nodes, ["discover-work", "assign-work", "plan", "implement", "accept"]);
     assert.deepEqual(defaultGraph("pro").nodes, NODE_KINDS.filter((k) => !["propose", "scout", "impl-verify", "qa"].includes(k)));
     assert.deepEqual(defaultGraph("max").gates, DEFAULT_GATES);
   });

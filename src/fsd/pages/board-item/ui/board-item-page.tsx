@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
 import { blobHref, DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
 import { ChangePipelineControl, type ChangePipelineAction } from "@/fsd/features/change-item-pipeline";
 import { AcceptanceFailure, ReopenActions, type RetryAcceptanceAction, type TransitionAction } from "@/fsd/features/review-gate";
@@ -18,6 +19,7 @@ export type BoardItemView = {
   agent: string;
   status: string;
   reason: string;
+  selectionDecision?: SelectionDecision | null;
   results: string[];
   validation: string | null;
   proposedOn: Date;
@@ -79,6 +81,17 @@ export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrit
           </dd>
         </div>
       </dl>
+      {item.selectionDecision ? <section aria-label="Assignment decision" className="flex flex-col gap-3 text-sm">
+        <SectionLabel>Assignment decision</SectionLabel>
+        <dl className="space-y-3">
+          <div><dt className="font-medium">Selection policy</dt><dd className="whitespace-pre-wrap">{item.selectionDecision.policy}</dd></div>
+          <div><dt className="font-medium">Why this work</dt><dd className="whitespace-pre-wrap">{item.selectionDecision.criterion}</dd></div>
+          <div><dt className="font-medium">Readiness</dt><dd className="whitespace-pre-wrap">{item.selectionDecision.readiness}</dd></div>
+          <div><dt className="font-medium">Why {item.agent}</dt><dd className="whitespace-pre-wrap">{item.selectionDecision.assignmentReason}</dd></div>
+        </dl>
+        <ul className="space-y-2">{item.selectionDecision.evidence.map((evidence, index) => <li key={index}><span className="font-mono text-xs">{evidence.key}</span><blockquote className="border-l border-edge pl-3 whitespace-pre-wrap">{evidence.quote}</blockquote></li>)}</ul>
+        {item.selectionDecision.comparisons.length ? <div><p className="font-medium">Other candidates</p><ul className="space-y-2">{item.selectionDecision.comparisons.map(comparison => <li key={comparison.key}><span className="font-mono text-xs">{comparison.key}</span> · {comparison.reason}</li>)}</ul></div> : <p className="text-quiet">No other eligible candidates at the time of assignment.</p>}
+      </section> : null}
       {item.status === "done" ? <p className="text-xs text-quiet">The implementation span is complete. Acceptance is recorded separately after the five checks.</p> : null}
 
       {item.docs.length > 0 ? (

@@ -203,7 +203,7 @@ const socket=net.connect({host:'127.0.0.1',port:${listener.address().port}});soc
 }
 
 export async function createRoleCommands({ root, scratch, agent, fileBroker, runtime = installedWindowsRuntime() }, lifecycle = {}) {
-  if (agent === "pm") throw new Error("PM command backend refused");
+  if (["pm", "work-assigner"].includes(agent)) throw new Error("PM command backend refused");
   let closed = false, pending = null; const controller = new AbortController();
   async function execute(args, signal) {
     if (closed) throw new Error("Native backend closed");

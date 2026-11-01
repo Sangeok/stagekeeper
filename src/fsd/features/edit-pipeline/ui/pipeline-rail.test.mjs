@@ -14,7 +14,7 @@ it("ungated edges explain every automatic step including first Plan and repeated
   for (const editable of [true, false]) {
     const definition = { steps: ["plan", "verify", "implement", "accept", "doc-auditor#2", "feature-scout#2"], gates: [] };
     const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, definition, editable }));
-    for (const label of ["planning", "verify", "implementing", "accept", "doc audit #2", "scout #2"]) assert.ok(html.includes(`auto → ${label}`));
+    for (const label of ["planning", "verify", "implementing", "accept", "doc audit #2", "discover work #2"]) assert.ok(html.includes(`auto → ${label}`));
     assert.equal(html.includes("+"), editable);
   }
   const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, definition: { steps: ["plan", "implement", "accept"], gates: ["before-accept"] }, editable: false }));

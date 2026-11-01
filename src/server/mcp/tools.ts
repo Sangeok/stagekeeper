@@ -9,11 +9,12 @@ import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/projects/api";
 import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
 import { validateWorkspaceSemantics } from "@harness/core/configuration/workspaces.mjs";
 import type { BacklogView, BacklogWithStatusView } from "./views";
+import type { SelectionContext, SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
 import { z } from "zod";
 
 export const AGENT_TOOL_NAMES = [
   "project_get", "project_sync", "backlog_list", "backlog_get", "backlog_add", "board_list", "board_get",
-  "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next", "acceptance_fail",
+  "assignment_context", "board_propose", "board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "pipeline_next", "acceptance_fail",
 ] as const;
 
 import type { WorkspaceInput } from "@/server/projects/contracts";
@@ -43,7 +44,8 @@ export type ToolDeps = {
   backlogGet(projectId: string, key: string): Promise<BacklogView | null>;
   boardList(projectId: string, open: boolean): Promise<BoardRowView[]>;
   boardGet(projectId: string, key: string): Promise<BoardDetailView | null>;
-  propose(projectId: string, input: { key: string; agent: string; reason: string }, actorRef: string): Promise<ServerResult<BoardItemView>>;
+  assignmentContext?(projectId: string, runId: string): Promise<ServerResult<SelectionContext>>;
+  propose(projectId: string, input: { key: string; agent: string; reason: string; assignmentRunId?: string; selectionDecision?: SelectionDecision }, actorRef: string): Promise<ServerResult<BoardItemView>>;
   transition(projectId: string, input: { key: string; to: string; result?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitPlan(projectId: string, input: { key: string; path: string; commit: string; type?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   submitReport(projectId: string, input: { key: string; actor: string; path: string; commit: string; runId?: string; qa?: unknown }, actorRef: string): Promise<ServerResult<unknown>>;
@@ -117,7 +119,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     return synced.ok ? text({ synced: synced.item }) : fail(synced.reason);
   });
   server.registerTool("backlog_add", {
-    description: "feature-scout: add one backlog item you have evidence for. The server assigns the key (ITEM-NN). Pass runId = the runId of the receipt your current agent_next step returned. At most 3 per run, and never an item the owner removed or discarded (backlog_list includeRemoved shows them). After a failed or timed-out call, check backlog_list before calling again.",
+    description: "Discover work: add one backlog item you have evidence for. The server assigns the key (ITEM-NN). Pass runId = the runId of the receipt your current agent_next step returned. At most 3 per run, and never an item the owner removed or discarded (backlog_list includeRemoved shows them). After a failed or timed-out call, check backlog_list before calling again.",
     inputSchema: z.object({ ...project, runId: z.string().min(1), title: z.string().min(1), area: z.string().min(1), source: z.string().min(1), type: z.enum(ITEM_TYPES) }),
   }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
@@ -160,7 +162,20 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const row = await deps.boardGet(projectId, args.key);
     return row ? text(row) : fail(`no such board item: ${args.key}`);
   });
-  server.registerTool("board_propose", { description: "pm: create a proposed item. Rejected when 2 items are already open, the agent isn't in the roster, the reason is over 150 characters, the key is already open, or the key is on hold (only the owner resumes it, on the web).", inputSchema: z.object({ ...project, key: z.string(), agent: z.string(), reason: z.string() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("assignment_context", { description: "Assign work: read the saved selection policy and current eligible candidates with their Source evidence. Pass your agent_next receipt runId. Read again after a stale selection refusal.", inputSchema: z.object({ ...project, runId: z.string().min(1) }) }, async (args, ctx: Ctx) => {
+    const scoped = await scope(args, ctx, deps);
+    if (!scoped.ok) return fail(scoped.reason);
+    const unavailable = await guardUnavailable(deps, scoped.projectId);
+    if (unavailable) return unavailable;
+    return deps.assignmentContext ? unwrap(await deps.assignmentContext(scoped.projectId, args.runId)) : fail("Assignment context is unavailable.");
+  });
+  const selectionDecision = z.object({
+    contextKey: z.string().min(1), policy: z.string().min(1).max(3000), criterion: z.string().min(1).max(3000),
+    evidence: z.array(z.object({ key: z.string(), quote: z.string().min(1).max(3000) })).min(1).max(20),
+    comparisons: z.array(z.object({ key: z.string(), reason: z.string().min(1).max(3000) })),
+    readiness: z.string().min(1).max(3000), assignmentReason: z.string().min(1).max(3000), uncertainties: z.array(z.string()),
+  });
+  server.registerTool("board_propose", { description: "Assign work: register one selected item with its assignee, reason and selection record. Read assignment_context first. Source quotes, candidate comparisons, policy and contextKey are validated. Missing evidence, stale input, invalid assignee or full board refuses the write.", inputSchema: z.object({ ...project, key: z.string(), agent: z.string(), reason: z.string(), assignmentRunId: z.string().min(1).optional(), selectionDecision: selectionDecision.optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;

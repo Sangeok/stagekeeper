@@ -28,7 +28,7 @@ export async function loadProjectBoard(projectId: string, now: Date): Promise<Br
       const node = at !== null && !isGateId(at) ? at : null;
       return { ...r, pipelineName: pipelineNames.get(r.id) ?? "Default", gate: at !== null && isGateId(at) ? at : null, node, dispatched: execution?.activityDispatched ?? false };
     }),
-    now, roster, view.pipelines.flatMap(pipeline => pipeline.runnable?.nodes ?? []), view.autoProposeEnabled,
+    now, roster, view.pipelines.flatMap(pipeline => pipeline.runnable?.nodes ?? []),
   );
 
   return briefing;

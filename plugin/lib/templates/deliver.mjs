@@ -22,5 +22,10 @@ export function deliverable(rows, plan, client = "claude") {
     if (agent !== null && REPORT_AGENTS.includes(agent) && !agents.includes(agent)) continue;
     templates[path] = agent === null ? body : stubOf(body);
   }
+  for (const [oldRole, role] of [["pm", "work-assigner"], ["feature-scout", "work-discoverer"]]) {
+    const body = templates[`agents/${oldRole}.md`];
+    if (body && agents.includes(role)) templates[`agents/${role}.md`] = body.replaceAll(oldRole, role)
+      .replaceAll("mcp__harness__board_propose", "mcp__harness__assignment_context, mcp__harness__board_propose");
+  }
   return { templates, entitlement: { plan, agents }, ...(client === "codex" ? { runtime: runtimeEcho() } : {}) };
 }

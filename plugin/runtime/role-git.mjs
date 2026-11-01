@@ -191,7 +191,7 @@ async function gitRead(directory, git, args, lifecycle, signal) {
 }
 
 export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, planCommit = null, commitHandoff = null, commonDirectory = null }, lifecycle = {}) {
-  if (agent === "pm") throw new Error("PM Git operations refused");
+  if (["pm", "work-assigner"].includes(agent)) throw new Error("PM Git operations refused");
   root = realpathSync(root);
   if (planCommit !== null && !oid(planCommit)) throw new Error("Bound plan commit refused");
   if (commitHandoff !== null && (!oid(commitHandoff.commit) || !/^docs\/(?:plans|agents\/[a-z][a-z0-9-]*)\/[A-Za-z0-9_-]+\.md$/.test(commitHandoff.path ?? ""))) throw new Error("Bound handoff commit refused");

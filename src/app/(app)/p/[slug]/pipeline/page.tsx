@@ -1,5 +1,5 @@
 import { allowsPipelineEdit } from "@harness/core/pipeline/pipeline.mjs";
-import { saveAutomaticScout, savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, setAutomaticPickAction, prepareRunAction, startRunAction } from "@/fsd/features/edit-pipeline/index.server";
+import { savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, setAutomaticPickAction, prepareRunAction, startRunAction, startProjectRunAction, stopProjectRunAction, approveProjectGateAction } from "@/fsd/features/edit-pipeline/index.server";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
@@ -12,11 +12,10 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
   const { work } = await searchParams;
   const { projectId } = await requireProjectOwner(slug);
 
-  const [view, access, roster, project] = await Promise.all([
+  const [view, access, roster] = await Promise.all([
     loadPipelinesView(prisma, projectId),
     projectAccess(projectId),
     loadProjectRoster(prisma, projectId),
-    prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } }),
   ]);
 
   return (
@@ -32,10 +31,7 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
       save={savePipeline.bind(null, slug)}
       canRun={access.available}
       targetKey={typeof work === "string" && work.length <= 100 ? work : undefined}
-      runActions={{ prepare: prepareRunAction.bind(null, slug), start: startRunAction.bind(null, slug) }}
-      autoScoutEnabled={project.autoScoutEnabled}
-      canChangeAutoScout={access.available}
-      saveAutoScout={saveAutomaticScout.bind(null, slug)}
+      runActions={{ prepare: prepareRunAction.bind(null, slug), start: startRunAction.bind(null, slug), startProject: startProjectRunAction.bind(null, slug), stopProject: stopProjectRunAction.bind(null, slug), approveProjectGate: approveProjectGateAction.bind(null, slug) }}
     />
   );
 }

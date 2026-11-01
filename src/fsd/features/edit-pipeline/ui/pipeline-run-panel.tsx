@@ -10,6 +10,7 @@ type Preparation = { status: "loading" } | { status: "error"; message: string } 
 export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose }: { pipelineId: string; name: string; actions: PipelineRunActions; targetKey?: string; onClose: () => void }) {
   const router = useRouter();
   const [preparation, setPreparation] = useState<Preparation>({ status: "loading" });
+  const [specificWork, setSpecificWork] = useState(!!targetKey);
   const [selected, setSelected] = useState("");
   const [agent, setAgent] = useState("");
   const [pending, setPending] = useState(false);
@@ -31,13 +32,38 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
   }, [actions, pipelineId, targetKey]);
   const data = preparation.status === "ready" ? preparation.data : null;
   const target = data?.targets.find(candidate => `${candidate.kind}:${candidate.id}` === selected);
-  const canStart = !!target && !target.reason && (target.kind === "board" || !!agent) && !pending && !unknown;
-  async function start(): Promise<void> {
-    if (!data || !target || !canStart || submitting.current) return;
+  const projectMode = !!data?.canStartWithoutWork && !specificWork;
+  const projectRun = data?.projectRun;
+  const canStart = (projectMode ? !!actions.startProject && (!projectRun || projectRun.closed) : !!target && !target.reason && (target.kind === "board" || !!agent)) && !pending && !unknown;
+  async function stop(): Promise<void> {
+    if (!projectRun || !actions.stopProject || pending || unknown || submitting.current) return;
     submitting.current = true; setPending(true); setError(null);
     try {
-      const result = await actions.start({ pipelineId, graphKey: data.graphKey, targetId: target.id, targetKind: target.kind,
-        agent: target.agent ?? agent, expectedUpdatedAt: target.updatedAt });
+      const result = await actions.stopProject(projectRun.id);
+      if (!alive.current) return;
+      if (!result.success) { setError(result.error); return; }
+      router.refresh(); onClose();
+    } catch { if (alive.current) { setUnknown(true); setError("The run may have stopped. Close and reopen Run to check."); } }
+    finally { submitting.current = false; if (alive.current) setPending(false); }
+  }
+  async function approve(): Promise<void> {
+    if (!projectRun || !actions.approveProjectGate || pending || unknown || submitting.current) return;
+    submitting.current = true; setPending(true); setError(null);
+    try {
+      const result = await actions.approveProjectGate({ runId: projectRun.id, entryId: projectRun.entryId, slotId: projectRun.node });
+      if (!alive.current) return;
+      if (!result.success) { setError(result.error); return; }
+      router.refresh(); onClose();
+    } catch { if (alive.current) { setUnknown(true); setError("The gate may have been approved. Close and reopen Run to check."); } }
+    finally { submitting.current = false; if (alive.current) setPending(false); }
+  }
+  async function start(): Promise<void> {
+    if (!data || !canStart || submitting.current || (!projectMode && !target)) return;
+    submitting.current = true; setPending(true); setError(null);
+    try {
+      const result = projectMode && actions.startProject ? await actions.startProject(pipelineId, data.graphKey)
+        : await actions.start({ pipelineId, graphKey: data.graphKey, targetId: target!.id, targetKind: target!.kind,
+          agent: target!.agent ?? agent, expectedUpdatedAt: target!.updatedAt });
       if (!alive.current) return;
       if (!result.success) { setError(result.error); return; }
       router.push(result.data.href); router.refresh(); onClose();
@@ -55,6 +81,14 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
       <div><p className="text-xs text-quiet">Saved configuration</p><ol className="mt-2 flex flex-wrap items-center gap-2 text-sm">{data.nodes.map((node, index) => <li key={node}>
         {index > 0 ? <span aria-hidden="true" className="mr-2 text-quiet">→</span> : null}
         {data.gates.includes(`before-${node}`) ? <span className="mr-1 text-quiet">{gateLabel(`before-${node}`)} · </span> : null}{nodeLabel(node)}</li>)}</ol></div>
+      {data.canStartWithoutWork ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={specificWork} disabled={pending || unknown} onChange={event => setSpecificWork(event.target.checked)} />Choose a specific item instead</label> : null}
+      {projectMode ? <section className="flex flex-col gap-3 text-sm" aria-label="Project run">
+        <p>Start without choosing an item. A connected runner follows the project steps shown above. Assign work uses the saved selection policy when included.</p>
+        {projectRun && !projectRun.closed ? <><p>Active pipeline: {projectRun.pipelineName}</p><p>Current step: {nodeLabel(projectRun.node)}</p>{projectRun.reason ? <p role="status">{projectRun.reason}</p> : null}
+          {projectRun.node.startsWith("before-") ? <Button disabled={pending || unknown} onClick={() => void approve()}>Approve {gateLabel(projectRun.node)}</Button> : null}</> : null}
+        {projectRun && !projectRun.closed && actions.stopProject ? <div><Button disabled={pending || unknown} onClick={() => void stop()}>Stop new work</Button><p className="mt-2 text-xs text-quiet">Stops discovery and assignment. Work already on the board keeps its own pipeline.</p></div> : null}
+        {!data.nodes.includes("assign-work") ? <p>This run does not assign backlog items.</p> : null}
+      </section> : <>
       <label className="flex flex-col gap-2 text-sm">Work to run on
         <select value={selected} disabled={pending || unknown} onChange={event => { setSelected(event.target.value); setError(null); }} className="w-full min-w-0 rounded-md border border-edge bg-paper p-2">
           <option value="">Choose work…</option>
@@ -63,10 +97,11 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
           </optgroup>)}
         </select>
       </label>
-      {!data.targets.length ? <p className="text-sm text-quiet">No work is available yet. Scout supplies backlog candidates; saved work will appear here.</p> : null}
+      {!data.targets.length ? <p className="text-sm text-quiet">No work is available yet. Add backlog items or run Discover work.</p> : null}
       {target?.reason ? <p role="status" className="text-sm text-risk">{target.reason}</p> : null}
       {target?.kind === "backlog" ? <label className="flex flex-col gap-2 text-sm">Assignee<select value={agent} disabled={pending || unknown} onChange={event => setAgent(event.target.value)} className="rounded-md border border-edge bg-paper p-2">
         {!data.agents.length ? <option value="">Connect a workspace first</option> : null}{data.agents.map(value => <option key={value} value={value}>{value}</option>)}</select></label> : null}
+      </>}
       <p className="text-xs text-quiet">Your connected runner carries out these steps and waits at approval gates.{!data.nodes.includes("accept") ? " Completing this run does not accept the work." : " Work is accepted only after the Accept step passes."}</p>
       {error ? <p role="alert" className="text-sm text-risk">{error}</p> : null}
       <Button variant="mine" disabled={!canStart} onClick={() => void start()}>{pending ? "Starting…" : "Start run"}</Button>

@@ -1,17 +1,29 @@
 import { limitsFor } from "../plans/entitlement.mjs";
 
-export const NODE_KINDS = ["propose", "plan", "verify", "implement", "impl-verify", "qa", "accept", "doc-audit", "scout"];
+export const NODE_KINDS = ["propose", "discover-work", "assign-work", "plan", "verify", "implement", "impl-verify", "qa", "accept", "doc-audit", "scout"];
 export const REQUIRED_NODES = ["plan", "implement", "accept"];
 export const TAIL_NODES = ["doc-audit", "scout"];
-export const NODE_AGENT = { propose: "pm", verify: "plan-verifier", "impl-verify": "impl-verifier", qa: "qa-verifier", "doc-audit": "doc-auditor", scout: "feature-scout" };
+export const NODE_AGENT = { propose: "pm", "discover-work": "work-discoverer", "assign-work": "work-assigner", verify: "plan-verifier", "impl-verify": "impl-verifier", qa: "qa-verifier", "doc-audit": "doc-auditor", scout: "feature-scout" };
 export const SLOT_FORMAT = "slots-v1";
-export const PROJECT_AGENTS = ["doc-auditor", "feature-scout"];
+export const PROJECT_AGENTS = ["doc-auditor", "feature-scout", "work-discoverer"];
+export const DEFAULT_SELECTION_POLICY = "Choose the oldest eligible backlog item with supporting Source evidence and a matching workspace. Break ties by item key. Do not invent urgency, impact, dependencies, or missing evidence. Request clarification when evidence or ownership is unclear.";
+export function workPrefix(graph) {
+  const at = graph.nodes.indexOf("assign-work");
+  const itemAt = graph.nodes.findIndex(node => !PROJECT_AGENTS.includes(slotAgent(node)));
+  const nodes = at >= 0 ? graph.nodes.slice(0, at + 1) : graph.nodes.slice(0, itemAt < 0 ? graph.nodes.length : itemAt);
+  return { nodes, gates: graph.gates.filter(gate => nodes.includes(gateKind(gate))) };
+}
+export function itemGraph(graph) {
+  const at = graph.nodes.indexOf("assign-work");
+  const nodes = at < 0 ? [...graph.nodes] : graph.nodes.slice(at + 1);
+  return { nodes, gates: graph.gates.filter(gate => nodes.includes(gateKind(gate))) };
+}
 export const AUTO_SCOUT_DISABLED_REASON = "Automatic scouting is off. Add a backlog item, or turn it on in the Pipeline tab.";
 export function slotAgent(slot) {
   if (typeof slot !== "string") return null;
   if (Object.hasOwn(NODE_AGENT, slot)) return NODE_AGENT[slot];
-  const match = /^(doc-auditor|feature-scout)(?:#([2-9]|[1-9][0-9]+))?$/.exec(slot);
-  return match ? match[1] : null;
+  const match = /^(doc-auditor|feature-scout|work-discoverer|discover-work)(?:#([2-9]|[1-9][0-9]+))?$/.exec(slot);
+  return match ? match[1] === "discover-work" ? "work-discoverer" : match[1] : null;
 }
 export const dispatcherFor = (node, itemAgent) =>
   node === "plan" || node === "implement" ? itemAgent : slotAgent(node);
@@ -32,13 +44,13 @@ export function nodeAllowed(plan, kind) {
   return agent === null || limitsFor(plan).agents.includes(agent);
 }
 export const OPT_IN_NODES = ["scout", "impl-verify", "qa"];
-export const STEP_KINDS = NODE_KINDS.filter((k) => k !== "propose");
+export const STEP_KINDS = NODE_KINDS.filter((k) => !["propose", "scout"].includes(k));
 export function defaultGraph(plan) {
   return { nodes: STEP_KINDS.filter((k) => nodeAllowed(plan, k) && !OPT_IN_NODES.includes(k)), gates: [...DEFAULT_GATES] };
 }
 export function allowsPipelineEdit(plan) { return limitsFor(plan).pipelineEdit; }
 
-export const PROPOSE_SETTING_REASON = "propose is no longer a node — turn on Automatic picking in the Pipeline tab";
+export const PROPOSE_SETTING_REASON = "Use Assign work instead of the legacy Propose node.";
 
 const ORDER = [
   ["plan", "implement", "anchors must keep the order plan · implement · accept"],
@@ -53,6 +65,8 @@ const ORDER = [
 ];
 const RANK = ["plan", "verify", "implement", "impl-verify", "qa", "accept"];
 function orderReason(nodes) {
+  const assign = nodes.indexOf("assign-work");
+  if (assign >= 0 && nodes.slice(0, assign).some(node => isItemNode(node) || node === "accept")) return "Assign work must come before steps that need an assigned item.";
   for (const [first, then, reason] of ORDER) {
     const a = nodes.indexOf(first), b = nodes.indexOf(then);
     if (a >= 0 && b >= 0 && a > b) return reason;
@@ -168,6 +182,7 @@ export function validateDefinition(definition, plan) {
   if (!Array.isArray(steps) || !Array.isArray(gates)) return { ok: false, reason: "pipeline must have steps and gates" };
   if (![...steps, ...gates].every((id) => typeof id === "string")) return { ok: false, reason: "step and gate ids must be strings" };
   if (steps.length === 0) return { ok: false, reason: "a pipeline needs at least one step" };
+  if (definition.selectionPolicy !== undefined && (typeof definition.selectionPolicy !== "string" || !definition.selectionPolicy.trim() || definition.selectionPolicy.length > 3000)) return { ok: false, reason: "Selection policy must contain 1 to 3000 characters." };
   if (new Set(steps).size !== steps.length) return { ok: false, reason: "a step appears twice" };
   for (const s of steps) {
     if (isRef(s)) {
@@ -200,8 +215,12 @@ export function expand(pipelineId, definitions, path = []) {
       stack.pop();
       active.delete(frame.id);
       const graph = { nodes: frame.nodes, gates: [...frame.gates] };
-      if (stack.length === 0) return { ok: true, graph };
+      if (stack.length === 0) {
+        const policy = frame.policy ?? definitions[pipelineId].selectionPolicy;
+        return { ok: true, graph: policy ? { ...graph, selectionPolicy: policy } : graph };
+      }
       const parent = stack[stack.length - 1];
+      if (frame.policy) parent.policy = frame.policy;
       if (frame.junction) parent.gates.add(gateId(frame.nodes[0]));
       for (const node of frame.nodes) {
         if (parent.seen.has(node)) return fail(parent.id, "a node appears twice");
@@ -214,6 +233,7 @@ export function expand(pipelineId, definitions, path = []) {
     const step = definition.steps[frame.index++];
     const gated = definition.gates.includes(gateId(step));
     if (!isRef(step)) {
+      if (step === "assign-work") frame.policy = definition.selectionPolicy ?? DEFAULT_SELECTION_POLICY;
       if (frame.seen.has(step)) return fail(frame.id, "a node appears twice");
       frame.seen.add(step);
       if (gated) frame.gates.add(gateId(step));

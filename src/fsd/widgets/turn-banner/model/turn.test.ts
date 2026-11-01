@@ -51,14 +51,14 @@ it("failure suppresses its old handoff line and preserves other ready work and g
 });
 
 describe("deriveTurn — setup", () => {
-  it("directs owners to add backlog items when automatic scouting is off", () => {
+  it("describes only the included nodes regardless of deprecated flags", () => {
     const setup = { ...ready, autoScoutEnabled: false };
     const first = deriveTurn([], setup);
     assert.equal(first.kind, "setup");
-    if (first.kind === "setup") assert.match(first.steps[2].detail, /Automatic scouting is off.*Backlog tab/);
+    if (first.kind === "setup") assert.match(first.steps[2].detail, /Discover work finds candidates when included/);
     const idle = deriveTurn([accepted("DONE")], setup);
     assert.equal(idle.kind, "none");
-    if (idle.kind === "none") assert.match(idle.detail, /Automatic scouting is off.*Pipeline tab/);
+    if (idle.kind === "none") assert.match(idle.detail, /Add work to the backlog or run a pipeline/);
   });
   it("shows the checklist while the board is empty, pointing at the first undone step", () => {
     const turn = deriveTurn([], { tokenIssued: true, rosterSynced: false });
@@ -93,7 +93,7 @@ describe("deriveTurn — mine", () => {
     if (turn.kind !== "mine") return;
     assert.equal(turn.count, 1);
     assert.equal(turn.detail, "FEAT-01 needs a plan request");
-    assert.equal(turn.why, "pm can't propose anything new until you clear one.");
+    assert.equal(turn.why, "Assign work waits until you clear one.");
   });
   it("counts several and orders approval before plan requests", () => {
     const turn = deriveTurn(
@@ -229,7 +229,7 @@ describe("deriveTurn — acceptance and handoff", () => {
     if (turn.kind !== "mine") assert.fail(turn.kind);
     assert.equal(turn.detail, "FEAT-03 is ready for your approval · FEAT-02 failed acceptance · FEAT-01 is waiting for your commit");
     assert.equal(turn.count, 3);
-    assert.equal(turn.why, "pm can't propose anything new until you clear one.");
+    assert.equal(turn.why, "Assign work waits until you clear one.");
     assert.deepEqual(turn.next.map((n) => n.key), ["FEAT-01"]);
   });
 });

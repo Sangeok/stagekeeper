@@ -1,4 +1,6 @@
 import { join } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
 const CLIENTS = ["claude", "codex"];
 const SCENARIOS = ["new-user", "update"];
@@ -7,6 +9,16 @@ const RESULTS = ["pass", "fail", "skip"];
 const NAME = /^[a-z0-9][a-z0-9.-]{0,63}$/;
 const COMMIT = /^[0-9a-f]{40}$/;
 const TOKEN = /\b(?:hu|hs|ho)_[A-Za-z0-9_-]{43}\b/;
+
+export async function assertGeneratedAgents(pluginRoot, repo, plan, workspaceAgents) {
+  const { limitsFor } = await import(pathToFileURL(join(pluginRoot, "lib", "plans", "entitlement.mjs")).href);
+  const expected = [...workspaceAgents, ...limitsFor(plan).agents].map(agent => `${agent}.md`).sort();
+  const directory = join(repo, ".claude", "agents");
+  const actual = existsSync(directory) ? readdirSync(directory).filter(name => name.endsWith(".md")).sort() : [];
+  const missing = expected.filter(name => !actual.includes(name));
+  const unexpected = actual.filter(name => !expected.includes(name));
+  if (missing.length || unexpected.length) throw new Error(`generated agents differ from the installed plugin's ${plan} entitlement: missing [${missing.join(", ")}], unexpected [${unexpected.join(", ")}]`);
+}
 
 export function helperCommand(platform, pluginRoot, task, args = []) {
   if (platform === "win32") {

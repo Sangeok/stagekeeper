@@ -7,6 +7,8 @@ import { RUNTIME_MARKER } from "../lib/execution/client-runtime.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 
 export const ROLE_TOOLS = {
+  "work-assigner": ["agent_next", "assignment_context", "backlog_list", "board_list", "board_propose"],
+  "work-discoverer": ["agent_next", "backlog_list", "backlog_add"],
   pm: ["agent_next", "backlog_list", "board_list", "board_propose"],
   "feature-scout": ["agent_next", "backlog_list", "backlog_add"],
   "doc-auditor": ["agent_next", "backlog_list"],
@@ -16,6 +18,7 @@ export const ROLE_TOOLS = {
   dev: ["agent_next", "backlog_get", "board_get", "board_transition", "plan_submit", "report_submit"],
 };
 export const ROLE_FILE_TOOLS = {
+  "work-assigner": [], "work-discoverer": ["Read", "Glob", "Grep", "WebSearch", "WebFetch"],
   pm: [], "feature-scout": ["Read", "Glob", "Grep", "WebSearch", "WebFetch"], "doc-auditor": ["Read", "Glob", "Grep"],
   "plan-verifier": ["Read", "Glob", "Grep", "Bash", "Skill"], "qa-verifier": ["Read", "Glob", "Grep", "Write"], "impl-verifier": ["Read", "Glob", "Grep", "Bash", "Write"], dev: ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "MultiEdit"],
 };
@@ -48,7 +51,7 @@ export function renderCodexRole(body, logicalRole) {
   parsed.instruction = parsed.instruction.replaceAll("mcp__harness_qa_browser__", "mcp__harness__");
   const write = logicalRole === "dev" || logicalRole === "qa-verifier" || logicalRole === "impl-verifier";
   if (!write && parsed.tools.some(tool => ["Write", "Edit", "MultiEdit"].includes(tool))) throw new Error("Read-only role declares write tools");
-  const entry = "Execute only through the installed harness-codex fresh-thread helper, never through a parent-history subagent. Include client: codex on every agent_next; the helper enforces project, key, entry and role binding. " + (logicalRole === "pm" ? "Use only the MCP tools; no repository read or file tools." : "Use the absolute repository and scratch paths in the briefing; cwd is scratch. Read docs/harness/codex-runbook.md relative to repository.") + " Translate legacy /harness:init recovery advice to $harness-init. Stop after done:true. Owner tools and nested agents are unavailable. Permission refusal is failed/blocked, never verification success. Git metadata stays protected: prepare permitted files, submit handoff, and let the main loop or owner commit with actual permission.";
+  const entry = "Execute only through the installed harness-codex fresh-thread helper, never through a parent-history subagent. Include client: codex on every agent_next; the helper enforces project, key, entry and role binding. " + (["pm", "work-assigner"].includes(logicalRole) ? "Use only the MCP tools; no repository read or file tools." : "Use the absolute repository and scratch paths in the briefing; cwd is scratch. Read docs/harness/codex-runbook.md relative to repository.") + " Translate legacy /harness:init recovery advice to $harness-init. Stop after done:true. Owner tools and nested agents are unavailable. Permission refusal is failed/blocked, never verification success. Git metadata stays protected: prepare permitted files, submit handoff, and let the main loop or owner commit with actual permission.";
   return `name = ${JSON.stringify(parsed.name)}\ndescription = ${JSON.stringify(parsed.description)}\ndeveloper_instructions = ${JSON.stringify(entry + "\n\n" + parsed.instruction)}\nsandbox_mode = ${JSON.stringify(write ? "workspace-write" : "read-only")}\n[agents]\nenabled = false\n[mcp_servers.harness]\nenabled_tools = ${JSON.stringify(allowed)}\n[mcp_servers.harness_owner]\nenabled = false\n`;
 }
 

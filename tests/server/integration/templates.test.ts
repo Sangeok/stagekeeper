@@ -23,10 +23,11 @@ it("the templates route answers with real bodies, the lock reason, and auth fail
     templates: {
       "agents/dev.md": agentStub,
       "agents/pm.md": agentStub,
+      "agents/work-assigner.md": agentStub,
       "CLAUDE.runbook.md": "Full runbook",
       "docs/plans/README.md": "Plan documentation",
     },
-    entitlement: { plan: "free", agents: ["pm", "feature-scout"] },
+    entitlement: { plan: "free", agents: ["pm", "feature-scout", "work-assigner", "work-discoverer"] },
   };
   let userId: string | undefined;
   try {

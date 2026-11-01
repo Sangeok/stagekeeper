@@ -98,13 +98,14 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
   if (!needsKey(parsed) && key !== null) return fail(`agent \`${agent}\` takes no key`);
 
   const vars = await deps.vars(projectId, agent, client);
-  try { parsed = { ...parsed, steps: parsed.steps.map(step => ({ ...step, body: renderTemplate(step.body, vars) })) }; }
+  try { parsed = { ...parsed, steps: parsed.steps.map(step => ({ ...step, body: renderTemplate(step.body, vars),
+    requires: agent === "work-assigner" ? step.requires.filter(requirement => requirement !== "can-propose") : step.requires })) }; }
   catch (error) { return fail(`template render failed: ${error instanceof Error ? error.message : "invalid variables"}`); }
   const execute = async (deps: NextDeps): Promise<ServerResult<NextOutput>> => {
     const serve = async (run: RunRow, step: Step, prefix = ""): Promise<ServerResult<NextOutput>> => {
       const missing = await new Facts(deps, projectId, agent, key, false).unmet(step.requires);
       if (missing.length) return fail(`not open: step \`${step.id}\` opens when ${missing.join(" and ")}`);
-      return ok({ step: step.id, instruction: prefix + step.body, done: false,
+      return ok({ step: step.id, instruction: prefix + (agent === "work-assigner" ? "Assign work contract: first call assignment_context with this receipt runId. Follow its policy and compare every eligible alternative. Never invent evidence, urgency or dependencies. Call board_propose with assignmentRunId=this receipt runId and selectionDecision={contextKey,policy,criterion,evidence:[{key,quote}],comparisons:[{key,reason}],readiness,assignmentReason,uncertainties:[]}. Quote the actual Source text. Assign only one item in this run. If facts are insufficient, record blocked with the missing information; do not register work. After registration finish agent_next without assigning again.\n\n" : "") + step.body, done: false,
         receipt: { runId: run.id, revision: run.revision, stepId: run.stepId } });
     };
     const finished = (): ServerResult<NextOutput> => ok({ done: true, note: `no open run for ${agent}${key ? ` on ${key}` : ""} — this run is finished, not necessarily the item. Call again without outcome to start the next step, or ask pipeline_next what is left.` });

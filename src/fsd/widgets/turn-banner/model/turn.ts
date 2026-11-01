@@ -44,9 +44,8 @@ export const HEADLINE: Record<Turn["kind"], string> = {
   none: "Nothing open",
 };
 
-const NONE_DETAIL = "Pick the next item from the backlog, or run the pipeline in your coding client — when the backlog is empty, feature-scout looks for items to add.";
-const SCOUT_OFF_DETAIL = "Automatic scouting is off. Add an item on the Backlog tab, or turn it on in the Pipeline tab.";
-const BLOCKED_WHY = "pm can't propose anything new until you clear one.";
+const NONE_DETAIL = "Add work to the backlog or run a pipeline. Discover work finds candidates when included; Assign work selects and assigns eligible backlog items.";
+const BLOCKED_WHY = "Assign work waits until you clear one.";
 
 function setupSteps(setup: SetupState): SetupStep[] {
   return [
@@ -65,9 +64,7 @@ function setupSteps(setup: SetupState): SetupStep[] {
     {
       key: "run",
       title: "Run the pipeline in your coding client",
-      detail: setup.autoScoutEnabled === false
-        ? `${SCOUT_OFF_DETAIL} Then run the pipeline in your coding client, or put the item on the board from the Backlog tab.`
-        : "feature-scout reads the code and adds up to three backlog items; pm puts up to two on the board for your approval. With automatic picking off, put one on the board from the Backlog tab.",
+      detail: "Discover work finds candidates when included. Assign work follows the saved selection policy and records why a task and assignee were chosen. The runner follows the nodes and waits at approval gates.",
       done: false,
     },
   ];
@@ -184,5 +181,5 @@ export function deriveTurn(items: readonly TurnItem[], setup: SetupState): Turn 
     };
   }
 
-  return { kind: "none", detail: setup.autoScoutEnabled === false ? SCOUT_OFF_DETAIL : NONE_DETAIL };
+  return { kind: "none", detail: NONE_DETAIL };
 }

@@ -10,6 +10,22 @@ const response = (value, extra = {}) => ({ jsonrpc: "2.0", id: "ours", result: {
 const parse = (value) => parseToolResponse("application/json; charset=utf-8", JSON.stringify(value), "ours");
 const freshState = { lastSignature: null, repeats: 0, stuck: false };
 
+it("retains project entry identity, resets repeated-work detection for a new entry and honors new-work permission", () => {
+  for (const [agent, slotId] of [["work-assigner", "assign-work"], ["work-discoverer", "discover-work"], ["doc-auditor", "doc-audit"]]) {
+    const entry = { runId: "project-run", entryId: "first", slotId };
+    const source = overview([], { head: { action: "dispatch", agent, hint: "Run this entry", entry } });
+    const work = actionableWork(source, { ...policy, propose: true });
+    assert.deepEqual(work.head, { agent, entry });
+    assert.equal(actionableWork(source, policy).head, null);
+    source.head.entry = { ...entry, entryId: "second" };
+    assert.notEqual(workSignature(work), workSignature(actionableWork(source, { ...policy, propose: true })));
+    for (const malformed of [undefined, null, { ...entry, entryId: "" }]) {
+      source.head.entry = malformed;
+      assert.throws(() => actionableWork(source, { ...policy, propose: true }), /Invalid pipeline overview/);
+    }
+  }
+});
+
 it("failed acceptance is an idle wait, preserving other work and rejecting malformed payloads", () => {
   const failure = { key: "FAILED", node: "accept", version: 2, action: "wait", on: "acceptance", checks: [3, 5], note: "not pushed" };
   const idle = actionableWork(overview([failure]), policy);

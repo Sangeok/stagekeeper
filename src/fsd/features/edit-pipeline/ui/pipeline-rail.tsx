@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { STEP_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId, refId, expand, sequence, usersOf, type Definition } from "@harness/core/pipeline/pipeline.mjs";
+import { DEFAULT_SELECTION_POLICY, STEP_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId, refId, expand, sequence, usersOf, type Definition } from "@harness/core/pipeline/pipeline.mjs";
 import { autoEdgeLabel, gateLabel, gateTooltip, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";
@@ -71,9 +71,9 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
   const missing = STEP_KINDS.filter(kind => !isProjectSlot(kind) && !draftDefinition.steps.includes(kind));
   const movesFor = (before: string | null): Move[] => [
     ...(before === null ? [] : [{ label: "Add gate", step: insertGate(draftDefinition, gateId(before), plan, context) }]),
-    ...PROJECT_AGENTS.map(agent => ({ label: `Add ${agent} here`, step: addSlot(draftDefinition, agent, before, plan, context) })),
-    ...draftDefinition.steps.filter(isProjectSlot).map(slot => ({ label: `Move ${slot} here`, step: moveSlot(draftDefinition, slot, before, plan, context) })),
-    ...missing.map(kind => ({ label: `Add ${nodeLabel(kind)}`, step: addNode(draftDefinition, kind, plan, context) })),
+    ...PROJECT_AGENTS.filter(agent => agent !== "feature-scout").map(agent => ({ label: `Add ${nodeLabel(agent)} here`, step: addSlot(draftDefinition, agent, before, plan, context) })),
+    ...draftDefinition.steps.filter(step => isProjectSlot(step) || step === "assign-work").map(slot => ({ label: `Move ${nodeLabel(slot)} here`, step: moveSlot(draftDefinition, slot, before, plan, context) })),
+    ...missing.map(kind => ({ label: `Add ${nodeLabel(kind)}`, step: addNode(draftDefinition, kind, plan, context, before) })),
     ...pipelines.filter(pipeline => pipeline.id !== id).map(pipeline => {
       const step = insertRef(draftDefinition, pipeline.id, before, plan, context);
       const hasDuplicates = !step.ok && (step.reason === "a node appears twice" || step.reason === "a step appears twice");
@@ -200,6 +200,12 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
           onClick={() => showConflicts(move)}>Show conflicting steps</button> : null}
       </div>)}</section>)}
     </div> : null}
+    {draftDefinition.steps.includes("assign-work") ? <label className="flex flex-col gap-2 text-sm">Assign work: selection policy
+      <textarea aria-label="Selection policy" rows={4} maxLength={3000} disabled={!canEdit} value={draftDefinition.selectionPolicy ?? DEFAULT_SELECTION_POLICY}
+        onChange={event => applyIfValid({ ok: true, definition: { ...draftDefinition, selectionPolicy: event.target.value } })}
+        className="rounded-md border border-edge bg-paper p-3" />
+      <span className="text-xs text-quiet">State the goal, priority order and tie-break rule. Every assignment records Source evidence, candidate comparisons and readiness. Missing evidence waits for clarification.</span>
+    </label> : null}
     {affected.length ? <p className="text-xs text-quiet">Also changes: {affected.map(names).join(", ")}</p> : null}
     {!validation.ok ? <p className="text-xs text-risk">{validation.reason}</p> : null}
     {ungated ? <p className="text-xs text-risk">No approval gates: these steps continue automatically once the run starts.</p> : null}
@@ -301,11 +307,12 @@ function NodeCard({
   onApply: (step: Step) => void;
 }) {
   const agent = nodeAgentLabel(kind, roster);
+  const description = kind === "assign-work" ? "Select backlog items, assign agents, and add them to the board." : ["work-discoverer", "feature-scout"].includes(agent) ? "Find new work and add it to the backlog with supporting evidence." : null;
   return (
     <div className="flex min-w-[132px] flex-col justify-between gap-2 rounded-lg border border-rule bg-paper px-3 py-2.5">
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium">{nodeLabel(kind)}</span>
-        <span className="text-[11px] text-quiet">{kind === "accept" ? "the main loop" : agent === "" ? "nobody yet" : agent}</span>
+        <span className="text-[11px] text-quiet">{description ?? (kind === "accept" ? "the main loop" : agent === "" ? "nobody yet" : agent)}</span>
       </div>
       {editable && (removable || swappable) ? (
         <div className="flex gap-2">
