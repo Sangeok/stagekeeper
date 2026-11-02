@@ -50,7 +50,7 @@ function Fixture({ mode, editable }: { mode: Mode; editable: boolean }) {
     const parent = pipelines.find(row => row.id === "delivery")!;
     return <PipelineRail pipelineId={parent.id} definition={parent.definition} expectedVersion={parent.saved!.version} pipelines={pipelines} rules={{}} plan={plan} roster={["dev"]} editable={writable} save={save} />;
   }
-  return <PipelineList projectId="p" pipelines={pipelines} rules={{ fix: "delivery" }} autoProposeEnabled
+  return <PipelineList projectId="p" pipelines={pipelines} rules={{ fix: "delivery" }}
     now={new Date(0)} plan={plan} roster={["dev"]} editable={writable} save={save}
     actions={{ archive: id => mutate("archive", id), rename: (id, name) => mutate("rename", { id, name }), setDefault: id => mutate("default", id), setRule: (type, id) => mutate("rule", { type, id }), setAutomaticPick: enabled => mutate("picking", enabled) }} />;
 }

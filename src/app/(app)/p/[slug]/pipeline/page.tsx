@@ -21,7 +21,8 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
   return (
     <ProjectPipelinePage
       projectId={projectId}
-      {...view}
+      pipelines={view.pipelines}
+      rules={view.rules}
       actions={{ archive: archivePipelineAction.bind(null, slug), rename: renamePipelineAction.bind(null, slug), setDefault: setDefaultPipelineAction.bind(null, slug), setRule: setPipelineRuleAction.bind(null, slug), setAutomaticPick: setAutomaticPickAction.bind(null, slug) }}
       now={new Date()}
       plan={access.plan}

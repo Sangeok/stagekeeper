@@ -168,14 +168,8 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
             removable={!context.mustRun.includes(id) || !REQUIRED_NODES.includes(kind)}
             swappable={TAIL_NODES.includes(kind) && draftDefinition.steps.filter(step => TAIL_NODES.includes(step)).length === 2}
             removeStep={removeNode(draftDefinition, kind, plan, context)} swapStep={swapTail(draftDefinition, plan, context)} onApply={applyIfValid} />
-            : <div className="flex min-w-40 flex-col gap-3 rounded-lg border border-edge bg-field p-3">
-              <span className="text-sm font-medium">{names(target)}</span>
-              <details><summary className="cursor-pointer text-xs text-quiet">{block?.ok ? block.graph.nodes.length : "?"} steps</summary>
-                {block?.ok ? <ol className="mt-2 flex flex-col gap-2 text-xs">{block.graph.nodes.map(node => <li key={node}>{block.graph.gates.includes(gateId(node)) ? `${gateLabel(gateId(node))} · ` : ""}{nodeLabel(node)}</li>)}</ol> : <p className="mt-2 text-xs text-risk">{block && !block.ok ? block.reason : "Pipeline not found"}</p>}
-              </details>
-              <button type="button" className="text-left text-xs underline" disabled={busy || pending} onClick={() => onSelect?.(target)}>Open pipeline</button>
-              {canEdit ? <button type="button" className="text-left text-xs underline" disabled={!removeNode(draftDefinition, kind, plan, context).ok} onClick={() => applyIfValid(removeNode(draftDefinition, kind, plan, context))}>Remove</button> : null}
-            </div>}
+            : <ReferencedPipelineCard name={names(target)} block={block} editable={canEdit} busy={busy || pending}
+              removeStep={removeNode(draftDefinition, kind, plan, context)} onOpen={() => onSelect?.(target)} onApply={applyIfValid} />}
           {hasConflict ? <span className="max-w-48 px-1 text-xs text-risk">Already used{target !== null && block?.ok ? `: ${block.graph.nodes.filter(node => conflictingNodes.has(node)).map(nodeLabel).join(", ")}` : ""}</span> : null}
           </div>
         </div>;
@@ -223,6 +217,25 @@ export function PipelineRail({ pipelineId, name, definition, expectedVersion = 0
     <details className="text-sm"><summary className="cursor-pointer text-xs text-quiet underline">Read as text</summary>
       {savedGraph.ok ? <ol className="mt-2 flex flex-col gap-1">{sequence(savedGraph.graph).map((node, index) => <li key={node}>{index + 1}. {node.startsWith("before-") ? `${gateLabel(node)} — you` : nodeLabel(node)}</li>)}</ol> : <p>{savedGraph.reason}</p>}
     </details>
+  </div>;
+}
+
+function ReferencedPipelineCard({ name, block, editable, busy, removeStep, onOpen, onApply }: {
+  name: string;
+  block: ReturnType<typeof expand> | null;
+  editable: boolean;
+  busy: boolean;
+  removeStep: Step;
+  onOpen: () => void;
+  onApply: (step: Step) => void;
+}) {
+  return <div className="flex min-w-40 flex-col gap-3 rounded-lg border border-edge bg-field p-3">
+    <span className="text-sm font-medium">{name}</span>
+    <details><summary className="cursor-pointer text-xs text-quiet">{block?.ok ? block.graph.nodes.length : "?"} steps</summary>
+      {block?.ok ? <ol className="mt-2 flex flex-col gap-2 text-xs">{block.graph.nodes.map(node => <li key={node}>{block.graph.gates.includes(gateId(node)) ? `${gateLabel(gateId(node))} · ` : ""}{nodeLabel(node)}</li>)}</ol> : <p className="mt-2 text-xs text-risk">{block && !block.ok ? block.reason : "Pipeline not found"}</p>}
+    </details>
+    <button type="button" className="text-left text-xs underline" disabled={busy} onClick={onOpen}>Open pipeline</button>
+    {editable ? <button type="button" className="text-left text-xs underline" disabled={!removeStep.ok} onClick={() => onApply(removeStep)}>Remove</button> : null}
   </div>;
 }
 

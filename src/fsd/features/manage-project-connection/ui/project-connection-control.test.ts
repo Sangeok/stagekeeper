@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { createElement, type ContextType } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { withAppRouterTestContext } from "@/fsd/shared/lib/testing";
 import { ProjectConnectionControl } from "./project-connection-control";
 
 const action = async () => ({ status: "success" as const });
-const render = (disconnected: boolean) => renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: {} as ContextType<typeof AppRouterContext> }, createElement(ProjectConnectionControl, {
+const render = (disconnected: boolean) => renderToStaticMarkup(withAppRouterTestContext(createElement(ProjectConnectionControl, {
   target: { id: "a", name: "Alpha", repoOwner: "owner", repo: "repo", disconnectedAt: disconnected ? "2026-10-04" : null },
   summary: { plan: "free", version: 4, limit: 1, connectedCount: 1 }, disconnect: action, reconnect: action,
 })));

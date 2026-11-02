@@ -59,3 +59,21 @@ it("renders the saved expansion error when a referenced pipeline is missing", ()
   assert.match(text, /it uses a pipeline that is archived or missing/);
   assert.doesNotMatch(text, /<ol/);
 });
+
+it("reference cards preserve their nested gate summary and readonly navigation without saving during render", () => {
+  let saves = 0;
+  const definition = { steps: ["plan", "implement", "pipeline:check", "accept"], gates: [] };
+  const pipelines = [props.pipelines[0], { id: "check", name: "Check", isDefault: false,
+    definition: { steps: ["qa"], gates: ["before-qa"] }, saved: { version: 1, createdAt: new Date(0) }, runnable: null }];
+  for (const editable of [true, false]) {
+    const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, definition, pipelines, editable,
+      save: async () => { saves++; return { status: "stale" }; } }));
+    assert.match(html, /role="group" aria-label="Check"/);
+    assert.match(html, />1 steps<\/summary>/);
+    assert.match(html, /before QA · QA/);
+    assert.match(html, /<button[^>]*>Open pipeline<\/button>/);
+    assert.doesNotMatch(html, /<button[^>]*disabled[^>]*>Open pipeline<\/button>/);
+    if (!editable) assert.doesNotMatch(html, />Remove<\/button>/);
+  }
+  assert.equal(saves, 0);
+});

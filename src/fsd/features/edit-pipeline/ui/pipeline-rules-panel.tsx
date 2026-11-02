@@ -1,5 +1,5 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
 import { Button } from "@/fsd/shared/ui/button";
 import type { PipelineSnapshot } from "../model/rail-state";
@@ -7,10 +7,10 @@ import type { PipelineSettingsActions } from "./pipeline-list";
 import { PipelinePanel } from "./pipeline-panel";
 
 type Props = {
-  pipelines: PipelineSnapshot[]; rules: Record<string, string>; autoProposeEnabled: boolean;
+  pipelines: PipelineSnapshot[]; rules: Record<string, string>;
   editable: boolean; busy: boolean; error: string | null; unavailableReason?: string;
   actions: PipelineSettingsActions; change: (action: () => ReturnType<PipelineSettingsActions["setDefault"]>) => void;
-  automationControls?: ReactNode; onClose: () => void;
+  onClose: () => void;
 };
 export function PipelineRulesPanel({ pipelines, rules, editable, busy, error, actions, change, onClose }: Props) {
   const defaultId = pipelines.find(pipeline => pipeline.isDefault)!.id;

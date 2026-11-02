@@ -2,15 +2,14 @@ import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js";
+import { withAppRouterTestContext } from "@/fsd/shared/lib/testing";
 import { InboxCard } from "./inbox-card.tsx";
 import { inboxReadOnlyLabel } from "../model/inbox-item.ts";
 import { blobHref, DOC_LINK_NOTE } from "@/fsd/entities/board-item";
 
 const render = (item, props = {}) => {
   const action = async () => ({ success: true });
-  return renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: { refresh() {} } },
-    createElement(InboxCard, { item, now: item.updatedAt,
+  return renderToStaticMarkup(withAppRouterTestContext(createElement(InboxCard, { item, now: item.updatedAt,
       transition: action, approve: action, discard: action, canWrite: true, ...props })));
 };
 

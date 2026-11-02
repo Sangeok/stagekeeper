@@ -51,12 +51,11 @@ it("failure suppresses its old handoff line and preserves other ready work and g
 });
 
 describe("deriveTurn — setup", () => {
-  it("describes only the included nodes regardless of deprecated flags", () => {
-    const setup = { ...ready, autoScoutEnabled: false };
-    const first = deriveTurn([], setup);
+  it("describes included nodes for empty and completed boards", () => {
+    const first = deriveTurn([], ready);
     assert.equal(first.kind, "setup");
     if (first.kind === "setup") assert.match(first.steps[2].detail, /Discover work finds candidates when included/);
-    const idle = deriveTurn([accepted("DONE")], setup);
+    const idle = deriveTurn([accepted("DONE")], ready);
     assert.equal(idle.kind, "none");
     if (idle.kind === "none") assert.match(idle.detail, /Add work to the backlog or run a pipeline/);
   });

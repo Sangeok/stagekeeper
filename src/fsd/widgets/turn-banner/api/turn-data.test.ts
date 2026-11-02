@@ -21,7 +21,7 @@ it("GET derives failures only for the latest unaccepted done at an open accept c
     const db = {
       projectToken: { count: async () => 1 }, workspace: { count: async () => 1 }, agentRun: { findMany: async () => [] },
       pipelineRun: { findMany: async () => node === null ? [] : [{ id: "run", boardItemId: "new", node, version: { format: null } }] },
-      project: { findUniqueOrThrow: async () => ({ autoScoutEnabled: true }) },
+      project: { findUniqueOrThrow: async () => ({ id: "p" }) },
       acceptanceFailure: { findMany: async (args: unknown) => { failureQuery = args; return [{ boardItemId: "old" }, ...(currentFailure ? [{ boardItemId: "new" }] : [])]; } },
     };
     const deps: Record<string, unknown> = {
@@ -50,7 +50,7 @@ it("maps the runner view to banner facts for the project it was asked about", as
   const asked: string[] = [];
   const db = {
     projectToken: { count: async () => 1 }, workspace: { count: async () => 1 }, agentRun: { findMany: async () => [] },
-    pipelineRun: { findMany: async () => [] }, project: { findUniqueOrThrow: async () => ({ autoScoutEnabled: true }) }, acceptanceFailure: { findMany: async () => [] },
+    pipelineRun: { findMany: async () => [] }, project: { findUniqueOrThrow: async () => ({ id: "p" }) }, acceptanceFailure: { findMany: async () => [] },
   };
   const view = {
     runner: { client: "codex", session: "s", mode: "resident", host: "desk", branch: "fixture", permission: "scoped", autostart: false, state: "working", waitReason: null,
@@ -87,4 +87,30 @@ it("passes a refused sign-in start's code to the banner and never the stored tex
   assert.equal(exports.runnerFacts(row("signin", "push-url")).runner?.signinCode, "push-url");
   assert.equal(exports.runnerFacts(row("signin", "free text")).runner?.signinCode, "other");
   assert.equal(exports.runnerFacts(row("owner", "dirty")).runner?.signinCode, null);
+});
+
+it("retains the awaited project existence failure before deriving any banner", async () => {
+  const code = ts.transpileModule(readFileSync("src/fsd/widgets/turn-banner/api/turn-data.server.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const require = createRequire(import.meta.url);
+  const failure = new Error("project missing");
+  let derived = 0;
+  const dependencies: Record<string, unknown> = {
+    "server-only": {},
+    "@/server/db": { prisma: {
+      projectToken: { count: async () => 1 }, workspace: { count: async () => 1 }, acceptanceFailure: { findMany: async () => [] },
+      project: { findUniqueOrThrow: async (input: unknown) => {
+        assert.deepEqual(JSON.parse(JSON.stringify(input)), { where: { id: "missing" }, select: { id: true } });
+        throw failure;
+      } },
+    } },
+    "@/server/pipeline/api.server": { latestBoard: async () => [] },
+    "@/server/pipeline/api": { loadExecutionFacts: async () => [] },
+    "@/server/runners/api.server": { readRunnerState: async () => ({ runner: null, pausedAt: null, lastActivity: null, renderedAt: new Date(0) }) },
+    "../model/runner": { signinCode },
+    "../model/turn": { deriveTurn: () => { derived++; return { kind: "none", detail: "unused" }; } },
+  };
+  const exports = {} as { loadTurn: typeof loadTurn };
+  runInNewContext(code, { exports, Date, require: (name: string) => Object.hasOwn(dependencies, name) ? dependencies[name] : require(name) });
+  await assert.rejects(exports.loadTurn("missing"), error => error === failure);
+  assert.equal(derived, 0);
 });

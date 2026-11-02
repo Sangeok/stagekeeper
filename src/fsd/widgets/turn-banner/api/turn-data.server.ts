@@ -30,12 +30,12 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
   const executions = board.then(rows => loadExecutionFacts(prisma, projectId, rows.map(row => ({
     id: row.id, key: row.backlogItem.key, agent: row.agent, updatedAt: row.updatedAt,
   }))));
-  const [rows, facts, tokenCount, workspaceCount, project, failures, runner] = await Promise.all([
+  const [rows, facts, tokenCount, workspaceCount, , failures, runner] = await Promise.all([
     board,
     executions,
     prisma.projectToken.count({ where: { projectId, revokedAt: null } }),
     prisma.workspace.count({ where: { projectId } }),
-    prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } }),
+    prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { id: true } }),
     prisma.acceptanceFailure.findMany({ where: { clearedAt: null, boardItem: { projectId } }, select: { boardItemId: true } }),
     readRunnerState(projectId),
   ]);
@@ -60,7 +60,7 @@ export async function loadTurn(projectId: string): Promise<TurnData> {
   });
 
   return {
-    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0, autoScoutEnabled: project.autoScoutEnabled }),
+    turn: deriveTurn(items, { tokenIssued: tokenCount > 0, rosterSynced: workspaceCount > 0 }),
     inboxCount: pendingInboxCount(items.map((i) => ({ status: i.status, gate: i.gate }))),
     runner: runnerFacts(runner),
   };
