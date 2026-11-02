@@ -1619,7 +1619,7 @@ it("ends the wait on completion and fails early on states an unattended run cann
 it("lists pipeline-smoke trigger paths that exist in this repository", () => {
   const repository = new URL("../../", import.meta.url);
   const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
-  for (const expected of ["src/server/pipeline", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database"]) assert.ok(paths.includes(expected), expected);
+  for (const expected of ["packages/core/pipeline", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database"]) assert.ok(paths.includes(expected), expected);
   for (const entry of paths) assert.ok(existsSync(new URL(entry, repository)), `${entry} does not exist`);
   assert.deepEqual(smokeTriggerPaths("no command here"), []);
 });
@@ -1722,14 +1722,19 @@ it("refuses a missing or short transcript key before any work", async () => {
 <!-- doc-validation-skip -->
 ## Open Questions
 
-- **[작업 공간 신뢰]** 신뢰하지 않은 작업 공간에서 `claude -p`가 `.claude/agents/*.md`를 로드하는지 확인되지 않았다.
-  - 프로젝트 권한 설정은 무시된다는 보고가 있다. 이 문제는 실행기가 `--settings`로 피한다.
-  - Phase 3 첫 판정으로 확인하고, 필요하면 `--trust-checkout`을 더한다.
+- **[작업 공간 신뢰] 2026-11-02 이 PC에서 답함: 로드한다.**
+  - Claude Code 2.1.316의 `claude -p --permission-mode auto`를 신뢰된 적 없는 새 폴더에서 돌렸다. 신뢰 목록의 어떤
+    항목도 그 폴더를 덮지 않았다.
+  - 실행의 `system/init` 줄 `agents`에 그 폴더의 `.claude/agents/probe-echo.md`가 들어 있었다. 모델이 Agent 도구로
+    `probe-echo`를 불러 정해 둔 답을 받았다. 정가 환산 $0.76이 들었다.
+  - 그래서 첫 실행에는 `--trust-checkout`을 넣지 않는다. Phase 3에서는 `agentCalls`와 `roles-ran`으로 같은 결과인지만
+    확인한다. 프로젝트 권한 설정이 무시된다는 보고는 그대로이며, 이 문제는 실행기가 `--settings`로 피한다.
 - **[3장 권한]** CI의 구독 토큰으로 auto 권한 탐침이 `auto`를 받는지는 실행해 봐야 안다. Phase 3에서 확인하고,
   `allowlist`면 7장 대응대로 따로 보고한다.
 - **[4장 실행 기록 집계]** 서브에이전트 메시지가 `claude -p --output-format stream-json --verbose` 출력에 들어오는지
-  코드에서 확인할 수 없다.
-  - 들어오지 않아도 `runFindings`는 세션 전사에서 거부 수와 서브에이전트 호출을 센다.
+  2026-11-02 같은 실행에서 확인했다. 들어온다. 서브에이전트의 메시지와 도구 호출이 `parent_tool_use_id`가 붙은 줄로
+  실행 스트림에 함께 나왔다.
+  - 그래도 `runFindings`는 세션 전사를 함께 읽는다. 같은 호출은 `tool_use_id`로 한 번만 센다.
   - 이번 세션의 headless 결과(`--output-format json`)에는 `total_cost_usd`, `num_turns`, `permission_denials`,
     `modelUsage`가 있었고, `subagent_stats`도 따로 있었다.
   - 비용과 턴 수는 메인 `result` 줄의 합이다. 서브에이전트 비용이 그 합에 들어가는지, 아니면 `subagent_stats`를 더해야
@@ -1751,8 +1756,9 @@ it("refuses a missing or short transcript key before any work", async () => {
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| PR 1 `client-init-smoke` 4 job | Not run yet | Phase 1(회귀) |
-| `node --test scripts/rehearsals/pipeline-smoke-steps.test.mjs` | Not run yet | Phase 2 |
+| PR 1 `client-init-smoke` 4 job | Pass (PR #278, run 41411910911) | Phase 1(회귀). new-user 22/22, update 21/21. Windows 로그에 예약 포트 구간 출력 있음. `check`는 문서 링크 검사로 한 번 실패한 뒤 고쳐 녹색 |
+| `node --test scripts/rehearsals/pipeline-smoke-steps.test.mjs` | Pass (9/9) | Phase 2. 리허설 시험과 init 리허설 시험을 합쳐 28/28 |
+| 이 PC의 작업 공간 신뢰 사전 확인 | Pass | Phase 3 전. 신뢰된 적 없는 폴더에서도 `.claude/agents` 역할을 불렀다. 정가 환산 $0.76 |
 | `gh workflow run pipeline-smoke.yml --ref harness/pipeline-smoke` | Not run yet | Phase 3: 신뢰 판정, 시간·비용·모델·권한·`harnessErrors`·`stepRefusals`·`agentCalls` 기록 |
 | 음성 증명(게이트 유지, `templates-ref=main`) | Not run yet | Phase 4: `item-gated` 실패와 실패 경로 봉인 기대 |
 | 봉인 artifact 로컬 열기 | Not run yet | Phase 3, Phase 4 |

@@ -13,7 +13,7 @@ const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
 const MARKETPLACE = "stagekeeper-local";
 const PLUGIN_REPOSITORY = "https://github.com/Sangeok/stagekeeper.git";
 const PORT = 45438;
-const ORIGIN = `http://127.0.0.1:${PORT}`;
+export const ORIGIN = `http://127.0.0.1:${PORT}`;
 const COMMIT = /^[0-9a-f]{40}$/;
 
 export const USAGE = [
@@ -80,7 +80,7 @@ export function parseArguments(args: string[]): Options {
 
 type Command = { code: number; stdout: string; stderr: string };
 type Step = { step: string; result: "pass" | "fail" | "skip" };
-type Plugin = { root: string; commit: string };
+export type Plugin = { root: string; commit: string };
 
 const SYNC = [
   "const [root, repo, server] = process.argv.slice(1);",
@@ -97,7 +97,7 @@ const SYNC = [
 ].join("\n");
 type Connection = { slug: string; syncedAt: Date };
 
-class Run {
+export class Run {
   readonly steps: Step[] = [];
   readonly outputs: string[] = [];
   failure: string | undefined;
@@ -131,7 +131,7 @@ class Run {
   }
 }
 
-class Smoke {
+export class Smoke {
   constructor(
     readonly run: Run,
     readonly repo: string,
@@ -232,11 +232,11 @@ function countLines(text: string, pattern: RegExp): number {
   return text.split(/\r?\n/).filter(line => pattern.test(line.trim())).length;
 }
 
-function osLabel(): string {
+export function osLabel(): string {
   return `${process.platform}-${process.arch}`;
 }
 
-async function startServer(databaseUrl: string, log: string, env: NodeJS.ProcessEnv): Promise<ChildProcess> {
+export async function startServer(databaseUrl: string, log: string, env: NodeJS.ProcessEnv): Promise<ChildProcess> {
   const output = openSync(log, "a");
   const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(PORT)], {
     cwd: REPO,
@@ -258,7 +258,7 @@ async function startServer(databaseUrl: string, log: string, env: NodeJS.Process
   throw new Error("server did not answer /login within 120 seconds");
 }
 
-async function stopServer(server: ChildProcess | undefined): Promise<void> {
+export async function stopServer(server: ChildProcess | undefined): Promise<void> {
   if (!server || server.exitCode !== null) return;
   const stopped = new Promise<void>(resolve => server.once("exit", () => resolve()));
   server.kill();
@@ -273,7 +273,7 @@ function exportPlugin(commit: string, directory: string): string {
   return directory;
 }
 
-async function installPlugin(run: Run, options: Options, work: string, env: NodeJS.ProcessEnv): Promise<Plugin> {
+export async function installPlugin(run: Run, options: Pick<Options, "pluginSource" | "pluginBranch" | "pluginCommit">, work: string, env: NodeJS.ProcessEnv): Promise<Plugin> {
   if (options.pluginSource === "github-branch") {
     run.succeed("claude", ["plugin", "marketplace", "add", `${PLUGIN_REPOSITORY}#${options.pluginBranch}`], REPO, env, "marketplace add");
     run.succeed("claude", ["plugin", "install", `harness@${MARKETPLACE}`], REPO, env, "plugin install");
@@ -292,7 +292,7 @@ async function installPlugin(run: Run, options: Options, work: string, env: Node
   return { root, commit: options.pluginCommit };
 }
 
-function createRepository(work: string, scenario: string): string {
+export function createRepository(work: string, scenario: string): string {
   const repo = path.join(work, "repo");
   mkdirSync(repo);
   git(repo, ["init", "-q", "-b", "main"]);
@@ -332,8 +332,8 @@ async function projectState(slug: string, userId: string): Promise<{ runbookVers
   });
 }
 
-async function newUser(smoke: Smoke, plugin: Plugin, options: Options, login: string, token: string, childEnv: NodeJS.ProcessEnv): Promise<void> {
-  const connection = await smoke.firstConnection(plugin, "", options.scenario, token);
+export async function newUser(smoke: Smoke, plugin: Plugin, scenario: string, login: string, token: string, childEnv: NodeJS.ProcessEnv): Promise<void> {
+  const connection = await smoke.firstConnection(plugin, "", scenario, token);
   await smoke.run.step("rerun-unchanged", () => {
     smoke.helper(plugin, ["--dry-run"], "rerun dry-run");
     smoke.helper(plugin, [], "rerun generate");
@@ -359,6 +359,27 @@ async function update(smoke: Smoke, previous: Plugin, installNew: () => Promise<
   return plugin;
 }
 
+export function seedTemplates(run: Run, templates: string, snapshot: string, childEnv: NodeJS.ProcessEnv): string {
+  const output = run.succeed(process.execPath, ["--import", "tsx", "scripts/templates/seed-templates.ts", "--dir", templates, "--snapshot", snapshot], REPO, childEnv, "seed:templates", 300_000).stdout;
+  const revision = /done: \d+ templates atomically seeded from ([0-9a-f]{40})/.exec(output)?.[1];
+  if (!revision) throw new Error("seed:templates did not report a template revision");
+  return revision;
+}
+
+export async function createFixtureUser(login: string, tokenHash: string): Promise<string> {
+  const { withPrisma } = await import("../lib/prisma");
+  return withPrisma(async prisma => {
+    const user = await prisma.user.create({ data: { login, githubId: -randomInt(1, 2_000_000_000) } });
+    await prisma.userToken.create({ data: { userId: user.id, hash: tokenHash, label: "e2e smoke" } });
+    return user.id;
+  });
+}
+
+export async function deleteFixtureUser(userId: string): Promise<void> {
+  const { withPrisma } = await import("../lib/prisma");
+  await withPrisma(prisma => prisma.user.delete({ where: { id: userId } })).catch(() => console.error("cleanup: the fixture user was not deleted"));
+}
+
 async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.ProcessEnv): Promise<number> {
   const started = Date.now();
   const work = realpathSync.native(mkdtempSync(path.join(env.RUNNER_TEMP ?? tmpdir(), "stagekeeper-e2e-")));
@@ -374,28 +395,15 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
   let server: ChildProcess | undefined;
   let userId: string | undefined;
   try {
-    record.templatesCommit = await run.step("seed-templates", () => {
-      const snapshot = options.snapshot ?? path.join(work, "template-snapshot.json");
-      const output = run.succeed(process.execPath, ["--import", "tsx", "scripts/templates/seed-templates.ts", "--dir", options.templates, "--snapshot", snapshot], REPO, childEnv, "seed:templates", 300_000).stdout;
-      const revision = /done: \d+ templates atomically seeded from ([0-9a-f]{40})/.exec(output)?.[1];
-      if (!revision) throw new Error("seed:templates did not report a template revision");
-      return revision;
-    });
-    userId = await run.step("fixture", async () => {
-      const { withPrisma } = await import("../lib/prisma");
-      return withPrisma(async prisma => {
-        const user = await prisma.user.create({ data: { login, githubId: -randomInt(1, 2_000_000_000) } });
-        await prisma.userToken.create({ data: { userId: user.id, hash: token.hash, label: "e2e smoke" } });
-        return user.id;
-      });
-    });
+    record.templatesCommit = await run.step("seed-templates", () => seedTemplates(run, options.templates, options.snapshot ?? path.join(work, "template-snapshot.json"), childEnv));
+    userId = await run.step("fixture", () => createFixtureUser(login, token.hash));
     server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
     const repo = await run.step("repository", () => createRepository(work, options.scenario));
     const smoke = new Smoke(run, repo, helperEnv, userId);
     if (options.scenario === "new-user") {
       const plugin = await run.step("plugin-install", () => installPlugin(run, options, work, helperEnv));
       record.pluginCommit = plugin.commit;
-      await newUser(smoke, plugin, options, login, token.plain, childEnv);
+      await newUser(smoke, plugin, options.scenario, login, token.plain, childEnv);
     } else {
       const previousRef = options.previousRef!;
       const previous = await run.step("previous-plugin", async () => {
@@ -416,10 +424,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
     run.failure ??= "unexpected";
   } finally {
     await stopServer(server);
-    if (userId) {
-      const { withPrisma } = await import("../lib/prisma");
-      await withPrisma(prisma => prisma.user.delete({ where: { id: userId } })).catch(() => console.error("cleanup: the fixture user was not deleted"));
-    }
+    if (userId) await deleteFixtureUser(userId);
   }
   record.failure = run.failure;
   record.seconds = Math.round((Date.now() - started) / 1000);
