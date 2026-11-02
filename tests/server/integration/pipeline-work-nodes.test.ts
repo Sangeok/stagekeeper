@@ -25,6 +25,9 @@ it("assigns from an exact entry with evidence, rejects stale/foreign/duplicate d
     assert.ok(opened.ok && !opened.item.done, JSON.stringify(opened));
     if (!opened.ok || opened.item.done) throw new Error("No receipt");
     const receipt = opened.item.receipt;
+    assert.match(head.hint ?? "", /assignment_context with receipt\.runId from your agent_next response, not entry\.runId\./);
+    assert.deepEqual(await assignmentContext(db, f.projectId, head.entry.runId),
+      { ok: false, reason: "Use receipt.runId from your current Assign work agent_next response; entry.runId names the pipeline run." });
     const context = await assignmentContext(db, f.projectId, receipt.runId);
     assert.ok(context.ok);
     assert.equal(context.item.candidates.find(item => item.key === "K-1")?.eligible, false);

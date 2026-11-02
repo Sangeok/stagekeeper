@@ -33,6 +33,7 @@ export type PipelineNextInput = {
 };
 
 export const HINT: Record<string, string> = {
+  "assign-work": "Read assignment_context with receipt.runId from your agent_next response, not entry.runId. Follow the saved policy. Record evidence, comparisons and readiness before board_propose. Never invent missing facts.",
   "discover-work": "Dispatch work-discoverer with no key and this exact pipeline entry. Add evidence-backed candidates to the backlog and finish agent_next. This step does not assign work.",
   propose: "Dispatch pm with no key.",
   accept: "You run this one — reproduce the five acceptance checks yourself. All pass: write the acceptance section in docs/agents/main-loop/<KEY>.md, commit it, then record it with report_submit({ actor: \"main-loop\" }). Any fails: record it with acceptance_fail and tell the owner; don't reopen.",

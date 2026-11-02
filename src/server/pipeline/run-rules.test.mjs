@@ -70,7 +70,7 @@ describe("decideNext (H.4)", () => {
     assert.equal(decideNext({ ...base, node: "propose", status: "proposed" }).agent, "pm");
   });
   it("HINT covers every node the pipeline can stop on, accept included", () => {
-    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "discover-work", "doc-audit", "impl-verify", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
+    assert.deepEqual(Object.keys(HINT).sort(), ["accept", "assign-work", "discover-work", "doc-audit", "impl-verify", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
     assert.match(HINT.verify, /validation_record/);
     assert.match(HINT.verify, /verification-paths\.md/);
     assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);
@@ -95,6 +95,10 @@ describe("decideNext (H.4)", () => {
 
   it("the propose hint leaves the pick count to pm and the server", () => {
     assert.doesNotMatch(HINT.propose, /\b(one|two|1|2)\b/);
+  });
+
+  it("the assign-work hint points assignment_context at receipt.runId, not entry.runId", () => {
+    assert.match(HINT["assign-work"], /assignment_context with receipt\.runId from your agent_next response, not entry\.runId\./);
   });
 
   it("accept carries its hint like every other answer", () => {

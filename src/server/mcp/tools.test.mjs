@@ -90,7 +90,7 @@ describe("agent-scoped MCP tools", () => {
   });
   it("pinned tool descriptions read exactly as product-copy §13 writes them", () => {
     const meta = descriptions();
-    for (const tool of ["board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "backlog_add", "acceptance_fail", "board_propose"]) {
+    for (const tool of ["board_transition", "plan_submit", "report_submit", "validation_record", "agent_next", "backlog_add", "acceptance_fail", "board_propose", "assignment_context"]) {
       const expected = copyRow(tool);
       assert.ok(expected, `no product-copy row for ${tool}`);
       assert.equal(meta[tool].description, expected, tool);
