@@ -8,6 +8,7 @@ import type { ServerResult } from "@/server/result";
 import { PipelineRejection, withPipelineWrite } from "./lock-pipeline";
 import { ensureExecutionVersion, loadPipelinesViewIn, type PipelineEntry } from "./run-service";
 import { executionKey } from "./run-request";
+import { HINT } from "./run-rules";
 
 type Tx = Prisma.TransactionClient;
 export type WorkNext = { action: "dispatch"; agent: string; hint: string; entry: PipelineEntry }
@@ -31,8 +32,9 @@ export async function workInputs(tx: Tx, projectId: string): Promise<{ context: 
 
 export async function selectionContextIn(tx: Tx, projectId: string, runId: string): Promise<SelectionContext> {
   const agent = await tx.agentRun.findFirst({ where: { id: runId, projectId, agent: "work-assigner", closedAt: null }, include: { workRun: { include: { version: true } } } });
-  const run = agent?.workRun;
-  if (!run || run.closedAt || run.assignedBoardItemId || run.node !== "assign-work" || agent?.workEntryId !== run.entryId) throw new PipelineRejection("Read assignment_context from the current Assign work run.");
+  if (!agent) throw new PipelineRejection("Use receipt.runId from your current Assign work agent_next response; entry.runId names the pipeline run.");
+  const run = agent.workRun;
+  if (!run || run.closedAt || run.assignedBoardItemId || run.node !== "assign-work" || agent.workEntryId !== run.entryId) throw new PipelineRejection("Read assignment_context from the current Assign work run.");
   const input = await workInputs(tx, projectId);
   const policy = run.version.selectionPolicy ?? DEFAULT_SELECTION_POLICY;
   return { ...input.context, policy, contextKey: hash([run.id, run.entryId, input.inputKey, policy]) };
@@ -115,7 +117,7 @@ export async function projectWorkNext(db: PrismaClient, projectId: string): Prom
       const cap = await readProjectUsageCapIn(tx, projectId);
       if (cap && !execution) return { action: "none", reason: cap.reason, code: cap.code, resetAt: cap.resetAt };
       return { action: "dispatch", agent, entry: { runId: run.id, entryId: run.entryId, slotId: run.node }, hint: run.node === "assign-work"
-        ? "Read assignment_context with your agent_next receipt runId. Follow the saved policy. Record evidence, comparisons and readiness before board_propose. Never invent missing facts."
+        ? HINT["assign-work"]
         : discovery ? "Discover evidence-backed work and add it to the backlog. Follow this exact pipeline entry and finish agent_next."
         : "Run this project step with the exact pipeline entry, then finish agent_next." };
     }

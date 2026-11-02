@@ -295,6 +295,19 @@ describe("agentNext — routing", () => {
   });
 });
 
+describe("agentNext — work-assigner contract", () => {
+  it("names receipt.runId instead of entry.runId and keeps one assignment over step text that allows two", async () => {
+    const h = harness({ templates: { "agents/work-assigner.md": "---\nname: work-assigner\n---\nStub.\n\n## step:start\nPick at most two items.\nnext: done\n" } });
+
+    const s = step(await h.call({ agent: "work-assigner" }));
+
+    assert.match(s.instruction, /first call assignment_context with runId set to receipt\.runId from this response, not entry\.runId\./);
+    assert.match(s.instruction, /board_propose with assignmentRunId set to the same receipt\.runId/);
+    assert.match(s.instruction, /Assign only one item in this run, even where the step text below allows two\./);
+    assert.match(s.instruction, /Where the step text below differs from this contract, follow this contract\.\n\nPick at most two items\./);
+  });
+});
+
 describe("agentNext — handoff", () => {
   it("records the pause, stays on the step, and the next outcome-less call resumes the same step", async () => {
     const h = harness({ board: { "FEAT-1": "planning" } });

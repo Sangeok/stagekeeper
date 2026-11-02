@@ -838,6 +838,8 @@ are terse on purpose — agents parse them.
 | `feature-scout already looked at this backlog — it looks again after the backlog changes; add an item on the Backlog tab` (pipeline_next head) | — |
 | `backlog_add needs an open feature-scout run` | — |
 | `this run already added 3 items` | — |
+| `Use receipt.runId from your current Assign work agent_next response; entry.runId names the pipeline run.` (assignment_context, no open work-assigner run with that id) | — |
+| `Read assignment_context from the current Assign work run.` (assignment_context, the run already assigned, closed or moved on) | — |
 | `agent not in roster: ops` | — |
 | `not allowed: agent proposed → planning` | — |
 | `plan_submit first` · `report_submit first` | — |
@@ -932,7 +934,7 @@ executor needs commandIssue (an integer)" · "local | routine" · "none | verifi
 | `backlog_add` | Discover work: add one backlog item you have evidence for. The server assigns the key (ITEM-NN). Pass runId = the runId of the receipt your current agent_next step returned. At most 3 per run, and never an item the owner removed or discarded (backlog_list includeRemoved shows them). After a failed or timed-out call, check backlog_list before calling again. |
 | `board_list` | Latest board item per backlog item. `open: true` → only open ones. |
 | `board_get` | Latest board item with its transition history and reports. |
-| `assignment_context` | Assign work: read the saved selection policy and current eligible candidates with their Source evidence. Pass your agent_next receipt runId. Read again after a stale selection refusal. |
+| `assignment_context` | Assign work: read the saved selection policy and current eligible candidates with their Source evidence. Pass receipt.runId from your agent_next response as runId, not entry.runId. Read again after a stale selection refusal. |
 | `board_propose` | Assign work: register one selected item with its assignee, reason and selection record. Read assignment_context first. Source quotes, candidate comparisons, policy and contextKey are validated. Missing evidence, stale input, invalid assignee or full board refuses the write. |
 | `board_transition` | Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. `plan_submit` already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here. |
 | `plan_submit` | Record where the plan is (path and commit) and move the item to in_review, in one transaction. Only in planning or in_review — re-call after review edits so the approved commit is recorded; a re-call from in_review records the commit and moves nothing. Optional type (feat, fix, refactor, docs) fills an empty type or revises an agent-set type; an owner-set type is preserved (typeKept: owner when it differs). |
@@ -963,6 +965,7 @@ does not use this recorded-approval reason.
 | --- | --- |
 | `propose` | Dispatch pm with no key. |
 | `discover-work` | Dispatch work-discoverer with no key and this exact pipeline entry. Add evidence-backed candidates to the backlog and finish agent_next. This step does not assign work. |
+| `assign-work` | Read assignment_context with receipt.runId from your agent_next response, not entry.runId. Follow the saved policy. Record evidence, comparisons and readiness before board_propose. Never invent missing facts. |
 | `plan` | Dispatch with the item key. One item per dispatch. |
 | `verify` | Pick this item's required paths from docs/plans/verification-paths.md and write them, with what you ran for each, into docs/agents/main-loop/<KEY>.md — plan-verifier is briefed from that list. Run your own round first (reconciling-proposals-with-codebase). Dispatch plan-verifier only when your round finds nothing, then record the clean pass with validation_record — the node completes on that record. The round log states the decision, never that it was recorded; the board holds the record. Once validation_record moves the item on, the board takes no main-loop report until the acceptance in done. |
 | `implement` | Dispatch with the item key. It submits a report bound to its AgentRun and closes the normal report step after verify/ok. The server completes the implementation span; acceptance is separate. |

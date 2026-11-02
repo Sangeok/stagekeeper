@@ -162,7 +162,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     const row = await deps.boardGet(projectId, args.key);
     return row ? text(row) : fail(`no such board item: ${args.key}`);
   });
-  server.registerTool("assignment_context", { description: "Assign work: read the saved selection policy and current eligible candidates with their Source evidence. Pass your agent_next receipt runId. Read again after a stale selection refusal.", inputSchema: z.object({ ...project, runId: z.string().min(1) }) }, async (args, ctx: Ctx) => {
+  server.registerTool("assignment_context", { description: "Assign work: read the saved selection policy and current eligible candidates with their Source evidence. Pass receipt.runId from your agent_next response as runId, not entry.runId. Read again after a stale selection refusal.", inputSchema: z.object({ ...project, runId: z.string().min(1) }) }, async (args, ctx: Ctx) => {
     const scoped = await scope(args, ctx, deps);
     if (!scoped.ok) return fail(scoped.reason);
     const unavailable = await guardUnavailable(deps, scoped.projectId);
