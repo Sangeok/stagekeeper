@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "blocked"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-29"
 approved-by: "requesting-user"
 approved-at: "2026-10-29"
 approval-scope: "현재 scripts 책임별 배치를 유지하면서 두 작업 차수형 리허설을 기능별로 개명하고, 웹 HTTP 리허설의 보고서 출력·실행 정보를 정비하며, 관련 npm 명령·문서·시험을 함께 갱신한다. 제품 검증 사례의 통합·삭제·tests 이동, 새 인수 runner·CI 도입, 운영 실행·배포·PR 병합은 포함하지 않는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-02"
+verification-summary: "구현 커밋 8acda90 및 Windows 후속 수정 af3b49b의 dev 반영을 확인했다. 2026-10-29 도구 시험 26/26, check, test:architecture, build 통과 기록을 보존한다. 사용자 요청에 따라 구현 완료로 정리하며 실제 HTTP·DB 및 Windows 전체 인수는 미실행 후속 검증으로 남긴다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -28,15 +28,14 @@ related:
 ## Summary
 
 `scripts/`의 책임별 배치를 유지하면서 두 작업 차수형 리허설을 기능별로 정리하고,
-웹 HTTP 보고서의 출력·실행 정보·기록 보존을 정비한다. 개명·CLI·기본 보고서는 이미
-작업 트리에 반영돼 있다. 이후 구현 지시에 따라 보고서의 원자적 공개, JSON 재실행
-manifest와 본문·실패 경계 시험까지 구현했다. 남은 Core는 준비된 격리 DB에서의
-실제 HTTP·DB 인수다. 사용자가 현재 준비된 테스트 DB가 없다고 확인해 이 단계만 차단돼 있다.
+웹 HTTP 보고서의 출력·실행 정보·기록 보존을 정비했다. 개명·CLI·기본 보고서,
+보고서의 원자적 공개, JSON 재실행 manifest와 본문·실패 경계 시험을 구현했으며
+구현 커밋 `8acda90`과 Windows 후속 수정 `af3b49b`가 `dev`에 반영돼 있다.
 
-이 문서는 `PHASE_PLAN`과 실행 기록이며 현재 작업 트리를 기준으로 삼는다. 2026-10-29
-정합성 검토 이후 사용자가 이 문서를 바탕으로 실제 코드 수정을 지시했다. 그 지시에
-따라 기존 미커밋 작업을 보존하면서 남은 helper·시험·실행 문서를 수정했다.
-문서의 구현 준비 상태와 실제 구현·인수 완료는 별개의 판정이다.
+2026-11-02 사용자의 완료 처리 요청에 따라 구현과 기존 로컬 검증의 수행 기록으로
+정리했다. 격리 테스트 DB 미준비로 실행하지 못했던 실제 HTTP·DB 인수는 후속 검증으로
+분리한다. 이 문서의 완료 상태는 실제 HTTP·DB 또는 Windows 전체 인수 통과를 뜻하지 않는다.
+기존 `PHASE_PLAN`의 요구사항·검증 절차와 구현 전 정합성 근거는 이력으로 보존한다.
 
 ## Goal
 
@@ -60,16 +59,16 @@ manifest와 본문·실패 경계 시험까지 구현했다. 남은 Core는 준�
 ## Current State
 
 원본 비교 기준은 고정 커밋 `8775d5e6b51d654a2eda5ad28d7c7c6bfbaac7f5`다.
-현재 기준은 `harness/rehearsal-script-maintenance`의 같은 HEAD와 미커밋 변경이며,
-구현 전 정합성 검토의 식별자는 역사적 Reconciliation Basis에 있다. 현재 구현 내용은
-아래 상태와 Verification Results를 따른다. 후속 커밋 뒤에도 원본 비교는
-이 고정 커밋을 사용하고, 과거 경로를 현재 HEAD에서 찾지 않는다.
+완료 확인 기준은 `dev`의 `80e565c531420047becc35a8bc56f71cf9fdfee2`이며 구현 커밋
+`8acda90`과 후속 수정 `af3b49b`를 모두 포함한다. 구현 전 정합성 검토의 식별자는
+역사적 Reconciliation Basis에 있다. 구현 내용과 실행 증거는 아래 상태와 Verification
+Results를 따른다. 원본 비교에는 고정 커밋을 사용하고, 과거 경로를 현재 HEAD에서 찾지 않는다.
 
 | 항목 | 현재 관찰 | 후속 작업 |
 | --- | --- | --- |
 | 백로그·파이프라인 | `rehearse-backlog-pipeline.ts`와 npm 연결이 존재한다. 원본 `main`·cleanup은 오류 위치 파일명 외 동일하다. | 재개명하지 않고 보존·검증한다. |
 | 기존 fourth-pass | 한 줄 `import "./rehearse-backlog-pipeline";`이며 완료 제안서의 직접 링크가 남아 있다. | 호환 import와 이전 호출을 유지한다. |
-| 웹 HTTP·Flight | `rehearse-web-http-contracts.ts`가 존재하고 old fifth-pass 파일은 없다. 원본 `acceptanceCases` 본문은 동일하다. | 현재 파일을 수정한다. 삭제된 원본을 다시 이동하지 않는다. |
+| 웹 HTTP·Flight | `rehearse-web-http-contracts.ts`가 존재하고 old fifth-pass 파일은 없다. 원본 `acceptanceCases` 본문은 동일하다. | 보고서 연결을 완료했다. 삭제된 원본을 다시 이동하지 않는다. |
 | CLI·decoder | 지원 인자·도움말·IPC 모드 구분이 있고 7개 decoder 제어가 통과한다. | 기존 입력·worker·실행 순서를 유지한다. |
 | 보고서 metadata | 현행 17개 필드·11개 standard 섹션·C/T/E 참조와 JSON manifest를 생성하고 직접 검증한다. | 실제 DB 인수에서도 전체 산출물 기준을 적용한다. |
 | 보고서 공개 | `writeWebHttpReport`가 같은 parent의 `publishNewReport`를 호출해 완성된 temp를 배타적 hard link로 공개한다. | 구현·IO 회귀 시험 완료. 기존 공개 함수·타입은 유지했다. |
@@ -79,9 +78,10 @@ manifest와 본문·실패 경계 시험까지 구현했다. 남은 Core는 준�
 
 ## Scope
 
-**Core**는 기존 진입점 보존, 보고서 공개·본문·명령 표현의 보완, 해당 도구 시험과
-현재 실행 문서 갱신, 정적 게이트와 실제 격리 HTTP·DB 인수다. 아래 파일·symbol·
-동작·산출물·VFY가 이 범위의 전체 구현 목록이다.
+**완료 범위**는 기존 진입점 보존, 보고서 공개·본문·명령 표현의 보완, 해당 도구 시험과
+실행 문서 갱신, 로컬 검증 게이트다. 아래 파일·symbol·동작·산출물·VFY가 이 범위의
+전체 구현 목록이다. 원래 Core에 포함됐던 실제 격리 HTTP·DB 인수는 완료 처리 요청에
+따라 후속 검증으로 남긴다. 기존 인수 기준과 미실행 기록은 유지한다.
 
 **Out of scope**는 제품 검증 사례의 통합·삭제·`tests/` 이동, 나머지 리허설·fixture
 개명, 새 package·runner·CI·`tests/acceptance/`, 제품 코드·DB schema·migration·
@@ -101,7 +101,7 @@ plugin runtime 변경, 완료된 과거 문서 변경, 운영 DB·seed·실제 �
 | --- | --- | --- |
 | `rehearse-backlog-pipeline.ts` | 존재 | keep. `main`, `readActionIds`, 종료 처리·오류 위치 이름 보존 |
 | `rehearse-src-clean-code-fourth-pass.ts` | 존재: 호환 import | keep. 구현 복제·삭제 금지 |
-| `rehearse-web-http-contracts.ts` | 존재 | update. `main`의 보고서 경계만 필요한 만큼 연결; `acceptanceCases` 보존 |
+| `rehearse-web-http-contracts.ts` | 구현 완료 | `main`의 보고서 경계 연결 완료; `acceptanceCases` 보존 |
 | `rehearse-src-clean-code-fifth-pass.ts` | 부재 | absent 유지. 재생성·재이동하지 않음 |
 | `web-http-report.ts` | 구현 완료 | keep. 공개 함수·타입 유지, 완성된 파일 공개·소유권 확인·JSON manifest 반영 |
 | `web-http-report.test.ts` | 확장 완료 | keep. metadata·본문·경합·쓰기/close/link/정리 실패·UTC 경계 시험 |
@@ -109,11 +109,10 @@ plugin runtime 변경, 완료된 과거 문서 변경, 운영 DB·seed·실제 �
 | `package.json` | 새 npm 대상 반영됨 | keep. `test:acceptance:backlog-pipeline` 이름·연결을 구조적으로 검사 |
 | `docs/architecture/server.md` | 새 경로 두 행 반영됨 | keep. `pipeline`·`projects`의 정확한 등록·사유 보존 |
 | `docs/architecture/verification.md` | 현재 구현 설명 반영됨 | keep. 원자적 공개·실패·JSON manifest와 실행 예를 실제 동작에 맞춤 |
-| 이 proposal | active/pending/blocked | update. 코드·로컬 검증 완료와 실제 DB 인수 차단을 구분 |
+| 이 proposal | completed, stage: null | 구현 완료 기록으로 이동. 실제 DB 인수 미실행은 후속 검증으로 보존 |
 
-모든 target parent는 이미 존재한다. 후속 작업은 기존 파일 수정이며 새 entrypoint나
-sidecar를 만들지 않는다. 현재 파일이 표와 다르거나 다른 작업의 변경과 겹치면
-덮어쓰지 않고 차이를 먼저 기록한다. 새 임시 보고서 파일만 실행별로 생성한다.
+위 구현과 문서 정비는 완료했다. 후속 인수에서는 현재 구현과 이 기록을 다시 대조하고,
+다른 작업의 변경을 덮어쓰지 않는다. 새 임시 보고서 파일만 실행별로 생성한다.
 
 ### Symbol and Import Provenance
 
@@ -291,7 +290,13 @@ parent 안에만 만들고 자기 파일만 정리한다. 실제 DB·Next 실행
 잔여 코드·시험·현재 문서 정비를 수행했다. 사용자는 준비된 테스트 DB가 없다고
 확인했다. 정합성 검토·로컬 게이트의 통과를 실제 DB·운영 인수 승인이나 통과로 해석하지 않는다.
 
+완료 처리는 사용자의 별도 요청에 따른다. 실제 HTTP·DB 인수 미실행 상태를 설명한 뒤
+받은 요청을 근거로 구현 완료 기록을 확정하고, 해당 인수는 후속 검증으로 보존한다.
+
 ## Execution Plan
+
+아래 Task는 구현 당시의 계획과 수행 기록이다. Task 03의 실제 HTTP·DB 인수만
+후속 검증으로 남았으며, 완료된 구현을 다시 수행하는 지시가 아니다.
 
 ### TASK-REHEARSAL-01: 현재 진입점·호환 경로 보존
 
@@ -328,8 +333,8 @@ ENOSPC·close/link/정리 실패·실제 경쟁 publisher·파일/descriptor 교
 
 현재 문서와 로컬 게이트 정비를 완료했다. `verification.md`의 공개·실패·manifest
 설명과 실행 예를 갱신했고 registry 두 행·npm 대상은 보존했다. 기존 Node/tsx 재귀
-패턴에서 새 시험을 실행했다. 준비된 테스트 DB가 없어 실제 HTTP·DB 전체 인수만
-차단돼 있다. 이 증거가 생기기 전에는 전체 완료로 표시하지 않는다.
+패턴에서 새 시험을 실행했다. 당시 준비된 테스트 DB가 없어 실제 HTTP·DB 전체 인수는
+실행하지 않았다. 완료 처리 요청에 따라 이 항목은 후속 검증으로 남기며 통과로 표시하지 않는다.
 
 ## Verification Plan
 
@@ -466,32 +471,32 @@ JS
 | `npm run check` | PASS: 256개 중 254 PASS, native Windows 전용 2 SKIP | 복사본·lint·문서·route typegen·TypeScript·스크립트 전체 시험 포함 |
 | `npm run test:architecture` | PASS: 186개 중 184 PASS, native Windows 전용 2 SKIP | 이번 CLI 시험 추가분도 기존 검색 패턴에서 실행 |
 | `npm run build` | PASS | Prisma 생성·Next.js 16.4.2 Turbopack production build·TypeScript 완료 |
-| 실제 HTTP·DB 전체 인수 | Not executed | 사용자가 준비된 테스트 DB가 없다고 확인. 해당 증거만 남아 stage를 blocked로 유지 |
+| 실제 HTTP·DB 전체 인수 | Not executed | 당시 준비된 테스트 DB가 없어 미실행. 완료 처리 후에도 후속 검증으로 보존 |
 | 실제 Windows 전체 인수 | Not executed | 로컬 macOS 결과·기존 native skip을 Windows 지원 인증으로 확대하지 않음 |
 
-2026-10-29 Node `v26.4.0`·npm `11.17.0` 로컬 근거다. CI 설정은 Node 22이며 서버
-통합 job에는 build가 없다. 위 실제 인수 블록은 이 차이를 명시적으로 준비한다.
-기존 `_key` lint warning 1개는 변경 밖 파일에 남아 있고 신규 lint error는 없다.
-`TEST_DATABASE_URL`이 없고 PATH·Homebrew에서 PostgreSQL/Docker 실행 파일도 확인되지
-않았다. 사용자의 준비된 DB가 없다는 답변에 따라 외부 인수는 실행하지 않았다.
+위 표는 2026-10-29 Node `v26.4.0`·npm `11.17.0`에서 기록한 로컬 근거이며 완료 처리 때
+재실행한 결과가 아니다. 당시 CI 설정은 Node 22였고 서버 통합 job에는 build가 없었다.
+위 실제 인수 블록은 이 차이를 명시적으로 준비한다. 당시 기존 `_key` lint warning
+1개가 변경 밖 파일에 남아 있었고 신규 lint error는 없었다. `TEST_DATABASE_URL`이 없고
+PATH·Homebrew에서 PostgreSQL/Docker 실행 파일도 확인되지 않았다. 사용자의 준비된 DB가
+없다는 답변에 따라 외부 인수는 실행하지 않았다.
 
 ## Risks and Rollback
 
-- 준비된 테스트 DB가 없어 실제 인증 HTTP·DB·정리 재실행은 남아 있다. VFY-REHEARSAL-03 전 완료로 표시하지 않는다.
+- 실제 인증 HTTP·DB·정리 검증은 미실행 후속 항목이다. VFY-REHEARSAL-03의 실제 인수 증거가 생기기 전에는 해당 검증을 통과로 표시하지 않는다.
 - UTC 날짜형 경로의 완료 시점 거부는 유지한다. 장시간 실행은 처음부터 저장소 밖 새 경로를 사용하고 VFY-REHEARSAL-02로 경계를 검증한다.
 - hard link를 지원하지 않는 파일 시스템에서는 저장을 실패로 처리한다. overwrite fallback 없이 VFY-REHEARSAL-04의 파일 불변을 확인한다.
 - 최종 보고서가 존재한다는 사실만으로 CLI 0·본문 유효·제품 인수를 추론하지 않는다. 종료 코드와 전체 body를 함께 검사한다.
 
-이 문서 개정의 rollback은 이 Markdown의 개정 전 내용을 복구하는 것이다. 기존
-미커밋 코드·다른 문서를 일괄 revert·stash·삭제하지 않는다. 후속 구현 rollback은
-그 구현의 diff만 되돌리고 기존 완료 보고서·사용자 데이터는 그대로 둔다.
+문서 완료 처리의 rollback은 이전 경로와 metadata·본문을 복구하는 것이다. 구현
+rollback은 `8acda90`·`af3b49b` 중 해당 구현의 diff만 검토해 되돌리며, 기존 완료
+보고서·사용자 데이터·다른 작업은 보존한다.
 
 ## Definition of Done and Handoff
 
-후속 작업자는 현재 working tree와 이 문서·규범을 다시 확인하고 이미 충족된
-Task 01을 재구현하지 않는다. 쓰기는 Concrete Inventory의 남은 Core에 한정한다.
-원본 사례가 제품 계약과 맞지 않는 등 범위 밖 결함이 발견되면 근거를 남기고 해당
-부분을 멈춘다. 권한 조건·기대값을 바꾸거나 운영 DB로 우회하지 않는다.
+구현 완료 항목과 미실행 후속 검증을 아래에 구분한다. 후속 인수에서는 현재 구현과
+이 문서·규범을 다시 확인한다. 원본 사례가 제품 계약과 맞지 않는 등 범위 밖 결함이
+발견되면 근거를 남기고 해당 부분을 멈춘다. 권한 조건·기대값을 바꾸거나 운영 DB로 우회하지 않는다.
 
 - [x] 새 진입점·npm·alias·old fifth-pass 부재·정확한 import/registry를 확인했다.
 - [x] Task 02의 원자적 공개와 JSON 재실행 manifest를 구현하고 VFY-REHEARSAL-02·04를 통과했다.
@@ -499,11 +504,20 @@ Task 01을 재구현하지 않는다. 쓰기는 Concrete Inventory의 남은 Cor
 - [x] helper의 전체 17개 metadata·11개 section·C/T/E 참조와 명령 데이터가 검증됐다.
 - [x] 코드 변경 후 FSD·서버·아키텍처·check·build를 실행하고 해당 플랫폼의 skip을 구분했다.
 - [x] 고정 원본의 HTTP 사례 본문·backlog main/cleanup 전체를 대조했다.
-- [ ] 보호된 실제 HTTP·DB 인수를 완료하고 실제 HTTP·Flight·보고서 산출물 본문을 확인했다.
+- [ ] 후속 검증: 보호된 실제 HTTP·DB 인수를 실행하고 실제 HTTP·Flight·보고서 산출물 본문을 확인한다.
 - [x] 완료된 과거 문서·다른 작업·제품 코드·CI·schema를 보존하고 실제 결과로 proposal lifecycle을 갱신했다.
 
-이 조건들이 완료되기 전에는 이 proposal을 `completed/`로 이동하거나 코드 구현·인수
-완료라고 표시하지 않는다. 정합성 문서의 검토 통과는 이 체크리스트 완료와 다르다.
+기존의 실제 HTTP·DB 인수 전 완료 이동 제한은 사용자의 완료 처리 요청에 따라
+구현 완료와 후속 인수 검증을 구분하는 것으로 변경했다. 미실행 항목은 체크하지 않으며,
+proposal 완료를 전체 인수 통과의 근거로 사용하지 않는다.
+
+## Completion or Closure Notes
+
+- 완료 처리: 2026-11-02 사용자 요청으로 구현 완료 기록을 확정하고 `completed/`로 이동했다.
+- 구현 커밋: `8acda90`(진입점 정리·보고서 원자적 공개), `af3b49b`(Windows 실행·시험 후속 수정). 두 커밋의 `dev` 포함을 확인했다.
+- 변경 요약: 리허설 이름·호환 경로·npm 연결, 보고서 helper·CLI·회귀 시험, 서버 내부 참조 등록과 실행 문서를 정비했다.
+- 검증 근거: 위 Verification Results의 기존 로컬 결과를 보존한다. 이번 완료 처리는 문서만 변경하며 코드·DB 인수를 새로 실행한 것으로 기록하지 않는다.
+- 후속 검증: 격리 DB와 fresh production build를 준비한 뒤 VFY-REHEARSAL-03의 실제 HTTP·DB 인수 및 보고서 본문을 확인한다. Windows 전체 인수도 미실행 상태를 유지한다.
 
 ## Reconciliation Notes
 
