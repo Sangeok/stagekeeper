@@ -49,6 +49,19 @@ it("adds turns, denials and cost over several runs", () => {
   assert.ok(Math.abs(both.costUsd - (first.costUsd + second.costUsd)) < 1e-9);
 });
 
+it("counts a session's cumulative cost and repeated denials once when the session reports several results", () => {
+  const sessionResult = (turns, cost, denials) => line({ type: "result", session_id: "s1", num_turns: turns, permission_denials: denials, total_cost_usd: cost });
+  const firstRun = [sessionResult(6, 0.75, [{ tool_use_id: "d1" }]), sessionResult(4, 1.5, [{ tool_use_id: "d1" }])].join("\n");
+  const resumedRun = sessionResult(3, 1.5, [{ tool_use_id: "d1" }, { tool_use_id: "d2" }]);
+  const otherSession = line({ type: "result", session_id: "s2", num_turns: 2, permission_denials: [{ tool_use_id: "d1" }], total_cost_usd: 0.25 });
+
+  const findings = runFindings([firstRun, resumedRun, otherSession]);
+
+  assert.equal(findings.costUsd, 1.75);
+  assert.equal(findings.denials, 3);
+  assert.equal(findings.turns, 15);
+});
+
 it("keeps only allowlisted values in the public summary", () => {
   const token = `hu_${"a".repeat(43)}`;
   const summary = summarizePipeline({

@@ -1,6 +1,6 @@
-import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, spawnSync, type ChildProcess, type SpawnSyncReturns } from "node:child_process";
 import { randomBytes, randomInt } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -116,9 +116,19 @@ export class Run {
     }
   }
 
-  command(file: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, timeout = 120_000): Command {
-    const result = spawnSync(file, args, { cwd, env, encoding: "utf8", timeout, windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
-    const outcome = { code: result.status ?? -1, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+  command(file: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, timeout = 120_000, outputFile?: string): Command {
+    const output = outputFile === undefined ? undefined : openSync(outputFile, "w");
+    let result: SpawnSyncReturns<string>;
+    try {
+      result = spawnSync(file, args, { cwd, env, encoding: "utf8", timeout, windowsHide: true, maxBuffer: 16 * 1024 * 1024, stdio: output === undefined ? "pipe" : ["ignore", output, output] });
+    } finally {
+      if (output !== undefined) closeSync(output);
+    }
+    const outcome = {
+      code: result.error ? -1 : result.status ?? -1,
+      stdout: outputFile === undefined ? result.stdout ?? "" : readFileSync(outputFile, "utf8"),
+      stderr: result.stderr ?? "",
+    };
     this.outputs.push(outcome.stdout, outcome.stderr);
     appendFileSync(this.log, `$ ${path.basename(file)} ${args.join(" ")}\nexit ${outcome.code}\n${outcome.stdout}\n${outcome.stderr}\n`);
     return outcome;

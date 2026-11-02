@@ -253,9 +253,9 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   let repo: string | undefined;
   let plugin: Plugin | undefined;
   let runnerStopped = false;
-  const background = (args: string[], commandEnv: NodeJS.ProcessEnv, timeout?: number) => {
+  const background = (args: string[], commandEnv: NodeJS.ProcessEnv, timeout?: number, outputFile?: string) => {
     const command = helperCommand(process.platform, plugin!.root, "background", [...args, "--root", repo!]);
-    return run.command(command.file, command.args, repo!, commandEnv, timeout);
+    return run.command(command.file, command.args, repo!, commandEnv, timeout, outputFile);
   };
   const statuses = statusReader(() => {
     const outcome = background(["--status"], helperEnv);
@@ -305,7 +305,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     }));
     const headBeforeRunner = run.succeed("git", ["rev-parse", "HEAD"], fixtureRepo, helperEnv, "git rev-parse").stdout.trim();
     const startedEvent = await run.step("runner-start", () => {
-      const outcome = background(["--start", "--propose", "yes"], runnerEnv, START_LIMIT_MS);
+      const outcome = background(["--start", "--propose", "yes"], runnerEnv, START_LIMIT_MS, path.join(work, "runner-start.txt"));
       const event = lastJson(outcome.stdout);
       if (outcome.code !== 0 || event?.event !== "started") throw new Error(`background start exited ${outcome.code}: ${typeof event?.code === "string" ? event.code : "no started event"}`);
       return event;

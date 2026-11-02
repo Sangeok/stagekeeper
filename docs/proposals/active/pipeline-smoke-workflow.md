@@ -502,6 +502,9 @@ const RUN_LINE = /^(?:done: (?:\d+|\?) turns, \d+ denied|error: (?:[a-z_]{1,40}(
 export function runFindings(streams, transcripts = []) {
   const names = new Map();
   const failed = new Set();
+  const costs = new Map();
+  const denials = new Set();
+  let unnamedResults = 0;
   const findings = { turns: 0, denials: 0, costUsd: 0, models: [], toolErrors: 0, agentCalls: 0, agentErrors: 0, harnessErrors: {} };
   const visit = (text, withResults) => {
     for (const line of text.split(/\r?\n/)) {
@@ -512,14 +515,19 @@ export function runFindings(streams, transcripts = []) {
         if (block?.type === "tool_result" && block.is_error === true && typeof block.tool_use_id === "string") failed.add(block.tool_use_id);
       }
       if (!withResults || message?.type !== "result") continue;
+      const session = typeof message.session_id === "string" ? message.session_id : `result-${unnamedResults++}`;
       if (Number.isInteger(message.num_turns)) findings.turns += message.num_turns;
-      if (Array.isArray(message.permission_denials)) findings.denials += message.permission_denials.length;
-      if (Number.isFinite(message.total_cost_usd)) findings.costUsd += message.total_cost_usd;
+      for (const denial of Array.isArray(message.permission_denials) ? message.permission_denials : []) {
+        denials.add(typeof denial?.tool_use_id === "string" ? `${session}:${denial.tool_use_id}` : `denial-${denials.size}`);
+      }
+      if (Number.isFinite(message.total_cost_usd)) costs.set(session, Math.max(costs.get(session) ?? 0, message.total_cost_usd));
       for (const model of Object.keys(message.modelUsage ?? {})) if (MODEL.test(model) && !findings.models.includes(model)) findings.models.push(model);
     }
   };
   for (const text of streams) visit(text, true);
   for (const text of transcripts) visit(text, false);
+  findings.denials = denials.size;
+  findings.costUsd = [...costs.values()].reduce((sum, cost) => sum + cost, 0);
   for (const name of names.values()) if (AGENT_TOOLS.includes(name)) findings.agentCalls++;
   for (const id of failed) {
     findings.toolErrors++;
@@ -575,7 +583,9 @@ export function summarizePipeline(record) {
   이 숫자들은 녹색/빨강 판정에 쓰지 않는다. 다만 `harnessErrors`나 `stepRefusals`가 0이 아니면, 녹색이어도 승격 전에
   사람이 봉인 전사로 원인을 확인한다(AGENTS.md 승격 조건). 지금까지 실기에서 나온 서버 거부는 모두 문구나 계약
   결함이었다(#275의 `assignment_context`, #270의 main-loop `report_submit`).
-- `costUsd`는 `total_cost_usd`의 합이다. API 정가로 환산한 추정치일 뿐 청구액은 아니다.
+- `costUsd`는 세션마다 가장 큰 `total_cost_usd`를 더한 값이다. 실행기 세션 하나는 차례마다 `result` 줄을 내고, 줄마다
+  같은 세션의 누적값을 싣는다(Phase 3 첫 실행 실측). 거부도 세션과 `tool_use_id`로 한 번만 센다. `turns`는 줄마다 그
+  차례의 값이라 더한다. API 정가로 환산한 추정치일 뿐 청구액은 아니다.
 - `RUNNER_STATES`·`WAIT_REASONS`는 실행기 코드가 쓰는 값이다. `plugin/runtime/background.mjs`의 `runResident`와
   `harness-background.mjs`의 start·release·상주 프로세스 종료 처리에서 가져왔다. `stopping`은 실행기가 정리를 끝내지
   못하고 멈췄을 때 남는다(`harness-background.mjs:687`). 처음 보는 값은 요약에서 빠진다.
@@ -1525,6 +1535,19 @@ it("adds turns, denials and cost over several runs", () => {
   assert.ok(Math.abs(both.costUsd - (first.costUsd + second.costUsd)) < 1e-9);
 });
 
+it("counts a session's cumulative cost and repeated denials once when the session reports several results", () => {
+  const sessionResult = (turns, cost, denials) => line({ type: "result", session_id: "s1", num_turns: turns, permission_denials: denials, total_cost_usd: cost });
+  const firstRun = [sessionResult(6, 0.75, [{ tool_use_id: "d1" }]), sessionResult(4, 1.5, [{ tool_use_id: "d1" }])].join("\n");
+  const resumedRun = sessionResult(3, 1.5, [{ tool_use_id: "d1" }, { tool_use_id: "d2" }]);
+  const otherSession = line({ type: "result", session_id: "s2", num_turns: 2, permission_denials: [{ tool_use_id: "d1" }], total_cost_usd: 0.25 });
+
+  const findings = runFindings([firstRun, resumedRun, otherSession]);
+
+  assert.equal(findings.costUsd, 1.75);
+  assert.equal(findings.denials, 3);
+  assert.equal(findings.turns, 15);
+});
+
 it("keeps only allowlisted values in the public summary", () => {
   const token = `hu_${"a".repeat(43)}`;
   const summary = summarizePipeline({
@@ -1634,8 +1657,10 @@ it("lists pipeline-smoke trigger paths that exist in this repository", () => {
 
 나머지 시험은 다음 근거로 정했다.
 
-- 합산은 `runFindings`가 `result` 줄마다 더한다는 계약에서 나온 불변식으로 확인한다. `costUsd` 반올림은 정확한 값
-  대신 0.01 범위로 본다.
+- 합산은 `runFindings`가 세션이 다른 `result` 줄을 더한다는 계약에서 나온 불변식으로 확인한다. `costUsd` 반올림은 정확한
+  값 대신 0.01 범위로 본다.
+- 같은 세션의 `result` 줄 여럿은 Phase 3 첫 실행에서 실측한 형태로 만든다. 누적 비용, 반복되는 거부, 줄마다 다른 턴 수다.
+  기대값은 그 형태에서 손으로 셀 수 있는 값이다(비용 1.5 + 0.25, 거부 `s1`의 d1·d2와 `s2`의 d1, 턴 6 + 4 + 3 + 2).
 - 독립 판정 사례가 맞는지는 Source 문구대로 짠 참조 구현이 모든 사례를 통과하는지로 확인한다.
 - 대기 판정은 서버가 돌려주는 `on` 값(`run-rules.ts:9-14`)마다 실패 이름 하나를 확인한다. 모르는 값은 기다린다.
 - 봉인의 악성 묶음 시험은 같은 형식으로 직접 만든 묶음(`sealRaw`)을 쓴다. 정상 묶음이 열리는지 먼저 확인하므로, 이
@@ -1729,18 +1754,22 @@ it("refuses a missing or short transcript key before any work", async () => {
     `probe-echo`를 불러 정해 둔 답을 받았다. 정가 환산 $0.76이 들었다.
   - 그래서 첫 실행에는 `--trust-checkout`을 넣지 않는다. Phase 3에서는 `agentCalls`와 `roles-ran`으로 같은 결과인지만
     확인한다. 프로젝트 권한 설정이 무시된다는 보고는 그대로이며, 이 문제는 실행기가 `--settings`로 피한다.
-- **[3장 권한]** CI의 구독 토큰으로 auto 권한 탐침이 `auto`를 받는지는 실행해 봐야 안다. Phase 3에서 확인하고,
-  `allowlist`면 7장 대응대로 따로 보고한다.
+- **[3장 권한] 2026-11-02 Phase 3 첫 실행에서 답함: `auto`.** 요약의 `permission`이 `auto`였고 거부는 0건이었다.
 - **[4장 실행 기록 집계]** 서브에이전트 메시지가 `claude -p --output-format stream-json --verbose` 출력에 들어오는지
   2026-11-02 같은 실행에서 확인했다. 들어온다. 서브에이전트의 메시지와 도구 호출이 `parent_tool_use_id`가 붙은 줄로
   실행 스트림에 함께 나왔다.
   - 그래도 `runFindings`는 세션 전사를 함께 읽는다. 같은 호출은 `tool_use_id`로 한 번만 센다.
   - 이번 세션의 headless 결과(`--output-format json`)에는 `total_cost_usd`, `num_turns`, `permission_denials`,
     `modelUsage`가 있었고, `subagent_stats`도 따로 있었다.
-  - 비용과 턴 수는 메인 `result` 줄의 합이다. 서브에이전트 비용이 그 합에 들어가는지, 아니면 `subagent_stats`를 더해야
-    하는지는 Phase 3에서 확인한다.
-- **[7장 Windows 알림]** `notify.ps1`이 CI의 비대화 세션에서 오류를 내도 실행기에 영향이 없는지 Phase 3의
-  `background.log`로 확인한다.
+  - **2026-11-02 Phase 3 첫 실행에서 답함.** 실행기 세션 하나가 `result` 줄 7개를 냈다. 비동기 서브에이전트가 끝날
+    때마다 차례가 하나씩 생기기 때문이다.
+    - 7개 모두 같은 누적 `total_cost_usd`($1.49)와 `modelUsage`를 실었다. `modelUsage`의 캐시 읽기 토큰은 메인 차례들의
+      `usage` 합보다 약 160만 많았다. 그래서 누적 비용에는 서브에이전트가 이미 들어 있다.
+    - `num_turns`는 줄마다 그 차례의 값이다.
+    - 그래서 `runFindings`는 턴 수만 더한다. 비용은 세션마다 가장 큰 값을 한 번 센다. 거부는 세션과 `tool_use_id`로
+      한 번만 센다. 첫 실행 요약은 비용을 7번 더해 $10.42로 적었고, PR 2에서 고쳤다.
+- **[7장 Windows 알림] 2026-11-02 Phase 3 첫 실행에서 답함: 영향 없음.** `background.log`에는 시작, 실행, 정지 줄만
+  있었고 알림 오류는 없었다.
 
 <!-- doc-validation-restore -->
 
@@ -1759,12 +1788,50 @@ it("refuses a missing or short transcript key before any work", async () => {
 | PR 1 `client-init-smoke` 4 job | Pass (PR #278, run 41411910911) | Phase 1(회귀). new-user 22/22, update 21/21. Windows 로그에 예약 포트 구간 출력 있음. `check`는 문서 링크 검사로 한 번 실패한 뒤 고쳐 녹색 |
 | `node --test scripts/rehearsals/pipeline-smoke-steps.test.mjs` | Pass (9/9) | Phase 2. 리허설 시험과 init 리허설 시험을 합쳐 28/28 |
 | 이 PC의 작업 공간 신뢰 사전 확인 | Pass | Phase 3 전. 신뢰된 적 없는 폴더에서도 `.claude/agents` 역할을 불렀다. 정가 환산 $0.76 |
-| `gh workflow run pipeline-smoke.yml --ref harness/pipeline-smoke` | Not run yet | Phase 3: 신뢰 판정, 시간·비용·모델·권한·`harnessErrors`·`stepRefusals`·`agentCalls` 기록 |
+| `gh workflow run pipeline-smoke.yml --ref harness/pipeline-smoke` | Pass (run 41429824882, `3fe2b16`) | Phase 3 첫 실행. 아래 "Phase 3 첫 실행 기록" |
 | 음성 증명(게이트 유지, `templates-ref=main`) | Not run yet | Phase 4: `item-gated` 실패와 실패 경로 봉인 기대 |
-| 봉인 artifact 로컬 열기 | Not run yet | Phase 3, Phase 4 |
+| 봉인 artifact 로컬 열기 | Pass (Phase 3) | 파일 14개: 실행 스트림, 세션 전사와 서브에이전트 전사 6개, `background.*`, `commands.log`, `server.log`, `findings.json`. Phase 4는 아직 |
 | `npm run check` | Not run yet | Phase 5 |
 | `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Not run yet | Phase 5 |
 | PR 2 `client-init-smoke` 4 job | Not run yet | Phase 5(회귀) |
+
+### Phase 3 첫 실행 기록
+
+2026-11-02 run 41429824882(`3fe2b16`, 템플릿 `fb6ef95`, Claude Code 2.1.316)의 기록이다.
+
+- 결과:
+  - 단계 31개가 모두 pass였다. job은 12분, 리허설은 579초 걸렸다.
+  - 실행기는 10:36:26에 시작했다. 10:45:24의 `pipeline_next`에는 남은 노드가 없었다. 항목 하나를 끝까지 처리하는 데
+    약 9분이 걸렸다.
+  - 요약의 `minutesToDone`은 4였다. 실행기 시작 단계가 300초 한도까지 기다린 만큼 늦게 세기 시작했기 때문이다
+    (아래 결함 1).
+- 모델은 `claude-sonnet-5-5`였다. CI에는 사용자 설정이 없어 기본 모델로 돌았다. 이 PC 소유자의 설정은 `opus[1m]`이다.
+- 비용은 정가 환산 $1.49였다(세션 누적 `total_cost_usd`). 요약은 결함 2 때문에 $10.42로 적었다.
+- 권한 `auto`, 거부 0, `agentCalls` 6, `agentErrors` 0, `stepRefusals` 0이었다.
+- 역할은 다음 순서로 돌았다.
+  1. work-assigner
+  2. app-dev(계획)
+  3. 메인 루프의 계획 검토, plan-verifier
+  4. app-dev(구현)
+  5. impl-verifier
+  6. 메인 루프의 인수
+  7. doc-auditor
+- #275 확인: work-assigner가 `assignment_context`를 `receipt.runId`로 한 번 불렀고 거부되지 않았다.
+- `harnessErrors`의 `agent_next` 2건은 봉인 전사로 확인했다. 둘 다 `` agent `<role>` needs a key ``였다.
+  - plan-verifier: 메인 루프가 지시문에 "omit key if the hint says so"라고 써서, 첫 호출에서 key를 뺐다.
+  - impl-verifier: 두 번째 호출에서 key를 빠뜨렸다.
+  - 둘 다 곧바로 key를 넣어 다시 불렀고 그대로 진행했다.
+  - 이 검사(`src/server/agents/next.ts:97`)는 2026-09-03(`2a5114c`)부터 그대로다. 승격할 변경 가운데 이 파일을 고친
+    것은 #275뿐이고, 고친 곳은 work-assigner 계약 문구다.
+- 리허설 결함 두 개를 찾아 PR 2에서 고쳤다.
+  1. Windows에서 `--start`가 띄운 실행기가 출력 파이프를 물려받았다.
+     - 그래서 `spawnSync`가 300초 한도까지 기다렸다. 결과는 `status` 0에 `ETIMEDOUT`이었다. `Run.command`가 오류를 보지
+       않아 이를 성공으로 셌다.
+     - 이 PC에서 재현했다. 12초 사는 손자 프로세스를 두면, 파이프로 받을 때는 12.4초, 파일로 받을 때는 0.3초 만에 돌아왔다.
+     - 고친 내용: 시작 출력은 파일로 받고, 시간 초과는 실패로 센다.
+  2. 위 비용 과대 집계.
+- 플러그인 쪽 관찰(이번 범위 밖): 실행기의 마지막 결과 줄은 마지막 차례의 턴 수만 적는다("done: 3 turns").
+  세션 전체는 53턴이었다.
 
 ## Completion or Closure Notes
 

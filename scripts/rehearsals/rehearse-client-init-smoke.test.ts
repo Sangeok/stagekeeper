@@ -1,11 +1,33 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
-import { main, parseArguments } from "./rehearse-client-init-smoke";
+import { main, parseArguments, Run } from "./rehearse-client-init-smoke";
 
 const TEMPLATES = path.resolve("templates-checkout");
 const COMMIT = "a".repeat(40);
 const VALID = ["--client", "claude", "--scenario", "new-user", "--templates", TEMPLATES, "--plugin-source", "github-branch", "--plugin-branch", "harness/e2e", "--plugin-commit", COMMIT];
+const LEAVES_A_CHILD_RUNNING = [
+  "const { spawn } = require(\"node:child_process\");",
+  "const child = spawn(process.execPath, [\"-e\", \"setTimeout(() => {}, 60000)\"], { detached: true, stdio: [\"ignore\", \"inherit\", \"inherit\"] });",
+  "child.unref();",
+  "console.log(JSON.stringify({ started: child.pid }));",
+].join("\n");
+
+function runLeavingAChild(timeout: number, outputName?: string) {
+  const work = mkdtempSync(path.join(tmpdir(), "rehearsal-run-"));
+  const run = new Run(path.join(work, "commands.log"));
+  let child: number | undefined;
+  try {
+    const outcome = run.command(process.execPath, ["-e", LEAVES_A_CHILD_RUNNING], tmpdir(), process.env, timeout, outputName && path.join(work, outputName));
+    child = Number(/"started":(\d+)/.exec(outcome.stdout)?.[1]) || undefined;
+    return outcome;
+  } finally {
+    if (child) process.kill(child);
+    rmSync(work, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  }
+}
 
 it("accepts the Claude new-user run from a GitHub branch", () => {
   const options = parseArguments(VALID);
@@ -48,4 +70,18 @@ it("refuses to change the machine outside CI unless asked to", async () => {
 
 it("refuses a database that is not a stagekeeper_test_* database before any work", async () => {
   assert.equal(await main(VALID, { CI: "true", TEST_DATABASE_URL: "postgresql://postgres@127.0.0.1:5432/stagekeeper" }), 2);
+});
+
+it("fails a command that hits its timeout even when the process itself exited 0", () => {
+  const outcome = runLeavingAChild(1_000);
+
+  assert.match(outcome.stdout, /"started":\d+/);
+  assert.equal(outcome.code, -1);
+});
+
+it("returns when the process exits and keeps its output when an output file is given, while its child keeps running", () => {
+  const outcome = runLeavingAChild(20_000, "start.txt");
+
+  assert.equal(outcome.code, 0);
+  assert.match(outcome.stdout, /"started":\d+/);
 });

@@ -66,6 +66,9 @@ const RUN_LINE = /^(?:done: (?:\d+|\?) turns, \d+ denied|error: (?:[a-z_]{1,40}(
 export function runFindings(streams, transcripts = []) {
   const names = new Map();
   const failed = new Set();
+  const costs = new Map();
+  const denials = new Set();
+  let unnamedResults = 0;
   const findings = { turns: 0, denials: 0, costUsd: 0, models: [], toolErrors: 0, agentCalls: 0, agentErrors: 0, harnessErrors: {} };
   const visit = (text, withResults) => {
     for (const line of text.split(/\r?\n/)) {
@@ -76,14 +79,19 @@ export function runFindings(streams, transcripts = []) {
         if (block?.type === "tool_result" && block.is_error === true && typeof block.tool_use_id === "string") failed.add(block.tool_use_id);
       }
       if (!withResults || message?.type !== "result") continue;
+      const session = typeof message.session_id === "string" ? message.session_id : `result-${unnamedResults++}`;
       if (Number.isInteger(message.num_turns)) findings.turns += message.num_turns;
-      if (Array.isArray(message.permission_denials)) findings.denials += message.permission_denials.length;
-      if (Number.isFinite(message.total_cost_usd)) findings.costUsd += message.total_cost_usd;
+      for (const denial of Array.isArray(message.permission_denials) ? message.permission_denials : []) {
+        denials.add(typeof denial?.tool_use_id === "string" ? `${session}:${denial.tool_use_id}` : `denial-${denials.size}`);
+      }
+      if (Number.isFinite(message.total_cost_usd)) costs.set(session, Math.max(costs.get(session) ?? 0, message.total_cost_usd));
       for (const model of Object.keys(message.modelUsage ?? {})) if (MODEL.test(model) && !findings.models.includes(model)) findings.models.push(model);
     }
   };
   for (const text of streams) visit(text, true);
   for (const text of transcripts) visit(text, false);
+  findings.denials = denials.size;
+  findings.costUsd = [...costs.values()].reduce((sum, cost) => sum + cost, 0);
   for (const name of names.values()) if (AGENT_TOOLS.includes(name)) findings.agentCalls++;
   for (const id of failed) {
     findings.toolErrors++;
