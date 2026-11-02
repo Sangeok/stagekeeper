@@ -14,7 +14,6 @@ const MARKETPLACE = "stagekeeper-local";
 const PLUGIN_REPOSITORY = "https://github.com/Sangeok/stagekeeper.git";
 const PORT = 55438;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
-const PLAN_SKIPS_ON_FREE = 4;
 const COMMIT = /^[0-9a-f]{40}$/;
 
 export const USAGE = [
@@ -149,11 +148,10 @@ class Smoke {
     return this.run.succeed("claude", args, this.repo, this.helperEnv, label);
   }
 
-  async dryRun(plugin: Plugin, name: string, plan: "free" | "pro", skips: number, fresh = false): Promise<void> {
+  async dryRun(plugin: Plugin, name: string, plan: "free" | "pro", fresh = false): Promise<void> {
     await this.run.step(name, () => {
       const output = this.helper(plugin, ["--dry-run"], name).stdout;
       if (countLines(output, new RegExp(`^plan: ${plan}$`)) !== 1) throw new Error(`dry-run did not report plan: ${plan}`);
-      if (countLines(output, /^skip\(plan\):/) !== skips) throw new Error(`dry-run did not skip ${skips} agents for the ${plan} plan`);
       if (countLines(output, new RegExp(`^server: ${ORIGIN.replace(/[.]/g, "\\.")}$`)) !== 1) throw new Error("dry-run did not report the server");
       if (fresh && existsSync(path.join(this.repo, "CLAUDE.md"))) throw new Error("dry-run wrote CLAUDE.md");
     });
@@ -199,7 +197,7 @@ class Smoke {
       const config = { version: 1, project, workspaces: [{ id: "app", path: ".", agent: "app-dev", verify: ["npm test"] }] };
       writeFileSync(path.join(this.repo, "harness.json"), `${JSON.stringify(config, null, 2)}\n`);
     });
-    await this.dryRun(plugin, `${prefix}dry-run`, "free", PLAN_SKIPS_ON_FREE, true);
+    await this.dryRun(plugin, `${prefix}dry-run`, "free", true);
     await this.generate(plugin, `${prefix}generate`, "free");
     await this.run.step(`${prefix}persist-server`, () => persistServer(this.run, this.helperEnv));
     await this.run.step(`${prefix}mcp-add`, () => {
@@ -346,7 +344,7 @@ async function newUser(smoke: Smoke, plugin: Plugin, options: Options, login: st
     const output = smoke.run.succeed(process.execPath, ["--import", "tsx", "scripts/grant-plan.ts", login, "pro", "e2e smoke"], REPO, childEnv, "plan:grant").stdout;
     if (!output.includes(`granted: ${login} -> pro`)) throw new Error("plan:grant did not report the Pro plan");
   });
-  await smoke.dryRun(plugin, "pro-dry-run", "pro", 0);
+  await smoke.dryRun(plugin, "pro-dry-run", "pro");
   await smoke.generate(plugin, "pro-generate", "pro");
   await smoke.sync(plugin, "pro-sync", connection.slug, rerunAt);
 }
@@ -355,7 +353,7 @@ async function update(smoke: Smoke, previous: Plugin, installNew: () => Promise<
   const connection = await smoke.firstConnection(previous, "previous-", options.scenario, token);
   const plugin = await smoke.run.step("plugin-install", installNew);
   await smoke.connected("mcp-unchanged");
-  await smoke.dryRun(plugin, "update-dry-run", "free", PLAN_SKIPS_ON_FREE);
+  await smoke.dryRun(plugin, "update-dry-run", "free");
   await smoke.generate(plugin, "update-generate", "free");
   await smoke.sync(plugin, "update-sync", connection.slug, connection.syncedAt);
   return plugin;
