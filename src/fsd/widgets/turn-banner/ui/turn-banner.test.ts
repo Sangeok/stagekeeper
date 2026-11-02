@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { createElement, type ContextType } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { withAppRouterTestContext } from "@/fsd/shared/lib/testing";
 import { PathnameContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { copyLock, missingUnits, visibleText } from "@/fsd/shared/lib/copy-lock";
 import type { Plan } from "@harness/core/plans/entitlement.mjs";
@@ -41,8 +41,7 @@ const working: Turn = { kind: "theirs", detail: "dev is implementing ITEM-01", n
 
 function renderWith(turn: Turn, pathname: string, runner: RunnerFacts | undefined, pause = true, plan?: Plan): string {
   const banner = createElement(TurnBanner, { turn, slug: "alpha", runner, plan, pause: pause ? async (paused: boolean) => ({ success: true as const, data: paused }) : undefined });
-  return renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: {} as ContextType<typeof AppRouterContext> },
-    createElement(PathnameContext.Provider, { value: pathname }, banner)));
+  return renderToStaticMarkup(withAppRouterTestContext(createElement(PathnameContext.Provider, { value: pathname }, banner)));
 }
 
 it("renders Codex identity, scoped permission, Pause and its own recovery entry in full and compact banners", () => {

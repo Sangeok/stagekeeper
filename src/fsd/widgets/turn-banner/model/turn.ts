@@ -18,7 +18,7 @@ export type TurnItem = {
   dispatched: boolean;
 };
 
-export type SetupState = { tokenIssued: boolean; rosterSynced: boolean; autoScoutEnabled?: boolean };
+export type SetupState = { tokenIssued: boolean; rosterSynced: boolean };
 
 export type SetupStep = {
   key: "token" | "connect" | "run";
