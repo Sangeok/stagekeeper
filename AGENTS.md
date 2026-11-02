@@ -94,10 +94,11 @@ commits that were already green on `dev`.
   shipped `plugin/` files differ between `origin/main` and `origin/dev`, both plugin
   manifests must carry the same, higher version; otherwise the server deploys while
   installed plugins never update.
-- Before promoting, run the `e2e-smoke` workflow on the `dev` commit being promoted
-  (`gh workflow run e2e-smoke.yml --ref dev`), and also `agent-eval` when shipped
-  `plugin/` files changed. Stop unless every job is green, and promote only the
-  commit their summaries name.
+- Before promoting, run the `client-init-smoke` workflow on the `dev` commit being
+  promoted (`gh workflow run client-init-smoke.yml --ref dev`), and also `agent-eval`
+  when shipped `plugin/` files changed. Stop unless every job is green, and promote
+  only the commit their summaries name. Both check plugin installation and init
+  only; neither runs the pipeline.
 - Before promoting, check the production database's migrations; `npm run build`
   only generates the Prisma client. The local `.env` `DATABASE_URL` must point at a
   development database, never production, because `npm run db:migrate` changes its

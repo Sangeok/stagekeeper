@@ -1,4 +1,4 @@
-name: e2e-smoke
+name: client-init-smoke
 
 on:
   pull_request:
@@ -10,14 +10,14 @@ on:
       - "prisma/**"
       - "scripts/rehearsals/rehearse-client-init-smoke.ts"
       - "scripts/rehearsals/client-init-smoke-steps.mjs"
-      - ".github/workflows/e2e-smoke.yml"
+      - ".github/workflows/client-init-smoke.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: e2e-smoke-${{ github.ref }}
+  group: client-init-smoke-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
