@@ -1278,27 +1278,27 @@ After:
   "(`.github/actions/smoke-database`, `pipeline-smoke`와 공유)"를 더한다.
 - `agent-eval` 항목 뒤에 새 항목을 더한다.
 
-  ```markdown
-  - [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
-    항목 하나를 배정부터 문서 감사까지 처리하는지 본다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
-    올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
-    백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
-    `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, 리허설의 독립 사례와 `node --test`가 통과해야 녹색이다.
-    보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 녹색이어도 요약의
-    `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
-    주 1회(수요일 18:00 UTC, `main`)에 돌고 PR에서는 돌지 않는다. 주간 실행은 템플릿 저장소의 기본 브랜치를 시드하므로,
-    실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰며 1회 정가
-    환산 약 $14~19다. 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는 `E2E_TRANSCRIPT_KEY`로 봉인한
-    artifact(7일)로만 남긴다.
-  ```
+```markdown
+- [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
+  항목 하나를 배정부터 문서 감사까지 처리하는지 본다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
+  올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
+  백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
+  `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, 리허설의 독립 사례와 `node --test`가 통과해야 녹색이다.
+  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 녹색이어도 요약의
+  `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
+  주 1회(수요일 18:00 UTC, `main`)에 돌고 PR에서는 돌지 않는다. 주간 실행은 템플릿 저장소의 기본 브랜치를 시드하므로,
+  실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰며 1회 정가
+  환산 약 $14~19다. 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는 `E2E_TRANSCRIPT_KEY`로 봉인한
+  artifact(7일)로만 남긴다.
+```
 
 - 저장소 스크립트 표의 322행 뒤에 세 행을 더한다.
 
-  ```markdown
-  | `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
-  | `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산. 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
-  | `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
-  ```
+```markdown
+| `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
+| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산. 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
+| `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
+```
 
 ## 5. 실행 순서
 
