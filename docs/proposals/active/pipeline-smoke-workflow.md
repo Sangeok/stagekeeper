@@ -1789,8 +1789,8 @@ it("refuses a missing or short transcript key before any work", async () => {
 | `node --test scripts/rehearsals/pipeline-smoke-steps.test.mjs` | Pass (9/9) | Phase 2. 리허설 시험과 init 리허설 시험을 합쳐 28/28 |
 | 이 PC의 작업 공간 신뢰 사전 확인 | Pass | Phase 3 전. 신뢰된 적 없는 폴더에서도 `.claude/agents` 역할을 불렀다. 정가 환산 $0.76 |
 | `gh workflow run pipeline-smoke.yml --ref harness/pipeline-smoke` | Pass (run 41429824882, `3fe2b16`) | Phase 3 첫 실행. 아래 "Phase 3 첫 실행 기록" |
-| 음성 증명(게이트 유지, `templates-ref=main`) | Not run yet | Phase 4: `item-gated` 실패와 실패 경로 봉인 기대 |
-| 봉인 artifact 로컬 열기 | Pass (Phase 3) | 파일 14개: 실행 스트림, 세션 전사와 서브에이전트 전사 6개, `background.*`, `commands.log`, `server.log`, `findings.json`. Phase 4는 아직 |
+| 음성 증명(게이트 유지, `templates-ref=main`) | Pass (run 41433975185, `7bd0c7c`) | Phase 4. 아래 "Phase 4 음성 증명 기록" |
+| 봉인 artifact 로컬 열기 | Pass (Phase 3, Phase 4) | Phase 3은 파일 14개: 실행 스트림, 세션 전사와 서브에이전트 전사 6개, `background.*`, `commands.log`, `server.log`, `findings.json`. Phase 4는 실패 경로에서 파일 9개 |
 | `npm run check` | Not run yet | Phase 5 |
 | `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Not run yet | Phase 5 |
 | PR 2 `client-init-smoke` 4 job | Not run yet | Phase 5(회귀) |
@@ -1832,6 +1832,24 @@ it("refuses a missing or short transcript key before any work", async () => {
   2. 위 비용 과대 집계.
 - 플러그인 쪽 관찰(이번 범위 밖): 실행기의 마지막 결과 줄은 마지막 차례의 턴 수만 적는다("done: 3 turns").
   세션 전체는 53턴이었다.
+
+### Phase 4 음성 증명 기록
+
+2026-11-02 run 41433975185의 기록이다. 임시 브랜치 `harness/pipeline-smoke-gate-proof`(`7bd0c7c`)는 `14bfaf3`에서
+`pipeline-saved`의 `gates`만 `["before-plan"]`로 바꾼 커밋이다. 실행 뒤 원격 브랜치를 지웠다.
+
+- `item-assigned`는 pass, `item-gated`는 fail이었다. 요약에 `failure: "item-gated"`, `runnerState: "stopped"`,
+  `sealed: true`가 남았다.
+- 로그의 템플릿 checkout에 `ref: main`이 찍혀, `templates-ref` 입력이 전달됐다. 템플릿 기본 브랜치가 `main`이라 커밋은
+  Phase 3과 같은 `fb6ef95`였다.
+- 리허설은 108초 걸렸다. 실행기 시작은 11:08:04였고, 게이트 대기는 61초 뒤인 11:09:05에 판정됐다. 시작 단계가
+  더는 300초 한도까지 기다리지 않는다(결함 1 수정 확인).
+- 비용은 정가 환산 $0.24, 모델은 `claude-sonnet-5-5`였다.
+- `harnessErrors`의 `board_propose` 1건은 봉인 전사로 확인했다.
+  - work-assigner가 저장된 선택 정책을 옮기면서 마지막 문장을 빠뜨렸다. 그래서 "The selection record must name the
+    saved selection policy."로 거부됐다. 이 검사는 `packages/core/pipeline/work-selection.mjs:15`에 있다.
+  - 정책 전문을 넣어 다시 보내 제안이 등록됐다.
+  - 이 검사는 승격할 변경(#272~#276)이 건드리지 않았다.
 
 ## Completion or Closure Notes
 
