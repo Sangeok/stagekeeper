@@ -42,8 +42,8 @@ jobs:
             scenario: update
             pg: darwin-arm64
     env:
-      PG_PORT: "55432"
-      TEST_DB: postgresql://postgres@127.0.0.1:55432/stagekeeper_test_e2e
+      PG_PORT: "45432"
+      TEST_DB: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_e2e
       DISABLE_AUTOUPDATER: "1"
     steps:
       - name: Check that the smoke secrets are available
@@ -84,6 +84,7 @@ jobs:
           $data = Join-Path $env:RUNNER_TEMP 'pgdata'
           & (Join-Path $bin 'initdb.exe') -D $data -U postgres --auth=trust -E UTF8 --no-locale
           if ($LASTEXITCODE -ne 0) { throw 'initdb failed' }
+          netsh interface ipv4 show excludedportrange protocol=tcp
           $env:PGPORT = $env:PG_PORT
           $log = Join-Path $env:RUNNER_TEMP 'pg.log'
           $process = Start-Process -FilePath (Join-Path $bin 'pg_ctl.exe') -ArgumentList @('-D', $data, '-l', $log, '-w', 'start') -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP 'pgctl.out') -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'pgctl.err')

@@ -12,7 +12,7 @@ import { assertGeneratedAgents, containsSecret, helperCommand, summarize } from 
 const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
 const MARKETPLACE = "stagekeeper-local";
 const PLUGIN_REPOSITORY = "https://github.com/Sangeok/stagekeeper.git";
-const PORT = 55438;
+const PORT = 45438;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const COMMIT = /^[0-9a-f]{40}$/;
 
