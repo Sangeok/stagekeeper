@@ -91,6 +91,15 @@
 | `mcp/api.ts`, `mcp/api.server.ts` | 주입형: `registerTools`, `registerOwnerTools`; runtime: `prismaToolDeps`, `verifyProjectToken`, `prismaOwnerToolDeps`, `verifyOwnerToken` | tools·owner-tools와 deps·owner-deps; 기존 두 MCP route |
 | `auth/index.ts`, `auth/guard.ts`, `auth/config.base.ts` | `auth`, `handlers`, `signIn`; `requireUser`, `requireProjectOwner`, `requireProjectWrite`; `AFTER_SIGN_IN`, `authConfigBase` | 정의·외부 소비자·두 내부 조립 간선. `config.ts`는 비공개 |
 
+## 템플릿 release 저장 기반
+
+`templates/api.ts`의 `publishTemplateRelease`, `activateTemplateRelease`,
+`readTemplateDeployment`, `readTemplateRelease`는 DB 주입형 운영 서비스다.
+입력/결과 타입은 `templates/contracts.ts`에서 명시적으로 공개한다.
+등록과 활성화는 분리하며 저장된 묶음은 DB trigger로 보호한다.
+채널 초기 모드는 legacy이고, bootstrap 전 활성화는 거부한다.
+파이프라인의 실제 pin 선택과 client wire 전환은 아직 연결하지 않았다.
+
 ## 내부 참조 시험 목록
 
 자기 모듈 옆 시험은 내부를 상대 경로로 검사한다. 다른 모듈의 비공개 구현을 읽는 시험은

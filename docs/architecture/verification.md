@@ -729,3 +729,14 @@ CSS 없는 fixture의 callback/activeElement 결과는 실제 배치·가로 이
 기존 `rehearse-src-clean-code.ts`의 `/owner`, `/owner-item`, `/owner-pipeline` 및 같은 project의 Backlog 화면을 사용한다.
 테스트가 소유한 업무 입력과 이력 시각을 고정하고, 생성 ID는 원본과 표시 대응을 별도로 확인한다.
 운영 DB·세션·실제 runner를 사용하지 않으며 `/finish` 후 자기 fixture와 Next child의 종료를 확인한다.
+
+## 템플릿 release 기반 검증
+
+`packages/core/templates/release-manifest.test.mjs`는 canonical identity와
+설치 표면/언어 규칙을, `scripts/templates/template-release-cli.test.ts`는
+CLI의 사전 거부와 명시적 연결 대상 검증을 확인한다.
+`tests/server/integration/template-release.test.ts`는 안전 검사를 통과한
+TEST_DATABASE_URL 안에 고유 schema를 만들고 전체 migration을 적용한다.
+각 Prisma adapter와 raw SQL 연결의 schema를 함께 지정하고 확인하며,
+시험 후 연결을 닫고 자신이 만든 schema만 제거한다.
+seal·중복 등록·rollback·CAS·pin 보호의 통과는 전체 전환 인수를 대신하지 않는다.

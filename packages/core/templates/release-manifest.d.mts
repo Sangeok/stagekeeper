@@ -1,0 +1,13 @@
+export type TemplateRow = { lang: string; path: string; body: string };
+export type TemplateSource = { kind: "git"; repository: "Sangeok/harness-templates"; commit: string } | { kind: "legacy-snapshot"; snapshotHash: string };
+export type Installation = { releaseId: string; language: string; protocol: "template-release-v1"; clientSurfaceHash: string };
+export const TEMPLATE_PROTOCOL: "template-release-v1";
+export const TEMPLATE_CONTRACT: Readonly<{ schemaVersion: 1; parser: 1; runtime: "harness-runtime-v1"; aliases: 1; clients: readonly ["claude", "codex"] }>;
+export function canonicalJson(value: unknown): string;
+export function manifestHash(value: unknown): string;
+export function normalizeTemplateRows(rows: unknown): TemplateRow[];
+export function sourceKey(source: unknown): string;
+export function prepareTemplateRelease(rows: unknown, source: TemplateSource): { sourceKey: string; manifest: { schemaVersion: number; contract: typeof TEMPLATE_CONTRACT; languages: string[]; entryCount: number }; rows: TemplateRow[]; contentHash: string; contractHash: string; releaseIdentity: string };
+export function selectTemplateLanguage(languages: readonly string[], requested: string): string | null;
+export function installationFor(input: { releaseId: string; rows: TemplateRow[]; language: string; plan: "free" | "pro" | "max"; client: "claude" | "codex"; contractHash: string }): Installation;
+export function compatibleInstallation(installed: Installation | null | undefined, required: Installation): boolean;
