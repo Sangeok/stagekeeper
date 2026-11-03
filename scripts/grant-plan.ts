@@ -13,7 +13,11 @@ async function main() {
   await withPrisma(async (prisma) => {
     const users = await prisma.user.findMany({ where: { login }, select: { id: true, githubId: true } });
     if (users.length !== 1) {
-      console.error(users.length === 0 ? `no user with login ${login} — sign in on the web once first` : `ambiguous login ${login}: githubIds ${users.map((u) => u.githubId).join(", ")}`);
+      console.error(
+        users.length === 0
+          ? `no user with login ${login} — sign in on the web once first`
+          : `ambiguous login ${login}: githubIds ${users.map((u) => u.githubId).join(", ")}`
+      );
       process.exitCode = 1;
       return;
     }
@@ -23,4 +27,7 @@ async function main() {
   });
 }
 
-main().catch(() => { console.error("Plan change failed; no automatic replay. Check the current plan and project list before retrying."); process.exitCode = 1; });
+main().catch(() => {
+  console.error("Plan change failed; no automatic replay. Check the current plan and project list before retrying.");
+  process.exitCode = 1;
+});
