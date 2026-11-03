@@ -1798,7 +1798,7 @@ it("refuses a missing or short transcript key before any work", async () => {
 | 봉인 artifact 로컬 열기 | Pass (Phase 3, Phase 4) | Phase 3은 파일 14개: 실행 스트림, 세션 전사와 서브에이전트 전사 6개, `background.*`, `commands.log`, `server.log`, `findings.json`. Phase 4는 실패 경로에서 파일 9개 |
 | `npm run check` | Pass | Phase 5. `dev` `5dcab73`을 합친 작업 트리(Windows). 스크립트 시험 298개 중 295 pass, 3 skip(Windows 기호 링크 권한과 LPAC 환경), fail 0. AGENTS.md 경로 시험 포함 |
 | `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Pass | Phase 5. 같은 작업 트리. `npm test` 595개 중 592 pass·3 skip, `test:architecture` 207개 중 205 pass·2 skip, 두 경계 검사 통과 |
-| PR 2 `client-init-smoke` 4 job | Not run yet | Phase 5(회귀) |
+| PR 2 `client-init-smoke` 4 job | Pass (PR #279, run 41651333308, `b31b182`) | Phase 5(회귀). new-user 22/22, update 21/21(지난 판 `5dcab73`), 템플릿 `fb6ef95`. 같은 커밋의 `check` 6 job도 녹색(run 41651333313) |
 
 ### Phase 3 첫 실행 기록
 
