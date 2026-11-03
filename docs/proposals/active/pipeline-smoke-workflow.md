@@ -262,7 +262,7 @@ PR 2는 PR 1이 `dev`에 머지된 뒤 최신 `dev`에서 브랜치를 만든다
 | `backlog-added` | `BACKLOG_ITEM`을 owner 항목으로 추가하고 key를 받는다 | `ok: false` |
 | `runner-start` | HEAD를 `headBeforeRunner`로 기록한 뒤 `helperCommand(process.platform, plugin.root, "background", ["--start", "--root", repo, "--propose", "yes"])`를 `run.succeed(…, "background start", 300_000)`로 실행한다. `Run.command`의 기본 한도는 120초인데, 시작은 권한 탐침(`PROBE_LIMIT` 120초)과 시작 확인(`START_WAIT` 20초)에 요청 재시도까지 더해 이를 넘을 수 있다(`plugin/bin/harness-background.mjs:27-28`). 마지막 줄 JSON이 `started`이면 `permission`을 기록한다 | `started` 아님 |
 | `item-assigned` | 15초마다 board item과 `selectionDecision`을 본다. 없으면 `waitVerdict({ next: null, …, timeoutStep: "item-assigned" })`(실행기 시작 뒤 20분) | `waitVerdict`가 실패를 내면 그 이름으로 기록 |
-| `item-done` | 15초마다 `nextFor`와 board 상태를, 1분마다 `--status`를 읽어 `waitVerdict`에 넘긴다(대기 마감까지) | 같음. 예: `item-held`, `acceptance-failed`, `impl-verify-failed`, `item-gated`, `runner-ended`, `runner-waiting`, `item-done` |
+| `item-done` | 15초마다 `nextFor`와 board 상태를, 1분마다 `--status`를 읽어 `waitVerdict`에 넘긴다(대기 마감까지) | 같음. 예: `item-held`, `acceptance-failed`, `impl-verify-failed`, `item-gated`, `item-handoff`(핸드오프가 5분 넘게 이어짐), `runner-ended`, `runner-waiting`, `item-done` |
 | `roles-ran` | 프로젝트 AgentRun의 `agent`에 `PIPELINE_ROLES`가 모두 있다. `stepRefusals`(AgentRun `refused`의 합)를 기록한다 | 빠진 역할 |
 | `runner-stop` | `--stop`을 보낸 뒤 5초마다 `--status`를 읽는다. 15분, 또는 리허설 마감에서 봉인 몫 5분을 뺀 시각 중 이른 쪽까지 기다린다. `running:false`이고 `held:false`여야 한다 | 시간 초과 또는 `held` |
 | `implementation-check` | 작업 트리가 깨끗하고 HEAD가 `headBeforeRunner`와 달라야 한다. `node --test`가 통과해야 한다. 별도 Node 프로세스에서 `src/slug.mjs`를 import해 `caseResults`가 모두 true인지 본다(아래 "리허설의 파이프라인 단계"의 코드). 모델이 쓴 코드는 이 자식 프로세스에서만 돌고 30초 한도를 받는다 | 하나라도 어긋남 |
@@ -347,16 +347,19 @@ const key = await run.step("backlog-added", async () => {
 
 대기는 Prisma 클라이언트 하나로 돈다. 15초마다 새 클라이언트를 만들지 않으려고 `withPrisma` 한 번 안에서 반복한다.
 `runnerStatus()`는 `--status`의 마지막 줄 JSON을 읽고 1분에 한 번만 다시 묻는다. `waitingSince`는 실행기 상태가
-`waiting`이 된 첫 시각이다.
+`waiting`이 된 첫 시각이다. `handoffSince`는 항목이 `wait on handoff`가 된 첫 시각이고, 다른 응답이 오면 지운다.
 
 ```ts
 const { nextFor } = await import("../../src/server/pipeline/api");
 const verdict = await withPrisma(async prisma => {
+  let handoffSince: number | null = null;
   for (;;) {
     const row = await prisma.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { status: true } });
     const next = row ? await nextFor(prisma, projectId, key) : null;
     const runner = await runnerStatus();
-    const result = waitVerdict({ next, boardStatus: row?.status ?? null, runner, waitingMs: waitingSince === null ? 0 : Date.now() - waitingSince, now: Date.now(), deadline, timeoutStep: "item-done" });
+    const now = Date.now();
+    handoffSince = next?.action === "wait" && next.on === "handoff" ? handoffSince ?? now : null;
+    const result = waitVerdict({ next, boardStatus: row?.status ?? null, runner, waitingMs: waitingSince === null ? 0 : now - waitingSince, handoffMs: handoffSince === null ? 0 : now - handoffSince, now, deadline, timeoutStep: "item-done" });
     if (result.verdict !== "wait") return result;
     await delay(15_000);
   }
@@ -451,12 +454,14 @@ export function caseResults(slugWords, cases = INDEPENDENT_CASES) {
 
 ```js
 export const RUNNER_WAIT_LIMIT_MS = 2 * 60_000;
-const WAIT_FAILURES = Object.freeze({ gate: "item-gated", handoff: "item-handoff", acceptance: "acceptance-failed", "impl-verify": "impl-verify-failed", qa: "qa-failed", cap: "usage-cap" });
+export const HANDOFF_LIMIT_MS = 5 * 60_000;
+const WAIT_FAILURES = Object.freeze({ gate: "item-gated", acceptance: "acceptance-failed", "impl-verify": "impl-verify-failed", qa: "qa-failed", cap: "usage-cap" });
 
-export function waitVerdict({ next, boardStatus, runner, waitingMs, now, deadline, timeoutStep }) {
+export function waitVerdict({ next, boardStatus, runner, waitingMs, handoffMs = 0, now, deadline, timeoutStep }) {
   if (next?.action === "done") return { verdict: "done" };
   if (boardStatus === "on_hold") return { verdict: "fail", step: "item-held" };
   if (next?.action === "wait" && Object.hasOwn(WAIT_FAILURES, next.on)) return { verdict: "fail", step: WAIT_FAILURES[next.on] };
+  if (next?.action === "wait" && next.on === "handoff" && handoffMs >= HANDOFF_LIMIT_MS) return { verdict: "fail", step: "item-handoff" };
   if (runner?.running === false) return { verdict: "fail", step: "runner-ended" };
   if (runner?.state === "waiting" && waitingMs >= RUNNER_WAIT_LIMIT_MS) return { verdict: "fail", step: "runner-waiting" };
   if (now >= deadline) return { verdict: "fail", step: timeoutStep };
@@ -469,6 +474,12 @@ export function waitVerdict({ next, boardStatus, runner, waitingMs, now, deadlin
 - `nextFor` 결과다. 파이프라인 실행이 닫히면 `action: "done"`이다(`src/server/pipeline/run-rules.ts:54`).
 - 사람 없이는 벗어날 수 없는 대기는 `action: "wait"`와 `on`으로 온다. `on` 값은 `gate`, `handoff`, `acceptance`,
   `impl-verify`, `qa`, `cap`이다(`run-rules.ts:9-14`).
+- `handoff`만은 바로 실패시키지 않는다. 커밋 권한이 없는 역할이 준비한 파일을 넘기고 멈춘 상태다. 이 픽스처는 커밋
+  정책이 yes라 메인 루프가 그 파일을 커밋하고 같은 실행을 outcome 없이 이어 간다(`docs/architecture/protocol.md`
+  "커밋 핸드오프", watch 스킬 §5). impl-verifier의 보고서는 늘 메인 루프가 이 절차로 커밋한다
+  (`docs/architecture/impl-verifier.md` "Authority and evidence"). 그래서 리허설은
+  핸드오프를 처음 본 시각부터 잰 `handoffMs`를 넘기고, `HANDOFF_LIMIT_MS`(5분) 넘게 이어질 때만 `item-handoff`로
+  실패한다(2026-11-03 승격 전 dev 실행에서 고침, 아래 "Verification Results").
 - 서버가 앞으로 새 대기 이유를 더하면 그 값은 `WAIT_FAILURES`에 없다. 그 경우 마감까지 기다린 뒤 `timeoutStep`으로
   실패한다.
 
@@ -1294,7 +1305,8 @@ After:
   올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
   백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
   `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, 리허설의 독립 사례와 `node --test`가 통과해야 녹색이다.
-  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 녹색이어도 요약의
+  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 커밋 핸드오프는 메인
+  루프가 커밋하고 이어 가도록 5분까지 기다린 뒤 `item-handoff`로 실패한다. 녹색이어도 요약의
   `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
   주 1회(수요일 18:00 UTC, `main`)에 돌고 PR에서는 돌지 않는다. 주간 실행은 템플릿 저장소의 기본 브랜치를 시드하므로,
   실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰고, 모델은
@@ -1497,7 +1509,7 @@ import { join } from "node:path";
 import { it } from "node:test";
 import { gzipSync } from "node:zlib";
 import { containsSecret } from "./client-init-smoke-steps.mjs";
-import { BACKLOG_ITEM, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, caseResults, openTranscripts, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
+import { BACKLOG_ITEM, HANDOFF_LIMIT_MS, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, caseResults, openTranscripts, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
 
 const line = value => JSON.stringify(value);
 const toolUse = (id, name) => line({ type: "assistant", message: { content: [{ type: "tool_use", id, name, input: {} }] } });
@@ -1634,7 +1646,7 @@ it("ends the wait on completion and fails early on states an unattended run cann
   assert.deepEqual(waitVerdict(base), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, next: { action: "done" }, now: 1 }), { verdict: "done" });
   assert.deepEqual(waitVerdict({ ...base, boardStatus: "on_hold" }), { verdict: "fail", step: "item-held" });
-  for (const [on, step] of [["gate", "item-gated"], ["handoff", "item-handoff"], ["acceptance", "acceptance-failed"], ["impl-verify", "impl-verify-failed"], ["qa", "qa-failed"], ["cap", "usage-cap"]]) {
+  for (const [on, step] of [["gate", "item-gated"], ["acceptance", "acceptance-failed"], ["impl-verify", "impl-verify-failed"], ["qa", "qa-failed"], ["cap", "usage-cap"]]) {
     assert.deepEqual(waitVerdict({ ...base, next: { action: "wait", on } }), { verdict: "fail", step });
   }
   assert.deepEqual(waitVerdict({ ...base, next: { action: "wait", on: "unknown" } }), { verdict: "wait" });
@@ -1642,6 +1654,14 @@ it("ends the wait on completion and fails early on states an unattended run cann
   assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "waiting" }, waitingMs: RUNNER_WAIT_LIMIT_MS }), { verdict: "fail", step: "runner-waiting" });
   assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "waiting" }, waitingMs: RUNNER_WAIT_LIMIT_MS - 1 }), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, next: null, now: 1, timeoutStep: "item-assigned" }), { verdict: "fail", step: "item-assigned" });
+});
+
+it("gives the main loop time to commit a handed-off file and fails a handoff that outlasts the limit", () => {
+  const handoff = { next: { action: "wait", on: "handoff" }, boardStatus: "implementing", runner: { running: true, state: "working" }, waitingMs: 0, now: 0, deadline: 1, timeoutStep: "item-done" };
+  assert.deepEqual(waitVerdict(handoff), { verdict: "wait" });
+  assert.deepEqual(waitVerdict({ ...handoff, handoffMs: HANDOFF_LIMIT_MS - 1 }), { verdict: "wait" });
+  assert.deepEqual(waitVerdict({ ...handoff, handoffMs: HANDOFF_LIMIT_MS }), { verdict: "fail", step: "item-handoff" });
+  assert.deepEqual(waitVerdict({ ...handoff, runner: { running: false, state: "stopped" } }), { verdict: "fail", step: "runner-ended" });
 });
 
 it("lists pipeline-smoke trigger paths that exist in this repository", () => {
@@ -1799,6 +1819,7 @@ it("refuses a missing or short transcript key before any work", async () => {
 | `npm run check` | Pass | Phase 5. `dev` `5dcab73`을 합친 작업 트리(Windows). 스크립트 시험 298개 중 295 pass, 3 skip(Windows 기호 링크 권한과 LPAC 환경), fail 0. AGENTS.md 경로 시험 포함 |
 | `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Pass | Phase 5. 같은 작업 트리. `npm test` 595개 중 592 pass·3 skip, `test:architecture` 207개 중 205 pass·2 skip, 두 경계 검사 통과 |
 | PR 2 `client-init-smoke` 4 job | Pass (PR #279, run 41651333308, `b31b182`) | Phase 5(회귀). new-user 22/22, update 21/21(지난 판 `5dcab73`), 템플릿 `fb6ef95`. 같은 커밋의 `check` 6 job도 녹색(run 41651333313) |
+| 머지 뒤 첫 승격 전 `gh workflow run pipeline-smoke.yml --ref dev` | Fail (run 41657437554, `6f7982c`) | `item-handoff`. 리허설의 대기 판정 결함이라 승격을 멈추고 고쳤다. 아래 "머지 뒤 첫 dev 실행 기록" |
 
 ### Phase 3 첫 실행 기록
 
@@ -1855,6 +1876,32 @@ it("refuses a missing or short transcript key before any work", async () => {
     saved selection policy."로 거부됐다. 이 검사는 `packages/core/pipeline/work-selection.mjs:15`에 있다.
   - 정책 전문을 넣어 다시 보내 제안이 등록됐다.
   - 이 검사는 승격할 변경(#272~#276)이 건드리지 않았다.
+
+### 머지 뒤 첫 dev 실행 기록
+
+2026-11-03 run 41657437554(`6f7982c`, 템플릿 `fb6ef95`)의 기록이다. PR 2 머지 뒤 첫 승격 전 실행이고, 새 승격 규칙을
+처음 적용했다.
+
+- 결과는 `item-handoff` 실패였다.
+  - 배정, 계획, 계획 검증, 구현은 끝났다.
+  - impl-verifier는 결함 0으로 판정 ok를 냈다.
+- 원인은 파이프라인이 아니라 리허설의 대기 판정이었다.
+  - impl-verifier의 보고서는 늘 메인 루프가 핸드오프 절차로 커밋한다(`docs/architecture/impl-verifier.md`).
+    impl-verifier는 14:56:02에 `outcome: "handoff"`를 보내고 멈췄다.
+  - 커밋 정책이 yes라 메인 루프가 14:56:17에 그 보고서를 커밋했다.
+  - 그 사이 15초 폴링이 `wait on handoff`를 보고 바로 실패로 판정해 실행기를 멈췄다.
+  - 메인 루프는 실행기가 `stopping`인 것을 보고 impl-verifier를 다시 부르지 않았다. 이 응답은 맞다.
+  - Phase 3 첫 실행에서는 impl-verifier가 핸드오프 없이 보고해서, 이 대기 창을 지나지 않았다.
+- 고친 내용:
+  - `handoff`를 바로 실패하는 대기에서 뺐다.
+  - 핸드오프가 `HANDOFF_LIMIT_MS`(5분) 넘게 이어질 때만 `item-handoff`로 실패한다.
+  - 새 시험은 고치기 전 코드에서 실패하는 것을 확인했다.
+- 그 밖의 요약 값:
+  - 모델 `claude-sonnet-5-5`, 정가 환산 $1.18, 권한 `auto`, 거부 0
+  - `harnessErrors`는 `board_propose` 1, `agent_next` 3, `report_submit` 1이었다. 모두 모델이 바로 고쳐 다시 불렀다.
+    - `board_propose`: 선택 정책 전문 누락. Phase 4와 같다.
+    - `agent_next`: `needs a key`
+    - `report_submit`: app-dev가 자기 verify 단계를 기록하기 전에 보고했다.
 
 ## Completion or Closure Notes
 

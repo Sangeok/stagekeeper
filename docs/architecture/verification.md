@@ -156,7 +156,8 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
   백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
   `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, 리허설의 독립 사례와 `node --test`가 통과해야 녹색이다.
-  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 녹색이어도 요약의
+  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 커밋 핸드오프는 메인
+  루프가 커밋하고 이어 가도록 5분까지 기다린 뒤 `item-handoff`로 실패한다. 녹색이어도 요약의
   `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
   주 1회(수요일 18:00 UTC, `main`)에 돌고 PR에서는 돌지 않는다. 주간 실행은 템플릿 저장소의 기본 브랜치를 시드하므로,
   실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰고, 모델은
