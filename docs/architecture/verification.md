@@ -135,8 +135,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   private 원본을 제공하지 않는 공개 CI의 통과가 이 검증을 대신하지 않는다.
 - [client-init-smoke](../../.github/workflows/client-init-smoke.yml)는 모델 없이 실제 클라이언트 설치와 init 흐름을
   확인한다. 파이프라인은 실행하지 않는다.
-  `windows-2022`·`macos-15` × `new-user`·`update` 네 job이 동시에 돈다. 각 job은 일회용 PostgreSQL 18과
-  `next start` 위에서 비공개 템플릿을 시드하고, GitHub 브랜치로 설치한 Claude 플러그인으로
+  `windows-2022`·`macos-15` × `new-user`·`update` 네 job이 동시에 돈다. 각 job은 일회용 PostgreSQL 18
+  (`.github/actions/smoke-database`, `pipeline-smoke`와 공유)과 `next start` 위에서 비공개 템플릿을 시드하고,
+  GitHub 브랜치로 설치한 Claude 플러그인으로
   `scripts/rehearsals/rehearse-client-init-smoke.ts`를 실행한다. `dev`를 향한 PR(플러그인·서버·`prisma`·리허설 경로)과
   수동 실행에서 돌고, 비밀값 `E2E_TEMPLATES_TOKEN`이 없는 실행(외부 포크 PR)은 사유를 남기고 건너뛴다. 공개 로그에는
   허용 필드의 요약 한 줄만 남긴다. 브라우저 E2E가 아니므로 `tests/e2e/`가 아니라 리허설로 둔다. Codex job은 Codex 공개
@@ -150,6 +151,18 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   실행마다 셸 명령을 기록해 job 로그에 남긴다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
   실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
   사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
+- [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
+  항목 하나를 배정부터 문서 감사까지 처리하는지 본다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
+  올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
+  백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
+  `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, 리허설의 독립 사례와 `node --test`가 통과해야 녹색이다.
+  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 녹색이어도 요약의
+  `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
+  주 1회(수요일 18:00 UTC, `main`)에 돌고 PR에서는 돌지 않는다. 주간 실행은 템플릿 저장소의 기본 브랜치를 시드하므로,
+  실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰고, 모델은
+  고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
+  `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
+  `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 
@@ -320,7 +333,10 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `test-server-integration.mjs` | `npm run test:server:integration` | CI마다(일회용 PostgreSQL 18), 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. migrate 출력은 숨기고 시험 출력은 그대로 보인다. DB 생성·삭제·reset 없음 |
 | `build.test.mjs`, `plugin-lib.test.mjs`, `test-server-integration.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 실제 CLI의 잘못된 인자·도움말을 작업 전에 처리하는지, check의 무쓰기·동기화 동작, 빌드 순서·실패 코드 보존, URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `rehearsals/rehearse-client-init-smoke.ts`, `rehearsals/client-init-smoke-steps.mjs` | 저장소 루트에서 `node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts --client claude --scenario <new-user\|update> --templates <비공개 템플릿 절대 경로> --plugin-source github-branch --plugin-branch <브랜치> --plugin-commit <커밋> [--previous-ref <커밋>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), PATH의 `claude`·`git`과 `npm run build` 산출물이 필요하다 | `client-init-smoke` workflow | 시험 DB에 템플릿을 시드하고 Free 사용자와 토큰을 만든 뒤 `next start`를 띄우고, GitHub 브랜치로 설치한 플러그인으로 init 스킬 절차(등록·dry-run·생성·`HARNESS_SERVER` 저장·사용자 범위 MCP 등록·동기화)를 모델 없이 실행해 파일·DB·클라이언트 설정으로 판정한다. 러너 사용자 설정(`HARNESS_SERVER`, `~/.claude.json`, 플러그인 설치)을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이고 종료 시 자기 fixture 사용자와 서버를 정리한다 |
-| `rehearsals/rehearse-client-init-smoke.test.ts`, `rehearsals/client-init-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 잘못된·중복·미구현 인자와 기계 설정·DB 안전 거부를 작업 전에 처리하는지, OS별 helper 명령, 설치된 플러그인 판의 플랜 권한과 생성된 에이전트 파일 이름의 일치(구버전→신버전 업데이트 포함), 요약의 허용 필드와 토큰 미노출을 검사한다 |
+| `rehearsals/rehearse-client-init-smoke.test.ts`, `rehearsals/client-init-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 잘못된·중복·미구현 인자와 기계 설정·DB 안전 거부를 작업 전에 처리하는지, OS별 helper 명령, 설치된 플러그인 판의 플랜 권한과 생성된 에이전트 파일 이름의 일치(구버전→신버전 업데이트 포함), 요약의 허용 필드와 토큰 미노출, 종료 코드 0이어도 시간 초과한 명령은 실패로 세는지, 출력 파일로 받은 명령이 남은 자식 프로세스를 기다리지 않는지를 검사한다 |
+| `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
+| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산(세션 누적 비용과 반복 거부는 한 번만). 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
+| `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |
