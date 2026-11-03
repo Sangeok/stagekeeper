@@ -699,3 +699,33 @@ API를 추가하고 import를 정리한 뒤 진행한다. 사용자가 수정 �
 ## Acceptance failure rehearsal
 
 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-acceptance-failure.ts` uses only validated `TEST_DATABASE_URL` (stagekeeper_test_*, distinct from the parent DATABASE_URL). It exercises the actual Next owner action, authentication/read-only/stale controls and lost-response recovery. After a fresh build, `--templates` checks the entire private LF bundle through a unique test Template language, authenticated HTTP and actual init-generated managed marker/report convention/hash; the DB fixture is cleaned and generated files remain in a unique Temp directory. `--interactive` serves isolated browser lifetime fixtures and the actual item page; `/finish` cleans the fixture server and users. New production code requires the additive acceptance migration before rollout; production migration/seeding/watch installation observations are separate from local checks.
+
+## UX를 보존하는 page·pipeline 정리 검증
+
+- `tests/server/frontend-page-data.test.ts`는 상세·Backlog loader의 전체 표시 데이터, 조회 순서, null·오류 전파와 실제 route의 guard 선행·Action bind를 확인한다. `test:server`가 실행한다. `RDC_CHECK_ACTION_MANIFEST=true`인 fresh build 검사에는 loader·테스트 helper의 Action/Client registry 비노출도 포함한다.
+- `tests/server/integration/frontend-page-data.test.ts`는 `test:server:integration`의 격리 PostgreSQL에서 실제 loader와 배너를 실행한다. 다른 fixture project의 데이터 격리, removed/edit·assignment·history·acceptance 전달, 초기 가상 Default의 무생성, 조회 전후 업무 행 불변을 검사하고 자기 사용자·연결을 정리한다. PipelineRule snapshot은 복합키 projectId/type으로 정렬한다.
+- `scripts/checks/frontend-ux-boundaries.test.mjs`는 `test:architecture`·`test:scripts`에서 새 서버 public API와 route의 책임 이동, 미사용 표시 props 제거, 다섯 설정 Action 보존, 테스트 router unit의 운영 graph 비유입과 배너 존재 확인을 검사한다.
+- `src/fsd/shared/lib/testing`은 13개 정적 UI 테스트의 AppRouterContext만 제공하는 테스트 전용 unit이다. 운영 코드에서 import하거나 제품 barrel로 재수출하지 않는다. pathname/search params와 각 화면 assertion은 원래 테스트가 소유한다.
+
+현재 화면의 브라우저 검증은 `tests/server/fixtures/frontend-ux-browser.tsx`와 `frontend-ux-acceptance.ts`가 소유한다.
+기존 `src-clean-code-browser.tsx`가 `ux-pipeline`·`ux-rail` mode와 `ux-only` query를 연결한다.
+내부 PipelineRail은 기존 entry의 참조를 fixture prop으로 전달하며 새 테스트 파일에 비공개 FSD import를 추가하지 않는다.
+
+```bash
+node --import tsx scripts/rehearsals/rehearse-src-clean-code.ts --ui-only
+node --import tsx scripts/rehearsals/rehearse-src-clean-code.ts --ui-only --fixture-development
+```
+
+두 명령은 하나씩 실행한다. `http://127.0.0.1:55452/fixture?mode=ux-pipeline&ux-only&autorun`을 열면
+새 16개 사례만 실행하고 `/results`에 case/expected/observed/Pass-or-Fail을 기록한다. Run acceptance로 재실행할 수 있고
+Finish 또는 `/finish`로 서버를 종료한다. 이전 suite는 기본 query에서 유지하며 그 결과와 합산하지 않는다.
+
+이 fixture는 실제 component·DOM·제어 가능한 Action을 사용한다. catalog·rules·참조 details/정체성·오류·readonly,
+충돌 ref와 scrollIntoView 인자, 네 저장 결과, 미저장 이동·뒤로가기, 이전 project/해제된 component의 늦은 응답,
+Run 시작·중지·승인의 현재 pending·unknown 복구를 확인한다. 각 사례의 root·보류 Promise·history·전역 관찰을 정리한다.
+CSS 없는 fixture의 callback/activeElement 결과는 실제 배치·가로 이동·Next transport의 증거가 아니다.
+
+실제 CSS·font·본문·키보드·포커스·스크롤 비교는 fresh production build와 검증된 TEST_DATABASE_URL에서
+기존 `rehearse-src-clean-code.ts`의 `/owner`, `/owner-item`, `/owner-pipeline` 및 같은 project의 Backlog 화면을 사용한다.
+테스트가 소유한 업무 입력과 이력 시각을 고정하고, 생성 ID는 원본과 표시 대응을 별도로 확인한다.
+운영 DB·세션·실제 runner를 사용하지 않으며 `/finish` 후 자기 fixture와 Next child의 종료를 확인한다.

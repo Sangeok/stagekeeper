@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createElement, type ReactElement } from "react";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { withAppRouterTestContext } from "@/fsd/shared/lib/testing";
 import { renderToStaticMarkup as renderRaw } from "react-dom/server";
 
 function renderToStaticMarkup(element: ReactElement): string {
-  const router = { bfcacheId: "test", back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} };
-  return renderRaw(createElement(AppRouterContext.Provider, { value: router }, element));
+
+  return renderRaw(withAppRouterTestContext(element));
 }
 import { ProjectTokensPage, type TokenRow } from "./project-tokens-page";
 

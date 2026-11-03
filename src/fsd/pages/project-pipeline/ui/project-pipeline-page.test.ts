@@ -1,23 +1,21 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { createElement, isValidElement, type ContextType } from "react";
+import { createElement, isValidElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { withAppRouterTestContext } from "@/fsd/shared/lib/testing";
 import { SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
-import { PipelineList, type SavePipelineAction, type SaveAutomaticScoutAction } from "@/fsd/features/edit-pipeline";
+import { PipelineList, type SavePipelineAction } from "@/fsd/features/edit-pipeline";
 import { ProjectPipelinePage } from "./project-pipeline-page";
 
 const graph = { nodes: ["plan", "implement", "accept"], gates: ["before-plan"] };
 const now = new Date("2026-10-15T00:00:00Z");
 const save: SavePipelineAction = async () => { throw new Error("render must not save"); };
-const saveAutoScout: SaveAutomaticScoutAction = async () => { throw new Error("render must not scout"); };
 const settings = async (): Promise<never> => { throw new Error("render must not change settings"); };
 const props: Parameters<typeof ProjectPipelinePage>[0] = {
   projectId: "one", pipelines: [{ id: "default", name: "Default", isDefault: true,
     definition: { steps: graph.nodes, gates: graph.gates }, saved: { version: 3, createdAt: now }, runnable: { ...graph, format: "slots-v1" } }],
-  rules: {}, autoProposeEnabled: true, now, plan: "pro", roster: ["dev"], editable: true, save,
+  rules: {}, now, plan: "pro", roster: ["dev"], editable: true, save,
   actions: { archive: settings, rename: settings, setDefault: settings, setRule: settings, setAutomaticPick: settings },
-  autoScoutEnabled: true, canChangeAutoScout: true, saveAutoScout,
 };
 
 it("keys the pipeline editor by project identity while preserving the exact injected Action references", () => {
@@ -25,9 +23,8 @@ it("keys the pipeline editor by project identity while preserving the exact inje
     const page = ProjectPipelinePage(input);
     assert.ok(isValidElement<{ children: unknown[] }>(page));
     const list = page.props.children.find(child => isValidElement(child) && child.type === PipelineList);
-    const scout = isValidElement<Parameters<typeof PipelineList>[0]>(list) ? list.props.automationControls : null;
     assert.ok(isValidElement<Parameters<typeof PipelineList>[0]>(list));
-    assert.equal(scout, undefined);
+    assert.equal(Object.hasOwn(list.props, "automationControls"), false);
     assert.equal(list.props.save, save);
     assert.equal(list.props.actions, props.actions);
     assert.equal(list.props.pipelines, input.pipelines);
@@ -40,10 +37,8 @@ it("keys the pipeline editor by project identity while preserving the exact inje
 
 it("renders saved definition descriptions and read-only controls without invoking Actions", () => {
   for (const saved of [null, { version: 4, createdAt: now }]) {
-    const html = renderToStaticMarkup(createElement(AppRouterContext.Provider,
-      { value: {} as ContextType<typeof AppRouterContext> },
-      createElement(SearchParamsContext.Provider, { value: new URLSearchParams("pipeline=default") },
-      createElement(ProjectPipelinePage, { ...props, pipelines: [{ ...props.pipelines[0], saved }], editable: false, canChangeAutoScout: false, unavailableReason: "Not selected" }))));
+    const html = renderToStaticMarkup(withAppRouterTestContext(createElement(SearchParamsContext.Provider, { value: new URLSearchParams("pipeline=default") },
+      createElement(ProjectPipelinePage, { ...props, pipelines: [{ ...props.pipelines[0], saved }], editable: false, unavailableReason: "Not selected" }))));
     assert.ok(html.includes(saved ? "Version 4" : "Initial configuration"));
     assert.ok(html.includes("Default selection:"));
     assert.ok(!html.includes("Runs items"));

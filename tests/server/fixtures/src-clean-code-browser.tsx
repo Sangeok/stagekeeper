@@ -25,6 +25,8 @@ import type { ActionResult } from "../../../src/fsd/shared/api/result";
 import { defaultGraph } from "../../../packages/core/pipeline/pipeline.mjs";
 import { runAcceptance } from "./src-clean-code-acceptance";
 import { githubControls, installGitHubPickerFixture } from "./github-picker-browser";
+import { FrontendUxFixture, cleanupFrontendUx } from "./frontend-ux-browser";
+import { runFrontendUxAcceptance } from "./frontend-ux-acceptance";
 
 const controls = {
   submissions: [] as Record<string, FormDataEntryValue>[],
@@ -86,20 +88,15 @@ function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
     <div id="pipeline-page">
       <ProjectPipelinePage projectId={view.projectId}
         pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: view.graph.nodes, gates: view.graph.gates }, saved: view.version === 0 ? null : { version: view.version, createdAt: now }, runnable: { ...view.graph, format: "slots-v1" } }]}
-        rules={{}} autoProposeEnabled actions={{ archive: async () => ({ success: true, data: null }), rename: async () => ({ success: true, data: null }), setDefault: async () => ({ success: true, data: null }), setRule: async () => ({ success: true, data: null }), setAutomaticPick: async () => ({ success: true, data: null }) }} now={now}
+        rules={{}} actions={{ archive: async () => ({ success: true, data: null }), rename: async () => ({ success: true, data: null }), setDefault: async () => ({ success: true, data: null }), setRule: async () => ({ success: true, data: null }), setAutomaticPick: async () => ({ success: true, data: null }) }} now={now}
         plan={view.plan} roster={view.roster} editable={view.editable} unavailableReason={view.editable ? undefined : "Not selected"}
-        autoScoutEnabled={view.enabled} canChangeAutoScout={view.editable}
         save={async input => {
           const result = await action(input, { success: { status: "success" as const, pipelineId: "default", version: input.expectedVersion + 1 }, error: { status: "error" as const, reason: "Unavailable" }, stale: { status: "stale" as const } });
           if (result.status === "success") setView(current => current.projectId === view.projectId && current.version <= result.version
             ? { ...current, version: result.version, graph: { nodes: input.definition.steps, gates: input.definition.gates } } : current);
           return result;
         }}
-        saveAutoScout={async enabled => {
-          const result = await action(enabled, { success: { success: true as const, data: enabled }, error: { success: false as const, error: "Unavailable" }, stale: { success: false as const, error: "stale" } });
-          if (result.success) setView(current => current.projectId === view.projectId ? { ...current, enabled } : current);
-          return result;
-        }} />
+        />
     </div>
   </>;
 }
@@ -259,8 +256,10 @@ function BoundaryFixture() {
 let root: ReturnType<typeof createRoot> | undefined;
 let fixturePicker = false;
 let githubFixture: ReturnType<typeof installGitHubPickerFixture> | null = null;
+let frontendMode = false;
 function cleanupFixture() {
   root?.unmount(); root = undefined;
+  if (frontendMode) { cleanupFrontendUx(); frontendMode = false; }
   githubFixture?.cleanup(); githubFixture = null;
   for (const finish of pending) finish(); pending.clear();
   restoreConsole(); restoreConsole = () => {};
@@ -294,16 +293,20 @@ function renderMode(mode: string, picker = false) {
     restoreConsole = () => { console.error = originalError; };
   }
   root = createRoot(document.getElementById("root")!);
-  const content = <AppRouterContext.Provider value={router}>{mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>;
+  frontendMode = mode === "ux-pipeline" || mode === "ux-rail";
+  const content = <AppRouterContext.Provider value={router}>{mode === "ux-pipeline" || mode === "ux-rail" ? <FrontendUxFixture mode={mode} Rail={PipelineRail} /> : mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>;
   root.render(mode === "private-initial-strict" ? <React.StrictMode>{content}</React.StrictMode> : content);
 }
 const toolbar = document.createElement("div");
+const runSelectedAcceptance = () => new URLSearchParams(location.search).has("ux-only")
+  ? runFrontendUxAcceptance(renderMode, cleanupFixture)
+  : runAcceptance(renderMode, controls, cleanupFixture);
 const run = document.createElement("button"); run.textContent = "Run acceptance";
-run.onclick = async () => { run.disabled = true; try { await runAcceptance(renderMode, controls, cleanupFixture); } finally { run.disabled = false; } };
+run.onclick = async () => { run.disabled = true; try { await runSelectedAcceptance(); } finally { run.disabled = false; } };
 const finish = document.createElement("button"); finish.textContent = "Finish";
 const finishSession = async () => { cleanupFixture(); window.removeEventListener("pagehide", cleanupFixture); await fetch("/finish"); };
 finish.onclick = finishSession;
 toolbar.append(run, finish); document.body.prepend(toolbar);
 window.addEventListener("pagehide", cleanupFixture);
 renderMode(new URLSearchParams(location.search).get("mode") ?? "form");
-if (new URLSearchParams(location.search).has("autorun")) void runAcceptance(renderMode, controls, cleanupFixture);
+if (new URLSearchParams(location.search).has("autorun")) void runSelectedAcceptance();

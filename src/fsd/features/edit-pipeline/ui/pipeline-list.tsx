@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { agoLabel } from "@/fsd/shared/lib/relative-time";
@@ -23,14 +23,14 @@ export type PipelineSettingsActions = {
   setAutomaticPick: (enabled: boolean) => Promise<ActionResult<null>>;
 };
 type Props = {
-  projectId: string; pipelines: PipelineSnapshot[]; rules: Record<string, string>; autoProposeEnabled: boolean;
+  projectId: string; pipelines: PipelineSnapshot[]; rules: Record<string, string>;
   now: Date; plan: string; roster: string[]; editable: boolean; unavailableReason?: string;
   save: SavePipelineAction; actions: PipelineSettingsActions; runActions?: PipelineRunActions; canRun?: boolean;
-  automationControls?: ReactNode; targetKey?: string;
+  targetKey?: string;
 };
 type Panel = { kind: "closed" } | { kind: "rules" } | { kind: "run"; pipelineId: string; name: string };
 
-export function PipelineList({ projectId, pipelines, rules, autoProposeEnabled, now, plan, roster, editable, unavailableReason, save, actions, runActions, canRun = editable, automationControls, targetKey }: Props) {
+export function PipelineList({ projectId, pipelines, rules, now, plan, roster, editable, unavailableReason, save, actions, runActions, canRun = editable, targetKey }: Props) {
   const router = useRouter();
   const defaultPipeline = pipelines.find(pipeline => pipeline.isDefault)!;
   const ruleCount = Object.keys(rules).length;
@@ -123,8 +123,8 @@ export function PipelineList({ projectId, pipelines, rules, autoProposeEnabled, 
     </section>}
     {error ? <p role="alert" className="text-xs text-risk">{error}</p> : null}
     {unknown ? <Button size="sm" onClick={() => window.location.reload()}>Refresh</Button> : null}
-    {panel.kind === "rules" ? <PipelineRulesPanel pipelines={pipelines} rules={rules} autoProposeEnabled={autoProposeEnabled} editable={editable && !unknown} busy={busy}
-      error={error} unavailableReason={unavailableReason} actions={actions} change={mutate} automationControls={automationControls} onClose={() => setPanel({ kind: "closed" })} /> : null}
+    {panel.kind === "rules" ? <PipelineRulesPanel pipelines={pipelines} rules={rules} editable={editable && !unknown} busy={busy}
+      error={error} unavailableReason={unavailableReason} actions={actions} change={mutate} onClose={() => setPanel({ kind: "closed" })} /> : null}
     {panel.kind === "run" && runActions ? <PipelineRunPanel key={panel.pipelineId} pipelineId={panel.pipelineId} name={panel.name} actions={runActions} targetKey={targetKey} onClose={() => setPanel({ kind: "closed" })} /> : null}
   </div>;
 }
