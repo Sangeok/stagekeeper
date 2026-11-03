@@ -213,7 +213,7 @@ localhost에서 돌리려면 이 PC의 `HARNESS_SERVER`와 사용자 범위 MCP 
 | PR 실행 | 없음 | 1회 비용이 크다 |
 | 전사 | AES-256-GCM으로 봉인해 artifact로 7일 보관 | 2026-11-02 사용자 결정. 저장소가 공개라 artifact를 GitHub에 로그인한 누구나 받을 수 있다 |
 | 권한 | 실행기가 고르는 그대로 둔다. 시작 때 auto 모드를 시험해 보고(`probePermission`, `plugin/bin/harness-background.mjs:206`), 안 되면 허용 목록으로 내려간다. 고른 결과는 요약에 남긴다 | 제품 경로를 바꾸지 않는다 |
-| 모델 | 기본값. 실제로 쓰인 모델은 요약에 남긴다 | 사용자와 같은 조건 |
+| 모델 | 기본값. 실제로 쓰인 모델은 요약에 남긴다 | 사용자와 같은 조건. 모델마다 나눠 돌리지 않는다(2026-11-03 사용자 확인). 이 실행은 계약 문구, 힌트, 역할 템플릿, 실행기의 결함을 보려는 것이고, 모델에 따라 달라지는 잘못된 호출은 서버 계약 검사가 모델과 무관하게 거부한다 |
 | 그래프 | 단계 `assign-work`, `plan`, `verify`, `implement`, `impl-verify`, `accept`, `doc-audit`. 게이트 없음 | Pro 기본 그래프(`packages/core/pipeline/pipeline.mjs:48-50`)에서 `discover-work`를 빼고, 선택 노드 `impl-verify`를 더했다(2026-11-02 결정). 순서 규칙 "impl-verify must be between implement and accept"(`pipeline.mjs:60`)를 따른다. 게이트 제거는 Pro에서만 된다(`pipelineEdit`, `packages/core/plans/entitlement.mjs:13`) |
 | 새 작업 | `--propose yes` | `propose`가 false면 실행기는 overview head(work-assigner 포함)를 일로 보지 않는다(`plugin/lib/execution/watch.mjs:154`). 그러면 배정을 시작하지 않는다 |
 | 백로그·파이프라인 입력 | 웹 action이 부르는 것과 같은 서비스 함수 | `savePipelineDefinition`(`src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts:20`), `addBacklog`(`src/fsd/features/edit-backlog/api/edit-backlog.server.ts:14`). 세션만 건너뛰고 검증은 그대로 탄다 |
@@ -1284,7 +1284,7 @@ After:
 
 다음 세 곳에 더한다.
 
-- 136행 `client-init-smoke` 항목: "각 job은 일회용 PostgreSQL 18과" 뒤에
+- 136행 `client-init-smoke` 항목: "각 job은 일회용 PostgreSQL 18" 바로 뒤에
   "(`.github/actions/smoke-database`, `pipeline-smoke`와 공유)"를 더한다.
 - `agent-eval` 항목 뒤에 새 항목을 더한다.
 
@@ -1297,16 +1297,21 @@ After:
   보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 녹색이어도 요약의
   `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
   주 1회(수요일 18:00 UTC, `main`)에 돌고 PR에서는 돌지 않는다. 주간 실행은 템플릿 저장소의 기본 브랜치를 시드하므로,
-  실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰며 1회 정가
-  환산 약 $14~19다. 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는 `E2E_TRANSCRIPT_KEY`로 봉인한
-  artifact(7일)로만 남긴다.
+  실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰고, 모델은
+  고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
+  `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
+  `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
 ```
 
+- 비용 문장은 처음에 추정치 "약 $14~19"였다. Phase 5에서 Phase 3 실측으로 바꾸고, 모델을 고정하지 않는다는 것과
+  Codex를 붙이는 시점을 더했다.
+- 저장소 스크립트 표 322행(init 리허설 시험)의 설명 끝에 PR 2가 더한 시험 두 개를 적는다. "종료 코드 0이어도 시간
+  초과한 명령은 실패로 세는지, 출력 파일로 받은 명령이 남은 자식 프로세스를 기다리지 않는지"다.
 - 저장소 스크립트 표의 322행 뒤에 세 행을 더한다.
 
 ```markdown
 | `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
-| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산. 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
+| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산(세션 누적 비용과 반복 거부는 한 번만). 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
 | `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
 ```
 
@@ -1417,7 +1422,7 @@ PR 2의 원격 브랜치는 PR을 열 때 처음 push한다. 실제 모델 실�
     - `scripts/rehearsals/rehearse-client-init-smoke.ts`: export 열세 개, 두 함수의 받는 값, `runSmoke`의 단계 몸통을
       함수로
     - `AGENTS.md`: 승격 항목 하나
-    - `docs/architecture/verification.md`: 항목 하나, 구절 하나, 표 세 행
+    - `docs/architecture/verification.md`: 항목 하나, 구절 하나, 표 세 행과 기존 한 행의 설명
 - 신규: PR 1 한 파일, PR 2 여섯 파일(4장 표)
 - import 변경: 새 리허설은 다음을 가져온다.
   - init 리허설
@@ -1791,8 +1796,8 @@ it("refuses a missing or short transcript key before any work", async () => {
 | `gh workflow run pipeline-smoke.yml --ref harness/pipeline-smoke` | Pass (run 41429824882, `3fe2b16`) | Phase 3 첫 실행. 아래 "Phase 3 첫 실행 기록" |
 | 음성 증명(게이트 유지, `templates-ref=main`) | Pass (run 41433975185, `7bd0c7c`) | Phase 4. 아래 "Phase 4 음성 증명 기록" |
 | 봉인 artifact 로컬 열기 | Pass (Phase 3, Phase 4) | Phase 3은 파일 14개: 실행 스트림, 세션 전사와 서브에이전트 전사 6개, `background.*`, `commands.log`, `server.log`, `findings.json`. Phase 4는 실패 경로에서 파일 9개 |
-| `npm run check` | Not run yet | Phase 5 |
-| `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Not run yet | Phase 5 |
+| `npm run check` | Pass | Phase 5. `dev` `5dcab73`을 합친 작업 트리(Windows). 스크립트 시험 298개 중 295 pass, 3 skip(Windows 기호 링크 권한과 LPAC 환경), fail 0. AGENTS.md 경로 시험 포함 |
+| `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Pass | Phase 5. 같은 작업 트리. `npm test` 595개 중 592 pass·3 skip, `test:architecture` 207개 중 205 pass·2 skip, 두 경계 검사 통과 |
 | PR 2 `client-init-smoke` 4 job | Not run yet | Phase 5(회귀) |
 
 ### Phase 3 첫 실행 기록

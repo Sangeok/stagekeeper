@@ -1,10 +1,6 @@
 name: pipeline-smoke
 
 on:
-  push:
-    branches: [harness/pipeline-smoke]
-    paths:
-      - ".github/workflows/pipeline-smoke.yml"
   schedule:
     - cron: "0 18 * * 3"
   workflow_dispatch:
@@ -24,7 +20,6 @@ concurrency:
 jobs:
   pipeline:
     name: pipeline (windows-2022)
-    if: github.event_name != 'push'
     runs-on: windows-2022
     timeout-minutes: 120
     env:
