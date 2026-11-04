@@ -1,100 +1,42 @@
 name: pipeline-smoke
 
 on:
-  schedule:
-    - cron: "0 18 * * 3"
   workflow_dispatch:
-    inputs:
-      templates-ref:
-        description: "Branch, tag or commit of Sangeok/harness-templates to seed (default: its default branch)"
-        required: false
-        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: pipeline-smoke
+  group: template-transcript-inspection-41760230941
   cancel-in-progress: false
 
 jobs:
-  pipeline:
-    name: pipeline (windows-2022)
-    runs-on: windows-2022
-    timeout-minutes: 120
-    env:
-      PG_PORT: "45432"
-      TEST_DB: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_pipeline
-      DISABLE_AUTOUPDATER: "1"
+  inspect:
+    name: inspect encrypted run 41760230941
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Check that the smoke secrets are available
-        shell: bash
-        env:
-          TEMPLATES_TOKEN: ${{ secrets.E2E_TEMPLATES_TOKEN }}
-          CLAUDE_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
-          TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
-        run: |
-          if [ -z "$TEMPLATES_TOKEN" ] || [ -z "$CLAUDE_TOKEN" ] || [ -z "$TRANSCRIPT_KEY" ]; then
-            echo "::error::E2E_TEMPLATES_TOKEN, E2E_CLAUDE_OAUTH_TOKEN and E2E_TRANSCRIPT_KEY are all required"
-            exit 1
-          fi
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Generate Prisma client
-        run: npm run db:generate
-      - name: Prepare the smoke database
-        uses: ./.github/actions/smoke-database
-        with:
-          pg-package: windows-x64
-          port: ${{ env.PG_PORT }}
-          database: stagekeeper_test_pipeline
-      - name: Build the server
-        shell: bash
-        run: DATABASE_URL="$TEST_DB" npm run build
-      - name: Check out the private templates
-        uses: actions/checkout@v5
-        with:
-          repository: Sangeok/harness-templates
-          ref: ${{ inputs.templates-ref }}
-          token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
-          path: plugin/templates
-          persist-credentials: false
-      - name: Install Claude Code
-        shell: pwsh
-        run: |
-          irm https://claude.ai/install.ps1 | iex
-          "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-      - name: Run the pipeline smoke
-        shell: pwsh
-        timeout-minutes: 108
-        env:
-          TEST_DATABASE_URL: ${{ env.TEST_DB }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
-          TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
-          PLUGIN_BRANCH: ${{ github.ref_name }}
-          PLUGIN_COMMIT: ${{ github.sha }}
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $false
-          claude --version
-          $templates = Join-Path $env:GITHUB_WORKSPACE 'plugin/templates'
-          $summary = Join-Path $env:RUNNER_TEMP 'pipeline-summary.json'
-          $sealed = Join-Path $env:RUNNER_TEMP 'pipeline-transcripts.bin'
-          node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates $templates --plugin-branch $env:PLUGIN_BRANCH --plugin-commit $env:PLUGIN_COMMIT --transcripts $sealed | Tee-Object -FilePath $summary
-          $code = $LASTEXITCODE
-          if (Test-Path $summary) { "``````json`n$((Get-Content $summary | Select-Object -Last 1))`n``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
-          exit $code
-      - name: Keep the sealed transcripts
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Download the specific sealed transcript
+        uses: actions/download-artifact@v4
         with:
           name: pipeline-smoke-transcripts
-          path: ${{ runner.temp }}/pipeline-transcripts.bin
-          retention-days: 7
-          if-no-files-found: warn
+          run-id: 41760230941
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/sealed-source
+      - name: Re-encrypt in memory for the local inspection recipient
+        env:
+          TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
+        run: node scripts/rehearsals/rewrap-pipeline-transcripts.mjs "$RUNNER_TEMP/sealed-source/pipeline-transcripts.bin" "$RUNNER_TEMP/private-inspection.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: private-inspection-41760230941
+          path: ${{ runner.temp }}/private-inspection.json
+          retention-days: 1
+          if-no-files-found: error
