@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-02"
 approved-by: "user"
 approved-at: "2026-11-02"
 approval-scope: "이 설계와 PR 1(DB 준비 composite action 공유)·PR 2(pipeline-smoke 워크플로·리허설·순수 함수와 시험·init 리허설 export·AGENTS.md 승격 조건·verification.md)의 순서. E2E_TRANSCRIPT_KEY 생성과 등록, 이 PC에서 Open Question 1 사전 확인(claude -p 1회), PR 2 draft와 그 브랜치의 수동 실행(Phase 3 1~2회), 등록용 임시 push 트리거, Phase 4 임시 원격 브랜치 push·삭제와 음성 증명 1회. 첫 녹색 실행을 #275의 승격 전 확인으로 쓰는 #272~#276 승격(두 번 실패하면 운영 실기로 대체). PR 머지, 제품 코드·마이그레이션·템플릿 변경은 포함하지 않는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-04"
+verification-summary: "PR 1 client-init-smoke 회귀 녹색(run 41411910911). Phase 3 첫 실제 실행 31단계 통과(run 41429824882, claude-sonnet-5-5, 정가 환산 $1.49), Phase 4 음성 증명에서 item-gated 실패와 봉인 확인(run 41433975185). PR 2 머지 뒤 dev 실행이 리허설 결함 두 개로 실패해(item-handoff run 41657437554, item-held run 41751043490) #284·#285로 고쳤다. dev 7d5c893에서 pipeline-smoke 31단계 통과(run 41754819361, $1.7, harnessErrors board_propose 1건은 봉인 전사로 변경 밖 원인 확인), client-init-smoke 4 job 녹색(run 41754822896). npm run check, npm test 592 통과·3 건너뜀, test:architecture, verify:fsd, verify:server 통과. 2026-11-04 main 5dcab73..7d5c893 승격에 새 승격 조건을 처음 적용하고 운영 배포 dpl_4Dmez1yMYWT163vR6QXi94ffD6TX 일치를 확인"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -26,7 +26,7 @@ related:
 | --- | --- | --- | --- |
 | `client-init-smoke` (있음) | 설치와 init. 모델 없음 | 서버·플러그인 PR, 승격 전 | 0원 |
 | `agent-eval` (있음) | 실제 모델이 init 스킬을 따르는지 | 플러그인 출하 파일이 바뀐 승격 전, 주 1회 | 구독 사용량, 1회 정가 환산 약 $4.3 |
-| **`pipeline-smoke` (새로)** | 실제 모델과 무인 실행기가 항목 하나를 배정·계획·계획 검증·구현·구현 검증·인수·문서 감사까지 처리하는지 | 파이프라인 경로가 바뀐 승격 전, 역할 템플릿 시드 전, 주 1회 | 구독 사용량, 1회 정가 환산 약 $14~19(추정, Phase 3에서 실측) |
+| **`pipeline-smoke` (새로)** | 실제 모델과 무인 실행기가 항목 하나를 배정·계획·계획 검증·구현·구현 검증·인수·문서 감사까지 처리하는지 | 파이프라인 경로가 바뀐 승격 전, 역할 템플릿 시드 전, 주 1회 | 구독 사용량, 1회 정가 환산 약 $1.2~1.7(실측. 처음 추정은 $14~19였다) |
 
 제품 코드(서버·플러그인 동작)는 바꾸지 않는다. 작업은 PR 두 개로 나눈다.
 
@@ -36,6 +36,11 @@ related:
   - 순수 함수와 그 시험
   - init 리허설의 함수 공개(export)
   - 승격 절차 문서
+
+**완료(2026-11-04):** PR 1(#278)과 PR 2(#279)를 `dev`에 넣었다. 머지 뒤 첫 승격에서 새 조건을 적용하다가 리허설
+결함 두 개를 찾아 #284(커밋 핸드오프 유예)와 #285(항목 문구의 규칙 순서)로 고쳤다. `dev` `7d5c893`에서
+`pipeline-smoke`와 `client-init-smoke`가 녹색이었고, 같은 날 그 커밋으로 `main`을 승격했다. 실행 결과는 5장 Phase 5,
+`Verification Results`, `Completion or Closure Notes`에 있다.
 
 ## 1. 배경/동기
 
@@ -1427,6 +1432,17 @@ PR 2의 원격 브랜치는 PR을 열 때 처음 push한다. 실제 모델 실�
   - PR 2의 `client-init-smoke` 네 job이 녹색이어야 한다(회귀).
   - dev push CI가 녹색이어야 한다.
   - 머지 뒤 첫 승격부터 새 규칙을 적용한다. 주 1회 예약은 그 승격으로 `main`에 들어간 뒤부터 돈다.
+- 결과(완료, PR #279, `dev` 머지 `6f7982c`):
+  - 로컬 검증 다섯 개와 PR 2의 `client-init-smoke` 네 job이 녹색이었다(`Verification Results`).
+  - 첫 승격에 새 규칙을 적용했다. 승격 전 `dev` 실행이 두 번 리허설 결함으로 실패했고, 규칙대로 승격을 멈추고 고쳤다.
+    - `item-handoff`: #284로 고쳤다.
+    - `item-held`: #285로 고쳤다.
+  - `dev` `7d5c893`에서 `pipeline-smoke`(run 41754819361)와 `client-init-smoke`(run 41754822896)가 녹색이었다.
+    `harnessErrors`가 0이 아니어서 봉인 전사를 먼저 열었다. 원인이 변경 밖인 것을 확인한 뒤 2026-11-04에 `main`을
+    `5dcab73..7d5c893`로 빨리 감기 했다.
+  - 운영 사이트가 승격 커밋의 배포(`dpl_4Dmez1yMYWT163vR6QXi94ffD6TX`)를 내보내는 것을 확인했다. GitHub Production
+    deployment도 success였고, `/`와 `/docs`는 200이었다. `main` push `check`도 녹색이었다(run 41756166617).
+  - 이 승격으로 `pipeline-smoke.yml`이 `main`에 들어가 주 1회 예약이 등록됐다. 첫 예약은 2026-11-04(수) 18:00 UTC다.
 
 ## 6. 영향 범위
 
@@ -1437,8 +1453,12 @@ PR 2의 원격 브랜치는 PR을 열 때 처음 push한다. 실제 모델 실�
   - PR 2:
     - `scripts/rehearsals/rehearse-client-init-smoke.ts`: export 열세 개, 두 함수의 받는 값, `runSmoke`의 단계 몸통을
       함수로
+    - `scripts/rehearsals/rehearse-client-init-smoke.test.ts`: `Run.command`의 시간 초과와 출력 파일 시험 두 개(Phase 3
+      결함 1 수정)
     - `AGENTS.md`: 승격 항목 하나
     - `docs/architecture/verification.md`: 항목 하나, 구절 하나, 표 세 행과 기존 한 행의 설명
+  - 머지 뒤 수정 #284·#285: 둘 다 `pipeline-smoke-steps.mjs`와 그 시험을 고쳤다. #284는 `rehearse-pipeline-smoke.ts`와
+    `docs/architecture/verification.md`도 고쳤다.
 - 신규: PR 1 한 파일, PR 2 여섯 파일(4장 표)
 - import 변경: 새 리허설은 다음을 가져온다.
   - init 리허설
@@ -1479,10 +1499,12 @@ PR 2의 원격 브랜치는 PR을 열 때 처음 push한다. 실제 모델 실�
 | 승격 경로 목록이 낡는다(파일 이동) | 낮음 | 검사 누락 | 경로 존재 시험이 깨진다 |
 | 실행기 프로세스가 남는다 | 낮음 | 거의 없음 | `finally`에서 stop을 보낸다. 러너 VM은 job이 끝나면 폐기된다 |
 | Windows 알림(`notify.ps1`)이 CI의 비대화 세션에서 실패한다 | 낮음 | 알림 한 번에 최대 15초 지연 | 실행기의 `notify`는 최대 15초 기다리고, 실패하면 `background.log`에 `notice failed`만 남긴다(`plugin/bin/harness-background.mjs` `notify`). Phase 3에서 이 줄이 있는지 본다 |
-| 예약은 `main`에서만 돈다 | 확실 | 머지 전에는 주 1회가 없다 | 첫 승격 뒤부터 돈다 |
+| 예약은 `main`에서만 돈다 | 확실 | 머지 전에는 주 1회가 없다 | 첫 승격 뒤부터 돈다. 2026-11-04 승격으로 등록됐고, 첫 예약은 같은 날 18:00 UTC다 |
 
 ### 롤백 전략
 
+- 되돌릴 때는 `dev`에서 머지 커밋을 나중 것부터 revert한다. 순서는 #285(`7d5c893`), #284(`e15485f`),
+  PR 2(`6f7982c`), PR 1(`8144c65`)이다. #284·#285는 PR 2가 만든 파일만 고쳤으므로 PR 2와 함께 되돌린다.
 - PR 1: revert하면 `client-init-smoke`가 원래 단계로 돌아간다. PR 2가 이미 머지됐다면 `pipeline-smoke.yml`의 DB 준비
   단계도 함께 되돌려야 하므로, PR 2를 먼저 revert한다.
 - PR 2:
@@ -1779,6 +1801,8 @@ it("refuses a missing or short transcript key before any work", async () => {
 <!-- doc-validation-skip -->
 ## Open Questions
 
+네 항목 모두 Phase 3 전후의 실측으로 답했다. 완료 시점에 남은 질문은 없다.
+
 - **[작업 공간 신뢰] 2026-11-02 이 PC에서 답함: 로드한다.**
   - Claude Code 2.1.316의 `claude -p --permission-mode auto`를 신뢰된 적 없는 새 폴더에서 돌렸다. 신뢰 목록의 어떤
     항목도 그 폴더를 덮지 않았다.
@@ -1813,6 +1837,13 @@ it("refuses a missing or short transcript key before any work", async () => {
 - `--trust-checkout`을 넣을지는 이 PC의 사전 확인과 Phase 3 결과로 정하고, 그 결과를 이 문서에 기록한다.
 - PR 1·2의 머지와 운영 `migrate status` 실행은 사용자가 한다.
 
+완료 메모:
+
+- PR 2 머지 뒤 첫 승격에 새 규칙을 적용하다가 리허설 결함 두 개를 찾았다. 수정 PR #284·#285는 승인 범위의
+  리허설을 고친 것이고, 사용자가 머지했다.
+- CI 모델은 4장 세부 선택대로 고정하지 않는다. 2026-11-03에 사용자가 모델별로 돌리지 않는다고 다시 확인했다.
+- 운영 `migrate status`는 2026-11-03에 사용자가 실행했다(최신). 그 뒤 승격 범위에 `prisma/` 변경이 없었다.
+
 ## Verification Results
 
 | 명령 | 결과 | 비고 |
@@ -1828,6 +1859,11 @@ it("refuses a missing or short transcript key before any work", async () => {
 | PR 2 `client-init-smoke` 4 job | Pass (PR #279, run 41651333308, `b31b182`) | Phase 5(회귀). new-user 22/22, update 21/21(지난 판 `5dcab73`), 템플릿 `fb6ef95`. 같은 커밋의 `check` 6 job도 녹색(run 41651333313) |
 | 머지 뒤 첫 승격 전 `gh workflow run pipeline-smoke.yml --ref dev` | Fail (run 41657437554, `6f7982c`) | `item-handoff`. 리허설의 대기 판정 결함이라 승격을 멈추고 고쳤다. 아래 "머지 뒤 첫 dev 실행 기록" |
 | #284 머지 뒤 `gh workflow run pipeline-smoke.yml --ref dev` | Fail (run 41751043490, `e15485f`) | `item-held`. 리허설 항목 문구의 빈틈이라 승격을 멈추고 고쳤다. 아래 "수정 뒤 두 번째 dev 실행 기록" |
+| #284·#285 로컬 검증(`npm run check`, `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server`) | Pass | 각각 `dev` `6f7982c`·`e15485f` 작업 트리(Windows). 두 번 모두 check 299개 중 296 pass·3 skip, `npm test` 595개 중 592 pass·3 skip, `test:architecture` 208개 중 206 pass·2 skip. 새 시험은 고치기 전 코드에서 실패했다 |
+| #285 머지 뒤 `gh workflow run pipeline-smoke.yml --ref dev` | Pass (run 41754819361, `7d5c893`) | 승격 전 확인. 아래 "승격 전 녹색 실행 기록" |
+| 승격 전 `client-init-smoke` 4 job | Pass (run 41754822896, `7d5c893`) | new-user 22/22, update 21/21(지난 판 `5dcab73`), 템플릿 `fb6ef95`. 같은 커밋의 dev push CI 세 개도 녹색 |
+| `npm run verify:plugin-version` | Pass | 출하 플러그인 파일 변경 없음. 판 상승과 `agent-eval`은 필요 없었다 |
+| `main` 승격 `5dcab73..7d5c893` | Done (2026-11-04) | 운영 `dpl_4Dmez1yMYWT163vR6QXi94ffD6TX` 일치, Production deployment success, `/`·`/docs` 200, `main` push `check` 녹색(run 41756166617) |
 
 ### Phase 3 첫 실행 기록
 
@@ -1941,20 +1977,59 @@ it("refuses a missing or short transcript key before any work", async () => {
   - 같은 커밋의 `client-init-smoke`(run 41751048185)와 dev push CI 세 개(check, windows-role-runtime,
     macos-runtime-contracts)는 녹색이었다.
 
+### 승격 전 녹색 실행 기록
+
+2026-11-04 run 41754819361(`7d5c893`, 템플릿 `fb6ef95`, Claude Code 2.1.318)의 기록이다. #285 머지 뒤 승격 전
+실행이다.
+
+- 결과:
+  - 단계 31개가 모두 pass였다. job은 10분, 리허설은 453초 걸렸다. `minutesToDone`은 7이었다.
+  - 역할은 work-assigner, app-dev(계획), plan-verifier, app-dev(구현), impl-verifier, 메인 루프의 인수, doc-auditor
+    순으로 돌았다.
+  - app-dev는 계획 단계에서 보류하지 않았다.
+- #284가 고친 커밋 핸드오프를 이 실행이 실제로 지나갔다.
+  - impl-verifier가 01:41:03에 `outcome: "handoff"`를 보냈다.
+  - 메인 루프가 01:41:18에 보고서를 커밋하고 impl-verifier를 다시 이어 갔다. impl-verifier는 01:41:32에 판정 ok를
+    냈다.
+  - 핸드오프는 30초 안에 풀렸고, 리허설은 실패하지 않고 기다렸다.
+- 요약 값:
+  - 모델 `claude-sonnet-5-5`, 정가 환산 $1.70, 권한 `auto`, 거부 0
+  - `agentCalls` 6, `agentErrors` 0, `stepRefusals` 0
+  - `harnessErrors`는 `board_propose` 1건이었다. 승격 규칙대로 승격 전에 봉인 전사를 열었다.
+    - work-assigner가 저장된 선택 정책을 옮기면서 문장을 빠뜨렸다. 그래서 "The selection record must name the saved
+      selection policy."로 거부됐다. Phase 4, 앞선 두 dev 실행과 같은 실수다.
+    - 곧바로 정책 전문을 넣어 다시 보냈고 제안이 등록됐다.
+    - 이 검사는 `packages/core/pipeline/work-selection.mjs`에 있다. 승격 범위에는 `packages/` 변경이 없다. 그래서
+      변경 밖 원인으로 보고 승격했다.
+  - 도구 오류가 하나 더 있었다. impl-verifier가 보고서 폴더가 있는지 `ls`로 확인했는데 폴더가 없어 exit 2가 났다.
+    곧바로 파일을 만들어 진행했다.
+
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+완료 기록:
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
-
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-11-04
+- verification-summary: front matter와 같다. 세부 결과는 `Verification Results`에 있다.
+- implementation PR/commit:
+  - PR 1 #278(`dev` 머지 `8144c65`, 2026-11-03 `main` `5dcab73` 승격에 포함)
+  - PR 2 #279(head `752337d`, `dev` 머지 `6f7982c`)
+  - 머지 뒤 수정 #284(`e15485f`)와 #285(`7d5c893`)
+  - 2026-11-04 `main` 승격 `5dcab73..7d5c893`
+- changed files summary:
+  - 신규:
+    - `.github/actions/smoke-database/action.yml`
+    - `.github/workflows/pipeline-smoke.yml`
+    - `scripts/rehearsals/`의 다섯 파일: 리허설과 그 시험, 순수 함수 모듈과 그 시험, 전사 열기 스크립트
+  - 수정:
+    - `.github/workflows/client-init-smoke.yml`
+    - `scripts/rehearsals/rehearse-client-init-smoke.ts`와 그 시험
+    - `AGENTS.md`
+    - `docs/architecture/verification.md`
+  - Phase 3의 임시 `push` 트리거와 job 조건, Phase 4의 임시 원격 브랜치는 머지 전에 지웠다.
+- remaining follow-up:
+  - 첫 주 1회 예약 실행(2026-11-04 18:00 UTC)의 결과를 확인한다.
+  - 실행마다 반복된 모델 실수: 선택 정책 전문 누락(`board_propose`), `agent_next`의 key 누락, app-dev가 verify 단계를
+    기록하기 전에 보고한 것(`report_submit`). 모두 모델이 곧바로 고쳤다. 문구로 줄일지는 따로 판단한다.
+  - 메인 루프가 도구 스키마를 불러오기 전에 `pipeline_next`를 불러 `project`가 빠진 일(Claude Code 2.1.318에서 한 번)
+  - 실행기의 마지막 결과 줄은 마지막 차례의 턴 수만 적는다(Phase 3 기록). 플러그인 쪽 관찰이다.
+  - Codex 실행은 Codex 공개 배포에 착수할 때 붙인다(비목표).
