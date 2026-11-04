@@ -59,6 +59,7 @@ it("the native MCP hook injects verified installation without granting permissio
 it("init and session creation share a barrier in both acquisition orders", async t => {
   const { root } = fixture(t);
   execFileSync("git", ["init", "-q", root]);
+  await assertInitSessionQuiescent(root);
   const files = stateFiles(gitRoot(root).directory);
   const binding = { root, server: "https://fixture.invalid", project: "fixture", tokenHash: "a".repeat(64), configHash: "b".repeat(64) };
   const release = await acquireInitGuard(root);

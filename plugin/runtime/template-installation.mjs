@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hashOf } from "../lib/templates/manifest.mjs";
@@ -82,6 +82,7 @@ export async function assertInitSessionQuiescent(root) {
     return;
   }
   const files = stateFiles(location.directory);
+  mkdirSync(safeTarget(path.dirname(location.directory), path.basename(location.directory)), { recursive: true });
   await withGuard(files, () => {
     if (readState(files)) throw new Error("Stop and release the existing session before template init");
   });

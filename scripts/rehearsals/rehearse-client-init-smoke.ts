@@ -242,7 +242,7 @@ export class Smoke {
 }
 
 function markerLine(outcome: Command): string {
-  const line = `${outcome.stdout}\n${outcome.stderr}`.split(/\r?\n/).map(text => text.trim()).filter(text => /^(?:plan|write|skip\(modified\)|skip\(plan\)|refuse|server|stop|note|Config error|Server URL required|Registration|Templates unavailable|Cannot reach|HARNESS_TOKEN required)\b/.test(text)).at(-1);
+  const line = `${outcome.stdout}\n${outcome.stderr}`.split(/\r?\n/).map(text => text.trim()).filter(text => /^(?:plan|write|skip\(modified\)|skip\(plan\)|refuse|server|stop|note|Initialization error|Config error|Server URL required|Registration|Templates unavailable|Cannot reach|HARNESS_TOKEN required)\b/.test(text)).at(-1);
   return line ? `: ${line}` : "";
 }
 
