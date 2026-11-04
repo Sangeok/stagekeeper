@@ -29,7 +29,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   try {
     if (process.argv.length !== 4) throw new Error("Expected input and output");
     key = transcriptKey(process.env.TRANSCRIPT_KEY); delete process.env.TRANSCRIPT_KEY;
-    const publicKey = readFileSync(new URL("./pipeline-transcript-recipient.pem", import.meta.url), "utf8");
+    const publicKey = readFileSync(new URL("./pipeline-inspection-recipient.txt", import.meta.url), "utf8");
     const envelope = rewrapTranscripts(readFileSync(process.argv[2]), key, publicKey);
     writeFileSync(process.argv[3], JSON.stringify(envelope), { flag: "wx", mode: 0o600 });
     console.log(JSON.stringify({ sourceRunId: SOURCE_RUN, recipient: envelope.recipient, encrypted: true }));
