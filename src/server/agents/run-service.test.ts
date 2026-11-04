@@ -18,6 +18,7 @@ function fixture({ casFails = false, auditFails = false } = {}) {
     project: { findUniqueOrThrow: async () => ({ ownerUserId: "owner" }), findUnique: async () => ({ ownerUserId: "owner", repoOwner: "repo", available: true, ownerUser: { subscription: { plan: "max" } } }) },
     workspace: { findMany: async () => [{ agent: "dev" }] },
     pipelineRun: { findUnique: async () => ({ id: "pipeline", entryId: "entry", node: "implement", closedAt: null, boardItemId: "item", version: { format: "slots-v1" }, boardItem: { projectId: "project", agent: "dev", backlogItemId: "backlog", backlogItem: { key: "KEY" }, status: "implementing", discardedAt: null } }) },
+    pipelineWorkRun: { findUnique: async () => null },
     boardItem: { findFirst: async () => ({ id: "item" }) },
     agentRun: { findFirst: async () => run(), findUnique: async () => run(), findUniqueOrThrow: async () => run(), updateMany: async () => { if (casFails) return { count: 0 }; step = "report"; revision++; return { count: 1 }; } },
     agentRunStep: { create: async (args: unknown) => { if (auditFails) throw new Error("audit failure"); records.push(args); } },
@@ -29,7 +30,7 @@ function fixture({ casFails = false, auditFails = false } = {}) {
   } } as unknown as PrismaClient;
   const execute = cursorTransaction(client, {} as NextDeps);
   let called = 0;
-  return { records, locks, run, called: () => called, invoke: (input: NextInput) => execute({ projectId: "project", tokenId: "token" }, input, "KEY", async (deps) => {
+  return { records, locks, run, called: () => called, invoke: (input: NextInput, key: string | null = "KEY") => execute({ projectId: "project", tokenId: "token" }, input, key, async (deps) => {
     called++;
     const committed = await deps.commitOutcome({ scope: { projectId: "project", tokenId: "token" }, agent: "dev", key: "KEY", receipt: input.receipt!, outcome: "ok", note: null, destination: { kind: "step", stepId: "report" } });
     if (committed.kind !== "accepted") return { ok: false, reason: "stale: cursor claim lost" };
@@ -37,6 +38,14 @@ function fixture({ casFails = false, auditFails = false } = {}) {
   }) };
 }
 const claim: NextInput = { agent: "dev", entry: { runId: "pipeline", entryId: "entry", slotId: "implement" }, agentRunId: "agent-run", stepId: "verify", receipt: { runId: "agent-run", revision: 0, stepId: "verify" }, outcome: "ok" };
+
+it("identifies an omitted item key without changing the cursor and accepts the same receipt with its key", async () => {
+  const f = fixture();
+  const missing = await f.invoke(claim, null);
+  assert.ok(!missing.ok); assert.match(missing.reason, /requires key KEY/);
+  assert.equal(f.records.length, 0); assert.equal(f.called(), 0); assert.equal(f.run().revision, 0);
+  assert.ok((await f.invoke(claim, "KEY")).ok); assert.equal(f.records.length, 1);
+});
 
 it("stale entry, run and step claims fail before every write", async () => {
   for (const input of [

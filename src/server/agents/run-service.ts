@@ -56,6 +56,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps, readsFor
           const latest = await tx.boardItem.findFirst({ where: { projectId, backlogItemId: pipeline.boardItem.backlogItemId, discardedAt: null }, orderBy: { proposedOn: "desc" }, select: { id: true } });
           if (latest?.id !== pipeline.boardItemId || (pipeline.boardItem.currentRunId && pipeline.boardItem.currentRunId !== pipeline.id) || dispatcherFor(entry.slotId, pipeline.boardItem.agent) !== input.agent) throw new StaleCursor();
           const expectedKey = isItemNode(entry.slotId) ? pipeline.boardItem.backlogItem.key : null;
+          if (key === null && expectedKey !== null) return { ok: false, reason: `This item role requires key ${expectedKey} on every agent_next call, including resume and outcome. Keep the same entry and receipt when correcting a missing key.` };
           if (key !== expectedKey) throw new StaleCursor();
           if (claim && (input.agentRunId !== undefined && input.agentRunId !== claim.runId || input.stepId !== undefined && input.stepId !== claim.stepId)) throw new StaleCursor();
           if (input.outcome && claim) {
