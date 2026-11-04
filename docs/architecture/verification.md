@@ -26,12 +26,14 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 - FSD에서 `src/server`를 호출하는 server adapter의 위치와 directive
 - `"use client"` 파일의 직접 import 중 `src/server`, `index.server`, `*.server` 경로
 - `src/server → src/fsd` 역방향 의존
-- `packages/core`의 `src` 또는 외부 npm package 의존
+- `packages/core`의 `src`, `packages/github` 또는 외부 npm package 의존
+- `packages/github`의 자체 모듈 밖 의존. Node 내장 모듈은 `.test.mjs`에서만 허용
 - `src/components`, `src/hooks`, `src/lib`, `src/utils`, `src/types` 같은 전역
   기술 분류 폴더
 - kebab-case가 아닌 layer/slice/segment/file 이름
 - 루트 `app/`과 `src/app/`의 동시 존재
-- `plugin/lib`가 `packages/core`의 하위 경로를 보존하고 배포 모듈과 바이트 동일한지 — 내용이 다른 것(drift)과
+- `packages/core` → `plugin/lib`, `packages/github` → `plugin/lib/github` 복사본이
+  하위 경로를 보존하고 배포 모듈과 바이트 동일한지 — 내용이 다른 것(drift)과
   원본이 사라진 것(orphan) 모두 (`scripts/plugin-lib.mjs --check`, `npm run check`의 첫 단계)
 
 정규식 기반 검사라 계산된 dynamic import, TypeScript path alias의 복잡한 재정의,
@@ -64,10 +66,10 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 
 | 확인 사항 | 현재 자동화 | 수동 확인 |
 | --- | --- | --- |
-| FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`와 `packages/core/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
+| FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`, `packages/core/`, `packages/github/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
 | `src/`·`src/app/` 바로 아래 테스트 배치 금지 | 전용 자동 검사 없음 | 두 위치에 테스트 파일·테스트 전용 보조 코드·테스트 전용 디렉터리가 없는지 확인한다. 대상 옆 배치 원칙보다 이 금지 규칙을 우선한다 |
 | 대상 옆 배치와 테스트 소유권 | 전용 자동 검사 없음 | 대상과 실행 환경에 맞는 위치인지, 하위 폴더 분리가 필요한지 확인한다 |
-| 운영 코드 → 테스트·fixture·helper 의존 금지 | 테스트 전용 import·export를 구별하는 전용 검사 없음 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
+| 운영 코드 → 테스트·fixture·helper 의존 금지 | GitHub 생산 모듈의 `.test.mjs` 직접 참조를 거부한다. 나머지 영역의 전용 검사는 없음 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
 | 서버 모듈 내부 참조 | `verify:server`가 정적 참조와 실제 VM source 경로의 파일·모듈 등록 및 미사용 행을 검사한다 | mock 키·계산된 loader 경로는 binding 시험과 실제 리허설로 확인한다 |
 | 테스트 검색과 실행 | 명령에 지정된 패턴에 일치하는 파일만 실행한다 | 신규·이동 파일이 명령에 포함되고 실행 결과에 나타나는지 확인한다 |
 
@@ -83,7 +85,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 - `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
   연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
   환경을 같은 변경에서 보완한다.
-- `npm test`: `packages/core/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
+- `npm test`: `packages/core/**/*.test.mjs`, `packages/github/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
   `plugin/bin/harness-released-readers.test.mjs`는 `origin/main` 이력에서 출시된 plugin을 꺼내 실행하므로 `check`
   workflow는 전체 이력을 가져오고 `STAGEKEEPER_RELEASED_READERS=required`로 이력 누락을 실패로 만든다.
@@ -355,7 +357,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `checks/retired-copy.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
 | `checks/transitions-contract.test.ts` | `test:scripts` → check | CI마다 | `packages/core/pipeline/transitions.d.mts`가 선언한 runtime export가 실제 export와 같은지 TypeScript AST로, 상태 기계가 실제로 만드는 규칙 종류가 `RuleKind` 선언과 같은지 전이 전체를 순회해 검사한다. `typescript` package를 쓰므로 외부 package를 금지하는 `packages/core`가 아니라 여기에 둔다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
-| `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/**/*.mjs`를 바꾼 뒤 | 복사본을 원본과 같게(덮어쓰기·삭제) |
+| `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/**/*.mjs` 또는 `packages/github/**/*.mjs`를 바꾼 뒤 | core는 `plugin/lib`, GitHub는 `plugin/lib/github`에 복사. 두 원본 디렉터리 누락·배포 경로 충돌은 쓰기 전에 거부하며 drift·orphan을 동기화 |
 | `templates/seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증 |
 | `templates/restore-dual-client-templates.ts` | `node --import tsx scripts/templates/restore-dual-client-templates.ts --snapshot <private 경로>` | 승인된 template 복구 | snapshot version/hash·현재 body 전체를 먼저 대조하고 whitelist 행만 한 transaction으로 복구한다. 이전에 없던 CODEX.runbook 행만 삭제하며 외부 행을 보존한다 |
 | `templates/template-seed-query.ts`, `templates/template-seed-query.test.ts` | `node --import tsx --test scripts/templates/template-seed-query.test.ts` | CI 및 seed/restore 변경 시 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. `test:scripts`에 포함되며 실제 DB rollback 증거는 아니다 |

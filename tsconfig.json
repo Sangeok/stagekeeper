@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@harness/core/*": ["./packages/core/*"]
+      "@harness/core/*": ["./packages/core/*"],
+      "@harness/github/*": ["./packages/github/*"]
     }
   },
   "include": [

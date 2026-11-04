@@ -87,6 +87,7 @@ D3 리허설은 2026-10-23 폐기했고, 현행 무결성의 읽기 전용 검�
 | 상태 전이·텍스트 제한 같은 순수 규칙 | `packages/core` | 웹과 MCP가 같은 판정을 재사용 |
 | 인증·인가·트랜잭션·MCP 등록 | `src/server` | 런타임과 저장소에 결합된 application service |
 | 화면 조합과 사용자 상호작용 | `src/fsd` | 제품 의미에 따라 응집된 프런트엔드 코드 |
+| GitHub 저장소 주소 해석·파일 URL 생성 | `packages/github` | 웹·서버·플러그인이 공유하는 외부 서비스 주소 규칙 |
 | URL과 Next.js lifecycle | `src/app` | framework adapter이자 composition root |
 | 계획서·행위자 상세 기록 | 연결된 사용자 저장소 | 코드 변경과 함께 검토되는 산출물 |
 | 워크스페이스·검증 명령 | 사용자 저장소의 `harness.json` | 코드와 함께 변하는 코드 인접 설정 |
@@ -107,8 +108,10 @@ src/app ─────► src/fsd
 
 src/fsd/pages → widgets → features → entities → shared
 
-plugin ───────► packages/core의 배포용 복사본
+src/fsd, src/server ───────► packages/github
+plugin ───────► packages/core와 packages/github의 배포용 복사본
 packages/core ─X─► src, npm package
+packages/github ─X─► src, core, npm package, Node 내장 모듈(생산 코드)
 src/server ─X─► src/fsd
 ```
 

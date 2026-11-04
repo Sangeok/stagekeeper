@@ -9,6 +9,7 @@ on:
       - .github/workflows/macos-runtime-contracts.yml
       - scripts/macos/**
       - packages/core/**
+      - packages/github/**
       - plugin/bin/**
       - plugin/runtime/**
       - plugin/lib/**
@@ -87,4 +88,4 @@ jobs:
       - name: Record contract-test environment
         run: node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,scope:"model-free runtime contracts"}))'
       - name: Validate shared runtime contracts without client credentials
-        run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
+        run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"

@@ -93,7 +93,8 @@ stagekeeper/
 │   │   └── shared/
 │   ├── server/              # 인증·파이프라인·MCP·DB application services
 │   └── generated/           # 생성 코드, 직접 수정 금지
-├── packages/core/           # 런타임 의존성 없는 순수 규칙·프로토콜
+├── packages/core/           # 제품의 순수 규칙·프로토콜
+├── packages/github/         # GitHub 저장소 주소 해석·생성
 ├── plugin/                  # Claude/Codex manifest·skill·로컬 생성/실행 helper
 ├── prisma/                  # DB schema와 migration
 ├── scripts/                 # 저장소 검사·복사본 동기화·수동 운영 스크립트 (앱 런타임 아님, verification.md)
@@ -104,6 +105,7 @@ stagekeeper/
 ## 문서 지도
 
 - [core.md](./core.md): 공유 규칙의 책임별 배치·모듈 경로·플러그인 복사 계약
+- [github.md](./github.md): GitHub URL 공통 모듈의 책임·의존성·배포 경계
 - [system-overview.md](./system-overview.md): 제품 주체, 런타임, 데이터 소유권,
   최상위 모듈의 관계
 - [fsd.md](./fsd.md): FSD layer·slice·segment, import 방향, public API,
@@ -121,6 +123,7 @@ stagekeeper/
 - [ADR-0003](../ADR/0003-server-module-boundaries.md): 서버 모듈과 공개 진입점 분리의 배경
 - [ADR-0004](../ADR/0004-organize-repository-scripts.md): 저장소 스크립트의 책임별 배치와 실행 범위
 - [ADR-0005](../ADR/0005-organize-core-modules.md): 공유 규칙의 책임별 배치와 배포 경로 보존
+- [ADR-0007](../ADR/0007-share-github-url-modules.md): GitHub URL 규칙의 독립 공유 영역
 - [CONTEXT.md](../../CONTEXT.md): 구현과 독립적인 Stagekeeper 도메인 용어
 - [invariants.md](./invariants.md): 깨면 이 파이프라인이 아닌 불변식 여덟과 보드 규칙 셋
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
@@ -143,7 +146,8 @@ stagekeeper/
    FSD slice의 `api` segment에서 `src/server`를 호출할 수 있다.
 5. `packages/core`는 `src`와 npm package에 의존하지 않는다. UI와 DB가 같은
    규칙을 공유해야 하면 순수 판정을 여기에 두고 양쪽이 가져다 쓴다.
-   내부 배치와 공개 모듈 경로는 [core.md](./core.md)를 따른다.
+   내부 배치와 공개 모듈 경로는 [core.md](./core.md)를 따른다. GitHub 주소 해석·생성은
+   [packages/github](./github.md)가 소유하며 core와 서로 의존하지 않는다.
 6. `components/`, `hooks/`, `utils/`, `types/` 같은 기술 종류별 최상위 폴더를
    만들지 않는다. 함께 바뀌는 코드는 같은 slice에 둔다.
 7. 새 layer나 예외 import를 만들기 전에 이 문서와 ADR을 먼저 바꾼다.
@@ -154,7 +158,7 @@ stagekeeper/
 
 1. URL 또는 Next.js 실행 진입점인가? → `src/app`
 2. DB·인증·MCP·트랜잭션 같은 서버 기능인가? → `src/server`
-3. 프레임워크와 무관한 순수 규칙인가? → `packages/core`
+3. GitHub 저장소 주소 해석·생성인가? → `packages/github`; 제품의 순수 규칙인가? → `packages/core`
 4. 전체 화면인가? → `src/fsd/pages/<slice>`
 5. 여러 화면에서 재사용하거나 한 화면 안에서 독립적인 큰 UI 블록인가? → `widgets/<slice>`
 6. 사용자가 수행하는 의미 있는 동작인가? → `features/<slice>`

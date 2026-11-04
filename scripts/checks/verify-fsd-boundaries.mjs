@@ -79,6 +79,12 @@ function resolveImport(projectRoot, importer, specifier) {
       path: resolve(projectRoot, "packages", "core", specifier.slice("@harness/core/".length)),
     };
   }
+  if (specifier.startsWith("@harness/github/")) {
+    return {
+      kind: "file",
+      path: resolve(projectRoot, "packages", "github", specifier.slice("@harness/github/".length)),
+    };
+  }
   if (specifier.startsWith(".")) {
     return { kind: "file", path: resolve(dirname(importer), specifier) };
   }
@@ -231,6 +237,22 @@ function validateImports(projectRoot, files) {
             line,
             "core/no-external-dependency",
             `packages/core는 src 또는 외부 package에 의존할 수 없습니다: ${specifier}`,
+          ));
+        }
+      }
+
+      if (isInside(projectRoot, importer, "packages/github")) {
+        const importerIsTest = importer.endsWith(".test.mjs");
+        const allowedTestBuiltin = importerIsTest && target.kind === "bare" && specifier.startsWith("node:");
+        const allowedLocalGithub = target.kind === "file" && isInside(projectRoot, target.path, "packages/github")
+          && (importerIsTest || !target.path.endsWith(".test.mjs"));
+        if (!allowedTestBuiltin && !allowedLocalGithub) {
+          problems.push(issue(
+            projectRoot,
+            importer,
+            line,
+            "github/no-external-dependency",
+            `packages/github는 자체 모듈만 참조하며 Node 내장 모듈은 테스트에서만 허용합니다: ${specifier}`,
           ));
         }
       }
@@ -435,6 +457,7 @@ export function verifyProject(projectRoot = process.cwd()) {
   const sourceFiles = [
     ...walk(resolve(root, "src")),
     ...walk(resolve(root, "packages", "core")),
+    ...walk(resolve(root, "packages", "github")),
   ];
   const fsdFiles = sourceFiles.filter((file) => parseFsdPath(root, file));
 

@@ -35,6 +35,7 @@ ADR은 결정이 *왜* 내려졌는지, 어떤 대안을 비교했는지, 어떤
 | [0004](0004-organize-repository-scripts.md) | 저장소 스크립트의 책임별 배치 | accepted |
 | [0005](0005-organize-core-modules.md) | Core 모듈의 책임별 배치 | accepted |
 | [0006](0006-optional-github-repository-list.md) | 선택형 GitHub 저장소 목록과 자격 증명 수명주기 | accepted |
+| [0007](0007-share-github-url-modules.md) | GitHub URL 규칙의 독립 공유 영역 | accepted |
 
 첫 번째 실제 아키텍처 결정은 `0001`부터 시작합니다. `0000`은 ADR 운영 방식
 자체를 기록하는 메타 ADR이 필요할 때만 사용합니다.

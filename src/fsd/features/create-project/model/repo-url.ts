@@ -1,15 +1,15 @@
 import { SLUG_MAX } from "./project-slug";
-import { parseRepoUrl as parseCoreRepoUrl } from "@harness/core/repo-url.mjs";
+import { parseRepoUrl as parseGitHubRepoUrl } from "@harness/github/repo-url.mjs";
 import type { PublicRepository, AuthorizedRepository } from "./github-connection-state";
 
-export { SEGMENT } from "@harness/core/repo-url.mjs";
+export { SEGMENT } from "@harness/github/repo-url.mjs";
 
 export type RepoRef = { owner: string; repo: string };
 
 export type RepoOption = PublicRepository | AuthorizedRepository;
 
 export function parseRepoUrl(input: string): RepoRef | null {
-  return parseCoreRepoUrl(input);
+  return parseGitHubRepoUrl(input);
 }
 
 export function slugFromRepo(repo: string): string {

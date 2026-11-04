@@ -172,6 +172,42 @@ describe("verifyProject", () => {
     assert.ok(codes(root).includes("fsd/public-api-required"));
   });
 
+  it("allows web and server consumers of dependency-free GitHub modules", () => {
+    const root = project();
+    write(root, "packages/github/repo-url.mjs");
+    write(root, "packages/github/blob-url.mjs", 'export { parse } from "./repo-url.mjs";\n');
+    write(root, "packages/github/repository.mjs", 'export { parse } from "@harness/github/repo-url.mjs";\n');
+    write(root, "packages/github/repo-url.test.mjs", 'import assert from "node:assert/strict";\nimport { it } from "node:test";\nimport { parse } from "./repo-url.mjs";\n');
+    write(root, "src/fsd/shared/lib/repo-url.ts", '"use client";\nexport { parse } from "@harness/github/repo-url.mjs";\n');
+    write(root, "src/server/projects/repo-url.ts", 'export { parse } from "@harness/github/repo-url.mjs";\n');
+
+    assert.deepEqual(verifyProject(root), []);
+  });
+
+  it("keeps GitHub modules independent of product, core, npm and Node runtime code", () => {
+    for (const specifier of ["@/server/github/api.server", "../../src/server/db", "@harness/core/project-slug.mjs", "../core/project-slug.mjs", "zod", "node:crypto"]) {
+      const root = project();
+      write(root, "packages/github/repo-url.mjs", `import "${specifier}";\n`);
+      assert.ok(codes(root).includes("github/no-external-dependency"), specifier);
+    }
+  });
+
+  it("keeps core independent of GitHub modules through aliases and relative imports", () => {
+    for (const specifier of ["@harness/github/repo-url.mjs", "../github/repo-url.mjs"]) {
+      const root = project();
+      write(root, "packages/core/project-slug.mjs", `import "${specifier}";\n`);
+      write(root, "packages/github/repo-url.mjs");
+      assert.ok(codes(root).includes("core/no-external-dependency"), specifier);
+    }
+  });
+
+  it("prevents GitHub production modules from importing Node-only tests", () => {
+    const root = project();
+    write(root, "packages/github/repo-url.mjs", 'import "./repo-url.test.mjs";\n');
+    write(root, "packages/github/repo-url.test.mjs", 'import { it } from "node:test";\n');
+    assert.ok(codes(root).includes("github/no-external-dependency"));
+  });
+
   it("rejects simultaneous root app and src/app directories", () => {
     const root = project();
     write(root, "app/page.tsx");

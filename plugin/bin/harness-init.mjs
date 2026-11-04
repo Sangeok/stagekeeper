@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
-import { parseRepoUrl } from "../lib/repo-url.mjs";
+import { parseRepoUrl } from "../lib/github/repo-url.mjs";
 import { deliverable } from "../lib/templates/deliver.mjs";
 import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/plans/entitlement.mjs";
 import { hashOf, mergeClientLock, planWrites } from "../lib/templates/manifest.mjs";

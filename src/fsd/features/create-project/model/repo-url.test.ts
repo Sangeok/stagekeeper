@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { parseRepoUrl as parseCoreRepoUrl, SEGMENT as CORE_SEGMENT } from "@harness/core/repo-url.mjs";
+import { parseRepoUrl as parseGitHubRepoUrl, SEGMENT as GITHUB_SEGMENT } from "@harness/github/repo-url.mjs";
 import { parseRepoUrl, SEGMENT, slugFromRepo } from "./repo-url";
 
 describe("parseRepoUrl", () => {
   const ref = { owner: "Sangeok", repo: "harness-smoke" };
-  it("uses the same core policy for CLI and web input", () => {
-    assert.equal(SEGMENT, CORE_SEGMENT);
+  it("uses the same GitHub policy for CLI and web input", () => {
+    assert.equal(SEGMENT, GITHUB_SEGMENT);
     for (const value of ["owner/repo", "git@github.com:owner/repo.git", "https://github.com/owner/repo/tree/main?x=1", "", "bad owner/repo", "owner/repo.", "owner/-repo", "gitlab.com/owner/repo"]) {
-      assert.deepEqual(parseRepoUrl(value), parseCoreRepoUrl(value), value);
+      assert.deepEqual(parseRepoUrl(value), parseGitHubRepoUrl(value), value);
     }
   });
 

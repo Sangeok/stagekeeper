@@ -371,8 +371,9 @@ stagekeeper/
 │   ├── generated/    # Generated Prisma client (gitignored)
 │   └── proxy.ts      # Sends signed-out visitors of app pages to /login
 ├── packages/core/    # Pure rules with no dependencies: states, pipeline graph, plans, protocol
+├── packages/github/  # Shared GitHub repository URL parsing and file links
 ├── plugin/           # Claude Code and Codex plugin: skills, helper CLIs, runtime
-│                     #   (lib/ is a synced copy of packages/core; don't edit it)
+│                     #   (lib/ mirrors core; lib/github/ mirrors packages/github)
 ├── prisma/           # Schema and migrations
 ├── scripts/          # Repository checks, sync, and manual operations (not app runtime)
 ├── tests/server/     # Server-only and cross-module tests; integration/ needs PostgreSQL
@@ -405,12 +406,12 @@ proposals describe future work.
   layer don't import each other, and other slices are imported only through their public API
   (`index.ts`, `index.tsx`, `index.server.ts`).
 - `src/server` never imports `src/fsd`. `packages/core` depends on neither `src` nor npm
-  packages; put a rule there when the UI, server, and plugin must share it.
+  packages; put shared product rules there. GitHub URL rules belong in `packages/github`.
 - No top-level folders by technical kind (`components/`, `hooks/`, `utils/`, `types/`); keep
   code that changes together in one slice.
 - Don't create a root `app/`: Next.js ignores `src/app/` when both exist, and the checker
   fails on it.
-- Don't edit `plugin/lib/`. Change `packages/core`, then run `npm run sync:plugin-lib`;
+- Don't edit `plugin/lib/`. Change `packages/core` or `packages/github`, then run `npm run sync:plugin-lib`;
   `npm run check` fails on drift.
 - This repository uses Next.js 16, which has breaking changes. Read the relevant guide in
   `node_modules/next/dist/docs/` before writing Next.js code (see [`AGENTS.md`](./AGENTS.md)).

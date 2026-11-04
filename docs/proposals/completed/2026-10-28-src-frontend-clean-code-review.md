@@ -284,7 +284,7 @@ Billing 내부 세 symbol은 같은 slice의 선언으로 해석한다. Billing 
 기여 렌즈: **Simplicity**. 판정: 선택적 개선. 근거 확신도: High.
 
 [slug-rule.ts:5](../../../src/server/projects/slug-rule.ts#L5)의 `REPO_SEGMENT`와
-[core/repo-url.mjs:1](../../../packages/core/repo-url.mjs#L1)의 `SEGMENT`는 같은 정규식이다.
+[core/repo-url.mjs:1](https://github.com/Sangeok/stagekeeper/blob/a6d6933e8b499446683dc07fc77d9448d602b449/packages/core/repo-url.mjs#L1)의 `SEGMENT`는 같은 정규식이다.
 [slug-rule-sync.test.ts:6](../../../src/server/projects/slug-rule-sync.test.ts#L6)가 같은 정책임을 명시하고 source/flags를 비교한다.
 웹 생성 Action과 REST 등록이 각각의 선언을 소비하므로 정책을 바꾸면 두 선언의 동기화를 고려해야 한다.
 

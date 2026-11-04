@@ -15,12 +15,15 @@ Node 내장 모듈은 허용하지만 브라우저에서 쓰는 모듈의 의존
 | `plans/` | 플랜 권한·상한, 플랜 변경 시 프로젝트 선택, 계정 실행 사용량 창 |
 | `execution/` | 클라이언트 실행 계약, runner 생존·lease 판정, watch 응답·다음 작업 판정 |
 | `qa.mjs` | 설정과 보고 양쪽이 사용하는 브라우저 QA 계약 |
-| `repo-url.mjs`, `project-slug.mjs` | 독립적인 저장소 URL 파싱과 프로젝트 slug 규칙 |
+| `project-slug.mjs` | 프로젝트 slug 규칙 |
 | `request-rate.mjs` | 플랜과 독립적인 API 요청 제한 창 |
 
 관련 구현·`.d.mts`·테스트는 같은 폴더에 둔다. 한 책임의 파일은 한 단계로
 배치하며, 독립적인 작은 규칙을 담기 위해 한 파일짜리 폴더를 만들지 않는다.
 새 규칙은 파일 종류보다 변경 이유와 실제 소비처를 기준으로 위치를 정한다.
+
+GitHub 저장소 URL 해석·생성은 [packages/github](./github.md)가 소유한다.
+core는 GitHub 모듈에 의존하지 않으며 두 규칙이 필요한 소비자가 조합한다.
 
 ## 의존성과 공개 경로
 
@@ -43,8 +46,8 @@ Node 내장 모듈은 허용하지만 브라우저에서 쓰는 모듈의 의존
 
 ## 배포와 검증
 
-`plugin/lib`는 `packages/core`의 배포 복사본이며 상대 디렉터리 구조와 파일 내용을
-그대로 유지한다. `npm run sync:plugin-lib`는 `.mjs`를 재귀 복사하되 테스트를 제외하고,
+`packages/core`는 `plugin/lib`에 상대 디렉터리 구조와 파일 내용을 그대로 복사한다.
+`plugin/lib/github`는 [packages/github](./github.md)의 복사본으로 예약한다. `npm run sync:plugin-lib`는 `.mjs`를 재귀 복사하되 테스트를 제외하고,
 원본이 없는 배포 모듈을 제거한다. 복사본을 직접 수정하지 않는다.
 
 `npm test`는 `packages/core/**/*.test.mjs`를 탐색한다. `pipeline-types.test.ts`는
