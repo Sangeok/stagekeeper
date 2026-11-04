@@ -25,7 +25,9 @@ For frontend code, follow `docs/architecture/fsd.md`:
   `pages -> widgets -> features -> entities -> shared`.
 - Import another slice only through its public API. Keep same-layer slices isolated.
 - Keep backend application services in `src/server` and pure shared policy in
-  `packages/core`.
+  `packages/core`. Keep shared GitHub URL parsing and construction in
+  `packages/github`; follow `docs/architecture/github.md` for its dependency and
+  plugin distribution boundaries.
 - Do not create both root `app/` and `src/app/`; Next.js ignores `src/app/` in that
   state. Until the existing root `app/` is migrated as one operation, do not create a
   parallel `src/app/`.

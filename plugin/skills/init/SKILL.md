@@ -103,7 +103,7 @@ Ask one question at a time. **Run `--register` or write `harness.json` only afte
        repository's default branch from git and registers the repository, **or returns the existing project
        when it is already registered** — rerunning is safe and creates nothing the second time.
        **Run it only after the draft's yes.** Until then, take `owner`/`repo` from `origin` by the
-       rules in the plugin's `lib/repo-url.mjs` and `branch` from the repository's default
+       rules in the plugin's `lib/github/repo-url.mjs` and `branch` from the repository's default
        branch, and leave `slug` to the registration; after it, confirm the returned owner/repo
        matches the draft.
        If it says the server has no `/api/projects`, that server predates this route; fall back
@@ -130,7 +130,7 @@ Ask one question at a time. **Run `--register` or write `harness.json` only afte
      returned slug, and write the file.
    If `harness.json` already exists, preserve it. If `project.slug` is missing:
    - With `hu_`, recover a verified slug before generation or project-scoped MCP calls.
-     Parse `origin` using the rules in the plugin's `lib/repo-url.mjs`, then compare its
+     Parse `origin` using the rules in the plugin's `lib/github/repo-url.mjs`, then compare its
      owner/repo with the configured `project.owner`/`project.repo` before running
      `--register`. Resolve any mismatch explicitly before registration; do not register
      a different repository or silently replace the configured project identity.

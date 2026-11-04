@@ -2,7 +2,10 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync 
 import { dirname, join, posix, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const CORE = "packages/core";
+const SOURCES = [
+  { directory: "packages/core", prefix: "" },
+  { directory: "packages/github", prefix: "github" },
+];
 const LIB = "plugin/lib";
 
 const isDeliverable = (name) => name.endsWith(".mjs") && !name.endsWith(".test.mjs");
@@ -15,26 +18,42 @@ function listModules(directory, prefix = "") {
   }).sort();
 }
 
-export function diffPluginLib(projectRoot = process.cwd()) {
-  const core = resolve(projectRoot, CORE);
+function sourceModules(projectRoot) {
+  const modules = new Map();
+  for (const { directory, prefix } of SOURCES) {
+    const source = resolve(projectRoot, directory);
+    if (!existsSync(source)) throw new Error(`${directory} not found under ${projectRoot} — run from the repository root`);
+    for (const name of listModules(source)) {
+      const target = posix.join(prefix, name);
+      if (modules.has(target)) throw new Error(`Duplicate plugin module destination: ${target}`);
+      modules.set(target, resolve(source, name));
+    }
+  }
+  return modules;
+}
+
+function diffModules(projectRoot, modules) {
   const lib = resolve(projectRoot, LIB);
-  if (!existsSync(core)) throw new Error(`${CORE} not found under ${projectRoot} — run from the repository root`);
-  const coreModules = listModules(core);
-  const drift = coreModules.filter((name) => {
+  const drift = [...modules.keys()].sort().filter((name) => {
     const copy = join(lib, name);
-    return !existsSync(copy) || readFileSync(copy, "utf8") !== readFileSync(join(core, name), "utf8");
+    return !existsSync(copy) || readFileSync(copy, "utf8") !== readFileSync(modules.get(name), "utf8");
   });
-  const orphan = (existsSync(lib) ? listModules(lib) : []).filter((name) => !coreModules.includes(name));
+  const orphan = (existsSync(lib) ? listModules(lib) : []).filter((name) => !modules.has(name));
   return { drift, orphan };
 }
 
+export function diffPluginLib(projectRoot = process.cwd()) {
+  return diffModules(projectRoot, sourceModules(projectRoot));
+}
+
 export function syncPluginLib(projectRoot = process.cwd()) {
-  const { drift, orphan } = diffPluginLib(projectRoot);
+  const modules = sourceModules(projectRoot);
+  const { drift, orphan } = diffModules(projectRoot, modules);
   mkdirSync(resolve(projectRoot, LIB), { recursive: true });
   for (const name of drift) {
     const target = resolve(projectRoot, LIB, name);
     mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(resolve(projectRoot, CORE, name), target);
+    copyFileSync(modules.get(name), target);
   }
   for (const name of orphan) rmSync(resolve(projectRoot, LIB, name));
   return { drift, orphan };

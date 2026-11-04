@@ -3,7 +3,7 @@
 Claude의 `skills/`와 `.claude-plugin/plugin.json`, Codex의 `codex/skills/`와
 `.codex-plugin/plugin.json`이 같은 `bin/`, `runtime/`, `lib/`를 사용한다.
 portable root manifest는 두지 않는다. private 단계 본문은 패키지에 포함하지 않고
-인증된 서버가 공급한다. `lib/`는 `packages/core`에서 동기화한 복사본이다.
+인증된 서버가 공급한다. `lib/`는 `packages/core`에서, `lib/github/`는 `packages/github`에서 동기화한 복사본이다.
 
 현재 버전은 양쪽 plugin manifest를 기준으로 확인한다. 실제 설치된 winning skill/helper, 모델 권한,
 DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-reports/active/dual-client-runtime-report.md)의

@@ -3,7 +3,7 @@
 테스트는 변경한 동작이 계약을 지키는지 확인하고, 그 계약을 깨는 결함을 검출한다.
 검증 범위는 변경 위험에 맞추며, 동작을 보존하는 리팩터링에도 유지할 수 있어야 한다.
 
-적용 범위는 `src`, `packages/core`, `plugin`, `scripts`, `tests`의 새로 작성하거나
+적용 범위는 `src`, `packages/core`, `packages/github`, `plugin`, `scripts`, `tests`의 새로 작성하거나
 수정하는 테스트와 인수 사례다. 작성 기준은 이 문서, 파일의 위치·이름·소유권과
 의존성은 [테스트 배치 규칙](./test-organization.md), 실행 명령·CI 연결·DB 안전
 절차는 [검증 문서](./verification.md)를 따른다.

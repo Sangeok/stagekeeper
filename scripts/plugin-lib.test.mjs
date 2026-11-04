@@ -12,6 +12,7 @@ const temporaryProjects = [];
 function project() {
   const root = mkdtempSync(join(realpathSync(tmpdir()), "stagekeeper-plugin-lib-"));
   temporaryProjects.push(root);
+  mkdirSync(join(root, "packages/github"), { recursive: true });
   return root;
 }
 
@@ -64,7 +65,7 @@ describe("plugin-lib", () => {
     assert.equal(spawnSync(process.execPath, [script, "--check"], { cwd: root }).status, 0);
   });
 
-  it("reports nothing when every core module has an identical copy", () => {
+  it("reports nothing when every source module has an identical copy", () => {
     const root = project();
     write(root, "packages/core/config.mjs", "export const a = 1;\n");
     write(root, "packages/core/config.test.mjs", "test only\n");
@@ -120,6 +121,54 @@ describe("plugin-lib", () => {
     assert.throws(() => diffPluginLib(root), /packages\/core not found/);
     assert.throws(() => syncPluginLib(root), /packages\/core not found/);
     assert.equal(existsSync(join(root, "plugin/lib/config.mjs")), true);
+  });
+
+  it("preserves copies when the GitHub source directory is missing", () => {
+    const root = project();
+    write(root, "packages/core/config.mjs");
+    write(root, "plugin/lib/github/repo-url.mjs", "export const retained = true;\n");
+    rmSync(join(root, "packages/github"), { recursive: true });
+
+    assert.throws(() => syncPluginLib(root), /packages\/github not found/);
+    assert.equal(readFileSync(join(root, "plugin/lib/github/repo-url.mjs"), "utf8"), "export const retained = true;\n");
+  });
+
+  it("copies GitHub modules into their namespace and removes the former root copy", async () => {
+    const root = project();
+    write(root, "packages/core/config.mjs");
+    write(root, "packages/github/repo-url.mjs", 'export const owner = "example";\n');
+    write(root, "packages/github/blob-url.mjs", 'import { owner } from "./repo-url.mjs";\nexport const href = `https://github.com/${owner}/repo/blob/main/doc.md`;\n');
+    write(root, "packages/github/repo-url.test.mjs", "test only\n");
+    write(root, "packages/github/blob-url.d.mts", "export declare const href: string;\n");
+    write(root, "plugin/lib/github/repo-url.mjs", "outdated\n");
+    write(root, "plugin/lib/repo-url.mjs", "former location\n");
+    write(root, "plugin/lib/github/retired.mjs");
+
+    assert.deepEqual(syncPluginLib(root), {
+      drift: ["config.mjs", "github/blob-url.mjs", "github/repo-url.mjs"],
+      orphan: ["github/retired.mjs", "repo-url.mjs"],
+    });
+    for (const name of ["blob-url.mjs", "repo-url.mjs"]) {
+      assert.equal(readFileSync(join(root, "plugin/lib/github", name), "utf8"), readFileSync(join(root, "packages/github", name), "utf8"));
+    }
+    assert.equal((await import(pathToFileURL(join(root, "plugin/lib/github/blob-url.mjs")).href)).href,
+      "https://github.com/example/repo/blob/main/doc.md");
+    for (const name of ["repo-url.mjs", "github/retired.mjs", "github/repo-url.test.mjs", "github/blob-url.d.mts"]) {
+      assert.equal(existsSync(join(root, "plugin/lib", name)), false, name);
+    }
+    assert.deepEqual(diffPluginLib(root), { drift: [], orphan: [] });
+  });
+
+  it("rejects colliding destinations before replacing or removing any copies", () => {
+    const root = project();
+    write(root, "packages/core/github/repo-url.mjs", "export const source = 'core';\n");
+    write(root, "packages/github/repo-url.mjs", "export const source = 'github';\n");
+    write(root, "plugin/lib/github/repo-url.mjs", "retained\n");
+    write(root, "plugin/lib/retired.mjs");
+
+    assert.throws(() => syncPluginLib(root), /Duplicate plugin module destination: github\/repo-url.mjs/);
+    assert.equal(readFileSync(join(root, "plugin/lib/github/repo-url.mjs"), "utf8"), "retained\n");
+    assert.equal(existsSync(join(root, "plugin/lib/retired.mjs")), true);
   });
 
   it("reports nested drift and orphans using their complete relative paths", () => {

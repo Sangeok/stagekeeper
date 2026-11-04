@@ -2,7 +2,7 @@ import { SLUG_MAX, SLUG_RE, RESERVED_SLUGS } from "@harness/core/project-slug.mj
 
 export { SLUG_MAX, SLUG_RE, RESERVED_SLUGS } from "@harness/core/project-slug.mjs";
 
-export { SEGMENT as REPO_SEGMENT } from "@harness/core/repo-url.mjs";
+export { SEGMENT as REPO_SEGMENT } from "@harness/github/repo-url.mjs";
 
 export function slugCandidate(repo: string): string | null {
   const folded = repo

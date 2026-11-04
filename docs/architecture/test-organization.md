@@ -8,7 +8,7 @@
 [테스트 작성 규칙](./test-writing.md)을 따른다. 실행 명령과 CI 연결은
 [검증 문서](./verification.md)를 기준으로 한다.
 
-적용 범위는 `src`, `packages/core`, `plugin`, `scripts`, `tests`다.
+적용 범위는 `src`, `packages/core`, `packages/github`, `plugin`, `scripts`, `tests`다.
 FSD layer·slice 규칙은 `src/fsd`에만 적용한다. 생성물과 배포 복사본은 직접 수정하지
 않고 원본에서 테스트한다. 선택 배경과 대안 비교는
 [ADR-0002](../ADR/0002-test-code-organization.md)에 보존한다.
@@ -45,7 +45,7 @@ FSD layer·slice 규칙은 `src/fsd`에만 적용한다. 생성물과 배포 복
 | 모델·schema·순수 함수의 단위 테스트 | 대상 파일과 같은 디렉터리 | 구현과 동작 계약을 함께 탐색한다 |
 | 컴포넌트와 한 feature에서 완결되는 동작 테스트 | 소유 slice의 `ui`, `model`, `api` 등 대상 segment | 테스트를 위해 새 slice나 segment를 만들지 않는다 |
 | 여러 feature를 조합하는 page/widget 테스트 | 조합을 소유한 page/widget의 대상 코드 옆 | 각 feature의 public API를 사용하며 같은 layer의 slice를 우회 연결하지 않는다 |
-| 서버·core·plugin·검사 스크립트의 독립 테스트 | 원본 모듈 옆 | 테스트 위치를 이유로 제품 코드를 이동하지 않는다 |
+| 서버·core·GitHub 공통 모듈·plugin·검사 스크립트의 독립 테스트 | 원본 모듈 옆 | 테스트 위치를 이유로 제품 코드를 이동하지 않는다 |
 | `server-only` bootstrap이 필요한 테스트 또는 DB 없는 서버 교차 모듈 테스트 | `tests/server/` | 서버 테스트 실행 환경과 조합 계약을 공유한다 |
 | 실제 PostgreSQL을 사용하는 서버 통합 테스트 | `tests/server/integration/` | DB fixture·정리와 격리된 실행 환경이 필요하다 |
 | private 템플릿·HTTP·실제 init CLI의 조합 | `tests/templates/` | 명시한 private source를 trusted 계약 시험으로 검사하며 `test:template-release`가 실행한다 |

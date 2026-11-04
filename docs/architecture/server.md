@@ -1,7 +1,9 @@
 # 서버 모듈 경계
 
 `src/server`는 backend application service다. 프런트엔드 FSD layer를 적용하지 않으며,
-순수 공유 정책은 `packages/core`, HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다.
+제품의 순수 공유 정책은 `packages/core`, GitHub URL 규칙은 `packages/github`,
+HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연결·credential 수명주기는
+기존 `src/server/github`가 소유한다.
 배경과 대안은 [ADR-0003](../ADR/0003-server-module-boundaries.md)에 기록한다.
 
 ## 소유권과 의존 방향

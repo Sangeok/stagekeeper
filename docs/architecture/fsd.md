@@ -4,7 +4,8 @@
 
 FSD는 `src/fsd` 아래의 프런트엔드 제품 코드에 적용한다. `src/app`은 Next.js App
 Router, `src/server`는 backend application service, `packages/core`는 순수 domain
-kernel이므로 FSD layer가 아니다.
+kernel이므로 FSD layer가 아니다. `packages/github`도 FSD 밖의 GitHub URL 공통 모듈이다.
+FSD 소비자는 `@harness/github/repo-url.mjs`와 `@harness/github/blob-url.mjs`의 직접 경로를 사용한다.
 
 공식 FSD의 `app`·`pages` 이름은 Next.js의 예약 폴더와 충돌한다. Stagekeeper는
 기존 Phase 0·1 경로 계획을 유지하기 위해 `src/fsd`를 별도 root로 두고, FSD
