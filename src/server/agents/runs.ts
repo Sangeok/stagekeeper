@@ -1,5 +1,5 @@
-import type { PrismaClient } from "@/generated/prisma/client";
-import { readProjectAccess } from "@/server/projects/api";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { readProjectAccess, readProjectAccessIn } from "@/server/projects/api";
 import { createBoardService } from "@/server/pipeline/api";
 import type { NextDeps } from "./next";
 import { repositoryOwner } from "@/server/projects/api";
@@ -7,7 +7,7 @@ import { loadProjectRoster } from "@/server/projects/api";
 import { serverVars } from "./vars";
 import { cursorTransaction, commitRunOutcome } from "./run-service";
 import { readProjectUsageCapIn } from "@/server/usage/api";
-import { resolveCodexBundle } from "@/server/templates/api";
+import { readCodexBundle } from "@/server/templates/api";
 
 const TEMPLATE_FALLBACK_LANG = "en";
 
@@ -16,12 +16,44 @@ export function createNextDeps(db: PrismaClient): NextDeps {
   const deps: NextDeps = {
     access: (projectId) => readProjectAccess(db, projectId),
     roster: (projectId) => loadProjectRoster(db, projectId),
+    ...templateReads(db),
+    usageCap: (projectId) => db.$transaction((tx) => readProjectUsageCapIn(tx, projectId)),
+    openRun: (projectId, agent, key) => db.agentRun.findFirst({
+      where: { projectId, agent, key, closedAt: null }, orderBy: { openedAt: "desc" }, select: { id: true, stepId: true, revision: true, closedAt: true },
+    }),
+    createRun: async () => { throw new Error("Run creation requires cursorTransaction"); },
+    boardStatus: async (projectId, key) => {
+      const row = await db.boardItem.findFirst({
+        where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { status: true },
+      });
+      return row?.status ?? null;
+    },
+    openCount: async (projectId) => (await board.latestBoard(projectId, true)).length,
+    verifyOk: async (projectId, agent, key) =>
+      (await db.agentRunStep.findFirst({ where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", run: { projectId, agent, key } }, select: { id: true } })) !== null,
+    runByReceipt: (projectId, agent, key, runId) => db.agentRun.findFirst({
+      where: { id: runId, projectId, agent, key }, select: { id: true, stepId: true, revision: true, closedAt: true },
+    }),
+    closeRun: async (run) => {
+      await db.agentRun.updateMany({ where: { id: run.id, revision: run.revision, stepId: run.stepId, closedAt: null }, data: { closedAt: new Date() } });
+    },
+    commitOutcome: (input) => db.$transaction((tx) => commitRunOutcome(tx, input)),
+  };
+  deps.withCursor = cursorTransaction(db, deps, templateReads);
+  return deps;
+}
+
+function templateReads(db: PrismaClient | Prisma.TransactionClient): Pick<NextDeps, "template" | "vars" | "itemAgent"> {
+  return {
     template: async (projectId, path, client) => {
       const original = path;
       path = path.replace("work-assigner.md", "pm.md").replace("work-discoverer.md", "feature-scout.md");
       const adapt = (body: string | null): string | null => body === null ? null : original.includes("work-assigner") ? body.replace(/\bpm\b/g, "work-assigner") : original.includes("work-discoverer") ? body.replace(/feature-scout/g, "work-discoverer") : body;
       if (client === "codex") {
-        const bundle = await resolveCodexBundle(projectId, db);
+        const project = await db.project.findUniqueOrThrow({ where: { id: projectId }, select: { language: true } });
+        const access = await readProjectAccessIn(db, projectId);
+        if (!access.available) throw new Error(access.reason);
+        const bundle = await readCodexBundle(language => db.template.findMany({ where: { lang: language }, select: { path: true, body: true } }), project.language, access.plan, true);
         if (!bundle.ok) throw new Error(bundle.reason);
         return adapt(bundle.item.templates[path] ?? null);
       }
@@ -37,34 +69,11 @@ export function createNextDeps(db: PrismaClient): NextDeps {
       });
       return serverVars({ ...project, owner: repositoryOwner(project.repoOwner) }, project.workspaces, agent, client);
     },
-    usageCap: (projectId) => db.$transaction((tx) => readProjectUsageCapIn(tx, projectId)),
-    openRun: (projectId, agent, key) => db.agentRun.findFirst({
-      where: { projectId, agent, key, closedAt: null }, orderBy: { openedAt: "desc" }, select: { id: true, stepId: true, revision: true, closedAt: true },
-    }),
-    createRun: async () => { throw new Error("Run creation requires cursorTransaction"); },
-    boardStatus: async (projectId, key) => {
-      const row = await db.boardItem.findFirst({
-        where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { status: true },
-      });
-      return row?.status ?? null;
-    },
     itemAgent: async (projectId, key) => {
       const row = await db.boardItem.findFirst({
         where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { agent: true },
       });
       return row?.agent ?? null;
     },
-    openCount: async (projectId) => (await board.latestBoard(projectId, true)).length,
-    verifyOk: async (projectId, agent, key) =>
-      (await db.agentRunStep.findFirst({ where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", run: { projectId, agent, key } }, select: { id: true } })) !== null,
-    runByReceipt: (projectId, agent, key, runId) => db.agentRun.findFirst({
-      where: { id: runId, projectId, agent, key }, select: { id: true, stepId: true, revision: true, closedAt: true },
-    }),
-    closeRun: async (run) => {
-      await db.agentRun.updateMany({ where: { id: run.id, revision: run.revision, stepId: run.stepId, closedAt: null }, data: { closedAt: new Date() } });
-    },
-    commitOutcome: (input) => db.$transaction((tx) => commitRunOutcome(tx, input)),
   };
-  deps.withCursor = cursorTransaction(db, deps);
-  return deps;
 }

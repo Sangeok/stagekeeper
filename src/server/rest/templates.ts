@@ -6,8 +6,11 @@ import { projectAccess } from "@/server/projects/api.server";
 import { findUserTokenByHash } from "@/server/tokens/api.server";
 import { projectForUser } from "@/server/projects/api.server";
 import { makeTemplatesFor } from "./templates-handler";
+import { readTemplateChannelMode, readTemplateDelivery } from "@/server/templates/api";
 
 export const templatesFor = makeTemplatesFor({
+  templateMode: () => readTemplateChannelMode(prisma),
+  readRelease: input => readTemplateDelivery(prisma, input),
   requestLimit: limitProjectRequest,
   findTokenByHash: (hash) => prisma.projectToken.findUnique({
     where: { hash },

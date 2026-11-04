@@ -13,6 +13,12 @@ on:
       - ".github/workflows/client-init-smoke.yml"
       - ".github/actions/smoke-database/**"
   workflow_dispatch:
+    inputs:
+      template_commit:
+        description: Full private template commit SHA
+        required: true
+        default: fb6ef955ba3f6fc8320e173fbafc9ef03b83281b
+        type: string
 
 permissions:
   contents: read
@@ -89,6 +95,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         uses: actions/checkout@v5
         with:
+          ref: ${{ inputs.template_commit || 'fb6ef955ba3f6fc8320e173fbafc9ef03b83281b' }}
           repository: Sangeok/harness-templates
           token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
           path: plugin/templates
@@ -120,13 +127,14 @@ jobs:
           PLUGIN_BRANCH: ${{ github.head_ref || github.ref_name }}
           PLUGIN_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
           SCENARIO: ${{ matrix.scenario }}
+          TEMPLATE_COMMIT: ${{ inputs.template_commit || 'fb6ef955ba3f6fc8320e173fbafc9ef03b83281b' }}
           PREVIOUS_REF: ${{ steps.previous.outputs.commit }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
           claude --version
           $templates = Join-Path $env:GITHUB_WORKSPACE 'plugin/templates'
           $summary = Join-Path $env:RUNNER_TEMP 'smoke-summary.json'
-          $arguments = @('--import', 'tsx', 'scripts/rehearsals/rehearse-client-init-smoke.ts', '--client', 'claude', '--scenario', $env:SCENARIO, '--templates', $templates, '--plugin-source', 'github-branch', '--plugin-branch', $env:PLUGIN_BRANCH, '--plugin-commit', $env:PLUGIN_COMMIT)
+          $arguments = @('--import', 'tsx', 'scripts/rehearsals/rehearse-client-init-smoke.ts', '--client', 'claude', '--scenario', $env:SCENARIO, '--templates', $templates, '--template-commit', $env:TEMPLATE_COMMIT, '--plugin-source', 'github-branch', '--plugin-branch', $env:PLUGIN_BRANCH, '--plugin-commit', $env:PLUGIN_COMMIT)
           if ($env:PREVIOUS_REF) { $arguments += @('--previous-ref', $env:PREVIOUS_REF) }
           node @arguments | Tee-Object -FilePath $summary
           $code = $LASTEXITCODE

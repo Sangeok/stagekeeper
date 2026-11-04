@@ -1,10 +1,12 @@
+import type { AgentExecutionContext } from "./contracts";
+import type { TemplateMetadata } from "./template-selection";
 import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON, AUTO_PROPOSE_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
 import { canPropose } from "@harness/core/pipeline/transitions.mjs";
 
 import type { PipelineEntry, GateEntry } from "./run-service";
 import type { UsageLimitFailure } from "@/server/result";
 
-export type PipelineNext =
+type PipelineNextResult =
   | { key: string; node: string; version: number; action: "dispatch"; agent: string; hint: string; format: string | null; entry?: PipelineEntry }
   | { key: string; node: string; version: number; action: "wait"; on: "gate"; gate: string; boundary: { from: string; to: string } | null; planCommit: string | null; format: string | null; gateEntry?: GateEntry }
   | { key: string; node: string; version: number; action: "wait"; on: "handoff"; note: string | null }
@@ -14,6 +16,10 @@ export type PipelineNext =
   | { key: string; node: string; version: number; action: "wait"; on: "cap"; reason: string; code: "USAGE_LIMIT_REACHED"; resetAt: string }
   | { key: string; node: string; version: number; action: "accept"; hint: string }
   | { key: string; node: string | null; version: number; action: "done" };
+
+export type PipelineNext = (PipelineNextResult
+  | { key: string; node: string | null; version: number | null; action: "wait"; on: "template"; reason: string; templateRelease: TemplateMetadata })
+  & { templateRelease?: TemplateMetadata; templateProtocol?: "template-release-v1"; execution?: AgentExecutionContext };
 
 export type PipelineNextInput = {
   key: string;

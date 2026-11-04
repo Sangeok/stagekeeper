@@ -1,3 +1,4 @@
+import { versionedDelivery, claudeFixtureExecutable } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createServer } from "node:http";
@@ -15,6 +16,7 @@ import { renderTemplate } from "../lib/templates/render.mjs";
 import { hashOf } from "../lib/templates/manifest.mjs";
 import { newToken } from "../lib/tokens/token.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { readInstalledTemplate } from "../runtime/template-installation.mjs";
 
 const BIN = fileURLToPath(new URL("harness-init.mjs", import.meta.url));
 const roles = Object.entries(ROLE_TOOLS).map(([role, tools]) => ({ path: `agents/${role}.md`, body: `---\nname: ${role === "dev" ? "{{ws.agent}}" : role}\ndescription: Test ${role}\ntools: ${[...ROLE_FILE_TOOLS[role], ...tools.map(tool => `mcp__harness__${tool}`), ...(role === "qa-verifier" ? QA_BROWSER_TOOLS.map(tool => `mcp__harness_qa_browser__${tool}`) : [])].join(", ")}\n---\n${RUNTIME_MARKER}\nStub only.\n## step:start\nPRIVATE STEP\nnext: done\n` }));
@@ -25,7 +27,7 @@ for (const newline of ["\n", "\r\n"]) it(`generates one-marker Codex role instru
   const raw = rows.map(row => ({ ...row, body: row.body.replace("Stub only.\n", "## step: start\nStub only.\n").replaceAll("\n", newline) }));
   const f = await fixture(t, (request, response) => {
     response.setHeader("Content-Type", "application/json");
-    response.end(request.url.startsWith("/api/templates") ? JSON.stringify(deliverable(raw, "max", "codex")) : "{}");
+    response.end(request.url.startsWith("/api/templates") ? JSON.stringify(versionedDelivery(deliverable(raw, "max", "codex"), "codex")) : '{"ok":true}');
   });
   const result = await f.run("codex"); assert.equal(result.code, 0, result.output);
   const rolePath = ".codex/agents/web-dev.toml", roleBody = readFileSync(join(f.root, rolePath), "utf8");
@@ -37,9 +39,10 @@ for (const newline of ["\n", "\r\n"]) it(`generates one-marker Codex role instru
   assert.equal(decoded["agents.enabled"], false);
   assert.equal(decoded["mcp_servers.harness_owner.enabled"], false);
   assert.deepEqual(decoded["mcp_servers.harness.enabled_tools"], ROLE_TOOLS.dev);
-  const source = raw.find(row => row.path === "CODEX.runbook.md").body;
+  const payload = versionedDelivery(deliverable(raw, "max", "codex"), "codex");
+  const source = payload.templates["CODEX.runbook.md"];
   const version = codexRunbookVersion(source), runbook = readFileSync(join(f.root, "docs/harness/codex-runbook.md"), "utf8");
-  assert.equal(runbook, renderTemplate(source, { runbook_version: version }));
+  assert.equal(runbook, renderTemplate(source, { runbook_version: version, installation: JSON.stringify({ clientSurfaceHash: payload.templateRelease.clientSurfaceHash, language: "en", protocol: "template-release-v1", releaseId: "fixture-release" }) }));
   const metadata = JSON.parse(readFileSync(join(f.root, "docs/harness/codex-package.json"), "utf8"));
   assert.equal(metadata.client, "codex"); assert.equal(metadata.protocol, "harness-runtime-v1");
   assert.equal(metadata.runbook, version); assert.equal(metadata.language, "en");
@@ -59,7 +62,7 @@ it("rejects a duplicate-marker delivered dev stub before writing roles, runbook,
   const payload = deliverable(rows, "max", "codex");
   const original = rows.find(row => row.path === "agents/dev.md").body;
   payload.templates["agents/dev.md"] = stubOf(original.replace("Stub only.\n", "Stub only.\n## step: start\n" + RUNTIME_MARKER + "\n"));
-  const f = await fixture(t, (_request, response) => { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(payload)); });
+  const f = await fixture(t, (_request, response) => { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(versionedDelivery(payload, "codex"))); });
   const result = await f.run("codex"); assert.notEqual(result.code, 0);
   assert.match(result.output, /protocol mismatch/);
   for (const name of [".codex", ".claude", "docs", "harness.lock.json", "harness.init.guard"]) assert.equal(existsSync(join(f.root, name)), false);
@@ -74,37 +77,27 @@ async function fixture(t, respond = null) {
     const url = new URL(request.url, "http://localhost"); requests.push(url.pathname + url.search);
     if (respond) { respond(request, response); return; }
     response.setHeader("Content-Type", "application/json");
-    if (url.pathname === "/api/templates") response.end(JSON.stringify(deliverable(rows, "max", url.searchParams.get("client") ?? "claude")));
-    else if (url.pathname === "/api/runbook") response.end("{}");
+    if (url.pathname === "/api/templates") response.end(JSON.stringify(versionedDelivery(deliverable(rows, "max", url.searchParams.get("client") ?? "claude"), url.searchParams.get("client") ?? "claude")));
+    else if (url.pathname === "/api/runbook") response.end('{"ok":true}');
     else { response.writeHead(404); response.end("{}"); }
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve)); t.after(() => { server.closeAllConnections(); server.close(); });
-  const env = { ...process.env, HARNESS_TOKEN: newToken().plain, HARNESS_VERIFIER_SKILL_DIR: skill };
+  const env = { ...process.env, HARNESS_CLAUDE_CLI: claudeFixtureExecutable(), HARNESS_TOKEN: newToken().plain, HARNESS_VERIFIER_SKILL_DIR: skill };
   delete env.HARNESS_TEMPLATES_DIR; delete env.HARNESS_PLAN; delete env.HARNESS_OWNER_TOKEN;
   const run = (client, ...args) => new Promise(resolve => execFile(process.execPath, [BIN, "--root", root, "--server", `http://127.0.0.1:${server.address().port}`, "--client", client, ...args], { env, windowsHide: true, timeout: 35000 }, (error, stdout, stderr) => resolve({ code: error?.code ?? 0, output: stdout + stderr })));
   return { root, run, requests, skill, env };
 }
 
-it("bounds local Codex remote preflight headers, body and error body before any output writes", { timeout: 65000 }, async t => {
-  await Promise.all(["headers", "body", "error-body"].map(async mode => {
-    const timers = [];
-    const f = await fixture(t, (_request, response) => {
-      if (mode === "headers") return;
-      response.writeHead(mode === "error-body" ? 429 : 200, { "Content-Type": "application/json" }); response.write('{"unfinished":');
-      const timer = setInterval(() => { if (!response.destroyed) response.write(" "); }, 250); timers.push(timer);
-      response.once("close", () => clearInterval(timer));
-    });
-    t.after(() => timers.forEach(clearInterval));
-    const directory = join(f.root, "local-templates");
-    for (const row of rows) {
-      const file = join(directory, "en", row.path); mkdirSync(join(file, ".."), { recursive: true }); writeFileSync(file, row.body);
-    }
-    f.env.HARNESS_TEMPLATES_DIR = directory; f.env.HARNESS_PLAN = "max";
-    const started = Date.now(), result = await f.run("codex");
-    assert.equal(result.code, 1, result.output); assert.ok(Date.now() - started >= 18000);
-    assert.equal(f.requests.length, 1, "preflight must not retry");
-    for (const name of ["harness.lock.json", "harness.init.guard", ".codex", "docs/harness/codex-runbook.md"]) assert.equal(existsSync(join(f.root, name)), false);
-  }));
+it("local Codex templates remain an offline pending preview without remote requests", async t => {
+  const f = await fixture(t);
+  const directory = join(f.root, "local-templates");
+  for (const row of rows) {
+    const file = join(directory, "en", row.path); mkdirSync(join(file, ".."), { recursive: true }); writeFileSync(file, row.body);
+  }
+  f.env.HARNESS_TEMPLATES_DIR = directory; f.env.HARNESS_PLAN = "max";
+  const result = await f.run("codex"); assert.equal(result.code, 0, result.output);
+  assert.equal(f.requests.length, 0);
+  assert.equal(JSON.parse(readFileSync(join(f.root, "harness.lock.json"), "utf8")).clients.codex.state, "pending");
 });
 
 for (const dry of [false, true]) it(`Codex ignores a CLAUDE.md directory including invalid markers during init; dry-run=${dry}`, async t => {
@@ -123,14 +116,14 @@ for (const order of [["claude", "codex"], ["codex", "claude"]]) it(`initializes 
   for (const client of order) { const result = await f.run(client); assert.equal(result.code, 0, result.output); }
   const claude = readFileSync(join(f.root, ".claude/agents/web-dev.md"), "utf8"), codex = readFileSync(join(f.root, ".codex/agents/web-dev.toml"), "utf8");
   assert.doesNotMatch(claude + codex, /PRIVATE STEP|## step:/);
-  const version = codexRunbookVersion(rows.find(row => row.path === "CODEX.runbook.md").body);
+  const version = codexRunbookVersion(versionedDelivery(deliverable(rows, "max", "codex"), "codex").templates["CODEX.runbook.md"]);
   assert.match(readFileSync(join(f.root, "docs/harness/codex-runbook.md"), "utf8"), new RegExp(version));
   const lock = JSON.parse(readFileSync(join(f.root, "harness.lock.json"), "utf8"));
-  assert.equal(lock.version, 1); assert.ok(lock.files[".claude/agents/web-dev.md"]); assert.ok(lock.files[".codex/agents/web-dev.toml"]);
+  assert.equal(lock.version, 2); assert.equal(lock.clients.claude.state, "ready"); assert.equal(lock.clients.codex.state, "ready"); assert.ok(lock.files[".claude/agents/web-dev.md"]); assert.ok(lock.files[".codex/agents/web-dev.toml"]);
   const originalClaude = readFileSync(join(f.root, "CLAUDE.md"), "utf8");
   writeFileSync(join(f.root, ".mcp.json"), "broken unrelated legacy file");
   assert.equal((await f.run("codex")).code, 0); assert.equal(readFileSync(join(f.root, "CLAUDE.md"), "utf8"), originalClaude); assert.equal(readFileSync(join(f.root, ".mcp.json"), "utf8"), "broken unrelated legacy file");
-  assert.equal(f.requests.filter(request => request.startsWith("/api/runbook")).length, 1);
+  assert.equal(f.requests.filter(request => request.startsWith("/api/runbook")).length, 3);
 });
 
 for (const newline of ["\n", "\r\n"]) it(`gives only the Claude plan-verifier a scratch Write tool and keeps its Codex role read-only: ${JSON.stringify(newline)}`, async t => {
@@ -138,7 +131,7 @@ for (const newline of ["\n", "\r\n"]) it(`gives only the Claude plan-verifier a 
   const f = await fixture(t, (request, response) => {
     const url = new URL(request.url, "http://localhost");
     response.setHeader("Content-Type", "application/json");
-    response.end(url.pathname === "/api/templates" ? JSON.stringify(deliverable(raw, "max", url.searchParams.get("client") ?? "claude")) : "{}");
+    response.end(url.pathname === "/api/templates" ? JSON.stringify(versionedDelivery(deliverable(raw, "max", url.searchParams.get("client") ?? "claude"), url.searchParams.get("client") ?? "claude")) : '{"ok":true}');
   });
 
   for (const client of ["claude", "codex"]) { const result = await f.run(client); assert.equal(result.code, 0, result.output); }
@@ -164,7 +157,7 @@ it("preserves modified Codex file and its prior lock hash, and serializes concur
   for (const result of results) assert.equal(result.code, 0, result.output);
   const file = ".codex/agents/web-dev.toml", previous = JSON.parse(readFileSync(join(f.root, "harness.lock.json"), "utf8")).files[file];
   writeFileSync(join(f.root, file), "user changed\n");
-  assert.equal((await f.run("codex")).code, 0); assert.equal(readFileSync(join(f.root, file), "utf8"), "user changed\n");
+  assert.equal((await f.run("codex")).code, 1); assert.equal(readFileSync(join(f.root, file), "utf8"), "user changed\n");
   assert.deepEqual(JSON.parse(readFileSync(join(f.root, "harness.lock.json"), "utf8")).files[file], previous);
   assert.equal(existsSync(join(f.root, "harness.init.guard")), false);
 });
@@ -172,4 +165,48 @@ it("preserves modified Codex file and its prior lock hash, and serializes concur
 it("rejects incomplete verifier resources before generated writes", async t => {
   const f = await fixture(t); writeFileSync(join(f.skill, "SKILL.md"), "---\nname: reconciling-proposals-with-codebase\n---\nRead [missing](./missing.md).\n");
   assert.notEqual((await f.run("codex")).code, 0); assert.equal(existsSync(join(f.root, "harness.lock.json")), false); assert.equal(existsSync(join(f.root, ".codex")), false);
+});
+
+it("explicit release installation records effective fallback language and preserves the configured preference", async t => {
+  const f = await fixture(t);
+  writeFileSync(join(f.root, "harness.json"), JSON.stringify({ ...config, language: "ko" }));
+  const result = await f.run("codex", "--release", "fixture-release");
+  assert.equal(result.code, 0, result.output);
+  const installed = readInstalledTemplate(f.root, "codex");
+  assert.equal(installed.installation.language, "en"); assert.equal(installed.config.language, "ko");
+  assert.match(f.requests[0], /lang=ko/); assert.match(f.requests[0], /release=fixture-release/);
+  const lock = JSON.parse(readFileSync(join(f.root, "harness.lock.json"), "utf8"));
+  assert.equal(lock.files[".codex/agents/web-dev.toml"].template, "en/agents/dev.md");
+});
+
+it("an unchanged v1 Claude block upgrades using the exact baseline render without adopting owner edits", async t => {
+  const f = await fixture(t);
+  const directory = join(f.root, "legacy-source");
+  for (const row of rows) {
+    const file = join(directory, "en", row.path); mkdirSync(join(file, ".."), { recursive: true }); writeFileSync(file, row.body);
+  }
+  f.env.HARNESS_TEMPLATES_DIR = directory;
+  const preview = await f.run("claude"); assert.equal(preview.code, 0, preview.output);
+  const file = join(f.root, "harness.lock.json"), lock = JSON.parse(readFileSync(file, "utf8"));
+  writeFileSync(file, JSON.stringify({ version: 1, files: lock.files }));
+  delete f.env.HARNESS_TEMPLATES_DIR;
+  const upgraded = await f.run("claude"); assert.equal(upgraded.code, 0, upgraded.output);
+  assert.equal(readInstalledTemplate(f.root, "claude").installation.releaseId, "fixture-release");
+});
+
+it("a shared document upgrade readies only the selected client and invalidates the other installation", async t => {
+  let changed = false;
+  const f = await fixture(t, (request, response) => {
+    const url = new URL(request.url, "http://localhost"), client = url.searchParams.get("client") ?? "claude";
+    if (request.method === "POST") { response.end('{"ok":true}'); return; }
+    const next = changed ? rows.map(row => row.path === "docs/plans/template.md" ? { ...row, body: row.body + "New shared contract\n" } : row) : rows;
+    const body = versionedDelivery(deliverable(next, "max", client), client);
+    body.templateRelease.id = changed ? "next-release" : "first-release";
+    response.end(JSON.stringify(body));
+  });
+  for (const client of ["claude", "codex"]) assert.equal((await f.run(client)).code, 0);
+  changed = true;
+  const upgraded = await f.run("codex"); assert.equal(upgraded.code, 0, upgraded.output);
+  assert.equal(readInstalledTemplate(f.root, "codex").installation.releaseId, "next-release");
+  assert.throws(() => readInstalledTemplate(f.root, "claude"), /pending/);
 });

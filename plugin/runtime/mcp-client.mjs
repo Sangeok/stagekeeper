@@ -8,6 +8,9 @@ import { parseToolResponse } from "../lib/execution/watch.mjs";
 import { isRunbookVersion, codexRunbookVersion } from "../lib/templates/runbook.mjs";
 import { validateCodexBundle } from "../lib/templates/codex-bundle.mjs";
 
+import { installationFromMetadata, readInstalledTemplate } from "./template-installation.mjs";
+import { TEMPLATE_PROTOCOL, compatibleInstallation } from "../lib/templates/release-manifest.mjs";
+
 export function serverUrl(value) {
   const url = new URL(value);
   if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error("Invalid HARNESS_SERVER URL");
@@ -28,7 +31,8 @@ export function connectionInput(root, options = {}) {
     if (metadata.client !== client || metadata.protocol !== RUNTIME_PROTOCOL || !isRunbookVersion(metadata.runbook)) throw new Error("Unsupported Codex installation; run $harness-init");
     runbook = metadata.runbook;
   }
-  return { config, token, server, client, runbook,
+  const { installation } = readInstalledTemplate(root, client);
+  return { config, token, server, client, runbook, installation,
     binding: { root, server, project: config.project.slug, configHash: hash(configText), tokenHash: hash(token) } };
 }
 
@@ -72,7 +76,10 @@ function safeDomainFailure(error, token) {
 
 export async function callTool(input, name, args = {}, signal) {
   const scoped = { ...args, ...(input.config.project.slug ? { project: input.config.project.slug } : {}) };
-  if (input.client === "codex" && ["agent_next", "pipeline_next"].includes(name)) scoped.client = "codex";
+  if (["agent_next", "pipeline_next"].includes(name)) {
+    scoped.client = input.client;
+    scoped.installation = readInstalledTemplate(input.binding.root, input.client, name === "agent_next" ? scoped.agent : undefined).installation;
+  }
   if (name === "pipeline_next" && input.runbook) scoped.runbook = input.runbook;
   const response = await mcpRequest(input, "tools/call", { name, arguments: scoped }, signal);
   const valueKind = ["backlog_list", "board_list"].includes(name) ? "object-list" : "object";
@@ -84,10 +91,13 @@ export async function callTool(input, name, args = {}, signal) {
   }
   if (input.client === "codex" && ["agent_next", "pipeline_next"].includes(name)
     && (parsed.value?.runtime?.client !== "codex" || parsed.value.runtime.protocol !== RUNTIME_PROTOCOL)) throw new Error("Unsupported Codex server runtime; no further calls allowed");
+  if (["agent_next", "pipeline_next"].includes(name) && parsed.value?.templateProtocol !== TEMPLATE_PROTOCOL) throw new Error("Unsupported template server protocol; no further calls allowed");
+  if (["agent_next", "pipeline_next"].includes(name)) readInstalledTemplate(input.binding.root, input.client);
   return parsed.value;
 }
 
 export async function verifyProject(input) {
+  await verifyTemplateSupport(input);
   const identity = await callTool(input, "project_get");
   const project = input.config.project;
   if (identity?.available !== true || identity.owner?.toLowerCase() !== project.owner.toLowerCase()
@@ -95,13 +105,31 @@ export async function verifyProject(input) {
   return identity;
 }
 
+export async function verifyTemplateSupport(input, signal) {
+  const { installation } = readInstalledTemplate(input.binding.root, input.client);
+  const url = new URL(`${input.server}/api/templates`);
+  url.searchParams.set("client", input.client); url.searchParams.set("lang", installation.language);
+  url.searchParams.set("release", installation.releaseId); url.searchParams.set("templateProtocol", TEMPLATE_PROTOCOL);
+  if (input.config.project.slug) url.searchParams.set("project", input.config.project.slug);
+  const timeout = AbortSignal.timeout(15000);
+  const response = await fetch(url, { redirect: "manual", signal: signal ? AbortSignal.any([signal, timeout]) : timeout, headers: { Authorization: `Bearer ${input.token}` } });
+  if (!response.ok) { await response.body?.cancel(); throw new Error("Template installation support check refused; resolve access or init before continuing"); }
+  const body = await response.json();
+  const selected = installationFromMetadata(body?.templateRelease);
+  if (selected.releaseId !== installation.releaseId || !compatibleInstallation(installation, selected)) throw new Error("Installed release is not supported by this server and current plan");
+  return body;
+}
+
 export async function verifyCodexSupport(input) {
   const url = new URL(`${input.server}/api/templates`);
-  url.searchParams.set("client", "codex"); url.searchParams.set("lang", input.config.language);
+  const { installation } = readInstalledTemplate(input.binding.root, "codex");
+  url.searchParams.set("client", "codex"); url.searchParams.set("lang", installation.language);
+  url.searchParams.set("release", installation.releaseId); url.searchParams.set("templateProtocol", TEMPLATE_PROTOCOL);
   if (input.config.project.slug) url.searchParams.set("project", input.config.project.slug);
   const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${input.token}` } });
   if (!response.ok) throw new Error("Codex bundle preflight refused");
   const bundle = await response.json();
+  if (bundle.templateRelease?.id !== installation.releaseId || !compatibleInstallation(installation, bundle.templateRelease ?? {})) throw new Error("Codex installation is incompatible with this release and current plan");
   if (bundle.runtime?.client !== "codex" || bundle.runtime.protocol !== RUNTIME_PROTOCOL) throw new Error("Unsupported Codex server runtime");
   validateCodexBundle(Object.entries(bundle.templates ?? {}).map(([path, body]) => ({ path, body })), bundle.entitlement?.plan);
   if (codexRunbookVersion(bundle.templates["CODEX.runbook.md"]) !== input.runbook) throw new Error("Codex runbook is stale; run $harness-init");

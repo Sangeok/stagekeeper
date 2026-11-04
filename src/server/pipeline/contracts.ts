@@ -11,3 +11,5 @@ export type ExecutionFacts = {
   turnDispatched: boolean;
   handoff: { step: string; note: string | null } | null;
 };
+export type { TemplatePin, TemplateMetadata, TemplateRunContext } from "./template-selection";
+export type AgentExecutionContext = { kind: "legacy"; runId: string; node: string } | { kind: "standalone" };

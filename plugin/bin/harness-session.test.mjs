@@ -1,3 +1,4 @@
+import { installReadyFixture } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { EventEmitter } from "node:events";
@@ -21,6 +22,8 @@ import { createRoleFiles } from "../runtime/role-files.mjs";
 
 it("carries safe server refusals through real callTool and HTTP bridge without changing receipts", async t => {
   const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  writeFileSync(path.join(f.root, "harness.json"), JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main", slug: "p" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] }));
+  installReadyFixture(f.root, "codex");
   let payload, status = 200, wrongId = false, beforeResponse = async () => {};
   const upstream = createServer(async (request, response) => {
     const chunks = []; for await (const chunk of request) chunks.push(chunk);
@@ -40,7 +43,7 @@ it("carries safe server refusals through real callTool and HTTP bridge without c
     body: JSON.stringify({ jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name: "agent_next", arguments: {} } }) })).json();
   const refuse = value => { payload = { isError: true, content: [{ type: "text", text: JSON.stringify(value) }] }; };
   try {
-    const current = { done: false, step: "audit", receipt: { runId: "r", revision: 1, stepId: "audit" }, runtime: { client: "codex", protocol: "harness-runtime-v1" } };
+    const current = { templateProtocol: "template-release-v1", done: false, step: "audit", receipt: { runId: "r", revision: 1, stepId: "audit" }, runtime: { client: "codex", protocol: "harness-runtime-v1" } };
     payload = { content: [{ type: "text", text: JSON.stringify(current) }] };
     assert.equal((await request()).result.isError, false);
     const expectedState = { done: false, receipt: current };
@@ -64,6 +67,8 @@ it("carries safe server refusals through real callTool and HTTP bridge without c
 
 it("does not publish a domain refusal arriving after bridge abort", async t => {
   const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  writeFileSync(path.join(f.root, "harness.json"), JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main", slug: "p" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] }));
+  installReadyFixture(f.root, "codex");
   let bridge;
   const upstream = createServer(async (request, response) => {
     const chunks = []; for await (const chunk of request) chunks.push(chunk);

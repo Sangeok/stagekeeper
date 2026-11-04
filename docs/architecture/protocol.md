@@ -17,6 +17,10 @@ Discover work와 Assign work의 실행·선택 근거 계약은 [pipeline-execut
 
 ## 템플릿 다운로드 — `GET /api/templates`
 
+이 절의 legacy 본문과 함께 [버전 설치 계약](./template-releases.md)을 적용한다.
+versioned 응답은 templateRelease와 templateContract를 포함하고 새 플러그인은
+명시적인 templateProtocol을 보낸다.
+
 `/harness:init`은 `Authorization: Bearer <토큰>`과 `lang` 쿼리(생략 시 `en`)로 템플릿을 요청한다.
 서버는 토큰 인증 → **프로젝트 확정** → 프로젝트 접근 확인 → 단기 요청 제한 → 언어별 템플릿 조회 순으로 처리한다.
 인증이나 접근 확인에 실패하면 템플릿을 조회하지 않는다.
@@ -118,14 +122,14 @@ MCP의 공통 `project` 필드 설명은 `hu_`에서 매 호출 필수라는 점
 `makeTemplatesFor`·`makeRecordRunbook`의 실제 인증·스코프 코드를 실행한다. DB IO만 대체하며
 `npm run test:web`을 통해 CI에서 검사한다. 토큰 하나로 두 checkout을 연결하는 경우, 플랜별 첫 생성·재실행,
 slug 누락, `hs_` 호환, dry-run 무쓰기, 타 프로젝트 거부를 포함한다. private 템플릿 검사는
-`npm run test:templates`로 런북·모든 스텁·단계·안내 문서의 호출 예시와 플랜별 배포 결과를 확인한다.
+`HARNESS_RELEASE_SOURCE=<private checkout> HARNESS_RELEASE_COMMIT=<full SHA> npm run test:template-release`로
+실제 원본의 파싱·렌더와 양 client·모든 plan의 HTTP 설치를 검증한다. 기존 private repo의
+`test:templates` suite는 그 repo 자체의 경로·lock v1 계약을 정비한 후 별도로 실행한다.
 
-플러그인과 템플릿은 별도 배포 단위다. `plugin/.claude-plugin/plugin.json`의 버전을 올린 플러그인을
-배포하는 것만으로 DB의 `Template` 본문이 바뀌지 않는다. private 템플릿 저장소의 변경도 반영하고
-검증한 원본을 `npm run seed:templates`로 대상 DB에 게시해야 한다. 이후 사용자 플러그인을 업데이트하고
-init을 재실행해 런북과 관리 스텁을 갱신한다. 새 템플릿 변수는 추가하지 않아 구버전 렌더러와도 호환된다.
-`skip(modified)` 파일은 보존하고 별도 조정 대상으로 알린다. 운영 완료는 실제 응답 본문과 생성물의
-프로젝트 전달 지침, `project_get`·`project_sync` 성공까지 확인한 뒤 판단한다.
+플러그인과 템플릿은 별도 배포 단위다. versioned 서버는 명시적인 import와 CAS 활성화를
+사용하며 기존 seed는 DB writer 장벽 이후 거부한다. init은 lock v2의 client별 ready가
+확정될 때만 후속 MCP 등록·sync로 진행한다. 자세한 보존·복구·배포 경계는
+[template-releases.md](./template-releases.md)를 따른다.
 
 실제 보호 요청은 계정 1,200회·프로젝트 300회/10분으로 제한한다. 각 subject의 첫 허용 요청이
 구간을 시작한다. 15개 agent 도구·owner `gate_approve`·다섯 REST 경로에 인증/소유 범위/공통

@@ -1,3 +1,5 @@
+import { templateInstallationSchema } from "@/server/templates/api";
+import type { Installation } from "@harness/core/templates/release-manifest.mjs";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { NOTE_MAX, OUTCOMES, receiptSchema } from "@/server/agents/api";
 import { type NextInput, type NextOutput } from "@/server/agents/contracts";
@@ -11,6 +13,8 @@ import { validateWorkspaceSemantics } from "@harness/core/configuration/workspac
 import type { BacklogView, BacklogWithStatusView } from "./views";
 import type { SelectionContext, SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
 import { z } from "zod";
+
+const executionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("legacy"), runId: z.string().min(1), node: z.string().min(1) }).strict(), z.object({ kind: z.literal("standalone") }).strict()]);
 
 export const AGENT_TOOL_NAMES = [
   "project_get", "project_sync", "backlog_list", "backlog_get", "backlog_add", "board_list", "board_get",
@@ -52,7 +56,7 @@ export type ToolDeps = {
   failAcceptance(projectId: string, input: { key: string; checks: number[]; note: string; path?: string; commit?: string }, actorRef: string): Promise<ServerResult<unknown>>;
   recordValidation(projectId: string, input: { key: string; text: string }, actorRef: string): Promise<ServerResult<unknown>>;
   agentNext(projectId: string, tokenId: string, input: NextInput): Promise<ServerResult<NextOutput>>;
-  pipelineNext(projectId: string, key: string | undefined, runbook?: string, client?: Client): Promise<ServerResult<unknown>>;
+  pipelineNext(projectId: string, key: string | undefined, runbook?: string, client?: Client, installation?: Installation): Promise<ServerResult<unknown>>;
   access(projectId: string): Promise<ProjectAccess>;
   projectFor(slug: string, userId: string): Promise<string | null>;
 };
@@ -225,15 +229,15 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.failAcceptance(s.projectId, args, s.actorRef));
   });
-  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate or for the owner (including failed acceptance), accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when the runbook version you pass (or, without one, the version the last init reported) is older than the current template.", inputSchema: z.object({ ...project, client: z.enum(["claude", "codex"]).optional(), key: z.string().optional(), runbook: z.string().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("pipeline_next", { description: "Next thing to do — for one item (key) or for every open item (no key): dispatch an agent, wait at a gate or for the owner (including failed acceptance), accept, or done. Advances the pipeline cursor where the graph allows. Without a key the answer also carries a runbook field when the runbook version you pass (or, without one, the version the last init reported) is older than the current template.", inputSchema: z.object({ ...project, client: z.enum(["claude", "codex"]).optional(), key: z.string().optional(), runbook: z.string().optional(), installation: templateInstallationSchema.optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId } = s;
     const unavailable = await guardUnavailable(deps, projectId);
     if (unavailable) return unavailable;
-    return unwrap(await deps.pipelineNext(projectId, args.key, args.runbook, args.client));
+    return unwrap(await deps.pipelineNext(projectId, args.key, args.runbook, args.client, args.installation));
   });
-  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ agent: z.string(), client: z.enum(["claude", "codex"]).optional(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: receiptSchema.optional(), ...project }) }, async (args, ctx: Ctx) => {
+  server.registerTool("agent_next", { description: "Your next step. Call without outcome to (re)read the current step; with outcome ok | blocked | failed to finish it and get the next one, or handoff to record a commit handoff and stay on the step. Every outcome requires the receipt { runId, revision, stepId } returned with the current step. Send it unchanged; stale receipts require a fresh read without outcome. Repeat until done: true. A refusal says which board state opens the step.", inputSchema: z.object({ installation: templateInstallationSchema.optional(), execution: executionSchema.optional(), agent: z.string(), client: z.enum(["claude", "codex"]).optional(), key: z.string().optional(), entry: z.object({ runId: z.string().min(1), entryId: z.string().min(1), slotId: z.string().min(1) }).optional(), agentRunId: z.string().optional(), stepId: z.string().optional(), outcome: z.enum(OUTCOMES).optional(), note: z.string().max(NOTE_MAX).optional(), receipt: receiptSchema.optional(), ...project }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, tokenId } = s;

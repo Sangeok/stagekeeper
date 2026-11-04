@@ -202,6 +202,7 @@ export function sessionView(state) {
 export async function startSession(files, binding, options) {
   mkdirSync(path.dirname(files.lock), { recursive: true });
   return withGuard(files, () => {
+    if (existsSync(path.join(binding.root, "harness.init.guard"))) throw new Error("Template init is in progress");
     const state = readState(files);
     if (state) return { event: "locked", ...sessionView(state), startedAt: state.lock.startedAt };
     const session = randomUUID(), timestamp = new Date().toISOString();

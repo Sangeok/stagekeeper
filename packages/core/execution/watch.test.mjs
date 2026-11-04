@@ -10,6 +10,21 @@ const response = (value, extra = {}) => ({ jsonrpc: "2.0", id: "ours", result: {
 const parse = (value) => parseToolResponse("application/json; charset=utf-8", JSON.stringify(value), "ours");
 const freshState = { lastSignature: null, repeats: 0, stuck: false };
 
+it("template waits preserve compatible work and legacy execution identity survives projection", () => {
+  const templateRelease = { id: "r1", schemaVersion: 1, protocol: "template-release-v1", language: "en", clientSurfaceHash: "a".repeat(64) };
+  const waiting = { key: "BLOCKED", node: null, version: null, action: "wait", on: "template", reason: "Install r1", templateRelease };
+  const execution = { kind: "legacy", runId: "parent-1", node: "plan" };
+  const ready = dispatch({ templateRelease, execution });
+  const work = actionableWork(overview([waiting, ready]), policy);
+  assert.equal(work.items.length, 1);
+  assert.deepEqual(work.items[0].execution, execution);
+  assert.notEqual(workSignature(work), workSignature(actionableWork(overview([dispatch({ templateRelease, execution: { ...execution, runId: "parent-2" } })]), policy)));
+  assert.equal(workSignature(work), workSignature(actionableWork(overview([dispatch({ templateRelease: { ...templateRelease }, execution: { node: "plan", runId: "parent-1", kind: "legacy" } })]), policy)));
+  assert.throws(() => actionableWork(overview([dispatch({ templateRelease })]), policy));
+  assert.throws(() => actionableWork(overview([{ ...waiting, on: "unknown" }]), policy));
+  assert.throws(() => actionableWork(overview([{ ...waiting, templateRelease: { ...templateRelease, protocol: "future" } }]), policy));
+});
+
 it("retains project entry identity, resets repeated-work detection for a new entry and honors new-work permission", () => {
   for (const [agent, slotId] of [["work-assigner", "assign-work"], ["work-discoverer", "discover-work"], ["doc-auditor", "doc-audit"]]) {
     const entry = { runId: "project-run", entryId: "first", slotId };

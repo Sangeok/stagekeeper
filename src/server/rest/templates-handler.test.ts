@@ -33,6 +33,8 @@ function setup(options: Options = {}) {
     tokenHashes: [], projectIds: [], languages: [],
   };
   const deps: TemplateDeps = {
+      templateMode: async () => "legacy",
+      readRelease: async () => ({ ok: false, reason: "No versioned fixture" }),
       requestLimit: async () => null,
     findTokenByHash: async (hash) => {
       calls.tokenHashes.push(hash);
@@ -208,6 +210,8 @@ describe("templatesFor with a user token", () => {
       slugs: [], projectIds: [], languages: [],
     };
     const deps: TemplateDeps = {
+      templateMode: async () => "legacy",
+      readRelease: async () => ({ ok: false, reason: "No versioned fixture" }),
       requestLimit: async () => null,
       findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
       findUserTokenByHash: async () => (options.userRecord === undefined ? userRecord : options.userRecord),

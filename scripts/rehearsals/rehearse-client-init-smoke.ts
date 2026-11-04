@@ -6,6 +6,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
+import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
 import { assertGeneratedAgents, containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
 
@@ -28,6 +29,7 @@ export type Options = {
   client: "claude" | "codex";
   scenario: "new-user" | "update";
   templates: string;
+  templateCommit?: string;
   pluginSource: "github-branch" | "export" | "bundle";
   pluginCommit: string;
   pluginBranch?: string;
@@ -37,7 +39,7 @@ export type Options = {
   help: boolean;
 };
 
-const VALUED = ["--client", "--scenario", "--templates", "--plugin-source", "--plugin-commit", "--plugin-branch", "--previous-ref", "--snapshot"];
+const VALUED = ["--client", "--scenario", "--templates", "--plugin-source", "--plugin-commit", "--plugin-branch", "--previous-ref", "--snapshot", "--template-commit"];
 const FLAGS = ["--allow-machine-changes", "--help"];
 
 export function parseArguments(args: string[]): Options {
@@ -72,10 +74,12 @@ export function parseArguments(args: string[]): Options {
   if (pluginSource === "github-branch" && !values.get("--plugin-branch")) throw new Error("--plugin-source github-branch needs --plugin-branch");
   if (scenario === "update" && (!previousRef || !COMMIT.test(previousRef))) throw new Error("--scenario update needs --previous-ref with a 40-hex commit");
   if (scenario === "new-user" && previousRef) throw new Error("--previous-ref applies only to --scenario update");
+  const templateCommit = values.get("--template-commit");
+  if (templateCommit && !COMMIT.test(templateCommit)) throw new Error("--template-commit must be a full commit SHA");
   const snapshot = values.get("--snapshot");
   if (snapshot && !path.isAbsolute(snapshot)) throw new Error("--snapshot must be an absolute path");
   if (client !== "claude" || pluginSource === "bundle") throw new Error(`${client} from ${pluginSource} is not implemented yet`);
-  return { client, scenario, templates, pluginSource, pluginCommit, pluginBranch: values.get("--plugin-branch"), previousRef, snapshot, allowMachineChanges: flags.has("--allow-machine-changes"), help };
+  return { client, scenario, templates, templateCommit, pluginSource, pluginCommit, pluginBranch: values.get("--plugin-branch"), previousRef, snapshot, allowMachineChanges: flags.has("--allow-machine-changes"), help };
 }
 
 type Command = { code: number; stdout: string; stderr: string };
@@ -169,7 +173,13 @@ export class Smoke {
 
   async generate(plugin: Plugin, name: string, plan: "free" | "pro"): Promise<void> {
     await this.run.step(name, async () => {
-      this.helper(plugin, [], name);
+      const result = this.helper(plugin, [], name);
+      const manifest = JSON.parse(readFileSync(path.join(plugin.root, ".claude-plugin/plugin.json"), "utf8"));
+      const versioned = Number(manifest.version.split(".")[0]) > 0 || Number(manifest.version.split(".")[1]) >= 6;
+      if (versioned) {
+        if (!/^ready:/m.test(result.stdout)) throw new Error("Versioned init did not commit a ready installation");
+        readInstalledTemplate(this.repo, "claude");
+      }
       await assertGeneratedAgents(plugin.root, this.repo, plan, ["app-dev"]);
       if (!existsSync(path.join(this.repo, "CLAUDE.md"))) throw new Error("generation did not write CLAUDE.md");
     });
@@ -188,7 +198,9 @@ export class Smoke {
       const line = outcome.stdout.split(/\r?\n/).map(text => text.trim()).filter(text => text.startsWith("{")).at(-1);
       if (typeof (line ? JSON.parse(line) as { synced?: unknown } : null)?.synced !== "number") throw new Error("project_sync did not report a synced count");
       const state = await projectState(slug, this.userId);
-      if (!state.runbookVersion) throw new Error("the generator did not record the runbook version");
+      const installation = JSON.parse(readFileSync(path.join(this.repo, "harness.lock.json"), "utf8"));
+      if (installation.version === 2) readInstalledTemplate(this.repo, "claude");
+      else if (!state.runbookVersion) throw new Error("the legacy generator did not record the runbook version");
       if (!state.lastSyncedAt) throw new Error("project_sync did not record lastSyncedAt");
       if (after && state.lastSyncedAt.getTime() <= after.getTime()) throw new Error("project_sync did not advance lastSyncedAt");
       if (state.workspaces !== 1) throw new Error(`the roster has ${state.workspaces} workspaces instead of 1`);
@@ -230,7 +242,7 @@ export class Smoke {
 }
 
 function markerLine(outcome: Command): string {
-  const line = `${outcome.stdout}\n${outcome.stderr}`.split(/\r?\n/).map(text => text.trim()).filter(text => /^(?:plan|write|skip\(modified\)|skip\(plan\)|refuse|server|stop|note|Config error|Server URL required|Registration|Templates unavailable|Cannot reach|HARNESS_TOKEN required)\b/.test(text)).at(-1);
+  const line = `${outcome.stdout}\n${outcome.stderr}`.split(/\r?\n/).map(text => text.trim()).filter(text => /^(?:plan|write|skip\(modified\)|skip\(plan\)|refuse|server|stop|note|Initialization error|Config error|Server URL required|Registration|Templates unavailable|Cannot reach|HARNESS_TOKEN required)\b/.test(text)).at(-1);
   return line ? `: ${line}` : "";
 }
 
@@ -359,8 +371,9 @@ export async function newUser(smoke: Smoke, plugin: Plugin, scenario: string, lo
   await smoke.sync(plugin, "pro-sync", connection.slug, rerunAt);
 }
 
-async function update(smoke: Smoke, previous: Plugin, installNew: () => Promise<Plugin>, options: Options, token: string): Promise<Plugin> {
+async function update(smoke: Smoke, previous: Plugin, installNew: () => Promise<Plugin>, options: Options, token: string, cutover: () => Promise<void>): Promise<Plugin> {
   const connection = await smoke.firstConnection(previous, "previous-", options.scenario, token);
+  await cutover();
   const plugin = await smoke.run.step("plugin-install", installNew);
   await smoke.connected("mcp-unchanged");
   await smoke.dryRun(plugin, "update-dry-run", "free");
@@ -374,6 +387,25 @@ export function seedTemplates(run: Run, templates: string, snapshot: string, chi
   const revision = /done: \d+ templates atomically seeded from ([0-9a-f]{40})/.exec(output)?.[1];
   if (!revision) throw new Error("seed:templates did not report a template revision");
   return revision;
+}
+
+export async function bootstrapSmokeTemplates(input: { run: Run; work: string; codeSha: string; requestId: string; workflowRun: string }): Promise<void> {
+  await input.run.step("template-cutover", async () => {
+    const { withPrisma } = await import("../lib/prisma");
+    const { snapshotTemplateCutover, bootstrapTemplateReleases } = await import("../../src/server/templates/api");
+    await withPrisma(async db => {
+      const snapshot = await snapshotTemplateCutover(db);
+      writeFileSync(path.join(input.work, "private-cutover-snapshot.json"), JSON.stringify(snapshot), { flag: "wx", mode: 0o600 });
+      const audit = { actor: "client-smoke", environment: "test", targetProfileId: "isolated-smoke", targetIdentityHash: "0".repeat(64), codeSha: input.codeSha, workflowRun: input.workflowRun };
+      const result = await bootstrapTemplateReleases(db, { requestId: input.requestId, audit, evidence: {
+        schemaVersion: 1, snapshotHash: snapshot.hash, codeSha: audit.codeSha, targetIdentityHash: audit.targetIdentityHash,
+        maintenanceReference: "isolated smoke before any role RPC writers", writersDrained: true,
+        readers: [{ identity: "isolated-next-server", codeSha: audit.codeSha, protocol: "template-release-v1" }],
+        inventory: snapshot.data.templates.map(({ lang, path }) => ({ lang, path })), excluded: [], unboundRuns: [],
+      } });
+      if (!result.ok) throw new Error("Smoke template bootstrap refused");
+    });
+  });
 }
 
 export async function createFixtureUser(login: string, tokenHash: string): Promise<string> {
@@ -399,13 +431,18 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
   const record: Record<string, unknown> = { client: options.client, os: osLabel(), scenario: options.scenario, pluginSource: options.pluginSource, steps: run.steps };
   const childEnv: NodeJS.ProcessEnv = { ...env, DATABASE_URL: databaseUrl, TEST_DATABASE_URL: databaseUrl };
   const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain, HARNESS_SERVER: ORIGIN };
+  delete helperEnv.HARNESS_TEMPLATES_DIR;
+  delete helperEnv.HARNESS_PLAN;
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
   process.env.DATABASE_URL = databaseUrl;
   let server: ChildProcess | undefined;
   let userId: string | undefined;
   try {
+    if (options.templateCommit && git(options.templates, ["rev-parse", "HEAD"]) !== options.templateCommit) throw new Error("Private template checkout differs from the pinned smoke source");
     record.templatesCommit = await run.step("seed-templates", () => seedTemplates(run, options.templates, options.snapshot ?? path.join(work, "template-snapshot.json"), childEnv));
+    const cutover = () => bootstrapSmokeTemplates({ run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-smoke" });
+    if (options.scenario === "new-user") await cutover();
     userId = await run.step("fixture", () => createFixtureUser(login, token.hash));
     server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
     const repo = await run.step("repository", () => createRepository(work, options.scenario));
@@ -421,7 +458,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
         return { root, commit: previousRef };
       });
       record.previousCommit = previous.commit;
-      const plugin = await update(smoke, previous, () => installPlugin(run, options, work, helperEnv), options, token.plain);
+      const plugin = await update(smoke, previous, () => installPlugin(run, options, work, helperEnv), options, token.plain, cutover);
       record.pluginCommit = plugin.commit;
     }
     await run.step("secret-scan", () => {

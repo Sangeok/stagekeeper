@@ -37,6 +37,7 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
     updateMany: async (args: unknown) => { usage.push({ kind, args: plainObject(args) }); if (options.recordFailure) throw new Error("private storage error"); return { count: 1 }; },
   });
   const prisma = {
+    templateChannel: { findUniqueOrThrow: async () => ({ mode: "legacy" }) },
     $transaction: async () => ({ status: "existing", projectId: "p", slug: "mine" }),
     projectToken: delegate("agent"), ownerToken: delegate("owner"), userToken: delegate("user"),
     project: {

@@ -48,7 +48,7 @@ export async function createMainLoopTools(context, operations = {}) {
     let next = await nextFor(args.key), handoff;
     if (next.action === "wait" && next.on === "handoff") {
       handoff = confirmCommitHandoff(input.binding.root, args.key, next, residentGit(input.binding.root, ["rev-parse", "HEAD"]));
-      next = { action: "dispatch", ...next.resume };
+      next = { ...next, ...next.resume, action: "dispatch" };
     }
     if (next.action !== "dispatch") return { event: "waiting", next };
     if (["qa-verifier", "impl-verifier"].includes(next.agent)) throw new Error("Optional verifier requires an explicit foreground handoff");

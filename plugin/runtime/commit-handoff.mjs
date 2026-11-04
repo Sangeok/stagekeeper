@@ -26,17 +26,18 @@ export function confirmCommitHandoff(root, key, next, suppliedCommit) {
   git(root, "merge-base", "--is-ancestor", commit, "HEAD");
   const contentHash = digest(git(root, "show", `${commit}:${name}`));
   if (contentHash !== artifactHash(root, name)) throw new Error("Prepared handoff file differs from confirmed commit");
-  return { path: name, absolutePath: target, commit, contentHash, agent: resume.agent, key, agentRunId: resume.agentRunId, entry: resume.entry ?? null };
+  return { path: name, absolutePath: target, commit, contentHash, agent: resume.agent, key, agentRunId: resume.agentRunId, entry: resume.entry ?? null, ...(resume.execution ? { execution: resume.execution } : {}), ...(next.templateRelease ? { templateRelease: next.templateRelease } : {}) };
 }
 
 export function assertCommitHandoff(root, dispatch) {
   const handoff = dispatch.commitHandoff;
   if (!handoff) return;
   if (handoff.agent !== dispatch.agent || handoff.key !== dispatch.key || handoff.agentRunId !== dispatch.agentRunId
-    || !isDeepStrictEqual(handoff.entry, dispatch.entry ?? null)) throw new Error("Handoff execution binding changed");
+    || !isDeepStrictEqual(handoff.entry, dispatch.entry ?? null) || !isDeepStrictEqual(handoff.execution, dispatch.execution)
+    || !isDeepStrictEqual(handoff.templateRelease, dispatch.templateRelease)) throw new Error("Handoff execution binding changed");
   const current = confirmCommitHandoff(root, dispatch.key, {
-    action: "wait", on: "handoff", key: dispatch.key, note: handoff.path,
-    resume: { agent: dispatch.agent, key: dispatch.key, agentRunId: dispatch.agentRunId, entry: dispatch.entry },
+    action: "wait", on: "handoff", key: dispatch.key, note: handoff.path, templateRelease: dispatch.templateRelease,
+    resume: { agent: dispatch.agent, key: dispatch.key, agentRunId: dispatch.agentRunId, entry: dispatch.entry, execution: dispatch.execution },
   }, handoff.commit);
   if (!isDeepStrictEqual(current, handoff)) throw new Error("Confirmed handoff changed");
 }

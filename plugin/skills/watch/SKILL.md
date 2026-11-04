@@ -34,7 +34,7 @@ PowerShell environment variable. Resolve that absolute root, and verify these
 files under it:
 
 - `bin/harness-watch.mjs` and `bin/harness-session.mjs`
-- the modules those two helpers load: `runtime/local-session.mjs`,
+- the modules those two helpers load: `runtime/template-installation.mjs`, `lib/templates/deliver.mjs`, `lib/templates/manifest.mjs`, `lib/templates/release-manifest.mjs`, `runtime/local-session.mjs`,
   `runtime/mcp-client.mjs`, `runtime/runner-client.mjs`, `runtime/file-ownership.mjs`,
   `runtime/state-diagnostics.mjs`, `lib/execution/watch.mjs`, `lib/execution/runner.mjs`,
   `lib/execution/client-runtime.mjs`, `lib/configuration/harness-config.mjs`,
@@ -142,6 +142,8 @@ For `work`, get a **fresh, keyless** `pipeline_next` overview with the checkout
 runbook version and the same project scope. The event is a wake-up snapshot,
 not execution authority or an AgentRun receipt. If stale, ask the owner to
 run `/harness:init`; follow `pipeline_next`'s order meanwhile.
+
+Preserve `installation`, `templateRelease`, and each exact `entry` or legacy `execution` in role briefings and resumes. A template wait is not dispatchable; install its requested release with init and fetch fresh advice. The native MCP hook supplies the verified local installation tuple without replacing the parent execution.
 
 Follow all fresh ready items and the permitted head using the current runbook:
 

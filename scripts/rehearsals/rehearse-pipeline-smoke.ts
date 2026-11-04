@@ -9,7 +9,7 @@ import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
 import { containsSecret, helperCommand } from "./client-init-smoke-steps.mjs";
 import { BACKLOG_ITEM, FIXTURE_FILES, INDEPENDENT_CASES, PIPELINE_ROLES, PIPELINE_STEPS, runFindings, sealTranscripts, summarizePipeline, transcriptKey, waitVerdict } from "./pipeline-smoke-steps.mjs";
-import { createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, ORIGIN, osLabel, Run, seedTemplates, Smoke, startServer, stopServer, type Plugin } from "./rehearse-client-init-smoke";
+import { bootstrapSmokeTemplates, createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, ORIGIN, osLabel, Run, seedTemplates, Smoke, startServer, stopServer, type Plugin } from "./rehearse-client-init-smoke";
 
 const DEFAULT_WAIT_MINUTES = 75;
 const DEADLINE_MS = 100 * 60_000;
@@ -240,6 +240,8 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   const record: Record<string, unknown> = { os: osLabel(), steps: run.steps };
   const childEnv: NodeJS.ProcessEnv = { ...env, DATABASE_URL: databaseUrl, TEST_DATABASE_URL: databaseUrl };
   const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain, HARNESS_SERVER: ORIGIN };
+  delete helperEnv.HARNESS_TEMPLATES_DIR;
+  delete helperEnv.HARNESS_PLAN;
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
   const runnerEnv: NodeJS.ProcessEnv = secrets.oauth ? { ...helperEnv, CLAUDE_CODE_OAUTH_TOKEN: secrets.oauth } : helperEnv;
@@ -263,6 +265,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   });
   try {
     record.templatesCommit = await run.step("seed-templates", () => seedTemplates(run, options.templates, path.join(work, "template-snapshot.json"), childEnv));
+    await bootstrapSmokeTemplates({ run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-pipeline-smoke" });
     userId = await run.step("fixture", () => createFixtureUser(login, token.hash));
     server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
     const fixtureRepo = await run.step("repository", () => {

@@ -6,3 +6,7 @@ export { resolveCodexBundle } from "./bundle-query";
 export { runbookStale } from "./runbook-query";
 export { splitTemplate } from "./steps";
 export { TemplateFormatError } from "./steps";
+export { publishTemplateRelease, activateTemplateRelease, readTemplateDeployment, validateTemplateRelease } from "./release-service";
+export { readTemplateRelease, readTemplateChannel, readTemplateChannelMode, readTemplateDelivery } from "./release-query";
+export { templateInstallationSchema } from "./release-protocol";
+export { bootstrapTemplateReleases, snapshotTemplateCutover, templateCutoverEvidenceSchema } from "./bootstrap-service";

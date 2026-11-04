@@ -108,7 +108,7 @@ it("run storage failure rolls back usage; invalid instructions are refused befor
     assert.equal(user.usageRunCount, 0); assert.equal(user.usageWindowStartedAt, null);
     assert.equal(await db.agentRun.count({ where: { projectId: f.projectId } }), 0);
     const deps = createNextDeps(db);
-    deps.template = async () => "## step:start\n{{missing.instruction}}\nnext: done\n";
+    await db.template.update({ where: { lang_path: { lang, path: "agents/pm.md" } }, data: { body: "## step:start\n{{missing.instruction}}\nnext: done\n" } });
     const refused = await agentNext(deps, scope, { agent: "pm" });
     assert.ok(!refused.ok && refused.reason.includes("template var missing"));
     user = await db.user.findUniqueOrThrow({ where: { id: userId } });

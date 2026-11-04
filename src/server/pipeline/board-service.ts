@@ -1,3 +1,4 @@
+import { selectTemplateReleaseForRunIn, TemplateInstallationRequired, type TemplateRunContext } from "./template-selection";
 import { randomUUID } from "node:crypto";
 import { allowsSessionApprovals, capError } from "@harness/core/plans/entitlement.mjs";
 import { nextItemKey, SCOUT_ITEMS_PER_RUN, toItemType } from "@harness/core/pipeline/backlog.mjs";
@@ -9,7 +10,7 @@ import { hasActiveLegacyScoutSlot } from "./automatic-scout";
 import { isOpen } from "@harness/core/pipeline/transitions.mjs";
 import { Prisma, type PrismaClient, type BoardItem, type BacklogItem, type AcceptanceFailure } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
-import { ensureRunIn, ensureDefaultPipeline, ensureRunnableVersion, PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND, readFacts, type Graph, type GateEntry } from "./run-service";
+import { legacyEvidenceIds, ensureRunIn, ensureDefaultPipeline, ensureRunnableVersion, PIPELINE_CANNOT_RUN_ITEMS, PIPELINE_NOT_FOUND, readFacts, type Graph, type GateEntry } from "./run-service";
 import { countPickable, decideAcceptanceFail, decideAcceptanceRetry, decideDiscard, decideGate, decidePlanSubmit, decidePropose, decideReportSubmit, decideTransition, decideValidation, isNoopTransition, MAIN_LOOP, PLAN_VERIFIER } from "./board-rules";
 import { afterCursor, eventWhere, mergeHistoryPage, type HistoryCursor, type HistoryRecord, type HistoryView } from "./history-page";
 import { historyItemsQuery, type HistoryItemRecord, type HistoryItemsOptions } from "./history-items";
@@ -31,6 +32,7 @@ function reportFailure<Args extends unknown[], Result>(action: (...args: Args) =
   return async (...args: Args): Promise<Result | ServerResult<never>> => {
     try { return await action(...args); }
     catch (error) {
+      if (error instanceof TemplateInstallationRequired) throw error;
       if (error instanceof BoardRejection || error instanceof PipelineRejection) return fail(error.message);
       throw error;
     }
@@ -48,7 +50,7 @@ export type Proposer = { actor: "agent"; actorRef: string } | { actor: "human"; 
 export const PIPELINE_CHANGE_UNAVAILABLE = "The pipeline can change only while the item is proposed and nothing has run on it yet.";
 
 
-export function createBoardQueries(prisma: PrismaClient) {
+export function createBoardQueries(prisma: PrismaClient, context: TemplateRunContext = {}) {
 async function inProjectTransaction<Result>(projectId: string, work: (tx: Prisma.TransactionClient) => Promise<Result>, options?: { isolationLevel: "Serializable" }) {
   return prisma.$transaction(async (tx) => {
     const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { ownerUserId: true } });
@@ -377,10 +379,11 @@ async function proposeIn(tx: Prisma.TransactionClient, projectId: string, input:
         events: { create: { from: null, to: "proposed", actor: by.actor, actorId: by.actorRef, channel: by.actor === "human" ? by.channel : null } } },
     });
     if (assignment && executionVersion) {
-      const run = await tx.pipelineRun.create({ data: { boardItemId: item.id, versionId: executionVersion.id, node: sequence(graph)[0], entryId: randomUUID() } });
+      const selection = await selectTemplateReleaseForRunIn(tx, { projectId, parentWorkRunId: assignment.id, context });
+      const run = await tx.pipelineRun.create({ data: { ...selection, ...(selection ? { sourceWorkRunId: assignment.id } : {}), boardItemId: item.id, versionId: executionVersion.id, node: sequence(graph)[0], entryId: randomUUID() } });
       await tx.boardItem.update({ where: { id: item.id }, data: { currentRunId: run.id } });
       await tx.pipelineWorkRun.update({ where: { id: assignment.id }, data: { assignedBoardItemId: item.id } });
-    } else await ensureRunIn(tx, projectId, item.id, "proposed", true, pipelineId);
+    } else await ensureRunIn(tx, projectId, item.id, "proposed", true, pipelineId, context);
     await advanceRun(tx, projectId, input.key);
     return { ok: true as const, item: await tx.boardItem.findUniqueOrThrow({ where: { id: item.id } }) };
 }
@@ -418,7 +421,7 @@ async function startPipeline(projectId: string, userId: string, input: StartPipe
     if (reason) throw new BoardRejection(reason);
     if (graph.nodes.includes("accept") && target.acceptedAt) throw new BoardRejection("This work is already accepted. Choose a pipeline without Accept to check it again.");
     const version = await ensureExecutionVersion(tx, projectId, input.pipelineId);
-    const run = await tx.pipelineRun.create({ data: { boardItemId: target.id, versionId: version.id, startedBy: userId,
+    const run = await tx.pipelineRun.create({ data: { ...await selectTemplateReleaseForRunIn(tx, { projectId, context }), boardItemId: target.id, versionId: version.id, startedBy: userId,
       inputReportId: graph.nodes.includes("implement") ? null : report?.id, node: sequence(itemGraph(graph))[0], entryId: randomUUID() } });
     await claim(tx, target, { currentRunId: run.id, ...(graph.nodes.includes("verify") ? { validation: null } : {}) });
     await tx.transitionEvent.create({ data: { boardItemId: target.id, from: target.status, to: target.status, actor: "human", actorId: userId, channel: "web", note: `pipeline-started:${run.id}:${graph.name}` } });
@@ -441,7 +444,7 @@ async function transitionIn(
   if (!row) return fail(`no such board item: ${input.key}`);
   if (isNoopTransition(row.status, input.to, input.result)) return { ok: true as const, item: row };
   if (caller.actor === "pipeline" && input.to === "done") {
-    const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
+    const run = await ensureRunIn(tx, projectId, row.id, row.status, false, undefined, context);
     const walked = advance(run.version, run.node, await readFacts(tx, projectId, row, run));
     if (run.closedAt || caller.actorRef !== `pipeline:${run.version.id}` || input.result !== "Implementation span completed." || !walked.transitions.some((t: { to: string }) => t.to === "done")) return fail("implementation span is not complete");
   }
@@ -505,7 +508,7 @@ async function gate(
   return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
-    const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
+    const run = await ensureRunIn(tx, projectId, row.id, row.status, false, undefined, context);
     const access = await readProjectAccessIn(tx, projectId);
     const owner = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { ownerUserId: true } });
     if (!access.available || owner.ownerUserId !== caller.actorRef || (caller.channel === "session" && !allowsSessionApprovals(access.plan))) throw new BoardRejection("gate access denied");
@@ -530,7 +533,8 @@ async function gate(
 
 async function closeRuns(tx: Db, projectId: string, key: string, closedAt = new Date()) {
   const row = await tx.boardItem.findFirst({ where: { projectId, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { id: true, currentRunId: true } });
-  const run = row ? await tx.pipelineRun.findUnique({ where: { id: row.currentRunId ?? "" }, select: { id: true } }) : null;
+  const run = row ? await tx.pipelineRun.findUnique({ where: { id: row.currentRunId ?? "" }, select: { id: true, templateReleaseId: true } }) : null;
+  if (run?.templateReleaseId) return tx.agentRun.updateMany({ where: { projectId, pipelineRunId: run.id, closedAt: null }, data: { closedAt } });
   return tx.agentRun.updateMany({ where: { projectId, OR: [{ key }, ...(run ? [{ pipelineRunId: run.id }] : [])], closedAt: null }, data: { closedAt } });
 }
 
@@ -538,15 +542,17 @@ async function recordValidation(projectId: string, input: { key: string; text: s
   return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
-    const pipeline = await ensureRunIn(tx, projectId, row.id, row.status, false);
-    const verifierBinding = pipeline.version.format === SLOT_FORMAT ? { pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId } : { pipelineRunId: null };
+    const pipeline = await ensureRunIn(tx, projectId, row.id, row.status, false, undefined, context);
+    const pinnedLegacy = pipeline.version.format === null && !!pipeline.templateReleaseId;
+    const verifierBinding = pipeline.version.format === SLOT_FORMAT ? { pipelineRunId: pipeline.id, pipelineEntryId: pipeline.entryId } : pinnedLegacy ? {} : { pipelineRunId: null };
     const lastPlan = row.status === "in_review"
       ? await tx.transitionEvent.findFirst({ where: { boardItemId: row.id, note: "plan" }, orderBy: { at: "desc" }, select: { at: true } })
       : null;
     const verifierPassedAfterPlan =
       row.status === "in_review" &&
       (await tx.agentRunStep.findFirst({
-        where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", ...(lastPlan ? { at: { gt: lastPlan.at } } : {}), run: { projectId, agent: PLAN_VERIFIER, key: input.key, ...verifierBinding } },
+        where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", outcome: "ok", ...(lastPlan ? { at: { gt: lastPlan.at } } : {}), run: { projectId, agent: PLAN_VERIFIER, key: input.key, ...verifierBinding },
+          ...(pinnedLegacy ? { AND: [{ OR: [{ run: { pipelineRunId: pipeline.id, pipelineNode: pipeline.node } }, { id: { in: legacyEvidenceIds(pipeline, "validationStepIds") } }] }] } : {}) },
         select: { id: true },
       })) !== null;
     const d = decideValidation({ status: row.status, text: input.text, verifierPassedAfterPlan });
@@ -593,18 +599,20 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
   return inProjectTransaction(projectId, async (tx) => {
     const row = await latestRow(tx, projectId, input.key);
     if (!row) return fail(`no such board item: ${input.key}`);
+    const pipeline = await ensureRunIn(tx, projectId, row.id, row.status, false, undefined, context);
     const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((w) => w.agent);
     const hasVerifyStep =
       row.status === "implementing" &&
       (await tx.agentRunStep.findFirst({
-        where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", run: { projectId, agent: input.actor, key: input.key } },
+        where: { OR: [{ accepted: true }, { accepted: null }], stepId: "verify", run: { projectId, agent: input.actor, key: input.key },
+          ...(pipeline.templateReleaseId ? { AND: [{ OR: [{ run: { pipelineRunId: pipeline.id, ...(pipeline.version.format === SLOT_FORMAT ? { pipelineEntryId: pipeline.entryId } : { pipelineNode: pipeline.node }) } },
+            ...(pipeline.version.format === null ? [{ id: { in: legacyEvidenceIds(pipeline, "reportVerifyStepIds") } }] : [])] }] } : {}) },
         select: { id: true },
       })) !== null;
     const acceptanceFailed = row.status === "done" && input.actor === MAIN_LOOP
       && await tx.acceptanceFailure.findFirst({ where: { boardItemId: row.id, clearedAt: null }, select: { id: true } }) !== null;
     const d = decideReportSubmit({ status: row.status, actor: input.actor, roster, hasVerifyStep, acceptanceFailed });
     if (!d.ok) throw new BoardRejection(d.reason);
-    const pipeline = await ensureRunIn(tx, projectId, row.id, row.status, false);
     if (d.value.accepts && !pipeline.version.nodes.includes("accept")) throw new BoardRejection("Acceptance requires an Accept step. Completing a pipeline does not accept the work.");
     if (d.value.accepts && !pipeline.closedAt && ["impl-verify", gateId("impl-verify")].includes(pipeline.node)) throw new BoardRejection(IMPL_VERIFY_PENDING);
     if (d.value.accepts && pipeline.version.nodes.includes("qa") && (pipeline.node !== "accept" || pipeline.closedAt)) throw new BoardRejection("QA has not completed; acceptance is only available at accept");
@@ -630,7 +638,7 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
     }
     if (input.runId) {
       const agentRun = await tx.agentRun.findUnique({ where: { id: input.runId }, include: { pipelineRun: true } });
-      if (!agentRun || agentRun.projectId !== projectId || agentRun.agent !== input.actor || agentRun.key !== input.key || agentRun.closedAt || (agentRun.pipelineRun && (agentRun.pipelineRun.boardItemId !== row.id || agentRun.pipelineRun.closedAt || agentRun.pipelineRun.entryId !== agentRun.pipelineEntryId))) throw new BoardRejection("stale report run");
+      if (!agentRun || agentRun.projectId !== projectId || agentRun.agent !== input.actor || agentRun.key !== input.key || agentRun.closedAt || (agentRun.pipelineRun && (agentRun.pipelineRun.boardItemId !== row.id || (pipeline.templateReleaseId && (agentRun.pipelineRunId !== pipeline.id || (pipeline.version.format === null && agentRun.pipelineNode !== pipeline.node))) || agentRun.pipelineRun.closedAt || agentRun.pipelineRun.entryId !== agentRun.pipelineEntryId))) throw new BoardRejection("stale report run");
     }
     await claim(tx, row, {});
     const report = await tx.report.create({ data: { boardItemId: row.id, actor: input.actor, path: input.path, commit: input.commit, agentRunId: input.runId, isAcceptance: d.value.accepts, ...(qa ? { qa } : {}) } });
@@ -645,7 +653,7 @@ async function submitReport(projectId: string, input: { key: string; actor: stri
 }
 
 async function acceptanceState(tx: Prisma.TransactionClient, projectId: string, row: BoardItem) {
-  const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
+  const run = await ensureRunIn(tx, projectId, row.id, row.status, false, undefined, context);
   if (run.version.format !== null && (run.version.format !== SLOT_FORMAT || !run.entryId)) {
     throw new BoardRejection("Unsupported pipeline format or missing entry; update the compatible bundle.");
   }
@@ -699,7 +707,7 @@ async function retryAcceptance(projectId: string,
 async function advanceRun(tx: Db, projectId: string, key: string, approval?: GateEntry) {
   const row = await latestRow(tx, projectId, key);
   if (!row) return;
-  const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
+  const run = await ensureRunIn(tx, projectId, row.id, row.status, false, undefined, context);
   if (run.closedAt || row.status === "on_hold") return;
   const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
   const facts = await readFacts(tx, projectId, row, run);
@@ -723,18 +731,23 @@ async function advanceRun(tx: Db, projectId: string, key: string, approval?: Gat
 async function resetRun(tx: Db, projectId: string, key: string, status: string) {
   const row = await latestRow(tx, projectId, key);
   if (!row) return;
-  const run = await ensureRunIn(tx, projectId, row.id, row.status, false);
+  const run = await ensureRunIn(tx, projectId, row.id, row.status, false, undefined, context);
+  const stored = await tx.pipelineRun.findUniqueOrThrow({ where: { id: run.id } });
+  const selection = await selectTemplateReleaseForRunIn(tx, { projectId, ...(stored.templateReleaseId ? { parentRunId: run.id } : {}), context });
+  const historicalRestart = selection !== null && !stored.templateReleaseId;
+  if (historicalRestart && !stored.closedAt) throw new BoardRejection("An open execution is missing its cutover template selection.");
   const graph: Graph = { nodes: run.version.nodes, gates: run.version.gates };
   const node = cursorForStatus(graph, status);
-  if (node !== null && !sequence(graph).includes(node)) {
-    const requiredNode = node.startsWith("before-") ? node.slice(7) : node;
+  if (historicalRestart || (node !== null && !sequence(graph).includes(node))) {
+    const requiredNode = node?.startsWith("before-") ? node.slice(7) : node ?? run.node;
     const previous = await tx.pipelineRun.findFirst({ where: { boardItemId: row.id, version: { nodes: { has: requiredNode } } }, orderBy: { createdAt: "desc" }, include: { version: true } });
-    const version = previous?.version ?? await ensureRunnableVersion(tx, projectId);
+    const version = node !== null && sequence(graph).includes(node) ? run.version : previous?.version ?? await ensureRunnableVersion(tx, projectId);
     const nextNode = cursorForStatus(version, status);
     if (nextNode === null || !sequence(version).includes(nextNode)) throw new BoardRejection("Choose a pipeline that supports reopening this work.");
     await closeRun(tx, row.id);
-    const resumed = await tx.pipelineRun.create({ data: { boardItemId: row.id, versionId: version.id, node: nextNode, entryId: version.format === SLOT_FORMAT ? randomUUID() : null } });
+    const resumed = await tx.pipelineRun.create({ data: { ...selection, ...(selection && !historicalRestart ? { continuedFromRunId: run.id } : {}), boardItemId: row.id, versionId: version.id, node: nextNode, entryId: version.format === SLOT_FORMAT ? randomUUID() : null } });
     await tx.boardItem.update({ where: { id: row.id }, data: { currentRunId: resumed.id, updatedAt: row.updatedAt } });
+    if (historicalRestart) await tx.transitionEvent.create({ data: { boardItemId: row.id, from: row.status, to: row.status, actor: "pipeline", note: `template-restart:${run.id}:${resumed.id}` } });
     return;
   }
   await tx.pipelineRun.update({ where: { id: run.id }, data: { node: node ?? run.node, entryId: run.version.format === SLOT_FORMAT ? randomUUID() : null, enteredAt: new Date(), closedAt: null } });

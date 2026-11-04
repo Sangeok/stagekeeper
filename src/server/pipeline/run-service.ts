@@ -1,3 +1,4 @@
+import { selectTemplateReleaseForRunIn, assertTemplateInstallationIn, type TemplateMetadata, type TemplateRunContext } from "./template-selection";
 import { randomUUID } from "node:crypto";
 import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence, expand, validateGraph, itemGraph, DEFAULT_SELECTION_POLICY } from "@harness/core/pipeline/pipeline.mjs";
 import { validateExecutionGraph } from "@harness/core/pipeline/run-input.mjs";
@@ -16,7 +17,7 @@ type Db = PrismaClient | Prisma.TransactionClient;
 export type Graph = { nodes: string[]; gates: string[] };
 export type PipelineEntry = { runId: string; entryId: string; slotId: string };
 export type GateEntry = { runId: string; entryId: string };
-export type PipelineRunRow = { id: string; node: string; entryId: string | null; enteredAt: Date; closedAt: Date | null; version: { id: string; version: number; format: string | null; nodes: string[]; gates: string[] } };
+export type PipelineRunRow = { templateReleaseId?: string | null; templateLanguage?: string | null; templatePinnedAt?: Date | null; templatePinOrigin?: string | null; legacyEvidence?: Prisma.JsonValue | null; templateMetadata?: TemplateMetadata; id: string; node: string; entryId: string | null; enteredAt: Date; closedAt: Date | null; version: { id: string; version: number; format: string | null; nodes: string[]; gates: string[] } };
 export type PipelineFacts = { status: string; validation: string | null; accepted: boolean; approvedGates: string[]; closedAgents: string[]; format: string | null; slotComplete: boolean; implementationComplete: boolean; qaComplete?: boolean; implVerifyComplete?: boolean };
 
 export const DEFAULT_PIPELINE_NAME = "Default";
@@ -159,22 +160,26 @@ export async function loadPipelineChanges(client: PrismaClient, projectId: strin
   return result;
 }
 
-export async function ensureRunIn(tx: Prisma.TransactionClient, projectId: string, boardItemId: string, status: string, fresh: boolean, pipelineId?: string): Promise<PipelineRunRow> {
+export async function ensureRunIn(tx: Prisma.TransactionClient, projectId: string, boardItemId: string, status: string, fresh: boolean, pipelineId?: string, context: TemplateRunContext = {}): Promise<PipelineRunRow> {
   const item = await tx.boardItem.findFirst({ where: { id: boardItemId, projectId }, select: { id: true, currentRunId: true, updatedAt: true } });
   if (!item) throw new PipelineRejection("Board item not found.");
   const found = item.currentRunId
     ? await tx.pipelineRun.findUnique({ where: { id: item.currentRunId, boardItemId }, include: { version: true } })
     : await tx.pipelineRun.findFirst({ where: { boardItemId }, orderBy: { createdAt: "desc" }, include: { version: true } });
   if (found) {
+    const pin = (!found.closedAt && context.requireInstallation) || found.templateReleaseId ? await selectTemplateReleaseForRunIn(tx, { projectId, parentRunId: found.id, context }) : null;
+    const templateMetadata = pin ? await assertTemplateInstallationIn(tx, projectId, pin, context) : undefined;
     if (!item.currentRunId) await tx.boardItem.update({ where: { id: boardItemId }, data: { currentRunId: found.id, updatedAt: item.updatedAt } });
-    return found;
+    return templateMetadata ? { ...found, templateMetadata } : found;
   }
   const version = pipelineId ? await ensureExecutionVersion(tx, projectId, pipelineId) : await ensureRunnableVersion(tx, projectId);
   const graph: Graph = itemGraph(version);
   const node = (fresh ? sequence(graph)[0] : cursorForStatus(graph, status)) ?? sequence(graph)[0];
-  const run = await tx.pipelineRun.create({ data: { boardItemId, versionId: version.id, node, entryId: version.format === SLOT_FORMAT ? randomUUID() : null }, include: { version: true } });
+  const pin = await selectTemplateReleaseForRunIn(tx, { projectId, context });
+  const templateMetadata = pin ? await assertTemplateInstallationIn(tx, projectId, pin, context) : undefined;
+  const run = await tx.pipelineRun.create({ data: { ...pin, boardItemId, versionId: version.id, node, entryId: version.format === SLOT_FORMAT ? randomUUID() : null }, include: { version: true } });
   await tx.boardItem.update({ where: { id: boardItemId }, data: { currentRunId: run.id, updatedAt: item.updatedAt } });
-  return run;
+  return templateMetadata ? { ...run, templateMetadata } : run;
 }
 
 export async function ensureExecutionVersion(tx: Prisma.TransactionClient, projectId: string, pipelineId: string): Promise<PipelineVersion> {
@@ -194,8 +199,8 @@ export async function ensureExecutionVersion(tx: Prisma.TransactionClient, proje
     ...composed.graph, format: SLOT_FORMAT, createdBy: "pipeline" } });
 }
 
-export async function ensureRun(client: PrismaClient, projectId: string, boardItemId: string, status: string, fresh: boolean, pipelineId?: string): Promise<PipelineRunRow> {
-  return withPipelineWrite(client, projectId, undefined, ({ tx }) => ensureRunIn(tx, projectId, boardItemId, status, fresh, pipelineId));
+export async function ensureRun(client: PrismaClient, projectId: string, boardItemId: string, status: string, fresh: boolean, pipelineId?: string, context: TemplateRunContext = {}): Promise<PipelineRunRow> {
+  return withPipelineWrite(client, projectId, undefined, ({ tx }) => ensureRunIn(tx, projectId, boardItemId, status, fresh, pipelineId, context));
 }
 
 
@@ -203,10 +208,22 @@ export async function ensureRun(client: PrismaClient, projectId: string, boardIt
 type RowFacts = { id: string; status: string; validation: string | null; acceptedAt: Date | null; agent?: string; backlogItem?: { key: string } };
 const NODE_AGENTS = ["doc-auditor", "feature-scout"];
 
+export function legacyEvidenceIds(run: Pick<PipelineRunRow, "legacyEvidence" | "node" | "enteredAt">, key: "completedRunIds" | "projectClosedRunIds" | "unlinkedReportIds" | "validationStepIds" | "reportVerifyStepIds"): string[] {
+  const evidence = run.legacyEvidence;
+  if (evidence === null || evidence === undefined) return [];
+  if (typeof evidence !== "object" || Array.isArray(evidence) || evidence.version !== 1 || typeof evidence.node !== "string"
+    || typeof evidence.enteredAt !== "string" || !Number.isFinite(Date.parse(evidence.enteredAt))) throw new PipelineRejection("Invalid template cutover evidence.");
+  if (evidence.node !== run.node || Date.parse(evidence.enteredAt) !== run.enteredAt.getTime()) return [];
+  const ids = evidence[key];
+  if (!Array.isArray(ids) || !ids.every((id): id is string => typeof id === "string" && id.length > 0)) throw new PipelineRejection("Invalid template cutover evidence IDs.");
+  return ids;
+}
+
 export async function readFacts(db: Db, projectId: string, row: RowFacts, run: PipelineRunRow): Promise<PipelineFacts> {
   if (run.version.format !== null && run.version.format !== SLOT_FORMAT) throw new Error("Unsupported pipeline format; update the compatible bundle.");
   if (run.version.format === SLOT_FORMAT && !run.entryId) throw new Error("Missing pipeline entry; refresh pipeline_next.");
   const bound = run.version.format === SLOT_FORMAT;
+  const pinnedLegacy = !bound && !!run.templateReleaseId;
   if (run.node === "impl-verify") {
     if (!bound || !run.entryId) throw new Error("impl-verify requires a bound pipeline entry");
     const item = await db.boardItem.findUniqueOrThrow({ where: { id: row.id }, select: { agent: true } });
@@ -229,6 +246,7 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: P
   const completed = await db.agentRun.findMany({
     where: { projectId, closedAt: { not: null }, ...(bound
       ? { pipelineRunId: run.id, pipelineEntryId: run.entryId }
+      : pinnedLegacy ? { openedAt: { gte: run.enteredAt }, OR: [{ pipelineRunId: run.id, pipelineNode: run.node }, { id: { in: legacyEvidenceIds(run, "completedRunIds") } }] }
       : { pipelineRunId: null, openedAt: { gte: run.enteredAt } }) },
     include: { steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, select: { stepId: true, outcome: true } }, reports: { where: { boardItemId: row.id } } },
   });
@@ -239,7 +257,7 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: P
   let implementationComplete = successful.some((r) => r.reports.some((report) => report.actor === item.agent));
   if (!bound && !implementationComplete && developer.length === 1 && successful.length === 1) {
     const candidate = successful[0];
-    implementationComplete = await db.report.count({ where: { boardItemId: row.id, actor: item.agent, agentRunId: null, at: { gte: candidate.openedAt, lte: candidate.closedAt! } } }) > 0;
+    implementationComplete = await db.report.count({ where: { boardItemId: row.id, actor: item.agent, agentRunId: null, ...(pinnedLegacy ? { id: { in: legacyEvidenceIds(run, "unlinkedReportIds") } } : {}), at: { gte: candidate.openedAt, lte: candidate.closedAt! } } }) > 0;
   }
   const completion = { format: run.version.format, implementationComplete, slotComplete: completed.some((r) => r.agent === dispatcherFor(run.node, item.agent)) };
   if (bound) return { ...completion, status: row.status, validation: row.validation, accepted: row.acceptedAt !== null, approvedGates: [], closedAgents: [] };
@@ -254,22 +272,23 @@ export async function readFacts(db: Db, projectId: string, row: RowFacts, run: P
     return hit ? [hit[0]] : [];
   });
   const closed = await db.agentRun.findMany({
-    where: { projectId, agent: { in: NODE_AGENTS }, key: null, openedAt: { gte: run.enteredAt }, closedAt: { not: null } },
+    where: { projectId, agent: { in: NODE_AGENTS }, key: null, openedAt: { gte: run.enteredAt }, closedAt: { not: null },
+      ...(pinnedLegacy ? { OR: [{ pipelineRunId: run.id, pipelineNode: run.node }, { id: { in: legacyEvidenceIds(run, "projectClosedRunIds") } }] } : {}) },
     select: { agent: true },
   });
   return { ...completion, status: row.status, validation: row.validation, accepted: row.acceptedAt !== null, approvedGates, closedAgents: closed.map((r) => r.agent) };
 }
 
-export async function nextFor(db: PrismaClient, projectId: string, key: string): Promise<PipelineNext> {
+export async function nextFor(db: PrismaClient, projectId: string, key: string, context: TemplateRunContext = {}): Promise<PipelineNext> {
   const row = await db.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" } });
   if (!row) throw new Error(`no such board item: ${key}`);
-  const run = await ensureRun(db, projectId, row.id, row.status, false);
+  const run = await ensureRun(db, projectId, row.id, row.status, false, undefined, context);
   if (run.version.format !== null && (run.version.format !== SLOT_FORMAT || !run.entryId)) throw new Error("Unsupported pipeline format or missing entry; update the compatible bundle.");
   const node = run.closedAt ? null : run.node;
   const open = node === null || isGateId(node) || node === "accept"
     ? null
     : await db.agentRun.findFirst({ where: { projectId, agent: dispatcherFor(node, row.agent) ?? "", key: isItemNode(node) ? key : null, closedAt: null,
-      pipelineRunId: run.version.format === SLOT_FORMAT ? run.id : null, pipelineEntryId: run.version.format === SLOT_FORMAT ? run.entryId : null }, orderBy: { openedAt: "desc" }, include: { steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, orderBy: { at: "desc" }, take: 1 } } });
+      pipelineRunId: run.version.format === SLOT_FORMAT || run.templateReleaseId ? run.id : null, pipelineEntryId: run.version.format === SLOT_FORMAT ? run.entryId : null, ...(run.version.format === null && run.templateReleaseId ? { pipelineNode: node, openedAt: { gte: run.enteredAt } } : {}) }, orderBy: { openedAt: "desc" }, include: { steps: { where: { OR: [{ accepted: true }, { accepted: null }] }, orderBy: { at: "desc" }, take: 1 } } });
   const last = open?.steps[0];
   const handoff = last?.outcome === "handoff" && handoffIsLive(last.at, row.updatedAt) ? { note: last.note } : null;
   const dispatches = node !== null && dispatcherFor(node, row.agent) !== null;
@@ -279,15 +298,18 @@ export async function nextFor(db: PrismaClient, projectId: string, key: string):
   const cap = dispatches ? await readProjectUsageCapIn(db, projectId) : null;
   const qaFailure = node === "qa" && run.entryId && !open ? (await qaEntryResult(db, projectId, row.id, row.agent, run.id, run.entryId)).failure : null;
   const implVerifyFailure = node === "impl-verify" && run.entryId && !open ? (await implVerifyEntryResult(db, projectId, row.id, row.agent, run.id, run.entryId)).failure : null;
-  return decideNext({
+  const result = decideNext({
     key, version: run.version.version, node, status: row.status, planCommit: row.planCommit, agent: row.agent, handoff, hasResumableRun: open !== null,
     format: run.version.format, entry: run.entryId ? { runId: run.id, entryId: run.entryId, slotId: run.node } : undefined,
     cap, acceptanceFailure, qaFailure, implVerifyFailure,
   });
+  if (!run.templateMetadata) return result;
+  return { ...result, templateProtocol: "template-release-v1", templateRelease: run.templateMetadata,
+    ...(run.version.format === null && node !== null ? { execution: { kind: "legacy" as const, runId: run.id, node } } : {}) };
 }
 
-export async function headFor(db: PrismaClient, projectId: string): Promise<WorkNext> {
-  return projectWorkNext(db, projectId);
+export async function headFor(db: PrismaClient, projectId: string, context: TemplateRunContext = {}): Promise<WorkNext> {
+  return projectWorkNext(db, projectId, context);
 }
 
 function initialGraph(plan: string, flags: { autoScoutEnabled: boolean; autoProposeEnabled: boolean }): Graph {

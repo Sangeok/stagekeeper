@@ -19,6 +19,6 @@ it("every plugin path a skill names exists, or is created by packaging", () => {
 
 it("the generator prints every marker the init skill tells the agent to read", () => {
   const generator = readFileSync(new URL("bin/harness-init.mjs", PLUGIN), "utf8");
-  for (const marker of ["plan:", "write:", "skip(modified):", "skip(plan):", "refuse:", "server:", "Server URL required", "stop: server access was refused after file generation", "note: that entry was also this repository's only record of the server URL"]) assert.ok(generator.includes(marker), marker);
+  for (const marker of ["plan:", "write:", "skip(modified):", "skip(plan):", "refuse:", "server:", "Server URL required", "Installation report refused", "ready:", "installation remains pending", "note: that entry was also this repository's only record of the server URL"]) assert.ok(generator.includes(marker), marker);
   assert.match(capReason("free", "workspaces"), /^workspace cap reached on the free plan/);
 });

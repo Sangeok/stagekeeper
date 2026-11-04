@@ -37,6 +37,13 @@ export function packageWindowsPlugin({ output, runtimeDirectory }) {
     if (!lstatSync(sourceFile).isFile() || lstatSync(sourceFile).isSymbolicLink()) throw new Error("Plugin source type refused");
     mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, readFileSync(sourceFile), { flag: "wx" });
   }
+  const hooksPath = path.join(output, "hooks/hooks.json");
+  const hooks = JSON.parse(readFileSync(hooksPath, "utf8"));
+  const guard = hooks.hooks.PreToolUse[0].hooks[0];
+  if (guard.command !== "node" || guard.onFailure !== "block") throw new Error("Unexpected template hook contract");
+  guard.command = "powershell.exe";
+  guard.args = ["-NoProfile", "-NonInteractive", "-File", "${CLAUDE_PLUGIN_ROOT}/bin/harness.ps1", "template-guard"];
+  writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + "\n");
   const packagedRuntime = path.join(output, "runtime/windows/node");
   cpSync(runtime.directory, packagedRuntime, { recursive: true, errorOnExist: true, force: false });
   cpSync(path.join(output, VERIFIER), path.join(output, CODEX_VERIFIER), { recursive: true, errorOnExist: true, force: false });

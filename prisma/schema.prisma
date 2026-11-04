@@ -287,6 +287,63 @@ model Template {
   @@id([lang, path])
 }
 
+model TemplateRelease {
+  id String @id @default(cuid())
+  releaseIdentity String @unique
+  sourceKey String
+  source Json
+  manifestVersion Int
+  manifest Json
+  contentHash String
+  contractHash String
+  entryCount Int
+  sealedAt DateTime?
+  createdAt DateTime @default(now())
+  entries TemplateReleaseEntry[]
+  channels TemplateChannel[]
+  deployments TemplateDeployment[]
+  agentRuns AgentRun[]
+  pipelineRuns PipelineRun[]
+  workRuns PipelineWorkRun[]
+  @@index([sourceKey, manifestVersion])
+}
+
+model TemplateReleaseEntry {
+  releaseId String
+  lang String
+  path String
+  body String
+  release TemplateRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+  @@id([releaseId, lang, path])
+}
+
+model TemplateChannel {
+  id String @id @default("default")
+  activeReleaseId String?
+  revision Int @default(0)
+  mode String @default("legacy")
+  legacyWritesBlocked Boolean @default(false)
+  activeRelease TemplateRelease? @relation(fields: [activeReleaseId], references: [id], onDelete: Restrict)
+}
+
+model TemplateDeployment {
+  id String @id @default(cuid())
+  operation String
+  requestId String
+  inputHash String
+  releaseId String
+  actor String
+  environment String
+  targetProfileId String
+  targetIdentityHash String
+  codeSha String
+  workflowRun String
+  result Json
+  createdAt DateTime @default(now())
+  release TemplateRelease @relation(fields: [releaseId], references: [id], onDelete: Restrict)
+  @@unique([operation, requestId])
+}
+
 model Command {
   id        String    @id @default(cuid())
   projectId String
@@ -301,6 +358,12 @@ model Command {
 }
 
 model AgentRun {
+  templateReleaseId String?
+  templateLanguage String?
+  templatePinnedAt DateTime?
+  templatePinOrigin String?
+  templateRelease TemplateRelease? @relation(fields: [templateReleaseId], references: [id], onDelete: Restrict)
+  pipelineNode String?
   id        String         @id @default(cuid())
   projectId String
   agent     String
@@ -364,6 +427,17 @@ model PipelineVersion {
 }
 
 model PipelineRun {
+  templateReleaseId String?
+  templateLanguage String?
+  templatePinnedAt DateTime?
+  templatePinOrigin String?
+  templateRelease TemplateRelease? @relation(fields: [templateReleaseId], references: [id], onDelete: Restrict)
+  sourceWorkRunId String?
+  sourceWorkRun PipelineWorkRun? @relation(fields: [sourceWorkRunId], references: [id], onDelete: NoAction)
+  continuedFromRunId String?
+  continuedFromRun PipelineRun? @relation("TemplateContinuation", fields: [continuedFromRunId], references: [id], onDelete: NoAction)
+  continuations PipelineRun[] @relation("TemplateContinuation")
+  legacyEvidence Json?
   id          String          @id @default(cuid())
   boardItemId String
   createdAt   DateTime        @default(now())
@@ -382,6 +456,12 @@ model PipelineRun {
 }
 
 model PipelineWorkRun {
+  templateReleaseId String?
+  templateLanguage String?
+  templatePinnedAt DateTime?
+  templatePinOrigin String?
+  templateRelease TemplateRelease? @relation(fields: [templateReleaseId], references: [id], onDelete: Restrict)
+  assignedRuns PipelineRun[]
   id String @id @default(cuid())
   projectId String
   versionId String
