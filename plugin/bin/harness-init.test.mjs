@@ -1,3 +1,4 @@
+import { versionedDelivery, claudeFixtureExecutable } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -35,7 +36,7 @@ for (const [rel, body] of Object.entries(FIXTURES)) {
 }
 const ROWS = Object.entries(FIXTURES).map(([path, body]) => ({ path, body }));
 
-const BASE_ENV = { ...process.env };
+const BASE_ENV = { ...process.env, HARNESS_CLAUDE_CLI: claudeFixtureExecutable() };
 for (const k of ["HARNESS_TEMPLATES_DIR", "HARNESS_TOKEN", "HARNESS_PLAN", "HARNESS_SERVER"]) delete BASE_ENV[k];
 const argv = (root, server, args) => [BIN, "--root", root, "--server", server, ...args];
 const runWith = (env, root, server, ...args) => {
@@ -74,8 +75,8 @@ it("bounds identity, registration, templates and reporting across delayed header
     const before = snapshot(root), observed = [], timers = [];
     const server = createServer((request, response) => {
       const url = new URL(request.url, "http://localhost"); observed.push(url.pathname);
-      if (url.pathname !== endpoint) { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(deliverable(ROWS, "pro"))); return; }
-      if (endpoint === "/api/runbook") assert.equal(existsSync(join(root, "harness.init.guard")), false, "init guard must be released before reporting");
+      if (url.pathname !== endpoint) { response.setHeader("Content-Type", "application/json"); response.end(JSON.stringify(versionedDelivery(deliverable(ROWS, "pro")))); return; }
+      if (endpoint === "/api/runbook") assert.equal(existsSync(join(root, "harness.init.guard")), true, "init guard protects the installation report");
       if (mode === "headers") return;
       response.writeHead(mode === "error-body" ? 429 : 200, { "Content-Type": "application/json" }); response.write('{"unfinished":');
       const timer = setInterval(() => { if (!response.destroyed) response.write(" "); }, 250); timers.push(timer);
@@ -90,13 +91,13 @@ it("bounds identity, registration, templates and reporting across delayed header
     const result = await new Promise(resolve => execFile(process.execPath, argv(root, `http://127.0.0.1:${server.address().port}`, flags),
       { env, windowsHide: true, timeout: 45000 }, (error, stdout, stderr) => resolve({ code: error?.code ?? 0, out: stdout + stderr })));
     const elapsed = Date.now() - started, label = `${endpoint}/${mode}: ${result.out}`;
-    const discardedSuccessBody = endpoint === "/api/runbook" && mode === "body";
+    const discardedSuccessBody = false;
     assert.ok(elapsed < 40000, label); if (!discardedSuccessBody) assert.ok(elapsed >= 18000, label);
     assert.equal(observed.filter(path => path === endpoint).length, 1, "no automatic retry");
     if (endpoint === "/api/runbook") {
-      assert.equal(result.code, mode === "error-body" ? 1 : 0, label);
+      assert.equal(result.code, 1, label);
       assert.ok(existsSync(join(root, "CLAUDE.md"))); assert.ok(existsSync(join(root, "harness.lock.json")));
-      if (!discardedSuccessBody) assert.match(result.out, /note: runbook version not recorded/);
+      if (!discardedSuccessBody) assert.match(result.out, /Initialization error:/);
       if (mode === "error-body") assert.match(result.out, /Wait before retrying|stated wait/);
     } else {
       assert.equal(result.code, 1, label);
@@ -139,7 +140,7 @@ const withServer = async (body, fn, { postStatus = 200, postError = null, projec
       }
       if (req.method === "POST") { res.statusCode = postStatus; res.end(JSON.stringify(postError ?? { ok: postStatus < 400 })); return; }
       res.statusCode = templateStatus;
-      res.end(JSON.stringify(body));
+      res.end(JSON.stringify(versionedDelivery(body)));
     });
   });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
@@ -170,7 +171,7 @@ describe("harness-init (v2)", () => {
     assert.match(readFileSync(join(root, ".claude/agents/queue-dev.md"), "utf8"), /owns workers\/queue\n```bash\nnpm test\n```/);
     assert.match(readFileSync(join(root, ".claude/agents/http-dev.md"), "utf8"), /owns services\/http\n```bash\nnpm run check\nnpm test\n```/);
     const lock = JSON.parse(readFileSync(join(root, "harness.lock.json"), "utf8"));
-    assert.equal(lock.version, 1);
+    assert.equal(lock.version, 2);
     assert.ok(!(".mcp.json" in lock.files) && !("CLAUDE.md" in lock.files));
     assert.match(r.out, /^plan: max$/m);
   });
@@ -232,7 +233,7 @@ describe("harness-init (v2)", () => {
     assert.equal(run(root).code, 0);
     writeFileSync(join(root, ".claude/agents/pm.md"), "edited by user\n");
     const r = run(root);
-    assert.equal(r.code, 0);
+    assert.equal(r.code, 1);
     assert.match(r.out, /skip\(modified\): \.claude\/agents\/pm\.md/);
     assert.equal(readFileSync(join(root, ".claude/agents/pm.md"), "utf8"), "edited by user\n");
   });
@@ -368,13 +369,18 @@ describe("harness-init (v2)", () => {
         const root = fresh(ONE_WS);
         writeFileSync(join(root, "CLAUDE.md"), existing);
         const before = snapshot(root);
-        const preview = run(root, "--dry-run");
+        if (label === "start only") {
+          assert.equal(run(root, "--dry-run").code, 1); assert.equal(run(root).code, 1);
+          assert.deepEqual(snapshot(root), before); return;
+        }
+        const adoption = label === "both markers" ? ["--adopt"] : [];
+        const preview = run(root, "--dry-run", ...adoption);
         assert.equal(preview.code, 0, preview.out);
         assert.deepEqual(snapshot(root), before);
         assert.ok(preview.out.includes(`write: CLAUDE.md (runbook ${operation})`));
-        const applied = run(root);
+        const applied = run(root, ...adoption);
         assert.equal(applied.code, 0, applied.out);
-        assert.equal(applied.out, preview.out);
+        assert.deepEqual(applied.out.split("\n").filter(line => line.startsWith("write:")), preview.out.split("\n").filter(line => line.startsWith("write:")));
         const merged = readFileSync(join(root, "CLAUDE.md"), "utf8");
         assert.match(merged, /^Owner rules/);
         assert.match(merged, /full pipeline/);
@@ -651,8 +657,10 @@ describe("harness-init (v2)", () => {
         assert.equal((await runAsync(env, root, server)).code, 0);
         const before = snapshot(root); rateAt = "/api/runbook";
         const result = await runAsync(env, root, server);
-        assert.equal(result.code, 1); assert.match(result.out, /runbook version not recorded.*Wait 23 seconds/);
-        assert.match(result.out, /Keep the generated files/); assert.deepEqual(snapshot(root), before);
+        assert.equal(result.code, 1); assert.match(result.out, /Installation report refused.*Wait 23 seconds/);
+        const after = snapshot(root);
+        assert.equal(JSON.parse(after["harness.lock.json"]).clients.claude.state, "pending");
+        delete before["harness.lock.json"]; delete after["harness.lock.json"]; assert.deepEqual(after, before);
         assert.deepEqual(seen.slice(2).map((row) => row.url.split("?")[0]), ["/api/templates", "/api/runbook"]);
         assert.ok(!result.out.includes("hs_test"));
       }, { rateAt: () => rateAt });
@@ -675,7 +683,7 @@ describe("harness-init (v2)", () => {
           const before = snapshot(root);
           const result = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
           assert.equal(result.code, 1, result.out);
-          assert.match(result.out, /Unexpected .*response|Unexpected template body/);
+          assert.match(result.out, /Unexpected .*response|Unexpected template body|surface does not match/);
           assert.doesNotMatch(result.out, /TypeError|^write:/m);
           assert.deepEqual(snapshot(root), before);
         });
@@ -698,7 +706,7 @@ describe("harness-init (v2)", () => {
         const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
         assert.equal(r.code, 0, r.out);
         assert.deepEqual(seen.map(({ url, method }) => ({ url, method })), [
-          { url: "/api/templates?lang=en", method: "GET" },
+          { url: "/api/templates?lang=en&templateProtocol=template-release-v1", method: "GET" },
           { url: "/api/runbook", method: "POST" },
         ]);
         assert.deepEqual(new Set(seen.map((r) => r.authorization)), new Set(["Bearer t-test"]));
@@ -717,8 +725,9 @@ describe("harness-init (v2)", () => {
         assert.ok(post, "no report was sent");
         assert.equal(post.url, "/api/runbook");
         assert.equal(post.authorization, "Bearer t-test");
-        const version = runbookVersion(FIXTURES["CLAUDE.runbook.md"]);
-        assert.deepEqual(JSON.parse(post.body), { version });
+        const version = runbookVersion(versionedDelivery(deliverable(ROWS, "pro")).templates["CLAUDE.runbook.md"]);
+        assert.equal(JSON.parse(post.body).version, version);
+        assert.equal(JSON.parse(post.body).installation.releaseId, "fixture-release");
         const planted = readFileSync(join(root, "CLAUDE.md"), "utf8");
         assert.match(planted, new RegExp(`^version ${version}$`, "m"));
         assert.doesNotMatch(planted, /\{\{runbook_version\}\}/);
@@ -732,17 +741,17 @@ describe("harness-init (v2)", () => {
         const root = fresh(ONE_WS);
         const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
         assert.equal(r.code, 0, r.out);
-        const version = runbookVersion(FIXTURES["CLAUDE.runbook.md"]);
-        assert.deepEqual(JSON.parse(seen.find((row) => row.method === "POST").body), { version });
+        const version = runbookVersion(versionedDelivery(deliverable(ROWS, "pro")).templates["CLAUDE.runbook.md"]);
+        assert.equal(JSON.parse(seen.find((row) => row.method === "POST").body).version, version);
         assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), new RegExp(`^version ${version}\\r?$`, "m"));
       });
     });
-    it("a refused report leaves init successful and says so in one line", async () => {
+    it("a refused report leaves installation pending and exits unsuccessfully", async () => {
       await withServer(deliverable(ROWS, "pro"), async (server, seen) => {
         const root = fresh(ONE_WS);
         const r = await runAsync({ HARNESS_TOKEN: "t-test" }, root, server);
-        assert.equal(r.code, 0, r.out);
-        assert.match(r.out, /^note: runbook version not recorded \(500: Internal Server Error\)/m);
+        assert.equal(r.code, 1, r.out);
+        assert.match(r.out, /Installation report refused \(500\)/);
         assert.ok(seen.some((row) => row.method === "POST"));
         assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), /full pipeline/);
       }, { postStatus: 500 });

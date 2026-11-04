@@ -247,6 +247,8 @@ it("permits zero-connected plan changes/new registration and preserves account d
     const usageAnchor = new Date();
     await db.user.update({ where: { id: f.userId }, data: { usageWindowStartedAt: usageAnchor, usageRunCount: 20 } });
     const record = makeRecordRunbook({
+      templateMode: async () => "legacy",
+      readRelease: async () => ({ ok: false, reason: "No versioned fixture" }),
       requestLimit: async () => null,
       findTokenByHash: async () => null,
       findUserTokenByHash: async () => ({ id: "user-token", userId: f!.userId, expiresAt: null, revokedAt: null }),

@@ -126,6 +126,7 @@ it("failed approval rolls back lazy PipelineRun materialization", async () => {
   let creates = 0;
   const version = { id: "version", version: 1, nodes: ["plan", "implement", "accept"], gates: ["before-plan"], format: "slots-v1" };
   const tx = {
+    templateChannel: { findUniqueOrThrow: async () => ({ mode: "legacy" }) },
     $queryRaw: async () => [],
     $executeRaw: async (_sql: TemplateStringsArray, ...values: unknown[]) => {
       creates++;

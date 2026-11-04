@@ -104,6 +104,7 @@ it("versioned runs require a sealed selection and known pins cannot be rewritten
     const run = await db.agentRun.create({ data: { ...data, ...pin } });
     await assert.rejects(db.agentRun.update({ where: { id: run.id }, data: { templateReleaseId: null } }));
     await assert.rejects(db.agentRun.update({ where: { id: unpinned.id }, data: pin }));
+    await assert.rejects(db.agentRun.update({ where: { id: unpinned.id }, data: { closedAt: null } }));
     await assert.rejects(db.agentRun.create({ data: { ...data, ...pin, templateLanguage: "ko" } }));
     await db.user.delete({ where: { id: user.id } });
     assert.equal(await db.agentRun.count(), 0);

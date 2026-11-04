@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
-import { publishTemplateRelease, readTemplateDeployment } from "../../src/server/templates/api";
+import { publishTemplateRelease, readTemplateDeployment, validateTemplateRelease } from "../../src/server/templates/api";
 import { readTemplateSources } from "./template-seed-query";
 import { readTemplateTarget, withTemplateTarget, templateCommandArguments, templateCommandAudit, TEMPLATE_TARGET_OPTIONS } from "./template-target";
 
@@ -10,7 +10,7 @@ async function main(): Promise<void> {
     console.log("Usage: publish-templates --profile-file <private JSON> --environment <name> --request-id <id> --actor <actor> --code-sha <sha> --workflow-run <run> --dir <clean private checkout> --commit <sha> | --result <request-id>");
     return;
   }
-  const options = templateCommandArguments(process.argv.slice(2), [...TEMPLATE_TARGET_OPTIONS, "--dir", "--commit", "--result"]);
+  const options = templateCommandArguments(process.argv.slice(2), [...TEMPLATE_TARGET_OPTIONS, "--dir", "--commit", "--result", "--expected-identity"]);
   const target = readTemplateTarget(options["--profile-file"], options["--environment"]);
   if (options["--result"]) {
     console.log(JSON.stringify(await withTemplateTarget(target, db => readTemplateDeployment(db, "import", options["--result"]))));
@@ -29,6 +29,8 @@ async function main(): Promise<void> {
     const decode = (value: Uint8Array) => new TextDecoder("utf-8", { fatal: true }).decode(value).replaceAll("\r\n", "\n");
     if (decode(bytes) !== decode(blob) || decode(bytes) !== row.body) throw new Error("Template file differs from its pinned Git blob");
   }
+  const prepared = validateTemplateRelease(rows, { kind: "git", repository: "Sangeok/harness-templates", commit: options["--commit"] });
+  if (target.environment === "production" && !options["--expected-identity"] || options["--expected-identity"] && options["--expected-identity"] !== prepared.releaseIdentity) throw new Error("Validated release identity differs from production import");
   const result = await withTemplateTarget(target, db => publishTemplateRelease(db, {
     requestId: options["--request-id"], source: { kind: "git", repository: "Sangeok/harness-templates", commit: options["--commit"] }, rows, audit,
   }));

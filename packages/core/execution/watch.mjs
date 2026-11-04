@@ -72,8 +72,28 @@ function validateFormat(format) {
   requireValue(format === null || format === "slots-v1");
 }
 
+function validateTemplateMetadata(value) {
+  requireValue(object(value) && text(value.id) && value.schemaVersion === 1 && value.protocol === "template-release-v1"
+    && text(value.language) && typeof value.clientSurfaceHash === "string" && /^[a-f0-9]{64}$/.test(value.clientSurfaceHash));
+}
+
+function validateExecution(value, node) {
+  requireValue(object(value) && (value.kind === "standalone" || (value.kind === "legacy" && text(value.runId) && text(value.node))));
+  if (node !== undefined && value.kind === "legacy") requireValue(value.node === node);
+}
+
 function validateItem(item) {
-  requireValue(object(item) && text(item.key) && Number.isInteger(item.version) && item.version > 0);
+  requireValue(object(item) && text(item.key));
+  if (item.templateRelease !== undefined) validateTemplateMetadata(item.templateRelease);
+  if (item.templateProtocol !== undefined) { requireValue(item.templateProtocol === "template-release-v1"); validateTemplateMetadata(item.templateRelease); }
+  requireValue(!(item.entry !== undefined && item.execution !== undefined));
+  if (item.execution !== undefined) validateExecution(item.execution, item.node);
+  if (item.action === "wait" && item.on === "template") {
+    requireValue(nullableText(item.node) && (item.version === null || (Number.isInteger(item.version) && item.version > 0)) && text(item.reason));
+    validateTemplateMetadata(item.templateRelease);
+    return;
+  }
+  requireValue(Number.isInteger(item.version) && item.version > 0);
   if (item.action === "done") {
     requireValue(nullableText(item.node));
     return;
@@ -83,6 +103,7 @@ function validateItem(item) {
     case "dispatch":
       requireValue(text(item.agent) && typeof item.hint === "string");
       validateFormat(item.format);
+      if (item.templateRelease && item.format === null) requireValue(item.execution?.kind === "legacy");
       if (item.format === "slots-v1") validateEntry(item.entry, item.node);
       else if (item.entry !== undefined) validateEntry(item.entry);
       break;
@@ -128,6 +149,10 @@ export function actionableWork(overview, policy) {
   requireValue(object(overview) && object(overview.head) && Array.isArray(overview.items));
   requireValue(object(policy) && typeof policy.propose === "boolean" && typeof policy.commit === "boolean");
   const head = overview.head;
+  if (head.templateRelease !== undefined) validateTemplateMetadata(head.templateRelease);
+  if (head.templateProtocol !== undefined) { requireValue(head.templateProtocol === "template-release-v1"); validateTemplateMetadata(head.templateRelease); }
+  requireValue(!(head.entry !== undefined && head.execution !== undefined));
+  if (head.execution !== undefined) validateExecution(head.execution);
   if (head.action === "dispatch") requireValue(["pm", "feature-scout", "work-assigner", "work-discoverer", "doc-auditor"].includes(head.agent)
     && typeof head.hint === "string");
   else requireValue(head.action === "none" && typeof head.reason === "string");
@@ -145,13 +170,15 @@ export function actionableWork(overview, policy) {
       key: item.key, node: item.node, version: item.version, action: item.action,
       agent: item.action === "dispatch" ? item.agent : null,
       format: item.action === "dispatch" ? item.format : null,
+      ...(item.execution ? { execution: item.execution } : {}),
+      ...(item.templateRelease ? { templateRelease: item.templateRelease } : {}),
       entry: item.action === "dispatch" && item.entry ? {
         runId: item.entry.runId, entryId: item.entry.entryId, slotId: item.entry.slotId,
       } : null,
     });
   }
   return {
-    items, head: policy.propose && head.action === "dispatch" ? { agent: head.agent, ...(head.entry ? { entry: head.entry } : {}) } : null,
+    items, head: policy.propose && head.action === "dispatch" ? { agent: head.agent, ...(head.entry ? { entry: head.entry } : {}), ...(head.execution ? { execution: head.execution } : {}), ...(head.templateRelease ? { templateRelease: head.templateRelease } : {}) } : null,
     runbookStale: overview.runbook?.stale === true,
   };
 }
@@ -163,13 +190,21 @@ export function hasWork(work) {
 export function workSignature(work) {
   if (!hasWork(work)) return null;
   const tuples = work.items.map((item) => [item.key, item.node, item.version, item.action, item.agent,
-    item.format, item.entry?.runId ?? null, item.entry?.entryId ?? null, item.entry?.slotId ?? null]);
+    item.format, item.entry?.runId ?? null, item.entry?.entryId ?? null, item.entry?.slotId ?? null, executionSignature(item.execution), templateSignature(item.templateRelease)]);
   tuples.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  return JSON.stringify([tuples, work.head?.agent ?? null, work.head?.entry ?? null]);
+  return JSON.stringify([tuples, work.head?.agent ?? null, work.head?.entry ? [work.head.entry.runId, work.head.entry.entryId, work.head.entry.slotId] : null, executionSignature(work.head?.execution), templateSignature(work.head?.templateRelease)]);
 }
 
 export function nextWatchState(state, signature) {
   if (!signature) return { lastSignature: null, repeats: 0, stuck: false };
   const repeats = state.lastSignature === signature ? state.repeats + 1 : 1;
   return { lastSignature: signature, repeats, stuck: repeats >= STUCK_AFTER };
+}
+
+function executionSignature(value) {
+  return value ? [value.kind, value.runId ?? null, value.node ?? null] : null;
+}
+
+function templateSignature(value) {
+  return value ? [value.id, value.schemaVersion, value.protocol, value.language, value.clientSurfaceHash] : null;
 }

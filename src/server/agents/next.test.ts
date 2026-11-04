@@ -155,14 +155,14 @@ function harness(opts: Opts = {}) {
 
 const dev = (extra: Partial<NextInput> = {}): NextInput => ({ agent: "web-dev", key: "FEAT-1", ...extra });
 
-it("rejects a late render failure before withCursor or any receipt commit", async () => {
+it("rejects a late render failure inside the cursor boundary without any receipt commit", async () => {
   const h = harness({ board: { "FEAT-1": "planning" }, itemAgent: { "FEAT-1": "web-dev" } });
   await h.call(dev());
   let cursors = 0;
-  h.deps.template = async () => DEV.replace("Report.", "Report {{missing.value}}.");
-  h.deps.withCursor = async () => { cursors++; throw new Error("must never enter"); };
+  h.deps.template = async () => { assert.equal(cursors, 1); return DEV.replace("Report.", "Report {{missing.value}}."); };
+  h.deps.withCursor = async (_scope, _input, _key, work) => { cursors++; return work({ ...h.deps, withCursor: undefined }); };
   const result = await h.call(dev({ client: "codex", outcome: "ok" }));
-  assert.equal(result.ok, false); assert.equal(cursors, 0); assert.equal(h.records.length, 0); assert.equal(h.runs.length, 1); assert.equal(h.runs[0].revision, 0);
+  assert.equal(result.ok, false); assert.equal(cursors, 1); assert.equal(h.records.length, 0); assert.equal(h.runs.length, 1); assert.equal(h.runs[0].revision, 0);
 });
 
 it("reuses one open AgentRun across Claude/Codex switches and adds echo only for Codex", async () => {

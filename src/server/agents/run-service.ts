@@ -1,3 +1,6 @@
+import { selectTemplateReleaseForRunIn, assertTemplateInstallationIn, templatePinFrom } from "@/server/pipeline/api";
+import type { TemplatePin, TemplateMetadata } from "@/server/pipeline/contracts";
+import { TemplateExecutionRejection } from "@/server/pipeline/api";
 import { allowsAgent } from "@harness/core/plans/entitlement.mjs";
 import { readAccountUsageIn, usageLimitFailure } from "@/server/usage/api";
 import { readDatabaseClockIn } from "@/server/database-clock";
@@ -15,7 +18,7 @@ class CursorRollback extends Error {
 const CURSOR_TRANSACTION_TIMEOUT_MS = 15_000;
 const stale = () => ({ ok: false as const, reason: "stale: call pipeline_next and agent_next without outcome; do not resubmit old work with new ids" });
 
-export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNullable<NextDeps["withCursor"]> {
+export function cursorTransaction(client: PrismaClient, base: NextDeps, readsForTransaction?: (tx: Prisma.TransactionClient) => Pick<NextDeps, "template" | "vars" | "itemAgent">): NonNullable<NextDeps["withCursor"]> {
   return async (scope: Scope, input: NextInput, key, work): Promise<ServerResult<NextOutput>> => {
     try {
       return await client.$transaction(async (tx) => {
@@ -26,7 +29,14 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         if (!access.available) return { ok: false, reason: access.reason };
         const roster = (await tx.workspace.findMany({ where: { projectId }, select: { agent: true } })).map((r) => r.agent);
         if (!allowsAgent(access.plan, input.agent, roster)) return { ok: false, reason: `agent is not on the ${access.plan} plan` };
-        const entry = input.entry;
+        const channel = await tx.templateChannel.findUniqueOrThrow({ where: { id: "default" } });
+        if (!["legacy", "versioned"].includes(channel.mode)) throw new TemplateExecutionRejection("Unsupported template channel mode.");
+        const versioned = channel.mode === "versioned";
+        if (!versioned && (input.installation || input.execution)) return { ok: false, reason: "Template release protocol is not active" };
+        if (versioned && ((!input.entry && !input.execution) || (input.entry && input.execution))) return { ok: false, reason: "An explicit template execution context is required" };
+        if (versioned && input.execution?.kind === "standalone" && key !== null) return { ok: false, reason: "Use pipeline_next to obtain this item's parent execution" };
+        const legacy = input.execution?.kind === "legacy" ? input.execution : undefined;
+        const entry = input.entry ?? (legacy ? { runId: legacy.runId, entryId: null, slotId: legacy.node } : undefined);
         if (input.agent === "feature-scout" && !entry && key === null) {
           const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { autoScoutEnabled: true } });
           if (!project.autoScoutEnabled && !await hasActiveLegacyScoutSlot(tx, projectId)) return { ok: false, reason: AUTO_SCOUT_DISABLED_REASON };
@@ -34,7 +44,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         const claim = input.outcome ? input.receipt ?? null : null;
         if (input.outcome && !claim) throw new StaleCursor();
         let closedTerminal = false;
-        const workRun = entry && key === null ? await tx.pipelineWorkRun.findUnique({ where: { id: entry.runId }, include: { version: true } }) : null;
+        const workRun = input.entry && key === null ? await tx.pipelineWorkRun.findUnique({ where: { id: input.entry.runId }, include: { version: true } }) : null;
         if (["work-assigner", "work-discoverer"].includes(input.agent) && !entry) throw new StaleCursor();
         if (workRun && entry) {
           if (workRun.projectId !== projectId || workRun.closedAt || workRun.entryId !== entry.entryId || workRun.node !== entry.slotId
@@ -42,7 +52,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         } else if (entry) {
           await tx.$queryRaw`SELECT "id" FROM "PipelineRun" WHERE "id" = ${entry.runId} FOR UPDATE`;
           const pipeline = await tx.pipelineRun.findUnique({ where: { id: entry.runId }, include: { version: true, boardItem: { include: { backlogItem: true } } } });
-          if (!pipeline || pipeline.boardItem.projectId !== projectId || pipeline.boardItem.discardedAt || pipeline.version.format !== SLOT_FORMAT) throw new StaleCursor();
+          if (!pipeline || pipeline.boardItem.projectId !== projectId || pipeline.boardItem.discardedAt || (legacy ? pipeline.version.format !== null : pipeline.version.format !== SLOT_FORMAT)) throw new StaleCursor();
           const latest = await tx.boardItem.findFirst({ where: { projectId, backlogItemId: pipeline.boardItem.backlogItemId, discardedAt: null }, orderBy: { proposedOn: "desc" }, select: { id: true } });
           if (latest?.id !== pipeline.boardItemId || (pipeline.boardItem.currentRunId && pipeline.boardItem.currentRunId !== pipeline.id) || dispatcherFor(entry.slotId, pipeline.boardItem.agent) !== input.agent) throw new StaleCursor();
           const expectedKey = isItemNode(entry.slotId) ? pipeline.boardItem.backlogItem.key : null;
@@ -51,7 +61,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           if (input.outcome && claim) {
             const prior = await tx.agentRun.findUnique({ where: { id: claim.runId } });
             const receiptMatchesPriorRun = prior !== null && prior.projectId === projectId && prior.agent === input.agent && prior.key === key
-              && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && prior.stepId === claim.stepId && prior.revision === claim.revision;
+              && prior.pipelineRunId === entry.runId && prior.pipelineEntryId === entry.entryId && (!legacy || prior.pipelineNode === legacy.node) && prior.stepId === claim.stepId && prior.revision === claim.revision;
             const priorStepIsRecordedTerminal = !!prior?.closedAt
               && ((prior.stepId === "plan" && entry.slotId === "plan" && (pipeline.boardItem.status === "in_review" || pipeline.boardItem.status === "on_hold"))
                 || (prior.stepId === "hold" && pipeline.boardItem.status === "on_hold"));
@@ -69,7 +79,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           const item = await tx.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, include: { run: { include: { version: true } } } });
           if (item?.run?.version.format !== null && item?.run?.version.format !== undefined) throw new StaleCursor();
         }
-        const binding = { pipelineRunId: workRun ? null : entry?.runId ?? null, pipelineEntryId: workRun ? null : entry?.entryId ?? null, workRunId: workRun?.id ?? null, workEntryId: workRun ? entry?.entryId ?? null : null };
+        const binding = { pipelineNode: legacy?.node ?? null, pipelineRunId: workRun ? null : entry?.runId ?? null, pipelineEntryId: workRun ? null : entry?.entryId ?? null, workRunId: workRun?.id ?? null, workEntryId: workRun ? entry?.entryId ?? null : null };
         const where = { projectId, agent: input.agent, key, ...binding };
         let open = await tx.agentRun.findFirst({ where: { ...where, closedAt: null }, orderBy: { openedAt: "desc" } });
         const claimedRun = claim ? await tx.agentRun.findFirst({ where: { ...where, id: claim.runId } }) : open;
@@ -79,10 +89,33 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
           if (!closedTerminal) open = await tx.agentRun.findFirst({ where: { ...where, id: selectedId, closedAt: null } });
         }
         if (entry && claim && !closedTerminal && (!open || open.id !== claim.runId || open.stepId !== claim.stepId || open.revision !== claim.revision)) throw new StaleCursor();
+        let pin: TemplatePin | null = null;
+        let templateRelease: TemplateMetadata | undefined;
+        if (versioned) {
+          const existing = claimedRun ?? open;
+          if (input.agentRunId && existing?.id !== input.agentRunId) throw new StaleCursor();
+          if (existing) pin = templatePinFrom(existing);
+          else pin = await selectTemplateReleaseForRunIn(tx, { projectId,
+            ...(workRun ? { parentWorkRunId: workRun.id } : entry ? { parentRunId: entry.runId } : {}),
+            context: { client: input.client, installation: input.installation, requireInstallation: true } });
+          if (!pin) throw new StaleCursor();
+          templateRelease = await assertTemplateInstallationIn(tx, projectId, pin, { client: input.client, installation: input.installation, requireInstallation: true });
+        }
         let outcomeRollback = false;
+        const reads = readsForTransaction ? readsForTransaction(tx) : base;
         const deps: NextDeps = {
           ...base,
+          ...reads,
           withCursor: undefined,
+          access: async () => access,
+          roster: async () => roster,
+          template: pin ? async (_project, requestedPath) => {
+            const path = requestedPath.replace("work-assigner.md", "pm.md").replace("work-discoverer.md", "feature-scout.md");
+            const row = await tx.templateReleaseEntry.findUnique({ where: { releaseId_lang_path: { releaseId: pin.templateReleaseId, lang: pin.templateLanguage, path } }, select: { body: true } });
+            if (!row) return null;
+            return requestedPath.includes("work-assigner") ? row.body.replace(/\bpm\b/g, "work-assigner")
+              : requestedPath.includes("work-discoverer") ? row.body.replaceAll("feature-scout", "work-discoverer") : row.body;
+          } : reads.template,
           openRun: async () => closedTerminal ? null : open,
           usageCap: async () => usageLimitFailure(await readAccountUsageIn(tx, owner.ownerUserId)),
           createRun: async (_scope, agent, itemKey, stepId) => {
@@ -94,7 +127,7 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
             await tx.user.update({ where: { id: owner.ownerUserId }, data: {
               usageWindowStartedAt: usage.startedAt ?? at, usageRunCount: usage.used + 1,
             } });
-            const item = await tx.agentRun.create({ data: { projectId, tokenId, agent, key: itemKey, stepId, openedAt: at, ...binding } });
+            const item = await tx.agentRun.create({ data: { projectId, tokenId, agent, key: itemKey, stepId, openedAt: at, ...binding, ...pin } });
             selectedId = item.id;
             return { ok: true, item };
           },
@@ -118,11 +151,14 @@ export function cursorTransaction(client: PrismaClient, base: NextDeps): NonNull
         };
         const result = await work(deps);
         if (outcomeRollback) throw new CursorRollback(result.ok ? stale() : result);
-        return result.ok && entry ? { ok: true, item: { ...result.item, entry, agentRunId: selectedId } } : result;
+        return result.ok && (entry || versioned) ? { ok: true, item: { ...result.item,
+          ...(input.entry ? { entry: input.entry } : {}), ...(input.execution ? { execution: input.execution } : {}),
+          ...(templateRelease ? { templateRelease, templateProtocol: "template-release-v1" as const } : {}), agentRunId: selectedId } } : result;
       }, { timeout: CURSOR_TRANSACTION_TIMEOUT_MS });
     } catch (error) {
       if (error instanceof CursorRollback) return error.result;
       if (error instanceof StaleCursor) return stale();
+      if (error instanceof TemplateExecutionRejection) return { ok: false, reason: error.message };
       throw error;
     }
   };

@@ -19,8 +19,9 @@ it("assigns from an exact entry with evidence, rejects stale/foreign/duplicate d
     const head = await headFor(db, f.projectId);
     assert.ok(head.action === "dispatch" && head.agent === "work-assigner");
     if (head.action !== "dispatch") throw new Error("Missing assignment");
-    const base = createNextDeps(db);
-    const deps = { ...base, template: async () => "# Work\n## step:start   requires: can-propose\nnext: done\n\nChoose work.\n" };
+    await db.project.update({ where: { id: f.projectId }, data: { language: f.projectId } });
+    await db.template.create({ data: { lang: f.projectId, path: "agents/pm.md", body: "# Work\n## step:start   requires: can-propose\nnext: done\n\nChoose work.\n" } });
+    const deps = createNextDeps(db);
     const opened = await agentNext(deps, { projectId: f.projectId, tokenId: "fixture" }, { agent: head.agent, entry: head.entry });
     assert.ok(opened.ok && !opened.item.done, JSON.stringify(opened));
     if (!opened.ok || opened.item.done) throw new Error("No receipt");
@@ -54,7 +55,7 @@ it("assigns from an exact entry with evidence, rejects stale/foreign/duplicate d
     const finished = await agentNext(deps, { projectId: f.projectId, tokenId: "fixture" }, { agent: head.agent, entry: head.entry, receipt, outcome: "ok" });
     assert.ok(finished.ok && finished.item.done, JSON.stringify(finished));
     assert.equal((await headFor(db, f.projectId)).action, "none");
-  } finally { try { snapshot.release(); await Promise.allSettled(pending); await cleanup(db, f.userId); } finally { await pool.disconnect(); } }
+  } finally { try { snapshot.release(); await Promise.allSettled(pending); await cleanup(db, f.userId); await db.template.deleteMany({ where: { lang: f.projectId } }); } finally { await pool.disconnect(); } }
 });
 
 it("does not discover when the node is absent or placed after an empty assignment", async () => {

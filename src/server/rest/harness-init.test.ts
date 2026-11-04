@@ -1,3 +1,5 @@
+import { TEMPLATE_CONTRACT, manifestHash, releaseDeliverable } from "@harness/core/templates/release-manifest.mjs";
+import { claudeFixtureExecutable } from "../../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -16,6 +18,7 @@ import { NOT_SELECTED_REASON } from "../projects/access-query";
 import { type ProjectAccess } from "../projects/contracts";
 import { failureBody, type RequestRateFailure } from "../result";
 
+const CLAUDE = claudeFixtureExecutable();
 const CLI = fileURLToPath(new URL("../../../plugin/bin/harness-init.mjs", import.meta.url));
 const RUNBOOK = "# Runbook\nversion {{runbook_version}}\n{{report_table}}\n";
 const rows = [
@@ -44,6 +47,7 @@ function run(root: string, server: string, token: string, ...args: string[]): Pr
   const env = { ...process.env };
   for (const name of ["HARNESS_TEMPLATES_DIR", "HARNESS_TOKEN", "HARNESS_SERVER", "HARNESS_PLAN"]) delete env[name];
   env.HARNESS_TOKEN = token;
+  env.HARNESS_CLAUDE_CLI = CLAUDE;
   return new Promise((done) => execFile(process.execPath, [CLI, "--root", root, "--server", server, ...args], { env },
     (error, stdout, stderr) => done({ code: error?.code ?? 0, output: stdout + stderr })));
 }
@@ -59,6 +63,9 @@ async function service(t: TestContext, plan: Plan = "free") {
   let agentRevoked = false;
   let rateLimited = false;
   const deps = {
+    templateMode: async () => "versioned" as const,
+    readRelease: async () => { templateQueries++; if (disconnectAfterTemplates) access = { plan, available: false, code: "disconnected", reason: DISCONNECTED_REASON };
+      return { ok: true as const, item: { id: "fixture-release", contract: TEMPLATE_CONTRACT, contractHash: manifestHash(TEMPLATE_CONTRACT), language: "en", rows: rows.map(row => ({ ...row, lang: "en" })) } }; },
     requestLimit: async (): Promise<RequestRateFailure | null> => rateLimited ? { ok: false, code: "RATE_LIMITED", reason: "Request limit reached.", retryAfterSec: 23 } : null,
     findTokenByHash: async (hash: string) => hash === agent.hash ? { id: "agent-token", projectId: "legacy", expiresAt: null, revokedAt: agentRevoked ? new Date() : null } : null,
     findUserTokenByHash: async (hash: string) => hash === user.hash ? { id: "user-token", userId: "user", expiresAt: null, revokedAt: null } : null,
@@ -78,16 +85,17 @@ async function service(t: TestContext, plan: Plan = "free") {
       res.setHeader("content-type", "application/json");
       if (url.pathname === "/api/templates" && req.method === "GET") {
         requests.push({ path: url.pathname, project: url.searchParams.get("project") });
-        const result = await templatesFor(header, url.searchParams.get("lang") ?? "en", url.searchParams.get("project"));
+        const result = await templatesFor(header, url.searchParams.get("lang") ?? "en", url.searchParams.get("project"), "claude", { protocol: url.searchParams.get("templateProtocol"), releaseId: url.searchParams.get("release") });
         res.statusCode = result.ok ? 200 : result.status;
         if (!result.ok && result.code === "RATE_LIMITED") res.setHeader("Retry-After", String(result.retryAfterSec));
-        res.end(JSON.stringify(result.ok ? { templates: result.templates, entitlement: result.entitlement } : failureBody(result)));
+        res.end(JSON.stringify(result.ok ? { templates: result.templates, entitlement: result.entitlement, templateRelease: result.templateRelease, templateContract: result.templateContract } : failureBody(result)));
       } else if (url.pathname === "/api/runbook" && req.method === "POST") {
         let raw = "";
         for await (const chunk of req) raw += chunk;
         const body = JSON.parse(raw);
         requests.push({ path: url.pathname, project: body.project ?? null });
         const result = await recordRunbook(header, body);
+        if (result.ok) saved.push({ projectId: body.project ?? "legacy", version: body.version });
         res.statusCode = result.ok ? 200 : result.status;
         if (!result.ok && result.code === "RATE_LIMITED") res.setHeader("Retry-After", String(result.retryAfterSec));
         res.end(JSON.stringify(result.ok ? { ok: true } : failureBody(result)));
@@ -137,8 +145,8 @@ describe("init against the REST project-scope contract", () => {
   it("keeps files already generated when runbook access is refused and tells init to stop", async (t) => {
     const s = await service(t); const root = checkout(t, "mathgic"); s.disconnectAfterTemplates();
     const result = await run(root, s.url, s.user);
-    assert.equal(result.code, 0, "runbook reporting remains best effort");
-    assert.ok(result.output.includes(DISCONNECTED_REASON)); assert.match(result.output, /stop: server access was refused after file generation/);
+    assert.equal(result.code, 1, "unconfirmed installation remains pending");
+    assert.ok(result.output.includes(DISCONNECTED_REASON)); assert.match(result.output, /Installation report refused/);
     assert.ok(existsSync(join(root, "CLAUDE.md"))); assert.equal(s.saved.length, 0);
     assert.deepEqual(s.requests.map((r) => r.path), ["/api/templates", "/api/runbook"]);
   });
@@ -162,8 +170,8 @@ describe("init against the REST project-scope contract", () => {
       assert.deepEqual(s.requests, Array.from({ length: 2 }, () => [
         { path: "/api/templates", project: "mathgic" }, { path: "/api/runbook", project: "mathgic" },
       ]).flat());
-      assert.deepEqual(s.saved, Array.from({ length: 2 }, () => ({ projectId: "mathgic", version: runbookVersion(RUNBOOK) })));
-      assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), new RegExp(runbookVersion(RUNBOOK)));
+      assert.deepEqual(s.saved, Array.from({ length: 2 }, () => ({ projectId: "mathgic", version: runbookVersion(releaseDeliverable(rows, plan, "claude").templates["CLAUDE.runbook.md"]) })));
+      assert.match(readFileSync(join(root, "CLAUDE.md"), "utf8"), new RegExp(runbookVersion(releaseDeliverable(rows, plan, "claude").templates["CLAUDE.runbook.md"])));
       assert.equal(existsSync(join(root, ".claude/agents/plan-verifier.md")), plan !== "free");
     });
   }
@@ -197,7 +205,7 @@ describe("init against the REST project-scope contract", () => {
       assert.equal(result.code, 0, result.output);
       assert.deepEqual(s.scopes, []);
       assert.ok(s.requests.every((request) => request.project === null));
-      assert.deepEqual(s.saved, [{ projectId: "legacy", version: runbookVersion(RUNBOOK) }]);
+      assert.deepEqual(s.saved, [{ projectId: "legacy", version: runbookVersion(releaseDeliverable(rows, "free", "claude").templates["CLAUDE.runbook.md"]) }]);
     });
   }
 

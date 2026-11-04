@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { readInstalledTemplate, TemplateConfigurationChanged } from "../runtime/template-installation.mjs";
+import { verifyTemplateSupport } from "../runtime/mcp-client.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -90,6 +92,8 @@ function localInput(location, options) {
   const server = serverUrl(options.server ?? process.env.HARNESS_SERVER);
   const binding = { root: location.root, server, project: config.project.slug,
     configHash: hash(configText), tokenHash: hash(token) };
+  try { readInstalledTemplate(location.root, "claude"); }
+  catch (error) { fail(error instanceof TemplateConfigurationChanged ? "binding-changed" : "invalid-config"); }
   return { config, runbook, token, server, binding };
 }
 
@@ -134,9 +138,12 @@ function retryDelay(header) {
   return Number.isFinite(date) ? Math.max(0, date - Date.now()) : 0;
 }
 async function callTool(input, name, signal) {
+  let installation;
+  try { ({ installation } = readInstalledTemplate(input.binding.root, "claude")); }
+  catch (error) { fail(error instanceof TemplateConfigurationChanged ? "binding-changed" : "invalid-config"); }
   const id = randomUUID();
   const args = { ...(input.config.project.slug ? { project: input.config.project.slug } : {}),
-    ...(name === "pipeline_next" && input.runbook ? { runbook: input.runbook } : {}) };
+    ...(name === "pipeline_next" ? { installation, client: "claude", ...(input.runbook ? { runbook: input.runbook } : {}) } : {}) };
   let response;
   try {
     response = await fetch(`${input.server}/api/mcp`, { method: "POST", redirect: "manual", signal,
@@ -173,6 +180,7 @@ async function callTool(input, name, signal) {
   const parsed = parseToolResponse(response.headers.get("content-type"), body, id);
   if (!parsed.ok) fail(parsed.error.code, parsed.error.code === "access-refused"
     ? cleanReason(parsed.error.reason, input.token, "The server refused the watch request.") : undefined);
+  if (name === "pipeline_next" && parsed.value?.templateProtocol !== "template-release-v1") fail("protocol-error");
   return parsed.value;
 }
 
@@ -237,6 +245,7 @@ async function startLease(files, input, options, session) {
 }
 
 async function startWatch(files, input, options) {
+  await verifyTemplateSupport({ ...input, client: "claude" });
   const expires = Infinity;
   const controller = new AbortController();
   let identity;
@@ -251,6 +260,7 @@ async function startWatch(files, input, options) {
   verifyIdentity(identity, input.config);
   mkdirSync(path.dirname(files.lock), { recursive: true });
   const event = await withGuard(files, () => {
+    if (existsSync(path.join(input.binding.root, "harness.init.guard"))) fail("invalid-config");
     if (!matchesBinding(input.binding, localInput({ root: input.binding.root }, options).binding)) fail("binding-changed");
     const state = readState(files);
     if (state && (!options.force || state.lock.lifecycle !== undefined)) return { event: "locked", startedAt: state.lock.startedAt, seenAt: state.lock.seenAt };

@@ -94,11 +94,17 @@
 ## 템플릿 release 저장 기반
 
 `templates/api.ts`의 `publishTemplateRelease`, `activateTemplateRelease`,
-`readTemplateDeployment`, `readTemplateRelease`는 DB 주입형 운영 서비스다.
+`readTemplateDeployment`, `readTemplateRelease`, `snapshotTemplateCutover`,
+`bootstrapTemplateReleases`는 DB 주입형 운영 서비스다. 공개 다운로드에는
+`readTemplateDelivery`, 설치 스키마에는 `templateInstallationSchema`를 사용한다.
+`validateTemplateRelease`는 DB 없는 등록 사전 검증이다.
 입력/결과 타입은 `templates/contracts.ts`에서 명시적으로 공개한다.
 등록과 활성화는 분리하며 저장된 묶음은 DB trigger로 보호한다.
 채널 초기 모드는 legacy이고, bootstrap 전 활성화는 거부한다.
-파이프라인의 실제 pin 선택과 client wire 전환은 아직 연결하지 않았다.
+`pipeline/api.ts`의 `selectTemplateReleaseForRunIn`, `assertTemplateInstallationIn`,
+`templatePinFrom`과 두 rejection 타입은 agents가 같은 transaction에서 선택을 검증하는
+공개 경계다. 관련 타입은 pipeline/contracts에 둔다. 세부 wire·bootstrap·설치 계약은
+[template-releases.md](./template-releases.md)를 따른다.
 
 ## 내부 참조 시험 목록
 
@@ -173,6 +179,8 @@
 | `tests/server/token-usage-bindings.test.ts` | projects | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (access-query) |
 | `tests/server/token-usage-bindings.test.ts` | rest | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (templates-handler, project-identity-handler, runbook-handler, scope, runbook, templates, project-identity, project-registration) |
 | `tests/server/token-usage-bindings.test.ts` | tokens | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (usage-recorder, usage) |
+| `tests/server/integration/template-execution.test.ts` | pipeline | 실제 root 생성 transaction의 템플릿 선택·설치 admission·rollback 검증 (run-service) |
+| `tests/server/integration/template-execution.test.ts` | mcp | 혼합 릴리스 overview에서 호환 항목 진행과 비호환 항목 대기·무변경을 검증 (deps) |
 <!-- server-internal-tests:end -->
 
 ## 검증

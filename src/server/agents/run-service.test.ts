@@ -13,6 +13,7 @@ function fixture({ casFails = false, auditFails = false } = {}) {
   let revision = 0;
   const run = () => ({ id: "agent-run", projectId: "project", agent: "dev", key: "KEY", pipelineRunId: "pipeline", pipelineEntryId: "entry", stepId: step, revision, refused: 0, closedAt: null });
   const tx = {
+    templateChannel: { findUniqueOrThrow: async () => ({ mode: "legacy" }) },
     $queryRaw: async (parts: TemplateStringsArray) => { locks.push(parts.join("?")); return []; },
     project: { findUniqueOrThrow: async () => ({ ownerUserId: "owner" }), findUnique: async () => ({ ownerUserId: "owner", repoOwner: "repo", available: true, ownerUser: { subscription: { plan: "max" } } }) },
     workspace: { findMany: async () => [{ agent: "dev" }] },
@@ -82,6 +83,7 @@ function closedRun({ stepId, status, event }: { stepId: string; status: string; 
   const run = { id: "agent-run", projectId: "project", agent: "dev", key: "KEY", pipelineRunId: "pipeline", pipelineEntryId: "entry", stepId, revision: 0, refused: 0, closedAt };
   const asked: { from?: string; to: string }[] = [];
   const tx = {
+    templateChannel: { findUniqueOrThrow: async () => ({ mode: "legacy" }) },
     $queryRaw: async () => [],
     project: { findUniqueOrThrow: async () => ({ ownerUserId: "owner" }), findUnique: async () => ({ ownerUserId: "owner", repoOwner: "repo", available: true, ownerUser: { subscription: { plan: "max" } } }) },
     workspace: { findMany: async () => [{ agent: "dev" }] },

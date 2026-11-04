@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "^mcp__harness__(agent_next|pipeline_next)$",
+      "hooks": [{
+        "type": "command",
+        "command": "node",
+        "args": ["${CLAUDE_PLUGIN_ROOT}/bin/harness-template-guard.mjs"],
+        "timeout": 15,
+        "onFailure": "block"
+      }]
+    }]
+  }
+}

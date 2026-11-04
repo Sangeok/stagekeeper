@@ -1,3 +1,4 @@
+import { installReadyFixture, fixtureInstallation } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -20,7 +21,7 @@ const COPY = readFileSync(new URL("../../docs/conventions/product-copy.md", impo
 const CONFIG = { version: 1, project: { owner: "owner", repo: "repo", branch: "main", slug: "owner-repo" },
   workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] };
 const IDENTITY = { owner: "OWNER", repo: "REPO", slug: "owner-repo", available: true };
-const EMPTY = { head: { action: "none", reason: "No work." }, items: [] };
+const EMPTY = { templateProtocol: "template-release-v1", head: { action: "none", reason: "No work." }, items: [] };
 const READY = { ...EMPTY, items: [{ key: "ITEM-01", node: "plan", version: 1, action: "dispatch", agent: "dev", hint: "Plan.", format: null }] };
 const BASE_ENV = { ...process.env };
 for (const key of Object.keys(BASE_ENV)) if (key.startsWith("HARNESS_") || key.startsWith("GIT_CONFIG") || key === "NODE_OPTIONS" || key.startsWith("STAGEKEEPER_TEST_")) delete BASE_ENV[key];
@@ -82,6 +83,10 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {}, contr
   let overview = READY;
   let runner = (body, res) => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify({ ok: true, paused: false })); };
   const server = createServer(async (req, res) => {
+    if (req.method === "GET" && req.url.startsWith("/api/templates?")) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ templateRelease: { ...fixtureInstallation, id: fixtureInstallation.releaseId, schemaVersion: 1 } })); return;
+    }
     let raw = "";
     for await (const chunk of req) raw += chunk;
     if (req.url === "/test/advance") { overview = EMPTY; res.end("{}"); return; }
@@ -99,6 +104,7 @@ async function fixture(t, { plan = [{ kind: "success" }], env: extra = {}, contr
   git("config", "user.name", "test");
   writeFileSync(path.join(root, "harness.json"), JSON.stringify(CONFIG));
   writeFileSync(path.join(root, "CLAUDE.md"), `<!-- harness:runbook:start -->\nThis document is runbook version \`${VERSION}\`.\n<!-- harness:runbook:end -->\n`);
+  installReadyFixture(root);
   git("add", "-A");
   git("commit", "-q", "-m", "init");
   const tools = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-background-tools-"));

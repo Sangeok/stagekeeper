@@ -25,7 +25,7 @@ export function dispatchBinding(next, workspaces) {
   if (next.format === "slots-v1" && (!next.entry?.runId || !next.entry?.entryId || !next.entry?.slotId)) throw new Error("Bound dispatch missing entry");
   const keyed = workspaces.some(ws => ws.agent === next.agent) || ["plan-verifier", "qa-verifier"].includes(next.agent);
   if (keyed && !next.key) throw new Error("Workspace/verifier requires an item key");
-  return { agent: next.agent, key: next.key, agentKey: keyed ? next.key : undefined, entry: next.entry, ...(next.agentRunId ? { agentRunId: next.agentRunId } : {}) };
+  return { agent: next.agent, key: next.key, agentKey: keyed ? next.key : undefined, entry: next.entry, ...(next.execution ? { execution: next.execution } : {}), ...(next.templateRelease ? { templateRelease: next.templateRelease } : {}), ...(next.agentRunId ? { agentRunId: next.agentRunId } : {}) };
 }
 
 export function codexFailure(error, session = null) {
@@ -95,11 +95,11 @@ async function main() {
     let next = options.key ? pipeline : pipeline.head, commitHandoff;
     if (options["retry-qa"] !== undefined) {
       if (options["retry-qa"] !== "yes" || next.action !== "wait" || next.on !== "qa") throw new Error("Explicit QA retry requires a current QA failure");
-      next = { action: "dispatch", ...next.resume };
+      next = { ...next, ...next.resume, action: "dispatch" };
     }
     if (next.action === "wait" && next.on === "handoff" && options["handoff-commit"]) {
       commitHandoff = confirmCommitHandoff(location.root, options.key, next, options["handoff-commit"]);
-      next = { action: "dispatch", ...next.resume };
+      next = { ...next, ...next.resume, action: "dispatch" };
     } else if (options["handoff-commit"]) throw new Error("No current handoff to continue");
     if (next.action !== "dispatch") { console.log(JSON.stringify({ event: "paused", session: options.session, pipeline })); return; }
     if (!next.key && !owned.policy.propose) throw new Error("New-work permission is disabled for this session");

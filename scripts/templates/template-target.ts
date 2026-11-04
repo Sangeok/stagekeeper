@@ -60,7 +60,11 @@ export const TEMPLATE_TARGET_OPTIONS = ["--profile-file", "--environment", "--re
 export function templateCommandAudit(target: TemplateTarget, options: Record<string, string>): DeploymentAudit {
   const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   if (options["--code-sha"] !== head) throw new Error("Template command code SHA does not match the checkout");
-  if (target.environment === "production") throw new Error("Production template operations require the approved deployment workflow and cutover gate");
+  if (target.environment === "production" && (process.env.GITHUB_ACTIONS !== "true" || process.env.GITHUB_REPOSITORY !== "Sangeok/stagekeeper"
+    || !/^Sangeok\/stagekeeper\/\.github\/workflows\/template-release\.yml@refs\/heads\/(?:dev|main)$/.test(process.env.GITHUB_WORKFLOW_REF ?? "")
+    || process.env.GITHUB_SHA !== head || process.env.TEMPLATE_DEPLOY_ENV !== "production" || options["--workflow-run"] !== process.env.GITHUB_RUN_ID)) {
+    throw new Error("Production template operations require the protected deployment workflow and exact code revision");
+  }
   return { actor: options["--actor"], environment: target.environment, targetProfileId: target.profileId, targetIdentityHash: target.identityHash,
     codeSha: head, workflowRun: options["--workflow-run"] };
 }

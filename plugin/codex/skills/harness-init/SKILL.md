@@ -38,7 +38,7 @@ the packaged launcher on Windows or Node on other supported hosts.
 Handle refused unowned files with the user's explicit adopt instruction, preserve modified
 files, and use the host's normal approval flow for protected paths. Dry-run writes nothing.
 Then run it without dry-run. Preserve `.claude/`, CLAUDE.md and .mcp.json; the generator owns
-only its Codex files and common docs. `files-written` alone is not ready.
+only its Codex files and common docs. `files-written` alone is not ready. Require the generator’s `ready:` output and a ready Codex entry in the version 2 installation lock before complete-init. On failure preserve pending files and retry without automatic adoption. Use `--release <ID>` to install the server-requested pinned release.
 
 Run installed `bin/harness-codex.mjs complete-init`. It registers only the harness MCP entry
 with bearer token env var HARNESS_TOKEN, syncs the configured roster/language, and verifies

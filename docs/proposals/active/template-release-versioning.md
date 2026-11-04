@@ -41,13 +41,15 @@ related:
 
 ## Proposal Size
 
-`standard`, 위험 등급 `HIGH-RISK`, 작성 모드 `WHOLE_SDD`다. 영속 데이터와 REST/MCP·설치 계약을 변경하고, 구·신 서버 공존과 실행 재개·복구를 다룬다. 이 문서는 전체 설계 검토안과 Phase별 완료 경계를 정의하며, 모든 Phase의 상세 구현 계획이나 운영 실행 승인을 대신하지 않는다. 구현 준비도는 아직 판정하지 않았으며, 첫 구현 전에 Phase TPL0의 계약 대조가 필요하다.
+`standard`, 위험 등급 `HIGH-RISK`, 작성 모드 `WHOLE_SDD`다. 영속 데이터와 REST/MCP·설치 계약을 변경하고, 구·신 서버 공존과 실행 재개·복구를 다룬다. 이 문서는 전체 설계 검토안과 Phase별 완료 경계를 정의하며, 모든 Phase의 상세 구현 계획이나 운영 실행 승인을 대신하지 않는다. Core 구현과 로컬 검증 결과는 Implementation Progress에 기록한다. 운영 이관·native 출시 인수는 별도 Phase TPL4 경계다.
 
 이 문서의 reconciliation은 전체 설계의 코드 정합성·실행 순서·변경 후 산출물·검증 목적지를 심사한다. 미래 제품 VFY가 아직 실행되지 않았다는 사실과 현재 설계의 미해결 결함을 구분한다. 최신 저장본의 무편집 대조가 통과해도 각 Phase의 구현·운영 인수나 실행 승인을 대신하지 않는다.
 
 ## Current State
 
 ### 근거와 권위
+
+이 표는 구현 전 reconciliation 기준이다. 구현 후 현재 계약은 [template-releases.md](../../architecture/template-releases.md)와 아래 Implementation Progress를 따른다.
 
 조사 기준은 `dev`의 `14d605599a92e8b242f7e20073281f97aa4d56c1`과 2026-11-02 로컬 파일이다. 문서 작업 브랜치는 `harness/template-release-versioning-sdd-20261102`다. 초안 작성 시작 시 작업 트리는 깨끗했고, 이번 재검증 시작 시 변경은 이 미추적 문서 하나였다. 이전 `harness/src-clean-code-review-20261102`의 커밋은 해당 브랜치에 보존했다.
 
@@ -243,7 +245,7 @@ IF init이 중단되거나 필요한 관리 파일에 충돌·`skip(modified)`�
 ### 3. 원본 취득·등록·활성화
 
 1. 요청은 정확한 원본 커밋, 검증할 서버 커밋·플러그인 식별자, 대상 환경, 요청 ID를 지정한다. branch/tag는 커밋으로 해석·고정한다. 임의 저장소 URL·환경을 허용하지 않는다.
-2. CI의 새 작업 디렉터리에서 저장소 식별·실제 HEAD·Git blob과 입력 inventory의 일치를 확인한다. 운영 등록에 dirty/untracked 원본을 섞지 않는다. private suite의 부모 상대 import와 현재 `test:templates` 검색을 함께 만족하도록 검증 checkout은 `plugin/templates`에 둔다. 다른 `--dir`의 데이터 읽기 성공만으로 이 suite 실행까지 증명됐다고 처리하지 않는다.
+2. CI의 새 작업 디렉터리에서 저장소 식별·실제 HEAD·Git blob과 입력 inventory의 일치를 확인한다. 운영 등록에 dirty/untracked 원본을 섞지 않는다. 배포 검증은 신뢰한 공개 코드의 `tests/templates/private-template-release.test.ts`가 지정 checkout을 데이터로 읽는다. private 저장소의 실행 코드를 운영 자격과 함께 실행하지 않는다. 기존 private suite의 경로·lock 1 계약은 별도 유지보수 대상으로 보존하며 이 검증을 그 suite의 실행으로 보고하지 않는다.
 3. 기존 경로·중복·빈 본문·symlink·단계 그래프·Codex bundle 검증을 재사용하고 canonical hash·언어 inventory·각 지원 client의 필수 문서·렌더 변수를 검증한다. 단계 본문을 공개 생성물로 전달하지 않는다.
 4. 지정한 서버·플러그인·원본 조합으로 계약·격리 DB·실제 init 시험을 수행한다. private 입력 부재·skip은 배포 증거가 아니다.
 5. 완성된 묶음과 import 요청 결과를 같은 DB transaction에 저장한다. 동일 입력의 재요청은 같은 ID를 반환하고 같은 요청 ID의 다른 입력은 거부한다. 외부 Git 취득·백업 업로드는 transaction 밖에서 완료한다.
@@ -316,13 +318,15 @@ native runtime의 `harness-runtime-v1`, 전달 프로토콜 `template-release-v1
 | 표면 | 새 계약과 권위 |
 | --- | --- |
 | `GET /api/templates` | 새 플러그인은 `templateProtocol=template-release-v1`, 선택적인 `release=<opaque ID>`를 보낸다. 생략한 release는 활성 묶음이고 lang query 생략의 기본값은 현행 en이다. 버전 모드의 구형 요청과 legacy 모드의 버전 설치 요청은 HTTP 400과 `{ error }`로 파일 쓰기 전에 거부한다. 버전 모드는 선택 묶음의 요청 언어, 없으면 같은 묶음의 영어를 사용한다. 알 수 없는 묶음 또는 두 완전한 언어가 모두 없을 때 404다. legacy 요청의 fallback 없는 기존 계약과 scope·가용성·요청 제한은 전환 전 보존한다. |
-| GET 성공 body | 기존 필드와 `templateRelease: { id, schemaVersion: 1, protocol: "template-release-v1", language, clientSurfaceHash }`. route가 JSON body에 실제로 포함한다. `language`는 유효 언어다. |
+| GET 성공 body | 기존 필드, 공개 해석 계약 `templateContract`와 `templateRelease: { id, schemaVersion: 1, protocol: "template-release-v1", language, clientSurfaceHash }`. route가 JSON body에 실제로 포함한다. `language`는 유효 언어다. |
 | MCP 설치 입력 | `installation: { releaseId, language, clientSurfaceHash, protocol: "template-release-v1" }`. client는 기존 별도 입력이다. legacy 모드의 기존 요청을 보존하고 버전 모드의 `pipeline_next`·`agent_next`에는 설치 정보를 요구한다. |
 | MCP 실행 문맥 | slots-v1은 기존 entry, 기존 형식은 `execution: { kind: "legacy", runId, node }`, 실제 독립 호출은 `execution: { kind: "standalone" }`이다. 버전 모드의 agent_next에는 정확히 하나를 요구하고 initial/resume/outcome에 그대로 왕복한다. legacy 모드에는 기존 생략 계약을 보존하며 새 실행 문맥으로 버전 결합을 가장하지 않는다. |
 | MCP 성공 body | 전달 프로토콜과 해당 실행의 templateRelease·실행 문맥을 반환한다. 실행 선택은 검증한 DB 부모/독립 run이 결정하며 설치 ID로 참조를 변경하지 않는다. |
 | 호환되지 않는 항목 | key/node/version과 `action: "wait", on: "template", reason, templateRelease`. head는 기존 `action: "none"`에 reason과 필요한 묶음 정보를 싣는다. 호환되는 다른 항목은 계속 제공한다. |
 | `POST /api/runbook` | 새 모드는 양쪽 client의 `{ project?, client, version, installation }`을 검증하고 `{ ok: true }`를 반환한다. 보고한 묶음·유효 언어·현재 plan의 표면과 런북 버전을 대조하고 활성 묶음으로 치환하지 않는다. |
 | 오류와 캐시 | template 오류는 현행 `reason` → `{ error }`를 사용하고 새 전역 error code를 암묵적으로 추가하지 않는다. 기존 두 제한 code·Retry-After를 보존한다. 인증된 다운로드의 `private, no-store`와 사용자/plan 간 body 비혼용을 검사한다. |
+
+공개 역할·런북에는 manifest의 versioned 설치 지침을 붙인다. 원문을 보존한 R0에도 같은 전달 계약을 적용하며 guide는 해석 계약 hash에 들어간다. Claude의 native PreToolUse hook이 로컬 설치를 검증해 installation을 주입하고 원래 entry/execution/receipt는 보존한다. 이 차단 계약은 Claude Code 2.1.295 이상과 재시작을 요구한다. Codex bridge는 같은 정보를 직접 보존·주입한다.
 
 `clientSurfaceHash`는 현재 plan에 대한 `deliverable`의 client·유효 언어·정렬된 path/body와 해석 계약을 canonical 형식으로 해시한다. 묶음 ID·단계 전체 본문·시험 시각은 넣지 않는다. 따라서 ID가 달라도 같은 공개 표면·계약이면 같은 설치가 사용 가능하다. 런북 선택·alias 변환·plan 필터를 별도로 재구현하지 않는다.
 
@@ -382,20 +386,20 @@ bootstrap은 반복 시 이미 기록한 요청 결과를 반환하고 revision�
 | I10 | `plugin/bin/{harness-init,harness-codex,harness-session,harness-watch,harness-background}.mjs`, `plugin/runtime/{mcp-client,local-session,file-ownership,codex-thread,codex-main-loop,codex-main-loop-tools,commit-handoff}.mjs` | 양 client의 metadata·preflight·독립 watch·세션/guard·실행 문맥/briefing/handoff 전파·대조. 신규 제안 `runtime/template-installation.mjs`, `runtime/template-installation.test.mjs`. VFY-05/06/10. |
 | I11 | `plugin/skills/{init,watch,background}/SKILL.md`, `plugin/codex/skills/{harness-init,harness-run,harness-resume,harness-background}/SKILL.md` | 설치 완료·pending 복구·tuple/실행 문맥 briefing·기존 native 설치/중지 계약. VFY-05/06/10. |
 | I12 | `plugin/lib/templates/{deliver,manifest,runbook,codex-bundle,template-boundary,render,vars}.mjs`, `plugin/lib/execution/watch.mjs`, 신규 복사본 `plugin/lib/templates/release-manifest.mjs` | `scripts/plugin-lib.mjs`로 원본에서 동기화한다. `.d.mts`/시험은 runtime 복사 대상이 아니다. VFY-01/06 및 sync 검사. |
-| I13 | `plugin/.claude-plugin/plugin.json`, `plugin/.codex-plugin/plugin.json` | 현재 두 판은 0.5.33이다. 실제 출하 시 동일한 더 높은 판을 정하고 기존 출시 gate를 따른다. VFY-10. |
+| I13 | `plugin/.claude-plugin/plugin.json`, `plugin/.codex-plugin/plugin.json` | 구현 후보의 두 판은 0.6.0이다. 아직 공개 배포하지 않았다. 실제 출하 시 동일한 더 높은 판을 정하고 기존 출시 gate를 따른다. VFY-10. |
 | I14 | `.github/workflows/{client-init-smoke,check}.yml`, 신규 제안 `.github/workflows/template-release.yml` | 원본 SHA·증거·격리 fixture·환경별 명시 활성화. check의 기존 검색/자격 구조와 승격 명령 보존. VFY-09. |
-| I15 | `scripts/rehearsals/{rehearse-client-init-smoke.ts,client-init-smoke-steps.mjs,rehearse-client-init-smoke.test.ts,client-init-smoke-steps.test.mjs}` | Claude smoke의 버전 방식·정확한 body/metadata·seed 전환과 요약을 함께 갱신한다. 신규 제안 `rehearse-template-release-codex.ts`, `rehearse-template-release-codex.test.ts`로 Codex의 기존 거부를 우회하지 않고 별도 인수한다. VFY-05/09. |
+| I15 | `scripts/rehearsals/{rehearse-client-init-smoke.ts,client-init-smoke-steps.mjs,rehearse-client-init-smoke.test.ts,client-init-smoke-steps.test.mjs}` | Claude smoke의 버전 방식·정확한 body/metadata·seed 전환과 요약을 함께 갱신한다. `tests/templates/private-template-release.test.ts`에서 Codex의 실제 HTTP init을 별도로 검증한다. 기존 smoke의 Codex native 설치 거부는 유지하며 그 플랫폼 인수를 실행한 것으로 간주하지 않는다. VFY-05/09. |
 | I16 | `docs/architecture/{protocol,server,core,pipeline-execution,verification}.md`, `CONTEXT.md` | API/형식·DB 선택 소유자·source/pin 용어와 시험 경로를 구현과 함께 갱신한다. 현재는 읽기 전용이다. |
-| I17 | private 저장소의 `en/{CLAUDE,CODEX}.runbook.md`, `en/agents/{dev,pm,feature-scout,doc-auditor,plan-verifier,qa-verifier,impl-verifier}.md`, `en/docs/plans/{README,template,verification-paths}.md`, `en/docs/agents/README.md`, `templates.test.mjs`, `README.md`, `QA-VERIFIER-ROLLOUT.md` | 고정 커밋에서 확인한 정확한 inventory다. 원문 13행에 새 installation·실행 문맥 전달/대기를 적용하고, full/key/head/initial/resume/outcome을 모두 검사한다. file tool 없는 PM briefing도 포함한다. 시험의 사라진 fixture·형식 1·내부 import는 다음 규칙으로 함께 갱신한다. VFY-01/05/06/10. |
-| I18 | 신규 제안 `tests/server/private-template-contract.test.ts`, 기존 `tests/server/integration/support.ts`의 격리 방식과 신규 release fixture helper | private 본문을 복사하지 않고 승인된 checkout에서 읽는 서버 교차 시험이다. 필요한 agents/pipeline 내부 참조를 `server.md`에 정확히 등록한다. 공통 DB singleton은 바꾸지 않는다. VFY-01/04/06. |
+| I17 | private 저장소의 `en/{CLAUDE,CODEX}.runbook.md`, `en/agents/{dev,pm,feature-scout,doc-auditor,plan-verifier,qa-verifier,impl-verifier}.md`, `en/docs/plans/{README,template,verification-paths}.md`, `en/docs/agents/README.md`, `templates.test.mjs`, `README.md`, `QA-VERIFIER-ROLLOUT.md` | 고정 커밋에서 확인한 정확한 inventory다. 원문 13행을 immutable 입력으로 유지하고 공개 manifest guide·native hook·Codex bridge에 installation·실행 문맥 전달/대기를 적용한다. file tool 없는 PM도 이 경로를 사용한다. private 원본이나 그 legacy suite를 수정·게시하지 않는다. VFY-01/05/06/10. |
+| I18 | 신규 `tests/templates/private-template-release.test.ts`, 기존 `tests/server/integration/support.ts`의 격리 방식과 신규 release fixture helper | private 본문을 복사하지 않고 승인된 checkout에서 읽는 서버 교차 시험이다. 필요한 agents/pipeline 내부 참조를 `server.md`에 정확히 등록한다. 공통 DB singleton은 바꾸지 않는다. VFY-01/04/06. |
 
 보존 대조 범위는 `src/server/pipeline/{run-request,save-definition,automatic-scout,lock-pipeline}.ts`, `src/fsd/features/edit-pipeline/{api/run-pipeline.server.ts,model/run-pipeline-input.ts}`, `plugin/runtime/{background,runner-client,resident-commit}.mjs`, `packages/core/execution/runner.mjs`다. graph 준비·사용자 시작·정의 편집/중지·Runner enum·보호 파일/commit 정책을 바꾸지 않는다. 기존 `harness.json`, owner MCP, 토큰 저장 위치·OS 권한 backend도 변경하지 않는다.
 
 시험 inventory는 아래 VFY의 정확한 파일 목록이 소유한다. 신규 파일의 부모 존재·이름 충돌을 착수 때 재검사하고 같은 모듈은 상대 경로, 모듈 밖은 public API로 import한다. 허용 경계를 바꾸거나 새 test-only export로 검사를 통과시키지 않는다.
 
-private 시험은 없어진 ApcH 예제 대신 test-owned inline config를 사용한다. `DONE`/`splitTemplate`/`agentNext`는 기존 public API로 가져오고 parser가 이미 검사하는 요구 이름을 확인하려고 `REQUIREMENTS`를 새 제품 API로 공개하지 않는다. 내부 `decideReportSubmit`/`decideTransition`과 결합한 실제 본문 사례는 I18의 등록된 서버 시험으로 옮긴다. 제거하는 사례는 그 목적지에서 동일한 본문 입력·관찰 결과가 실행됨을 확인한다. private workflow는 두 suite의 실제 실행을 요구하고, private 입력이 없는 공개 CI의 skip을 대체 증거로 사용하지 않는다.
+새 private 입력 검증은 test-owned config와 기존 public `validateTemplateRelease`·`splitTemplate`·`agentNext`를 사용한다. 양 client·세 plan의 실제 HTTP 설치, ready hash, 전체 graph 순환 여부, 실제 원문의 dev interruption/handoff와 QA/impl verdict 분기를 검사한다. 운영 import는 검증한 source/code SHA와 release identity를 다시 대조한다.
 
-I18은 테스트 전용 절대 경로 `STAGEKEEPER_PRIVATE_TEMPLATE_ROOT`에서 원본을 읽는다. private 검증 job은 `STAGEKEEPER_PRIVATE_TEMPLATES=required`를 설정해 입력 누락/skip을 실패로 처리한다. 일반 공개 CI에 원본이 없으면 명시적으로 미실행을 보고하며, 이 환경변수를 제품 실행이나 권한 판정에 사용하지 않는다.
+입력은 `HARNESS_RELEASE_SOURCE`의 절대 checkout과 `HARNESS_RELEASE_COMMIT`이다. 새 배포 workflow는 둘을 반드시 제공한다. 일반 공개 실행에서 입력이 없으면 명시적인 skip이며 배포 증거로 사용하지 않는다. 기존 private `templates.test.mjs`의 문구 검사는 수정·삭제하지 않고 미실행으로 남긴다. 새 두 계약 검사의 통과가 그 legacy suite 전체의 통과를 뜻하지 않는다.
 
 ### 공개 symbol의 변경 후 경로
 
@@ -706,16 +710,20 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 
 ## Implementation Progress
 
-2026-11-03 `origin/dev@5dcab7300b656f7f2449c12459d942fa33a14580`에서 `harness/template-release-implementation-20261103` 작업 트리를 만들었다. 원래 문서 작업 트리의 미추적 문서는 보존했다.
+2026-11-03 최신 dev 기준의 격리 `harness/template-release-implementation-20261103` 브랜치에서 시작했고 원래 dirty 문서 작업 트리는 보존했다. 2026-11-04 Core 구현과 로컬 검증을 진행했다.
 
-- 구현한 기반: additive release/entry/channel/deployment와 nullable 실행 참조, DB seal·legacy writer·pin guard, canonical identity·언어/설치 호환성, 등록·sealed 조회·CAS 활성화·결과 재조회, 명시적 대상 검증과 등록/활성화 CLI.
-- 현재 앱 실행은 legacy 경로다. 실행 생성/재개에서 pin을 선택하는 TPL2 연결, bootstrap, REST/MCP·설치 lock의 TPL3 연결과 배포 workflow는 아직 미완료다. 운영 CLI 쓰기는 production 환경에서 거부하며 최초 전환 전에 활성화할 수 없다.
-- 실제 격리 PostgreSQL 18에서 별도 schema에 모든 migration을 적용했다. 동일 내용의 동시 등록, seal 뒤 insert/update/delete 거부, insert 뒤 실패의 전체 rollback, 활성화 CAS·응답 유실 재조회, pin 변조/과거 소급 거부를 검사했다.
-- raw SQL의 직렬화 충돌이 Prisma adapter의 중첩 SQLSTATE로 전달되는 경로를 실제 경합에서 확인하고 재시도 처리에 포함했다.
-- 검증: `check` 280 pass/2 platform skip, `test:architecture` 195 pass/2 platform skip, `npm test` 570 pass/29 skip, `test:web` 794 pass, `test:server:integration` 168 pass, production build 성공. 새 DB 시험 6개와 core/CLI 시험 6개를 포함한다. 원본 13행도 새 등록 전 검증을 통과했다. lint의 기존 `_key` 미사용 경고 1건은 이 변경 범위 밖이다.
-- 이 기록은 전체 제안의 완료 또는 운영 인수 통과를 뜻하지 않는다. 후속 Phase의 조건과 Planned VFY는 유지한다.
+- TPL1: additive release/entry/channel/deployment, seal·legacy writer·pin DB guard, canonical identity, 등록·활성화 CAS·결과/상태 조회, 명시적 target profile과 운영 CLI.
+- TPL2: 모든 root 생성과 부모 상속, cursor transaction 내 파싱·렌더·usage/receipt, 기존 형식 execution 결합, 완료/검증/보고/handoff의 동일 부모 조회, 과거 미상 reopen과 동결 legacyEvidence.
+- 최초 이관: 전체 private snapshot, hash drift 확인, 승인 inventory·reader/writer evidence, R0 seal·열린 pin·귀속·receipt 1회 증가·writer 장벽·mode/결과의 단일 transaction과 replay.
+- TPL3: versioned REST/MCP, 공개 해석 guide, client lock v2 pending/ready, 부분 설치·공유 파일 무효화, native Claude MCP hook, 양 runtime의 설치/서버 지원 검사, Codex execution/handoff 전달, Windows bundle hook launcher.
+- 배포 코드: protected code/source SHA의 `template-release.yml`, 운영 credential과 검증 job 분리, 명시 import/activate/bootstrap/status/result. 기존 Claude smoke에는 pinned private SHA와 이관 경계를 연결했다. production 환경·secrets 설정이나 workflow 실행은 하지 않았다.
+- 검증: check/lint/type, architecture, core/plugin, web, server composition, 격리 PostgreSQL 전체 suite와 private 실제 HTTP 설치·단계 분기, 정확한 출시 0.5.33 init reader를 확인했다. 수치·revision·제한은 별도 구현 검증 보고서에 기록한다.
+
+변경 후 현재 계약은 [template-releases.md](../../architecture/template-releases.md)가 권위다. native macOS/Windows 출시 조합의 실제 설치·hook 로딩, 전체 이전 client 집합, 운영 백업 복원·이관·포인터 복구와 배포 인수는 실행하지 않았다. TPL4 완료 또는 운영 배포 승인을 뜻하지 않으며 제안서는 active에 유지한다.
 
 ## Verification Results
+
+아래 표는 구현 전 문서 reconciliation 당시의 기록이다. 최신 코드 검증은 Implementation Progress와 구현 검증 보고서를 따른다.
 
 전체 제품 VFY-TPL-01–VFY-TPL-10은 아직 완료되지 않았다. 위 기반 구현의 실행 증거와 아래 과거 문서 대조 결과를 구분한다. 아래는 2026-11-02 및 2026-11-03의 문서/기존 코드 대조 결과다. strict 모드는 전체 Task가 확정되지 않은 WHOLE_SDD에 적용하지 않는다. 기계적 ID 연결과 의미·소유자·변경 후 검증 목적지는 별도로 대조한다. 기존 원본의 파싱/렌더 결과를 새 버전 기능의 통과로 사용하지 않는다.
 
@@ -806,7 +814,7 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 
 ## Completion or Closure Notes
 
-Core 구현 진행 단계다. release 저장 기반과 additive migration을 작성하고 격리 DB에서 검증했다. 실행 pin과 클라이언트 연결, bootstrap·배포 workflow는 아직 미완료이며 운영 seed·활성화·배포 결과는 없다. 완료 판정은 Phase별 VFY의 실제 결과, 알려진 실패와 새 실패의 구분, 남은 호환성 범위·운영 복구 증거를 기록한 뒤 내린다. 구현 전 단계에서 `completed`로 이동하지 않는다.
+사용자가 승인한 Core 코드 구현과 로컬 검증을 수행했다. 운영 적용·native 출시 조합·실제 백업 복원 인수는 남아 있어 completed로 이동하지 않는다. 공개 저장소에 private 본문을 추가하지 않았으며 기존 원본의 임의 수정·seed·운영 활성화도 수행하지 않았다.
 
 ## Review Checklist
 
@@ -817,7 +825,7 @@ Core 구현 진행 단계다. release 저장 기반과 additive migration을 작
 - [x] format:null의 부모 문맥·완료/재개/handoff·전송 투영과 cutover 증거를 함께 정의하고, 독립/다른 부모 결과의 배제·과거 보존·전체 rollback을 검증 목적지에 연결했다.
 - [x] 권한·플랜·사용량·사용자 게이트를 템플릿 버전에 고정하지 않았다.
 - [x] 원자성·동시성·응답 유실·partial init·출시 reader·최초 이관의 실제 검증 대상을 정의했다.
-- [x] REQ마다 Phase 완료 소유자와 VFY를 연결했다. 실제 제품 증거는 Planned로 남겼다.
-- [x] 현재 변경 권한을 이 proposal 한 파일로 한정하고 구현·운영 승인을 추정하지 않았다.
+- [x] REQ마다 Phase 완료 소유자와 VFY를 연결하고 실행한 로컬 검증과 미실행 운영 인수를 구분했다.
+- [x] 사용자 실제 코드 수정 요청으로 Core 구현을 진행했고 운영 적용 승인은 확장하지 않았다.
 - [ ] BLK-TPL-01–BLK-TPL-04의 해당 Phase 진입·종료 조건을 실제 증거로 해소했다.
 - [ ] 구현·운영 인수와 복구 시험을 완료했다.

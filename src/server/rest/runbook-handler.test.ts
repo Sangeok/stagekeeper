@@ -19,6 +19,8 @@ function setup(options: Options = {}) {
   const saved: { projectId: string; version: string }[] = [];
   const seenHashes: string[] = [];
   const deps: RunbookDeps = {
+      templateMode: async () => "legacy",
+      readRelease: async () => ({ ok: false, reason: "No versioned fixture" }),
       requestLimit: async () => null,
     findTokenByHash: async (hash) => {
       seenHashes.push(hash);
@@ -82,6 +84,8 @@ describe("recordRunbook with a user token", () => {
     const saved: { projectId: string; version: string }[] = [];
     const slugs: [string, string][] = [];
     const deps: RunbookDeps = {
+      templateMode: async () => "legacy",
+      readRelease: async () => ({ ok: false, reason: "No versioned fixture" }),
       requestLimit: async () => null,
       findTokenByHash: async () => { throw new Error("hu_ must not reach the agent-token lookup"); },
       findUserTokenByHash: async () => ({ id: "user-token", userId: "user1", expiresAt: null, revokedAt: null }),

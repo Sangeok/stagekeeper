@@ -353,6 +353,7 @@ async function start(location, files, options) {
     if (state && !(stale && staleResident(state))) occupied(state, input.client);
     if (state) clearState(files);
     atomicWrite(files.policy, { schemaVersion: 1, session, commit: true, propose: options.propose === "yes" });
+    if (existsSync(path.join(input.binding.root, "harness.init.guard"))) throw new Error("Template init is in progress");
     atomicWrite(files.lock, residentLock({ session, binding: input.binding, client: input.client, host, at: now() }));
   });
   const autostart = input.client === "claude" && existsSync(autostartFile(directory));

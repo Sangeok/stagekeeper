@@ -11,7 +11,8 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 `docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md`). 아래 구조가
 실제 저장소와 일치하며, `npm run verify:fsd`·`npm run verify:server`·`npm run test:architecture`가 경계를
 강제한다. `plugin/templates/`는 의도적으로 git 미추적이다 — 원본은 별도 private
-저장소(`Sangeok/harness-templates`), 배포는 DB(`Template` 테이블) 경유.
+저장소(`Sangeok/harness-templates`), 배포는 DB 경유다. legacy는 `Template`, versioned는 불변 release/entry와 실행별 pin을 사용한다.
+현재 저장·설치·운영 계약은 [template-releases.md](./template-releases.md)를 따른다.
 
 Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 않는다. `/api/templates`는
 플랜에 맞춰 잘라 낸 것만 준다 — 에이전트 파일은 첫 `## step:` 앞의 **스텁**, 플랜 밖 보고

@@ -1,3 +1,4 @@
+import { installReadyFixture, fixtureInstallation } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -18,7 +19,7 @@ const COPY = readFileSync(new URL("../../docs/conventions/product-copy.md", impo
 const CONFIG = { version: 1, project: { owner: "owner", repo: "repo", branch: "main", slug: "owner-repo" },
   workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] };
 const IDENTITY = { owner: "OWNER", repo: "REPO", slug: "owner-repo", available: true };
-const EMPTY = { head: { action: "none", reason: "No work." }, items: [] };
+const EMPTY = { templateProtocol: "template-release-v1", head: { action: "none", reason: "No work." }, items: [] };
 const READY = { ...EMPTY, items: [{ key: "ITEM-01", node: "plan", version: 1, action: "dispatch", agent: "dev", hint: "Plan.", format: null }] };
 const BASE_ENV = { ...process.env };
 for (const key of Object.keys(BASE_ENV)) if (key.startsWith("HARNESS_") || key.startsWith("DOTENV_CONFIG_") || key === "NODE_OPTIONS" || key === "CLAUDE_PLUGIN_ROOT") delete BASE_ENV[key];
@@ -51,6 +52,10 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
     send(response, request, request.params.name === "project_get" ? IDENTITY : EMPTY);
   };
   const server = createServer(async (req, res) => {
+    if (req.method === "GET" && req.url.startsWith("/api/templates?")) {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ templateRelease: { ...fixtureInstallation, id: fixtureInstallation.releaseId, schemaVersion: 1 } })); return;
+    }
     let raw = "";
     for await (const chunk of req) raw += chunk;
     const request = JSON.parse(raw);
@@ -70,6 +75,7 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
   git("init", "-q");
   writeFileSync(path.join(root, "harness.json"), JSON.stringify(config));
   writeFileSync(path.join(root, "CLAUDE.md"), body ?? `Owner hash abcdef123456\n<!-- harness:runbook:start -->\nThis document is runbook version \`${VERSION}\`.\ncall({runbook: "${VERSION}"})\ncall({runbook: "${VERSION}"})\n<!-- harness:runbook:end -->\n`);
+  installReadyFixture(root);
   const directory = path.join(root, ".git", "harness");
   const lockPath = path.join(directory, "watch.lock.json");
   const policyPath = path.join(directory, "watch.json");
@@ -145,7 +151,7 @@ it("starts, checks, polls matching SSE and stops with one JSON event; sends the 
     assert.equal(call.headers.authorization, `Bearer ${TOKEN}`);
     assert.equal(call.headers.accept, "application/json, text/event-stream");
     assert.equal(call.request.jsonrpc, "2.0"); assert.equal(call.request.method, "tools/call");
-    assert.deepEqual(call.request.params.arguments, call.request.params.name === "project_get" ? { project: "owner-repo" } : { project: "owner-repo", runbook: VERSION });
+    assert.deepEqual(call.request.params.arguments, call.request.params.name === "project_get" ? { project: "owner-repo" } : { project: "owner-repo", runbook: VERSION, client: "claude", installation: fixtureInstallation });
   }
   assert.equal(new Set(f.calls.map((call) => call.request.id)).size, f.calls.length);
   assert.equal((await f.run(["--stop", "--session", event.session]).result).event.event, "stopped");
@@ -180,14 +186,11 @@ it("rejects token shape, owner tokens, missing user slug and forbidden server UR
   assert.equal(f.calls.length, 0); assert.equal(existsSync(f.directory), false);
 });
 
-it("supports legacy hs_ without slug/version and normalizes an explicit endpoint over the environment", async (t) => {
+it("refuses an unmanaged legacy installation before network or session writes", async t => {
   const f = await fixture(t, { config: { ...CONFIG, project: { owner: "owner", repo: "repo", branch: "main" } }, body: "Legacy runbook.", token: "hs_" + "a".repeat(43) });
   const { event } = await f.start(["--server", `${f.url}/api/mcp/owner/`], { HARNESS_SERVER: "https://invalid.example" });
-  assert.equal(event.event, "started");
-  f.setHandler(async (request, res) => send(res, request, { ...READY, runbook: { stale: true, note: "Run init." } }));
-  const work = await f.poll(event.session).result;
-  assert.equal(work.event.runbookStale, true);
-  assert.deepEqual(f.calls.map((call) => call.request.params.arguments), [{}, {}]);
+  assert.equal(event.event, "error"); assert.equal(event.code, "invalid-config");
+  assert.equal(f.calls.length, 0); assert.equal(existsSync(f.directory), false);
 });
 
 it("rejects inconsistent/damaged managed version declarations and markers before IO", async (t) => {
@@ -280,6 +283,7 @@ it("checks binding without repeat changes, rejects changed config/token, and pre
   writeFileSync(path.join(f.root, "harness.json"), JSON.stringify(CONFIG) + "\n");
   assert.equal((await f.run(["--check", "--session", session]).result).event.code, "binding-changed");
   assert.deepEqual(f.snapshot(), before);
+  writeFileSync(path.join(f.root, "harness.json"), JSON.stringify(CONFIG));
   writeFileSync(f.policyPath, JSON.stringify({ schemaVersion: 1, session, commit: "yes", propose: false }));
   const corrupt = f.snapshot();
   for (const args of [["--check", "--session", session], ["--stop", "--session", session]]) {
@@ -305,7 +309,7 @@ it("preserves idle repeat state, resets on an observed empty set, and stops on t
 
 it("uses the shared common Git directory while refusing reuse from a linked checkout", async (t) => {
   const f = await fixture(t);
-  f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "add", "harness.json", "CLAUDE.md");
+  f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "add", "harness.json", "CLAUDE.md", "harness.lock.json", "docs", ".claude");
   f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture");
   const linked = path.join(f.root, "linked checkout's space");
   f.git("worktree", "add", "--detach", linked, "HEAD");
@@ -459,10 +463,10 @@ it("runs the real CLI with shell-safe plugin/root arguments containing spaces an
   mkdirSync(path.join(pluginRoot, "bin"), { recursive: true });
   mkdirSync(path.join(pluginRoot, "lib"));
   mkdirSync(path.join(pluginRoot, "runtime"));
-  for (const name of ["local-session", "state-diagnostics", "file-ownership", "runner-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
+  for (const name of ["local-session", "state-diagnostics", "file-ownership", "runner-client", "template-installation", "mcp-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
   const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
   copyFileSync(BIN, cli);
-  for (const name of ["execution/watch", "configuration/harness-config", "qa", "tokens/token", "templates/runbook", "configuration/workspaces", "plans/entitlement", "execution/runner"]) {
+  for (const name of ["execution/watch", "configuration/harness-config", "qa", "tokens/token", "templates/runbook", "configuration/workspaces", "plans/entitlement", "execution/runner", "execution/client-runtime", "templates/codex-bundle", "templates/template-boundary", "templates/deliver", "templates/manifest", "templates/release-manifest"]) {
     mkdirSync(path.dirname(path.join(pluginRoot, "lib", `${name}.mjs`)), { recursive: true });
     copyFileSync(fileURLToPath(new URL(`../lib/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "lib", `${name}.mjs`));
   }
@@ -700,7 +704,7 @@ it("foreground sessions never call the runner route, even with a lease record", 
 
 it("a session check from another checkout names the changed checkout for Claude and keeps the Codex refusal", async (t) => {
   const f = await fixture(t);
-  f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "add", "harness.json", "CLAUDE.md");
+  f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "add", "harness.json", "CLAUDE.md", "harness.lock.json", "docs", ".claude");
   f.git("-c", "user.name=Watch Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture");
   const linked = path.join(f.root, "linked");
   f.git("worktree", "add", "--detach", linked, "HEAD");
@@ -715,6 +719,7 @@ it("a session check from another checkout names the changed checkout for Claude 
   for (const checkout of [f.root, linked]) {
     mkdirSync(path.join(checkout, "docs", "harness"), { recursive: true });
     writeFileSync(path.join(checkout, "docs", "harness", "codex-package.json"), JSON.stringify({ client: "codex", protocol: RUNTIME_PROTOCOL, runbook: VERSION }));
+    installReadyFixture(checkout, "codex");
   }
   const codex = (await startSession(stateFiles(f.directory), binding, { client: "codex", commit: false, propose: false })).session;
   assert.equal((await check("codex", codex)).event.event, "owned");

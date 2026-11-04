@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { readTemplateTarget, templateCommandArguments } from "./template-target";
 
 it("deployment commands validate help and arguments without connecting or exposing environment values", () => {
-  for (const script of ["publish-templates", "activate-templates"]) {
+  for (const script of ["publish-templates", "activate-templates", "bootstrap-template-releases"]) {
     const invoke = (args: string[]) => spawnSync(process.execPath, ["--import", "tsx", `scripts/templates/${script}.ts`, ...args], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "secret-must-not-be-used" } });
     const help = invoke(["--help"]);
     assert.equal(help.status, 0, help.stderr);

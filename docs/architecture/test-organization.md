@@ -48,6 +48,8 @@ FSD layer·slice 규칙은 `src/fsd`에만 적용한다. 생성물과 배포 복
 | 서버·core·plugin·검사 스크립트의 독립 테스트 | 원본 모듈 옆 | 테스트 위치를 이유로 제품 코드를 이동하지 않는다 |
 | `server-only` bootstrap이 필요한 테스트 또는 DB 없는 서버 교차 모듈 테스트 | `tests/server/` | 서버 테스트 실행 환경과 조합 계약을 공유한다 |
 | 실제 PostgreSQL을 사용하는 서버 통합 테스트 | `tests/server/integration/` | DB fixture·정리와 격리된 실행 환경이 필요하다 |
+| private 템플릿·HTTP·실제 init CLI의 조합 | `tests/templates/` | 명시한 private source를 trusted 계약 시험으로 검사하며 `test:template-release`가 실행한다 |
+| 플러그인 설치 시험의 공유 데이터 | `tests/plugin/` | 제품 코드에서 import하지 않는 생성물·CLI fixture |
 | 브라우저로 전체 사용자 흐름을 검증하는 E2E | `tests/e2e/` | 소스 파일 구조보다 사용자 시나리오를 기준으로 구성한다 |
 
 브라우저에서 실행해도 한 컴포넌트의 동작만 검증하면 컴포넌트 테스트다.

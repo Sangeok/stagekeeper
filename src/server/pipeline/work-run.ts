@@ -1,3 +1,4 @@
+import { selectTemplateReleaseForRunIn, assertTemplateInstallationIn, TemplateInstallationRequired, type TemplateMetadata, type TemplateRunContext } from "./template-selection";
 import { createHash, randomUUID } from "node:crypto";
 import { DEFAULT_SELECTION_POLICY, isGateId, nextAfter, sequence, slotAgent, workPrefix } from "@harness/core/pipeline/pipeline.mjs";
 import { matchingAgents, type SelectionContext } from "@harness/core/pipeline/work-selection.mjs";
@@ -11,8 +12,8 @@ import { executionKey } from "./run-request";
 import { HINT } from "./run-rules";
 
 type Tx = Prisma.TransactionClient;
-export type WorkNext = { action: "dispatch"; agent: string; hint: string; entry: PipelineEntry }
-  | { action: "none"; reason: string; code?: "USAGE_LIMIT_REACHED"; resetAt?: string };
+export type WorkNext = ({ action: "dispatch"; agent: string; hint: string; entry: PipelineEntry }
+  | { action: "none"; reason: string; code?: "USAGE_LIMIT_REACHED"; resetAt?: string }) & { templateRelease?: TemplateMetadata; templateProtocol?: "template-release-v1" };
 const hash = (value: unknown): string => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 export async function workInputs(tx: Tx, projectId: string): Promise<{ context: Omit<SelectionContext, "policy" | "contextKey">; inputKey: string; openCount: number }> {
@@ -48,7 +49,7 @@ export async function assignmentContext(db: PrismaClient, projectId: string, run
   }
 }
 
-export async function projectWorkNext(db: PrismaClient, projectId: string): Promise<WorkNext> {
+export async function projectWorkNext(db: PrismaClient, projectId: string, context: TemplateRunContext = {}): Promise<WorkNext> {
   try { return await withPipelineWrite(db, projectId, undefined, async ({ tx }) => {
     const project = await tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { workPipelineId: true, workAutomationPaused: true } });
     if (project.workAutomationPaused) return { action: "none", reason: "New work is stopped. Start a pipeline in Run to resume." };
@@ -58,19 +59,23 @@ export async function projectWorkNext(db: PrismaClient, projectId: string): Prom
       const view = await loadPipelinesViewIn(tx, projectId);
       const pipeline = view.pipelines.find(item => project.workPipelineId ? item.id === project.workPipelineId : item.isDefault);
       if (!pipeline) return { action: "none", reason: "Choose an available pipeline in Run." };
+      const selection = await selectTemplateReleaseForRunIn(tx, { projectId, context });
       const version = await ensureExecutionVersion(tx, projectId, pipeline.id);
       const prefix = workPrefix(version);
       if (!prefix.nodes.length) return { action: "none", reason: "This pipeline has no Assign work step. Choose work in Run, or add Assign work." };
       const prior = await tx.pipelineWorkRun.findFirst({ where: { projectId }, orderBy: { createdAt: "desc" } });
       if (prior?.versionId === version.id && prior.inputKey === inputs.inputKey && !prior.assignedBoardItemId) return { action: "none", reason: prior.waitReason ?? "Waiting for backlog changes." };
       if (inputs.openCount >= 2) return { action: "none", reason: "Two items are open. Waiting for room on the board." };
-      run = await tx.pipelineWorkRun.create({ data: { projectId, versionId: version.id, node: sequence(prefix)[0], entryId: randomUUID(), inputKey: inputs.inputKey }, include: { version: true } });
+      run = await tx.pipelineWorkRun.create({ data: { ...selection, projectId, versionId: version.id, node: sequence(prefix)[0], entryId: randomUUID(), inputKey: inputs.inputKey }, include: { version: true } });
     }
+    const pin = context.requireInstallation || run.templateReleaseId ? await selectTemplateReleaseForRunIn(tx, { projectId, parentWorkRunId: run.id, context }) : null;
+    const templateRelease = pin ? await assertTemplateInstallationIn(tx, projectId, pin, context) : undefined;
+    const metadata = templateRelease ? { templateRelease, templateProtocol: "template-release-v1" as const } : {};
     const prefix = workPrefix(run.version);
     for (let remaining = sequence(prefix).length + 1; remaining > 0; remaining--) {
       if (run.assignedBoardItemId) {
         const openAgent = await tx.agentRun.findFirst({ where: { workRunId: run.id, closedAt: null }, select: { id: true } });
-        if (openAgent) return { action: "dispatch", agent: "work-assigner", entry: { runId: run.id, entryId: run.entryId, slotId: run.node }, hint: "The item was registered. Finish the current agent_next run; do not assign another item." };
+        if (openAgent) return { ...metadata, action: "dispatch", agent: "work-assigner", entry: { runId: run.id, entryId: run.entryId, slotId: run.node }, hint: "The item was registered. Finish the current agent_next run; do not assign another item." };
         await tx.pipelineWorkRun.update({ where: { id: run.id }, data: { closedAt: new Date(), inputKey: inputs.inputKey } });
         return { action: "none", reason: "Work assigned. The next cycle checks remaining candidates." };
       }
@@ -116,13 +121,14 @@ export async function projectWorkNext(db: PrismaClient, projectId: string): Prom
       if (run.waitReason) await tx.pipelineWorkRun.update({ where: { id: run.id }, data: { waitReason: null, inputKey: inputs.inputKey } });
       const cap = await readProjectUsageCapIn(tx, projectId);
       if (cap && !execution) return { action: "none", reason: cap.reason, code: cap.code, resetAt: cap.resetAt };
-      return { action: "dispatch", agent, entry: { runId: run.id, entryId: run.entryId, slotId: run.node }, hint: run.node === "assign-work"
+      return { ...metadata, action: "dispatch", agent, entry: { runId: run.id, entryId: run.entryId, slotId: run.node }, hint: run.node === "assign-work"
         ? HINT["assign-work"]
         : discovery ? "Discover evidence-backed work and add it to the backlog. Follow this exact pipeline entry and finish agent_next."
         : "Run this project step with the exact pipeline entry, then finish agent_next." };
     }
     throw new PipelineRejection("The work pipeline could not advance.");
   }); } catch (error) {
+    if (error instanceof TemplateInstallationRequired) return { action: "none", reason: error.message, templateRelease: error.templateRelease, templateProtocol: "template-release-v1" };
     if (error instanceof PipelineRejection) return { action: "none", reason: error.message };
     throw error;
   }
@@ -139,7 +145,7 @@ export async function startProjectWork(db: PrismaClient, projectId: string, user
       if (await tx.pipelineWorkRun.findFirst({ where: { projectId, closedAt: null } })) throw new PipelineRejection("A project run is already active. Continue it before starting another.");
       const inputs = await workInputs(tx, projectId);
       await tx.project.update({ where: { id: projectId }, data: { workPipelineId: pipelineId, workAutomationPaused: false } });
-      await tx.pipelineWorkRun.create({ data: { projectId, versionId: version.id, node: sequence(prefix)[0], entryId: randomUUID(), inputKey: inputs.inputKey } });
+      await tx.pipelineWorkRun.create({ data: { ...await selectTemplateReleaseForRunIn(tx, { projectId }), projectId, versionId: version.id, node: sequence(prefix)[0], entryId: randomUUID(), inputKey: inputs.inputKey } });
       return { ok: true, item: null };
     });
   } catch (error) {

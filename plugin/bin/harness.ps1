@@ -1,5 +1,5 @@
 param(
-  [Parameter(Mandatory=$true, Position=0)][ValidateSet('init','codex','session','watch','background')][string]$Task,
+  [Parameter(Mandatory=$true, Position=0)][ValidateSet('init','codex','session','watch','background','template-guard')][string]$Task,
   [Parameter(ValueFromRemainingArguments=$true)][string[]]$Arguments
 )
 $ErrorActionPreference = 'Stop'
@@ -33,6 +33,11 @@ if (Test-Path -LiteralPath $runtimePath) {
   }
   $nodePath = $node.Source
 }
-$entry = Join-Path $PSScriptRoot (@{init='harness-init.mjs';codex='harness-codex.mjs';session='harness-session.mjs';watch='harness-watch.mjs';background='harness-background.mjs'}[$Task])
-& $nodePath $entry @Arguments
+$entry = Join-Path $PSScriptRoot (@{init='harness-init.mjs';codex='harness-codex.mjs';session='harness-session.mjs';watch='harness-watch.mjs';background='harness-background.mjs';'template-guard'='harness-template-guard.mjs'}[$Task])
+if ($Task -eq 'template-guard') {
+  $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+  [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
+  [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+  [Console]::In.ReadToEnd() | & $nodePath $entry @Arguments
+} else { & $nodePath $entry @Arguments }
 exit $LASTEXITCODE

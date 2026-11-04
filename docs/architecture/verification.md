@@ -740,3 +740,19 @@ TEST_DATABASE_URL 안에 고유 schema를 만들고 전체 migration을 적용�
 각 Prisma adapter와 raw SQL 연결의 schema를 함께 지정하고 확인하며,
 시험 후 연결을 닫고 자신이 만든 schema만 제거한다.
 seal·중복 등록·rollback·CAS·pin 보호의 통과는 전체 전환 인수를 대신하지 않는다.
+
+`template-execution.test.ts`와 `template-bootstrap.test.ts`도 같은 고유 schema 방식으로
+실행 고정·호환성·기존 증거와 receipt 전환을 검사한다. `test:template-release`는
+`HARNESS_RELEASE_SOURCE`와 선택적인 `HARNESS_RELEASE_COMMIT`으로 private corpus를
+읽고 양 client·세 plan·완전한 언어마다 실제 HTTP init과 ready hash를 확인한다.
+입력 없는 일반 환경에서는 이 private 시험만 skip이며 운영 인수로 세지 않는다.
+`template-release.yml`은 정확한 source SHA를 필수로 제공한다. 기존 private repo의
+legacy suite를 수정하거나 실행한 것으로 표시하지 않는다.
+
+`harness-released-init-readers.test.mjs`는 실제 출시 0.5.33의 정확한 commit을 추출해
+ready/pending lock v2 거부와 파일 보존을 검사한다. 다른 출시판과 native hook 호스트
+지원은 자동으로 인증되지 않는다. 기존 check의 STAGEKEEPER_RELEASED_READERS=required는
+해당 Git 이력이 없을 때 검사를 실패시킨다.
+
+운영 profile·유지보수 evidence·snapshot·environment 설정은
+[template-releases.md](./template-releases.md)를 따른다.

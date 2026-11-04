@@ -1,3 +1,4 @@
+import { installReadyFixture } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -24,6 +25,7 @@ it("checks Codex resident ownership through the actual CLI without a legacy 404 
     writeFileSync(path.join(root, "harness.json"), JSON.stringify({ version: 1, project: { owner: "test", repo: "test", branch: "fixture", slug: "test" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] }));
     mkdirSync(path.join(root, "docs/harness"), { recursive: true });
     writeFileSync(path.join(root, "docs/harness/codex-package.json"), JSON.stringify({ client: "codex", protocol: "harness-runtime-v1", runbook: "a".repeat(12) }));
+    installReadyFixture(root, "codex");
     process.env.HARNESS_TOKEN = token;
     const input = connectionInput(root, { client: "codex", server: `http://127.0.0.1:${server.address().port}` });
     const files = stateFiles(path.join(root, ".git/harness")), started = await startSession(files, input.binding, { client: "codex", commit: true, propose: false });

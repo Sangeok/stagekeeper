@@ -1,9 +1,16 @@
+import { mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { installReadyFixture } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createServer } from "node:http";
 import { callTool, McpDomainError } from "./mcp-client.mjs";
 
 async function fixture(t) {
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "template-mcp-test-"));
+  writeFileSync(path.join(root, "harness.json"), JSON.stringify({ version: 1, project: { owner: "o", repo: "r", branch: "main", slug: "fixture" }, workspaces: [{ id: "app", path: ".", agent: "dev", verify: ["npm test"] }] }));
+  installReadyFixture(root, "codex"); t.after(() => rmSync(root, { recursive: true }));
   let reply = {}, lastRequest;
   const server = createServer(async (request, response) => {
     const chunks = []; for await (const chunk of request) chunks.push(chunk);
@@ -14,7 +21,7 @@ async function fixture(t) {
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   t.after(() => { server.closeAllConnections(); return new Promise(resolve => server.close(resolve)); });
-  return { input: { server: `http://127.0.0.1:${server.address().port}`, token: "fixture-token", config: { project: { slug: "fixture" } }, client: "codex" },
+  return { input: { binding: { root }, server: `http://127.0.0.1:${server.address().port}`, token: "fixture-token", config: { project: { slug: "fixture" } }, client: "codex" },
     respond(value, options = {}) { reply = { value, ...options }; }, request: () => lastRequest };
 }
 

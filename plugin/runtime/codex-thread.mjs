@@ -1,3 +1,4 @@
+import { readInstalledTemplate } from "./template-installation.mjs";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync } from "node:fs";
@@ -60,12 +61,13 @@ export function boundArguments(name, args, dispatch, stepResponse) {
     if (args.outcome && (!stepResponse || !isDeepStrictEqual(args.receipt, stepReceipt))) throw new Error("Outcome receipt mismatch");
     const binding = stepResponse ?? dispatch;
     if (args.entry && !isDeepStrictEqual(args.entry, binding.entry)) throw new Error("Pipeline entry mismatch");
+    if (args.execution && !isDeepStrictEqual(args.execution, binding.execution)) throw new Error("Pipeline execution mismatch");
     if (args.agentRunId && args.agentRunId !== binding.agentRunId) throw new Error("Agent run mismatch");
     const normalized = { ...args };
-    for (const field of ["entry", "agentRunId"]) if (normalized[field] === null) delete normalized[field];
+    for (const field of ["entry", "execution", "agentRunId"]) if (normalized[field] === null) delete normalized[field];
     return { ...normalized, agent: dispatch.agent, key: dispatch.agentKey,
       ...(args.outcome && binding.receipt ? { stepId: binding.receipt.stepId } : {}),
-      ...(binding.entry ? { entry: binding.entry } : {}), ...(binding.agentRunId ? { agentRunId: binding.agentRunId } : {}), client: "codex" };
+      ...(binding.entry ? { entry: binding.entry } : {}), ...(binding.execution ? { execution: binding.execution } : {}), ...(binding.agentRunId ? { agentRunId: binding.agentRunId } : {}), client: "codex" };
   }
   if (dispatch.key && args.key !== undefined && args.key !== dispatch.key) throw new Error("Role artifact key mismatch");
   if (name === "report_submit") {
@@ -99,6 +101,7 @@ export async function roleBridge(input, files, session, dispatch, operations = {
     const ownership = await operations.checkSession(files, session, input.binding);
     if (ownership.event !== "owned" || ownership.lifecycle !== "active" || ownership.client !== "codex") throw new Error("Role session no longer active");
     const name = message.params.name;
+    if (operations.callTool === callTool) readInstalledTemplate(input.binding.root, "codex", dispatch.agent);
     if (controller.signal.aborted) throw new Error("Role bridge stopped");
     let args = domainNames.includes(name) ? boundArguments(name, message.params.arguments ?? {}, dispatch, stepResponse) : message.params.arguments;
     if (!domainNames.includes(name) && args && Object.hasOwn(args, "project")) {
@@ -116,6 +119,8 @@ export async function roleBridge(input, files, session, dispatch, operations = {
     if (name === "agent_next") {
       if (typeof value.done !== "boolean" || (!value.done && (!value.receipt?.runId || !Number.isInteger(value.receipt.revision) || value.receipt.stepId !== value.step))
         || (dispatch.entry && !isDeepStrictEqual(value.entry, dispatch.entry))
+        || (dispatch.execution && !isDeepStrictEqual(value.execution, dispatch.execution))
+        || (dispatch.templateRelease && !isDeepStrictEqual(value.templateRelease, dispatch.templateRelease))
         || (!value.done && dispatch.agentRunId && value.receipt.runId !== dispatch.agentRunId)
         || (!value.done && dispatch.entry && value.agentRunId !== value.receipt.runId)) throw new Error("Role response binding mismatch");
       stepResponse = value; done = value.done === true;
@@ -427,7 +432,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     void completion.catch(() => {});
     runtime.signal?.throwIfAborted();
     turnRequested = true;
-    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, commitHandoff: dispatch.commitHandoff, requiredVerificationPaths: dispatch.requiredVerificationPaths, qaBriefing: dispatch.qaBriefing, entry: dispatch.entry ?? null, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path }) }] });
+    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, commitHandoff: dispatch.commitHandoff, requiredVerificationPaths: dispatch.requiredVerificationPaths, qaBriefing: dispatch.qaBriefing, entry: dispatch.entry ?? null, execution: dispatch.execution ?? null, installation: input.installation, templateRelease: dispatch.templateRelease, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path }) }] });
     turnId = turn.turn?.id;
     if (!turnId) throw new Error("Active turn identity missing");
     if (terminalTurnId && terminalTurnId !== turnId) { settled = false; throw new Error("Role terminal identity differs"); }

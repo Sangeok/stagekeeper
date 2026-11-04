@@ -9,9 +9,10 @@ export async function codexHandoffView(db: PrismaClient, projectId: string, item
   if (!board || !pipeline || pipeline.closedAt || pipeline.node !== item.node || ![null, "slots-v1"].includes(pipeline.version.format)) throw new Error("Handoff pipeline binding unavailable");
   const entry = pipeline.version.format === "slots-v1" ? { runId: pipeline.id, entryId: pipeline.entryId, slotId: pipeline.node } : undefined;
   if (entry && !entry.entryId) throw new Error("Handoff entry missing");
+  const execution = pipeline.version.format === null && pipeline.templateReleaseId ? { kind: "legacy" as const, runId: pipeline.id, node: pipeline.node } : undefined;
   const agent = dispatcherFor(pipeline.node, board.agent);
   if (!agent) throw new Error("Handoff role missing");
-  const run = await db.agentRun.findFirst({ where: { projectId, agent, key: isItemNode(pipeline.node) ? item.key : null, closedAt: null, pipelineRunId: entry?.runId ?? null, pipelineEntryId: entry?.entryId ?? null }, orderBy: { openedAt: "desc" }, select: { id: true } });
+  const run = await db.agentRun.findFirst({ where: { projectId, agent, key: isItemNode(pipeline.node) ? item.key : null, closedAt: null, pipelineRunId: entry?.runId ?? execution?.runId ?? null, pipelineEntryId: entry?.entryId ?? null, ...(execution ? { pipelineNode: execution.node, openedAt: { gte: pipeline.enteredAt } } : {}) }, orderBy: { openedAt: "desc" }, select: { id: true } });
   if (!run) throw new Error("Open handoff AgentRun missing");
-  return { ...item, resume: { agent, key: item.key, format: pipeline.version.format, ...(entry ? { entry } : {}), agentRunId: run.id } };
+  return { ...item, resume: { agent, key: item.key, format: pipeline.version.format, ...(entry ? { entry } : {}), ...(execution ? { execution } : {}), ...(item.templateRelease ? { templateRelease: item.templateRelease, templateProtocol: item.templateProtocol } : {}), agentRunId: run.id } };
 }

@@ -1,0 +1,154 @@
+name: template-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [import, activate, bootstrap, status, result-import, result-activate, result-bootstrap]
+        required: true
+      environment:
+        type: choice
+        options: [staging, production]
+        required: true
+      source_commit:
+        description: Exact private source commit to validate
+        type: string
+        required: true
+      request_id:
+        description: Stable operation request ID; reuse unchanged after a lost result
+        type: string
+        required: true
+      release_id:
+        description: Sealed release ID for activation or pointer restoration
+        type: string
+      expected_revision:
+        description: Current channel revision for activation
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: template-release-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      identity: ${{ steps.source.outputs.identity }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Require protected code and successful check workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/heads/dev || "$GITHUB_REF" == refs/heads/main ]]
+          [[ "$SOURCE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/check.yml/runs?head_sha=$GITHUB_SHA&status=success" --jq '.workflow_runs | any(.event == "push")' | grep -qx true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - uses: actions/checkout@v5
+        with:
+          repository: Sangeok/harness-templates
+          ref: ${{ inputs.source_commit }}
+          token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
+          path: private-templates
+          persist-credentials: false
+      - name: Validate the immutable corpus using trusted repository tests
+        env:
+          HARNESS_RELEASE_SOURCE: ${{ github.workspace }}/private-templates
+          HARNESS_RELEASE_COMMIT: ${{ inputs.source_commit }}
+        run: npm run test:template-release
+      - name: Record the validated identity without template bodies
+        id: source
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --import tsx scripts/templates/validate-template-release.ts --dir private-templates --commit "$SOURCE_COMMIT" > "$RUNNER_TEMP/template-identity.json"
+          jq -r '"identity=" + .releaseIdentity' "$RUNNER_TEMP/template-identity.json" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: template-${{ inputs.environment }}
+    env:
+      TEMPLATE_DEPLOY_ENV: ${{ inputs.environment }}
+      OPERATION: ${{ inputs.operation }}
+      REQUEST_ID: ${{ inputs.request_id }}
+      SOURCE_COMMIT: ${{ inputs.source_commit }}
+      RELEASE_ID: ${{ inputs.release_id }}
+      EXPECTED_REVISION: ${{ inputs.expected_revision }}
+      EXPECTED_IDENTITY: ${{ needs.validate.outputs.identity }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - uses: actions/checkout@v5
+        if: inputs.operation == 'import'
+        with:
+          repository: Sangeok/harness-templates
+          ref: ${{ inputs.source_commit }}
+          token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
+          path: private-templates
+          persist-credentials: false
+      - name: Prepare explicit private target and approved cutover evidence
+        env:
+          TARGET_PROFILES: ${{ secrets.TEMPLATE_TARGET_PROFILES }}
+          CUTOVER_EVIDENCE: ${{ secrets.TEMPLATE_CUTOVER_EVIDENCE }}
+          SNAPSHOT_URL: ${{ secrets.TEMPLATE_CUTOVER_SNAPSHOT_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$TARGET_PROFILES" > "$RUNNER_TEMP/template-targets.json"
+          if [[ "$OPERATION" == bootstrap ]]; then
+            [[ "$SNAPSHOT_URL" == https://* ]]
+            printf '%s' "$CUTOVER_EVIDENCE" > "$RUNNER_TEMP/template-evidence.json"
+            curl --fail --silent --show-error --proto '=https' --max-time 60 "$SNAPSHOT_URL" --output "$RUNNER_TEMP/template-snapshot.json" 2>/dev/null
+          fi
+      - name: Execute the explicit operation without publishing source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=(--profile-file "$RUNNER_TEMP/template-targets.json" --environment "$TEMPLATE_DEPLOY_ENV")
+          audit=(--request-id "$REQUEST_ID" --actor "$GITHUB_ACTOR" --code-sha "$GITHUB_SHA" --workflow-run "$GITHUB_RUN_ID")
+          case "$OPERATION" in
+            import) command=(publish-templates "${audit[@]}" --dir private-templates --commit "$SOURCE_COMMIT" --expected-identity "$EXPECTED_IDENTITY") ;;
+            activate) command=(activate-templates "${audit[@]}" --release "$RELEASE_ID" --expected-revision "$EXPECTED_REVISION") ;;
+            bootstrap) command=(bootstrap-template-releases "${audit[@]}" --snapshot-file "$RUNNER_TEMP/template-snapshot.json" --evidence-file "$RUNNER_TEMP/template-evidence.json") ;;
+            status) command=(activate-templates --status true) ;;
+            result-import) command=(publish-templates --result "$REQUEST_ID") ;;
+            result-activate) command=(activate-templates --result "$REQUEST_ID") ;;
+            result-bootstrap) command=(bootstrap-template-releases --result "$REQUEST_ID") ;;
+            *) exit 1 ;;
+          esac
+          script="scripts/templates/${command[0]}.ts"
+          node --import tsx "$script" "${target[@]}" "${command[@]:1}" > "$RUNNER_TEMP/template-result.json"
+          jq -c . "$RUNNER_TEMP/template-result.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove credential and cutover files
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/template-targets.json" "$RUNNER_TEMP/template-evidence.json" "$RUNNER_TEMP/template-snapshot.json"

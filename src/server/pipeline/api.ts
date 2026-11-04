@@ -25,3 +25,4 @@ export { setDefaultPipeline } from "./settings-service";
 export { setPipelineRule } from "./settings-service";
 
 export { assignmentContext, startProjectWork, stopProjectWork, approveWorkGate } from "./work-run";
+export { selectTemplateReleaseForRunIn, assertTemplateInstallationIn, templatePinFrom, TemplateInstallationRequired, TemplateExecutionRejection } from "./template-selection";

@@ -6,7 +6,7 @@ import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
 import { parseRepoUrl } from "../lib/repo-url.mjs";
 import { deliverable } from "../lib/templates/deliver.mjs";
 import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/plans/entitlement.mjs";
-import { mergeClientLock, planWrites } from "../lib/templates/manifest.mjs";
+import { hashOf, mergeClientLock, planWrites } from "../lib/templates/manifest.mjs";
 import { renderTemplate } from "../lib/templates/render.mjs";
 import { runbookVersion, codexRunbookVersion } from "../lib/templates/runbook.mjs";
 import { parseClient, RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
@@ -16,6 +16,9 @@ import { renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { acquireInitGuard, atomicWrite, safeTarget, writeGenerated } from "../runtime/file-ownership.mjs";
 import { serverUrl } from "../runtime/mcp-client.mjs";
 import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "../lib/templates/vars.mjs";
+
+import { canonicalJson, deliverySurfaceHash, manifestHash, readTemplateContract, TEMPLATE_PROTOCOL } from "../lib/templates/release-manifest.mjs";
+import { assertClaudeTemplateSupport, assertInitSessionQuiescent, installationConfigHash, installationFromMetadata, managedRunbookBlock, readInstallationLock, validateInstallationFiles } from "../runtime/template-installation.mjs";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const progress = { phase: "preflight", written: [] };
@@ -73,10 +76,10 @@ async function init() {
   const PRINT_PROJECT = args.includes("--print-project");
   const REGISTER = args.includes("--register");
   if (PRINT_PROJECT && REGISTER || REGISTER && DRY || (PRINT_PROJECT || REGISTER) && (ADOPT || DRY)) throw new Error("Conflicting init modes");
-  const known = new Set(["--root", "--config", "--server", "--client", "--adopt", "--owner", "--dry-run", "--print-project", "--register"]);
+  const known = new Set(["--root", "--config", "--server", "--client", "--adopt", "--owner", "--dry-run", "--print-project", "--register", "--release"]);
   for (let index = 0; index < args.length; index++) {
     if (!known.has(args[index]) || args.indexOf(args[index]) !== index) throw new Error("Unknown or duplicate init option");
-    if (["--root", "--config", "--server", "--client"].includes(args[index]) && (!args[++index] || args[index].startsWith("--"))) throw new Error("Missing init option value");
+    if (["--root", "--config", "--server", "--client", "--release"].includes(args[index]) && (!args[++index] || args[index].startsWith("--"))) throw new Error("Missing init option value");
   }
   const TPL_DIR = process.env.HARNESS_TEMPLATES_DIR;
   const LOCAL_PLAN = process.env.HARNESS_PLAN ?? "max";
@@ -168,7 +171,9 @@ async function init() {
   try { config = parseHarnessConfig(readFileSync(CONFIG, "utf8")); }
   catch (e) { console.log(`Config error: ${e.message}`); process.exit(1); }
 
-  const lang = config.language;
+  let lang = config.language;
+  if (opt("--config", "harness.json") !== "harness.json") throw new Error("Template installation requires the runtime configuration harness.json");
+  const configText = readFileSync(CONFIG, "utf8");
   const token = process.env.HARNESS_TOKEN;
   const projectScope = token?.startsWith("hu_") ? config.project.slug : null;
   if (!TPL_DIR && token?.startsWith("hu_") && !projectScope?.trim()) {
@@ -176,7 +181,8 @@ async function init() {
     process.exit(1);
   }
 
-  let templates, entitlement;
+  let templates, entitlement, installation, contract;
+  if (TPL_DIR && opt("--release")) throw new Error("An offline source cannot select a server release");
   if (TPL_DIR) {
     if (!isPlan(LOCAL_PLAN)) { console.log(`Config error: HARNESS_PLAN must be one of free, pro, max (got ${LOCAL_PLAN})`); process.exit(1); }
     const dir = join(TPL_DIR, lang);
@@ -187,6 +193,8 @@ async function init() {
     if (!token) { console.log("HARNESS_TOKEN required: issue one on the web Tokens page and export it in this shell"); process.exit(1); }
     const url = new URL(`${SERVER}/api/templates`);
     url.searchParams.set("lang", lang);
+    url.searchParams.set("templateProtocol", TEMPLATE_PROTOCOL);
+    if (opt("--release")) url.searchParams.set("release", opt("--release"));
     if (CLIENT === "codex") url.searchParams.set("client", CLIENT);
     if (projectScope) url.searchParams.set("project", projectScope);
     let res;
@@ -205,25 +213,23 @@ async function init() {
       process.exit(1);
     }
     ({ templates, entitlement } = body);
+    installation = installationFromMetadata(body.templateRelease);
+    if (opt("--release") && installation.releaseId !== opt("--release")) throw new Error("Server returned a different template release");
+    contract = readTemplateContract({ contract: body.templateContract }, manifestHash(body.templateContract));
+    if (deliverySurfaceHash({ templates, language: installation.language, client: CLIENT, contractHash: manifestHash(contract) }) !== installation.clientSurfaceHash) throw new Error("Template response surface does not match its installation metadata");
+    lang = installation.language;
+    if (CLIENT === "claude" && !DRY) assertClaudeTemplateSupport(ROOT, contract.minimumClaudeVersion);
     if (CLIENT === "codex" && (body.runtime?.client !== CLIENT || body.runtime?.protocol !== RUNTIME_PROTOCOL)) throw new Error("Server does not support Codex runtime; no files generated");
   }
   let verifier;
   if (CLIENT === "codex") {
     validateCodexBundle(Object.entries(templates).map(([path, body]) => ({ path, body })), entitlement.plan);
     verifier = verifierPackage();
-    if (TPL_DIR) {
-      if (!token) throw new Error("HARNESS_TOKEN and a Codex-capable server are required even with local Codex templates");
-      const url = new URL(`${SERVER}/api/templates`);
-      url.searchParams.set("lang", lang); url.searchParams.set("client", CLIENT);
-      if (projectScope) url.searchParams.set("project", projectScope);
-      const res = await fetch(url, { signal: AbortSignal.timeout(REST_DEADLINE_MS), headers: { Authorization: `Bearer ${token}` } });
-      const remote = await res.json();
-      if (!res.ok || remote.runtime?.client !== CLIENT || remote.runtime?.protocol !== RUNTIME_PROTOCOL || remote.entitlement?.plan !== entitlement.plan || typeof remote.templates?.["CODEX.runbook.md"] !== "string" || codexRunbookVersion(remote.templates["CODEX.runbook.md"]) !== codexRunbookVersion(templates["CODEX.runbook.md"])) throw new Error("Local Codex source and remote supported runtime/version/entitlement differ");
-      validateCodexBundle(Object.entries(remote.templates).map(([path, body]) => ({ path, body })), remote.entitlement.plan);
-    }
+
   }
   const { plan, agents } = entitlement;
   console.log(`plan: ${plan}`);
+  console.log(`server: ${SERVER}`);
 
   if (!withinLimit(plan, "workspaces", config.workspaces.length)) {
     console.log(`${capReason(plan, "workspaces")}: harness.json has ${config.workspaces.length} workspaces. project_sync would refuse — drop workspaces or upgrade the plan on the web.`);
@@ -241,6 +247,7 @@ async function init() {
   for (const a of wanted) if (!agents.includes(a)) console.log(`skip(plan): ${CLIENT === "codex" ? ".codex" : ".claude"}/agents/${a}.${CLIENT === "codex" ? "toml" : "md"} (not on the ${plan} plan)`);
   const vars = {
     ...buildVars(config, CLIENT),
+    ...(installation ? { installation: canonicalJson(installation) } : {}),
     report_table: buildReportTable(delivered.map((a) => ({ name: a, description: templateDescription(tpl(`agents/${a}.md`), `${lang}/agents/${a}.md`) }))),
   };
   const targets = {};
@@ -257,26 +264,24 @@ async function init() {
     add(CLIENT === "codex" ? `.codex/agents/${a}.toml` : `.claude/agents/${a}.md`, `${lang}/agents/${a}.md`, CLIENT === "codex" ? renderCodexRole(body, a) : renderClaudeRole(body, a));
   }
   for (const ws of config.workspaces) {
-    const body = renderTemplate(tpl("agents/dev.md"), buildWorkspaceVars(config, ws, CLIENT));
+    const body = renderTemplate(tpl("agents/dev.md"), { ...buildWorkspaceVars(config, ws, CLIENT), ...(installation ? { installation: canonicalJson(installation) } : {}) });
     add(CLIENT === "codex" ? `.codex/agents/${ws.agent}.toml` : `.claude/agents/${ws.agent}.md`, `${lang}/agents/dev.md`, CLIENT === "codex" ? renderCodexRole(body, "dev") : renderClaudeRole(body, "dev"));
   }
   if (CLIENT === "codex") {
     add("docs/harness/codex-runbook.md", `${lang}/CODEX.runbook.md`, renderTemplate(tpl("CODEX.runbook.md"), { ...vars, runbook_version: runbookVersionNow }));
-    add("docs/harness/codex-package.json", "harness-runtime-v1/package", JSON.stringify({ client: CLIENT, protocol: RUNTIME_PROTOCOL, runbook: runbookVersionNow, language: lang, verifier }, null, 2) + "\n");
+    add("docs/harness/codex-package.json", "harness-runtime-v1/package", JSON.stringify({ client: CLIENT, protocol: RUNTIME_PROTOCOL, runbook: runbookVersionNow, language: lang, verifier, ...(installation ? { installation } : {}) }, null, 2) + "\n");
   }
   for (const name of Object.keys(targets)) safeTarget(ROOT, name);
   progress.phase = "planned";
   const releaseGuard = DRY ? () => {} : await acquireInitGuard(ROOT);
   try {
 
+  if (!DRY) await assertInitSessionQuiescent(ROOT);
+  if (readFileSync(CONFIG, "utf8") !== configText) throw new Error("Configuration changed during template preflight");
   const existing = {};
   for (const p of Object.keys(targets)) existing[p] = existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), "utf8") : null;
   const lockPath = safeTarget(ROOT, "harness.lock.json");
-  const lock = existsSync(lockPath) ? readJsonObject(lockPath) : null;
-  if (lock && (lock.version !== 1 || !isRecord(lock.files)
-      || !Object.values(lock.files).every((file) => isRecord(file) && typeof file.hash === "string" && typeof file.template === "string"))) {
-    throw new Error("harness.lock.json: expected version 1 and file hashes/templates");
-  }
+  const lock = readInstallationLock(ROOT);
   const writes = planWrites({ targets, existing, lock, adopt: ADOPT });
 
   for (const p of writes.refuse) console.log(`refuse: ${p}`);
@@ -291,6 +296,16 @@ async function init() {
     existing["CLAUDE.md"] = present ? runbook : null;
     const startIndex = runbook.indexOf(RUNBOOK_START), endIndex = runbook.indexOf(RUNBOOK_END);
     hasReplaceableRunbookBlock = startIndex >= 0 && endIndex > startIndex;
+    if (startIndex >= 0 || endIndex >= 0) {
+      const currentBlock = managedRunbookBlock(runbook);
+      const expectedHash = lock?.clients?.claude?.managedBlockHash;
+      const source = tpl("CLAUDE.runbook.md");
+      const legacySource = contract ? source.slice(0, source.lastIndexOf("\n\n" + contract.installationGuide)) : source;
+      const baseline = `${RUNBOOK_START}\n${renderTemplate(legacySource, { ...vars, runbook_version: runbookVersion(legacySource) })}\n${RUNBOOK_END}`;
+      if (!ADOPT && (expectedHash ? hashOf(currentBlock) !== expectedHash : currentBlock !== runbookBlock && currentBlock !== baseline)) {
+        throw new Error("Unverified or modified Claude managed block; preserve it and explicitly adopt only after reviewing its changes");
+      }
+    }
     runbook = hasReplaceableRunbookBlock
       ? runbook.slice(0, startIndex) + runbookBlock + runbook.slice(endIndex + RUNBOOK_END.length)
       : (runbook ? runbook.replace(/\s*$/, "\n\n") : "") + runbookBlock + "\n";
@@ -314,7 +329,16 @@ async function init() {
   const mcpContent = stale.length || qaMcp ? JSON.stringify(mcp, null, 2) + "\n" : null;
 
   const nextLock = mergeClientLock(lock, targets, writes, CLIENT);
-  const lockContent = JSON.stringify(nextLock, null, 2) + "\n";
+  nextLock.version = 2;
+  nextLock.clients = structuredClone(lock?.clients ?? {});
+  const sharedChanged = writes.write.some(name => name.startsWith("docs/") && !name.startsWith("docs/harness/") && existing[name] !== targets[name].content);
+  for (const other of Object.values(nextLock.clients)) {
+    if (sharedChanged || other.configHash !== installationConfigHash(configText)) other.state = "pending";
+  }
+  nextLock.clients[CLIENT] = { state: "pending", installation: installation ?? null, configHash: installationConfigHash(configText),
+    files: Object.keys(targets).sort(), ...(CLIENT === "claude" ? { managedBlockHash: hashOf(runbookBlock), minimumClaudeVersion: contract?.minimumClaudeVersion ?? null } : {}) };
+  const pendingLock = { ...nextLock, files: lock?.files ?? {} };
+  if (!DRY) atomicWrite(lockPath, JSON.stringify(pendingLock, null, 2) + "\n");
 
   const write = (path, content) => {
     if (DRY) return;
@@ -336,34 +360,27 @@ async function init() {
       console.log(`note: that entry was also this repository's only record of the server URL — make sure HARNESS_SERVER is set (${SERVER}) or pass --server on the next run`);
     }
   }
-  if (!DRY) atomicWrite(safeTarget(ROOT, "harness.lock.json"), lockContent);
-  progress.phase = DRY ? "planned" : "files-written";
-  console.log(`${CLIENT === "codex" ? progress.phase : "done"}: write ${writes.write.length} · skip ${writes.skipModified.length}`);
-  console.log(`server: ${SERVER}`);
+  if (DRY) { console.log("planned: no installation changes"); return; }
+  atomicWrite(lockPath, JSON.stringify(nextLock, null, 2) + "\n");
+  progress.phase = "files-written";
+  if (writes.skipModified.length) throw new Error("Modified managed files preserved; installation remains pending");
+  if (!installation) { console.log("preview: offline templates written; server installation remains pending"); return; }
+  validateInstallationFiles(ROOT, CLIENT, nextLock, "pending");
+  const res = await fetch(`${SERVER}/api/runbook`, {
+    method: "POST", signal: AbortSignal.timeout(REST_DEADLINE_MS),
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ client: CLIENT, version: runbookVersionNow, installation, ...(projectScope ? { project: projectScope } : {}) }),
+  });
+  if (!res.ok) throw new Error(`Installation report refused (${res.status}): ${await responseFailure(res, SERVER, token)}`);
+  const report = await res.json();
+  if (report?.ok !== true) throw new Error("Installation report response is invalid; installation remains pending");
+  validateInstallationFiles(ROOT, CLIENT, nextLock, "pending");
+  nextLock.clients[CLIENT].state = "ready";
+  atomicWrite(lockPath, JSON.stringify(nextLock, null, 2) + "\n");
+  progress.phase = "ready";
+  console.log(`ready: ${CLIENT} · release ${installation.releaseId} · language ${lang}`);
   } finally { releaseGuard(); }
 
-  if (CLIENT === "claude" && !DRY && !TPL_DIR) {
-    const note = (why) => console.log(`note: runbook version not recorded (${why}) — resolve the reported error, then rerun /harness:init to record it`);
-    try {
-      const res = await fetch(`${SERVER}/api/runbook`, {
-        method: "POST",
-        signal: AbortSignal.timeout(REST_DEADLINE_MS),
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ version: runbookVersionNow, ...(projectScope ? { project: projectScope } : {}) }),
-      });
-      if (!res.ok) {
-        const reason = await responseFailure(res, SERVER, token);
-        note(`${res.status}: ${reason}`);
-        if (res.status === 429) {
-          console.log("stop: request limit reached after file generation. Keep the generated files and rerun /harness:init after the stated wait; the runbook version was not recorded.");
-          process.exitCode = 1;
-        }
-        if ([401, 403, 409].includes(res.status)) {
-          console.log("stop: server access was refused after file generation. Keep the generated files; resolve the reported error before MCP registration, project_sync, or declaring init complete.");
-        }
-      } else { await res.body?.cancel(); }
-    } catch (e) { note(e.message); }
-  }
 }
 
 try { await init(); }

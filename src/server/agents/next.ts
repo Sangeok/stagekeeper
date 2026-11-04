@@ -6,6 +6,8 @@ import { STATUSES, canPropose } from "@harness/core/pipeline/transitions.mjs";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { ServerResult, UsageLimitFailure } from "@/server/result";
 import type { PipelineEntry } from "@/server/pipeline/contracts";
+import type { AgentExecutionContext, TemplateMetadata } from "@/server/pipeline/contracts";
+import type { Installation } from "@harness/core/templates/release-manifest.mjs";
 import { DONE, TemplateFormatError, findStep, splitTemplate } from "@/server/templates/api";
 import { type ParsedTemplate, type Step } from "@/server/templates/contracts";
 
@@ -23,8 +25,8 @@ export type Receipt = z.infer<typeof receiptSchema>;
 export function isWellFormedReceipt(receipt: Receipt | undefined): receipt is Receipt {
   return receiptSchema.safeParse(receipt).success;
 }
-export type NextInput = { agent: string; client?: Client; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; agentRunId?: string; stepId?: string };
-export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; agentRunId?: string; runtime?: ReturnType<typeof runtimeEcho> };
+export type NextInput = { agent: string; client?: Client; key?: string; outcome?: Outcome; note?: string; receipt?: Receipt; entry?: PipelineEntry; execution?: AgentExecutionContext; installation?: Installation; agentRunId?: string; stepId?: string };
+export type NextOutput = ({ step: string; instruction: string; receipt: Receipt; done: false } | { done: true; note?: string }) & { entry?: PipelineEntry; execution?: AgentExecutionContext; templateRelease?: TemplateMetadata; templateProtocol?: "template-release-v1"; agentRunId?: string; runtime?: ReturnType<typeof runtimeEcho> };
 export type Scope = { projectId: string; tokenId: string };
 export type RunRow = { id: string; stepId: string; revision: number; closedAt: Date | null };
 export type OutcomeCommit = {
@@ -64,10 +66,19 @@ const entrySteps = (parsed: ParsedTemplate): Step[] => {
 };
 
 export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput): Promise<ServerResult<NextOutput>> {
+  if (input.entry && input.execution) return fail("Specify exactly one execution context");
+  if ((input.entry || input.execution) && !deps.withCursor) return fail("bound execution requires the cursor transaction adapter");
+  if (input.outcome && !isWellFormedReceipt(input.receipt)) return fail("receipt required: call again without outcome and send the returned receipt. If your stub is outdated, run /harness:init again.");
+  try { parseClient(input.client); } catch { return fail("client must be claude or codex"); }
+  return deps.withCursor
+    ? deps.withCursor(scope, input, input.key ?? null, cursorDeps => agentNextInCursor(cursorDeps, scope, input))
+    : agentNextInCursor(deps, scope, input);
+}
+
+async function agentNextInCursor(deps: NextDeps, scope: Scope, input: NextInput): Promise<ServerResult<NextOutput>> {
   const { projectId } = scope;
   const { agent } = input;
   const key = input.key ?? null;
-  if (input.entry && !deps.withCursor) return fail("bound execution requires the cursor transaction adapter");
 
   const access = await deps.access(projectId);
   if (!access.available) return fail(access.reason);
@@ -192,7 +203,7 @@ export async function agentNext(deps: NextDeps, scope: Scope, input: NextInput):
       : destination.kind === "stay" ? `(${outcome} recorded; this step has no \`on ${outcome}:\` route — you are still on \`${target!.id}\`)\n\n` : "";
     return serve(committed.run, target!, prefix);
   };
-  const result = await (deps.withCursor ? deps.withCursor(scope, input, key, execute) : execute(deps));
+  const result = await execute(deps);
   if (!result.ok && result.code === "USAGE_LIMIT_REACHED") console.info("account-usage:limited");
   if (result.ok && client === "codex") return ok({ ...result.item, runtime: runtimeEcho() });
   return result;
