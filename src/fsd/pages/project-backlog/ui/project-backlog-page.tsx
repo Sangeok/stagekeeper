@@ -35,10 +35,10 @@ export function ProjectBacklogPage({ slug, rows, includeRemoved, editing, add, r
         slug={slug}
         rows={rows}
         renderRowActions={(row) => (
-          <>
+          <div className="flex flex-col items-end gap-2">
             {row.status === null ? <ProposeButton key={row.key} itemKey={row.key} pipelines={pipelines} preselected={preselected[row.key]} roster={roster} propose={propose} /> : null}
             <RemoveBacklogButton itemKey={row.key} remove={remove} />
-          </>
+          </div>
         )}
       />
       {canWrite ? editing ? <BacklogForm key={editing.item.key} action={editing.update} item={editing.item} /> : <BacklogForm key="new" action={add} /> : null}

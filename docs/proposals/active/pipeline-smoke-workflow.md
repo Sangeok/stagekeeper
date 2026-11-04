@@ -132,7 +132,8 @@ localhost에서 돌리려면 이 PC의 `HARNESS_SERVER`와 사용자 범위 MCP 
 1. `windows-2022`에서 1회 실행하면 사람 입력 없이 항목이 백로그에서 `pipeline-completed`까지 간다. 대기 한도는 75분,
    job 한도는 120분이다.
 2. 리허설이 결과를 직접 확인한다. 아래가 모두 맞아야 한다.
-   - 구현이 백로그 Source가 정한 동작을 따른다. 리허설이 독립 사례 5개를 직접 실행해 본다.
+   - 구현이 백로그 Source가 정한 동작을 따른다. 리허설이 독립 사례 6개를 직접 실행해 본다(2026-11-04에 5개에서
+     늘림).
    - 작업 트리가 깨끗하다.
    - 실행기 시작 전보다 커밋이 늘었다.
    - `node --test`가 통과한다.
@@ -213,7 +214,7 @@ localhost에서 돌리려면 이 PC의 `HARNESS_SERVER`와 사용자 범위 MCP 
 | PR 실행 | 없음 | 1회 비용이 크다 |
 | 전사 | AES-256-GCM으로 봉인해 artifact로 7일 보관 | 2026-11-02 사용자 결정. 저장소가 공개라 artifact를 GitHub에 로그인한 누구나 받을 수 있다 |
 | 권한 | 실행기가 고르는 그대로 둔다. 시작 때 auto 모드를 시험해 보고(`probePermission`, `plugin/bin/harness-background.mjs:206`), 안 되면 허용 목록으로 내려간다. 고른 결과는 요약에 남긴다 | 제품 경로를 바꾸지 않는다 |
-| 모델 | 기본값. 실제로 쓰인 모델은 요약에 남긴다 | 사용자와 같은 조건 |
+| 모델 | 기본값. 실제로 쓰인 모델은 요약에 남긴다 | 사용자와 같은 조건. 모델마다 나눠 돌리지 않는다(2026-11-03 사용자 확인). 이 실행은 계약 문구, 힌트, 역할 템플릿, 실행기의 결함을 보려는 것이고, 모델에 따라 달라지는 잘못된 호출은 서버 계약 검사가 모델과 무관하게 거부한다 |
 | 그래프 | 단계 `assign-work`, `plan`, `verify`, `implement`, `impl-verify`, `accept`, `doc-audit`. 게이트 없음 | Pro 기본 그래프(`packages/core/pipeline/pipeline.mjs:48-50`)에서 `discover-work`를 빼고, 선택 노드 `impl-verify`를 더했다(2026-11-02 결정). 순서 규칙 "impl-verify must be between implement and accept"(`pipeline.mjs:60`)를 따른다. 게이트 제거는 Pro에서만 된다(`pipelineEdit`, `packages/core/plans/entitlement.mjs:13`) |
 | 새 작업 | `--propose yes` | `propose`가 false면 실행기는 overview head(work-assigner 포함)를 일로 보지 않는다(`plugin/lib/execution/watch.mjs:154`). 그러면 배정을 시작하지 않는다 |
 | 백로그·파이프라인 입력 | 웹 action이 부르는 것과 같은 서비스 함수 | `savePipelineDefinition`(`src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts:20`), `addBacklog`(`src/fsd/features/edit-backlog/api/edit-backlog.server.ts:14`). 세션만 건너뛰고 검증은 그대로 탄다 |
@@ -262,7 +263,7 @@ PR 2는 PR 1이 `dev`에 머지된 뒤 최신 `dev`에서 브랜치를 만든다
 | `backlog-added` | `BACKLOG_ITEM`을 owner 항목으로 추가하고 key를 받는다 | `ok: false` |
 | `runner-start` | HEAD를 `headBeforeRunner`로 기록한 뒤 `helperCommand(process.platform, plugin.root, "background", ["--start", "--root", repo, "--propose", "yes"])`를 `run.succeed(…, "background start", 300_000)`로 실행한다. `Run.command`의 기본 한도는 120초인데, 시작은 권한 탐침(`PROBE_LIMIT` 120초)과 시작 확인(`START_WAIT` 20초)에 요청 재시도까지 더해 이를 넘을 수 있다(`plugin/bin/harness-background.mjs:27-28`). 마지막 줄 JSON이 `started`이면 `permission`을 기록한다 | `started` 아님 |
 | `item-assigned` | 15초마다 board item과 `selectionDecision`을 본다. 없으면 `waitVerdict({ next: null, …, timeoutStep: "item-assigned" })`(실행기 시작 뒤 20분) | `waitVerdict`가 실패를 내면 그 이름으로 기록 |
-| `item-done` | 15초마다 `nextFor`와 board 상태를, 1분마다 `--status`를 읽어 `waitVerdict`에 넘긴다(대기 마감까지) | 같음. 예: `item-held`, `acceptance-failed`, `impl-verify-failed`, `item-gated`, `runner-ended`, `runner-waiting`, `item-done` |
+| `item-done` | 15초마다 `nextFor`와 board 상태를, 1분마다 `--status`를 읽어 `waitVerdict`에 넘긴다(대기 마감까지) | 같음. 예: `item-held`, `acceptance-failed`, `impl-verify-failed`, `item-gated`, `item-handoff`(핸드오프가 5분 넘게 이어짐), `runner-ended`, `runner-waiting`, `item-done` |
 | `roles-ran` | 프로젝트 AgentRun의 `agent`에 `PIPELINE_ROLES`가 모두 있다. `stepRefusals`(AgentRun `refused`의 합)를 기록한다 | 빠진 역할 |
 | `runner-stop` | `--stop`을 보낸 뒤 5초마다 `--status`를 읽는다. 15분, 또는 리허설 마감에서 봉인 몫 5분을 뺀 시각 중 이른 쪽까지 기다린다. `running:false`이고 `held:false`여야 한다 | 시간 초과 또는 `held` |
 | `implementation-check` | 작업 트리가 깨끗하고 HEAD가 `headBeforeRunner`와 달라야 한다. `node --test`가 통과해야 한다. 별도 Node 프로세스에서 `src/slug.mjs`를 import해 `caseResults`가 모두 true인지 본다(아래 "리허설의 파이프라인 단계"의 코드). 모델이 쓴 코드는 이 자식 프로세스에서만 돌고 30초 한도를 받는다 | 하나라도 어긋남 |
@@ -347,16 +348,19 @@ const key = await run.step("backlog-added", async () => {
 
 대기는 Prisma 클라이언트 하나로 돈다. 15초마다 새 클라이언트를 만들지 않으려고 `withPrisma` 한 번 안에서 반복한다.
 `runnerStatus()`는 `--status`의 마지막 줄 JSON을 읽고 1분에 한 번만 다시 묻는다. `waitingSince`는 실행기 상태가
-`waiting`이 된 첫 시각이다.
+`waiting`이 된 첫 시각이다. `handoffSince`는 항목이 `wait on handoff`가 된 첫 시각이고, 다른 응답이 오면 지운다.
 
 ```ts
 const { nextFor } = await import("../../src/server/pipeline/api");
 const verdict = await withPrisma(async prisma => {
+  let handoffSince: number | null = null;
   for (;;) {
     const row = await prisma.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key } }, orderBy: { proposedOn: "desc" }, select: { status: true } });
     const next = row ? await nextFor(prisma, projectId, key) : null;
     const runner = await runnerStatus();
-    const result = waitVerdict({ next, boardStatus: row?.status ?? null, runner, waitingMs: waitingSince === null ? 0 : Date.now() - waitingSince, now: Date.now(), deadline, timeoutStep: "item-done" });
+    const now = Date.now();
+    handoffSince = next?.action === "wait" && next.on === "handoff" ? handoffSince ?? now : null;
+    const result = waitVerdict({ next, boardStatus: row?.status ?? null, runner, waitingMs: waitingSince === null ? 0 : now - waitingSince, handoffMs: handoffSince === null ? 0 : now - handoffSince, now, deadline, timeoutStep: "item-done" });
     if (result.verdict !== "wait") return result;
     await delay(15_000);
   }
@@ -399,7 +403,9 @@ await run.step("implementation-check", () => {
 ### 픽스처 저장소와 백로그 항목
 
 항목은 계획 단계에서 보류할 빈틈이 없도록 바깥 동작을 모두 정해 둔다(2026-10-20 결정: 바깥 동작이 갈릴 때만 보류).
-`pipeline-smoke-steps.mjs`에 둔다.
+두 규칙이 함께 걸리는 입력도 어느 규칙이 먼저인지 정한다. 빈 문자열에 잘못된 `maxWords`가 오면 RangeError를 던진다.
+이 순서를 빠뜨린 문구로 app-dev가 계획 단계에서 보류했다(아래 "수정 뒤 두 번째 dev 실행 기록"). 독립 사례
+`["", 0]`이 그 순서를 확인한다. `pipeline-smoke-steps.mjs`에 둔다.
 
 ```js
 export const PIPELINE_STEPS = Object.freeze(["assign-work", "plan", "verify", "implement", "impl-verify", "accept", "doc-audit"]);
@@ -415,7 +421,7 @@ export const BACKLOG_ITEM = Object.freeze({
   title: "Add slugWords(text, maxWords) to src/slug.mjs",
   area: "src",
   type: "feat",
-  source: "Pipeline smoke request. Add and export slugWords(text, maxWords) in src/slug.mjs. Trim text, split it on runs of whitespace, keep the first maxWords words and return slugify of those words joined with single spaces. Empty or whitespace-only text returns an empty string. When maxWords is not a positive integer (for example 0, -1, 1.5 or \"2\"), throw a RangeError. Cover these cases in test/slug.test.mjs and keep slugify unchanged.",
+  source: "Pipeline smoke request. Add and export slugWords(text, maxWords) in src/slug.mjs. Callers always pass a string as text. Check maxWords first: when it is not a positive integer (for example 0, -1, 1.5 or \"2\"), throw a RangeError (any message), even when text is empty. Otherwise trim text, split it on runs of whitespace, keep the first maxWords words (all of them when there are fewer) and return slugify of those words joined with single spaces. Empty or whitespace-only text returns an empty string. Cover these cases in test/slug.test.mjs and keep slugify unchanged.",
 });
 
 export const INDEPENDENT_CASES = Object.freeze([
@@ -424,6 +430,7 @@ export const INDEPENDENT_CASES = Object.freeze([
   { args: ["   ", 3], returns: "" },
   { args: ["a b", 0], throws: "RangeError" },
   { args: ["a b", 1.5], throws: "RangeError" },
+  { args: ["", 0], throws: "RangeError" },
 ]);
 
 export function caseResults(slugWords, cases = INDEPENDENT_CASES) {
@@ -451,12 +458,14 @@ export function caseResults(slugWords, cases = INDEPENDENT_CASES) {
 
 ```js
 export const RUNNER_WAIT_LIMIT_MS = 2 * 60_000;
-const WAIT_FAILURES = Object.freeze({ gate: "item-gated", handoff: "item-handoff", acceptance: "acceptance-failed", "impl-verify": "impl-verify-failed", qa: "qa-failed", cap: "usage-cap" });
+export const HANDOFF_LIMIT_MS = 5 * 60_000;
+const WAIT_FAILURES = Object.freeze({ gate: "item-gated", acceptance: "acceptance-failed", "impl-verify": "impl-verify-failed", qa: "qa-failed", cap: "usage-cap" });
 
-export function waitVerdict({ next, boardStatus, runner, waitingMs, now, deadline, timeoutStep }) {
+export function waitVerdict({ next, boardStatus, runner, waitingMs, handoffMs = 0, now, deadline, timeoutStep }) {
   if (next?.action === "done") return { verdict: "done" };
   if (boardStatus === "on_hold") return { verdict: "fail", step: "item-held" };
   if (next?.action === "wait" && Object.hasOwn(WAIT_FAILURES, next.on)) return { verdict: "fail", step: WAIT_FAILURES[next.on] };
+  if (next?.action === "wait" && next.on === "handoff" && handoffMs >= HANDOFF_LIMIT_MS) return { verdict: "fail", step: "item-handoff" };
   if (runner?.running === false) return { verdict: "fail", step: "runner-ended" };
   if (runner?.state === "waiting" && waitingMs >= RUNNER_WAIT_LIMIT_MS) return { verdict: "fail", step: "runner-waiting" };
   if (now >= deadline) return { verdict: "fail", step: timeoutStep };
@@ -469,6 +478,12 @@ export function waitVerdict({ next, boardStatus, runner, waitingMs, now, deadlin
 - `nextFor` 결과다. 파이프라인 실행이 닫히면 `action: "done"`이다(`src/server/pipeline/run-rules.ts:54`).
 - 사람 없이는 벗어날 수 없는 대기는 `action: "wait"`와 `on`으로 온다. `on` 값은 `gate`, `handoff`, `acceptance`,
   `impl-verify`, `qa`, `cap`이다(`run-rules.ts:9-14`).
+- `handoff`만은 바로 실패시키지 않는다. 커밋 권한이 없는 역할이 준비한 파일을 넘기고 멈춘 상태다. 이 픽스처는 커밋
+  정책이 yes라 메인 루프가 그 파일을 커밋하고 같은 실행을 outcome 없이 이어 간다(`docs/architecture/protocol.md`
+  "커밋 핸드오프", watch 스킬 §5). impl-verifier의 보고서는 늘 메인 루프가 이 절차로 커밋한다
+  (`docs/architecture/impl-verifier.md` "Authority and evidence"). 그래서 리허설은
+  핸드오프를 처음 본 시각부터 잰 `handoffMs`를 넘기고, `HANDOFF_LIMIT_MS`(5분) 넘게 이어질 때만 `item-handoff`로
+  실패한다(2026-11-03 승격 전 dev 실행에서 고침, 아래 "Verification Results").
 - 서버가 앞으로 새 대기 이유를 더하면 그 값은 `WAIT_FAILURES`에 없다. 그 경우 마감까지 기다린 뒤 `timeoutStep`으로
   실패한다.
 
@@ -502,6 +517,9 @@ const RUN_LINE = /^(?:done: (?:\d+|\?) turns, \d+ denied|error: (?:[a-z_]{1,40}(
 export function runFindings(streams, transcripts = []) {
   const names = new Map();
   const failed = new Set();
+  const costs = new Map();
+  const denials = new Set();
+  let unnamedResults = 0;
   const findings = { turns: 0, denials: 0, costUsd: 0, models: [], toolErrors: 0, agentCalls: 0, agentErrors: 0, harnessErrors: {} };
   const visit = (text, withResults) => {
     for (const line of text.split(/\r?\n/)) {
@@ -512,14 +530,19 @@ export function runFindings(streams, transcripts = []) {
         if (block?.type === "tool_result" && block.is_error === true && typeof block.tool_use_id === "string") failed.add(block.tool_use_id);
       }
       if (!withResults || message?.type !== "result") continue;
+      const session = typeof message.session_id === "string" ? message.session_id : `result-${unnamedResults++}`;
       if (Number.isInteger(message.num_turns)) findings.turns += message.num_turns;
-      if (Array.isArray(message.permission_denials)) findings.denials += message.permission_denials.length;
-      if (Number.isFinite(message.total_cost_usd)) findings.costUsd += message.total_cost_usd;
+      for (const denial of Array.isArray(message.permission_denials) ? message.permission_denials : []) {
+        denials.add(typeof denial?.tool_use_id === "string" ? `${session}:${denial.tool_use_id}` : `denial-${denials.size}`);
+      }
+      if (Number.isFinite(message.total_cost_usd)) costs.set(session, Math.max(costs.get(session) ?? 0, message.total_cost_usd));
       for (const model of Object.keys(message.modelUsage ?? {})) if (MODEL.test(model) && !findings.models.includes(model)) findings.models.push(model);
     }
   };
   for (const text of streams) visit(text, true);
   for (const text of transcripts) visit(text, false);
+  findings.denials = denials.size;
+  findings.costUsd = [...costs.values()].reduce((sum, cost) => sum + cost, 0);
   for (const name of names.values()) if (AGENT_TOOLS.includes(name)) findings.agentCalls++;
   for (const id of failed) {
     findings.toolErrors++;
@@ -575,7 +598,9 @@ export function summarizePipeline(record) {
   이 숫자들은 녹색/빨강 판정에 쓰지 않는다. 다만 `harnessErrors`나 `stepRefusals`가 0이 아니면, 녹색이어도 승격 전에
   사람이 봉인 전사로 원인을 확인한다(AGENTS.md 승격 조건). 지금까지 실기에서 나온 서버 거부는 모두 문구나 계약
   결함이었다(#275의 `assignment_context`, #270의 main-loop `report_submit`).
-- `costUsd`는 `total_cost_usd`의 합이다. API 정가로 환산한 추정치일 뿐 청구액은 아니다.
+- `costUsd`는 세션마다 가장 큰 `total_cost_usd`를 더한 값이다. 실행기 세션 하나는 차례마다 `result` 줄을 내고, 줄마다
+  같은 세션의 누적값을 싣는다(Phase 3 첫 실행 실측). 거부도 세션과 `tool_use_id`로 한 번만 센다. `turns`는 줄마다 그
+  차례의 값이라 더한다. API 정가로 환산한 추정치일 뿐 청구액은 아니다.
 - `RUNNER_STATES`·`WAIT_REASONS`는 실행기 코드가 쓰는 값이다. `plugin/runtime/background.mjs`의 `runResident`와
   `harness-background.mjs`의 start·release·상주 프로세스 종료 처리에서 가져왔다. `stopping`은 실행기가 정리를 끝내지
   못하고 멈췄을 때 남는다(`harness-background.mjs:687`). 처음 보는 값은 요약에서 빠진다.
@@ -1274,7 +1299,7 @@ After:
 
 다음 세 곳에 더한다.
 
-- 136행 `client-init-smoke` 항목: "각 job은 일회용 PostgreSQL 18과" 뒤에
+- 136행 `client-init-smoke` 항목: "각 job은 일회용 PostgreSQL 18" 바로 뒤에
   "(`.github/actions/smoke-database`, `pipeline-smoke`와 공유)"를 더한다.
 - `agent-eval` 항목 뒤에 새 항목을 더한다.
 
@@ -1284,19 +1309,25 @@ After:
   올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
   백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
   `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, 리허설의 독립 사례와 `node --test`가 통과해야 녹색이다.
-  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 녹색이어도 요약의
+  보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 커밋 핸드오프는 메인
+  루프가 커밋하고 이어 가도록 5분까지 기다린 뒤 `item-handoff`로 실패한다. 녹색이어도 요약의
   `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
   주 1회(수요일 18:00 UTC, `main`)에 돌고 PR에서는 돌지 않는다. 주간 실행은 템플릿 저장소의 기본 브랜치를 시드하므로,
-  실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰며 1회 정가
-  환산 약 $14~19다. 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는 `E2E_TRANSCRIPT_KEY`로 봉인한
-  artifact(7일)로만 남긴다.
+  실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰고, 모델은
+  고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
+  `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
+  `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
 ```
 
+- 비용 문장은 처음에 추정치 "약 $14~19"였다. Phase 5에서 Phase 3 실측으로 바꾸고, 모델을 고정하지 않는다는 것과
+  Codex를 붙이는 시점을 더했다.
+- 저장소 스크립트 표 322행(init 리허설 시험)의 설명 끝에 PR 2가 더한 시험 두 개를 적는다. "종료 코드 0이어도 시간
+  초과한 명령은 실패로 세는지, 출력 파일로 받은 명령이 남은 자식 프로세스를 기다리지 않는지"다.
 - 저장소 스크립트 표의 322행 뒤에 세 행을 더한다.
 
 ```markdown
 | `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
-| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산. 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
+| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산(세션 누적 비용과 반복 거부는 한 번만). 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
 | `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
 ```
 
@@ -1407,7 +1438,7 @@ PR 2의 원격 브랜치는 PR을 열 때 처음 push한다. 실제 모델 실�
     - `scripts/rehearsals/rehearse-client-init-smoke.ts`: export 열세 개, 두 함수의 받는 값, `runSmoke`의 단계 몸통을
       함수로
     - `AGENTS.md`: 승격 항목 하나
-    - `docs/architecture/verification.md`: 항목 하나, 구절 하나, 표 세 행
+    - `docs/architecture/verification.md`: 항목 하나, 구절 하나, 표 세 행과 기존 한 행의 설명
 - 신규: PR 1 한 파일, PR 2 여섯 파일(4장 표)
 - import 변경: 새 리허설은 다음을 가져온다.
   - init 리허설
@@ -1440,7 +1471,7 @@ PR 2의 원격 브랜치는 PR을 열 때 처음 push한다. 실제 모델 실�
 | --- | --- | --- | --- |
 | CI 픽스처 checkout을 신뢰하지 않아 `.claude/agents` 역할이 로드되지 않는다 | 중 | 녹색이 안 됨 | Phase 3 첫 판정에서 `agentCalls`·`agentErrors`·`roles-ran`으로 확인한다. 안 되면 `--trust-checkout`을 더한다 |
 | CI에서 auto 권한 탐침이 실패해 실행기가 허용 목록으로 내려간다. 허용 목록 밖 명령이 거부돼 항목이 멈춘다. impl-verifier의 일회용 사본 확인도 Bash가 필요하다 | 중 | 녹색이 안 됨 | Phase 3에서 실측한다. 허용 목록으로 내려가면 auto가 없는 사용자도 같은 상황이므로, 리허설을 고치지 않고 제품 결함 후보로 따로 보고한다 |
-| 모델 비결정성(계획 단계 보류, 같은 거부 반복, 다른 해석) | 중 | 거짓 빨강 | 항목 문구에서 바깥 동작을 모두 정했다. 멈추면 원인별 이름으로 바로 실패한다. 재실행은 변경 밖 원인일 때 1회만 한다 |
+| 모델 비결정성(계획 단계 보류, 같은 거부 반복, 다른 해석) | 중 | 거짓 빨강 | 항목 문구에서 바깥 동작을 모두 정했다. 두 규칙이 함께 걸리는 입력의 순서도 정했다(2026-11-04 보류 뒤 보완). 멈추면 원인별 이름으로 바로 실패한다. 재실행은 변경 밖 원인일 때 1회만 한다 |
 | 구독 사용량 한도, 소유자의 동시 사용, `agent-eval`과의 동시 실행 | 중 | 실패, 소유자 작업 방해 | 예약은 KST 새벽에 둔다. concurrency는 1이다. `agent-eval`이 끝난 뒤 dispatch한다(AGENTS.md). 한도 때문에 실패하면 변경 밖 원인으로 보고 재실행한다 |
 | 시간 초과로 리허설이 죽어 전사를 잃는다 | 낮음 | 진단 불가 | 리허설 내부 마감 100분, 봉인 몫 5분, step 한도 108분, job 한도 120분. 음성 증명에서 실패 경로의 봉인을 확인한다 |
 | 공개 노출(토큰, 모델 출력) | 낮음 | 높음 | 요약은 허용 필드만 담는다. 전사는 봉인한다. `secret-scan`을 돌리고 GitHub도 비밀값을 마스킹한다. 키는 자식 프로세스에 넘기지 않고, 비밀값과 저장소 밖 파일에만 둔다 |
@@ -1482,7 +1513,7 @@ import { join } from "node:path";
 import { it } from "node:test";
 import { gzipSync } from "node:zlib";
 import { containsSecret } from "./client-init-smoke-steps.mjs";
-import { BACKLOG_ITEM, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, caseResults, openTranscripts, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
+import { BACKLOG_ITEM, HANDOFF_LIMIT_MS, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, caseResults, openTranscripts, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
 
 const line = value => JSON.stringify(value);
 const toolUse = (id, name) => line({ type: "assistant", message: { content: [{ type: "tool_use", id, name, input: {} }] } });
@@ -1523,6 +1554,19 @@ it("adds turns, denials and cost over several runs", () => {
   assert.equal(both.turns, first.turns + second.turns);
   assert.equal(both.denials, first.denials + second.denials);
   assert.ok(Math.abs(both.costUsd - (first.costUsd + second.costUsd)) < 1e-9);
+});
+
+it("counts a session's cumulative cost and repeated denials once when the session reports several results", () => {
+  const sessionResult = (turns, cost, denials) => line({ type: "result", session_id: "s1", num_turns: turns, permission_denials: denials, total_cost_usd: cost });
+  const firstRun = [sessionResult(6, 0.75, [{ tool_use_id: "d1" }]), sessionResult(4, 1.5, [{ tool_use_id: "d1" }])].join("\n");
+  const resumedRun = sessionResult(3, 1.5, [{ tool_use_id: "d1" }, { tool_use_id: "d2" }]);
+  const otherSession = line({ type: "result", session_id: "s2", num_turns: 2, permission_denials: [{ tool_use_id: "d1" }], total_cost_usd: 0.25 });
+
+  const findings = runFindings([firstRun, resumedRun, otherSession]);
+
+  assert.equal(findings.costUsd, 1.75);
+  assert.equal(findings.denials, 3);
+  assert.equal(findings.turns, 15);
 });
 
 it("keeps only allowlisted values in the public summary", () => {
@@ -1595,10 +1639,13 @@ it("judges slugWords against the backlog request", () => {
     if (!Number.isInteger(maxWords) || maxWords < 1) throw new RangeError("maxWords must be a positive integer");
     return text.trim().split(/\s+/).slice(0, maxWords).join(" ").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   };
+  const emptyTextFirst = (text, maxWords) => (text.trim() === "" ? "" : reference(text, maxWords));
   assert.deepEqual(caseResults(reference), INDEPENDENT_CASES.map(() => true));
   assert.ok(caseResults(() => "one-two").includes(false));
+  assert.ok(caseResults(emptyTextFirst).includes(false));
   assert.deepEqual(caseResults(() => { throw new TypeError("wrong"); }), INDEPENDENT_CASES.map(() => false));
   assert.match(BACKLOG_ITEM.source, /RangeError/);
+  assert.match(BACKLOG_ITEM.source, /even when text is empty/);
 });
 
 it("ends the wait on completion and fails early on states an unattended run cannot leave", () => {
@@ -1606,7 +1653,7 @@ it("ends the wait on completion and fails early on states an unattended run cann
   assert.deepEqual(waitVerdict(base), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, next: { action: "done" }, now: 1 }), { verdict: "done" });
   assert.deepEqual(waitVerdict({ ...base, boardStatus: "on_hold" }), { verdict: "fail", step: "item-held" });
-  for (const [on, step] of [["gate", "item-gated"], ["handoff", "item-handoff"], ["acceptance", "acceptance-failed"], ["impl-verify", "impl-verify-failed"], ["qa", "qa-failed"], ["cap", "usage-cap"]]) {
+  for (const [on, step] of [["gate", "item-gated"], ["acceptance", "acceptance-failed"], ["impl-verify", "impl-verify-failed"], ["qa", "qa-failed"], ["cap", "usage-cap"]]) {
     assert.deepEqual(waitVerdict({ ...base, next: { action: "wait", on } }), { verdict: "fail", step });
   }
   assert.deepEqual(waitVerdict({ ...base, next: { action: "wait", on: "unknown" } }), { verdict: "wait" });
@@ -1616,10 +1663,18 @@ it("ends the wait on completion and fails early on states an unattended run cann
   assert.deepEqual(waitVerdict({ ...base, next: null, now: 1, timeoutStep: "item-assigned" }), { verdict: "fail", step: "item-assigned" });
 });
 
+it("gives the main loop time to commit a handed-off file and fails a handoff that outlasts the limit", () => {
+  const handoff = { next: { action: "wait", on: "handoff" }, boardStatus: "implementing", runner: { running: true, state: "working" }, waitingMs: 0, now: 0, deadline: 1, timeoutStep: "item-done" };
+  assert.deepEqual(waitVerdict(handoff), { verdict: "wait" });
+  assert.deepEqual(waitVerdict({ ...handoff, handoffMs: HANDOFF_LIMIT_MS - 1 }), { verdict: "wait" });
+  assert.deepEqual(waitVerdict({ ...handoff, handoffMs: HANDOFF_LIMIT_MS }), { verdict: "fail", step: "item-handoff" });
+  assert.deepEqual(waitVerdict({ ...handoff, runner: { running: false, state: "stopped" } }), { verdict: "fail", step: "runner-ended" });
+});
+
 it("lists pipeline-smoke trigger paths that exist in this repository", () => {
   const repository = new URL("../../", import.meta.url);
   const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
-  for (const expected of ["src/server/pipeline", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database"]) assert.ok(paths.includes(expected), expected);
+  for (const expected of ["packages/core/pipeline", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database"]) assert.ok(paths.includes(expected), expected);
   for (const entry of paths) assert.ok(existsSync(new URL(entry, repository)), `${entry} does not exist`);
   assert.deepEqual(smokeTriggerPaths("no command here"), []);
 });
@@ -1634,8 +1689,10 @@ it("lists pipeline-smoke trigger paths that exist in this repository", () => {
 
 나머지 시험은 다음 근거로 정했다.
 
-- 합산은 `runFindings`가 `result` 줄마다 더한다는 계약에서 나온 불변식으로 확인한다. `costUsd` 반올림은 정확한 값
-  대신 0.01 범위로 본다.
+- 합산은 `runFindings`가 세션이 다른 `result` 줄을 더한다는 계약에서 나온 불변식으로 확인한다. `costUsd` 반올림은 정확한
+  값 대신 0.01 범위로 본다.
+- 같은 세션의 `result` 줄 여럿은 Phase 3 첫 실행에서 실측한 형태로 만든다. 누적 비용, 반복되는 거부, 줄마다 다른 턴 수다.
+  기대값은 그 형태에서 손으로 셀 수 있는 값이다(비용 1.5 + 0.25, 거부 `s1`의 d1·d2와 `s2`의 d1, 턴 6 + 4 + 3 + 2).
 - 독립 판정 사례가 맞는지는 Source 문구대로 짠 참조 구현이 모든 사례를 통과하는지로 확인한다.
 - 대기 판정은 서버가 돌려주는 `on` 값(`run-rules.ts:9-14`)마다 실패 이름 하나를 확인한다. 모르는 값은 기다린다.
 - 봉인의 악성 묶음 시험은 같은 형식으로 직접 만든 묶음(`sealRaw`)을 쓴다. 정상 묶음이 열리는지 먼저 확인하므로, 이
@@ -1722,20 +1779,29 @@ it("refuses a missing or short transcript key before any work", async () => {
 <!-- doc-validation-skip -->
 ## Open Questions
 
-- **[작업 공간 신뢰]** 신뢰하지 않은 작업 공간에서 `claude -p`가 `.claude/agents/*.md`를 로드하는지 확인되지 않았다.
-  - 프로젝트 권한 설정은 무시된다는 보고가 있다. 이 문제는 실행기가 `--settings`로 피한다.
-  - Phase 3 첫 판정으로 확인하고, 필요하면 `--trust-checkout`을 더한다.
-- **[3장 권한]** CI의 구독 토큰으로 auto 권한 탐침이 `auto`를 받는지는 실행해 봐야 안다. Phase 3에서 확인하고,
-  `allowlist`면 7장 대응대로 따로 보고한다.
+- **[작업 공간 신뢰] 2026-11-02 이 PC에서 답함: 로드한다.**
+  - Claude Code 2.1.316의 `claude -p --permission-mode auto`를 신뢰된 적 없는 새 폴더에서 돌렸다. 신뢰 목록의 어떤
+    항목도 그 폴더를 덮지 않았다.
+  - 실행의 `system/init` 줄 `agents`에 그 폴더의 `.claude/agents/probe-echo.md`가 들어 있었다. 모델이 Agent 도구로
+    `probe-echo`를 불러 정해 둔 답을 받았다. 정가 환산 $0.76이 들었다.
+  - 그래서 첫 실행에는 `--trust-checkout`을 넣지 않는다. Phase 3에서는 `agentCalls`와 `roles-ran`으로 같은 결과인지만
+    확인한다. 프로젝트 권한 설정이 무시된다는 보고는 그대로이며, 이 문제는 실행기가 `--settings`로 피한다.
+- **[3장 권한] 2026-11-02 Phase 3 첫 실행에서 답함: `auto`.** 요약의 `permission`이 `auto`였고 거부는 0건이었다.
 - **[4장 실행 기록 집계]** 서브에이전트 메시지가 `claude -p --output-format stream-json --verbose` 출력에 들어오는지
-  코드에서 확인할 수 없다.
-  - 들어오지 않아도 `runFindings`는 세션 전사에서 거부 수와 서브에이전트 호출을 센다.
+  2026-11-02 같은 실행에서 확인했다. 들어온다. 서브에이전트의 메시지와 도구 호출이 `parent_tool_use_id`가 붙은 줄로
+  실행 스트림에 함께 나왔다.
+  - 그래도 `runFindings`는 세션 전사를 함께 읽는다. 같은 호출은 `tool_use_id`로 한 번만 센다.
   - 이번 세션의 headless 결과(`--output-format json`)에는 `total_cost_usd`, `num_turns`, `permission_denials`,
     `modelUsage`가 있었고, `subagent_stats`도 따로 있었다.
-  - 비용과 턴 수는 메인 `result` 줄의 합이다. 서브에이전트 비용이 그 합에 들어가는지, 아니면 `subagent_stats`를 더해야
-    하는지는 Phase 3에서 확인한다.
-- **[7장 Windows 알림]** `notify.ps1`이 CI의 비대화 세션에서 오류를 내도 실행기에 영향이 없는지 Phase 3의
-  `background.log`로 확인한다.
+  - **2026-11-02 Phase 3 첫 실행에서 답함.** 실행기 세션 하나가 `result` 줄 7개를 냈다. 비동기 서브에이전트가 끝날
+    때마다 차례가 하나씩 생기기 때문이다.
+    - 7개 모두 같은 누적 `total_cost_usd`($1.49)와 `modelUsage`를 실었다. `modelUsage`의 캐시 읽기 토큰은 메인 차례들의
+      `usage` 합보다 약 160만 많았다. 그래서 누적 비용에는 서브에이전트가 이미 들어 있다.
+    - `num_turns`는 줄마다 그 차례의 값이다.
+    - 그래서 `runFindings`는 턴 수만 더한다. 비용은 세션마다 가장 큰 값을 한 번 센다. 거부는 세션과 `tool_use_id`로
+      한 번만 센다. 첫 실행 요약은 비용을 7번 더해 $10.42로 적었고, PR 2에서 고쳤다.
+- **[7장 Windows 알림] 2026-11-02 Phase 3 첫 실행에서 답함: 영향 없음.** `background.log`에는 시작, 실행, 정지 줄만
+  있었고 알림 오류는 없었다.
 
 <!-- doc-validation-restore -->
 
@@ -1751,14 +1817,129 @@ it("refuses a missing or short transcript key before any work", async () => {
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| PR 1 `client-init-smoke` 4 job | Not run yet | Phase 1(회귀) |
-| `node --test scripts/rehearsals/pipeline-smoke-steps.test.mjs` | Not run yet | Phase 2 |
-| `gh workflow run pipeline-smoke.yml --ref harness/pipeline-smoke` | Not run yet | Phase 3: 신뢰 판정, 시간·비용·모델·권한·`harnessErrors`·`stepRefusals`·`agentCalls` 기록 |
-| 음성 증명(게이트 유지, `templates-ref=main`) | Not run yet | Phase 4: `item-gated` 실패와 실패 경로 봉인 기대 |
-| 봉인 artifact 로컬 열기 | Not run yet | Phase 3, Phase 4 |
-| `npm run check` | Not run yet | Phase 5 |
-| `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Not run yet | Phase 5 |
-| PR 2 `client-init-smoke` 4 job | Not run yet | Phase 5(회귀) |
+| PR 1 `client-init-smoke` 4 job | Pass (PR #278, run 41411910911) | Phase 1(회귀). new-user 22/22, update 21/21. Windows 로그에 예약 포트 구간 출력 있음. `check`는 문서 링크 검사로 한 번 실패한 뒤 고쳐 녹색 |
+| `node --test scripts/rehearsals/pipeline-smoke-steps.test.mjs` | Pass (9/9) | Phase 2. 리허설 시험과 init 리허설 시험을 합쳐 28/28 |
+| 이 PC의 작업 공간 신뢰 사전 확인 | Pass | Phase 3 전. 신뢰된 적 없는 폴더에서도 `.claude/agents` 역할을 불렀다. 정가 환산 $0.76 |
+| `gh workflow run pipeline-smoke.yml --ref harness/pipeline-smoke` | Pass (run 41429824882, `3fe2b16`) | Phase 3 첫 실행. 아래 "Phase 3 첫 실행 기록" |
+| 음성 증명(게이트 유지, `templates-ref=main`) | Pass (run 41433975185, `7bd0c7c`) | Phase 4. 아래 "Phase 4 음성 증명 기록" |
+| 봉인 artifact 로컬 열기 | Pass (Phase 3, Phase 4) | Phase 3은 파일 14개: 실행 스트림, 세션 전사와 서브에이전트 전사 6개, `background.*`, `commands.log`, `server.log`, `findings.json`. Phase 4는 실패 경로에서 파일 9개 |
+| `npm run check` | Pass | Phase 5. `dev` `5dcab73`을 합친 작업 트리(Windows). 스크립트 시험 298개 중 295 pass, 3 skip(Windows 기호 링크 권한과 LPAC 환경), fail 0. AGENTS.md 경로 시험 포함 |
+| `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Pass | Phase 5. 같은 작업 트리. `npm test` 595개 중 592 pass·3 skip, `test:architecture` 207개 중 205 pass·2 skip, 두 경계 검사 통과 |
+| PR 2 `client-init-smoke` 4 job | Pass (PR #279, run 41651333308, `b31b182`) | Phase 5(회귀). new-user 22/22, update 21/21(지난 판 `5dcab73`), 템플릿 `fb6ef95`. 같은 커밋의 `check` 6 job도 녹색(run 41651333313) |
+| 머지 뒤 첫 승격 전 `gh workflow run pipeline-smoke.yml --ref dev` | Fail (run 41657437554, `6f7982c`) | `item-handoff`. 리허설의 대기 판정 결함이라 승격을 멈추고 고쳤다. 아래 "머지 뒤 첫 dev 실행 기록" |
+| #284 머지 뒤 `gh workflow run pipeline-smoke.yml --ref dev` | Fail (run 41751043490, `e15485f`) | `item-held`. 리허설 항목 문구의 빈틈이라 승격을 멈추고 고쳤다. 아래 "수정 뒤 두 번째 dev 실행 기록" |
+
+### Phase 3 첫 실행 기록
+
+2026-11-02 run 41429824882(`3fe2b16`, 템플릿 `fb6ef95`, Claude Code 2.1.316)의 기록이다.
+
+- 결과:
+  - 단계 31개가 모두 pass였다. job은 12분, 리허설은 579초 걸렸다.
+  - 실행기는 10:36:26에 시작했다. 10:45:24의 `pipeline_next`에는 남은 노드가 없었다. 항목 하나를 끝까지 처리하는 데
+    약 9분이 걸렸다.
+  - 요약의 `minutesToDone`은 4였다. 실행기 시작 단계가 300초 한도까지 기다린 만큼 늦게 세기 시작했기 때문이다
+    (아래 결함 1).
+- 모델은 `claude-sonnet-5-5`였다. CI에는 사용자 설정이 없어 기본 모델로 돌았다. 이 PC 소유자의 설정은 `opus[1m]`이다.
+- 비용은 정가 환산 $1.49였다(세션 누적 `total_cost_usd`). 요약은 결함 2 때문에 $10.42로 적었다.
+- 권한 `auto`, 거부 0, `agentCalls` 6, `agentErrors` 0, `stepRefusals` 0이었다.
+- 역할은 다음 순서로 돌았다.
+  1. work-assigner
+  2. app-dev(계획)
+  3. 메인 루프의 계획 검토, plan-verifier
+  4. app-dev(구현)
+  5. impl-verifier
+  6. 메인 루프의 인수
+  7. doc-auditor
+- #275 확인: work-assigner가 `assignment_context`를 `receipt.runId`로 한 번 불렀고 거부되지 않았다.
+- `harnessErrors`의 `agent_next` 2건은 봉인 전사로 확인했다. 둘 다 `` agent `<role>` needs a key ``였다.
+  - plan-verifier: 메인 루프가 지시문에 "omit key if the hint says so"라고 써서, 첫 호출에서 key를 뺐다.
+  - impl-verifier: 두 번째 호출에서 key를 빠뜨렸다.
+  - 둘 다 곧바로 key를 넣어 다시 불렀고 그대로 진행했다.
+  - 이 검사(`src/server/agents/next.ts:97`)는 2026-09-03(`2a5114c`)부터 그대로다. 승격할 변경 가운데 이 파일을 고친
+    것은 #275뿐이고, 고친 곳은 work-assigner 계약 문구다.
+- 리허설 결함 두 개를 찾아 PR 2에서 고쳤다.
+  1. Windows에서 `--start`가 띄운 실행기가 출력 파이프를 물려받았다.
+     - 그래서 `spawnSync`가 300초 한도까지 기다렸다. 결과는 `status` 0에 `ETIMEDOUT`이었다. `Run.command`가 오류를 보지
+       않아 이를 성공으로 셌다.
+     - 이 PC에서 재현했다. 12초 사는 손자 프로세스를 두면, 파이프로 받을 때는 12.4초, 파일로 받을 때는 0.3초 만에 돌아왔다.
+     - 고친 내용: 시작 출력은 파일로 받고, 시간 초과는 실패로 센다.
+  2. 위 비용 과대 집계.
+- 플러그인 쪽 관찰(이번 범위 밖): 실행기의 마지막 결과 줄은 마지막 차례의 턴 수만 적는다("done: 3 turns").
+  세션 전체는 53턴이었다.
+
+### Phase 4 음성 증명 기록
+
+2026-11-02 run 41433975185의 기록이다. 임시 브랜치 `harness/pipeline-smoke-gate-proof`(`7bd0c7c`)는 `14bfaf3`에서
+`pipeline-saved`의 `gates`만 `["before-plan"]`로 바꾼 커밋이다. 실행 뒤 원격 브랜치를 지웠다.
+
+- `item-assigned`는 pass, `item-gated`는 fail이었다. 요약에 `failure: "item-gated"`, `runnerState: "stopped"`,
+  `sealed: true`가 남았다.
+- 로그의 템플릿 checkout에 `ref: main`이 찍혀, `templates-ref` 입력이 전달됐다. 템플릿 기본 브랜치가 `main`이라 커밋은
+  Phase 3과 같은 `fb6ef95`였다.
+- 리허설은 108초 걸렸다. 실행기 시작은 11:08:04였고, 게이트 대기는 61초 뒤인 11:09:05에 판정됐다. 시작 단계가
+  더는 300초 한도까지 기다리지 않는다(결함 1 수정 확인).
+- 비용은 정가 환산 $0.24, 모델은 `claude-sonnet-5-5`였다.
+- `harnessErrors`의 `board_propose` 1건은 봉인 전사로 확인했다.
+  - work-assigner가 저장된 선택 정책을 옮기면서 마지막 문장을 빠뜨렸다. 그래서 "The selection record must name the
+    saved selection policy."로 거부됐다. 이 검사는 `packages/core/pipeline/work-selection.mjs:15`에 있다.
+  - 정책 전문을 넣어 다시 보내 제안이 등록됐다.
+  - 이 검사는 승격할 변경(#272~#276)이 건드리지 않았다.
+
+### 머지 뒤 첫 dev 실행 기록
+
+2026-11-03 run 41657437554(`6f7982c`, 템플릿 `fb6ef95`)의 기록이다. PR 2 머지 뒤 첫 승격 전 실행이고, 새 승격 규칙을
+처음 적용했다.
+
+- 결과는 `item-handoff` 실패였다.
+  - 배정, 계획, 계획 검증, 구현은 끝났다.
+  - impl-verifier는 결함 0으로 판정 ok를 냈다.
+- 원인은 파이프라인이 아니라 리허설의 대기 판정이었다.
+  - impl-verifier의 보고서는 늘 메인 루프가 핸드오프 절차로 커밋한다(`docs/architecture/impl-verifier.md`).
+    impl-verifier는 14:56:02에 `outcome: "handoff"`를 보내고 멈췄다.
+  - 커밋 정책이 yes라 메인 루프가 14:56:17에 그 보고서를 커밋했다.
+  - 그 사이 15초 폴링이 `wait on handoff`를 보고 바로 실패로 판정해 실행기를 멈췄다.
+  - 메인 루프는 실행기가 `stopping`인 것을 보고 impl-verifier를 다시 부르지 않았다. 이 응답은 맞다.
+  - Phase 3 첫 실행에서는 impl-verifier가 핸드오프 없이 보고해서, 이 대기 창을 지나지 않았다.
+- 고친 내용:
+  - `handoff`를 바로 실패하는 대기에서 뺐다.
+  - 핸드오프가 `HANDOFF_LIMIT_MS`(5분) 넘게 이어질 때만 `item-handoff`로 실패한다.
+  - 새 시험은 고치기 전 코드에서 실패하는 것을 확인했다.
+- 그 밖의 요약 값:
+  - 모델 `claude-sonnet-5-5`, 정가 환산 $1.18, 권한 `auto`, 거부 0
+  - `harnessErrors`는 `board_propose` 1, `agent_next` 3, `report_submit` 1이었다. 모두 모델이 바로 고쳐 다시 불렀다.
+    - `board_propose`: 선택 정책 전문 누락. Phase 4와 같다.
+    - `agent_next`: `needs a key`
+    - `report_submit`: app-dev가 자기 verify 단계를 기록하기 전에 보고했다.
+
+### 수정 뒤 두 번째 dev 실행 기록
+
+2026-11-04 run 41751043490(`e15485f`, 템플릿 `fb6ef95`, Claude Code 2.1.318)의 기록이다. #284 머지 뒤 승격 전
+실행이다.
+
+- 결과는 `item-held` 실패였다. 리허설은 128초 걸렸다.
+  - 배정은 끝났다. work-assigner가 ITEM-01을 app-dev에게 제안했고 서버가 받아들였다.
+  - app-dev는 계획을 쓰기 전에 항목을 보류했다. 보류 사유는 다음과 같다.
+    `Open: slugWords("", 0) - return "" (empty rule wins) or throw RangeError (validate first)? Answer in item Source, then resume.`
+- 원인은 리허설의 항목 문구였다.
+  - 문구는 빈 문자열이면 빈 문자열을 반환하고, `maxWords`가 양의 정수가 아니면 RangeError를 던진다고만 했다. 두
+    규칙이 함께 걸리는 입력에서 어느 쪽이 먼저인지는 정하지 않았다.
+  - 바깥 동작이 갈리는 빈틈이므로 계획 단계에서 보류한 것은 정해진 동작이다(2026-10-20 결정).
+  - 시험의 참조 구현은 이미 `maxWords`를 먼저 검사했다. 그러나 독립 사례에는 이 순서를 가르는 입력이 없었다.
+  - 앞선 두 실행(Phase 3, 머지 뒤 첫 dev 실행)에서는 app-dev가 이 빈틈으로 보류하지 않았다.
+- 고친 내용:
+  - 항목 문구에 `maxWords`를 먼저 검사해서, 빈 문자열에도 RangeError를 던진다고 적었다.
+  - 같은 문구에 `text`는 늘 문자열이고, 단어가 `maxWords`보다 적으면 모두 쓰며, RangeError의 메시지는 정하지 않는다고도
+    적었다.
+  - 독립 사례에 `["", 0]`(RangeError)을 더했다.
+  - 시험은 두 가지를 본다. 빈 문자열을 먼저 처리하는 구현이 독립 사례에서 실패하는지, 그리고 문구가 이 순서를
+    적었는지다. 고치기 전 코드에서 실패하는 것을 확인했다.
+- 그 밖의 요약 값:
+  - 모델 `claude-sonnet-5-5`, 정가 환산 $0.38, 권한 `auto`, 거부 0, `agentCalls` 2
+  - `harnessErrors`는 `pipeline_next` 1, `board_propose` 1이었다. 둘 다 모델이 바로 고쳐 다시 불렀다.
+    - `pipeline_next`: 메인 루프가 도구 스키마를 불러오기 전에 첫 호출을 보내 `project`가 빠졌다.
+    - `board_propose`: 선택 정책 전문 누락. Phase 4와 같다.
+  - 같은 커밋의 `client-init-smoke`(run 41751048185)와 dev push CI 세 개(check, windows-role-runtime,
+    macos-runtime-contracts)는 녹색이었다.
 
 ## Completion or Closure Notes
 

@@ -99,6 +99,18 @@ commits that were already green on `dev`.
   when shipped `plugin/` files changed. Stop unless every job is green, and promote
   only the commit their summaries name. Both check plugin installation and init
   only; neither runs the pipeline.
+- Before promoting, also run the `pipeline-smoke` workflow on that `dev` commit
+  (`gh workflow run pipeline-smoke.yml --ref dev`) when
+  `git diff --name-only origin/main origin/dev -- src/server/pipeline src/server/agents src/server/mcp packages/core/pipeline packages/core/templates plugin/skills/watch plugin/skills/background plugin/bin/harness-watch.mjs plugin/bin/harness-session.mjs plugin/bin/harness-background.mjs plugin/runtime plugin/lib/execution scripts/rehearsals/rehearse-client-init-smoke.ts scripts/rehearsals/rehearse-pipeline-smoke.ts scripts/rehearsals/pipeline-smoke-steps.mjs .github/workflows/pipeline-smoke.yml .github/actions/smoke-database`
+  prints a file. Run it with `--field templates-ref=<templates branch>` before seeding
+  a role-template change to production. When `agent-eval` is also needed, dispatch
+  `pipeline-smoke` after it finishes, because both use the same subscription. It runs
+  one backlog item from assignment to acceptance with a real model and the background
+  runner. Stop unless it is green; rerun it once only when its summary shows a cause
+  outside the change, such as a model API error or a runner that did not start.
+  When a green summary shows a nonzero `harnessErrors` or `stepRefusals`, open the
+  sealed transcripts before promoting, and fix the contract, hint or template wording
+  first when it caused the refusal.
 - Before promoting, check the production database's migrations; `npm run build`
   only generates the Prisma client. The local `.env` `DATABASE_URL` must point at a
   development database, never production, because `npm run db:migrate` changes its
