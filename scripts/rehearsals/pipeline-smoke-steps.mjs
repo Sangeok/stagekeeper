@@ -16,7 +16,7 @@ export const BACKLOG_ITEM = Object.freeze({
   title: "Add slugWords(text, maxWords) to src/slug.mjs",
   area: "src",
   type: "feat",
-  source: "Pipeline smoke request. Add and export slugWords(text, maxWords) in src/slug.mjs. Trim text, split it on runs of whitespace, keep the first maxWords words and return slugify of those words joined with single spaces. Empty or whitespace-only text returns an empty string. When maxWords is not a positive integer (for example 0, -1, 1.5 or \"2\"), throw a RangeError. Cover these cases in test/slug.test.mjs and keep slugify unchanged.",
+  source: "Pipeline smoke request. Add and export slugWords(text, maxWords) in src/slug.mjs. Callers always pass a string as text. Check maxWords first: when it is not a positive integer (for example 0, -1, 1.5 or \"2\"), throw a RangeError (any message), even when text is empty. Otherwise trim text, split it on runs of whitespace, keep the first maxWords words (all of them when there are fewer) and return slugify of those words joined with single spaces. Empty or whitespace-only text returns an empty string. Cover these cases in test/slug.test.mjs and keep slugify unchanged.",
 });
 
 export const INDEPENDENT_CASES = Object.freeze([
@@ -25,6 +25,7 @@ export const INDEPENDENT_CASES = Object.freeze([
   { args: ["   ", 3], returns: "" },
   { args: ["a b", 0], throws: "RangeError" },
   { args: ["a b", 1.5], throws: "RangeError" },
+  { args: ["", 0], throws: "RangeError" },
 ]);
 
 export function caseResults(slugWords, cases = INDEPENDENT_CASES) {
