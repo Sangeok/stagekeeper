@@ -717,7 +717,7 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 - 최초 이관: 전체 private snapshot, hash drift 확인, 승인 inventory·reader/writer evidence, R0 seal·열린 pin·귀속·receipt 1회 증가·writer 장벽·mode/결과의 단일 transaction과 replay.
 - TPL3: versioned REST/MCP, 공개 해석 guide, client lock v2 pending/ready, 부분 설치·공유 파일 무효화, native Claude MCP hook, 양 runtime의 설치/서버 지원 검사, Codex execution/handoff 전달, Windows bundle hook launcher.
 - 배포 코드: protected code/source SHA의 `template-release.yml`, 운영 credential과 검증 job 분리, 명시 import/activate/bootstrap/status/result. 기존 Claude smoke에는 pinned private SHA와 이관 경계를 연결했다. production 환경·secrets 설정이나 workflow 실행은 하지 않았다.
-- 검증: check/lint/type, architecture, core/plugin, web, server composition, 격리 PostgreSQL 전체 suite와 private 실제 HTTP 설치·단계 분기, 정확한 출시 0.5.33 init reader를 확인했다. 수치·revision·제한은 별도 구현 검증 보고서에 기록한다.
+- 검증: check/lint/type, architecture, core/plugin, web, server composition, 격리 PostgreSQL 전체 suite와 private 실제 HTTP 설치·단계 분기, 정확한 출시 0.5.33 init reader를 확인했다. 수치·revision·제한은 [구현 검증 보고서](../../test-reports/completed/2026-11-04-template-release-implementation.md)에 기록한다.
 
 변경 후 현재 계약은 [template-releases.md](../../architecture/template-releases.md)가 권위다. native macOS/Windows 출시 조합의 실제 설치·hook 로딩, 전체 이전 client 집합, 운영 백업 복원·이관·포인터 복구와 배포 인수는 실행하지 않았다. TPL4 완료 또는 운영 배포 승인을 뜻하지 않으며 제안서는 active에 유지한다.
 
