@@ -296,6 +296,16 @@ export class RoleExecutionUnavailable extends Error {
   }
 }
 
+export const CODEX_WINDOWS_ONLY = "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use Claude Code.";
+
+export class CodexWindowsOnly extends Error {
+  constructor() {
+    super(CODEX_WINDOWS_ONLY);
+    this.name = "CodexWindowsOnly";
+    this.code = "codex-windows";
+  }
+}
+
 export async function verifyRoleExecution(server, scratch, agent, platform = process.platform, fileBroker = null) {
   if (["pm", "work-assigner"].includes(agent)) return;
   const marker = "harness-role-execution-ready";

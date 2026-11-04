@@ -3,6 +3,10 @@ name: harness-run
 description: Run the Stagekeeper foreground pipeline from its current server state in Codex.
 ---
 
+Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run any helper or work
+around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
+Claude Code." and stop.
+
 Read harness.json and docs/harness/codex-runbook.md before acting. Resolve the installed
 package from this SKILL.md (three parents above this skill directory), verify its Codex
 manifest/version and use that package's bin/harness-codex.mjs. Never assume a shell plugin-root

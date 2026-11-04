@@ -3,9 +3,9 @@ name: harness-background
 description: Explicitly start, inspect, stop or release the Stagekeeper Codex background runner on Windows.
 ---
 
-The background runner runs on Windows only. On macOS or Linux, do not run the helper or work
-around it; say "The Codex background runner runs on Windows only for now. Use $harness-run or
-$harness-resume in Codex." and stop.
+Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run the helper or work
+around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
+Claude Code." and stop.
 
 Resolve the installed package from this SKILL.md (three parents above this skill directory).
 Read its .codex-plugin/plugin.json and this checkout's harness.json and

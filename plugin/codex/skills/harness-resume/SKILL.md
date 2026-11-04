@@ -3,6 +3,10 @@ name: harness-resume
 description: Resume a Stagekeeper item in Codex after owner approval or a confirmed client switch.
 ---
 
+Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run any helper or work
+around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
+Claude Code." and stop.
+
 Read the installed sibling `../harness-run/SKILL.md` completely and follow it. Resume uses the
 same shared server ledger and explicit foreground ownership; never reconstruct a cursor from
 chat history. Resolve installed helpers through the actual skill path and read this checkout's

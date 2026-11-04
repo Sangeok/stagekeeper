@@ -3,6 +3,10 @@ name: harness-init
 description: Connect this repository to Stagekeeper from Codex, preserving its Claude Code configuration.
 ---
 
+Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run any helper or work
+around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
+Claude Code." and stop.
+
 Resolve this installed SKILL.md's actual absolute path. Its package root is three parents
 above the skill directory. Verify `.codex-plugin/plugin.json` declares harness, version
 0.5.1 or later and skills `./codex/skills/`, and verify the bin/runtime/lib files below exist.
@@ -33,8 +37,8 @@ Preserve an existing harness.json, roster and verified project.slug. A hu_ token
 actual registered slug. Draft missing workspaces from the repo and accept user corrections;
 agent names are durable identity. Do not infer a slug from a key or silently replace identity.
 
-Run the installed `bin/harness-init.mjs --client codex --dry-run` from the repo, through
-the packaged launcher on Windows or Node on other supported hosts.
+Run the installed `bin/harness-init.mjs --client codex --dry-run` from the repo through
+the packaged launcher.
 Handle refused unowned files with the user's explicit adopt instruction, preserve modified
 files, and use the host's normal approval flow for protected paths. Dry-run writes nothing.
 Then run it without dry-run. Preserve `.claude/`, CLAUDE.md and .mcp.json; the generator owns

@@ -15,6 +15,7 @@ import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, life
 import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 import { createCodexExecution } from "../runtime/codex-main-loop.mjs";
+import { CODEX_WINDOWS_ONLY } from "../runtime/codex-thread.mjs";
 import { stateDiagnostic, readStateDiagnostic } from "../runtime/state-diagnostics.mjs";
 import { codexExecutable } from "../runtime/codex-executable.mjs";
 
@@ -45,7 +46,7 @@ export const REASONS = {
   "codex-plan": CODEX_RESIDENT_RUNNER_PLAN_GATE,
   "codex-route": "This server did not confirm Codex resident ownership. Use $harness-run or $harness-resume until its server is updated.",
   "codex-config": "Codex configuration or installed package verification failed. Reconnect with $harness-init.",
-  "codex-windows": "The Codex background runner runs on Windows only for now. Use $harness-run or $harness-resume in Codex.",
+  "codex-windows": CODEX_WINDOWS_ONLY,
   "no-route": "This Stagekeeper server does not take runners yet. Use /harness:watch in a Claude Code session.",
   "no-claude": "Claude Code (claude.exe) was not found on PATH. Install the native Claude Code, then start again.",
   "claude-failed": "Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again.",
