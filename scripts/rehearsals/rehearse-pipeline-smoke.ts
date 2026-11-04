@@ -324,10 +324,13 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     }));
     const doneDeadline = Math.min(runnerStartedAt + options.waitMinutes * 60_000, deadline - SEAL_RESERVE_MS);
     await waitFor(run, "item-done", () => withPrisma(async prisma => {
+      let handoffSince: number | null = null;
       for (;;) {
         const row = await prisma.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key: itemKey } }, orderBy: { proposedOn: "desc" }, select: { status: true } });
         const next = row ? await nextFor(prisma, projectId, itemKey) : null;
-        const result = waitVerdict({ next, boardStatus: row?.status ?? null, runner: statuses.read(), waitingMs: statuses.waitingMs(), now: Date.now(), deadline: doneDeadline, timeoutStep: "item-done" });
+        const now = Date.now();
+        handoffSince = next?.action === "wait" && next.on === "handoff" ? handoffSince ?? now : null;
+        const result = waitVerdict({ next, boardStatus: row?.status ?? null, runner: statuses.read(), waitingMs: statuses.waitingMs(), handoffMs: handoffSince === null ? 0 : now - handoffSince, now, deadline: doneDeadline, timeoutStep: "item-done" });
         if (result.verdict !== "wait") return result;
         await delay(POLL_MS);
       }

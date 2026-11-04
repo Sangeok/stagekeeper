@@ -39,12 +39,14 @@ export function caseResults(slugWords, cases = INDEPENDENT_CASES) {
 }
 
 export const RUNNER_WAIT_LIMIT_MS = 2 * 60_000;
-const WAIT_FAILURES = Object.freeze({ gate: "item-gated", handoff: "item-handoff", acceptance: "acceptance-failed", "impl-verify": "impl-verify-failed", qa: "qa-failed", cap: "usage-cap" });
+export const HANDOFF_LIMIT_MS = 5 * 60_000;
+const WAIT_FAILURES = Object.freeze({ gate: "item-gated", acceptance: "acceptance-failed", "impl-verify": "impl-verify-failed", qa: "qa-failed", cap: "usage-cap" });
 
-export function waitVerdict({ next, boardStatus, runner, waitingMs, now, deadline, timeoutStep }) {
+export function waitVerdict({ next, boardStatus, runner, waitingMs, handoffMs = 0, now, deadline, timeoutStep }) {
   if (next?.action === "done") return { verdict: "done" };
   if (boardStatus === "on_hold") return { verdict: "fail", step: "item-held" };
   if (next?.action === "wait" && Object.hasOwn(WAIT_FAILURES, next.on)) return { verdict: "fail", step: WAIT_FAILURES[next.on] };
+  if (next?.action === "wait" && next.on === "handoff" && handoffMs >= HANDOFF_LIMIT_MS) return { verdict: "fail", step: "item-handoff" };
   if (runner?.running === false) return { verdict: "fail", step: "runner-ended" };
   if (runner?.state === "waiting" && waitingMs >= RUNNER_WAIT_LIMIT_MS) return { verdict: "fail", step: "runner-waiting" };
   if (now >= deadline) return { verdict: "fail", step: timeoutStep };

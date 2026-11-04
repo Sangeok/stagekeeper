@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { it } from "node:test";
 import { gzipSync } from "node:zlib";
 import { containsSecret } from "./client-init-smoke-steps.mjs";
-import { BACKLOG_ITEM, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, caseResults, openTranscripts, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
+import { BACKLOG_ITEM, HANDOFF_LIMIT_MS, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, caseResults, openTranscripts, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
 
 const line = value => JSON.stringify(value);
 const toolUse = (id, name) => line({ type: "assistant", message: { content: [{ type: "tool_use", id, name, input: {} }] } });
@@ -143,7 +143,7 @@ it("ends the wait on completion and fails early on states an unattended run cann
   assert.deepEqual(waitVerdict(base), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, next: { action: "done" }, now: 1 }), { verdict: "done" });
   assert.deepEqual(waitVerdict({ ...base, boardStatus: "on_hold" }), { verdict: "fail", step: "item-held" });
-  for (const [on, step] of [["gate", "item-gated"], ["handoff", "item-handoff"], ["acceptance", "acceptance-failed"], ["impl-verify", "impl-verify-failed"], ["qa", "qa-failed"], ["cap", "usage-cap"]]) {
+  for (const [on, step] of [["gate", "item-gated"], ["acceptance", "acceptance-failed"], ["impl-verify", "impl-verify-failed"], ["qa", "qa-failed"], ["cap", "usage-cap"]]) {
     assert.deepEqual(waitVerdict({ ...base, next: { action: "wait", on } }), { verdict: "fail", step });
   }
   assert.deepEqual(waitVerdict({ ...base, next: { action: "wait", on: "unknown" } }), { verdict: "wait" });
@@ -151,6 +151,14 @@ it("ends the wait on completion and fails early on states an unattended run cann
   assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "waiting" }, waitingMs: RUNNER_WAIT_LIMIT_MS }), { verdict: "fail", step: "runner-waiting" });
   assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "waiting" }, waitingMs: RUNNER_WAIT_LIMIT_MS - 1 }), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, next: null, now: 1, timeoutStep: "item-assigned" }), { verdict: "fail", step: "item-assigned" });
+});
+
+it("gives the main loop time to commit a handed-off file and fails a handoff that outlasts the limit", () => {
+  const handoff = { next: { action: "wait", on: "handoff" }, boardStatus: "implementing", runner: { running: true, state: "working" }, waitingMs: 0, now: 0, deadline: 1, timeoutStep: "item-done" };
+  assert.deepEqual(waitVerdict(handoff), { verdict: "wait" });
+  assert.deepEqual(waitVerdict({ ...handoff, handoffMs: HANDOFF_LIMIT_MS - 1 }), { verdict: "wait" });
+  assert.deepEqual(waitVerdict({ ...handoff, handoffMs: HANDOFF_LIMIT_MS }), { verdict: "fail", step: "item-handoff" });
+  assert.deepEqual(waitVerdict({ ...handoff, runner: { running: false, state: "stopped" } }), { verdict: "fail", step: "runner-ended" });
 });
 
 it("lists pipeline-smoke trigger paths that exist in this repository", () => {
