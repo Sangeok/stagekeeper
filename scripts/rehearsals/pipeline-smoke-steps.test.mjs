@@ -132,10 +132,13 @@ it("judges slugWords against the backlog request", () => {
     if (!Number.isInteger(maxWords) || maxWords < 1) throw new RangeError("maxWords must be a positive integer");
     return text.trim().split(/\s+/).slice(0, maxWords).join(" ").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   };
+  const emptyTextFirst = (text, maxWords) => (text.trim() === "" ? "" : reference(text, maxWords));
   assert.deepEqual(caseResults(reference), INDEPENDENT_CASES.map(() => true));
   assert.ok(caseResults(() => "one-two").includes(false));
+  assert.ok(caseResults(emptyTextFirst).includes(false));
   assert.deepEqual(caseResults(() => { throw new TypeError("wrong"); }), INDEPENDENT_CASES.map(() => false));
   assert.match(BACKLOG_ITEM.source, /RangeError/);
+  assert.match(BACKLOG_ITEM.source, /even when text is empty/);
 });
 
 it("ends the wait on completion and fails early on states an unattended run cannot leave", () => {

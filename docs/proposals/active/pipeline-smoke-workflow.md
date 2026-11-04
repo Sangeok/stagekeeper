@@ -132,7 +132,8 @@ localhost에서 돌리려면 이 PC의 `HARNESS_SERVER`와 사용자 범위 MCP 
 1. `windows-2022`에서 1회 실행하면 사람 입력 없이 항목이 백로그에서 `pipeline-completed`까지 간다. 대기 한도는 75분,
    job 한도는 120분이다.
 2. 리허설이 결과를 직접 확인한다. 아래가 모두 맞아야 한다.
-   - 구현이 백로그 Source가 정한 동작을 따른다. 리허설이 독립 사례 5개를 직접 실행해 본다.
+   - 구현이 백로그 Source가 정한 동작을 따른다. 리허설이 독립 사례 6개를 직접 실행해 본다(2026-11-04에 5개에서
+     늘림).
    - 작업 트리가 깨끗하다.
    - 실행기 시작 전보다 커밋이 늘었다.
    - `node --test`가 통과한다.
@@ -402,7 +403,9 @@ await run.step("implementation-check", () => {
 ### 픽스처 저장소와 백로그 항목
 
 항목은 계획 단계에서 보류할 빈틈이 없도록 바깥 동작을 모두 정해 둔다(2026-10-20 결정: 바깥 동작이 갈릴 때만 보류).
-`pipeline-smoke-steps.mjs`에 둔다.
+두 규칙이 함께 걸리는 입력도 어느 규칙이 먼저인지 정한다. 빈 문자열에 잘못된 `maxWords`가 오면 RangeError를 던진다.
+이 순서를 빠뜨린 문구로 app-dev가 계획 단계에서 보류했다(아래 "수정 뒤 두 번째 dev 실행 기록"). 독립 사례
+`["", 0]`이 그 순서를 확인한다. `pipeline-smoke-steps.mjs`에 둔다.
 
 ```js
 export const PIPELINE_STEPS = Object.freeze(["assign-work", "plan", "verify", "implement", "impl-verify", "accept", "doc-audit"]);
@@ -418,7 +421,7 @@ export const BACKLOG_ITEM = Object.freeze({
   title: "Add slugWords(text, maxWords) to src/slug.mjs",
   area: "src",
   type: "feat",
-  source: "Pipeline smoke request. Add and export slugWords(text, maxWords) in src/slug.mjs. Trim text, split it on runs of whitespace, keep the first maxWords words and return slugify of those words joined with single spaces. Empty or whitespace-only text returns an empty string. When maxWords is not a positive integer (for example 0, -1, 1.5 or \"2\"), throw a RangeError. Cover these cases in test/slug.test.mjs and keep slugify unchanged.",
+  source: "Pipeline smoke request. Add and export slugWords(text, maxWords) in src/slug.mjs. Callers always pass a string as text. Check maxWords first: when it is not a positive integer (for example 0, -1, 1.5 or \"2\"), throw a RangeError (any message), even when text is empty. Otherwise trim text, split it on runs of whitespace, keep the first maxWords words (all of them when there are fewer) and return slugify of those words joined with single spaces. Empty or whitespace-only text returns an empty string. Cover these cases in test/slug.test.mjs and keep slugify unchanged.",
 });
 
 export const INDEPENDENT_CASES = Object.freeze([
@@ -427,6 +430,7 @@ export const INDEPENDENT_CASES = Object.freeze([
   { args: ["   ", 3], returns: "" },
   { args: ["a b", 0], throws: "RangeError" },
   { args: ["a b", 1.5], throws: "RangeError" },
+  { args: ["", 0], throws: "RangeError" },
 ]);
 
 export function caseResults(slugWords, cases = INDEPENDENT_CASES) {
@@ -1467,7 +1471,7 @@ PR 2의 원격 브랜치는 PR을 열 때 처음 push한다. 실제 모델 실�
 | --- | --- | --- | --- |
 | CI 픽스처 checkout을 신뢰하지 않아 `.claude/agents` 역할이 로드되지 않는다 | 중 | 녹색이 안 됨 | Phase 3 첫 판정에서 `agentCalls`·`agentErrors`·`roles-ran`으로 확인한다. 안 되면 `--trust-checkout`을 더한다 |
 | CI에서 auto 권한 탐침이 실패해 실행기가 허용 목록으로 내려간다. 허용 목록 밖 명령이 거부돼 항목이 멈춘다. impl-verifier의 일회용 사본 확인도 Bash가 필요하다 | 중 | 녹색이 안 됨 | Phase 3에서 실측한다. 허용 목록으로 내려가면 auto가 없는 사용자도 같은 상황이므로, 리허설을 고치지 않고 제품 결함 후보로 따로 보고한다 |
-| 모델 비결정성(계획 단계 보류, 같은 거부 반복, 다른 해석) | 중 | 거짓 빨강 | 항목 문구에서 바깥 동작을 모두 정했다. 멈추면 원인별 이름으로 바로 실패한다. 재실행은 변경 밖 원인일 때 1회만 한다 |
+| 모델 비결정성(계획 단계 보류, 같은 거부 반복, 다른 해석) | 중 | 거짓 빨강 | 항목 문구에서 바깥 동작을 모두 정했다. 두 규칙이 함께 걸리는 입력의 순서도 정했다(2026-11-04 보류 뒤 보완). 멈추면 원인별 이름으로 바로 실패한다. 재실행은 변경 밖 원인일 때 1회만 한다 |
 | 구독 사용량 한도, 소유자의 동시 사용, `agent-eval`과의 동시 실행 | 중 | 실패, 소유자 작업 방해 | 예약은 KST 새벽에 둔다. concurrency는 1이다. `agent-eval`이 끝난 뒤 dispatch한다(AGENTS.md). 한도 때문에 실패하면 변경 밖 원인으로 보고 재실행한다 |
 | 시간 초과로 리허설이 죽어 전사를 잃는다 | 낮음 | 진단 불가 | 리허설 내부 마감 100분, 봉인 몫 5분, step 한도 108분, job 한도 120분. 음성 증명에서 실패 경로의 봉인을 확인한다 |
 | 공개 노출(토큰, 모델 출력) | 낮음 | 높음 | 요약은 허용 필드만 담는다. 전사는 봉인한다. `secret-scan`을 돌리고 GitHub도 비밀값을 마스킹한다. 키는 자식 프로세스에 넘기지 않고, 비밀값과 저장소 밖 파일에만 둔다 |
@@ -1635,10 +1639,13 @@ it("judges slugWords against the backlog request", () => {
     if (!Number.isInteger(maxWords) || maxWords < 1) throw new RangeError("maxWords must be a positive integer");
     return text.trim().split(/\s+/).slice(0, maxWords).join(" ").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   };
+  const emptyTextFirst = (text, maxWords) => (text.trim() === "" ? "" : reference(text, maxWords));
   assert.deepEqual(caseResults(reference), INDEPENDENT_CASES.map(() => true));
   assert.ok(caseResults(() => "one-two").includes(false));
+  assert.ok(caseResults(emptyTextFirst).includes(false));
   assert.deepEqual(caseResults(() => { throw new TypeError("wrong"); }), INDEPENDENT_CASES.map(() => false));
   assert.match(BACKLOG_ITEM.source, /RangeError/);
+  assert.match(BACKLOG_ITEM.source, /even when text is empty/);
 });
 
 it("ends the wait on completion and fails early on states an unattended run cannot leave", () => {
@@ -1820,6 +1827,7 @@ it("refuses a missing or short transcript key before any work", async () => {
 | `npm test`, `npm run test:architecture`, `npm run verify:fsd`, `npm run verify:server` | Pass | Phase 5. 같은 작업 트리. `npm test` 595개 중 592 pass·3 skip, `test:architecture` 207개 중 205 pass·2 skip, 두 경계 검사 통과 |
 | PR 2 `client-init-smoke` 4 job | Pass (PR #279, run 41651333308, `b31b182`) | Phase 5(회귀). new-user 22/22, update 21/21(지난 판 `5dcab73`), 템플릿 `fb6ef95`. 같은 커밋의 `check` 6 job도 녹색(run 41651333313) |
 | 머지 뒤 첫 승격 전 `gh workflow run pipeline-smoke.yml --ref dev` | Fail (run 41657437554, `6f7982c`) | `item-handoff`. 리허설의 대기 판정 결함이라 승격을 멈추고 고쳤다. 아래 "머지 뒤 첫 dev 실행 기록" |
+| #284 머지 뒤 `gh workflow run pipeline-smoke.yml --ref dev` | Fail (run 41751043490, `e15485f`) | `item-held`. 리허설 항목 문구의 빈틈이라 승격을 멈추고 고쳤다. 아래 "수정 뒤 두 번째 dev 실행 기록" |
 
 ### Phase 3 첫 실행 기록
 
@@ -1902,6 +1910,36 @@ it("refuses a missing or short transcript key before any work", async () => {
     - `board_propose`: 선택 정책 전문 누락. Phase 4와 같다.
     - `agent_next`: `needs a key`
     - `report_submit`: app-dev가 자기 verify 단계를 기록하기 전에 보고했다.
+
+### 수정 뒤 두 번째 dev 실행 기록
+
+2026-11-04 run 41751043490(`e15485f`, 템플릿 `fb6ef95`, Claude Code 2.1.318)의 기록이다. #284 머지 뒤 승격 전
+실행이다.
+
+- 결과는 `item-held` 실패였다. 리허설은 128초 걸렸다.
+  - 배정은 끝났다. work-assigner가 ITEM-01을 app-dev에게 제안했고 서버가 받아들였다.
+  - app-dev는 계획을 쓰기 전에 항목을 보류했다. 보류 사유는 다음과 같다.
+    `Open: slugWords("", 0) - return "" (empty rule wins) or throw RangeError (validate first)? Answer in item Source, then resume.`
+- 원인은 리허설의 항목 문구였다.
+  - 문구는 빈 문자열이면 빈 문자열을 반환하고, `maxWords`가 양의 정수가 아니면 RangeError를 던진다고만 했다. 두
+    규칙이 함께 걸리는 입력에서 어느 쪽이 먼저인지는 정하지 않았다.
+  - 바깥 동작이 갈리는 빈틈이므로 계획 단계에서 보류한 것은 정해진 동작이다(2026-10-20 결정).
+  - 시험의 참조 구현은 이미 `maxWords`를 먼저 검사했다. 그러나 독립 사례에는 이 순서를 가르는 입력이 없었다.
+  - 앞선 두 실행(Phase 3, 머지 뒤 첫 dev 실행)에서는 app-dev가 이 빈틈으로 보류하지 않았다.
+- 고친 내용:
+  - 항목 문구에 `maxWords`를 먼저 검사해서, 빈 문자열에도 RangeError를 던진다고 적었다.
+  - 같은 문구에 `text`는 늘 문자열이고, 단어가 `maxWords`보다 적으면 모두 쓰며, RangeError의 메시지는 정하지 않는다고도
+    적었다.
+  - 독립 사례에 `["", 0]`(RangeError)을 더했다.
+  - 시험은 두 가지를 본다. 빈 문자열을 먼저 처리하는 구현이 독립 사례에서 실패하는지, 그리고 문구가 이 순서를
+    적었는지다. 고치기 전 코드에서 실패하는 것을 확인했다.
+- 그 밖의 요약 값:
+  - 모델 `claude-sonnet-5-5`, 정가 환산 $0.38, 권한 `auto`, 거부 0, `agentCalls` 2
+  - `harnessErrors`는 `pipeline_next` 1, `board_propose` 1이었다. 둘 다 모델이 바로 고쳐 다시 불렀다.
+    - `pipeline_next`: 메인 루프가 도구 스키마를 불러오기 전에 첫 호출을 보내 `project`가 빠졌다.
+    - `board_propose`: 선택 정책 전문 누락. Phase 4와 같다.
+  - 같은 커밋의 `client-init-smoke`(run 41751048185)와 dev push CI 세 개(check, windows-role-runtime,
+    macos-runtime-contracts)는 녹색이었다.
 
 ## Completion or Closure Notes
 
