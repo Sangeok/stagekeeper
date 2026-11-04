@@ -6,14 +6,14 @@ import { PassThrough } from "node:stream";
 import { createServer } from "node:http";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild, lifecycleOf, NewerState,
   writeStopRequest } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
 import { dispatchBinding, codexFailure, qaWorkflowFile } from "./harness-codex.mjs";
-import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, dispatchFreshRole, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
+import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, dispatchFreshRole, verifyRoleExecution, RoleExecutionUnavailable, CODEX_WINDOWS_ONLY } from "../runtime/codex-thread.mjs";
 import { callTool } from "../runtime/mcp-client.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/execution/client-runtime.mjs";
@@ -327,6 +327,24 @@ it("Codex refuses impl-verifier before any role run opens and says where to cont
   assert.throws(() => dispatchBinding({ action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1", entry }, []), (error) => { refused = error; return true; });
   assert.deepEqual(codexFailure(refused, "s"), { event: "error", session: "s", code: "codex-role-unsupported", reason: refused.message });
   assert.match(refused.message, /not available on Codex yet.*Claude Code/);
+});
+
+it("refuses Codex work outside Windows before reading the project or contacting the server", { skip: process.platform === "win32" }, () => {
+  const root = mkdtempSync(path.join(tmpdir(), "codex-windows-"));
+  for (const args of [["complete-init"], ["prepare", "--commit", "no", "--propose", "no"], ["next", "--session", "s"], ["dispatch", "--session", "s"]]) {
+    const result = spawnSync(process.execPath, ["plugin/bin/harness-codex.mjs", ...args, "--root", root], { env: childEnvironment(), encoding: "utf8", windowsHide: true });
+    const session = args.includes("--session") ? "s" : null;
+    assert.deepEqual([result.status, JSON.parse(result.stdout)], [1, { event: "error", session, code: "codex-windows", reason: CODEX_WINDOWS_ONLY }], args[0]);
+  }
+});
+
+it("gives every Codex skill the outside-Windows sentence the helpers print", () => {
+  const skills = readdirSync(new URL("../codex/skills/", import.meta.url));
+  assert.ok(skills.length > 0);
+  for (const name of skills) {
+    const skill = readFileSync(new URL(`../codex/skills/${name}/SKILL.md`, import.meta.url), "utf8").replace(/\s+/g, " ");
+    assert.ok(skill.includes(`"${CODEX_WINDOWS_ONLY}"`), name);
+  }
 });
 
 it("omits parent credentials and restricts workspace, readonly and foreign paths", () => {

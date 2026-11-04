@@ -636,8 +636,10 @@ project_sync shares normalized workspace validation with the config parser. It r
 실제 모델·설치·기본 graph 검증과 후보별 범위는 [resident 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에
 기록한다. 물리적 clean host·다른 OS·혼합 호스트와 배포의 남은 required 조건은
 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md)에서 추적한다.
-Codex resident는 Windows에서만 시작한다. 다른 OS에서 `harness-background --client codex`는 인자 해석 단계에서
-token·서버 호출·상태 파일보다 먼저 `codex-windows`로 거부하며 Claude resident와 status·stop·release는 막지 않는다.
+Codex 지원은 첫 공개에서 Windows만이다(2026-11-04 결정). 다른 OS에서 `harness-background --client codex`와
+`harness-codex`의 `complete-init`·`prepare`·`next`·`dispatch`는 인자 해석 직후 token·서버 호출·상태 파일보다 먼저
+`codex-windows`로 거부한다. Claude resident, background의 status·stop·release와 `harness-codex`의 `stop`·`release`는
+막지 않아 남은 로컬 세션을 정리할 수 있다. Codex skill도 같은 문장으로 helper 실행 전에 멈춘다.
 
 `GET /api/templates`, `pipeline_next`, `agent_next`의 선택적 `client`는 `claude|codex`이며
 생략은 Claude다. Codex 성공 응답은 REST body 또는 MCP `ServerResult.item`의 text JSON 내부에

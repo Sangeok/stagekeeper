@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gitRoot, stateFiles, checkSession, startSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
 import { connectionInput, verifyProject, verifyCodexSupport, callTool } from "../runtime/mcp-client.mjs";
-import { codexExecutable, dispatchFreshRole, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
+import { codexExecutable, CodexWindowsOnly, dispatchFreshRole, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
 import { RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
 import { verifierPackage } from "../runtime/codex-agent.mjs";
 import { confirmCommitHandoff } from "../runtime/commit-handoff.mjs";
@@ -29,7 +29,7 @@ export function dispatchBinding(next, workspaces) {
 }
 
 export function codexFailure(error, session = null) {
-  if (error instanceof RoleExecutionUnavailable || error instanceof CodexRoleUnsupported) {
+  if (error instanceof RoleExecutionUnavailable || error instanceof CodexRoleUnsupported || error instanceof CodexWindowsOnly) {
     return { event: "error", session, code: error.code, reason: error.message };
   }
   return { event: "error", session, code: "codex-refused", reason: "Codex configuration, runtime, binding, permission or server check failed. Keep ownership until owned work is quiescent; resolve with $harness-init. No completion is claimed." };
@@ -60,6 +60,7 @@ async function main() {
   let options;
   try {
     options = optionsFor(process.argv.slice(2));
+    if (!["stop", "release"].includes(options.operation) && process.platform !== "win32") throw new CodexWindowsOnly();
     const location = gitRoot(options.root), files = stateFiles(location.directory);
     if (["stop", "release"].includes(options.operation)) {
       const result = await (options.operation === "stop" ? requestStop(files, options.session)

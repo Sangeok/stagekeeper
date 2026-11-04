@@ -72,6 +72,23 @@ Codex resident 구현과 아직 남은 OS별 실제 인수·출시 조건을 추
 
 ## Current State
 
+### 2026-11-04 현재 — 첫 공개 범위·판·채널 결정
+
+사용자가 Windows Codex 공개를 서두르기로 하고 다음을 정했다.
+- 범위: 첫 공개의 Codex 지원은 Windows만이다. 10/28에는 다른 OS에서 resident만 거부하고
+  `$harness-run`·`$harness-resume`을 안내했다. macOS에는 역할 명령 backend(`role-commands.mjs`)와
+  실제 인수가 없으므로 포그라운드도 같은 `codex-windows`로 거부한다. `stop`·`release`는 남은
+  로컬 세션 정리를 위해 허용한다.
+- 판: 0.6.0과 함께 공개한다. 마지막 Windows Codex 인수(0.5.25) 뒤 Codex 관련 변경이 있어
+  재인수가 필요하고, 0.6.0 출시 조건의 native loader·Windows bundle 확인과 한 번에 수행한다.
+- 채널: 비공개 Git 저장소에 Windows 번들을 올려 설치·갱신·되돌리기를 먼저 시험하고 출시 때
+  공개로 전환한다. GitHub 파일 한도나 갱신 문제가 있으면 npm source로 바꾼다.
+- 서명: 첫 공개는 서명 없는 node.exe로 하고 설치 안내에 Smart App Control 위험을 적는다.
+  서명 준비는 병행한다. 필요한 libuv 수정(PR 5181)은 libuv 1.53.0에 들어갔지만 Node 22·24·26
+  계열은 아직 1.52.1 이하다.
+
+남은 출시 조건은 10/28의 운영 배포·패키지 공개 순서와 그 실행에 위 재인수와 채널 시험을 더한 것이다.
+
 ### 2026-10-28 현재 — 0.5.25 혼합 호스트 재인수와 출시 gate 결정
 
 [2026-10-27 혼합 호스트 인수](../../test-reports/completed/2026-10-27-codex-mixed-host-acceptance.md)에서
