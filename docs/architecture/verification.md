@@ -140,7 +140,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   `windows-2022`·`macos-15` × `new-user`·`update` 네 job이 동시에 돈다. 각 job은 일회용 PostgreSQL 18
   (`.github/actions/smoke-database`, `pipeline-smoke`와 공유)과 `next start` 위에서 비공개 템플릿을 시드하고,
   GitHub 브랜치로 설치한 Claude 플러그인으로
-  `scripts/rehearsals/rehearse-client-init-smoke.ts`를 실행한다. `dev`를 향한 PR(플러그인·서버·`prisma`·리허설 경로)과
+  `scripts/rehearsals/rehearse-client-init-smoke.ts`를 실행한다. `update`는 `origin/main`의 플러그인으로 먼저 연결한 뒤
+  PR 플러그인으로 갱신한다. 이전 판이 템플릿 릴리스 프로토콜을 쓰는 0.6.0 이상이면 템플릿 cutover를 그 연결보다 먼저 하고,
+  그보다 낮으면 두 판 사이에 한다. `dev`를 향한 PR(플러그인·서버·`prisma`·리허설 경로)과
   수동 실행에서 돌고, 비밀값 `E2E_TEMPLATES_TOKEN`이 없는 실행(외부 포크 PR)은 사유를 남기고 건너뛴다. 공개 로그에는
   허용 필드의 요약 한 줄만 남긴다. 브라우저 E2E가 아니므로 `tests/e2e/`가 아니라 리허설로 둔다. Codex job은 Codex 공개
   배포에 착수할 때 붙인다.

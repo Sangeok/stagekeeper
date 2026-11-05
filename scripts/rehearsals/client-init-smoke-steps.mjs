@@ -20,6 +20,11 @@ export async function assertGeneratedAgents(pluginRoot, repo, plan, workspaceAge
   if (missing.length || unexpected.length) throw new Error(`generated agents differ from the installed plugin's ${plan} entitlement: missing [${missing.join(", ")}], unexpected [${unexpected.join(", ")}]`);
 }
 
+export function usesTemplateReleases(version) {
+  const [major, minor] = version.split(".").map(Number);
+  return major > 0 || minor >= 6;
+}
+
 export function helperCommand(platform, pluginRoot, task, args = []) {
   if (platform === "win32") {
     return { file: "powershell.exe", args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", join(pluginRoot, "bin", "harness.ps1"), task, ...args] };
