@@ -19,7 +19,17 @@ const item: BoardItemView = {
   docs: toItemDocs({ planPath: "docs/plan.md", planCommit: "plan123", acceptedAt: at, reports }, repo), historyTruncated: true,
 };
 
-const render = (patch: Partial<BoardItemView> = {}, canWrite = true) => renderToStaticMarkup(withAppRouterTestContext(createElement(BoardItemPage, { slug: "example", pipelineChoices: [], changePipeline: async () => ({ success: true as const, data: null }), retryAcceptance: async () => ({ success: true as const, data: undefined }), item: { ...item, ...patch }, canWrite, transition: async () => ({ success: true as const, data: undefined }) })));
+const render = (patch: Partial<BoardItemView> = {}, canWrite = true) => renderToStaticMarkup(withAppRouterTestContext(createElement(BoardItemPage, { slug: "example", pipelineChoices: [], changePipeline: async () => ({ success: true as const, data: null }), retryAcceptance: async () => ({ success: true as const, data: undefined }), item: { ...item, ...patch }, canWrite, transition: async () => ({ success: true as const, data: undefined }), discard: async () => ({ success: true as const, data: undefined }) })));
+
+it("offers hold, send back and discard for work the pipeline holds in review or proposal, but not read-only or past review", () => {
+  const label = ">Hold, send back or discard<";
+  const stuckAtVerify = render({ status: "in_review", acceptedAt: null, validation: null });
+  assert.ok(stuckAtVerify.includes(label));
+  assert.ok(stuckAtVerify.includes("More actions"));
+  assert.ok(render({ status: "proposed", acceptedAt: null }).includes(label));
+  for (const status of ["planning", "implementing", "done", "on_hold"]) assert.ok(!render({ status, acceptedAt: null }).includes(label), status);
+  assert.ok(!render({ status: "in_review", acceptedAt: null }, false).includes(label));
+});
 
 it("shows saved assignment policy, evidence, alternatives and assignee rationale", () => {
   const html = render({ selectionDecision: { contextKey: "snapshot", policy: "Oldest first", criterion: "First eligible issue", readiness: "Dependencies checked", assignmentReason: "Owns web", uncertainties: [], evidence: [{ key: "K-1", quote: "Submit fails <script>" }], comparisons: [{ key: "K-2", reason: "Newer issue" }] } });

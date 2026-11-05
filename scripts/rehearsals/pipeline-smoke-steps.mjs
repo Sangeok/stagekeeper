@@ -28,10 +28,44 @@ export const INDEPENDENT_CASES = Object.freeze([
   { args: ["", 0], throws: "RangeError" },
 ]);
 
-export function caseResults(slugWords, cases = INDEPENDENT_CASES) {
+const TRUNCATE_FILES = Object.freeze({
+  "README.md": "# stagekeeper-macos-e2e\n\nDisposable repository for a macOS end-to-end acceptance run of the Stagekeeper Claude Code plugin.\n",
+  "src/text.mjs": "export function capitalize(value) {\n  if (typeof value !== \"string\") throw new TypeError(\"value must be a string\");\n  return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1);\n}\n\nexport function wordCount(value) {\n  if (typeof value !== \"string\") throw new TypeError(\"value must be a string\");\n  const trimmed = value.trim();\n  return trimmed.length === 0 ? 0 : trimmed.split(/\\s+/).length;\n}\n",
+  "src/text.test.mjs": "import assert from \"node:assert/strict\";\nimport { test } from \"node:test\";\nimport { capitalize, wordCount } from \"./text.mjs\";\n\ntest(\"capitalize uppercases the first character\", () => {\n  assert.equal(capitalize(\"hello\"), \"Hello\");\n  assert.equal(capitalize(\"\"), \"\");\n});\n\ntest(\"wordCount counts whitespace-separated words\", () => {\n  assert.equal(wordCount(\"  one two   three \"), 3);\n  assert.equal(wordCount(\"   \"), 0);\n});\n\ntest(\"text helpers reject non-strings\", () => {\n  assert.throws(() => capitalize(1), TypeError);\n  assert.throws(() => wordCount(null), TypeError);\n});\n",
+});
+
+const TRUNCATE_ITEM = Object.freeze({
+  title: "Add a truncate helper for long text",
+  area: "src/text.mjs",
+  type: "feat",
+  source: "Callers need to shorten long strings for one-line previews. Add truncate(value, maxLength) to src/text.mjs: return the string unchanged when it fits; otherwise cut it so the result including a trailing ellipsis character (U+2026) is exactly maxLength characters. Reject non-string values and maxLength values that are not positive integers with TypeError, like the existing helpers. Cover the fitting, cut, and invalid-input cases in src/text.test.mjs.",
+});
+
+const TRUNCATE_CASES = Object.freeze([
+  { args: ["hello", 10], returns: "hello" },
+  { args: ["hello", 5], returns: "hello" },
+  { args: ["hello world", 8], returns: "hello w…" },
+  { args: ["hello", 1], returns: "…" },
+  { args: ["hello", 0], throws: "TypeError" },
+  { args: ["hello", 1.5], throws: "TypeError" },
+  { args: [42, 5], throws: "TypeError" },
+]);
+
+export const SMOKE_SCENARIOS = Object.freeze({
+  slug: Object.freeze({ files: FIXTURE_FILES, item: BACKLOG_ITEM, cases: INDEPENDENT_CASES, module: "src/slug.mjs", exportName: "slugWords" }),
+  truncate: Object.freeze({ files: TRUNCATE_FILES, item: TRUNCATE_ITEM, cases: TRUNCATE_CASES, module: "src/text.mjs", exportName: "truncate" }),
+});
+
+export const PLAN_VERIFIER_PASS_LIMIT = 3;
+
+export function planVerificationBounded(passes) {
+  return Number.isInteger(passes) && passes >= 1 && passes <= PLAN_VERIFIER_PASS_LIMIT;
+}
+
+export function caseResults(subject, cases = INDEPENDENT_CASES) {
   return cases.map(({ args, returns, throws }) => {
     try {
-      const value = slugWords(...args);
+      const value = subject(...args);
       return throws === undefined && value === returns;
     } catch (error) {
       return throws !== undefined && error?.name === throws;
@@ -109,6 +143,8 @@ export function runFindings(streams, transcripts = []) {
 export function summarizePipeline(record) {
   const summary = {};
   if (typeof record.os === "string" && NAME.test(record.os)) summary.os = record.os;
+  if (Object.hasOwn(SMOKE_SCENARIOS, record.scenario ?? "")) summary.scenario = record.scenario;
+  if (Number.isInteger(record.planVerifierPasses) && record.planVerifierPasses >= 0) summary.planVerifierPasses = record.planVerifierPasses;
   for (const field of ["pluginCommit", "templatesCommit"]) if (COMMIT.test(record[field] ?? "")) summary[field] = record[field];
   if (PERMISSIONS.includes(record.permission)) summary.permission = record.permission;
   if (RUNNER_STATES.includes(record.runnerState)) summary.runnerState = record.runnerState;

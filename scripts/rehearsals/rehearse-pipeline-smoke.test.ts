@@ -18,6 +18,13 @@ it("accepts a dev run with the default wait", () => {
   assert.equal(parseArguments([...VALID, "--wait-minutes", "10"]).waitMinutes, 10);
 });
 
+it("runs the slug scenario unless the truncate regression is named", () => {
+  assert.equal(parseArguments(VALID).scenario, "slug");
+  assert.equal(parseArguments([...VALID, "--scenario", "truncate"]).scenario, "truncate");
+  assert.throws(() => parseArguments([...VALID, "--scenario", "other"]), /--scenario/);
+  assert.throws(() => parseArguments([...VALID, "--scenario", "constructor"]), /--scenario/);
+});
+
 it("rejects unknown, duplicate, missing, relative and out-of-range arguments before any work", () => {
   const invalid = [
     [],

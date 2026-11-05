@@ -79,6 +79,9 @@ export function reopenHint(to: string): string {
 }
 export const REOPEN_NOTE_REQUIRED = "Add a note — which check failed.";
 
+export const ITEM_ACTIONS_LABEL = "Hold, send back or discard";
+export const ITEM_ACTIONS_HINT = "For work the pipeline can't move forward, such as a plan that keeps failing verification. Send back makes dev rewrite the plan. Put on hold parks it until you resume it from the Inbox.";
+
 const REJECT: Record<RejectAction, { label: string; pending: string; lock: string }> = {
   bounce: { label: "Send back", pending: "Sending back…", lock: "Sent back" },
   hold: { label: "Put on hold", pending: "Putting on hold…", lock: "On hold" },

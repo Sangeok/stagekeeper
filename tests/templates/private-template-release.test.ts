@@ -11,6 +11,7 @@ import { splitTemplate, validateTemplateRelease } from "../../src/server/templat
 import { agentNext } from "../../src/server/agents/api";
 import { parseHarnessConfig } from "../../packages/core/configuration/harness-config.mjs";
 import { buildWorkspaceVars } from "../../packages/core/templates/vars.mjs";
+import { findRule } from "../../packages/core/pipeline/transitions.mjs";
 import type { NextInput } from "../../src/server/agents/contracts";
 import { installationFor, releaseDeliverable } from "../../packages/core/templates/release-manifest.mjs";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
@@ -117,4 +118,32 @@ it("private step graphs retain handoff, interruption and verifier verdict routin
       }
     }
   } catch { assert.fail("Private template graph or execution contract failed; private details withheld"); }
+});
+
+it("the private corpus bounds the mutation check and ends non-converging plan verification with a hold the state machine allows", { skip: !process.env.HARNESS_RELEASE_SOURCE }, () => {
+  const rows = readTemplateSources(process.env.HARNESS_RELEASE_SOURCE!);
+  const english = (file: string) => {
+    const row = rows.find(entry => entry.lang === "en" && entry.path === file);
+    assert.ok(row, file);
+    return row.body;
+  };
+  const mutation = english("docs/plans/verification-paths.md").split("\n").find(line => line.startsWith("| 5 | Mutation check |"));
+  assert.ok(mutation);
+  assert.match(mutation, /one error per behavior the item's Source or the plan states/);
+  assert.match(mutation, /A surviving mutant of a stated behavior is a hole in the spec/);
+  assert.match(mutation, /recorded as a note, not a defect/);
+  assert.doesNotMatch(mutation, /A surviving mutant is a hole in the spec/);
+  for (const runbook of ["CLAUDE.runbook.md", "CODEX.runbook.md"]) {
+    const text = english(runbook);
+    const start = text.indexOf("### Plan verification stop rule"), end = text.indexOf("### The five acceptance checks");
+    assert.ok(start >= 0 && end > start, runbook);
+    const section = text.slice(start, end);
+    assert.match(section, /three passes in a row report\s+defects/, runbook);
+    assert.match(section, /mcp__harness__board_transition\(\{ project, key, to: "on_hold", result \}\)/, runbook);
+    assert.match(section, /no gate there to approve/, runbook);
+    assert.doesNotMatch(text, /tell the owner to approve in the Inbox if they want to override/, runbook);
+  }
+  const hold = findRule("agent", "in_review", "on_hold");
+  assert.equal(hold?.kind, "hold");
+  assert.equal(hold?.requiresResult, true);
 });
