@@ -132,6 +132,7 @@ type Route = { default: (input: { params: Promise<{ slug: string; key?: string }
 type Composition = {
   slug: string; canWrite: boolean; item?: unknown; includeRemoved?: boolean;
   transition?: (...args: unknown[]) => Promise<unknown>;
+  discard?: (...args: unknown[]) => Promise<unknown>;
   editing?: { item: { key: string }; update: (...args: unknown[]) => Promise<unknown> };
 };
 
@@ -147,7 +148,7 @@ it("detail composition authorizes before loading, preserves the Action binding a
     "@/fsd/pages/board-item/index.server": { loadBoardItemPage: async (...args: unknown[]) => { calls.push(["load", ...args]); return missing ? null : { item, canWrite: false, pipelineChoices: [] }; } },
     "@/fsd/pages/board-item": { BoardItemPage: () => null },
     "@/fsd/features/change-item-pipeline/index.server": { changeItemPipeline: action },
-    "@/fsd/features/review-gate/index.server": { humanTransition: action, retryAcceptance: action },
+    "@/fsd/features/review-gate/index.server": { humanTransition: action, retryAcceptance: action, discardItem: action },
   });
   const input = { params: Promise.resolve({ slug: "mine", key: "K-1" }) };
   const element = await page.default(input);
@@ -156,6 +157,8 @@ it("detail composition authorizes before loading, preserves the Action binding a
   assert.equal(element.props.item, item); assert.equal(element.props.canWrite, false);
   assert.ok(element.props.transition); await element.props.transition("payload");
   assert.deepEqual(calls.at(-1), ["mine", "payload"]);
+  assert.ok(element.props.discard); await element.props.discard("K-1", "2026-11-05T00:00:00.000Z");
+  assert.deepEqual(calls.at(-1), ["mine", "K-1", "2026-11-05T00:00:00.000Z"]);
   calls.length = 0; allowed = false;
   await assert.rejects(page.default(input), error => error === denied);
   assert.deepEqual(calls, [["guard", "mine"]]);

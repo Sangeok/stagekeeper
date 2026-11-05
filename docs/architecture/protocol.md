@@ -162,7 +162,7 @@ MCP `AuthInfo.expiresAt`의 초 단위 재검사는 사용하지 않는다. 다�
 | `board_list` | `{open?, project?}` | 항목별 **최신** 보드 행 | pm·dev·main-loop·plan-verifier | 1 |
 | `board_get` | `{key, project?}` | 최신 보드 행 + 전이 이벤트 + 보고. 이벤트에 `channel` 포함(사람 행: web \| session, 나머지 null) | dev·plan-verifier·impl-verifier·qa-verifier·main-loop | 1 |
 | `board_propose` | `{key, agent, reason, project?}` | `proposed` 행 생성. **거부**: 미결 ≥ 2, agent가 roster 밖, reason > 150자, 이미 미결인 key, 최신 행이 `on_hold`인 key | pm | 1 |
-| `board_transition` | `{key, to, result?, project?}` | 에이전트는 planning·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev | 1 |
+| `board_transition` | `{key, to, result?, project?}` | 에이전트는 planning·in_review·implementing에서 on_hold만 요청한다(§ `transitions.mjs`). in_review의 보류는 메인 루프가 계획 검증 정지 규칙을 적용할 때만 쓴다. `result` ≤ 150, 누적. `in_review`는 `plan_submit`으로 전이하며 `done`은 구현 구간 완료 증거를 확인한 pipeline이 기록한다 | dev · main loop | 1 |
 | `plan_submit` | `{key, path, commit, type?, project?}` | 계획서 위치 기록 — **`planning`·`in_review`에서만**. 검증 라운드가 계획서를 고치면 재호출해 승인 대상 커밋을 갱신한다. **게이트②가 승인하는 것은 이 커밋이다** — 소유자 편집도 커밋·재제출로 기록에 올린다 | dev·main-loop | 1 |
 | `report_submit` | `{key, actor, path, commit, runId?, project?}` | 행위자 기록 위치 — **`in_review`·`implementing`·`done`에서만**(검증 라운드·구현 보고·인수 기록). `main-loop`의 보고는 `in_review`와 `done`에서만 받는다 — `validation_record`가 항목을 넘긴 뒤 `implementing`에서는 거부한다. `done`에서 `main-loop`의 보고가 **인수 기록**이다 — 서버가 그 시각을 `BoardItem.acceptedAt`에 적는다 | dev·impl-verifier·qa-verifier·main-loop | 1 |
 | `acceptance_fail` | `{key, checks, note, path?, commit?, project?}` | 최신 done·미인수·열린 accept 노드에 실패 조건 1–5(각각 한 번)와 150자 이하 note를 기록한다. path/commit은 함께 선택 입력. Failure는 Report와 별개이며 같은 상태 이벤트 `acceptance-failed`를 남긴다. 중복 실패는 거부하고 cursor·acceptedAt·backlog는 보존한다 | main-loop | 1 |
@@ -447,6 +447,7 @@ rollback을 단정하지 않는다. 웹은 advice를 조회하지 않고 성공 
 | `done` | `planning` | human | reopen | `result` 필수. 검증 기록도 지운다. 복원은 위와 같다 |
 | `planning` | `in_review` | agent | plan | `plan_submit` 선행 |
 | `planning` | `on_hold` | agent | hold | `result` 필수 |
+| `in_review` | `on_hold` | agent | hold | `result` 필수. 메인 루프의 계획 검증 정지 규칙(독립 패스 3회 연속 결함)만 사용한다. 검증 기록은 보존하며 재개 기본값은 planning이다 |
 | `implementing` | `done` | pipeline | auto | 현재 실행의 구현 구간 완료 · 결합 보고서 · 고정 result 필수 |
 | `implementing` | `on_hold` | agent | hold | `result` 필수 |
 

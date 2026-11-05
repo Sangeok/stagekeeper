@@ -143,7 +143,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   `windows-2022`·`macos-15` × `new-user`·`update` 네 job이 동시에 돈다. 각 job은 일회용 PostgreSQL 18
   (`.github/actions/smoke-database`, `pipeline-smoke`와 공유)과 `next start` 위에서 비공개 템플릿을 시드하고,
   GitHub 브랜치로 설치한 Claude 플러그인으로
-  `scripts/rehearsals/rehearse-client-init-smoke.ts`를 실행한다. `dev`를 향한 PR(플러그인·서버·`prisma`·리허설 경로)과
+  `scripts/rehearsals/rehearse-client-init-smoke.ts`를 실행한다. `update`는 `origin/main`의 플러그인으로 먼저 연결한 뒤
+  PR 플러그인으로 갱신한다. 이전 판이 템플릿 릴리스 프로토콜을 쓰는 0.6.0 이상이면 템플릿 cutover를 그 연결보다 먼저 하고,
+  그보다 낮으면 두 판 사이에 한다. `dev`를 향한 PR(플러그인·서버·`prisma`·리허설 경로)과
   수동 실행에서 돌고, 비밀값 `E2E_TEMPLATES_TOKEN`이 없는 실행(외부 포크 PR)은 사유를 남기고 건너뛴다. 공개 로그에는
   허용 필드의 요약 한 줄만 남긴다. 브라우저 E2E가 아니므로 `tests/e2e/`가 아니라 리허설로 둔다. Codex job은 Codex 공개
   배포에 착수할 때 붙인다.
@@ -160,7 +162,10 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   항목 하나를 배정부터 문서 감사까지 처리하는지 본다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
   올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
   백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
-  `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, 리허설의 독립 사례와 `node --test`가 통과해야 녹색이다.
+  `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, plan-verifier 독립 패스가 1~3회이고, 리허설의 독립 사례와
+  `node --test`가 통과해야 녹색이다. `scenario` 입력의 기본값 `slug`는 `slugWords` 요청이고, `truncate`는 2026-11-05
+  macOS 인수에서 계획 검증이 일곱 패스 동안 수렴하지 않은 `truncate` 요청과 픽스처를 그대로 재생하는 회귀 시험이다.
+  요약에는 `scenario`와 `planVerifierPasses`가 남는다.
   보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 커밋 핸드오프는 메인
   루프가 커밋하고 이어 가도록 5분까지 기다린 뒤 `item-handoff`로 실패한다. 녹색이어도 요약의
   `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
@@ -340,7 +345,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `build.test.mjs`, `plugin-lib.test.mjs`, `test-server-integration.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 실제 CLI의 잘못된 인자·도움말을 작업 전에 처리하는지, check의 무쓰기·동기화 동작, 빌드 순서·실패 코드 보존, URL 안전 검사와 migration→test 실행 순서·실패 중단 검사 |
 | `rehearsals/rehearse-client-init-smoke.ts`, `rehearsals/client-init-smoke-steps.mjs` | 저장소 루트에서 `node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts --client claude --scenario <new-user\|update> --templates <비공개 템플릿 절대 경로> --plugin-source github-branch --plugin-branch <브랜치> --plugin-commit <커밋> [--previous-ref <커밋>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), PATH의 `claude`·`git`과 `npm run build` 산출물이 필요하다 | `client-init-smoke` workflow | 시험 DB에 템플릿을 시드하고 Free 사용자와 토큰을 만든 뒤 `next start`를 띄우고, GitHub 브랜치로 설치한 플러그인으로 init 스킬 절차(등록·dry-run·생성·`HARNESS_SERVER` 저장·사용자 범위 MCP 등록·동기화)를 모델 없이 실행해 파일·DB·클라이언트 설정으로 판정한다. 러너 사용자 설정(`HARNESS_SERVER`, `~/.claude.json`, 플러그인 설치)을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이고 종료 시 자기 fixture 사용자와 서버를 정리한다 |
 | `rehearsals/rehearse-client-init-smoke.test.ts`, `rehearsals/client-init-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 잘못된·중복·미구현 인자와 기계 설정·DB 안전 거부를 작업 전에 처리하는지, OS별 helper 명령, 설치된 플러그인 판의 플랜 권한과 생성된 에이전트 파일 이름의 일치(구버전→신버전 업데이트 포함), 요약의 허용 필드와 토큰 미노출, 종료 코드 0이어도 시간 초과한 명령은 실패로 세는지, 출력 파일로 받은 명령이 남은 자식 프로세스를 기다리지 않는지를 검사한다 |
-| `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
+| `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>] [--scenario <slug|truncate>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
 | `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산(세션 누적 비용과 반복 거부는 한 번만). 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
 | `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
@@ -366,7 +371,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `checks/transitions-contract.test.ts` | `test:scripts` → check | CI마다 | `packages/core/pipeline/transitions.d.mts`가 선언한 runtime export가 실제 export와 같은지 TypeScript AST로, 상태 기계가 실제로 만드는 규칙 종류가 `RuleKind` 선언과 같은지 전이 전체를 순회해 검사한다. `typescript` package를 쓰므로 외부 package를 금지하는 `packages/core`가 아니라 여기에 둔다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
 | `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/**/*.mjs` 또는 `packages/github/**/*.mjs`를 바꾼 뒤 | core는 `plugin/lib`, GitHub는 `plugin/lib/github`에 복사. 두 원본 디렉터리 누락·배포 경로 충돌은 쓰기 전에 거부하며 drift·orphan을 동기화 |
-| `templates/seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증 |
+| `templates/seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증. versioned DB(운영은 2026-11-05부터)에서는 writer 장벽이 거부하므로, 운영 템플릿 변경은 `template-release.yml`의 import·activate로 한다 |
 | `templates/restore-dual-client-templates.ts` | `node --import tsx scripts/templates/restore-dual-client-templates.ts --snapshot <private 경로>` | 승인된 template 복구 | snapshot version/hash·현재 body 전체를 먼저 대조하고 whitelist 행만 한 transaction으로 복구한다. 이전에 없던 CODEX.runbook 행만 삭제하며 외부 행을 보존한다 |
 | `templates/template-seed-query.ts`, `templates/template-seed-query.test.ts` | `node --import tsx --test scripts/templates/template-seed-query.test.ts` | CI 및 seed/restore 변경 시 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. `test:scripts`에 포함되며 실제 DB rollback 증거는 아니다 |
 | `grant-plan.ts` | `npm run plan:grant -- <login> <free\|pro\|max> [note]` | 플랜을 붙일 때, 로컬에서 | availability service를 통한 plan/set/version/event atomic change |
@@ -577,6 +582,9 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 DB 없는 실제 컴포넌트 시험은 `--ui-only`로 실행한다. `/fixture?mode=token-issuance`는
 세 발급 폼의 성공·거부·응답 미확인과 Previous token/만료값 보존을 제어하고,
 `/fixture?mode=documents`는 같은 URL의 별개 보고를 추가·삭제·재정렬한다.
+`/fixture?mode=item-actions`는 Verify에 멈춘 In review 항목의 상세 페이지를 쓰기 가능으로 렌더링한다.
+More actions의 Send back·Put on hold·Discard가 보내는 humanTransition·discard 입력을 `window.fixture.payloads`에 기록하고
+`window.fixture.finishAction("success"|"error"|"stale"|"unknown")`으로 응답을 결정한다.
 `?mode=copy&autorun` 또는 Run acceptance가 전체 동작 시험 결과를 `/results`에 기록한다.
 Documents의 duplicate-key 경고는 `--ui-only --fixture-development`로 별도 확인한다.
 이 옵션은 fixture 브라우저 번들만 development로 바꾸며 production build 설정은 바꾸지 않는다.

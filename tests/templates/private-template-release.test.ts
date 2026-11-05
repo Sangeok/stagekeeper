@@ -11,15 +11,20 @@ import { splitTemplate, validateTemplateRelease } from "../../src/server/templat
 import { agentNext } from "../../src/server/agents/api";
 import { parseHarnessConfig } from "../../packages/core/configuration/harness-config.mjs";
 import { buildWorkspaceVars } from "../../packages/core/templates/vars.mjs";
+import { findRule } from "../../packages/core/pipeline/transitions.mjs";
 import type { NextInput } from "../../src/server/agents/contracts";
 import { installationFor, releaseDeliverable } from "../../packages/core/templates/release-manifest.mjs";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { claudeFixtureExecutable } from "../plugin/template-fixture.mjs";
 
-it("the pinned private corpus validates and installs through HTTP for each client, plan and complete language", { skip: !process.env.HARNESS_RELEASE_SOURCE, timeout: 60000 }, async () => {
+it("the pinned private corpus validates and installs through HTTP for each client, plan and complete language", { skip: !process.env.HARNESS_RELEASE_SOURCE, timeout: 60000 }, async t => {
   const rows = readTemplateSources(process.env.HARNESS_RELEASE_SOURCE!);
   const prepared = validateTemplateRelease(rows, { kind: "git", repository: "Sangeok/harness-templates", commit: process.env.HARNESS_RELEASE_COMMIT ?? "a".repeat(40) });
   const cli = claudeFixtureExecutable();
+  const verifier = mkdtempSync(path.join(realpathSync(tmpdir()), "private-template-verifier-"));
+  t.after(() => rmSync(verifier, { recursive: true, force: true }));
+  writeFileSync(path.join(verifier, "SKILL.md"), "---\nname: reconciling-proposals-with-codebase\n---\nRead [gates](./gates.md).\n");
+  writeFileSync(path.join(verifier, "gates.md"), "Fixture only: INV-1 INV-2 INV-3 INV-4 INV-5 INV-6 INV-7\n");
   for (const client of ["claude", "codex"] as const) for (const plan of ["free", "pro", "max"] as const) for (const language of prepared.manifest.languages) {
     const root = mkdtempSync(path.join(realpathSync(tmpdir()), "private-template-http-"));
     const installation = installationFor({ releaseId: prepared.releaseIdentity, rows, language, plan, client, contractHash: prepared.contractHash });
@@ -45,7 +50,7 @@ it("the pinned private corpus validates and installs through HTTP for each clien
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     try {
       const address = server.address(); assert.ok(address && typeof address !== "string");
-      const env: NodeJS.ProcessEnv = { ...process.env, HARNESS_TOKEN: "hs_" + "x".repeat(43), HARNESS_CLAUDE_CLI: cli };
+      const env: NodeJS.ProcessEnv = { ...process.env, HARNESS_TOKEN: "hs_" + "x".repeat(43), HARNESS_CLAUDE_CLI: cli, HARNESS_VERIFIER_SKILL_DIR: verifier };
       delete env.HARNESS_TEMPLATES_DIR;
       await promisify(execFile)(process.execPath, ["plugin/bin/harness-init.mjs", "--root", root, "--client", client, "--server", `http://127.0.0.1:${address.port}`], { env, timeout: 30000 });
       assert.deepEqual(readInstalledTemplate(root, client).installation, installation);
@@ -117,4 +122,32 @@ it("private step graphs retain handoff, interruption and verifier verdict routin
       }
     }
   } catch { assert.fail("Private template graph or execution contract failed; private details withheld"); }
+});
+
+it("the private corpus bounds the mutation check and ends non-converging plan verification with a hold the state machine allows", { skip: !process.env.HARNESS_RELEASE_SOURCE }, () => {
+  const rows = readTemplateSources(process.env.HARNESS_RELEASE_SOURCE!);
+  const english = (file: string) => {
+    const row = rows.find(entry => entry.lang === "en" && entry.path === file);
+    assert.ok(row, file);
+    return row.body;
+  };
+  const mutation = english("docs/plans/verification-paths.md").split("\n").find(line => line.startsWith("| 5 | Mutation check |"));
+  assert.ok(mutation);
+  assert.match(mutation, /one error per behavior the item's Source or the plan states/);
+  assert.match(mutation, /A surviving mutant of a stated behavior is a hole in the spec/);
+  assert.match(mutation, /recorded as a note, not a defect/);
+  assert.doesNotMatch(mutation, /A surviving mutant is a hole in the spec/);
+  for (const runbook of ["CLAUDE.runbook.md", "CODEX.runbook.md"]) {
+    const text = english(runbook);
+    const start = text.indexOf("### Plan verification stop rule"), end = text.indexOf("### The five acceptance checks");
+    assert.ok(start >= 0 && end > start, runbook);
+    const section = text.slice(start, end);
+    assert.match(section, /three passes in a row report\s+defects/, runbook);
+    assert.match(section, /mcp__harness__board_transition\(\{ project, key, to: "on_hold", result \}\)/, runbook);
+    assert.match(section, /no gate there to approve/, runbook);
+    assert.doesNotMatch(text, /tell the owner to approve in the Inbox if they want to override/, runbook);
+  }
+  const hold = findRule("agent", "in_review", "on_hold");
+  assert.equal(hold?.kind, "hold");
+  assert.equal(hold?.requiresResult, true);
 });

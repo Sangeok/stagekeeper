@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
 import { containsSecret, helperCommand } from "./client-init-smoke-steps.mjs";
-import { BACKLOG_ITEM, FIXTURE_FILES, INDEPENDENT_CASES, PIPELINE_ROLES, PIPELINE_STEPS, runFindings, sealTranscripts, summarizePipeline, transcriptKey, waitVerdict } from "./pipeline-smoke-steps.mjs";
+import { PIPELINE_ROLES, PIPELINE_STEPS, SMOKE_SCENARIOS, planVerificationBounded, runFindings, sealTranscripts, summarizePipeline, transcriptKey, waitVerdict } from "./pipeline-smoke-steps.mjs";
 import { bootstrapSmokeTemplates, createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, ORIGIN, osLabel, Run, seedTemplates, Smoke, startServer, stopServer, type Plugin } from "./rehearse-client-init-smoke";
 
 const DEFAULT_WAIT_MINUTES = 75;
@@ -29,12 +29,15 @@ const WHOLE_NUMBER = /^\d+$/;
 export const USAGE = [
   "usage: node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts",
   "  --templates <private templates checkout> --plugin-branch <branch> --plugin-commit <40-hex commit>",
-  "  --transcripts <sealed file path> [--wait-minutes <5-90, default 75>] [--allow-machine-changes]",
+  "  --transcripts <sealed file path> [--wait-minutes <5-90, default 75>] [--scenario <slug|truncate, default slug>] [--allow-machine-changes]",
   "environment: TEST_DATABASE_URL (stagekeeper_test_*), TRANSCRIPT_KEY (32 bytes of base64), CI=true unless --allow-machine-changes,",
   "  CLAUDE_CODE_OAUTH_TOKEN when claude is not signed in",
 ].join("\n");
 
+type ScenarioName = keyof typeof SMOKE_SCENARIOS;
+
 export type Options = {
+  scenario: ScenarioName;
   templates: string;
   pluginBranch: string;
   pluginCommit: string;
@@ -44,7 +47,7 @@ export type Options = {
   help: boolean;
 };
 
-const VALUED = ["--templates", "--plugin-branch", "--plugin-commit", "--transcripts", "--wait-minutes"];
+const VALUED = ["--templates", "--plugin-branch", "--plugin-commit", "--transcripts", "--wait-minutes", "--scenario"];
 const FLAGS = ["--allow-machine-changes", "--help"];
 
 export function parseArguments(args: string[]): Options {
@@ -64,19 +67,21 @@ export function parseArguments(args: string[]): Options {
     values.set(name, value);
   }
   const help = flags.has("--help");
-  if (help) return { templates: "", pluginBranch: "", pluginCommit: "", transcripts: "", waitMinutes: DEFAULT_WAIT_MINUTES, allowMachineChanges: false, help };
+  if (help) return { scenario: "slug", templates: "", pluginBranch: "", pluginCommit: "", transcripts: "", waitMinutes: DEFAULT_WAIT_MINUTES, allowMachineChanges: false, help };
   const templates = values.get("--templates");
   const pluginBranch = values.get("--plugin-branch");
   const pluginCommit = values.get("--plugin-commit");
   const transcripts = values.get("--transcripts");
   const wait = values.get("--wait-minutes") ?? String(DEFAULT_WAIT_MINUTES);
+  const scenario = values.get("--scenario") ?? "slug";
+  if (!Object.hasOwn(SMOKE_SCENARIOS, scenario)) throw new Error("--scenario must be slug or truncate");
   if (!templates || !path.isAbsolute(templates)) throw new Error("--templates must be an absolute path");
   if (!pluginBranch) throw new Error("--plugin-branch is required");
   if (!pluginCommit || !COMMIT.test(pluginCommit)) throw new Error("--plugin-commit must be a 40-hex commit");
   if (!transcripts || !path.isAbsolute(transcripts)) throw new Error("--transcripts must be an absolute path");
   const waitMinutes = Number(wait);
   if (!WHOLE_NUMBER.test(wait) || waitMinutes < 5 || waitMinutes > 90) throw new Error("--wait-minutes must be a whole number from 5 to 90");
-  return { templates, pluginBranch, pluginCommit, transcripts, waitMinutes, allowMachineChanges: flags.has("--allow-machine-changes"), help };
+  return { scenario: scenario as ScenarioName, templates, pluginBranch, pluginCommit, transcripts, waitMinutes, allowMachineChanges: flags.has("--allow-machine-changes"), help };
 }
 
 type Secrets = { key: Buffer; oauth: string | undefined };
@@ -85,10 +90,10 @@ type WaitResult = { verdict: string; step?: string };
 type Collected = { files: Record<string, string>; skipped: string[]; streams: string[]; transcripts: string[]; runs: string[] };
 
 const CASES = [
-  "const [steps, slug] = process.argv.slice(1);",
-  "const { caseResults } = await import(steps);",
-  "const { slugWords } = await import(slug);",
-  "console.log(JSON.stringify(caseResults(slugWords)));",
+  "const [steps, subjectPath, exportName, scenario] = process.argv.slice(1);",
+  "const { caseResults, SMOKE_SCENARIOS } = await import(steps);",
+  "const subject = (await import(subjectPath))[exportName];",
+  "console.log(JSON.stringify(caseResults(subject, SMOKE_SCENARIOS[scenario].cases)));",
 ].join("\n");
 
 class WaitEnded extends Error {
@@ -237,7 +242,8 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   const run = new Run(path.join(work, "commands.log"));
   const token = newToken("user");
   const login = `stagekeeper-e2e-${randomBytes(4).toString("hex")}`;
-  const record: Record<string, unknown> = { os: osLabel(), steps: run.steps };
+  const scenario = SMOKE_SCENARIOS[options.scenario];
+  const record: Record<string, unknown> = { os: osLabel(), scenario: options.scenario, steps: run.steps };
   const childEnv: NodeJS.ProcessEnv = { ...env, DATABASE_URL: databaseUrl, TEST_DATABASE_URL: databaseUrl };
   const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain, HARNESS_SERVER: ORIGIN };
   delete helperEnv.HARNESS_TEMPLATES_DIR;
@@ -255,6 +261,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   let repo: string | undefined;
   let plugin: Plugin | undefined;
   let runnerStopped = false;
+  let verifiedItem: { projectId: string; key: string } | undefined;
   const background = (args: string[], commandEnv: NodeJS.ProcessEnv, timeout?: number, outputFile?: string) => {
     const command = helperCommand(process.platform, plugin!.root, "background", [...args, "--root", repo!]);
     return run.command(command.file, command.args, repo!, commandEnv, timeout, outputFile);
@@ -270,13 +277,13 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
     const fixtureRepo = await run.step("repository", () => {
       const created = createRepository(work, "pipeline");
-      for (const [name, text] of Object.entries(FIXTURE_FILES)) {
+      for (const [name, text] of Object.entries(scenario.files)) {
         const target = path.join(created, ...name.split("/"));
         mkdirSync(path.dirname(target), { recursive: true });
         writeFileSync(target, text);
       }
       run.succeed("git", ["add", "-A"], created, helperEnv, "git add");
-      run.succeed("git", ["commit", "-q", "-m", "chore: add slug module"], created, helperEnv, "git commit");
+      run.succeed("git", ["commit", "-q", "-m", `chore: add the ${options.scenario} fixture`], created, helperEnv, "git commit");
       return created;
     });
     repo = fixtureRepo;
@@ -302,10 +309,11 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
       return project.id;
     }));
     const itemKey = await run.step("backlog-added", () => withPrisma(async prisma => {
-      const added = await createBoardService(prisma).addBacklog(projectId, { ...BACKLOG_ITEM, addedBy: "owner", addedByRunId: null });
+      const added = await createBoardService(prisma).addBacklog(projectId, { ...scenario.item, addedBy: "owner", addedByRunId: null });
       if (!added.ok) throw new Error(`backlog add: ${added.reason}`);
       return added.item.key;
     }));
+    verifiedItem = { projectId, key: itemKey };
     const headBeforeRunner = run.succeed("git", ["rev-parse", "HEAD"], fixtureRepo, helperEnv, "git rev-parse").stdout.trim();
     const startedEvent = await run.step("runner-start", () => {
       const outcome = background(["--start", "--propose", "yes"], runnerEnv, START_LIMIT_MS, path.join(work, "runner-start.txt"));
@@ -346,6 +354,10 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
       const missing = PIPELINE_ROLES.filter((role: string) => !ran.has(role));
       if (missing.length > 0) throw new Error(`these roles did not run: ${missing.join(", ")}`);
     }));
+    await run.step("plan-verification-bounded", () => withPrisma(async prisma => {
+      record.planVerifierPasses = await prisma.agentRun.count({ where: { projectId, agent: "plan-verifier", key: itemKey } });
+      if (!planVerificationBounded(record.planVerifierPasses)) throw new Error(`plan verification took ${record.planVerifierPasses} independent passes`);
+    }));
     await run.step("runner-stop", async () => {
       const stop = background(["--stop"], helperEnv);
       if (stop.code !== 0) throw new Error(`background stop exited ${stop.code}`);
@@ -366,10 +378,10 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
       if (run.succeed("git", ["rev-parse", "HEAD"], fixtureRepo, helperEnv, "git rev-parse").stdout.trim() === headBeforeRunner) throw new Error("the runner made no commit");
       run.succeed(process.execPath, ["--test"], fixtureRepo, helperEnv, "node --test");
       const steps = new URL("./pipeline-smoke-steps.mjs", import.meta.url).href;
-      const slug = pathToFileURL(path.join(fixtureRepo, "src", "slug.mjs")).href;
-      const output = run.succeed(process.execPath, ["--input-type=module", "-e", CASES, steps, slug], fixtureRepo, helperEnv, "independent cases", CASES_LIMIT_MS).stdout;
+      const subject = pathToFileURL(path.join(fixtureRepo, ...scenario.module.split("/"))).href;
+      const output = run.succeed(process.execPath, ["--input-type=module", "-e", CASES, steps, subject, scenario.exportName, options.scenario], fixtureRepo, helperEnv, "independent cases", CASES_LIMIT_MS).stdout;
       const results: unknown = JSON.parse(output.trim().split(/\r?\n/).at(-1) ?? "null");
-      if (!Array.isArray(results) || results.length !== INDEPENDENT_CASES.length || !results.every(value => value === true)) throw new Error("slugWords does not follow the backlog request");
+      if (!Array.isArray(results) || results.length !== scenario.cases.length || !results.every(value => value === true)) throw new Error(`${scenario.exportName} does not follow the backlog request`);
     });
     await run.step("secret-scan", () => {
       const collected = collect(fixtureRepo, work);
@@ -392,6 +404,10 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
       });
     }
     await cleanup("server", () => stopServer(server));
+    if (verifiedItem && record.planVerifierPasses === undefined) {
+      const target = verifiedItem;
+      await cleanup("plan-verifier count", async () => { record.planVerifierPasses = await withPrisma(prisma => prisma.agentRun.count({ where: { projectId: target.projectId, agent: "plan-verifier", key: target.key } })); });
+    }
     if (userId) await cleanup("fixture user", () => deleteFixtureUser(userId!));
     const latest = statuses.last();
     record.runnerState = latest?.state ?? undefined;
