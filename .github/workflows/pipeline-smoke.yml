@@ -9,6 +9,11 @@ on:
         description: "Branch, tag or commit of Sangeok/harness-templates to seed (default: its default branch)"
         required: false
         default: ""
+      scenario:
+        description: "Backlog request to run: slug (the default smoke) or truncate (the plan-verification convergence regression)"
+        type: choice
+        options: [slug, truncate]
+        default: slug
 
 permissions:
   contents: read
@@ -80,13 +85,14 @@ jobs:
           TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
           PLUGIN_BRANCH: ${{ github.ref_name }}
           PLUGIN_COMMIT: ${{ github.sha }}
+          SMOKE_SCENARIO: ${{ inputs.scenario || 'slug' }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
           claude --version
           $templates = Join-Path $env:GITHUB_WORKSPACE 'plugin/templates'
           $summary = Join-Path $env:RUNNER_TEMP 'pipeline-summary.json'
           $sealed = Join-Path $env:RUNNER_TEMP 'pipeline-transcripts.bin'
-          node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates $templates --plugin-branch $env:PLUGIN_BRANCH --plugin-commit $env:PLUGIN_COMMIT --transcripts $sealed | Tee-Object -FilePath $summary
+          node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates $templates --plugin-branch $env:PLUGIN_BRANCH --plugin-commit $env:PLUGIN_COMMIT --transcripts $sealed --scenario $env:SMOKE_SCENARIO | Tee-Object -FilePath $summary
           $code = $LASTEXITCODE
           if (Test-Path $summary) { "``````json`n$((Get-Content $summary | Select-Object -Last 1))`n``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
           exit $code
