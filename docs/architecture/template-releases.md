@@ -3,6 +3,8 @@
 서버는 `TemplateChannel.default.mode`로 legacy와 versioned 경로를 구분한다.
 additive migration만 적용하면 legacy다. 운영 전환은 별도의 유지보수 승인과
 `bootstrap-template-releases.ts`의 원자적 commit이 필요하다.
+운영은 2026-11-05에 R0로 전환해 versioned다. 이후 운영 템플릿 변경은
+`template-release.yml`의 import와 activate로만 하고, legacy seed는 writer 장벽이 거부한다.
 
 ## 저장과 실행
 
