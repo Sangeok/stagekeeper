@@ -16,10 +16,14 @@ import { installationFor, releaseDeliverable } from "../../packages/core/templat
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { claudeFixtureExecutable } from "../plugin/template-fixture.mjs";
 
-it("the pinned private corpus validates and installs through HTTP for each client, plan and complete language", { skip: !process.env.HARNESS_RELEASE_SOURCE, timeout: 60000 }, async () => {
+it("the pinned private corpus validates and installs through HTTP for each client, plan and complete language", { skip: !process.env.HARNESS_RELEASE_SOURCE, timeout: 60000 }, async t => {
   const rows = readTemplateSources(process.env.HARNESS_RELEASE_SOURCE!);
   const prepared = validateTemplateRelease(rows, { kind: "git", repository: "Sangeok/harness-templates", commit: process.env.HARNESS_RELEASE_COMMIT ?? "a".repeat(40) });
   const cli = claudeFixtureExecutable();
+  const verifier = mkdtempSync(path.join(realpathSync(tmpdir()), "private-template-verifier-"));
+  t.after(() => rmSync(verifier, { recursive: true, force: true }));
+  writeFileSync(path.join(verifier, "SKILL.md"), "---\nname: reconciling-proposals-with-codebase\n---\nRead [gates](./gates.md).\n");
+  writeFileSync(path.join(verifier, "gates.md"), "Fixture only: INV-1 INV-2 INV-3 INV-4 INV-5 INV-6 INV-7\n");
   for (const client of ["claude", "codex"] as const) for (const plan of ["free", "pro", "max"] as const) for (const language of prepared.manifest.languages) {
     const root = mkdtempSync(path.join(realpathSync(tmpdir()), "private-template-http-"));
     const installation = installationFor({ releaseId: prepared.releaseIdentity, rows, language, plan, client, contractHash: prepared.contractHash });
@@ -45,7 +49,7 @@ it("the pinned private corpus validates and installs through HTTP for each clien
     await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
     try {
       const address = server.address(); assert.ok(address && typeof address !== "string");
-      const env: NodeJS.ProcessEnv = { ...process.env, HARNESS_TOKEN: "hs_" + "x".repeat(43), HARNESS_CLAUDE_CLI: cli };
+      const env: NodeJS.ProcessEnv = { ...process.env, HARNESS_TOKEN: "hs_" + "x".repeat(43), HARNESS_CLAUDE_CLI: cli, HARNESS_VERIFIER_SKILL_DIR: verifier };
       delete env.HARNESS_TEMPLATES_DIR;
       await promisify(execFile)(process.execPath, ["plugin/bin/harness-init.mjs", "--root", root, "--client", client, "--server", `http://127.0.0.1:${address.port}`], { env, timeout: 30000 });
       assert.deepEqual(readInstalledTemplate(root, client).installation, installation);
