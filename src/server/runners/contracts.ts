@@ -22,6 +22,7 @@ export type RunnerRecord = {
   stopReason: RunnerStopReason | "signin" | null;
   startedAt: Date;
   seenAt: Date;
+  idleSince: Date | null;
 };
 
 export type RunnerView = {
@@ -42,7 +43,7 @@ export type RunnerOp = { client?: RunnerClient } & (
 type CodexRunnerBinding = { session: string; client: "codex"; mode: "resident"; permission: "scoped" };
 
 export type RunnerOpResult =
-  | { ok: true; body: { ok: true; paused?: boolean; stop?: "plan"; binding?: CodexRunnerBinding } }
+  | { ok: true; body: { ok: true; paused?: boolean; stop?: "plan"; binding?: CodexRunnerBinding; nextBeatIn?: number } }
   | { ok: false; status: 403; reason: string; code?: never }
   | { ok: false; status: 403; reason: string; code: "PLAN_REQUIRED" }
   | { ok: false; status: 409; reason: string; code: "RUNNER_BUSY"; holder: RunnerHolder }

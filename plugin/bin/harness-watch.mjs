@@ -288,8 +288,8 @@ async function limitedRunner(target, payload, controller, expires, timeout) {
 }
 
 function leaseOutcome(result, input) {
-  if (result.kind === "ok") return { paused: result.paused };
-  if (result.kind === "missing") return { paused: false };
+  if (result.kind === "ok") return { paused: result.paused, next: Number.isFinite(result.nextBeatMs) ? result.nextBeatMs : null };
+  if (result.kind === "missing") return { paused: false, next: null };
   if (result.kind === "transient") throw new TransientFailure(result.retryAfter);
   if (result.kind === "replaced") throw new Interrupted({ event: "replaced", seenAt: null });
   if (result.kind === "refused") fail("access-refused", cleanReason(result.reason, input.token, `The server refused the runner request (HTTP ${result.status}).`));
@@ -343,9 +343,10 @@ async function pollWatch(files, input, options) {
       const started = performance.now();
       let wait;
       try {
-        const { paused } = lease
+        const { paused, next } = lease
           ? leaseOutcome(await limitedRunner(runnerTarget(input), { op: "beat", session, state: "idle" }, controller, expires, options.requestTimeout), input)
-          : { paused: false };
+          : { paused: false, next: null };
+        const every = next ?? options.interval;
         controller.signal.throwIfAborted();
         if (paused) {
           await withGuard(files, () => {
@@ -355,7 +356,7 @@ async function pollWatch(files, input, options) {
             atomicWrite(files.lock, state.lock);
           }, expires);
           failures = 0;
-          await delay(Math.min(Math.max(0, started + options.interval - performance.now()), Math.max(0, expires - performance.now())), undefined, { signal: controller.signal });
+          await delay(Math.min(Math.max(0, started + every - performance.now()), Math.max(0, expires - performance.now())), undefined, { signal: controller.signal });
           continue;
         }
         const overview = await limitedRequest(input, "pipeline_next", controller, expires, options.requestTimeout);
@@ -381,7 +382,7 @@ async function pollWatch(files, input, options) {
           if (working.kind === "replaced") event = { event: "replaced", session, seenAt: null };
         }
         if (event) break;
-        wait = Math.max(0, started + options.interval - performance.now());
+        wait = Math.max(0, started + every - performance.now());
       } catch (error) {
         if (!(error instanceof TransientFailure)) throw error;
         await withGuard(files, () => {

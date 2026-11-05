@@ -15,11 +15,12 @@ type RunnerRow = {
   client: string;
   session: string; mode: string; host: string; branch: string | null; permission: string | null; autostart: boolean; state: string;
   waitReason: string | null; lastResult: string | null; lastLog: string | null; stopReason: string | null; startedAt: Date; seenAt: Date;
+  idleSince: Date | null;
 };
 const runnerRow = (patch: Partial<RunnerRow> = {}): RunnerRow => ({
   client: "claude",
   session: OTHER, mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle",
-  waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: ago(30), seenAt: ago(1), ...patch,
+  waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: ago(30), seenAt: ago(1), idleSince: null, ...patch,
 });
 
 function fakeDb(options: { runner?: RunnerRow | null; plan?: string; available?: boolean; pausedAt?: Date | null; lastRun?: Date | null; lastStep?: Date | null } = {}) {
@@ -87,7 +88,7 @@ describe("Codex resident ownership", () => {
     db.project.runnerPausedAt = NOW;
     db.project.ownerUser.subscription.plan = "free";
     assert.deepEqual(await op(db, beat({ client: "codex" })),
-      { ok: true, body: { ok: true, paused: true, stop: "plan", binding } });
+      { ok: true, body: { ok: true, paused: true, stop: "plan", binding, nextBeatIn: 60 } });
   });
 
   it("rejects a different client even when its session id matches", async () => {
@@ -147,7 +148,7 @@ describe("runner start", () => {
     assert.deepEqual(db.state.runner, {
       client: "claude",
       session: MINE, tokenId: "token-1", mode: "session", host: "laptop", branch: null, permission: null, autostart: false,
-      state: "idle", waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: NOW, seenAt: NOW,
+      state: "idle", waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: NOW, seenAt: NOW, idleSince: null,
     });
   });
 
@@ -176,6 +177,14 @@ describe("runner start", () => {
       assert.equal(db.state.runner?.session, MINE);
       assert.equal(db.state.runner?.stopReason, null);
     }
+  });
+
+  it("keeps an idle runner's lease until two minutes past the signal it was told to send, and a new start clears the idle clock", async () => {
+    const live = fakeDb({ runner: runnerRow({ seenAt: ago(20), idleSince: ago(150) }) });
+    assert.equal((await op(live, startAs(MINE))).ok, false);
+    const expired = fakeDb({ runner: runnerRow({ seenAt: ago(33), idleSince: ago(163) }) });
+    assert.equal((await op(expired, startAs(MINE))).ok, true);
+    assert.equal(expired.state.runner?.idleSince, null);
   });
 
   it("keeps a working session alive for sixty minutes after the latest agent activity", async () => {
@@ -223,7 +232,7 @@ describe("runner beat", () => {
 
   it("keeps the stored state when none is sent and skips writes inside thirty seconds", async () => {
     const quiet = fakeDb({ runner: runnerRow({ session: MINE, state: "working", seenAt: new Date(NOW.getTime() - 29_000) }) });
-    assert.deepEqual(await op(quiet, beat()), { ok: true, body: { ok: true, paused: false } });
+    assert.deepEqual(await op(quiet, beat()), { ok: true, body: { ok: true, paused: false, nextBeatIn: 60 } });
     assert.deepEqual(quiet.state.writes, []);
     const due = fakeDb({ runner: runnerRow({ session: MINE, state: "working", seenAt: new Date(NOW.getTime() - 30_000) }) });
     await op(due, beat());
@@ -243,10 +252,35 @@ describe("runner beat", () => {
 
   it("asks a resident runner to stop after its run when the plan no longer allows it", async () => {
     const db = fakeDb({ plan: "free", runner: runnerRow({ session: MINE, mode: "resident", branch: "main", permission: "auto", seenAt: ago(1) }) });
-    assert.deepEqual(await op(db, beat({ state: "working" })), { ok: true, body: { ok: true, paused: false, stop: "plan" } });
+    assert.deepEqual(await op(db, beat({ state: "working" })), { ok: true, body: { ok: true, paused: false, stop: "plan", nextBeatIn: 60 } });
     assert.equal(db.state.runner?.state, "working");
     const session = fakeDb({ plan: "free", runner: runnerRow({ session: MINE, seenAt: ago(1) }) });
-    assert.deepEqual(await op(session, beat()), { ok: true, body: { ok: true, paused: false } });
+    assert.deepEqual(await op(session, beat()), { ok: true, body: { ok: true, paused: false, nextBeatIn: 60 } });
+  });
+
+  it("starts the idle clock when work ends and answers with the backoff for the time idle", async () => {
+    const db = fakeDb({ runner: runnerRow({ session: MINE, mode: "resident", branch: "main", permission: "auto", state: "working", seenAt: ago(1) }) });
+    assert.equal((await op(db, beat({ state: "idle" }))).ok && db.state.runner?.idleSince?.getTime(), NOW.getTime());
+    const answers: number[] = [];
+    for (const [idleMinutes, state] of [[5, "idle"], [30, "waiting"], [150, "idle"]] as const) {
+      const row = fakeDb({ runner: runnerRow({ session: MINE, state: "idle", seenAt: ago(1), idleSince: ago(idleMinutes) }) });
+      const result = await op(row, beat(state === "waiting" ? { state, waitReason: "dirty" } : { state }));
+      assert.equal(row.state.runner?.idleSince?.getTime(), ago(idleMinutes).getTime(), `${idleMinutes} min keeps its start`);
+      answers.push(result.ok ? result.body.nextBeatIn ?? -1 : -1);
+    }
+    assert.deepEqual(answers, [60, 900, 1800]);
+  });
+
+  it("clears the idle clock while working, keeps it on a state-less check and starts it on a first idle signal", async () => {
+    const working = fakeDb({ runner: runnerRow({ session: MINE, state: "idle", seenAt: ago(1), idleSince: ago(150) }) });
+    const busy = await op(working, beat({ state: "working" }));
+    assert.deepEqual([working.state.runner?.idleSince, busy.ok && busy.body.nextBeatIn], [null, 60]);
+    const check = fakeDb({ runner: runnerRow({ session: MINE, state: "idle", seenAt: ago(1), idleSince: ago(30) }) });
+    const checked = await op(check, beat());
+    assert.deepEqual([check.state.runner?.idleSince?.getTime(), checked.ok && checked.body.nextBeatIn], [ago(30).getTime(), 900]);
+    const fresh = fakeDb({ runner: runnerRow({ session: MINE, state: "idle", seenAt: ago(1) }) });
+    await op(fresh, beat({ state: "waiting", waitReason: "branch" }));
+    assert.equal(fresh.state.runner?.idleSince?.getTime(), NOW.getTime());
   });
 });
 
@@ -288,7 +322,7 @@ describe("runner autostart report", () => {
     assert.deepEqual(await op(db, report("on")), { ok: true, body: { ok: true, paused: false } });
     assert.deepEqual(db.state.runner, {
       client: "claude", session: MINE, tokenId: "token-1", mode: "resident", host: "laptop", branch: "main", permission: null, autostart: true,
-      state: "stopped", waitReason: null, lastResult: null, lastLog: null, stopReason: "owner", startedAt: NOW, seenAt: NOW,
+      state: "stopped", waitReason: null, lastResult: null, lastLog: null, stopReason: "owner", startedAt: NOW, seenAt: NOW, idleSince: null,
     });
   });
 

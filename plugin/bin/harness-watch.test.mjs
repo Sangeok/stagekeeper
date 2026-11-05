@@ -741,3 +741,16 @@ it("the watch skill preflight lists exactly the modules the watch and session he
   const preflight = skill.slice(skill.indexOf("Resolve that absolute root"), skill.indexOf("Read that exact reconciliation contract"));
   assert.deepEqual([...preflight.matchAll(/`((?:bin|lib|runtime)\/[^`]+)`/g)].map(([, name]) => name).sort(), [...loaded].sort());
 });
+
+it("with a lease, waits as long as the server says before the next check, paused or not", async (t) => {
+  for (const paused of [false, true]) {
+    const f = await fixture(t);
+    f.setRunnerHandler(byOp({ start: LEASE_OK, beat: runnerReply(200, { ok: true, paused, nextBeatIn: 60 }) }));
+    const { event } = await f.start(["--managed"]);
+    const before = f.calls.length;
+    const result = await f.run(["--session", event.session, "--interval", "0.02", "--deadline", "0.02", "--request-timeout", "0.2"]).result;
+    assert.equal(result.event.event, "idle", JSON.stringify(result.event));
+    assert.deepEqual(ops(f), ["start", "beat:idle"], `paused ${paused}`);
+    assert.equal(f.calls.length - before, paused ? 0 : 1, "one pipeline_next at most before the deadline");
+  }
+});

@@ -2,7 +2,11 @@ import os from "node:os";
 import { RUNNER_HOST_MAX } from "../lib/execution/runner.mjs";
 
 const BODY_LIMIT = 64 * 1024;
+export const NEXT_BEAT_MIN_MS = 60_000;
+export const NEXT_BEAT_MAX_MS = 60 * 60_000;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+const nextBeat = (value) => Number.isInteger(value) && value > 0
+  ? { nextBeatMs: Math.min(NEXT_BEAT_MAX_MS, Math.max(NEXT_BEAT_MIN_MS, value * 1000)) } : {};
 
 export function runnerHost() {
   const name = os.hostname().trim().slice(0, RUNNER_HOST_MAX);
@@ -27,7 +31,7 @@ async function readJson(response) {
  * @param {Record<string, unknown>} payload op·session과 op별 필드
  * @param {{ signal?: AbortSignal }} [options]
  * @returns {Promise<
- *   | { kind: "ok", paused: boolean, stop: "plan" | null, binding?: { session: string, client: string, mode: string, permission: string } }
+ *   | { kind: "ok", paused: boolean, stop: "plan" | null, nextBeatMs?: number, binding?: { session: string, client: string, mode: string, permission: string } }
  *   | { kind: "busy", holder: { client?: string, mode: string, host: string, seenAt: string } }
  *   | { kind: "replaced" }
  *   | { kind: "plan" }
@@ -64,10 +68,10 @@ export async function runnerCall(target, payload, { signal } = {}) {
         || binding.mode !== "resident" || binding.permission !== "scoped") {
         return { kind: "refused", status: 200, reason: "Codex resident binding was not confirmed by the server." };
       }
-      return { kind: "ok", paused: body.paused === true, stop: body.stop === "plan" ? "plan" : null,
+      return { kind: "ok", paused: body.paused === true, stop: body.stop === "plan" ? "plan" : null, ...nextBeat(body.nextBeatIn),
         binding: { session: binding.session, client: binding.client, mode: binding.mode, permission: binding.permission } };
     }
-    return { kind: "ok", paused: body.paused === true, stop: body.stop === "plan" ? "plan" : null };
+    return { kind: "ok", paused: body.paused === true, stop: body.stop === "plan" ? "plan" : null, ...nextBeat(body.nextBeatIn) };
   }
   const code = isObject(body) ? body.code : undefined;
   if (response.status === 409 && code === "RUNNER_BUSY" && isObject(body.holder)

@@ -1,4 +1,4 @@
-import { runnerSignalAt, runnerStatus } from "@harness/core/execution/runner.mjs";
+import { runnerNextSignalAt, runnerSignalAt, runnerStatus } from "@harness/core/execution/runner.mjs";
 
 export type TurnRunner = {
   client: "claude" | "codex";
@@ -12,6 +12,7 @@ export type TurnRunner = {
   stopReason: "owner" | "stuck" | "error" | "plan" | "signin" | null;
   signinCode: SigninCode | null;
   seenAt: string;
+  idleSince: string | null;
   lastActivity: string | null;
 };
 
@@ -23,6 +24,7 @@ export const RUNNER_LINES = {
   sessionWorking: "Runner: working in Claude Code on {host}",
   residentWorking: "Runner: working in the background on {host} ({branch})",
   checked: "checked {n} min ago",
+  nextCheck: "next check in about {n} min",
   lastActivity: "last activity {n} min ago",
   waitingDirty: "Runner on {host} is waiting: commit or stash the changes on {branch}, and it continues.",
   waitingBranch: "Runner on {host} is waiting: switch back to {branch}, and it continues.",
@@ -93,8 +95,15 @@ export const lineText = (line: RunnerLine): string => line.map((segment) => segm
 
 const toDates = (runner: TurnRunner) => ({
   mode: runner.mode, state: runner.state, seenAt: new Date(runner.seenAt),
+  idleSince: runner.idleSince ? new Date(runner.idleSince) : null,
 });
 const activity = (runner: TurnRunner) => runner.lastActivity === null ? null : new Date(runner.lastActivity);
+const NEXT_CHECK_SHOWN_AFTER = 2 * MINUTE;
+const nextCheck = (runner: TurnRunner, now: number): RunnerLine[] => {
+  const next = runnerNextSignalAt(toDates(runner));
+  if (next === null || next.getTime() - now <= NEXT_CHECK_SHOWN_AFTER) return [];
+  return [fillLine(RUNNER_LINES.nextCheck, { n: String(Math.ceil((next.getTime() - now) / MINUTE)) })];
+};
 
 export type RunnerLiveness = "live" | "silent" | "stopped";
 export function runnerLiveness(runner: TurnRunner, now: number): RunnerLiveness {
@@ -132,7 +141,7 @@ function fullRunnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
     const line = runner.state === "working"
       ? [...fillLine(RUNNER_LINES.paused, {}), { text: " " }, ...fillLine(RUNNER_LINES.pausedWorking, {})]
       : fillLine(RUNNER_LINES.paused, {});
-    return join(line, ...suffixes);
+    return join(line, ...nextCheck(runner, now), ...suffixes);
   }
   if (runner.state === "waiting") {
     return join(fillLine(runner.waitReason === "branch" ? RUNNER_LINES.waitingBranch : RUNNER_LINES.waitingDirty, values), ...suffixes);
@@ -144,7 +153,7 @@ function fullRunnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   }
   const main = runner.state === "working" ? RUNNER_LINES.residentWorking : resident ? RUNNER_LINES.residentIdle : RUNNER_LINES.sessionIdle;
   const guard = runner.state === "working" ? [fillLine(RUNNER_LINES.editGuard, values)] : [];
-  return join(fillLine(main, values), fillLine(RUNNER_LINES.checked, { n: ago(runner.seenAt, now) }), ...guard, ...suffixes);
+  return join(fillLine(main, values), fillLine(RUNNER_LINES.checked, { n: ago(runner.seenAt, now) }), ...nextCheck(runner, now), ...guard, ...suffixes);
 }
 
 function shortRunnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
