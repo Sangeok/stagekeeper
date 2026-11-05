@@ -8,6 +8,15 @@ const dispatch = (extra = {}) => ({ key: "ITEM-01", node: "plan", version: 1, ac
 const overview = (items = [], extra = {}) => ({ head, items, ...extra });
 const response = (value, extra = {}) => ({ jsonrpc: "2.0", id: "ours", result: { content: [{ type: "text", text: JSON.stringify(value) }] }, ...extra });
 const parse = (value) => parseToolResponse("application/json; charset=utf-8", JSON.stringify(value), "ours");
+
+it("keeps RPC argument validation distinct without exposing messages or accepting ambiguous envelopes", () => {
+  const error = { code: -32602, message: "SECRET_CANARY", data: { secret: "SECRET_CANARY" } };
+  assert.deepEqual(parse({ jsonrpc: "2.0", id: "ours", error }), { ok: false, error: { code: "invalid-arguments" } });
+  assert.deepEqual(parse({ jsonrpc: "2.0", id: "ours", result: { isError: true, content: [{ type: "text", text: "Input validation error: Invalid arguments for tool agent_next: SECRET_CANARY" }] } }), { ok: false, error: { code: "invalid-arguments" } });
+  for (const message of [{ jsonrpc: "2.0", id: "other", error }, { jsonrpc: "2.0", id: "ours", error, result: null }, { jsonrpc: "2.0", id: "ours", error: { code: -32602 } }]) {
+    assert.deepEqual(parse(message), { ok: false, error: { code: "protocol-error" } });
+  }
+});
 const freshState = { lastSignature: null, repeats: 0, stuck: false };
 
 it("template waits preserve compatible work and legacy execution identity survives projection", () => {

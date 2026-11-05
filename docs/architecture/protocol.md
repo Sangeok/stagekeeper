@@ -636,10 +636,14 @@ project_sync shares normalized workspace validation with the config parser. It r
 실제 모델·설치·기본 graph 검증과 후보별 범위는 [resident 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에
 기록한다. 물리적 clean host·다른 OS·혼합 호스트와 배포의 남은 required 조건은
 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md)에서 추적한다.
-Codex 지원은 첫 공개에서 Windows만이다(2026-11-04 결정). 다른 OS에서 `harness-background --client codex`와
+2026-11-05 macOS 전체 실행 경로 구현 요청에 따라 Codex native bundle은 Windows와 macOS를 대상으로 한다.
+macOS의 설치·명령·종료·복구 계약은 [macos-runtime.md](./macos-runtime.md)를 따른다.
+그 밖의 OS에서 `harness-background --client codex`와
 `harness-codex`의 `complete-init`·`prepare`·`next`·`dispatch`는 인자 해석 직후 token·서버 호출·상태 파일보다 먼저
-`codex-windows`로 거부한다. Claude resident, background의 status·stop·release와 `harness-codex`의 `stop`·`release`는
+`codex-platform`으로 거부한다. Claude resident, background의 status·stop·release와 `harness-codex`의 `stop`·`release`는
 막지 않아 남은 로컬 세션을 정리할 수 있다. Codex skill도 같은 문장으로 helper 실행 전에 멈춘다.
+macOS는 포함된 runtime이 없거나 바뀌면 시작하지 않는다. 소스 지원 범위와 실제 설치·모델 인수,
+공개 배포 상태는 구분한다.
 
 `GET /api/templates`, `pipeline_next`, `agent_next`의 선택적 `client`는 `claude|codex`이며
 생략은 Claude다. Codex 성공 응답은 REST body 또는 MCP `ServerResult.item`의 text JSON 내부에
@@ -706,8 +710,11 @@ child 모두 종료를 다시 확인한 뒤 잠금을 지운다. watch·resident
 Codex·unsettled 잠금에 실행해 잠금이 남는지 확인한다. 살아 있는 Codex 실행기를 옛 판이 멈출 수 있는지와
 죽은 Claude 실행기의 잠금이 여전히 회수되는지도 함께 확인한다.
 
-이 판부터 reader는 `schemaVersion`이 1보다 큰 잠금이나 정책을 `newer-state`로 다룬다. status는 `newer:true`와 session을
+macOS native child를 기록한 잠금은 `schemaVersion:2`이며 `{pid,nonce,sandbox:{kind,root}}`를 보관한다.
+현재 reader는 lock v1/v2와 policy v1을 읽는다. 그보다 높은 잠금이나 정책은 `newer-state`로 다룬다. status는 `newer:true`와 session을
 보이고, `--stop`은 그 session에 정지 요청 파일만 남기며, start·release·회수는 하지 않는다(읽기는 관대하게, 지우기는 엄격하게).
+v2의 macOS sandbox child는 dead PID만으로 반납할 수 없다. 명시적 stop 뒤 설치된 scanner로
+같은 서명의 모든 관찰 대상이 끝났음을 확인한 후에만 정산하며, `--abandoned yes`도 이를 생략하지 않는다.
 그래서 이 판 이후의 reader만 남은 뒤에는 회수 의미를 바꿀 때 `schemaVersion`을 올리면 된다. 그보다 옛 판이 아직 쓰이면,
 옛 판은 1이 아닌 `schemaVersion`을 손상으로 보고 정지도 못 하므로 PID 4 항목처럼 옛 판이 회수하지 않는 표현을 함께 둔다.
 

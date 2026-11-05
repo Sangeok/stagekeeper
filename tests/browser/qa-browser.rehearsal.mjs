@@ -86,7 +86,7 @@ function startPlaywrightMcp(cliPath, port, artifactsDir) {
     "--port", String(port),
     "--isolated",
     "--headless",
-    "--browser", "msedge",
+    "--browser", process.platform === "darwin" ? "chrome" : "msedge",
     "--output-dir", artifactsDir,
   ], {
     windowsHide: true,

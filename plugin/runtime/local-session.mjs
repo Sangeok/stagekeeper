@@ -37,7 +37,7 @@ export class NewerState extends WatchFailure {
     this.client = ["claude", "codex"].includes(lock?.client) ? lock.client : null;
   }
 }
-const newerThanKnown = value => isObject(value) && Number.isInteger(value.schemaVersion) && value.schemaVersion > 1;
+const newerThanKnown = (value, maximum = 1) => isObject(value) && Number.isInteger(value.schemaVersion) && value.schemaVersion > maximum;
 export class Interrupted extends Error {
   constructor(event) { super(event.event); this.event = event; }
 }
@@ -92,7 +92,7 @@ export function readState(files) {
   for (const file of [files.policy, files.lock, files.guard, files.stop].filter(Boolean)) safeTarget(common, path.relative(common, file));
   if (!existsSync(files.lock) && !existsSync(files.policy)) return null;
   const lock = readJson(files.lock);
-  if (newerThanKnown(lock)) throw new NewerState(lock);
+  if (newerThanKnown(lock, 2)) throw new NewerState(lock);
   const policy = readJson(files.policy);
   if (newerThanKnown(policy)) throw new NewerState(lock);
   const binding = lock?.binding;
@@ -100,7 +100,7 @@ export function readState(files) {
   const poller = lock?.poller;
   const validTime = (value) => nonempty(value) && Number.isFinite(Date.parse(value));
   const validHash = (value) => typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
-  if (!isObject(lock) || lock.schemaVersion !== 1 || !nonempty(lock.id)
+  if (!isObject(lock) || ![1, 2].includes(lock.schemaVersion) || !nonempty(lock.id)
     || !isObject(policy) || policy.schemaVersion !== 1 || policy.session !== lock.id
     || typeof policy.commit !== "boolean" || typeof policy.propose !== "boolean"
     || !isObject(binding) || !nonempty(binding.root) || !nonempty(binding.server)
@@ -116,7 +116,8 @@ export function readState(files) {
     || (lock.lifecycle !== undefined && !["active", "stopping"].includes(lock.lifecycle))
     || (lock.runnerLease !== undefined && typeof lock.runnerLease !== "boolean")
     || (lock.unsettled !== undefined && typeof lock.unsettled !== "boolean")
-    || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce))))) fail("corrupt-state", undefined, stateDiagnostic("state-schema", files.lock));
+    || (lock.children !== undefined && (!Array.isArray(lock.children) || lock.children.some(child => !isObject(child) || !Number.isInteger(child.pid) || child.pid <= 0 || !nonempty(child.nonce)
+      || child.sandbox !== undefined && (lock.schemaVersion !== 2 || !isObject(child.sandbox) || child.sandbox.kind !== "macos-seatbelt-v1" || !nonempty(child.sandbox.root) || !path.isAbsolute(child.sandbox.root)))))) fail("corrupt-state", undefined, stateDiagnostic("state-schema", files.lock));
   return { lock, policy, stopRequested: stopRequestSession(files) === lock.id };
 }
 export const lifecycleOf = state => (state.stopRequested || state.lock.lifecycle === "stopping" ? "stopping" : state.lock.lifecycle ?? "active");
@@ -258,7 +259,7 @@ export async function releaseSession(files, session, { abandoned = false } = {})
     if (state.lock.poller !== null || children.length !== 0) {
       const foreground = state.lock.mode === "foreground";
       const processLeft = state.lock.poller !== null || children.some(child => isAlive(child.pid));
-      if (!(abandoned && foreground && !processLeft)) return { event: "error", code: "quiescence-required", session, ...(foreground ? { processLeft } : {}) };
+      if (!(abandoned && foreground && !processLeft && children.every(child => child.sandbox === undefined))) return { event: "error", code: "quiescence-required", session, ...(foreground ? { processLeft } : {}) };
     }
     clearState(files);
     return { event: "released", session };
@@ -271,6 +272,7 @@ export async function registerChild(files, session, binding, child) {
     requireOwnership(state, session, binding);
     state.lock.children ??= [];
     if (state.lock.children.some(item => item.nonce === child.nonce)) fail("corrupt-state");
+    if (child.sandbox !== undefined) state.lock.schemaVersion = 2;
     state.lock.children.push(child);
     atomicWrite(files.lock, state.lock);
   });

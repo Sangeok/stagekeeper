@@ -13,7 +13,8 @@ import { gitRoot, stateFiles, readState, startSession, checkSession, requestStop
   writeStopRequest } from "../runtime/local-session.mjs";
 import { parseArguments } from "./harness-session.mjs";
 import { dispatchBinding, codexFailure, qaWorkflowFile } from "./harness-codex.mjs";
-import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, dispatchFreshRole, verifyRoleExecution, RoleExecutionUnavailable, CODEX_WINDOWS_ONLY } from "../runtime/codex-thread.mjs";
+import { AppServer, childEnvironment, rolePermissions, roleCommandPath, stageVerifierPackage, boundArguments, inheritedPolicyOverrides, assertRolePolicy, roleBridge, dispatchFreshRole, verifyRoleExecution, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
+import { CODEX_UNSUPPORTED_PLATFORM, supportsCodexPlatform } from "../runtime/codex-platform.mjs";
 import { callTool } from "../runtime/mcp-client.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/execution/client-runtime.mjs";
@@ -85,6 +86,27 @@ it("does not publish a domain refusal arriving after bridge abort", async t => {
   } finally { await bridge.close(); await requestStop(f.files, started.session); await releaseSession(f.files, started.session); }
 });
 
+it("keeps oversized outcome notes and wrong receipts local and lets the same bound step be corrected", async t => {
+  const f = fixture(), started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
+  const receipt = { runId: "run", revision: 0, stepId: "start" }, diagnostics = [];
+  let forwarded = 0;
+  const bridge = await roleBridge({ binding: f.binding }, f.files, started.session, { project: "p", agent: "impl-verifier", key: "A", agentKey: "A" }, {
+    listTools: async () => ROLE_TOOLS["impl-verifier"].map(name => ({ name, inputSchema: { properties: name === "agent_next" ? { note: { type: "string", maxLength: 500 } } : {} } })),
+    callTool: async (_input, _name, args) => { forwarded++; return args.outcome ? { done: false, step: "verify", receipt: { ...receipt, revision: 1, stepId: "verify" } } : { done: false, step: "start", receipt }; },
+    checkSession, record: value => diagnostics.push(value),
+  });
+  t.after(async () => { await bridge.close(); await requestStop(f.files, started.session); await releaseSession(f.files, started.session); });
+  const invoke = args => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "agent_next", arguments: args } }) }).then(response => response.json());
+  assert.equal((await invoke({})).result.isError, false);
+  const long = await invoke({ outcome: "ok", receipt, note: "x".repeat(501) });
+  assert.equal(long.error.code, -32602); assert.match(long.error.message, /at most 500/); assert.equal(forwarded, 1);
+  const wrong = await invoke({ outcome: "ok", receipt: { ...receipt, revision: 1 }, note: "done" });
+  assert.equal(wrong.error.code, -32602); assert.match(wrong.error.message, /receipt mismatch/); assert.equal(forwarded, 1);
+  const corrected = await invoke({ outcome: "ok", receipt, note: "x".repeat(500) });
+  assert.equal(JSON.parse(corrected.result.content[0].text).step, "verify"); assert.equal(forwarded, 2);
+  assert.deepEqual(diagnostics.map(value => value.reason), ["input-note", "input-receipt"]);
+});
+
 async function dispatcherFixture(mode) {
   const f = fixture(), agent = ["cli", "wrapper", "native-provenance", "native-preflight", "native-preflight-stopped", "command-broker", "git-broker"].includes(mode) ? "doc-auditor" : "qa-verifier";
   const started = await startSession(f.files, f.binding, { client: "codex", commit: false, propose: false });
@@ -103,16 +125,16 @@ async function dispatcherFixture(mode) {
       counts.acquired++; filesystem = permissions; const broker = createRoleFiles(permissions, role), close = broker.close;
       broker.close = async () => { counts.files++; await close(); }; return broker;
     },
-    installedWindowsRuntime: () => {
+    installedRoleRuntime: () => {
       if (mode === "native-provenance") fail();
       if (["native-preflight", "native-preflight-stopped", "command-broker", "git-broker"].includes(mode)) return {};
       throw Object.assign(new Error("no source runtime"), { code: "ENOENT" });
     },
-    verifyNativeRuntime: async () => {
+    verifyRoleRuntime: async () => {
       if (mode === "native-preflight-stopped") await requestStop(f.files, started.session);
       if (["native-preflight", "native-preflight-stopped"].includes(mode)) fail();
     },
-    createRoleCommands: async ({ fileBroker }) => { if (mode === "command-broker") fail(); return fileBroker; },
+    createRoleCommandBackend: async ({ fileBroker }) => { if (mode === "command-broker") fail(); return fileBroker; },
     createRoleGit: ({ backend }) => { if (mode === "git-broker") fail(); return backend; },
     createQaBrowser: async () => {
       if (mode === "qa-init") fail();
@@ -153,7 +175,7 @@ async function dispatcherFixture(mode) {
 
 for (const mode of ["cli", "wrapper", "native-provenance", "native-preflight", "native-preflight-stopped", "command-broker", "git-broker", "qa-init", "inventory", "allowlist", "tool-conflict", "host-policy", "spawn", "initialize", "effective-policy", "browser-close", "server-close", "unacknowledged-turn"]) {
   it(`dispatcher cleans partial acquisition after ${mode} and preserves unsettled ownership`, {
-    skip: process.platform !== "win32" && ["native-provenance", "native-preflight", "native-preflight-stopped", "command-broker", "git-broker"].includes(mode),
+    skip: !["win32", "darwin"].includes(process.platform) && ["native-provenance", "native-preflight", "native-preflight-stopped", "command-broker", "git-broker"].includes(mode),
   }, async () => {
     const f = await dispatcherFixture(mode);
     await assert.rejects(f.run());
@@ -321,7 +343,7 @@ it("QA accepts this item's impl-verifier report as a workflow file after its tar
   assert.equal(qaWorkflowFile("src/app.ts", "A"), false);
 });
 
-it("Codex refuses impl-verifier before any role run opens and says where to continue", () => {
+it("Codex keeps implementation verification disabled on hosts without its copy backend", { skip: process.platform === "darwin" }, () => {
   const entry = { runId: "pipeline", entryId: "entry", slotId: "impl-verify" };
   let refused;
   assert.throws(() => dispatchBinding({ action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1", entry }, []), (error) => { refused = error; return true; });
@@ -329,22 +351,29 @@ it("Codex refuses impl-verifier before any role run opens and says where to cont
   assert.match(refused.message, /not available on Codex yet.*Claude Code/);
 });
 
-it("refuses Codex work outside Windows before reading the project or contacting the server", { skip: process.platform === "win32" }, () => {
+it("refuses Codex work on unsupported hosts before reading the project or contacting the server", { skip: supportsCodexPlatform() }, () => {
   const root = mkdtempSync(path.join(tmpdir(), "codex-windows-"));
   for (const args of [["complete-init"], ["prepare", "--commit", "no", "--propose", "no"], ["next", "--session", "s"], ["dispatch", "--session", "s"]]) {
     const result = spawnSync(process.execPath, ["plugin/bin/harness-codex.mjs", ...args, "--root", root], { env: childEnvironment(), encoding: "utf8", windowsHide: true });
     const session = args.includes("--session") ? "s" : null;
-    assert.deepEqual([result.status, JSON.parse(result.stdout)], [1, { event: "error", session, code: "codex-windows", reason: CODEX_WINDOWS_ONLY }], args[0]);
+    assert.deepEqual([result.status, JSON.parse(result.stdout)], [1, { event: "error", session, code: "codex-platform", reason: CODEX_UNSUPPORTED_PLATFORM }], args[0]);
   }
 });
 
-it("gives every Codex skill the outside-Windows sentence the helpers print", () => {
+it("gives every Codex skill the unsupported-platform sentence the helpers print", () => {
   const skills = readdirSync(new URL("../codex/skills/", import.meta.url));
   assert.ok(skills.length > 0);
   for (const name of skills) {
     const skill = readFileSync(new URL(`../codex/skills/${name}/SKILL.md`, import.meta.url), "utf8").replace(/\s+/g, " ");
-    assert.ok(skill.includes(`"${CODEX_WINDOWS_ONLY}"`), name);
+    assert.ok(skill.includes(`"${CODEX_UNSUPPORTED_PLATFORM}"`), name);
   }
+});
+
+it("macOS binds implementation verification to the current item and entry", { skip: process.platform !== "darwin" }, () => {
+  const entry = { runId: "pipeline", entryId: "entry", slotId: "impl-verify" };
+  assert.equal(dispatchBinding({ action: "dispatch", agent: "impl-verifier", key: "A", format: "slots-v1", entry }, []).agentKey, "A");
+  assert.throws(() => dispatchBinding({ action: "dispatch", agent: "impl-verifier", format: "slots-v1", entry }, []), /item key/);
+  assert.equal(supportsCodexPlatform("darwin"), true); assert.equal(supportsCodexPlatform("win32"), true); assert.equal(supportsCodexPlatform("linux"), false);
 });
 
 it("omits parent credentials and restricts workspace, readonly and foreign paths", () => {
@@ -352,7 +381,7 @@ it("omits parent credentials and restricts workspace, readonly and foreign paths
   const f = fixture(), input = { binding: f.binding, config: { workspaces: [{ agent: "web-dev", path: "src/web", readOnly: ["src/web/policy"] }, { agent: "api-dev", path: "src/api" }] } };
   const permissions = rolePermissions(input, "web-dev", "A", path.join(f.root, "scratch"));
   assert.equal(permissions[path.join(f.root, "src/web")], "write"); assert.equal(permissions[path.join(f.root, "src/web/policy")], "read");
-  assert.equal(permissions[path.join(f.root, "src/api")], "deny"); assert.equal(permissions[path.join(f.root, ".git")], "read");
+  assert.equal(permissions[path.join(f.root, "src/api")], "deny"); assert.equal(permissions[path.join(f.root, ".git")], process.platform === "darwin" ? "deny" : "read");
   assert.equal(permissions[":root"], "deny");
   assert.equal(rolePermissions(input, "pm", undefined, path.join(f.root, "scratch"))[f.root], "deny");
   assert.throws(() => rolePermissions(input, "web-dev", "../../escape", path.join(f.root, "scratch")));

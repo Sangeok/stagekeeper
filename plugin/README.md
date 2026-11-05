@@ -39,6 +39,13 @@ HEAD·기록된 planCommit의 show·diff·status를 제공한다. 원본 Git con
 원본 index·파일을 쓰지 않으며 Git commit은 소유자에게 인계한다. 전체 저장소·다른
 workspace·인증 경로의 확인이나 rename/filter/ignore/line-ending 변환은 이 결과에 포함되지 않는다.
 
+macOS Codex는 별도 native bundle을 사용한다. `bin/harness <task> <arguments>`가 포함된
+Node/npm과 scanner를 검증하고 실행하며 global Node로 우회하지 않는다. macOS 역할과
+resident는 scoped 파일/Git 도구와 Seatbelt snapshot 명령을 사용한다. 시작 전 실제
+권한·자식·network preflight를 수행하고, 중단 시 실행별 sandbox 식별로 분리된 후손까지
+확인한다. 설치 생성기, lock v2 복구와 검증 범위는
+[macOS runtime 계약](../docs/architecture/macos-runtime.md)을 따른다.
+
 ## 초기화와 명시적 실행
 
 Codex 설치 명령은 `codex plugin marketplace add Sangeok/stagekeeper`,
@@ -58,8 +65,9 @@ helper의 `next --session <id> [--key <key>]`는 최신 client/hash를 보내 �
 `dispatch --session <id> [--key <key>]`는 그 응답을 새 역할 thread에 연결한다.
 독립 verifier의 `--briefing` JSON은 plan-verifier면 `requiredVerificationPaths`만,
 qa-verifier면 `targetCommit`과 관찰한 `testBuildIdentity`만 포함한다.
-impl-verifier는 아직 Codex에서 돌지 않는다. helper가 역할 run을 열기 전에 `codex-role-unsupported`로
-거부하므로, 그 항목은 Claude Code에서 이어 간다.
+macOS의 impl-verifier는 helper가 현재 dev 보고의 commit으로 별도 검증 사본을 만든다.
+이전 결론 없이 구조화된 Git 도구와 baseline·mutation·복원 검증을 수행하며 원본에서는
+자기 보고서만 쓴다. Windows에서는 기존 `codex-role-unsupported` 거부를 유지한다.
 반환된 역할 보고는 main loop가 실제 계획 파일에 추가하고 직접 검증·인수를 수행한다.
 모든 gate는 기존 owner 웹·owner endpoint로만 결정한다. 자동 push·gate 승인·worktree 정리는 없다.
 
@@ -88,7 +96,10 @@ quiescence를 주장하지 않는다. 불명확한 종료는 잠금을 보존하
 `--start --managed`와 같은 stop/release를 사용한다. metadata 없는 legacy CLI 계약은 보존한다.
 활성 legacy 작업은 먼저 실제로 중단해야 하며 다른 watch session ID를 foreground로 채택하지 않는다.
 
-Codex 자동 watch는 후속 C4이며 이 배포물의 실행 surface에 포함하지 않는다.
+Codex의 별도 상주 실행은 `$harness-background`로 시작한다. macOS와 Windows의 native
+bundle이 필요하며 시작은 사용자가 명시적으로 수행한다. macOS resident는 구현 검증과
+설정된 테스트 페이지의 실제 commit 관찰 후 QA도 dispatch한다. foreground session의
+자동 watch와 로그인 시 자동 시작은 다른 기능이며 macOS 로그인 자동 시작은 제공하지 않는다.
 
 ## 인수 검사
 

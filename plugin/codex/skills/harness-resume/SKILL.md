@@ -3,9 +3,11 @@ name: harness-resume
 description: Resume a Stagekeeper item in Codex after owner approval or a confirmed client switch.
 ---
 
-Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run any helper or work
-around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
-Claude Code." and stop.
+On operating systems other than Windows or macOS, do not run a helper; say
+"Stagekeeper works with Codex on Windows and macOS. Other operating systems are not supported yet."
+and stop. On macOS use the complete native package and its quoted absolute
+`bin/harness <task> <arguments>` launcher for every helper below. It verifies the bundled
+Node/npm runtime. Never substitute global Node when the package is incomplete.
 
 Read the installed sibling `../harness-run/SKILL.md` completely and follow it. Resume uses the
 same shared server ledger and explicit foreground ownership; never reconstruct a cursor from

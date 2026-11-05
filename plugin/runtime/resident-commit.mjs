@@ -5,6 +5,8 @@ import { devNull, tmpdir } from "node:os";
 import path from "node:path";
 import { safeTarget } from "./file-ownership.mjs";
 import { childEnvironment } from "./codex-thread.mjs";
+import { createRoleFiles } from "./role-files.mjs";
+import { residentRoleReportPath } from "./report-artifacts.mjs";
 
 const emptyConfig = process.platform === "win32" ? "NUL" : devNull;
 
@@ -39,6 +41,34 @@ export function commitResidentArtifacts({ root, branch, key, next, board, worksp
     && !workspaces.some(other => other.agent !== role && within(name, other.path))));
   if (!files.some(file => file.path === artifact) || new Set(files.map(file => file.path)).size !== files.length)
     throw new ResidentCommitInputError(`Include the current artifact ${artifact} exactly once, using repository-relative paths with forward slashes for every file.`);
+  return commitSelectedArtifacts({ root, branch, files, artifact, permitted, label: key, operation: accepting ? "acceptance" : "handoff" });
+}
+
+export function recordResidentRoleReport({ root, branch, agent, threadId, report, commitPermission }) {
+  const artifact = residentRoleReportPath(agent);
+  if (!artifact || commitPermission !== true || !/^[A-Za-z0-9_-]{1,100}$/.test(threadId ?? "")
+    || typeof report !== "string" || !report.trim() || Buffer.byteLength(report) > 512 * 1024 || /\b(?:hs_|hu_|ho_)[A-Za-z0-9_-]+/.test(report)) throw new Error("A completed bounded role report and current commit permission are required");
+  if (residentGit(root, ["symbolic-ref", "--short", "HEAD"]) !== branch) throw new Error("Resident branch changed");
+  const target = safeTarget(root, artifact), broker = createRoleFiles({ ":root": "deny", [root]: "read", [target]: "write" }, "main-loop");
+  const marker = `<!-- harness:role-report:${threadId} -->`, endMarker = `<!-- harness:role-report-end:${threadId} -->`;
+  try {
+    broker.resolveRead(target);
+    const present = existsSync(target);
+    if (present && lstatSync(target).size > 1024 * 1024) throw new Error("Resident report log is too large");
+    const previous = present ? readFileSync(target, "utf8") : "", oldHash = present ? createHash("sha256").update(previous).digest("hex") : null;
+    const start = previous.indexOf(marker);
+    if (start >= 0) {
+      const end = previous.indexOf(endMarker, start), recorded = previous.slice(start + marker.length, end);
+      if (end < 0 || previous.indexOf(marker, start + marker.length) >= 0 || recorded.slice(recorded.indexOf("\n\n") + 2).trim() !== report.trim()) throw new Error("The recorded role report changed; preserve the owner's log");
+    }
+    const content = start >= 0 ? previous : `${previous}${previous && !previous.endsWith("\n") ? "\n" : ""}\n${marker}\n## ${new Date().toISOString()}\n\n${report.trim()}\n${endMarker}\n`;
+    const written = broker.call("role_file_write", { path: target, content, expectedHash: oldHash });
+    return commitSelectedArtifacts({ root, branch, files: [{ path: artifact, hash: written.hash }], artifact,
+      permitted: name => name === artifact, label: agent, operation: "report" });
+  } finally { broker.close(); }
+}
+
+function commitSelectedArtifacts({ root, branch, files, artifact, permitted, label, operation }) {
   const prepared = files.map(file => {
     if (typeof file.path !== "string" || file.path.includes("\\") || !permitted(file.path) || !/^[a-f0-9]{64}$/.test(file.hash ?? "")) throw new Error("Commit path or hash refused");
     const target = safeTarget(root, file.path), relative = path.relative(root, target).replaceAll("\\", "/");
@@ -70,14 +100,14 @@ export function commitResidentArtifacts({ root, branch, key, next, board, worksp
       git(["update-index", "--add", "--cacheinfo", file.mode, object, file.name]);
     }
     const tree = git(["write-tree"]), previousTree = git(["rev-parse", `${before}^{tree}`]);
-    const commit = tree === previousTree ? before : git(["-c", "user.name=Stagekeeper", "-c", "user.email=stagekeeper@localhost", "commit-tree", tree, "-p", before, "-m", `Stagekeeper: ${key} ${accepting ? "acceptance" : "handoff"}`]);
+    const commit = tree === previousTree ? before : git(["-c", "user.name=Stagekeeper", "-c", "user.email=stagekeeper@localhost", "commit-tree", tree, "-p", before, "-m", `Stagekeeper: ${label} ${operation}`]);
     for (const file of prepared) {
       if (!readFileSync(safeTarget(root, file.name)).equals(file.bytes)) throw new Error("Commit file changed");
       if (!git(["cat-file", "blob", `${commit}:${file.name}`], { encoding: null, raw: true }).equals(file.bytes)) throw new Error("Committed artifact differs");
     }
     if (!ownsLock() || residentGit(root, ["symbolic-ref", "--short", "HEAD"]) !== branch) throw new Error("Commit ownership changed");
     writeFileSync(descriptor, readFileSync(temporaryIndex));
-    if (commit !== before) { git(["update-ref", "-m", `Stagekeeper: ${key}`, `refs/heads/${branch}`, commit, before]); published = true; }
+    if (commit !== before) { git(["update-ref", "-m", `Stagekeeper: ${label}`, `refs/heads/${branch}`, commit, before]); published = true; }
     else if (git(["rev-parse", "HEAD"]) !== before) throw new Error("HEAD changed while preparing commit");
     closeSync(descriptor);
     renameSync(lock, index); renamed = true;

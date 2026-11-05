@@ -27,8 +27,10 @@ metadata에는 2026-10-24 격리 후보부터 client를 저장한다. Codex 역�
 `plugin/runtime/codex-thread.mjs`의 fresh App Server thread와 역할별 MCP bridge로 실행한다.
 현재 Windows의 실제 모델·권한 경계·설치·resident 기본 graph 인수는
 [격리 시험 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에 기록했다.
-물리적 clean Windows·macOS·혼합 호스트·운영 seed와 배포는 남아 있다. 이 소스 구조를
-전체 제품 지원 인증으로 해석하지 않는다. 남은 조건은 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md),
+macOS native 설치·명령·복구·선택 검증 역할은 [macOS runtime](./macos-runtime.md)에 구현되어 있다.
+실제 전체 역할 인수는 [macOS 시험 보고서](../test-reports/active/codex-macos-native-acceptance.md)에서 추적한다.
+물리적 clean Windows·혼합 호스트·운영 seed와 공개 bundle 배포는 별도다. 이 소스 구조를
+전체 제품 지원 인증으로 해석하지 않는다. 그 밖의 조건은 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md),
 실제 source 계약은 [protocol.md](./protocol.md)의 dual-client 절을 따른다.
 
 사용자는 선택한 native 클라이언트의 기존 설치·로그인으로 연결할 수 있어야 한다.
@@ -129,6 +131,7 @@ stagekeeper/
 - [protocol.md](./protocol.md): MCP 도구 계약, 상태 기계, 보드 기록 규약, 계획서 절 일곱
 - [qa-verifier.md](./qa-verifier.md): 선택적 브라우저 QA 역할, 테스트 환경, 실행·보고 결합
 - [impl-verifier.md](./impl-verifier.md): 선택적 구현 독립 검증 역할, 검증 사본, 실행·보고 결합
+- [macos-runtime.md](./macos-runtime.md): macOS Codex 설치 bundle, native 명령·종료·복구와 선택 검증 역할
 - [pipeline-execution.md](./pipeline-execution.md): 정의 재사용, 직접 실행의 입력 조건, 실행 이력과 인수의 분리
 - [repository-disconnection.md](./repository-disconnection.md): 연결 상태·토큰·읽기 보존 계약과 운영 배포·복구 절차
 - [rationale.md](./rationale.md): 규칙이 무엇을 겪고 생겼는지 — 골든 diff와 첫 스모크 요약
