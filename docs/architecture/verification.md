@@ -93,6 +93,9 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 - [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
   `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
   공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.
+  고정된 Node 22.23.3 공식 archive의 hash를 확인하고 대상 아키텍처의 scanner를 빌드한 뒤
+  native 파일·network 경계, detached 후손·supervisor 사망 복구, 구현 mutation 시험을 실행한다.
+  `STAGEKEEPER_MACOS_RUNTIME_REQUIRED=1`이므로 runtime 누락·손상을 skip으로 숨기지 않는다.
   PR·`dev` push에서는 npm 의존성 설치 전 `probe-seatbelt-containment.mjs`와
   `probe-sandbox-identity.mjs`를 실행하고 각 증거를 artifact로 보존한다.
   앞의 probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
@@ -290,7 +293,7 @@ artifact 업로드를 정한다. 도구와 CI 연결의 경계는 이 방식으�
 | 최상위 | build, 브랜치 정리, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여, GitHub 목록 credential 정리·회전과 짝 테스트 |
 | `checks/` | FSD·서버 경계 검사기, 문서·plugin 판 검사기, 문구·공개 계약 검사와 테스트 |
 | `windows/` | native Node 빌드·캐시·패키징·호환 처리·Windows 리허설과 테스트 |
-| `macos/` | native 권한·자식 소유권 가능성 probe, C fixture와 macOS CI 증거 |
+| `macos/` | 검증된 Node·scanner bundle 빌드와 plugin 패키징, 실제 Codex host preflight, native 권한·자식 소유권 probe와 CI 증거 |
 | `templates/` | 템플릿 seed·restore·쿼리 보조 모듈과 테스트 |
 | `project-ownership/` | 소유권 무결성의 읽기 전용 검사·보조 모듈과 테스트 |
 | `rehearsals/` | 위 책임에 속하지 않는 제품 기능 인수 리허설과 도구 자체의 테스트 |
@@ -344,6 +347,11 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |
 | `rehearsals/rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
+| `macos/build-runtime.mjs`, `macos/package-plugin.mjs` | `node scripts/macos/build-runtime.mjs --archive <공식 tar.gz> --output <새 runtime 경로>`; `node scripts/macos/package-plugin.mjs --output <새 외부 경로> --runtime <runtime 경로>` | native macOS와 macOS CI | 고정 Node archive·정규 파일·hash·mode를 검증하고 scanner를 빌드한다. package는 Git에 등록된 배포 파일과 두 client의 완전 verifier·runtime을 포함하며 기존 출력 경로를 덮어쓰지 않는다 |
+| `macos/probe-codex-host.mjs` | `node scripts/macos/probe-codex-host.mjs` | 실제 Codex가 설치된 macOS에서 수동 | 모델 turn을 열지 않고 effective policy·명령 MCP timeout·skills·fresh thread와 session 정리를 확인한다. 실제 역할 수행이나 로그인 인수의 대체가 아니다 |
+| `rehearsals/prepare-codex-macos-database.mjs` | `node --env-file=<외부 시험 env> scripts/rehearsals/prepare-codex-macos-database.mjs --data-directory <자기 cluster 경로>` | 격리 PostgreSQL에서 수동 | loopback의 새 `stagekeeper_test_*` DB만 만들고 migrate deploy한다. 실제 data_directory와 자기 cluster 경로가 다르거나 DB가 이미 있으면 거부한다 |
+| `rehearsals/rehearse-codex-macos.mjs` | 아래 macOS 실제 모델 리허설 명령 | 기존 native Codex 로그인·설치 bundle·private template export·fresh build·새 시험 DB에서 수동 | global Node 없는 helper PATH로 init·resident·모든 선택 역할·인수·고정 log·선택 유휴 시간을 관찰한다. owner gate는 시험 controller가 실제 service를 호출한다. 운영 UI 인수·공개 배포는 포함하지 않는다 |
+| `rehearsals/inspect-codex-macos.mjs` | `node --env-file=<외부 시험 env> --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/inspect-codex-macos.mjs <시험 디렉터리> [--cleanup]` | 실패한 자기 시험 fixture 확인·정리 시 수동 | 원장을 외부 evidence에 보존한다. 정리는 합성 사용자·저장소·단일 프로젝트와 runtime 소유권 부재를 확인한 뒤에만 수행한다. 일반 사용자 정리 도구가 아니다 |
 | `rehearsals/rehearse-automatic-scout.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-automatic-scout.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next HTTP로 Free 자동 발굴 switch 저장·재조회·잘못된 입력·타인·무세션·사용 불가 프로젝트 거부를 검증한다. 루프백 fixture만 만들고 종료 시 자기 fixture를 정리한다 |
 | `rehearsals/rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 8종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
 | `rehearsals/rehearse-multiple-pipelines-browser.mjs` | 저장소 루트에서 `node scripts/rehearsals/rehearse-multiple-pipelines-browser.mjs <설치된 playwright-core/index.mjs> [<Chromium 실행 파일>]` | 파이프라인 목록·편집 UI 변경 시 수동 | 위 `multiple-pipelines-browser.tsx` fixture를 저장소 의존성의 esbuild로 묶어 loopback 서버에 올리고 headless Chromium에서 17개 사례(미저장 편집의 저장본 보존, stale draft와 원래 CAS, pending·dirty, Free·읽기 전용 제한, 다른 identity로의 응답 반영 차단, 모바일 폭 등)를 실행한다. DB·Next 서버를 쓰지 않으며 playwright-core를 설치하지 않으므로 경로를 인자로 받는다. `.next/static/chunks`의 CSS가 있으면 함께 쓰고, 스크린샷과 `results.json`을 새 임시 디렉터리에 남긴 뒤 브라우저·서버를 닫는다 |
@@ -428,6 +436,25 @@ Commands의 CMD1은 실행하지 않은 정규화된 재실행 manifest로 `info
 17개 필드·11개 standard section·본문 참조와 CLI 종료 코드를 함께 검사한다.
 도움말은 0, 인자/출력 경로 오류는 2, 실행·정리·보고서 저장 실패는 1로 종료한다.
 `--consumer-self-test`와 도움말에는 보고서 경로를 함께 전달하지 않는다.
+
+## macOS 실제 모델 리허설
+
+macOS의 실제 모델 리허설은 명시적 opt-in으로만 실행한다. 다음 경로는 모두 로컬 시험용이며
+private export와 인증값·raw log를 저장소에 넣지 않는다. 모델 실행 중 `.next`를 재빌드하지 않는다.
+
+```sh
+node --env-file=<외부-시험-env> --import ./tests/server/register-server-only.mjs --import tsx \
+  scripts/rehearsals/rehearse-codex-macos.mjs \
+  --package <실제로-설치된-bundle> --templates <private-template-export> \
+  --work <새-외부-evidence-경로> --browser-cli <설치된-playwright-mcp-cli> \
+  --idle-minutes 110 --run-models
+```
+
+parent 명령 sandbox의 중첩 Seatbelt·loopback 거부는 역할 backend의 실패와 구분한다.
+필요할 때 신뢰된 launcher나 시험 명령 하나만 일반 사용자 host 권한으로 실행하며 역할의
+deny 정책을 바꾸지 않는다. 기본 Turbopack build가 host의 포트 bind 제한으로 실패한 경우
+그 실패를 보존하고 `node node_modules/next/dist/bin/next build --webpack` 결과를 별도로 기록한다.
+Webpack 성공이 기본 build 명령의 성공을 뜻하지 않는다.
 
 ## Windows CI 런타임 재사용
 

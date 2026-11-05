@@ -65,6 +65,17 @@ export class McpDomainError extends Error {
   }
 }
 
+export class McpInputError extends Error {
+  constructor(kind = "schema", limit = null) {
+    const message = kind === "receipt"
+      ? "Outcome receipt mismatch. Reread agent_next without outcome, use its current receipt unchanged, and redo affected checks without changing role, key or entry."
+      : kind === "note" && Number.isInteger(limit) && limit >= 0 && limit <= 10000
+        ? `agent_next note must be a string of at most ${limit} characters. Keep detailed evidence in the report, then retry with the same current receipt.`
+        : "Invalid MCP tool arguments. Correct the input to match this tool's schema; keep the current role, project, key, entry and receipt. No successful outcome is claimed.";
+    super(message); this.name = "McpInputError"; this.kind = ["receipt", "note"].includes(kind) ? kind : "schema";
+  }
+}
+
 function safeDomainFailure(error, token) {
   const reason = error.reason?.trim();
   if (!reason || reason.length > 1000 || (token && reason.includes(token))
@@ -85,6 +96,7 @@ export async function callTool(input, name, args = {}, signal) {
   const valueKind = ["backlog_list", "board_list"].includes(name) ? "object-list" : "object";
   const parsed = parseToolResponse(response.contentType, response.body, response.id, valueKind);
   if (!parsed.ok) {
+    if (parsed.error.code === "invalid-arguments") throw new McpInputError();
     const body = parsed.error.code === "access-refused" ? safeDomainFailure(parsed.error, input.token) : null;
     if (body) throw new McpDomainError(body);
     throw new Error(`MCP ${name} failed (${parsed.error.code}); stop; use ${input.client === "codex" ? "$harness-init" : "/harness:init"} for connection recovery`);

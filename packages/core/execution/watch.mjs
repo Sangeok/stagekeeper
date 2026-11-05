@@ -31,12 +31,17 @@ export function parseToolResponse(contentType, body, requestId, valueKind = "obj
     }
     if (matches.length !== 1) return protocolError();
     const message = matches[0];
-    if (Object.hasOwn(message, "error") || !object(message.result)) return protocolError();
+    if (Object.hasOwn(message, "error")) {
+      if (!Object.hasOwn(message, "result") && object(message.error) && message.error.code === -32602 && typeof message.error.message === "string") return { ok: false, error: { code: "invalid-arguments" } };
+      return protocolError();
+    }
+    if (!object(message.result)) return protocolError();
     const result = message.result;
     if (result.isError !== undefined && typeof result.isError !== "boolean") return protocolError();
     if (!Array.isArray(result.content)) return protocolError();
     const blocks = result.content.filter((block) => object(block) && block.type === "text");
     if (blocks.length !== 1 || typeof blocks[0].text !== "string") return protocolError();
+    if (result.isError === true && /^(?:Input validation error: )?Invalid arguments for tool [A-Za-z0-9_-]{1,80}:/.test(blocks[0].text)) return { ok: false, error: { code: "invalid-arguments" } };
     const value = JSON.parse(blocks[0].text);
     if (result.isError === true) {
       if (!object(value) || !text(value.error) || (value.code !== undefined && typeof value.code !== "string")) return protocolError();

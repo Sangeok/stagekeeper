@@ -36,7 +36,8 @@ files under it:
 - `bin/harness-watch.mjs` and `bin/harness-session.mjs`
 - the modules those two helpers load: `runtime/template-installation.mjs`, `lib/templates/deliver.mjs`, `lib/templates/manifest.mjs`, `lib/templates/release-manifest.mjs`, `runtime/local-session.mjs`,
   `runtime/mcp-client.mjs`, `runtime/runner-client.mjs`, `runtime/file-ownership.mjs`,
-  `runtime/state-diagnostics.mjs`, `lib/execution/watch.mjs`, `lib/execution/runner.mjs`,
+  `runtime/state-diagnostics.mjs`, `runtime/macos-recovery.mjs`, `runtime/macos-runtime.mjs`,
+  `runtime/macos/sandbox.mjs`, `lib/execution/watch.mjs`, `lib/execution/runner.mjs`,
   `lib/execution/client-runtime.mjs`, `lib/configuration/harness-config.mjs`,
   `lib/configuration/workspaces.mjs`, `lib/tokens/token.mjs`, `lib/templates/runbook.mjs`,
   `lib/templates/codex-bundle.mjs`, `lib/templates/template-boundary.mjs`,

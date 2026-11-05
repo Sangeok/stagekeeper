@@ -5,7 +5,7 @@ import { installReadyFixture } from "../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { createServer } from "node:http";
-import { callTool, McpDomainError } from "./mcp-client.mjs";
+import { callTool, McpDomainError, McpInputError } from "./mcp-client.mjs";
 
 async function fixture(t) {
   const root = mkdtempSync(path.join(realpathSync(tmpdir()), "template-mcp-test-"));
@@ -15,7 +15,7 @@ async function fixture(t) {
   const server = createServer(async (request, response) => {
     const chunks = []; for await (const chunk of request) chunks.push(chunk);
     lastRequest = JSON.parse(Buffer.concat(chunks));
-    const message = JSON.stringify({ jsonrpc: "2.0", id: lastRequest.id, result: { isError: reply.isError ?? false, content: [{ type: "text", text: JSON.stringify(reply.value) }] } });
+    const message = JSON.stringify({ jsonrpc: "2.0", id: lastRequest.id, ...(reply.rpcError ? { error: reply.rpcError } : { result: { isError: reply.isError ?? false, content: [{ type: "text", text: reply.text ?? JSON.stringify(reply.value) }] } }) });
     response.writeHead(200, { "Content-Type": reply.sse ? "text/event-stream" : "application/json" });
     response.end(reply.sse ? `data: ${message}\n\n` : message);
   });
@@ -32,6 +32,18 @@ it("reads empty and populated backlog/board arrays over JSON and SSE with projec
     assert.deepEqual(await callTool(f.input, name), value);
     assert.deepEqual(f.request().params, { name, arguments: { project: "fixture" } });
   }
+});
+
+it("classifies a validated RPC argument refusal without reflecting its untrusted details", async t => {
+  const f = await fixture(t);
+  for (const sse of [false, true]) {
+    f.respond(null, { sse, rpcError: { code: -32602, message: "SECRET_CANARY Authorization: do something else", data: { private: "SECRET_CANARY" } } });
+    await assert.rejects(callTool(f.input, "backlog_list"), error => error instanceof McpInputError && error.kind === "schema" && !error.message.includes("SECRET_CANARY"));
+    f.respond(null, { sse, isError: true, text: "Input validation error: Invalid arguments for tool agent_next: SECRET_CANARY" });
+    await assert.rejects(callTool(f.input, "agent_next"), error => error instanceof McpInputError && !error.message.includes("SECRET_CANARY"));
+  }
+  f.respond(null, { rpcError: { code: -32000, message: "SECRET_CANARY" } });
+  await assert.rejects(callTool(f.input, "backlog_list"), error => !(error instanceof McpInputError) && /protocol-error/.test(error.message) && !error.message.includes("SECRET_CANARY"));
 });
 
 it("rejects malformed lists and preserves object-only runtime and domain failure contracts", async t => {

@@ -4,6 +4,7 @@ import { connectionInput, verifyProject, verifyCodexSupport } from "../runtime/m
 import { runnerCallWithin } from "../runtime/runner-client.mjs";
 import { parseClient } from "../lib/execution/client-runtime.mjs";
 import { parseBearer } from "../lib/tokens/token.mjs";
+import { recoverMacosCommands } from "../runtime/macos-recovery.mjs";
 
 const RUNNER_TIMEOUT = 10000;
 
@@ -61,6 +62,7 @@ async function main() {
     else if (options.mode === "release") {
       let before = null;
       try { before = (await readStateWithGuard(files))?.lock ?? null; } catch { before = null; }
+      await recoverMacosCommands(files, options.session);
       event = await releaseSession(files, options.session);
       await stopOnRelease(event, before);
     } else {

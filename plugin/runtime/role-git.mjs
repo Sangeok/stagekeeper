@@ -190,6 +190,20 @@ async function gitRead(directory, git, args, lifecycle, signal) {
   finally { clearTimeout(timer); clearInterval(monitor); signal.removeEventListener("abort", abort); await terminal; await monitorTask; if (child.pid) await lifecycle.onSettled?.(owner); }
 }
 
+export async function createVerificationGit(root, directory, targetCommit, lifecycle, signal) {
+  if (!oid(targetCommit)) throw new Error("A full implementation commit is required");
+  const source = await layout(root, signal), git = nativeGitExecutable();
+  await mkdir(path.join(directory, "git/refs"), { recursive: true });
+  await mkdir(path.join(directory, "repo"), { recursive: true });
+  await writeFile(path.join(directory, "empty"), "", { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(directory, "git/config"), "[core]\nrepositoryformatversion = 0\nbare = false\nautocrlf = false\n");
+  await writeFile(path.join(directory, "git/HEAD"), targetCommit + "\n");
+  await copyObjects(source.common, path.join(directory, "git/objects"), signal);
+  const query = args => gitRead(directory, git, args, lifecycle, signal);
+  if (text(await query(["rev-parse", "--verify", "HEAD^{commit}"])).trim() !== targetCommit) throw new Error("Implementation commit differs from verification copy");
+  return { query, sourceHead: source.head };
+}
+
 export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, planCommit = null, commitHandoff = null, commonDirectory = null }, lifecycle = {}) {
   if (["pm", "work-assigner"].includes(agent)) throw new Error("PM Git operations refused");
   root = realpathSync(root);
