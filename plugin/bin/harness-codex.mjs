@@ -4,10 +4,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gitRoot, stateFiles, checkSession, startSession, requestStop, releaseSession } from "../runtime/local-session.mjs";
 import { connectionInput, verifyProject, verifyCodexSupport, callTool } from "../runtime/mcp-client.mjs";
-import { codexExecutable, CodexWindowsOnly, dispatchFreshRole, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
+import { codexExecutable, dispatchFreshRole, RoleExecutionUnavailable } from "../runtime/codex-thread.mjs";
+import { CodexPlatformUnsupported, supportsCodexPlatform } from "../runtime/codex-platform.mjs";
+import { installedRoleRuntime } from "../runtime/role-command-backend.mjs";
 import { RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
 import { verifierPackage } from "../runtime/codex-agent.mjs";
 import { confirmCommitHandoff } from "../runtime/commit-handoff.mjs";
+import { recoverMacosCommands } from "../runtime/macos-recovery.mjs";
+import { verifierTarget } from "../runtime/verifier-dispatch.mjs";
+import { verifierWorkflowFile } from "../runtime/report-artifacts.mjs";
 
 export class CodexRoleUnsupported extends Error {
   constructor() {
@@ -19,29 +24,29 @@ export class CodexRoleUnsupported extends Error {
 
 export function dispatchBinding(next, workspaces) {
   if (next.action !== "dispatch") throw new Error("Current pipeline is not dispatchable");
-  if (next.agent === "impl-verifier") throw new CodexRoleUnsupported();
+  if (next.agent === "impl-verifier" && process.platform !== "darwin") throw new CodexRoleUnsupported();
   const item = next.key !== undefined;
   if (item && next.format !== null && next.format !== "slots-v1") throw new Error("Unsupported item pipeline format");
   if (next.format === "slots-v1" && (!next.entry?.runId || !next.entry?.entryId || !next.entry?.slotId)) throw new Error("Bound dispatch missing entry");
-  const keyed = workspaces.some(ws => ws.agent === next.agent) || ["plan-verifier", "qa-verifier"].includes(next.agent);
+  const keyed = workspaces.some(ws => ws.agent === next.agent) || ["plan-verifier", "qa-verifier", "impl-verifier"].includes(next.agent);
   if (keyed && !next.key) throw new Error("Workspace/verifier requires an item key");
   return { agent: next.agent, key: next.key, agentKey: keyed ? next.key : undefined, entry: next.entry, ...(next.execution ? { execution: next.execution } : {}), ...(next.templateRelease ? { templateRelease: next.templateRelease } : {}), ...(next.agentRunId ? { agentRunId: next.agentRunId } : {}) };
 }
 
 export function codexFailure(error, session = null) {
-  if (error instanceof RoleExecutionUnavailable || error instanceof CodexRoleUnsupported || error instanceof CodexWindowsOnly) {
+  if (error instanceof RoleExecutionUnavailable || error instanceof CodexRoleUnsupported || error instanceof CodexPlatformUnsupported) {
     return { event: "error", session, code: error.code, reason: error.message };
   }
   return { event: "error", session, code: "codex-refused", reason: "Codex configuration, runtime, binding, permission or server check failed. Keep ownership until owned work is quiescent; resolve with $harness-init. No completion is claimed." };
 }
 
-export const qaWorkflowFile = (name, key) => ["harness.json", "harness.lock.json", "CLAUDE.md", ".mcp.json", `docs/agents/qa-verifier/${key}.md`, `docs/agents/impl-verifier/${key}.md`, `docs/agents/main-loop/${key}.md`].includes(name) || [".codex/", ".claude/", "docs/harness/"].some(prefix => name.startsWith(prefix));
+export const qaWorkflowFile = verifierWorkflowFile;
 
 function optionsFor(argv) {
   const [operation, ...args] = argv;
   if (!["prepare", "next", "dispatch", "stop", "release", "complete-init"].includes(operation)) throw new Error("Unknown Codex operation");
   const options = { operation };
-  const accepted = new Set(["root", "server", "session", "key", "commit", "propose", "briefing", "handoff-commit", "retry-qa", "abandoned"]);
+  const accepted = new Set(["root", "server", "session", "key", "commit", "propose", "briefing", "handoff-commit", "retry-qa", "retry-impl", "abandoned"]);
   for (let i = 0; i < args.length; i += 2) {
     const name = args[i].slice(2), value = args[i + 1];
     if (!args[i].startsWith("--") || !accepted.has(name) || Object.hasOwn(options, name) || !value || value.startsWith("--")) throw new Error("Invalid Codex arguments");
@@ -60,9 +65,11 @@ async function main() {
   let options;
   try {
     options = optionsFor(process.argv.slice(2));
-    if (!["stop", "release"].includes(options.operation) && process.platform !== "win32") throw new CodexWindowsOnly();
+    if (!["stop", "release"].includes(options.operation) && !supportsCodexPlatform()) throw new CodexPlatformUnsupported();
+    if (!["stop", "release"].includes(options.operation) && process.platform === "darwin") installedRoleRuntime();
     const location = gitRoot(options.root), files = stateFiles(location.directory);
     if (["stop", "release"].includes(options.operation)) {
+      if (options.operation === "release") await recoverMacosCommands(files, options.session);
       const result = await (options.operation === "stop" ? requestStop(files, options.session)
         : releaseSession(files, options.session, { abandoned: options.abandoned === "yes" }));
       console.log(JSON.stringify(result)); process.exitCode = result.event === "error" ? 1 : 0; return;
@@ -98,6 +105,10 @@ async function main() {
       if (options["retry-qa"] !== "yes" || next.action !== "wait" || next.on !== "qa") throw new Error("Explicit QA retry requires a current QA failure");
       next = { ...next, ...next.resume, action: "dispatch" };
     }
+    if (options["retry-impl"] !== undefined) {
+      if (options["retry-impl"] !== "yes" || options["retry-qa"] !== undefined || next.action !== "wait" || next.on !== "impl-verify") throw new Error("Explicit implementation verification retry requires a current failure");
+      next = { ...next, ...next.resume, action: "dispatch" };
+    }
     if (next.action === "wait" && next.on === "handoff" && options["handoff-commit"]) {
       commitHandoff = confirmCommitHandoff(location.root, options.key, next, options["handoff-commit"]);
       next = { ...next, ...next.resume, action: "dispatch" };
@@ -109,6 +120,10 @@ async function main() {
     if (dispatch.key) {
       const board = await callTool(input, "board_get", { key: dispatch.key });
       dispatch.planPath = board.planPath; dispatch.planCommit = board.planCommit;
+      if (dispatch.agent === "impl-verifier") {
+        const target = verifierTarget(location.root, board, dispatch.key);
+        dispatch.planCommit = target.planCommit; dispatch.implementation = { targetCommit: target.targetCommit };
+      }
     }
     if (dispatch.agent === "plan-verifier") {
       if (!options.briefing || !dispatch.planPath || !dispatch.planCommit) throw new Error("Verifier needs current plan and selected verification paths");

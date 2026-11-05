@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+stagekeeper_bin=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+stagekeeper_root=$(CDPATH= cd -- "$stagekeeper_bin/.." && pwd -P)
+stagekeeper_runtime="$stagekeeper_root/runtime/macos/node"
+if [ "$(/usr/bin/uname -s)" != Darwin ]; then
+  printf '%s\n' 'This launcher requires macOS.' >&2
+  exit 1
+fi
+if [ ! -x "$stagekeeper_runtime/bin/node" ] || [ ! -f "$stagekeeper_runtime/node.sha256" ]; then
+  printf '%s\n' 'Stagekeeper macOS runtime is missing. Install the complete macOS plugin package.' >&2
+  exit 1
+fi
+if ! (CDPATH= cd -- "$stagekeeper_runtime" && /usr/bin/shasum -a 256 -c node.sha256 >/dev/null); then
+  printf '%s\n' 'Stagekeeper macOS runtime checksum failed. Reinstall the complete native package.' >&2
+  exit 1
+fi
+exec "$stagekeeper_runtime/bin/node" "$stagekeeper_root/bin/harness-platform.mjs" "$@"

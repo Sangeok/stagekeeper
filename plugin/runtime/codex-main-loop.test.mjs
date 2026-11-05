@@ -27,8 +27,8 @@ async function fixture(t, options = {}) {
   const runtime = {
     verifierPackage: () => verifier, stageVerifierPackage: (_verifier, directory) => { scratch.push(directory); return { ...verifier, path: path.join(directory, ".agents/skills/verifier/SKILL.md") }; },
     createRoleFiles: () => { counts.file++; return { close: async () => { counts.fileClosed++; } }; },
-    installedWindowsRuntime: () => ({}), verifyNativeRuntime: async () => { fail("native"); },
-    createRoleCommands: async ({ fileBroker }) => { fail("commands"); return fileBroker; },
+    installedRoleRuntime: () => ({}), verifyRoleRuntime: async () => { fail("native"); },
+    createRoleCommandBackend: async ({ fileBroker }) => { fail("commands"); return fileBroker; },
     createMainLoopTools: async () => { fail("inventory"); counts.tools++; return { tools: [{ name: "pipeline_next" }] }; },
     createMainLoopBridge: async (_tools, _signal, _record, onRefusal) => { policyRefusal = onRefusal; counts.bridge++; return { url: "http://fixture", close: async () => { counts.bridgeClosed++; } }; },
     codexExecutable: () => ({ executable: "test", prefix: [] }), inspectHostPolicy: async () => { fail("policy"); return []; },

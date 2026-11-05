@@ -15,6 +15,12 @@ Include `--briefing <file>` for every QA dispatch/resume. This minimal JSON cont
 The helper verifies the target against the developer's report and current tracked product
 files. QA independently checks the running page identity. It receives no previous verdict.
 
+For resident Codex, `resident_qa_environment` first navigates the explicitly configured test
+page and reads its actual snapshot. The page must expose the full implementation report commit
+before unattended dispatch. Only matching observed evidence is passed to the independent QA
+role; an arbitrary caller URL or claimed previous verdict is not accepted. The role still performs
+all scenario, console and network checks. A failed/blocked QA remains an explicit owner retry.
+
 ## Inputs and activation
 
 Add explicit test settings to the consuming repository's `harness.json`:

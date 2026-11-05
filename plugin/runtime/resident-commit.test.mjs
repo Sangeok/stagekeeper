@@ -7,7 +7,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
-import { commitResidentArtifacts, ResidentCommitInputError } from "./resident-commit.mjs";
+import { commitResidentArtifacts, recordResidentRoleReport, ResidentCommitInputError } from "./resident-commit.mjs";
 import { createMainLoopBridge } from "./codex-main-loop.mjs";
 
 function fixture(t) {
@@ -21,6 +21,25 @@ function fixture(t) {
     board: { status: "planning" }, workspaces: [{ agent: "dev", path: ".", readOnly: ["src/readonly"] }] };
   return { root, git, write, input, commit: files => commitResidentArtifacts({ ...input, files }) };
 }
+
+it("records completed audit reports once, commits only their fixed log and preserves changed owner text", t => {
+  const f = fixture(t), input = { root: f.root, branch: "fixture", agent: "doc-auditor", threadId: "thread-audit", report: "Audit: one claim checked, no mismatch.", commitPermission: true };
+  const before = f.git("rev-parse", "HEAD");
+  assert.throws(() => recordResidentRoleReport({ ...input, commitPermission: false }), /permission/);
+  assert.throws(() => recordResidentRoleReport({ ...input, agent: "dev" }), /bounded role/);
+  assert.equal(f.git("status", "--porcelain"), "");
+  const first = recordResidentRoleReport(input);
+  assert.equal(first.path, "docs/agents/doc-auditor/audit-log.md"); assert.notEqual(first.commit, before);
+  assert.equal(f.git("diff", "--name-only", before, first.commit), first.path);
+  const second = recordResidentRoleReport(input);
+  assert.equal(second.commit, first.commit);
+  const target = path.join(f.root, first.path), body = readFileSync(target, "utf8");
+  assert.equal(body.split("<!-- harness:role-report:thread-audit -->").length, 2);
+  writeFileSync(target, body.replace("one claim", "owner-edited claim"));
+  const edited = readFileSync(target, "utf8");
+  assert.throws(() => recordResidentRoleReport(input), /owner's log/);
+  assert.equal(readFileSync(target, "utf8"), edited); assert.equal(f.git("rev-parse", "HEAD"), first.commit);
+});
 
 it("returns a correctable artifact path error through HTTP without modifying Git, then accepts relative paths", async t => {
   const f = fixture(t), artifact = f.write("docs/plans/K-1.md", "plan\n"), before = f.git("rev-parse", "HEAD");

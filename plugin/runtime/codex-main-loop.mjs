@@ -9,13 +9,16 @@ import { AppServer, assertRolePolicy, childEnvironment, codexExecutable, inspect
 import { verifierPackage } from "./codex-agent.mjs";
 import { checkSession, readState, recordedChildren, registerChild, settleChild } from "./local-session.mjs";
 import { createRoleFiles, RoleFileInputError, RoleFileRevisionError, RolePathMissingError } from "./role-files.mjs";
-import { createRoleCommands, installedWindowsRuntime, verifyNativeRuntime, RoleCommandInputError } from "./role-commands.mjs";
+import { RoleCommandInputError } from "./role-commands.mjs";
+import { createRoleCommandBackend, installedRoleRuntime, verifyRoleRuntime } from "./role-command-backend.mjs";
 import { createMainLoopTools } from "./codex-main-loop-tools.mjs";
 import { ResidentCommitInputError, residentGit } from "./resident-commit.mjs";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
+import { RoleBriefingInputError } from "./verifier-dispatch.mjs";
+import { McpInputError } from "./mcp-client.mjs";
 
 const correctableInput = error => error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof ResidentCommitInputError
-  || error instanceof RolePathMissingError || error instanceof RoleGitInputError || error instanceof RoleGitPathMissingError || error instanceof RoleFileRevisionError;
+  || error instanceof RolePathMissingError || error instanceof RoleGitInputError || error instanceof RoleGitPathMissingError || error instanceof RoleFileRevisionError || error instanceof RoleBriefingInputError || error instanceof McpInputError;
 
 export async function createMainLoopBridge(tools, signal, record = () => {}, onRefusal = () => {}) {
   const capability = randomUUID(), pending = new Set();
@@ -60,7 +63,7 @@ export async function createMainLoopBridge(tools, signal, record = () => {}, onR
       response.end(JSON.stringify({ jsonrpc: "2.0", id, result }));
     } catch (error) {
       if (response.destroyed) return;
-      const invalid = error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof ResidentCommitInputError || error instanceof RoleGitInputError;
+      const invalid = error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof ResidentCommitInputError || error instanceof RoleGitInputError || error instanceof RoleBriefingInputError || error instanceof McpInputError;
       const missing = error instanceof RolePathMissingError || error instanceof RoleGitPathMissingError;
       const conflict = error instanceof RoleFileRevisionError;
       response.writeHead(200, { "content-type": "application/json" });
@@ -84,8 +87,8 @@ export async function createMainLoopBridge(tools, signal, record = () => {}, onR
 
 export function createCodexExecution(context, operations = {}) {
   const { input, files, session, branch, beat, record = () => {} } = context;
-  const runtime = { spawn, codexExecutable, inspectHostPolicy, createRoleFiles, createRoleCommands, installedWindowsRuntime,
-    verifyNativeRuntime, verifierPackage, stageVerifierPackage, verifyRoleExecution, assertRolePolicy, createMainLoopTools, createMainLoopBridge, createAppServer: child => new AppServer(child), ...operations };
+  const runtime = { spawn, codexExecutable, inspectHostPolicy, createRoleFiles, createRoleCommandBackend, installedRoleRuntime,
+    verifyRoleRuntime, verifierPackage, stageVerifierPackage, verifyRoleExecution, assertRolePolicy, createMainLoopTools, createMainLoopBridge, createAppServer: child => new AppServer(child), ...operations };
   let current = null, lastLease = null, leaseAt = 0;
   const policy = readState(files)?.policy;
   return {
@@ -138,10 +141,10 @@ export function createCodexExecution(context, operations = {}) {
           const fileBroker = runtime.createRoleFiles(filesystem, "main-loop"); backend = fileBroker;
           const lifecycle = { onSpawn: value => registerChild(files, session, input.binding, value), onSettled: value => settleChild(files, session, value),
             beforeActivate: async () => { await guard({ allowPaused: true }); } };
-          const native = runtime.installedWindowsRuntime();
-          await runtime.verifyNativeRuntime(native, lifecycle);
+          const native = runtime.installedRoleRuntime();
+          await runtime.verifyRoleRuntime(native, lifecycle);
           await guard({ remote: true });
-          backend = await runtime.createRoleCommands({ root, scratch, agent: "main-loop", fileBroker, runtime: native }, lifecycle);
+          backend = await runtime.createRoleCommandBackend({ root, scratch, agent: "main-loop", fileBroker, runtime: native }, lifecycle);
           const tools = await runtime.createMainLoopTools({ input, files, session, branch, scratch, fileBroker, commandBroker: backend, guard, lifecycle, signal,
             record: event => record({ ...event, generation }) });
           bridge = await runtime.createMainLoopBridge(tools, signal, event => record({ ...event, generation }), () => end("policy"));
@@ -166,7 +169,7 @@ export function createCodexExecution(context, operations = {}) {
           const inventory = await server.request("skills/list", { cwds: [scratch], forceReload: true });
           const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true,
             baseInstructions: "You are Stagekeeper's resident main loop in a new independent context. The server owns pipeline state. No previous conversation is provided.",
-            developerInstructions: "Read the complete installed runbook and follow its server-driven procedure and five acceptance checks. This explicitly authorized resident entry extends its foreground-only adapter: stored commit/propose policy is current permission, resident_dispatch replaces the foreground CLI, and permitted handoffs resume automatically after resident_commit. Never call prepare or adopt a foreground session. Never reset, stash, push or approve gates. Use resident_dispatch for fresh roles; never perform a role's work yourself. Use resident_commit only for current handoffs or your acceptance report, providing observed file hashes. Independent verifier briefing contains only selected verification paths, never prior verdicts. Before dispatching the verifier, load the complete staged verifier skill and conduct your own read-only reconciliation with the selected paths. Read files through role_file_read/list/search (maxLines at most 500); write planning/review logs and receipts only under the supplied scratch path. The repository report docs/agents/main-loop/<key>.md may be written only when pipeline_next currently returns accept. Run verification through role_command_exec in a disposable snapshot using relative paths; inspect omissions and failures. Use resident_git for HEAD/approved-plan evidence. Owner tools, shell, arbitrary Git, extra agents and permission escalation are unavailable. Invalid file, command or commit parameters may be corrected within the existing tool schema; an ownership or policy refusal ends this cycle without bypass. End when no permitted work remains, or on gate/cap/QA/acceptance wait. Report model completion separately from server acceptance.",
+            developerInstructions: "Read the complete installed runbook and follow its server-driven procedure and five acceptance checks. This explicitly authorized resident entry extends its foreground-only adapter: stored commit/propose policy is current permission, resident_dispatch replaces the foreground CLI, and permitted handoffs resume automatically after resident_commit. Never call prepare or adopt a foreground session. Never reset, stash, push or approve gates. Use resident_dispatch for fresh roles; never perform a role's work yourself. Completed doc-auditor and feature-scout reports are appended and committed to their fixed logs by resident_dispatch; inspect recordedReport and do not append them a second time. For acceptance check 1, the canonical impl-verifier report recorded for this item is expected independent-verification evidence, just like the recorded QA report. Product changes must still match the approved plan. Use resident_commit only for current handoffs or your acceptance report, providing observed file hashes. Only plan-verifier receives requiredVerificationPaths. For every other role, including impl-verifier and qa-verifier, omit that field or set it to null; their minimal briefing is prepared by the helper. Never pass prior verdicts. Before dispatching plan-verifier, load the complete staged verifier skill and conduct your own read-only reconciliation with the selected paths. Read files through role_file_read/list/search (maxLines at most 500); write planning/review logs and receipts only under the supplied scratch path. The repository report docs/agents/main-loop/<key>.md may be written only when pipeline_next currently returns accept. Run verification through role_command_exec in a disposable snapshot using relative paths; inspect omissions and failures. Use resident_git for HEAD/approved-plan evidence. Owner tools, shell, arbitrary Git, extra agents and permission escalation are unavailable. Invalid file, command or commit parameters may be corrected within the existing tool schema; an ownership or policy refusal ends this cycle without bypass. For a current QA dispatch, first call resident_qa_environment and require ready evidence for the implementation commit; on blocked return the reason and stop. Then resident_dispatch runs QA independently. Implementation verification is dispatched through resident_dispatch with no previous verdict and an automatically prepared disposable copy. A verifier report handoff must still be committed and resumed on the same AgentRun even when the report says failed or blocked. This records the existing outcome; it must not rerun verification. Only wait on qa or impl-verify after that report is recorded. Never automatically retry failed QA or implementation verification. End when no permitted work remains, or on gate/cap/QA/implementation-verification/acceptance wait. Report model completion separately from server acceptance.",
             config: { "skills.config": (inventory.data ?? []).flatMap(value => value.skills ?? []).map(skill => ({ path: skill.path, enabled: false })) } });
           threadId = thread.thread?.id;
           if (!threadId) throw new Error("Main-loop thread identity missing");

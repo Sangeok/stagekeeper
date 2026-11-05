@@ -1364,7 +1364,8 @@ Start and sign-in refusals (`harness-background.mjs`, `code` → sentence; print
 | codex-plan | The background runner opens on Pro. Use $harness-run or $harness-resume in Codex for now. |
 | codex-route | This server did not confirm Codex resident ownership. Use $harness-run or $harness-resume until its server is updated. |
 | codex-config | Codex configuration or installed package verification failed. Reconnect with $harness-init. |
-| codex-windows | Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use Claude Code. |
+| codex-platform | Stagekeeper works with Codex on Windows and macOS. Other operating systems are not supported yet. |
+| codex-runtime | The complete Codex runtime package is missing or changed. Install the matching Stagekeeper package for this operating system. |
 | no-route | This Stagekeeper server does not take runners yet. Use /harness:watch in a Claude Code session. |
 | no-claude | Claude Code (claude.exe) was not found on PATH. Install the native Claude Code, then start again. |
 | claude-failed | Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again. |

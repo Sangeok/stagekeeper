@@ -755,11 +755,11 @@ it("refuses a Codex start without its installed configuration before starting a 
   assert.equal(existsSync(f.lockPath), false);
 });
 
-it("refuses a Codex runner outside Windows before reading the token or contacting the server", { skip: process.platform === "win32" }, async t => {
+it("refuses a Codex runner on unsupported hosts before reading the token or contacting the server", { skip: ["win32", "darwin"].includes(process.platform) }, async t => {
   const f = await fixture(t);
   for (const args of [[...START, "--client", "codex"], ["--preflight", "--client", "codex"]]) {
     const result = await f.run(args, { HARNESS_TOKEN: "" });
-    assert.deepEqual([result.code, result.event.code, result.event.reason, result.text.at(-1)], [1, "codex-windows", REASONS["codex-windows"], REASONS["codex-windows"]]);
+    assert.deepEqual([result.code, result.event.code, result.event.reason, result.text.at(-1)], [1, "codex-platform", REASONS["codex-platform"], REASONS["codex-platform"]]);
   }
   assert.equal(f.record().length, 0); assert.equal(f.runnerCalls.length, 0); assert.equal(existsSync(f.directory), false);
 });
@@ -782,9 +782,9 @@ it("keeps every refusal and start line in product copy", () => {
   for (const line of [...Object.values(START_LINES), ...Object.values(RELEASE_LINES)]) assert.ok(COPY.replace(/\{\w+\}/g, "{}").includes(line.replace(/\{\w+\}/g, "{}")), line);
 });
 
-it("gives the Codex skill the same outside-Windows sentence the helper prints", () => {
+it("gives the Codex skill the same unsupported-platform sentence the helper prints", () => {
   const skill = readFileSync(new URL("../codex/skills/harness-background/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
-  assert.ok(skill.includes(`"${REASONS["codex-windows"]}"`));
+  assert.ok(skill.includes(`"${REASONS["codex-platform"]}"`));
 });
 
 it("reports a refused sign-in start to the Board with a fixed code, and a manual start never does", async t => {

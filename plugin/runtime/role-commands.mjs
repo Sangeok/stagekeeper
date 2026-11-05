@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { mkdir, mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +33,7 @@ export function installedWindowsRuntime(directory = bundlePath) {
   return Object.freeze({ ...manifest, directory: path.resolve(directory) });
 }
 
-export async function snapshotRepository(root, destination, fileBroker, signal) {
+export async function snapshotRepository(root, destination, fileBroker, signal, { internalSymlinks = false } = {}) {
   const hashes = [], omitted = []; let bytes = 0, count = 0, omittedCount = 0;
   const buffers = Array.from({ length: 8 }, () => Buffer.alloc(1024 * 1024));
   const started = Date.now();
@@ -44,7 +44,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
   async function copy({ source, target, before, row }, buffer) {
     const input = await open(source, "r"), digest = createHash("sha256"); let output;
     try {
-      output = await open(target, "wx", 0o600);
+      output = await open(target, "wx", internalSymlinks && (before.mode & 0o111n) !== 0n ? 0o700 : 0o600);
       if (identity(await input.stat({ bigint: true })) !== identity(before)) throw new Error("Snapshot file changed while opening");
       let length = 0;
       while (true) {
@@ -74,8 +74,18 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
       checkpoint();
       const source = path.join(directory, name), rel = path.join(relative, name), target = path.join(destination, rel);
       if (omittedName(name) || fileBroker.permission(source) === "deny") { omittedCount++; if (omitted.length < 200) omitted.push(rel); continue; }
-      fileBroker.resolveRead(source);
       const before = lstatSync(source, { bigint: true });
+      if (internalSymlinks && before.isSymbolicLink()) {
+        const link = await readlink(source), physical = realpathSync(source), inside = path.relative(root, physical);
+        if (path.isAbsolute(link) || inside.startsWith("..") || path.isAbsolute(inside) || fileBroker.permission(physical) === "deny") throw new Error("Snapshot symlink escapes permitted source");
+        fileBroker.resolveRead(physical);
+        if (await readlink(source) !== link || identity(lstatSync(source, { bigint: true })) !== identity(before)) throw new Error("Snapshot symlink changed during copy");
+        await symlink(path.relative(path.dirname(target), path.join(destination, inside)), target);
+        hashes.push([rel.split(path.sep).join("/"), hash(`symlink:${inside.split(path.sep).join("/")}`)]);
+        if (++count > 100000) throw new Error("Snapshot file count exceeded");
+        continue;
+      }
+      fileBroker.resolveRead(source);
       if (before.isDirectory()) { await flush(); await mkdir(target, { recursive: true }); await visit(source, rel); continue; }
       if (!before.isFile() || before.size > 128n * 1024n * 1024n || ++count > 100000 || (bytes += Number(before.size)) > 2 * 1024 * 1024 * 1024) throw new Error("Snapshot size or file type unsupported");
       const row = [rel.split(path.sep).join("/"), null]; hashes.push(row);

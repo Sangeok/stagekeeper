@@ -3,9 +3,11 @@ name: harness-init
 description: Connect this repository to Stagekeeper from Codex, preserving its Claude Code configuration.
 ---
 
-Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run any helper or work
-around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
-Claude Code." and stop.
+On operating systems other than Windows or macOS, do not run a helper; say
+"Stagekeeper works with Codex on Windows and macOS. Other operating systems are not supported yet."
+and stop. On macOS use the complete native package and its quoted absolute
+`bin/harness <task> <arguments>` launcher for every helper below. It verifies the bundled
+Node/npm runtime. Never substitute global Node when the package is incomplete.
 
 Resolve this installed SKILL.md's actual absolute path. Its package root is three parents
 above the skill directory. Verify `.codex-plugin/plugin.json` declares harness, version

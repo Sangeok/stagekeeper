@@ -3,8 +3,9 @@
 `impl-verifier` is an independent, item-bound report agent on Pro and Max. The optional
 `impl-verify` node goes between `implement` and `accept`, before `qa` when both are present.
 Existing versions and default graphs remain unchanged. Add **Implementation check** in the
-Pipeline editor for new items; `before-impl-verify` is optional. Claude Code runs it; the
-Codex helper refuses it for now (see Rollout).
+Pipeline editor for new items; `before-impl-verify` is optional. Claude Code runs it. The
+macOS Codex bundle supplies the isolated copy and scoped Git adapter described below;
+the Windows Codex helper still refuses this role.
 
 Entering the node records implementation completion as `done`, without recording acceptance.
 impl-verifier re-reads the change in a fresh context and checks, in a disposable verification
@@ -16,6 +17,18 @@ which creates fresh entries, or explicitly retries in the current entry after fi
 environment.
 
 ## Inputs and verification copy
+
+On macOS Codex, the helper prepares a canonical temporary copy outside the owner's checkout,
+bound to the latest dev report and approved plan commits. It copies Git objects without original
+config, hooks or remotes. The role receives `implementation.copy` and `implementation.targetCommit`.
+`implementation_git` supplies identity, changes, show, history, status and bounded plan/target
+file restoration. Verify commands run through the native snapshot backend against the copy.
+The original checkout is read-only except the role's report. Copy preparation, stop and cleanup
+follow [macos-runtime.md](./macos-runtime.md); no additional Claude directory permission is needed.
+After an explicit owner decision, `dispatch --retry-impl yes` resumes a current failed/blocked
+implementation-verification entry. Resident dispatch does not retry failures automatically.
+
+The following fixed home-directory and shell procedure describes the Claude Code path.
 
 The main loop prepares the copy before each dispatch, outside the repository:
 
@@ -87,7 +100,7 @@ the plugin, reruns `/harness:init`, registers the verification copy directory, a
 the node in the Pipeline tab. The watcher rejects an unknown wait, so a node added before the
 plugin update stops that owner's watch.
 
-Do not add the node to a project run from Codex yet. The Codex helper refuses the impl-verifier
+Do not add the node to a project run from Windows Codex yet. That helper refuses the impl-verifier
 dispatch with `codex-role-unsupported` before any role run starts, and `pipeline_next` keeps
 answering the same dispatch. An item bound to a graph version with the node keeps it even after
 the node is removed. Its exits are: continue the item from Claude Code, fix the environment and
