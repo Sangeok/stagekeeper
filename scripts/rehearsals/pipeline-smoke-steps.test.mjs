@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { it } from "node:test";
 import { gzipSync } from "node:zlib";
 import { containsSecret } from "./client-init-smoke-steps.mjs";
-import { BACKLOG_ITEM, HANDOFF_LIMIT_MS, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, caseResults, openTranscripts, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
+import { BACKLOG_ITEM, HANDOFF_LIMIT_MS, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, SMOKE_SCENARIOS, caseResults, openTranscripts, planVerificationBounded, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
 
 const line = value => JSON.stringify(value);
 const toolUse = (id, name) => line({ type: "assistant", message: { content: [{ type: "tool_use", id, name, input: {} }] } });
@@ -139,6 +139,36 @@ it("judges slugWords against the backlog request", () => {
   assert.deepEqual(caseResults(() => { throw new TypeError("wrong"); }), INDEPENDENT_CASES.map(() => false));
   assert.match(BACKLOG_ITEM.source, /RangeError/);
   assert.match(BACKLOG_ITEM.source, /even when text is empty/);
+});
+
+it("the truncate scenario replays the request whose plan check never converged and judges truncate independently", () => {
+  const scenario = SMOKE_SCENARIOS.truncate;
+  assert.equal(scenario.module, "src/text.mjs");
+  assert.equal(scenario.exportName, "truncate");
+  assert.match(scenario.item.source, /^Callers need to shorten long strings for one-line previews\. Add truncate\(value, maxLength\) to src\/text\.mjs/);
+  assert.match(scenario.files["src/text.mjs"], /export function wordCount/);
+  const reference = (value, maxLength) => {
+    if (typeof value !== "string" || !Number.isInteger(maxLength) || maxLength < 1) throw new TypeError("invalid");
+    return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}…`;
+  };
+  assert.deepEqual(caseResults(reference, scenario.cases), scenario.cases.map(() => true));
+  assert.ok(caseResults((value, maxLength) => value.slice(0, maxLength), scenario.cases).includes(false));
+  assert.ok(caseResults((value, maxLength) => (value.length <= maxLength ? value : `${value.slice(0, maxLength)}…`), scenario.cases).includes(false));
+  assert.ok(caseResults((value, maxLength) => { if (maxLength < 1) throw new RangeError("invalid"); return reference(value, maxLength); }, scenario.cases).includes(false));
+  assert.equal(SMOKE_SCENARIOS.slug.cases, INDEPENDENT_CASES);
+  assert.equal(SMOKE_SCENARIOS.slug.item, BACKLOG_ITEM);
+});
+
+it("bounds plan verification at the stop rule's three independent passes", () => {
+  assert.equal(planVerificationBounded(1), true);
+  assert.equal(planVerificationBounded(3), true);
+  assert.equal(planVerificationBounded(0), false);
+  assert.equal(planVerificationBounded(4), false);
+  const summary = summarizePipeline({ scenario: "truncate", planVerifierPasses: 2 });
+  assert.equal(summary.scenario, "truncate");
+  assert.equal(summary.planVerifierPasses, 2);
+  assert.equal(summarizePipeline({ scenario: "other" }).scenario, undefined);
+  assert.equal(summarizePipeline({ planVerifierPasses: 1.5 }).planVerifierPasses, undefined);
 });
 
 it("ends the wait on completion and fails early on states an unattended run cannot leave", () => {

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { validateTestDatabase } from "../test-server-integration.mjs";
-import { assertGeneratedAgents, containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
+import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";
 
 const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
 const MARKETPLACE = "stagekeeper-local";
@@ -174,9 +174,7 @@ export class Smoke {
   async generate(plugin: Plugin, name: string, plan: "free" | "pro"): Promise<void> {
     await this.run.step(name, async () => {
       const result = this.helper(plugin, [], name);
-      const manifest = JSON.parse(readFileSync(path.join(plugin.root, ".claude-plugin/plugin.json"), "utf8"));
-      const versioned = Number(manifest.version.split(".")[0]) > 0 || Number(manifest.version.split(".")[1]) >= 6;
-      if (versioned) {
+      if (usesTemplateReleases(pluginVersion(plugin))) {
         if (!/^ready:/m.test(result.stdout)) throw new Error("Versioned init did not commit a ready installation");
         readInstalledTemplate(this.repo, "claude");
       }
@@ -371,9 +369,15 @@ export async function newUser(smoke: Smoke, plugin: Plugin, scenario: string, lo
   await smoke.sync(plugin, "pro-sync", connection.slug, rerunAt);
 }
 
+function pluginVersion(plugin: Plugin): string {
+  return JSON.parse(readFileSync(path.join(plugin.root, ".claude-plugin/plugin.json"), "utf8")).version;
+}
+
 async function update(smoke: Smoke, previous: Plugin, installNew: () => Promise<Plugin>, options: Options, token: string, cutover: () => Promise<void>): Promise<Plugin> {
+  const previousUsesReleases = usesTemplateReleases(pluginVersion(previous));
+  if (previousUsesReleases) await cutover();
   const connection = await smoke.firstConnection(previous, "previous-", options.scenario, token);
-  await cutover();
+  if (!previousUsesReleases) await cutover();
   const plugin = await smoke.run.step("plugin-install", installNew);
   await smoke.connected("mcp-unchanged");
   await smoke.dryRun(plugin, "update-dry-run", "free");

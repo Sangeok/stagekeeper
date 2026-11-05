@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { it } from "node:test";
-import { assertGeneratedAgents, containsSecret, helperCommand, summarize } from "./client-init-smoke-steps.mjs";
+import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";
 
 const currentPlugin = fileURLToPath(new URL("../../plugin/", import.meta.url));
 const freeAgents = ["app-dev", "pm", "feature-scout", "work-assigner", "work-discoverer"];
@@ -66,4 +66,11 @@ it("reports a token value without returning it", () => {
   const token = "hu_" + "x".repeat(43);
   assert.equal(containsSecret(`{"Authorization":"Bearer ${token}"}`, token), true);
   assert.equal(containsSecret('{"Authorization":"Bearer ${HARNESS_TOKEN}"}', token), false);
+});
+
+it("treats a plugin from 0.6.0 on as a template release client that needs the cutover before it connects", () => {
+  assert.equal(usesTemplateReleases("0.5.33"), false);
+  assert.equal(usesTemplateReleases("0.6.0"), true);
+  assert.equal(usesTemplateReleases("0.6.2"), true);
+  assert.equal(usesTemplateReleases("1.0.0"), true);
 });

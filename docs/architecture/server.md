@@ -168,6 +168,7 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 | `tests/server/integration/token-management.test.ts` | tokens | 격리 DB에서 실제 저장·경합·원자성 검증 (project-token-service, usage-recorder) |
 | `tests/server/integration/token-usage.test.ts` | mcp | 격리 DB에서 실제 저장·경합·원자성 검증 (auth) |
 | `tests/server/integration/token-usage.test.ts` | tokens | 격리 DB에서 실제 저장·경합·원자성 검증 (usage-recorder) |
+| `tests/server/integration/verify-stall.test.ts` | mcp | 격리 DB에서 Verify에 멈춘 항목의 에이전트 보류·소유자 출구와 준비 집합 이탈 검증 (deps) |
 | `tests/server/owner-gate.test.ts` | mcp | 공개하지 않는 정책·조회·원장 구현의 회귀 검증 (owner-gate) |
 | `tests/server/project-connection-bindings.test.ts` | mcp | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (tools, owner-tools) |
 | `tests/server/project-connection-bindings.test.ts` | projects | 제품 API에 공개하지 않는 접근 오류·메시지를 회귀 시험에서 검증한다. |

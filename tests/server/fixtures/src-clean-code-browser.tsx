@@ -216,8 +216,21 @@ function DocumentsFixture() {
     <button onClick={() => setReports(current => [...current].reverse())}>Reverse reports</button>
     <button onClick={() => setReports(current => current.slice(1))}>Remove first report</button>
     <button onClick={() => setReports(current => current.some(row => row.id === "third") ? current : [...current, report("third")])}>Add report</button>
-    <BoardItemPage slug="documents" item={item} canWrite={false} transition={unused} retryAcceptance={unused} pipelineChoices={[]} changePipeline={async () => { throw new Error("Read-only fixture"); }} />
+    <BoardItemPage slug="documents" item={item} canWrite={false} transition={unused} discard={unused} retryAcceptance={unused} pipelineChoices={[]} changePipeline={async () => { throw new Error("Read-only fixture"); }} />
   </>;
+}
+
+function ItemActionsFixture() {
+  const at = new Date("2026-11-05T00:00:00Z");
+  const item: BoardItemView = {
+    id: "stall", pipeline: { pipelineId: null, name: "Default", canChange: false, runState: "running" },
+    key: "STALL-1", title: "Plan verification that does not converge", agent: "dev", area: "src/text.mjs", status: "in_review",
+    reason: "Stuck at verify", results: [], validation: null, proposedOn: at, acceptedAt: null,
+    acceptanceFailure: null, updatedAt: at.toISOString(), repo: { owner: "fixture", repo: "stall", branch: "main" }, reports: [], events: [], docs: [],
+  };
+  const respond = (input: unknown) => action<ActionResult<void>>(input, { success: { success: true, data: undefined }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } });
+  return <BoardItemPage slug="stall" item={item} canWrite transition={respond} discard={(key, expectedUpdatedAt) => respond({ discard: key, expectedUpdatedAt })}
+    retryAcceptance={async () => { throw new Error("Item actions fixture must not retry acceptance"); }} pipelineChoices={[]} changePipeline={async () => { throw new Error("Item actions fixture must not change pipelines"); }} />;
 }
 
 function TurnFixture() {
@@ -294,7 +307,7 @@ function renderMode(mode: string, picker = false) {
   }
   root = createRoot(document.getElementById("root")!);
   frontendMode = mode === "ux-pipeline" || mode === "ux-rail";
-  const content = <AppRouterContext.Provider value={router}>{mode === "ux-pipeline" || mode === "ux-rail" ? <FrontendUxFixture mode={mode} Rail={PipelineRail} /> : mode === "documents" ? <DocumentsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>;
+  const content = <AppRouterContext.Provider value={router}>{mode === "ux-pipeline" || mode === "ux-rail" ? <FrontendUxFixture mode={mode} Rail={PipelineRail} /> : mode === "documents" ? <DocumentsFixture /> : mode === "item-actions" ? <ItemActionsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>;
   root.render(mode === "private-initial-strict" ? <React.StrictMode>{content}</React.StrictMode> : content);
 }
 const toolbar = document.createElement("div");

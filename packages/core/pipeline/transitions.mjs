@@ -16,6 +16,7 @@ const RULES = [
   { from: "done", to: "planning", actor: "human", kind: "reopen", requiresResult: true, clearsValidation: true },
   { from: "planning", to: "in_review", actor: "agent", kind: "plan", requiresPlan: true },
   { from: "planning", to: "on_hold", actor: "agent", kind: "hold", requiresResult: true },
+  { from: "in_review", to: "on_hold", actor: "agent", kind: "hold", requiresResult: true },
   { from: "implementing", to: "done", actor: "pipeline", kind: "auto", requiresResult: true, requiresReport: true },
   { from: "implementing", to: "on_hold", actor: "agent", kind: "hold", requiresResult: true },
 ];

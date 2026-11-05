@@ -22,6 +22,12 @@ describe("transitions", () => {
     assert.equal(findRule("agent", "implementing", "on_hold").requiresResult, true);
     assert.equal(findRule("human", "implementing", "done"), null);
   });
+  it("an agent parks in-review work on hold with a result and cannot leave review any other way", () => {
+    const hold = findRule("agent", "in_review", "on_hold");
+    assert.equal(hold.kind, "hold"); assert.equal(hold.requiresResult, true); assert.equal(hold.clearsValidation, undefined);
+    for (const s of ["proposed", "planning", "implementing", "done"]) assert.equal(findRule("agent", "in_review", s), null, s);
+    assert.equal(findRule("agent", "proposed", "on_hold"), null);
+  });
   it("human rejects: bounce clears validation, hold needs result, resume", () => {
     const bounce = findRule("human", "in_review", "planning");
     assert.equal(bounce.kind, "bounce"); assert.equal(bounce.clearsValidation, true);

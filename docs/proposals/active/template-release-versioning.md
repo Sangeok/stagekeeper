@@ -721,6 +721,14 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 
 변경 후 현재 계약은 [template-releases.md](../../architecture/template-releases.md)가 권위다. native macOS/Windows 출시 조합의 실제 설치·hook 로딩, 전체 이전 client 집합, 운영 백업 복원·이관·포인터 복구와 배포 인수는 실행하지 않았다. TPL4 완료 또는 운영 배포 승인을 뜻하지 않으며 제안서는 active에 유지한다.
 
+2026-11-05 TPL4 전반(R0)을 운영에서 실행했다. 절차와 승인은 [운영 전환 계획](../completed/2026-11-05-template-release-production-cutover.md)에, 판정은 [인수 보고서](../../test-reports/completed/2026-11-05-template-release-production-cutover.md)에 있다.
+
+- 운영 DB에 마이그레이션 2개를 적용하고 main을 `9516f1d`로 올렸다. `9516f1d`는 `3e69c58`에 시험 수정 #292를 더한 커밋이다.
+- `template-release.yml`의 bootstrap(run 42027310590)으로 R0 `fc20ccfd…`를 seal했다. 채널은 versioned, revision 1, legacy writer 장벽 true다. 열린 실행 8개가 모두 R0에 pin됐다.
+- 이제 운영 템플릿 변경은 이 워크플로의 import와 activate로만 한다. legacy seed는 writer 장벽이 거부한다.
+- 운영 사용자의 Windows bundle(0.6.1) 설치·hook 로딩과 재init, `pipeline_next`를 확인했다. BLK-TPL-04의 R0 범위 승인과 BLK-TPL-03의 백업 확인은 이 실행에서 처리했다.
+- 남은 것: R1 import·activate와 포인터 복구 인수(TPL4 후반), Codex 경로와 다른 기기의 인수.
+
 ## Verification Results
 
 아래 표는 구현 전 문서 reconciliation 당시의 기록이다. 최신 코드 검증은 Implementation Progress와 구현 검증 보고서를 따른다.

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
 import { blobHref, DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
 import { ChangePipelineControl, type ChangePipelineAction } from "@/fsd/features/change-item-pipeline";
-import { AcceptanceFailure, ReopenActions, type RetryAcceptanceAction, type TransitionAction } from "@/fsd/features/review-gate";
+import { AcceptanceFailure, ItemOwnerActions, ReopenActions, type DiscardAction, type RetryAcceptanceAction, type TransitionAction } from "@/fsd/features/review-gate";
 import { HistoryList, toHistoryRows, HISTORY_TRUNCATED_NOTE, type HistoryEventInput, type HistoryReportInput } from "@/fsd/widgets/history-feed";
 import { utcMinute } from "@/fsd/shared/lib/relative-time";
 import { Chip } from "@/fsd/shared/ui/chip";
@@ -33,7 +33,7 @@ export type BoardItemView = {
   historyTruncated?: boolean;
 };
 
-export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrite, pipelineChoices, changePipeline }: { slug: string; item: BoardItemView; transition: TransitionAction; retryAcceptance: RetryAcceptanceAction; canWrite: boolean; pipelineChoices: { id: string; name: string }[]; changePipeline: ChangePipelineAction }) {
+export function BoardItemPage({ slug, item, transition, discard, retryAcceptance, canWrite, pipelineChoices, changePipeline }: { slug: string; item: BoardItemView; transition: TransitionAction; discard: DiscardAction; retryAcceptance: RetryAcceptanceAction; canWrite: boolean; pipelineChoices: { id: string; name: string }[]; changePipeline: ChangePipelineAction }) {
   return (
     <>
       <header className="flex flex-col gap-1">
@@ -123,6 +123,8 @@ export function BoardItemPage({ slug, item, transition, retryAcceptance, canWrit
             ? blobHref(item.repo, item.acceptanceFailure.path, item.acceptanceFailure.commit) : null,
         }}
       />
+
+      {canWrite ? <ItemOwnerActions itemKey={item.key} status={item.status} updatedAt={item.updatedAt} transition={transition} discard={discard} /> : null}
 
       {canWrite ? <ReopenActions itemKey={item.key} status={item.status} updatedAt={item.updatedAt} transition={transition} /> : null}
 
