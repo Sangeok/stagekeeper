@@ -187,7 +187,7 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
     if (unavailable) return unavailable;
     return unwrap(await deps.propose(projectId, args, actorRef));
   });
-  server.registerTool("board_transition", { description: "Agent transitions only: planning or implementing → on_hold (result required). Implementation completion belongs to the pipeline. plan_submit already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here.", inputSchema: z.object({ ...project, key: z.string(), to: z.string(), result: z.string().optional() }) }, async (args, ctx: Ctx) => {
+  server.registerTool("board_transition", { description: "Agent transitions only: planning, in_review or implementing → on_hold (result required). in_review → on_hold parks work whose plan verification stopped converging. Implementation completion belongs to the pipeline. plan_submit already crosses planning → in_review, so that call is no longer needed; asking for the status the item is already in succeeds without recording anything. Gates are not here.", inputSchema: z.object({ ...project, key: z.string(), to: z.string(), result: z.string().optional() }) }, async (args, ctx: Ctx) => {
     const s = await scope(args, ctx, deps);
     if (!s.ok) return fail(s.reason);
     const { projectId, actorRef } = s;

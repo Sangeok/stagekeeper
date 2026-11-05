@@ -550,6 +550,9 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 DB 없는 실제 컴포넌트 시험은 `--ui-only`로 실행한다. `/fixture?mode=token-issuance`는
 세 발급 폼의 성공·거부·응답 미확인과 Previous token/만료값 보존을 제어하고,
 `/fixture?mode=documents`는 같은 URL의 별개 보고를 추가·삭제·재정렬한다.
+`/fixture?mode=item-actions`는 Verify에 멈춘 In review 항목의 상세 페이지를 쓰기 가능으로 렌더링한다.
+More actions의 Send back·Put on hold·Discard가 보내는 humanTransition·discard 입력을 `window.fixture.payloads`에 기록하고
+`window.fixture.finishAction("success"|"error"|"stale"|"unknown")`으로 응답을 결정한다.
 `?mode=copy&autorun` 또는 Run acceptance가 전체 동작 시험 결과를 `/results`에 기록한다.
 Documents의 duplicate-key 경고는 `--ui-only --fixture-development`로 별도 확인한다.
 이 옵션은 fixture 브라우저 번들만 development로 바꾸며 production build 설정은 바꾸지 않는다.

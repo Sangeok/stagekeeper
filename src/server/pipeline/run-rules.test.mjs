@@ -69,6 +69,15 @@ describe("decideNext (H.4)", () => {
     assert.equal(decideNext({ ...base, node: "doc-audit", status: "done" }).agent, "doc-auditor");
     assert.equal(decideNext({ ...base, node: "propose", status: "proposed" }).agent, "pm");
   });
+  it("the verify hint ends a non-converging plan check with an agent hold instead of more rounds", () => {
+    const dispatched = decideNext({ ...base, node: "verify" });
+    assert.equal(dispatched.action, "dispatch");
+    assert.equal(dispatched.agent, "plan-verifier");
+    assert.match(dispatched.hint, /three plan-verifier passes in a row report defects/);
+    assert.match(dispatched.hint, /no further plan edit/);
+    assert.match(dispatched.hint, /board_transition\(\{ to: "on_hold", result \}\)/);
+    assert.match(dispatched.hint, /Inbox/);
+  });
   it("HINT covers every node the pipeline can stop on, accept included", () => {
     assert.deepEqual(Object.keys(HINT).sort(), ["accept", "assign-work", "discover-work", "doc-audit", "impl-verify", "implement", "plan", "propose", "qa", "scout", "scoutHead", "verify"]);
     assert.match(HINT.verify, /validation_record/);
