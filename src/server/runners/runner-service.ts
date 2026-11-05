@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { limitsFor, RESIDENT_RUNNER_PLAN_GATE, CODEX_RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
-import { BEAT_WRITE_INTERVAL_MS, holdsRunnerLease, needsAgentActivity } from "@harness/core/execution/runner.mjs";
+import { BEAT_WRITE_INTERVAL_MS, holdsRunnerLease, idleInterval, needsAgentActivity, WORKING_BEAT_MS } from "@harness/core/execution/runner.mjs";
 import { readDatabaseClockIn } from "@/server/database-clock";
 import { lockProjectOwnerIn, READ_OPTIONS, readProjectAccessIn } from "@/server/projects/api";
 import type { ServerResult } from "@/server/result";
@@ -21,7 +21,7 @@ export function runnerBusyReason(holder: { host: string; seenAt: Date }): string
 
 const RUNNER_SELECT = {
   client: true, session: true, mode: true, host: true, branch: true, permission: true, autostart: true, state: true,
-  waitReason: true, lastResult: true, lastLog: true, stopReason: true, startedAt: true, seenAt: true,
+  waitReason: true, lastResult: true, lastLog: true, stopReason: true, startedAt: true, seenAt: true, idleSince: true,
 } as const satisfies Prisma.RunnerSelect;
 type RunnerRow = Prisma.RunnerGetPayload<{ select: typeof RUNNER_SELECT }>;
 
@@ -78,7 +78,7 @@ async function startIn(tx: Tx, projectId: string, tokenId: string, request: Extr
   const data = {
     client, session: request.session, tokenId, mode: request.mode, host: request.host,
     branch: resident ? request.branch : null, permission: resident ? request.permission : null, autostart: resident && request.autostart,
-    state: "idle", waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: now, seenAt: now,
+    state: "idle", waitReason: null, lastResult: null, lastLog: null, stopReason: null, startedAt: now, seenAt: now, idleSince: null,
   };
   await tx.runner.upsert({ where: { projectId }, create: { projectId, ...data }, update: data });
   return { ok: true, body: { ok: true, paused, ...codexBinding(client, request.session) } };
@@ -91,18 +91,25 @@ async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op
   const row = await tx.runner.findUnique({ where: { projectId }, select: RUNNER_SELECT });
   if (!row || row.client !== (request.client ?? "claude") || row.session !== request.session || row.state === "stopped") return replaced();
   const state = request.state ?? row.state;
+  const previousIdle = row.idleSince ?? null;
+  const idleSince = state === "working" ? null
+    : request.state === null ? previousIdle
+    : row.state === "working" || previousIdle === null ? now : previousIdle;
   const next = {
     state,
     waitReason: state === "waiting" ? request.waitReason ?? row.waitReason : null,
     lastResult: request.lastResult ?? row.lastResult,
     lastLog: request.lastLog ?? row.lastLog,
+    idleSince,
   };
-  const changed = next.state !== row.state || next.waitReason !== row.waitReason || next.lastResult !== row.lastResult || next.lastLog !== row.lastLog;
+  const changed = next.state !== row.state || next.waitReason !== row.waitReason || next.lastResult !== row.lastResult || next.lastLog !== row.lastLog
+    || next.idleSince?.getTime() !== previousIdle?.getTime();
   if (changed || now.getTime() - row.seenAt.getTime() >= BEAT_WRITE_INTERVAL_MS) {
     await tx.runner.update({ where: { projectId }, data: { ...next, seenAt: now } });
   }
+  const wait = state === "working" ? WORKING_BEAT_MS : idleInterval(idleSince === null ? 0 : now.getTime() - idleSince.getTime());
   const stop = row.mode === "resident" && !limitsFor(access.plan).residentRunner;
-  return { ok: true, body: { ok: true, paused, ...codexBinding(row.client, row.session), ...(stop ? { stop: "plan" as const } : {}) } };
+  return { ok: true, body: { ok: true, paused, ...codexBinding(row.client, row.session), ...(stop ? { stop: "plan" as const } : {}), nextBeatIn: Math.ceil(wait / 1000) } };
 }
 
 async function stopIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op: "stop" }>): Promise<RunnerOpResult> {
@@ -144,7 +151,7 @@ async function autostartIn(tx: Tx, projectId: string, tokenId: string, request: 
   const data = {
     client: "claude", session: request.session, tokenId, mode: "resident", host: request.host, branch: request.branch, permission: null, autostart: true,
     state: "stopped", waitReason: null, lastResult: refused ? request.code : null, lastLog: null, stopReason: refused ? "signin" : "owner",
-    startedAt: now, seenAt: now,
+    startedAt: now, seenAt: now, idleSince: null,
   };
   await tx.runner.upsert({ where: { projectId }, create: { projectId, ...data }, update: data });
   return { ok: true, body: { ok: true, paused } };

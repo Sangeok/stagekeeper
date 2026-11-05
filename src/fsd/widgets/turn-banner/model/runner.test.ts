@@ -13,7 +13,7 @@ const ago = (minutes: number) => new Date(RENDERED - minutes * 60_000).toISOStri
 const runner = (patch: Partial<TurnRunner> = {}): TurnRunner => ({
   client: "claude",
   mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle",
-  waitReason: null, stopReason: null, signinCode: null, seenAt: ago(1), lastActivity: null, ...patch,
+  waitReason: null, stopReason: null, signinCode: null, seenAt: ago(1), idleSince: null, lastActivity: null, ...patch,
 });
 const facts = (value: TurnRunner | null, paused = false): RunnerFacts => ({ runner: value, paused, renderedAt: new Date(RENDERED).toISOString() });
 const text = (value: RunnerFacts, now = RENDERED) => { const line = runnerLine(value, now); return line === null ? null : lineText(line); };
@@ -125,6 +125,17 @@ describe("runnerLine", () => {
     const value = facts(runner({ seenAt: ago(2) }));
     assert.equal(text(value, RENDERED), "Runner: watching in Claude Code on desk · checked 2 min ago");
     assert.equal(text(value, RENDERED + 90_000), "No signal from the runner on desk for 3 min.");
+  });
+
+  it("shows when an idle runner checks next and stays live until two minutes past it", () => {
+    const resident = { mode: "resident" as const, branch: "main", permission: "auto" as const };
+    const quiet = facts(runner({ ...resident, seenAt: ago(5), idleSince: ago(150) }));
+    assert.equal(text(quiet), "Runner: running in the background on desk (main) · checked 5 min ago · next check in about 25 min");
+    assert.equal(text(quiet, RENDERED + 26 * 60_000), "Runner: running in the background on desk (main) · checked 31 min ago");
+    assert.equal(text(quiet, RENDERED + 28 * 60_000), "No signal from the runner on desk for 33 min.");
+    assert.equal(text(facts(runner({ seenAt: ago(5), idleSince: ago(30) }), true)), "Runner paused — it starts nothing new. · next check in about 10 min");
+    assert.equal(text(facts(runner({ seenAt: ago(0.5), idleSince: ago(3) }))), "Runner: watching in Claude Code on desk · checked 1 min ago");
+    assert.equal(short(quiet), "Runner: running on desk");
   });
 });
 

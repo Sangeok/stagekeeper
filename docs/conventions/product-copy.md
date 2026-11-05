@@ -254,8 +254,11 @@ watch (`/harness:watch`) or, on Pro, the background runner. It answers "is anyth
 where". What the runner is doing is not repeated — the detail line above already says it.
 `{host}` and `{branch}` are identifiers and render in mono; `{n}` is whole minutes ("checked" never
 says 0). Units join with " · ". One line wins, in this order: stopped → no signal → paused →
-waiting → working or watching. "No signal" means no signal for 3 minutes; a session working on a
-step counts the latest agent activity and allows 60 minutes. The background runner adds
+waiting → working or watching. "No signal" means no signal for 3 minutes, or 2 minutes past the
+next check the server gave an idle runner, whichever is later; a session working on a
+step counts the latest agent activity and allows 60 minutes. An idle or paused runner that has been
+idle long enough to check less often adds ` · next check in about {n} min` while that check is more
+than 2 minutes away, so the owner knows when an approval will be picked up. The background runner adds
 ` · starts at sign-in` when sign-in start is on and ` · allow-list only` when it runs without auto mode.
 The manual Codex candidate prefixes full and short runner lines with `Codex · ` and adds
 ` · scoped tools`. The stored runner client selects these lines and its recovery entry.
@@ -271,6 +274,7 @@ edit in that checkout during a run can land in the runner's commit. A working se
 > Runner: working in Claude Code on {host}
 > Runner: working in the background on {host} ({branch})
 > checked {n} min ago
+> next check in about {n} min
 > last activity {n} min ago
 > Runner on {host} is waiting: commit or stash the changes on {branch}, and it continues.
 > Runner on {host} is waiting: switch back to {branch}, and it continues.

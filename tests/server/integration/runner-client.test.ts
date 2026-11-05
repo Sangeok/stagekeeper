@@ -22,7 +22,7 @@ it("fences client, stopped-session and sign-in operations through the real REST 
     const start = { op: "start", session: SESSION, client: "codex", mode: "resident", branch: "dev", host: "current-pc", permission: "scoped", autostart: false };
     const binding = { session: SESSION, client: "codex", mode: "resident", permission: "scoped" };
     assert.deepEqual(await call(start), { status: 200, body: { ok: true, paused: false, binding } });
-    assert.deepEqual(await call({ op: "beat", client: "codex", session: SESSION }), { status: 200, body: { ok: true, paused: false, binding } });
+    assert.deepEqual(await call({ op: "beat", client: "codex", session: SESSION }), { status: 200, body: { ok: true, paused: false, binding, nextBeatIn: 60 } });
     for (const body of [{ op: "beat", session: SESSION }, { op: "stop", session: SESSION, reason: "owner" },
       { ...start, client: "claude", permission: "auto" }, { ...start, host: "other" }, { ...start, branch: "other" }]) {
       const result = await call(body);
