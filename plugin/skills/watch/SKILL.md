@@ -177,14 +177,17 @@ acceptance/report, wait for the owner's commit; do not submit unrelated HEAD
 as its evidence. Agent handoff is recorded using its current entry and receipt.
 After the owner actually commits and explicitly requests continuation, resume
 the same run **without outcome**. Watch does not detect commits or clear
-handoffs on its own.
+handoffs on its own. In a background run (section 7), the runner's stored commit
+policy stands in for the owner's commit and continuation request for a handoff
+from a role that run dispatched.
 
-An unanswered permission prompt or main-loop commit handoff pauses automatic
-execution/rearming until owner input. Do not broaden permissions or bypass
-the prompt. Gate approval always needs the owner's separate explicit approval;
-being watched grants none. If the session has an authorized notification tool,
-use it only for the first occurrence of that wait, following its authorization
-rules; otherwise show the terminal message. Phone delivery is not required.
+An unanswered permission prompt, or a main-loop commit handoff outside a
+background run, pauses automatic execution/rearming until owner input. Do not
+broaden permissions or bypass the prompt. Gate approval always needs the
+owner's separate explicit approval; being watched grants none. If the session
+has an authorized notification tool, use it only for the first occurrence of
+that wait, following its authorization rules; otherwise show the terminal
+message. Phone delivery is not required.
 
 ## 6. Stop and failure
 
@@ -237,11 +240,19 @@ answer, and never arm the watcher or run the watch CLI.
    ownership, `stopping` or `paused:true`, start nothing new and let running
    roles finish.
 3. Where the runbook says to ask or tell the owner, that item waits — the web
-   already shows the gate, hold or handoff. Note it in your final reply and
-   continue with other items. A denied tool call is not retried in another form;
-   that item waits for the next run.
-4. Commit under the runbook's rules. Never push and never open a gate.
-5. Repeat fresh cycles until no ready work remains, then end the turn with one
+   already shows the gate or hold. Note it in your final reply and continue with
+   other items. A denied tool call is not retried in another form; that item
+   waits for the next run.
+4. A commit handoff from a role you dispatched in this run is not an owner wait:
+   the runner's stored commit policy is the owner's commit and continuation
+   request for it (section 5). Commit only the handed-off file under the
+   runbook's rules, then resume that role's same run **without outcome**, with
+   its exact entry and receipt, so it confirms the commit and submits. If the
+   file is missing or outside this checkout, the commit fails, or the resume is
+   refused, that item waits; name it in your final reply. A handoff that an
+   earlier run left behind still waits for the owner.
+5. Commit under the runbook's rules. Never push and never open a gate.
+6. Repeat fresh cycles until no ready work remains, then end the turn with one
    line per item you moved or left waiting. The runner reads the result and
    decides when to start the next run.
 

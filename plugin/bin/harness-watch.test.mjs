@@ -742,6 +742,20 @@ it("the watch skill preflight lists exactly the modules the watch and session he
   assert.deepEqual([...preflight.matchAll(/`((?:bin|lib|runtime)\/[^`]+)`/g)].map(([, name]) => name).sort(), [...loaded].sort());
 });
 
+it("the watch skill has a background run commit and resume a handoff from a role it dispatched instead of waiting for the owner", () => {
+  const skill = readFileSync(new URL("../skills/watch/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+  const section = (from, to) => skill.slice(skill.indexOf(from), skill.indexOf(to));
+  const permissions = section("## 5. Permissions and handoffs", "## 6. Stop and failure");
+  const once = section("## 7. One background run", "## Commands and quoting");
+  assert.ok(permissions.length > 0 && once.length > 0, "both sections are present");
+  assert.match(permissions, /In a background run \(section 7\), the runner's stored commit policy stands in for the owner's commit and continuation request/);
+  assert.match(permissions, /a main-loop commit handoff outside a background run, pauses automatic execution/);
+  assert.match(once, /A commit handoff from a role you dispatched in this run is not an owner wait/);
+  assert.match(once, /Commit only the handed-off file under the runbook's rules, then resume that role's same run \*\*without outcome\*\*/);
+  assert.match(once, /A handoff that an earlier run left behind still waits for the owner/);
+  assert.doesNotMatch(once, /gate, hold or handoff/);
+});
+
 it("with a lease, waits as long as the server says before the next check, paused or not", async (t) => {
   for (const paused of [false, true]) {
     const f = await fixture(t);
