@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { runnerStatus } from "@harness/core/execution/runner.mjs";
 import { RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { RunnerOp } from "./contracts";
@@ -281,6 +282,16 @@ describe("runner beat", () => {
     const fresh = fakeDb({ runner: runnerRow({ session: MINE, state: "idle", seenAt: ago(1) }) });
     await op(fresh, beat({ state: "waiting", waitReason: "branch" }));
     assert.equal(fresh.state.runner?.idleSince?.getTime(), NOW.getTime());
+  });
+
+  it("writes a signal that moves the idle clock into a longer step, so the runner stays live until the signal it was told to send", async () => {
+    for (const [idleSeconds, announced] of [[600, 900], [7200, 1800]] as const) {
+      const db = fakeDb({ runner: runnerRow({ session: MINE, state: "idle", seenAt: new Date(NOW.getTime() - 1000), idleSince: new Date(NOW.getTime() - idleSeconds * 1000 - 500) }) });
+      const result = await op(db, beat({ state: "idle" }));
+      assert.equal(result.ok && result.body.nextBeatIn, announced);
+      assert.deepEqual(db.state.runner?.seenAt, NOW);
+      assert.equal(runnerStatus(db.state.runner!, null, new Date(NOW.getTime() + announced * 1000)), "live", `${idleSeconds} s idle`);
+    }
   });
 });
 

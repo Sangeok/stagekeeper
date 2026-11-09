@@ -104,7 +104,9 @@ async function beatIn(tx: Tx, projectId: string, request: Extract<RunnerOp, { op
   };
   const changed = next.state !== row.state || next.waitReason !== row.waitReason || next.lastResult !== row.lastResult || next.lastLog !== row.lastLog
     || next.idleSince?.getTime() !== previousIdle?.getTime();
-  if (changed || now.getTime() - row.seenAt.getTime() >= BEAT_WRITE_INTERVAL_MS) {
+  const idleStepChanged = idleSince !== null
+    && idleInterval(now.getTime() - idleSince.getTime()) !== idleInterval(row.seenAt.getTime() - idleSince.getTime());
+  if (changed || idleStepChanged || now.getTime() - row.seenAt.getTime() >= BEAT_WRITE_INTERVAL_MS) {
     await tx.runner.update({ where: { projectId }, data: { ...next, seenAt: now } });
   }
   const wait = state === "working" ? WORKING_BEAT_MS : idleInterval(idleSince === null ? 0 : now.getTime() - idleSince.getTime());
