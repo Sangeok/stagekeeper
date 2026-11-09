@@ -259,7 +259,8 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
 - 재전송: 같은 client/session의 start는 성공(seenAt만 갱신)이고 beat는 멱등, 행이 없는 stop은 성공이다. Codex start는
   stopped 상태나 host/branch/mode/permission 변경을 거부한다. client 불일치도 RUNNER_REPLACED다. 행이 없거나 다른
   session이거나 stopped인 행에 대한 beat와 다른 session의 stop은 `RUNNER_REPLACED`다.
-- 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다.
+- 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다. 다만 대기 시간이 감속 단계를 넘긴 beat는 쓴다.
+  생존 판정이 저장된 seenAt으로 간격을 다시 계산하므로, 쓰지 않으면 실행기가 받은 간격보다 짧은 마감이 남는다.
 - 대기 시각(`Runner.idleSince`, 마이그레이션 `20261106000000_runner_idle_since`): idle·waiting beat는 행이 working이었거나
   값이 비어 있으면 DB 시각을 넣고, 아니면 그대로 둔다. working beat는 비우고, 상태 없는 beat는 그대로 두며, 새 세션의 start는 비운다.
 - 정지: owner는 행을 지운다. 다만 자동 시작이 켜진 resident 행은 `state=stopped`·`stopReason=owner`로 남긴다.

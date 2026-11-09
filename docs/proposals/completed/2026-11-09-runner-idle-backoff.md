@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-05"
 approved-by: "user"
 approved-at: "2026-11-06"
 approval-scope: "이 설계 전체의 구현과 PR, 선행 client-init-smoke 수정 PR. 운영 migrate deploy와 main push는 실행 직전에 각각 따로 승인받는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-09"
+verification-summary: "#297(dev 머지 cd90876) 뒤 dev ac6a6dd에서 push CI 3개, client-init-smoke 4/4, agent-eval, pipeline-smoke가 녹색이었다. pipeline-smoke는 harnessErrors 0, stepRefusals 0, 649초로 직전 실행(656초, 870초)보다 느려지지 않았다. 운영 마이그레이션 runner_idle_since를 적용했고(36개 up to date), main ac6a6dd의 Vercel 배포가 운영 페이지와 일치했다. 이 PC는 0.6.3 번들로 바꿨고 캐시 2,238개 파일이 모두 일치했다. Windows 로컬 check의 0600 프로필 시험 실패는 바꾸지 않은 커밋에서도 나는 기존 실패다. 출시 뒤 대조에서 감속 단계 경계의 seenAt 기록 누락을 찾아 이 기록 PR에서 고쳤다(서버만, 운영 반영은 다음 main 승격). 실제 잠자기 함수로 잰 신호 지연은 30분 대기에 약 30~35초로 2분 여유 안이다. 운영의 15분·30분 구간은 아직 실기로 보지 않았다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -199,7 +199,7 @@ Runner에 `idleSince DateTime?`을 더한다(추가형).
 
 - 배포 순서 제약이 없다. 그래도 평소처럼 main 승격이 서버를 먼저 배포하고, 플러그인은 그 뒤 marketplace update로 간다.
 - 플러그인 판은 구현 시점 dev 판의 다음 판이다. 2026-11-06 dev는 #293으로 0.6.2이므로 0.6.3이다.
-- 리허설(pipeline-smoke)에서 10분 넘는 무작업 구간이 생겨 CI가 느려지면, CI가 띄우는 서버에서만 환경 변수로 감속을 끈다. 플러그인은 바꾸지 않는다. 승격 게이트에서 소요 시간으로 판단한다.
+- 리허설(pipeline-smoke)에서 10분 넘는 무작업 구간이 생겨 CI가 느려지면, CI가 띄우는 서버에서만 환경 변수로 감속을 끈다. 플러그인은 바꾸지 않는다. 승격 게이트에서 소요 시간으로 판단한다. 결과: 게이트에서 느려지지 않아(649초) 이 스위치는 만들지 않았다.
 
 ### 대안과 버린 이유
 
@@ -231,7 +231,7 @@ Runner에 `idleSince DateTime?`을 더한다(추가형).
 | `packages/core/execution/runner.mjs`, `runner.test.mjs`, `plugin/lib/execution/runner.mjs` | update | 감속 일정, `idleSince` 생존 판정 | medium — 점유와 배너가 같이 바뀐다 |
 | `prisma/schema.prisma`, `prisma/migrations/<새 시각>_runner_idle_since/` | update/new | `Runner.idleSince DateTime?` 추가형 | low — nullable |
 | `src/server/runners/contracts.ts`, `runner-service.ts`, `runner-service.test.ts`, `tests/server/integration/runner-lease.test.ts` | update | `idleSince` 전환, `nextBeatIn` 응답, view·점유 | medium |
-| `src/server/rest/runner-handler.ts`, `.test.ts` | update | 응답 직렬화에 `nextBeatIn`. 요청 파서는 그대로 | low |
+| `src/server/rest/runner-handler.ts`, `.test.ts` | 변경 없음 | 응답 본문을 그대로 내보내서 바꿀 필요가 없었다. 통합 시험 `tests/server/integration/runner-client.test.ts`가 route를 거쳐 `nextBeatIn`을 확인한다. 요청 파서는 그대로다 | low |
 | turn 데이터 경로와 `src/fsd/widgets/turn-banner/model/runner.ts`, `runner.test.ts`, `ui/turn-banner.test.ts` | update | `idleSince` 전달, 생존 판정, "next check" 줄. 문구는 두 시험이 고정한다 | low |
 | `plugin/runtime/runner-client.mjs`, `runner-client.test.mjs` | update | `nextBeatIn` 읽기와 범위 자르기 | low |
 | `plugin/runtime/background.mjs`, `plugin/bin/harness-background*.test.mjs` | update | 받은 간격으로 잠자기, 작업 트리 대기의 로컬 확인 | high — 무인 실행 루프 |
@@ -239,20 +239,27 @@ Runner에 `idleSince DateTime?`을 더한다(추가형).
 | `plugin/.claude-plugin/plugin.json`, `plugin/.codex-plugin/plugin.json` | update | 판 상승 | low |
 | `docs/architecture/protocol.md`, `docs/conventions/product-copy.md` | update | 계약과 문구 | none |
 
+실제로 바뀐 파일:
+
+- #297은 27개 파일을 바꿨다. 위 표에 없는 시험 세 개도 들어 있다. `src/fsd/pages/project-list/ui/project-list-page.test.mjs`, `src/fsd/widgets/turn-banner/api/turn-data.test.ts`, `tests/server/integration/runner-client.test.ts`다.
+- 이 기록 PR은 경계 기록 수정으로 `src/server/runners/runner-service.ts`, `runner-service.test.ts`, `docs/architecture/protocol.md`를 더 고쳤다.
+
 ## Safety Analysis
 
 확인할 항목:
 
 - [x] 앱 진입점과 라우팅 경계: 라우트 변경은 없다. `/api/runner`의 응답만 늘어난다.
-- [ ] 정적 `import` / `export from`: core에 새 export가 생긴다. `npm run sync:plugin-lib` 뒤 `plugin-lib.mjs --check`(드리프트 검사)를 통과해야 한다.
+- [x] 정적 `import` / `export from`: core에 새 export가 생긴다. `npm run sync:plugin-lib` 뒤 `plugin-lib.mjs --check`(드리프트 검사)를 통과해야 한다. 결과: `npm run check`의 드리프트 검사를 로컬과 PR CI에서 통과했다.
 - [x] dynamic `import()` 또는 lazy loading: 없음.
 - [x] barrel export 경유 참조: turn-banner의 공개 API로만 쓴다.
-- [ ] 테스트와 스크립트 참조: 실행기 루프 시험은 가짜 시계를 쓴다. 받은 간격대로 자는지 단언하도록 고친다. pipeline-smoke는 무작업 구간이 10분을 넘으면 느려질 수 있어 승격 게이트에서 확인한다.
+- [x] 테스트와 스크립트 참조: 실행기 루프 시험은 가짜 시계를 쓴다. 받은 간격대로 자는지 단언하도록 고친다. pipeline-smoke는 무작업 구간이 10분을 넘으면 느려질 수 있어 승격 게이트에서 확인한다. 결과: 실행기와 watch 시험 5개를 더했고 옛 코드에서 실패하는 것을 확인했다. pipeline-smoke는 649초로 느려지지 않았다.
 - [x] 정적 자산 URL: 없음.
-- [ ] 타입 선언: `RunnerRecord`, `RunnerOpResult`의 beat 응답, `TurnRunner`에 필드가 늘어난다.
-- [ ] 런타임 side effect: 대기 중 서버 호출이 줄고, 일시정지 해제의 서버 반영이 받은 간격만큼 늦어질 수 있다. 로컬 정지 반응은 1초 그대로다.
+- [x] 타입 선언: `RunnerRecord`, `RunnerOpResult`의 beat 응답, `TurnRunner`에 필드가 늘어난다. 결과: `tsc --noEmit`을 통과했다.
+- [x] 런타임 side effect: 대기 중 서버 호출이 줄고, 일시정지 해제의 서버 반영이 받은 간격만큼 늦어질 수 있다. 로컬 정지 반응은 1초 그대로다. 결과: 시험으로 확인했고 긴 잠자기의 신호 지연을 실측했다. 출시 뒤 대조에서 단계 경계의 기록 누락을 찾아 고쳤다(Verification Results).
 - [x] API·외부 SDK: `/api/runner` beat 응답에 필드가 추가된다. 요청 계약은 그대로다.
-- [ ] 출시된 판과의 조합: 위 표의 네 조합을 시험한다. 특히 옛 판 응답 해석이 새 필드를 무시하는지와, 새 판이 필드 없는 응답에서 60초로 도는지다.
+- [x] 출시된 판과의 조합: 위 표의 네 조합을 시험한다. 특히 옛 판 응답 해석이 새 필드를 무시하는지와, 새 판이 필드 없는 응답에서 60초로 도는지다. 결과:
+  - 새 판과 옛 서버: runner-client 시험(값이 없거나 잘못되면 버림)과, 응답에 값이 없는 기존 실행기·watch 시험이 60초로 도는 것으로 확인했다.
+  - 옛 판과 새 서버: 0.5.33, 0.6.1, 0.6.2의 runner-client가 응답에서 `ok`·`paused`·`stop`·`binding`만 골라 쓰는 것을 코드로 확인했다. 옛 코드를 실제로 돌려 보지는 않았다.
 
 ## Approval
 
@@ -312,7 +319,9 @@ node --env-file=<production env file> node_modules/prisma/build/index.js migrate
 
 ## Verification Results
 
-2026-11-06 로컬(Windows, worktree `harness/runner-idle-backoff`, 기준 dev `62e68dd`) 결과다.
+### 로컬과 PR CI
+
+로컬은 2026-11-06 Windows, worktree `harness/runner-idle-backoff`, 기준 dev `62e68dd`이다.
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
@@ -322,8 +331,69 @@ node --env-file=<production env file> node_modules/prisma/build/index.js migrate
 | `node --import tsx --test src/server/runners/runner-service.test.ts` | 31 pass | `idleSince` 전환, `nextBeatIn`, 점유 시험 3개를 더했다 |
 | 옛 코드 대조 | 새 시험 실패 확인 | `background.mjs`와 `harness-watch.mjs`만 `origin/dev`판으로 바꾸면 새 실행기 시험 4개와 watch 시험 1개가 실패하고, 되돌리면 통과한다 |
 | `npm run check` | 1 fail(기존) | `scripts/templates/template-release-cli.test.ts`의 0600 프로필 시험이다. 바꾸지 않은 본 checkout `3e69c58`에서도 같은 오류(`Template profiles must be private regular files outside the repository`)로 실패하는 Windows 전용 기존 실패다. 린트 경고 1개는 바꾸지 않은 `plugin/runtime/codex-main-loop-tools.mjs`다. 문서 검사, FSD·서버 경계, 타입 검사는 통과했다 |
-| `npm run test:server:integration` | CI에서 실행 | `runner-lease.test.ts`에 `idleSince`·점유 시험을 더했다 |
-| 승격 게이트·운영 반영 | Not run yet | 머지 뒤 |
+| `npm run test:server:integration` | PR CI 통과 | `check (server-integration)`에서 실행했다. `runner-lease.test.ts`에 `idleSince`·점유 시험을 더했다 |
+| `npm run build` | PR CI 통과 | `check (build)` |
+| PR #297 CI | 전부 통과 | check 6개, Windows native-runtime, macOS runtime contracts 2개, Claude 설치 4개, Vercel |
+
+`npm run check`는 `lint`(FSD·서버 경계 포함)와 `test:scripts`(`test:architecture` 범위 포함)를 함께 돌린다.
+
+### 승격 게이트와 운영 반영
+
+승격 대상은 dev `ac6a6dd`이다. #297과, 문서 하나만 더한 #296이 들어 있다.
+
+| 단계 | 결과 | 비고 |
+| --- | --- | --- |
+| dev push CI | 녹색 | check 42118925618, windows-role-runtime 42118925470, macos-runtime-contracts 42118926018 |
+| `npm run verify:plugin-version -- --base origin/main --head origin/dev` | 통과 | 0.6.2 → 0.6.3, 배포 파일 6개. 2026-11-09 main push 직전에 다시 돌렸다 |
+| client-init-smoke | 4/4 녹색 | run 42119020619. windows-2022와 macos-15에서 각각 new-user와 update |
+| agent-eval | 녹색 | run 42119025536. 첫 시도는 macOS 작업이 러너를 받지 못해 단계 0개로 취소됐다(`job was not acquired by Runner`). 실패한 작업만 다시 돌려 통과했다. 비용 추정 $4.80 |
+| pipeline-smoke | 녹색 | run 42121937637. harnessErrors 0, stepRefusals 0, 48턴, 권한 거부 0, $1.49, 649초(완료까지 10분). 직전 dev `62e68dd` 실행은 656초와 870초였다 |
+| 운영 `migrate deploy` | 적용 | `20261106000000_runner_idle_since`, 2026-11-05T22:45:34Z, 10.5초. 2026-11-09 main push 직전의 `migrate status`는 36개 up to date였다 |
+| main push | 완료 | 2026-11-09T05:35:39Z, `62e68dd..ac6a6dd` fast-forward |
+| 운영 배포 대조 | 일치 | Production deployment 7647837821. 운영 HTML의 `dpl_4CV1dAKtzKGb6SnD8P2hd7PU1yiF`가 main push의 Vercel 상태 id와 같다. `/` 200, `/api/mcp` 401. main push의 check 42568208988 녹색 |
+| 이 PC 번들 0.6.3 | 설치 | 아래 참고 |
+| 운영 실기와 Neon 효과 | 아직 | Completion or Closure Notes의 후속 항목 |
+
+이 PC 번들:
+
+- `ac6a6dd` detached worktree에서 패키징했다. 2,238개 파일, packageSha256 `a96de899…`이다.
+- runtime은 설치본(`0148976b…`)을 재사용했다. 설치본 원본 `3e69c58`과 `ac6a6dd` 사이에 `plugin/runtime/windows`, `scripts/windows`, 검증 스킬, `windows-role-runtime.yml` 변화가 없다. verifier는 `de1120a5…`(7파일) 그대로다.
+- 0.6.1 설치본 대비 inventory 차이는 10개다. 7개는 git의 배포 파일 변경과 같다. 0.6.2의 `transitions.mjs`가 여기에 포함된다. 나머지 3개(`work-selection.mjs`, `request-rate.mjs`, `file-ownership.mjs`)는 줄바꿈만 다르다. 0.6.1을 묶은 checkout에서 이 셋만 LF로 다시 써져 있었고, 새 번들은 다른 파일처럼 CRLF다.
+- marketplace와 plugin update(user scope 0.6.1 → 0.6.3) 뒤 캐시 0.6.3은 2,238개 sha256이 모두 일치했다. inventory 밖 파일은 `windows-package.json`뿐이다. launcher는 런타임 검증 뒤 JSON `session-refused`로 응답했다. 0.6.1 번들은 롤백용으로 남겼다.
+
+### 출시 뒤 대조와 후속 수정(2026-11-09, 이 기록 PR)
+
+완료 기록을 쓰며 본문과 출시된 코드를 다시 대조했다.
+
+단계 경계의 seenAt 기록 누락:
+
+- `beatIn`은 상태가 그대로이고 직전 기록이 30초 안이면 `seenAt`을 쓰지 않는다. 그런데 응답의 `nextBeatIn`은 그 순간 DB 시각으로 계산하고, 생존 판정은 저장된 `seenAt`으로 간격을 다시 계산한다.
+- 상태 없는 확인 신호(`harness-session --check`) 뒤 30초 안에 같은 상태의 신호가 오고 그 사이에 대기 시간이 10분이나 2시간을 넘으면, 실행기는 15분(30분)을 받고 마감은 3분(17분)으로 남는다. 공용 함수로 계산하면 약 12분(13분) 동안 실행기가 끊긴 것으로 보인다.
+- 평소 흐름에서는 생기지 않는다.
+  - 확인 신호를 부르는 훅은 없다.
+  - watch를 처음 걸면 대기 시계도 그때 시작하고, 다시 거는 것은 110분마다다.
+  - 상주 실행기는 `--once` 작업을 시작할 때 확인 신호를 보내지만, 그때는 이미 working이다.
+  - 대기를 시작한 1초 뒤의 신호는 idle에서 waiting으로 바뀌는 신호라 항상 기록된다.
+  - 사용자가 아무 때나 확인한 순간이 경계와 겹칠 때만 생긴다.
+- 수정: 대기 시간이 감속 단계를 넘긴 beat는 30초 안이어도 쓴다(`runner-service.ts`). protocol.md의 기록 규칙도 고쳤다. 서버만 바뀌고 플러그인 판은 그대로다.
+- 시험: `runner-service.test.ts`에 10분과 2시간 경계 시험을 더했다. 알린 다음 신호 시각에 `runnerStatus`가 live여야 한다. 고치기 전 코드에서는 `seenAt`이 1초 전 값으로 남아 실패했고, 고친 뒤 32개가 모두 통과했다.
+
+긴 잠자기의 신호 지연(이 PC, OneDrive 저장소의 `.git` 아래에서 1분 측정):
+
+- 상주 실행기는 잠자는 동안 매초 `withGuard`로 상태 파일을 읽는다. 실제 `withGuard`로 재면 분당 약 1초가 늦어졌다(가드 호출 최대 15ms).
+- 대기 중 매분 하는 `git status`는 0.14초였다.
+- 그래서 30분 대기에서 신호는 약 30~35초 늦게 가고, 서버의 여유 2분 안이다.
+- watch는 사이클 시작 시각 기준으로 자므로 지연이 쌓이지 않는다.
+
+이 PR의 로컬 검증(Windows, `ac6a6dd` 기준):
+
+| 명령 | 결과 | 비고 |
+| --- | --- | --- |
+| `runner-service.test.ts` | 32 pass | 새 경계 시험 포함 |
+| `npm run test:server` | 실패 0(통과 176, 건너뜀 2) | `--test-concurrency=2` |
+| `npm run test:web` | 801 pass, 0 fail | `--test-concurrency=2` |
+| `npm run check` | 1 fail(기존) | 위와 같은 Windows 전용 0600 프로필 시험이다. 린트(FSD·서버 경계 포함), 문서 검사, `plugin/lib` 동기화, 타입 검사는 통과했고, 린트 경고 1개는 바꾸지 않은 파일이다 |
+| `npm run build` | PR CI에 맡김 | 본 checkout에서 다른 세션의 `next dev`가 돌고 있었고 여유 메모리가 1.6GB였다 |
 
 ## Risks and Rollback
 
@@ -331,7 +401,8 @@ node --env-file=<production env file> node_modules/prisma/build/index.js migrate
 
 - 2시간 넘게 일이 없던 실행기는 승인 뒤 최대 30분, 10분 넘게 일이 없던 실행기는 최대 15분 늦게 이어 간다. 배너의 "next check" 표시로 알 수 있다. 바로 이어 가려면 watch를 다시 걸거나 실행기를 다시 시작한다.
 - 실행기가 긴 대기 중에 죽으면 점유가 최대 32분 남는다. 새 실행기는 지금처럼 takeover로 가져올 수 있다. 업데이트하지 않은 옛 플러그인도 대기 중에 죽으면 같다.
-- pipeline-smoke에서 10분 넘는 무작업 구간이 생기면 CI가 느려질 수 있다. CI 서버의 환경 변수로 끈다.
+- pipeline-smoke에서 10분 넘는 무작업 구간이 생기면 CI가 느려질 수 있다. 그러면 CI가 띄우는 서버에만 감속을 끄는 스위치를 넣는다. 이번 게이트에서는 느려지지 않아 만들지 않았다.
+- 다음 main 승격 전까지 운영 서버에는 단계 경계의 seenAt 기록 누락이 남아 있다. 드물게 생기며, 생기면 약 12~13분 동안 "No signal"이 뜨고 그 사이 점유가 빈다.
 - 효과는 실행기를 오래 켜 둘 때만 크다. 지금 사용 방식(월 약 30)에서는 차이가 작다.
 
 롤백 방법:
@@ -344,11 +415,23 @@ node --env-file=<production env file> node_modules/prisma/build/index.js migrate
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-11-09
+- verification-summary: front matter와 Verification Results를 따른다.
+- implementation PR/commit:
+  - #297(구현, 커밋 `974f41c`, dev 머지 `cd90876`)
+  - main `62e68dd` → `ac6a6dd`
+  - 이 기록 PR(단계 경계의 seenAt 기록 수정 포함)
+- changed files summary:
+  - #297은 27개 파일을 바꿨다. core 감속 일정과 생존 판정, `Runner.idleSince` 추가형 마이그레이션, beat 응답의 `nextBeatIn`, 배너의 "next check" 줄과 문구, 플러그인의 runner-client·상주 실행기·watch, 판 0.6.3, `protocol.md`·`product-copy.md`다.
+  - 이 기록 PR은 `runner-service.ts`(쓰기 조건), `runner-service.test.ts`(경계 시험), `protocol.md`(기록 규칙)를 바꿨다.
+  - 운영 DB에 `Runner.idleSince` 열이 생겼다. 이 PC는 플러그인 0.6.3으로 바뀌었다.
+- remaining follow-up:
+  - 경계 기록 수정은 따로 승격하지 않고 다음 main 승격 때 운영에 나간다. 서버만 바뀌어서 게이트는 client-init-smoke와 판 검사다.
+  - 운영에서 15분 간격을 한 번 실기로 확인한다. 지금까지는 시험으로만 확인했고, pipeline-smoke에는 10분 넘는 무작업 구간이 없다.
+    - 방법: 새 작업을 멈추고 열린 항목이 없는 프로젝트에서 0.6.3 상주 실행기를 30분쯤 켜 둔다. 배너의 "next check in about 15 min"과 Neon의 Suspended를 본다.
+    - 새 작업이 켜져 있고 마지막 작업 실행 뒤 백로그 입력이 바뀌었으면, 할 일이 없어도 work-discoverer가 dispatch된다(`work-run.ts` `projectWorkNext`). 그러면 Claude가 실제 항목을 만들 수 있다.
+    - 배너를 새로고침하면 DB가 깨므로 배너는 한 번만 본다.
+  - Neon Usage는 매달 본다. 기준선은 2026-11-01~05의 하루 약 1 CU-hour다. 실행기를 켠 시간에 따라 달라지므로 감속 효과를 재는 근거로는 약하다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -371,7 +454,7 @@ node --env-file=<production env file> node_modules/prisma/build/index.js migrate
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
