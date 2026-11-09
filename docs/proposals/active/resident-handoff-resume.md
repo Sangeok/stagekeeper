@@ -220,9 +220,16 @@ gh workflow run pipeline-smoke.yml --ref dev
 
 ## Verification Results
 
+2026-11-09 로컬 결과다. Windows, worktree `harness/resident-handoff-resume`, 기준 dev `4eaa30b`, 구현 커밋 `4789bb1`이다.
+
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| 위 검증 계획 | Not run yet | 승인 뒤 |
+| 새 시험(고치기 전 스킬) | 1 fail | 7절과 5절 문구가 없어 `AssertionError`로 실패했다 |
+| 새 시험과 기존 preflight 시험(고친 뒤) | 2 pass | `node --test --test-name-pattern=… plugin/bin/harness-watch.test.mjs` |
+| `npm test` 범위(core, github, plugin bin·runtime) | 618 pass, 0 fail, 4 skipped | `--test-concurrency=2`, 622개 |
+| `npm run check` | 1 fail(기존) | Windows 전용 0600 프로필 시험이다(`scripts/templates/template-release-cli.test.ts`). 바꾸지 않은 커밋에서도 같다. lint(FSD·서버 경계 포함), 문서 검사(201개), `plugin/lib` 동기화, 타입 검사는 통과했다 |
+| `npm run verify:plugin-version -- --base origin/dev --head HEAD` | 통과 | 0.6.3 → 0.6.4, 배포 파일 3개(스킬과 두 매니페스트) |
+| 승격 게이트와 실기 | Not run yet | 머지 뒤, 각각 승인 |
 
 ## Risks and Rollback
 
@@ -268,7 +275,7 @@ gh workflow run pipeline-smoke.yml --ref dev
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
 - [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
