@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-09"
 approved-by: "user"
 approved-at: "2026-11-09"
 approval-scope: "구현, 커밋, PR. main 승격, 이 PC 번들 설치, 실기는 실행 직전에 각각 따로 승인받는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-10"
+verification-summary: "#299(dev 머지 8b231c2)를 #298과 함께 main 8b231c2(0.6.4)로 승격했다. 게이트는 녹색이었고, 운영 배포가 일치했으며, 이 PC 번들은 0.6.4가 됐다. 실기(ITEM-03 재개, Opus 5.5, 0.6.4 상주 실행기)에서는 한 실행으로 구현·검증·인수·문서 감사가 끝났다. 앞선 실행이 남긴 ITEM-05 핸드오프는 새 규칙대로 소유자 차례로 남겼다. 그러나 이번에는 impl-verifier가 핸드오프 대신 원본 checkout에 직접 커밋했다. 그래서 같은 실행의 핸드오프를 커밋·재개하는 경로는 실기로 확인하지 못했고, 그 근거는 문구 고정 시험과 pipeline-smoke 통과다. main push 뒤 check에서는 #297 watch 시험이 deadline 경계 경합으로 한 번 실패했다. 이 기록 PR에서 그 시험을 고쳤다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -170,7 +170,7 @@ background run, pauses automatic execution/rearming until owner input.
 - [x] 테스트와 스크립트 참조: 스킬 본문을 읽는 기존 시험은 preflight 절의 파일 목록만 본다(`plugin/bin/harness-watch.test.mjs` "the watch skill preflight lists exactly the modules the watch and session helpers load"). 이 변경은 preflight 절을 건드리지 않는다.
 - [x] 정적 자산 URL: 없음.
 - [x] 타입 선언: 없음.
-- [ ] 런타임 side effect: 상주 1회 실행이 인계 파일 하나를 커밋하고 역할을 재개한다. push와 게이트는 그대로 금지다. 실기로 확인한다.
+- [x] 런타임 side effect: 상주 1회 실행이 인계 파일 하나를 커밋하고 역할을 재개한다. push와 게이트는 그대로 금지다. 실기로 확인한다. 결과: 실기에서는 이번 실행이 보낸 역할의 핸드오프가 생기지 않아 이 경로를 확인하지 못했다. 앞선 실행이 남긴 핸드오프는 새 규칙대로 소유자 차례로 남겼고, push는 없었다(Verification Results).
 - [x] API·외부 SDK: 서버 계약은 그대로다. 재개는 지금도 허용된 outcome 없는 `agent_next`다.
 - [x] 출시된 판과의 조합: 서버는 바뀌지 않는다. 0.6.3 이하 플러그인은 지금처럼 핸드오프에서 멈추고, 0.6.4부터 같은 실행 안에서 마무리한다. 로컬 잠금과 서버 행 형식은 바뀌지 않는다.
 
@@ -229,7 +229,49 @@ gh workflow run pipeline-smoke.yml --ref dev
 | `npm test` 범위(core, github, plugin bin·runtime) | 618 pass, 0 fail, 4 skipped | `--test-concurrency=2`, 622개 |
 | `npm run check` | 1 fail(기존) | Windows 전용 0600 프로필 시험이다(`scripts/templates/template-release-cli.test.ts`). 바꾸지 않은 커밋에서도 같다. lint(FSD·서버 경계 포함), 문서 검사(201개), `plugin/lib` 동기화, 타입 검사는 통과했다 |
 | `npm run verify:plugin-version -- --base origin/dev --head HEAD` | 통과 | 0.6.3 → 0.6.4, 배포 파일 3개(스킬과 두 매니페스트) |
-| 승격 게이트와 실기 | Not run yet | 머지 뒤, 각각 승인 |
+| PR #299 CI | 전부 통과 | macOS arm64 작업 두 개가 러너를 받지 못해 단계 0개로 취소됐다(`job was not acquired by Runner`). 실패한 작업만 다시 돌려 통과했다. runtime contracts(macos-15)는 세 번째 시도에서 통과했다 |
+
+### 승격과 운영 반영
+
+승격 대상은 dev `8b231c2`다. #298(감속 단계 경계의 seenAt 기록)과 #299가 들어 있다.
+
+| 단계 | 결과 | 비고 |
+| --- | --- | --- |
+| dev push CI | 녹색 | check 42638604963, windows-role-runtime 42638604909, macos-runtime-contracts 42638604990 |
+| `npm run verify:plugin-version -- --base origin/main --head origin/dev` | 통과 | 0.6.3 → 0.6.4, 배포 파일 3개 |
+| client-init-smoke | 녹색 | run 42638917208 |
+| agent-eval | 녹색 | run 42638923189, 비용 추정 $4.40 |
+| pipeline-smoke | 녹색 | run 42639474157. 55턴, 권한 거부 0, harnessErrors 0, stepRefusals 0, 677초, $1.65. 구현 검증을 거쳐 인수까지 갔다 |
+| 운영 `migrate status` | up to date | 36개, 새 마이그레이션 없음(`prisma/` 변경 없음) |
+| main push | 완료 | 2026-11-09T16:45:40Z, `ac6a6dd..8b231c2` fast-forward |
+| 운영 배포 대조 | 일치 | Production deployment 7660589594. 운영 HTML의 `dpl_2Mn6ma8ahMYC5ktsbMABoya93snj`가 main push의 Vercel 상태 id와 같다. `/` 200, `/api/mcp` 401 |
+| main push 뒤 check | 1 fail, 재실행 통과 | 아래 참고 |
+| 이 PC 번들 0.6.4 | 설치 | 2,238개 파일, packageSha256 `b2be9298…`이다. runtime과 verifier는 재사용했다. 0.6.3 대비 inventory 차이는 정확히 배포 파일 3개다. 캐시 sha256이 전부 일치하고, 설치된 스킬에 새 4단계가 있다 |
+
+main push 뒤 check:
+
+- `check (test)`의 `with a lease, waits as long as the server says before the next check, paused or not`이 실패했다. #297이 더한 watch 시험이다(run 42658023143). paused 경우에 idle beat를 하나 더 봤다.
+- watch는 서버 간격이 더 길면 deadline까지 잔다. 그런데 `setTimeout`이 소수점 아래 ms를 버려서, deadline 바로 전에 깨어 한 번 더 beat할 수 있다.
+- 운영 영향은 없다. 110분 watch가 끝날 때 beat 하나가 더 가는 정도다.
+- 이 기록 PR에서 시험을 고쳤다. 그 경계 beat 하나를 허용하고, 다섯 번 돌려 다섯 번 통과했다. #297 이전 watch 코드(`62e68dd`)에서는 beat가 수십 번 찍혀 여전히 실패한다.
+- 실패한 작업만 다시 돌리자 main check도 통과했다.
+
+### 실기(2026-11-09, harness-smoke, Opus 5.5, 0.6.4)
+
+준비:
+
+- 23:35Z에 웹에서 ITEM-03을 Reopen implementation으로 다시 열었다. 메모는 범위 밖 시험 네 개가 아무것도 단언하지 않는다는 것이다.
+- 실행기는 session `f6a5690c`, `--propose no`, 권한 auto로 23:36:21Z에 시작했다.
+
+| 기준 | 결과 | 비고 |
+| --- | --- | --- |
+| 실행 | 한 실행으로 끝남 | 23:36:25~23:53:35, 61턴, 권한 거부 0, 실패 0, API 정가 환산 $6.43. dev `7434d7b`, impl-verifier `faa071b`, 인수 `c591205`(검사 5개 통과), 문서 감사 `2eee627`. 새 AgentRun은 모두 R0(`fc20ccfd…`)다 |
+| 1. 같은 실행의 핸드오프를 커밋·재개 | 확인 못 함 | impl-verifier가 handoff를 보내지 않고 원본 checkout에서 보고서를 직접 커밋했다. 역할 정의에 Bash가 있다. ITEM-05 실행(0.6.3)에서는 handoff를 보냈다. 모델 해석에 따라 갈리는 경로라 실기로 일부러 재현할 수 없다 |
+| 2. 인수까지 | 통과 | ITEM-03 accepted |
+| 3. 인계 파일 하나, push 없음 | push 없음 | 핸드오프가 없어 인계 파일 커밋은 해당 없다. 원격은 그대로다 |
+| 앞선 실행이 남긴 핸드오프 | 새 규칙대로 대기 | 실행의 최종 답이 ITEM-05를 "앞선 실행이 남긴 커밋 핸드오프라 재개하지 않았다"고 보고했다 |
+
+실행기는 23:55:19Z에 `--stop`으로 멈췄다(owner).
 
 ## Risks and Rollback
 
@@ -248,11 +290,21 @@ gh workflow run pipeline-smoke.yml --ref dev
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-11-10
+- verification-summary: front matter와 Verification Results를 따른다.
+- implementation PR/commit:
+  - #299(커밋 `4789bb1`·`d3c70c7`, dev 머지 `8b231c2`)
+  - main `ac6a6dd` → `8b231c2`(#298과 함께)
+  - 이 기록 PR(#297 watch 시험 고침 포함)
+- changed files summary:
+  - #299: watch 스킬 5절·7절, `protocol.md` "커밋 핸드오프" 절, 문구 고정 시험, 두 매니페스트 0.6.4.
+  - 이 기록 PR: `plugin/bin/harness-watch.test.mjs`의 경계 경합 시험. 시험 파일만이라 판 상승이 없다.
+  - 이 PC는 플러그인 0.6.4로 바뀌었다.
+- remaining follow-up:
+  - 같은 실행의 핸드오프를 커밋·재개하는 경로를 실기로 확인한다. 다음에 상주 실행에서 역할이 핸드오프를 보내면 실행 기록에서 본다.
+  - impl-verifier가 핸드오프 대신 원본 checkout에 직접 커밋한 일은 따로 다룬다(2026-11-10 사용자 결정). 상주 실행은 커밋 정책이 yes라 해가 없다. 하지만 감시를 `commit:no`로 쓸 때도 같은 일이 생기면 소유자의 커밋 금지를 우회한다.
+  - ITEM-05는 앞선 실행이 남긴 핸드오프로 기다린다. 사용자가 마무리하지 않기로 했다(2026-11-09).
+  - harness-smoke의 로컬 커밋은 push하지 않았다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -277,5 +329,5 @@ gh workflow run pipeline-smoke.yml --ref dev
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
