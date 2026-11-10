@@ -8,6 +8,12 @@ on:
     paths:
       - .github/workflows/macos-runtime-contracts.yml
       - scripts/macos/**
+      - scripts/build.mjs
+      - next.config.*
+      - prisma.config.ts
+      - prisma/schema.prisma
+      - src/app/layout.tsx
+      - src/app/_fonts/**
       - packages/core/**
       - packages/github/**
       - plugin/bin/**
@@ -85,7 +91,27 @@ jobs:
           path: ${{ runner.temp }}/launchd-ownership.json
           if-no-files-found: warn
       - run: npm ci --no-audit --no-fund
+      - name: Build the verified native macOS runtime
+        shell: bash
+        run: |
+          architecture="$(node -p process.arch)"
+          archive="$RUNNER_TEMP/node-v22.23.3-darwin-$architecture.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-$architecture.tar.gz" -o "$archive"
+          node scripts/macos/build-runtime.mjs --archive "$archive" --output "$GITHUB_WORKSPACE/plugin/runtime/macos/node"
       - name: Record contract-test environment
         run: node -e 'console.log(JSON.stringify({platform:process.platform,arch:process.arch,node:process.version,scope:"model-free runtime contracts"}))'
       - name: Validate shared runtime contracts without client credentials
+        env:
+          STAGEKEEPER_MACOS_RUNTIME_REQUIRED: "1"
         run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
+      - name: Build the complete project inside the offline native role
+        run: >-
+          node scripts/macos/rehearse-project-build.mjs
+          --root "$GITHUB_WORKSPACE" --runtime "$GITHUB_WORKSPACE/plugin/runtime/macos/node"
+          --evidence "$RUNNER_TEMP/native-project-build.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-project-build-${{ matrix.runner }}
+          path: ${{ runner.temp }}/native-project-build.json
+          if-no-files-found: warn

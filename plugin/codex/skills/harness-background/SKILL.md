@@ -1,16 +1,23 @@
 ---
 name: harness-background
-description: Explicitly start, inspect, stop or release the Stagekeeper Codex background runner on Windows.
+description: Explicitly start, inspect, stop or release the Stagekeeper Codex background runner on Windows and macOS.
 ---
 
-Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run the helper or work
-around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
-Claude Code." and stop.
+On operating systems other than Windows or macOS, do not run a helper; say
+"Stagekeeper works with Codex on Windows and macOS. Other operating systems are not supported yet."
+and stop. On macOS use the complete native package and its quoted absolute
+`bin/harness <task> <arguments>` launcher for every helper below. It verifies the bundled
+Node/npm runtime. Never substitute global Node when the package is incomplete.
+
+On macOS use the client's normal approval for this installed launcher to run outside the
+parent command sandbox. Keep every role's own restrictions enabled; never disable the
+client's sandbox globally. The owner still starts a persistent runner explicitly below.
 
 Resolve the installed package from this SKILL.md (three parents above this skill directory).
 Read its .codex-plugin/plugin.json and this checkout's harness.json and
-docs/harness/codex-runbook.md. Use the bundled bin/harness.ps1 background helper through
+docs/harness/codex-runbook.md. On Windows use the bundled bin/harness.ps1 background helper through
 powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File <absolute helper>.
+On macOS use the bundled `bin/harness background <arguments>` launcher.
 The helper validates its included runtime. Never install Node, use WSL, copy credentials,
 broaden permissions or fall back to Claude Code when this entry fails.
 

@@ -3,9 +3,16 @@ name: harness-run
 description: Run the Stagekeeper foreground pipeline from its current server state in Codex.
 ---
 
-Stagekeeper works with Codex on Windows only. On macOS or Linux, do not run any helper or work
-around it; say "Stagekeeper works with Codex on Windows only for now. On macOS or Linux, use
-Claude Code." and stop.
+On operating systems other than Windows or macOS, do not run a helper; say
+"Stagekeeper works with Codex on Windows and macOS. Other operating systems are not supported yet."
+and stop. On macOS use the complete native package and its quoted absolute
+`bin/harness <task> <arguments>` launcher for every helper below. It verifies the bundled
+Node/npm runtime. Never substitute global Node when the package is incomplete.
+
+On macOS, helpers that start a role or runner need the client's normal approval for the
+specific installed launcher to run outside the parent command sandbox. Keep the role's
+own file, network and command restrictions enabled. A denied host launch ends the attempt;
+never disable the client's sandbox globally.
 
 Read harness.json and docs/harness/codex-runbook.md before acting. Resolve the installed
 package from this SKILL.md (three parents above this skill directory), verify its Codex
@@ -46,8 +53,8 @@ Runtime permission failures are failed/blocked. Keep the independent verifier's 
 If the helper reports `codex-role-execution-unavailable`, stop and retain the role's filesystem
 policy and unresolved ownership. Report a Stagekeeper runtime compatibility issue. Do not
 ask the owner to install WSL, switch operating systems, log into another client or repeat
-initialization. Windows roles retain root-deny permissions and use scoped file MCP tools.
-A complete Windows bundle adds a separately isolated snapshot command tool only after actual
+initialization. Windows and macOS roles retain root-deny permissions and use scoped file MCP tools.
+A complete native bundle adds a separately isolated snapshot command tool only after actual
 filesystem, inherited child-process and network preflight passes. It never enables the CLI's
 incompatible root-read shell backend. Snapshot writes are discarded; edit originals through
 guarded file tools and include snapshot hashes/omissions in build and test evidence.
@@ -62,7 +69,12 @@ the completed role again to open a new run. Preserve receipt, entry and agentRun
 Legacy null format and slots-v1 are distinct; missing/unknown item binding stops the cycle.
 
 Wait at gate/cap/handoff, failed QA or failed implementation verification and tell the owner
-what is actually pending. If dispatch refuses impl-verifier with codex-role-unsupported, do not
+what is actually pending. On macOS, impl-verifier is supported: dispatch creates its isolated
+verification copy from the current implementation report and preserves the owner's checkout.
+After an explicit owner retry, use `dispatch --retry-impl yes` with the current item/session;
+never retry a failed verifier automatically. QA still needs its explicit test environment and
+minimal build identity briefing. On hosts that refuse an optional role, report
+the actual refusal. If dispatch refuses impl-verifier with codex-role-unsupported, do not
 dispatch it again; tell the owner to continue that item from Claude Code. Roles cannot write Git
 metadata; commit prepared artifacts yourself only with the stored actual commit permission,
 otherwise ask the owner. After the actual commit and the owner's explicit continue use

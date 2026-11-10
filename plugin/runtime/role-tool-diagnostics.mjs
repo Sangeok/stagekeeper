@@ -1,8 +1,9 @@
 import { RoleFileInputError, RoleFileRevisionError, RolePathMissingError } from "./role-files.mjs";
 import { RoleCommandInputError } from "./role-commands.mjs";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
-import { McpDomainError } from "./mcp-client.mjs";
+import { McpDomainError, McpInputError } from "./mcp-client.mjs";
 import { readNativeCommandDiagnostic } from "./native-command-diagnostics.mjs";
+import { CommitHandoffRequired } from "./commit-handoff.mjs";
 
 const reasons = new Map([
   ["Absolute file path required", "file-path"], ["Device and network paths refused", "file-path"],
@@ -19,16 +20,22 @@ const reasons = new Map([
   ["Role session no longer active", "ownership"], ["Role bridge stopped", "ownership"],
   ["Role response arrived after stop", "ownership"], ["Local role result arrived after ownership ended", "ownership"],
   ["Local role project mismatch", "binding"], ["Role response binding mismatch", "binding"],
+  ["Role project mismatch", "binding"], ["Role agent mismatch", "binding"], ["Role key mismatch", "binding"],
+  ["Pipeline entry mismatch", "binding"], ["Pipeline execution mismatch", "binding"], ["Agent run mismatch", "binding"],
+  ["Role artifact key mismatch", "binding"], ["Role report actor/run mismatch", "binding"], ["Report run mismatch", "binding"], ["Scout run mismatch", "binding"],
+  ["Report-only continuation requires a current report step", "binding"],
 ]);
 const systemCodes = new Set(["ENOENT", "EACCES", "EPERM", "EBUSY", "ENOTDIR", "EISDIR", "EINVAL", "EIO",
   "EMFILE", "ENFILE", "ENOSPC", "EROFS", "ENAMETOOLONG", "EEXIST", "ERR_ENCODING_INVALID_ENCODED_DATA"]);
 
 export function roleToolDiagnostic(agent, tool, error) {
   const native = readNativeCommandDiagnostic(error);
+  const protocolFailure = /^MCP [a-z_]+ failed \(protocol-error\);/.test(error?.message ?? "");
   const reason = error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof RoleGitInputError ? "invalid-input"
     : error instanceof RolePathMissingError || error instanceof RoleGitPathMissingError ? "path-missing"
     : error instanceof RoleFileRevisionError ? "file-revision"
-    : error instanceof McpDomainError ? "domain-refusal" : native ? "native-helper" : reasons.get(error?.message) ?? "unclassified";
+    : error instanceof CommitHandoffRequired ? "handoff-required"
+    : error instanceof McpInputError ? ({ receipt: "input-receipt", note: "input-note" }[error.kind] ?? "input-schema") : error instanceof McpDomainError ? "domain-refusal" : native ? "native-helper" : protocolFailure ? "mcp-protocol" : reasons.get(error?.message) ?? "unclassified";
   return { event: "role-tool-failed", agent, tool, reason, systemCode: systemCodes.has(error?.code) ? error.code : null,
     ...(native ? { native } : {}) };
 }

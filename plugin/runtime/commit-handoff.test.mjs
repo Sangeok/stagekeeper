@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { assertCommitHandoff, assertHandoffSubmission, confirmCommitHandoff } from "./commit-handoff.mjs";
+import { assertCommitHandoff, assertHandoffSubmission, confirmCommitHandoff, CommitHandoffRequired } from "./commit-handoff.mjs";
 import { roleBridge } from "./codex-thread.mjs";
 import { ROLE_TOOLS } from "./codex-agent.mjs";
 
@@ -22,6 +22,15 @@ function fixture(t, artifact = "docs/plans/A.md") {
   const next = { action: "wait", on: "handoff", key: "A", note: artifact, resume: dispatch };
   return { root, artifact, git, commit, dispatch, next };
 }
+
+it("does not turn an existing plan commit into confirmation for a new planning request", t => {
+  const f = fixture(t);
+  const dispatch = { ...f.dispatch, planCommit: f.commit };
+  for (const name of ["plan_submit", "report_submit"]) {
+    assert.throws(() => assertHandoffSubmission(f.root, dispatch, name, { path: f.artifact, commit: f.commit }, { receipt: { runId: "existing" } }), CommitHandoffRequired);
+  }
+  assert.doesNotThrow(() => assertHandoffSubmission(f.root, dispatch, "board_get", {}, null));
+});
 
 it("binds a confirmed owner commit to the existing role and permits submission without commit permission", t => {
   const f = fixture(t);
@@ -57,6 +66,23 @@ it("limits confirmed report submissions to their file, tool and existing run", t
   assert.throws(() => assertHandoffSubmission(f.root, f.dispatch, "plan_submit", args, { receipt: { runId: "existing" } }));
   assert.throws(() => confirmCommitHandoff(f.root, "A", { ...f.next, note: "../outside.md" }, f.commit));
   assert.throws(() => confirmCommitHandoff(f.root, "A", { ...f.next, action: "dispatch" }, f.commit));
+});
+
+it("the HTTP bridge keeps an unconfirmed submission local and permits the current handoff request", async t => {
+  const f = fixture(t), calls = [], receipt = { runId: "existing", revision: 1, stepId: "plan" };
+  const bridge = await roleBridge({ binding: { root: f.root } }, {}, "s", { ...f.dispatch, planCommit: f.commit }, {
+    listTools: async () => ROLE_TOOLS.dev.map(name => ({ name })),
+    checkSession: async () => ({ event: "owned", client: "codex", lifecycle: "active" }),
+    callTool: async (_input, name, args) => { calls.push({ name, args }); return { done: false, step: "plan", receipt, agentRunId: "existing", entry: f.dispatch.entry }; },
+  });
+  t.after(() => bridge.close());
+  const call = (name, args = {}) => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) }).then(response => response.json());
+  await call("agent_next");
+  const refused = await call("plan_submit", { key: "A", path: f.artifact, commit: f.commit, type: "fix" });
+  assert.equal(refused.error.code, -32006); assert.match(refused.error.message, /helper-confirmed commit handoff/);
+  assert.deepEqual(calls.map(call => call.name), ["agent_next"]);
+  assert.equal((await call("agent_next", { outcome: "handoff", receipt, note: f.artifact })).error, undefined);
+  assert.equal(calls.at(-1).args.outcome, "handoff"); assert.deepEqual(calls.at(-1).args.receipt, receipt);
 });
 
 it("the HTTP bridge forwards a matching resumed submission and refuses bytes changed afterward", async t => {

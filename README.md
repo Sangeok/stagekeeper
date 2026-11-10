@@ -16,18 +16,21 @@ Read the [documentation](https://stagekeeper.dev/docs) or
 ## Status
 
 - **Implemented:** the web app, the agent and owner MCP servers, and the Claude Code plugin.
-- **In verification:** a Codex adapter (foreground run and resume) and a resume contract
-  shared by both clients are in the source tree. Permission isolation in live Codex
-  sessions, cross-client acceptance, and release are still open, so Codex is not a supported
-  client yet. See the [dual-client runtime report](./docs/test-reports/active/dual-client-runtime-report.md).
+- **In verification:** Codex foreground, resume, and background adapters use the same
+  server contracts. Windows and macOS have native command backends; macOS also has
+  independent implementation verification and browser QA. The installed macOS bundle passed
+  all-role acceptance and 110 minutes of idle observation; see the [macOS report](./docs/test-reports/completed/2026-11-10-codex-macos-native-acceptance.md)
+  and broader release gates in the [runtime report](./docs/test-reports/active/dual-client-runtime-report.md).
+  Public Codex release and cross-client acceptance remain separate gates.
 - **Packaging:** the release bar is that connecting a repository needs nothing beyond your
   existing client login and the plugin. The plugin includes the verification skill that plan
-  review relies on (`plugin/skills/reconciling-proposals-with-codebase`). A Windows install
+  review relies on (`plugin/skills/reconciling-proposals-with-codebase`). A native install
   bundle adds a verified Node.js runtime for the helpers and a copy of that skill for Codex.
-  Bundles are built with `scripts/windows/package-windows-plugin.mjs` and are not published
+  Bundles are built with `scripts/windows/package-windows-plugin.mjs` or
+  `scripts/macos/package-plugin.mjs` and are not published
   yet; the plugin source in this repository is not an install bundle. Installed from this
   source, the Claude Code plugin runs its helpers on the Node.js in your `PATH` on every
-  platform, so that route needs Node.js. Codex on Windows still needs an install bundle.
+  platform, so that route needs Node.js. Codex on Windows and macOS needs an install bundle.
 - **No payments:** plans are granted manually and `/billing` is read-only.
 - **Private templates:** the step bodies agents follow are not in this repository. They are
   kept in a private repository, published to the database, and served only to authenticated

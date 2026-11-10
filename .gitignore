@@ -40,5 +40,6 @@ nul
 /plugin/evals/results/
 
 /plugin/runtime/windows/node/
+/plugin/runtime/macos/node/
 
 /.playwright-mcp/

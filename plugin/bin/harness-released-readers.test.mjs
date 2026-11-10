@@ -61,6 +61,12 @@ const UNRECLAIMABLE = {
   "a crashed Codex runner": repository => crashed(lockFor(repository, "codex")),
   "an unsettled Codex runner": repository => markUnsettled(crashed(lockFor(repository, "codex"))),
   "an unsettled Claude runner": repository => markUnsettled(crashed(lockFor(repository, "claude"))),
+  "a macOS command with unconfirmed descendants": repository => {
+    const lock = crashed(lockFor(repository, "codex"));
+    lock.schemaVersion = 2; lock.lifecycle = "stopping";
+    lock.children.push({ ...child(deadPid()), sandbox: { kind: "macos-seatbelt-v1", root: path.join(realpathSync(tmpdir()), "harness-command-missing-" + randomUUID()) } });
+    return lock;
+  },
 };
 
 function install(repository, lock) {
@@ -95,7 +101,11 @@ function checkReader(t, version, plugin) {
       ["harness-background.mjs", ["--status"]], ["harness-background.mjs", ["--stop"]]]) {
       const event = runReader(plugin, script, args, repository);
       assert.equal(installedLock(repository)?.id, lock.id, `${version} ${script} ${args[0]} removed ${shape}: ${JSON.stringify(event)}`);
-      if (args[0] === "--status") assert.equal(event?.session, lock.id, `${version} status lost ${shape}: ${JSON.stringify(event)}`);
+      if (args[0] === "--status" && lock.schemaVersion === 1) assert.equal(event?.session, lock.id, `${version} status lost ${shape}: ${JSON.stringify(event)}`);
+    }
+    if (lock.schemaVersion === 2) for (const [script, args] of [["harness-background.mjs", ["--release", "--session", lock.id]], ["harness-codex.mjs", ["release", "--session", lock.id, "--abandoned", "yes"]]]) {
+      const event = runReader(plugin, script, args, repository);
+      assert.equal(installedLock(repository)?.id, lock.id, `${version} removed unconfirmed macOS ownership: ${JSON.stringify(event)}`);
     }
   }
 

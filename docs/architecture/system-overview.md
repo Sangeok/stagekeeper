@@ -5,8 +5,9 @@
 Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트가 계획, 독립 검증, 구현,
 인수를 증거와 함께 수행하도록 조율하는 서비스다. 서비스는 사용자 모델을 직접
 실행하지 않는다. 사용자의 Claude Code가 플러그인과 MCP를 통해 연결되며,
-Codex foreground 어댑터 소스도 같은 HTTP MCP·원장을 사용한다. Codex의 실제
-모델 인수와 배포는 [검증 보고서](../test-reports/active/dual-client-runtime-report.md)의 미완료 항목이다.
+Codex foreground·resident 어댑터도 같은 HTTP MCP·원장을 사용한다. OS별 실제
+모델 인수와 공개 배포는 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md)와
+[macOS 시험 보고서](../test-reports/completed/2026-11-10-codex-macos-native-acceptance.md)에서 구분한다.
 
 2026-10-04 사용자가 승인한 설치 기준: 웹 사용에는 로컬 실행 환경을 요구하지 않는다.
 저장소 실행에는 사용자가 선택한 Claude Code 또는 Codex의 기존 native 설치·로그인을
@@ -15,9 +16,10 @@ WSL·VM·컨테이너·별도 Linux checkout이나 선택하지 않은 클라이
 지원 조건이나 오류 복구 절차로 요구하지 않는다. helper 실행 환경과 완전한 검증 스킬의
 전달은 Stagekeeper 패키징 책임이며 사용자가 Node나 외부 스킬을 별도로 설치하게 하지 않는다.
 이 기준은 출시 게이트다. 완전한 검증 스킬은 2026-10-28 결정에 따라 plugin source의
-`skills/reconciling-proposals-with-codebase`에 포함한다. Windows bundle 생성기는 Node/npm·license를
-더하고 같은 검증 스킬을 Codex skill 경로에도 두며, `bin/harness.ps1`이 검증된 runtime으로 양쪽
-helper를 실행한다. source-only checkout에는 생성 runtime이 없으며 일반 사용자용 설치 배포물이 아니다.
+`skills/reconciling-proposals-with-codebase`에 포함한다. Windows와 macOS bundle 생성기는 Node/npm·license를
+더하고 같은 검증 스킬을 Codex skill 경로에도 둔다. Windows `bin/harness.ps1`과 macOS
+`bin/harness`가 검증된 runtime으로 helper를 실행한다. source-only checkout에는 생성 runtime이
+없으며 일반 사용자용 설치 배포물이 아니다.
 source에서 설치한 Claude Code 플러그인은 예외로 모든 OS에서 PATH의 Node.js로 helper를 실행한다
 (2026-10-28 결정). Windows에서는 `bin/harness.ps1`이 runtime 디렉터리가 없을 때만 PATH의
 `node.exe`를 쓰고, Codex 호출은 bundle 없이 실행하지 않는다.
@@ -25,6 +27,9 @@ Windows Codex는 scoped 파일 MCP와 실제 격리 preflight 뒤 LPAC snapshot 
 새 source의 구현·private 로컬 package 시험과 실제 설치 배포·전체 Windows 인수는 별도다.
 현재 판정은 runtime 보고서를 따르며 파일/명령 fixture의 성공을 전체 출시로 해석하지 않는다.
 WSL 시험 결과는 개발 증거로 보존하며 Windows 지원·최소 설치 인수를 대신하지 않는다.
+macOS Codex는 같은 scoped 파일·Git 도구와 Seatbelt snapshot 명령을 사용하며,
+독립 구현 검증 복사본과 전용 브라우저 QA를 제공한다. 설치·권한·종료·복구 경계는
+[macos-runtime.md](./macos-runtime.md)를 따른다.
 
 ```text
 [브라우저의 사용자]
@@ -36,7 +41,7 @@ WSL 시험 결과는 개발 증거로 보존하며 Windows 지원·최소 설치
 [Application Services / src/server] ─────► [Postgres]
         ▲                                      상태의 진실
         │ MCP over HTTP, project token (+ owner token, /api/mcp/owner)
-[사용자의 Claude Code / Codex foreground 어댑터 소스]
+[사용자의 Claude Code / Codex foreground·resident 어댑터]
         ▲
         │ 로컬 설치·생성
 [plugin + harness.json]

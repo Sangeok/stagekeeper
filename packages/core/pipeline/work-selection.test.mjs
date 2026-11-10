@@ -23,6 +23,14 @@ it("requires current facts, real Source evidence, every alternative and workspac
   assert.equal(readSelectionDecision(decision), decision);
 });
 
+it("requires no comparisons for the only eligible candidate and rejects comparing it to itself", () => {
+  const onlyEligible = { ...context, candidates: [candidates[0], { ...candidates[1], eligible: false }] };
+  const selected = { ...decision, comparisons: [] };
+  assert.equal(selectionReason(selected, onlyEligible, "K-1", "web-dev"), null);
+  assert.match(selectionReason({ ...selected, comparisons: [{ key: "K-1", reason: "Only candidate" }] }, onlyEligible, "K-1", "web-dev"), /Exclude the selected item/);
+  assert.match(selectionReason(decision, onlyEligible, "K-1", "web-dev"), /no alternatives/);
+});
+
 it("enforces the default oldest-candidate rule but allows an explicit custom policy", () => {
   const second = { ...decision, evidence: [{ key: "K-2", quote: "search requested" }], comparisons: [{ key: "K-1", reason: "Lower priority under owner policy" }] };
   assert.match(selectionReason(second, context, "K-2", "web-dev"), /oldest/);

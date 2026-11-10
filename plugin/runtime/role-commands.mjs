@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { lstatSync, readFileSync, realpathSync } from "node:fs";
-import { mkdir, mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,18 +33,21 @@ export function installedWindowsRuntime(directory = bundlePath) {
   return Object.freeze({ ...manifest, directory: path.resolve(directory) });
 }
 
-export async function snapshotRepository(root, destination, fileBroker, signal) {
+export async function snapshotRepository(root, destination, fileBroker, signal, { internalLinks = false } = {}) {
   const hashes = [], omitted = []; let bytes = 0, count = 0, omittedCount = 0;
+  const hardlinks = new Map(), links = [];
+  const inode = stat => `${stat.dev}:${stat.ino}`;
   const buffers = Array.from({ length: 8 }, () => Buffer.alloc(1024 * 1024));
   const started = Date.now();
   function checkpoint() {
     signal?.throwIfAborted();
     if (Date.now() - started > 300000) throw new Error("Snapshot preparation deadline exceeded");
   }
-  async function copy({ source, target, before, row }, buffer) {
+  async function copy({ source, target, before, row, snapshotIdentity = null }, buffer) {
+    fileBroker.resolveRead(source, snapshotIdentity);
     const input = await open(source, "r"), digest = createHash("sha256"); let output;
     try {
-      output = await open(target, "wx", 0o600);
+      output = await open(target, "wx", internalLinks && (before.mode & 0o111n) !== 0n ? 0o700 : 0o600);
       if (identity(await input.stat({ bigint: true })) !== identity(before)) throw new Error("Snapshot file changed while opening");
       let length = 0;
       while (true) {
@@ -54,7 +57,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
         digest.update(buffer.subarray(0, bytesRead));
         let offset = 0; while (offset < bytesRead) offset += (await output.write(buffer, offset, bytesRead - offset, null)).bytesWritten;
       }
-      fileBroker.resolveRead(source); const after = lstatSync(source, { bigint: true });
+      fileBroker.resolveRead(source, snapshotIdentity); const after = lstatSync(source, { bigint: true });
       if (length !== Number(before.size) || identity(after) !== identity(before) || after.mtimeNs !== before.mtimeNs || after.size !== before.size) throw new Error("Snapshot source changed during copy");
       row[1] = digest.digest("hex");
     } finally { await input.close(); await output?.close(); }
@@ -74,17 +77,45 @@ export async function snapshotRepository(root, destination, fileBroker, signal) 
       checkpoint();
       const source = path.join(directory, name), rel = path.join(relative, name), target = path.join(destination, rel);
       if (omittedName(name) || fileBroker.permission(source) === "deny") { omittedCount++; if (omitted.length < 200) omitted.push(rel); continue; }
-      fileBroker.resolveRead(source);
       const before = lstatSync(source, { bigint: true });
+      if (internalLinks && before.isSymbolicLink()) {
+        const link = await readlink(source), physical = realpathSync(source), inside = path.relative(root, physical);
+        if (path.isAbsolute(link) || inside.startsWith("..") || path.isAbsolute(inside) || fileBroker.permission(physical) === "deny") throw new Error("Snapshot symlink escapes permitted source");
+        if (await readlink(source) !== link || identity(lstatSync(source, { bigint: true })) !== identity(before)) throw new Error("Snapshot symlink changed during copy");
+        links.push({ source, target, before, physical, link, inside });
+        hashes.push([rel.split(path.sep).join("/"), hash(`symlink:${inside.split(path.sep).join("/")}`)]);
+        if (++count > 100000) throw new Error("Snapshot file count exceeded");
+        continue;
+      }
+      if (before.isSymbolicLink()) throw new Error("Snapshot file alias refused");
       if (before.isDirectory()) { await flush(); await mkdir(target, { recursive: true }); await visit(source, rel); continue; }
       if (!before.isFile() || before.size > 128n * 1024n * 1024n || ++count > 100000 || (bytes += Number(before.size)) > 2 * 1024 * 1024 * 1024) throw new Error("Snapshot size or file type unsupported");
       const row = [rel.split(path.sep).join("/"), null]; hashes.push(row);
-      queued.push({ source, target, before, row });
+      const task = { source, target, before, row };
+      if (internalLinks && before.nlink > 1n) {
+        const group = hardlinks.get(inode(before)) ?? [];
+        group.push(task); hardlinks.set(inode(before), group);
+      } else queued.push(task);
       if (queued.length === buffers.length) await flush();
     }
     await flush();
   }
   await mkdir(destination, { recursive: true }); await visit(root);
+  for (const group of hardlinks.values()) {
+    if (group.some(task => task.before.nlink !== BigInt(group.length))) throw new Error("Snapshot hardlink has an unaccounted or denied alias");
+    for (const task of group) {
+      task.snapshotIdentity = { dev: task.before.dev, ino: task.before.ino, nlink: task.before.nlink };
+      await copy(task, buffers[0]);
+    }
+  }
+  for (const link of links) {
+    checkpoint();
+    if (await readlink(link.source) !== link.link || identity(lstatSync(link.source, { bigint: true })) !== identity(link.before)
+      || realpathSync(link.source) !== link.physical) throw new Error("Snapshot symlink changed during copy");
+    const stat = lstatSync(link.physical, { bigint: true }), group = hardlinks.get(inode(stat));
+    fileBroker.resolveRead(link.physical, group?.find(task => task.source === link.physical)?.snapshotIdentity ?? null);
+    await symlink(path.relative(path.dirname(link.target), path.join(destination, link.inside)), link.target);
+  }
   return { snapshotHash: hash(JSON.stringify(hashes)), files: count, bytes, omitted, omittedCount, omissionsTruncated: omittedCount > omitted.length };
 }
 

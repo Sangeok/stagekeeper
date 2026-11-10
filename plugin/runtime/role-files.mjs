@@ -46,17 +46,29 @@ export function createRoleFiles(filesystem, agent) {
   const rules = Object.entries(filesystem).filter(([name]) => !name.startsWith(":"))
     .map(([name, access]) => {
       if (!path.isAbsolute(name) || !["deny", "read", "write"].includes(access)) throw new Error("Invalid file policy");
-      return { name: canonical(path.resolve(name)), access };
+      const pattern = /[*?]/.test(name);
+      if (pattern && access === "write") throw new Error("Wildcard write permissions are unsupported");
+      const normalized = canonical(path.resolve(name));
+      if (pattern && process.platform !== "win32" && normalized.includes("\\")) throw new Error("Ambiguous wildcard permission path refused");
+      const escapes = { "[": "[[]", "]": "[]]", "{": "[{]", "}": "[}]", "(": "[(]", ")": "[)]" };
+      const glob = normalized.split(path.sep).join("/").replace(/[\[\]{}()]/g, character => escapes[character]);
+      return { name: normalized, access, pattern, glob };
     }).sort((a, b) => b.name.length - a.name.length);
   const names = roleFileToolNames(agent);
   let closed = false;
 
   function access(target) {
     const name = canonical(target);
-    return rules.find(rule => name === rule.name || name.startsWith(rule.name.endsWith(path.sep) ? rule.name : rule.name + path.sep))?.access ?? "deny";
+    if (target.split(path.sep).some(part => [".ssh", ".aws", ".azure", ".npmrc", ".netrc", ".git-credentials"].includes(part.toLowerCase())
+      || /^\.env(?:$|\.)/i.test(part) && part.toLowerCase() !== ".env.example")) return "deny";
+    const constrained = rules.filter(rule => rule.pattern && (path.posix.matchesGlob(name.split(path.sep).join("/"), rule.glob)
+      || rule.name.endsWith(path.sep + "**") && name === rule.name.slice(0, -3)));
+    if (constrained.some(rule => rule.access === "deny")) return "deny";
+    const permission = rules.find(rule => !rule.pattern && (name === rule.name || name.startsWith(rule.name.endsWith(path.sep) ? rule.name : rule.name + path.sep)))?.access ?? "deny";
+    return permission === "write" && constrained.some(rule => rule.access === "read") ? "read" : permission;
   }
 
-  function resolveTarget(name, write = false) {
+  function resolveTarget(name, write = false, snapshotIdentity = null) {
     if (typeof name !== "string" || name.length > 4096 || !path.isAbsolute(name) || /[\x00-\x1f]/.test(name)) throw new Error("Absolute file path required");
     const target = path.resolve(name), parsed = path.parse(target);
     if (process.platform === "win32") {
@@ -77,7 +89,9 @@ export function createRoleFiles(filesystem, agent) {
       try {
         const stat = lstatSync(current, { bigint: true });
         if (stat.isSymbolicLink()) throw new Error("File alias refused");
-        if (stat.isFile() && stat.nlink !== 1n) throw new Error("Hard-linked file refused");
+        if (current === target && snapshotIdentity && (stat.dev !== snapshotIdentity.dev || stat.ino !== snapshotIdentity.ino || stat.nlink !== snapshotIdentity.nlink)) throw new Error("Snapshot hardlink identity changed");
+        if (stat.isFile() && stat.nlink !== 1n && (write || current !== target || !snapshotIdentity
+          || stat.dev !== snapshotIdentity.dev || stat.ino !== snapshotIdentity.ino || stat.nlink !== snapshotIdentity.nlink)) throw new Error("Hard-linked file refused");
         existing = current;
       } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
@@ -167,7 +181,7 @@ export function createRoleFiles(filesystem, agent) {
   return {
     tools: roleFileTools(agent),
     permission: access,
-    resolveRead(name) { if (closed) throw new Error("Role file broker closed"); return resolveTarget(name); },
+    resolveRead(name, snapshotIdentity = null) { if (closed) throw new Error("Role file broker closed"); return resolveTarget(name, false, snapshotIdentity); },
     close() { closed = true; },
     call(name, args) {
       if (closed || !names.includes(name) || !args || Array.isArray(args) || typeof args !== "object") throw new Error("Role file operation unavailable");

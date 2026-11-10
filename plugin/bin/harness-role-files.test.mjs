@@ -20,6 +20,25 @@ function fixture() {
   return { base, root, scratch, filesystem, files: createRoleFiles(filesystem, "web-dev") };
 }
 
+it("keeps readonly wildcard scopes and credentials protected inside an otherwise writable workspace", () => {
+  const f = fixture();
+  mkdirSync(path.join(f.root, "src/[slug]"));
+  writeFileSync(path.join(f.root, "src/[slug]/page.ts"), "READONLY_ROUTE");
+  writeFileSync(path.join(f.root, "src/a.locked.ts"), "READONLY_FILE");
+  writeFileSync(path.join(f.root, ".env"), "SECRET_CANARY");
+  writeFileSync(path.join(f.root, ".env.example"), "PUBLIC_EXAMPLE");
+  const files = createRoleFiles({ ":root": "deny", [f.root]: "write", [path.join(f.root, "src/**/*.locked.ts")]: "read", [path.join(f.root, "src/[slug]/**")]: "read" }, "dev");
+  for (const name of ["src/a.locked.ts", "src/[slug]/page.ts"]) {
+    const target = path.join(f.root, name), before = files.call("role_file_read", { path: target });
+    assert.throws(() => files.call("role_file_write", { path: target, content: "FORBIDDEN", expectedHash: before.hash }), /permission/);
+    assert.equal(readFileSync(target, "utf8"), before.text);
+  }
+  assert.throws(() => files.call("role_file_write", { path: path.join(f.root, "src/[slug]/new.ts"), content: "FORBIDDEN", expectedHash: null }), /permission/);
+  assert.throws(() => files.call("role_file_read", { path: path.join(f.root, ".env") }), /permission/);
+  assert.equal(files.call("role_file_read", { path: path.join(f.root, ".env.example") }).text, "PUBLIC_EXAMPLE");
+  files.call("role_file_write", { path: path.join(f.root, "src/new.ts"), content: "PERMITTED", expectedHash: null });
+});
+
 it("executes guarded native reads, scratch writes and new item artifacts without a shell", async () => {
   const f = fixture(), source = path.join(f.root, "src/code.ts");
   const read = f.files.call("role_file_read", { path: source, startLine: 2, maxLines: 1 });
@@ -135,7 +154,7 @@ it("fences native file tools with the current receipt and active owner, never fo
   const operations = { listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name, inputSchema: { type: "object" } })),
     checkSession: async () => ({ event: "owned", lifecycle: active ? "active" : "stopping", client: "codex" }),
     callTool: async (_, name) => { calls.push(name); return { done: false, receipt, step: "inspect" }; } };
-  const bridge = await roleBridge({}, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, f.files);
+  const bridge = await roleBridge({ binding: { root: f.root } }, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, f.files);
   const request = async (name, args) => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) })).json();
   try {
     assert.ok((await request("role_file_read", { path: path.join(f.root, "src/code.ts") })).error);
@@ -188,12 +207,13 @@ it("discards an asynchronous local result after stop and waits for its backend t
   const operations = { listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name, inputSchema: { type: "object" } })),
     checkSession: async () => ({ event: "owned", lifecycle: "active", client: "codex" }),
     callTool: async () => ({ done: false, receipt, step: "inspect" }) };
-  const bridge = await roleBridge({}, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, backend);
+  const bridge = await roleBridge({ binding: { root: path.resolve("async-native-root") } }, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, backend);
   const request = async name => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: {} } }) })).json();
   try {
-    await request("agent_next");
-    const command = request("role_command_exec"); await started;
+    assert.ok((await request("agent_next")).result);
+    const command = request("role_command_exec");
+    await Promise.race([started, command.then(() => { throw new Error("Command completed before entering its backend"); })]);
     const queued = request("role_command_exec");
     await new Promise(resolve => setTimeout(resolve, 30));
     bridge.abort(); assert.equal(signal.aborted, true);

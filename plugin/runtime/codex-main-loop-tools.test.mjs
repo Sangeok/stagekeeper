@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { createRoleFiles } from "./role-files.mjs";
-import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { it } from "node:test";
 import path from "node:path";
 import { createMainLoopTools } from "./codex-main-loop-tools.mjs";
 import { createMainLoopBridge } from "./codex-main-loop.mjs";
 
-const names = ["pipeline_next", "board_get", "backlog_get", "backlog_list", "project_get", "validation_record", "report_submit", "acceptance_fail"];
+const names = ["pipeline_next", "board_get", "backlog_get", "backlog_list", "project_get", "validation_record", "report_submit", "acceptance_fail", "board_transition"];
 async function fixture(overrides = {}) {
   const controller = new AbortController(), calls = [], roles = [], commits = [], records = [];
   const root = path.resolve("test-resident-root"), scratch = path.resolve("test-resident-scratch");
@@ -20,13 +21,15 @@ async function fixture(overrides = {}) {
     if (!state.active || (state.paused && !allowPaused)) throw new Error("Lease unavailable");
     return { policy: state.policy };
   };
-  const context = { input: { binding: { root }, config: { project: { slug: "test-project" }, workspaces: [{ agent: "dev", path: "src" }] } },
+  const context = { input: { binding: { root }, config: { project: { slug: "test-project" }, workspaces: [{ agent: "dev", path: "src" }], qa: { baseUrl: "http://127.0.0.1:3000" } } },
     files: { lock: path.join(root, ".git/harness/watch.lock.json") }, session: "session", branch: "fixture", scratch, fileBroker: {}, lifecycle: {}, signal: controller.signal, guard, record: event => records.push(event),
     commandBroker: { tools: [{ name: "role_file_write" }, { name: "role_file_read" }], call: async (name, args) => { calls.push({ name, args }); return {}; } } };
   const tools = await createMainLoopTools(context, {
     listTools: async () => [...names.map(name => ({ name })), { name: "gate_approve" }, { name: "agent_next" }],
     callTool: async (_input, name, args) => { calls.push({ name, args }); return name === "pipeline_next" ? state.next : name === "board_get" ? state.board : {}; },
     commitResidentArtifacts: input => { commits.push(input); return { commit: "b".repeat(40) }; },
+    recordResidentRoleReport: input => { commits.push(input); return { commit: "b".repeat(40), path: "recorded-log" }; },
+    verifierTarget: () => ({ targetCommit: "b".repeat(40), planCommit: "a".repeat(40) }),
     dispatchFreshRole: async (...args) => { roles.push(args); return { event: "completed", threadId: "fresh", done: true, receipt: { receipt: { runId: "a", revision: 1, stepId: "plan" } }, report: "evidence" }; },
     ...overrides,
   });
@@ -41,6 +44,24 @@ it("exposes only bounded main-loop tools and rejects owner, role cursor, identit
   assert.equal(f.calls.length, 0);
 });
 
+it("parks only a current plan review and never grants owner transitions", async () => {
+  const f = await fixture(), hold = { key: "K-1", to: "on_hold", result: "Plan verification stopped after three passes with defects." };
+  const schema = f.tools.tools.find(value => value.name === "board_transition").inputSchema;
+  assert.deepEqual(schema.properties.to.enum, ["on_hold"]); assert.equal(schema.properties.result.maxLength, 150);
+  await assert.rejects(f.tools.call("board_transition", hold), /current plan-verifier/);
+  f.state.next.agent = "plan-verifier"; f.state.board.status = "in_review";
+  for (const args of [{ ...hold, to: "planning" }, { ...hold, to: "implementing" }, { ...hold, result: "" }, { ...hold, result: "x".repeat(151) }, { ...hold, actor: "human" }]) {
+    await assert.rejects(f.tools.call("board_transition", args), /Only a bounded/);
+  }
+  assert.equal(f.calls.some(value => value.name === "board_transition"), false);
+  await f.tools.call("board_transition", hold);
+  assert.deepEqual(f.calls.at(-1), { name: "board_transition", args: hold });
+  f.state.next = { action: "wait", on: "gate", key: "K-1" };
+  await assert.rejects(f.tools.call("board_transition", hold), /current plan-verifier/);
+  f.state.active = false;
+  await assert.rejects(f.tools.call("board_transition", hold), /Lease unavailable/);
+});
+
 it("dispatches only the fresh current binding and never inherits a prior reviewer conclusion", async () => {
   const f = await fixture();
   const result = await f.tools.call("resident_dispatch", { key: "K-1" });
@@ -49,12 +70,88 @@ it("dispatches only the fresh current binding and never inherits a prior reviewe
   const diagnostic = { event: "role-tool-failed", agent: "dev", tool: "role_file_read", reason: "path-missing", systemCode: null };
   f.roles[0][4].record(diagnostic); assert.deepEqual(f.records, [diagnostic]);
   f.state.next = { ...f.state.next, agent: "plan-verifier" };
-  await assert.rejects(f.tools.call("resident_dispatch", { key: "K-1" }), /verification paths/);
+  await assert.rejects(f.tools.call("resident_dispatch", { key: "K-1" }), /requiredVerificationPaths/);
   await f.tools.call("resident_dispatch", { key: "K-1", requiredVerificationPaths: ["Run the exact test command and inspect its inputs"] });
   assert.deepEqual(f.roles[1][3].requiredVerificationPaths, ["Run the exact test command and inspect its inputs"]);
   f.state.next = { ...f.state.next, agent: "qa-verifier" };
-  await assert.rejects(f.tools.call("resident_dispatch", { key: "K-1" }), /foreground handoff/);
+  await assert.rejects(f.tools.call("resident_dispatch", { key: "K-1" }), /resident_qa_environment/);
   assert.equal(f.roles.length, 2);
+});
+
+it("macOS resident prepares implementation verification from the server target without carrying prior verdicts", { skip: process.platform !== "darwin" }, async () => {
+  const f = await fixture(); f.state.next = { ...f.state.next, agent: "impl-verifier" };
+  await f.tools.call("resident_dispatch", { key: "K-1" });
+  assert.deepEqual(f.roles[0][3].implementation, { targetCommit: "b".repeat(40) });
+  assert.equal(f.roles[0][3].agentKey, "K-1");
+  assert.equal(f.roles[0][3].planCommit, "a".repeat(40));
+  await assert.rejects(f.tools.call("resident_dispatch", { key: "K-1", previousVerdict: "pass" }), /Unexpected/);
+});
+
+it("corrects plan-only briefing arguments without interrupting the cycle or opening the wrong role", async () => {
+  const f = await fixture(); let refusals = 0;
+  const bridge = await createMainLoopBridge(f.tools, f.controller.signal, () => {}, () => { refusals++; });
+  const invoke = args => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "resident_dispatch", arguments: args } }) }).then(response => response.json());
+  try {
+    const invalid = await invoke({ key: "K-1", requiredVerificationPaths: ["only a plan reviewer accepts this"] });
+    assert.equal(invalid.error.code, -32602); assert.match(invalid.error.message, /current role is dev.*No role run started/);
+    assert.equal(f.roles.length, 0); assert.equal(refusals, 0);
+    assert.equal((await invoke({ key: "K-1", requiredVerificationPaths: null })).error, undefined);
+    assert.equal(f.roles.length, 1); assert.equal(f.roles[0][3].requiredVerificationPaths, undefined);
+    assert.equal(refusals, 0);
+  } finally { await bridge.close(); }
+});
+
+it("commits a blocked verifier report and resumes only that same report run", { skip: process.platform !== "darwin" }, async t => {
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "resident-verifier-handoff-"));
+  t.after(() => rmSync(root, { recursive: true }));
+  const git = args => execFileSync("git", ["-C", root, "-c", "user.name=Test", "-c", "user.email=test@test.invalid", ...args], { encoding: "utf8", stdio: "pipe" }).trim();
+  git(["init", "-q", "-b", "fixture"]); writeFileSync(path.join(root, "code.txt"), "unchanged"); git(["add", "."]); git(["commit", "-qm", "baseline"]);
+  const baseline = git(["rev-parse", "HEAD"]), entry = { runId: "pipeline", entryId: "entry", slotId: "impl-verify" };
+  const artifact = "docs/agents/impl-verifier/K-1.md", content = "Verification blocked; no pass is claimed.\n";
+  let next = { key: "K-1", action: "dispatch", agent: "impl-verifier", format: "slots-v1", entry }, turns = 0;
+  const board = { status: "done", planCommit: baseline, planPath: "plan.md" }, files = createRoleFiles({ ":root": "deny", [root]: "read" }, "main-loop");
+  t.after(() => files.close());
+  const tools = await createMainLoopTools({ input: { binding: { root }, config: { project: { slug: "fixture" }, workspaces: [] } }, files: {}, session: "session", branch: "fixture", scratch: root,
+    fileBroker: files, commandBroker: files, lifecycle: {}, signal: new AbortController().signal,
+    guard: async () => ({ policy: { commit: true, propose: false } }),
+  }, {
+    listTools: async () => names.map(name => ({ name })), callTool: async (_input, name) => name === "pipeline_next" ? next : board,
+    verifierTarget: () => ({ targetCommit: baseline, planCommit: baseline }),
+    dispatchFreshRole: async (_input, _files, _session, binding) => {
+      turns++;
+      if (turns === 1) {
+        mkdirSync(path.dirname(path.join(root, artifact)), { recursive: true }); writeFileSync(path.join(root, artifact), content);
+        next = { action: "wait", on: "handoff", key: "K-1", note: artifact, resume: { agent: "impl-verifier", key: "K-1", agentRunId: "same-run", format: "slots-v1", entry } };
+        return { event: "paused", done: false, receipt: { step: "blocked-report", agentRunId: "same-run", receipt: { runId: "same-run", revision: 1, stepId: "blocked-report" } }, report: "blocked" };
+      }
+      assert.equal(binding.agentRunId, "same-run"); assert.equal(binding.commitHandoff.agentRunId, "same-run");
+      assert.equal(binding.commitHandoff.path, artifact); assert.equal(git(["show", `${binding.commitHandoff.commit}:${artifact}`]), content.trim());
+      next = { action: "wait", on: "impl-verify", key: "K-1" };
+      return { event: "done", done: true, threadId: "report-continuation", receipt: { done: true }, report: "Blocked report recorded; verification not retried." };
+    },
+  });
+  const result = await tools.call("resident_dispatch", { key: "K-1" });
+  assert.equal(result.done, true); assert.equal(turns, 2); assert.equal(next.on, "impl-verify");
+  assert.equal(git(["diff", "--name-only", baseline, "HEAD"]), artifact); assert.equal(git(["status", "--porcelain"]), "");
+});
+
+it("resident QA requires an observed matching build and preserves explicit retry after failure", async () => {
+  let text = "wrong build", closes = 0;
+  const f = await fixture({ createQaBrowser: async () => ({ call: async () => ({ mcpResult: { content: [{ type: "text", text }] } }), close: async () => { closes++; } }) });
+  f.state.next = { ...f.state.next, agent: "qa-verifier" };
+  await assert.rejects(f.tools.call("resident_dispatch", { key: "K-1" }), /resident_qa_environment/);
+  await assert.rejects(f.tools.call("resident_qa_environment", { key: "K-1", url: "https://production.invalid" }), /Unexpected/);
+  const blocked = await f.tools.call("resident_qa_environment", { key: "K-1" });
+  assert.equal(blocked.event, "blocked"); assert.equal(f.roles.length, 0);
+  text = `- Page URL: http://127.0.0.1:3000\nBuild ${"b".repeat(40)}`;
+  const observed = await f.tools.call("resident_qa_environment", { key: "K-1" });
+  assert.equal(observed.event, "ready"); assert.equal(closes, 2);
+  await f.tools.call("resident_dispatch", { key: "K-1" });
+  assert.equal(f.roles[0][3].qaBriefing.targetCommit, "b".repeat(40));
+  assert.match(f.roles[0][3].qaBriefing.testBuildIdentity, /Observed.*Browser snapshot SHA-256/);
+  f.state.next = { action: "wait", on: "qa", key: "K-1" };
+  assert.equal((await f.tools.call("resident_dispatch", { key: "K-1" })).event, "waiting");
+  assert.equal(f.roles.length, 1);
 });
 
 it("blocks new work, commits and remote calls after pause, ownership loss or cancellation", async () => {

@@ -11,13 +11,15 @@ import { actionableWork } from "../lib/execution/watch.mjs";
 import { backgroundSettings, classifyRun, fileList, fillNotice, INTERVAL_MS, porcelainPaths, pushBlockedEnv, quoteWindowsArgument,
   readStreamLine, ResidentRunUnsettled, RUN_LIMIT_MS, RUN_LOG_KEEP, runArguments, runResident } from "../runtime/background.mjs";
 import { atomicWrite, checkoutRunbookVersion, clearState, gitRoot, isAlive, lifecycleOf, markUnsettled, matchesBinding, NewerState, readState, readStateWithGuard,
-  recordedChildren, registerChild, residentLock, settleChild, stateFiles, withGuard, writeStopRequest } from "../runtime/local-session.mjs";
+  recordedChildren, registerChild, requestStop, residentLock, settleChild, stateFiles, withGuard, writeStopRequest } from "../runtime/local-session.mjs";
 import { callTool, connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin, runnerHost } from "../runtime/runner-client.mjs";
 import { createCodexExecution } from "../runtime/codex-main-loop.mjs";
-import { CODEX_WINDOWS_ONLY } from "../runtime/codex-thread.mjs";
+import { CODEX_UNSUPPORTED_PLATFORM, supportsCodexPlatform } from "../runtime/codex-platform.mjs";
+import { installedRoleRuntime } from "../runtime/role-command-backend.mjs";
 import { stateDiagnostic, readStateDiagnostic } from "../runtime/state-diagnostics.mjs";
 import { codexExecutable } from "../runtime/codex-executable.mjs";
+import { recoverMacosCommands } from "../runtime/macos-recovery.mjs";
 
 const PLUGIN_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SELF = fileURLToPath(import.meta.url);
@@ -46,7 +48,8 @@ export const REASONS = {
   "codex-plan": CODEX_RESIDENT_RUNNER_PLAN_GATE,
   "codex-route": "This server did not confirm Codex resident ownership. Use $harness-run or $harness-resume until its server is updated.",
   "codex-config": "Codex configuration or installed package verification failed. Reconnect with $harness-init.",
-  "codex-windows": CODEX_WINDOWS_ONLY,
+  "codex-platform": CODEX_UNSUPPORTED_PLATFORM,
+  "codex-runtime": "The complete Codex runtime package is missing or changed. Install the matching Stagekeeper package for this operating system.",
   "no-route": "This Stagekeeper server does not take runners yet. Use /harness:watch in a Claude Code session.",
   "no-claude": "Claude Code (claude.exe) was not found on PATH. Install the native Claude Code, then start again.",
   "claude-failed": "Claude Code did not start. Run claude once in a terminal to check the sign-in, then start again.",
@@ -115,7 +118,8 @@ function parseArguments(argv) {
   if (options.client !== undefined && !["claude", "codex"].includes(options.client)) refuse("invalid-arguments");
   if (options.client !== undefined && !["preflight", "start", "run"].includes(op)) refuse("invalid-arguments");
   if (options.client === "codex" && options["from-autostart"]) refuse("invalid-arguments");
-  if (options.client === "codex" && process.platform !== "win32") refuse("codex-windows");
+  if (options.client === "codex" && !supportsCodexPlatform()) refuse("codex-platform");
+  if (options.client === "codex" && process.platform === "darwin") { try { installedRoleRuntime(); } catch { refuse("codex-runtime"); } }
   const needsPropose = op === "start" || op === "autostart-on";
   if (needsPropose !== ["yes", "no"].includes(options.propose) || (!needsPropose && options.propose)) refuse("invalid-arguments");
   if (op === "run" && !options.session) refuse("invalid-arguments");
@@ -464,10 +468,13 @@ async function release(location, files, options) {
       .map(line => fill(line, values)));
     return { event: "release-check", session: state.lock.id, client, startedAt: state.lock.startedAt, unsettled: state.lock.unsettled === true, files: dirty };
   }
+  await requestStop(files, options.session);
+  await recoverMacosCommands(files, options.session);
   const released = await withGuard(files, () => {
     const current = readState(files);
     if (current?.lock.id !== options.session) refuse("release-changed", {}, client);
     if (processLeft(current.lock)) refuse("still-running", {}, client);
+    if (recordedChildren(current.lock).some(child => child.sandbox)) refuse("held", {}, client);
     clearState(files);
     return current.lock;
   });
