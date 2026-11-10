@@ -401,7 +401,6 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
       implementationCopy = await runtime.prepareImplementationCopy({ root: input.binding.root, targetCommit: dispatch.implementation.targetCommit,
         planCommit: dispatch.planCommit, fileBroker: nativeFileBroker, lifecycle: commandLifecycle, signal: runtime.signal });
       filesystem[implementationCopy.copy] = "write";
-      await nativeFileBroker.close();
       nativeFileBroker = runtime.createRoleFiles(filesystem, dispatch.agent); fileBroker = nativeFileBroker;
     }
     const commandBroker = nativeRuntime ? await runtime.createRoleCommandBackend({ root: implementationCopy?.copy ?? input.binding.root, scratch, agent: dispatch.agent, fileBroker: nativeFileBroker, runtime: nativeRuntime }, commandLifecycle) : nativeFileBroker;

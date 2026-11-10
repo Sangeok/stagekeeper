@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { prepareImplementationCopy } from "./implementation-copy.mjs";
@@ -12,6 +12,36 @@ import { installedMacosRuntime } from "./macos-runtime.mjs";
 let runtime;
 try { if (process.platform === "darwin") runtime = installedMacosRuntime(); } catch (error) { if (process.env.STAGEKEEPER_MACOS_RUNTIME_REQUIRED === "1") throw error; }
 const native = { skip: !runtime && "Packaged macOS runtime required", timeout: 60000 };
+
+it("implementation Git never restores or reads committed paths denied by the source file policy", native, async t => {
+  const base = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-implementation-policy-")), root = path.join(base, "repo");
+  mkdirSync(root);
+  t.after(() => rmSync(base, { recursive: true }));
+  const git = args => execFileSync("git", ["-C", root, "-c", "user.name=Stagekeeper Test", "-c", "user.email=stagekeeper@test.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  git(["init", "-q"]);
+  const denied = [".azure/synthetic.json", "private/note.txt", ".env.test"];
+  for (const name of [...denied, "allowed.txt"]) {
+    mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
+    writeFileSync(path.join(root, name), "SYNTHETIC_POLICY_CANARY\n");
+  }
+  git(["add", "."]); git(["commit", "-qm", "policy fixture"]); const targetCommit = git(["rev-parse", "HEAD"]);
+  const files = createRoleFiles({ ":root": "deny", [root]: "read", [path.join(root, "private")]: "deny" }, "impl-verifier");
+  t.after(() => files.close());
+  for (const name of denied) assert.throws(() => files.call("role_file_read", { path: path.join(root, name) }), /permission/);
+  const copy = await prepareImplementationCopy({ root, targetCommit, planCommit: targetCommit, fileBroker: files, lifecycle: {} });
+  t.after(() => copy.close());
+  for (const name of denied) {
+    for (const operation of ["show", "history", "restore"]) {
+      await assert.rejects(copy.call({ operation, paths: [name] }), /permission|credentials|permitted/);
+    }
+    assert.equal(existsSync(path.join(copy.copy, name)), false);
+    assert.ok(copy.omitted.some(value => name === value || name.startsWith(value + "/")));
+  }
+  assert.equal((await copy.call({ operation: "show", paths: ["allowed.txt"] })).text, "SYNTHETIC_POLICY_CANARY\n");
+  assert.equal(git(["status", "--porcelain"]), "");
+  await copy.close();
+  assert.throws(() => files.resolveRead(path.join(root, "allowed.txt")), /closed/);
+});
 
 it("implementation verification observes baseline, assertion failure after revert and restored pass without touching the owner tree", native, async t => {
   const base = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-implementation-test-")), root = path.join(base, "repo"), scratch = path.join(base, "scratch");

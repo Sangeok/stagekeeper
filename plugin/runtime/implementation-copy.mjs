@@ -23,6 +23,10 @@ export async function prepareImplementationCopy({ root, targetCommit, planCommit
   signal ??= new AbortController().signal;
   if (!/^[a-f0-9]{40}$/.test(targetCommit ?? "") || !/^[a-f0-9]{40}$/.test(planCommit ?? "")) throw new Error("Implementation verification requires resolved target and approved plan commits");
   const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-impl-verify-")), copy = path.join(directory, "repo");
+  const permittedPath = name => {
+    if (protectedPath(name)) return false;
+    try { fileBroker.resolveRead(path.join(root, name)); return true; } catch { return false; }
+  };
   let completed = false;
   try {
     const snapshot = await snapshotRepository(root, copy, fileBroker, signal, { internalLinks: process.platform === "darwin" });
@@ -35,8 +39,8 @@ export async function prepareImplementationCopy({ root, targetCommit, planCommit
       if (path.isAbsolute(name) || name.split("/").some(part => part === "." || part === "..") || /[\0\r\n]/.test(name)) throw new Error("Verification Git path refused");
       return { path: name, mode: match[1] };
     });
-    const tree = committedTree.filter(row => !protectedPath(row.path));
-    const omitted = [...new Set([...snapshot.omitted, ...committedTree.filter(row => protectedPath(row.path)).map(row => row.path)])];
+    const tree = committedTree.filter(row => permittedPath(row.path));
+    const omitted = [...new Set([...snapshot.omitted, ...committedTree.filter(row => !permittedPath(row.path)).map(row => row.path)])];
     await git.query(["read-tree", targetCommit]);
     for (let index = 0; index < tree.length; index += 100) await git.query(["checkout-index", "--force", "--", ...tree.slice(index, index + 100).map(row => row.path)]);
     let closed = false;
@@ -44,6 +48,7 @@ export async function prepareImplementationCopy({ root, targetCommit, planCommit
       if (!Array.isArray(args.paths) || args.paths.length === 0 || args.paths.length > 100) throw new RoleFileInputError("Supply explicit copy-relative file paths.");
       return args.paths.map(name => {
         if (typeof name !== "string" || !name || path.isAbsolute(name) || /[\\\x00-\x1f]/.test(name) || name.split("/").some(part => !part || part === "." || part === "..") || protectedPath(name)) throw new RoleFileInputError("Use copy-relative regular files, excluding credentials and Git metadata.");
+        if (!permittedPath(name)) throw new RoleFileInputError("Use only paths permitted by the original repository file policy.");
         const target = path.join(copy, name); let current = copy;
         for (const part of name.split("/")) {
           current = path.join(current, part);
@@ -86,7 +91,7 @@ export async function prepareImplementationCopy({ root, targetCommit, planCommit
         }
         return { ref, changed, originalRepositoryWrites: false };
       },
-      async close() { if (closed) return; closed = true; await rm(directory, { recursive: true }); },
+      async close() { if (closed) return; closed = true; try { await rm(directory, { recursive: true }); } finally { await fileBroker.close(); } },
     };
   } finally { if (!completed) await rm(directory, { recursive: true }); }
 }

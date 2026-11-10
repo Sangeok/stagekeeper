@@ -93,6 +93,10 @@ macOS `impl-verifier`는 `implementation-copy.mjs`의 별도 복사본을 사용
 제품 파일이 target 이후 바뀌었으면 dispatch를 거부한다. Git 객체만 별도로 복사하고
 원본 config·hooks·remote를 실행하거나 복사하지 않는다.
 
+커밋에서 복원하는 파일과 `show`·`history`·`restore`의 경로도 원본 file broker의 읽기 정책을
+통과해야 한다. `.azure` 같은 credential 경로나 명시적으로 제외한 디렉터리가 Git에
+추적되어 있어도 검증 사본으로 되살리지 않는다. 이 정책 broker는 사본과 함께 닫는다.
+
 역할은 원본에서 자기 보고서만 쓸 수 있다. `implementation_git`는 identity·changes·
 show·history·status와 plan/target의 명시한 파일 복원만 제공한다. 검증 명령은 검증
 사본의 새 snapshot에서 실행하고, mutation은 검증 사본에만 적용한다. 정상 baseline,
