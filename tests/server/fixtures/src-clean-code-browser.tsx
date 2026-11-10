@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
-import { PathnameContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
+import { PathnameContext, SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { NewProjectForm } from "../../../src/fsd/features/create-project";
 import { CopyButton } from "../../../src/fsd/shared/ui/copy-button";
 import { TokenReveal } from "../../../src/fsd/entities/project-token/ui/token-reveal";
@@ -14,7 +14,6 @@ import { projectPath, type ProjectTabSegment } from "../../../src/fsd/shared/rou
 import { InboxCardBoundary } from "../../../src/fsd/features/review-gate/ui/inbox-card-boundary";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { PipelineRail } from "../../../src/fsd/features/edit-pipeline/ui/pipeline-rail";
-import { AutomaticScoutControl } from "../../../src/fsd/features/edit-pipeline/ui/automatic-scout-control";
 import { ProjectConnectionControl } from "../../../src/fsd/features/manage-project-connection/ui/project-connection-control";
 import { connectionControlKey } from "../../../src/fsd/features/manage-project-connection/model/project-connection-state";
 import { ResumeButtons } from "../../../src/fsd/features/review-gate/ui/resume-buttons";
@@ -39,6 +38,9 @@ const controls = {
   duplicateKeyWarnings: 0,
   finishAction: (outcome: "success" | "error" | "stale" | "unknown") => { void outcome; },
   setRoster: (roster: string[]) => { void roster; },
+  setPickerUser: (userKey: string) => { void userKey; },
+  remountPicker: () => {},
+  unmountPicker: () => {},
 };
 Object.assign(window, { fixture: controls });
 const originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
@@ -65,12 +67,11 @@ function action<T>(input: unknown, values: { success: T; error: T; stale: T }): 
 
 const router = { refresh: () => { controls.refreshes++; } } as React.ContextType<typeof AppRouterContext>;
 function PipelineFixture() {
-  return <><AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />
-    <PipelineRail pipelineId="default" definition={{ steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }} rules={{}} pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }, saved: { version: 3, createdAt: new Date(0) }, runnable: { ...defaultGraph("pro"), format: "slots-v1" } }]} expectedVersion={3} plan="pro" roster={["dev"]} editable
-      save={input => action(input, { success: { status: "success", pipelineId: "default", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} /></>;
+  return <PipelineRail pipelineId="default" definition={{ steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }} rules={{}} pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }, saved: { version: 3, createdAt: new Date(0) }, runnable: { ...defaultGraph("pro"), format: "slots-v1" } }]} expectedVersion={3} plan="pro" roster={["dev"]} editable
+      save={input => action(input, { success: { status: "success", pipelineId: "default", version: 4 }, error: { status: "error", reason: "Unavailable" }, stale: { status: "stale" } })} />;
 }
-function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
-  const [view, setView] = useState({ projectId: "one", version: unsaved ? 0 : 3, graph: defaultGraph("pro"), plan: "pro", editable: true, roster: ["dev"], enabled: true });
+function PipelinePageFixture({ unsaved = false, initialPlan = "pro" }: { unsaved?: boolean; initialPlan?: string }) {
+  const [view, setView] = useState({ projectId: "one", version: unsaved ? 0 : 3, graph: defaultGraph(initialPlan), plan: initialPlan, editable: initialPlan !== "free", roster: ["dev"], enabled: true });
   const remoteGraph = () => ({ ...defaultGraph("pro"), nodes: defaultGraph("pro").nodes.filter((node: string) => node !== "verify") });
   const now = new Date("2026-10-15T00:00:00Z");
   return <>
@@ -88,7 +89,7 @@ function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
     <div id="pipeline-page">
       <ProjectPipelinePage projectId={view.projectId}
         pipelines={[{ id: "default", name: "Default", isDefault: true, definition: { steps: view.graph.nodes, gates: view.graph.gates }, saved: view.version === 0 ? null : { version: view.version, createdAt: now }, runnable: { ...view.graph, format: "slots-v1" } }]}
-        rules={{}} actions={{ archive: async () => ({ success: true, data: null }), rename: async () => ({ success: true, data: null }), setDefault: async () => ({ success: true, data: null }), setRule: async () => ({ success: true, data: null }), setAutomaticPick: async () => ({ success: true, data: null }) }} now={now}
+        rules={{}} actions={{ archive: async () => ({ success: true, data: null }), rename: async () => ({ success: true, data: null }), setDefault: async () => ({ success: true, data: null }), setRule: async () => ({ success: true, data: null }) }} now={now}
         plan={view.plan} roster={view.roster} editable={view.editable} unavailableReason={view.editable ? undefined : "Not selected"}
         save={async input => {
           const result = await action(input, { success: { status: "success" as const, pipelineId: "default", version: input.expectedVersion + 1 }, error: { status: "error" as const, reason: "Unavailable" }, stale: { status: "stale" as const } });
@@ -101,9 +102,6 @@ function PipelinePageFixture({ unsaved = false }: { unsaved?: boolean }) {
   </>;
 }
 
-function ScoutFixture() {
-  return <AutomaticScoutControl enabled writable save={enabled => action(enabled, { success: { success: true, data: enabled }, error: { success: false, error: "Unavailable" }, stale: { success: false, error: "stale" } })} />;
-}
 function ConnectionFixture() {
   const [version, setVersion] = useState(4);
   const [disconnected, setDisconnected] = useState(false);
@@ -122,8 +120,13 @@ function ResumeFixture() {
 
 function FormFixture() {
   const picker = new URLSearchParams(location.search).has("picker") || fixturePicker;
+  const [pickerState, setPickerState] = useState(() => githubFixture?.initial);
+  useEffect(() => {
+    controls.setPickerUser = userKey => setPickerState(current => current ? { ...current, userKey } : current);
+    return () => { controls.setPickerUser = () => {}; };
+  }, []);
   return <>{new URLSearchParams(location.search).get("mode") === "private-cooldown" ? <RepositoryFixtureControls /> : null}<NewProjectForm defaultOwner="fixture-owner" repoLoadFailed={false} mcpUrl="https://fixture.test/api/mcp"
-    picker={githubFixture?.initial}
+    picker={pickerState}
     repos={picker ? [{ source: "public", repositoryId: "1", owner: "fixture-owner", name: "picked-repo", defaultBranch: "release/picked" }, { source: "public", repositoryId: "2", owner: "fixture-owner", name: "second-repo", defaultBranch: "main" }] : []}
     action={async (_previous, data) => {
       controls.submissions.push(Object.fromEntries(data.entries()));
@@ -270,8 +273,10 @@ let root: ReturnType<typeof createRoot> | undefined;
 let fixturePicker = false;
 let githubFixture: ReturnType<typeof installGitHubPickerFixture> | null = null;
 let frontendMode = false;
+let restorePipelineLocation = () => {};
 function cleanupFixture() {
   root?.unmount(); root = undefined;
+  restorePipelineLocation(); restorePipelineLocation = () => {};
   if (frontendMode) { cleanupFrontendUx(); frontendMode = false; }
   githubFixture?.cleanup(); githubFixture = null;
   for (const finish of pending) finish(); pending.clear();
@@ -279,6 +284,7 @@ function cleanupFixture() {
   controls.finishAction = () => {};
   controls.finishCopy = () => {};
   controls.finishRegistration = () => {};
+  controls.setPickerUser = () => {}; controls.remountPicker = () => {}; controls.unmountPicker = () => {};
   if (originalClipboard) Object.defineProperty(navigator, "clipboard", originalClipboard); else Reflect.deleteProperty(navigator, "clipboard");
 }
 
@@ -305,10 +311,22 @@ function renderMode(mode: string, picker = false) {
     };
     restoreConsole = () => { console.error = originalError; };
   }
+  if (mode.startsWith("pipeline-page")) {
+    const previousUrl = location.href, previousState = history.state;
+    const url = new URL(location.href); url.searchParams.set("pipeline", "default");
+    history.replaceState(previousState, "", url);
+    restorePipelineLocation = () => history.replaceState(previousState, "", previousUrl);
+  }
   root = createRoot(document.getElementById("root")!);
   frontendMode = mode === "ux-pipeline" || mode === "ux-rail";
-  const content = <AppRouterContext.Provider value={router}>{mode === "ux-pipeline" || mode === "ux-rail" ? <FrontendUxFixture mode={mode} Rail={PipelineRail} /> : mode === "documents" ? <DocumentsFixture /> : mode === "item-actions" ? <ItemActionsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode === "pipeline-page" || mode === "pipeline-page-default" ? <PipelinePageFixture unsaved={mode === "pipeline-page-default"} /> : mode === "pipeline" ? <PipelineFixture /> : mode === "scout" ? <ScoutFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>;
-  root.render(mode === "private-initial-strict" ? <React.StrictMode>{content}</React.StrictMode> : content);
+  const content = <AppRouterContext.Provider value={router}>{mode === "ux-pipeline" || mode === "ux-rail" ? <FrontendUxFixture mode={mode} Rail={PipelineRail} /> : mode === "documents" ? <DocumentsFixture /> : mode === "item-actions" ? <ItemActionsFixture /> : mode === "token-issuance" ? <TokenIssuanceFixture /> : mode === "token-rename" ? <TokenRenameFixture /> : mode === "copy" ? <CopyFixture /> : mode === "turn" ? <TurnFixture /> : mode.startsWith("pipeline-page") ? <SearchParamsContext.Provider value={new URLSearchParams(location.search)}><PipelinePageFixture unsaved={mode !== "pipeline-page"} initialPlan={mode === "pipeline-page-free-default" ? "free" : "pro"} /></SearchParamsContext.Provider> : mode === "pipeline" ? <PipelineFixture /> : mode === "connection" ? <ConnectionFixture /> : mode === "resume" ? <ResumeFixture /> : mode === "propose" ? <ProposeFixture /> : mode === "boundary" ? <BoundaryFixture /> : <FormFixture />}</AppRouterContext.Provider>;
+  const view = mode === "private-initial-strict" || mode === "private-ack-strict" ? <React.StrictMode>{content}</React.StrictMode> : content;
+  root.render(view);
+  controls.unmountPicker = () => { root?.unmount(); root = undefined; };
+  controls.remountPicker = () => {
+    controls.unmountPicker();
+    root = createRoot(document.getElementById("root")!); root.render(view);
+  };
 }
 const toolbar = document.createElement("div");
 const runSelectedAcceptance = () => new URLSearchParams(location.search).has("ux-only")

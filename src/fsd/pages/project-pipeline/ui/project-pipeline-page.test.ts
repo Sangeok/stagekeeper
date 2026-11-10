@@ -15,7 +15,7 @@ const props: Parameters<typeof ProjectPipelinePage>[0] = {
   projectId: "one", pipelines: [{ id: "default", name: "Default", isDefault: true,
     definition: { steps: graph.nodes, gates: graph.gates }, saved: { version: 3, createdAt: now }, runnable: { ...graph, format: "slots-v1" } }],
   rules: {}, now, plan: "pro", roster: ["dev"], editable: true, save,
-  actions: { archive: settings, rename: settings, setDefault: settings, setRule: settings, setAutomaticPick: settings },
+  actions: { archive: settings, rename: settings, setDefault: settings, setRule: settings },
 };
 
 it("keys the pipeline editor by project identity while preserving the exact injected Action references", () => {
@@ -39,7 +39,9 @@ it("renders saved definition descriptions and read-only controls without invokin
   for (const saved of [null, { version: 4, createdAt: now }]) {
     const html = renderToStaticMarkup(withAppRouterTestContext(createElement(SearchParamsContext.Provider, { value: new URLSearchParams("pipeline=default") },
       createElement(ProjectPipelinePage, { ...props, pipelines: [{ ...props.pipelines[0], saved }], editable: false, unavailableReason: "Not selected" }))));
-    assert.ok(html.includes(saved ? "Version 4" : "Initial configuration"));
+    assert.ok(html.includes(saved ? "Version 4 · saved" : "Initial configuration · changes apply to future runs."));
+    assert.ok(html.includes("changes apply to future runs."));
+    assert.ok(!html.includes("applies to items proposed from now on"));
     assert.ok(html.includes("Default selection:"));
     assert.ok(!html.includes("Runs items"));
     assert.ok(!html.includes("Used inside"));
@@ -48,4 +50,11 @@ it("renders saved definition descriptions and read-only controls without invokin
     assert.ok(html.includes("Not selected"));
     assert.ok(!html.includes(">Save</button>"));
   }
+});
+
+it("renders a new draft status separately from saved or virtual configuration descriptions", () => {
+  const html = renderToStaticMarkup(withAppRouterTestContext(createElement(SearchParamsContext.Provider, { value: new URLSearchParams("pipeline=new") },
+    createElement(ProjectPipelinePage, props))));
+  assert.ok(html.includes("Not saved yet"));
+  assert.ok(!html.includes("Initial configuration") && !html.includes("changes apply to future runs."));
 });

@@ -4,6 +4,7 @@ import type { NewProjectForm } from "@/fsd/features/create-project";
 type PickerState = NonNullable<ComponentProps<typeof NewProjectForm>["picker"]>;
 type InitialEndpoint = "cancel" | "draft" | "list";
 type InitialOutcome = "success" | "unauthenticated" | "reauth-required" | "unavailable" | "invalid" | "invalid-value" | "network" | "empty" | "partial";
+export type AcknowledgeOutcome = "success" | "unauthenticated" | "rate-limited" | "unavailable" | "network" | "committed-network";
 type PickerRequest = { id: number; method: string; path: string; search: string; body: unknown; aborted: boolean; settled: boolean };
 
 export const githubControls = {
@@ -13,10 +14,17 @@ export const githubControls = {
   pendingCount: () => 0, cooldownTimerCount: () => 0,
   requestRecords: [] as PickerRequest[],
   releaseInitial(endpoint: InitialEndpoint, outcome: InitialOutcome = "success"): void { void endpoint; void outcome; },
+  releaseAcknowledge(outcome: AcknowledgeOutcome): void { void outcome; },
+  failFlowStorage(operation: "read" | "remove"): void { void operation; },
+  restoreFlowStorage(): void {},
+  draftPresent: () => false,
+  flowKey: "",
+  flowId: "",
 };
 
 export function installGitHubPickerFixture(mode: string): { initial: PickerState; cleanup(): void } {
   const initialCase = mode.startsWith("private-initial-") ? mode.slice("private-initial-".length) : null;
+  const acknowledgeMode = mode.startsWith("private-ack");
   const original = window.fetch;
   const browserWindow: Window = window;
   const originalNow = Date.now, originalSetTimeout = browserWindow.setTimeout, originalClearTimeout = browserWindow.clearTimeout;
@@ -41,12 +49,35 @@ export function installGitHubPickerFixture(mode: string): { initial: PickerState
   const pendingDraft = new Set<() => void>(), pendingList = new Set<() => void>(), pending = new Set<() => void>();
   const pendingProbe = new Set<() => void>(), pendingStart = new Set<() => void>(), pendingDisconnect = new Set<() => void>();
   const pendingInitial = new Map<PickerRequest, { endpoint: InitialEndpoint; release(outcome: InitialOutcome): void }>();
+  const pendingAcknowledgments = new Map<PickerRequest, (outcome: AcknowledgeOutcome) => void>();
+  let draftPresent = true;
   const flowId = "e5cc5c70-e05a-4a3a-a837-bb46c99b372b", draftId = "f44789cb-40c6-42cb-bdbe-c0995bcaa07c";
   const userKey = "fixture-private-user", flowKey = `stagekeeper.github.flow.${userKey}`, cancelKey = `stagekeeper.github.cancel.${userKey}`;
+  const originalGetItem = Storage.prototype.getItem, originalRemoveItem = Storage.prototype.removeItem;
+  const restoreFlowStorage = () => { Storage.prototype.getItem = originalGetItem; Storage.prototype.removeItem = originalRemoveItem; };
   sessionStorage.removeItem(flowKey); sessionStorage.removeItem(cancelKey);
   if (["private-restoring", "private-session-race", "private-focus"].includes(mode)) sessionStorage.setItem(flowKey, flowId);
   if (initialCase && ["draft", "both", "late", "strict", "serial"].includes(initialCase)) sessionStorage.setItem(flowKey, flowId);
   if (initialCase && ["cancel", "cancel-both", "serial"].includes(initialCase)) sessionStorage.setItem(cancelKey, draftId);
+  if (acknowledgeMode) sessionStorage.setItem(flowKey, flowId);
+  githubControls.flowKey = flowKey; githubControls.flowId = flowId;
+  githubControls.draftPresent = () => draftPresent;
+  githubControls.restoreFlowStorage = restoreFlowStorage;
+  githubControls.failFlowStorage = operation => {
+    if (operation === "read") Storage.prototype.getItem = function(this: Storage, key: string) {
+      if (this === sessionStorage && key === flowKey) throw new Error("Fixture storage read unavailable");
+      return originalGetItem.call(this, key);
+    };
+    else Storage.prototype.removeItem = function(this: Storage, key: string) {
+      if (this === sessionStorage && key === flowKey) throw new Error("Fixture storage removal unavailable");
+      originalRemoveItem.call(this, key);
+    };
+  };
+  githubControls.releaseAcknowledge = outcome => {
+    const release = pendingAcknowledgments.values().next().value;
+    if (!release) throw new Error("No pending acknowledge request");
+    release(outcome);
+  };
   githubControls.requests.length = 0;
   githubControls.requestRecords.length = 0;
   githubControls.releaseInitial = (endpoint, outcome = "success") => {
@@ -115,6 +146,23 @@ export function installGitHubPickerFixture(mode: string): { initial: PickerState
       group.add(finish); pending.add(abort); signal?.addEventListener("abort", abort, { once: true });
     });
   }
+  function holdAcknowledgment(record: PickerRequest, signal: AbortSignal | null | undefined): Promise<Response> {
+    return new Promise((resolve, reject) => {
+      const clear = () => { pendingAcknowledgments.delete(record); pending.delete(cancel); signal?.removeEventListener("abort", abort); };
+      const cancel = () => { clear(); reject(new DOMException("Aborted", "AbortError")); };
+      const abort = () => { if (mode !== "private-ack-late") cancel(); };
+      if (signal?.aborted && mode !== "private-ack-late") { cancel(); return; }
+      pendingAcknowledgments.set(record, outcome => {
+        clear();
+        if (outcome === "success" || outcome === "committed-network") draftPresent = false;
+        if (outcome === "network" || outcome === "committed-network") reject(new Error("Fixture acknowledge response lost"));
+        else if (outcome === "rate-limited") resolve(Response.json({ ok: false, code: "RATE_LIMITED", message: "Wait before confirming." }, { status: 429, headers: { "Retry-After": "30" } }));
+        else if (outcome === "success") resolve(Response.json({ ok: true, value: null }));
+        else resolve(initialResponse("draft", outcome));
+      });
+      pending.add(cancel); signal?.addEventListener("abort", abort, { once: true });
+    });
+  }
   async function respond(url: URL, init: RequestInit | undefined, record: PickerRequest): Promise<Response> {
     if (expired) return Response.json({ ok: false, code: "UNAUTHENTICATED", message: "Sign in again." }, { status: 401 });
     const endpoint: InitialEndpoint | null = url.pathname.endsWith("/cancel") ? "cancel"
@@ -135,7 +183,13 @@ export function installGitHubPickerFixture(mode: string): { initial: PickerState
       const response = Response.json({ ok: true, value: { stopped: true, providerRevoked: false } });
       return mode === "private-operation" ? defer(response, pendingDisconnect, init?.signal) : response;
     }
-    if (url.pathname.endsWith("/cancel") || init?.method === "POST" && url.pathname.endsWith("/draft")) return Response.json({ ok: true, value: null });
+    if (url.pathname.endsWith("/cancel")) {
+      if (acknowledgeMode) draftPresent = false;
+      return Response.json({ ok: true, value: null });
+    }
+    if (init?.method === "POST" && url.pathname.endsWith("/draft")) {
+      return acknowledgeMode ? holdAcknowledgment(record, init.signal) : Response.json({ ok: true, value: null });
+    }
     if (url.pathname.endsWith("/draft")) {
       if (!url.searchParams.has("flowId")) {
         if (heldProbe) {
@@ -145,6 +199,7 @@ export function installGitHubPickerFixture(mode: string): { initial: PickerState
         if (probeFailure) return Response.json({ ok: false, code: probeFailure === 429 ? "RATE_LIMITED" : "UNAVAILABLE", message: "Probe unavailable." }, { status: probeFailure });
         return Response.json({ ok: true, value: { draft: null } });
       }
+      if (acknowledgeMode) return draftPresent ? initialResponse("draft", "success") : Response.json({ ok: true, value: { draft: null } });
       const response = Response.json({ ok: true, value: { draft: { id: draftId, flowId, generation: 4, value: { selection: { source: "authorized", repository: repo() },
         slug: "saved-slug", name: "Saved name", branch: "saved-branch", slugTouched: true, branchTouched: true, manual: false, editing: true, urlDraft: "" } } } });
       return defer(response, pendingDraft, init?.signal);
@@ -177,11 +232,14 @@ export function installGitHubPickerFixture(mode: string): { initial: PickerState
       cooldownTimers.clear();
       if (visibility) Object.defineProperty(document, "visibilityState", visibility); else Reflect.deleteProperty(document, "visibilityState");
       for (const abort of [...pending]) abort();
+      restoreFlowStorage();
       sessionStorage.removeItem(flowKey); sessionStorage.removeItem(cancelKey);
       githubControls.releaseDraft = () => {}; githubControls.releaseList = () => {}; githubControls.expire = () => {}; githubControls.failList = () => {}; githubControls.changeBranch = () => {};
       githubControls.limitList = () => {}; githubControls.allowList = () => {}; githubControls.expireCooldown = () => {}; githubControls.elapseCooldown = () => {};
       githubControls.limitProbe = () => {}; githubControls.failProbe = () => {}; githubControls.holdProbe = () => {}; githubControls.releaseProbe = () => {};
       githubControls.releaseStart = () => {}; githubControls.releaseDisconnect = () => {}; githubControls.pendingCount = () => 0; githubControls.cooldownTimerCount = () => 0;
       githubControls.releaseInitial = () => {};
+      githubControls.releaseAcknowledge = () => {}; githubControls.failFlowStorage = () => {}; githubControls.restoreFlowStorage = () => {};
+      githubControls.draftPresent = () => false; githubControls.flowKey = ""; githubControls.flowId = "";
     } };
 }

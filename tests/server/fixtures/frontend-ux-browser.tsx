@@ -29,6 +29,7 @@ export const frontendUx = {
   refreshes: 0,
   pushes: [] as string[],
   projectRun: false,
+  prepares: 0,
   finish: (outcome: FrontendUxOutcome): void => { void outcome; },
   receive: (version: number, missing = false): void => { void version; void missing; },
   access: (editable: boolean): void => { void editable; },
@@ -72,7 +73,6 @@ const settings: PipelineSettingsActions = {
   rename: (id, name) => setting("rename", { id, name }),
   setDefault: id => setting("default", id),
   setRule: (type, id) => setting("rule", { type, id }),
-  setAutomaticPick: enabled => setting("automatic-pick", enabled),
 };
 
 const save: SavePipelineAction = input => request("save", input, {
@@ -82,12 +82,15 @@ const save: SavePipelineAction = input => request("save", input, {
 });
 
 const runActions: PipelineRunActions = {
-  prepare: async pipelineId => ({ success: true, data: {
+  prepare: async pipelineId => {
+    frontendUx.prepares++;
+    return { success: true, data: {
     pipelineId, name: "Delivery", graphKey: "a".repeat(64), nodes: ["plan", "implement", "qa", "accept"], gates: ["before-plan"], agents: ["dev"],
     targets: [{ id: "work", kind: "backlog", key: "K-1", title: "Known work", agent: null, updatedAt: null, reason: null }],
     canStartWithoutWork: frontendUx.projectRun,
     ...(frontendUx.projectRun ? { projectRun: { id: "run", pipelineName: "Delivery", entryId: "entry", node: "before-plan", reason: null, closed: false } } : {}),
-  } }),
+    } };
+  },
   start: input => request("start", input, {
     success: { success: true, data: { href: "/p/fixture/items/K-1" } },
     error: { success: false, error: "Fixture refusal" },
@@ -148,6 +151,7 @@ export function cleanupFrontendUx(): void {
   frontendUx.pushes.length = 0;
   frontendUx.refreshes = 0;
   frontendUx.projectRun = false;
+  frontendUx.prepares = 0;
   frontendUx.finish = () => {};
   history.replaceState(originalHistory, "", originalUrl);
 }

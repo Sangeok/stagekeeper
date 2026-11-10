@@ -24,23 +24,29 @@ const results = [], errors = [];
 try {
   browser = await chromium.launch({ headless: true, ...(process.argv[3] ? { executablePath: process.argv[3] } : {}) });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } });
+  page.setDefaultTimeout(10_000);
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto(origin); await page.getByRole("heading", { name: "Pipelines", exact: true }).waitFor();
+  await page.goto(origin); await page.getByRole("heading", { name: "All pipelines", exact: true }).waitFor();
   const button = label => page.getByRole("button", { name: label, exact: true });
-  const mount = async (mode, editable = true) => { await page.evaluate(({ mode, editable }) => window.fixture.mount(mode, editable), { mode, editable }); await page.waitForTimeout(60); };
-  const finish = async outcome => { await page.evaluate(outcome => window.fixture.finish(outcome), outcome); await page.waitForTimeout(60); };
+  const frame = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const mount = async (mode, editable = true) => {
+    const instance = await page.evaluate(({ mode, editable }) => window.fixture.mount(mode, editable), { mode, editable });
+    await page.waitForFunction(instance => window.fixture.ready === instance, instance);
+  };
+  const finish = async outcome => { await page.evaluate(outcome => window.fixture.finish(outcome), outcome); await frame(); };
   const writes = () => page.evaluate(() => window.fixture.writes);
   const add = async name => { await button("Add at end").click(); await button(name).click(); };
   const run = async (name, work) => { await work(); results.push(name); };
-  const textNodes = () => page.locator("details ol li").allTextContents();
+  const savedText = () => page.locator("details").filter({ has: page.getByText("Read as text", { exact: true }) });
+  const textNodes = () => savedText().locator("ol li").allTextContents();
   const rail = () => page.locator(".overflow-x-auto").first();
 
   await run("unsaved node and gate edits leave the saved text and version unchanged", async () => {
     await mount("list"); await button("Delivery").click();
-    await page.locator("details summary").click();
+    await page.getByText("Read as text", { exact: true }).click();
     const saved = await textNodes();
-    await add("Add doc-auditor here");
-    await page.getByRole("button", { name: "+", exact: true }).first().click(); await button("Add gate").click();
+    await add("Add Doc audit here");
+    await button("Insert before Plan").click(); await button("Add gate").click();
     assert.deepEqual(await textNodes(), saved);
     assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 1/);
     await page.getByLabel("Show expanded").check();
@@ -48,17 +54,17 @@ try {
     assert.deepEqual(await textNodes(), saved); assert.equal((await writes()).length, 0);
   });
   await run("a newer saved graph updates text while retaining a stale draft and its original CAS", async () => {
-    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here");
+    await mount("list"); await button("Delivery").click(); await add("Add Doc audit here");
     await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "delivery"
       ? { ...row, definition: { steps: ["plan", "implement", "accept", "feature-scout"], gates: ["before-accept"] }, saved: { version: 2, createdAt: new Date(1) } } : row)));
     await button("Discard changes and reload").waitFor();
     assert.match(await rail().innerText(), /Doc audit/);
-    assert.deepEqual(await textNodes(), ["1. Plan", "2. Implement", "3. before Accept — you", "4. Accept", "5. Scout"]);
+    assert.deepEqual(await textNodes(), ["1. Plan", "2. Implement", "3. before Accept — you", "4. Accept", "5. Discover work"]);
     assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 2/);
     assert.equal(await button("Save").isDisabled(), true); assert.equal((await writes()).length, 0);
   });
   await run("dependency-only updates expand saved and draft graphs separately", async () => {
-    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here");
+    await mount("list"); await button("Delivery").click(); await add("Add Doc audit here");
     await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "check"
       ? { ...row, definition: { steps: ["impl-verify"], gates: ["before-impl-verify"] }, saved: { version: 2, createdAt: new Date(1) } } : row)));
     await page.getByRole("alert").waitFor();
@@ -68,20 +74,20 @@ try {
     assert.equal((await writes()).length, 0);
   });
   await run("clean snapshots and post-save refreshes advance both descriptions", async () => {
-    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here"); await button("Save").click();
+    await mount("list"); await button("Delivery").click(); await add("Add Doc audit here"); await button("Save").click();
     const submitted = (await writes())[0].input; assert.equal(submitted.expectedVersion, 1);
     await finish("success"); assert.ok(!(await textNodes()).some(node => node.includes("Doc audit")));
     await page.evaluate(definition => window.fixture.update(window.fixture.initial.map(row => row.id === "delivery"
       ? { ...row, definition, saved: { version: 2, createdAt: new Date(1) } } : row)), submitted.definition);
-    await page.waitForTimeout(60);
+    await frame();
     assert.ok((await textNodes()).some(node => node.includes("Doc audit")));
     assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 2/);
-    await add("Add doc-auditor here"); await button("Save").click();
+    await add("Add Doc audit here"); await button("Save").click();
     assert.equal((await writes())[1].input.expectedVersion, 2); await finish("error");
   });
   for (const outcome of ["error", "stale", "unknown"]) await run(`save ${outcome} preserves saved text and the edited rail`, async () => {
     await mount("list"); await button("Delivery").click(); const saved = await textNodes();
-    await add("Add doc-auditor here"); await button("Save").click();
+    await add("Add Doc audit here"); await button("Save").click();
     assert.deepEqual(await textNodes(), saved); await finish(outcome);
     assert.deepEqual(await textNodes(), saved); assert.match(await rail().innerText(), /Doc audit/);
     assert.equal(await button("Save").isDisabled(), outcome !== "error"); assert.equal((await writes()).length, 1);
@@ -93,11 +99,11 @@ try {
     assert.equal(await page.getByText("Loading saved pipeline…", { exact: true }).count(), 1);
     await page.evaluate(() => window.fixture.update([...window.fixture.initial, { id: "created", name: "Review", isDefault: false,
       definition: { steps: ["qa"], gates: [] }, saved: { version: 1, createdAt: new Date(1) }, runnable: null }]));
-    await page.waitForTimeout(60); assert.deepEqual(await textNodes(), ["1. QA"]);
+    await frame(); assert.deepEqual(await textNodes(), ["1. QA"]);
     assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Version 1/);
   });
   for (const dirty of [false, true]) await run(`version-zero default text follows server props with dirty=${dirty}`, async () => {
-    await mount("unsaved-default"); if (dirty) await add("Add doc-auditor here");
+    await mount("unsaved-default"); if (dirty) await add("Add Doc audit here");
     await page.evaluate(() => {
       window.fixture.update(window.fixture.initial.map(row => row.id === "default" ? { ...row, saved: null } : row));
       window.fixture.plan("free"); window.fixture.access(false);
@@ -106,7 +112,7 @@ try {
     assert.deepEqual(await textNodes(), ["1. before Plan — you", "2. Plan", "3. Implement", "4. Accept"]);
     assert.equal((await rail().innerText()).includes("Verify"), dirty);
     assert.equal((await rail().innerText()).includes("Doc audit"), dirty);
-    assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Default pipeline · not saved yet/);
+    assert.match(await page.getByRole("region", { name: "Pipeline editor" }).innerText(), /Initial configuration · changes apply to future runs/);
     assert.equal((await writes()).length, 0);
   });
   await run("saved fragments render text without requiring a runnable graph", async () => {
@@ -118,49 +124,64 @@ try {
       await mount("list"); await button("Delivery").click();
       await page.evaluate(steps => window.fixture.update(window.fixture.initial.map(row => row.id === "check"
         ? { ...row, definition: { steps, gates: [] }, saved: { version: 2, createdAt: new Date(1) } } : row)), steps);
-      await page.locator("details summary").click(); assert.match(await page.locator("details p").innerText(), reason);
+      await page.getByText("Read as text", { exact: true }).click(); assert.match(await savedText().locator("p").innerText(), reason);
       assert.deepEqual(await textNodes(), []); assert.equal((await writes()).length, 0);
     });
   }
 
-  await run("Free values are visible but all editing and picking mutations are unavailable", async () => {
-    await mount("list", false); assert.equal(await button("New pipeline").count(), 0); assert.equal(await button("Rename").count(), 0); assert.equal(await button("Archive").count(), 0);
-    assert.equal(await page.locator("select:disabled").count(), 5); assert.equal(await page.getByRole("switch", { name: "Automatic picking" }).isDisabled(), true);
+  await run("Free routing values remain visible without editing or legacy automation controls", async () => {
+    await mount("list", false);
+    assert.equal(await button("New pipeline").count(), 0);
+    await button("Run rules").click();
+    assert.equal(await page.getByLabel("Default selection", { exact: true }).isDisabled(), true);
+    assert.equal(await page.getByLabel("fix pipeline rule", { exact: true }).isDisabled(), true);
+    assert.equal(await page.getByLabel("Default selection", { exact: true }).inputValue(), "default");
+    assert.equal(await page.getByRole("switch").count(), 0);
+    assert.equal(await button("Add type override").count(), 0);
+    assert.equal((await writes()).length, 0);
   });
   await run("empty drafts add first steps and trailing references; fragment saves need no no-gate confirmation and open the created pipeline", async () => {
     await mount("list"); await button("New pipeline").click(); await page.getByLabel("New pipeline name").fill("Review");
     assert.equal(await button("Save").isDisabled(), true); await button("Add first step").click(); await button("Add QA").click();
     await button("Save").click(); assert.equal((await writes()).length, 1);
     assert.deepEqual((await writes())[0].input.definition, { steps: ["qa"], gates: [] });
-    assert.equal(await button("New pipeline").isDisabled(), true); assert.equal(await button("Default").isDisabled(), true);
+    assert.equal(await button("New pipeline").isDisabled(), true); assert.equal(await button("Switch pipeline").isDisabled(), true);
     await finish("success");
     await page.evaluate(() => window.fixture.update([...window.fixture.initial, { id: "created", name: "Review", isDefault: false, definition: { steps: ["qa"], gates: [] }, saved: { version: 1, createdAt: new Date(0) }, runnable: null }]));
-    await page.getByRole("heading", { name: "Review", exact: true }).waitFor(); assert.equal(await button("Review").getAttribute("aria-pressed"), "true");
+    await page.getByRole("heading", { name: "Review", exact: true }).waitFor(); assert.equal(new URL(page.url()).searchParams.get("pipeline"), "created");
     await button("New pipeline").click(); await button("Add first step").click(); await button("Add Plan").click();
-    await add("Add Implement"); await add("Use Check here"); await add("Add Accept");
-    assert.ok((await page.locator("body").innerText()).includes("Check · 1 nodes"));
+    await add("Add Implement"); await add("Insert pipeline: Check"); await add("Add Accept");
+    assert.equal(await page.getByRole("group", { name: "Check", exact: true }).getByRole("button", { name: "Open pipeline", exact: true }).count(), 1);
   });
-  await run("dirty selection prompts, archive returns to default, pending/unknown settings never duplicate", async () => {
-    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here");
-    page.once("dialog", dialog => dialog.dismiss()); await button("Default").click(); assert.equal(await button("Delivery").getAttribute("aria-pressed"), "true");
-    page.once("dialog", dialog => dialog.accept()); await button("Default").click(); assert.equal(await button("Default").getAttribute("aria-pressed"), "true");
-    await button("Delivery").click(); await button("Delivery").locator("..").getByRole("button", { name: "Archive", exact: true }).click();
-    assert.equal(await button("Default").isDisabled(), true); await finish("success");
+  await run("dirty switching prompts, archive returns to the catalog, and unknown settings do not duplicate", async () => {
+    await mount("list"); await button("Delivery").click(); await add("Add Doc audit here");
+    await button("Switch pipeline").click();
+    page.once("dialog", dialog => dialog.dismiss()); await button("Default").click();
+    assert.equal(new URL(page.url()).searchParams.get("pipeline"), "delivery");
+    page.once("dialog", dialog => dialog.accept()); await button("Default").click();
+    await page.getByRole("heading", { name: "Default", exact: true }).waitFor();
+    await button("Switch pipeline").click(); await button("Delivery").click();
+    await page.getByLabel("More actions for Delivery", { exact: true }).click(); await button("Archive").click();
+    assert.equal(await button("Switch pipeline").isDisabled(), true); await finish("success");
     await page.evaluate(() => window.fixture.update(window.fixture.initial.filter(row => row.id !== "delivery")));
-    assert.equal(await button("Default").getAttribute("aria-pressed"), "true");
-    await page.getByRole("switch", { name: "Automatic picking" }).click();
-    assert.equal(await page.getByRole("switch", { name: "Automatic picking" }).isDisabled(), true); await finish("unknown");
-    assert.match(await page.getByRole("alert").innerText(), /setting may have changed/); assert.equal((await writes()).length, 2); assert.equal(await button("New pipeline").isDisabled(), true);
+    await page.getByRole("heading", { name: "All pipelines", exact: true }).waitFor();
+    assert.equal(new URL(page.url()).searchParams.has("pipeline"), false);
+    await button("Run rules").click();
+    await page.getByLabel("Remove fix override", { exact: true }).click();
+    assert.equal(await button("Close").isDisabled(), true); await finish("unknown");
+    assert.match(await page.getByRole("dialog").getByRole("alert").innerText(), /setting may have changed/);
+    assert.equal((await writes()).length, 2);
+    await button("Close").click(); assert.equal(await button("New pipeline").isDisabled(), true);
   });
   for (const outcome of ["stale", "unknown"]) await run(`rail ${outcome} retains draft and requires explicit reload`, async () => {
-    await mount("rail"); await add("Add doc-auditor here"); await button("Save").click();
+    await mount("rail"); await add("Add Doc audit here"); await button("Save").click();
     assert.equal((await writes()).length, 1); await finish(outcome);
     assert.match(await page.getByRole("alert").innerText(), outcome === "stale" ? /pipeline changed/ : /confirm whether the pipeline was saved/);
     assert.equal(await button("Save").isDisabled(), true); assert.equal(await button("Discard changes and reload").count(), 1);
     assert.ok((await page.locator("body").innerText()).includes("Doc audit"));
   });
   await run("plan and read-only changes preserve the draft and its original save version", async () => {
-    await mount("list"); await button("Delivery").click(); await add("Add doc-auditor here");
+    await mount("list"); await button("Delivery").click(); await add("Add Doc audit here");
     await page.evaluate(() => { window.fixture.plan("max"); window.fixture.access(false); });
     await button("Save").waitFor({ state: "hidden" }); await button("Discard changes").waitFor();
     assert.ok((await page.locator("body").innerText()).includes("Doc audit"));
@@ -170,7 +191,7 @@ try {
     await finish("success");
   });
   await run("a newer own snapshot remains recoverable after access becomes read-only", async () => {
-    await mount("rail"); await add("Add doc-auditor here");
+    await mount("rail"); await add("Add Doc audit here");
     await page.evaluate(() => { window.fixture.update(window.fixture.initial.map(row => row.id === "delivery" ? { ...row, saved: { version: 2, createdAt: new Date(1) } } : row)); window.fixture.access(false); });
     await button("Discard changes and reload").waitFor(); assert.equal(await button("Save").count(), 0);
     assert.match(await page.getByRole("alert").first().innerText(), /pipeline changed/);
@@ -178,15 +199,15 @@ try {
     assert.equal((await writes()).length, 0);
   });
   await run("a pending save adopts a newer received snapshot without regressing its version", async () => {
-    await mount("rail"); await add("Add doc-auditor here"); await button("Save").click();
+    await mount("rail"); await add("Add Doc audit here"); await button("Save").click();
     await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "delivery" ? { ...row, definition: { steps: ["plan", "implement", "pipeline:check", "accept", "feature-scout"], gates: [] }, saved: { version: 3, createdAt: new Date(2) } } : row)));
-    await finish("success"); await add("Add doc-auditor here"); await button("Save").click();
+    await finish("success"); await add("Add Doc audit here"); await button("Save").click();
     assert.equal((await writes())[1].input.expectedVersion, 3);
     assert.ok((await writes())[1].input.definition.steps.includes("feature-scout"));
     await finish("success");
   });
   await run("dependency-only snapshots retain dirty drafts, refresh preview and invalidate prior no-gate confirmation", async () => {
-    await mount("rail"); await add("Add doc-auditor here");
+    await mount("rail"); await add("Add Doc audit here");
     await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "check" ? { ...row, definition: { steps: ["qa"], gates: [] }, saved: { version: 2, createdAt: new Date(0) } } : row.id === "delivery" ? { ...row, runnable: { ...row.runnable, gates: [] } } : row)));
     await page.getByRole("alert").waitFor(); assert.match(await page.getByRole("alert").innerText(), /saved pipelines changed/);
     await button("Save").click(); assert.equal((await writes()).length, 0); assert.equal(await button("Save without a gate").count(), 1);
@@ -198,19 +219,19 @@ try {
     await mount("change"); await page.getByLabel("Change pipeline", { exact: true }).selectOption("delivery");
     await button("Change pipeline").click(); assert.equal((await writes()).length, 1); assert.equal(await page.getByLabel("Change pipeline", { exact: true }).isDisabled(), true);
     await finish(outcome); assert.match(await page.getByRole("alert").innerText(), outcome === "stale" ? /board changed/ : /confirm whether the pipeline changed/);
-    await page.evaluate(() => window.fixture.identity("ITEM-02")); await page.waitForTimeout(60);
+    await page.evaluate(() => window.fixture.identity("ITEM-02")); await frame();
     assert.equal(await page.getByLabel("Change pipeline", { exact: true }).inputValue(), ""); assert.equal(await page.getByRole("alert").count(), 0);
   });
   await run("unmounted responses cannot refresh another identity", async () => {
     await mount("change"); await page.getByLabel("Change pipeline", { exact: true }).selectOption("delivery"); await button("Change pipeline").click();
-    await page.evaluate(() => window.fixture.identity("ITEM-02")); await page.waitForTimeout(60); await finish("success");
+    await page.evaluate(() => window.fixture.identity("ITEM-02")); await frame(); await finish("success");
     assert.equal(await page.evaluate(() => window.fixture.refreshes), 0);
   });
   await run("propose captures one request and updates routing only after pending settles", async () => {
     await mount("propose"); await button("Put on the board").click(); await page.getByLabel("Pipeline", { exact: true }).selectOption("delivery");
     await button("Put on the board").click(); await page.evaluate(() => window.fixture.preset("delivery"));
     assert.equal((await writes()).length, 1); assert.equal((await writes())[0].input.pipelineId, "delivery");
-    await finish("error"); await page.evaluate(() => window.fixture.preset("default")); await page.waitForTimeout(60);
+    await finish("error"); await page.evaluate(() => window.fixture.preset("default")); await frame();
     assert.equal(await page.getByLabel("Pipeline", { exact: true }).inputValue(), "default");
   });
   await run("new slots reserve ids inside referenced definitions without modifying them", async () => {
@@ -218,15 +239,22 @@ try {
     await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => row.id === "check"
       ? { ...row, definition: { steps: ["doc-auditor", "doc-auditor#2"], gates: ["before-doc-auditor"] }, saved: { version: 2, createdAt: new Date(1) } }
       : row.id === "delivery" ? { ...row, definition: { steps: ["pipeline:check", "plan", "implement", "accept", "doc-auditor#3"], gates: [] }, saved: { version: 2, createdAt: new Date(1) }, runnable: { nodes: ["doc-auditor", "doc-auditor#2", "plan", "implement", "accept", "doc-auditor#3"], gates: ["before-doc-auditor"], format: "slots-v1" } } : row)));
-    await page.waitForTimeout(60); await add("Add doc-auditor here"); await button("Save").click();
+    await frame(); await add("Add Doc audit here"); await button("Save").click();
     assert.deepEqual((await writes())[0].input.definition.steps, ["pipeline:check", "plan", "implement", "accept", "doc-auditor#3", "doc-auditor#4"]);
     await finish("success");
   });
   await run("forty-character names stay inside the mobile page", async () => {
     await mount("list"); await page.setViewportSize({ width: 390, height: 844 });
-    await page.evaluate(() => window.fixture.update(window.fixture.initial.map(row => ({ ...row, name: "W".repeat(40) }))));
-    await page.waitForTimeout(60);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.evaluate(() => window.fixture.update(window.fixture.initial.map((row, index) => ({ ...row, name: "W".repeat(39) + index }))));
+    await frame();
+    const bounds = await page.evaluate(() => ({ viewport: innerWidth, width: document.documentElement.scrollWidth,
+      overflow: [...document.querySelectorAll("p")].filter(element => element.getBoundingClientRect().right > innerWidth)
+        .map(element => ({ text: element.textContent, right: element.getBoundingClientRect().right })) }));
+    if (bounds.width > bounds.viewport) {
+      writeFileSync(join(artifacts, "mobile-overflow.json"), JSON.stringify(bounds, null, 2));
+      await page.screenshot({ path: join(artifacts, "pipeline-mobile-overflow.png"), fullPage: true });
+    }
+    assert.equal(bounds.width <= bounds.viewport, true);
     await page.setViewportSize({ width: 1440, height: 1050 });
   });
   await mount("list"); await page.screenshot({ path: join(artifacts, "pipeline-list.png"), fullPage: true });

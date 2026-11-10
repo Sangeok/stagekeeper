@@ -12,7 +12,7 @@ it("opens a browsable catalog without mounting an editor or exposing routing dro
     const html = renderToStaticMarkup(withAppRouterTestContext(createElement(PipelineList, {
       projectId: "p", pipelines: [{ id: "default_p", name: "Default", isDefault: true, definition: { steps: ["plan", "implement", "accept"], gates: ["before-plan"] }, saved: null,
         runnable: { nodes: ["plan", "implement", "accept"], gates: ["before-plan"], format: "slots-v1" } }], rules: {}, now: new Date(), plan: editable ? "pro" : "free", roster: ["dev"], editable,
-      save: async () => ({ status: "stale" as const }), actions: { archive: success, rename: success, setDefault: success, setRule: success, setAutomaticPick: success },
+      save: async () => ({ status: "stale" as const }), actions: { archive: success, rename: success, setDefault: success, setRule: success },
     })));
     assert.match(html, /All pipelines/); assert.match(html, /Plan → Implement → Accept/);
     assert.match(html, /Search by name or step/);
