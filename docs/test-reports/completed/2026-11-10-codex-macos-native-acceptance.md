@@ -209,8 +209,12 @@ C5의 과거 제한 환경 build 차단은 informational 기록이며 현재 판
 검증 중 `dev`에 들어온 화면·문서 개선 `295082ceb5349aab189518779286c7449f862cfc`를
 통합하면서 verification 문서의 목록 충돌만 해결했다. 설치 payload·서버·MCP route·
 공통 정책·의존성·DB schema·실제 모델 리허설은 검증 시점과 같은 바이트를 유지한다.
-플러그인 트리의 차이는 앞서 기록한 두 Git 시험 fixture 설정뿐이다.
+그 통합 시점의 플러그인 트리 차이는 앞서 기록한 두 Git 시험 fixture 설정뿐이다.
 
 통합 후 `check` 330 pass·2 skip, architecture 230 pass·2 skip, FSD·server 경계와
 기본 Turbopack build가 다시 통과했다. 이 통합은 위 실제 모델 실행의 identity를 바꾸지 않으며,
 비교 결과와 새 build ID는 외부 `post-acceptance-integration.json`에 보존했다.
+
+통합 CI에서는 기존 정지 요청 시험이 lock 삭제와 stop 파일 삭제 사이를 관찰해 실패했다.
+두 삭제가 모두 끝나기를 같은 제한 시간 안에서 기다리도록 시험 완료 조건만 수정했다.
+실제 종료·파일 삭제 조건을 제거하거나 제품의 정리 순서를 변경하지 않았다.

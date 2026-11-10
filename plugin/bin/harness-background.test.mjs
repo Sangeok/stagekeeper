@@ -656,7 +656,7 @@ it("stops a runner from a stop request file alone and removes the request with i
   await waitFor(() => f.status()?.state === "idle");
   const files = stateFiles(f.directory);
   writeStopRequest(files, started.event.session);
-  await waitFor(() => !existsSync(f.lockPath), 20000, "the runner to stop on the request");
+  await waitFor(() => !existsSync(f.lockPath) && !existsSync(files.stop), 20000, "the runner to stop and clear the request");
   assert.equal(existsSync(files.stop), false);
   assert.equal(f.status().state, "stopped");
 });
