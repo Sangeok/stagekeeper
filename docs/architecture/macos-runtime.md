@@ -116,6 +116,16 @@ unattended dispatch에는 snapshot에 노출된 전체 구현 commit이 필요�
 추가·커밋한다. thread별 marker로 중복을 막고 기존 기록이 바뀌었으면 보존하고 거부한다.
 보고서 기록 성공과 서버의 구현 인수는 서로 다른 결과다.
 
+새 계획·재계획과 커밋 인계 재개는 briefing의 executionMode와 명시적인 commitHandoff:null로
+구분한다. 기존 planCommit은 이전 문맥이며 현재 실행의 제출 권한이 아니다. 역할의 plan_submit·
+report_submit은 현재 AgentRun에 결합한 helper 확인 인계가 있어야 하며, 없으면 원격 쓰기 전에
+인계를 요청하도록 안내한다. 확인된 인계의 경로·commit·현재 파일 hash 검사는 그대로 유지한다.
+
+R1의 검증 수렴 한도를 처리하도록 resident는 `board_transition`을 현재 `plan-verifier`
+dispatch·`in_review` 항목의 `on_hold`에만 노출한다. 사유는 150자 이내로 제한하며,
+planning 복귀와 구현 승인은 소유자에게 남는다. 실패한 검토를 준비 목록에서 제거해
+다음 모델 cycle에서 같은 검토가 무한 반복되지 않게 한다.
+
 MCP SDK의 입력 검증 거부는 JSON-RPC `-32602`와 SDK의 정확한 plaintext 형식을 구분해
 안전한 schema 오류로 전달한다. 원문 입력·거부 문구는 반사하지 않는다. `agent_next` note의
 상한은 실제 tools/list에서 읽고 receipt 불일치는 현재 단계를 다시 읽어 정정하게 한다.

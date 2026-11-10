@@ -9,7 +9,7 @@ import path from "node:path";
 import { createMainLoopTools } from "./codex-main-loop-tools.mjs";
 import { createMainLoopBridge } from "./codex-main-loop.mjs";
 
-const names = ["pipeline_next", "board_get", "backlog_get", "backlog_list", "project_get", "validation_record", "report_submit", "acceptance_fail"];
+const names = ["pipeline_next", "board_get", "backlog_get", "backlog_list", "project_get", "validation_record", "report_submit", "acceptance_fail", "board_transition"];
 async function fixture(overrides = {}) {
   const controller = new AbortController(), calls = [], roles = [], commits = [], records = [];
   const root = path.resolve("test-resident-root"), scratch = path.resolve("test-resident-scratch");
@@ -42,6 +42,24 @@ it("exposes only bounded main-loop tools and rejects owner, role cursor, identit
   for (const [name, args] of [["gate_approve", {}], ["agent_next", {}], ["project_get", { project: "other" }], ["project_get", { client: "claude" }],
     ["resident_dispatch", { key: "K-1", previousVerdict: "pass" }], ["resident_commit", { key: "K-1" }]]) await assert.rejects(f.tools.call(name, args));
   assert.equal(f.calls.length, 0);
+});
+
+it("parks only a current plan review and never grants owner transitions", async () => {
+  const f = await fixture(), hold = { key: "K-1", to: "on_hold", result: "Plan verification stopped after three passes with defects." };
+  const schema = f.tools.tools.find(value => value.name === "board_transition").inputSchema;
+  assert.deepEqual(schema.properties.to.enum, ["on_hold"]); assert.equal(schema.properties.result.maxLength, 150);
+  await assert.rejects(f.tools.call("board_transition", hold), /current plan-verifier/);
+  f.state.next.agent = "plan-verifier"; f.state.board.status = "in_review";
+  for (const args of [{ ...hold, to: "planning" }, { ...hold, to: "implementing" }, { ...hold, result: "" }, { ...hold, result: "x".repeat(151) }, { ...hold, actor: "human" }]) {
+    await assert.rejects(f.tools.call("board_transition", args), /Only a bounded/);
+  }
+  assert.equal(f.calls.some(value => value.name === "board_transition"), false);
+  await f.tools.call("board_transition", hold);
+  assert.deepEqual(f.calls.at(-1), { name: "board_transition", args: hold });
+  f.state.next = { action: "wait", on: "gate", key: "K-1" };
+  await assert.rejects(f.tools.call("board_transition", hold), /current plan-verifier/);
+  f.state.active = false;
+  await assert.rejects(f.tools.call("board_transition", hold), /Lease unavailable/);
 });
 
 it("dispatches only the fresh current binding and never inherits a prior reviewer conclusion", async () => {

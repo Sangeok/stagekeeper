@@ -3,6 +3,7 @@ import { RoleCommandInputError } from "./role-commands.mjs";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { McpDomainError, McpInputError } from "./mcp-client.mjs";
 import { readNativeCommandDiagnostic } from "./native-command-diagnostics.mjs";
+import { CommitHandoffRequired } from "./commit-handoff.mjs";
 
 const reasons = new Map([
   ["Absolute file path required", "file-path"], ["Device and network paths refused", "file-path"],
@@ -33,6 +34,7 @@ export function roleToolDiagnostic(agent, tool, error) {
   const reason = error instanceof RoleFileInputError || error instanceof RoleCommandInputError || error instanceof RoleGitInputError ? "invalid-input"
     : error instanceof RolePathMissingError || error instanceof RoleGitPathMissingError ? "path-missing"
     : error instanceof RoleFileRevisionError ? "file-revision"
+    : error instanceof CommitHandoffRequired ? "handoff-required"
     : error instanceof McpInputError ? ({ receipt: "input-receipt", note: "input-note" }[error.kind] ?? "input-schema") : error instanceof McpDomainError ? "domain-refusal" : native ? "native-helper" : protocolFailure ? "mcp-protocol" : reasons.get(error?.message) ?? "unclassified";
   return { event: "role-tool-failed", agent, tool, reason, systemCode: systemCodes.has(error?.code) ? error.code : null,
     ...(native ? { native } : {}) };

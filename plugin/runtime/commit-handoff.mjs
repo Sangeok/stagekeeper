@@ -8,6 +8,13 @@ import { safeTarget } from "./file-ownership.mjs";
 const digest = text => createHash("sha256").update(text.replaceAll("\r\n", "\n")).digest("hex");
 const git = (root, ...args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8", windowsHide: true, maxBuffer: 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
 
+export class CommitHandoffRequired extends Error {
+  constructor() {
+    super("Artifact submission requires a helper-confirmed commit handoff for this run. Perform the current step, prepare its artifact, then call agent_next with outcome handoff and the artifact path as note. An old planCommit is not a current handoff.");
+    this.name = "CommitHandoffRequired";
+  }
+}
+
 function artifactHash(root, name) {
   const target = safeTarget(root, name), stat = lstatSync(target);
   if (!stat.isFile() || stat.nlink !== 1 || stat.size > 1024 * 1024) throw new Error("Invalid handoff artifact");
@@ -44,7 +51,8 @@ export function assertCommitHandoff(root, dispatch) {
 
 export function assertHandoffSubmission(root, dispatch, name, args, stepResponse) {
   const handoff = dispatch.commitHandoff;
-  if (!handoff || !["plan_submit", "report_submit"].includes(name)) return;
+  if (!["plan_submit", "report_submit"].includes(name)) return;
+  if (!handoff) throw new CommitHandoffRequired();
   const expected = handoff.path.startsWith("docs/plans/") ? "plan_submit" : "report_submit";
   if (name !== expected || args.path !== handoff.path || args.commit !== handoff.commit
     || stepResponse?.receipt?.runId !== handoff.agentRunId) throw new Error("Submission differs from confirmed handoff");

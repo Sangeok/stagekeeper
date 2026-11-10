@@ -125,7 +125,7 @@ async function main(args) {
       return row.id;
     });
     itemKey = await withPrisma(async db => {
-      const source = BACKLOG_ITEM.source + " The independent implementation verifier restores the product file to the approved baseline. Use a module namespace import in tests and assert that slugWords exists inside test cases before calling it, so its absence produces an assertion failure rather than a module-load error.";
+      const source = BACKLOG_ITEM.source + " The independent implementation verifier restores the product file to the approved baseline. Use a module namespace import in tests and assert that slugWords exists inside test cases before calling it, so its absence produces an assertion failure rather than a module-load error. Cover every ECMAScript whitespace and line-terminator code point as the only delimiter in a two-word input: one + delimiter + two with maxWords=1 must return one. Include U+0085, U+180E and U+200B as non-whitespace controls. Keep the existing limit, empty-input and punctuation cases.";
       const added = await createBoardService(db).addBacklog(projectId, { ...BACKLOG_ITEM, source, addedBy: "owner", addedByRunId: null });
       assert.equal(added.ok, true, added.reason); return added.item.key;
     });

@@ -18,7 +18,7 @@ import { createQaBrowser, withQaBrowser } from "./qa-browser.mjs";
 import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
 import { createRoleGit, roleGitTool, RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { codexExecutable } from "./codex-executable.mjs";
-import { assertCommitHandoff, assertHandoffSubmission } from "./commit-handoff.mjs";
+import { assertCommitHandoff, assertHandoffSubmission, CommitHandoffRequired } from "./commit-handoff.mjs";
 import { roleToolDiagnostic } from "./role-tool-diagnostics.mjs";
 import { implementationGitTool, prepareImplementationCopy } from "./implementation-copy.mjs";
 export { codexExecutable } from "./codex-executable.mjs";
@@ -117,7 +117,7 @@ export async function roleBridge(input, files, session, dispatch, operations = {
       if (args.project !== dispatch.project) throw new Error("Local role project mismatch");
       args = { ...args }; delete args.project;
     }
-    if (dispatch.commitHandoff) assertHandoffSubmission(input.binding.root, dispatch, name, args, stepResponse);
+    assertHandoffSubmission(input.binding.root, dispatch, name, args, stepResponse);
     if (dispatch.agent === "qa-verifier" && name === "agent_next" && args.outcome === "ok" && stepResponse?.step === "verify" && !fileBroker?.qaVerified()) throw new Error("QA verify requires actual browser, snapshot, console and network observations");
     const value = domainNames.includes(name) ? await operations.callTool(input, name, args, controller.signal) : await fileBroker.call(name, args, controller.signal);
     if (controller.signal.aborted) throw new Error("Role response arrived after stop");
@@ -183,6 +183,7 @@ export async function roleBridge(input, files, session, dispatch, operations = {
         ? { code: -32602, message: error.message }
         : error instanceof RolePathMissingError || error instanceof RoleGitPathMissingError ? { code: -32004, message: error.message }
         : error instanceof RoleFileRevisionError ? { code: -32005, message: error.message }
+        : error instanceof CommitHandoffRequired ? { code: -32006, message: error.message }
         : { code: -32000, message: "Role request refused; stop without bypassing permissions or ownership." } }) }));
     } finally { pending--; }
   }
@@ -443,7 +444,7 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
       + (nativeGit ? "Git read checks use mcp__harness__role_git_read, never role_command_exec. Translate git diff/status/show/rev-parse checks in the supplied role or skill to its fixed operations. Select concrete permitted absolute file paths through file tools; directories, wildcards and repository-wide claims are unavailable. show/diff accept HEAD, the exact supplied planCommit, or commitHandoff.commit for its one confirmed path; show reads one file. diff compares committed content with current original bytes. status uses a private index copy and explicit files; ignore rules, rename tracking, filters and line-ending conversion are unavailable. Record its head, ref, file hashes and explicit-files scope. Original Git metadata stays private and unchanged; commit remains an owner handoff. " : "")
       + "Do not request WSL, another login, or permission escalation. Load the supplied verifier SKILL.md and its referenced files through role_file_read when required." : "";
     const handoffInstructions = dispatch.commitHandoff ? "\nThe briefing contains commitHandoff verified by the helper. This is a resume after the owner already committed that artifact, not a request to prepare it again. First call agent_next without outcome on the bound existing run. Read commitHandoff.absolutePath and continue at the current step's submission after commit. Use the relative commitHandoff.path and its exact commit for plan_submit or report_submit. commitPermission:false forbids creating a commit; it does not forbid submitting this already committed artifact. Do not rewrite it or request the same handoff again. If a real defect requires an edit, report the changed evidence and stop for a new owner commit; never submit changed bytes with the old commit."
-      + (reportOnly ? " This is report recording only, including failed/blocked reports. The helper has verified these artifact bytes against the supplied commit. The report is read-only; no command, browser or verification copy is supplied. Do not repeat baseline, mutation or browser checks. Record the prepared verdict unchanged with report_submit and finish the current report step." : "") : "";
+      + (reportOnly ? " This is report recording only, including failed/blocked reports. The helper has verified these artifact bytes against the supplied commit. The report is read-only; no command, browser or verification copy is supplied. Do not repeat baseline, mutation or browser checks. Record the prepared verdict unchanged with report_submit and finish the current report step." : "") : "\nNo helper-confirmed commitHandoff was supplied. Perform the current server step. Existing planPath and planCommit describe prior context, not an artifact authorized for unchanged resubmission. When the current step is plan, execute the full planning procedure using current backlog evidence and owner feedback, prepare the required plan, and request its commit handoff. Do not treat commitHandoffPermission as confirmation of a handoff.";
     const implementationInstructions = implementationCopy ? "\nThis Codex adapter supplies implementation.copy as the detached verification copy and implementation.targetCommit as its resolved commit. The owner's repository is read-only except your report. Translate every git -C <copy> operation to implementation_git: identity for rev-parse and ancestry, changes for plan-to-target file lists, show for committed file contents, history for a file's commits, restore with ref plan or target for copy-only mutations, and status for differences from target. No raw Git command is needed. role_command_exec runs a fresh snapshot of this verification copy, not the owner's repository; run the configured verify commands using relative cwd. Make persistent mutation changes only in implementation.copy through implementation_git or guarded file tools. Build outputs are discarded after each command. Run and inspect baseline, required mutation assertion failures and restored baseline as the server instructions require. implementation.omitted lists protected files excluded before copying, including client metadata; implementation_git status compares permitted target files and reports those omissions separately. Missing protected metadata alone is not a restoration defect. If a planned product file or a required test dependency is omitted, report blocked. Keep the original verification/report procedure and never treat a blocked check as a pass." : "";
     const thread = await server.request("thread/start", { cwd: scratch, ephemeral: true, baseInstructions: "You are a Stagekeeper role in a new independent context. Use only the supplied role and current server instructions. No parent conversation is provided.", developerInstructions: roleConfig.developer_instructions + nativeInstructions + implementationInstructions + handoffInstructions, config: { "skills.config": skills.map(skill => ({ path: skill.path, enabled: isRoleVerifier(skill) })) } });
     threadId = thread.thread?.id;
@@ -460,10 +461,13 @@ export async function dispatchFreshRole(input, files, session, dispatch, operati
     }; server.listeners.add(complete); });
     void completion.catch(() => {});
     runtime.signal?.throwIfAborted();
-    turnRequested = true;
-    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify({ project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, commitHandoff: dispatch.commitHandoff, requiredVerificationPaths: dispatch.requiredVerificationPaths, qaBriefing: dispatch.qaBriefing,
+    const briefing = { project: input.config.project.slug, repository: input.binding.root, scratch, agent: dispatch.agent, key: dispatch.agentKey ?? null, boardKey: dispatch.key ?? null, planPath: dispatch.planPath, planCommit: dispatch.planCommit, executionMode: dispatch.commitHandoff ? "commit-handoff" : "step", commitHandoff: dispatch.commitHandoff ?? null, requiredVerificationPaths: dispatch.requiredVerificationPaths, qaBriefing: dispatch.qaBriefing,
       ...(implementationCopy ? { implementation: { targetCommit: implementationCopy.targetCommit, copy: implementationCopy.copy, omitted: implementationCopy.omitted, snapshotHash: implementationCopy.snapshot.snapshotHash } } : {}),
-      entry: dispatch.entry ?? null, execution: dispatch.execution ?? null, installation: input.installation, templateRelease: dispatch.templateRelease, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path }) }] });
+      entry: dispatch.entry ?? null, execution: dispatch.execution ?? null, installation: input.installation, templateRelease: dispatch.templateRelease, agentRunId: dispatch.agentRunId ?? null, commitPermission: false, commitHandoffPermission: owned.policy.commit, verifierPath: roleVerifier?.path };
+    await runtime.record?.({ event: "role-briefing", agent: dispatch.agent, executionMode: briefing.executionMode, handoffConfirmed: briefing.commitHandoff !== null });
+    runtime.signal?.throwIfAborted();
+    turnRequested = true;
+    const turn = await server.request("turn/start", { threadId, input: [{ type: "text", text: JSON.stringify(briefing) }] });
     turnId = turn.turn?.id;
     if (!turnId) throw new Error("Active turn identity missing");
     if (terminalTurnId && terminalTurnId !== turnId) { settled = false; throw new Error("Role terminal identity differs"); }

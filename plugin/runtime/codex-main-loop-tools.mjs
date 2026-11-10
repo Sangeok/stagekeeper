@@ -12,7 +12,7 @@ import { residentRoleReportPath } from "./report-artifacts.mjs";
 import { verifierTarget, RoleBriefingInputError } from "./verifier-dispatch.mjs";
 import { createQaBrowser } from "./qa-browser.mjs";
 
-const DOMAIN = ["pipeline_next", "board_get", "backlog_get", "backlog_list", "project_get", "validation_record", "report_submit", "acceptance_fail"];
+const DOMAIN = ["pipeline_next", "board_get", "backlog_get", "backlog_list", "project_get", "validation_record", "report_submit", "acceptance_fail", "board_transition"];
 const keySchema = { type: "string", pattern: "^[A-Za-z0-9_-]+$" };
 const tool = (name, description, properties, required = []) => ({ name, description,
   inputSchema: { type: "object", properties, required, additionalProperties: false } });
@@ -34,7 +34,10 @@ export async function createMainLoopTools(context, operations = {}) {
   let qaObservation = null;
   const domain = (await runtime.listTools(input)).filter(value => DOMAIN.includes(value.name));
   if (domain.length !== DOMAIN.length || new Set(domain.map(value => value.name)).size !== DOMAIN.length) throw new Error("Main-loop domain inventory incomplete");
-  const inventory = [...domain, ...LOCAL, ...commandBroker.tools];
+  const inventory = [...domain.map(value => value.name === "board_transition"
+    ? tool("board_transition", "Park the current plan review on hold when the runbook's bounded verification cannot converge. The current server dispatch must be plan-verifier and the item must be in_review. Include a concise reason; owner approval is required to resume planning.",
+      { project: { type: "string", description: "Optional project slug; it must match this session's project." }, key: keySchema, to: { type: "string", enum: ["on_hold"] }, result: { type: "string", minLength: 1, maxLength: 150 } }, ["key", "to", "result"])
+    : value), ...LOCAL, ...commandBroker.tools];
   const request = async (name, args = {}) => {
     await guard({ remote: true });
     const value = await runtime.callTool(input, name, args, signal);
@@ -157,6 +160,13 @@ export async function createMainLoopTools(context, operations = {}) {
       const reader = runtime.createRoleGit({ root: input.binding.root, agent: "main-loop", fileBroker,
         backend: commandBroker, planCommit: board.planCommit, commonDirectory: path.dirname(path.dirname(files.lock)) }, lifecycle);
       return reader.call("role_git_read", query, signal);
+    }
+    if (name === "board_transition") {
+      if (Object.keys(args).some(key => !["key", "to", "result", "client"].includes(key)) || !validKey(args.key) || args.to !== "on_hold"
+        || typeof args.result !== "string" || !args.result.trim() || args.result.length > 150) throw new Error("Only a bounded plan-review hold with a reason is permitted");
+      const next = await nextFor(args.key), board = await request("board_get", { key: args.key });
+      if (next.action !== "dispatch" || next.agent !== "plan-verifier" || board.status !== "in_review") throw new Error("Only the current plan-verifier review may be put on hold");
+      return request(name, args);
     }
     if (["report_submit", "acceptance_fail"].includes(name)) {
       if (!validKey(args.key) || (name === "report_submit" && args.actor !== "main-loop")) throw new Error("Main-loop acceptance only");
