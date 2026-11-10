@@ -335,19 +335,27 @@ it("bounds hung fetch/body and Retry-After by the deadline, aborts readers and l
   }
 });
 
-it("counts five consecutive transient failures, resets after success, and retries no faster than interval", async (t) => {
+it("counts five consecutive transient failures, resets after success, and spaces transient retries", async (t) => {
   const f = await fixture(t);
   const session = (await f.start()).event.session;
+  const transientRequests = new Set();
   let number = 0;
   f.setHandler(async (request, res) => {
     number++;
     if (number === 3) send(res, request, EMPTY);
-    else { res.writeHead(number % 2 === 0 ? 408 : 503); res.end(); }
+    else { transientRequests.add(request.id); res.writeHead(number % 2 === 0 ? 408 : 503); res.end(); }
   });
   const result = await f.run(["--session", session, "--interval", "0.03", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
   assert.equal(result.event.code, "request-failed"); assert.equal(number, 8);
   const calls = f.calls.slice(1);
-  for (let i = 1; i < calls.length; i++) assert.ok(calls[i].at - calls[i - 1].at >= 20);
+  let retryGaps = 0;
+  for (let i = 1; i < calls.length; i++) {
+    if (!transientRequests.has(calls[i - 1].request.id)) continue;
+    const gap = calls[i].at - calls[i - 1].at;
+    assert.ok(gap >= 20, `Retry arrived after ${gap}ms`);
+    retryGaps++;
+  }
+  assert.equal(retryGaps, 6);
   assert.equal(existsSync(f.lockPath), false);
 });
 
