@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import path from "node:path";
-import { countResidentModelStarts, hasSuccessfulRoleRecord, parseMacosRehearsalArguments } from "./rehearse-codex-macos.mjs";
+import { assertIdleObservationGap, countResidentModelStarts, hasSuccessfulRoleRecord, parseMacosRehearsalArguments } from "./rehearse-codex-macos.mjs";
 
 const required = ["--package", path.resolve("package"), "--templates", path.resolve("templates"), "--work", path.resolve("evidence"), "--browser-cli", path.resolve("browser/cli.js")];
 
@@ -28,6 +28,13 @@ it("requires accepted terminal outcomes instead of treating an owner-closed run 
     assert.equal(hasSuccessfulRoleRecord({ ...complete, steps: [...complete.steps, { stepId: "propose", outcome, accepted: false }] }), true);
   }
   assert.equal(hasSuccessfulRoleRecord({ agent: "app-dev", closedAt: record.closedAt, steps: [{ stepId: "plan", outcome: "ok", accepted: true }] }), true);
+});
+
+it("refuses to count a suspended or discontinuous clock interval as observed idle time", () => {
+  assert.doesNotThrow(() => assertIdleObservationGap(100000, 160000));
+  assert.doesNotThrow(() => assertIdleObservationGap(100000, 190000));
+  for (const current of [190001, 100000 + 110 * 60000, 99999, NaN, Infinity]) assert.throws(() => assertIdleObservationGap(100000, current), /interrupted/);
+  assert.throws(() => assertIdleObservationGap(undefined, 160000), /interrupted/);
 });
 
 it("requires an explicit model-run decision and absolute isolated artifact inputs", () => {

@@ -29,6 +29,12 @@ export function hasSuccessfulRoleRecord(run) {
   return run.steps.some(step => step.accepted === true && step.stepId === terminal && step.outcome === "ok");
 }
 
+export function assertIdleObservationGap(previous, current) {
+  if (!Number.isFinite(previous) || !Number.isFinite(current) || current < previous || current - previous > 90000) {
+    throw new Error("Idle observation was interrupted by a clock change or a sampling gap over 90 seconds");
+  }
+}
+
 export function parseMacosRehearsalArguments(args) {
   const values = {}, allowed = new Set(["--package", "--templates", "--work", "--browser-cli", "--idle-minutes"]);
   let models = false;
@@ -147,7 +153,7 @@ async function main(args) {
     progress("runner-start");
     const started = helper("background", ["--start", "--client", "codex", "--propose", "yes", "--interval", "15", "--run-limit", "60"]);
     assert.equal(started.event, "started"); runnerSession = started.session; stopped = false;
-    const deadline = Date.now() + 90 * 60000; let last = null, lastOutput = 0, handoffAt = null;
+    const deadline = Date.now() + 90 * 60000; let last = null, lastOutput = 0, handoffAt = null, completed = false;
     while (Date.now() < deadline) {
       const observation = await withPrisma(async db => {
         const board = await db.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key: itemKey } }, orderBy: { proposedOn: "desc" } });
@@ -177,7 +183,7 @@ async function main(args) {
       if (last !== observation.stage || Date.now() - lastOutput > 60000) { progress(observation.stage, observation); last = observation.stage; lastOutput = Date.now(); }
       if (!summary.stages.includes(observation.stage)) summary.stages.push(observation.stage);
       if (observation.failed) throw new Error("Work assignment ended without proposing the fixture item");
-      if (observation.action === "done") { assert.equal(observation.accepted, true); break; }
+      if (observation.action === "done") { assert.equal(observation.accepted, true); completed = true; break; }
       handoffAt = observation.on === "handoff" ? handoffAt ?? Date.now() : null;
       if (handoffAt !== null && Date.now() - handoffAt > 5 * 60000) throw new Error("The report handoff did not finish within five minutes");
       if (observation.status === "on_hold" || ["acceptance", "qa", "impl-verify", "cap"].includes(observation.on)) throw new Error(`Pipeline stopped at ${observation.stage}: ${observation.on ?? observation.status}`);
@@ -185,6 +191,7 @@ async function main(args) {
       if (!status.running || status.state === "waiting") throw new Error(`Runner stopped or waits: ${status.waitReason ?? status.lastResult ?? status.state}`);
       await delay(10000);
     }
+    if (!completed) throw new Error(`Pipeline observation deadline expired at ${last ?? "assignment"} before reaching done`);
     const settleDeadline = Date.now() + 300000;
     for (;;) {
       const status = helper("background", ["--status"], 30000);
@@ -215,9 +222,12 @@ async function main(args) {
     summary.idleStartedAt = new Date().toISOString();
     summary.idleBaseline = { agentRuns: beforeIdle, modelStarts: beforeIdleModels };
     progress("idle-observation", { minutes: options.idleMinutes });
-    const idleStart = Date.now();
+    const idleStart = Date.now(); let previousSample = idleStart;
     while (Date.now() - idleStart < options.idleMinutes * 60000) {
       await delay(Math.min(60000, options.idleMinutes * 60000 - (Date.now() - idleStart)));
+      const sampledAt = Date.now();
+      summary.maxIdleSampleGapMs = Math.max(summary.maxIdleSampleGapMs ?? 0, sampledAt - previousSample);
+      assertIdleObservationGap(previousSample, sampledAt); previousSample = sampledAt;
       const status = helper("background", ["--status"], 30000);
       assert.equal(status.running, true); assert.equal(status.state, "idle");
       assert.equal(await withPrisma(db => db.agentRun.count({ where: { projectId } })), beforeIdle);
