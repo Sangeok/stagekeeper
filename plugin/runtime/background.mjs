@@ -1,3 +1,4 @@
+import { limitedResult } from "../lib/execution/runner.mjs";
 import { hasWork, workSignature } from "../lib/execution/watch.mjs";
 
 export const INTERVAL_MS = 60_000;
@@ -9,6 +10,11 @@ export const REQUEST_FAILURE_LIMIT = 5;
 export const RUN_LOG_KEEP = 50;
 const FILES_SHOWN = 3;
 const RESULT_MAX = 150;
+const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+const LIMIT_MARGIN_MS = MINUTE_MS;
+const LIMIT_FALLBACK_MS = 30 * MINUTE_MS;
+const LIMIT_HORIZON_MS = 8 * DAY_MS;
 
 export const NOTICES = Object.freeze({
   waitDirty: { title: "Runner waiting on {branch}", body: "Uncommitted changes: {files}. Commit or stash them, and it continues." },
@@ -16,6 +22,7 @@ export const NOTICES = Object.freeze({
   waitBranch: { title: "Runner waiting on {branch}", body: "This checkout is on {current}. Switch back to {branch}, and it continues." },
   branchEnded: { title: "Runner ended a run", body: "The checkout switched to {current} during a run, so the runner ended that run. Switch back to {branch}, and it continues." },
   pausedFinished: { title: "Runner paused", body: "The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume." },
+  limited: { title: "Runner waiting for Claude", body: "Claude's usage limit was reached. The runner continues after {time}." },
   stuck: { title: "Runner stopped", body: "The same steps came back three times without progress. Check its run log with /harness:background status, then start it again." },
   error: { title: "Runner stopped", body: "It hit an error. Check its run log with /harness:background status, then start it again." },
   plan: { title: "Runner stopped", body: "The background runner needs Pro." },
@@ -27,6 +34,13 @@ export const NOTICES = Object.freeze({
 export function fillNotice(kind, values = {}) {
   const fill = text => text.replace(/\{(\w+)\}/g, (match, key) => (Object.hasOwn(values, key) ? String(values[key]) : match));
   return { kind, title: fill(NOTICES[kind].title), body: fill(NOTICES[kind].body) };
+}
+
+export function noticeTime(at, now) {
+  const date = new Date(at);
+  const two = value => String(value).padStart(2, "0");
+  const clock = `${two(date.getHours())}:${two(date.getMinutes())}`;
+  return at - now > DAY_MS ? `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${clock}` : clock;
 }
 
 export function porcelainPaths(output) {
@@ -90,6 +104,11 @@ export function readStreamLine(line, run) {
   let message;
   try { message = JSON.parse(line); } catch { return; }
   if (message?.type === "system" && message.subtype === "init" && typeof message.permissionMode === "string") run.permissionMode = message.permissionMode;
+  if (message?.type === "rate_limit_event" && message.rate_limit_info?.status === "rejected") {
+    const info = message.rate_limit_info;
+    run.limitReset = { resetsAt: Number.isFinite(info.resetsAt) ? info.resetsAt : null, type: typeof info.rateLimitType === "string" ? info.rateLimitType : null };
+  }
+  if (message?.type === "result" && message.api_error_status === 429) run.limited = true;
   if (message?.type === "result") run.result = {
     subtype: typeof message.subtype === "string" ? message.subtype : null,
     isError: message.is_error === true,
@@ -99,7 +118,17 @@ export function readStreamLine(line, run) {
   };
 }
 
-export function classifyRun(end) {
+function limitResumeAt(resetsAt, now) {
+  const reset = Number.isFinite(resetsAt) ? resetsAt * 1000 : null;
+  const target = reset !== null && reset > now && reset - now <= LIMIT_HORIZON_MS ? reset + LIMIT_MARGIN_MS : now + LIMIT_FALLBACK_MS;
+  return Math.ceil(target / MINUTE_MS) * MINUTE_MS;
+}
+
+export function classifyRun(end, now = Date.now()) {
+  if (end.limited === true) {
+    const resumeAt = limitResumeAt(end.limitReset?.resetsAt, now);
+    return { outcome: "limited", line: limitedResult(new Date(resumeAt)), resumeAt, resumeIn: resumeAt - now };
+  }
   if (end.endedFor === "branch") return { outcome: "branch", line: "ended: the branch changed" };
   if (end.endedFor === "timeout") return { outcome: "timeout", line: "ended: time limit" };
   if (end.endedFor === "stop") return { outcome: "error", line: "ended: runner stopping" };
@@ -124,8 +153,9 @@ export async function runResident(context, deps) {
   if (!execution || typeof execution.start !== "function" || typeof execution.classify !== "function"
     || !["drain", "interrupt"].includes(execution.stopMode)) throw new Error("Resident execution adapter required");
   const interruptOnStop = execution.stopMode === "interrupt";
-  const status = { state: "idle", waitReason: null, waitFiles: [], interrupted: null, lastResult: null, lastLog: null, failures: 0 };
+  const status = { state: "idle", waitReason: null, waitFiles: [], interrupted: null, lastResult: null, lastLog: null, limitedUntil: null, failures: 0 };
   let wait = null;
+  let limit = null, limitNoticed = false;
   let failures = 0, transient = 0, requestFailures = 0, startFailures = 0;
   let generation = 0;
   let failureKinds = [];
@@ -224,6 +254,13 @@ export async function runResident(context, deps) {
     if (beat.stop) return beat.stop;
     const pauseFor = beat.next ?? interval;
     if (beat.paused) { await sleepActive(pauseFor); continue; }
+    if (limit !== null) {
+      const left = limit - deps.now();
+      if (left > 0) { await sleepActive(Math.min(pauseFor, left)); continue; }
+      limit = null;
+      status.limitedUntil = null;
+      save();
+    }
 
     let work;
     try { work = await deps.overview(); requestFailures = 0; }
@@ -286,17 +323,24 @@ export async function runResident(context, deps) {
       if (stoppedAfterRun || current.stop) return stoppedAfterRun ?? current.stop;
       paused = current.paused || current.transient;
     }
-    const { outcome, line } = execution.classify({ ...end, endedFor: endedFor ?? end.endedFor });
+    const classified = execution.classify({ ...end, endedFor: endedFor ?? end.endedFor });
+    const { outcome, line } = classified;
     if (outcome === "cancelled") return stopAfter ?? "error";
     Object.assign(status, { state: "idle", lastResult: line, lastLog: end.log });
+    if (outcome === "limited") {
+      limit = deps.now() + Math.max(0, classified.resumeIn);
+      status.limitedUntil = new Date(classified.resumeAt).toISOString();
+      if (!limitNoticed) deps.notify(fillNotice("limited", { time: noticeTime(classified.resumeAt, classified.resumeAt - classified.resumeIn) }));
+      limitNoticed = true;
+    } else limitNoticed = false;
 
     let progressed = null;
-    if (!paused) {
+    if (!paused && outcome !== "limited") {
       try { progressed = workSignature(await deps.overview()) !== before; } catch { progressed = null; }
     }
     const stoppedAfterProgress = await interruptReason();
     if (stoppedAfterProgress) return stoppedAfterProgress;
-    if (outcome === "branch") {   }
+    if (outcome === "branch" || outcome === "limited") {   }
     else if (outcome !== "success") { failures++; failureKinds.push("error"); }
     else if (progressed === false) { failures++; failureKinds.push("stuck"); }
     else { failures = 0; failureKinds = []; }

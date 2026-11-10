@@ -491,7 +491,8 @@ async function status(files) {
   const saved = readOptional(statusFile(directory));
   const autostart = readOptional(autostartFile(directory));
   const running = state?.lock.mode === "resident" && state.lock.poller !== null && isAlive(state.lock.poller.pid);
-  return { event: "status", running, held: state !== null && heldResident(state), newer: newer !== null,
+  const limitedUntil = running && typeof saved?.limitedUntil === "string" && Date.parse(saved.limitedUntil) > Date.now() ? saved.limitedUntil : null;
+  return { event: "status", running, limitedUntil, held: state !== null && heldResident(state), newer: newer !== null,
     client: state?.lock.client ?? newer?.client ?? saved?.client ?? "claude", session: state?.lock.mode === "resident" ? state.lock.id : newer?.session ?? null,
     lifecycle: state?.lock.mode === "resident" ? state.lock.lifecycle : null,
     otherSession: state && state.lock.mode !== "resident" ? state.lock.mode ?? "watch" : null,
@@ -589,7 +590,7 @@ async function resident(location, files, options) {
   const claude = input.client === "claude" ? claudeCommand() : null;
   const status = { ...saved, pid: process.pid };
   const save = values => { Object.assign(status, values, { updatedAt: now() }); atomicWrite(statusFile(directory), status); };
-  save({ state: "idle" });
+  save({ state: "idle", limitedUntil: null });
   const lifecycle = async () => {
     try {
       const state = await readStateWithGuard(files);
@@ -631,12 +632,13 @@ async function resident(location, files, options) {
       await settleChild(files, session, owned);
       try { unlinkSync(path.join(runs, `${id}.launch.json`)); } catch {   }
       if (exit.stderr.trim()) writeFileSync(path.join(runs, `${id}.stderr.txt`), exit.stderr);
-      const meta = { startedAt, endedAt: now(), exitCode: exit.exitCode, permissionMode: run.permissionMode, result: run.result, endedFor };
+      const limit = { limited: run.limited === true, limitReset: run.limitReset ?? null };
+      const meta = { startedAt, endedAt: now(), exitCode: exit.exitCode, permissionMode: run.permissionMode, result: run.result, endedFor, ...limit };
       meta.line = classifyRun({ ...meta }).line;
       writeFileSync(path.join(runs, `${id}.meta.json`), JSON.stringify(meta, null, 2) + "\n");
       pruneRuns(runs);
       log(`run ${id}: ${meta.line}`);
-      return { exitCode: exit.exitCode, result: run.result, permissionMode: run.permissionMode, endedFor, log: `${id}.jsonl` };
+      return { exitCode: exit.exitCode, result: run.result, permissionMode: run.permissionMode, endedFor, ...limit, log: `${id}.jsonl` };
     })();
     log(`run ${id} started`);
     return { done, end };

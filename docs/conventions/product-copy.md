@@ -254,7 +254,10 @@ watch (`/harness:watch`) or, on Pro, the background runner. It answers "is anyth
 where". What the runner is doing is not repeated — the detail line above already says it.
 `{host}` and `{branch}` are identifiers and render in mono; `{n}` is whole minutes ("checked" never
 says 0). Units join with " · ". One line wins, in this order: stopped → no signal → paused →
-waiting → working or watching. "No signal" means no signal for 3 minutes, or 2 minutes past the
+waiting → waiting for Claude's usage limit → working or watching. The usage-limit line shows while an
+idle background runner's last result says Claude's usage limit stopped it and its resume time has not
+passed; `{n}` there is whole minutes rounded up, and from 60 minutes on, hours rounded. Its short form
+is the waiting one. "No signal" means no signal for 3 minutes, or 2 minutes past the
 next check the server gave an idle runner, whichever is later; a session working on a
 step counts the latest agent activity and allows 60 minutes. An idle or paused runner that has been
 idle long enough to check less often adds ` · next check in about {n} min` while that check is more
@@ -278,6 +281,8 @@ edit in that checkout during a run can land in the runner's commit. A working se
 > last activity {n} min ago
 > Runner on {host} is waiting: commit or stash the changes on {branch}, and it continues.
 > Runner on {host} is waiting: switch back to {branch}, and it continues.
+> Runner on {host} is waiting for Claude's usage limit and continues in about {n} min.
+> Runner on {host} is waiting for Claude's usage limit and continues in about {n} h.
 > Runner paused — it starts nothing new.
 > Work already running finishes first.
 > No signal from the runner on {host} for {n} min.
@@ -1318,7 +1323,7 @@ output's edit line were settled first, and the rest followed.
 - Policy question, once per start: "Should the runner also start new work, or only continue items already on the board?" New work defaults to no. The skill also says: "The runner commits its work in this checkout and never pushes."
 - Start hand-off. The skill never starts the runner itself. Claude Code's auto mode refuses a command that leaves a process running after the session, so the skill hands the command to the owner: "Starting a process that keeps running after this session is your call. Run this yourself:" — followed by one `!` line. Sign-in start uses the same hand-off.
 - Stop: "The runner finishes the run in progress, then stops." (`stopping`) · "The runner stopped." (`stopped`). A runner with no process left whose lock cannot be cleared on its own (a Codex runner, or a run that did not settle) gives the `held` refusal instead.
-- Status: plain lines from `--status`. A sign-in task registered by an older plugin adds: "Sign-in start points at an older plugin. Turn it off and on again." A `held` status adds the `held` sentence. A `newer` status adds the `newer-state` sentence, confirmed with the owner on 2026-10-27.
+- Status: plain lines from `--status`. A sign-in task registered by an older plugin adds: "Sign-in start points at an older plugin. Turn it off and on again." A `held` status adds the `held` sentence. A `newer` status adds the `newer-state` sentence, confirmed with the owner on 2026-10-27. A status with `limitedUntil` adds the usage-limit notice body with that time on this PC's clock, confirmed with the owner on 2026-11-10.
 - Release, confirmed with the owner on 2026-10-27. After a `held` refusal or status, the skill runs `--release` and repeats its lines, then asks once: "No runner process is left, but this checkout is still held. Release it so a runner can start here again?" Only an explicit yes runs `--release --session {session}`; the skill runs both itself because neither starts a process. Lines, one each before the JSON line:
   - "The runner that started {startedAt} has no process left."
   - "Its last run did not finish cleanly." (only when the run did not settle)
@@ -1333,7 +1338,10 @@ output's edit line were settled first, and the rest followed.
   - "Auto mode is not available here, so the runner runs only the commands on its allow list." (only without auto mode)
 
 Windows notices (title — body). `{files}` is the first three paths and "and {n} more"; `{current}` is the
-checkout's branch, or a 7-character commit for a detached HEAD.
+checkout's branch, or a 7-character commit for a detached HEAD. `{time}` is the resume time on this PC's
+clock as HH:MM, with the date (YYYY-MM-DD HH:MM) when it is more than a day away. The usage-limit notice,
+its status sentence, the banner's usage-limit lines and the `limited:` result line were confirmed with the
+owner on 2026-11-10.
 
 | when | title | body |
 | --- | --- | --- |
@@ -1342,6 +1350,7 @@ checkout's branch, or a 7-character commit for a detached HEAD.
 | waiting on the branch | Runner waiting on {branch} | This checkout is on {current}. Switch back to {branch}, and it continues. |
 | the branch changed during a run | Runner ended a run | The checkout switched to {current} during a run, so the runner ended that run. Switch back to {branch}, and it continues. |
 | a paused run finished | Runner paused | The run in progress finished. You can edit {branch} now. Nothing new starts until you choose Resume. |
+| a run ended on Claude's usage limit — once while such runs follow each other; the runner waits and continues | Runner waiting for Claude | Claude's usage limit was reached. The runner continues after {time}. |
 | stuck — three runs in a row left the same work | Runner stopped | The same steps came back three times without progress. Check its run log with /harness:background status, then start it again. |
 | error — the runner hit an error, or three runs in a row failed and at least one hit an error or the time limit | Runner stopped | It hit an error. Check its run log with /harness:background status, then start it again. |
 | plan | Runner stopped | The background runner needs Pro. |
@@ -1389,7 +1398,8 @@ Start and sign-in refusals (`harness-background.mjs`, `code` → sentence; print
 
 The server keeps one result line per run (`lastResult`, fixed words only, never the model's text): "done: {n}
 turns, {n} denied" · "error: {subtype}" · "error: exit {code}" · "ended: the branch changed" · "ended: time
-limit" · "ended: runner stopping".
+limit" · "ended: runner stopping" · "limited: Claude usage limit until {YYYY-MM-DDTHH:MMZ}" (UTC; the banner
+reads the resume time from it).
 
 ### Codex foreground session release — `$harness-run`, `$harness-resume`
 
