@@ -1,21 +1,21 @@
 ---
-status: 'active'
-stage: 'running'
-result: null
+status: 'completed'
+stage: null
+result: 'pass'
 report-kind: 'acceptance'
 report-size: 'standard'
 test-levels: ['static', 'contract', 'integration', 'end-to-end']
 test-tools: ['Codex CLI', 'Node test runner', 'PostgreSQL', 'Playwright MCP', 'scripts/rehearsals/rehearse-codex-macos.mjs']
 created-at: '2026-11-05'
-completed-at: null
-last-executed-at: '2026-11-10T09:48:23Z'
-tested-revision: 'f882bb96450580d51dc63f142d19531a67185132; native candidate 0.6.10'
+completed-at: '2026-11-10'
+last-executed-at: '2026-11-10T12:31:22.876Z'
+tested-revision: 'f882bb96450580d51dc63f142d19531a67185132 payload 0.6.10; aefcebb1c20717fa16be9d357dcd585617e35c71 test fixtures and CI'
 owners: ['user:Sangeok']
 related: ['docs/architecture/macos-runtime.md', 'docs/test-reports/completed/2026-11-05-codex-macos-initial-trials.md']
 primary-area: 'codex/macos-runtime'
 observed-environments:
   - 'isolated loopback | installed plugin and test server | macOS 26.2 arm64, Codex 0.167.0 | synthetic owner and native roles'
-test-summary: null
+test-summary: 'pass: macOS native 설치·전체 역할·110분 유휴 — 필수 기준 통과, 과거 환경 build 차단은 참고 이력으로 보존'
 follow-up: []
 ---
 
@@ -23,16 +23,13 @@ follow-up: []
 
 ## Summary and Decision
 
-기존 native Codex 로그인으로 설치·백그라운드·모든 선택 검증 역할을 연결하는 수정 후보를
-검증한다. 이전 두 후보의 실패는 별도 완료 보고서에 보존했다. 0.5.37은 모든 역할과 인수를
-종료를 관찰했지만, 역할별 terminal 성공 검사 이전이었고 dev 통합을 위해 유휴 관찰을 중단했다. 0.6.3의 최종 raw 기록은 임시 디렉터리
-정리로 유실되었다. 0.6.7의 강화된 재시험은 인수·문서 감사까지 성공했지만, scout 시작 직후
-Mac 덮개 닫힘 절전으로 중단됐다. 0.6.8의 R1 검토에서 재계획 인계와 검토 보류 도구의
-누락을 확인했다. 이를 수정한 0.6.9를 AC 전원·임시 절전 방지 상태에서 재시험 중이다.
-첫 0.6.9 실행은 구현·독립 구현 검증·Chrome QA·최종 인수를 완료했지만, 시험자의 진단 코드가
-runner를 종료시켰다. 이후 복사본의 Git 경로 정책 누락을 별도 합성 시험으로 재현·수정했다.
-0.6.10 설치본을 새 DB와 저장소에서 재생하고 있다. 전체 완료와 110분 유휴 관찰 전에는
-완료 판정을 내리지 않는다.
+기존 native Codex 로그인과 0.6.10 설치본으로 설치·백그라운드·모든 선택 검증 역할을
+실제 완주했다. 8개 AgentRun 모두 성공 terminal을 기록했고, 인수 보고서 4개와
+감사·탐색 로그의 커밋도 확인했다. 같은 실행의 110분 유휴 동안 새 모델·AgentRun은 0건이었다.
+runner 소유권 반납, 합성 데이터 삭제와 시험 서버 정리까지 끝나 이 로컬 인수 범위를 통과로 판정한다.
+
+과거 후보의 제품·시험 결함, 덮개 닫힘 절전, 진단 코드에 의한 중단과 raw 증거 유실은
+별도 초기 보고서와 아래 이력에 보존했다. 실패를 현재 실행의 통과로 소급해서 바꾸지 않는다.
 
 ## Scope and Criteria
 
@@ -73,12 +70,12 @@ Git 저장소만 생성하고 runner 정지 확인 후 DB fixture를 제거한�
 | ID | 기준 ID | Gate | 시나리오/방법 | 기대 결과 | 실제 결과 및 Evidence ID | 판정 |
 | --- | --- | --- | --- | --- | --- | --- |
 | T1 | R1 | `required` | 설치 inventory·실제 init | 모든 hash·mode 일치, global Node 없이 연결 | E1: 2,072 files 일치, installed-init 완료 | `PASS` |
-| T2 | R2 | `required` | native 경계·종료·double-supervisor recovery | 파일·network 제한과 소유 후손 정리 | E2: native 12 tests 통과, 외부·금지·변경된 hardlink 거부 포함 | `PASS` |
+| T2 | R2 | `required` | native 경계·종료·double-supervisor recovery | 파일·network 제한과 소유 후손 정리 | E2: native 계약 통과, 외부·금지·변경된 hardlink 거부 포함 | `PASS` |
 | T3 | R2 | `required` | 실제 CLI 정책 preflight | effective config·skills·thread·정리 | E3: 모델 미호출·quiescent true | `PASS` |
-| T4 | R3 | `required` | 실제 모델 전체 graph | 모든 선택 역할·인수·log 커밋 | 0.6.10 실행 중; 이전 중단은 E15·E16 | `NOT RUN` |
-| T5 | R3 | `required` | 실제 Chrome QA 역할 | build commit과 시나리오·console·network 근거 | 0.6.10 관찰 예정. 0.6.9의 네 시나리오와 QA report/ok 성공은 보존 | `NOT RUN` |
-| T6 | R4 | `required` | 110분 idle·stop | 새 모델·run 없음, owner release | 현재 전체 graph 뒤 관찰 예정 | `NOT RUN` |
-| T7 | R2 | `required` | provenance·오래된 reader | 손상 거부, unresolved v2 lock 보존 | E4: provenance 9 tests, 출시 25개 reader 보존 | `PASS` |
+| T4 | R3 | `required` | 실제 모델 전체 graph | 모든 선택 역할·인수·log 커밋 | E17: 8 AgentRun 성공·종료, 4개 보고서·인수, audit/scout log 커밋 일치 | `PASS` |
+| T5 | R3 | `required` | 실제 Chrome QA 역할 | build commit과 시나리오·console·network 근거 | 0.6.10의 네 시나리오 통과, 실제 commit 표시·console 0·page/module 200 확인, QA report/ok 수락·종료 | `PASS` |
+| T6 | R4 | `required` | 110분 idle·stop | 새 모델·run 없음, owner release | E18: 6,600초, 새 모델·AgentRun 0, 최대 표본 간격 60.831초, runnerStopped true·held false | `PASS` |
+| T7 | R2 | `required` | provenance·오래된 reader | 손상 거부, unresolved v2 lock 보존 | E4: provenance 거부 검사와 출시 25개 reader 보존 | `PASS` |
 | T8 | R3 | `informational` | 실제 Playwright MCP transport | 입력·snapshot·screenshot·재조회·범위 거부 | E5: 9 checks 통과; 역할 인수 대체 아님 | `PASS` |
 | T9 | R2/R5 | `required` | Stagekeeper 전체 repository build | 역할 network·DB URL·원본 쓰기 없이 빌드 | E9: 36,507파일 snapshot의 실제 Prisma·Next build 통과 | `PASS` |
 | T10 | R1/R2 | `required` | bundled launcher의 commit guard | global Node 없이 역할 커밋 거부·main 유지 | E12: 실제 stdin/launcher 통과 | `PASS` |
@@ -92,7 +89,7 @@ Git 저장소만 생성하고 runner 정지 확인 후 DB fixture를 제거한�
 | C3 | R5 | `required` | `npm run test:architecture` | architecture subset 통과 | E6: f882bb9에서 230 pass, 2 skip, 0 fail | `PASS` |
 | C4 | R5 | `required` | 기본 `npm run build` | type·route build 완료 | E7: Turbopack production build exit 0 | `PASS` |
 | C5 | R5 | `informational` | 이전 후보 build | 기존 환경 제한 보존 | E7: 11월 5일 기본 build는 port bind EPERM, Webpack은 통과 | `BLOCKED` |
-| C6 | R2/R5 | `required` | macOS arm64/x64 CI | bundle 빌드·native 계약·전체 project build 통과 | f882bb9 Intel 통과, arm64는 시험 Git 유지보수 경합으로 실패. fixture 수정 뒤 재검증 예정 | `FAIL` |
+| C6 | R2/R5 | `required` | macOS arm64/x64 CI | bundle 빌드·native 계약·전체 project build 통과 | aefcebb의 두 아키텍처에서 계약과 offline 전체 build 통과 | `PASS` |
 
 ## Evidence Registry
 
@@ -101,18 +98,20 @@ Git 저장소만 생성하고 runner 정지 확인 후 DB fixture를 제거한�
 | E1 | installation | 실제 installed cache의 모든 정규 파일·hash·mode·extras 검사, init 성공 | 본문; raw 외부 보존 |
 | E2 | native tests | allowed/denied/network/child inheritance, 내부 npm symlink, discard, detached stop, timeout/output limit, supervisor 사망 복구와 mutation assertion/restoration | 본문; `plugin/runtime/*.test.mjs` |
 | E3 | host probe | actual Codex 0.167.0에서 modelStarted:false, effectiveConfig/skills/thread/quiescent:true | 본문; `scripts/macos/probe-codex-host.mjs` |
-| E4 | compatibility | Node/runtime inventory 9 tests와 origin/main 이력의 25개 reader(0.5.14–0.5.33, 0.6.0/0.6.2/0.6.3/0.6.4/0.6.5)의 v2 lock 보존 | 본문; provenance·released reader 테스트 |
+| E4 | compatibility | Node/runtime inventory 검사와 origin/main 이력의 25개 reader(0.5.14–0.5.33, 0.6.0/0.6.2/0.6.3/0.6.4/0.6.5)의 v2 lock 보존 | 본문; provenance·released reader 테스트 |
 | E5 | browser transport | 실제 Chrome/Playwright MCP identity·snapshot refs·form·save·reload·image·console·network·외부 origin 거부 | 당시 관찰은 본문; 11월 5일 raw는 유실 |
 | E6 | commands | 로컬 명령 exit 0과 결과 집계. parent sandbox의 loopback EPERM은 host 실행으로 구분 | 본문; raw 외부 보존 |
 | E7 | build | 현재 기본 build 성공. 이전 제한 환경의 실패와 Webpack 성공도 보존 | 본문; 현재 raw 외부 영구 경로 보존 |
 | E9 | native project build | 889,157,502 bytes의 snapshot에서 Prisma generate·Webpack production build exit 0, quiescent:true, 원본 source hash·BUILD_ID 보존 | 본문; `native-project-build-final.json`은 외부 영구 경로 |
-| E10 | CI | 9a7ed15의 [check](https://github.com/Sangeok/stagekeeper/actions/runs/42784679519), [macOS](https://github.com/Sangeok/stagekeeper/actions/runs/42784679324), [Windows](https://github.com/Sangeok/stagekeeper/actions/runs/42784679699), [설치](https://github.com/Sangeok/stagekeeper/actions/runs/42784679572) 모두 성공. macOS 양쪽의 실제 offline 전체 build 단계도 성공 | GitHub Actions |
+| E10 | CI | aefcebb의 [check](https://github.com/Sangeok/stagekeeper/actions/runs/42796382900), [macOS](https://github.com/Sangeok/stagekeeper/actions/runs/42796382855), [Windows](https://github.com/Sangeok/stagekeeper/actions/runs/42796382874), [설치](https://github.com/Sangeok/stagekeeper/actions/runs/42796382612) 모두 성공. macOS 양쪽의 실제 offline 전체 build와 설치 네 job의 실제 smoke 단계도 성공 | GitHub Actions |
 | E11 | live ledger·host | 첫 0.6.7 실행은 인수·모든 선택 역할 종료 뒤 assignment report 누락을 별도 감사에서 검출했다. 강화된 재시험은 7개 AgentRun 모두 실제 성공·종료, 인수·감사까지 완료. 다음 main-loop 모델은 도구를 호출하지 못했고 scout AgentRun은 없음. pmset은 12:50:15+09:00 Clamshell Sleep, 14:22:13+09:00 전체 Wake를 기록 | 외부 영구 경로의 두 final ledger·terminal-record-audit·host-sleep-evidence |
 | E12 | installation/guard | 최신 dev 보호 훅 5개를 native launcher로 연결. 정확한 inventory·mode 검증과 PATH=/usr/bin:/bin의 실제 commit-guard 호출에서 report role deny·main no-decision 확인 | 외부 영구 경로의 bundle-v68-check·installation-v68 |
 | E13 | R1 replay | 0.6.8은 세 독립 검토의 결함 보고 뒤 owner service로 planning에 반환했다. 개발 역할이 이전 plan을 현재 handoff 없이 다시 제출한 사실을 확인해 후보를 중단했다. 0.6.9에서 현재 handoff 없는 제출 거부와 검토 on_hold의 제한된 proxy를 추가 검증했다 | 외부 영구 경로의 v68 final ledger·owner-plan-return, 단위·계약 시험 |
 | E14 | implementation check | 0.6.9에서 숫자 보존·숫자 단어 경계와 ASCII 문자 40개 사례를 별도 native snapshot으로 실행해 exit 0, quiescent:true, originalRepositoryWrites:false 확인 | 외부 영구 경로의 v69-independent-digit-check |
 | E15 | diagnostic interruption | 첫 0.6.9 실행의 긴 code-mode 대기는 해소되어 09:33:11Z 인수, 09:33:27Z 문서 감사 dispatch까지 진행했다. 이후 시험자가 붙인 임시 loopback inspector의 cleanup 표현식에서 동적 import 거부를 처리하지 않아 runner가 종료됐다. 제품 결함이나 통과로 바꾸지 않고 시험 도구 실패로 보존했다 | 외부 영구 경로의 diagnostic-interruption·원본 summary·final ledger |
 | E16 | file policy regression | 커밋된 합성 `.azure`·명시적 제외 디렉터리·환경 파일을 직접 파일 정책은 거부하지만 구현 Git이 일부 되살리는 결함을 재현했다. 원래 구현은 Missing expected rejection으로 실패했고, 동일 원본 broker를 checkout/show/history/restore에 적용한 뒤 정상 baseline·mutation과 함께 2개 시험 통과 | 외부 영구 경로의 implementation-policy-before-corrected·after-corrected; source regression test |
+| E17 | live ledger·Git | 0.6.10의 8개 실행 모두 accepted terminal ok·closedAt, refused 0. 10:35:32.330Z 인수, 보고서 4개의 기록 commit이 HEAD 조상이고 현재 파일 bytes와 일치. audit/scout 고정 log도 marker와 HEAD bytes 일치 | 외부 영구 경로의 v610 ledger·report-commit-audit·summary |
+| E18 | idle·cleanup | 10:41:20.505Z부터 6,600초 관찰, baseline 8 AgentRun·3 main-loop starts 유지, 최대 표본 간격 60.831초. pmset의 관찰 구간 Sleep/Wake 기록 0. runner 종료·소유권 반납, 시험 DB 8개의 사용자·프로젝트 0, 시험 포트 4개 닫힘, 자기 PostgreSQL·caffeinate 종료. 설치 2,072파일 hash·mode도 시험 뒤 재확인 | 외부 영구 경로의 final ledger·summary·power-observation·final-fixture-audit·cleanup-final·installation-v610-final |
 
 현재 rehearsal source SHA-256은 `2c5ea56edac31ba926419fd4564a086926c52456738a9cba8c4bed3a3eb401fe`이다.
 현재 실행 payload는 f882bb9다. 이전 84e6053 이후 9a7ed15는 두 시험 fixture의 누락된 repository binding만 고쳤다.
@@ -157,38 +156,44 @@ Sensitive-data review: 공개 문서에는 token·account/session·개인 경로
   제거하는 시점과 읽기가 겹쳐 실패했다. Intel의 계약·전체 build와 다른 CI는 통과했다.
   시험 fixture의 Git 호출에만 maintenance.auto=false·gc.auto=0을 적용했으며,
   관련 13개 시험 통과·2개 환경별 제외를 확인했다. 제품의 변경 중 객체 거부 정책은 유지한다.
+  구현 복사본 시험에도 같은 fixture 설정을 적용했다. aefcebb의 양쪽 macOS 계약·전체 build가
+  통과했으며, 설치 payload와 당시 실제 모델 실행은 f882bb9 그대로 유지했다.
 
 ## Findings and Follow-up
 
 초기 후보의 dispatch 인자·불명확한 MCP 입력 거부·보고서 handoff·omissions 표시·정리 오류를
 수정했다. 정확한 과거 rejected 입력을 확보하지 못한 한계는 초기 보고서에 보존했다.
-native 계약 테스트 성공과 실제 모든 역할 성공을 구분하며 재시험 결과로 갱신한다.
+native 계약 테스트와 실제 모든 역할 성공은 E2와 E17에서 각각 확인했다.
 
 실행 원장의 closedAt만으로 역할 완료를 판정하지 않는다. 시험 controller가 새 작업을
-멈출 때 미완료 work-assigner 보고 단계까지 닫을 수 있음을 확인했다. 다음 재생은
+멈출 때 미완료 work-assigner 보고 단계까지 닫을 수 있음을 확인했다. 수정한 재생은
 이미 배정한 실행의 보고 단계가 끝나기를 기다리고, 모든 역할의 accepted terminal outcome을
 확인한다. 처음 0.6.7 실행은 이 감사에서 실패했으며, 결과를 전체 통과로 처리하지 않았다.
 강화된 재시험은 배정 보고를 실제로 마쳤다. 이후 scout 전 모델 시작과 거의 동시에
-호스트가 Clamshell Sleep에 들어갔다. 이번 실행의 idle 방지용 caffeinate도 덮개 닫힘 절전을 막지 못했다.
-다음 재생은 완료 전 deadline을 명확히 실패시키고, 60초 유휴 표본 간격이 90초를 초과하거나
+호스트가 Clamshell Sleep에 들어갔다. 해당 실행의 idle 방지용 caffeinate도 덮개 닫힘 절전을 막지 못했다.
+최종 재생은 완료 전 deadline을 명확히 실패시키고, 60초 유휴 표본 간격이 90초를 초과하거나
 시계가 역행하면 관찰을 중단한다. 절전 구간을 110분의 정상 유휴로 계산하지 않는다.
 
 ## Test Data and Cleanup
 
-두 0.6.7 실행의 runnerStopped:true와 private final ledger를 보존했고, controller는 정지 확인 후
-자기 합성 사용자와 loopback 서버를 정리했다. 시험 DB·package 사본·증거는 외부 영구 경로에
-보존한다. 자기 cluster의 이전 4개 시험 DB에서 합성 사용자·프로젝트가
-각각 0건임을 별도로 확인했고, Next·QA·브라우저 MCP의 listen 포트도 닫혔다. 자기 PostgreSQL
-서비스를 정지했다가 0.6.9 전용 새 DB를 준비해 재시작했다. 첫 0.6.9의 강제 종료 이후 helper가
-모든 기록된 프로세스의 부재를 확인했고, release-check가 반환한 동일 session을 명시적으로
-반납했다. 잠금 파일은 직접 제거하지 않았다. 자기 fixture 삭제와 서버 종료 뒤 재생용 새 DB를
-준비했다. 재생 실행의 정리는 끝난 뒤 확정한다. 사용자의 요청으로 임시 caffeinate assertion을 설정했으며 테스트 뒤 자신의 assertion만
-해제한다. 운영 DB는 변경하지 않았다.
+최종 실행은 runnerStopped:true를 기록했고, 설치 helper의 추가 조회에서도 running:false·
+held:false·session:null을 확인했다. 자기 합성 사용자·프로젝트를 삭제하고 Next·QA·브라우저
+MCP를 종료했다. 자기 portable cluster의 시험 DB 8개를 다시 읽어 사용자·프로젝트가 모두
+0건임을 확인한 뒤 PostgreSQL도 정지했다. 시험 포트 45438·45441·45442·45443은 모두 닫혔다.
+
+첫 0.6.9의 진단 중단과 두 번째 실행의 명시적 중단은 conservative ownership을 남겼다.
+각 helper의 release-check가 프로세스 부재를 확인한 뒤 같은 session을 명시적으로 반납했고,
+잠금 파일을 직접 제거하지 않았다. 이전 실패 summary와 모든 후속 정리 증거는 보존했다.
+
+사용자가 요청한 임시 caffeinate는 시험 종료 시 함께 끝났으며 자기 assertion 프로세스의
+부재를 확인했다. 사용자의 전역 전원 설정·원래 worktree와 운영 DB는 변경하지 않았다.
+시험 DB 파일·package 사본·정제 전 원장은 저장소 밖의 영구 작업 디렉터리에 보존한다.
 
 ## Conclusion
 
-설치·native 경계·전체 repository build·인수까지의 역할과 CI는 통과했지만, 강화된 한 실행에서
-scout와 장시간 유휴가 남아 있으므로 전체 완료 판정을 내리지 않는다.
+설치·native 경계·전체 repository build·모든 선택 역할·최종 인수와 CI가 통과했다.
+T6의 같은 실행 유휴·정리까지 통과하여 모든 필수 gate를 충족했다.
+C5의 과거 제한 환경 build 차단은 informational 기록이며 현재 판정을 뒤집지 않는다.
 공개 bundle 배포와 clean machine 검증은 이 로컬 인수의 결과에 포함하지 않는다.
 
 ## Review Checklist
@@ -196,5 +201,5 @@ scout와 장시간 유휴가 남아 있으므로 전체 완료 판정을 내리�
 - [x] 기준과 후보 payload·rehearsal identity를 고정했다.
 - [x] 초기 실패를 별도 완료 기록으로 보존했다.
 - [x] 모델 없는 계약과 실제 역할 인수를 구분했다.
-- [ ] 전체 역할·유휴·정리·CI 결과를 확정한다.
-- [ ] docs:check와 민감정보 최종 검토 뒤 완료 경로로 이동한다.
+- [x] 전체 역할·유휴·정리·CI 결과를 확정했다.
+- [x] docs:check와 민감정보 최종 검토 뒤 완료 경로로 이동했다.

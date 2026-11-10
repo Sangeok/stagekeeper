@@ -18,8 +18,8 @@ Read the [documentation](https://stagekeeper.dev/docs) or
 - **Implemented:** the web app, the agent and owner MCP servers, and the Claude Code plugin.
 - **In verification:** Codex foreground, resume, and background adapters use the same
   server contracts. Windows and macOS have native command backends; macOS also has
-  independent implementation verification and browser QA. Track actual installation and
-  all-role testing in the [macOS report](./docs/test-reports/active/codex-macos-native-acceptance.md)
+  independent implementation verification and browser QA. The installed macOS bundle passed
+  all-role acceptance and 110 minutes of idle observation; see the [macOS report](./docs/test-reports/completed/2026-11-10-codex-macos-native-acceptance.md)
   and broader release gates in the [runtime report](./docs/test-reports/active/dual-client-runtime-report.md).
   Public Codex release and cross-client acceptance remain separate gates.
 - **Packaging:** the release bar is that connecting a repository needs nothing beyond your

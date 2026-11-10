@@ -28,7 +28,7 @@ metadata에는 2026-10-24 격리 후보부터 client를 저장한다. Codex 역�
 현재 Windows의 실제 모델·권한 경계·설치·resident 기본 graph 인수는
 [격리 시험 보고서](../test-reports/completed/2026-10-24-codex-resident-live.md)에 기록했다.
 macOS native 설치·명령·복구·선택 검증 역할은 [macOS runtime](./macos-runtime.md)에 구현되어 있다.
-실제 전체 역할 인수는 [macOS 시험 보고서](../test-reports/active/codex-macos-native-acceptance.md)에서 추적한다.
+실제 설치·전체 역할·110분 유휴 인수는 [macOS 시험 보고서](../test-reports/completed/2026-11-10-codex-macos-native-acceptance.md)에 기록했다.
 물리적 clean Windows·혼합 호스트·운영 seed와 공개 bundle 배포는 별도다. 이 소스 구조를
 전체 제품 지원 인증으로 해석하지 않는다. 그 밖의 조건은 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md),
 실제 source 계약은 [protocol.md](./protocol.md)의 dual-client 절을 따른다.

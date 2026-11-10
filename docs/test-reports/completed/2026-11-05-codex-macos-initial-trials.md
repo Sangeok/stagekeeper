@@ -16,7 +16,7 @@ primary-area: 'codex/macos-runtime'
 observed-environments:
   - 'isolated loopback | installed plugin and test server | macOS 26.2 arm64, Codex 0.166.0 | synthetic owner and native roles'
 test-summary: 'fail: macOS 설치·전체 역할 최초 인수 — 두 후보 모두 구현 검증 단계에서 미완료'
-follow-up: ['docs/test-reports/active/codex-macos-native-acceptance.md']
+follow-up: ['docs/test-reports/completed/2026-11-10-codex-macos-native-acceptance.md']
 ---
 
 # macOS Codex 최초 전체 역할 시험

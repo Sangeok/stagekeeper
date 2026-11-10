@@ -7,7 +7,7 @@ Stagekeeper는 사람이 승인 게이트를 정하고 소유하며 에이전트
 실행하지 않는다. 사용자의 Claude Code가 플러그인과 MCP를 통해 연결되며,
 Codex foreground·resident 어댑터도 같은 HTTP MCP·원장을 사용한다. OS별 실제
 모델 인수와 공개 배포는 [runtime 보고서](../test-reports/active/dual-client-runtime-report.md)와
-[macOS 시험 보고서](../test-reports/active/codex-macos-native-acceptance.md)에서 구분한다.
+[macOS 시험 보고서](../test-reports/completed/2026-11-10-codex-macos-native-acceptance.md)에서 구분한다.
 
 2026-10-04 사용자가 승인한 설치 기준: 웹 사용에는 로컬 실행 환경을 요구하지 않는다.
 저장소 실행에는 사용자가 선택한 Claude Code 또는 Codex의 기존 native 설치·로그인을
