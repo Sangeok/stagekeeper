@@ -108,7 +108,7 @@ FSD-R03은 원 렌즈의 Should에서, 명시적 폐기 없이 사용자 편집�
 [PipelineRail:32](../../../src/fsd/features/edit-pipeline/ui/pipeline-rail.tsx#L32)는 초안 graph와 저장 기준 graph/version을 초기 상태로 보관한다.
 따라서 동일 프로젝트에서 위 prop이 바뀌면 새 key로 rail이 재생성되어 초안과 복구 상태가 초기화된다.
 
-같은 화면의 [Scout Action:14](../../../src/fsd/features/edit-pipeline/api/automatic-scout.server.ts#L14)는 프로젝트 layout을 revalidate한다.
+같은 화면의 [Scout Action:14](https://github.com/Sangeok/stagekeeper/blob/ef9d8f4f3dc26a0473ab0fa856c86c1ef711fd98/src/fsd/features/edit-pipeline/api/automatic-scout.server.ts#L14)는 프로젝트 layout을 revalidate한다.
 [파이프라인 route:14](../../../src/app/(app)/p/[slug]/pipeline/page.tsx#L14)는 현재 version을 다시 조회한다.
 **탭 A에서 graph 편집 → 탭 B에서 새 version 저장 → 탭 A에서 Scout 설정 변경 → 새 snapshot 수신** 순서에서는
 A가 graph를 저장하거나 폐기하지 않았어도 초안이 사라진다.

@@ -13,7 +13,7 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
   const [specificWork, setSpecificWork] = useState(!!targetKey);
   const [selected, setSelected] = useState("");
   const [agent, setAgent] = useState("");
-  const [pending, setPending] = useState(false);
+  const [operation, setOperation] = useState<"starting" | "stopping" | "approving" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unknown, setUnknown] = useState(false);
   const submitting = useRef(false), alive = useRef(true);
@@ -34,32 +34,33 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
   const target = data?.targets.find(candidate => `${candidate.kind}:${candidate.id}` === selected);
   const projectMode = !!data?.canStartWithoutWork && !specificWork;
   const projectRun = data?.projectRun;
+  const pending = operation !== null;
   const canStart = (projectMode ? !!actions.startProject && (!projectRun || projectRun.closed) : !!target && !target.reason && (target.kind === "board" || !!agent)) && !pending && !unknown;
   async function stop(): Promise<void> {
     if (!projectRun || !actions.stopProject || pending || unknown || submitting.current) return;
-    submitting.current = true; setPending(true); setError(null);
+    submitting.current = true; setOperation("stopping"); setError(null);
     try {
       const result = await actions.stopProject(projectRun.id);
       if (!alive.current) return;
       if (!result.success) { setError(result.error); return; }
       router.refresh(); onClose();
     } catch { if (alive.current) { setUnknown(true); setError("The run may have stopped. Close and reopen Run to check."); } }
-    finally { submitting.current = false; if (alive.current) setPending(false); }
+    finally { submitting.current = false; if (alive.current) setOperation(null); }
   }
   async function approve(): Promise<void> {
     if (!projectRun || !actions.approveProjectGate || pending || unknown || submitting.current) return;
-    submitting.current = true; setPending(true); setError(null);
+    submitting.current = true; setOperation("approving"); setError(null);
     try {
       const result = await actions.approveProjectGate({ runId: projectRun.id, entryId: projectRun.entryId, slotId: projectRun.node });
       if (!alive.current) return;
       if (!result.success) { setError(result.error); return; }
       router.refresh(); onClose();
     } catch { if (alive.current) { setUnknown(true); setError("The gate may have been approved. Close and reopen Run to check."); } }
-    finally { submitting.current = false; if (alive.current) setPending(false); }
+    finally { submitting.current = false; if (alive.current) setOperation(null); }
   }
   async function start(): Promise<void> {
     if (!data || !canStart || submitting.current || (!projectMode && !target)) return;
-    submitting.current = true; setPending(true); setError(null);
+    submitting.current = true; setOperation("starting"); setError(null);
     try {
       const result = projectMode && actions.startProject ? await actions.startProject(pipelineId, data.graphKey)
         : await actions.start({ pipelineId, graphKey: data.graphKey, targetId: target!.id, targetKind: target!.kind,
@@ -71,7 +72,7 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
       if (alive.current) { setUnknown(true); setError("The run may have started. Close this panel and check the work before trying again."); }
     } finally {
       submitting.current = false;
-      if (alive.current) setPending(false);
+      if (alive.current) setOperation(null);
     }
   }
   return <PipelinePanel title={`Run ${name}`} busy={pending} onClose={onClose}>
@@ -85,8 +86,8 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
       {projectMode ? <section className="flex flex-col gap-3 text-sm" aria-label="Project run">
         <p>Start without choosing an item. A connected runner follows the project steps shown above. Assign work uses the saved selection policy when included.</p>
         {projectRun && !projectRun.closed ? <><p>Active pipeline: {projectRun.pipelineName}</p><p>Current step: {nodeLabel(projectRun.node)}</p>{projectRun.reason ? <p role="status">{projectRun.reason}</p> : null}
-          {projectRun.node.startsWith("before-") ? <Button disabled={pending || unknown} onClick={() => void approve()}>Approve {gateLabel(projectRun.node)}</Button> : null}</> : null}
-        {projectRun && !projectRun.closed && actions.stopProject ? <div><Button disabled={pending || unknown} onClick={() => void stop()}>Stop new work</Button><p className="mt-2 text-xs text-quiet">Stops discovery and assignment. Work already on the board keeps its own pipeline.</p></div> : null}
+          {projectRun.node.startsWith("before-") ? <Button disabled={pending || unknown} onClick={() => void approve()}>{operation === "approving" ? `Approving ${gateLabel(projectRun.node)}…` : `Approve ${gateLabel(projectRun.node)}`}</Button> : null}</> : null}
+        {projectRun && !projectRun.closed && actions.stopProject ? <div><Button disabled={pending || unknown} onClick={() => void stop()}>{operation === "stopping" ? "Stopping…" : "Stop new work"}</Button><p className="mt-2 text-xs text-quiet">Stops discovery and assignment. Work already on the board keeps its own pipeline.</p></div> : null}
         {!data.nodes.includes("assign-work") ? <p>This run does not assign backlog items.</p> : null}
       </section> : <>
       <label className="flex flex-col gap-2 text-sm">Work to run on
@@ -104,7 +105,7 @@ export function PipelineRunPanel({ pipelineId, name, actions, targetKey, onClose
       </>}
       <p className="text-xs text-quiet">Your connected runner carries out these steps and waits at approval gates.{!data.nodes.includes("accept") ? " Completing this run does not accept the work." : " Work is accepted only after the Accept step passes."}</p>
       {error ? <p role="alert" className="text-sm text-risk">{error}</p> : null}
-      <Button variant="mine" disabled={!canStart} onClick={() => void start()}>{pending ? "Starting…" : "Start run"}</Button>
+      <Button variant="mine" disabled={!canStart} onClick={() => void start()}>{operation === "starting" ? "Starting…" : "Start run"}</Button>
     </div> : null}
   </PipelinePanel>;
 }

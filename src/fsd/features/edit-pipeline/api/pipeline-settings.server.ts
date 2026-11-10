@@ -7,7 +7,7 @@ import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
 import { planForProject } from "@/server/projects/api.server";
-import { archivePipeline, renamePipeline, setDefaultPipeline, setPipelineRule, setAutomaticPick } from "@/server/pipeline/api";
+import { archivePipeline, renamePipeline, setDefaultPipeline, setPipelineRule } from "@/server/pipeline/api";
 import type { ServerResult } from "@/server/result";
 
 async function change(slug: string, valid: boolean, work: (identity: { projectId: string; userId: string }) => Promise<ServerResult<null>>): Promise<ActionResult<null>> {
@@ -31,7 +31,4 @@ export async function setDefaultPipelineAction(slug: string, pipelineId: string)
 }
 export async function setPipelineRuleAction(slug: string, type: string, pipelineId: string | null): Promise<ActionResult<null>> {
   return change(slug, ITEM_TYPES.some(value => value === type) && (pipelineId === null || typeof pipelineId === "string"), identity => setPipelineRule(prisma, { type, pipelineId, ...identity }));
-}
-export async function setAutomaticPickAction(slug: string, enabled: boolean): Promise<ActionResult<null>> {
-  return change(slug, typeof enabled === "boolean", identity => setAutomaticPick(prisma, { enabled, ...identity }));
 }

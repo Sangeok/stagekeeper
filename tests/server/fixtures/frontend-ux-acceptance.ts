@@ -167,21 +167,58 @@ export async function runFrontendUxAcceptance(render: (mode: string) => void, cl
     check(change === "project" ? scope().dataset.project === "two" : text(scope()).includes("unmounted"), "New target replaced");
   });
 
-  for (const operation of ["start", "stop", "approve"] as const) await run(`run ${operation}`, "pending labels, panel locks and unknown-outcome guidance remain unchanged", async () => {
+  const openRun = async (operation: "start" | "stop" | "approve") => {
     await editor(); frontendUx.projectRun = operation !== "start";
     await click("Run");
     await waitFor(() => !!scope().querySelector("dialog select") || text(scope()).includes("Active pipeline:"), "Run preparation missing");
     const dialog = scope().querySelector<HTMLDialogElement>("dialog")!;
     if (operation === "start") await choose(dialog.querySelector("select")!, "backlog:work");
     const label = operation === "start" ? "Start run" : operation === "stop" ? "Stop new work" : "Approve before Plan";
-    await click(label, dialog);
-    check(frontendUx.calls.at(-1)?.kind === operation, "Wrong Run operation");
-    check(button("Starting…", dialog).disabled && button("Close", dialog).disabled, "Current pending presentation changed");
-    frontendUx.finish("unknown");
-    await waitFor(() => !!dialog.querySelector('[role="alert"]'), "Run recovery missing");
-    check(button("Start run", dialog).disabled && !button("Close", dialog).disabled, "Unknown recovery lock changed");
-    await click("Close", dialog);
-    check(!scope().querySelector("dialog"), "Run cannot close after unknown");
+    const pendingLabel = operation === "start" ? "Starting…" : operation === "stop" ? "Stopping…" : "Approving before Plan…";
+    return { dialog, label, pendingLabel };
+  };
+  for (const operation of ["start", "stop", "approve"] as const) for (const outcome of ["success", "error", "unknown"] as const) {
+    await run(`run ${operation} ${outcome}`, "only the owned operation changes label; all controls lock and each outcome retains its recovery and navigation contract", async () => {
+      const { dialog, label, pendingLabel } = await openRun(operation);
+      const calls = frontendUx.calls.length;
+      await click(label, dialog);
+      check(frontendUx.calls.length === calls + 1 && frontendUx.calls.at(-1)?.kind === operation, "Wrong or duplicate Run operation");
+      check(button(pendingLabel, dialog).disabled, "Owned operation pending label missing");
+      if (operation !== "start") check(text(button("Start run", dialog)).trim() === "Start run", "Unrelated Start label changed");
+      check([...dialog.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>("button,input,select")].every(control => control.disabled), "Pending control remained active");
+      button(pendingLabel, dialog).click(); button("Close", dialog).click();
+      dialog.dispatchEvent(new Event("cancel", { cancelable: true })); await frame();
+      check(dialog.open && frontendUx.calls.length === calls + 1, "Pending duplicate or Close/Escape escaped the lock");
+      frontendUx.finish(outcome);
+      if (outcome === "success") {
+        await waitFor(() => !scope().querySelector("dialog"), "Successful Run did not close");
+        check(frontendUx.refreshes === 1 && frontendUx.pushes.length === (operation === "start" ? 1 : 0), "Successful Run navigation differs");
+      } else {
+        await waitFor(() => !!dialog.querySelector('[role="alert"]') && !button("Close", dialog).disabled, "Run recovery missing");
+        check(frontendUx.refreshes === 0 && frontendUx.pushes.length === 0 && frontendUx.calls.length === calls + 1, "Failure navigated or resubmitted automatically");
+        check(button(label, dialog).disabled === (outcome === "unknown"), "Recovery retry lock differs");
+        if (outcome === "error") {
+          check(text(dialog).includes("Fixture refusal"), "Business refusal lost");
+          await click(label, dialog); check(frontendUx.calls.length === calls + 2, "Explicit retry unavailable");
+          frontendUx.finish("success"); await waitFor(() => !scope().querySelector("dialog"), "Retry did not close");
+        } else {
+          const guidance = operation === "start" ? "The run may have started." : operation === "stop" ? "The run may have stopped." : "The gate may have been approved.";
+          check(text(dialog).includes(guidance), "Unknown-outcome guidance differs");
+          await click("Close", dialog); check(!scope().querySelector("dialog"), "Unknown Run cannot close");
+          const prepares = frontendUx.prepares;
+          await click("Run");
+          await waitFor(() => frontendUx.prepares === prepares + 1 && !!scope().querySelector("dialog button"), "Reopen did not prepare again");
+          check(frontendUx.calls.length === calls + 1, "Reopen repeated the mutation");
+        }
+      }
+    });
+  }
+  for (const operation of ["start", "stop", "approve"] as const) await run(`run ${operation} unmount`, "a late successful response after unmount cannot navigate, refresh or mutate again", async () => {
+    const { dialog, label } = await openRun(operation);
+    await click(label, dialog); const finish = frontendUx.finish, calls = frontendUx.calls.length;
+    frontendUx.hide(); await waitFor(() => text(scope()).includes("Fixture target unmounted"), "Run target did not unmount");
+    finish("success"); await frame(); await frame();
+    check(frontendUx.refreshes === 0 && frontendUx.pushes.length === 0 && frontendUx.calls.length === calls, "Unmounted Run response changed the new surface");
   });
 
   await fetch("/results", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(results) });

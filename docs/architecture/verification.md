@@ -349,9 +349,8 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |
 | `rehearsals/rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
-| `rehearsals/rehearse-automatic-scout.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-automatic-scout.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next HTTP로 Free 자동 발굴 switch 저장·재조회·잘못된 입력·타인·무세션·사용 불가 프로젝트 거부를 검증한다. 루프백 fixture만 만들고 종료 시 자기 fixture를 정리한다 |
-| `rehearsals/rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 8종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
-| `rehearsals/rehearse-multiple-pipelines-browser.mjs` | 저장소 루트에서 `node scripts/rehearsals/rehearse-multiple-pipelines-browser.mjs <설치된 playwright-core/index.mjs> [<Chromium 실행 파일>]` | 파이프라인 목록·편집 UI 변경 시 수동 | 위 `multiple-pipelines-browser.tsx` fixture를 저장소 의존성의 esbuild로 묶어 loopback 서버에 올리고 headless Chromium에서 17개 사례(미저장 편집의 저장본 보존, stale draft와 원래 CAS, pending·dirty, Free·읽기 전용 제한, 다른 identity로의 응답 반영 차단, 모바일 폭 등)를 실행한다. DB·Next 서버를 쓰지 않으며 playwright-core를 설치하지 않으므로 경로를 인자로 받는다. `.next/static/chunks`의 CSS가 있으면 함께 쓰고, 스크린샷과 `results.json`을 새 임시 디렉터리에 남긴 뒤 브라우저·서버를 닫는다 |
+| `rehearsals/rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 7종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
+| `rehearsals/rehearse-multiple-pipelines-browser.mjs` | 저장소 루트에서 `node scripts/rehearsals/rehearse-multiple-pipelines-browser.mjs <설치된 playwright-core/index.mjs> [<Chromium 실행 파일>]` | 파이프라인 목록·편집 UI 변경 시 수동 | 위 `multiple-pipelines-browser.tsx` fixture를 저장소 의존성의 esbuild로 묶어 loopback 서버에 올리고 headless Chromium에서 29개 사례(미저장 편집의 저장본 보존, stale draft와 원래 CAS, pending·dirty, 현재 catalog/switcher·Run rules, Free·읽기 전용 제한, 다른 identity로의 응답 반영 차단, 모바일 폭 등)를 실행한다. DB·Next 서버를 쓰지 않으며 playwright-core를 설치하지 않으므로 경로를 인자로 받는다. `.next/static/chunks`의 CSS가 있으면 함께 쓰고, 스크린샷과 `results.json`을 새 임시 디렉터리에 남긴 뒤 브라우저·서버를 닫는다 |
 | `rehearsals/rehearse-pipeline-agent-slots.ts` | `PIPELINE_SLOT_TEST_DATABASE_URL` 지정 후 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-agent-slots.ts --allow-fixtures` | 실행 slot·사용량 상한·관련 migration 변경 시 수동 | public table이 하나도 없는 빈 격리 PostgreSQL에서만 실행한다. migration SQL을 순서대로 직접 적용하면서 `20260917000000_pipeline_agent_slots` 직전에 legacy 행을 넣어 이관 결과를 확인하고, 계정 전체 마지막 실행 슬롯의 동시 경합·상한에서의 재개·bound 구간 완료·감사 실패 시 보고서 rollback·stale gate의 무기록 거부·삭제 관계를 검사한다. 공용 `TEST_DATABASE_URL` 검사 대신 전용 변수와 빈 DB 확인으로 대상을 제한하며, 일반 `DATABASE_URL`은 쓰지 않는다. fixture를 정리하지 않으므로 실행마다 새 빈 DB가 필요하다 |
 | `rehearsals/rehearse-repository-disconnection.ts` | 아래 실제 Next 리허설 명령 | 격리 PostgreSQL·현재 production build에서 수동 | 별도 기능 설정 없이 동일 유효 action/body로 소유자·타인·무세션·bearer·위조 userId·stale와 상세 GET 7개/History 무쓰기를 검증. `--transport-loss`는 실제 커밋 뒤 응답 유실·추가 이력 pagination을 검증. `--interactive`는 루프백 fixture 로그인·응답 유실 proxy와 화면 검증을 제공하고 Enter 또는 `/finish` 뒤 자기 fixture만 정리. proxy는 응답마다 연결을 닫는다. 재사용 연결에서 응답을 잃으면 브라우저가 같은 POST를 다시 보내 stale 경로로 바뀌기 때문이다 |
 | `rehearsals/rehearse-src-clean-code.ts` | 아래 클린코드 인수 명령 | 격리 PostgreSQL·fresh production build에서 수동 | 실제 Next Inbox·등록 폼과 실제 컴포넌트/통제 가능한 clipboard fixture를 제공한다. loopback proxy에서 요청 전 실패·커밋 뒤 응답 유실·대기를 통제한다. `--render-faults`는 generated build의 content/wrapper/loader 함수만 일시 계측하고 종료 시 원본 바이트로 복원한다. `/finish` 뒤 자기 사용자·DB fixture·Next 서버·marker를 정리한다 |
@@ -590,7 +589,12 @@ fixture 소유자의 종류별 토큰 수와 Reference·revoked 여부만 반환
 `rehearsals/rehearse-src-clean-code.ts --ui-only`의 `?mode=pipeline-page`는 실제 ProjectPipelinePage를 렌더한다.
 Run acceptance / `?mode=copy&autorun`은 version·plan·roster·readonly·프로젝트 identity 갱신,
 version 0 기본값, pending 응답 순서·stale/unknown·이전 프로젝트의 늦은 응답을 검증한다.
-같은 검사를 `--ui-only --fixture-development`에서도 실행한다. 기존 rail/scout 단독 모드는 유지한다.
+같은 검사를 `--ui-only --fixture-development`에서도 실행한다. standalone rail은 유지하며 폐기된 Scout 단독 mode는 제거했다.
+페이지 fixture는 query/context의 `pipeline=default`로 editor에 진입하고 종료 시 원래 URL/history를 복원한다.
+추가 `ack-only` query는 복원 POST 확인 사례만 실행하며 기본 전체 suite는 모든 사례를 실행한다.
+401·429·503·network/commit 후 유실·storage 실패·old flow/user/unmount·StrictMode·재진입을 검증하고
+client만 remount할 때는 fake 서버의 draft와 flow key를 유지한다. Run pending은 작업별 label·모든 잠금·
+성공/거부/unknown·늦은 unmount 응답을 실제 DOM에서 확인한다.
 rail의 노드와 숨겨진 Read as text의 노드를 구분하며 제출 graph·expectedVersion·호출 수를 함께 본다.
 
 실제 Next 인수는 fresh build/manifest와 검증된 TEST_DATABASE_URL의 기존 DB fixture에서 수행한다.
@@ -601,15 +605,17 @@ node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehea
 ```
 
 `--ui-only` 모드는 서버 서비스를 import하지 않으므로 기존 명령을 사용한다.
-`/owner-pipeline`으로 동일 프로젝트의 두 탭을 열고 A 초안 → B 저장 → A Scout 변경 뒤
-A의 초안과 stale 복구가 유지되는지 확인한다. `/pipeline-state`는 version/graph·Scout 설정·두 Action의 호출 수만 반환한다.
+`/owner-pipeline`으로 동일 프로젝트의 두 탭을 열고 A 초안 → B 저장 → A의 이전 CAS로 저장 시도 순서에서
+stale 응답 뒤 A의 초안이 보존되는지 확인한다. B의 저장은 version +1, A의 stale 거부와 명시적 reload는 +0이다.
+`/pipeline-state`는 version/graph·legacy Scout flag와 graph-save 호출 수를 반환한다. Scout 클릭은 선행 조건이 아니다.
 `/arm/pipeline-before-once`·`/arm/pipeline-after-once`는 다음 savePipeline POST 한 건의 RSC 응답만
 저장 전/후에 잘라 낸다. 각각 DB version +0/+1, 명시적 Discard changes and reload는 +0이어야 한다.
 최종 version·rail·Read as text 본문과 DB graph를 대조한다. Scout나 다른 Action에 fault를 적용하지 않는다.
 이 시험은 원본 소스나 빌드 chunk를 계측하지 않는다.
 
 시험 후 Finish(`/finish`)로 보류 응답·root·listener·Next 자식·fixture DB와 connection을 정리한다.
-manifest 시험은 `tests/server/pipeline-save.test.ts`가 소유하며 두 pipeline Action 등록과 내부 draft 모델 비등록을 검사한다.
+manifest 시험은 `tests/server/pipeline-save.test.ts`가 소유한다. graph save 1개·settings 4개·Run 5개 등록과
+폐기된 `saveAutomaticScout`·`setAutomaticPickAction`, 내부 draft 모델의 비등록을 node/edge에서 검사한다.
 `RDC_CHECK_ACTION_MANIFEST=true npm run test:server`는 반드시 해당 fresh build 뒤에 실행한다.
 
 ## 프런트엔드 클린 코드 Core 검증

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, relative, join } from "node:path";
 import { it } from "node:test";
 import ts from "typescript";
@@ -39,7 +39,7 @@ it("page loaders expose only server reads while route ownership and Action compo
   assert.ok(imports(parse("src/fsd/pages/board-item/api/board-item-page.server.ts")).includes("../model/item-docs"));
 });
 
-it("pipeline display props disappear without removing the five settings Actions or exposing the reference card", () => {
+it("pipeline exposes four settings Actions without legacy automation props or the private reference card", () => {
   const removed = ["autoProposeEnabled", "autoScoutEnabled", "canChangeAutoScout", "saveAutoScout", "automationControls"];
   for (const path of ["src/fsd/pages/project-pipeline/ui/project-pipeline-page.tsx", "src/fsd/features/edit-pipeline/ui/pipeline-list.tsx", "src/fsd/features/edit-pipeline/ui/pipeline-rules-panel.tsx"]) {
     const names = identifiers(parse(path));
@@ -48,9 +48,13 @@ it("pipeline display props disappear without removing the five settings Actions 
   const list = parse("src/fsd/features/edit-pipeline/ui/pipeline-list.tsx");
   const actions = list.statements.find(node => ts.isTypeAliasDeclaration(node) && node.name.text === "PipelineSettingsActions");
   assert.ok(actions && ts.isTypeLiteralNode(actions.type));
-  assert.deepEqual(actions.type.members.map(member => member.name.getText(list)), ["archive", "rename", "setDefault", "setRule", "setAutomaticPick"]);
-  assert.ok(identifiers(parse("src/app/(app)/p/[slug]/pipeline/page.tsx")).has("setAutomaticPickAction"));
-  assert.ok(exported(parse("src/fsd/features/edit-pipeline/index.server.ts")).includes("setAutomaticPickAction"));
+  assert.deepEqual(actions.type.members.map(member => member.name.getText(list)), ["archive", "rename", "setDefault", "setRule"]);
+  const removedContracts = ["AutomaticPickControl", "AutomaticScoutControl", "SaveAutomaticScoutAction", "saveAutomaticScout", "setAutomaticPickAction", "setAutomaticPick"];
+  for (const path of ["src/app/(app)/p/[slug]/pipeline/page.tsx", "src/fsd/features/edit-pipeline/index.ts", "src/fsd/features/edit-pipeline/index.server.ts", "src/fsd/features/edit-pipeline/ui/pipeline-list.tsx", "src/fsd/features/edit-pipeline/api/pipeline-settings.server.ts"]) {
+    const names = identifiers(parse(path));
+    for (const name of removedContracts) assert.ok(!names.has(name), `${path}:${name}`);
+  }
+  for (const path of ["src/fsd/features/edit-pipeline/ui/automatic-pick-control.tsx", "src/fsd/features/edit-pipeline/ui/automatic-pick-control.test.ts", "src/fsd/features/edit-pipeline/ui/automatic-scout-control.tsx", "src/fsd/features/edit-pipeline/ui/automatic-scout-control.test.ts", "src/fsd/features/edit-pipeline/api/automatic-scout.server.ts", "tests/server/automatic-scout-actions.test.ts", "scripts/rehearsals/rehearse-automatic-scout.ts"]) assert.equal(existsSync(path), false, path);
   const rail = parse("src/fsd/features/edit-pipeline/ui/pipeline-rail.tsx");
   const card = rail.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "ReferencedPipelineCard");
   assert.ok(card && !card.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword));
@@ -59,7 +63,6 @@ it("pipeline display props disappear without removing the five settings Actions 
 
 const routerTests = [
   "src/fsd/features/change-item-pipeline/ui/change-pipeline-control.test.ts",
-  "src/fsd/features/edit-pipeline/ui/automatic-scout-control.test.ts",
   "src/fsd/features/edit-pipeline/ui/pipeline-list.test.ts",
   "src/fsd/features/manage-project-connection/ui/project-connection-control.test.ts",
   "src/fsd/features/manage-token/ui/token-names.test.ts",

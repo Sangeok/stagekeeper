@@ -146,16 +146,36 @@ export function useRepositoryPicker(initial: PickerInitialState, restore: (draft
     if (!applied) return;
     const restored = applied;
     let live = true;
+    const controller = new AbortController();
+    const version = flowGeneration.current;
+    const isCurrent = () => live && !controller.signal.aborted && version === flowGeneration.current;
+    const confirmationFailure = "Your draft is here. Its restore confirmation couldn't be saved.";
+    function reportFailure() {
+      if (!isCurrent()) return;
+      try {
+        if (sessionStorage.getItem(flowKey) === restored.flowId) setMessage(confirmationFailure);
+      } catch {
+        setMessage(confirmationFailure);
+      }
+    }
     async function acknowledge() {
       try {
         if (sessionStorage.getItem(flowKey) !== restored.flowId) return;
-        const result = await repositoryPickerRequest(initial.userKey, "connection/draft", { body: { id: restored.id, generation: restored.generation } });
-        if (live && result.ok && sessionStorage.getItem(flowKey) === restored.flowId) sessionStorage.removeItem(flowKey);
-      } catch { if (live) setMessage("Your draft is here. Its restore confirmation couldn't be saved."); }
+        const result = await repositoryPickerRequest(initial.userKey, "connection/draft", {
+          body: { id: restored.id, generation: restored.generation }, signal: controller.signal,
+        });
+        if (!isCurrent() || sessionStorage.getItem(flowKey) !== restored.flowId) return;
+        if (!result.ok) {
+          if (result.code === "UNAUTHENTICATED") lostSession();
+          else setMessage(confirmationFailure);
+          return;
+        }
+        sessionStorage.removeItem(flowKey);
+      } catch { reportFailure(); }
     }
     void acknowledge();
-    return () => { live = false; };
-  }, [applied, flowKey, initial.userKey]);
+    return () => { live = false; controller.abort(); };
+  }, [applied, flowKey, initial.userKey, lostSession]);
 
   useEffect(() => {
     if (!retryAt) return;

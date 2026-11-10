@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     const session = async (userId: string) => `${cookieName}=${await encode({ token: { uid: userId, name: "fixture" }, secret, salt: cookieName, maxAge: 3600 })}`;
     const ownedCookie = await session(owner.userId), foreignCookie = await session(foreign.userId);
     const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as { node: Record<string, { filename?: string; exportedName?: string }> };
-    const mutations = ["savePipeline", "archivePipelineAction", "renamePipelineAction", "setDefaultPipelineAction", "setPipelineRuleAction", "setAutomaticPickAction", "proposeItem", "changeItemPipeline"];
+    const mutations = ["savePipeline", "archivePipelineAction", "renamePipelineAction", "setDefaultPipelineAction", "setPipelineRuleAction", "proposeItem", "changeItemPipeline"];
     const ids = new Map(mutations.map(name => {
       const match = Object.entries(manifest.node).find(([, entry]) => entry.exportedName === name && entry.filename?.startsWith("src/fsd/features/"));
       assert.ok(match, `Build current source: missing ${name}`); return [name, match[0]];
@@ -60,24 +60,28 @@ async function main(): Promise<void> {
       assert.match(result.text, name === "savePipeline" ? /"status":"success"/ : /"success":true/, `${name}: ${result.text.slice(-1000)}`);
     };
     const beforeGet = await pipelineState(db, owner.projectId);
-    const initial = await get("pipeline"); assert.match(initial, /Runs items/); assert.match(initial, /Automatic picking/);
+    const initial = await get("pipeline"); assert.match(initial, /All pipelines/); assert.match(initial, /Run rules/);
+    assert.doesNotMatch(initial, /Runs items|Automatic picking|Automatic scouting/);
     assert.match(await get("backlog"), /Put on the board/); await get(""); await get("history");
     assert.deepEqual(await pipelineState(db, owner.projectId), beforeGet, "GETs must not materialize defaults");
     const save = (name: string, steps: string[], gates: string[] = []) => accepted("savePipeline", [{ pipelineId: null, name, definition: { steps, gates }, expectedVersion: 0 }]);
     await save("Checks", ["qa"]); await save("Hotfix", ["plan", "implement", "accept"], ["before-plan"]);
+    await save("Standard tasks", ["plan", "implement", "accept"], ["before-implement"]);
     const hotfix = await db.pipeline.findFirstOrThrow({ where: { projectId: owner.projectId, name: "Hotfix" } });
     const fragment = await db.pipeline.findFirstOrThrow({ where: { projectId: owner.projectId, name: "Checks" } });
     const defaultId = `default_${owner.projectId}`;
+    const taskPipeline = await db.pipeline.findFirstOrThrow({ where: { projectId: owner.projectId, name: "Standard tasks" } });
     await accepted("renamePipelineAction", [hotfix.id, "Quick fixes"]);
     await accepted("setDefaultPipelineAction", [hotfix.id]); await accepted("setPipelineRuleAction", ["fix", hotfix.id]);
-    await accepted("setAutomaticPickAction", [false]); await accepted("archivePipelineAction", [fragment.id]);
+    await accepted("archivePipelineAction", [fragment.id]);
     await accepted("setDefaultPipelineAction", [defaultId]);
-    const updated = await get("pipeline"); assert.match(updated, /Quick fixes/); assert.match(updated, /Automatic picking is off/);
+    const updated = await get("pipeline"); assert.match(updated, /Quick fixes/); assert.match(updated, /All pipelines/); assert.match(updated, /Run rules/);
+    assert.doesNotMatch(updated, /Runs items|Automatic picking|Automatic scouting/);
     assert.equal((await db.pipeline.findUniqueOrThrow({ where: { id: fragment.id } })).archivedAt !== null, true);
     const configuration: [string, unknown[]][] = [
       ["savePipeline", [{ pipelineId: null, name: "Denied", definition: { steps: ["qa"], gates: [] }, expectedVersion: 0 }]],
       ["archivePipelineAction", [hotfix.id]], ["renamePipelineAction", [hotfix.id, "Denied"]], ["setDefaultPipelineAction", [hotfix.id]],
-      ["setPipelineRuleAction", ["fix", null]], ["setAutomaticPickAction", [true]],
+      ["setPipelineRuleAction", ["fix", null]],
     ];
     await db.subscription.update({ where: { userId: owner.userId }, data: { plan: "free" } });
     const freeBefore = await pipelineState(db, owner.projectId);
@@ -87,14 +91,14 @@ async function main(): Promise<void> {
     await accepted("proposeItem", propose);
     const item = await db.boardItem.findFirstOrThrow({ where: { projectId: owner.projectId }, include: { run: true } });
     assert.equal(item.status, "proposed"); assert.ok(item.run);
-    const change = [{ key: owner.key, pipelineId: defaultId, expectedUpdatedAt: item.updatedAt.toISOString() }];
+    const change = [{ key: owner.key, pipelineId: taskPipeline.id, expectedUpdatedAt: item.updatedAt.toISOString() }];
     await accepted("changeItemPipeline", change);
     const changed = await db.pipelineRun.findUniqueOrThrow({ where: { id: item.run.id }, include: { version: true } });
-    assert.equal(changed.version.pipelineId, defaultId); assert.notEqual(changed.entryId, item.run.entryId);
+    assert.equal(changed.version.pipelineId, taskPipeline.id); assert.notEqual(changed.entryId, item.run.entryId);
     const stale = await post("changeItemPipeline", change); assert.match(stale.text, /The board changed. Refresh and try again./);
     assert.match(await get(`items/${owner.key}`), /Pipeline changed/); assert.match(await get("history?mode=events"), /Pipeline changed/);
     assert.match(await get(`history?item=${owner.key}`), /Pipeline changed/);
-    assert.match(await get(""), /Default/);
+    assert.match(await get(""), /Standard tasks/);
     const all = [...configuration, ["proposeItem", propose], ["changeItemPipeline", change]] as [string, unknown[]][];
     await db.subscription.update({ where: { userId: owner.userId }, data: { plan: "pro" } });
     for (const guard of ["foreign", "unavailable", "disconnected"] as const) {
@@ -107,8 +111,8 @@ async function main(): Promise<void> {
       }
       assert.deepEqual(await pipelineState(db, owner.projectId), before, guard);
     }
-    const guest = await post("setAutomaticPickAction", [true], ""); assert.ok([303, 307].includes(guest.status) || guest.text.includes("/login"));
-    console.log("Multiple pipelines HTTP acceptance passed: eight real actions, owner/foreign/guest, Free editing refusal and item selection/change, unavailable/disconnected zero-write, five page bodies, stale, fresh manifest and read-only GETs.");
+    const guest = await post("setPipelineRuleAction", ["fix", null], ""); assert.ok([303, 307].includes(guest.status) || guest.text.includes("/login"));
+    console.log("Multiple pipelines HTTP acceptance passed: seven real actions, owner/foreign/guest, Free editing refusal and item selection/change, unavailable/disconnected zero-write, five page bodies, stale, fresh manifest and read-only GETs.");
   } finally {
     if (server && server.exitCode === null) { const stopped = new Promise<void>(resolve => server!.once("exit", () => resolve())); server.kill(); await stopped; }
     for (const f of fixtures) await cleanup(db, f.userId); await pool.disconnect();

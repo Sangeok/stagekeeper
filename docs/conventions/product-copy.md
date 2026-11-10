@@ -1542,22 +1542,21 @@ never existed look the same from here.
 
 ## 18. Pipeline tab
 
-- Title **Pipeline**. The **Pipelines** list shows **Default**, **Runs items** or **Used inside**. Order: default first, then creation time and id. **New pipeline**, **Rename**, **Archive**, the **Default** selector and feat/fix/refactor/docs routing selectors share the editor's write permission. Free and unavailable projects show read-only values and the same reason as the rail.
+- Title **Pipeline**. The **All pipelines** catalog shows each name, expanded step summary and step count without **Runs items** or **Used inside** badges. Sort catalog entries by name using `name.localeCompare`; keep server query order and Run rules option order unchanged. **Default** may still appear as a pipeline name or the selected default value. **New pipeline**, **Rename**, **Archive**, the **Default** selector and feat/fix/refactor/docs routing selectors share the editor's write permission. Free and unavailable projects show read-only values and the same reason as the rail.
 - Put on the board has a **Pipeline** select of active runnable pipelines, preselected by the type rule or default. An unsaved virtual default is runnable and selectable. Activity cards and item pages show the run's pipeline name.
-- Version line (the selected definition version): "Version 3 · saved 2 days ago · applies to items proposed from
-  now on."
-- Without a persisted version: `Default pipeline · not saved yet`. A new draft reads `New pipeline · not saved yet`, starts empty, and needs a step before saving. First save opens the new pipeline. Reading the page never creates Pipeline, definition or execution rows.
+- Version line (the selected definition version): "Version 3 · saved 2 days ago · changes apply to future runs."
+- A virtual default without a persisted version reads `Initial configuration · changes apply to future runs.` A new draft has the status line `Not saved yet` below its separate title, starts empty, and needs a step before saving. First save opens the new pipeline. Reading the page never creates Pipeline, definition or execution rows.
 - A selected-out project shows the selection recovery reason; editing controls are absent even on Pro/Max. A retained draft may still be discarded locally, and stale/unknown recovery may still reload the route; neither operation submits a definition.
 - The rail is one row of node cards in graph order. Node names: **Plan** ·
   **Verify** · **Implement** · **Accept**; the optional item nodes read **Implementation check** and
   **QA**. Repeatable project-agent slots read **Doc audit** and
-  **Scout**, and a repeat keeps its suffix — **Doc audit #2**, **Scout #3**.
+  **Discover work**, and a repeat keeps its suffix — **Doc audit #2**, **Discover work #3**.
 - A gate sits on an edge, drawn as its own card: "Gate · you" with the gate's label. Where a
-  node has no gate, small text between the cards says “auto → planning” · “auto → implementing” · “auto → verify” · “auto → implementation check” · “auto → qa” · “auto → accept” · “auto → doc audit” · “auto → scout”, including “auto → doc audit #2” for repeated slots.
+  node has no gate, small text between the cards says “auto → planning” · “auto → implementing” · “auto → verify” · “auto → implementation check” · “auto → qa” · “auto → accept” · “auto → doc audit” · “auto → discover work”, including “auto → doc audit #2” for repeated slots.
 - Hovering anywhere on a gate card shows what that gate means, as the browser tooltip:
   "The item waits here until you press `<button>` in the Inbox. `<hint>`" — the gate's own Inbox
   button and its next-step hint (§3, §7), so the two screens use the same words. A repeated slot
-  (**Doc audit #2**, **Scout #3**) uses its original slot's words. For example, before Plan: "The
+  (**Doc audit #2**, **Discover work #3**) uses its original slot's words. For example, before Plan: "The
   item waits here until you press Request plan in the Inbox. Requesting lets dev write a plan. Then
   continue in your coding client. Nothing changes in the code yet." A disabled **Remove** on the card keeps its own tooltip, the reason it can't be
   removed. Edge text, the **+** panel, and **Read as text** carry no gate tooltip.
@@ -1566,20 +1565,20 @@ never existed look the same from here.
   ("before Plan"), only one is open at a time, and the **+** it belongs to is shown pressed. It
   offers **Add gate**, **Add Doc audit here** / **Add Discover work here**, **Move `<id>` here**
   for each project-agent slot already on the rail, and **Add `<Node>`** for an optional node the
-  graph does not have (a removed one, or the opt-in Scout, Implementation check or QA). Choosing anything closes it.
-- **Add first step** on an empty rail and **Add at end** open the same Add/Use panel at the end. Existing project-agent slots can be moved there; new slot ids account for referenced definitions too.
+  graph does not have (a removed one, or the opt-in Discover work, Implementation check or QA). Choosing anything closes it.
+- **Add first step** on an empty rail and **Add at end** open the same **Add step** / **Insert pipeline** panel at the end. Existing project-agent slots can be moved there; new slot ids account for referenced definitions too.
 - A node card's menu offers **Remove** for optional nodes, and also anchors when editing a fragment or new unsaved pipeline; a gate card carries its own **Remove**.
   **Swap** appears only for the legacy `doc-audit`/`scout` pair when both are on the rail — new
   slots are reordered with **Move**, not Swap.
 - A button is disabled with the server's own reason — the rail runs the same `validateDefinition` and `recompose` as the
   save service, so the wording in §12 is what the user sees.
-- Zero gates is allowed. Saving warns when the resulting runnable graph of this pipeline or any user has no gates, not for a fragment by itself: "No gate: plan and implementation start without
-  your approval. Acceptance is still required. Reopen and discard stay on the web." The Save
+- Zero gates is allowed. Saving warns when the resulting runnable graph of this pipeline or any user has no gates, not for a fragment by itself: "No approval gates: these steps continue automatically once the run starts." The Save
   button reads **Save without a gate** until it is pressed a second time.
-- **Use <name> here** adds a named block with **Edit <name>**. **Show expanded** previews the flattened nodes and gates without editing the child definition. **Also changes** lists users affected by a save. Empty rails and the end have Add/Use controls. New project-agent slots reserve ids across local and referenced steps. A dependency-only update refreshes preview, users, slot reservations and gate warnings even if this definition version is unchanged; keep dirty drafts, show the external-change warning and invalidate prior no-gate confirmation.
+- **Insert pipeline: <name>** adds a named block with an **Open pipeline** button. **Show expanded** previews the flattened nodes and gates without editing the child definition. **Also changes** lists users affected by a save. Empty rails and the end have **Add step** and **Insert pipeline** controls. New project-agent slots reserve ids across local and referenced steps. A dependency-only update refreshes preview, users, slot reservations and gate warnings even if this definition version is unchanged; keep dirty drafts, show the external-change warning and invalidate prior no-gate confirmation.
 - **Discover work** is an optional node. It finds evidence-backed backlog candidates and can appear before assignment, later in the flow or be omitted. Before Assign work it runs when eligible backlog work is absent.
 - **Assign work** selects and assigns one candidate using the saved **Selection policy**. It records evidence, comparisons, readiness and assignment reasons. Insufficient facts cause waiting. No PM node or separate automatic picking/scouting switches are shown.
 - **Run** can start without a work item when the graph starts with project work. It shows the current step, waiting reason, approval button and **Stop new work**. Specific-item runs use the task portion after Assign work. A connected runner is required. Stopping new work leaves assigned task pipelines intact.
+- During a Run request, only its action button changes label: **Starting…**, **Stopping…**, or **Approving <gate label>…**. All mutation controls, fields, Close and Escape remain locked while pending. Unknown outcomes keep mutation controls locked but allow Close; reopening prepares current state again.
 - The editor is headed by the selected pipeline name. Read-only on Free: "Pipeline editing opens on Pro. The default pipeline stays as is." The default graph remains available on Free.
 - Discover work nodes run in their saved positions; without a node there is no implicit discovery.
 - **Read as text** renders the graph in cursor order. Assignment decisions are shown in the task detail with policy, criterion, readiness, assignee rationale, source quotes and alternative comparisons.

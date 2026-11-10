@@ -28,7 +28,7 @@ async function main(): Promise<void> {
   let actionMode = "normal"; const actions: string[] = []; let results: unknown[] = [];
   let reopenMode: "normal" | "before" | "after" = "normal";
   let pipelineMode: "normal" | "before" | "after" = "normal";
-  const pipelineCalls = { save: 0, scout: 0 };
+  const pipelineCalls = { save: 0 };
   const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as {
     node: Record<string, { filename?: string; exportedName?: string }>;
     edge: Record<string, { filename?: string; exportedName?: string }>;
@@ -41,8 +41,7 @@ async function main(): Promise<void> {
   const actionIds = (filename: string, exportedName: string) => new Set([...Object.entries(manifest.node), ...Object.entries(manifest.edge)]
     .filter(([, entry]) => entry.filename?.replaceAll("\\", "/").endsWith(filename) && entry.exportedName === exportedName).map(([id]) => id));
   const pipelineActions = actionIds("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", "savePipeline");
-  const scoutActions = actionIds("src/fsd/features/edit-pipeline/api/automatic-scout.server.ts", "saveAutomaticScout");
-  assert.ok(pipelineActions.size > 0 && scoutActions.size > 0, "Fresh pipeline and Scout actions required");
+  assert.ok(pipelineActions.size > 0, "Fresh pipeline save Action required");
   let releaseAction = () => {};
   let finish!: () => void; const done = new Promise<void>(resolve => { finish = resolve; });
   const browserBundle = await build({ entryPoints: ["tests/server/fixtures/src-clean-code-browser.tsx"], bundle: true, write: false,
@@ -118,7 +117,6 @@ async function main(): Promise<void> {
       const pipelineFault = req.method === "POST" && pipelineActions.has(String(req.headers["next-action"])) ? pipelineMode : "normal";
       if (pipelineFault !== "normal") pipelineMode = "normal";
       if (req.method === "POST" && pipelineActions.has(String(req.headers["next-action"]))) pipelineCalls.save++;
-      if (req.method === "POST" && scoutActions.has(String(req.headers["next-action"]))) pipelineCalls.scout++;
       if (isAction) { actions.push(body.toString()); if (mode === "pause") actionMode = "normal"; }
       if (reopenFault === "before" || pipelineFault === "before") { res.writeHead(200, { "content-type": "text/x-component" }); res.end("0:"); return; }
       if (mode === "before") { req.socket.destroy(); return; }
