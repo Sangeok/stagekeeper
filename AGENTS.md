@@ -103,7 +103,7 @@ commits that were already green on `dev`.
   only; neither runs the pipeline.
 - Before promoting, also run the `pipeline-smoke` workflow on that `dev` commit
   (`gh workflow run pipeline-smoke.yml --ref dev`) when
-  `git diff --name-only origin/main origin/dev -- src/server/pipeline src/server/agents src/server/mcp packages/core/pipeline packages/core/templates plugin/skills/watch plugin/skills/background plugin/bin/harness-watch.mjs plugin/bin/harness-session.mjs plugin/bin/harness-background.mjs plugin/runtime plugin/lib/execution scripts/rehearsals/rehearse-client-init-smoke.ts scripts/rehearsals/rehearse-pipeline-smoke.ts scripts/rehearsals/pipeline-smoke-steps.mjs .github/workflows/pipeline-smoke.yml .github/actions/smoke-database`
+  `git diff --name-only origin/main origin/dev -- src/server/pipeline src/server/agents src/server/mcp packages/core/pipeline packages/core/templates plugin/skills/watch plugin/skills/background plugin/bin/harness-watch.mjs plugin/bin/harness-session.mjs plugin/bin/harness-background.mjs plugin/bin/harness-commit-guard.mjs plugin/hooks plugin/runtime plugin/lib/execution scripts/rehearsals/rehearse-client-init-smoke.ts scripts/rehearsals/rehearse-pipeline-smoke.ts scripts/rehearsals/pipeline-smoke-steps.mjs .github/workflows/pipeline-smoke.yml .github/actions/smoke-database`
   prints a file. Run it with `--field templates-ref=<templates branch>` before seeding
   a role-template change to production. When `agent-eval` is also needed, dispatch
   `pipeline-smoke` after it finishes, because both use the same subscription. It runs

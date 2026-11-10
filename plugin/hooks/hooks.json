@@ -9,6 +9,37 @@
         "timeout": 15,
         "onFailure": "block"
       }]
+    }, {
+      "matcher": "^(Bash|PowerShell)$",
+      "hooks": [{
+        "type": "command",
+        "if": "Bash(*git*commit*)",
+        "command": "node",
+        "args": ["${CLAUDE_PLUGIN_ROOT}/bin/harness-commit-guard.mjs"],
+        "timeout": 10,
+        "onFailure": "continue"
+      }, {
+        "type": "command",
+        "if": "Bash(*git*add*)",
+        "command": "node",
+        "args": ["${CLAUDE_PLUGIN_ROOT}/bin/harness-commit-guard.mjs"],
+        "timeout": 10,
+        "onFailure": "continue"
+      }, {
+        "type": "command",
+        "if": "PowerShell(*git*commit*)",
+        "command": "node",
+        "args": ["${CLAUDE_PLUGIN_ROOT}/bin/harness-commit-guard.mjs"],
+        "timeout": 10,
+        "onFailure": "continue"
+      }, {
+        "type": "command",
+        "if": "PowerShell(*git*add*)",
+        "command": "node",
+        "args": ["${CLAUDE_PLUGIN_ROOT}/bin/harness-commit-guard.mjs"],
+        "timeout": 10,
+        "onFailure": "continue"
+      }]
     }]
   }
 }
