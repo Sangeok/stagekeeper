@@ -1,12 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  holdsRunnerLease, needsAgentActivity, runnerSignalAt, runnerSilenceLimit, runnerStatus,
+  holdsRunnerLease, idleInterval, needsAgentActivity, runnerNextSignalAt, runnerSignalAt, runnerSilenceLimit, runnerStatus,
   SIGNAL_TIMEOUT_MS, WORKING_TIMEOUT_MS,
 } from "./runner.mjs";
 
 const at = (minutes) => new Date(Date.UTC(2026, 9, 20, 12, 0) + minutes * 60_000);
 const row = (mode, state, seenMinute = 0) => ({ mode, state, seenAt: at(seenMinute) });
+const idleRow = (mode, state, idleMinute, seenMinute = 0) => ({ ...row(mode, state, seenMinute), idleSince: at(idleMinute) });
+const MINUTE = 60_000;
 
 describe("runner liveness", () => {
   it("gives every resident state and an idle or waiting session three minutes", () => {
@@ -51,5 +53,43 @@ describe("runner liveness", () => {
     assert.throws(() => runnerStatus({ mode: "session", state: "idle", seenAt: new Date(NaN) }, null, at(0)), /seenAt/);
     assert.throws(() => runnerStatus(row("session", "working"), new Date(NaN), at(0)), /lastActivity/);
     assert.throws(() => runnerStatus(row("session", "idle"), null, new Date(NaN)), /now/);
+    assert.throws(() => runnerStatus({ ...row("resident", "idle"), idleSince: new Date(NaN) }, null, at(0)), /idleSince/);
+  });
+});
+
+describe("idle backoff", () => {
+  it("waits one minute for the first ten idle minutes, fifteen until two hours, then thirty", () => {
+    const cases = [[-1, 1], [0, 1], [10 * MINUTE - 1, 1], [10 * MINUTE, 15], [120 * MINUTE - 1, 15], [120 * MINUTE, 30], [24 * 60 * MINUTE, 30]];
+    for (const [idleMs, minutes] of cases) assert.equal(idleInterval(idleMs), minutes * MINUTE, `${idleMs} ms idle`);
+  });
+
+  it("announces the next signal from the idle time at the last signal", () => {
+    assert.equal(runnerNextSignalAt(idleRow("resident", "idle", -5)).getTime(), at(1).getTime());
+    assert.equal(runnerNextSignalAt(idleRow("session", "waiting", -30)).getTime(), at(15).getTime());
+    assert.equal(runnerNextSignalAt(idleRow("resident", "idle", -150)).getTime(), at(30).getTime());
+    for (const [mode, state] of [["resident", "working"], ["session", "working"], ["resident", "stopped"]]) {
+      assert.equal(runnerNextSignalAt(idleRow(mode, state, -150)), null, `${mode}/${state}`);
+    }
+    assert.equal(runnerNextSignalAt(row("resident", "idle")), null);
+    assert.equal(runnerNextSignalAt({ ...row("resident", "idle"), idleSince: null }), null);
+  });
+
+  it("keeps an idle runner live until two minutes past its announced signal, and never less than three minutes", () => {
+    const quarter = idleRow("resident", "idle", -30);
+    assert.equal(runnerSilenceLimit(quarter), 17 * MINUTE);
+    assert.equal(runnerStatus(quarter, null, at(17)), "live");
+    assert.equal(runnerStatus(quarter, null, new Date(at(17).getTime() + 1)), "silent");
+    const half = idleRow("session", "idle", -150);
+    assert.equal(runnerStatus(half, null, at(32)), "live");
+    assert.equal(runnerStatus(half, null, new Date(at(32).getTime() + 1)), "silent");
+    assert.equal(holdsRunnerLease(half, null, at(31)), true);
+    assert.equal(holdsRunnerLease(half, null, at(33)), false);
+    assert.equal(runnerSilenceLimit(idleRow("resident", "idle", -5)), SIGNAL_TIMEOUT_MS);
+  });
+
+  it("leaves working runners on their current limits whatever idleSince says", () => {
+    assert.equal(runnerSilenceLimit(idleRow("resident", "working", -150)), SIGNAL_TIMEOUT_MS);
+    assert.equal(runnerSilenceLimit(idleRow("session", "working", -150)), WORKING_TIMEOUT_MS);
+    assert.equal(runnerStatus(idleRow("resident", "working", -150), null, at(4)), "silent");
   });
 });

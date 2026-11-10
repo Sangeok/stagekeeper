@@ -741,3 +741,34 @@ it("the watch skill preflight lists exactly the modules the watch and session he
   const preflight = skill.slice(skill.indexOf("Resolve that absolute root"), skill.indexOf("Read that exact reconciliation contract"));
   assert.deepEqual([...preflight.matchAll(/`((?:bin|lib|runtime)\/[^`]+)`/g)].map(([, name]) => name).sort(), [...loaded].sort());
 });
+
+it("the watch skill has a background run commit and resume a handoff from a role it dispatched instead of waiting for the owner", () => {
+  const skill = readFileSync(new URL("../skills/watch/SKILL.md", import.meta.url), "utf8").replace(/\s+/g, " ");
+  const section = (from, to) => skill.slice(skill.indexOf(from), skill.indexOf(to));
+  const permissions = section("## 5. Permissions and handoffs", "## 6. Stop and failure");
+  const once = section("## 7. One background run", "## Commands and quoting");
+  assert.ok(permissions.length > 0 && once.length > 0, "both sections are present");
+  assert.match(permissions, /In a background run \(section 7\), the runner's stored commit policy stands in for the owner's commit and continuation request/);
+  assert.match(permissions, /a main-loop commit handoff outside a background run, pauses automatic execution/);
+  assert.match(once, /A commit handoff from a role you dispatched in this run is not an owner wait/);
+  assert.match(once, /Commit only the handed-off file under the runbook's rules, then resume that role's same run \*\*without outcome\*\*/);
+  assert.match(once, /A handoff that an earlier run left behind still waits for the owner/);
+  assert.doesNotMatch(once, /gate, hold or handoff/);
+});
+
+it("with a lease, waits as long as the server says before the next check, paused or not", async (t) => {
+  for (const paused of [false, true]) {
+    const f = await fixture(t);
+    f.setRunnerHandler(byOp({ start: LEASE_OK, beat: runnerReply(200, { ok: true, paused, nextBeatIn: 60 }) }));
+    const { event } = await f.start(["--managed"]);
+    const before = f.calls.length;
+    const result = await f.run(["--session", event.session, "--interval", "0.02", "--deadline", "0.02", "--request-timeout", "0.2"]).result;
+    assert.equal(result.event.event, "idle", JSON.stringify(result.event));
+    const [first, ...beats] = ops(f);
+    const lookups = f.calls.length - before;
+    assert.equal(first, "start");
+    assert.ok(beats.length >= 1 && beats.length <= 2 && beats.every((op) => op === "beat:idle"),
+      `paused ${paused}: the server's 60 s allows one beat, plus at most one where the sleep meets the deadline; the 20 ms interval alone would give dozens (${beats})`);
+    assert.ok(paused ? lookups === 0 : lookups >= 1 && lookups <= beats.length, `paused ${paused}: ${lookups} pipeline_next`);
+  }
+});

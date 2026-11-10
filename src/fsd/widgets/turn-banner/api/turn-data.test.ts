@@ -69,7 +69,7 @@ it("maps the runner view to banner facts for the project it was asked about", as
   assert.deepEqual(asked, ["p"]);
   assert.deepEqual(JSON.parse(JSON.stringify(data.runner)), {
     runner: { client: "codex", mode: "resident", host: "desk", branch: "fixture", permission: "scoped", autostart: false, state: "working", waitReason: null, stopReason: null, signinCode: null,
-      seenAt: new Date(2_000).toISOString(), lastActivity: new Date(4_000).toISOString() },
+      seenAt: new Date(2_000).toISOString(), idleSince: null, lastActivity: new Date(4_000).toISOString() },
     paused: true, renderedAt: new Date(5_000).toISOString(),
   });
 });

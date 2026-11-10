@@ -14,6 +14,15 @@ const repository = fileURLToPath(new URL("../../", import.meta.url));
 const qaOrigin = "http://127.0.0.1:45442", browserPort = 45443;
 const lastJson = output => output.trim().split(/\r?\n/).reverse().map(line => { try { return JSON.parse(line); } catch { return null; } }).find(value => value !== null);
 
+export function countResidentModelStarts(log) {
+  let count = 0;
+  for (const line of log.split(/\r?\n/).filter(Boolean)) {
+    const start = line.indexOf("{");
+    if (start >= 0 && JSON.parse(line.slice(start)).event === "model-start") count++;
+  }
+  return count;
+}
+
 export function parseMacosRehearsalArguments(args) {
   const values = {}, allowed = new Set(["--package", "--templates", "--work", "--browser-cli", "--idle-minutes"]);
   let models = false;
@@ -188,6 +197,11 @@ async function main(args) {
     const implementation = await import(pathToFileURL(path.join(repo, "src/slug.mjs")).href);
     assert.ok(caseResults(implementation.slugWords).every(Boolean));
     const beforeIdle = await withPrisma(db => db.agentRun.count({ where: { projectId } }));
+    const modelStarts = () => countResidentModelStarts(readFileSync(path.join(repo, ".git/harness/background.log"), "utf8"));
+    const beforeIdleModels = modelStarts();
+    assert.ok(beforeIdleModels > 0);
+    summary.idleStartedAt = new Date().toISOString();
+    summary.idleBaseline = { agentRuns: beforeIdle, modelStarts: beforeIdleModels };
     progress("idle-observation", { minutes: options.idleMinutes });
     const idleStart = Date.now();
     while (Date.now() - idleStart < options.idleMinutes * 60000) {
@@ -195,9 +209,12 @@ async function main(args) {
       const status = helper("background", ["--status"], 30000);
       assert.equal(status.running, true); assert.equal(status.state, "idle");
       assert.equal(await withPrisma(db => db.agentRun.count({ where: { projectId } })), beforeIdle);
+      assert.equal(modelStarts(), beforeIdleModels);
+      summary.idleSeconds = Math.floor((Date.now() - idleStart) / 1000);
       progress("idle-observation", { seconds: Math.floor((Date.now() - idleStart) / 1000) });
     }
     summary.idleSeconds = Math.floor((Date.now() - idleStart) / 1000);
+    summary.idleNewAgentRuns = 0; summary.idleNewModelStarts = 0;
     summary.result = "pass";
   } catch (error) {
     summary.result = "fail"; summary.error = String(error.message).replaceAll(token.plain, "[redacted]").slice(0, 1000);

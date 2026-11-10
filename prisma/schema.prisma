@@ -96,6 +96,7 @@ model Runner {
   stopReason String?
   startedAt  DateTime
   seenAt     DateTime
+  idleSince  DateTime?
   project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 

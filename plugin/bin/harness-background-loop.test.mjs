@@ -224,3 +224,40 @@ it("builds the claude arguments, the allow list and reads only init and result",
   assert.equal(classifyRun({ exitCode: 3, result: null }).line, "error: exit 3");
   assert.equal(classifyRun({ exitCode: 0, result: null, endedFor: "branch" }).outcome, "branch");
 });
+
+const after = ms => ({ kind: "ok", paused: false, stop: null, nextBeatMs: ms });
+const gaps = times => times.slice(1).map((at, index) => at - times[index]);
+
+it("waits as long as the server says between idle checks, and keeps its own interval when the server says nothing", async () => {
+  const { deps, calls } = harness({ overviews: [NONE], beats: [after(900_000), after(1_800_000), OK], maxLoops: 200,
+    lifecycle: Array(2800).fill("active").concat("stopping") });
+  assert.equal(await runResident({ branch: "main", interval: 60_000 }, deps), "owner");
+  assert.deepEqual(gaps(calls.beatAt).slice(0, 3), [900_000, 1_800_000, 60_000]);
+  assert.equal(calls.runs, 0);
+});
+
+it("keeps a paused runner asleep for the server's interval", async () => {
+  const paused = { kind: "ok", paused: true, stop: null, nextBeatMs: 1_800_000 };
+  const { deps, calls } = harness({ overviews: [NONE], beats: [paused, OK], maxLoops: 200, lifecycle: Array(1900).fill("active").concat("stopping") });
+  assert.equal(await runResident({ branch: "main", interval: 60_000 }, deps), "owner");
+  assert.deepEqual(gaps(calls.beatAt).slice(0, 2), [1_800_000, 60_000]);
+});
+
+it("checks a waiting checkout every interval without calling the server, and calls it as soon as the checkout is clean", async () => {
+  const dirty = { ...CLEAN, dirty: ["a.ts"] };
+  const { deps, calls } = harness({ overviews: [WORK, WORK, WORK, NONE], trees: [dirty, dirty, dirty, CLEAN], beats: [after(900_000)],
+    maxLoops: 200, lifecycle: Array(600).fill("active").concat("stopping") });
+  assert.equal(await runResident({ branch: "main", interval: 60_000 }, deps), "owner");
+  assert.deepEqual(calls.beatAt.slice(0, 3), [0, 1_000, 121_000]);
+  assert.deepEqual(calls.beats.slice(0, 3).map(beat => beat.state), ["idle", "waiting", "waiting"]);
+  assert.equal(calls.runs, 1);
+  assert.deepEqual(calls.notices, ["waitDirty"]);
+});
+
+it("sends working signals at the pace the server gives", async () => {
+  const { deps, calls } = harness({ overviews: [WORK, NONE], beats: [OK, after(120_000)], runs: [{ hang: true, onEnd: { endedFor: "timeout" } }],
+    maxLoops: 200, lifecycle: Array(2000).fill("active").concat("stopping") });
+  await runResident({ branch: "main", interval: 60_000, runLimit: 300_000 }, deps);
+  const working = calls.beats.map((beat, index) => [beat.state, calls.beatAt[index]]).filter(([state]) => state === "working").map(([, at]) => at);
+  assert.deepEqual(gaps(working).slice(0, 2), [120_000, 120_000]);
+});

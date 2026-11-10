@@ -74,6 +74,32 @@ it("treats a resent start as success, keeps the stored state on a stateless beat
   } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
 });
 
+it("starts the idle clock in the database when work ends, answers with the backoff and holds the lease through it", async () => {
+  const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
+  const beat = (state: "idle" | "working") => op(db, f!, { op: "beat", session: A, state, waitReason: null, lastResult: null, lastLog: null });
+  const idleSince = async () => (await db.runner.findUniqueOrThrow({ where: { projectId: f!.projectId } })).idleSince;
+  try {
+    f = await fixture(db);
+    await op(db, f, start(A));
+    assert.equal(await idleSince(), null);
+    await beat("working");
+    const ended = await beat("idle");
+    const first = await idleSince();
+    assert.ok(first instanceof Date);
+    assert.ok(ended.ok && ended.body.nextBeatIn === 60);
+    await beat("idle");
+    assert.deepEqual(await idleSince(), first, "a later idle signal keeps the start");
+    await db.$executeRaw`UPDATE "Runner" SET "idleSince" = (clock_timestamp() AT TIME ZONE 'UTC') - make_interval(mins => 150) WHERE "projectId" = ${f.projectId}`;
+    const later = await beat("idle");
+    assert.ok(later.ok && later.body.nextBeatIn === 1800);
+    await age(db, f, 20);
+    assert.equal((await op(db, f, start(B))).ok, false, "twenty minutes into a thirty-minute wait is still live");
+    await age(db, f, 33);
+    assert.equal((await op(db, f, start(B))).ok, true, "past the announced signal and its grace");
+    assert.equal(await idleSince(), null, "a new runner starts without an idle clock");
+  } finally { try { await cleanup(db, f?.userId); } finally { await pool.disconnect(); } }
+});
+
 it("pauses idempotently, reports it to the runner and reads it back for the banner", async () => {
   const pool = connections(1); const [db] = pool.all; let f: Fixture | undefined;
   try {
@@ -105,7 +131,7 @@ it("opens the background runner on Pro only and stops it after a downgrade witho
     assert.equal((await op(db, pro, start(A, { mode: "resident", branch: "main", permission: "auto" }))).ok, true);
     await db.subscription.update({ where: { userId: pro.userId }, data: { plan: "free" } });
     assert.deepEqual(await op(db, pro, { op: "beat", session: A, state: "working", waitReason: null, lastResult: null, lastLog: null }),
-      { ok: true, body: { ok: true, paused: false, stop: "plan" } });
+      { ok: true, body: { ok: true, paused: false, stop: "plan", nextBeatIn: 60 } });
   } finally { try { await cleanup(db, free?.userId); await cleanup(db, pro?.userId); } finally { await pool.disconnect(); } }
 });
 

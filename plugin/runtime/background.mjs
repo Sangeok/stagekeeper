@@ -132,7 +132,7 @@ export async function runResident(context, deps) {
   const save = () => deps.save({ ...status, failures });
 
   const verdict = result => {
-    if (result.kind === "ok") return { paused: result.paused, stop: result.stop === "plan" ? "plan" : null };
+    if (result.kind === "ok") return { paused: result.paused, stop: result.stop === "plan" ? "plan" : null, next: Number.isFinite(result.nextBeatMs) ? result.nextBeatMs : null };
     if (result.kind === "replaced") return { paused: false, stop: "replaced" };
     if (result.kind === "missing") return { paused: false, stop: "missing" };
     if (result.kind === "plan") return { paused: false, stop: "plan" };
@@ -174,13 +174,14 @@ export async function runResident(context, deps) {
       try { await run.end(reason); } catch (error) { throw new ResidentRunUnsettled(error); }
     };
     const started = deps.now();
-    let beatAt = null;
+    let beatAt = null, beatEvery = interval;
     try {
       while (!finished) {
         if (interruptOnStop) stopAfter ??= await localStop();
-        if ((!interruptOnStop || !stopAfter) && (beatAt === null || deps.now() - beatAt >= interval)) {
+        if ((!interruptOnStop || !stopAfter) && (beatAt === null || deps.now() - beatAt >= beatEvery)) {
           beatAt = deps.now();
           const result = verdict(await deps.beat({ state: "working" }));
+          beatEvery = result.next ?? interval;
           if (result.paused) pausedDuringRun = true;
           signalFailures = result.transient ? signalFailures + 1 : 0;
           if (!stopAfter) stopAfter = result.stop ?? (signalFailures >= REQUEST_FAILURE_LIMIT ? "error" : null);
@@ -221,7 +222,8 @@ export async function runResident(context, deps) {
     }
     transient = 0;
     if (beat.stop) return beat.stop;
-    if (beat.paused) { await sleepActive(interval); continue; }
+    const pauseFor = beat.next ?? interval;
+    if (beat.paused) { await sleepActive(pauseFor); continue; }
 
     let work;
     try { work = await deps.overview(); requestFailures = 0; }
@@ -233,23 +235,30 @@ export async function runResident(context, deps) {
     }
     const stoppedAfterOverview = await interruptReason();
     if (stoppedAfterOverview) return stoppedAfterOverview;
-    if (!hasWork(work) && !wait) { await sleepActive(interval); continue; }
+    if (!hasWork(work) && !wait) { await sleepActive(pauseFor); continue; }
 
+    const waitReasonOf = tree => tree.branch !== branch ? "branch" : tree.dirty.length > 0 ? "dirty" : null;
     const tree = deps.tree();
-    const reason = tree.branch !== branch ? "branch" : tree.dirty.length > 0 ? "dirty" : null;
+    const reason = waitReasonOf(tree);
     if (reason) {
       const fresh = !wait || wait.reason !== reason;
       if (fresh) deps.notify(waitNotice(reason, tree));
       wait = { reason };
       Object.assign(status, { state: "waiting", waitReason: reason, waitFiles: tree.dirty.slice(0, FILES_SHOWN) });
       save();
-      await sleepActive(fresh ? Math.min(REPORT_SOON_MS, interval) : interval);
+      let left = fresh ? Math.min(REPORT_SOON_MS, interval) : pauseFor;
+      while (left > interval) {
+        await sleepActive(interval);
+        left -= interval;
+        if (await deps.lifecycle() !== "active" || waitReasonOf(deps.tree()) !== reason) { left = 0; break; }
+      }
+      await sleepActive(left);
       continue;
     }
     const cleared = wait !== null;
     wait = null;
     Object.assign(status, { state: "idle", waitReason: null, waitFiles: [], interrupted: null });
-    if (!hasWork(work)) { save(); await sleepActive(cleared ? Math.min(REPORT_SOON_MS, interval) : interval); continue; }
+    if (!hasWork(work)) { save(); await sleepActive(cleared ? Math.min(REPORT_SOON_MS, interval) : pauseFor); continue; }
 
     const before = workSignature(work);
     if (interruptOnStop) {

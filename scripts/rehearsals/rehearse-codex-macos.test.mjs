@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import path from "node:path";
-import { parseMacosRehearsalArguments } from "./rehearse-codex-macos.mjs";
+import { countResidentModelStarts, parseMacosRehearsalArguments } from "./rehearse-codex-macos.mjs";
 
 const required = ["--package", path.resolve("package"), "--templates", path.resolve("templates"), "--work", path.resolve("evidence"), "--browser-cli", path.resolve("browser/cli.js")];
+
+it("counts actual resident model starts without counting message text and refuses damaged evidence", () => {
+  const events = [{ event: "model-start", generation: 1 }, { event: "model-message", text: JSON.stringify({ event: "model-start" }) }, { event: "model-settled" }, { generation: 2, event: "model-start" }];
+  const log = events.map(event => `2026-11-10T00:00:00Z ${JSON.stringify(event)}`).join("\n");
+  assert.equal(countResidentModelStarts(log), 2);
+  assert.equal(countResidentModelStarts("Runner started\n"), 0);
+  assert.throws(() => countResidentModelStarts(log + '\n2026-11-10T00:01:00Z {"event":'));
+});
 
 it("requires an explicit model-run decision and absolute isolated artifact inputs", () => {
   assert.throws(() => parseMacosRehearsalArguments(required), /run-models/);

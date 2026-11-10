@@ -82,7 +82,7 @@ it("keeps preserved projects in their own group, including zero connected", () =
 it("adds the runner's short form under the activity lines, with the host in mono", () => {
   const renderedAt = "2026-10-20T12:00:00.000Z";
   const runner = (seenMinutesAgo) => ({ runner: { mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null,
-    seenAt: new Date(Date.parse(renderedAt) - seenMinutesAgo * 60_000).toISOString(), lastActivity: null }, paused: false, renderedAt });
+    seenAt: new Date(Date.parse(renderedAt) - seenMinutesAgo * 60_000).toISOString(), idleSince: null, lastActivity: null }, paused: false, renderedAt });
   const html = render({ ...base, plan: "pro", limit: 5, connectedCount: 3, projects: [
     project("a", { runner: runner(1) }), project("b", { runner: runner(5) }), project("c", { runner: { runner: null, paused: false, renderedAt } }),
   ] });

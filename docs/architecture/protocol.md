@@ -210,7 +210,8 @@ stop은 root/session만으로 자기 상태를 해제하며 config/token/server 
 다른 clone/기기 사이의 중복은 서버의 실행기 lease가 막는다(아래 절). 수동 세션과 옛 플러그인 판의
 감시는 lease에 참여하지 않으므로 막지 못한다.
 
-기본 interval=60초, deadline=110분, request timeout=20초, body 한도=1MiB다. fetch/body/sleep/guard
+기본 interval=60초, deadline=110분, request timeout=20초, body 한도=1MiB다. lease가 있으면 사이클 간격과
+paused 대기는 beat 응답의 `nextBeatIn`을 따르고, 응답에 없으면 interval이다. fetch/body/sleep/guard
 대기는 deadline에 묶이며 최대 1초마다 로컬 소유권을 확인한다. 5연속 전송 실패는 error; 정상
 overview가 실패 수를 초기화한다. 같은 비어 있지 않은 작업 집합의 세 번째 work 반환은 stuck이고
 빈 관측·작업 identity 변화는 반복 수를 초기화한다. check/HTTP 재시도는 작업 반복 수가 아니다.
@@ -243,19 +244,25 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   - `autostart`: `state`(on|off|refused), `host`(1–64자), `branch?`(on·refused 필수), `code?`(refused일 때만 그리고 반드시:
     dirty|autostart-branch|detached|push-url|checkout-in-use|other). `session`은 이 보고를 위해 CLI가 새로 만든 UUID다.
   - 그 밖의 본문(모르는 키 포함)은 400 `Invalid runner request.`
-- 응답: 성공은 `{ok:true, paused}`(beat는 `stop:"plan"`을 더할 수 있다). Codex start/beat는
+- 응답: 성공은 `{ok:true, paused}`(beat는 `stop:"plan"`을 더할 수 있다). beat는 다음 신호까지의 초 `nextBeatIn`을 싣는다.
+  working이면 60이고, 아니면 `idleSince`부터 지난 시간에 따라 10분 미만 60, 2시간 미만 900, 그 뒤 1800이다(`idleInterval`).
+  클라이언트는 60~3600초로 잘라 쓰고, 값이 없으면(옛 서버) 자기 interval을 쓴다. 옛 클라이언트는 이 필드를 무시한다. Codex start/beat는
   `binding:{session,client:"codex",mode:"resident",permission:"scoped"}`를 함께 돌려준다.
   409 `RUNNER_BUSY`는 `holder:{client, mode, host, seenAt}`를,
   409 `RUNNER_REPLACED`와 403 `PLAN_REQUIRED`는 코드를 싣는다. 문장은 product-copy §12.
 - 잠금과 시계: 모든 op는 한 트랜잭션(READ COMMITTED)에서 User → Project `FOR UPDATE`를 잡은 뒤 접근·플랜·
   `Runner` 행을 읽는다. 시각은 DB 시계(`clock_timestamp()`)다.
 - 생존(`packages/core/execution/runner.mjs`, 웹 배너와 같은 함수): stopped가 아니고 마지막 신호 뒤 3분 안이면 lease를 잡고 있다.
+  working이 아니고 `idleSince`가 있으면 마지막 신호에 내려준 간격에 2분을 더한 시각까지다(3분보다 짧아지지 않는다).
   session·working만 신호와 프로젝트의 마지막 에이전트 활동(`AgentRun.openedAt`·`AgentRunStep.at`) 중 늦은 쪽 뒤 60분이다.
   응답 없는 행과 stopped 행은 새 start가 확인 없이 덮어쓰고, 살아 있는 행은 `takeover:true`로만 넘겨받는다.
 - 재전송: 같은 client/session의 start는 성공(seenAt만 갱신)이고 beat는 멱등, 행이 없는 stop은 성공이다. Codex start는
   stopped 상태나 host/branch/mode/permission 변경을 거부한다. client 불일치도 RUNNER_REPLACED다. 행이 없거나 다른
   session이거나 stopped인 행에 대한 beat와 다른 session의 stop은 `RUNNER_REPLACED`다.
-- 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다.
+- 상태가 그대로이고 seenAt이 30초 안이면 beat는 쓰지 않는다. 다만 대기 시간이 감속 단계를 넘긴 beat는 쓴다.
+  생존 판정이 저장된 seenAt으로 간격을 다시 계산하므로, 쓰지 않으면 실행기가 받은 간격보다 짧은 마감이 남는다.
+- 대기 시각(`Runner.idleSince`, 마이그레이션 `20261106000000_runner_idle_since`): idle·waiting beat는 행이 working이었거나
+  값이 비어 있으면 DB 시각을 넣고, 아니면 그대로 둔다. working beat는 비우고, 상태 없는 beat는 그대로 두며, 새 세션의 start는 비운다.
 - 정지: owner는 행을 지운다. 다만 자동 시작이 켜진 resident 행은 `state=stopped`·`stopReason=owner`로 남긴다.
   배너가 "다음 로그온에 다시 시작한다"를 보이고 Pause를 두므로, 소유자가 로그온 전에 일시 정지할 수 있다.
   DB 검사(`Runner_stop_check`, 마이그레이션 `20261022000000_runner_signin_stop`)는 `owner`·`signin`을 `autostart`인
@@ -340,12 +347,14 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
   - 그다음 정책(commit 고정 true)과 잠금(`mode:"resident"`)을 쓰고 lease start(mode resident, branch, permission,
     autostart)를 보낸다. 404면 시작하지 않는다. 상주 프로세스를 Node `detached`로 띄우고, 그것이 poller로 자리 잡을
     때까지 기다린다.
-- 한 사이클(60초): beat(idle 또는 waiting) → paused면 쉼 → `pipeline_next`.
+- 한 사이클: beat(idle 또는 waiting) → paused면 쉼 → `pipeline_next`. 쉬는 시간은 beat 응답의 `nextBeatIn`이고,
+  없으면 interval(60초)이다.
   - 할 일이 있으면 실행 직전 검사를 한다. 미커밋이나 브랜치 변경이면 waiting으로 보내고 알림은 대기 하나에 한 번이다.
     대기가 새로 생기거나 풀리면 다음 사이클을 1초 뒤에 돌아, 배너가 60초를 기다리지 않고 바뀐 상태를 받는다.
+    받은 간격이 interval보다 길면 그사이 checkout을 interval마다 로컬로 다시 보고, 대기가 풀리면 바로 다음 사이클로 간다.
   - 검사를 통과하면 `claude -p "/harness:watch --once --session <id>"`를 띄운다. `--settings <common>/harness/background-settings.json`,
     `--disallowedTools "Bash(git push:*)" "PowerShell(git push*)"`, stream-json을 붙인다.
-  - 도는 동안 60초마다 beat(working)를 보낸다. 브랜치 감시와 2시간 상한은 2초마다 본다. 브랜치가 바뀌면 실행을 끝내고
+  - 도는 동안 beat(working)를 보내고, 다음 working beat는 그 응답의 `nextBeatIn`(서버는 60초)을 따른다. 브랜치 감시와 2시간 상한은 2초마다 본다. 브랜치가 바뀌면 실행을 끝내고
     branch 대기로 바꾸고 알림을 띄우며, 이 중단은 실패로 세지 않는다. 브랜치 확인이 한 번 실패하면 로그만 남기고 다음
     확인에 맡긴다.
   - 끝나면 결과 한 줄(`lastResult`)과 로그 이름(`lastLog`)을 beat로 보낸다. 앞뒤 작업 서명이 같거나 비정상 종료·
@@ -536,6 +545,13 @@ docs/plans/<항목ID>.md`), 다르면 `blocked`로 멈춘다.
 열린 run의 **마지막 수락/이전** 원장 행이 handoff면 소유자 차례로 세고, 그 경로를 터미널 줄에 보여 준다. 소유자가
 커밋한 뒤 세션이 outcome 없이 다시 부르면 그 단계가 이어진다. 옛 스텁(outcome 없이 멈추는 것)도 그대로
 동작한다 — 서버가 침묵할 뿐 거부하지 않는다.
+
+Claude 상주 실행기의 1회 실행(`/harness:watch --once`, watch 스킬 7절)에서는 그 실행이 보낸 역할의 핸드오프를
+소유자 차례로 두지 않는다. 저장된 커밋 정책(항상 yes)이 소유자의 커밋과 계속 요청을 대신한다. 메인 루프는 인계 파일
+하나만 런북 규칙대로 커밋하고, 같은 run을 outcome 없이 재개해 역할이 제출을 마치게 한다. 파일이 없거나 checkout
+밖이거나 커밋·재개가 실패하면 그 항목만 기다린다. 앞선 실행이 남긴 핸드오프와 감시·foreground 세션의 핸드오프는
+지금처럼 소유자 차례다. 서버 판정과 배너는 바뀌지 않는다. Codex 상주 실행은 위의 전용 도구 계약(`resident_commit`,
+`resident_dispatch`)으로 핸드오프를 커밋하고 재개한다.
 
 ### `검증:` 줄 형식
 
