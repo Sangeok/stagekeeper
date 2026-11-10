@@ -179,10 +179,7 @@ jobs:
                 }
               };
               walk(root, 0);
-              const transcripts = files.filter(file => {
-                const posix = file.split(path.sep).join("/");
-                return posix.endsWith(".jsonl") && posix.includes("/.claude/projects/") && !posix.includes("/subagents/");
-              });
+              const transcripts = files.filter(file => /\/projects\/[^/]+\/[^/]+\.jsonl$/.test(file.split(path.sep).join("/")));
               if (transcripts.length === 0) {
                 console.log(`  no transcript kept; files: ${files.slice(0, 40).map(file => path.relative(root, file)).join(", ")}`);
               }
