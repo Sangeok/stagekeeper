@@ -1401,16 +1401,17 @@ with the owner on 2026-10-27.
 - After the owner confirms that session is closed, the skill stops and releases it. When release answers quiescence-required with `processLeft:false`, it asks once: "No Codex process is left for that session, but its last turn did not finish cleanly. Release this checkout so work can start here again?" Only an explicit yes runs `release --session {session} --abandoned yes`.
 - After a release: "Released this checkout." and, only when git status shows changes, "Check uncommitted changes from its last turn before you continue."
 
-## 16. Landing — public `/` (built 2026-08-30, landing-v2)
+## 16. Landing — public `/` (landing-v2, content updated 2026-11-10)
 
 - Headline: **Your agents build. You set the rules.** (one line each — a longer second line
   wraps to three and strands a fragment)
-- Paragraph: "Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the
-  state, the ledger, and the gates. Agents propose, plan, and report — they can't grant
-  themselves permission."
-- CTA: **Continue with GitHub** (signed in: **Open projects**). No sub-line under the CTA — `/harness:init` is taught on the token screen.
+- 첫 화면은 제품 종류와 작업 진행·승인·기록 추적의 가치를 아래 `landing-intro` 문구로 설명한다.
+- CTA: **Continue with GitHub** (signed in: **Open projects**). 두 상태 모두 옆에
+  **View setup guide**를 두고 `/docs/getting-started`로 연결한다. 아래 한 줄은 저장소와
+  플러그인 연결이 필요함을 알린다. 명령어와 토큰 절차는 설치 문서와 연결 화면에 둔다.
 - Header and footer link: **Docs**, to `/docs`, in both sign-in states.
-- Demo beside the thesis: a static gate-2 inbox card, caption "Your inbox when a plan is ready for you."
+- Demo beside the thesis: 기존 README 작업의 정적 Inbox 카드를 유지한다. 설명은
+  독립 계획 검증이 있는 Pro/Max 예시임을 명시한다.
   The card repeats three product lines by value — the banner headline (§5), the gate-2 button and its
   hint (§7). The demo is a promise about the real Inbox, so they are locked to the landing page:
 
@@ -1418,56 +1419,57 @@ with the owner on 2026-10-27.
 > Waiting on you
 > Approve implementation
 > Approving lets dev change code. Then continue in your coding client.
+> Example: a verified plan awaiting approval on Pro or Max.
 <!-- /copy-lock -->
 
 - Off the page — browser tab, search result, link preview (added 2026-10-13):
   - Title: **Stagekeeper — Automate Claude Code with approval gates**.
-  - Description: the separate search description below. It does not replace the existing
-    paragraph. Gates remain configurable, and a record is required for a Verified or Accepted claim.
+  - Description: 검색 설명은 아래 문구를 사용한다. 제품의 사용 가치를 요약하고 플랜에 따라
+    달라지는 단계·게이트 구성을 모든 사용자의 기본 기능으로 약속하지 않는다.
   - Share card (1200×630): the headline as on the page (second line `--mine`), the S monogram with
     "Stagekeeper", and the `--mine` strip from the demo card's head. Nothing else.
   - App icon: a white S on a `--mine` square — the colour the product gives only to your turn.
 
 <!-- copy-lock:landing-meta -->
 > Stagekeeper — Automate Claude Code with approval gates
-> Your Claude Code runs plan → verify → implement → accept. Gates are where you put them, and nothing passes without a record.
+> Manage your Claude Code workflow with approval gates, progress tracking, and records linked to your repository.
 <!-- /copy-lock -->
 
 <!-- copy-lock:landing-intro -->
-> Your Claude Code runs plan → verify → implement → accept. Stagekeeper holds the state, the ledger, and the gates. Agents propose, plan, and report — they can't grant themselves permission.
+> Approval gates for Claude Code
+> Move work from backlog to implementation with clear approval points. Claude Code works in your repository; Stagekeeper tracks progress and keeps the decision history.
+> View setup guide
+> Connect a GitHub repository and install the Claude Code plugin to start.
 <!-- /copy-lock -->
 
-- "The cycle you'll run": 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·
-  6 Implemented · 7 Accepted — only steps 2 and 5 carry a "you" tag; no other actor names —
-  "Two of these stop for you today — 2 and 5. The rest you run in your own Claude Code."
-  The section is titled for the **runbook**, not the service: only 2 and 5 are transitions the
-  server enforces as human-only. 4 (validation) is recorded but not required before approval,
-  and 7 (acceptance) has no status of its own — it is the five checks the owner reproduces by
-  hand, then records with `report_submit`."
+- 흐름은 1 Proposed · 2 Plan requested · 3 Plan · 4 Verified · 5 Approved ·
+  6 Implemented · 7 Accepted를 유지하고 2와 5에만 `you`를 표시한다. 모든 플랜의 고정 절차가
+  아닌 예시이며, 아래 문구로 기본 승인 지점과 플랜 차이를 설명한다. Verified는 독립 검증 기록,
+  Accepted는 인수 기록을 뜻한다. 구현 완료와 인수 완료를 합치지 않는다.
+
+<!-- copy-lock:landing-workflow -->
+> An example workflow
+> By default, the pipeline waits for you before planning and implementation.
+> Free uses a fixed pipeline. Pro and Max add independent plan verification and let you change steps and approval gates.
+<!-- /copy-lock -->
+
 - Three facts (not slogans):
-  - **Agents can't approve themselves.** Gates are where you put them — you decide how many and
-  where, on the Pipeline tab. Opening one is yours — in the Inbox, or from your own
-    session with an owner token. The agent token has neither the gate nor the settings — not by
-    policy text, by the toolset.
-  - **No pass without a record.** An item shows Verified only when an independent pass wrote
-    one. Otherwise it says so.
-  - **State in one place, files in yours.** The board lives in Stagekeeper. Plans and reports
-    are committed next to the code, in your repository.
+  - **Agents can't approve themselves.** Review plans and open approval gates in the Inbox.
+    Work agents cannot open gates or change the pipeline.
+  - **No pass without a record.** Follow each item's plans, approvals, and reports.
+    Verified and Accepted appear only when their supporting records exist.
+  - **Runs in your repository.** Claude Code runs the agents in your repository. Plans and
+    reports are committed alongside your code; Stagekeeper keeps their references.
 
-**Claims we don't make here, and why** (checked against the code 2026-08-30):
+랜딩 문구의 경계:
 
-- Not "you approve each step" / "only you can approve" — the server enforces exactly two
-  human-only transitions out of four. Gates are also planned to become a per-project setting,
-  so any copy that counts them, or promises a human at every step, is written to expire.
-- Not "nothing else asks for you" — the runbook has the owner dispatch agents at 1, 3, 6 and 8,
-  run their own verification round at 4, and reproduce the five acceptance checks by hand at 7.
-  The product's own turn banner hands you a "Next, in Claude Code" line at 3, 4, 6 and 7, and
-  whenever an agent stops for your commit.
-- Not "the tool isn't registered" — `board_transition` *is* in `AGENT_TOOL_NAMES`; what stops an
-  agent gate move is the rule table (`not allowed: agent proposed → planning`), plus the absence
-  of any gate-only tool and of every settings tool.
-- What survives a gate becoming optional: agents can't change their own permissions, no status
-  claim without a record, state here and files in your repository.
+- 승인 지점의 수와 위치는 기본값과 사용자가 저장한 구성을 구분한다. 모든 단계의 승인이나
+  승인 외에는 중단되지 않는다는 보장은 하지 않는다.
+- Free는 고정 파이프라인을 사용한다. 독립 계획 검증과 파이프라인 편집은 Pro/Max 기능이다.
+  세션 승인의 토큰·도구 권한 설명은 Security 문서에서 다룬다.
+- Stagekeeper가 사용자 대신 클라이언트를 호스팅하거나 에이전트를 직접 실행한다고 설명하지 않는다.
+- 기존 헤드라인·Inbox 예시·검증과 인수 흐름을 유지한다. 랜딩에 전체 기능 목록·요금표·설치 명령을
+  추가하지 않고, 시작에 필요한 안내는 설치 문서로 연결한다.
 
 ---
 
