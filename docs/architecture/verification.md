@@ -450,6 +450,9 @@ Commands의 CMD1은 실행하지 않은 정규화된 재실행 manifest로 `info
 
 macOS의 실제 모델 리허설은 명시적 opt-in으로만 실행한다. 다음 경로는 모두 로컬 시험용이며
 private export와 인증값·raw log를 저장소에 넣지 않는다. 모델 실행 중 `.next`를 재빌드하지 않는다.
+호스트가 깨어 있는 상태에서 실행한다. 역할 완료는 closedAt뿐 아니라 accepted terminal
+outcome을 확인한다. 60초 유휴 표본 사이에 90초 초과 공백이나 시계 역행이 있으면 관찰을
+실패시키며, 절전 시간을 정상 유휴 시간으로 합산하지 않는다.
 
 ```sh
 node --env-file=<외부-시험-env> --import ./tests/server/register-server-only.mjs --import tsx \
