@@ -729,6 +729,14 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 - 운영 사용자의 Windows bundle(0.6.1) 설치·hook 로딩과 재init, `pipeline_next`를 확인했다. BLK-TPL-04의 R0 범위 승인과 BLK-TPL-03의 백업 확인은 이 실행에서 처리했다.
 - 남은 것: R1 import·activate와 포인터 복구 인수(TPL4 후반), Codex 경로와 다른 기기의 인수.
 
+2026-11-10 TPL4 후반(R1과 포인터 복구)을 운영에서 실행했다. 절차와 승인은 [R1 활성화 계획](../completed/2026-11-10-template-release-r1-activation.md)에, 판정은 [인수 보고서](../../test-reports/completed/2026-11-10-template-release-r1-activation.md)에 있다.
+
+- R1은 비공개 템플릿 `8ccb37a`(harness-templates #16의 merge commit, tree는 pipeline-smoke로 검증한 `a2538a5`와 같다)다. import로 R1 `fc5e5f59…`를 seal했다.
+- 채널은 activate로 R1(revision 2), R0 복구(3), R1 재활성화(4)를 거쳐 지금 active R1, revision 4다. 모든 실행은 main `8b231c2`에서 돌았다.
+- 시험 프로젝트에서 새 선택이 그때의 active를 따르는 것을 확인했다. 기존 실행은 포인터가 바뀌어도 pin을 유지한다. 실제 프로젝트의 R0 실행도 R1이 active인 동안 R0로 진행했다.
+- VFY-TPL-09의 production 부분 가운데 활성화, 이전 포인터 복구, 기존 실행 유지, 새 선택을 채웠다. private 전체 snapshot의 실제 복원은 이번 범위가 아니다.
+- 남은 것: Codex 경로와 다른 기기의 인수, Windows PC 저장소의 R1 재init.
+
 ## Verification Results
 
 아래 표는 구현 전 문서 reconciliation 당시의 기록이다. 최신 코드 검증은 Implementation Progress와 구현 검증 보고서를 따른다.

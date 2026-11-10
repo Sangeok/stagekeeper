@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "awaiting-approval"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-06"
-approved-by: null
-approved-at: null
-approval-scope: null
-completed-at: null
-verification-summary: null
+approved-by: "user"
+approved-at: "2026-11-10"
+approval-scope: "Phase A–G with the recommended D1–D6: production reads, #16 merge, R1 import, R1 activate, R0 restore and R1 reactivation via template-release.yml (each deploy job approved by Claude as Sangeok at the owner's request), acceptance in stagekeeper-macos-e2e, this Mac's plugin update and records."
+completed-at: "2026-11-10"
+verification-summary: "R1 fc5e5f59 (git 8ccb37a) is active at revision 4. Import, activate, restore and reactivate succeeded from main 8b231c2. New selection followed each pointer (R1 work run and ITEM-02, R0 ITEM-04 after restore with a template wait on the R1 installation, R1 ITEM-05 after reactivation), and existing runs kept their pins. Real-project R0 runs continued on R0 while R1 was active."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -16,6 +16,7 @@ related:
   - "docs/proposals/active/template-release-versioning.md"
   - "docs/proposals/completed/2026-11-05-template-release-production-cutover.md"
   - "docs/test-reports/completed/2026-11-05-template-release-production-cutover.md"
+  - "docs/test-reports/completed/2026-11-10-template-release-r1-activation.md"
   - "docs/architecture/template-releases.md"
   - "AGENTS.md"
 ---
@@ -26,7 +27,7 @@ related:
 
 운영은 2026-11-05에 versioned R0(비공개 템플릿 `fb6ef955`)로 전환했다. 같은 날 서버는 main `62e68dd`(#291, 플러그인 0.6.2)로 올라갔다. 이 서버는 검증이 수렴하지 않는 항목을 보류로 빼는 출구를 갖췄지만, 수렴하지 않는 원인인 검증 경로 5는 R0 템플릿에 그대로 있다.
 
-이 문서는 [R0 전환 계획](../completed/2026-11-05-template-release-production-cutover.md)이 별도 승인으로 남긴 Phase H를 실행하는 절차를 정한다. R1은 그 원인을 고친 Sangeok/harness-templates #16이다. R1을 import하고 activate한 뒤 R0로 포인터를 복구했다가 다시 R1로 돌린다. 이 과정으로 [원 제안서](./template-release-versioning.md) TPL4의 종료 조건과 VFY-TPL-09의 production 부분을 채운다.
+이 문서는 [R0 전환 계획](./2026-11-05-template-release-production-cutover.md)이 별도 승인으로 남긴 Phase H를 실행하는 절차를 정한다. R1은 그 원인을 고친 Sangeok/harness-templates #16이다. R1을 import하고 activate한 뒤 R0로 포인터를 복구했다가 다시 R1로 돌린다. 이 과정으로 [원 제안서](../active/template-release-versioning.md) TPL4의 종료 조건과 VFY-TPL-09의 production 부분을 채운다.
 
 ## Goal
 
@@ -302,7 +303,32 @@ gh workflow run template-release.yml --ref main -f operation=result-activate -f 
 
 ## Verification Results
 
-실행 전이다. 결과는 실행 뒤 여기와 인수 보고서에 기록한다.
+2026-11-10에 Phase A~G를 실행했다. 판정은 [인수 보고서](../../test-reports/completed/2026-11-10-template-release-r1-activation.md)에 있다. 모든 워크플로 실행은 main `8b231c2`에서 돌았다.
+
+| 단계 | 결과 | 비고 |
+| --- | --- | --- |
+| A1 | 완료 | main `8b231c2`(0.6.4) push `check` 녹색. 템플릿 경로 변경 없음. #294는 열린 채 C–F와 겹치지 않았다 |
+| A2·A3 (02:26Z) | 통과 | versioned·revision 1·active R0·장벽 true, 배포 기록 bootstrap 1건. 열린 실행 9개 모두 R0, pin 누락 0. 전환 뒤 AgentRun 7개가 R0로 돌았다(6개 종료) |
+| A4 | 완료 | 시험 잔여물 ITEM-02·ITEM-03을 항목 페이지에서 폐기했다. 시험 프로젝트의 열린 실행 0 |
+| B1·B2·B3 | 통과 | #16 merge commit `8ccb37a`, tree `feebf885…`가 `a2538a5`와 같다. main `8b231c2`에서 `test:template-release` 3/3 |
+| C (run 42745084319) | 성공 | R1 `fc5e5f59…` sealed, entry 13. 채널 그대로 |
+| D (run 42748697884) | 성공 | revision 2, active R1. 열린 R0 실행 그대로 |
+| E1–E3 | 완료 | 이 Mac 0.5.33 → 0.6.4. 시험 저장소는 `verification-paths.md`를 하네스 판으로 되돌린 뒤 `--adopt` init. ready, R1, lock v2. R1 문구 확인 |
+| E4·E5 | 통과 | `pipeline_next`가 R1 dispatch. 새 작업 실행·work-assigner AgentRun·배정된 ITEM-02 실행이 R1, run-start |
+| F1 (run 42761804905) | 성공 | revision 3, active R0. E의 R1 실행 유지 |
+| F2 | 통과 | 웹으로 보드에 올린 ITEM-04의 새 실행이 R0. R1 설치본의 `pipeline_next`가 ITEM-04에 R0 설치를 요구했다 |
+| F3 (run 42762380377) | 성공 | revision 4, active R1 |
+| F4 | 통과 | ITEM-05의 새 실행이 R1 |
+| F5 | 완료 | 시험 항목 모두 폐기, 백로그 비어 있음. 열린 R1 작업 실행 1개와 AgentRun 1개가 남았다(보고서 F1) |
+
+계획과 달라진 점:
+
+- E1은 main이 승격돼 0.6.2 대신 0.6.4를 설치했다.
+- 결과 읽기(D4)는 summary 대신 운영 DB 읽기로 했다.
+- 운영 읽기(D5)는 사용자가 Neon에서 받은 값을 `~/.stagekeeper/production.env`에 두고 했다. Vercel 값은 Sensitive라 받을 수 없었다.
+- E4의 시험 항목은 `backlog_add`가 agent `runId`를 요구해 웹 백로그로 추가했다.
+- work-assigner는 X1(ITEM-04)을 probe라 배정하지 않고 백로그에 남아 있던 ITEM-02를 배정했다.
+- F2·F4는 새 작업 실행 대신 웹의 Put on the board로 새 선택을 확인했다. 열린 R1 작업 실행을 `pipeline_next`가 이어 쓰기 때문이다.
 
 ## Risks and Rollback
 
@@ -326,11 +352,19 @@ gh workflow run template-release.yml --ref main -f operation=result-activate -f 
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-11-10
+- verification-summary: front matter와 Verification Results, 인수 보고서를 따른다.
+- implementation PR/commit:
+  - harness-templates #16(merge commit `8ccb37a`)
+  - template-release runs 42745084319, 42748697884, 42761804905, 42762380377
+  - 이 기록 PR(client-init-smoke 고정 커밋을 `8ccb37a`로)
+- changed files summary:
+  - 운영에는 R1 release·entry, 채널 포인터 세 번 변경과 배포 기록 네 건이 생겼다.
+  - 이 Mac은 플러그인 0.6.4가 됐다. 시험 저장소는 R1 lock v2로 재init했다(로컬 커밋 `14daf46`).
+- remaining follow-up:
+  - Windows PC의 `harness-smoke`·`mathgic`·`harness-watch-smoke`는 열린 R0 실행이 끝난 뒤 재init한다.
+  - 보고서 F1(배정 흐름의 stale 응답과 남은 작업 실행), F2(폐기 범위), F3(`production.env` ignore)를 검토한다.
+  - `~/.stagekeeper/production.env`와 Vercel CLI 로그인의 처분은 사용자가 정한다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -346,7 +380,7 @@ gh workflow run template-release.yml --ref main -f operation=result-activate -f 
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
-- [ ] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
+- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
 - [x] `proposal-size`는 `small` 또는 `standard`만 사용했고, standard 강제 조건에 해당하는 작업을 small로 낮추지 않았다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
@@ -355,5 +389,5 @@ gh workflow run template-release.yml --ref main -f operation=result-activate -f 
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
