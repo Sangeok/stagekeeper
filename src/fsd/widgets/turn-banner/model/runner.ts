@@ -11,6 +11,7 @@ export type TurnRunner = {
   waitReason: "dirty" | "branch" | null;
   stopReason: "owner" | "stuck" | "error" | "plan" | "signin" | null;
   signinCode: SigninCode | null;
+  limitedUntil: string | null;
   seenAt: string;
   idleSince: string | null;
   lastActivity: string | null;
@@ -28,6 +29,8 @@ export const RUNNER_LINES = {
   lastActivity: "last activity {n} min ago",
   waitingDirty: "Runner on {host} is waiting: commit or stash the changes on {branch}, and it continues.",
   waitingBranch: "Runner on {host} is waiting: switch back to {branch}, and it continues.",
+  waitingLimitMinutes: "Runner on {host} is waiting for Claude's usage limit and continues in about {n} min.",
+  waitingLimitHours: "Runner on {host} is waiting for Claude's usage limit and continues in about {n} h.",
   paused: "Runner paused — it starts nothing new.",
   pausedWorking: "Work already running finishes first.",
   silent: "No signal from the runner on {host} for {n} min.",
@@ -76,6 +79,7 @@ export type RunnerSegment = { text: string; code?: boolean };
 export type RunnerLine = RunnerSegment[];
 
 const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
 const minutesSince = (from: string, now: number) => Math.max(0, now - Date.parse(from)) / MINUTE;
 const ago = (from: string, now: number) => String(Math.max(1, Math.ceil(minutesSince(from, now))));
 
@@ -103,6 +107,18 @@ const nextCheck = (runner: TurnRunner, now: number): RunnerLine[] => {
   const next = runnerNextSignalAt(toDates(runner));
   if (next === null || next.getTime() - now <= NEXT_CHECK_SHOWN_AFTER) return [];
   return [fillLine(RUNNER_LINES.nextCheck, { n: String(Math.ceil((next.getTime() - now) / MINUTE)) })];
+};
+
+const usageLimitLeft = (runner: TurnRunner, now: number): number | null => {
+  if (runner.state !== "idle" || runner.limitedUntil === null) return null;
+  const left = Date.parse(runner.limitedUntil) - now;
+  return left > 0 ? left : null;
+};
+const usageLimitLine = (left: number, values: Record<string, string>): RunnerLine => {
+  const minutes = Math.ceil(left / MINUTE);
+  return minutes < 60
+    ? fillLine(RUNNER_LINES.waitingLimitMinutes, { ...values, n: String(minutes) })
+    : fillLine(RUNNER_LINES.waitingLimitHours, { ...values, n: String(Math.round(left / HOUR)) });
 };
 
 export type RunnerLiveness = "live" | "silent" | "stopped";
@@ -146,6 +162,8 @@ function fullRunnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   if (runner.state === "waiting") {
     return join(fillLine(runner.waitReason === "branch" ? RUNNER_LINES.waitingBranch : RUNNER_LINES.waitingDirty, values), ...suffixes);
   }
+  const limitLeft = usageLimitLeft(runner, now);
+  if (limitLeft !== null) return join(usageLimitLine(limitLeft, values), ...suffixes);
   const resident = runner.mode === "resident";
   if (runner.state === "working" && !resident) {
     const since = runnerSignalAt(toDates(runner), activity(runner)).toISOString();
@@ -164,7 +182,7 @@ function shortRunnerLine(facts: RunnerFacts, now: number): RunnerLine | null {
   if (liveness === "stopped") return fillLine(RUNNER_SHORT.stopped, values);
   if (liveness === "silent") return fillLine(RUNNER_SHORT.silent, values);
   if (paused) return fillLine(RUNNER_SHORT.paused, {});
-  if (runner.state === "waiting") return fillLine(RUNNER_SHORT.waiting, values);
+  if (runner.state === "waiting" || usageLimitLeft(runner, now) !== null) return fillLine(RUNNER_SHORT.waiting, values);
   if (runner.state === "working") return fillLine(RUNNER_SHORT.working, values);
   return fillLine(runner.mode === "resident" ? RUNNER_SHORT.residentIdle : RUNNER_SHORT.sessionIdle, values);
 }

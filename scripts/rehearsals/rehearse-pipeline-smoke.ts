@@ -85,7 +85,7 @@ export function parseArguments(args: string[]): Options {
 }
 
 type Secrets = { key: Buffer; oauth: string | undefined };
-type RunnerStatus = { running?: boolean; held?: boolean; state?: string | null; waitReason?: string | null };
+type RunnerStatus = { running?: boolean; held?: boolean; state?: string | null; waitReason?: string | null; limitedUntil?: string | null };
 type WaitResult = { verdict: string; step?: string };
 type Collected = { files: Record<string, string>; skipped: string[]; streams: string[]; transcripts: string[]; runs: string[] };
 

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { limitedUntil } from "@harness/core/execution/runner.mjs";
 import { isGateId } from "@harness/core/pipeline/pipeline.mjs";
 import { pendingInboxCount } from "@/fsd/entities/board-item";
 import { prisma } from "@/server/db";
@@ -18,6 +19,7 @@ export function runnerFacts(view: RunnerView): RunnerFacts {
     runner: row === null ? null : {
       client: row.client, mode: row.mode, host: row.host, branch: row.branch, permission: row.permission, autostart: row.autostart, state: row.state,
       waitReason: row.waitReason, stopReason: row.stopReason, signinCode: row.stopReason === "signin" ? signinCode(row.lastResult) : null,
+      limitedUntil: limitedUntil(row.lastResult)?.toISOString() ?? null,
       seenAt: row.seenAt.toISOString(), idleSince: row.idleSince?.toISOString() ?? null, lastActivity: view.lastActivity?.toISOString() ?? null,
     },
     paused: view.pausedAt !== null,

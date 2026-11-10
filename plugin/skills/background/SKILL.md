@@ -60,7 +60,9 @@ Run these yourself; none starts a process.
   `autostart.pluginMatches` is false, add: **Sign-in start points at an older plugin. Turn it off and on
   again.** If `held` is true, add the `held` sentence and offer release. If `newer` is true, add: **A newer
   Stagekeeper plugin holds this checkout. You can stop it from here, but update this plugin before you
-  start or release here.** Point to the run logs (`logs`) instead of reading them aloud.
+  start or release here.** If `limitedUntil` is set, add: **Claude's usage limit was reached. The runner
+  continues after {time}.** with `{time}` as that moment in the owner's local time. Point to the run logs
+  (`logs`) instead of reading them aloud.
 - release: run `--release --root '<checkout>'`. On `release-check`, repeat its human lines, then ask once:
   **No runner process is left, but this checkout is still held. Release it so a runner can start here
   again?** Only an explicit yes runs `--release --session '<session from release-check>' --root

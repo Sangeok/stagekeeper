@@ -47,6 +47,14 @@ else {
   record();
   if (step.kind === "hang" && process.env.STAGEKEEPER_TEST_CRASH_CLIENT) writeFileSync(process.env.STAGEKEEPER_TEST_CRASH_CLIENT, JSON.stringify({ pid: process.pid }));
   if (step.touch) writeFileSync(step.touch, "partial\\n");
+  if (step.kind === "limited") {
+    out({ type: "rate_limit_event", rate_limit_info: { status: "rejected", resetsAt: Math.floor(Date.now() / 1000) + 3600, rateLimitType: "five_hour" } });
+    out({ type: "assistant", error: "rate_limit", api_error_status: 429, message: { content: [] } });
+    out({ type: "result", subtype: "success", is_error: true, api_error_status: 429, num_turns: 1, terminal_reason: "api_error", permission_denials: [] });
+    out({ type: "system", subtype: "init", permissionMode: mode });
+    out({ type: "result", subtype: "success", is_error: false, num_turns: 0, permission_denials: [] });
+    process.exit(0);
+  }
   if (step.kind === "hang") setInterval(() => {}, 1000);
   else {
     // success는 서버의 일을 넘기고(진전), noop은 성공으로 끝나지만 일을 그대로 둔다(진전 없음).
@@ -473,6 +481,25 @@ it("stops with an error after three failed runs and tells the server", async t =
   const session = startedSession(f);
   assert.ok(f.runnerCalls.some(call => call.op === "stop" && call.reason === "error" && call.session === session), stopEvidence(f, session));
   assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 3);
+});
+
+it("waits on Claude's usage limit with one notice, shows when it continues and keeps running", async t => {
+  const f = await fixture(t, { plan: [{ kind: "limited" }] });
+  assert.equal((await f.run(START)).event.event, "started");
+  const reported = await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult), 30000, "the limited result");
+  const until = /^limited: Claude usage limit until (\d{4}-\d{2}-\d{2}T\d{2}:\d{2})Z$/.exec(reported.lastResult);
+  assert.ok(until, reported.lastResult);
+  assert.equal(reported.state, "idle");
+  await delay(1500);
+  const status = await f.run(["--status"]);
+  assert.equal(status.event.running, true);
+  assert.equal(status.event.limitedUntil, `${until[1]}:00.000Z`);
+  assert.equal(f.record().filter(entry => entry.args[1] !== "Reply with OK.").length, 1);
+  assert.deepEqual(f.notices().map(notice => notice.kind), ["limited"]);
+  assert.match(f.notices()[0].body, /^Claude's usage limit was reached\. The runner continues after \d{2}:\d{2}\.$/);
+  assert.equal(f.status().failures, 0);
+  const meta = readdirSync(path.join(f.directory, "runs")).find(name => name.endsWith(".meta.json"));
+  assert.equal(JSON.parse(readFileSync(path.join(f.directory, "runs", meta), "utf8")).line, reported.lastResult);
 });
 
 it("stops as stuck after three runs that leave the same work", async t => {

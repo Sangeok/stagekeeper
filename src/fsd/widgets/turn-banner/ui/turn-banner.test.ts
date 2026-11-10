@@ -35,7 +35,7 @@ it("renders both ready entries with Claude defaults and leaves compact tabs comp
 
 const RENDERED = "2026-10-20T12:00:00.000Z";
 const minutesAgo = (n: number) => new Date(Date.parse(RENDERED) - n * 60_000).toISOString();
-const live: TurnRunner = { client: "claude", mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null, signinCode: null, seenAt: minutesAgo(1), idleSince: null, lastActivity: null };
+const live: TurnRunner = { client: "claude", mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle", waitReason: null, stopReason: null, signinCode: null, limitedUntil: null, seenAt: minutesAgo(1), idleSince: null, lastActivity: null };
 const facts = (runner: TurnRunner | null, paused = false): RunnerFacts => ({ runner, paused, renderedAt: RENDERED });
 const working: Turn = { kind: "theirs", detail: "dev is implementing ITEM-01", next: [{ kind: "continue", key: "ITEM-02", line: "Continue the pipeline for ITEM-02: plan — dev writes the plan." }] };
 

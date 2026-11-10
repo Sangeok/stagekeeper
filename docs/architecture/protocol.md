@@ -360,6 +360,16 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
   - 끝나면 결과 한 줄(`lastResult`)과 로그 이름(`lastLog`)을 beat로 보낸다. 앞뒤 작업 서명이 같거나 비정상 종료·
     시간 초과면 실패이고, 3회 연속이면 멈춘다. 셋 모두 진전 없음이면 stop(stuck), 오류·시간 초과가 섞이면
     stop(error)다. 일시 정지 중에 끝난 실행은 알림 하나를 띄운다.
+  - Claude 사용 한도(plugin 0.6.6): stream에서 429로 끝난 턴(`result.api_error_status === 429`)이 있으면 그 실행은
+    `limited`다. 뒤에 다른 결과가 와도 바뀌지 않는다. 재개 시각은 `rate_limit_event`(`status:"rejected"`)의
+    `resetsAt` + 60초를 분 단위로 올린 값이다. `resetsAt`이 없거나 지났거나 8일보다 멀면 지금 + 30분이다.
+    - 이 실행은 실패와 진전 판정에 넣지 않고, 앞선 실패 횟수도 그대로 둔다. 결과 한 줄은
+      `limited: Claude usage limit until <YYYY-MM-DDTHH:MMZ>`(UTC 분)이고, 형식은 `packages/core/execution/runner.mjs`의
+      `limitedResult`·`limitedUntil`이 한곳에서 정한다.
+    - 재개 시각 전까지는 `pipeline_next`와 새 실행 없이 beat(idle)만 서버 간격대로 보내고, 재개 시각이 더 가까우면 그때
+      깬다. 그 뒤 평소 사이클로 돌아간다. 알림은 한도 실행이 이어지는 동안 한 번이다.
+    - `--status`는 실행 중이고 재개 시각이 아직이면 `limitedUntil`(ISO)을 준다. 웹 배너는 `lastResult`를 같은 형식으로
+      읽는다. 서버 계약과 DB는 그대로다(새 대기 사유가 아니라 idle이다).
 - 자식 정리: Windows에서 각 `claude -p`는 `runtime/windows/job-launch.ps1`이 만든 kill-on-close job 안에서 돈다
   (breakaway 없음). 상주 프로세스나 런처가 죽으면 도구 셸까지 끝난다. 시간 초과와 브랜치 중단은 런처를 끝내는 것이다.
   다른 OS는 자식을 자기 프로세스 그룹으로 띄우고 그룹에 SIGKILL을 보낸다.
