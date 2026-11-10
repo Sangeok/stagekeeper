@@ -50,6 +50,13 @@ target의 권한과 canonical 경로를 확인하며 외부·절대 링크는 �
 보존하고 링크 대상은 snapshot hash에 포함한다. snapshot hash는 파일 내용·링크 대상의
 근거이며 원본의 모든 metadata가 동일하다는 증명은 아니다.
 
+esbuild처럼 정상 의존성 설치가 만든 hardlink는 모든 연결 이름이 같은 허용 snapshot
+원본 안에 있고 관찰한 이름 수가 inode의 nlink와 같을 때만 독립 파일로 복사한다.
+누락·deny·외부 연결이나 복사 전후 identity·nlink 변화는 거부한다. symlink가 이 파일을
+가리킬 때도 같은 증거를 확인한다. 역할의 직접 파일 읽기·쓰기 도구는 hardlink를 계속 거부한다.
+이 저장소의 `npm run build`는 native 역할 안에서 Webpack을 선택해 Turbopack의 내부
+포트 bind를 피한다. network deny와 원본 쓰기 금지는 유지한다.
+
 ## 종료와 복구
 
 `macos/role-process.mjs`는 activation 전 부모가 session에 등록한 supervisor다.

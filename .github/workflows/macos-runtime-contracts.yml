@@ -8,6 +8,12 @@ on:
     paths:
       - .github/workflows/macos-runtime-contracts.yml
       - scripts/macos/**
+      - scripts/build.mjs
+      - next.config.*
+      - prisma.config.ts
+      - prisma/schema.prisma
+      - src/app/layout.tsx
+      - src/app/_fonts/**
       - packages/core/**
       - packages/github/**
       - plugin/bin/**
@@ -98,3 +104,14 @@ jobs:
         env:
           STAGEKEEPER_MACOS_RUNTIME_REQUIRED: "1"
         run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
+      - name: Build the complete project inside the offline native role
+        run: >-
+          node scripts/macos/rehearse-project-build.mjs
+          --root "$GITHUB_WORKSPACE" --runtime "$GITHUB_WORKSPACE/plugin/runtime/macos/node"
+          --evidence "$RUNNER_TEMP/native-project-build.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-project-build-${{ matrix.runner }}
+          path: ${{ runner.temp }}/native-project-build.json
+          if-no-files-found: warn

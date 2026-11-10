@@ -9,10 +9,11 @@ function main() {
   if (args.length) { console.error(usage); process.exitCode = 2; return; }
 
   const require = createRequire(import.meta.url);
-  const windowsRole = process.platform === "win32" && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1";
+  const nativeRole = ["win32", "darwin"].includes(process.platform) && process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1";
+  const windowsRole = process.platform === "win32" && nativeRole;
   const steps = [
     [require.resolve("prisma/build/index.js"), "generate"],
-    [require.resolve("next/dist/bin/next"), "build", ...(windowsRole ? ["--webpack"] : [])],
+    [require.resolve("next/dist/bin/next"), "build", ...(nativeRole ? ["--webpack"] : [])],
   ];
   const env = { ...process.env };
   if (windowsRole) {

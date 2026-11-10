@@ -25,7 +25,7 @@ export async function prepareImplementationCopy({ root, targetCommit, planCommit
   const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-impl-verify-")), copy = path.join(directory, "repo");
   let completed = false;
   try {
-    const snapshot = await snapshotRepository(root, copy, fileBroker, signal, { internalSymlinks: process.platform === "darwin" });
+    const snapshot = await snapshotRepository(root, copy, fileBroker, signal, { internalLinks: process.platform === "darwin" });
     const git = await createVerificationGit(root, directory, targetCommit, lifecycle, signal);
     await git.query(["merge-base", "--is-ancestor", planCommit, targetCommit]);
     const committedTree = pathsFrom(await git.query(["ls-tree", "-rz", "--full-tree", targetCommit])).map(row => {

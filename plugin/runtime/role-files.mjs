@@ -68,7 +68,7 @@ export function createRoleFiles(filesystem, agent) {
     return permission === "write" && constrained.some(rule => rule.access === "read") ? "read" : permission;
   }
 
-  function resolveTarget(name, write = false) {
+  function resolveTarget(name, write = false, snapshotIdentity = null) {
     if (typeof name !== "string" || name.length > 4096 || !path.isAbsolute(name) || /[\x00-\x1f]/.test(name)) throw new Error("Absolute file path required");
     const target = path.resolve(name), parsed = path.parse(target);
     if (process.platform === "win32") {
@@ -89,7 +89,9 @@ export function createRoleFiles(filesystem, agent) {
       try {
         const stat = lstatSync(current, { bigint: true });
         if (stat.isSymbolicLink()) throw new Error("File alias refused");
-        if (stat.isFile() && stat.nlink !== 1n) throw new Error("Hard-linked file refused");
+        if (current === target && snapshotIdentity && (stat.dev !== snapshotIdentity.dev || stat.ino !== snapshotIdentity.ino || stat.nlink !== snapshotIdentity.nlink)) throw new Error("Snapshot hardlink identity changed");
+        if (stat.isFile() && stat.nlink !== 1n && (write || current !== target || !snapshotIdentity
+          || stat.dev !== snapshotIdentity.dev || stat.ino !== snapshotIdentity.ino || stat.nlink !== snapshotIdentity.nlink)) throw new Error("Hard-linked file refused");
         existing = current;
       } catch (error) { if (error.code !== "ENOENT") throw error; }
     }
@@ -179,7 +181,7 @@ export function createRoleFiles(filesystem, agent) {
   return {
     tools: roleFileTools(agent),
     permission: access,
-    resolveRead(name) { if (closed) throw new Error("Role file broker closed"); return resolveTarget(name); },
+    resolveRead(name, snapshotIdentity = null) { if (closed) throw new Error("Role file broker closed"); return resolveTarget(name, false, snapshotIdentity); },
     close() { closed = true; },
     call(name, args) {
       if (closed || !names.includes(name) || !args || Array.isArray(args) || typeof args !== "object") throw new Error("Role file operation unavailable");

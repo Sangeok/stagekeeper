@@ -20,10 +20,10 @@ function project({ prismaExit = 0, nextExit = 0 } = {}) {
   return root;
 }
 
-function run(root, args = []) {
+function run(root, args = [], environment = {}) {
   return spawnSync(process.execPath, [join(root, "scripts/build.mjs"), ...args], {
     cwd: root,
-    env: { ...process.env, STAGEKEEPER_ROLE_SNAPSHOT: "0" },
+    env: { ...process.env, STAGEKEEPER_ROLE_SNAPSHOT: "0", ...environment },
     encoding: "utf8",
   });
 }
@@ -53,6 +53,14 @@ it("runs Prisma generation before the normal Next build", () => {
   assert.deepEqual(readFileSync(join(root, "steps.log"), "utf8").trim().split("\n").map(line => JSON.parse(line)), [
     { step: "prisma", args: ["generate"] },
     { step: "next", args: ["build"] },
+  ]);
+});
+
+it("uses Webpack for a native macOS role without adding the Windows preload", { skip: process.platform !== "darwin" }, () => {
+  const root = project(), result = run(root, [], { STAGEKEEPER_ROLE_SNAPSHOT: "1" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(readFileSync(join(root, "steps.log"), "utf8").trim().split("\n").map(line => JSON.parse(line)), [
+    { step: "prisma", args: ["generate"] }, { step: "next", args: ["build", "--webpack"] },
   ]);
 });
 

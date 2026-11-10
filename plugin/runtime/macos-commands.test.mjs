@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { installedMacosRuntime } from "./macos-runtime.mjs";
@@ -47,6 +47,46 @@ it("macOS command snapshots preserve internal npm executable links and discard e
   assert.match(result.stdout, /linked-ok/); assert.ok(result.omitted.includes(".env"));
   assert.equal(result.originalRepositoryWrites, false); assert.equal(result.snapshotWrites, "discarded");
   assert.equal(readFileSync(path.join(f.root, "source.txt"), "utf8"), "ORIGINAL");
+});
+
+it("macOS snapshots copy fully accounted internal hardlinks independently while direct file tools still refuse them", native, async t => {
+  const f = fixture(t), first = path.join(f.root, "binary"), second = path.join(f.root, "alias");
+  writeFileSync(first, '#!/bin/sh\nprintf original\n', { mode: 0o700 }); linkSync(first, second);
+  symlinkSync("binary", path.join(f.root, "command"));
+  const files = createRoleFiles({ ":root": "deny", [f.root]: "write", [f.scratch]: "write" }, "plan-verifier");
+  assert.throws(() => files.call("role_file_read", { path: first }), /Hard-linked/);
+  assert.throws(() => files.call("role_file_write", { path: first, content: "changed", expectedHash: null }), /Hard-linked/);
+  const backend = await createMacosCommands({ root: f.root, scratch: f.scratch, agent: "plan-verifier", fileBroker: files, runtime });
+  t.after(() => backend.close());
+  const result = await backend.call("role_command_exec", { command: './command && node -e "const fs=require(\'node:fs\'),a=require(\'node:assert/strict\');a.equal(fs.statSync(\'binary\').nlink,1);a.equal(fs.statSync(\'alias\').nlink,1);fs.writeFileSync(\'alias\',\'changed\');a.match(fs.readFileSync(\'binary\',\'utf8\'),/original/);"', timeoutMs: 10000 });
+  assert.equal(result.exitCode, 0, result.stderr); assert.match(result.stdout, /original/);
+  assert.equal(readFileSync(first, "utf8"), readFileSync(second, "utf8"));
+  assert.match(readFileSync(first, "utf8"), /original/);
+});
+
+it("macOS snapshots refuse hardlink ownership changing after enumeration", native, async t => {
+  const f = fixture(t), source = path.join(f.root, "source");
+  writeFileSync(source, "ORIGINAL"); linkSync(source, path.join(f.root, "alias"));
+  const files = createRoleFiles({ ":root": "deny", [f.root]: "read", [f.scratch]: "write" }, "plan-verifier");
+  let changed = false;
+  const observed = { ...files, resolveRead(name, proof) {
+    if (proof && !changed) { changed = true; linkSync(source, path.join(f.base, "external")); }
+    return files.resolveRead(name, proof);
+  } };
+  const backend = await createMacosCommands({ root: f.root, scratch: f.scratch, agent: "plan-verifier", fileBroker: observed, runtime });
+  t.after(() => backend.close());
+  await assert.rejects(backend.call("role_command_exec", { command: "cat source", timeoutMs: 10000 }), /hardlink identity changed/);
+  assert.equal(changed, true);
+});
+
+for (const denied of ["external", ".env"]) it(`macOS snapshots refuse a hardlink alias in ${denied}`, native, async t => {
+  const f = fixture(t), source = path.join(denied === "external" ? f.base : f.root, denied);
+  writeFileSync(source, "PRIVATE_CANARY"); linkSync(source, path.join(f.root, "public"));
+  const files = createRoleFiles({ ":root": "deny", [f.root]: "read", [f.scratch]: "write" }, "plan-verifier");
+  const backend = await createMacosCommands({ root: f.root, scratch: f.scratch, agent: "plan-verifier", fileBroker: files, runtime });
+  t.after(() => backend.close());
+  await assert.rejects(backend.call("role_command_exec", { command: "cat public", timeoutMs: 10000 }), /unaccounted or denied alias/);
+  assert.equal(readFileSync(source, "utf8"), "PRIVATE_CANARY");
 });
 
 it("macOS stop ends a detached descendant before acknowledging settlement", native, async t => {

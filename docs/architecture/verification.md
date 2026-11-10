@@ -96,6 +96,8 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
   고정된 Node 22.23.3 공식 archive의 hash를 확인하고 대상 아키텍처의 scanner를 빌드한 뒤
   native 파일·network 경계, detached 후손·supervisor 사망 복구, 구현 mutation 시험을 실행한다.
   `STAGEKEEPER_MACOS_RUNTIME_REQUIRED=1`이므로 runtime 누락·손상을 skip으로 숨기지 않는다.
+  이어 `rehearse-project-build.mjs`가 준비된 이 저장소 전체를 network·DB URL 없는 역할
+  snapshot에서 빌드하고 원본 source·BUILD_ID 보존을 검사한다. 두 아키텍처의 결과를 artifact로 남긴다.
   PR·`dev` push에서는 npm 의존성 설치 전 `probe-seatbelt-containment.mjs`와
   `probe-sandbox-identity.mjs`를 실행하고 각 증거를 artifact로 보존한다.
   앞의 probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
@@ -354,6 +356,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
 | `macos/build-runtime.mjs`, `macos/package-plugin.mjs` | `node scripts/macos/build-runtime.mjs --archive <공식 tar.gz> --output <새 runtime 경로>`; `node scripts/macos/package-plugin.mjs --output <새 외부 경로> --runtime <runtime 경로>` | native macOS와 macOS CI | 고정 Node archive·정규 파일·hash·mode를 검증하고 scanner를 빌드한다. package는 Git에 등록된 배포 파일과 두 client의 완전 verifier·runtime을 포함하며 기존 출력 경로를 덮어쓰지 않는다 |
 | `macos/probe-codex-host.mjs` | `node scripts/macos/probe-codex-host.mjs` | 실제 Codex가 설치된 macOS에서 수동 | 모델 turn을 열지 않고 effective policy·명령 MCP timeout·skills·fresh thread와 session 정리를 확인한다. 실제 역할 수행이나 로그인 인수의 대체가 아니다 |
+| `macos/rehearse-project-build.mjs` | `node scripts/macos/rehearse-project-build.mjs --root <준비된 저장소> --runtime <검증 runtime> --evidence <새 외부 JSON>` | macOS 로컬·두 아키텍처 CI | 실제 프로젝트를 credentials·network 없는 snapshot에서 빌드한다. 정상 내부 dependency 링크와 원본 source·BUILD_ID 보존, quiescence를 확인하며 실패 결과도 외부 증거 파일에 기록한다 |
 | `rehearsals/prepare-codex-macos-database.mjs` | `node --env-file=<외부 시험 env> scripts/rehearsals/prepare-codex-macos-database.mjs --data-directory <자기 cluster 경로>` | 격리 PostgreSQL에서 수동 | loopback의 새 `stagekeeper_test_*` DB만 만들고 migrate deploy한다. 실제 data_directory와 자기 cluster 경로가 다르거나 DB가 이미 있으면 거부한다 |
 | `rehearsals/rehearse-codex-macos.mjs` | 아래 macOS 실제 모델 리허설 명령 | 기존 native Codex 로그인·설치 bundle·private template export·fresh build·새 시험 DB에서 수동 | global Node 없는 helper PATH로 init·resident·모든 선택 역할·인수·고정 log·선택 유휴 시간을 관찰한다. owner gate는 시험 controller가 실제 service를 호출한다. 운영 UI 인수·공개 배포는 포함하지 않는다 |
 | `rehearsals/inspect-codex-macos.mjs` | `node --env-file=<외부 시험 env> --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/inspect-codex-macos.mjs <시험 디렉터리> [--cleanup]` | 실패한 자기 시험 fixture 확인·정리 시 수동 | 원장을 외부 evidence에 보존한다. 정리는 합성 사용자·저장소·단일 프로젝트와 runtime 소유권 부재를 확인한 뒤에만 수행한다. 일반 사용자 정리 도구가 아니다 |
@@ -505,10 +508,12 @@ Stagekeeper 사용자의 최소 플러그인 설치 인수는 별도 범위다.
 `prisma.config.ts`는 client generate에 DB URL을 요구하지 않는다. DB 명령은 실제
 유효한 `DATABASE_URL`이 필요하며 빈 URL을 사용한 접속은 Prisma가 거부한다.
 Next 폰트는 `src/app/_fonts/`의 원본·라이선스·출처/hash를 포함하는 로컬 파일로
-빌드한다. 의존성이 준비된 Windows checkout의 전체 빌드는 역할의 network deny,
+빌드한다. 의존성이 준비된 Windows·macOS checkout의 전체 빌드는 역할의 network deny,
 환경 파일 제외와 원본 무쓰기 경계를 유지한 상태로 검증한다.
 
-이 저장소는 Windows 역할의 `npm run build`에서만 Webpack을 선택한다. Next 설정은
+이 저장소는 Windows·macOS native 역할의 `npm run build`에서 Webpack을 선택한다.
+macOS에서는 Turbopack CSS 변환의 내부 포트 bind를 피하고 일반 Webpack 설정을 사용한다.
+이하 preload·SWC 호환 처리는 Windows에만 적용한다. Next 설정은
 SWC의 TS 설정 변환을 거치지 않는 `next.config.mjs`다. 원본 tsconfig와 Webpack의
 경로 별칭 해석은 유지하며, SWC loader의 중복 별칭 변환만 제외한다. native Rust의
 DOS 경로 canonicalize 제한을 피하기 위한 현재 Next 16.4.2 호환 경로다. loader 구조는

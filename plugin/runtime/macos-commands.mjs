@@ -111,9 +111,9 @@ export async function createMacosCommands({ root, scratch, agent, fileBroker, ru
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
     let complete = false;
     try {
-      const snapshot = await snapshotRepository(root, path.join(directory, "repo"), fileBroker, combined, { internalSymlinks: true });
+      const snapshot = await snapshotRepository(root, path.join(directory, "repo"), fileBroker, combined, { internalLinks: true });
       if (cwd && !lstatSync(fileBroker.resolveRead(path.resolve(root, cwd))).isDirectory()) throw new RoleCommandInputError("cwd must name a permitted directory");
-      const scratchSnapshot = scratch ? await snapshotRepository(scratch, path.join(directory, "scratch"), fileBroker, combined, { internalSymlinks: true }) : null;
+      const scratchSnapshot = scratch ? await snapshotRepository(scratch, path.join(directory, "scratch"), fileBroker, combined, { internalLinks: true }) : null;
       if (!scratch) await mkdir(path.join(directory, "scratch"));
       const result = await runMacosCommand({ root: directory, runtime: runtime.directory, command: args.command, cwd, timeoutMs }, { ...lifecycle, signal: combined });
       complete = true;

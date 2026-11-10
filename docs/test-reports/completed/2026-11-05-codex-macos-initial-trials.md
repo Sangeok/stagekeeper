@@ -111,7 +111,11 @@ SDK plaintext 입력 검증 형식은 설치된 SDK에서 확인했지만, 이�
 두 실제 실행의 runner를 정지하고 자기 synthetic user/project를 제거했다. setup 실패는
 모델이나 사용자 fixture를 만들기 전에 발생했다. raw evidence·disposable Git 저장소와
 시험 template DB는 외부 임시 작업 영역에 남아 있으며 운영 데이터는 변경하지 않았다.
-구버전 설치 cache는 실패 재현용으로 보존했다.
+작성 당시 구버전 설치 cache는 실패 재현용으로 보존했다.
+
+2026-11-10 보존 상태 재확인: OS 임시 디렉터리의 파일 정리로 당시 raw 로그·시험 DB는
+유실되었다. 이 보고서의 관찰 결과와 Git 기록은 남아 있으며 raw 재조회가 가능하다는
+의미로 해석하지 않는다. 재개 후 모든 새 증거는 영구 작업 경로에 저장한다.
 
 ## Conclusion
 
