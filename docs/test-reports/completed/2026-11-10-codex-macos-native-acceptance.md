@@ -203,3 +203,14 @@ C5의 과거 제한 환경 build 차단은 informational 기록이며 현재 판
 - [x] 모델 없는 계약과 실제 역할 인수를 구분했다.
 - [x] 전체 역할·유휴·정리·CI 결과를 확정했다.
 - [x] docs:check와 민감정보 최종 검토 뒤 완료 경로로 이동했다.
+
+## 완료 후 통합 메모
+
+검증 중 `dev`에 들어온 화면·문서 개선 `295082ceb5349aab189518779286c7449f862cfc`를
+통합하면서 verification 문서의 목록 충돌만 해결했다. 설치 payload·서버·MCP route·
+공통 정책·의존성·DB schema·실제 모델 리허설은 검증 시점과 같은 바이트를 유지한다.
+플러그인 트리의 차이는 앞서 기록한 두 Git 시험 fixture 설정뿐이다.
+
+통합 후 `check` 330 pass·2 skip, architecture 230 pass·2 skip, FSD·server 경계와
+기본 Turbopack build가 다시 통과했다. 이 통합은 위 실제 모델 실행의 identity를 바꾸지 않으며,
+비교 결과와 새 build ID는 외부 `post-acceptance-integration.json`에 보존했다.

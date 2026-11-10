@@ -19,13 +19,16 @@ it("the document title and description are the lines product-copy.md §16 locks"
   assert.deepEqual([LANDING_TITLE, LANDING_DESCRIPTION], copyLock("landing-meta"));
 });
 
-it("preserves the landing paragraph and sign-in controls while linking both states to Docs", () => {
+it("shows the documented landing copy and setup link in both sign-in states", () => {
   for (const signedIn of [false, true]) {
     const html = renderToStaticMarkup(createElement(LandingPage, { signedIn, signInAction: async () => {} }));
     assert.ok(visibleText(html).includes(LANDING_INTRO));
-    const missing = missingUnits(copyLock("landing-intro"), html);
-    assert.deepEqual(missing, [], lockFailure("landing-intro", missing));
+    for (const lock of ["landing-intro", "landing-workflow"]) {
+      const missing = missingUnits(copyLock(lock), html);
+      assert.deepEqual(missing, [], lockFailure(lock, missing));
+    }
     assert.equal([...html.matchAll(/href="\/docs"/g)].length, 2);
+    assert.match(html, /<a\b[^>]*href="\/docs\/getting-started"[^>]*>View setup guide<\/a>/);
     assert.ok(visibleText(html).includes(signedIn ? "Open projects" : "Continue with GitHub"));
   }
 });

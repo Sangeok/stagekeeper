@@ -20,7 +20,6 @@ export type PipelineSettingsActions = {
   rename: (id: string, name: string) => Promise<ActionResult<null>>;
   setDefault: (id: string) => Promise<ActionResult<null>>;
   setRule: (type: string, id: string | null) => Promise<ActionResult<null>>;
-  setAutomaticPick: (enabled: boolean) => Promise<ActionResult<null>>;
 };
 type Props = {
   projectId: string; pipelines: PipelineSnapshot[]; rules: Record<string, string>;

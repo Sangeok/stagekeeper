@@ -77,3 +77,10 @@ it("reference cards preserve their nested gate summary and readonly navigation w
   }
   assert.equal(saves, 0);
 });
+
+it("renders the automatic-run warning for an ungated runnable graph", () => {
+  const html = renderToStaticMarkup(createElement(PipelineRail, { ...props, editable: true,
+    definition: { steps: ["plan", "implement", "accept"], gates: [] } }));
+  assert.match(html, /No approval gates: these steps continue automatically once the run starts\./);
+  assert.doesNotMatch(html, /No gate: plan and implementation start/);
+});

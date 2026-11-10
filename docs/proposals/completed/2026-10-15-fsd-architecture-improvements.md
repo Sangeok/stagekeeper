@@ -121,7 +121,7 @@ Should는 의미 있는 정확성·변경 위험, Consider는 근거가 있는 �
 - [manage-token.server.ts:12](../../../src/fsd/features/manage-token/api/manage-token.server.ts#L12)
 - [edit-backlog.server.ts:11](../../../src/fsd/features/edit-backlog/api/edit-backlog.server.ts#L11)
 - [edit-pipeline.server.ts:13](../../../src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts#L13)
-- [automatic-scout.server.ts:9](../../../src/fsd/features/edit-pipeline/api/automatic-scout.server.ts#L9)
+- [automatic-scout.server.ts:9](https://github.com/Sangeok/stagekeeper/blob/087a8bedddae1e36aa4ffbd8046ed799386ee598/src/fsd/features/edit-pipeline/api/automatic-scout.server.ts#L9)
 
 공통 [requireProjectOwner:15](../../../src/server/auth/guard.ts#L15)도 로그인 확인 뒤 원값을 `findFirst`의 `where.slug`에 넣는다.
 생성된 Prisma `ProjectWhereInput.slug` 계약은 문자열과 `StringFilter`를 모두 허용한다.

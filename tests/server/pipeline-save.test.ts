@@ -52,8 +52,17 @@ it("actual action preserves authority, accepts fragments and revalidates success
   assert.deepEqual(refreshes, [["/(app)/p/[slug]", "layout"]]);
 });
 
-if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh build exposes pipeline Actions but not the private draft model", () => {
-  assertActions("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", ["savePipeline"]);
-  assertActions("src/fsd/features/edit-pipeline/api/automatic-scout.server.ts", ["saveAutomaticScout"]);
-  assert.ok(!manifestEntries().some(entry => entry.filename?.replaceAll("\\", "/").endsWith("src/fsd/features/edit-pipeline/model/pipeline-draft-state.ts")));
+if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") it("fresh build exposes ten live pipeline Actions without legacy automation or private draft exports", () => {
+  const actions = {
+    "edit-pipeline.server.ts": ["savePipeline"],
+    "pipeline-settings.server.ts": ["archivePipelineAction", "renamePipelineAction", "setDefaultPipelineAction", "setPipelineRuleAction"],
+    "run-pipeline.server.ts": ["prepareRunAction", "startRunAction", "startProjectRunAction", "stopProjectRunAction", "approveProjectGateAction"],
+  };
+  for (const [file, names] of Object.entries(actions)) assertActions(`src/fsd/features/edit-pipeline/api/${file}`, names);
+  const entries = manifestEntries().filter(entry => entry.filename?.replaceAll("\\", "/").includes("src/fsd/features/edit-pipeline/"));
+  for (const entry of entries) {
+    const owner = Object.entries(actions).find(([file]) => entry.filename?.replaceAll("\\", "/").endsWith(`src/fsd/features/edit-pipeline/api/${file}`));
+    assert.ok(owner && entry.exportedName && owner[1].includes(entry.exportedName), "only live Action owners may be registered");
+  }
+  assert.deepEqual([...new Set(entries.map(entry => entry.exportedName))].sort(), Object.values(actions).flat().sort());
 });

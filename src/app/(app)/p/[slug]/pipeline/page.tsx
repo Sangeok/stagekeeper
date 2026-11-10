@@ -1,5 +1,5 @@
 import { allowsPipelineEdit } from "@harness/core/pipeline/pipeline.mjs";
-import { savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, setAutomaticPickAction, prepareRunAction, startRunAction, startProjectRunAction, stopProjectRunAction, approveProjectGateAction } from "@/fsd/features/edit-pipeline/index.server";
+import { savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, prepareRunAction, startRunAction, startProjectRunAction, stopProjectRunAction, approveProjectGateAction } from "@/fsd/features/edit-pipeline/index.server";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";
 import { prisma } from "@/server/db";
@@ -23,7 +23,7 @@ export default async function Page({ params, searchParams }: PageProps<"/p/[slug
       projectId={projectId}
       pipelines={view.pipelines}
       rules={view.rules}
-      actions={{ archive: archivePipelineAction.bind(null, slug), rename: renamePipelineAction.bind(null, slug), setDefault: setDefaultPipelineAction.bind(null, slug), setRule: setPipelineRuleAction.bind(null, slug), setAutomaticPick: setAutomaticPickAction.bind(null, slug) }}
+      actions={{ archive: archivePipelineAction.bind(null, slug), rename: renamePipelineAction.bind(null, slug), setDefault: setDefaultPipelineAction.bind(null, slug), setRule: setPipelineRuleAction.bind(null, slug) }}
       now={new Date()}
       plan={access.plan}
       roster={roster}

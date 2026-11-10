@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SiteHeader } from "@/fsd/widgets/site-header";
 import { statusLabel } from "@/fsd/entities/board-item";
 import { gateActionLabel, gateActionHint } from "@/fsd/entities/pipeline";
 import { cn } from "@/fsd/shared/lib/class-name";
@@ -26,46 +27,39 @@ const CYCLE: { n: number; label: string; you?: true }[] = [
 const FACTS = [
   {
     title: "Agents can't approve themselves.",
-    body: "Gates are where you put them — you decide how many and where, on the Pipeline tab. Opening one is yours, in the Inbox or from your own session with an owner token. The agent token has neither the gate nor the settings — not by policy text, by the toolset.",
+    body: "Review plans and open approval gates in the Inbox. Work agents cannot open gates or change the pipeline.",
   },
   {
     title: "No pass without a record.",
-    body: "An item shows Verified only when an independent pass wrote one. Otherwise it says so.",
+    body: "Follow each item's plans, approvals, and reports. Verified and Accepted appear only when their supporting records exist.",
   },
   {
-    title: "State in one place, files in yours.",
-    body: "The board lives in Stagekeeper. Plans and reports are committed next to the code, in your repository.",
+    title: "Runs in your repository.",
+    body: "Claude Code runs the agents in your repository. Plans and reports are committed alongside your code; Stagekeeper keeps their references.",
   },
 ];
 
 export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; signInAction: () => Promise<void> }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-rule">
-        <div className="mx-auto flex w-full max-w-[1040px] items-center justify-between px-4 py-3.5 md:px-6">
-          <Link href="/" className="font-semibold tracking-[-0.01em]">
-            Stagekeeper
+      <SiteHeader>
+        {signedIn ? (
+          <Link href={projectsPath()} className="text-sm underline underline-offset-[3px]">
+            Open projects
           </Link>
-          <nav aria-label="Main navigation" className="flex items-center gap-5">
-            <Link href={docsPath("overview")} className="text-sm underline underline-offset-[3px]">Docs</Link>
-          {signedIn ? (
-            <Link href={projectsPath()} className="text-sm underline underline-offset-[3px]">
-              Open projects
-            </Link>
-          ) : (
-            <form action={signInAction}>
-              <button type="submit" className="text-sm underline underline-offset-[3px]">
-                Sign in
-              </button>
-            </form>
-          )}
-          </nav>
-        </div>
-      </header>
+        ) : (
+          <form action={signInAction}>
+            <button type="submit" className="text-sm underline underline-offset-[3px]">
+              Sign in
+            </button>
+          </form>
+        )}
+      </SiteHeader>
 
       <main className="mx-auto w-full max-w-[1040px] px-4 pb-[72px] md:px-6">
         <section className="grid items-start gap-10 py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-14 md:py-[88px]">
           <div>
+            <p className="mb-4 text-sm font-medium text-quiet">Approval gates for Claude Code</p>
             <h1 className="text-[clamp(34px,4.2vw,54px)] leading-[1.02] font-semibold tracking-[-0.03em] text-balance">
               {HEADLINE.agents}
               <br />
@@ -74,7 +68,7 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
             <p className="mt-[22px] max-w-[52ch] text-[17px] leading-[26px] text-quiet">
               {LANDING_INTRO}
             </p>
-            <div className="mt-[30px]">
+            <div className="mt-[30px] flex flex-wrap items-center gap-x-5 gap-y-3">
               {signedIn ? (
                 <ButtonLink variant="mine" href={projectsPath()} className="px-4 py-[9px] text-[15px] leading-[22px]">
                   Open projects
@@ -86,16 +80,20 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
                   </button>
                 </form>
               )}
+              <Link href={docsPath("getting-started")} className="text-sm underline underline-offset-[3px]">
+                View setup guide
+              </Link>
             </div>
+            <p className="mt-3 max-w-[52ch] text-xs leading-5 text-quiet">Connect a GitHub repository and install the Claude Code plugin to start.</p>
           </div>
           <div className="min-w-0">
             <InboxDemo />
-            <p className="mt-2.5 text-center text-xs text-quiet">Your inbox when a plan is ready for you.</p>
+            <p className="mt-2.5 text-center text-xs leading-5 text-quiet">Example: a verified plan awaiting approval on Pro or Max.</p>
           </div>
         </section>
 
         <section className="border-t border-rule py-11">
-          <h2 className="mb-[22px] text-[11px] font-medium uppercase leading-4 tracking-[0.06em] text-quiet">The cycle you&apos;ll run</h2>
+          <h2 className="mb-[22px] text-[11px] font-medium uppercase leading-4 tracking-[0.06em] text-quiet">An example workflow</h2>
           <ol className="grid gap-3.5 md:grid-cols-7 md:gap-0">
             {CYCLE.map((step) => (
               <li
@@ -119,7 +117,8 @@ export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; sig
               </li>
             ))}
           </ol>
-          <p className="mt-[26px] text-[15px]">Two of these stop for you today — 2 and 5. The rest you run in your own Claude Code.</p>
+          <p className="mt-[26px] text-[15px]">By default, the pipeline waits for you before planning and implementation.</p>
+          <p className="mt-2 max-w-[80ch] text-sm leading-[21px] text-quiet">Free uses a fixed pipeline. Pro and Max add independent plan verification and let you change steps and approval gates.</p>
         </section>
 
         <section className="grid gap-7 border-t border-rule pt-11 md:grid-cols-3 md:gap-8">

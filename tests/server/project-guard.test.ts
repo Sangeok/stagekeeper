@@ -18,7 +18,6 @@ const guardPath = "src/server/auth/guard.ts";
 const tokenPath = "src/fsd/features/manage-token/api/manage-token.server.ts";
 const backlogPath = "src/fsd/features/edit-backlog/api/edit-backlog.server.ts";
 const pipelinePath = "src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts";
-const scoutPath = "src/fsd/features/edit-pipeline/api/automatic-scout.server.ts";
 const reviewPath = "src/fsd/features/review-gate/api/review-gate.server.ts";
 const proposePath = "src/fsd/features/propose-item/api/propose-item.server.ts";
 const malformedSlugs: unknown[] = [undefined, null, 3, [], {}, { not: "mine" }, "", " \n "];
@@ -48,7 +47,6 @@ const actions: ActionCase[] = [
   { file: backlogPath, name: "updateBacklogItem", args: () => ["KEY", { status: "idle" }, backlogForm()], paths: backlogPaths, result: { status: "saved" } },
   { file: backlogPath, name: "removeBacklogItem", args: () => ["KEY"], paths: backlogPaths, result: { status: "saved" } },
   { file: pipelinePath, name: "savePipeline", args: () => [{ pipelineId: "default", definition: { steps: defaultGraph("pro").nodes, gates: defaultGraph("pro").gates }, expectedVersion: 0 }], paths: [[routes.PROJECT_LAYOUT_REVALIDATE_PATH, "layout"]], result: { status: "success", pipelineId: "default", version: 1 } },
-  { file: scoutPath, name: "saveAutomaticScout", args: () => [true], paths: [["/p/mine", "layout"]], result: results.success(true) },
   { file: reviewPath, name: "retryAcceptance", args: () => [{ key: "KEY", expectedUpdatedAt: timestamp }], paths: reviewPaths, result: results.success() },
   { file: reviewPath, name: "humanTransition", args: () => [{ key: "KEY", to: "on_hold", result: "", expectedUpdatedAt: timestamp }], paths: reviewPaths, result: results.success() },
   { file: reviewPath, name: "approveGate", args: () => [{ key: "KEY", gate: "before-implement", expectedUpdatedAt: timestamp }], paths: reviewPaths, result: results.success() },
@@ -106,7 +104,7 @@ function guardFixture(options: GuardOptions = {}) {
     },
     "@/server/tokens/api": { renameProjectToken: mutation("rename") },
     "@/server/pipeline/api.server": Object.fromEntries(["addBacklog", "updateBacklog", "removeBacklog", "retryAcceptance", "transition", "gate", "discard", "propose"].map(name => [name, mutation(name)])),
-    "@/server/pipeline/api": { ...({ savePipelineDefinition: mutation("savePipeline", { status: "success", pipelineId: "default", version: 1 }) }), ...({ setAutomaticScout: mutation("saveAutomaticScout", { ok: true, item: true }) }) },
+    "@/server/pipeline/api": { savePipelineDefinition: mutation("savePipeline", { status: "success", pipelineId: "default", version: 1 }) },
 
   };
   return { guards, dependencies, events, queries, mutations, revalidated, exception, reason };
@@ -218,7 +216,7 @@ for (const target of actions) {
         const input = args[target.name.startsWith("rename") ? 1 : 0] as { projectId: string; userId: string };
         assert.equal(input.projectId, "owned-project"); assert.equal(input.userId, "viewer");
       }
-    } else if (target.file === pipelinePath || target.file === scoutPath) {
+    } else if (target.file === pipelinePath) {
       const input = args[1] as { projectId: string; userId: string };
       assert.equal(input.projectId, "owned-project"); assert.equal(input.userId, "viewer");
     } else assert.equal(args[0], "owned-project");

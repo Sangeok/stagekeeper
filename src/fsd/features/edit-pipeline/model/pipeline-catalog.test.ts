@@ -23,3 +23,9 @@ it("keeps an invalid reference discoverable by pipeline name", () => {
   assert.equal(entries[0].summary, "Steps unavailable");
   assert.equal(filterPipelines(entries, "verify").length, 1);
 });
+
+it("orders the catalog by name even when the default sorts last", () => {
+  const entries = catalogEntries([{ ...pipelines[1], name: "Z default" }, { ...pipelines[0], name: "A checks" }]);
+  assert.deepEqual(entries.map(entry => entry.name), ["A checks", "Z default"]);
+  assert.deepEqual(entries.map(entry => entry.id), ["checks", "dev"]);
+});
