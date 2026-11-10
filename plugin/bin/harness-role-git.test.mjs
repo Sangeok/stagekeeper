@@ -14,7 +14,7 @@ const host = { skip: process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1" };
 function fixture(t, lifecycle = {}) {
   const base = mkdtempSync(path.join(temporary, "harness-git-test-")), root = path.join(base, "repo");
   mkdirSync(root); mkdirSync(path.join(root, "foreign"));
-  const git = (...args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const git = (...args) => execFileSync("git", ["-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   git("init");
   const file = path.join(root, "code.txt"); writeFileSync(file, "before\n");
   writeFileSync(path.join(root, "foreign/private.txt"), "DENIED_CANARY\n");

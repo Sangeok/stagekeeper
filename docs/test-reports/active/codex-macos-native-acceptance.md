@@ -8,8 +8,8 @@ test-levels: ['static', 'contract', 'integration', 'end-to-end']
 test-tools: ['Codex CLI', 'Node test runner', 'PostgreSQL', 'Playwright MCP', 'scripts/rehearsals/rehearse-codex-macos.mjs']
 created-at: '2026-11-05'
 completed-at: null
-last-executed-at: '2026-11-10T08:23:04Z'
-tested-revision: '84e6053dc66b42400db69bdf3da7741f9bb46896; native candidate 0.6.9; test fixtures corrected in 9a7ed159993f4f27c77c96b21beffb5cff66facf'
+last-executed-at: '2026-11-10T09:48:23Z'
+tested-revision: 'f882bb96450580d51dc63f142d19531a67185132; native candidate 0.6.10'
 owners: ['user:Sangeok']
 related: ['docs/architecture/macos-runtime.md', 'docs/test-reports/completed/2026-11-05-codex-macos-initial-trials.md']
 primary-area: 'codex/macos-runtime'
@@ -30,7 +30,8 @@ follow-up: []
 Mac 덮개 닫힘 절전으로 중단됐다. 0.6.8의 R1 검토에서 재계획 인계와 검토 보류 도구의
 누락을 확인했다. 이를 수정한 0.6.9를 AC 전원·임시 절전 방지 상태에서 재시험 중이다.
 첫 0.6.9 실행은 구현·독립 구현 검증·Chrome QA·최종 인수를 완료했지만, 시험자의 진단 코드가
-runner를 종료시켰다. 같은 설치 payload의 새 재생을 준비했다. 전체 완료와 110분 유휴 관찰 전에는
+runner를 종료시켰다. 이후 복사본의 Git 경로 정책 누락을 별도 합성 시험으로 재현·수정했다.
+0.6.10 설치본을 새 DB와 저장소에서 재생하고 있다. 전체 완료와 110분 유휴 관찰 전에는
 완료 판정을 내리지 않는다.
 
 ## Scope and Criteria
@@ -50,7 +51,7 @@ runner를 종료시켰다. 같은 설치 payload의 새 재생을 준비했다. 
 ## Test Target
 
 - Working tree: 격리 task branch에서 실행하며 원래 사용자 worktree는 보존했다.
-- Bundle: 2,072 files; SHA-256 `22964fe141fdcb1f2e71abd04b328bee1bd29e93683f04c444cf304f379a56d3`.
+- Bundle: 2,072 files; SHA-256 `3867f8eff90be2860a6c3859008afceaa4916b560ab67e4e0bf24e7f15a461c8`.
 - Runtime: Node 22.23.3; native executable SHA-256
   `68f4d07ca49e0500cc135c7e0a445093e228e42e126ac22306d045f0a8c2636b`.
 - Test server: 별도 PostgreSQL 18.4와 loopback production Turbopack build. helper PATH에는 global Node 없음.
@@ -74,8 +75,8 @@ Git 저장소만 생성하고 runner 정지 확인 후 DB fixture를 제거한�
 | T1 | R1 | `required` | 설치 inventory·실제 init | 모든 hash·mode 일치, global Node 없이 연결 | E1: 2,072 files 일치, installed-init 완료 | `PASS` |
 | T2 | R2 | `required` | native 경계·종료·double-supervisor recovery | 파일·network 제한과 소유 후손 정리 | E2: native 12 tests 통과, 외부·금지·변경된 hardlink 거부 포함 | `PASS` |
 | T3 | R2 | `required` | 실제 CLI 정책 preflight | effective config·skills·thread·정리 | E3: 모델 미호출·quiescent true | `PASS` |
-| T4 | R3 | `required` | 실제 모델 전체 graph | 모든 선택 역할·인수·log 커밋 | 0.6.9 첫 실행의 인수 뒤 진단 중단, 동일 payload 재생 예정; E15 | `NOT RUN` |
-| T5 | R3 | `required` | 실제 Chrome QA 역할 | build commit과 시나리오·console·network 근거 | 0.6.9의 QA report/ok 수락·종료 및 보고서 커밋 확인 | `PASS` |
+| T4 | R3 | `required` | 실제 모델 전체 graph | 모든 선택 역할·인수·log 커밋 | 0.6.10 실행 중; 이전 중단은 E15·E16 | `NOT RUN` |
+| T5 | R3 | `required` | 실제 Chrome QA 역할 | build commit과 시나리오·console·network 근거 | 0.6.10 관찰 예정. 0.6.9의 네 시나리오와 QA report/ok 성공은 보존 | `NOT RUN` |
 | T6 | R4 | `required` | 110분 idle·stop | 새 모델·run 없음, owner release | 현재 전체 graph 뒤 관찰 예정 | `NOT RUN` |
 | T7 | R2 | `required` | provenance·오래된 reader | 손상 거부, unresolved v2 lock 보존 | E4: provenance 9 tests, 출시 25개 reader 보존 | `PASS` |
 | T8 | R3 | `informational` | 실제 Playwright MCP transport | 입력·snapshot·screenshot·재조회·범위 거부 | E5: 9 checks 통과; 역할 인수 대체 아님 | `PASS` |
@@ -86,12 +87,12 @@ Git 저장소만 생성하고 runner 정지 확인 후 DB fixture를 제거한�
 
 | ID | 연결 대상 | Gate | 명령/방법 | 성공 기준 | 실제 결과 및 Evidence ID | 판정 |
 | --- | --- | --- | --- | --- | --- | --- |
-| C1 | R5 | `required` | npm test 전체 패턴을 bundled Node 22에서 직렬 실행 | 관련 모든 회귀 통과 | E6: 최종 9a7ed15에서 636 pass, 28 platform skip, 0 fail | `PASS` |
-| C2 | R5 | `required` | `npm run check` | lint·경계·type·script 통과 | E6: 최종 9a7ed15에서 script 330 pass, 2 skip, 0 fail | `PASS` |
-| C3 | R5 | `required` | `npm run test:architecture` | architecture subset 통과 | E6: 최종 9a7ed15에서 230 pass, 2 skip, 0 fail | `PASS` |
+| C1 | R5 | `required` | npm test 전체 패턴을 bundled Node 22에서 직렬 실행 | 관련 모든 회귀 통과 | E6: f882bb9에서 637 pass, 28 platform skip, 0 fail | `PASS` |
+| C2 | R5 | `required` | `npm run check` | lint·경계·type·script 통과 | E6: f882bb9에서 script 330 pass, 2 skip, 0 fail | `PASS` |
+| C3 | R5 | `required` | `npm run test:architecture` | architecture subset 통과 | E6: f882bb9에서 230 pass, 2 skip, 0 fail | `PASS` |
 | C4 | R5 | `required` | 기본 `npm run build` | type·route build 완료 | E7: Turbopack production build exit 0 | `PASS` |
 | C5 | R5 | `informational` | 이전 후보 build | 기존 환경 제한 보존 | E7: 11월 5일 기본 build는 port bind EPERM, Webpack은 통과 | `BLOCKED` |
-| C6 | R2/R5 | `required` | macOS arm64/x64 CI | bundle 빌드·native 계약·전체 project build 통과 | E10: 9a7ed15의 두 아키텍처 모두 PASS | `PASS` |
+| C6 | R2/R5 | `required` | macOS arm64/x64 CI | bundle 빌드·native 계약·전체 project build 통과 | f882bb9 Intel 통과, arm64는 시험 Git 유지보수 경합으로 실패. fixture 수정 뒤 재검증 예정 | `FAIL` |
 
 ## Evidence Registry
 
@@ -111,9 +112,10 @@ Git 저장소만 생성하고 runner 정지 확인 후 DB fixture를 제거한�
 | E13 | R1 replay | 0.6.8은 세 독립 검토의 결함 보고 뒤 owner service로 planning에 반환했다. 개발 역할이 이전 plan을 현재 handoff 없이 다시 제출한 사실을 확인해 후보를 중단했다. 0.6.9에서 현재 handoff 없는 제출 거부와 검토 on_hold의 제한된 proxy를 추가 검증했다 | 외부 영구 경로의 v68 final ledger·owner-plan-return, 단위·계약 시험 |
 | E14 | implementation check | 0.6.9에서 숫자 보존·숫자 단어 경계와 ASCII 문자 40개 사례를 별도 native snapshot으로 실행해 exit 0, quiescent:true, originalRepositoryWrites:false 확인 | 외부 영구 경로의 v69-independent-digit-check |
 | E15 | diagnostic interruption | 첫 0.6.9 실행의 긴 code-mode 대기는 해소되어 09:33:11Z 인수, 09:33:27Z 문서 감사 dispatch까지 진행했다. 이후 시험자가 붙인 임시 loopback inspector의 cleanup 표현식에서 동적 import 거부를 처리하지 않아 runner가 종료됐다. 제품 결함이나 통과로 바꾸지 않고 시험 도구 실패로 보존했다 | 외부 영구 경로의 diagnostic-interruption·원본 summary·final ledger |
+| E16 | file policy regression | 커밋된 합성 `.azure`·명시적 제외 디렉터리·환경 파일을 직접 파일 정책은 거부하지만 구현 Git이 일부 되살리는 결함을 재현했다. 원래 구현은 Missing expected rejection으로 실패했고, 동일 원본 broker를 checkout/show/history/restore에 적용한 뒤 정상 baseline·mutation과 함께 2개 시험 통과 | 외부 영구 경로의 implementation-policy-before-corrected·after-corrected; source regression test |
 
 현재 rehearsal source SHA-256은 `2c5ea56edac31ba926419fd4564a086926c52456738a9cba8c4bed3a3eb401fe`이다.
-실행 payload는 84e6053이며 이후 9a7ed15는 두 시험 fixture의 누락된 repository binding만 고쳤다.
+현재 실행 payload는 f882bb9다. 이전 84e6053 이후 9a7ed15는 두 시험 fixture의 누락된 repository binding만 고쳤다.
 시험 서버 build는 애플리케이션 파일이 같은 fa973e2의 build를 유지했다.
 이전 강화된 재시험은 `668cd507e6288ab7d81ea46aae3f51e4b912e45202603c05f0ca1c894abdb6ab`였다.
 처음 0.6.7 실행은 `9babd6b891b86ccf3b34992f4798611f5360f4153d88312fc48eba25e583bce6`였으며
@@ -145,6 +147,16 @@ Sensitive-data review: 공개 문서에는 token·account/session·개인 경로
   안전한 거부 이유에 명시했고, 거부 검증은 유지했다. 이를 감지하면 시험도 즉시 실패하도록 보강했다.
 - 공통/Windows CI의 alias 거부 문구 회귀를 수정했다. 이어 최신 dev에서 DB 검증 함수가
   이동해 생긴 static import 실패도 통합했다. 이력의 실패를 재시도로 덮지 않고 수정 commit과 연결한다.
+- 두 번째 0.6.9 실행은 E16을 수정하기 위해 계획 단계에서 명시적으로 중단했다. 중단이
+  unsettled ownership을 남겨 프로세스 부재 확인·정확한 session 반납·fixture 삭제를 따로 수행했다.
+- 첫 0.6.10 전체 unit 실행은 이전 설치 cache의 Node 경로로 시작했다. 설치 업데이트가
+  그 cache를 제거하면서 이후 자식 시험의 spawn ENOENT가 발생했다. 원래 실패 로그는 보존하고,
+  업데이트와 무관한 source runtime의 동일 Node 22.23.3으로 전체 패턴을 다시 실행해
+  637 pass·28 platform skip·0 fail을 확인했다.
+- f882bb9의 arm64 CI는 Git 시험 fixture의 자동 유지보수가 `objects/maintenance.lock`을
+  제거하는 시점과 읽기가 겹쳐 실패했다. Intel의 계약·전체 build와 다른 CI는 통과했다.
+  시험 fixture의 Git 호출에만 maintenance.auto=false·gc.auto=0을 적용했으며,
+  관련 13개 시험 통과·2개 환경별 제외를 확인했다. 제품의 변경 중 객체 거부 정책은 유지한다.
 
 ## Findings and Follow-up
 
