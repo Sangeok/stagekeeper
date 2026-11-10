@@ -69,7 +69,7 @@ it("maps the runner view to banner facts for the project it was asked about", as
   assert.deepEqual(asked, ["p"]);
   assert.deepEqual(JSON.parse(JSON.stringify(data.runner)), {
     runner: { client: "codex", mode: "resident", host: "desk", branch: "fixture", permission: "scoped", autostart: false, state: "working", waitReason: null, stopReason: null, signinCode: null,
-      seenAt: new Date(2_000).toISOString(), idleSince: null, lastActivity: new Date(4_000).toISOString() },
+      limitedUntil: null, seenAt: new Date(2_000).toISOString(), idleSince: null, lastActivity: new Date(4_000).toISOString() },
     paused: true, renderedAt: new Date(5_000).toISOString(),
   });
 });
@@ -87,6 +87,10 @@ it("passes a refused sign-in start's code to the banner and never the stored tex
   assert.equal(exports.runnerFacts(row("signin", "push-url")).runner?.signinCode, "push-url");
   assert.equal(exports.runnerFacts(row("signin", "free text")).runner?.signinCode, "other");
   assert.equal(exports.runnerFacts(row("owner", "dirty")).runner?.signinCode, null);
+  assert.equal(exports.runnerFacts(row(null, "limited: Claude usage limit until 2026-11-10T09:21Z")).runner?.limitedUntil, "2026-11-10T09:21:00.000Z");
+  for (const lastResult of [null, "done: 3 turns, 0 denied", "limited: resets 6:20pm (Asia/Seoul)"]) {
+    assert.equal(exports.runnerFacts(row(null, lastResult)).runner?.limitedUntil, null, String(lastResult));
+  }
 });
 
 it("retains the awaited project existence failure before deriving any banner", async () => {

@@ -79,3 +79,19 @@ export function runnerStatus(row, lastActivity, now) {
 export function holdsRunnerLease(row, lastActivity, now) {
   return runnerStatus(row, lastActivity, now) === "live";
 }
+
+const LIMITED_RESULT = "limited: Claude usage limit until ";
+const LIMITED_LINE = /^limited: Claude usage limit until (\d{4}-\d{2}-\d{2}T\d{2}:\d{2})Z$/;
+
+/** @param {Date} resumeAt @returns {string} */
+export function limitedResult(resumeAt) {
+  return `${LIMITED_RESULT}${new Date(time(resumeAt, "resumeAt")).toISOString().slice(0, 16)}Z`;
+}
+
+/** @param {string | null | undefined} lastResult @returns {Date | null} */
+export function limitedUntil(lastResult) {
+  const minute = typeof lastResult === "string" ? LIMITED_LINE.exec(lastResult)?.[1] : undefined;
+  if (minute === undefined) return null;
+  const value = new Date(`${minute}:00.000Z`);
+  return !Number.isNaN(value.getTime()) && value.toISOString().slice(0, 16) === minute ? value : null;
+}

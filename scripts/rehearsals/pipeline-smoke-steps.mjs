@@ -83,6 +83,7 @@ export function waitVerdict({ next, boardStatus, runner, waitingMs, handoffMs = 
   if (next?.action === "wait" && Object.hasOwn(WAIT_FAILURES, next.on)) return { verdict: "fail", step: WAIT_FAILURES[next.on] };
   if (next?.action === "wait" && next.on === "handoff" && handoffMs >= HANDOFF_LIMIT_MS) return { verdict: "fail", step: "item-handoff" };
   if (runner?.running === false) return { verdict: "fail", step: "runner-ended" };
+  if (runner?.limitedUntil) return { verdict: "fail", step: "claude-usage-limit" };
   if (runner?.state === "waiting" && waitingMs >= RUNNER_WAIT_LIMIT_MS) return { verdict: "fail", step: "runner-waiting" };
   if (now >= deadline) return { verdict: "fail", step: timeoutStep };
   return { verdict: "wait" };
@@ -98,7 +99,7 @@ const MODEL = /^claude-[a-z0-9-]{1,60}$/;
 const TOOL = /^[a-z_]{1,40}$/;
 const HARNESS_TOOL = /^mcp__harness__([a-z_]{1,40})$/;
 const AGENT_TOOLS = ["Agent", "Task"];
-const RUN_LINE = /^(?:done: (?:\d+|\?) turns, \d+ denied|error: (?:[a-z_]{1,40}(?: \([a-z_]{1,40}\))?|no result|exit -?\d+)|ended: (?:the branch changed|time limit|runner stopping))$/;
+const RUN_LINE = /^(?:done: (?:\d+|\?) turns, \d+ denied|error: (?:[a-z_]{1,40}(?: \([a-z_]{1,40}\))?|no result|exit -?\d+)|ended: (?:the branch changed|time limit|runner stopping)|limited: Claude usage limit until \d{4}-\d{2}-\d{2}T\d{2}:\d{2}Z)$/;
 
 export function runFindings(streams, transcripts = []) {
   const names = new Map();

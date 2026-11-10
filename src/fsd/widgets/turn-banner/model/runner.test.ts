@@ -13,7 +13,7 @@ const ago = (minutes: number) => new Date(RENDERED - minutes * 60_000).toISOStri
 const runner = (patch: Partial<TurnRunner> = {}): TurnRunner => ({
   client: "claude",
   mode: "session", host: "desk", branch: null, permission: null, autostart: false, state: "idle",
-  waitReason: null, stopReason: null, signinCode: null, seenAt: ago(1), idleSince: null, lastActivity: null, ...patch,
+  waitReason: null, stopReason: null, signinCode: null, limitedUntil: null, seenAt: ago(1), idleSince: null, lastActivity: null, ...patch,
 });
 const facts = (value: TurnRunner | null, paused = false): RunnerFacts => ({ runner: value, paused, renderedAt: new Date(RENDERED).toISOString() });
 const text = (value: RunnerFacts, now = RENDERED) => { const line = runnerLine(value, now); return line === null ? null : lineText(line); };
@@ -77,6 +77,24 @@ describe("runnerLine", () => {
     const base = { mode: "resident" as const, branch: "main", permission: "auto" as const, state: "waiting" as const };
     assert.equal(text(facts(runner({ ...base, waitReason: "dirty" }))), "Runner on desk is waiting: commit or stash the changes on main, and it continues.");
     assert.equal(text(facts(runner({ ...base, waitReason: "branch" }))), "Runner on desk is waiting: switch back to main, and it continues.");
+  });
+
+  it("says a live idle background runner waits for Claude's usage limit until its resume time", () => {
+    const resident = { mode: "resident" as const, branch: "main", permission: "auto" as const };
+    const limited = (minutes: number, patch: Partial<TurnRunner> = {}, paused = false) =>
+      facts(runner({ ...resident, limitedUntil: new Date(RENDERED + minutes * 60_000).toISOString(), ...patch }), paused);
+    assert.equal(text(limited(37)), "Runner on desk is waiting for Claude's usage limit and continues in about 37 min.");
+    assert.equal(text(limited(0.2)), "Runner on desk is waiting for Claude's usage limit and continues in about 1 min.");
+    assert.equal(text(limited(59.5)), "Runner on desk is waiting for Claude's usage limit and continues in about 1 h.");
+    assert.equal(text(limited(200)), "Runner on desk is waiting for Claude's usage limit and continues in about 3 h.");
+    assert.equal(text(limited(37, { autostart: true })), "Runner on desk is waiting for Claude's usage limit and continues in about 37 min. · starts at sign-in");
+    assert.equal(short(limited(37)), "Runner: waiting on desk");
+    assert.equal(text(limited(-1)), "Runner: running in the background on desk (main) · checked 1 min ago");
+    assert.equal(short(limited(-1)), "Runner: running on desk");
+    assert.equal(text(limited(37, { state: "working" })), "Runner: working in the background on desk (main) · checked 1 min ago · pause before you edit main");
+    assert.equal(text(limited(37, {}, true)), "Runner paused — it starts nothing new.");
+    assert.equal(text(limited(37, { seenAt: ago(5) })), "No signal from the runner on desk for 5 min.");
+    assert.equal(text(limited(37, { state: "stopped", stopReason: "error" })), "Runner on desk stopped: it hit an error — check the session or its log. Start it again in Claude Code.");
   });
 
   it("adds the autostart and allow-list marks to a live resident runner", () => {

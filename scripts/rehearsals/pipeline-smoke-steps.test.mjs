@@ -67,7 +67,7 @@ it("keeps only allowlisted values in the public summary", () => {
   const summary = summarizePipeline({
     os: "win32-x64", pluginCommit: "a".repeat(40), templatesCommit: "main", permission: "auto", runnerState: "idle", waitReason: "free text",
     steps: [{ step: "item-done", result: "pass" }, { step: `leak ${token}`, result: "pass" }],
-    runs: ["done: 12 turns, 0 denied", `model said ${token}`],
+    runs: ["done: 12 turns, 0 denied", `model said ${token}`, "limited: Claude usage limit until 2026-11-10T09:21Z", "limited: resets 6:20pm"],
     findings: { turns: 12, denials: 0, toolErrors: 5, agentCalls: 6, agentErrors: 0, costUsd: 3.456, models: ["claude-opus-5-5", "gpt-5"], harnessErrors: { assignment_context: 1, "Free Text": 2 } },
     stepRefusals: 0, minutesToDone: 31, sealed: true, seconds: 2400,
   });
@@ -77,7 +77,7 @@ it("keeps only allowlisted values in the public summary", () => {
   assert.equal(summary.runnerState, "idle");
   assert.equal(summary.waitReason, undefined);
   assert.deepEqual(summary.steps, [{ step: "item-done", result: "pass" }]);
-  assert.deepEqual(summary.runs, ["done: 12 turns, 0 denied"]);
+  assert.deepEqual(summary.runs, ["done: 12 turns, 0 denied", "limited: Claude usage limit until 2026-11-10T09:21Z"]);
   assert.deepEqual(summary.models, ["claude-opus-5-5"]);
   assert.deepEqual(summary.harnessErrors, { assignment_context: 1 });
   assert.equal(summary.toolErrors, undefined);
@@ -181,6 +181,9 @@ it("ends the wait on completion and fails early on states an unattended run cann
   }
   assert.deepEqual(waitVerdict({ ...base, next: { action: "wait", on: "unknown" } }), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, runner: { running: false, state: "stopped" } }), { verdict: "fail", step: "runner-ended" });
+  assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "idle", limitedUntil: "2026-11-10T09:21:00.000Z" } }),
+    { verdict: "fail", step: "claude-usage-limit" });
+  assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "idle", limitedUntil: null } }), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "waiting" }, waitingMs: RUNNER_WAIT_LIMIT_MS }), { verdict: "fail", step: "runner-waiting" });
   assert.deepEqual(waitVerdict({ ...base, runner: { running: true, state: "waiting" }, waitingMs: RUNNER_WAIT_LIMIT_MS - 1 }), { verdict: "wait" });
   assert.deepEqual(waitVerdict({ ...base, next: null, now: 1, timeoutStep: "item-assigned" }), { verdict: "fail", step: "item-assigned" });
