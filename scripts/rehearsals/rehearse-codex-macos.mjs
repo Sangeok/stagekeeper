@@ -23,6 +23,12 @@ export function countResidentModelStarts(log) {
   return count;
 }
 
+export function hasSuccessfulRoleRecord(run) {
+  if (run.closedAt == null || !Array.isArray(run.steps) || run.steps.some(step => step.accepted === true && ["failed", "blocked"].includes(step.outcome))) return false;
+  const terminal = run.agent === "app-dev" && !run.steps.some(step => step.stepId === "implement") ? "plan" : "report";
+  return run.steps.some(step => step.accepted === true && step.stepId === terminal && step.outcome === "ok");
+}
+
 export function parseMacosRehearsalArguments(args) {
   const values = {}, allowed = new Set(["--package", "--templates", "--work", "--browser-cli", "--idle-minutes"]);
   let models = false;
@@ -155,6 +161,7 @@ async function main(args) {
           if (next.gate === "before-scout") {
             await headFor(db, projectId);
             let pending = await db.pipelineWorkRun.findFirst({ where: { projectId, closedAt: null } });
+            if (pending?.assignedBoardItemId) return { stage: "before-scout", action: "wait", on: "assignment-report", status: board.status, accepted: board.acceptedAt !== null };
             if (!pending) {
               const prepared = await preparePipelineRun(db, projectId, userId, pipelineId); assert.equal(prepared.ok, true, prepared.reason);
               const opened = await startProjectWork(db, projectId, userId, pipelineId, prepared.item.graphKey); assert.equal(opened.ok, true, opened.reason);
@@ -192,11 +199,12 @@ async function main(args) {
     summary.ledger = await withPrisma(async db => {
       const board = await db.boardItem.findFirstOrThrow({ where: { projectId, backlogItem: { key: itemKey } }, orderBy: { proposedOn: "desc" }, include: { reports: true, backlogItem: true, run: true } });
       assert.ok(board.acceptedAt); assert.ok(board.backlogItem.removedAt); assert.ok(board.run?.closedAt);
-      const agents = await db.agentRun.findMany({ where: { projectId }, select: { agent: true, closedAt: true } });
+      const agents = await db.agentRun.findMany({ where: { projectId }, select: { agent: true, closedAt: true, steps: { select: { stepId: true, outcome: true, accepted: true } } } });
       const roles = [...new Set(agents.map(value => value.agent))];
       for (const role of ["work-assigner", "app-dev", "plan-verifier", "impl-verifier", "qa-verifier", "doc-auditor", "feature-scout"]) assert.ok(roles.includes(role), `Missing actual role: ${role}`);
       assert.ok(agents.every(value => value.closedAt !== null));
-      return { acceptedAt: board.acceptedAt.toISOString(), roles, runs: agents.length, reports: board.reports.length, closed: agents.every(value => value.closedAt !== null) };
+      assert.ok(agents.every(hasSuccessfulRoleRecord), "Every role must record successful steps and its terminal outcome; an owner stop is not role completion");
+      return { acceptedAt: board.acceptedAt.toISOString(), roles, runs: agents.length, reports: board.reports.length, closed: agents.every(value => value.closedAt !== null), successfulRoles: true };
     });
     const implementation = await import(pathToFileURL(path.join(repo, "src/slug.mjs")).href);
     assert.ok(caseResults(implementation.slugWords).every(Boolean));

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import path from "node:path";
-import { countResidentModelStarts, parseMacosRehearsalArguments } from "./rehearse-codex-macos.mjs";
+import { countResidentModelStarts, hasSuccessfulRoleRecord, parseMacosRehearsalArguments } from "./rehearse-codex-macos.mjs";
 
 const required = ["--package", path.resolve("package"), "--templates", path.resolve("templates"), "--work", path.resolve("evidence"), "--browser-cli", path.resolve("browser/cli.js")];
 
@@ -11,6 +11,23 @@ it("counts actual resident model starts without counting message text and refuse
   assert.equal(countResidentModelStarts(log), 2);
   assert.equal(countResidentModelStarts("Runner started\n"), 0);
   assert.throws(() => countResidentModelStarts(log + '\n2026-11-10T00:01:00Z {"event":'));
+});
+
+it("requires accepted terminal outcomes instead of treating an owner-closed run as completed work", () => {
+  const record = { agent: "work-assigner", closedAt: "2026-11-10T00:00:00Z", steps: [{ stepId: "propose", outcome: "ok", accepted: true }] };
+  assert.equal(hasSuccessfulRoleRecord(record), false);
+  for (const step of [{ stepId: "report", outcome: "ok", accepted: false }, { stepId: "report", outcome: "handoff", accepted: true }]) {
+    assert.equal(hasSuccessfulRoleRecord({ ...record, steps: [...record.steps, step] }), false);
+  }
+  const complete = { ...record, steps: [...record.steps, { stepId: "report", outcome: "ok", accepted: true }] };
+  assert.equal(hasSuccessfulRoleRecord(complete), true);
+  assert.equal(hasSuccessfulRoleRecord({ ...complete, closedAt: null }), false);
+  assert.equal(hasSuccessfulRoleRecord({ ...complete, closedAt: undefined }), false);
+  for (const outcome of ["failed", "blocked"]) {
+    assert.equal(hasSuccessfulRoleRecord({ ...complete, steps: [...complete.steps, { stepId: "propose", outcome, accepted: true }] }), false);
+    assert.equal(hasSuccessfulRoleRecord({ ...complete, steps: [...complete.steps, { stepId: "propose", outcome, accepted: false }] }), true);
+  }
+  assert.equal(hasSuccessfulRoleRecord({ agent: "app-dev", closedAt: record.closedAt, steps: [{ stepId: "plan", outcome: "ok", accepted: true }] }), true);
 });
 
 it("requires an explicit model-run decision and absolute isolated artifact inputs", () => {
