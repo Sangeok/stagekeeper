@@ -154,7 +154,7 @@ it("fences native file tools with the current receipt and active owner, never fo
   const operations = { listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name, inputSchema: { type: "object" } })),
     checkSession: async () => ({ event: "owned", lifecycle: active ? "active" : "stopping", client: "codex" }),
     callTool: async (_, name) => { calls.push(name); return { done: false, receipt, step: "inspect" }; } };
-  const bridge = await roleBridge({}, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, f.files);
+  const bridge = await roleBridge({ binding: { root: f.root } }, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, f.files);
   const request = async (name, args) => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) })).json();
   try {
     assert.ok((await request("role_file_read", { path: path.join(f.root, "src/code.ts") })).error);
@@ -207,12 +207,13 @@ it("discards an asynchronous local result after stop and waits for its backend t
   const operations = { listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name, inputSchema: { type: "object" } })),
     checkSession: async () => ({ event: "owned", lifecycle: "active", client: "codex" }),
     callTool: async () => ({ done: false, receipt, step: "inspect" }) };
-  const bridge = await roleBridge({}, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, backend);
+  const bridge = await roleBridge({ binding: { root: path.resolve("async-native-root") } }, {}, "owned", { project: "test", agent: "doc-auditor" }, operations, backend);
   const request = async name => (await fetch(bridge.url, { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: {} } }) })).json();
   try {
-    await request("agent_next");
-    const command = request("role_command_exec"); await started;
+    assert.ok((await request("agent_next")).result);
+    const command = request("role_command_exec");
+    await Promise.race([started, command.then(() => { throw new Error("Command completed before entering its backend"); })]);
     const queued = request("role_command_exec");
     await new Promise(resolve => setTimeout(resolve, 30));
     bridge.abort(); assert.equal(signal.aborted, true);
