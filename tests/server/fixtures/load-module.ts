@@ -4,11 +4,11 @@ import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
-export function loadModule<T>(path: string, dependencies: Record<string, unknown>): T {
+export function loadModule<T>(path: string, dependencies: Record<string, unknown>, globals: Record<string, unknown> = {}): T {
   const require = createRequire(import.meta.url);
   const exported = {};
   const code = ts.transpileModule(readFileSync(path, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
-  runInNewContext(code, { exports: exported, Date, FormData, console, require: (name: string) => {
+  runInNewContext(code, { ...globals, exports: exported, Date, FormData, console, require: (name: string) => {
     if (name in dependencies) return dependencies[name];
     if (name === "server-only") return {};
     if (name.startsWith("@harness/core/")) return require(resolve("packages/core", name.slice("@harness/core/".length)));

@@ -17,10 +17,6 @@ export function appConfiguration(env: Readonly<Record<string, string | undefined
   return { ...parsed.data, origin: url.origin };
 }
 
-export function pickerEnabled(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
-  return env.GITHUB_REPOSITORY_PICKER_ENABLED === "true" && env.GITHUB_REPOSITORY_OPERATIONS_READY === "true";
-}
-
 export function webhookConfiguration(env: Readonly<Record<string, string | undefined>> = process.env): { secret: string; appId: string } | null {
   const secret = env.GITHUB_REPOSITORY_WEBHOOK_SECRET;
   const appId = env.GITHUB_REPOSITORY_APP_ID;

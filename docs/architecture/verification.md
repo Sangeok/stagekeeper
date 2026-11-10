@@ -59,6 +59,15 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 `npm run build`, 변경 영역의 관련 테스트를 함께 적용한다. 빌드 통과도 Action의
 인증·인가나 업무 동작 검증을 대신하지 않는다.
 
+## GitHub 저장소 목록 운영 정리
+
+GitHub 저장소 목록의 운영 정리는 `vercel.json`의 Production Cron이
+`GET /api/cron/github-maintenance`를 10분마다 호출한다. 최소 32자의 독립적인 `CRON_SECRET`을
+Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-maintenance-route.test.ts`는
+`test:server`에서 실제 route와 maintenance 대역으로 인증 실패 시 무실행, 성공 요약,
+회전 미실행, 오류 비노출과 배포 schedule 연결을 검사한다. 실제 배포의 스케줄 실행·DB 정리는
+운영 로그에서 별도로 확인한다. 로컬 실행과 명시적 key rotation은 기존 `github:maintenance` CLI를 사용한다.
+
 ## 테스트 배치 규칙의 검증
 
 규칙 본문은 [test-organization.md](./test-organization.md)가 소유한다.

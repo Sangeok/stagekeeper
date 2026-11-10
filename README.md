@@ -322,20 +322,34 @@ The normal GitHub login, Public picker, URL registration and existing projects w
 The optional list uses a separate GitHub App with **Metadata read only** and user access tokens. Do not add `repo` to the normal login.
 App visibility must permit other users and organizations to install it; this does not make their repositories public.
 
-Apply the additive Prisma migration before deploying this code. Keep `GITHUB_REPOSITORY_PICKER_ENABLED=false` during setup.
+The list becomes available automatically when the App credentials, webhook secret and vault configuration below are valid.
+There are no feature or operations-ready switches. Missing or invalid integration configuration leaves the list unavailable.
+Before supplying the complete configuration in production, apply the additive Prisma migration
+`20261023150000_optional_github_repository_list` and complete the deployment checks below.
 Configure the App ID, slug and separate client credentials using `GITHUB_REPOSITORY_APP_ID`, `GITHUB_REPOSITORY_APP_SLUG`,
 `GITHUB_REPOSITORY_APP_CLIENT_ID` and `GITHUB_REPOSITORY_APP_CLIENT_SECRET`. Use expiring user tokens,
 `request_oauth_on_install=false` and `setup_on_update=true`, with these fixed URLs under `HARNESS_PUBLIC_URL`:
 
 - OAuth callback: `/api/github/connection/callback`
 - Installation setup: `/api/github/connection/installation`
-- Webhook: `/api/github/webhook`; subscribe to installation and installation-repository changes. User authorization revocation is always delivered.
+- Webhook: `/api/github/webhook`; keep webhooks active. GitHub automatically sends `installation`, `installation_repositories`
+  and `github_app_authorization` events; these do not require additional repository permissions or event subscriptions.
 
 Supply a random webhook secret of at least 32 characters through `GITHUB_REPOSITORY_WEBHOOK_SECRET`.
 Supply a separate vault keyring through `GITHUB_REPOSITORY_VAULT_KEYS` (a JSON object mapping key IDs to canonical base64-encoded 32-byte keys)
 and select its active ID with `GITHUB_REPOSITORY_VAULT_ACTIVE_KEY`. Generate and store keys in the deployment secret manager; never reuse `AUTH_SECRET`, commit keys, or paste them into a PR.
 
-Schedule `npm run github:maintenance -- --apply` at least every ten minutes. Attempts and encrypted drafts expire after ten minutes;
+On Vercel Pro, [`vercel.json`](./vercel.json) schedules `GET /api/cron/github-maintenance` every ten minutes (`*/10 * * * *`, UTC).
+Set `CRON_SECRET` in the project's **Production** environment to a separately generated random secret of at least 32 characters
+(for example, 32 random bytes encoded as 64 hex characters). Vercel supplies it in the `Authorization: Bearer ...` header.
+The endpoint rejects missing/short configuration and unauthorized requests without running maintenance, never rotates vault keys,
+and has a 300-second execution limit. Never reuse the webhook secret, vault key or `AUTH_SECRET` as `CRON_SECRET`.
+The schedule runs only on Production deployments; environment variable changes require a new deployment.
+See [Vercel Cron authentication and operations](https://vercel.com/docs/schedules/cron-jobs/manage-cron-jobs).
+
+For local development or a deployment outside Vercel, run `npm run github:maintenance -- --apply` manually or schedule it
+at least every ten minutes. The CLI uses `DATABASE_URL` and does not require `CRON_SECRET`.
+Attempts and encrypted drafts expire after ten minutes;
 delivery IDs expire after 24 hours. Consumption/cancellation/disconnection removes the relevant secret fields immediately.
 The browser stores only tab-local random flow/cancellation IDs in sessionStorage; draft content and GitHub credentials stay on the server.
 
@@ -343,11 +357,25 @@ For rotation, add the new key alongside old keys, select the new active ID, run 
 Keep previous keys available until every instance has the new configuration and rotation succeeds. A missing old key makes the affected operation unavailable; it does not silently destroy recoverable ciphertext.
 Use a stable HTTPS public origin in production. Redact code/state query parameters at the ingress/access-log layer; application logs contain only outcome classes and durations.
 
-Set `GITHUB_REPOSITORY_OPERATIONS_READY=true` and then enable the feature only after migration, maintenance scheduling, key recovery/rotation,
-App permission/callback verification, personal/organization/SSO authorization, revocation and rollback acceptance have succeeded.
-These deployment operations and live GitHub acceptance are separate from fixture and local DB tests.
+Use separate development and production GitHub Apps and vault keys. Local `.env` must point to a development database;
+its `HARNESS_PUBLIC_URL` must match the development App callback/setup origin. Webhook delivery to a local server requires
+a reachable development URL. Production uses a stable HTTPS origin with no path, query or fragment. Never copy production secrets into the repository.
 
-Turning the feature OFF stops new authorization and list queries. Keep the App configuration, disconnect/webhook handlers and maintenance available to settle existing attempts and credentials.
+For the production rollout:
+
+1. Check production migration status with an explicit production connection string and deploy pending migrations.
+2. Set `CRON_SECRET` and deploy this code. In Vercel Cron Jobs, run the job and verify a 200 response with cleanup counts.
+   Monitor subsequent scheduled runs for non-200 responses and timeouts; failed cron runs are not automatically retried.
+3. Verify App permissions/callbacks, key recovery/rotation, personal/organization/SSO authorization, revocation and rollback
+   using a separate development App and database. Other users must authorize the App and install it for their selected repositories;
+   an organization may require administrator approval. Login alone does not grant repository-list access.
+4. Supply all seven `GITHUB_REPOSITORY_*` values and the production `HARNESS_PUBLIC_URL` in Vercel Production, then redeploy.
+   Verify another account can connect, select an allowed private repository and register it; verify removed access disappears.
+
+These deployment operations and live GitHub acceptance are separate from fixture and local DB tests. The App lists repository
+metadata; the existing local agent still reads and changes source code using the user's local checkout and GitHub permissions.
+
+For rollback, keep App credentials, vault keys, disconnect/webhook handlers and maintenance available to settle existing attempts and credentials.
 Do not roll back to a version lacking those handlers until secrets, attempts, leases and deliveries are settled. Do not drop the new tables to roll back.
 
 CI ([`check.yml`](./.github/workflows/check.yml)) runs `npm run check`, `npm test`,

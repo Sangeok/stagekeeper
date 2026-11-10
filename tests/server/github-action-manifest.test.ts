@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { it } from "node:test";
 import { assertActions, manifestEntries } from "./fixtures/action-manifest";
 
-it("registers only the creation Action and all eight repository routes in a fresh build", { skip: process.env.GITHUB_CHECK_ACTION_MANIFEST !== "true" }, () => {
+it("registers only the creation Action, repository routes and maintenance route in a fresh build", { skip: process.env.GITHUB_CHECK_ACTION_MANIFEST !== "true" }, () => {
   assertActions("src/fsd/features/create-project/api/create-project.server.ts", ["createProject"]);
   const entries = manifestEntries();
   for (const entry of entries) {
@@ -17,4 +17,5 @@ it("registers only the creation Action and all eight repository routes in a fres
   for (const route of ["connection/start", "connection/callback", "connection/installation", "connection/draft", "connection/cancel", "connection/disconnect", "repositories", "webhook"]) {
     assert.ok(Object.hasOwn(routes, `/api/github/${route}/route`));
   }
+  assert.ok(Object.hasOwn(routes, "/api/cron/github-maintenance/route"));
 });
