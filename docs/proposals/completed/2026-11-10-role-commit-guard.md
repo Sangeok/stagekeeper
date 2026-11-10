@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-10"
 approved-by: "user"
 approved-at: "2026-11-10"
 approval-scope: "구현, 커밋, PR. main 승격, 이 PC 번들 설치, 실기는 실행 직전에 각각 따로 승인받는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-10"
+verification-summary: "PR #302(dev 머지 4b06779)를 #300·#301과 함께 main 4b06779(0.6.5)로 승격했다. 게이트 세 개가 녹색이었고, 운영 배포가 일치했으며, 이 PC 번들은 0.6.5가 됐다. pipeline-smoke(Sonnet 5.5, CI Windows, 소스 설치)에서 impl-verifier가 보고서 커밋을 시도했고, 훅이 R1으로 거부했다. 이어서 handoff, 메인 루프 커밋, 같은 실행 재개, report_submit으로 끝났다. 실기(harness-smoke ITEM-03 재점검, Opus 5.5, 이 PC 번들의 PowerShell 런처)에서도 같은 순서로 인수와 문서 감사까지 끝났다. 그래서 resident-handoff-resume에 남은 같은 실행 handoff 경로도 확인됐다. 메인 세션의 커밋은 막지 않았고, 서버와 데이터는 바뀌지 않았다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -265,6 +265,8 @@ gh workflow run pipeline-smoke.yml --ref dev
 
 ## Verification Results
 
+2026-11-10 로컬 결과다. Windows, worktree `harness/role-commit-guard`, 기준 dev `e2cc5f4`, 구현 커밋 `1ef2e76`이다. PR 전에 `af8be6c`(#301) 위로 옮겼다.
+
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
 | 1단계 실측: `--plugin-dir` 기록 훅 + `--agents` 서브에이전트(`claude -p`, Haiku) | PASS | 서브에이전트 호출에만 `agent_type: "probe-runner"`와 `agent_id`. `if`가 붙은 처리기는 `git commit …`에서만 떴다. 약 $0.30 |
@@ -278,6 +280,57 @@ gh workflow run pipeline-smoke.yml --ref dev
 | `npm run test:architecture` | 218 pass, 0 fail, 2 skipped | 포장 사례 2개 포함 |
 | `npm run check` | 1 fail(310 pass, 3 skipped) | 실패는 Windows에서만 나는 `scripts/templates/template-release-cli.test.ts`의 0600 프로필 사례로, 이 변경과 무관하다(#299 때도 같았다). 플러그인 lib 동기화, lint(경고 1건은 기존 `codex-main-loop-tools.mjs`), FSD·서버 경계, 문서 검사(202개), 타입 검사는 통과 |
 | `npm run verify:fsd`, `npm run verify:server` | PASS | |
+| `af8be6c` 위로 옮긴 뒤 바뀐 시험 묶음 세 개 | 17 pass | 훅, 런처, 포장 시험 |
+| `npm run verify:plugin-version -- --base origin/dev --head HEAD` | 통과 | 0.6.4 → 0.6.5, 배포 파일 5개 |
+| PR #302 CI | 전부 통과 | 15개, 첫 시도 |
+
+### 승격과 운영 반영
+
+승격 대상은 dev `4b06779`다. #300(handoff 완료 문서와 시험), #301(다른 세션의 DB 스크립트 정리), #302가 들어 있다.
+
+| 단계 | 결과 | 비고 |
+| --- | --- | --- |
+| dev push CI | 녹색 | check 42755833616, windows-role-runtime 42755834041, macos-runtime-contracts 42755833605 |
+| `npm run verify:plugin-version -- --base origin/main --head origin/dev` | 통과 | 0.6.4 → 0.6.5, 배포 파일 5개 |
+| client-init-smoke | 녹색 | run 42756097568, 작업 4개 |
+| agent-eval | 녹색 | run 42756115631. 사례 3개 × 3회의 채점 항목이 모두 통과했다. 194초, 비용 추정 $3.96 |
+| pipeline-smoke | 녹색 | run 42756576635. Sonnet 5.5, 49턴, harnessErrors 0, stepRefusals 0, 559초, $1.75. `denials: 1`은 이 훅의 거부다(아래) |
+| 운영 `migrate status` | up to date | 36개, 새 마이그레이션 없음(`prisma/` 변경 없음) |
+| main push | 완료 | 2026-11-10T04:59:24Z, `8b231c2..4b06779` fast-forward |
+| 운영 배포 대조 | 일치 | Production deployment 7674007711. 운영 HTML의 `dpl_EM6DeQEv2U8VpU3S4ArZTwVyrAiK`가 main push의 Vercel 상태 id와 같다. `/`·`/docs` 200, `/api/mcp` 401 |
+| main push 뒤 check | 녹색 | run 42759260787, 작업 6개 |
+| 이 PC 번들 0.6.5 | 설치 | 2,239개 파일, packageSha256 `eda26dd0…`이다. runtime(`0148976b…`)과 verifier(`de1120a5…`)는 재사용했다. 0.6.4 대비 inventory 차이는 추가 1(`bin/harness-commit-guard.mjs`)과 변경 4(매니페스트 2, `harness.ps1`, `hooks.json`)로, git의 배포 파일 변경과 같다. 캐시 sha256이 전부 일치했다. 설치된 런처의 `commit-guard`는 메인 세션 호출에 `{}`, impl-verifier 호출에 R1을 돌려줬다 |
+
+pipeline-smoke의 봉인 전사:
+
+- impl-verifier가 보고서를 heredoc으로 쓰고 같은 명령에서 `git add`·`git commit`을 실행하려 했다. 훅이 R1으로 거부했다.
+- 역할은 파일만 다시 쓰고 `agent_next` outcome handoff를 보낸 뒤 멈췄다.
+- 메인 루프가 보고서 파일 하나만 커밋했다(`1c6d718`). 그다음 SendMessage로 같은 역할을 outcome 없이 재개했다.
+- 역할은 커밋을 확인한 뒤 `report_submit`을 보냈고 `done`을 받았다. 이어서 인수와 문서 감사까지 통과했다.
+
+### 실기(2026-11-10, harness-smoke, Opus 5.5, 0.6.5)
+
+준비:
+
+- 05:12Z에 웹에서 ITEM-03을 Reopen implementation으로 다시 열었다. 메모는 "Re-check on plugin 0.6.5: keep the plan's behavior. Change code only if node --test fails; otherwise report no change."다. 계획이 이미 다 구현돼 고칠 결함이 없어서다.
+- 실행기는 session `9386a6f8`, `--propose no`, 권한 auto로 05:12:56Z에 시작했다. 이 PC 번들의 PowerShell 런처로 훅을 돈다.
+
+| 기준 | 결과 | 비고 |
+| --- | --- | --- |
+| 실행 | 한 실행으로 끝남 | 05:13:04~05:30:22, 메인 25턴, 메인 세션 권한 거부 0, API 정가 환산 $6.45. dev `ab4af05`(코드 변경 없음, `node --test` 15/15), impl-verifier `2e5454e`, 인수 `6df5670`(검사 5개 통과), 문서 감사 `e3cd881` |
+| 1. impl-verifier 커밋 거부 | 통과 | 05:23:01에 보고서를 덧붙인 뒤 `git add && git commit`을 실행하려 했고, 05:23:02에 R1으로 거부됐다. 재시도는 없었다(전사에 같은 호출 id가 두 번 기록됐다) |
+| 2. 같은 실행의 handoff → 커밋 → 재개 | 통과 | 05:23:19 handoff. 메인 루프가 세션 확인 뒤 `git commit --only docs/agents/impl-verifier/ITEM-03.md`로 `2e5454e`를 만들었다. 05:24:42에 outcome 없이 재개했고, 05:25:10에 `report_submit`이 받아들여졌다 |
+| 3. 메인 세션과 dev의 커밋 | 막히지 않음 | 메인 루프의 인계·인수·감사 커밋이 모두 통과했다. dev 커밋도 실행기 정책이 yes라 통과했다 |
+| 4. 인수까지 | 통과 | ITEM-03 Accepted 05:28 |
+| 앞선 실행이 남긴 handoff | 대기 그대로 | ITEM-05는 소유자 차례로 남았다 |
+
+모든 전사(메인 47호출, dev 18, impl-verifier 23, doc-auditor 12)와 실행기 로그를 기계적으로 훑었다.
+
+- 오류 결과는 두 건이다. 하나는 이 훅의 거부이고, 다른 하나는 dev가 자기 보고서에서 두 곳에 있는 문자열을 바꾸려다 난 Edit 오류다. dev는 21초 뒤 스스로 고쳤다.
+- 서버 거부는 0건이고, 실행기 로그의 경고도 0건이다.
+- 새 커밋 네 개는 각각 문서 파일 하나만 바꿨다.
+
+실행기는 05:32:51Z에 `--stop`으로 멈췄다(owner). 남은 프로세스는 없다.
 
 ## Risks and Rollback
 
@@ -297,11 +350,21 @@ gh workflow run pipeline-smoke.yml --ref dev
 
 완료 기록(`status: "completed"`일 때 작성):
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- completed-at: 2026-11-10
+- verification-summary: front matter와 Verification Results를 따른다.
+- implementation PR/commit:
+  - #302(커밋 `1ef2e76`, dev 머지 `4b06779`)
+  - main `8b231c2` → `4b06779`(#300·#301과 함께)
+  - 이 기록 PR
+- changed files summary:
+  - #302: 새 훅과 시험, `plugin/hooks/hooks.json`, `harness.ps1`의 `commit-guard` 모드와 런처 시험, 포장 스크립트와 시험, `protocol.md` "역할 커밋 경계", `template-releases.md`, `impl-verifier.md`, AGENTS.md pipeline-smoke 경로, 두 매니페스트 0.6.5.
+  - 이 기록 PR: 제안서를 completed로 옮기고, resident-handoff-resume 완료 문서의 후속에 확인 결과를 적었다. 문서만이라 판 상승이 없다.
+  - 이 PC는 플러그인 0.6.5로 바뀌었다.
+- remaining follow-up:
+  - 역할은 지시문이 있어도 직접 커밋을 시도한다(CI의 Sonnet 5.5, 실기의 Opus 5.5). 이 훅이 거부 한 번으로 handoff에 돌려보낸다. 지시문을 고치는 일은 비공개 템플릿 쪽이고, 필요할 때 따로 본다.
+  - 실행기 상태 줄과 웹의 "N denied"는 메인 세션의 권한 거부만 센다. 역할 안에서의 훅 거부는 전사와 실행의 최종 보고에만 남는다. 보이게 하려면 따로 개선한다.
+  - ITEM-05는 앞선 실행이 남긴 handoff로 기다린다(2026-11-09 사용자 결정으로 마무리하지 않음). ITEM-04 백로그 문구의 줄 번호가 낡았다(문서 감사가 지적함). harness-smoke의 로컬 커밋 13개는 push하지 않았다.
+  - 이미 열려 있는 Claude Code 세션은 다시 시작해야 0.6.5 훅이 적용된다.
 
 닫힘 기록(`status: "closed"`일 때 작성):
 
@@ -317,14 +380,14 @@ gh workflow run pipeline-smoke.yml --ref dev
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
-- [ ] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
+- [x] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
 - [x] `proposal-size`는 `small` 또는 `standard`만 사용했고, standard 강제 조건에 해당하는 작업을 small로 낮추지 않았다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
