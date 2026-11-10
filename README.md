@@ -342,7 +342,9 @@ Supply a random webhook secret of at least 32 characters through `GITHUB_REPOSIT
 Supply a separate vault keyring through `GITHUB_REPOSITORY_VAULT_KEYS` (a JSON object mapping key IDs to canonical base64-encoded 32-byte keys)
 and select its active ID with `GITHUB_REPOSITORY_VAULT_ACTIVE_KEY`. Generate and store keys in the deployment secret manager; never reuse `AUTH_SECRET`, commit keys, or paste them into a PR.
 
-On Vercel Pro, [`vercel.json`](./vercel.json) schedules `GET /api/cron/github-maintenance` every ten minutes (`*/10 * * * *`, UTC).
+On Vercel, [`vercel.json`](./vercel.json) schedules `GET /api/cron/github-maintenance` once a day (`0 18 * * *`, UTC).
+A once-a-day entry deploys on every Vercel plan; on Hobby, Vercel may run it at any point within that hour.
+Each run wakes the database, so the schedule stays daily: expired attempts and connections are already refused when they are read or used.
 Set `CRON_SECRET` in the project's **Production** environment to a separately generated random secret of at least 32 characters
 (for example, 32 random bytes encoded as 64 hex characters). Vercel supplies it in the `Authorization: Bearer ...` header.
 The endpoint rejects missing/short configuration and unauthorized requests without running maintenance, never rotates vault keys,
@@ -351,9 +353,10 @@ The schedule runs only on Production deployments; environment variable changes r
 See [Vercel Cron authentication and operations](https://vercel.com/docs/schedules/cron-jobs/manage-cron-jobs).
 
 For local development or a deployment outside Vercel, run `npm run github:maintenance -- --apply` manually or schedule it
-at least every ten minutes. The CLI uses `DATABASE_URL` and does not require `CRON_SECRET`.
+at least once a day. The CLI uses `DATABASE_URL` and does not require `CRON_SECRET`.
 Attempts and encrypted drafts expire after ten minutes;
-delivery IDs expire after 24 hours. Consumption/cancellation/disconnection removes the relevant secret fields immediately.
+delivery IDs expire after 24 hours. Expired rows cannot be read or used, and stay in the database until the next maintenance run.
+Consumption/cancellation/disconnection removes the relevant secret fields immediately.
 The browser stores only tab-local random flow/cancellation IDs in sessionStorage; draft content and GitHub credentials stay on the server.
 
 For rotation, add the new key alongside old keys, select the new active ID, run maintenance with `--apply --rotate`, and confirm no stored envelope references the old key before removing it.

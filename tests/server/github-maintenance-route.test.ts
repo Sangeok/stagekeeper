@@ -57,11 +57,12 @@ it("reports a failed run without exposing database errors or secrets", async () 
   assert.deepEqual(await response.json(), { error: "GitHub repository maintenance failed." });
 });
 
-it("schedules the maintenance route every ten minutes within its execution limit", () => {
+it("schedules the maintenance route once a day within its execution limit", () => {
   const config = JSON.parse(readFileSync("vercel.json", "utf8")) as { crons: { path: string; schedule: string }[] };
   const job = config.crons.find(entry => `src/app${entry.path}/route.ts` === routePath);
-  assert.equal(job?.schedule, "*/10 * * * *");
+  assert.equal(job?.schedule, "0 18 * * *");
   const handler = route(secret, async () => summary);
   assert.equal(handler.runtime, "nodejs");
-  assert.ok(handler.maxDuration > 0 && handler.maxDuration < 600);
+  const secondsBetweenRuns = 24 * 60 * 60;
+  assert.ok(handler.maxDuration > 0 && handler.maxDuration < secondsBetweenRuns);
 });

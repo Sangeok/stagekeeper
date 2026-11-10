@@ -62,7 +62,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 ## GitHub 저장소 목록 운영 정리
 
 GitHub 저장소 목록의 운영 정리는 `vercel.json`의 Production Cron이
-`GET /api/cron/github-maintenance`를 10분마다 호출한다. 최소 32자의 독립적인 `CRON_SECRET`을
+`GET /api/cron/github-maintenance`를 하루 한 번(18:00 UTC) 호출한다. 최소 32자의 독립적인 `CRON_SECRET`을
 Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-maintenance-route.test.ts`는
 `test:server`에서 실제 route와 maintenance 대역으로 인증 실패 시 무실행, 성공 요약,
 회전 미실행, 오류 비노출과 배포 schedule 연결을 검사한다. 실제 배포의 스케줄 실행·DB 정리는
@@ -340,7 +340,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
 | `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | 병합·CI·로컬 보존 조건을 확인한 작업 브랜치의 로컬 ref만 정리. `main`·`dev`와 원격 ref는 삭제하지 않음 |
-| `maintain-github-connections.ts`, `maintain-github-connections.test.ts` | `npm run github:maintenance -- --apply [--rotate]`; 테스트는 `test:scripts` | 운영자는 최소 10분마다 실행하며 rotation은 명시적으로 요청; 테스트는 CI마다 | 만료된 GitHub 시도·초안·delivery를 삭제하고 만료 credential을 중지한다. 회전은 current key로 재봉인하며 revision/tokenVersion과 기존 envelope의 CAS로 새 grant를 덮어쓰지 않는다. 실제 운영 실행·키 공급은 배포 승인 범위다. 테스트는 DB 없이 의존성을 대체해 잘못된 인자·`DATABASE_URL` 누락의 무실행 거부, 성공 요약과 `--rotate` 전달, 작업·연결 해제 실패의 오류 비노출과 종료 코드를 확인한다 |
+| `maintain-github-connections.ts`, `maintain-github-connections.test.ts` | `npm run github:maintenance -- --apply [--rotate]`; 테스트는 `test:scripts` | 운영자는 하루 한 번 이상 실행하며 rotation은 명시적으로 요청; 테스트는 CI마다 | 만료된 GitHub 시도·초안·delivery를 삭제하고 만료 credential을 중지한다. 회전은 current key로 재봉인하며 revision/tokenVersion과 기존 envelope의 CAS로 새 grant를 덮어쓰지 않는다. 실제 운영 실행·키 공급은 배포 승인 범위다. 테스트는 DB 없이 의존성을 대체해 잘못된 인자·`DATABASE_URL` 누락의 무실행 거부, 성공 요약과 `--rotate` 전달, 작업·연결 해제 실패의 오류 비노출과 종료 코드를 확인한다 |
 | `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
 | `windows/package-windows-plugin.mjs`, `windows/package-windows-plugin.test.mjs` | `node scripts/windows/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>`; 테스트는 `test:architecture`·`test:scripts` | Windows private 배포물 검토 시; 테스트는 CI마다 | 추적된 plugin source(검증 스킬 포함)·runtime을 복사하고, 검증 스킬을 Codex skill 경로에 같은 checksum으로 복사해 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다. 테스트는 Windows 없이 가짜 runtime fixture로 검증 스킬 원본이 INV-1~7을 모두 갖췄는지, Claude Code·Codex 두 경로에 같은 checksum으로 들어가는지 확인한다 |
