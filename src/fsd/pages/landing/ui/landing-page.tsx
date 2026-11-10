@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SiteHeader } from "@/fsd/widgets/site-header";
 import { statusLabel } from "@/fsd/entities/board-item";
 import { gateActionLabel, gateActionHint } from "@/fsd/entities/pipeline";
 import { cn } from "@/fsd/shared/lib/class-name";
@@ -41,27 +42,19 @@ const FACTS = [
 export function LandingPage({ signedIn, signInAction }: { signedIn: boolean; signInAction: () => Promise<void> }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b border-rule">
-        <div className="mx-auto flex w-full max-w-[1040px] items-center justify-between px-4 py-3.5 md:px-6">
-          <Link href="/" className="font-semibold tracking-[-0.01em]">
-            Stagekeeper
+      <SiteHeader>
+        {signedIn ? (
+          <Link href={projectsPath()} className="text-sm underline underline-offset-[3px]">
+            Open projects
           </Link>
-          <nav aria-label="Main navigation" className="flex items-center gap-5">
-            <Link href={docsPath("overview")} className="text-sm underline underline-offset-[3px]">Docs</Link>
-          {signedIn ? (
-            <Link href={projectsPath()} className="text-sm underline underline-offset-[3px]">
-              Open projects
-            </Link>
-          ) : (
-            <form action={signInAction}>
-              <button type="submit" className="text-sm underline underline-offset-[3px]">
-                Sign in
-              </button>
-            </form>
-          )}
-          </nav>
-        </div>
-      </header>
+        ) : (
+          <form action={signInAction}>
+            <button type="submit" className="text-sm underline underline-offset-[3px]">
+              Sign in
+            </button>
+          </form>
+        )}
+      </SiteHeader>
 
       <main className="mx-auto w-full max-w-[1040px] px-4 pb-[72px] md:px-6">
         <section className="grid items-start gap-10 py-16 md:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] md:gap-14 md:py-[88px]">
