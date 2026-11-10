@@ -70,7 +70,8 @@ It changes nothing in the repository checkout and has no owner, transition, appr
 backlog mutation or nested-agent tools. Claude cannot scope `Bash` or `Write` to a path, so the
 main loop fingerprints the working tree before dispatch and compares it, report excluded, when the
 agent returns (runbook *Verifier tree check*). The main loop commits the report through the
-existing handoff procedure.
+existing handoff procedure. From plugin 0.6.5, the plugin's commit hook refuses impl-verifier's
+`git commit` and `git add` ([role commit boundary](./protocol.md#역할-커밋-경계)).
 
 `report_submit` from `impl-verifier` requires its bound open AgentRun, the canonical report path, a
 commit SHA, the current `impl-verify` entry with the item `done`, and a completed implementation

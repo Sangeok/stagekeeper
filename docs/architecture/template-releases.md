@@ -61,8 +61,9 @@ ready commit까지 유지한다. session 시작은 같은 guard 안에서 init �
 성공을 보고하지 않는다. offline `HARNESS_TEMPLATES_DIR`는 pending preview다.
 
 공통 MCP·Claude watch·Codex bridge와 세션 helper는 실제 설치 파일을 재검사한다.
-Claude plugin의 `hooks/hooks.json`은 두 MCP 진행 도구만 대상으로 삼고 설치 tuple을
-주입하되 permissionDecision allow를 내리지 않는다. 오류 시 차단하는 native hook에는
+Claude plugin의 `hooks/hooks.json`에서 템플릿 hook은 두 MCP 진행 도구만 대상으로 삼고 설치 tuple을
+주입하되 permissionDecision allow를 내리지 않는다. 같은 파일의 커밋 hook은
+[역할 커밋 경계](./protocol.md#역할-커밋-경계)를 따른다. 오류 시 차단하는 native hook에는
 Claude Code 2.1.295 이상과 재시작이 필요하다. native 실패 차단 기준은
 [공식 hook 계약](https://code.claude.com/docs/en/hooks)을 따른다. Windows bundle은 검증된 내장 Node와
 PowerShell launcher로 같은 hook을 실행한다. source 설치는 기존 PATH Node 계약을 유지한다.
