@@ -28,7 +28,7 @@ export function selectionReason(decision, context, key, agent) {
   const alternatives = context.candidates.filter(item => item.eligible && item.key !== key);
   if (new Set(decision.comparisons.map(item => item?.key)).size !== decision.comparisons.length
     || decision.comparisons.length !== alternatives.length
-    || alternatives.some(item => !decision.comparisons.some(comparison => comparison?.key === item.key && nonempty(comparison.reason)))) return "Compare every other eligible candidate once.";
+    || alternatives.some(item => !decision.comparisons.some(comparison => comparison?.key === item.key && nonempty(comparison.reason)))) return "Compare every other eligible candidate once. Exclude the selected item; use comparisons: [] when there are no alternatives.";
   if (context.policy === DEFAULT_SELECTION_POLICY && context.candidates.find(item => item.eligible)?.key !== key) return "The saved policy selects the oldest eligible candidate first.";
   return null;
 }

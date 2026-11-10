@@ -145,7 +145,10 @@ async function main(args) {
     while (Date.now() < deadline) {
       const observation = await withPrisma(async db => {
         const board = await db.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key: itemKey } }, orderBy: { proposedOn: "desc" } });
-        if (!board) return { stage: "assignment" };
+        if (!board) {
+          const finished = await db.agentRun.findFirst({ where: { projectId, agent: "work-assigner", closedAt: { not: null } }, select: { id: true } });
+          return { stage: "assignment", failed: finished !== null };
+        }
         const next = await nextFor(db, projectId, itemKey);
         if (next.action === "wait" && next.on === "gate") {
           const service = createBoardService(db), current = await service.latestRowFor(projectId, itemKey);
@@ -166,6 +169,7 @@ async function main(args) {
       });
       if (last !== observation.stage || Date.now() - lastOutput > 60000) { progress(observation.stage, observation); last = observation.stage; lastOutput = Date.now(); }
       if (!summary.stages.includes(observation.stage)) summary.stages.push(observation.stage);
+      if (observation.failed) throw new Error("Work assignment ended without proposing the fixture item");
       if (observation.action === "done") { assert.equal(observation.accepted, true); break; }
       handoffAt = observation.on === "handoff" ? handoffAt ?? Date.now() : null;
       if (handoffAt !== null && Date.now() - handoffAt > 5 * 60000) throw new Error("The report handoff did not finish within five minutes");

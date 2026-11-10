@@ -176,7 +176,8 @@ export function registerTools(server: McpServer, deps: ToolDeps) {
   const selectionDecision = z.object({
     contextKey: z.string().min(1), policy: z.string().min(1).max(3000), criterion: z.string().min(1).max(3000),
     evidence: z.array(z.object({ key: z.string(), quote: z.string().min(1).max(3000) })).min(1).max(20),
-    comparisons: z.array(z.object({ key: z.string(), reason: z.string().min(1).max(3000) })),
+    comparisons: z.array(z.object({ key: z.string(), reason: z.string().min(1).max(3000) }))
+      .describe("Exactly one comparison for each other eligible candidate. Exclude the selected item. Use [] when there are no other eligible candidates."),
     readiness: z.string().min(1).max(3000), assignmentReason: z.string().min(1).max(3000), uncertainties: z.array(z.string()),
   });
   server.registerTool("board_propose", { description: "Assign work: register one selected item with its assignee, reason and selection record. Read assignment_context first. Source quotes, candidate comparisons, policy and contextKey are validated. Missing evidence, stale input, invalid assignee or full board refuses the write.", inputSchema: z.object({ ...project, key: z.string(), agent: z.string(), reason: z.string(), assignmentRunId: z.string().min(1).optional(), selectionDecision: selectionDecision.optional() }) }, async (args, ctx: Ctx) => {
