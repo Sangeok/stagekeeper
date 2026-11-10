@@ -9,7 +9,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
 import { build } from "esbuild";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 
 async function main(): Promise<void> {
   if (process.argv.includes("--fixture-development") && !process.argv.includes("--ui-only")) throw new Error("--fixture-development requires --ui-only");

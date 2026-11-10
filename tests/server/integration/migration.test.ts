@@ -159,8 +159,7 @@ const statementsOf = (migration: string) =>
     .split(";").map((statement) => statement.trim()).filter(Boolean);
 
 it("the additive migration applies to the real agent_run tables and preserves legacy rows", async () => {
-  const url = process.env.TEST_DATABASE_URL;
-  if (!url || !decodeURIComponent(new URL(url).pathname).startsWith("/stagekeeper_test_")) throw new Error("Run via test:server:integration");
+  const url = testDatabaseUrl();
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
   const schema = `migration_fixture_${randomUUID().replace(/-/g, "")}`;
   try {

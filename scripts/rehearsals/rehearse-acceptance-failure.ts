@@ -9,7 +9,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
 import { build } from "esbuild";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 import { parseHarnessConfig } from "../../packages/core/configuration/harness-config.mjs";
 import { deliverable } from "../../packages/core/templates/deliver.mjs";
 import { renderTemplate } from "../../packages/core/templates/render.mjs";
