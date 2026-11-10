@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
 import { SLOT_FORMAT } from "../../packages/core/pipeline/pipeline.mjs";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase, validateTestDatabaseUrl } from "../lib/test-database.mjs";
 import { manifestEntries } from "../../tests/server/fixtures/action-manifest";
 import type { Fixture } from "../../tests/server/integration/support";
 import { FLIGHT_PROBE_CASES, WEB_HTTP_USAGE, parseWebHttpArguments, prepareWebHttpReport, writeWebHttpReport, type WebHttpCaseResult, type WebHttpReportRun } from "./web-http-report";
@@ -81,7 +81,7 @@ async function consume(bytes: Buffer, manifest: object, loader?: Loader): Promis
 
 function routeConsumer(route: string): { loader: Loader; manifest: object } {
   assert.equal(process.env.NODE_ENV, "production");
-  assert.equal(process.env.DATABASE_URL, validateTestDatabase({ TEST_DATABASE_URL: process.env.TEST_DATABASE_URL }));
+  assert.equal(process.env.DATABASE_URL, validateTestDatabaseUrl(process.env.TEST_DATABASE_URL));
   const routes = JSON.parse(readFileSync(".next/server/app-paths-manifest.json", "utf8"));
   assert.ok(isRecord(routes) && typeof routes[route] === "string", "fifth-pass assertion 2");
   const root = resolve(".next/server"), entry = resolve(root, routes[route]);

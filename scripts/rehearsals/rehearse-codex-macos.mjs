@@ -7,7 +7,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 import { BACKLOG_ITEM, FIXTURE_FILES, caseResults } from "./pipeline-smoke-steps.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));

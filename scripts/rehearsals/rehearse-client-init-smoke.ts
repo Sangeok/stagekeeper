@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";
 
 const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
@@ -151,6 +151,7 @@ export class Smoke {
     readonly repo: string,
     readonly helperEnv: NodeJS.ProcessEnv,
     readonly userId: string,
+    readonly databaseUrl: string,
   ) {}
 
   helper(plugin: Plugin, args: string[], label: string): Command {
@@ -195,7 +196,7 @@ export class Smoke {
       if (outcome.code !== 0) throw new Error(outcome.stderr.split(/\r?\n/).find(line => line.startsWith("sync: ")) ?? `project_sync exited ${outcome.code}`);
       const line = outcome.stdout.split(/\r?\n/).map(text => text.trim()).filter(text => text.startsWith("{")).at(-1);
       if (typeof (line ? JSON.parse(line) as { synced?: unknown } : null)?.synced !== "number") throw new Error("project_sync did not report a synced count");
-      const state = await projectState(slug, this.userId);
+      const state = await projectState(slug, this.userId, this.databaseUrl);
       const installation = JSON.parse(readFileSync(path.join(this.repo, "harness.lock.json"), "utf8"));
       if (installation.version === 2) readInstalledTemplate(this.repo, "claude");
       else if (!state.runbookVersion) throw new Error("the legacy generator did not record the runbook version");
@@ -343,13 +344,13 @@ function persistServer(run: Run, env: NodeJS.ProcessEnv): void {
   if (saved !== ORIGIN) throw new Error("a new login shell does not see HARNESS_SERVER");
 }
 
-async function projectState(slug: string, userId: string): Promise<{ runbookVersion: string | null; lastSyncedAt: Date | null; workspaces: number }> {
+async function projectState(slug: string, userId: string, databaseUrl: string): Promise<{ runbookVersion: string | null; lastSyncedAt: Date | null; workspaces: number }> {
   const { withPrisma } = await import("../lib/prisma");
   return withPrisma(async prisma => {
     const project = await prisma.project.findUnique({ where: { slug }, include: { workspaces: true } });
     if (!project || project.ownerUserId !== userId) throw new Error("registered project row is missing");
     return { runbookVersion: project.runbookVersion, lastSyncedAt: project.lastSyncedAt, workspaces: project.workspaces.length };
-  });
+  }, databaseUrl);
 }
 
 export async function newUser(smoke: Smoke, plugin: Plugin, scenario: string, login: string, token: string, childEnv: NodeJS.ProcessEnv): Promise<void> {
@@ -393,7 +394,7 @@ export function seedTemplates(run: Run, templates: string, snapshot: string, chi
   return revision;
 }
 
-export async function bootstrapSmokeTemplates(input: { run: Run; work: string; codeSha: string; requestId: string; workflowRun: string }): Promise<void> {
+export async function bootstrapSmokeTemplates(input: { databaseUrl: string; run: Run; work: string; codeSha: string; requestId: string; workflowRun: string }): Promise<void> {
   await input.run.step("template-cutover", async () => {
     const { withPrisma } = await import("../lib/prisma");
     const { snapshotTemplateCutover, bootstrapTemplateReleases } = await import("../../src/server/templates/api");
@@ -408,22 +409,22 @@ export async function bootstrapSmokeTemplates(input: { run: Run; work: string; c
         inventory: snapshot.data.templates.map(({ lang, path }) => ({ lang, path })), excluded: [], unboundRuns: [],
       } });
       if (!result.ok) throw new Error("Smoke template bootstrap refused");
-    });
+    }, input.databaseUrl);
   });
 }
 
-export async function createFixtureUser(login: string, tokenHash: string): Promise<string> {
+export async function createFixtureUser(login: string, tokenHash: string, databaseUrl: string): Promise<string> {
   const { withPrisma } = await import("../lib/prisma");
   return withPrisma(async prisma => {
     const user = await prisma.user.create({ data: { login, githubId: -randomInt(1, 2_000_000_000) } });
     await prisma.userToken.create({ data: { userId: user.id, hash: tokenHash, label: "e2e smoke" } });
     return user.id;
-  });
+  }, databaseUrl);
 }
 
-export async function deleteFixtureUser(userId: string): Promise<void> {
+export async function deleteFixtureUser(userId: string, databaseUrl: string): Promise<void> {
   const { withPrisma } = await import("../lib/prisma");
-  await withPrisma(prisma => prisma.user.delete({ where: { id: userId } })).catch(() => console.error("cleanup: the fixture user was not deleted"));
+  await withPrisma(prisma => prisma.user.delete({ where: { id: userId } }), databaseUrl).catch(() => console.error("cleanup: the fixture user was not deleted"));
 }
 
 async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.ProcessEnv): Promise<number> {
@@ -439,18 +440,17 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
   delete helperEnv.HARNESS_PLAN;
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
-  process.env.DATABASE_URL = databaseUrl;
   let server: ChildProcess | undefined;
   let userId: string | undefined;
   try {
     if (options.templateCommit && git(options.templates, ["rev-parse", "HEAD"]) !== options.templateCommit) throw new Error("Private template checkout differs from the pinned smoke source");
     record.templatesCommit = await run.step("seed-templates", () => seedTemplates(run, options.templates, options.snapshot ?? path.join(work, "template-snapshot.json"), childEnv));
-    const cutover = () => bootstrapSmokeTemplates({ run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-smoke" });
+    const cutover = () => bootstrapSmokeTemplates({ databaseUrl, run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-smoke" });
     if (options.scenario === "new-user") await cutover();
-    userId = await run.step("fixture", () => createFixtureUser(login, token.hash));
+    userId = await run.step("fixture", () => createFixtureUser(login, token.hash, databaseUrl));
     server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
     const repo = await run.step("repository", () => createRepository(work, options.scenario));
-    const smoke = new Smoke(run, repo, helperEnv, userId);
+    const smoke = new Smoke(run, repo, helperEnv, userId, databaseUrl);
     if (options.scenario === "new-user") {
       const plugin = await run.step("plugin-install", () => installPlugin(run, options, work, helperEnv));
       record.pluginCommit = plugin.commit;
@@ -475,7 +475,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
     run.failure ??= "unexpected";
   } finally {
     await stopServer(server);
-    if (userId) await deleteFixtureUser(userId);
+    if (userId) await deleteFixtureUser(userId, databaseUrl);
   }
   record.failure = run.failure;
   record.seconds = Math.round((Date.now() - started) / 1000);

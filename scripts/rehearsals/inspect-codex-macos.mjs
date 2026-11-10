@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 
 const args = process.argv.slice(2), work = args[0], cleanup = args[1] === "--cleanup";
 if (!work || !path.isAbsolute(work) || args.length > 2 || args.length === 2 && !cleanup) throw new Error("Use an absolute acceptance directory and optional --cleanup");

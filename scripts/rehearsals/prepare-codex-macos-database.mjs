@@ -3,7 +3,7 @@ import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 
 async function main() {
   const [flag, directory, ...extra] = process.argv.slice(2);

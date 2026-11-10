@@ -4,16 +4,17 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type PipelineVersion, type Prisma } from "../../../src/generated/prisma/client";
 import { prisma as singleton } from "../../../src/server/db";
 import type { Hook } from "../fixtures/async-control";
+import { validateTestDatabaseUrl } from "../../../scripts/lib/test-database.mjs";
 
 export { checkpoint, ordered } from "../fixtures/async-control";
 export type { Hook } from "../fixtures/async-control";
 
 export function testDatabaseUrl(): string {
-  const url = process.env.TEST_DATABASE_URL;
-  if (!url || !decodeURIComponent(new URL(url).pathname).startsWith("/stagekeeper_test_")) {
+  try {
+    return validateTestDatabaseUrl(process.env.TEST_DATABASE_URL);
+  } catch {
     throw new Error("Run via test:server:integration");
   }
-  return url;
 }
 
 export function connections(count = 2) {
