@@ -764,7 +764,11 @@ it("with a lease, waits as long as the server says before the next check, paused
     const before = f.calls.length;
     const result = await f.run(["--session", event.session, "--interval", "0.02", "--deadline", "0.02", "--request-timeout", "0.2"]).result;
     assert.equal(result.event.event, "idle", JSON.stringify(result.event));
-    assert.deepEqual(ops(f), ["start", "beat:idle"], `paused ${paused}`);
-    assert.equal(f.calls.length - before, paused ? 0 : 1, "one pipeline_next at most before the deadline");
+    const [first, ...beats] = ops(f);
+    const lookups = f.calls.length - before;
+    assert.equal(first, "start");
+    assert.ok(beats.length >= 1 && beats.length <= 2 && beats.every((op) => op === "beat:idle"),
+      `paused ${paused}: the server's 60 s allows one beat, plus at most one where the sleep meets the deadline; the 20 ms interval alone would give dozens (${beats})`);
+    assert.ok(paused ? lookups === 0 : lookups >= 1 && lookups <= beats.length, `paused ${paused}: ${lookups} pipeline_next`);
   }
 });
