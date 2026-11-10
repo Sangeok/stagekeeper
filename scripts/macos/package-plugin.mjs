@@ -21,6 +21,22 @@ function inventory(directory) {
   visit(directory); return rows;
 }
 
+const MACOS_HOOKS = new Map([["harness-template-guard.mjs", { task: "template-guard", onFailure: "block" }], ["harness-commit-guard.mjs", { task: "commit-guard", onFailure: "continue" }]]);
+
+export function macosHooks(hooks) {
+  const seen = new Set();
+  for (const group of Object.values(hooks.hooks).flat()) {
+    for (const handler of group.hooks) {
+      const script = handler.command === "node" && handler.args?.length === 1 ? /^\$\{CLAUDE_PLUGIN_ROOT\}\/bin\/([a-z-]+\.mjs)$/.exec(handler.args[0])?.[1] : undefined;
+      const contract = MACOS_HOOKS.get(script);
+      if (!contract || handler.onFailure !== contract.onFailure) throw new Error("Unexpected plugin hook contract");
+      seen.add(script); handler.command = "${CLAUDE_PLUGIN_ROOT}/bin/harness"; handler.args = [contract.task];
+    }
+  }
+  if (seen.size !== MACOS_HOOKS.size) throw new Error("Unexpected plugin hook contract");
+  return hooks;
+}
+
 export function packageMacosPlugin({ output, runtimeDirectory }) {
   if (process.platform !== "darwin" || !path.isAbsolute(output) || existsSync(output)
     || path.relative(repository, output).split(path.sep)[0] !== "..") throw new Error("A new absolute output outside the repository on macOS is required");
@@ -32,7 +48,7 @@ export function packageMacosPlugin({ output, runtimeDirectory }) {
     if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Plugin source type refused");
     mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, readFileSync(source), { flag: "wx", mode: stat.mode & 0o777 });
   }
-  for (const needed of ["bin/harness", "bin/harness-platform.mjs", "runtime/macos-commands.mjs", "runtime/macos/role-process.mjs", "runtime/macos/sandbox-identity.c"]) {
+  for (const needed of ["bin/harness", "bin/harness-platform.mjs", ...[...MACOS_HOOKS.keys()].map(script => `bin/${script}`), "runtime/macos-commands.mjs", "runtime/macos/role-process.mjs", "runtime/macos/sandbox-identity.c"]) {
     if (!existsSync(path.join(output, needed))) throw new Error("Stage the macOS plugin sources before packaging");
   }
   cpSync(runtime.directory, path.join(output, "runtime/macos/node"), { recursive: true, errorOnExist: true, force: false });
@@ -41,11 +57,8 @@ export function packageMacosPlugin({ output, runtimeDirectory }) {
   for (const directory of [path.join(output, skill), path.join(output, "codex", skill)]) {
     if (verifierPackage(directory).checksum !== verifier.checksum) throw new Error("Packaged verifier checksum differs");
   }
-  const hooksPath = path.join(output, "hooks/hooks.json"), hooks = JSON.parse(readFileSync(hooksPath, "utf8"));
-  const guard = hooks.hooks.PreToolUse[0].hooks[0];
-  if (guard.command !== "node" || guard.onFailure !== "block") throw new Error("Unexpected template hook contract");
-  guard.command = "${CLAUDE_PLUGIN_ROOT}/bin/harness"; guard.args = ["template-guard"];
-  writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + "\n");
+  const hooksPath = path.join(output, "hooks/hooks.json");
+  writeFileSync(hooksPath, JSON.stringify(macosHooks(JSON.parse(readFileSync(hooksPath, "utf8"))), null, 2) + "\n");
   const rows = inventory(output), manifest = { format: "stagekeeper-macos-plugin-v1", architecture: runtime.architecture,
     sourceRevision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repository, encoding: "utf8" }).trim(),
     packageSha256: macosDigest(JSON.stringify(rows)), files: rows.length, runtimeSha256: runtime.executableSha256,

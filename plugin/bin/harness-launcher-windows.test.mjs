@@ -18,6 +18,13 @@ const ENTRY = `import { writeFileSync } from "node:fs";
 writeFileSync(process.env.STAGEKEEPER_TEST_LAUNCH, JSON.stringify({ execPath: process.execPath, argv: process.argv.slice(2) }));
 process.exitCode = 3;
 `;
+const GUARD_ENTRY = `import { writeFileSync } from "node:fs";
+let input = "";
+process.stdin.setEncoding("utf8");
+for await (const chunk of process.stdin) input += chunk;
+writeFileSync(process.env.STAGEKEEPER_TEST_LAUNCH, JSON.stringify({ execPath: process.execPath, argv: process.argv.slice(2), input }));
+process.stdout.write(JSON.stringify({ guard: process.argv[1].split(/[\\\\/]/).pop(), echoed: JSON.parse(input) }) + "\\n");
+`;
 
 function plugin(t) {
   const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), "stagekeeper-launcher-")));
@@ -28,6 +35,7 @@ function plugin(t) {
   for (const name of ["harness-init.mjs", "harness-codex.mjs", "harness-session.mjs", "harness-watch.mjs", "harness-background.mjs"]) {
     writeFileSync(path.join(bin, name), ENTRY);
   }
+  for (const name of ["harness-template-guard.mjs", "harness-commit-guard.mjs"]) writeFileSync(path.join(bin, name), GUARD_ENTRY);
   return { root, launcher: path.join(bin, "harness.ps1"), launch: path.join(root, "launch.json") };
 }
 
@@ -51,12 +59,12 @@ function powershell7Modules(root) {
   return path.dirname(directory);
 }
 
-function run(fixture, args, searchPath, modulePath = process.env.PSModulePath) {
+function run(fixture, args, searchPath, modulePath = process.env.PSModulePath, input) {
   rmSync(fixture.launch, { force: true });
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !["path", "psmodulepath"].includes(key.toLowerCase())));
   const result = spawnSync(POWERSHELL, ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", fixture.launcher, ...args],
-    { encoding: "utf8", windowsHide: true, env: { ...env, Path: searchPath, PSModulePath: modulePath, STAGEKEEPER_TEST_LAUNCH: fixture.launch } });
-  return { status: result.status, stderr: result.stderr.trim(), launch: existsSync(fixture.launch) ? JSON.parse(readFileSync(fixture.launch, "utf8")) : null };
+    { encoding: "utf8", windowsHide: true, input, env: { ...env, Path: searchPath, PSModulePath: modulePath, STAGEKEEPER_TEST_LAUNCH: fixture.launch } });
+  return { status: result.status, stdout: result.stdout, stderr: result.stderr.trim(), launch: existsSync(fixture.launch) ? JSON.parse(readFileSync(fixture.launch, "utf8")) : null };
 }
 
 const withNode = `${NODE_DIRECTORY};${SYSTEM32}`;
@@ -70,6 +78,18 @@ it("runs Claude helpers from a source install on the Node.js in PATH", { skip },
     assert.equal(result.status, 3, result.stderr);
     samePath(result.launch.execPath, process.execPath);
     assert.deepEqual(result.launch.argv, args);
+  }
+});
+
+it("hands hook input to the template and commit guards as UTF-8 and returns each guard's answer", { skip }, t => {
+  const fixture = plugin(t), call = { tool_name: "Bash", tool_input: { command: "git commit -m \"커밋 — 확인\"" } };
+  const bundled = bundle(fixture.root, process.execPath);
+  for (const [task, guard] of [["template-guard", "harness-template-guard.mjs"], ["commit-guard", "harness-commit-guard.mjs"]]) {
+    const result = run(fixture, [task], withNode, undefined, JSON.stringify(call));
+    assert.equal(result.status, 0, result.stderr);
+    samePath(result.launch.execPath, bundled);
+    assert.deepEqual(JSON.parse(result.launch.input), call);
+    assert.deepEqual(JSON.parse(result.stdout), { guard, echoed: call });
   }
 });
 

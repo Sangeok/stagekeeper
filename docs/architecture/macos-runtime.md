@@ -16,6 +16,8 @@ native macOS 경계에 맞춘다. 서버의 단계 본문, 인수 다섯 조건,
 - 설치한 `bin/harness <task> <arguments>`는 포함된 Node의 checksum을 먼저 검사하고
   `harness-platform.mjs`가 runtime provenance와 전체 inventory를 검사한 뒤 고정된
   task 진입점을 실행한다. source-only Codex 설치에서 global Node로 우회하지 않는다.
+- package는 template guard와 role commit guard를 모두 native launcher로 연결한다.
+  원래 matcher·조건·timeout·실패 정책을 유지하고, 알 수 없거나 빠진 hook은 패키징을 거부한다.
 - Codex의 허용 OS는 Windows와 macOS다. 다른 OS는 초기화·실행·dispatch 전에
   `codex-platform`으로 거부한다. stop/release는 남은 소유권 정리를 위해 유지한다.
 - macOS에서 역할이나 runner를 시작하는 신뢰된 설치 launcher는 부모 Codex 명령

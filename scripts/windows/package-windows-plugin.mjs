@@ -23,6 +23,23 @@ function regularTree(directory) {
   visit(directory); return files;
 }
 
+const WINDOWS_HOOKS = new Map([["harness-template-guard.mjs", { mode: "template-guard", onFailure: "block" }], ["harness-commit-guard.mjs", { mode: "commit-guard", onFailure: "continue" }]]);
+export function windowsHooks(hooks) {
+  const seen = new Set();
+  for (const group of Object.values(hooks.hooks).flat()) {
+    for (const handler of group.hooks) {
+      const script = handler.command === "node" && handler.args?.length === 1 ? /^\$\{CLAUDE_PLUGIN_ROOT\}\/bin\/([a-z-]+\.mjs)$/.exec(handler.args[0])?.[1] : undefined;
+      const contract = WINDOWS_HOOKS.get(script);
+      if (!contract || handler.onFailure !== contract.onFailure) throw new Error("Unexpected plugin hook contract");
+      seen.add(script);
+      handler.command = "powershell.exe";
+      handler.args = ["-NoProfile", "-NonInteractive", "-File", "${CLAUDE_PLUGIN_ROOT}/bin/harness.ps1", contract.mode];
+    }
+  }
+  if (seen.size !== WINDOWS_HOOKS.size) throw new Error("Unexpected plugin hook contract");
+  return hooks;
+}
+
 export function packageWindowsPlugin({ output, runtimeDirectory }) {
   if (!path.isAbsolute(output) || existsSync(output) || path.relative(repository, output).split(path.sep)[0] !== "..") throw new Error("A new output directory outside the repository is required");
   const runtime = installedWindowsRuntime(runtimeDirectory), verifier = verifierPackage(path.join(repository, "plugin", VERIFIER));
@@ -38,12 +55,7 @@ export function packageWindowsPlugin({ output, runtimeDirectory }) {
     mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, readFileSync(sourceFile), { flag: "wx" });
   }
   const hooksPath = path.join(output, "hooks/hooks.json");
-  const hooks = JSON.parse(readFileSync(hooksPath, "utf8"));
-  const guard = hooks.hooks.PreToolUse[0].hooks[0];
-  if (guard.command !== "node" || guard.onFailure !== "block") throw new Error("Unexpected template hook contract");
-  guard.command = "powershell.exe";
-  guard.args = ["-NoProfile", "-NonInteractive", "-File", "${CLAUDE_PLUGIN_ROOT}/bin/harness.ps1", "template-guard"];
-  writeFileSync(hooksPath, JSON.stringify(hooks, null, 2) + "\n");
+  writeFileSync(hooksPath, JSON.stringify(windowsHooks(JSON.parse(readFileSync(hooksPath, "utf8"))), null, 2) + "\n");
   const packagedRuntime = path.join(output, "runtime/windows/node");
   cpSync(runtime.directory, packagedRuntime, { recursive: true, errorOnExist: true, force: false });
   cpSync(path.join(output, VERIFIER), path.join(output, CODEX_VERIFIER), { recursive: true, errorOnExist: true, force: false });
@@ -52,7 +64,7 @@ export function packageWindowsPlugin({ output, runtimeDirectory }) {
     if (copied.checksum !== verifier.checksum || copied.files !== verifier.files) throw new Error("Complete verifier copy differs");
   }
   if (verifierPackage(path.dirname(verifier.path)).checksum !== verifier.checksum) throw new Error("Plugin verifier changed while packaging");
-  for (const needed of ["bin/harness.ps1", "runtime/windows/RoleProcess.cs", "runtime/windows/role-process.ps1", "runtime/windows/job-launch.ps1", "runtime/windows/notify.ps1", "runtime/windows/autostart.ps1"]) if (!existsSync(path.join(output, needed))) throw new Error("Native plugin source is incomplete; stage its new tracked files before packaging");
+  for (const needed of ["bin/harness.ps1", ...[...WINDOWS_HOOKS.keys()].map(script => `bin/${script}`), "runtime/windows/RoleProcess.cs", "runtime/windows/role-process.ps1", "runtime/windows/job-launch.ps1", "runtime/windows/notify.ps1", "runtime/windows/autostart.ps1"]) if (!existsSync(path.join(output, needed))) throw new Error("Native plugin source is incomplete; stage its new tracked files before packaging");
   const inventory = regularTree(output);
   const manifest = { format: "stagekeeper-windows-plugin-v1", sourceRevision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repository, encoding: "utf8" }).trim(),
     packageSha256: digest(JSON.stringify(inventory)), files: inventory.length, runtimeSha256: runtime.executableSha256,

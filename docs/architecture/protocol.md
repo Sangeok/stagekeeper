@@ -553,6 +553,30 @@ Claude 상주 실행기의 1회 실행(`/harness:watch --once`, watch 스킬 7�
 지금처럼 소유자 차례다. 서버 판정과 배너는 바뀌지 않는다. Codex 상주 실행은 위의 전용 도구 계약(`resident_commit`,
 `resident_dispatch`)으로 핸드오프를 커밋하고 재개한다.
 
+### 역할 커밋 경계
+
+Claude 플러그인(0.6.5부터)의 PreToolUse 훅 `plugin/bin/harness-commit-guard.mjs`가 역할 서브에이전트의 셸 명령에서
+`git commit`과 `git add`를 거부한다. 훅은 `if` 조건(`Bash(*git*commit*)`, `Bash(*git*add*)`와 같은 PowerShell 조건)이
+맞는 호출에서만 뜬다. 판정은 아래 규칙이 한다.
+
+- 입력에 `agent_id`가 없는 호출(메인 세션)은 보지 않는다. 메인 루프와 소유자의 `commit:no`는 지시문으로 지킨다.
+- 세션의 프로젝트 루트(`CLAUDE_PROJECT_DIR`, 없으면 호출의 `cwd`)에서 위로 찾은 checkout 루트에 `workspaces` 배열이 있는
+  `harness.json`이 있어야 판정한다. 연결되지 않은 저장소의 서브에이전트는 보지 않는다.
+- `REPORT_AGENTS`의 역할은 언제나 거부한다. 역할은 위의 커밋 핸드오프로 파일을 넘긴다. 이유는
+  `Stagekeeper: <role> does not commit. Leave the file uncommitted and send agent_next outcome handoff with its path as note; the main loop commits it.`다.
+- `harness.json` `workspaces[].agent`의 역할은 그 checkout의 git 공통 디렉터리 `harness/watch.json`의 `commit`이
+  false일 때만 거부한다. 이유는 `Stagekeeper: this session's commit policy is no. Leave the changes uncommitted and report them; the owner commits.`다.
+  상주 실행기의 정책은 항상 yes라 여기에 걸리지 않는다.
+- 명령은 따옴표와 주석 밖의 `&&`, `||`, `;`, `|`, `&`, 줄바꿈, 괄호, `$(`로 나눈다. 조각마다 환경 변수 대입과 `if`·`env`
+  같은 앞말을 건너뛴 첫 단어가 `git`·`git.exe`(경로 포함)이고, 전역 옵션(`-C`, `-c`, `--git-dir`, `--work-tree` 등) 뒤
+  하위 명령이 `commit`·`add`인지 본다. `bash -c`·`sh -c`·`pwsh -Command`의 인수는 한 번 더 같은 방식으로 본다.
+- 입력이나 파일을 읽지 못하면 판정 없이 통과한다. 훅 자체가 실패해도 명령은 진행한다(`onFailure: "continue"`).
+  별칭, 커밋하는 스크립트, `cmd /c` 같은 다른 실행기, 변수로 만든 하위 명령, 따옴표 안의 명령 치환은 찾지 못한다.
+  보안 경계가 아니라 지시문 뒤의 안전망이다.
+- Windows 번들은 같은 훅을 `harness.ps1 commit-guard`로 내장 Node에서 돌린다.
+
+Codex는 역할에 임의 셸을 열지 않으므로 이 훅이 없다.
+
 ### `검증:` 줄 형식
 
 ```text

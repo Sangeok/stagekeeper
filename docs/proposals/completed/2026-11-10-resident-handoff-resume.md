@@ -302,7 +302,9 @@ main push 뒤 check:
   - 이 PC는 플러그인 0.6.4로 바뀌었다.
 - remaining follow-up:
   - 같은 실행의 핸드오프를 커밋·재개하는 경로를 실기로 확인한다. 다음에 상주 실행에서 역할이 핸드오프를 보내면 실행 기록에서 본다.
+    - 2026-11-10 확인: [role-commit-guard](./2026-11-10-role-commit-guard.md)의 pipeline-smoke run 42756576635와 실기(harness-smoke ITEM-03, Opus 5.5, 0.6.5)에서 확인했다. 두 실행 모두 handoff → 메인 루프가 인계 파일 하나만 커밋 → 같은 run을 outcome 없이 재개 → `report_submit` → 인수 순서로 끝났다.
   - impl-verifier가 핸드오프 대신 원본 checkout에 직접 커밋한 일은 따로 다룬다(2026-11-10 사용자 결정). 상주 실행은 커밋 정책이 yes라 해가 없다. 하지만 감시를 `commit:no`로 쓸 때도 같은 일이 생기면 소유자의 커밋 금지를 우회한다.
+    - 2026-11-10 처리: 플러그인 0.6.5의 커밋 훅이 검증 역할의 `git commit`·`git add`를 거부한다([role-commit-guard](./2026-11-10-role-commit-guard.md)).
   - ITEM-05는 앞선 실행이 남긴 핸드오프로 기다린다. 사용자가 마무리하지 않기로 했다(2026-11-09).
   - harness-smoke의 로컬 커밋은 push하지 않았다.
 
