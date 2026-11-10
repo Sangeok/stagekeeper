@@ -17,7 +17,7 @@ it("implementation Git never restores or reads committed paths denied by the sou
   const base = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-implementation-policy-")), root = path.join(base, "repo");
   mkdirSync(root);
   t.after(() => rmSync(base, { recursive: true }));
-  const git = args => execFileSync("git", ["-C", root, "-c", "user.name=Stagekeeper Test", "-c", "user.email=stagekeeper@test.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const git = args => execFileSync("git", ["-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=Stagekeeper Test", "-c", "user.email=stagekeeper@test.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   git(["init", "-q"]);
   const denied = [".azure/synthetic.json", "private/note.txt", ".env.test"];
   for (const name of [...denied, "allowed.txt"]) {
@@ -47,7 +47,7 @@ it("implementation verification observes baseline, assertion failure after rever
   const base = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-implementation-test-")), root = path.join(base, "repo"), scratch = path.join(base, "scratch");
   mkdirSync(root); mkdirSync(scratch);
   t.after(() => rmSync(base, { recursive: true }));
-  const git = args => execFileSync("git", ["-C", root, "-c", "user.name=Stagekeeper Test", "-c", "user.email=stagekeeper@test.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const git = args => execFileSync("git", ["-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.name=Stagekeeper Test", "-c", "user.email=stagekeeper@test.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   git(["init", "-q"]);
   writeFileSync(path.join(root, "sum.cjs"), "module.exports = (a, b) => a;\n");
   writeFileSync(path.join(root, "package.json"), JSON.stringify({ scripts: { test: "node --test sum.test.cjs" } }));
