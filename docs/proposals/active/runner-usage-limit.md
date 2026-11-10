@@ -255,7 +255,7 @@ npm run verify:plugin-version -- --base origin/dev --head HEAD
 | `npm run check` | 시험 하나 실패(변경 밖) | `plugin/lib` 동기화, lint(경고 1: 손대지 않은 `codex-main-loop-tools.mjs`), 문서 검사, typegen, tsc는 통과했다. `test:scripts` 324개 중 `template-release-cli.test.ts`의 "profile selection requires an approved private target…" 하나가 실패했다. 바꾸지 않은 dev `295082c` 본 checkout에서도 같은 오류로 실패하는 이 PC 환경 문제다 |
 | `npm run verify:fsd`, `verify:server`, `test:architecture` | 통과(아키텍처 224개 중 222 통과, 실패 0) | |
 | `npm run build` | CI에 맡김 | CI check의 build 단계가 돈다 |
-| `npm run verify:plugin-version -- --base origin/dev --head HEAD` | 커밋 뒤 | |
+| `npm run verify:plugin-version -- --base origin/dev --head HEAD` | 통과 | 0.6.5 → 0.6.6, 배포 파일 6개(커밋 `9cc60d5`) |
 
 ## Risks and Rollback
 
