@@ -17,7 +17,7 @@ on:
       template_commit:
         description: Full private template commit SHA
         required: true
-        default: fb6ef955ba3f6fc8320e173fbafc9ef03b83281b
+        default: 8ccb37a4ab91de527e6a23caa6d415c7cdc6f215
         type: string
 
 permissions:
@@ -95,7 +95,7 @@ jobs:
         if: steps.gate.outputs.ready == 'true'
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.template_commit || 'fb6ef955ba3f6fc8320e173fbafc9ef03b83281b' }}
+          ref: ${{ inputs.template_commit || '8ccb37a4ab91de527e6a23caa6d415c7cdc6f215' }}
           repository: Sangeok/harness-templates
           token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
           path: plugin/templates
@@ -127,7 +127,7 @@ jobs:
           PLUGIN_BRANCH: ${{ github.head_ref || github.ref_name }}
           PLUGIN_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
           SCENARIO: ${{ matrix.scenario }}
-          TEMPLATE_COMMIT: ${{ inputs.template_commit || 'fb6ef955ba3f6fc8320e173fbafc9ef03b83281b' }}
+          TEMPLATE_COMMIT: ${{ inputs.template_commit || '8ccb37a4ab91de527e6a23caa6d415c7cdc6f215' }}
           PREVIOUS_REF: ${{ steps.previous.outputs.commit }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $false
