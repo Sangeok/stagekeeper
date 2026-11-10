@@ -118,7 +118,7 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 <!-- server-internal-tests:start -->
 | 시험 파일 | 내부 모듈 | 이유 |
 | --- | --- | --- |
-| `tests/server/github-configuration.test.ts` | github | lazy 설정·기본 OFF·운영 준비 gate와 callback origin 검증 |
+| `tests/server/github-configuration.test.ts` | github | 실제 App·webhook·vault 설정에 따른 목록 자동 제공과 callback origin 검증 |
 | `tests/server/github-provider.test.ts` | github | 실제 HTTP adapter의 PKCE·권한·페이지·오류·개별 토큰 폐기 계약 |
 | `tests/server/github-token-vault.test.ts` | github | 실제 암호화·AAD·keyring 회전과 위조 envelope 거부 |
 | `tests/server/integration/github-connection.test.ts` | github | 격리 PostgreSQL의 시도·갱신·해제 CAS·webhook 중복·수명주기 검증 |

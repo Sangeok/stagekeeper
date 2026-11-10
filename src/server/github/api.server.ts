@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { prisma } from "@/server/db";
 import type { ConnectionView, Dependencies, RepositoryPage, RestorableDraft, Result, AuthorizedRepository } from "./contracts";
-import { appConfiguration, pickerEnabled, webhookConfiguration } from "./configuration.server";
+import { appConfiguration, webhookConfiguration } from "./configuration.server";
 import { configuredTokenVault } from "./token-vault.server";
 import { createGitHubProvider } from "./provider.server";
 import { createGitHubStore } from "./store.server";
@@ -18,7 +18,7 @@ export { listPublicRepos } from "./public-repositories";
 function dependencies(): Dependencies | null {
   const configuration = appConfiguration(), vault = configuredTokenVault();
   return configuration && vault ? { configuration, vault, store: createGitHubStore(prisma), provider: createGitHubProvider(configuration),
-    enabled: () => pickerEnabled() && webhookConfiguration() !== null, now: () => new Date(), wait: ms => new Promise(resolve => setTimeout(resolve, ms)) } : null;
+    enabled: () => webhookConfiguration() !== null, now: () => new Date(), wait: ms => new Promise(resolve => setTimeout(resolve, ms)) } : null;
 }
 
 export async function loadRepositoryConnection(userId: string, browser: string | null): Promise<ConnectionView> {

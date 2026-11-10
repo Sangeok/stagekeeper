@@ -37,15 +37,19 @@ UI와 adapter는 기존 create-project slice에 둔다. 일반 loader에 use-ser
 AUTH_SECRET을 재사용하지 않는다. 실제 key는 문서·로그·PR에 넣지 않는다.
 
 시도·초안은 10분 후 읽기 불가이며 consume/cancel/supersede/disconnect 시 비밀을 즉시 지운다. 만료 row는 maintenance에서 물리 삭제한다.
-webhook delivery ID만 24시간 보관하고 raw payload는 저장하지 않는다. 운영자는 maintenance를 최소 10분마다 실행한다.
-명시적 운영 준비 확인 설정 없이는 기능을 활성화하지 않는다. 기능 OFF에서도 disconnect/webhook/maintenance는 유지한다.
+webhook delivery ID만 24시간 보관하고 raw payload는 저장하지 않는다. maintenance는 최소 10분마다 실행한다.
+2026-11-10 운영 전환 결정으로 수동 feature/operations-ready boolean을 제거한다.
+App·webhook·vault 설정이 모두 유효하면 목록을 자동 제공하며, 설정이 불완전해도 disconnect/webhook/maintenance는 독립적으로 유지한다.
+Vercel Pro Production의 Cron이 10분마다 정리 route를 호출한다. 별도 CRON_SECRET으로 요청을 인증하고,
+누락·짧은 비밀키·잘못된 인증은 작업 없이 거부한다. 정기 작업은 key rotation을 수행하지 않으며 회전은 명시적 CLI 명령으로 유지한다.
 connection revision과 tokenVersion을 분리하고, refresh lease를 획득한 토큰은 불확실한 결과나 process 중단 후 재사용하지 않는다.
 
 public/private visibility를 지원하고 archived는 선택에서 제외한다. 미지원/archived 개수를 숨기지 않는다. URL 등록은 기존 계약을 유지한다.
 
 ## Consequences
 
-별도 migration·keyring·정리 작업이 필요하다. 기능은 기본 OFF이며 실제 App의 public 설정·Metadata read·callback·조직/SSO 인수와 운영 준비 전에는 켜지 않는다.
+별도 migration·keyring·정리 작업이 필요하다. 설정이 없으면 기능은 비활성이며 유효한 설정을 공급하는 배포에서 자동 활성화된다.
+운영자는 전체 설정 공급 전에 migration·Cron 실행·키 복구와 실제 App의 public 설정·Metadata read·callback·조직/SSO 인수를 확인한다.
 개별 토큰 폐기가 실패하면 로컬 중지는 유지하고 외부 폐기는 미확인으로 보고한다. 공유 installation이나 전체 grant는 제거하지 않는다.
 
 ## Confirmation
