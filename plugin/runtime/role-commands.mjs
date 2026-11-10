@@ -87,6 +87,7 @@ export async function snapshotRepository(root, destination, fileBroker, signal, 
         if (++count > 100000) throw new Error("Snapshot file count exceeded");
         continue;
       }
+      if (before.isSymbolicLink()) throw new Error("Snapshot file alias refused");
       if (before.isDirectory()) { await flush(); await mkdir(target, { recursive: true }); await visit(source, rel); continue; }
       if (!before.isFile() || before.size > 128n * 1024n * 1024n || ++count > 100000 || (bytes += Number(before.size)) > 2 * 1024 * 1024 * 1024) throw new Error("Snapshot size or file type unsupported");
       const row = [rel.split(path.sep).join("/"), null]; hashes.push(row);
