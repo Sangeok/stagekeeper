@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { runIntegration, validateTestDatabase } from "./test-server-integration.mjs";
+import { runIntegration } from "./test-server-integration.mjs";
 
 const testUrl = "postgresql://user:secret@localhost/stagekeeper_test_receipts";
 it("handles help and invalid CLI arguments before loading database configuration", () => {
@@ -30,12 +30,6 @@ it("handles help and invalid CLI arguments before loading database configuration
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
-});
-it("fails closed for missing, unsafe or equivalent database URLs without exposing credentials", () => {
-  for (const env of [{}, { TEST_DATABASE_URL: "not-a-url-secret" }, { TEST_DATABASE_URL: "mysql://x/stagekeeper_test_x" }, { TEST_DATABASE_URL: "postgres://x/production" }, { TEST_DATABASE_URL: testUrl, DATABASE_URL: "postgres://other:password@127.0.0.1:5432/stagekeeper_test_receipts?schema=other" }]) {
-    assert.throws(() => validateTestDatabase(env), (error) => !/secret|password/.test(error.message));
-  }
-  assert.equal(validateTestDatabase({ TEST_DATABASE_URL: testUrl, DATABASE_URL: "postgres://x/production" }), testUrl);
 });
 it("validates before spawning, deploys migrations before serial tests, and stops on failure", async () => {
   const calls = [];

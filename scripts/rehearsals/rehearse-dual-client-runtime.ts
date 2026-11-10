@@ -7,7 +7,7 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 import { parseHarnessConfig } from "@harness/core/configuration/harness-config.mjs";
 import { isRunbookVersion } from "@harness/core/templates/runbook.mjs";
 

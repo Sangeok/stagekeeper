@@ -8,7 +8,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
 import { defaultGraph, PIPELINE_EDIT_PLAN_GATE, SLOT_FORMAT } from "../../packages/core/pipeline/pipeline.mjs";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 
 type Support = typeof import("../../tests/server/integration/support");
 type Pool = ReturnType<Support["connections"]>;

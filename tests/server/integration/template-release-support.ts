@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../../src/generated/prisma/client";
 import type { DeploymentAudit } from "../../../src/server/templates/contracts";
 import type { TemplateRow } from "../../../packages/core/templates/release-manifest.mjs";
-import { validateTestDatabase } from "../../../scripts/test-server-integration.mjs";
+import { validateTestDatabaseUrl } from "../../../scripts/lib/test-database.mjs";
 
 export function releaseRows(body = "Do the work."): TemplateRow[] {
   const marker = "<!-- harness-runtime:harness-runtime-v1 -->";
@@ -20,7 +20,7 @@ export function releaseRows(body = "Do the work."): TemplateRow[] {
 export const releaseAudit: DeploymentAudit = { actor: "test", environment: "test", targetProfileId: "isolated", targetIdentityHash: "a".repeat(64), codeSha: "b".repeat(40), workflowRun: "fixture" };
 
 export async function withReleaseDatabase<T>(work: (clients: PrismaClient[]) => Promise<T>): Promise<T> {
-  const connectionString = validateTestDatabase({ TEST_DATABASE_URL: process.env.TEST_DATABASE_URL });
+  const connectionString = validateTestDatabaseUrl(process.env.TEST_DATABASE_URL);
   const schema = `template_release_${randomUUID().replaceAll("-", "")}`;
   const admin = new pg.Client({ connectionString });
   const clients: PrismaClient[] = [];

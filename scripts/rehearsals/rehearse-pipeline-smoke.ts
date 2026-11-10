@@ -6,7 +6,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
-import { validateTestDatabase } from "../test-server-integration.mjs";
+import { validateTestDatabase } from "../lib/test-database.mjs";
 import { containsSecret, helperCommand } from "./client-init-smoke-steps.mjs";
 import { PIPELINE_ROLES, PIPELINE_STEPS, SMOKE_SCENARIOS, planVerificationBounded, runFindings, sealTranscripts, summarizePipeline, transcriptKey, waitVerdict } from "./pipeline-smoke-steps.mjs";
 import { bootstrapSmokeTemplates, createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, ORIGIN, osLabel, Run, seedTemplates, Smoke, startServer, stopServer, type Plugin } from "./rehearse-client-init-smoke";
@@ -253,7 +253,6 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   const runnerEnv: NodeJS.ProcessEnv = secrets.oauth ? { ...helperEnv, CLAUDE_CODE_OAUTH_TOKEN: secrets.oauth } : helperEnv;
   const secretValues = [secrets.oauth, secrets.key.toString("base64")].filter((value): value is string => typeof value === "string" && value.length > 0);
   const leaks = (text: string): boolean => containsSecret(text, token.plain) || secretValues.some(value => text.includes(value));
-  process.env.DATABASE_URL = databaseUrl;
   const { withPrisma } = await import("../lib/prisma");
   const { createBoardService, loadPipelinesView, nextFor, savePipelineDefinition } = await import("../../src/server/pipeline/api");
   let server: ChildProcess | undefined;
@@ -272,8 +271,8 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   });
   try {
     record.templatesCommit = await run.step("seed-templates", () => seedTemplates(run, options.templates, path.join(work, "template-snapshot.json"), childEnv));
-    await bootstrapSmokeTemplates({ run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-pipeline-smoke" });
-    userId = await run.step("fixture", () => createFixtureUser(login, token.hash));
+    await bootstrapSmokeTemplates({ databaseUrl, run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-pipeline-smoke" });
+    userId = await run.step("fixture", () => createFixtureUser(login, token.hash, databaseUrl));
     server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
     const fixtureRepo = await run.step("repository", () => {
       const created = createRepository(work, "pipeline");
@@ -288,7 +287,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     });
     repo = fixtureRepo;
     const fixtureUser = userId;
-    const smoke = new Smoke(run, fixtureRepo, helperEnv, fixtureUser);
+    const smoke = new Smoke(run, fixtureRepo, helperEnv, fixtureUser, databaseUrl);
     const installed = await run.step("plugin-install", () => installPlugin(run, { pluginSource: "github-branch", pluginBranch: options.pluginBranch, pluginCommit: options.pluginCommit }, work, helperEnv));
     plugin = installed;
     record.pluginCommit = installed.commit;
@@ -307,12 +306,12 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
       });
       if (result.status !== "success") throw new Error(`pipeline save: ${result.status === "error" ? result.reason : result.status}`);
       return project.id;
-    }));
+    }, databaseUrl));
     const itemKey = await run.step("backlog-added", () => withPrisma(async prisma => {
       const added = await createBoardService(prisma).addBacklog(projectId, { ...scenario.item, addedBy: "owner", addedByRunId: null });
       if (!added.ok) throw new Error(`backlog add: ${added.reason}`);
       return added.item.key;
-    }));
+    }, databaseUrl));
     verifiedItem = { projectId, key: itemKey };
     const headBeforeRunner = run.succeed("git", ["rev-parse", "HEAD"], fixtureRepo, helperEnv, "git rev-parse").stdout.trim();
     const startedEvent = await run.step("runner-start", () => {
@@ -332,7 +331,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
         if (result.verdict !== "wait") return result;
         await delay(POLL_MS);
       }
-    }));
+    }, databaseUrl));
     const doneDeadline = Math.min(runnerStartedAt + options.waitMinutes * 60_000, deadline - SEAL_RESERVE_MS);
     await waitFor(run, "item-done", () => withPrisma(async prisma => {
       let handoffSince: number | null = null;
@@ -345,7 +344,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
         if (result.verdict !== "wait") return result;
         await delay(POLL_MS);
       }
-    }));
+    }, databaseUrl));
     record.minutesToDone = Math.round((Date.now() - runnerStartedAt) / 60_000);
     await run.step("roles-ran", () => withPrisma(async prisma => {
       const runs = await prisma.agentRun.findMany({ where: { projectId }, select: { agent: true, refused: true } });
@@ -353,11 +352,11 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
       const ran = new Set(runs.map(entry => entry.agent));
       const missing = PIPELINE_ROLES.filter((role: string) => !ran.has(role));
       if (missing.length > 0) throw new Error(`these roles did not run: ${missing.join(", ")}`);
-    }));
+    }, databaseUrl));
     await run.step("plan-verification-bounded", () => withPrisma(async prisma => {
       record.planVerifierPasses = await prisma.agentRun.count({ where: { projectId, agent: "plan-verifier", key: itemKey } });
       if (!planVerificationBounded(record.planVerifierPasses)) throw new Error(`plan verification took ${record.planVerifierPasses} independent passes`);
-    }));
+    }, databaseUrl));
     await run.step("runner-stop", async () => {
       const stop = background(["--stop"], helperEnv);
       if (stop.code !== 0) throw new Error(`background stop exited ${stop.code}`);
@@ -406,9 +405,9 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     await cleanup("server", () => stopServer(server));
     if (verifiedItem && record.planVerifierPasses === undefined) {
       const target = verifiedItem;
-      await cleanup("plan-verifier count", async () => { record.planVerifierPasses = await withPrisma(prisma => prisma.agentRun.count({ where: { projectId: target.projectId, agent: "plan-verifier", key: target.key } })); });
+      await cleanup("plan-verifier count", async () => { record.planVerifierPasses = await withPrisma(prisma => prisma.agentRun.count({ where: { projectId: target.projectId, agent: "plan-verifier", key: target.key } }), databaseUrl); });
     }
-    if (userId) await cleanup("fixture user", () => deleteFixtureUser(userId!));
+    if (userId) await cleanup("fixture user", () => deleteFixtureUser(userId!, databaseUrl));
     const latest = statuses.last();
     record.runnerState = latest?.state ?? undefined;
     record.waitReason = latest?.waitReason ?? undefined;

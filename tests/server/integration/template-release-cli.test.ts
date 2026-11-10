@@ -9,11 +9,11 @@ import { it } from "node:test";
 import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../../src/generated/prisma/client";
-import { validateTestDatabase } from "../../../scripts/test-server-integration.mjs";
+import { validateTestDatabaseUrl } from "../../../scripts/lib/test-database.mjs";
 import { releaseRows } from "./template-release-support";
 
 it("actual operator CLIs import, snapshot, bootstrap, inspect, activate and recover against an explicit isolated target", { timeout: 30000 }, async () => {
-  const parentUrl = validateTestDatabase({ TEST_DATABASE_URL: process.env.TEST_DATABASE_URL });
+  const parentUrl = validateTestDatabaseUrl(process.env.TEST_DATABASE_URL);
   const database = `stagekeeper_test_template_cli_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
   const url = new URL(parentUrl); url.pathname = `/${database}`;
   const admin = new pg.Client({ connectionString: parentUrl }); await admin.connect();
