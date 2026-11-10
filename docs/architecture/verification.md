@@ -166,7 +166,9 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   재실행(`rerun-asks-first`), 처음 연결에서 등록과 `harness.json` 쓰기 전에 묻는지
   (`first-connection-asks-before-register`), 초안을 승인한 뒤에도 생성 전에 다시 묻는지
   (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
-  실행마다 셸 명령을 기록해 job 로그에 남긴다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
+  실행마다 셸 명령을 기록해 job 로그에 남긴다. 판정이 어긋난 회의 이유를 볼 수 있도록, 같은 회의 보존된 임시
+  폴더에서 대화 기록을 찾아 assistant 메시지 수, 마지막 `stop_reason`, 마지막 메시지(1,500자까지)도 남긴다. 결과
+  JSON이나 대화 기록을 artifact로 올리지 않는다. artifact는 로그와 달리 비밀값 가림을 거치지 않기 때문이다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
   실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
   사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
 - [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그

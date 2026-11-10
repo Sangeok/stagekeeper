@@ -156,11 +156,50 @@ jobs:
           for kept in /private/tmp/e-*; do
             [ -d "$kept" ] || continue
             chmod -R u+rwx "$kept" 2>/dev/null
+            echo "run $(basename "$kept"):"
             find "$kept" -path '*/.stagekeeper-eval/shell.log' 2>/dev/null | while read -r log; do
               id="$(head -n 1 "$log" | cut -d ' ' -f 2)"
               name="$(grep -l "EVAL_CASE: $id\$" "$EVAL_PLUGIN"/evals/*/case.yaml 2>/dev/null | head -n 1)"
               echo "commands of one run of $(basename "$(dirname "${name:-?/?}")"):"
               tail -n +2 "$log" | sed 's/^/  /'
             done
+            node -e '
+              const fs = require("fs");
+              const path = require("path");
+              const root = process.argv[1];
+              const files = [];
+              const walk = (directory, depth) => {
+                if (depth > 8) return;
+                let entries;
+                try { entries = fs.readdirSync(directory, { withFileTypes: true }); } catch { return; }
+                for (const entry of entries) {
+                  const full = path.join(directory, entry.name);
+                  if (entry.isDirectory() && entry.name !== "node_modules" && entry.name !== ".git") walk(full, depth + 1);
+                  else if (entry.isFile()) files.push(full);
+                }
+              };
+              walk(root, 0);
+              const transcripts = files.filter(file => /\/projects\/[^/]+\/[^/]+\.jsonl$/.test(file.split(path.sep).join("/")));
+              if (transcripts.length === 0) {
+                console.log(`  no transcript kept; files: ${files.slice(0, 40).map(file => path.relative(root, file)).join(", ")}`);
+              }
+              for (const file of transcripts) {
+                const texts = [];
+                let assistants = 0;
+                let stop = null;
+                for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+                  let entry;
+                  try { entry = JSON.parse(line); } catch { continue; }
+                  if (entry?.type !== "assistant") continue;
+                  assistants++;
+                  stop = entry.message?.stop_reason ?? stop;
+                  for (const block of Array.isArray(entry.message?.content) ? entry.message.content : []) {
+                    if (block?.type === "text" && typeof block.text === "string" && block.text.trim()) texts.push(block.text);
+                  }
+                }
+                console.log(`  transcript: ${assistants} assistant messages, last stop ${stop}`);
+                console.log(`  last message: ${(texts.at(-1) ?? "").replace(/\s+/g, " ").slice(0, 1500)}`);
+              }
+            ' "$kept" || echo "  transcript unreadable"
           done
           exit $code
