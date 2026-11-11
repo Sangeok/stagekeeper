@@ -8,10 +8,41 @@ import { createRoleCommands } from "./role-commands.mjs";
 import { z } from "zod";
 import { RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { createRoleFiles } from "./role-files.mjs";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { nativeCommandFailure } from "./native-command-diagnostics.mjs";
+
+it("treats malformed literal searches as correctable input while keeping permission and ownership refusals fatal", async t => {
+  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "role-search-input-")), target = path.join(root, "claim.txt"), events = [];
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(target, "checkable claim\n");
+  const files = createRoleFiles({ ":root": "deny", [root]: "read" }, "doc-auditor");
+  let active = true;
+  const bridge = await roleBridge({ binding: {} }, {}, "s", { agent: "doc-auditor", project: "p" }, {
+    listTools: async () => ROLE_TOOLS["doc-auditor"].map(name => ({ name })),
+    checkSession: async () => ({ event: "owned", lifecycle: active ? "active" : "stopping", client: "codex" }),
+    callTool: async () => ({ done: false, step: "audit", receipt: { runId: "r", revision: 0, stepId: "audit" } }),
+    record: event => events.push(event),
+  }, files);
+  t.after(() => bridge.close());
+  const call = (name, args) => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) }).then(response => response.json());
+  await call("agent_next", {});
+  for (const args of [{ path: root, text: "" }, { path: root, text: "x".repeat(201) }, { path: root, text: "claim", offset: -1 }, { path: root, query: "PRIVATE_QUERY_CANARY" }]) {
+    const result = await call("role_file_search", args);
+    assert.equal(result.error.code, -32602);
+    assert.equal(events.at(-1).reason, "invalid-input");
+    assert.doesNotMatch(result.error.message, /PRIVATE_QUERY_CANARY/);
+  }
+  const result = await call("role_file_search", { path: root, text: "checkable" });
+  assert.equal(result.result.isError, false);
+  assert.equal(JSON.parse(result.result.content[0].text).matches.length, 1);
+  assert.equal((await call("role_file_search", { path: path.dirname(root), text: "claim" })).error.code, -32000);
+  active = false;
+  assert.equal((await call("role_file_search", { path: root, text: "" })).error.code, -32000);
+  assert.equal(events.at(-1).reason, "ownership");
+  assert.equal(readFileSync(target, "utf8"), "checkable claim\n");
+});
 
 it("records bounded role file failure causes without retaining paths, arguments or private errors", async t => {
   const root = mkdtempSync(path.join(realpathSync(tmpdir()), "role-diagnostic-")), events = [];

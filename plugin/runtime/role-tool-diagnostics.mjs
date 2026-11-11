@@ -13,6 +13,7 @@ const reasons = new Map([
   ["Read page too large", "file-page-size"], ["Directory required", "file-type-or-size"],
   ["Directory too large", "file-scan-size"], ["Invalid scan pagination", "invalid-input"],
   ["Unexpected file arguments", "invalid-input"], ["Invalid guarded text write", "invalid-input"],
+  ["Literal search text required", "invalid-input"],
   ["File changed while opening", "file-changed"], ["File changed while reading", "file-changed"],
   ["File revision changed during write", "file-changed"], ["Temporary file ownership changed", "file-changed"],
   ["Role file broker closed", "closed"], ["Role file operation unavailable", "file-operation"],

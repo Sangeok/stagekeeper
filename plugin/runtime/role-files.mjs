@@ -30,7 +30,7 @@ export function roleFileToolNames(agent) {
 const schemas = {
   role_file_read: { description: "Read a permitted UTF-8 file, with line pagination and a SHA-256 for guarded editing. Absolute paths only. maxLines is 1..500 (default 200); follow nextLine to continue reading the complete file.", properties: { path: { type: "string" }, startLine: { type: "integer", minimum: 1 }, maxLines: { type: "integer", minimum: 1, maximum: 500 } }, required: ["path"] },
   role_file_list: { description: "List up to 200 permitted directory entries. A denied workspace is omitted. Use the nextOffset to continue.", properties: { path: { type: "string" }, offset: { type: "integer", minimum: 0 } }, required: ["path"] },
-  role_file_search: { description: "Search a literal string in permitted UTF-8 files in a directory. Reports incomplete scans explicitly; never interprets a regex or shell command.", properties: { path: { type: "string" }, text: { type: "string", minLength: 1, maxLength: 200 }, offset: { type: "integer", minimum: 0 } }, required: ["path", "text"] },
+  role_file_search: { description: "Search a nonempty literal string of 1..200 characters in permitted UTF-8 files in an absolute directory. Use role_file_list to discover files without a search string. Reports incomplete scans explicitly; never interprets a regex or shell command.", properties: { path: { type: "string" }, text: { type: "string", minLength: 1, maxLength: 200 }, offset: { type: "integer", minimum: 0 } }, required: ["path", "text"] },
   role_file_write: { description: "Write a permitted UTF-8 file. expectedHash must be the SHA-256 from a current read, or null for a new file. Managed and Git files remain protected, including absent paths.", properties: { path: { type: "string" }, content: { type: "string" }, expectedHash: { type: ["string", "null"] } }, required: ["path", "content", "expectedHash"] },
 };
 
@@ -186,7 +186,7 @@ export function createRoleFiles(filesystem, agent) {
     call(name, args) {
       if (closed || !names.includes(name) || !args || Array.isArray(args) || typeof args !== "object") throw new Error("Role file operation unavailable");
       const schema = schemas[name];
-      if (Object.keys(args).some(key => !Object.hasOwn(schema.properties, key)) || schema.required.some(key => !Object.hasOwn(args, key))) throw new Error("Unexpected file arguments");
+      if (Object.keys(args).some(key => !Object.hasOwn(schema.properties, key)) || schema.required.some(key => !Object.hasOwn(args, key))) throw new RoleFileInputError("Unexpected file arguments. Supply the required fields and only the documented fields for this tool; correct inputs without changing target permissions.");
       const target = resolveTarget(args.path, name === "role_file_write");
       if (name === "role_file_write") return write(target, args);
       if (name === "role_file_read") {
@@ -197,13 +197,13 @@ export function createRoleFiles(filesystem, agent) {
         return { path: target, hash: file.hash, text: selected, startLine: start, totalLines: lines.length, nextLine: start - 1 + count < lines.length ? start + count : null };
       }
       const offset = args.offset ?? 0;
-      if (!Number.isSafeInteger(offset) || offset < 0) throw new Error("Invalid scan pagination");
+      if (!Number.isSafeInteger(offset) || offset < 0) throw new RoleFileInputError("Invalid scan pagination. offset must be a non-negative safe integer; follow nextOffset for additional permitted entries.");
       if (name === "role_file_list") {
         const found = entries(target);
         return { entries: found.items.slice(offset, offset + 200), skipped: found.skipped, incomplete: found.incomplete || found.skipped > 0,
           nextOffset: !found.incomplete && offset + 200 < found.items.length ? offset + 200 : null };
       }
-      if (typeof args.text !== "string" || !args.text || args.text.length > 200) throw new Error("Literal search text required");
+      if (typeof args.text !== "string" || !args.text || args.text.length > 200) throw new RoleFileInputError("Literal search text required: supply a nonempty string of 1..200 characters. Use role_file_list to discover permitted files, then read or search them. This tool searches literal text, not regexes; correct inputs without changing target permissions.");
       const matches = []; let files = 0, bytes = 0, skipped = 0, directories = 0, visited = 0, incomplete = false, truncatedFile = null;
       const deadline = Date.now() + 5000;
       function visit(directory) {
