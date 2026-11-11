@@ -55,6 +55,17 @@ it("keeps only allowed summary fields and never a token", () => {
   assert.equal("output" in summary, false);
 });
 
+it("carries the client, system and plugin versions into the summary only when they are plain versions", () => {
+  const summary = summarize({ client: "claude", os: "win32-x64", clientVersion: "2.1.322", osVersion: "10.0.20348", pluginVersion: "0.6.14" });
+  assert.deepEqual(
+    { clientVersion: summary.clientVersion, osVersion: summary.osVersion, pluginVersion: summary.pluginVersion },
+    { clientVersion: "2.1.322", osVersion: "10.0.20348", pluginVersion: "0.6.14" },
+  );
+
+  const dropped = summarize({ client: "claude", clientVersion: "2.1.322 (Claude Code)", osVersion: "Darwin 24", pluginVersion: "latest" });
+  assert.deepEqual(Object.keys(dropped).sort(), ["client", "result"]);
+});
+
 it("drops step names and failure codes that are not plain identifiers", () => {
   const token = "hu_" + "x".repeat(43);
   const summary = summarize({ steps: [{ step: "register", result: "pass" }, { step: token, result: "pass" }, { step: "generate", result: "maybe" }], failure: `write ${token}` });

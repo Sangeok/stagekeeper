@@ -89,6 +89,17 @@ it("keeps only allowlisted values in the public summary", () => {
   assert.equal(summarizePipeline({ minutesToDone: -1 }).minutesToDone, undefined);
 });
 
+it("carries the client and its versions into the pipeline summary only when they are well formed", () => {
+  const summary = summarizePipeline({ client: "claude", os: "win32-x64", clientVersion: "2.1.322", osVersion: "10.0.20348", pluginVersion: "0.6.14" });
+  assert.deepEqual(
+    { client: summary.client, clientVersion: summary.clientVersion, osVersion: summary.osVersion, pluginVersion: summary.pluginVersion },
+    { client: "claude", clientVersion: "2.1.322", osVersion: "10.0.20348", pluginVersion: "0.6.14" },
+  );
+
+  const dropped = summarizePipeline({ client: "someone else", clientVersion: "2.1", osVersion: "Windows Server 2022", pluginVersion: "0.6.14-rc1" });
+  assert.deepEqual(Object.keys(dropped), ["result"]);
+});
+
 it("opens sealed transcripts only with the same key, an untouched file and safe names", () => {
   const key = randomBytes(32);
   const files = { "runs/20261102T000000000Z.jsonl": `${line({ type: "result" })}\n`, "background.log": "runner started\n" };

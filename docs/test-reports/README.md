@@ -296,6 +296,10 @@ completed/2026-07-23-trip-v3-admin-playwright-audit-r2.md
 - 테스트 데이터 변경·정리와 남은 영향이 기록됨
 - 비밀값과 개인정보가 포함되지 않았음을 실제로 확인함
 - 발견 사항이 적절한 proposal, investigation, issue, PR 또는 후속 테스트로 연결됨
+- 실제 모델로 클라이언트를 검증한 인수라면
+  [게이트 실행 기록](https://github.com/Sangeok/stagekeeper/issues/319)에 수동 행을 남김. 형식은
+  [검증 문서](../architecture/verification.md)의 게이트 기록 설명을 따름. 판정의 단일 기준은 이 보고서의
+  front matter이고 행은 찾아가기 위한 색인임
 - front matter와 본문 결론이 일치하고 문서가 시점이 고정된 기록으로 읽힘
 
 `standard` 보고서는 명령·정적 검사, 상세 환경 제한, Evidence Registry와 데이터

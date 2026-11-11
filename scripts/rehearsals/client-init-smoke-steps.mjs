@@ -1,8 +1,8 @@
 import { join } from "node:path";
 import { existsSync, readdirSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { environmentFields } from "./gate-environment.mjs";
 
-const CLIENTS = ["claude", "codex"];
 const SCENARIOS = ["new-user", "update"];
 const SOURCES = ["github-branch", "export", "bundle"];
 const RESULTS = ["pass", "fail", "skip"];
@@ -38,8 +38,7 @@ export function containsSecret(text, token) {
 }
 
 export function summarize(record) {
-  const summary = {};
-  if (CLIENTS.includes(record.client)) summary.client = record.client;
+  const summary = environmentFields(record);
   if (typeof record.os === "string" && NAME.test(record.os)) summary.os = record.os;
   if (SCENARIOS.includes(record.scenario)) summary.scenario = record.scenario;
   if (SOURCES.includes(record.pluginSource)) summary.pluginSource = record.pluginSource;

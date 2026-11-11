@@ -10,6 +10,7 @@ on:
       - "prisma/**"
       - "scripts/rehearsals/rehearse-client-init-smoke.ts"
       - "scripts/rehearsals/client-init-smoke-steps.mjs"
+      - "scripts/rehearsals/gate-environment.mjs"
       - ".github/workflows/client-init-smoke.yml"
       - ".github/actions/smoke-database/**"
   workflow_dispatch:
@@ -39,15 +40,24 @@ jobs:
           - os: windows-2022
             scenario: new-user
             pg: windows-x64
+            leg: windows_new_user
           - os: windows-2022
             scenario: update
             pg: windows-x64
+            leg: windows_update
           - os: macos-15
             scenario: new-user
             pg: darwin-arm64
+            leg: macos_new_user
           - os: macos-15
             scenario: update
             pg: darwin-arm64
+            leg: macos_update
+    outputs:
+      summary_windows_new_user: ${{ steps.smoke.outputs.summary_windows_new_user }}
+      summary_windows_update: ${{ steps.smoke.outputs.summary_windows_update }}
+      summary_macos_new_user: ${{ steps.smoke.outputs.summary_macos_new_user }}
+      summary_macos_update: ${{ steps.smoke.outputs.summary_macos_update }}
     env:
       PG_PORT: "45432"
       TEST_DB: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_e2e
@@ -120,9 +130,11 @@ jobs:
           git fetch --no-tags --depth 1 origin main
           echo "commit=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
       - name: Run the client init smoke
+        id: smoke
         if: steps.gate.outputs.ready == 'true'
         shell: pwsh
         env:
+          LEG: ${{ matrix.leg }}
           TEST_DATABASE_URL: ${{ env.TEST_DB }}
           PLUGIN_BRANCH: ${{ github.head_ref || github.ref_name }}
           PLUGIN_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -138,5 +150,31 @@ jobs:
           if ($env:PREVIOUS_REF) { $arguments += @('--previous-ref', $env:PREVIOUS_REF) }
           node @arguments | Tee-Object -FilePath $summary
           $code = $LASTEXITCODE
-          if (Test-Path $summary) { "``````json`n$((Get-Content $summary | Select-Object -Last 1))`n``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8 }
+          if (Test-Path $summary) {
+            $line = Get-Content $summary | Select-Object -Last 1
+            "``````json`n$line`n``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            "summary_$($env:LEG)=$line" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          }
           exit $code
+  record:
+    name: record
+    needs: [claude]
+    if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: ./.github/actions/gate-record
+        with:
+          workflow: client-init-smoke
+          result: ${{ needs.claude.result }}
+          summaries: ${{ toJSON(needs.claude.outputs) }}
+          legs: windows_new_user,windows_update,macos_new_user,macos_update

@@ -22,6 +22,8 @@ jobs:
     name: init skill eval (macos-15)
     runs-on: macos-15
     timeout-minutes: 30
+    outputs:
+      summary_init_skill: ${{ steps.eval.outputs.summary_init_skill }}
     env:
       DISABLE_AUTOUPDATER: "1"
       EVAL_PLUGIN: /private/tmp/stagekeeper-eval/plugin
@@ -125,6 +127,7 @@ jobs:
             console.log("control: a registration, a generator run and its writes were detected");
           ' "$RUNNER_TEMP/control.json"
       - name: Run the init skill eval
+        id: eval
         if: steps.gate.outputs.ready == 'true'
         shell: bash
         env:
@@ -139,20 +142,9 @@ jobs:
           fi
           CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" "${selector[@]}" --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/eval.json"
           code=$?
-          node -e '
-            const result = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
-            const lines = [];
-            for (const testCase of result.cases ?? []) {
-              lines.push(`${testCase.name}: score ${testCase.aggregates?.score} over ${testCase.arms?.with?.length ?? 0} runs`);
-              for (const [index, run] of (testCase.arms?.with ?? []).entries()) {
-                const graders = (run.graders ?? []).map(grader => `${grader.name}=${grader.passed ? "pass" : "fail"}`).join(" ");
-                lines.push(`  run ${index + 1}: ${graders}${run.error ? " error" : ""}`);
-              }
-            }
-            lines.push(`cost estimate $${Number(result.costUsd ?? 0).toFixed(2)}, ${result.durationSeconds}s`);
-            console.log(lines.join("\n"));
-            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, "```\n" + lines.join("\n") + "\n```\n");
-          ' "$RUNNER_TEMP/eval.json" || echo "no eval result"
+          node scripts/rehearsals/agent-eval-summary.mjs --result "$RUNNER_TEMP/eval.json" --exit-code "$code" --plugin "$EVAL_PLUGIN" --commit "$GITHUB_SHA" --summary "$RUNNER_TEMP/eval-summary.json" --client-version-output "$(claude --version 2>/dev/null)" --os-version "$(sw_vers -productVersion 2>/dev/null)" | tee "$RUNNER_TEMP/eval-lines.txt"
+          { echo '```'; cat "$RUNNER_TEMP/eval-lines.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/eval-summary.json" ]; then echo "summary_init_skill=$(cat "$RUNNER_TEMP/eval-summary.json")" >> "$GITHUB_OUTPUT"; fi
           for kept in /private/tmp/e-*; do
             [ -d "$kept" ] || continue
             chmod -R u+rwx "$kept" 2>/dev/null
@@ -203,3 +195,25 @@ jobs:
             ' "$kept" || echo "  transcript unreadable"
           done
           exit $code
+  record:
+    name: record
+    needs: [init-skill]
+    if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: ./.github/actions/gate-record
+        with:
+          workflow: agent-eval
+          result: ${{ needs.init-skill.result }}
+          summaries: ${{ toJSON(needs.init-skill.outputs) }}
+          legs: init_skill

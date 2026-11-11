@@ -9,6 +9,7 @@ import { newToken } from "../../packages/core/tokens/token.mjs";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";
+import { measureEnvironment, pluginVersionAt } from "./gate-environment.mjs";
 
 const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
 const MARKETPLACE = "stagekeeper-local";
@@ -440,6 +441,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
   delete helperEnv.HARNESS_PLAN;
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
+  Object.assign(record, measureEnvironment(process.platform, (file: string, args: string[]) => run.command(file, args, REPO, helperEnv).stdout));
   let server: ChildProcess | undefined;
   let userId: string | undefined;
   try {
@@ -454,6 +456,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
     if (options.scenario === "new-user") {
       const plugin = await run.step("plugin-install", () => installPlugin(run, options, work, helperEnv));
       record.pluginCommit = plugin.commit;
+      record.pluginVersion = pluginVersionAt(plugin.root);
       await newUser(smoke, plugin, options.scenario, login, token.plain, childEnv);
     } else {
       const previousRef = options.previousRef!;
@@ -464,6 +467,7 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
       record.previousCommit = previous.commit;
       const plugin = await update(smoke, previous, () => installPlugin(run, options, work, helperEnv), options, token.plain, cutover);
       record.pluginCommit = plugin.commit;
+      record.pluginVersion = pluginVersionAt(plugin.root);
     }
     await run.step("secret-scan", () => {
       if (run.outputs.some(output => containsSecret(output, token.plain))) throw new Error("a command printed a token value");
