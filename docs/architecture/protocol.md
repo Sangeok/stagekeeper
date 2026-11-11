@@ -314,7 +314,7 @@ workspace·관리 파일 판정은 대소문자를 구분하지 않고 실제 �
 교정 가능한 입력·누락 경로 오류를 제외한 도구 거부는 bridge를 닫고 현재 turn을
 중단한다. 거부 전에 함께 요청된 대기열의 dispatch도 실행하지 않는다. policy 거부 뒤
 늦은 completed 응답이 와도 실패를 성공으로 분류하지 않는다.
-실제 설치·native 인수와 OS별 지원 판정은 [C4 계획](../proposals/active/codex-resident-runner-plan.md)에 별도로 기록한다.
+실제 설치·native 인수와 OS별 지원 판정은 [C4 후속 인수](../proposals/active/codex-dual-client-runtime-follow-ups.md)에 별도로 기록한다.
 
 구 서버는 client를 검사하지 않고 session만으로 행을 삭제할 수 있다. 따라서 schema
 확장만으로 혼합 서버 운영을 허용하지 않는다. 모든 reader/writer의 호환성 확인 후

@@ -1,13 +1,14 @@
 ---
-status: "pending"
-stage: "blocked"
+status: "completed"
+stage: null
 proposal-size: "standard"
+updated-at: "2026-11-11"
 created-at: "2026-10-22"
 approved-by: "requesting-user"
 approved-at: "2026-10-24"
 approval-scope: "2026-10-24 사용자 승인: 현재 Windows PC의 격리 DB·서비스에서 C4B 실제 연결 구현과 통합시험, 연결 후 Windows 110분 유휴 시험을 진행한다. 물리적 clean Windows·OS별 인수는 최종 지원·출시 조건으로 유지하며 운영 seed·main 승격·패키지 공개는 포함하지 않는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-11"
+verification-summary: "Windows C4A·C4B와 macOS backend 구현 완료(#294). 기록한 payload의 실제 역할·110분 인수 및 CI 통과. 나머지 환경·출시 인수는 codex-dual-client-runtime-follow-ups.md로 이관."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -19,7 +20,60 @@ related:
   - "docs/architecture/protocol.md"
 ---
 
-# Codex 상주 실행기 — 기존 runner 재사용 계획
+# Codex 상주 실행기 — 구현 완료 기록
+
+## Summary
+
+기존 runner를 재사용하는 C4A·C4B와 Windows·macOS native 실행 backend를 구현했다.
+Windows의 기본 graph·중지/재개·110분 인수와 macOS의 전체 선택 역할·110분 인수를
+각각 해당 판의 증거로 보존한다. [PR #294](https://github.com/Sangeok/stagekeeper/pull/294)의
+macOS 구현은 `dev`에 병합됐으며, 이 문서에 남아 있던 macOS 미구현 판정은 과거 기록이다.
+
+2026-11-11 사용자의 정리 요청에 따라 코드 구현 완료로 문서를 닫는다.
+C4C의 남은 환경·출시 인수는 [runtime 후속 문서](../active/codex-dual-client-runtime-follow-ups.md#2026-11-11-남은-인수)를 따른다.
+아래 원래 계획의 요구사항·Task·VFY와 날짜별 실패·차단 기록은 역사적 근거로 보존한다.
+과거 readiness 판정은 현재 구현 상태나 전체 제품 지원 선언으로 사용하지 않는다.
+
+## Scope
+
+완료 범위는 공통 resident 루프·Codex main-loop·fresh 역할·서버 lease·client 표시,
+native command/Git 경계·패키징과 연결된 구현 및 기록된 로컬 인수다.
+전체 출시 조합·clean Mac·Intel 실제 모델·macOS 교차 클라이언트 인수는 이 완료 범위에 넣지 않는다.
+macOS 로그인 자동 시작·OS 알림은 원래 제외 범위이며 새 미구현 과제로 추가하지 않는다.
+
+## Verification Results
+
+| 범위 | 실제 증거와 한계 |
+| --- | --- |
+| Windows C4B·C4C | [resident 인수](../../test-reports/completed/2026-10-24-codex-resident-live.md), [0.5.24 재인수](../../test-reports/completed/2026-10-26-codex-0524-windows-acceptance.md): 실제 A→Z·중지/재개·같은 payload 110분. [0.5.25 혼합 인수](../../test-reports/completed/2026-10-28-codex-mixed-host-reacceptance.md)는 기록한 client 조합에 한정 |
+| macOS 0.6.10 | [완료 보고서](../../test-reports/completed/2026-11-10-codex-macos-native-acceptance.md): 기존 로그인·bundle 설치, 8 AgentRun 성공, 4개 보고서·audit/scout log, 6,600초 새 모델·AgentRun 0과 정리 |
+| macOS backend·빌드 | 같은 보고서의 native 경계·후손 복구·원본 무쓰기, arm64/Intel CI와 offline 전체 repository build 통과. Intel 실제 모델 인수는 별도 |
+| 최종 PR 통합 | #294의 `a5e060b`, plugin 0.6.11: check·설치·Windows·macOS CI 통과. 설치된 0.6.10의 실제 모델 결과를 0.6.11 재생으로 바꾸지 않음 |
+
+이번 문서 정리에서는 제품 시험·실제 모델·장시간 인수를 재실행하지 않았다.
+
+## Approval
+
+기존 실행 승인 범위는 front matter에 보존한다. 이번 요청은 구현 완료 기록과 후속 인수의
+문서 정리이며 설치·운영 seed·승격·패키지 공개를 새로 실행하는 승인이 아니다.
+
+## Risks and Rollback
+
+payload·CLI·OS가 달라지면 과거 인수 결과를 그대로 재사용하지 않는다.
+추가 인수의 지원 범위·중지/소유권·복구와 출시 조건은 runtime 후속 문서와 현재
+[macOS 계약](../../architecture/macos-runtime.md), [protocol](../../architecture/protocol.md)을 따른다.
+기존 local session을 직접 지우거나 역할 권한을 넓히는 우회는 허용하지 않는다.
+
+## Completion or Closure Notes
+
+2026-11-11 코드 구현 완료 기준으로 닫고 기존 C4C 잔여 조건을 runtime 후속 문서의
+RUN-F01–04로 이관했다. 원래 canonical Task·VFY는 이 파일에 유지한다.
+clean Windows는 2026-10-28의 사용자 생략 결정을 유지하며 새 차단 조건으로 되살리지 않는다.
+공개 bundle 배포나 모든 환경 인수를 완료한 것으로 기록하지 않는다.
+
+## Historical Plan and Acceptance
+
+이하 본문은 2026-10월 설계·후보별 인수의 이력이다. 현재 완료 판정과 남은 작업은 위 절을 따른다.
 
 ## Goal and Authority
 
@@ -28,10 +82,10 @@ related:
 결과 판독, 취소와 종료 확인을 연결한다. 세션형 자동 watch와 두 방식 동시 개발은
 이번 범위에 넣지 않는다. 기존 foreground run/resume은 유지한다.
 
-상위 [실행·인수 계획](./codex-dual-client-runtime-follow-ups.md)이 최소 설치,
+상위 [실행·인수 계획](../active/codex-dual-client-runtime-follow-ups.md)이 최소 설치,
 실제 역할·양방향 승인·중지/재개 인수를 소유한다. 원본 SDD의 REQ-DUAL-018/019,
 INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
-[완료 기록](../completed/2026-10-04-codex-dual-client-support.md)의 canonical 정의를 참조한다.
+[완료 기록](./2026-10-04-codex-dual-client-support.md)의 canonical 정의를 참조한다.
 이 문서는 그 작업의 상세 계획이며 자동 watch 요구사항을 새로 정의하지 않는다.
 
 앞선 Windows foreground 인수 source는 `5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5`/plugin `0.5.20`이다.
@@ -450,14 +504,41 @@ C4C 전에는 격리 설치 후보로 시험하며 foreground 안내·Claude 자
 
 ### C4B 검증 목적지와 완료 조건
 
-| 검증 | post-change 확인 내용 | 현재 판정 |
-| --- | --- | --- |
-| VFY-C4B-01 | 정식 migration legacy rows/default/NULL·unknown, 구 writer/rollback과 데이터 보존 | 실제 정식 migration·integration PASS; 후보 DDL 111항목은 이전 별도 증거 |
-| VFY-C4B-02 | 실제 REST 모든 op, client/session/host 충돌, stopped 재전송, autostart 보호, busy/echo/400/404, 인증·플랜·pause | REST/DB integration 146개와 실제 cap/auth·Pause/Resume PASS |
-| VFY-C4B-03 | 실제 main-loop·commit·독립 verifier·서버 lease, cycle별 문맥·receipt/usage | 최종 fresh A→Z의 두 browser gate·역할·handoff·5개 인수 및 acceptedAt PASS |
-| VFY-C4B-04 | stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled | 실제 pending main-loop/역할 takeover·같은 AgentRun 재개·owner stop PASS; 세부 실패 경계는 결정적/모의 회귀로 구분 |
-| VFY-C4B-05 | DB→select→RunnerView→runnerFacts→full/compact/project-list, copy-lock·Pause/복구 | 최종 production snapshot의 실제 Edge와 web 777개 PASS |
-| VFY-C4B-06 | 실제 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분 | 양쪽 0.5.20→0.5.21 설치와 2,229개 hash PASS; 최종 A→Z payload의 단일 110분·HTTP count PASS. clean host·다른 OS native·출시는 미완료 |
+#### VFY-C4B-01: 정식 migration legacy rows/default/NULL·unknown, 구 writer/rollback과 데이터 보존
+
+관찰 목적지: 정식 migration legacy rows/default/NULL·unknown, 구 writer/rollback과 데이터 보존.
+
+당시 판정: 실제 정식 migration·integration PASS; 후보 DDL 111항목은 이전 별도 증거.
+
+#### VFY-C4B-02: 실제 REST 모든 op, client/session/host 충돌, stopped 재전송, autostart 보호, busy/echo/400/404, 인증·플랜·pause
+
+관찰 목적지: 실제 REST 모든 op, client/session/host 충돌, stopped 재전송, autostart 보호, busy/echo/400/404, 인증·플랜·pause.
+
+당시 판정: REST/DB integration 146개와 실제 cap/auth·Pause/Resume PASS.
+
+#### VFY-C4B-03: 실제 main-loop·commit·독립 verifier·서버 lease, cycle별 문맥·receipt/usage
+
+관찰 목적지: 실제 main-loop·commit·독립 verifier·서버 lease, cycle별 문맥·receipt/usage.
+
+당시 판정: 최종 fresh A→Z의 두 browser gate·역할·handoff·5개 인수 및 acceptedAt PASS.
+
+#### VFY-C4B-04: stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled
+
+관찰 목적지: stop/ownership/timeout/late, interrupt 1회, release·successor·unsettled.
+
+당시 판정: 실제 pending main-loop/역할 takeover·같은 AgentRun 재개·owner stop PASS; 세부 실패 경계는 결정적/모의 회귀로 구분.
+
+#### VFY-C4B-05: DB→select→RunnerView→runnerFacts→full/compact/project-list, copy-lock·Pause/복구
+
+관찰 목적지: DB→select→RunnerView→runnerFacts→full/compact/project-list, copy-lock·Pause/복구.
+
+당시 판정: 최종 production snapshot의 실제 Edge와 web 777개 PASS.
+
+#### VFY-C4B-06: 실제 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분
+
+관찰 목적지: 실제 loader/hash/verifier/기존 skill 보존, OS별 C4C·110분.
+
+당시 판정: 양쪽 0.5.20→0.5.21 설치와 2,229개 hash PASS; 최종 A→Z payload의 단일 110분·HTTP count PASS. clean host·다른 OS native·출시는 미완료.
 
 실행한 [계약 리허설 보고서](../../test-reports/completed/2026-10-24-codex-resident-contract.md)와
 현재 실제 구현 검증은 구분한다. npm run check, verify:fsd, verify:server,
@@ -487,6 +568,9 @@ permission/handoff/cap, stop·늦은 이벤트·실제 자식 종료·동일 항
 인수도 유지한다. 검증된 범위에서만 Codex background skill/CLI와 제품 안내를 공개한다.
 
 ### macOS native 실행의 남은 경계
+
+이 절의 미구현·미연결 표현은 2026-10-28 이전 조사 시점의 기록이다. 후속 backend는
+#294에서 구현했고 실제 0.6.10 인수는 위 Verification Results에 연결했다.
 
 [공통 계약 CI](../../../.github/workflows/macos-runtime-contracts.yml)는 macOS 15 arm64와
 x64에서 2026-10-25 기준 각각 529 PASS / 20 SKIP다. [GitHub runner 목록](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)의
@@ -556,6 +640,8 @@ resident 및 실제 양쪽 client 업데이트만 검증한다. Codex 모델 res
 검증된 대안이 없는 상태에서 backend 연결·권한 완화·지원 선언으로 진행하지 않는다.
 
 ## Readiness and Handoff
+
+이 절은 2026-10월 당시의 인계·차단 판정이며 최신 완료 판정은 Summary를 따른다.
 
 2026-10-26 [0.5.24 현재 Windows 인수](../../test-reports/completed/2026-10-26-codex-0524-windows-acceptance.md)를
 완료했다. 양쪽 실제 신규 설치·업데이트, 47개 테스트와 다섯 최종 인수를 포함한

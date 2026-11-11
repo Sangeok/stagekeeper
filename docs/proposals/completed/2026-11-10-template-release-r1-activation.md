@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/template-release-versioning.md"
+  - "docs/proposals/completed/2026-11-11-template-release-versioning.md"
   - "docs/proposals/completed/2026-11-05-template-release-production-cutover.md"
   - "docs/test-reports/completed/2026-11-05-template-release-production-cutover.md"
   - "docs/test-reports/completed/2026-11-10-template-release-r1-activation.md"
@@ -27,7 +27,7 @@ related:
 
 운영은 2026-11-05에 versioned R0(비공개 템플릿 `fb6ef955`)로 전환했다. 같은 날 서버는 main `62e68dd`(#291, 플러그인 0.6.2)로 올라갔다. 이 서버는 검증이 수렴하지 않는 항목을 보류로 빼는 출구를 갖췄지만, 수렴하지 않는 원인인 검증 경로 5는 R0 템플릿에 그대로 있다.
 
-이 문서는 [R0 전환 계획](./2026-11-05-template-release-production-cutover.md)이 별도 승인으로 남긴 Phase H를 실행하는 절차를 정한다. R1은 그 원인을 고친 Sangeok/harness-templates #16이다. R1을 import하고 activate한 뒤 R0로 포인터를 복구했다가 다시 R1로 돌린다. 이 과정으로 [원 제안서](../active/template-release-versioning.md) TPL4의 종료 조건과 VFY-TPL-09의 production 부분을 채운다.
+이 문서는 [R0 전환 계획](./2026-11-05-template-release-production-cutover.md)이 별도 승인으로 남긴 Phase H를 실행하는 절차를 정한다. R1은 그 원인을 고친 Sangeok/harness-templates #16이다. R1을 import하고 activate한 뒤 R0로 포인터를 복구했다가 다시 R1로 돌린다. 이 과정으로 [원 제안서](./2026-11-11-template-release-versioning.md) TPL4의 종료 조건과 VFY-TPL-09의 production 부분을 채운다.
 
 ## Goal
 
@@ -224,7 +224,7 @@ B1부터 D까지는 같은 날 이어서 한다. 그 사이 pipeline-smoke 기�
 | 이 Mac의 플러그인, e2e 저장소의 init 파일 | 0.6.2 설치, lock v2(R1) | 인수 | low |
 | `.github/workflows/client-init-smoke.yml` | 고정 템플릿 커밋을 M으로(별도 PR) | CI와 운영을 맞춘다 | low |
 | `docs/proposals/active/template-release-r1-activation.md` | 신규 | 이 문서 | none |
-| `docs/proposals/active/template-release-versioning.md`, `docs/architecture/template-releases.md`, `docs/test-reports/` | 실행 뒤 갱신 | 기록 | none |
+| `docs/proposals/completed/2026-11-11-template-release-versioning.md`, `docs/architecture/template-releases.md`, `docs/test-reports/` | 실행 뒤 갱신 | 기록 | none |
 
 ## Safety Analysis
 

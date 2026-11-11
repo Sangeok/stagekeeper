@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/template-release-versioning.md"
+  - "docs/proposals/completed/2026-11-11-template-release-versioning.md"
   - "docs/architecture/template-releases.md"
   - "docs/architecture/verification.md"
   - "AGENTS.md"
@@ -23,7 +23,7 @@ related:
 
 ## Summary
 
-dev의 #287을 운영에 내보내려면 운영 DB의 템플릿 채널을 `legacy`에서 `versioned`로 바꿔야 한다. 그래야 플러그인 0.6.1이 동작한다. 이 문서는 [template-release-versioning.md](../active/template-release-versioning.md)의 Phase TPL4 가운데 R0 전환까지를 운영에서 실행하는 절차를 정한다. 범위는 사전 확인, 운영 데이터 사본으로 하는 로컬 리허설과 백업 확인, 승격 게이트, 운영 마이그레이션과 main 승격, 유지보수 시간의 snapshot·bootstrap, 이 PC의 클라이언트 전환이다. R1 활성화와 포인터 복구 인수는 R0가 안정된 뒤 별도 승인으로 한다.
+dev의 #287을 운영에 내보내려면 운영 DB의 템플릿 채널을 `legacy`에서 `versioned`로 바꿔야 한다. 그래야 플러그인 0.6.1이 동작한다. 이 문서는 [template-release-versioning.md](./2026-11-11-template-release-versioning.md)의 Phase TPL4 가운데 R0 전환까지를 운영에서 실행하는 절차를 정한다. 범위는 사전 확인, 운영 데이터 사본으로 하는 로컬 리허설과 백업 확인, 승격 게이트, 운영 마이그레이션과 main 승격, 유지보수 시간의 snapshot·bootstrap, 이 PC의 클라이언트 전환이다. R1 활성화와 포인터 복구 인수는 R0가 안정된 뒤 별도 승인으로 한다.
 
 ## Goal
 
@@ -317,7 +317,7 @@ R1을 import(비공개 Git 커밋)하고 activate(CAS)한 뒤, R0로 포인터�
 | WSL `gh` | 설치. 토큰은 저장하지 않는다 | gist·secret 작업을 WSL 안에서 끝낸다 | low |
 | 이 PC의 플러그인과 연결 저장소 init 파일 | 0.6.1 설치, lock v2 | 클라이언트 전환 | low — 옛 번들을 백업 |
 | `docs/proposals/active/template-release-production-cutover.md` | 신규 | 이 문서 | none |
-| `docs/proposals/active/template-release-versioning.md`, `docs/test-reports/` | 실행 뒤 갱신 | 기록 | none |
+| `docs/proposals/completed/2026-11-11-template-release-versioning.md`, `docs/test-reports/` | 실행 뒤 갱신 | 기록 | none |
 
 ## Safety Analysis
 

@@ -11,11 +11,11 @@ completed-at: "2026-10-28"
 last-executed-at: "2026-10-27T23:58:54Z"
 tested-revision: "ddb18a4dad6e301cf27db35dc63370ae84e96e26"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/test-reports/completed/2026-10-25-macos-descendant-ownership.md", "docs/test-reports/completed/2026-10-25-macos-launchd-ownership.md", "docs/test-reports/completed/2026-10-25-macos-coalition-access.md", "docs/test-reports/completed/2026-10-24-codex-runtime-portability.md"]
+related: ["docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/test-reports/completed/2026-10-25-macos-descendant-ownership.md", "docs/test-reports/completed/2026-10-25-macos-launchd-ownership.md", "docs/test-reports/completed/2026-10-25-macos-coalition-access.md", "docs/test-reports/completed/2026-10-24-codex-runtime-portability.md"]
 primary-area: "harness/macos-sandbox-identity"
 observed-environments: ["CI | macOS 15.7.9 (24G830) arm64 and x64 hosted runners | Darwin 24.6.0; Node 22.23.2 | ordinary user; no client credentials", "local | Windows repository validation | Node 22.13.1 | native macOS probe refuses execution"]
 test-summary: "pass: a per-run Seatbelt profile signature found every survivor without false matches, both kill strategies ended a live 2 ms fork-and-exit hopper by heartbeat, and survivors stayed confined; no product backend was built"
-follow-up: ["docs/proposals/active/codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # macOS 실행별 샌드박스 식별과 후손 종료 확인
@@ -45,7 +45,7 @@ macOS 15.7.9 hosted runner(arm64·x64)에서 4회 실행, 모두 20번 수행했
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 확인 기준 |
 | --- | --- | --- | --- |
 | R1 | [프로토콜](../../architecture/protocol.md)의 실제 종료·ownership 계약 | 종료 근거 후보 | 실행이 만든 프로세스를 모두 찾고, 0을 확인한 뒤에만 반납할 수 있는지 |
-| R2 | [resident 계획](../../proposals/active/codex-resident-runner-plan.md)의 macOS 경계 | fork/exec/setsid 이탈과 fork 경쟁 | 분리·고아·exec·연속 생성·hopper 후손을 실제로 만들고 oracle과 heartbeat로 대조 |
+| R2 | [resident 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md)의 macOS 경계 | fork/exec/setsid 이탈과 fork 경쟁 | 분리·고아·exec·연속 생성·hopper 후손을 실제로 만들고 oracle과 heartbeat로 대조 |
 | R3 | [최소 설치 계약](../../architecture/README.md) | 권한 | root, entitlement, 추가 설치 없이 일반 사용자로 동작 |
 | R4 | 놓친 후손에 대한 두 번째 방어선 | 살아남은 후손 | 원본 checkout, 비밀, 네트워크, 다른 프로세스, 외부 실행 경로를 막는지 |
 

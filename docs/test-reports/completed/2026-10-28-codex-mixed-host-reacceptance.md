@@ -11,7 +11,7 @@ completed-at: "2026-10-28"
 last-executed-at: "2026-10-27T15:52:37Z"
 tested-revision: "36b00ac5c42803e2775624d54e18899eb4f780b5"
 owners: ["user:Sangeok"]
-related: ["docs/test-reports/completed/2026-10-27-codex-mixed-host-acceptance.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md", "docs/architecture/protocol.md"]
+related: ["docs/test-reports/completed/2026-10-27-codex-mixed-host-acceptance.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/architecture/protocol.md"]
 primary-area: "harness/codex-mixed-host-reacceptance"
 observed-environments: ["local | Windows x64 10.0.26200 | Claude Code 2.1.311 with plugin 0.5.18 and 0.5.25 helpers; codex-cli 0.164.0 with plugin 0.5.25 | disposable owner/project/service"]
 test-summary: "pass: 0.5.25 혼합 버전 재인수 — 0.5.18이 죽은 Codex 잠금을 더는 지우지 않고(T7·T8), owner 해제·포그라운드 abandoned 해제와 정상 인계·중지가 통과"

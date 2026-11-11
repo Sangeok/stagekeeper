@@ -11,11 +11,11 @@ completed-at: "2026-10-25"
 last-executed-at: "2026-10-25T05:03:11Z"
 tested-revision: "e69fdd24556c7dadcf3d2ec8951ac6f05ebfd99f"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/226"]
+related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/226"]
 primary-area: "harness/macos-descendant-ownership"
 observed-environments: ["CI | macOS 15 arm64 and x64 native kernel | Darwin 24.6.0; SDK 15.5; Node 22.23.2 | ordinary user; no client credentials", "local | Windows repository validation | Node 22.13.1 | native macOS probe refuses execution"]
 test-summary: "pass: macOS recursive tracking and PID snapshot counterexamples reproduced and owned fixtures exited; production descendant ownership remains blocked"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md"]
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # macOS 자식 소유권 API의 실제 한계 검증
@@ -36,7 +36,7 @@ orphan 4개가 살아 있었다. 자연 종료와 그룹 SIGKILL에서 각각 �
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 확인 기준 |
 | --- | --- | --- | --- |
 | R1 | [프로토콜](../../architecture/protocol.md)의 실제 종료·ownership 계약 | macOS 종료 근거 후보 | 등록한 부모의 종료와 전체 후손 종료를 구분 |
-| R2 | [resident 계획](../../proposals/active/codex-resident-runner-plan.md)의 macOS 경계 | 재귀 추적·fork/exit 경쟁 | 커널 API를 실제 호출하고 유효한 경쟁 순서를 재현 |
+| R2 | [resident 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md)의 macOS 경계 | 재귀 추적·fork/exit 경쟁 | 커널 API를 실제 호출하고 유효한 경쟁 순서를 재현 |
 | R3 | [최소 설치 계약](../../architecture/README.md) | 대안 선택 | 요구 권한·설치 변경을 숨기지 않고 제품 지원을 유보 |
 
 ## Test Target

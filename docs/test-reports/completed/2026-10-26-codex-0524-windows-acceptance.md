@@ -11,11 +11,11 @@ completed-at: "2026-10-26"
 last-executed-at: "2026-10-26T01:21:03.886Z"
 tested-revision: "af2b1d3aefc27b404b89165baca8ef0336d55ef6"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "docs/test-reports/completed/2026-10-25-runtime-state-and-role-diagnostics.md"]
+related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "docs/test-reports/completed/2026-10-25-runtime-state-and-role-diagnostics.md"]
 primary-area: "harness/codex-0524-windows-acceptance"
 observed-environments: ["local | Windows x64 10.0.26200 | codex-cli 0.164.0; 2.1.310 (Claude Code); bundled Node v22.23.3 | disposable owner/project/service", "CI | existing immutable source checks | Windows native and macOS common contracts | reused source evidence, no new macOS model acceptance"]
 test-summary: "pass: 0.5.24 양쪽 신규 설치·업데이트, 실제 Codex A-to-Z·실행 중 중지/재개 및 동일 패키지 110분 idle"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md"]
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # 0.5.24 Windows 설치·실제 A→Z·110분 인수
