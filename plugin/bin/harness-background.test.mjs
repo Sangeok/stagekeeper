@@ -32,7 +32,7 @@ const args = process.argv.slice(2);
 const count = Number(process.env.GIT_CONFIG_COUNT ?? 0);
 const record = () => appendFileSync(process.env.FAKE_RECORD, JSON.stringify({ args, pid: process.pid, server: process.env.HARNESS_SERVER,
   count: process.env.GIT_CONFIG_COUNT ?? null, key: process.env["GIT_CONFIG_KEY_" + (count - 1)] ?? null,
-  value: process.env["GIT_CONFIG_VALUE_" + (count - 1)] ?? null }) + "\\n");
+  value: process.env["GIT_CONFIG_VALUE_" + (count - 1)] ?? null, bgWait: process.env.CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS ?? null }) + "\\n");
 const out = value => process.stdout.write(JSON.stringify(value) + "\\n");
 if (args[1] === "Reply with OK.") record();
 out({ type: "system", subtype: "hook_started" });
@@ -53,6 +53,14 @@ else {
     out({ type: "result", subtype: "success", is_error: true, api_error_status: 429, num_turns: 1, terminal_reason: "api_error", permission_denials: [] });
     out({ type: "system", subtype: "init", permissionMode: mode });
     out({ type: "result", subtype: "success", is_error: false, num_turns: 0, permission_denials: [] });
+    process.exit(0);
+  }
+  if (step.kind === "cut") {
+    out({ type: "system", subtype: "task_started", task_id: "role-1", is_backgrounded: true, task_type: "local_agent", description: "role pass" });
+    out({ type: "assistant", parent_tool_use_id: null, message: { content: [{ type: "text", text: "waiting for the role" }] } });
+    out({ type: "system", subtype: "task_updated", task_id: "role-1", patch: { status: "killed" } });
+    out({ type: "system", subtype: "task_notification", task_id: "role-1", status: "stopped" });
+    out({ type: "result", subtype: "success", is_error: false, num_turns: 3, terminal_reason: "completed", permission_denials: [] });
     process.exit(0);
   }
   if (step.kind === "hang") setInterval(() => {}, 1000);
@@ -303,8 +311,8 @@ syncBuiltinESMExports();
   await waitFor(() => !existsSync(f.lockPath));
 });
 
-it("starts a resident runner that runs ready work with push blocked, logs it and stops on a local stop", async t => {
-  const f = await fixture(t);
+it("starts a resident runner that runs ready work with push blocked and an unbounded wait for Claude's background work, logs it and stops on a local stop", async t => {
+  const f = await fixture(t, { env: { CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: "600000" } });
   const started = await f.run(START);
   assert.equal(started.code, 0, started.text.join("\n"));
   assert.equal(started.event.event, "started");
@@ -327,6 +335,7 @@ it("starts a resident runner that runs ready work with push blocked, logs it and
   assert.equal(runs[0].key, "url.stagekeeper-push-blocked://.pushInsteadOf");
   assert.equal(runs[0].value, "");
   assert.equal(runs[0].server, f.url);
+  assert.equal(runs[0].bgWait, "0");
 
   const reported = await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult), 30000, "the run result");
   assert.equal(reported.lastResult, "done: 2 turns, 0 denied");
@@ -471,6 +480,19 @@ it("ends a run when the branch changes, waits on the branch and resumes after sw
   assert.ok(!f.notices().some(item => item.kind === "waitBranch"));
   f.git("switch", "-q", "main");
   await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult?.startsWith("done:")), 30000, "the run after switching back");
+});
+
+it("counts a run whose background work Claude stopped as failed and waits on the changes it left", async t => {
+  const f = await fixture(t, { plan: [{ kind: "cut", touch: "draft.txt" }] });
+  assert.equal((await f.run(START)).event.event, "started");
+  const reported = await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.lastResult), 30000, "the cut-off result");
+  assert.equal(reported.lastResult, "error: Claude stopped background work before it finished");
+  await waitFor(() => f.runnerCalls.find(call => call.op === "beat" && call.state === "waiting" && call.waitReason === "dirty"), 30000, "a dirty wait");
+  assert.deepEqual(f.notices().map(notice => notice.kind), ["waitInterrupted"]);
+  assert.equal(f.notices()[0].body, "The last run stopped partway and left changes in draft.txt. Check them, then commit or stash them, and it continues.");
+  assert.equal(f.status().failures, 1);
+  const meta = readdirSync(path.join(f.directory, "runs")).find(name => name.endsWith(".meta.json"));
+  assert.equal(JSON.parse(readFileSync(path.join(f.directory, "runs", meta), "utf8")).line, reported.lastResult);
 });
 
 it("stops with an error after three failed runs and tells the server", async t => {
