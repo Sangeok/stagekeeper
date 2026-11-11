@@ -8,7 +8,7 @@ import { evalTurn, gradeInitEvaluation, managedSnapshot } from "./codex-init-eva
 const fixture = t => { const root = mkdtempSync(path.join(realpathSync(tmpdir()), "codex-eval-test-")); t.after(() => rmSync(root, { recursive: true, force: true })); return root; };
 const events = [
   { type: "item.completed", item: { type: "command_execution", command: "cat /package/codex/skills/harness-init/SKILL.md", exit_code: 0 } },
-  { type: "item.completed", item: { type: "command_execution", command: "/package/bin/harness init --client codex --dry-run", exit_code: 0 } },
+  { type: "item.completed", item: { type: "command_execution", command: "/package/bin/harness init --client codex --dry-run", exit_code: 0, aggregated_output: "planned: no installation changes\n" } },
   { type: "item.completed", item: { type: "agent_message", text: "Modified files are preserved." } },
   { type: "turn.completed" },
 ];
@@ -28,6 +28,14 @@ it("refuses running helpers for an incomplete package even if the model describe
   const inspected = [events[0], { type: "item.completed", item: { type: "agent_message", text: "Missing packaged runtime." } }, { type: "turn.completed" }];
   assert.equal(gradeInitEvaluation({ name: "incomplete-package", events: inspected, before: [], after: [] }).passed, true);
   assert.throws(() => gradeInitEvaluation({ name: "incomplete-package", events: [...inspected, events[1]], before: [], after: [] }));
+});
+
+it("recognizes an escaped native launcher inside a multi-command shell and requires its real dry-run output", () => {
+  const command = String.raw`/bin/zsh -lc "cat package.json; \"/package/bin/harness\" init --client codex --dry-run"`;
+  const observed = events.map(event => event === events[1] ? { ...event, item: { ...event.item, command } } : event);
+  assert.equal(gradeInitEvaluation({ name: "modified-file", events: observed, before: [], after: [] }).passed, true);
+  const missing = observed.map(event => event.item?.command === command ? { ...event, item: { ...event.item, aggregated_output: "" } } : event);
+  assert.throws(() => gradeInitEvaluation({ name: "modified-file", events: missing, before: [], after: [] }), /result must be observed/);
 });
 
 it("retains private child output on timeout and never treats it as a completed evaluation", { skip: process.platform === "win32" ? "The macOS eval uses POSIX process groups" : false }, async t => {
