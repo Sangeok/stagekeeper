@@ -370,6 +370,12 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
       깬다. 그 뒤 평소 사이클로 돌아간다. 알림은 한도 실행이 이어지는 동안 한 번이다.
     - `--status`는 실행 중이고 재개 시각이 아직이면 `limitedUntil`(ISO)을 준다. 웹 배너는 `lastResult`를 같은 형식으로
       읽는다. 서버 계약과 DB는 그대로다(새 대기 사유가 아니라 idle이다).
+  - 백그라운드 작업(plugin 0.6.12): `claude -p`는 마지막 턴 뒤 남은 백그라운드 작업을 기본 10분만 기다리고 끝낸다.
+    메인 루프가 백그라운드로 띄운 역할이 그보다 오래 돌면 중간에 끊기고, 실행은 success로 끝난다. 그래서 자식 환경에
+    `CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0`을 넣어 끝까지 기다리게 한다. 상한은 실행기의 2시간 상한이다.
+    - 그래도 메인 루프가 백그라운드로 띄운 작업(`task_started`의 `is_backgrounded:true`, 역할 안에서 띄운 작업 제외)이
+      멈춘 뒤(`stopped`·`killed`) 메인 루프의 말이 더 없으면 그 실행은 실패다. 결과 한 줄은
+      `error: Claude stopped background work before it finished`이고, 남은 미커밋은 `waitInterrupted`로 기다린다.
 - 자식 정리: Windows에서 각 `claude -p`는 `runtime/windows/job-launch.ps1`이 만든 kill-on-close job 안에서 돈다
   (breakaway 없음). 상주 프로세스나 런처가 죽으면 도구 셸까지 끝난다. 시간 초과와 브랜치 중단은 런처를 끝내는 것이다.
   다른 OS는 자식을 자기 프로세스 그룹으로 띄우고 그룹에 SIGKILL을 보낸다.

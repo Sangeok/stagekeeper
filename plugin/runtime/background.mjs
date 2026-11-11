@@ -100,9 +100,22 @@ export function backgroundSettings(config) {
   return { permissions: { allow: [...new Set(allow)], deny: ["Bash(git push:*)", "PowerShell(git push*)"] } };
 }
 
+const CUT_OFF_LINE = "error: Claude stopped background work before it finished";
+const mainLoopTask = message => message.owned_by_subagent !== true && !message.parent_task_id;
+const taskStopped = message => (message.subtype === "task_notification" && message.status === "stopped")
+  || (message.subtype === "task_updated" && message.patch?.status === "killed");
+
+function readBackgroundTask(message, run) {
+  if (message.type === "assistant" && !message.parent_tool_use_id) { if (run.cutOff) run.cutOff = false; return; }
+  if (message.type !== "system" || typeof message.task_id !== "string") return;
+  if (message.subtype === "task_started" && message.is_backgrounded === true && mainLoopTask(message)) (run.backgroundTasks ??= []).push(message.task_id);
+  else if (taskStopped(message) && run.backgroundTasks?.includes(message.task_id)) run.cutOff = true;
+}
+
 export function readStreamLine(line, run) {
   let message;
   try { message = JSON.parse(line); } catch { return; }
+  if (message && typeof message === "object") readBackgroundTask(message, run);
   if (message?.type === "system" && message.subtype === "init" && typeof message.permissionMode === "string") run.permissionMode = message.permissionMode;
   if (message?.type === "rate_limit_event" && message.rate_limit_info?.status === "rejected") {
     const info = message.rate_limit_info;
@@ -132,6 +145,7 @@ export function classifyRun(end, now = Date.now()) {
   if (end.endedFor === "branch") return { outcome: "branch", line: "ended: the branch changed" };
   if (end.endedFor === "timeout") return { outcome: "timeout", line: "ended: time limit" };
   if (end.endedFor === "stop") return { outcome: "error", line: "ended: runner stopping" };
+  if (end.cutOff === true) return { outcome: "error", line: CUT_OFF_LINE };
   const result = end.result;
   if (result && !result.isError && result.subtype === "success") {
     return { outcome: "success", line: `done: ${result.turns ?? "?"} turns, ${result.denials} denied`.slice(0, RESULT_MAX) };

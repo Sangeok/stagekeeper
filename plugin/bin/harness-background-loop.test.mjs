@@ -309,6 +309,37 @@ it("judges a run as before when no turn ended on the limit", () => {
   assert.equal(classifyRun({ exitCode: 1, ...failed }, WALL).line, "error: error_during_execution (api_error)");
 });
 
+const ROLE = "plan-verifier independent pass ITEM-06";
+const taskStarted = (task_id, more = {}) => JSON.stringify({ type: "system", subtype: "task_started", task_id, tool_use_id: `tool-${task_id}`, description: ROLE,
+  task_type: "local_agent", is_backgrounded: true, ...more });
+const taskEnded = (task_id, status) => JSON.stringify({ type: "system", subtype: "task_notification", task_id, status, summary: ROLE });
+const KILLED = JSON.stringify({ type: "system", subtype: "task_updated", task_id: "role", patch: { status: "killed" } });
+const SAID = JSON.stringify({ type: "assistant", parent_tool_use_id: null, message: { content: [{ type: "text", text: "Waiting for the role." }] } });
+const ROLE_SAID = JSON.stringify({ type: "assistant", parent_tool_use_id: "tool-role", message: { content: [{ type: "text", text: "Checking." }] } });
+const CUT_OFF = { outcome: "error", line: "error: Claude stopped background work before it finished" };
+
+it("fails a run when Claude stopped the main loop's background work after its last turn", () => {
+  const cut = streamOf([INIT, taskStarted("role"), SAID, ROLE_SAID, KILLED, taskEnded("role", "stopped"), resultLine({ num_turns: 34 })]);
+  assert.deepEqual(classifyRun({ exitCode: 0, ...cut }, WALL), CUT_OFF);
+  assert.ok(!JSON.stringify(cut).includes(ROLE));
+  const killedOnly = streamOf([INIT, taskStarted("role"), SAID, KILLED, resultLine({})]);
+  assert.deepEqual(classifyRun({ exitCode: 0, ...killedOnly }, WALL), CUT_OFF);
+  const lateRole = streamOf([INIT, taskStarted("role"), SAID, taskEnded("role", "stopped"), ROLE_SAID, resultLine({})]);
+  assert.deepEqual(classifyRun({ exitCode: 0, ...lateRole }, WALL), CUT_OFF);
+});
+
+it("keeps a run done when its background work finished, the main loop went on after a stop, or the stopped work belonged to a role", () => {
+  const finished = streamOf([INIT, taskStarted("role"), SAID, taskEnded("role", "completed"), INIT, SAID, resultLine({ num_turns: 5 })]);
+  assert.deepEqual(classifyRun({ exitCode: 0, ...finished }, WALL), { outcome: "success", line: "done: 5 turns, 0 denied" });
+  const handled = streamOf([INIT, taskStarted("server"), taskEnded("server", "stopped"), SAID, resultLine({ num_turns: 6 })]);
+  assert.deepEqual(classifyRun({ exitCode: 0, ...handled }, WALL), { outcome: "success", line: "done: 6 turns, 0 denied" });
+  const roleShell = streamOf([INIT, taskStarted("role"), SAID, taskStarted("shell", { owned_by_subagent: true, parent_task_id: "role" }),
+    taskEnded("role", "completed"), INIT, SAID, resultLine({ num_turns: 7 }), taskEnded("shell", "stopped")]);
+  assert.deepEqual(classifyRun({ exitCode: 0, ...roleShell }, WALL), { outcome: "success", line: "done: 7 turns, 0 denied" });
+  const foreground = streamOf([INIT, taskStarted("tests", { is_backgrounded: false }), SAID, taskEnded("tests", "stopped"), resultLine({ num_turns: 8 })]);
+  assert.deepEqual(classifyRun({ exitCode: 0, ...foreground }, WALL), { outcome: "success", line: "done: 8 turns, 0 denied" });
+});
+
 const LIMITED = { exitCode: 1, result: { subtype: "success", isError: true, turns: 1, terminal: "api_error", denials: 0 },
   limited: true, limitReset: { resetsAt: WALL / 1000 + 5 * 60, type: "five_hour" }, log: "run.jsonl" };
 const LIMIT_WAIT = 6 * 60_000;

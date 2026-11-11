@@ -592,7 +592,7 @@ async function resident(location, files, options) {
     state.lock.seenAt = now();
     atomicWrite(files.lock, state.lock);
   });
-  const env = pushBlockedEnv({ ...process.env, HARNESS_SERVER: input.server });
+  const env = pushBlockedEnv({ ...process.env, HARNESS_SERVER: input.server, CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS: "0" });
   const settings = settingsFile(directory);
   const claude = input.client === "claude" ? claudeCommand() : null;
   const status = { ...saved, pid: process.pid };
@@ -639,13 +639,13 @@ async function resident(location, files, options) {
       await settleChild(files, session, owned);
       try { unlinkSync(path.join(runs, `${id}.launch.json`)); } catch {   }
       if (exit.stderr.trim()) writeFileSync(path.join(runs, `${id}.stderr.txt`), exit.stderr);
-      const limit = { limited: run.limited === true, limitReset: run.limitReset ?? null };
-      const meta = { startedAt, endedAt: now(), exitCode: exit.exitCode, permissionMode: run.permissionMode, result: run.result, endedFor, ...limit };
+      const ending = { limited: run.limited === true, limitReset: run.limitReset ?? null, cutOff: run.cutOff === true };
+      const meta = { startedAt, endedAt: now(), exitCode: exit.exitCode, permissionMode: run.permissionMode, result: run.result, endedFor, ...ending };
       meta.line = classifyRun({ ...meta }).line;
       writeFileSync(path.join(runs, `${id}.meta.json`), JSON.stringify(meta, null, 2) + "\n");
       pruneRuns(runs);
       log(`run ${id}: ${meta.line}`);
-      return { exitCode: exit.exitCode, result: run.result, permissionMode: run.permissionMode, endedFor, ...limit, log: `${id}.jsonl` };
+      return { exitCode: exit.exitCode, result: run.result, permissionMode: run.permissionMode, endedFor, ...ending, log: `${id}.jsonl` };
     })();
     log(`run ${id} started`);
     return { done, end };
