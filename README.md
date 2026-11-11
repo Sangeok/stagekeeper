@@ -285,6 +285,10 @@ npm run dev              # http://localhost:3000
   answers 404 and `/harness:init` stops.
 - **Plans.** Sign in once, then grant a plan:
   `npm run plan:grant -- <github-login> <free|pro|max> [note]`.
+- **After pulling.** When a page fails with Prisma error `P2022` (a column does not exist
+  in the current database), the code is ahead of your database. Run `npm run db:generate`
+  and `npm run db:migrate`, then restart the dev server: it keeps one Prisma client for
+  its lifetime and does not pick up a regenerated one.
 - **Production database.** `build` does not run migrations. Apply them, seed templates,
   and grant plans on production with its connection string in a separate env file passed
   to Node, for example
@@ -463,8 +467,9 @@ Branches: `dev` is the integration branch and `main` is the release branch.
   `gh pr create --base dev`. The default branch is `main`, so without `--base` the pull
   request targets the wrong branch.
 - A pull request into `dev` merges only when the `check` workflow is green.
-- `main` takes only commits already green on `dev`, by fast-forward:
-  `git switch main && git merge --ff-only dev && git push origin main`.
+- `main` takes only commits already green on `dev`, by fast-forward. Name the commit:
+  `git fetch origin && git push origin <sha>:refs/heads/main`, where `<sha>` is the full
+  `origin/dev` commit the gates ran on. Git refuses that push unless it is a fast-forward.
   Run `npm run verify:plugin-version` first: a shipped plugin change needs a higher,
   matching version in both plugin manifests, or installed plugins never update.
 - Never open a pull request with `dev` as its head, and don't commit directly to `dev` or

@@ -77,6 +77,10 @@ commits that were already green on `dev`.
   `npm run branches:cleanup -- --apply`. The script only deletes verified local
   `harness/<topic>` refs. Its default without `--apply` is a preview. Its safety
   checks and skip reasons are documented in `docs/architecture/verification.md`.
+- At the start of each independent task, also list the open pull requests
+  (`gh pr list --state open`) and read the proposals in `docs/proposals/active/`.
+  Another session or machine may be changing the same files, or may own the decision
+  you are about to make.
 - Preserve dirty worktrees and additional commits. Do not stash, discard, force
   checkout, or remove a worktree to make cleanup pass. Use an isolated worktree
   for a new task when existing work must be preserved.
@@ -87,15 +91,23 @@ commits that were already green on `dev`.
   branch for an independent task. Open the pull request against `dev`:
   `gh pr create --base dev`. The repository default branch is `main`, so without
   `--base` the pull request targets the wrong branch.
+- Before pushing a follow-up commit to a task branch, confirm with a separate command
+  that its pull request is still open (`gh pr view <number> --json state`). When it
+  is already merged, start a new branch from the latest `dev` instead: the merged
+  branch is deleted, and a push would recreate it outside any pull request.
 - A pull request into `dev` merges only when the `check` workflow is green.
-- Promote `dev` to `main` by fast-forward only:
-  `git switch main && git merge --ff-only dev && git push origin main`.
+- Promote `dev` to `main` by fast-forward only, and name the commit. After
+  `git fetch origin`, run `git push origin <sha>:refs/heads/main`, where `<sha>` is the
+  full `origin/dev` commit the gates ran on. Git refuses that push unless it is a
+  fast-forward. Do not promote through a local `dev` or `main` branch: on another
+  machine it can be behind or ahead of the commit that was checked.
   Do not merge `dev` into `main` through the GitHub UI: that merge commit lands on
   `main` alone, and every release after it needs a back-merge to repair the split.
 - Before promoting, run `npm run verify:plugin-version` and stop if it fails. When
   shipped `plugin/` files differ between `origin/main` and `origin/dev`, both plugin
   manifests must carry the same, higher version; otherwise the server deploys while
-  installed plugins never update.
+  installed plugins never update. When the commit being promoted is not the tip of
+  `origin/dev`, check that commit with `npm run verify:plugin-version -- --head <sha>`.
 - Before dispatching a promotion gate (`client-init-smoke`, `agent-eval`,
   `pipeline-smoke`), look up what already ran. `gh run list --commit <sha>` lists the
   runs of the `dev` commit being promoted, and `gh run list --workflow <gate>.yml`
@@ -144,6 +156,12 @@ commits that were already green on `dev`.
   `migrate deploy` before the `main` push. When a pending migration is not
   backward-compatible with the deployed `main` (it drops or renames objects or
   rewrites existing rows), run `migrate deploy` and the `main` push back to back.
+- After the `main` push, confirm that production serves that commit. Wait until
+  `gh api repos/Sangeok/stagekeeper/commits/<sha>/status --jq '.statuses[] | select(.context == "Vercel") | [.state, .target_url] | @tsv'`
+  reports `success`. The deployment id is the last path segment of that `target_url`,
+  and `curl -s https://stagekeeper.dev | grep -o 'dpl_[A-Za-z0-9]*' | sort -u` must
+  print `dpl_` followed by the same id. A different id means production still serves
+  an older deployment.
 - **Neither `main` nor `dev` may be the head of a pull request.** Release promotion
   remains fast-forward only. The active GitHub ruleset `Keep dev and main` forbids
   deletion of both protected refs and has no bypass actors; retain that protection.
