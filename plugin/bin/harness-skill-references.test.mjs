@@ -22,3 +22,10 @@ it("the generator prints every marker the init skill tells the agent to read", (
   for (const marker of ["plan:", "write:", "skip(modified):", "skip(plan):", "refuse:", "server:", "Server URL required", "Installation report refused", "ready:", "installation remains pending", "note: that entry was also this repository's only record of the server URL"]) assert.ok(generator.includes(marker), marker);
   assert.match(capReason("free", "workspaces"), /^workspace cap reached on the free plan/);
 });
+
+it("Claude skill instructions name the verifier by its plugin path or its harness: name", () => {
+  const verifier = new URL("skills/reconciling-proposals-with-codebase/SKILL.md", PLUGIN).href;
+  const claude = [...skillFiles.filter(url => !url.pathname.includes("/codex/") && url.href !== verifier), new URL("skills/init/references/reconciliation-contract.md", PLUGIN)];
+  assert.ok(claude.some(url => url.pathname.endsWith("/skills/watch/SKILL.md")));
+  for (const file of claude) assert.doesNotMatch(readFileSync(file, "utf8"), /(?<!harness:|skills\/)reconciling-proposals-with-codebase/, file.pathname);
+});

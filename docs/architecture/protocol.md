@@ -932,7 +932,9 @@ Node의 100ms 선형 backoff로 최대 10회 재시도한다. 재시도 후에�
 
 운영자는 고정 Node source와 libuv pipe backport로 만든 runtime·원본 npm·license를
 `package-windows-plugin.mjs`로 전달한다. 완전한 verifier는 2026-10-28 owner 결정에 따라 plugin
-source의 `skills/reconciling-proposals-with-codebase`에 공개로 포함한다. 생성기는 이 추적 사본을
+source의 `skills/reconciling-proposals-with-codebase`에 공개로 포함한다. Claude Code가 읽는 문구는 이
+스킬을 `harness:reconciling-proposals-with-codebase`로 부르며, 맨 이름은 같은 이름의 개인·프로젝트
+스킬이 먼저 잡히므로 쓰지 않는다. 생성기는 이 추적 사본을
 Codex skill 경로에 복사하고 두 사본의 checksum이 원본과 같은지 확인한다. Windows helper는
 `bin/harness.ps1`에서 bundled Node를 검증해 실행하며 별도 Node/검증 스킬 설치를 요구하지
 않는다. `runtime/windows/node`가

@@ -92,6 +92,10 @@ describe("decideNext (H.4)", () => {
     assert.ok(HINT.verify.includes(`validation_record (${TEXT_LIMIT} characters or fewer)`));
   });
 
+  it("the verify hint names the verifier the plugin includes for Claude Code", () => {
+    assert.ok(HINT.verify.includes("in Claude Code invoke it as harness:reconciling-proposals-with-codebase"));
+  });
+
   it("the verify hint closes main-loop reports once validation_record moves the item on and calls for none", () => {
     assert.match(HINT.verify, /Once validation_record moves the item on, the board takes no main-loop report until the acceptance in done\./);
     assert.doesNotMatch(HINT.verify, /report_submit/);
