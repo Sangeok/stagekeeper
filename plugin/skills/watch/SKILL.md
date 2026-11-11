@@ -44,8 +44,8 @@ files under it:
   `lib/plans/entitlement.mjs` and `lib/qa.mjs`
 - `skills/init/references/reconciliation-contract.md`
 
-Read that exact reconciliation contract and preflight the **effective**
-`reconciling-proposals-with-codebase` package and all its required supporting
+Read that exact reconciliation contract and preflight the verifier this plugin includes,
+invoked as `harness:reconciling-proposals-with-codebase`, and all its required supporting
 files. A Codex-only copy does not establish availability in Claude Code. Do
 not infer availability from the name or install a similarly named substitute.
 On failure report `Verification skill unavailable or incompatible: <specific

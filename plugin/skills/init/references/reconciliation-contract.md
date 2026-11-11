@@ -7,9 +7,10 @@ init does not download, synthesize or replace it.
 ## Supply and resolved loader
 
 Read the installed plugin's `skills/reconciling-proposals-with-codebase/SKILL.md`
-and its required supporting files. Confirm the actual Claude Skill invocation resolves
-that compatible package; a same-named personal/project skill can shadow the plugin's copy.
-Do not overwrite conflicting packages during init. Record the winning absolute path and
+and its required supporting files. Invoke the verifier as
+`harness:reconciling-proposals-with-codebase`: the plugin namespace opens this package even
+when a personal or project skill has the same name. Never invoke it by the bare name.
+Do not overwrite conflicting packages during init. Record the resolved absolute path and
 plugin version/commit or package checksum, then repeat preflight after reconciliation.
 
 An installed plugin missing this dependency is a Stagekeeper packaging failure: stop and
@@ -18,8 +19,8 @@ installation as the user's default recovery.
 
 ## Preflight — inspect without starting a review
 
-1. Resolve the actual `reconciling-proposals-with-codebase` skill available to this Claude
-   Code session. Read its complete `SKILL.md` and the supporting instructions required by
+1. Resolve `harness:reconciling-proposals-with-codebase` in this Claude Code session. Read
+   its complete `SKILL.md` and the supporting instructions required by
    its gate workflow. Missing files or an unavailable Skill invocation are a failed check.
 2. Confirm it defines and requires the ordered gates INV-1 through INV-7 for a full review,
    checks claims against current code and verification evidence, and requires a final pass
@@ -32,7 +33,7 @@ installation as the user's default recovery.
 
 All checks must pass before init writes files. If any fails, report
 `Verification skill unavailable or incompatible: <specific missing requirement>` and stop.
-Repair/update the complete Stagekeeper plugin (or reconcile the winning loader conflict),
+Repair/update the complete Stagekeeper plugin,
 then rerun `/harness:init`. Do not bypass verification or generate a replacement
 skill during init. Recheck after the package changes and before a new review session.
 

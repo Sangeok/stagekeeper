@@ -151,3 +151,18 @@ it("the private corpus bounds the mutation check and ends non-converging plan ve
   assert.equal(hold?.kind, "hold");
   assert.equal(hold?.requiresResult, true);
 });
+
+it("the private corpus has Claude Code invoke the verifier the plugin includes by its harness: name", { skip: !process.env.HARNESS_RELEASE_SOURCE }, () => {
+  const rows = readTemplateSources(process.env.HARNESS_RELEASE_SOURCE!);
+  const english = (file: string) => {
+    const row = rows.find(entry => entry.lang === "en" && entry.path === file);
+    assert.ok(row, file);
+    return row.body;
+  };
+  const runbook = english("CLAUDE.runbook.md");
+  assert.match(runbook, /harness:reconciling-proposals-with-codebase/);
+  assert.doesNotMatch(runbook, /(?<!harness:)reconciling-proposals-with-codebase/);
+  const verify = splitTemplate(english("agents/plan-verifier.md")).steps.find(step => step.id === "verify");
+  assert.ok(verify);
+  assert.match(verify.body, /harness:reconciling-proposals-with-codebase/);
+});
