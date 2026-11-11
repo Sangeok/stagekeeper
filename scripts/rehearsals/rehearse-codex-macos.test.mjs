@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
 import path from "node:path";
-import { assertIdleObservationGap, countResidentModelStarts, hasSuccessfulRoleRecord, parseMacosRehearsalArguments } from "./rehearse-codex-macos.mjs";
+import { assertIdleObservationGap, countResidentModelStarts, hasSuccessfulRoleRecord, parseMacosRehearsalArguments, pipelineDiagnostics } from "./rehearse-codex-macos.mjs";
 
 const required = ["--package", path.resolve("package"), "--templates", path.resolve("templates"), "--work", path.resolve("evidence"), "--browser-cli", path.resolve("browser/cli.js")];
+
+it("retains recovered tool failures and repeated dispatches in successful pipeline diagnostics without exposing messages", () => {
+  const events = [{ event: "model-start" }, { event: "role-briefing", agent: "feature-scout", executionMode: "step" }, { event: "role-briefing", agent: "feature-scout", executionMode: "step" }, { event: "role-tool-failed", reason: "private-detail" }, { event: "tool-refused", reason: "private-detail" }];
+  const result = pipelineDiagnostics(events.map(value => JSON.stringify(value)).join("\n"), [{ agent: "feature-scout", refused: 2 }, { agent: "work-assigner", refused: 0 }]);
+  assert.deepEqual(result, { mainLoopStarts: 1, roleToolFailures: 1, mainLoopToolRefusals: 1, stepRefusals: 2, roleDispatches: { "feature-scout": 2 }, additionalRoleStarts: { "feature-scout": 1 }, reviewRequired: true });
+  assert.equal(pipelineDiagnostics(JSON.stringify({ event: "role-briefing", agent: "app-dev", executionMode: "commit-handoff" }), [{ agent: "app-dev", refused: 0 }]).reviewRequired, false);
+  assert.doesNotMatch(JSON.stringify(result), /private-detail/);
+  assert.equal(pipelineDiagnostics('', [{ refused: 0 }]).reviewRequired, false);
+  assert.throws(() => pipelineDiagnostics('{"event":', []));
+  assert.throws(() => pipelineDiagnostics('', [{}]));
+});
 
 it("counts actual resident model starts without counting message text and refuses damaged evidence", () => {
   const events = [{ event: "model-start", generation: 1 }, { event: "model-message", text: JSON.stringify({ event: "model-start" }) }, { event: "model-settled" }, { generation: 2, event: "model-start" }];

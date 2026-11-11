@@ -19,7 +19,7 @@ it("detects actual writes and grades completed tool-backed dry runs without acce
   assert.equal(gradeInitEvaluation({ name: "dry-run-only", events, before, after: managedSnapshot(root) }).passed, true);
   writeFileSync(path.join(root, "CLAUDE.md"), "changed\n");
   assert.throws(() => gradeInitEvaluation({ name: "dry-run-only", events, before, after: managedSnapshot(root) }), /changed files/);
-  for (const bad of [events.filter(e => e.type !== "turn.completed"), events.filter(e => e.item?.type !== "command_execution"), [...events, { type: "turn.failed" }], [...events, { type: "item.completed", item: { type: "command_execution", command: "/package/bin/harness init --adopt" } }]]) assert.throws(() => gradeInitEvaluation({ name: "dry-run-only", events: bad, before, after: before }));
+  for (const bad of [events.filter(e => e.type !== "turn.completed"), events.filter(e => e.item?.type !== "command_execution"), [...events, { type: "turn.failed" }], [...events, { type: "item.completed", item: { type: "command_execution", command: "/package/bin/harness init --adopt" } }], events.map(e => e === events[1] ? { ...e, item: { ...e.item, command: "node /package/bin/harness-init.mjs --client codex --dry-run" } } : e)]) assert.throws(() => gradeInitEvaluation({ name: "dry-run-only", events: bad, before, after: before }));
   assert.equal(gradeInitEvaluation({ name: "control-write", events, before, after: managedSnapshot(root), marker: "CONTROL_OK\n" }).passed, true);
   assert.throws(() => gradeInitEvaluation({ name: "control-write", events, before, after: before, marker: "CONTROL_OK\n" }));
 });

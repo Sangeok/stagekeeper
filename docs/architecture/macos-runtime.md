@@ -35,6 +35,10 @@ resident main loop는 같은 선택기를 사용한다. macOS 역할은 shell to
 `role_file_*`·`role_git_read`와 snapshot 명령 도구를 사용한다. 원본 Git metadata는
 역할의 직접 파일 접근에서 거부하고 Git 근거는 기존 scoped reader를 거친다.
 
+역할 thread에는 installed helper가 이미 진입·설치·권한·backend 검사를 끝냈음을 명시한다.
+역할 안에서 helper를 다시 찾거나 중첩 호출하지 않고, bound MCP `agent_next`로 현재 단계를 받는다.
+실제 session·권한 검증이나 거부 처리를 생략하는 예외는 아니다.
+
 `macos-commands.mjs`는 매 명령마다 canonical OS 임시 디렉터리에 허용된 원본·scratch의
 복사본을 만든다. 원본 Git·클라이언트 설정·환경 파일은 제외하고, 파일 broker는 `.env`
 (`.env.example` 제외), `.npmrc`, `.netrc`, `.git-credentials`, `.ssh`, `.aws`, `.azure`를

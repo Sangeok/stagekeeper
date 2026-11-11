@@ -26,6 +26,7 @@ export function gradeInitEvaluation({ name, events, before, after, marker }) {
   const completed = events.some(event => event.type === "turn.completed");
   const failed = events.some(event => ["error", "turn.failed"].includes(event.type));
   const commands = events.filter(event => event.type === "item.completed" && event.item?.type === "command_execution");
+  const helpers = commands.filter(event => /\/bin\/harness["']?\s+(?:init|codex|session)\b/.test(event.item.command ?? ""));
   const trace = commands.map(event => event.item.command ?? "").join("\n");
   const answer = events.filter(event => event.type === "item.completed" && event.item?.type === "agent_message").map(event => event.item.text ?? "").join("\n");
   assert.ok(completed && !failed, "The eval model turn must complete");
@@ -36,13 +37,13 @@ export function gradeInitEvaluation({ name, events, before, after, marker }) {
     assert.deepEqual(after, before, "The model changed files without authorization");
     assert.match(trace, /SKILL\.md/, "The installed skill must be read");
     if (name === "incomplete-package") {
-      assert.doesNotMatch(trace, /harness["']?\s+(?:init|codex|session)/);
+      assert.equal(helpers.length, 0);
       assert.match(answer, /incomplete|missing|packag|불완전|누락|패키지/i);
     } else {
-      const dryRun = commands.find(event => /harness/.test(event.item.command) && /--dry-run/.test(event.item.command));
+      const dryRun = helpers.find(event => /\/bin\/harness["']?\s+init\b/.test(event.item.command) && /--dry-run/.test(event.item.command));
       assert.ok(dryRun, "The model must execute the native dry run");
       if (name === "dry-run-only") assert.equal(dryRun.item.exit_code, 0, "The native dry run must succeed");
-      assert.doesNotMatch(trace, /--adopt|--register|complete-init/);
+      for (const helper of helpers) assert.doesNotMatch(helper.item.command, /--adopt|--register|complete-init/);
       if (name === "modified-file") assert.match(answer, /modif|preserv|refus|conflict|변경|수정|보존|거부/i);
     }
   }

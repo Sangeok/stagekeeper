@@ -195,7 +195,9 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   패키지 거부 3개 사례를 각각 3회 실행한다. Claude의 승인 질문 사례를 그대로 복사하지 않고
   현재 Codex init 스킬의 계약을 검증한다. `--phase pipeline --run-models`는 기존 실제
   macOS 전체 역할 리허설을 실행한다. 이 경로는 로컬 배포 bundle의 CI이며 공개 marketplace
-  배포 인증은 아니다. 실행 identity와 단계별 요약만 게시하고 raw 기록·template·인증은
+  배포 인증은 아니다. 성공 요약에도 역할 도구 오류·메인 루프 거부·서버 step 거부와
+  역할별 dispatch 횟수를 남긴다. `reviewRequired`이면 main 승격 전에 private 원문을 검토하고,
+  계약·안내 문구가 원인이면 먼저 수정한다. 실행 identity와 단계별 요약만 게시하고 raw 기록·template·인증은
   Mac의 private 경로에 보존한다. 일회용 runner는 작업 후 해제하며 재실행 전에 시작해야 한다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.

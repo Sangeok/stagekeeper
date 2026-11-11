@@ -24,6 +24,30 @@ export function countResidentModelStarts(log) {
   return count;
 }
 
+export function pipelineDiagnostics(log, agents) {
+  const result = { mainLoopStarts: 0, roleToolFailures: 0, mainLoopToolRefusals: 0, stepRefusals: 0, roleDispatches: {} };
+  const stepDispatches = {};
+  for (const line of log.split(/\r?\n/).filter(Boolean)) {
+    const start = line.indexOf("{"); if (start < 0) continue;
+    const event = JSON.parse(line.slice(start));
+    if (event.event === "model-start") result.mainLoopStarts++;
+    if (event.event === "role-tool-failed") result.roleToolFailures++;
+    if (event.event === "tool-refused") result.mainLoopToolRefusals++;
+    if (event.event === "role-briefing") {
+      if (!["work-assigner", "app-dev", "plan-verifier", "impl-verifier", "qa-verifier", "doc-auditor", "feature-scout"].includes(event.agent)) throw new Error("Unknown pipeline role diagnostic");
+      if (!["step", "commit-handoff"].includes(event.executionMode)) throw new Error("Missing role dispatch mode");
+      result.roleDispatches[event.agent] = (result.roleDispatches[event.agent] ?? 0) + 1;
+      if (event.executionMode === "step") stepDispatches[event.agent] = (stepDispatches[event.agent] ?? 0) + 1;
+    }
+  }
+  for (const agent of agents) {
+    if (!Number.isSafeInteger(agent.refused) || agent.refused < 0) throw new Error("Missing pipeline refusal evidence");
+    result.stepRefusals += agent.refused;
+  }
+  const additionalRoleStarts = Object.fromEntries(Object.entries(stepDispatches).map(([role, count]) => [role, Math.max(0, count - agents.filter(agent => agent.agent === role).length)]));
+  return { ...result, additionalRoleStarts, reviewRequired: result.roleToolFailures + result.mainLoopToolRefusals + result.stepRefusals + Object.values(additionalRoleStarts).reduce((a, b) => a + b, 0) > 0 };
+}
+
 export function hasSuccessfulRoleRecord(run) {
   if (run.closedAt == null || !Array.isArray(run.steps) || run.steps.some(step => step.accepted === true && ["failed", "blocked"].includes(step.outcome))) return false;
   const terminal = run.agent === "app-dev" && !run.steps.some(step => step.stepId === "implement") ? "plan" : "report";
@@ -237,11 +261,12 @@ async function main(args) {
     summary.ledger = await withPrisma(async db => {
       const board = await db.boardItem.findFirstOrThrow({ where: { projectId, backlogItem: { key: itemKey } }, orderBy: { proposedOn: "desc" }, include: { reports: true, backlogItem: true, run: true } });
       assert.ok(board.acceptedAt); assert.ok(board.backlogItem.removedAt); assert.ok(board.run?.closedAt);
-      const agents = await db.agentRun.findMany({ where: { projectId }, select: { agent: true, closedAt: true, steps: { select: { stepId: true, outcome: true, accepted: true } } } });
+      const agents = await db.agentRun.findMany({ where: { projectId }, select: { agent: true, closedAt: true, refused: true, steps: { select: { stepId: true, outcome: true, accepted: true } } } });
       const roles = [...new Set(agents.map(value => value.agent))];
       for (const role of ["work-assigner", "app-dev", "plan-verifier", "impl-verifier", "qa-verifier", "doc-auditor", "feature-scout"]) assert.ok(roles.includes(role), `Missing actual role: ${role}`);
       assert.ok(agents.every(value => value.closedAt !== null));
       assert.ok(agents.every(hasSuccessfulRoleRecord), "Every role must record successful steps and its terminal outcome; an owner stop is not role completion");
+      summary.diagnostics = pipelineDiagnostics(readFileSync(path.join(repo, ".git/harness/background.log"), "utf8"), agents);
       return { acceptedAt: board.acceptedAt.toISOString(), roles, runs: agents.length, reports: board.reports.length, closed: agents.every(value => value.closedAt !== null), successfulRoles: true };
     });
     const implementation = await import(pathToFileURL(path.join(repo, "src/slug.mjs")).href);
