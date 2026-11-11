@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { environmentFields } from "./gate-environment.mjs";
 
 export const PIPELINE_STEPS = Object.freeze(["assign-work", "plan", "verify", "implement", "impl-verify", "accept", "doc-audit"]);
 export const PIPELINE_ROLES = Object.freeze(["work-assigner", "app-dev", "plan-verifier", "impl-verifier", "doc-auditor"]);
@@ -142,7 +143,7 @@ export function runFindings(streams, transcripts = []) {
 }
 
 export function summarizePipeline(record) {
-  const summary = {};
+  const summary = environmentFields(record);
   if (typeof record.os === "string" && NAME.test(record.os)) summary.os = record.os;
   if (Object.hasOwn(SMOKE_SCENARIOS, record.scenario ?? "")) summary.scenario = record.scenario;
   if (Number.isInteger(record.planVerifierPasses) && record.planVerifierPasses >= 0) summary.planVerifierPasses = record.planVerifierPasses;

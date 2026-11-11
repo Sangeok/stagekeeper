@@ -96,6 +96,28 @@ commits that were already green on `dev`.
   shipped `plugin/` files differ between `origin/main` and `origin/dev`, both plugin
   manifests must carry the same, higher version; otherwise the server deploys while
   installed plugins never update.
+- Before dispatching a promotion gate (`client-init-smoke`, `agent-eval`,
+  `pipeline-smoke`), look up what already ran. `gh run list --commit <sha>` lists the
+  runs of the `dev` commit being promoted, and `gh run list --workflow <gate>.yml`
+  shows each gate's unfinished runs (any status other than `completed`). Reuse a
+  finished green run of that commit instead of dispatching again, but only when its
+  inputs match: the run's row in the gate record shows the `templatesCommit` and
+  `scenario` it used. While a run of the same gate is unfinished, on any commit, wait
+  for it, because a new dispatch on the same branch cancels a running
+  `client-init-smoke` or `agent-eval`. `agent-eval` and `pipeline-smoke` use the same
+  subscription, so also wait for either one before dispatching the other. When a gate
+  job has been running for more than 30 minutes, tell the user and then cancel that
+  run. Dispatch a gate only when the commit has no finished run of it with those
+  inputs, or that run is not green.
+- Every gate run on `dev` or `main` that was dispatched by hand or by schedule adds a
+  row to the gate record (https://github.com/Sangeok/stagekeeper/issues/319). It also
+  opens a `[gate] <workflow> <commit>` issue when the gate failed, a summary is
+  missing, or a summary shows a nonzero `harnessErrors` or `stepRefusals`. Before
+  promoting, read the rows of the commit being promoted. Stop while a `[gate]` issue
+  for that commit is open: write the cause and the decision in it and close it first.
+  Read the other open `[gate]` issues too, and stop when one concerns a change in this
+  promotion. When only the `record` job of a gate run failed, re-run that job; it
+  reuses the gate job's outputs and starts no model.
 - Before promoting, run the `client-init-smoke` workflow on the `dev` commit being
   promoted (`gh workflow run client-init-smoke.yml --ref dev`), and also `agent-eval`
   when shipped `plugin/` files changed. Stop unless every job is green, and promote

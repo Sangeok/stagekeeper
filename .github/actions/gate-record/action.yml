@@ -1,0 +1,56 @@
+name: gate-record
+description: Add one row for a finished gate run to the gate record issue, and open or update a finding issue when the run needs a review.
+inputs:
+  workflow:
+    description: The gate workflow, client-init-smoke, agent-eval or pipeline-smoke.
+    required: true
+  result:
+    description: The result of the gate job, from needs.<job>.result.
+    required: true
+  summaries:
+    description: The outputs of the gate job as JSON, from toJSON(needs.<job>.outputs).
+    required: true
+  legs:
+    description: Comma-separated leg names. The summary of a leg is the output summary_<leg>.
+    required: true
+  record-issue:
+    description: The number of the gate record issue.
+    required: false
+    default: "319"
+runs:
+  using: composite
+  steps:
+    - name: List the open issues
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --paginate --jq '.[] | {number, title, login: .user.login, pull: has("pull_request")}' > "$RUNNER_TEMP/gate-open-issues.ndjson"
+    - name: Build the row
+      shell: bash
+      env:
+        GATE_SUMMARIES: ${{ inputs.summaries }}
+        GATE_WORKFLOW: ${{ inputs.workflow }}
+        GATE_RESULT: ${{ inputs.result }}
+        GATE_LEGS: ${{ inputs.legs }}
+        RECORD_ISSUE: ${{ inputs.record-issue }}
+      run: |
+        node scripts/rehearsals/gate-record.mjs --workflow "$GATE_WORKFLOW" --result "$GATE_RESULT" --legs "$GATE_LEGS" --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --repository "$GITHUB_REPOSITORY" --record-issue "$RECORD_ISSUE" --out "$RUNNER_TEMP/gate-record" --open-issues "$RUNNER_TEMP/gate-open-issues.ndjson"
+    - name: Add the row to the record
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RECORD_ISSUE: ${{ inputs.record-issue }}
+      run: gh issue comment "$RECORD_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/gate-record/comment.md"
+    - name: Open or update the finding issue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        directory="$RUNNER_TEMP/gate-record"
+        [ -f "$directory/finding-title.txt" ] || exit 0
+        if [ -f "$directory/finding-number.txt" ]; then
+          gh issue comment "$(cat "$directory/finding-number.txt")" --repo "$GITHUB_REPOSITORY" --body-file "$directory/finding-body.md"
+        else
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$(cat "$directory/finding-title.txt")" --body-file "$directory/finding-body.md"
+        fi

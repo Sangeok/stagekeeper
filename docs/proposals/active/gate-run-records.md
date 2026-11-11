@@ -199,18 +199,22 @@ pipeline-smoke · dev 1eddbc2 · success · run 42921691891
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
       - uses: ./.github/actions/gate-record
         with:
           workflow: pipeline-smoke
           result: ${{ needs.pipeline.result }}
           summaries: ${{ toJSON(needs.pipeline.outputs) }}
+          legs: pipeline
 ```
 
 - 요약은 artifact가 아니라 job 출력으로 넘긴다. 출력은 비밀값 가림을 거치고, 비밀값이 든 출력은 전달되지 않는다. `agent-eval`의 "artifact로 올리지 않는다"는 기존 결정과 맞는다. 출력 한도는 job당 1 MB이고 요약은 1~2 KB다.
-- gate job은 요약 줄을 `GITHUB_OUTPUT`에 쓴다. `client-init-smoke`는 matrix라 다리마다 다른 이름(`summary_windows_new_user` 등 넷)으로 쓰고, job의 `outputs`에 네 이름을 모두 적는다. 이름이 다르면 다리끼리 덮어쓰지 않는다는 것이 GitHub 문서의 matrix 출력 방식이다. matrix 항목에 `leg` 값을 더해 이름을 만든다.
+- gate job은 요약 줄을 `GITHUB_OUTPUT`에 쓴다. 출력 이름은 `summary_<다리 이름>`이고, `record` job이 `legs` 입력으로 다리 이름을 넘긴다(`pipeline`, `init_skill`, `client-init-smoke`의 넷). `client-init-smoke`는 matrix라 다리마다 다른 이름(`summary_windows_new_user` 등 넷)으로 쓰고, job의 `outputs`에 네 이름을 모두 적는다. 이름이 다르면 다리끼리 덮어쓰지 않는다는 것이 GitHub 문서의 matrix 출력 방식이다. matrix 항목에 `leg` 값을 더해 이름을 만든다.
 - `summaries`는 식을 셸 문장에 끼워 넣지 않고 composite action의 입력에서 환경 변수로 넘긴다.
-- composite action `.github/actions/gate-record`는 두 가지를 한다. 도구 `scripts/rehearsals/gate-record.mjs`를 불러 댓글 본문과 발견 내용을 파일로 받는다. 그 파일로 `gh` 명령을 불러 기록 이슈에 댓글을 달고, 발견이 있으면 5절의 이슈를 열거나 댓글을 단다. 기록 이슈 번호는 이 action의 입력 기본값 한 곳에만 둔다.
-- 도구 `gate-record.mjs`는 네트워크를 쓰지 않는다. 입력(workflow 이름, 이벤트, ref, 커밋, 실행 번호, gate job 결과, 요약들)을 검증하고, 요약을 해당 workflow의 필터(`summarize`, `summarizePipeline`, `agent-eval` 요약 필터)로 다시 거른 뒤 행과 글을 만든다. 형식이 틀린 입력은 0이 아닌 종료 코드로 끝난다.
+- composite action `.github/actions/gate-record`는 세 가지를 한다. 열린 이슈의 번호·제목·작성자를 `gh api`로 받아 파일에 쓴다. 도구 `scripts/rehearsals/gate-record.mjs`를 불러 댓글 본문, 발견 이슈의 제목·본문, 이미 열린 발견 이슈의 번호를 파일로 받는다. 그 파일로 `gh` 명령을 불러 기록 이슈에 댓글을 달고, 발견이 있으면 5절의 이슈를 열거나 댓글을 단다. 기록 이슈 번호는 이 action의 입력 기본값 한 곳에만 둔다.
+- 도구 `gate-record.mjs`는 네트워크를 쓰지 않는다. 입력(workflow 이름, 이벤트, ref, 커밋, 실행 번호, gate job 결과, 요약들)을 검증하고, 요약을 해당 workflow의 필터(`summarize`, `summarizePipeline`, `agent-eval` 요약 필터)로 다시 거른 뒤 행과 글을 만든다. `summarizePipeline`은 실행 집계를 `findings` 아래에서 읽고 요약에는 펼쳐 쓰므로, 도구가 요약을 그 입력 모양으로 되돌려 넘긴다. 거른 결과에 `os`가 없으면 요약이 없는 것으로 본다. 형식이 틀린 입력은 0이 아닌 종료 코드로 끝난다.
 - `record` job은 `always()`라 gate job이 실패하거나 취소돼도 돈다. PR 이벤트와 `dev`·`main`이 아닌 ref에서는 job 전체가 건너뛰어진다.
 - workflow 전체의 `permissions: contents: read`는 그대로 둔다. gate job은 지금처럼 읽기 권한만 갖는다.
 
@@ -290,7 +294,7 @@ pipeline-smoke · dev 1eddbc2 · success · run 42921691891
 
 ## Execution Plan
 
-1. 준비. 같은 구역의 verification.md를 고친 #316은 2026-11-11 `dev`에 머지됐다(`ae4079c`). 승인된 [검증 스킬 이름 공간 제안](./claude-verifier-skill-namespace.md)의 기록 PR이 `client-init-smoke.yml`의 템플릿 커밋 고정값 세 곳을 바꿀 예정이다. 같은 파일을 고치므로 나중에 올리는 쪽이 최신 `dev`에 맞춘다. 기록 이슈를 만들고(소유자 승인) 본문에 목적, 행 형식, 읽는 법, "workflow와 소유자의 댓글만 기록이다"를 적는다.
+1. 준비. 같은 구역의 verification.md를 고친 #316은 2026-11-11 `dev`에 머지됐다(`ae4079c`). 승인된 [검증 스킬 이름 공간 제안](./claude-verifier-skill-namespace.md)의 기록 PR이 `client-init-smoke.yml`의 템플릿 커밋 고정값 세 곳을 바꿀 예정이다. 같은 파일을 고치므로 나중에 올리는 쪽이 최신 `dev`에 맞춘다. 기록 이슈를 만들고(소유자 승인) 본문에 목적, 행 형식, 읽는 법, "workflow와 소유자의 댓글만 기록이다"를 적는다. 2026-11-11 소유자 승인을 받아 [#319](https://github.com/Sangeok/stagekeeper/issues/319)로 만들었다.
 2. 구현(PR 하나, `dev` 대상). 버전 해석 모듈과 요약 필드, `agent-eval` 요약 도구, 기록 도구, composite action, workflow 3개, AGENTS.md와 문서 2개. 시험을 먼저 쓴다.
 3. PR에서 확인. 이 PR은 `client-init-smoke`의 경로에 걸려 PR 실행이 자동으로 돈다. 그 실행에서 `record` job이 건너뛰어지고 gate job 넷이 지금처럼 녹색인지 본다.
 4. `dev`에서 확인. 머지 뒤 다음 승격의 게이트로 세 workflow를 `dev`에서 돌린다(`agent-eval`이 끝난 뒤 `pipeline-smoke`). 행 3개가 남는지, `client-init-smoke` 행에 다리 넷이 모두 있는지, 버전 값이 로그의 값과 같은지 본다.
@@ -321,7 +325,7 @@ gh workflow run pipeline-smoke.yml --ref dev
 | GR-04 | 기록 도구 시험: 성공, 실패, 취소, 요약 없음 각각의 행. `dev`의 세 실행이 행을 남긴다 |
 | GR-05 | PR 실행에서 `record` job이 건너뛰어진다. 도구 시험: `dev`·`main`이 아닌 ref와 PR 이벤트는 입력 오류로 끝난다 |
 | GR-06 | 기록 도구 시험: 모르는 키, 긴 문자열, `@`와 마크다운이 든 값, JSON이 아닌 줄을 넣어도 댓글 본문에 나오지 않는다 |
-| GR-07 | 기록 도구 시험: 발견 종류별 판정과 제목. 실제 1eddbc2 `pipeline-smoke` 요약(`validation_record` 2)을 입력으로 쓴다. 이슈를 여는 `gh` 호출은 첫 실제 발견에서 확인한다 |
+| GR-07 | 기록 도구 시험: 발견 종류별 판정과 제목. 1eddbc2 `pipeline-smoke` 실행의 발견(`validation_record` 2)과 같은 모양의 요약을 입력으로 쓴다. 이슈를 여는 `gh` 호출은 첫 실제 발견에서 확인한다 |
 | GR-08 | verification.md의 읽는 명령으로 기록 이슈를 읽어 행만 나오는지 본다 |
 | GR-09 | test-reports README 문장 검토 |
 | GR-10 | `git diff --name-only origin/dev -- plugin src`가 비어 있다. `npm run verify:plugin-version` 통과 |
@@ -334,9 +338,20 @@ gh workflow run pipeline-smoke.yml --ref dev
 
 ## Verification Results
 
+2026-11-11 구현 브랜치(`dev` `e6f43f0` 기준, Windows 11, Node 22)에서 실행했다. `dev` 실행과 정기 실행의 확인은 머지 뒤에 한다.
+
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
-| 위 명령 전부 | Not run yet | 구현 전 |
+| `node --test`로 새 시험 3개와 요약 필터 시험 2개 | 42개 통과 | GR-03~GR-07의 도구 시험 |
+| 구현을 한 곳씩 되돌린 18가지 변형 | 18가지 모두 해당 시험이 실패 | 파이프라인 요약 되돌리기, 이벤트·ref 거부, `os` 없는 요약, 작성자·PR 구분, 취소 실행, 형식 검사 등 |
+| 과거 실행의 실제 요약을 도구에 입력 | 모든 필드 보존 | `pipeline-smoke` 42921691891(발견 `harness-errors`), `client-init-smoke` 42932199468의 다리 넷(발견 없음) |
+| `npm run test:architecture` | 259개 중 255개 통과, 4개 skip | 실패 없음 |
+| `npm run check` | lint·경계 검사·문서 검사·typegen·`tsc` 통과. `test:scripts` 359개 중 353개 통과, 5개 skip, 1개 실패 | 실패는 `template-release-cli`의 "profile selection…" 하나로, 이 PC의 기존 실패다 |
+| workflow 3개와 action의 YAML 해석 | 통과 | job, 출력, `record` job의 조건과 권한을 읽어 확인 |
+| 이 PC에서 버전 읽기 | `clientVersion` 2.1.322, `osVersion` 10.0.26200, `pluginVersion` 0.6.14 | 실제 `claude --version`과 `plugin.json`으로 확인 |
+| `gh workflow run …` 세 개(`dev`) | Not run yet | 머지 뒤 다음 승격의 게이트로 실행 |
+| PR 실행에서 `record` job 건너뜀 | Not run yet | 구현 PR의 `client-init-smoke` 실행에서 확인 |
+| `[gate]` 이슈를 여는 `gh` 호출 | Not run yet | 첫 실제 발견에서 확인 |
 
 ## Risks and Rollback
 

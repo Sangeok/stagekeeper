@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { containsSecret, helperCommand } from "./client-init-smoke-steps.mjs";
+import { measureEnvironment, pluginVersionAt } from "./gate-environment.mjs";
 import { PIPELINE_ROLES, PIPELINE_STEPS, SMOKE_SCENARIOS, planVerificationBounded, runFindings, sealTranscripts, summarizePipeline, transcriptKey, waitVerdict } from "./pipeline-smoke-steps.mjs";
 import { bootstrapSmokeTemplates, createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, ORIGIN, osLabel, Run, seedTemplates, Smoke, startServer, stopServer, type Plugin } from "./rehearse-client-init-smoke";
 
@@ -243,13 +244,14 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   const token = newToken("user");
   const login = `stagekeeper-e2e-${randomBytes(4).toString("hex")}`;
   const scenario = SMOKE_SCENARIOS[options.scenario];
-  const record: Record<string, unknown> = { os: osLabel(), scenario: options.scenario, steps: run.steps };
+  const record: Record<string, unknown> = { client: "claude", os: osLabel(), scenario: options.scenario, steps: run.steps };
   const childEnv: NodeJS.ProcessEnv = { ...env, DATABASE_URL: databaseUrl, TEST_DATABASE_URL: databaseUrl };
   const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain, HARNESS_SERVER: ORIGIN };
   delete helperEnv.HARNESS_TEMPLATES_DIR;
   delete helperEnv.HARNESS_PLAN;
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
+  Object.assign(record, measureEnvironment(process.platform, (file: string, args: string[]) => run.command(file, args, work, helperEnv).stdout));
   const runnerEnv: NodeJS.ProcessEnv = secrets.oauth ? { ...helperEnv, CLAUDE_CODE_OAUTH_TOKEN: secrets.oauth } : helperEnv;
   const secretValues = [secrets.oauth, secrets.key.toString("base64")].filter((value): value is string => typeof value === "string" && value.length > 0);
   const leaks = (text: string): boolean => containsSecret(text, token.plain) || secretValues.some(value => text.includes(value));
@@ -291,6 +293,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     const installed = await run.step("plugin-install", () => installPlugin(run, { pluginSource: "github-branch", pluginBranch: options.pluginBranch, pluginCommit: options.pluginCommit }, work, helperEnv));
     plugin = installed;
     record.pluginCommit = installed.commit;
+    record.pluginVersion = pluginVersionAt(installed.root);
     await newUser(smoke, installed, "pipeline", login, token.plain, childEnv);
     await run.step("pro-roles-commit", () => {
       run.succeed("git", ["add", "-A"], fixtureRepo, helperEnv, "git add");

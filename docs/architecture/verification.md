@@ -158,7 +158,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   PR 플러그인으로 갱신한다. 이전 판이 템플릿 릴리스 프로토콜을 쓰는 0.6.0 이상이면 템플릿 cutover를 그 연결보다 먼저 하고,
   그보다 낮으면 두 판 사이에 한다. `dev`를 향한 PR(플러그인·서버·`prisma`·리허설 경로)과
   수동 실행에서 돌고, 비밀값 `E2E_TEMPLATES_TOKEN`이 없는 실행(외부 포크 PR)은 사유를 남기고 건너뛴다. 공개 로그에는
-  허용 필드의 요약 한 줄만 남긴다. 브라우저 E2E가 아니므로 `tests/e2e/`가 아니라 리허설로 둔다. Codex job은 Codex 공개
+  허용 필드의 요약 한 줄만 남긴다. 요약에는 클라이언트 버전·OS 버전·플러그인 판(`clientVersion`·`osVersion`·
+  `pluginVersion`)도 남는다. 브라우저 E2E가 아니므로 `tests/e2e/`가 아니라 리허설로 둔다. Codex job은 Codex 공개
   배포에 착수할 때 붙인다.
 - [agent-eval](../../.github/workflows/agent-eval.yml)은 `macos-15`에서 `claude plugin eval`로 실제 모델이 init 스킬을
   따르는지 본다. Haiku 대조 실행으로 등록, 생성기 실행, 관리 파일 쓰기의 감지가 모두 동작하는지 증명한 뒤 `gate`
@@ -168,7 +169,9 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
   실행마다 셸 명령을 기록해 job 로그에 남긴다. 판정이 어긋난 회의 이유를 볼 수 있도록, 같은 회의 보존된 임시
   폴더에서 대화 기록을 찾아 assistant 메시지 수, 마지막 `stop_reason`, 마지막 메시지(1,500자까지)도 남긴다. 결과
-  JSON이나 대화 기록을 artifact로 올리지 않는다. artifact는 로그와 달리 비밀값 가림을 거치지 않기 때문이다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
+  JSON이나 대화 기록을 artifact로 올리지 않는다. artifact는 로그와 달리 비밀값 가림을 거치지 않기 때문이다.
+  `scripts/rehearsals/agent-eval-summary.mjs`가 사례별 점수·실행 수·실패한 실행 수, 비용, 클라이언트 버전·OS 버전·
+  플러그인 판만 남긴 요약 한 줄을 만들고, workflow가 그 줄을 가림을 거치는 job 출력으로 넘긴다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
   실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
   사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
 - [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
@@ -178,7 +181,7 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, plan-verifier 독립 패스가 1~3회이고, 리허설의 독립 사례와
   `node --test`가 통과해야 녹색이다. `scenario` 입력의 기본값 `slug`는 `slugWords` 요청이고, `truncate`는 2026-11-05
   macOS 인수에서 계획 검증이 일곱 패스 동안 수렴하지 않은 `truncate` 요청과 픽스처를 그대로 재생하는 회귀 시험이다.
-  요약에는 `scenario`와 `planVerifierPasses`가 남는다.
+  요약에는 `scenario`와 `planVerifierPasses`, 클라이언트 버전·OS 버전·플러그인 판이 남는다.
   보류, 인수 실패, 구현 검증 실패, 게이트, 실행기 종료는 원인별 단계 이름으로 바로 실패한다. 커밋 핸드오프는 메인
   루프가 커밋하고 이어 가도록 5분까지 기다린 뒤 `item-handoff`로 실패한다. 녹색이어도 요약의
   `harnessErrors`나 `stepRefusals`가 0이 아니면 승격 전에 봉인 전사로 원인을 확인한다. 승격 전 수동 실행과
@@ -187,6 +190,22 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
   `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
   `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
+- 위 세 게이트는 `dev`나 `main`에서 수동 또는 정기로 돈 실행마다 `record` job으로
+  [게이트 실행 기록](https://github.com/Sangeok/stagekeeper/issues/319)에 댓글 한 행을 남긴다. PR 실행과 다른 브랜치의
+  실행은 남기지 않고 그 job도 돌지 않는다. gate job은 요약 한 줄을 job 출력으로 넘기고(`client-init-smoke`는 다리마다
+  다른 이름), `record` job만 `issues: write`를 갖는다. `scripts/rehearsals/gate-record.mjs`가 실행 정보를 검증하고
+  요약을 그 게이트의 필터로 다시 걸러 글을 만들며, `.github/actions/gate-record`가 `gh`로 올린다. 행은 사람이 읽는
+  첫 줄, 다리별 한 줄, JSON(`schema`·`workflow`·`level`·`event`·`ref`·`commit`·`runId`·`runAttempt`·`conclusion`·
+  `findings`·`legs`)이다. `level`은 `init`(`client-init-smoke`)·`eval`(`agent-eval`)·`pipeline`(`pipeline-smoke`)·
+  `acceptance`(수동 인수)다. gate job이 실패했거나, 요약이 없거나, `harnessErrors`나 `stepRefusals`가 0이 아니면
+  `[gate] <workflow> <커밋 7자>` 이슈를 열고, 같은 제목으로 workflow가 연 열린 이슈가 있으면 거기에 댓글을 단다.
+  그 이슈를 원인·판단과 함께 닫는 것이 검토 완료의 표시다. 봉인 전사의 내용, 비공개 템플릿의 문장, 모델이 쓴
+  글은 이슈에 붙이지 않는다. 기록으로 세는 것은 `github-actions[bot]`과 저장소 소유자의 댓글뿐이며 다음 명령으로 읽는다.
+  `gh api "repos/Sangeok/stagekeeper/issues/319/comments?per_page=100" --paginate --jq '.[] | select(.user.login == "github-actions[bot]" or .user.login == "Sangeok") | .body'`
+  수동 인수의 행은 같은 JSON 형식에 `workflow: "manual"`, `level: "acceptance"`와 `client`·`clientVersion`·`os`·
+  `osVersion`·`pluginVersion`·`commit`·`result`·`report`(보고서 경로)를 적어 소유자가 댓글로 남긴다. `record` job만
+  실패하면 그 job만 다시 돌린다. 다시 돌린 job은 앞 시도의 gate job 출력을 그대로 받는다. macOS Codex CI의 실행은
+  이 기록에 남지 않는다.
 - macOS Codex 구독 검증은 별도 private GitHub Actions 저장소의 신뢰된 Mac runner에서
   수동으로 실행한다. 공개 PR에는 로그인 캐시를 제공하지 않는다. 검토한 source·template
   commit을 고정하고 하나의 CI 전용 홈·로그인을 직렬로 사용한다. `rehearse-codex-macos.mjs`
@@ -373,6 +392,9 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>] [--scenario <slug|truncate>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
 | `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산(세션 누적 비용과 반복 거부는 한 번만). 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
 | `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
+| `rehearsals/gate-environment.mjs`, `rehearsals/gate-environment.test.mjs` | 두 smoke 리허설과 `agent-eval-summary.mjs`가 import한다. 시험은 `test:scripts` | CI마다 | `claude --version`의 버전, OS 버전(macOS는 `sw_vers`, 그 밖은 커널 release), 설치된 플러그인 판을 읽고 형식이 맞는 값만 요약에 넣는다. 값을 얻지 못해도 호출한 리허설을 실패시키지 않는다 |
+| `rehearsals/agent-eval-summary.mjs`, `rehearsals/agent-eval-summary.test.mjs` | `node scripts/rehearsals/agent-eval-summary.mjs --result <eval 결과 JSON> --exit-code <eval 종료 코드> --plugin <평가한 플러그인> --commit <커밋 전체> --summary <새 요약 파일>`. 시험은 `test:scripts` | `agent-eval` workflow, 시험은 CI마다 | eval 결과에서 사람이 읽는 줄을 출력하고 허용 필드만 남긴 요약 한 줄을 파일에 쓴다. 결과 파일을 읽지 못해도 종료 코드로 판정을 남긴다. job summary와 `GITHUB_OUTPUT` 기록은 workflow가 한다 |
+| `rehearsals/gate-record.mjs`, `rehearsals/gate-record.test.mjs` | `GATE_SUMMARIES=<job 출력 JSON> node scripts/rehearsals/gate-record.mjs --workflow <게이트> --result <gate job 결과> --legs <다리,다리> --event <이벤트> --ref <전체 ref> --commit <커밋 전체> --run-id <번호> --run-attempt <n> --repository <owner/name> --record-issue <번호> --out <새 폴더> [--open-issues <NDJSON>]`. 시험은 `test:scripts` | 세 게이트의 `record` job(`.github/actions/gate-record`), 시험은 CI마다 | 실행 정보를 검증하고 요약을 그 게이트의 필터로 다시 걸러 기록 댓글과 `[gate]` 이슈의 제목·본문을 새 폴더에 파일로 쓴다. 네트워크를 쓰지 않는다. PR 이벤트, `dev`·`main` 밖의 ref, 형식이 틀린 값은 아무것도 쓰지 않고 거부한다 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |
