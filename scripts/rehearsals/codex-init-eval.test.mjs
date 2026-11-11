@@ -30,7 +30,7 @@ it("refuses running helpers for an incomplete package even if the model describe
   assert.throws(() => gradeInitEvaluation({ name: "incomplete-package", events: [...inspected, events[1]], before: [], after: [] }));
 });
 
-it("retains private child output on timeout and never treats it as a completed evaluation", async t => {
+it("retains private child output on timeout and never treats it as a completed evaluation", { skip: process.platform === "win32" ? "The macOS eval uses POSIX process groups" : false }, async t => {
   const root = fixture(t), log = path.join(root, "private.json"), file = path.join(root, "fake.mjs");
   writeFileSync(file, 'console.error("synthetic-private-log"); setInterval(() => {}, 1000);');
   await assert.rejects(evalTurn({ cli: { executable: process.execPath, prefix: [] }, args: [file], env: {}, cwd: root, log, timeoutMs: 150 }), /eval-timeout/);
