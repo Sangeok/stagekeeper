@@ -37,6 +37,7 @@ related:
 - 원래 PR의 plugin 0.6.6은 후속 macOS 통합에서 0.6.11로 올라갔다.
 - [macOS 인수 보고서](../../test-reports/completed/2026-11-10-codex-macos-native-acceptance.md)의 마지막 설치 관측은 검증한 0.6.10 유지다. 0.6.11의 회귀 통과를 그 설치본 갱신으로 간주하지 않는다.
 - Windows의 현재 설치본과 이후 변경은 이번 문서 정리에서 직접 조회하지 않았다.
+- 2026-11-11 이후 갱신: 소유자의 Windows PC(로컬 marketplace `harness@stagekeeper-windows`)는 main `1eddbc2`의 0.6.11로 갱신됐다. 결과는 Verification Results에 있다. macOS 설치본은 여전히 위의 0.6.10 관측뿐이다.
 
 ## Scope
 
@@ -47,7 +48,7 @@ related:
 
 | 후속 | 상태 | 종료 조건 |
 | --- | --- | --- |
-| LIMIT-F01 | 설치 대상·현재 package 미확정 | 대상 PC별 현재 bundle/source와 기능 포함 여부를 확인한다. 이미 적용됐다면 근거만 남기고 재설치하지 않는다. 갱신이 필요하면 원래 설치 승인 범위에서 후보 hash·전체 inventory·helper 상태·사용자 수정 보존을 확인한다 |
+| LIMIT-F01 | Windows 완료(2026-11-11, 0.6.11). macOS 미확인 | 대상 PC별 현재 bundle/source와 기능 포함 여부를 확인한다. 이미 적용됐다면 근거만 남기고 재설치하지 않는다. 갱신이 필요하면 원래 설치 승인 범위에서 후보 hash·전체 inventory·helper 상태·사용자 수정 보존을 확인한다 |
 | LIMIT-F02 | 자연 발생 한도 관찰 대기, informational | 다음 실제 한도에서 알림·`limitedUntil`·새 실행 없는 heartbeat·해제 후 재개를 관찰한다. 한도 미발생은 설치 완료를 막지 않으며 원래 구현 시험과 관찰 안내를 남길 수 있다 |
 
 ## Affected Files
@@ -80,6 +81,26 @@ related:
 ## Verification Results
 
 이번에는 소스·병합 이력·기존 CI와 설치 보고서만 확인했다. 설치·runner 실행·모델 호출은 수행하지 않았다.
+
+Windows, LIMIT-F01 (2026-11-11). 설치는 소유자가 승격 뒤 따로 승인했다("진행해"). 모델 호출과 runner 실행은 없었다.
+
+| 확인 | 결과 |
+| --- | --- |
+| 갱신 전 설치본 | `harness@stagekeeper-windows` 0.6.5(user 범위). 한도 대기가 없는 판이다 |
+| 실행 중인 사용처 | 번들을 쓰는 프로세스, 예약 작업, Run 키가 없음을 확인한 뒤 바꿨다 |
+| 후보 | main `1eddbc2`의 깨끗한 detached worktree에서 `scripts/windows/package-windows-plugin.mjs`로 묶었다. 2,252개 파일, packageSha256 `f06b77e0…`. 0.6.5 이후 runtime·포장 스크립트·verifier 변경이 없어 설치된 runtime(`0148976b…`)을 재사용했다(verifier `de1120a5…`, 7파일) |
+| inventory | 0.6.5 대비 추가 13·변경 27·삭제 0. `git diff 4b06779 1eddbc2 -- plugin`의 배포 대상 40개와 정확히 같다 |
+| 설치 | 이전 묶음은 로컬 백업으로 보존했다. `claude plugin marketplace update stagekeeper-windows`와 `claude plugin update harness@stagekeeper-windows --scope user`로 0.6.5 → 0.6.11. 같은 marketplace의 local 범위 설치(옛 smoke 저장소) 하나도 0.5.33 → 0.6.11로 올라갔다 |
+| 설치 cache | 2,252/2,252 sha256 일치. inventory 밖 파일은 `windows-package.json`뿐이다 |
+| bundled helper | 설치된 `harness.ps1 session`이 runtime 검증을 통과하고 `session-refused` JSON으로 답했다. `background --status`(읽기 전용, 멈춘 harness-smoke runner)의 결과에 `limitedUntil` 키가 있고 값은 `null`이다 |
+| 기능 포함 | 설치 cache의 `runtime/background.mjs`에 한도 판정과 대기, `bin/harness-background.mjs`에 `--status`의 `limitedUntil`이 들어 있다 |
+
+LIMIT-F02는 그대로 관찰 대기다. 다음에 이 PC의 runner가 실제 한도에 걸리면 다음 순서로 본다.
+
+1. Windows 알림 "Runner waiting for Claude"가 한 번 뜨는지
+2. `--status`의 `limitedUntil`과 웹 배너 줄
+3. `background.log`에 그 시각 전까지 새 run이 없는지
+4. 해제 뒤 첫 run이 이어지는지
 
 ## Risks and Rollback
 
