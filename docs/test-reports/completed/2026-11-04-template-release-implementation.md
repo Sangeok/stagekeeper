@@ -11,11 +11,11 @@ completed-at: "2026-11-04"
 last-executed-at: "2026-11-04T01:53:42Z"
 tested-revision: "2d838de49fb9570bd6f348229f4c528552d9d117"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/template-release-versioning.md", "docs/architecture/template-releases.md", "docs/architecture/verification.md"]
+related: ["docs/proposals/completed/2026-11-11-template-release-versioning.md", "docs/architecture/template-releases.md", "docs/architecture/verification.md"]
 primary-area: "harness/template-releases"
 observed-environments: ["local | macOS arm64 | isolated worktree and PostgreSQL | synthetic accounts and source fixtures"]
 test-summary: "pass: local implementation regression, immutable releases, execution pins, installation commit and operator recovery; native platform and production acceptance excluded"
-follow-up: ["docs/proposals/active/template-release-versioning.md"]
+follow-up: ["docs/proposals/active/template-release-acceptance-follow-ups.md"]
 ---
 
 # 템플릿 릴리스 구현 검증

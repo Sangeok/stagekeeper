@@ -11,11 +11,11 @@ completed-at: "2026-10-25"
 last-executed-at: "2026-10-25T13:04:49Z"
 tested-revision: "0d63e2c6745fee3b4049b118f27b63bbd5a1c016"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md", "docs/test-reports/completed/2026-10-24-codex-final-windows-acceptance.md"]
+related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/completed/2026-10-24-codex-final-windows-acceptance.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["local | Windows | Node 22.13.1 and bundled Node 22.23.3 | disposable fixtures", "CI | Ubuntu, Windows, macOS 15 arm64 and Intel | source regression checks | no authenticated model acceptance"]
 test-summary: "pass: reproduced partial-state reads and missing role diagnostics repaired; historical individual causes and macOS support remain unresolved"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md"]
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # 상태 조회 경쟁과 역할 도구 실패 진단 수정

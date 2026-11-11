@@ -1,13 +1,14 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
+updated-at: "2026-11-11"
 created-at: "2026-11-02"
 approved-by: "requesting-user"
 approved-at: "2026-11-03"
 approval-scope: "2026-11-03 문서를 바탕으로 실제 코드 수정을 요청했다. Core 구현과 격리 검증을 진행하며 운영 DB 이관·활성화·서비스 배포는 포함하지 않는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-11"
+verification-summary: "Core 구현·격리 검증(#287), 운영 R0 전환(#295)과 R1 활성화·포인터 복구(#303) 완료. 잔여 복원·설치 인수는 template-release-acceptance-follow-ups.md로 이관. 이번 정리는 문서만 변경."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -24,13 +25,21 @@ related:
   - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
 ---
 
-# 템플릿 버전별 배포와 파이프라인 실행 버전 고정
+# 템플릿 버전별 배포와 파이프라인 실행 버전 고정 — 구현 완료 기록
 
 ## Summary
 
-비공개 Git 저장소에서 템플릿 원본을 관리하고 PostgreSQL을 통해 제공하는 구조를 유지한다. 운영자가 지정한 커밋을 CI가 가져와 검증한 뒤 변경 불가능한 템플릿 묶음으로 저장하고, 별도 활성화 작업으로 새 실행에 적용한다. 파이프라인 실행은 시작할 때 템플릿 묶음과 언어를 고정하며, 배정 전후와 여러 에이전트에 걸쳐 같은 묶음을 사용한다.
+불변 템플릿 릴리스, 실행별 버전·언어 고정, 두 클라이언트의 설치 commit,
+배포 CLI·workflow와 이관·복구 도구의 Core 구현을 완료했다.
+[구현 검증](../../test-reports/completed/2026-11-04-template-release-implementation.md),
+[운영 R0 전환](../../test-reports/completed/2026-11-05-template-release-production-cutover.md),
+[운영 R1 활성화·포인터 복구](../../test-reports/completed/2026-11-10-template-release-r1-activation.md)를 구분해 기록한다.
 
-이 제안은 로컬 clone에 의존하는 배포 절차와 실행 도중 지침이 교체되는 문제를 함께 해결한다. 서버·플러그인·로컬 생성 파일의 호환성 검증을 활성화 조건에 포함한다. 2026-11-03 실제 코드 수정 요청에 따라 Core 구현을 진행한다. 운영 DB 이관·서비스 배포는 별도 운영 경계다.
+2026-11-11 사용자의 정리 요청에 따라 코드 구현 완료를 기준으로 이 문서를 닫는다.
+남은 private snapshot 복원·설치 조합 인수는 [후속 문서](../active/template-release-acceptance-follow-ups.md)가 소유한다.
+원래 REQ·INV·CON·Phase·VFY 정의와 과거 검증 기록은 아래에 보존하며,
+모든 출시 인수가 통과했다거나 새 운영 실행을 승인했다는 의미는 아니다.
+현재 구현 계약은 [template-releases.md](../../architecture/template-releases.md)를 따른다.
 
 ## Goal
 
@@ -46,6 +55,9 @@ related:
 이 문서의 reconciliation은 전체 설계의 코드 정합성·실행 순서·변경 후 산출물·검증 목적지를 심사한다. 미래 제품 VFY가 아직 실행되지 않았다는 사실과 현재 설계의 미해결 결함을 구분한다. 최신 저장본의 무편집 대조가 통과해도 각 Phase의 구현·운영 인수나 실행 승인을 대신하지 않는다.
 
 ## Current State
+
+아래 최초 조사·설계는 구현 전 기준을 보존한 이력이다. 최신 완료 범위는 Summary와
+Implementation Progress, 남은 실행 범위는 후속 문서를 따른다.
 
 ### 근거와 권위
 
@@ -482,6 +494,9 @@ native MCP 등록과 `project_sync`는 설치 ready 뒤의 기존 연결 단계�
 
 ## Blockers
 
+이 절은 구현 전 Phase 진입 조건의 정의를 보존한다. 현재 남은 조건과 해소 근거는
+[후속 인수 표](../active/template-release-acceptance-follow-ups.md#proposal)에 연결했다.
+
 전체 설계의 선택과 현재 문서 작성은 가능하다. 아래는 구현·운영의 해당 경계에서 해소할 조건이며, 이를 모두 이미 충족했다고 선언하지 않는다.
 
 ### BLK-TPL-01: private 원본과 출시 설치 계약의 대조
@@ -522,7 +537,7 @@ native MCP 등록과 `project_sync`는 설치 ready 뒤의 기존 연결 단계�
 
 ## Approval
 
-승인 기록의 단일 기준은 front matter다. 대화에서 방향에 동의하고 문서 작성을 요청한 것을 구현·운영 승인으로 확장하지 않는다. 2026-11-03 사용자의 실제 코드 수정 요청으로 Core 구현이 승인됐다. 현재 실행 범위와 미완료 작업은 아래 구현 진행 기록을 따른다. 본문에 정한 경계와 별도로 각 Phase의 상세 계획·변경 범위를 확인한 뒤 실행한다.
+승인 기록의 단일 기준은 front matter다. 대화에서 방향에 동의하고 문서 작성을 요청한 것을 구현·운영 승인으로 확장하지 않는다. 2026-11-03 사용자의 실제 코드 수정 요청으로 Core 구현이 승인됐다. 완료 범위는 아래 구현 기록, 남은 운영·설치 인수는 후속 문서를 따른다. 본문에 정한 경계와 별도로 각 Phase의 상세 계획·변경 범위를 확인한 뒤 실행한다.
 
 ## Execution Plan
 
@@ -719,23 +734,23 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 - 배포 코드: protected code/source SHA의 `template-release.yml`, 운영 credential과 검증 job 분리, 명시 import/activate/bootstrap/status/result. 기존 Claude smoke에는 pinned private SHA와 이관 경계를 연결했다. production 환경·secrets 설정이나 workflow 실행은 하지 않았다.
 - 검증: check/lint/type, architecture, core/plugin, web, server composition, 격리 PostgreSQL 전체 suite와 private 실제 HTTP 설치·단계 분기, 정확한 출시 0.5.33 init reader를 확인했다. 수치·revision·제한은 [구현 검증 보고서](../../test-reports/completed/2026-11-04-template-release-implementation.md)에 기록한다.
 
-변경 후 현재 계약은 [template-releases.md](../../architecture/template-releases.md)가 권위다. native macOS/Windows 출시 조합의 실제 설치·hook 로딩, 전체 이전 client 집합, 운영 백업 복원·이관·포인터 복구와 배포 인수는 실행하지 않았다. TPL4 완료 또는 운영 배포 승인을 뜻하지 않으며 제안서는 active에 유지한다.
+변경 후 현재 계약은 [template-releases.md](../../architecture/template-releases.md)가 권위다. 2026-11-04 당시에는 native 출시 조합·운영 이관·복구를 실행하지 않아 active에 유지했다. 이후 실행은 다음 두 기록에 구분하고, 남은 조건은 후속 문서로 이관한다.
 
-2026-11-05 TPL4 전반(R0)을 운영에서 실행했다. 절차와 승인은 [운영 전환 계획](../completed/2026-11-05-template-release-production-cutover.md)에, 판정은 [인수 보고서](../../test-reports/completed/2026-11-05-template-release-production-cutover.md)에 있다.
+2026-11-05 TPL4 전반(R0)을 운영에서 실행했다. 절차와 승인은 [운영 전환 계획](./2026-11-05-template-release-production-cutover.md)에, 판정은 [인수 보고서](../../test-reports/completed/2026-11-05-template-release-production-cutover.md)에 있다.
 
 - 운영 DB에 마이그레이션 2개를 적용하고 main을 `9516f1d`로 올렸다. `9516f1d`는 `3e69c58`에 시험 수정 #292를 더한 커밋이다.
 - `template-release.yml`의 bootstrap(run 42027310590)으로 R0 `fc20ccfd…`를 seal했다. 채널은 versioned, revision 1, legacy writer 장벽 true다. 열린 실행 8개가 모두 R0에 pin됐다.
 - 이제 운영 템플릿 변경은 이 워크플로의 import와 activate로만 한다. legacy seed는 writer 장벽이 거부한다.
 - 운영 사용자의 Windows bundle(0.6.1) 설치·hook 로딩과 재init, `pipeline_next`를 확인했다. BLK-TPL-04의 R0 범위 승인과 BLK-TPL-03의 백업 확인은 이 실행에서 처리했다.
-- 남은 것: R1 import·activate와 포인터 복구 인수(TPL4 후반), Codex 경로와 다른 기기의 인수.
+- 당시 남은 것: R1 import·activate와 포인터 복구 인수(TPL4 후반), Codex 경로와 다른 기기의 인수. R1·포인터 복구는 아래 후속 실행에서 완료했다.
 
-2026-11-10 TPL4 후반(R1과 포인터 복구)을 운영에서 실행했다. 절차와 승인은 [R1 활성화 계획](../completed/2026-11-10-template-release-r1-activation.md)에, 판정은 [인수 보고서](../../test-reports/completed/2026-11-10-template-release-r1-activation.md)에 있다.
+2026-11-10 TPL4 후반(R1과 포인터 복구)을 운영에서 실행했다. 절차와 승인은 [R1 활성화 계획](./2026-11-10-template-release-r1-activation.md)에, 판정은 [인수 보고서](../../test-reports/completed/2026-11-10-template-release-r1-activation.md)에 있다.
 
 - R1은 비공개 템플릿 `8ccb37a`(harness-templates #16의 merge commit, tree는 pipeline-smoke로 검증한 `a2538a5`와 같다)다. import로 R1 `fc5e5f59…`를 seal했다.
 - 채널은 activate로 R1(revision 2), R0 복구(3), R1 재활성화(4)를 거쳐 지금 active R1, revision 4다. 모든 실행은 main `8b231c2`에서 돌았다.
 - 시험 프로젝트에서 새 선택이 그때의 active를 따르는 것을 확인했다. 기존 실행은 포인터가 바뀌어도 pin을 유지한다. 실제 프로젝트의 R0 실행도 R1이 active인 동안 R0로 진행했다.
 - VFY-TPL-09의 production 부분 가운데 활성화, 이전 포인터 복구, 기존 실행 유지, 새 선택을 채웠다. private 전체 snapshot의 실제 복원은 이번 범위가 아니다.
-- 남은 것: Codex 경로와 다른 기기의 인수, Windows PC 저장소의 R1 재init.
+- 이 운영 인수에서 제외한 Codex 경로·다른 기기·Windows R1 재init은 후속 문서에서 추적한다. macOS Codex R1의 격리 인수는 별도 0.6.10 보고서로 확인하며 운영 전환 시험과 합산하지 않는다.
 
 ## Verification Results
 
@@ -830,7 +845,11 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 
 ## Completion or Closure Notes
 
-사용자가 승인한 Core 코드 구현과 로컬 검증을 수행했다. 운영 적용·native 출시 조합·실제 백업 복원 인수는 남아 있어 completed로 이동하지 않는다. 공개 저장소에 private 본문을 추가하지 않았으며 기존 원본의 임의 수정·seed·운영 활성화도 수행하지 않았다.
+- 완료 기준: 승인된 Core 코드·격리 검증과 별도 승인으로 수행한 R0 전환·R1 활성화·포인터 복구 기록의 정리.
+- 구현·병합: [#287](https://github.com/Sangeok/stagekeeper/pull/287), [#295](https://github.com/Sangeok/stagekeeper/pull/295), [#303](https://github.com/Sangeok/stagekeeper/pull/303). 2026-11-11 확인 기준 `origin/dev`는 `b64643f`다.
+- 완료일은 문서를 정리한 날짜다. 구현 시험은 2026-11-04, R0 운영 인수는 2026-11-05, R1 운영 인수는 2026-11-10의 각 보고서 revision에만 적용된다.
+- 잔여 인수: [template-release-acceptance-follow-ups.md](../active/template-release-acceptance-follow-ups.md)의 TPL-F01–03. 기존 REQ/VFY의 전체 출시 증거를 새로 통과 처리하지 않는다.
+- 이번 변경은 문서 상태·위치·추적 링크만 정리하며 제품 코드, 운영 DB, 설치본과 배포 상태를 변경하지 않았다.
 
 ## Review Checklist
 
@@ -843,5 +862,5 @@ DB 시험은 `validateTestDatabase`를 통과한 `stagekeeper_test_*`에서 수�
 - [x] 원자성·동시성·응답 유실·partial init·출시 reader·최초 이관의 실제 검증 대상을 정의했다.
 - [x] REQ마다 Phase 완료 소유자와 VFY를 연결하고 실행한 로컬 검증과 미실행 운영 인수를 구분했다.
 - [x] 사용자 실제 코드 수정 요청으로 Core 구현을 진행했고 운영 적용 승인은 확장하지 않았다.
-- [ ] BLK-TPL-01–BLK-TPL-04의 해당 Phase 진입·종료 조건을 실제 증거로 해소했다.
-- [ ] 구현·운영 인수와 복구 시험을 완료했다.
+- [x] Core 구현·검증과 수행한 운영 인수를 완료 기록에 연결했다.
+- [x] BLK-TPL-01–04와 VFY-TPL-01–10의 남은 인수를 후속 문서로 이관하고 전체 통과로 표시하지 않았다.

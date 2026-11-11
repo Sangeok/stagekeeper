@@ -11,11 +11,11 @@ completed-at: "2026-11-10"
 last-executed-at: "2026-11-10T05:33:00Z"
 tested-revision: "8b231c2208b8607852e33ef58f3022602e5c963f"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/completed/2026-11-10-template-release-r1-activation.md", "docs/proposals/active/template-release-versioning.md", "docs/architecture/template-releases.md"]
+related: ["docs/proposals/completed/2026-11-10-template-release-r1-activation.md", "docs/proposals/completed/2026-11-11-template-release-versioning.md", "docs/architecture/template-releases.md"]
 primary-area: "harness/template-releases"
 observed-environments: ["production | Neon PostgreSQL and Vercel production | GitHub Actions ubuntu-latest | single owner account", "local | macOS 26.2 | Claude Code 2.1.319 with harness 0.6.4 | owner"]
 test-summary: "pass: production R1 activation and pointer recovery — the channel is at revision 4 with R1 active, new selection followed each pointer, and existing runs kept their pins"
-follow-up: ["docs/proposals/active/template-release-versioning.md"]
+follow-up: ["docs/proposals/active/template-release-acceptance-follow-ups.md"]
 ---
 
 # 템플릿 R1 운영 활성화와 포인터 복구 인수

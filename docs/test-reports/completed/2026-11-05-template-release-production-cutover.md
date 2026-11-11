@@ -11,11 +11,11 @@ completed-at: "2026-11-05"
 last-executed-at: "2026-11-05T13:02:13Z"
 tested-revision: "9516f1db5f4adf6bccd60e0ae121d321935e9e14"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/completed/2026-11-05-template-release-production-cutover.md", "docs/proposals/active/template-release-versioning.md", "docs/architecture/template-releases.md"]
+related: ["docs/proposals/completed/2026-11-05-template-release-production-cutover.md", "docs/proposals/completed/2026-11-11-template-release-versioning.md", "docs/architecture/template-releases.md"]
 primary-area: "harness/template-releases"
 observed-environments: ["production | Neon PostgreSQL 18.6 and Vercel production | GitHub Actions ubuntu-latest | single owner account", "local | Windows 11 with WSL Ubuntu 26.04.1 | Claude Code 2.1.318 with harness 0.6.1 bundle | owner"]
 test-summary: "pass: production R0 cutover, run pins and the 0.6.1 client path on this PC — the channel is versioned at revision 1 and pipeline_next answers with R0"
-follow-up: ["docs/proposals/active/template-release-versioning.md"]
+follow-up: ["docs/proposals/active/template-release-acceptance-follow-ups.md"]
 ---
 
 # 템플릿 릴리스 운영 전환(R0) 인수

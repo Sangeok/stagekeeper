@@ -11,11 +11,11 @@ completed-at: "2026-10-24"
 last-executed-at: "2026-10-24T08:42:06.415Z"
 tested-revision: "2e7996180f910b1a56c236454c8bec000ec24e39"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/223"]
+related: ["docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/223"]
 primary-area: "harness/codex-runtime-stability"
 observed-environments: ["local | isolated Windows resident service and database | bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "CI | macOS 15 arm64 and x64 common runtime contracts | Node 22.23.2 | GitHub-hosted runners"]
 test-summary: "pass: 복구 시험 경계 분리, 최종 0.5.21 payload의 실제 110분 idle·HTTP 집계 및 macOS 양쪽 공통 계약 — 실제 macOS resident와 출시 인수는 제외"
-follow-up: ["docs/proposals/active/codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Codex 런타임 복구 경계와 최종 패키지 장시간 검증
@@ -41,7 +41,7 @@ HTTP 200이었고 모델·AgentRun·사용량 증가는 0이었다. macOS Intel�
 
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 우선순위/해석 | 확인 기준 |
 | --- | --- | --- | --- | --- |
-| R1 | [resident 계획](../../proposals/active/codex-resident-runner-plan.md), C4B lifecycle | sign-in 복구 | abandoned guard의 fail-closed 동작 유지 | 복구 가능한 crash와 guard-busy 분리, 상태 불변 |
+| R1 | [resident 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md), C4B lifecycle | sign-in 복구 | abandoned guard의 fail-closed 동작 유지 | 복구 가능한 crash와 guard-busy 분리, 상태 불변 |
 | R2 | [후속 인수 계획](../../proposals/active/codex-dual-client-runtime-follow-ups.md), C4C/E12 | 현재 Windows 최종 설치본 | 실제 단일 6600초; heartbeat와 HTTP count 구분 | payload hash, 모델·AgentRun·usage 0, 최근 heartbeat, 정리 |
 | R3 | [검증 아키텍처](../../architecture/verification.md) | 회귀·CI·기록 | 공통 계약과 OS native 인수 구분 | required 검사 및 arm64/x64 계약 통과 |
 

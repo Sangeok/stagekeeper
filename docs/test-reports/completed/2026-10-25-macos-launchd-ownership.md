@@ -11,11 +11,11 @@ completed-at: "2026-10-25"
 last-executed-at: "2026-10-25T05:50:09Z"
 tested-revision: "ab2fbaef023ed0e37215c047e6444238f00b963e"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/227"]
+related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/227"]
 primary-area: "harness/macos-launchd-ownership"
 observed-environments: ["CI | macOS 15 arm64 and x64 | Darwin 24.6.0; SDK 15.5; Node 22.23.2 | ordinary user; user and GUI launchd domains", "local | Windows repository checks | Node 22.13.1 | no native macOS execution"]
 test-summary: "pass: launchd lifecycle counterexamples reproduced in 20 combinations and 88 monitored fixture processes exited; production descendant ownership remains blocked"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/active/codex-resident-runner-plan.md"]
+follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # launchd의 서비스 종료와 분리된 후손의 실제 수명 검증
@@ -36,7 +36,7 @@ payload·원본 파일 권한·client 인증은 변경하지 않았다. 전체 �
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 확인 기준 |
 | --- | --- | --- | --- |
 | R1 | [프로토콜](../../architecture/protocol.md)의 전체 종료·ownership 계약 | launchd 서비스와 후손의 수명 | 서비스 종료·제거와 후손 종료를 따로 관찰 |
-| R2 | [resident 계획](../../proposals/active/codex-resident-runner-plan.md)의 macOS 경계 | 종료·중지·timeout·강제 종료·fork 요청 | 두 아키텍처의 실제 kernel과 user/gui 영역 |
+| R2 | [resident 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md)의 macOS 경계 | 종료·중지·timeout·강제 종료·fork 요청 | 두 아키텍처의 실제 kernel과 user/gui 영역 |
 | R3 | [최소 설치 계약](../../architecture/README.md) | 후보 선택과 남은 대안 | 권한·설치 요구와 미검증 조건을 명시 |
 
 ## Test Target

@@ -1,13 +1,14 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
+updated-at: "2026-11-11"
 created-at: "2026-11-10"
 approved-by: "user"
 approved-at: "2026-11-10"
 approval-scope: "설계와 새 문구(Windows 알림, 상태 문장, 배너 두 줄, 결과 한 줄), 구현, 커밋, PR. main 승격과 이 PC 번들 설치는 실행 직전에 각각 따로 승인받는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-11"
+verification-summary: "한도 판정·대기·알림·CLI·웹·smoke 구현. #308 check·설치·Windows·macOS CI 성공 후 dev 병합, main 포함 확인. 설치본 적용·실제 한도 관찰은 후속 문서로 이관."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -18,13 +19,22 @@ related:
   - "docs/conventions/product-copy.md"
 ---
 
-# 상주 실행기가 Claude 사용 한도에서 멈추지 않고 기다렸다가 잇게 하기
+# Claude 사용 한도 대기 — 구현 완료 기록
 
 ## Summary
 
+2026-11-10 [PR #308](https://github.com/Sangeok/stagekeeper/pull/308)에서 한도 판정·대기,
+공용 결과 형식, Windows 알림·CLI 상태·웹 배너와 pipeline-smoke 처리를 구현했다.
+최종 PR의 check·client-init-smoke·Windows·macOS CI가 모두 통과했고 `dev`에 병합됐다.
+2026-11-11 확인한 `origin/main` `1eddbc2`에도 병합 commit `21439d6`이 포함돼 있다.
+
+이번 정리는 코드 구현 완료 기준이다. 각 PC의 bundle 설치와 다음 실제 한도 관찰은
+[후속 문서](../active/runner-usage-limit-installation.md)에 남긴다. 아래 원인·설계·실행 계획은
+구현 전후 판단 이력이며, 과거 로컬 실패와 CI 성공의 범위를 구분한다.
+
 2026-11-10 harness-smoke ITEM-04 실기 중에 Claude 구독의 5시간 한도(HTTP 429)에 걸렸다. 상주 실행기는 인수 직전에 끊긴 실행을 "done: 0 turns"로 기록했다. 이어서 새 실행을 세 번 띄웠고, 모두 같은 한도로 곧바로 실패했다. 그러자 오류 3회 규칙으로 멈추고 "It hit an error"라는 알림만 남겼다. 소유자는 실행 로그를 열어야 원인을 알 수 있었고, 한도가 풀린 뒤 손으로 다시 켜야 했다. 무인 진행이라는 상주 실행기의 목적과 어긋난다.
 
-이 문서는 실행기가 Claude Code의 구조화된 한도 신호(`rate_limit_event`의 `status:"rejected"`와 `resetsAt`)를 읽게 하자고 제안한다. 한도로 끝난 실행은 실패로 세지 않는다. 해제 시각까지 새 실행을 띄우지 않고 기다렸다가 그대로 잇는다. 소유자는 Windows 알림 한 번, `--status`, 웹 배너 한 줄로 이유와 재개 시각을 본다. 서버 계약과 DB는 바꾸지 않는다.
+구현된 실행기는 Claude Code의 구조화된 한도 신호(`rate_limit_event`의 `status:"rejected"`와 `resetsAt`)를 읽는다. 한도로 끝난 실행은 실패로 세지 않는다. 해제 시각까지 새 실행을 띄우지 않고 기다렸다가 그대로 잇는다. 소유자는 Windows 알림 한 번, `--status`, 웹 배너 한 줄로 이유와 재개 시각을 본다. 서버 계약과 DB는 바꾸지 않는다.
 
 ## Goal
 
@@ -191,14 +201,13 @@ related:
 
 ## Approval
 
-승인 기록은 front matter가 기준이다.
-
-필요한 승인:
-
-1. 이 설계와 새 문구(Windows 알림, 배너 줄, 결과 한 줄)다. 문구는 이 절의 다른 문구처럼 소유자 확인을 받는다. 웹 줄을 빼는 더 작은 안으로 줄일 수 있다.
-2. 구현, 커밋, PR까지다. main 승격과 이 PC 번들 설치는 실행 직전에 따로 승인받는다.
+실행 당시의 승인 기록은 front matter에 보존한다. 구현·문구·커밋·PR 승인은 #308에서
+수행했으며, 2026-11-11의 정리 요청으로 완료 기록과 남은 설치 인수를 분리했다.
+main 포함 여부는 Git 이력으로 확인했으며 이번 작업이 승격이나 개별 PC의 bundle 설치를 수행한 것은 아니다.
 
 ## Execution Plan
+
+아래는 당시 실행 순서다. 구현·PR·CI는 완료했으며 현재 후속 상태는 별도 설치 문서를 따른다.
 
 1. 시험을 먼저 쓴다(공용 형식, 판정, 대기 루프, 배너). 시험은 2026-11-10 실기 stream에서 뽑은 실제 이벤트 모양을 쓰고(식별자는 지운다), 고치기 전에 실패하는지 확인한다.
 2. 공용 모듈, 실행기, `--status`, 배너 순서로 구현한다. `plugin-lib --check`로 사본이 같은지 본다.
@@ -241,6 +250,14 @@ npm run verify:plugin-version -- --base origin/dev --head HEAD
 
 ## Verification Results
 
+최종 PR head `34acf054c71eb9a69ce57bf52d65cd3116769838`의 GitHub Actions를 확인했다.
+[check](https://github.com/Sangeok/stagekeeper/actions/runs/42820026289),
+[client-init-smoke](https://github.com/Sangeok/stagekeeper/actions/runs/42820026297),
+[Windows](https://github.com/Sangeok/stagekeeper/actions/runs/42820026368),
+[macOS](https://github.com/Sangeok/stagekeeper/actions/runs/42820026312)가 모두 success다.
+아래 Windows 로컬의 기존 환경 실패는 이 CI 결과와 구분해 보존한다.
+이번 문서 정리에서는 이 시험들을 다시 실행하지 않았다.
+
 2026-11-10, worktree `harness/runner-usage-limit`(dev `295082c` 위), 이 PC(Windows, Node 22.13.1)에서 돌렸다.
 
 | 명령 | 결과 | 비고 |
@@ -272,21 +289,11 @@ npm run verify:plugin-version -- --base origin/dev --head HEAD
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
-
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
-
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+- 완료 범위: 한도 판정·재개 시각 계산·실행 없는 대기와 heartbeat, 기존 실패 횟수 보존, 알림·CLI·웹 표시, smoke 조기 실패와 문서·버전 갱신.
+- 구현 head: `34acf054`; [#308](https://github.com/Sangeok/stagekeeper/pull/308)의 병합 commit은 `21439d6`이다. `origin/dev` `b64643f`와 `origin/main` `1eddbc2`에 포함됨을 2026-11-11 확인했다.
+- 원래 PR의 plugin 0.6.6은 후속 macOS 통합에서 0.6.11로 올라갔다. 기능 구현 완료와 각 PC 설치 버전은 별개다.
+- 남은 설치·실제 한도 관찰은 [runner-usage-limit-installation.md](../active/runner-usage-limit-installation.md)에서 추적한다. Codex 한도 대응·watchdog·대화형 watch는 원래 제외 범위를 유지한다.
+- 완료일은 문서 정리 날짜이며 새 배포·설치·모델 실행을 뜻하지 않는다.
 
 ## Review Checklist
 
@@ -294,14 +301,14 @@ npm run verify:plugin-version -- --base origin/dev --head HEAD
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
-- [ ] `stage: "approved"`라면 `approved-by`, `approved-at`, `approval-scope`가 모두 채워져 있다.
+- [x] 기존 승인 기록을 보존하고 완료 상태의 stage를 null로 바꿨다.
 - [x] `proposal-size`는 `small` 또는 `standard`만 사용했고, standard 강제 조건에 해당하는 작업을 small로 낮추지 않았다.
 - [x] 승인 기록은 front matter를 단일 기준으로 사용하고, 본문 `Approval` 섹션에는 승인 조건과 참고 메모만 적었다.
 - [x] 변경 범위와 제외 범위가 명확하다.
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
+- [x] 로컬 기존 환경 실패와 최종 PR CI 성공을 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
-- [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
+- [x] 완료 metadata와 수행 결과를 갱신하고 잔여 설치 인수를 후속 문서로 이관했다.
+- [x] 미실행 폐기가 아닌 구현 완료이므로 closed metadata는 null로 유지했다.
