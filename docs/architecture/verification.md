@@ -187,6 +187,18 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
   `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
   `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
+- macOS Codex 구독 검증은 별도 private GitHub Actions 저장소의 신뢰된 Mac runner에서
+  수동으로 실행한다. 공개 PR에는 로그인 캐시를 제공하지 않는다. 검토한 source·template
+  commit을 고정하고 하나의 CI 전용 홈·로그인을 직렬로 사용한다. `rehearse-codex-macos.mjs`
+  의 `--phase init`은 모델 없이 신규 연결과 `--previous-package` 업데이트를 검사한다.
+  `--phase eval --run-models`는 실제 모델의 쓰기 대조군 1회와 dry-run·수정 파일 보존·불완전
+  패키지 거부 3개 사례를 각각 3회 실행한다. Claude의 승인 질문 사례를 그대로 복사하지 않고
+  현재 Codex init 스킬의 계약을 검증한다. `--phase pipeline --run-models`는 기존 실제
+  macOS 전체 역할 리허설을 실행한다. 이 경로는 로컬 배포 bundle의 CI이며 공개 marketplace
+  배포 인증은 아니다. 성공 요약에도 역할 도구 오류·메인 루프 거부·서버 step 거부와
+  역할별 dispatch 횟수를 남긴다. `reviewRequired`이면 main 승격 전에 private 원문을 검토하고,
+  계약·안내 문구가 원인이면 먼저 수정한다. 실행 identity와 단계별 요약만 게시하고 raw 기록·template·인증은
+  Mac의 private 경로에 보존한다. 일회용 runner는 작업 후 해제하며 재실행 전에 시작해야 한다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 
@@ -370,6 +382,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `macos/rehearse-project-build.mjs` | `node scripts/macos/rehearse-project-build.mjs --root <준비된 저장소> --runtime <검증 runtime> --evidence <새 외부 JSON>` | macOS 로컬·두 아키텍처 CI | 실제 프로젝트를 credentials·network 없는 snapshot에서 빌드한다. 정상 내부 dependency 링크와 원본 source·BUILD_ID 보존, quiescence를 확인하며 실패 결과도 외부 증거 파일에 기록한다 |
 | `rehearsals/prepare-codex-macos-database.mjs` | `node --env-file=<외부 시험 env> scripts/rehearsals/prepare-codex-macos-database.mjs --data-directory <자기 cluster 경로>` | 격리 PostgreSQL에서 수동 | loopback의 새 `stagekeeper_test_*` DB만 만들고 migrate deploy한다. 실제 data_directory와 자기 cluster 경로가 다르거나 DB가 이미 있으면 거부한다 |
 | `rehearsals/rehearse-codex-macos.mjs` | 아래 macOS 실제 모델 리허설 명령 | 기존 native Codex 로그인·설치 bundle·private template export·fresh build·새 시험 DB에서 수동 | global Node 없는 helper PATH로 init·resident·모든 선택 역할·인수·고정 log·선택 유휴 시간을 관찰한다. owner gate는 시험 controller가 실제 service를 호출한다. 운영 UI 인수·공개 배포는 포함하지 않는다 |
+| `rehearsals/codex-init-eval.mjs`, `rehearsals/codex-init-eval.test.mjs` | macOS 리허설의 `--phase eval --run-models`; 모델 없는 판정 시험은 `test:scripts`·`test:architecture` | private Mac CI·승인된 수동 eval | 모델 호출 전 같은 권한으로 native launcher와 인증 디렉터리 거부를 확인한다. 실제 쓰기 대조군과 init 3개 사례를 각 3회 검사하며, 도구 실행·완료 event·파일 bytes와 mtime 보존을 함께 판정한다. raw 출력은 외부 private evidence에만 남긴다 |
 | `rehearsals/inspect-codex-macos.mjs` | `node --env-file=<외부 시험 env> --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/inspect-codex-macos.mjs <시험 디렉터리> [--cleanup]` | 실패한 자기 시험 fixture 확인·정리 시 수동 | 원장을 외부 evidence에 보존한다. 정리는 합성 사용자·저장소·단일 프로젝트와 runtime 소유권 부재를 확인한 뒤에만 수행한다. 일반 사용자 정리 도구가 아니다 |
 | `rehearsals/rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 7종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
 | `rehearsals/rehearse-multiple-pipelines-browser.mjs` | 저장소 루트에서 `node scripts/rehearsals/rehearse-multiple-pipelines-browser.mjs <설치된 playwright-core/index.mjs> [<Chromium 실행 파일>]` | 파이프라인 목록·편집 UI 변경 시 수동 | 위 `multiple-pipelines-browser.tsx` fixture를 저장소 의존성의 esbuild로 묶어 loopback 서버에 올리고 headless Chromium에서 29개 사례(미저장 편집의 저장본 보존, stale draft와 원래 CAS, pending·dirty, 현재 catalog/switcher·Run rules, Free·읽기 전용 제한, 다른 identity로의 응답 반영 차단, 모바일 폭 등)를 실행한다. DB·Next 서버를 쓰지 않으며 playwright-core를 설치하지 않으므로 경로를 인자로 받는다. `.next/static/chunks`의 CSS가 있으면 함께 쓰고, 스크린샷과 `results.json`을 새 임시 디렉터리에 남긴 뒤 브라우저·서버를 닫는다 |
@@ -460,6 +473,8 @@ Commands의 CMD1은 실행하지 않은 정규화된 재실행 manifest로 `info
 
 macOS의 실제 모델 리허설은 명시적 opt-in으로만 실행한다. 다음 경로는 모두 로컬 시험용이며
 private export와 인증값·raw log를 저장소에 넣지 않는다. 모델 실행 중 `.next`를 재빌드하지 않는다.
+기본 CI는 완료 상태와 실행기 종료를 확인하고 고정 유휴 시간을 요구하지 않는다.
+장시간 유휴 회귀를 별도로 조사할 때만 `--idle-minutes 110`처럼 명시한다.
 호스트가 깨어 있는 상태에서 실행한다. 역할 완료는 closedAt뿐 아니라 accepted terminal
 outcome을 확인한다. 60초 유휴 표본 사이에 90초 초과 공백이나 시계 역행이 있으면 관찰을
 실패시키며, 절전 시간을 정상 유휴 시간으로 합산하지 않는다.
@@ -469,7 +484,7 @@ node --env-file=<외부-시험-env> --import ./tests/server/register-server-only
   scripts/rehearsals/rehearse-codex-macos.mjs \
   --package <실제로-설치된-bundle> --templates <private-template-export> \
   --work <새-외부-evidence-경로> --browser-cli <설치된-playwright-mcp-cli> \
-  --idle-minutes 110 --run-models
+  --phase pipeline --idle-minutes 0 --run-models
 ```
 
 parent 명령 sandbox의 중첩 Seatbelt·loopback 거부는 역할 backend의 실패와 구분한다.

@@ -152,7 +152,7 @@ async function dispatcherFixture(mode) {
     inspectHostPolicy: async () => { if (["host-policy", "browser-close"].includes(mode)) fail(); return []; },
     spawn: () => { if (mode === "spawn") fail(); return { pid: process.pid, stdin: new PassThrough() }; },
     createAppServer: child => ({ child, closed: false, listeners: new Set(),
-      request: async method => {
+      request: async (method, params) => {
         if (method === "initialize") { if (["initialize", "server-close"].includes(mode)) fail(); return {}; }
         if (method === "config/read") {
           if (mode === "effective-policy") return { config: {} };
@@ -162,7 +162,11 @@ async function dispatcherFixture(mode) {
             permissions: { "harness-role": { extends: ":read-only", filesystem, network: { enabled: false } } }, shell_environment_policy: { inherit: "none", set: { PATH: roleCommandPath() } } } };
         }
         if (method === "skills/list") return { data: [] };
-        if (method === "thread/start") return { thread: { id: "thread" } };
+        if (method === "thread/start") {
+          assert.match(params.developerInstructions, /helper has already created this role/);
+          assert.match(params.developerInstructions, /first MCP call must be mcp__harness__agent_next/);
+          return { thread: { id: "thread" } };
+        }
         if (method === "turn/start") fail();
         throw new Error(`Unexpected fixture request: ${method}`);
       },

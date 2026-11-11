@@ -35,11 +35,19 @@ resident main loop는 같은 선택기를 사용한다. macOS 역할은 shell to
 `role_file_*`·`role_git_read`와 snapshot 명령 도구를 사용한다. 원본 Git metadata는
 역할의 직접 파일 접근에서 거부하고 Git 근거는 기존 scoped reader를 거친다.
 
+역할 thread에는 installed helper가 이미 진입·설치·권한·backend 검사를 끝냈음을 명시한다.
+역할 안에서 helper를 다시 찾거나 중첩 호출하지 않고, bound MCP `agent_next`로 현재 단계를 받는다.
+실제 session·권한 검증이나 거부 처리를 생략하는 예외는 아니다.
+
 `macos-commands.mjs`는 매 명령마다 canonical OS 임시 디렉터리에 허용된 원본·scratch의
 복사본을 만든다. 원본 Git·클라이언트 설정·환경 파일은 제외하고, 파일 broker는 `.env`
 (`.env.example` 제외), `.npmrc`, `.netrc`, `.git-credentials`, `.ssh`, `.aws`, `.azure`를
 읽기·쓰기·목록·검색에서 거부한다. 명령 환경은 명시한 시스템 값과 runtime 경로만
 포함하며 owner/API credential, `NODE_OPTIONS`, `CODEX_HOME`을 상속하지 않는다.
+
+파일 도구의 필수·허용 필드, 검색어 길이, 목록·검색 offset 오류는 `-32602`로 구분한다.
+역할은 기존 허용 범위 안에서 입력을 고칠 수 있다. 실제 파일 권한·별칭·소유권 거부는
+기존 중단 경계를 유지하며, 빈 검색 대신 `role_file_list`로 허용 파일을 찾는다.
 
 명령은 `/bin/sh -c`로 실행된다. 포함된 Node/npm, 필요한 읽기 전용 시스템 경로와
 명령 복사본만 보이고 network는 거부한다. npm은 복사본의 독립 cache와 빈 사용자·전역
