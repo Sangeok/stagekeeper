@@ -6,7 +6,7 @@ import { loadModule } from "./fixtures/load-module";
 
 const routePath = "src/app/api/cron/github-maintenance/route.ts";
 const secret = "test-cron-secret-".repeat(4);
-const summary = { attemptsDeleted: 2, deliveriesDeleted: 1, connectionsExpired: 3, credentialsRotated: 0 };
+const summary = { attemptsDeleted: 2, deliveriesDeleted: 1, connectionsExpired: 3, credentialsRotated: 0, cleanupComplete: true, cleanupBatches: 4 };
 
 function route(cronSecret: string | undefined, maintain: typeof maintainGitHubConnections): typeof import("../../src/app/api/cron/github-maintenance/route") {
   return loadModule(routePath, { "@/server/github/api.server": { maintainGitHubConnections: maintain } }, {
@@ -55,6 +55,21 @@ it("reports a failed run without exposing database errors or secrets", async () 
   assert.equal(response.status, 500);
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.deepEqual(await response.json(), { error: "GitHub repository maintenance failed." });
+});
+
+it("reports unfinished cleanup without retrying it inside the HTTP request", async t => {
+  const warning = t.mock.method(console, "warn", () => undefined);
+  let calls = 0;
+  const unfinished = { ...summary, cleanupComplete: false };
+  const handler = route(secret, async () => { calls++; return unfinished; });
+  const response = await handler.GET(new Request("https://stagekeeper.test/api/cron/github-maintenance", {
+    headers: { authorization: `Bearer ${secret}` },
+  }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), unfinished);
+  assert.equal(calls, 1);
+  assert.equal(warning.mock.callCount(), 1);
+  assert.deepEqual(Array.from(warning.mock.calls[0].arguments), ["GitHub repository cleanup has remaining work.", unfinished]);
 });
 
 it("schedules the maintenance route once a day within its execution limit", () => {

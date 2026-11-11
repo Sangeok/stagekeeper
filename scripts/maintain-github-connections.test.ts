@@ -8,7 +8,7 @@ import ts from "typescript";
 const code = ts.transpileModule(readFileSync(new URL("./maintain-github-connections.ts", import.meta.url), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const summary = { attemptsDeleted: 2, deliveriesDeleted: 3, connectionsExpired: 1, credentialsRotated: 0 };
+const summary = { attemptsDeleted: 2, deliveriesDeleted: 3, connectionsExpired: 1, credentialsRotated: 0, cleanupComplete: true, cleanupBatches: 4 };
 const usage = "Usage: npm run github:maintenance -- --apply [--rotate]";
 const workFailure = "GitHub repository maintenance failed. Check database and vault configuration.";
 const cleanupFailure = "GitHub repository maintenance database cleanup failed.";

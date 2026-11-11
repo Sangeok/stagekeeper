@@ -45,6 +45,12 @@ Vercel Production의 Cron이 하루 한 번(18:00 UTC) 정리 route를 호출한
 2026-11-11 결정으로 정리 주기를 "최소 10분마다"에서 "하루 한 번 이상"으로 바꾼다.
 만료된 시도는 claim·consume·초안 읽기 경로가 모두 거부하고, 만료된 연결은 다음 사용 때 중지된다.
 그래서 주기는 동작이 아니라 만료된 row가 지워지기까지의 시간만 정한다. 10분 주기는 기능을 쓰지 않아도 운영 DB를 계속 깨워 둔다.
+같은 날 확장성 보완으로 정기 정리는 만료 시각 인덱스와 500개 단위 `FOR UPDATE SKIP LOCKED` 배치를 사용한다.
+만료된 refresh credential과 refresh lease를 별도로 조회하며 활성 연결의 전체 순회는 하지 않는다.
+배치별 transaction 안에서 연결 중지·초안 비밀 제거·installation 삭제를 함께 완료한다.
+호출당 최대 40라운드·60초의 새 배치 시작 예산, SQL 2초·잠금 500ms·transaction 5초 제한을 둔다.
+완료한 배치는 보존하고 잔여 작업은 `cleanupComplete=false`와 경고로 보고하며 다음 호출에서 이어 처리한다.
+명시적 키 회전의 전체 순회는 수동 CLI에만 유지한다.
 만료된 암호문과 delivery ID는 다음 정리까지 최대 하루쯤 더 남는다.
 connection revision과 tokenVersion을 분리하고, refresh lease를 획득한 토큰은 불확실한 결과나 process 중단 후 재사용하지 않는다.
 

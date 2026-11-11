@@ -1,13 +1,13 @@
 import "server-only";
 import type { PrismaClient } from "@/generated/prisma/client";
-import type { Vault } from "./contracts";
+import type { MaintenanceResult, Vault } from "./contracts";
 import { createGitHubStore } from "./store.server";
+import { cleanupExpiredConnections } from "./maintenance-cleanup.server";
 
-export async function maintainConnections(client: PrismaClient, input: { now: Date; vault: Vault | null; rotate: boolean }): Promise<{ attemptsDeleted: number; deliveriesDeleted: number; connectionsExpired: number; credentialsRotated: number }> {
+export async function maintainConnections(client: PrismaClient, input: { now: Date; vault: Vault | null; rotate: boolean }): Promise<MaintenanceResult> {
   if (input.rotate && !input.vault) throw new Error("GitHub vault configuration required for rotation");
-  const attempts = await client.gitHubConnectAttempt.deleteMany({ where: { expiresAt: { lte: input.now } } });
-  const deliveries = await client.gitHubWebhookDelivery.deleteMany({ where: { expiresAt: { lte: input.now } } });
-  const result = { attemptsDeleted: attempts.count, deliveriesDeleted: deliveries.count, connectionsExpired: 0, credentialsRotated: 0 };
+  const result = { ...await cleanupExpiredConnections(client, input), credentialsRotated: 0 };
+  if (!input.rotate) return result;
   const store = createGitHubStore(client);
   let after = "";
   for (;;) {
