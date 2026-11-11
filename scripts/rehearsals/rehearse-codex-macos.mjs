@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { BACKLOG_ITEM, FIXTURE_FILES, caseResults } from "./pipeline-smoke-steps.mjs";
+import { evaluateCodexInit, managedSnapshot } from "./codex-init-eval.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const qaOrigin = "http://127.0.0.1:45442", browserPort = 45443;
@@ -36,7 +37,7 @@ export function assertIdleObservationGap(previous, current) {
 }
 
 export function parseMacosRehearsalArguments(args) {
-  const values = {}, allowed = new Set(["--package", "--templates", "--work", "--browser-cli", "--idle-minutes"]);
+  const values = {}, allowed = new Set(["--package", "--templates", "--work", "--browser-cli", "--idle-minutes", "--phase", "--previous-package"]);
   let models = false;
   for (let index = 0; index < args.length; index++) {
     const name = args[index];
@@ -44,11 +45,17 @@ export function parseMacosRehearsalArguments(args) {
     if (!allowed.has(name) || Object.hasOwn(values, name) || !args[index + 1] || args[index + 1].startsWith("--")) throw new Error("Invalid Codex macOS rehearsal arguments");
     values[name] = args[++index];
   }
-  if (!models) throw new Error("Explicit --run-models is required");
+  const phase = values["--phase"] ?? "pipeline";
+  if (!["init", "eval", "pipeline"].includes(phase)) throw new Error("phase must be init, eval or pipeline");
+  if (phase !== "init" && !models) throw new Error("Explicit --run-models is required");
+  if (phase === "init" && models) throw new Error("init must not run models");
   for (const name of ["--package", "--templates", "--work", "--browser-cli"]) if (!path.isAbsolute(values[name] ?? "")) throw new Error(`${name} must be absolute`);
   const idleMinutes = Number(values["--idle-minutes"] ?? 0);
   if (!Number.isInteger(idleMinutes) || idleMinutes < 0 || idleMinutes > 120) throw new Error("idle-minutes must be from 0 through 120");
-  return { packageRoot: values["--package"], templates: values["--templates"], work: values["--work"], browserCli: values["--browser-cli"], idleMinutes };
+  if (phase !== "pipeline" && idleMinutes !== 0) throw new Error("idle-minutes requires pipeline");
+  const previousPackage = values["--previous-package"];
+  if (previousPackage && (phase !== "init" || !path.isAbsolute(previousPackage))) throw new Error("previous-package requires init and an absolute package path");
+  return { packageRoot: values["--package"], templates: values["--templates"], work: values["--work"], browserCli: values["--browser-cli"], idleMinutes, phase, previousPackage };
 }
 
 async function main(args) {
@@ -78,22 +85,25 @@ async function main(args) {
   const summary = { platform: process.platform, architecture: process.arch, codex: cli.version, runtime: runtime.version,
     pluginVersion: JSON.parse(readFileSync(path.join(options.packageRoot, ".codex-plugin/plugin.json"))).version,
     packageSha256: JSON.parse(readFileSync(path.join(options.packageRoot, "macos-package.json"))).packageSha256,
-    models: true, gates: [], stages: [], result: "running", startedAt: new Date().toISOString() };
+    models: options.phase !== "init", phase: options.phase, scenario: options.previousPackage ? "update" : "new-user", gates: [], stages: [], result: "running", startedAt: new Date().toISOString() };
   const save = () => writeFileSync(path.join(work, "summary.json"), JSON.stringify(summary, null, 2) + "\n", { mode: 0o600 });
   const progress = (stage, extra = {}) => { summary.stage = stage; save(); console.log(JSON.stringify({ stage, ...extra })); };
-  const helper = (task, args, timeout = 300000) => {
-    const result = run.command(path.join(options.packageRoot, "bin/harness"), [task, ...args, "--root", repo], repo, helperEnv, timeout);
+  const helper = (task, args, timeout = 300000, packageRoot = options.packageRoot) => {
+    const result = run.command(path.join(packageRoot, "bin/harness"), [task, ...args, "--root", repo], repo, helperEnv, timeout);
     if (result.code !== 0) throw new Error(`Installed ${task} failed: ${lastJson(result.stdout)?.code ?? result.code}`);
     return lastJson(result.stdout);
   };
   const git = args => execFileSync("git", ["-C", repo, "-c", "user.name=Stagekeeper Test", "-c", "user.email=stagekeeper@test.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  let interrupted = false;
+  const interrupt = () => { interrupted = true; };
+  process.on("SIGINT", interrupt); process.on("SIGTERM", interrupt);
   let server, browser, qaServer, userId, projectId, pipelineId, itemKey, runnerSession, stopped = true;
   try {
     progress("templates");
     summary.templatesExportCommit = seedTemplates(run, options.templates, path.join(work, "private-template-snapshot.json"), environment);
     const codeSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repository, encoding: "utf8" }).trim();
-    await bootstrapSmokeTemplates({ run, work, codeSha, requestId: login, workflowRun: "macos-native-acceptance" });
-    userId = await createFixtureUser(login, token.hash);
+    await bootstrapSmokeTemplates({ databaseUrl, run, work, codeSha, requestId: login, workflowRun: "macos-native-acceptance" });
+    userId = await createFixtureUser(login, token.hash, databaseUrl);
     await withPrisma(db => changeUserPlan(db, { userId, plan: "max", note: "Isolated macOS Codex acceptance" }));
     server = await startServer(databaseUrl, path.join(work, "private-server.log"), environment);
     git(["init", "-q", "-b", "harness/macos-a-z"]); git(["config", "core.autocrlf", "false"]);
@@ -101,6 +111,8 @@ async function main(args) {
     git(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
     writeFileSync(path.join(repo, "package.json"), JSON.stringify({ name: login, private: true, scripts: { test: "node --test test/*.test.mjs" } }, null, 2) + "\n");
     for (const [name, contents] of Object.entries(FIXTURE_FILES)) { const target = path.join(repo, name); mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, contents); }
+    mkdirSync(path.join(repo, ".claude"));
+    for (const file of ["CLAUDE.md", ".mcp.json", ".claude/settings.json"]) writeFileSync(path.join(repo, file), file.endsWith(".json") ? "{}\n" : "Owner Claude instructions\n");
     git(["add", "."]); git(["commit", "-qm", "Initialize macOS acceptance fixture"]);
     progress("installed-init");
     const project = helper("init", ["--register", "--client", "codex"]);
@@ -110,9 +122,27 @@ async function main(args) {
     writeFileSync(path.join(repo, "harness.json"), JSON.stringify(config, null, 2) + "\n");
     mkdirSync(path.join(repo, "docs/qa"), { recursive: true });
     writeFileSync(path.join(repo, "docs/qa/scenarios.md"), "# Native macOS QA scenarios\n\nThe dedicated local test harness serves src/slug.mjs from the implementation report commit and exposes that full SHA as Build. It is a disposable page with no accounts, persistence or external services. Verify the displayed commit first. Fill Text and Max words, click Preview, and inspect Result. Required scenarios: One two three with 2 yields one-two; whitespace-only text with 3 yields empty output; empty text with 0 yields RangeError; a b with 1.5 yields RangeError. Observe console and network errors and capture evidence. Leave no extra tabs or test data. The external harness is test infrastructure, not a product change.\n");
-    helper("init", ["--client", "codex", "--dry-run"]); helper("init", ["--client", "codex"]);
+    const preserved = Object.fromEntries(["CLAUDE.md", ".mcp.json", ".claude/settings.json", "harness.json"].map(file => [file, readFileSync(path.join(repo, file), "utf8")]));
+    if (options.previousPackage) {
+      helper("init", ["--client", "codex"], 300000, options.previousPackage);
+      assert.equal(helper("codex", ["complete-init"], 300000, options.previousPackage).event, "connected");
+      summary.previousPluginVersion = JSON.parse(readFileSync(path.join(options.previousPackage, ".codex-plugin/plugin.json"))).version;
+    }
+    const beforeDryRun = managedSnapshot(repo);
+    helper("init", ["--client", "codex", "--dry-run"]);
+    assert.deepEqual(managedSnapshot(repo), beforeDryRun);
+    helper("init", ["--client", "codex"]);
     assert.equal(helper("codex", ["complete-init"]).event, "connected");
+    for (const [file, contents] of Object.entries(preserved)) assert.equal(readFileSync(path.join(repo, file), "utf8"), contents);
+    summary.initialization = { connected: true, dryRunUnchanged: true, claudePreserved: true, rosterPreserved: true };
     git(["add", "."]); git(["commit", "-qm", "Connect macOS Codex fixture"]);
+    if (options.phase === "init") { summary.result = "pass"; return; }
+    if (interrupted) throw new Error("Rehearsal interrupted before starting models");
+    if (options.phase === "eval") {
+      progress("init-skill-eval");
+      summary.evaluation = await evaluateCodexInit({ repo, work, packageRoot: options.packageRoot, cli, environment: helperEnv });
+      summary.result = "pass"; return;
+    }
     projectId = await withPrisma(async db => {
       const row = await db.project.findUniqueOrThrow({ where: { slug: project.slug } });
       assert.equal(row.ownerUserId, userId);
@@ -155,6 +185,7 @@ async function main(args) {
     assert.equal(started.event, "started"); runnerSession = started.session; stopped = false;
     const deadline = Date.now() + 90 * 60000; let last = null, lastOutput = 0, handoffAt = null, completed = false;
     while (Date.now() < deadline) {
+      if (interrupted) throw new Error("Rehearsal interrupted");
       const observation = await withPrisma(async db => {
         const board = await db.boardItem.findFirst({ where: { projectId, discardedAt: null, backlogItem: { key: itemKey } }, orderBy: { proposedOn: "desc" } });
         if (!board) {
@@ -266,8 +297,10 @@ async function main(args) {
         writeFileSync(path.join(work, "private-final-ledger.json"), JSON.stringify(evidence, null, 2) + "\n", { flag: "wx", mode: 0o600 });
       } catch { summary.ledgerCaptureFailed = true; }
     }
-    if (stopped) { await stopServer(server); if (userId) await deleteFixtureUser(userId); }
+    if (stopped) { await stopServer(server); if (userId) await deleteFixtureUser(userId, databaseUrl); }
+    if (!stopped) { summary.result = "fail"; process.exitCode = 1; }
     summary.runnerStopped = stopped; summary.finishedAt = new Date().toISOString(); save();
+    process.off("SIGINT", interrupt); process.off("SIGTERM", interrupt);
     console.log(JSON.stringify({ result: summary.result, stage: summary.stage, error: summary.error, evidence: work, runnerStopped: stopped }));
   }
 }

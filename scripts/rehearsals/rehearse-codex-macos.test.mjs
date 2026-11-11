@@ -49,3 +49,12 @@ it("requires an explicit model-run decision and absolute isolated artifact input
 it("does not accept unbounded, negative or fractional idle observations", () => {
   for (const minutes of ["-1", "0.5", "121", "NaN", "Infinity"]) assert.throws(() => parseMacosRehearsalArguments([...required, "--run-models", "--idle-minutes", minutes]), /idle-minutes/);
 });
+
+it("separates model-free initialization from explicit eval and pipeline runs", () => {
+  const init = parseMacosRehearsalArguments([...required, "--phase", "init", "--previous-package", path.resolve("previous")]);
+  assert.equal(init.phase, "init");
+  assert.equal(init.idleMinutes, 0);
+  assert.equal(init.previousPackage, path.resolve("previous"));
+  assert.equal(parseMacosRehearsalArguments([...required, "--phase", "eval", "--run-models"]).phase, "eval");
+  for (const args of [["--phase", "init", "--run-models"], ["--phase", "eval"], ["--phase", "unknown"], ["--phase", "init", "--idle-minutes", "1"], ["--phase", "eval", "--run-models", "--previous-package", path.resolve("previous")]]) assert.throws(() => parseMacosRehearsalArguments([...required, ...args]));
+});

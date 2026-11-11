@@ -187,6 +187,16 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
   `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
   `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
+- macOS Codex 구독 검증은 별도 private GitHub Actions 저장소의 신뢰된 Mac runner에서
+  수동으로 실행한다. 공개 PR에는 로그인 캐시를 제공하지 않는다. 검토한 source·template
+  commit을 고정하고 하나의 CI 전용 홈·로그인을 직렬로 사용한다. `rehearse-codex-macos.mjs`
+  의 `--phase init`은 모델 없이 신규 연결과 `--previous-package` 업데이트를 검사한다.
+  `--phase eval --run-models`는 실제 모델의 쓰기 대조군 1회와 dry-run·수정 파일 보존·불완전
+  패키지 거부 3개 사례를 각각 3회 실행한다. Claude의 승인 질문 사례를 그대로 복사하지 않고
+  현재 Codex init 스킬의 계약을 검증한다. `--phase pipeline --run-models`는 기존 실제
+  macOS 전체 역할 리허설을 실행한다. 이 경로는 로컬 배포 bundle의 CI이며 공개 marketplace
+  배포 인증은 아니다. 실행 identity와 단계별 요약만 게시하고 raw 기록·template·인증은
+  Mac의 private 경로에 보존한다. 일회용 runner는 작업 후 해제하며 재실행 전에 시작해야 한다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 
@@ -460,6 +470,8 @@ Commands의 CMD1은 실행하지 않은 정규화된 재실행 manifest로 `info
 
 macOS의 실제 모델 리허설은 명시적 opt-in으로만 실행한다. 다음 경로는 모두 로컬 시험용이며
 private export와 인증값·raw log를 저장소에 넣지 않는다. 모델 실행 중 `.next`를 재빌드하지 않는다.
+기본 CI는 완료 상태와 실행기 종료를 확인하고 고정 유휴 시간을 요구하지 않는다.
+장시간 유휴 회귀를 별도로 조사할 때만 `--idle-minutes 110`처럼 명시한다.
 호스트가 깨어 있는 상태에서 실행한다. 역할 완료는 closedAt뿐 아니라 accepted terminal
 outcome을 확인한다. 60초 유휴 표본 사이에 90초 초과 공백이나 시계 역행이 있으면 관찰을
 실패시키며, 절전 시간을 정상 유휴 시간으로 합산하지 않는다.
@@ -469,7 +481,7 @@ node --env-file=<외부-시험-env> --import ./tests/server/register-server-only
   scripts/rehearsals/rehearse-codex-macos.mjs \
   --package <실제로-설치된-bundle> --templates <private-template-export> \
   --work <새-외부-evidence-경로> --browser-cli <설치된-playwright-mcp-cli> \
-  --idle-minutes 110 --run-models
+  --phase pipeline --idle-minutes 0 --run-models
 ```
 
 parent 명령 sandbox의 중첩 Seatbelt·loopback 거부는 역할 backend의 실패와 구분한다.
