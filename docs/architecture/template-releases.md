@@ -5,9 +5,11 @@ additive migration만 적용하면 legacy다. 운영 전환은 별도의 유지�
 `bootstrap-template-releases.ts`의 원자적 commit이 필요하다.
 운영은 2026-11-05에 R0로 전환해 versioned다. 이후 운영 템플릿 변경은
 `template-release.yml`의 import와 activate로만 하고, legacy seed는 writer 장벽이 거부한다.
-2026-11-10에 R1(비공개 템플릿 `8ccb37a`)을 활성화했다. 이후 모든 실행은 R1 커밋을
-`source_commit`으로 쓴다. 검증 job이 어느 operation에서든 그 커밋에 비공개 릴리스 시험을
-돌리고, R0 원본 `fb6ef955`는 수렴 계약 시험에서 실패하기 때문이다.
+2026-11-10에 R1(비공개 템플릿 `8ccb37a`)을 활성화했다. Claude 검증 스킬 호출 문구 시험이 들어간
+코드부터는 모든 operation이 그 시험을 통과하는 R2 원본 커밋을 `source_commit`으로 쓴다. 검증
+job이 어느 operation에서든 그 커밋에 비공개 릴리스 시험을 돌리고, R1 원본 `8ccb37a`는 그 문구
+시험에서, R0 원본 `fb6ef955`는 수렴 계약 시험에서 실패하기 때문이다. R2의 SHA와 활성화 날짜는
+활성화 뒤 기록한다.
 
 ## 저장과 실행
 
