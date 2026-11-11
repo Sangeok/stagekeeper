@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { HINT, decideHead, decideNext } from "./run-rules";
 import { handoffIsLive, scoutNodePending } from "./run-rules";
 import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
+import { TEXT_LIMIT } from "@harness/core/pipeline/transitions.mjs";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, cap: null };
 
@@ -85,6 +86,10 @@ describe("decideNext (H.4)", () => {
     assert.match(HINT.verify, /docs\/agents\/main-loop\/<KEY>\.md/);
     assert.match(HINT.verify, /round log states the decision, never that it was recorded/);
     assert.match(HINT.accept, /report_submit/);
+  });
+
+  it("the verify hint names the length the server allows for the validation record", () => {
+    assert.ok(HINT.verify.includes(`validation_record (${TEXT_LIMIT} characters or fewer)`));
   });
 
   it("the verify hint closes main-loop reports once validation_record moves the item on and calls for none", () => {
