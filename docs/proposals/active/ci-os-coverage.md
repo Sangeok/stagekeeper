@@ -290,7 +290,11 @@ gh workflow run pipeline-smoke.yml --ref dev
 | --- | --- | --- |
 | Windows 11에서 제품 코드 시험 전체를 한 파일씩 순서대로(2026-11-12, `dev` `58850a9`에 문서 변경만 더한 상태) | 680개 중 651개 통과, 29개 건너뜀, 실패 0개, 9분 35초 | 5.1의 사전 확인 |
 | 같은 범위를 동시 실행 수 4로 | 시험 하나가 시간 초과 | 따로 돌리면 통과. 순서대로 돌리는 이유 |
-| 나머지 | Not run yet | 구현 전 |
+| 1단계: `node --test scripts/checks/verify-ci-coverage.test.mjs` (2026-11-12, `dev` `8925e4c` 기준) | 10개 통과 | OC-02~OC-06 |
+| 1단계: 검사의 규칙과 읽기 코드를 한 곳씩 지운 28가지 변형 | 28가지 모두 시험이 실패 | 새 시험이 규칙을 실제로 지키는지 확인 |
+| 1단계: `npm run verify:ci-coverage` | 통과(job 12개, 행 10개) | "미충족" 칸 둘을 비우면 Windows의 제품 코드 시험과 macOS의 파이프라인 전체, 두 건을 정확히 보고한다 |
+| 1단계: `npm run check` | lint·경계 검사·문서 검사·새 검사·typegen·`tsc` 통과. `test:scripts` 369개 중 363개 통과, 5개 skip, 1개 실패 | 실패는 5.3이 다루는 `template-release-cli`의 Windows 전용 실패다 |
+| 2단계 이후 | Not run yet | 구현 전 |
 
 ## Risks and Rollback
 

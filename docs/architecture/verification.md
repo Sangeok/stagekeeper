@@ -225,6 +225,60 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 탐색 대상에서 빠지거나 테스트 타입 검사가 사라지지 않았는지 확인한다. 전체
 아키텍처 규칙의 예외가 필요하면 아래 예외 정책을 따른다.
 
+## CI 검사의 OS 범위
+
+지원 OS는 Windows와 macOS다(2026-11-12 소유자 결정, Claude Code와 Codex 모두). Linux는 지원
+목록 밖이다. Linux에서는 OS와 무관한 검사가 돌고, 실제 클라이언트의 설치와 init은 확인하지 않는다.
+Codex의 실제 모델 CI는 비공개 저장소에 있어 아래 표의 대상이 아니다.
+
+CI job은 모두 아래 셋 가운데 하나로 분류한다.
+
+| 분류 | 뜻 | 필요한 job |
+| --- | --- | --- |
+| 공통 | 결과가 OS에 따라 달라지지 않는다 | 한 번. Linux가 아닌 OS에서만 돌면 이유를 적는다 |
+| OS별 | OS에 따라 달라질 수 있다 | 지원 OS마다 |
+| 단일 OS | 그 OS에만 있는 구현을 본다 | 그 OS에서. 이유를 적는다 |
+
+양쪽 OS에서 같은 내용을 보는 검사는 job 하나에 OS 목록(`matrix`)을 달아 정의한다. 그러면 검사를
+고칠 때 모든 OS가 함께 바뀐다. OS마다 구현이 다르거나 다른 준비 단계 뒤에 돌아야 해서 workflow가
+따로인 검사는 아래 표가 지킨다.
+
+표가 분류의 단일 기준이다. job은 `workflow/job`으로 적는다. "미충족"은 "OS별" 검사에 아직 job이
+없는 지원 OS다. "OS별" 행의 마지막 칸에 있는 코드 구간은 확인 문자열이고, 그 OS의 job에 그 문자열이
+있어야 그 OS를 충족한 것으로 본다. `npm test`는 `package.json`의 `test`가 가리키는 대상 묶음 전체를
+뜻한다.
+
+<!-- ci-coverage:start -->
+| 검사 | 분류 | Windows | macOS | Linux | 미충족 | 이유 또는 확인 문자열 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
+| 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
+| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | Windows | `npm test`의 대상 묶음 |
+| Windows 역할 런타임 | 단일 OS | `windows-role-runtime/native-runtime` | | | | Windows에만 있는 구현이다(전용 Node 빌드, 격리된 역할 명령) |
+| macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
+| 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
+| init 스킬의 모델 동작 | 공통 | | `agent-eval/init-skill` | | | 모델 동작은 OS와 무관하다. eval은 셸 명령을 가두는 샌드박스가 있는 OS에서만 돌고 Windows에는 없다 |
+| 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | | | macOS | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
+| 게이트 실행 기록 | 공통 | | | `client-init-smoke/record`, `agent-eval/record`, `pipeline-smoke/record` | | |
+| 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
+<!-- ci-coverage:end -->
+
+`npm run verify:ci-coverage`(`npm run check`에 포함)가 `.github/workflows/`와 이 표를 대조한다.
+다음 경우에 실패한다.
+
+- 표에 없는 job이 있거나, 표가 없는 job이나 그 OS에서 돌지 않는 job을 가리킨다.
+- "OS별" 검사에 지원 OS의 job이 없거나 확인 문자열이 없는데, 그 OS가 "미충족"에도 없다.
+- "미충족"에 적힌 OS를 실제로는 충족한다. 표가 낡은 것이다.
+- "단일 OS" 검사나 Linux가 아닌 OS에서만 도는 "공통" 검사에 이유가 없다.
+- 게이트의 `record` job이 넘기는 `legs`가 gate job이 선언한 `summary_<다리>` 출력과 다르거나, gate
+  job의 `matrix`에 있는 `leg`에 그 출력이 없다. 다리를 더하고 `legs`를 고치지 않으면 그 다리가 게이트
+  기록에서 조용히 빠지기 때문이다.
+
+검사는 workflow를 YAML 패키지 없이 읽는다. `jobs:` 아래 들여쓰기 두 칸의 job 이름, `runs-on`에 직접
+적은 runner 또는 `matrix`의 값이라는 지금의 모양만 읽고, 다른 모양을 만나면 실패한다. 새 모양이
+필요하면 검사의 읽기 코드를 같은 변경에서 고친다. 두 job이 같은 것을 보는지와 분류가 맞는지는 검사가
+판정하지 않는다. 리뷰에서 본다.
+
 ## 작업 브랜치 정리
 
 실행 시점과 최우선 보호 정책은 루트 [AGENTS.md](../../AGENTS.md)의
@@ -388,6 +442,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `checks/verify-fsd-boundaries.mjs` | `npm run verify:fsd`, `npm run lint`, `npm run check` | CI마다 | 위 FSD 경계 검사 |
 | `checks/verify-server-boundaries.mjs` | `npm run verify:server`, `npm run lint`, `npm run check` | CI마다 | 서버 공개 API·모듈 방향·runtime 초기화·정확한 내부 시험 목록 검사. 미추적 source도 포함 |
 | `checks/verify-docs.mjs`, `checks/verify-docs.test.mjs` | `npm run docs:check`, `npm run check`; `test:scripts` | CI마다 | `docs/test-reports`의 front matter 규칙([보고서 README](../test-reports/README.md)의 Validation 절)과 추적 중인 모든 Markdown 본문의 상대 링크가 추적 파일·디렉터리를 가리키는지 검사한다. 대소문자를 구분하며 외부 URL·anchor는 검사하지 않는다 |
+| `checks/verify-ci-coverage.mjs`, `checks/verify-ci-coverage.test.mjs` | `npm run verify:ci-coverage`, `npm run check`; `test:scripts` | CI마다 | `.github/workflows/`의 job과 위 [CI 검사의 OS 범위](#ci-검사의-os-범위) 표를 대조한다. 표에 없는 job, 지원 OS의 job이나 확인 문자열이 없는 "OS별" 검사, 이유 없는 "단일 OS" 검사, 낡은 "미충족" 칸, gate job의 출력과 다른 `record` job의 `legs`에서 실패한다. 읽지 못하는 모양의 workflow도 실패로 처리한다. 파일을 읽기만 한다 |
 | `checks/verify-plugin-version.mjs`, `checks/verify-plugin-version.test.mjs` | `npm run verify:plugin-version [-- --base <ref> --head <ref>]`; `test:scripts` | `main` 승격 직전 | `origin`의 `main`·`dev`를 fetch한 뒤 기본값 `origin/main`→`origin/dev` 사이에서 출하 대상 `plugin/` 파일(Windows 패키지와 같은 기준: `plugin/templates/`·`plugin/evals/`·`*.test.mjs` 제외)이 바뀌었으면 두 plugin manifest의 판이 같고 둘 다 base보다 높은지 검사한다. dev CI에는 넣지 않는다. 판은 배포 때 올리므로 dev는 이 검사에서 실패하는 상태일 수 있다 |
 | `tests/server/register-server-only.mjs` | `npm run test:server` | CI마다, 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | CI마다(일회용 PostgreSQL 18), 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. migrate 출력은 숨기고 시험 출력은 그대로 보인다. DB 생성·삭제·reset 없음 |

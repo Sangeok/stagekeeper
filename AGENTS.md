@@ -50,6 +50,14 @@ For test placement:
   framework entrypoints in a responsibility-specific directory under root `tests/`
   and ensure the test command discovers them.
 
+When adding, removing or moving a CI job or a gate leg, update the CI coverage table
+in `docs/architecture/verification.md` in the same change. Classify the check as
+common (the result does not depend on the OS), per-OS (it can, so it runs on Windows
+and macOS) or single-OS (with a reason). Add the job for the other supported OS in
+that change, or name the missing OS in the table's unmet cell and leave a follow-up.
+`npm run verify:ci-coverage`, part of `npm run check`, compares the workflows with
+the table.
+
 Run `npm run verify:fsd`, `npm run verify:server`, `npm run test:architecture`, and the relevant lint, type,
 test, and build commands before completing a code change. Do not suppress an
 architecture error without documenting and approving the exception in

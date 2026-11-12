@@ -304,12 +304,13 @@ npm run dev              # http://localhost:3000
 | `npm run dev` | Next.js dev server |
 | `npm run build` | `prisma generate`, then `next build` |
 | `npm run start` | Serve the production build |
-| `npm run check` | The CI static gate: `plugin/lib` sync check, ESLint and FSD/server boundaries, `docs:check`, `next typegen`, `tsc --noEmit`, architecture and project-availability tests |
+| `npm run check` | The CI static gate: `plugin/lib` sync check, ESLint and FSD/server boundaries, `docs:check`, `verify:ci-coverage`, `next typegen`, `tsc --noEmit`, architecture and project-availability tests |
 | `npm run lint` | ESLint, then FSD and server boundary checks |
 | `npm run verify:fsd` | FSD boundary check only |
 | `npm run verify:server` | Server module/public API and initialization boundary check |
 | `npm run docs:check` | Test-report front matter rules and every relative link in tracked Markdown (included in `check`) |
 | `npm run verify:plugin-version` | Before promoting `dev` to `main`: fails when shipped `plugin/` files changed without a higher, matching version in both plugin manifests |
+| `npm run verify:ci-coverage` | Compares the CI workflows with the OS coverage table in `docs/architecture/verification.md`: every job is classified, and a per-OS check runs on Windows and macOS (included in `check`) |
 | `npm run test:architecture` | `scripts/**/*.test.mjs` |
 | `npm run test:scripts` | `scripts/**/*.test.mjs`, `scripts/**/*.test.ts` (included in `check`) |
 | `npm test` | `packages/core` and `plugin/bin` tests |
