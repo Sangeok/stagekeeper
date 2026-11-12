@@ -653,7 +653,7 @@ it("tells the server once when a poll ends stuck or in error, and keeps the even
   g.setRunnerHandler(byOp({ start: LEASE_OK, beat: LEASE_OK, stop: LEASE_OK }));
   const second = (await g.start(["--managed"])).event;
   g.setHandler(async (_request, res) => { res.statusCode = 503; res.end(); });
-  const failed = await g.poll(second.session).result;
+  const failed = await g.run(["--session", second.session, "--interval", "0.02", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
   assert.equal(failed.event.code, "request-failed"); assert.equal(failed.code, 1);
   assert.deepEqual(g.runnerCalls.filter((call) => call.body.op === "stop").map((call) => call.body.reason), ["error"]);
 });

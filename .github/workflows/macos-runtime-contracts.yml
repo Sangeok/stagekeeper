@@ -108,10 +108,16 @@ jobs:
           STAGEKEEPER_RELEASED_READERS: required
         run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
       - name: Build the complete project inside the offline native role
-        run: >-
-          node scripts/macos/rehearse-project-build.mjs
-          --root "$GITHUB_WORKSPACE" --runtime "$GITHUB_WORKSPACE/plugin/runtime/macos/node"
-          --evidence "$RUNNER_TEMP/native-project-build.json"
+        shell: bash
+        env:
+          ALLOW_TIMEOUT: ${{ matrix.runner == 'macos-15-intel' && '--allow-timeout' || '' }}
+        run: |
+          outcome="$(node scripts/macos/rehearse-project-build.mjs --root "$GITHUB_WORKSPACE" --runtime "$GITHUB_WORKSPACE/plugin/runtime/macos/node" --evidence "$RUNNER_TEMP/native-project-build.json" $ALLOW_TIMEOUT)"
+          echo "$outcome"
+          case "$outcome" in
+            *'"result":"inconclusive"'*)
+              echo "::warning title=Offline build not confirmed on ${{ matrix.runner }}::The full project build did not finish within the 120 second role command limit. The sandbox properties held. This run does not confirm the build on this runner." ;;
+          esac
       - uses: actions/upload-artifact@v4
         if: always()
         with:

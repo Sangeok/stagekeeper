@@ -108,6 +108,11 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   `STAGEKEEPER_MACOS_RUNTIME_REQUIRED=1`이므로 runtime 누락·손상을 skip으로 숨기지 않는다.
   이어 `rehearse-project-build.mjs`가 준비된 이 저장소 전체를 network·DB URL 없는 역할
   snapshot에서 빌드하고 원본 source·BUILD_ID 보존을 검사한다. 두 아키텍처의 결과를 artifact로 남긴다.
+  빌드가 역할 command의 120초 제한을 넘기면 `macos-15`에서는 실패한다. `macos-15-intel`에서는
+  `--allow-timeout`을 주어 실패 대신 `inconclusive`로 끝내고 workflow가 경고를 남긴다. 이 runner는 평소에도
+  컴파일과 타입 검사에 60~80초를 쓰고, 느린 날에는 제한을 넘긴다(2026-11-12 기준 `dev` 실행 34번 중 5번).
+  이때도 프로세스 정리, 복사본 폐기, 원본 보존은 검사하고, 빌드 오류와 다른 조기 종료는 실패로 둔다.
+  `inconclusive`는 통과가 아니다. 그 커밋의 x64 빌드는 확인되지 않은 것으로 본다.
   PR·`dev` push에서는 npm 의존성 설치 전 `probe-seatbelt-containment.mjs`와
   `probe-sandbox-identity.mjs`를 실행하고 각 증거를 artifact로 보존한다.
   앞의 probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
@@ -516,7 +521,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
 | `macos/build-runtime.mjs`, `macos/package-plugin.mjs` | `node scripts/macos/build-runtime.mjs --archive <공식 tar.gz> --output <새 runtime 경로>`; `node scripts/macos/package-plugin.mjs --output <새 외부 경로> --runtime <runtime 경로>` | native macOS와 macOS CI | 고정 Node archive·정규 파일·hash·mode를 검증하고 scanner를 빌드한다. package는 Git에 등록된 배포 파일과 두 client의 완전 verifier·runtime을 포함하며 기존 출력 경로를 덮어쓰지 않는다 |
 | `macos/probe-codex-host.mjs` | `node scripts/macos/probe-codex-host.mjs` | 실제 Codex가 설치된 macOS에서 수동 | 모델 turn을 열지 않고 effective policy·명령 MCP timeout·skills·fresh thread와 session 정리를 확인한다. 실제 역할 수행이나 로그인 인수의 대체가 아니다 |
-| `macos/rehearse-project-build.mjs` | `node scripts/macos/rehearse-project-build.mjs --root <준비된 저장소> --runtime <검증 runtime> --evidence <새 외부 JSON>` | macOS 로컬·두 아키텍처 CI | 실제 프로젝트를 credentials·network 없는 snapshot에서 빌드한다. 정상 내부 dependency 링크와 원본 source·BUILD_ID 보존, quiescence를 확인하며 실패 결과도 외부 증거 파일에 기록한다 |
+| `macos/rehearse-project-build.mjs` | `node scripts/macos/rehearse-project-build.mjs --root <준비된 저장소> --runtime <검증 runtime> --evidence <새 외부 JSON> [--allow-timeout]` | macOS 로컬·두 아키텍처 CI | 실제 프로젝트를 credentials·network 없는 snapshot에서 빌드한다. 정상 내부 dependency 링크와 원본 source·BUILD_ID 보존, quiescence를 확인하며 실패 결과도 외부 증거 파일에 기록한다. `--allow-timeout`을 주면 120초 제한을 넘긴 빌드를 실패 대신 `inconclusive`로 출력한다. 판정은 옆의 `project-build-verdict.mjs`가 하고 그 시험은 `test:scripts`에서 돈다 |
 | `rehearsals/prepare-codex-macos-database.mjs` | `node --env-file=<외부 시험 env> scripts/rehearsals/prepare-codex-macos-database.mjs --data-directory <자기 cluster 경로>` | 격리 PostgreSQL에서 수동 | loopback의 새 `stagekeeper_test_*` DB만 만들고 migrate deploy한다. 실제 data_directory와 자기 cluster 경로가 다르거나 DB가 이미 있으면 거부한다 |
 | `rehearsals/rehearse-codex-macos.mjs` | 아래 macOS 실제 모델 리허설 명령 | 기존 native Codex 로그인·설치 bundle·private template export·fresh build·새 시험 DB에서 수동 | global Node 없는 helper PATH로 init·resident·모든 선택 역할·인수·고정 log·선택 유휴 시간을 관찰한다. owner gate는 시험 controller가 실제 service를 호출한다. 운영 UI 인수·공개 배포는 포함하지 않는다 |
 | `rehearsals/codex-init-eval.mjs`, `rehearsals/codex-init-eval.test.mjs` | macOS 리허설의 `--phase eval --run-models`; 모델 없는 판정 시험은 `test:scripts`·`test:architecture` | private Mac CI·승인된 수동 eval | 모델 호출 전 같은 권한으로 native launcher와 인증 디렉터리 거부를 확인한다. 실제 쓰기 대조군과 init 3개 사례를 각 3회 검사하며, 도구 실행·완료 event·파일 bytes와 mtime 보존을 함께 판정한다. raw 출력은 외부 private evidence에만 남긴다 |
