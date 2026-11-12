@@ -11,7 +11,7 @@ import { commitResidentArtifacts, recordResidentRoleReport, ResidentCommitInputE
 import { createMainLoopBridge } from "./codex-main-loop.mjs";
 
 function fixture(t) {
-  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "resident-commit-test-"));
+  const root = mkdtempSync(path.join(realpathSync.native(tmpdir()), "resident-commit-test-"));
   t.after(() => rmSync(root, { recursive: true }));
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", windowsHide: true, stdio: "pipe" }).trim();
   const write = (name, content) => { mkdirSync(path.dirname(path.join(root, name)), { recursive: true }); writeFileSync(path.join(root, name), content); return { path: name, hash: createHash("sha256").update(content).digest("hex") }; };

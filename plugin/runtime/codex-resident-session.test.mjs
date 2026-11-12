@@ -12,7 +12,7 @@ import { connectionInput } from "./mcp-client.mjs";
 import { atomicWrite, readState, startSession, stateFiles } from "./local-session.mjs";
 
 it("checks Codex resident ownership through the actual CLI without a legacy 404 fallback and stops with the stored client", async () => {
-  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "codex-resident-session-")), token = "hu_" + "x".repeat(43), previous = process.env.HARNESS_TOKEN;
+  const root = mkdtempSync(path.join(realpathSync.native(tmpdir()), "codex-resident-session-")), token = "hu_" + "x".repeat(43), previous = process.env.HARNESS_TOKEN;
   const helper = fileURLToPath(new URL("../bin/harness-session.mjs", import.meta.url)), requests = [];
   let status = 200, body = {};
   const server = createServer(async (request, response) => {
