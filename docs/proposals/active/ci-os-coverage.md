@@ -298,8 +298,10 @@ gh workflow run pipeline-smoke.yml --ref dev
 | 2단계: `npm run verify:ci-coverage` (2026-11-12, `dev` `eabd138` 기준) | 통과 | 제품 코드 시험의 "미충족" 칸을 비운 상태. workflow의 새 단계를 빼면 "a per-OS check needs a Windows job that runs npm test"로 실패한다 |
 | 2단계: PR #326의 `windows-role-runtime` 첫 실행(run 43140530258) | 실패. 680개 중 647개 통과, 31개 건너뜀, 2개 실패. 새 단계 5분 6초 | 실패한 둘은 `codex-resident-session.test.mjs`와 `resident-commit.test.mjs`의 시험 하나씩이다. 두 시험은 임시 저장소 경로를 `realpathSync(tmpdir())`로 만든다. runner의 임시 폴더 경로에는 8.3 짧은 이름(`RUNNER~1`)이 있고 이 함수는 그것을 풀지 않는다. Git은 긴 이름으로 답하므로 시험이 비교하는 경로가 어긋난다. 제품 코드는 저장소 경로를 Git에서 받아 쓰므로 영향이 없다. 건너뛴 수가 이 PC보다 2개 많은 것은 checkout이 최신 커밋만 받아 출시 이력을 읽는 시험 둘이 건너뛰기 때문이다(macOS CI도 같다) |
 | 2단계: 이 PC에서 임시 폴더를 8.3 짧은 이름 경로로 주고 두 파일 실행 | 고치기 전에는 같은 두 시험이 같은 오류로 실패, `realpathSync.native(tmpdir())`로 고친 뒤에는 10개 모두 통과 | 원인의 재현과 수정 확인. 이미 Windows CI에서 돌던 시험들은 같은 이유로 `realpathSync.native`를 쓴다 |
-| 2단계: 수정 뒤 PR #326의 `windows-role-runtime` 실행 | Not run yet | 새 단계의 통과와 걸린 시간을 확인한다 |
-| 3단계 이후 | Not run yet | 구현 전 |
+| 2단계: 수정 뒤 PR #326의 `windows-role-runtime` 실행(run 43154442374) | 통과. 680개 중 649개 통과, 31개 건너뜀, 실패 0개. 새 단계 5분 35초, job 전체 12분 12초 | OC-07. 이 PC의 결과(680개, 건너뜀 29개)와 시험 수가 같다. job 전체는 전에 6분 30초에서 7분쯤이었다. PR의 `check`, `client-init-smoke`, macOS 런타임 둘도 통과했다. 2026-11-12 `dev` `68f3d49`로 병합 |
+| 2단계: 병합 뒤 `dev` `68f3d49`의 실행 | `check`, Windows 런타임(run 43158463839), macOS 런타임(run 43158463867) 모두 통과 | Windows의 새 단계는 680개 중 649개 통과, 31개 건너뜀, 5분 39초. macOS는 두 runner 모두 680개 중 650개 통과, 30개 건너뜀. 출시 이력을 읽는 시험 둘은 macOS 실행 로그에서도 건너뛴 것으로 나온다. 이 둘은 CI에서 전체 이력을 받는 `check`에서만 돈다 |
+| 3단계: 인계 이슈(2026-11-12) | [#329](https://github.com/Sangeok/stagekeeper/issues/329) 생성 | 5.3의 인계. 만들기 전에 이 PC(Node 22.13.1)에서 `template-release-cli.test.ts`를 따로 돌려 2개 중 1개가 "Template profiles must be private regular files outside the repository"로 실패하는 것과, `0600`으로 만든 파일과 `chmod 600` 뒤의 파일이 모두 `666`으로 보고되는 것을 다시 확인했다 |
+| 4단계 | Not run yet | 구현 전 |
 
 ## Risks and Rollback
 
