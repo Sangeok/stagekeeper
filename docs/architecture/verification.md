@@ -297,33 +297,87 @@ GitHub API를 조회하고 `origin/dev`의 추적 ref를 fetch한다. 원격 ref
 prune하지 않으며, checkout·stash·파일 정리·PR 병합은 수행하지 않는다. 작업 시작과
 종료 때 에이전트가 실행하며 별도 예약 작업이나 CI의 삭제 job은 없다.
 
-삭제하려면 다음 증거를 모두 확인해야 한다.
+삭제하려면 다음 조건을 확인한다.
 
 1. 대상은 실제 로컬 `harness/<topic>` ref이고 symbolic ref가 아니다.
    `main`·`dev` 또는 ref 별칭을 명시하면 저장소 조회 전에 거부한다.
+   중복 `--branch`는 한 번만 검사하며 나이·원격 ref 부재만으로 삭제하지 않는다.
 2. 실행 worktree에 staged·unstaged·untracked 변경이 없고, 대상이 현재 또는 다른
-   worktree에서 checkout되어 있지 않다. 다른 worktree에 속한 작업은 그대로 보존한다.
-3. 원격 `main`·`dev`가 모두 존재하고, 같은 저장소의 `dev` 대상 PR이 실제 병합되어
-   있다. 로컬 끝 커밋은 병합된 PR의 head SHA와 같고, 병합 결과는 fetch한 `origin/dev`
-   이력에 포함되어야 한다. PR 생성·단순 종료·원격 브랜치 부재만으로 완료를 판단하지 않는다.
-4. 해당 head SHA·PR에 연결된 최신 `check` workflow가 성공했고, 함께 실행된 다른
-   workflow의 최신 실행도 모두 완료·성공 상태다. 페이지를 모두 조회하며, 재실행의
-   최신 attempt를 확인한다. 누락·실패·대기·불명확한 응답은 삭제 보류다.
-   원격 브랜치 삭제 후 Actions 응답의 `pull_requests`가 비어 있으면 실행 저장소,
-   head 저장소, head 브랜치와 SHA를 모두 대조한다. 다른 PR 연결이 명시되면 사용하지 않는다.
-5. 해당 브랜치를 사용하는 열린 PR 또는 그 브랜치를 base로 하는 열린 PR이 없다.
-   원격 작업 브랜치가 남아 있다면 head SHA도 같아야 한다.
-6. 삭제 직전에 로컬 변경·worktree·ref SHA를 재검사한다. 원격 `dev`가 검사 도중
-   바뀌거나 로컬 ref에 추가 커밋이 생겼으면 보류한다.
+   worktree에서 checkout되어 있지 않다. 목록 조회 실패는 삭제 중단이며, 개별 경로의
+   상태를 읽을 수 없어도 등록된 checkout 연결을 보호한다.
+3. 원격 `main`·`dev`가 모두 존재하고, 다음 보존 증거 중 하나가 있어야 한다.
+   - `ancestor`: 로컬 끝 커밋이 이번 실행에서 fetch한 `origin/dev`의 조상이다.
+     별도 병합 PR·동일 PR head·과거 CI 성공을 요구하지 않는다.
+   - `merged-pr`: ancestry가 아닌 squash/rebase 병합은 같은 저장소의 `dev` 대상
+     병합 PR이 정확한 로컬 head를 가리키고, 그 merge 결과가 `origin/dev`에 있어야 한다.
+     그 PR의 최신 `check` 및 함께 실행된 workflow도 모두 완료·성공이어야 한다.
+     모든 페이지·최신 attempt·저장소·branch·SHA·PR 연결을 확인한다.
+     원격 ref 삭제 후 `pull_requests`가 비어 있어도 저장소·branch·SHA 대조는 유지한다.
+4. 두 경로 모두 열린 head PR 또는 해당 branch를 base로 하는 열린 PR이 없어야 한다.
+   불완전한 API 항목을 빈 결과로 간주하지 않는다. GitHub owner/repository 이름은
+   대소문자를 구분하지 않고 비교하며 branch 이름·SHA는 정확히 비교한다. 원격 작업 브랜치가 남아 있다면
+   head SHA도 같아야 한다. GitHub 조회 실패는 ancestry가 참이어도 삭제를 막는다.
+5. 삭제 직전에 로컬 변경·worktree·ref SHA를 재검사한다. 원격 `dev`가 검사 도중
+   바뀌거나 보호 원격 확인이 실패하면 남은 삭제를 중단한다.
 
 검증한 SHA를 expected old value로 지정하고 `git update-ref --no-deref`로 해당
 `refs/heads/harness/...` 하나만 삭제한다. SHA가 바뀌면 원자적으로 거부되며 symbolic
-ref를 따라 보호 브랜치를 삭제하지 않는다. squash·rebase 병합은 원래 head의 ancestry가
-아닌 PR의 병합 결과로 확인한다. 브랜치 설정 정리 실패는 결과의 `note`로 보고한다.
+ref를 따라 보호 브랜치를 삭제하지 않는다. 설정 정리 실패는 `note`로 보고한다.
+동시 checkout·새 PR·같은 SHA의 ref 재생성까지 원자적으로 직렬화하지는 않는다.
+사용 종료가 확인되지 않은 다른 작업과 정리를 동시에 실행하지 않는다.
 
-결과 JSON의 `eligible`은 사전 확인 통과, `deleted`는 로컬 삭제 완료,
-`skipped`와 `reason`은 보존 이유다. GitHub 인증·네트워크·증거 확인에 실패하면
-브랜치를 보존한다. 사용자 변경을 치우거나 강제 삭제로 우회하지 않는다.
+### 결과와 부분 실패
+
+Node CLI는 JSON만 출력한다. JSON을 직접 읽을 때는
+`node scripts/cleanup-task-branches.mjs` 또는 `npm --silent run branches:cleanup`을
+사용한다. 일반 `npm run`에는 npm 자체 banner가 붙는다.
+
+- `status`: `eligible`은 preview 통과, `deleted`는 로컬 삭제 완료,
+  `skipped`는 보존이다. `reason`은 정렬된 `reasons`의 첫 차단 원인이다.
+- `preservation`: `ancestor`, `merged-pr`, `unverified`. 보존은 삭제 허가와 다르다.
+  `sha`와 `devSha`는 검사한 전체 SHA이며 ref 변경 시 미삭제 행의 증거를 무효화한다.
+- `worktrees`: 연결된 경로·HEAD·`changes`(`clean`/`dirty`/`unknown`)·locked/prunable.
+  Git 최상위 경로의 정체성을 확인하므로 메타데이터가 없어진 경로의 상위 저장소를
+  대신 진단하지 않는다. `clean`은 ignored 파일이나 사용 중인 프로세스 부재를 뜻하지 않는다.
+- `summary`: `total`, `ancestor`, `mergedPr`, `unverified`, `worktreeInUse`,
+  `eligible`, `deleted`, `skipped`. `worktreeInUse`는 checkout 사유가 있는 브랜치 수다.
+  보존 세 집계의 합과 상태 세 집계의 합은 각각 중복 제거한 `total`과 같다.
+- `aborted`: 전역 검사 기준이 적용 도중 무효화됐으면 true다. 이미 `deleted`인 행만
+  유지하고 나머지 모든 행(이전 preview 통과 포함)을 `skipped`/`unverified`로 바꾼다.
+  알려진 사유와 중단 사유를 남기고 집계를 다시 계산하며 CLI는 JSON 출력 뒤 exit 1이다.
+
+초기 원격/fetch/전체 worktree 목록 확인 실패는 삭제 0개·stderr·exit 1이며 완전한
+JSON은 보장하지 않는다. 대상별 PR·ancestry 조회 실패나 원격 작업 브랜치 불일치는
+그 대상을 보존하고 다음 대상을 검사한다(exit 0). 적용 도중의 보호 원격/전체 목록
+실패와 원격 `dev` 변경은 앞서 완료한 삭제를 되돌리지 않는다. 프로세스 종료로 최종
+출력이 없으면 실제 ref를 재조회한다. 이미 없는 대상은 `branch-missing`이다.
+
+checkout/dirty 때문에 삭제가 막혀도 유효한 ref의 ancestry 진단은 수행한다.
+이때 GitHub API와 삭제는 하지 않지만 원격 확인과 fetch는 필요하다.
+보고에는 “커밋 보존 완료 / worktree 해제 필요 / 즉시 삭제 가능”을 구분한다.
+
+### 자기 작업의 worktree 종료
+
+1. 자신이 만든 정확한 경로·브랜치와 사용 종료를 확인한다. 나이·이름·clean 상태만으로
+   다른 작업의 소유권이나 종료를 추정하지 않는다. 자기 프로세스만 정상 종료하고
+   다른 사용자가 있거나 사용 여부가 불명확하면 보류한다.
+2. 커밋 보존과 staged·unstaged·untracked 결과를 확인한다. 미보존 결과는 원래 작업에서
+   먼저 보존하며 자동 stash/reset/clean으로 지우지 않는다.
+3. `git ls-files --others --ignored --exclude-standard -z`로 ignored 파일도 확인한다.
+   일반 `git worktree remove`도 ignored 파일을 삭제할 수 있다. 필요한 `.env`, 보고서,
+   로그 등은 보존한다. 외부 junction/symlink/reparse point가 있거나 판별할 수 없으면
+   폴더를 유지하거나 같은 HEAD로 detach한다. 외부 디렉터리를 재귀 삭제하지 않는다.
+4. 파일을 폐기할 수 있는 자기 부가 worktree만 경로 밖에서
+   `git worktree remove <exact-path>`로 제거한다. force·잠금 해제·일괄 prune으로
+   실패를 우회하지 않는다. 파일을 남길 때는 같은 HEAD로 detach하여 연결만 해제한다.
+   주 worktree는 제거하지 않으며, 다른 작업과 공유 중이 아니고 결과가 보존됐을 때만
+   다른 사용 가능한 브랜치로 전환하거나 detach한다.
+5. 깨끗한 남은 worktree에서 `npm run branches:cleanup -- --branch harness/example`로
+   재검사하고 승인 범위에서 `--apply`를 붙인다. 실제 branch/path로 치환하며 이전
+   preview를 삭제 권한으로 재사용하지 않는다. 해제 후 정리 실패는 그대로 보존·보고한다.
+
+이 절차는 작업 주체가 수행한다. 정리 스크립트는 checkout·worktree 제거·원격 ref 삭제를
+수행하지 않으며, 기존 소유권/사용 종료가 불명확한 worktree를 자동으로 정리하지 않는다.
 
 원격 보호는 활성 Ruleset
 [Keep dev and main](https://github.com/Sangeok/stagekeeper/rules/24972879)이 담당한다.
@@ -429,7 +483,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
-| `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | 병합·CI·로컬 보존 조건을 확인한 작업 브랜치의 로컬 ref만 정리. `main`·`dev`와 원격 ref는 삭제하지 않음 |
+| `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | ancestry 또는 PR·CI 증거와 공통 보호 조건으로 작업 브랜치의 로컬 ref만 정리. 진단·부분 중단을 별도 보고. `main`·`dev`와 원격 ref는 삭제하지 않음 |
 | `maintain-github-connections.ts`, `maintain-github-connections.test.ts` | `npm run github:maintenance -- --apply [--rotate]`; 테스트는 `test:scripts` | 운영자는 하루 한 번 이상 실행하며 rotation은 명시적으로 요청; 테스트는 CI마다 | 만료된 GitHub 시도·초안·delivery를 삭제하고 만료 credential을 중지한다. 회전은 current key로 재봉인하며 revision/tokenVersion과 기존 envelope의 CAS로 새 grant를 덮어쓰지 않는다. 실제 운영 실행·키 공급은 배포 승인 범위다. 테스트는 DB 없이 의존성을 대체해 잘못된 인자·`DATABASE_URL` 누락의 무실행 거부, 성공 요약과 `--rotate` 전달, 작업·연결 해제 실패의 오류 비노출과 종료 코드를 확인한다 |
 | `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |

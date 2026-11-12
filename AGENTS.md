@@ -90,8 +90,9 @@ commits that were already green on `dev`.
   Another session or machine may be changing the same files, or may own the decision
   you are about to make.
 - Preserve dirty worktrees and additional commits. Do not stash, discard, force
-  checkout, or remove a worktree to make cleanup pass. Use an isolated worktree
-  for a new task when existing work must be preserved.
+  checkout, or remove another task's worktree to make cleanup pass. Use an isolated
+  worktree for a new task when existing work must be preserved. An owner may release
+  its own worktree only through the normal task-end procedure below.
 - Verify that remote `main` and `dev` exist and fetch the latest `dev` before
   creating a new `harness/<topic>` branch. If either protected remote branch is
   missing or cannot be verified, stop branch maintenance and report it.
@@ -176,12 +177,31 @@ commits that were already green on `dev`.
 - Feature branches are deleted automatically when their pull request merges
   (`deleteBranchOnMerge` is on). That is intended — it keeps `harness/<topic>` branches
   from piling up — and `gh pr merge` needs no `--delete-branch`.
-- A task is complete for branch cleanup only after its final tested commit is
-  merged into `dev`. Creating or closing a PR is insufficient. Merge only within
-  the user's authorized scope; never merge a PR merely to enable cleanup.
+- Local branch cleanup requires either the tip's ancestry in freshly fetched
+  `origin/dev`, or an exact-head merged PR into `dev` whose merge result is in that
+  history and whose final PR CI passed. The ancestry path also covers review-only
+  branches without PRs; it does not certify product-task completion. Both paths
+  preserve open/dependent PRs, checked-out branches and reused remote branch names.
+  Creating or closing a PR is insufficient. Merge only within the user's authorized
+  scope; never merge a PR merely to enable cleanup.
 - The script preserves checked-out branches, including the current branch. After
   a confirmed merge, switch away only when local work is safely preserved, then
   run cleanup again. It does not switch branches or delete remote refs.
+- At normal task end, the owner may release only its own worktree after confirming
+  that its processes and other users have finished and all results are preserved.
+  Check staged, unstaged, untracked and ignored files, and external directory links.
+  Unknown ownership/use, dirty files, locks or external junctions/symlinks mean keep
+  the directory. A clean status alone is not permission to remove ignored files.
+  From outside an expendable linked worktree, use `git worktree remove <exact-path>`
+  without force; retain or detach at the same HEAD when files must remain. Never
+  remove the main worktree or force a switch to a branch used elsewhere. Follow
+  `docs/architecture/verification.md` for the full procedure and then preview/apply
+  `branches:cleanup -- --branch harness/<topic>` from a clean remaining worktree.
+  Failure preserves the branch; do not bypass it with ref deletion or file cleanup.
+- Report commit preservation separately from deletion eligibility using the cleanup
+  JSON's `preservation`, `worktrees`, `reasons` and `summary`. An `aborted` run exits
+  unsuccessfully and may include earlier completed deletions; preserve its partial
+  result and rerun inspection instead of assuming the batch was rolled back.
 - Use the cleanup script for local task-branch deletion. Do not fall back to
   `git branch -D`, ad hoc ref deletion, or deletion based only on branch age,
   a missing remote ref, or `git branch --merged`. If evidence is incomplete or a
