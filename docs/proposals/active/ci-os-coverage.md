@@ -294,7 +294,12 @@ gh workflow run pipeline-smoke.yml --ref dev
 | 1단계: 검사의 규칙과 읽기 코드를 한 곳씩 지운 28가지 변형 | 28가지 모두 시험이 실패 | 새 시험이 규칙을 실제로 지키는지 확인 |
 | 1단계: `npm run verify:ci-coverage` | 통과(job 12개, 행 10개) | "미충족" 칸 둘을 비우면 Windows의 제품 코드 시험과 macOS의 파이프라인 전체, 두 건을 정확히 보고한다 |
 | 1단계: `npm run check` | lint·경계 검사·문서 검사·새 검사·typegen·`tsc` 통과. `test:scripts` 369개 중 363개 통과, 5개 skip, 1개 실패 | 실패는 5.3이 다루는 `template-release-cli`의 Windows 전용 실패다 |
-| 2단계 이후 | Not run yet | 구현 전 |
+| 1단계: PR #323의 CI | `check`, Windows 런타임, macOS 런타임 둘 모두 통과 | 정적 검사 job에서 새 검사가 통과했다(job 12개, 행 10개). 2026-11-12 `dev` `eabd138`로 병합 |
+| 2단계: `npm run verify:ci-coverage` (2026-11-12, `dev` `eabd138` 기준) | 통과 | 제품 코드 시험의 "미충족" 칸을 비운 상태. workflow의 새 단계를 빼면 "a per-OS check needs a Windows job that runs npm test"로 실패한다 |
+| 2단계: PR #326의 `windows-role-runtime` 첫 실행(run 43140530258) | 실패. 680개 중 647개 통과, 31개 건너뜀, 2개 실패. 새 단계 5분 6초 | 실패한 둘은 `codex-resident-session.test.mjs`와 `resident-commit.test.mjs`의 시험 하나씩이다. 두 시험은 임시 저장소 경로를 `realpathSync(tmpdir())`로 만든다. runner의 임시 폴더 경로에는 8.3 짧은 이름(`RUNNER~1`)이 있고 이 함수는 그것을 풀지 않는다. Git은 긴 이름으로 답하므로 시험이 비교하는 경로가 어긋난다. 제품 코드는 저장소 경로를 Git에서 받아 쓰므로 영향이 없다. 건너뛴 수가 이 PC보다 2개 많은 것은 checkout이 최신 커밋만 받아 출시 이력을 읽는 시험 둘이 건너뛰기 때문이다(macOS CI도 같다) |
+| 2단계: 이 PC에서 임시 폴더를 8.3 짧은 이름 경로로 주고 두 파일 실행 | 고치기 전에는 같은 두 시험이 같은 오류로 실패, `realpathSync.native(tmpdir())`로 고친 뒤에는 10개 모두 통과 | 원인의 재현과 수정 확인. 이미 Windows CI에서 돌던 시험들은 같은 이유로 `realpathSync.native`를 쓴다 |
+| 2단계: 수정 뒤 PR #326의 `windows-role-runtime` 실행 | Not run yet | 새 단계의 통과와 걸린 시간을 확인한다 |
+| 3단계 이후 | Not run yet | 구현 전 |
 
 ## Risks and Rollback
 
