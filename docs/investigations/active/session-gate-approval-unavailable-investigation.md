@@ -17,7 +17,7 @@ observed-environments:
   - "서버 https://stagekeeper.dev"
 conclusion-summary: null
 follow-up:
-  - "docs/proposals/active/board-activity-latest-result.md"
+  - "docs/proposals/completed/2026-11-12-board-activity-latest-result.md"
 ---
 
 # 세션에서 ITEM-09 게이트를 열 수 없었던 원인 조사
@@ -135,7 +135,7 @@ MCP 연결:
   서버가 확인하고 원장에 `channel: "session"`을 남기지만, 웹 경로에는 그 확인과 구분이 없다. 04:43의 승인이
   그 예다. 코드 결함이 아니라 위협 모델의 결정 사항이다. 결정 필요.
 - **보류됐던 항목의 활동 줄이 옛 보류 질문을 보여 준다.** ITEM-09가 완료 뒤에도 `Open: İstanbul…`로
-  표시됐다. `docs/proposals/active/board-activity-latest-result.md`가 수정안을 다룬다.
+  표시됐다. `docs/proposals/completed/2026-11-12-board-activity-latest-result.md`가 수정안을 다룬다.
 - **템플릿 릴리스가 맞지 않는 항목의 대기가 웹에 드러나지 않는다.** ITEM-06과 ITEM-08이 해당한다. 같은
   제안서의 "범위 밖 관찰"에 근거를 적었다.
 

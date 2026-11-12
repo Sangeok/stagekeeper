@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-12"
 approved-by: "requesting-user"
 approved-at: "2026-11-12"
 approval-scope: "제안서의 코드·테스트·문구 구현, 검증, 관련 문서 보존과 dev 대상 PR 생성. 병합·main 승격은 제외한다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-12"
+verification-summary: "모델·UI 67개, 웹 815개, 서버 177개, 아키텍처 321개 통과. 경계·check·build·문구 검사 통과. PR #336의 구현 commit 15b03c0에 대한 check 6개 job 통과(run 43177591010)."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -23,10 +23,10 @@ related:
 
 ## Summary
 
-보드의 활동 줄은 항목의 `results`를 모두 이어 붙인 뒤 첫 문장을 보여 준다. `results`는 전이마다 뒤에
+보드의 활동 줄은 이전에 항목의 `results`를 모두 이어 붙인 뒤 첫 문장을 보여 줬다. `results`는 전이마다 뒤에
 쌓이므로, 앞선 결과(보류 사유, 되돌리기 노트, reopen 노트)가 있는 항목은 완료된 뒤에도 가장 오래된 결과가
-요약으로 남는다.
-요약의 출처를 가장 최근 결과 하나로 바꾸고, 그 규칙을 적은 제품 문구 규약과 테스트를 함께 고친다.
+요약으로 남았다.
+요약의 출처를 가장 최근 결과 하나로 바꾸고, 제품 문구 규약과 회귀 테스트를 함께 갱신했다.
 
 ## Goal
 
@@ -188,10 +188,10 @@ related:
 | `src/fsd/pages/project-board/model/briefing.fixture.mjs` | keep | `results`가 원소 하나뿐이라(19·22·23행) 새 규칙에서 같은 줄이 나온다 | none |
 | `src/fsd/pages/project-board/ui/project-board-page.test.mjs` | update | 보류 뒤 완료 행의 최종 HTML 본문과 Done 배지, 옛 질문의 부재를 검사한다 | low: 기존 정적 렌더 도구를 사용한다 |
 | `tests/server/project-page-loaders.test.ts` | keep | `buildBriefing`을 쓰지만 모든 행의 `results`가 비어 있다(16·57-58행) | none: `npm run test:server`로 확인한다 |
-| `docs/proposals/active/board-activity-latest-result.md` | update | 구현 뒤 검증 결과·완료 기록을 갱신한다 | none |
+| `docs/proposals/completed/2026-11-12-board-activity-latest-result.md` | move + update | 구현 검증과 PR CI 통과를 기록하고 완료 경로로 옮긴다 | none |
 | `docs/investigations/active/session-gate-approval-unavailable-investigation.md` | add (기존 기록 보존) | 제안서가 직접 참조하는 미추적 원문을 함께 보존한다. 새 조사·운영 작업은 하지 않는다 | none |
 
-제품 코드의 변경·새 파일·이동은 위 표 밖으로 넓히지 않는다. 제품 관련 네 파일과 제안서·원문 조사 기록을 함께 검토한다.
+제품 코드의 변경·새 파일·이동은 위 표 밖으로 넓히지 않는다. 제품 관련 네 파일과 제안서·원문 조사 기록을 함께 검토한다. 완료 시 조사 기록의 제안서 참조도 새 경로로 맞춘다.
 
 최종 표시의 연결 경로(모두 keep):
 
@@ -335,7 +335,7 @@ standard로 맞췄다. 운영 데이터·템플릿 관측은 당시 조사 기�
 구현 기준은 `407be0b37758385a3086071f047efd790e27cd64`이고 브랜치는
 `harness/board-activity-latest-result`다. 위 기준 검증과 같은 macOS·Node 26.4.0·npm 11.17.0 환경이다.
 저장 방식·서버/API·Inbox·상세 페이지를 바꾸지 않고 네 제품 관련 파일을 수정했다.
-미추적 제안서와 연결된 조사 기록은 PR에서 함께 보존한다. 조사 기록의 본문은 변경하지 않는다.
+미추적 제안서와 연결된 조사 기록은 PR에서 함께 보존한다. 조사 기록의 내용은 유지하고 제안서의 완료 경로를 가리키는 참조만 갱신한다.
 
 | 검증 | 결과 |
 | --- | --- |
@@ -349,11 +349,11 @@ standard로 맞췄다. 운영 데이터·템플릿 관측은 당시 조사 기�
 | `npm run build` | Passed, Next 16.4.2 |
 | Verification Plan의 §6 Node 문구 검사 | Passed, 실제 변경된 규약에서 exit 0 |
 | `git diff --check` | Passed |
-| PR의 `check` workflow | PR 생성 후 확인 예정 |
+| PR의 `check` workflow | Passed: [run 43177591010](https://github.com/Sangeok/stagekeeper/actions/runs/43177591010), 구현 commit `15b03c0ae23c2f708edffb8348ecb59930ffb1a8`의 6개 job 모두 성공. Node 22의 static·제품·웹·서버·DB 통합·build 및 fresh manifest 검사 포함 |
 
 서버 suite의 skip은 조건부 fresh manifest 검사이며 아키텍처 suite의 skip은 Windows LPAC 검사다.
 서버 대역·정적 렌더 검증을 실제 DB·운영 데이터 전수 검사나 다른 OS의 통과로 확대하지 않는다.
-제품 코드의 로컬 구현·검증은 끝났고, PR CI 확인 뒤 완료 기록을 확정한다. 병합·배포는 이 요청의 범위 밖이다.
+제품 코드의 로컬 구현·검증과 PR CI 확인을 완료했다. 병합·배포는 이 요청의 범위 밖이다.
 
 ## Risks and Rollback
 
@@ -373,21 +373,15 @@ standard로 맞췄다. 운영 데이터·템플릿 관측은 당시 조사 기�
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
-
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
-
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+- 구현 PR: [#336](https://github.com/Sangeok/stagekeeper/pull/336), base `dev`. 열린 PR이며 병합하지 않았다.
+- 구현 commit: `15b03c0ae23c2f708edffb8348ecb59930ffb1a8`.
+- 구현 결과: 마지막 결과의 첫 문장을 표시한다. 빈 배열은 reason, 공백 요약은 항목 키를 유지한다.
+  슬롯 우선순위·원본 길이 예산·결과 배열·서버 전이는 유지한다.
+- 검증 결과: 위 구현 검증 표와 CI run 43177591010. 이 완료 기록 커밋은 제품 코드를 추가로 바꾸지 않는다.
+- 문서 보존: 원래 미추적이던 제안서와 직접 참조한 조사 기록을 함께 포함했다. 제안서는 이 완료 경로로,
+  조사 기록의 제안서 참조도 같은 경로로 맞췄다. 원본 작업 트리의 미커밋 파일은 보존했다.
+- remaining follow-up: PR 리뷰·dev 병합과 main 승격은 별도다. 운영 데이터 전수 검증은 수행하지 않았다.
+  원문 조사의 세션 설정·웹 승인 위협 모델·템플릿 대기 표시는 별도 조사 범위로 유지한다.
 
 ## Review Checklist
 
@@ -404,5 +398,5 @@ standard로 맞췄다. 운영 데이터·템플릿 관측은 당시 조사 기�
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 문서 대조의 기준 검증과 구현 후 미실행 검증을 구분했다. 구현 뒤 기존·신규 실패를 다시 대조한다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
