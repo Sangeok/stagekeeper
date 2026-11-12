@@ -99,6 +99,7 @@ CI 검사가 어느 OS에서 도는지가 검사마다 다르고, 그 차이가 
 - AGENTS.md에 CI를 추가하거나 바꿀 때의 규칙 한 줄.
 - 불일치 두 건의 해소: Windows의 제품 코드 시험 전체, `pipeline-smoke`의 macOS 다리.
 - macOS 다리에 맞춘 `record` job의 다리 목록.
+- 2단계 뒤에 드러난 차이 둘의 해소(2026-11-12 추가): 출시 이력을 읽는 시험을 지원 OS의 CI에서 실제로 돌리는 것, `windows-role-runtime`의 PR 경로를 macOS와 맞추는 것.
 
 제외 범위:
 
@@ -123,6 +124,8 @@ CI 검사가 어느 OS에서 도는지가 검사마다 다르고, 그 차이가 
 | OC-07 | Windows CI가 제품 코드 시험 전체를 macOS와 같은 범위로 돌린다 |
 | OC-08 | `pipeline-smoke`가 macOS에서도 항목 하나를 끝까지 처리하고, 그 다리가 게이트 기록에 남는다 |
 | OC-09 | AGENTS.md가 CI를 추가하거나 바꿀 때 분류표를 함께 고치라고 적는다 |
+| OC-10 | 출시 이력을 읽는 시험 둘이 Windows와 macOS의 CI에서 건너뛰지 않고 돈다. 이력이 없으면 실패한다. 두 설정 가운데 하나가 빠지면 `npm run check`가 실패한다 |
+| OC-11 | 제품 코드를 바꾼 PR에서 `windows-role-runtime`이 돈다. 제품 코드의 PR 경로가 `macos-runtime-contracts`와 같다 |
 
 ### 1. 지원 OS와 분류 기준
 
@@ -199,6 +202,13 @@ Linux 칸은 OS와 무관한 검사가 도는 자리로 남는다. 지원 OS가 
 
 **5.3 넘기는 것.** `template-target.ts`가 Windows에서 모든 설정 파일을 거부하는 문제는 이슈로 남긴다. 그 도구가 Windows를 지원할지, POSIX 전용으로 표시하고 시험을 건너뛸지는 템플릿 release 작업이 정한다.
 
+**5.4 출시 이력 시험과 Windows의 PR 경로(2026-11-12 추가).** 2단계의 실행 기록에서 두 가지가 드러났다.
+
+- `harness-released-readers.test.mjs`와 `harness-released-init-readers.test.mjs`는 Git 이력에서 출시된 plugin을 꺼내 지금의 잠금 파일에 돌린다. Windows와 macOS의 CI는 최신 커밋만 받아서 이 둘을 건너뛴다. 실제로 도는 곳은 전체 이력을 받는 Linux의 `check`뿐이다. verification.md는 이 건너뛰기를 의도한 동작으로 적어 왔다(2026-10-27). 제품 코드 시험은 "OS별"이므로 지원 OS에서 돌아야 한다. 두 workflow의 checkout이 전체 이력을 받게 하고(`fetch-depth: 0`), 제품 코드 시험 단계에 `STAGEKEEPER_RELEASED_READERS: required`를 준다. 분류표의 확인 문자열에 이 둘을 더해, 한쪽이 빠지면 검사가 실패하게 한다. 이력은 약 10MB다.
+- `windows-role-runtime`은 PR에서 정해진 파일이 바뀔 때만 돈다(2026-10-07 결정. `src/**`를 바꾼 PR이 이 job을 기다리지 않게 하려는 것이었다). 2단계부터 이 job이 제품 코드 시험 전체를 돌리는데, 경로 목록에는 `packages/`와 대부분의 `plugin/` 파일이 없다. 그런 PR의 Windows 실패는 병합 뒤 `dev`에서 처음 보인다. 제품 코드 경로(`packages/core/**`, `packages/github/**`, `plugin/bin/**`, `plugin/runtime/**`, `plugin/lib/**`)를 목록에 넣어 `macos-runtime-contracts`와 맞춘다. 이 묶음에 들어가는 개별 파일 항목은 지운다. `src/**`만 바꾼 PR에서는 지금처럼 돌지 않는다.
+
+Linux의 `check`는 그대로 둔다. 병합 조건인 `check`가 모든 PR에서 제품 코드 시험을 2~3분에 돌리는 유일한 곳이고, `packages/core`와 `packages/github`는 서버도 쓴다. 제품 코드 시험이 Linux에서만 실패하면 Linux용으로 고치지 않고 그 시험을 Linux에서 이유를 적어 건너뛴다.
+
 ### 6. 규칙 한 줄
 
 AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리를 추가·삭제·이동할 때는 verification.md의 분류표를 같은 변경에서 고친다. "OS별"로 분류한 검사는 지원 OS의 job을 같은 변경에 넣거나, 넣지 못한 OS를 "미충족" 칸에 적고 후속 작업을 남긴다.
@@ -213,6 +223,7 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 | `docs/architecture/verification.md` | update | 지원 OS, 분류 기준, 분류표, workflow 설명 | low |
 | `AGENTS.md` | update | 6절의 항목 | low |
 | `.github/workflows/windows-role-runtime.yml` | update | 제품 코드 시험 전체 단계 | medium: CI 시간이 늘고, Windows에서만 나는 실패가 처음 드러날 수 있다 |
+| `.github/workflows/windows-role-runtime.yml`, `.github/workflows/macos-runtime-contracts.yml` | update | 5.4의 전체 이력과 필수 설정, Windows의 PR 경로 | medium: 출시 이력 시험이 두 OS의 CI에서 처음 돈다. 제품 코드를 바꾼 PR마다 Windows job이 돈다 |
 | `.github/workflows/pipeline-smoke.yml` | update | macOS 다리, 다리별 출력과 artifact 이름, `record`의 `legs` | high: 실제 모델 게이트다. 첫 macOS 실행이 실패할 수 있다 |
 | `scripts/rehearsals/rehearse-pipeline-smoke.ts`, `pipeline-smoke-steps.mjs` | update(필요하면) | macOS에서 드러나는 차이 | medium |
 | GitHub 이슈 | add | 5.3의 인계 | none |
@@ -242,6 +253,7 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 - 승인 전에 소유자와 정한 것: OS와 무관한 검사는 한 번, OS에 따라 달라지는 검사는 지원 OS마다 돌린다. 지원 OS는 Windows와 macOS다. Linux는 넣지 않는다. CI를 추가할 때 분류를 함께 정하게 하는 장치를 둔다.
 - 승인 때 확인받은 것 하나. `pipeline-smoke`의 macOS 다리는 조건 없이 모든 실행에서 함께 돈다.
 - 단계별 구현 PR과 이슈는 실행 직전에 따로 승인받는다.
+- 2026-11-12 소유자가 5.4를 더했다. 출시 이력 시험은 Windows와 macOS 양쪽 CI에서 돌린다. Windows의 PR 경로는 macOS와 맞춘다. Linux의 `check`는 그대로 둔다.
 
 ## Execution Plan
 
@@ -249,7 +261,8 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 2. **Windows의 제품 코드 시험.** `windows-role-runtime`에 단계를 더하고 표의 칸을 비운다. PR이 workflow 파일을 바꾸므로 PR에서 그 workflow가 돈다. 거기서 통과와 걸린 시간을 확인한다.
 3. **이슈.** 5.3의 인계 이슈를 연다(소유자 승인 뒤).
 4. **macOS 다리.** 템플릿 R2 승격이 끝난 뒤에 올린다. 기능 브랜치에서 `pipeline-smoke`를 수동으로 돌려 두 다리가 통과하는지 먼저 본다(기능 브랜치 실행은 기록에 남지 않는다). 머지 뒤 `dev`에서 돌려 기록에 다리 둘이 남는지 본다.
-5. 두 칸이 모두 비면 완료 처리한다.
+5. **출시 이력 시험과 Windows의 PR 경로(2026-11-12 추가).** 5.4를 PR 하나로 올린다. 4단계를 기다리지 않는다. PR이 두 workflow 파일을 바꾸므로 PR에서 두 workflow가 돈다. 거기서 출시 이력 시험이 두 OS에서 통과하는지와 늘어난 시간을 확인한다.
+6. 두 칸이 모두 비고 5단계가 끝나면 완료 처리한다.
 
 각 단계는 PR 하나다. 구현 PR과 이슈는 실행 직전에 따로 승인받는다.
 
@@ -277,6 +290,8 @@ gh workflow run pipeline-smoke.yml --ref dev
 | OC-06 | 검사 시험: gate job에 다리를 더하고 `legs`를 그대로 둔 경우 |
 | OC-07 | PR의 `windows-role-runtime` 실행에서 새 단계가 통과한다. 시험 수와 건너뛴 수가 이 PC의 결과(680, 29)와 크게 다르지 않은지 본다 |
 | OC-08 | 기능 브랜치와 `dev`의 `pipeline-smoke`에서 두 다리가 통과한다. `dev` 실행의 기록 행에 다리 둘이 있다 |
+| OC-10 | PR의 `windows-role-runtime`과 `macos-runtime-contracts` 실행 로그에서 출시 이력 시험 둘이 건너뛰지 않고 통과한다. 두 workflow에서 `fetch-depth: 0`이나 `STAGEKEEPER_RELEASED_READERS: required`를 하나씩 지우면 `verify:ci-coverage`가 실패한다 |
+| OC-11 | 두 workflow의 PR 경로 목록을 대조한다. 병합 뒤 제품 코드만 바꾼 첫 PR에서 `windows-role-runtime`이 도는지 본다 |
 
 검증 기준:
 
@@ -302,6 +317,10 @@ gh workflow run pipeline-smoke.yml --ref dev
 | 2단계: 병합 뒤 `dev` `68f3d49`의 실행 | `check`, Windows 런타임(run 43158463839), macOS 런타임(run 43158463867) 모두 통과 | Windows의 새 단계는 680개 중 649개 통과, 31개 건너뜀, 5분 39초. macOS는 두 runner 모두 680개 중 650개 통과, 30개 건너뜀. 출시 이력을 읽는 시험 둘은 macOS 실행 로그에서도 건너뛴 것으로 나온다. 이 둘은 CI에서 전체 이력을 받는 `check`에서만 돈다 |
 | 3단계: 인계 이슈(2026-11-12) | [#329](https://github.com/Sangeok/stagekeeper/issues/329) 생성 | 5.3의 인계. 만들기 전에 이 PC(Node 22.13.1)에서 `template-release-cli.test.ts`를 따로 돌려 2개 중 1개가 "Template profiles must be private regular files outside the repository"로 실패하는 것과, `0600`으로 만든 파일과 `chmod 600` 뒤의 파일이 모두 `666`으로 보고되는 것을 다시 확인했다 |
 | 4단계 | Not run yet | 구현 전 |
+| 5단계: 이 PC에서 출시 이력 시험 두 파일을 `STAGEKEEPER_RELEASED_READERS=required`로 실행(2026-11-12, `dev` `df27c78` 기준) | 3개 모두 통과. 출시 판 시험 하나가 2분 36초 | 0.6.14부터 0.5.14까지의 출시 판을 차례로 꺼내 돌린다. Linux CI에서는 같은 시험이 49초다 |
+| 5단계: 같은 실행을 임시 폴더가 8.3 짧은 이름 경로일 때 | 3개 모두 통과 | runner의 임시 폴더처럼 짧은 이름이 든 경로다. 임시 폴더를 아주 깊은 경로로 주었을 때는 출시 판을 푸는 Git이 "Filename too long"으로 실패했다. 임시 폴더 바로 아래의 폴더(56자)에서는 통과한다. runner에서의 결과는 PR 실행이 확인한다 |
+| 5단계: `npm run verify:ci-coverage` | 통과(job 12개, 행 10개) | Windows와 macOS의 workflow에서 `fetch-depth: 0`이나 `STAGEKEEPER_RELEASED_READERS: required`를 하나씩 지운 4가지 변형이 모두 "a per-OS check needs a … job that runs npm test, fetch-depth: 0, STAGEKEEPER_RELEASED_READERS: required"로 실패한다 |
+| 5단계: PR의 `windows-role-runtime`과 `macos-runtime-contracts` 실행 | Not run yet | 출시 이력 시험이 두 OS의 CI에서 처음 돈다. 통과 여부와 늘어난 시간을 확인한다 |
 
 ## Risks and Rollback
 
