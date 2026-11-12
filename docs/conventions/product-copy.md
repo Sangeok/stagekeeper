@@ -379,14 +379,17 @@ Activity rows link to the item page and end with the state chip.
 | `in_review` | FEAT-04 · plan submitted · proposed 2 days ago |
 | `planning` | FEAT-06 · writing the plan — **before dispatch:** FEAT-06 · waiting for dev (quiet tone) |
 | `implementing` | FEAT-07 · implementing — **before dispatch:** FEAT-07 · waiting for dev (quiet tone) |
-| `done` | FEAT-02 · *(first sentence of joined results, or reason when results are empty)* |
-| `on_hold` | FEAT-03 · *(first sentence of joined results, or reason when results are empty)* |
+| `done` | FEAT-02 · *(first sentence of the latest result, or reason when results are empty)* |
+| `on_hold` | FEAT-03 · *(first sentence of the latest result, or reason when results are empty)* |
 
 Day count reads "1 day" / "2 days"; omitted on day 0.
 
-Results are joined with one space in recorded order before taking the first sentence. An empty
-results array falls back to reason. If the selected summary is blank, the existing row repeats
-the item key in the body as well as the key label; it does not replace it with "Done" or "On hold".
+Only the latest recorded result is summarized; earlier results are not joined in.
+This summary rule applies to done, on_hold, and fallback status rows that reach the summary branch.
+Project-agent and impl-verify/qa slot activity takes precedence unless the item is on hold.
+An empty results array falls back to reason. If the selected summary is blank, the existing row repeats
+the item key in the body as well as the key label; it does not fall back to an earlier result or reason,
+or replace the body with "Done" or "On hold".
 
 **Decision card** (Inbox only):
 

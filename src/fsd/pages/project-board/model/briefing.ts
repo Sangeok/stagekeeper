@@ -40,7 +40,7 @@ export function firstSentence(text: string): string {
 }
 
 function summaryLine(row: BoardRow): string {
-  const source = row.results.length > 0 ? row.results.join(" ") : row.reason;
+  const source = row.results.length > 0 ? row.results[row.results.length - 1] : row.reason;
   return firstSentence(source) || row.backlogItem.key;
 }
 
