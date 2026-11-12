@@ -96,9 +96,10 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   환경을 같은 변경에서 보완한다.
 - `npm test`: `packages/core/**/*.test.mjs`, `packages/github/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
-  `plugin/bin/harness-released-readers.test.mjs`는 `origin/main` 이력에서 출시된 plugin을 꺼내 실행하므로 `check`
-  workflow는 전체 이력을 가져오고 `STAGEKEEPER_RELEASED_READERS=required`로 이력 누락을 실패로 만든다.
-  이력이 없는 환경(macOS runtime contracts의 shallow checkout 등)에서는 출시 판 시험만 skip한다.
+  `plugin/bin/harness-released-readers.test.mjs`와 `plugin/bin/harness-released-init-readers.test.mjs`는 Git 이력에서
+  출시된 plugin을 꺼내 실행한다. 그래서 이 대상 묶음을 돌리는 workflow 셋(`check`, `windows-role-runtime`,
+  `macos-runtime-contracts`)은 전체 이력을 가져오고 `STAGEKEEPER_RELEASED_READERS=required`로 이력 누락을 실패로
+  만든다. 이력이 없는 로컬 환경(얕게 받은 checkout 등)에서는 출시 판 시험만 skip한다.
 - [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
   `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
   공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.
@@ -253,7 +254,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | --- | --- | --- | --- | --- | --- | --- |
 | 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
-| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음 |
+| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
 | Windows 역할 런타임 | 단일 OS | `windows-role-runtime/native-runtime` | | | | Windows에만 있는 구현이다(전용 Node 빌드, 격리된 역할 명령) |
 | macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
 | 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
@@ -631,9 +632,11 @@ Webpack 성공이 기본 build 명령의 성공을 뜻하지 않는다.
 
 ## Windows CI 런타임 재사용
 
-`windows-role-runtime`은 `dev` push와, Windows runtime·역할 인수 시험·오프라인 빌드
+`windows-role-runtime`은 `dev` push와, 이 job이 시험하는 제품 코드(`packages/core`·`packages/github`·
+`plugin/bin`·`plugin/runtime`·`plugin/lib`)·Windows runtime 빌드 도구·오프라인 빌드
 입력(`package.json`·lock·`next.config.*`·Prisma 설정·`scripts/build.mjs`·
-`src/app/layout.tsx`·`src/app/_fonts/**`)을 바꾼 PR에서 실행한다. 그 밖의 애플리케이션
+`src/app/layout.tsx`·`src/app/_fonts/**`)을 바꾼 PR에서 실행한다. 제품 코드의 PR 경로는 macOS runtime
+contracts와 같다. 그 밖의 애플리케이션
 source만 바꾼 PR에서는 실행하지 않는다. 그런 변경의 LPAC 전용 회귀는 병합 후 경로를
 제한하지 않는 `dev` push의 전체 인수에서 드러나고, `main`은 `dev`에서 통과한 커밋만
 받는다. `dev` 실행이
@@ -989,8 +992,8 @@ legacy suite를 수정하거나 실행한 것으로 표시하지 않는다.
 
 `harness-released-init-readers.test.mjs`는 실제 출시 0.5.33의 정확한 commit을 추출해
 ready/pending lock v2 거부와 파일 보존을 검사한다. 다른 출시판과 native hook 호스트
-지원은 자동으로 인증되지 않는다. 기존 check의 STAGEKEEPER_RELEASED_READERS=required는
-해당 Git 이력이 없을 때 검사를 실패시킨다.
+지원은 자동으로 인증되지 않는다. `check`, `windows-role-runtime`, `macos-runtime-contracts`의
+STAGEKEEPER_RELEASED_READERS=required는 해당 Git 이력이 없을 때 검사를 실패시킨다.
 
 운영 profile·유지보수 evidence·snapshot·environment 설정은
 [template-releases.md](./template-releases.md)를 따른다.
