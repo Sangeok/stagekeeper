@@ -92,8 +92,13 @@ Claude Code의 이름 해석:
 
 영향을 받는 설치본:
 
-- 소유자가 R1으로 init한 저장소는 Mac e2e 저장소(`stagekeeper-macos-e2e`) 하나다. Windows PC의
-  저장소들은 R0 상태라서 다음 사용 때 어차피 다시 init해야 한다.
+- R1에 고정된 실행이 있는 프로젝트는 두 개다(2026-11-12 프로덕션 읽기 전용 조회).
+  - `stagekeeper-macos-e2e`(Mac e2e 저장소): 작업 실행은 모두 닫혔고, R1 항목 실행 2개가 열려 있다.
+  - `harness-smoke`(Windows PC 소유자 프로젝트): 2026-11-10 06:19–11:31Z에 항목 하나가 dev,
+    plan-verifier, impl-verifier, doc-auditor까지 R1으로 끝났다. 열린 R1 실행은 없다. 그날 이
+    저장소에 R1과 호환되는 설치본이 있었다는 뜻이다. 클라이언트는 DB로 알 수 없다(`Runner` 행 없음).
+    Claude 설치본이면 R2 activate 뒤 다음 사용 때 다시 init해야 하고, Codex 설치본이면 영향이 없다.
+- 그 밖의 Windows PC 저장소(`mathgic` 등)는 R0 실행만 있다. 다음 사용 때 어차피 다시 init해야 한다.
 - 서버는 설치 기록을 저장하지 않는다(`docs/architecture/template-releases.md:53`,
   `src/server/rest/runbook-handler.ts:54-67`). DB로 알 수 있는 것은 R1에 고정된 실행이 있는
   프로젝트까지다. init만 하고 실행이 없는 저장소는 DB에 보이지 않는다.
@@ -126,15 +131,14 @@ R1 템플릿 커밋을 고정해 둔 곳:
 - 템플릿 문구와 행 번호, main이 `8ccb37a`이고 열린 PR이 없다는 점: `gh api`로
   `Sangeok/harness-templates`를 읽었다.
 - 이름 해석: 이 Mac의 Claude Code 2.1.319에서 `claude -p`로 실행했다.
-- R1에 고정된 실행이 있는 프로젝트: 프로덕션 DB를 읽기 전용으로 조회했다. R1으로 init한 저장소가
-  Mac e2e 하나라는 점은 소유자의 작업 기록에 따른 것이다.
+- R1에 고정된 실행이 있는 프로젝트: 프로덕션 DB를 읽기 전용으로 조회했다(2026-11-12).
 
 ## Scope
 
 포함 범위:
 
 - 플러그인의 Claude용 문구(`watch/SKILL.md` 1곳, `reconciliation-contract.md` 3곳)와 플러그인 판
-  올림(0.6.12 → 0.6.13).
+  올림(0.6.12 → 0.6.13). dev에서 다른 변경과 합쳐져 0.6.14로 출시됐다.
 - 서버 verify 안내문과 제품 문구 표.
 - 템플릿 2개 파일과 R2 릴리스(import, activate).
 - 문구 검사 3개.
@@ -196,7 +200,7 @@ Resolve `harness:reconciling-proposals-with-codebase` in this Claude Code sessio
 ```
 
 - 같은 문서 35행의 "(or reconcile the winning loader conflict)"는 더 맞지 않으므로 지운다.
-- 두 플러그인 manifest의 `version`을 `0.6.13`으로 올린다.
+- 두 플러그인 manifest의 `version`을 `0.6.13`으로 올린다(출시는 0.6.14).
 
 `src/server/pipeline/run-rules.ts:47` (`HINT.verify`)의 해당 구절:
 
@@ -283,11 +287,12 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
   실행이 있는 보드 항목이 호환되지 않으면 `wait`·`template`을 받는다. 배정 흐름처럼 아직 실행이 없는
   경우에는 head가 `none`과 필요한 `templateRelease`를 받고, 실행도 보드 항목도 생기지 않는다
   (`docs/architecture/template-releases.md:47-48`, `src/server/pipeline/work-run.ts:131`).
-- 소유자가 R1으로 init한 Claude 저장소는 Mac e2e 하나다. 이 프로젝트에는 2026-11-10 기준으로 R1에 고정된 작업
-  실행 1개와 AgentRun 1개가 열려 있었다
-  (`docs/test-reports/completed/2026-11-10-template-release-r1-activation.md`의 F1). 그 실행이 아직
-  열려 있으면 `pipeline_next`가 그것을 이어 쓰고, 거기서 배정된 항목은 R1에 고정된다. 웹의 Put on
-  the board로 올린 항목은 부모가 없어 활성 릴리스를 고른다(같은 보고서 99행).
+- R1에 고정된 실행이 있는 프로젝트는 Current State에 적은 두 곳이다. Mac e2e 프로젝트에 2026-11-10
+  기준으로 열려 있던 R1 작업 실행과 AgentRun
+  (`docs/test-reports/completed/2026-11-10-template-release-r1-activation.md`의 F1)은 2026-11-12 조회에서
+  모두 닫혀 있었다. 남은 것은 R1 항목 실행 2개다. 열린 작업 실행이 있으면 `pipeline_next`가 그것을
+  이어 쓰고 거기서 배정된 항목은 R1에 고정되지만, 웹의 Put on the board로 올린 항목은 부모가 없어
+  활성 릴리스를 고른다(같은 보고서 99행).
 - plan-verifier의 `step:verify`는 서버가 `agent_next`로 내려주는 본문이다. 설치되는 파일은 첫
   `## step:` 앞에서 잘린 사본이다(`packages/core/templates/template-boundary.mjs`). Codex runbook도
   바꾸지 않으므로 Codex용 설치 지문은 그대로일 것으로 본다. 릴리스 검증 출력에는
@@ -325,8 +330,8 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
 | --- | --- | --- |
 | 0.6.12 이하 | R1 | 지금과 같다. 시작 전 확인에서 멈춘다 |
 | 0.6.12 이하 | R2 | 지금과 같다. 플러그인의 확인 문구가 맨 이름이라 멈춘다 |
-| 0.6.13 | R1 | init·watch 확인은 통과한다. runbook과 plan-verifier가 맨 이름이라 메인 루프나 plan-verifier가 `blocked`로 멈춘다. 잘못된 검토로 넘어가지 않는다 |
-| 0.6.13 | R2 | 플러그인 사본으로 끝까지 진행한다 |
+| 0.6.13 이상 | R1 | init·watch 확인은 통과한다. runbook과 plan-verifier가 맨 이름이라 메인 루프나 plan-verifier가 `blocked`로 멈춘다. 잘못된 검토로 넘어가지 않는다 |
+| 0.6.13 이상 | R2 | 플러그인 사본으로 끝까지 진행한다 |
 
 - 어느 쪽을 먼저 배포해도 실행 중 동작이 지금보다 나빠지는 조합이 없다. 릴리스 절차의 순서
   제약(새 문구 검사가 들어간 코드에서는 R2 커밋을 `source_commit`으로 써야 한다)은 Execution Plan과
@@ -357,7 +362,7 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
 
 1. 변경 PR을 만든다(`harness/claude-verifier-namespace` → `dev`). 이 문서, 플러그인 문구, 안내문,
    `product-copy.md`, `protocol.md`, `template-releases.md`의 `source_commit` 규칙, 문구 검사 3개,
-   플러그인 0.6.13을 담는다.
+   플러그인 0.6.13을 담는다. (실행 기록: dev에서 다른 변경과 합쳐져 0.6.14로 출시됐다.)
 2. 템플릿 저장소에 R2 브랜치를 만든다. 먼저 `8ccb37a`에서 Current State 표의 두 문장이 그대로
    있는지 확인하고, 행 번호가 아니라 그 문장을 기준으로 고친다. R2 체크아웃을 `plugin/templates`
    (gitignore 대상)에 두고, 변경 PR 브랜치에서
@@ -373,10 +378,10 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
 5. 템플릿 R2 브랜치를 main에 fast-forward로 머지한다. import하는 `source_commit`은 4단계에서
    시험한 바로 그 커밋이어야 한다. `npm run verify:plugin-version`과 프로덕션 migrate 상태를
    확인하고 dev를 main으로 fast-forward한다. activate 전에 프로덕션에서 R1에 고정된 실행이
-   있는 프로젝트가 Mac e2e 하나뿐인지, 그 프로젝트에 R1에 고정된 열린 실행이 남아 있는지 읽기
-   전용으로 다시 확인한다. `template-release.yml`로 R2 커밋을 프로덕션에 import한
+   있는 프로젝트와 그 열린 실행을 읽기 전용으로 다시 확인한다. Current State에 적은 것과 다르면 멈추고
+   이 문서를 먼저 고친다. `template-release.yml`로 R2 커밋을 프로덕션에 import한
    뒤 activate한다.
-6. Mac의 플러그인을 0.6.13으로 올린다. 시험 항목은 웹의 Put on the board로 보드에 올린다. 이
+6. Mac의 플러그인을 0.6.14로 올린다. 시험 항목은 웹의 Put on the board로 보드에 올린다. 이
    방식은 열린 R1 작업 실행이 있든 없든 항목을 활성 릴리스(R2)에 고정하고, 다시 init하기 전에도
    항목이 생긴다. 다시 init하기 전에 R1 설치 상태에서 `pipeline_next`를 한 번 불러 그 항목이
    `wait`·`template`과 R2 설치 요구를 받는지 보고 응답을 기록한다. 그다음 다시 init하고, 개인 스킬을
@@ -442,7 +447,12 @@ gh workflow run pipeline-smoke.yml --ref dev --field templates-ref=<R2 커밋 �
 | `npm run verify:fsd`, `verify:server`, `test:architecture`, `check`, `npm test`, `test:web`, `build` | Passed (2026-11-11, 변경 PR 브랜치) | `check`는 Prisma client 생성 전에는 타입 오류로 실패했고 생성 뒤 통과했다 |
 | 새 문구 검사 2개(플러그인, 안내문)가 수정 전 문구에서 실패 | Passed (2026-11-11) | `HEAD`의 두 스킬 문서에서 맨 이름이 잡히고, `HEAD`의 안내문에 `harness:` 구절이 없다 |
 | `npm run test:server` | Not run yet | 로컬에서 돌리지 않았다. PR의 `check`가 돌린다 |
-| 나머지(템플릿 검사, 워크플로, 릴리스, Mac e2e) | Not run yet | |
+| `HARNESS_RELEASE_SOURCE=plugin/templates npm run test:template-release` | Passed (2026-11-11) | R2 `99245ac`에서 4개 통과. R1 `8ccb37a`에서는 새 문구 검사만 실패 |
+| R2 diff (Proposal 4절 조건) | Passed (2026-11-11) | 두 파일만 바뀌고, plan-verifier는 103·106행(첫 `## step:`는 54행) |
+| `client-init-smoke`, `agent-eval`, `pipeline-smoke` (dev `1bbc940`, R2 `99245ac`) | Passed (2026-11-12) | `pipeline-smoke`의 `harnessErrors` 없음, `stepRefusals` 0. 봉인 기록에서 plan-verifier가 `harness:` 이름으로 플러그인 0.6.14 사본을 연 것을 확인 |
+| `pipeline-smoke` (dev `20fe525`, R2) | Passed with `harnessErrors: {"validation_record": 2}` (2026-11-11) | 같은 오류가 이 변경 전 `1eddbc2`에도 있었다. 기록은 당시 키를 아무도 몰라 열지 못했고, 키를 교체했다 |
+| 템플릿 main fast-forward, dev → main 승격 | Done (2026-11-12) | 템플릿 main `99245ac`, stagekeeper main `1bbc940`(Vercel 프로덕션 배포 완료) |
+| 나머지(R2 import·activate, Mac e2e) | Not run yet | |
 
 ## Risks and Rollback
 
@@ -456,8 +466,9 @@ gh workflow run pipeline-smoke.yml --ref dev --field templates-ref=<R2 커밋 �
   같은 방식이다.
 - R2를 activate한 뒤 Mac e2e 저장소는 다시 init할 때까지 새 실행을 시작하지 못한다. R1에 고정된
   기존 실행은 R1 설치본으로 계속 진행하고, 다시 init한 뒤에는 그 실행이 R1 설치를 요구할 수 있다.
-  소유자가 R1으로 init한 다른 저장소는 없다. 다만 서버가 설치 기록을 저장하지 않으므로 DB로는 R1에
-  고정된 실행이 있는 프로젝트까지만 확인할 수 있다.
+  Windows PC의 `harness-smoke`도 2026-11-10에 R1으로 돌았다. 그 설치본이 Claude라면 다음 사용 때
+  다시 init해야 한다. 서버가 설치 기록을 저장하지 않으므로 DB로는 R1에 고정된 실행이 있는
+  프로젝트까지만 확인할 수 있다.
 - Codex에서 안내문과 plan-verifier 본문의 "in Claude Code …" 구절이 혼동을 주는지는
   `pipeline-smoke`가 Claude만 돌리므로 확인되지 않는다. Codex는 준비한 사본을 경로로 확인하므로
   다른 스킬을 쓰게 되지는 않는다. Windows Codex를 다음에 쓸 때 확인한다.
