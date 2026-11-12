@@ -320,7 +320,9 @@ gh workflow run pipeline-smoke.yml --ref dev
 | 5단계: 이 PC에서 출시 이력 시험 두 파일을 `STAGEKEEPER_RELEASED_READERS=required`로 실행(2026-11-12, `dev` `df27c78` 기준) | 3개 모두 통과. 출시 판 시험 하나가 2분 36초 | 0.6.14부터 0.5.14까지의 출시 판을 차례로 꺼내 돌린다. Linux CI에서는 같은 시험이 49초다 |
 | 5단계: 같은 실행을 임시 폴더가 8.3 짧은 이름 경로일 때 | 3개 모두 통과 | runner의 임시 폴더처럼 짧은 이름이 든 경로다. 임시 폴더를 아주 깊은 경로로 주었을 때는 출시 판을 푸는 Git이 "Filename too long"으로 실패했다. 임시 폴더 바로 아래의 폴더(56자)에서는 통과한다. runner에서의 결과는 PR 실행이 확인한다 |
 | 5단계: `npm run verify:ci-coverage` | 통과(job 12개, 행 10개) | Windows와 macOS의 workflow에서 `fetch-depth: 0`이나 `STAGEKEEPER_RELEASED_READERS: required`를 하나씩 지운 4가지 변형이 모두 "a per-OS check needs a … job that runs npm test, fetch-depth: 0, STAGEKEEPER_RELEASED_READERS: required"로 실패한다 |
-| 5단계: PR의 `windows-role-runtime`과 `macos-runtime-contracts` 실행 | Not run yet | 출시 이력 시험이 두 OS의 CI에서 처음 돈다. 통과 여부와 늘어난 시간을 확인한다 |
+| 5단계: PR #334의 `windows-role-runtime`(run 43165516082)과 `macos-runtime-contracts`(run 43165516117) 실행 | 모두 통과. 출시 이력 시험 둘이 세 runner에서 건너뛰지 않고 통과했다 | OC-10. Windows: 680개 중 651개 통과, 29개 건너뜀, 출시 판 시험 2분 35초, job 15분 7초(전 12분 12초). macOS arm64: 680개 중 652개 통과, 28개 건너뜀, 출시 판 시험 1분 11초, job 5분 38초(전 약 4분). macOS intel: 같은 수, 출시 판 시험 2분 41초, job 11분 8초(전 약 10분). 건너뛴 수가 runner마다 2개씩 줄었다. PR의 `check`도 통과했다. 2026-11-12 `dev` `6cf37cd`로 병합 |
+| 5단계: 병합 뒤 `dev` `6cf37cd`의 실행 | `check`, Windows 런타임(run 43167850264), macOS 런타임(run 43167850325) 모두 통과 | 시험 수와 건너뛴 수가 PR 실행과 같다. Windows job 15분 24초, macOS arm64 5분 14초, macOS intel 10분 11초 |
+| 5단계: 제품 코드만 바꾼 PR에서 `windows-role-runtime`이 도는지(OC-11) | Not run yet | #334는 workflow 파일을 바꾼 PR이라 경로 확대와 무관하게 돌았다. 두 workflow의 제품 코드 경로가 같은 것은 파일을 읽어 대조했다. 병합 뒤 제품 코드만 바꾼 첫 PR에서 확인한다 |
 
 ## Risks and Rollback
 
