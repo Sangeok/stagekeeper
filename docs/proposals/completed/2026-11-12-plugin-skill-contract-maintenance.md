@@ -107,7 +107,7 @@ OS·native 실행 계약 때문에 Codex 스킬 네 개가 함께 바뀌었다. 
 
 - [dual-client 후속](../active/codex-dual-client-runtime-follow-ups.md)은 공개 패키지·OS·실제 설치 인수를 소유한다. 해당 인수를 이 문서로 옮기거나 완료 처리하지 않는다.
 - [Claude namespace 변경](../active/claude-verifier-skill-namespace.md)이 정한 `harness:reconciling-proposals-with-codebase` 호출을 보존한다. 템플릿 릴리스 작업을 재수행하지 않는다.
-- [CI OS 범위](../active/ci-os-coverage.md)와 [게이트 기록](../active/gate-run-records.md)의 workflow·운영 정책은 변경하지 않는다. 이후 실행 때 최신 `AGENTS.md`와 검증 문서를 다시 읽는다.
+- [CI OS 범위](../active/ci-os-coverage.md)와 [게이트 기록](./2026-11-12-gate-run-records.md)의 workflow·운영 정책은 변경하지 않는다. 이후 실행 때 최신 `AGENTS.md`와 검증 문서를 다시 읽는다.
 - [사용 한도 설치](../active/runner-usage-limit-installation.md)와 [템플릿 인수](../active/template-release-acceptance-follow-ups.md)의 운영 환경 변경은 포함하지 않는다.
 - 작성 시 열린 PR은 [#325](https://github.com/Sangeok/stagekeeper/pull/325)의 core README 경로 수정이다. 이 제안은 그 파일을 수정하지 않는다. 구현 시작 때 열린 PR과 active 제안서를 다시 확인한다.
 

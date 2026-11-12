@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-11"
 approved-by: "user"
-approved-at: "2026-11-11"
-approval-scope: "제안서의 설계 전체(조회 규칙, 요약 필드, 행 형식, 기록 job, [gate] 이슈, 수동 행)와 제안서의 커밋·PR. 기록 이슈 생성, 구현 PR, main 승격은 실행 직전에 각각 따로 승인받는다."
-completed-at: null
-verification-summary: null
+approved-at: "2026-11-12"
+approval-scope: "기존 설계·구현·병합 결과를 반영한 완료 처리와 참조 링크 정리. 미확인 정기 실행과 첫 [gate] 발견은 완료를 막지 않는 후속 관찰로 남긴다."
+completed-at: "2026-11-12"
+verification-summary: "PR #320 구현·CI 통과, 58850a9로 dev 병합 후 main 포함. 세 게이트의 dev 자동 기록, PR record 건너뜀, 과거 실행 3건 수동 보충 확인. 정기 실행·첫 발견의 실제 이슈 생성은 후속 관찰."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -19,13 +19,15 @@ related:
   - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
 ---
 
-# 게이트 실행의 조회 규칙과 실행 기록
+# 게이트 실행의 조회 규칙과 실행 기록 완료
 
 ## Summary
 
-승격 전 게이트(`client-init-smoke`, `agent-eval`, `pipeline-smoke`)의 결과는 GitHub에 커밋별로 남지만, 지금 절차는 "돌려라"만 말하고 "먼저 조회하라"고 하지 않는다. 그래서 다른 PC나 다른 세션이 이미 돌린 게이트를 다시 돌리거나, 진행 중인 실행을 모르고 취소하게 된다. 요약에는 클라이언트 버전이 없고 로그는 90일 뒤 사라져, 어느 판이 어느 OS·클라이언트 버전에서 통과했는지를 나중에 확인할 수 없다.
+게이트 조회 규칙과 실행 기록 기능을 [PR #320](https://github.com/Sangeok/stagekeeper/pull/320)으로 구현·병합했고, `main`에도 포함됐다. 세 게이트의 실제 `dev` 실행이 [기록 이슈 #319](https://github.com/Sangeok/stagekeeper/issues/319)에 행을 남기는 것을 확인했다. 구현·병합 완료를 기준으로 이 문서를 완료 처리하며, 정기 실행과 첫 발견의 실제 이슈 생성은 후속 관찰로 남긴다. 아래 설계와 구현 전 상태는 당시 판단 근거이며, 최종 결과는 Verification Results와 Completion or Closure Notes를 따른다.
 
-이 제안은 세 가지를 더한다. 승격 절차에 조회 규칙을 넣는다. 게이트 요약에 클라이언트 버전·OS 버전·플러그인 판을 넣는다. `dev`와 `main`에서 돈 게이트 실행마다 workflow가 고정 이슈에 한 행을 남기고, 실패하거나 거부가 있으면 따로 이슈를 연다. 플러그인 출하 파일과 서버 코드는 바꾸지 않는다.
+제안 당시 승격 전 게이트(`client-init-smoke`, `agent-eval`, `pipeline-smoke`)의 결과는 GitHub에 커밋별로 남았지만, 절차에 실행 전 조회 규칙이 없었다. 다른 PC나 세션이 이미 돌린 게이트를 다시 돌리거나 진행 중인 실행을 취소할 수 있었다. 요약에 클라이언트 버전이 없고 로그는 90일 뒤 사라져, 어느 판이 어느 OS·클라이언트 버전에서 통과했는지를 나중에 확인하기 어려웠다.
+
+구현은 세 가지를 반영했다. 승격 절차에 조회 규칙을 넣었다. 게이트 요약에 클라이언트 버전·OS 버전·플러그인 판을 넣었다. `dev`와 `main`의 게이트 실행마다 고정 이슈에 행을 남기고 실패나 거부가 있으면 별도 이슈를 여는 경로를 추가했다. 플러그인 출하 파일과 서버 코드는 변경하지 않았다.
 
 ## Goal
 
@@ -45,7 +47,7 @@ related:
 - workflow의 job 하나에 이슈 쓰기 권한을 새로 준다.
 - 공개 저장소의 이슈에 자동으로 글을 쓰는 동작이 생긴다.
 
-## Current State
+## Current State — 구현 전 기록
 
 2026-11-11 `origin/dev` `ae4079c`(플러그인 0.6.14), `origin/main` `b64643f`(플러그인 0.6.12) 기준이다.
 
@@ -95,7 +97,7 @@ Codex:
 제외 범위:
 
 - 비공개 Codex CI 저장소의 workflow 변경과 그 저장소의 기록 이슈. 그 저장소의 작업으로 따로 한다.
-- Codex CI를 승격 게이트로 올릴지, 공개 뒤 어떤 일에 어떤 실행을 필수로 할지. Codex 공개 준비([RUN-F01~F03](./codex-dual-client-runtime-follow-ups.md))가 정한다.
+- Codex CI를 승격 게이트로 올릴지, 공개 뒤 어떤 일에 어떤 실행을 필수로 할지. Codex 공개 준비([RUN-F01~F03](../active/codex-dual-client-runtime-follow-ups.md))가 정한다.
 - Codex Windows의 실제 모델 CI.
 - PR에서 도는 `client-init-smoke`와 기능 브랜치에서 수동으로 돌린 실행의 기록. PR의 검사 목록과 Actions에 지금처럼 남는다.
 - 기록에서 호환 표를 자동으로 계산하는 일. 읽기 불편해지면 따로 한다.
@@ -290,11 +292,13 @@ pipeline-smoke · dev 1eddbc2 · success · run 42921691891
 
 - 승인 전에 소유자와 정한 것: 끝나지 않은 실행은 옛 커밋의 것이어도 기다리고 30분이 넘으면 알린 뒤 취소한다. `dev`와 `main`에서 돈 실행만 기록한다. 자동 기록은 실행이 돈 저장소에 두고 수동 인수는 공개 이슈에 남긴다. 공개 전까지 Codex CI는 필수 게이트가 아니고, 공개 뒤의 게이트는 공개 준비 작업에서 정한다.
 - 승인 때 확인받은 것 두 가지. 30분은 gate job의 시작 시각부터 잰다(대기열에서 기다린 시간은 넣지 않는다). 기다리는 범위는 "같은 게이트, 그리고 구독을 같이 쓰는 `agent-eval`과 `pipeline-smoke`"다. 처음 정할 때는 세 게이트가 모두 같은 구독을 쓴다고 전제했는데, `client-init-smoke`는 모델을 쓰지 않아 범위를 좁혔다.
-- 기록 이슈를 만드는 일과 구현 PR은 실행 직전에 따로 승인받는다.
+- 최초 설계 승인은 2026-11-11에 이뤄졌다. 당시 기록 이슈 생성과 구현 PR은 별도 승인 단계로 두었으며, 이후 실제 생성·병합 결과는 아래에 기록했다.
 
 ## Execution Plan
 
-1. 준비. 같은 구역의 verification.md를 고친 #316은 2026-11-11 `dev`에 머지됐다(`ae4079c`). 승인된 [검증 스킬 이름 공간 제안](./claude-verifier-skill-namespace.md)의 기록 PR이 `client-init-smoke.yml`의 템플릿 커밋 고정값 세 곳을 바꿀 예정이다. 같은 파일을 고치므로 나중에 올리는 쪽이 최신 `dev`에 맞춘다. 기록 이슈를 만들고(소유자 승인) 본문에 목적, 행 형식, 읽는 법, "workflow와 소유자의 댓글만 기록이다"를 적는다. 2026-11-11 소유자 승인을 받아 [#319](https://github.com/Sangeok/stagekeeper/issues/319)로 만들었다.
+다음은 구현 당시 계획이다. 1–5의 수행 결과와 6–7의 후속 범위는 아래 완료 기록에서 구분한다.
+
+1. 준비. 같은 구역의 verification.md를 고친 #316은 2026-11-11 `dev`에 머지됐다(`ae4079c`). 승인된 [검증 스킬 이름 공간 제안](../active/claude-verifier-skill-namespace.md)의 기록 PR이 `client-init-smoke.yml`의 템플릿 커밋 고정값 세 곳을 바꿀 예정이다. 같은 파일을 고치므로 나중에 올리는 쪽이 최신 `dev`에 맞춘다. 기록 이슈를 만들고(소유자 승인) 본문에 목적, 행 형식, 읽는 법, "workflow와 소유자의 댓글만 기록이다"를 적는다. 2026-11-11 소유자 승인을 받아 [#319](https://github.com/Sangeok/stagekeeper/issues/319)로 만들었다.
 2. 구현(PR 하나, `dev` 대상). 버전 해석 모듈과 요약 필드, `agent-eval` 요약 도구, 기록 도구, composite action, workflow 3개, AGENTS.md와 문서 2개. 시험을 먼저 쓴다.
 3. PR에서 확인. 이 PR은 `client-init-smoke`의 경로에 걸려 PR 실행이 자동으로 돈다. 그 실행에서 `record` job이 건너뛰어지고 gate job 넷이 지금처럼 녹색인지 본다.
 4. `dev`에서 확인. 머지 뒤 다음 승격의 게이트로 세 workflow를 `dev`에서 돌린다(`agent-eval`이 끝난 뒤 `pipeline-smoke`). 행 3개가 남는지, `client-init-smoke` 행에 다리 넷이 모두 있는지, 버전 값이 로그의 값과 같은지 본다.
@@ -338,7 +342,9 @@ gh workflow run pipeline-smoke.yml --ref dev
 
 ## Verification Results
 
-2026-11-11 구현 브랜치(`dev` `e6f43f0` 기준, Windows 11, Node 22)에서 실행했다. `dev` 실행과 정기 실행의 확인은 머지 뒤에 한다.
+### 구현 당시 로컬 검증
+
+2026-11-11 구현 브랜치(`dev` `e6f43f0` 기준, Windows 11, Node 22)에서 실행한 기록이다. 병합 뒤의 실제 실행 결과는 다음 표에 추가했다.
 
 | 명령 | 결과 | 비고 |
 | --- | --- | --- |
@@ -349,9 +355,23 @@ gh workflow run pipeline-smoke.yml --ref dev
 | `npm run check` | lint·경계 검사·문서 검사·typegen·`tsc` 통과. `test:scripts` 359개 중 353개 통과, 5개 skip, 1개 실패 | 실패는 `template-release-cli`의 "profile selection…" 하나로, 이 PC의 기존 실패다 |
 | workflow 3개와 action의 YAML 해석 | 통과 | job, 출력, `record` job의 조건과 권한을 읽어 확인 |
 | 이 PC에서 버전 읽기 | `clientVersion` 2.1.322, `osVersion` 10.0.26200, `pluginVersion` 0.6.14 | 실제 `claude --version`과 `plugin.json`으로 확인 |
-| `gh workflow run …` 세 개(`dev`) | Not run yet | 머지 뒤 다음 승격의 게이트로 실행 |
-| PR 실행에서 `record` job 건너뜀 | Not run yet | 구현 PR의 `client-init-smoke` 실행에서 확인 |
-| `[gate]` 이슈를 여는 `gh` 호출 | Not run yet | 첫 실제 발견에서 확인 |
+
+### 병합 후 확인 — 2026-11-12
+
+| 확인 | 결과 | 근거와 한계 |
+| --- | --- | --- |
+| 구현 PR·CI | 완료 | [#320](https://github.com/Sangeok/stagekeeper/pull/320), 구현 `c7a9480f1e3f3d8ef09f05d0c6cf753c5b89e821`, [check #845](https://github.com/Sangeok/stagekeeper/actions/runs/43021027509) success |
+| `dev`·`main` 포함 | 확인 | 병합 `58850a9b9534aa15de62959bf6350829f7f203f9`가 확인한 `origin/dev` `02747f2`와 `origin/main` `1bbc940`의 이력에 포함됨 |
+| PR 실행에서 `record` 건너뜀 | 확인 | [client-init-smoke #71](https://github.com/Sangeok/stagekeeper/actions/runs/43021027473): gate job 넷 success, `record` skipped |
+| `dev` 설치·init 자동 기록 | 확인 | [43129245160](https://github.com/Sangeok/stagekeeper/actions/runs/43129245160), [기록 행](https://github.com/Sangeok/stagekeeper/issues/319#issuecomment-6810967393): Windows/macOS의 new-user·update 네 다리 모두 pass |
+| `dev` init 평가 자동 기록 | 확인 | [43130553739](https://github.com/Sangeok/stagekeeper/actions/runs/43130553739), [기록 행](https://github.com/Sangeok/stagekeeper/issues/319#issuecomment-6811136048): success, 발견 없음 |
+| `dev` 파이프라인 자동 기록 | 확인 | [43129163840](https://github.com/Sangeok/stagekeeper/actions/runs/43129163840), [기록 행](https://github.com/Sangeok/stagekeeper/issues/319#issuecomment-6811080622): success, 발견 없음 |
+| 버전 필드 | 기록 확인 | 위 세 실행의 commit은 `1bbc940`, client는 2.1.322, plugin은 0.6.14. OS 버전은 Windows 10.0.20348, macOS 15.8.2로 행에 남음. 이번 문서 정리에서 원본 로그 전체를 다시 대조하지는 않음 |
+| 과거 실행 3건 수동 보충 | 완료 | #319의 소유자 댓글에 42932199468·42932203430·42932669736 행이 있음. 당시 없던 버전 필드는 추정하지 않음 |
+| 새 기록 기능의 정기 실행 | 후속 관찰 | 마지막 `agent-eval` 정기 실행은 11월 9일. 11월 12일 `pipeline-smoke` 정기 실행 43125985220은 구현 전 `b64643f`를 사용했으므로 새 기록 기능의 인수로 세지 않음 |
+| 첫 `[gate]` 이슈 생성 | 후속 관찰 | 실제 발견 이슈는 아직 없음. 판정·본문 도구 시험 통과와 실제 GitHub 이슈 생성 확인은 구분 |
+
+자동 기록은 `github-actions[bot]`, 과거 보충 기록은 소유자 `Sangeok`의 댓글임을 확인했다. 이번 완료 정리는 기존 실행·기록을 조회했으며 새 모델 게이트를 실행하지 않았다.
 
 ## Risks and Rollback
 
@@ -372,25 +392,21 @@ gh workflow run pipeline-smoke.yml --ref dev
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+코드 구현·병합 완료를 기준으로 2026-11-12 완료 처리했다. #320은 게이트 조회 규칙, 버전 해석과 요약 필터, 기록 도구·composite action, 세 workflow의 `record` job, 관련 운영 문서를 반영했다. 구현 커밋 `c7a9480`은 `58850a9`로 `dev`에 병합됐고 `main`에도 포함돼 있다. PR CI와 실제 `dev` 자동 기록, 과거 행 보충을 확인했다.
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+다음은 완료를 막지 않는 후속 관찰 또는 기존 별도 작업이다. 미실행 항목을 통과로 바꾸지 않는다.
 
-닫힘 기록(`status: "closed"`일 때 작성):
+| 후속 | 상태 | 확인할 때 남길 근거 |
+| --- | --- | --- |
+| 새 기록 기능이 포함된 첫 정기 실행 | 관찰 대기 | `agent-eval`·`pipeline-smoke`의 schedule 실행과 #319의 대응 행 |
+| 첫 실제 발견의 `[gate]` 이슈 생성 | 관찰 대기 | 발견 행과 자동 생성 이슈. 이를 위해 의도적으로 실패나 모델 호출을 만들지 않음 |
+| 비공개 Codex CI 기록과 안내 | 원래 범위 밖의 별도 작업 | 해당 저장소의 기록, 공개 이슈 안내와 조회 규칙 갱신 |
 
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+이 문서는 `completed/2026-11-12-gate-run-records.md`로 이동했다. 기존 설계와 로컬 검증의 실패·skip 이력은 보존하며, 이번 문서 정리를 새로운 코드 변경·승격·배포로 기록하지 않는다.
 
 ## Review Checklist
 
-- [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
+- [x] 모든 `{placeholder}`와 완료 기록의 `TBD`를 실제 결과로 갱신했다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
@@ -403,5 +419,4 @@ gh workflow run pipeline-smoke.yml --ref dev
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
-- [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
+- [x] `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.

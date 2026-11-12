@@ -16,7 +16,7 @@ related:
   - "AGENTS.md"
   - "docs/architecture/verification.md"
   - "docs/architecture/test-writing.md"
-  - "docs/proposals/active/gate-run-records.md"
+  - "docs/proposals/completed/2026-11-12-gate-run-records.md"
 ---
 
 # CI 검사의 OS 범위 분류와 불일치 해소
@@ -87,7 +87,7 @@ CI 검사가 어느 OS에서 도는지가 검사마다 다르고, 그 차이가 
 그 밖에 확인한 것:
 
 - `scripts/templates/template-target.ts`는 설정 파일의 POSIX 권한 값(`mode & 0o077`)으로 비공개 여부를 검사한다. Windows에서는 이 조건에 항상 걸려 어떤 파일이든 거부한다. 그래서 `template-release-cli.test.ts`의 "profile selection…" 시험이 Windows에서만 실패한다. `test:scripts`는 Linux에서만 돌아서 CI에는 보이지 않는다.
-- 세 게이트의 `record` job은 다리 이름을 `legs` 입력으로 직접 받는다([gate-run-records](./gate-run-records.md)). gate job에 다리를 추가하고 `legs`를 고치지 않으면, 그 다리는 기록에서 조용히 빠지고 발견으로도 잡히지 않는다.
+- 세 게이트의 `record` job은 다리 이름을 `legs` 입력으로 직접 받는다([gate-run-records](../completed/2026-11-12-gate-run-records.md)). gate job에 다리를 추가하고 `legs`를 고치지 않으면, 그 다리는 기록에서 조용히 빠지고 발견으로도 잡히지 않는다.
 - workflow를 읽을 YAML 패키지는 직접 의존성에 없다. `js-yaml`이 ESLint를 통해 간접으로만 설치돼 있다.
 
 ## Scope
