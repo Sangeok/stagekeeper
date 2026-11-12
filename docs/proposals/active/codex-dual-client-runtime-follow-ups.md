@@ -75,7 +75,7 @@ related:
 
 원래 요구·Task·VFY를 새로 정의하지 않는다. 아래 canonical 정의와 resident 완료 기록을 참조한다.
 각 후속은 확인된 증거 또는 명시적인 지원 범위 결정으로 닫으며 검증하지 않은 것을 통과로 쓰지 않는다.
-사용 한도 기능의 개별 PC 갱신은 [별도 설치 후속](./runner-usage-limit-installation.md)에서 추적한다.
+사용 한도 기능의 개별 PC 갱신 결과와 미확인 범위는 [설치 기록](../completed/2026-11-12-runner-usage-limit-installation.md)에 보존한다.
 
 ### 2026-10-25 macOS 후보 조사 — 이력
 
