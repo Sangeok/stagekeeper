@@ -1,9 +1,23 @@
 import { spawnSync } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const protectedBranches = new Set(["main", "dev"]);
 const shaPattern = /^[a-f0-9]{40}$/;
+const reasonOrder = [
+  "working-tree-dirty", "worktree-in-use", "branch-missing", "symbolic-ref", "invalid-commit", "branch-changed",
+  "open-pr", "merged-pr-unverified", "merge-not-on-origin-dev", "ci-unverified", "check-workflow-missing",
+  "ci-not-successful", "dependent-pr", "origin-dev-changed", "remote-branch-changed", "inspection-failed",
+  "branch-changed-or-locked",
+];
+
+class CleanupAborted extends Error {
+  constructor(reason = "inspection-failed") {
+    super("Shared Git state could not be verified; remaining branches preserved.");
+    this.reason = reason;
+  }
+}
 
 function validateBranch(branch) {
   if (protectedBranches.has(branch)) throw new Error("main and dev must never be deleted.");
@@ -20,13 +34,16 @@ function command(cwd, executable, args) {
     env: { ...process.env, GIT_NO_REPLACE_OBJECTS: "1", GIT_TERMINAL_PROMPT: "0" },
     windowsHide: true,
   });
-  return { ok: !result.error && result.status === 0, output: result.stdout ?? "" };
+  return {
+    ok: !result.error && result.status === 0, output: result.stdout ?? "",
+    status: result.status, failed: Boolean(result.error || result.signal),
+  };
 }
 
 function git(cwd, args) {
   const result = command(cwd, "git", args);
   if (!result.ok) throw new Error("Git inspection failed; no branch deletion is authorized.");
-  return result.output.trimEnd();
+  return result.output.replace(/\r?\n$/, "");
 }
 
 function githubPages(cwd, endpoint, query) {
@@ -52,6 +69,11 @@ function repository(cwd) {
   return match[1];
 }
 
+function sameRepository(left, right) {
+  return typeof left === "string" && typeof right === "string" && left.length > 0
+    && left.toLowerCase() === right.toLowerCase();
+}
+
 function localBranches(cwd) {
   return git(cwd, ["for-each-ref", "--format=%(refname)%09%(objectname)%09%(symref)", "refs/heads/harness/"])
     .split("\n").filter(Boolean).map(line => {
@@ -60,16 +82,58 @@ function localBranches(cwd) {
     });
 }
 
-function localReason(cwd, branch, sha) {
-  validateBranch(branch);
-  if (git(cwd, ["status", "--porcelain=v1", "--untracked-files=all"])) return "working-tree-dirty";
-  const checkedOut = git(cwd, ["worktree", "list", "--porcelain", "-z"]).split("\0");
-  if (checkedOut.includes(`branch refs/heads/${branch}`)) return "worktree-in-use";
-  const current = localBranches(cwd).find(item => item.branch === branch);
-  if (!current) return "branch-missing";
-  if (current.symbolic) return "symbolic-ref";
-  if (current.sha !== sha) return "branch-changed";
-  return null;
+function worktrees(cwd) {
+  try {
+    const output = git(cwd, ["worktree", "list", "--porcelain", "-z"]);
+    if (!output.endsWith("\0\0")) throw new Error();
+    return output.slice(0, -2).split("\0\0").map(record => {
+      const fields = new Map();
+      for (const field of record.split("\0")) {
+        const separator = field.indexOf(" ");
+        const key = separator < 0 ? field : field.slice(0, separator);
+        const value = separator < 0 ? "" : field.slice(separator + 1);
+        if (fields.has(key) || !["worktree", "HEAD", "branch", "detached", "bare", "locked", "prunable"].includes(key)) throw new Error();
+        fields.set(key, value);
+      }
+      const path = fields.get("worktree"), head = fields.get("HEAD"), branch = fields.get("branch");
+      if (!path || ["branch", "detached", "bare"].filter(key => fields.has(key)).length !== 1
+        || !fields.has("bare") && !head || head !== undefined && !shaPattern.test(head)
+        || ["detached", "bare"].some(key => fields.has(key) && fields.get(key) !== "")
+        || fields.has("branch") && (!branch.startsWith("refs/heads/") || branch === "refs/heads/")) throw new Error();
+      return {
+        path, head: head && head !== "0".repeat(40) ? head : null, branch,
+        locked: fields.has("locked"), prunable: fields.has("prunable"),
+      };
+    });
+  } catch {
+    throw new CleanupAborted();
+  }
+}
+
+function worktreeChanges(path) {
+  try {
+    const top = git(path, ["rev-parse", "--show-toplevel"]);
+    if (realpathSync(top) !== realpathSync(path)) return "unknown";
+    return git(path, ["status", "--porcelain=v1", "--untracked-files=all"]) ? "dirty" : "clean";
+  } catch {
+    return "unknown";
+  }
+}
+
+function inspectLocal(cwd, candidate, entries = worktrees(cwd)) {
+  const reasons = [];
+  const connected = entries.filter(entry => entry.branch === `refs/heads/${candidate.branch}`)
+    .map(({ path, head, locked, prunable }) => ({ path, head, locked, prunable, changes: worktreeChanges(path) }));
+  if (git(cwd, ["status", "--porcelain=v1", "--untracked-files=all"])) reasons.push("working-tree-dirty");
+  if (connected.length) reasons.push("worktree-in-use");
+  const current = localBranches(cwd).find(item => item.branch === candidate.branch);
+  if (!current) reasons.push("branch-missing");
+  else {
+    if (current.symbolic) reasons.push("symbolic-ref");
+    if (!shaPattern.test(current.sha)) reasons.push("invalid-commit");
+    if (current.sha !== candidate.sha) reasons.push("branch-changed");
+  }
+  return { reasons, worktrees: connected };
 }
 
 function remoteHeads(cwd, branches = []) {
@@ -83,6 +147,38 @@ function remoteHeads(cwd, branches = []) {
   return heads;
 }
 
+function verifyRemoteSnapshot(cwd, { branch, sha }, devSha) {
+  let heads;
+  try {
+    heads = remoteHeads(cwd, [branch]);
+  } catch {
+    throw new CleanupAborted();
+  }
+  if (heads.get("dev") !== devSha) throw new CleanupAborted("origin-dev-changed");
+  return heads.has(branch) && heads.get(branch) !== sha ? "remote-branch-changed" : null;
+}
+
+function isAncestor(cwd, sha, devSha) {
+  const result = command(cwd, "git", ["merge-base", "--is-ancestor", sha, devSha]);
+  if (result.failed || ![0, 1].includes(result.status)) throw new Error("Git ancestry inspection failed.");
+  return result.status === 0;
+}
+
+function headPulls(pages) {
+  const pulls = arrayPages(pages);
+  if (pulls.some(pr => !Number.isSafeInteger(pr?.number) || pr.number <= 0
+    || !["open", "closed"].includes(pr.state) || typeof pr.head?.ref !== "string" || !pr.head.ref
+    || typeof pr.head?.repo?.full_name !== "string" || !pr.head.repo.full_name)) throw new Error("Invalid pull request evidence.");
+  return pulls;
+}
+
+function hasDependentPulls(pages, repo, branch) {
+  const pulls = arrayPages(pages);
+  if (pulls.some(pr => !Number.isSafeInteger(pr?.number) || pr.number <= 0 || pr.state !== "open"
+    || pr.base?.ref !== branch || !sameRepository(pr.base?.repo?.full_name, repo))) throw new Error("Invalid dependent pull request evidence.");
+  return pulls.length > 0;
+}
+
 function ciReason(pages, pr, sha) {
   if (!Array.isArray(pages) || pages.length === 0 || !pages.every(page => Array.isArray(page?.workflow_runs))) return "ci-unverified";
   const latest = new Map();
@@ -90,8 +186,8 @@ function ciReason(pages, pr, sha) {
     if (run.head_sha !== sha || run.event !== "pull_request") continue;
     if (typeof run.head_branch !== "string" || typeof run.head_repository?.full_name !== "string"
       || typeof run.repository?.full_name !== "string" || !Array.isArray(run.pull_requests)) return "ci-unverified";
-    if (run.head_branch !== pr.head.ref || run.head_repository.full_name !== pr.head.repo.full_name
-      || run.repository.full_name !== pr.base.repo.full_name) continue;
+    if (run.head_branch !== pr.head.ref || !sameRepository(run.head_repository.full_name, pr.head.repo.full_name)
+      || !sameRepository(run.repository.full_name, pr.base.repo.full_name)) continue;
     if (run.pull_requests.length && !run.pull_requests.some(item => item.number === pr.number)) continue;
     if (typeof run.path !== "string") return "ci-unverified";
     if (!Number.isSafeInteger(run.run_number) || run.run_number <= 0
@@ -108,34 +204,56 @@ function ciReason(pages, pr, sha) {
 
 function inspectCompletion(cwd, repo, candidate, devSha, github) {
   const { branch, sha } = candidate;
-  const local = localReason(cwd, branch, sha);
-  if (local) return { reason: local };
-  const pulls = arrayPages(github(`repos/${repo}/pulls`, { state: "all", head: `${repo.split("/")[0]}:${branch}` }));
-  const matching = pulls.filter(pr => pr.head?.ref === branch && pr.head?.repo?.full_name === repo);
+  const pulls = headPulls(github(`repos/${repo}/pulls`, { state: "all", head: `${repo.split("/")[0]}:${branch}` }));
+  const matching = pulls.filter(pr => pr.head.ref === branch && sameRepository(pr.head.repo.full_name, repo));
   if (matching.some(pr => pr.state === "open")) return { reason: "open-pr" };
+  const dependent = hasDependentPulls(github(`repos/${repo}/pulls`, { state: "open", base: branch }), repo, branch);
+  if (candidate.preservation === "ancestor") return dependent ? { reason: "dependent-pr" } : {};
+  const dependentReasons = dependent ? ["dependent-pr"] : [];
   const merged = matching.filter(pr => pr.state === "closed" && pr.merged_at && pr.base?.ref === "dev"
-    && pr.base?.repo?.full_name === repo && pr.head?.sha === sha);
-  if (merged.length !== 1) return { reason: "merged-pr-unverified" };
+    && sameRepository(pr.base?.repo?.full_name, repo) && pr.head?.sha === sha);
+  if (merged.length !== 1) return { reasons: ["merged-pr-unverified", ...dependentReasons] };
   const pr = merged[0];
-  if (!Number.isSafeInteger(pr.number) || pr.number <= 0 || !shaPattern.test(pr.merge_commit_sha)) return { reason: "merged-pr-unverified" };
-  if (!command(cwd, "git", ["merge-base", "--is-ancestor", pr.merge_commit_sha, devSha]).ok) return { reason: "merge-not-on-origin-dev" };
-  if (arrayPages(github(`repos/${repo}/pulls`, { state: "open", base: branch })).length) return { reason: "dependent-pr" };
+  if (!Number.isSafeInteger(pr.number) || pr.number <= 0 || !shaPattern.test(pr.merge_commit_sha)) return { reasons: ["merged-pr-unverified", ...dependentReasons] };
+  if (!isAncestor(cwd, pr.merge_commit_sha, devSha)) return { reasons: ["merge-not-on-origin-dev", ...dependentReasons] };
+  if (dependent) return { reason: "dependent-pr" };
   const ci = ciReason(github(`repos/${repo}/actions/runs`, { head_sha: sha, event: "pull_request" }), pr, sha);
   if (ci) return { reason: ci };
-  const heads = remoteHeads(cwd, [branch]);
-  if (heads.get("dev") !== devSha) return { reason: "origin-dev-changed" };
-  if (heads.has(branch) && heads.get(branch) !== sha) return { reason: "remote-branch-changed" };
-  return { pr: pr.number };
+  return { pr: pr.number, preservation: "merged-pr" };
 }
 
 function deleteLocalBranch(cwd, candidate) {
   validateBranch(candidate.branch);
-  const reason = localReason(cwd, candidate.branch, candidate.sha);
-  if (reason) return { status: "skipped", reason };
+  const local = inspectLocal(cwd, candidate);
+  candidate.worktrees = local.worktrees;
+  if (local.reasons.length) return local.reasons;
   const result = command(cwd, "git", ["update-ref", "--no-deref", "-d", `refs/heads/${candidate.branch}`, candidate.sha]);
-  if (!result.ok) return { status: "skipped", reason: "branch-changed-or-locked" };
+  if (!result.ok) return ["branch-changed-or-locked"];
+  candidate.status = "deleted";
   const config = command(cwd, "git", ["config", "--local", "--remove-section", `branch.${candidate.branch}`]);
-  return { status: "deleted", ...(!config.ok ? { note: "branch-config-absent-or-retained" } : {}) };
+  if (!config.ok) candidate.note = "branch-config-absent-or-retained";
+  return [];
+}
+
+function skip(candidate, reasons, invalidate = false) {
+  candidate.status = "skipped";
+  candidate.reasons = [...new Set([...candidate.reasons, ...reasons])]
+    .sort((a, b) => reasonOrder.indexOf(a) - reasonOrder.indexOf(b));
+  candidate.reason = candidate.reasons[0];
+  if (invalidate || candidate.reasons.some(reason => ["branch-missing", "symbolic-ref", "invalid-commit", "branch-changed", "branch-changed-or-locked"].includes(reason))) {
+    candidate.preservation = "unverified";
+    delete candidate.pr;
+  }
+}
+
+function report(apply, results, aborted = false) {
+  const summary = { total: results.length, ancestor: 0, mergedPr: 0, unverified: 0, worktreeInUse: 0, eligible: 0, deleted: 0, skipped: 0 };
+  for (const candidate of results) {
+    summary[candidate.preservation === "merged-pr" ? "mergedPr" : candidate.preservation]++;
+    summary[candidate.status]++;
+    if (candidate.reasons.includes("worktree-in-use")) summary.worktreeInUse++;
+  }
+  return { apply, results, summary, aborted };
 }
 
 export function cleanupTaskBranches({ cwd = process.cwd(), apply = false, branches = [], github } = {}) {
@@ -143,33 +261,58 @@ export function cleanupTaskBranches({ cwd = process.cwd(), apply = false, branch
   for (const branch of branches) validateBranch(branch);
   const root = git(cwd, ["rev-parse", "--show-toplevel"]);
   const available = localBranches(root);
-  const candidates = branches.length ? branches.map(branch => available.find(item => item.branch === branch) ?? { branch }) : available;
-  const results = [];
-  const pending = [];
-  for (const candidate of candidates) {
-    validateBranch(candidate.branch);
-    const reason = candidate.sha ? localReason(root, candidate.branch, candidate.sha) : "branch-missing";
-    if (reason) results.push({ branch: candidate.branch, status: "skipped", reason });
-    else if (!shaPattern.test(candidate.sha)) results.push({ branch: candidate.branch, status: "skipped", reason: "invalid-commit" });
-    else pending.push(candidate);
+  const candidates = branches.length ? [...new Set(branches)].map(branch => available.find(item => item.branch === branch) ?? { branch }) : available;
+  for (const candidate of candidates) validateBranch(candidate.branch);
+  if (!candidates.length) return report(apply, []);
+  const entries = worktrees(root);
+  const results = candidates.map(({ branch, sha }) => ({
+    branch, ...(sha ? { sha } : {}), status: "skipped", preservation: "unverified", worktrees: [], reasons: [],
+  }));
+  for (const candidate of results) {
+    const local = inspectLocal(root, candidate, entries);
+    candidate.worktrees = local.worktrees;
+    if (local.reasons.length) skip(candidate, local.reasons);
   }
-  if (!pending.length) return { apply, results };
+  const valid = results.filter(candidate => shaPattern.test(candidate.sha ?? "")
+    && !candidate.reasons.some(reason => ["branch-missing", "symbolic-ref", "invalid-commit", "branch-changed"].includes(reason)));
+  if (!valid.length) return report(apply, results);
   const repo = repository(root);
   remoteHeads(root);
   git(root, ["fetch", "--no-tags", "origin", "refs/heads/dev:refs/remotes/origin/dev"]);
   const devSha = git(root, ["rev-parse", "--verify", "refs/remotes/origin/dev"]);
   const readGithub = github ?? ((endpoint, query) => githubPages(root, endpoint, query));
-  for (const candidate of pending) {
+  for (const candidate of valid) candidate.devSha = devSha;
+  for (const candidate of valid) {
     try {
+      const local = inspectLocal(root, candidate);
+      candidate.worktrees = local.worktrees;
+      if (local.reasons.length) skip(candidate, local.reasons);
+      if (candidate.reasons.some(reason => ["branch-missing", "symbolic-ref", "invalid-commit", "branch-changed"].includes(reason))) continue;
+      if (isAncestor(root, candidate.sha, devSha)) candidate.preservation = "ancestor";
+      if (candidate.reasons.length) continue;
       const completion = inspectCompletion(root, repo, candidate, devSha, readGithub);
-      if (completion.reason) results.push({ branch: candidate.branch, status: "skipped", reason: completion.reason });
-      else results.push({ branch: candidate.branch, sha: candidate.sha, pr: completion.pr,
-        ...(apply ? deleteLocalBranch(root, candidate) : { status: "eligible" }) });
-    } catch {
-      results.push({ branch: candidate.branch, status: "skipped", reason: "inspection-failed" });
+      if (completion.reason || completion.reasons) { skip(candidate, completion.reasons ?? [completion.reason]); continue; }
+      Object.assign(candidate, completion);
+      const remoteReason = verifyRemoteSnapshot(root, candidate, devSha);
+      if (remoteReason) { skip(candidate, [remoteReason]); continue; }
+      if (apply) {
+        const reasons = deleteLocalBranch(root, candidate);
+        if (reasons.length) skip(candidate, reasons);
+      } else {
+        const finalLocal = inspectLocal(root, candidate);
+        candidate.worktrees = finalLocal.worktrees;
+        if (finalLocal.reasons.length) skip(candidate, finalLocal.reasons);
+        else candidate.status = "eligible";
+      }
+    } catch (error) {
+      if (error instanceof CleanupAborted) {
+        for (const remaining of results) if (remaining.status !== "deleted") skip(remaining, [error.reason], true);
+        return report(apply, results, true);
+      }
+      skip(candidate, ["inspection-failed"]);
     }
   }
-  return { apply, results };
+  return report(apply, results);
 }
 
 function parseArguments(args) {
@@ -186,6 +329,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   try {
     const result = cleanupTaskBranches(parseArguments(process.argv.slice(2)));
     console.log(JSON.stringify(result, null, 2));
+    if (result.aborted) process.exitCode = 1;
   } catch (error) {
     console.error(error instanceof Error && error.message.startsWith("GitHub") ? "GitHub inspection failed; branches preserved."
       : error instanceof Error && !error.message.includes("\n") ? error.message : "Branch cleanup failed; branches preserved.");
