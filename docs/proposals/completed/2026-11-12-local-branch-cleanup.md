@@ -18,7 +18,7 @@ related:
   - "docs/architecture/test-writing.md"
   - "docs/architecture/test-organization.md"
   - "docs/proposals/active/ci-os-coverage.md"
-  - "docs/proposals/active/gate-run-records.md"
+  - "docs/proposals/completed/2026-11-12-gate-run-records.md"
 ---
 
 # 로컬 작업 브랜치 정리 — 병합 판정과 worktree 종료 절차 개선 완료
