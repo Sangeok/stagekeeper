@@ -11,11 +11,11 @@ completed-at: "2026-10-25"
 last-executed-at: "2026-10-25T12:06:49Z"
 tested-revision: "fe98480d3a3c2536bb9ce0fbdd3575fd6f689dce"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/completed/2026-10-25-macos-launchd-ownership.md"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/completed/2026-10-25-macos-launchd-ownership.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["CI | macOS 15 arm64 and x64 | Darwin 24.6.0; SDK 15.5; Node 22.23.2 | ordinary user", "local | Windows repository checks | Node 22.13.1 | no native macOS execution"]
 test-summary: "pass: ordinary-user coalition creation and explicit spawn denial reproduced on both architectures — product ownership remains blocked"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # 일반 사용자 coalition 제어 가능성 검증
@@ -36,7 +36,7 @@ Windows 0.5.23 payload는 변경하지 않았다. 전체 제안서는 pending/bl
 
 | 기준 | 연결 요구사항 | 이번 판정 범위 |
 | --- | --- | --- |
-| R1 | [최소 설치](../../proposals/active/codex-dual-client-runtime-follow-ups.md)의 REQ-MIN-001/002 | 일반 사용자 권한과 기존 native 설치 조건을 보존하는 coalition 제어 가능성 |
+| R1 | [최소 설치](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md)의 REQ-MIN-001/002 | 일반 사용자 권한과 기존 native 설치 조건을 보존하는 coalition 제어 가능성 |
 | R2 | [resident 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md)의 macOS backend 경계 | 조회·상속과 전용 소유권 생성·명시적 배치를 구분 |
 | R3 | [종료 계약](../../architecture/protocol.md)의 전체 자식 종료 확인 | 생성 실패로 live coalition 종료는 NOT RUN; 기존 coalition 종료 금지 |
 

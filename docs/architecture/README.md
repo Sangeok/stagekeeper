@@ -38,7 +38,7 @@ WSL이나 다른 클라이언트 로그인, 별도 Node·검증 스킬 설치를
 경로는 출시 기준을 충족하지 않는다. 예외로 2026-10-28 결정에 따라 source에서 설치한 Claude
 Code 플러그인은 모든 OS에서 PATH의 Node.js로 helper를 실행하며, 이 경로는 Node.js를 요구한다.
 별도 Node 없이 연결하는 경로는 install bundle이다. [system-overview.md](./system-overview.md)의
-최소 설치 기준과 [후속 계획](../proposals/active/codex-dual-client-runtime-follow-ups.md)의
+최소 설치 기준과 [후속 계획](../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md)의
 Windows 실행·패키징 게이트를 자동 watch의 공개 지원·출시 전에 해결한다. 현재 PC의
 격리 개발·통합시험은 2026-10-24 승인된 후속 계획의 순서에 따라 먼저 진행할 수 있다.
 

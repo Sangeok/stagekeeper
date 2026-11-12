@@ -112,7 +112,7 @@ R1 템플릿 커밋을 고정해 둔 곳:
 
 진행 중인 다른 제안서와의 겹침:
 
-- `docs/proposals/active/codex-dual-client-runtime-follow-ups.md`가 `plugin/skills/init/SKILL.md`,
+- `docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md`가 `plugin/skills/init/SKILL.md`,
   `plugin/skills/watch/SKILL.md`(수동 설치 의존성 해소·안내), `docs/architecture/protocol.md`(실행
   preflight·역할 MCP 승인 지침), 비공개 템플릿 저장소(소스 전달·배포 인수)를 대상으로 든다. 그
   대상 가운데 이 제안이 건드리는 것은 `watch/SKILL.md`의 47-49행 첫 문장, `protocol.md`의 검증

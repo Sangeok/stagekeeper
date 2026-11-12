@@ -11,11 +11,11 @@ completed-at: "2026-10-28"
 last-executed-at: "2026-10-27T15:52:37Z"
 tested-revision: "36b00ac5c42803e2775624d54e18899eb4f780b5"
 owners: ["user:Sangeok"]
-related: ["docs/test-reports/completed/2026-10-27-codex-mixed-host-acceptance.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/architecture/protocol.md"]
+related: ["docs/test-reports/completed/2026-10-27-codex-mixed-host-acceptance.md", "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/architecture/protocol.md"]
 primary-area: "harness/codex-mixed-host-reacceptance"
 observed-environments: ["local | Windows x64 10.0.26200 | Claude Code 2.1.311 with plugin 0.5.18 and 0.5.25 helpers; codex-cli 0.164.0 with plugin 0.5.25 | disposable owner/project/service"]
 test-summary: "pass: 0.5.25 혼합 버전 재인수 — 0.5.18이 죽은 Codex 잠금을 더는 지우지 않고(T7·T8), owner 해제·포그라운드 abandoned 해제와 정상 인계·중지가 통과"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # 혼합 버전 호스트 재인수 (0.5.25)
@@ -53,7 +53,7 @@ owner 확인 해제는 Codex 0.5.25와 Claude 0.5.25 양쪽에서 동작했고, 
 
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 우선순위/해석 | 확인 기준 |
 | ------- | ----------------------- | --------- | ------------- | --------- |
-| R1 | [후속 제안서](../../proposals/active/codex-dual-client-runtime-follow-ups.md) BLK-DUAL-05·T56 | 혼합 버전 host의 중지·종료 확인·소유권 이전 | required | 실행 중 시작 거부, 종료 뒤 반납, successor 보호 |
+| R1 | [후속 제안서](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) BLK-DUAL-05·T56 | 혼합 버전 host의 중지·종료 확인·소유권 이전 | required | 실행 중 시작 거부, 종료 뒤 반납, successor 보호 |
 | R2 | [protocol](../../architecture/protocol.md) 상주 실행기 멈춤 절 | 죽은 Codex·unsettled 잠금 | required. 같은 PC의 모든 판에 적용 | PID 사망만으로 회수하지 않음. owner 확인 해제만 허용 |
 | R3 | 같은 protocol의 포그라운드 잠금 절 | 호스트가 닫힌 포그라운드 Codex 세션 | required | stop 뒤 `processLeft:false`일 때만 abandoned 해제 |
 
@@ -132,7 +132,7 @@ owner 확인 해제는 Codex 0.5.25와 Claude 0.5.25 양쪽에서 동작했고, 
 | --- | --- | --- | --- | --- |
 | F1 | 해결 | 0.5.18이 죽은 Codex·unsettled 잠금을 회수하던 문제. #239의 PID 4 항목으로 시작·정지 모두 보존 (T7, T8, E3) | 이 보고서 | 다음 잠금 형식 변경 때 `plugin/bin/harness-released-readers.test.mjs` |
 | F2 | 해결 | 죽은 Codex 잠금을 풀 방법이 없던 문제. #240 owner 확인 해제, #242 포그라운드 abandoned 해제 (T9–T11) | 이 보고서 | 없음 |
-| F5 | low | 역할 준비(`verifyNativeRuntime`) 중 owner 정지로 세션이 `stopping`이 되면 소유권 오류가 `RoleExecutionUnavailable`로 바뀌어 "Stagekeeper must fix runtime compatibility"라는 도구 거부와 로그를 남긴다. 정지는 정상 완료됐다 (T2 m4, E2) | [후속 제안서](../../proposals/active/codex-dual-client-runtime-follow-ups.md) | 정지·소유권 상실을 별도 결과로 보존하는 수정 뒤 같은 정지 |
+| F5 | low | 역할 준비(`verifyNativeRuntime`) 중 owner 정지로 세션이 `stopping`이 되면 소유권 오류가 `RoleExecutionUnavailable`로 바뀌어 "Stagekeeper must fix runtime compatibility"라는 도구 거부와 로그를 남긴다. 정지는 정상 완료됐다 (T2 m4, E2) | [후속 제안서](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) | 정지·소유권 상실을 별도 결과로 보존하는 수정 뒤 같은 정지 |
 | F6 | info | 0.5.18 owner는 정지 요청 파일을 지우지 않는다. 다음 세션은 session 불일치로 무시하고, 새 판이 잠금을 지울 때 함께 지운다 (T12, E2) | 이 보고서 | 없음 |
 
 ## Release Gate Decisions

@@ -11,11 +11,11 @@ completed-at: "2026-10-05"
 last-executed-at: "2026-10-05T12:52:42.471Z"
 tested-revision: "97f03030206f075ae6b7f4308da3314adb01478a"
 owners: ["user:Sangeok"]
-related: ["docs/architecture/protocol.md","docs/test-reports/completed/2026-10-05-windows-private-template-acceptance.md","docs/test-reports/active/dual-client-runtime-report.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+related: ["docs/architecture/protocol.md","docs/test-reports/completed/2026-10-05-windows-private-template-acceptance.md","docs/test-reports/active/dual-client-runtime-report.md","docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 primary-area: "harness/windows-role-git"
 observed-environments: ["local | native Windows 11 Home disposable installed package and service | Codex 0.160.0, Claude Code 2.1.288 helper, bundled Node 22.23.3/x64, Git 2.47.1.windows.2, PostgreSQL 18.4 | existing native Codex login; no authentication copied","CI | source check and production build | Ubuntu GitHub Actions | check workflow"]
 test-summary: "pass: scoped Windows Git inspection regression — actual private dev verification passed; full verifier, controlled same-case stop/resume and latest native CI remain open"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/active/dual-client-runtime-report.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md","docs/test-reports/active/dual-client-runtime-report.md"]
 ---
 
 # Windows 역할 Git 조회 회귀 검증
@@ -110,9 +110,9 @@ raw 모델 출력, 계정·세션 식별자는 포함하지 않는다. 실제 �
 
 | ID | 심각도 | 발견 사항과 Evidence ID | 추적 위치 | 재검증 조건 |
 | --- | --- | --- | --- | --- |
-| F1 | high | 독립 verifier는 read failed/blocked 후 report ok로 닫혔으며 원본 skill 검토를 완료하지 못했다. dev verify ok는 전체 verifier 통과 근거가 아니다. [E1] | [후속 계획](../../proposals/active/codex-dual-client-runtime-follow-ups.md) | 고정 released 본문·실제 plan/verification paths로 독립 verifier 전체 실행 |
+| F1 | high | 독립 verifier는 read failed/blocked 후 report ok로 닫혔으며 원본 skill 검토를 완료하지 못했다. dev verify ok는 전체 verifier 통과 근거가 아니다. [E1] | [후속 계획](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) | 고정 released 본문·실제 plan/verification paths로 독립 verifier 전체 실행 |
 | F2 | high | 초기 0.5.3 dev의 실제 pending command stop은 exit 124/quiescent였으나, 그 resume은 owner control/generated 파일이 scope 밖에 있어 verify failed였다. 깨끗한 다음 항목은 테스트를 완료했지만 observer가 preflight를 포함해 실제 pending test를 중지하지 못했다. [E1] | [active 캠페인](../active/dual-client-runtime-report.md) | 동일 private 항목의 실제 active-command 식별 후 stop·종료·fresh resume·검증 완주 |
-| F3 | high | 마지막 dev는 verify ok 후 report failed/handoff로 owner를 기다린다. 최종 accept·released private 본문·clean Windows·native Claude·C4는 미인수다. [E1] | [후속 계획](../../proposals/active/codex-dual-client-runtime-follow-ups.md) | 최소 설치 조건을 유지한 owner 보고서 commit 및 전체 제품 인수 |
+| F3 | high | 마지막 dev는 verify ok 후 report failed/handoff로 owner를 기다린다. 최종 accept·released private 본문·clean Windows·native Claude·C4는 미인수다. [E1] | [후속 계획](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) | 최소 설치 조건을 유지한 owner 보고서 commit 및 전체 제품 인수 |
 | F4 | medium | 새 native-runtime CI 결과는 이 시점에 미확정이다. 최종 local Windows Git 시험과 required check는 통과했다. [E1][E3] | [PR #117](https://github.com/Sangeok/stagekeeper/pull/117) | 해당 native CI 완료 후 별도 결과 확인 |
 
 첫 resume의 receipt 필드 사용, stopping 전 release, 최종 HTTP dispatch의 agentKey 누락은
