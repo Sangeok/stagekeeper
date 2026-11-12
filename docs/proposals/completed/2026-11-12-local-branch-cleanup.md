@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-12"
 approved-by: "user"
 approved-at: "2026-11-12"
-approval-scope: "Phase BRC 코드·테스트·규칙 문서 구현과 로컬 검증. 기존 사용자 자료의 일괄 삭제, PR 병합과 배포는 제외."
-completed-at: null
-verification-summary: null
+approval-scope: "Phase BRC 코드·테스트·규칙 문서 구현, 로컬·CI 검증, dev 대상 PR 생성·병합과 완료 문서 정리. 기존 사용자 자료의 일괄 삭제와 main 승격·배포는 제외."
+completed-at: "2026-11-12"
+verification-summary: "18ba250 구현, 로컬 architecture 321 pass/2 skip·scripts 421 pass/2 skip·제품 639 pass/41 skip·build 통과. PR #328 check 6개 job 성공 후 11dd700으로 dev 병합."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -21,7 +21,7 @@ related:
   - "docs/proposals/active/gate-run-records.md"
 ---
 
-# 로컬 작업 브랜치 정리 — 병합 판정과 worktree 종료 절차 개선
+# 로컬 작업 브랜치 정리 — 병합 판정과 worktree 종료 절차 개선 완료
 
 ## Summary
 
@@ -29,7 +29,7 @@ related:
 
 정리 결과에는 커밋 보존 여부와 삭제 보류 이유를 따로 표시한다. 작업을 끝낸 주체가 자신이 만든 worktree의 사용 종료를 확인하고 해제하는 절차를 문서화한다. 전체 정리 스크립트는 worktree를 제거하거나 checkout하지 않는다.
 
-이 문서는 구현 파일·함수·출력 계약·회귀 사례·적용 순서를 정한 단일 구현 계획이다. 문서 작성 요청을 실제 코드 변경, 기존 worktree 제거, PR 병합 또는 배포 승인으로 확대하지 않는다.
+Phase BRC 구현과 로컬·CI 검증을 완료하고 [PR #328](https://github.com/Sangeok/stagekeeper/pull/328)로 `dev`에 병합했다. 아래 설계·실행 계획과 baseline은 당시 판단 근거를 보존한 기록이다. 최종 결과는 Verification Results와 Completion or Closure Notes를 따른다.
 
 ## Goal
 
@@ -223,7 +223,7 @@ WHEN 삭제 직전 로컬 SHA·symbolic ref·worktree·dirty 상태 또는 검�
 
 ## Approval
 
-현재 요청의 산출물은 이 실행 가능한 제안서다. 구현의 승인 기록은 front matter를 단일 기준으로 사용한다. 기존 세션에서 이미 구현 범위가 승인됐다는 추가 근거가 있으면 그 범위를 적용하되, 문서 작성 완료를 근거로 실제 사용자 worktree를 자동 정리하지 않는다.
+승인 기록은 front matter를 단일 기준으로 사용한다. 최초 문서 작성·로컬 구현 이후의 통합 절차도 승인 범위에 반영했다. 이 완료 기록은 기존 사용자 worktree의 일괄 정리를 승인하지 않는다.
 
 ## Execution Plan
 
@@ -360,7 +360,7 @@ npm run branches:cleanup
 
 ## Verification Results
 
-Phase BRC의 코드·테스트·규칙 문서 구현과 로컬 검증을 완료했다. 아래 로컬 구현 결과가 현재 상태이며, 뒤의 문서 작성/baseline 표는 구현 전 이력으로 보존한다.
+Phase BRC의 코드·테스트·규칙 문서 구현, 로컬·CI 검증과 `dev` 통합을 완료했다. 아래 로컬 구현 결과와 CI·통합 결과가 최종 증거이며, 문서 작성/baseline 표는 구현 전 이력으로 보존한다.
 
 | 확인 | 결과 | 한계 |
 | --- | --- | --- |
@@ -375,7 +375,7 @@ Phase BRC의 코드·테스트·규칙 문서 구현과 로컬 검증을 완료�
 
 2026-11-12, `origin/dev` `296407f1badd611c2518cc71c9aac9015b6148a5`에서 만든
 `harness/local-branch-cleanup-20261112`에서 구현했다. 사용자가 요청한 실제 코드 수정과
-검증 범위이며 PR 병합·배포·기존 사용자 자료의 일괄 정리는 수행하지 않았다.
+검증 범위였으며, 이 로컬 검증 시점에는 PR 병합·배포·기존 사용자 자료의 일괄 정리를 수행하지 않았다. 이후 통합은 아래 CI·통합 결과에 기록한다.
 
 - 환경: macOS arm64, Node 26.4.0, npm 11.17.0, Git 2.50.1.
 - 구현 목적지는 Affected Files의 다섯 파일이다. dependency·npm 명령·CI workflow·plugin·앱·DB 코드는 변경하지 않았다.
@@ -409,6 +409,21 @@ VFY-BRC-04는 소유 fixture의 remove/detach·ignored 파일·외부 디렉터�
 확인했다. 실제 사용 종료는 사람/에이전트의 절차이며 Windows junction 실행 인증은
 이 macOS 결과에 포함하지 않는다. 테스트는 Windows에서 junction을 만드는 분기를 포함한다.
 
+### CI·통합 결과
+
+2026-11-12 구현 커밋 `18ba25043c53fc2c2174c3844f1108ab9a7157dc`의
+[check #863](https://github.com/Sangeok/stagekeeper/actions/runs/43159318364)가 성공한 뒤
+[PR #328](https://github.com/Sangeok/stagekeeper/pull/328)을 `dev`에 병합했다.
+
+| 확인 | 결과 | 범위 |
+| --- | --- | --- |
+| PR `check` | 6개 job 모두 success | static, test, test-web, server, build, server-integration. Linux / Node 22 |
+| `dev` 병합 | `11dd700b74cd7cef7e0309d8b67d6eb051db76ae` | 검증한 head SHA를 지정해 병합하고 fetch 후 구현 커밋의 포함 여부 확인 |
+| 구현 파일 보존 | 스크립트와 테스트의 SHA-256이 위 로컬 검증 기록과 일치 | 통합 과정에서 구현 코드 변경 없음 |
+
+로컬 macOS 결과와 Linux CI 결과를 구분한다. Windows junction 제거 동작의 실제 인수,
+기존 사용자 worktree 일괄 정리, `main` 승격과 배포는 이 완료 범위에 포함하지 않는다.
+
 ### 구현 전 baseline 이력
 
 2026-11-12 정합성 검토에서 별도 worktree의 동일 baseline(`eabd138`)으로 실행한 기록:
@@ -440,9 +455,9 @@ VFY-BRC-04는 소유 fixture의 remove/detach·ignored 파일·외부 디렉터�
 
 ## Selected-Phase Readiness
 
-로컬 구현과 위 검증을 완료했으며 통합 대기 상태다. 승인된 구현 범위는 front matter에 기록했다. 현재 코드의 정상·실패·부분 중단 결과와 독립 검토를 확인했고, 사용 중인 실제 worktree의 해제나 배포를 이 결과로 승인하지 않는다.
+Phase BRC는 구현·검증과 `dev` 통합까지 완료했다. 승인 범위는 front matter에 기록했다. 현재 코드의 정상·실패·부분 중단 결과와 독립 검토를 확인했고, 사용 중인 실제 worktree의 해제나 배포를 이 결과로 승인하지 않는다.
 
-진입/중단 조건은 다음과 같다.
+다음은 구현 당시 적용한 진입/중단 조건이다.
 
 - 구현 시작 시 함수·출력 소비자·규칙이 달라졌으면 차이를 먼저 대조하고 안전 조건을 유지할 수 없는 충돌에서는 중단한다.
 - 코드와 규칙 문서의 변경을 함께 반영한다. 미반영 계약을 제안서로 우회하지 않는다.
@@ -462,9 +477,9 @@ VFY-BRC-04는 소유 fixture의 remove/detach·ignored 파일·외부 디렉터�
 
 ## Completion or Closure Notes
 
-로컬 코드·테스트·규칙 문서 구현과 검증은 완료했으며, 승인 범위 밖의 PR 병합·배포는 진행하지 않았다. 통합이 끝나기 전에는 `pending`/`approved`를 유지한다. 완료 문서 이동은 승인된 통합 절차와 잔여 보류 사유 기록 후 수행한다. 기존 worktree를 모두 없애는 것은 완료 조건이 아니다.
+구현 커밋 `18ba250`의 로컬 검증과 PR CI를 확인한 뒤 #328을 `dev`의 `11dd700`으로 병합했다. 문서 상태를 `completed`, `stage: null`로 갱신하고 `completed/2026-11-12-local-branch-cleanup.md`로 이동했다.
 
-완료 시 실제 커밋·PR, 명령별 통과/실패/skip, 적용 범위, 잔여 제한을 기록하고 front matter를 갱신한 뒤 저장소 규칙에 따라 `completed/`로 이동한다. 실행하지 않기로 하면 이유와 대체 문서를 기록하고 `closed`로 이동한다.
+Phase BRC의 미완료 구현 항목은 없다. 기존 worktree를 모두 없애는 것은 완료 조건이 아니며, 소유권·사용 종료를 확인하지 못한 작업 폴더와 사용자 자료는 보존한다. Windows junction 제거 인수와 `main` 승격·배포는 이번 완료 범위 밖에 남는다.
 
 ## Review Checklist
 
@@ -475,4 +490,4 @@ VFY-BRC-04는 소유 fixture의 remove/detach·ignored 파일·외부 디렉터�
 - [x] 기존 PR/CI 거부 테스트의 fixture 전환과 경합 주입 위치를 지정했다.
 - [x] 사용자 파일·protected ref·원격 ref·출하 코드의 변경 경계를 명시했다.
 - [x] REQ–Task–VFY와 실행 명령·관찰 결과·복구 한계를 연결했다.
-- [ ] 실제 구현과 검증 완료 후 결과·승인·완료 metadata를 갱신했다.
+- [x] 실제 구현과 검증 완료 후 결과·승인·완료 metadata를 갱신했다.
