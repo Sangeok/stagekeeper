@@ -19,7 +19,7 @@ related:
   - "docs/architecture/protocol.md"
   - "docs/architecture/verification.md"
   - "docs/proposals/completed/2026-09-05-plugin-clean-code-findings.md"
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
   - "docs/proposals/active/impl-verifier.md"
   - "docs/test-reports/active/dual-client-runtime-report.md"
 ---

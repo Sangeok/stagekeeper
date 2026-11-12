@@ -14,7 +14,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
   - "docs/proposals/completed/2026-10-04-codex-dual-client-support.md"
   - "docs/proposals/completed/2026-10-21-runner-status-and-background-runner.md"
   - "docs/architecture/protocol.md"
@@ -30,7 +30,7 @@ Windows의 기본 graph·중지/재개·110분 인수와 macOS의 전체 선택 
 macOS 구현은 `dev`에 병합됐으며, 이 문서에 남아 있던 macOS 미구현 판정은 과거 기록이다.
 
 2026-11-11 사용자의 정리 요청에 따라 코드 구현 완료로 문서를 닫는다.
-C4C의 남은 환경·출시 인수는 [runtime 후속 문서](../active/codex-dual-client-runtime-follow-ups.md#2026-11-11-남은-인수)를 따른다.
+C4C의 남은 환경·출시 인수는 [runtime 후속 문서](2026-11-12-codex-dual-client-runtime-follow-ups.md#2026-11-11-남은-인수)를 따른다.
 아래 원래 계획의 요구사항·Task·VFY와 날짜별 실패·차단 기록은 역사적 근거로 보존한다.
 과거 readiness 판정은 현재 구현 상태나 전체 제품 지원 선언으로 사용하지 않는다.
 
@@ -82,7 +82,7 @@ clean Windows는 2026-10-28의 사용자 생략 결정을 유지하며 새 차�
 결과 판독, 취소와 종료 확인을 연결한다. 세션형 자동 watch와 두 방식 동시 개발은
 이번 범위에 넣지 않는다. 기존 foreground run/resume은 유지한다.
 
-상위 [실행·인수 계획](../active/codex-dual-client-runtime-follow-ups.md)이 최소 설치,
+상위 [실행·인수 계획](2026-11-12-codex-dual-client-runtime-follow-ups.md)이 최소 설치,
 실제 역할·양방향 승인·중지/재개 인수를 소유한다. 원본 SDD의 REQ-DUAL-018/019,
 INV-DUAL-001~005, CON-DUAL-001~008과 TASK-C4-01/02는
 [완료 기록](./2026-10-04-codex-dual-client-support.md)의 canonical 정의를 참조한다.

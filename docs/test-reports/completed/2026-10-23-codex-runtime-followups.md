@@ -11,11 +11,11 @@ completed-at: '2026-10-23'
 last-executed-at: '2026-10-23T14:31:23.420Z'
 tested-revision: '775772efd6163117809c33e13e070adba9a8cff7'
 owners: ['user:Sangeok']
-related: ['docs/proposals/active/codex-dual-client-runtime-follow-ups.md','docs/architecture/protocol.md','docs/test-reports/active/dual-client-runtime-report.md']
+related: ['docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md','docs/architecture/protocol.md','docs/test-reports/active/dual-client-runtime-report.md']
 primary-area: 'harness/codex-runtime-followups'
 observed-environments: ['local | native Windows, isolated installed profiles and loopback service | Codex 0.164.0; Claude Code 2.1.309; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent']
 test-summary: 'pass: actual private active-command stop through same-item final acceptance, bounded bidirectional CLI/browser handover, installed package update and limited template recovery'
-follow-up: ['docs/proposals/active/codex-dual-client-runtime-follow-ups.md']
+follow-up: ['docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md']
 ---
 
 # Codex runtime follow-up acceptance
@@ -138,7 +138,7 @@ PATH isolation cannot satisfy it. Mixed-version physical-host ownership, support
 OS acceptance and approved operational release also remain open. C4A is complete;
 C4B still requires the minimum-setup and real main-loop permission/commit contract,
 then C4C requires actual 110-minute no-model idle and lifecycle acceptance. See the
-[follow-up proposal](../../proposals/active/codex-dual-client-runtime-follow-ups.md).
+[follow-up proposal](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md).
 
 ## Test Data and Cleanup
 

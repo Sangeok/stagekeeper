@@ -11,11 +11,11 @@ completed-at: '2026-10-24'
 last-executed-at: '2026-10-24'
 tested-revision: '1eedf0de90d782763167a8c500f33ab1f19e7905'
 owners: ['user:Sangeok']
-related: ['docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md','docs/proposals/active/codex-dual-client-runtime-follow-ups.md','docs/architecture/protocol.md']
+related: ['docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md','docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md','docs/architecture/protocol.md']
 primary-area: 'runners/client-permission-contract'
 observed-environments: ['local | native Windows, disposable loopback PostgreSQL | PostgreSQL 18.6 | isolated DDL fixture']
 test-summary: 'pass: 111 candidate-DDL observations; existing Claude rows preserved; legacy session-only deletion demonstrated as a rollout limitation'
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Codex resident contract rehearsal

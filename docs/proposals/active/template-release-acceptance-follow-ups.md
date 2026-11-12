@@ -20,7 +20,7 @@ related:
   - "docs/test-reports/completed/2026-11-05-template-release-production-cutover.md"
   - "docs/test-reports/completed/2026-11-10-template-release-r1-activation.md"
   - "docs/test-reports/completed/2026-11-10-codex-macos-native-acceptance.md"
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
 ---
 
 # 템플릿 릴리스 복원·설치 조합 인수 후속

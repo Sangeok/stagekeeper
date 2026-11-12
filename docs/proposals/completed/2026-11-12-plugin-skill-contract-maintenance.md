@@ -17,7 +17,7 @@ related:
   - "docs/architecture/macos-runtime.md"
   - "docs/architecture/verification.md"
   - "docs/architecture/test-writing.md"
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
   - "docs/proposals/active/claude-verifier-skill-namespace.md"
 ---
 
@@ -105,7 +105,7 @@ OS·native 실행 계약 때문에 Codex 스킬 네 개가 함께 바뀌었다. 
 
 ### 다른 작업과의 경계
 
-- [dual-client 후속](../active/codex-dual-client-runtime-follow-ups.md)은 공개 패키지·OS·실제 설치 인수를 소유한다. 해당 인수를 이 문서로 옮기거나 완료 처리하지 않는다.
+- [dual-client 후속](2026-11-12-codex-dual-client-runtime-follow-ups.md)은 공개 패키지·OS·실제 설치 인수를 소유한다. 해당 인수를 이 문서로 옮기거나 완료 처리하지 않는다.
 - [Claude namespace 변경](../active/claude-verifier-skill-namespace.md)이 정한 `harness:reconciling-proposals-with-codebase` 호출을 보존한다. 템플릿 릴리스 작업을 재수행하지 않는다.
 - [CI OS 범위](../active/ci-os-coverage.md)와 [게이트 기록](./2026-11-12-gate-run-records.md)의 workflow·운영 정책은 변경하지 않는다. 이후 실행 때 최신 `AGENTS.md`와 검증 문서를 다시 읽는다.
 - [사용 한도 설치](../active/runner-usage-limit-installation.md)와 [템플릿 인수](../active/template-release-acceptance-follow-ups.md)의 운영 환경 변경은 포함하지 않는다.

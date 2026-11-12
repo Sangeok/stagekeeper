@@ -104,7 +104,7 @@ CI 검사가 어느 OS에서 도는지가 검사마다 다르고, 그 차이가 
 
 - Linux 지원. 지원 목록 밖에 두고, 설치와 init의 Linux 확인을 추가하지 않는다. 안내 문구의 Linux 줄도 바꾸지 않는다. Linux 사용자가 실제로 생기면 따로 제안한다.
 - Windows의 `agent-eval`. 표에 이유와 함께 남긴다.
-- Codex의 CI. 비공개 저장소에서 돌고, 공개 뒤의 범위는 [Codex 공개 준비](./codex-dual-client-runtime-follow-ups.md)가 정한다.
+- Codex의 CI. 비공개 저장소에서 돌고, 공개 뒤의 범위는 [Codex 공개 준비](../completed/2026-11-12-codex-dual-client-runtime-follow-ups.md)가 정한다.
 - `template-target.ts`의 Windows 동작. 템플릿 release 도구의 소유 작업에 이슈로 넘긴다.
 - 두 검사가 "같은 것을 보는지"의 자동 판정. 표의 설명 칸과 리뷰가 맡는다.
 

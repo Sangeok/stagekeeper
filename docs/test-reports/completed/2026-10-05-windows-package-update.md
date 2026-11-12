@@ -11,11 +11,11 @@ completed-at: "2026-10-05"
 last-executed-at: "2026-10-05T09:54:35.974Z"
 tested-revision: "21b2c7bdcacd463ffe7286d05da4dc73b1960a74"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/active/dual-client-runtime-report.md"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md","docs/test-reports/active/dual-client-runtime-report.md"]
 primary-area: "harness/windows-package-update"
 observed-environments: ["local | isolated install profiles on Windows 11 Home 10.0.26200 | Codex 0.160.0 / Claude Code 2.1.288 / bundled Node 22.23.3 x64 | no authentication copied"]
 test-summary: "pass: versioned 0.5.2 private package update, exact installed inventory, helper/skill conflict boundaries and ZIP round trip; broader minimum-install/release gates remain open"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Windows 패키지 업데이트 회귀 인수

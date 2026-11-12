@@ -11,11 +11,11 @@ completed-at: null
 last-executed-at: "2026-10-26T01:21:03.886Z"
 tested-revision: "af2b1d3aefc27b404b89165baca8ef0336d55ef6"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
+related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md","docs/test-reports/README.md","docs/test-reports/template.md"]
 primary-area: "harness/dual-client-runtime"
 observed-environments: ["CI | macOS 15 arm64 and x64 model-free runtime contracts | Node.js 22.23.2 | GitHub Actions", "local | isolated Windows product resident service | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "local | isolated Windows foreground with committed private templates | Codex 0.164.0; bundled Node 22.23.3 | disposable owner and agent", "local | isolated Windows foreground candidate | Codex 0.163.0; bundled Node 22.23.3 | disposable owner and agent", "local | disposable installed native Windows package | bundled Node.js 22.23.3/x64; Codex 0.160.0 | test owner","CI | Windows Server 2022 LPAC command/npm acceptance | pinned Node.js 22.23.3/x64 | GitHub Actions","local | disposable CLI/loopback MCP | Node.js v22.13.1/win32 | test owner","local | Ubuntu 26.04.1 LTS / WSL2 disposable native CLI | Node.js v22.13.1/linux; Codex 0.160.0 | test owner"]
 test-summary: "fail: historical required failures retained — current 0.5.24 Windows fresh/update installation, actual A-to-Z, pending stop/resume and same-payload 110-minute idle passed; external-host and release gates remain open"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Dual-client implementation and runtime report
@@ -191,7 +191,7 @@ Historical file-only checkpoint:
 
 2026-10-04 actual current-adapter trials: per-tool MCP approval defect fixed; MCP execution and pending PM stop/common-lock exclusion observed. Windows 0.160.0 cannot execute the unchanged root-deny file policy, so basic host acceptance remains BLOCKED and C4 is NOT IMPLEMENTED. [projected actual observations](../assets/2026-10-04-codex-role-host-preflight/observations.json) records projected diagnostics, source hashes and 66048 reported tokens. Full DB/browser/installed-package/verifier and mixed-version acceptance remain open.
 
-2026-10-04 document lifecycle update: the user completed the basic proposal on its source-implementation criterion. Remaining actual host, CLI, private deployment and C4 work is tracked in [the active follow-up proposal](../../proposals/active/codex-dual-client-runtime-follow-ups.md). That lifecycle-only update ran no runtime trials and preserved then-current metadata. The later actual trial rows below update execution metadata while retaining all historical rows.
+2026-10-04 document lifecycle update: the user completed the basic proposal on its source-implementation criterion. Remaining actual host, CLI, private deployment and C4 work is tracked in [the active follow-up proposal](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md). That lifecycle-only update ran no runtime trials and preserved then-current metadata. The later actual trial rows below update execution metadata while retaining all historical rows.
 
 C0 evaluates a disposable host/package/legacy-lock environment. It does not certify Codex production support or authorize deployment. Each execution appends evidence; historical PASS results are tied to their own recorded revision.
 
@@ -217,10 +217,10 @@ the integrated two-CLI/browser product flow is still NOT RUN.
 | --- | --- | --- | --- | --- |
 | R1 | docs/proposals/completed/2026-10-04-codex-dual-client-support.md | E1/E6/E7 C0 | MUST | Actual isolation/discovery plus legacy boundaries; unexecuted checks remain blocked |
 | R2 | docs/proposals/completed/2026-10-04-codex-dual-client-support.md | C1–C3 source and acceptance | MUST | Preserve Claude, client/ledger/ownership contracts and safe generation; actual host/DB/package acceptance must be distinct |
-| R3 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Current role host, cancellation and C4 prerequisite | MUST | Actual file operations must execute under unchanged permissions before C4; preserve prior failures |
-| R4 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Native Windows files first, commands and minimum setup remain gated | MUST | Actual scoped file boundaries/ownership without WSL; no shell/test or installation readiness claim from file canaries |
+| R3 | docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md | Current role host, cancellation and C4 prerequisite | MUST | Actual file operations must execute under unchanged permissions before C4; preserve prior failures |
+| R4 | docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md | Native Windows files first, commands and minimum setup remain gated | MUST | Actual scoped file boundaries/ownership without WSL; no shell/test or installation readiness claim from file canaries |
 
-| R5 | docs/proposals/active/codex-dual-client-runtime-follow-ups.md | Native Windows commands, complete original verifier and private local minimum-setup bundle | MUST | Real guarded edit/test/build, LPAC child quiescence, independent full verifier and installed bundle evidence; preserve per-candidate failures and separate service/release gates |
+| R5 | docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md | Native Windows commands, complete original verifier and private local minimum-setup bundle | MUST | Real guarded edit/test/build, LPAC child quiescence, independent full verifier and installed bundle evidence; preserve per-candidate failures and separate service/release gates |
 
 ## Test Target
 
@@ -627,7 +627,7 @@ Current run: MCP tool approvals are bounded to the existing role allowlist with 
 
 The public implementation is committed in 771fd41 and integrated with latest dev in E67's revision for a PR targeting dev. The earlier uncommitted inventories describe their historical checkpoints. The separate private template repository remains at 95ace9d70b63cc8598ab229e2fe1138467f11728 with local changes; those bodies are excluded from the public PR and have not been committed, pushed or seeded. Actual installed package, owner skill execution, DB and deployment blockers remain unchanged. Unrelated existing document edits/deletions are excluded from the public commits.
 
-C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track unresolved native role isolation, actual winning package body, approved private deployment and mixed-version quiescence in [the follow-up proposal](../../proposals/active/codex-dual-client-runtime-follow-ups.md).
+C0 cannot release BLK-DUAL-01/02/03/05 from help/config validation alone. Track unresolved native role isolation, actual winning package body, approved private deployment and mixed-version quiescence in [the follow-up proposal](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md).
 
 BLK-DUAL-01 remains open: reject the writable-repository automatic approval candidate; test the implemented fresh App Server adapter where repository reads and allowed scratch writes execute while forbidden writes, nested agents and owner tools are actually denied. The new effective config check does not establish functional kernel/tool restrictions. Neither global sandbox reconfiguration nor blanket escalation was performed. Architecture documents now describe implemented source and explicitly distinguish actual product readiness.
 

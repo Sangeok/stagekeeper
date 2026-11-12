@@ -11,11 +11,11 @@ completed-at: "2026-10-05"
 last-executed-at: "2026-10-05T10:42:06.144Z"
 tested-revision: "0edfb7e044b0e2c19e4ce7a72966d0beea5f0690"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md","docs/test-reports/active/dual-client-runtime-report.md"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md","docs/test-reports/active/dual-client-runtime-report.md"]
 primary-area: "harness/windows-private-template-acceptance"
 observed-environments: ["local | native Windows 11 Home disposable service and install profiles | Codex 0.160.0, Claude Code 2.1.288 helper, bundled Node 22.23.3/x64, PostgreSQL 18.4 | existing Codex login; no authentication copied"]
 test-summary: "fail: real private working templates connected and browser approval/server handover passed; dev role blocked at Git inspection and full role/verifier/stop-resume acceptance did not complete"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Windows 실제 private 템플릿 연결 인수

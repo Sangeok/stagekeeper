@@ -11,11 +11,11 @@ completed-at: '2026-10-24'
 last-executed-at: '2026-10-23T15:39:41.281Z'
 tested-revision: '5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5'
 owners: ['user:Sangeok']
-related: ['docs/proposals/active/codex-dual-client-runtime-follow-ups.md','docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md','docs/architecture/protocol.md','docs/test-reports/active/dual-client-runtime-report.md']
+related: ['docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md','docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md','docs/architecture/protocol.md','docs/test-reports/active/dual-client-runtime-report.md']
 primary-area: 'harness/windows-codex-runtime'
 observed-environments: ['local | Windows 11 Home 10.0.26200 x64, isolated installed profiles and loopback service | Codex 0.164.0; Claude 2.1.309; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent']
 test-summary: 'pass: installed 0.5.20 fresh-plan cycle through both browser gates and final acceptance; Windows command parameter regression repaired; bounded native main-loop transport observed'
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Windows Codex gates and command recovery

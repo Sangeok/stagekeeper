@@ -11,11 +11,11 @@ completed-at: "2026-10-27"
 last-executed-at: "2026-10-27T08:49:02.677Z"
 tested-revision: "a6d6933e8b499446683dc07fc77d9448d602b449"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "docs/architecture/protocol.md", "docs/test-reports/completed/2026-10-26-codex-0524-windows-acceptance.md", "docs/test-reports/completed/2026-10-24-codex-runtime-portability.md"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "docs/architecture/protocol.md", "docs/test-reports/completed/2026-10-26-codex-0524-windows-acceptance.md", "docs/test-reports/completed/2026-10-24-codex-runtime-portability.md"]
 primary-area: "harness/codex-mixed-host-acceptance"
 observed-environments: ["local | Windows x64 10.0.26200 | Claude Code 2.1.310 with plugin 0.5.18; codex-cli 0.164.0 with plugin 0.5.24; legacy plugin 0.4.1 on system Node | disposable owner/project/service"]
 test-summary: "fail: 같은 Windows PC의 혼합 버전 소유권·중지 인수 — 실행 중 인계·중지·successor 보호는 양방향 통과, 죽은 Codex 상주 잠금은 0.5.18 시작 시도가 지움"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # 혼합 버전 호스트 소유권·중지 인수
@@ -48,7 +48,7 @@ successor 보호는 양방향 모두 통과했다. 실패는 한 가지다. Code
 
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 우선순위/해석 | 확인 기준 |
 | ------- | ----------------------- | --------- | ------------- | --------- |
-| R1 | [후속 제안서](../../proposals/active/codex-dual-client-runtime-follow-ups.md) BLK-DUAL-05·T56, [실행 보고서](../active/dual-client-runtime-report.md) T56 | 혼합 버전 host의 중지·종료 확인·소유권 이전 | required | pending 역할·도구가 끝나기 전 잠금 보존, 종료 뒤 자기 release, successor 보호 |
+| R1 | [후속 제안서](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) BLK-DUAL-05·T56, [실행 보고서](../active/dual-client-runtime-report.md) T56 | 혼합 버전 host의 중지·종료 확인·소유권 이전 | required | pending 역할·도구가 끝나기 전 잠금 보존, 종료 뒤 자기 release, successor 보호 |
 | R2 | [protocol](../../architecture/protocol.md) 상주 실행기 멈춤 절 | 죽은 상주 잠금의 회수 | required. Codex 규칙은 0.5.24 단독이 아니라 같은 PC의 모든 판에 적용된다고 해석 | Codex 잠금은 PID 사망만으로 회수하지 않고, `unsettled` 잠금은 보존 |
 | R3 | 같은 제안서 R5 행, 2026-10-04 설계 E7 | legacy·updated adapter와 늦은 release | required | 늦은 stop·release·poller 정리가 successor 바이트를 바꾸지 않음 |
 
@@ -117,7 +117,7 @@ successor 보호는 양방향 모두 통과했다. 실패는 한 가지다. Code
 
 | ID | 심각도 | 발견 사항과 Evidence ID | 추적 위치 | 재검증 조건 |
 | --- | --- | --- | --- | --- |
-| F1 | high | 0.5.18의 상주 시작은 죽은 상주 잠금을 `client`와 `unsettled`를 보지 않고 회수한다. 서버 호출 전에 잠금을 지우므로 `busy`로 실패해도 Codex 잠금이 사라진다. 0.5.24가 보존한 `unsettled`·죽은 Codex 잠금이 이 PC에서는 지켜지지 않는다 (T7, T8, E3) | [후속 제안서](../../proposals/active/codex-dual-client-runtime-follow-ups.md) BLK-DUAL-05·T56. 이 보고서는 제안서를 고치지 않았다 | 결정된 방향(예: 옛 클라이언트가 실패 쪽으로 닫히게 하는 잠금 표현이나 출시 순서 조건)으로 T7·T8 재실행 |
+| F1 | high | 0.5.18의 상주 시작은 죽은 상주 잠금을 `client`와 `unsettled`를 보지 않고 회수한다. 서버 호출 전에 잠금을 지우므로 `busy`로 실패해도 Codex 잠금이 사라진다. 0.5.24가 보존한 `unsettled`·죽은 Codex 잠금이 이 PC에서는 지켜지지 않는다 (T7, T8, E3) | [후속 제안서](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) BLK-DUAL-05·T56. 이 보고서는 제안서를 고치지 않았다 | 결정된 방향(예: 옛 클라이언트가 실패 쪽으로 닫히게 하는 잠금 표현이나 출시 순서 조건)으로 T7·T8 재실행 |
 | F2 | medium | 0.5.24만 있는 PC에서 죽은 Codex 잠금은 `--stop`이 `stopping`만 남겨 풀리지 않는다. 시작 거부 문구는 "Stop it first"라고 안내한다 (T12, E3) | [상주 실행기 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md)의 종료 미확인 복구 | 제품 복구 명령 추가 뒤 같은 절차 |
 | F3 | low | 확인된 legacy `--force`로 밀려난 Codex 실행기는 서버 stop을 보내지 않는다. 다음 Codex 시작이 서버 행이 만료되는 최대 3분 동안 `busy`다 (T11, E4) | 위 후속 제안서 | legacy 강제 인수 뒤 시작 |
 | F4 | low | 0.5.18 Claude 상주 실행이 메인 루프 검증 중에 정지 요청을 받으면 역할을 새로 띄우지 않고 끝나지만, `docs/agents/main-loop/<key>.md`를 커밋하지 않고 남긴다. 다음 시작은 두 판 모두 `dirty`로 거부되며 문구가 commit·stash를 안내한다. 판 혼합과 무관한 기존 동작이다 (E2) | 위 후속 제안서 | 정지 직후 tree 상태 확인 |

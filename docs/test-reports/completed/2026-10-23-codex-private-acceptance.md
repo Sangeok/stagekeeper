@@ -15,7 +15,7 @@ related: ['docs/architecture/protocol.md','docs/architecture/verification.md','d
 primary-area: 'harness/codex-runtime'
 observed-environments: ['local | isolated native Windows foreground runtime | Codex 0.164.0; owner Node 22.13.1; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent']
 test-summary: 'pass: committed private templates and fresh-plan-to-final-acceptance Codex service cycle, including the null binding correction'
-follow-up: ['docs/proposals/active/codex-dual-client-runtime-follow-ups.md']
+follow-up: ['docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md']
 ---
 
 # Codex committed private templates and fresh-plan acceptance
@@ -136,7 +136,7 @@ passed alone; the final full serial run passed both and every other test. No
 background source was changed. These failed attempts remain in E1; the evidence
 does not claim that every parallel host run is reliable.
 
-Remaining release work stays in the [active follow-up](../../proposals/active/codex-dual-client-runtime-follow-ups.md)
+Remaining release work stays in the [active follow-up](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md)
 and [aggregate runtime report](../active/dual-client-runtime-report.md).
 
 ## Test Data and Cleanup

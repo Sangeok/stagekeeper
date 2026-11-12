@@ -1,14 +1,14 @@
 ---
-status: "pending"
-stage: "blocked"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-10-04"
-updated-at: "2026-11-11"
+updated-at: "2026-11-12"
 approved-by: "requesting-user"
-approved-at: "2026-10-24"
-approval-scope: "2026-10-24 현재 Windows PC의 격리 C4B 실제 연결·C4C 실측을 승인했고 최소 설치·OS별 조건은 최종 출시 gate로 유지한다. 사용자의 진행 지시와 최소 설치 요구에 따라 선택한 native 클라이언트의 기존 인증으로 연결하는 Windows 실행·의존성 패키징을 우선 해결하고, 기본 실행·재개·중지 인수 후 C4 자동 watch와 장시간·취소·중복 실행을 검증한다. WSL 및 다른 CLI 설치·추가 로그인은 사용자 진행 조건에서 제외한다. 로컬 disposable/test 환경의 bounded 시험은 허용하며 운영 DB seed·서비스 배포·패키지 공개는 별도 실행 범위다."
-completed-at: null
-verification-summary: null
+approved-at: "2026-11-12"
+approval-scope: "Core 코드 구현·병합 완료를 기준으로 문서를 완료 처리하고 참조 링크를 정리한다. 기존 Windows C4B·C4C 격리 실행 승인과 최소 설치 조건은 역사적 기록으로 보존한다. RUN-F01–04는 완료로 판정하지 않고 별도 출시·설치·환경별 인수 범위로 남기며, 새 설치·운영 DB seed·서비스 배포·패키지 공개는 수행하지 않는다."
+completed-at: "2026-11-12"
+verification-summary: "C1–C3는 PR #104·#106, resident C4A·C4B와 macOS backend는 완료 기록 및 PR #294로 확인. 세 PR의 병합 커밋은 dev·main에 포함. Windows 설치·A→Z·중지/재개·110분과 macOS 0.6.10 전체 역할·110분의 기존 인수 증거를 보존하며 RUN-F01–04는 출시·환경별 후속으로 남김."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -28,7 +28,7 @@ related:
   - "docs/proposals/active/template-release-acceptance-follow-ups.md"
 ---
 
-# Codex dual-client 설치·출시 및 환경별 인수 후속
+# Codex dual-client Core 구현 완료 및 출시·환경별 인수 후속
 
 ## Summary
 
@@ -36,11 +36,13 @@ related:
 이어 [#294](https://github.com/Sangeok/stagekeeper/pull/294)에서 macOS backend·패키징을
 구현했고 [0.6.10 실제 인수](../../test-reports/completed/2026-11-10-codex-macos-native-acceptance.md)에서
 전체 역할·110분 유휴·정리를 통과했다. [resident 완료 기록](../completed/2026-11-11-codex-resident-runner-plan.md)은
-구현·Task·VFY의 근거를 보존하고, 이 문서는 남은 환경·출시 인수만 소유한다.
+구현·Task·VFY의 근거를 보존한다. 2026-11-12 소유자가 정한 Core 구현·병합 완료 기준으로
+이 문서도 완료 처리하며, 남은 환경·출시 인수는 아래 RUN-F01–04에 별도 범위로 보존한다.
 
-2026-11-11 정리는 기존 검증 결과와 날짜·payload를 보존한 문서 정리다.
+2026-11-11의 후속 분리와 2026-11-12의 완료 처리는 기존 검증 결과와 날짜·payload를 보존한 문서 정리다.
 전체 제품 지원 인증이나 새 설치·운영 seed·패키지 공개 실행을 뜻하지 않는다.
-현재 남은 작업은 아래 RUN-F01–04다. 날짜별 checkpoint와 과거 실패는 이력이며,
+RUN-F01–04는 아직 완료하지 않은 출시·설치·환경별 인수이며 이 문서의 Core 완료 조건에서 제외한다.
+날짜별 checkpoint와 과거 실패·pending/blocked 판정은 당시 이력이며,
 오래된 macOS 미구현·clean Windows 미실행 문장을 현재 차단 조건으로 적용하지 않는다.
 
 ## Goal
@@ -58,7 +60,7 @@ related:
 
 | 영역 | 현재 확인한 사실 | 전체 인수와의 경계 |
 | --- | --- | --- |
-| Windows native·resident | 0.5.24 실제 A→Z·중지/재개·110분, 0.5.25 혼합 host T1–T11 통과 | 정확한 당시 client/payload에 적용. 새 출시 조합은 변경 영향과 재사용 가능한 증거를 확인 |
+| Windows native·resident | 0.5.24 실제 A→Z·중지/재개·110분, 0.5.25 혼합 host의 변경 범위 재인수 통과 | 정확한 당시 client/payload에 적용. legacy 0.4.1은 재실행하지 않았으며 새 출시 조합은 변경 영향과 재사용 가능한 증거를 확인 |
 | macOS backend | `role-command-backend.mjs`가 Windows/macOS를 선택하고 main-loop·fresh 역할에 연결. native bundle·복구·검증 역할을 #294로 병합 | 미구현 또는 Windows 전용 코드라는 과거 판정은 종료 |
 | macOS 실제 역할 | 0.6.10, 기존 로그인, R1 원본, 8 AgentRun·4개 보고서·audit/scout log·6,600초·정리 통과 | macOS arm64의 격리 인수. Intel 실제 모델·교차 client·clean Mac·실제 Inbox UI 승인은 제외 |
 | 통합·출시 이력 | #294의 `a5e060b` check·client-init·Windows·macOS CI 성공. #294는 `origin/dev` `b64643f`와 `origin/main` `1eddbc2`에 포함 | Git main 포함은 실제 공개 bundle·각 PC 설치·운영 서비스 build 일치의 증거와 별개 |
@@ -66,16 +68,18 @@ related:
 
 ### 2026-11-11 남은 인수
 
+이 표는 Core 완료 이후의 별도 출시 범위다. 아래 항목을 완료로 승격하거나 삭제하지 않는다.
+
 | 후속 | 기존 요구·증거 | 남은 작업과 종료 조건 |
 | --- | --- | --- |
 | RUN-F01 | REQ-MIN-001/002, BLK-MIN-01, T55, C4C의 출시 경계 | 공개할 client·OS·package/CLI·채널과 고정 hash를 확정하고 설치·갱신·되돌리기·서명 안내·서버 호환 및 실제 배포물을 확인한다. main 포함만으로 공개 bundle과 설치 완료를 선언하지 않는다 |
 | RUN-F02 | T53/T54/T56, E1–E11, Windows 0.5.24/0.5.25 인수 | 지원할 새 Windows 조합에서 native loader·권한·기본 pipeline·같은 AgentRun 중지/재개·양방향 승인/혼합 host의 기존 증거 적용 여부를 대조한다. 변경으로 필요한 재인수만 실행하고 legacy 0.4.1 등 미재생 조합을 통과로 표시하지 않는다. clean Windows 면제는 유지 |
 | RUN-F03 | TASK-C4-01/02, E12, C4C·macOS 0.6.10 보고서 | 공개할 macOS 환경에서 남은 clean Mac·Intel 실제 모델·교차 클라이언트·실제 Inbox UI 승인 범위와 증거를 확정한다. CI/fixture 결과를 해당 실제 인수로 대체하지 않는다. payload가 달라진 장시간·취소 인수의 재사용 여부도 따로 판단 |
-| RUN-F04 | T55의 private 전달·설치/복구·운영 지원 근거 | 실제 서버·패키지·원본·설치물 identity와 지원 안내를 연결하고 미검증 조합·복구 자료의 보관/정리 상태를 기록한다. 템플릿 버전별 복구·설치 인수는 [TPL-F01–03](./template-release-acceptance-follow-ups.md#proposal)이 소유하며 여기서 중복 실행하지 않는다 |
+| RUN-F04 | T55의 private 전달·설치/복구·운영 지원 근거 | 실제 서버·패키지·원본·설치물 identity와 지원 안내를 연결하고 미검증 조합·복구 자료의 보관/정리 상태를 기록한다. 템플릿 버전별 복구·설치 인수는 [TPL-F01–03](../active/template-release-acceptance-follow-ups.md#proposal)이 소유하며 여기서 중복 실행하지 않는다 |
 
 원래 요구·Task·VFY를 새로 정의하지 않는다. 아래 canonical 정의와 resident 완료 기록을 참조한다.
 각 후속은 확인된 증거 또는 명시적인 지원 범위 결정으로 닫으며 검증하지 않은 것을 통과로 쓰지 않는다.
-사용 한도 기능의 개별 PC 갱신은 [별도 설치 후속](./runner-usage-limit-installation.md)에서 추적한다.
+사용 한도 기능의 개별 PC 갱신은 [별도 설치 후속](../active/runner-usage-limit-installation.md)에서 추적한다.
 
 ### 2026-10-25 macOS 후보 조사 — 이력
 
@@ -517,6 +521,9 @@ clean Windows 미실행을 현재 차단 조건으로 사용하지 않으며 다
 
 ## Approval
 
+현재 문서의 완료 범위는 front matter가 정한다. 아래는 실제 구현·인수 당시의 실행 승인 이력이며,
+문서 완료 처리를 새로운 설치·운영·출시 실행의 승인으로 사용하지 않는다.
+
 2026-10-24 추가 결정: 사용자는 현재 Windows PC에서 가능한 C4B 구현·실제 연결과
 110분 유휴 시험을 진행하도록 승인했다. 최소 설치·OS별 인수는 개발 착수와 분리한
 최종 지원·출시 gate이며, 다음 과거 승인 기록의 C4A 제한을 이번 격리 개발에 적용하지 않는다.
@@ -539,11 +546,13 @@ clean Windows 미실행을 현재 차단 조건으로 사용하지 않으며 다
 
 ## Execution Plan
 
+다음은 Core 완료 후 남은 출시·환경별 인수의 실행 순서다.
+
 1. RUN-F01에서 실제 공개 대상·후보 package/CLI/hash와 승인 범위를 확정한다.
 2. RUN-F02/03의 기존 증거와 후보의 변경 영향을 대조하고 필요한 인수만 구체화한다.
 3. 승인된 대상에서 실제 설치·역할·중지/재개·환경별 인수를 수행하고 기존 보고서와 별도 기록한다.
 4. RUN-F04의 서버·원본·package·설치물 및 안내·복구 근거를 연결하고 미검증 범위를 명시한다.
-5. 모든 적용 가능한 후속이 증거 또는 명시적 지원 범위 결정으로 닫히면 이 문서를 완료 처리한다.
+5. 각 후속은 증거 또는 명시적 지원 범위 결정으로 닫고 그 결과를 기록한다. 이 별도 인수의 종료를 이미 완료한 Core 구현의 문서 상태와 결합하지 않는다.
 
 아래 Windows 준비·재현 순서는 기존 후보의 역사적 실행 계약이다. 새 후보 실행 시
 현재 architecture·CLI·설치 경로를 다시 대조하며 이 문서 정리만으로 실행을 시작하지 않는다.
@@ -622,6 +631,20 @@ preflight 실패/불일치/transport 오류는 모델 시작 없이 고정된 �
 하며 민감한 원본 오류를 노출하거나 재초기화/추가 설치를 해결책으로 제시하지 않는다.
 
 ## Verification Results
+
+### 2026-11-12 Core 구현·병합 확인
+
+| 확인 | 결과와 증거 |
+| --- | --- |
+| 기본 dual-client·선택 UI | [#104](https://github.com/Sangeok/stagekeeper/pull/104)의 `4660d42`, [#106](https://github.com/Sangeok/stagekeeper/pull/106)의 `a0eb40f` 병합 확인 |
+| resident·macOS backend | [#294](https://github.com/Sangeok/stagekeeper/pull/294)의 `8e2e8d9` 병합 확인. head `a5e060b`의 check·client-init-smoke·Windows runtime·macOS runtime CI 모두 success |
+| 현재 브랜치 포함 | 위 세 병합 커밋이 조회한 `origin/dev` `df27c78`와 `origin/main` `1bbc940`의 조상임을 확인 |
+| 현재 소스 연결 | `harness-background` → `createCodexExecution` → 공통 `runResident`, main-loop·fresh 역할의 공통 OS backend 선택기, 서버의 Codex runner client/scoped binding 연결 확인 |
+| 실제 인수의 범위 | Windows 0.5.24 설치·A→Z·중지/재개·110분, 0.5.25 혼합 host 변경 범위와 macOS 0.6.10의 전체 역할·6,600초 인수 보고서를 확인. 다른 판·환경의 재실행으로 해석하지 않음 |
+
+이번 확인은 소스·병합 이력·기존 CI·인수 보고서의 대조다. 새 모델 호출·장시간 시험·설치·배포는 수행하지 않았다.
+
+### 기존 실행·인수 이력
 
 최신 Windows/macOS 구현·인수 판정은 Current State의 2026-11-11 표와 연결된 완료 보고서를 따른다.
 아래 표는 각 날짜·후보의 실행 이력을 보존한다. 이번 정리에서 runtime 시험은 재실행하지 않았다.
@@ -726,10 +749,14 @@ permission 상속, private/public 버전 차이, pending host 종료·잠금 반
 
 ## Completion or Closure Notes
 
-코드 구현은 완료 문서로 분리했으며 이 문서는 RUN-F01–04의 남은 설치·출시·환경별
-인수 때문에 pending/blocked로 유지한다. 기록된 PASS와 사용자 생략 결정은 유지하고,
-아직 검증하지 않은 조합은 통과로 승격하지 않는다. 템플릿·사용 한도 설치의 별도 후속은
-각 문서가 소유한다. 문서 정리로 새로운 제품 기능이나 운영 실행을 승인하지 않았다.
+2026-11-12 Core 구현·병합 완료를 문서 완료 기준으로 적용해 `completed` 처리했다.
+기본 dual-client, resident 실행기와 Windows/macOS native backend의 소스·병합·기존 검증
+근거를 확인했고 `completed/2026-11-12-codex-dual-client-runtime-follow-ups.md`로 이동했다.
+
+RUN-F01–04의 공개 패키지·설치·추가 환경·배포물 인수는 여전히 별도 후속 범위다.
+이 완료 처리는 그 인수의 PASS나 전체 제품 출시 완료를 뜻하지 않는다. 기록된 PASS와
+clean Windows 생략 결정을 유지하며, 검증하지 않은 조합은 통과로 승격하지 않는다.
+템플릿·사용 한도 설치의 후속은 연결된 각 문서가 소유한다.
 
 ## Review Checklist
 
@@ -747,6 +774,10 @@ permission 상속, private/public 버전 차이, pending host 종료·잠금 반
 - [x] macOS 양쪽 kernel에서 권한 상속을 시험하고 process-group 종료가 충분하지 않은 반례를 확인했다.
 - [x] 2026-10-28의 clean Windows 생략·비차단 결정을 현재 후속 범위에 반영했다.
 - [x] macOS backend 구현과 0.6.10 실제 전체 역할·110분 인수를 완료 기록에 연결했다.
+- [x] Core 구현·병합 기준의 완료 metadata와 실제 확인 결과를 갱신했다.
+
+다음은 이 문서의 완료를 막지 않는 별도 출시·환경별 인수 체크리스트다.
+
 - [ ] RUN-F01의 공개 대상·설치·업데이트·복구와 실제 배포물 근거를 확정한다.
 - [ ] RUN-F02/03의 추가 환경·client 조합 인수를 필요한 범위에서 완료한다.
 - [ ] RUN-F04의 identity·안내·복구 근거와 별도 후속 문서의 연결을 완료한다.

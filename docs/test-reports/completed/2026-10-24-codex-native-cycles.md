@@ -11,11 +11,11 @@ completed-at: '2026-10-24'
 last-executed-at: '2026-10-24T01:34:55.618Z'
 tested-revision: '5ec3015d3e874c86a2bd624fd8bd336f6dc0eff5'
 owners: ['user:Sangeok']
-related: ['docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md','docs/proposals/active/codex-dual-client-runtime-follow-ups.md','docs/test-reports/active/dual-client-runtime-report.md']
+related: ['docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md','docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md','docs/test-reports/active/dual-client-runtime-report.md']
 primary-area: 'harness/codex-native-resident-boundary'
 observed-environments: ['local | Windows 11 Home 10.0.26200 x64, native login and disposable Git fixture | installed 0.5.20; Codex 0.164.0; operator Node 22.13.1 | test-only adapter and server responses']
 test-summary: 'pass: installed common loop completed two native cycles and interrupted a third; fresh contexts, generation fencing and owned cleanup observed with synthetic lease/overview/receipt'
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Native Codex cycles through the common resident loop
