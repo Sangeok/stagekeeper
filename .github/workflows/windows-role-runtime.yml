@@ -130,6 +130,11 @@ jobs:
       - name: Prepare project dependencies with normal lifecycle scripts
         shell: pwsh
         run: npm ci --no-audit --no-fund
+      - name: Validate the whole product test suite on Windows
+        shell: pwsh
+        run: |
+          node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
+          if ($LASTEXITCODE -ne 0) { throw 'Product test suite failed on Windows' }
       - name: Build full project inside network-denied Windows role
         shell: pwsh
         run: |

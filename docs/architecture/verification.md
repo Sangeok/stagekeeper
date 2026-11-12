@@ -253,7 +253,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | --- | --- | --- | --- | --- | --- | --- |
 | 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
-| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | Windows | `npm test`의 대상 묶음 |
+| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음 |
 | Windows 역할 런타임 | 단일 OS | `windows-role-runtime/native-runtime` | | | | Windows에만 있는 구현이다(전용 Node 빌드, 격리된 역할 명령) |
 | macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
 | 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
@@ -602,7 +602,10 @@ source만 바꾼 PR에서는 실행하지 않는다. 그런 변경의 LPAC 전�
 
 검증과 child-process smoke를 통과한 런타임은 후속 프로젝트 테스트 전에 캐시한다.
 실제 Windows 역할 명령·파일 격리·readlink·IPC 회귀와 네트워크가 차단된 전체 프로젝트
-빌드는 캐시 여부와 관계없이 매번 실행한다. 후속 실패에서도 검증을 통과한 런타임과
+빌드는 캐시 여부와 관계없이 매번 실행한다. 의존성을 설치한 뒤에는 `npm test`의 대상 묶음
+전체(`packages/core`, `packages/github`, `plugin/bin`, `plugin/runtime`)를 macOS와 같이 한 파일씩
+순서대로 돌린다. 이름을 적어 돌리는 앞 단계들은 준비한 런타임을 환경 변수로 받아야 하는 시험과
+의존성 설치 전에 먼저 확인할 시험이어서 그대로 둔다. 후속 실패에서도 검증을 통과한 런타임과
 provenance artifact를 보존한다. 캐시 준비 성공은 전체 인수 성공을 뜻하지 않는다.
 새 캐시 규약의 최초 실행 및 캐시 삭제·만료 시에는 전체 컴파일 시간이 다시 필요하다.
 `dev` 공유 재사용은 이 workflow 변경이 `dev`에 병합되고 해당 push가 캐시를 만든 뒤부터
