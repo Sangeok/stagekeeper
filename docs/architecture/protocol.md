@@ -960,6 +960,27 @@ owner `.codex` 인증 디렉터리는 계속 차단한다. 실제 skill 목록�
 PM은 파일 도구가 없고 scout만 web search를 허용한다. Git metadata는 read-only이며 child commit은
 main loop/owner로 handoff한다. 실제 모델의 tool/kernel 격리 증거는 별도로 필요하다.
 
+### 스킬 유지보수 원칙
+
+클라이언트별 스킬은 각 클라이언트의 실행 진입점을 소유한다. Claude의 plugin root 치환과
+watch 완료 알림, Codex의 실제 스킬 경로 해석과 foreground·App Server 실행처럼 서로 다른
+계약은 분리해서 유지한다. 비슷한 문구를 정리하면서 호출 이름·승인·중단·재개·지원 범위를
+통일하지 않는다. 경로별 편집 원본과 검증 위치는 [플러그인 안내](../../plugin/README.md#편집-원본과-배포-경로)에 둔다.
+
+공통 verifier는 `plugin/skills/reconciling-proposals-with-codebase/` 하나를 원본으로 유지한다.
+Codex 설치 경로의 사본은 양 OS 패키징이 전체 리소스와 함께 만들고, 기존 checksum·완전성·실제
+loader 검사를 유지한다. verifier 패키지 밖의 공통 문서에 의존시켜 독립 배포·staging 경계를
+깨지 않는다. 이 경계는 일반 진입점 스킬의 참조 문서 배치와 구별한다.
+
+짧은 OS 거부·권한·잠금·중단 조건은 각 진입점에서 직접 읽을 수 있게 남긴다. 코드가 판정할 수
+있는 조건은 해당 helper·runtime이 계속 강제하며, 스킬은 그 결과에 따라 행동하도록 안내한다.
+기존 문구 시험의 존재만으로 구조가 최적이라고 판단하거나, 추출을 위해 검사를 먼저 약화하지 않는다.
+
+긴 반복 절차의 공통화는 실제 계약 불일치나 같은 이유의 반복 수정 근거가 있을 때 검토한다.
+유지·직접 수정·추출의 대안과 소비자·변경 원본·설치 후 참조 경로·검증 대상을 먼저 정한다.
+참조 구조가 바뀌면 설치된 클라이언트가 필요한 문서를 읽고 기존 정상·거부·중단 조건을 따르는지
+확인한다. 줄 수 감소만으로 추출하지 않으며, 근거가 없으면 현재 배치를 유지하는 것도 완료 결과다.
+
 ## Failed acceptance and owner retry
 
 `pipeline_next` at accept returns `{action:"wait", on:"acceptance", key, node:"accept", version, checks, note}` while an uncleared AcceptanceFailure exists. `board_get` includes the latest active failure even outside the History window. A main-loop report in done is refused while failed; other reporters retain their existing rules.

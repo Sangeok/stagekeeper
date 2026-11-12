@@ -5,6 +5,33 @@ Claude의 `skills/`와 `.claude-plugin/plugin.json`, Codex의 `codex/skills/`와
 portable root manifest는 두지 않는다. private 단계 본문은 패키지에 포함하지 않고
 인증된 서버가 공급한다. `lib/`는 `packages/core`에서, `lib/github/`는 `packages/github`에서 동기화한 복사본이다.
 
+## 편집 원본과 배포 경로
+
+아래 표는 저장소 유지보수 기준이다. `skills/`에는 Claude 진입점과 공통 verifier 원본이
+함께 있으므로 디렉터리 전체를 Claude 전용 또는 공통 스킬로 취급하지 않는다.
+
+| 역할 | 편집할 원본 | 소비·배포 경로 |
+| --- | --- | --- |
+| Claude 진입점 | `skills/init/`, `skills/watch/`, `skills/background/`의 `SKILL.md`와 해당 참조 문서 | `.claude-plugin/plugin.json`의 harness 플러그인에서 제공 |
+| Codex 진입점 | `codex/skills/harness-init/`, `harness-run/`, `harness-resume/`, `harness-background/`의 `SKILL.md`와 해당 참조 문서 | `.codex-plugin/plugin.json`의 `skills: ./codex/skills/`로 제공 |
+| 공통 verifier | `skills/reconciling-proposals-with-codebase/`의 전체 패키지 | Claude는 이 원본을 사용하고, Windows·macOS 패키징이 Codex 경로에 완전 복사 |
+| Codex verifier 배포 복사본 | 공통 verifier 원본에서 수정 | 설치 bundle의 `codex/skills/reconciling-proposals-with-codebase/`; source checkout에서 별도 원본으로 관리하지 않음 |
+| 실행 helper·runtime | `bin/`, `runtime/`의 해당 소유 모듈 | 두 클라이언트의 공통 처리와 클라이언트·OS별 어댑터. 스킬은 각 진입점의 실행 계약을 따름 |
+| 공통 규칙의 배포 복사본 | 저장소 루트의 `packages/core/` 생산 `.mjs` | `scripts/plugin-lib.mjs`가 `plugin/lib/`에 동기화 |
+| GitHub URL 규칙의 배포 복사본 | 저장소 루트의 `packages/github/` 생산 `.mjs` | 같은 동기화 도구가 `plugin/lib/github/`에 복사 |
+
+검증 위치도 수정 책임에 맞춰 확인한다.
+
+- [harness-skill-references.test.mjs](bin/harness-skill-references.test.mjs)는 스킬의 일부 패키지 경로, init 출력 marker와 Claude verifier 호출 이름을 검사한다.
+- [harness-session.test.mjs](bin/harness-session.test.mjs)는 Codex 진입점의 OS 거부 문구와 세션 계약을 검사한다. 문구 검사만으로 실제 모델의 준수를 판정하지 않는다.
+- verifier 복사·checksum 검사는 저장소의 [Windows 패키징](../scripts/windows/package-windows-plugin.mjs)과 [macOS 패키징](../scripts/macos/package-plugin.mjs), 실행 시 완전성·staging 검사는 [codex-agent.mjs](runtime/codex-agent.mjs)와 [codex-thread.mjs](runtime/codex-thread.mjs)가 소유한다.
+- lib 원본·복사본의 일치는 [plugin-lib.mjs](../scripts/plugin-lib.mjs)의 `--check`와 [회귀 시험](../scripts/plugin-lib.test.mjs)이 확인한다. 복사본을 직접 수정하지 않는다.
+
+분리와 선별 공통화의 기준은 [스킬 유지보수 원칙](../docs/architecture/protocol.md#스킬-유지보수-원칙)을 따른다.
+이 안내는 스킬 실행에 새 필수 참조를 추가하지 않는다.
+
+## 설치와 런타임
+
 현재 버전은 양쪽 plugin manifest를 기준으로 확인한다. 실제 설치된 winning skill/helper, 모델 권한,
 DB seed, 승인 이후 양방향 재개 인수는 [보고서](../docs/test-reports/active/dual-client-runtime-report.md)의
 미완료 항목이다. 아래 사용법은 설치·서버·private bundle의 같은 버전을 준비한 뒤 적용한다.
