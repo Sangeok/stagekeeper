@@ -67,6 +67,13 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 `test:server`에서 실제 route와 maintenance 대역으로 인증 실패 시 무실행, 성공 요약,
 회전 미실행, 오류 비노출과 배포 schedule 연결을 검사한다. 실제 배포의 스케줄 실행·DB 정리는
 운영 로그에서 별도로 확인한다. 로컬 실행과 명시적 key rotation은 기존 `github:maintenance` CLI를 사용한다.
+정기 작업은 만료 인덱스로 500개씩 잠그고 `SKIP LOCKED`로 다른 작업의 행을 건너뛴다.
+최대 40라운드·60초의 새 배치 시작 예산, SQL 2초·잠금 500ms·transaction 5초 제한을 적용한다.
+`cleanupComplete=false` 경고가 이어지면 잔여량을 처리할 추가 호출 또는 주기·처리량 조정을 검토한다.
+`tests/server/github-maintenance.test.ts`는 배치·시간 예산을 DB 대역으로 검사한다.
+`tests/server/integration/github-maintenance.test.ts`는 격리 PostgreSQL에서 10,000개 활성 연결 사이의
+만료 인덱스 사용, 배치 재개, 갱신/중복 정리 경합, 잠금 timeout과 관련 데이터의 rollback을 검사한다.
+새 만료 인덱스 migration은 운영 배포 전에 적용한다. 키 회전의 수동 전체 순회는 이 정기 예산의 대상이 아니다.
 
 ## 테스트 배치 규칙의 검증
 

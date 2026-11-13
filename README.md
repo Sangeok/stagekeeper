@@ -364,6 +364,19 @@ delivery IDs expire after 24 hours. Expired rows cannot be read or used, and sta
 Consumption/cancellation/disconnection removes the relevant secret fields immediately.
 The browser stores only tab-local random flow/cancellation IDs in sessionStorage; draft content and GitHub credentials stay on the server.
 
+Deploy `20261111150000_github_maintenance_indexes` before this maintenance implementation. Scheduled cleanup uses expiry indexes
+and locks at most 500 primary records per batch with `SKIP LOCKED`; active connections are not paged through.
+Each invocation allows at most 40 rounds across attempts, deliveries, expired refresh credentials and expired refresh leases,
+and stops starting batches after 60 seconds. Each batch has a 2-second SQL statement timeout, a 500-ms lock timeout and a
+5-second transaction timeout. Stopping a connection also cancels its drafts and removes its installation records atomically.
+Completed batches remain committed, so another invocation can continue after interruption without a saved cursor.
+
+The JSON response includes `cleanupBatches` and `cleanupComplete`. If expired or temporarily locked records remain,
+`cleanupComplete` is false and the Cron route logs a warning with counts only. Check these warnings and rerun the CLI
+to drain an unusual backlog; persistent backlog means arrival volume exceeds the current budget and the schedule or capacity
+must be adjusted. A daily schedule is not a guarantee that every expired row is removed within a day during overload or failures.
+Explicit `--rotate` is a separate operator-controlled scan of credentials and drafts; the scheduled endpoint never performs it.
+
 For rotation, add the new key alongside old keys, select the new active ID, run maintenance with `--apply --rotate`, and confirm no stored envelope references the old key before removing it.
 Keep previous keys available until every instance has the new configuration and rotation succeeds. A missing old key makes the affected operation unavailable; it does not silently destroy recoverable ciphertext.
 Use a stable HTTPS public origin in production. Redact code/state query parameters at the ingress/access-log layer; application logs contain only outcome classes and durations.
