@@ -94,7 +94,7 @@ related:
 - 역할 지시문의 문장: 범위와 함께, 기본값을 쓰고 길게 요청할 때의 조건을 말한다.
 - 두 빌드 리허설: 최대값을 요청하고 빌드에 걸린 시간을 증거 파일과 출력에 남긴다.
 - 경계값, Windows 실행 도우미의 수락, 최대값으로 시작한 명령의 중단을 보는 시험(두 OS).
-- 문서(`verification.md`, `macos-runtime.md`)와 플러그인 판 0.6.15.
+- 문서(`verification.md`, `macos-runtime.md`, `protocol.md`)와 플러그인 판 0.6.15.
 
 제외 범위:
 
@@ -129,6 +129,8 @@ related:
 
 지금 문장은 범위만 알려 준다. 숫자만 바꾸면 역할이 늘 최대값을 요청할 수 있다. 멈춘 명령 하나가 역할을 붙잡는 시간이 2분에서 5분으로 늘고, 두 번 겪으면 한 차례 15분에 닿는다. 문장을 다음 뜻으로 바꾼다. 기본값은 60000이다. 100~300000을 줄 수 있다. 오래 걸리는 것을 아는 빌드나 시험에만 더 길게 요청한다. 멈춘 명령은 요청한 시간이 다 될 때까지 이 차례를 붙잡는다.
 
+구현할 때 같은 문장을 도구 입력 정의의 `timeoutMs` 설명에도 넣었다(2026-11-14). 상주 메인 루프도 같은 도구로 빌드와 시험을 돌리는데, 메인 루프의 지시문에는 시간 범위가 없고 도구 입력 정의만 받는다. 입력 정의에 넣으면 역할과 메인 루프가 같은 문장을 본다.
+
 ### 3. 다른 한도와의 관계
 
 - 한 번의 호출은 최악의 경우 복사본 준비 300초 + 명령 300초 + 종료 확인 45초 = 645초다. 역할의 도구 호출 제한 900초 안이다.
@@ -160,8 +162,9 @@ related:
 | `plugin/runtime/windows/RoleProcess.cs` | update | 실행 도우미의 자체 검사 | medium: Windows의 실제 실행 시험으로만 확인된다. 실행할 때 `Add-Type`으로 컴파일하고, 이 파일의 해시를 고정한 곳은 없다 |
 | `plugin/runtime/codex-thread.mjs` | update | 역할 지시문 | medium: 문장이 역할의 요청 습관에 영향을 준다 |
 | `plugin/runtime/codex-bridge.test.mjs`, `plugin/bin/harness-role-commands.test.mjs`, `plugin/runtime/macos-commands.test.mjs` | update | 5절의 시험 | low |
+| `plugin/runtime/role-commands.test.mjs` | add | 값 일치와 경계값 시험(`npm test` 대상이라 세 OS의 CI에서 돈다) | low |
 | `scripts/macos/rehearse-project-build.mjs`, `scripts/windows/rehearse-windows-project-build.mjs` | update | 최대값 요청, 걸린 시간 기록 | low: 증거 파일의 모양을 읽는 다른 코드가 없다 |
-| `docs/architecture/verification.md`, `docs/architecture/macos-runtime.md` | update | 새 범위와 이유, 다른 한도와의 관계 | low |
+| `docs/architecture/verification.md`, `docs/architecture/macos-runtime.md`, `docs/architecture/protocol.md` | update | 새 범위와 이유, 다른 한도와의 관계. `protocol.md`의 "100~120000ms timeout 범위" 문장은 구현할 때 찾았다 | low |
 | `plugin/.claude-plugin/plugin.json`, `plugin/.codex-plugin/plugin.json` | update | 판 0.6.15 | low: `dev`의 판이 그사이 올랐으면 그 판 + 1을 쓴다 |
 
 ## Safety Analysis
@@ -234,7 +237,13 @@ npm run verify:plugin-version -- --head <구현 커밋>
 | --- | --- | --- |
 | 구현 전 조사(2026-11-13, `dev` `74e240b` 기준) | 한도를 적은 곳 다섯, 이 도구를 쓰는 곳, 다른 한도의 값을 코드에서 읽었다 | Current State의 표 |
 | 비공개 템플릿 `main`(`99245ac`)에서 시간 범위를 적은 파일 수 | 0 | 템플릿 release가 필요 없다 |
-| 구현의 검증 | Not run yet | 구현 전 |
+| 구현 뒤 남은 120초 표기 찾기(2026-11-14, `dev` `ff7dd90` 기준) | 코드에서 다섯 곳, 문서에서 `protocol.md`의 한 문장, 시험에서 `harness-role-commands.test.mjs`의 120001 하나를 더 찾아 고쳤다 | 남은 120000은 상주 실행기의 서버 확인 유효 시간, 시험의 제한 시간 같은 다른 값이다 |
+| `node --test plugin/runtime/role-commands.test.mjs plugin/runtime/codex-bridge.test.mjs` | 10개 통과 | RT-02, RT-03. 상수, 입력 정의의 `maximum`과 설명, 두 OS의 입력 검사와 오류 문구, 판정 함수, Windows 도우미의 숫자를 하나씩 깬 12가지 변형에서 모두 시험이 실패한다. 지시문이 공유 문장을 쓰는지는 구조로 보장하고 리뷰에서 본다 |
+| `node --test plugin/bin/harness-role-commands.test.mjs`(이 PC, Windows 11의 실제 LPAC) | 15개 통과, 1개 건너뜀(준비한 런타임이 필요한 시험) | RT-02, RT-05. 새 시험: 도우미가 300000을 받아 명령을 끝내고 300001을 `validation-bounds`에서 거부한다. 도우미를 120000으로 되돌리면 이 시험이 같은 단계에서 실패한다. 중단 시험은 300000으로 시작한 명령을 2.5초에 멈춰 `stopped`와 정리를 확인한다 |
+| 제품 코드 시험 전체를 한 파일씩(이 PC, Windows 11) | 683개 중 654개 통과, 29개 건너뜀, 실패 0개, 10분 33초 | 바꾸기 전보다 시험이 3개 늘었다(새 값 시험 2개, Windows 도우미 시험 1개). 건너뛴 29개는 바꾸기 전과 같다 |
+| macOS의 실제 실행 시험 | Not run yet | 이 PC에서는 건너뛴다. PR의 macOS job에서 돈다 |
+| 바꾼 파일의 ESLint, `plugin-lib --check`, `docs:check`, `verify:ci-coverage`, FSD·서버 경계 검사 | 통과 | RT-07 |
+| 두 빌드 리허설 | Not run yet | 준비한 런타임이 필요하다. PR의 Windows와 macOS job에서 돈다 |
 
 ## Risks and Rollback
 

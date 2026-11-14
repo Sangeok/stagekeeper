@@ -143,6 +143,11 @@ MCP SDK의 입력 검증 거부는 JSON-RPC `-32602`와 SDK의 정확한 plainte
 상한은 실제 tools/list에서 읽고 receipt 불일치는 현재 단계를 다시 읽어 정정하게 한다.
 인증·소유권·실행 결합 거부는 이 복구 경로로 바꾸지 않는다. native 명령의 MCP 제한 시간은
 900초이며 Codex의 실제 effective config에서도 확인한다. 보고서 전용 역할은 2분으로 제한한다.
+`role_command_exec`의 `timeoutMs`는 기본 60초, 허용 범위 100ms~300초다. 한 번의 호출은 최악의 경우
+snapshot 준비 300초, command 300초, supervisor 종료 확인 35초(Windows 45초)를 더해도 900초 안에 든다.
+역할 한 차례(15분)에는 snapshot 준비가 보통인 경우 최대 길이 command가 둘까지 들어간다. 멈춘 command는
+요청한 시간만큼 그 차례를 붙잡으므로, 도구 설명과 역할 지시문이 기본값을 쓰고 오래 걸리는 것을 아는
+빌드·시험에만 길게 요청하라고 말한다.
 
 ## 검증 실행
 

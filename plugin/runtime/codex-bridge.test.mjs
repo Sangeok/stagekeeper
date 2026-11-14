@@ -111,11 +111,11 @@ it("distinguishes correctable command parameters from ownership and filesystem r
   }, backend);
   t.after(() => bridge.close());
   const call = (name, args) => fetch(bridge.url, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }) }).then(response => response.json());
-  const malformed = { command: "node verify.cjs", timeoutMs: 120001 };
+  const malformed = { command: "node verify.cjs", timeoutMs: 300001 };
   assert.equal((await call("role_command_exec", malformed)).error.code, -32000);
   assert.equal((await call("agent_next", {})).error, undefined);
   const corrected = await call("role_command_exec", malformed);
-  assert.equal(corrected.error.code, -32602); assert.match(corrected.error.message, /100 through 120000/);
+  assert.equal(corrected.error.code, -32602); assert.match(corrected.error.message, /100 through 300000/);
   assert.equal((await call("agent_next", {})).error, undefined);
   assert.equal((await call("role_command_exec", { ...malformed, project: "other" })).error.code, -32000);
   const denied = await call("role_file_read", {});

@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "node:net";
-import { RoleCommandInputError, roleCommandTool, snapshotRepository } from "./role-commands.mjs";
+import { ROLE_COMMAND_DEFAULT_TIMEOUT_MS, ROLE_COMMAND_MAX_TIMEOUT_MS, ROLE_COMMAND_MIN_TIMEOUT_MS, RoleCommandInputError, roleCommandTool, snapshotRepository, validRoleCommandTimeout } from "./role-commands.mjs";
 import { installedMacosRuntime, macosDigest } from "./macos-runtime.mjs";
 import { endSandbox } from "./macos/sandbox.mjs";
 
@@ -103,9 +103,9 @@ export async function createMacosCommands({ root, scratch, agent, fileBroker, ru
   async function execute(args, signal) {
     if (!args || Array.isArray(args) || Object.keys(args).some(key => !["command", "cwd", "timeoutMs"].includes(key))
       || typeof args.command !== "string" || !args.command.trim() || args.command.length > 4096 || args.command.includes("\0")) throw new RoleCommandInputError("Use only command, optional repository-relative cwd and optional timeoutMs. command must be a nonempty string of at most 4096 characters without null bytes. Save longer scripts in permitted scratch files with role_file_write, then run a short command.");
-    const cwd = args.cwd === "." ? "" : args.cwd ?? "", timeoutMs = args.timeoutMs ?? 60000;
+    const cwd = args.cwd === "." ? "" : args.cwd ?? "", timeoutMs = args.timeoutMs ?? ROLE_COMMAND_DEFAULT_TIMEOUT_MS;
     if (typeof cwd !== "string" || path.isAbsolute(cwd) || /[\\\x00-\x1f]/.test(cwd) || cwd.split("/").some(part => [".", ".."].includes(part))
-      || !Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 120000) throw new RoleCommandInputError("cwd must stay inside the repository and timeoutMs must be from 100 through 120000.");
+      || !validRoleCommandTimeout(timeoutMs)) throw new RoleCommandInputError(`cwd must stay inside the repository and timeoutMs must be from ${ROLE_COMMAND_MIN_TIMEOUT_MS} through ${ROLE_COMMAND_MAX_TIMEOUT_MS}.`);
     const combined = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
     combined.throwIfAborted();
     const directory = await mkdtemp(path.join(realpathSync(tmpdir()), "harness-command-"));
