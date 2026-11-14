@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRoleFiles } from "../../plugin/runtime/role-files.mjs";
-import { createRoleCommands, installedWindowsRuntime } from "../../plugin/runtime/role-commands.mjs";
+import { createRoleCommands, installedWindowsRuntime, ROLE_COMMAND_MAX_TIMEOUT_MS } from "../../plugin/runtime/role-commands.mjs";
 
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 
@@ -30,16 +30,19 @@ export async function rehearseWindowsProjectBuild({ root, runtimeDirectory }) {
   try {
     const files = createRoleFiles({ ":root": "deny", [root]: "read", [scratch]: "write" }, "plan-verifier");
     broker = await createRoleCommands({ root, scratch, agent: "plan-verifier", fileBroker: files, runtime });
+    const started = performance.now();
     const result = await broker.call("role_command_exec", {
       command: 'set "DATABASE_URL=" && set "NEXT_TELEMETRY_DISABLED=1" && set "STAGEKEEPER_BUILD_DIAGNOSTICS=1" && npm run build',
-      timeoutMs: 120000,
+      timeoutMs: ROLE_COMMAND_MAX_TIMEOUT_MS,
     });
+    const durationMs = Math.round(performance.now() - started);
     settled = result.quiescent === true;
     const evidence = {
       at: new Date().toISOString(), sourceHashes,
       runtimeSha256: runtime.executableSha256, runtimePackageSha256: runtime.packageSha256,
       dependencyPreparation: "normal npm ci before the role, including Prisma engine postinstall",
       databaseUrlProvided: false, roleNetworkAccess: false, modelTurns: 0,
+      timeoutMs: ROLE_COMMAND_MAX_TIMEOUT_MS, durationMs,
       result,
     };
     console.log(JSON.stringify(evidence, null, 2));

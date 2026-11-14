@@ -182,7 +182,7 @@ public static class StagekeeperRoleProcess {
 
   public static Result Run(string root, string profileName, string expectedSid, string command, string cwd, int timeoutMs) {
     Stage = "validation-bounds";
-    if (timeoutMs < 100 || timeoutMs > 120000 || command == null || command.Length > 4096 || command.IndexOf('\0') >= 0) throw new Exception("Invalid role request");
+    if (timeoutMs < 100 || timeoutMs > 300000 || command == null || command.Length > 4096 || command.IndexOf('\0') >= 0) throw new Exception("Invalid role request");
     Stage = "validation-cwd";
     if (cwd == null || cwd.StartsWith("\\") || cwd.IndexOf(':') >= 0 || Array.Exists(cwd.Split('\\', '/'), part => part == ".." || part == ".")) throw new Exception("Invalid snapshot cwd");
     string[] roots = SnapshotRoots(root);

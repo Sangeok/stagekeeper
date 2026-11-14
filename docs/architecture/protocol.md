@@ -850,7 +850,8 @@ Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제
 채워진 트리에는 ACL을 쓰지 않는다.
 `cwd`는 repository 상대 경로다. 생략·빈 문자열·정확히 `.`는 repository root를 뜻하며,
 중첩 `.`·`..`, 절대 경로와 Windows 특수 경로 문자는 계속 거부한다. 명령 인자 형식과
-100~120000ms timeout 범위 오류는 MCP `-32602`로 반환하며 같은 권한 안에서 수정할 수 있다.
+100~300000ms timeout 범위 오류는 MCP `-32602`로 반환하며 같은 권한 안에서 수정할 수 있다.
+timeout을 주지 않으면 60000ms다.
 소유권·파일 접근·실행 환경 거부는 일반 거부로 유지한다.
 `STAGEKEEPER_ROLE_SCRATCH`는 복사한 scratch다.
 전체 source/scratch hash·누락 수/경로·누락 목록 잘림을 결과에 포함한다. 결과의 단계별 소요
