@@ -134,7 +134,7 @@ related:
 ### 3. 다른 한도와의 관계
 
 - 한 번의 호출은 최악의 경우 복사본 준비 300초 + 명령 300초 + 종료 확인 45초 = 645초다. 역할의 도구 호출 제한 900초 안이다.
-- 복사본 준비는 CI에서 30~50초였다. 이 경우 300초짜리 명령 둘이 한 차례 15분 안에 들어간다. 준비가 300초를 다 쓰는 최악의 경우에는 하나만 들어간다.
+- 복사본 준비는 Windows CI에서 이 저장소(약 3만 5천 파일)를 복사하는 데 44~70초였다(2026-11-14 실측 두 번, Verification Results 참조). 제안 때 "30~50초"라고 적은 것은 잰 값이 아니었다. 70초여도 300초짜리 명령 둘이 한 차례 15분 안에 들어간다(2 × (70 + 300) = 740초). 준비가 300초를 다 쓰는 최악의 경우에는 하나만 들어간다.
 - 상주 실행기의 서버 확인 유효 시간 120초는 실행기의 주기 신호가 갱신하므로 영향이 없다.
 
 ### 4. 빌드 리허설
@@ -151,7 +151,9 @@ related:
 
 ### 6. 300초의 판단
 
-이 변경이 `dev`에 들어간 뒤 runner마다 30번의 빌드 시간이 쌓이면 본다. 시간 초과가 다시 나거나 기록된 최대값이 240초를 넘으면 여유가 부족한 것으로 보고 다시 제안한다. 그렇지 않으면 이 값을 유지하고 완료 처리한다.
+이 변경이 `dev`에 들어간 뒤 runner마다 30번의 빌드 시간이 쌓이면 본다. 시간 초과가 다시 나거나 명령 시간의 최대값이 240초를 넘으면 여유가 부족한 것으로 보고 다시 제안한다. 그렇지 않으면 이 값을 유지하고 완료 처리한다.
+
+명령 시간은 runner마다 다르게 읽는다(2026-11-14 추가). 300초 한도는 명령에만 걸리는데, 리허설의 `durationMs`는 복사본 준비를 포함한다. Windows 결과에는 단계별 시간이 있어 `result.timings.commandMs`를 본다. macOS 결과에는 단계별 시간이 없어 준비를 포함한 `durationMs`를 그대로 본다. macOS 쪽은 실제보다 길게 읽히므로 기준이 먼저 걸리는 쪽으로 틀린다.
 
 ## Affected Files
 
@@ -197,7 +199,7 @@ related:
 
 1. 이 제안서를 PR로 올리고 승인받는다.
 2. 구현을 PR 하나로 올린다. 코드, 시험, 문서, 판 상승을 함께 담는다. `plugin/runtime`을 바꾸므로 PR에서 Windows와 macOS workflow가 돈다. 거기서 실제 실행 시험과 300초를 요청한 두 빌드 리허설이 통과하는지, 걸린 시간이 기록되는지 확인한다.
-3. 병합 뒤 `dev` 실행을 확인하고 결과를 이 문서에 적는다.
+3. 병합 뒤 `dev` 실행을 확인하고 결과를 이 문서에 적는다(2026-11-14 완료, `dev` `b8e738b`).
 4. `main` 승격은 AGENTS.md의 절차로 따로 한다. 이 변경 때문에 `agent-eval`과 `pipeline-smoke`가 필요하다.
 5. runner마다 30번의 기록이 쌓이면 6절의 기준으로 300초를 판단하고 완료 처리한다.
 
@@ -241,9 +243,20 @@ npm run verify:plugin-version -- --head <구현 커밋>
 | `node --test plugin/runtime/role-commands.test.mjs plugin/runtime/codex-bridge.test.mjs` | 10개 통과 | RT-02, RT-03. 상수, 입력 정의의 `maximum`과 설명, 두 OS의 입력 검사와 오류 문구, 판정 함수, Windows 도우미의 숫자를 하나씩 깬 12가지 변형에서 모두 시험이 실패한다. 지시문이 공유 문장을 쓰는지는 구조로 보장하고 리뷰에서 본다 |
 | `node --test plugin/bin/harness-role-commands.test.mjs`(이 PC, Windows 11의 실제 LPAC) | 15개 통과, 1개 건너뜀(준비한 런타임이 필요한 시험) | RT-02, RT-05. 새 시험: 도우미가 300000을 받아 명령을 끝내고 300001을 `validation-bounds`에서 거부한다. 도우미를 120000으로 되돌리면 이 시험이 같은 단계에서 실패한다. 중단 시험은 300000으로 시작한 명령을 2.5초에 멈춰 `stopped`와 정리를 확인한다 |
 | 제품 코드 시험 전체를 한 파일씩(이 PC, Windows 11) | 683개 중 654개 통과, 29개 건너뜀, 실패 0개, 10분 33초 | 바꾸기 전보다 시험이 3개 늘었다(새 값 시험 2개, Windows 도우미 시험 1개). 건너뛴 29개는 바꾸기 전과 같다 |
-| macOS의 실제 실행 시험 | Not run yet | 이 PC에서는 건너뛴다. PR의 macOS job에서 돈다 |
 | 바꾼 파일의 ESLint, `plugin-lib --check`, `docs:check`, `verify:ci-coverage`, FSD·서버 경계 검사 | 통과 | RT-07 |
-| 두 빌드 리허설 | Not run yet | 준비한 런타임이 필요하다. PR의 Windows와 macOS job에서 돈다 |
+| `node scripts/checks/verify-plugin-version.mjs --head 4009b9c` | 통과. 0.6.14 → 0.6.15, 출하 파일 7개 | RT-08 |
+| PR #340의 CI(Windows run 43570060130, macOS run 43570060166) | `check`, `client-init-smoke`, Windows(16분 0초), macOS arm64(5분 14초), macOS Intel(11분 55초) 모두 통과 | 세 runner 모두 683개 중 654개 통과, 29개 건너뜀. 로그에서 새 시험과 바뀐 시험이 macOS 두 runner와 Windows에서 실제로 통과한 것을 확인했다(300000 수락, 300001 거부, 300000으로 시작한 명령의 중단). RT-02, RT-05. 2026-11-14 `dev` `b8e738b`로 병합 |
+| 병합 뒤 `dev` `b8e738b`의 실행(Windows run 43583732435, macOS run 43583732632) | `check`, Windows(11분 39초), macOS arm64(6분 12초), macOS Intel(10분 13초) 모두 통과 | 세 runner 모두 683개 중 654개 통과, 29개 건너뜀 |
+| 두 빌드 리허설의 시간(RT-06) | 모두 `exited`, `timeoutMs` 300000 | 아래 표 |
+
+빌드 리허설에 기록된 시간(초). `durationMs`는 복사본 준비를 포함한다. Windows만 결과에 단계별 시간이 있다.
+
+| 실행 | macOS arm64 `durationMs` | macOS Intel `durationMs` | Windows `durationMs` | Windows 복사본 준비 | Windows 명령 |
+| --- | --- | --- | --- | --- | --- |
+| PR #340 | 55.1 | 150.0 | 149.6 | 69.8 | 63.4 |
+| `dev` `b8e738b` | 69.4 | 114.5 | 92.6 | 43.9 | 32.6 |
+
+두 번 모두 기록된 값은 240초 기준과 거리가 멀다. macOS Intel의 150초는 복사본 준비를 포함한 값이라 명령만의 시간은 알 수 없다. 30번이 쌓이기 전이라 300초의 판단은 아직이다.
 
 ## Risks and Rollback
 
