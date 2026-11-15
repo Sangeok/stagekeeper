@@ -11,6 +11,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  task-worktrees:
+    name: check (task-worktrees, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-15]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Task worktree lifecycle
+        run: npm exec --call "node --test scripts/manage-task-worktrees.test.mjs"
+      - name: Task branch cleanup
+        run: npm exec --call "node --test scripts/cleanup-task-branches.test.mjs"
+
   check:
     name: check (${{ matrix.part }})
     runs-on: ubuntu-latest
