@@ -3,13 +3,27 @@ import { it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { clientVersion, environmentFields, measureEnvironment, osVersion, pluginVersionAt } from "./gate-environment.mjs";
 
-it("reads the version from the first word of the client's version line", () => {
+it("reads only the selected client's version format", () => {
   assert.equal(clientVersion("2.1.322 (Claude Code)\n"), "2.1.322");
   assert.equal(clientVersion("  0.167.1"), "0.167.1");
   assert.equal(clientVersion("codex-cli 0.167.1"), undefined);
+  assert.equal(clientVersion("codex-cli 0.167.1\n", "codex"), "0.167.1");
+  assert.equal(clientVersion("2.1.322 (Claude Code)", "codex"), undefined);
+  assert.equal(clientVersion("codex-cli 0.167.1 unexpected", "codex"), undefined);
   assert.equal(clientVersion("2.1 (Claude Code)"), undefined);
   assert.equal(clientVersion(""), undefined);
   assert.equal(clientVersion(undefined), undefined);
+});
+
+it("measures Codex without invoking Claude", () => {
+  const calls = [];
+  const result = measureEnvironment("darwin", file => {
+    calls.push(file);
+    return file === "codex" ? "codex-cli 0.167.1" : "15.7.1";
+  }, "codex");
+  assert.deepEqual(calls, ["codex", "sw_vers"]);
+  assert.deepEqual(result, { clientVersion: "0.167.1", osVersion: "15.7.1" });
+  assert.throws(() => measureEnvironment("darwin", () => assert.fail("must not execute"), "unknown"));
 });
 
 it("reads the product version on macOS and the kernel release elsewhere", () => {

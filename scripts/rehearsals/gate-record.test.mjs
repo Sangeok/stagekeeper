@@ -50,6 +50,20 @@ it("records every leg of the init gate and names the leg that left no summary", 
   assert.deepEqual(partial.legs.at(-1), { leg: "macos_update", result: "missing" });
 });
 
+it("preserves partial eval success as a finding instead of certifying the full gate", () => {
+  const summary = { ...environment, os: "darwin-arm64", result: "pass", controlPassed: true, gateComplete: false, selection: "case", cases: [{ name: "rerun-asks-first", score: 1, runs: 3, failedRuns: 0 }] };
+  const row = gateRow(run({ workflow: "agent-eval", legs: ["init_skill"], summaries: { summary_init_skill: JSON.stringify(summary) } }));
+  assert.deepEqual(row.findings, ["incomplete-eval"]);
+  assert.equal(row.legs[0].gateComplete, false);
+  assert.ok(findingIssue(row, REPOSITORY, "319"));
+});
+
+it("does not turn explicit pipeline failure without a named failure step into pass", () => {
+  const row = gateRow(run({ summaries: { summary_pipeline: JSON.stringify({ ...pipelineSummary, result: "fail", harnessErrors: {} }) } }));
+  assert.equal(row.legs[0].result, "fail");
+  assert.deepEqual(row.findings, ["gate-failed"]);
+});
+
 it("reports a failed gate, a failed leg and server refusals, and nothing for a cancelled run", () => {
   const failedJob = gateRow(run({ result: "failure", summaries: {} }));
   assert.deepEqual(failedJob.findings, ["gate-failed", "missing-summary"]);
