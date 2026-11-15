@@ -79,6 +79,16 @@ it("reports a token value without returning it", () => {
   assert.equal(containsSecret('{"Authorization":"Bearer ${HARNESS_TOKEN}"}', token), false);
 });
 
+it("preserves explicit failure and skip and never turns missing or unfinished results into success", () => {
+  for (const result of ["fail", "skip"]) assert.equal(summarize({ client: "codex", result }).result, result);
+  for (const result of ["running", "cancelled", "unknown", undefined, null]) assert.equal(summarize({ result }).result, "fail");
+  assert.equal(summarize({}).result, "fail");
+  assert.equal(summarize({ steps: [] }).result, "fail");
+  assert.equal(summarize({ steps: [{ step: "install", result: "pass" }] }).result, "pass");
+  assert.equal(summarize({ result: "pass", steps: [{ step: "cleanup", result: "fail" }] }).result, "fail");
+  assert.deepEqual(summarize(summarize({ client: "codex", result: "fail" })), { client: "codex", result: "fail" });
+});
+
 it("treats a plugin from 0.6.0 on as a template release client that needs the cutover before it connects", () => {
   assert.equal(usesTemplateReleases("0.5.33"), false);
   assert.equal(usesTemplateReleases("0.6.0"), true);

@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { environmentFields } from "./gate-environment.mjs";
+import { smokeResult } from "./client-init-smoke-steps.mjs";
 
 export const PIPELINE_STEPS = Object.freeze(["assign-work", "plan", "verify", "implement", "impl-verify", "accept", "doc-audit"]);
 export const PIPELINE_ROLES = Object.freeze(["work-assigner", "app-dev", "plan-verifier", "impl-verifier", "doc-auditor"]);
@@ -169,7 +170,7 @@ export function summarizePipeline(record) {
   if (typeof record.sealed === "boolean") summary.sealed = record.sealed;
   if (typeof record.failure === "string" && NAME.test(record.failure)) summary.failure = record.failure;
   if (Number.isInteger(record.seconds) && record.seconds >= 0) summary.seconds = record.seconds;
-  summary.result = record.failure ? "fail" : "pass";
+  summary.result = smokeResult(record);
   return summary;
 }
 

@@ -14,9 +14,13 @@ export function environmentFields(record) {
   return fields;
 }
 
-export function clientVersion(output) {
-  const first = typeof output === "string" ? output.trim().split(/\s+/)[0] : "";
-  return VERSION.test(first) ? first : undefined;
+export function clientVersion(output, client = "claude") {
+  if (typeof output !== "string" || !CLIENTS.includes(client)) return undefined;
+  const line = output.trim();
+  const match = client === "codex"
+    ? /^codex-cli (\d+\.\d+\.\d+)$/.exec(line)
+    : /^(\d+\.\d+\.\d+)(?: \(Claude Code\))?$/.exec(line);
+  return match?.[1];
 }
 
 export function osVersion(platform, read) {
@@ -39,7 +43,8 @@ export function pluginVersionAt(pluginRoot, read = readFileSync) {
   }
 }
 
-export function measureEnvironment(platform, command) {
+export function measureEnvironment(platform, command, client = "claude") {
+  if (!CLIENTS.includes(client)) throw new Error("unsupported client");
   const output = (file, args) => {
     try {
       return command(file, args);
@@ -48,7 +53,7 @@ export function measureEnvironment(platform, command) {
     }
   };
   return {
-    clientVersion: clientVersion(output("claude", ["--version"])),
+    clientVersion: clientVersion(output(client, ["--version"]), client),
     osVersion: osVersion(platform, { product: () => command("sw_vers", ["-productVersion"]), release }),
   };
 }

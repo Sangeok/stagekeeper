@@ -177,11 +177,13 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   재실행(`rerun-asks-first`), 처음 연결에서 등록과 `harness.json` 쓰기 전에 묻는지
   (`first-connection-asks-before-register`), 초안을 승인한 뒤에도 생성 전에 다시 묻는지
   (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
-  실행마다 셸 명령을 기록해 job 로그에 남긴다. 판정이 어긋난 회의 이유를 볼 수 있도록, 같은 회의 보존된 임시
-  폴더에서 대화 기록을 찾아 assistant 메시지 수, 마지막 `stop_reason`, 마지막 메시지(1,500자까지)도 남긴다. 결과
-  JSON이나 대화 기록을 artifact로 올리지 않는다. artifact는 로그와 달리 비밀값 가림을 거치지 않기 때문이다.
+  실행마다 셸 명령을 격리된 임시 폴더에 기록한다. 모델 CLI stdout/stderr와 원본 JSON은 runner 임시 파일로만
+  받고, 공개 로그에는 허용된 사례 이름·점수·실행 수·실패 수·비용·시간만 출력한다. 셸 명령과 assistant 본문은
+  출력하지 않으며 원본은 artifact로 올리지 않고 always 정리 단계에서 삭제한다. secret masking을 원문 공개의 근거로 삼지 않는다.
   `scripts/rehearsals/agent-eval-summary.mjs`가 사례별 점수·실행 수·실패한 실행 수, 비용, 클라이언트 버전·OS 버전·
-  플러그인 판만 남긴 요약 한 줄을 만들고, workflow가 그 줄을 가림을 거치는 job 출력으로 넘긴다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
+  플러그인 판·`controlPassed`·`gateComplete`·선택 범위만 남긴 요약 한 줄을 만들고 workflow가 job 출력으로 넘긴다.
+  대조군과 각 사례의 필수 grader·3회 결과가 모두 있어야 전체 gate가 완료된다. JSON 부재나 실패한 grader를 종료 코드 0으로 덮지 않는다.
+  수동 실행은 `case` 입력으로 일부 사례만 돌릴 수 있지만 `gateComplete: false`이면 기록에 `incomplete-eval` finding을 남긴다. 주 1회와 수동
   실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
   사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
 - [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
@@ -228,6 +230,20 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   역할별 dispatch 횟수를 남긴다. `reviewRequired`이면 main 승격 전에 private 원문을 검토하고,
   계약·안내 문구가 원인이면 먼저 수정한다. 실행 identity와 단계별 요약만 게시하고 raw 기록·template·인증은
   Mac의 private 경로에 보존한다. 일회용 runner는 작업 후 해제하며 재실행 전에 시작해야 한다.
+- dual-client 후보 판정의 순수 모듈은 `scripts/rehearsals/client-ci-contract.mjs`다. 네트워크·모델·게시를 수행하지 않는다.
+  `clientTarget`은 client/OS/architecture/channel/phase/scenario와 phase별 identity를 검증한다. `normalizeClientEvidence`는
+  schema 2의 허용 필드만 반환하고 `evidenceDigest`는 그 정규화 결과의 SHA256을 계산한다. source-copy Claude eval의
+  server/template은 `not-applicable:source-copy-eval`, source 설치의 bundle hash는 `not-applicable:source-channel`,
+  auth smoke의 제품 SHA는 `not-applicable:auth-only`로 명시한다. 필요한 identity 누락에는 이 값을 대신 넣지 않는다.
+  `evaluateClientCandidate({ expected, records, executions, reviews, retries })`의 expected는 target·workflow source·실제 생성 자원 목록이다.
+  records는 별도 publication 출처와 evidence, executions는 수집자가 확인한 실행 출처·target·순서(sequence)·전체 job 결론·결과 digest를 담는다.
+  실행 출처는 repository/workflow/workflowCommit/runId/attempt/job/leg이며 재기록 출처와 구별한다. 동일 실행·동일 결과 재게시는 한 번만 세고
+  identity 불일치·필수 leg 누락·최신 실패·정리 실패·partial eval·검토 누락은 거부한다. 검토/외부 원인 재시도는 해당 execution과 digest에 귀속한다.
+  unknown 모델 사용량·비용은 null로 유지하며 init에는 모델 호출·비용 0과 빈 model 목록이 필요하다.
+  이 API는 전달받은 출처를 GitHub에 조회하거나 인증하지 않는다. 호출자가 모든 관련 시도와 검토를 신뢰된 경계에서 수집해야 한다.
+  현재 공개 schema 1 기록과 private wrapper는 이 schema로 자동 승격되지 않으며 trusted consumer 연결은 아직 미완료다.
+  단위 시험 통과는 Windows Codex runner 준비나 양 OS 실제 인수를 뜻하지 않는다. 구현 현황은
+  [dual-client CI 제안](../proposals/active/dual-client-ci-parity.md)의 Implementation Progress를 따른다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 

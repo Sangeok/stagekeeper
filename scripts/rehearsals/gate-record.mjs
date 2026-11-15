@@ -24,6 +24,7 @@ const FINDINGS = {
   "missing-summary": "a leg left no readable summary",
   "harness-errors": "the summary shows refused or failed harness tool calls",
   "step-refusals": "the server refused a pipeline step",
+  "incomplete-eval": "the eval did not prove the control and every required case",
 };
 const VALUED = ["--workflow", "--result", "--legs", "--event", "--ref", "--commit", "--run-id", "--run-attempt", "--repository", "--record-issue", "--out", "--open-issues"];
 
@@ -38,7 +39,7 @@ function leg(name, text, filter) {
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { leg: name, result: "missing" };
   const summary = filter(parsed);
-  return typeof summary.os === "string" ? { leg: name, ...summary } : { leg: name, result: "missing" };
+  return typeof summary.os === "string" && ["pass", "fail", "skip"].includes(summary.result) ? { leg: name, ...summary } : { leg: name, result: "missing" };
 }
 
 function findingsOf(conclusion, legs) {
@@ -48,6 +49,7 @@ function findingsOf(conclusion, legs) {
   if (legs.some(entry => entry.result === "missing")) found.push("missing-summary");
   if (legs.some(entry => entry.harnessErrors && Object.keys(entry.harnessErrors).length > 0)) found.push("harness-errors");
   if (legs.some(entry => Number.isInteger(entry.stepRefusals) && entry.stepRefusals > 0)) found.push("step-refusals");
+  if (legs.some(entry => entry.gateComplete === false)) found.push("incomplete-eval");
   return found;
 }
 

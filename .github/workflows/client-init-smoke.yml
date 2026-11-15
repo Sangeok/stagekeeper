@@ -11,6 +11,13 @@ on:
       - "scripts/rehearsals/rehearse-client-init-smoke.ts"
       - "scripts/rehearsals/client-init-smoke-steps.mjs"
       - "scripts/rehearsals/gate-environment.mjs"
+      - "scripts/rehearsals/rehearse-codex-macos.mjs"
+      - "scripts/rehearsals/codex-init-eval.mjs"
+      - "scripts/rehearsals/client-ci-contract.mjs"
+      - "scripts/rehearsals/gate-record.mjs"
+      - "scripts/windows/package-windows-plugin.mjs"
+      - "scripts/macos/package-plugin.mjs"
+      - ".github/actions/gate-record/**"
       - ".github/workflows/client-init-smoke.yml"
       - ".github/actions/smoke-database/**"
   workflow_dispatch:
