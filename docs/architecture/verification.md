@@ -250,7 +250,13 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   identity 불일치·필수 leg 누락·최신 실패·정리 실패·partial eval·검토 누락은 거부한다. 검토/외부 원인 재시도는 해당 execution과 digest에 귀속한다.
   unknown 모델 사용량·비용은 null로 유지하며 init에는 모델 호출·비용 0과 빈 model 목록이 필요하다.
   이 API는 전달받은 출처를 GitHub에 조회하거나 인증하지 않는다. 호출자가 모든 관련 시도와 검토를 신뢰된 경계에서 수집해야 한다.
-  현재 공개 schema 1 기록과 private wrapper는 이 schema로 자동 승격되지 않으며 trusted consumer 연결은 아직 미완료다.
+  공개 schema 1 기록을 이 schema의 인수 증거로 소급하지 않는다. private CI의 후속 `init-evidence.mjs`는
+  검토된 public checkout의 이 모듈을 import해 macOS Codex init의 두 scenario를 정규화한다. private workflow에는
+  허용 필드 JSON 하나만 artifact로 남기며 raw log·template·credential은 포함하지 않는다.
+  private `collect-init-evidence.mjs`는 GitHub의 private 저장소·owner dispatch·dev ref·workflow SHA·고정 target·job·runner·artifact 출처를
+  읽기 전용으로 대조한 뒤 이 판정기를 호출한다. 단일 실행의 `codex-macos-init-single-run` 결과이며 attempt 2 이상은 거부한다.
+  보관 중인 workspace와 아직 관찰하지 않은 update 실행 pin은 미충족으로 남긴다. 다른 실행·최신 실패·review/retry까지 모으는
+  후보 전체 consumer와 공개 게이트 연결은 여전히 미완료이며 이 단일 실행 결과는 승격 승인이 아니다.
   단위 시험 통과는 Windows Codex runner 준비나 양 OS 실제 인수를 뜻하지 않는다. 구현 현황은
   [dual-client CI 제안](../proposals/active/dual-client-ci-parity.md)의 Implementation Progress를 따른다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
