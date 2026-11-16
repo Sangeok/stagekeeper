@@ -298,7 +298,7 @@ pipeline-smoke · dev 1eddbc2 · success · run 42921691891
 
 다음은 구현 당시 계획이다. 1–5의 수행 결과와 6–7의 후속 범위는 아래 완료 기록에서 구분한다.
 
-1. 준비. 같은 구역의 verification.md를 고친 #316은 2026-11-11 `dev`에 머지됐다(`ae4079c`). 승인된 [검증 스킬 이름 공간 제안](../active/claude-verifier-skill-namespace.md)의 기록 PR이 `client-init-smoke.yml`의 템플릿 커밋 고정값 세 곳을 바꿀 예정이다. 같은 파일을 고치므로 나중에 올리는 쪽이 최신 `dev`에 맞춘다. 기록 이슈를 만들고(소유자 승인) 본문에 목적, 행 형식, 읽는 법, "workflow와 소유자의 댓글만 기록이다"를 적는다. 2026-11-11 소유자 승인을 받아 [#319](https://github.com/Sangeok/stagekeeper/issues/319)로 만들었다.
+1. 준비. 같은 구역의 verification.md를 고친 #316은 2026-11-11 `dev`에 머지됐다(`ae4079c`). 승인된 [검증 스킬 이름 공간 제안](./2026-11-12-claude-verifier-skill-namespace.md)의 기록 PR이 `client-init-smoke.yml`의 템플릿 커밋 고정값 세 곳을 바꿀 예정이다. 같은 파일을 고치므로 나중에 올리는 쪽이 최신 `dev`에 맞춘다. 기록 이슈를 만들고(소유자 승인) 본문에 목적, 행 형식, 읽는 법, "workflow와 소유자의 댓글만 기록이다"를 적는다. 2026-11-11 소유자 승인을 받아 [#319](https://github.com/Sangeok/stagekeeper/issues/319)로 만들었다.
 2. 구현(PR 하나, `dev` 대상). 버전 해석 모듈과 요약 필드, `agent-eval` 요약 도구, 기록 도구, composite action, workflow 3개, AGENTS.md와 문서 2개. 시험을 먼저 쓴다.
 3. PR에서 확인. 이 PR은 `client-init-smoke`의 경로에 걸려 PR 실행이 자동으로 돈다. 그 실행에서 `record` job이 건너뛰어지고 gate job 넷이 지금처럼 녹색인지 본다.
 4. `dev`에서 확인. 머지 뒤 다음 승격의 게이트로 세 workflow를 `dev`에서 돌린다(`agent-eval`이 끝난 뒤 `pipeline-smoke`). 행 3개가 남는지, `client-init-smoke` 행에 다리 넷이 모두 있는지, 버전 값이 로그의 값과 같은지 본다.

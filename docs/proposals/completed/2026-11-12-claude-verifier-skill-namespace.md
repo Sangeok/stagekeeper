@@ -1,13 +1,14 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-11"
+updated-at: "2026-11-16"
 approved-by: "requesting-user"
-approved-at: "2026-11-11"
-approval-scope: "Execution Plan 전체. 템플릿 R2 브랜치부터는 단계마다 결과를 보고하고, 문서와 어긋나면 멈추고 문서를 먼저 고친다."
-completed-at: null
-verification-summary: null
+approved-at: "2026-11-12"
+approval-scope: "Core 구현·dev 병합 완료를 기준으로 문서를 완료 처리하고 참조를 갱신한다. R2 운영 import·activate, Mac e2e와 활성화 뒤 기록 PR은 미완료 후속으로 보존한다. 기존 2026-11-11 Execution Plan 전체 승인과 템플릿 R2 브랜치부터 단계별 결과 보고·문서 불일치 시 중단 조건은 유지하며, 이번 문서 정리에서 새 운영·설치·모델 실행은 하지 않는다."
+completed-at: "2026-11-12"
+verification-summary: "2026-11-12에 구현 PR #317(55f9ebd, 병합 20fe525)이 dev 278c986과 main 1bbc940에 포함됨을 확인했다. 기존 문구 회귀·R2 원본 99245ac 검증·세 게이트 통과와 0.6.14 출시 기록을 보존한다. R2 운영 활성화·Mac e2e·활성화 뒤 기록 PR은 미완료다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -19,16 +20,19 @@ related:
   - "docs/proposals/active/template-release-acceptance-follow-ups.md"
 ---
 
-# Claude에서 검증 스킬을 플러그인 이름공간으로 부르기
+# Claude 검증 스킬 이름공간 — Core 구현 완료 및 R2 적용 후속
 
 ## Summary
 
-Claude Code에서 Stagekeeper는 검증 스킬을 `reconciling-proposals-with-codebase`라는 맨 이름으로
-부른다. 같은 이름의 개인 스킬(`~/.claude/skills/`)이 있으면 Claude Code는 플러그인 사본 대신
-개인 스킬을 연다. 그 결과 init·watch·백그라운드 실행기가 시작 전 확인에서 멈춘다. Claude만 읽는
-문구는 `harness:reconciling-proposals-with-codebase`로 바꾸고, Codex와 함께 읽는 문구(verify 안내문,
-plan-verifier 단계)에는 Claude용 이름을 덧붙인다. 템플릿은 R2로 릴리스한다. 고친 곳이 맨 이름으로
-되돌아가지 못하게 기존 테스트 세 곳에 문구 검사를 넣는다.
+Claude Code의 맨 이름 호출이 같은 이름의 개인 스킬을 여는 문제를
+[#317](https://github.com/Sangeok/stagekeeper/pull/317)에서 수정했다. Claude용 호출은
+`harness:reconciling-proposals-with-codebase`를 사용하고, 공용 verify 안내문에는 Claude용
+이름을 덧붙였다. 플러그인·안내문·비공개 템플릿의 문구 회귀 검사도 구현했다.
+
+2026-11-12 소유자의 요청에 따라 Core 구현·병합 완료를 기준으로 문서를 완료 기록으로
+전환했다. R2 원본과 게이트 검증·main 반영의 기존 증거를 보존한다. R2의 운영
+import·activate, Mac 재init·실제 E2E, 활성화 뒤 기록 PR은 완료로 판정하지 않으며
+Completion or Closure Notes의 후속 항목으로 남긴다.
 
 ## Goal
 
@@ -51,6 +55,30 @@ plan-verifier 단계)에는 Claude용 이름을 덧붙인다. 템플릿은 R2로
   포인터를 되돌려야 한다.
 
 ## Current State
+
+### 2026-11-12 완료 판단
+
+- 구현 commit `55f9ebd`는 #317의 병합 commit `20fe525`로 `dev`에 반영됐다. 최신
+  `origin/dev` `278c986`과 `origin/main` `1bbc940` 모두 이 병합 commit을 포함한다.
+- 플러그인·서버 안내문·문구 검사·호출 규칙 구현은 완료됐다. 플러그인 버전은 다른 변경과
+  통합돼 0.6.14로 출시됐고, R1 설치 사실을 정정한 [#324](https://github.com/Sangeok/stagekeeper/pull/324)도 `dev`에 반영됐다.
+- 기존 Verification Results에는 R2 원본 `99245ac`의 문구 검사, 세 게이트 통과, 템플릿 main
+  반영과 stagekeeper main 승격이 기록돼 있다. 이번 문서 정리에서 해당 실행을 반복하지 않았다.
+- R2 운영 import·activate와 Mac E2E는 기존 기록에서 미실행이다. `client-init-smoke.yml`의
+  기본값은 여전히 R1 `8ccb37a`이며, R2 활성화 날짜·SHA를 기록하는 후속 PR도 남아 있다.
+
+### 2026-11-16 PR 준비 확인
+
+- 기존 완료 기록을 `origin/dev` `a268309` 위로 옮겼다. Core 병합 `20fe525`가 이 dev와
+  조회한 원격 main `a671f58`에 포함됨을 다시 확인했다.
+- 이후 추가된 `dual-client-ci-parity.md`와 보드 활동 줄 완료 기록의 참조도 새 완료 경로로 맞췄다.
+- 아래 운영·설치 후속 상태는 기존 기록 기준이다. 이번 PR 준비에서는 운영 상태를 다시 조회하거나
+  R2 import·activate, 재init, 모델 실행을 수행하지 않았다.
+
+### 구현 전 조사와 설치 관측
+
+아래 표와 경로·행 번호는 구현 당시의 문제 및 2026-11-11~12 관측을 보존한 것이다.
+현재 구현·완료 범위는 위 판단과 Verification Results를 따른다.
 
 Claude Code의 이름 해석:
 
@@ -135,7 +163,10 @@ R1 템플릿 커밋을 고정해 둔 곳:
 
 ## Scope
 
-포함 범위:
+원래 승인된 전체 범위는 아래와 같다. 이번 완료 처리는 코드·R2 원본 구현과 기존 검증·병합
+기록을 기준으로 하며, 운영 활성화·Mac E2E·활성화 뒤 기록 작업은 후속으로 남긴다.
+
+원래 포함 범위:
 
 - 플러그인의 Claude용 문구(`watch/SKILL.md` 1곳, `reconciliation-contract.md` 3곳)와 플러그인 판
   올림(0.6.12 → 0.6.13). dev에서 다른 변경과 합쳐져 0.6.14로 출시됐다.
@@ -160,7 +191,8 @@ R1 템플릿 커밋을 고정해 둔 곳:
 
 ## Proposal
 
-아래 영어 문구는 제안이다. 구현 중 다듬을 수 있지만 `harness:` 이름을 쓴다는 점은 바꾸지 않는다.
+아래는 구현한 설계와 남은 릴리스 절차다. 원래 문구와 순서의 근거를 보존하며,
+각 단계의 완료 여부는 Verification Results와 Completion or Closure Notes를 따른다.
 
 ### 1. stagekeeper 저장소 (변경 PR, dev 대상)
 
@@ -264,13 +296,14 @@ Stagekeeper plugin includes; a personal skill with the same name would load unde
 ### 3. 활성화 뒤 기록 (기록 PR, dev 대상)
 
 R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에서 activate한 뒤에 한다.
+문서의 완료 이동은 소유자의 Core 완료 기준에 따라 먼저 수행했다. 아래 workflow 기본값·
+활성 릴리스·실기 보고서의 갱신은 아직 수행하지 않았다.
 
 - `.github/workflows/client-init-smoke.yml`의 20·98·130행 기본값을 R2 커밋 전체 SHA로 바꾼다.
 - `docs/architecture/template-releases.md`의 같은 문단에 R2 커밋 SHA와 활성화 날짜를 적는다.
 - 시험 보고서를 `docs/test-reports/completed/YYYY-MM-DD-<이름>.md`로 추가한다.
-- 이 문서를 `docs/proposals/completed/YYYY-MM-DD-claude-verifier-skill-namespace.md`로 옮기고 front
-  matter의 `status`, `stage`, `completed-at`, `verification-summary`와 Completion Notes를 채운다.
-  시험 보고서의 `related`는 옮긴 뒤의 경로를 가리킨다(`npm run docs:check`가 확인한다). 이 PR의
+- 이 문서는 Core 완료 기록인 `docs/proposals/completed/2026-11-12-claude-verifier-skill-namespace.md`로
+  이동했다. 후속 시험 보고서의 `related`는 이 경로를 가리킨다(`npm run docs:check`가 확인한다). 이 PR의
   `client-init-smoke` 결과, 머지 뒤 dev 재실행, main 승격은 이 커밋 시점에 끝나지 않았으므로
   Completion Notes의 `remaining follow-up`에 적는다. `6d229da`도 같은 방식이었다.
 - `docs/proposals/active/template-release-acceptance-follow-ups.md`의 TPL-F02에서 "R1 재init"을 "R2
@@ -317,7 +350,7 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
 | 템플릿 `en/agents/plan-verifier.md` | update | plan-verifier의 스킬 호출 | low: 서버가 내려주는 본문 |
 | `.github/workflows/client-init-smoke.yml` | update (기록 PR) | R1 커밋 고정값 3곳 | low: R2가 릴리스 검증을 통과한 뒤에 바꾼다 |
 | `docs/architecture/template-releases.md` | update (변경 PR, 기록 PR) | 변경 PR: `source_commit` 규칙. 기록 PR: 활성 릴리스 | none |
-| `docs/proposals/active/claude-verifier-skill-namespace.md` | add (변경 PR), move (기록 PR) | 이 문서. 기록 PR에서 `completed/`로 옮긴다 | none |
+| `docs/proposals/completed/2026-11-12-claude-verifier-skill-namespace.md` | add (변경 PR), move (Core 완료 기록) | 이 문서. 운영 활성화 전에 Core 완료 기준으로 이동했다 | none |
 | `docs/test-reports/completed/YYYY-MM-DD-<이름>.md` | add (기록 PR) | 릴리스·Mac e2e 결과 기록 | none |
 | `docs/proposals/active/template-release-acceptance-follow-ups.md` | update (기록 PR) | TPL-F02의 "R1 재init"을 R2로 | none |
 
@@ -347,7 +380,7 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
   바꾸지 않으므로 `plugin/bin/harness-released-readers.test.mjs`의 대상이 아니다.
 - [ ] R2 activate 뒤 R1 Claude 설치본이 웹에서 보드에 올린 새 항목에 받는 응답(`wait`·`template`)은
   Execution Plan 6단계에서 확인한다.
-- [ ] Codex용 설치 지문이 그대로인지는 Execution Plan 2단계의 diff로 확인한다.
+- [x] R2 diff는 두 파일만 바꾸고 plan-verifier 변경은 첫 `## step:` 아래에만 있다. Codex용 설치 파일이 바뀌지 않음을 기존 Verification Results에서 확인했다.
 
 ## Approval
 
@@ -357,8 +390,14 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
 
 - 템플릿 R2 브랜치부터는 단계마다 결과를 보고한 뒤 다음 단계로 넘어간다. 문서와 어긋나는 점이
   나오면 멈추고 문서를 먼저 고친다.
+- 이번 완료 처리는 Core 구현·병합과 문서 정리를 대상으로 한다. 남은 운영·설치·실기 절차의
+  기존 보고 조건을 면제하거나 해당 절차의 성공을 선언하지 않는다.
 
 ## Execution Plan
+
+원래 실행 순서를 보존한다. 1~4단계와 5단계의 두 저장소 main 반영은 기존 검증 기록에 있다.
+5단계의 운영 import·activate, 6단계 Mac E2E, 7단계 활성화 뒤 기록·승격은 미완료 후속이다.
+이 문서의 완료 이동만 Core 기준으로 먼저 수행했다.
 
 1. 변경 PR을 만든다(`harness/claude-verifier-namespace` → `dev`). 이 문서, 플러그인 문구, 안내문,
    `product-copy.md`, `protocol.md`, `template-releases.md`의 `source_commit` 규칙, 문구 검사 3개,
@@ -395,7 +434,8 @@ R1 때의 기록 커밋 `6d229da`와 같은 방식이다. R2를 프로덕션에�
 
 ## Verification Plan
 
-실행할 검증:
+구현·운영 적용을 위한 원래 검증 목록이다. 실행한 결과는 아래 표에 기록했고,
+문서 완료 처리에서는 병합 이력과 기존 결과를 확인하며 문서 검사를 수행한다.
 
 ```bash
 npm run verify:fsd
@@ -453,6 +493,12 @@ gh workflow run pipeline-smoke.yml --ref dev --field templates-ref=<R2 커밋 �
 | `pipeline-smoke` (dev `20fe525`, R2) | Passed with `harnessErrors: {"validation_record": 2}` (2026-11-11) | 같은 오류가 이 변경 전 `1eddbc2`에도 있었다. 기록은 당시 키를 아무도 몰라 열지 못했고, 키를 교체했다 |
 | 템플릿 main fast-forward, dev → main 승격 | Done (2026-11-12) | 템플릿 main `99245ac`, stagekeeper main `1bbc940`(Vercel 프로덕션 배포 완료) |
 | 나머지(R2 import·activate, Mac e2e) | Not run yet | |
+| Core 병합 포함 확인 | Passed (2026-11-12, 완료 정리) | #317은 `dev` 대상 merged PR이다. `git merge-base --is-ancestor 20fe525 origin/dev`와 `origin/main`이 모두 성공했다. 확인 ref는 dev `278c986`, main `1bbc940`이다 |
+| 완료 문서 검사 | Passed (2026-11-12) | `npm run docs:check`: 215개 문서·1,062개 상대 링크·59개 시험 보고서 통과. `git diff --cached --check` 통과. 옛 active 경로 참조가 남지 않았음을 확인 |
+| 최신 dev 기준 문서 검사 | Passed (2026-11-16) | `npm run docs:check`: 219개 Markdown 파일·1,095개 상대 링크·59개 시험 보고서 통과. `git diff --check` 통과. 새로 추가된 참조 문서까지 완료 경로로 갱신 |
+
+기존 테스트·게이트 통과는 당시 결과다. 이번 완료 정리에서는 제품 코드, 운영 DB,
+설치본을 변경하지 않았고 실제 모델이나 게이트를 다시 실행하지 않았다.
 
 ## Risks and Rollback
 
@@ -484,25 +530,27 @@ gh workflow run pipeline-smoke.yml --ref dev --field templates-ref=<R2 커밋 �
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+- 완료 기준: 소유자의 요청에 따른 Core 구현·병합 완료와 기존 검증 기록 정리다. 완료일은
+  문서 정리 날짜이며 R2 운영 활성화나 Mac E2E 실행을 뜻하지 않는다.
+- 구현 PR/commit: [#317](https://github.com/Sangeok/stagekeeper/pull/317), 구현 `55f9ebd`,
+  병합 `20fe525`. 최신 `dev`·`main`에 포함돼 있다. R1 설치 관측 정정은 #324다.
+- 변경 요약: Claude용 스킬 호출과 공용 verify 안내문, 플러그인 판, 문구 회귀 검사 3개,
+  protocol·제품 문구·템플릿 source 규칙, R2 원본의 runbook·plan-verifier 문구다.
+- 기존 검증: 문구 회귀, R2 원본 `99245ac` 검증, dev `1bbc940`의 세 게이트와 main 반영을
+  Verification Results에 보존한다. 초기 게이트의 오류와 이후 정상 결과도 구분해 유지한다.
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+| 후속 | 상태 | 남은 작업 |
+| --- | --- | --- |
+| NS-F01 | 미완료 | Execution Plan 5단계의 운영 R1 실행 재조회 후, 검증한 R2 원본으로 import·activate한다. 운영 활성화 날짜·릴리스 identity와 결과를 기록한다 |
+| NS-F02 | 미완료 | NS-F01 뒤 Execution Plan 6단계에 따라 Mac 플러그인 갱신, R1 설치의 `wait`·`template` 응답, 재init, 개인 스킬을 유지한 실제 항목 인수까지 확인한다 |
+| NS-F03 | 미완료 | Proposal 3절·Execution Plan 7단계의 기록 PR에서 R2 CI 기본값·활성 릴리스 기록·시험 보고서·TPL-F02를 갱신하고, 해당 PR·dev의 client-init-smoke와 승격 절차를 수행한다 |
 
-닫힘 기록(`status: "closed"`일 때 작성):
-
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+이 후속은 Core 완료 판정에 포함하지 않는다. 기존 단계별 보고 조건과 설치·운영 안전 경계는
+그대로 유지한다. Windows의 다음 사용 시 재init과 Codex의 공용 문구 관찰도 기존 Risks를 따른다.
 
 ## Review Checklist
 
-- [x] 모든 `{placeholder}`를 처리했고, pending 문서의 완료/닫힘 전용 `TBD` 외에는 현재 상태에 맞게 갱신했다.
+- [x] 완료 metadata와 Completion Notes를 실제 확인 결과로 채웠고, 미실행 후속을 별도로 구분했다.
 - [x] `status`는 `pending`, `completed`, `closed`만 사용했다.
 - [x] 문서 위치와 `status`가 일치한다. `active/`는 `pending`, `completed/`는 `completed` 또는 `closed`다.
 - [x] `stage`는 pending 문서에서만 사용했고, `completed` 또는 `closed` 문서에서는 `stage: null`로 갱신했다.
@@ -513,7 +561,7 @@ gh workflow run pipeline-smoke.yml --ref dev --field templates-ref=<R2 커밋 �
 - [x] 영향 파일별 작업과 판단 근거가 적혀 있다.
 - [x] 안전성 분석에서 라우팅, import, 자산, 타입, 런타임 side effect를 필요한 만큼 확인했다.
 - [x] 검증 명령과 성공 기준이 적혀 있다.
-- [ ] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
+- [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
-- [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 실행하지 않기로 닫은 기록이 아니므로 `closed-at`, `closed-by`, `closed-reason`은 null이다.
