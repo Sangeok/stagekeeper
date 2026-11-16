@@ -524,7 +524,7 @@ it("terminates its Git child before releasing the guard on cancellation", async 
 
 it("uses the same canonical checkout for Windows short and long temp paths", { skip: process.platform !== "win32" ? "Windows 8.3 path contract" : false }, async t => {
   const f = fixture();
-  const short = execFileSync("cmd.exe", ["/d", "/s", "/c", `for %I in ("${f.control}") do @echo %~sI`], { encoding: "utf8" }).trim();
+  const short = execFileSync("cmd.exe", ["/d", "/s", "/c", `for %I in ("${f.control}") do @echo %~sI`], { encoding: "utf8", windowsVerbatimArguments: true }).trim();
   if (short.toLowerCase() === f.control.toLowerCase()) { t.skip("8.3 aliases are disabled on this volume"); return; }
   assert.equal(realpathSync.native(short), realpathSync.native(f.control));
   const created = await f.run("create", { root: short, owner: "owner", branch: "harness/short", path: path.join(f.root, "short task") });

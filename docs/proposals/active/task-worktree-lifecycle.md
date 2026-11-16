@@ -607,6 +607,11 @@ Git 목록 계약의 중복을 없앴다. 응답에는 owner/branchName/lastReas
 최초 관리 시험 실행에는 Git timeout 한 건과 비정상적으로 긴 wall time이 있었다.
 동일 사례 단독 재실행과 후속 전체 시험은 통과했고 timeout 상한은 늘리지 않았다.
 오류 기록을 삭제하거나 처음부터 모두 통과했다고 기록하지 않는다.
+첫 PR CI에서 공통 검사와 macOS 관리 49건·branch 96건이 통과했다. Windows 관리
+시험은 49 PASS/1 FAIL이었다. 실패는 8.3 경로를 조회하는 fixture의 cmd 인자 인용으로,
+반환 경로에 따옴표가 남아 native 실경로 조회가 실패했다. 테스트의 해당 cmd 호출에만
+`windowsVerbatimArguments`를 적용했다. 제품 삭제 로직이나 OS 보호 조건은 바꾸지 않았고,
+수정 후 Windows 결과는 PR의 최신 commit check에서 확인한다.
 현재 실제 사용자 자료의 자동 채택·정리, dev 병합과 main 승격은 수행 범위 밖이다.
 PR에 최종 commit의 check 결과와 잔여 보류를 기록하고 병합 전에는 active 제안서로 유지한다.
 
