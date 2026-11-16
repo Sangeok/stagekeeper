@@ -5,7 +5,7 @@ proposal-size: "standard"
 created-at: "2026-11-15"
 approved-by: "user"
 approved-at: "2026-11-16"
-approval-scope: "이 명세에 따른 실제 코드 수정과 로컬 검증. Windows x64·macOS arm64 × Claude·Codex 기본 4개 조합부터 진행하고 Intel은 기존 runtime 검증을 유지한다. Windows 전용 runner는 아직 없으므로 준비 전까지 코드·로컬 검증을 진행한다. 개인 설치 변경·운영 template activation·병합·배포는 포함하지 않는다."
+approval-scope: "이 명세에 따른 실제 코드 수정과 로컬 검증. Windows x64·macOS arm64 × Claude·Codex 기본 4개 조합부터 진행하고 Intel은 기존 runtime 검증을 유지한다. 후속 지시로 private CI 대상 SHA 고정과 공통 증거 연결을 진행한다. Windows runner 부재 및 Mac 사용 불가를 확인했으므로 현재는 코드·로컬 검증을 수행한다. 개인 설치 변경·운영 template activation·새 PR 병합·배포는 포함하지 않는다."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -342,6 +342,7 @@ Codex CI의 필수 승격 게이트 전환은 기존 공개 준비 작업의 결
 | `.github/workflows/client-init-smoke.yml`, `.github/workflows/pipeline-smoke.yml`, `.github/workflows/agent-eval.yml` | 확장 | Claude 경로·macOS 소유권 보존, PR paths·출력·private 원문 조건 연결 |
 | private `.github/workflows/codex-ci.yml`, `ci-target.json`, `scripts/run-codex-ci.mjs`, `scripts/run-codex-ci.test.mjs`, `README.md`, `package.json` | 확장 | phase 선택·설치·정규화·기록·입력 고정. package의 기존 check에 변경 실행기의 문법 검사를 포함한다. 새 Windows workflow 경로는 host 결정 후 이 표에 추가해야 구현 가능 |
 | private `.github/workflows/codex-auth-smoke.yml`, `scripts/codex-auth-smoke.mjs`, `scripts/codex-auth-smoke.test.mjs`, `scripts/start-runner.mjs` | 기존 Mac 계약 보존; launcher phase 선택 추가 | 인증 격리·같은 계정 직렬화·ephemeral runner. init에서는 모델 인증 검사를 생략하고 기본 dispatch도 init으로 제한한다. 모델 phase는 `--run-models`를 명시한다. Windows에 그대로 복사하지 않음 |
+| private `scripts/init-evidence.mjs`, `scripts/init-evidence.test.mjs`, `scripts/collect-init-evidence.mjs`, `.github/workflows/check.yml` | 후속 추가·확장 | 고정 public contract를 쓰는 init adapter·단일 run 읽기 전용 수집기·출처 거부 시험. 허용 필드 artifact만 private에 보관하며 후보 전체 승격 consumer와 구분한다 |
 | `scripts/rehearsals/rehearse-client-init-smoke.ts`, `scripts/rehearsals/rehearse-client-init-smoke.test.ts`, `scripts/rehearsals/client-init-smoke-steps.mjs`, `scripts/rehearsals/client-init-smoke-steps.test.mjs` | 확장 | 실제 cache·source identity·bundle/new-user/update 판정 |
 | `scripts/rehearsals/rehearse-pipeline-smoke.ts`, `scripts/rehearsals/rehearse-pipeline-smoke.test.ts`, `scripts/rehearsals/pipeline-smoke-steps.mjs`, `scripts/rehearsals/pipeline-smoke-steps.test.mjs` | 확장 | 공통 사례·terminal·lifecycle·승격 선택 규칙 |
 | `scripts/rehearsals/rehearse-codex-macos.mjs`, `scripts/rehearsals/rehearse-codex-macos.test.mjs` | 보존·부분 추출 | 기존 init/eval/pipeline·QA/scout와 진단 보존, cleanup 증거 보완 |
@@ -588,6 +589,18 @@ front matter는 구현 승인 기록의 단일 기준이다. 현재는 실제 �
 - 구현 요청을 받으면 승인된 단계/범위만 수행하고, 범위 밖 단계·private workflow 변경·실제 모델 사용·배포를 자동으로 시작하지 않는다. 이미 승인된 다른 작업의 같은 승인을 다시 요구하지 않고 실제 소유 범위를 확인한다.
 
 ## Verification Results
+
+### Init evidence follow-up — 2026-11-16
+
+- 공개 #342와 private #9가 각각 `dev`에 병합된 것을 확인했다. 이번 public 기준은 `e8c212a98335a5e4fb12df915c861a1e2581c43b`, private 기준은 `d5f1ea4209d5a205ef09b02d88d50fee5cc375db`다. 열린 PR은 없었다.
+- private 등록 runner 조회는 0대였고 사용자가 지금은 Mac을 사용할 수 없다고 답했다. 실제 init dispatch·설치·모델 실행을 하지 않고 코드·로컬 검증을 진행한다.
+- `ci-target.json`의 제품 후보를 위 public SHA, template을 검토된 R2 원본 `99245acd018d26a7c1238f34323951159c41d954`로 고정한다. 이전 제품 source `f882bb96450580d51dc63f142d19531a67185132`는 유지한다. 두 설치 fixture는 같은 R2를 사용하며 과거 R1 설치의 전환이나 운영 activation 인수가 아니다.
+- private init wrapper가 검증한 bundle identity·이전 설치물·phase 결과·cleanup을 고정 public contract로 정규화한다. 허용 필드 `init-evidence.json` 하나만 private artifact에 30일 보관한다. raw summary·로그·template·credential은 올리지 않는다.
+- private 읽기 전용 collector는 GitHub run/job/artifact 출처와 원격 `ci-target.json`을 대조한다. 재조회 중 attempt/artifact가 바뀌거나 출처·필수 leg·identity가 맞지 않으면 거부한다. attempt 2 이상은 이 단계에서 받지 않는다. 실제 기록 수집은 Mac 실행 후 가능하다.
+- 단일 run의 두 init scenario만 공통 판정기에 연결했다. 기존 리허설은 workspace를 보관하고 update의 실행 pin 보존을 관찰하지 않으므로 이를 각각 `preserved`/`fail`로 남긴다. 성공 workflow만으로 공통 PASS를 만들지 않는다. 모든 client/OS·다른 실행의 실패·review/retry를 합치는 후보 전체 consumer는 후속이며 BLK-DCP-04 전체가 해소된 것은 아니다.
+- `ci-os-coverage`와 template 후속의 소유권은 유지한다. Claude namespace 제안이 completed로 이동한 것은 Core 정리이며 R2 운영 활성화·Mac E2E 후속이 남았다는 현재 기록을 확인했다.
+- 로컬 검증: private phase/cache 시험과 새로운 producer/collector 시험 16개 통과. 실제 pinned public contract와 합성 설치물·GitHub metadata를 사용하며, 실제 Mac/인증/원격 artifact 수집 통과가 아니다. Git checkout의 LF/CRLF 차이는 허용하지만 실제 source 수정은 Git 상태에서 숨겨도 거부한다. 공개 contract 기존 시험 16개, 문서·CI coverage·FSD·server 경계 검사도 통과했다.
+- 후속 코드는 [private PR #10](https://github.com/Sangeok/stagekeeper-codex-ci/pull/10), commit `b87fa2d58c9d8c94c90c74827861195b56c19d27`에 보존했다. [Linux check](https://github.com/Sangeok/stagekeeper-codex-ci/actions/runs/43861429531)에서 전체 23개 시험이 통과했고 실패·skip은 0개다. Mac native init과 모델 실행은 이 검사에 포함되지 않는다.
 
 ### Implementation Progress — 2026-11-16
 
