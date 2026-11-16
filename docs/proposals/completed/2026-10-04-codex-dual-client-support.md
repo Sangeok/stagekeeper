@@ -24,7 +24,7 @@ related:
   - "docs/test-reports/README.md"
   - "docs/test-reports/template.md"
   - "docs/test-reports/active/dual-client-runtime-report.md"
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
   - "docs/test-reports/active/2026-10-04-proposal-status-follow-ups.md"
 ---
 
@@ -32,7 +32,7 @@ related:
 
 2026-10-04 사용자의 완료 처리 지시에 따라 **C1–C3 기본 지원 소스 구현과 기록된 로컬 검증**을 완료 범위로 정했다.
 아래 설계·phase·요구사항·검증표는 구현 당시의 판단 근거를 보존한다. 실제 모델/CLI·제품 설치·private 배포/복구·혼합 호스트 인수와
-C4 자동 watch는 [active 후속 제안서](../active/codex-dual-client-runtime-follow-ups.md)로 이관했다.
+C4 자동 watch는 [active 후속 제안서](2026-11-12-codex-dual-client-runtime-follow-ups.md)로 이관했다.
 [runtime 보고서](../../test-reports/active/dual-client-runtime-report.md)의 FAIL/BLOCKED/NOT RUN 판정은 유지한다.
 
 ## Summary
@@ -235,13 +235,13 @@ WHEN 초기화 또는 독립 검증을 시작하면, 시스템 SHALL 실제 로�
 
 ### REQ-DUAL-018: 조건부 Codex 자동 watch
 
-자동 watch 부분은 [후속 제안서](../active/codex-dual-client-runtime-follow-ups.md)의 미구현 범위로 이관했다.
+자동 watch 부분은 [후속 제안서](2026-11-12-codex-dual-client-runtime-follow-ups.md)의 미구현 범위로 이관했다.
 
 WHERE Codex 자동 watch를 제공하는 경우, WHEN poller가 진행 가능한 작업을 발견하면, 시스템 SHALL 검증된 완료 신호 또는 로컬 runner로 실행을 재개한다. 기능 검증 전에는 명시적 재개만 안내하고 자동 재진입을 약속하지 않는다.
 
 ### REQ-DUAL-019: 취소 및 늦은 이벤트
 
-공통 session stop/release 소스는 구현됐다. 실제 호스트 취소 인수와 C4 watch 부분은 [후속 제안서](../active/codex-dual-client-runtime-follow-ups.md)에서 추적한다.
+공통 session stop/release 소스는 구현됐다. 실제 호스트 취소 인수와 C4 watch 부분은 [후속 제안서](2026-11-12-codex-dual-client-runtime-follow-ups.md)에서 추적한다.
 
 WHEN 사용자가 stop하거나 ownership 확인에서 상실을 발견하면, 시스템 SHALL 이후 새 dispatch·결과 제출 요청·watch 재설정을 중단한다. 늦은 완료 신호로 새 작업을 시작하지 않으며 이미 실행 중인 agent의 중단 여부는 따로 확인한다. 지원되는 공통 어댑터의 중단 요청은 잠금을 유지하며, 자식 종료 확인 후 별도 반납 동작을 수행한다.
 
@@ -594,7 +594,7 @@ Given 같은 common Git 디렉터리를 Claude watch가 소유한다. When Codex
 
 ### BLK-DUAL-04: Codex watch의 재진입과 취소
 
-이 blocker와 C4 관련 요구사항·Task·검증은 [후속 제안서](../active/codex-dual-client-runtime-follow-ups.md)로 이관했다. 코드 구현 완료로 해제하지 않았다.
+이 blocker와 C4 관련 요구사항·Task·검증은 [후속 제안서](2026-11-12-codex-dual-client-runtime-follow-ups.md)로 이관했다. 코드 구현 완료로 해제하지 않았다.
 
 근거: Claude background task 완료 흐름을 Codex로 그대로 옮길 수 있다는 증거가 없다.
 
@@ -851,7 +851,7 @@ governed-by: CON-DUAL-001, CON-DUAL-002, CON-DUAL-005, CON-DUAL-008
 ### Phase C4: 조건부 Codex 자동 watch
 
 아래는 원래 계획의 보존 기록이다. TASK-C4-01/02와 REQ-DUAL-018/019의 watch 부분, BLK-DUAL-04, E12는
-[active 후속 제안서](../active/codex-dual-client-runtime-follow-ups.md)로 이관했으며 이 문서의 완료 범위에 포함하지 않는다.
+[active 후속 제안서](2026-11-12-codex-dual-client-runtime-follow-ups.md)로 이관했으며 이 문서의 완료 범위에 포함하지 않는다.
 
 satisfies: REQ-DUAL-018, REQ-DUAL-019
 preserves: INV-DUAL-001, INV-DUAL-002, INV-DUAL-004, INV-DUAL-005
@@ -983,7 +983,7 @@ architecture README와 세부 문서/루트 사용법의 현재 runtime·runbook
 
 ### E12: 조건부 watch 실제 실행
 
-미실행 검증으로 [후속 제안서](../active/codex-dual-client-runtime-follow-ups.md)에 이관했다.
+미실행 검증으로 [후속 제안서](2026-11-12-codex-dual-client-runtime-follow-ups.md)에 이관했다.
 
 verifies: REQ-DUAL-018, REQ-DUAL-019
 
@@ -1108,7 +1108,7 @@ handoff·seed/restore 도구와 연결·클라이언트 선택 UI 소스를 구�
 기존 로컬 check/test/build·격리 DB 계약 6개·UI 브라우저 검증을 완료 근거로 사용했다. 이번 정리에서 실제 제품 인수를 새로 실행하지 않았다.
 
 별도 private 저장소 `plugin/templates`의 수정 7개와 신규 `en/CODEX.runbook.md`는 로컬 소스 구현 상태다.
-커밋·전달·seed·배포와 실제 모델/CLI 인수는 [후속 제안서](../active/codex-dual-client-runtime-follow-ups.md) 및
+커밋·전달·seed·배포와 실제 모델/CLI 인수는 [후속 제안서](2026-11-12-codex-dual-client-runtime-follow-ups.md) 및
 [active runtime 보고서](../../test-reports/active/dual-client-runtime-report.md)에서 계속 추적한다.
 C4 자동 watch는 미구현 후속 범위로 명시적으로 이관했다.
 

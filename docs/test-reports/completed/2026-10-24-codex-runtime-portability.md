@@ -11,11 +11,11 @@ completed-at: "2026-10-24"
 last-executed-at: "2026-10-24T10:12:59Z"
 tested-revision: "f66d0a8ed751eba726e1f87b7c1d62b7fc5b68d7"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/224"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/224"]
 primary-area: "harness/runtime-portability"
 observed-environments: ["local | Windows installed-version rehearsal | bundled Node 22.23.3; plugin 0.5.21 and 0.5.22 | isolated client profiles and loopback fixture", "CI | macOS 15 arm64 and x64 native feasibility probe | Node 22.23.2; Darwin 24.6.0 | GitHub-hosted runners without client credentials"]
 test-summary: "pass: 정제된 실패 진단, 실제 양쪽 client 업데이트와 같은 PC의 버전 간 인계; macOS 권한 시험과 process-group 종료의 반례 확인. macOS 제품 backend·전체 출시 인수는 미완료"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # 런타임 진단·설치 버전 인계·macOS 종료 경계 검증
@@ -40,7 +40,7 @@ quiescence 계약은 **BLOCKED**다. 새 production backend를 연결하거나 �
 | 기준 ID | 기준 문서 또는 요구사항 | 적용 범위 | 우선순위/해석 | 확인 기준 |
 | --- | --- | --- | --- | --- |
 | R1 | [프로토콜](../../architecture/protocol.md), ownership/ack 계약 | Windows 실패 진단 | 원문 비노출·기존 보존 정책 유지 | 실제 helper fault 주입, 상태 불변 |
-| R2 | [후속 계획](../../proposals/active/codex-dual-client-runtime-follow-ups.md), C0/C4C | 현재 PC 설치·업데이트·버전 간 중지 | 같은 PC의 모델 없는 계약 시험 | 전체 해시, 양방향 인계, successor 보호 |
+| R2 | [후속 계획](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md), C0/C4C | 현재 PC 설치·업데이트·버전 간 중지 | 같은 PC의 모델 없는 계약 시험 | 전체 해시, 양방향 인계, successor 보호 |
 | R3 | [resident 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md), macOS 경계 | native backend의 가능성 조사 | 반례 검출은 제품 지원 인증이 아님 | 권한 상속, detached 자식 생존 검출·정리 |
 
 ## Test Target

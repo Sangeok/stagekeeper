@@ -16,7 +16,7 @@ related:
   - "docs/proposals/completed/2026-10-03-local-watch-executor.md"
   - "docs/test-reports/active/2026-10-02-local-watch-executor.md"
   - "docs/proposals/completed/2026-10-20-open-decision-hold.md"
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
 ---
 
 # 실행기 상태 표시(Phase A)와 창 없는 상주 실행기(Phase B)

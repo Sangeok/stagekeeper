@@ -22,7 +22,7 @@ related:
   - "docs/architecture/test-writing.md"
   - "docs/architecture/test-organization.md"
   - "docs/architecture/verification.md"
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
 ---
 
 # 템플릿 버전별 배포와 파이프라인 실행 버전 고정 — 구현 완료 기록

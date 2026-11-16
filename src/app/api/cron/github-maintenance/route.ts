@@ -17,7 +17,9 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: "Unauthorized." }, { status: 401, headers });
   }
   try {
-    return Response.json(await maintainGitHubConnections(false), { headers });
+    const result = await maintainGitHubConnections(false);
+    if (!result.cleanupComplete) console.warn("GitHub repository cleanup has remaining work.", result);
+    return Response.json(result, { headers });
   } catch {
     return Response.json({ error: "GitHub repository maintenance failed." }, { status: 500, headers });
   }

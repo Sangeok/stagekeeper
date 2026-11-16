@@ -314,7 +314,7 @@ workspace·관리 파일 판정은 대소문자를 구분하지 않고 실제 �
 교정 가능한 입력·누락 경로 오류를 제외한 도구 거부는 bridge를 닫고 현재 turn을
 중단한다. 거부 전에 함께 요청된 대기열의 dispatch도 실행하지 않는다. policy 거부 뒤
 늦은 completed 응답이 와도 실패를 성공으로 분류하지 않는다.
-실제 설치·native 인수와 OS별 지원 판정은 [C4 후속 인수](../proposals/active/codex-dual-client-runtime-follow-ups.md)에 별도로 기록한다.
+실제 설치·native 인수와 OS별 지원 판정은 [C4 후속 인수](../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md)에 별도로 기록한다.
 
 구 서버는 client를 검사하지 않고 session만으로 행을 삭제할 수 있다. 따라서 schema
 확장만으로 혼합 서버 운영을 허용하지 않는다. 모든 reader/writer의 호환성 확인 후
@@ -850,7 +850,8 @@ Git·`.codex`·`.claude`·`.next`·`.env`(예제 제외)와 denied 경로를 제
 채워진 트리에는 ACL을 쓰지 않는다.
 `cwd`는 repository 상대 경로다. 생략·빈 문자열·정확히 `.`는 repository root를 뜻하며,
 중첩 `.`·`..`, 절대 경로와 Windows 특수 경로 문자는 계속 거부한다. 명령 인자 형식과
-100~120000ms timeout 범위 오류는 MCP `-32602`로 반환하며 같은 권한 안에서 수정할 수 있다.
+100~300000ms timeout 범위 오류는 MCP `-32602`로 반환하며 같은 권한 안에서 수정할 수 있다.
+timeout을 주지 않으면 60000ms다.
 소유권·파일 접근·실행 환경 거부는 일반 거부로 유지한다.
 `STAGEKEEPER_ROLE_SCRATCH`는 복사한 scratch다.
 전체 source/scratch hash·누락 수/경로·누락 목록 잘림을 결과에 포함한다. 결과의 단계별 소요

@@ -11,11 +11,11 @@ completed-at: "2026-10-25"
 last-executed-at: "2026-10-25T05:03:11Z"
 tested-revision: "e69fdd24556c7dadcf3d2ec8951ac6f05ebfd99f"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/226"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/226"]
 primary-area: "harness/macos-descendant-ownership"
 observed-environments: ["CI | macOS 15 arm64 and x64 native kernel | Darwin 24.6.0; SDK 15.5; Node 22.23.2 | ordinary user; no client credentials", "local | Windows repository validation | Node 22.13.1 | native macOS probe refuses execution"]
 test-summary: "pass: macOS recursive tracking and PID snapshot counterexamples reproduced and owned fixtures exited; production descendant ownership remains blocked"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # macOS 자식 소유권 API의 실제 한계 검증

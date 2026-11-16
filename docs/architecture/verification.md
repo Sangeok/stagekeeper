@@ -67,6 +67,13 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 `test:server`에서 실제 route와 maintenance 대역으로 인증 실패 시 무실행, 성공 요약,
 회전 미실행, 오류 비노출과 배포 schedule 연결을 검사한다. 실제 배포의 스케줄 실행·DB 정리는
 운영 로그에서 별도로 확인한다. 로컬 실행과 명시적 key rotation은 기존 `github:maintenance` CLI를 사용한다.
+정기 작업은 만료 인덱스로 500개씩 잠그고 `SKIP LOCKED`로 다른 작업의 행을 건너뛴다.
+최대 40라운드·60초의 새 배치 시작 예산, SQL 2초·잠금 500ms·transaction 5초 제한을 적용한다.
+`cleanupComplete=false` 경고가 이어지면 잔여량을 처리할 추가 호출 또는 주기·처리량 조정을 검토한다.
+`tests/server/github-maintenance.test.ts`는 배치·시간 예산을 DB 대역으로 검사한다.
+`tests/server/integration/github-maintenance.test.ts`는 격리 PostgreSQL에서 10,000개 활성 연결 사이의
+만료 인덱스 사용, 배치 재개, 갱신/중복 정리 경합, 잠금 timeout과 관련 데이터의 rollback을 검사한다.
+새 만료 인덱스 migration은 운영 배포 전에 적용한다. 키 회전의 수동 전체 순회는 이 정기 예산의 대상이 아니다.
 
 ## 테스트 배치 규칙의 검증
 
@@ -96,9 +103,10 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   환경을 같은 변경에서 보완한다.
 - `npm test`: `packages/core/**/*.test.mjs`, `packages/github/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
   있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
-  `plugin/bin/harness-released-readers.test.mjs`는 `origin/main` 이력에서 출시된 plugin을 꺼내 실행하므로 `check`
-  workflow는 전체 이력을 가져오고 `STAGEKEEPER_RELEASED_READERS=required`로 이력 누락을 실패로 만든다.
-  이력이 없는 환경(macOS runtime contracts의 shallow checkout 등)에서는 출시 판 시험만 skip한다.
+  `plugin/bin/harness-released-readers.test.mjs`와 `plugin/bin/harness-released-init-readers.test.mjs`는 Git 이력에서
+  출시된 plugin을 꺼내 실행한다. 그래서 이 대상 묶음을 돌리는 workflow 셋(`check`, `windows-role-runtime`,
+  `macos-runtime-contracts`)은 전체 이력을 가져오고 `STAGEKEEPER_RELEASED_READERS=required`로 이력 누락을 실패로
+  만든다. 이력이 없는 로컬 환경(얕게 받은 checkout 등)에서는 출시 판 시험만 skip한다.
 - [macOS runtime contracts](../../.github/workflows/macos-runtime-contracts.yml)는 같은 패턴을
   `macos-15`(arm64)와 `macos-15-intel`(x64)의 Node 22에서 직렬 실행한다. 모델·client 인증 없이
   공통 런타임과 fake client 계약을 검사하며 Windows 전용 native 시험은 skip한다.
@@ -107,6 +115,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   `STAGEKEEPER_MACOS_RUNTIME_REQUIRED=1`이므로 runtime 누락·손상을 skip으로 숨기지 않는다.
   이어 `rehearse-project-build.mjs`가 준비된 이 저장소 전체를 network·DB URL 없는 역할
   snapshot에서 빌드하고 원본 source·BUILD_ID 보존을 검사한다. 두 아키텍처의 결과를 artifact로 남긴다.
+  빌드는 역할 command의 최대 시간(300초)을 요청하고, 걸린 시간(`durationMs`, snapshot 준비 포함)을
+  증거와 출력에 남긴다. 시간 초과는 두 runner 모두 실패다.
   PR·`dev` push에서는 npm 의존성 설치 전 `probe-seatbelt-containment.mjs`와
   `probe-sandbox-identity.mjs`를 실행하고 각 증거를 artifact로 보존한다.
   앞의 probe는 Seatbelt의 합성 권한 경계와 process-group 이탈을 검사하고,
@@ -167,11 +177,13 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   재실행(`rerun-asks-first`), 처음 연결에서 등록과 `harness.json` 쓰기 전에 묻는지
   (`first-connection-asks-before-register`), 초안을 승인한 뒤에도 생성 전에 다시 묻는지
   (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
-  실행마다 셸 명령을 기록해 job 로그에 남긴다. 판정이 어긋난 회의 이유를 볼 수 있도록, 같은 회의 보존된 임시
-  폴더에서 대화 기록을 찾아 assistant 메시지 수, 마지막 `stop_reason`, 마지막 메시지(1,500자까지)도 남긴다. 결과
-  JSON이나 대화 기록을 artifact로 올리지 않는다. artifact는 로그와 달리 비밀값 가림을 거치지 않기 때문이다.
+  실행마다 셸 명령을 격리된 임시 폴더에 기록한다. 모델 CLI stdout/stderr와 원본 JSON은 runner 임시 파일로만
+  받고, 공개 로그에는 허용된 사례 이름·점수·실행 수·실패 수·비용·시간만 출력한다. 셸 명령과 assistant 본문은
+  출력하지 않으며 원본은 artifact로 올리지 않고 always 정리 단계에서 삭제한다. secret masking을 원문 공개의 근거로 삼지 않는다.
   `scripts/rehearsals/agent-eval-summary.mjs`가 사례별 점수·실행 수·실패한 실행 수, 비용, 클라이언트 버전·OS 버전·
-  플러그인 판만 남긴 요약 한 줄을 만들고, workflow가 그 줄을 가림을 거치는 job 출력으로 넘긴다. 수동 실행은 `case` 입력으로 사례 하나만 돌릴 수 있다. 주 1회와 수동
+  플러그인 판·`controlPassed`·`gateComplete`·선택 범위만 남긴 요약 한 줄을 만들고 workflow가 job 출력으로 넘긴다.
+  대조군과 각 사례의 필수 grader·3회 결과가 모두 있어야 전체 gate가 완료된다. JSON 부재나 실패한 grader를 종료 코드 0으로 덮지 않는다.
+  수동 실행은 `case` 입력으로 일부 사례만 돌릴 수 있지만 `gateComplete: false`이면 기록에 `incomplete-eval` finding을 남긴다. 주 1회와 수동
   실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
   사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
 - [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
@@ -218,6 +230,20 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   역할별 dispatch 횟수를 남긴다. `reviewRequired`이면 main 승격 전에 private 원문을 검토하고,
   계약·안내 문구가 원인이면 먼저 수정한다. 실행 identity와 단계별 요약만 게시하고 raw 기록·template·인증은
   Mac의 private 경로에 보존한다. 일회용 runner는 작업 후 해제하며 재실행 전에 시작해야 한다.
+- dual-client 후보 판정의 순수 모듈은 `scripts/rehearsals/client-ci-contract.mjs`다. 네트워크·모델·게시를 수행하지 않는다.
+  `clientTarget`은 client/OS/architecture/channel/phase/scenario와 phase별 identity를 검증한다. `normalizeClientEvidence`는
+  schema 2의 허용 필드만 반환하고 `evidenceDigest`는 그 정규화 결과의 SHA256을 계산한다. source-copy Claude eval의
+  server/template은 `not-applicable:source-copy-eval`, source 설치의 bundle hash는 `not-applicable:source-channel`,
+  auth smoke의 제품 SHA는 `not-applicable:auth-only`로 명시한다. 필요한 identity 누락에는 이 값을 대신 넣지 않는다.
+  `evaluateClientCandidate({ expected, records, executions, reviews, retries })`의 expected는 target·workflow source·실제 생성 자원 목록이다.
+  records는 별도 publication 출처와 evidence, executions는 수집자가 확인한 실행 출처·target·순서(sequence)·전체 job 결론·결과 digest를 담는다.
+  실행 출처는 repository/workflow/workflowCommit/runId/attempt/job/leg이며 재기록 출처와 구별한다. 동일 실행·동일 결과 재게시는 한 번만 세고
+  identity 불일치·필수 leg 누락·최신 실패·정리 실패·partial eval·검토 누락은 거부한다. 검토/외부 원인 재시도는 해당 execution과 digest에 귀속한다.
+  unknown 모델 사용량·비용은 null로 유지하며 init에는 모델 호출·비용 0과 빈 model 목록이 필요하다.
+  이 API는 전달받은 출처를 GitHub에 조회하거나 인증하지 않는다. 호출자가 모든 관련 시도와 검토를 신뢰된 경계에서 수집해야 한다.
+  현재 공개 schema 1 기록과 private wrapper는 이 schema로 자동 승격되지 않으며 trusted consumer 연결은 아직 미완료다.
+  단위 시험 통과는 Windows Codex runner 준비나 양 OS 실제 인수를 뜻하지 않는다. 구현 현황은
+  [dual-client CI 제안](../proposals/active/dual-client-ci-parity.md)의 Implementation Progress를 따른다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
   문서화한 사실만으로 E2E 자동화가 완료된 것으로 보고하지 않는다.
 
@@ -253,7 +279,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | --- | --- | --- | --- | --- | --- | --- |
 | 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
-| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음 |
+| 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
 | Windows 역할 런타임 | 단일 OS | `windows-role-runtime/native-runtime` | | | | Windows에만 있는 구현이다(전용 Node 빌드, 격리된 역할 명령) |
 | macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
 | 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
@@ -488,7 +514,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |
 | `windows/package-windows-plugin.mjs`, `windows/package-windows-plugin.test.mjs` | `node scripts/windows/package-windows-plugin.mjs --output <새 저장소 밖 절대 경로> --runtime <검증된 runtime artifact>`; 테스트는 `test:architecture`·`test:scripts` | Windows private 배포물 검토 시; 테스트는 CI마다 | 추적된 plugin source(검증 스킬 포함)·runtime을 복사하고, 검증 스킬을 Codex skill 경로에 같은 checksum으로 복사해 inventory/hash를 남긴다. auth/private templates 복사·업로드·공개는 없다. source-only checkout과 install bundle을 구분한다. 작업 중인 checkout이 아니라 묶을 커밋만 꺼낸 깨끗한 checkout에서 실행한다. 추적된 파일의 목록은 Git에서 받지만 내용은 작업 폴더의 파일을 그대로 복사하므로, 줄바꿈만 달라진 파일도 다른 파일로 들어간다(2026-11-09에 inventory가 Git의 출하 변경보다 3개 많았던 원인이다). inventory 차이가 `git diff --name-status <이전 커밋> <새 커밋> -- plugin`과 다르면 줄바꿈을 뺀 내용부터 비교한다. 테스트는 Windows 없이 가짜 runtime fixture로 검증 스킬 원본이 INV-1~7을 모두 갖췄는지, Claude Code·Codex 두 경로에 같은 checksum으로 들어가는지 확인한다 |
-| `windows/rehearse-windows-project-build.mjs` | `node scripts/windows/rehearse-windows-project-build.mjs --root <npm ci로 준비한 공개 checkout> --runtime <검증된 Windows runtime>` | `windows-role-runtime` CI/전체 프로젝트 빌드 회귀 시 | Prisma 엔진을 포함한 정상 의존성 설치 후, DB URL·환경 파일·network 없는 실제 LPAC snapshot에서 전체 `npm run build`와 원본 source/build ID 불변·산출물 폐기·종료 acknowledgement를 확인한다. 모델·DB·로그인·배포를 실행하지 않는다 |
+| `windows/rehearse-windows-project-build.mjs` | `node scripts/windows/rehearse-windows-project-build.mjs --root <npm ci로 준비한 공개 checkout> --runtime <검증된 Windows runtime>` | `windows-role-runtime` CI/전체 프로젝트 빌드 회귀 시 | Prisma 엔진을 포함한 정상 의존성 설치 후, DB URL·환경 파일·network 없는 실제 LPAC snapshot에서 전체 `npm run build`와 원본 source/build ID 불변·산출물 폐기·종료 acknowledgement를 확인한다. 빌드는 역할 command의 최대 시간을 요청하고, 걸린 시간을 증거의 `durationMs`에 남긴다. 모델·DB·로그인·배포를 실행하지 않는다 |
 | `windows/rehearse-plugin-version-handoff.mjs` | 실제 Windows에서 `node scripts/windows/rehearse-plugin-version-handoff.mjs --previous <이전 판 설치 경로> --current <현재 판 설치 경로> --output <새 디렉터리>` | Windows 설치본의 판 인계·세션 잠금 계약 변경 시 수동 | 두 설치본의 `windows-package.json` inventory·checksum과 manifest 판을 검증하고 두 판이 다른지 확인한다. 출력 디렉터리에 fixture git 저장소·loopback 서버·모델 대신 쓰는 probe를 만들고, 전역 Node가 없는 PATH에서 양방향으로 foreground 세션의 소유 확인·중복 시작 거부·자식 정산 전 release 거부·늦은 stop/release의 successor 보존과 Claude idle resident의 판 간 중복 시작 거부·상태 확인·중지를 검사한다. 손상된 상태 파일을 덮어쓰지 않는지도 확인하고 `result.json`을 남긴다. 자기 프로세스·서버를 정리하며 모델과 운영 서버를 쓰지 않는다. 같은 PC의 판 인계이며 혼합 호스트 인수가 아니다 |
 | `build.mjs`, `windows/windows-role-readlink.cjs` | `npm run build` | 프로젝트 production build | 기본 Next 빌드를 유지하고 Windows 역할 복사본에서만 Webpack·readlink 오류 호환 preload와 TypeScript compiler API 검사를 선택한다. 타입 검사를 생략하지 않으며 API가 없는 TypeScript로의 업그레이드는 실제 native CI에서 검증해야 한다. 일반 파일임을 실제 lstat로 확인할 때만 EPERM/EACCES를 EINVAL로 바꾸며 링크·metadata 거부는 유지한다. owner 프로세스·커널·ACL·network 권한은 변경하지 않는다 |
 | `windows/windows-role-readlink.test.mjs` | `STAGEKEEPER_TEST_WINDOWS_RUNTIME` 지정 후 `node --test scripts/windows/windows-role-readlink.test.mjs` | native Windows CI/호환 preload 변경 시 | 실제 LPAC의 sync/callback/promises/ESM readlink·callback validation·외부 metadata/data 거부를 확인한다. 다른 플랫폼/미준비된 runtime의 skip은 전체 Windows 인수 PASS를 대신하지 않는다 |
@@ -515,7 +541,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/rehearse-dual-client-runtime.ts --phase acceptance` | 동일 report와 별도 준비된 dual checkout의 `--root` | 보호된 TEST_DATABASE_URL에서 수동 | 실제 test DB migration과 `tests/server/integration/client-runtime.test.ts` 6개만 실행한다. 두 client 순서·legacy/slots 승인·원장/usage·preflight·seed rollback/제한 복구를 검사하며 실제 모델/browser/package gate는 NOT RUN으로 보존한다. 모델 자동 호출·운영 seed 없음 |
 | `macos/build-runtime.mjs`, `macos/package-plugin.mjs` | `node scripts/macos/build-runtime.mjs --archive <공식 tar.gz> --output <새 runtime 경로>`; `node scripts/macos/package-plugin.mjs --output <새 외부 경로> --runtime <runtime 경로>` | native macOS와 macOS CI | 고정 Node archive·정규 파일·hash·mode를 검증하고 scanner를 빌드한다. package는 Git에 등록된 배포 파일과 두 client의 완전 verifier·runtime을 포함하며 기존 출력 경로를 덮어쓰지 않는다 |
 | `macos/probe-codex-host.mjs` | `node scripts/macos/probe-codex-host.mjs` | 실제 Codex가 설치된 macOS에서 수동 | 모델 turn을 열지 않고 effective policy·명령 MCP timeout·skills·fresh thread와 session 정리를 확인한다. 실제 역할 수행이나 로그인 인수의 대체가 아니다 |
-| `macos/rehearse-project-build.mjs` | `node scripts/macos/rehearse-project-build.mjs --root <준비된 저장소> --runtime <검증 runtime> --evidence <새 외부 JSON>` | macOS 로컬·두 아키텍처 CI | 실제 프로젝트를 credentials·network 없는 snapshot에서 빌드한다. 정상 내부 dependency 링크와 원본 source·BUILD_ID 보존, quiescence를 확인하며 실패 결과도 외부 증거 파일에 기록한다 |
+| `macos/rehearse-project-build.mjs` | `node scripts/macos/rehearse-project-build.mjs --root <준비된 저장소> --runtime <검증 runtime> --evidence <새 외부 JSON>` | macOS 로컬·두 아키텍처 CI | 실제 프로젝트를 credentials·network 없는 snapshot에서 빌드한다. 정상 내부 dependency 링크와 원본 source·BUILD_ID 보존, quiescence를 확인하며 실패 결과도 외부 증거 파일에 기록한다. 빌드는 역할 command의 최대 시간을 요청하고, 걸린 시간을 증거의 `durationMs`와 출력에 남긴다 |
 | `rehearsals/prepare-codex-macos-database.mjs` | `node --env-file=<외부 시험 env> scripts/rehearsals/prepare-codex-macos-database.mjs --data-directory <자기 cluster 경로>` | 격리 PostgreSQL에서 수동 | loopback의 새 `stagekeeper_test_*` DB만 만들고 migrate deploy한다. 실제 data_directory와 자기 cluster 경로가 다르거나 DB가 이미 있으면 거부한다 |
 | `rehearsals/rehearse-codex-macos.mjs` | 아래 macOS 실제 모델 리허설 명령 | 기존 native Codex 로그인·설치 bundle·private template export·fresh build·새 시험 DB에서 수동 | global Node 없는 helper PATH로 init·resident·모든 선택 역할·인수·고정 log·선택 유휴 시간을 관찰한다. owner gate는 시험 controller가 실제 service를 호출한다. 운영 UI 인수·공개 배포는 포함하지 않는다 |
 | `rehearsals/codex-init-eval.mjs`, `rehearsals/codex-init-eval.test.mjs` | macOS 리허설의 `--phase eval --run-models`; 모델 없는 판정 시험은 `test:scripts`·`test:architecture` | private Mac CI·승인된 수동 eval | 모델 호출 전 같은 권한으로 native launcher와 인증 디렉터리 거부를 확인한다. 실제 쓰기 대조군과 init 3개 사례를 각 3회 검사하며, 도구 실행·완료 event·파일 bytes와 mtime 보존을 함께 판정한다. raw 출력은 외부 private evidence에만 남긴다 |
@@ -631,9 +657,11 @@ Webpack 성공이 기본 build 명령의 성공을 뜻하지 않는다.
 
 ## Windows CI 런타임 재사용
 
-`windows-role-runtime`은 `dev` push와, Windows runtime·역할 인수 시험·오프라인 빌드
+`windows-role-runtime`은 `dev` push와, 이 job이 시험하는 제품 코드(`packages/core`·`packages/github`·
+`plugin/bin`·`plugin/runtime`·`plugin/lib`)·Windows runtime 빌드 도구·오프라인 빌드
 입력(`package.json`·lock·`next.config.*`·Prisma 설정·`scripts/build.mjs`·
-`src/app/layout.tsx`·`src/app/_fonts/**`)을 바꾼 PR에서 실행한다. 그 밖의 애플리케이션
+`src/app/layout.tsx`·`src/app/_fonts/**`)을 바꾼 PR에서 실행한다. 제품 코드의 PR 경로는 macOS runtime
+contracts와 같다. 그 밖의 애플리케이션
 source만 바꾼 PR에서는 실행하지 않는다. 그런 변경의 LPAC 전용 회귀는 병합 후 경로를
 제한하지 않는 `dev` push의 전체 인수에서 드러나고, `main`은 `dev`에서 통과한 커밋만
 받는다. `dev` 실행이
@@ -691,7 +719,9 @@ semver 보장 API가 아니므로 지원한 구조가 없으면 실패하며 CI�
 역할 복사본은 산출물을 폐기하므로 Webpack 캐시를 끄고 Next worker를 2개로 제한한다.
 빌드 프로세스와 그 Node worker에만 readlink 호환 preload를 전달한다. 일반 파일과
 디렉터리의 EINVAL 오류 의미를 복구하며 성공한 링크 target이나 불완전한 metadata를
-만들어 내지 않는다. 역할 command의 120초·snapshot의 300초 제한은 유지한다.
+만들어 내지 않는다. 역할 command는 기본 60초, 최대 300초이고 snapshot 준비는 300초가 상한이다.
+최대값은 2026-11-13에 120초에서 올렸다. 느린 runner에서 이 저장소의 전체 빌드가 120초를 넘겨
+빌드 리허설이 시간 초과로 실패했기 때문이다([경위](../proposals/active/role-command-time-limit.md)).
 
 ## 저장소 연결 해제 검증
 
@@ -989,8 +1019,8 @@ legacy suite를 수정하거나 실행한 것으로 표시하지 않는다.
 
 `harness-released-init-readers.test.mjs`는 실제 출시 0.5.33의 정확한 commit을 추출해
 ready/pending lock v2 거부와 파일 보존을 검사한다. 다른 출시판과 native hook 호스트
-지원은 자동으로 인증되지 않는다. 기존 check의 STAGEKEEPER_RELEASED_READERS=required는
-해당 Git 이력이 없을 때 검사를 실패시킨다.
+지원은 자동으로 인증되지 않는다. `check`, `windows-role-runtime`, `macos-runtime-contracts`의
+STAGEKEEPER_RELEASED_READERS=required는 해당 Git 이력이 없을 때 검사를 실패시킨다.
 
 운영 profile·유지보수 evidence·snapshot·environment 설정은
 [template-releases.md](./template-releases.md)를 따른다.

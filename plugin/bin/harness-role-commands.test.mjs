@@ -187,11 +187,20 @@ it("retains the real session lock until a stopped command helper acknowledges al
   } finally { clearTimeout(stopTimer); }
 });
 
-it("waits for actual job termination on stop and never activates after an owner refusal", native, async t => {
+it("lets the Windows helper run a command at the 300000 ms maximum and refuse one millisecond more", native, async t => {
+  const f = await nativeFixture(t);
+  const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: "type read.txt", cwd: "", timeoutMs: 300000 });
+  assert.equal(result.status, "exited"); assert.equal(result.quiescent, true); assert.equal(result.stdout, "READ_CANARY");
+
+  const refused = await nativeFixture(t);
+  await assert.rejects(runNativeCommand({ root: refused.directory, ...refused.prepared, command: "type read.txt", cwd: "", timeoutMs: 300001 }), /validation-bounds/);
+});
+
+it("stops a command started with the 300000 ms maximum, waits for actual job termination and never activates after an owner refusal", native, async t => {
   const f = await nativeFixture(t), controller = new AbortController(); let settled = 0;
   const timer = setTimeout(() => controller.abort(), 2500);
   try {
-    const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: 'for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 10000 }, { signal: controller.signal, onSettled: async () => settled++ });
+    const result = await runNativeCommand({ root: f.directory, ...f.prepared, command: 'for /l %n in (1,1,100000000) do @rem waiting', cwd: "", timeoutMs: 300000 }, { signal: controller.signal, onSettled: async () => settled++ });
     assert.equal(result.status, "stopped"); assert.equal(result.quiescent, true); assert.equal(settled, 1);
   } finally { clearTimeout(timer); }
   const refused = await nativeFixture(t); let refusedSettled = 0;
@@ -232,7 +241,7 @@ it("grants the role SID only on empty roots and refuses a launch whose prepared 
 it("rejects malformed command arguments before preparing or executing a snapshot", async t => {
   const f = fixture(t), broker = await createRoleCommands({ root: f.root, agent: "dev", fileBroker: f.files, runtime: {} });
   try {
-    for (const args of [{ command: "echo ready", cwd: "../foreign" }, { command: "echo ready", cwd: "C:\\" }, { command: "echo ready", cwd: "src/./nested" }, { command: "echo ready", cwd: "./src" }, { command: "echo ready", cwd: "src\\..\\foreign" }, { command: "echo ready", cwd: "src " }, { command: "echo ready", cwd: "src:stream" }, { command: "echo ready", timeoutMs: 120001 }, { command: "echo ready", token: "secret" }, { command: "\0" }]) await assert.rejects(broker.call("role_command_exec", args), { name: "RoleCommandInputError" });
+    for (const args of [{ command: "echo ready", cwd: "../foreign" }, { command: "echo ready", cwd: "C:\\" }, { command: "echo ready", cwd: "src/./nested" }, { command: "echo ready", cwd: "./src" }, { command: "echo ready", cwd: "src\\..\\foreign" }, { command: "echo ready", cwd: "src " }, { command: "echo ready", cwd: "src:stream" }, { command: "echo ready", timeoutMs: 300001 }, { command: "echo ready", token: "secret" }, { command: "\0" }]) await assert.rejects(broker.call("role_command_exec", args), { name: "RoleCommandInputError" });
   } finally { await broker.close(); }
 });
 

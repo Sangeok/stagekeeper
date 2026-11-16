@@ -43,6 +43,8 @@ jobs:
         runner: [macos-15, macos-15-intel]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -103,6 +105,7 @@ jobs:
       - name: Validate shared runtime contracts without client credentials
         env:
           STAGEKEEPER_MACOS_RUNTIME_REQUIRED: "1"
+          STAGEKEEPER_RELEASED_READERS: required
         run: node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
       - name: Build the complete project inside the offline native role
         run: >-

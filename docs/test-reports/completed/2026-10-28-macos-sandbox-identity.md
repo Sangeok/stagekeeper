@@ -11,11 +11,11 @@ completed-at: "2026-10-28"
 last-executed-at: "2026-10-27T23:58:54Z"
 tested-revision: "ddb18a4dad6e301cf27db35dc63370ae84e96e26"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/test-reports/completed/2026-10-25-macos-descendant-ownership.md", "docs/test-reports/completed/2026-10-25-macos-launchd-ownership.md", "docs/test-reports/completed/2026-10-25-macos-coalition-access.md", "docs/test-reports/completed/2026-10-24-codex-runtime-portability.md"]
+related: ["docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/test-reports/completed/2026-10-25-macos-descendant-ownership.md", "docs/test-reports/completed/2026-10-25-macos-launchd-ownership.md", "docs/test-reports/completed/2026-10-25-macos-coalition-access.md", "docs/test-reports/completed/2026-10-24-codex-runtime-portability.md"]
 primary-area: "harness/macos-sandbox-identity"
 observed-environments: ["CI | macOS 15.7.9 (24G830) arm64 and x64 hosted runners | Darwin 24.6.0; Node 22.23.2 | ordinary user; no client credentials", "local | Windows repository validation | Node 22.13.1 | native macOS probe refuses execution"]
 test-summary: "pass: a per-run Seatbelt profile signature found every survivor without false matches, both kill strategies ended a live 2 ms fork-and-exit hopper by heartbeat, and survivors stayed confined; no product backend was built"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # macOS 실행별 샌드박스 식별과 후손 종료 확인

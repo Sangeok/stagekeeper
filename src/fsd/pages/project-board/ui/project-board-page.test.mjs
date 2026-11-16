@@ -35,6 +35,17 @@ describe("ProjectBoardPage", () => {
     assert.match(links[6].body, /<span class="text-sm text-quiet">/);
   });
 
+  it("renders the latest completion with its Done badge instead of an old hold question", () => {
+    const links = activityLinks(renderBoard([
+      row({ key: "ITEM-09", status: "done", pipelineName: "Release", results: ["Open: A or B?", "Implementation span completed."] }),
+    ]));
+    assert.equal(links[0].href, "/p/sample/items/ITEM-09");
+    assert.match(links[0].body, />ITEM-09<\/span>Implementation span completed\./);
+    assert.match(links[0].body, />Done<\/span>/);
+    assert.match(links[0].body, />Release<\/span>/);
+    assert.doesNotMatch(links[0].body, /Open: A or B/);
+  });
+
   it("shows the over-budget badge and tooltip only for an over-budget row", () => {
     const links = activityLinks(renderBoard());
     assert.doesNotMatch(links[0].body, /Over 150 characters/);

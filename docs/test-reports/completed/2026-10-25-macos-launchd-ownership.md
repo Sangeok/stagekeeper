@@ -11,11 +11,11 @@ completed-at: "2026-10-25"
 last-executed-at: "2026-10-25T05:50:09Z"
 tested-revision: "ab2fbaef023ed0e37215c047e6444238f00b963e"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/227"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/227"]
 primary-area: "harness/macos-launchd-ownership"
 observed-environments: ["CI | macOS 15 arm64 and x64 | Darwin 24.6.0; SDK 15.5; Node 22.23.2 | ordinary user; user and GUI launchd domains", "local | Windows repository checks | Node 22.13.1 | no native macOS execution"]
 test-summary: "pass: launchd lifecycle counterexamples reproduced in 20 combinations and 88 monitored fixture processes exited; production descendant ownership remains blocked"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # launchd의 서비스 종료와 분리된 후손의 실제 수명 검증

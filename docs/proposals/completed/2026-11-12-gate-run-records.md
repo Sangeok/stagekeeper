@@ -16,7 +16,7 @@ related:
   - "AGENTS.md"
   - "docs/architecture/verification.md"
   - "docs/test-reports/README.md"
-  - "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"
+  - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
 ---
 
 # 게이트 실행의 조회 규칙과 실행 기록 완료
@@ -97,7 +97,7 @@ Codex:
 제외 범위:
 
 - 비공개 Codex CI 저장소의 workflow 변경과 그 저장소의 기록 이슈. 그 저장소의 작업으로 따로 한다.
-- Codex CI를 승격 게이트로 올릴지, 공개 뒤 어떤 일에 어떤 실행을 필수로 할지. Codex 공개 준비([RUN-F01~F03](../active/codex-dual-client-runtime-follow-ups.md))가 정한다.
+- Codex CI를 승격 게이트로 올릴지, 공개 뒤 어떤 일에 어떤 실행을 필수로 할지. Codex 공개 준비([RUN-F01~F03](2026-11-12-codex-dual-client-runtime-follow-ups.md))가 정한다.
 - Codex Windows의 실제 모델 CI.
 - PR에서 도는 `client-init-smoke`와 기능 브랜치에서 수동으로 돌린 실행의 기록. PR의 검사 목록과 Actions에 지금처럼 남는다.
 - 기록에서 호환 표를 자동으로 계산하는 일. 읽기 불편해지면 따로 한다.

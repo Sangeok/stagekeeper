@@ -99,12 +99,14 @@ CI 검사가 어느 OS에서 도는지가 검사마다 다르고, 그 차이가 
 - AGENTS.md에 CI를 추가하거나 바꿀 때의 규칙 한 줄.
 - 불일치 두 건의 해소: Windows의 제품 코드 시험 전체, `pipeline-smoke`의 macOS 다리.
 - macOS 다리에 맞춘 `record` job의 다리 목록.
+- 2단계 뒤에 드러난 차이 둘의 해소(2026-11-12 추가): 출시 이력을 읽는 시험을 지원 OS의 CI에서 실제로 돌리는 것, `windows-role-runtime`의 PR 경로를 macOS와 맞추는 것.
+- 느린 macOS runner에서 나는 `dev` 실패 두 가지 가운데 시험의 시간 한도(2026-11-12 추가). 빌드 시간 초과는 별도 제안서가 다룬다.
 
 제외 범위:
 
 - Linux 지원. 지원 목록 밖에 두고, 설치와 init의 Linux 확인을 추가하지 않는다. 안내 문구의 Linux 줄도 바꾸지 않는다. Linux 사용자가 실제로 생기면 따로 제안한다.
 - Windows의 `agent-eval`. 표에 이유와 함께 남긴다.
-- Codex의 CI. 비공개 저장소에서 돌고, 공개 뒤의 범위는 [Codex 공개 준비](./codex-dual-client-runtime-follow-ups.md)가 정한다.
+- Codex의 CI. 비공개 저장소에서 돌고, 공개 뒤의 범위는 [Codex 공개 준비](../completed/2026-11-12-codex-dual-client-runtime-follow-ups.md)가 정한다.
 - `template-target.ts`의 Windows 동작. 템플릿 release 도구의 소유 작업에 이슈로 넘긴다.
 - 두 검사가 "같은 것을 보는지"의 자동 판정. 표의 설명 칸과 리뷰가 맡는다.
 
@@ -123,6 +125,9 @@ CI 검사가 어느 OS에서 도는지가 검사마다 다르고, 그 차이가 
 | OC-07 | Windows CI가 제품 코드 시험 전체를 macOS와 같은 범위로 돌린다 |
 | OC-08 | `pipeline-smoke`가 macOS에서도 항목 하나를 끝까지 처리하고, 그 다리가 게이트 기록에 남는다 |
 | OC-09 | AGENTS.md가 CI를 추가하거나 바꿀 때 분류표를 함께 고치라고 적는다 |
+| OC-10 | 출시 이력을 읽는 시험 둘이 Windows와 macOS의 CI에서 건너뛰지 않고 돈다. 이력이 없으면 실패한다. 두 설정 가운데 하나가 빠지면 `npm run check`가 실패한다 |
+| OC-11 | 제품 코드를 바꾼 PR에서 `windows-role-runtime`이 돈다. 제품 코드의 PR 경로가 `macos-runtime-contracts`와 같다 |
+| OC-12 | 응답이 느린 서버에서도 `harness-watch` 시험이 다섯 번 실패 뒤의 `request-failed`를 확인한다 |
 
 ### 1. 지원 OS와 분류 기준
 
@@ -199,6 +204,20 @@ Linux 칸은 OS와 무관한 검사가 도는 자리로 남는다. 지원 OS가 
 
 **5.3 넘기는 것.** `template-target.ts`가 Windows에서 모든 설정 파일을 거부하는 문제는 이슈로 남긴다. 그 도구가 Windows를 지원할지, POSIX 전용으로 표시하고 시험을 건너뛸지는 템플릿 release 작업이 정한다.
 
+**5.4 출시 이력 시험과 Windows의 PR 경로(2026-11-12 추가).** 2단계의 실행 기록에서 두 가지가 드러났다.
+
+- `harness-released-readers.test.mjs`와 `harness-released-init-readers.test.mjs`는 Git 이력에서 출시된 plugin을 꺼내 지금의 잠금 파일에 돌린다. Windows와 macOS의 CI는 최신 커밋만 받아서 이 둘을 건너뛴다. 실제로 도는 곳은 전체 이력을 받는 Linux의 `check`뿐이다. verification.md는 이 건너뛰기를 의도한 동작으로 적어 왔다(2026-10-27). 제품 코드 시험은 "OS별"이므로 지원 OS에서 돌아야 한다. 두 workflow의 checkout이 전체 이력을 받게 하고(`fetch-depth: 0`), 제품 코드 시험 단계에 `STAGEKEEPER_RELEASED_READERS: required`를 준다. 분류표의 확인 문자열에 이 둘을 더해, 한쪽이 빠지면 검사가 실패하게 한다. 이력은 약 10MB다.
+- `windows-role-runtime`은 PR에서 정해진 파일이 바뀔 때만 돈다(2026-10-07 결정. `src/**`를 바꾼 PR이 이 job을 기다리지 않게 하려는 것이었다). 2단계부터 이 job이 제품 코드 시험 전체를 돌리는데, 경로 목록에는 `packages/`와 대부분의 `plugin/` 파일이 없다. 그런 PR의 Windows 실패는 병합 뒤 `dev`에서 처음 보인다. 제품 코드 경로(`packages/core/**`, `packages/github/**`, `plugin/bin/**`, `plugin/runtime/**`, `plugin/lib/**`)를 목록에 넣어 `macos-runtime-contracts`와 맞춘다. 이 묶음에 들어가는 개별 파일 항목은 지운다. `src/**`만 바꾼 PR에서는 지금처럼 돌지 않는다.
+
+Linux의 `check`는 그대로 둔다. 병합 조건인 `check`가 모든 PR에서 제품 코드 시험을 2~3분에 돌리는 유일한 곳이고, `packages/core`와 `packages/github`는 서버도 쓴다. 제품 코드 시험이 Linux에서만 실패하면 Linux용으로 고치지 않고 그 시험을 Linux에서 이유를 적어 건너뛴다.
+
+**5.5 느린 macOS runner에서 나는 실패(2026-11-12 추가).** `macos-runtime-contracts`의 `dev` 실행 34번 가운데 8번이 실패했고, 모두 `macos-15-intel` job이었다. 같은 기간 `dev`의 arm64 macOS job과 Windows(60번)에는 이런 실패가 없다. 5.4의 변경 전에도 31번 중 6번이 같은 두 자리에서 실패했다. 변경 뒤로는 3번 중 2번인데, 빈도가 달라졌는지 말하기에는 표본이 적다. 실패한 실행은 5.4가 더한 출시 판 시험보다 앞에 도는 시험들부터 1.5~1.8배 느렸다. runner가 처음부터 느렸던 것이다. 원인은 둘이다.
+
+- **시험의 시간 한도(3번).** `plugin/bin/harness-watch.test.mjs`의 "tells the server once when a poll ends stuck or in error…" 시험은 서버가 503만 돌려줄 때 다섯 번 실패한 뒤 `request-failed`로 끝나는지를 본다. 이 poll의 전체 한도가 도우미의 기본값인 0.6초라서, 그 안에 요청 10개와 파일 쓰기 5번이 끝나야 한다. 느린 runner에서는 다섯 번을 채우기 전에 한도가 지나 poll이 `idle`로 끝나고, 오류 코드가 없어 단언이 실패한다. 그 poll만 한도를 6초(`--deadline 0.1`)로 준다. 다섯 번 실패를 세는 다른 시험이 이미 쓰는 값이다. 다섯 번째 실패에서 바로 끝나므로 보통 속도에서는 걸리는 시간이 같다. 제품의 한도(110분)와는 무관하다.
+- **전체 빌드와 역할 command의 120초(5번).** `scripts/macos/rehearse-project-build.mjs`는 역할 안에서 `npm run build`를 120초로 돌린다. 120초는 제품이 역할 command에 허용하는 최대값이다. 빌드 증거의 단계 시간은 arm64가 컴파일 14~20초·타입 검사 20초, Intel의 통과한 실행이 컴파일 27~36초·타입 검사 32~44초다. 실패한 실행은 컴파일이 55초였고 타입 검사 중에 120초가 됐다. 다섯 번 모두 `timeout`이었고 다른 빌드 오류는 없었다. 이 원인은 이 제안에서 고치지 않는다. 역할 command의 최대 시간을 올리는 [별도 제안서](./role-command-time-limit.md)에서 다룬다(2026-11-13 소유자 결정). 최대 시간을 300초로 올린 변경이 2026-11-14 PR #340으로 `dev`에 들어갔다.
+
+빌드 시간 초과를 여기서 다루지 않는 이유: 처음에는 `macos-15-intel`에서만 시간 초과를 경고로 넘기는 방식을 PR #338에 담았다. 그 PR의 첫 실행에서 arm64 job이 같은 시간 초과로 실패했다. 그 실행의 arm64 runner는 평소보다 2.4~4배 느렸고 컴파일이 64초였다. 느린 runner는 Intel만의 일이 아니었다. runner 하나에서만 검사를 느슨하게 하는 방식은 이 실패를 다 없애지 못하고 x64의 확인도 약하게 한다. 최대 시간을 올리면 시간 초과를 계속 실패로 두면서 두 runner의 여유가 함께 늘고, 실제 사용자의 느린 기기에도 적용된다. 다만 제품의 도구 입력 계약을 바꾸는 일이라 별도 제안서가 필요하다. 다시 시도하는 방식은 느린 runner가 job 내내 느려서 효과가 약하고, test-writing.md도 재시도로 반복 실패를 숨기지 말라고 적는다.
+
 ### 6. 규칙 한 줄
 
 AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리를 추가·삭제·이동할 때는 verification.md의 분류표를 같은 변경에서 고친다. "OS별"로 분류한 검사는 지원 OS의 job을 같은 변경에 넣거나, 넣지 못한 OS를 "미충족" 칸에 적고 후속 작업을 남긴다.
@@ -213,6 +232,8 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 | `docs/architecture/verification.md` | update | 지원 OS, 분류 기준, 분류표, workflow 설명 | low |
 | `AGENTS.md` | update | 6절의 항목 | low |
 | `.github/workflows/windows-role-runtime.yml` | update | 제품 코드 시험 전체 단계 | medium: CI 시간이 늘고, Windows에서만 나는 실패가 처음 드러날 수 있다 |
+| `.github/workflows/windows-role-runtime.yml`, `.github/workflows/macos-runtime-contracts.yml` | update | 5.4의 전체 이력과 필수 설정, Windows의 PR 경로 | medium: 출시 이력 시험이 두 OS의 CI에서 처음 돈다. 제품 코드를 바꾼 PR마다 Windows job이 돈다 |
+| `plugin/bin/harness-watch.test.mjs` | update | 5.5의 poll 한도 | low: 시험 한 줄이고 출하 파일이 아니다 |
 | `.github/workflows/pipeline-smoke.yml` | update | macOS 다리, 다리별 출력과 artifact 이름, `record`의 `legs` | high: 실제 모델 게이트다. 첫 macOS 실행이 실패할 수 있다 |
 | `scripts/rehearsals/rehearse-pipeline-smoke.ts`, `pipeline-smoke-steps.mjs` | update(필요하면) | macOS에서 드러나는 차이 | medium |
 | GitHub 이슈 | add | 5.3의 인계 | none |
@@ -242,6 +263,8 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 - 승인 전에 소유자와 정한 것: OS와 무관한 검사는 한 번, OS에 따라 달라지는 검사는 지원 OS마다 돌린다. 지원 OS는 Windows와 macOS다. Linux는 넣지 않는다. CI를 추가할 때 분류를 함께 정하게 하는 장치를 둔다.
 - 승인 때 확인받은 것 하나. `pipeline-smoke`의 macOS 다리는 조건 없이 모든 실행에서 함께 돈다.
 - 단계별 구현 PR과 이슈는 실행 직전에 따로 승인받는다.
+- 2026-11-12 소유자가 5.4를 더했다. 출시 이력 시험은 Windows와 macOS 양쪽 CI에서 돌린다. Windows의 PR 경로는 macOS와 맞춘다. Linux의 `check`는 그대로 둔다.
+- 2026-11-12 소유자가 5.5를 더했다. 2026-11-13에 범위를 줄였다. 이 제안은 시험의 한도만 고친다. 빌드 시간 초과는 역할 command의 최대 시간을 120초에서 300초로 올리는 별도 제안서에서 다룬다. runner 하나에서만 시간 초과를 경고로 넘기는 방식은 쓰지 않는다.
 
 ## Execution Plan
 
@@ -249,7 +272,9 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 2. **Windows의 제품 코드 시험.** `windows-role-runtime`에 단계를 더하고 표의 칸을 비운다. PR이 workflow 파일을 바꾸므로 PR에서 그 workflow가 돈다. 거기서 통과와 걸린 시간을 확인한다.
 3. **이슈.** 5.3의 인계 이슈를 연다(소유자 승인 뒤).
 4. **macOS 다리.** 템플릿 R2 승격이 끝난 뒤에 올린다. 기능 브랜치에서 `pipeline-smoke`를 수동으로 돌려 두 다리가 통과하는지 먼저 본다(기능 브랜치 실행은 기록에 남지 않는다). 머지 뒤 `dev`에서 돌려 기록에 다리 둘이 남는지 본다.
-5. 두 칸이 모두 비면 완료 처리한다.
+5. **출시 이력 시험과 Windows의 PR 경로(2026-11-12 추가).** 5.4를 PR 하나로 올린다. 4단계를 기다리지 않는다. PR이 두 workflow 파일을 바꾸므로 PR에서 두 workflow가 돈다. 거기서 출시 이력 시험이 두 OS에서 통과하는지와 늘어난 시간을 확인한다.
+6. **느린 macOS runner에서 깨지는 시험(2026-11-12 추가, 2026-11-13 범위 축소).** 5.5의 시험 수정을 PR 하나로 올린다. 4단계를 기다리지 않는다. 빌드 시간 초과는 이 제안의 단계가 아니다.
+7. 두 칸이 모두 비고 5·6단계가 끝나면 완료 처리한다.
 
 각 단계는 PR 하나다. 구현 PR과 이슈는 실행 직전에 따로 승인받는다.
 
@@ -277,6 +302,9 @@ gh workflow run pipeline-smoke.yml --ref dev
 | OC-06 | 검사 시험: gate job에 다리를 더하고 `legs`를 그대로 둔 경우 |
 | OC-07 | PR의 `windows-role-runtime` 실행에서 새 단계가 통과한다. 시험 수와 건너뛴 수가 이 PC의 결과(680, 29)와 크게 다르지 않은지 본다 |
 | OC-08 | 기능 브랜치와 `dev`의 `pipeline-smoke`에서 두 다리가 통과한다. `dev` 실행의 기록 행에 다리 둘이 있다 |
+| OC-10 | PR의 `windows-role-runtime`과 `macos-runtime-contracts` 실행 로그에서 출시 이력 시험 둘이 건너뛰지 않고 통과한다. 두 workflow에서 `fetch-depth: 0`이나 `STAGEKEEPER_RELEASED_READERS: required`를 하나씩 지우면 `verify:ci-coverage`가 실패한다 |
+| OC-11 | 두 workflow의 PR 경로 목록을 대조한다. 병합 뒤 제품 코드만 바꾼 첫 PR에서 `windows-role-runtime`이 도는지 본다 |
+| OC-12 | 시험 서버의 503 응답을 150ms 늦추면 고치기 전의 시험이 CI와 같은 오류로 실패하고, 고친 시험은 통과한다. 보통 속도에서 걸리는 시간이 같다 |
 
 검증 기준:
 
@@ -302,6 +330,16 @@ gh workflow run pipeline-smoke.yml --ref dev
 | 2단계: 병합 뒤 `dev` `68f3d49`의 실행 | `check`, Windows 런타임(run 43158463839), macOS 런타임(run 43158463867) 모두 통과 | Windows의 새 단계는 680개 중 649개 통과, 31개 건너뜀, 5분 39초. macOS는 두 runner 모두 680개 중 650개 통과, 30개 건너뜀. 출시 이력을 읽는 시험 둘은 macOS 실행 로그에서도 건너뛴 것으로 나온다. 이 둘은 CI에서 전체 이력을 받는 `check`에서만 돈다 |
 | 3단계: 인계 이슈(2026-11-12) | [#329](https://github.com/Sangeok/stagekeeper/issues/329) 생성 | 5.3의 인계. 만들기 전에 이 PC(Node 22.13.1)에서 `template-release-cli.test.ts`를 따로 돌려 2개 중 1개가 "Template profiles must be private regular files outside the repository"로 실패하는 것과, `0600`으로 만든 파일과 `chmod 600` 뒤의 파일이 모두 `666`으로 보고되는 것을 다시 확인했다 |
 | 4단계 | Not run yet | 구현 전 |
+| 5단계: 이 PC에서 출시 이력 시험 두 파일을 `STAGEKEEPER_RELEASED_READERS=required`로 실행(2026-11-12, `dev` `df27c78` 기준) | 3개 모두 통과. 출시 판 시험 하나가 2분 36초 | 0.6.14부터 0.5.14까지의 출시 판을 차례로 꺼내 돌린다. Linux CI에서는 같은 시험이 49초다 |
+| 5단계: 같은 실행을 임시 폴더가 8.3 짧은 이름 경로일 때 | 3개 모두 통과 | runner의 임시 폴더처럼 짧은 이름이 든 경로다. 임시 폴더를 아주 깊은 경로로 주었을 때는 출시 판을 푸는 Git이 "Filename too long"으로 실패했다. 임시 폴더 바로 아래의 폴더(56자)에서는 통과한다. runner에서의 결과는 PR 실행이 확인한다 |
+| 5단계: `npm run verify:ci-coverage` | 통과(job 12개, 행 10개) | Windows와 macOS의 workflow에서 `fetch-depth: 0`이나 `STAGEKEEPER_RELEASED_READERS: required`를 하나씩 지운 4가지 변형이 모두 "a per-OS check needs a … job that runs npm test, fetch-depth: 0, STAGEKEEPER_RELEASED_READERS: required"로 실패한다 |
+| 5단계: PR #334의 `windows-role-runtime`(run 43165516082)과 `macos-runtime-contracts`(run 43165516117) 실행 | 모두 통과. 출시 이력 시험 둘이 세 runner에서 건너뛰지 않고 통과했다 | OC-10. Windows: 680개 중 651개 통과, 29개 건너뜀, 출시 판 시험 2분 35초, job 15분 7초(전 12분 12초). macOS arm64: 680개 중 652개 통과, 28개 건너뜀, 출시 판 시험 1분 11초, job 5분 38초(전 약 4분). macOS intel: 같은 수, 출시 판 시험 2분 41초, job 11분 8초(전 약 10분). 건너뛴 수가 runner마다 2개씩 줄었다. PR의 `check`도 통과했다. 2026-11-12 `dev` `6cf37cd`로 병합 |
+| 5단계: 병합 뒤 `dev` `6cf37cd`의 실행 | `check`, Windows 런타임(run 43167850264), macOS 런타임(run 43167850325) 모두 통과 | 시험 수와 건너뛴 수가 PR 실행과 같다. Windows job 15분 24초, macOS arm64 5분 14초, macOS intel 10분 11초 |
+| 5단계: 제품 코드만 바꾼 PR에서 `windows-role-runtime`이 도는지(OC-11) | 돌았고 통과했다(PR #338, run 43327147323, 13분 30초) | #338은 Windows workflow 파일을 바꾸지 않았다. 그 workflow의 PR 경로에 걸리는 파일은 `plugin/bin/harness-watch.test.mjs` 하나였다. 두 workflow의 제품 코드 경로가 같은 것은 파일을 읽어 대조했다 |
+| 6단계: `macos-runtime-contracts`의 `dev` 실행 34번(2026-11-10~12)의 실패 대조 | 8번 실패, 모두 `macos-15-intel`. 시험 실패 3번은 같은 시험, 빌드 실패 5번은 모두 `timeout` | 실패한 job의 단계 이름과 로그의 단언을 실행마다 읽었다. 같은 기간 `windows-role-runtime` 60번에는 PR #326의 첫 실행 말고 실패가 없다 |
+| 6단계: 이 PC에서 시험 서버의 503 응답을 150ms 늦춘 실행(2026-11-12, `dev` `e1ede74` 기준) | 고치기 전의 시험은 `undefined`와 `'request-failed'`가 다르다는 CI와 같은 오류로 실패. 고친 시험은 통과 | OC-12. 보통 속도에서는 고치기 전 3.0초, 고친 뒤 3.2초. `harness-watch.test.mjs` 전체 43개 통과 |
+| 6단계: PR #338의 첫 실행(run 43327147316, Intel의 시간 초과를 경고로 넘기는 방식을 함께 담았던 커밋 `7a951eb`) | Intel job 통과, arm64 job은 빌드가 `timeout`으로 실패. 실패한 job만 다시 돌리니 통과 | 그 실행의 arm64 runner는 출시 판 시험보다 앞의 시험들이 198초(평소 81초)였고 컴파일이 64초(평소 14~20초)였다. 다시 돌린 실행은 시험 3분 46초, 빌드 단계 1분 20초였다. 관측한 35번 가운데 arm64의 첫 시간 초과다. 고친 `harness-watch` 시험은 느렸던 arm64 실행에서도 통과했다(2.4초, 평소 0.8초). 이 결과로 5.5의 범위를 줄였다 |
+| 6단계: 범위를 줄인 뒤 PR #338의 실행 | Not run yet | 시험 수정만 남긴 상태에서 `check`, Windows, 두 macOS job을 확인한다. 빌드 시간 초과는 이 PR이 고치지 않으므로 느린 runner에서는 다시 날 수 있다 |
 
 ## Risks and Rollback
 

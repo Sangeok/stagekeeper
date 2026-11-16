@@ -9,6 +9,7 @@ export type Draft = { selection: { source: "url"; url: string } | { source: "dir
 export type RestorableDraft = { id: string; flowId: string; generation: number; value: Draft };
 export type ConnectionView = { available: boolean; status: "not-connected" | "connected" | "reauth-required"; revision: number | null; notice: string | null };
 export type Credentials = { accessToken: string; refreshToken: string; accessExpiresAt: Date; refreshExpiresAt: Date };
+export type MaintenanceResult = { attemptsDeleted: number; deliveriesDeleted: number; connectionsExpired: number; credentialsRotated: number; cleanupComplete: boolean; cleanupBatches: number };
 export type Connection = { userId: string; githubId: string; revision: number; tokenVersion: number; accessToken: string | null; refreshToken: string | null; accessExpiresAt: Date | null; refreshExpiresAt: Date | null; revokedAt: Date | null; refreshLeaseId: string | null; refreshLeaseExpiresAt: Date | null };
 export type Attempt = { id: string; flowId: string; userId: string; browserHash: string; stateHash: string; kind: "authorization" | "installation"; status: string; expectedRevision: number; verifier: string | null; draft: string | null; outcome: string | null; expiresAt: Date };
 export type AppConfiguration = { clientId: string; clientSecret: string; appId: string; slug: string; origin: string };

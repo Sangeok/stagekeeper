@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 
 import { buildBriefing, firstSentence } from "./briefing.ts";
 import { BOARD, ROSTER, TODAY, row } from "./briefing.fixture.mjs";
-import { NODE_KINDS, defaultGraph } from "@harness/core/pipeline/pipeline.mjs";
+import { NODE_KINDS, PROJECT_AGENTS, defaultGraph } from "@harness/core/pipeline/pipeline.mjs";
 
 describe("firstSentence", () => {
   it("cuts at the first terminator followed by space or end", () => {
@@ -68,11 +68,52 @@ describe("buildBriefing", () => {
     });
   }
 
-  it("joins results in recorded order before extracting the first sentence", () => {
+  for (const [status, tone] of [["done", "done"], ["on_hold", "hold"], ["unknown", "muted"]]) {
+    it(`summarizes only the latest result for ${status}`, () => {
+      const briefing = buildBriefing([
+        row({ status, reason: "Unused reason.", results: ["First part", "second part. Later."] }),
+      ], TODAY, ROSTER, NODE_KINDS);
+      assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "second part.", tone }]);
+    });
+
+    it(`uses the key for a blank latest ${status} result without falling back to earlier evidence`, () => {
+      const briefing = buildBriefing([
+        row({ key: "B-1", status, reason: "Nonempty reason.", results: ["Earlier result.", "   "] }),
+      ], TODAY, ROSTER, NODE_KINDS);
+      assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "B-1", tone }]);
+    });
+  }
+
+  it("shows completion after a hold instead of the old question", () => {
     const briefing = buildBriefing([
-      row({ status: "done", reason: "Unused reason.", results: ["First part", "second part. Later."] }),
+      row({ status: "done", results: ["Open: A or B? Answer in Source.", "Implementation span completed."] }),
     ], TODAY, ROSTER, NODE_KINDS);
-    assert.equal(briefing.activity[0].line, "First part second part.");
+    assert.equal(briefing.activity[0].line, "Implementation span completed.");
+  });
+
+  it("shows the latest hold reason after repeated holds", () => {
+    const briefing = buildBriefing([
+      row({ status: "on_hold", results: ["First hold reason.", "Second hold reason. More."] }),
+    ], TODAY, ROSTER, NODE_KINDS);
+    assert.equal(briefing.activity[0].line, "Second hold reason.");
+  });
+
+  it("keeps non-summary status lines regardless of result history", () => {
+    for (const [status, dispatched, line] of [
+      ["proposed", false, "waiting for a plan request · 1 day"],
+      ["proposed", true, "waiting for a plan request · 1 day"],
+      ["in_review", false, "plan submitted · proposed 1 day ago"],
+      ["in_review", true, "plan submitted · proposed 1 day ago"],
+      ["planning", false, "waiting for web-dev"],
+      ["planning", true, "writing the plan"],
+      ["implementing", false, "waiting for web-dev"],
+      ["implementing", true, "implementing"],
+    ]) {
+      for (const results of [[], ["Earlier result.", "Latest result."]]) {
+        const briefing = buildBriefing([row({ status, dispatched, results })], TODAY, ROSTER, NODE_KINDS);
+        assert.equal(briefing.activity[0].line, line, `${status} ${dispatched}`);
+      }
+    }
   });
 
   it("reports proposal age even when review started today and matches canonical copy", () => {
@@ -115,6 +156,7 @@ describe("buildBriefing", () => {
     ["150-character reason", { reason: "x".repeat(150) }, false],
     ["151-character reason", { reason: "x".repeat(151) }, true],
     ["151-character result", { results: ["x".repeat(151)] }, true],
+    ["151-character earlier result", { results: ["x".repeat(151), "Done."] }, true],
     ["two 100-character results", { results: ["x".repeat(100), "y".repeat(100)] }, false],
     ["long source after a short first sentence", { results: ["Done. " + "x".repeat(150)] }, true],
   ]) {
@@ -229,12 +271,21 @@ describe("buildBriefing", () => {
     assert.equal(briefing.team.find((t) => t.agent === "web-dev").state, "Ready for N-1");
   });
 
-  it("shows an item-bound verifier at its own node in Activity and in its Team row", () => {
-    for (const [node, agent] of [["impl-verify", "impl-verifier"], ["qa", "qa-verifier"]]) {
+  it("prioritizes slot activity over result summaries unless the item is held", () => {
+    for (const [node, agent] of [
+      ["impl-verify", "impl-verifier"], ["qa", "qa-verifier"],
+      ...PROJECT_AGENTS.flatMap((agent) => [[agent, agent], [`${agent}#2`, agent]]),
+      ["doc-audit", "doc-auditor"], ["scout", "feature-scout"],
+      ["discover-work", "work-discoverer"], ["discover-work#2", "work-discoverer"],
+    ]) {
       for (const dispatched of [false, true]) {
-        const briefing = buildBriefing([row({ key: "V-1", status: "done", node, gate: null, dispatched })], TODAY, ROSTER, NODE_KINDS);
+        const fields = { key: "V-1", node, gate: null, dispatched, results: ["Earlier result.", "Latest result. More."] };
+        const briefing = buildBriefing([row({ ...fields, status: "done" })], TODAY, ROSTER, NODE_KINDS);
         assert.deepEqual(briefing.activity.map(({ line, tone }) => ({ line, tone })), [{ line: `${dispatched ? "working: " : "waiting for "}${agent} · ${node}`, tone: dispatched ? "active" : "pending" }], `${node} ${dispatched}`);
         assert.equal(briefing.team.find((t) => t.agent === agent).state, `${dispatched ? "Working on" : "Ready for"} V-1`, `${node} ${dispatched}`);
+        const held = buildBriefing([row({ ...fields, status: "on_hold" })], TODAY, ROSTER, NODE_KINDS);
+        assert.deepEqual(held.activity.map(({ line, tone }) => ({ line, tone })), [{ line: "Latest result.", tone: "hold" }], `${node} ${dispatched}`);
+        assert.equal(held.team.find((t) => t.agent === agent).state, "Idle", `${node} ${dispatched}`);
       }
     }
   });

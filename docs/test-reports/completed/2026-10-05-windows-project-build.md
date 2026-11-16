@@ -11,11 +11,11 @@ completed-at: "2026-10-05"
 last-executed-at: "2026-10-05T09:16:13.165Z"
 tested-revision: "72141512408454276316103f0e8c9b0091cd841e"
 owners: ["user:Sangeok"]
-related: ["docs/architecture/verification.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/test-reports/active/dual-client-runtime-report.md"]
+related: ["docs/architecture/verification.md", "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/test-reports/active/dual-client-runtime-report.md"]
 primary-area: "harness/windows-project-build"
 observed-environments: ["local | full public project in disposable LPAC snapshot | native Windows, bundled Node 22.23.3/x64 | plan-verifier", "CI | complete offline project build in LPAC snapshot | Windows Server 2022, pinned Node 22.23.3/x64 | GitHub Actions", "CI | source checks and host production build | Ubuntu, Node 22 | GitHub Actions"]
 test-summary: "pass: full Windows project build — no role network or DB URL, original files unchanged"
-follow-up: ["https://github.com/Sangeok/stagekeeper/pull/113", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["https://github.com/Sangeok/stagekeeper/pull/113", "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Native Windows full project build
@@ -43,7 +43,7 @@ service installation/resumption, arbitrary native Rust tools, release or C4.
 | Criterion | Source | Priority | Success condition |
 | --- | --- | --- | --- |
 | R1 | [Verification architecture](../../architecture/verification.md) | MUST | Full build without DB URL/network/environment copies or original writes |
-| R2 | [Runtime follow-ups](../../proposals/active/codex-dual-client-runtime-follow-ups.md) | MUST | Retain native kernel denials, source guards, command limits and whole-job acknowledgement |
+| R2 | [Runtime follow-ups](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) | MUST | Retain native kernel denials, source guards, command limits and whole-job acknowledgement |
 | R3 | AGENTS.md | MUST | Relevant lint/types/FSD/architecture/tests and host production build pass |
 
 Project dependencies were installed by normal `npm ci` with empty user/global npm

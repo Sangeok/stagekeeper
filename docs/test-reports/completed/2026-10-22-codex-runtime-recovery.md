@@ -15,7 +15,7 @@ related: ['docs/architecture/protocol.md','docs/architecture/verification.md','d
 primary-area: 'harness/codex-runtime'
 observed-environments: ['local | isolated native Windows foreground runtime | Codex 0.163.0; owner Node 22.13.1; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent']
 test-summary: 'pass: Codex runtime recovery — committed handoffs, scoped file calls and the prepared-plan-to-acceptance service cycle passed'
-follow-up: ['docs/proposals/active/codex-dual-client-runtime-follow-ups.md']
+follow-up: ['docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md']
 ---
 
 # Codex runtime recovery regression
@@ -138,7 +138,7 @@ board_list; the watch/pipeline object contract and error validation remain stric
 
 Physical clean-host acceptance, published package update identity, controlled private
 stop/resume and the broader cross-client/release gates remain in the
-[runtime follow-ups](../../proposals/active/codex-dual-client-runtime-follow-ups.md).
+[runtime follow-ups](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md).
 
 ## Test Data and Cleanup
 

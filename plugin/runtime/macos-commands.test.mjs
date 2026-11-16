@@ -30,7 +30,7 @@ it("macOS preflight proves allowed work, inherited denial and network refusal wi
   assert.equal(active.size, 0);
 });
 
-it("macOS command snapshots preserve internal npm executable links and discard every write", native, async t => {
+it("macOS command snapshots accept the 300000 ms maximum, preserve internal npm executable links and discard every write", native, async t => {
   const f = fixture(t);
   mkdirSync(path.join(f.root, "node_modules/.bin"), { recursive: true });
   mkdirSync(path.join(f.root, "node_modules/example"));
@@ -42,7 +42,7 @@ it("macOS command snapshots preserve internal npm executable links and discard e
   const files = createRoleFiles({ ":root": "deny", [f.root]: "read", [f.scratch]: "write" }, "plan-verifier");
   const backend = await createMacosCommands({ root: f.root, scratch: f.scratch, agent: "plan-verifier", fileBroker: files, runtime });
   t.after(() => backend.close());
-  const result = await backend.call("role_command_exec", { command: "npm test && printf CHANGED > source.txt", timeoutMs: 10000 });
+  const result = await backend.call("role_command_exec", { command: "npm test && printf CHANGED > source.txt", timeoutMs: 300000 });
   assert.equal(result.status, "exited"); assert.equal(result.exitCode, 0, result.stderr);
   assert.match(result.stdout, /linked-ok/); assert.ok(result.omitted.includes(".env"));
   assert.equal(result.originalRepositoryWrites, false); assert.equal(result.snapshotWrites, "discarded");
@@ -89,7 +89,7 @@ for (const denied of ["external", ".env"]) it(`macOS snapshots refuse a hardlink
   assert.equal(readFileSync(source, "utf8"), "PRIVATE_CANARY");
 });
 
-it("macOS stop ends a detached descendant before acknowledging settlement", native, async t => {
+it("macOS stop ends a command started with the 300000 ms maximum and its detached descendant before acknowledging settlement", native, async t => {
   const f = fixture(t), controller = new AbortController();
   const source = "const c=require('node:child_process').spawn(process.execPath,['-e',\"setInterval(()=>{},1000)\"],{detached:true,stdio:'ignore'});require('node:fs').writeFileSync('../scratch/child.json',JSON.stringify({pid:c.pid}));setInterval(()=>{},1000)";
   let descendant = null, observed = false;
@@ -97,7 +97,7 @@ it("macOS stop ends a detached descendant before acknowledging settlement", nati
     try { descendant = JSON.parse(readFileSync(path.join(f.scratch, "child.json"), "utf8")).pid; observed = true; controller.abort(); } catch { }
   }, 20);
   t.after(() => clearInterval(timer));
-  const result = await runMacosCommand({ root: f.base, runtime: runtime.directory, command: nodeCommand(source), cwd: "", timeoutMs: 10000 }, {
+  const result = await runMacosCommand({ root: f.base, runtime: runtime.directory, command: nodeCommand(source), cwd: "", timeoutMs: 300000 }, {
     signal: controller.signal, onSettled() {
       if (descendant) assert.throws(() => process.kill(descendant, 0), error => error.code === "ESRCH");
     },

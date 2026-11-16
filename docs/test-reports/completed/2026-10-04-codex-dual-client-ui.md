@@ -15,7 +15,7 @@ related: ["docs/proposals/completed/2026-10-04-codex-dual-client-support.md","do
 primary-area: "frontend/dual-client"
 observed-environments: ["local | isolated React fixture | Node.js/Windows/headless Edge | synthetic tokens"]
 test-summary: "pass: owner Codex connection and shared TurnBanner selection implemented and verified"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Dual-client의 남은 두 UI 요구사항 구현 인수

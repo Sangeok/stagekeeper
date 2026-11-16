@@ -10,26 +10,13 @@ on:
       - scripts/windows/build-windows-role-node.ps1
       - scripts/windows/windows-role-runtime-cache.mjs
       - scripts/windows/windows-role-runtime-cache.test.mjs
-      - plugin/runtime/windows/**
-      - plugin/runtime/role-commands.mjs
-      - plugin/runtime/native-command-diagnostics*.mjs
-      - plugin/runtime/state-diagnostics*.mjs
-      - plugin/runtime/local-session.mjs
-      - plugin/runtime/role-files.mjs
-      - plugin/runtime/role-git.mjs
-      - plugin/runtime/codex-thread.mjs
+      - packages/core/**
+      - packages/github/**
+      - plugin/bin/**
+      - plugin/runtime/**
+      - plugin/lib/**
       - plugin/.claude-plugin/plugin.json
       - plugin/.codex-plugin/plugin.json
-      - plugin/bin/harness-role-commands.test.mjs
-      - plugin/bin/harness-role-files.test.mjs
-      - plugin/bin/harness-role-git.test.mjs
-      - plugin/bin/harness-background.mjs
-      - plugin/bin/harness-background*.test.mjs
-      - plugin/bin/harness-codex.mjs
-      - plugin/bin/harness.ps1
-      - plugin/bin/harness-launcher-windows.test.mjs
-      - plugin/bin/harness-session.test.mjs
-      - plugin/runtime/background.mjs
       - scripts/windows/rehearse-windows-project-build.mjs
       - scripts/build.mjs
       - scripts/windows/windows-role-readlink.cjs
@@ -57,6 +44,8 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -132,6 +121,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Validate the whole product test suite on Windows
         shell: pwsh
+        env:
+          STAGEKEEPER_RELEASED_READERS: required
         run: |
           node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
           if ($LASTEXITCODE -ne 0) { throw 'Product test suite failed on Windows' }

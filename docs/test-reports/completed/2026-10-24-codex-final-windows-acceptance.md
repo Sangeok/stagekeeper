@@ -11,11 +11,11 @@ completed-at: "2026-10-24"
 last-executed-at: "2026-10-24T13:05:44.132Z"
 tested-revision: "1cae8cc0843124c25b9dc585e0ef01df63d19dd2"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/225"]
+related: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/225"]
 primary-area: "harness/codex-final-windows-acceptance"
 observed-environments: ["local | isolated Windows product resident service | Codex native login; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "CI | Windows native and macOS 15 arm64/x64 common contracts | pinned Windows Node 22.23.3 and hosted Node 22 | GitHub Actions"]
 test-summary: "pass: 0.5.23 내부 상태 진단·실제 양쪽 설치·동일 payload의 Codex A-to-Z와 110분 idle; 전체 OS·출시 제안서는 pending/blocked"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # 최종 0.5.23 Windows 설치본의 상태 진단과 실제 인수
@@ -47,7 +47,7 @@ idle의 모델·AgentRun·사용량 증가는 0이고 시작/끝 payload가 일�
 | 기준 ID | 기준 문서/요구 | 적용 범위 | 해석 | 확인 기준 |
 | --- | --- | --- | --- | --- |
 | R1 | [protocol](../../architecture/protocol.md)의 상태/소유권 계약 | resident 내부 오류 | 기존 중지·보존 판정 유지 | 실패 재현, 정제 진단, 미확인 소유권 보존 |
-| R2 | [후속 계획](../../proposals/active/codex-dual-client-runtime-follow-ups.md)의 설치·C4B | 최종 현재 Windows bundle | 실제 설치와 기본 graph | 전체 inventory, 두 owner gate, 독립 검증, 서버 인수 |
+| R2 | [후속 계획](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md)의 설치·C4B | 최종 현재 Windows bundle | 실제 설치와 기본 graph | 전체 inventory, 두 owner gate, 독립 검증, 서버 인수 |
 | R3 | 같은 계획 C4C/E12 | 같은 payload의 실제 idle | 시간 단축·합산 없음 | 단일 6,600초, HTTP 수, 모델/usage 0, 종료 정리 |
 | R4 | [검증 규칙](../../architecture/verification.md) | source·회귀·CI | runtime 성공과 지원 범위 구분 | 필수 검사와 source binding |
 

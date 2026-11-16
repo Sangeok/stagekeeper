@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { prisma } from "@/server/db";
-import type { ConnectionView, Dependencies, RepositoryPage, RestorableDraft, Result, AuthorizedRepository } from "./contracts";
+import type { ConnectionView, Dependencies, RepositoryPage, RestorableDraft, Result, AuthorizedRepository, MaintenanceResult } from "./contracts";
 import { appConfiguration, webhookConfiguration } from "./configuration.server";
 import { configuredTokenVault } from "./token-vault.server";
 import { createGitHubProvider } from "./provider.server";
@@ -93,6 +93,6 @@ export async function handleGitHubWebhook(input: { body: string; signature: stri
   return processWebhook(createGitHubStore(prisma), { ...input, appId: configuration.appId, now: new Date() });
 }
 
-export async function maintainGitHubConnections(rotate: boolean): Promise<{ attemptsDeleted: number; deliveriesDeleted: number; connectionsExpired: number; credentialsRotated: number }> {
+export async function maintainGitHubConnections(rotate: boolean): Promise<MaintenanceResult> {
   return maintainConnections(prisma, { now: new Date(), vault: rotate ? configuredTokenVault() : null, rotate });
 }

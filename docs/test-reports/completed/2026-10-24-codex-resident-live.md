@@ -11,11 +11,11 @@ completed-at: "2026-10-24"
 last-executed-at: "2026-10-24T06:03:40.4252950Z"
 tested-revision: "893a24e7f1e4d5361727aa24724be3f9f8bc3503"
 owners: ["user:Sangeok"]
-related: ["docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/proposals/active/codex-dual-client-runtime-follow-ups.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/222"]
+related: ["docs/proposals/completed/2026-11-11-codex-resident-runner-plan.md", "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md", "docs/test-reports/active/dual-client-runtime-report.md", "https://github.com/Sangeok/stagekeeper/pull/222"]
 primary-area: "harness/codex-resident"
 observed-environments: ["local | isolated Windows resident service and database | Codex 0.164.0; bundled Node 22.23.3; PostgreSQL 18.6 | disposable owner and agent", "CI | public source check and Windows native runtime | GitHub Actions | repository workflow"]
 test-summary: "pass: 현재 Windows의 Codex resident 구현·설치·실제 파이프라인 및 공통 poller 유휴 검증 — 물리적 clean host와 OS별 출시 인수는 별도"
-follow-up: ["docs/proposals/active/codex-dual-client-runtime-follow-ups.md"]
+follow-up: ["docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"]
 ---
 
 # Windows Codex resident 실제 연결과 장시간 유휴 검증
@@ -52,7 +52,7 @@ Codex 로그온 자동 시작, 운영 seed·공개 패키지 배포·main 승격
 | R1 | [C4B 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md), VFY-C4B-01/02 | DB·REST | accepted architecture와 명시적 client 계약 유지 | 정식 migration, legacy/null, echo·소유권·인증 |
 | R2 | 같은 계획, VFY-C4B-03/04 | 실제 역할·종료 | 실제 terminal·서버 인수와 모델 완료 구분 | fresh cycle·독립 verifier·handoff·중단·successor |
 | R3 | 같은 계획, VFY-C4B-05/06 | UI·설치 | 실제 저장 client와 installed body 확인 | 최종 렌더, 두 loader, 전량 hash |
-| R4 | [후속 인수](../../proposals/active/codex-dual-client-runtime-follow-ups.md), TASK-C4-02/E12 | 현재 Windows 공통 poller | fake clock과 실제 110분 분리; 후보별 hash 보존 | 모델·AgentRun·사용량 0, heartbeat와 정리 |
+| R4 | [후속 인수](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md), TASK-C4-02/E12 | 현재 Windows 공통 poller | fake clock과 실제 110분 분리; 후보별 hash 보존 | 모델·AgentRun·사용량 0, heartbeat와 정리 |
 | R5 | [검증 아키텍처](../../architecture/verification.md), AGENTS.md | 코드·증거·정리 | required 코드 검사와 사실에 맞는 범위별 판정 | 회귀·build·CI, 격리 데이터·프로세스 정리 |
 
 ## Test Target
@@ -128,7 +128,7 @@ C2의 최종 전체 실행에는 native helper의 stdout/stderr를 보존하는 
 | F1 | high | successor가 시작한 뒤 이전 종료가 상태를 덮어쓰는 guard race를 재현·수정. scope 경로/Windows identity·queued dispatch도 강화, E2/E3 | [PR 222](https://github.com/Sangeok/stagekeeper/pull/222) | 동일 재현과 native takeover 유지 |
 | F2 | medium | 다중 파일 show·존재하지 않는 baseline blob과 잘못 복사한 hash를 권한 거부로 혼동. 교정 가능한 오류를 분리하고 새 commit 파일 diff 누락 수정, E3 | 같은 PR | 실제 Git/HTTP write-protection 회귀와 fresh A→Z |
 | F3 | high | policy refusal 뒤 늦은 completed가 성공으로 분류되는 경합을 결정적 시험으로 재현·수정, E3 | 같은 PR | completed/interrupted 양쪽과 interrupt/cleanup 회귀 |
-| F4 | medium | 앞선 sign-in recovery·native helper의 거부 진단 간헐 실패와 단발 corrupt-state의 정확한 원인은 미확정. native SID 거부 집중 시험은 진단 capture를 포함해 13회 후속 통과했고 전체 536개도 통과했다. 앞선 후보 60회와 후속 후보 20회의 start/stop 성공을 포함해 원인 해결로 단정하지 않음, E3 | [후속 계획](../../proposals/active/codex-dual-client-runtime-follow-ups.md) | 재발 시 저장한 진단 로그와 최소 재현으로 원인 확정 |
+| F4 | medium | 앞선 sign-in recovery·native helper의 거부 진단 간헐 실패와 단발 corrupt-state의 정확한 원인은 미확정. native SID 거부 집중 시험은 진단 capture를 포함해 13회 후속 통과했고 전체 536개도 통과했다. 앞선 후보 60회와 후속 후보 20회의 start/stop 성공을 포함해 원인 해결로 단정하지 않음, E3 | [후속 계획](../../proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md) | 재발 시 저장한 진단 로그와 최소 재현으로 원인 확정 |
 | F5 | medium | 중간 설치 갱신으로 관리 파일이 승인 계획과 달라진 replay는 올바르게 acceptance_fail. 그 항목을 통과로 바꾸지 않고 최종 fresh fixture 사용, E1 | [상세 계획](../../proposals/completed/2026-11-11-codex-resident-runner-plan.md) | 초기화·관리 파일 commit 후 새 계획으로 인수 |
 | F6 | blocker | physical clean Windows·macOS·mixed-host·운영 출시 미실행 | 두 active 제안서 | 해당 실제 환경과 고정 배포 후보 확보 후 독립 인수 |
 

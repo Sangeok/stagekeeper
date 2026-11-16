@@ -6,6 +6,7 @@ import path from "node:path";
 import { createRoleFiles } from "../../plugin/runtime/role-files.mjs";
 import { createMacosCommands } from "../../plugin/runtime/macos-commands.mjs";
 import { installedMacosRuntime } from "../../plugin/runtime/macos-runtime.mjs";
+import { ROLE_COMMAND_MAX_TIMEOUT_MS } from "../../plugin/runtime/role-commands.mjs";
 
 const args = process.argv.slice(2);
 assert.deepEqual([args[0], args[2], args[4]], ["--root", "--runtime", "--evidence"]);
@@ -26,10 +27,13 @@ const fileBroker = createRoleFiles({ ":root": "deny", [root]: "read", [scratch]:
 let broker, settled = false;
 try {
   broker = await createMacosCommands({ root, scratch, agent: "plan-verifier", fileBroker, runtime });
-  const result = await broker.call("role_command_exec", { command: "NEXT_TELEMETRY_DISABLED=1 npm run build", timeoutMs: 120000 });
+  const started = performance.now();
+  const result = await broker.call("role_command_exec", { command: "NEXT_TELEMETRY_DISABLED=1 npm run build", timeoutMs: ROLE_COMMAND_MAX_TIMEOUT_MS });
+  const durationMs = Math.round(performance.now() - started);
   settled = result.quiescent === true;
   writeFileSync(evidencePath, JSON.stringify({ at: new Date().toISOString(), sourceHashes, runtimeSha256: runtime.executableSha256,
-    databaseUrlProvided: false, roleNetworkAccess: false, modelTurns: 0, result }, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+    databaseUrlProvided: false, roleNetworkAccess: false, modelTurns: 0, timeoutMs: ROLE_COMMAND_MAX_TIMEOUT_MS, durationMs, result }, null, 2) + "\n", { flag: "wx", mode: 0o600 });
+  console.log(JSON.stringify({ build: result.status, timeoutMs: ROLE_COMMAND_MAX_TIMEOUT_MS, durationMs }));
   assert.equal(result.status, "exited");
   assert.equal(result.exitCode, 0, "Full project build must succeed without role network or DB credentials");
   assert.equal(result.quiescent, true); assert.equal(result.outputTruncated, false);

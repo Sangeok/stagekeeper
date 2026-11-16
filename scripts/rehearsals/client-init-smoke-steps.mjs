@@ -37,7 +37,16 @@ export function containsSecret(text, token) {
   return (typeof token === "string" && token.length > 0 && text.includes(token)) || TOKEN.test(text);
 }
 
-export function summarize(record) {
+export function smokeResult(record = {}) {
+  const failed = record.failure || (Array.isArray(record.steps) && record.steps.some(entry => entry?.result === "fail"));
+  const explicit = Object.hasOwn(record, "result");
+  const completedSteps = Array.isArray(record.steps) && record.steps.length > 0 && record.steps.every(entry => entry?.result === "pass");
+  if (failed) return "fail";
+  if (explicit) return RESULTS.includes(record.result) ? record.result : "fail";
+  return completedSteps ? "pass" : "fail";
+}
+
+export function summarize(record = {}) {
   const summary = environmentFields(record);
   if (typeof record.os === "string" && NAME.test(record.os)) summary.os = record.os;
   if (SCENARIOS.includes(record.scenario)) summary.scenario = record.scenario;
@@ -50,6 +59,6 @@ export function summarize(record) {
   }
   if (typeof record.failure === "string" && NAME.test(record.failure)) summary.failure = record.failure;
   if (Number.isInteger(record.seconds) && record.seconds >= 0) summary.seconds = record.seconds;
-  summary.result = record.failure ? "fail" : "pass";
+  summary.result = smokeResult(record);
   return summary;
 }

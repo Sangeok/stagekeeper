@@ -121,6 +121,8 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 | `tests/server/github-configuration.test.ts` | github | 실제 App·webhook·vault 설정에 따른 목록 자동 제공과 callback origin 검증 |
 | `tests/server/github-provider.test.ts` | github | 실제 HTTP adapter의 PKCE·권한·페이지·오류·개별 토큰 폐기 계약 |
 | `tests/server/github-token-vault.test.ts` | github | 실제 암호화·AAD·keyring 회전과 위조 envelope 거부 |
+| `tests/server/github-maintenance.test.ts` | github | 정리 작업의 배치·시간 상한과 잔여 작업 보고 |
+| `tests/server/integration/github-maintenance.test.ts` | github | 실제 PostgreSQL의 만료 인덱스·배치 삭제·동시 정리와 갱신 보존 |
 | `tests/server/integration/github-connection.test.ts` | github | 격리 PostgreSQL의 시도·갱신·해제 CAS·webhook 중복·수명주기 검증 |
 | `scripts/rehearsals/rehearse-acceptance-failure.ts` | pipeline | 격리 인수 fixture의 실제 내부 실행 경로 조립 (board) |
 | `scripts/rehearsals/rehearse-pipeline-agent-slots.ts` | agents | 격리 인수 fixture의 실제 내부 실행 경로 조립 (next, run-service) |
