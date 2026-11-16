@@ -3,9 +3,9 @@ import childProcess, { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize } from "node:path";
 import { afterEach, beforeEach, it } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { cleanupTaskBranches, inspectMergedTaskBranch, parseWorktreeList } from "./cleanup-task-branches.mjs";
 
 const directories = [];
@@ -437,7 +437,7 @@ for (const state of ["clean", "dirty", "missing", "metadata-missing", "locked", 
     const row = result(f, { apply: true });
     assert.equal(row.preservation, "ancestor");
     assert.ok(row.reasons.includes("worktree-in-use"));
-    assert.equal(row.worktrees[0].path, path);
+    assert.equal(normalize(row.worktrees[0].path), normalize(path));
     assert.equal(row.worktrees[0].changes, ["missing", "metadata-missing"].includes(state) ? "unknown" : state === "dirty" ? "dirty" : "clean");
     assert.equal(row.worktrees[0].locked, state === "locked");
     if (state === "missing") assert.equal(row.worktrees[0].prunable, true);
@@ -603,7 +603,7 @@ for (const squash of [false, true]) it(`preserves a branch newly checked out dur
   };
   const row = result(f, { apply: true, github });
   assert.equal(row.reason, "worktree-in-use");
-  assert.equal(row.worktrees[0].path, path);
+  assert.equal(normalize(row.worktrees[0].path), normalize(path));
   assert.ok(exists(f));
 });
 
@@ -634,8 +634,9 @@ cp.spawnSync = (command, args, options) => {
 };
 syncBuiltinESMExports();
 `);
-  const invocation = spawnSync(process.execPath, ["--import", preload, script, "--apply"], { cwd: f.cwd, encoding: "utf8" });
-  assert.equal(invocation.status, 1);
+  const invocation = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, script, "--apply"], { cwd: f.cwd, encoding: "utf8" });
+  assert.equal(invocation.status, 1, invocation.stderr);
+  assert.ok(invocation.stdout, invocation.stderr);
   const report = JSON.parse(invocation.stdout);
   assertSummary(report);
   assert.equal(report.aborted, true);
@@ -654,8 +655,8 @@ cp.spawnSync = (command, args, options) => command === "gh"
   ? { status: 0, stdout: "[[]]" } : original(command, args, options);
 syncBuiltinESMExports();
 `);
-  const preview = spawnSync(process.execPath, ["--import", preload, script], { cwd: f.cwd, encoding: "utf8" });
-  assert.equal(preview.status, 0);
+  const preview = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, script], { cwd: f.cwd, encoding: "utf8" });
+  assert.equal(preview.status, 0, preview.stderr);
   const eligible = JSON.parse(preview.stdout);
   assertSummary(eligible);
   assert.equal(eligible.summary.eligible, 1);

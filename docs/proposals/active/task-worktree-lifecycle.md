@@ -612,6 +612,11 @@ Git 목록 계약의 중복을 없앴다. 응답에는 owner/branchName/lastReas
 반환 경로에 따옴표가 남아 native 실경로 조회가 실패했다. 테스트의 해당 cmd 호출에만
 `windowsVerbatimArguments`를 적용했다. 제품 삭제 로직이나 OS 보호 조건은 바꾸지 않았고,
 수정 후 Windows 결과는 PR의 최신 commit check에서 확인한다.
+두 번째 Windows 실행에서는 새 관리 시험 50/50(8.3 포함)이 통과했다. 이어진 기존
+branch 시험은 86 PASS/9 FAIL/1 SKIP이었다. 일곱 실패는 Git의 `/` 경로와 Windows의
+`\` 경로를 문자열로 비교한 것이고, 두 실패는 preload의 native 경로를 `--import`에
+직접 전달한 것이었다. 시험에서 경로 구분자를 정규화하고 preload를 file URL로 전달하도록
+고쳤다. 삭제 정책과 비교 대상 디렉터리는 유지하며, 개행 경로의 Windows skip은 유지한다.
 현재 실제 사용자 자료의 자동 채택·정리, dev 병합과 main 승격은 수행 범위 밖이다.
 PR에 최종 commit의 check 결과와 잔여 보류를 기록하고 병합 전에는 active 제안서로 유지한다.
 
