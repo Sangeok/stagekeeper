@@ -1,5 +1,13 @@
 # GitHub URL 공통 모듈
 
+## 적용 예정: 공통 해석과 앱 링크 표현 분리
+
+[shared-modules.md](./shared-modules.md)의 Phase MIGRATE에서 repo-url은 shared 공개 entry로,
+blobHref는 기존 board-item의 doc-link 구현으로 옮긴다. GitHub 문법·인코딩과 entity 공개 API는
+보존한다. 아래의 현재 경로·의존 방향·복사 규칙은 실제 전환 전까지 유효하다.
+
+## 현행 계약
+
 `packages/github`는 웹·서버·플러그인이 사용하는 GitHub 저장소 주소 해석과 파일 URL
 생성을 소유한다. 별도 npm workspace, 독립 빌드 또는 버전은 만들지 않는다.
 

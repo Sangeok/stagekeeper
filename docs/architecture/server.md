@@ -1,5 +1,18 @@
 # 서버 모듈 경계
 
+## 적용 예정: 공통 모듈에서 서버 정책 회수
+
+[shared-modules.md](./shared-modules.md)의 Phase MIGRATE에서 토큰 발급·해시, 가용성 선택,
+사용량/요청 창, 입력·QA 보고 검증, release 준비와 runner 서버 timing을 각 서버 소유 모듈로 옮긴다.
+외부 소비는 api.ts·contracts.ts를 통하며 DB 비초기화·주입 경계를 유지한다.
+특히 pipeline/template-selection의 installationFor·selectTemplateLanguage 사용은
+templates/api.ts로 연결하므로 **pipeline → templates**를 그때 방향표·검사기에 추가한다.
+현재 아래 방향표·public symbol·내부 시험 registry는 아직 변경하지 않는다.
+토큰의 newToken·hashToken은 tokens/api.ts에 공개할 예정이며, 리허설의 TS 동적 import 시점을
+보존한다. templates/api.server.ts를 새로 만들지 않는다.
+
+## 현행 계약
+
 `src/server`는 backend application service다. 프런트엔드 FSD layer를 적용하지 않으며,
 제품의 순수 공유 정책은 `packages/core`, GitHub URL 규칙은 `packages/github`,
 HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연결·credential 수명주기는

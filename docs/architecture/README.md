@@ -2,8 +2,17 @@
 
 이 디렉터리는 Stagekeeper의 현재 아키텍처와 새 코드가 따라야 할 경계를 정의하는
 source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
-`docs/investigations/`, 결정의 배경은 `docs/ADR/`에 두고, 여기에는 **현재 적용할
-구조와 규칙**만 둔다.
+`docs/investigations/`, 결정의 배경은 `docs/ADR/`에 둔다. 기본적으로 여기의 규칙은
+**현재 적용할 구조와 규칙**이다. 구현 전 합의가 필요한 전환 계약은 예외적으로
+`status: planned`와 활성화 조건을 명시하여 두며, 현행 규칙을 덮어쓰지 않는다.
+
+## 적용 예정 전환
+
+[shared-modules.md](./shared-modules.md)는 공유 코드의 소유권과 플러그인 배포 경계를
+확정한 Phase ARCH 산출물이다. 실제 구조·alias·검사·배포 경로는 아직 아래 현행 상태다.
+전환 SDD의 Phase MIGRATE가 적용될 때 새 규칙과 문서를 함께 현행으로 바꾼다.
+[ADR-0008](../ADR/0008-separate-shared-module-distribution.md)은 proposed이며
+ADR-0005/0007의 현재 accepted 상태를 아직 대체하지 않는다.
 
 ## 현재 상태
 
@@ -105,6 +114,8 @@ stagekeeper/
 ```
 
 ## 문서 지도
+
+- [shared-modules.md](./shared-modules.md): **적용 예정** 공유 소유권·공개 entry·runtime·플러그인 배포 계약
 
 - [core.md](./core.md): 공유 규칙의 책임별 배치·모듈 경로·플러그인 복사 계약
 - [github.md](./github.md): GitHub URL 공통 모듈의 책임·의존성·배포 경계

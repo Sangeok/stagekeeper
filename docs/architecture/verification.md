@@ -1,5 +1,14 @@
 # 아키텍처 검증
 
+## 적용 예정: shared 배포 경계 검증
+
+[shared-modules.md](./shared-modules.md)의 Phase MIGRATE에서 명시적 entry/runtime 검사를
+check에 연결하고 lib의 완전성·고아·읽기 전용 검사·입력 오류 전 무변경·재실행을 검증한다.
+shared/app-core와 plugin/runtime 하위 폴더의 시험 발견, 양 OS workflow path/glob,
+AGENTS의 pipeline-smoke 대상 경로도 함께 전환한다. gate leg 변경 시 아래 CI coverage 표와
+verify-ci-coverage를 같은 변경에서 맞춘다. 아래의 현행 명령·coverage·gate 조건은 ARCH에서
+바꾸지 않는다. ARCH 문서 검사는 새 경계 검사나 native 설치 인수를 대신하지 않는다.
+
 ## 자동 검사
 
 `scripts/checks/verify-fsd-boundaries.mjs`는 외부 package 없이 정적 import를 검사한다.

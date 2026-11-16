@@ -1,5 +1,13 @@
 # Feature-Sliced Design 규칙
 
+## 적용 예정: 공통 정책의 원본 경계
+
+[shared-modules.md](./shared-modules.md)의 packages/shared는 플러그인에도 제공하는 공통 계약이며
+아래의 FSD shared layer와 다르다. Phase MIGRATE에서 앱 전용 공통 정책은 packages/app-core,
+배포 공통 계약은 packages/shared의 공개 entry로 참조한다. Client 의존 그래프에서 node entry는
+직접·간접 모두 금지한다. FSD 방향·slice public API·서버 adapter 경계는 유지하며 현재 alias는
+전환 전까지 그대로 사용한다. blobHref는 기존 board-item/doc-link 소유로 통합할 예정이다.
+
 ## 적용 범위와 변형
 
 FSD는 `src/fsd` 아래의 프런트엔드 제품 코드에 적용한다. `src/app`은 Next.js App

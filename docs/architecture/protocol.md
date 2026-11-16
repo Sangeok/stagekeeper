@@ -1,5 +1,14 @@
 # 프로토콜 — 도구 계약과 보드 규약
 
+## 적용 예정: 공통 모듈의 소스 경로 전환
+
+[shared-modules.md](./shared-modules.md)는 Phase MIGRATE의 소유권·배포 경계만 정한다.
+HTTP/MCP shape·token·plan·runner·QA·템플릿 본문 경계·정렬·해시·설치 lock·스킬의 권한 의미는
+보존한다. 아래 현행 core/github/lib 경로는 실제 구현과 함께 전환한다. 새 공개 목록의 확인은
+wire 호환성 인수가 아니며 외부 템플릿·기존 설치본은 후속 ACCEPT에서 확인한다.
+
+## 현행 계약
+
 에이전트가 서비스에 말을 거는 방법(MCP 도구)과 보드 항목이 지켜야 하는 기록 규약을
 한곳에 둔다. 왜 이래야 하는지는 [invariants.md](./invariants.md)에 있다.
 
