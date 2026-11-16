@@ -16,7 +16,7 @@ related:
   - "docs/investigations/active/session-gate-approval-unavailable-investigation.md"
   - "docs/conventions/product-copy.md (§6 Activity lines)"
   - "docs/proposals/completed/2026-09-08-board-model-simplification.md (현재 요약 규칙을 정한 문서)"
-  - "docs/proposals/active/claude-verifier-skill-namespace.md (R1에 고정된 열린 실행)"
+  - "docs/proposals/completed/2026-11-12-claude-verifier-skill-namespace.md (R1에 고정된 열린 실행)"
 ---
 
 # 보드 활동 줄이 가장 최근 결과를 요약하게 한다
@@ -168,10 +168,10 @@ related:
 - `stagekeeper-macos-e2e`의 ITEM-06(`accept`)과 ITEM-08(`before-plan`)은 템플릿 릴리스 `fc5e5f59…`에
   고정돼 있고, 그 저장소의 설치는 `f3273f54…`다. 서버는 두 항목에 `wait`/`template`을 돌려준다(2026-11-12
   04:17–05:02Z의 `pipeline_next` 응답 6회). `docs/architecture/template-releases.md:48-51`의 설계대로이고,
-  `claude-verifier-skill-namespace.md`가 이 열린 실행을 추적한다.
+  `2026-11-12-claude-verifier-skill-namespace.md`가 이 열린 실행을 추적한다.
 - 그동안 웹 보드는 `Continue the pipeline for ITEM-06: accept — accept.`를 다음 단계로 안내하고 Inbox는
   ITEM-08의 `Request plan`을 보여 준다. 웹에는 이 대기가 드러나지 않는다.
-- 웹에 표시를 더하는 수정은 여기서 제안하지 않는다. `claude-verifier-skill-namespace.md`의 "영향을 받는
+- 웹에 표시를 더하는 수정은 여기서 제안하지 않는다. `2026-11-12-claude-verifier-skill-namespace.md`의 "영향을 받는
   설치본"은 서버가 설치 기록을 저장하지 않는다고 적는다. 이 문서에서 그 사실을 코드로 다시 확인하지는
   않았다. 호환성은 릴리스 ID가 아니라 client·언어별 `clientSurfaceHash`로 판정한다
   (`template-releases.md:43-49`).
@@ -203,7 +203,7 @@ related:
 | `src/fsd/pages/project-board/ui/project-board-page.tsx` | `ActivityRow`가 `item.line`을 재가공 없이 렌더 | 수정할 `project-board-page.test.mjs`의 실제 링크 본문 |
 | `src/fsd/entities/board-item/index.ts`, `model/text-budget.ts` | 기존 public API와 전체 원본 필드의 길이 예산 | `briefing.test.mjs`, `test:web` |
 
-같은 파일을 바꾸는 진행 중 제안서: `docs/proposals/active/claude-verifier-skill-namespace.md`가
+같은 파일을 바꾸는 진행 중 제안서: `docs/proposals/completed/2026-11-12-claude-verifier-skill-namespace.md`가
 `product-copy.md:980`의 문구와 안내문 표를 바꾼다. §6과 다른 구역이라 내용은 겹치지 않는다. 먼저 병합된 쪽
 위에 다른 쪽을 rebase하고, 그 뒤 이 문서의 함수·절과 줄 번호를 다시 확인한다. 조회 당시 열린 PR #334는
 출시 reader의 CI 범위만 다루며 이 네 변경 파일과 겹치지 않았다. PR 상태는 구현 직전에 다시 확인한다.

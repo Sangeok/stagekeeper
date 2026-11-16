@@ -3,12 +3,12 @@ status: "completed"
 stage: null
 proposal-size: "standard"
 created-at: "2026-11-11"
-updated-at: "2026-11-12"
+updated-at: "2026-11-16"
 approved-by: "requesting-user"
 approved-at: "2026-11-12"
 approval-scope: "Core 구현·dev 병합 완료를 기준으로 문서를 완료 처리하고 참조를 갱신한다. R2 운영 import·activate, Mac e2e와 활성화 뒤 기록 PR은 미완료 후속으로 보존한다. 기존 2026-11-11 Execution Plan 전체 승인과 템플릿 R2 브랜치부터 단계별 결과 보고·문서 불일치 시 중단 조건은 유지하며, 이번 문서 정리에서 새 운영·설치·모델 실행은 하지 않는다."
 completed-at: "2026-11-12"
-verification-summary: "구현 PR #317(55f9ebd, 병합 20fe525)이 최신 dev 278c986과 main 1bbc940에 포함됨을 확인했다. 기존 문구 회귀·R2 원본 99245ac 검증·세 게이트 통과와 0.6.14 출시 기록을 보존한다. R2 운영 활성화·Mac e2e·활성화 뒤 기록 PR은 미완료다."
+verification-summary: "2026-11-12에 구현 PR #317(55f9ebd, 병합 20fe525)이 dev 278c986과 main 1bbc940에 포함됨을 확인했다. 기존 문구 회귀·R2 원본 99245ac 검증·세 게이트 통과와 0.6.14 출시 기록을 보존한다. R2 운영 활성화·Mac e2e·활성화 뒤 기록 PR은 미완료다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -66,6 +66,14 @@ Completion or Closure Notes의 후속 항목으로 남긴다.
   반영과 stagekeeper main 승격이 기록돼 있다. 이번 문서 정리에서 해당 실행을 반복하지 않았다.
 - R2 운영 import·activate와 Mac E2E는 기존 기록에서 미실행이다. `client-init-smoke.yml`의
   기본값은 여전히 R1 `8ccb37a`이며, R2 활성화 날짜·SHA를 기록하는 후속 PR도 남아 있다.
+
+### 2026-11-16 PR 준비 확인
+
+- 기존 완료 기록을 `origin/dev` `a268309` 위로 옮겼다. Core 병합 `20fe525`가 이 dev와
+  조회한 원격 main `a671f58`에 포함됨을 다시 확인했다.
+- 이후 추가된 `dual-client-ci-parity.md`와 보드 활동 줄 완료 기록의 참조도 새 완료 경로로 맞췄다.
+- 아래 운영·설치 후속 상태는 기존 기록 기준이다. 이번 PR 준비에서는 운영 상태를 다시 조회하거나
+  R2 import·activate, 재init, 모델 실행을 수행하지 않았다.
 
 ### 구현 전 조사와 설치 관측
 
@@ -487,6 +495,7 @@ gh workflow run pipeline-smoke.yml --ref dev --field templates-ref=<R2 커밋 �
 | 나머지(R2 import·activate, Mac e2e) | Not run yet | |
 | Core 병합 포함 확인 | Passed (2026-11-12, 완료 정리) | #317은 `dev` 대상 merged PR이다. `git merge-base --is-ancestor 20fe525 origin/dev`와 `origin/main`이 모두 성공했다. 확인 ref는 dev `278c986`, main `1bbc940`이다 |
 | 완료 문서 검사 | Passed (2026-11-12) | `npm run docs:check`: 215개 문서·1,062개 상대 링크·59개 시험 보고서 통과. `git diff --cached --check` 통과. 옛 active 경로 참조가 남지 않았음을 확인 |
+| 최신 dev 기준 문서 검사 | Passed (2026-11-16) | `npm run docs:check`: 219개 Markdown 파일·1,095개 상대 링크·59개 시험 보고서 통과. `git diff --check` 통과. 새로 추가된 참조 문서까지 완료 경로로 갱신 |
 
 기존 테스트·게이트 통과는 당시 결과다. 이번 완료 정리에서는 제품 코드, 운영 DB,
 설치본을 변경하지 않았고 실제 모델이나 게이트를 다시 실행하지 않았다.
