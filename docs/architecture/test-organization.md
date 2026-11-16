@@ -1,5 +1,16 @@
 # 테스트 코드 배치 규칙
 
+## 적용 예정: 모듈 소유권 전환의 시험 배치
+
+[shared-modules.md](./shared-modules.md)의 Phase MIGRATE에서 기존 core/github 시험은
+구현의 새 소유자를 따라 shared/app-core/server/FSD/plugin runtime으로 이동·분리한다.
+plugin/runtime 하위 폴더의 시험은 재귀 glob으로 발견하고 기존 거부·경계값·해시 사례를 보존한다.
+server-only bootstrap·DB integration과 브라우저 실행 환경은 기존 책임별 시험에 유지한다.
+실제 시험별 목적지는 [SDD 대응표](../proposals/active/shared-modules-and-plugin-distribution.md#arch-inventory)에 있다.
+현재 아래의 위치 규칙·탐색 명령은 전환 전까지 유효하며 src와 src/app 바로 아래 시험 금지도 유지한다.
+
+## 현행 계약
+
 이 문서는 테스트 파일의 위치, 이름, 소유권과 의존성 경계를 정의한다.
 단위·컴포넌트 테스트는 대상 코드 옆에 두고, 시스템 경계를 넘거나 별도 실행 환경이
 필요한 테스트는 그 책임을 소유한 테스트 디렉터리에 둔다.

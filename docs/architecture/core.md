@@ -1,5 +1,13 @@
 # 공유 규칙과 프로토콜
 
+## 적용 예정: 소유권과 배포 분리
+
+[shared-modules.md](./shared-modules.md)는 Phase MIGRATE 이후 적용할 계약이다.
+core의 책임별 배치·단일 원본은 보존하면서 shared/app-core/server/plugin runtime으로 나눈다.
+현재 아래의 경로·alias·전체 복사 규칙은 MIGRATE 전까지 유효하다.
+
+## 현행 계약
+
 `packages/core`는 웹·서버·플러그인이 공유하는 규칙과 프로토콜의 원본이다.
 별도 npm workspace가 아니며 `src`나 외부 npm package에 의존하지 않는다.
 Node 내장 모듈은 허용하지만 브라우저에서 쓰는 모듈의 의존 그래프에는 들어가면 안 된다.
