@@ -1102,7 +1102,7 @@ ADR-0003(`proposed`, PR 승인 대기)에 기록했다. 임시 forwarding 파일
 | 소스 문자열·dynamic import 경로 누락 | V-INVENTORY의 세 검색으로 VM mock 키·소스 경로·dynamic import·문서를 찾고, 해당 시험·리허설을 실제로 실행한다. 상대 지정자 mock 키는 실제 모듈로 조용히 넘어갈 수 있으므로 키와 지정자를 함께 바꾼다. |
 | 시험 편의로 공개 API 확장 | 공개 여부를 제품 소비자로만 정하고, 시험·리허설의 내부 참조는 파일 단위 목록으로 관리한다. |
 | Turbopack은 통과하지만 Windows 역할 Webpack 빌드가 실패 | PR의 `windows-role-runtime`에서 별도로 확인한다. 이번 사용자 요청에 따른 문서 완료 처리는 이 CI의 통과를 보증하지 않는다. Runtime cache가 없으면 실행이 길어질 수 있다. |
-| 별도 활성 제안이 오래된 경로를 참조 | 의미를 임의로 재작성하지 않고 영향 목록에 기록해 후속 작업이 새 서버 문서를 기준으로 경로를 재조정하게 한다. 기준 코드의 다른 활성 문서에는 현재 서버 경로 변경 대상이 없었다(`investigations/active/harness-platform.md`의 `apps/web/src/server`는 옛 설계 기록). `multiple-pipelines.md`의 옛 active 사본은 이미 정리되었다. 착수 시 미추적 문서를 포함해 다시 확인한다. |
+| 별도 활성 제안이 오래된 경로를 참조 | 의미를 임의로 재작성하지 않고 영향 목록에 기록해 후속 작업이 새 서버 문서를 기준으로 경로를 재조정하게 한다. 기준 코드의 다른 활성 문서에는 현재 서버 경로 변경 대상이 없었다(`proposals/completed/2026-11-16-closed-harness-platform.md`의 `apps/web/src/server`는 옛 설계 기록). `multiple-pipelines.md`의 옛 active 사본은 이미 정리되었다. 착수 시 미추적 문서를 포함해 다시 확인한다. |
 
 롤백 단위는 이 리팩터링의 파일 이동·소비자 갱신·경계 설정을 함께 포함하는 변경이다.
 실패한 일부 경로만 구형으로 되돌려 두 구조를 영구 공존시키지 않는다. 커밋 전에는

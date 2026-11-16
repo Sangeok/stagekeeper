@@ -14,12 +14,12 @@ closed-by: null
 closed-reason: null
 owners: ["Sangeok"]
 related:
-  - "docs/investigations/active/harness-platform.md"
+  - "docs/proposals/completed/2026-11-16-closed-harness-platform.md"
 ---
 
 # 하니스 플랫폼 Phase 0·1 구축 — 이 저장소에서 바로 착수할 태스크 분해
 
-> **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development`(권장) 또는 `superpowers:executing-plans`로 태스크 단위 실행. 단계는 체크박스(`- [ ]`)로 추적한다. 스펙은 `docs/investigations/active/harness-platform.md`(이하 **스펙**)이며 이 문서와 **함께** 읽는다 — 스펙에 이미 있는 코드는 여기 다시 싣지 않고 `스펙 Task N.N` 으로 가리킨다.
+> **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development`(권장) 또는 `superpowers:executing-plans`로 태스크 단위 실행. 단계는 체크박스(`- [ ]`)로 추적한다. 스펙은 `docs/proposals/completed/2026-11-16-closed-harness-platform.md`(이하 **스펙**)이며 이 문서와 **함께** 읽는다 — 스펙에 이미 있는 코드는 여기 다시 싣지 않고 `스펙 Task N.N` 으로 가리킨다.
 
 ## Summary
 
@@ -163,7 +163,7 @@ related:
 
 **Tech Stack:** Next.js 16.3.3(App Router, `src/`) · Prisma 7.10.0 + `@prisma/adapter-pg` · Postgres(Neon) · `mcp-handler 2.1.1` + `@modelcontextprotocol/server 2.0.0` + `zod 4` · `next-auth 5.0.0-beta.32`(GitHub) · 순수 모듈 ESM `.mjs` + `node:test` · `tsx`(TS 테스트) · Claude Code 플러그인.
 
-**Spec:** `docs/investigations/active/harness-platform.md` §1~§9 (원천 ApcH `de25a1c`).
+**Spec:** `docs/proposals/completed/2026-11-16-closed-harness-platform.md` §1~§9 (원천 ApcH `de25a1c`).
 
 ### Global Constraints
 

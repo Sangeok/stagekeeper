@@ -18,7 +18,7 @@ related:
   - "docs/conventions/product-copy.md"
   - "docs/proposals/completed/2026-09-02-src-clean-code-findings.md"
   - "docs/proposals/completed/2026-09-06-scripts-tooling-cleanup.md"
-  - "docs/investigations/active/harness-platform.md"
+  - "docs/proposals/completed/2026-11-16-closed-harness-platform.md"
 ---
 
 # 미사용·불필요 코드 제거 후보
@@ -111,7 +111,7 @@ knip은 `.gitignore`를 따르므로 `src/generated/`를 보지 못하고, `pris
 - 코드 품질(응집·결합·가독성) 일반 — 2026-09-02·09-05·09-06 제안서가 다뤘다
 - 문서 정리(`docs/**/.gitkeep` 8개 중 5개가 비어 있지 않은 폴더에 남아 있음 — 나머지 3개는 빈 폴더 유지용, `docs/proposals/README.md` 인벤토리
   명령의 경로가 `proposals/`로 적혀 있음) — 코드가 아니라 이 문서 범위 밖
-- `docs/investigations/active/harness-platform.md`의 `board-md`·`backlog-md`·`journey` 언급(`:261-262` 트리 등 여러 곳) —
+- `docs/proposals/completed/2026-11-16-closed-harness-platform.md`의 `board-md`·`backlog-md`·`journey` 언급(`:261-262` 트리 등 여러 곳) —
   조사 문서는 source of truth가 아니다(AGENTS.md는 `docs/architecture/`만 지정). C1·C2 실행 시 갱신하지 않는다
 
 ## Proposal
@@ -214,7 +214,7 @@ git에 남으니 필요하면 되살린다.
 **C2 — Phase 2 임포트 전용 파서** · `packages/core/backlog-md.mjs`(16줄) · `board-md.mjs`(41줄) ·
 테스트 2개(211줄) · 복사본 `plugin/lib/backlog-md.mjs`·`board-md.mjs`
 두 파일 머리말이 "임포트 전용 / Phase 2 임포트 전용"이라고 밝힌다. 소비자로 계획된
-`scripts/import-apch.mjs`(`harness-platform.md:1151`)는 존재하지 않고, Phase 2는 "착수 시 별도 계획서"
+`scripts/import-apch.mjs`(`2026-11-16-closed-harness-platform.md:1151`)는 존재하지 않고, Phase 2는 "착수 시 별도 계획서"
 상태다. 테스트 외 importer 0.
 `docs/architecture/sources.md:12`는 ApcH `board.ts`의 도착지로 `packages/core/board-md.mjs`를 적고 있다 — 아키텍처
 문서는 source of truth(AGENTS.md)라 삭제와 같은 커밋에서 그 행의 새 위치 열을 "제거됨(`a9b4bf2`에서 복구)"로 고친다.
