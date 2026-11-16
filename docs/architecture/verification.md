@@ -392,9 +392,40 @@ checkout/dirty 때문에 삭제가 막혀도 유효한 ref의 ancestry 진단은
 이때 GitHub API와 삭제는 하지 않지만 원격 확인과 fetch는 필요하다.
 보고에는 “커밋 보존 완료 / worktree 해제 필요 / 즉시 삭제 가능”을 구분한다.
 
+### 작업 시작과 worktree 선택
+
+요청을 읽기 전용 조사, 같은 작업의 계속, 독립 변경 중 하나로 구분하고 선택을 짧게
+보고한다. 새 메시지를 받았다는 이유만으로 branch나 worktree를 추가하지 않는다.
+
+| 상황 | 처리 |
+| --- | --- |
+| 코드 읽기·설명·읽기 전용 검토 | 기존 checkout에서 확인하며 새 branch·worktree를 만들지 않는다 |
+| 아직 병합되지 않은 같은 작업의 수정·테스트·리뷰 반영 | 해당 branch·worktree에서 계속한다 |
+| 기존 변경이나 다른 세션의 작업을 보존하면서 독립 변경 시작 | 최신 dev 기준 새 branch와 관리 worktree를 `create`로 만든다 |
+| 이전 작업의 사용을 끝내고 다음 작업 시작 | 아래 종료 절차를 먼저 수행한다. 보류되면 경로와 이유를 남기고 다음 변경을 격리한다 |
+
+이미 병합된 작업의 후속 변경은 최신 dev의 새 branch에서 시작한다. 관리 worktree는
+기록된 작업과 branch에 속하므로 branch만 바꿔 다른 작업에 재사용하지 않는다.
+`resume`은 같은 작업의 종료 취소이며 다른 작업에 폴더를 넘기는 명령이 아니다.
+
+관리 명령은 제거 대상 밖에 계속 남겨 둘 제어 checkout에서 실행한다. 새 독립 변경을
+시작할 때 원격 main/dev를 확인하고 최신 dev를 fetch한 뒤, 실행할 관리 도구
+(`package.json`, `scripts/manage-task-worktrees.mjs`, `scripts/cleanup-task-branches.mjs`)와
+운영 규칙(`AGENTS.md`, 이 문서)을 `origin/dev`와 대조한다. fetch만으로 checkout의
+실행 파일이나 규칙이 갱신되지는 않는다.
+제어 checkout 갱신은 변경사항과 다른 사용자가 없음을 확인한 뒤 수행한다.
+현재 폴더가 오래됐거나 작업 중이면 그대로 보존하고, 최신 도구와 규칙을 확인한 다른
+제어 checkout을 사용한다. 관리 명령이 없다는 이유로 기존 작업을 강제 전환하거나
+관리 기록을 수동으로 만들지 않는다.
+
+제어 checkout에서 `npm run worktrees -- status`로 기존 작업을 확인하고
+`npm run worktrees -- retry`로 이미 사용 종료가 선언된 작업의 남은 정리만 재시도한다.
+active 작업과 소유권 불명의 미등록 worktree는 보존한다. 새 격리가 필요한 경우에만
+아래 `create`를 실행하고 반환된 task ID·owner·경로·branch를 작업 동안 유지한다.
+
 ### 자기 작업의 worktree 종료
 
-새 작업은 아래 관리 명령을 사용한다. 다음 수동 절차는 기존 미등록 worktree에만
+새 worktree가 필요한 작업은 아래 관리 명령을 사용한다. 다음 수동 절차는 기존 미등록 worktree에만
 적용하며, 다른 작업의 소유권을 추정하거나 관리 기록을 수동으로 만들어 채택하지 않는다.
 
 1. 자신이 만든 정확한 경로·브랜치와 사용 종료를 확인한다. 나이·이름·clean 상태만으로
@@ -417,6 +448,12 @@ checkout/dirty 때문에 삭제가 막혀도 유효한 ref의 ancestry 진단은
 
 이 절차는 작업 주체가 수행한다. 브랜치 정리 스크립트는 checkout·worktree 제거·원격 ref 삭제를
 수행하지 않으며, 기존 소유권/사용 종료가 불명확한 worktree를 자동으로 정리하지 않는다.
+
+관리 작업은 아래 `finish`로 종료하고, 작업 종료 보고에는 결과가 보존된 commit·원격 branch
+또는 PR, worktree 제거 여부(유지 시 경로와 이유), branch 정리 여부와 보류 이유를 포함한다.
+작업을 계속할 때는 worktree를 유지한다고 보고하며, 후속 작업·프로세스·다른 사용자가
+파일을 쓰는 동안에는 `--usage-ended`를 선언하지 않는다. 폴더 제거와 branch 삭제는 별도
+결과이며, PR 대기 중에도 원격 커밋 보존과 사용 종료 조건을 충족하면 `finish`할 수 있다.
 
 원격 보호는 활성 Ruleset
 [Keep dev and main](https://github.com/Sangeok/stagekeeper/rules/24972879)이 담당한다.
