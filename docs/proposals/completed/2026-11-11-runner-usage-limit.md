@@ -292,7 +292,7 @@ npm run verify:plugin-version -- --base origin/dev --head HEAD
 - 완료 범위: 한도 판정·재개 시각 계산·실행 없는 대기와 heartbeat, 기존 실패 횟수 보존, 알림·CLI·웹 표시, smoke 조기 실패와 문서·버전 갱신.
 - 구현 head: `34acf054`; [#308](https://github.com/Sangeok/stagekeeper/pull/308)의 병합 commit은 `21439d6`이다. `origin/dev` `b64643f`와 `origin/main` `1eddbc2`에 포함됨을 2026-11-11 확인했다.
 - 원래 PR의 plugin 0.6.6은 후속 macOS 통합에서 0.6.11로 올라갔다. 기능 구현 완료와 각 PC 설치 버전은 별개다.
-- 설치 결과와 미확인 설치·실제 한도 관찰 범위는 [설치 기록](./2026-11-12-runner-usage-limit-installation.md)에 보존한다. Codex 한도 대응·watchdog·대화형 watch는 원래 제외 범위를 유지한다.
+- Windows·macOS Claude 설치 확인 결과와 실제 한도 관찰 범위는 [설치 기록](./2026-11-12-runner-usage-limit-installation.md)에 보존한다. Codex 한도 대응·watchdog·대화형 watch는 원래 제외 범위를 유지한다.
 - 완료일은 문서 정리 날짜이며 새 배포·설치·모델 실행을 뜻하지 않는다.
 
 ## Review Checklist

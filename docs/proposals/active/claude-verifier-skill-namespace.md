@@ -124,7 +124,7 @@ R1 템플릿 커밋을 고정해 둔 곳:
   뒤 그 제안서의 후속 인수는 바뀐 규칙을 따른다. 그 제안서의 TPL-F02는 "Windows PC 저장소의 R1
   재init"을 남은 일로 적고 있다. R2를 activate하면 대상이 R2가 되므로 기록 PR에서 그 문구를 R2로
   고친다.
-- `docs/proposals/completed/2026-11-12-runner-usage-limit-installation.md`는 설치 기록이며 제품 코드를 바꾸지 않았다.
+- `docs/proposals/completed/2026-11-12-runner-usage-limit-installation.md`는 설치 확인과 관찰 안내를 보존한 완료 기록이며 제품 코드를 바꾸지 않는다.
 
 이 저장소 밖에서 얻은 근거(2026-11-11 관측, 구현 때 다시 확인한다):
 
