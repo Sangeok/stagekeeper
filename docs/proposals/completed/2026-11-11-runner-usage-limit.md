@@ -29,7 +29,7 @@ related:
 2026-11-11 확인한 `origin/main` `1eddbc2`에도 병합 commit `21439d6`이 포함돼 있다.
 
 이번 정리는 코드 구현 완료 기준이다. 각 PC의 bundle 설치와 다음 실제 한도 관찰은
-[후속 문서](../active/runner-usage-limit-installation.md)에 남긴다. 아래 원인·설계·실행 계획은
+[설치 기록](./2026-11-12-runner-usage-limit-installation.md)에 남긴다. 아래 원인·설계·실행 계획은
 구현 전후 판단 이력이며, 과거 로컬 실패와 CI 성공의 범위를 구분한다.
 
 2026-11-10 harness-smoke ITEM-04 실기 중에 Claude 구독의 5시간 한도(HTTP 429)에 걸렸다. 상주 실행기는 인수 직전에 끊긴 실행을 "done: 0 turns"로 기록했다. 이어서 새 실행을 세 번 띄웠고, 모두 같은 한도로 곧바로 실패했다. 그러자 오류 3회 규칙으로 멈추고 "It hit an error"라는 알림만 남겼다. 소유자는 실행 로그를 열어야 원인을 알 수 있었고, 한도가 풀린 뒤 손으로 다시 켜야 했다. 무인 진행이라는 상주 실행기의 목적과 어긋난다.
@@ -292,7 +292,7 @@ npm run verify:plugin-version -- --base origin/dev --head HEAD
 - 완료 범위: 한도 판정·재개 시각 계산·실행 없는 대기와 heartbeat, 기존 실패 횟수 보존, 알림·CLI·웹 표시, smoke 조기 실패와 문서·버전 갱신.
 - 구현 head: `34acf054`; [#308](https://github.com/Sangeok/stagekeeper/pull/308)의 병합 commit은 `21439d6`이다. `origin/dev` `b64643f`와 `origin/main` `1eddbc2`에 포함됨을 2026-11-11 확인했다.
 - 원래 PR의 plugin 0.6.6은 후속 macOS 통합에서 0.6.11로 올라갔다. 기능 구현 완료와 각 PC 설치 버전은 별개다.
-- 남은 설치·실제 한도 관찰은 [runner-usage-limit-installation.md](../active/runner-usage-limit-installation.md)에서 추적한다. Codex 한도 대응·watchdog·대화형 watch는 원래 제외 범위를 유지한다.
+- Windows·macOS Claude 설치 확인 결과와 실제 한도 관찰 범위는 [설치 기록](./2026-11-12-runner-usage-limit-installation.md)에 보존한다. Codex 한도 대응·watchdog·대화형 watch는 원래 제외 범위를 유지한다.
 - 완료일은 문서 정리 날짜이며 새 배포·설치·모델 실행을 뜻하지 않는다.
 
 ## Review Checklist

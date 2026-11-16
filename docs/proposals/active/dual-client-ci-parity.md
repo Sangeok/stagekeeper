@@ -105,7 +105,7 @@ private wrapper의 인증 홈과 설치 홈 분리는 보존한다. 이전 bundl
 | [Claude verifier namespace](../completed/2026-11-12-claude-verifier-skill-namespace.md) | template pin·client-init workflow와 겹친다. 현재 원본과 R2 활성 상태를 확인하되 이 작업에서 R2를 import/activate하지 않는다 |
 | [role-command-time-limit](./role-command-time-limit.md) | runtime 시간 한도와 재인수 근거의 소유자다. 옛 120초 문서나 과거 bundle을 현재 값으로 가정하지 않으며 이 제안에서 한도를 다시 바꾸지 않는다 |
 | [template acceptance](./template-release-acceptance-follow-ups.md) | 설치 source/template/lock tuple과 운영 인수의 경계를 재사용한다. 격리 CI를 운영 전환·복구 완료로 보고하지 않는다 |
-| [runner installation](./runner-usage-limit-installation.md) | 개인 PC 설치와 자연 발생 사용 한도 관찰은 범위 밖이다. CI를 위해 개인 설치를 갱신하거나 한도를 소진하지 않는다 |
+| [runner installation](../completed/2026-11-12-runner-usage-limit-installation.md) | 개인 PC 설치와 자연 발생 사용 한도 관찰은 범위 밖이다. CI를 위해 개인 설치를 갱신하거나 한도를 소진하지 않는다 |
 | [gate run records](../completed/2026-11-12-gate-run-records.md) | private Codex 결과 연결은 기존에 남겨 둔 후속이다. 공개/비공개 기록을 연결하되 원문과 인증은 private 경계에 남긴다 |
 
 ## Scope
