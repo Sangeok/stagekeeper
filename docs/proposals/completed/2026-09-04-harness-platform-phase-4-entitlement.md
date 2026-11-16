@@ -14,13 +14,13 @@ closed-by: null
 closed-reason: null
 owners: ["Sangeok"]
 related:
-  - "docs/investigations/active/harness-platform.md"
+  - "docs/proposals/completed/2026-11-16-closed-harness-platform.md"
   - "docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md"
 ---
 
 # 하니스 플랫폼 Phase 4(전반) — 플랜·권한 게이트와 에이전트 본문 보호
 
-> **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development`(권장) 또는 `superpowers:executing-plans`로 태스크 단위 실행. 단계는 체크박스(`- [ ]`)로 추적한다. 스펙은 `docs/investigations/active/harness-platform.md`(이하 **스펙**)이며 이 문서와 **함께** 읽는다. 이 문서는 2026-09-03 설계 대화의 결론을 옮긴 것이다 — 대화에서 기각된 선택지(`agent_brief` 단독, `delivery: full`, 무상태 `after` 커서)는 §"기각한 선택지"에 이유와 함께 남긴다. 되살리지 않는다.
+> **For agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development`(권장) 또는 `superpowers:executing-plans`로 태스크 단위 실행. 단계는 체크박스(`- [ ]`)로 추적한다. 스펙은 `docs/proposals/completed/2026-11-16-closed-harness-platform.md`(이하 **스펙**)이며 이 문서와 **함께** 읽는다. 이 문서는 2026-09-03 설계 대화의 결론을 옮긴 것이다 — 대화에서 기각된 선택지(`agent_brief` 단독, `delivery: full`, 무상태 `after` 커서)는 §"기각한 선택지"에 이유와 함께 남긴다. 되살리지 않는다.
 
 ## Summary
 
@@ -386,7 +386,7 @@ next: done
 | `plugin/bin/harness-init.mjs` (+test), `plugin/skills/init/SKILL.md`, `plugin/README.md` | update | 새 응답 형태·스텁 집합·재초기화 안내 | medium — 옛 생성기 호환 없음(명시적 실패) |
 | `scripts/seed-templates.ts` | update | 에이전트 템플릿 파싱 검증 후 저장 | low |
 | private `Sangeok/harness-templates` | update | 5종 단계화 + runbook Free 판 | 이 저장소 밖 — 커밋·시드로 반영 |
-| `docs/investigations/active/harness-platform.md`, `docs/architecture/{README,protocol,system-overview,invariants}.md` | update | C1~C6 반영 | none |
+| `docs/proposals/completed/2026-11-16-closed-harness-platform.md`, `docs/architecture/{README,protocol,system-overview,invariants}.md` | update | C1~C6 반영 | none |
 
 ## Safety Analysis
 

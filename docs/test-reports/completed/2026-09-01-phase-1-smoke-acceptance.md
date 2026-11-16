@@ -13,7 +13,7 @@ tested-revision: 'stagekeeper d2c7da0→a147260 / harness-smoke 73261bb→3bf56c
 owners: ['Sangeok']
 related:
   - 'docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md'
-  - 'docs/investigations/active/harness-platform.md'
+  - 'docs/proposals/completed/2026-11-16-closed-harness-platform.md'
 primary-area: 'pipeline'
 observed-environments: ['Windows 11 · Node 22.13.1 · next dev(localhost:3000) · Neon Postgres(us-east-2)']
 test-summary: '1차 2026-08-30(blocked: T8 잔여) + 재실행 2026-09-01 전 구간 — required 전부 pass, F1~F5 닫힘, 신규 F6(low)'
