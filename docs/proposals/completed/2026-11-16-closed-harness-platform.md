@@ -1,3 +1,74 @@
+---
+status: "closed"
+stage: null
+proposal-size: "standard"
+created-at: "2026-08-29"
+approved-by: "Sangeok"
+approved-at: "2026-11-16"
+approval-scope: "초기 설계서의 superseded 종료·보관, 참조 경로 갱신과 dev 대상 PR 생성. 원 계획의 미실행 기능 구현은 포함하지 않음"
+completed-at: null
+verification-summary: "문서 정리 검증 통과: docs:check, 종료 metadata·참조 10개 문서·원문 보존 대조, git diff --check. 제품 구현·런타임 인수 결과가 아님"
+closed-at: "2026-11-16"
+closed-by: "Sangeok"
+closed-reason: "superseded"
+owners: ["Sangeok"]
+related:
+  - "docs/architecture/README.md"
+  - "docs/architecture/system-overview.md"
+  - "docs/architecture/protocol.md"
+  - "docs/architecture/invariants.md"
+  - "docs/architecture/template-releases.md"
+  - "docs/proposals/completed/2026-09-01-harness-platform-phase-0-1.md"
+  - "docs/proposals/completed/2026-09-04-harness-platform-phase-4-entitlement.md"
+  - "docs/proposals/completed/2026-09-07-dead-code-removal-candidates.md"
+  - "docs/proposals/completed/2026-09-15-individual-project-availability.md"
+  - "docs/proposals/completed/2026-10-03-local-watch-executor.md"
+  - "docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md"
+---
+
+# 하니스 플랫폼 초기 설계·구축 계획 — 후속 설계로 대체
+
+## Summary
+
+2026-08-29에 작성하고 이후 일부 변경을 반영한 v2 설계·구축 계획을 과거 설계 기록으로
+보관한다. 원인 조사 문서가 아니므로 `investigations/active/`에서
+`proposals/completed/`로 옮긴다. 현재 적용할 계약은 [아키텍처](../../architecture/README.md),
+구현·검증 결과는 아래 후속 제안서와 시험 보고서가 소유한다.
+
+원 계획 전체의 구현 완료를 뜻하지 않는다. 이 문서를 실행 대기 계획으로 유지하지 않기로
+종료했으며, 구현되지 않았거나 완료 근거를 확인하지 않은 구상은 아래에 구분해 남긴다.
+
+## Scope
+
+문서 분류·상태와 참조 경로만 정리한다. 원문의 설계·코드 예시·미체크 항목·당시 결정 대기는
+이력으로 보존한다. 제품 코드, 운영 환경, ApcH 저장소와 현재 활성 제안서의 범위는 바꾸지 않는다.
+
+## Completion or Closure Notes
+
+검토 기준은 `dev@a26830935a4003f329cb234a6937a019f0f8e045`의 저장소 문서와 참조 관계다.
+직접 참조는 완료 제안서 8개·완료 시험 보고서 1개·ADR 1개이며, 이동된 경로로 갱신했다.
+과거 기록에 적힌 `:줄` 표기는 해당 기록 작성 당시 판의 위치이며 현재 파일의 줄 번호가 아니다.
+
+| 원 계획의 범위 | 종료 시 판단과 후속 근거 |
+| --- | --- |
+| Phase 0·1 부트스트랩·핵심 파이프라인 | [Phase 0·1 완료 기록](./2026-09-01-harness-platform-phase-0-1.md)과 [스모크 인수](../../test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md)가 구현·검증 결과를 소유한다. 원문의 미체크 항목을 현재 미완료 목록으로 읽지 않는다. |
+| Phase 4 전반의 플랜·권한·본문 보호 | [Phase 4 전반 완료 기록](./2026-09-04-harness-platform-phase-4-entitlement.md)이 실제 범위와 인수의 한계를 기록한다. 이후 템플릿 저장·배포 계약은 [template-releases](../../architecture/template-releases.md)를 따른다. |
+| 저장소 배치·언어·클라이언트·MCP 계약 | `apps/web`, 한국어 전용, Claude만 전제한 원 설계는 현행 계약이 아니다. [system-overview](../../architecture/system-overview.md), [protocol](../../architecture/protocol.md), [invariants](../../architecture/invariants.md)가 현재 기준이다. |
+| Phase 2 ApcH 첫 테넌트 이관 | ApcH 임포트·FEAT-28 완주·기존 보드 동결의 완료 근거는 이번 정리에서 확인하지 않았다. 임포트용 파서는 [미사용 코드 제거 완료 기록](./2026-09-07-dead-code-removal-candidates.md)의 C2에서 제거됐다. 다시 추진하려면 현재 ApcH 상태와 범위를 별도 제안서에서 확인한다. |
+| Phase 3 명령·배포 원장과 원격 루틴 | 원 계획 전체의 완료 근거는 확인하지 않았다. [로컬 watch 완료 기록](./2026-10-03-local-watch-executor.md)과 현행 protocol의 로컬 실행 계약은 별도 후속이며, 이를 원격 루틴·배포 원장·verify-plan의 완료로 확대하지 않는다. 재추진할 범위는 새 제안서에서 정한다. |
+| Phase 4 후반의 Polar 결제·팀·유료 온보딩 | 결제·가격·외부 유료 온보딩의 완료를 선언하지 않는다. 팀·멤버 모델은 [개인 프로젝트 소유권 완료 기록](./2026-09-15-individual-project-availability.md)으로 변경됐다. 후반 구상을 이 문서의 실행 대기 항목으로 유지하지 않으며, 필요하면 별도 제안서로 다시 결정한다. |
+| §12 사용자 결정 대기·§14 ApcH 작업 | 당시의 질문과 작업 구상이다. 현재 사용자에게 남은 승인 요청이나 ApcH 변경 권한을 뜻하지 않는다. |
+
+`npm run docs:check`(Markdown 219개·상대 링크 1,106개·시험 보고서 59개), 종료 metadata·
+참조 경로·원문 보존 대조, `git diff --check`가 통과했다. 제품 코드 변경이 없으므로
+앱 빌드·런타임 인수는 수행하지 않았다. 되돌릴 때는 이 문서 이동과 참조 갱신을 같은 커밋
+단위로 복구한다.
+
+## Historical Record
+
+아래는 종료 전 원문이다. 실행 지시, 체크박스, 코드 예시와 승인 대기는 당시 계획의 인용이며
+현재 작업 지시로 사용하지 않는다. 실제 작업은 현행 아키텍처와 해당 작업의 활성 제안서를 따른다.
+
 # 하니스 플랫폼 — 새 프로젝트 설계·구축 계획 (v2)
 
 > **For agentic workers:** 이 문서는 스펙(§1~§9)과 구축 계획(§10)을 한 파일에 담는다. 계획은 `superpowers:executing-plans` 또는 `superpowers:subagent-driven-development`로 태스크 단위 실행한다. 단계는 체크박스(`- [ ]`)로 추적한다.

@@ -172,7 +172,7 @@ owner: async (projectId, userId) =>
 - **C**: `POST /api/projects`(사용자 토큰 인증, 조회·생성을 한 Serializable 트랜잭션에) 신설,
   init의 `git remote` 기반 등록, 에이전트가 셸 변수 설정·브라우저 열기 수행.
 - 위 각각에 대응하는 문서 갱신과 테스트: `protocol.md`·`invariants.md`·`product-copy.md`·
-  `SKILL.md`, 그리고 **`docs/investigations/active/harness-platform.md:920`(v2 스펙 본문의 검증기
+  `SKILL.md`, 그리고 **`docs/proposals/completed/2026-11-16-closed-harness-platform.md:920`(v2 스펙 본문의 검증기
   코드 — A-2와 함께, B-1 승인과 무관)**. B-1이 실행될 때만 `rationale.md`·`system-overview.md`·
   같은 문서의 **도구 이름 일곱 곳**(`:176,181,189,322,1128,1129,1206` — `:920`과는 별개다)·
   당시 `agent-role-catalog.md`(2026-10-04 사용자 지시로 삭제된 미구현 제안서).
@@ -235,7 +235,7 @@ export const TOKEN_KINDS = { agent: "hs_", owner: "ho_", user: "hu_" };
 고르거나 `undefined`를 넣는다.** 굳이 `userId`를 쓰지 않는 이유는 그 필드가 원래 "이 연결이 무엇을
 대표하는가"이지 "누구인가"가 아니기 때문이다.
 
-**문서에도 같은 줄이 있다.** `docs/investigations/active/harness-platform.md:920`이 v2 스펙 본문에
+**문서에도 같은 줄이 있다.** `docs/proposals/completed/2026-11-16-closed-harness-platform.md:920`이 v2 스펙 본문에
 `clientId: row.projectId`를 그대로 싣는다(그 밖은 완료된 제안서 넷뿐 — 역사 기록이라 고치지
 않는다). 그 문서는 B-1에서 이미 갱신 대상이므로(Affected Files), `hu_` 분기를 넣을 때 **`:920`도
 같이 손봐야 스펙이 코드와 어긋나지 않는다.**
@@ -458,7 +458,7 @@ B는 **두 조각이고 막는 것이 서로 다르다.** B-1을 막는 것은 �
 
 **(1) 이 저장소 안 (5개 문서 + 1개 스킬, 에이전트 이름 23곳):** `protocol.md:52` ·
 `rationale.md:40` · `system-overview.md:50` · `product-copy.md:40` ·
-**`docs/investigations/active/harness-platform.md:176,181,189,322,1128,1129,1206`**(7곳) ·
+**`docs/proposals/completed/2026-11-16-closed-harness-platform.md:176,181,189,322,1128,1129,1206`**(7곳) ·
 `plugin/skills/init/SKILL.md:57,63,80`(3곳).
 
 **바꾸지 않는 소유자 이름(같은 파일들 안에 섞여 있다):** `protocol.md:84` ·
@@ -598,7 +598,7 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
 | `tests/server/integration/templates.test.ts` | update | `:40-48`이 `/api/templates` 응답 전체를 `deepEqual`하고 `:60-63`이 401 목록을 고정한다 — A-7이 둘 다 바꾼다 | **high** — 격리 DB 없이는 실행 불가라 조용히 썩는다 |
 | `packages/core/deliver.test.mjs` · `src/server/agents/{next,steps}.test.ts` | update | 스텁 fixture에 `mcp__harness__agent_next`가 문자열로 박혀 있다(`deliver.test.mjs:6,21`) — B-1이 깨뜨린다 | medium — fixture staleness |
 | `docs/architecture/{rationale,system-overview}.md` | update | 도구 이름 `rationale.md:40` · `system-overview.md:50`(B-1) | low — 문서 |
-| `docs/investigations/active/harness-platform.md` | update | **v2 스펙 본문 — 두 시점에 손댄다.** **A-2에서 `:920`**(`clientId: row.projectId`를 싣는 검증기 코드)에 `hu_` 분기를 반영한다 — **B-1 승인과 무관하다.** B-1이 실행될 때 추가로 `:189` 도구 이름 규칙·`:322` 생성 `tools:` 예시·`:1128-1129` init 절차·`:176,181,1206` | medium — 스펙 문서라 코드와 어긋나면 상위 규범이 틀린다. **A만 하고 `:920`을 빼면 스펙이 코드와 반대를 말한다** |
+| `docs/proposals/completed/2026-11-16-closed-harness-platform.md` | update | **v2 스펙 본문 — 두 시점에 손댄다.** **A-2에서 `:920`**(`clientId: row.projectId`를 싣는 검증기 코드)에 `hu_` 분기를 반영한다 — **B-1 승인과 무관하다.** B-1이 실행될 때 추가로 `:189` 도구 이름 규칙·`:322` 생성 `tools:` 예시·`:1128-1129` init 절차·`:176,181,1206` | medium — 스펙 문서라 코드와 어긋나면 상위 규범이 틀린다. **A만 하고 `:920`을 빼면 스펙이 코드와 반대를 말한다** |
 | 당시 `agent-role-catalog.md`(2026-10-04 사용자 지시로 삭제) | historical | `:246-247`이 새 에이전트의 `tools:`를 `mcp__harness__*`로 지정했다 — 당시 B-1과 충돌한 미구현 제안서 | medium — 역사적 제안서 간 조율 기록 |
 | **`Sangeok/harness-templates` (별도 저장소)** | update | 템플릿 9개 + `templates.test.mjs` = **10개 파일 44곳**(2026-09-20 실측). **`CLAUDE.runbook.md:129`와 `templates.test.mjs:177,187`은 소유자 이름이라 유지**(B-1) | **high** — 별도 PR이 필요하다(이 저장소의 PR에 담을 수 없다). 작업 자체는 가능하다: `plugin/templates/`가 로컬 작업트리이고 remote가 그 저장소다. **다만 착수 전에 그 저장소가 깨끗한지 확인할 것** — 2026-09-20 기준 `harness/server-clean-code` 브랜치에서 **8개 파일이 미커밋 상태**였고, 그 위에 44곳 일괄 변경을 얹으면 두 작업이 엉킨다 |
 | **DB `Template` 표** | reseed | `npm run seed:templates` 수동 실행 없이는 템플릿 변경이 전달되지 않는다 | **high** — 배포 절차, 자동화 없음 |
@@ -669,7 +669,7 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
 1. **A-1** `UserToken` 마이그레이션 + `TOKEN_KINDS` + `sync:plugin-lib`. 시험: 토큰 접두 분리.
 2. **A-2·A-3** 검증기 확장과 `scope()` 재작성, `projectFor` dep. 시험을 **먼저** 쓴다 —
    미인증 throw 유지, 비소유 `fail`, `hs_` 경로 무변화, 슬러그 누락 거부.
-   **여기서 `docs/investigations/active/harness-platform.md:920`도 함께 고친다** — v2 스펙 본문이
+   **여기서 `docs/proposals/completed/2026-11-16-closed-harness-platform.md:920`도 함께 고친다** — v2 스펙 본문이
    `clientId: row.projectId`를 실은 검증기 코드를 그대로 담고 있어서, `hu_` 분기를 넣고 그 줄을
    두면 **스펙이 코드와 반대를 말한다**. 9.2의 같은 문서 갱신은 B-1에 묶여 있으므로, B-1이
    보류되면(Approval 선택지 2) 이 한 줄은 영영 안 고쳐진다.
@@ -744,10 +744,10 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
    - **(3-d)** 저장소마다 다른 서버를 가리켜야 하면 그 저장소에만 `.mcp.json`을 남긴다 — 우선순위가
      그대로 **덮어쓰기 탈출구**가 된다. "머신당 URL 하나"라는 제약의 해소책이다.
    - **(3-e)** `SKILL.md` 2·3·4단계(재시작·`/mcp` 승인)와 `product-copy.md`(8곳)·
-     `harness-platform.md`를 갱신한다. `connect-command.ts:2-5`와 `public-url.ts:16`은
+     `2026-11-16-closed-harness-platform.md`를 갱신한다. `connect-command.ts:2-5`와 `public-url.ts:16`은
      **주석만** 낡는다(동작 무변). `SKILL.md`은 frontmatter `description:`까지 봐야 한다 —
      거기에도 "register .mcp.json"이 있어서 본문과 정면으로 모순된다.
-   - **(3-e 정정 — 추정이 6배 빗나갔다)** 초안은 `harness-platform.md`를 "D7 `:52`, 파일표 `:172`,
+   - **(3-e 정정 — 추정이 6배 빗나갔다)** 초안은 `2026-11-16-closed-harness-platform.md`를 "D7 `:52`, 파일표 `:172`,
      `:154,162,249`" 다섯 곳으로 적었는데 실제 언급은 **32곳**이다. 다만 **전부 고치면 안 된다**:
      - **살아 있는 규범 9곳(고친다)**: 물질화 표 `:23` · D5 `:50` · **D7 `:52`** · P3 `:68` ·
        저장소 구조도 `:122` · 파일표 `:154`·`:172` · local 디스패치 `:162` ·
@@ -803,7 +803,7 @@ B-2를 실행할 때는 **C11(서버 URL 기본값 금지)의 예외를 명시�
       진행 중인 작업 위에 일괄 변경을 얹으면 되돌리기 어렵게 엉킨다
    2. 이 저장소에서 `plugin/.mcp.json` 생성(**`harness` 하나만**), 생성기의 `harness` 항목 쓰기
       중단(`--owner` 경로는 유지), `SKILL.md`·문서 5종
-      (`protocol`·`rationale`·`system-overview`·`product-copy`·`investigations/harness-platform`)·
+      (`protocol`·`rationale`·`system-overview`·`product-copy`·`proposals/completed/2026-11-16-closed-harness-platform.md`)·
       `agent-role-catalog.md` 갱신, `deliver.test.mjs`·`agents/{next,steps}.test.ts` fixture 갱신
    3. `npm run seed:templates` 수동 실행
    4. `plugin/.claude-plugin/plugin.json` 버전 상승 — 올리지 않으면 설치본에 전달되지 않는다
@@ -936,7 +936,7 @@ B-1 선택지 3의 실현 가능성.
 
 구현 중 계획서 자체에서 찾은 것(모두 반영했다):
 
-1. **A-2가 미완이었다** — Execution Plan 2단계가 지시한 `harness-platform.md:920`이 고쳐지지 않아,
+1. **A-2가 미완이었다** — Execution Plan 2단계가 지시한 `2026-11-16-closed-harness-platform.md:920`이 고쳐지지 않아,
    v2 스펙 본문이 `hu_` 분기 없는 검증기를 담은 채 코드와 반대를 말하고 있었다.
 2. **A-10에 Execution Plan 단계가 없었다** — Affected Files와 (k)(l)(m)에는 있었다. 3단계에 합쳤다.
 3. **A-9에 검증 단언이 없었다** — 관례상 없는 것이 맞지만, 그 사실이 문서에 적혀 있지 않았다.

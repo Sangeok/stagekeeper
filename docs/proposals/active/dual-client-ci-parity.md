@@ -19,7 +19,7 @@ related:
   - "docs/architecture/test-writing.md"
   - "docs/architecture/test-organization.md"
   - "docs/proposals/active/ci-os-coverage.md"
-  - "docs/proposals/active/claude-verifier-skill-namespace.md"
+  - "docs/proposals/completed/2026-11-12-claude-verifier-skill-namespace.md"
   - "docs/proposals/active/template-release-acceptance-follow-ups.md"
   - "docs/proposals/completed/2026-11-12-gate-run-records.md"
   - "docs/proposals/completed/2026-11-12-codex-dual-client-runtime-follow-ups.md"
@@ -102,7 +102,7 @@ private wrapper의 인증 홈과 설치 홈 분리는 보존한다. 이전 bundl
 | 기존 작업 | 관계와 보존할 경계 |
 | --- | --- |
 | [ci-os-coverage](./ci-os-coverage.md) | 승인된 OS 분류·검사기를 재사용한다. Claude macOS pipeline leg는 이 작업이 소유하며, 모든 pipeline 실행에 두 OS를 포함한다는 기존 결정을 보존한다. R2 승격 이후 진행 조건과 현재 이행 상태를 확인하고 중복 PR을 만들지 않는다 |
-| [Claude verifier namespace](./claude-verifier-skill-namespace.md) | template pin·client-init workflow와 겹친다. 현재 원본과 R2 활성 상태를 확인하되 이 작업에서 R2를 import/activate하지 않는다 |
+| [Claude verifier namespace](../completed/2026-11-12-claude-verifier-skill-namespace.md) | template pin·client-init workflow와 겹친다. 현재 원본과 R2 활성 상태를 확인하되 이 작업에서 R2를 import/activate하지 않는다 |
 | [role-command-time-limit](./role-command-time-limit.md) | runtime 시간 한도와 재인수 근거의 소유자다. 옛 120초 문서나 과거 bundle을 현재 값으로 가정하지 않으며 이 제안에서 한도를 다시 바꾸지 않는다 |
 | [template acceptance](./template-release-acceptance-follow-ups.md) | 설치 source/template/lock tuple과 운영 인수의 경계를 재사용한다. 격리 CI를 운영 전환·복구 완료로 보고하지 않는다 |
 | [runner installation](../completed/2026-11-12-runner-usage-limit-installation.md) | 개인 PC 설치와 자연 발생 사용 한도 관찰은 범위 밖이다. CI를 위해 개인 설치를 갱신하거나 한도를 소진하지 않는다 |
@@ -355,7 +355,7 @@ Codex CI의 필수 승격 게이트 전환은 기존 공개 준비 작업의 결
 | `scripts/windows/package-windows-plugin.mjs`, `scripts/windows/package-windows-plugin.test.mjs`, `scripts/macos/package-plugin.mjs`, `scripts/macos/package-plugin.test.mjs` | 우선 재사용 | 기존 inventory 의미 보존. 변경 필요 시 사유·판 영향 명시 |
 | `.github/actions/smoke-database/action.yml`, `scripts/rehearsals/prepare-codex-macos-database.mjs`, `scripts/rehearsals/inspect-codex-macos.mjs` | 재사용 경계 | 소유 DB·복구 조건 보존. Intel/Windows 추가 준비는 host 결정 뒤 구체화 |
 | `docs/architecture/verification.md`, `docs/architecture/server.md`, `AGENTS.md` | 구현과 함께 갱신 | coverage·로그·승격 조회 및 trigger 경로·필요한 내부 import 등록 |
-| `docs/proposals/active/ci-os-coverage.md`, `docs/proposals/active/claude-verifier-skill-namespace.md`, `docs/proposals/active/template-release-acceptance-follow-ups.md` | 조정 필요 시만 | 소유권·선행 조건 변경 근거가 있을 때 갱신. 완료/과거 보고서는 다시 쓰지 않음 |
+| `docs/proposals/active/ci-os-coverage.md`, `docs/proposals/completed/2026-11-12-claude-verifier-skill-namespace.md`, `docs/proposals/active/template-release-acceptance-follow-ups.md` | 조정 필요 시만 | 소유권·선행 조건 변경 근거가 있을 때 갱신. 완료/과거 보고서는 다시 쓰지 않음 |
 
 새 실제 인수 보고서의 경로는 실행 후보·날짜가 정해진 뒤 `docs/test-reports/README.md`에 맞춰 고정한다. 지금 빈 보고서를 만들거나 예상 성공을 기록하지 않는다.
 

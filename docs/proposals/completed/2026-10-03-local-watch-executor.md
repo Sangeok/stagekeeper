@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/investigations/active/harness-platform.md"
+  - "docs/proposals/completed/2026-11-16-closed-harness-platform.md"
   - "docs/proposals/completed/2026-09-10-configurable-pipeline.md"
   - "docs/architecture/system-overview.md"
   - "docs/architecture/protocol.md"
@@ -117,7 +117,7 @@ Verification Results와 Completion or Closure Notes에 기록한다.
 
 1. **실행기가 없다.** 서비스는 Claude를 직접 실행하지 않는다(`docs/architecture/system-overview.md:5-8`).
    스펙의 실행기 계약에서 `local`의 트리거는 "사용자가 Claude Code에서 런북대로 디스패치"이고,
-   `routine`은 Phase 3 예약이다(`docs/investigations/active/harness-platform.md:160-164`). 명령 원장과
+   `routine`은 Phase 3 예약이다(`docs/proposals/completed/2026-11-16-closed-harness-platform.md:160-164`). 명령 원장과
    루틴 실행기는 아직 계획만 있다(`:1184-1185`).
 2. **배너가 안내 줄을 가린다.** `deriveTurn`은 사용자 차례인 항목이 하나라도 있으면 그 항목들의 줄만
    낸다(`src/fsd/widgets/turn-banner/model/turn.ts`, `next: nextSteps(pending)`). 그래서
@@ -805,7 +805,7 @@ init 배포 판 기대값도 0.3.7에서 0.4.0으로 갱신하고 안내 본문 
   hu_의 매 요청 project, 총 46자 token 검증, 관리 블록의 checkout runbook 판 추출·동일 값 반복 허용·
   충돌/손상 거부·legacy 판 생략, key 없는 overview의 지연 전진·실패 응답 뒤
   저장 여부 단정 금지, 소유자 게이트 금지, 로컬 guard/스킬 권한의 한계를 위 계약대로 적는다.
-- `docs/investigations/active/harness-platform.md` §3.4: `local` 행의 트리거를
+- `docs/proposals/completed/2026-11-16-closed-harness-platform.md` §3.4: `local` 행의 트리거를
   "사용자가 Claude Code에서 런북대로 디스패치(`/harness:watch`면 감시 스크립트가 그 세션을 깨운다)"로.
   routine/hosted 및 과거 상세 구현 절은 변경하지 않는다. 현재 구현의 계약은 architecture 문서다.
 - `docs/architecture/verification.md`의 문구 잠금 표: turn-banner-watch → 모델/렌더 시험을 등록한다.
@@ -836,7 +836,7 @@ init 배포 판 기대값도 0.3.7에서 0.4.0으로 갱신하고 안내 본문 
 | `src/fsd/features/review-gate/ui/inbox-card.test.mjs` | update | before-plan/도움말 실제 렌더·읽기 전용 비노출 | none |
 | `docs/conventions/product-copy.md` | update | §3·§5·§6·§15·§18 | low — 잠금 블록이 시험과 묶인다 |
 | `docs/architecture/protocol.md` | update | `pipeline_next` 호출자 | none |
-| `docs/investigations/active/harness-platform.md` | update | §3.4 실행기 계약 | none |
+| `docs/proposals/completed/2026-11-16-closed-harness-platform.md` | update | §3.4 실행기 계약 | none |
 | `docs/architecture/verification.md` | update | 새 문구 잠금 시험 등록 | none |
 | `docs/test-reports/active/2026-10-02-local-watch-executor.md` | add | 세션·운영 실측 보고서 | low — 완료 증거와 미실행 구분 |
 

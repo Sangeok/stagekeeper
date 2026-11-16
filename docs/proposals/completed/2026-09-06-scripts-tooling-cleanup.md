@@ -87,7 +87,7 @@ Prisma 부트스트랩 중복과 지연 실패, `scripts/`의 문서 부재)와 
 - 실측(2026-09-06): `plugin/lib/zz-orphan-probe.mjs`를 만들고 `node scripts/check-plugin-lib.mjs` → `plugin/lib in sync`, exit 0.
   `node scripts/sync-plugin-lib.mjs` 뒤에도 파일이 남았다(직후 제거, 작업본 깨끗함).
 - 영향: `packages/core`의 모듈을 지우거나 이름을 바꾸면 옛 복사본이 `plugin/lib`에 남은 채 `check`가 통과한다. 플러그인은
-  marketplace 설치 시 `plugin/`만 복사되므로(`docs/investigations/active/harness-platform.md:375`; 의존 방향은 `docs/architecture/system-overview.md:72`)
+  marketplace 설치 시 `plugin/`만 복사되므로(`docs/proposals/completed/2026-11-16-closed-harness-platform.md:375`; 의존 방향은 `docs/architecture/system-overview.md:72`)
   죽은 모듈이 사용자에게 배포된다.
   `git log --diff-filter=DR -- packages/core`는 아직 삭제·개명 이력이 없다 — 지금은 잠재 결함이고, 처음 모듈을 정리하는
   날 터진다.
@@ -741,7 +741,7 @@ npm run build
 
 ## Safety Analysis
 
-- **삭제 파일 참조**: `git grep -n "check-plugin-lib\|sync-plugin-lib"`로 `package.json` 두 줄과 완료 제안서·조사 문서(`docs/investigations/active/harness-platform.md:359,375,1231`) 본문만
+- **삭제 파일 참조**: `git grep -n "check-plugin-lib\|sync-plugin-lib"`로 `package.json` 두 줄과 완료 제안서·조사 문서(`docs/proposals/completed/2026-11-16-closed-harness-platform.md:359,375,1231`) 본문만
   나온다. 문서 쪽은 당시 결정 기록이라 고치지 않는다(`docs/proposals/README.md`: 완료 문서의 판단 근거는 보존).
 - **CI 게이트**: `.github/workflows/check.yml`은 `npm run db:generate` → `npm run check` → `npm test` → `npm run test:web` → `npm run build`를
   호출한다. `check`의 내부 순서만 바뀌고 워크플로 파일은 건드리지 않는다. 새 첫 단계는 `plugin/lib` 파일 비교라 `db:generate` 결과에 의존하지 않는다.
