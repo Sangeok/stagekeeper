@@ -662,7 +662,11 @@ async function observe(ctx, record) {
     const identity = await identityFor(ctx, record);
     const status = await gitCommand(ctx, record.path, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
     return row(record, status.output ? [record.removalStartedAt ? "partial-removal" : "unpreserved-files"] : [], "retained", identity.head);
-  } catch (error) { return row(record, [failure(error).code], stat(record.path) ? "retained" : "unknown"); }
+  } catch (error) {
+    const problem = failure(error);
+    if (problem.exitCode === 1) ctx.observationFailed = true;
+    return row(record, [problem.code], stat(record.path) ? "retained" : "unknown");
+  }
 }
 
 async function statusReport(ctx, options, report) {
@@ -676,7 +680,7 @@ async function statusReport(ctx, options, report) {
     report.results.push({ ...row(null, ["unmanaged", ...(entry.locked ? ["worktree-locked"] : [])], stat(entry.path) ? "retained" : "unknown", entry.head), path: entry.path, state: "unmanaged" });
   }
   report.guard = guardView(ctx);
-  report.aborted = found.errors.length > 0 || report.guard?.status === "unknown";
+  report.aborted = found.errors.length > 0 || report.guard?.status === "unknown" || Boolean(ctx.observationFailed);
   return report.aborted ? 1 : 0;
 }
 

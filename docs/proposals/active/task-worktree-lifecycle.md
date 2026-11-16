@@ -422,7 +422,7 @@ npm exec --call "node --test scripts/cleanup-task-branches.test.mjs"
 ### VFY-WTL-01: 기록·관찰·생성의 부수효과 경계
 
 - verifies: REQ-WTL-001, REQ-WTL-002, REQ-WTL-005, REQ-WTL-008, REQ-WTL-009
-- 상태: Planned. 목적지: 신규 `scripts/manage-task-worktrees.test.mjs`.
+- 상태: 구현됨. 실제 실행 범위는 아래 구현 검증 기록을 따른다. 목적지: 신규 `scripts/manage-task-worktrees.test.mjs`.
 
 정상 생성, 기존 branch/path 거부, main/dev·주 worktree 거부, 잘못된 common Git, 경로 별칭·중첩·미등록·손상/새 schema를 검사한다. status 전후 파일·ref·기록을 비교해 무쓰기를 확인한다. 원격 확인 실패에서 생성이 없는지, creating 단계 중단에서 기존 파일을 지우지 않는지 검사한다. 동시 명령은 같은 작업을 중복 생성하지 않고 guard-held로 보류해야 한다. 명령 guard 복구 조회도 무쓰기여야 한다.
 
@@ -431,14 +431,14 @@ npm exec --call "node --test scripts/cleanup-task-branches.test.mjs"
 ### VFY-WTL-02: 자료와 경로 보존 대조군
 
 - verifies: REQ-WTL-001, REQ-WTL-003, REQ-WTL-005, REQ-WTL-006
-- 상태: Planned. 목적지: 같은 신규 테스트.
+- 상태: 구현됨. 실제 실행 범위는 아래 구현 검증 기록을 따른다. 목적지: 같은 신규 테스트.
 
 staged·unstaged·untracked·ignored `.env`·보고서·템플릿, 진행 중 Git 작업, hidden index flag, sparse checkout, nested repository를 각각 남기고 종료가 거부되며 canary bytes가 보존되는지 확인한다. 반대로 허용된 재생성 산출물만 있는 fixture는 force 없이 제거되어야 한다. 다른 작업에서 사용하는 자원을 소유자가 아직 종료하지 않은 사례는 usage 선언 없이 거부한다. 이것을 일반 프로세스 사용 자동 탐지 시험이라고 부르지 않는다.
 
 ### VFY-WTL-03: 정상 종료·A/B·브랜치 후속 결과
 
 - verifies: REQ-WTL-003, REQ-WTL-006, REQ-WTL-007, REQ-WTL-008
-- 상태: Planned. 목적지: 같은 신규 테스트.
+- 상태: 구현됨. 실제 실행 범위는 아래 구현 검증 기록을 따른다. 목적지: 같은 신규 테스트.
 
 보존된 커밋의 관리 worktree를 종료하고 폴더·Git 등록 제거와 완료 기록을 확인한다. B가 A에서 분기해 독립 작업하는 fixture에서 A 제거 후 B의 파일·HEAD·작업 가능성을 검사한다. B가 A를 PR base로 쓰면 worktree 제거와 `dependent-pr` 보류를 별도로 확인한다. A의 자원을 사용하는 B, A 브랜치를 checkout한 다른 폴더, 공통 Git이 있는 주 worktree는 각각 해당 보호 경계로 검증한다. 제어 checkout dirty·GitHub 오류·브랜치 부재·ref 이름 재사용에서도 worktree 결과가 사라지지 않아야 한다. 분기한 B fixture는 일반 create가 A 기반 생성을 허용한다는 증거가 아니다.
 
@@ -449,7 +449,7 @@ remote-head·ancestor·squash/rebase merged-pr를 모두 양성 대조한다. �
 ### VFY-WTL-04: 실제 중단·재실행·종료 취소
 
 - verifies: REQ-WTL-002, REQ-WTL-004, REQ-WTL-005, REQ-WTL-007, REQ-WTL-009
-- 상태: Planned. 목적지: 같은 신규 테스트와 실제 CLI child process.
+- 상태: 구현됨. 실제 실행 범위는 아래 구현 검증 기록을 따른다. 목적지: 같은 신규 테스트와 실제 CLI child process.
 
 종료 기록 후 제거 전, Git 제거 후 완료 기록 전, removed 기록 후 브랜치 정리 전의 중단을 실제 child process로 재현한다. guard가 남은 강제 종료는 먼저 보류되고, fixture의 모든 명령·Git 자식 종료 확인과 정확한 nonce 복구 후 재시도가 이어지는지 확인한다. 살아 있는 PID·다른 호스트·불완전 guard·nonce 변경에서는 해제하지 않는다. 정상 종료의 finally 이후 재시도에는 추가 확인이 필요 없어야 한다.
 
@@ -460,7 +460,7 @@ remote-head·ancestor·squash/rebase merged-pr를 모두 양성 대조한다. �
 ### VFY-WTL-05: Windows·macOS 파일시스템 인수
 
 - verifies: REQ-WTL-001, REQ-WTL-002, REQ-WTL-003, REQ-WTL-004, REQ-WTL-005, REQ-WTL-006, REQ-WTL-009
-- 상태: Planned. 목적지: 같은 신규 테스트의 OS별 사례와 새 CI matrix.
+- 상태: 구현됨. 실제 실행 범위는 아래 구현 검증 기록을 따른다. 목적지: 같은 신규 테스트의 OS별 사례와 새 CI matrix.
 
 directory symlink/junction, 내부·외부 file symlink, 공간이 포함된 경로, 같은 경로의 교체, 파일 점유·권한 오류, 기록 교체 실패, force 없는 Git 제거를 검증한다. 외부 canary를 두고 거부·성공 후 bytes를 확인한다. 필수 junction 또는 해당 OS의 핵심 사례가 준비되지 않으면 인수 PASS로 계산하지 않는다. Windows에서 지원하지 않는 파일명 등만 구체적 사유로 skip한다. 기록 flush/rename·프로세스 종료 처리 결과를 각 OS에서 관찰한다.
 
@@ -469,7 +469,7 @@ Windows에서는 실제 8.3 짧은 경로와 긴 경로가 같은 canonical root
 ### VFY-WTL-06: 명령·작업 규칙·CI 연결
 
 - verifies: REQ-WTL-001, REQ-WTL-002, REQ-WTL-003, REQ-WTL-004, REQ-WTL-007, REQ-WTL-008, REQ-WTL-009
-- 상태: Planned. 목적지: 신규 CLI 테스트, 기존 docs·CI coverage 검사, 문서 의미 검토.
+- 상태: 구현됨. 실제 실행 범위는 아래 구현 검증 기록을 따른다. 목적지: 신규 CLI 테스트, 기존 docs·CI coverage 검사, 문서 의미 검토.
 
 Node/npm silent stdout을 JSON으로 파싱하고 입력 오류·보류·실행 실패의 종료 코드를 확인한다. import만으로 기록·파일·ref가 바뀌지 않아야 한다. 에이전트 절차에 제어 checkout 이동·usage 종료·보류 보고·resume·guard 복구가 연결되는지 검토한다. 기존 제안서의 브랜치 판정은 단일 원본을 유지하고, 기존 항목을 자동 정리한다는 문구가 없어야 한다. CI 양 OS job과 분류표의 확인 문자열을 대조한다.
 
@@ -579,6 +579,36 @@ Git/Node 기초 동작 일곱 사례와 제안 CI job의 구조 검사도 다시
 판정: **CONDITIONALLY READY**. 위 단일 Phase의 fixture 기반 구현·검증을 시작할 수 있는 설계이며, 실제 사용자 자료 적용과 새 종료 규칙의 활성화는 양 OS 파일 보존·중단 복구 시험 통과 뒤로 제한한다. 구현 실행 승인은 front matter에 별도로 기록한다. 사용 종료를 자동 증명할 수 없다는 한계와 비정상 guard 복구의 소유자 확인은 의도적인 계약이며 숨겨진 자동화 약속이 아니다.
 
 기존 미등록 worktree의 소유권 미확인은 fixture 구현의 blocker가 아니며, 해당 자료를 실제 정리하는 시점의 보존 조건이다. 이미 완료된 branch 개선이나 제품 플러그인 출시를 새 선행 작업으로 추가하지 않는다. 실제 OS에서 기록 교체나 force 없는 제거가 계약을 충족하지 못하면 TASK-WTL-05에서 적용을 중단하고 설계를 먼저 수정한다. 정합성 검토의 최종 상태는 이 파일의 최종 hash를 기준으로 수행한 별도 무수정 pass의 응답에 기록하며, 기준 명령·기초 동작 시험을 새 관리 도구의 구현 인수로 확대하지 않는다.
+
+### 구현 검증 기록 — 2026-11-16
+
+구현 브랜치는 `harness/task-worktree-lifecycle-20261112`다. 처음에는 `407be0b`에서
+분기했고, 최종 검사 전에 최신 dev `a26830935a4003f329cb234a6937a019f0f8e045`로
+재배치했다. 이후 dev에 들어온 plugin·운영 정리·CI 증거 계약을 보존하며,
+이 변경은 저장소 작업 도구·시험·문서·check job만 수정한다.
+
+이번 구현은 TASK-WTL-01–05의 CLI, 원장, 표식, 종료·복구, 기존 branch 위임, npm·규칙·CI 연결을
+구현했다. 실제 소비용 `validateBranch`·`parseWorktreeList`도 공유하여 branch 이름과
+Git 목록 계약의 중복을 없앴다. 응답에는 owner/branchName/lastReasons와 선택적 guard/error를
+추가했다. 잘못된 finish 입력은 무쓰기이며 승인된 검사 보류 뒤에는 revision을 다시 읽는다.
+상태 조회의 Git 실패는 exit 1로 보고하고 자료를 변경하지 않는다.
+
+| 범위 | 실제 검증 | 결과·한계 |
+| --- | --- | --- |
+| VFY-WTL-01/02 | 생성·신원·dirty/ignored·잠금·submodule·숨김 index·status와 I/O 실패 fixture | macOS 통과. `.env`와 다른 작업의 파일 bytes 보존 |
+| VFY-WTL-03 | remote-head·ancestor·squash 보존, 독립 B, dependent PR, dirty 제어 checkout, branch 예외/aborted | macOS 통과. 폴더와 branch 결과 분리, 남은 batch 보존 |
+| VFY-WTL-04 | 생성 네 중단 지점, closing/제거 후 중단, resume, finish 경합, 취소 자식 정산 실패, attempted 응답 유실 | macOS 통과. 실제 subprocess/Git 및 파일·프로세스 경계 오류 주입. 비협력적인 외부 쓰기까지 격리한다는 보장은 아님 |
+| 기존 branch 회귀 | 별도 npm 실행의 `cleanup-task-branches.test.mjs` | 96/96 통과. 기존 두 삭제 경로·PR/CI·CAS 보호 유지 |
+| VFY-WTL-05 | macOS 파일·symlink·원자적 교체·강제 없는 제거 | 로컬 통과. Windows 실행은 아래 PR CI로 확인하며 macOS 결과로 대체하지 않음 |
+| VFY-WTL-06 | 실제 저장소의 npm silent status, 문서·CI 표·strict traceability 검사 | 통과. 기존 7개 worktree는 unmanaged로 관찰만 했고 실제 제거하지 않음 |
+| 공통 회귀 | `verify:fsd`, `verify:server`, `test:architecture`, `check`, `build` | Node 22.23.3/npm 10.9.9 macOS에서 통과. 최신 추가 status 회귀도 단독 통과 |
+| 양 OS 자동 검증 | `check/task-worktrees`의 Windows 2022·macOS 15, 파일별 필수 step | 이 변경의 PR check 결과를 인수 증거로 사용. 8.3 별칭이 없는 Windows 볼륨은 해당 사례를 명시적으로 skip하며 8.3 인수 성공으로 계산하지 않음 |
+
+최초 관리 시험 실행에는 Git timeout 한 건과 비정상적으로 긴 wall time이 있었다.
+동일 사례 단독 재실행과 후속 전체 시험은 통과했고 timeout 상한은 늘리지 않았다.
+오류 기록을 삭제하거나 처음부터 모두 통과했다고 기록하지 않는다.
+현재 실제 사용자 자료의 자동 채택·정리, dev 병합과 main 승격은 수행 범위 밖이다.
+PR에 최종 commit의 check 결과와 잔여 보류를 기록하고 병합 전에는 active 제안서로 유지한다.
 
 ## Risks and Rollback
 

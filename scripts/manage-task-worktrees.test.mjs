@@ -593,3 +593,17 @@ it("preserves branch and folder outcomes when the cleanup delegate throws", asyn
   assert.equal(result.report.results[0].branch.reason, "branch-inspection-failed");
   assert.equal(f.git(f.control, "rev-parse", item.branch), f.base); assert.equal(existsSync(item.path), false);
 });
+
+it("reports a failed status inspection without mutating its task or worktree", async t => {
+  const f = fixture(), item = await f.create(), original = childProcess.spawn;
+  const file = path.join(f.directory, "tasks", `${item.taskId}.json`), bytes = readFileSync(file);
+  t.mock.method(childProcess, "spawn", (command, args, settings) => {
+    if (command === "git" && args.includes(item.path) && args.includes("status")) return original(process.execPath, ["-e", "process.exit(1)"], settings);
+    return original(command, args, settings);
+  });
+  syncBuiltinESMExports(); t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const result = await f.run("status", { task: item.taskId });
+  assert.equal(result.exitCode, 1); assert.equal(result.report.aborted, true);
+  assert.ok(result.report.results[0].reasons.includes("git-inspection-failed"));
+  assert.deepEqual(readFileSync(file), bytes); assert.equal(existsSync(item.path), true);
+});
