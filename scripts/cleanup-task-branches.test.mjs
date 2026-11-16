@@ -3,10 +3,10 @@ import childProcess, { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, normalize } from "node:path";
 import { afterEach, beforeEach, it } from "node:test";
-import { fileURLToPath } from "node:url";
-import { cleanupTaskBranches } from "./cleanup-task-branches.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { cleanupTaskBranches, inspectMergedTaskBranch, parseWorktreeList } from "./cleanup-task-branches.mjs";
 
 const directories = [];
 const repo = "fixture/stagekeeper";
@@ -17,7 +17,7 @@ let originalGitEnvironment;
 beforeEach(() => {
   originalGitEnvironment = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("GIT_")));
   for (const key of Object.keys(originalGitEnvironment)) delete process.env[key];
-  const directory = mkdtempSync(join(realpathSync(tmpdir()), "stagekeeper-git-config-"));
+  const directory = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-git-config-"));
   directories.push(directory);
   process.env.GIT_CONFIG_NOSYSTEM = "1";
   process.env.GIT_CONFIG_GLOBAL = join(directory, "empty-config");
@@ -49,7 +49,7 @@ function git(cwd, ...args) {
 }
 
 function fixture({ squash = false, rebase = false, remoteDev = true } = {}) {
-  const root = mkdtempSync(join(realpathSync(tmpdir()), "stagekeeper-branch-cleanup-"));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-branch-cleanup-"));
   directories.push(root);
   const cwd = join(root, "checkout");
   const origin = join(root, "origin.git");
@@ -161,7 +161,7 @@ it("rejects malformed apply options and CLI arguments before any Git or GitHub i
   assert.throws(() => cleanupTaskBranches({ apply: "false" }), /Invalid cleanup options/);
   const script = fileURLToPath(new URL("./cleanup-task-branches.mjs", import.meta.url));
   for (const args of [["--branch", "main", "--apply"], ["--branch", "dev"], ["--branch"], ["--force"], ["--apply", "--apply"]]) {
-    const invocation = spawnSync(process.execPath, [script, ...args], { cwd: realpathSync(tmpdir()), encoding: "utf8" });
+    const invocation = spawnSync(process.execPath, [script, ...args], { cwd: realpathSync.native(tmpdir()), encoding: "utf8" });
     assert.equal(invocation.status, 1);
     assert.match(invocation.stderr, /must never|Usage:/);
     assert.equal(invocation.stdout, "");
@@ -437,7 +437,7 @@ for (const state of ["clean", "dirty", "missing", "metadata-missing", "locked", 
     const row = result(f, { apply: true });
     assert.equal(row.preservation, "ancestor");
     assert.ok(row.reasons.includes("worktree-in-use"));
-    assert.equal(row.worktrees[0].path, path);
+    assert.equal(normalize(row.worktrees[0].path), normalize(path));
     assert.equal(row.worktrees[0].changes, ["missing", "metadata-missing"].includes(state) ? "unknown" : state === "dirty" ? "dirty" : "clean");
     assert.equal(row.worktrees[0].locked, state === "locked");
     if (state === "missing") assert.equal(row.worktrees[0].prunable, true);
@@ -603,7 +603,7 @@ for (const squash of [false, true]) it(`preserves a branch newly checked out dur
   };
   const row = result(f, { apply: true, github });
   assert.equal(row.reason, "worktree-in-use");
-  assert.equal(row.worktrees[0].path, path);
+  assert.equal(normalize(row.worktrees[0].path), normalize(path));
   assert.ok(exists(f));
 });
 
@@ -634,8 +634,9 @@ cp.spawnSync = (command, args, options) => {
 };
 syncBuiltinESMExports();
 `);
-  const invocation = spawnSync(process.execPath, ["--import", preload, script, "--apply"], { cwd: f.cwd, encoding: "utf8" });
-  assert.equal(invocation.status, 1);
+  const invocation = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, script, "--apply"], { cwd: f.cwd, encoding: "utf8" });
+  assert.equal(invocation.status, 1, invocation.stderr);
+  assert.ok(invocation.stdout, invocation.stderr);
   const report = JSON.parse(invocation.stdout);
   assertSummary(report);
   assert.equal(report.aborted, true);
@@ -654,8 +655,8 @@ cp.spawnSync = (command, args, options) => command === "gh"
   ? { status: 0, stdout: "[[]]" } : original(command, args, options);
 syncBuiltinESMExports();
 `);
-  const preview = spawnSync(process.execPath, ["--import", preload, script], { cwd: f.cwd, encoding: "utf8" });
-  assert.equal(preview.status, 0);
+  const preview = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, script], { cwd: f.cwd, encoding: "utf8" });
+  assert.equal(preview.status, 0, preview.stderr);
   const eligible = JSON.parse(preview.stdout);
   assertSummary(eligible);
   assert.equal(eligible.summary.eligible, 1);
@@ -727,4 +728,34 @@ it("ends owned worktrees without losing ignored files or external link targets",
   assert.equal(readFileSync(join(path, "private.env"), "utf8"), "synthetic secret");
   assert.equal(readFileSync(join(external, "data.txt"), "utf8"), "external data");
   assert.ok(existsSync(path));
+});
+
+it("shares merged commit evidence without requiring deletion eligibility or mutating refs", () => {
+  const f = fixture({ squash: true });
+  f.runs[0].conclusion = "failure";
+  const before = git(f.cwd, "show-ref");
+  const proof = inspectMergedTaskBranch({ cwd: f.cwd, branch, sha: f.sha, devSha: f.merge, github: f.github });
+  assert.deepEqual(proof, { kind: "merged-pr", pr: 9, headSha: f.sha, mergeSha: f.merge, devSha: f.merge });
+  assert.equal(git(f.cwd, "show-ref"), before);
+  assert.equal(f.calls.length, 1); assert.equal(f.calls[0].query.state, "all");
+  assert.equal(result(f, { apply: true }).reason, "ci-not-successful");
+  assert.equal(exists(f), true); protectedHeads(f);
+});
+
+it("does not accept a different PR head or an unreadable merged commit", () => {
+  const f = fixture({ squash: true }), options = { cwd: f.cwd, branch, sha: f.sha, devSha: f.merge, github: f.github };
+  f.pr.head.sha = f.base;
+  assert.deepEqual(inspectMergedTaskBranch(options), { kind: "unverified", reason: "merged-pr-unverified" });
+  f.pr.head.sha = f.sha; f.pr.merge_commit_sha = "0".repeat(40);
+  assert.deepEqual(inspectMergedTaskBranch(options), { kind: "unverified", reason: "inspection-failed" });
+  assert.equal(exists(f), true);
+});
+
+it("parses literal NUL-delimited worktree paths and rejects incomplete or ambiguous registry records", () => {
+  const sha = "a".repeat(40), name = "a space\nand quote\"";
+  const output = `worktree ${name}\0HEAD ${sha}\0branch refs/heads/harness/example\0locked owner\0\0`;
+  assert.deepEqual(parseWorktreeList(output), [{ path: name, head: sha, branch: "refs/heads/harness/example", locked: true, prunable: false }]);
+  for (const malformed of [output.slice(0, -1), output.replace("locked owner", "HEAD " + sha), output.replace("locked owner", "unknown"), output.replace("locked owner", "detached")]) {
+    assert.throws(() => parseWorktreeList(malformed));
+  }
 });

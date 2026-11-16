@@ -108,9 +108,11 @@ src/fsd/features/manage-project-connection/
   공통화는 실제 소비 범위와 FSD 의존 방향을 모두 만족해야 한다.
 - 보조 파일은 `.test` 이름을 사용하지 않는다. 자동 생성 snapshot은 runner의
   규약을 따르되 새 경로가 아키텍처 검사와 충돌하면 정식으로 규칙을 조정한다.
-- 임시 디렉터리는 운영 코드와 같이 `realpathSync(tmpdir())` 아래에 만든다. macOS의
+- 임시 디렉터리는 운영 코드와 같이 `realpathSync.native(tmpdir())` 아래에 만든다. macOS의
   기본 임시 경로(`/var/folders/…`)는 `/private/var/…`의 별칭이라, 경로 별칭을
-  거부하는 운영 검사에 걸려 CI(Linux)와 결과가 달라진다.
+  거부하는 운영 검사에 걸려 CI(Linux)와 결과가 달라진다. Windows에서는 임시 경로의
+  8.3 짧은 이름도 native 실경로로 확장해 Git의 긴 이름과 비교한다. 경로 별칭을
+  다루는 시험은 실제 OS에서 확인하며, 볼륨이 8.3 이름을 제공하지 않으면 그 이유를 보고한다.
 
 ## 의존성 경계
 

@@ -19,7 +19,7 @@ class CleanupAborted extends Error {
   }
 }
 
-function validateBranch(branch) {
+export function validateBranch(branch) {
   if (protectedBranches.has(branch)) throw new Error("main and dev must never be deleted.");
   if (typeof branch !== "string" || !/^harness\/[a-z0-9][a-z0-9._/-]*$/.test(branch)
     || branch.includes("..") || branch.includes("//") || branch.includes("/.")
@@ -82,29 +82,32 @@ function localBranches(cwd) {
     });
 }
 
+export function parseWorktreeList(output) {
+  if (!output.endsWith("\0\0")) throw new Error();
+  return output.slice(0, -2).split("\0\0").map(record => {
+    const fields = new Map();
+    for (const field of record.split("\0")) {
+      const separator = field.indexOf(" ");
+      const key = separator < 0 ? field : field.slice(0, separator);
+      const value = separator < 0 ? "" : field.slice(separator + 1);
+      if (fields.has(key) || !["worktree", "HEAD", "branch", "detached", "bare", "locked", "prunable"].includes(key)) throw new Error();
+      fields.set(key, value);
+    }
+    const path = fields.get("worktree"), head = fields.get("HEAD"), branch = fields.get("branch");
+    if (!path || ["branch", "detached", "bare"].filter(key => fields.has(key)).length !== 1
+      || !fields.has("bare") && !head || head !== undefined && !shaPattern.test(head)
+      || ["detached", "bare"].some(key => fields.has(key) && fields.get(key) !== "")
+      || fields.has("branch") && (!branch.startsWith("refs/heads/") || branch === "refs/heads/")) throw new Error();
+    return {
+      path, head: head && head !== "0".repeat(40) ? head : null, branch,
+      locked: fields.has("locked"), prunable: fields.has("prunable"),
+    };
+  });
+}
+
 function worktrees(cwd) {
   try {
-    const output = git(cwd, ["worktree", "list", "--porcelain", "-z"]);
-    if (!output.endsWith("\0\0")) throw new Error();
-    return output.slice(0, -2).split("\0\0").map(record => {
-      const fields = new Map();
-      for (const field of record.split("\0")) {
-        const separator = field.indexOf(" ");
-        const key = separator < 0 ? field : field.slice(0, separator);
-        const value = separator < 0 ? "" : field.slice(separator + 1);
-        if (fields.has(key) || !["worktree", "HEAD", "branch", "detached", "bare", "locked", "prunable"].includes(key)) throw new Error();
-        fields.set(key, value);
-      }
-      const path = fields.get("worktree"), head = fields.get("HEAD"), branch = fields.get("branch");
-      if (!path || ["branch", "detached", "bare"].filter(key => fields.has(key)).length !== 1
-        || !fields.has("bare") && !head || head !== undefined && !shaPattern.test(head)
-        || ["detached", "bare"].some(key => fields.has(key) && fields.get(key) !== "")
-        || fields.has("branch") && (!branch.startsWith("refs/heads/") || branch === "refs/heads/")) throw new Error();
-      return {
-        path, head: head && head !== "0".repeat(40) ? head : null, branch,
-        locked: fields.has("locked"), prunable: fields.has("prunable"),
-      };
-    });
+    return parseWorktreeList(git(cwd, ["worktree", "list", "--porcelain", "-z"]));
   } catch {
     throw new CleanupAborted();
   }
@@ -202,6 +205,34 @@ function ciReason(pages, pr, sha) {
   return null;
 }
 
+function mergedEvidence(cwd, repo, matching, sha, devSha) {
+  const merged = matching.filter(pr => pr.state === "closed" && pr.merged_at && pr.base?.ref === "dev"
+    && sameRepository(pr.base?.repo?.full_name, repo) && pr.head?.sha === sha);
+  if (merged.length !== 1) return { reason: "merged-pr-unverified" };
+  const pr = merged[0];
+  if (!Number.isSafeInteger(pr.number) || pr.number <= 0 || !shaPattern.test(pr.merge_commit_sha)) return { reason: "merged-pr-unverified" };
+  if (!isAncestor(cwd, pr.merge_commit_sha, devSha)) return { reason: "merge-not-on-origin-dev" };
+  return { pr };
+}
+
+export function inspectMergedTaskBranch({ cwd = process.cwd(), branch, sha, devSha, github } = {}) {
+  validateBranch(branch);
+  if (!shaPattern.test(sha ?? "") || !shaPattern.test(devSha ?? "") || github !== undefined && typeof github !== "function") {
+    throw new Error("Invalid merged branch inspection input.");
+  }
+  try {
+    const repo = repository(cwd);
+    const readGithub = github ?? ((endpoint, query) => githubPages(cwd, endpoint, query));
+    const matching = headPulls(readGithub(`repos/${repo}/pulls`, { state: "all", head: `${repo.split("/")[0]}:${branch}` }))
+      .filter(pr => pr.head.ref === branch && sameRepository(pr.head.repo.full_name, repo));
+    const evidence = mergedEvidence(cwd, repo, matching, sha, devSha);
+    if (evidence.reason) return { kind: "unverified", reason: evidence.reason };
+    return { kind: "merged-pr", pr: evidence.pr.number, headSha: sha, mergeSha: evidence.pr.merge_commit_sha, devSha };
+  } catch {
+    return { kind: "unverified", reason: "inspection-failed" };
+  }
+}
+
 function inspectCompletion(cwd, repo, candidate, devSha, github) {
   const { branch, sha } = candidate;
   const pulls = headPulls(github(`repos/${repo}/pulls`, { state: "all", head: `${repo.split("/")[0]}:${branch}` }));
@@ -210,12 +241,9 @@ function inspectCompletion(cwd, repo, candidate, devSha, github) {
   const dependent = hasDependentPulls(github(`repos/${repo}/pulls`, { state: "open", base: branch }), repo, branch);
   if (candidate.preservation === "ancestor") return dependent ? { reason: "dependent-pr" } : {};
   const dependentReasons = dependent ? ["dependent-pr"] : [];
-  const merged = matching.filter(pr => pr.state === "closed" && pr.merged_at && pr.base?.ref === "dev"
-    && sameRepository(pr.base?.repo?.full_name, repo) && pr.head?.sha === sha);
-  if (merged.length !== 1) return { reasons: ["merged-pr-unverified", ...dependentReasons] };
-  const pr = merged[0];
-  if (!Number.isSafeInteger(pr.number) || pr.number <= 0 || !shaPattern.test(pr.merge_commit_sha)) return { reasons: ["merged-pr-unverified", ...dependentReasons] };
-  if (!isAncestor(cwd, pr.merge_commit_sha, devSha)) return { reasons: ["merge-not-on-origin-dev", ...dependentReasons] };
+  const evidence = mergedEvidence(cwd, repo, matching, sha, devSha);
+  if (evidence.reason) return { reasons: [evidence.reason, ...dependentReasons] };
+  const { pr } = evidence;
   if (dependent) return { reason: "dependent-pr" };
   const ci = ciReason(github(`repos/${repo}/actions/runs`, { head_sha: sha, event: "pull_request" }), pr, sha);
   if (ci) return { reason: ci };

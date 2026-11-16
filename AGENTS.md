@@ -93,6 +93,12 @@ commits that were already green on `dev`.
   checkout, or remove another task's worktree to make cleanup pass. Use an isolated
   worktree for a new task when existing work must be preserved. An owner may release
   its own worktree only through the normal task-end procedure below.
+- From a retained control checkout, run `npm run worktrees -- status` and
+  `npm run worktrees -- retry` at task start. Retry only uses previously recorded
+  closure consent; it cannot close another active task. Report blocked records.
+  Create new task worktrees with `npm run worktrees -- create --owner <owner>
+  --branch harness/<topic> --path <new-path>` and retain the returned task ID.
+  Existing unregistered worktrees remain unmanaged; never infer ownership from age.
 - Verify that remote `main` and `dev` exist and fetch the latest `dev` before
   creating a new `harness/<topic>` branch. If either protected remote branch is
   missing or cannot be verified, stop branch maintenance and report it.
@@ -192,8 +198,22 @@ commits that were already green on `dev`.
   Check staged, unstaged, untracked and ignored files, and external directory links.
   Unknown ownership/use, dirty files, locks or external junctions/symlinks mean keep
   the directory. A clean status alone is not permission to remove ignored files.
-  From outside an expendable linked worktree, use `git worktree remove <exact-path>`
-  without force; retain or detach at the same HEAD when files must remain. Never
+  For a managed worktree, move to the retained control checkout, read `worktrees --
+  status --task <id>`, and use `worktrees -- finish --task <id> --owner <owner>
+  --expected-revision <n> --expected-head <sha> --usage-ended` through `npm run`.
+  Confirm that dependent tasks no longer use its files, dependencies or servers.
+  A descendant branch alone is not a file-use dependency. Folder removal can precede
+  PR merge when its HEAD is preserved remotely; branch deletion retains the existing
+  merge and protection policy. Report folder and branch outcomes separately.
+  Cancel an intact closing task before editing with `worktrees -- resume --task <id>
+  --owner <owner> --expected-revision <n>`; a later finish needs fresh consent.
+  An abandoned command guard requires `recover-guard` inspection and explicit
+  `--expected-nonce <nonce> --confirmed-quiescent` only after the owner has verified
+  that its Git children and other users have stopped. Never recover an unknown or
+  live guard, force a removal, or overwrite a partial removal.
+  For an unregistered, verified self-owned linked worktree, the manual procedure
+  remains `git worktree remove <exact-path>` from outside without force; retain or
+  detach at the same HEAD when files must remain. Never
   remove the main worktree or force a switch to a branch used elsewhere. Follow
   `docs/architecture/verification.md` for the full procedure and then preview/apply
   `branches:cleanup -- --branch harness/<topic>` from a clean remaining worktree.
