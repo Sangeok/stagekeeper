@@ -16,7 +16,7 @@ related:
   - "docs/investigations/active/scripts-coupling-investigation.md"
   - "docs/proposals/active/shared-modules-and-plugin-distribution.md"
   - "docs/proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md"
-  - "docs/proposals/active/ci-os-coverage.md"
+  - "docs/proposals/completed/2026-11-17-ci-os-coverage.md"
   - "docs/architecture/verification.md"
   - "docs/architecture/repository-disconnection.md"
   - "docs/architecture/test-writing.md"
@@ -815,8 +815,8 @@ framework에서 가능한지 확인한 prototype 증거이며 완성될 helper�
 
 검증 입력은 이 문서 한 파일이며 canonical ID는 모두 이 문서가 소유한다. 관련 조사서와
 다른 제안서는 근거 링크이며 요구사항 정의를 상속하지 않는다. 설계와 구현 승인은 front matter에
-기록했으며 후속 환경 조건이 있어 전체 인수 완료를 선언하지 않는다. 문서 검사의 통과는 구현·인수의
-통과를 뜻하지 않는다.
+기록했으며 이 제안의 후속 환경 조건은 CI Acceptance Record에서 해소했다. 문서 검사의
+통과 자체를 구현·인수의 통과로 간주하지 않는다.
 
 ## Risks and Rollback
 
@@ -939,3 +939,8 @@ native init의 private workflow commit은 `55852e3f5b6e2958d57e5da29975778b61bb1
 
 BLK-SCP-01의 이 제안 대상 조건을 해소했다. 운영 데이터·template activation·main 승격은
 수행하지 않았다. 실제 모델 raw transcript는 기존 sealed artifact 정책을 유지한다.
+
+구현 PR #351은 `0f6028fbe7cd5ee182ae20e55ae9a459bebb9120`으로 dev에 병합됐다.
+최종 완료 기록을 올리던 중 병합이 확인되어, 원래 기록 commit `2e7e35b`는 최신 dev에서
+만든 `harness/scripts-coupling-record-20261117`에 통합했다. 후속 PR은 이 문서의 이동과
+기록만 포함하며 이미 인수한 실행 소스는 변경하지 않는다.
