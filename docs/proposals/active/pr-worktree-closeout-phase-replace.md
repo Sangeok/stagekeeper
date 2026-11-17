@@ -253,6 +253,8 @@ Canonical: [TASK-PWCR-01](./pr-worktree-closeout.md#task-pwcr-01-identity상태�
 1. 기존 validateBranch/parseWorktreeList/context/marker/identity 검사를 새 git-workspace로
    옮긴다. literal harness namespace, main/dev, 주 checkout, symbolic ref, alias,
    .git pointer·admin·instance 불일치를 보존한다. old module import로 연결하지 않는다.
+   기존 context의 `process.env` 전체 상속과 Git 응답으로 선택 root를 교체하는 동작은
+   그대로 옮기지 않는다. 아래 실행 context 계약을 먼저 적용한다.
 2. task-state의 schema·OID CAS·상태 parent pin·guard·activation reader를 구현한다.
    global Git config를 쓰지 않고 Git identity 등은 child env에만 제공한다.
 3. create는 main/dev 존재와 fresh dev를 확인하고 creating intent를 먼저 저장한다.
@@ -270,6 +272,44 @@ Canonical: [TASK-PWCR-01](./pr-worktree-closeout.md#task-pwcr-01-identity상태�
 
 신뢰할 control 소스의 변경은 검사하되 다른 checkout의 unrelated dirty를 삭제 조건으로
 쓰지 않는다. 다른 task의 branch·파일·server를 가져와 준비하지 않는다.
+
+### Git execution context boundary
+
+- CLI뿐 아니라 programmatic entry도 최초 Git 호출 전에 invocation의 환경 snapshot을 검증한다.
+  `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR`, `GIT_INDEX_FILE`, `GIT_NAMESPACE`,
+  `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, `GIT_SHALLOW_FILE`,
+  `GIT_REFERENCE_BACKEND`, `GIT_CONFIG`, `GIT_CONFIG_PARAMETERS`가 비어 있지 않으면
+  `git-environment-conflict`로 거부한다. `GIT_CONFIG_COUNT`는 미설정/빈 값/0만 허용한다.
+  Windows의 환경 변수 이름 대소문자도 정규화해 검사한다. 값은 출력하지 않는다.
+- 이 명령은 ambient Git repository/config override를 지원하지 않는다. 이를 조용히 지우거나
+  현재 process.env·사용자 설정을 바꾸지 않는다. 정상 인증·일반 Git 설정은 유지한다.
+  검사한 snapshot으로 child env를 만들고 후속 호출이 다른 ambient 값으로 바뀌지 않게 한다.
+- 요청한 canonical control root는 별도로 보존한다. Git의 top-level/git-dir/common-dir을
+  선택한 root의 실제 .git directory/pointer와 대조하고, 다르면 context-mismatch로 거부한다.
+  `git -C`만으로 경계가 고정된다고 가정하거나 Git 응답의 다른 경로로 root를 재지정하지 않는다.
+  명시한 --root가 checkout root가 아닌 경우도 거부하며 자동으로 다른 checkout을 선택하지 않는다.
+- gh에는 기존 adapter처럼 github.com host와 선택한 repository/PR을 명시한다.
+  GH_HOST/GH_REPO의 기본 선택을 원격 쓰기 대상 결정에 사용하지 않으며 인증 값은 기록하지 않는다.
+
+[Git repository 환경 변수](https://git-scm.com/docs/git#_environment_variables)와
+[Git config 환경 우선순위](https://git-scm.com/docs/git-config#ENVIRONMENT)를 따른다.
+이는 의도한 context의 검증이며 신뢰할 수 없는 Git 실행 파일/사용자 인증 도구까지
+격리하는 보안 sandbox를 도입하는 것은 아니다.
+
+### read-only object access
+
+status/inspect/migrate preview 및 부재·state 검증용 read-only Git 호출은
+`GIT_NO_LAZY_FETCH=1` 또는 동등한 `--no-lazy-fetch`를 명시한다.
+partial clone/promisor 저장소에서 `cat-file` 등의 객체 조회가 암묵적 fetch를 수행할 수 있으므로
+“fetch 명령을 직접 호출하지 않았다”만으로 무쓰기·무네트워크를 주장하지 않는다.
+로컬 객체가 없으면 missing-object/unknown을 반환하고 hydrate하지 않는다.
+기존 optional-locks·replace-object·fsmonitor/maintenance 억제도 유지한다.
+
+inspect --remote의 명시적 GET/ls-remote 허용은 객체 hydration 허용이 아니다.
+효과를 허용한 create/complete/cleanup에서 필요한 fetch는 별도의 명시적 단계다.
+no-lazy-fetch를 지원하지 않는 Git에서는 조회를 무보호로 재시도하지 않고 unsupported-tool로 보류한다.
+[Git no-lazy-fetch](https://git-scm.com/docs/git#Documentation/git.txt---no-lazy-fetch)
+
 검증 연결: VFY-PWC-01/02/08, 상태 CAS와 경합은 VFY-PWC-06.
 
 ## Change detail for TASK-PWCR-02
@@ -630,6 +670,8 @@ REPLACE 구현의 required이며 실제 Git·파일·해당 OS를 사용한다. 
 | 사례 | 독립적인 실패 조건과 기대 관찰 | 연결 |
 | --- | --- | --- |
 | 명령 입력 분리 | 빈 repo의 create/migrate apply가 존재하지 않는 task OID를 요구하지 않음. 다른 command의 state/동의 flag는 거부하고 효과 0회 | VFY-PWC-01/08/10 |
+| Git context/env | 두 fixture repo 또는 checkout에서 B를 가리키는 GIT_DIR/WORK_TREE/COMMON_DIR/INDEX_FILE/namespace/config 주입. --root A 요청은 Git 호출 전 거부하며 양쪽 refs/index/원장/worktree 불변, env 값 비노출. Windows 키 대소문자도 검사 | VFY-PWC-01/02/08 |
+| lazy fetch 차단 | 로컬 객체가 누락된 promisor fixture의 status/inspect/preview가 unknown을 반환하고 fetch 시도·객체/refs/index/config 변경 0회. 명시적 fetch 대조군은 별도 실행해 fixture가 유효함을 확인 | VFY-PWC-08 |
 | Windows branch-only | 실제 unqualified runtime + 외부 제거·ack 뒤 cleanup은 probe/worktree remove 0회, 검증된 local branch만 제거. receipt 뒤 path 재생성 시 branch도 보존 | VFY-PWC-13/14 |
 | PR terminal routing | 완료 task의 반복은 삭제된 live HEAD를 요구하지 않고 효과 0회. MERGED+현재 UNKNOWN readiness는 증명 복구로 처리하고 PUT 0회. CLOSED-unmerged+ancestor는 retire, unique commit/open/dependent는 보존 | VFY-PWC-03/07/08 |
 | fence 전후 중단 | journal 저장 직후/fence owner 게시 직후/source 재검사 전 중단 및 같은 plan의 동시 apply. writer는 하나이며 완전한 자기 fence만 복구·abort, owner 없는/다른 fence는 보존 | VFY-PWC-06/10 |
@@ -742,7 +784,7 @@ ref transaction 밖이라는 점도 반영해 intent/marker/read-back/refs/activ
 abort 가능 시점을 구체화했다. 초안 작성 당시 독립 sub-agent 검토나 plan-eng-review를 수행한 것은 아니며,
 write-sdd-spec의 기계 검증과 자체 의미 검토 결과였다. 이후의 정식 plan-eng-review는 아래 기록과 구분한다.
 
-## Engineering Review Record — 2026-11-18
+## Engineering Review Record — 2026-11-18 (1차)
 
 ### 대상·최초 판정·권한
 
@@ -896,3 +938,91 @@ parent/source 보존·일반 traceability·docs:check·diff 공백 검사를 확
 최종 구현 전제는 기존 계획의 실행 범위 승인과 required native 검증이다. 검토 판정
 Ready와 실제 코드·정책 활성화의 승인을 구분하며, 검증되지 않은 동작을 통과한 것으로
 기록하지 않는다.
+
+## Engineering Re-review Record — 2026-11-18 (2차)
+
+### 이번 검토 기준과 최초 판정
+
+대상은 1차 수정본 `d789588`이며 시작 SHA-256은
+`8c1e5e6711948c71c15b1808baa36de4e86d8f2eac6d9cb8b9bb7913d016486b`다.
+같은 미병합 작업의 계속이고 시작 tree는 clean, 열린 PR은 없었다.
+parent/source 기준은 `651427c`로 유지했다. 이전 F1~F7을 다시 수정한 수로 세지 않는다.
+
+**이번 수정본에도 처음부터 추가 개선점이 없었던 것은 아니다.**
+Git 실행 경계에서 아래 2건을 새로 확인해 반영했다.
+이전의 조건부 방향·6-module 구조·삭제 권한·Windows 미지원 범위는 그대로다.
+
+| ID | 영역 / 중요도 / 확신 | 시작본 근거와 영향 | 반영 |
+| --- | --- | --- | --- |
+| F8 | context binding / CRITICAL / 9 | R01은 기존 context 이관을 지시하지만 ambient Git 변수 검증이 없다. 기존 gitCommand는 process.env를 상속하고 context는 rev-parse 결과로 root를 교체한다. 지정한 checkout과 다른 context를 사용할 수 있음 | 환경 충돌을 Git 호출 전 거부, 고정 root/.git/git-dir/common-dir 대조, 명시적 gh host/repo와 child 환경 snapshot |
+| F9 | read-only contract / INFORMATIONAL / 9 | state가 Git 객체에 저장되는데 객체 조회의 implicit lazy fetch 차단이 없다. partial clone의 누락 객체 조회가 status/preview의 무네트워크·무쓰기 계약을 깨뜨릴 수 있음 | no-lazy-fetch 명시, missing-object/unknown, 무보호 fallback 금지와 promisor 음성 대조 |
+
+F8 근거는 `manage-task-worktrees.mjs:143~196`다. 기존 시험의 beforeEach는 GIT_* 변수를
+지우므로 이 입력 상태를 검증한 것으로 볼 수 없다. 읽기 전용 `git -C ... rev-parse --show-toplevel`을 두 기존 자기 checkout에 대해
+실행했고, GIT_DIR/GIT_WORK_TREE를
+control checkout으로 설정한 child가 요청 root와 다른 top-level을 반환함을 확인했다.
+부모 환경·Git 설정·파일·ref는 변경하지 않았다. 다른 저장소의 생성/삭제를 실제로
+실행했다는 뜻은 아니다.
+
+F9는 Git 공식 문서의 no-lazy-fetch 의미와 제안한 Git-object reader를 대조한 결과다.
+설치된 Git 2.50.1에서 `git --no-lazy-fetch rev-parse --show-toplevel`의 지원은 확인했다.
+실제 promisor fetch를 유발하거나 새 REPLACE 시험을 실행한 것은 아니다.
+
+### 네 영역·반론·증거 범위
+
+- Architecture: F1~F7의 journal 선행·coordinator·activation epoch·branch-only와 parent의
+  terminal/retire 계약을 다시 대조했다. 추가로 F8의 repository 경계만 보완했다.
+  6개 module 대 4개 대안 및 23~25개+증거의 범위 추정은 유지한다.
+- Code quality: context 구성은 한 owner가 맡고 모든 Git 소비자가 같은 검증된 환경을 사용한다.
+  전체 GIT_* 삭제로 인증/사용자 설정을 무심코 바꾸는 대안을 택하지 않았다.
+- Tests: 기존 보호 ref·canary·중단·guard assertions와 새 planned matrix를 구분했다.
+  F8/F9 두 경계 사례를 추가했으며 production test-only flag는 만들지 않는다.
+- Performance: 기존 shared deadline·pin fan-in·목록/record 상한은 유지한다.
+  read-only 조회에 숨은 네트워크 대기·객체 쓰기를 추가하지 않도록 F9를 보완했다.
+  새 benchmark나 성능 개선 수치는 없다.
+
+반론도 확인했다. 정상 셸에는 충돌 변수가 없을 수 있지만, 외부 호출자나 Git 작업에서
+상속되는 입력은 -C가 제거하지 않는다. 따라서 명시한 root를 보존하는 기존 계약의
+필수 검증이며 새 기능이 아니다. 또 일반 full clone에는 lazy fetch가 없지만,
+초기 지원을 SHA-1로만 제한한 계획은 partial clone을 제외하지 않았다. Git의 조회
+옵션으로 무변경 계약을 지키며 네트워크 동작을 추측하지 않는 안을 선택했다.
+
+~~~text
+[P] command → 입력 검증 → Git env/context 검증
+                         ├─ conflict/mismatch → Git/원격/state mutation 0
+                         └─ read-only → no-lazy-fetch 객체 조회
+                                         ├─ local object → 검증 결과
+                                         └─ missing object → unknown, fetch 0
+~~~
+
+Value F8: protects=선택한 repository/checkout과 자료;
+fails_when=환경 override를 따라가거나 값을 노출;
+why_new=기존 fixture는 GIT_*를 지움;
+seam=실제 CLI child env와 두 Git fixture;
+no_claim=악의적인 Git binary/credential helper 격리.
+
+Value F9: protects=status/inspect/preview의 무쓰기·무네트워크;
+fails_when=missing object 조회가 hydrate/fetch를 시작;
+why_new=신 state는 Git 객체이며 기존 JSON reader 시험으로 미충족;
+seam=실제 promisor Git fixture와 실행/객체 변화 관측;
+no_claim=실제 서비스 인수나 모든 external user instrumentation의 무효과.
+
+### 판정과 변경 권한
+
+사용자의 이번 “검증하고 개선” 요청과 기존 REQ-PWC-001/002/009·INV-PWC-002 보존 범위로
+F8/F9를 문서에 반영했다. 상위 문서·source·tests·CI·사용자 설정은 수정하지 않았다.
+독립 agent review는 요청되지 않아 수행하지 않았다.
+
+설계 검토 판정은 **Ready**다. 이번 추가 2건을 반영한 뒤 재대조한 범위에서는
+추가 미해결 설계 문제나 새로 결정해야 할 기능 선택을 발견하지 못했다.
+1차의 7건과 이번 2건을 구분하며, 문서 개선을 실제 구현/native 통과로 표시하지 않는다.
+실행 범위 승인과 필수 native 검증은 기존 계획대로 남는다.
+
+### 2차 최종 확인
+
+- parent + REPLACE plan 일반 traceability: PASS, REQ 16/16.
+- docs:check: PASS, Markdown 236개·상대 링크 1,254개·report 61개.
+- 전체 저장 내용과 d789588을 비교해 의도한 실행 경계·시험 계획·2차 기록 외 변경이 없음을 확인했다.
+- diff 공백 검사와 parent/QUALIFY hash 유지 확인: PASS. 수정 파일은 이 문서 하나다.
+- 두 checkout의 읽기 전용 root 재지정 확인과 no-lazy-fetch 옵션 지원 확인만 실행했다.
+  실제 생성·삭제·merge·promisor fetch·새 기능 시험·benchmark는 실행하지 않았다.
