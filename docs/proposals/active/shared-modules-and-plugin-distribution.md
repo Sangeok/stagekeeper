@@ -5,7 +5,7 @@ proposal-size: "standard"
 created-at: "2026-11-12"
 approved-by: "user"
 approved-at: "2026-11-16"
-approval-scope: "Phase ARCH 및 후속 승인된 MIGRATE 소스·배포·시험·CI·문서 전환과 검증. ACCEPT·운영 승격 제외"
+approval-scope: "Phase ARCH 및 후속 승인된 MIGRATE 소스·배포·시험·CI·문서 전환과 검증, 2026-11-17 사용자 요청에 따른 ACCEPT 인수 검증과 그 기록. 운영 승격 제외"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -46,7 +46,9 @@ ARCH 조사 당시 `packages/core`와 `packages/github`의 생산 `.mjs` 27개�
 Phase ARCH의 아키텍처·ADR·전환 목록 문서화를 완료했다.
 [현재 공유 경계](../../architecture/shared-modules.md), [ADR-0008](../../ADR/0008-separate-shared-module-distribution.md),
 [ARCH 완료 기록](../completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md)을 따른다.
-후속 사용자 승인으로 MIGRATE 구현·검증을 완료했으며 ACCEPT는 미착수다. 전체 제안은 pending으로 유지한다.
+후속 사용자 승인으로 MIGRATE 구현·검증을 완료했다. ACCEPT는 2026-11-17 시작했다. 모델을 쓰지 않는
+인수 항목과 BLK-SMB-01은 통과했고, 양 OS의 watch·session·background 실제 실행만 남았다([ACCEPT 실행 결과](#accept-실행-결과)).
+전체 제안은 pending으로 유지한다.
 실행 상태는 [MIGRATE 상세 기록](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)을 따른다.
 
 ## Goal
@@ -1739,7 +1741,7 @@ OS 의존 시험은 Windows/macOS 각각의 실행 증거를 남긴다.
 - category: compatibility / native packaging / installation
 - destination: `plugin/bin/harness-released-readers.test.mjs`, 양 OS package 시험,
   `scripts/rehearsals/rehearse-client-init-smoke.ts`, 기존 pipeline smoke 계약
-- state: 계획
+- state: 일부 실행(2026-11-17). 모델을 쓰는 양 OS 실제 실행이 남았다. [ACCEPT 실행 결과](#accept-실행-결과)
 
 출시 reader 회귀를 유지하고, 필요한 경우 기존 release/HTTP fixture에 구버전 플러그인과
 새 서버 조합을 추가한다. 기존 reader 시험이 증명하는 범위를 실제 양 OS 설치·서버 호환성으로
@@ -1760,6 +1762,9 @@ OS 의존 시험은 Windows/macOS 각각의 실행 증거를 남긴다.
 - unblock requirement: 인수에 사용할 templates commit·출시 revision·OS를 기록하고 경로 참조와
   설치 동작을 확인한다. 변경이 필요하면 소유 저장소의 작업·검증을 별도로 연결한다.
 - stop condition: 참조 유효성이나 필요한 OS 실행 증거가 없으면 설치 인수·출시 완료로 표시하지 않음
+- status: 해소(2026-11-17). templates `main`의 모든 커밋(운영 R2 `99245acd018d26a7c1238f34323951159c41d954`,
+  R1 `8ccb37a4ab91de527e6a23caa6d415c7cdc6f215` 포함), 출시 revision 0.6.15(`main` `85c66fb`)와 후보 0.6.16
+  (`dev` `c5f4e44`·`8e0f880`), Windows·macOS 설치 실행으로 확인했다. 근거는 [ACCEPT 실행 결과](#accept-실행-결과)의 1·6번이다.
 
 Phase ARCH의 적용 예정 계약·ADR·전수 대응표와 VFY-SMB-01 문서 검증을 완료했다.
 ARCH 종료 당시 MIGRATE는 미착수였으며, 후속 승인된 실행 상태는 상세 기록에서 추적한다.
@@ -1805,6 +1810,26 @@ VFY-SMB-01의 문서 산출물은 새 architecture·ADR과 기존 안내 10개, 
 값 export 175개·private 49개·type 31개와 직접 참조 404건을 대조했고 새 공개 entry는 14개다.
 실행 명령·최종 문서 검사 결과와 scope 보존 증거는 [ARCH 완료 기록](../completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md#arch-execution-results)에 남긴다.
 VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행이다.
+
+### ACCEPT 실행 결과
+
+2026-11-17 Windows PC에서 실행했다. 후보는 `dev` `c5f4e44`이고, 그 뒤 `8e0f880`까지 바뀐 것은
+문서 하나와 `plugin/bin/harness-watch.test.mjs`(아래 7번)뿐이라 제품 코드는 같다. 비교 기준은 출시된
+`main` `85c66fb`(플러그인 0.6.15)다. 2~5번의 비교 도구는 이 확인을 위해 임시로 만든 것이고 저장소에 남기지 않았다.
+
+| # | 확인 | 결과 | 근거·한계 |
+| --- | --- | --- | --- |
+| 1 | 삭제·이동된 `plugin/lib` 18개 경로의 외부 참조(BLK-SMB-01) | 없음 | templates `main`의 커밋 51개 모두에 `lib/` 문자열과 플러그인 안쪽 경로가 없다. 그중 15개(R1·R2 포함)의 `CLAUDE.runbook.md`가 `CLAUDE_PLUGIN_ROOT`를 언급하지만, 그 변수를 셸 변수로 가정하지 말고 `harness-session` helper를 플러그인 메타데이터에서 찾으라는 지시다. `plugin/bin`·hooks·skills의 파일은 옮겨지거나 지워진 것이 없다. `dev`의 출하 텍스트(skills·hooks·agents·README)·`src`·`packages`, 이 PC에 연결된 저장소 2개의 추적 파일에도 없다. 0.6.15 코드의 동적 import는 같은 번들의 bin을 부르는 `harness-platform.mjs` 하나이므로 설치본은 자기 번들의 `lib`만 읽는다 |
+| 2 | Windows 번들 | 통과 | 깨끗한 checkout에서 `package-windows-plugin.mjs`로 만들었다. 2245개 파일, `lib` 15개, verifier 7개 파일이고 삭제된 18개 경로는 없다. native runtime은 빌드 키가 `main`과 같아(`…914aadc3…`) 이 PC의 설치본 0.6.11 runtime을 `windows-role-runtime-cache.mjs verify`로 확인해 썼다. 패키저 검사에 필요한 Prisma client는 가짜 주소로 생성했다(DB 접속 없음) |
+| 3 | 저장소 없는 module resolution | 통과 | 번들을 위쪽 폴더에 저장소도 `node_modules`도 없는 곳으로 복사했다. 코드 59개 파일의 import 300개가 모두 번들 안의 파일이나 Node 내장 모듈로 해석된다. `lib`·`runtime` 모듈 51개 중 50개를 실제 import로 불러왔다. 나머지 1개는 macOS 전용 진입 스크립트 `runtime/macos/role-process.mjs`로, 불러올 때 인자의 경로를 읽어 실패한다. 0.6.15 원본도 같고 파일은 바뀌지 않았다 |
+| 4 | 템플릿 결과 보존(REQ-SMB-004) | 차이 0 | `main`과 `dev`의 모듈에 같은 입력을 넣었다: templates R2·R1, 연결 저장소 2개의 `harness.json`(각자의 parser로 파싱). release 준비(content·contract hash, release identity), 언어 × plan 3개 × client 2개의 설치 정보와 배포 본문, 배포 본문마다 init lock hash·stub·runbook 판·변수 렌더링(작업 공간 포함), 설정 parser를 비교해 1852건이 모두 같았다. `main` 쪽 runbook 판 함수에 결함을 넣으면 152건이 달라져 비교가 차이를 잡는 것을 확인했다 |
+| 5 | 서버·공유·플러그인 코드의 동작 보존(REQ-SMB-004, REQ-SMB-005의 서버 쪽) | 이름 변경 외 차이 없음 | `src/server`·`packages`·`plugin/lib`·`plugin/runtime`·`plugin/bin`의 최상위 선언(비공개 포함) 946개를 같은 형식으로 변환해 이름별로 비교했다. 930개는 같다. 11개는 보조 함수의 이름 변경(`time`→`runnerTimestamp`, `httpUrl`→`qaHttpUrl`, `text`→`qaText`, `prefixOf`→`tokenPrefix`)과 TypeScript 전환의 매개변수 별칭뿐이라 되돌리면 같고, 보조 함수의 본문도 같다. 제거로 보인 `runbookIsStale`·`blobHref`는 서버와 fsd의 지역 함수로 옮겨졌고 본문이 같다. 정적 비교이며, 옛 플러그인을 새 서버에 실제로 붙여 본 결과가 아니다 |
+| 6 | 양 OS 실제 설치·init | 통과 | `dev` `8e0f880`, templates R2로 돌린 `client-init-smoke` [run 44039379768](https://github.com/Sangeok/stagekeeper/actions/runs/44039379768): Windows·macOS × 새 사용자·업데이트 4개 통과. 플러그인 0.6.16, Claude 2.1.326, Windows Server 10.0.20348, macOS 15.8.2 arm64. 게이트 기록 #319에 행이 있다 |
+| 7 | 양 OS 런타임 CI | 통과 | `dev` `c5f4e44`의 macOS Intel job이 `harness-watch` 시험 하나의 0.6초 폴링 한도로 실패했다(#338과 같은 유형, 이 재편과 무관). 응답 지연으로 재현하고 그 시험의 한도를 넓혀 [PR #361](https://github.com/Sangeok/stagekeeper/pull/361)로 고쳤다. #361에서 Windows·macOS arm64·Intel 런타임 CI가 통과했고, 병합 뒤 `dev` `8e0f880`의 `check`·Windows·macOS 런타임 CI도 통과했다 |
+| 8 | 양 OS watch·session·background 실제 실행 | 미실행 | 모델을 쓰는 출시 게이트 `pipeline-smoke`에 남긴다. 출하 플러그인 파일이 바뀌었으므로 승격 전에 `agent-eval`도 필요하다. Mac에서 손으로 확인한 것은 없다 |
+
+1·4·5번으로 기존 설치본과 새 서버의 조합에서 바뀌는 코드 경로가 없음을 보였다. 다만 이것은 출시된 각 판을
+새 서버에 실제로 연결한 인수가 아니다. 8번이 끝나기 전에는 설치 인수와 출시를 완료로 표시하지 않는다.
 
 ## Approval and Completion
 
