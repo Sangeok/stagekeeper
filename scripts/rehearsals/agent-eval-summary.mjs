@@ -29,7 +29,8 @@ export function evalLines(result) {
   const lines = [];
   const summary = summarizeEval(evalRecord(result, 0));
   for (const testCase of summary.cases ?? []) {
-    lines.push(`${testCase.name}: score ${testCase.score ?? "unknown"} over ${testCase.runs} runs, ${testCase.failedRuns} failed`);
+    const graders = Object.entries(testCase.failedGraders ?? {}).map(([name, runs]) => `${name} ${runs}`).join(", ");
+    lines.push(`${testCase.name}: score ${testCase.score ?? "unknown"} over ${testCase.runs} runs, ${testCase.failedRuns} failed${graders ? ` (failed graders: ${graders})` : ""}`);
   }
   lines.push(`cost estimate ${summary.costUsd === undefined ? "unknown" : `$${summary.costUsd.toFixed(2)}`}, ${summary.seconds ?? "unknown"}s`);
   return lines;
@@ -47,7 +48,8 @@ export function evalRecord(result, exitCode, control = null) {
         || new Set(graders.map(grader => grader?.name)).size !== expected.length
         || graders.some(grader => !expected.includes(grader?.name) || grader?.passed !== true);
     }).length;
-    return { name: testCase?.name, score: testCase?.aggregates?.score, runs: runs.length, failedRuns };
+    const failedGraders = countFailedGraders(runs, expected);
+    return { name: testCase?.name, score: testCase?.aggregates?.score, runs: runs.length, failedRuns, ...(failedGraders && { failedGraders }) };
   });
   const unique = new Set(record.cases.map(entry => entry.name)).size === record.cases.length;
   const passed = unique && record.cases.every(entry => Object.hasOwn(GATE_CASES, entry.name ?? "") && entry.runs > 0 && entry.failedRuns === 0 && entry.score === 1);
@@ -56,6 +58,22 @@ export function evalRecord(result, exitCode, control = null) {
   record.costUsd = result.costUsd;
   record.seconds = result.durationSeconds;
   return record;
+}
+
+function countFailedGraders(runs, expected) {
+  const counts = new Map();
+  for (const run of runs) {
+    const graders = Array.isArray(run?.graders) ? run.graders : [];
+    const failed = new Set(graders.filter(grader => grader?.passed !== true).map(grader => grader?.name));
+    for (const name of failed) counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return keptGraderCounts(expected, Object.fromEntries(counts));
+}
+
+function keptGraderCounts(graders, counts) {
+  if (!counts || typeof counts !== "object" || Array.isArray(counts)) return undefined;
+  const kept = graders.filter(name => Object.hasOwn(counts, name) && Number.isInteger(counts[name]) && counts[name] > 0).map(name => [name, counts[name]]);
+  return kept.length > 0 ? Object.fromEntries(kept) : undefined;
 }
 
 export function summarizeEval(record) {
@@ -67,6 +85,8 @@ export function summarizeEval(record) {
       const kept = { name: entry.name };
       if (Number.isFinite(entry.score) && entry.score >= 0) kept.score = Math.round(entry.score * 100) / 100;
       for (const field of ["runs", "failedRuns"]) if (Number.isInteger(entry[field]) && entry[field] >= 0) kept[field] = entry[field];
+      const failedGraders = keptGraderCounts(GATE_CASES[entry.name], entry.failedGraders);
+      if (failedGraders) kept.failedGraders = failedGraders;
       return kept;
     });
   }
