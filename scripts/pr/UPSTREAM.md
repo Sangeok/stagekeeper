@@ -38,3 +38,9 @@ References:
 - https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-readprocessmemory
 - https://github.com/winsiderss/phnt/blob/53fbbdc5b5d2b08761db1c7b26bfa8c820924356/ntrtl.h
 - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/add-type
+
+## Qualification decision
+
+macOS local 및 GitHub macos-15의 native 경로는 통과했다. Windows 2022 x64의 PEB 후보는 285de226d8815c0604af21be826ada5b7febbcfb에서 cwd-open-5 1건으로 불완전 관측이었다. QUERY_LIMITED_INFORMATION | VM_READ에서도 동일했으므로 현재 Windows 후보는 운영 채택 보류다. unknown을 clear로 바꾸거나 실패 process를 제외하지 않는다.
+
+프로세스 변경은 한 관측 시간 예산 안에서 fresh inventory로 재검사하고 snapshotAttempts/populationChanges를 반환한다. 관측 결과를 다음 호출에 캐시하지 않는다. macOS의 ps start identity는 초 단위라 외부의 극단적인 동일 초 PID 재사용을 원자적으로 인증하지 않으며, 어떤 결과도 삭제 권한으로 사용하지 않는다.

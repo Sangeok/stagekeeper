@@ -1,6 +1,6 @@
 ---
 status: "pending"
-stage: "approved"
+stage: "blocked"
 proposal-size: "standard"
 created-at: "2026-11-17"
 approved-by: "user"
@@ -30,8 +30,8 @@ related:
 
 - 작성 모드: `PHASE_PLAN`.
 - 위험도: `HIGH-RISK`. 이번 adapter는 읽기 전용이지만 false clear는 후속 자료 삭제의 잘못된 근거가 된다.
-- 이번 쓰기 범위: 이 문서 한 파일. 상위 SDD·코드·시험·설정·CI·라이선스 파일은 수정하지 않는다.
-- 구현 준비도: 제한된 qualification 작업은 `CONDITIONALLY READY`. Windows backend의 운영 적합성과 REPLACE 착수는 미확정이다.
+- 초안 작성·리뷰의 쓰기 범위는 이 문서 한 파일이었다. 이후 사용자 요청으로 승인된 QUALIFY 구현·검증은 front matter와 Implementation record로 구분한다. 상위 SDD는 보존한다.
+- 계획 당시 준비도는 제한된 qualification의 `CONDITIONALLY READY`였다. 현재는 후보 구현·macOS 검증 후 Windows 권한 거부를 실제로 확인하여 보류 상태다. REPLACE는 착수하지 않는다.
 - OpenClaw는 고정 source reference다. OpenClaw 제품·CLI·gateway 설치나 실행은 요구하지 않는다.
 
 ## Goal
@@ -69,7 +69,7 @@ related:
 - 상위 파일은 미추적 문서다. 읽은 바이트의 SHA-256은 `bf627b4304fef88b3eaa97be918bbdf6e97f118b8f92d170117630c1ab7cd3e9`다. 상위 변경 시 이 계획의 계약 대응을 재검토한다.
 - 같은 미병합 문서 작업의 계속이므로 새 branch/worktree를 만들지 않는다. 상위 문서는 그대로 보존한다.
 - 원래 root checkout의 관련 없는 변경 52건은 쓰기 범위 밖이다. 시작 시 열린 PR은 0건이었다.
-- 이 문서에서 native probe·테스트·Windows 실행·의존성 설치를 수행하지 않았다.
+- 초안 작성·검토 단계에서는 native probe·테스트·Windows 실행·의존성 설치를 수행하지 않았다. 이후 실행 증거는 Implementation record와 연결된 보고서로 구분한다.
 - plan-eng-review 재검토 기준은 이 child의 수정 전 SHA-256 `b5b19b0a45407e86348b7facd62a62b058ee1a9c89e4a43d2a87321733df87e7`다. 검토 시 열린 PR #360은 다른 문서 기록 작업이다. 로컬 `/usr/sbin/lsof -v`의 결과는 4.91/libproc-based였으며 버전 metadata만 읽었다. 이것은 대상 프로세스 관측·native 인수 증거가 아니다.
 
 ## Current Implementation and Remaining Delta
@@ -355,7 +355,7 @@ CI 계획:
 
 ## Affected Files and Write Boundary
 
-다음은 후속 QUALIFY 구현이 승인될 때의 범위다. 이번에는 이 계획 파일만 작성한다.
+다음은 QUALIFY 구현 범위다. 초안 작성 당시에는 이 계획 파일만 변경했고, 이후 사용자 실행 요청으로 승인된 구현은 아래 Implementation record에 기록한다.
 
 | 경로 | 조치 | 범위 |
 | --- | --- | --- |
@@ -426,10 +426,10 @@ REPLACE 인계에는 위 Gate C 산출물, N 사례 결과, 원본 대응표, �
 
 ## Selected-Phase Readiness
 
-- Verdict: **CONDITIONALLY READY**, bounded qualification에 한정.
+- 계획 검토 당시 Verdict는 **CONDITIONALLY READY**였으며 bounded qualification 착수에 한정했다. 현재 실행 판정은 **BLOCKED**: Windows 필수 대조군이 cwd 접근 거부로 충족되지 않았다.
 - 준비된 부분: 현재 source 차이, adapter 계약, 후보 평가 순서, native fixture·negative control, 증거 형식·CI 배치·정지 조건.
 - 조건: 실제 Windows/macOS 실행 환경과 권한을 확인하고, Q3의 native source/layout 선택을 근거와 함께 확정한 뒤 해당 후보를 구현한다.
-- 미확정: Windows 후보가 상위 사용 확인 계약을 실제로 충족하는지, 어떤 build/architecture/profile을 지원할 수 있는지.
+- 확인된 한계: Windows Server 2022 x64의 현재 PEB 후보가 같은 계정 process 1건의 cwd를 읽지 못한다. 최소 권한에서도 동일하며, 새로운 후보/계약 결정을 거쳐 재검증해야 한다.
 - 의미: qualification 실험을 실행할 수 있는 계획이다. 실제 backend의 운영 적합성·REQ-PWC-014 충족·상위 BLK-PWC-01 해소는 아직 주장하지 않는다.
 - 후속 Phase: REPLACE/ADOPT는 실행 범위 밖이며 자동 시작하지 않는다.
 
@@ -491,7 +491,7 @@ lsof의 set terminator·name escaping·build visibility는 설치 manual과 Appl
 | 상대 링크·front matter | PASS | 두 미추적 문서 포함, Markdown 231개·상대 링크 1,211개·문제 0건 |
 | 공백·fence·placeholder·parent 불변 | PASS | EOF/공백 검사, 상위 SHA-256 일치 |
 | 선택 Phase 의미 검토 | 수행 | 독립 oracle·후보의 미검증 상태·상위 계약 범위·native/double 증거 구분 |
-| native N01~N19 | Not run yet | 계획 검토·수정 요청이므로 구현·실행하지 않음 |
+| native N01~N19 | 계획 검토 당시 Not run yet | 후속 구현의 실제 통과·실패·미검증은 실행 보고서 참조 |
 
 source bundle은 `pr-worktree-closeout.md`와 이 파일이다. 상위에 REPLACE/ADOPT의 미래 요구사항과 blocker가 있으므로 strict를 Phase filter처럼 사용하지 않는다. 일반 bundle 검증 뒤 선택 Phase의 의미적 coverage를 별도로 검토한다.
 
@@ -510,3 +510,5 @@ Gate A 후보의 scope는 호출한 계정의 모든 세션에 속한 non-zombie
 Windows 후보는 설치된 PowerShell Core 7의 메모리 내 Add-Type과 고정 phnt prefix 근거를 사용한다. 외부 binary 설치·SeDebugPrivilege 활성화는 없다. Windows Server 2022 x64/build 20348로 qualification을 제한하며 다른 profile은 unknown이다. source·profile·라이선스는 `scripts/pr/UPSTREAM.md`를 따른다. Windows 실제 통과 여부는 CI 결과로 기록하며 코드 작성만으로 성공을 선언하지 않는다.
 
 macOS 첫 확장 실행에서는 외부 process population 변경으로 정상 대조군 3건이 unknown이었다. 조건을 완화하거나 재시도 횟수만 늘리지 않고, 하나의 관측 budget 안에서 fresh inventory를 재확인하도록 구현했다. snapshotAttempts/populationChanges를 결과에 남긴다. 변경 후 native gate는 21 PASS, 1 SKIP(다른 OS 전용 common 사례), 0 FAIL이었다. Windows와 나머지 프로젝트 검증은 진행 중이다.
+
+Windows 2022 x64/Node 22.23.4의 실제 CI에서 같은 계정 process 1건이 cwd-open-5로 거부됐다. 최소 조회 권한으로 바꾼 후에도 동일했다. native gate의 필수 clear/busy 사례가 unknown이므로 전체 QUALIFY는 통과하지 못했다. 실패 process를 제외하거나 권한을 올려 PASS를 만들지 않았으며 REPLACE/ADOPT는 진행하지 않는다. [실행 보고서](../../test-reports/active/pr-worktree-qualify.md)에 source/run/job과 실패·보류의 구분을 기록했다.
