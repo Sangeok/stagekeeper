@@ -61,3 +61,14 @@ it("validates inputs and cancellation before reporting an unqualified profile", 
   assert.deepEqual(result.reasons, ["cancelled"]);
   assert.equal(result.observationPerformed, false);
 });
+
+it("does not extend qualification to an elevated identity", { skip: typeof process.getuid !== "function" }, async () => {
+  const identity = mock.method(process, "getuid", () => 0);
+  const spawn = mock.method(childProcess, "spawn", () => { throw new Error("unexpected observer"); });
+  try {
+    const result = await inspectWorktreeUsage({ worktreePath: os.tmpdir() });
+    assert.equal(result.capability.status, "unqualified");
+    assert.equal(result.observationPerformed, false);
+    assert.equal(spawn.mock.callCount(), 0);
+  } finally { identity.mock.restore(); spawn.mock.restore(); }
+});

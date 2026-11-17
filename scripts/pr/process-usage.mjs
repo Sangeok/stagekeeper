@@ -12,7 +12,8 @@ export async function inspectWorktreeUsage(options = {}) {
   const result = createUsageResult();
   const inputReason = usageInputReason(options);
   if (inputReason) { result.reasons = [inputReason]; return result; }
-  const profile = qualifiedProfiles.find(value => value.platform === process.platform && value.architecture === process.arch
+  const unprivileged = process.getuid?.() > 0 && process.getuid?.() === process.geteuid?.();
+  const profile = unprivileged && qualifiedProfiles.find(value => value.platform === process.platform && value.architecture === process.arch
     && value.release === os.release() && value.node === process.version);
   if (profile) {
     const observed = await probeWorktreeUsage(options);
