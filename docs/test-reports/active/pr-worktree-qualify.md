@@ -16,13 +16,51 @@ related:
   - "docs/proposals/active/pr-worktree-closeout.md"
 primary-area: "tooling/pr-worktree-qualify"
 observed-environments: ["macOS arm64 / Darwin 25.2.0 / Node 26.4.0", "GitHub macos-15 / Node 22.23.4", "GitHub windows-2022 x64 / Node 22.23.4"]
-test-summary: "fail: QUALIFY 후보 — macOS 통과, Windows 필수 clear/busy 대조군이 cwd 접근 거부로 미충족"
-follow-up: ["Windows 사용 종료 계약과 자동 정리 범위의 상위 설계 결정", "새 후보는 완전성 근거를 먼저 마련한 뒤 native 검증", "REPLACE 착수 보류"]
+test-summary: "조건부 계약 검증 중: local macOS 17 native PASS와 runtime 대조 PASS, Windows 자동 자격의 과거 FAIL 유지, 최종 CI 확인 필요"
+follow-up: ["최종 조건부 runtime CI 확인", "QUALIFY 결과를 반영한 REPLACE 상세 계획", "Windows 자동 정리 미지원 유지"]
 ---
 
 # PR worktree 사용 관측 QUALIFY 실행
 
-## Summary and Decision
+## Current Conditional Implementation
+
+조건부 방향 채택 후 runtime과 실제 probe를 분리했다. inspectWorktreeUsage는
+검증한 Darwin 25.2.0/arm64/Node v26.4.0 profile에만 실제 관측을 위임한다.
+그 외 조합과 Windows는 관측 미실행/unknown/unqualified다. caller의 mode/profile/
+allowUnknown이나 시험 환경 변수로 runtime 자격을 올릴 수 없다. 운영 삭제 연결은 없다.
+
+macOS 증거 공백을 보완한 native 17건은 7a6b804에서 PASS다. 등록 profile의 runtime
+대조까지 포함한 집중 실행은 36 PASS / 1 SKIP / 0 FAIL이다. SKIP은 다른 OS 전용
+common 사례다. Windows required gate는 runtime 무관측 계약과 실제 directory
+반례를 검증하며 기존 자동 정리 자격 실패를 해결한 것으로 취급하지 않는다.
+
+[Native 마감](../assets/2026-11-17-pr-worktree-qualify/conditional-macos-final.json),
+[runtime 대조](../assets/2026-11-17-pr-worktree-qualify/conditional-runtime-local.json),
+[초기 fixture 실패](../assets/2026-11-17-pr-worktree-qualify/conditional-macos-first.json)를 보존한다.
+초기 실패는 ps sess 값이 0으로 가려진 점과 빈 directory에 rm을 사용한 시험
+오류였다. session leader stat/pgid 대조와 rmdir로 수정했다. 첫 실패는 정확한
+source snapshot이 없어 base/collection revision과 한계를 구분했다.
+
+| 영역 | 실제 보완 증거 | 한계 |
+| --- | --- | --- |
+| N08 | detached holder의 PID=PGID, ps stat의 session leader | 같은 UID/host |
+| N09/N19 | 허용 control과 동일한 임시 sandbox 정책 아래 lsof 거부, unknown/coverage false | 해당 observer 경계이며 모든 권한 조합 아님 |
+| N10/N11 | 실제 Node observer를 spawn 경계에서 대체, ready 후 cancel/timeout/output-limit, child 종료와 worker 생존 | 실제 lsof 정지나 Windows compiler 후손 증거와 구분 |
+| N13 | 기존 holder 종료, 실제 population 변경, start drift 대역 | 동일 초 PID 재사용의 원자적 방지 미인증 |
+| N14 | backslash/newline/한글/공백, ancestor link와 case alias, caret unknown | Windows 8.3 자동 관측 미지원 |
+| N15 | 실제 native 관측 시작 경계에서 target 교체, unknown과 retained canary 보존 | 외부 writer 전체 차단 아님 |
+| N18 | import 효과 guard, 병렬/후속 관측, sentinel/.git/admin index/HEAD/gitdir bytes·inode·mtime 및 등록/ref 불변 | 사용자 설정 전체의 외부 변경을 감시하는 시험 아님 |
+
+7a6b804 로컬 검증: check 585 PASS / 4 SKIP, architecture 476 PASS / 4 SKIP,
+FSD/server/shared/CI coverage 및 ESLint PASS. profile 등록 후 집중 검증은 위와 같다.
+CI [44089522611](https://github.com/Sangeok/stagekeeper/actions/runs/44089522611)의
+Windows runtime/probe 경계와 directory 반례 step은 PASS이며 macOS runner는
+이 기록 시점 배정 대기였다. 전체 job이나 최종 revision의 CI 완료로 확대하지 않는다.
+
+아래 FAIL/BLOCKED는 원래 양 OS 자동 자격 목표의 기록이다. Windows 자동 자격은
+계속 FAIL/미지원이며 새 조건부 runtime 계약의 판정과 구분한다.
+
+## Original Summary and Decision
 
 공통 Node ESM 관측 모듈과 macOS lsof/ps 후보, Windows PowerShell Core/C# 후보를 구현했다. 운영 정리기에 연결하지 않았으며 worktree·branch 삭제와 PR 병합은 하지 않는다. Windows 실제 실행에서 같은 계정의 process 1건에 대한 cwd 조회가 권한 거부로 실패했다. 필수 정상 대조군을 만족하지 못했으므로 QUALIFY는 미통과이며 REPLACE는 보류한다.
 

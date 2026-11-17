@@ -8,6 +8,7 @@ import { inspectWorktreeUsage } from "./process-usage.mjs";
 
 it("keeps unqualified runtime requests unknown without filesystem access or an observer", async () => {
   const refused = () => { throw new Error("unexpected I/O"); };
+  const host = mock.method(os, "release", () => "0.0.0");
   const guards = [mock.method(childProcess, "spawn", refused), mock.method(fs, "lstat", refused), mock.method(fs, "realpath", refused), mock.method(fs, "stat", refused)];
   try {
     for (const worktreePath of [os.tmpdir(), path.join(os.tmpdir(), "unverified-missing-target")]) {
@@ -24,7 +25,7 @@ it("keeps unqualified runtime requests unknown without filesystem access or an o
       assert.deepEqual(result.reasons, [["darwin", "win32"].includes(process.platform) ? "unqualified-profile" : "unsupported-platform"]);
     }
     for (const guard of guards) assert.equal(guard.mock.callCount(), 0);
-  } finally { for (const guard of guards) guard.mock.restore(); }
+  } finally { for (const guard of guards) guard.mock.restore(); host.mock.restore(); }
 });
 
 it("rejects caller qualification, mode, and unknown-bypass options", async () => {
@@ -37,6 +38,7 @@ it("rejects caller qualification, mode, and unknown-bypass options", async () =>
 });
 
 it("does not let test selection enable runtime observations", async () => {
+  const host = mock.method(os, "release", () => "0.0.0");
   const previous = process.env.STAGEKEEPER_USAGE_QUALIFICATION;
   process.env.STAGEKEEPER_USAGE_QUALIFICATION = "all";
   try {
@@ -45,6 +47,7 @@ it("does not let test selection enable runtime observations", async () => {
     assert.equal(result.capability.status, "unqualified");
     assert.equal(result.observationPerformed, false);
   } finally {
+    host.mock.restore();
     if (previous === undefined) delete process.env.STAGEKEEPER_USAGE_QUALIFICATION;
     else process.env.STAGEKEEPER_USAGE_QUALIFICATION = previous;
   }

@@ -342,3 +342,13 @@ NtQueryInformationFile의 directory PID 조회이며 production adapter에 연�
 clear로 바꾸거나 root만 검사하는 우회는 채택하지 않는다. 원본 SDD의 hash와
 기존 관리기는 보존하며, 새 후보가 입증되거나 명시적인 계약 결정이 이루어지기
 전에는 BLK-PWC-01과 REPLACE 보류를 유지한다.
+
+## 조건부 방향 적용 기록
+
+방향 승인과 재정합 뒤 runtime/probe/contract 및 시험을 분리했다. Windows 미지원
+runtime과 실패 후보를 구분하며 required gate의 책임을 변경했다. macOS native
+17건을 보완·검증한 후 Darwin 25.2.0/arm64/Node v26.4.0 한 profile을 runtime에
+등록했다. backend 구성을 매번 확인하며 다른 profile은 무관측 unknown이다.
+집중 실행은 runtime 대조를 포함해 36 PASS / 1 SKIP / 0 FAIL이다. 새 CI 전체
+완료와 최종 source를 확인한 뒤 QUALIFY exit 판정을 마감한다. Windows 자동 자격이나
+실제 worktree 삭제는 활성화하지 않았다.

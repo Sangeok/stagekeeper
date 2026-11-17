@@ -7,10 +7,17 @@
 조건부 방향 채택 이후 `process-usage.mjs:inspectWorktreeUsage`는 운영용 결과 경계,
 `process-usage-probe.mjs:probeWorktreeUsage`는 실제 native 후보 평가다.
 입력과 초기 결과는 `process-usage-contract.mjs`가 공유한다.
-현재 runtime에 qualified profile을 등록하지 않았다. Windows 후보의 실패와
-macOS 필수 증거 마감을 끝내지 않은 사실을 `unqualified`, `unknown`,
-`observationPerformed=false`, `coverageComplete=false`로 반환한다.
-이 중간 상태를 QUALIFY 완료나 자동 정리 지원으로 표현하지 않는다.
+등록된 runtime profile은 Darwin 25.2.0 / arm64 / Node v26.4.0 하나다.
+7a6b804의 실제 후보 시험 17건과 conditional-macos-final.json에 근거한다.
+backend의 lsof 4.91/libproc/current-UID 결과도 호출 때 재검증한다. runtime 진입점
+busy 대조는 conditional-runtime-local.json에 기록한다. 다른 OS/build/CPU/Node와
+Windows는 unqualified/unknown/관측 미실행이다. caller flag로 범위를 넓힐 수 없다.
+이는 삭제 실행 활성화가 아니며 controller는 아직 없다.
+
+profile은 현재 UID·non-zombie cwd·한 관측 구간으로 제한한다. 다른 계정·특권·원격
+host·cwd 밖의 파일 사용과 외부 writer 차단은 미인증이다. caret 이름은 unknown이다.
+실제 권한 거부는 fixture observer에만 임시 sandbox 제한을 적용해 확인했으며
+모든 권한 조합의 가시성 인증으로 확대하지 않는다.
 
 공통/실제 native/Windows 반례 시험을 분리했다. `STAGEKEEPER_USAGE_QUALIFICATION=all`
 로 `node --test scripts/pr/process-usage-qualification.test.mjs`를 실행하면 기존

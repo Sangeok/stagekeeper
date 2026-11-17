@@ -8,6 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { after, before, describe, it, mock } from "node:test";
 import { probeWorktreeUsage as inspectWorktreeUsage } from "./process-usage-probe.mjs";
+import { inspectWorktreeUsage as inspectRuntimeUsage } from "./process-usage.mjs";
 
 const nativePlatform = ["darwin", "win32"].includes(process.platform);
 const mode = process.env.STAGEKEEPER_USAGE_QUALIFICATION;
@@ -272,6 +273,21 @@ describe("native cwd qualification", { skip: !nativeSelected ? "Explicit native 
         assert.equal(current.mtimeMs, snapshots[i].info.mtimeMs);
       }
       evidence.push({ name: "N18-files-and-git-metadata", filesUnchanged: files.length, registrationUnchanged: true });
+    } finally { await stop(holder); }
+  });
+  it("R01: applies the qualified local profile through the runtime entry", {
+    skip: process.platform !== "darwin" || process.arch !== "arm64" || os.release() !== "25.2.0" || process.version !== "v26.4.0"
+      ? "Runtime profile currently limited to qualified local host" : false,
+  }, async () => {
+    const holder = await hold(target);
+    try {
+      const result = await inspectRuntimeUsage({ worktreePath: target });
+      assert.equal(result.status, "busy", JSON.stringify(result.reasons));
+      assert.equal(result.capability.status, "qualified");
+      assert.equal(result.observationPerformed, true);
+      assert.ok(result.holders.some(row => row.pid === holder.pid));
+      evidence.push({ name: "R01-runtime-qualified", status: result.status, capability: result.capability,
+        observationPerformed: result.observationPerformed, ...result.observation });
     } finally { await stop(holder); }
   });
 });
