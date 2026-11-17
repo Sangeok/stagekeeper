@@ -24,6 +24,38 @@ function listValues(raw) {
   return value.startsWith("[") && value.endsWith("]") ? value.slice(1, -1).split(",").map(item => item.trim()).filter(Boolean) : [value];
 }
 
+function readMappingBlock(lines, key, indent, where) {
+  const header = new RegExp(`^ {${indent}}${key}:`);
+  const start = lines.findIndex(line => header.test(line));
+  if (start < 0) return [];
+  if (!new RegExp(`^ {${indent}}${key}:\\s*(?:#.*)?$`).test(lines[start])) {
+    throw new Error(`${where}: unsupported ${key} block "${lines[start].trim()}"`);
+  }
+  const block = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim() || line.trimStart().startsWith("#")) continue;
+    if (line.search(/\S/) <= indent) break;
+    block.push(line);
+  }
+  return block;
+}
+
+function readMatrixValues(matrixLines, includeLines, key) {
+  const axis = new RegExp(`^ {8}${key}: *(.*)$`);
+  const property = new RegExp(`^(?: {10}- | {12})${key}: *(.*)$`);
+  return [
+    ...matrixLines.flatMap(line => axis.exec(line)?.slice(1) ?? []),
+    ...includeLines.flatMap(line => property.exec(line)?.slice(1) ?? []),
+  ];
+}
+
+function readMatrixLeg(raw, where) {
+  const value = raw.trim();
+  const match = /^(?:([a-z0-9_]+)|"([a-z0-9_]+)"|'([a-z0-9_]+)')$/.exec(value);
+  if (!match) throw new Error(`${where}: unsupported matrix leg "${value}"`);
+  return match[1] ?? match[2] ?? match[3];
+}
+
 export function readWorkflow(name, text) {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const start = lines.indexOf("jobs:");
@@ -45,15 +77,29 @@ export function readWorkflow(name, text) {
     const body = job.lines.join("\n");
     const runsOn = /^ {4}runs-on: (.+)$/m.exec(body)?.[1].trim();
     if (!runsOn) throw new Error(`${where}: no runs-on`);
+    const strategyLines = readMappingBlock(job.lines, "strategy", 4, where);
+    const matrixLines = readMappingBlock(strategyLines, "matrix", 6, where);
+    if (matrixLines.some(line => /^ {8}exclude:/.test(line))) {
+      throw new Error(`${where}: unsupported matrix.exclude`);
+    }
+    const includeLines = readMappingBlock(matrixLines, "include", 8, where);
+    for (const line of includeLines) {
+      if (!/^(?: {10}- | {12})[a-z][a-z0-9_-]*:/.test(line)) {
+        throw new Error(`${where}: unsupported matrix.include line "${line.trim()}"`);
+      }
+    }
     const matrixKey = /^\$\{\{ matrix\.([a-z]+) \}\}$/.exec(runsOn)?.[1];
-    const runners = matrixKey ? [...body.matchAll(new RegExp(`^\\s+(?:- )?${matrixKey}: (.+)$`, "gm"))].flatMap(match => listValues(match[1])) : listValues(runsOn);
+    const runners = matrixKey
+      ? readMatrixValues(matrixLines, includeLines, matrixKey).flatMap(listValues)
+      : listValues(runsOn);
     if (runners.length === 0) throw new Error(`${where}: no runners for matrix.${matrixKey}`);
+    const matrixLegs = readMatrixValues(matrixLines, includeLines, "leg").map(value => readMatrixLeg(value, where));
     const needs = /^ {4}needs: \[(.+)\]$/m.exec(body)?.[1].split(",").map(item => item.trim()) ?? [];
     return {
       key: where,
       text: body,
       systems: [...new Set(runners.map(runner => systemOf(runner, where)))],
-      matrixLegs: [...body.matchAll(/^\s+leg: ([a-z0-9_]+)\s*$/gm)].map(match => match[1]),
+      matrixLegs,
       summaryLegs: [...body.matchAll(/^ {6}summary_([a-z0-9_]+):/gm)].map(match => match[1]),
       needs: needs.map(id => `${name}/${id}`),
       recordLegs: body.includes(RECORD_ACTION) ? listValues(`[${/^ {10}legs: (.+)$/m.exec(body)?.[1] ?? ""}]`) : null,

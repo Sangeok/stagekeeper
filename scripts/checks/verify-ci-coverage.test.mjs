@@ -77,6 +77,102 @@ it("reads each job's systems, legs, summary outputs and record legs from the wor
   assert.deepEqual(windowsUnit[0].systems, ["Windows"]);
 });
 
+it("does not count runner or leg values outside strategy.matrix", () => {
+  const jobs = readWorkflow("smoke", `${head}  gate:
+    runs-on: \${{ matrix.os }}
+    env:
+      matrix: |
+        os: macos-15
+        leg: env_leg
+    strategy:
+      matrix:
+        include:
+          - os: windows-2022
+            leg: windows
+    steps:
+      - run: node scripts/rehearsals/rehearse-sample.ts
+        env:
+          os: macos-15
+          leg: step_leg
+      - uses: sample/action@v1
+        with:
+          os: macos-15
+          leg: input_leg
+`);
+
+  assert.deepEqual(jobs[0].systems, ["Windows"]);
+  assert.deepEqual(jobs[0].matrixLegs, ["windows"]);
+  const problems = inspectCoverage({ workflows: jobs, table: table(rows.smoke), packageJson });
+  assert.match(problems.join("\n"), /job smoke\/gate does not run on macOS/);
+});
+
+it("requires summary outputs for quoted matrix legs, including the first property of an entry", () => {
+  const entries = [
+    '- os: macos-15\n            leg: "macos"',
+    "- os: macos-15\n            leg: 'macos'",
+    '- leg: "macos"\n            os: macos-15',
+    "- leg: 'macos'\n            os: macos-15",
+  ];
+  for (const entry of entries) {
+    const source = `${head}  gate:
+    runs-on: \${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-2022
+            leg: windows
+          ${entry}
+    outputs:
+      summary_windows: x
+    steps:
+      - run: node scripts/rehearsals/rehearse-sample.ts
+  record:
+    needs: [gate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/gate-record
+        with:
+          legs: windows
+`;
+    const check = text => inspectCoverage({ workflows: readWorkflow("smoke", text), table: table(rows.smoke, rows.record), packageJson });
+
+    assert.deepEqual(check(source), ["job smoke/gate: matrix leg macos has no summary_macos output"]);
+    const completeSource = source
+      .replace("      summary_windows: x", "      summary_windows: x\n      summary_macos: x")
+      .replace("          legs: windows", "          legs: windows,macos");
+    assert.deepEqual(check(completeSource), []);
+  }
+});
+
+it("rejects unsupported matrix leg values instead of silently dropping them", () => {
+  for (const leg of ["", "|", "[macos]", "\"macos'", "${{ inputs.leg }}"]) {
+    const source = `${head}  gate:
+    runs-on: \${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-15
+            leg: ${leg}
+`;
+
+    assert.throws(() => readWorkflow("smoke", source), /smoke\/gate: unsupported matrix leg/);
+  }
+});
+
+it("rejects matrix exclusions and inline mappings it cannot interpret", () => {
+  const matrices = [
+    "      matrix:\n        os: [windows-2022, macos-15]\n        exclude:\n          - os: macos-15",
+    "      matrix: { os: [windows-2022, macos-15] }",
+    "      matrix:\n        os: [windows-2022]\n        include: [{ os: macos-15, leg: macos }]",
+    "      matrix:\n        os: [windows-2022]\n        include:\n          - { os: macos-15, leg: macos }",
+  ];
+  for (const matrix of matrices) {
+    const source = `${head}  gate:\n    runs-on: \${{ matrix.os }}\n    strategy:\n${matrix}\n    steps: []\n`;
+
+    assert.throws(() => readWorkflow("smoke", source), /smoke\/gate: unsupported/);
+  }
+});
+
 it("refuses a workflow shape it cannot read instead of passing it", () => {
   assert.throws(() => readWorkflow("empty", "name: empty\n"), /no jobs section/);
   assert.throws(() => readWorkflow("none", head), /no jobs/);
