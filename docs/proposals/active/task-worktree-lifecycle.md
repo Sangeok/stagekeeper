@@ -18,7 +18,7 @@ related:
   - "docs/architecture/test-writing.md"
   - "docs/architecture/test-organization.md"
   - "docs/proposals/completed/2026-11-12-local-branch-cleanup.md"
-  - "docs/proposals/active/ci-os-coverage.md"
+  - "docs/proposals/completed/2026-11-17-ci-os-coverage.md"
 ---
 
 # 작업 worktree의 생성·종료·복구 관리
@@ -558,7 +558,7 @@ CI 변경 형태는 메모리상의 제안 job과 기존 표를 `readWorkflow`·
 
 ### 2026-11-12 재검토: Windows 경로 정규화
 
-동일 문서의 검증·개선 요청을 전체 정합성 검토로 다시 수행했다. 이번에는 이전 결과 뒤 병합된 `68f3d49`에서 한 가지 추가 보완 사항을 확인했다. `docs/proposals/active/ci-os-coverage.md`의 새 Windows 실행 기록과 `plugin/runtime/codex-resident-session.test.mjs`, `plugin/runtime/resident-commit.test.mjs`는 일반 `realpathSync`가 8.3 짧은 이름을 남겨 Git의 긴 경로와 달라지는 실패 및 native API 수정을 기록한다. 이 문서의 기존 임시 경로 준비 지시에도 같은 조건이 빠져 있었다.
+동일 문서의 검증·개선 요청을 전체 정합성 검토로 다시 수행했다. 이번에는 이전 결과 뒤 병합된 `68f3d49`에서 한 가지 추가 보완 사항을 확인했다. `docs/proposals/completed/2026-11-17-ci-os-coverage.md`의 새 Windows 실행 기록과 `plugin/runtime/codex-resident-session.test.mjs`, `plugin/runtime/resident-commit.test.mjs`는 일반 `realpathSync`가 8.3 짧은 이름을 남겨 Git의 긴 경로와 달라지는 실패 및 native API 수정을 기록한다. 이 문서의 기존 임시 경로 준비 지시에도 같은 조건이 빠져 있었다.
 
 canonical 경로 정의, TASK-WTL-01/04, 테스트 배치 문서의 변경 범위, 두 테스트 fixture 준비, VFY-WTL-05/06에 native 정규화를 반영했다. 새로운 기능이나 삭제 권한을 추가한 변경은 아니다. #326 병합과 #328 미병합 정보는 시점 정보 갱신으로 구분했다.
 

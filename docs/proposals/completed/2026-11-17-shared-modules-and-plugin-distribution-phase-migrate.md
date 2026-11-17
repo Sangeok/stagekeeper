@@ -1142,3 +1142,23 @@ ADR-0008 활성화, REQ-SMB-007은 이동 대응표와 양 OS 실제 시험 발�
 INV-SMB-001/CON-SMB-001~003을 변경하는 제품 의미·DB schema·runtime dependency 추가는 없다.
 상위 제안은 ACCEPT 때문에 active/pending으로 남기고, 이 MIGRATE 상세 문서만 completed로 옮겼다.
 PR 병합과 main 승격은 수행하지 않았다.
+
+
+### 병행 작업 병합 이후 통합
+
+문서 완료 commit `32f97006e1242185dce2c7e91e7c21ed78db317d`도 check 916, macOS runtime 238,
+Windows runtime 416, 자동 client-init-smoke 85에서 모두 green을 확인했다.
+이후 dev에 #351과 #355가 병합되어 `0f6028fbe7cd5ee182ae20e55ae9a459bebb9120`이 됐다.
+해당 dev를 작업 브랜치에 통합하면서 두 runtime workflow의 smoke-server 검사와 MIGRATE 검사를
+모두 보존하고, AGENTS/gate 시험의 새 소유 경로와 smoke-server 경로를 합쳤다.
+공통 출하 predicate는 한 번만 import하고 패키징 사전 검증을 유지했다.
+#351의 Action resolver·서버 생명주기·같은 버전 esbuild/pg 개발 의존성과 #355의 완료 문서는
+기준 dev의 승인된 변경으로 보존했다. MIGRATE가 이 별도 정책을 다시 설계한 것은 아니다.
+통합 결과의 최종 SHA와 재검증 상태는 [PR #354](https://github.com/Sangeok/stagekeeper/pull/354)의
+최신 head/check가 식별하며, 앞의 고정 revision 실행 결과를 새 revision의 실행으로 재표기하지 않는다.
+
+통합 작업 트리에서 웹 839 pass, 서버 190 pass/2 manifest flag skip, fresh manifest 명령 31 pass,
+충돌 관련 리허설·패키저·CI/gate 계약 71 pass, production build와 두 기본 HTTP 리허설을 확인했다.
+빌드와 동시에 실행한 첫 check는 기존 `codex-init-eval`의 150ms 자식 시작 제한 사례 하나에서
+출력이 아직 없는 timeout을 관찰했다. 제품·시험 코드를 바꾸거나 skip하지 않았으며 단독 재실행은
+4/4 pass였다. 전체 check는 다른 로컬 검증 작업 없이 재실행하고 최종 PR CI와 함께 판정한다.

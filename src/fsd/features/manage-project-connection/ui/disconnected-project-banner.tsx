@@ -1,4 +1,5 @@
-import { disconnectRepository, loadProjectConnection, reconnectRepository } from "../api/manage-project-connection.server";
+import { loadProjectConnection } from "../api/manage-project-connection.server";
+import { disconnectRepository, reconnectRepository } from "../api/project-connection-actions.server";
 import { connectionControlKey } from "../model/project-connection-state";
 import { ProjectConnectionControl } from "./project-connection-control";
 

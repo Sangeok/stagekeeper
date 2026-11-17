@@ -1,4 +1,3 @@
-import type { ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
@@ -10,7 +9,8 @@ import { validateTestDatabase } from "../lib/test-database.mjs";
 import { containsSecret, helperCommand } from "./client-init-smoke-steps.mjs";
 import { measureEnvironment, pluginVersionAt } from "./gate-environment.mjs";
 import { PIPELINE_ROLES, PIPELINE_STEPS, SMOKE_SCENARIOS, planVerificationBounded, runFindings, sealTranscripts, summarizePipeline, transcriptKey, waitVerdict } from "./pipeline-smoke-steps.mjs";
-import { bootstrapSmokeTemplates, createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, ORIGIN, osLabel, Run, seedTemplates, Smoke, startServer, stopServer, type Plugin } from "./rehearse-client-init-smoke";
+import { startSmokeServer } from "./smoke-server.mjs";
+import { bootstrapSmokeTemplates, createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, osLabel, Run, seedTemplates, Smoke, type Plugin } from "./rehearse-client-init-smoke";
 
 const DEFAULT_WAIT_MINUTES = 75;
 const DEADLINE_MS = 100 * 60_000;
@@ -240,13 +240,14 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   const started = Date.now();
   const deadline = started + DEADLINE_MS;
   const work = realpathSync.native(mkdtempSync(path.join(env.RUNNER_TEMP ?? tmpdir(), "stagekeeper-pipeline-")));
-  const run = new Run(path.join(work, "commands.log"));
+  const startup = new AbortController();
+  const run = new Run(path.join(work, "commands.log"), startup.signal);
   const token = newToken("user");
   const login = `stagekeeper-e2e-${randomBytes(4).toString("hex")}`;
   const scenario = SMOKE_SCENARIOS[options.scenario];
   const record: Record<string, unknown> = { client: "claude", os: osLabel(), scenario: options.scenario, steps: run.steps };
   const childEnv: NodeJS.ProcessEnv = { ...env, DATABASE_URL: databaseUrl, TEST_DATABASE_URL: databaseUrl };
-  const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain, HARNESS_SERVER: ORIGIN };
+  const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain };
   delete helperEnv.HARNESS_TEMPLATES_DIR;
   delete helperEnv.HARNESS_PLAN;
   delete helperEnv.DATABASE_URL;
@@ -257,7 +258,9 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
   const leaks = (text: string): boolean => containsSecret(text, token.plain) || secretValues.some(value => text.includes(value));
   const { withPrisma } = await import("../lib/prisma");
   const { createBoardService, loadPipelinesView, nextFor, savePipelineDefinition } = await import("../../src/server/pipeline/api");
-  let server: ChildProcess | undefined;
+  let server: Awaited<ReturnType<typeof startSmokeServer>> | undefined;
+  let serverCleanupFailed = false;
+  const interrupt = () => startup.abort(new Error("Smoke interrupted"));
   let userId: string | undefined;
   let repo: string | undefined;
   let plugin: Plugin | undefined;
@@ -271,11 +274,14 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     const outcome = background(["--status"], helperEnv);
     return outcome.code === 0 ? (lastJson(outcome.stdout) as RunnerStatus | null) : null;
   });
+  process.on("SIGINT", interrupt); process.on("SIGTERM", interrupt);
   try {
     record.templatesCommit = await run.step("seed-templates", () => seedTemplates(run, options.templates, path.join(work, "template-snapshot.json"), childEnv));
     await bootstrapSmokeTemplates({ databaseUrl, run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-pipeline-smoke" });
     userId = await run.step("fixture", () => createFixtureUser(login, token.hash, databaseUrl));
-    server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
+    server = await run.step("server-start", () => startSmokeServer({ databaseUrl, log: path.join(work, "server.log"), env: childEnv, signal: startup.signal }));
+    helperEnv.HARNESS_SERVER = server.origin;
+    runnerEnv.HARNESS_SERVER = server.origin;
     const fixtureRepo = await run.step("repository", () => {
       const created = createRepository(work, "pipeline");
       for (const [name, text] of Object.entries(scenario.files)) {
@@ -289,7 +295,7 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
     });
     repo = fixtureRepo;
     const fixtureUser = userId;
-    const smoke = new Smoke(run, fixtureRepo, helperEnv, fixtureUser, databaseUrl);
+    const smoke = new Smoke(run, fixtureRepo, helperEnv, fixtureUser, databaseUrl, server.origin);
     const installed = await run.step("plugin-install", () => installPlugin(run, { pluginSource: "github-branch", pluginBranch: options.pluginBranch, pluginCommit: options.pluginCommit }, work, helperEnv));
     plugin = installed;
     record.pluginCommit = installed.commit;
@@ -390,9 +396,10 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
       if ([...run.outputs, ...Object.values(collected.files)].some(leaks)) throw new Error("a command output or transcript contains a token or the transcript key");
     });
   } catch (error) {
+    serverCleanupFailed = error instanceof Error && "cleanupFailed" in error && error.cleanupFailed === true;
     const message = error instanceof Error ? error.message : String(error);
     console.error(`step ${run.failure ?? "unknown"} failed: ${leaks(message) ? "details withheld because they contain a secret" : message.slice(0, 500)}`);
-    console.error(`server: ${!server ? "not started" : server.exitCode === null ? "running" : `exited ${server.exitCode}`}`);
+    console.error(`server: ${!server ? "not started" : server.child.exitCode === null ? "running" : `exited ${server.child.exitCode}`}`);
     run.failure ??= "unexpected";
   } finally {
     if (plugin && repo && !runnerStopped) {
@@ -405,12 +412,19 @@ async function runPipelineSmoke(options: Options, databaseUrl: string, env: Node
         }
       });
     }
-    await cleanup("server", () => stopServer(server));
+    try { await server?.stop(); }
+    catch { serverCleanupFailed = true; }
+    if (serverCleanupFailed) {
+      run.steps.push({ step: "server-cleanup", result: "fail" });
+      run.failure ??= "server-cleanup";
+      console.error("server-cleanup failed; fixture preserved");
+    }
+    process.off("SIGINT", interrupt); process.off("SIGTERM", interrupt);
     if (verifiedItem && record.planVerifierPasses === undefined) {
       const target = verifiedItem;
       await cleanup("plan-verifier count", async () => { record.planVerifierPasses = await withPrisma(prisma => prisma.agentRun.count({ where: { projectId: target.projectId, agent: "plan-verifier", key: target.key } }), databaseUrl); });
     }
-    if (userId) await cleanup("fixture user", () => deleteFixtureUser(userId!, databaseUrl));
+    if (userId && !serverCleanupFailed) await cleanup("fixture user", () => deleteFixtureUser(userId!, databaseUrl));
     const latest = statuses.last();
     record.runnerState = latest?.state ?? undefined;
     record.waitReason = latest?.waitReason ?? undefined;

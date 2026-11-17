@@ -4,12 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedMacosRuntime, macosDigest } from "../../plugin/runtime/macos-runtime.mjs";
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
-
 import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
+
 import { validatePluginModulesForPackaging } from "../plugin-lib.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
-
 
 function inventory(directory) {
   const rows = [];

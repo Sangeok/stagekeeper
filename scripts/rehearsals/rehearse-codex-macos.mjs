@@ -1,3 +1,4 @@
+import { startSmokeServer } from "./smoke-server.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -96,13 +97,13 @@ async function main(args) {
   const { newToken } = await import("../../src/server/tokens/api.ts");
   const { createBoardService, loadPipelinesView, savePipelineDefinition, nextFor, headFor, preparePipelineRun, startProjectWork, stopProjectWork, setAutomaticScout } = await import("../../src/server/pipeline/api.ts");
   const { changeUserPlan } = await import("../../src/server/projects/api.ts");
-  const { Run, seedTemplates, bootstrapSmokeTemplates, createFixtureUser, deleteFixtureUser, startServer, stopServer, ORIGIN } = await import("./rehearse-client-init-smoke.ts");
+  const { Run, seedTemplates, bootstrapSmokeTemplates, createFixtureUser, deleteFixtureUser } = await import("./rehearse-client-init-smoke.ts");
   const { installedMacosRuntime } = await import(pathToFileURL(path.join(options.packageRoot, "runtime/macos-runtime.mjs")).href);
   const { codexExecutable } = await import(pathToFileURL(path.join(options.packageRoot, "runtime/codex-executable.mjs")).href);
   const runtime = installedMacosRuntime(path.join(options.packageRoot, "runtime/macos/node")), cli = codexExecutable();
   const token = newToken("user"), login = `macos-${randomUUID().slice(0, 8)}`;
   const environment = { ...process.env, DATABASE_URL: databaseUrl, TEST_DATABASE_URL: databaseUrl };
-  const helperEnv = { ...environment, PATH: `${path.dirname(cli.executable)}:/usr/bin:/bin`, HARNESS_TOKEN: token.plain, HARNESS_SERVER: ORIGIN, CODEX_HOME: path.join(work, "codex-config") };
+  const helperEnv = { ...environment, PATH: `${path.dirname(cli.executable)}:/usr/bin:/bin`, HARNESS_TOKEN: token.plain, CODEX_HOME: path.join(work, "codex-config") };
   delete helperEnv.HARNESS_OWNER_TOKEN; delete helperEnv.OPENAI_API_KEY; delete helperEnv.NODE_OPTIONS;
   if (!spawnSync("node", ["--version"], { env: helperEnv, encoding: "utf8" }).error) throw new Error("The installation acceptance PATH unexpectedly contains global Node");
   const run = new Run(path.join(work, "private-commands.log"));
@@ -119,7 +120,9 @@ async function main(args) {
   };
   const git = args => execFileSync("git", ["-C", repo, "-c", "user.name=Stagekeeper Test", "-c", "user.email=stagekeeper@test.invalid", ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
   let interrupted = false;
-  const interrupt = () => { interrupted = true; };
+  const startup = new AbortController();
+  let serverCleanupFailed = false;
+  const interrupt = () => { interrupted = true; startup.abort(new Error("Smoke interrupted")); };
   process.on("SIGINT", interrupt); process.on("SIGTERM", interrupt);
   let server, browser, qaServer, userId, projectId, pipelineId, itemKey, runnerSession, stopped = true;
   try {
@@ -129,7 +132,9 @@ async function main(args) {
     await bootstrapSmokeTemplates({ databaseUrl, run, work, codeSha, requestId: login, workflowRun: "macos-native-acceptance" });
     userId = await createFixtureUser(login, token.hash, databaseUrl);
     await withPrisma(db => changeUserPlan(db, { userId, plan: "max", note: "Isolated macOS Codex acceptance" }));
-    server = await startServer(databaseUrl, path.join(work, "private-server.log"), environment);
+    progress("server-start");
+    server = await startSmokeServer({ databaseUrl, log: path.join(work, "private-server.log"), env: environment, signal: startup.signal });
+    helperEnv.HARNESS_SERVER = server.origin;
     git(["init", "-q", "-b", "harness/macos-a-z"]); git(["config", "core.autocrlf", "false"]);
     git(["remote", "add", "origin", `https://github.com/stagekeeper-e2e/${login}.git`]);
     git(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
@@ -295,6 +300,7 @@ async function main(args) {
     summary.idleNewAgentRuns = 0; summary.idleNewModelStarts = 0;
     summary.result = "pass";
   } catch (error) {
+    serverCleanupFailed = error.cleanupFailed === true;
     summary.result = "fail"; summary.error = String(error.message).replaceAll(token.plain, "[redacted]").slice(0, 1000);
     throw error;
   } finally {
@@ -322,7 +328,16 @@ async function main(args) {
         writeFileSync(path.join(work, "private-final-ledger.json"), JSON.stringify(evidence, null, 2) + "\n", { flag: "wx", mode: 0o600 });
       } catch { summary.ledgerCaptureFailed = true; }
     }
-    if (stopped) { await stopServer(server); if (userId) await deleteFixtureUser(userId, databaseUrl); }
+    if (stopped) {
+      try { await server?.stop(); }
+      catch { serverCleanupFailed = true; }
+      if (serverCleanupFailed) {
+        summary.result = "fail";
+        summary.error ??= "server-cleanup";
+        summary.cleanupError = "server-cleanup";
+        process.exitCode = 1;
+      } else if (userId) await deleteFixtureUser(userId, databaseUrl);
+    }
     if (!stopped) { summary.result = "fail"; process.exitCode = 1; }
     summary.runnerStopped = stopped; summary.finishedAt = new Date().toISOString(); save();
     process.off("SIGINT", interrupt); process.off("SIGTERM", interrupt);

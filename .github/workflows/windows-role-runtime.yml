@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [dev]
     paths:
+      - scripts/rehearsals/smoke-server*
+      - scripts/rehearsals/rehearse-client-init-smoke*
+      - scripts/rehearsals/rehearse-pipeline-smoke*
+      - scripts/rehearsals/rehearse-codex-macos*
       - .github/workflows/windows-role-runtime.yml
       - scripts/windows/build-windows-role-node.ps1
       - scripts/windows/windows-role-runtime-cache.mjs
@@ -163,6 +167,11 @@ jobs:
         run: |
           node --test scripts/plugin-lib.test.mjs scripts/lib/shared-module-graph.test.mjs scripts/checks/verify-shared-boundaries.test.mjs scripts/macos/package-plugin.test.mjs scripts/windows/package-windows-plugin.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Shared distribution contracts failed' }
+      - name: Validate owned smoke server lifecycle
+        shell: pwsh
+        run: |
+          node --test scripts/rehearsals/smoke-server.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Smoke server lifecycle tests failed' }
       - name: Validate the whole product test suite on Windows
         shell: pwsh
         env:

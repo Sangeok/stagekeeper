@@ -1,3 +1,4 @@
+import { readActionRegistry, resolveActionId } from "../../tests/server/fixtures/action-manifest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -80,9 +81,8 @@ async function main(): Promise<void> {
     const state = async () => ({ row: await current(), failures: await db.acceptanceFailure.findMany({ where: { boardItemId: f.boardItemId }, orderBy: { at: "asc" } }), events: await db.transitionEvent.findMany({ where: { boardItemId: f.boardItemId }, orderBy: { at: "asc" } }) });
     const session = async (userId: string) => `${cookieName}=${await encode({ token: { uid: userId, name: "fixture" }, secret, salt: cookieName, maxAge: 3600 })}`;
     const ownerCookie = await session(f.userId), foreignCookie = await session(foreign.userId);
-    const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as { node: Record<string, { filename?: string; exportedName?: string }> };
-    const action = Object.entries(manifest.node).find(([, e]) => e.filename === "src/fsd/features/review-gate/api/review-gate.server.ts" && e.exportedName === "retryAcceptance")?.[0];
-    assert.ok(action, "Fresh acceptance-failure build required");
+    const entries = readActionRegistry(".next/server/server-reference-manifest.json");
+    const action = resolveActionId(entries, { sourcePath: "src/fsd/features/review-gate/api/review-gate.server.ts", exportName: "retryAcceptance", runtime: "node" });
     next = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "55464"], { env: { ...process.env, DATABASE_URL: database, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true" }, stdio: "ignore", windowsHide: true });
     let ready = false;
     for (let attempt = 0; attempt < 100; attempt++) {

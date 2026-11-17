@@ -17,7 +17,7 @@ related:
   - "docs/architecture/verification.md"
   - "docs/architecture/test-writing.md"
   - "docs/architecture/test-organization.md"
-  - "docs/proposals/active/ci-os-coverage.md"
+  - "docs/proposals/completed/2026-11-17-ci-os-coverage.md"
   - "docs/proposals/completed/2026-11-12-gate-run-records.md"
 ---
 

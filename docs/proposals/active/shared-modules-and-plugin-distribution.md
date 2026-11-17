@@ -1829,3 +1829,8 @@ MIGRATE 상세 문서도 양 OS CI를 포함한 완료 조건을 확인하고 co
 Windows runtime 415, PR 자동 client-init-smoke 84가 green이다. 최신 dev `85c66fb`의 기존
 CI 변경은 함께 보존했다. 자동 init은 Claude 2.1.326과 templates `8ccb37a`의 고정 조합 증거이며,
 실제 Codex 설치·권한·모델 역할과 독립 갱신 조합의 전체 인수는 ACCEPT에 남는다.
+
+
+검증 대기 중 병합된 #351/#355의 dev `0f6028f`도 후속 통합했다. 기존 smoke-server 검사와
+공유 배포 검사, 양쪽 gate 감지 경로를 모두 보존했다. 고정 revision별 증거와 최종 PR head를
+구분하여 [MIGRATE 완료 기록](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#병행-작업-병합-이후-통합)에 남겼다.

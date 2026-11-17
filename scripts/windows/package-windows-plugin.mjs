@@ -5,8 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedWindowsRuntime } from "../../plugin/runtime/role-commands.mjs";
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
-
 import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
+
 import { validatePluginModulesForPackaging } from "../plugin-lib.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));

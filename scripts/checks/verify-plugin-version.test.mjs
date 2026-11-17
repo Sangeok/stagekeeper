@@ -9,7 +9,7 @@ import { inspectPluginVersion, pluginManifests, readPluginRelease } from "./veri
 
 const problems = input => inspectPluginVersion(input).problems;
 
-test("shipped files follow the Windows package rules", () => {
+test("shipped files follow the shared payload rules", () => {
   assert.deepEqual(["plugin/bin/harness.mjs", "plugin/.claude-plugin/plugin.json", "plugin/bin/harness.test.mjs", "plugin/templates/en/CLAUDE.runbook.md", "plugin/evals/rerun-asks-first/case.yaml", "scripts/build.mjs"].filter(isShippedPluginFile), ["plugin/bin/harness.mjs", "plugin/.claude-plugin/plugin.json"]);
 });
 

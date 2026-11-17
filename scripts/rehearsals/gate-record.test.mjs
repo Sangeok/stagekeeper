@@ -1,9 +1,82 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import fs, { existsSync, mkdtempSync, readFileSync, readdirSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { it } from "node:test";
 import { findingIssue, gateRow, main, openFinding, recordComment } from "./gate-record.mjs";
+
+function outputFixture(t) {
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-gate-isolation-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const args = out => ["--workflow", "pipeline-smoke", "--result", "success", "--legs", "pipeline", "--event", "workflow_dispatch", "--ref", "refs/heads/dev", "--commit", COMMIT, "--run-id", "42921691891", "--run-attempt", "1", "--repository", REPOSITORY, "--record-issue", "319", "--out", out];
+  const env = { GATE_SUMMARIES: JSON.stringify({ summary_pipeline: JSON.stringify(pipelineSummary) }) };
+  return { root, args, env };
+}
+
+it("refuses reused output without changing an old finding, issue number or commit", t => {
+  const { root, args, env } = outputFixture(t), out = join(root, "result"), open = join(root, "open.ndjson");
+  writeFileSync(open, JSON.stringify({ number: 403, title: "[gate] pipeline-smoke 1eddbc2", login: "github-actions[bot]" }));
+  assert.equal(main([...args(out), "--open-issues", open], env), 0);
+  const snapshot = () => readdirSync(out).map(name => [name, readFileSync(join(out, name), "utf8")]);
+  const before = snapshot();
+  const clean = { GATE_SUMMARIES: JSON.stringify({ summary_pipeline: JSON.stringify({ ...pipelineSummary, harnessErrors: {} }) }) };
+  assert.equal(main(args(out), clean), 1);
+  assert.equal(main(args(out).map(value => value === COMMIT ? "a".repeat(40) : value), env), 1);
+  assert.deepEqual(snapshot(), before);
+  assert.equal(main(args(join(root, "fresh")), clean), 0);
+  assert.deepEqual(readdirSync(join(root, "fresh")), ["comment.md"]);
+});
+
+it("refuses existing files and directory aliases and requires a prepared parent", t => {
+  const { root, args, env } = outputFixture(t);
+  const file = join(root, "file"), alias = join(root, "alias");
+  writeFileSync(file, "keep");
+  symlinkSync(root, alias, process.platform === "win32" ? "junction" : "dir");
+  assert.equal(main(args(file), env), 1);
+  assert.equal(main(args(alias), env), 1);
+  assert.equal(main(args(join(root, "missing", "result")), env), 1);
+  assert.equal(readFileSync(file, "utf8"), "keep");
+  assert.equal(existsSync(join(root, "comment.md")), false);
+});
+
+it("gives concurrent CLI writers one exclusive directory and one complete record", async t => {
+  const { root, args, env } = outputFixture(t), out = join(root, "result");
+  const invoke = commit => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [fileURLToPath(new URL("./gate-record.mjs", import.meta.url)), ...args(out).map(value => value === COMMIT ? commit : value)], { env: { ...process.env, ...env }, stdio: "ignore" });
+    child.once("error", reject);
+    child.once("close", code => resolve({ code, commit }));
+  });
+  const results = await Promise.all([invoke(COMMIT), invoke("b".repeat(40))]);
+  assert.deepEqual(results.map(result => result.code).sort(), [0, 1]);
+  const winner = results.find(result => result.code === 0).commit;
+  const comment = readFileSync(join(out, "comment.md"), "utf8");
+  assert.ok(comment.includes(winner));
+  assert.ok(readFileSync(join(out, "finding-body.md"), "utf8").includes(winner));
+  assert.equal(readFileSync(join(out, "finding-title.txt"), "utf8"), `[gate] pipeline-smoke ${winner.slice(0, 7)}`);
+});
+
+it("returns failure on partial IO and refuses to overwrite its diagnostic directory", t => {
+  const { root, args, env } = outputFixture(t), out = join(root, "partial");
+  const write = fs.writeFileSync;
+  const mocked = t.mock.method(fs, "writeFileSync", (file, ...rest) => {
+    if (String(file).endsWith("finding-body.md")) throw new Error("injected disk failure");
+    return write(file, ...rest);
+  });
+  syncBuiltinESMExports();
+  try {
+    assert.equal(main(args(out), env), 1);
+  } finally {
+    mocked.mock.restore();
+    syncBuiltinESMExports();
+  }
+  assert.deepEqual(readdirSync(out), ["finding-title.txt"]);
+  assert.equal(main(args(out), env), 1);
+  assert.equal(existsSync(join(out, "comment.md")), false);
+});
+
 
 const COMMIT = "1eddbc2ae66ad33b567e20e1b67f4abe582924d0";
 const REPOSITORY = "Sangeok/stagekeeper";
@@ -151,7 +224,7 @@ it("opens a finding only when there is one and reuses only the open issue that t
 });
 
 it("writes the comment and the finding files, and nothing for a run that must not be recorded", t => {
-  const root = mkdtempSync(join(tmpdir(), "stagekeeper-gate-record-"));
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-gate-record-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const open = join(root, "open.ndjson");
   writeFileSync(open, `${JSON.stringify({ number: 403, title: "[gate] pipeline-smoke 1eddbc2", login: "github-actions[bot]", pull: false })}\n`);
@@ -173,4 +246,36 @@ it("writes the comment and the finding files, and nothing for a run that must no
   assert.equal(existsSync(join(root, "pull")), false);
   assert.equal(main(args(join(root, "short")).slice(2), env), 1);
   assert.equal(existsSync(join(root, "short")), false);
+});
+
+it("stops the composite shell before publishing a result path or calling gh after generation fails", t => {
+  const { root, env } = outputFixture(t);
+  const action = readFileSync(new URL("../../.github/actions/gate-record/action.yml", import.meta.url), "utf8");
+  assert.match(action, /id: workspace/);
+  assert.match(action, /id: files/);
+  assert.match(action, /GATE_WORK_DIR: \$\{\{ steps\.workspace\.outputs\.parent \}\}/);
+  assert.equal((action.match(/RECORD_DIRECTORY: \$\{\{ steps\.files\.outputs\.directory \}\}/g) ?? []).length, 2);
+  assert.doesNotMatch(action, /always\(\)|continue-on-error|RUNNER_TEMP\/gate-record\//);
+  const step = (name) => {
+    const block = action.split("    - name: " + name + "\n")[1]?.split("    - name: ")[0];
+    assert.ok(block);
+    return block.split("      run: |\n")[1].split("\n").map(line => line.replace(/^        /, "")).join("\n");
+  };
+  const marker = join(root, "gh-called"), shim = join(root, "gh");
+  writeFileSync(shim, '#!/bin/sh\nprintf called >> "$GH_MARKER"\n', { mode: 0o700 });
+  const output = join(root, "outputs");
+  writeFileSync(output, "");
+  writeFileSync(join(root, "open-issues.ndjson"), "");
+  mkdirSync(join(root, "result"));
+  const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", [
+    step("Build the row"), step("Add the row to the record"), step("Open or update the finding issue"),
+  ].join("\n")], { encoding: "utf8", env: { ...process.env, ...env, PATH: root + ":" + process.env.PATH,
+    GH_MARKER: marker, GITHUB_OUTPUT: output, GATE_WORK_DIR: root, RECORD_DIRECTORY: join(root, "result"),
+    GATE_WORKFLOW: "pipeline-smoke", GATE_RESULT: "success", GATE_LEGS: "pipeline", RECORD_ISSUE: "319",
+    GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF: "refs/heads/dev", GITHUB_SHA: COMMIT,
+    GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_REPOSITORY: REPOSITORY,
+  } });
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(readFileSync(output, "utf8"), "");
+  assert.equal(existsSync(marker), false);
 });
