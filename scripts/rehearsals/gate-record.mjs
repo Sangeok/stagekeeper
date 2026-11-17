@@ -12,8 +12,8 @@ const GATES = {
 };
 const EVENTS = ["workflow_dispatch", "schedule"];
 const REFS = { "refs/heads/dev": "dev", "refs/heads/main": "main" };
-const CONCLUSIONS = ["success", "failure", "cancelled", "skipped"];
-const NO_FINDINGS = ["cancelled", "skipped"];
+const CONCLUSIONS = ["success", "failure", "cancelled", "skipped", "abandoned"];
+const NO_FINDINGS = ["cancelled", "skipped", "abandoned"];
 const BOT = "github-actions[bot]";
 const COMMIT = /^[0-9a-f]{40}$/;
 const LEG = /^[a-z][a-z0-9_]{0,39}$/;

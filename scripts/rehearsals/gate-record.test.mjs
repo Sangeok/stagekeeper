@@ -30,6 +30,15 @@ it("refuses reused output without changing an old finding, issue number or commi
   assert.deepEqual(readdirSync(join(root, "fresh")), ["comment.md"]);
 });
 
+it("records a gate job that never got a runner as a row without a finding issue", t => {
+  const { root, args } = outputFixture(t), out = join(root, "result");
+  assert.equal(main(args(out).map(value => value === "success" ? "abandoned" : value), { GATE_SUMMARIES: "{}" }), 0);
+  assert.deepEqual(readdirSync(out), ["comment.md"]);
+  const comment = readFileSync(join(out, "comment.md"), "utf8");
+  assert.match(comment.split("\n")[0], /^pipeline-smoke · dev [0-9a-f]{7} · abandoned · run /);
+  assert.match(comment, /"conclusion":"abandoned","findings":\[\]/);
+});
+
 it("refuses existing files and directory aliases and requires a prepared parent", t => {
   const { root, args, env } = outputFixture(t);
   const file = join(root, "file"), alias = join(root, "alias");
@@ -137,7 +146,7 @@ it("does not turn explicit pipeline failure without a named failure step into pa
   assert.deepEqual(row.findings, ["gate-failed"]);
 });
 
-it("reports a failed gate, a failed leg and server refusals, and nothing for a cancelled run", () => {
+it("reports a failed gate, a failed leg and server refusals, and nothing for a cancelled or abandoned run", () => {
   const failedJob = gateRow(run({ result: "failure", summaries: {} }));
   assert.deepEqual(failedJob.findings, ["gate-failed", "missing-summary"]);
 
@@ -145,10 +154,13 @@ it("reports a failed gate, a failed leg and server refusals, and nothing for a c
   assert.deepEqual(failedLeg.findings, ["gate-failed", "step-refusals"]);
   assert.equal(failedLeg.legs[0].result, "fail");
 
-  const cancelled = gateRow(run({ result: "cancelled", summaries: {} }));
-  assert.equal(cancelled.conclusion, "cancelled");
-  assert.deepEqual(cancelled.findings, []);
-  assert.deepEqual(cancelled.legs, [{ leg: "pipeline", result: "missing" }]);
+  for (const result of ["cancelled", "abandoned"]) {
+    const notRun = gateRow(run({ result, summaries: {} }));
+    assert.equal(notRun.conclusion, result);
+    assert.deepEqual(notRun.findings, []);
+    assert.deepEqual(notRun.legs, [{ leg: "pipeline", result: "missing" }]);
+    assert.equal(findingIssue(notRun, REPOSITORY, "319"), null);
+  }
 
   const evalRow = gateRow(run({ workflow: "agent-eval", legs: ["init_skill"], result: "failure", summaries: { summary_init_skill: JSON.stringify({ ...environment, os: "darwin-arm64", osVersion: "15.7.1", cases: [{ name: "rerun-asks-first", score: 0.67, runs: 3, failedRuns: 1 }], result: "fail" }) } }));
   assert.equal(evalRow.level, "eval");
