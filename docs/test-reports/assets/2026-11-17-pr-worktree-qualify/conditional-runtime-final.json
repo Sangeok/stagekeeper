@@ -1,0 +1,39 @@
+{
+  "sourceRevision": "ae0a6af4ee80b0b55ec37a86dc64d7569583e16f",
+  "result": "R01 focused runtime test PASS; elevated identity boundary 5/5 runtime tests PASS",
+  "unprivilegedIdentityVerified": true,
+  "evidence": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "release": "25.2.0",
+    "node": "v26.4.0",
+    "observations": [
+      {
+        "name": "R01-runtime-qualified",
+        "status": "busy",
+        "capability": {
+          "status": "qualified",
+          "profile": "darwin-25.2.0-arm64-node26.4.0-lsof4.91-v1",
+          "reason": null,
+          "evidence": "conditional-macos-final.json",
+          "revision": "7a6b8049e796254ccbccd79040c46371d7e88643"
+        },
+        "observationPerformed": true,
+        "at": "2026-11-17T13:19:04.309Z",
+        "platform": "darwin",
+        "architecture": "arm64",
+        "release": "25.2.0",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": true,
+        "profile": "darwin-lsof-4.91-current-uid-v1",
+        "processCount": 527,
+        "missingCount": 0,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "diagnostics": {},
+        "durationMs": 435,
+        "outputBytes": 86395
+      }
+    ]
+  }
+}

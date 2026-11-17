@@ -1,6 +1,6 @@
 ---
 status: "pending"
-stage: "blocked"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-17"
 approved-by: "user"
@@ -40,13 +40,14 @@ Windows 후보 검증에서 접근 거부와 cwd 누락 반례가 확인됐다. 
 직후 자동 삭제하겠다는 원래 목표는 이 개정안으로 충족되지 않는다.
 
 기존 두 관리기의 전면 교체 목표는 유지한다. 현행 writer를 호출하는 영구 wrapper는
-남기지 않는다. 이번 수정 대상은 이 상위 SDD 한 파일이다. 코드·시험·CI·AGENTS와
-기존 사용자 자료는 바꾸지 않으며 REPLACE/ADOPT를 실행하지 않는다.
+남기지 않는다. 최초 재설계는 상위 SDD 한 파일에 한정했다. 이후 승인된 QUALIFY
+코드·시험·CI·증거 보완은 front matter와 child 실행 기록에 따른다. 기존 관리기·
+AGENTS·사용자 자료는 유지하며 REPLACE/ADOPT는 실행하지 않았다.
 
 - 작성 모드: `WHOLE_SDD` 개정.
 - 위험도: `HIGH-RISK`. 원격 병합·로컬 삭제·외부 수동 제거의 인수를 구분한다.
-- 설계 상태: 조건부 자동 정리와 수동 인수 경계를 검토할 수 있는 제안.
-- 구현 준비도: REPLACE는 BLOCKED. 조건부 목표는 채택됐고 QUALIFY를 재정합한다. BLK-PWC-05의 macOS 자격 증거 마감과 REPLACE 상세 계획이 선행한다.
+- 설계 상태: 조건부 방향 채택, QUALIFY 구현 검증 완료. 후속 REPLACE 상세화 대기.
+- 구현 준비도: 조건부 QUALIFY 구현·검증을 통과했다. REPLACE 상세 계획 작성이 가능하며 실행은 그 계획과 별도 범위 확인이 선행한다.
 - 기본 범위: 단일 complete 호출의 병합 확인과 가능한 정리. 상주 감시·Windows 자동 삭제 인증은 포함하지 않는다.
 
 ## Goal
@@ -434,11 +435,10 @@ source revision을 결부한다. 호출자가 임의 축소하거나 켤 수 없
 | 취소·미종료 observer·identity drift | 새 효과 중단 | 0회 | 이미 확정된 효과만 보고, 그 밖은 보존 |
 | 자동 제거 결과 또는 외부 제거 인수가 확정되고 path/admin/등록이 모두 없음 | 새 병합 없음 | 0회 | branch 조건 재검사만 가능 |
 
-현재 Windows의 capability는 unqualified로 제안한다. PEB 권한 실패와 directory
-반례는 해결되지 않았다. macOS는 긍정적 native 증거가 있으나 기존 child의 N01~N19
-지원 사례·visibility·권한·settle·alias 증거를 재대조한 뒤에만 qualified로 등록한다.
-macOS 전체 버전이나 다른 계정을 이번 결과로 인증하지 않는다.
-이 개정 시점에는 어느 운영 profile도 새 도구에서 활성화된 것으로 취급하지 않는다.
+현재 Windows의 capability는 unqualified다. PEB 권한 실패와 directory 반례는
+해결되지 않았다. macOS는 N 항목별 증거 보완 후 Darwin 25.2.0/arm64/Node v26.4.0의
+일반 사용자 profile 하나만 runtime 관측에 등록했다. macOS 전체 버전이나 다른
+권한·Node 조합을 인증하지 않는다. 실제 자동 삭제 controller는 아직 구현·활성화하지 않았다.
 
 자동 정리 순서:
 
@@ -599,7 +599,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 
 ### Phase QUALIFY: 플랫폼과 이식 경계 확정
 
-- status: 기존 계획에 따른 Windows qualification은 FAIL/BLOCKED. 이 개정안 채택 후 재정합 필요.
+- status: 조건부 계약 구현·검증 통과. 원래 Windows 자동 qualification은 FAIL/미지원 유지.
 - outcome: 자동 정리 가능한 profile과 미지원 profile을 구분하고 실제 관측 증거·한계·원본 포팅 대응표를 확보한다.
 - split rationale: 자동 삭제 자격과 불가 시 보존 계약을 먼저 확정해야 controller를 안전하게 구현할 수 있다.
 - predecessor artifacts: 채택된 이 SDD, 기존 QUALIFY 계획·실행 보고서, 고정 OpenClaw source.
@@ -635,7 +635,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 - completion ownership: 위 행동의 구현과 fixture 검증을 소유한다. legacy migration 구현도 준비하지만 실제 전환 완료는 ADOPT가 소유한다.
 - intermediate validity: legacy가 있는 미전환 PC에서 새 status/migration preview는 가능하고 mutation은 activation 전 거부한다. 구 writer를 새 명령에서 호출하지 않는다.
 - exit: 양 OS의 제공 경로 검사, 필요한 check, 구 실행 참조 0건, 원본 고지, 오류·복구·수동 인수 명세, 미활성 real repo를 바꾸지 않는 증거. Windows는 자동 삭제 0회와 명시적 인수 경로가 필수다.
-- blockers: BLK-PWC-05와 재정합된 QUALIFY exit 증거. BLK-PWC-04의 조건부 목표 선택은 해소됐다. BLK-PWC-01은 Windows 자동 삭제 활성화에 남는다.
+- entry evidence: 재정합된 QUALIFY와 등록 profile의 실행 증거. BLK-PWC-04/05는 해당 범위에서 해소됐으며, BLK-PWC-01은 Windows 자동 삭제 활성화에 남는다. REPLACE 상세 계획과 실행 범위는 별도다.
 - detailed plan: QUALIFY 결과를 반영해 작성한다. 아래 Task는 변경 책임의 경계이며 전체 signature 확정본이 아니다.
 
 ### TASK-PWCR-01: identity·상태·명령
@@ -975,17 +975,18 @@ live acceptance               → VFY 12
 
 ### BLK-PWC-05: 자동 정리 출시 profile의 증거 마감
 
-- classification: downstream, earliest 개정 QUALIFY exit 및 자동 정리를 포함한 REPLACE.
-- evidence: macOS native의 긍정적 실행은 있으나 현재 보고서만으로 child N01~N19의 지원 범위·권한·alias·lifecycle 각 항목이 모두 닫혔다고 확인하지 않았다.
+- classification: resolved, 등록한 로컬 profile 한정. 다른 profile의 자격은 승계하지 않는다.
+- evidence: 7a6b804의 local macOS native 17건, ae0a6af의 qualified runtime 대조, 전체 CI 44091585161 통과. 실행 보고서에 N 항목별 native/boundary/미지원과 한계를 기록했다.
 - affects: REQ-PWC-005, REQ-PWC-014, TASK-PWCQ-01.
 - impact: 일부 suite 통과를 macOS 전체 자동 삭제 자격으로 확대할 수 있다.
-- unblock: 최소 한 구체적 macOS profile에 대해 기존 증거를 항목별 대조하고 누락을 실제 환경에서 검증. 범위 밖 조건은 미지원으로 명시한다.
+- resolution: Darwin 25.2.0/arm64/Node v26.4.0/lsof 4.91/current-UID 일반 권한 한 profile을 등록했다. root/effective UID 변경, 다른 OS/build/CPU/Node는 미지원이다. 매 호출 실제 backend와 coverage를 재검증한다.
 - owner: QUALIFY 재정합·검증 담당자.
 - stop: 모든 profile을 unqualified로 남긴 채 자동 정리 기능을 완성했다고 선언하지 않는다.
 
 전체 설계는 개정 목표의 선택과 구현 책임을 검토할 수 있는 상태다. REPLACE의
-현재 준비도는 BLOCKED다. BLK-PWC-04 목표 선택은 해소됐으며 child 재정합·BLK-PWC-05 해소 뒤에만
-조건부 범위의 REPLACE 상세 계획을 실행 가능 상태로 만들 수 있다.
+조건부 QUALIFY의 구현·검증과 BLK-PWC-04/05의 해당 범위는 마감했다.
+이제 REPLACE 상세 계획을 작성할 수 있다. 구 관리기 교체·실제 병합/삭제 구현은
+그 상세 계획의 범위와 준비도를 확인한 뒤 진행하며 이번 QUALIFY 결과로 자동 실행하지 않는다.
 BLK-PWC-01은 Windows 자동 삭제 기능에 계속 남으며 ADOPT는 별도 실제 권한과 인수가 필요하다.
 
 ## Safety Analysis

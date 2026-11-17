@@ -7,7 +7,7 @@
 조건부 방향 채택 이후 `process-usage.mjs:inspectWorktreeUsage`는 운영용 결과 경계,
 `process-usage-probe.mjs:probeWorktreeUsage`는 실제 native 후보 평가다.
 입력과 초기 결과는 `process-usage-contract.mjs`가 공유한다.
-등록된 runtime profile은 Darwin 25.2.0 / arm64 / Node v26.4.0 하나다.
+등록된 runtime profile은 Darwin 25.2.0 / arm64 / Node v26.4.0, real/effective UID가 같은 non-root 사용자 하나의 profile이다.
 7a6b804의 실제 후보 시험 17건과 conditional-macos-final.json에 근거한다.
 backend의 lsof 4.91/libproc/current-UID 결과도 호출 때 재검증한다. runtime 진입점
 busy 대조는 conditional-runtime-local.json에 기록한다. 다른 OS/build/CPU/Node와

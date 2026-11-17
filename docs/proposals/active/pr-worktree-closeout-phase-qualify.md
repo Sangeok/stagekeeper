@@ -7,7 +7,7 @@ approved-by: "user"
 approved-at: "2026-11-17"
 approval-scope: "채택된 조건부 방향에 따른 QUALIFY 재정합, 관측 API/미지원 경계·fixture·시험·CI·증거 보완. Windows 자동 삭제, 실제 자료 정리, PR 병합, REPLACE/ADOPT 제외. 사용자 명령 통합은 확정하지 않음."
 completed-at: null
-verification-summary: null
+verification-summary: "조건부 QUALIFY 구현 검증 통과: 등록한 로컬 macOS profile과 runtime 대조, Windows 미지원/반례, 전체 CI 44091585161. 실제 삭제·REPLACE 제외."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -31,9 +31,9 @@ Windows의 PEB 접근 거부와 directory 후보의 cwd 누락은 해결되지 �
 
 - 모드: `PHASE_PLAN`. 위험도: `HIGH-RISK`.
 - 시작 source: `32d4734d19e149dfce38da1b7008c474b6802293`, 동일 미병합 branch와 Draft PR #364, working tree clean.
-- parent snapshot SHA-256: `c1b413afcc1b09902b95ebdfc7b290cd753005667733054ccb2ed0e357b25819`.
+- parent snapshot SHA-256: `6ae3e7932d3474aa52237499bc7d98c08404026b64ec9c8351816f3a93963dad`.
 - 이번 문서 정합은 parent의 방향 승인 기록과 이 child를 대상으로 한다. 구현·CI·보고서 보완은 아래 승인된 QUALIFY 경계로 이어진다.
-- 구현 착수 준비도: `CONDITIONALLY READY`. 미지원 경계와 기존 후보 보존은 착수 가능하며, macOS 자격 승격은 미해결 증거를 닫기 전 금지한다.
+- 현재 실행 결과: 조건부 QUALIFY 구현 검증 통과. 등록한 로컬 macOS profile로 한정하며 다른 profile 승격은 새 증거가 필요하다. REPLACE 실행은 이번 범위 밖이다.
 - OpenClaw 설치·Bash·sh·새 dependency·권한 상승은 없다. 공통 코드는 Node ESM이다.
 
 ## 계약 소유와 범위
@@ -51,7 +51,9 @@ REQ-PWC-003/005/015/016의 실제 병합·삭제·수동 인수는 REPLACE가 �
 
 제외: 구 관리기·alias 퇴역, complete/cleanup/recover/수동 인수 CLI, 제품 src/packages/plugin 변경, 실제 사용자 worktree/원장 변경, PR 병합, 외부 worker 종료. 사용자 명령 수는 이 Phase에서 결정하지 않는다.
 
-## 현재 코드와 차이
+## 재정합 시점의 코드와 계획된 차이
+
+아래 표와 Q1~Q5는 source 32d4734에서 정한 변경 계획이다. 실제 결과는 문서 끝의 최종 검증과 인계 기록을 따른다.
 
 | 대상 | Observed | 처리 |
 | --- | --- | --- |
@@ -234,8 +236,8 @@ N 번호는 기존 시나리오 label이며 canonical 정의를 복제하지 않
 
 ## 준비도와 구현 인계
 
-- bounded 실행: runtime/probe 분리와 계약 시험은 READY. macOS 자격 마감은 CONDITIONALLY READY인 실제 검증 작업이다.
-- 전체 QUALIFY exit: BLK-PWC-05 증거를 닫기 전 미충족.
+- 현재 bounded 결과: runtime/probe 분리, 미지원 계약과 등록 profile 검증을 완료했다.
+- 조건부 QUALIFY exit: 등록한 로컬 profile과 Windows 보존 경로에 한해 충족. BLK-PWC-05의 한정 범위를 마감했다.
 - BLK-PWC-04의 목표 결정은 해소됐고 Windows 자동 자격 BLK-PWC-01은 유지한다.
 - source bundle: parent + 이 child. 일반 추적성 및 docs 검증 후 의미적 차이를 확인한다.
   future REPLACE/ADOPT와 blocked 자격을 포함하므로 strict를 Phase filter로 사용하지 않는다.
@@ -352,3 +354,16 @@ runtime과 실패 후보를 구분하며 required gate의 책임을 변경했다
 집중 실행은 runtime 대조를 포함해 36 PASS / 1 SKIP / 0 FAIL이다. 새 CI 전체
 완료와 최종 source를 확인한 뒤 QUALIFY exit 판정을 마감한다. Windows 자동 자격이나
 실제 worktree 삭제는 활성화하지 않았다.
+
+### 최종 검증과 인계
+
+검증 source는 ae0a6af4ee80b0b55ec37a86dc64d7569583e16f다. 전체 CI
+[44091585161](https://github.com/Sangeok/stagekeeper/actions/runs/44091585161)의
+8개 job이 통과했다. macOS native 17건과 Windows runtime/반례를 실제 환경에서
+실행했으며, CI Mac의 Node v22.23.5 환경은 runtime 등록 범위 밖이라 R01은 해당
+host에서 skip이다. 등록 profile의 R01은 local Darwin 25.2.0/Node v26.4.0에서 통과했다.
+root/실효 UID 변경은 runtime 자격을 주지 않는다.
+
+BLK-PWC-05는 이 한 profile에 한해 해소했다. 조건부 QUALIFY의 구현·검증은
+통과했고 source는 아직 미병합 PR에 보존한다. Windows 자동 자격·다른 macOS/Node
+조합으로 확대하지 않는다. 다음 산출물은 이 결과를 반영한 REPLACE 상세 계획이다.

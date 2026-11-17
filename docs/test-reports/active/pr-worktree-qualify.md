@@ -8,19 +8,47 @@ test-levels: ["static", "component", "integration"]
 test-tools: ["node:test", "Git", "lsof", "PowerShell Core"]
 created-at: "2026-11-17"
 completed-at: null
-last-executed-at: "2026-11-17T10:12:08.379Z"
-tested-revision: "871cffedb2a2d1475e925840eb19c4717d02cdbd"
+last-executed-at: "2026-11-17T13:27:22Z"
+tested-revision: "ae0a6af4ee80b0b55ec37a86dc64d7569583e16f"
 owners: []
 related:
   - "docs/proposals/active/pr-worktree-closeout-phase-qualify.md"
   - "docs/proposals/active/pr-worktree-closeout.md"
 primary-area: "tooling/pr-worktree-qualify"
 observed-environments: ["macOS arm64 / Darwin 25.2.0 / Node 26.4.0", "GitHub macos-15 / Node 22.23.4", "GitHub windows-2022 x64 / Node 22.23.4"]
-test-summary: "조건부 계약 검증 중: local macOS 17 native PASS와 runtime 대조 PASS, Windows 자동 자격의 과거 FAIL 유지, 최종 CI 확인 필요"
-follow-up: ["최종 조건부 runtime CI 확인", "QUALIFY 결과를 반영한 REPLACE 상세 계획", "Windows 자동 정리 미지원 유지"]
+test-summary: "조건부 QUALIFY 구현 검증 PASS: 등록한 로컬 macOS profile, Windows 미지원/반례, CI 44091585161 전체 성공. 원래 Windows 자동 자격 FAIL 유지"
+follow-up: ["QUALIFY 결과를 반영한 REPLACE 상세 계획", "새 profile 승격은 별도 실제 검증", "Windows 자동 정리 미지원 유지"]
 ---
 
 # PR worktree 사용 관측 QUALIFY 실행
+
+## Final Conditional Verification
+
+검증 코드 ae0a6af4ee80b0b55ec37a86dc64d7569583e16f의
+[CI 44091585161](https://github.com/Sangeok/stagekeeper/actions/runs/44091585161)는
+Windows/macOS를 포함한 8개 job 모두 PASS다.
+[CI 증거](../assets/2026-11-17-pr-worktree-qualify/conditional-ci-final.json)와
+[최종 runtime 대조](../assets/2026-11-17-pr-worktree-qualify/conditional-runtime-final.json)를 보존한다.
+
+| 현재 승인된 계약의 gate | 필수 여부 | 결과 |
+| --- | --- | --- |
+| runtime 입력·미지원·caller 우회 거부·일반 권한 제한 | required | PASS |
+| 등록 local Mac의 native N 사례와 runtime busy 대조 | required | PASS |
+| Windows 실제 무관측 runtime 및 cwd 누락 반례 | required | PASS |
+| 최종 코드 전체 CI | required | PASS, 8 jobs |
+| local check·architecture·경계·lint·docs | required | PASS, 실행 source와 counts는 아래 기록 |
+| local build | required | 첫 실행 Next 안내로 중단, 동일 명령 재실행 PASS. dependency 변경 없음 |
+| 원래 Windows clear/busy 자동 자격 | informational: 원래 계약의 실패 증거 | FAIL/미지원 유지 |
+| 다른 OS/build/Node 조합 및 실제 삭제 controller | 현재 범위 밖 | 미인증/미실행 |
+
+CI Mac은 Darwin 24.6.0/arm64/Node v22.23.5이며 native 후보 17 PASS다.
+R01 runtime profile 대조는 이 host에서 미등록으로 skip이다. 이를 등록 runtime의
+native 성공으로 세지 않는다. R01은 정확한 등록 host에서 최종 source로 별도 PASS다.
+새 root 권한 거부 사례를 포함한 local runtime unit 5건도 PASS다.
+
+이 보고서는 이후 profile qualification 재실행을 위해 active로 유지한다.
+이번 조건부 계약의 gate와 아래 원래 양 OS 자동 목표의 FAIL 이력은 별개다.
+운영 삭제·PR 병합·기존 관리기 퇴역은 수행하지 않았다.
 
 ## Current Conditional Implementation
 
