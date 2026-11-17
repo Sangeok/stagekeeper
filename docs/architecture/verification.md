@@ -187,9 +187,10 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   (`first-connection-asks-before-register`), 초안을 승인한 뒤에도 생성 전에 다시 묻는지
   (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
   실행마다 셸 명령을 격리된 임시 폴더에 기록한다. 모델 CLI stdout/stderr와 원본 JSON은 runner 임시 파일로만
-  받고, 공개 로그에는 허용된 사례 이름·점수·실행 수·실패 수·비용·시간만 출력한다. 셸 명령과 assistant 본문은
+  받고, 공개 로그에는 허용된 사례 이름·점수·실행 수·실패 수·실패한 grader 이름과 그 실패 횟수·비용·시간만 출력한다.
+  grader 이름은 `plugin/evals/<사례>/case.yaml`에 정해진 식별자만 남긴다. 셸 명령과 assistant 본문은
   출력하지 않으며 원본은 artifact로 올리지 않고 always 정리 단계에서 삭제한다. secret masking을 원문 공개의 근거로 삼지 않는다.
-  `scripts/rehearsals/agent-eval-summary.mjs`가 사례별 점수·실행 수·실패한 실행 수, 비용, 클라이언트 버전·OS 버전·
+  `scripts/rehearsals/agent-eval-summary.mjs`가 사례별 점수·실행 수·실패한 실행 수·실패한 grader별 실행 수(`failedGraders`), 비용, 클라이언트 버전·OS 버전·
   플러그인 판·`controlPassed`·`gateComplete`·선택 범위만 남긴 요약 한 줄을 만들고 workflow가 job 출력으로 넘긴다.
   대조군과 각 사례의 필수 grader·3회 결과가 모두 있어야 전체 gate가 완료된다. JSON 부재나 실패한 grader를 종료 코드 0으로 덮지 않는다.
   수동 실행은 `case` 입력으로 일부 사례만 돌릴 수 있지만 `gateComplete: false`이면 기록에 `incomplete-eval` finding을 남긴다. 주 1회와 수동

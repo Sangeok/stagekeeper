@@ -61,6 +61,59 @@ it("rejects missing output, graders and errors despite exit zero", () => {
   }
 });
 
+it("names each failed grader of a case with the number of runs it failed in", () => {
+  const input = result();
+  const writing = input.cases.find(entry => entry.name === "first-connection-asks-before-writing");
+  const grader = (run, name) => writing.arms.with[run].graders.find(entry => entry.name === name);
+  writing.aggregates.score = 0.93;
+  grader(1, "generator-ran").passed = false;
+  let record = evalRecord(input, 1, control);
+  assert.deepEqual(record.cases.find(entry => entry.name === writing.name), { name: writing.name, score: 0.93, runs: 3, failedRuns: 1, failedGraders: { "generator-ran": 1 } });
+  assert.equal(record.cases.filter(entry => "failedGraders" in entry).length, 1);
+  assert.equal(record.result, "fail");
+  assert.ok(evalLines(input).includes(`${writing.name}: score 0.93 over 3 runs, 1 failed (failed graders: generator-ran 1)`));
+  grader(2, "asks-for-yes").passed = false;
+  grader(2, "generator-ran").passed = false;
+  writing.arms.with[2].graders.push({ name: "generator-ran", passed: false });
+  record = evalRecord(input, 1, control);
+  const entry = record.cases.find(item => item.name === writing.name);
+  assert.equal(entry.failedRuns, 2);
+  assert.deepEqual(Object.entries(entry.failedGraders), [["generator-ran", 2], ["asks-for-yes", 1]]);
+  assert.ok(evalLines(input).includes(`${writing.name}: score 0.93 over 3 runs, 2 failed (failed graders: generator-ran 2, asks-for-yes 1)`));
+  delete grader(0, "no-write-before-yes").passed;
+  const unset = evalRecord(input, 1, control).cases.find(item => item.name === writing.name);
+  assert.equal(unset.failedRuns, 3);
+  assert.deepEqual(Object.entries(unset.failedGraders), [["generator-ran", 2], ["no-write-before-yes", 1], ["asks-for-yes", 1]]);
+});
+
+it("names only the case's own graders and nothing for runs without grader results", () => {
+  const input = result();
+  const runs = input.cases[0].arms.with;
+  runs[0].graders = [];
+  runs[0].error = "private error";
+  runs[1].graders[0] = { name: "secret-canary-123", passed: false };
+  runs[2].graders[0] = { name: "generator-ran", passed: false };
+  const record = evalRecord(input, 0, control);
+  assert.equal(record.cases[0].failedRuns, 3);
+  assert.equal("failedGraders" in record.cases[0], false);
+  assert.equal(evalLines(input).join("\n").includes("secret-canary-123"), false);
+  assert.equal(evalLines(input).join("\n").includes("failed graders"), false);
+});
+
+it("keeps only known positive grader counts through the record filter", () => {
+  const name = "first-connection-asks-before-writing";
+  const filtered = summarizeEval({ cases: [{ name, runs: 3, failedRuns: 2, failedGraders: {
+    "asks-for-yes": 1, "secret-canary-123": 1, "generator-ran": 2, "no-write-before-yes": 0, "no-generate-before-yes": "1", "shell-prefix-active": 1.5, "draft-shown": 1,
+  } }] });
+  assert.deepEqual(Object.entries(filtered.cases[0].failedGraders), [["generator-ran", 2], ["asks-for-yes", 1]]);
+  assert.deepEqual(summarizeEval(filtered), filtered);
+  for (const failedGraders of [["generator-ran"], "generator-ran", null, { "secret-canary-123": 1 }]) {
+    assert.equal("failedGraders" in summarizeEval({ cases: [{ name, runs: 3, failedRuns: 1, failedGraders }] }).cases[0], false);
+  }
+  const green = summarizeEval(evalRecord(result(), 0, control));
+  assert.equal(green.cases.some(entry => "failedGraders" in entry), false);
+});
+
 it("rejects an errored, incomplete or different control", () => {
   for (const mutate of [
     input => { input.cases[0].name = "other"; },
