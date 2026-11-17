@@ -195,8 +195,10 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   수동 실행은 `case` 입력으로 일부 사례만 돌릴 수 있지만 `gateComplete: false`이면 기록에 `incomplete-eval` finding을 남긴다. 주 1회와 수동
   실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
   사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
-- [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
-  항목 하나를 배정부터 문서 감사까지 처리하는지 본다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
+- [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`와 `macos-15`(arm64)에서 실제 Claude와
+  무인 실행기로 백로그 항목 하나를 배정부터 문서 감사까지 처리하는지 본다. 두 다리는 같은 구독 계정을 쓰므로 한 실행
+  안에서 하나씩 돌고(`max-parallel: 1`), 한 다리가 실패해도 다른 다리는 돈다. 요약은 다리별 출력
+  `summary_windows`·`summary_macos`로 기록 job에 넘어간다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
   올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
   백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
   `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, plan-verifier 독립 패스가 1~3회이고, 리허설의 독립 사례와
@@ -210,7 +212,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰고, 모델은
   고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
   `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
-  `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
+  `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(`pipeline-smoke-transcripts-<다리>`, 7일)로만 남긴다. Codex 실행은 Codex 공개
+  배포에 착수할 때 붙인다.
 - 위 세 게이트는 `dev`나 `main`에서 수동 또는 정기로 돈 실행마다 `record` job으로
   [게이트 실행 기록](https://github.com/Sangeok/stagekeeper/issues/319)에 댓글 한 행을 남긴다. PR 실행과 다른 브랜치의
   실행은 남기지 않고 그 job도 돌지 않는다. gate job은 요약 한 줄을 job 출력으로 넘기고(`client-init-smoke`는 다리마다
@@ -250,7 +253,13 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   identity 불일치·필수 leg 누락·최신 실패·정리 실패·partial eval·검토 누락은 거부한다. 검토/외부 원인 재시도는 해당 execution과 digest에 귀속한다.
   unknown 모델 사용량·비용은 null로 유지하며 init에는 모델 호출·비용 0과 빈 model 목록이 필요하다.
   이 API는 전달받은 출처를 GitHub에 조회하거나 인증하지 않는다. 호출자가 모든 관련 시도와 검토를 신뢰된 경계에서 수집해야 한다.
-  현재 공개 schema 1 기록과 private wrapper는 이 schema로 자동 승격되지 않으며 trusted consumer 연결은 아직 미완료다.
+  공개 schema 1 기록을 이 schema의 인수 증거로 소급하지 않는다. private CI의 후속 `init-evidence.mjs`는
+  검토된 public checkout의 이 모듈을 import해 macOS Codex init의 두 scenario를 정규화한다. private workflow에는
+  허용 필드 JSON 하나만 artifact로 남기며 raw log·template·credential은 포함하지 않는다.
+  private `collect-init-evidence.mjs`는 GitHub의 private 저장소·owner dispatch·dev ref·workflow SHA·고정 target·job·runner·artifact 출처를
+  읽기 전용으로 대조한 뒤 이 판정기를 호출한다. 단일 실행의 `codex-macos-init-single-run` 결과이며 attempt 2 이상은 거부한다.
+  보관 중인 workspace와 아직 관찰하지 않은 update 실행 pin은 미충족으로 남긴다. 다른 실행·최신 실패·review/retry까지 모으는
+  후보 전체 consumer와 공개 게이트 연결은 여전히 미완료이며 이 단일 실행 결과는 승격 승인이 아니다.
   단위 시험 통과는 Windows Codex runner 준비나 양 OS 실제 인수를 뜻하지 않는다. 구현 현황은
   [dual-client CI 제안](../proposals/active/dual-client-ci-parity.md)의 Implementation Progress를 따른다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
@@ -294,7 +303,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
 | 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
 | init 스킬의 모델 동작 | 공통 | | `agent-eval/init-skill` | | | 모델 동작은 OS와 무관하다. eval은 셸 명령을 가두는 샌드박스가 있는 OS에서만 돌고 Windows에는 없다 |
-| 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | | | macOS | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
+| 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | `pipeline-smoke/pipeline` | | | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
 | 게이트 실행 기록 | 공통 | | | `client-init-smoke/record`, `agent-eval/record`, `pipeline-smoke/record` | | |
 | 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
 | 이동한 정책 계약 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm run test:policy-contracts`로 기존 core/GitHub의 서버·FSD 이동 사례를 실행. Linux는 test-web/server에서 같은 파일을 발견 |

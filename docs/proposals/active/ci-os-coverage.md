@@ -243,7 +243,7 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 - 새 검사는 파일을 읽기만 한다. 네트워크와 쓰기가 없다.
 - 표의 "미충족" 칸 덕분에 검사와 표를 먼저 넣어도 지금의 CI가 실패하지 않는다. 불일치는 드러난 채로 남고, 해소할 때마다 칸을 비워야 통과한다.
 - macOS 다리는 기존 job의 목록에 더하므로 권한과 비밀값 사용이 Windows 다리와 같다. 새 권한은 없다.
-- macOS 다리를 더하는 단계는 다른 세션이 진행 중인 템플릿 R2 승격이 끝난 뒤에 머지한다. 첫 실행의 실패가 그 승격을 막지 않게 하려는 것이다.
+- macOS 다리를 더하는 단계는 다른 세션이 진행 중인 템플릿 R2 승격이 끝난 뒤에 머지한다. 첫 실행의 실패가 그 승격을 막지 않게 하려는 것이다. 2026-11-17 기능 브랜치의 첫 실행이 두 다리 모두 통과해, 소유자가 R2 후속을 기다리지 않고 머지하기로 정했다(Execution Plan 4단계).
 - 플러그인 출하 파일은 5.2에서 macOS 결함이 나와 고치는 경우에만 바뀐다. 그때는 판을 올리고 `verify:plugin-version`을 따른다.
 
 확인한 항목:
@@ -265,13 +265,14 @@ AGENTS.md에 다음 뜻의 항목을 넣는다. CI job이나 게이트의 다리
 - 단계별 구현 PR과 이슈는 실행 직전에 따로 승인받는다.
 - 2026-11-12 소유자가 5.4를 더했다. 출시 이력 시험은 Windows와 macOS 양쪽 CI에서 돌린다. Windows의 PR 경로는 macOS와 맞춘다. Linux의 `check`는 그대로 둔다.
 - 2026-11-12 소유자가 5.5를 더했다. 2026-11-13에 범위를 줄였다. 이 제안은 시험의 한도만 고친다. 빌드 시간 초과는 역할 command의 최대 시간을 120초에서 300초로 올리는 별도 제안서에서 다룬다. runner 하나에서만 시간 초과를 경고로 넘기는 방식은 쓰지 않는다.
+- 2026-11-17 확인: [Windows·macOS Claude/Codex CI 검증 동등화](./dual-client-ci-parity.md)는 Claude의 macOS 파이프라인 다리를 이 제안에 맡기고 그 결과를 연결한다고 적는다. 그래서 4단계는 workflow에 다리를 더하는 구조 변경까지만 하고, 파이프라인 합격 판정은 바꾸지 않는다. 두 다리는 같은 구독 계정을 쓰므로 한 실행 안에서 하나씩 돈다.
 
 ## Execution Plan
 
 1. **장치.** 분류 기준과 표(verification.md), 검사 스크립트와 시험, `check` 연결, AGENTS.md 항목. 표의 "미충족" 칸에 두 건을 적는다. 게이트를 건드리지 않으므로 바로 진행할 수 있다.
 2. **Windows의 제품 코드 시험.** `windows-role-runtime`에 단계를 더하고 표의 칸을 비운다. PR이 workflow 파일을 바꾸므로 PR에서 그 workflow가 돈다. 거기서 통과와 걸린 시간을 확인한다.
 3. **이슈.** 5.3의 인계 이슈를 연다(소유자 승인 뒤).
-4. **macOS 다리.** 템플릿 R2 승격이 끝난 뒤에 올린다. 기능 브랜치에서 `pipeline-smoke`를 수동으로 돌려 두 다리가 통과하는지 먼저 본다(기능 브랜치 실행은 기록에 남지 않는다). 머지 뒤 `dev`에서 돌려 기록에 다리 둘이 남는지 본다.
+4. **macOS 다리.** 템플릿 R2 승격이 끝난 뒤에 올린다. 기능 브랜치에서 `pipeline-smoke`를 수동으로 돌려 두 다리가 통과하는지 먼저 본다(기능 브랜치 실행은 기록에 남지 않는다). 머지 뒤 `dev`에서 돌려 기록에 다리 둘이 남는지 본다. 2026-11-17 기능 브랜치의 첫 실행이 두 다리 모두 통과했다. 기다린 이유는 첫 macOS 실행의 실패가 R2 승격을 막는 것이었으므로, 남은 R2 후속(Mac 실기, 기록 PR과 승격)을 기다리지 않고 올린다(소유자 결정). 다음 승격은 이 workflow 변경 때문에 두 다리를 돌려야 한다.
 5. **출시 이력 시험과 Windows의 PR 경로(2026-11-12 추가).** 5.4를 PR 하나로 올린다. 4단계를 기다리지 않는다. PR이 두 workflow 파일을 바꾸므로 PR에서 두 workflow가 돈다. 거기서 출시 이력 시험이 두 OS에서 통과하는지와 늘어난 시간을 확인한다.
 6. **느린 macOS runner에서 깨지는 시험(2026-11-12 추가, 2026-11-13 범위 축소).** 5.5의 시험 수정을 PR 하나로 올린다. 4단계를 기다리지 않는다. 빌드 시간 초과는 이 제안의 단계가 아니다.
 7. 두 칸이 모두 비고 5·6단계가 끝나면 완료 처리한다.
@@ -329,7 +330,10 @@ gh workflow run pipeline-smoke.yml --ref dev
 | 2단계: 수정 뒤 PR #326의 `windows-role-runtime` 실행(run 43154442374) | 통과. 680개 중 649개 통과, 31개 건너뜀, 실패 0개. 새 단계 5분 35초, job 전체 12분 12초 | OC-07. 이 PC의 결과(680개, 건너뜀 29개)와 시험 수가 같다. job 전체는 전에 6분 30초에서 7분쯤이었다. PR의 `check`, `client-init-smoke`, macOS 런타임 둘도 통과했다. 2026-11-12 `dev` `68f3d49`로 병합 |
 | 2단계: 병합 뒤 `dev` `68f3d49`의 실행 | `check`, Windows 런타임(run 43158463839), macOS 런타임(run 43158463867) 모두 통과 | Windows의 새 단계는 680개 중 649개 통과, 31개 건너뜀, 5분 39초. macOS는 두 runner 모두 680개 중 650개 통과, 30개 건너뜀. 출시 이력을 읽는 시험 둘은 macOS 실행 로그에서도 건너뛴 것으로 나온다. 이 둘은 CI에서 전체 이력을 받는 `check`에서만 돈다 |
 | 3단계: 인계 이슈(2026-11-12) | [#329](https://github.com/Sangeok/stagekeeper/issues/329) 생성 | 5.3의 인계. 만들기 전에 이 PC(Node 22.13.1)에서 `template-release-cli.test.ts`를 따로 돌려 2개 중 1개가 "Template profiles must be private regular files outside the repository"로 실패하는 것과, `0600`으로 만든 파일과 `chmod 600` 뒤의 파일이 모두 `666`으로 보고되는 것을 다시 확인했다 |
-| 4단계 | Not run yet | 구현 전 |
+| 4단계: `npm run verify:ci-coverage`(2026-11-17, `dev` `d529ec0` 기준) | 통과(job 13개, 행 11개) | 표의 파이프라인 전체 행에 macOS job을 넣고 "미충족"을 비운 상태. 기록 job의 `legs`와 gate job의 `summary_<다리>` 출력, `matrix`의 `leg` 값이 맞는지도 이 검사가 본다(OC-06) |
+| 4단계: 기능 브랜치 `harness/pipeline-smoke-macos-leg`(커밋 `7ae75e6`)의 `pipeline-smoke`(run 43977071928) | 두 다리 모두 통과 | OC-08의 앞 절반. 둘 다 33단계 통과, `slug`, 계획 검증 1패스, Claude 2.1.326, 플러그인 0.6.15, 템플릿 R2 `99245ac`, `claude-sonnet-5-5`. Windows는 10분, 정가 환산 $1.79, 단계 거부 0, `harnessErrors`에 `validation_record` 1건. macOS(15.8.2, arm64)는 9분, $1.62, 단계 거부 0, 하네스 오류 0. 한 다리씩 돌아 macOS는 Windows가 끝난 직후 시작했다. 기능 브랜치라 기록 job은 건너뛰었다 |
+| 4단계: Windows 다리의 `validation_record` 1건 원인(봉인 전사) | 메인 루프가 지연 로드 도구 `validation_record`를 스키마를 읽기 전에 불러 `text` 대신 `result`를 넘겼고, Claude Code가 거부한 뒤 2초 뒤 `text`로 다시 불러 성공했다 | 2026-11-11의 같은 유형과 같다. 이 변경은 Windows 다리의 경로를 바꾸지 않았다 |
+| 4단계: 병합 뒤 `dev`의 `pipeline-smoke`와 기록 행 | Not run yet | OC-08의 뒤 절반. 다음 승격 전 실행이 이를 겸할 수 있다 |
 | 5단계: 이 PC에서 출시 이력 시험 두 파일을 `STAGEKEEPER_RELEASED_READERS=required`로 실행(2026-11-12, `dev` `df27c78` 기준) | 3개 모두 통과. 출시 판 시험 하나가 2분 36초 | 0.6.14부터 0.5.14까지의 출시 판을 차례로 꺼내 돌린다. Linux CI에서는 같은 시험이 49초다 |
 | 5단계: 같은 실행을 임시 폴더가 8.3 짧은 이름 경로일 때 | 3개 모두 통과 | runner의 임시 폴더처럼 짧은 이름이 든 경로다. 임시 폴더를 아주 깊은 경로로 주었을 때는 출시 판을 푸는 Git이 "Filename too long"으로 실패했다. 임시 폴더 바로 아래의 폴더(56자)에서는 통과한다. runner에서의 결과는 PR 실행이 확인한다 |
 | 5단계: `npm run verify:ci-coverage` | 통과(job 12개, 행 10개) | Windows와 macOS의 workflow에서 `fetch-depth: 0`이나 `STAGEKEEPER_RELEASED_READERS: required`를 하나씩 지운 4가지 변형이 모두 "a per-OS check needs a … job that runs npm test, fetch-depth: 0, STAGEKEEPER_RELEASED_READERS: required"로 실패한다 |
@@ -339,7 +343,7 @@ gh workflow run pipeline-smoke.yml --ref dev
 | 6단계: `macos-runtime-contracts`의 `dev` 실행 34번(2026-11-10~12)의 실패 대조 | 8번 실패, 모두 `macos-15-intel`. 시험 실패 3번은 같은 시험, 빌드 실패 5번은 모두 `timeout` | 실패한 job의 단계 이름과 로그의 단언을 실행마다 읽었다. 같은 기간 `windows-role-runtime` 60번에는 PR #326의 첫 실행 말고 실패가 없다 |
 | 6단계: 이 PC에서 시험 서버의 503 응답을 150ms 늦춘 실행(2026-11-12, `dev` `e1ede74` 기준) | 고치기 전의 시험은 `undefined`와 `'request-failed'`가 다르다는 CI와 같은 오류로 실패. 고친 시험은 통과 | OC-12. 보통 속도에서는 고치기 전 3.0초, 고친 뒤 3.2초. `harness-watch.test.mjs` 전체 43개 통과 |
 | 6단계: PR #338의 첫 실행(run 43327147316, Intel의 시간 초과를 경고로 넘기는 방식을 함께 담았던 커밋 `7a951eb`) | Intel job 통과, arm64 job은 빌드가 `timeout`으로 실패. 실패한 job만 다시 돌리니 통과 | 그 실행의 arm64 runner는 출시 판 시험보다 앞의 시험들이 198초(평소 81초)였고 컴파일이 64초(평소 14~20초)였다. 다시 돌린 실행은 시험 3분 46초, 빌드 단계 1분 20초였다. 관측한 35번 가운데 arm64의 첫 시간 초과다. 고친 `harness-watch` 시험은 느렸던 arm64 실행에서도 통과했다(2.4초, 평소 0.8초). 이 결과로 5.5의 범위를 줄였다 |
-| 6단계: 범위를 줄인 뒤 PR #338의 실행 | Not run yet | 시험 수정만 남긴 상태에서 `check`, Windows, 두 macOS job을 확인한다. 빌드 시간 초과는 이 PR이 고치지 않으므로 느린 runner에서는 다시 날 수 있다 |
+| 6단계: 범위를 줄인 뒤 PR #338의 실행 | `check`, `client-init-smoke`, Windows(13분 38초), macOS arm64(6분 16초), macOS Intel(12분 44초) 모두 통과 | 시험 수정만 남긴 커밋 `231d196`. 2026-11-13 `dev` `001a995`로 병합. 빌드 시간 초과는 [역할 command 시간 제한](./role-command-time-limit.md)이 #340으로 다뤘다 |
 
 ## Risks and Rollback
 
