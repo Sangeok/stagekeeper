@@ -55,7 +55,7 @@ Chosen option: "책임별 소유 영역 분리와 명시적 공개·배포 계�
 사용자는 ARCH 후 MIGRATE 상세 계획을 바탕으로 실제 수정을 진행하도록 명시적으로 요청했다.
 소스·명세·공개 경로·검사·패키징을 함께 전환하는 변경에서 이 결정을 accepted로 활성화한다.
 ADR-0005/0007의 역사와 단일 원본 원칙을 보존하고 전체 복사 경계만 superseded 처리한다.
-구현 및 검증 기록은 [MIGRATE 계획](../proposals/active/shared-modules-and-plugin-distribution-phase-migrate.md)이 소유한다.
+구현 및 검증 기록은 [MIGRATE 계획](../proposals/completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md)이 소유한다.
 실제 설치·운영 승격 승인은 이 결정에 포함되지 않는다.
 
 ### Consequences

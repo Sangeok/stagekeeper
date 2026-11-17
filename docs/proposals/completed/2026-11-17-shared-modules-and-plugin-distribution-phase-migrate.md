@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-16"
 approved-by: "user"
 approved-at: "2026-11-16"
 approval-scope: "Phase MIGRATE의 실제 소스·배포 도구·시험·CI·문서 전환과 검증. ACCEPT·운영 승격 제외"
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-17"
+verification-summary: "MIGRATE source commit 451190372007942832c5bc057319da500f065023: local policy/web/server/PostgreSQL/HTTP/build and check, macOS arm64/x64, Windows native, automatic client-init smoke all passed; ACCEPT and production promotion excluded"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -28,7 +28,7 @@ related:
 
 ## Summary
 
-[상위 SDD](./shared-modules-and-plugin-distribution.md)의 MIGRATE를 실행 가능한 작업으로 구체화한다.
+[상위 SDD](../active/shared-modules-and-plugin-distribution.md)의 MIGRATE를 실행 가능한 작업으로 구체화한다.
 ARCH에서 정한 소유권과 공개 계약에 따라 core/github 원본을 shared/app-core/server/FSD/plugin
 runtime으로 옮기고, 선언한 shared 모듈만 plugin/lib에 복사하도록 바꾼다. 소비자·타입·시험·
 alias·검사·CI·현행 문서를 같은 최종 변경에서 연결한다.
@@ -63,7 +63,7 @@ alias·검사·CI·현행 문서를 같은 최종 변경에서 연결한다.
 | --- | --- | --- |
 | 전체 요구사항·불변식·제약 | 상위 REQ-SMB-001~007, INV-SMB-001, CON-SMB-001~003 | 의미를 바꾸지 않고 구현·검증에 연결 |
 | 소유권·공개 목록·runtime | [shared-modules.md](../../architecture/shared-modules.md) | 14개 entry/59개 값과 내부 template-boundary를 구현 |
-| 현재 원본과 모든 소비자 | [ARCH Inventory](./shared-modules-and-plugin-distribution.md#arch-inventory) | 목록을 복제하지 않고 변경 순서·새 검사·실행 환경을 보완 |
+| 현재 원본과 모든 소비자 | [ARCH Inventory](../active/shared-modules-and-plugin-distribution.md#arch-inventory) | 목록을 복제하지 않고 변경 순서·새 검사·실행 환경을 보완 |
 | 선택 이유·활성화 | [ADR-0008](../../ADR/0008-separate-shared-module-distribution.md) | 구현 완료 시 accepted 전환; 기존 0005/0007의 역사 보존 |
 | 기존 Tasks | 상위 TASK-MIGRATE-01~03 | 아래 Change detail에서 상세화하며 재정의하지 않음 |
 | 기존 Verifiers | 상위 VFY-SMB-01~04 | 새 목적지·실패 사례·명령 연결을 상세화 |
@@ -109,8 +109,8 @@ TASK-MIGRATE-01과 독립적인 그래프·복사 설계부터 진행할 수 있
 
 위 판정은 코드·문서 관찰이다. 실제 새 구조의 동작·패키징·CI 통과를 관찰했다는 뜻이 아니다.
 
-포함 범위는 상위 [Source Migration Map](./shared-modules-and-plugin-distribution.md#source-migration-map)과
-[Affected Files](./shared-modules-and-plugin-distribution.md#affected-files-and-coupled-changes)의
+포함 범위는 상위 [Source Migration Map](../active/shared-modules-and-plugin-distribution.md#source-migration-map)과
+[Affected Files](../active/shared-modules-and-plugin-distribution.md#affected-files-and-coupled-changes)의
 전환 및 아래에 명시한 그래프·검증 도구다. 새 경로는 모두 **제안 목적지**다.
 
 제외 범위는 제품 정책 재설계, DB schema/data migration, 새로운 인증·권한,
@@ -150,9 +150,9 @@ Task 번호 순서가 중간 커밋의 배포 가능성을 뜻하지 않는다. 
 
 ## Change detail for TASK-MIGRATE-01
 
-Canonical Task: [TASK-MIGRATE-01](./shared-modules-and-plugin-distribution.md#task-migrate-01-책임-분리와-소비자-전환).
-검증 참조: [VFY-SMB-02](./shared-modules-and-plugin-distribution.md#vfy-smb-02-의존성공개-api실행-환경의-거부-사례),
-[VFY-SMB-04](./shared-modules-and-plugin-distribution.md#vfy-smb-04-제품-동작과-시험-발견의-보존).
+Canonical Task: [TASK-MIGRATE-01](../active/shared-modules-and-plugin-distribution.md#task-migrate-01-책임-분리와-소비자-전환).
+검증 참조: [VFY-SMB-02](../active/shared-modules-and-plugin-distribution.md#vfy-smb-02-의존성공개-api실행-환경의-거부-사례),
+[VFY-SMB-04](../active/shared-modules-and-plugin-distribution.md#vfy-smb-04-제품-동작과-시험-발견의-보존).
 
 ### 1. 원본과 private closure를 함께 이동
 
@@ -226,8 +226,8 @@ null·잘못된 저장값·여러 언어·빈 본문 목록은 runbook-stale의 
 
 ## Change detail for TASK-MIGRATE-02
 
-Canonical Task: [TASK-MIGRATE-02](./shared-modules-and-plugin-distribution.md#task-migrate-02-선언-기반-동기화와-패키징-연결).
-검증 참조: VFY-SMB-02, [VFY-SMB-03](./shared-modules-and-plugin-distribution.md#vfy-smb-03-배포-범위완전성무변경복구).
+Canonical Task: [TASK-MIGRATE-02](../active/shared-modules-and-plugin-distribution.md#task-migrate-02-선언-기반-동기화와-패키징-연결).
+검증 참조: VFY-SMB-02, [VFY-SMB-03](../active/shared-modules-and-plugin-distribution.md#vfy-smb-03-배포-범위완전성무변경복구).
 
 ### 1. 명세와 그래프의 단일 소유자
 
@@ -395,8 +395,8 @@ API나 영구 cache가 아니다. 별도 sync/check/package 호출은 항상 새
 
 ## Change detail for TASK-MIGRATE-03
 
-Canonical Task: [TASK-MIGRATE-03](./shared-modules-and-plugin-distribution.md#task-migrate-03-시험-탐색과-현재-규칙-전환).
-검증 참조: [VFY-SMB-01](./shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조), VFY-SMB-04.
+Canonical Task: [TASK-MIGRATE-03](../active/shared-modules-and-plugin-distribution.md#task-migrate-03-시험-탐색과-현재-규칙-전환).
+검증 참조: [VFY-SMB-01](../active/shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조), VFY-SMB-04.
 
 ### 1. 시험 위치와 실제 실행을 함께 변경
 
@@ -1005,9 +1005,10 @@ H1 조정·격리 DB·양 OS 인수 조건은 유지한다. 최종 저장본과 
 
 구현 승인: 2026-11-16 사용자 후속 요청. 실행·검증 기록일: 2026-11-17.
 기준 dev는 `e8c212a98335a5e4fb12df915c861a1e2581c43b`, 작업 브랜치는
-`harness/shared-modules-migrate-plan-20261116`이다. 기존 미병합 계획의 관리 worktree를 이어 썼다.
+`harness/shared-modules-migrate-plan-20261116`이다. 검증 중 병합된 최신 dev
+`85c66fb1d9e02c3d9416710240cbfca3f0023939`의 기존 CI/문서 변경도 보존하여 통합했다. 기존 미병합 계획의 관리 worktree를 이어 썼다.
 원래 checkout의 dirty 자료와 별도 scripts-coupling worktree는 수정하지 않았다.
-현재 상태는 **소스 전환 구현·로컬 검증 통과, 양 OS CI 대기**다. ACCEPT·운영 승격은 수행하지 않는다.
+현재 상태는 **MIGRATE 완료: 소스 전환·로컬 검증·양 OS CI 통과**다. ACCEPT·운영 승격은 수행하지 않는다.
 
 ### 구현 결과와 설계 보완
 
@@ -1087,7 +1088,7 @@ CI는 기존 Node 22를 유지한다. PostgreSQL은 CI와 같은 18.4.0-beta.17 
 | --- | --- | --- |
 | VFY-SMB-01 | 문서 링크·ADR·registry·명세/실제 export 대조 | 공개 14/59, closure 15 일치; docs:check 226개 문서/1165개 상대 링크 통과 |
 | VFY-SMB-02/03 | graph/checker/plugin-lib 시험 | 36개 통과. empty import/reexport 및 default+type import도 runtime으로 판정 |
-| VFY-SMB-03 | 실제 양 OS package 함수 fixture | macOS에서 9개 통과; Windows 함수도 fixture 실행. Windows 실제 파일 동작은 CI 대기 |
+| VFY-SMB-03 | 실제 양 OS package 함수 fixture | macOS에서 9개 통과; Windows 함수도 fixture 실행. Windows 실제 파일 동작도 아래 CI 통과 |
 | VFY-SMB-04 | `npm test` | 655개 중 613 통과, 실패 0, 기존 환경별 42 skip |
 | VFY-SMB-04 | `test:web` | 839 통과, 실패/skip 0 |
 | VFY-SMB-04 | `test:server` | 188개 중 186 통과, 실패 0, build flag 의존 2 skip; fresh 검사 별도 실행 |
@@ -1100,13 +1101,44 @@ CI는 기존 Node 22를 유지한다. PostgreSQL은 CI와 같은 18.4.0-beta.17 
 | VFY-SMB-01/04 | CI coverage와 실제 gate 감지 시험 | 양 OS 명령 누락·각 정책/도구 단독 변경, 실제 Git pathspec 대조 통과 |
 | VFY-SMB-01~04 | `npm run check` | lint·세 경계·docs·CI coverage·typegen·tsc 통과, scripts 524 pass / 3 환경 skip |
 | VFY-SMB-02/03 | `npm run test:architecture` | 424 pass / 3 환경 skip, 실패 0 |
-| VFY-SMB-01~04 | 양 OS CI | 대기; 결과/최종 revision은 후속 기록 |
+| VFY-SMB-01~04 | 양 OS CI | 아래 코드 검증 revision의 Windows/macOS 모두 green |
 
 초기 샌드박스 실행의 localhost EPERM·공유 메모리·Turbopack 포트 오류는 환경 오류로
 분리했고 권한이 있는 동일 작업 환경에서 재실행했다. 실패한 Next 캐시는 작업 전용 경로에
 보존한 뒤 새 캐시로 빌드했다. Next가 기존 설치 버전의 보안 업데이트 권고로 한 번 중단했으며,
 의존성 업그레이드 없이 원래 빌드 재실행이 통과했다. 권고의 해결은 이 소스 전환에 포함하지 않는다.
 
-외부 원문·실제 설치·모델/권한·출시 gate는 미실행이다. acceptance-failure의 `--templates`
+수동 외부 원문·사용자 설치·모델/권한·출시 gate는 미실행이다. PR의 자동 설치 smoke는 아래에
+별도 기록하며 전체 ACCEPT 완료로 확대하지 않는다. acceptance-failure의 `--templates`
 분기도 미실행이며 private template→init→설치 hash는 ACCEPT에서 검증한다.
 로컬 로그·입력 snapshot·이동 대응 자료는 작업 폴더 상위의 `*.log`/JSON에 보존했다.
+
+
+### 최종 코드 검증과 후속 인수
+
+[PR #354](https://github.com/Sangeok/stagekeeper/pull/354)의 코드 검증 revision은
+`451190372007942832c5bc057319da500f065023`이다. 구현 commit `550ebdc`에 최신 dev `85c66fb`를
+병합한 상태이며, 이 절과 완료 위치 변경은 이후 문서 기록이다. 같은 revision의 결과:
+
+| 환경·실행 | 결과 | 범위 |
+| --- | --- | --- |
+| [check 915](https://github.com/Sangeok/stagekeeper/actions/runs/44001951294) | 모든 job green | static·제품·웹·서버·DB 통합·build/fresh manifest·양 OS worktree |
+| [macOS runtime 237](https://github.com/Sangeok/stagekeeper/actions/runs/44001951288) | arm64/x64 모두 green | 각 정책 34 pass, 배포 도구 45 pass, 제품 626 pass/29 환경 skip; native 권한·복구·격리 전체 build 통과 |
+| [Windows runtime 415](https://github.com/Sangeok/stagekeeper/actions/runs/44001951272) | green | 정책 34 pass, 배포 도구 43 pass/2 macOS package skip, 제품 626 pass/29 환경 skip; native 명령·격리 전체 build 통과 |
+| [자동 client-init-smoke 84](https://github.com/Sangeok/stagekeeper/actions/runs/44001951286) | Windows/macOS의 new-user/update 네 job green | PR 자동 실행이며 수동 gate dispatch 없음. 아래 고정 조합의 설치·초기화만 확인 |
+| `verify:plugin-version -- --head 451190372007942832c5bc057319da500f065023` | 통과 | main/dev 0.6.15 → 후보 0.6.16, 출하 변경 48개 |
+
+자동 init smoke는 Claude 2.1.326, plugin 0.6.16, 이전 설치 commit
+`85c66fb1d9e02c3d9416710240cbfca3f0023939`, templates commit
+`8ccb37a4ab91de527e6a23caa6d415c7cdc6f215`를 관찰했다. macOS 15.8.2 arm64와 Windows
+10.0.20348 x64의 네 요약은 모두 result=pass다. 이 증거는 기존 설치본을 읽는 동적 경로의
+보존도 확인하지만 Codex의 실제 winning cache·모델 역할·기존 설치와 새 서버의 모든 조합을
+검증하지 않는다. REQ-SMB-005/BLK-SMB-01과 VFY-SMB-05는 상위 ACCEPT에서 계속 추적한다.
+
+REQ-SMB-001/002는 명세 closure·앱 변경 무영향·사전 거부·복구·실제 package inventory로,
+REQ-SMB-003은 새 소유자·공개 API·전이 runtime 검사로, REQ-SMB-004의 저장소 범위는
+기존 정책·실제 DB/HTTP·build와 설치 reader로 확인했다. REQ-SMB-006은 현행 architecture와
+ADR-0008 활성화, REQ-SMB-007은 이동 대응표와 양 OS 실제 시험 발견으로 확인했다.
+INV-SMB-001/CON-SMB-001~003을 변경하는 제품 의미·DB schema·runtime dependency 추가는 없다.
+상위 제안은 ACCEPT 때문에 active/pending으로 남기고, 이 MIGRATE 상세 문서만 completed로 옮겼다.
+PR 병합과 main 승격은 수행하지 않았다.

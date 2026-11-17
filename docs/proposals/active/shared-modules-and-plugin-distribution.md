@@ -46,8 +46,8 @@ ARCH 조사 당시 `packages/core`와 `packages/github`의 생산 `.mjs` 27개�
 Phase ARCH의 아키텍처·ADR·전환 목록 문서화를 완료했다.
 [현재 공유 경계](../../architecture/shared-modules.md), [ADR-0008](../../ADR/0008-separate-shared-module-distribution.md),
 [ARCH 완료 기록](../completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md)을 따른다.
-후속 사용자 승인으로 MIGRATE를 구현·검증 중이며 ACCEPT는 미착수다. 전체 제안은 pending으로 유지한다.
-실행 상태는 [MIGRATE 상세 기록](./shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)을 따른다.
+후속 사용자 승인으로 MIGRATE 구현·검증을 완료했으며 ACCEPT는 미착수다. 전체 제안은 pending으로 유지한다.
+실행 상태는 [MIGRATE 상세 기록](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)을 따른다.
 
 ## Goal
 
@@ -1589,6 +1589,8 @@ Phase ARCH에서 확정한 API 목록·실제 baseline을 반영한 뒤 세부 �
 
 ### Phase MIGRATE: 원본·소비자·배포·검사의 일관된 전환
 
+진행 상태: **완료**. 코드 revision `451190372007942832c5bc057319da500f065023`의 로컬·양 OS CI를 확인했다.
+
 - satisfies: REQ-SMB-001, REQ-SMB-002, REQ-SMB-003, REQ-SMB-004, REQ-SMB-006, REQ-SMB-007
 - preserves: INV-SMB-001
 - governed-by: CON-SMB-001, CON-SMB-002, CON-SMB-003
@@ -1807,7 +1809,7 @@ VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행�
 ## Approval and Completion
 
 front matter는 ARCH와 후속 MIGRATE 구현 승인 범위를 기록한다. ARCH 상세 문서는 completed에 있고,
-MIGRATE 상세 문서는 양 OS CI를 포함한 완료 조건을 확인한 뒤 completed로 옮긴다.
+MIGRATE 상세 문서도 양 OS CI를 포함한 완료 조건을 확인하고 completed로 옮겼다.
 상위 SDD는 ACCEPT까지 active/pending으로 유지한다. 영구 규칙은 architecture, 이유는 ADR,
 전체 전환과 후속 검증은 이 문서와 연결된 Phase 기록이 소유한다.
 
@@ -1816,7 +1818,14 @@ MIGRATE 상세 문서는 양 OS CI를 포함한 완료 조건을 확인한 뒤 c
 2026-11-17, `e8c212a98335a5e4fb12df915c861a1e2581c43b` 기반으로 소유권·공개 명세·생성 lib·
 소비자·검사·양 OS CI 연결·현행 문서를 구현했다. 27개 생산 원본의 전체 복사를 제거하고
 14개 공개 entry/59개 값 export 및 내부 template-boundary의 15개 runtime 모듈을 배포한다.
-로컬 정책·웹·서버·PostgreSQL·HTTP 회귀와 build를 검증했으며 최종 check와 architecture 회귀도 통과했고 양 OS CI는 대기 중이다.
+로컬 정책·웹·서버·PostgreSQL·HTTP 회귀와 build를 검증했으며 최종 check와 architecture 회귀, Windows native·macOS arm64/x64 CI가 모두 통과했다.
 세부 시험 대응·H1 공통 predicate 선행 통합·기존 설치 reader 경로의 보존 이유는
-[MIGRATE Execution Results](./shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)에 기록했다.
+[MIGRATE Execution Results](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)에 기록했다.
 이 상태는 REQ-SMB-005나 BLK-SMB-01 해소, native 설치·운영 배포의 완료를 뜻하지 않는다.
+
+
+코드 검증 revision은 `451190372007942832c5bc057319da500f065023`, 검토 대상은
+[PR #354](https://github.com/Sangeok/stagekeeper/pull/354)다. check 915, macOS runtime 237,
+Windows runtime 415, PR 자동 client-init-smoke 84가 green이다. 최신 dev `85c66fb`의 기존
+CI 변경은 함께 보존했다. 자동 init은 Claude 2.1.326과 templates `8ccb37a`의 고정 조합 증거이며,
+실제 Codex 설치·권한·모델 역할과 독립 갱신 조합의 전체 인수는 ACCEPT에 남는다.
