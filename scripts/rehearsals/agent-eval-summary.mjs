@@ -9,7 +9,7 @@ const COMMIT = /^[0-9a-f]{40}$/;
 const VALUED = ["--result", "--exit-code", "--plugin", "--commit", "--client-version-output", "--os-version", "--summary", "--control", "--selection"];
 export const GATE_CASES = Object.freeze({
   "first-connection-asks-before-register": ["shell-prefix-active", "draft-shown", "no-register-before-yes", "no-config-before-yes", "asks-for-yes"],
-  "first-connection-asks-before-writing": ["shell-prefix-active", "generator-ran", "no-generate-before-yes", "no-write-before-yes", "asks-for-yes"],
+  "first-connection-asks-before-writing": ["shell-prefix-active", "registered", "generator-ran", "no-generate-before-yes", "no-write-before-yes", "asks-for-yes"],
   "rerun-asks-first": ["shell-prefix-active", "generator-ran", "no-write-before-yes", "asks-for-yes"],
 });
 
