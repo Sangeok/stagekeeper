@@ -1,0 +1,160 @@
+{
+  "workflowRun": 44049597103,
+  "jobId": 133923757283,
+  "commit": "0cd239abafee2519e49ec00417dd33d1bdb659c2",
+  "result": {
+    "platform": "win32",
+    "architecture": "x64",
+    "release": "10.0.20348",
+    "node": "v22.23.4",
+    "observations": [
+      {
+        "name": "N01",
+        "status": "unknown",
+        "reasons": [
+          "incomplete-coverage"
+        ],
+        "at": "2026-11-17T08:54:58.858Z",
+        "platform": "win32",
+        "architecture": "x64",
+        "release": "10.0.20348",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": false,
+        "profile": "windows-20348-core7-current-sid-x64-v1",
+        "processCount": 30,
+        "missingCount": 1,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "durationMs": 4372,
+        "outputBytes": 3018,
+        "observer": "settled"
+      },
+      {
+        "name": "N02-N03",
+        "status": "unknown",
+        "reasons": [
+          "incomplete-coverage"
+        ],
+        "at": "2026-11-17T08:55:03.338Z",
+        "platform": "win32",
+        "architecture": "x64",
+        "release": "10.0.20348",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": false,
+        "profile": "windows-20348-core7-current-sid-x64-v1",
+        "processCount": 32,
+        "missingCount": 1,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "durationMs": 932,
+        "outputBytes": 3314,
+        "observer": "settled"
+      },
+      {
+        "name": "N04",
+        "status": "unknown",
+        "reasons": [
+          "incomplete-coverage"
+        ],
+        "at": "2026-11-17T08:55:04.324Z",
+        "platform": "win32",
+        "architecture": "x64",
+        "release": "10.0.20348",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": false,
+        "profile": "windows-20348-core7-current-sid-x64-v1",
+        "processCount": 33,
+        "missingCount": 1,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "durationMs": 830,
+        "outputBytes": 3466,
+        "observer": "settled"
+      },
+      {
+        "name": "N08-N17",
+        "status": "unknown",
+        "reasons": [
+          "incomplete-coverage"
+        ],
+        "at": "2026-11-17T08:55:05.212Z",
+        "platform": "win32",
+        "architecture": "x64",
+        "release": "10.0.20348",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": false,
+        "profile": "windows-20348-core7-current-sid-x64-v1",
+        "processCount": 33,
+        "missingCount": 1,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "durationMs": 1082,
+        "outputBytes": 3458,
+        "observer": "settled"
+      },
+      {
+        "name": "N05",
+        "status": "unknown",
+        "reasons": [
+          "incomplete-coverage"
+        ],
+        "at": "2026-11-17T08:55:06.400Z",
+        "platform": "win32",
+        "architecture": "x64",
+        "release": "10.0.20348",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": false,
+        "profile": "windows-20348-core7-current-sid-x64-v1",
+        "processCount": 34,
+        "missingCount": 1,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "durationMs": 801,
+        "outputBytes": 3610,
+        "observer": "settled"
+      },
+      {
+        "name": "N06",
+        "status": "unknown",
+        "reasons": [
+          "incomplete-coverage"
+        ],
+        "at": "2026-11-17T08:55:07.216Z",
+        "platform": "win32",
+        "architecture": "x64",
+        "release": "10.0.20348",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": false,
+        "profile": "windows-20348-core7-current-sid-x64-v1",
+        "processCount": 32,
+        "missingCount": 1,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "durationMs": 831,
+        "outputBytes": 3366,
+        "observer": "settled"
+      },
+      {
+        "name": "N17-N18",
+        "status": "unknown",
+        "reasons": [
+          "incomplete-coverage"
+        ],
+        "at": "2026-11-17T08:55:08.104Z",
+        "platform": "win32",
+        "architecture": "x64",
+        "release": "10.0.20348",
+        "scope": "current-account-all-sessions-non-zombie-cwd",
+        "coverageComplete": false,
+        "profile": "windows-20348-core7-current-sid-x64-v1",
+        "processCount": 32,
+        "missingCount": 1,
+        "snapshotAttempts": 1,
+        "populationChanges": 0,
+        "durationMs": 810,
+        "outputBytes": 3314,
+        "observer": "settled"
+      }
+    ]
+  }
+}
