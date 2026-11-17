@@ -7,7 +7,7 @@ approved-by: "user"
 approved-at: "2026-11-17"
 approval-scope: "사용자의 GitHub CI-only 후속 지시에 따라 GitHub-hosted Windows/macOS 인수 workflow와 기존 native runtime 재사용, 필요한 인수 스크립트·시험·문서와 격리 CI 인수·증거 기록. 개인 프로필/설치 변경·로컬 native 인수·실제 모델 호출·운영 DB/seed/activation·main 승격 제외"
 completed-at: null
-verification-summary: null
+verification-summary: "GitHub CI-only 범위: 4c5ccd6의 Windows x64·macOS arm64/x64 인수와 check 모두 PASS. 동일 제품 bytes의 Claude source 4개 leg PASS. 상세 결과와 정제 summary를 완료 보고서에 보존; PR #363 병합 대기"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -20,6 +20,7 @@ related:
   - "docs/architecture/protocol.md"
   - "docs/architecture/template-releases.md"
   - "docs/architecture/verification.md"
+  - "docs/test-reports/completed/2026-11-17-shared-modules-plugin-distribution-acceptance.md"
   - "docs/proposals/active/dual-client-ci-parity.md"
   - "docs/proposals/active/template-release-acceptance-follow-ups.md"
 ---
@@ -161,7 +162,7 @@ active `role-command-time-limit.md`의 timeout 변경·모델 제외 범위, wor
 - verified-by: VFY-SMB-05
 
 원본과 과거 PASS를 유지하고, 제안 보고서
-`docs/test-reports/active/shared-modules-plugin-distribution-acceptance.md`에 입력 원장과 재사용 표를 추가한다.
+[인수 보고서](../../test-reports/completed/2026-11-17-shared-modules-plugin-distribution-acceptance.md)에 입력 원장과 재사용 표를 보존한다.
 아직 이 보고서는 없으며 이번 작성에서 만들지 않는다.
 
 | 입력 | 준비할 값·기본 선택 | 다음 단계로 넘어가는 조건 |
@@ -754,3 +755,30 @@ F5 수정 후 추가 문서 수정 사항은 확인하지 못했다. 문서의 �
 개인 설치·인증 프로필 변경, native 인수·DB·모델 실행은 하지 않았다. Windows와 macOS의 실물
 인수 실행은 GitHub-hosted runner에서 수행한다. 기존 private CI는 다른 source/template에 고정돼
 있어 retarget하거나 실행하지 않는다.
+
+### CI-only 인수 완료 기록 — 2026-11-17
+
+실제 tested source는 `4c5ccd6d616495c644d7a26be7afc4bbceaff030`이다.
+`shared-distribution-acceptance` run `44048937201`의 Windows x64·macOS arm64/x64 job과
+정제 summary가 모두 PASS이며, 각 7개 named check와 server/fixture/client/database 정리가 성공했다.
+공통 `check` run `44048937150`도 8개 job 모두 PASS다.
+
+| Task | 승인된 CI-only 범위 결과 | 근거 |
+| --- | --- | --- |
+| TASK-ACCEPT-01 | 완료 | 고정 T `8ccb37a`의 전체 13row·6입력 hash 비교와 옛 lib 경로 검사, 실제 corpus 설치·그래프 두 검사 |
+| TASK-ACCEPT-02 | 완료 | 세 OS에서 실제 이전/후보 package 제작과 native runtime·verifier·bytes·mode·lib 15개 closure 대조 |
+| TASK-ACCEPT-03 | 완료 | 실제 Codex 선택 cache의 S0/P0→S/P0→S/P, 새 빈 cache, pending 거부/복구와 session lifecycle. Claude source 4개 leg는 동일 제품 bytes의 원래 source/run으로 재사용 |
+| TASK-ACCEPT-04 | 완료 | [완료 보고서](../../test-reports/completed/2026-11-17-shared-modules-plugin-distribution-acceptance.md)에 run/job/attempt·원래 SHA·해시·정리·실패 수정 이력과 정제 summary 보존 |
+
+BLK-SMB-02의 개인 Windows host 부재는 승인된 GitHub-hosted 경로에서 해결했다.
+BLK-SMB-03의 모델 로그인·한도는 이 모델 없는 범위의 진입 조건이 아니다. private self-hosted CI를
+변경하지 않았고 모델 호출은 0회다. native 실행 및 현재 model-free 회귀 결과를 전체 모델 역할이나
+운영 승격의 성공으로 확대하지 않는다. 기존 모델 기반 출시 gate는 별도 출시 작업에 남긴다.
+
+초기 검증기의 과거 corpus/최신 문구 혼용과 Windows의 모의 macOS 경로 처리 오류를 수정했다.
+기존 회귀와 인수를 한 job에 묶어 발생한 Intel 시간 제한은 독립 인수 matrix로 해결했다.
+제품 코드에는 추가 변경이 없다. 최초 실패·취소와 최종 성공을 보고서에서 구분한다.
+
+후속 dev `1298603`의 다른 세션이 남긴 선행 비교 기록을 병합·보존했다. 이후 결과 문서만
+바뀌었으므로 tested source를 문서 commit으로 바꾸지 않는다. 인수 실행은 완료했으며
+[PR #363](https://github.com/Sangeok/stagekeeper/pull/363) 병합 전까지 이 계획을 active/pending에 둔다.

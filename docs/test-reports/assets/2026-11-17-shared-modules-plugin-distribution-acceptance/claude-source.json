@@ -1,0 +1,448 @@
+{
+  "runId": 44044069195,
+  "sourceCommit": "909a83dc1d6b81cfbd6d9b8b8c0ed311971580aa",
+  "jobs": [
+    {
+      "jobId": 133905336930,
+      "name": "claude (windows-2022, update)",
+      "conclusion": "success",
+      "summary": {
+        "client": "claude",
+        "clientVersion": "2.1.326",
+        "pluginVersion": "0.6.16",
+        "osVersion": "10.0.20348",
+        "os": "win32-x64",
+        "scenario": "update",
+        "pluginSource": "github-branch",
+        "pluginCommit": "909a83dc1d6b81cfbd6d9b8b8c0ed311971580aa",
+        "previousCommit": "85c66fb1d9e02c3d9416710240cbfca3f0023939",
+        "templatesCommit": "8ccb37a4ab91de527e6a23caa6d415c7cdc6f215",
+        "steps": [
+          {
+            "step": "seed-templates",
+            "result": "pass"
+          },
+          {
+            "step": "fixture",
+            "result": "pass"
+          },
+          {
+            "step": "server-start",
+            "result": "pass"
+          },
+          {
+            "step": "repository",
+            "result": "pass"
+          },
+          {
+            "step": "previous-plugin",
+            "result": "pass"
+          },
+          {
+            "step": "template-cutover",
+            "result": "pass"
+          },
+          {
+            "step": "previous-register",
+            "result": "pass"
+          },
+          {
+            "step": "previous-harness-json",
+            "result": "pass"
+          },
+          {
+            "step": "previous-dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "previous-generate",
+            "result": "pass"
+          },
+          {
+            "step": "previous-persist-server",
+            "result": "pass"
+          },
+          {
+            "step": "previous-mcp-add",
+            "result": "pass"
+          },
+          {
+            "step": "previous-mcp-connected",
+            "result": "pass"
+          },
+          {
+            "step": "previous-client-config",
+            "result": "pass"
+          },
+          {
+            "step": "previous-project-sync",
+            "result": "pass"
+          },
+          {
+            "step": "previous-commit",
+            "result": "pass"
+          },
+          {
+            "step": "plugin-install",
+            "result": "pass"
+          },
+          {
+            "step": "mcp-unchanged",
+            "result": "pass"
+          },
+          {
+            "step": "update-dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "update-generate",
+            "result": "pass"
+          },
+          {
+            "step": "update-sync",
+            "result": "pass"
+          },
+          {
+            "step": "secret-scan",
+            "result": "pass"
+          }
+        ],
+        "seconds": 17,
+        "result": "pass"
+      }
+    },
+    {
+      "jobId": 133905337151,
+      "name": "claude (macos-15, new-user)",
+      "conclusion": "success",
+      "summary": {
+        "client": "claude",
+        "clientVersion": "2.1.326",
+        "pluginVersion": "0.6.16",
+        "osVersion": "15.8.2",
+        "os": "darwin-arm64",
+        "scenario": "new-user",
+        "pluginSource": "github-branch",
+        "pluginCommit": "909a83dc1d6b81cfbd6d9b8b8c0ed311971580aa",
+        "templatesCommit": "8ccb37a4ab91de527e6a23caa6d415c7cdc6f215",
+        "steps": [
+          {
+            "step": "seed-templates",
+            "result": "pass"
+          },
+          {
+            "step": "template-cutover",
+            "result": "pass"
+          },
+          {
+            "step": "fixture",
+            "result": "pass"
+          },
+          {
+            "step": "server-start",
+            "result": "pass"
+          },
+          {
+            "step": "repository",
+            "result": "pass"
+          },
+          {
+            "step": "plugin-install",
+            "result": "pass"
+          },
+          {
+            "step": "register",
+            "result": "pass"
+          },
+          {
+            "step": "harness-json",
+            "result": "pass"
+          },
+          {
+            "step": "dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "generate",
+            "result": "pass"
+          },
+          {
+            "step": "persist-server",
+            "result": "pass"
+          },
+          {
+            "step": "mcp-add",
+            "result": "pass"
+          },
+          {
+            "step": "mcp-connected",
+            "result": "pass"
+          },
+          {
+            "step": "client-config",
+            "result": "pass"
+          },
+          {
+            "step": "project-sync",
+            "result": "pass"
+          },
+          {
+            "step": "commit",
+            "result": "pass"
+          },
+          {
+            "step": "rerun-unchanged",
+            "result": "pass"
+          },
+          {
+            "step": "rerun-sync",
+            "result": "pass"
+          },
+          {
+            "step": "upgrade-pro",
+            "result": "pass"
+          },
+          {
+            "step": "pro-dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "pro-generate",
+            "result": "pass"
+          },
+          {
+            "step": "pro-sync",
+            "result": "pass"
+          },
+          {
+            "step": "secret-scan",
+            "result": "pass"
+          }
+        ],
+        "seconds": 9,
+        "result": "pass"
+      }
+    },
+    {
+      "jobId": 133905337171,
+      "name": "claude (windows-2022, new-user)",
+      "conclusion": "success",
+      "summary": {
+        "client": "claude",
+        "clientVersion": "2.1.326",
+        "pluginVersion": "0.6.16",
+        "osVersion": "10.0.20348",
+        "os": "win32-x64",
+        "scenario": "new-user",
+        "pluginSource": "github-branch",
+        "pluginCommit": "909a83dc1d6b81cfbd6d9b8b8c0ed311971580aa",
+        "templatesCommit": "8ccb37a4ab91de527e6a23caa6d415c7cdc6f215",
+        "steps": [
+          {
+            "step": "seed-templates",
+            "result": "pass"
+          },
+          {
+            "step": "template-cutover",
+            "result": "pass"
+          },
+          {
+            "step": "fixture",
+            "result": "pass"
+          },
+          {
+            "step": "server-start",
+            "result": "pass"
+          },
+          {
+            "step": "repository",
+            "result": "pass"
+          },
+          {
+            "step": "plugin-install",
+            "result": "pass"
+          },
+          {
+            "step": "register",
+            "result": "pass"
+          },
+          {
+            "step": "harness-json",
+            "result": "pass"
+          },
+          {
+            "step": "dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "generate",
+            "result": "pass"
+          },
+          {
+            "step": "persist-server",
+            "result": "pass"
+          },
+          {
+            "step": "mcp-add",
+            "result": "pass"
+          },
+          {
+            "step": "mcp-connected",
+            "result": "pass"
+          },
+          {
+            "step": "client-config",
+            "result": "pass"
+          },
+          {
+            "step": "project-sync",
+            "result": "pass"
+          },
+          {
+            "step": "commit",
+            "result": "pass"
+          },
+          {
+            "step": "rerun-unchanged",
+            "result": "pass"
+          },
+          {
+            "step": "rerun-sync",
+            "result": "pass"
+          },
+          {
+            "step": "upgrade-pro",
+            "result": "pass"
+          },
+          {
+            "step": "pro-dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "pro-generate",
+            "result": "pass"
+          },
+          {
+            "step": "pro-sync",
+            "result": "pass"
+          },
+          {
+            "step": "secret-scan",
+            "result": "pass"
+          }
+        ],
+        "seconds": 20,
+        "result": "pass"
+      }
+    },
+    {
+      "jobId": 133905337179,
+      "name": "claude (macos-15, update)",
+      "conclusion": "success",
+      "summary": {
+        "client": "claude",
+        "clientVersion": "2.1.326",
+        "pluginVersion": "0.6.16",
+        "osVersion": "15.8.2",
+        "os": "darwin-arm64",
+        "scenario": "update",
+        "pluginSource": "github-branch",
+        "pluginCommit": "909a83dc1d6b81cfbd6d9b8b8c0ed311971580aa",
+        "previousCommit": "85c66fb1d9e02c3d9416710240cbfca3f0023939",
+        "templatesCommit": "8ccb37a4ab91de527e6a23caa6d415c7cdc6f215",
+        "steps": [
+          {
+            "step": "seed-templates",
+            "result": "pass"
+          },
+          {
+            "step": "fixture",
+            "result": "pass"
+          },
+          {
+            "step": "server-start",
+            "result": "pass"
+          },
+          {
+            "step": "repository",
+            "result": "pass"
+          },
+          {
+            "step": "previous-plugin",
+            "result": "pass"
+          },
+          {
+            "step": "template-cutover",
+            "result": "pass"
+          },
+          {
+            "step": "previous-register",
+            "result": "pass"
+          },
+          {
+            "step": "previous-harness-json",
+            "result": "pass"
+          },
+          {
+            "step": "previous-dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "previous-generate",
+            "result": "pass"
+          },
+          {
+            "step": "previous-persist-server",
+            "result": "pass"
+          },
+          {
+            "step": "previous-mcp-add",
+            "result": "pass"
+          },
+          {
+            "step": "previous-mcp-connected",
+            "result": "pass"
+          },
+          {
+            "step": "previous-client-config",
+            "result": "pass"
+          },
+          {
+            "step": "previous-project-sync",
+            "result": "pass"
+          },
+          {
+            "step": "previous-commit",
+            "result": "pass"
+          },
+          {
+            "step": "plugin-install",
+            "result": "pass"
+          },
+          {
+            "step": "mcp-unchanged",
+            "result": "pass"
+          },
+          {
+            "step": "update-dry-run",
+            "result": "pass"
+          },
+          {
+            "step": "update-generate",
+            "result": "pass"
+          },
+          {
+            "step": "update-sync",
+            "result": "pass"
+          },
+          {
+            "step": "secret-scan",
+            "result": "pass"
+          }
+        ],
+        "seconds": 11,
+        "result": "pass"
+      }
+    }
+  ]
+}

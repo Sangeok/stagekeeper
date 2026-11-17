@@ -7,7 +7,7 @@ approved-by: "user"
 approved-at: "2026-11-16"
 approval-scope: "Phase ARCH 및 후속 승인된 MIGRATE 소스·배포·시험·CI·문서 전환과 검증, 2026-11-17 사용자 요청에 따른 ACCEPT 인수 검증과 그 기록. 운영 승격 제외"
 completed-at: null
-verification-summary: null
+verification-summary: "ARCH·MIGRATE 완료. ACCEPT의 GitHub CI-only 인수는 4c5ccd6에서 Windows x64·macOS arm64/x64와 동일 제품 bytes의 Claude source 4개 leg PASS; PR #363 병합 대기. 운영 승격·모델 기반 출시 gate는 별도"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -1811,7 +1811,7 @@ VFY-SMB-01의 문서 산출물은 새 architecture·ADR과 기존 안내 10개, 
 실행 명령·최종 문서 검사 결과와 scope 보존 증거는 [ARCH 완료 기록](../completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md#arch-execution-results)에 남긴다.
 VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행이다.
 
-### ACCEPT 실행 결과
+### ACCEPT 선행 비교·CI 기록
 
 2026-11-17 Windows PC에서 실행했다. 후보는 `dev` `c5f4e44`이고, 그 뒤 `8e0f880`까지 바뀐 것은
 문서 하나와 `plugin/bin/harness-watch.test.mjs`(아래 7번)뿐이라 제품 코드는 같다. 비교 기준은 출시된
@@ -1829,7 +1829,33 @@ VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행�
 | 8 | 양 OS watch·session·background 실제 실행 | 미실행 | 모델을 쓰는 출시 게이트 `pipeline-smoke`에 남긴다. 출하 플러그인 파일이 바뀌었으므로 승격 전에 `agent-eval`도 필요하다. Mac에서 손으로 확인한 것은 없다 |
 
 1·4·5번으로 기존 설치본과 새 서버의 조합에서 바뀌는 코드 경로가 없음을 보였다. 다만 이것은 출시된 각 판을
-새 서버에 실제로 연결한 인수가 아니다. 8번이 끝나기 전에는 설치 인수와 출시를 완료로 표시하지 않는다.
+새 서버에 실제로 연결한 인수가 아니었다. 이 선행 확인 시점에는 8번의 공백 때문에 설치 인수와
+출시를 완료로 표시하지 않았다. 후속 사용자의 CI-only 지시와 실제 인수 결과는 다음 절을 따른다.
+
+### ACCEPT GitHub CI-only 인수 결과
+
+사용자는 개인 host/로그인 준비 대신 GitHub CI만으로 진행하도록 지정했다.
+[상세 ACCEPT 계획](./shared-modules-and-plugin-distribution-phase-accept.md)의 실행 범위를
+모델 없는 설치·배포·서버 호환성으로 확정하고 재실행 가능한 인수 workflow를 추가했다.
+[완료 보고서](../../test-reports/completed/2026-11-17-shared-modules-plugin-distribution-acceptance.md)에
+실제 run/job/source identity와 정제 summary를 보존한다.
+
+- `4c5ccd6`의 [인수 run 44048937201](https://github.com/Sangeok/stagekeeper/actions/runs/44048937201):
+  Windows x64·macOS arm64/x64 세 job 모두 PASS. 각 실제 Codex cache에서 P0 설치,
+  동일 DB/origin의 S0→S 교체, P0 무재init receipt/pin 보존, bad surface 거부,
+  P update·빈 cache 설치·pending 복구·session stop/release와 DB 정리까지 확인했다.
+- bundle의 lib는 세 OS 모두 15개다. 전체 payload는 Windows 2245개, macOS 각각 2065개이며
+  runtime/verifier hash·파일 bytes·macOS 권한과 실제 loader 선택 cache를 대조했다.
+- 고정 T `8ccb37a`의 13개 row, en × 3plan × 2client 결과가 이전/후보에서 같다.
+  private corpus 설치·그래프 두 검사도 실행했다. 앞선 전체 외부 참조 조사는 위 선행 기록으로 보존한다.
+- [Claude source run 44044069195](https://github.com/Sangeok/stagekeeper/actions/runs/44044069195)의
+  Windows/macOS 신규·update 4개 leg와 `4c5ccd6`의 공통 check 8개 job도 PASS다.
+  Claude run의 실제 SHA `909a83d`와 이후 제품 bytes 동일성을 보고서에 명시했다.
+
+이로써 승인된 CI-only 인수 범위는 통과했다. 개인 PC·모델 역할·장시간 background와 운영
+승격은 이 판정에 포함하지 않는다. `agent-eval`/`pipeline-smoke`는 기존 출시 조건으로 유지하며
+이번 경로 재편의 인수와 구분한다. 상위/상세 proposal은 PR #363 병합 전까지 active/pending으로
+보존한다. 이 구분은 앞선 8번의 당시 미실행 기록을 모델 실행 성공으로 바꾸지 않는다.
 
 ## Approval and Completion
 
