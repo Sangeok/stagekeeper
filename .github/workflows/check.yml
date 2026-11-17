@@ -25,8 +25,16 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Worktree usage qualification
-        run: npm exec --call "node --test scripts/pr/process-usage.test.mjs scripts/pr/windows-directory-usage.test.mjs"
+      - name: Worktree usage runtime and probe contracts
+        run: npm exec --call "node --test scripts/pr/process-usage.test.mjs scripts/pr/process-usage-probe.test.mjs"
+      - name: macOS native usage qualification
+        if: runner.os == 'macOS'
+        run: npm exec --call "node --test scripts/pr/process-usage-qualification.test.mjs"
+        env:
+          STAGEKEEPER_USAGE_QUALIFICATION: "macos"
+      - name: Windows directory observation counterexamples
+        if: runner.os == 'Windows'
+        run: npm exec --call "node --test scripts/pr/windows-directory-usage.test.mjs"
         env:
           STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"
       - name: Task worktree lifecycle

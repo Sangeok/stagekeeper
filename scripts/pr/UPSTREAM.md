@@ -2,7 +2,22 @@
 
 이 디렉터리는 Phase QUALIFY의 읽기 전용 후보 구현이다. worktree/branch 삭제, PR 병합, 제품 런타임 연결은 하지 않는다. OpenClaw 설치·Bash·sh·외부 binary 다운로드가 필요하지 않다.
 
-## Gate A: 관측 profile
+## Runtime과 후보 평가 경계
+
+조건부 방향 채택 이후 `process-usage.mjs:inspectWorktreeUsage`는 운영용 결과 경계,
+`process-usage-probe.mjs:probeWorktreeUsage`는 실제 native 후보 평가다.
+입력과 초기 결과는 `process-usage-contract.mjs`가 공유한다.
+현재 runtime에 qualified profile을 등록하지 않았다. Windows 후보의 실패와
+macOS 필수 증거 마감을 끝내지 않은 사실을 `unqualified`, `unknown`,
+`observationPerformed=false`, `coverageComplete=false`로 반환한다.
+이 중간 상태를 QUALIFY 완료나 자동 정리 지원으로 표현하지 않는다.
+
+공통/실제 native/Windows 반례 시험을 분리했다. `STAGEKEEPER_USAGE_QUALIFICATION=all`
+로 `node --test scripts/pr/process-usage-qualification.test.mjs`를 실행하면 기존
+Windows 정상 대조군도 계속 평가한다. 현재 Windows 실패가 사라진 것은 아니다.
+`macos` 모드는 macOS 후보 자격 시험의 선택이며 runtime capability를 켜지 않는다.
+
+## Gate A: 실제 후보 관측 profile
 
 - 공통 의미: 호출한 계정에 속한 모든 세션의 non-zombie 프로세스 cwd 관측. target 및 하위 cwd holder를 판정한다.
 - 다른 계정·특권 세션·원격 host·cwd 밖의 파일 handle 사용은 인증하지 않는다. 이 결과는 자료 삭제 권한이 아니며 후속 controller는 소유자 종료 선언과 사용 범위가 이 profile에 맞는지 별도로 확인해야 한다.
