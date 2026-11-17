@@ -1,8 +1,9 @@
 import { selectTemplateReleaseForRunIn, assertTemplateInstallationIn, TemplateInstallationRequired, type TemplateMetadata, type TemplateRunContext } from "./template-selection";
 import { createHash, randomUUID } from "node:crypto";
-import { DEFAULT_SELECTION_POLICY, isGateId, nextAfter, sequence, slotAgent, workPrefix } from "@harness/core/pipeline/pipeline.mjs";
-import { matchingAgents, type SelectionContext } from "@harness/core/pipeline/work-selection.mjs";
-import { isOpen } from "@harness/core/pipeline/transitions.mjs";
+import { DEFAULT_SELECTION_POLICY, isGateId, nextAfter, sequence, slotAgent, workPrefix } from "@harness/app-core/pipeline/pipeline.mjs";
+import { matchingAgents } from "@harness/app-core/pipeline/work-selection.mjs";
+import type { SelectionContext } from "@harness/app-core/pipeline/work-selection.mjs";
+import { isOpen } from "@harness/app-core/pipeline/transitions.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { readProjectUsageCapIn } from "@/server/usage/api";
 import type { ServerResult } from "@/server/result";

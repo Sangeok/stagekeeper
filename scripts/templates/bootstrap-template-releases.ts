@@ -1,7 +1,7 @@
 import { lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { execFileSync } from "node:child_process";
-import { manifestHash } from "../../packages/core/templates/release-manifest.mjs";
+import { manifestHash } from "../../packages/shared/templates/manifest-hash.mjs";
 import { bootstrapTemplateReleases, snapshotTemplateCutover, readTemplateDeployment, templateCutoverEvidenceSchema } from "../../src/server/templates/api";
 import { readTemplateTarget, withTemplateTarget, templateCommandArguments, templateCommandAudit, TEMPLATE_TARGET_OPTIONS } from "./template-target";
 

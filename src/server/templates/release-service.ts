@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { manifestHash, prepareTemplateRelease, readTemplateContract } from "@harness/core/templates/release-manifest.mjs";
-import type { TemplateRow, TemplateSource } from "@harness/core/templates/release-manifest.mjs";
-import { buildVars, buildWorkspaceVars } from "@harness/core/templates/vars.mjs";
-import { renderTemplate } from "@harness/core/templates/render.mjs";
+import { manifestHash } from "@harness/shared/templates/manifest-hash.mjs";
+import { prepareTemplateRelease } from "./release-preparation";
+import { readTemplateContract } from "@harness/shared/templates/release-contract.mjs";
+import type { TemplateRow, TemplateSource } from "./release-preparation";
+import { buildVars, buildWorkspaceVars } from "@harness/shared/templates/vars.mjs";
+import { renderTemplate } from "@harness/shared/templates/render.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
 import { splitTemplate } from "./steps";

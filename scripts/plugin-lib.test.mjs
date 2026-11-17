@@ -1,210 +1,180 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { afterEach, describe, it } from "node:test";
+import fs, { existsSync, linkSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { join } from "node:path";
+import { it } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { diffPluginLib, syncPluginLib } from "./plugin-lib.mjs";
+import { diffPluginLib, syncPluginLib, validatePluginModulesForPackaging } from "./plugin-lib.mjs";
+import { moduleProject, treeSnapshot, writeExports, writeModule } from "./lib/testing/shared-module-fixture.mjs";
 
-const temporaryProjects = [];
+const script = fileURLToPath(new URL("./plugin-lib.mjs", import.meta.url));
+const cli = (root, args = []) => spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: "utf8", windowsHide: true });
 
-function project() {
-  const root = mkdtempSync(join(realpathSync(tmpdir()), "stagekeeper-plugin-lib-"));
-  temporaryProjects.push(root);
-  mkdirSync(join(root, "packages/github"), { recursive: true });
-  return root;
-}
+it("rejects unsupported arguments and keeps help independent of the project", t => {
+  const root = moduleProject(t);
+  writeModule(root, "plugin/lib/config.mjs", "old\n");
+  writeModule(root, "plugin/lib/orphan.mjs", "orphan\n");
+  const before = treeSnapshot(join(root, "plugin"));
+  for (const args of [["--chek"], ["--check", "unexpected"], ["--help", "--check"]]) {
+    const result = cli(root, args);
+    assert.equal(result.status, 2, result.stderr);
+    assert.match(result.stderr, /Usage:/);
+    assert.deepEqual(treeSnapshot(join(root, "plugin")), before);
+  }
+  rmSync(join(root, "packages"), { recursive: true });
+  const help = cli(root, ["--help"]);
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /Usage:/);
+  assert.deepEqual(treeSnapshot(join(root, "plugin")), before);
+});
 
-function write(root, path, source = "export {};\n") {
-  const target = join(root, ...path.split("/"));
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, source, "utf8");
-}
+it("keeps check read-only and reports missing, changed and orphaned files", t => {
+  const root = moduleProject(t, [{ path: "a.mjs", runtime: "universal" }, { path: "nested/b.mjs", runtime: "universal" }]);
+  writeModule(root, "plugin/lib/a.mjs", "old\n");
+  writeModule(root, "plugin/lib/nested/retired.mjs", "old\n");
+  const before = treeSnapshot(join(root, "plugin"));
+  assert.deepEqual(diffPluginLib(root), { drift: ["a.mjs", "nested/b.mjs"], orphan: ["nested/retired.mjs"] });
+  const checked = cli(root, ["--check"]);
+  assert.equal(checked.status, 1, checked.stderr);
+  assert.match(checked.stdout, /drift: plugin\/lib\/nested\/b.mjs/);
+  assert.match(checked.stdout, /orphan: plugin\/lib\/nested\/retired.mjs/);
+  assert.deepEqual(treeSnapshot(join(root, "plugin")), before);
+});
 
-afterEach(() => {
-  for (const root of temporaryProjects.splice(0)) {
-    rmSync(root, { recursive: true, force: true });
+it("builds a complete lib from source alone and preserves relative imports and bytes", async t => {
+  const root = moduleProject(t, [{ path: "templates/public.mjs", runtime: "universal" }]);
+  const helper = Buffer.from('export const value = "한글";\r\n');
+  writeModule(root, "packages/shared/plans/internal.mjs", helper);
+  writeModule(root, "packages/shared/templates/public.mjs", 'export { value } from "../plans/internal.mjs";\n');
+  writeModule(root, "packages/shared/templates/public.test.mjs", "test-only");
+  writeModule(root, "packages/shared/templates/public.d.mts", "export declare const value: string;\n");
+  writeModule(root, "packages/shared/README.md", "developer metadata\n");
+  assert.equal(existsSync(join(root, "plugin/lib")), false);
+  assert.deepEqual(syncPluginLib(root), { drift: ["plans/internal.mjs", "templates/public.mjs"], orphan: [] });
+  assert.deepEqual(readFileSync(join(root, "plugin/lib/plans/internal.mjs")), helper);
+  assert.equal((await import(pathToFileURL(join(root, "plugin/lib/templates/public.mjs")).href)).value, "한글");
+  for (const file of ["templates/public.test.mjs", "templates/public.d.mts", "README.md", "plugin-exports.json"]) assert.equal(existsSync(join(root, "plugin/lib", file)), false, file);
+});
+
+it("synchronizes only drift and owned orphans and is a no-op on the next run", t => {
+  const root = moduleProject(t);
+  writeModule(root, "plugin/lib/config.mjs", "old\n");
+  writeModule(root, "plugin/lib/obsolete/retired.mjs", "old\n");
+  writeModule(root, "plugin/lib/obsolete/.gitkeep", "keep\n");
+  writeModule(root, "plugin/runtime/owned.mjs", "export const local = true;\n");
+  const runtime = treeSnapshot(join(root, "plugin/runtime"));
+  assert.deepEqual(syncPluginLib(root), { drift: ["config.mjs"], orphan: ["obsolete/retired.mjs"] });
+  assert.equal(readFileSync(join(root, "plugin/lib/obsolete/.gitkeep"), "utf8"), "keep\n");
+  const once = treeSnapshot(join(root, "plugin"));
+  assert.deepEqual(syncPluginLib(root), { drift: [], orphan: [] });
+  assert.deepEqual(treeSnapshot(join(root, "plugin")), once);
+  assert.deepEqual(treeSnapshot(join(root, "plugin/runtime")), runtime);
+  assert.equal(cli(root, ["--check"]).status, 0);
+});
+
+it("leaves lib bytes and paths unchanged when only app policies or server files change", t => {
+  const root = moduleProject(t);
+  syncPluginLib(root);
+  const before = treeSnapshot(join(root, "plugin/lib"));
+  writeModule(root, "packages/app-core/project.mjs", 'export const limit = 3;\n');
+  writeModule(root, "src/server/policy.ts", 'export const limit = 4;\n');
+  assert.deepEqual(syncPluginLib(root), { drift: [], orphan: [] });
+  assert.deepEqual(treeSnapshot(join(root, "plugin/lib")), before);
+});
+
+it("removes a retired entry only after validating the remaining source graph", t => {
+  const root = moduleProject(t, [{ path: "a.mjs", runtime: "universal" }, { path: "b.mjs", runtime: "universal" }]);
+  syncPluginLib(root);
+  writeExports(root, [{ path: "a.mjs", runtime: "universal" }]);
+  const before = treeSnapshot(join(root, "plugin/lib"));
+  assert.throws(() => syncPluginLib(root), /orphan production module/);
+  assert.deepEqual(treeSnapshot(join(root, "plugin/lib")), before);
+  rmSync(join(root, "packages/shared/b.mjs"));
+  assert.deepEqual(syncPluginLib(root), { drift: [], orphan: ["b.mjs"] });
+});
+
+it("refuses malformed source or consumers before changing drift and orphan copies", t => {
+  const cases = [
+    root => writeModule(root, "packages/shared/plugin-exports.json", "{"),
+    root => rmSync(join(root, "packages/shared/config.mjs")),
+    root => writeModule(root, "packages/shared/config.mjs", 'import "./missing.mjs";'),
+    root => writeModule(root, "packages/shared/config.mjs", 'import "node:crypto";'),
+    root => writeModule(root, "packages/shared/config.mjs", 'export const load = name => import(name);'),
+    root => writeModule(root, "packages/shared/orphan.mjs"),
+    root => { writeModule(root, "packages/shared/config.mjs", 'export { value } from "./private.mjs";'); writeModule(root, "packages/shared/private.mjs"); writeModule(root, "plugin/bin/leak.mjs", 'export { value } from "../lib/private.mjs";'); },
+  ];
+  for (const change of cases) {
+    const root = moduleProject(t);
+    writeModule(root, "plugin/lib/config.mjs", "retained\n");
+    writeModule(root, "plugin/lib/orphan.mjs", "retained orphan\n");
+    change(root);
+    const before = treeSnapshot(join(root, "plugin"));
+    assert.throws(() => syncPluginLib(root));
+    assert.deepEqual(treeSnapshot(join(root, "plugin")), before);
   }
 });
 
-describe("plugin-lib", () => {
-  it("rejects unsupported arguments before changing drifted or orphaned copies", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs", "export const a = 1;\n");
-    write(root, "plugin/lib/config.mjs", "export const a = 0;\n");
-    write(root, "plugin/lib/orphan.mjs", "export const old = true;\n");
-    for (const args of [["--chek"], ["--check", "unexpected"], ["--help", "--check"]]) {
-      const result = spawnSync(process.execPath, [fileURLToPath(new URL("./plugin-lib.mjs", import.meta.url)), ...args], { cwd: root, encoding: "utf8" });
-      assert.equal(result.status, 2, result.stderr);
-      assert.match(result.stderr, /Usage:/);
-      assert.equal(readFileSync(join(root, "plugin/lib/config.mjs"), "utf8"), "export const a = 0;\n");
-      assert.equal(existsSync(join(root, "plugin/lib/orphan.mjs")), true);
-    }
+it("refuses an escaping manifest without touching the existing lib or outside sentinel", t => {
+  const root = moduleProject(t);
+  writeModule(root, "outside.mjs", "outside\n");
+  writeModule(root, "plugin/lib/config.mjs", "retained\n");
+  const outside = treeSnapshot(join(root, "outside.mjs")), before = treeSnapshot(join(root, "plugin"));
+  writeExports(root, [{ path: "../../outside.mjs", runtime: "universal" }]);
+  assert.throws(() => syncPluginLib(root), /invalid entry/);
+  assert.deepEqual(treeSnapshot(join(root, "plugin")), before);
+  assert.deepEqual(treeSnapshot(join(root, "outside.mjs")), outside);
+});
+
+it("refuses destination directory links and file hardlinks without writing through them", t => {
+  const linked = moduleProject(t, [{ path: "nested/value.mjs", runtime: "universal" }]);
+  writeModule(linked, "outside/value.mjs", "sentinel\n");
+  mkdirSync(join(linked, "plugin/lib"), { recursive: true });
+  symlinkSync(join(linked, "outside"), join(linked, "plugin/lib/nested"), process.platform === "win32" ? "junction" : "dir");
+  const outside = treeSnapshot(join(linked, "outside"));
+  assert.throws(() => syncPluginLib(linked), /symbolic link or junction/);
+  assert.deepEqual(treeSnapshot(join(linked, "outside")), outside);
+  const hardlinked = moduleProject(t);
+  writeModule(hardlinked, "outside.mjs", "sentinel\n");
+  mkdirSync(join(hardlinked, "plugin/lib"), { recursive: true });
+  linkSync(join(hardlinked, "outside.mjs"), join(hardlinked, "plugin/lib/config.mjs"));
+  const hardlinkBefore = treeSnapshot(join(hardlinked, "outside.mjs"));
+  assert.throws(() => syncPluginLib(hardlinked), /single-link file/);
+  assert.deepEqual(treeSnapshot(join(hardlinked, "outside.mjs")), hardlinkBefore);
+});
+
+it("reports a partial write as failure and recovers with a fresh check and retry", t => {
+  const root = moduleProject(t, [{ path: "a.mjs", runtime: "universal" }, { path: "b.mjs", runtime: "universal" }]);
+  for (const file of ["a.mjs", "b.mjs", "retired.mjs"]) writeModule(root, "plugin/lib/" + file, "old\n");
+  const write = fs.writeFileSync;
+  t.mock.method(fs, "writeFileSync", (file, ...args) => {
+    if (String(file) === join(root, "plugin/lib/b.mjs")) throw new Error("controlled interrupted write");
+    return write(file, ...args);
   });
+  syncBuiltinESMExports();
+  try { assert.throws(() => syncPluginLib(root), /interrupted write/); }
+  finally { t.mock.restoreAll(); syncBuiltinESMExports(); }
+  assert.equal(readFileSync(join(root, "plugin/lib/a.mjs"), "utf8"), "export const value = 1;\n");
+  assert.equal(readFileSync(join(root, "plugin/lib/b.mjs"), "utf8"), "old\n");
+  assert.equal(existsSync(join(root, "plugin/lib/retired.mjs")), true);
+  const check = cli(root, ["--check"]);
+  assert.equal(check.status, 1, check.stderr);
+  assert.match(check.stdout, /drift: plugin\/lib\/b.mjs/);
+  assert.equal(cli(root).status, 0);
+  assert.deepEqual(diffPluginLib(root), { drift: [], orphan: [] });
+});
 
-  it("prints help without requiring a project or writing plugin copies", () => {
-    const root = project();
-    const result = spawnSync(process.execPath, [fileURLToPath(new URL("./plugin-lib.mjs", import.meta.url)), "--help"], { cwd: root, encoding: "utf8" });
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Usage:/);
-    assert.equal(existsSync(join(root, "plugin")), false);
-  });
-
-  it("keeps check read-only and reports failure until the normal CLI synchronizes copies", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs", "export const a = 1;\n");
-    write(root, "plugin/lib/config.mjs", "export const a = 0;\n");
-    const script = fileURLToPath(new URL("./plugin-lib.mjs", import.meta.url));
-    const check = spawnSync(process.execPath, [script, "--check"], { cwd: root, encoding: "utf8" });
-    assert.equal(check.status, 1, check.stderr);
-    assert.equal(readFileSync(join(root, "plugin/lib/config.mjs"), "utf8"), "export const a = 0;\n");
-    const sync = spawnSync(process.execPath, [script], { cwd: root, encoding: "utf8" });
-    assert.equal(sync.status, 0, sync.stderr);
-    assert.equal(readFileSync(join(root, "plugin/lib/config.mjs"), "utf8"), "export const a = 1;\n");
-    assert.equal(spawnSync(process.execPath, [script, "--check"], { cwd: root }).status, 0);
-  });
-
-  it("reports nothing when every source module has an identical copy", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs", "export const a = 1;\n");
-    write(root, "packages/core/config.test.mjs", "test only\n");
-    write(root, "plugin/lib/config.mjs", "export const a = 1;\n");
-
-    assert.deepEqual(diffPluginLib(root), { drift: [], orphan: [] });
-  });
-
-  it("reports a changed or missing copy as drift", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs", "export const a = 1;\n");
-    write(root, "packages/core/vars.mjs", "export const v = 1;\n");
-    write(root, "plugin/lib/config.mjs", "export const a = 2;\n");
-
-    assert.deepEqual(diffPluginLib(root).drift, ["config.mjs", "vars.mjs"]);
-  });
-
-  it("reports a copy whose source is gone as orphan", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs");
-    write(root, "plugin/lib/config.mjs");
-    write(root, "plugin/lib/removed.mjs");
-
-    assert.deepEqual(diffPluginLib(root), { drift: [], orphan: ["removed.mjs"] });
-  });
-
-  it("ignores test files and non-mjs files on both sides", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs");
-    write(root, "packages/core/config.test.mjs");
-    write(root, "plugin/lib/config.mjs");
-    write(root, "plugin/lib/.gitkeep", "");
-
-    assert.deepEqual(diffPluginLib(root), { drift: [], orphan: [] });
-  });
-
-  it("sync copies drift, removes orphans, and is a no-op when run again", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs", "export const a = 1;\n");
-    write(root, "plugin/lib/config.mjs", "export const a = 0;\n");
-    write(root, "plugin/lib/removed.mjs");
-
-    assert.deepEqual(syncPluginLib(root), { drift: ["config.mjs"], orphan: ["removed.mjs"] });
-    assert.equal(existsSync(join(root, "plugin/lib/removed.mjs")), false);
-    assert.deepEqual(diffPluginLib(root), { drift: [], orphan: [] });
-    assert.deepEqual(syncPluginLib(root), { drift: [], orphan: [] });
-  });
-
-  it("refuses to run when packages/core is missing (wrong working directory)", () => {
-    const root = project();
-    write(root, "plugin/lib/config.mjs");
-
-    assert.throws(() => diffPluginLib(root), /packages\/core not found/);
-    assert.throws(() => syncPluginLib(root), /packages\/core not found/);
-    assert.equal(existsSync(join(root, "plugin/lib/config.mjs")), true);
-  });
-
-  it("preserves copies when the GitHub source directory is missing", () => {
-    const root = project();
-    write(root, "packages/core/config.mjs");
-    write(root, "plugin/lib/github/repo-url.mjs", "export const retained = true;\n");
-    rmSync(join(root, "packages/github"), { recursive: true });
-
-    assert.throws(() => syncPluginLib(root), /packages\/github not found/);
-    assert.equal(readFileSync(join(root, "plugin/lib/github/repo-url.mjs"), "utf8"), "export const retained = true;\n");
-  });
-
-  it("copies GitHub modules into their namespace and removes the former root copy", async () => {
-    const root = project();
-    write(root, "packages/core/config.mjs");
-    write(root, "packages/github/repo-url.mjs", 'export const owner = "example";\n');
-    write(root, "packages/github/blob-url.mjs", 'import { owner } from "./repo-url.mjs";\nexport const href = `https://github.com/${owner}/repo/blob/main/doc.md`;\n');
-    write(root, "packages/github/repo-url.test.mjs", "test only\n");
-    write(root, "packages/github/blob-url.d.mts", "export declare const href: string;\n");
-    write(root, "plugin/lib/github/repo-url.mjs", "outdated\n");
-    write(root, "plugin/lib/repo-url.mjs", "former location\n");
-    write(root, "plugin/lib/github/retired.mjs");
-
-    assert.deepEqual(syncPluginLib(root), {
-      drift: ["config.mjs", "github/blob-url.mjs", "github/repo-url.mjs"],
-      orphan: ["github/retired.mjs", "repo-url.mjs"],
-    });
-    for (const name of ["blob-url.mjs", "repo-url.mjs"]) {
-      assert.equal(readFileSync(join(root, "plugin/lib/github", name), "utf8"), readFileSync(join(root, "packages/github", name), "utf8"));
-    }
-    assert.equal((await import(pathToFileURL(join(root, "plugin/lib/github/blob-url.mjs")).href)).href,
-      "https://github.com/example/repo/blob/main/doc.md");
-    for (const name of ["repo-url.mjs", "github/retired.mjs", "github/repo-url.test.mjs", "github/blob-url.d.mts"]) {
-      assert.equal(existsSync(join(root, "plugin/lib", name)), false, name);
-    }
-    assert.deepEqual(diffPluginLib(root), { drift: [], orphan: [] });
-  });
-
-  it("rejects colliding destinations before replacing or removing any copies", () => {
-    const root = project();
-    write(root, "packages/core/github/repo-url.mjs", "export const source = 'core';\n");
-    write(root, "packages/github/repo-url.mjs", "export const source = 'github';\n");
-    write(root, "plugin/lib/github/repo-url.mjs", "retained\n");
-    write(root, "plugin/lib/retired.mjs");
-
-    assert.throws(() => syncPluginLib(root), /Duplicate plugin module destination: github\/repo-url.mjs/);
-    assert.equal(readFileSync(join(root, "plugin/lib/github/repo-url.mjs"), "utf8"), "retained\n");
-    assert.equal(existsSync(join(root, "plugin/lib/retired.mjs")), true);
-  });
-
-  it("reports nested drift and orphans using their complete relative paths", () => {
-    const root = project();
-    write(root, "packages/core/plans/limits.mjs", "export const limit = 20;\n");
-    write(root, "packages/core/templates/render.mjs");
-    write(root, "plugin/lib/plans/limits.mjs", "export const limit = 10;\n");
-    write(root, "plugin/lib/templates/retired.mjs");
-
-    assert.deepEqual(diffPluginLib(root), {
-      drift: ["plans/limits.mjs", "templates/render.mjs"],
-      orphan: ["templates/retired.mjs"],
-    });
-  });
-
-  it("preserves nested imports and same-named modules when replacing a flat copy", async () => {
-    const root = project();
-    write(root, "packages/core/plans/rules.mjs", "export const limit = 20;\n");
-    write(root, "packages/core/templates/rules.mjs", 'import { limit } from "../plans/rules.mjs";\nexport const allowed = limit > 0;\n');
-    write(root, "packages/core/templates/rules.test.mjs", "test only\n");
-    write(root, "packages/core/templates/rules.d.mts", "export declare const allowed: boolean;\n");
-    write(root, "packages/core/README.md", "module map\n");
-    write(root, "plugin/lib/rules.mjs");
-    write(root, "plugin/lib/obsolete/nested/rules.mjs");
-    write(root, "plugin/lib/obsolete/.gitkeep", "");
-
-    assert.deepEqual(syncPluginLib(root), {
-      drift: ["plans/rules.mjs", "templates/rules.mjs"],
-      orphan: ["obsolete/nested/rules.mjs", "rules.mjs"],
-    });
-    const copied = await import(pathToFileURL(join(root, "plugin/lib/templates/rules.mjs")).href);
-    assert.equal(copied.allowed, true);
-    for (const file of ["rules.mjs", "obsolete/nested/rules.mjs", "templates/rules.test.mjs", "templates/rules.d.mts", "README.md"]) {
-      assert.equal(existsSync(join(root, "plugin/lib", file)), false, file);
-    }
-    assert.equal(existsSync(join(root, "plugin/lib/obsolete/.gitkeep")), true);
-    assert.deepEqual(syncPluginLib(root), { drift: [], orphan: [] });
-  });
+it("validates lib and owned plugin modules against the same tracked payload", t => {
+  const root = moduleProject(t);
+  writeModule(root, "plugin/runtime/qa/config.mjs", 'export { value } from "../../lib/config.mjs";');
+  syncPluginLib(root);
+  const files = ["plugin/lib/config.mjs", "plugin/runtime/qa/config.mjs"];
+  const before = treeSnapshot(join(root, "plugin"));
+  const result = validatePluginModulesForPackaging(root, files);
+  assert.deepEqual([...result.libModules.keys()], ["plugin/lib/config.mjs"]);
+  assert.deepEqual([...result.pluginModules.keys()], ["plugin/runtime/qa/config.mjs"]);
+  for (const selected of [files.slice(1), files.slice(0, 1), [...files, "plugin/runtime/deleted.mjs"], [...files, "plugin/lib/config.d.mts"], [...files, "plugin/runtime/helper.d.mts"]]) assert.throws(() => validatePluginModulesForPackaging(root, selected), /payload/);
+  assert.deepEqual(treeSnapshot(join(root, "plugin")), before);
+  writeModule(root, "plugin/lib/config.mjs", "wrong\n");
+  assert.throws(() => validatePluginModulesForPackaging(root, files), /not synchronized/);
 });

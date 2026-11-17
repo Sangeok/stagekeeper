@@ -1,10 +1,10 @@
 import { selectTemplateReleaseForRunIn, assertTemplateInstallationIn, templatePinFrom } from "@/server/pipeline/api";
 import type { TemplatePin, TemplateMetadata } from "@/server/pipeline/contracts";
 import { TemplateExecutionRejection } from "@/server/pipeline/api";
-import { allowsAgent } from "@harness/core/plans/entitlement.mjs";
+import { allowsAgent } from "@harness/app-core/plans/entitlement.mjs";
 import { readAccountUsageIn, usageLimitFailure } from "@/server/usage/api";
 import { readDatabaseClockIn } from "@/server/database-clock";
-import { dispatcherFor, isItemNode, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
+import { dispatcherFor, isItemNode, SLOT_FORMAT, AUTO_SCOUT_DISABLED_REASON } from "@harness/app-core/pipeline/pipeline.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { readProjectAccessIn } from "@/server/projects/api";
 import { hasActiveLegacyScoutSlot } from "@/server/pipeline/api";

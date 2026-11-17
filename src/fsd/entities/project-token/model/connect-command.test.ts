@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { TOKEN_KINDS } from "@harness/core/tokens/token.mjs";
+import { TOKEN_KINDS } from "@harness/shared/tokens/format.mjs";
 import { OWNER_TOKEN_VARIABLE, codexMcpCommand, codexOwnerMcpCommand, connectCommands, profileLine, saveCommands, tokenKind } from "./connect-command";
 
 describe("Codex owner connection", () => {
@@ -40,7 +40,7 @@ describe("connectCommands", () => {
 });
 
 describe("tokenKind", () => {
-  it("reads the kind off the prefix packages/core issues", () => {
+  it("reads the kind off the issued token prefix", () => {
     assert.equal(tokenKind(`${TOKEN_KINDS.user}abc`), "user");
     assert.equal(tokenKind(`${TOKEN_KINDS.agent}abc`), "project");
   });

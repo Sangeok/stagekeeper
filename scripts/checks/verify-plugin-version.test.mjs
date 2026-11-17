@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join, sep } from "node:path";
 import { test } from "node:test";
-import { isShippedPluginFile } from "../windows/package-windows-plugin.mjs";
+import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
 import { inspectPluginVersion, pluginManifests, readPluginRelease } from "./verify-plugin-version.mjs";
 
 const problems = input => inspectPluginVersion(input).problems;

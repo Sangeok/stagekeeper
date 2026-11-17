@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { withAppRouterTestContext } from "@/fsd/shared/lib/testing";
 import { PathnameContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { copyLock, missingUnits, visibleText } from "@/fsd/shared/lib/copy-lock";
-import type { Plan } from "@harness/core/plans/entitlement.mjs";
+import type { Plan } from "@harness/shared/plans/limits.mjs";
 import type { RunnerFacts, TurnRunner } from "../model/runner";
 import { deriveTurn, type Turn } from "../model/turn";
 import { TurnBanner } from "./turn-banner";

@@ -1,4 +1,4 @@
-import { slotAgent, refId, gateKind, gateId, boundaryOf } from "@harness/core/pipeline/pipeline.mjs";
+import { slotAgent, refId, gateKind, gateId, boundaryOf } from "@harness/app-core/pipeline/pipeline.mjs";
 
 const LABEL: Record<string, string> = { propose: "Assign work", "assign-work": "Assign work", "discover-work": "Discover work", plan: "Plan", verify: "Verify", implement: "Implement", "impl-verify": "Implementation check", qa: "QA", accept: "Accept", "doc-audit": "Doc audit", scout: "Discover work" };
 export const nodeLabel = (kind: string): string => {

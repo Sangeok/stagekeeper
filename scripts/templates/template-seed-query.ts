@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { validateCodexBundle } from "@harness/core/templates/codex-bundle.mjs";
+import { validateCodexBundle } from "../../packages/shared/templates/codex-bundle.mjs";
 import { splitTemplate } from "@/server/templates/api";
 
 export type TemplateSource = { lang: string; path: string; body: string };

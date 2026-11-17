@@ -1,4 +1,4 @@
-import { allowsPipelineEdit } from "@harness/core/pipeline/pipeline.mjs";
+import { allowsPipelineEdit } from "@harness/app-core/pipeline/pipeline.mjs";
 import { savePipeline, archivePipelineAction, renamePipelineAction, setDefaultPipelineAction, setPipelineRuleAction, prepareRunAction, startRunAction, startProjectRunAction, stopProjectRunAction, approveProjectGateAction } from "@/fsd/features/edit-pipeline/index.server";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import { requireProjectOwner } from "@/server/auth/guard";

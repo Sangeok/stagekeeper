@@ -1,13 +1,15 @@
 import { z } from "zod";
-import { REPORT_AGENTS, allowsAgent } from "@harness/core/plans/entitlement.mjs";
-import { renderTemplate } from "@harness/core/templates/render.mjs";
-import { parseClient, runtimeEcho, type Client } from "@harness/core/execution/client-runtime.mjs";
-import { STATUSES, canPropose } from "@harness/core/pipeline/transitions.mjs";
+import { REPORT_AGENTS } from "@harness/shared/plans/limits.mjs";
+import { allowsAgent } from "@harness/app-core/plans/entitlement.mjs";
+import { renderTemplate } from "@harness/shared/templates/render.mjs";
+import { parseClient, runtimeEcho } from "@harness/shared/execution/client-runtime.mjs";
+import type { Client } from "@harness/shared/execution/client-runtime.mjs";
+import { STATUSES, canPropose } from "@harness/app-core/pipeline/transitions.mjs";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { ServerResult, UsageLimitFailure } from "@/server/result";
 import type { PipelineEntry } from "@/server/pipeline/contracts";
 import type { AgentExecutionContext, TemplateMetadata } from "@/server/pipeline/contracts";
-import type { Installation } from "@harness/core/templates/release-manifest.mjs";
+import type { Installation } from "@harness/shared/templates/release-contract.mjs";
 import { DONE, TemplateFormatError, findStep, splitTemplate } from "@/server/templates/api";
 import { type ParsedTemplate, type Step } from "@/server/templates/contracts";
 

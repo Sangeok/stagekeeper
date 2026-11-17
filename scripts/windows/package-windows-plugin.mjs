@@ -6,10 +6,13 @@ import { fileURLToPath } from "node:url";
 import { installedWindowsRuntime } from "../../plugin/runtime/role-commands.mjs";
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
 
+import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
+import { validatePluginModulesForPackaging } from "../plugin-lib.mjs";
+
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const VERIFIER = "skills/reconciling-proposals-with-codebase", CODEX_VERIFIER = "codex/skills/reconciling-proposals-with-codebase";
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
-export const isShippedPluginFile = name => name.startsWith("plugin/") && !name.startsWith("plugin/templates/") && !name.startsWith("plugin/evals/") && !name.endsWith(".test.mjs");
+
 function regularTree(directory) {
   const files = [];
   function visit(current, relative = "") {
@@ -47,12 +50,13 @@ export function packageWindowsPlugin({ output, runtimeDirectory }) {
   const runtimeRows = regularTree(runtime.directory).filter(([name]) => name !== "provenance.json");
   if (digest(JSON.stringify(runtimeRows)) !== runtime.packageSha256 || digest(readFileSync(path.join(runtime.directory, "node.exe"))) !== runtime.executableSha256) throw new Error("Runtime build artifact changed");
   const source = execFileSync("git", ["ls-files", "--", "plugin"], { cwd: repository, encoding: "utf8" }).trim().split(/\r?\n/);
+  const modules = validatePluginModulesForPackaging(repository, source.filter(isShippedPluginFile));
   mkdirSync(output, { recursive: true });
   for (const name of source) {
     if (!isShippedPluginFile(name)) continue;
     const sourceFile = path.join(repository, name), target = path.join(output, name.slice("plugin/".length));
     if (!lstatSync(sourceFile).isFile() || lstatSync(sourceFile).isSymbolicLink()) throw new Error("Plugin source type refused");
-    mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, readFileSync(sourceFile), { flag: "wx" });
+    mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, (modules.libModules.get(name) ?? modules.pluginModules.get(name))?.bytes ?? readFileSync(sourceFile), { flag: "wx" });
   }
   const hooksPath = path.join(output, "hooks/hooks.json");
   writeFileSync(hooksPath, JSON.stringify(windowsHooks(JSON.parse(readFileSync(hooksPath, "utf8"))), null, 2) + "\n");

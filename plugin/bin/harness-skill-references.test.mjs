@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { it } from "node:test";
-import { capReason } from "../lib/plans/entitlement.mjs";
+import { capReason } from "../lib/plans/limits.mjs";
 
 const PLUGIN = new URL("../", import.meta.url);
 const PACKAGED = ["codex/skills/reconciling-proposals-with-codebase"];

@@ -1,5 +1,6 @@
-const bullets = (xs) => (xs.length === 0 ? "none" : xs.map((x) => `- \`${x}\``).join("\n"));
 import { clientRuntime } from "../execution/client-runtime.mjs";
+
+const bullets = (xs) => (xs.length === 0 ? "none" : xs.map((x) => `- \`${x}\``).join("\n"));
 
 export const DEFAULT_SCOUT_QUESTION = "What should change next in this repository — a defect you can point to in the code, or a feature its users need — and what is the evidence?";
 
@@ -14,19 +15,6 @@ export function buildVars(config, client = "claude") {
     scout: config.scout ?? { question: DEFAULT_SCOUT_QUESTION },
     release: config.release ?? { baseUrl: "", auth: "none" },
   };
-}
-
-export function buildReportTable(agents) {
-  if (agents.length === 0) return "none";
-  const rows = agents.map((a) => `| \`${a.name}\` | ${a.description} |`).join("\n");
-  return `| agent | does |\n| --- | --- |\n${rows}`;
-}
-
-export function templateDescription(body, name) {
-  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body);
-  const match = frontmatter && /^description:\s*(.+?)\s*$/m.exec(frontmatter[1]);
-  if (!match) throw new Error(`${name}: no description in frontmatter`);
-  return match[1];
 }
 
 export function buildWorkspaceVars(config, ws, client = "claude") {

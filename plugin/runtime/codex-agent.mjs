@@ -4,7 +4,7 @@ import { join, relative, dirname, resolve, isAbsolute } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { RUNTIME_MARKER } from "../lib/execution/client-runtime.mjs";
-import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { QA_BROWSER_TOOLS } from "./qa/config.mjs";
 
 export const ROLE_TOOLS = {
   "work-assigner": ["agent_next", "assignment_context", "backlog_list", "board_list", "board_propose"],

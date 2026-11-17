@@ -1,15 +1,11 @@
 ---
-status: "planned"
-activates-after: "Phase MIGRATE"
+status: "active"
 ---
 
 # 공유 모듈 소유권과 플러그인 배포
 
-이 문서는 **적용 예정** 계약이다. Phase ARCH는 이 계약과 전환 목록을 확정했으며,
-실제 소스·alias·복사·검사기는 아직 변경하지 않았다. 현행 규칙은 [core.md](./core.md),
-[github.md](./github.md), [server.md](./server.md), [fsd.md](./fsd.md)를 따른다.
-확인 기준은 2026-11-16의 `a0993fcc0d94eed25094012e2716abc70774f61a`다.
-적용 절차와 전체 소비자 목록은 [전환 SDD](../proposals/active/shared-modules-and-plugin-distribution.md),
+이 문서는 현재 소스·공개 경로·실행 환경·배포 경계를 정의한다.
+전환의 원본 대응표와 인수 범위는 [전환 SDD](../proposals/active/shared-modules-and-plugin-distribution.md),
 선택 이유는 [ADR-0008](../ADR/0008-separate-shared-module-distribution.md)이 소유한다.
 
 ## 소유권과 배치
@@ -50,8 +46,7 @@ shared와 app-core는 외부 npm package를 추가하지 않는다. app-core는 
 제품 코드의 테스트·fixture import, 영역 밖에서 shared 내부 helper로의 직접 import도 금지한다.
 
 앱은 `@harness/shared/<path>`와 `@harness/app-core/<path>`를 사용한다. shared 내부는
-상대 경로, 플러그인은 `plugin/lib`까지의 상대 경로를 사용한다. alias는 MIGRATE에서
-`tsconfig.json`과 검사기에 함께 도입한다. 공개 여부는 alias만으로 강제되지 않는다.
+상대 경로, 플러그인은 `plugin/lib`까지의 상대 경로를 사용한다. alias는 `tsconfig.json`과 검사기에 함께 등록한다. 공개 여부는 alias만으로 강제되지 않는다.
 전체 모듈을 다시 모으는 전역 barrel은 만들지 않는다.
 
 ### 서버로 옮기는 정책의 진입점
@@ -65,7 +60,7 @@ DB 연결을 새로 요구하지 않는다.
   토큰 형식은 shared를 사용하며 발급·랜덤 생성·해시는 플러그인으로 배포하지 않는다.
 - `templates/release-preparation.ts`의 외부 소비 함수는 `templates/api.ts`를 통한다.
   현재 `pipeline/template-selection.ts`의 `installationFor`, `selectTemplateLanguage` 사용을
-  위해 **pipeline → templates** 의존을 MIGRATE에서 방향표와 검사기에 추가한다.
+  위해 **pipeline → templates** 의존을 방향표와 검사기에서 허용한다.
   templates → pipeline은 허용하지 않아 순환을 만들지 않는다.
 - `runbookIsStale`은 기존 `templates/runbook-query.ts`의 내부 판정으로 옮긴다.
   기존 공개 `runbookStale` façade를 유지한다. 시험과 acceptance-failure 리허설도 그 façade를
@@ -76,7 +71,7 @@ DB 연결을 새로 요구하지 않는다.
   서버 모듈이 소유한다. 실제 외부 소비가 없는 함수를 공개 façade에 무조건 올리지 않는다.
 
 
-| MIGRATE에서 추가할 공개 server 값 | 현재 외부 생산 소비자 |
+| 공개 server 값 | 현재 외부 생산 소비자 |
 | --- | --- |
 | `tokens/api.ts`: newToken | create-project·manage-user-token의 FSD 서버 Action, 기존 발급 리허설(파일별 목록 참조); macOS 리허설은 main 내부 동적 import |
 | `tokens/api.ts`: hashToken | mcp/auth, rest/scope |
@@ -87,8 +82,7 @@ DB 연결을 새로 요구하지 않는다.
 나머지 이동 함수는 현재 생산 소비가 같은 server 모듈 안에 있으므로 새 façade export를 만들지 않는다.
 `runbookIsStale`의 리허설 소비는 기존 `runbookStale`로 바꾸며 private helper 자체는 공개하지 않는다.
 
-현재 방향표·공개 symbol 표는 [server.md](./server.md)에 그대로 남아 있다.
-위 변경은 MIGRATE 때 소스·공개 API·검사·시험 등록과 함께 활성화한다.
+서버 방향표·공개 symbol·시험 내부 참조의 단일 기준은 [server.md](./server.md)다.
 
 ## 공개 entry와 실행 환경
 
@@ -132,7 +126,7 @@ Client Component 의존 그래프에 들어갈 수 없다. FSD 파일이라는 �
 영역 밖에서는 deliver가 재수출하는 `STEP_HEADING`, `stubOf`를 사용한다.
 별도의 공개 entry를 추가하거나 같은 구현을 복제하지 않는다.
 
-| shared 모듈 | 목표 실행 의존성 |
+| shared 모듈 | 실행 의존성 |
 | --- | --- |
 | configuration/workspaces | plans/limits |
 | templates/deliver | plans/limits, execution/client-runtime, templates/codex-bundle, templates/template-boundary |
@@ -142,8 +136,8 @@ Client Component 의존 그래프에 들어갈 수 없다. FSD 파일이라는 �
 | templates/manifest-hash, templates/runbook | node:crypto |
 | 나머지 공개 entry와 template-boundary | 외부 실행 import 없음; qaHttpUrl은 같은 qa/validation의 qaText 사용 |
 
-이는 분리 후의 의존 계약이다. release-contract는 상수가 포함되어도 해시 의존 때문에 node다.
-공개 표·명세와 함께 이 그래프의 폐쇄성과 universal → node 간선 부재를 MIGRATE에서 검사한다.
+이는 현재 실행 의존 계약이다. release-contract는 상수가 포함되어도 해시 의존 때문에 node다.
+공개 표·명세와 함께 이 그래프의 폐쇄성과 universal → node 간선 부재를 `verify:shared`에서 검사한다.
 
 ### 분리하면서 보존하는 helper와 타입
 
@@ -162,79 +156,16 @@ Client Component 의존 그래프에 들어갈 수 없다. FSD 파일이라는 �
 
 ## 배포 명세와 복사
 
-아래는 MIGRATE에서 만들 `packages/shared/plugin-exports.json`의 **전체 설계 예시**다.
-현재 생산 설정이 아니며 ARCH는 JSON 파일을 생성하지 않는다.
-
-```json
-{
-  "version": 1,
-  "entries": [
-    {
-      "path": "configuration/workspaces.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "execution/client-runtime.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "execution/runner-contract.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "github/repo-url.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "plans/limits.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "qa/validation.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "templates/codex-bundle.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "templates/deliver.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "templates/manifest-hash.mjs",
-      "runtime": "node"
-    },
-    {
-      "path": "templates/release-contract.mjs",
-      "runtime": "node"
-    },
-    {
-      "path": "templates/render.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "templates/runbook.mjs",
-      "runtime": "node"
-    },
-    {
-      "path": "templates/vars.mjs",
-      "runtime": "universal"
-    },
-    {
-      "path": "tokens/format.mjs",
-      "runtime": "universal"
-    }
-  ]
-}
-```
+[packages/shared/plugin-exports.json](../../packages/shared/plugin-exports.json)이 실제 배포 명세다.
+형식은 `{ "version": 1, "entries": [{ "path": "…mjs", "runtime": "universal" | "node" }] }`다.
+경로·runtime을 바꿀 때 이 문서의 공개 계약과 명세를 함께 갱신한다.
 
 명세는 공개 경로와 실행 환경을 선언한다. 복사기는 이 entry에서 정적 import·재수출·
 문자열 리터럴 dynamic import를 따라 shared 내부 실행 의존성을 계산한다.
 계산형 shared import, 없는 원본, shared 밖 참조, 테스트/타입/개발 자료 참조, 잘못된 runtime,
 고립 생산 모듈은 실패시킨다. 문자열 리터럴이어도 Node 내장 모듈은 복사 대상이 아니며
 node runtime에서만 허용한다. 경로는 shared 루트 안에 있어야 하고 traversal·절대 경로·
-symlink를 통한 루트 탈출을 허용하지 않는다.
+symlink·junction·hardlink와 비정규 파일을 허용하지 않는다.
 
 `packages/shared/<path>`를 `plugin/lib/<path>`로 상대 경로와 바이트를 보존하여 복사한다.
 공개 14개와 내부 template-boundary 1개가 이 기준의 실행 파일 집합이다. 향후 파일 수 자체를
@@ -268,19 +199,25 @@ QA 오류, 템플릿 본문 경계·정렬·줄바꿈·해시·설치 lock 의�
 ACCEPT에서 별도로 확인한다. 정적 목록 대조를 실제 설치 호환성 통과로 보고하지 않는다.
 출하 파일 변경의 두 manifest 버전과 release gate는 현행 [검증 규칙](./verification.md)을 따른다.
 
-## 검증과 활성화
+## 자동 검증과 변경 절차
 
-ARCH의 검증은 문서 상태·전체 symbol/소비자 대응·공개 표/JSON·링크·현행 기능적 문서 입력의
-보존이다. 새 경계 검사·sync·native 설치는 이 단계의 통과 항목이 아니다.
+`scripts/lib/shared-module-graph.mjs`가 명세·원본·전이 의존·경로 안전성을 읽고,
+`scripts/checks/verify-shared-boundaries.mjs`가 공개 경로·소유권·Client의 node 유입을 검사한다.
+`use server` 파일의 유효한 async Action 참조는 서버 실행 경계로 처리하며 일반 barrel을 통한
+node 유입은 거부한다. 타입 참조도 소유권 검사를 받지만 실행 의존으로 복사하지 않는다.
+검사 중 shared 소스를 실행하지 않는다. 계산형 shared import와 require는 허용하지 않는다.
 
-MIGRATE는 원본·소비자·타입·alias·명세·검사기·시험 탐색·생성 lib를 일관되게 전환한다.
-shared/app-core 시험을 재귀 탐색하고 plugin/runtime의 새 하위 폴더 시험도 발견하도록 한다.
-혼합 모듈의 시험은 새 소유자별로 분리하되 기존 거부·경계값·해시 사례를 보존한다.
-server bootstrap·DB 시험과 브라우저 실행 시험은 각각 기존 환경을 유지한다.
-자세한 요구사항과 검증 목적지는 SDD의 VFY-SMB-02~05를 따른다.
+- `npm run verify:shared`: shared/app-core/src/plugin/scripts/tests의 first-party 경계를 검사한다.
+- `npm run sync:plugin-lib`: 명세 closure로 생성물을 동기화한다.
+- `node scripts/plugin-lib.mjs --check`: 읽기 전용 drift·orphan 검사이며 `check`의 첫 단계다.
+- `npm test`: shared/app-core와 plugin/runtime의 재귀 시험, plugin/bin 시험을 실행한다.
+- `npm run test:policy-contracts`: 서버/FSD로 옮긴 정책의 동일 입력·거부·경계값을 양 OS CI에서 검증한다.
 
-MIGRATE 완료 revision에서 이 문서를 현행으로 전환하고 core/github 문서의 중복 규칙,
-README·FSD·server·verification·test-organization·protocol·runtime 문서의 예정 안내를 정리한다.
-같은 변경에서 ADR-0008을 accepted, ADR-0005/0007을 superseded로 전환하고 index를 맞춘다.
-AGENTS·packages/plugin README·skill 경로·gate 경로도 실제 구현에 맞춰 바꾼다.
-ARCH 완료만으로 이 활성화를 수행하거나 MIGRATE·ACCEPT를 완료로 간주하지 않는다.
+양 OS 패키저는 공통 `scripts/lib/plugin-payload.mjs`의 출하 판정과
+`validatePluginModulesForPackaging`을 사용한다. 출력 생성 전에 lib의 집합·바이트,
+first-party bin/runtime 모듈의 Git 추적 집합과 안전한 원본을 검증한다. 새 파일은 Git index에도
+등록해야 한다. native Node 내부 vendor 모듈은 이 그래프에서 제외하고 기존 runtime 검증이 소유한다.
+패키저 시험은 작업 트리의 현재 소스를 임시 저장소로 복사하여 실제 패키지 inventory·바이트·거부를 검증한다.
+
+기존 설치본·외부 템플릿·native 설치 인수는 SDD의 ACCEPT 범위다.
+저장소 검사나 fixture 패키징 통과로 실제 설치 호환성을 대신하지 않는다.

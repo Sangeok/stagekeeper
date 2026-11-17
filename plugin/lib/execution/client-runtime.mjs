@@ -1,5 +1,7 @@
 export const CLIENTS = ["claude", "codex"];
+
 export const RUNTIME_PROTOCOL = "harness-runtime-v1";
+
 export const RUNTIME_MARKER = `<!-- harness-runtime:${RUNTIME_PROTOCOL} -->`;
 
 /** @typedef {"claude" | "codex"} Client */
@@ -18,4 +20,5 @@ export function clientRuntime(client = "claude") {
     : { client, protocol: RUNTIME_PROTOCOL, runbook_source: "CLAUDE.runbook.md", runbook_path: "CLAUDE.md", init_command: "/harness:init", resume_command: "/harness:watch", role_call: "Invoke the named Claude Code subagent with a fresh context.", session_call: "Use the installed harness-session helper when available; a dual checkout requires the updated helper." };
 }
 
+/** @returns {{ client: "codex", protocol: string }} */
 export function runtimeEcho() { return { client: "codex", protocol: RUNTIME_PROTOCOL }; }

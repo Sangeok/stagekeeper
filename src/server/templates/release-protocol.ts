@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TEMPLATE_PROTOCOL } from "@harness/core/templates/release-manifest.mjs";
+import { TEMPLATE_PROTOCOL } from "@harness/shared/templates/release-contract.mjs";
 
 export const templateInstallationSchema = z.object({
   releaseId: z.string().min(1), language: z.string().min(1),

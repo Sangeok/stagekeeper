@@ -1,62 +1,82 @@
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
-import { dirname, join, posix, resolve } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkModulePath, isCodeSource, isPluginModule, isTestSource, modulePath, readSharedModuleGraph } from "./lib/shared-module-graph.mjs";
+import { inspectSharedBoundaries } from "./checks/verify-shared-boundaries.mjs";
 
-const SOURCES = [
-  { directory: "packages/core", prefix: "" },
-  { directory: "packages/github", prefix: "github" },
-];
 const LIB = "plugin/lib";
 
-const isDeliverable = (name) => name.endsWith(".mjs") && !name.endsWith(".test.mjs");
-
-function listModules(directory, prefix = "") {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const relative = posix.join(prefix, entry.name);
-    if (entry.isDirectory()) return listModules(join(directory, entry.name), relative);
-    return entry.isFile() && isDeliverable(entry.name) ? [relative] : [];
-  }).sort();
+function preparePluginModules(projectRoot) {
+  const graph = readSharedModuleGraph(projectRoot);
+  const { violations, pluginModules } = inspectSharedBoundaries(graph.root, { graph });
+  if (violations.length) throw new Error(violations.map(item => `${item.file}:${item.line} [${item.rule}] ${item.message}`).join("\n"));
+  return { graph, pluginModules };
 }
 
-function sourceModules(projectRoot) {
-  const modules = new Map();
-  for (const { directory, prefix } of SOURCES) {
-    const source = resolve(projectRoot, directory);
-    if (!existsSync(source)) throw new Error(`${directory} not found under ${projectRoot} — run from the repository root`);
-    for (const name of listModules(source)) {
-      const target = posix.join(prefix, name);
-      if (modules.has(target)) throw new Error(`Duplicate plugin module destination: ${target}`);
-      modules.set(target, resolve(source, name));
+function libFiles(root) {
+  const directory = checkModulePath(root, LIB, { directory: true, missing: true });
+  if (!existsSync(directory)) return [];
+  const files = [];
+  function visit(local) {
+    for (const name of readdirSync(resolve(root, local)).sort()) {
+      const file = modulePath(join(local, name)), stat = lstatSync(resolve(root, file));
+      checkModulePath(root, file, { directory: stat.isDirectory() });
+      if (stat.isDirectory()) visit(file);
+      else if (file.endsWith(".mjs") && !isTestSource(file)) files.push(file.slice(LIB.length + 1));
     }
   }
-  return modules;
+  visit(LIB);
+  return files;
 }
 
-function diffModules(projectRoot, modules) {
-  const lib = resolve(projectRoot, LIB);
-  const drift = [...modules.keys()].sort().filter((name) => {
-    const copy = join(lib, name);
-    return !existsSync(copy) || readFileSync(copy, "utf8") !== readFileSync(modules.get(name), "utf8");
-  });
-  const orphan = (existsSync(lib) ? listModules(lib) : []).filter((name) => !modules.has(name));
+function diffModules(graph) {
+  const files = libFiles(graph.root);
+  const drift = [...graph.modules].filter(([name, source]) => {
+    const target = checkModulePath(graph.root, `${LIB}/${name}`, { missing: true });
+    return !existsSync(target) || !readFileSync(target).equals(source.bytes);
+  }).map(([name]) => name).sort();
+  const orphan = files.filter(name => !graph.modules.has(name)).sort();
   return { drift, orphan };
 }
 
 export function diffPluginLib(projectRoot = process.cwd()) {
-  return diffModules(projectRoot, sourceModules(projectRoot));
+  return diffModules(preparePluginModules(projectRoot).graph);
 }
 
 export function syncPluginLib(projectRoot = process.cwd()) {
-  const modules = sourceModules(projectRoot);
-  const { drift, orphan } = diffModules(projectRoot, modules);
-  mkdirSync(resolve(projectRoot, LIB), { recursive: true });
+  const { graph } = preparePluginModules(projectRoot);
+  const { drift, orphan } = diffModules(graph);
+  mkdirSync(resolve(graph.root, LIB), { recursive: true });
   for (const name of drift) {
-    const target = resolve(projectRoot, LIB, name);
+    const target = resolve(graph.root, LIB, name);
     mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(modules.get(name), target);
+    writeFileSync(target, graph.modules.get(name).bytes);
   }
-  for (const name of orphan) rmSync(resolve(projectRoot, LIB, name));
+  for (const name of orphan) unlinkSync(resolve(graph.root, LIB, name));
   return { drift, orphan };
+}
+
+function sameFiles(expected, actual, label) {
+  const expectedSet = new Set(expected), actualSet = new Set(actual);
+  const missing = [...expectedSet].filter(file => !actualSet.has(file)).sort();
+  const unexpected = [...actualSet].filter(file => !expectedSet.has(file)).sort();
+  if (missing.length || unexpected.length) throw new Error(`${label}: missing tracked modules [${missing.join(", ")}]; unexpected modules [${unexpected.join(", ")}]`);
+}
+
+export function validatePluginModulesForPackaging(projectRoot, trackedFiles) {
+  if (!Array.isArray(trackedFiles) || trackedFiles.some(file => typeof file !== "string" || !file.startsWith("plugin/") || file.includes("\\") || file.split("/").some(part => !part || part === "." || part === "..")) || new Set(trackedFiles).size !== trackedFiles.length) throw new Error("Invalid tracked plugin file list");
+  if (trackedFiles.some(file => /^(?:plugin\/bin|plugin\/runtime)\//.test(file) && isCodeSource(file) && !isPluginModule(file))) throw new Error("Development or vendor module in the tracked plugin payload");
+  const { graph, pluginModules } = preparePluginModules(projectRoot);
+  const { drift, orphan } = diffModules(graph);
+  if (drift.length || orphan.length) throw new Error(`Plugin lib is not synchronized: drift [${drift.join(", ")}]; orphan [${orphan.join(", ")}]`);
+  const libModules = new Map([...graph.modules].map(([name, module]) => [`${LIB}/${name}`, { sourcePath: resolve(graph.root, LIB, name), bytes: module.bytes }]));
+  sameFiles([...libModules.keys()], trackedFiles.filter(file => file.startsWith(LIB + "/")), "Plugin lib payload");
+  sameFiles([...pluginModules.keys()], trackedFiles.filter(isPluginModule), "Plugin runtime payload");
+  for (const [file, module] of [...libModules, ...pluginModules]) {
+    const absolute = checkModulePath(graph.root, file);
+    if (!readFileSync(absolute).equals(module.bytes)) throw new Error(`${file}: source changed during packaging preflight`);
+  }
+  return { libModules, pluginModules };
 }
 
 function runCli() {
@@ -81,4 +101,7 @@ function runCli() {
 }
 
 const currentFile = fileURLToPath(import.meta.url);
-if (process.argv[1] && resolve(process.argv[1]) === currentFile) runCli();
+if (process.argv[1] && resolve(process.argv[1]) === currentFile) {
+  try { runCli(); }
+  catch (error) { console.error(error.message); process.exitCode = 1; }
+}

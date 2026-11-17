@@ -1,5 +1,6 @@
-import { availabilityAfterPlanChange, isPlan, limitsFor } from "@harness/core/plans/entitlement.mjs";
-import { isOpen } from "@harness/core/pipeline/transitions.mjs";
+import { availabilityAfterPlanChange } from "./availability-policy";
+import { isPlan, limitsFor } from "@harness/shared/plans/limits.mjs";
+import { isOpen } from "@harness/app-core/pipeline/transitions.mjs";
 import type { Prisma } from "@/generated/prisma/client";
 import { normalizePlan, ProjectIntegrityError, READ_OPTIONS, repositoryOwner, type Plan, type TransactionHost } from "./access-query";
 

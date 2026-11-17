@@ -33,7 +33,7 @@ it("page loaders expose only server reads while route ownership and Action compo
     const routeImports = imports(parse(route));
     assert.ok(routeImports.includes(`@/fsd/pages/${slice}/index.server`));
     assert.ok(routeImports.includes("@/server/auth/guard"));
-    assert.ok(!routeImports.some(path => path === "@/server/db" || path.startsWith("@/server/pipeline/") || path.startsWith("@/server/projects/") || path.startsWith("@harness/core/")));
+    assert.ok(!routeImports.some(path => path === "@/server/db" || path.startsWith("@/server/pipeline/") || path.startsWith("@/server/projects/") || path.startsWith("@harness/shared/") || path.startsWith("@harness/app-core/")));
     assert.ok(!identifiers(parse(route)).has("toItemDocs"));
   }
   assert.ok(imports(parse("src/fsd/pages/board-item/api/board-item-page.server.ts")).includes("../model/item-docs"));

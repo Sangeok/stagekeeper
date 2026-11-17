@@ -1,5 +1,7 @@
-import { limitsFor } from "../plans/entitlement.mjs";
 import { RUNTIME_MARKER } from "../execution/client-runtime.mjs";
+
+import { limitsFor } from "../plans/limits.mjs";
+
 import { stubOf } from "./template-boundary.mjs";
 
 export const COMMON_DOCS = ["docs/plans/README.md", "docs/plans/template.md", "docs/plans/verification-paths.md", "docs/agents/README.md"];

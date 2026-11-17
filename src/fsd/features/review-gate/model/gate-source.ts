@@ -1,4 +1,5 @@
-import { STATUSES, canDiscard, findRule, type RuleKind } from "@harness/core/pipeline/transitions.mjs";
+import { STATUSES, canDiscard, findRule } from "@harness/app-core/pipeline/transitions.mjs";
+import type { RuleKind } from "@harness/app-core/pipeline/transitions.mjs";
 import type { RejectAction } from "./gate-text";
 
 export { needsHumanDecision, pendingInboxCount, resumeTargetsFor } from "@/fsd/entities/board-item";

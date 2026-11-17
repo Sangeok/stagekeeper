@@ -1,9 +1,11 @@
-import { deliverable } from "@harness/core/templates/deliver.mjs";
-import { parseClient, type Client } from "@harness/core/execution/client-runtime.mjs";
+import { deliverable } from "@harness/shared/templates/deliver.mjs";
+import { parseClient } from "@harness/shared/execution/client-runtime.mjs";
+import type { Client } from "@harness/shared/execution/client-runtime.mjs";
 import { readCodexBundle } from "@/server/templates/api";
-import type { TemplateContract } from "@harness/core/templates/release-manifest.mjs";
+import type { TemplateContract } from "@harness/shared/templates/release-contract.mjs";
 import type { TemplateDeliverySource } from "@/server/templates/contracts";
-import { installationFor, releaseDeliverable, TEMPLATE_PROTOCOL } from "@harness/core/templates/release-manifest.mjs";
+import { installationFor, releaseDeliverable } from "@/server/templates/api";
+import { TEMPLATE_PROTOCOL } from "@harness/shared/templates/release-contract.mjs";
 import type { ServerResult } from "@/server/result";
 import type { Plan, ProjectAccess } from "@/server/projects/contracts";
 import { resolveRestScope, type RestTokenDeps } from "./scope";

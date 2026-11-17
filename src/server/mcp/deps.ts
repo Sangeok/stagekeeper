@@ -1,7 +1,7 @@
-import { runtimeEcho } from "@harness/core/execution/client-runtime.mjs";
+import { runtimeEcho } from "@harness/shared/execution/client-runtime.mjs";
 import { TemplateInstallationRequired, TemplateExecutionRejection } from "@/server/pipeline/api";
 import type { PipelineNext } from "@/server/pipeline/contracts";
-import { historyCutoff } from "@harness/core/plans/entitlement.mjs";
+import { historyCutoff } from "@harness/app-core/plans/entitlement.mjs";
 import "server-only";
 import { recordTokenUsage } from "@/server/tokens/api.server";
 import { consumeProjectRequestBudget } from "@/server/usage/api";

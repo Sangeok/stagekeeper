@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { z } from "zod";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
-import { manifestHash } from "../../packages/core/templates/release-manifest.mjs";
+import { manifestHash } from "../../packages/shared/templates/manifest-hash.mjs";
 import type { DeploymentAudit } from "../../src/server/templates/contracts";
 
 const profileSchema = z.object({

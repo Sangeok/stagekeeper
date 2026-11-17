@@ -11,7 +11,9 @@ const COMMIT = /^[0-9a-f]{40}$/;
 const TOKEN = /\b(?:hu|hs|ho)_[A-Za-z0-9_-]{43}\b/;
 
 export async function assertGeneratedAgents(pluginRoot, repo, plan, workspaceAgents) {
-  const { limitsFor } = await import(pathToFileURL(join(pluginRoot, "lib", "plans", "entitlement.mjs")).href);
+  const current = join(pluginRoot, "lib", "plans", "limits.mjs");
+  const source = existsSync(current) ? current : join(pluginRoot, "lib", "plans", "entitlement.mjs");
+  const { limitsFor } = await import(pathToFileURL(source).href);
   const expected = [...workspaceAgents, ...limitsFor(plan).agents].map(agent => `${agent}.md`).sort();
   const directory = join(repo, ".claude", "agents");
   const actual = existsSync(directory) ? readdirSync(directory).filter(name => name.endsWith(".md")).sort() : [];

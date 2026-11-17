@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "path": "configuration/workspaces.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "execution/client-runtime.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "execution/runner-contract.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "github/repo-url.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "plans/limits.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "qa/validation.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "templates/codex-bundle.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "templates/deliver.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "templates/manifest-hash.mjs",
+      "runtime": "node"
+    },
+    {
+      "path": "templates/release-contract.mjs",
+      "runtime": "node"
+    },
+    {
+      "path": "templates/render.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "templates/runbook.mjs",
+      "runtime": "node"
+    },
+    {
+      "path": "templates/vars.mjs",
+      "runtime": "universal"
+    },
+    {
+      "path": "tokens/format.mjs",
+      "runtime": "universal"
+    }
+  ]
+}

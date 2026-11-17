@@ -1,4 +1,6 @@
-import { TEMPLATE_CONTRACT, manifestHash, releaseDeliverable } from "@harness/core/templates/release-manifest.mjs";
+import { TEMPLATE_CONTRACT } from "@harness/shared/templates/release-contract.mjs";
+import { manifestHash } from "@harness/shared/templates/manifest-hash.mjs";
+import { releaseDeliverable } from "@/server/templates/api";
 import { claudeFixtureExecutable } from "../../../tests/plugin/template-fixture.mjs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
@@ -8,8 +10,8 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { describe, it, type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
-import { newToken } from "@harness/core/tokens/token.mjs";
-import { runbookVersion } from "@harness/core/templates/runbook.mjs";
+import { newToken } from "@/server/tokens/api";
+import { runbookVersion } from "@harness/shared/templates/runbook.mjs";
 import type { Plan } from "../projects/entitlement";
 import { makeTemplatesFor } from "./templates-handler";
 import { makeRecordRunbook } from "./runbook-handler";

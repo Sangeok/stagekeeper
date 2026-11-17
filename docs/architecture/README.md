@@ -6,19 +6,11 @@ source of truth다. 구현 계획은 `docs/proposals/`, 조사 기록은
 **현재 적용할 구조와 규칙**이다. 구현 전 합의가 필요한 전환 계약은 예외적으로
 `status: planned`와 활성화 조건을 명시하여 두며, 현행 규칙을 덮어쓰지 않는다.
 
-## 적용 예정 전환
-
-[shared-modules.md](./shared-modules.md)는 공유 코드의 소유권과 플러그인 배포 경계를
-확정한 Phase ARCH 산출물이다. 실제 구조·alias·검사·배포 경로는 아직 아래 현행 상태다.
-전환 SDD의 Phase MIGRATE가 적용될 때 새 규칙과 문서를 함께 현행으로 바꾼다.
-[ADR-0008](../ADR/0008-separate-shared-module-distribution.md)은 proposed이며
-ADR-0005/0007의 현재 accepted 상태를 아직 대체하지 않는다.
-
 ## 현재 상태
 
 2026-09-01 기준 Phase 0·1이 구현·검증 완료된 상태다(스모크 인수:
 `docs/test-reports/completed/2026-09-01-phase-1-smoke-acceptance.md`). 아래 구조가
-실제 저장소와 일치하며, `npm run verify:fsd`·`npm run verify:server`·`npm run test:architecture`가 경계를
+실제 저장소와 일치하며, `npm run verify:fsd`·`npm run verify:server`·`npm run verify:shared`·`npm run test:architecture`가 경계를
 강제한다. `plugin/templates/`는 의도적으로 git 미추적이다 — 원본은 별도 private
 저장소(`Sangeok/harness-templates`), 배포는 DB 경유다. legacy는 `Template`, versioned는 불변 release/entry와 실행별 pin을 사용한다.
 현재 저장·설치·운영 계약은 [template-releases.md](./template-releases.md)를 따른다.
@@ -26,9 +18,9 @@ ADR-0005/0007의 현재 accepted 상태를 아직 대체하지 않는다.
 Phase 4(2026-09-03)부터 에이전트 템플릿 본문은 파일로 나가지 않는다. `/api/templates`는
 플랜에 맞춰 잘라 낸 것만 준다 — 에이전트 파일은 첫 `## step:` 앞의 **스텁**, 플랜 밖 보고
 에이전트는 제외한다. 기본 런북은 `CLAUDE.runbook.md`이며 Codex 요청은 `CODEX.runbook.md`를 선택한다. 예전 Free variant는 배포하지 않는다. 단계 본문은
-`agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/core/templates/deliver.mjs`
+`agent_next`(MCP)가 한 번에 하나씩 준다. 무엇을 내려줄지는 `packages/shared/templates/deliver.mjs`
 하나가 정하고, 서버(`src/server/rest/templates.ts`)와 생성기(`plugin/bin/harness-init.mjs`의
-로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/core/plans/entitlement.mjs`.
+로컬 우회로)가 같은 함수를 쓴다. 플랜·상한은 `packages/shared/plans/limits.mjs`.
 
 2026-10-03 작업 트리에는 dual-client 계약과 Codex foreground 어댑터가 구현되어 있다.
 서버 원장·승인·token 모델은 공통이고 여기에 client를 저장하지 않는다. Runner 실행
@@ -104,8 +96,8 @@ stagekeeper/
 │   │   └── shared/
 │   ├── server/              # 인증·파이프라인·MCP·DB application services
 │   └── generated/           # 생성 코드, 직접 수정 금지
-├── packages/core/           # 제품의 순수 규칙·프로토콜
-├── packages/github/         # GitHub 저장소 주소 해석·생성
+├── packages/app-core/       # 웹·서버의 순수 제품 정책
+├── packages/shared/         # 플러그인에도 제공하는 명시적 공통 계약
 ├── plugin/                  # Claude/Codex manifest·skill·로컬 생성/실행 helper
 ├── prisma/                  # DB schema와 migration
 ├── scripts/                 # 저장소 검사·복사본 동기화·수동 운영 스크립트 (앱 런타임 아님, verification.md)
@@ -115,10 +107,8 @@ stagekeeper/
 
 ## 문서 지도
 
-- [shared-modules.md](./shared-modules.md): **적용 예정** 공유 소유권·공개 entry·runtime·플러그인 배포 계약
+- [shared-modules.md](./shared-modules.md): 공유 소유권·공개 entry·runtime·플러그인 배포 계약
 
-- [core.md](./core.md): 공유 규칙의 책임별 배치·모듈 경로·플러그인 복사 계약
-- [github.md](./github.md): GitHub URL 공통 모듈의 책임·의존성·배포 경계
 - [system-overview.md](./system-overview.md): 제품 주체, 런타임, 데이터 소유권,
   최상위 모듈의 관계
 - [fsd.md](./fsd.md): FSD layer·slice·segment, import 방향, public API,
@@ -158,10 +148,9 @@ stagekeeper/
    없는 `shared`의 공개 경로는 [FSD 규칙](./fsd.md#shared의-공개-경로)을 따른다.
 4. `src/server`는 `src/fsd`를 import하지 않는다. 서버 Action/API adapter만
    FSD slice의 `api` segment에서 `src/server`를 호출할 수 있다.
-5. `packages/core`는 `src`와 npm package에 의존하지 않는다. UI와 DB가 같은
-   규칙을 공유해야 하면 순수 판정을 여기에 두고 양쪽이 가져다 쓴다.
-   내부 배치와 공개 모듈 경로는 [core.md](./core.md)를 따른다. GitHub 주소 해석·생성은
-   [packages/github](./github.md)가 소유하며 core와 서로 의존하지 않는다.
+5. 웹·서버의 순수 제품 정책은 `packages/app-core`, 플러그인에도 제공하는 공통 계약은
+   `packages/shared`, 서버 전용은 `src/server`, 플러그인 전용은 `plugin/runtime`이 소유한다.
+   공개 entry·runtime·배포와 의존 방향은 [shared-modules.md](./shared-modules.md)를 따른다.
 6. `components/`, `hooks/`, `utils/`, `types/` 같은 기술 종류별 최상위 폴더를
    만들지 않는다. 함께 바뀌는 코드는 같은 slice에 둔다.
 7. 새 layer나 예외 import를 만들기 전에 이 문서와 ADR을 먼저 바꾼다.
@@ -172,7 +161,7 @@ stagekeeper/
 
 1. URL 또는 Next.js 실행 진입점인가? → `src/app`
 2. DB·인증·MCP·트랜잭션 같은 서버 기능인가? → `src/server`
-3. GitHub 저장소 주소 해석·생성인가? → `packages/github`; 제품의 순수 규칙인가? → `packages/core`
+3. 플러그인에도 제공하는 공통 계약인가? → `packages/shared`; 웹·서버 공통 순수 정책인가? → `packages/app-core`; 플러그인 전용인가? → `plugin/runtime`
 4. 전체 화면인가? → `src/fsd/pages/<slice>`
 5. 여러 화면에서 재사용하거나 한 화면 안에서 독립적인 큰 UI 블록인가? → `widgets/<slice>`
 6. 사용자가 수행하는 의미 있는 동작인가? → `features/<slice>`
@@ -195,6 +184,7 @@ stagekeeper/
 npm run check      # CI와 같은 게이트 — 복사본 동기화 검사 · lint · 타입 · 아키텍처 테스트
 npm run verify:fsd
 npm run verify:server
+npm run verify:shared
 npm run test:architecture
 ```
 

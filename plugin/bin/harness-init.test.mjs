@@ -9,7 +9,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { deliverable } from "../lib/templates/deliver.mjs";
 import { DEFAULT_SCOUT_QUESTION } from "../lib/templates/vars.mjs";
-import { REPORT_AGENTS, limitsFor } from "../lib/plans/entitlement.mjs";
+import { REPORT_AGENTS, limitsFor } from "../lib/plans/limits.mjs";
 import { runbookVersion } from "../lib/templates/runbook.mjs";
 
 const BIN = fileURLToPath(new URL("./harness-init.mjs", import.meta.url));

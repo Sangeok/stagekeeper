@@ -1,5 +1,5 @@
 "use server";
-import { toItemType } from "@harness/core/pipeline/backlog.mjs";
+import { toItemType } from "@harness/app-core/pipeline/backlog.mjs";
 import { revalidatePath } from "next/cache";
 import { projectPath } from "@/fsd/shared/routes/project";
 import { requireProjectWrite } from "@/server/auth/guard";

@@ -1,5 +1,5 @@
-import { STEP_HEADING, stubOf } from "@harness/core/templates/deliver.mjs";
-import { STATUSES } from "@harness/core/pipeline/transitions.mjs";
+import { STEP_HEADING, stubOf } from "@harness/shared/templates/deliver.mjs";
+import { STATUSES } from "@harness/app-core/pipeline/transitions.mjs";
 
 const DERIVED_REQUIREMENTS = ["verify-ok", "can-propose"] as const;
 export const REQUIREMENTS: readonly string[] = [...STATUSES, ...DERIVED_REQUIREMENTS];

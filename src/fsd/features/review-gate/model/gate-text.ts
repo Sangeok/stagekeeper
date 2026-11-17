@@ -1,5 +1,5 @@
-import { TEXT_LIMIT } from "@harness/core/pipeline/transitions.mjs";
-import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
+import { TEXT_LIMIT } from "@harness/app-core/pipeline/transitions.mjs";
+import { clientRuntime } from "@harness/shared/execution/client-runtime.mjs";
 import { gateCopyId } from "@/fsd/entities/pipeline";
 
 export { gateActionLabel, gateActionHint as gateNextActionHint } from "@/fsd/entities/pipeline";

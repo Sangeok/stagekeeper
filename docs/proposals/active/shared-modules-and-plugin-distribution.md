@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-12"
 approved-by: "user"
 approved-at: "2026-11-16"
-approval-scope: "Phase ARCH 문서·ADR·전환 목록과 검증 기록만. MIGRATE/ACCEPT 제외"
+approval-scope: "Phase ARCH 및 후속 승인된 MIGRATE 소스·배포·시험·CI·문서 전환과 검증. ACCEPT·운영 승격 제외"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -33,7 +33,7 @@ related:
 처리는 `src/server`, 플러그인 전용 구현은 `plugin/runtime`이 소유한다.
 `plugin/lib`는 명시적으로 공개한 shared 모듈과 그 내부 의존성의 생성된 배포 복사본으로 유지한다.
 
-현재 `packages/core`와 `packages/github`의 생산 `.mjs` 27개가 모두 복사된다.
+ARCH 조사 당시 `packages/core`와 `packages/github`의 생산 `.mjs` 27개가 모두 복사됐다.
 정적 의존성 조사에서는 플러그인 제품 코드가 직접 15개, 간접 의존성까지 17개를 참조했다.
 그러나 이 17개에도 토큰 발급, 프로젝트 선택, 템플릿 release 제작처럼 서버가 소유할 처리가
 섞여 있다. 전체 복사를 의존성 기반 복사로만 바꾸는 것으로는 소유권 문제가 해결되지 않는다.
@@ -44,10 +44,10 @@ related:
 설치 호환성을 보존하는 것이다.
 
 Phase ARCH의 아키텍처·ADR·전환 목록 문서화를 완료했다.
-[적용 예정 계약](../../architecture/shared-modules.md), [ADR-0008](../../ADR/0008-separate-shared-module-distribution.md),
+[현재 공유 경계](../../architecture/shared-modules.md), [ADR-0008](../../ADR/0008-separate-shared-module-distribution.md),
 [ARCH 완료 기록](../completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md)을 따른다.
-실제 코드 전환인 MIGRATE와 설치 인수 ACCEPT는 미착수이며 전체 제안은 pending이다.
-front matter의 승인은 ARCH에 한정된다. 다음 Phase의 착수 승인을 뜻하지 않는다.
+후속 사용자 승인으로 MIGRATE를 구현·검증 중이며 ACCEPT는 미착수다. 전체 제안은 pending으로 유지한다.
+실행 상태는 [MIGRATE 상세 기록](./shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)을 따른다.
 
 ## Goal
 
@@ -1760,7 +1760,7 @@ OS 의존 시험은 Windows/macOS 각각의 실행 증거를 남긴다.
 - stop condition: 참조 유효성이나 필요한 OS 실행 증거가 없으면 설치 인수·출시 완료로 표시하지 않음
 
 Phase ARCH의 적용 예정 계약·ADR·전수 대응표와 VFY-SMB-01 문서 검증을 완료했다.
-Phase MIGRATE는 이 ARCH 산출물과 착수 시점의 최신 baseline을 입력으로 하며 아직 착수하지 않았다.
+ARCH 종료 당시 MIGRATE는 미착수였으며, 후속 승인된 실행 상태는 상세 기록에서 추적한다.
 Phase ACCEPT는 BLK-SMB-01과 양 OS 실행 환경·증거가 충족되어야 한다.
 이 준비도는 제품 코드 구현이나 출시가 승인·완료됐다는 뜻이 아니다.
 
@@ -1806,8 +1806,17 @@ VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행�
 
 ## Approval and Completion
 
-front matter의 승인은 ARCH에 한정되고 완료된 ARCH 상세 문서는 completed로 옮겼다.
-이 상위 SDD는 MIGRATE·ACCEPT가 남아 active/pending으로 유지한다. 현재 stage는 후속 단계의
-승인 대기를 나타내며 ARCH 승인 이력과 모순되지 않는다. 제품 코드·출하·설치·gate·main 승격을
-이번 문서 작업의 완료로 간주하지 않는다. 영구 규칙은 architecture, 이유는 ADR,
-전체 전환과 후속 검증 기록은 이 문서가 소유한다.
+front matter는 ARCH와 후속 MIGRATE 구현 승인 범위를 기록한다. ARCH 상세 문서는 completed에 있고,
+MIGRATE 상세 문서는 양 OS CI를 포함한 완료 조건을 확인한 뒤 completed로 옮긴다.
+상위 SDD는 ACCEPT까지 active/pending으로 유지한다. 영구 규칙은 architecture, 이유는 ADR,
+전체 전환과 후속 검증은 이 문서와 연결된 Phase 기록이 소유한다.
+
+## MIGRATE execution status
+
+2026-11-17, `e8c212a98335a5e4fb12df915c861a1e2581c43b` 기반으로 소유권·공개 명세·생성 lib·
+소비자·검사·양 OS CI 연결·현행 문서를 구현했다. 27개 생산 원본의 전체 복사를 제거하고
+14개 공개 entry/59개 값 export 및 내부 template-boundary의 15개 runtime 모듈을 배포한다.
+로컬 정책·웹·서버·PostgreSQL·HTTP 회귀와 build를 검증했으며 최종 check와 architecture 회귀도 통과했고 양 OS CI는 대기 중이다.
+세부 시험 대응·H1 공통 predicate 선행 통합·기존 설치 reader 경로의 보존 이유는
+[MIGRATE Execution Results](./shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)에 기록했다.
+이 상태는 REQ-SMB-005나 BLK-SMB-01 해소, native 설치·운영 배포의 완료를 뜻하지 않는다.

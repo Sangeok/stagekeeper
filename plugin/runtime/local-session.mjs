@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { STUCK_AFTER } from "../lib/execution/watch.mjs";
+import { STUCK_AFTER } from "./execution/watch.mjs";
 import { isRunbookVersion } from "../lib/templates/runbook.mjs";
 import { atomicWrite as atomicText, safeTarget } from "./file-ownership.mjs";
 import { stateDiagnostic } from "./state-diagnostics.mjs";

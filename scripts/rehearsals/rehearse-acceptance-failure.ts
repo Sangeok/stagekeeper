@@ -10,12 +10,14 @@ import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
 import { build } from "esbuild";
 import { validateTestDatabase } from "../lib/test-database.mjs";
-import { parseHarnessConfig } from "../../packages/core/configuration/harness-config.mjs";
-import { deliverable } from "../../packages/core/templates/deliver.mjs";
-import { renderTemplate } from "../../packages/core/templates/render.mjs";
-import { runbookIsStale, runbookVersion } from "../../packages/core/templates/runbook.mjs";
-import { newToken } from "../../packages/core/tokens/token.mjs";
-import { buildReportTable, buildVars, templateDescription } from "../../packages/core/templates/vars.mjs";
+import { parseHarnessConfig } from "../../plugin/runtime/configuration/harness-config.mjs";
+import { deliverable } from "../../packages/shared/templates/deliver.mjs";
+import { renderTemplate } from "../../packages/shared/templates/render.mjs";
+import { runbookStale } from "../../src/server/templates/api";
+import { runbookVersion } from "../../packages/shared/templates/runbook.mjs";
+import { newToken } from "../../src/server/tokens/api";
+import { buildReportTable, templateDescription } from "../../plugin/runtime/templates/metadata.mjs";
+import { buildVars } from "../../packages/shared/templates/vars.mjs";
 
 const browserFixture = String.raw`
 import React, {useState} from 'react';
@@ -183,8 +185,9 @@ async function main(): Promise<void> {
       assert.match(generated, /wait.*acceptance/);
       assert.equal((await db.project.findUniqueOrThrow({ where: { id: f.projectId } })).runbookVersion, version);
       const versions = rows.filter(row => row.path === "CLAUDE.runbook.md").map(row => row.body);
-      assert.equal(runbookIsStale(version, versions), false);
-      assert.equal(runbookIsStale("old-template", versions), true);
+      assert.equal(await runbookStale(f.projectId, db, version), false);
+      assert.ok(!versions.some(body => runbookVersion(body) === runbookVersion("old-template")));
+      assert.equal(await runbookStale(f.projectId, db, runbookVersion("old-template")), true);
       console.log("Private LF source → test Template → authenticated HTTP body → actual init marker/rendered reports/hash and stale checks passed. Generated fixture files remain in Temp.");
     }
     if (process.argv.includes("--browser") || process.argv.includes("--interactive")) {

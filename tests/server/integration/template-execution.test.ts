@@ -4,7 +4,7 @@ import { agentNext, createNextDeps } from "../../../src/server/agents/api";
 import { publishTemplateRelease, activateTemplateRelease } from "../../../src/server/templates/api";
 import { ensureRun, readFacts } from "../../../src/server/pipeline/run-service";
 import { createBoardService } from "../../../src/server/pipeline/api";
-import { installationFor } from "../../../packages/core/templates/release-manifest.mjs";
+import { installationFor } from "../../../src/server/templates/api";
 import { releaseRows, releaseAudit, withReleaseDatabase } from "./template-release-support";
 import { createToolDeps } from "../../../src/server/mcp/deps";
 

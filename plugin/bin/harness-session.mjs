@@ -3,7 +3,7 @@ import { WatchFailure, gitRoot, stateFiles, readStateWithGuard, startSession, ch
 import { connectionInput, verifyProject, verifyCodexSupport } from "../runtime/mcp-client.mjs";
 import { runnerCallWithin } from "../runtime/runner-client.mjs";
 import { parseClient } from "../lib/execution/client-runtime.mjs";
-import { parseBearer } from "../lib/tokens/token.mjs";
+import { parseBearer } from "../lib/tokens/format.mjs";
 import { recoverMacosCommands } from "../runtime/macos-recovery.mjs";
 
 const RUNNER_TIMEOUT = 10000;

@@ -73,16 +73,16 @@ function resolveImport(projectRoot, importer, specifier) {
   if (specifier.startsWith("@/")) {
     return { kind: "file", path: resolve(projectRoot, "src", specifier.slice(2)) };
   }
-  if (specifier.startsWith("@harness/core/")) {
+  if (specifier.startsWith("@harness/app-core/")) {
     return {
       kind: "file",
-      path: resolve(projectRoot, "packages", "core", specifier.slice("@harness/core/".length)),
+      path: resolve(projectRoot, "packages", "app-core", specifier.slice("@harness/app-core/".length)),
     };
   }
-  if (specifier.startsWith("@harness/github/")) {
+  if (specifier.startsWith("@harness/shared/")) {
     return {
       kind: "file",
-      path: resolve(projectRoot, "packages", "github", specifier.slice("@harness/github/".length)),
+      path: resolve(projectRoot, "packages", "shared", specifier.slice("@harness/shared/".length)),
     };
   }
   if (specifier.startsWith(".")) {
@@ -225,37 +225,6 @@ function validateImports(projectRoot, files) {
     for (const specifier of extractImports(source)) {
       const target = resolveImport(projectRoot, importer, specifier);
       const line = sourceLine(source, specifier);
-
-      if (isInside(projectRoot, importer, "packages/core")) {
-        const allowedNodeBuiltin = target.kind === "bare" && specifier.startsWith("node:");
-        const allowedLocalCore =
-          target.kind === "file" && isInside(projectRoot, target.path, "packages/core");
-        if (!allowedNodeBuiltin && !allowedLocalCore) {
-          problems.push(issue(
-            projectRoot,
-            importer,
-            line,
-            "core/no-external-dependency",
-            `packages/core는 src 또는 외부 package에 의존할 수 없습니다: ${specifier}`,
-          ));
-        }
-      }
-
-      if (isInside(projectRoot, importer, "packages/github")) {
-        const importerIsTest = importer.endsWith(".test.mjs");
-        const allowedTestBuiltin = importerIsTest && target.kind === "bare" && specifier.startsWith("node:");
-        const allowedLocalGithub = target.kind === "file" && isInside(projectRoot, target.path, "packages/github")
-          && (importerIsTest || !target.path.endsWith(".test.mjs"));
-        if (!allowedTestBuiltin && !allowedLocalGithub) {
-          problems.push(issue(
-            projectRoot,
-            importer,
-            line,
-            "github/no-external-dependency",
-            `packages/github는 자체 모듈만 참조하며 Node 내장 모듈은 테스트에서만 허용합니다: ${specifier}`,
-          ));
-        }
-      }
 
       if (target.kind !== "file") continue;
 
@@ -456,8 +425,8 @@ export function verifyProject(projectRoot = process.cwd()) {
   const root = resolve(projectRoot);
   const sourceFiles = [
     ...walk(resolve(root, "src")),
-    ...walk(resolve(root, "packages", "core")),
-    ...walk(resolve(root, "packages", "github")),
+    ...walk(resolve(root, "packages", "app-core")),
+    ...walk(resolve(root, "packages", "shared")),
   ];
   const fsdFiles = sourceFiles.filter((file) => parseFsdPath(root, file));
 

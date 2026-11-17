@@ -24,10 +24,10 @@ For frontend code, follow `docs/architecture/fsd.md`:
 - Put product frontend code in `src/fsd` and preserve the dependency direction
   `pages -> widgets -> features -> entities -> shared`.
 - Import another slice only through its public API. Keep same-layer slices isolated.
-- Keep backend application services in `src/server` and pure shared policy in
-  `packages/core`. Keep shared GitHub URL parsing and construction in
-  `packages/github`; follow `docs/architecture/github.md` for its dependency and
-  plugin distribution boundaries.
+- Keep backend application services in `src/server`, app-owned pure policy in
+  `packages/app-core`, plugin-shipped shared contracts in `packages/shared`, and
+  plugin-only code in `plugin/runtime`. Follow `docs/architecture/shared-modules.md`
+  for public entries, runtime boundaries, and generated `plugin/lib` distribution.
 - Do not create both root `app/` and `src/app/`; Next.js ignores `src/app/` in that
   state. Until the existing root `app/` is migrated as one operation, do not create a
   parallel `src/app/`.
@@ -58,7 +58,7 @@ that change, or name the missing OS in the table's unmet cell and leave a follow
 `npm run verify:ci-coverage`, part of `npm run check`, compares the workflows with
 the table.
 
-Run `npm run verify:fsd`, `npm run verify:server`, `npm run test:architecture`, and the relevant lint, type,
+Run `npm run verify:fsd`, `npm run verify:server`, `npm run verify:shared`, `npm run test:architecture`, and the relevant lint, type,
 test, and build commands before completing a code change. Do not suppress an
 architecture error without documenting and approving the exception in
 `docs/architecture/verification.md`.
@@ -167,7 +167,7 @@ commits that were already green on `dev`.
   only; neither runs the pipeline.
 - Before promoting, also run the `pipeline-smoke` workflow on that `dev` commit
   (`gh workflow run pipeline-smoke.yml --ref dev`) when
-  `git diff --name-only origin/main origin/dev -- src/server/pipeline src/server/agents src/server/mcp packages/core/pipeline packages/core/templates plugin/skills/watch plugin/skills/background plugin/bin/harness-watch.mjs plugin/bin/harness-session.mjs plugin/bin/harness-background.mjs plugin/bin/harness-commit-guard.mjs plugin/hooks plugin/runtime plugin/lib/execution scripts/rehearsals/rehearse-client-init-smoke.ts scripts/rehearsals/rehearse-pipeline-smoke.ts scripts/rehearsals/pipeline-smoke-steps.mjs scripts/rehearsals/rehearse-codex-macos.mjs scripts/rehearsals/codex-init-eval.mjs scripts/rehearsals/client-ci-contract.mjs scripts/rehearsals/client-init-smoke-steps.mjs scripts/rehearsals/gate-environment.mjs scripts/rehearsals/gate-record.mjs scripts/windows/package-windows-plugin.mjs scripts/macos/package-plugin.mjs .github/actions/gate-record .github/workflows/pipeline-smoke.yml .github/actions/smoke-database`
+  `git diff --name-only origin/main origin/dev -- src/server/pipeline src/server/agents src/server/mcp packages/app-core/pipeline packages/shared/templates src/server/templates/release-preparation.ts src/server/templates/release-preparation.test.ts src/server/templates/runbook-query.ts tests/server/runbook-stale.test.ts plugin/skills/watch plugin/skills/background plugin/bin/harness-watch.mjs plugin/bin/harness-session.mjs plugin/bin/harness-background.mjs plugin/bin/harness-commit-guard.mjs plugin/hooks plugin/runtime plugin/lib/execution scripts/rehearsals/rehearse-client-init-smoke.ts scripts/rehearsals/rehearse-pipeline-smoke.ts scripts/rehearsals/pipeline-smoke-steps.mjs scripts/rehearsals/rehearse-codex-macos.mjs scripts/rehearsals/codex-init-eval.mjs scripts/rehearsals/client-ci-contract.mjs scripts/rehearsals/client-init-smoke-steps.mjs scripts/rehearsals/gate-environment.mjs scripts/rehearsals/gate-record.mjs scripts/windows/package-windows-plugin.mjs scripts/macos/package-plugin.mjs .github/actions/gate-record .github/workflows/pipeline-smoke.yml .github/actions/smoke-database`
   prints a file. Run it with `--field templates-ref=<templates branch>` before seeding
   a role-template change to production. When `agent-eval` is also needed, dispatch
   `pipeline-smoke` after it finishes, because both use the same subscription. It runs

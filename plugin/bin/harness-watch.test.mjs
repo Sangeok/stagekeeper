@@ -468,16 +468,13 @@ it("does not reflect the known token through actionable identifiers or write it 
 it("runs the real CLI with shell-safe plugin/root arguments containing spaces and apostrophes, without a plugin-root environment variable", async (t) => {
   const f = await fixture(t);
   const pluginRoot = path.join(f.root, "plugin's space");
-  mkdirSync(path.join(pluginRoot, "bin"), { recursive: true });
-  mkdirSync(path.join(pluginRoot, "lib"));
-  mkdirSync(path.join(pluginRoot, "runtime"));
-  for (const name of ["local-session", "state-diagnostics", "file-ownership", "runner-client", "template-installation", "mcp-client"]) copyFileSync(fileURLToPath(new URL(`../runtime/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "runtime", `${name}.mjs`));
-  const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
-  copyFileSync(BIN, cli);
-  for (const name of ["execution/watch", "configuration/harness-config", "qa", "tokens/token", "templates/runbook", "configuration/workspaces", "plans/entitlement", "execution/runner", "execution/client-runtime", "templates/codex-bundle", "templates/template-boundary", "templates/deliver", "templates/manifest", "templates/release-manifest"]) {
-    mkdirSync(path.dirname(path.join(pluginRoot, "lib", `${name}.mjs`)), { recursive: true });
-    copyFileSync(fileURLToPath(new URL(`../lib/${name}.mjs`, import.meta.url)), path.join(pluginRoot, "lib", `${name}.mjs`));
+  const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
+  for (const name of loadedPluginModules(["bin/harness-watch.mjs"])) {
+    const target = path.join(pluginRoot, name);
+    mkdirSync(path.dirname(target), { recursive: true });
+    copyFileSync(path.join(sourceRoot, name), target);
   }
+  const cli = path.join(pluginRoot, "bin", "harness-watch.mjs");
   const session = (await f.start()).event.session;
   const quoteBash = (value) => "'" + value.replaceAll("'", "'\"'\"'") + "'";
   const quotePS = (value) => "'" + value.replaceAll("'", "''") + "'";
@@ -736,7 +733,7 @@ it("a session check from another checkout names the changed checkout for Claude 
     [1, "session-refused", "Invalid configuration, ownership or server response; stop and reconnect with the current client init skill."]);
 });
 
-it("the watch skill preflight lists exactly the modules the watch and session helpers load", () => {
+function loadedPluginModules(entries) {
   const plugin = fileURLToPath(new URL("..", import.meta.url)), loaded = new Set();
   const visit = (file) => {
     const name = path.relative(plugin, file).replaceAll("\\", "/");
@@ -744,7 +741,12 @@ it("the watch skill preflight lists exactly the modules the watch and session he
     loaded.add(name);
     for (const [, specifier] of readFileSync(file, "utf8").matchAll(/\b(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)) visit(path.resolve(path.dirname(file), specifier));
   };
-  for (const entry of ["bin/harness-watch.mjs", "bin/harness-session.mjs"]) visit(path.join(plugin, entry));
+  for (const entry of entries) visit(path.join(plugin, entry));
+  return loaded;
+}
+
+it("the watch skill preflight lists exactly the modules the watch and session helpers load", () => {
+  const loaded = loadedPluginModules(["bin/harness-watch.mjs", "bin/harness-session.mjs"]);
   const skill = readFileSync(new URL("../skills/watch/SKILL.md", import.meta.url), "utf8");
   const preflight = skill.slice(skill.indexOf("Resolve that absolute root"), skill.indexOf("Read that exact reconciliation contract"));
   assert.deepEqual([...preflight.matchAll(/`((?:bin|lib|runtime)\/[^`]+)`/g)].map(([, name]) => name).sort(), [...loaded].sort());

@@ -10,3 +10,4 @@ export { publishTemplateRelease, activateTemplateRelease, readTemplateDeployment
 export { readTemplateRelease, readTemplateChannel, readTemplateChannelMode, readTemplateDelivery } from "./release-query";
 export { templateInstallationSchema } from "./release-protocol";
 export { bootstrapTemplateReleases, snapshotTemplateCutover, templateCutoverEvidenceSchema } from "./bootstrap-service";
+export { releaseDeliverable, selectTemplateLanguage, installationFor } from "./release-preparation";

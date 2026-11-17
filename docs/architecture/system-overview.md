@@ -81,7 +81,7 @@ D3 리허설은 2026-10-23 폐기했고, 현행 무결성의 읽기 전용 검�
 수행하고 `outcome`과 반환받은 `receipt`를 함께 보낸다. 커서는 `AgentRun`이며
 범위가 확인된 outcome 시도마다 `AgentRunStep`에 수락/거절 감사 기록을 남긴다.
 수락 기록과 커서 revision 갱신은 원자적이고, 거절 기록은 단계 증거가 아니다.
-무엇을 내려줄지는 `packages/core/templates/deliver.mjs` 하나가
+무엇을 내려줄지는 `packages/shared/templates/deliver.mjs` 하나가
 정하고, 서버와 생성기의 로컬 우회로가 같은 함수를 쓴다.
 
 ## 데이터와 규칙의 소유권
@@ -89,34 +89,36 @@ D3 리허설은 2026-10-23 폐기했고, 현행 무결성의 읽기 전용 검�
 | 대상 | 단일 소유 위치 | 이유 |
 | --- | --- | --- |
 | 프로젝트, 백로그, 보드, 게이트 이벤트, 보고 경로 | Postgres | 여러 세션과 기기에서 공유하는 상태의 진실 |
-| 상태 전이·텍스트 제한 같은 순수 규칙 | `packages/core` | 웹과 MCP가 같은 판정을 재사용 |
+| 상태 전이·텍스트 제한 같은 순수 규칙 | `packages/app-core` | 웹과 MCP가 같은 판정을 재사용 |
 | 인증·인가·트랜잭션·MCP 등록 | `src/server` | 런타임과 저장소에 결합된 application service |
 | 화면 조합과 사용자 상호작용 | `src/fsd` | 제품 의미에 따라 응집된 프런트엔드 코드 |
-| GitHub 저장소 주소 해석·파일 URL 생성 | `packages/github` | 웹·서버·플러그인이 공유하는 외부 서비스 주소 규칙 |
+| GitHub 저장소 주소 해석 | `packages/shared/github/repo-url.mjs` | 웹·서버·플러그인의 공통 계약 |
+| GitHub 파일 URL 생성 | `src/fsd/entities/board-item/model/doc-link.ts` | 보드 표현의 public API |
 | URL과 Next.js lifecycle | `src/app` | framework adapter이자 composition root |
 | 계획서·행위자 상세 기록 | 연결된 사용자 저장소 | 코드 변경과 함께 검토되는 산출물 |
 | 워크스페이스·검증 명령 | 사용자 저장소의 `harness.json` | 코드와 함께 변하는 코드 인접 설정 |
 | **에이전트 절차의 단계 본문** | Postgres(`Template`) — 원문은 private 저장소 | 본문이 서비스의 실체다. 파일로 내려가면 로컬 파이프라인이 그대로 선다 |
 | **에이전트가 지금 서 있는 단계** | Postgres(`AgentRun`·`AgentRunStep`) | 커서가 서버에 있어야 단계 열거를 막고 감사가 남는다 |
-| **파이프라인 그래프와 커서** | Postgres(`Pipeline`·`PipelineDefinition`·`PipelineRule`·`PipelineVersion`·`PipelineRun`) — 규칙은 `packages/core/pipeline/pipeline.mjs` | 순서가 서버에 있어야 강제·계수·감사가 된다. 런북에 글로 있으면 세션이 순서를 기억으로 바꿔도 서버가 모른다 |
-| 플랜과 상한 | `packages/core/plans/entitlement.mjs`의 `LIMITS` | 웹 화면·MCP·생성기가 같은 표로 판정하고 `/billing`이 그것을 렌더 |
+| **파이프라인 그래프와 커서** | Postgres(`Pipeline`·`PipelineDefinition`·`PipelineRule`·`PipelineVersion`·`PipelineRun`) — 규칙은 `packages/app-core/pipeline/pipeline.mjs` | 순서가 서버에 있어야 강제·계수·감사가 된다. 런북에 글로 있으면 세션이 순서를 기억으로 바꿔도 서버가 모른다 |
+| 플랜과 상한 | `packages/shared/plans/limits.mjs`의 `LIMITS` | 웹 화면·MCP·생성기가 같은 표로 판정하고 `/billing`이 그것을 렌더 |
 
 ## 최상위 의존성
 
 ```text
 src/app ─────► src/fsd
    │              │ api/*.server.ts 또는 "use server" adapter만
-   └──────────► src/server ─────────► packages/core
+   └──────────► src/server ─────────► packages/app-core
                     │
                     ├───────────────► Prisma/Postgres
                     └───────────────► 외부 인증·MCP 라이브러리
 
 src/fsd/pages → widgets → features → entities → shared
 
-src/fsd, src/server ───────► packages/github
-plugin ───────► packages/core와 packages/github의 배포용 복사본
-packages/core ─X─► src, npm package
-packages/github ─X─► src, core, npm package, Node 내장 모듈(생산 코드)
+src/fsd, src/server ───────► packages/app-core ─────► packages/shared 공개 entry
+src/fsd, src/server ───────► packages/shared 공개 entry
+plugin ───────► plugin/runtime, plugin/lib (shared 명세 closure의 생성물)
+packages/shared ─X─► src, app-core, plugin, npm package
+packages/app-core ─X─► src, plugin, npm package, Node 전용 모듈
 src/server ─X─► src/fsd
 ```
 
@@ -137,7 +139,7 @@ src/server ─X─► src/fsd
 
 ## 배포 단위와 비배포 단위
 
-현재 저장소는 단일 Next.js package다. `packages/core`와 `plugin`은 별도 npm
+현재 저장소는 단일 Next.js package다. `packages/shared`·`packages/app-core`·`plugin`은 별도 npm
 workspace가 아니라 같은 저장소의 배포 재료다. 서버 endpoint가 크게 늘거나
 독립 배포가 필요해질 때만 backend package 분리를 새 ADR로 검토한다.
 

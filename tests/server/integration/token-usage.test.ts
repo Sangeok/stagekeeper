@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
-import { newToken } from "@harness/core/tokens/token.mjs";
+import { newToken } from "../../../src/server/tokens/api";
 import { makeVerifyOwnerToken, makeVerifyToken } from "../../../src/server/mcp/auth";
 import { makeRecordTokenUsage } from "../../../src/server/tokens/usage-recorder";
 import { cleanup, connections, checkpoint, waitForDatabaseLock } from "./support";

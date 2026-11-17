@@ -1,7 +1,7 @@
 import "server-only";
 
-import { limitedUntil } from "@harness/core/execution/runner.mjs";
-import { isGateId } from "@harness/core/pipeline/pipeline.mjs";
+import { limitedUntil } from "@harness/shared/execution/runner-contract.mjs";
+import { isGateId } from "@harness/app-core/pipeline/pipeline.mjs";
 import { pendingInboxCount } from "@/fsd/entities/board-item";
 import { prisma } from "@/server/db";
 import { latestBoard } from "@/server/pipeline/api.server";

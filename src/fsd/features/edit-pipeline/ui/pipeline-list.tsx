@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/fsd/shared/api/result";
 import { agoLabel } from "@/fsd/shared/lib/relative-time";
 import { Button } from "@/fsd/shared/ui/button";
-import { refStep } from "@harness/core/pipeline/pipeline.mjs";
+import { refStep } from "@harness/app-core/pipeline/pipeline.mjs";
 import { PipelineCatalog } from "./pipeline-catalog";
 import { PipelineSwitcher } from "./pipeline-switcher";
 import { catalogEntries } from "../model/pipeline-catalog";

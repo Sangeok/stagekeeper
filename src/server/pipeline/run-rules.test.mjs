@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { HINT, decideHead, decideNext } from "./run-rules";
 import { handoffIsLive, scoutNodePending } from "./run-rules";
-import { AUTO_SCOUT_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
-import { TEXT_LIMIT } from "@harness/core/pipeline/transitions.mjs";
+import { AUTO_SCOUT_DISABLED_REASON } from "@harness/app-core/pipeline/pipeline.mjs";
+import { TEXT_LIMIT } from "@harness/app-core/pipeline/transitions.mjs";
 
 const base = { key: "FEAT-01", version: 2, status: "planning", planCommit: null, agent: "web-dev", handoff: null, cap: null };
 

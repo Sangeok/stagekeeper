@@ -1,6 +1,6 @@
-import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/core/pipeline/pipeline.mjs";
-import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
-import { canPropose, isOpen } from "@harness/core/pipeline/transitions.mjs";
+import { slotAgent, dispatcherFor, PROJECT_AGENTS } from "@harness/app-core/pipeline/pipeline.mjs";
+import { clientRuntime } from "@harness/shared/execution/client-runtime.mjs";
+import { canPropose, isOpen } from "@harness/app-core/pipeline/transitions.mjs";
 import { isAwaitingAcceptance, pendingInboxCount } from "@/fsd/entities/board-item";
 import { gateLabel } from "@/fsd/entities/pipeline";
 

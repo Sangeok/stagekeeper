@@ -6,7 +6,7 @@ import { createServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
-import { PIPELINE_EDIT_PLAN_GATE } from "@harness/core/pipeline/pipeline.mjs";
+import { PIPELINE_EDIT_PLAN_GATE } from "../../packages/app-core/pipeline/pipeline.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 
 async function main(): Promise<void> {

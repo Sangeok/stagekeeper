@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
-import { DEFAULT_SELECTION_POLICY, expand, workPrefix, type GraphInput } from "@harness/core/pipeline/pipeline.mjs";
-import { pipelineInputReason, validateExecutionGraph } from "@harness/core/pipeline/run-input.mjs";
+import { DEFAULT_SELECTION_POLICY, expand, workPrefix } from "@harness/app-core/pipeline/pipeline.mjs";
+import type { GraphInput } from "@harness/app-core/pipeline/pipeline.mjs";
+import { pipelineInputReason, validateExecutionGraph } from "./input-validation";
 import { readProjectAccessIn, READ_OPTIONS } from "@/server/projects/api";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";

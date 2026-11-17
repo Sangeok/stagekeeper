@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runbookVersion } from "../../packages/core/templates/runbook.mjs";
+import { runbookVersion } from "../../packages/shared/templates/runbook.mjs";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 import { runbookStale } from "../../src/server/templates/api";
 
 const CURRENT = "# {{project.name}} — pipeline runbook\ncurrent\n";
 const OLDER = "# {{project.name}} — pipeline runbook\nolder\n";
 
-function fakeDb(stored: string | null) {
+function fakeDb(stored: string | null, bodies: string[] = [CURRENT]) {
   const reads: string[] = [];
   const db = {
-    template: { findMany: async () => { reads.push("template"); return [{ body: CURRENT }]; } },
+    template: { findMany: async () => { reads.push("template"); return bodies.map(body => ({ body })); } },
     project: { findUnique: async () => { reads.push("project"); return { runbookVersion: stored }; } },
   } as unknown as PrismaClient;
   return { db, reads };
@@ -38,3 +38,29 @@ describe("runbookStale", () => {
     }
   });
 });
+
+function staleWithBodies(stored: string | null, bodies: string[]): Promise<boolean> {
+  return runbookStale("p1", fakeDb(stored, bodies).db);
+}
+
+const BODY = "# {{project.name}} — pipeline runbook\n\nAsk pipeline_next.\n";
+
+const OTHER = "# {{project.name}} — 파이프라인 런북\n\npipeline_next에 물어라.\n";
+
+it("matching any current language's body is current", async () => {
+    assert.equal(await staleWithBodies(runbookVersion(BODY), [BODY, OTHER]), false);
+    assert.equal(await staleWithBodies(runbookVersion(OTHER), [BODY, OTHER]), false);
+  });
+
+it("a version no current body produces is stale", async () => {
+    assert.equal(await staleWithBodies(runbookVersion("older body\n"), [BODY, OTHER]), true);
+  });
+
+it("never reported counts as stale", async () => {
+    assert.equal(await staleWithBodies(null, [BODY]), true);
+  });
+
+it("no current body at all is stale, whatever was stored", async () => {
+    assert.equal(await staleWithBodies(runbookVersion(BODY), []), true);
+    assert.equal(await staleWithBodies(null, []), true);
+  });

@@ -1,6 +1,6 @@
 import "server-only";
 import type { ComponentProps } from "react";
-import { routePipeline } from "@harness/core/pipeline/pipeline.mjs";
+import { routePipeline } from "@harness/app-core/pipeline/pipeline.mjs";
 import type { BacklogQuery } from "@/fsd/shared/routes/project";
 import { prisma } from "@/server/db";
 import { loadProjectRoster } from "@/server/projects/api";

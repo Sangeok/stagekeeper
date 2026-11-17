@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { it } from "node:test";
-import { RUNTIME_MARKER } from "@harness/core/execution/client-runtime.mjs";
-import { COMMON_DOCS } from "@harness/core/templates/codex-bundle.mjs";
-import { limitsFor } from "@harness/core/plans/entitlement.mjs";
+import { RUNTIME_MARKER } from "../../packages/shared/execution/client-runtime.mjs";
+import { COMMON_DOCS } from "../../packages/shared/templates/codex-bundle.mjs";
+import { limitsFor } from "../../packages/shared/plans/limits.mjs";
 import { prismaErrorCode, seedTemplates, snapshotTemplates, restoreTemplates, TEMPLATE_TRANSACTION_OPTIONS, type TemplateSource } from "./template-seed-query";
 
 const rows: TemplateSource[] = [

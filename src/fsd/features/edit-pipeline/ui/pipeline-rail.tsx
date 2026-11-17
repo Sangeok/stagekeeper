@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { DEFAULT_SELECTION_POLICY, STEP_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId, refId, expand, sequence, usersOf, type Definition } from "@harness/core/pipeline/pipeline.mjs";
+import { DEFAULT_SELECTION_POLICY, STEP_KINDS, REQUIRED_NODES, TAIL_NODES, PROJECT_AGENTS, gateId, refId, expand, sequence, usersOf } from "@harness/app-core/pipeline/pipeline.mjs";
+import type { Definition } from "@harness/app-core/pipeline/pipeline.mjs";
 import { autoEdgeLabel, gateLabel, gateTooltip, nodeAgentLabel, nodeLabel } from "@/fsd/entities/pipeline";
 import { cn } from "@/fsd/shared/lib/class-name";
 import { Button } from "@/fsd/shared/ui/button";

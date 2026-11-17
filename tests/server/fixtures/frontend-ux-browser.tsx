@@ -3,7 +3,7 @@ import { AppRouterContext, type AppRouterInstance } from "next/dist/shared/lib/a
 import { SearchParamsContext } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { ProjectPipelinePage } from "@/fsd/pages/project-pipeline";
 import type { PipelineRunActions, PipelineSettingsActions, PipelineSnapshot, SavePipelineAction } from "@/fsd/features/edit-pipeline";
-import type { Definition } from "@harness/core/pipeline/pipeline.mjs";
+import type { Definition } from "../../../packages/app-core/pipeline/pipeline.mjs";
 import type { ActionResult } from "@/fsd/shared/api/result";
 
 export type FrontendUxMode = "ux-pipeline" | "ux-rail";

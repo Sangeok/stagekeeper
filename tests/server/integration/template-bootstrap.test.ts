@@ -3,7 +3,7 @@ import { it } from "node:test";
 import { bootstrapTemplateReleases, snapshotTemplateCutover } from "../../../src/server/templates/api";
 import type { TemplateCutoverEvidence } from "../../../src/server/templates/contracts";
 import { agentNext, createNextDeps } from "../../../src/server/agents/api";
-import { installationFor } from "../../../packages/core/templates/release-manifest.mjs";
+import { installationFor } from "../../../src/server/templates/api";
 import { releaseRows, releaseAudit, withReleaseDatabase } from "./template-release-support";
 
 it("bootstrap preserves history and ledgers, invalidates old receipts once and atomically freezes R0", { timeout: 30000 }, async () => {

@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { newToken } from "@harness/core/tokens/token.mjs";
-import { parseTokenExpiry } from "@harness/core/tokens/token-validity.mjs";
+import { newToken } from "@/server/tokens/api";
+import { parseTokenExpiry } from "@harness/app-core/tokens/validity.mjs";
 import { type ActionResult, failure, success } from "@/fsd/shared/api/result";
 import { userTokensPath } from "@/fsd/shared/routes/user-tokens";
 import { requireUser } from "@/server/auth/guard";

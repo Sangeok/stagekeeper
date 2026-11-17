@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { SEGMENT } from "@harness/github/repo-url.mjs";
+import { SEGMENT } from "@harness/shared/github/repo-url.mjs";
 import { REPO_SEGMENT } from "./slug-rule";
 
 it("the server repository segment rule matches the shared GitHub policy", () => {

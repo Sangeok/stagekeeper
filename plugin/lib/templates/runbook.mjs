@@ -10,11 +10,7 @@ export function codexRunbookVersion(body) {
   return runbookVersion(body.replace(/\r\n/g, "\n"));
 }
 
+/** @param {unknown} value @returns {value is string} */
 export function isRunbookVersion(value) {
   return typeof value === "string" && /^[0-9a-f]{12}$/.test(value);
-}
-
-export function runbookIsStale(stored, bodies) {
-  if (stored === null) return true;
-  return !bodies.some((body) => runbookVersion(body) === stored);
 }

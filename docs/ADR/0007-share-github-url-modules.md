@@ -1,12 +1,12 @@
 ---
-status: "accepted"
+status: "superseded"
 date: "2026-11-04"
 applies-to: ["packages/github", "packages/core", "src/fsd", "src/server/projects", "plugin/lib", "scripts/plugin-lib.mjs"]
 decision-makers: ["repository owner"]
 consulted: []
 informed: ["contributors and coding agents"]
 supersedes: []
-superseded-by: null
+superseded-by: "0008"
 ---
 
 # GitHub URL 규칙의 독립 공유 영역

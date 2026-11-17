@@ -1,15 +1,15 @@
 import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
-import { parseBearer } from "../lib/tokens/token.mjs";
+import { parseHarnessConfig } from "./configuration/harness-config.mjs";
+import { parseBearer } from "../lib/tokens/format.mjs";
 import { parseClient, RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
-import { parseToolResponse } from "../lib/execution/watch.mjs";
+import { parseToolResponse } from "./execution/watch.mjs";
 import { isRunbookVersion, codexRunbookVersion } from "../lib/templates/runbook.mjs";
 import { validateCodexBundle } from "../lib/templates/codex-bundle.mjs";
 
 import { installationFromMetadata, readInstalledTemplate } from "./template-installation.mjs";
-import { TEMPLATE_PROTOCOL, compatibleInstallation } from "../lib/templates/release-manifest.mjs";
+import { TEMPLATE_PROTOCOL, compatibleInstallation } from "../lib/templates/release-contract.mjs";
 
 export function serverUrl(value) {
   const url = new URL(value);

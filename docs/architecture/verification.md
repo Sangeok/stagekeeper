@@ -1,14 +1,5 @@
 # 아키텍처 검증
 
-## 적용 예정: shared 배포 경계 검증
-
-[shared-modules.md](./shared-modules.md)의 Phase MIGRATE에서 명시적 entry/runtime 검사를
-check에 연결하고 lib의 완전성·고아·읽기 전용 검사·입력 오류 전 무변경·재실행을 검증한다.
-shared/app-core와 plugin/runtime 하위 폴더의 시험 발견, 양 OS workflow path/glob,
-AGENTS의 pipeline-smoke 대상 경로도 함께 전환한다. gate leg 변경 시 아래 CI coverage 표와
-verify-ci-coverage를 같은 변경에서 맞춘다. 아래의 현행 명령·coverage·gate 조건은 ARCH에서
-바꾸지 않는다. ARCH 문서 검사는 새 경계 검사나 native 설치 인수를 대신하지 않는다.
-
 ## 자동 검사
 
 `scripts/checks/verify-fsd-boundaries.mjs`는 외부 package 없이 정적 import를 검사한다.
@@ -18,12 +9,13 @@ verify-ci-coverage를 같은 변경에서 맞춘다. 아래의 현행 명령·co
 ```powershell
 npm run verify:fsd
 npm run verify:server
+npm run verify:shared
 npm run test:architecture
 npm run lint
-npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI와 같은 게이트
+npm run check      # 경계 검사 + 복사본 동기화 검사 + 타입 검사 — CI와 같은 게이트
 ```
 
-`npm run lint`는 ESLint 뒤에 FSD·서버 검사를 실행하므로 일반적인 품질 게이트에서
+`npm run lint`는 ESLint 뒤에 FSD·서버·공유 경계 검사를 실행하므로 일반적인 품질 게이트에서
 아키텍처 경계도 함께 확인한다.
 
 검사 대상:
@@ -35,19 +27,27 @@ npm run check      # 위 셋 + 복사본 동기화 검사 + 타입 검사 — CI
 - FSD에서 `src/server`를 호출하는 server adapter의 위치와 directive
 - `"use client"` 파일의 직접 import 중 `src/server`, `index.server`, `*.server` 경로
 - `src/server → src/fsd` 역방향 의존
-- `packages/core`의 `src`, `packages/github` 또는 외부 npm package 의존
-- `packages/github`의 자체 모듈 밖 의존. Node 내장 모듈은 `.test.mjs`에서만 허용
+- shared의 외부 소스 의존·비공개 entry 소비·universal → node 유입
+- app-core의 Node·server·plugin 의존과 제품 코드의 test/fixture 의존
+- 실제 Client 진입점의 전이 그래프에 shared node entry가 유입되는 경우
 - `src/components`, `src/hooks`, `src/lib`, `src/utils`, `src/types` 같은 전역
   기술 분류 폴더
 - kebab-case가 아닌 layer/slice/segment/file 이름
 - 루트 `app/`과 `src/app/`의 동시 존재
-- `packages/core` → `plugin/lib`, `packages/github` → `plugin/lib/github` 복사본이
+- 명세로 선언한 `packages/shared` closure → `plugin/lib` 복사본이
   하위 경로를 보존하고 배포 모듈과 바이트 동일한지 — 내용이 다른 것(drift)과
   원본이 사라진 것(orphan) 모두 (`scripts/plugin-lib.mjs --check`, `npm run check`의 첫 단계)
 
-정규식 기반 검사라 계산된 dynamic import, TypeScript path alias의 복잡한 재정의,
-런타임 의존성까지 완전히 증명하지는 못한다. 자동 검사를 통과했다는 사실은 아래
+FSD 검사는 정규식, 서버·공유 검사는 TypeScript AST를 사용한다. shared 그래프는 계산형 import를
+거부하지만 기존 native dispatcher나 임의 런타임 의존성까지 완전히 증명하지는 못한다. 자동 검사를 통과했다는 사실은 아래
 리뷰를 생략할 근거가 아니다.
+
+
+`scripts/lib/shared-module-graph.mjs`가 공유 명세·원본 그래프의 단일 해석기이며
+`verify:shared`와 lib 동기화·양 OS 패키징이 재사용한다. `packages/shared/plugin-exports.json`과
+[공유 경계](./shared-modules.md)를 함께 갱신한다. 패키징은 출력 생성 전에 lib/runtime의
+기대 모듈·Git 추적 집합·바이트를 대조한다. `npm run test:policy-contracts`와 배포 도구 시험은
+아래 양 OS CI에서 실행하며 모델이나 실제 사용자 설치를 요구하지 않는다.
 
 ## FSD 규칙의 검증
 
@@ -91,10 +91,10 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 
 | 확인 사항 | 현재 자동화 | 수동 확인 |
 | --- | --- | --- |
-| FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`, `packages/core/`, `packages/github/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
+| FSD layer·slice·public API·이름 | `verify:fsd`가 `src/`, `packages/shared/`, `packages/app-core/`의 코드·테스트를 검사한다 | 루트 `tests/`·`plugin/`·`scripts/`는 이 import 검사 대상이 아니므로 해당 경계는 리뷰한다 |
 | `src/`·`src/app/` 바로 아래 테스트 배치 금지 | 전용 자동 검사 없음 | 두 위치에 테스트 파일·테스트 전용 보조 코드·테스트 전용 디렉터리가 없는지 확인한다. 대상 옆 배치 원칙보다 이 금지 규칙을 우선한다 |
 | 대상 옆 배치와 테스트 소유권 | 전용 자동 검사 없음 | 대상과 실행 환경에 맞는 위치인지, 하위 폴더 분리가 필요한지 확인한다 |
-| 운영 코드 → 테스트·fixture·helper 의존 금지 | GitHub 생산 모듈의 `.test.mjs` 직접 참조를 거부한다. 나머지 영역의 전용 검사는 없음 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
+| 운영 코드 → 테스트·fixture·helper 의존 금지 | `verify:shared`가 first-party 생산 코드의 test/fixture 참조를 거부한다 | 운영 진입점과 public API가 테스트 전용 코드를 직접 또는 간접 참조하지 않는지 확인한다 |
 | 서버 모듈 내부 참조 | `verify:server`가 정적 참조와 실제 VM source 경로의 파일·모듈 등록 및 미사용 행을 검사한다 | mock 키·계산된 loader 경로는 binding 시험과 실제 리허설로 확인한다 |
 | 테스트 검색과 실행 | 명령에 지정된 패턴에 일치하는 파일만 실행한다 | 신규·이동 파일이 명령에 포함되고 실행 결과에 나타나는지 확인한다 |
 
@@ -110,8 +110,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 - `npm run test:web`: `src/**/*.test.ts`와 `src/**/*.test.mjs`를 실행하며 `check` workflow에
   연결되어 있다. `.test.tsx`는 현재 포함하지 않는다. 해당 확장자 도입 시 실행 패턴과
   환경을 같은 변경에서 보완한다.
-- `npm test`: `packages/core/**/*.test.mjs`, `packages/github/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/*.test.mjs`를 실행하며 CI에 연결되어
-  있다. 하위 디렉터리로 이동하면 이 패턴에서 빠질 수 있다.
+- `npm test`: `packages/app-core/**/*.test.mjs`, `packages/shared/**/*.test.mjs`, `plugin/bin/*.test.mjs`, `plugin/runtime/**/*.test.mjs`를 실행하며 CI에 연결되어
+  있다. shared/app-core/runtime의 하위 폴더도 재귀 탐색한다.
   `plugin/bin/harness-released-readers.test.mjs`와 `plugin/bin/harness-released-init-readers.test.mjs`는 Git 이력에서
   출시된 plugin을 꺼내 실행한다. 그래서 이 대상 묶음을 돌리는 workflow 셋(`check`, `windows-role-runtime`,
   `macos-runtime-contracts`)은 전체 이력을 가져오고 `STAGEKEEPER_RELEASED_READERS=required`로 이력 누락을 실패로
@@ -297,6 +297,8 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | | | macOS | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
 | 게이트 실행 기록 | 공통 | | | `client-init-smoke/record`, `agent-eval/record`, `pipeline-smoke/record` | | |
 | 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
+| 이동한 정책 계약 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm run test:policy-contracts`로 기존 core/GitHub의 서버·FSD 이동 사례를 실행. Linux는 test-web/server에서 같은 파일을 발견 |
+| 공유 모듈 배포와 경계 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `scripts/plugin-lib.test.mjs`, `scripts/lib/shared-module-graph.test.mjs`, `scripts/checks/verify-shared-boundaries.test.mjs`, `scripts/macos/package-plugin.test.mjs`, `scripts/windows/package-windows-plugin.test.mjs`. native package 사례는 해당 OS 결과를 구분 |
 <!-- ci-coverage:end -->
 
 `npm run verify:ci-coverage`(`npm run check`에 포함)가 `.github/workflows/`와 이 표를 대조한다.
@@ -685,9 +687,9 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/web-http-report.ts`, `web-http-report.test.ts`, `rehearsal-cli.test.mjs` | `npm run test:scripts`; CLI 시험은 `test:architecture`에도 포함 | CI와 리허설 실행 계약 변경 시 | CLI 거부·도움말·독립 decoder·DB 미준비 경로, 보고서 전체 metadata·본문·참조·JSON 재실행 데이터와 판정, 원자적 공개·IO 실패·경합·자기 temp/descriptor 정리와 기존 기록 보존을 검사한다. 실제 HTTP·DB 인수의 통과를 대신하지 않는다 |
 | `checks/verify-fsd-boundaries.test.mjs`, `checks/verify-server-boundaries.test.mjs`, `plugin-lib.test.mjs` | `npm run test:architecture` | CI마다 | 검사기 자체의 테스트 |
 | `checks/retired-copy.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 폐기된 표현 가드 — 웹의 보이는 문구·`SKILL.md`·product-copy.md 잠금 블록에 옛 연결 방식의 문장이 없는지. 규칙은 파일 머리의 `RETIRED`에 손으로 더한다 |
-| `checks/transitions-contract.test.ts` | `test:scripts` → check | CI마다 | `packages/core/pipeline/transitions.d.mts`가 선언한 runtime export가 실제 export와 같은지 TypeScript AST로, 상태 기계가 실제로 만드는 규칙 종류가 `RuleKind` 선언과 같은지 전이 전체를 순회해 검사한다. `typescript` package를 쓰므로 외부 package를 금지하는 `packages/core`가 아니라 여기에 둔다 |
+| `checks/transitions-contract.test.ts` | `test:scripts` → check | CI마다 | `packages/app-core/pipeline/transitions.d.mts`가 선언한 runtime export가 실제 export와 같은지 TypeScript AST로, 상태 기계가 실제로 만드는 규칙 종류가 `RuleKind` 선언과 같은지 전이 전체를 순회해 검사한다. `typescript` package를 쓰므로 외부 package를 금지하는 `packages/app-core`가 아니라 여기에 둔다 |
 | `plugin-lib.mjs --check` | `npm run check` 첫 단계 | CI마다 | `plugin/lib` 드리프트·고아 판정, 실패 시 exit 1 |
-| `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/core/**/*.mjs` 또는 `packages/github/**/*.mjs`를 바꾼 뒤 | core는 `plugin/lib`, GitHub는 `plugin/lib/github`에 복사. 두 원본 디렉터리 누락·배포 경로 충돌은 쓰기 전에 거부하며 drift·orphan을 동기화 |
+| `plugin-lib.mjs` | `npm run sync:plugin-lib` | `packages/shared` 원본·명세를 바꾼 뒤 | 명세 closure를 `plugin/lib`에 경로·바이트 그대로 복사. 그래프·경로·runtime을 쓰기 전에 검증하며 drift·orphan을 동기화 |
 | `templates/seed-templates.ts` | `npm run seed:templates [-- --dir <dir> --snapshot <private 경로>]` | private 템플릿 배포 승인 후 수동 | 전체 agent graph·Codex bundle을 쓰기 전에 검증하고 Serializable transaction으로 seed한다. Codex source가 있으면 public 밖의 신규 private snapshot을 먼저 저장한다. 실제 DB 실행은 배포 검증. versioned DB(운영은 2026-11-05부터)에서는 writer 장벽이 거부하므로, 운영 템플릿 변경은 `template-release.yml`의 import·activate로 한다 |
 | `templates/restore-dual-client-templates.ts` | `node --import tsx scripts/templates/restore-dual-client-templates.ts --snapshot <private 경로>` | 승인된 template 복구 | snapshot version/hash·현재 body 전체를 먼저 대조하고 whitelist 행만 한 transaction으로 복구한다. 이전에 없던 CODEX.runbook 행만 삭제하며 외부 행을 보존한다 |
 | `templates/template-seed-query.ts`, `templates/template-seed-query.test.ts` | `node --import tsx --test scripts/templates/template-seed-query.test.ts` | CI 및 seed/restore 변경 시 | 전량 검증 후 첫 쓰기·snapshot 범위·현재 판 drift 거부를 IO fixture로 검증. `test:scripts`에 포함되며 실제 DB rollback 증거는 아니다 |
@@ -786,7 +788,7 @@ Webpack 성공이 기본 build 명령의 성공을 뜻하지 않는다.
 
 ## Windows CI 런타임 재사용
 
-`windows-role-runtime`은 `dev` push와, 이 job이 시험하는 제품 코드(`packages/core`·`packages/github`·
+`windows-role-runtime`은 `dev` push와, 이 job이 시험하는 제품 코드(`packages/shared`·`packages/app-core`·
 `plugin/bin`·`plugin/runtime`·`plugin/lib`)·Windows runtime 빌드 도구·오프라인 빌드
 입력(`package.json`·lock·`next.config.*`·Prisma 설정·`scripts/build.mjs`·
 `src/app/layout.tsx`·`src/app/_fonts/**`)을 바꾼 PR에서 실행한다. 제품 코드의 PR 경로는 macOS runtime
@@ -814,7 +816,7 @@ source만 바꾼 PR에서는 실행하지 않는다. 그런 변경의 LPAC 전�
 검증과 child-process smoke를 통과한 런타임은 후속 프로젝트 테스트 전에 캐시한다.
 실제 Windows 역할 명령·파일 격리·readlink·IPC 회귀와 네트워크가 차단된 전체 프로젝트
 빌드는 캐시 여부와 관계없이 매번 실행한다. 의존성을 설치한 뒤에는 `npm test`의 대상 묶음
-전체(`packages/core`, `packages/github`, `plugin/bin`, `plugin/runtime`)를 macOS와 같이 한 파일씩
+전체(`packages/shared`, `packages/app-core`, `plugin/bin`, `plugin/runtime`)를 macOS와 같이 한 파일씩
 순서대로 돌린다. 이름을 적어 돌리는 앞 단계들은 준비한 런타임을 환경 변수로 받아야 하는 시험과
 의존성 설치 전에 먼저 확인할 시험이어서 그대로 둔다. 후속 실패에서도 검증을 통과한 런타임과
 provenance artifact를 보존한다. 캐시 준비 성공은 전체 인수 성공을 뜻하지 않는다.
@@ -1129,7 +1131,7 @@ CSS 없는 fixture의 callback/activeElement 결과는 실제 배치·가로 이
 
 ## 템플릿 release 기반 검증
 
-`packages/core/templates/release-manifest.test.mjs`는 canonical identity와
+`src/server/templates/release-preparation.test.ts`는 canonical identity와
 설치 표면/언어 규칙을, `scripts/templates/template-release-cli.test.ts`는
 CLI의 사전 거부와 명시적 연결 대상 검증을 확인한다.
 `tests/server/integration/template-release.test.ts`는 안전 검사를 통과한

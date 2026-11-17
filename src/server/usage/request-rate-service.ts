@@ -1,4 +1,4 @@
-import { REQUEST_LIMITS, requestWindow } from "@harness/core/request-rate.mjs";
+import { REQUEST_LIMITS, requestWindow } from "./request-rate-policy";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { TransactionHost } from "@/server/projects/contracts";
 import type { RequestRateFailure } from "@/server/result";

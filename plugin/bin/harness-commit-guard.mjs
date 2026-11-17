@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import { REPORT_AGENTS } from "../lib/plans/entitlement.mjs";
+import { REPORT_AGENTS } from "../lib/plans/limits.mjs";
 
 const INPUT_LIMIT = 4 * 1024 * 1024;
 const GIT_WRITES = ["commit", "add"];

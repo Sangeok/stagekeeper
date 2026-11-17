@@ -5,7 +5,7 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { newToken } from "../../packages/core/tokens/token.mjs";
+import { newToken } from "../../src/server/tokens/api";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";

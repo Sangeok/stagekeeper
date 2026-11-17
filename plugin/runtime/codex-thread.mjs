@@ -15,7 +15,7 @@ import { createRoleFiles, roleFileToolNames, RoleFileInputError, RoleFileRevisio
 import { roleCommandTimeGuidance, roleCommandTool, RoleCommandInputError } from "./role-commands.mjs";
 import { createRoleCommandBackend, installedRoleRuntime, verifyRoleRuntime } from "./role-command-backend.mjs";
 import { createQaBrowser, withQaBrowser } from "./qa-browser.mjs";
-import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { QA_BROWSER_TOOLS } from "./qa/config.mjs";
 import { createRoleGit, roleGitTool, RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 import { codexExecutable } from "./codex-executable.mjs";
 import { assertCommitHandoff, assertHandoffSubmission, CommitHandoffRequired } from "./commit-handoff.mjs";

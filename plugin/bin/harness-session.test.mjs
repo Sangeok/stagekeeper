@@ -18,7 +18,7 @@ import { CODEX_UNSUPPORTED_PLATFORM, supportsCodexPlatform } from "../runtime/co
 import { callTool } from "../runtime/mcp-client.mjs";
 import { ROLE_TOOLS, readCodexRole, renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { RUNTIME_MARKER } from "../lib/execution/client-runtime.mjs";
-import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { QA_BROWSER_TOOLS } from "../runtime/qa/config.mjs";
 import { createRoleFiles } from "../runtime/role-files.mjs";
 
 it("carries safe server refusals through real callTool and HTTP bridge without changing receipts", async t => {
