@@ -15,7 +15,18 @@ const profileSchema = z.object({
 type Profile = z.infer<typeof profileSchema>;
 export type TemplateTarget = { environment: string; profileId: string; profile: Profile; identityHash: string };
 
-export function readTemplateTarget(filename: string, environment: string): TemplateTarget {
+export class TemplateToolsPlatformError extends Error {}
+
+export function requireTemplateToolsPlatform(platform: NodeJS.Platform = process.platform): void {
+  if (platform === "win32") throw new TemplateToolsPlatformError("Template release tools prove that profile, snapshot and evidence files are private by their POSIX mode, which Windows does not report. Run them from WSL, macOS or Linux.");
+}
+
+export function templateToolFailure(error: unknown, privateFailure: string): string {
+  return error instanceof TemplateToolsPlatformError ? error.message : privateFailure;
+}
+
+export function readTemplateTarget(filename: string, environment: string, platform: NodeJS.Platform = process.platform): TemplateTarget {
+  requireTemplateToolsPlatform(platform);
   if (!["development", "test", "staging", "production"].includes(environment) || !isAbsolute(filename)) throw new Error("An explicit approved environment and absolute profile file are required");
   const file = realpathSync(filename), stat = lstatSync(filename);
   const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
