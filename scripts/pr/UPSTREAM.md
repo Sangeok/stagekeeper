@@ -41,6 +41,38 @@ References:
 
 ## Qualification decision
 
+### Windows Q3 대안 실험
+
+`testing/windows-directory-probe.cs`와 `windows-directory-usage.test.mjs`는 운영 adapter에
+연결하지 않은 Windows 20348/x64 전용 실험이다. 기존 PEB 후보의 실패를 성공으로
+바꾸거나 대체 관측으로 합성하지 않는다.
+
+- `CreateFileW`의 DELETE access, share read/write/delete, OPEN_EXISTING,
+  BACKUP_SEMANTICS 및 OPEN_REPARSE_POINT로 시험 소유 directory를 열고 바로 닫는다.
+  삭제·rename·disposition 변경 API는 호출하지 않는다. 접근 거부와 sharing violation을
+  구분한다. 하위 경로의 사용을 root 한 번의 open으로 알 수 있다고 가정하지 않는다.
+- DELETE access를 가진 열린 handle은 새 사용자의 open과 충돌할 수 있다.
+  해당 handle을 handshake 동안 유지하는 실험은 시험이 만든 directory에만 수행하며
+  15초 자체 deadline을 둔다. 새 cwd 프로세스 시작의 실패·해제 후 성공을 따로 기록한다.
+- `NtQueryInformationFile(FileProcessIdsUsingFileInformation=47)` 후보도 비교한다.
+  Microsoft는 이 class를 system use로 예약한다. 공개 안정 ABI로 표현하지 않는다.
+  구조는 기존 PHNT-LICENSE와 같은 고정 revision의 `ntioapi.h`에 근거한다.
+  성공 반환 자체나 fixture PID 포함 여부는 전체 coverage의 증명이 아니다.
+- 관측 대상은 fixture directory다. oracle PID를 native helper에 넘기지 않으며,
+  외부 process 메모리·command line·env를 읽지 않는다. raw PID 목록은 시험 메모리에서
+  대조하고 공개 evidence에는 건수·oracle 포함 여부·고정 오류 코드만 남긴다.
+- 일반 directory handle과 cwd를 구별하지 못하거나 새 cwd 시작을 막는 경우,
+  현재 cwd/PID 계약과 동일한 backend로 채택하지 않는다. 현재 production schema와
+  상위 SDD를 이 실험만으로 변경하지 않는다.
+
+Primary references:
+- [SetCurrentDirectory의 cwd 잠금](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setcurrentdirectory)
+- [CreateFileW의 access/share 계약](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)
+- [FILE_INFORMATION_CLASS의 system-use 예약](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ne-wdm-_file_information_class)
+- [고정 phnt ntioapi.h](https://github.com/winsiderss/phnt/blob/53fbbdc5b5d2b08761db1c7b26bfa8c820924356/ntioapi.h)
+
+### 기존 후보 결과
+
 macOS local 및 GitHub macos-15의 native 경로는 통과했다. Windows 2022 x64의 PEB 후보는 285de226d8815c0604af21be826ada5b7febbcfb에서 cwd-open-5 1건으로 불완전 관측이었다. QUERY_LIMITED_INFORMATION | VM_READ에서도 동일했으므로 현재 Windows 후보는 운영 채택 보류다. unknown을 clear로 바꾸거나 실패 process를 제외하지 않는다.
 
 프로세스 변경은 한 관측 시간 예산 안에서 fresh inventory로 재검사하고 snapshotAttempts/populationChanges를 반환한다. 관측 결과를 다음 호출에 캐시하지 않는다. macOS의 ps start identity는 초 단위라 외부의 극단적인 동일 초 PID 재사용을 원자적으로 인증하지 않으며, 어떤 결과도 삭제 권한으로 사용하지 않는다.

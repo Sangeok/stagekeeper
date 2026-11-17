@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: 22
       - name: Worktree usage qualification
-        run: npm exec --call "node --test scripts/pr/process-usage.test.mjs"
+        run: npm exec --call "node --test scripts/pr/process-usage.test.mjs scripts/pr/windows-directory-usage.test.mjs"
         env:
           STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"
       - name: Task worktree lifecycle

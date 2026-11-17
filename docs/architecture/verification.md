@@ -298,7 +298,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | --- | --- | --- | --- | --- | --- | --- |
 | 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
 | 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/manage-task-worktrees.test.mjs`, `scripts/cleanup-task-branches.test.mjs`를 별도 필수 step으로 실행 |
-| worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/pr/process-usage.test.mjs`의 native gate는 `STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"`로 Windows/macOS에서 실행. Linux는 공통 protocol·입력 계약만 검증 |
+| worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/pr/process-usage.test.mjs`의 native gate는 `STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"`로 Windows/macOS에서 실행. 함께 실행하는 `windows-directory-usage.test.mjs`는 Windows 전용 API 후보 실험이며 다른 OS의 skip을 native 증거로 세지 않는다. Linux는 공통 protocol·입력 계약만 검증 |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
 | 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
 | smoke 서버 소유권·생명주기 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `node --test scripts/rehearsals/smoke-server.test.mjs`로 실제 자식·IPC·loopback·종료를 검증한다 |
