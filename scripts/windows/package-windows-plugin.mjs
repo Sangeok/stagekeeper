@@ -5,11 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedWindowsRuntime } from "../../plugin/runtime/role-commands.mjs";
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
+import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const VERIFIER = "skills/reconciling-proposals-with-codebase", CODEX_VERIFIER = "codex/skills/reconciling-proposals-with-codebase";
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
-export const isShippedPluginFile = name => name.startsWith("plugin/") && !name.startsWith("plugin/templates/") && !name.startsWith("plugin/evals/") && !name.endsWith(".test.mjs");
 function regularTree(directory) {
   const files = [];
   function visit(current, relative = "") {

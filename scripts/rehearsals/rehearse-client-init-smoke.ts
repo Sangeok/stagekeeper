@@ -1,21 +1,19 @@
-import { execFileSync, spawn, spawnSync, type ChildProcess, type SpawnSyncReturns } from "node:child_process";
+import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { randomBytes, randomInt } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
-import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { newToken } from "../../packages/core/tokens/token.mjs";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";
 import { measureEnvironment, pluginVersionAt } from "./gate-environment.mjs";
+import { startSmokeServer } from "./smoke-server.mjs";
 
 const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
 const MARKETPLACE = "stagekeeper-local";
 const PLUGIN_REPOSITORY = "https://github.com/Sangeok/stagekeeper.git";
-const PORT = 45438;
-export const ORIGIN = `http://127.0.0.1:${PORT}`;
 const COMMIT = /^[0-9a-f]{40}$/;
 
 export const USAGE = [
@@ -107,10 +105,11 @@ export class Run {
   readonly outputs: string[] = [];
   failure: string | undefined;
 
-  constructor(readonly log: string) {}
+  constructor(readonly log: string, readonly signal?: AbortSignal) {}
 
   async step<T>(name: string, action: () => Promise<T> | T): Promise<T> {
     try {
+      this.signal?.throwIfAborted();
       const value = await action();
       this.steps.push({ step: name, result: "pass" });
       return value;
@@ -153,6 +152,7 @@ export class Smoke {
     readonly helperEnv: NodeJS.ProcessEnv,
     readonly userId: string,
     readonly databaseUrl: string,
+    readonly origin: string,
   ) {}
 
   helper(plugin: Plugin, args: string[], label: string): Command {
@@ -168,7 +168,7 @@ export class Smoke {
     await this.run.step(name, () => {
       const output = this.helper(plugin, ["--dry-run"], name).stdout;
       if (countLines(output, new RegExp(`^plan: ${plan}$`)) !== 1) throw new Error(`dry-run did not report plan: ${plan}`);
-      if (countLines(output, new RegExp(`^server: ${ORIGIN.replace(/[.]/g, "\\.")}$`)) !== 1) throw new Error("dry-run did not report the server");
+      if (countLines(output, new RegExp(`^server: ${this.origin.replace(/[.]/g, "\\.")}$`)) !== 1) throw new Error("dry-run did not report the server");
       if (fresh && existsSync(path.join(this.repo, "CLAUDE.md"))) throw new Error("dry-run wrote CLAUDE.md");
     });
   }
@@ -193,7 +193,7 @@ export class Smoke {
 
   async sync(plugin: Plugin, name: string, slug: string, after?: Date): Promise<Date> {
     return this.run.step(name, async () => {
-      const outcome = this.run.command(process.execPath, ["--input-type=commonjs", "-e", `(async () => {\n${SYNC}\n})()`, plugin.root, this.repo, ORIGIN], this.repo, this.helperEnv);
+      const outcome = this.run.command(process.execPath, ["--input-type=commonjs", "-e", `(async () => {\n${SYNC}\n})()`, plugin.root, this.repo, this.origin], this.repo, this.helperEnv);
       if (outcome.code !== 0) throw new Error(outcome.stderr.split(/\r?\n/).find(line => line.startsWith("sync: ")) ?? `project_sync exited ${outcome.code}`);
       const line = outcome.stdout.split(/\r?\n/).map(text => text.trim()).filter(text => text.startsWith("{")).at(-1);
       if (typeof (line ? JSON.parse(line) as { synced?: unknown } : null)?.synced !== "number") throw new Error("project_sync did not report a synced count");
@@ -221,10 +221,10 @@ export class Smoke {
     });
     await this.dryRun(plugin, `${prefix}dry-run`, "free", true);
     await this.generate(plugin, `${prefix}generate`, "free");
-    await this.run.step(`${prefix}persist-server`, () => persistServer(this.run, this.helperEnv));
+    await this.run.step(`${prefix}persist-server`, () => persistServer(this.run, this.helperEnv, this.origin));
     await this.run.step(`${prefix}mcp-add`, () => {
       if (this.run.command("claude", ["mcp", "get", "harness"], this.repo, this.helperEnv).code === 0) throw new Error("harness is already registered on this machine");
-      this.claude(["mcp", "add", "--transport", "http", "--scope", "user", "harness", `${ORIGIN}/api/mcp`, "-H", "Authorization: Bearer ${HARNESS_TOKEN}"], "claude mcp add");
+      this.claude(["mcp", "add", "--transport", "http", "--scope", "user", "harness", `${this.origin}/api/mcp`, "-H", "Authorization: Bearer ${HARNESS_TOKEN}"], "claude mcp add");
     });
     await this.connected(`${prefix}mcp-connected`);
     await this.run.step(`${prefix}client-config`, () => {
@@ -256,35 +256,6 @@ function countLines(text: string, pattern: RegExp): number {
 
 export function osLabel(): string {
   return `${process.platform}-${process.arch}`;
-}
-
-export async function startServer(databaseUrl: string, log: string, env: NodeJS.ProcessEnv): Promise<ChildProcess> {
-  const output = openSync(log, "a");
-  const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(PORT)], {
-    cwd: REPO,
-    env: { ...env, DATABASE_URL: databaseUrl, AUTH_SECRET: randomBytes(32).toString("hex"), AUTH_URL: ORIGIN, AUTH_TRUST_HOST: "true", HARNESS_PUBLIC_URL: ORIGIN },
-    stdio: ["ignore", output, output],
-    windowsHide: true,
-  });
-  for (let attempt = 0; attempt < 240; attempt++) {
-    if (server.exitCode !== null) throw new Error("server exited before /login answered");
-    try {
-      if ((await fetch(`${ORIGIN}/login`, { redirect: "manual" })).status === 200) return server;
-    } catch {
-      await delay(500);
-      continue;
-    }
-    await delay(500);
-  }
-  server.kill();
-  throw new Error("server did not answer /login within 120 seconds");
-}
-
-export async function stopServer(server: ChildProcess | undefined): Promise<void> {
-  if (!server || server.exitCode !== null) return;
-  const stopped = new Promise<void>(resolve => server.once("exit", () => resolve()));
-  server.kill();
-  await Promise.race([stopped, delay(10_000)]);
 }
 
 function exportPlugin(commit: string, directory: string): string {
@@ -329,20 +300,20 @@ export function createRepository(work: string, scenario: string): string {
   return repo;
 }
 
-function persistServer(run: Run, env: NodeJS.ProcessEnv): void {
+function persistServer(run: Run, env: NodeJS.ProcessEnv, origin: string): void {
   const clean = { ...env };
   delete clean.HARNESS_SERVER;
   if (process.platform === "win32") {
-    run.succeed("setx", ["HARNESS_SERVER", ORIGIN], REPO, clean, "setx HARNESS_SERVER");
+    run.succeed("setx", ["HARNESS_SERVER", origin], REPO, clean, "setx HARNESS_SERVER");
     const saved = run.succeed("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "[Environment]::GetEnvironmentVariable('HARNESS_SERVER','User')"], REPO, clean, "read HARNESS_SERVER").stdout.trim();
-    if (saved !== ORIGIN) throw new Error("a new shell does not see HARNESS_SERVER");
+    if (saved !== origin) throw new Error("a new shell does not see HARNESS_SERVER");
     return;
   }
   const profile = path.join(homedir(), ".zprofile");
-  const line = `export HARNESS_SERVER="${ORIGIN}"`;
+  const line = `export HARNESS_SERVER="${origin}"`;
   if (!existsSync(profile) || !readFileSync(profile, "utf8").includes(line)) appendFileSync(profile, `\n${line}\n`);
   const saved = run.succeed("zsh", ["-l", "-c", 'printf %s "$HARNESS_SERVER"'], REPO, clean, "read HARNESS_SERVER").stdout.trim();
-  if (saved !== ORIGIN) throw new Error("a new login shell does not see HARNESS_SERVER");
+  if (saved !== origin) throw new Error("a new login shell does not see HARNESS_SERVER");
 }
 
 async function projectState(slug: string, userId: string, databaseUrl: string): Promise<{ runbookVersion: string | null; lastSyncedAt: Date | null; workspaces: number }> {
@@ -431,18 +402,22 @@ export async function deleteFixtureUser(userId: string, databaseUrl: string): Pr
 async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.ProcessEnv): Promise<number> {
   const started = Date.now();
   const work = realpathSync.native(mkdtempSync(path.join(env.RUNNER_TEMP ?? tmpdir(), "stagekeeper-e2e-")));
-  const run = new Run(path.join(work, "commands.log"));
+  const startup = new AbortController();
+  const run = new Run(path.join(work, "commands.log"), startup.signal);
   const token = newToken("user");
   const login = `stagekeeper-e2e-${randomBytes(4).toString("hex")}`;
   const record: Record<string, unknown> = { client: options.client, os: osLabel(), scenario: options.scenario, pluginSource: options.pluginSource, steps: run.steps };
   const childEnv: NodeJS.ProcessEnv = { ...env, DATABASE_URL: databaseUrl, TEST_DATABASE_URL: databaseUrl };
-  const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain, HARNESS_SERVER: ORIGIN };
+  const helperEnv: NodeJS.ProcessEnv = { ...env, HARNESS_TOKEN: token.plain };
   delete helperEnv.HARNESS_TEMPLATES_DIR;
   delete helperEnv.HARNESS_PLAN;
   delete helperEnv.DATABASE_URL;
   delete helperEnv.TEST_DATABASE_URL;
   Object.assign(record, measureEnvironment(process.platform, (file: string, args: string[]) => run.command(file, args, REPO, helperEnv).stdout));
-  let server: ChildProcess | undefined;
+  let server: Awaited<ReturnType<typeof startSmokeServer>> | undefined;
+  let serverCleanupFailed = false;
+  const interrupt = () => startup.abort(new Error("Smoke interrupted"));
+  process.on("SIGINT", interrupt); process.on("SIGTERM", interrupt);
   let userId: string | undefined;
   try {
     if (options.templateCommit && git(options.templates, ["rev-parse", "HEAD"]) !== options.templateCommit) throw new Error("Private template checkout differs from the pinned smoke source");
@@ -450,9 +425,10 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
     const cutover = () => bootstrapSmokeTemplates({ databaseUrl, run, work, codeSha: options.pluginCommit, requestId: `smoke-${login}`, workflowRun: env.GITHUB_RUN_ID ?? "local-approved-smoke" });
     if (options.scenario === "new-user") await cutover();
     userId = await run.step("fixture", () => createFixtureUser(login, token.hash, databaseUrl));
-    server = await run.step("server", () => startServer(databaseUrl, path.join(work, "server.log"), childEnv));
+    server = await run.step("server-start", () => startSmokeServer({ databaseUrl, log: path.join(work, "server.log"), env: childEnv, signal: startup.signal }));
+    helperEnv.HARNESS_SERVER = server.origin;
     const repo = await run.step("repository", () => createRepository(work, options.scenario));
-    const smoke = new Smoke(run, repo, helperEnv, userId, databaseUrl);
+    const smoke = new Smoke(run, repo, helperEnv, userId, databaseUrl, server.origin);
     if (options.scenario === "new-user") {
       const plugin = await run.step("plugin-install", () => installPlugin(run, options, work, helperEnv));
       record.pluginCommit = plugin.commit;
@@ -473,13 +449,21 @@ async function runSmoke(options: Options, databaseUrl: string, env: NodeJS.Proce
       if (run.outputs.some(output => containsSecret(output, token.plain))) throw new Error("a command printed a token value");
     });
   } catch (error) {
+    serverCleanupFailed = error instanceof Error && "cleanupFailed" in error && error.cleanupFailed === true;
     const message = error instanceof Error ? error.message : String(error);
     console.error(`step ${run.failure ?? "unknown"} failed: ${containsSecret(message, token.plain) ? "details withheld because they contain a token" : message.slice(0, 500)}`);
-    console.error(`server: ${!server ? "not started" : server.exitCode === null ? "running" : `exited ${server.exitCode}`}`);
+    console.error(`server: ${!server ? "not started" : server.child.exitCode === null ? "running" : `exited ${server.child.exitCode}`}`);
     run.failure ??= "unexpected";
   } finally {
-    await stopServer(server);
-    if (userId) await deleteFixtureUser(userId, databaseUrl);
+    try { await server?.stop(); }
+    catch { serverCleanupFailed = true; }
+    if (serverCleanupFailed) {
+      run.steps.push({ step: "server-cleanup", result: "fail" });
+      run.failure ??= "server-cleanup";
+      console.error("server-cleanup failed; fixture preserved");
+    }
+    process.off("SIGINT", interrupt); process.off("SIGTERM", interrupt);
+    if (userId && !serverCleanupFailed) await deleteFixtureUser(userId, databaseUrl);
   }
   record.failure = run.failure;
   record.seconds = Math.round((Date.now() - started) / 1000);

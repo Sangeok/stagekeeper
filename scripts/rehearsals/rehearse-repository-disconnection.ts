@@ -1,7 +1,7 @@
+import { readActionRegistry, resolveActionId } from "../../tests/server/fixtures/action-manifest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
@@ -49,12 +49,10 @@ async function main(): Promise<void> {
     return `${cookieName}=${await encode({ token: { uid: userId, name: "fixture" }, secret, salt: cookieName, maxAge: 3600 })}`;
   }
 
-  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as { node: Record<string, { filename?: string; exportedName?: string }> };
-  const entries = Object.entries(manifest.node).filter(([, entry]) => entry.filename === "src/fsd/features/manage-project-connection/api/manage-project-connection.server.ts");
-  assert.equal(entries.length, 2);
-  const disconnectId = entries.find(([, entry]) => entry.exportedName === "$$RSC_SERVER_ACTION_0")?.[0];
-  const reconnectId = entries.find(([, entry]) => entry.exportedName === "$$RSC_SERVER_ACTION_1")?.[0];
-  assert.ok(disconnectId && reconnectId);
+  const entries = readActionRegistry(".next/server/server-reference-manifest.json");
+  const sourcePath = "src/fsd/features/manage-project-connection/api/project-connection-actions.server.ts";
+  const disconnectId = resolveActionId(entries, { sourcePath, exportName: "disconnectRepository", runtime: "node" });
+  const reconnectId = resolveActionId(entries, { sourcePath, exportName: "reconnectRepository", runtime: "node" });
 
   async function post(id: string, body: string, session?: string, bearer?: string, requestOrigin = origin): Promise<{ status: number; text: string }> {
     const response = await fetch(`${requestOrigin}/projects`, { method: "POST", redirect: "manual", headers: {

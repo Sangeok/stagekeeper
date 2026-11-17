@@ -4,9 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { installedMacosRuntime, macosDigest } from "../../plugin/runtime/macos-runtime.mjs";
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
+import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
-const isShipped = name => name.startsWith("plugin/") && !name.startsWith("plugin/templates/") && !name.startsWith("plugin/evals/") && !name.endsWith(".test.mjs");
 
 function inventory(directory) {
   const rows = [];
@@ -41,7 +41,7 @@ export function packageMacosPlugin({ output, runtimeDirectory }) {
   if (process.platform !== "darwin" || !path.isAbsolute(output) || existsSync(output)
     || path.relative(repository, output).split(path.sep)[0] !== "..") throw new Error("A new absolute output outside the repository on macOS is required");
   const runtime = installedMacosRuntime(runtimeDirectory), verifier = verifierPackage(path.join(repository, "plugin/skills/reconciling-proposals-with-codebase"));
-  const files = execFileSync("git", ["ls-files", "--", "plugin"], { cwd: repository, encoding: "utf8" }).trim().split(/\r?\n/).filter(isShipped);
+  const files = execFileSync("git", ["ls-files", "--", "plugin"], { cwd: repository, encoding: "utf8" }).trim().split(/\r?\n/).filter(isShippedPluginFile);
   mkdirSync(output, { recursive: true });
   for (const name of files) {
     const source = path.join(repository, name), target = path.join(output, name.slice("plugin/".length)), stat = lstatSync(source);

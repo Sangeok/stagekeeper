@@ -20,13 +20,20 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Create a workspace
+      id: workspace
+      shell: bash
+      run: echo "parent=$(mktemp -d "$RUNNER_TEMP/gate-record.XXXXXX")" >> "$GITHUB_OUTPUT"
     - name: List the open issues
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        GATE_WORK_DIR: ${{ steps.workspace.outputs.parent }}
       run: |
-        gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --paginate --jq '.[] | {number, title, login: .user.login, pull: has("pull_request")}' > "$RUNNER_TEMP/gate-open-issues.ndjson"
+        : "${GATE_WORK_DIR:?workspace output is required}"
+        gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --paginate --jq '.[] | {number, title, login: .user.login, pull: has("pull_request")}' > "$GATE_WORK_DIR/open-issues.ndjson"
     - name: Build the row
+      id: files
       shell: bash
       env:
         GATE_SUMMARIES: ${{ inputs.summaries }}
@@ -34,20 +41,28 @@ runs:
         GATE_RESULT: ${{ inputs.result }}
         GATE_LEGS: ${{ inputs.legs }}
         RECORD_ISSUE: ${{ inputs.record-issue }}
+        GATE_WORK_DIR: ${{ steps.workspace.outputs.parent }}
       run: |
-        node scripts/rehearsals/gate-record.mjs --workflow "$GATE_WORKFLOW" --result "$GATE_RESULT" --legs "$GATE_LEGS" --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --repository "$GITHUB_REPOSITORY" --record-issue "$RECORD_ISSUE" --out "$RUNNER_TEMP/gate-record" --open-issues "$RUNNER_TEMP/gate-open-issues.ndjson"
+        : "${GATE_WORK_DIR:?workspace output is required}"
+        node scripts/rehearsals/gate-record.mjs --workflow "$GATE_WORKFLOW" --result "$GATE_RESULT" --legs "$GATE_LEGS" --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --repository "$GITHUB_REPOSITORY" --record-issue "$RECORD_ISSUE" --out "$GATE_WORK_DIR/result" --open-issues "$GATE_WORK_DIR/open-issues.ndjson"
+        echo "directory=$GATE_WORK_DIR/result" >> "$GITHUB_OUTPUT"
     - name: Add the row to the record
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
         RECORD_ISSUE: ${{ inputs.record-issue }}
-      run: gh issue comment "$RECORD_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/gate-record/comment.md"
+        RECORD_DIRECTORY: ${{ steps.files.outputs.directory }}
+      run: |
+        : "${RECORD_DIRECTORY:?files output is required}"
+        gh issue comment "$RECORD_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RECORD_DIRECTORY/comment.md"
     - name: Open or update the finding issue
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        RECORD_DIRECTORY: ${{ steps.files.outputs.directory }}
       run: |
-        directory="$RUNNER_TEMP/gate-record"
+        : "${RECORD_DIRECTORY:?files output is required}"
+        directory="$RECORD_DIRECTORY"
         [ -f "$directory/finding-title.txt" ] || exit 0
         if [ -f "$directory/finding-number.txt" ]; then
           gh issue comment "$(cat "$directory/finding-number.txt")" --repo "$GITHUB_REPOSITORY" --body-file "$directory/finding-body.md"

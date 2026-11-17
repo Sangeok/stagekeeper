@@ -1,2 +1,2 @@
-export { disconnectRepository, reconnectRepository } from "./api/manage-project-connection.server";
+export { disconnectRepository, reconnectRepository } from "./api/project-connection-actions.server";
 export { DisconnectedProjectBanner } from "./ui/disconnected-project-banner";

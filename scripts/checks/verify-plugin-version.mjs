@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isShippedPluginFile } from "../windows/package-windows-plugin.mjs";
+import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
 
 export const pluginManifests = ["plugin/.claude-plugin/plugin.json", "plugin/.codex-plugin/plugin.json"];
 const repository = fileURLToPath(new URL("../../", import.meta.url));

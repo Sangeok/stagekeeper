@@ -211,9 +211,11 @@ it("gives the main loop time to commit a handed-off file and fails a handoff tha
 it("lists pipeline-smoke trigger paths that exist in this repository", () => {
   const repository = new URL("../../", import.meta.url);
   const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
+  const serverPaths = ["scripts/rehearsals/smoke-server.mjs", "scripts/rehearsals/smoke-server-listener.cjs"];
   const sharedCiPaths = ["scripts/rehearsals/rehearse-codex-macos.mjs", "scripts/rehearsals/codex-init-eval.mjs", "scripts/rehearsals/client-ci-contract.mjs", "scripts/rehearsals/client-init-smoke-steps.mjs", "scripts/rehearsals/gate-environment.mjs", "scripts/rehearsals/gate-record.mjs", "scripts/windows/package-windows-plugin.mjs", "scripts/macos/package-plugin.mjs"];
-  for (const expected of ["packages/core/pipeline", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database", ".github/actions/gate-record", ...sharedCiPaths]) assert.ok(paths.includes(expected), expected);
+  for (const expected of ["packages/core/pipeline", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database", ".github/actions/gate-record", ...sharedCiPaths, ...serverPaths]) assert.ok(paths.includes(expected), expected);
   const initWorkflow = readFileSync(new URL(".github/workflows/client-init-smoke.yml", repository), "utf8");
+  assert.ok(initWorkflow.includes('      - "scripts/rehearsals/smoke-server*"'));
   for (const expected of sharedCiPaths) assert.ok(initWorkflow.includes(`      - "${expected}"`), `${expected} must select installation verification`);
   for (const entry of paths) assert.ok(existsSync(new URL(entry, repository)), `${entry} does not exist`);
   assert.deepEqual(smokeTriggerPaths("no command here"), []);

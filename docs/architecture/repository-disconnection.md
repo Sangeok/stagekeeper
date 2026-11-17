@@ -24,7 +24,7 @@
 
 해제·복원은 선택 집합 변경이 없어도 version과 event를 한 번 남긴다. event.reason은 `disconnect-project`/`reconnect-project`, actor는 user, targetProjectId는 대상 id다. targetProjectId는 감사 식별자이며 FK/cascade가 없다. 최신 version의 반복은 no-op, 이전 version의 반복은 먼저 stale이다.
 
-새 FSD feature `manage-project-connection`은 자기 model/UI/action을 소유한다. `index.ts`는 client-safe API, `index.server.ts`는 두 mutation·ordinary loader·배너를 제공한다. adapter는 module-level `server-only`, 두 mutation만 inline `use server`다. mutation이 requireUser에서 얻은 userId를 주입하며 client userId와 bearer는 웹 세션을 대신하지 않는다.
+새 FSD feature `manage-project-connection`은 자기 model/UI/action을 소유한다. `index.ts`는 client-safe API, `index.server.ts`는 두 mutation과 배너를 제공한다. `project-connection-actions.server.ts`는 module-level `use server`로 두 mutation만 노출한다. ordinary loader는 `manage-project-connection.server.ts`의 `server-only` 경계 안에서 배너가 직접 사용하며 public API와 원격 Action에 포함하지 않는다. mutation이 requireUser에서 얻은 userId를 주입하며 client userId와 bearer는 웹 세션을 대신하지 않는다.
 
 성공/no-op은 `/projects`와 `/(app)/p/[slug]` layout을 재검증한다. stale/결과 불명에서는 확인 창을 닫고 로컬 상태를 버린 뒤 refresh한다. 확인 UI key는 대상/version/plan에 묶인다. 다른 브라우저의 즉시 갱신은 보장하지 않는다.
 

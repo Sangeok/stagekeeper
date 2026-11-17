@@ -1,3 +1,4 @@
+import { readActionRegistry, resolveActionId } from "../../tests/server/fixtures/action-manifest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -29,17 +30,13 @@ async function main(): Promise<void> {
   let reopenMode: "normal" | "before" | "after" = "normal";
   let pipelineMode: "normal" | "before" | "after" = "normal";
   const pipelineCalls = { save: 0 };
-  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as {
-    node: Record<string, { filename?: string; exportedName?: string }>;
-    edge: Record<string, { filename?: string; exportedName?: string }>;
-  };
-  assert.ok(manifest.node && manifest.edge, "Fresh Action registry required");
-  const reopenActions = new Set([...Object.entries(manifest.node), ...Object.entries(manifest.edge)]
-    .filter(([, entry]) => entry.filename?.replaceAll("\\", "/").endsWith("src/fsd/features/review-gate/api/review-gate.server.ts") && entry.exportedName === "humanTransition")
-    .map(([id]) => id));
+  const entries = readActionRegistry(".next/server/server-reference-manifest.json");
+  const actionIds = (sourcePath: string, exportName: string) => new Set((["node", "edge"] as const)
+    .filter(runtime => entries.some(entry => entry.runtime === runtime && entry.exportedName === exportName
+      && (entry.filename === sourcePath || entry.filename?.endsWith("/" + sourcePath))))
+    .map(runtime => resolveActionId(entries, { sourcePath, exportName, runtime })));
+  const reopenActions = actionIds("src/fsd/features/review-gate/api/review-gate.server.ts", "humanTransition");
   assert.ok(reopenActions.size > 0, "Fresh humanTransition action required");
-  const actionIds = (filename: string, exportedName: string) => new Set([...Object.entries(manifest.node), ...Object.entries(manifest.edge)]
-    .filter(([, entry]) => entry.filename?.replaceAll("\\", "/").endsWith(filename) && entry.exportedName === exportedName).map(([id]) => id));
   const pipelineActions = actionIds("src/fsd/features/edit-pipeline/api/edit-pipeline.server.ts", "savePipeline");
   assert.ok(pipelineActions.size > 0, "Fresh pipeline save Action required");
   let releaseAction = () => {};

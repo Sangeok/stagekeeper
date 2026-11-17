@@ -1,3 +1,4 @@
+import { readActionRegistry, resolveActionId } from "../../tests/server/fixtures/action-manifest";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -27,25 +28,14 @@ const actionSources = {
   removeBacklogItem: { filename: "src/fsd/features/edit-backlog/api/edit-backlog.server.ts", tab: "backlog" },
 } as const;
 type Action = keyof typeof actionSources;
-const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
 let currentCase = "preflight";
 
 function readActionIds(): Map<Action, string> {
   assert.ok(readFileSync(".next/BUILD_ID", "utf8").trim(), "Fresh production build required");
-  const manifest: unknown = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
-  assert.ok(isRecord(manifest) && isRecord(manifest.node), "Node action registry required");
-  return new Map((Object.keys(actionSources) as Action[]).map(name => {
-    const matches = Object.entries(manifest.node as Record<string, unknown>).filter(([, entry]) =>
-      isRecord(entry) && entry.exportedName === name && typeof entry.filename === "string"
-      && entry.filename.replaceAll("\\", "/").endsWith(actionSources[name].filename));
-    assert.equal(matches.length, 1, "Unique action registration: " + name);
-    const [id, entry] = matches[0];
-    assert.ok(isRecord(entry) && isRecord(entry.workers) && Object.keys(entry.workers).length > 0, "Action workers required");
-    for (const worker of Object.values(entry.workers)) {
-      assert.ok(isRecord(worker) && (typeof worker.moduleId === "string" || typeof worker.moduleId === "number") && typeof worker.async === "boolean", "Invalid action worker");
-    }
-    return [name, id];
-  }));
+  const entries = readActionRegistry(".next/server/server-reference-manifest.json");
+  return new Map((Object.keys(actionSources) as Action[]).map(name => [name,
+    resolveActionId(entries, { sourcePath: actionSources[name].filename, exportName: name, runtime: "node" }),
+  ]));
 }
 
 async function within<T>(work: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -425,7 +415,7 @@ async function main(): Promise<void> {
       assert.ok(body.includes('href="' + reportHref + '"'), "History must render the complete report href");
     }
     const pipeline = await get("/p/" + owner.id + "/pipeline");
-    assert.ok(pipeline.includes("Pipeline") && pipeline.includes("Automatic scouting") && pipeline.includes("Default"));
+    assert.ok(pipeline.includes("Pipeline") && pipeline.includes("Default selection:") && pipeline.includes("Run rules") && pipeline.includes("All pipelines"));
     assert.ok(pipeline.includes("Plan") && pipeline.includes("Implement") && pipeline.includes("Accept"), "Saved pipeline body");
     currentCase = "completed";
   } catch (error) {

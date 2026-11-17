@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [dev]
     paths:
+      - scripts/rehearsals/smoke-server*
+      - scripts/rehearsals/rehearse-client-init-smoke*
+      - scripts/rehearsals/rehearse-pipeline-smoke*
+      - scripts/rehearsals/rehearse-codex-macos*
       - .github/workflows/windows-role-runtime.yml
       - scripts/windows/build-windows-role-node.ps1
       - scripts/windows/windows-role-runtime-cache.mjs
@@ -119,6 +123,11 @@ jobs:
       - name: Prepare project dependencies with normal lifecycle scripts
         shell: pwsh
         run: npm ci --no-audit --no-fund
+      - name: Validate owned smoke server lifecycle
+        shell: pwsh
+        run: |
+          node --test scripts/rehearsals/smoke-server.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Smoke server lifecycle tests failed' }
       - name: Validate the whole product test suite on Windows
         shell: pwsh
         env:

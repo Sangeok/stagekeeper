@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import { EventEmitter } from "node:events";
+import ts from "typescript";
 import path from "node:path";
 import { assertIdleObservationGap, countResidentModelStarts, hasSuccessfulRoleRecord, parseMacosRehearsalArguments, pipelineDiagnostics } from "./rehearse-codex-macos.mjs";
 
@@ -69,3 +73,28 @@ it("separates model-free initialization from explicit eval and pipeline runs", (
   assert.equal(parseMacosRehearsalArguments([...required, "--phase", "eval", "--run-models"]).phase, "eval");
   for (const args of [["--phase", "init", "--run-models"], ["--phase", "eval"], ["--phase", "unknown"], ["--phase", "init", "--idle-minutes", "1"], ["--phase", "eval", "--run-models", "--previous-package", path.resolve("previous")]]) assert.throws(() => parseMacosRehearsalArguments([...required, ...args]));
 });
+
+for (const mode of ["stopped", "runner-live", "stop-failure", "start-cleanup-failure"]) {
+  it(`Codex cleanup preserves runner ownership and saves its summary on ${mode}`, async () => {
+    const source = ts.createSourceFile("caller.mjs", readFileSync(new URL("./rehearse-codex-macos.mjs", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
+    const main = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "main");
+    const finalizer = main.body.statements.find(node => ts.isTryStatement(node) && node.finallyBlock).finallyBlock;
+    const events = [], summary = { result: "pass", error: "original-failure" }, snapshots = [];
+    const processFixture = new EventEmitter(), interrupt = () => {};
+    processFixture.on("SIGINT", interrupt); processFixture.on("SIGTERM", interrupt);
+    const context = { Date, summary, process: processFixture, interrupt, runnerSession: undefined,
+      stopped: mode !== "runner-live", browser: undefined, qaServer: undefined, userId: "fixture", projectId: undefined,
+      serverCleanupFailed: mode === "start-cleanup-failure", databaseUrl: "fixture", work: "fixture",
+      server: { stop: async () => { events.push("stop"); if (mode === "stop-failure") throw new Error("stop"); } },
+      deleteFixtureUser: async () => { events.push("delete"); },
+      save: () => snapshots.push(structuredClone(summary)), console: { log: () => {} },
+    };
+    await runInNewContext("(async () => " + finalizer.getText(source) + ")()", context);
+    assert.equal(snapshots.length, 1);
+    assert.equal(summary.error, "original-failure");
+    assert.equal(processFixture.listenerCount("SIGINT") + processFixture.listenerCount("SIGTERM"), 0);
+    assert.deepEqual(events, mode === "runner-live" ? [] : mode === "stopped" ? ["stop", "delete"] : ["stop"]);
+    assert.equal(summary.result, mode === "stopped" ? "pass" : "fail");
+    if (mode.includes("failure")) assert.equal(summary.cleanupError, "server-cleanup");
+  });
+}
