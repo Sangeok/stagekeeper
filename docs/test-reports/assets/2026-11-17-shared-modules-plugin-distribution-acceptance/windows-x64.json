@@ -1,0 +1,122 @@
+{
+  "format": "stagekeeper-shared-distribution-acceptance-v1",
+  "sourceCommit": "4c5ccd6d616495c644d7a26be7afc4bbceaff030",
+  "previousCommit": "85c66fb1d9e02c3d9416710240cbfca3f0023939",
+  "templatesCommit": "8ccb37a4ab91de527e6a23caa6d415c7cdc6f215",
+  "runId": "44048937201",
+  "attempt": 1,
+  "triggerCommit": "e9862089cfb2795b0c9453f7ecc4929be8db7340",
+  "os": "win32",
+  "osVersion": "10.0.20348",
+  "architecture": "x64",
+  "node": "v22.23.4",
+  "client": "codex",
+  "clientVersion": "0.167.1",
+  "modelCalls": 0,
+  "checks": [
+    "private-corpus-paths-and-cross-version-hashes",
+    "previous-loader-and-inventory",
+    "previous-plugin-new-server-pins-and-refusal",
+    "updated-cache-and-preserved-pins",
+    "empty-cache-real-init-and-mcp",
+    "modified-file-pending-refusal-and-recovery",
+    "installed-session-lifecycle-without-model-auth"
+  ],
+  "cleanup": {
+    "server": "pass",
+    "fixture": "pass",
+    "client": "pass",
+    "database": "pass",
+    "errors": []
+  },
+  "result": "pass",
+  "templateContracts": {
+    "sourceHash": "c580242f1a31f7d437db2fc44c9a2dfe9c9f81e8181f0fb3db9ae3679070ad49",
+    "rows": 13,
+    "languages": [
+      "en"
+    ],
+    "comparedInputs": 6,
+    "obsoleteReferences": 0,
+    "contentHash": "17a2a94193278f7d1024f918ae1d558f53180a407ddd606465980a55c1abb27e",
+    "contractHash": "9883d7fd4bbad5627d3785c07bc5f2b8354bf9a7827e711992e006b53996ce0f"
+  },
+  "privateCorpus": {
+    "executed": 2,
+    "scope": "installation-and-graph-contracts"
+  },
+  "cliArchive": {
+    "target": "x86_64-pc-windows-msvc",
+    "bytes": 201602950,
+    "sha256": "a327ba32f46e39079486ffa29e160e9da9ab2b2f73744d6101509729c26c1c1b"
+  },
+  "previousPackage": {
+    "pluginCommit": "85c66fb1d9e02c3d9416710240cbfca3f0023939",
+    "pluginVersion": "0.6.15",
+    "packageSha256": "a0ac0e921432459ad60ec86dcf508affec088db90e3b6438e6a142c0ab087f13",
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifierSha256": "de1120a5947a26809360f94d2775b5f8e0207a59ed36b029c8add52e558e4853",
+    "files": 2252,
+    "libFiles": [
+      "lib/configuration/harness-config.mjs",
+      "lib/configuration/workspaces.mjs",
+      "lib/execution/client-runtime.mjs",
+      "lib/execution/runner.mjs",
+      "lib/execution/watch.mjs",
+      "lib/github/blob-url.mjs",
+      "lib/github/repo-url.mjs",
+      "lib/pipeline/backlog.mjs",
+      "lib/pipeline/pipeline.mjs",
+      "lib/pipeline/run-input.mjs",
+      "lib/pipeline/transitions.mjs",
+      "lib/pipeline/work-selection.mjs",
+      "lib/plans/entitlement.mjs",
+      "lib/plans/usage-window.mjs",
+      "lib/project-slug.mjs",
+      "lib/qa.mjs",
+      "lib/request-rate.mjs",
+      "lib/templates/codex-bundle.mjs",
+      "lib/templates/deliver.mjs",
+      "lib/templates/manifest.mjs",
+      "lib/templates/release-manifest.mjs",
+      "lib/templates/render.mjs",
+      "lib/templates/runbook.mjs",
+      "lib/templates/template-boundary.mjs",
+      "lib/templates/vars.mjs",
+      "lib/tokens/token-validity.mjs",
+      "lib/tokens/token.mjs"
+    ],
+    "kind": "rebuilt-fixture"
+  },
+  "package": {
+    "pluginCommit": "4c5ccd6d616495c644d7a26be7afc4bbceaff030",
+    "pluginVersion": "0.6.16",
+    "packageSha256": "f9fe6430e1d54cde2182d395b322a35f31cddf3773a6cb7852e107022f6d9624",
+    "runtimeSha256": "0148976b90617f693b073da4217021c8ac454fceda10485172bc5979647c4dbb",
+    "verifierSha256": "de1120a5947a26809360f94d2775b5f8e0207a59ed36b029c8add52e558e4853",
+    "files": 2245,
+    "libFiles": [
+      "lib/configuration/workspaces.mjs",
+      "lib/execution/client-runtime.mjs",
+      "lib/execution/runner-contract.mjs",
+      "lib/github/repo-url.mjs",
+      "lib/plans/limits.mjs",
+      "lib/qa/validation.mjs",
+      "lib/templates/codex-bundle.mjs",
+      "lib/templates/deliver.mjs",
+      "lib/templates/manifest-hash.mjs",
+      "lib/templates/release-contract.mjs",
+      "lib/templates/render.mjs",
+      "lib/templates/runbook.mjs",
+      "lib/templates/template-boundary.mjs",
+      "lib/templates/vars.mjs",
+      "lib/tokens/format.mjs"
+    ]
+  },
+  "pinObservation": {
+    "done": false,
+    "receipt": true,
+    "release": true,
+    "instruction": true
+  }
+}
