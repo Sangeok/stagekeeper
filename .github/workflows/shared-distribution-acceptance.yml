@@ -1,0 +1,194 @@
+name: shared-distribution-acceptance
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - .github/workflows/shared-distribution-acceptance.yml
+      - .github/actions/smoke-database/**
+      - scripts/rehearsals/shared-*.mjs
+      - scripts/rehearsals/rehearse-shared-distribution.mjs
+      - scripts/rehearsals/rehearse-client-init-smoke.ts
+      - scripts/rehearsals/smoke-server*
+      - scripts/macos/**
+      - scripts/windows/**
+      - scripts/templates/**
+      - scripts/lib/**
+      - scripts/plugin-lib.mjs
+      - tests/templates/**
+      - packages/**
+      - plugin/**
+      - src/server/**
+      - src/app/api/**
+      - prisma/**
+      - package.json
+      - package-lock.json
+  push:
+    branches: [dev]
+    paths:
+      - .github/workflows/shared-distribution-acceptance.yml
+      - scripts/rehearsals/shared-*.mjs
+      - scripts/rehearsals/rehearse-shared-distribution.mjs
+      - packages/**
+      - plugin/**
+      - src/server/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  acceptance:
+    name: shared distribution (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            pg: windows-x64
+            timeout: 120
+          - runner: macos-15
+            pg: darwin-arm64
+            timeout: 45
+          - runner: macos-15-intel
+            pg: darwin-x64
+            timeout: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Check shared acceptance inputs
+        id: shared-inputs
+        shell: bash
+        env:
+          TEMPLATES_TOKEN: ${{ secrets.E2E_TEMPLATES_TOKEN }}
+          TRUSTED_HEAD: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ "$TRUSTED_HEAD" = "true" ] && [ -n "$TEMPLATES_TOKEN" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Shared native acceptance is BLOCKED: trusted template access is unavailable"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Prepare acceptance dependencies
+        if: steps.shared-inputs.outputs.ready == 'true'
+        run: npm ci --no-audit --no-fund
+      - name: Validate acceptance contracts
+        if: steps.shared-inputs.outputs.ready == 'true'
+        run: node --test scripts/rehearsals/shared-distribution-contract.test.mjs
+      - name: Build verified native macOS runtime
+        if: steps.shared-inputs.outputs.ready == 'true' && runner.os == 'macOS'
+        shell: bash
+        run: |
+          architecture="$(node -p process.arch)"
+          archive="$RUNNER_TEMP/node-v22.23.3-darwin-$architecture.tar.gz"
+          curl -fsSL "https://nodejs.org/dist/v22.23.3/node-v22.23.3-darwin-$architecture.tar.gz" -o "$archive"
+          node scripts/macos/build-runtime.mjs --archive "$archive" --output "$GITHUB_WORKSPACE/plugin/runtime/macos/node"
+      - name: Calculate runtime cache identity
+        if: steps.shared-inputs.outputs.ready == 'true' && runner.os == 'Windows'
+        id: runtime-key
+        shell: pwsh
+        run: |
+          $key = node scripts/windows/windows-role-runtime-cache.mjs key
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime cache identity failed' }
+          "key=$key" >> $env:GITHUB_OUTPUT
+      - uses: actions/cache/restore@v4
+        if: steps.shared-inputs.outputs.ready == 'true' && runner.os == 'Windows'
+        id: node-cache
+        with:
+          path: ${{ runner.temp }}/stagekeeper-node-source/runtime
+          key: ${{ steps.runtime-key.outputs.key }}
+      - name: Refuse a partial runtime cache match
+        if: steps.shared-inputs.outputs.ready == 'true' && runner.os == 'Windows' && (steps.node-cache.outputs.cache-matched-key != '' && steps.node-cache.outputs.cache-matched-key != steps.runtime-key.outputs.key)
+        shell: pwsh
+        run: throw 'Only an exact runtime cache may be reused; partial cache restore refused'
+      - name: Build pinned Node with AppContainer pipe backport
+        id: node-build
+        if: steps.shared-inputs.outputs.ready == 'true' && runner.os == 'Windows' && (steps.node-cache.outputs.cache-hit != 'true')
+        shell: pwsh
+        run: |
+          Write-Output 'Runtime cache miss: compiling pinned Node'
+          ./scripts/windows/build-windows-role-node.ps1 -BuildRoot "$env:RUNNER_TEMP/stagekeeper-node-source"
+      - name: Verify prepared runtime with runner Node
+        if: steps.shared-inputs.outputs.ready == 'true' && runner.os == 'Windows'
+        id: runtime-verify
+        shell: pwsh
+        run: |
+          node scripts/windows/windows-role-runtime-cache.mjs verify --runtime "$env:RUNNER_TEMP/stagekeeper-node-source/runtime"
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime cache integrity failed; cached executables were not launched' }
+          Write-Output "Runtime cache hit: ${{ steps.node-cache.outputs.cache-hit == 'true' }}"
+          & "$env:RUNNER_TEMP/stagekeeper-node-source/runtime/node.exe" -e 'const cp=require("node:child_process"); const r=cp.spawnSync(process.execPath,["-e","console.log(123)"],{encoding:"utf8"}); if(r.status!==0 || r.stdout.trim()!=="123") process.exit(1);'
+          if ($LASTEXITCODE -ne 0) { throw 'Prepared runtime child-process smoke failed' }
+      - uses: actions/cache/save@v4
+        if: steps.shared-inputs.outputs.ready == 'true' && runner.os == 'Windows' && (steps.node-cache.outputs.cache-hit != 'true' && steps.runtime-verify.outcome == 'success')
+        with:
+          path: ${{ runner.temp }}/stagekeeper-node-source/runtime
+          key: ${{ steps.runtime-key.outputs.key }}
+      - name: Check out pinned shared acceptance templates
+        if: steps.shared-inputs.outputs.ready == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: Sangeok/harness-templates
+          ref: 8ccb37a4ab91de527e6a23caa6d415c7cdc6f215
+          token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
+          path: plugin/templates
+          persist-credentials: false
+      - name: Prepare shared acceptance database
+        if: steps.shared-inputs.outputs.ready == 'true'
+        uses: ./.github/actions/smoke-database
+        with:
+          pg-package: ${{ matrix.pg }}
+          port: '45432'
+          database: stagekeeper_test_shared_distribution
+      - name: Prepare previous and candidate server builds
+        if: steps.shared-inputs.outputs.ready == 'true'
+        shell: bash
+        env:
+          DATABASE_URL: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_shared_distribution
+        run: |
+          set -e
+          git worktree add --detach "$RUNNER_TEMP/shared-previous" 85c66fb1d9e02c3d9416710240cbfca3f0023939
+          npm --prefix "$RUNNER_TEMP/shared-previous" ci --no-audit --no-fund
+          npm --prefix "$RUNNER_TEMP/shared-previous" run build
+          npm run build
+          node -e 'require("node:fs").renameSync("plugin/templates", require("node:path").join(process.env.RUNNER_TEMP,"shared-templates"))'
+      - name: Validate shared distribution acceptance
+        if: steps.shared-inputs.outputs.ready == 'true'
+        shell: pwsh
+        env:
+          TEST_DATABASE_URL: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_shared_distribution
+          SMB_NATIVE_RUNTIME: ${{ runner.os == 'Windows' && format('{0}/stagekeeper-node-source/runtime', runner.temp) || format('{0}/plugin/runtime/macos/node', github.workspace) }}
+        run: |
+          node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-shared-distribution.mjs --runtime $env:SMB_NATIVE_RUNTIME --templates (Join-Path $env:RUNNER_TEMP 'shared-templates') --previous (Join-Path $env:RUNNER_TEMP 'shared-previous') --evidence (Join-Path $env:RUNNER_TEMP 'shared-distribution-acceptance')
+          if ($LASTEXITCODE -ne 0) { throw 'Shared distribution acceptance failed' }
+      - name: Stop shared acceptance database
+        if: always() && steps.shared-inputs.outputs.ready == 'true'
+        shell: bash
+        env:
+          SMB_PG_PACKAGE: ${{ matrix.pg }}
+        run: |
+          if [ -f "$RUNNER_TEMP/pgdata/postmaster.pid" ]; then
+            executable="$RUNNER_TEMP/pg/node_modules/@embedded-postgres/$SMB_PG_PACKAGE/native/bin/pg_ctl"
+            if [ "$RUNNER_OS" = "Windows" ]; then executable="$executable.exe"; fi
+            "$executable" -D "$RUNNER_TEMP/pgdata" -m fast -w stop
+          fi
+      - name: Preserve shared acceptance summary
+        if: always() && steps.shared-inputs.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-distribution-${{ matrix.runner }}
+          path: ${{ runner.temp }}/shared-distribution-acceptance/summary.json
+          if-no-files-found: error
+          retention-days: 14

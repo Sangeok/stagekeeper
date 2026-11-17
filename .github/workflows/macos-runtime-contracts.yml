@@ -29,15 +29,6 @@ on:
       - scripts/macos/package-plugin.test.mjs
       - src/server/tokens/api.ts
       - scripts/checks/verify-ci-coverage.test.mjs
-      - scripts/rehearsals/rehearse-shared-distribution.mjs
-      - scripts/rehearsals/shared-distribution-contract.mjs
-      - scripts/rehearsals/shared-distribution-contract.test.mjs
-      - scripts/rehearsals/shared-template-snapshot.mjs
-      - scripts/rehearsals/rehearse-client-init-smoke.ts
-      - .github/actions/smoke-database/**
-      - src/server/**
-      - src/app/api/**
-      - prisma/**
       - scripts/plugin-lib.mjs
       - scripts/plugin-lib.test.mjs
       - scripts/lib/shared-module-graph.mjs
@@ -90,7 +81,6 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -171,72 +161,3 @@ jobs:
           name: native-project-build-${{ matrix.runner }}
           path: ${{ runner.temp }}/native-project-build.json
           if-no-files-found: warn
-      - name: Check shared acceptance inputs
-        id: shared-inputs
-        shell: bash
-        env:
-          TEMPLATES_TOKEN: ${{ secrets.E2E_TEMPLATES_TOKEN }}
-          TRUSTED_HEAD: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-        run: |
-          if [ "$TRUSTED_HEAD" = "true" ] && [ -n "$TEMPLATES_TOKEN" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::Shared native acceptance is BLOCKED: trusted template access is unavailable"
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Check out pinned shared acceptance templates
-        if: steps.shared-inputs.outputs.ready == 'true'
-        uses: actions/checkout@v5
-        with:
-          repository: Sangeok/harness-templates
-          ref: 8ccb37a4ab91de527e6a23caa6d415c7cdc6f215
-          token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
-          path: plugin/templates
-          persist-credentials: false
-      - name: Prepare shared acceptance database
-        if: steps.shared-inputs.outputs.ready == 'true'
-        uses: ./.github/actions/smoke-database
-        with:
-          pg-package: ${{ matrix.runner == 'macos-15' && 'darwin-arm64' || 'darwin-x64' }}
-          port: '45432'
-          database: stagekeeper_test_shared_distribution
-      - name: Prepare previous and candidate server builds
-        if: steps.shared-inputs.outputs.ready == 'true'
-        shell: bash
-        env:
-          DATABASE_URL: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_shared_distribution
-        run: |
-          set -e
-          git worktree add --detach "$RUNNER_TEMP/shared-previous" 85c66fb1d9e02c3d9416710240cbfca3f0023939
-          npm --prefix "$RUNNER_TEMP/shared-previous" ci --no-audit --no-fund
-          npm --prefix "$RUNNER_TEMP/shared-previous" run build
-          npm run build
-          node -e 'require("node:fs").renameSync("plugin/templates", require("node:path").join(process.env.RUNNER_TEMP,"shared-templates"))'
-      - name: Validate shared distribution acceptance
-        if: steps.shared-inputs.outputs.ready == 'true'
-        shell: pwsh
-        env:
-          TEST_DATABASE_URL: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_shared_distribution
-          SMB_NATIVE_RUNTIME: ${{ github.workspace }}/plugin/runtime/macos/node
-        run: |
-          node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-shared-distribution.mjs --runtime $env:SMB_NATIVE_RUNTIME --templates (Join-Path $env:RUNNER_TEMP 'shared-templates') --previous (Join-Path $env:RUNNER_TEMP 'shared-previous') --evidence (Join-Path $env:RUNNER_TEMP 'shared-distribution-acceptance')
-          if ($LASTEXITCODE -ne 0) { throw 'Shared distribution acceptance failed' }
-      - name: Stop shared acceptance database
-        if: always() && steps.shared-inputs.outputs.ready == 'true'
-        shell: bash
-        env:
-          SMB_PG_PACKAGE: ${{ matrix.runner == 'macos-15' && 'darwin-arm64' || 'darwin-x64' }}
-        run: |
-          if [ -f "$RUNNER_TEMP/pgdata/postmaster.pid" ]; then
-            executable="$RUNNER_TEMP/pg/node_modules/@embedded-postgres/$SMB_PG_PACKAGE/native/bin/pg_ctl"
-            if [ "$RUNNER_OS" = "Windows" ]; then executable="$executable.exe"; fi
-            "$executable" -D "$RUNNER_TEMP/pgdata" -m fast -w stop
-          fi
-      - name: Preserve shared acceptance summary
-        if: always() && steps.shared-inputs.outputs.ready == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: shared-distribution-${{ matrix.runner }}
-          path: ${{ runner.temp }}/shared-distribution-acceptance/summary.json
-          if-no-files-found: error
-          retention-days: 14

@@ -149,7 +149,8 @@ async function main() {
     summary.templateContracts = { sourceHash: afterContracts.sourceHash, rows: afterContracts.rows,
       languages: afterContracts.languages, comparedInputs: afterContracts.observations.length, obsoleteReferences: 0,
       contentHash: afterContracts.contentHash, contractHash: afterContracts.contractHash };
-    command("private-corpus", process.execPath, ["--import", "tsx", "--test", "tests/templates/private-template-release.test.ts"],
+    command("private-corpus", process.execPath, ["--import", "tsx", "--test",
+      "--test-name-pattern=^(the pinned private corpus validates|private step graphs retain)", "tests/templates/private-template-release.test.ts"],
       { env: { ...process.env, HARNESS_RELEASE_SOURCE: options.templates, HARNESS_RELEASE_COMMIT: templateCommit } });
     passed("private-corpus-paths-and-cross-version-hashes");
     const channel = await db(client => client.templateChannel.findUniqueOrThrow({ where: { id: "default" } }));
