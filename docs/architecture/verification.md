@@ -224,7 +224,9 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   `findings`·`legs`)이다. `level`은 `init`(`client-init-smoke`)·`eval`(`agent-eval`)·`pipeline`(`pipeline-smoke`)·
   `acceptance`(수동 인수)다. gate job이 실패했거나, 요약이 없거나, `harnessErrors`나 `stepRefusals`가 0이 아니면
   `[gate] <workflow> <커밋 7자>` 이슈를 열고, 같은 제목으로 workflow가 연 열린 이슈가 있으면 거기에 댓글을 단다.
-  그 이슈를 원인·판단과 함께 닫는 것이 검토 완료의 표시다. 봉인 전사의 내용, 비공개 템플릿의 문장, 모델이 쓴
+  그 이슈를 원인·판단과 함께 닫는 것이 검토 완료의 표시다. gate job이 취소됐거나(`cancelled`), 건너뛰었거나
+  (`skipped`), hosted runner를 받지 못해 시작하지 않았으면(`abandoned`) 요약이 없어도 행만 남기고 이슈는 열지
+  않는다. 봉인 전사의 내용, 비공개 템플릿의 문장, 모델이 쓴
   글은 이슈에 붙이지 않는다. 기록으로 세는 것은 `github-actions[bot]`과 저장소 소유자의 댓글뿐이며 다음 명령으로 읽는다.
   `gh api "repos/Sangeok/stagekeeper/issues/319/comments?per_page=100" --paginate --jq '.[] | select(.user.login == "github-actions[bot]" or .user.login == "Sangeok") | .body'`
   수동 인수의 행은 같은 JSON 형식에 `workflow: "manual"`, `level: "acceptance"`와 `client`·`clientVersion`·`os`·
