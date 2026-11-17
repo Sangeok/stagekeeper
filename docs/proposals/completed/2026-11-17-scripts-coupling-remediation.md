@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "blocked"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-16"
 approved-by: "user"
 approved-at: "2026-11-17"
 approval-scope: "세 Phase 구현·검증과 후속 요청에 따른 최신 dev 통합, 커밋·푸시·dev 대상 PR, CI 및 격리 설치·실제 모델 인수. 필수 검증 통과 후 dev 병합. main 승격·운영 배포·개인 전역 설치 변경은 제외."
-completed-at: null
-verification-summary: "세 Phase 구현 및 macOS 격리 검증 완료. 전체 check·architecture·web·server·DB·HTTP·브라우저 검증 통과. Windows native와 trusted 설치·실제 모델 인수는 미실행."
+completed-at: "2026-11-17"
+verification-summary: "세 Phase 구현과 로컬 검증 완료. Windows·macOS native, Claude 신규/update init, 양 OS 실제 모델 pipeline, macOS Codex 모델 없는 신규/update init 통과. source 040827e3c3bb876c413025bdf4ed491d0383790a."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -787,6 +787,7 @@ framework에서 가능한지 확인한 prototype 증거이며 완성될 helper�
 
 ### BLK-SCP-01: 실제 프레임워크·OS 인수 환경
 
+- 상태: 2026-11-17 해소. 아래 CI Acceptance Record에 이 제안의 필수 OS·설치·모델 인수와 정리 결과를 기록했다. 다음 항목은 구현 착수 시의 차단 근거다.
 - 분류: downstream. 최초 영향은 Phase SCPACTION의 종료 인수다.
 - 근거: 정합성 검토에서 기준 소스용 격리 DB·fresh build와 macOS Next 대조는 준비·실행했다.
   변경 후 fresh build·격리 DB·실제 HTTP·macOS Next/IPC·브라우저 검증은 완료했다.
@@ -810,7 +811,7 @@ framework에서 가능한지 확인한 prototype 증거이며 완성될 helper�
 | 요구사항·Task·VFY 추적성 | PASS | 설치된 write-sdd-spec validator 일반 모드. 요구사항 7개, Task 6개, VFY 7개; 요구사항의 작업·검증 연결 각각 7/7, 오류·경고 0개 |
 | 의미 검토·상대 링크·metadata | PASS | 쓰기 범위, Phase별 완료 소유권, Action 노출, 서버 시작·취소·종료, 새 gate 경로 및 검증 환경 조건 대조. front matter·상대 링크·줄 끝 공백 검사 통과 |
 | 기준 소스 명령·임시 대조 검증 | 실행 | 위 Reconciliation Record. baseline의 기존 실패·대역 범위와 변경 후 통과를 구분 |
-| 변경 후 구현·시험·build·실제 인수 | 로컬 PASS / 외부 인수 미실행 | 아래 Implementation Record. Windows native·trusted 설치·실제 모델 인수를 로컬 통과로 대체하지 않음 |
+| 변경 후 구현·시험·build·실제 인수 | PASS | 로컬 Implementation Record와 후속 CI Acceptance Record. 이 제안의 Windows native·trusted 설치·실제 모델 조건을 각각 실행 |
 
 검증 입력은 이 문서 한 파일이며 canonical ID는 모두 이 문서가 소유한다. 관련 조사서와
 다른 제안서는 근거 링크이며 요구사항 정의를 상속하지 않는다. 설계와 구현 승인은 front matter에
@@ -833,8 +834,9 @@ framework에서 가능한지 확인한 prototype 증거이며 완성될 helper�
 
 ## Completion or Closure Notes
 
-세 Phase의 구현과 로컬 검증을 마쳤다. 아래 실행 기록과 후속 PR·CI 기록에서
-검증 환경·skip·미실행을 구분한다. 남은 환경 인수를 확인한 뒤 문서 생명주기를 갱신한다.
+세 Phase의 구현과 로컬·CI 인수를 마쳤다. source commit `040827e3c3bb876c413025bdf4ed491d0383790a`에서
+이 제안의 Windows·macOS native·설치·실제 모델 조건을 확인해 완료 처리했다.
+아래 기록은 코드 변경 인수이며 운영 승격이나 dual-client 전체 제품 인증을 뜻하지 않는다.
 
 ## Review Checklist
 
@@ -846,7 +848,7 @@ framework에서 가능한지 확인한 prototype 증거이며 완성될 helper�
 - [x] 기존 정상 경로와 제한된 재현을 실제 인수 완료로 확대하지 않았다.
 - [x] 후속 환경 조건과 Phase별 중간 유효성·완료 소유권을 정했다.
 
-## Implementation Record — 2026-11-17
+## Implementation Record — 2026-11-17 로컬 검증 시점
 
 ### 변경과 보존 범위
 
@@ -904,3 +906,36 @@ Windows·macOS runtime job에 연결했다. 작업 도중 최신 dev에는 별�
 사용자가 최신 dev 대조, 커밋·푸시·PR, 남은 환경 검증과 통과 후 dev 병합 순서에
 “진행”을 요청했다. 기존 작업을 같은 브랜치에서 이어가며 위 미커밋 상태 설명은
 로컬 구현 종료 시점의 기록이다. main 승격과 개인 설치 환경 변경은 수행하지 않는다.
+
+## CI Acceptance Record — 2026-11-17
+
+구현 commit은 `9ab07ff`, 최신 dev `85c66fb`를 통합한 인수 source는
+`040827e3c3bb876c413025bdf4ed491d0383790a`다. [PR #351](https://github.com/Sangeok/stagekeeper/pull/351)은
+`dev`를 대상으로 한다. 아래 모든 제품 인수는 이 source를 사용했다. 완료 기록을 추가하는
+후속 변경은 문서만 수정하며 실제 소스·의존성·workflow 바이트를 바꾸지 않는다.
+
+| 요구사항·검증 | 실행 근거 | 결과 |
+| --- | --- | --- |
+| 전체 회귀와 구조 | [check](https://github.com/Sangeok/stagekeeper/actions/runs/43991504471) | static, product, web, server, build, DB integration, Windows/macOS worktree 검사 모두 PASS |
+| VFY-SCP-05 Windows | [Windows native](https://github.com/Sangeok/stagekeeper/actions/runs/43991504738) | native-runtime PASS, 추가한 owned smoke server lifecycle step 포함 |
+| VFY-SCP-05 macOS | [macOS native](https://github.com/Sangeok/stagekeeper/actions/runs/43991504795) | arm64와 Intel 모두 PASS, owned smoke server lifecycle step 포함 |
+| VFY-SCP-06 Claude init | [client-init-smoke](https://github.com/Sangeok/stagekeeper/actions/runs/43991504397) | Windows/macOS × new-user/update 네 경로 모두 PASS. 고정 template `8ccb37a4ab91de527e6a23caa6d415c7cdc6f215` |
+| VFY-SCP-06 실제 pipeline | [pipeline-smoke](https://github.com/Sangeok/stagekeeper/actions/runs/43991644766) | Windows 462초, macOS 411초. 두 OS 모두 `result: pass`, `runnerState: stopped`, `harnessErrors: {}`, `stepRefusals: 0`, `sealed: true` |
+| VFY-SCP-06 Codex init | [private macOS init](https://github.com/Sangeok/stagekeeper-codex-ci/actions/runs/44004030641) | new-user/update 모두 PASS. `modelCalls: 0`, `runnerSettled: true`, `databaseStopped: true`. 종료 후 등록 runner 0개 |
+
+pipeline과 Codex init은 R2 template `99245acd018d26a7c1238f34323951159c41d954`를 고정했다.
+Codex의 이전 plugin source는 `f882bb96450580d51dc63f142d19531a67185132`이며, 두 scenario 모두
+connected·dry-run 무쓰기·Claude 설정 보존·roster 보존을 확인했다. 이는 이전 source에서 다시
+만든 bundle의 update이며 원래 배포 archive의 R1→R2 전환이나 전체 dual-client 후보 인증으로
+확대하지 않는다. 이 제안은 Codex 모델 호출을 요구하지 않으므로 `--phase init`만 실행했다.
+공개 gate의 record job은 task branch/PR에서는 원래 조건에 따라 skip됐으며 필수 인수의 skip이 아니다.
+
+Codex 검증 준비에서는 기존 private CI target이 다른 source를 가리켰고 개인 CLI가 0.169.0으로
+갱신되어 있었다. [private PR #11](https://github.com/Sangeok/stagekeeper-codex-ci/pull/11)로 이번 source를
+고정하고, [private PR #12](https://github.com/Sangeok/stagekeeper-codex-ci/pull/12)로 기존 고정 버전
+0.167.1을 CI 소유 도구 폴더에서 선택하도록 보완했다. 각각 check 23개·24개가 통과한 뒤 병합했다.
+공식 archive checksum을 검증했고 개인 0.169.0 설치와 인증 cache는 변경하지 않았다.
+native init의 private workflow commit은 `55852e3f5b6e2958d57e5da29975778b61bb1413`다.
+
+BLK-SCP-01의 이 제안 대상 조건을 해소했다. 운영 데이터·template activation·main 승격은
+수행하지 않았다. 실제 모델 raw transcript는 기존 sealed artifact 정책을 유지한다.
