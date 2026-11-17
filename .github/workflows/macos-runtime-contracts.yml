@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [dev]
     paths:
+      - scripts/rehearsals/smoke-server*
+      - scripts/rehearsals/rehearse-client-init-smoke*
+      - scripts/rehearsals/rehearse-pipeline-smoke*
+      - scripts/rehearsals/rehearse-codex-macos*
       - .github/workflows/macos-runtime-contracts.yml
       - scripts/macos/**
       - scripts/build.mjs
@@ -93,6 +97,8 @@ jobs:
           path: ${{ runner.temp }}/launchd-ownership.json
           if-no-files-found: warn
       - run: npm ci --no-audit --no-fund
+      - name: Validate owned smoke server lifecycle
+        run: node --test scripts/rehearsals/smoke-server.test.mjs
       - name: Build the verified native macOS runtime
         shell: bash
         run: |

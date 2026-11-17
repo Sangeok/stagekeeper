@@ -13,20 +13,25 @@ import { DISCONNECTED_REASON } from "../../src/server/projects/access-query";
 import { registerRepositoryProject, REPO_SEGMENT } from "../../src/server/projects/api";
 import { Prisma } from "../../src/generated/prisma/client";
 import { loadModule } from "./fixtures/load-module";
+import { readActionRegistry, resolveActionId } from "./fixtures/action-manifest";
 
-const adapterPath = "src/fsd/features/manage-project-connection/api/manage-project-connection.server.ts";
+const loaderPath = "src/fsd/features/manage-project-connection/api/manage-project-connection.server.ts";
+const adapterPath = "src/fsd/features/manage-project-connection/api/project-connection-actions.server.ts";
 const read = (path: string) => readFileSync(path, "utf8");
 const directive = (node: ts.Statement | undefined, value: string) => !!node && ts.isExpressionStatement(node) && ts.isStringLiteral(node.expression) && node.expression.text === value;
 
-it("exposes exactly two inline session mutations and keeps the ordinary loader behind server-only", () => {
+it("exposes two named session mutations and keeps the ordinary loader behind server-only", () => {
   const source = read(adapterPath); const ast = ts.createSourceFile(adapterPath, source, ts.ScriptTarget.Latest, true);
-  assert.ok(!ast.statements.some((node) => directive(node, "use server")));
-  assert.ok(ast.statements.some((node) => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === "server-only"));
-  const functions = ast.statements.filter(ts.isFunctionDeclaration);
-  const actions = functions.filter((node) => directive(node.body?.statements[0], "use server"));
-  assert.deepEqual(actions.map((node) => node.name?.text).sort(), ["disconnectRepository", "reconnectRepository"]);
-  const loader = functions.find((node) => node.name?.text === "loadProjectConnection"); assert.ok(loader);
-  assert.ok(!directive(loader.body?.statements[0], "use server"));
+  assert.ok(directive(ast.statements[0], "use server"));
+  const actions = ast.statements.filter(ts.isFunctionDeclaration);
+  assert.deepEqual(actions.map(node => node.name?.text).sort(), ["disconnectRepository", "reconnectRepository"]);
+  for (const action of actions) assert.ok(action.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.AsyncKeyword));
+  const loader = ts.createSourceFile(loaderPath, read(loaderPath), ts.ScriptTarget.Latest, true);
+  assert.ok(!loader.statements.some(node => directive(node, "use server")));
+  assert.ok(loader.statements.some(node => ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === "server-only"));
+  assert.deepEqual(loader.statements.filter(ts.isFunctionDeclaration).map(node => node.name?.text), ["loadProjectConnection"]);
+  assert.ok(!loader.statements.some(ts.isExportDeclaration));
+  assert.doesNotMatch(read("src/fsd/features/manage-project-connection/index.server.ts"), /loadProjectConnection/);
   for (const action of actions) {
     const body = action.body!.getText(ast);
     const authentication = body.indexOf("await requireUser()");
@@ -158,11 +163,13 @@ it("retries one real Prisma slug violation in legacy/driver metadata and propaga
 });
 
 if (process.env.RDC_CHECK_ACTION_MANIFEST === "true") {
-  it("the fresh build manifest registers exactly the two inline mutations and no remote loader", () => {
-    const manifest = JSON.parse(read(".next/server/server-reference-manifest.json")) as Record<string, Record<string, { filename?: string; exportedName?: string }>>;
-    const entries = [...Object.values(manifest.node ?? {}), ...Object.values(manifest.edge ?? {})].filter((entry) => entry.filename?.replaceAll("\\", "/").endsWith(adapterPath));
-    assert.equal(entries.length, 2);
-    assert.ok(entries.every((entry) => entry.exportedName?.startsWith("$$RSC_SERVER_ACTION_")));
-    assert.equal(new Set(entries.map((entry) => entry.exportedName)).size, 2);
+  it("the fresh build exposes both named mutations and no remote loader", () => {
+    const entries = readActionRegistry(".next/server/server-reference-manifest.json");
+    assert.ok(!entries.some(entry => entry.filename?.endsWith(loaderPath)));
+    const actions = entries.filter(entry => entry.filename?.endsWith(adapterPath));
+    assert.deepEqual(actions.map(entry => entry.exportedName).sort(), ["disconnectRepository", "reconnectRepository"]);
+    for (const exportName of ["disconnectRepository", "reconnectRepository"]) {
+      assert.ok(resolveActionId(entries, { sourcePath: adapterPath, exportName, runtime: "node" }));
+    }
   });
 }

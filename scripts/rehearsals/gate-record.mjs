@@ -163,13 +163,13 @@ export function main(args, env = process.env) {
     const finding = findingIssue(row, repository, values.get("--record-issue"));
     const existing = finding ? openFinding(readOpenIssues(values.get("--open-issues")), finding.title) : null;
     const out = values.get("--out");
-    mkdirSync(out, { recursive: true });
-    writeFileSync(join(out, "comment.md"), comment);
+    mkdirSync(out);
     if (finding) {
-      writeFileSync(join(out, "finding-title.txt"), finding.title);
-      writeFileSync(join(out, "finding-body.md"), finding.body);
-      if (existing !== null) writeFileSync(join(out, "finding-number.txt"), String(existing));
+      writeFileSync(join(out, "finding-title.txt"), finding.title, { flag: "wx" });
+      writeFileSync(join(out, "finding-body.md"), finding.body, { flag: "wx" });
+      if (existing !== null) writeFileSync(join(out, "finding-number.txt"), String(existing), { flag: "wx" });
     }
+    writeFileSync(join(out, "comment.md"), comment, { flag: "wx" });
     return 0;
   } catch (error) {
     console.error(error instanceof Error ? error.message : "the gate record could not be built");

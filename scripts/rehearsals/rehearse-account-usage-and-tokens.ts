@@ -1,7 +1,7 @@
+import { readActionRegistry, resolveActionId } from "../../tests/server/fixtures/action-manifest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
@@ -23,11 +23,13 @@ async function main(): Promise<void> {
   let server: ChildProcess | undefined, bridge: Server | undefined, proxy: Server | undefined;
   let owner: Awaited<ReturnType<typeof fixture>> | undefined, foreign: typeof owner;
   let loseNext = false;
-  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as { node: Record<string, { filename?: string; exportedName?: string }> };
-  const actionId = (name: string): string => {
-    const match = Object.entries(manifest.node).find(([, entry]) => entry.exportedName === name && /manage-(user-)?token/.test(entry.filename ?? ""));
-    assert.ok(match, "Built token action must exist"); return match[0];
-  };
+  const entries = readActionRegistry(".next/server/server-reference-manifest.json");
+  const actionId = (name: string): string => resolveActionId(entries, {
+    sourcePath: ["issueUserToken", "renameUserToken", "revokeUserToken"].includes(name)
+      ? "src/fsd/features/manage-user-token/api/manage-user-token.server.ts"
+      : "src/fsd/features/manage-token/api/manage-token.server.ts",
+    exportName: name, runtime: "node",
+  });
   const cookie = async (userId: string) => `${cookieName}=${await encode({ token: { uid: userId, name: "Usage fixture" }, secret, salt: cookieName, maxAge: 3600 })}`;
   async function post(name: string, args: unknown[], session?: string): Promise<{ status: number; text: string }> {
     const response: Response = await fetch(`${origin}/settings/tokens`, { method: "POST", redirect: "manual", headers: {

@@ -1,0 +1,33 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { PROJECT_LAYOUT_REVALIDATE_PATH } from "@/fsd/shared/routes/project";
+import { projectsPath } from "@/fsd/shared/routes/projects";
+import { requireUser } from "@/server/auth/guard";
+import { disconnectProject, reconnectProject } from "@/server/projects/api.server";
+import { reconnectCapReason, type ProjectConnectionAction, type ProjectConnectionState } from "../model/project-connection-state";
+
+import { inputSchema } from "../model/project-connection-input";
+
+export async function disconnectRepository(input: Parameters<ProjectConnectionAction>[0]): Promise<ProjectConnectionState> {
+  const { userId } = await requireUser();
+  const parsed = inputSchema.safeParse(input);
+  if (!parsed.success) return { status: "error", reason: "Invalid repository connection request." };
+  const result = await disconnectProject({ targetProjectId: parsed.data.targetProjectId, expectedVersion: parsed.data.expectedVersion, userId });
+  if (result.status === "error") return { status: "error", reason: result.code === "capped" ? reconnectCapReason(result.plan, result.limit) : result.reason };
+  if (result.status === "stale") return { status: "stale" };
+  revalidatePath(projectsPath());
+  revalidatePath(PROJECT_LAYOUT_REVALIDATE_PATH, "layout");
+  return { status: "success" };
+}
+
+export async function reconnectRepository(input: Parameters<ProjectConnectionAction>[0]): Promise<ProjectConnectionState> {
+  const { userId } = await requireUser();
+  const parsed = inputSchema.safeParse(input);
+  if (!parsed.success) return { status: "error", reason: "Invalid repository connection request." };
+  const result = await reconnectProject({ targetProjectId: parsed.data.targetProjectId, expectedVersion: parsed.data.expectedVersion, userId });
+  if (result.status === "error") return { status: "error", reason: result.code === "capped" ? reconnectCapReason(result.plan, result.limit) : result.reason };
+  if (result.status === "stale") return { status: "stale" };
+  revalidatePath(projectsPath());
+  revalidatePath(PROJECT_LAYOUT_REVALIDATE_PATH, "layout");
+  return { status: "success" };
+}

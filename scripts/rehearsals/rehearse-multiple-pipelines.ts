@@ -1,7 +1,7 @@
+import { readActionRegistry, resolveActionId } from "../../tests/server/fixtures/action-manifest";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
@@ -28,13 +28,20 @@ async function main(): Promise<void> {
     await db.boardItem.delete({ where: { id: owner.boardItemId } });
     const session = async (userId: string) => `${cookieName}=${await encode({ token: { uid: userId, name: "fixture" }, secret, salt: cookieName, maxAge: 3600 })}`;
     const ownedCookie = await session(owner.userId), foreignCookie = await session(foreign.userId);
-    const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8")) as { node: Record<string, { filename?: string; exportedName?: string }> };
-    const mutations = ["savePipeline", "archivePipelineAction", "renamePipelineAction", "setDefaultPipelineAction", "setPipelineRuleAction", "proposeItem", "changeItemPipeline"];
-    const ids = new Map(mutations.map(name => {
-      const match = Object.entries(manifest.node).find(([, entry]) => entry.exportedName === name && entry.filename?.startsWith("src/fsd/features/"));
-      assert.ok(match, `Build current source: missing ${name}`); return [name, match[0]];
-    }));
-    assert.ok(!Object.values(manifest.node).some(entry => ["loadPipelinesView", "loadItemPipelineView", "loadPipelineChanges"].includes(entry.exportedName ?? "")));
+    const entries = readActionRegistry(".next/server/server-reference-manifest.json");
+    const sources = {
+      savePipeline: "edit-pipeline/api/edit-pipeline.server.ts",
+      archivePipelineAction: "edit-pipeline/api/pipeline-settings.server.ts",
+      renamePipelineAction: "edit-pipeline/api/pipeline-settings.server.ts",
+      setDefaultPipelineAction: "edit-pipeline/api/pipeline-settings.server.ts",
+      setPipelineRuleAction: "edit-pipeline/api/pipeline-settings.server.ts",
+      proposeItem: "propose-item/api/propose-item.server.ts",
+      changeItemPipeline: "change-item-pipeline/api/change-item-pipeline.server.ts",
+    };
+    const ids = new Map(Object.entries(sources).map(([exportName, source]) => [exportName,
+      resolveActionId(entries, { sourcePath: "src/fsd/features/" + source, exportName, runtime: "node" }),
+    ]));
+    assert.ok(!entries.some(entry => ["loadPipelinesView", "loadItemPipelineView", "loadPipelineChanges"].includes(entry.exportedName ?? "")));
     server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)], {
       env: { ...process.env, DATABASE_URL: url, AUTH_SECRET: secret, AUTH_URL: origin, AUTH_TRUST_HOST: "true" }, stdio: "ignore", windowsHide: true,
     });
