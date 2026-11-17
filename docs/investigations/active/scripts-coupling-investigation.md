@@ -4,7 +4,7 @@ created-at: "2026-11-12"
 completed-at: null
 owners: []
 related:
-  - "docs/proposals/active/shared-modules-and-plugin-distribution.md"
+  - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md"
 primary-area: "scripts의 의존 관계, 리허설 실행 격리, 게이트 기록 산출물"
 observed-environments:
   - "macOS 26.2, Node.js v26.4.0, 로컬 소스 정적 검토"
@@ -89,7 +89,7 @@ follow-up: []
 
 출하 파일 판정을 OS와 무관한 작은 모듈로 분리해 버전 검사와 양쪽 패키징이 공유한다.
 OS별 패키징 구현 전체를 공통화할 필요는 없다. 출하 범위를 변경하는
-[별도 제안](../../proposals/active/shared-modules-and-plugin-distribution.md)과 파일
+[별도 제안](../../proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md)과 파일
 선택 책임이 겹치므로 후속 구현 때 두 작업의 범위를 함께 확인한다.
 
 ### H2. Next 빌드 정보 해석이 여러 리허설에 분산돼 있다

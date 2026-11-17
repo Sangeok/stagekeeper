@@ -14,7 +14,7 @@ closed-reason: null
 owners: ["codex-scripts-coupling-20261116"]
 related:
   - "docs/investigations/active/scripts-coupling-investigation.md"
-  - "docs/proposals/active/shared-modules-and-plugin-distribution.md"
+  - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md"
   - "docs/proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md"
   - "docs/proposals/completed/2026-11-17-ci-os-coverage.md"
   - "docs/architecture/verification.md"

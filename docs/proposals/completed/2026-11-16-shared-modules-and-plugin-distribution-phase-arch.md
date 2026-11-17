@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/shared-modules-and-plugin-distribution.md"
+  - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md"
   - "docs/architecture/README.md"
   - "docs/architecture/core.md"
   - "docs/architecture/github.md"
@@ -30,7 +30,7 @@ related:
 
 ## Summary
 
-[상위 SDD](../active/shared-modules-and-plugin-distribution.md)의 Phase ARCH를 구체화한다.
+[상위 SDD](./2026-11-17-shared-modules-and-plugin-distribution.md)의 Phase ARCH를 구체화한다.
 목표는 적용 예정 아키텍처와 ADR, 모듈·심볼·소비자 대응표, shared 공개 entry와 실행 환경을
 확정해 MIGRATE가 소유권이나 배포 경계를 다시 결정하지 않고 작업할 수 있게 하는 것이다.
 
@@ -61,12 +61,12 @@ MIGRATE와 ACCEPT는 실행하지 않았다.
 
 | 항목 | 단일 정의 위치 | 이 Phase의 역할 |
 | --- | --- | --- |
-| Phase ARCH | [상위 Phase](../active/shared-modules-and-plugin-distribution.md#phase-arch-영구-계약과-전환-대응표-확정) | 기존 Phase 경계를 유지 |
-| REQ-SMB-006 | [지속적인 아키텍처 판단 기준](../active/shared-modules-and-plugin-distribution.md#req-smb-006-지속적인-아키텍처-판단-기준) | 적용 예정 문서·공개 목록 부분을 완료. 현행 전환의 최종 완료는 MIGRATE |
+| Phase ARCH | [상위 Phase](./2026-11-17-shared-modules-and-plugin-distribution.md#phase-arch-영구-계약과-전환-대응표-확정) | 기존 Phase 경계를 유지 |
+| REQ-SMB-006 | [지속적인 아키텍처 판단 기준](./2026-11-17-shared-modules-and-plugin-distribution.md#req-smb-006-지속적인-아키텍처-판단-기준) | 적용 예정 문서·공개 목록 부분을 완료. 현행 전환의 최종 완료는 MIGRATE |
 | INV-SMB-001 | 상위 Domain invariant | 제품·데이터·권한 의미 보존 |
 | CON-SMB-001~003 | 상위 Engineering constraints | 단일 원본·쓰기 범위·실행 환경 보존 |
-| TASK-ARCH-01 | [상위 Task](../active/shared-modules-and-plugin-distribution.md#task-arch-01-적용-예정-아키텍처와-공개-계약-기록) | 아래에서 변경 절차를 상세화하며 ID를 재정의하지 않음 |
-| VFY-SMB-01 | [상위 Verifier](../active/shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조) | 문서·목록의 의미 대조를 상세화 |
+| TASK-ARCH-01 | [상위 Task](./2026-11-17-shared-modules-and-plugin-distribution.md#task-arch-01-적용-예정-아키텍처와-공개-계약-기록) | 아래에서 변경 절차를 상세화하며 ID를 재정의하지 않음 |
+| VFY-SMB-01 | [상위 Verifier](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조) | 문서·목록의 의미 대조를 상세화 |
 | BLK-SMB-01 | 상위 downstream blocker | 배포 템플릿·기존 설치본 확인은 ACCEPT의 인수 조건. ARCH 문서 작성을 막지 않음 |
 
 REQ-SMB-001~005·007을 위한 구현·실행 증거는 이 Phase에서 완성하지 않는다.
@@ -181,9 +181,9 @@ ARCH 완료를 근거로 자동으로 MIGRATE를 시작하지 않는다.
 
 ## Change detail for TASK-ARCH-01
 
-Canonical Task는 [상위 TASK-ARCH-01](../active/shared-modules-and-plugin-distribution.md#task-arch-01-적용-예정-아키텍처와-공개-계약-기록)이다.
+Canonical Task는 [상위 TASK-ARCH-01](./2026-11-17-shared-modules-and-plugin-distribution.md#task-arch-01-적용-예정-아키텍처와-공개-계약-기록)이다.
 아래 A~E는 그 Task의 실행 순서이며 별도의 경쟁 Task 정의가 아니다.
-검증 참조는 [VFY-SMB-01](../active/shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조)이다.
+검증 참조는 [VFY-SMB-01](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조)이다.
 
 ### A. 원본·심볼·소비자 목록 확정
 
@@ -223,7 +223,7 @@ plugin README·init/watch 스킬과 hooks·manifest는 읽기 전용 경로 참�
 초안의 13개/56개에서 runnerTimestamp와 qaText/qaHttpUrl을 보완하고 qa/validation entry를 추가했다.
 기존 private time·text·httpUrl은 영역을 나눈 뒤에도 양쪽에서 사용하므로 검증 규칙을 복제하지 않는다.
 tokenPrefix 추출은 초안대로 유지한다. 상세 provenance와 타입·소비자·시험은
-[상위 ARCH Inventory](../active/shared-modules-and-plugin-distribution.md#arch-inventory)에 있다.
+[상위 ARCH Inventory](./2026-11-17-shared-modules-and-plugin-distribution.md#arch-inventory)에 있다.
 
 `templates/template-boundary.mjs`는 deliver/codex-bundle의 내부 의존성으로 배포하며 영역 밖에서는
 deliver의 STEP_HEADING·stubOf 재수출을 사용한다. 새 코드와 생산 JSON은 MIGRATE에서 만든다.
@@ -332,7 +332,7 @@ universal entry가 있으면 해당 계약 확정을 멈춘다. 안전하게 계
 
 ## Verification detail for VFY-SMB-01
 
-Canonical Verifier는 [상위 VFY-SMB-01](../active/shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조)이다.
+Canonical Verifier는 [상위 VFY-SMB-01](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조)이다.
 여기서는 그 실행 대상을 문서·계약 목록에 한정해 구체화한다. 아래 인수는 모두 **계획**이다.
 이번 상세 계획 작성 후 실행한 문서 검증은 별도 Verification Results에 기록한다.
 
@@ -363,7 +363,7 @@ Canonical Verifier는 [상위 VFY-SMB-01](../active/shared-modules-and-plugin-di
 set -e
 SMB_ARCH_BASE="a0993fcc0d94eed25094012e2716abc70774f61a"
 export SMB_ARCH_BASE
-python3 "${CODEX_HOME:-$HOME/.codex}/skills/write-sdd-spec/scripts/validate_sdd_traceability.py" docs/proposals/active/shared-modules-and-plugin-distribution.md docs/proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/write-sdd-spec/scripts/validate_sdd_traceability.py" docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md docs/proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md
 npm run docs:check
 ```
 
@@ -391,7 +391,7 @@ const base = process.env.SMB_ARCH_BASE;
 assert.match(base ?? '', /^[0-9a-f]{40}$/, 'SMB_ARCH_BASE must be the recorded start commit');
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 << 20 }).trim();
 const list = (...args) => git(...args).split('\0').filter(Boolean);
-const proposals = ['docs/proposals/active/shared-modules-and-plugin-distribution.md', 'docs/proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md'];
+const proposals = ['docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md', 'docs/proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md'];
 const architecture = ['README', 'core', 'github', 'fsd', 'server', 'verification', 'test-organization', 'protocol', 'macos-runtime'].map(name => 'docs/architecture/' + name + '.md');
 const matches = readdirSync('docs/ADR').filter(name => /^\d{4}-separate-shared-module-distribution\.md$/.test(name));
 assert.equal(matches.length, 1, 'exactly one ARCH ADR must exist');

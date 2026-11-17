@@ -12,8 +12,8 @@ last-executed-at: "2026-11-17T08:51:18Z"
 tested-revision: "4c5ccd6d616495c644d7a26be7afc4bbceaff030"
 owners: ["user:Sangeok"]
 related:
-  - "docs/proposals/active/shared-modules-and-plugin-distribution-phase-accept.md"
-  - "docs/proposals/active/shared-modules-and-plugin-distribution.md"
+  - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution-phase-accept.md"
+  - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md"
   - "docs/architecture/shared-modules.md"
   - "docs/architecture/verification.md"
   - "https://github.com/Sangeok/stagekeeper/pull/363"
@@ -24,7 +24,7 @@ observed-environments:
   - "GitHub Actions | Codex bundle | macOS 15.7.9 x64, Codex 0.167.1 | isolated fixture"
   - "GitHub Actions | Claude source | Windows x64 and macOS arm64, Claude 2.1.326 | isolated fixture"
 test-summary: "pass: GitHub CI 공유 배포 인수 — 3개 native 대상의 설치·서버 교체·pin·pending·정리와 Claude source 4개 leg 통과, 모델 호출 0"
-follow-up: ["docs/proposals/active/shared-modules-and-plugin-distribution-phase-accept.md"]
+follow-up: []
 ---
 
 # 공유 모듈 배포 — GitHub CI 인수
@@ -152,3 +152,10 @@ private 원문·배포 bundle·다운로드·이전 source는 disposable runner 
 
 필수 T1–T8 및 C1–C3가 PASS다. 저장소 경계 변경의 모델 없는 CI 인수는 완료했다.
 PR 병합과 운영 승격의 상태는 이 테스트 판정과 별도로 관리한다.
+
+2026-11-17 후속 종료 시 최종 head `d5c6714`의
+[check 941](https://github.com/Sangeok/stagekeeper/actions/runs/44051075589)와
+[공유 배포 인수 4](https://github.com/Sangeok/stagekeeper/actions/runs/44051075608)가 모두 성공했음을
+확인하고 PR #363을 `99378292893a2f0dd75aa5473ef5f92d406f57fe`로 dev에 병합했다.
+완료된 상위 SDD와 ACCEPT의 링크를 갱신했으며 이 보고서의 원래 시험 identity와 summary는
+변경하지 않았다. 운영 승격은 실행하지 않았다.

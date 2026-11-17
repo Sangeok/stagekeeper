@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/shared-modules-and-plugin-distribution.md"
+  - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md"
   - "docs/proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md"
   - "docs/architecture/shared-modules.md"
   - "docs/architecture/server.md"
@@ -28,7 +28,7 @@ related:
 
 ## Summary
 
-[상위 SDD](../active/shared-modules-and-plugin-distribution.md)의 MIGRATE를 실행 가능한 작업으로 구체화한다.
+[상위 SDD](./2026-11-17-shared-modules-and-plugin-distribution.md)의 MIGRATE를 실행 가능한 작업으로 구체화한다.
 ARCH에서 정한 소유권과 공개 계약에 따라 core/github 원본을 shared/app-core/server/FSD/plugin
 runtime으로 옮기고, 선언한 shared 모듈만 plugin/lib에 복사하도록 바꾼다. 소비자·타입·시험·
 alias·검사·CI·현행 문서를 같은 최종 변경에서 연결한다.
@@ -63,7 +63,7 @@ alias·검사·CI·현행 문서를 같은 최종 변경에서 연결한다.
 | --- | --- | --- |
 | 전체 요구사항·불변식·제약 | 상위 REQ-SMB-001~007, INV-SMB-001, CON-SMB-001~003 | 의미를 바꾸지 않고 구현·검증에 연결 |
 | 소유권·공개 목록·runtime | [shared-modules.md](../../architecture/shared-modules.md) | 14개 entry/59개 값과 내부 template-boundary를 구현 |
-| 현재 원본과 모든 소비자 | [ARCH Inventory](../active/shared-modules-and-plugin-distribution.md#arch-inventory) | 목록을 복제하지 않고 변경 순서·새 검사·실행 환경을 보완 |
+| 현재 원본과 모든 소비자 | [ARCH Inventory](./2026-11-17-shared-modules-and-plugin-distribution.md#arch-inventory) | 목록을 복제하지 않고 변경 순서·새 검사·실행 환경을 보완 |
 | 선택 이유·활성화 | [ADR-0008](../../ADR/0008-separate-shared-module-distribution.md) | 구현 완료 시 accepted 전환; 기존 0005/0007의 역사 보존 |
 | 기존 Tasks | 상위 TASK-MIGRATE-01~03 | 아래 Change detail에서 상세화하며 재정의하지 않음 |
 | 기존 Verifiers | 상위 VFY-SMB-01~04 | 새 목적지·실패 사례·명령 연결을 상세화 |
@@ -109,8 +109,8 @@ TASK-MIGRATE-01과 독립적인 그래프·복사 설계부터 진행할 수 있
 
 위 판정은 코드·문서 관찰이다. 실제 새 구조의 동작·패키징·CI 통과를 관찰했다는 뜻이 아니다.
 
-포함 범위는 상위 [Source Migration Map](../active/shared-modules-and-plugin-distribution.md#source-migration-map)과
-[Affected Files](../active/shared-modules-and-plugin-distribution.md#affected-files-and-coupled-changes)의
+포함 범위는 상위 [Source Migration Map](./2026-11-17-shared-modules-and-plugin-distribution.md#source-migration-map)과
+[Affected Files](./2026-11-17-shared-modules-and-plugin-distribution.md#affected-files-and-coupled-changes)의
 전환 및 아래에 명시한 그래프·검증 도구다. 새 경로는 모두 **제안 목적지**다.
 
 제외 범위는 제품 정책 재설계, DB schema/data migration, 새로운 인증·권한,
@@ -150,9 +150,9 @@ Task 번호 순서가 중간 커밋의 배포 가능성을 뜻하지 않는다. 
 
 ## Change detail for TASK-MIGRATE-01
 
-Canonical Task: [TASK-MIGRATE-01](../active/shared-modules-and-plugin-distribution.md#task-migrate-01-책임-분리와-소비자-전환).
-검증 참조: [VFY-SMB-02](../active/shared-modules-and-plugin-distribution.md#vfy-smb-02-의존성공개-api실행-환경의-거부-사례),
-[VFY-SMB-04](../active/shared-modules-and-plugin-distribution.md#vfy-smb-04-제품-동작과-시험-발견의-보존).
+Canonical Task: [TASK-MIGRATE-01](./2026-11-17-shared-modules-and-plugin-distribution.md#task-migrate-01-책임-분리와-소비자-전환).
+검증 참조: [VFY-SMB-02](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-02-의존성공개-api실행-환경의-거부-사례),
+[VFY-SMB-04](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-04-제품-동작과-시험-발견의-보존).
 
 ### 1. 원본과 private closure를 함께 이동
 
@@ -226,8 +226,8 @@ null·잘못된 저장값·여러 언어·빈 본문 목록은 runbook-stale의 
 
 ## Change detail for TASK-MIGRATE-02
 
-Canonical Task: [TASK-MIGRATE-02](../active/shared-modules-and-plugin-distribution.md#task-migrate-02-선언-기반-동기화와-패키징-연결).
-검증 참조: VFY-SMB-02, [VFY-SMB-03](../active/shared-modules-and-plugin-distribution.md#vfy-smb-03-배포-범위완전성무변경복구).
+Canonical Task: [TASK-MIGRATE-02](./2026-11-17-shared-modules-and-plugin-distribution.md#task-migrate-02-선언-기반-동기화와-패키징-연결).
+검증 참조: VFY-SMB-02, [VFY-SMB-03](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-03-배포-범위완전성무변경복구).
 
 ### 1. 명세와 그래프의 단일 소유자
 
@@ -395,8 +395,8 @@ API나 영구 cache가 아니다. 별도 sync/check/package 호출은 항상 새
 
 ## Change detail for TASK-MIGRATE-03
 
-Canonical Task: [TASK-MIGRATE-03](../active/shared-modules-and-plugin-distribution.md#task-migrate-03-시험-탐색과-현재-규칙-전환).
-검증 참조: [VFY-SMB-01](../active/shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조), VFY-SMB-04.
+Canonical Task: [TASK-MIGRATE-03](./2026-11-17-shared-modules-and-plugin-distribution.md#task-migrate-03-시험-탐색과-현재-규칙-전환).
+검증 참조: [VFY-SMB-01](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-01-영구-문서공개-목록의-의미-대조), VFY-SMB-04.
 
 ### 1. 시험 위치와 실제 실행을 함께 변경
 
