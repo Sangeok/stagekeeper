@@ -24,11 +24,23 @@ concurrency:
 
 jobs:
   pipeline:
-    name: pipeline (windows-2022)
-    runs-on: windows-2022
+    name: pipeline (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - os: windows-2022
+            pg: windows-x64
+            leg: windows
+          - os: macos-15
+            pg: darwin-arm64
+            leg: macos
     outputs:
-      summary_pipeline: ${{ steps.smoke.outputs.summary }}
+      summary_windows: ${{ steps.smoke.outputs.summary_windows }}
+      summary_macos: ${{ steps.smoke.outputs.summary_macos }}
     env:
       PG_PORT: "45432"
       TEST_DB: postgresql://postgres@127.0.0.1:45432/stagekeeper_test_pipeline
@@ -59,7 +71,7 @@ jobs:
       - name: Prepare the smoke database
         uses: ./.github/actions/smoke-database
         with:
-          pg-package: windows-x64
+          pg-package: ${{ matrix.pg }}
           port: ${{ env.PG_PORT }}
           database: stagekeeper_test_pipeline
       - name: Build the server
@@ -73,16 +85,24 @@ jobs:
           token: ${{ secrets.E2E_TEMPLATES_TOKEN }}
           path: plugin/templates
           persist-credentials: false
-      - name: Install Claude Code
+      - name: Install Claude Code (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           irm https://claude.ai/install.ps1 | iex
           "$env:USERPROFILE\.local\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Install Claude Code (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Run the pipeline smoke
         id: smoke
         shell: pwsh
         timeout-minutes: 108
         env:
+          LEG: ${{ matrix.leg }}
           TEST_DATABASE_URL: ${{ env.TEST_DB }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.E2E_CLAUDE_OAUTH_TOKEN }}
           TRANSCRIPT_KEY: ${{ secrets.E2E_TRANSCRIPT_KEY }}
@@ -100,14 +120,14 @@ jobs:
           if (Test-Path $summary) {
             $line = Get-Content $summary | Select-Object -Last 1
             "``````json`n$line`n``````" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-            "summary=$line" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            "summary_$($env:LEG)=$line" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
           }
           exit $code
       - name: Keep the sealed transcripts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pipeline-smoke-transcripts
+          name: pipeline-smoke-transcripts-${{ matrix.leg }}
           path: ${{ runner.temp }}/pipeline-transcripts.bin
           retention-days: 7
           if-no-files-found: warn
@@ -132,4 +152,4 @@ jobs:
           workflow: pipeline-smoke
           result: ${{ needs.pipeline.result }}
           summaries: ${{ toJSON(needs.pipeline.outputs) }}
-          legs: pipeline
+          legs: windows,macos
