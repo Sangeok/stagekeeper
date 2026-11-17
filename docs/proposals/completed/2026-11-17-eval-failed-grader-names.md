@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-17"
 approved-by: "user"
 approved-at: "2026-11-17"
 approval-scope: "제안서의 설계와 그에 따른 구현·로컬 검증. 커밋·PR과 #353 댓글은 실행 직전에 각각 따로 승인받는다."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-17"
+verification-summary: "PR #358(구현 커밋 8fc756d)의 CI 통과, dev b0855c5로 병합. 새 시험 13개 통과, 일부러 넣은 결함 6가지를 시험이 모두 잡음. 실제 agent-eval 실행으로 새 필드를 확인하는 것은 다음 실행에 맡긴 후속 관찰."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -100,7 +100,7 @@ first-connection-asks-before-writing: score 0.93 over 3 runs, 1 failed (failed g
 
 - **공개 출력.** 남는 값은 `GATE_CASES`에 있는 판정 이름과 정수뿐이다. `GATE_CASES`는 시험이 `plugin/evals/<사례>/case.yaml`과 같은지 확인하는 공개 식별자 목록이다. 모델 출력, 셸 명령, 판정의 설명 문구는 남기지 않는다. 결과 JSON에 모르는 판정 이름이나 다른 값이 들어와도 출력과 요약에 나오지 않는 것을 기존 canary 시험 방식으로 확인한다.
 - **게이트 기록 행.** `gate-record.mjs`는 job 출력으로 받은 요약을 `summarizeEval`로 한 번 더 걸러 행의 JSON에 싣는다. 그래서 다시 거른 요약이 같은 값을 내는지 보는 시험이 행에 새 필드가 실린다는 근거가 된다. 행을 다시 읽는 코드는 저장소에 없다(`gate-record` 시험과 사람이 읽는 것이 전부). 선택 필드 하나가 늘 뿐이고 실패가 없는 행은 지금과 같다. 그래서 `schema: 1`을 유지한다.
-- **CI 동등화 작업과의 관계.** `client-ci-contract.mjs`는 eval 사례에서 `name`, `runs`, `failedRuns`만 꺼내므로 새 필드는 거기서 빠지고 영향이 없다. 이 파일들의 확장은 [CI 동등화](./dual-client-ci-parity.md)의 TASK-DCP3-02가 다룰 영역이지만, 그 제안서는 차단 상태이고 지금 이 코드 파일을 고치는 작업이 없다. 허용 필드를 하나 늘리는 것은 그 제안서의 REQ-DCP-009(원문 대신 허용 필드 요약)와 같은 방향이다. 그 제안서를 고치고 있는 다른 작업의 초안(2026-11-17, 아직 `dev`에 없음)은 원문 진단이 필요하면 승인된 비공개 보관 경로를 쓰고, 그 경로를 고르기 전에는 공개 출력을 넓히지 않는다고 적는다. 이 변경은 원문을 내보내지 않는다. 판정 이름은 저장소의 `case.yaml`에 이미 공개된 식별자다. #342가 지운 것도 셸 명령과 assistant 메시지였다. 그래도 그 작업의 영역이므로 PR과 #353에 이 판단을 적어 그 작업이 이어받을 수 있게 한다.
+- **CI 동등화 작업과의 관계.** `client-ci-contract.mjs`는 eval 사례에서 `name`, `runs`, `failedRuns`만 꺼내므로 새 필드는 거기서 빠지고 영향이 없다. 이 파일들의 확장은 [CI 동등화](../active/dual-client-ci-parity.md)의 TASK-DCP3-02가 다룰 영역이지만, 그 제안서는 차단 상태이고 지금 이 코드 파일을 고치는 작업이 없다. 허용 필드를 하나 늘리는 것은 그 제안서의 REQ-DCP-009(원문 대신 허용 필드 요약)와 같은 방향이다. 그 제안서를 고치고 있는 다른 작업의 초안(2026-11-17, 아직 `dev`에 없음)은 원문 진단이 필요하면 승인된 비공개 보관 경로를 쓰고, 그 경로를 고르기 전에는 공개 출력을 넓히지 않는다고 적는다. 이 변경은 원문을 내보내지 않는다. 판정 이름은 저장소의 `case.yaml`에 이미 공개된 식별자다. #342가 지운 것도 셸 명령과 assistant 메시지였다. 그래도 그 작업의 영역이므로 PR과 #353에 이 판단을 적어 그 작업이 이어받을 수 있게 한다.
 - **합격 판정.** `failedRuns`, `result`, `gateComplete`의 계산을 건드리지 않는다. 기존 시험이 그대로 통과하는 것으로 확인한다.
 - **적용 시점.** 이 스크립트는 출하 플러그인 파일이 아니고 승격 경로 목록에도 없다. 수동 실행은 고른 ref의 코드를 쓰므로 `dev` 병합 뒤 바로 적용된다. 주 1회 예약 실행(월요일 03:00 UTC)은 기본 브랜치 `main`의 코드를 쓰므로 다음 승격 뒤부터 적용된다.
 
@@ -153,6 +153,7 @@ npx eslint scripts/rehearsals/agent-eval-summary.mjs scripts/rehearsals/agent-ev
 | `npm run docs:check` | 통과 | Markdown 228개, 상대 링크 1194개 |
 | `npm run verify:ci-coverage` | 통과 | |
 | 실제 `agent-eval` 실행 | 실행 안 함 | Execution Plan 5번대로 다음 실행에 맡긴다 |
+| PR #358의 CI(커밋 `8fc756d`) | 모두 통과 | `check`의 `static`, `test`, `test-web`, `server`, `server-integration`, `build`, `task-worktrees`(Windows·macOS)와 Vercel. 2026-11-17 `dev` `b0855c5`로 병합 |
 
 ## Risks and Rollback
 
@@ -167,21 +168,20 @@ npx eslint scripts/rehearsals/agent-eval-summary.mjs scripts/rehearsals/agent-ev
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+구현을 병합해 2026-11-17 완료 처리했다. 이 문서는 `active/eval-failed-grader-names.md`에서 `completed/2026-11-17-eval-failed-grader-names.md`로 이동했다. Affected Files의 경로는 작성 당시의 것이다.
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- 구현: PR #358, 커밋 `8fc756d`, `dev` `b0855c5`로 병합.
+- 바뀐 파일: `scripts/rehearsals/agent-eval-summary.mjs`(`failedGraders` 집계와 필터, 출력 줄), 그 시험, `docs/architecture/verification.md`의 `agent-eval` 설명, 이 문서.
+- 출하 플러그인 파일과 서버 코드는 바꾸지 않았다. 다음 승격에 `agent-eval`이 필요해지지 않는다.
 
-닫힘 기록(`status: "closed"`일 때 작성):
+다음은 완료를 막지 않는 후속이다. 미실행 항목을 통과로 바꾸지 않는다.
 
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+| 후속 | 상태 | 확인할 때 남길 근거 |
+| --- | --- | --- |
+| 실제 eval 결과에 새 필드가 나오는지 | 관찰 대기 | 실패가 있는 `agent-eval` 실행의 job summary와 게이트 기록 #319 행의 `failedGraders`. 수동 실행은 병합 뒤부터, 월요일 예약 실행은 다음 승격 뒤부터 이 코드를 쓴다. 확인만을 위해 모델을 돌리지 않는다 |
+| #353 후속 1(간헐 실패의 원인 조사) | #353 열림 | 새 필드로 읽은 다음 실패 |
+| #353에 이 변경과 판단을 알리는 댓글 | 올리지 못함 | 2026-11-17 Claude Code 자동 승인 분류기가 댓글 명령을 거부했다. 같은 내용은 PR #358 본문에 있고 PR이 `Refs #353`으로 이슈와 연결된다 |
+| CI 동등화 작업의 이어받기 | 그 작업의 판단 | [CI 동등화](../active/dual-client-ci-parity.md) TASK-DCP3-02가 이 허용 필드를 유지하거나 고친다 |
 
 ## Review Checklist
 
@@ -198,5 +198,5 @@ npx eslint scripts/rehearsals/agent-eval-summary.mjs scripts/rehearsals/agent-ev
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
