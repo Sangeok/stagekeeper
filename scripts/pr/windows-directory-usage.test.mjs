@@ -115,7 +115,7 @@ describe("Windows directory observation candidate", { skip: native ? false : "Wi
   });
   it("measures whether the delete-access probe blocks a new cwd user while its handle is open", async () => {
     const child = await holdHandle("hold-delete");
-    let cwdChild;
+    let cwdChild, deleteHeld = true;
     try {
       let errorCode = null;
       let cwdMatches = false;
@@ -133,11 +133,18 @@ describe("Windows directory observation candidate", { skip: native ? false : "Wi
         cwdMatches: changed.ok && path.normalize(changed.cwd).toLowerCase() === path.normalize(target).toLowerCase() });
       if (cwdMatches) {
         cwdChild = await hold(target);
-        await probe("cwd-created-during-delete-probe", target, cwdChild.pid);
+        const during = await probe("cwd-created-during-delete-probe", target, cwdChild.pid);
+        assert.equal(during.deleteAccessOpened, true);
+        assert.equal(during.pids.includes(cwdChild.pid), false);
+        await release(child); deleteHeld = false;
+        const released = await probe("same-live-cwd-after-delete-probe", target, cwdChild.pid);
+        assert.equal(cwdChild.exitCode, null);
+        assert.equal(released.deleteAccessOpened, true);
+        assert.equal(released.pids.includes(cwdChild.pid), false);
       }
     } finally {
       if (cwdChild) await release(cwdChild);
-      await release(child);
+      if (deleteHeld) await release(child);
     }
     await execute(process.execPath, ["-e", "process.exit(0)"], { cwd: target, timeout: 5000, windowsHide: true });
     evidence.push({ name: "new-cwd-after-delete-probe", opened: true });
