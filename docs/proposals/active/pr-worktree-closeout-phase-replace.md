@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-18"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user"
+approved-at: "2026-11-18"
+approval-scope: "이 계획에 따른 REPLACE 소스·시험·CI·규칙 교체 및 검증. 실제 사용자 원장 이관/삭제, PR 병합, main 승격, ADOPT 제외."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -1026,3 +1026,24 @@ F8/F9를 문서에 반영했다. 상위 문서·source·tests·CI·사용자 설
 - diff 공백 검사와 parent/QUALIFY hash 유지 확인: PASS. 수정 파일은 이 문서 하나다.
 - 두 checkout의 읽기 전용 root 재지정 확인과 no-lazy-fetch 옵션 지원 확인만 실행했다.
   실제 생성·삭제·merge·promisor fetch·새 기능 시험·benchmark는 실행하지 않았다.
+
+## Implementation Record — 2026-11-18
+
+사용자가 이 문서를 기준으로 실제 수정을 요청해 REPLACE 구현 범위를 승인했다.
+이전 review/계획 섹션의 “이번 한 파일만 수정”·“아직 소스 없음”은 당시 기록이다.
+현재 구현과 실행 근거는 [REPLACE 보고서](../../test-reports/active/pr-worktree-replace.md)를 따른다.
+
+- R01/R02/R03/R04/R06을 Node ESM 여섯 module과 실제 Git fixture로 구현했다.
+- R05에서 구 production manager 두 개, root test 두 개와 npm aliases를 제거하고
+  pr entry·AGENTS·verification·양 OS CI·UPSTREAM·이전 lifecycle supersession을 함께 바꿨다.
+- source/merge/tool revision은 Git parent로 pin하고 state/branch 삭제는 no-deref CAS를 사용한다.
+- runtime 자격은 그대로다. unknown/Windows는 merged-pending이며 명시적 외부 제거 인수 뒤만
+  branch-only가 가능하다. ignored 내부 build link 예외는 외부·root·broken 링크를 허용하지 않는다.
+- migration preview envelope의 plan/planDigest를 제공한다. journal 선행·v2 fence·bounded pin·
+  no-replace marker·applied transaction과 forward recovery를 구현했다. closing consent는 승계하지 않는다.
+- 실제 GitHub가 required check 0건을 반환할 때 CLI exit 1을 오류/성공으로 추측하지 않고
+  GraphQL isRequired·pagination·head binding으로 판정한다. 최신 check workflow 성공은 별도로 필수다.
+- 병합 readiness 뒤 파일이 변경되는 경합과 ack replay OID 갱신을 회귀 시험으로 보완했다.
+  plan의 authority를 넓힌 변경은 없다.
+- 사용자 원장의 activation/삭제, 실제 PR merge, main promotion, ADOPT는 실행하지 않았다.
+  local gate는 통과했고 최신 dev 통합 및 Windows/macOS CI를 확인 중이다.

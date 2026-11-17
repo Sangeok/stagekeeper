@@ -299,7 +299,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | 검사 | 분류 | Windows | macOS | Linux | 미충족 | 이유 또는 확인 문자열 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 정적 검사, 타입, 문서, 도구 시험 | 공통 | | | `check/check` | | |
-| 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/manage-task-worktrees.test.mjs`, `scripts/cleanup-task-branches.test.mjs`를 별도 필수 step으로 실행 |
+| 작업 worktree·브랜치 정리 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | `scripts/pr/lifecycle.test.mjs`, `scripts/pr/merge.test.mjs`, `scripts/pr/cleanup.test.mjs`, `scripts/pr/recovery.test.mjs`, `scripts/pr/migration.test.mjs`, `scripts/pr/preservation.test.mjs`, `scripts/pr/retirement.test.mjs`를 파일별 필수 step으로 실행. 실제 Git/파일/OS, GitHub 대역. Windows는 미지원 보존·수동 인수, qualified 자동 제거 positive는 별도 로컬 gate |
 | worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | 양 OS에서 `process-usage.test.mjs` runtime/`process-usage-probe.test.mjs` 경계 필수. macOS는 `process-usage-qualification.test.mjs`의 `STAGEKEEPER_USAGE_QUALIFICATION: "macos"` native 평가, Windows는 `windows-directory-usage.test.mjs`의 실제 누락 반례를 필수 실행한다. Windows 자동 삭제 미지원 결정으로 기존 정상 cwd 자격 평가는 명시적 `all` 모드로 분리하며 과거 FAIL은 유지한다. Linux는 공통 계약만 검증 |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
 | 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
@@ -337,236 +337,164 @@ matrix의 인라인 매핑·`include` 형식과 `exclude`는 실패로 처리한
 
 ## 작업 브랜치 정리
 
-실행 시점과 최우선 보호 정책은 루트 [AGENTS.md](../../AGENTS.md)의
-`Branching and pull requests`를 따른다. **로컬·원격 `main`과 `dev`는 절대 삭제하지
-않는다.** 로컬 정리는 `scripts/cleanup-task-branches.mjs`만 사용하며, 원격 작업
-브랜치는 기존 GitHub의 PR 병합 후 자동 삭제 정책으로 관리한다.
-
-```powershell
-npm run branches:cleanup
-npm run branches:cleanup -- --apply
-npm run branches:cleanup -- --apply --branch harness/example
-```
-
-기본은 삭제 없는 사전 확인이고 `--apply`로만 로컬 ref를 삭제한다. 확인 과정에서
-GitHub API를 조회하고 `origin/dev`의 추적 ref를 fetch한다. 원격 ref를 삭제하거나
-prune하지 않으며, checkout·stash·파일 정리·PR 병합은 수행하지 않는다. 작업 시작과
-종료 때 에이전트가 실행하며 별도 예약 작업이나 CI의 삭제 job은 없다.
-
-삭제하려면 다음 조건을 확인한다.
-
-1. 대상은 실제 로컬 `harness/<topic>` ref이고 symbolic ref가 아니다.
-   `main`·`dev` 또는 ref 별칭을 명시하면 저장소 조회 전에 거부한다.
-   중복 `--branch`는 한 번만 검사하며 나이·원격 ref 부재만으로 삭제하지 않는다.
-2. 실행 worktree에 staged·unstaged·untracked 변경이 없고, 대상이 현재 또는 다른
-   worktree에서 checkout되어 있지 않다. 목록 조회 실패는 삭제 중단이며, 개별 경로의
-   상태를 읽을 수 없어도 등록된 checkout 연결을 보호한다.
-3. 원격 `main`·`dev`가 모두 존재하고, 다음 보존 증거 중 하나가 있어야 한다.
-   - `ancestor`: 로컬 끝 커밋이 이번 실행에서 fetch한 `origin/dev`의 조상이다.
-     별도 병합 PR·동일 PR head·과거 CI 성공을 요구하지 않는다.
-   - `merged-pr`: ancestry가 아닌 squash/rebase 병합은 같은 저장소의 `dev` 대상
-     병합 PR이 정확한 로컬 head를 가리키고, 그 merge 결과가 `origin/dev`에 있어야 한다.
-     그 PR의 최신 `check` 및 함께 실행된 workflow도 모두 완료·성공이어야 한다.
-     모든 페이지·최신 attempt·저장소·branch·SHA·PR 연결을 확인한다.
-     원격 ref 삭제 후 `pull_requests`가 비어 있어도 저장소·branch·SHA 대조는 유지한다.
-4. 두 경로 모두 열린 head PR 또는 해당 branch를 base로 하는 열린 PR이 없어야 한다.
-   불완전한 API 항목을 빈 결과로 간주하지 않는다. GitHub owner/repository 이름은
-   대소문자를 구분하지 않고 비교하며 branch 이름·SHA는 정확히 비교한다. 원격 작업 브랜치가 남아 있다면
-   head SHA도 같아야 한다. GitHub 조회 실패는 ancestry가 참이어도 삭제를 막는다.
-5. 삭제 직전에 로컬 변경·worktree·ref SHA를 재검사한다. 원격 `dev`가 검사 도중
-   바뀌거나 보호 원격 확인이 실패하면 남은 삭제를 중단한다.
-
-검증한 SHA를 expected old value로 지정하고 `git update-ref --no-deref`로 해당
-`refs/heads/harness/...` 하나만 삭제한다. SHA가 바뀌면 원자적으로 거부되며 symbolic
-ref를 따라 보호 브랜치를 삭제하지 않는다. 설정 정리 실패는 `note`로 보고한다.
-동시 checkout·새 PR·같은 SHA의 ref 재생성까지 원자적으로 직렬화하지는 않는다.
-사용 종료가 확인되지 않은 다른 작업과 정리를 동시에 실행하지 않는다.
-
-### 결과와 부분 실패
-
-Node CLI는 JSON만 출력한다. JSON을 직접 읽을 때는
-`node scripts/cleanup-task-branches.mjs` 또는 `npm --silent run branches:cleanup`을
-사용한다. 일반 `npm run`에는 npm 자체 banner가 붙는다.
-
-- `status`: `eligible`은 preview 통과, `deleted`는 로컬 삭제 완료,
-  `skipped`는 보존이다. `reason`은 정렬된 `reasons`의 첫 차단 원인이다.
-- `preservation`: `ancestor`, `merged-pr`, `unverified`. 보존은 삭제 허가와 다르다.
-  `sha`와 `devSha`는 검사한 전체 SHA이며 ref 변경 시 미삭제 행의 증거를 무효화한다.
-- `worktrees`: 연결된 경로·HEAD·`changes`(`clean`/`dirty`/`unknown`)·locked/prunable.
-  Git 최상위 경로의 정체성을 확인하므로 메타데이터가 없어진 경로의 상위 저장소를
-  대신 진단하지 않는다. `clean`은 ignored 파일이나 사용 중인 프로세스 부재를 뜻하지 않는다.
-- `summary`: `total`, `ancestor`, `mergedPr`, `unverified`, `worktreeInUse`,
-  `eligible`, `deleted`, `skipped`. `worktreeInUse`는 checkout 사유가 있는 브랜치 수다.
-  보존 세 집계의 합과 상태 세 집계의 합은 각각 중복 제거한 `total`과 같다.
-- `aborted`: 전역 검사 기준이 적용 도중 무효화됐으면 true다. 이미 `deleted`인 행만
-  유지하고 나머지 모든 행(이전 preview 통과 포함)을 `skipped`/`unverified`로 바꾼다.
-  알려진 사유와 중단 사유를 남기고 집계를 다시 계산하며 CLI는 JSON 출력 뒤 exit 1이다.
-
-초기 원격/fetch/전체 worktree 목록 확인 실패는 삭제 0개·stderr·exit 1이며 완전한
-JSON은 보장하지 않는다. 대상별 PR·ancestry 조회 실패나 원격 작업 브랜치 불일치는
-그 대상을 보존하고 다음 대상을 검사한다(exit 0). 적용 도중의 보호 원격/전체 목록
-실패와 원격 `dev` 변경은 앞서 완료한 삭제를 되돌리지 않는다. 프로세스 종료로 최종
-출력이 없으면 실제 ref를 재조회한다. 이미 없는 대상은 `branch-missing`이다.
-
-checkout/dirty 때문에 삭제가 막혀도 유효한 ref의 ancestry 진단은 수행한다.
-이때 GitHub API와 삭제는 하지 않지만 원격 확인과 fetch는 필요하다.
-보고에는 “커밋 보존 완료 / worktree 해제 필요 / 즉시 삭제 가능”을 구분한다.
+실행·보호 정책은 [AGENTS.md](../../AGENTS.md)의 Branching and pull requests를 따른다.
+**로컬·원격 main/dev는 절대 삭제하지 않는다.** 현재 진입점은 Node ESM
+`scripts/pr/index.mjs`와 `npm run pr --`다. OpenClaw의 병합 확인 → 정리 → 완료
+구조를 포팅했으며 OpenClaw 설치, Bash/sh wrapper, 새 dependency는 없다.
+원격 feature branch는 GitHub의 기존 deleteBranchOnMerge 정책이 정리한다.
 
 ### 작업 시작과 worktree 선택
 
-요청을 읽기 전용 조사, 같은 작업의 계속, 독립 변경 중 하나로 구분하고 선택을 짧게
-보고한다. 새 메시지를 받았다는 이유만으로 branch나 worktree를 추가하지 않는다.
+read-only 요청은 새 branch/worktree가 필요 없다. 동일 미병합 작업의 수정·시험·리뷰는
+현재 작업을 계속한다. 새 독립 작업은 열린 PR과 active proposal을 확인한 뒤 최신 dev의
+관리 소스가 있는 retained control checkout에서 시작한다. fetch만으로 실행 파일이
+업데이트되지는 않는다. dirty/shared checkout을 reset·stash·switch하지 않는다.
 
-| 상황 | 처리 |
-| --- | --- |
-| 코드 읽기·설명·읽기 전용 검토 | 기존 checkout에서 확인하며 새 branch·worktree를 만들지 않는다 |
-| 아직 병합되지 않은 같은 작업의 수정·테스트·리뷰 반영 | 해당 branch·worktree에서 계속한다 |
-| 기존 변경이나 다른 세션의 작업을 보존하면서 독립 변경 시작 | 최신 dev 기준 새 branch와 관리 worktree를 `create`로 만든다 |
-| 이전 작업의 사용을 끝내고 다음 작업 시작 | 아래 종료 절차를 먼저 수행한다. 보류되면 경로와 이유를 남기고 다음 변경을 격리한다 |
+`npm run pr -- status`는 상태만 읽는다. activation이 없는 저장소에서는 status,
+inspect, migrate preview만 사용한다. 소스 교체 자체가 실제 사용자 원장의 이관이나
+삭제를 승인하지 않는다. 실제 activation과 GitHub 인수는 ADOPT의 별도 실행 범위다.
+기존 v1 기록·marker·미등록 worktree를 보존하며 퇴역 도구로 새 작업을 만드는 우회는 없다.
 
-이미 병합된 작업의 후속 변경은 최신 dev의 새 branch에서 시작한다. 관리 worktree는
-기록된 작업과 branch에 속하므로 branch만 바꿔 다른 작업에 재사용하지 않는다.
-`resume`은 같은 작업의 종료 취소이며 다른 작업에 폴더를 넘기는 명령이 아니다.
+활성화 후 새 작업은 다음처럼 생성한다. 원격 main/dev 존재, fresh dev, literal harness
+branch, 새 canonical 절대 경로, 다른 worktree/task와의 중복을 확인한다. 상태에 creating
+intent를 기록한 뒤 worktree/marker를 만들고 working으로 전진한다.
 
-관리 명령은 제거 대상 밖에 계속 남겨 둘 제어 checkout에서 실행한다. 새 독립 변경을
-시작할 때 원격 main/dev를 확인하고 최신 dev를 fetch한 뒤, 실행할 관리 도구
-(`package.json`, `scripts/manage-task-worktrees.mjs`, `scripts/cleanup-task-branches.mjs`)와
-운영 규칙(`AGENTS.md`, 이 문서)을 `origin/dev`와 대조한다. fetch만으로 checkout의
-실행 파일이나 규칙이 갱신되지는 않는다.
-제어 checkout 갱신은 변경사항과 다른 사용자가 없음을 확인한 뒤 수행한다.
-현재 폴더가 오래됐거나 작업 중이면 그대로 보존하고, 최신 도구와 규칙을 확인한 다른
-제어 checkout을 사용한다. 관리 명령이 없다는 이유로 기존 작업을 강제 전환하거나
-관리 기록을 수동으로 만들지 않는다.
+~~~text
+npm run pr -- create --root <control> --owner <owner> --branch harness/<topic> --path <absolute-new-path>
+npm run pr -- status --root <control> --task <uuid>
+npm run pr -- inspect --root <control> --task <uuid> --remote --pr <number>
+~~~
 
-제어 checkout에서 `npm run worktrees -- status`로 기존 작업을 확인하고
-`npm run worktrees -- retry`로 이미 사용 종료가 선언된 작업의 남은 정리만 재시도한다.
-active 작업과 소유권 불명의 미등록 worktree는 보존한다. 새 격리가 필요한 경우에만
-아래 `create`를 실행하고 반환된 task ID·owner·경로·branch를 작업 동안 유지한다.
+create가 중단된 경우 task/owner/expected-state로만 기존 intent를 재개한다. marker 없는
+기존 경로는 `--confirm-created-by-task`와 정확한 branch/base/identity 확인 없이 채택하지
+않는다. partial·foreign marker는 덮어쓰거나 자동 삭제하지 않는다. 미등록 경로는 자동 채택하지 않는다.
 
 ### 자기 작업의 worktree 종료
 
-새 worktree가 필요한 작업은 아래 관리 명령을 사용한다. 다음 수동 절차는 기존 미등록 worktree에만
-적용하며, 다른 작업의 소유권을 추정하거나 관리 기록을 수동으로 만들어 채택하지 않는다.
+소유자가 자기 프로세스·터미널·부모 세션·다른 작업의 파일/dependency/server 사용을 끝내고
+필요한 tracked/untracked/ignored 자료를 보존한 뒤 대상 밖 control에서 실행한다.
+사용 종료 선언은 OS 관측과 별개이며 owner 문자열은 인증이나 다른 사용자의 동의를 대신하지 않는다.
+PR은 기존 gh 흐름으로 dev를 대상으로 만들고, 명시적으로 병합이 승인된 문맥에서만 complete를 실행한다.
 
-1. 자신이 만든 정확한 경로·브랜치와 사용 종료를 확인한다. 나이·이름·clean 상태만으로
-   다른 작업의 소유권이나 종료를 추정하지 않는다. 자기 프로세스만 정상 종료하고
-   다른 사용자가 있거나 사용 여부가 불명확하면 보류한다.
-2. 커밋 보존과 staged·unstaged·untracked 결과를 확인한다. 미보존 결과는 원래 작업에서
-   먼저 보존하며 자동 stash/reset/clean으로 지우지 않는다.
-3. `git ls-files --others --ignored --exclude-standard -z`로 ignored 파일도 확인한다.
-   일반 `git worktree remove`도 ignored 파일을 삭제할 수 있다. 필요한 `.env`, 보고서,
-   로그 등은 보존한다. 외부 junction/symlink/reparse point가 있거나 판별할 수 없으면
-   폴더를 유지하거나 같은 HEAD로 detach한다. 외부 디렉터리를 재귀 삭제하지 않는다.
-4. 파일을 폐기할 수 있는 자기 부가 worktree만 경로 밖에서
-   `git worktree remove <exact-path>`로 제거한다. force·잠금 해제·일괄 prune으로
-   실패를 우회하지 않는다. 파일을 남길 때는 같은 HEAD로 detach하여 연결만 해제한다.
-   주 worktree는 제거하지 않으며, 다른 작업과 공유 중이 아니고 결과가 보존됐을 때만
-   다른 사용 가능한 브랜치로 전환하거나 detach한다.
-5. 깨끗한 남은 worktree에서 `npm run branches:cleanup -- --branch harness/example`로
-   재검사하고 승인 범위에서 `--apply`를 붙인다. 실제 branch/path로 치환하며 이전
-   preview를 삭제 권한으로 재사용하지 않는다. 해제 후 정리 실패는 그대로 보존·보고한다.
+~~~text
+npm run pr -- complete --root <control> --task <uuid> --owner <owner> --expected-state <oid> --expected-head <sha> --expected-instance <uuid> --request-id <uuid> --pr <number> --usage-ended
+npm run pr -- cleanup --root <control> --task <uuid> --owner <owner> --expected-state <oid> --expected-head <sha> --expected-instance <uuid> --request-id <uuid>
+npm run pr -- recover --root <control> --task <uuid> --owner <owner> --expected-state <oid>
+npm run pr -- resume --root <control> --task <uuid> --owner <owner> --expected-state <oid>
+~~~
 
-이 절차는 작업 주체가 수행한다. 브랜치 정리 스크립트는 checkout·worktree 제거·원격 ref 삭제를
-수행하지 않으며, 기존 소유권/사용 종료가 불명확한 worktree를 자동으로 정리하지 않는다.
+complete는 same-repo/dev/branch/정확한 HEAD, 최신 check.yml run·attempt의 성공,
+PR 연관 정보, required checks, MERGEABLE+CLEAN 및 승인 또는 명시적 no-decision을 확인한다.
+OPEN에만 readiness를 적용한다. MERGED는 정확한 head/merge SHA와 fresh GitHub dev ref,
+Git origin/dev 및 ancestry를 확인해 인수하고 다시 PUT하지 않는다. CLOSED-unmerged는
+complete에서 보존한다. 외부 squash/rebase 병합도 이 merge 증명으로 확인한다.
 
-관리 작업은 아래 `finish`로 종료하고, 작업 종료 보고에는 결과가 보존된 commit·원격 branch
-또는 PR, worktree 제거 여부(유지 시 경로와 이유), branch 정리 여부와 보류 이유를 포함한다.
-작업을 계속할 때는 worktree를 유지한다고 보고하며, 후속 작업·프로세스·다른 사용자가
-파일을 쓰는 동안에는 `--usage-ended`를 선언하지 않는다. 폴더 제거와 branch 삭제는 별도
-결과이며, PR 대기 중에도 원격 커밋 보존과 사용 종료 조건을 충족하면 `finish`할 수 있다.
+봉인과 durable merge intent 뒤 동기 REST PUT을 한 번 보낸다. 응답 성공만으로 정리하지
+않는다. transport-unknown은 OPEN이어도 재요청하지 않고 recover로 관측한다. 확정 거부만
+동일 HEAD·새 request-id·fresh preflight로 다시 시도할 수 있다. resume은 아직 요청하지
+않은 intact seal만 취소한다. 변경된 HEAD를 이전 인계로 재봉인하지 않는다.
 
-원격 보호는 활성 Ruleset
-[Keep dev and main](https://github.com/Sangeok/stagekeeper/rules/24972879)이 담당한다.
-대상은 `refs/heads/main`·`refs/heads/dev`, 규칙은 `deletion`, bypass actor는 없다.
-2026-10-21 API 조회로 확인했으며, 실제 삭제를 시도하는 방식으로 검증하지 않는다.
+자동 제거는 현재 runtime의 qualified + performed + clear + complete coverage + settled가
+모두 있어야 한다. 등록 profile은 Darwin 25.2.0/arm64/Node v26.4.0의 동일 real/effective
+non-root UID이며 호출 때 backend도 검증한다. **Windows, 미검증 환경, busy/unknown은
+worktree와 branch를 보존한다.** PR 병합이 성공해도 cleanup-pending/exit 2일 수 있다.
+macos-15/Node 22 CI의 후보 시험 통과는 운영 profile 확대가 아니다.
 
-회귀 검증은 `scripts/cleanup-task-branches.test.mjs`가 임시 Git 저장소·bare origin과
-대체 GitHub 응답을 사용해 수행한다. 보호 ref·symbolic ref·추가 변경·worktree·미병합
-PR·CI 재실행·조회 실패·squash 병합·동시 커밋 보존을 확인하며,
-기존 `npm run test:architecture`와 `npm run check`에 포함된다.
+파일 검사는 staged/unstaged/untracked, Git 진행/lock, hidden index flags, sparse,
+submodule/nested repository, ignored 사용자 자료와 외부 filesystem 경계를 차단한다.
+metadata walk는 자기 Node child에서 bigint device/inode와 timestamp를 읽으며 파일 내용은
+수집하지 않는다. 20만 entry/32 MiB inventory, 1 MiB state/plan, command 출력 16 MiB,
+각 child 20초+settle 4초 한도를 둔다. 병합 관측은 공유 120초/30회/최소 간격 2초다.
+다른 device 디렉터리는 진입 전에 거부한다. 동일 device가 모든 mount를 인증하지는 않는다.
 
-병합이 끝난 worktree를 지울 때, 그 안에 다른 폴더로 가는 Windows junction을 만들어 두었다면
-(예: 본 checkout의 `node_modules`를 연결한 경우) 링크부터 끊는다. `git worktree remove --force`는
-junction을 따라가 링크가 가리키는 쪽의 파일까지 지운다. 2026-11-11 Windows에서 임시 폴더로 확인했고,
-같은 구조에서 `rm -rf`와 `rd /s /q`는 링크만 지웠다. junction은 `cmd /c rmdir <링크 경로>`로 끊는다.
+ignored 캐시는 node_modules, .next, src/generated, coverage, tsconfig.tsbuildinfo,
+next-env.d.ts로 제한한다. 일반 directory link는 거부하고, ignored .next/node_modules
+내부 링크가 같은 worktree의 ignored node_modules 내부 일반 directory를 가리키는 경우만
+허용한다. 두 cache root가 실제 directory이고 target도 inventory에서 검증되어야 한다.
+외부/깨진/root/tracked 링크와 target 내부의 추가 탈출 링크는 거부한다. 별도 unlink,
+cache 삭제, force/remove/prune fallback은 없다. 이 제한된 예외의 실제 Git 제거와 외부/sibling
+canary 보존을 Windows/macOS 필수 시험에 연결한다. native 결과는 REPLACE 보고서에 기록한다.
 
-### 관리 작업 worktree 명령
+최종 guard/HEAD/instance/파일 지문 확인과 intent 저장 후 `git worktree remove -- <path>`를
+한 번 실행한다. path/admin/registry가 모두 사라진 뒤에만 branch 처리로 간다. fresh 보존
+증명, open/dependent PR, remote ref 재사용, 다른 worktree, 추가 commit·symbolic ref를
+다시 검사하고 task state와 literal branch의 expected-SHA 삭제를 no-deref Git transaction으로
+묶는다. main/dev나 원격 ref는 삭제 입력으로 만들지 않는다.
 
-`scripts/manage-task-worktrees.mjs`는 저장소 공통 Git 디렉터리의
-`stagekeeper-task-worktrees/tasks/<taskId>.json`에 작업을 기록한다. 각 linked Git
-디렉터리의 `stagekeeper-task.json`은 경로·브랜치·HEAD가 같은 재생성도 구별한다.
-주 worktree, 기존 미등록 worktree, main/dev는 제거 대상으로 채택하지 않는다.
+### 수동 제거 인수와 retire
 
-남겨 둘 제어 checkout으로 이동한 뒤 실행한다. `--root`는 그 checkout이며 생략하면
-현재 저장소 루트다. 제거할 폴더 안에서 `--root`만 바꿔 실행해도 거부한다.
-Node 22와 Git, origin의 main/dev가 필요하다. 병합 증거·브랜치 정리에는 인증된 gh가
-필요하다. 아래 값은 status의 실제 값으로 치환한다.
+사용자가 실제 외부 제거를 명시적으로 보고한 경우만 다음 명령으로 receipt를 기록한다.
+이 호출은 파일과 branch를 삭제하지 않는다. 이후 cleanup이 부재와 보존을 재검증하면
+Windows에서도 남은 branch만 정리할 수 있다. missing path를 probe하거나 unknown을 clear로
+바꾸지 않는다. working 소실, partial removal, 재생성된 경로, 바뀐 ref는 인수하지 않는다.
 
-```sh
-npm run worktrees -- status
-npm run worktrees -- retry
-npm run worktrees -- create --owner owner-label --branch harness/topic --path /absolute/new-path
-npm run worktrees -- status --task <uuid>
-npm run worktrees -- finish --task <uuid> --owner owner-label --expected-revision <n> --expected-head <40-hex-sha> --usage-ended
-npm run worktrees -- resume --task <uuid> --owner owner-label --expected-revision <n>
-npm run worktrees -- recover-guard
-```
+~~~text
+npm run pr -- acknowledge-removal --root <control> --task <uuid> --owner <owner> --expected-state <oid> --expected-head <sha> --expected-instance <uuid> --request-id <uuid> --external-removal-confirmed
+npm run pr -- retire --root <control> --task <uuid> --owner <owner> --expected-state <oid> --expected-head <sha> --expected-instance <uuid> --request-id <uuid> --usage-ended
+~~~
 
-`create`는 보호 원격을 확인하고 최신 dev를 fetch해 새 branch와 폴더를 만든다.
-생성 중단은 `create --task <uuid> --owner <owner> --expected-revision <n>`으로 복구한다.
-branch만 남았거나 표식 없는 등록이 남았으면 생성 주체가 확인한 경우에만
-`--confirm-created-by-task`를 더한다. 다른 표식·변경된 HEAD·기존 폴더는 덮어쓰지 않는다.
+retire는 PR 없음 또는 `--pr <closed-unmerged-number>`이며 HEAD가 fresh dev의 조상일 때만
+가능하다. 같은 사용·파일·branch 보호를 적용하고 open/dependent PR은 차단한다.
+merged 작업을 retired로 재분류하지 않는다. complete/retired의 반복 요청도 실제 부재를
+확인한다. 과거 receipt로 재등장한 path/ref를 삭제하지 않는다.
 
-`finish`는 프로세스·다른 사용자의 파일 사용까지 끝났다는 소유자의 선언이다.
-owner label은 OS 인증이 아니며, clean·PID 부재·PR 병합만으로 이 선언을 대신하지 않는다.
-원격 같은 branch의 현재 HEAD, 최신 dev의 조상, 또는 같은 HEAD를 병합한 PR의 dev
-도달 증거로 커밋을 보존한다. 종료 SHA·revision·파일 지문을 closing에 저장한 뒤
-다시 확인하고 force 없는 Git 제거를 실행한다. A에서 분기한 독립 B는 제거를 막지
-않지만 B가 A의 파일·의존성·서버를 쓰면 소유자가 종료를 선언해서는 안 된다.
+### 상태·잠금·결과와 이관
 
-staged·unstaged·untracked, 진행 중 Git 작업, sparse checkout, 숨긴 index 플래그,
-submodule·중첩 저장소와 외부/디렉터리 링크는 보존한다. ignored 파일도 전부 검사한다.
-자동 폐기 범위는 **ignored인** `node_modules`, `.next`, `src/generated`, `coverage`,
-`tsconfig.tsbuildinfo`, `next-env.d.ts`뿐이다. 같은 캐시 루트 안의 일반 파일을 가리키는
-파일 symlink만 허용하며 디렉터리 symlink/junction은 따라가지 않는다.
-`.env`, 보고서, 로그, templates, 알 수 없는 빈 폴더는 남기고 보류한다.
-검사 한계(20초 Git, 16 MiB 출력, 20만 파일/32 MiB 목록, 1 MiB JSON)를 넘으면 보류한다.
+상태 원본은 `refs/stagekeeper/pr-closeout/tasks/<uuid>`의 commit tree에 있는 state.json이다.
+직전 상태는 첫 parent, base/source/merge 객체는 추가 parent로 pin한다. CAS에는 sequence
+숫자 대신 state OID를 사용한다. 동일 request-id는 원래 입력·expected state와 일치할 때만
+replay이며 다른 입력은 거부한다. 이 로컬 ref들을 수동 편집·삭제·push하지 않는다.
 
-`retry [--task <uuid>]`는 closing 또는 제거 후 첫 branch 위임이 남은 기록만 처리한다.
-중복 finish는 기존 closing의 sourceRevision·HEAD가 일치할 때만 같은 선언을 재사용한다.
-`resume`은 제거 전 intact 인스턴스만 active로 되돌리고 revision을 올린다. 이후 과거
-finish는 거부된다. 부분 제거는 자동 복구·reset·force 대상이 아니다. 잔존 자료를
-밖에 보존하고 보존 commit에서 다른 새 경로로 복구해 비교한다.
+per-task guard는 invocation 전체를, common guard는 짧은 mutation 구간을 소유한다.
+미종료 자기 child가 있으면 guard를 유지한다. `recover-guard --guard common|task|migration`
+조회는 읽기 전용이다. task scope에는 task UUID를 추가한다. 알려진 같은 host의 dead PID와
+정확한 nonce, `--confirmed-quiescent` 확인 뒤만 archive로 옮긴다. live/unknown/다른 host는
+보존하고 프로세스 이름으로 kill하지 않는다.
 
-변경 명령은 `command.guard`의 배타적 생성으로 직렬화한다. 비정상 종료 후 남은
-guard는 같은 호스트에서 소유 PID가 죽었고 자식 Git·다른 사용자도 종료했음을 사람이
-확인했을 때만 `recover-guard --expected-nonce <nonce> --confirmed-quiescent`로 회수한다.
-불완전 기록·살아 있는 PID·다른 호스트는 보존한다. 회수 기록은 `retired-guards/<nonce>`에
-남기며 지우지 않는다. 늦은 중복 회수가 새 guard를 치우지 않도록 한다.
-사용 종료 선언 뒤 raw Git/파일 편집을 계속하는 외부 프로세스까지 격리하는 도구는 아니다.
+migration preview는 v1 전체 source digest·owner·매핑·보류 이유를 출력한다. active/intact
+closing은 dirty 자료를 유지한 working으로만 이관하고 옛 종료 동의를 복사하지 않는다.
+creating/corrupt/partial은 전역 activation을 막는다. removed는 history, 미등록은 그대로다.
 
-제거 뒤 기존 `cleanupTaskBranches`에 같은 branch를 한 번 위임한다. 시도 기록은 호출
-전에 저장하므로 결과 유실 뒤 과거 task로 삭제를 반복하지 않는다. 폴더 제거 성공과
-branch의 dirty·열린 PR·dependent PR·CI 보류는 별개다. 기존 branch 삭제 정책은 유지한다.
-추후 branch만 정리할 때는 독립 `branches:cleanup`을 사용한다.
+~~~text
+npm run pr -- migrate preview --root <control>
+npm run pr -- migrate apply --root <control> --plan <absolute-plan.json> --expected-plan-digest <sha256> --expected-migration-state absent --writers-quiescent --owners-confirmed
+npm run pr -- migrate recover --root <control> --plan <absolute-plan.json> --expected-plan-digest <sha256> --expected-migration-state <oid> --writers-quiescent --owners-confirmed
+npm run pr -- migrate abort --root <control> --plan <absolute-plan.json> --expected-plan-digest <sha256> --expected-migration-state <oid> --writers-quiescent --owners-confirmed
+~~~
 
-JSON 소비자는 `npm --silent run worktrees -- status`를 사용한다. envelope는
-`{schemaVersion, operation, results, aborted, guard?, error?}`다. 각 행은 taskId, path,
-owner, branchName, state, revision, headSha, 현재 reasons, 마지막 보류 lastReasons,
-worktree 결과와 branch 결과를 갖는다. 위임한 원본 `{apply, results, summary, aborted}`는
-branch.details에 보존한다. 입력/신원 거부는 기록을 바꾸지 않는다. 승인된 검사에서의
-보류는 lastReasons와 revision을 갱신하므로 다시 status를 읽는다. status 자체는 무쓰기다.
-exit 0은 성공/무해한 반복, 2는 조건 보류, 1은 실행 실패/판단 불가다.
-공통 실패는 aborted와 이미 끝난 결과를 남기고 나머지 batch를 멈춘다.
+plan 파일에는 preview JSON의 `plan` 객체를 저장하고 `planDigest`를 expected digest로 사용한다.
+실행 envelope 전체를 plan 파일에 넣지 않는다.
+각 owner와 구 writer/자식의 종료 인계가 필요하다. preparing Git journal을 먼저 저장하고
+legacy command.guard에 v2 fence를 게시한다. 구 worktree writer는 이를 거부하지만 standalone
+구 branch writer는 guard를 읽지 않으므로 별도 중지·미재실행 인계가 필수다.
 
-두 테스트는 임시 실제 Git/bare origin·파일·프로세스를 사용하며 GitHub 응답만 대체한다.
-중단·I/O 실패는 파일/프로세스 경계에서 주입한다. `check/task-worktrees`는 Node 22에서
-Windows 2022와 macOS 15 각각 아래 두 명령을 별도 필수 step으로 실행한다.
+coordinator → common journal → common 해제 → legacy fence → common 순서를 따른다.
+준비한 task objects는 fan-in 32 pin tree로 보존한다. 새 marker는 no-replace로 게시하고
+task refs+applied receipt transaction 뒤 activation marker를 쓴다. 원래 v1 데이터와 fence는
+보존한다. 활성화 뒤 task가 전진해도 applied receipt/installation/first-parent 이력으로
+검증하며 초기 OID와 영구 equality를 요구하지 않는다. 같은 plan 재호출은 no-op다.
 
-```sh
-npm exec --call "node --test scripts/manage-task-worktrees.test.mjs"
-npm exec --call "node --test scripts/cleanup-task-branches.test.mjs"
-```
+첫 새 marker 전까지만 abort할 수 있다. 자기 fence의 identity/digest를 aborting receipt에
+저장한 뒤 회수한다. 그 receipt 없는 ownerless/손상 fence는 추정 회수하지 않는다.
+marker/ref 게시 이후에는 forward recovery만 가능하다. legacy fence는 recover-guard의
+대상이 아니다. 실제 사용자 원장 이관은 fixture 통과로 완료했다고 보지 않는다.
+
+JSON 소비자는 `npm --silent run pr --` 또는 Node 진입점을 사용한다. envelope는 operation,
+task/state/phase, merge, worktree, branch, capability, observationPerformed, reasons와
+nextActions를 분리한다. complete/cleanup/retire의 exit 0은 complete/retired 또는 확인된
+완료 no-op, 2는 보류, 1은 실행 실패다. status/inspect/ack의 0은 관측/receipt 성공만 뜻한다.
+raw stderr/token/env/전체 command line은 출력하지 않는다. status/inspect/preview는
+fetch/ref/state/guard를 쓰지 않으며 inspect --remote만 GET/ls-remote를 허용한다.
+Git env context override는 첫 Git 호출 전에 거부하고 no-lazy-fetch로 숨은 hydration을 막는다.
+
+새 회귀 시험은 scripts/pr의 lifecycle/merge/cleanup/recovery/migration/preservation/retirement
+파일이 소유한다. 실제 Git/bare origin/파일을 사용하며 GitHub transport와 일부 usage/clock만
+대체한다. 양 OS check/task-worktrees는 각 파일을 별도 필수 step으로 실행한다. migration
+시험은 고정 6bb915a의 v1 두 소스를 Git 객체에서 임시 폴더에 꺼내므로 checkout fetch-depth 0이
+필수다. production에서 옛 writer를 import·실행하지 않는다. required native 자동 제거 성공은
+검증된 로컬 profile에서 `STAGEKEEPER_CLOSEOUT_NATIVE_REQUIRED=1 node --test
+--test-name-pattern='native runtime removes' scripts/pr/cleanup.test.mjs`로 별도 검사한다.
+일반 suite의 runtime unknown 보존 성공은 이 positive gate 통과를 대신하지 않는다.
 
 ## 저장소 스크립트
 
@@ -589,8 +517,8 @@ CI에서 호출된다는 사실만으로 CI 전용 코드가 되지는 않는다
   composite action, runner·여러 job을 포함한 흐름은 reusable workflow로 묶는다.
   이 위치들은 필요할 때 도입하는 선택지이며 빈 폴더나 범용 실행기를 미리 만들지 않는다.
 - GitHub API를 사용하더라도 저장소 관리가 본래 책임이면 운영 도구다.
-  `cleanup-task-branches.mjs`의 PR·CI 결과 조회는 Actions 실행 환경에 대한 의존이
-  아니므로 기존 위치를 유지한다. OS·DB·인증이 필요하다는 이유만으로도 CI 전용으로 분류하지 않는다.
+  `pr/github-merge.mjs`의 PR·CI 결과 조회는 Actions 실행 환경에 대한 의존이
+  아니므로 pr 책임에 둔다. OS·DB·인증이 필요하다는 이유만으로도 CI 전용으로 분류하지 않는다.
 
 현재 Windows 캐시 도구는 키 계산·runtime 검증을 제공하고 workflow가 키를
 `GITHUB_OUTPUT`에 기록한다. macOS probe는 증거 파일 경로를 인자로 받고 workflow가 runner 임시 경로와
@@ -626,7 +554,8 @@ artifact 업로드를 정한다. 도구와 CI 연결의 경계는 이 방식으�
 
 | 위치 | 소유 책임 |
 | --- | --- |
-| 최상위 | build, 브랜치 정리, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여, GitHub 목록 credential 정리·회전과 짝 테스트 |
+| 최상위 | build, plugin-lib 동기화, 서버 통합 시험 실행기, 플랜 부여, GitHub 목록 credential 정리·회전과 짝 테스트 |
+| `pr/` | 작업 identity·Git 상태·PR 병합·조건부 worktree/branch 정리·복구·v1 이관·사용 관측과 시험 |
 | `checks/` | FSD·서버 경계 검사기, 문서·plugin 판 검사기, 문구·공개 계약 검사와 테스트 |
 | `windows/` | native Node 빌드·캐시·패키징·호환 처리·Windows 리허설과 테스트 |
 | `macos/` | 검증된 Node·scanner bundle 빌드와 plugin 패키징, 실제 Codex host preflight, native 권한·자식 소유권 probe와 CI 증거 |
@@ -657,8 +586,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 
 | 스크립트 | 진입점 | 언제 | 하는 일 |
 | --- | --- | --- | --- |
-| `cleanup-task-branches.mjs` | `npm run branches:cleanup -- [--apply] [--branch harness/<topic>]` | 작업 시작·종료 | ancestry 또는 PR·CI 증거와 공통 보호 조건으로 작업 브랜치의 로컬 ref만 정리. 진단·부분 중단을 별도 보고. `main`·`dev`와 원격 ref는 삭제하지 않음 |
-| `manage-task-worktrees.mjs` | `npm run worktrees -- <create/status/finish/retry/resume/recover-guard>` | 작업 생성·시작·종료·복구 | 소유자가 등록한 linked worktree의 수명 관리. 사용 종료 선언·자료 보존·인스턴스 확인 후 제거하며 branch 삭제는 기존 정리기에 위임 |
+| `pr/index.mjs` | `npm run pr -- <status/inspect/create/complete/cleanup/recover/resume/retire/acknowledge-removal/migrate/recover-guard>` | 작업 생성·인계·완료·복구 | 활성화된 task 하나의 병합·조건부 정리. 실제 사용자 이관은 명시적 ADOPT, 무지원 환경은 보존. 위 계약과 JSON/exit code를 따른다 |
 | `maintain-github-connections.ts`, `maintain-github-connections.test.ts` | `npm run github:maintenance -- --apply [--rotate]`; 테스트는 `test:scripts` | 운영자는 하루 한 번 이상 실행하며 rotation은 명시적으로 요청; 테스트는 CI마다 | 만료된 GitHub 시도·초안·delivery를 삭제하고 만료 credential을 중지한다. 회전은 current key로 재봉인하며 revision/tokenVersion과 기존 envelope의 CAS로 새 grant를 덮어쓰지 않는다. 실제 운영 실행·키 공급은 배포 승인 범위다. 테스트는 DB 없이 의존성을 대체해 잘못된 인자·`DATABASE_URL` 누락의 무실행 거부, 성공 요약과 `--rotate` 전달, 작업·연결 해제 실패의 오류 비노출과 종료 코드를 확인한다 |
 | `windows/build-windows-role-node.ps1` | Windows 운영자 build/`windows-role-runtime` CI | native 명령 backend 검증 시 캐시가 없을 때 | SHA-256으로 고정한 공식 Node 22.23.3 source에 libuv #5181의 AppContainer pipe 수정을 backport하고 x64 runtime·원본 npm·license·출처/hash·빌드 스크립트 지문을 artifact로 만든다. 사용자의 compiler/Node 설치나 패키지 공개는 수행하지 않는다. 실제 LPAC 인수와 배포물 전달 완료를 대신하지 않는다 |
 | `windows/windows-role-runtime-cache.mjs`, `windows/windows-role-runtime-cache.test.mjs` | `node scripts/windows/windows-role-runtime-cache.mjs key` / `verify --runtime <절대 경로>`; `test:architecture` | Windows CI 런타임 준비 시 | 빌드 스크립트·캐시 검증 계약의 SHA-256으로 정확한 캐시 키를 만들고, runner Node로 고정 출처·빌드 옵션·스크립트 지문·실행 파일 및 전체 패키지 해시를 실행 전에 검사한다. alias/hardlink·파일 종류·크기·개수·깊이를 제한하며 검증 실패는 재사용이나 실행으로 넘어가지 않는다 |

@@ -81,10 +81,10 @@ commits that were already green on `dev`.
 - **Highest priority: never delete local or remote `main` or `dev`.** This overrides
   every cleanup rule. Do not disable or bypass their deletion protection, and never
   include either branch in a deletion command, batch, or wildcard.
-- At the start of each independent task and at task completion, run
-  `npm run branches:cleanup -- --apply`. The script only deletes verified local
-  `harness/<topic>` refs. Its default without `--apply` is a preview. Its safety
-  checks and skip reasons are documented in `docs/architecture/verification.md`.
+- At task start and completion, inspect `npm run pr -- status` from a retained
+  control checkout. Cleanup is scoped to one registered task; there is no sweep.
+  If activation is absent, use status/inspect/migrate preview only. Actual repository
+  migration requires the ADOPT handoff; do not silently activate or invoke retired tools.
 - At the start of each independent task, also list the open pull requests
   (`gh pr list --state open`) and read the proposals in `docs/proposals/active/`.
   Another session or machine may be changing the same files, or may own the decision
@@ -99,20 +99,16 @@ commits that were already green on `dev`.
   checkout, or remove another task's worktree to make cleanup pass. Use an isolated
   worktree for a new task when existing work must be preserved. An owner may release
   its own worktree only through the normal task-end procedure below.
-- Before starting a new independent change, use a retained control checkout with
-  the current `origin/dev` management tools and rules, following the preparation
-  procedure in `docs/architecture/verification.md`. Fetching updates remote-tracking
-  refs, not the files that execute the tools. Preserve dirty or shared checkouts.
-  From that control checkout, run `npm run worktrees -- status` and
-  `npm run worktrees -- retry` at task start. Retry only uses previously recorded
-  closure consent; it cannot close another active task. Report blocked records.
-  Create new task worktrees with `npm run worktrees -- create --owner <owner>
-  --branch harness/<topic> --path <new-path>` and retain the returned task ID.
+- Before starting an independent change, prepare a retained control checkout with
+  the current `origin/dev` tools and rules as described in `docs/architecture/verification.md`.
+  Fetching remote refs does not update the executing source. Once activation has been
+  explicitly completed, use `npm run pr -- create --owner <owner> --branch harness/<topic>
+  --path <absolute-new-path>` there and retain the task ID, instance ID and state OID.
   Existing unregistered worktrees remain unmanaged; never infer ownership from age.
 - Keep a managed worktree assigned to its recorded task and branch. Do not switch
   it to another task's branch for reuse; `resume` only continues the same task.
   When moving to a new task after the previous one's use has ended, complete its
-  normal finish procedure first. If preservation or usage checks block finish,
+  normal closeout procedure first. If preservation or usage checks block closeout,
   retain that worktree and report the reason before isolating the next change.
 - Verify that remote `main` and `dev` exist and fetch the latest `dev` before
   creating a new `harness/<topic>` branch. If either protected remote branch is
@@ -198,51 +194,48 @@ commits that were already green on `dev`.
 - Feature branches are deleted automatically when their pull request merges
   (`deleteBranchOnMerge` is on). That is intended — it keeps `harness/<topic>` branches
   from piling up — and `gh pr merge` needs no `--delete-branch`.
-- Local branch cleanup requires either the tip's ancestry in freshly fetched
-  `origin/dev`, or an exact-head merged PR into `dev` whose merge result is in that
-  history and whose final PR CI passed. The ancestry path also covers review-only
-  branches without PRs; it does not certify product-task completion. Both paths
-  preserve open/dependent PRs, checked-out branches and reused remote branch names.
-  Creating or closing a PR is insufficient. Merge only within the user's authorized
-  scope; never merge a PR merely to enable cleanup.
-- The script preserves checked-out branches, including the current branch. After
-  a confirmed merge, switch away only when local work is safely preserved, then
-  run cleanup again. It does not switch branches or delete remote refs.
-- At normal task end, the owner may release only its own worktree after confirming
-  that its processes and other users have finished and all results are preserved.
-  Check staged, unstaged, untracked and ignored files, and external directory links.
-  Unknown ownership/use, dirty files, locks or external junctions/symlinks mean keep
-  the directory. A clean status alone is not permission to remove ignored files.
-  For a managed worktree, move to the retained control checkout, read `worktrees --
-  status --task <id>`, and use `worktrees -- finish --task <id> --owner <owner>
-  --expected-revision <n> --expected-head <sha> --usage-ended` through `npm run`.
-  Confirm that dependent tasks no longer use its files, dependencies or servers.
-  A descendant branch alone is not a file-use dependency. Folder removal can precede
-  PR merge when its HEAD is preserved remotely; branch deletion retains the existing
-  merge and protection policy. Report folder and branch outcomes separately.
-  Cancel an intact closing task before editing with `worktrees -- resume --task <id>
-  --owner <owner> --expected-revision <n>`; a later finish needs fresh consent.
-  An abandoned command guard requires `recover-guard` inspection and explicit
-  `--expected-nonce <nonce> --confirmed-quiescent` only after the owner has verified
-  that its Git children and other users have stopped. Never recover an unknown or
-  live guard, force a removal, or overwrite a partial removal.
-  For an unregistered, verified self-owned linked worktree, the manual procedure
-  remains `git worktree remove <exact-path>` from outside without force; retain or
-  detach at the same HEAD when files must remain. Never
-  remove the main worktree or force a switch to a branch used elsewhere. Follow
-  `docs/architecture/verification.md` for the full procedure and then preview/apply
-  `branches:cleanup -- --branch harness/<topic>` from a clean remaining worktree.
-  Failure preserves the branch; do not bypass it with ref deletion or file cleanup.
-- Report commit preservation separately from deletion eligibility using the cleanup
-  JSON's `preservation`, `worktrees`, `reasons` and `summary`. An `aborted` run exits
-  unsuccessfully and may include earlier completed deletions; preserve its partial
-  result and rerun inspection instead of assuming the batch was rolled back.
-- At task end, report where the results are preserved, the worktree's removal or
-  retention with its path and reason, and the branch's cleanup or retention reason.
-  An ongoing task keeps its worktree; do not declare usage ended while follow-up
-  work, processes or other users still need it.
-- Use the cleanup script for local task-branch deletion. Do not fall back to
-  `git branch -D`, ad hoc ref deletion, or deletion based only on branch age,
-  a missing remote ref, or `git branch --merged`. If evidence is incomplete or a
-  command fails, preserve the branch and report the reason.
+- A task completes after its exact PR head is merged into `dev` and the merge commit
+  is verified in fresh dev history. Merge only within the user's authorized scope;
+  never merge merely to enable cleanup. `complete` checks the latest exact-head
+  `check.yml` run, required checks and GitHub readiness before its one merge request.
+  Remote feature-branch deletion remains GitHub's responsibility.
+- At task end, finish processes and shared use, preserve ignored user data, and move
+  outside the target to a trusted control checkout. Read `pr -- inspect --task <id>`.
+  An authorized merge uses `npm run pr -- complete --task <id> --owner <owner>
+  --expected-state <oid> --expected-head <sha> --expected-instance <uuid>
+  --request-id <uuid> --pr <number> --usage-ended`. Owner strings are not authentication.
+  Unknown ownership, dirty files, locks, foreign filesystems or external links preserve
+  the worktree. Ignored build caches are allowed only within the documented boundary:
+  a `.next/node_modules/**` directory link may target an ordinary ignored directory in
+  the same worktree's `node_modules/**`; external, broken and cache-root links remain blocked.
+- Automatic worktree removal requires the runtime's fresh qualified/clear/complete/settled
+  observation. Windows and unqualified/unknown/busy results retain both the worktree
+  and branch as `cleanup-pending`. A merged PR can therefore remain locally pending.
+  The registered runtime profile is not expanded by a caller flag or test result.
+- `cleanup` takes task/owner/expected-state/head/instance/request-id and continues only
+  existing merged or retire authority. `recover` records observed effects without
+  another merge or deletion. A transport-unknown merge request is never retried from
+  OPEN alone. `resume` can cancel only an intact seal before any merge request.
+- If the user explicitly reports external removal, `acknowledge-removal` takes the
+  same task effect inputs and `--external-removal-confirmed`. It verifies full
+  path/admin/registry absence and records a receipt only. A later `cleanup` may remove
+  the remaining branch after fresh checks, including on Windows. Never infer that
+  report from a generic instruction to proceed, and never turn unknown usage into clear.
+- `retire` is explicit closeout for no PR or a closed unmerged PR whose head is already
+  an ancestor of fresh dev. Open/dependent PRs, reused remote refs and additional commits
+  preserve the branch. Already merged work remains on the merged path.
+- `recover-guard --guard common|task|migration` is read-only unless a known dead owner,
+  its exact nonce and `--confirmed-quiescent` are supplied. Task scope also requires
+  `--task`. Live, unknown and foreign-host guards are preserved. The legacy migration
+  fence is never a recover-guard target. Do not kill processes by name or force removal.
+- State is held in local `refs/stagekeeper/pr-closeout/` Git commits, with first-parent
+  CAS history and source/merge pins. Do not push, edit or prune those refs manually.
+  Existing task effects require the current state OID; identical request replay uses
+  its saved original inputs. `main` and `dev` can never be deletion inputs.
+- Do not use retired managers, `git branch -D`, ad hoc ref deletion, age, a missing
+  remote branch or `git branch --merged` as a cleanup fallback. Inactive metadata,
+  failed evidence, partial removal and reappearing paths preserve data for inspection.
+- Report merge preservation, worktree outcome and branch outcome separately, including
+  the retained path and reason. A continuing task keeps its worktree; do not declare
+  usage ended while follow-up work, processes or other users still need it.
 - Do not commit directly to `dev` or `main`.
