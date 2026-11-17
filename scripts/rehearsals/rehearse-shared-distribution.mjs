@@ -123,6 +123,7 @@ async function main() {
     if (result.error || expected !== "failure" && result.status !== expected) summary.commandFailure = {
       stage: label, exit: result.status, signal: result.signal,
       code: result.error?.code ?? /\b(?:ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND|ENOENT|EACCES|EPERM|PrismaClientValidationError)\b/.exec(result.stderr ?? "")?.[0] ?? "command-failed",
+      failedTestNumbers: [...(result.stdout ?? "").matchAll(/^not ok (\d+) -/gm)].map(match => Number(match[1])),
     };
     assert.equal(result.error, undefined, "Acceptance command did not finish");
     if (expected === "failure") assert.notEqual(result.status, 0, "Expected command refusal");
@@ -149,14 +150,18 @@ async function main() {
     summary.templateContracts = { sourceHash: afterContracts.sourceHash, rows: afterContracts.rows,
       languages: afterContracts.languages, comparedInputs: afterContracts.observations.length, obsoleteReferences: 0,
       contentHash: afterContracts.contentHash, contractHash: afterContracts.contractHash };
-    command("private-corpus", process.execPath, ["--import", "tsx", "--test",
+    const corpus = command("private-corpus", process.execPath, ["--import", "tsx", "--test", "--test-reporter=tap",
       "--test-name-pattern=^(the pinned private corpus validates|private step graphs retain)", "tests/templates/private-template-release.test.ts"],
       { env: { ...process.env, HARNESS_RELEASE_SOURCE: options.templates, HARNESS_RELEASE_COMMIT: templateCommit } });
+    assert.match(corpus, /^# pass 2\s*$/m, "Both historical corpus contract tests must execute");
+    summary.privateCorpus = { executed: 2, scope: "installation-and-graph-contracts" };
     passed("private-corpus-paths-and-cross-version-hashes");
     const channel = await db(client => client.templateChannel.findUniqueOrThrow({ where: { id: "default" } }));
     assert.equal(channel.mode, "legacy"); assert.equal(channel.legacyWritesBlocked, false); assert.equal(channel.activeReleaseId, null);
     assert.equal(await db(client => client.user.count()), 0);
+    stage = "download-codex";
     const cli = await downloadCodex(work);
+    summary.cliArchive = ACCEPTANCE_CODEX_ARCHIVES[`${process.platform}-${process.arch}`];
     const gitDirectory = process.platform === "win32" ? path.dirname(command("find-git", "where.exe", ["git"]).trim().split(/\r?\n/)[0]) : "/usr/bin";
     const profile = path.join(work, "update-profile"), freshProfile = path.join(work, "fresh-profile");
     mkdirSync(profile); mkdirSync(freshProfile); profiles.push(profile, freshProfile);

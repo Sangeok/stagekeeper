@@ -37,9 +37,9 @@ export function acceptanceClientEnvironment({ env, cliDirectory, profile, gitDir
 
 export function nativeBundleCommand(bundle, task, args, platform = process.platform) {
   assert.ok(["init", "codex", "session", "watch", "background", "template-guard"].includes(task), "Unexpected helper task");
-  if (platform === "win32") return { file: "powershell.exe", args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(bundle, "bin/harness.ps1"), task, ...args] };
+  if (platform === "win32") return { file: "powershell.exe", args: ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.win32.join(bundle, "bin/harness.ps1"), task, ...args] };
   assert.equal(platform, "darwin");
-  return { file: path.join(bundle, "bin/harness"), args: [task, ...args] };
+  return { file: path.posix.join(bundle, "bin/harness"), args: [task, ...args] };
 }
 
 export function packageInventory(root, platform, excluded = new Set()) {
