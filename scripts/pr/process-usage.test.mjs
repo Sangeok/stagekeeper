@@ -207,6 +207,7 @@ describe("native cwd qualification", { skip: !requireNative ? "Dedicated native 
     return child;
   }
   async function stop(child) {
+    if (!children.has(child)) return;
     const exited = once(child, "exit"); child.send({ action: "stop" }); await exited; children.delete(child);
   }
   async function observe(name, worktreePath = target) {
@@ -232,7 +233,10 @@ describe("native cwd qualification", { skip: !requireNative ? "Dedicated native 
       assert.ok(result.holders.some(row => row.pid === two.pid));
       await stop(two);
       assert.equal((await observe("N07-none")).status, "clear");
-    } finally { await rm(path.join(target, "nested"), { recursive: true }); }
+    } finally {
+      await stop(one); await stop(two);
+      await rm(path.join(target, "nested"), { recursive: true });
+    }
   });
   it("N04: does not confuse a sibling prefix with this worktree", async () => {
     const child = await hold(sibling);

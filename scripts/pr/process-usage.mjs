@@ -123,7 +123,7 @@ export async function inspectWorktreeUsage(options = {}) {
   const result = {
     status: "unknown", target: null, holders: [], reasons: [],
     observation: { at: new Date().toISOString(), platform: process.platform, architecture: process.arch, release: os.release(),
-      scope: "current-account-all-sessions-non-zombie-cwd", coverageComplete: false, profile: null, processCount: 0, missingCount: 0, snapshotAttempts: 0, populationChanges: 0, durationMs: 0, outputBytes: 0 },
+      scope: "current-account-all-sessions-non-zombie-cwd", coverageComplete: false, profile: null, processCount: 0, missingCount: 0, snapshotAttempts: 0, populationChanges: 0, diagnostics: {}, durationMs: 0, outputBytes: 0 },
     observer: { state: "not-started", pid: null, scratchRetained: false },
   };
   const started = performance.now();
@@ -160,6 +160,7 @@ export async function inspectWorktreeUsage(options = {}) {
     result.observation.profile = observation.profile;
     result.observation.processCount = observation.count;
     result.observation.missingCount = observation.missing ?? 0;
+    result.observation.diagnostics = observation.diagnostics ?? {};
     if (observation.reasons.length) throw new ObservationFailure(observation.reasons[0]);
     const directories = new Map();
     for (const row of observation.records) {

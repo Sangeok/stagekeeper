@@ -25,14 +25,14 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Task worktree lifecycle
-        run: npm exec --call "node --test scripts/manage-task-worktrees.test.mjs"
-      - name: Task branch cleanup
-        run: npm exec --call "node --test scripts/cleanup-task-branches.test.mjs"
       - name: Worktree usage qualification
         run: npm exec --call "node --test scripts/pr/process-usage.test.mjs"
         env:
           STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"
+      - name: Task worktree lifecycle
+        run: npm exec --call "node --test scripts/manage-task-worktrees.test.mjs"
+      - name: Task branch cleanup
+        run: npm exec --call "node --test scripts/cleanup-task-branches.test.mjs"
 
   check:
     name: check (${{ matrix.part }})

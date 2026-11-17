@@ -10,5 +10,5 @@ try {
   $stage = 'observe'
   [Console]::WriteLine(([StagekeeperWorktreeUsage]::Inspect() | ConvertTo-Json -Depth 5 -Compress))
 } catch {
-  [Console]::WriteLine((@{version=1;profile=('windows-' + $stage + '-failed');principal='';supported=$false;unreadableCount=1;changedCount=0;expectedCount=0;afterCount=0;records=@()} | ConvertTo-Json -Compress))
+  [Console]::WriteLine((@{version=1;profile=('windows-' + $stage + '-failed');principal='';supported=$false;unreadableCount=1;changedCount=0;expectedCount=0;afterCount=0;failures=@{};records=@()} | ConvertTo-Json -Compress))
 }

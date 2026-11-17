@@ -100,6 +100,14 @@ export function parseWindowsObservation(bytes) {
     || typeof data.supported !== "boolean" || typeof data.principal !== "string") throw new ObservationProtocolError("invalid-observation");
   if (data.supported && (data.profile !== "windows-20348-core7-current-sid-x64-v1"
     || !/^S-\d+(?:-\d+){2,}$/.test(data.principal) || data.expectedCount === 0)) throw new ObservationProtocolError("invalid-observation");
+  const diagnostics = {};
+  if (data.failures !== undefined) {
+    if (!data.failures || typeof data.failures !== "object" || Array.isArray(data.failures)) throw new ObservationProtocolError("invalid-diagnostics");
+    for (const [code, count] of Object.entries(data.failures)) {
+      if (!/^(owner|cwd)-[a-z0-9-]{1,70}$/.test(code) || !Number.isSafeInteger(count) || count < 1) throw new ObservationProtocolError("invalid-diagnostics");
+      diagnostics[code] = count;
+    }
+  }
   const ids = new Set();
   for (const row of data.records) {
     if (!Number.isSafeInteger(row.pid) || row.pid <= 0 || ids.has(row.pid)
@@ -113,6 +121,6 @@ export function parseWindowsObservation(bytes) {
     records: data.records, count: data.records.length, profile: data.profile,
     reasons: !data.supported ? ["unsupported-profile"] : data.unreadableCount || data.records.length !== data.expectedCount ? ["incomplete-coverage"]
       : data.changedCount || data.expectedCount !== data.afterCount ? ["population-changed"] : [],
-    missing: data.unreadableCount,
+    missing: data.unreadableCount, diagnostics,
   };
 }
