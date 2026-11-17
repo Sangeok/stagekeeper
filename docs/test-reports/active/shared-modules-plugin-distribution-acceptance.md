@@ -27,8 +27,8 @@ follow-up: []
 ## Summary and Decision
 
 사용자가 실제 작업을 요청한 뒤 GitHub CI만으로 진행하도록 실행 방식을 지정했다.
-개인 로그인·개인 설치·로컬 native 인수와 모델 호출을 제외하고, 기존 GitHub-hosted native
-workflow에서 실제 번들·Codex loader·HTTP/MCP와 정리를 확인한다. private self-hosted CI의
+개인 로그인·개인 설치·로컬 native 인수와 모델 호출을 제외하고, GitHub-hosted
+`shared-distribution-acceptance`에서 실제 번들·Codex loader·HTTP/MCP와 정리를 확인한다. private self-hosted CI의
 현재 pin은 이 후보와 달라 실행하거나 개인 CI 프로필을 사용하지 않는다.
 
 ## Scope and Criteria
@@ -89,10 +89,10 @@ bytes/mode를 비교한다. 사용자 파일 수정은 합성 fixture에만 가�
 
 | 명령/실행 | 판정 | 의미 |
 | --- | --- | --- |
-| 새 MJS 네 파일의 `node --check` | `PASS` | 로컬 문법 검사. native 인수 성공이 아님 |
+| 새 MJS 네 파일의 `node --check`와 순수 계약 15개 | `PASS` | 로컬 문법·단위 검사. native 인수 성공이 아님 |
 | `verify:ci-coverage` | `PASS` | 두 OS에 실행 명령과 coverage 행 연결. 실제 단계 실행은 별도 |
-| `windows-role-runtime/native-runtime`의 shared acceptance step | `NOT RUN` | 준비된 native runtime·새 test DB·고정 T로 실제 인수 |
-| `macos-runtime-contracts/contracts`의 shared acceptance step | `NOT RUN` | arm64/x64 각각 실행 |
+| `shared-distribution-acceptance/acceptance` Windows leg | `NOT RUN` | 준비된 native runtime·새 test DB·고정 T로 실제 인수 |
+| `shared-distribution-acceptance/acceptance` macOS legs | `NOT RUN` | arm64/x64 각각 실행 |
 
 ## Evidence Registry
 
@@ -104,7 +104,13 @@ bytes/mode를 비교한다. 사용자 파일 수정은 합성 fixture에만 가�
 
 ## Findings and Follow-up
 
-현재는 구현·CI 실행 준비 중이다. 개인 Windows host 부재는 GitHub-hosted 경로로 해결하며,
+첫 실행 `909a83d`에서 고정 R1 템플릿에 최신 R2의 verifier 명칭 문구를 요구하는 corpus 검사를
+적용해 실패했다. 이 campaign은 corpus의 설치·그래프 계약 두 검사로 범위를 명시하며 최신
+문구 검사는 해당 문구를 포함한 release의 별도 검사로 유지한다. macOS Intel은 기존 전체 회귀와
+인수를 한 job에 넣어 30분 제한에 걸려 인수를 독립 OS matrix로 분리했다. 첫 실패 run은
+macOS `44043168300`, Windows `44043168411`이며 인수 PASS가 아니다.
+
+개인 Windows host 부재는 GitHub-hosted 경로로 해결하며,
 private 모델 계정 준비를 이 모델 없는 인수의 선행 조건으로 삼지 않는다. 불일치·실패·skip은
 실제 결과에 따라 이 절과 위 행에 기록하고, 단순 job green이나 summary 파일 존재로 PASS하지 않는다.
 

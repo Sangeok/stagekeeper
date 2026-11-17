@@ -5,7 +5,7 @@ proposal-size: "standard"
 created-at: "2026-11-17"
 approved-by: "user"
 approved-at: "2026-11-17"
-approval-scope: "사용자의 GitHub CI-only 후속 지시에 따라 기존 GitHub-hosted Windows/macOS native workflow 확장, 필요한 인수 스크립트·시험·문서와 격리 CI 인수·증거 기록. 개인 프로필/설치 변경·로컬 native 인수·실제 모델 호출·운영 DB/seed/activation·main 승격 제외"
+approval-scope: "사용자의 GitHub CI-only 후속 지시에 따라 GitHub-hosted Windows/macOS 인수 workflow와 기존 native runtime 재사용, 필요한 인수 스크립트·시험·문서와 격리 CI 인수·증거 기록. 개인 프로필/설치 변경·로컬 native 인수·실제 모델 호출·운영 DB/seed/activation·main 승격 제외"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -45,8 +45,9 @@ MIGRATE의 소스·생성물·검사 구현을 유지하면서, 실제 설치 �
 
 실행 중 사용자가 GitHub CI만으로 진행하도록 명시했다. 이 지시는 아래 초안·검토 기록의
 개인 테스트 host/로그인 준비 경로와 새 CI 실행기 제외 범위를 대체한다. 별도 개인 프로필이나
-self-hosted runner를 요구하지 않고 기존 `windows-role-runtime`·`macos-runtime-contracts`의
-GitHub-hosted runner에 모델 없는 실물 인수 단계를 추가한다. 실제 Codex CLI의 local marketplace
+self-hosted runner를 요구하지 않는다. `shared-distribution-acceptance`의 Windows/macOS matrix에서
+기존 native 제작기·검증된 cache를 재사용해 모델 없는 실물 인수를 실행한다. 긴 기존 회귀 검사와
+인수 실행의 시간 제한을 분리한다. 실제 Codex CLI의 local marketplace
 설치·선택 cache, native helper의 init/MCP·session, source/서버 교체와 cleanup을 확인한다.
 
 모델 inference는 이 배포 경계 변경의 인수 범위에서 실행하지 않는다. 기존 native 실행·정책 회귀,
