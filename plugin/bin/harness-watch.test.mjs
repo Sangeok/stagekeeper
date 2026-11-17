@@ -437,7 +437,7 @@ it("honors a longer Retry-After, and a healthy overview restarts failure countin
     if (++count === 1) { res.writeHead(429, { "retry-after": "0.2" }); res.end(); }
     else send(res, request, READY);
   });
-  assert.equal((await f.poll(session).result).event.event, "work");
+  assert.equal((await f.run(["--session", session, "--interval", "0.02", "--deadline", "0.1", "--request-timeout", "0.2"]).result).event.event, "work");
   assert.ok(f.calls[2].at - f.calls[1].at >= 190);
 });
 
