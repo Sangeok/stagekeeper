@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-12"
 approved-by: "user"
 approved-at: "2026-11-16"
-approval-scope: "Phase ARCH 및 후속 승인된 MIGRATE 소스·배포·시험·CI·문서 전환과 검증, 2026-11-17 사용자 요청에 따른 ACCEPT 인수 검증과 그 기록. 운영 승격 제외"
-completed-at: null
-verification-summary: "ARCH·MIGRATE 완료. ACCEPT의 GitHub CI-only 인수는 4c5ccd6에서 Windows x64·macOS arm64/x64와 동일 제품 bytes의 Claude source 4개 leg PASS; PR #363 병합 대기. 운영 승격·모델 기반 출시 gate는 별도"
+approval-scope: "Phase ARCH 및 후속 승인된 MIGRATE 소스·배포·시험·CI·문서 전환과 검증, 2026-11-17 사용자 요청에 따른 ACCEPT의 GitHub CI-only 인수·기록·dev 병합·완료 문서 통합과 소유 작업 정리. 운영 승격 제외"
+completed-at: "2026-11-17"
+verification-summary: "ARCH·MIGRATE·ACCEPT 완료. PR #363 최종 head d5c6714의 check 941와 공유 배포 인수 4가 모두 성공했고 9937829로 dev에 병합됨. Windows x64·macOS arm64/x64 모델 없는 인수와 동일 제품 bytes의 Claude source 4개 leg PASS. 운영 승격·모델 기반 출시 gate는 별도"
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -45,11 +45,11 @@ ARCH 조사 당시 `packages/core`와 `packages/github`의 생산 `.mjs` 27개�
 
 Phase ARCH의 아키텍처·ADR·전환 목록 문서화를 완료했다.
 [현재 공유 경계](../../architecture/shared-modules.md), [ADR-0008](../../ADR/0008-separate-shared-module-distribution.md),
-[ARCH 완료 기록](../completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md)을 따른다.
+[ARCH 완료 기록](./2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md)을 따른다.
 후속 사용자 승인으로 MIGRATE 구현·검증을 완료했다. ACCEPT는 2026-11-17 시작했다. 모델을 쓰지 않는
 인수 항목과 BLK-SMB-01은 통과했고, 양 OS의 watch·session·background 실제 실행만 남았다([ACCEPT 실행 결과](#accept-실행-결과)).
 전체 제안은 pending으로 유지한다.
-실행 상태는 [MIGRATE 상세 기록](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)을 따른다.
+실행 상태는 [MIGRATE 상세 기록](./2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)을 따른다.
 
 ## Goal
 
@@ -1808,7 +1808,7 @@ Phase ACCEPT는 BLK-SMB-01과 양 OS 실행 환경·증거가 충족되어야 �
 
 VFY-SMB-01의 문서 산출물은 새 architecture·ADR과 기존 안내 10개, 상위/하위 proposal로 총 14개다.
 값 export 175개·private 49개·type 31개와 직접 참조 404건을 대조했고 새 공개 entry는 14개다.
-실행 명령·최종 문서 검사 결과와 scope 보존 증거는 [ARCH 완료 기록](../completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md#arch-execution-results)에 남긴다.
+실행 명령·최종 문서 검사 결과와 scope 보존 증거는 [ARCH 완료 기록](./2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md#arch-execution-results)에 남긴다.
 VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행이다.
 
 ### ACCEPT 선행 비교·CI 기록
@@ -1835,7 +1835,7 @@ VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행�
 ### ACCEPT GitHub CI-only 인수 결과
 
 사용자는 개인 host/로그인 준비 대신 GitHub CI만으로 진행하도록 지정했다.
-[상세 ACCEPT 계획](./shared-modules-and-plugin-distribution-phase-accept.md)의 실행 범위를
+[상세 ACCEPT 계획](./2026-11-17-shared-modules-and-plugin-distribution-phase-accept.md)의 실행 범위를
 모델 없는 설치·배포·서버 호환성으로 확정하고 재실행 가능한 인수 workflow를 추가했다.
 [완료 보고서](../../test-reports/completed/2026-11-17-shared-modules-plugin-distribution-acceptance.md)에
 실제 run/job/source identity와 정제 summary를 보존한다.
@@ -1854,15 +1854,20 @@ VFY-SMB-02~05, 제품 테스트·build·native 설치·외부 gate는 미실행�
 
 이로써 승인된 CI-only 인수 범위는 통과했다. 개인 PC·모델 역할·장시간 background와 운영
 승격은 이 판정에 포함하지 않는다. `agent-eval`/`pipeline-smoke`는 기존 출시 조건으로 유지하며
-이번 경로 재편의 인수와 구분한다. 상위/상세 proposal은 PR #363 병합 전까지 active/pending으로
-보존한다. 이 구분은 앞선 8번의 당시 미실행 기록을 모델 실행 성공으로 바꾸지 않는다.
+이번 경로 재편의 인수와 구분한다. PR #363의 dev 병합을 확인해 상위/상세 proposal을
+completed로 옮겼다. 이 구분은 앞선 8번의 당시 미실행 기록을 모델 실행 성공으로 바꾸지 않는다.
 
 ## Approval and Completion
 
-front matter는 ARCH와 후속 MIGRATE 구현 승인 범위를 기록한다. ARCH 상세 문서는 completed에 있고,
-MIGRATE 상세 문서도 양 OS CI를 포함한 완료 조건을 확인하고 completed로 옮겼다.
-상위 SDD는 ACCEPT까지 active/pending으로 유지한다. 영구 규칙은 architecture, 이유는 ADR,
-전체 전환과 후속 검증은 이 문서와 연결된 Phase 기록이 소유한다.
+ARCH·MIGRATE와 승인된 CI-only ACCEPT의 구현·인수가 완료됐다. 최종 PR head
+`d5c67141c580f825cb4ce12e4aa0ce871a41cfd8`의 [check 941](https://github.com/Sangeok/stagekeeper/actions/runs/44051075589)와
+[공유 배포 인수 4](https://github.com/Sangeok/stagekeeper/actions/runs/44051075608)가 모두 성공했고,
+[PR #363](https://github.com/Sangeok/stagekeeper/pull/363)을
+`99378292893a2f0dd75aa5473ef5f92d406f57fe`로 dev에 병합했다.
+
+상위 SDD와 ACCEPT 상세 문서를 completed로 옮기고 ARCH·MIGRATE·architecture·ADR·보고서의
+참조를 갱신했다. 영구 규칙은 architecture, 이유는 ADR, 전환·검증 이력은 이 문서와
+연결된 Phase 기록이 소유한다. main 승격과 운영 배포는 이 완료 판정에 포함하지 않는다.
 
 ## MIGRATE execution status
 
@@ -1871,7 +1876,7 @@ MIGRATE 상세 문서도 양 OS CI를 포함한 완료 조건을 확인하고 co
 14개 공개 entry/59개 값 export 및 내부 template-boundary의 15개 runtime 모듈을 배포한다.
 로컬 정책·웹·서버·PostgreSQL·HTTP 회귀와 build를 검증했으며 최종 check와 architecture 회귀, Windows native·macOS arm64/x64 CI가 모두 통과했다.
 세부 시험 대응·H1 공통 predicate 선행 통합·기존 설치 reader 경로의 보존 이유는
-[MIGRATE Execution Results](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)에 기록했다.
+[MIGRATE Execution Results](./2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results)에 기록했다.
 이 상태는 REQ-SMB-005나 BLK-SMB-01 해소, native 설치·운영 배포의 완료를 뜻하지 않는다.
 
 
@@ -1884,4 +1889,4 @@ CI 변경은 함께 보존했다. 자동 init은 Claude 2.1.326과 templates `8c
 
 검증 대기 중 병합된 #351/#355의 dev `0f6028f`도 후속 통합했다. 기존 smoke-server 검사와
 공유 배포 검사, 양쪽 gate 감지 경로를 모두 보존했다. 고정 revision별 증거와 최종 PR head를
-구분하여 [MIGRATE 완료 기록](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#병행-작업-병합-이후-통합)에 남겼다.
+구분하여 [MIGRATE 완료 기록](./2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#병행-작업-병합-이후-통합)에 남겼다.

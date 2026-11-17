@@ -5,7 +5,7 @@ status: "active"
 # 공유 모듈 소유권과 플러그인 배포
 
 이 문서는 현재 소스·공개 경로·실행 환경·배포 경계를 정의한다.
-전환의 원본 대응표와 인수 범위는 [전환 SDD](../proposals/active/shared-modules-and-plugin-distribution.md),
+전환의 원본 대응표와 인수 범위는 [전환 SDD](../proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md),
 선택 이유는 [ADR-0008](../ADR/0008-separate-shared-module-distribution.md)이 소유한다.
 
 ## 소유권과 배치

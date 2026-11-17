@@ -1,19 +1,19 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-17"
 approved-by: "user"
 approved-at: "2026-11-17"
-approval-scope: "사용자의 GitHub CI-only 후속 지시에 따라 GitHub-hosted Windows/macOS 인수 workflow와 기존 native runtime 재사용, 필요한 인수 스크립트·시험·문서와 격리 CI 인수·증거 기록. 개인 프로필/설치 변경·로컬 native 인수·실제 모델 호출·운영 DB/seed/activation·main 승격 제외"
-completed-at: null
-verification-summary: "GitHub CI-only 범위: 4c5ccd6의 Windows x64·macOS arm64/x64 인수와 check 모두 PASS. 동일 제품 bytes의 Claude source 4개 leg PASS. 상세 결과와 정제 summary를 완료 보고서에 보존; PR #363 병합 대기"
+approval-scope: "사용자의 GitHub CI-only 후속 지시에 따라 GitHub-hosted Windows/macOS 인수 workflow와 기존 native runtime 재사용, 필요한 인수 스크립트·시험·문서와 격리 CI 인수·증거 기록. 후속 요청에 따른 dev 병합·완료 문서 통합과 소유 작업 정리 포함. 개인 프로필/설치 변경·로컬 native 인수·실제 모델 호출·운영 DB/seed/activation·main 승격 제외"
+completed-at: "2026-11-17"
+verification-summary: "GitHub CI-only 범위 완료: 최종 d5c6714의 check 941·공유 배포 인수 4 PASS 후 PR #363을 9937829로 dev에 병합. Windows x64·macOS arm64/x64와 동일 제품 bytes의 Claude source 4개 leg PASS. 상세 결과와 정제 summary는 완료 보고서에 보존"
 closed-at: null
 closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/shared-modules-and-plugin-distribution.md"
+  - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md"
   - "docs/proposals/completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md"
   - "docs/architecture/shared-modules.md"
   - "docs/architecture/macos-runtime.md"
@@ -29,7 +29,7 @@ related:
 
 ## Summary
 
-[상위 SDD](./shared-modules-and-plugin-distribution.md)의 ACCEPT를 구체화한다.
+[상위 SDD](./2026-11-17-shared-modules-and-plugin-distribution.md)의 ACCEPT를 구체화한다.
 MIGRATE의 소스·생성물·검사 구현을 유지하면서, 실제 설치 산출물과 기존 플러그인/새 서버의
 조합에서도 경로·해시·설치 상태·실행 계약이 보존되는지 확인한다. 이미 통과한 검증은 입력과
 관찰 범위가 같은 경우 재사용하고, 설치 채널·실제 캐시·외부 템플릿에 남은 공백만 보완한다.
@@ -88,8 +88,8 @@ runtime으로 GitHub-hosted Windows x64와 macOS arm64/x64에서 검증한다. �
 | 공개 entry·runtime·배포 원본 | [shared-modules](../../architecture/shared-modules.md) | 14개 공개 entry/59개 값, 내부 의존성 포함 15개 runtime의 실물 확인 |
 | 설치·실행·잠금·서버 호환성 | [protocol](../../architecture/protocol.md), [macOS runtime](../../architecture/macos-runtime.md), [template releases](../../architecture/template-releases.md) | 실제 helper/서버의 기존 판정을 그대로 관찰 |
 | TASK-ACCEPT-01~04, BLK-SMB-02/03 | 이 문서 | 이번 상세 계획에서 새로 소유. 부모에는 같은 Task 정의가 없음 |
-| CI 구축·runner·공통 증거 연결 | [dual-client CI 계획](./dual-client-ci-parity.md) | 기존 구현·host 계약 재사용; 미구현 Windows 실행기를 여기서 중복 개발하지 않음 |
-| 설치 tuple·복원 후속 | [template acceptance 후속](./template-release-acceptance-follow-ups.md) | 동일 입력의 증거 연결. 운영 복원·activation 인수는 포함하지 않음 |
+| CI 구축·runner·공통 증거 연결 | [dual-client CI 계획](../active/dual-client-ci-parity.md) | 기존 구현·host 계약 재사용; 미구현 Windows 실행기를 여기서 중복 개발하지 않음 |
+| 설치 tuple·복원 후속 | [template acceptance 후속](../active/template-release-acceptance-follow-ups.md) | 동일 입력의 증거 연결. 운영 복원·activation 인수는 포함하지 않음 |
 
 상위 SDD SHA-256은 `bd12282b462df3fb50fe5d42893488820fe28463fb9096ee5de23286ef6c2303`,
 MIGRATE 완료 기록은 `eeb6e8855d5d71ab6f195742203a04c83316a6970a4625ea58950021a9be054b`다.
@@ -105,7 +105,7 @@ MIGRATE 완료 기록은 `eeb6e8855d5d71ab6f195742203a04c83316a6970a4625ea589500
 | [check 921](https://github.com/Sangeok/stagekeeper/actions/runs/44016444458) | f430e26의 경계·제품/웹/서버·DB·build·fresh manifest·관리 도구 | 실제 사용자 설치 cache와 번들 단독 실행의 증거는 아님 |
 | [macOS 241](https://github.com/Sangeok/stagekeeper/actions/runs/44016444450), [Windows 419](https://github.com/Sangeok/stagekeeper/actions/runs/44016444441) | 정책·배포 도구·native 권한/명령·제품 회귀·offline build | 패키저 fixture의 가짜 binary와 native runtime 시험을 합쳐 실제 배포 bundle 설치로 보고하지 않음 |
 | [client-init-smoke 86](https://github.com/Sangeok/stagekeeper/actions/runs/44016446177) | Claude source 채널의 Windows/macOS new-user/update | Codex 또는 native bundle 채널의 설치·모델 역할 증거는 아님 |
-| [MIGRATE 기록](../completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results) | 원본 시험 대응, 로컬 DB 185 pass, HTTP 회귀, 15개 모듈/59개 export 대조 | private corpus 전체·실제 설치 선택·독립 배포 조합 전체는 미실행 |
+| [MIGRATE 기록](./2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md#migrate-execution-results) | 원본 시험 대응, 로컬 DB 185 pass, HTTP 회귀, 15개 모듈/59개 export 대조 | private corpus 전체·실제 설치 선택·독립 배포 조합 전체는 미실행 |
 | [과거 macOS Codex 인수](../../test-reports/completed/2026-11-10-codex-macos-native-acceptance.md) | 당시 0.6.10 설치·실제 역할·110분 유휴 | 새 0.6.16 payload, 현재 loader, Intel/Windows 성공으로 전용하지 않음 |
 
 run 86의 공개 요약에서 후보 `f430e26…`, templates
@@ -150,7 +150,7 @@ active `role-command-time-limit.md`의 timeout 변경·모델 제외 범위, wor
 - governed-by: CON-SMB-001, CON-SMB-002, CON-SMB-003
 - verified-by: VFY-SMB-05
 
-정의는 상위 [Phase ACCEPT](./shared-modules-and-plugin-distribution.md#phase-accept-설치-산출물과-독립-배포-호환성-인수)를 따른다.
+정의는 상위 [Phase ACCEPT](./2026-11-17-shared-modules-and-plugin-distribution.md#phase-accept-설치-산출물과-독립-배포-호환성-인수)를 따른다.
 새 Phase를 추가하지 않고 자료 확정 → 실물 제작 → 설치·호환성 → 판정의 네 Task로 나눈다.
 각 Task는 일부 증거를 제공하며 최종 완료 판정은 모든 필수 관찰을 모은 뒤에만 한다.
 
@@ -242,7 +242,7 @@ missing/drift/orphan/추적 누락/잘못된 파일 종류의 사전 거부는 �
 - governed-by: CON-SMB-002, CON-SMB-003
 - verified-by: VFY-SMB-05
 
-기본 실행 순서는 기존 [지원·작업 소유권](./dual-client-ci-parity.md#지원-범위와-작업-소유권)의
+기본 실행 순서는 기존 [지원·작업 소유권](../active/dual-client-ci-parity.md#지원-범위와-작업-소유권)의
 Windows x64/macOS arm64 × Claude/Codex 네 조합을 따른다. 다음 표는 요구를 지우는 skip 표가 아니다.
 
 | 대상 | 재사용할 경로 | 추가로 확보할 관찰·차단 |
@@ -374,7 +374,7 @@ architecture는 실행 로그의 저장소가 아니다. 영구적인 호환성/
 
 ## Verification detail for VFY-SMB-05
 
-Canonical verifier: [VFY-SMB-05](./shared-modules-and-plugin-distribution.md#vfy-smb-05-출시-reader격리-설치실행-인수).
+Canonical verifier: [VFY-SMB-05](./2026-11-17-shared-modules-and-plugin-distribution.md#vfy-smb-05-출시-reader격리-설치실행-인수).
 정의와 `verifies`는 부모에 유지한다. 아래는 모두 **Planned / Not executed in this authoring task**다.
 
 | 관찰 | Task | 입력·행동 | 합격·거부 기준 |
@@ -520,7 +520,7 @@ Task 01에서 DB/인증 홈/port/cache의 배타 소유와 campaign 전체 종�
 
 ## Blockers and Readiness
 
-부모 [BLK-SMB-01](./shared-modules-and-plugin-distribution.md#blk-smb-01-배포-템플릿기존-설치본의-외부-경로-참조-확인)은
+부모 [BLK-SMB-01](./2026-11-17-shared-modules-and-plugin-distribution.md#blk-smb-01-배포-템플릿기존-설치본의-외부-경로-참조-확인)은
 아직 유지한다. 이번에는 T의 실제 private 본문이나 설치 cache를 열지 않았으므로 해소했다고 하지 않는다.
 Task 01의 외부 참조 원장과 Task 03의 실행 결과가 해소 근거다.
 
@@ -780,5 +780,17 @@ BLK-SMB-03의 모델 로그인·한도는 이 모델 없는 범위의 진입 조
 제품 코드에는 추가 변경이 없다. 최초 실패·취소와 최종 성공을 보고서에서 구분한다.
 
 후속 dev `1298603`의 다른 세션이 남긴 선행 비교 기록을 병합·보존했다. 이후 결과 문서만
-바뀌었으므로 tested source를 문서 commit으로 바꾸지 않는다. 인수 실행은 완료했으며
-[PR #363](https://github.com/Sangeok/stagekeeper/pull/363) 병합 전까지 이 계획을 active/pending에 둔다.
+바뀌었으므로 기존 증거의 tested source를 문서 commit으로 바꾸지 않는다.
+
+### Completion or Closure Notes
+
+최종 head `d5c67141c580f825cb4ce12e4aa0ce871a41cfd8`의
+[check 941](https://github.com/Sangeok/stagekeeper/actions/runs/44051075589)와
+[공유 배포 인수 4](https://github.com/Sangeok/stagekeeper/actions/runs/44051075608)도 모두 성공했다.
+[PR #363](https://github.com/Sangeok/stagekeeper/pull/363)을
+`99378292893a2f0dd75aa5473ef5f92d406f57fe`로 dev에 병합했고, 상위 SDD와 이 문서를
+completed로 옮겼다. 원래 4c5ccd6·909a83d의 시험·정제 summary는 원래 identity로 유지한다.
+
+기존 ACCEPT 작업의 결과가 dev에 보존됐고 미보존 파일·ignored 파일·외부 링크·열린 파일 사용이
+없음을 확인했다. 관리 task `8677b8a2-79c8-439b-bd1e-8d526e96df7b`를 정상 finish해 해당
+worktree와 로컬 작업 브랜치를 정리했다. 개발·인수 종료이며 운영 배포를 뜻하지 않는다.

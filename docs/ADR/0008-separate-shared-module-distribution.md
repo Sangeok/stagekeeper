@@ -48,7 +48,7 @@ Chosen option: "책임별 소유 영역 분리와 명시적 공개·배포 계�
 폴더 분리와 공개 명세가 의도를 정하고 검사기가 의존·배포의 완전성을 확인한다.
 
 공개 목록과 실행 환경의 단일 기준은 [shared-modules.md](../architecture/shared-modules.md)다.
-구체적인 이동·분리·소비자와 검증은 [전환 SDD](../proposals/active/shared-modules-and-plugin-distribution.md)를 따른다.
+구체적인 이동·분리·소비자와 검증은 [전환 SDD](../proposals/completed/2026-11-17-shared-modules-and-plugin-distribution.md)를 따른다.
 
 ### Acceptance
 
