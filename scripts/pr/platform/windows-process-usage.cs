@@ -131,7 +131,7 @@ public static class StagekeeperWorktreeUsage {
   }
 
   static string CurrentDirectory(int pid, long expectedCreation) {
-    IntPtr handle = OpenProcess(0x410, false, pid);
+    IntPtr handle = OpenProcess(0x1010, false, pid);
     if (handle == IntPtr.Zero) throw new ProbeFailure("open-" + Marshal.GetLastWin32Error());
     try {
       if (Created(handle) != expectedCreation) throw new ProbeFailure("invalid-data");
