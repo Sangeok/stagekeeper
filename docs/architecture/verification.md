@@ -195,8 +195,10 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   수동 실행은 `case` 입력으로 일부 사례만 돌릴 수 있지만 `gateComplete: false`이면 기록에 `incomplete-eval` finding을 남긴다. 주 1회와 수동
   실행에서 돌며 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓴다(1회 정가 환산 약 $4.3). eval은 사용자 설정을 격리하므로
   사용자 환경에서만 나는 오독은 잡지 못한다. `plugin/evals/`는 출하 파일이 아니다.
-- [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`에서 실제 Claude와 무인 실행기로 백로그
-  항목 하나를 배정부터 문서 감사까지 처리하는지 본다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
+- [pipeline-smoke](../../.github/workflows/pipeline-smoke.yml)는 `windows-2022`와 `macos-15`(arm64)에서 실제 Claude와
+  무인 실행기로 백로그 항목 하나를 배정부터 문서 감사까지 처리하는지 본다. 두 다리는 같은 구독 계정을 쓰므로 한 실행
+  안에서 하나씩 돌고(`max-parallel: 1`), 한 다리가 실패해도 다른 다리는 돈다. 요약은 다리별 출력
+  `summary_windows`·`summary_macos`로 기록 job에 넘어간다. `client-init-smoke`와 같은 서버·DB·설치·init 위에서 Pro로
   올리고, 게이트 없는 파이프라인(`assign-work`·`plan`·`verify`·`implement`·`impl-verify`·`accept`·`doc-audit`)과 고정
   백로그 항목을 넣은 뒤 `harness-background.mjs --start --propose yes`로 실행기를 띄운다. 항목이
   `pipeline-completed`에 닿고, 다섯 역할이 AgentRun에 남고, plan-verifier 독립 패스가 1~3회이고, 리허설의 독립 사례와
@@ -210,7 +212,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   실패가 아직 운영에 시드하지 않은 템플릿 변경 때문일 수 있다. 구독 토큰 `E2E_CLAUDE_OAUTH_TOKEN`을 쓰고, 모델은
   고정하지 않아 그 계정의 기본 모델로 돈다. 실제 모델과 정가 환산 비용은 요약에 남는다(2026-11-02 첫 실행
   `claude-sonnet-5-5`, 약 $1.5, job 12분). 공개 로그에는 허용 필드 요약만 남긴다. 실행 기록과 세션 전사는
-  `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(7일)로만 남긴다. Codex 실행은 Codex 공개 배포에 착수할 때 붙인다.
+  `E2E_TRANSCRIPT_KEY`로 봉인한 artifact(`pipeline-smoke-transcripts-<다리>`, 7일)로만 남긴다. Codex 실행은 Codex 공개
+  배포에 착수할 때 붙인다.
 - 위 세 게이트는 `dev`나 `main`에서 수동 또는 정기로 돈 실행마다 `record` job으로
   [게이트 실행 기록](https://github.com/Sangeok/stagekeeper/issues/319)에 댓글 한 행을 남긴다. PR 실행과 다른 브랜치의
   실행은 남기지 않고 그 job도 돌지 않는다. gate job은 요약 한 줄을 job 출력으로 넘기고(`client-init-smoke`는 다리마다
@@ -250,7 +253,13 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   identity 불일치·필수 leg 누락·최신 실패·정리 실패·partial eval·검토 누락은 거부한다. 검토/외부 원인 재시도는 해당 execution과 digest에 귀속한다.
   unknown 모델 사용량·비용은 null로 유지하며 init에는 모델 호출·비용 0과 빈 model 목록이 필요하다.
   이 API는 전달받은 출처를 GitHub에 조회하거나 인증하지 않는다. 호출자가 모든 관련 시도와 검토를 신뢰된 경계에서 수집해야 한다.
-  현재 공개 schema 1 기록과 private wrapper는 이 schema로 자동 승격되지 않으며 trusted consumer 연결은 아직 미완료다.
+  공개 schema 1 기록을 이 schema의 인수 증거로 소급하지 않는다. private CI의 후속 `init-evidence.mjs`는
+  검토된 public checkout의 이 모듈을 import해 macOS Codex init의 두 scenario를 정규화한다. private workflow에는
+  허용 필드 JSON 하나만 artifact로 남기며 raw log·template·credential은 포함하지 않는다.
+  private `collect-init-evidence.mjs`는 GitHub의 private 저장소·owner dispatch·dev ref·workflow SHA·고정 target·job·runner·artifact 출처를
+  읽기 전용으로 대조한 뒤 이 판정기를 호출한다. 단일 실행의 `codex-macos-init-single-run` 결과이며 attempt 2 이상은 거부한다.
+  보관 중인 workspace와 아직 관찰하지 않은 update 실행 pin은 미충족으로 남긴다. 다른 실행·최신 실패·review/retry까지 모으는
+  후보 전체 consumer와 공개 게이트 연결은 여전히 미완료이며 이 단일 실행 결과는 승격 승인이 아니다.
   단위 시험 통과는 Windows Codex runner 준비나 양 OS 실제 인수를 뜻하지 않는다. 구현 현황은
   [dual-client CI 제안](../proposals/active/dual-client-ci-parity.md)의 Implementation Progress를 따른다.
 - 신규 E2E suite의 위치는 `tests/e2e/`다. 현재 전용 runner·CI job은 없으며, 위치 규칙을
@@ -295,7 +304,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
 | 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
 | init 스킬의 모델 동작 | 공통 | | `agent-eval/init-skill` | | | 모델 동작은 OS와 무관하다. eval은 셸 명령을 가두는 샌드박스가 있는 OS에서만 돌고 Windows에는 없다 |
-| 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | | | macOS | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
+| 파이프라인 전체 | OS별 | `pipeline-smoke/pipeline` | `pipeline-smoke/pipeline` | | | `scripts/rehearsals/rehearse-pipeline-smoke.ts` |
 | 게이트 실행 기록 | 공통 | | | `client-init-smoke/record`, `agent-eval/record`, `pipeline-smoke/record` | | |
 | 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
 <!-- ci-coverage:end -->
@@ -393,9 +402,40 @@ checkout/dirty 때문에 삭제가 막혀도 유효한 ref의 ancestry 진단은
 이때 GitHub API와 삭제는 하지 않지만 원격 확인과 fetch는 필요하다.
 보고에는 “커밋 보존 완료 / worktree 해제 필요 / 즉시 삭제 가능”을 구분한다.
 
+### 작업 시작과 worktree 선택
+
+요청을 읽기 전용 조사, 같은 작업의 계속, 독립 변경 중 하나로 구분하고 선택을 짧게
+보고한다. 새 메시지를 받았다는 이유만으로 branch나 worktree를 추가하지 않는다.
+
+| 상황 | 처리 |
+| --- | --- |
+| 코드 읽기·설명·읽기 전용 검토 | 기존 checkout에서 확인하며 새 branch·worktree를 만들지 않는다 |
+| 아직 병합되지 않은 같은 작업의 수정·테스트·리뷰 반영 | 해당 branch·worktree에서 계속한다 |
+| 기존 변경이나 다른 세션의 작업을 보존하면서 독립 변경 시작 | 최신 dev 기준 새 branch와 관리 worktree를 `create`로 만든다 |
+| 이전 작업의 사용을 끝내고 다음 작업 시작 | 아래 종료 절차를 먼저 수행한다. 보류되면 경로와 이유를 남기고 다음 변경을 격리한다 |
+
+이미 병합된 작업의 후속 변경은 최신 dev의 새 branch에서 시작한다. 관리 worktree는
+기록된 작업과 branch에 속하므로 branch만 바꿔 다른 작업에 재사용하지 않는다.
+`resume`은 같은 작업의 종료 취소이며 다른 작업에 폴더를 넘기는 명령이 아니다.
+
+관리 명령은 제거 대상 밖에 계속 남겨 둘 제어 checkout에서 실행한다. 새 독립 변경을
+시작할 때 원격 main/dev를 확인하고 최신 dev를 fetch한 뒤, 실행할 관리 도구
+(`package.json`, `scripts/manage-task-worktrees.mjs`, `scripts/cleanup-task-branches.mjs`)와
+운영 규칙(`AGENTS.md`, 이 문서)을 `origin/dev`와 대조한다. fetch만으로 checkout의
+실행 파일이나 규칙이 갱신되지는 않는다.
+제어 checkout 갱신은 변경사항과 다른 사용자가 없음을 확인한 뒤 수행한다.
+현재 폴더가 오래됐거나 작업 중이면 그대로 보존하고, 최신 도구와 규칙을 확인한 다른
+제어 checkout을 사용한다. 관리 명령이 없다는 이유로 기존 작업을 강제 전환하거나
+관리 기록을 수동으로 만들지 않는다.
+
+제어 checkout에서 `npm run worktrees -- status`로 기존 작업을 확인하고
+`npm run worktrees -- retry`로 이미 사용 종료가 선언된 작업의 남은 정리만 재시도한다.
+active 작업과 소유권 불명의 미등록 worktree는 보존한다. 새 격리가 필요한 경우에만
+아래 `create`를 실행하고 반환된 task ID·owner·경로·branch를 작업 동안 유지한다.
+
 ### 자기 작업의 worktree 종료
 
-새 작업은 아래 관리 명령을 사용한다. 다음 수동 절차는 기존 미등록 worktree에만
+새 worktree가 필요한 작업은 아래 관리 명령을 사용한다. 다음 수동 절차는 기존 미등록 worktree에만
 적용하며, 다른 작업의 소유권을 추정하거나 관리 기록을 수동으로 만들어 채택하지 않는다.
 
 1. 자신이 만든 정확한 경로·브랜치와 사용 종료를 확인한다. 나이·이름·clean 상태만으로
@@ -418,6 +458,12 @@ checkout/dirty 때문에 삭제가 막혀도 유효한 ref의 ancestry 진단은
 
 이 절차는 작업 주체가 수행한다. 브랜치 정리 스크립트는 checkout·worktree 제거·원격 ref 삭제를
 수행하지 않으며, 기존 소유권/사용 종료가 불명확한 worktree를 자동으로 정리하지 않는다.
+
+관리 작업은 아래 `finish`로 종료하고, 작업 종료 보고에는 결과가 보존된 commit·원격 branch
+또는 PR, worktree 제거 여부(유지 시 경로와 이유), branch 정리 여부와 보류 이유를 포함한다.
+작업을 계속할 때는 worktree를 유지한다고 보고하며, 후속 작업·프로세스·다른 사용자가
+파일을 쓰는 동안에는 `--usage-ended`를 선언하지 않는다. 폴더 제거와 branch 삭제는 별도
+결과이며, PR 대기 중에도 원격 커밋 보존과 사용 종료 조건을 충족하면 `finish`할 수 있다.
 
 원격 보호는 활성 Ruleset
 [Keep dev and main](https://github.com/Sangeok/stagekeeper/rules/24972879)이 담당한다.

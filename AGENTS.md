@@ -89,16 +89,31 @@ commits that were already green on `dev`.
   (`gh pr list --state open`) and read the proposals in `docs/proposals/active/`.
   Another session or machine may be changing the same files, or may own the decision
   you are about to make.
+- Before choosing a branch or worktree, state whether the request is read-only,
+  a continuation of the current task, or an independent change. Read-only inspection,
+  explanation and review do not need a new branch or worktree. Continue the same
+  unmerged task's fixes, tests and review responses in its existing branch and
+  worktree; a new message alone does not start a new task. Follow the merged-PR rule
+  below when the previous task branch has already merged.
 - Preserve dirty worktrees and additional commits. Do not stash, discard, force
   checkout, or remove another task's worktree to make cleanup pass. Use an isolated
   worktree for a new task when existing work must be preserved. An owner may release
   its own worktree only through the normal task-end procedure below.
-- From a retained control checkout, run `npm run worktrees -- status` and
+- Before starting a new independent change, use a retained control checkout with
+  the current `origin/dev` management tools and rules, following the preparation
+  procedure in `docs/architecture/verification.md`. Fetching updates remote-tracking
+  refs, not the files that execute the tools. Preserve dirty or shared checkouts.
+  From that control checkout, run `npm run worktrees -- status` and
   `npm run worktrees -- retry` at task start. Retry only uses previously recorded
   closure consent; it cannot close another active task. Report blocked records.
   Create new task worktrees with `npm run worktrees -- create --owner <owner>
   --branch harness/<topic> --path <new-path>` and retain the returned task ID.
   Existing unregistered worktrees remain unmanaged; never infer ownership from age.
+- Keep a managed worktree assigned to its recorded task and branch. Do not switch
+  it to another task's branch for reuse; `resume` only continues the same task.
+  When moving to a new task after the previous one's use has ended, complete its
+  normal finish procedure first. If preservation or usage checks block finish,
+  retain that worktree and report the reason before isolating the next change.
 - Verify that remote `main` and `dev` exist and fetch the latest `dev` before
   creating a new `harness/<topic>` branch. If either protected remote branch is
   missing or cannot be verified, stop branch maintenance and report it.
@@ -222,6 +237,10 @@ commits that were already green on `dev`.
   JSON's `preservation`, `worktrees`, `reasons` and `summary`. An `aborted` run exits
   unsuccessfully and may include earlier completed deletions; preserve its partial
   result and rerun inspection instead of assuming the batch was rolled back.
+- At task end, report where the results are preserved, the worktree's removal or
+  retention with its path and reason, and the branch's cleanup or retention reason.
+  An ongoing task keeps its worktree; do not declare usage ended while follow-up
+  work, processes or other users still need it.
 - Use the cleanup script for local task-branch deletion. Do not fall back to
   `git branch -D`, ad hoc ref deletion, or deletion based only on branch age,
   a missing remote ref, or `git branch --merged`. If evidence is incomplete or a
