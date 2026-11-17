@@ -13,7 +13,7 @@ closed-by: null
 closed-reason: null
 owners: []
 related:
-  - "docs/proposals/active/ci-os-coverage.md"
+  - "docs/proposals/completed/2026-11-17-ci-os-coverage.md"
   - "docs/architecture/verification.md"
   - "docs/architecture/macos-runtime.md"
   - "docs/architecture/protocol.md"
@@ -83,7 +83,7 @@ related:
 
 느린 실행을 평소의 2~4배로 보면 전체는 170~220초쯤으로 추정된다. 확인된 값은 아니다.
 
-**고르지 않은 방식.** [CI 검사의 OS 범위](./ci-os-coverage.md) 5.5절이 경위를 적는다. 느린 runner 하나에서만 시간 초과를 경고로 넘기는 방식은 arm64의 실패를 없애지 못하고 x64의 확인을 약하게 해서 쓰지 않았다. 다시 시도하는 방식은 느린 runner가 job 내내 느려서 효과가 약하다.
+**고르지 않은 방식.** [CI 검사의 OS 범위](../completed/2026-11-17-ci-os-coverage.md) 5.5절이 경위를 적는다. 느린 runner 하나에서만 시간 초과를 경고로 넘기는 방식은 arm64의 실패를 없애지 못하고 x64의 확인을 약하게 해서 쓰지 않았다. 다시 시도하는 방식은 느린 runner가 job 내내 느려서 효과가 약하다.
 
 ## Scope
 
