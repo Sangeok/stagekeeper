@@ -509,6 +509,20 @@ Gate A 후보의 scope는 호출한 계정의 모든 세션에 속한 non-zombie
 
 Windows 후보는 설치된 PowerShell Core 7의 메모리 내 Add-Type과 고정 phnt prefix 근거를 사용한다. 외부 binary 설치·SeDebugPrivilege 활성화는 없다. Windows Server 2022 x64/build 20348로 qualification을 제한하며 다른 profile은 unknown이다. source·profile·라이선스는 `scripts/pr/UPSTREAM.md`를 따른다. Windows 실제 통과 여부는 CI 결과로 기록하며 코드 작성만으로 성공을 선언하지 않는다.
 
-macOS 첫 확장 실행에서는 외부 process population 변경으로 정상 대조군 3건이 unknown이었다. 조건을 완화하거나 재시도 횟수만 늘리지 않고, 하나의 관측 budget 안에서 fresh inventory를 재확인하도록 구현했다. snapshotAttempts/populationChanges를 결과에 남긴다. 변경 후 native gate는 21 PASS, 1 SKIP(다른 OS 전용 common 사례), 0 FAIL이었다. Windows와 나머지 프로젝트 검증은 진행 중이다.
+macOS 첫 확장 실행에서는 외부 process population 변경으로 정상 대조군 3건이 unknown이었다. 조건을 완화하거나 재시도 횟수만 늘리지 않고, 하나의 관측 budget 안에서 fresh inventory를 재확인하도록 구현했다. snapshotAttempts/populationChanges를 결과에 남긴다. 변경 후 native gate는 21 PASS, 1 SKIP(다른 OS 전용 common 사례), 0 FAIL이었다. 후속 Windows·프로젝트 검증 결과는 아래와 실행 보고서에 기록한다.
 
 Windows 2022 x64/Node 22.23.4의 실제 CI에서 같은 계정 process 1건이 cwd-open-5로 거부됐다. 최소 조회 권한으로 바꾼 후에도 동일했다. native gate의 필수 clear/busy 사례가 unknown이므로 전체 QUALIFY는 통과하지 못했다. 실패 process를 제외하거나 권한을 올려 PASS를 만들지 않았으며 REPLACE/ADOPT는 진행하지 않는다. [실행 보고서](../../test-reports/active/pr-worktree-qualify.md)에 source/run/job과 실패·보류의 구분을 기록했다.
+
+후속 “다음 단계 진행” 요청으로 Q3의 directory 기반 대안 두 가지를 실제 Windows
+CI에서 비교했다. 시험 전용 helper는 CreateFileW의 sharing 검사와
+NtQueryInformationFile의 directory PID 조회이며 production adapter에 연결하지
+않았다. DELETE handle 아래 시작된 process는 target cwd를 유지했으나 handle 해제
+후에도 두 검사에서 누락됐다. 또한 관측용 DELETE handle은 일반 chdir를 EBUSY로
+막았다. 따라서 두 후보 모두 clear의 근거로 탈락시켰다. 탐색 시험 4건의 통과는
+이 반례의 재현이며 전체 QUALIFY 완료가 아니다.
+
+상위 계약과 이 문서의 cwd/PID·coverage 의미는 유지한다. 다음 단계는 자동 정리
+범위와 소유 worker의 종료 인계 계약에 대한 상위 설계 결정이다. 확인 불가를
+clear로 바꾸거나 root만 검사하는 우회는 채택하지 않는다. 원본 SDD의 hash와
+기존 관리기는 보존하며, 새 후보가 입증되거나 명시적인 계약 결정이 이루어지기
+전에는 BLK-PWC-01과 REPLACE 보류를 유지한다.

@@ -8,8 +8,8 @@ test-levels: ["static", "component", "integration"]
 test-tools: ["node:test", "Git", "lsof", "PowerShell Core"]
 created-at: "2026-11-17"
 completed-at: null
-last-executed-at: "2026-11-17T09:06:35.497Z"
-tested-revision: "285de226d8815c0604af21be826ada5b7febbcfb"
+last-executed-at: "2026-11-17T10:12:08.379Z"
+tested-revision: "871cffedb2a2d1475e925840eb19c4717d02cdbd"
 owners: []
 related:
   - "docs/proposals/active/pr-worktree-closeout-phase-qualify.md"
@@ -17,7 +17,7 @@ related:
 primary-area: "tooling/pr-worktree-qualify"
 observed-environments: ["macOS arm64 / Darwin 25.2.0 / Node 26.4.0", "GitHub macos-15 / Node 22.23.4", "GitHub windows-2022 x64 / Node 22.23.4"]
 test-summary: "fail: QUALIFY 후보 — macOS 통과, Windows 필수 clear/busy 대조군이 cwd 접근 거부로 미충족"
-follow-up: ["Windows cwd 조회 후보 재선정 후 native 재검증", "기존 codex-init-eval 150ms 시험의 CI 타이밍 실패 별도 확인", "REPLACE 착수 보류"]
+follow-up: ["Windows 사용 종료 계약과 자동 정리 범위의 상위 설계 결정", "새 후보는 완전성 근거를 먼저 마련한 뒤 native 검증", "REPLACE 착수 보류"]
 ---
 
 # PR worktree 사용 관측 QUALIFY 실행
@@ -73,7 +73,7 @@ follow-up: ["Windows cwd 조회 후보 재선정 후 native 재검증", "기존 
 
 필수 Windows 대조군 FAIL이 있으므로 현재 시험의 전체 판정은 fail이다. 실행은 후속 후보 수정/재검증을 기다리므로 active/awaiting-rerun으로 유지한다. 계획의 Windows 사용 확인 blocker는 해소되지 않았고, Phase 실행은 보류다.
 
-다음 작업은 Windows에서 프로세스 메모리 조회에 의존하는 현재 후보를 대체할 방법을 검증하거나, 관측 범위·권한 계약 변경이 필요한지 설계로 결정하는 것이다. 새로운 권한 상승이나 실패 process 제외로 gate를 통과시키지 않는다. 양 OS의 모든 필수 사례를 충족한 뒤에만 REPLACE 상세 구현으로 진행한다.
+Q3의 대안 두 가지까지 실제로 검증했으나 clear 근거로 채택하지 못했다. 다음 작업은 상위 사용 종료 계약과 자동 정리 범위의 설계 결정이다. 현재 계약을 유지한다면 BLK-PWC-01을 유지하고, 추가 후보는 cwd 누락을 배제할 근거부터 제시해야 한다. 새로운 권한 상승이나 실패 process 제외로 gate를 통과시키지 않는다. 양 OS의 모든 필수 사례를 충족한 뒤에만 REPLACE 상세 구현으로 진행한다.
 
 ## CI Evidence
 
@@ -84,3 +84,74 @@ follow-up: ["Windows cwd 조회 후보 재선정 후 native 재검증", "기존 
 | [44052440547](https://github.com/Sangeok/stagekeeper/actions/runs/44052440547) / 285de22 | PASS | FAIL, 최소 권한에도 cwd-open-5 | build/test/web/server/integration PASS, static 기존 timeout 사례 FAIL |
 
 [macOS CI](../assets/2026-11-17-pr-worktree-qualify/macos-ci.json), [Windows 최초](../assets/2026-11-17-pr-worktree-qualify/windows-first.json), [Windows 진단](../assets/2026-11-17-pr-worktree-qualify/windows-diagnostic.json), [최소 권한 재검증](../assets/2026-11-17-pr-worktree-qualify/windows-minimal-rights.json)을 보존한다. 각 파일의 commit·run/job ID를 기준으로 결과를 해석한다.
+
+## Q3 follow-up: directory 기반 대안의 실제 결과
+
+사용자의 “다음 단계 진행”에 따라 기존 PEB 후보와 별개인 두 Windows 대안을
+시험했다. production `inspectWorktreeUsage`와 원래 native gate는 그대로 유지했다.
+아래 4개 탐색 시험의 통과는 반례 재현 성공이며 Windows QUALIFY 통과가 아니다.
+
+| 후보 | 실제 관측 | 결정 |
+| --- | --- | --- |
+| DELETE access로 directory를 열어 sharing violation 확인 | 일반 cwd는 감지했으나 `chdir`를 EBUSY로 막았다. 동시에 시작된 새 process는 해당 cwd를 유지하며 검사에서는 누락됨 | clear 근거에서 탈락. 운영 관측에 연결하지 않음 |
+| `NtQueryInformationFile` class 47로 directory handle의 PID 확인 | 일반 cwd와 일반 directory handle을 모두 반환. 실제 cwd process가 살아 있어도 성공 코드와 PID 0건을 반환하는 반례 확인 | clear 근거에서 탈락. system-use 예약 ABI라는 별도 한계도 유지 |
+| root directory 한 번만 조회 | 하위 directory cwd는 두 후보 모두 놓침 | root 한 번의 검사 불충분. 재귀 탐색만으로 아래 cwd 누락 반례까지 해결되지는 않음 |
+
+결정적 사례는 독립 IPC oracle로 실제 cwd와 생존을 확인했다.
+
+1. fixture의 target directory에 DELETE access handle을 유지한다. 파일 삭제나
+   disposition 변경은 하지 않는다.
+2. 다른 fixture에서 `chdir(target)`는 EBUSY로 실패한다. 반면 target을 초기 cwd로
+   지정한 새 Node process는 정상 시작하고 `process.cwd()`가 target임을 보고한다.
+3. 그 process가 살아 있는 동안 DELETE access 검사는 성공하며 PID 조회에는
+   해당 process가 없다.
+4. 첫 DELETE handle을 닫은 뒤에도 새 process는 살아 있다. 재검사에서 DELETE
+   access는 성공하고 PID 조회는 NTSTATUS 00000000, PID 0건이다.
+5. 자기 fixture process만 종료하고 synthetic canary 내용 불변을 확인한 뒤
+   임시 directory를 회수했다.
+
+이는 Windows 20348/x64에서 관측한 반례다. 모든 Windows 관측 방법이 불가능하다는
+일반 증명이나 다른 OS/build에 대한 결과가 아니다. 현재 두 후보는 cwd 부재를
+보장하지 못하므로 완전성 근거로 사용할 수 없다는 판정이다.
+
+첫 실행의 일반 handle fixture는 FILE_READ_ATTRIBUTES만 요청했다. 이 access는
+공유 검사에서 데이터 읽기 access와 다르므로 예상한 sharing violation이 없었다.
+FILE_LIST_DIRECTORY를 사용하는 대조군으로 수정했고, 그 과정과 첫 실패도 보존했다.
+
+| Run / revision | 탐색 시험 | 기존 Windows native | 다른 check job |
+| --- | --- | --- | --- |
+| [44061702799](https://github.com/Sangeok/stagekeeper/actions/runs/44061702799) / 313702a | 3 PASS / 1 FAIL: metadata-only handle 대조군의 기대값 오류 | 7 FAIL | 모두 PASS |
+| [44062134741](https://github.com/Sangeok/stagekeeper/actions/runs/44062134741) / d2f116c | 4 PASS: cwd 신원·chdir 간섭·PID 누락 확인 | 7 FAIL | 모두 PASS |
+| [44062492846](https://github.com/Sangeok/stagekeeper/actions/runs/44062492846) / 871cffe | 4 PASS: handle 해제 후에도 누락 확인 | 7 FAIL | 모두 PASS |
+
+증거: [최초 실험](../assets/2026-11-17-pr-worktree-qualify/windows-directory-first.json),
+[cwd 신원 대조](../assets/2026-11-17-pr-worktree-qualify/windows-directory-identity.json),
+[해제 후 재검사](../assets/2026-11-17-pr-worktree-qualify/windows-directory-release.json).
+helper/test SHA-256과 source/run/job을 각 파일에 기록했다. 공개 evidence에는
+무관한 PID·경로·명령·환경을 포함하지 않는다.
+
+로컬 추가 검증은 `verify:fsd`, `verify:server`, `verify:shared`, ESLint,
+`verify:ci-coverage`, `check`(581 PASS / 4 SKIP), `test:architecture`
+(472 PASS / 4 SKIP)에서 통과했다. Windows 실험은 실제 Windows CI로 실행했으며
+macOS/Linux의 해당 suite skip을 Windows 성공으로 세지 않는다. 앞서 기록한
+`codex-init-eval` timeout 사례는 이번 후속 CI에서 수정 없이 통과했다. 최초 실패의
+원인을 확정하거나 별도 수정으로 해결했다고 주장하지 않는다.
+
+## 다음 설계 결정의 범위
+
+현재 계약을 보존한 구현 상태는 unknown과 worktree 보존이다. 자동 정리를
+실현하려면 관측 가능한 조건과 종료 인계의 책임을 다시 정해야 한다.
+
+권고안은 worker가 작업 결과를 보존하고 자신이 소유한 process를 종료한 뒤,
+대상 밖의 controller에 종료를 인계하는 흐름을 먼저 명세하는 것이다. native
+관측은 추가 보호로 두되, 확인 불가 상태의 자동 삭제는 계속 금지하고 명시적인
+수동 인수 경로로 남긴다. 이 안은 모든 Windows task의 즉시 자동 정리를
+보장하지 않으므로 원래 목표와의 차이를 상위 SDD에서 결정해야 한다.
+
+이번 변경은 그 계약을 자동 채택하지 않는다. parent SDD hash는 그대로이며,
+권한 상승·OpenClaw 설치·관리기 교체·PR 병합·실제 worktree 정리도 수행하지 않았다.
+
+Primary API 근거는 [CreateFileW](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew),
+[SetCurrentDirectory](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setcurrentdirectory),
+[FILE_INFORMATION_CLASS](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ne-wdm-_file_information_class)다.
+실제 반례는 위 CI evidence에 근거하며 API 문서에 해당 반례가 명시돼 있다고 주장하지 않는다.

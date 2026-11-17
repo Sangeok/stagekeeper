@@ -113,7 +113,7 @@ describe("Windows directory observation candidate", { skip: native ? false : "Wi
       assert.equal(result.deleteAccessError, 32);
     } finally { await release(child); }
   });
-  it("measures whether the delete-access probe blocks a new cwd user while its handle is open", async () => {
+  it("reproduces cwd omission after DELETE-handle interference and release", async () => {
     const child = await holdHandle("hold-delete");
     let cwdChild, deleteHeld = true;
     try {
@@ -126,22 +126,23 @@ describe("Windows directory observation candidate", { skip: native ? false : "Wi
       catch (error) { errorCode = error.code; }
       assert.equal(child.exitCode, null);
       evidence.push({ name: "new-cwd-during-delete-probe", errorCode, blocked: errorCode !== null, cwdMatches });
-      assert.notEqual(errorCode, "ETIMEDOUT");
+      assert.equal(errorCode, null);
+      assert.equal(cwdMatches, true);
       const script = "try { process.chdir(process.argv[1]); process.stdout.write(JSON.stringify({ ok: true, cwd: process.cwd() })); } catch (error) { process.stdout.write(JSON.stringify({ ok: false, errorCode: error.code })); }";
       const changed = JSON.parse((await execute(process.execPath, ["-e", script, target], { ...options(), timeout: 5000 })).stdout);
       evidence.push({ name: "chdir-during-delete-probe", ok: changed.ok, errorCode: changed.errorCode ?? null,
         cwdMatches: changed.ok && path.normalize(changed.cwd).toLowerCase() === path.normalize(target).toLowerCase() });
-      if (cwdMatches) {
-        cwdChild = await hold(target);
-        const during = await probe("cwd-created-during-delete-probe", target, cwdChild.pid);
-        assert.equal(during.deleteAccessOpened, true);
-        assert.equal(during.pids.includes(cwdChild.pid), false);
-        await release(child); deleteHeld = false;
-        const released = await probe("same-live-cwd-after-delete-probe", target, cwdChild.pid);
-        assert.equal(cwdChild.exitCode, null);
-        assert.equal(released.deleteAccessOpened, true);
-        assert.equal(released.pids.includes(cwdChild.pid), false);
-      }
+      assert.equal(changed.ok, false);
+      assert.equal(changed.errorCode, "EBUSY");
+      cwdChild = await hold(target);
+      const during = await probe("cwd-created-during-delete-probe", target, cwdChild.pid);
+      assert.equal(during.deleteAccessOpened, true);
+      assert.equal(during.pids.includes(cwdChild.pid), false);
+      await release(child); deleteHeld = false;
+      const released = await probe("same-live-cwd-after-delete-probe", target, cwdChild.pid);
+      assert.equal(cwdChild.exitCode, null);
+      assert.equal(released.deleteAccessOpened, true);
+      assert.equal(released.pids.includes(cwdChild.pid), false);
     } finally {
       if (cwdChild) await release(cwdChild);
       if (deleteHeld) await release(child);

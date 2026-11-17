@@ -1,0 +1,137 @@
+{
+  "sourceRevision": "871cffedb2a2d1475e925840eb19c4717d02cdbd",
+  "runId": 44062492846,
+  "jobId": 133967672987,
+  "recordedAt": "2026-11-17T10:12:08.3794694Z",
+  "result": "negative qualification: both directory alternatives rejected as clear evidence",
+  "exploratoryTests": {
+    "passed": 4,
+    "failed": 0
+  },
+  "combinedNativeStep": {
+    "passed": 18,
+    "failed": 7,
+    "skipped": 1
+  },
+  "hashes": {
+    "scripts/pr/testing/windows-directory-probe.cs": "4512c54437f188cba9f2b3f3999c87f4d6ad79ed721ee1951c0503a09bf653d1",
+    "scripts/pr/testing/windows-directory-probe.ps1": "a5d88af4d67e6b1198cd8a0a8766eb9a0787042f29d4a8c70a6d9299af0952f6",
+    "scripts/pr/windows-directory-usage.test.mjs": "56d55ec5a07c18ce583132b8df06f561cf797e1bdd5672d1484b7dc2943275e2"
+  },
+  "evidence": {
+    "platform": "win32",
+    "architecture": "x64",
+    "release": "10.0.20348",
+    "node": "v22.23.4",
+    "observations": [
+      {
+        "name": "empty",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": null
+      },
+      {
+        "name": "target-cwd",
+        "deleteAccessOpened": false,
+        "deleteAccessError": 32,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": true
+      },
+      {
+        "name": "departed",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": null
+      },
+      {
+        "name": "descendant-via-root",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": false
+      },
+      {
+        "name": "descendant-direct",
+        "deleteAccessOpened": false,
+        "deleteAccessError": 32,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": true
+      },
+      {
+        "name": "parent-only-covers-descendant",
+        "deleteProbeDetected": false,
+        "pidQueryDetected": false
+      },
+      {
+        "name": "sibling",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": null
+      },
+      {
+        "name": "non-cwd-directory-handle",
+        "deleteAccessOpened": false,
+        "deleteAccessError": 32,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": true
+      },
+      {
+        "name": "new-cwd-during-delete-probe",
+        "errorCode": null,
+        "blocked": false,
+        "cwdMatches": true
+      },
+      {
+        "name": "chdir-during-delete-probe",
+        "ok": false,
+        "errorCode": "EBUSY",
+        "cwdMatches": false
+      },
+      {
+        "name": "cwd-created-during-delete-probe",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": false
+      },
+      {
+        "name": "same-live-cwd-after-delete-probe",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": false
+      },
+      {
+        "name": "new-cwd-after-delete-probe",
+        "opened": true
+      }
+    ]
+  },
+  "limits": [
+    "Original PEB native qualification still fails with cwd-open-5",
+    "Only Windows Server 2022 build 20348 x64 tested",
+    "No conclusion that every possible Windows observation mechanism is impossible",
+    "No production cleanup or process termination outside owned fixtures"
+  ]
+}

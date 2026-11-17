@@ -1,0 +1,119 @@
+{
+  "sourceRevision": "d2f116c6eb24ddc8a4665cfd9e97586d969e5315",
+  "runId": 44062134741,
+  "jobId": 133966439027,
+  "recordedAt": "2026-11-17T10:09:41.0515605Z",
+  "result": "4 exploratory assertions passed; alternatives demonstrate missing cwd and interference, not qualification success",
+  "hashes": {
+    "scripts/pr/testing/windows-directory-probe.cs": "4512c54437f188cba9f2b3f3999c87f4d6ad79ed721ee1951c0503a09bf653d1",
+    "scripts/pr/testing/windows-directory-probe.ps1": "a5d88af4d67e6b1198cd8a0a8766eb9a0787042f29d4a8c70a6d9299af0952f6",
+    "scripts/pr/windows-directory-usage.test.mjs": "81f11f79d0968266646a23434ddddfa5c213849e7e43572775f5752e7c24b3c9"
+  },
+  "evidence": {
+    "platform": "win32",
+    "architecture": "x64",
+    "release": "10.0.20348",
+    "node": "v22.23.4",
+    "observations": [
+      {
+        "name": "empty",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": null
+      },
+      {
+        "name": "target-cwd",
+        "deleteAccessOpened": false,
+        "deleteAccessError": 32,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": true
+      },
+      {
+        "name": "departed",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": null
+      },
+      {
+        "name": "descendant-via-root",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": false
+      },
+      {
+        "name": "descendant-direct",
+        "deleteAccessOpened": false,
+        "deleteAccessError": 32,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": true
+      },
+      {
+        "name": "parent-only-covers-descendant",
+        "deleteProbeDetected": false,
+        "pidQueryDetected": false
+      },
+      {
+        "name": "sibling",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 0,
+        "oracleIncluded": null
+      },
+      {
+        "name": "non-cwd-directory-handle",
+        "deleteAccessOpened": false,
+        "deleteAccessError": 32,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": true
+      },
+      {
+        "name": "new-cwd-during-delete-probe",
+        "errorCode": null,
+        "blocked": false,
+        "cwdMatches": true
+      },
+      {
+        "name": "chdir-during-delete-probe",
+        "ok": false,
+        "errorCode": "EBUSY",
+        "cwdMatches": false
+      },
+      {
+        "name": "cwd-created-during-delete-probe",
+        "deleteAccessOpened": true,
+        "deleteAccessError": 0,
+        "queryOpenError": 0,
+        "queryStatus": "00000000",
+        "pidCount": 1,
+        "oracleIncluded": false
+      },
+      {
+        "name": "new-cwd-after-delete-probe",
+        "opened": true
+      }
+    ]
+  },
+  "limits": [
+    "No production adapter changes",
+    "Original PEB native qualification still fails",
+    "New process cwd verified by independent IPC oracle; missing directory holder PID observed while DELETE-access fixture is alive",
+    "Persistence after release is tested by the next revision"
+  ]
+}
