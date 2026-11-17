@@ -3,7 +3,7 @@ import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { publishTemplateRelease, readTemplateDeployment, validateTemplateRelease } from "../../src/server/templates/api";
 import { readTemplateSources } from "./template-seed-query";
-import { readTemplateTarget, withTemplateTarget, templateCommandArguments, templateCommandAudit, TEMPLATE_TARGET_OPTIONS } from "./template-target";
+import { readTemplateTarget, templateToolFailure, withTemplateTarget, templateCommandArguments, templateCommandAudit, TEMPLATE_TARGET_OPTIONS } from "./template-target";
 
 async function main(): Promise<void> {
   if (process.argv.slice(2).join(" ") === "--help") {
@@ -38,4 +38,4 @@ async function main(): Promise<void> {
   console.log(JSON.stringify(result.item));
 }
 
-main().catch(() => { console.error("Template import failed. Inspect the approved source/target and query the same request ID; private details are omitted."); process.exitCode = 1; });
+main().catch(error => { console.error(templateToolFailure(error, "Template import failed. Inspect the approved source/target and query the same request ID; private details are omitted.")); process.exitCode = 1; });

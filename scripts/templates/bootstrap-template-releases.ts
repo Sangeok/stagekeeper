@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path
 import { execFileSync } from "node:child_process";
 import { manifestHash } from "../../packages/shared/templates/manifest-hash.mjs";
 import { bootstrapTemplateReleases, snapshotTemplateCutover, readTemplateDeployment, templateCutoverEvidenceSchema } from "../../src/server/templates/api";
-import { readTemplateTarget, withTemplateTarget, templateCommandArguments, templateCommandAudit, TEMPLATE_TARGET_OPTIONS } from "./template-target";
+import { readTemplateTarget, templateToolFailure, withTemplateTarget, templateCommandArguments, templateCommandAudit, TEMPLATE_TARGET_OPTIONS } from "./template-target";
 
 function privatePath(filename: string, exists: boolean): string {
   if (!filename || !isAbsolute(filename)) throw new Error("An absolute private snapshot/evidence path is required");
@@ -50,4 +50,4 @@ async function main() {
   console.log(JSON.stringify(result.item));
 }
 
-main().catch(() => { console.error("Template bootstrap failed. Preserve the private snapshot, inspect maintenance evidence and query the same request ID; private details are omitted."); process.exitCode = 1; });
+main().catch(error => { console.error(templateToolFailure(error, "Template bootstrap failed. Preserve the private snapshot, inspect maintenance evidence and query the same request ID; private details are omitted.")); process.exitCode = 1; });

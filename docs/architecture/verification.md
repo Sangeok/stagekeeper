@@ -1153,7 +1153,8 @@ CSS 없는 fixture의 callback/activeElement 결과는 실제 배치·가로 이
 
 `src/server/templates/release-preparation.test.ts`는 canonical identity와
 설치 표면/언어 규칙을, `scripts/templates/template-release-cli.test.ts`는
-CLI의 사전 거부와 명시적 연결 대상 검증을 확인한다.
+CLI의 사전 거부, Windows 거부와 명시적 연결 대상 검증을 확인한다. 실제 Windows 프로세스의 거부
+시험은 Windows에서만, 비공개 profile 시험은 Windows 밖에서만 돈다.
 `tests/server/integration/template-release.test.ts`는 안전 검사를 통과한
 TEST_DATABASE_URL 안에 고유 schema를 만들고 전체 migration을 적용한다.
 각 Prisma adapter와 raw SQL 연결의 schema를 함께 지정하고 확인하며,
