@@ -142,9 +142,21 @@ qualification flag를 받지 않는다. 실제 Git 시험은 기존 bare origin 
 ## Command Contract
 
 공통 `--root`는 대상 밖의 control checkout이다. UUID·literal branch·절대 경로·SHA·state OID를
-엄격하게 파싱하고 알 수 없는 key/중복 flag/보호 ref를 거부한다. 상태 변경 명령은
-`--task --owner --expected-state <OID>`를 요구한다. HEAD 관련 효과에는 `--expected-head`,
-worktree 효과에는 `--expected-instance`를 함께 받는다. 숫자 revision도 출력하되 CAS는 OID로 한다.
+엄격하게 파싱하고 알 수 없는 key/중복 flag/보호 ref를 거부한다. 입력 schema는 operation별
+discriminated union이다. 모든 mutation에 task 식별자를 일괄 요구하지 않는다.
+
+- 기존 task mutation은 `--task --owner --expected-state <OID>`가 필수다. HEAD 효과에는
+  `--expected-head`, worktree 효과에는 `--expected-instance`를 추가한다.
+- 새 create는 아직 task/state가 없으므로 owner/branch/path만 받는다. UUID를 생성하고
+  새 task ref의 부재를 내부 CAS 조건으로 사용한다. task/state flag를 추가하면 모순 입력으로 거부한다.
+- migrate는 repo 범위다. apply는 plan 파일·expected plan digest·expected migration state
+  (`absent` 또는 OID)를 받으며 task state와 혼용하지 않는다. recover/abort는 기존 migration OID가 필수다.
+- recover-guard는 `--guard common|task|migration`으로 선택하고 task일 때만 task UUID를 받는다.
+  회수는 nonce+quiescent 확인이 필수이며 legacy fence를 선택할 수 없다.
+- status/inspect/preview/guard 조회에는 mutation용 동의 flag를 받지 않는다.
+
+숫자 sequence는 출력하고 CAS에는 해당 namespace의 OID를 사용한다. 동일 요청 replay의
+저장된 이전 OID와 현재 OID를 혼동해 성공한 중복을 stale로 거부하지 않는다.
 
 | 명령 | 추가 입력 / 의미 | 허용 효과 |
 | --- | --- | --- |
@@ -156,10 +168,10 @@ worktree 효과에는 `--expected-instance`를 함께 받는다. 숫자 revision
 | recover | task, expected state | 원격·로컬 효과 관측과 기록. 재병합/파일/ref 삭제 없음 |
 | cleanup | task, expected state/HEAD/instance, request-id | 이미 확인된 merge/retire의 남은 로컬 효과만 |
 | resume | task, expected state | 아직 병합 요청을 보내지 않은 intact sealed 작업만 working 복귀 |
-| retire | expected HEAD/instance/state, usage-ended, request-id | no-PR + fresh dev ancestry 확인 후 cleanup 목적을 retire로 설정 |
+| retire | expected HEAD/instance/state, usage-ended, request-id | PR 없음 또는 CLOSED-unmerged, open/dependent PR 없음 + fresh dev ancestry 확인 후 retire 목적 설정 |
 | acknowledge-removal | expected state/HEAD/instance, request-id, external-removal-confirmed | 명시적 사용자 보고 + 실제 부재·보존 검증, receipt만 저장 |
-| migrate preview/apply/recover/abort | 아래 migration plan의 ID/digest와 expected state | fixture 구현. 실제 적용 권한은 ADOPT |
-| recover-guard | 관측, 또는 expected nonce + confirmed-quiescent | 알려진 dead guard만 회수. legacy migration fence는 회수 대상 아님 |
+| migrate preview/apply/recover/abort | repo 범위 plan ID/digest와 migration 전용 expected state | fixture 구현. 실제 적용 권한은 ADOPT |
+| recover-guard | guard scope, task scope의 UUID; 회수 시 expected nonce + confirmed-quiescent | 알려진 dead guard만 회수. legacy migration fence는 회수 대상 아님 |
 
 complete를 호출할 수 있는 문맥은 해당 PR 병합이 승인된 실행 문맥이다. CLI의 owner/
 usage-ended 문자열 자체가 인증이나 타 사용자 동의가 되지는 않는다. 별도 확인 질문을
@@ -183,7 +195,7 @@ task ref는 `refs/stagekeeper/pr-closeout/tasks/<uuid>`이며 commit tree의 `st
 
 - identity: taskId, instanceId, commonGit canonical path와 installationId, owner,
   literal branch, worktree path/admin, baseSHA, source tool revision.
-- lifecycle: sequence, phase, creation intent, PR binding(repo ID/number/base/head repo/branch),
+- lifecycle: sequence, previousStateOid(null 또는 직전 state OID), phase, creation intent, PR binding(repo ID/number/base/head repo/branch),
   sealed HEAD, 종료 선언과 file fingerprint, cleanup purpose(merged/retire).
 - effects: request-id·expected HEAD/state·시도 전 intent·관측 outcome,
   merge/check receipts, worktree removal intent/result, branch delete intent/result.
@@ -194,7 +206,10 @@ task ref는 `refs/stagekeeper/pr-closeout/tasks/<uuid>`이며 commit tree의 `st
 - migration: old task ID/source digest/원래 state. 옛 closing consent는 새 권한이 아님.
 
 새 state commit은 이전 state를 첫 parent로, 필요한 base/sealed source/merge commit을
-추가 parent로 보존한다. SHA 문자열을 JSON에 적는 것만으로 GC 보존을 주장하지 않는다.
+추가 parent로 보존한다. previousStateOid가 null인 최초 상태에서는 이력 탐색을 멈춘다.
+그 외에는 첫 Git parent와 previousStateOid의 일치, 동일 task/installation/schema를 확인한다.
+base/source/merge를 pin한 보조 parent에 대한 일반 ancestry를 승인·replay의 state 이력으로
+사용하지 않는다. SHA 문자열을 JSON에 적는 것만으로 GC 보존을 주장하지 않는다.
 `hash-object / mktree / commit-tree`는 index/working tree를 사용하지 않고, task ref는
 expected old OID로 갱신한다. 로컬 전용 internal ref를 제품 branch에 commit/push하지 않는다.
 [Git commit-tree](https://git-scm.com/docs/git-commit-tree)의 parent 연결을 사용한다.
@@ -219,8 +234,11 @@ expected old OID로 갱신한다. 로컬 전용 internal ref를 제품 branch에
 
 공통 Git 아래 `stagekeeper-pr-closeout`은 guard·activation·빈 hooks directory를 소유한다.
 per-task guard는 원격 대기까지 유지해 중복 complete를 막고, 공통 mutation guard는
-worktree/ref/activation을 바꾸는 짧은 구간에만 잡는다. 일반 작업은 task → common 순서,
-migration은 전체 일반 작업의 중지 확인 뒤 legacy fence → common 순서다.
+worktree/ref/activation을 바꾸는 짧은 구간에만 잡는다. migration은 common Git당 하나의
+coordinator guard를 invocation 동안 보유해 fence가 아직 없는 preparing 구간도 직렬화한다.
+이 guard는 task-state의 동일 guard primitive를 사용하며 새 상태 원본이나 service가 아니다.
+일반 작업은 task → common 순서다. migration은 coordinator → common으로 journal을
+준비하고 common을 놓은 다음, coordinator를 유지한 채 legacy fence → common 순서로 진행한다.
 잠금을 기다리며 무한 대기하지 않고 task-busy/guard-held를 반환한다.
 
 guard는 mkdir 배타 생성, nonce·host·PID·task/request identity와 생성 시각으로 식별한다.
@@ -257,6 +275,27 @@ Canonical: [TASK-PWCR-01](./pr-worktree-closeout.md#task-pwcr-01-identity상태�
 ## Change detail for TASK-PWCR-02
 
 Canonical: [TASK-PWCR-02](./pr-worktree-closeout.md#task-pwcr-02-병합-검증요청관측).
+
+### PR state dispatch before preflight
+
+우선 저장된 task/installation/예상 H와 receipt를 검증한다. 이미 complete/retired인
+task의 반복 호출은 로컬 path/admin/등록/ref 부재와 완료 receipt를 확인해 무효과 no-op로
+끝내며, 이미 삭제된 live HEAD/marker나 현재 PR readiness를 요구하지 않는다. 재등장은 보존한다.
+
+아직 종료되지 않았고 PR이 연결되거나 complete로 지정된 경우에는 repo/base/저장된 H의
+PR binding 뒤 PR 상태부터 분기한다. live HEAD·파일 보존은 새 인계 또는 존재하는 worktree의
+정리에 적용하며, 아래 readiness 검사는 OPEN에 새 병합 요청을 보낼 때만 적용한다.
+
+| PR 관측 | complete / recover / retire의 동작 |
+| --- | --- |
+| OPEN | complete는 종료 인계·자료 보존·CI/readiness 검증 뒤에만 새 intent/PUT 가능. retire는 거부 |
+| MERGED (REST closed + merged=true) | exact H·merge SHA·fresh dev 증명을 검증한다. 저장된 merged receipt가 없다면 복구하며 PUT 0회. 현재 reviewDecision/CLEAN을 다시 요구하지 않는다 |
+| CLOSED-unmerged | complete는 closed-unmerged로 보존하고 PUT 0회. retire는 새 종료 인계·H의 dev ancestry·open/dependent PR 부재를 확인해 처리할 수 있음 |
+| 상태/merged 값·binding 불명확 | 관측 불가로 보존. 추측으로 MERGED/CLOSED를 정하거나 PUT하지 않음 |
+
+retire에서 closed PR은 삭제 권한이 아니다. 해당 task의 현재 H가 fresh dev에 보존됐는지가
+별도 근거다. 이미 merged인 PR의 작업은 merged 흐름을 유지하며 retired로 다시 분류하지 않는다.
+반복 complete의 terminal/local-removal 재개는 아래 R03 분기와 연결한다.
 
 ### preflight and binding
 
@@ -298,23 +337,54 @@ force deletion하거나 다른 PR의 증거를 빌리지 않는다.
 별도 작업 인계로 처리한다. 이번 resume은 요청 전 봉인 취소 범위를 확장하지 않는다.
 
 GitHub 조회는 이번 task/PR/HEAD로 제한한다. command 한 번은 20초+settle 4초, 합산 출력 16 MiB.
-병합 후 관측은 120초 이내, 2초 이상 간격·최대 30회다. 429/Retry-After가 budget을 넘으면
-pending으로 끝낸다. 이는 초기 설계 예산이며 실측 성능 보장이 아니다.
+병합 후 관측은 monotonic clock의 공유 120초 budget과 최대 30회로 제한한다.
+각 자식 timeout은 min(20초, 남은 관측 budget)이며 query·parse·backoff가 같은 budget을
+소비한다. 관측 간격은 2초 이상이다. 429/Retry-After가 남은 budget을 넘거나 다음 호출을
+시작할 수 없으면 pending으로 끝낸다. deadline 뒤에는 새 조회를 시작하지 않는다.
+이미 시작한 자기 자식의 settle에 최대 4초만 추가하므로 이 관측 구간은 120+4초다.
+이는 complete 전체 명령의 총 수행 시간이나 실측 성능 보장은 아니다.
 검증 연결: VFY-PWC-02/03/04/07/13.
 
 ## Change detail for TASK-PWCR-03
 
 Canonical: [TASK-PWCR-03](./pr-worktree-closeout.md#task-pwcr-03-사용-종료파일branch-정리).
 
+### cleanup dispatch
+
+cleanup은 guard·task/보존 증거를 읽은 뒤 path/admin/registry의 현재 존재와 저장된
+제거 결과를 먼저 분류한다. 파일 제거와 남은 branch 처리의 전조건을 분리한다.
+
+| 현재 대상 / 제거 근거 | 처리 |
+| --- | --- |
+| intact worktree 존재 | 아래 1~7의 자동 제거 검사. qualified/clear가 아니면 폴더와 branch 모두 보존 |
+| 모두 부재 + 자신의 durable removal intent/result로 제거 확정 | 파일/probe를 재실행하지 않고 branch-only 단계로 진행 |
+| 모두 부재 + 유효한 external-manual receipt | Windows/unqualified여도 branch-only 가능. unknown을 clear로 바꾸지 않음 |
+| 모두 부재 + 근거 없음 | external-removal-unconfirmed, branch 보존. 사용자가 실제 외부 제거를 보고해야 ack 가능 |
+| 일부만 부재, 새 instance/path 존재, identity 불명확 | partial-removal/identity-changed, branch 보존 |
+
+부재 검사는 lstat로 dangling link도 존재로 취급한다. branch-only 경로는 fresh 부재,
+보존 증거, 예상 H/state/instance, 다른 worktree·open/dependent PR·remote ref 재사용을
+재검증한다. missing path에 probe를 호출해 unknown이 나왔다는 이유로 이미 인수한 외부
+제거를 무효화하지 않는다. 관측 미실행/비적용과 외부 receipt를 별도로 출력한다.
+기록된 제거 결과가 있더라도 경로가 다시 생겼으면 branch-only 권한을 사용하지 않는다.
+
+아래 1~4는 intact worktree의 자동 제거 경로다. 5~7은 자체 제거 직후와 검증된
+branch-only 경로가 공유한다. 두 경로가 별도 ref 삭제 정책을 갖지 않는다.
+
 1. cleanCheckout/fingerprint를 새 소유 모듈로 이관한다. tracked/staged/untracked, sparse,
    submodule/nested repo, 숨김 index flag, 진행 중 Git/lock, ignored 데이터를 검사한다.
    .env·로그·보고서·private templates는 보존한다.
 2. 실제 metadata walk는 bounded 자기 Node child에서 수행한다. 20만 entry/32 MiB 목록,
    1 MiB record, 20초 관측/4초 settle 한계를 적용한다. 디렉터리 링크를 따라 열거하지 않는다.
-   경로 신원·mode/size/mtime/ctime/link target으로 fingerprint를 만들고 파일 내용·env를 수집하지 않는다.
+   root와 각 실체의 device/inode·mode/size/mtime/ctime/link target을 포함한다.
+   stat은 bigint 값을 사용하고 child JSON에는 정밀도 손실 없는 십진 문자열로 전달한다.
+   root와 다른 device의 directory는 그 안을 읽기 전에 foreign-filesystem으로 거부한다.
+   device/identity를 해석할 수 없거나 관측된 mount/reparse 경계가 미지원이면 보존한다.
+   lexical containment나 isDirectory만으로 같은 소유 경계라고 판단하지 않는다.
+   파일 내용·env는 수집하지 않는다.
 3. merged 또는 명시적 retire의 dev ancestry를 확인한다. native 삭제 조건은 오직
    `inspectWorktreeUsage`의 qualified + performed + clear + coverageComplete + settled다.
-   Windows/미지원/관측 오류는 worktree/ref 삭제 0회, cleanup-pending이다.
+   이 파일 제거 경로에서 Windows/미지원/관측 오류는 worktree/ref 삭제 0회, cleanup-pending이다.
 4. 삭제 직전 guard·state·HEAD·instance·보존 지문을 다시 대조하고 worktree-removal intent를
    저장한다. `git worktree remove -- <exact path>` 한 번으로 path와 admin을 제거한다.
    force, prune, 임의 recursive rm, 자동 cache/link 삭제 전처리는 없다.
@@ -339,6 +409,16 @@ node_modules 내부 일반 directory를 가리키는 경우**뿐이다. 양쪽 c
 하고, canonical target은 worktree 밖으로 나갈 수 없다. target tree의 외부/추가 미허용 링크,
 루트 symlink, 깨진/판정 불가 링크, tracked link, 다른 사용자 자료는 거부한다.
 scanner는 링크를 순회하지 않고 별도의 실제 target 경로가 inventory에서 검증됐는지 대조한다.
+다른 device의 subtree는 내부 캐시처럼 보여도 예외에 포함하지 않는다. device 일치만으로
+모든 same-device mount/미인증 reparse topology까지 안전하다고 주장하지 않으며 그런 구성이
+알려졌거나 신원을 확정할 수 없으면 보존한다. 이 예외는 일반 local directory topology에 한정한다.
+
+상위 Git 2.50.1의 worktree remove는 directory 재귀 제거를 호출하며 해당 재귀는 별도
+st_dev 경계 검사를 하지 않는다. 따라서 Git의 성공/실패에 외부 filesystem 보호를 위임하지 않는다.
+이는 소스 대조에 따른 위험 분석이며 현재 사용자 데이터에서 삭제를 재현한 결과는 아니다.
+[Git worktree 제거](https://github.com/git/git/blob/v2.50.1/builtin/worktree.c),
+[Git 재귀 제거](https://github.com/git/git/blob/v2.50.1/dir.c),
+[Node Stats.dev](https://nodejs.org/api/fs.html#statsdev).
 
 예외는 직접 unlink나 rmdir fallback을 추가하지 않는다. native Git remove가 대상 밖 자료를
 변경하지 않는 것을 양 OS의 자체 fixture와 qualified Mac 통합에서 입증한 뒤에만 켠다.
@@ -346,7 +426,8 @@ verification/AGENTS에 기존 전체 거부에서 달라지는 범위와 native 
 실패·미검증이면 예외를 비활성화하고 linked-path로 보존한다. 문서 작성만으로 현행 종료 규칙을
 완화하지 않는다. 예외 없이는 build 후에도 pending일 수 있다는 제한을 숨기지 않는다.
 
-retire는 no-PR/open/dependent PR 없음, fresh dev ancestor, 같은 인계·보존·사용 조건을 요구한다.
+retire는 PR 없음 또는 CLOSED-unmerged, open/dependent PR 부재, fresh dev ancestor와
+같은 인계·보존·사용 조건을 요구한다.
 미지원이면 purpose=retire의 pending이며 source commit을 삭제할 수 없다.
 검증 연결: VFY-PWC-04/05/08/13/14.
 
@@ -410,36 +491,81 @@ preview는 v1 records/marker/registry/guard를 읽어 bounded JSON plan을 stdou
 old task UUID/instance를 이관할 수 있으나 새 schema/version·working 상태로 명시하고
 old branch cleanup 결과를 재실행 권한으로 복사하지 않는다.
 
-### stale writer fence and activation
+### migration journal, fence, publication
 
-1. 운영자가 old writer·자식·공유 작업의 quiescence와 owner별 매핑을 확인한다.
-   live/unknown legacy command.guard는 회수하지 않고 보류한다. 독립된 구
-   cleanup-task-branches는 이 guard를 읽지 않는다. 모든 알려진 control/작업 소유자가
-   그 명령과 진행 중인 Git 자식도 중지하고 이후 실행하지 않기로 인계해야 한다.
-   확인 불가인 old branch writer가 있으면 apply를 시작하지 않는다.
-2. legacy `command.guard` 자리에 배타 directory를 생성해 v2 migration-fence owner를 기록한다.
-   old v1 reader가 이해하지 못하는 명시적 새 version/kind이며 task JSON은 바꾸지 않는다.
-   현행 old acquire/recover는 unknown guard를 보존하므로 구 worktree CLI의
-   create/finish/retry/recover-guard 쓰기를 막는다. 독립 branch 정리기까지 기술적으로
-   차단한다고 주장하지 않는다. 그 도구의 종료는 앞 단계의 운영 인계 조건이다.
-   fence의 nonce/instance/digest는 새 migration record가 소유한다. 이 실패 폐쇄 동작을
-   pinned v1 실행 fixture로 반드시 검증하며 성립하지 않으면 이관 구현을 멈춘다.
-3. fence 획득 후 source digest·path/marker/HEAD를 재대조한다. mismatch이면 task ref/activation을
-   쓰지 않는다. 자기가 방금 만든 fence만 identity 검증 후 회수할 수 있다.
-4. migration intent ref에 plan과 준비한 task state commit OID를 보존한다. 그 객체들을 parent로
-   pin한다. migration ID와 expected bytes digest가 있는 새 marker 계획도 intent에 포함한다.
-   old marker는 보존하고 새 marker를 no-replace로 게시한다. 재개 시 기존 새 marker가
-   같은 installation/task/instance/digest일 때만 재사용한다. 다른 값·불완전 파일은 보존한다.
-   모든 marker read-back 뒤 task refs와 applied receipt를 하나의 Git ref transaction으로 갱신한다.
-5. canonical applied 결과와 일치하는 activation marker를 atomic write/read-back한다.
-   marker만 있거나 일부 ref가 다르면 일반 mutation은 거부한다.
-6. new guard는 해제하되 legacy fence와 v1 기록은 유지한다. 새 도구는 활성 상태의 legacy fence를
-   recover-guard 대상으로 취급하지 않는다. old writer의 임의 raw 변경까지 OS로 차단하는 보장은 없다.
+migration journal ref는 `refs/stagekeeper/pr-closeout/migration`이다. 최초 apply는
+부재 CAS, 재개는 expected migration OID로 갱신한다. complete나 task guard의 OID를
+이 ref의 expected 값으로 재사용하지 않는다.
+
+1. 모든 old writer/자식/공유 작업의 quiescence와 owner별 매핑을 확인한다. live/unknown
+   legacy guard를 회수하지 않는다. standalone branch 정리기는 그 guard를 읽지 않으므로
+   알려진 모든 실행 주체가 별도로 중지·미재실행을 인계해야 한다.
+2. migration coordinator guard를 획득한 뒤 common guard 아래 source plan을 검증하고
+   **fence 생성 전에** preparing journal을
+   CAS로 저장한다. plan digest, installation/migration ID, 예정 fence nonce·위치·owner
+   digest와 source snapshot을 포함한다. snapshot은 record/marker digest와 필요한 mapping
+   metadata이며 worktree 파일 목록·v1 원장 전체를 journal JSON에 중복 내장하지 않는다.
+   원본 v1 기록은 그 위치에 history로 보존한다. journal 저장/read-back 실패면 fence를 만들지 않는다.
+   이 구간에는 legacy fence를 아직 보유하지 않으며 common guard를 해제한다.
+3. legacy command.guard directory를 배타 생성하고 journal이 지정한 v2 owner를 no-replace로
+   게시한다. 이후 legacy fence → common 순서로 잠금을 잡고 journal OID와 fence를 재검증한다.
+   이 단계의 nested lock 순서는 기존 규칙을 유지한다.
+   old v1 acquire/recover가 unknown v2 guard를 보존하는지는 pinned writer fixture로 검증한다.
+   standalone branch writer까지 기술적으로 차단한다고 주장하지 않는다.
+4. fence를 얻은 뒤 source digest/path/marker/HEAD를 다시 검사한다. 불일치하면 task ref와
+   activation을 쓰지 않는다. journal과 일치하는 완전한 자기 fence만 abort로 회수할 수 있다.
+5. 준비한 task state/marker manifest를 journal의 prepared 상태에 기록하고 Git 객체를 pin한다.
+   old marker는 보존한다. 새 marker는 no-replace로 게시하고 정확한 installation/task/
+   instance/digest만 재사용한다. 다른 값·불완전 파일은 덮어쓰지 않는다.
+6. 모든 marker read-back 후 task refs와 applied receipt를 Git ref transaction으로 갱신한다.
+   그 뒤 해당 applied journal OID/installation/fence와 결부한 activation marker를 원자적으로
+   게시·read-back한다. 파일과 ref를 하나의 filesystem transaction이라고 가정하지 않는다.
+7. new guard는 해제하되 v1 기록과 legacy fence를 유지한다. 활성 fence는 recover-guard
+   대상이 아니다. 처음부터 검증하지 않은 old writer의 raw 변경까지 차단한다고 주장하지 않는다.
+
+### resume and activation epochs
+
+- preparing + fence 없음: 이전 coordinator가 live/unknown이면 재개하지 않는다. known dead와
+  자식 quiescence 확인 후 해당 guard를 정상 회수하고, 새 coordinator 아래 source를
+  재검증한 뒤 fencing 재개 또는 abort한다. 같은 plan의 동시 apply도 writer는 하나다.
+- preparing/prepared + journal과 일치하는 완전한 v2 fence: known dead+quiescent 조건을
+  확인한 migrate recover/abort가 처리한다. legacy recover-guard로 넘기지 않는다.
+- owner가 없거나 손상된 fence: 계획 ID/경로가 같다는 이유만으로 자기 것이라 추정하지 않는다.
+  fence-unverified로 보존하며 자동 회수·owner 덮어쓰기 없음. 실행자는 정확한 잔존 위치와
+  journal을 보고한다. 이는 명시적으로 자동 복구하지 않는 실패 상태다.
+- source/marker/ref 일부의 불일치: 새 task 권한을 주지 않고 원래 자료·intent를 보존한다.
+- activation 전 applied 전환: transaction에 포함된 task ref가 정확한 prepared OID인지 확인.
+- activation 후: immutable applied receipt/installation/activation/fence의 일치를 검사한다.
+  task refs는 정상 명령으로 전진하므로 초기 imported OID와의 영구 equality를 요구하지 않는다.
+  완료된 task의 old path/admin/marker가 사라져도 과거 migration snapshot을 다시 만족시키라고
+  요구하지 않는다. 활성화 이후의 task identity는 새 state가 소유한다.
+  task를 읽을 때 schema/installation/task ID 및 해당 import의 first-parent 이력을 확인한다.
+  source/merge를 pin한 보조 parent를 state 이력의 증거로 혼동하지 않는다.
+- active에서 같은 migration plan 재호출: already-active 관측만 반환한다. 전진한 task를
+  working으로 되돌리거나 marker/consent를 재복제하지 않는다. 새 plan으로 두 번째 bootstrap은 거부한다.
+
+### bounded object pinning
+
+여러 task commit을 하나의 commit-tree argv에 모두 넣지 않는다. pin 전용 Git commit을
+fan-in 최대 32의 tree로 만들고 journal은 그 root를 parent로 보존한다. leaf는 실제 task
+state commit을 참조하며 내부 pin node는 새 상태 원본이나 writable ref가 아니다.
+task/migration record와 plan/manifest 각각의 합산 JSON 상한은 1 MiB로 두고, 초과는
+task marker/ref 게시 전에 plan-too-large로 거부한다. 각 command의 완성된 argv도
+플랫폼 한도 전에 검사하며 내용을 로그에 노출하지 않는다.
+
+Windows CreateProcessW의 command line에는 32,767 문자 한도가 있다. 고정된 작은
+parent fan-in은 manifest 한도 안에서도 넓은 argv가 실패하는 경로를 제거하기 위한 것이며
+성능 향상 수치를 주장하지 않는다. 이 객체 graph와 GC 도달성은 실제 Git으로 검증한다.
+[CreateProcessW](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw).
 
 빈 legacy 저장소도 같은 explicit bootstrap plan을 거친다. 필요한 경우 빈 legacy namespace에
 fence를 두어 stale old CLI의 뒤늦은 초기화를 막는다. 일반 create의 silent activation은 없다.
 
-첫 새 marker 게시 전 abort만 자기 intent를 aborted로 기록하고 자기 fence를 회수한다.
+첫 새 marker 게시 전 abort만 허용한다. 완전한 자기 fence를 검증했다면 device/inode와
+expected owner digest를 포함한 aborting journal을 먼저 저장하고 fence를 회수한 뒤 aborted로
+확정한다. owner 제거 뒤 중단돼 빈 directory가 남은 경우에는 이 aborting receipt와 directory
+identity·빈 상태가 모두 일치할 때만 rmdir를 재개한다. 초기 생성 중 생긴 owner 없는 fence와
+구분하며, receipt가 없으면 추측으로 회수하지 않는다. fence 없는 preparing 상태도 abort할 수 있다.
 새 marker 또는 task refs를 적용한 뒤에는 자동 되돌리기 대신 migrate recover로 activation을 완성한다.
 모든 ref+marker+fence의 신원을 재검사하고 다른 상태를 덮어쓰지 않는다. unknown은 보존한다.
 실제 migration/rollback 결과를 fixture 통과만으로 완료했다고 보고하지 않는다.
@@ -490,11 +616,32 @@ REPLACE 구현의 required이며 실제 Git·파일·해당 OS를 사용한다. 
 | build-cache link 예외 | 실제 generated 패턴과 외부/깨진/root-link 대조, Git 제거 뒤 외부 sentinel·sibling 불변. 예외 없이는 pending | VFY-PWC-05 |
 | 원격/로컬 중단 | intent 전/후, 요청 뒤 유실, Git 제거/transaction 뒤 응답 유실, duplicate/stale state, known/live guard | VFY-PWC-06 |
 | pending/external merge | deadline/cancel 보존, OPEN 불명확에서 재요청 0회, 외부 동일 H merge는 cleanup만 | VFY-PWC-07 |
-| status/preview/retire | 파일·ref·설정·network의 무변경 범위, no-PR ancestor와 unique/open/dependent 대조 | VFY-PWC-08 |
+| status/preview/retire | 파일·ref·설정·network의 무변경 범위, PR 없음/closed-unmerged ancestor와 unique/open/dependent 대조 | VFY-PWC-08 |
 | 이관·fence·원자성 | source drift·closing consent 미승계·removed/path 재사용·old worktree writer 차단·branch writer 종료 미확인 거부·multi-ref/marker 중단·replay | VFY-PWC-10 |
 | 구 경로 제거 | production import/호출/alias/CI old path 0건, history/시험용 pinned source는 명시적 예외 | VFY-PWC-11 |
-| unqualified/busy/unknown | 정상 인계/CI면 merge 가능하나 로컬 삭제 0회, exit 2·partial JSON. 인계/보존 실패면 merge도 0회 | VFY-PWC-13 |
+| intact worktree + unqualified/busy/unknown | 정상 인계/CI면 merge 가능하나 로컬 삭제 0회, exit 2·partial JSON. 인계/보존 실패면 merge도 0회 | VFY-PWC-13 |
 | 외부 제거 인수 | 사용자 보고+실제 부재만 receipt, ack의 worktree 파일/local branch ref/PR mutation 0회와 task receipt 기록, 다음 cleanup 전 재생성/추가 commit 재검사 | VFY-PWC-14 |
+
+### review-driven boundary cases
+
+아래 사례는 parent VFY를 보완하는 계획이다. 새 production export나 caller bypass는 추가하지 않는다.
+실행 결과가 아니라 구현 시 요구할 assertion이다.
+
+| 사례 | 독립적인 실패 조건과 기대 관찰 | 연결 |
+| --- | --- | --- |
+| 명령 입력 분리 | 빈 repo의 create/migrate apply가 존재하지 않는 task OID를 요구하지 않음. 다른 command의 state/동의 flag는 거부하고 효과 0회 | VFY-PWC-01/08/10 |
+| Windows branch-only | 실제 unqualified runtime + 외부 제거·ack 뒤 cleanup은 probe/worktree remove 0회, 검증된 local branch만 제거. receipt 뒤 path 재생성 시 branch도 보존 | VFY-PWC-13/14 |
+| PR terminal routing | 완료 task의 반복은 삭제된 live HEAD를 요구하지 않고 효과 0회. MERGED+현재 UNKNOWN readiness는 증명 복구로 처리하고 PUT 0회. CLOSED-unmerged+ancestor는 retire, unique commit/open/dependent는 보존 | VFY-PWC-03/07/08 |
+| fence 전후 중단 | journal 저장 직후/fence owner 게시 직후/source 재검사 전 중단 및 같은 plan의 동시 apply. writer는 하나이며 완전한 자기 fence만 복구·abort, owner 없는/다른 fence는 보존 | VFY-PWC-06/10 |
+| abort 중단 | aborting 기록 뒤 owner 제거 전/후 중단. 기록한 동일 빈 directory만 회수, 교체된 directory는 유지 | VFY-PWC-10 |
+| activation 뒤 정상 전진 | 이관 task의 상태 전진과 정상 완료·admin 제거 뒤에도 status/create/같은 migration replay가 정상 작동. imported OID로 되돌리기 0회 | VFY-PWC-10 |
+| pin 상한·도달성 | 큰 manifest의 command argv가 한도를 넘지 않음. 32개를 넘는 서로 다른 state 객체는 실제 Git에서 journal만 남긴 뒤 GC해도 도달 가능 | VFY-PWC-06/10 |
+| shared deadline | 남은 1초에 새 20초 command를 시작하지 않음. 만료 뒤 조회 0회, settle은 별도 4초 안에서 결과/미종료를 구분 | VFY-PWC-07 |
+| filesystem 경계 | normal directory 모양이어도 다른 device이면 하위 열거·worktree/ref 삭제 0회. root identity 변경/미확정도 보존 | VFY-PWC-05 |
+
+큰 argv의 construction/timeout은 process/clock 경계 대역으로 검증하고, Git 도달성과
+branch/worktree 효과는 실제 Git으로 검증한다. 별도 filesystem을 실제 mount할 권한이 없으면
+metadata 부정 대조를 native mount 시험으로 부르지 않는다. 이 review에서는 mount·삭제·시험을 실행하지 않았다.
 
 ### existing protection mapping
 
@@ -592,5 +739,160 @@ strict를 선택 Phase filter처럼 사용하지 않는다. 기계 검사와 의
 필요가 있었다. 현행 source를 재대조해 fence가 차단하는 명령을 한정하고, standalone
 branch writer의 별도 중지 인계와 부정 대조를 추가했다. migration의 marker 게시가
 ref transaction 밖이라는 점도 반영해 intent/marker/read-back/refs/activation 순서와
-abort 가능 시점을 구체화했다. 독립 sub-agent 검토나 plan-eng-review를 실행했다고
-주장하지 않으며, write-sdd-spec의 기계 검증과 자체 의미 검토 결과다.
+abort 가능 시점을 구체화했다. 초안 작성 당시 독립 sub-agent 검토나 plan-eng-review를 수행한 것은 아니며,
+write-sdd-spec의 기계 검증과 자체 의미 검토 결과였다. 이후의 정식 plan-eng-review는 아래 기록과 구분한다.
+
+## Engineering Review Record — 2026-11-18
+
+### 대상·최초 판정·권한
+
+선택 대상은 이 REPLACE plan이다. 최초 review baseline은 local commit
+`7cccb20`의 SHA-256 `f232540da21905eb467eedba9b15a4bba9e3125dc9ed086944b6f60d58fd541c`,
+코드 기준은 `651427c`다. 같은 미병합 작업을 계속했고 시작 tree는 clean이었다.
+검토는 위 로컬 snapshot을 기준으로 했으며 최신 원격과의 동기화 검토는 포함하지 않았다. 시작 시 열린 PR 목록은 비어 있었다.
+
+**처음부터 개선점이 없었던 문서는 아니다.** 최초본에서 아래 7건을 확인해 문서에 반영했다.
+이는 제안서의 충돌·실패 경로·증명 공백이며, 아직 없는 REPLACE 코드의 재현 bug라고
+주장하지 않는다. 사용자 요청의 “검증하고 개선”을 이 파일의 계약 보완·시험 계획 수정
+권한으로 사용했다. parent, 실제 source/test/CI, 운영 metadata는 수정하지 않는다.
+
+### Findings and dispositions
+
+아래 줄 번호는 수정 전 7cccb20 snapshot 기준이다.
+
+| ID | 영역 / 중요도 / 확신 | 최초 근거·영향 | 문서 수정·상태 |
+| --- | --- | --- | --- |
+| F1 | code quality / INFORMATIONAL / 10 | 144~162: 모든 mutation에 task/state 필수라고 하면서 fresh create·repo migration·guard 회수는 task가 없는 입력을 정의 | operation별 schema와 namespace, fresh absent CAS·guard selector 구분. 반영 |
+| F2 | architecture / CRITICAL / 10 | 315~317의 일괄 qualified+clear 요구가 377~380의 Windows 외부 제거 후 branch-only와 충돌. absent target을 probe하면 다시 unknown으로 막힐 수 있음 | 존재/제거 근거별 dispatch를 모든 파일 검사 앞에 배치. unknown 유지하며 receipt+fresh absence로 ref만 처리. 반영 |
+| F3 | architecture / CRITICAL / 9 | 420~430: v2 fence 생성이 canonical journal보다 먼저다. 완료된 fence 게시 뒤 중단하면 old v1은 회수하지 못하고 새 migration의 durable expected state가 없음 | coordinator 직렬화와 preparing journal 선행, 검증된/owner 없는 fence 구분, aborting receipt와 정확한 회수 재개. 반영 |
+| F4 | lifecycle / INFORMATIONAL / 9 | 263~274의 readiness가 OPEN에 한정되지 않고, 159/349의 no-PR 조건은 parent REQ-PWC-012의 closed-unmerged 종료를 놓침 | OPEN/MERGED/CLOSED-unmerged/unknown 분기. 외부 병합은 준비 상태 재요구 없이 증명 복구, closed-unmerged retire 포함. 반영 |
+| F5 | architecture / INFORMATIONAL / 9 | 433~435: 초기 imported ref와 activation 일치 조건의 적용 시점이 불명확. 정상 task 전진을 migration 불일치로 판정할 수 있음 | cutover의 정확 OID와 active 이후 installation/applied receipt 및 state lineage를 분리. 반영 |
+| F6 | performance / INFORMATIONAL / 9 | 429~430의 모든 task parent는 manifest 크기에 따라 Windows argv 한도를 넘을 수 있음. 300~302의 nested timeout도 공유 budget 전달이 명시되지 않음 | bounded fan-in pin tree, manifest/argv 상한, 남은 관측 시간 전파와 settle 분리. 반영 |
+| F7 | data preservation / CRITICAL / 8 | 312~341은 canonical path와 directory/link 모양만으로 소유 범위를 판단. 다른 device의 mounted subtree는 일반 directory일 수 있고 Git 재귀 제거에 넘겨질 수 있음 | device/inode를 보존 지문에 포함하고 다른/불명확한 filesystem 경계는 진입 전에 거부. 동일 device가 모든 mount 부재를 증명한다고 주장하지 않음. 반영 |
+
+F3은 실제 `manage-task-worktrees.mjs:269~292,310~320`의 strict v1 guard reader와
+새 계획의 순서를 함께 확인했다. F7은 현행 `fingerprint:383~421`의 metadata 및
+upstream Git 2.50.1의 worktree/dir 제거 경로를 대조한 추론이다. Apple Git 배포의
+모든 patch나 실제 mounted 데이터 삭제를 재현한 결과는 아니다.
+
+### Scope challenge and structural comparison
+
+제안 변경은 production module 6개, focused test 6개, 기존 command/policy/source 기록 수정
+6개, legacy source/test 제거 4개 및 fixture 약 1~3개로 **23~25개+실행 증거**를 예상한다.
+읽은 파일 수가 아니며 fixture 세부 분할에 따라 달라진다. 새 service/DB/daemon은 0개다.
+
+| 구조 | 책임·비용 | 판정 |
+| --- | --- | --- |
+| 현재 6개 module | state store, Git workspace, GitHub, migration, CLI, 격리 inventory child. I/O 실패와 v1 지식을 분리 | 유지. 기존 parent의 소유 경계와 부합 |
+| 4개로 축소 | migration을 task-state에, inventory worker entry를 git-workspace에 합침. public 명령·증거는 동일 | 가능하지만 장기 state 계약과 일회 v1 지식, 읽기 전용 worker와 mutation의 결합이 커져 선택하지 않음 |
+
+8개 red flag를 대조했다. command 표면은 넓지만 대부분 실패/복구 경계이며 단순
+pass-through service를 만들지 않는다. v1/신 state의 두 writer는 금지하고, runtime/probe는
+자격 검증 목적을 구분한다. index는 orchestration과 guard 수명을 소유하며 내부 cleanup을
+호출할 때 public CLI를 재귀 호출해 guard를 다시 잡지 않는다.
+task-state는 state/migration refs·guard/activation의 writer, git-workspace는 실제
+worktree/branch/identity marker 효과의 owner다. legacy-migration은 이를 호출하는 v1
+해석·이관 coordinator이며 별도 JSON 상태 원본을 쓰지 않는다.
+후속 구현의 내부 exports를 사용자 API로 약속하거나 제품 import 경계를 넓히지 않는다.
+
+### Evidence checks and four-area result
+
+- **Premises:** QUALIFY 결과·조건부 방향·기존 runtime profile·v1 guard/파일 보존·CI 발견 규칙은
+  로컬 source와 parent에서 확인했다. 새 source가 없는 것은 결함으로 세지 않았다.
+  외부 API·Git atomicity·Windows argv는 공식 문서/고정 upstream source로 대조했다.
+- **Architecture:** F2/F3/F5/F7 보완. mutation과 관측·receipt의 역할, activation epoch,
+  unknown의 fail-closed·partial outcome 및 원격/로컬 효과 분리를 재검토했다.
+- **Code quality:** F1/F4 보완. old helper의 호출자와 schema를 확인하고 호환성이 다른
+  Git/gh transport와 cwd observer의 오류 정책을 모양만 보고 통합하지 않는다.
+- **Tests:** 기존 외부 canary·추가 commit·동시 ref 변경·중단·guard 시험의 assertion은 강한
+  legacy 증거다. 새 state/migration/merged-pending/manual 흐름은 planned이며 현재 coverage가 아니다.
+- **Performance:** F6 보완. inventory는 파일 수 F, state/이관은 task 수 T와 JSON bytes B,
+  polling은 최대 횟수와 공유 deadline으로 제한한다. 원격 대기 중 common guard를 유지하지
+  않는다. pin tree는 O(T) 객체/명령 작업이며 task 수와 무관한 상수 시간이라고 설명하지 않는다.
+  latency/p50/p95·최대 native I/O 비용은 구현 때 기록하며 이번에는 측정하지 않았다.
+
+### Coverage and failure diagram
+
+~~~text
+[E] legacy finish → JSON/guard → file identity → Git remove → branch cleanup
+    proof: 보호 ref·외부 link·추가 commit·guard/중단 assertions
+[P] complete → 입력/PR state → OPEN preflight → durable intent → merge
+                      ├─ MERGED → merge proof 복구 (PUT 0)
+                      └─ CLOSED-unmerged → complete 보존 / 명시적 retire
+[P] cleanup → 실제 존재 + 제거 근거
+              ├─ present → qualified/clear + 보존 → Git remove
+              ├─ absent + own intent/external receipt → branch-only
+              └─ unknown/partial/reused → 보존
+[P] migrate → preparing journal → fence → revalidate → pin/markers → ref transaction
+              → activation → task refs 정상 전진
+    failure: fence 직후 중단 → journal 기반 재개; owner 없는 fence → 보존
+~~~
+
+E는 실제 기존 코드, P는 계획이다. diagram의 모든 새로운 효과는 위 matrix와 아래
+value card의 planned integration 증거가 필요하다. 실제 GitHub 인수는 ADOPT에 남긴다.
+
+| 검증 가치 | 보호 / 결함 조건 / 기존 공백 | seam·한계 |
+| --- | --- | --- |
+| F1 입력표 | 기존 task 없는 bootstrap을 막거나 다른 namespace OID를 받으면 실패. 새 CLI coverage 없음 | 실제 CLI parser, production test-only flag 없음 |
+| F2 branch-only | unqualified 때문에 인수된 외부 제거를 막거나, 재생성된 path까지 제거하면 실패 | 실제 Windows Git/runtime, GitHub만 대역 |
+| F3 fence/abort | canonical intent 없이 fence를 남기거나 다른/빈 ownerless guard를 추정 회수하면 실패 | 실제 v1 writer+Git/metadata, owned child crash. 전원 장애 증명 아님 |
+| F4 PR routing | merged PR에 PUT하거나 closed-unmerged ancestor를 무조건 거부하면 실패 | GitHub 경계 대역과 실제 Git, provider live 인수 아님 |
+| F5 active epoch | 정상 task 전진 후 inactive가 되거나 재이관으로 consent/HEAD를 되돌리면 실패 | 실제 state CAS/marker와 재진입. raw writer 전체 차단 아님 |
+| F6 bounds | 큰 manifest의 argv 초과, pin 누락으로 GC 후 객체 소실, deadline 뒤 새 조회이면 실패 | 큰 argv/clock은 경계 대역, >32개 state 도달성은 실제 Git. benchmark 아님 |
+| F7 filesystem | 다른 device의 일반 directory에 들어가거나 신원 불명 상태에서 삭제하면 실패 | metadata 음성 대조와 기존 native link fixture. 실제 mount 미실행을 구분 |
+
+읽은 기존 시험의 구체적 근거는 `manage-task-worktrees.test.mjs:109~227`의 보호 ref/
+자료/canary assertions, `:297~360`의 중단/guard 보존, `cleanup-task-branches.test.mjs:262~331`의
+CI metadata·추가 commit·원격 ref 재사용 대조다. 새 CLI로 의미를 옮긴 뒤에만 옛 시험을 퇴역한다.
+단순 import/non-throw 시험으로 destructive workflow의 coverage를 주장하지 않는다.
+
+### Counterarguments and decisions
+
+- F1: 표의 예외를 구현자가 추론할 수 있지만 공통 입력 규칙과 충돌하므로 parser 계약으로 명시했다.
+- F2: 수동 인수 절에 의도는 있었으나 일반 cleanup 전조건을 먼저 적용하면 막히므로 dispatch 순서가 필요했다.
+- F3: owner JSON 자체가 단서일 수 있지만 canonical authority와 expected state를 대체하지 않는다.
+  durable journal 선행은 완전한 자기 fence의 재개를 가능하게 하고 ownerless 추정 회수를 피한다.
+- F4: GitHub 병합 readiness는 OPEN에만 의미가 있다. terminal PR를 같은 조건에 통과시키지 않는 것이 parent와 맞다.
+- F5: 정확 OID 비교는 cutover에는 필요하다. 활성화 뒤 정상 state 전진까지 금지하는 의미로 남겨 두지 않았다.
+- F6: 현재 active 수가 작아도 문서의 허용 manifest가 Win argv 한도를 초과할 수 있다. 작은 fan-in은 목표를 줄이지 않는다.
+- F7: canonical path/동일 device가 모든 특수 mount를 인증하지 않는다. 탐지된 경계와 불명확한 topology를
+  보존하며, Git remove 자체에 없는 보장을 가정하지 않는다.
+
+| 결정 | 상태 / 근거 |
+| --- | --- |
+| F1~F7의 parent-compatible 계약·시험·경계 보완 | 문서 반영. 사용자의 개선 요청과 기존 REQ/INV 보존 범위 |
+| 6-module 구조, 조건부 방향, 별도 ack 효과 | baseline 유지. 기능 삭제·새 service 없음 |
+| build-cache link 예외의 실제 활성화 | 기존 제안·native gate 유지. 이번 review는 운영 승인 아님 |
+| parent/제품/시험 구현 변경, 실제 원장/PR mutation | 범위 밖, 수행하지 않음 |
+| 독립 agent review | 요청되지 않아 미실행. 이번 counterargument pass는 self-review |
+
+### Review readiness and verification
+
+설계 검토 판정은 **Ready**다. 확인한 7건은 문서에서 해소했으며 재검토 범위에서
+추가로 미해결된 critical 설계 결함이나 새 사용자 선택이 필요한 항목은 발견하지 못했다.
+이는 구현·native gate 통과나 cache 정책 변경의 실행 승인이 아니다. front matter는
+계속 awaiting-approval이며 기존 CONDITIONALLY READY 실행 전제와 모순되지 않는다.
+
+구현 순서는 기존 R01 → R02/R03 → R04 → R06 → R05를 유지한다. F1은 R01, F2/F7은 R03,
+F4는 R02/R03, F3/F5/F6 pinning은 R06, shared deadline은 R02의 완료 기준에 반영했다.
+공유 state/schema를 먼저 정한 뒤 remote/Git 경계의 독립 작업을 진행하고, 통합된 복구
+검증 뒤에만 R05가 구 경로를 제거한다. lane 구분은 agent 병렬 실행 승인이 아니다.
+
+이 review는 문서 한 파일만 수정했다. 요청한 저장 결과를 전체 read-back하고,
+parent/source 보존·일반 traceability·docs:check·diff 공백 검사를 확인한다.
+새 구현 테스트·GitHub merge·파일 제거·mount·benchmark는 실행하지 않는다.
+
+### 최종 확인 결과
+
+| 검사 | 결과 |
+| --- | --- |
+| 전체 저장 문서 read-back 및 counterargument 재대조 | 수행. 문서 기준 7건 반영, 추가 미해결 설계 지적 없음 |
+| parent + REPLACE plan 일반 traceability | PASS, REQ 16/16의 작업·canonical VFY 연결 |
+| npm run docs:check | PASS, Markdown 236개 / 상대 링크 1,254개 / test report 61개 |
+| git diff --check | PASS |
+| parent/QUALIFY·source/test/CI 변경 여부 | 없음. 수정 대상은 REPLACE plan 한 파일 |
+| 구현/native/benchmark/독립 agent review | 미실행. 검토 결과를 실행 증거로 세지 않음 |
+
+최종 구현 전제는 기존 계획의 실행 범위 승인과 required native 검증이다. 검토 판정
+Ready와 실제 코드·정책 활성화의 승인을 구분하며, 검증되지 않은 동작을 통과한 것으로
+기록하지 않는다.
