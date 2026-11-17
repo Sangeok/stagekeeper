@@ -420,3 +420,7 @@ Phase DOC는 구현과 검증을 마쳤다. 문서의 완료는 병합·배포·
 
 완료 기록으로 이동하면서 내부의 제안서 링크와 보조 검사 대상 경로도 새 위치에 맞췄다.
 기존 공개 설치 인수와 다른 제안서의 미완료 작업은 각 소유 문서에 남긴다.
+
+2026-11-12 [PR #327](https://github.com/Sangeok/stagekeeper/pull/327)이 `dev`에 병합됐다.
+병합 커밋은 `296407f1badd611c2518cc71c9aac9015b6148a5`이며, PR의 `check`와
+Windows·macOS 신규 설치·업데이트 `client-init-smoke`가 모두 통과했다.
