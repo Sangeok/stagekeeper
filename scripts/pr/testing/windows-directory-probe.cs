@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -61,7 +60,7 @@ public static class StagekeeperDirectoryProbe {
   }
 
   public static void Hold(string path, bool deleteAccess) {
-    using (var file = Open(path, deleteAccess ? 0x10000u : 0x80u, deleteAccess ? 7u : 3u)) {
+    using (var file = Open(path, deleteAccess ? 0x10000u : 1u, deleteAccess ? 7u : 3u)) {
       if (file.IsInvalid) throw new InvalidOperationException("hold-open-" + Marshal.GetLastWin32Error());
       Console.WriteLine("{\"ready\":true}");
       Console.Out.Flush();

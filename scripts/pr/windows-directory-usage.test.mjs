@@ -50,6 +50,7 @@ describe("Windows directory observation candidate", { skip: native ? false : "Wi
     children.add(child);
     const [ready] = await once(child, "message", { signal: AbortSignal.timeout(5000) });
     assert.equal(ready.pid, child.pid);
+    assert.equal(path.normalize(ready.cwd).toLowerCase(), path.normalize(cwd).toLowerCase());
     return child;
   }
   async function release(child) {
@@ -77,6 +78,8 @@ describe("Windows directory observation candidate", { skip: native ? false : "Wi
       const [line] = await once(lines, "line", { signal: AbortSignal.timeout(20000) });
       assert.deepEqual(JSON.parse(line), { ready: true });
       assert.equal(diagnostic, "");
+      assert.equal(child.exitCode, null);
+      assert.equal(child.signalCode, null);
     } finally { lines.close(); }
     return child;
   }
@@ -105,19 +108,37 @@ describe("Windows directory observation candidate", { skip: native ? false : "Wi
     const child = await holdHandle("hold-directory");
     try {
       const result = await probe("non-cwd-directory-handle", target, child.pid);
+      assert.equal(child.exitCode, null);
       assert.equal(result.deleteAccessOpened, false);
       assert.equal(result.deleteAccessError, 32);
     } finally { await release(child); }
   });
   it("measures whether the delete-access probe blocks a new cwd user while its handle is open", async () => {
     const child = await holdHandle("hold-delete");
+    let cwdChild;
     try {
       let errorCode = null;
-      try { await execute(process.execPath, ["-e", "process.exit(0)"], { cwd: target, timeout: 5000, windowsHide: true }); }
+      let cwdMatches = false;
+      try {
+        const { stdout } = await execute(process.execPath, ["-e", "process.stdout.write(process.cwd())"], { cwd: target, timeout: 5000, windowsHide: true });
+        cwdMatches = path.normalize(stdout).toLowerCase() === path.normalize(target).toLowerCase();
+      }
       catch (error) { errorCode = error.code; }
-      evidence.push({ name: "new-cwd-during-delete-probe", errorCode, blocked: errorCode !== null });
+      assert.equal(child.exitCode, null);
+      evidence.push({ name: "new-cwd-during-delete-probe", errorCode, blocked: errorCode !== null, cwdMatches });
       assert.notEqual(errorCode, "ETIMEDOUT");
-    } finally { await release(child); }
+      const script = "try { process.chdir(process.argv[1]); process.stdout.write(JSON.stringify({ ok: true, cwd: process.cwd() })); } catch (error) { process.stdout.write(JSON.stringify({ ok: false, errorCode: error.code })); }";
+      const changed = JSON.parse((await execute(process.execPath, ["-e", script, target], { ...options(), timeout: 5000 })).stdout);
+      evidence.push({ name: "chdir-during-delete-probe", ok: changed.ok, errorCode: changed.errorCode ?? null,
+        cwdMatches: changed.ok && path.normalize(changed.cwd).toLowerCase() === path.normalize(target).toLowerCase() });
+      if (cwdMatches) {
+        cwdChild = await hold(target);
+        await probe("cwd-created-during-delete-probe", target, cwdChild.pid);
+      }
+    } finally {
+      if (cwdChild) await release(cwdChild);
+      await release(child);
+    }
     await execute(process.execPath, ["-e", "process.exit(0)"], { cwd: target, timeout: 5000, windowsHide: true });
     evidence.push({ name: "new-cwd-after-delete-probe", opened: true });
   });
