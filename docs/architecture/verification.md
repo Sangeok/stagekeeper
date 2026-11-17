@@ -184,8 +184,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   따르는지 본다. Haiku 대조 실행으로 등록, 생성기 실행, 관리 파일 쓰기의 감지가 모두 동작하는지 증명한 뒤 `gate`
   태그 사례 3개를 Opus 5.5로 3회씩 돌리고, 한 번이라도 판정이 어긋나면 실패한다. 사례는 연결된 저장소의
   재실행(`rerun-asks-first`), 처음 연결에서 등록과 `harness.json` 쓰기 전에 묻는지
-  (`first-connection-asks-before-register`), 초안을 승인한 뒤에도 생성 전에 다시 묻는지
-  (`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
+  (`first-connection-asks-before-register`), 초안을 승인하면 등록과 `harness.json` 쓰기까지 하고 생성 전에는
+  다시 묻는지(`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
   실행마다 셸 명령을 격리된 임시 폴더에 기록한다. 모델 CLI stdout/stderr와 원본 JSON은 runner 임시 파일로만
   받고, 공개 로그에는 허용된 사례 이름·점수·실행 수·실패 수·실패한 grader 이름과 그 실패 횟수·비용·시간만 출력한다.
   grader 이름은 `plugin/evals/<사례>/case.yaml`에 정해진 식별자만 남긴다. 셸 명령과 assistant 본문은
@@ -1081,7 +1081,8 @@ CSS 없는 fixture의 callback/activeElement 결과는 실제 배치·가로 이
 
 `src/server/templates/release-preparation.test.ts`는 canonical identity와
 설치 표면/언어 규칙을, `scripts/templates/template-release-cli.test.ts`는
-CLI의 사전 거부와 명시적 연결 대상 검증을 확인한다.
+CLI의 사전 거부, Windows 거부와 명시적 연결 대상 검증을 확인한다. 실제 Windows 프로세스의 거부
+시험은 Windows에서만, 비공개 profile 시험은 Windows 밖에서만 돈다.
 `tests/server/integration/template-release.test.ts`는 안전 검사를 통과한
 TEST_DATABASE_URL 안에 고유 schema를 만들고 전체 migration을 적용한다.
 각 Prisma adapter와 raw SQL 연결의 schema를 함께 지정하고 확인하며,

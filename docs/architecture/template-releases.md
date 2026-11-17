@@ -80,6 +80,10 @@ PowerShell launcher로 같은 hook을 실행한다. source 설치는 기존 PATH
 실행 계보·단계 원장·보고·전환 증거와 선택에 필요한 현재 값을 일관된 읽기 transaction으로
 저장한다. 인증 credential은 저장하지 않는다. snapshot/evidence/target profile은 checkout
 바깥의 일반 파일이며 mode 0600을 요구한다. snapshot의 전체 data hash를 다시 검증한다.
+Windows의 Node는 이 mode를 보고하지 않아 비공개 여부를 증명할 수 없다. 그래서
+`publish-templates`·`activate-templates`·`bootstrap-template-releases`는 Windows에서 profile을 읽기 전에
+거부하고 WSL·macOS·Linux에서 실행하라고 알린다. 운영 operation은 `template-release.yml`의
+`ubuntu-latest` runner에서 실행한다.
 
 운영자는 writer/RPC/역할 정리와 모든 reader의 동일한 지원 코드 SHA를 확인한 뒤
 `TemplateCutoverEvidence`를 승인한다. schema에는 snapshotHash, targetIdentityHash,
