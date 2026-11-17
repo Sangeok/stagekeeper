@@ -5,7 +5,7 @@ import ts from "typescript";
 
 const directions = {
   github: [], projects: [], tokens: ["projects"], usage: ["projects"], templates: ["projects"],
-  pipeline: ["projects", "usage"], agents: ["projects", "usage", "templates", "pipeline"],
+  pipeline: ["projects", "usage", "templates"], agents: ["projects", "usage", "templates", "pipeline"],
   auth: ["projects"], runners: ["projects"], rest: ["projects", "tokens", "usage", "templates", "runners"],
   mcp: ["projects", "tokens", "usage", "templates", "agents", "pipeline"],
 };

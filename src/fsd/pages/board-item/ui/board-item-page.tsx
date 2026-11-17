@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
+import type { SelectionDecision } from "@harness/app-core/pipeline/work-selection.mjs";
 import { blobHref, DOC_LINK_NOTE, NotVerifiedChip, statusLabel, type RepoRef } from "@/fsd/entities/board-item";
 import { ChangePipelineControl, type ChangePipelineAction } from "@/fsd/features/change-item-pipeline";
 import { AcceptanceFailure, ItemOwnerActions, ReopenActions, type DiscardAction, type RetryAcceptanceAction, type TransitionAction } from "@/fsd/features/review-gate";

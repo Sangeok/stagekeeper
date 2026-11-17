@@ -9,7 +9,7 @@ import { runInNewContext } from "node:vm";
 import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
-import { SLOT_FORMAT } from "../../packages/core/pipeline/pipeline.mjs";
+import { SLOT_FORMAT } from "../../packages/app-core/pipeline/pipeline.mjs";
 import { validateTestDatabase, validateTestDatabaseUrl } from "../lib/test-database.mjs";
 import { manifestEntries } from "../../tests/server/fixtures/action-manifest";
 import type { Fixture } from "../../tests/server/integration/support";

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
+import { ITEM_TYPES } from "@harness/app-core/pipeline/backlog.mjs";
 import { Button } from "@/fsd/shared/ui/button";
 import type { PipelineSnapshot } from "../model/rail-state";
 import type { PipelineSettingsActions } from "./pipeline-list";

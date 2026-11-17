@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
 import { it } from "node:test";
 import { inspectCoverage, inspectRepository, readCoverageTable, readWorkflow } from "./verify-ci-coverage.mjs";
 
@@ -174,4 +175,35 @@ ${gateOutputs.map(name => `      summary_${name}: x`).join("\n")}
 
   const orphan = readWorkflow("smoke", `${head}  gate:\n    runs-on: \${{ matrix.os }}\n    strategy:\n      matrix:\n        include:\n          - os: windows-2022\n          - os: macos-15\n    steps:\n      - run: node scripts/rehearsals/rehearse-sample.ts\n  record:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: ./.github/actions/gate-record\n        with:\n          legs: windows\n`);
   assert.match(check(orphan).join("\n"), /job smoke\/record: a record job needs exactly one gate job/);
+});
+
+it("detects missing migrated policy and distribution commands in either native workflow", () => {
+  const directory = new URL("../../.github/workflows/", import.meta.url);
+  const workflows = readdirSync(directory).filter(name => name.endsWith(".yml")).map(name => readWorkflow(name.slice(0, -4), readFileSync(new URL(name, directory), "utf8")));
+  const table = readCoverageTable(readFileSync(new URL("../../docs/architecture/verification.md", import.meta.url), "utf8"));
+  const packageJson = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+  const confirmations = ["npm run test:policy-contracts", "scripts/plugin-lib.test.mjs", "scripts/lib/shared-module-graph.test.mjs", "scripts/checks/verify-shared-boundaries.test.mjs", "scripts/macos/package-plugin.test.mjs", "scripts/windows/package-windows-plugin.test.mjs"];
+  for (const [key, system] of [["windows-role-runtime/native-runtime", "Windows"], ["macos-runtime-contracts/contracts", "macOS"]]) {
+    for (const marker of confirmations) {
+      const changed = workflows.map(jobs => jobs.map(job => job.key === key ? { ...job, text: job.text.replaceAll(marker, "omitted-command") } : job));
+      const problems = inspectCoverage({ workflows: changed, table, packageJson });
+      assert.ok(problems.some(problem => problem.includes(`needs a ${system} job`) && problem.includes(marker)), `${key}: ${marker}`);
+    }
+  }
+});
+
+it("starts both native jobs for each migrated policy and distribution source independently", () => {
+  const packageJson = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+  const policies = packageJson.scripts["test:policy-contracts"].split(" ").filter(value => value.endsWith(".test.ts"));
+  const inputs = [...policies, ...policies.filter(file => file.startsWith("src/")).map(file => file.replace(".test.ts", ".ts")),
+    "src/server/templates/runbook-query.ts", "src/server/templates/api.ts", "src/server/tokens/api.ts",
+    "scripts/plugin-lib.mjs", "scripts/plugin-lib.test.mjs", "scripts/lib/shared-module-graph.mjs", "scripts/lib/shared-module-graph.test.mjs",
+    "scripts/checks/verify-shared-boundaries.mjs", "scripts/checks/verify-shared-boundaries.test.mjs", "scripts/lib/plugin-payload.mjs",
+    "scripts/lib/testing/shared-module-fixture.mjs", "scripts/lib/testing/plugin-package-fixture.mjs",
+    "scripts/macos/package-plugin.mjs", "scripts/macos/package-plugin.test.mjs", "scripts/windows/package-windows-plugin.mjs", "scripts/windows/package-windows-plugin.test.mjs"];
+  for (const workflow of ["windows-role-runtime", "macos-runtime-contracts"]) {
+    const text = readFileSync(new URL(`../../.github/workflows/${workflow}.yml`, import.meta.url), "utf8");
+    const paths = [...text.slice(text.indexOf("    paths:"), text.indexOf("\npermissions:")).matchAll(/^      - (.+)$/gm)].map(match => match[1]);
+    for (const file of inputs) assert.ok(paths.some(pattern => pattern === file || pattern.endsWith("/**") && file.startsWith(pattern.slice(0, -2))), `${workflow} misses ${file}`);
+  }
 });

@@ -13,9 +13,8 @@ import { deliverable, stubOf } from "../lib/templates/deliver.mjs";
 import { codexRunbookVersion } from "../lib/templates/runbook.mjs";
 import { ROLE_TOOLS, ROLE_FILE_TOOLS, readCodexRole } from "../runtime/codex-agent.mjs";
 import { renderTemplate } from "../lib/templates/render.mjs";
-import { hashOf } from "../lib/templates/manifest.mjs";
-import { newToken } from "../lib/tokens/token.mjs";
-import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { hashOf } from "../runtime/templates/install-manifest.mjs";
+import { QA_BROWSER_TOOLS } from "../runtime/qa/config.mjs";
 import { readInstalledTemplate } from "../runtime/template-installation.mjs";
 
 const BIN = fileURLToPath(new URL("harness-init.mjs", import.meta.url));
@@ -82,7 +81,7 @@ async function fixture(t, respond = null) {
     else { response.writeHead(404); response.end("{}"); }
   });
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve)); t.after(() => { server.closeAllConnections(); server.close(); });
-  const env = { ...process.env, HARNESS_CLAUDE_CLI: claudeFixtureExecutable(), HARNESS_TOKEN: newToken().plain, HARNESS_VERIFIER_SKILL_DIR: skill };
+  const env = { ...process.env, HARNESS_CLAUDE_CLI: claudeFixtureExecutable(), HARNESS_TOKEN: "hs_" + "a".repeat(43), HARNESS_VERIFIER_SKILL_DIR: skill };
   delete env.HARNESS_TEMPLATES_DIR; delete env.HARNESS_PLAN; delete env.HARNESS_OWNER_TOKEN;
   const run = (client, ...args) => new Promise(resolve => execFile(process.execPath, [BIN, "--root", root, "--server", `http://127.0.0.1:${server.address().port}`, "--client", client, ...args], { env, windowsHide: true, timeout: 35000 }, (error, stdout, stderr) => resolve({ code: error?.code ?? 0, output: stdout + stderr })));
   return { root, run, requests, skill, env };

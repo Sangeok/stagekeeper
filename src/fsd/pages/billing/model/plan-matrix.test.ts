@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { existsSync } from "node:fs";
-import { LIMITS, PLANS } from "@harness/core/plans/entitlement.mjs";
+import { LIMITS, PLANS } from "@harness/shared/plans/limits.mjs";
 import { planMatrix } from "./plan-matrix";
 
 it("keeps retired shared entitlement-copy files absent", () => {

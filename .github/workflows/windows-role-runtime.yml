@@ -14,11 +14,43 @@ on:
       - scripts/windows/build-windows-role-node.ps1
       - scripts/windows/windows-role-runtime-cache.mjs
       - scripts/windows/windows-role-runtime-cache.test.mjs
-      - packages/core/**
-      - packages/github/**
+      - packages/shared/**
+      - packages/app-core/**
       - plugin/bin/**
       - plugin/runtime/**
       - plugin/lib/**
+      - scripts/windows/package-windows-plugin.mjs
+      - scripts/windows/package-windows-plugin.test.mjs
+      - scripts/macos/package-plugin.mjs
+      - scripts/macos/package-plugin.test.mjs
+      - src/server/tokens/api.ts
+      - scripts/checks/verify-ci-coverage.test.mjs
+      - scripts/plugin-lib.mjs
+      - scripts/plugin-lib.test.mjs
+      - scripts/lib/shared-module-graph.mjs
+      - scripts/lib/shared-module-graph.test.mjs
+      - scripts/lib/testing/shared-module-fixture.mjs
+      - scripts/lib/testing/plugin-package-fixture.mjs
+      - scripts/lib/plugin-payload.mjs
+      - scripts/checks/verify-shared-boundaries.mjs
+      - scripts/checks/verify-shared-boundaries.test.mjs
+      - src/server/pipeline/qa-report.ts
+      - src/server/pipeline/qa-report.test.ts
+      - src/server/pipeline/input-validation.ts
+      - src/server/pipeline/input-validation.test.ts
+      - src/server/projects/availability-policy.ts
+      - src/server/projects/availability-policy.test.ts
+      - src/server/usage/usage-window.ts
+      - src/server/usage/usage-window.test.ts
+      - src/server/tokens/token-crypto.ts
+      - src/server/tokens/token-crypto.test.ts
+      - src/server/templates/release-preparation.ts
+      - src/server/templates/release-preparation.test.ts
+      - src/server/templates/runbook-query.ts
+      - src/server/templates/api.ts
+      - src/fsd/entities/board-item/model/doc-link.ts
+      - src/fsd/entities/board-item/model/doc-link.test.ts
+      - tests/server/runbook-stale.test.ts
       - plugin/.claude-plugin/plugin.json
       - plugin/.codex-plugin/plugin.json
       - scripts/windows/rehearse-windows-project-build.mjs
@@ -123,6 +155,18 @@ jobs:
       - name: Prepare project dependencies with normal lifecycle scripts
         shell: pwsh
         run: npm ci --no-audit --no-fund
+      - name: Generate policy contract types
+        run: npm run db:generate
+      - name: Validate migrated policy contracts
+        shell: pwsh
+        run: |
+          npm run test:policy-contracts
+          if ($LASTEXITCODE -ne 0) { throw 'Migrated policy contracts failed' }
+      - name: Validate shared distribution contracts
+        shell: pwsh
+        run: |
+          node --test scripts/plugin-lib.test.mjs scripts/lib/shared-module-graph.test.mjs scripts/checks/verify-shared-boundaries.test.mjs scripts/macos/package-plugin.test.mjs scripts/windows/package-windows-plugin.test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Shared distribution contracts failed' }
       - name: Validate owned smoke server lifecycle
         shell: pwsh
         run: |
@@ -133,7 +177,7 @@ jobs:
         env:
           STAGEKEEPER_RELEASED_READERS: required
         run: |
-          node --test --test-concurrency=1 "packages/core/**/*.test.mjs" "packages/github/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/*.test.mjs"
+          node --test --test-concurrency=1 "packages/shared/**/*.test.mjs" "packages/app-core/**/*.test.mjs" "plugin/bin/*.test.mjs" "plugin/runtime/**/*.test.mjs"
           if ($LASTEXITCODE -ne 0) { throw 'Product test suite failed on Windows' }
       - name: Build full project inside network-denied Windows role
         shell: pwsh

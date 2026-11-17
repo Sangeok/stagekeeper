@@ -1,12 +1,7 @@
 # macOS Codex runtime
 
-## 적용 예정: lib 배포 범위 분리
-
-[shared-modules.md](./shared-modules.md)의 Phase MIGRATE에서 plugin/lib는 선언된 shared
-entry와 내부 의존성만 포함하고, 플러그인 전용 구현은 plugin/runtime이 소유한다.
-native Node·verifier·license·파일 mode·hook·skill·설치/권한/종료/복구 경계는 보존한다.
-아래 현행 설치와 검증 절차는 ARCH에서 바꾸지 않으며 최종 bundle의 자원·실행 확인은
-MIGRATE/ACCEPT에 남긴다. 새 문서의 정적 통과를 native 인수로 해석하지 않는다.
+공통 배포 모듈은 [shared-modules.md](./shared-modules.md)의 명세 closure로 만든다.
+플러그인 전용 구현은 plugin/runtime이 소유하며 native Node·verifier·mode·hook의 계약은 아래를 따른다.
 
 ## 현행 계약
 

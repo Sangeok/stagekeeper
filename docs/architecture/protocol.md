@@ -1,12 +1,5 @@
 # 프로토콜 — 도구 계약과 보드 규약
 
-## 적용 예정: 공통 모듈의 소스 경로 전환
-
-[shared-modules.md](./shared-modules.md)는 Phase MIGRATE의 소유권·배포 경계만 정한다.
-HTTP/MCP shape·token·plan·runner·QA·템플릿 본문 경계·정렬·해시·설치 lock·스킬의 권한 의미는
-보존한다. 아래 현행 core/github/lib 경로는 실제 구현과 함께 전환한다. 새 공개 목록의 확인은
-wire 호환성 인수가 아니며 외부 템플릿·기존 설치본은 후속 ACCEPT에서 확인한다.
-
 ## 현행 계약
 
 에이전트가 서비스에 말을 거는 방법(MCP 도구)과 보드 항목이 지켜야 하는 기록 규약을
@@ -261,7 +254,7 @@ null). 클린 사이클의 원장은 정확히 9건이다(제안 · 게이트①
   409 `RUNNER_REPLACED`와 403 `PLAN_REQUIRED`는 코드를 싣는다. 문장은 product-copy §12.
 - 잠금과 시계: 모든 op는 한 트랜잭션(READ COMMITTED)에서 User → Project `FOR UPDATE`를 잡은 뒤 접근·플랜·
   `Runner` 행을 읽는다. 시각은 DB 시계(`clock_timestamp()`)다.
-- 생존(`packages/core/execution/runner.mjs`, 웹 배너와 같은 함수): stopped가 아니고 마지막 신호 뒤 3분 안이면 lease를 잡고 있다.
+- 생존(`packages/app-core/execution/runner-status.mjs`, 웹 배너와 같은 함수): stopped가 아니고 마지막 신호 뒤 3분 안이면 lease를 잡고 있다.
   working이 아니고 `idleSince`가 있으면 마지막 신호에 내려준 간격에 2분을 더한 시각까지다(3분보다 짧아지지 않는다).
   session·working만 신호와 프로젝트의 마지막 에이전트 활동(`AgentRun.openedAt`·`AgentRunStep.at`) 중 늦은 쪽 뒤 60분이다.
   응답 없는 행과 stopped 행은 새 start가 확인 없이 덮어쓰고, 살아 있는 행은 `takeover:true`로만 넘겨받는다.
@@ -373,7 +366,7 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
     `limited`다. 뒤에 다른 결과가 와도 바뀌지 않는다. 재개 시각은 `rate_limit_event`(`status:"rejected"`)의
     `resetsAt` + 60초를 분 단위로 올린 값이다. `resetsAt`이 없거나 지났거나 8일보다 멀면 지금 + 30분이다.
     - 이 실행은 실패와 진전 판정에 넣지 않고, 앞선 실패 횟수도 그대로 둔다. 결과 한 줄은
-      `limited: Claude usage limit until <YYYY-MM-DDTHH:MMZ>`(UTC 분)이고, 형식은 `packages/core/execution/runner.mjs`의
+      `limited: Claude usage limit until <YYYY-MM-DDTHH:MMZ>`(UTC 분)이고, 형식은 `packages/shared/execution/runner-contract.mjs`의
       `limitedResult`·`limitedUntil`이 한곳에서 정한다.
     - 재개 시각 전까지는 `pipeline_next`와 새 실행 없이 beat(idle)만 서버 간격대로 보내고, 재개 시각이 더 가까우면 그때
       깬다. 그 뒤 평소 사이클로 돌아간다. 알림은 한도 실행이 이어지는 동안 한 번이다.
@@ -464,7 +457,7 @@ rollback을 단정하지 않는다. 웹은 advice를 조회하지 않고 성공 
 
 ## 상태 기계
 
-`packages/core/pipeline/transitions.mjs`의 `RULES`가 유일한 출처다. 이 표에 없는 전이는 존재하지 않는다.
+`packages/app-core/pipeline/transitions.mjs`의 `RULES`가 유일한 출처다. 이 표에 없는 전이는 존재하지 않는다.
 
 | from | to | actor | kind | 전제 |
 | --- | --- | --- | --- | --- |
@@ -512,7 +505,7 @@ verify/ok·정상 report/ok로 닫힌 run과 그 run에 묶인 보고가 있어�
 최종 인수는 메인 루프만 한다. Codex 도우미는 아직 이 디스패치를 거부한다. 계약과 배포 순서는
 [impl-verifier.md](./impl-verifier.md)를 따른다.
 
-순서의 단일 출처는 `packages/core/pipeline/pipeline.mjs`, 편집 원본인 `PipelineDefinition`, 펼친 실행 판인 `PipelineVersion`이다. `Pipeline`은 프로젝트 안에서 이름·보관 상태를 갖고 `PipelineRule`은 항목 type별 선택을 정한다. 런북에는 순서가 없다.
+순서의 단일 출처는 `packages/app-core/pipeline/pipeline.mjs`, 편집 원본인 `PipelineDefinition`, 펼친 실행 판인 `PipelineVersion`이다. `Pipeline`은 프로젝트 안에서 이름·보관 상태를 갖고 `PipelineRule`은 항목 type별 선택을 정한다. 런북에는 순서가 없다.
 
 실행 판의 `PipelineVersion.pipelineId`와 `pipeline` 관계는 필수다. migration A가 기존 판을 기본 Pipeline에 연결하고, 별도 cleanup migration B가 null 부재를 확인한 뒤 NOT NULL을 강제한다. 새 프로젝트의 `Project.defaultPipelineId`는 지연 생성을 위해 nullable로 유지한다. 운영 적용은 A와 nullable 서버를 먼저 배포한 뒤 B와 필수 schema 서버를 배포하는 두 release 순서를 따른다. B는 기존 writer가 남긴 null을 자동 보정하지 않고 전환을 거부한다. 롤백·재도입은 [제안서의 배포·롤백 절](../proposals/completed/2026-10-16-multiple-pipelines.md)을 따른다.
 

@@ -1,5 +1,5 @@
 ---
-status: "proposed"
+status: "accepted"
 date: "2026-11-16"
 applies-to: ["packages/shared", "packages/app-core", "src/server", "src/fsd", "plugin/runtime", "plugin/lib", "plugin distribution"]
 decision-makers: ["repository maintainer"]
@@ -52,12 +52,11 @@ Chosen option: "책임별 소유 영역 분리와 명시적 공개·배포 계�
 
 ### Acceptance
 
-사용자는 대화에서 ARCH 상세 계획을 바탕으로 수정을 진행하도록 명시적으로 요청했다.
-그 범위의 승인과 수행 기록은 [ARCH 완료 문서](../proposals/completed/2026-11-16-shared-modules-and-plugin-distribution-phase-arch.md)에 있다.
-이번 결과는 설계와 문서의 확정이며 소스 적용 승인이 완료됐다는 뜻이 아니다.
-따라서 이 ADR은 아직 proposed이고 새 architecture는 planned다.
-MIGRATE 적용 시 이 ADR과 index를 accepted로 바꾸며, 그때 0005·0007을 superseded로 바꾼다.
-현재 두 ADR은 accepted이고 `supersedes`는 대체 예정 관계를 나타낸다.
+사용자는 ARCH 후 MIGRATE 상세 계획을 바탕으로 실제 수정을 진행하도록 명시적으로 요청했다.
+소스·명세·공개 경로·검사·패키징을 함께 전환하는 변경에서 이 결정을 accepted로 활성화한다.
+ADR-0005/0007의 역사와 단일 원본 원칙을 보존하고 전체 복사 경계만 superseded 처리한다.
+구현 및 검증 기록은 [MIGRATE 계획](../proposals/completed/2026-11-17-shared-modules-and-plugin-distribution-phase-migrate.md)이 소유한다.
+실제 설치·운영 승격 승인은 이 결정에 포함되지 않는다.
 
 ### Consequences
 
@@ -115,6 +114,6 @@ ACCEPT에서는 외부 템플릿과 출시 reader, 기존 설치본, 양 OS bund
 ## Review Checklist
 
 - [x] 실제 문제·범위·대안·비용과 확인 방법을 기록했다.
-- [x] 적용 전 proposed 상태와 ARCH 승인 범위를 구분했다.
+- [x] ARCH와 MIGRATE의 승인 및 실제 설치 인수 범위를 구분했다.
 - [x] 영구 규칙과 전환 목록의 소유 문서를 연결했다.
-- [x] 대체 예정 ADR 번호와 현재 accepted 상태를 구분했다.
+- [x] 대체한 ADR 번호와 accepted 상태를 기록했다.

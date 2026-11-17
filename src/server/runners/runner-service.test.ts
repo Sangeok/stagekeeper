@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { runnerStatus } from "@harness/core/execution/runner.mjs";
-import { RESIDENT_RUNNER_PLAN_GATE } from "@harness/core/plans/entitlement.mjs";
+import { runnerStatus } from "@harness/app-core/execution/runner-status.mjs";
+import { RESIDENT_RUNNER_PLAN_GATE } from "@harness/shared/plans/limits.mjs";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { RunnerOp } from "./contracts";
 import { readRunnerState, readRunnerSummaries, runRunnerOp, runnerBusyReason, RUNNER_REPLACED_REASON, setRunnerPaused } from "./runner-service";

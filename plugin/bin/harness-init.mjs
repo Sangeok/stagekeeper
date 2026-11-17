@@ -2,11 +2,11 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
+import { parseHarnessConfig } from "../runtime/configuration/harness-config.mjs";
 import { parseRepoUrl } from "../lib/github/repo-url.mjs";
 import { deliverable } from "../lib/templates/deliver.mjs";
-import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/plans/entitlement.mjs";
-import { hashOf, mergeClientLock, planWrites } from "../lib/templates/manifest.mjs";
+import { REPORT_AGENTS, capReason, isPlan, withinLimit } from "../lib/plans/limits.mjs";
+import { hashOf, mergeClientLock, planWrites } from "../runtime/templates/install-manifest.mjs";
 import { renderTemplate } from "../lib/templates/render.mjs";
 import { runbookVersion, codexRunbookVersion } from "../lib/templates/runbook.mjs";
 import { parseClient, RUNTIME_PROTOCOL } from "../lib/execution/client-runtime.mjs";
@@ -15,9 +15,11 @@ import { renderClaudeRole } from "../runtime/claude-agent.mjs";
 import { renderCodexRole, verifierPackage } from "../runtime/codex-agent.mjs";
 import { acquireInitGuard, atomicWrite, safeTarget, writeGenerated } from "../runtime/file-ownership.mjs";
 import { serverUrl } from "../runtime/mcp-client.mjs";
-import { buildReportTable, buildVars, buildWorkspaceVars, templateDescription } from "../lib/templates/vars.mjs";
+import { buildReportTable, templateDescription } from "../runtime/templates/metadata.mjs";
+import { buildVars, buildWorkspaceVars } from "../lib/templates/vars.mjs";
 
-import { canonicalJson, deliverySurfaceHash, manifestHash, readTemplateContract, TEMPLATE_PROTOCOL } from "../lib/templates/release-manifest.mjs";
+import { canonicalJson, deliverySurfaceHash, manifestHash } from "../lib/templates/manifest-hash.mjs";
+import { readTemplateContract, TEMPLATE_PROTOCOL } from "../lib/templates/release-contract.mjs";
 import { assertClaudeTemplateSupport, assertInitSessionQuiescent, installationConfigHash, installationFromMetadata, managedRunbookBlock, readInstallationLock, validateInstallationFiles } from "../runtime/template-installation.mjs";
 
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);

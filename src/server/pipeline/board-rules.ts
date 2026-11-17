@@ -1,6 +1,7 @@
-import { REPORT_AGENTS } from "@harness/core/plans/entitlement.mjs";
-import { boundaryOf, gateId, isGateId } from "@harness/core/pipeline/pipeline.mjs";
-import { canDiscard, canPropose, canRecordValidation, checkText, findRule, isOpen, type RuleKind } from "@harness/core/pipeline/transitions.mjs";
+import { REPORT_AGENTS } from "@harness/shared/plans/limits.mjs";
+import { boundaryOf, gateId, isGateId } from "@harness/app-core/pipeline/pipeline.mjs";
+import { canDiscard, canPropose, canRecordValidation, checkText, findRule, isOpen } from "@harness/app-core/pipeline/transitions.mjs";
+import type { RuleKind } from "@harness/app-core/pipeline/transitions.mjs";
 
 export type Actor = "human" | "agent" | "pipeline";
 export type Decision<T> = { ok: true; value: T } | { ok: false; reason: string };

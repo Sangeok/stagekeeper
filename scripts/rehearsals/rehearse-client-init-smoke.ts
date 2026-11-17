@@ -4,7 +4,7 @@ import { appendFileSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { newToken } from "../../packages/core/tokens/token.mjs";
+import { newToken } from "../../src/server/tokens/api";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";

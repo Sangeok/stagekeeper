@@ -1,47 +1,38 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { it } from "node:test";
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
-import { packageWindowsPlugin, windowsHooks } from "./package-windows-plugin.mjs";
+import { windowsHooks } from "./package-windows-plugin.mjs";
 
-const digest = bytes => createHash("sha256").update(bytes).digest("hex");
+import { assertModuleInventory, packageProject, windowsRuntimeFixture } from "../lib/testing/plugin-package-fixture.mjs";
 const PLUGIN_VERIFIER = fileURLToPath(new URL("../../plugin/skills/reconciling-proposals-with-codebase/", import.meta.url));
 const PLUGIN_HOOKS = fileURLToPath(new URL("../../plugin/hooks/hooks.json", import.meta.url));
 const LAUNCH = "-NoProfile -NonInteractive -File ${CLAUDE_PLUGIN_ROOT}/bin/harness.ps1";
-
-function runtime(root) {
-  const directory = path.join(root, "runtime"), node = Buffer.from("fixture node");
-  mkdirSync(directory);
-  writeFileSync(path.join(directory, "node.exe"), node);
-  writeFileSync(path.join(directory, "provenance.json"), JSON.stringify({ format: "stagekeeper-windows-node-v1", version: "22.23.3", architecture: "x64",
-    sourceSha256: "9436c81b284889303d39f5b8bd629bf19e790c665ccb94b4994aa87220d9799a", pipeBackport: "https://github.com/libuv/libuv/pull/5181",
-    executableSha256: digest(node), packageSha256: digest(JSON.stringify([["node.exe", digest(node)]])) }));
-  return directory;
-}
 
 it("ships the complete verification skill in the plugin source", () => {
   const verifier = verifierPackage(PLUGIN_VERIFIER), skill = readFileSync(verifier.path, "utf8");
   for (let gate = 1; gate <= 7; gate++) assert.match(skill, new RegExp(`^\\| INV-${gate} \\|`, "m"));
 });
 
-it("packages the plugin's verification skill for Claude Code and Codex with one checksum", t => {
-  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "stagekeeper-package-test-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const source = verifierPackage(PLUGIN_VERIFIER), result = packageWindowsPlugin({ output: path.join(root, "bundle"), runtimeDirectory: runtime(root) });
+it("packages the plugin's verification skill for Claude Code and Codex with one checksum", async t => {
+  const fixture = packageProject(t);
+  const { packageWindowsPlugin } = await fixture.load("scripts/windows/package-windows-plugin.mjs");
+  const source = verifierPackage(PLUGIN_VERIFIER), result = packageWindowsPlugin({ output: fixture.output("bundle"), runtimeDirectory: windowsRuntimeFixture(fixture.base) });
   assert.deepEqual(result.verifier, { checksum: source.checksum, files: source.files });
+  const manifest = JSON.parse(readFileSync(path.join(result.path, "windows-package.json"), "utf8"));
+  assert.equal(manifest.sourceRevision, fixture.git("rev-parse", "HEAD"));
+  assertModuleInventory(assert, fixture.root, result.path, manifest.inventory);
   for (const destination of ["skills/reconciling-proposals-with-codebase", "codex/skills/reconciling-proposals-with-codebase"]) {
     assert.equal(verifierPackage(path.join(result.path, destination)).checksum, source.checksum);
   }
 });
 
-it("packages each plugin hook to run its guard through the Windows launcher with the same trigger and failure behavior", t => {
-  const root = mkdtempSync(path.join(realpathSync(tmpdir()), "stagekeeper-package-test-"));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const result = packageWindowsPlugin({ output: path.join(root, "bundle"), runtimeDirectory: runtime(root) });
+it("packages each plugin hook to run its guard through the Windows launcher with the same trigger and failure behavior", async t => {
+  const fixture = packageProject(t);
+  const { packageWindowsPlugin } = await fixture.load("scripts/windows/package-windows-plugin.mjs");
+  const result = packageWindowsPlugin({ output: fixture.output("bundle"), runtimeDirectory: windowsRuntimeFixture(fixture.base) });
   const hooks = JSON.parse(readFileSync(path.join(result.path, "hooks/hooks.json"), "utf8"));
 
   assert.deepEqual(Object.keys(hooks.hooks), ["PreToolUse"]);
@@ -72,4 +63,30 @@ it("stops packaging when a plugin hook is unknown, missing or changes its failur
     change(hooks);
     assert.throws(() => windowsHooks(hooks), /^Error: Unexpected plugin hook contract$/);
   }
+});
+
+it("rejects incomplete or changed module payloads before creating Windows package output", async t => {
+  const fixture = packageProject(t);
+  const { packageWindowsPlugin } = await fixture.load("scripts/windows/package-windows-plugin.mjs");
+  const runtimeDirectory = windowsRuntimeFixture(fixture.base);
+  const cases = [
+    ["drift", "plugin/lib/plans/limits.mjs", "export const changed = true;", /not synchronized/],
+    ["orphan", "plugin/lib/old-policy.mjs", "export const old = true;", /orphan/],
+    ["untracked", "plugin/runtime/new-module.mjs", "export const added = true;", /missing tracked modules/],
+    ["missing", "plugin/runtime/qa/config.mjs", null, /unresolved|missing|ENOENT/i],
+    ["missing-lib", "plugin/lib/plans/limits.mjs", null, /not synchronized/],
+  ];
+  for (const [name, file, content, error] of cases) {
+    const target = path.join(fixture.root, file);
+    const previous = existsSync(target) ? readFileSync(target) : null;
+    if (content === null) rmSync(target); else writeFileSync(target, content);
+    const output = fixture.output(name);
+    assert.throws(() => packageWindowsPlugin({ output, runtimeDirectory }), error);
+    assert.equal(existsSync(output), false);
+    if (previous) writeFileSync(target, previous); else rmSync(target);
+  }
+  fixture.git("rm", "--cached", "--", "plugin/lib/plans/limits.mjs");
+  const output = fixture.output("untracked-lib");
+  assert.throws(() => packageWindowsPlugin({ output, runtimeDirectory }), /missing tracked modules/);
+  assert.equal(existsSync(output), false);
 });

@@ -1,5 +1,6 @@
-import { compatibleInstallation, installationFor, readTemplateContract, selectTemplateLanguage } from "@harness/core/templates/release-manifest.mjs";
-import type { Installation } from "@harness/core/templates/release-manifest.mjs";
+import { compatibleInstallation, readTemplateContract } from "@harness/shared/templates/release-contract.mjs";
+import { installationFor, selectTemplateLanguage } from "@/server/templates/api";
+import type { Installation } from "@harness/shared/templates/release-contract.mjs";
 import type { Prisma } from "@/generated/prisma/client";
 import { readProjectAccessIn } from "@/server/projects/api";
 import { PipelineRejection } from "./lock-pipeline";

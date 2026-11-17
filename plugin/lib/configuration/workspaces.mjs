@@ -1,7 +1,11 @@
-import { REPORT_AGENTS } from "../plans/entitlement.mjs";
+import { REPORT_AGENTS } from "../plans/limits.mjs";
+
 const AGENT_ID_RE = /^[a-z][a-z0-9-]*$/;
+
 function fail(path, message) { throw new Error(`harness.json ${path}: ${message}`); }
+
 function str(value, path) { if (typeof value !== "string" || value === "") fail(path, "must be a non-empty string"); return value; }
+
 function validateKnowledge(value, path) { return value === null ? null : str(value, path); }
 
 export function validateWorkspaceSemantics(input, { normalizeKnowledge = (value) => value, normalizeReadOnly = (value) => value } = {}) {

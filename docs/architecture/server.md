@@ -1,20 +1,9 @@
 # 서버 모듈 경계
 
-## 적용 예정: 공통 모듈에서 서버 정책 회수
-
-[shared-modules.md](./shared-modules.md)의 Phase MIGRATE에서 토큰 발급·해시, 가용성 선택,
-사용량/요청 창, 입력·QA 보고 검증, release 준비와 runner 서버 timing을 각 서버 소유 모듈로 옮긴다.
-외부 소비는 api.ts·contracts.ts를 통하며 DB 비초기화·주입 경계를 유지한다.
-특히 pipeline/template-selection의 installationFor·selectTemplateLanguage 사용은
-templates/api.ts로 연결하므로 **pipeline → templates**를 그때 방향표·검사기에 추가한다.
-현재 아래 방향표·public symbol·내부 시험 registry는 아직 변경하지 않는다.
-토큰의 newToken·hashToken은 tokens/api.ts에 공개할 예정이며, 리허설의 TS 동적 import 시점을
-보존한다. templates/api.server.ts를 새로 만들지 않는다.
-
 ## 현행 계약
 
 `src/server`는 backend application service다. 프런트엔드 FSD layer를 적용하지 않으며,
-제품의 순수 공유 정책은 `packages/core`, GitHub URL 규칙은 `packages/github`,
+웹·서버의 순수 공유 정책은 `packages/app-core`, 플러그인에도 제공하는 계약은 `packages/shared`,
 HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연결·credential 수명주기는
 기존 `src/server/github`가 소유한다.
 배경과 대안은 [ADR-0003](../ADR/0003-server-module-boundaries.md)에 기록한다.
@@ -31,7 +20,7 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 | tokens | 발급·조회·이름·최근 사용 기록 | projects |
 | usage | 실행 사용량·요청 예산 | projects |
 | templates | 단계 파서·번들·런북 판정 | projects |
-| pipeline | 보드·게이트·실행·정의·설정 | projects, usage |
+| pipeline | 보드·게이트·실행·정의·설정 | projects, usage, templates |
 | agents | 단계 커서·결과·원장 | projects, usage, templates, pipeline |
 | auth | 웹 세션·guard | projects |
 | runners | 실행기 lease·상태·일시 정지 | projects |
@@ -86,11 +75,13 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 | `projects/api.server.ts` | `planForUser`, `planForProject`, `projectAccess`, `loadProjectAvailability`, `loadProjectConnection`, `selectProjectForUse`, `disconnectProject`, `reconnectProject`, `loadProjectRepository`, `projectForUser`, `registerWebProject` | 기존 facade·연결/선택 바인딩과 새 조회/등록 바인딩; 웹·auth·REST 조립부. 주입형 roster는 이곳이 아닌 `api.ts` 사용 |
 | `projects/contracts.ts` | `Plan`, `ProjectAccess`, `TransactionHost`, `WorkspaceInput` | 앞의 셋은 `access-query`의 타입(`entitlement` 재수출도 이곳으로 통합), 마지막은 이 파일에서 직접 정의. 기존 모듈 밖 타입 소비자와 MCP tools가 사용 |
 | `tokens/api.ts` | `renameProjectToken`, `renameUserToken`, `tryRecordTokenUsage`, `findUserTokenByHash` | `rename-token`, `usage-recorder`, `user-query`; FSD·REST/MCP 주입형 인증 |
+| `tokens/api.ts` | `newToken`, `hashToken` | `token-crypto`; FSD 서버 Action·발급 리허설과 MCP/REST 인증. DB 초기화 없음 |
 | `tokens/api.server.ts` | `issueProjectToken`, `issueProjectOwnerToken`, `recordTokenUsage`, `findUserTokenByHash` | 발급·사용 기록·사용자 토큰 기본 연결; FSD·REST/MCP 조립부 |
 | `tokens/contracts.ts` | `TokenUsageRecorder` | `usage-recorder`; REST/MCP의 주입 계약 |
 | `usage/api.ts` | `readAccountUsageIn`, `readProjectUsageCapIn`, `usageLimitFailure`, `consumeProjectRequestBudget` | `account-usage-query`, `request-rate-service`; pipeline·agents·MCP |
 | `usage/api.server.ts` | `accountUsage`, `limitAccountRequest`, `limitProjectRequest` | 기존 사용량/요청 제한 바인딩; billing·REST/MCP 조립부 |
 | `usage/contracts.ts` | `AccountUsage` | `account-usage-query`; billing의 타입 참조 |
+| `templates/api.ts` | `releaseDeliverable`, `installationFor`, `selectTemplateLanguage` | `release-preparation`; REST 응답·pipeline template-selection. templates → pipeline 역의존 없음 |
 | `templates/api.ts` | `DONE`, `findStep`, `splitTemplate`, `TemplateFormatError`, `readCodexBundle`, `checkCodexRunbook`, `resolveCodexBundle`, `runbookStale` | `steps`, `client-bundle-query`, `bundle-query`, `runbook-query`; agents·REST·MCP·seed. `resolveCodexBundle`·`runbookStale`에는 DB를 명시적으로 전달 |
 | `templates/contracts.ts` | `Step`, `ParsedTemplate` | `steps`; agents 타입 소비자. 제품 소비자가 없는 `templates/api.server.ts`는 만들지 않음 |
 | `pipeline/api.ts` | `createBoardService`, `hasActiveLegacyScoutSlot`, `setAutomaticScout`, `savePipelineDefinition`, `archivePipeline`, `renamePipeline`, `setDefaultPipeline`, `setPipelineRule`, `setAutomaticPick` | `board-service`의 factory 별칭, `automatic-scout`, `save-definition`, `settings-service`; agents·MCP·FSD |
@@ -131,6 +122,9 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 <!-- server-internal-tests:start -->
 | 시험 파일 | 내부 모듈 | 이유 |
 | --- | --- | --- |
+| `scripts/checks/verify-ci-coverage.test.mjs` | templates | runbook 소유 파일 단독 변경이 양 OS workflow를 시작하는지 감지 |
+| `scripts/rehearsals/pipeline-smoke-steps.test.mjs` | pipeline | 이동한 생산·시험 파일의 단독 변경을 실제 promotion pathspec으로 감지 |
+| `scripts/rehearsals/pipeline-smoke-steps.test.mjs` | templates | 서버로 분리한 release·runbook 파일의 promotion 감지 누락 방지 |
 | `tests/server/github-configuration.test.ts` | github | 실제 App·webhook·vault 설정에 따른 목록 자동 제공과 callback origin 검증 |
 | `tests/server/github-provider.test.ts` | github | 실제 HTTP adapter의 PKCE·권한·페이지·오류·개별 토큰 폐기 계약 |
 | `tests/server/github-token-vault.test.ts` | github | 실제 암호화·AAD·keyring 회전과 위조 envelope 거부 |
@@ -199,6 +193,8 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 | `tests/server/token-usage-bindings.test.ts` | tokens | VM/IO 주입으로 실제 adapter·서비스 연결 검증 (usage-recorder, usage) |
 | `tests/server/integration/template-execution.test.ts` | pipeline | 실제 root 생성 transaction의 템플릿 선택·설치 admission·rollback 검증 (run-service) |
 | `tests/server/integration/template-execution.test.ts` | mcp | 혼합 릴리스 overview에서 호환 항목 진행과 비호환 항목 대기·무변경을 검증 (deps) |
+| `src/server/agents/next.test.ts` | usage | 이동한 실행 사용량 창의 실제 순수 정책으로 agent 사용량 제한을 검증 |
+| `tests/server/integration/template-release-support.ts` | templates | release 저장 통합 시험의 격리 fixture에서 release 준비 정책을 사용 |
 <!-- server-internal-tests:end -->
 
 ## 검증

@@ -1,5 +1,6 @@
-import { isRunbookVersion, runbookVersion, codexRunbookVersion } from "@harness/core/templates/runbook.mjs";
-import { compatibleInstallation, installationFor, releaseDeliverable } from "@harness/core/templates/release-manifest.mjs";
+import { isRunbookVersion, runbookVersion, codexRunbookVersion } from "@harness/shared/templates/runbook.mjs";
+import { compatibleInstallation } from "@harness/shared/templates/release-contract.mjs";
+import { installationFor, releaseDeliverable } from "@/server/templates/api";
 import { templateInstallationSchema } from "@/server/templates/api";
 import type { TemplateDeliverySource } from "@/server/templates/contracts";
 import type { ServerResult } from "@/server/result";

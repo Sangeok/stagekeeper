@@ -1,7 +1,7 @@
 import { selectTemplateReleaseForRunIn, assertTemplateInstallationIn, type TemplateMetadata, type TemplateRunContext } from "./template-selection";
 import { randomUUID } from "node:crypto";
-import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence, expand, validateGraph, itemGraph, DEFAULT_SELECTION_POLICY } from "@harness/core/pipeline/pipeline.mjs";
-import { validateExecutionGraph } from "@harness/core/pipeline/run-input.mjs";
+import { BOUNDARY, SLOT_FORMAT, PROJECT_AGENTS, slotAgent, dispatcherFor, isItemNode, cursorForStatus, defaultGraph, isGateId, sequence, expand, validateGraph, itemGraph, DEFAULT_SELECTION_POLICY } from "@harness/app-core/pipeline/pipeline.mjs";
+import { validateExecutionGraph } from "./input-validation";
 import { qaEntryResult } from "./qa-query";
 import { implVerifyEntryResult } from "./impl-verify-query";
 import { readProjectUsageCapIn } from "@/server/usage/api";

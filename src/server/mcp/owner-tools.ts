@@ -1,4 +1,4 @@
-import { allowsSessionApprovals } from "@harness/core/plans/entitlement.mjs";
+import { allowsSessionApprovals } from "@harness/app-core/plans/entitlement.mjs";
 import type { McpServer } from "@modelcontextprotocol/server";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { PipelineNext } from "@/server/pipeline/contracts";

@@ -3,9 +3,9 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { hashOf } from "../lib/templates/manifest.mjs";
-import { TEMPLATE_CONTRACT, TEMPLATE_PROTOCOL } from "../lib/templates/release-manifest.mjs";
-import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
+import { hashOf } from "./templates/install-manifest.mjs";
+import { TEMPLATE_CONTRACT, TEMPLATE_PROTOCOL } from "../lib/templates/release-contract.mjs";
+import { parseHarnessConfig } from "./configuration/harness-config.mjs";
 import { safeTarget } from "./file-ownership.mjs";
 import { gitRoot, readState, stateFiles, withGuard } from "./local-session.mjs";
 

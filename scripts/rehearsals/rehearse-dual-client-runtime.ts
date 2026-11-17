@@ -8,8 +8,8 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { validateTestDatabase } from "../lib/test-database.mjs";
-import { parseHarnessConfig } from "@harness/core/configuration/harness-config.mjs";
-import { isRunbookVersion } from "@harness/core/templates/runbook.mjs";
+import { parseHarnessConfig } from "../../plugin/runtime/configuration/harness-config.mjs";
+import { isRunbookVersion } from "../../packages/shared/templates/runbook.mjs";
 
 const REPO = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
 const CAMPAIGN = "<!-- stagekeeper:dual-client-runtime:v1 -->";

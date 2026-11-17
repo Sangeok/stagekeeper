@@ -6,7 +6,7 @@ import path from "node:path";
 import { createRoleFiles, roleFileToolNames } from "../runtime/role-files.mjs";
 import { roleBridge, verifyRoleExecution, assertRolePolicy, roleCommandPath, boundArguments } from "../runtime/codex-thread.mjs";
 import { ROLE_TOOLS } from "../runtime/codex-agent.mjs";
-import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { QA_BROWSER_TOOLS } from "../runtime/qa/config.mjs";
 
 function fixture() {
   const base = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-native-files-")), root = path.join(base, "repository"), scratch = path.join(base, "scratch");

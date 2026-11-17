@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
-import { QA_BROWSER_TOOLS, parseQaConfig } from "../lib/qa.mjs";
+import { QA_BROWSER_TOOLS, parseQaConfig } from "./qa/config.mjs";
 
 export async function createQaBrowser(config, fetcher = fetch) {
   const qa = parseQaConfig(config);

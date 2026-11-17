@@ -6,7 +6,7 @@ import { it } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import type { ReactElement } from "react";
-import { hashToken } from "@harness/core/tokens/token.mjs";
+import { hashToken, newToken } from "../../src/server/tokens/api";
 import * as result from "../../src/fsd/shared/api/result";
 import { registerWebProject } from "../../src/server/projects/registration-service";
 import * as management from "../../src/server/tokens/rename-token";
@@ -21,7 +21,8 @@ function loader(imports: Record<string, unknown>) {
       exports: exported, Date, FormData, console,
       require: (name: string) => {
         if (Object.hasOwn(imports, name)) return imports[name];
-        if (name.startsWith("@harness/core/")) return require(resolve("packages/core", name.slice("@harness/core/".length)));
+        if (name.startsWith("@harness/shared/")) return require(resolve("packages/shared", name.slice("@harness/shared/".length)));
+        if (name.startsWith("@harness/app-core/")) return require(resolve("packages/app-core", name.slice("@harness/app-core/".length)));
         if (name.startsWith(".")) return require(resolve(path, "..", name));
         return require(name);
       },
@@ -38,7 +39,7 @@ it("actual user issuance and revocation preserve session scope, name defaults an
     "@/server/auth/guard": { requireUser: async () => { guards++; return { userId: "u" }; } },
     "@/server/db": { prisma: { userToken: { create: async ({ data }: { data: Record<string, unknown> }) => rows.push(data), updateMany: async (args: unknown) => revoked.push(plainObject(args)) } } },
     "@/fsd/shared/api/result": result, "@/fsd/shared/routes/user-tokens": { userTokensPath: () => "/settings/tokens" },
-    "@/server/tokens/api": management,
+    "@/server/tokens/api": { ...management, newToken },
   });
   const action = load<typeof import("../../src/fsd/features/manage-user-token/api/manage-user-token.server")>("src/fsd/features/manage-user-token/api/manage-user-token.server.ts");
   for (const label of [" laptop ", "laptop", "  "]) {
@@ -118,7 +119,7 @@ it("web action generates one token before registration and preserves single-atte
     const prisma = { $transaction: async () => { attempts++; throw error; } } as unknown as Parameters<typeof registerWebProject>[0];
     const load = loader({
       "@/server/auth/guard": { requireUser: async () => ({ userId: "u" }) },
-      "@harness/core/tokens/token.mjs": { newToken: () => { generated++; return { plain: "one-time-secret", hash: "hash" }; } },
+      "@/server/tokens/api": { newToken: () => { generated++; return { plain: "one-time-secret", hash: "hash" }; } },
       "@/server/projects/api.server": { registerWebProject: (input: Parameters<typeof registerWebProject>[1]) => {
         assert.equal(generated, 1); assert.equal(input.initialTokenHash, "hash");
         assert.equal(JSON.stringify(input).includes("one-time-secret"), false);

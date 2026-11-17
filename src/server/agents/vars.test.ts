@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { clientRuntime } from "@harness/core/execution/client-runtime.mjs";
-import { DEFAULT_SCOUT_QUESTION } from "@harness/core/templates/vars.mjs";
+import { clientRuntime } from "@harness/shared/execution/client-runtime.mjs";
+import { DEFAULT_SCOUT_QUESTION } from "@harness/shared/templates/vars.mjs";
 
 import { serverVars, type ProjectRow, type WorkspaceRow } from "./vars";
 

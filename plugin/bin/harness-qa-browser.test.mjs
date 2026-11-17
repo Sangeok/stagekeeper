@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { QA_BROWSER_TOOLS } from "../lib/qa.mjs";
+import { QA_BROWSER_TOOLS } from "../runtime/qa/config.mjs";
 import { createQaBrowser, withQaBrowser } from "../runtime/qa-browser.mjs";
 
 const config = { environment: "test", baseUrl: "http://127.0.0.1:3000", mcpUrl: "http://127.0.0.1:8931/mcp", scenariosPath: "docs/qa/scenarios.md" };

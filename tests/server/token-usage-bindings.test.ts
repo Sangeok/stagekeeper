@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { it } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { newToken } from "@harness/core/tokens/token.mjs";
+import { newToken } from "../../src/server/tokens/api";
 import * as auth from "../../src/server/mcp/auth";
 import * as templatesQuery from "../../src/server/rest/templates-handler";
 import * as identityQuery from "../../src/server/rest/project-identity-handler";
@@ -80,7 +80,8 @@ function fixture(options: { revoked?: boolean; unknown?: boolean; unavailable?: 
       exports: exported, Request, Response, URL, Date, console,
       require: (name: string) => {
         if (Object.hasOwn(common, name)) return common[name];
-        if (name.startsWith("@harness/core/")) return require(resolve("packages/core", name.slice("@harness/core/".length)));
+        if (name.startsWith("@harness/shared/")) return require(resolve("packages/shared", name.slice("@harness/shared/".length)));
+        if (name.startsWith("@harness/app-core/")) return require(resolve("packages/app-core", name.slice("@harness/app-core/".length)));
         if (name.startsWith(".")) return require(resolve(path, "..", name));
         return require(name);
       },

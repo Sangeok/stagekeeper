@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createCipheriv, randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { it } from "node:test";
 import { gzipSync } from "node:zlib";
 import { containsSecret } from "./client-init-smoke-steps.mjs";
@@ -213,10 +214,45 @@ it("lists pipeline-smoke trigger paths that exist in this repository", () => {
   const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
   const serverPaths = ["scripts/rehearsals/smoke-server.mjs", "scripts/rehearsals/smoke-server-listener.cjs"];
   const sharedCiPaths = ["scripts/rehearsals/rehearse-codex-macos.mjs", "scripts/rehearsals/codex-init-eval.mjs", "scripts/rehearsals/client-ci-contract.mjs", "scripts/rehearsals/client-init-smoke-steps.mjs", "scripts/rehearsals/gate-environment.mjs", "scripts/rehearsals/gate-record.mjs", "scripts/windows/package-windows-plugin.mjs", "scripts/macos/package-plugin.mjs"];
-  for (const expected of ["packages/core/pipeline", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database", ".github/actions/gate-record", ...sharedCiPaths, ...serverPaths]) assert.ok(paths.includes(expected), expected);
+  for (const expected of ["packages/app-core/pipeline", "packages/shared/templates", "src/server/templates/release-preparation.ts", "src/server/templates/release-preparation.test.ts", "src/server/templates/runbook-query.ts", "tests/server/runbook-stale.test.ts", "plugin/skills/watch", "scripts/rehearsals/pipeline-smoke-steps.mjs", ".github/actions/smoke-database", ".github/actions/gate-record", ...sharedCiPaths, ...serverPaths]) assert.ok(paths.includes(expected), expected);
   const initWorkflow = readFileSync(new URL(".github/workflows/client-init-smoke.yml", repository), "utf8");
   assert.ok(initWorkflow.includes('      - "scripts/rehearsals/smoke-server*"'));
   for (const expected of sharedCiPaths) assert.ok(initWorkflow.includes(`      - "${expected}"`), `${expected} must select installation verification`);
   for (const entry of paths) assert.ok(existsSync(new URL(entry, repository)), `${entry} does not exist`);
   assert.deepEqual(smokeTriggerPaths("no command here"), []);
+});
+
+it("keeps every migrated pipeline and template file inside the actual Git trigger pathspec", t => {
+  const repository = new URL("../../", import.meta.url);
+  const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
+  function files(directory) {
+    return readdirSync(new URL(directory + "/", repository), { withFileTypes: true }).flatMap(entry => {
+      const file = directory + "/" + entry.name;
+      return entry.isDirectory() ? files(file) : /\.(?:mjs|ts|mts)$/.test(file) ? [file] : [];
+    });
+  }
+  const serverTargets = ["src/server/templates/release-preparation.ts", "src/server/templates/release-preparation.test.ts", "src/server/templates/runbook-query.ts", "tests/server/runbook-stale.test.ts"];
+  const targets = [...new Set([
+    ...files("packages/app-core/pipeline"), ...files("packages/shared/templates"), ...files("plugin/runtime/templates"),
+    "src/server/pipeline/input-validation.ts", "src/server/pipeline/input-validation.test.ts", ...serverTargets,
+  ])];
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-trigger-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const environment = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
+  const git = (...args) => execFileSync("git", ["-C", root, ...args], { encoding: "utf8", env: environment, windowsHide: true }).trim();
+  const document = "docs/proposals/active/unrelated.md";
+  for (const file of [...targets, document]) {
+    mkdirSync(dirname(join(root, file)), { recursive: true });
+    writeFileSync(join(root, file), "before\n");
+  }
+  git("init", "-q");
+  git("-c", "core.autocrlf=false", "add", "--", ...targets, document);
+  for (const file of targets) {
+    writeFileSync(join(root, file), "after\n");
+    assert.equal(git("diff", "--name-only", "--", ...paths), file, file);
+    if (serverTargets.includes(file)) assert.equal(git("diff", "--name-only", "--", ...paths.filter(value => value !== file)), "", file + " must have its own trigger");
+    writeFileSync(join(root, file), "before\n");
+  }
+  writeFileSync(join(root, document), "after\n");
+  assert.equal(git("diff", "--name-only", "--", ...paths), "");
 });

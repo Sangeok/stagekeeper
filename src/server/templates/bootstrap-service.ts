@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { manifestHash, prepareTemplateRelease, selectTemplateLanguage } from "@harness/core/templates/release-manifest.mjs";
-import { dispatcherFor, isItemNode, slotAgent } from "@harness/core/pipeline/pipeline.mjs";
+import { manifestHash } from "@harness/shared/templates/manifest-hash.mjs";
+import { prepareTemplateRelease, selectTemplateLanguage } from "./release-preparation";
+import { dispatcherFor, isItemNode, slotAgent } from "@harness/app-core/pipeline/pipeline.mjs";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { splitTemplate } from "./steps";
 import { previousResult, reject, storeTemplateReleaseIn, transact, validateRenderContract, validateRequest } from "./release-service";

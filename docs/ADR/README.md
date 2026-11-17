@@ -33,12 +33,12 @@ ADR은 결정이 *왜* 내려졌는지, 어떤 대안을 비교했는지, 어떤
 | [0002](0002-test-code-organization.md) | 대상 옆 테스트 배치와 실행 경계별 분리 채택 | accepted |
 | [0003](0003-server-module-boundaries.md) | 얕은 서버 기능 모듈과 명시적인 공개 진입점 | proposed |
 | [0004](0004-organize-repository-scripts.md) | 저장소 스크립트의 책임별 배치 | accepted |
-| [0005](0005-organize-core-modules.md) | Core 모듈의 책임별 배치 | accepted |
+| [0005](0005-organize-core-modules.md) | Core 모듈의 책임별 배치 | superseded |
 | [0006](0006-optional-github-repository-list.md) | 선택형 GitHub 저장소 목록과 자격 증명 수명주기 | accepted |
-| [0007](0007-share-github-url-modules.md) | GitHub URL 규칙의 독립 공유 영역 | accepted |
-| [0008](0008-separate-shared-module-distribution.md) | 공유 코드의 소유권과 플러그인 배포 범위 분리 | proposed |
+| [0007](0007-share-github-url-modules.md) | GitHub URL 규칙의 독립 공유 영역 | superseded |
+| [0008](0008-separate-shared-module-distribution.md) | 공유 코드의 소유권과 플러그인 배포 범위 분리 | accepted |
 
-0008은 ARCH에서 확정한 적용 예정 설계다. MIGRATE 적용 전까지 0005·0007은 accepted로 유지한다.
+0008은 MIGRATE에서 활성화한 현재 경계다. 0005·0007은 역사로 보존하며 0008이 대체한다.
 
 첫 번째 실제 아키텍처 결정은 `0001`부터 시작합니다. `0000`은 ADR 운영 방식
 자체를 기록하는 메타 ADR이 필요할 때만 사용합니다.

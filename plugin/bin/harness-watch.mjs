@@ -5,9 +5,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { parseHarnessConfig } from "../lib/configuration/harness-config.mjs";
-import { parseBearer } from "../lib/tokens/token.mjs";
-import { actionableWork, hasWork, nextWatchState, parseToolResponse, workSignature } from "../lib/execution/watch.mjs";
+import { parseHarnessConfig } from "../runtime/configuration/harness-config.mjs";
+import { parseBearer } from "../lib/tokens/format.mjs";
+import { actionableWork, hasWork, nextWatchState, parseToolResponse, workSignature } from "../runtime/execution/watch.mjs";
 
 import { WatchFailure, Interrupted, NewerState, gitRoot, stateFiles, readState, atomicWrite, isAlive, withGuard, replaced, matchesBinding, requireOwnership, clearState,
   checkoutRunbookVersion, writeStopRequest } from "../runtime/local-session.mjs";

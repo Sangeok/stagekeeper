@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { parseRepoUrl as parseGitHubRepoUrl, SEGMENT as GITHUB_SEGMENT } from "@harness/github/repo-url.mjs";
+import { parseRepoUrl as parseGitHubRepoUrl, SEGMENT as GITHUB_SEGMENT } from "@harness/shared/github/repo-url.mjs";
 import { parseRepoUrl, SEGMENT, slugFromRepo } from "./repo-url";
 
 describe("parseRepoUrl", () => {

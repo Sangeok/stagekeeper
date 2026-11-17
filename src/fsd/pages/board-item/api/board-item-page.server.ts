@@ -1,7 +1,7 @@
 import "server-only";
 import type { ComponentProps } from "react";
-import { historyCutoff } from "@harness/core/plans/entitlement.mjs";
-import { readSelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
+import { historyCutoff } from "@harness/app-core/plans/entitlement.mjs";
+import { readSelectionDecision } from "@harness/app-core/pipeline/work-selection.mjs";
 import { prisma } from "@/server/db";
 import { loadPipelinesView, loadItemPipelineView, loadPipelineChanges } from "@/server/pipeline/api";
 import { getWithHistory, hasHistoryBefore } from "@/server/pipeline/api.server";

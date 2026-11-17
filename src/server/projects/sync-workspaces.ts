@@ -1,5 +1,5 @@
-import { validateWorkspaceSemantics } from "@harness/core/configuration/workspaces.mjs";
-import { capReason, withinLimit } from "@harness/core/plans/entitlement.mjs";
+import { validateWorkspaceSemantics } from "@harness/shared/configuration/workspaces.mjs";
+import { capReason, withinLimit } from "@harness/shared/plans/limits.mjs";
 import { readProjectAccess, type TransactionHost } from "./access-query";
 import type { ServerResult } from "@/server/result";
 import type { WorkspaceInput } from "./contracts";

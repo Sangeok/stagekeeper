@@ -5,7 +5,7 @@ import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../../src/generated/prisma/client";
 import type { DeploymentAudit } from "../../../src/server/templates/contracts";
-import type { TemplateRow } from "../../../packages/core/templates/release-manifest.mjs";
+import type { TemplateRow } from "../../../src/server/templates/release-preparation";
 import { validateTestDatabaseUrl } from "../../../scripts/lib/test-database.mjs";
 
 export function releaseRows(body = "Do the work."): TemplateRow[] {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { RUNTIME_MARKER } from "@harness/core/execution/client-runtime.mjs";
-import { COMMON_DOCS } from "@harness/core/templates/codex-bundle.mjs";
+import { RUNTIME_MARKER } from "@harness/shared/execution/client-runtime.mjs";
+import { COMMON_DOCS } from "@harness/shared/templates/codex-bundle.mjs";
 import { readCodexBundle, checkCodexRunbook } from "./client-bundle-query";
 
 const bundle = [

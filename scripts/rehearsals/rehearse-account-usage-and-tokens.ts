@@ -7,7 +7,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { config } from "dotenv";
 import { encode } from "next-auth/jwt";
 import { validateTestDatabase } from "../lib/test-database.mjs";
-import { newToken } from "../../packages/core/tokens/token.mjs";
+import { newToken } from "../../src/server/tokens/api";
 
 async function main(): Promise<void> {
   config({ quiet: true });

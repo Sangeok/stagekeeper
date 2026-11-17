@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { withMcpAuth } from "mcp-handler";
 import { describe, it } from "node:test";
-import { newToken } from "../../../packages/core/tokens/token.mjs";
+import { newToken } from "@/server/tokens/api";
 import { makeVerifyOwnerToken, makeVerifyToken } from "./auth";
 
 it("records accepted credentials once by internal ID while retaining AuthInfo and lookup failures", async () => {

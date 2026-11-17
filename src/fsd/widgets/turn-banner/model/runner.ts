@@ -1,4 +1,4 @@
-import { runnerNextSignalAt, runnerSignalAt, runnerStatus } from "@harness/core/execution/runner.mjs";
+import { runnerNextSignalAt, runnerSignalAt, runnerStatus } from "@harness/app-core/execution/runner-status.mjs";
 
 export type TurnRunner = {
   client: "claude" | "codex";

@@ -7,7 +7,6 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { newToken } from "../../packages/core/tokens/token.mjs";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { BACKLOG_ITEM, FIXTURE_FILES, caseResults } from "./pipeline-smoke-steps.mjs";
 import { evaluateCodexInit, managedSnapshot } from "./codex-init-eval.mjs";
@@ -95,6 +94,7 @@ async function main(args) {
   mkdirSync(repo); mkdirSync(artifacts); mkdirSync(path.join(work, "codex-config"));
   process.env.DATABASE_URL = databaseUrl;
   const { withPrisma } = await import("../lib/prisma.ts");
+  const { newToken } = await import("../../src/server/tokens/api.ts");
   const { createBoardService, loadPipelinesView, savePipelineDefinition, nextFor, headFor, preparePipelineRun, startProjectWork, stopProjectWork, setAutomaticScout } = await import("../../src/server/pipeline/api.ts");
   const { changeUserPlan } = await import("../../src/server/projects/api.ts");
   const { Run, seedTemplates, bootstrapSmokeTemplates, createFixtureUser, deleteFixtureUser } = await import("./rehearse-client-init-smoke.ts");

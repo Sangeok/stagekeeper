@@ -1,8 +1,9 @@
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { hashOf } from "../../packages/core/templates/manifest.mjs";
-import { TEMPLATE_CONTRACT, TEMPLATE_PROTOCOL, deliverySurfaceHash, manifestHash } from "../../packages/core/templates/release-manifest.mjs";
+import { hashOf } from "../../plugin/runtime/templates/install-manifest.mjs";
+import { TEMPLATE_CONTRACT, TEMPLATE_PROTOCOL } from "../../packages/shared/templates/release-contract.mjs";
+import { deliverySurfaceHash, manifestHash } from "../../packages/shared/templates/manifest-hash.mjs";
 import { installationConfigHash, managedRunbookBlock } from "../../plugin/runtime/template-installation.mjs";
 
 export const fixtureInstallation = { releaseId: "fixture-release", language: "en", clientSurfaceHash: "a".repeat(64), protocol: TEMPLATE_PROTOCOL };

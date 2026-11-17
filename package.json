@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "node scripts/build.mjs",
     "start": "next start",
-    "lint": "eslint && node scripts/checks/verify-fsd-boundaries.mjs && node scripts/checks/verify-server-boundaries.mjs",
+    "lint": "eslint && node scripts/checks/verify-fsd-boundaries.mjs && node scripts/checks/verify-server-boundaries.mjs && npm run verify:shared",
     "verify:fsd": "node scripts/checks/verify-fsd-boundaries.mjs",
     "verify:server": "node scripts/checks/verify-server-boundaries.mjs",
     "verify:plugin-version": "node scripts/checks/verify-plugin-version.mjs",
@@ -18,7 +18,7 @@
     "test:architecture": "node --test \"scripts/**/*.test.mjs\"",
     "test:scripts": "node --import tsx --test \"scripts/**/*.test.mjs\" \"scripts/**/*.test.ts\"",
     "check": "node scripts/plugin-lib.mjs --check && npm run lint && npm run docs:check && npm run verify:ci-coverage && next typegen && tsc --noEmit && npm run test:scripts",
-    "test": "node --test \"packages/core/**/*.test.mjs\" \"packages/github/**/*.test.mjs\" \"plugin/bin/*.test.mjs\" \"plugin/runtime/*.test.mjs\"",
+    "test": "node --test \"packages/shared/**/*.test.mjs\" \"packages/app-core/**/*.test.mjs\" \"plugin/bin/*.test.mjs\" \"plugin/runtime/**/*.test.mjs\"",
     "test:web": "node --import tsx --test \"src/**/*.test.mjs\" \"src/**/*.test.ts\"",
     "test:templates": "node --import tsx --test \"plugin/templates/*.test.mjs\"",
     "seed:templates": "node --import tsx scripts/templates/seed-templates.ts",
@@ -32,7 +32,9 @@
     "test:server": "node --import ./tests/server/register-server-only.mjs --import tsx --test \"tests/server/*.test.ts\"",
     "test:server:integration": "node scripts/test-server-integration.mjs",
     "test:acceptance:backlog-pipeline": "node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-backlog-pipeline.ts",
-    "test:template-release": "node --import tsx --test \"tests/templates/*.test.ts\""
+    "test:template-release": "node --import tsx --test \"tests/templates/*.test.ts\"",
+    "verify:shared": "node scripts/checks/verify-shared-boundaries.mjs",
+    "test:policy-contracts": "node --import ./tests/server/register-server-only.mjs --import tsx --test src/server/pipeline/input-validation.test.ts src/server/projects/availability-policy.test.ts src/server/usage/usage-window.test.ts src/server/tokens/token-crypto.test.ts src/server/pipeline/qa-report.test.ts src/server/templates/release-preparation.test.ts src/fsd/entities/board-item/model/doc-link.test.ts tests/server/runbook-stale.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.3.1",

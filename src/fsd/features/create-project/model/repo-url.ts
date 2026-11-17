@@ -1,8 +1,8 @@
 import { SLUG_MAX } from "./project-slug";
-import { parseRepoUrl as parseGitHubRepoUrl } from "@harness/github/repo-url.mjs";
+import { parseRepoUrl as parseGitHubRepoUrl } from "@harness/shared/github/repo-url.mjs";
 import type { PublicRepository, AuthorizedRepository } from "./github-connection-state";
 
-export { SEGMENT } from "@harness/github/repo-url.mjs";
+export { SEGMENT } from "@harness/shared/github/repo-url.mjs";
 
 export type RepoRef = { owner: string; repo: string };
 

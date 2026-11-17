@@ -95,3 +95,11 @@ it("treats a plugin from 0.6.0 on as a template release client that needs the cu
   assert.equal(usesTemplateReleases("0.6.2"), true);
   assert.equal(usesTemplateReleases("1.0.0"), true);
 });
+
+it("does not hide a broken current limits module behind an older installed policy", async t => {
+  const repo = fixture(t, ["app-dev", "pm"]), plugin = join(repo, "plugin");
+  mkdirSync(join(plugin, "lib", "plans"), { recursive: true });
+  writeFileSync(join(plugin, "lib", "plans", "limits.mjs"), 'throw new Error("broken current policy");');
+  writeFileSync(join(plugin, "lib", "plans", "entitlement.mjs"), 'export const limitsFor = () => ({ agents: ["pm"] });');
+  await assert.rejects(assertGeneratedAgents(plugin, repo, "free", ["app-dev"]), /broken current policy/);
+});

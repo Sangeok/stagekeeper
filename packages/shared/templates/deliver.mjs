@@ -1,0 +1,34 @@
+import { parseClient, clientRuntime, runtimeEcho } from "../execution/client-runtime.mjs";
+
+import { limitsFor, REPORT_AGENTS } from "../plans/limits.mjs";
+
+import { validateCodexBundle } from "./codex-bundle.mjs";
+
+import { stubOf } from "./template-boundary.mjs";
+
+export { STEP_HEADING, stubOf } from "./template-boundary.mjs";
+
+const RUNBOOK_FREE = "CLAUDE.runbook.free.md";
+
+const agentOf = (path) => /^agents\/([^/]+)\.md$/.exec(path)?.[1] ?? null;
+
+export function deliverable(rows, plan, client = "claude") {
+  client = parseClient(client);
+  if (client === "codex") validateCodexBundle(rows, plan);
+  const agents = limitsFor(plan).agents;
+  /** @type {Record<string, string>} */
+  const templates = {};
+  for (const { path, body } of rows) {
+    if (path === RUNBOOK_FREE) continue;
+    if ((path === "CLAUDE.runbook.md" || path === "CODEX.runbook.md") && path !== clientRuntime(client).runbook_source) continue;
+    const agent = agentOf(path);
+    if (agent !== null && REPORT_AGENTS.includes(agent) && !agents.includes(agent)) continue;
+    templates[path] = agent === null ? body : stubOf(body);
+  }
+  for (const [oldRole, role] of [["pm", "work-assigner"], ["feature-scout", "work-discoverer"]]) {
+    const body = templates[`agents/${oldRole}.md`];
+    if (body && agents.includes(role)) templates[`agents/${role}.md`] = body.replaceAll(oldRole, role)
+      .replaceAll("mcp__harness__board_propose", "mcp__harness__assignment_context, mcp__harness__board_propose");
+  }
+  return { templates, entitlement: { plan, agents }, ...(client === "codex" ? { runtime: runtimeEcho() } : {}) };
+}

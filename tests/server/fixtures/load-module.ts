@@ -11,7 +11,8 @@ export function loadModule<T>(path: string, dependencies: Record<string, unknown
   runInNewContext(code, { ...globals, exports: exported, Date, FormData, console, require: (name: string) => {
     if (name in dependencies) return dependencies[name];
     if (name === "server-only") return {};
-    if (name.startsWith("@harness/core/")) return require(resolve("packages/core", name.slice("@harness/core/".length)));
+    if (name.startsWith("@harness/shared/")) return require(resolve("packages/shared", name.slice("@harness/shared/".length)));
+    if (name.startsWith("@harness/app-core/")) return require(resolve("packages/app-core", name.slice("@harness/app-core/".length)));
     if (name.startsWith(".")) return require(resolve(path, "..", name));
     return require(name);
   } });

@@ -1,7 +1,9 @@
-import { selectTemplateLanguage, readTemplateContract } from "@harness/core/templates/release-manifest.mjs";
+import { selectTemplateLanguage } from "./release-preparation";
+import { readTemplateContract } from "@harness/shared/templates/release-contract.mjs";
 import type { Prisma, PrismaClient, TemplateRelease } from "@/generated/prisma/client";
 import type { ServerResult } from "@/server/result";
-import type { TemplateRow, TemplateContract } from "@harness/core/templates/release-manifest.mjs";
+import type { TemplateRow } from "./release-preparation";
+import type { TemplateContract } from "@harness/shared/templates/release-contract.mjs";
 
 export type TemplateReleaseBundle = { release: TemplateRelease; language: string; rows: TemplateRow[] };
 export type TemplateDeliverySource = { id: string; contract: TemplateContract; contractHash: string; language: string; rows: TemplateRow[] };

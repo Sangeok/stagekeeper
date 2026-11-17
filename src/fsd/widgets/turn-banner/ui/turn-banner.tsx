@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactElement, type ReactNode } from "react";
-import { CLIENTS, clientRuntime, parseClient } from "@harness/core/execution/client-runtime.mjs";
-import type { Plan } from "@harness/core/plans/entitlement.mjs";
+import { CLIENTS, clientRuntime, parseClient } from "@harness/shared/execution/client-runtime.mjs";
+import type { Plan } from "@harness/shared/plans/limits.mjs";
 import type { PauseRunnerAction } from "@/fsd/features/pause-runner";
 
 import { cn } from "@/fsd/shared/lib/class-name";

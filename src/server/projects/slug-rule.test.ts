@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import * as core from "@harness/core/project-slug.mjs";
+import * as core from "@harness/app-core/projects/slug.mjs";
 
 import { RESERVED_SLUGS, SLUG_RE } from "./slug-rule";
 import { SLUG_MAX, availableSlug, slugCandidate } from "./slug-rule";

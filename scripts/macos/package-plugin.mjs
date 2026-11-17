@@ -6,6 +6,8 @@ import { installedMacosRuntime, macosDigest } from "../../plugin/runtime/macos-r
 import { verifierPackage } from "../../plugin/runtime/codex-agent.mjs";
 import { isShippedPluginFile } from "../lib/plugin-payload.mjs";
 
+import { validatePluginModulesForPackaging } from "../plugin-lib.mjs";
+
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 
 function inventory(directory) {
@@ -42,11 +44,12 @@ export function packageMacosPlugin({ output, runtimeDirectory }) {
     || path.relative(repository, output).split(path.sep)[0] !== "..") throw new Error("A new absolute output outside the repository on macOS is required");
   const runtime = installedMacosRuntime(runtimeDirectory), verifier = verifierPackage(path.join(repository, "plugin/skills/reconciling-proposals-with-codebase"));
   const files = execFileSync("git", ["ls-files", "--", "plugin"], { cwd: repository, encoding: "utf8" }).trim().split(/\r?\n/).filter(isShippedPluginFile);
+  const modules = validatePluginModulesForPackaging(repository, files);
   mkdirSync(output, { recursive: true });
   for (const name of files) {
     const source = path.join(repository, name), target = path.join(output, name.slice("plugin/".length)), stat = lstatSync(source);
     if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Plugin source type refused");
-    mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, readFileSync(source), { flag: "wx", mode: stat.mode & 0o777 });
+    mkdirSync(path.dirname(target), { recursive: true }); writeFileSync(target, (modules.libModules.get(name) ?? modules.pluginModules.get(name))?.bytes ?? readFileSync(source), { flag: "wx", mode: stat.mode & 0o777 });
   }
   for (const needed of ["bin/harness", "bin/harness-platform.mjs", ...[...MACOS_HOOKS.keys()].map(script => `bin/${script}`), "runtime/macos-commands.mjs", "runtime/macos/role-process.mjs", "runtime/macos/sandbox-identity.c"]) {
     if (!existsSync(path.join(output, needed))) throw new Error("Stage the macOS plugin sources before packaging");

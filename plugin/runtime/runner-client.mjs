@@ -1,5 +1,5 @@
 import os from "node:os";
-import { RUNNER_HOST_MAX } from "../lib/execution/runner.mjs";
+import { RUNNER_HOST_MAX } from "../lib/execution/runner-contract.mjs";
 
 const BODY_LIMIT = 64 * 1024;
 export const NEXT_BEAT_MIN_MS = 60_000;

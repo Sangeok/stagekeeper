@@ -1,12 +1,12 @@
 ---
-status: "accepted"
+status: "superseded"
 date: "2026-10-23"
 applies-to: ["packages/core", "plugin/lib", "scripts/plugin-lib.mjs", "package.json"]
 decision-makers: ["repository owner"]
 consulted: []
 informed: ["contributors and coding agents"]
 supersedes: []
-superseded-by: null
+superseded-by: "0008"
 ---
 
 # Core 모듈의 책임별 배치

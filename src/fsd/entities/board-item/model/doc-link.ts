@@ -1,6 +1,6 @@
 export type RepoRef = { owner: string; repo: string; branch: string };
 
-export { blobHref } from "@harness/github/blob-url.mjs";
+
 
 export const DOC_LINK_NOTE = "Opens the recorded commit on GitHub. If it 404s, that commit is not pushed yet.";
 
@@ -26,4 +26,19 @@ export function orderReportActors(actors: ReadonlySet<string>): string[] {
     .filter((a) => !REPORT_LABEL.has(a))
     .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   return ["main-loop", ...rest, "doc-auditor", "feature-scout"].filter((a) => actors.has(a));
+}
+
+/** @param {string} value */
+function encodePathSegments(value: string): string {
+  return value.split("/").map(encodeURIComponent).join("/");
+}
+
+/**
+ * @param {{ owner: string, repo: string, branch: string }} repo
+ * @param {string} path
+ * @param {string | null} ref
+ * @returns {string}
+ */
+export function blobHref(repo: RepoRef, path: string, ref: string | null | undefined = null): string {
+  return `https://github.com/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.repo)}/blob/${encodePathSegments(ref ?? repo.branch)}/${encodePathSegments(path)}`;
 }

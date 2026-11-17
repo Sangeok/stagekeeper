@@ -72,7 +72,7 @@ from your own session with an owner token. Everything else runs in your own Clau
 ### Your pipeline, your gates
 
 The order lives on the server as a per-project pipeline graph, not in runbook text, so the
-server can enforce it. The rules are in `packages/core/pipeline/pipeline.mjs`.
+server can enforce it. The rules are in `packages/app-core/pipeline/pipeline.mjs`.
 
 - **Nodes:** `propose`, `plan`, `verify`, `implement`, `impl-verify`, `qa`, `accept`,
   `doc-audit`, `scout`. `plan`, `implement`, and `accept` can't be removed. `scout`,
@@ -141,7 +141,7 @@ records validation, and performs acceptance. Agents don't dispatch each other.
 | `done` | Done | dev reported it finished. Accepted once the acceptance record is in |
 | `on_hold` | On hold | Parked. Resume to continue |
 
-Allowed transitions are defined in one place, `packages/core/pipeline/transitions.mjs`.
+Allowed transitions are defined in one place, `packages/app-core/pipeline/transitions.mjs`.
 
 ## Plans
 
@@ -158,7 +158,7 @@ Plans belong to the user, and every project follows its owner's plan.
 | Edit the pipeline graph | No | Yes | Yes |
 | New agent runs per 5-hour window | 20 | 100 | Unlimited |
 
-- Limits come from `LIMITS` in `packages/core/plans/entitlement.mjs`.
+- Limits come from `LIMITS` in `packages/shared/plans/limits.mjs`.
 - The run limit never blocks resuming an agent run that is already open.
 - The history window limits what the History tab shows; everything is stored.
 - After a downgrade, projects over the limit are kept as **Not selected** and are read only.
@@ -313,13 +313,13 @@ npm run dev              # http://localhost:3000
 | `npm run verify:ci-coverage` | Compares the CI workflows with the OS coverage table in `docs/architecture/verification.md`: every job is classified, and a per-OS check runs on Windows and macOS (included in `check`) |
 | `npm run test:architecture` | `scripts/**/*.test.mjs` |
 | `npm run test:scripts` | `scripts/**/*.test.mjs`, `scripts/**/*.test.ts` (included in `check`) |
-| `npm test` | `packages/core` and `plugin/bin` tests |
+| `npm test` | Shared/app policy and recursive plugin runtime tests |
 | `npm run test:web` | `src/**/*.test.ts` and `src/**/*.test.mjs` |
 | `npm run test:server` | `tests/server/*.test.ts` with the server-only bootstrap |
 | `npm run test:server:integration` | Integration tests on an isolated PostgreSQL; `TEST_DATABASE_URL` must name a `stagekeeper_test_*` database |
 | `npm run github:maintenance -- --apply` | Delete expired repository-list attempts/delivery IDs and stop expired credentials; add `--rotate` to reseal with the active vault key |
 | `npm run test:templates` | Private template tests; needs `plugin/templates/` |
-| `npm run sync:plugin-lib` | Copy `packages/core` into `plugin/lib` after changing core |
+| `npm run sync:plugin-lib` | Sync the declared shared module closure into `plugin/lib` |
 | `npm run db:generate` · `db:validate` · `db:migrate` | `prisma generate` · `prisma validate` · `prisma migrate dev` |
 
 Tests use the built-in Node.js test runner (`node --test`), with `tsx` for TypeScript.
@@ -422,10 +422,10 @@ stagekeeper/
 │   ├── server/       # Application services: auth, pipeline, MCP, database
 │   ├── generated/    # Generated Prisma client (gitignored)
 │   └── proxy.ts      # Sends signed-out visitors of app pages to /login
-├── packages/core/    # Pure rules with no dependencies: states, pipeline graph, plans, protocol
-├── packages/github/  # Shared GitHub repository URL parsing and file links
+├── packages/app-core/ # Pure product policy shared by web and server
+├── packages/shared/   # Explicit common contracts shipped to the plugin
 ├── plugin/           # Claude Code and Codex plugin: skills, helper CLIs, runtime
-│                     #   (lib/ mirrors core; lib/github/ mirrors packages/github)
+│                     #   (lib/ contains the declared shared closure; runtime/ owns plugin implementation)
 ├── prisma/           # Schema and migrations
 ├── scripts/          # Repository checks, sync, and manual operations (not app runtime)
 ├── tests/server/     # Server-only and cross-module tests; integration/ needs PostgreSQL
@@ -457,20 +457,20 @@ proposals describe future work.
 - FSD imports flow only `pages → widgets → features → entities → shared`. Slices on the same
   layer don't import each other, and other slices are imported only through their public API
   (`index.ts`, `index.tsx`, `index.server.ts`).
-- `src/server` never imports `src/fsd`. `packages/core` depends on neither `src` nor npm
-  packages; put shared product rules there. GitHub URL rules belong in `packages/github`.
+- `src/server` never imports `src/fsd`. App policy belongs in `packages/app-core`; contracts
+  shipped to the plugin belong in `packages/shared`. Follow [shared boundaries](./docs/architecture/shared-modules.md).
 - No top-level folders by technical kind (`components/`, `hooks/`, `utils/`, `types/`); keep
   code that changes together in one slice.
 - Don't create a root `app/`: Next.js ignores `src/app/` when both exist, and the checker
   fails on it.
-- Don't edit `plugin/lib/`. Change `packages/core` or `packages/github`, then run `npm run sync:plugin-lib`;
+- Don't edit `plugin/lib/`. Change `packages/shared`, then run `npm run sync:plugin-lib`;
   `npm run check` fails on drift.
 - This repository uses Next.js 16, which has breaking changes. Read the relevant guide in
   `node_modules/next/dist/docs/` before writing Next.js code (see [`AGENTS.md`](./AGENTS.md)).
 - Every string the product shows comes from
   [`docs/conventions/product-copy.md`](./docs/conventions/product-copy.md); copy-lock tests
   fail when a screen and the document disagree.
-- Before you finish a change, run `npm run verify:fsd`, `npm run verify:server`, `npm run test:architecture`, and the
+- Before you finish a change, run `npm run verify:fsd`, `npm run verify:server`, `npm run verify:shared`, `npm run test:architecture`, and the
   relevant lint, type, test, and build commands. An exception to an architecture check must
   be documented and approved in
   [`docs/architecture/verification.md`](./docs/architecture/verification.md).

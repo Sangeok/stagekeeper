@@ -4,7 +4,7 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { newToken } from "../../packages/core/tokens/token.mjs";
+import { newToken } from "../../src/server/tokens/api";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { containsSecret, helperCommand } from "./client-init-smoke-steps.mjs";
 import { measureEnvironment, pluginVersionAt } from "./gate-environment.mjs";

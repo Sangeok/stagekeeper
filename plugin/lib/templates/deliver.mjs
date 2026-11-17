@@ -1,6 +1,9 @@
-import { REPORT_AGENTS, limitsFor } from "../plans/entitlement.mjs";
-import { clientRuntime, parseClient, runtimeEcho } from "../execution/client-runtime.mjs";
+import { parseClient, clientRuntime, runtimeEcho } from "../execution/client-runtime.mjs";
+
+import { limitsFor, REPORT_AGENTS } from "../plans/limits.mjs";
+
 import { validateCodexBundle } from "./codex-bundle.mjs";
+
 import { stubOf } from "./template-boundary.mjs";
 
 export { STEP_HEADING, stubOf } from "./template-boundary.mjs";

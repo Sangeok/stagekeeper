@@ -1,4 +1,4 @@
-import { expand } from "@harness/core/pipeline/pipeline.mjs";
+import { expand } from "@harness/app-core/pipeline/pipeline.mjs";
 import { nodeLabel } from "@/fsd/entities/pipeline";
 import type { PipelineSnapshot } from "./rail-state";
 

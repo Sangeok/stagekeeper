@@ -1,5 +1,5 @@
-import { limitedResult } from "../lib/execution/runner.mjs";
-import { hasWork, workSignature } from "../lib/execution/watch.mjs";
+import { limitedResult } from "../lib/execution/runner-contract.mjs";
+import { hasWork, workSignature } from "./execution/watch.mjs";
 
 export const INTERVAL_MS = 60_000;
 export const BRANCH_CHECK_MS = 2_000;

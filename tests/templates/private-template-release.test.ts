@@ -9,11 +9,11 @@ import { promisify } from "node:util";
 import { readTemplateSources } from "../../scripts/templates/template-seed-query";
 import { splitTemplate, validateTemplateRelease } from "../../src/server/templates/api";
 import { agentNext } from "../../src/server/agents/api";
-import { parseHarnessConfig } from "../../packages/core/configuration/harness-config.mjs";
-import { buildWorkspaceVars } from "../../packages/core/templates/vars.mjs";
-import { findRule } from "../../packages/core/pipeline/transitions.mjs";
+import { parseHarnessConfig } from "../../plugin/runtime/configuration/harness-config.mjs";
+import { buildWorkspaceVars } from "../../packages/shared/templates/vars.mjs";
+import { findRule } from "../../packages/app-core/pipeline/transitions.mjs";
 import type { NextInput } from "../../src/server/agents/contracts";
-import { installationFor, releaseDeliverable } from "../../packages/core/templates/release-manifest.mjs";
+import { installationFor, releaseDeliverable } from "../../src/server/templates/api";
 import { readInstalledTemplate } from "../../plugin/runtime/template-installation.mjs";
 import { claudeFixtureExecutable } from "../plugin/template-fixture.mjs";
 

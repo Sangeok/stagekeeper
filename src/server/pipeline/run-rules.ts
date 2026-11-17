@@ -1,7 +1,7 @@
 import type { AgentExecutionContext } from "./contracts";
 import type { TemplateMetadata } from "./template-selection";
-import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON, AUTO_PROPOSE_DISABLED_REASON } from "@harness/core/pipeline/pipeline.mjs";
-import { canPropose } from "@harness/core/pipeline/transitions.mjs";
+import { dispatcherFor, slotAgent, boundaryOf, isGateId, AUTO_SCOUT_DISABLED_REASON, AUTO_PROPOSE_DISABLED_REASON } from "@harness/app-core/pipeline/pipeline.mjs";
+import { canPropose } from "@harness/app-core/pipeline/transitions.mjs";
 
 import type { PipelineEntry, GateEntry } from "./run-service";
 import type { UsageLimitFailure } from "@/server/result";

@@ -1,4 +1,4 @@
-import { limitsFor, withinLimit } from "@harness/core/plans/entitlement.mjs";
+import { limitsFor, withinLimit } from "@harness/shared/plans/limits.mjs";
 import { ProjectIntegrityError, type Plan, type TransactionHost } from "./access-query";
 import { appendAvailabilityEventIn, AvailabilityConflict, findOwnedRepository, lockProjectOwnerIn, readOwnerAvailabilityIn, withAvailabilityTransaction } from "./availability-service";
 

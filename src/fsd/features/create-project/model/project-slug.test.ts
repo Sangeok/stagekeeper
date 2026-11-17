@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import * as core from "@harness/core/project-slug.mjs";
+import * as core from "@harness/app-core/projects/slug.mjs";
 import { SLUG_MAX, SLUG_RE, RESERVED_SLUGS, SLUG_HINT, SLUG_ERROR } from "./project-slug";
 
 it("uses the core policy while retaining the web form's slug messages", () => {

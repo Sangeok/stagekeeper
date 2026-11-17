@@ -34,14 +34,14 @@ PowerShell environment variable. Resolve that absolute root, and verify these
 files under it:
 
 - `bin/harness-watch.mjs` and `bin/harness-session.mjs`
-- the modules those two helpers load: `runtime/template-installation.mjs`, `lib/templates/deliver.mjs`, `lib/templates/manifest.mjs`, `lib/templates/release-manifest.mjs`, `runtime/local-session.mjs`,
+- the modules those two helpers load: `runtime/template-installation.mjs`, `runtime/templates/install-manifest.mjs`, `lib/templates/release-contract.mjs`, `lib/templates/manifest-hash.mjs`, `runtime/local-session.mjs`,
   `runtime/mcp-client.mjs`, `runtime/runner-client.mjs`, `runtime/file-ownership.mjs`,
   `runtime/state-diagnostics.mjs`, `runtime/macos-recovery.mjs`, `runtime/macos-runtime.mjs`,
-  `runtime/macos/sandbox.mjs`, `lib/execution/watch.mjs`, `lib/execution/runner.mjs`,
-  `lib/execution/client-runtime.mjs`, `lib/configuration/harness-config.mjs`,
-  `lib/configuration/workspaces.mjs`, `lib/tokens/token.mjs`, `lib/templates/runbook.mjs`,
+  `runtime/macos/sandbox.mjs`, `runtime/execution/watch.mjs`, `lib/execution/runner-contract.mjs`,
+  `lib/execution/client-runtime.mjs`, `runtime/configuration/harness-config.mjs`,
+  `lib/configuration/workspaces.mjs`, `lib/tokens/format.mjs`, `lib/templates/runbook.mjs`,
   `lib/templates/codex-bundle.mjs`, `lib/templates/template-boundary.mjs`,
-  `lib/plans/entitlement.mjs` and `lib/qa.mjs`
+  `lib/plans/limits.mjs` and `runtime/qa/config.mjs`, `lib/qa/validation.mjs`
 - `skills/init/references/reconciliation-contract.md`
 
 Read that exact reconciliation contract and preflight the verifier this plugin includes,

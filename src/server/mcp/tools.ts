@@ -1,17 +1,17 @@
 import { templateInstallationSchema } from "@/server/templates/api";
-import type { Installation } from "@harness/core/templates/release-manifest.mjs";
+import type { Installation } from "@harness/shared/templates/release-contract.mjs";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { NOTE_MAX, OUTCOMES, receiptSchema } from "@/server/agents/api";
 import { type NextInput, type NextOutput } from "@/server/agents/contracts";
-import type { Client } from "@harness/core/execution/client-runtime.mjs";
+import type { Client } from "@harness/shared/execution/client-runtime.mjs";
 import type { ProjectAccess } from "@/server/projects/contracts";
 import type { ServerResult, ServerFailure, RequestRateFailure } from "@/server/result";
 import { failureBody } from "@/server/result";
 import { NOT_YOURS, PROJECT_REQUIRED } from "@/server/projects/api";
-import { ITEM_TYPES } from "@harness/core/pipeline/backlog.mjs";
-import { validateWorkspaceSemantics } from "@harness/core/configuration/workspaces.mjs";
+import { ITEM_TYPES } from "@harness/app-core/pipeline/backlog.mjs";
+import { validateWorkspaceSemantics } from "@harness/shared/configuration/workspaces.mjs";
 import type { BacklogView, BacklogWithStatusView } from "./views";
-import type { SelectionContext, SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
+import type { SelectionContext, SelectionDecision } from "@harness/app-core/pipeline/work-selection.mjs";
 import { z } from "zod";
 
 const executionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("legacy"), runId: z.string().min(1), node: z.string().min(1) }).strict(), z.object({ kind: z.literal("standalone") }).strict()]);

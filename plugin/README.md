@@ -3,7 +3,7 @@
 Claude의 `skills/`와 `.claude-plugin/plugin.json`, Codex의 `codex/skills/`와
 `.codex-plugin/plugin.json`이 같은 `bin/`, `runtime/`, `lib/`를 사용한다.
 portable root manifest는 두지 않는다. private 단계 본문은 패키지에 포함하지 않고
-인증된 서버가 공급한다. `lib/`는 `packages/core`에서, `lib/github/`는 `packages/github`에서 동기화한 복사본이다.
+인증된 서버가 공급한다. `lib/`는 `packages/shared/plugin-exports.json`의 공개 entry와 내부 실행 의존성을 동기화한 복사본이다.
 
 ## 편집 원본과 배포 경로
 
@@ -17,8 +17,7 @@ portable root manifest는 두지 않는다. private 단계 본문은 패키지�
 | 공통 verifier | `skills/reconciling-proposals-with-codebase/`의 전체 패키지 | Claude는 이 원본을 사용하고, Windows·macOS 패키징이 Codex 경로에 완전 복사 |
 | Codex verifier 배포 복사본 | 공통 verifier 원본에서 수정 | 설치 bundle의 `codex/skills/reconciling-proposals-with-codebase/`; source checkout에서 별도 원본으로 관리하지 않음 |
 | 실행 helper·runtime | `bin/`, `runtime/`의 해당 소유 모듈 | 두 클라이언트의 공통 처리와 클라이언트·OS별 어댑터. 스킬은 각 진입점의 실행 계약을 따름 |
-| 공통 규칙의 배포 복사본 | 저장소 루트의 `packages/core/` 생산 `.mjs` | `scripts/plugin-lib.mjs`가 `plugin/lib/`에 동기화 |
-| GitHub URL 규칙의 배포 복사본 | 저장소 루트의 `packages/github/` 생산 `.mjs` | 같은 동기화 도구가 `plugin/lib/github/`에 복사 |
+| 공통 계약의 배포 복사본 | 저장소 루트의 `packages/shared/` 생산 `.mjs`와 공개 명세 | `scripts/plugin-lib.mjs`가 선언된 closure만 `plugin/lib/`에 동기화 |
 
 검증 위치도 수정 책임에 맞춰 확인한다.
 

@@ -1,4 +1,4 @@
-import { PLANS, isPlan } from "../packages/core/plans/entitlement.mjs";
+import { PLANS, isPlan } from "../packages/shared/plans/limits.mjs";
 import { changeUserPlan } from "@/server/projects/api";
 import { withPrisma } from "./lib/prisma";
 

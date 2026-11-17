@@ -1,4 +1,5 @@
-import { expand, refId, type DefinitionInput, type Definitions } from "@harness/core/pipeline/pipeline.mjs";
+import { expand, refId } from "@harness/app-core/pipeline/pipeline.mjs";
+import type { DefinitionInput, Definitions } from "@harness/app-core/pipeline/pipeline.mjs";
 
 export type InsertionConflicts = {
   nodes: string[];

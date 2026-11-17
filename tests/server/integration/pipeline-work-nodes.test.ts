@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { DEFAULT_SELECTION_POLICY } from "@harness/core/pipeline/pipeline.mjs";
-import type { SelectionContext, SelectionDecision } from "@harness/core/pipeline/work-selection.mjs";
+import { DEFAULT_SELECTION_POLICY } from "../../../packages/app-core/pipeline/pipeline.mjs";
+import type { SelectionContext, SelectionDecision } from "../../../packages/app-core/pipeline/work-selection.mjs";
 import { agentNext, createNextDeps } from "../../../src/server/agents/api";
 import { assignmentContext, approveWorkGate, createBoardService, headFor, preparePipelineRun, savePipelineDefinition, setPipelineRule, startProjectWork, stopProjectWork } from "../../../src/server/pipeline/api";
 import { afterProjectRead, checkpoint, cleanup, connections, fixture, seedPipelineVersion } from "./support";

@@ -1,19 +1,13 @@
 # Feature-Sliced Design 규칙
 
-## 적용 예정: 공통 정책의 원본 경계
-
-[shared-modules.md](./shared-modules.md)의 packages/shared는 플러그인에도 제공하는 공통 계약이며
-아래의 FSD shared layer와 다르다. Phase MIGRATE에서 앱 전용 공통 정책은 packages/app-core,
-배포 공통 계약은 packages/shared의 공개 entry로 참조한다. Client 의존 그래프에서 node entry는
-직접·간접 모두 금지한다. FSD 방향·slice public API·서버 adapter 경계는 유지하며 현재 alias는
-전환 전까지 그대로 사용한다. blobHref는 기존 board-item/doc-link 소유로 통합할 예정이다.
-
 ## 적용 범위와 변형
 
 FSD는 `src/fsd` 아래의 프런트엔드 제품 코드에 적용한다. `src/app`은 Next.js App
-Router, `src/server`는 backend application service, `packages/core`는 순수 domain
-kernel이므로 FSD layer가 아니다. `packages/github`도 FSD 밖의 GitHub URL 공통 모듈이다.
-FSD 소비자는 `@harness/github/repo-url.mjs`와 `@harness/github/blob-url.mjs`의 직접 경로를 사용한다.
+Router, `src/server`는 backend application service다. `packages/app-core`의 앱 순수 정책과
+`packages/shared`의 배포 공통 계약은 FSD layer가 아니다. FSD의 shared와 구분한다.
+소비자는 `@harness/app-core/<path>`, `@harness/shared/<public-entry>`를 사용한다.
+저장소 URL은 shared/github/repo-url, 파일 링크는 board-item의 기존 public API가 제공한다.
+Client의 전이 그래프에는 shared node entry가 들어갈 수 없다. [공유 경계](./shared-modules.md)를 따른다.
 
 공식 FSD의 `app`·`pages` 이름은 Next.js의 예약 폴더와 충돌한다. Stagekeeper는
 기존 Phase 0·1 경로 계획을 유지하기 위해 `src/fsd`를 별도 root로 두고, FSD
@@ -192,7 +186,7 @@ Next.js의 private folder(`_` 접두사) 규약으로 폴더와 하위 경로를
   호출한다. 용도에 따라 아래의 서버 경계 표시를 사용하고, slice 외부에는
   `index.server.ts`로 공개한다.
 - `src/server`는 FSD를 import하지 않는다. 서버가 UI 타입을 요구하면 그 타입의
-  소유권이 잘못된 것이므로 순수 계약을 `packages/core` 또는 서버 모듈로 옮긴다.
+  소유권이 잘못된 것이므로 순수 계약을 `packages/app-core` 또는 서버 모듈로 옮긴다.
 - Server Component에서 Client Component로 전달하는 데이터는 React가 직렬화할
   수 있어야 한다. Server Function은 호출 가능한 참조로 전달된다. 일반 함수를
   prop으로 전달하거나 서버에서 만든 일반 콜백으로 Action을 감싸서 넘기지 않는다.

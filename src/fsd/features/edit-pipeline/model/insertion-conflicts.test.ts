@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { refStep, type Definitions } from "@harness/core/pipeline/pipeline.mjs";
+import { refStep } from "@harness/app-core/pipeline/pipeline.mjs";
+import type { Definitions } from "@harness/app-core/pipeline/pipeline.mjs";
 import { findInsertionConflicts } from "./insertion-conflicts";
 import { insertRef } from "./rail-state";
 

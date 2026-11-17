@@ -1,4 +1,4 @@
-import { parseQaReport } from "@harness/core/qa.mjs";
+import { parseQaReport } from "./qa-report";
 import type { Prisma, PrismaClient, Report } from "@/generated/prisma/client";
 
 type Db = PrismaClient | Prisma.TransactionClient;
