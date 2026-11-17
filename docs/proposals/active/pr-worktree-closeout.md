@@ -1,11 +1,11 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "blocked"
 proposal-size: "standard"
 created-at: "2026-11-17"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user"
+approved-at: "2026-11-17"
+approval-scope: "조건부 자동 정리 방향 채택, 상위/QUALIFY 문서 정합, 기존 승인 범위의 QUALIFY 구현·시험·CI·증거 보완. Windows 자동 삭제, 실제 자료 정리, PR 병합, REPLACE/ADOPT 제외. 사용자 명령 통합 여부는 후속 구현 계획에서 판단."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -46,7 +46,7 @@ Windows 후보 검증에서 접근 거부와 cwd 누락 반례가 확인됐다. 
 - 작성 모드: `WHOLE_SDD` 개정.
 - 위험도: `HIGH-RISK`. 원격 병합·로컬 삭제·외부 수동 제거의 인수를 구분한다.
 - 설계 상태: 조건부 자동 정리와 수동 인수 경계를 검토할 수 있는 제안.
-- 구현 준비도: REPLACE는 BLOCKED. BLK-PWC-04의 목표 변경 결정과 QUALIFY 상세 계획의 재정합이 선행한다.
+- 구현 준비도: REPLACE는 BLOCKED. 조건부 목표는 채택됐고 QUALIFY를 재정합한다. BLK-PWC-05의 macOS 자격 증거 마감과 REPLACE 상세 계획이 선행한다.
 - 기본 범위: 단일 complete 호출의 병합 확인과 가능한 정리. 상주 감시·Windows 자동 삭제 인증은 포함하지 않는다.
 
 ## Goal
@@ -64,9 +64,10 @@ Windows 후보 검증에서 접근 거부와 cwd 누락 반례가 확인됐다. 
 자동 삭제를 출시 조건으로 유지한다면 이 권고안을 채택하지 않고 BLK-PWC-01이
 해소될 때까지 기존 체계를 유지해야 한다.
 
-이번 “다음 단계 진행”은 앞서 제안한 재설계의 진행으로 해석했다. 목표의 제한,
-수동 인수 경로, 새 구현의 실행 승인까지 이미 확정됐다고 기록하지 않는다.
-현재 규칙과 도구는 계속 유효하다.
+후속 “오케이 진행해”로 조건부 방향을 채택했다. front matter의 승인 범위 안에서
+QUALIFY 문서 정합과 기존 후보 구현·검증을 계속한다. 명령 통합은 아직 확정하지
+않으며 acknowledge-removal의 외부 명령 노출 여부는 REPLACE 상세 계획에서 판단한다.
+그 절차의 사용자 확인·실제 부재·보존 검증 책임은 유지한다. 현행 관리기는 계속 유효하다.
 
 ## Proposal Size
 
@@ -89,12 +90,12 @@ Windows 후보 검증에서 접근 거부와 cwd 누락 반례가 확인됐다. 
 - Contracted: unknown을 clear로 바꾸지 않고 보호 ref·다른 작업·미보존 자료를 보존한다.
 - Inferred: 목표를 조건부 자동 정리로 정하면 Windows 관측 실패가 원격 병합 기능
   전체의 blocker일 필요는 없다. 자동 삭제의 blocker는 그대로다.
-- Unresolved: 목표 변경의 채택은 BLK-PWC-04이며 구현 승인과 구분한다.
+- Decision: 후속 사용자 요청으로 조건부 목표를 채택했다. BLK-PWC-04의 목표 선택은 해소됐으며 구현 범위는 front matter로 제한한다.
 
 개정 전 parent hash는 `bf627b4304fef88b3eaa97be918bbdf6e97f118b8f92d170117630c1ab7cd3e9`다.
 [기존 QUALIFY 상세 계획](./pr-worktree-closeout-phase-qualify.md)은 그 snapshot을
-검증한 문서다. 이 개정안 채택 후에는 그 문서의 양 OS clear/busy 필수 성공,
-미지원 stub 금지와 REPLACE 진입 조건을 재정합해야 한다. 기존 native 실패와
+검증한 문서다. 이번에 그 문서의 양 OS clear/busy 필수 성공,
+미지원 stub 금지와 REPLACE 진입 조건을 재정합한다. 기존 native 실패와
 반례는 실행 증거로 보존한다. 이 parent 수정만으로 child를 최신 실행 계획으로
 간주하거나 과거 QUALIFY를 PASS로 바꾸지 않는다.
 
@@ -608,7 +609,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 - verified-by: VFY-PWC-09
 - intermediate validity: 기존 관리기를 유지한다. 후보·capability 검증은 fixture 안에서 하며 운영 삭제에 연결하지 않는다.
 - exit: 각 profile의 qualified/unqualified 근거·관측 실행 여부·지원 범위와 새 runtime 계약 시험을 확정. 자동 정리를 제공할 최소 한 macOS profile의 필수 증거를 확보한다. 미지원 결과를 native 사용 부재 증명으로 세지 않는다.
-- entry blocker: BLK-PWC-04. exit에는 BLK-PWC-05 해소가 필요하다. Windows 자동 삭제 자격 자체는 계속 BLK-PWC-01에 막혀 있다.
+- entry: BLK-PWC-04의 목표 선택 해소, 재정합된 child 및 기존 구현 승인 범위. exit에는 BLK-PWC-05 해소가 필요하다. Windows 자동 삭제 자격 자체는 계속 BLK-PWC-01에 막혀 있다.
 - detailed plan: 기존 child를 새 parent에 재정합한 뒤 구현. 기존 native 실패 기록은 보존한다.
 
 ### TASK-PWCQ-01: 사용 확인과 native 이식 증거
@@ -634,7 +635,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 - completion ownership: 위 행동의 구현과 fixture 검증을 소유한다. legacy migration 구현도 준비하지만 실제 전환 완료는 ADOPT가 소유한다.
 - intermediate validity: legacy가 있는 미전환 PC에서 새 status/migration preview는 가능하고 mutation은 activation 전 거부한다. 구 writer를 새 명령에서 호출하지 않는다.
 - exit: 양 OS의 제공 경로 검사, 필요한 check, 구 실행 참조 0건, 원본 고지, 오류·복구·수동 인수 명세, 미활성 real repo를 바꾸지 않는 증거. Windows는 자동 삭제 0회와 명시적 인수 경로가 필수다.
-- blockers: BLK-PWC-04. 결정 전에는 기존 BLK-PWC-01이 전체 REPLACE를 계속 막는다. 조건부 범위 채택·QUALIFY 재정합 뒤에만 BLK-PWC-01을 Windows 자동 삭제 기능으로 한정한다.
+- blockers: BLK-PWC-05와 재정합된 QUALIFY exit 증거. BLK-PWC-04의 조건부 목표 선택은 해소됐다. BLK-PWC-01은 Windows 자동 삭제 활성화에 남는다.
 - detailed plan: QUALIFY 결과를 반영해 작성한다. 아래 Task는 변경 책임의 경계이며 전체 signature 확정본이 아니다.
 
 ### TASK-PWCR-01: identity·상태·명령
@@ -859,9 +860,9 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 
 ### CI 전환 원칙
 
-이 개정안과 새 profile 범위가 채택되기 전에는 현재 실패하는 Windows gate를
-수정·skip하지 않는다. 승인 후 QUALIFY 상세 계획에서 runtime 계약 시험과
-자동 정리 자격 시험의 책임을 분리한다.
+조건부 범위 채택에 따라 QUALIFY 상세 계획에서 runtime 계약 시험과 자동 정리
+자격 시험의 책임을 분리한다. Windows의 기존 실패를 고친 것으로 보고하지 않으며
+새 required gate의 성공은 Windows 자동 삭제 자격을 뜻하지 않는다.
 
 - required `check/task-worktrees`는 양 OS에서 생성·인계·병합·보존·중단·인수를 실제
   Git/process fixture로 실행한다. Windows 미지원 경로의 삭제 0회가 필수다.
@@ -964,13 +965,13 @@ live acceptance               → VFY 12
 
 ### BLK-PWC-04: 조건부 자동 정리 목표의 채택
 
-- classification: current-phase 설계 결정, earliest 후속 QUALIFY 재정합과 REPLACE.
+- classification: resolved 목표 선택. 후속 child 재정합은 이 결정의 적용 작업이다.
 - evidence: 원래 목표는 양 OS의 병합 직후 자동 정리다. 개정안은 Windows에서 병합 후 보존과 사용자 수동 인수를 제공하므로 사용자 결과가 달라진다.
 - affects: REQ-PWC-003, REQ-PWC-005, REQ-PWC-009, REQ-PWC-014, REQ-PWC-015, REQ-PWC-016, CON-PWC-006.
 - impact: 결정을 생략하면 구현 편의를 위해 원래 목표를 줄이거나, Windows 자동 정리가 지원되는 것으로 오인시킬 수 있다.
-- unblock: 요청자가 조건부 범위를 채택할지 원래 양 OS 즉시 자동 정리를 유지할지 결정. 채택 뒤 기존 QUALIFY child를 새 parent에 재정합하고 그 문서의 승인 범위를 갱신한다.
+- resolution: 요청자가 조건부 범위 권고 뒤 “오케이 진행해”로 채택했다. 기존 QUALIFY child를 새 parent에 재정합하고 기존 승인 구현 범위에서 runtime/qualification 경계를 보완한다.
 - owner: 요청자와 설계 담당자.
-- stop: 이번 문서 작성만으로 목표 변경 승인·기존 Windows gate 완화·REPLACE 실행을 선언하지 않는다.
+- stop: 방향 채택은 Windows 자격 통과·실제 삭제·REPLACE 실행 승인이 아니다. 명령 수를 줄인다는 이유로 사용 확인이나 외부 제거 검증을 생략하지 않는다.
 
 ### BLK-PWC-05: 자동 정리 출시 profile의 증거 마감
 
@@ -983,7 +984,7 @@ live acceptance               → VFY 12
 - stop: 모든 profile을 unqualified로 남긴 채 자동 정리 기능을 완성했다고 선언하지 않는다.
 
 전체 설계는 개정 목표의 선택과 구현 책임을 검토할 수 있는 상태다. REPLACE의
-현재 준비도는 BLOCKED다. BLK-PWC-04 결정과 child 재정합·BLK-PWC-05 해소 뒤에만
+현재 준비도는 BLOCKED다. BLK-PWC-04 목표 선택은 해소됐으며 child 재정합·BLK-PWC-05 해소 뒤에만
 조건부 범위의 REPLACE 상세 계획을 실행 가능 상태로 만들 수 있다.
 BLK-PWC-01은 Windows 자동 삭제 기능에 계속 남으며 ADOPT는 별도 실제 권한과 인수가 필요하다.
 
@@ -1000,7 +1001,7 @@ BLK-PWC-01은 Windows 자동 삭제 기능에 계속 남으며 ADOPT는 별도 �
 
 ## Approval
 
-승인 기록은 front matter가 단일 원본이다. 이 문서는 재설계 가능한 제안 상태이며 조건부 범위 채택이나 후속 구현 실행 승인을 기록하지 않았다. 후속 승인은 선택 Phase와 실제 자료 적용 범위를 구분한다. 작성 완료가 다음 Phase의 자동 실행 권한은 아니다.
+승인 기록은 front matter가 단일 원본이다. 조건부 범위와 QUALIFY 계속 작업은 front matter에 승인 범위를 기록했다. REPLACE/ADOPT와 실제 자료 적용은 승인하지 않았다. 후속 승인은 선택 Phase와 실제 자료 적용 범위를 구분한다. 작성 완료가 다음 Phase의 자동 실행 권한은 아니다.
 
 ## Verification Results
 
@@ -1052,7 +1053,7 @@ parent에만 정의하며, child와의 의미 차이는 위 재정합 대상으�
 
 ## Completion or Closure Notes
 
-구현·검증 완료 전이다. 이번 재설계 산출물은 이 SDD 한 파일이며 source·시험·CI·기존 자료 migration·PR 병합을 수행하지 않았다. 같은 미병합 작업의 Draft PR #364와 task branch/worktree에 설계 결과를 보존한다. 기존 QUALIFY 실행 승인은 그 범위의 과거 작업이며 이 개정안의 목표 변경 승인으로 승계하지 않는다.
+구현·검증 완료 전이다. 이번 재설계 산출물은 이 SDD 한 파일이며 source·시험·CI·기존 자료 migration·PR 병합을 수행하지 않았다. 같은 미병합 작업의 Draft PR #364와 task branch/worktree에 설계 결과를 보존한다. 조건부 목표 채택과 QUALIFY 계속 작업은 이번 사용자 요청으로 기록했으며 REPLACE/ADOPT로 승계하지 않는다.
 
 후속 완료 기록에는 source commit, Phase별 VFY 증거, 양 OS 결과, legacy 전환/보류 항목, 구 실행 경로 제거 결과, 실제 PR/merge SHA와 path/ref 결과를 남긴다.
 
