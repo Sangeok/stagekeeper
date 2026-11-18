@@ -23,6 +23,7 @@ related:
   - "docs/proposals/active/pr-worktree-closeout-phase-qualify.md"
   - "docs/test-reports/active/pr-worktree-qualify.md"
   - "docs/proposals/completed/2026-11-18-pr-worktree-closeout-phase-replace.md"
+  - "docs/proposals/active/pr-worktree-closeout-phase-adopt.md"
   - "docs/test-reports/completed/2026-11-18-pr-worktree-replace.md"
 ---
 
@@ -627,7 +628,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 
 ### Phase REPLACE: 새 완료 흐름과 소스 전환
 
-- status: 구현·선택 범위 검증 완료. source b9364eb, PR #369 OPEN. 실제 activation은 ADOPT 미수행.
+- status: 구현·선택 범위 검증 완료. 검증 source b9364eb, 최종 head 5f2d527. [PR #369](https://github.com/Sangeok/stagekeeper/pull/369)는 2026-11-18 dev에 병합됐다(d745747).
 - outcome: 새 구현·시험·규칙·CI를 한 coherent 변경으로 제공하고 구 두 생산 구현과 실행 alias를 제거한다.
 - split rationale: source 전환과 사용자 원장 전환의 효과가 달라 로컬 활성화는 ADOPT로 분리한다.
 - predecessor artifacts: BLK-PWC-04의 범위 결정, 재정합된 QUALIFY 결과와 profile별 한계, 승인된 이식/Phase 상세 계획.
@@ -705,7 +706,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 
 ### Phase ADOPT: 지정한 저장소 전환과 실제 인수
 
-- status: Proposed.
+- status: 상세 계획 작성·엔지니어링 검토 완료. 실제 저장소는 소유자 인계 및 기존 관리기 중지 확인 대기 중이다.
 - outcome: 이번 교체에 지정한 관리 PC/checkout을 전환하고 승인된 작업의 실제 병합·정리를 확인한다.
 - split rationale: source merge만으로 사용자 원장·활성 세션의 전환은 완료되지 않는다.
 - predecessor artifacts: REPLACE 검증 commit, migration preview, owner별 종료/인계 사실.
@@ -717,7 +718,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 - intermediate validity: 전환 전 old source/기록은 보존하고 신 writer를 활성화하지 않는다. 전환 후 구 writer 실행 금지.
 - entry blockers: BLK-PWC-02, BLK-PWC-03.
 - exit: 선택 단위의 activation·구 writer 정지·legacy active의 종료 또는 신원 확인된 working 이관·실제 PR의 정상 및 보류 결과.
-- detailed plan: 실제 repository/path/owner 목록을 적용 시점에 만든다. 이번 관측 수량을 삭제 입력으로 쓰지 않는다.
+- detailed plan: [ADOPT 상세 계획](./pr-worktree-closeout-phase-adopt.md). 적용 시점의 새 preview로 대상·소유자를 다시 확인한다.
 
 ### TASK-PWCA-01: 기존 작업 전환
 
@@ -1086,5 +1087,5 @@ REQ/INV/CON의 canonical 의미는 변경하지 않았다.
 - Windows unqualified 및 unknown은 보존한다. 내부 generated directory-link 예외도 Windows의 잔존 경로 반례로 비활성화했다.
 - 실제 repository는 activation-required이며 사용자 v1 원장·worktree를 이관/삭제하지 않았다. 실제 merge도 미실행이다.
 - [REPLACE 완료 문서](../completed/2026-11-18-pr-worktree-closeout-phase-replace.md)와 [보고서](../../test-reports/completed/2026-11-18-pr-worktree-replace.md)가 구현 근거다.
-- 다음은 PR #369의 승인된 dev 병합 후 ADOPT 상세 계획이다. owner별 사용/자료 인계·old writer quiescence와 실제 GitHub 인수 권한을 확정해야 한다.
+- #369는 dev에 병합됐다. 다음 실행 단계는 ADOPT 상세 계획에 따른 소유자별 인계, 이전 관리기 중지 확인, 지정된 실제 PR 인수다.
   BLK-PWC-02/03 및 Windows 자동 qualification의 downstream 제한은 남는다.
