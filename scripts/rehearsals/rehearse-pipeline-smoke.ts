@@ -10,7 +10,11 @@ import { containsSecret, helperCommand } from "./client-init-smoke-steps.mjs";
 import { measureEnvironment, pluginVersionAt } from "./gate-environment.mjs";
 import { PIPELINE_ROLES, PIPELINE_STEPS, SMOKE_SCENARIOS, planVerificationBounded, runFindings, sealTranscripts, summarizePipeline, transcriptKey, waitVerdict } from "./pipeline-smoke-steps.mjs";
 import { startSmokeServer } from "./smoke-server.mjs";
-import { bootstrapSmokeTemplates, createFixtureUser, createRepository, deleteFixtureUser, installPlugin, newUser, osLabel, Run, seedTemplates, Smoke, type Plugin } from "./rehearse-client-init-smoke";
+import { Run } from "./support/command-run";
+import { createFixtureUser, deleteFixtureUser } from "./support/smoke-database";
+import { bootstrapSmokeTemplates, seedTemplates } from "./support/template-fixture";
+import { createRepository, osLabel } from "./support/repository-fixture";
+import { installPlugin, newUser, Smoke, type Plugin } from "./client-init/claude-connection";
 
 const DEFAULT_WAIT_MINUTES = 75;
 const DEADLINE_MS = 100 * 60_000;

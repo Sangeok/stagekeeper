@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
 import { withPrisma } from "../../../scripts/lib/prisma";
-import { createFixtureUser, deleteFixtureUser } from "../../../scripts/rehearsals/rehearse-client-init-smoke";
+import { createFixtureUser, deleteFixtureUser } from "../../../scripts/rehearsals/support/smoke-database";
 import { testDatabaseUrl } from "./support";
 
 it("smoke fixtures use the explicit test database while preserving the parent database setting", async () => {
