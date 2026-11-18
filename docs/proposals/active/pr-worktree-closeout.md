@@ -104,6 +104,16 @@ QUALIFY 문서 정합과 기존 후보 구현·검증을 계속한다. 명령 �
 반례는 실행 증거로 보존한다. 이 parent 수정만으로 child를 최신 실행 계획으로
 간주하거나 과거 QUALIFY를 PASS로 바꾸지 않는다.
 
+### 2026-11-19 빌드 링크 인계 범위 조정
+
+- Observed: Windows에서 빌드한 작업은 Next 빌드 링크 두 개 때문에 봉인 단계에서 `linked-path`로
+  거부되어 `complete`·`recover`·`retire` 어느 경로로도 병합하거나 닫을 수 없었다([#383](https://github.com/Sangeok/stagekeeper/issues/383)).
+- Decision: [Windows 빌드 링크 인계 제안](./pr-closeout-windows-build-links.md)으로 파일 검사를 인계용과
+  삭제용으로 나눴다. 자동 정리 자격이 없는 호스트에서 두 링크는 인계를 막지 않고 자동 삭제만
+  막는다(REQ-PWC-003). 삭제 조건, 자격 있는 Mac의 동작, REQ/INV/CON의 의미는 바꾸지 않는다.
+- Decision: Windows에서 장치 번호 0을 보고하는 Node는 status·inspect 외 명령을
+  `device-identity-unavailable`로 거부한다.
+
 ### 개정 전후의 계약 차이
 
 | canonical 계약 | 개정 전 | 이번 제안 |

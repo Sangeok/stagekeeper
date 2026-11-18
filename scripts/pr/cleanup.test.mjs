@@ -24,7 +24,7 @@ function testedGitHost(f) {
     && f.git(["--version"]) === "git version 2.50.1 (Apple Git-155)";
 }
 
-test("Next package links complete only the qualified worktree with native Git and usage observation", async t => {
+test("Next package links merge on every host and are removed automatically only from the qualified worktree", async t => {
   const f = fixture(t, { native: true }); await f.bootstrap();
   const a = await f.create("next-a"), b = await f.create("next-b"), head = f.commit(a);
   f.pr(a, head);
@@ -36,7 +36,8 @@ test("Next package links complete only the qualified worktree with native Git an
   if (required) assert.ok(qualified, "required build-link profile unavailable");
   if (!qualified) {
     assert.deepEqual(result.reasons, ["linked-path"]);
-    assert.equal(result.phase, "working"); assert.equal(f.state.puts, 0);
+    assert.equal(result.phase, "cleanup-pending", JSON.stringify(result)); assert.equal(f.state.puts, 1);
+    assert.equal(result.merge.head, head); assert.equal(result.worktree.state, "present"); assert.equal(result.branch.state, "not-started");
   } else if (result.phase === "complete" || required) {
     assert.equal(result.phase, "complete", JSON.stringify(result));
     assert.equal(result.exitCode, 0); assert.equal(f.state.puts, 1);
@@ -55,6 +56,34 @@ test("Next package links complete only the qualified worktree with native Git an
   }
   assert.equal(await branchHead(ctx, b.branchName), f.base);
   assert.equal(fs.readFileSync(path.join(b.path, "README.md"), "utf8"), "fixture\n");
+});
+
+test("a built task merged elsewhere or retired is handed off and its local closeout waits for manual removal", async t => {
+  const f = fixture(t); await f.bootstrap();
+  const a = await f.create("merged-build"), b = await f.create("retired-build"), head = f.commit(a);
+  f.pr(a, head);
+  const links = [nextPackageLink(a.path, "pg", "587764f78a6c7a9c"), nextPackageLink(a.path, "@prisma/client", "2c3a283f134fdcb6")];
+  const retiredLink = nextPackageLink(b.path, "pg", "587764f78a6c7a9c");
+  const removal = testedGitHost(f) ? "unqualified-profile" : "linked-path";
+  const inspected = await f.run({ operation: "inspect", task: a.task });
+  assert.deepEqual(inspected.local.reasons, []);
+  assert.deepEqual(inspected.local.files.removalReasons, removal === "linked-path" ? ["linked-path"] : []);
+  f.mergeRemote();
+  const merged = await f.run(f.effect(a, head));
+  assert.equal(merged.phase, "cleanup-pending", JSON.stringify(merged)); assert.deepEqual(merged.reasons, [removal]);
+  assert.equal(merged.merge.head, head); assert.equal(f.state.puts, 0);
+  assert.equal(f.git(["rev-parse", a.branchName]), head); assert.equal(fs.existsSync(path.join(a.path, "node_modules", "pg")), true);
+  for (const link of links) fs.unlinkSync(link);
+  f.git(["worktree", "remove", "--", a.path]);
+  const ack = await f.run(f.effect(merged, head, "acknowledge-removal", { externalRemovalConfirmed: true }));
+  assert.equal(ack.exitCode, 0, JSON.stringify(ack));
+  const done = await f.run(f.effect(ack, head, "cleanup"));
+  assert.equal(done.phase, "complete", JSON.stringify(done));
+  assert.equal(f.git(["for-each-ref", "--format=%(refname)", "refs/heads/" + a.branchName]), "");
+  const retired = await f.run(f.effect(b, f.base, "retire"));
+  assert.equal(retired.phase, "cleanup-pending", JSON.stringify(retired)); assert.deepEqual(retired.reasons, [removal]);
+  assert.equal(retired.purpose, "retire"); assert.equal(f.git(["rev-parse", b.branchName]), f.base);
+  assert.equal(fs.existsSync(retiredLink), true); assert.equal(f.state.puts, 0);
 });
 
 test("Next package link pointing into a sibling blocks complete before a merge request", async t => {
@@ -134,7 +163,7 @@ test("unrecognized directory links remain blocked while a native Git experiment 
   const link = path.join(a.path, ".next", "node_modules", "pg-generated");
   fs.symlinkSync(path.join(a.path, "node_modules", "pg"), link, process.platform === "win32" ? "junction" : "dir");
   const ctx = await context(f.root), stored = await loadTask(ctx, a.task);
-  await assert.rejects(() => inspectFiles(ctx, stored.record), { code: "linked-path" });
+  await assert.rejects(() => inspectFiles(ctx, stored.record, { purpose: "handoff" }), { code: "linked-path" });
   await git(ctx, ["worktree", "remove", "--", a.path]);
   const targetRemains = fs.existsSync(a.path);
   if (process.platform !== "win32") assert.equal(targetRemains, false);

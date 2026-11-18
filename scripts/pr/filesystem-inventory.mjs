@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 export function inventory(root) {
   const base = fs.lstatSync(root, { bigint: true });
   if (!base.isDirectory() || base.isSymbolicLink()) throw new Error("invalid-directory");
+  if (process.platform === "win32" && base.dev === 0n) throw new Error("device-identity-unavailable");
   const entries = []; let bytes = 0;
   function walk(directory, prefix = "") {
     for (const raw of fs.readdirSync(directory, { encoding: "buffer" })) {
@@ -34,7 +35,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (process.argv.length !== 3 || !path.isAbsolute(process.argv[2])) throw new Error("invalid-input");
     process.stdout.write(JSON.stringify(inventory(process.argv[2])) + "\n");
   } catch (e) {
-    const allowed = ["invalid-input", "invalid-directory", "nested-repository", "unsupported-file-type", "foreign-filesystem", "inventory-limit", "identity-changed"];
+    const allowed = ["invalid-input", "invalid-directory", "device-identity-unavailable", "nested-repository", "unsupported-file-type", "foreign-filesystem", "inventory-limit", "identity-changed"];
     process.stdout.write(JSON.stringify({ error: allowed.includes(e.message) ? e.message : "inventory-unverified" }) + "\n");
   }
 }
