@@ -106,6 +106,8 @@ related:
 
 **모듈 경계 검증.** `rehearsal-boundaries.test.mjs`의 현재 그래프는 CVO1 구현 7개와 옛 init CLI 하나를 대상으로 하며, `references()`는 CJS `require`를 수집하지 않는다. CVO1의 선택 기대표는 유지하고 CVO2 이동표에서 별도 검사 대상을 만든다. 구 wrapper → 지정 새 구현, 새 record → 세 결과 필터, smoke-server → 새 preload·Next CLI의 실제 연결을 검사한다. 현재 checkout의 내부 호출이 구 wrapper로 되돌아가거나 순환하면 실패시킨다. CJS wrapper의 리터럴 `require`와 pipeline의 child URL도 각 형식에 맞춰 확인한다. `previous-seed`는 고정된 이전 판 checkout에서 실행되는 기존 예외다. Action이나 시험을 일반 제품 의존성으로 추가하는 예외는 만들지 않는다.
 
+**제품 코드의 의존 방향(VFY-CVO-04).** 상위 SDD의 `INV-CVO-003`에 따라 제품 파일의 import도 검사한다. 기존 `firstPartySources`와 `isTestSource`를 재사용해 `src`, `packages/app-core`, `packages/shared`, `plugin/bin`, `plugin/runtime`의 제품 소스를 확인한다. 제품 소스의 참조가 `scripts/rehearsals/`의 구현·호환 파일 또는 `.github/actions/gate-record/` 모듈로 해석되면 호출 파일과 대상 경로를 표시하고 실패시킨다. 테스트용 저장소의 `src/server/public-url.ts`가 리허설의 `support/gate-environment.mjs`를 가져오는 사례는 실패하고, 기록 Action이 시나리오의 결과 필터를 가져오는 사례는 통과해야 한다.
+
 **문서 링크 추적.** 기준 tree에서 옛 시험 파일을 링크한 곳은 상위 SDD, CVO1 계획, `docs/test-reports/completed/2026-10-05-windows-role-git.md`다. 구현 PR에서 현행 참조는 새 경로로, 과거 시험 증거는 해당 이력의 고정 커밋 링크로 연결한다. 기존 승인·시험 결과의 의미는 보존한다. `role-command-time-limit.md` 등의 코드 표기 경로도 검색해 현행 실행 명령과 당시 실행 기록을 구분한다. 착수 시 CVO1 문서가 completed로 옮겨졌으면 이 계획의 링크와 front matter도 실제 목적지에 맞춘다.
 
 ## 검증과 완료 기준
@@ -115,7 +117,7 @@ related:
 | 검증 및 요구사항 | 실행 방법 | 완료 증거 |
 | --- | --- | --- |
 | VFY-CVO-01 · REQ-CVO-001 | CVO1 호환 시험을 확장한다. 7개 ESM(여섯 시나리오/지원 모듈과 record)의 구·신 경로를 fresh child에서 import하고 기준 checkout에서 저장한 export 이름 전체와 후보의 이름 집합을 비교한다. 같은 후보의 구·신 경로는 **한 child 안에서** import해 각 export의 동일성(`Object.is`)을 확인한다. 기준·후보 프로세스 간에는 값/출력과 이름을 비교한다. 구·신 summary/record CLI는 임시 입력으로 각각 직접 호출한다. | import는 무쓰기, CLI는 정확히 한 번 실행. summary는 control·부분/전체 eval·인자 오류의 기존 0/1/2, record는 성공/거부의 기존 0/1 및 출력 파일을 보존한다. 구·신 CJS preload도 실제 child IPC로 직접/후손/잘못된 env를 확인한다. |
-| VFY-CVO-04 · REQ-CVO-003 | `npm run test:scripts`, `npm run test:architecture`, `npm test` 및 Windows native 직접 step. 기준과 후보의 TAP 사례를 이동표로 연결하고 기존 suite 내에서 누락·이중 등록을 검사한다. 경계 시험으로 구 adapter 역참조·순환도 검사한다. | 이동한 시험 10개(리허설 짝 시험 6개, record 1개, runtime 3개)가 지정 suite에 모두 등장한다. 기존 OS별 skip은 사유와 실행 환경을 기록한다. |
+| VFY-CVO-04 · REQ-CVO-003 | `npm run test:scripts`, `npm run test:architecture`, `npm test` 및 Windows native 직접 step. 기준과 후보의 TAP 사례를 이동표로 연결하고 기존 suite 내에서 누락·이중 등록을 검사한다. 경계 시험으로 구 adapter 역참조·순환과 제품 코드에서 검증 모듈로 향하는 import를 검사한다. | 이동한 시험 10개(리허설 짝 시험 6개, record 1개, runtime 3개)가 지정 suite에 모두 등장한다. 기존 OS별 skip은 사유와 실행 환경을 기록한다. |
 | VFY-CVO-05 · REQ-CVO-004 | PR·push별 양성/음성 경로 fixture, 실제 `git diff --name-only -- <promotion pathspec>`, `npm run verify:ci-coverage`를 실행한다. | 구 adapter와 새 구현·짝 시험·Action 변경이 의도한 검사를 선택한다. 직접 명령과 coverage 확인 문자열이 실제 파일을 가리킨다. |
 | VFY-CVO-06 · REQ-CVO-005 | `node --test .github/actions/gate-record/record.test.mjs`와 두 summary 시험. `node_modules` 없는 임시 checkout/소스 사본에서도 Node만으로 구·신 record CLI에 같은 fixture를 전달한다. | 같은 입력을 기준 CLI와 후보의 구·신 CLI에 각각 독립된 새 출력 경로로 전달한다. 세 실행의 종료 코드·출력 파일 목록·내용을 비교하고 기존 schema 1·leg·finding·run attempt assertion을 유지한다. 성공/실패·요약 누락·partial eval·abandoned를 구분하고 원문·토큰은 출력에 없다. 동시 writer 한 곳만 성공, 기존/부분 출력 보존, 실패 후 게시 0건. |
 | VFY-CVO-07 · REQ-CVO-006 | clean baseline/candidate에서 동일한 `isShippedPluginFile`로 Git tree를 필터링해 전체 경로·blob·mode를 대조한다. 기존 shared graph·plugin-lib·양 OS 패키징 검사와 production build를 수행한다. | CVO1 기준 출하 파일 87개의 집합과 바이트가 후보와 같다(착수 시 새 base라면 다시 산출). 새 경로의 시험이 패키지에 들어가지 않고 `plugin/lib` 동기화가 통과한다. |
