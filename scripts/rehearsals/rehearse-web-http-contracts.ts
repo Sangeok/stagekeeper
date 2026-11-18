@@ -216,7 +216,7 @@ async function main(options: { mode: "run"; report: WebHttpReportRun } | { mode:
   const previousDatabase = process.env.DATABASE_URL;
   process.env.DATABASE_URL = url;
   let stopNext: ChildProcess | undefined, worker: ChildProcess | undefined;
-  let requestId = 0, cleaned = false, buildIdentity = "Not run";
+  let requestId = 0, buildIdentity = "Not run";
   const controller = new AbortController();
   const interrupt = () => controller.abort();
   process.once("SIGINT", interrupt); process.once("SIGTERM", interrupt);
@@ -322,7 +322,7 @@ async function main(options: { mode: "run"; report: WebHttpReportRun } | { mode:
     try { if (cleanup) await cleanup(); } catch (error) { failures.push(error); }
     if (previousDatabase === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = previousDatabase;
     process.removeListener("SIGINT", interrupt); process.removeListener("SIGTERM", interrupt);
-    cleaned = failures.length === 0;
+    const cleaned = failures.length === 0;
     results.push({ case: "cleanup", expected: "own fixture IDs, worker, Next process, pools and parent env settled", observed: cleaned ? "all owned resources closed/restored" : "cleanup failed", status: cleaned ? "Pass" : "Fail" });
     report(buildIdentity, cleaned);
     if (!cleaned) throw new Error("acceptance cleanup failed");

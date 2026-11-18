@@ -44,7 +44,7 @@ process.env.STAGEKEEPER_PROBE_SECRET = "owned-parent-environment-canary";
 const listener = net.createServer(socket => socket.destroy());
 await new Promise(resolve => listener.listen(0, "127.0.0.1", resolve));
 const port = String(listener.address().port);
-let leader, descendantPid, closed, cleanup = false;
+let leader, descendantPid, closed;
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { if (error.code === "ESRCH") return false; throw error; } };
 async function until(predicate, ms = 12000) {
   const deadline = Date.now() + ms;
@@ -65,11 +65,10 @@ try {
   const detachedChildSurvivesGroupKill = alive(descendantPid);
   assert.equal(detachedChildSurvivesGroupKill, true, "Reassess containment if the kernel behavior changed");
   process.kill(descendantPid, "SIGKILL"); await until(() => !alive(descendantPid));
-  cleanup = true;
   fs.writeFileSync(output, JSON.stringify({ schema: 1, platform: process.platform, arch: process.arch, release: os.release(), node: process.version,
     nodeSha256: digest(node), policySha256: digest(profile), scope: "native feasibility probe; no model or production backend",
-    boundaries, detachedChildSurvivesGroupKill, ownedProcessesGone: cleanup, verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", productionBackendEnabled: false }, null, 2) + "\n", { flag: "wx" });
-  console.log(JSON.stringify({ verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", permissionsPassed: true, inheritedPermissionsPassed: true, ownedProcessesGone: cleanup, arch: process.arch }));
+    boundaries, detachedChildSurvivesGroupKill, ownedProcessesGone: true, verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", productionBackendEnabled: false }, null, 2) + "\n", { flag: "wx" });
+  console.log(JSON.stringify({ verdict: "BLOCKED_PROCESS_GROUP_NOT_QUIESCENCE", permissionsPassed: true, inheritedPermissionsPassed: true, ownedProcessesGone: true, arch: process.arch }));
 } catch (error) {
   try { process.stderr.write(`Copied runtime version: ${execFileSync(node, ["--version"], { encoding: "utf8", timeout: 5000 }).trim()}\n`); } catch { process.stderr.write("Copied runtime could not start outside Seatbelt\n"); }
   await delay(3000);
