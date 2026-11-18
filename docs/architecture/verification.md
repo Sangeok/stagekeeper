@@ -232,6 +232,11 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   `osVersion`·`pluginVersion`·`commit`·`result`·`report`(보고서 경로)를 적어 소유자가 댓글로 남긴다. `record` job만
   실패하면 그 job만 다시 돌린다. 다시 돌린 job은 앞 시도의 gate job 출력을 그대로 받는다. macOS Codex CI의 실행은
   이 기록에 남지 않는다.
+- `shared-distribution-acceptance`는 Codex의 모델 없는 승격 필수 검사다. 승격할 `dev` 커밋에서 모든 다리가
+  녹색이어야 하며, 그 커밋의 실행이 없으면 직접 실행한다. `record` job이 없어 위 기록에는 남지 않는다. PR이 아닌
+  실행에서 템플릿 입력이 없으면 입력 검사 step이 실패하므로, 모든 단계를 건너뛴 녹색은 PR에서만 생긴다.
+  Codex 모델 CI는 아직 승격을 막지 않는다. 승격할 커밋에 Codex `eval`·`pipeline` 행이 없으면 승격 보고에
+  미검증으로 적고, 기록 이슈에는 그런 행을 쓰지 않는다. 신뢰된 기록이 없으면 미검증이 기본값이다.
 - macOS Codex 구독 검증은 별도 private GitHub Actions 저장소의 신뢰된 Mac runner에서
   수동으로 실행한다. 공개 PR에는 로그인 캐시를 제공하지 않는다. 검토한 source·template
   commit을 고정하고 하나의 CI 전용 홈·로그인을 직렬로 사용한다. `rehearse-codex-macos.mjs`
@@ -312,7 +317,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | 템플릿 release 운영 | 공통 | | | `template-release/validate`, `template-release/deploy` | | |
 | 이동한 정책 계약 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm run test:policy-contracts`로 기존 core/GitHub의 서버·FSD 이동 사례를 실행. Linux는 test-web/server에서 같은 파일을 발견 |
 | 공유 모듈 배포와 경계 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `scripts/plugin-lib.test.mjs`, `scripts/lib/shared-module-graph.test.mjs`, `scripts/checks/verify-shared-boundaries.test.mjs`, `scripts/macos/package-plugin.test.mjs`, `scripts/windows/package-windows-plugin.test.mjs`. native package 사례는 해당 OS 결과를 구분 |
-| 공유 배포 실물 설치·서버 호환성 | OS별 | `shared-distribution-acceptance/acceptance` | `shared-distribution-acceptance/acceptance` | | | `scripts/rehearsals/rehearse-shared-distribution.mjs`: GitHub-hosted runner의 실제 Codex bundle 신규/update·캐시 inventory·이전 서버 교체·pin·pending·정리. private template 입력 step과 summary가 실제 PASS인 경우에만 인수 증거로 사용; 모델 호출 없음 |
+| 공유 배포 실물 설치·서버 호환성 | OS별 | `shared-distribution-acceptance/acceptance` | `shared-distribution-acceptance/acceptance` | | | `scripts/rehearsals/rehearse-shared-distribution.mjs`: GitHub-hosted runner의 실제 Codex bundle 신규/update·캐시 inventory·이전 서버 교체·pin·pending·정리. private template 입력 step과 summary가 실제 PASS인 경우에만 인수 증거로 사용; 모델 호출 없음. 승격 필수 검사이며 PR이 아닌 실행은 template 입력이 없으면 실패 |
 <!-- ci-coverage:end -->
 
 `npm run verify:ci-coverage`(`npm run check`에 포함)가 `.github/workflows/`와 이 표를 대조한다.

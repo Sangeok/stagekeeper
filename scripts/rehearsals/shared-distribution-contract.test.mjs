@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { chmodSync, cpSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -95,4 +96,39 @@ it("selects installed native launchers without a global Node fallback", () => {
   const mac = nativeBundleCommand("/bundle", "session", ["--check"], "darwin");
   assert.deepEqual(mac, { file: "/bundle/bin/harness", args: ["session", "--check"] });
   assert.throws(() => nativeBundleCommand("/bundle", "dispatch-anything", [], "darwin"));
+});
+
+function acceptanceInputsScript() {
+  const workflow = readFileSync(new URL("../../.github/workflows/shared-distribution-acceptance.yml", import.meta.url), "utf8").split(/\r?\n/);
+  const step = workflow.findIndex(line => line.trim() === "- name: Check shared acceptance inputs");
+  const run = workflow.findIndex((line, index) => index > step && /^\s+run: \|\s*$/.test(line));
+  assert.ok(step !== -1 && run !== -1);
+  const indent = workflow[run].search(/\S/);
+  const body = [];
+  for (const line of workflow.slice(run + 1)) {
+    if (line.trim() && line.search(/\S/) <= indent) break;
+    body.push(line);
+  }
+  const margin = Math.min(...body.filter(line => line.trim()).map(line => line.search(/\S/)));
+  return body.map(line => line.slice(margin)).join("\n");
+}
+
+it("fails the acceptance inputs check outside pull requests when template access is unavailable", t => {
+  const script = acceptanceInputsScript();
+  const root = mkdtempSync(path.join(realpathSync.native(tmpdir()), "shared-acceptance-inputs-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const check = (name, env) => {
+    const output = path.join(root, `${name}.out`);
+    writeFileSync(output, "");
+    const result = spawnSync("bash", ["-c", script], { encoding: "utf8", env: { ...process.env, GITHUB_OUTPUT: output, ...env } });
+    return { error: result.error, status: result.status, output: readFileSync(output, "utf8").trim() };
+  };
+  const ready = check("ready", { EVENT_NAME: "push", TRUSTED_HEAD: "true", TEMPLATES_TOKEN: "present" });
+  if (ready.error?.code === "ENOENT") return t.skip("bash is not available");
+  assert.deepEqual(ready, { error: undefined, status: 0, output: "ready=true" });
+  for (const event of ["push", "workflow_dispatch"]) {
+    assert.deepEqual(check(event, { EVENT_NAME: event, TRUSTED_HEAD: "true", TEMPLATES_TOKEN: "" }), { error: undefined, status: 1, output: "" }, event);
+  }
+  assert.deepEqual(check("fork", { EVENT_NAME: "pull_request", TRUSTED_HEAD: "false", TEMPLATES_TOKEN: "" }), { error: undefined, status: 0, output: "ready=false" });
+  assert.deepEqual(check("same-repo", { EVENT_NAME: "pull_request", TRUSTED_HEAD: "true", TEMPLATES_TOKEN: "" }), { error: undefined, status: 0, output: "ready=false" });
 });

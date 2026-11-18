@@ -161,6 +161,18 @@ commits that were already green on `dev`.
   when shipped `plugin/` files changed. Stop unless every job is green, and promote
   only the commit their summaries name. Both check plugin installation and init
   only; neither runs the pipeline.
+- Before promoting, confirm a green `shared-distribution-acceptance` run on the `dev`
+  commit being promoted (`gh run list --workflow shared-distribution-acceptance.yml
+  --commit <sha>`). It installs and updates the real Codex bundle on Windows and macOS
+  without a model. When that commit has no green run, dispatch it
+  (`gh workflow run shared-distribution-acceptance.yml --ref dev`) and promote only the
+  commit the run checked. Stop unless every leg is green; rerun once only when a leg
+  failed for a cause outside the change, such as a runner that did not start. This
+  workflow has no `record` job, so its result is not in the gate record.
+- Codex model CI does not block promotion yet. When the gate record has no Codex
+  `eval` or `pipeline` row for the commit being promoted, say in the promotion report
+  that Codex model behavior is unverified at that commit. Do not add such a note to
+  the gate record; it holds one row per run.
 - Before promoting, also run the `pipeline-smoke` workflow on that `dev` commit
   (`gh workflow run pipeline-smoke.yml --ref dev`) when
   `git diff --name-only origin/main origin/dev -- src/server/pipeline src/server/agents src/server/mcp packages/app-core/pipeline packages/shared/templates src/server/templates/release-preparation.ts src/server/templates/release-preparation.test.ts src/server/templates/runbook-query.ts tests/server/runbook-stale.test.ts plugin/skills/watch plugin/skills/background plugin/bin/harness-watch.mjs plugin/bin/harness-session.mjs plugin/bin/harness-background.mjs plugin/bin/harness-commit-guard.mjs plugin/hooks plugin/runtime plugin/lib/execution scripts/rehearsals/rehearse-client-init-smoke.ts scripts/rehearsals/support scripts/rehearsals/client-init scripts/rehearsals/pipeline scripts/rehearsals/agent-eval scripts/rehearsals/agent-eval-summary.mjs scripts/rehearsals/rehearsal-compatibility.test.mjs scripts/checks/rehearsal-boundaries.test.mjs scripts/rehearsals/rehearse-pipeline-smoke.ts scripts/rehearsals/pipeline-smoke-steps.mjs scripts/rehearsals/smoke-server.mjs scripts/rehearsals/smoke-server-listener.cjs scripts/rehearsals/rehearse-codex-macos.mjs scripts/rehearsals/codex-init-eval.mjs scripts/rehearsals/client-ci-contract.mjs scripts/rehearsals/client-init-smoke-steps.mjs scripts/rehearsals/gate-environment.mjs scripts/rehearsals/gate-record.mjs scripts/windows/package-windows-plugin.mjs scripts/macos/package-plugin.mjs .github/actions/gate-record .github/workflows/pipeline-smoke.yml .github/actions/smoke-database`
