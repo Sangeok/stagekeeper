@@ -51,12 +51,14 @@ related:
 
 | 고정할 입력 | 실제 공급원과 대조 방법 |
 | --- | --- |
-| 소스·실행 출처 | 후보의 full SHA, server/plugin SHA, public·private workflow repo/ref/SHA, 실행 client·OS·architecture·버전을 구분한다. 같은 브랜치 이름도 run의 `headSha` 또는 검토된 checkout SHA까지 맞아야 한다. private workflow SHA는 public 제품 SHA와 별도 필드다. |
+| 소스·실행 출처 | run의 `headSha`로 실행을 찾은 뒤, 서버를 빌드한 checkout SHA와 설치 요약의 `pluginCommit`을 각각 승인한 후보 SHA와 대조한다. source-copy eval처럼 서버가 비해당인 행은 해당 계약을 따른다. workflow repo/ref/SHA, client·OS·architecture·버전은 별도로 기록한다. private workflow SHA는 public 제품 SHA와 용도가 다르다. |
 | 템플릿·평가 사례 | 공개 shared-distribution의 고정 template은 `8ccb37a4ab91de527e6a23caa6d415c7cdc6f215`다. Claude init은 `template_commit`, pipeline은 `templates-ref`에 승인된 전체 SHA를 주고 실제 checkout/요약과 대조한다. source-copy Claude eval은 후보의 `plugin/evals`와 control/gate 사례를 사용한다. schema 2로 판정할 때는 `fixtureCommit`과 실행한 복사본의 `copySha256`이 필요하다. server/template은 `not-applicable:source-copy-eval`로 기록한다. |
 | 설치물·이전 버전 | source 설치는 plugin commit·설치 채널·판, bundle은 package/runtime/verifier 해시와 설치 후 inventory를 남긴다. Claude update 전 `git ls-remote origin refs/heads/main`으로 기대하는 이전 SHA를 기록한다. Windows와 macOS의 `Resolve the previous release`는 각각 `main`을 fetch하므로 두 `summary_*.previousCommit`을 이 값과 따로 대조한다. 하나라도 다르면 해당 행을 보류하고 서로 다른 이전 버전의 결과를 한 쌍으로 합산하지 않는다. public shared-distribution의 previous는 `85c66fb1d9e02c3d9416710240cbfca3f0023939`에서 재생성한 fixture다. private update는 그 실행이 사용한 이전 bundle과 해시를 따로 확인한다. |
 | 실행 승인 | 공개 무모델 게이트, private init, 실제 모델 eval/pipeline의 실행 주체·시나리오·동시 사용 제한·허용 시간/사용량·private 결과 검토 권한을 구분한다. 승인되지 않은 모델 행은 `미실행`으로 둔다. |
 
 첫 조회에는 후보의 공개 실행 전체와 #319의 해당 행, 열린 `[gate]` 이슈를 사용한다. 예를 들어 `gh api --paginate "repos/Sangeok/stagekeeper/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100"`로 run ID를 찾고 `gh run view "$RUN_ID" --json headSha,attempt,event,conclusion,jobs`로 실제 job을 확인한다. 일부 job만 재실행했다면 해당 job이 실행된 attempt까지 대조한다. 각 필수 행을 **재사용 가능 / 새 실행 필요 / 차단**으로 분류한다. 선택한 SHA와 입력이 모두 맞고 실제 단계·정리·검토 근거까지 있는 행만 재사용한다. 다른 SHA의 green, secret 부재로 모든 실질 단계가 skip된 job, 최신 실패가 남은 옛 성공은 합격 건수에 넣지 않는다. [결과 수집 계약](../../../scripts/rehearsals/client-ci-contract.mjs)
+
+공개 Claude init의 PR 실행은 서버와 플러그인의 소스가 다를 수 있다. PR #380의 Windows 신규 설치에서는 run의 `headSha`와 `pluginCommit`이 `6043398`이었지만 서버 checkout은 PR 임시 병합 커밋 `d9642a0`이었다. 이 run은 해당 조합의 회귀 증거로 보존한다. 후보 SHA 검색 결과만으로 동일 후보 인수에 합산하지 않는다. [실제 checkout과 설치 요약](https://github.com/Sangeok/stagekeeper/actions/runs/44301810242/job/134793169272)
 
 ### TASK-CVO3-02: OS별 런타임과 무모델 설치 인수
 
@@ -121,6 +123,8 @@ CVO2 병합 SHA 자체의 native 미확인 항목까지 해소하도록 승인�
 | finding, 검토자·결정·관련 시도, 재시도 사유, 미충족 항목 | 최신 실패·미해결 finding·cleanup 불명·identity 불일치를 남기고 해당 행은 미통과로 판정한다. schema 2 자료가 있는 범위에서는 신뢰된 실행 목록과 기대 자원을 대조한 뒤 `evaluateClientCandidate`를 사용한다. 검토 승인은 해당 실행과 `evidenceSha256`에 연결한다. [판정 함수](../../../scripts/rehearsals/client-ci-contract.mjs) |
 
 **증거 보관 기한.** 공개 pipeline의 `harnessErrors` 또는 `stepRefusals`가 0보다 크면 권한 있는 검토자가 해당 OS의 `pipeline-smoke-transcripts-<leg>`를 7일 보관 기간 안에 확인한다. 업로드는 파일 누락 시 경고만 남긴다. 검토가 이미 끝났으면 같은 실행에 연결된 검토 기록을 재사용하고, 미검토 전사가 누락·만료됐고 출처를 확인할 수 있는 봉인 사본도 없으면 해당 행을 ‘검토 미완료’로 둔다. 공유 배포의 `summary.json`은 14일 보관되므로 최초 확인 때 run/attempt·artifact ID와 판정에 사용한 허용 필드를 보고서에 남긴다. [pipeline artifact](../../../.github/workflows/pipeline-smoke.yml) · [공유 배포 artifact](../../../.github/workflows/shared-distribution-acceptance.yml)
+
+**DB fixture 정리 판정.** 공개 Claude init·pipeline과 private macOS Codex 리허설은 `deleteFixtureUser`를 사용한다. fixture 생성 이후 해당 leg의 정리 로그까지 확인한다. 삭제가 실패해도 함수는 `cleanup: the fixture user was not deleted`를 stderr에 기록하고 정상 반환할 수 있다. 이 경고가 있으면 job과 요약이 성공이어도 fixture 정리는 `FAIL`이다. 서버 정지 실패로 fixture를 보존하면 해당 실행의 정리 실패와 보존 사유를 남긴다. 정리 구간을 확인할 로그나 같은 실행의 동등한 증거가 없으면 `BLOCKED`로 기록한다. 완료 보고서에서 필수 정리 `FAIL`과 다른 필수 행의 `BLOCKED`가 함께 있으면 전체 `result`는 `fail`이다. [공용 정리 함수](../../../scripts/rehearsals/support/smoke-database.ts) · [Claude init의 종료 처리](../../../scripts/rehearsals/rehearse-client-init-smoke.ts)
 
 **오류와 재개.** runner 미배정은 실행 전 인프라 실패로 남기고 같은 SHA의 해당 job만 기존 재시도 규칙에 따라 복구한다. 공개 승격용 수동 게이트의 job 실행 시간이 30분을 넘으면 사용자에게 알리고 취소하는 운영 규칙을 따른다. pipeline/공유 배포의 외부 원인 재시도는 기존 한도 1회와 원래 실행을 연결한다. 코드·계약·안내가 원인이면 결함을 분리해 수정하고 새 SHA의 인수 집합을 다시 만든다. 중단·취소 시 기존 runner·서버 종료 및 시험 DB fixture 정리를 확인한다. 종료가 불명확하면 fixture와 진단을 보존한다. [운영 규칙](../../../AGENTS.md)
 
