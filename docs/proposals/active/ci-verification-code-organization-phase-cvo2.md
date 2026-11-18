@@ -62,6 +62,8 @@ related:
 
 **재사용 방향.** pipeline의 결과 필터는 client-init의 `smokeResult`와 support의 `environmentFields`를 직접 사용한다. record는 세 시나리오 필터를 사용한다. `client-ci-contract.mjs`와 그 시험, `rehearse-*.ts/mjs` 진입점 및 그 caller 시험은 현재 위치에 둔다. 기존 sealed transcript의 키·경로 검증·복호화·새 디렉터리에만 쓰는 계약과 실제 모델 선택은 이번 변경에서 유지한다.
 
+**기존 번들 읽기(VFY-CVO-01).** import 경로를 바꾸는 `open-pipeline-transcripts.mjs`도 실제 CLI로 확인한다. 기준 SHA의 `sealTranscripts`로 합성 파일 한 개를 봉인하고, 다른 cwd에서 후보 CLI에 `--key-file`, `--in`, `--out`을 전달한다. 종료 0과 복원한 파일의 경로·바이트 일치를 확인한다. 같은 출력 경로를 다시 사용하면 종료 1이고 기존 내용이 보존돼야 한다. 변조 번들과 새 출력 경로 조합은 종료 1·출력 미생성, 잘못된 인자는 종료 2다. 암호화에는 무작위 IV가 있으므로 비교 기준은 복원 결과다. 운영 전사·키 대신 임시 fixture를 사용한다.
+
 **작업 중 확인할 입력.** pipeline child는 임시 저장소의 실제 산출물과 새 steps 모듈의 URL로 `slug`·`truncate` 독립 사례를 판정한다. 두 시나리오 각각에서 정상 fixture는 모든 결과가 true여야 하고 오답 fixture는 false를 포함해야 한다. child는 오답 배열을 출력하고도 정상 종료할 수 있으므로 root 리허설이 배열 길이와 각 값을 검사해 `implementation-check` 단계를 실패시키는지 확인한다. 호환 wrapper도 정상 결과를 낼 수 있다. 따라서 `CASES`에 실제 전달되는 URL이 새 구현을 가리키는지도 독립적으로 확인한다.
 
 `preflightInitEval`은 AppServer를 지연 로딩하고 launcher·파일 접근 경계를 검사한 뒤 `modelsStarted: false`를 반환한다. CVO2에서는 새 위치에서 **그 함수에 쓰인 실제 import**가 `AppServer` export를 가진 파일로 해석되는지 확인한다. 실제 macOS 프로세스로 수행하는 preflight와 그 이후의 모델 평가는 CVO3에서 각각 실행 근거를 남긴다.
@@ -79,7 +81,7 @@ related:
 | `scripts/rehearsals/gate-record.test.mjs` | `.github/actions/gate-record/record.test.mjs` | import와 경쟁 subprocess는 옆의 `record.mjs`, composite shell 시험은 옆의 `action.yml`을 읽는다. 구 시험 위치는 삭제한다. |
 
 - Action의 **Build the row** 단계는 checkout root에서 `node .github/actions/gate-record/record.mjs`를 호출한다. 새 record → `../../../scripts/rehearsals/{client-init,pipeline,agent-eval}/...` 방향을 사용한다. 구 record adapter 외에 일반 리허설이 Action 모듈을 import하는 간선은 허용하지 않는다.
-- 기존 shell 실패 시험에 **성공 대조**를 짝지어 둔다. 새 임시 부모 `GATE_WORK_DIR`에 `open-issues.ndjson`과 빈 `GITHUB_OUTPUT`을 준비하고 **`result/`가 없는 상태**에서 Action의 실제 Build the row 셸을 실행한다. 종료 0, `result/comment.md` 생성, `GITHUB_OUTPUT`에 `directory=<부모>/result` 한 줄 추가를 확인한다. 거부 시험은 별도 부모에 빈 `result/`를 먼저 만든다. 같은 입력에서 종료 1, 기존 디렉터리 내용 보존, `GITHUB_OUTPUT` 무변경, 후속 게시용 `gh` 호출 0건이어야 한다. 셸의 cwd는 checkout root로 고정하고 게시 명령은 시험 전용 대역으로 관찰한다. 잘못된 CLI 경로로 Node 자체가 실패해도 음성 시험만 통과하는 경우를 잡는다.
+- 기존 shell 실패 시험에 **성공 대조**를 짝지어 둔다. 새 임시 부모 `GATE_WORK_DIR`에 `open-issues.ndjson`과 빈 `GITHUB_OUTPUT`을 준비하고 **`result/`가 없는 상태**에서 Action의 실제 Build the row 셸을 실행한다. 종료 0, `result/comment.md` 생성, `GITHUB_OUTPUT`에 `directory=<부모>/result` 한 줄 추가를 확인한다. 거부 시험은 별도 부모에 빈 `result/`를 먼저 만든다. 같은 입력에서 종료 1, 기존 디렉터리 내용 보존, `GITHUB_OUTPUT` 무변경, 후속 게시용 `gh` 호출 0건이어야 한다. 셸의 cwd는 checkout root로 고정하고 게시 명령은 시험 전용 대역으로 관찰한다. 성공 시험에서는 셸이 실행한 **Node의 script 인자**도 확인한다. 예를 들어 시험용 `PATH`의 `node` 대역이 script 인자만 기록한 뒤 실제 Node에 그대로 위임하도록 한다. 정확히 한 번 `.github/actions/gate-record/record.mjs`가 실행되어야 한다. 옛 CLI도 같은 결과를 쓸 수 있으므로 출력 파일만으로 새 경로 연결을 판정할 수 없다.
 - 세 runtime 시험은 **코드와 기존 이름의 대응표**로 추적한다. 새 위치의 `.test.mjs` 외에 `plugin/` 아래에 시험용 helper를 추가하면 출하 판정이 달라질 수 있다. 비교 기준은 [출하 predicate](../../../scripts/lib/plugin-payload.mjs)다.
 
 ## 3. 테스트 탐색·변경 경로·문서를 같은 PR에서 연결
@@ -100,6 +102,8 @@ related:
 
 **실행 선택 검증.** 기존 `scripts/checks/rehearsal-boundaries.test.mjs`의 이벤트별 paths 해석과 pipeline 시험의 임시 Git 저장소를 재사용한다. 이동표의 파일을 하나씩 유일한 변경으로 만들고 **기준 파일이 선택하던 workflow가 새 위치도 선택하는지** 확인한다. 기준/후보의 PR·push·승격 결과를 경로 쌍별로 기록하고, 위에서 설명한 확대와 필요한 양성 경로를 확인한다. `pipeline-smoke-steps.test.mjs`의 재귀 열거기는 현재 `mjs|ts|mts`만 수집한다. `support/smoke-server-listener.cjs`와 구 CJS 경로도 fixture에 직접 넣거나 열거기에 `cjs`를 추가해 각각 단독 변경으로 검증한다. 예를 들어 runtime 시험은 `plugin/runtime/**` 및 `plugin/**`에, 새 서버 시험은 `support/**`에 걸린다. `check`는 PR 전체에서 실행한다. 모델 평가·pipeline은 기존 승격 절차의 수동 선택을 검증한다. 지표는 기준 커밋의 **workflow 8개·job 정의 14개·coverage 행 16개**이며, 행 안의 확인 문자열은 새 직접 실행 경로와 일치해야 한다.
 
+**모듈 경계 검증.** `rehearsal-boundaries.test.mjs`의 현재 그래프는 CVO1 구현 7개와 옛 init CLI 하나를 대상으로 하며, `references()`는 CJS `require`를 수집하지 않는다. CVO1의 선택 기대표는 유지하고 CVO2 이동표에서 별도 검사 대상을 만든다. 구 wrapper → 지정 새 구현, 새 record → 세 결과 필터, smoke-server → 새 preload·Next CLI의 실제 연결을 검사한다. 현재 checkout의 내부 호출이 구 wrapper로 되돌아가거나 순환하면 실패시킨다. CJS wrapper의 리터럴 `require`와 pipeline의 child URL도 각 형식에 맞춰 확인한다. `previous-seed`는 고정된 이전 판 checkout에서 실행되는 기존 예외다. Action이나 시험을 일반 제품 의존성으로 추가하는 예외는 만들지 않는다.
+
 **문서 링크 추적.** 기준 tree에서 옛 시험 파일을 링크한 곳은 상위 SDD, CVO1 계획, `docs/test-reports/completed/2026-10-05-windows-role-git.md`다. 구현 PR에서 현행 참조는 새 경로로, 과거 시험 증거는 해당 이력의 고정 커밋 링크로 연결한다. 기존 승인·시험 결과의 의미는 보존한다. `role-command-time-limit.md` 등의 코드 표기 경로도 검색해 현행 실행 명령과 당시 실행 기록을 구분한다. 착수 시 CVO1 문서가 completed로 옮겨졌으면 이 계획의 링크와 front matter도 실제 목적지에 맞춘다.
 
 ## 검증과 완료 기준
@@ -114,7 +118,7 @@ related:
 | VFY-CVO-06 · REQ-CVO-005 | `node --test .github/actions/gate-record/record.test.mjs`와 두 summary 시험. `node_modules` 없는 임시 checkout/소스 사본에서도 Node만으로 구·신 record CLI에 같은 fixture를 전달한다. | 같은 입력을 기준 CLI와 후보의 구·신 CLI에 각각 독립된 새 출력 경로로 전달한다. 세 실행의 종료 코드·출력 파일 목록·내용을 비교하고 기존 schema 1·leg·finding·run attempt assertion을 유지한다. 성공/실패·요약 누락·partial eval·abandoned를 구분하고 원문·토큰은 출력에 없다. 동시 writer 한 곳만 성공, 기존/부분 출력 보존, 실패 후 게시 0건. |
 | VFY-CVO-07 · REQ-CVO-006 | clean baseline/candidate에서 동일한 `isShippedPluginFile`로 Git tree를 필터링해 전체 경로·blob·mode를 대조한다. 기존 shared graph·plugin-lib·양 OS 패키징 검사와 production build를 수행한다. | CVO1 기준 출하 파일 87개의 집합과 바이트가 후보와 같다(착수 시 새 base라면 다시 산출). 새 경로의 시험이 패키지에 들어가지 않고 `plugin/lib` 동기화가 통과한다. |
 
-**회귀 실행 순서.** 준비된 checkout에서 `npm run db:generate` 후 새 위치의 집중 시험을 실행한다. 이어서 `npm run verify:fsd`, `npm run verify:server`, `npm run verify:shared`, `npm run test:architecture`, `npm run check`, `npm test`, `npm run test:web`, `npm run test:server`, `npm run build`와 기존 fresh manifest 검사를 수행한다. `npm run check`에 포함된 `test:scripts` 결과를 같은 후보에서 재사용한다. PR의 Windows native와 macOS ARM/Intel 결과에서는 실제 step이 실행됐는지도 확인한다. 실제 모델 호출·private Codex 후보 인수는 상위 CVO3가 소유한다.
+**회귀 실행 순서.** 준비된 checkout에서 `npm run db:generate` 후 새 위치의 집중 시험을 실행한다. 이어서 `npm run verify:fsd`, `npm run verify:server`, `npm run verify:shared`, `npm run test:architecture`, `npm run check`, `npm test`, `npm run test:web`, `npm run test:server`, `npm run build`와 기존 fresh manifest 검사를 수행한다. `npm run check`에 포함된 `test:scripts` 결과를 같은 후보에서 재사용한다. PR의 Windows native와 macOS ARM/Intel 결과에서는 실제 step 및 사례 결과를 확인한다. 특히 Windows의 `Validate actual Windows role commands and bundled npm`은 `npm ci` 전에 실행되므로 이동한 시험과 실행 의존성은 이 순서에서 로드되어야 한다. 이 step의 TAP에서 `uses actual LPAC file denial and leaves the original repository unchanged`와 `passes real pipe/network/path preflight and runs npm test/build on a fresh source snapshot`가 모두 `ok`이고 `# SKIP`이 없는지 확인한다. 후자는 `STAGEKEEPER_TEST_WINDOWS_RUNTIME`이 비어 있으면 자동으로 skip된다. 뒤의 일반 제품 suite 결과와 구분해 step·run·attempt를 남긴다. 실제 모델 호출·private Codex 후보 인수는 상위 CVO3가 소유한다.
 
 **변경 범위·대안.** 구현·preload 8개와 시험 10개가 위치를 바꾼다(기존 파일 18개, CLI·workflow·문서 호출부 수정 별도). 기존 모듈만 새 폴더로 재수출하는 작은 변경은 경로 호환을 제공하지만 실제 구현과 시험은 원래 위치에 남게 된다. 실제 구현을 이동하고 옛 구현 경로에만 얇은 wrapper 8개를 두는 기존 결정을 유지한다. 클래스·서비스·새 테스트 러너는 추가할 필요가 없다.
 
@@ -126,8 +130,8 @@ related:
 - **착수 조건.** CVO1 병합본의 검사 결과 및 활성 제안·최신 dev를 재대조하고 이 계획에 대한 구현 승인을 받는다. `dual-client-ci-parity`는 클라이언트 행동과 증거 규격을 소유한다. 해당 작업이 동시 변경됐다면 먼저 실제 호출부와 입출력을 다시 확정한다.
 - **검증의 구분.** 이번 산출물은 상세 계획 한 파일이다. 구현 후의 5개 VFY는 모두 예정 상태다. 문서 검증에는 부모와 자식 두 파일을 명시적으로 입력해 표준 추적성 검사를 수행하고, CVO2 세 Task의 검증 대상을 위 표와 따로 대조한다. 상위에는 아직 CVO3가 포함되어 있으므로 전체 묶음에 strict 실행 가능 판정을 적용하지 않는다.
 
-**기술 판정은 READY, 구현은 승인 대기다.** 재검토 시 CVO1 병합 커밋의 위 네 push workflow가 모두 성공했다. 해당 커밋에서 CVO2 구현을 막는 선행 CI 조건은 해소됐다. 열린 PR #379도 `docs/architecture/verification.md`를 수정하므로 구현 착수 시 변경된 행을 재대조한다. 이 문서의 검증 대상은 CVO2 계획이다.
+**기술 판정은 READY, 구현은 승인 대기다.** 재검토 시 CVO1 병합 커밋의 위 네 push workflow가 모두 성공했다. 해당 커밋에서 CVO2 구현을 막는 선행 CI 조건은 해소됐다. 이어 PR #379가 `dev`의 `84f6cccefbcc241c5d384ff15aec78c5ad2734e9`에 병합됐다. `check/task-worktrees`가 직접 실행하는 시험 경로와 `verification.md`의 두 worktree coverage 행이 갱신됐고, CVO2 이동 대상과의 겹침은 없었다. 구현 시점의 `dev`를 기준으로 smoke-server 행을 수정하고 #379의 경로를 보존한다. 이 문서의 검증 대상은 CVO2 계획이다.
 
 **작성 검증.** 병합 tree의 이동 대상·직접 실행 경로·호환 export·시험 검색을 대조했다. 부모와 이 계획의 표준 추적성 검사는 오류·경고 0건이었고, 저장소 상대 링크 검사에서 이 파일을 포함해 문제 0건이었다. CVO2가 담당하는 5개 요구사항(001·003·004·005·006)이 각각 위 표에서 실제 판정 기준을 가진다.
 
-**재검토 증거.** Node 22.23.3으로 기준 커밋의 record CLI를 같은 입력에 두 번 실행했다. 이미 만든 빈 출력 디렉터리에서는 `EEXIST`·종료 1, 준비한 부모 아래 새 경로에서는 `comment.md`·종료 0을 확인했다. 기존 record·eval-summary 시험 29개는 모두 통과했고, `verify:ci-coverage`는 14개 job·16개 행을 확인했다. 이 결과는 변경 전 기준 증거로 보관하고, 후보에 대한 다섯 VFY는 구현 후 판정한다.
+**재검토 증거.** Node 22.23.3으로 기준 커밋의 record CLI를 같은 입력에 두 번 실행했다. 이미 만든 빈 출력 디렉터리에서는 `EEXIST`·종료 1, 준비한 부모 아래 새 경로에서는 `comment.md`·종료 0을 확인했다. 기존 record·eval-summary 시험 29개는 모두 통과했고, `verify:ci-coverage`는 14개 job·16개 행을 확인했다. 두 번째 검토에서는 기존 transcript CLI를 합성 번들로 실행해 정상 복원·기존 출력 재사용·변조 입력·잘못된 인자의 종료 코드 `0/1/1/2`와 파일 상태를 확인했다. CVO1의 [Windows native step 로그](https://github.com/Sangeok/stagekeeper/actions/runs/44288579419/job/134748382023)에서 위 두 대표 사례가 skip 없이 통과한 것도 확인했다. 후보의 다섯 VFY는 구현 후 판정한다.
