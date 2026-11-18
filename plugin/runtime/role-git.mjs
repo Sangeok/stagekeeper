@@ -201,7 +201,7 @@ export async function createVerificationGit(root, directory, targetCommit, lifec
   await copyObjects(source.common, path.join(directory, "git/objects"), signal);
   const query = args => gitRead(directory, git, args, lifecycle, signal);
   if (text(await query(["rev-parse", "--verify", "HEAD^{commit}"])).trim() !== targetCommit) throw new Error("Implementation commit differs from verification copy");
-  return { query, sourceHead: source.head };
+  return { query };
 }
 
 export function createRoleGit({ root, agent, fileBroker, backend = fileBroker, planCommit = null, commitHandoff = null, commonDirectory = null }, lifecycle = {}) {

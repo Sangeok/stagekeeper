@@ -488,7 +488,7 @@ async function release(location, files, options) {
 
 async function status(files) {
   const directory = files.directory;
-  let state = null, newer = null;
+  let state, newer = null;
   try { state = await readStateWithGuard(files); }
   catch (error) {
     if (error instanceof NewerState) newer = error;

@@ -31,7 +31,7 @@ const VALUED = ["--workflow", "--result", "--legs", "--event", "--ref", "--commi
 export const USAGE = "Usage: GATE_SUMMARIES=<job outputs JSON> node scripts/rehearsals/gate-record.mjs --workflow <gate> --result <gate job result> --legs <leg,leg> --event <event> --ref <full ref> --commit <full commit> --run-id <id> --run-attempt <n> --repository <owner/name> --record-issue <number> --out <new directory> [--open-issues <NDJSON file>]";
 
 function leg(name, text, filter) {
-  let parsed = null;
+  let parsed;
   try {
     parsed = JSON.parse(text);
   } catch {
