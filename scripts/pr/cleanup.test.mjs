@@ -13,7 +13,6 @@ test("native runtime removes only a qualified clear target and preserves an unve
   fs.mkdirSync(path.join(a.path, "node_modules", "pg"), { recursive: true });
   fs.writeFileSync(path.join(a.path, "node_modules", "pg", "index.js"), "fixture");
   fs.mkdirSync(path.join(a.path, ".next", "node_modules"), { recursive: true });
-  fs.symlinkSync(path.join(a.path, "node_modules", "pg"), path.join(a.path, ".next", "node_modules", "pg-generated"), process.platform === "win32" ? "junction" : "dir");
   const result = await f.run(f.effect(a, head));
   const qualified = process.platform === "darwin" && os.release() === "25.2.0" && process.arch === "arm64" && process.version === "v26.4.0" && process.getuid() > 0 && process.getuid() === process.geteuid();
   if (process.env.STAGEKEEPER_CLOSEOUT_NATIVE_REQUIRED === "1") {
@@ -28,13 +27,19 @@ test("native runtime removes only a qualified clear target and preserves an unve
     assert.equal(result.phase, "cleanup-pending", JSON.stringify(result));
     assert.deepEqual(result.reasons, ["usage-unverified"]);
     assert.equal(fs.existsSync(a.path), true); assert.equal(f.git(["rev-parse", a.branchName]), head);
+    f.git(["worktree", "remove", "--", a.path]);
+    const ack = await f.run(f.effect(result, head, "acknowledge-removal", { externalRemovalConfirmed: true }));
+    assert.equal(ack.exitCode, 0, JSON.stringify(ack)); assert.equal(f.git(["rev-parse", a.branchName]), head);
+    const done = await f.run(f.effect(ack, head, "cleanup"));
+    assert.equal(done.phase, "complete", JSON.stringify(done));
+    assert.equal(f.git(["for-each-ref", "--format=%(refname)", "refs/heads/" + a.branchName]), "");
   }
   assert.equal(fs.readFileSync(path.join(b.path, "README.md"), "utf8"), "fixture\n");
   assert.equal(f.git(["rev-parse", b.branchName]), f.base); assert.equal(f.state.puts, 1);
   t.diagnostic(JSON.stringify({ platform: process.platform, release: os.release(), node: process.version, qualified, outcome: result.phase }));
 });
 
-test("native Git removal with validated generated directory links leaves external and sibling canaries intact", async t => {
+test("generated directory links remain blocked while a native Git experiment checks target and canary preservation", async t => {
   const f = fixture(t); await f.bootstrap(); const a = await f.create("link-a"), b = await f.create("link-b");
   const external = path.join(f.directory, "canary"); fs.mkdirSync(external); fs.writeFileSync(path.join(external, "data"), "preserve");
   fs.mkdirSync(path.join(a.path, "node_modules", "pg"), { recursive: true });
@@ -43,11 +48,14 @@ test("native Git removal with validated generated directory links leaves externa
   const link = path.join(a.path, ".next", "node_modules", "pg-generated");
   fs.symlinkSync(path.join(a.path, "node_modules", "pg"), link, process.platform === "win32" ? "junction" : "dir");
   const ctx = await context(f.root), stored = await loadTask(ctx, a.task);
-  assert.match((await inspectFiles(ctx, stored.record)).fingerprint, /^[a-f0-9]{64}$/);
+  await assert.rejects(() => inspectFiles(ctx, stored.record), { code: "linked-path" });
   await git(ctx, ["worktree", "remove", "--", a.path]);
-  f.absent(a.path); assert.equal(fs.readFileSync(path.join(external, "data"), "utf8"), "preserve");
+  const targetRemains = fs.existsSync(a.path);
+  if (process.platform !== "win32") assert.equal(targetRemains, false);
+  assert.equal(fs.readFileSync(path.join(external, "data"), "utf8"), "preserve");
   assert.equal(fs.readFileSync(path.join(b.path, "README.md"), "utf8"), "fixture\n");
   assert.equal(await branchHead(ctx, a.branchName), f.base);
+  t.diagnostic(JSON.stringify({ platform: process.platform, gitRemovalExitedZero: true, targetRemains, productionExceptionEnabled: false }));
 });
 
 test("present worktree stays intact for busy and unknown usage, including a qualified incomplete observation", async t => {

@@ -1038,7 +1038,8 @@ F8/F9를 문서에 반영했다. 상위 문서·source·tests·CI·사용자 설
   pr entry·AGENTS·verification·양 OS CI·UPSTREAM·이전 lifecycle supersession을 함께 바꿨다.
 - source/merge/tool revision은 Git parent로 pin하고 state/branch 삭제는 no-deref CAS를 사용한다.
 - runtime 자격은 그대로다. unknown/Windows는 merged-pending이며 명시적 외부 제거 인수 뒤만
-  branch-only가 가능하다. ignored 내부 build link 예외는 외부·root·broken 링크를 허용하지 않는다.
+  branch-only가 가능하다. ignored 내부 build link 예외는 Windows native gate에서 잔존 폴더가 확인되어
+  계획의 실패 분기에 따라 비활성화했다. 내부 directory link도 linked-path로 보존한다.
 - migration preview envelope의 plan/planDigest를 제공한다. journal 선행·v2 fence·bounded pin·
   no-replace marker·applied transaction과 forward recovery를 구현했다. closing consent는 승계하지 않는다.
 - 실제 GitHub가 required check 0건을 반환할 때 CLI exit 1을 오류/성공으로 추측하지 않고

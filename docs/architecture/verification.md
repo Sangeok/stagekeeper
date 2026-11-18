@@ -408,12 +408,13 @@ metadata walk는 자기 Node child에서 bigint device/inode와 timestamp를 읽
 다른 device 디렉터리는 진입 전에 거부한다. 동일 device가 모든 mount를 인증하지는 않는다.
 
 ignored 캐시는 node_modules, .next, src/generated, coverage, tsconfig.tsbuildinfo,
-next-env.d.ts로 제한한다. 일반 directory link는 거부하고, ignored .next/node_modules
-내부 링크가 같은 worktree의 ignored node_modules 내부 일반 directory를 가리키는 경우만
-허용한다. 두 cache root가 실제 directory이고 target도 inventory에서 검증되어야 한다.
-외부/깨진/root/tracked 링크와 target 내부의 추가 탈출 링크는 거부한다. 별도 unlink,
-cache 삭제, force/remove/prune fallback은 없다. 이 제한된 예외의 실제 Git 제거와 외부/sibling
-canary 보존을 Windows/macOS 필수 시험에 연결한다. native 결과는 REPLACE 보고서에 기록한다.
+next-env.d.ts로 제한한다. directory symlink/junction은 내부 cache target도 거부한다.
+제안했던 .next/node_modules → 같은 worktree의 node_modules 예외는 비활성화했다.
+Windows 2022 / Git 2.56.1.windows.1의 실제 fixture에서 Git remove가 exit 0이어도
+대상 폴더가 남아 양 OS 제거 gate를 통과하지 못했다. native 실험은 외부·sibling canary와
+잔존 여부를 계속 기록하지만 production 허용으로 해석하지 않는다. 외부/깨진/root/tracked
+링크도 거부한다. 별도 unlink, cache 삭제, force/remove/prune fallback은 없다.
+따라서 이런 링크가 남은 일반 build 결과는 linked-path로 인계/정리가 보류될 수 있다.
 
 최종 guard/HEAD/instance/파일 지문 확인과 intent 저장 후 `git worktree remove -- <path>`를
 한 번 실행한다. path/admin/registry가 모두 사라진 뒤에만 branch 처리로 간다. fresh 보존

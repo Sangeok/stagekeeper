@@ -205,9 +205,10 @@ commits that were already green on `dev`.
   --expected-state <oid> --expected-head <sha> --expected-instance <uuid>
   --request-id <uuid> --pr <number> --usage-ended`. Owner strings are not authentication.
   Unknown ownership, dirty files, locks, foreign filesystems or external links preserve
-  the worktree. Ignored build caches are allowed only within the documented boundary:
-  a `.next/node_modules/**` directory link may target an ordinary ignored directory in
-  the same worktree's `node_modules/**`; external, broken and cache-root links remain blocked.
+  the worktree. Ignored build caches are allowed only within the documented boundary.
+  Directory symlinks/junctions, including generated .next/node_modules links into
+  the same worktree, remain blocked: the required Windows Git removal gate left
+  a residual directory. Do not unlink caches or add force/removal fallbacks.
 - Automatic worktree removal requires the runtime's fresh qualified/clear/complete/settled
   observation. Windows and unqualified/unknown/busy results retain both the worktree
   and branch as `cleanup-pending`. A merged PR can therefore remain locally pending.

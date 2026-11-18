@@ -253,9 +253,7 @@ export async function inspectFiles(ctx, record) {
       const relative = path.relative(cwd, e.target).split(path.sep).join("/");
       const destination = entries.get(relative);
       const fileLink = destination?.type === "file" && cache(relative) === root && ignored.has(relative);
-      const buildLink = e.path.startsWith(".next/node_modules/") && relative.startsWith("node_modules/") && destination?.type === "directory"
-        && ignored.has(relative) && entries.get("node_modules")?.type === "directory" && entries.get(".next")?.type === "directory";
-      if (!fileLink && !buildLink) refuse("linked-path");
+      if (!fileLink) refuse("linked-path");
     }
   }
   return { fingerprint: digest(json(scan)), identity: scan.identity };
