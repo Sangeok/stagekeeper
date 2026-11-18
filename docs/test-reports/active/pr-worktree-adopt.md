@@ -1,6 +1,6 @@
 ---
 status: 'active'
-stage: 'running'
+stage: 'blocked'
 result: null
 report-kind: 'acceptance'
 report-size: 'standard'
@@ -8,8 +8,8 @@ test-levels: ['integration', 'end-to-end']
 test-tools: ['Git', 'gh', 'Node.js', 'npm run pr', 'npm run check', 'npm test', 'npm run build']
 created-at: '2026-11-18'
 completed-at: null
-last-executed-at: '2026-11-18T03:10:05Z'
-tested-revision: 'ff36724d7e6cf0439901b36833fd2043bcc7a9e8'
+last-executed-at: '2026-11-18T03:16:59Z'
+tested-revision: 'e2c6f4155bca6460f208832f5a88c9572572bfe4'
 owners: ['user:Sangeok']
 related:
   - 'docs/proposals/active/pr-worktree-closeout-phase-adopt.md'
@@ -26,7 +26,7 @@ follow-up: ['docs/proposals/active/pr-worktree-closeout-phase-adopt.md']
 
 ## Summary and Decision
 
-운영 Mac의 기존 작업 세 건을 새 관리기로 이관했다. 같은 plan을 다시 적용한 결과와 작업 파일의 전후 상태를 확인했다. 이번 보고서를 첫 신규 작업 A로 등록해, 일반 빌드가 끝난 직후 자동 정리 조건을 충족하는지 살펴본다.
+운영 Mac의 기존 작업 세 건을 새 관리기로 이관했다. 같은 plan을 다시 적용한 결과와 작업 파일의 전후 상태를 확인했다. 이 보고서로 만든 첫 실 작업에서는 빌드 전 통과했던 파일 검사가 빌드 후 `linked-path`를 반환했다. Mac에서 일반 빌드 직후 한 호출로 병합·정리하는 인수 기준은 미충족이다. [PR #372](https://github.com/Sangeok/stagekeeper/pull/372)
 
 ## Scope and Criteria
 
@@ -56,30 +56,35 @@ follow-up: ['docs/proposals/active/pr-worktree-closeout-phase-adopt.md']
 | --- | --- | --- | --- | --- |
 | T1 | R1 | required | 실제 이관 및 동일 plan 재실행(E1) | PASS |
 | T2 | R1 | required | 작업 신원 및 이관 전후 자료 대조(E2) | PASS |
-| T3 | R2 | required | 실제 Mac 빌드 후 한 호출에서 병합과 자동 정리 | NOT RUN |
-| T4 | R2 | required | A 작업 전후 B 보존 대조(E3) | NOT RUN |
+| T3a | R2 | required | 일반 빌드 직후 파일 보존 전제 충족 여부. 동일 HEAD에서 빌드 전후 결과가 달라졌다(E4). | FAIL |
+| T3b | R2 | required | 실제 Mac 병합·자동 정리. 사전 검사에서 보류돼 `complete`를 호출하기 전 중단했다(E5). | BLOCKED |
+| T4 | R2 | required | A 생성 전과 PR 검사 시점의 B 보존 대조(E3) | PASS |
 | T5 | R3 | required | 실제 Windows PR 및 외부 제거 인수 | NOT RUN |
 
 ## Commands and Static Checks
 
 - 제어 checkout에서 `pr status`, `migrate preview`, `migrate apply`, 적용 후 `status`와 같은 plan 재호출을 실행했다(T1, T2).
 - 활성화된 관리기에서 `npm run pr -- create`로 A를 최신 dev 기준으로 생성했다. 생성 직후 `phase=working`, state OID `65194cae`였다.
-- A에서 일반 설치·Prisma 생성·검사·제품 테스트·빌드를 실행하고, 파일 보존 조건을 제어 checkout의 `pr inspect`로 확인한다(T3).
+- A에서 `npm ci`, `npm run db:generate`, `npm run check`, `npm test`가 통과했다. `check`의 스크립트 테스트는 499 통과·4 제외, 제품 테스트는 613 통과·42 제외였다(T3a).
+- `npm run build` 첫 실행은 Next.js의 보안 권고 출력 후 exit 1로 끝났다. 의존성과 파일 정리 정책을 바꾸지 않고 같은 명령을 재실행했고 production 빌드가 exit 0으로 끝났다. `.next`와 `node_modules`를 유지했다(T3a).
+- control에서 `pr inspect --task <A>`를 빌드 전·후에, PR 생성 뒤에는 `pr inspect --task <A> --remote --pr 372`를 실행했다(T3a, T3b).
 
 ## Evidence Registry
 
 - **E1.** 실제 원장 12행 중 active 3행을 가져왔고 removed 9행은 이력으로 보존했다. 적용 결과는 `active=true`, `phase=applied`, 이관 OID `8f447b98`였다. 같은 plan의 두 번째 응답은 `already-active`였다.
 - **E2.** 이관 및 재호출 전후의 task별 경로·HEAD·instance·Git 인덱스·파일 metadata, Git worktree 등록 목록과 로컬 branch refs, 기존 원장·marker를 대조했다. 세 작업 모두 `working`이며 종료 인계는 비어 있었다. `ci-verification`의 미커밋 문서 2개의 내용 SHA-256도 일치했다.
-- **E3.** A 생성 전 B의 task OID는 `5e6dff9d`, HEAD는 `5f2d527`이었다. B의 작업 트리 metadata 39,286개 항목과 Git 인덱스 지문, 경로와 admin의 신원을 기록했다. 로컬 절대 경로와 원장 원문은 비공개 실행 기록에 보관한다.
+- **E3.** A 생성 전 B의 task OID는 `5e6dff9d`, HEAD는 `5f2d527`이었다. B의 작업 트리 metadata 39,286개 항목과 Git 인덱스 지문, 경로와 admin의 신원을 기록했다. PR을 연결한 검사 직후 B의 모든 비교값이 생성 전과 일치했다.
+- **E4.** `e2c6f41`에서 빌드 전 `local.reasons=[]`와 파일 지문을 받았다. 같은 HEAD의 빌드 후에는 `local.reasons=["linked-path"]`였다. `.next/node_modules/pg-587764f78a6c7a9c`와 `.next/node_modules/@prisma/client-2c3a283f134fdcb6`가 각각 동일 worktree의 `node_modules/pg`와 `node_modules/@prisma/client` 디렉터리를 가리켰다.
+- **E5.** 원격 검사에서 #372는 `OPEN`, base `dev`, head `e2c6f41`로 연결됐다. 검사 명령은 exit 0이었지만 `local.reasons`에 `linked-path`가 있었고 A는 `working`, state OID `65194cae`, path/admin/ref 존재 상태였다. `observationPerformed=false`, 봉인·병합·제거 receipt는 없었다. GitHub의 `mergeCommit`은 null이었다. 이 증거는 읽기 전용 검사 시점에 해당한다.
 
 ## Findings and Follow-up
 
-첫 Mac 작업에서 `inspect`가 반환하는 `local.reasons`와 GitHub PR 상태를 함께 기록한다. 파일 검사에서 멈추면 산출물을 보존하고 일반 빌드 경로를 미충족으로 판정한다.
+현재 [파일 보존 검사](../../../scripts/pr/git-workspace.mjs)는 내부 디렉터리 링크도 차단한다. A의 실 PR에서 빌드 후 이 조건을 재현했다. 재검증하려면 빌드 산출물이나 플랫폼별 링크 처리 정책을 검토한 뒤, A와 같은 일반 설치·빌드 조건으로 다시 실행해야 한다. 자동 제거 정책의 근거가 된 Windows의 잔존 폴더 사례는 [REPLACE 검증 보고서](../completed/2026-11-18-pr-worktree-replace.md)에 있다.
 
 ## Test Data and Cleanup
 
-이관한 세 작업의 폴더와 branch는 제자리에 있다. A는 진행 중인 실제 작업이다. Mac·Windows에서 실제 제거가 확인된 대상만 제거로 기록한다.
+이관한 세 작업의 폴더와 branch를 유지했다. A의 빌드 링크, 폴더, 로컬·원격 branch는 실 PR 증거와 재검증을 위해 보존했다. 개인 경로가 있는 원장과 원본 실행 기록은 로컬에 보관했다.
 
 ## Conclusion
 
-VFY-PWC-10의 운영 Mac 이관은 통과했다. VFY-PWC-12의 Mac·Windows 실 PR 결과는 수집 대상이다.
+VFY-PWC-10은 운영 Mac에서 통과했다. VFY-PWC-12에서는 빌드 후 파일 검사(T3a)가 실패해 Mac 병합·제거(T3b)를 실행하지 않았다. Windows 실 PR 인수(T5)는 아직 실행 전이다.

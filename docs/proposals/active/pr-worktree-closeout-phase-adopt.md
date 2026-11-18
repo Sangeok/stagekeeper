@@ -21,7 +21,7 @@ related:
 
 # PR worktree 완료 흐름 — ADOPT 실행 계획
 
-이 Mac의 기존 작업을 보존한 채 새 관리기를 활성화하고, 첫 실제 작업에서 **평소대로 빌드한 뒤 dev 병합과 로컬 정리가 한 호출로 끝나는지** 확인한다. 계획 검토를 마쳤다. 운영 실행은 소유자 인계와 이전 관리기 중지 확인을 기다린다.
+이 Mac의 기존 작업을 보존한 채 새 관리기를 활성화하고, 첫 실제 작업에서 **평소대로 빌드한 뒤 dev 병합과 로컬 정리가 한 호출로 끝나는지** 확인한다. 운영 이관은 완료했다. 첫 실 PR #372의 빌드 후 검사 결과와 후속 인수 상태는 [실행 보고서](../../test-reports/active/pr-worktree-adopt.md)에 기록한다.
 
 상위 계약은 [PR worktree SDD](./pr-worktree-closeout.md), 실행 명령은 [운영 규칙](../../architecture/verification.md#작업-브랜치-정리)이 소유한다. 작성 모드는 PHASE_PLAN, 위험도는 HIGH-RISK다. 이 변경은 이 계획과 상위 SDD의 진행 상태를 갱신한다. PR 병합·Git ref 삭제·이관은 아래 실행 단계에서 각 대상의 권한과 증거를 확보한 뒤 수행한다.
 
@@ -110,8 +110,8 @@ node scripts/pr/index.mjs complete --root "$CONTROL" --task "$TASK" --owner "$OW
 
 | 확인할 사실 | 현재 판정 | 해제 증거 |
 | --- | --- | --- |
-| BLK-PWC-02 / 01 실행 | **BLOCKED**. 세 매핑은 확인했고 소유자 인계와 기존 작업 중단은 미확인 | 각 소유자 또는 해당 세션·스케줄을 통제하는 운영자가 세 행의 인계와 구 writer 중지·미재실행을 확인. fresh preview와 대응 |
-| BLK-PWC-03 / 02 실행 | **BLOCKED**. 실제 Mac A/B 및 Windows PR·담당 실행 환경 미지정 | 01의 실제 read-back 후 대상별 권한·OS·PR·HEAD를 확정. 한 OS의 결과는 해당 OS에만 귀속 |
+| BLK-PWC-02 / 01 실행 | **PASS**. 운영 Mac에 세 작업을 이관하고 재호출 결과를 확인 | 보고서 T1·T2에 상태와 자료 보존 증거 기록 |
+| BLK-PWC-03 / 02 실행 | **BLOCKED**. Mac의 A(#372)와 B(#369)는 지정됐고 빌드 후 파일 검사에서 중단. Windows 실 PR·실행 환경은 미지정 | Mac의 보존 조건과 병합 권한, Windows의 별도 대상·권한·OS 확보 |
 | ADOPT 완료 | VFY-PWC-10과 VFY-PWC-12 모두 실제 증거 필요 | 운영 원장 이관, 일상 빌드 후 Mac 정상 완료, Windows 수동 인수, B 보존·중복 효과 부재가 모두 기록된 보고서 |
 
 **다음 실행자에게.** 먼저 세 작업의 인계표를 갱신한다. 확인된 범위 안에서 01을 실행하고 read-back을 남긴 뒤 02로 진행한다. 미확인 행이나 빌드 후 보존 실패가 있으면 해당 단계·실제 이유·남은 자료 위치를 보고한다. 이번 문서 작성과 검토 시점에 운영 원장 적용, 실 PR 병합, 사용자 폴더 삭제는 발생하지 않았다.
@@ -129,4 +129,4 @@ node scripts/pr/index.mjs complete --root "$CONTROL" --task "$TASK" --owner "$OW
 
 #369만 먼저 이관하는 방안은 모든 active 행을 재검증하는 명령 계약과 맞지 않는다. 이미 병합된 #369를 정상 경로 인수에 쓰면 OPEN PR 요청과 같은 호출에서의 자동 정리를 입증할 수 없다. 운영 인계 → 전체 매핑 적용 → 새 A로 실제 인수하는 순서를 채택했다.
 
-판정은 **계획 작성·검토 완료, 운영 실행 BLOCKED**다. 기존 fixture 근거는 [REPLACE 보고서](../../test-reports/completed/2026-11-18-pr-worktree-replace.md)에 있다. 운영 저장소에서 status/preview 및 #369 파일 검사를 읽기 전용으로 확인했고 Windows live 인수는 미실행이다.
+계획 검토 당시에는 운영 실행이 인계 대기 상태였다. 당시의 fixture 증거는 [REPLACE 보고서](../../test-reports/completed/2026-11-18-pr-worktree-replace.md)에 있다. 이후 운영 실행의 판정은 위 인계 표를 따른다.

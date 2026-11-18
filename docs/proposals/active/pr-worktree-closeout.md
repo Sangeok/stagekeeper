@@ -706,7 +706,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 
 ### Phase ADOPT: 지정한 저장소 전환과 실제 인수
 
-- status: 상세 계획 작성·엔지니어링 검토 완료. 실제 저장소는 소유자 인계 및 기존 관리기 중지 확인 대기 중이다.
+- status: 운영 Mac의 세 작업 이관 완료. 첫 실 PR #372는 빌드 후 파일 검사에서 `linked-path`로 보류됐다. Windows 실 PR 인수는 대기 중이다. [실행 보고서](../../test-reports/active/pr-worktree-adopt.md)
 - outcome: 이번 교체에 지정한 관리 PC/checkout을 전환하고 승인된 작업의 실제 병합·정리를 확인한다.
 - split rationale: source merge만으로 사용자 원장·활성 세션의 전환은 완료되지 않는다.
 - predecessor artifacts: REPLACE 검증 commit, migration preview, owner별 종료/인계 사실.
