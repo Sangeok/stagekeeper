@@ -7,7 +7,7 @@ import { release } from "node:os";
 import { fileURLToPath } from "node:url";
 import { validateTestDatabase } from "../lib/test-database.mjs";
 import { parseToolResponse } from "../../plugin/runtime/execution/watch.mjs";
-import { startSmokeServer } from "./smoke-server.mjs";
+import { startSmokeServer } from "./support/smoke-server.mjs";
 import { ACCEPTANCE_CODEX_ARCHIVES, ACCEPTANCE_CODEX_VERSION, acceptanceClientEnvironment, distributionDigest,
   nativeBundleCommand, requireAcceptanceCi, selectedCodexCache, verifyInstalledBundle } from "./shared-distribution-contract.mjs";
 

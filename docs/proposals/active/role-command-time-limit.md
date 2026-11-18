@@ -163,7 +163,7 @@ related:
 | `plugin/runtime/macos-commands.mjs` | update | macOS 쪽 검사와 문구 | medium: 출하 파일이다 |
 | `plugin/runtime/windows/RoleProcess.cs` | update | 실행 도우미의 자체 검사 | medium: Windows의 실제 실행 시험으로만 확인된다. 실행할 때 `Add-Type`으로 컴파일하고, 이 파일의 해시를 고정한 곳은 없다 |
 | `plugin/runtime/codex-thread.mjs` | update | 역할 지시문 | medium: 문장이 역할의 요청 습관에 영향을 준다 |
-| `plugin/runtime/codex-bridge.test.mjs`, `plugin/bin/harness-role-commands.test.mjs`, `plugin/runtime/macos-commands.test.mjs` | update | 5절의 시험 | low |
+| `plugin/runtime/codex-bridge.test.mjs`, `plugin/runtime/role-command-execution.test.mjs`, `plugin/runtime/macos-commands.test.mjs` | update | 5절의 시험 | low |
 | `plugin/runtime/role-commands.test.mjs` | add | 값 일치와 경계값 시험(`npm test` 대상이라 세 OS의 CI에서 돈다) | low |
 | `scripts/macos/rehearse-project-build.mjs`, `scripts/windows/rehearse-windows-project-build.mjs` | update | 최대값 요청, 걸린 시간 기록 | low: 증거 파일의 모양을 읽는 다른 코드가 없다 |
 | `docs/architecture/verification.md`, `docs/architecture/macos-runtime.md`, `docs/architecture/protocol.md` | update | 새 범위와 이유, 다른 한도와의 관계. `protocol.md`의 "100~120000ms timeout 범위" 문장은 구현할 때 찾았다 | low |
@@ -208,7 +208,7 @@ related:
 실행할 검증:
 
 ```bash
-node --test plugin/runtime/codex-bridge.test.mjs plugin/bin/harness-role-commands.test.mjs
+node --test plugin/runtime/codex-bridge.test.mjs plugin/runtime/role-command-execution.test.mjs
 npm test
 npm run check
 npm run verify:plugin-version -- --head <구현 커밋>

@@ -6,8 +6,8 @@ import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { createRoleFiles } from "../runtime/role-files.mjs";
-import { createRoleGit, nativeGitExecutable, RoleGitInputError, RoleGitPathMissingError } from "../runtime/role-git.mjs";
+import { createRoleFiles } from "./role-files.mjs";
+import { createRoleGit, nativeGitExecutable, RoleGitInputError, RoleGitPathMissingError } from "./role-git.mjs";
 
 const temporary = realpathSync(tmpdir()), digest = bytes => createHash("sha256").update(bytes).digest("hex");
 const host = { skip: process.env.STAGEKEEPER_ROLE_SNAPSHOT === "1" };

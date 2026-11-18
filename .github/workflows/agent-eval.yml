@@ -115,7 +115,7 @@ jobs:
             chmod -R u+rwx "$kept" 2>/dev/null || true
             rm -rf "$kept" || true
           done
-          node scripts/rehearsals/agent-eval-summary.mjs --check-control "$RUNNER_TEMP/control.json"
+          node scripts/rehearsals/agent-eval/agent-eval-summary.mjs --check-control "$RUNNER_TEMP/control.json"
       - name: Run the init skill eval
         id: eval
         if: steps.gate.outputs.ready == 'true'
@@ -132,7 +132,7 @@ jobs:
           fi
           CLAUDE_CODE_SHELL_PREFIX="$HOME/.local/bin/stagekeeper-eval-shell" claude plugin eval "$EVAL_PLUGIN" "${selector[@]}" --runs 3 -j 3 --model claude-opus-5-5 --trust-plugin --scaffold --allow-tools Bash --ablation none --no-publish --keep-temp --json "$RUNNER_TEMP/eval.json" > "$RUNNER_TEMP/eval-private.log" 2>&1
           code=$?
-          node scripts/rehearsals/agent-eval-summary.mjs --result "$RUNNER_TEMP/eval.json" --control "$RUNNER_TEMP/control.json" --selection "${CASE_GLOB:-gate}" --exit-code "$code" --plugin "$EVAL_PLUGIN" --commit "$GITHUB_SHA" --summary "$RUNNER_TEMP/eval-summary.json" --client-version-output "$(claude --version 2>/dev/null)" --os-version "$(sw_vers -productVersion 2>/dev/null)" | tee "$RUNNER_TEMP/eval-lines.txt"
+          node scripts/rehearsals/agent-eval/agent-eval-summary.mjs --result "$RUNNER_TEMP/eval.json" --control "$RUNNER_TEMP/control.json" --selection "${CASE_GLOB:-gate}" --exit-code "$code" --plugin "$EVAL_PLUGIN" --commit "$GITHUB_SHA" --summary "$RUNNER_TEMP/eval-summary.json" --client-version-output "$(claude --version 2>/dev/null)" --os-version "$(sw_vers -productVersion 2>/dev/null)" | tee "$RUNNER_TEMP/eval-lines.txt"
           summary_code=${PIPESTATUS[0]}
           { echo '```'; cat "$RUNNER_TEMP/eval-lines.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           if [ -f "$RUNNER_TEMP/eval-summary.json" ]; then echo "summary_init_skill=$(cat "$RUNNER_TEMP/eval-summary.json")" >> "$GITHUB_OUTPUT"; fi

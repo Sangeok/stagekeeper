@@ -3,10 +3,10 @@ import { it } from "node:test";
 import { linkSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createRoleFiles, roleFileToolNames } from "../runtime/role-files.mjs";
-import { roleBridge, verifyRoleExecution, assertRolePolicy, roleCommandPath, boundArguments } from "../runtime/codex-thread.mjs";
-import { ROLE_TOOLS } from "../runtime/codex-agent.mjs";
-import { QA_BROWSER_TOOLS } from "../runtime/qa/config.mjs";
+import { createRoleFiles, roleFileToolNames } from "./role-files.mjs";
+import { roleBridge, verifyRoleExecution, assertRolePolicy, roleCommandPath, boundArguments } from "./codex-thread.mjs";
+import { ROLE_TOOLS } from "./codex-agent.mjs";
+import { QA_BROWSER_TOOLS } from "./qa/config.mjs";
 
 function fixture() {
   const base = mkdtempSync(path.join(realpathSync(tmpdir()), "harness-native-files-")), root = path.join(base, "repository"), scratch = path.join(base, "scratch");

@@ -1,12 +1,12 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-18"
 updated-at: "2026-11-18"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user"
+approved-at: "2026-11-18"
+approval-scope: "CVO2 구현 및 검증"
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -134,8 +134,22 @@ related:
 - **착수 조건.** CVO1 병합본의 검사 결과 및 활성 제안·최신 dev를 재대조하고 이 계획에 대한 구현 승인을 받는다. `dual-client-ci-parity`는 클라이언트 행동과 증거 규격을 소유한다. 해당 작업이 동시 변경됐다면 먼저 실제 호출부와 입출력을 다시 확정한다.
 - **검증의 구분.** 이번 산출물은 상세 계획 한 파일이다. 구현 후의 5개 VFY는 모두 예정 상태다. 문서 검증에는 부모와 자식 두 파일을 명시적으로 입력해 표준 추적성 검사를 수행하고, CVO2 세 Task의 검증 대상을 위 표와 따로 대조한다. 상위에는 아직 CVO3가 포함되어 있으므로 전체 묶음에 strict 실행 가능 판정을 적용하지 않는다.
 
-**기술 판정은 READY, 구현은 승인 대기다.** 재검토 시 CVO1 병합 커밋의 위 네 push workflow가 모두 성공했다. 해당 커밋에서 CVO2 구현을 막는 선행 CI 조건은 해소됐다. 이어 PR #379가 `dev`의 `84f6cccefbcc241c5d384ff15aec78c5ad2734e9`에 병합됐다. `check/task-worktrees`가 직접 실행하는 시험 경로와 `verification.md`의 두 worktree coverage 행이 갱신됐고, CVO2 이동 대상과의 겹침은 없었다. 구현 시점의 `dev`를 기준으로 smoke-server 행을 수정하고 #379의 경로를 보존한다. 이 문서의 검증 대상은 CVO2 계획이다.
+**설계 검토 결과는 READY이며 2026-11-18 사용자가 CVO2 구현을 승인했다.** 재검토 시 CVO1 병합 커밋의 위 네 push workflow가 모두 성공했다. 해당 커밋에서 CVO2 구현을 막는 선행 CI 조건은 해소됐다. 이어 PR #379가 `dev`의 `84f6cccefbcc241c5d384ff15aec78c5ad2734e9`에 병합됐다. `check/task-worktrees`가 직접 실행하는 시험 경로와 `verification.md`의 두 worktree coverage 행이 갱신됐고, CVO2 이동 대상과의 겹침은 없었다. 구현 시점의 `dev`를 기준으로 smoke-server 행을 수정하고 #379의 경로를 보존한다. 이 문서의 검증 대상은 CVO2 계획이다.
 
 **작성 검증.** 병합 tree의 이동 대상·직접 실행 경로·호환 export·시험 검색을 대조했다. 부모와 이 계획의 표준 추적성 검사는 오류·경고 0건이었고, 저장소 상대 링크 검사에서 이 파일을 포함해 문제 0건이었다. CVO2가 담당하는 5개 요구사항(001·003·004·005·006)이 각각 위 표에서 실제 판정 기준을 가진다.
 
 **재검토 증거.** Node 22.23.3으로 기준 커밋의 record CLI를 같은 입력에 두 번 실행했다. 이미 만든 빈 출력 디렉터리에서는 `EEXIST`·종료 1, 준비한 부모 아래 새 경로에서는 `comment.md`·종료 0을 확인했다. 기존 record·eval-summary 시험 29개는 모두 통과했고, `verify:ci-coverage`는 14개 job·16개 행을 확인했다. 두 번째 검토에서는 기존 transcript CLI를 합성 번들로 실행해 정상 복원·기존 출력 재사용·변조 입력·잘못된 인자의 종료 코드 `0/1/1/2`와 파일 상태를 확인했다. CVO1의 [Windows native step 로그](https://github.com/Sangeok/stagekeeper/actions/runs/44288579419/job/134748382023)에서 위 두 대표 사례가 skip 없이 통과한 것도 확인했다. 후보의 다섯 VFY는 구현 후 판정한다.
+
+## 구현 및 검증 기록 · 2026-11-18
+
+기준은 `dev`의 `84f6cccefbcc241c5d384ff15aec78c5ad2734e9`다. 구현·preload 8개와 짝 시험 10개를 이동하고 기존 구현 경로 8개에 호환 진입점을 남겼다.
+
+| 검증 | 로컬 후보에서 확인한 결과 |
+| --- | --- |
+| VFY-CVO-01 | 기준 커밋의 7개 ESM export 목록, 후보의 구·신 export 동일성, CLI 직접 실행과 import 무부수효과를 확인했다. 기준·구·신 CLI의 평가 5개와 기록 5개 입력에서 stdout·stderr·종료 코드·생성 파일을 대조했다. 구판 봉인 파일 복원, 두 pipeline 시나리오의 자식 판정, 이전/현재 Next 실행 경로도 확인했다. |
+| VFY-CVO-04 | Node 22의 macOS 집중 시험 157개 중 144개 통과, 13개 환경별 skip. 이동 전 124개 사례를 대응시켰다. 기록 shell의 실패 사례는 같은 시험에서 성공과 실패를 모두 확인하도록 확장했다. |
+| VFY-CVO-05 | PR·push 경로 및 Git 승격 pathspec 시험과 CI coverage 14개 job·16개 행을 확인했다. Windows 및 macOS의 실제 step 결과는 PR 실행에서 확인한다. |
+| VFY-CVO-06 | 의존성 설치 없는 소스 사본에서 구·신 기록 CLI가 같은 결과를 냈다. Action shell의 성공·출력 경로 재사용 거부·실패 후 게시 차단을 확인했다. |
+| VFY-CVO-07 | 로컬 제품·웹·서버 시험, production build와 fresh manifest 검사를 통과했다. 출하 파일 87개 전체의 Git 경로·blob·mode가 기준 커밋과 일치했다. |
+
+실제 모델을 사용하는 CVO3 인수는 별도 단계다.

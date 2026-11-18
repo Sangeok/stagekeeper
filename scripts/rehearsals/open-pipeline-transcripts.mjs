@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { openTranscripts, transcriptKey, writeTranscripts } from "./pipeline-smoke-steps.mjs";
+import { openTranscripts, transcriptKey, writeTranscripts } from "./pipeline/pipeline-smoke-steps.mjs";
 
 const USAGE = "usage: node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <key file> --in <sealed file> --out <new directory>";
 const OPTIONS = ["--key-file", "--in", "--out"];

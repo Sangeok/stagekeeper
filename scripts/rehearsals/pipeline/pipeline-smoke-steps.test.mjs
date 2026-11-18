@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { createCipheriv, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { it } from "node:test";
 import { gzipSync } from "node:zlib";
-import { containsSecret } from "./client-init-smoke-steps.mjs";
+import { containsSecret } from "../client-init/client-init-smoke-steps.mjs";
 import { BACKLOG_ITEM, HANDOFF_LIMIT_MS, INDEPENDENT_CASES, RUNNER_WAIT_LIMIT_MS, SMOKE_SCENARIOS, caseResults, openTranscripts, planVerificationBounded, runFindings, sealTranscripts, smokeTriggerPaths, summarizePipeline, transcriptKey, waitVerdict, writeTranscripts } from "./pipeline-smoke-steps.mjs";
 
 const line = value => JSON.stringify(value);
@@ -139,6 +140,25 @@ it("writes opened transcripts only into a new directory", t => {
   assert.equal(existsSync(join(root, "escape.log")), false);
 });
 
+it("opens a bundle sealed by the CVO1 CLI contract from another directory", t => {
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-bundle-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const cli = fileURLToPath(new URL("../open-pipeline-transcripts.mjs", import.meta.url));
+  const run = (...args) => spawnSync(process.execPath, [cli, ...args], { cwd: root, encoding: "utf8" });
+  const sealed = Buffer.from("khC5ikf9JF2j9VKGJMk8oebFYwda2ZAS7HRMXuhl0veuTWK6LVEGBzVtOjKqTH1Md3ojD7Lvc7+kOcfAir2+4iQblnKbZSgCpOMKyse2aebDUXv4DKtrrU4C4nR+5zCmRKrgug==", "base64");
+  writeFileSync(join(root, "sealed"), sealed);
+  writeFileSync(join(root, "key"), Buffer.alloc(32, 7).toString("base64"));
+  const open = out => run("--key-file", "key", "--in", "sealed", "--out", out);
+  assert.equal(open("opened").status, 0);
+  assert.equal(open("opened").status, 1);
+  assert.equal(readFileSync(join(root, "opened/run/a.txt"), "utf8"), "CVO2 fixture\n");
+  sealed[sealed.length - 1] ^= 1;
+  writeFileSync(join(root, "sealed"), sealed);
+  assert.equal(open("damaged").status, 1);
+  assert.equal(existsSync(join(root, "damaged")), false);
+  assert.equal(run("--unknown").status, 2);
+});
+
 it("judges slugWords against the backlog request", () => {
   const reference = (text, maxWords) => {
     if (!Number.isInteger(maxWords) || maxWords < 1) throw new RangeError("maxWords must be a positive integer");
@@ -210,7 +230,7 @@ it("gives the main loop time to commit a handed-off file and fails a handoff tha
 });
 
 it("lists pipeline-smoke trigger paths that exist in this repository", () => {
-  const repository = new URL("../../", import.meta.url);
+  const repository = new URL("../../../", import.meta.url);
   const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
   const serverPaths = ["scripts/rehearsals/smoke-server.mjs", "scripts/rehearsals/smoke-server-listener.cjs"];
   const sharedCiPaths = ["scripts/rehearsals/rehearse-codex-macos.mjs", "scripts/rehearsals/codex-init-eval.mjs", "scripts/rehearsals/client-ci-contract.mjs", "scripts/rehearsals/client-init-smoke-steps.mjs", "scripts/rehearsals/gate-environment.mjs", "scripts/rehearsals/gate-record.mjs", "scripts/windows/package-windows-plugin.mjs", "scripts/macos/package-plugin.mjs"];
@@ -223,17 +243,23 @@ it("lists pipeline-smoke trigger paths that exist in this repository", () => {
 });
 
 it("keeps pipeline, template and rehearsal files inside the actual Git trigger pathspec", t => {
-  const repository = new URL("../../", import.meta.url);
+  const repository = new URL("../../../", import.meta.url);
   const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
   function files(directory) {
     return readdirSync(new URL(directory + "/", repository), { withFileTypes: true }).flatMap(entry => {
       const file = directory + "/" + entry.name;
-      return entry.isDirectory() ? files(file) : /\.(?:mjs|ts|mts)$/.test(file) ? [file] : [];
+      return entry.isDirectory() ? files(file) : /\.(?:cjs|mjs|ts|mts)$/.test(file) ? [file] : [];
     });
   }
   const serverTargets = ["src/server/templates/release-preparation.ts", "src/server/templates/release-preparation.test.ts", "src/server/templates/runbook-query.ts", "tests/server/runbook-stale.test.ts"];
   const targets = [...new Set([
     ...files("packages/app-core/pipeline"), ...files("packages/shared/templates"), ...files("plugin/runtime/templates"),
+    ...files("scripts/rehearsals/pipeline"), ...files("scripts/rehearsals/agent-eval"), ...files(".github/actions/gate-record"),
+    ".github/actions/gate-record/action.yml", "scripts/rehearsals/smoke-server-listener.cjs", "scripts/rehearsals/smoke-server.mjs",
+    "scripts/rehearsals/agent-eval-summary.mjs", "scripts/rehearsals/pipeline-smoke-steps.mjs",
+    "scripts/rehearsals/codex-init-eval.mjs", "scripts/rehearsals/client-init-smoke-steps.mjs",
+    "scripts/rehearsals/gate-environment.mjs", "scripts/rehearsals/gate-record.mjs",
+    "plugin/runtime/role-command-execution.test.mjs", "plugin/runtime/role-files.test.mjs", "plugin/runtime/role-git.test.mjs",
     ...files("scripts/rehearsals/support"), ...files("scripts/rehearsals/client-init"),
     "scripts/rehearsals/rehearsal-compatibility.test.mjs", "scripts/checks/rehearsal-boundaries.test.mjs",
     "src/server/pipeline/input-validation.ts", "src/server/pipeline/input-validation.test.ts", ...serverTargets,

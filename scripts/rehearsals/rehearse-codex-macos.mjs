@@ -1,4 +1,4 @@
-import { startSmokeServer } from "./smoke-server.mjs";
+import { startSmokeServer } from "./support/smoke-server.mjs";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -8,8 +8,8 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { validateTestDatabase } from "../lib/test-database.mjs";
-import { BACKLOG_ITEM, FIXTURE_FILES, caseResults } from "./pipeline-smoke-steps.mjs";
-import { evaluateCodexInit, managedSnapshot } from "./codex-init-eval.mjs";
+import { BACKLOG_ITEM, FIXTURE_FILES, caseResults } from "./pipeline/pipeline-smoke-steps.mjs";
+import { evaluateCodexInit, managedSnapshot } from "./agent-eval/codex-init-eval.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const qaOrigin = "http://127.0.0.1:45442", browserPort = 45443;

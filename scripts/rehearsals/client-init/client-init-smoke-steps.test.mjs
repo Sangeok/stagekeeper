@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { it } from "node:test";
 import { assertGeneratedAgents, containsSecret, helperCommand, summarize, usesTemplateReleases } from "./client-init-smoke-steps.mjs";
 
-const currentPlugin = fileURLToPath(new URL("../../plugin/", import.meta.url));
+const currentPlugin = fileURLToPath(new URL("../../../plugin/", import.meta.url));
 const freeAgents = ["app-dev", "pm", "feature-scout", "work-assigner", "work-discoverer"];
 
 function fixture(t, agents) {

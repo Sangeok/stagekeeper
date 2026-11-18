@@ -116,6 +116,8 @@ src/fsd/features/manage-project-connection/
   8.3 짧은 이름도 native 실경로로 확장해 Git의 긴 이름과 비교한다. 경로 별칭을
   다루는 시험은 실제 OS에서 확인하며, 볼륨이 8.3 이름을 제공하지 않으면 그 이유를 보고한다.
 
+GitHub 기록 Action의 시험은 `.github/actions/gate-record/record.test.mjs`에 두고 `npm run test:scripts`와 `npm run test:architecture`에서 직접 실행한다. 역할 명령·파일·Git 실행 시험은 `plugin/runtime/`에 두며 `npm test`와 Windows native 단계가 실행한다.
+
 ## 의존성 경계
 
 1. 테스트는 운영 코드를 import할 수 있다. 운영 코드가 테스트 파일이나 테스트

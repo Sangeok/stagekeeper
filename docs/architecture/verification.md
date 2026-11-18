@@ -62,8 +62,7 @@ import·directive를 확인하며, 책임의 적절성이나 전체 모듈 그�
 | 서버 adapter와 Client 경계 | FSD의 `src/server` 직접 import 위치·directive와 `"use client"` 파일의 서버 경로 직접 import를 검사한다 | 일반 barrel을 경유한 서버 코드 유입, `server-only`와 `"use server"`의 용도, Action 전달·입력 검증·인가는 코드 리뷰와 관련 동작 검증으로 확인한다 |
 | slice 책임·공통화·상태 위치 | 전용 자동 검사 없음 | [코드 배치와 추출 판단](./fsd.md#코드-배치와-추출-판단)에 따라 소유권·변경 이유·실제 소비처를 확인한다 |
 
-`npm run test:architecture`는 검사기 등을 포함한 `scripts/**/*.test.mjs`의 회귀
-테스트를 실행한다. 문서의 모든 규칙이나 애플리케이션의 Server/Client 연결을
+`npm run test:architecture`는 `scripts/**/*.test.mjs`와 기록 Action의 `record.test.mjs`를 실행한다. 문서의 모든 규칙이나 애플리케이션의 Server/Client 연결을
 증명하는 명령은 아니다. 코드 변경 시 `npm run check`의 lint·타입 검사와
 `npm run build`, 변경 영역의 관련 테스트를 함께 적용한다. 빌드 통과도 Action의
 인증·인가나 업무 동작 검증을 대신하지 않는다.
@@ -147,9 +146,9 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   협조적 oracle은 시험 정리에만 사용하며 제품 backend에 연결하지 않는다.
   실제 Codex resident의 macOS 권한 격리·설치·로그인·A→Z·110분 인수는 이 CI의 범위가 아니다.
 - `npm run test:scripts`: `scripts/**/*.test.mjs`와 `scripts/**/*.test.ts`를 재귀 검색하고
-  CI의 `npm run check`에서 실행한다. 외부 DB·모델 호출 없는 도구 테스트를 포함한다.
+  기록 Action의 `.github/actions/gate-record/record.test.mjs`도 실행한다. CI의 `npm run check`에 포함된다.
   Windows native 시험은 기존처럼 플랫폼과 전용 runtime이 필요하며 미준비 시 skip한다.
-- `npm run test:architecture`: 같은 트리의 `.test.mjs`만 실행하는 기존 부분 집합 명령이다.
+- `npm run test:architecture`: 위 두 위치에서 JavaScript 시험을 실행한다.
   `npm run test:project-availability`는 `scripts/project-ownership/project-availability*.test.ts`를 실행한다.
   두 부분 집합의 테스트는 `test:scripts`에도 포함되며 `check`에서 중복 실행하지 않는다.
   이 명령들 자체가 테스트 배치 규칙 전체를 검증하는 것은 아니다.
@@ -190,7 +189,7 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   받고, 공개 로그에는 허용된 사례 이름·점수·실행 수·실패 수·실패한 grader 이름과 그 실패 횟수·비용·시간만 출력한다.
   grader 이름은 `plugin/evals/<사례>/case.yaml`에 정해진 식별자만 남긴다. 셸 명령과 assistant 본문은
   출력하지 않으며 원본은 artifact로 올리지 않고 always 정리 단계에서 삭제한다. secret masking을 원문 공개의 근거로 삼지 않는다.
-  `scripts/rehearsals/agent-eval-summary.mjs`가 사례별 점수·실행 수·실패한 실행 수·실패한 grader별 실행 수(`failedGraders`), 비용, 클라이언트 버전·OS 버전·
+  `scripts/rehearsals/agent-eval/agent-eval-summary.mjs`가 사례별 점수·실행 수·실패한 실행 수·실패한 grader별 실행 수(`failedGraders`), 비용, 클라이언트 버전·OS 버전·
   플러그인 판·`controlPassed`·`gateComplete`·선택 범위만 남긴 요약 한 줄을 만들고 workflow가 job 출력으로 넘긴다.
   대조군과 각 사례의 필수 grader·3회 결과가 모두 있어야 전체 gate가 완료된다. JSON 부재나 실패한 grader를 종료 코드 0으로 덮지 않는다.
   수동 실행은 `case` 입력으로 일부 사례만 돌릴 수 있지만 `gateComplete: false`이면 기록에 `incomplete-eval` finding을 남긴다. 주 1회와 수동
@@ -218,7 +217,7 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
 - 위 세 게이트는 `dev`나 `main`에서 수동 또는 정기로 돈 실행마다 `record` job으로
   [게이트 실행 기록](https://github.com/Sangeok/stagekeeper/issues/319)에 댓글 한 행을 남긴다. PR 실행과 다른 브랜치의
   실행은 남기지 않고 그 job도 돌지 않는다. gate job은 요약 한 줄을 job 출력으로 넘기고(`client-init-smoke`는 다리마다
-  다른 이름), `record` job만 `issues: write`를 갖는다. `scripts/rehearsals/gate-record.mjs`가 실행 정보를 검증하고
+  다른 이름), `record` job만 `issues: write`를 갖는다. `.github/actions/gate-record/record.mjs`가 실행 정보를 검증하고
   요약을 그 게이트의 필터로 다시 걸러 글을 만들며, `.github/actions/gate-record`가 `gh`로 올린다. 행은 사람이 읽는
   첫 줄, 다리별 한 줄, JSON(`schema`·`workflow`·`level`·`event`·`ref`·`commit`·`runId`·`runAttempt`·`conclusion`·
   `findings`·`legs`)이다. `level`은 `init`(`client-init-smoke`)·`eval`(`agent-eval`)·`pipeline`(`pipeline-smoke`)·
@@ -303,7 +302,7 @@ CI job은 모두 아래 셋 가운데 하나로 분류한다.
 | worktree 사용 관측 후보 | OS별 | `check/task-worktrees` | `check/task-worktrees` | `check/check` | | 양 OS에서 `scripts/pr/process-usage/`의 `process-usage.test.mjs` runtime/`process-usage-probe.test.mjs` 경계 필수. macOS는 `process-usage-qualification.test.mjs`의 `STAGEKEEPER_USAGE_QUALIFICATION: "macos"` native 평가, Windows는 `windows-directory-usage.test.mjs`의 실제 누락 반례를 필수 실행한다. Windows 자동 삭제 미지원 결정으로 기존 정상 cwd 자격 평가는 명시적 `all` 모드로 분리하며 과거 FAIL은 유지한다. Linux는 공통 계약만 검증 |
 | 웹·서버 시험, 빌드, DB 통합 시험 | 공통 | | | `check/check`, `check/server-integration` | | |
 | 제품 코드 시험 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `npm test`의 대상 묶음. 출시 이력을 읽는 시험이 건너뛰지 않도록 `fetch-depth: 0`과 `STAGEKEEPER_RELEASED_READERS: required`도 있어야 한다 |
-| smoke 서버 소유권·생명주기 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `node --test scripts/rehearsals/smoke-server.test.mjs`로 실제 자식·IPC·loopback·종료를 검증한다 |
+| smoke 서버 소유권·생명주기 | OS별 | `windows-role-runtime/native-runtime` | `macos-runtime-contracts/contracts` | `check/check` | | `node --test scripts/rehearsals/support/smoke-server.test.mjs`로 실제 자식·IPC·loopback·종료를 검증한다 |
 | Windows 역할 런타임 | 단일 OS | `windows-role-runtime/native-runtime` | | | | Windows에만 있는 구현이다(전용 Node 빌드, 격리된 역할 명령) |
 | macOS 런타임 계약 | 단일 OS | | `macos-runtime-contracts/contracts` | | | macOS에만 있는 구현이다(Seatbelt, launchd, 후손 프로세스 추적) |
 | 설치와 init | OS별 | `client-init-smoke/claude` | `client-init-smoke/claude` | | | `scripts/rehearsals/rehearse-client-init-smoke.ts` |
@@ -562,12 +561,14 @@ artifact 업로드를 정한다. 도구와 CI 연결의 경계는 이 방식으�
 스크립트 전체의 경계와 재사용 판단에는 전용 자동 검사기가 없다. 변경 리뷰에서 실제 호출·import,
 입출력·종료 코드와 로컬 재현 경로를 확인한다. 경로를 옮기거나 CI 연결 코드를 추출하면
 테스트 검색·lint·타입 검사 범위와 workflow 경로 필터도 함께 갱신하고 실제 실행을 확인한다.
-기존 `test:scripts`·`test:architecture`는 `scripts/` 아래만 검색하므로 `.github/`에 추가한
-테스트까지 자동으로 검증한다고 가정하지 않는다.
+`test:scripts`와 `test:architecture`는 기존 `scripts/` 탐색과 함께 `.github/actions/gate-record/record.test.mjs`를 직접 실행한다.
 
-CVO1 리허설의 제한된 경계는 `scripts/checks/rehearsal-boundaries.test.mjs`가 검사한다.
+리허설의 모듈 경계는 `scripts/checks/rehearsal-boundaries.test.mjs`가 검사한다.
 현재 checkout의 init·pipeline·Codex·shared-distribution 소비자는 `support/`의 명령·DB·
 template·repository 준비와 `client-init/`의 Claude 연결 구현을 직접 사용한다.
+시나리오별 구현과 짝 테스트는 담당 폴더에 둔다. 내부 호출은 구현을 직접 참조한다.
+기존 모듈·CLI·listener 경로는 외부 호출을 위해 유지한다. 구 `scripts/rehearsals/gate-record.mjs`는
+기록 Action의 호환 진입점이다. 외부 소비자의 전환을 확인하기 전까지 유지한다.
 기존 init CLI는 명시적 export와 실행·정리 조립을 유지한다. shared-distribution의
 `previous-seed`는 이전 checkout에서 실행하므로 그 판의 기존 init import를 유지한다.
 검사기는 이 예외의 cwd와 문자열을 확인하며 현재 코드의 CLI 역참조·지원 모듈 순환·
@@ -602,8 +603,10 @@ Node의 strip-only 모드에 의존하거나 시험을 탐색 대상에서 제�
 | `templates/` | 템플릿 seed·restore·쿼리 보조 모듈과 테스트 |
 | `project-ownership/` | 소유권 무결성의 읽기 전용 검사·보조 모듈과 테스트 |
 | `rehearsals/` | 위 책임에 속하지 않는 제품 기능 인수 리허설과 도구 자체의 테스트 |
-| `rehearsals/support/` | 여러 리허설이 실제로 공유하는 명령 실행, 명시적 시험 DB·template 준비, repository fixture·root 계산 |
+| `rehearsals/support/` | 여러 리허설이 실제로 공유하는 명령 실행, 명시적 시험 DB·template 준비, repository fixture·root 계산, 서버 생명주기와 실행 환경 요약 |
 | `rehearsals/client-init/` | Claude 설치·연결·update 및 init 인자 계약. CLI의 타입·구현을 역참조하지 않음 |
+| `rehearsals/pipeline/` | 파이프라인 결과 판정과 전사 봉인·복원 |
+| `rehearsals/agent-eval/` | Codex init 평가와 Claude 평가 결과 요약 |
 | `lib/` | 여러 책임이 실제 공유하는 Prisma 연결 등 |
 
 테스트는 도구 옆에 두며, 한 책임의 보조 모듈이나 복구 SQL을 공용 `lib/`로 분산하지 않는다.
@@ -646,16 +649,16 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `tests/server/register-server-only.mjs` | `npm run test:server` | CI마다, 서버 변경 시 로컬 | server-only marker만 대체하며 일반 React를 유지하는 교차 모듈 테스트 |
 | `test-server-integration.mjs` | `npm run test:server:integration` | CI마다(일회용 PostgreSQL 18), 격리 PostgreSQL에서 수동 | `TEST_DATABASE_URL`의 DB명이 `stagekeeper_test_*`이고 운영 URL과 host/port/database가 다른지 검사한 뒤 migrate deploy·직렬 통합 테스트. migrate 출력은 숨기고 시험 출력은 그대로 보인다. DB 생성·삭제·reset 없음 |
 | `build.test.mjs`, `plugin-lib.test.mjs`, `test-server-integration.test.mjs` | `npm run test:architecture` / `test:scripts` → check | CI마다 | 실제 CLI의 잘못된 인자·도움말을 작업 전에 처리하는지, check의 무쓰기·동기화 동작, 빌드 순서·실패 코드 보존, DB 검증 이후 migration→test 실행 순서·실패 중단 검사 |
-| `rehearsals/rehearse-client-init-smoke.ts`, `rehearsals/client-init-smoke-steps.mjs` | 저장소 루트에서 `node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts --client claude --scenario <new-user\|update> --templates <비공개 템플릿 절대 경로> --plugin-source github-branch --plugin-branch <브랜치> --plugin-commit <커밋> [--previous-ref <커밋>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), PATH의 `claude`·`git`과 `npm run build` 산출물이 필요하다 | `client-init-smoke` workflow | 시험 DB에 템플릿을 시드하고 Free 사용자와 토큰을 만든 뒤 `next start`를 띄우고, GitHub 브랜치로 설치한 플러그인으로 init 스킬 절차(등록·dry-run·생성·`HARNESS_SERVER` 저장·사용자 범위 MCP 등록·동기화)를 모델 없이 실행해 파일·DB·클라이언트 설정으로 판정한다. 러너 사용자 설정(`HARNESS_SERVER`, `~/.claude.json`, 플러그인 설치)을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이고 종료 시 자기 fixture 사용자와 서버를 정리한다 |
-| `rehearsals/rehearse-client-init-smoke.test.ts`, `rehearsals/client-init-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 잘못된·중복·미구현 인자와 기계 설정·DB 안전 거부를 작업 전에 처리하는지, OS별 helper 명령, 설치된 플러그인 판의 플랜 권한과 생성된 에이전트 파일 이름의 일치(구버전→신버전 업데이트 포함), 요약의 허용 필드와 토큰 미노출, 종료 코드 0이어도 시간 초과한 명령은 실패로 세는지, 출력 파일로 받은 명령이 남은 자식 프로세스를 기다리지 않는지를 검사한다 |
-| `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>] [--scenario <slug|truncate>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
-| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산(세션 누적 비용과 반복 거부는 한 번만). 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
+| `rehearsals/rehearse-client-init-smoke.ts`, `rehearsals/client-init/client-init-smoke-steps.mjs` | 저장소 루트에서 `node --import tsx scripts/rehearsals/rehearse-client-init-smoke.ts --client claude --scenario <new-user\|update> --templates <비공개 템플릿 절대 경로> --plugin-source github-branch --plugin-branch <브랜치> --plugin-commit <커밋> [--previous-ref <커밋>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), PATH의 `claude`·`git`과 `npm run build` 산출물이 필요하다 | `client-init-smoke` workflow | 시험 DB에 템플릿을 시드하고 Free 사용자와 토큰을 만든 뒤 `next start`를 띄우고, GitHub 브랜치로 설치한 플러그인으로 init 스킬 절차(등록·dry-run·생성·`HARNESS_SERVER` 저장·사용자 범위 MCP 등록·동기화)를 모델 없이 실행해 파일·DB·클라이언트 설정으로 판정한다. 러너 사용자 설정(`HARNESS_SERVER`, `~/.claude.json`, 플러그인 설치)을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이고 종료 시 자기 fixture 사용자와 서버를 정리한다 |
+| `rehearsals/rehearse-client-init-smoke.test.ts`, `rehearsals/client-init/client-init-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 잘못된·중복·미구현 인자와 기계 설정·DB 안전 거부를 작업 전에 처리하는지, OS별 helper 명령, 설치된 플러그인 판의 플랜 권한과 생성된 에이전트 파일 이름의 일치(구버전→신버전 업데이트 포함), 요약의 허용 필드와 토큰 미노출, 종료 코드 0이어도 시간 초과한 명령은 실패로 세는지, 출력 파일로 받은 명령이 남은 자식 프로세스를 기다리지 않는지를 검사한다 |
+| `rehearsals/rehearse-pipeline-smoke.ts`, `rehearsals/pipeline/pipeline-smoke-steps.mjs` | 저장소 루트에서 `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-pipeline-smoke.ts --templates <비공개 템플릿 절대 경로> --plugin-branch <브랜치> --plugin-commit <커밋> --transcripts <봉인 파일 절대 경로> [--wait-minutes <5~90>] [--scenario <slug|truncate>]`. `TEST_DATABASE_URL`, `CI=true`(또는 `--allow-machine-changes`), `TRANSCRIPT_KEY`, 로그인된 `claude`(CI는 `CLAUDE_CODE_OAUTH_TOKEN`)와 `npm run build` 산출물이 필요하다 | `pipeline-smoke` workflow | init 리허설의 서버·설치·init 단계를 재사용한다. Pro로 올린 뒤 게이트 없는 파이프라인과 고정 백로그 항목을 넣고 무인 실행기를 띄운다. 항목 상태는 `nextFor`와 실행기 상태로 판정하고, 멈춘 상태는 원인별로 바로 실패시킨다. 그다음 역할 기록, 독립 사례, `node --test`로 결과를 확인한다. 실제 모델 사용량을 쓰고 러너 사용자 설정을 바꾸므로 개발 PC에서 돌리지 않는다. 표준 출력은 허용 필드의 요약 한 줄이다. 전사는 봉인 파일로만 남기고, 종료 시 실행기·서버·fixture 사용자를 정리한다 |
+| `rehearsals/rehearse-pipeline-smoke.test.ts`, `rehearsals/pipeline/pipeline-smoke-steps.test.mjs` | `test:scripts` | CI마다 | 다음을 검사한다. 잘못된 인자와 기계 설정·DB·전사 키를 작업 전에 거부하는지. 대기 판정의 원인별 실패. 실행 기록 집계의 중복 제거와 합산(세션 누적 비용과 반복 거부는 한 번만). 공개 요약의 허용 필드와 토큰 미노출. 봉인·열기와 변조·악성 이름 거부, 새 폴더에만 쓰기. 독립 판정 사례. AGENTS.md 승격 경로가 실제로 있는지 |
 | `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
-| `rehearsals/gate-environment.mjs`, `rehearsals/gate-environment.test.mjs` | 두 smoke 리허설과 `agent-eval-summary.mjs`가 import한다. 시험은 `test:scripts` | CI마다 | `claude --version`의 버전, OS 버전(macOS는 `sw_vers`, 그 밖은 커널 release), 설치된 플러그인 판을 읽고 형식이 맞는 값만 요약에 넣는다. 값을 얻지 못해도 호출한 리허설을 실패시키지 않는다 |
-| `rehearsals/agent-eval-summary.mjs`, `rehearsals/agent-eval-summary.test.mjs` | `node scripts/rehearsals/agent-eval-summary.mjs --result <eval 결과 JSON> --exit-code <eval 종료 코드> --plugin <평가한 플러그인> --commit <커밋 전체> --summary <새 요약 파일>`. 시험은 `test:scripts` | `agent-eval` workflow, 시험은 CI마다 | eval 결과에서 사람이 읽는 줄을 출력하고 허용 필드만 남긴 요약 한 줄을 파일에 쓴다. 결과 파일을 읽지 못해도 종료 코드로 판정을 남긴다. job summary와 `GITHUB_OUTPUT` 기록은 workflow가 한다 |
-| `rehearsals/smoke-server.mjs`, `rehearsals/smoke-server-listener.cjs` | client-init·pipeline·Codex macOS·shared-distribution 리허설이 `startSmokeServer`를 호출. 시험은 `node --test scripts/rehearsals/smoke-server.test.mjs` | 공통 스크립트 시험과 Windows·macOS runtime CI | 실행별 loopback 주소, 소유 자식의 listen IPC, HTTP 준비 검사와 종료 확인을 소유한다. 제품 HTTP 경로는 추가하지 않는다 |
+| `rehearsals/support/gate-environment.mjs`, `rehearsals/support/gate-environment.test.mjs` | 두 smoke 리허설과 `agent-eval-summary.mjs`가 import한다. 시험은 `test:scripts` | CI마다 | `claude --version`의 버전, OS 버전(macOS는 `sw_vers`, 그 밖은 커널 release), 설치된 플러그인 판을 읽고 형식이 맞는 값만 요약에 넣는다. 값을 얻지 못해도 호출한 리허설을 실패시키지 않는다 |
+| `rehearsals/agent-eval/agent-eval-summary.mjs`, `rehearsals/agent-eval/agent-eval-summary.test.mjs` | `node scripts/rehearsals/agent-eval/agent-eval-summary.mjs --result <eval 결과 JSON> --control <대조군 JSON> --exit-code <eval 종료 코드> --plugin <평가한 플러그인> --commit <커밋 전체> --summary <새 요약 파일>`. 시험은 `test:scripts` | `agent-eval` workflow, 시험은 CI마다 | eval 결과에서 사람이 읽는 줄을 출력하고 허용 필드만 남긴 요약 한 줄을 파일에 쓴다. 결과 파일을 읽지 못해도 종료 코드로 판정을 남긴다. job summary와 `GITHUB_OUTPUT` 기록은 workflow가 한다 |
+| `rehearsals/support/smoke-server.mjs`, `rehearsals/support/smoke-server-listener.cjs` | client-init·pipeline·Codex macOS·shared-distribution 리허설이 `startSmokeServer`를 호출. 시험은 `node --test scripts/rehearsals/support/smoke-server.test.mjs` | 공통 스크립트 시험과 Windows·macOS runtime CI | 실행별 loopback 주소, 소유 자식의 listen IPC, HTTP 준비 검사와 종료 확인을 소유한다. 제품 HTTP 경로는 추가하지 않는다 |
 | `rehearsals/rehearse-shared-distribution.mjs`, `shared-distribution-contract.mjs`, `shared-template-snapshot.mjs` | `shared-distribution-acceptance/acceptance`의 OS matrix | 기존 template 읽기 권한이 있는 신뢰 PR/dev CI | 실제 native runtime으로 이전/후보 bundle을 만들고 고정 Codex CLI의 선택 cache를 검사한다. 별도 test DB에서 S0/P0 → S/P0 → S/P를 확인하며 private 원문은 runner Temp에만 두고 정제한 summary만 artifact로 보존한다. 전체 job 성공과 summary PASS를 함께 확인하며 모델·개인 로그인·운영 배포를 요구하지 않는다 |
-| `rehearsals/gate-record.mjs`, `rehearsals/gate-record.test.mjs` | `GATE_SUMMARIES=<job 출력 JSON> node scripts/rehearsals/gate-record.mjs --workflow <게이트> --result <gate job 결과> --legs <다리,다리> --event <이벤트> --ref <전체 ref> --commit <커밋 전체> --run-id <번호> --run-attempt <n> --repository <owner/name> --record-issue <번호> --out <새 폴더> [--open-issues <NDJSON>]`. 시험은 `test:scripts` | 세 게이트의 `record` job(`.github/actions/gate-record`), 시험은 CI마다 | 실행 정보를 검증하고 요약을 다시 필터링해 기존 parent 아래 새 폴더에 배타적으로 쓴다. 기존 출력은 거부하며 composite action은 성공 단계의 경로 output만 소비한다. 네트워크를 쓰지 않는다. PR 이벤트, `dev`·`main` 밖의 ref, 형식이 틀린 값은 아무것도 쓰지 않고 거부한다 |
+| `.github/actions/gate-record/record.mjs`, `.github/actions/gate-record/record.test.mjs` | `GATE_SUMMARIES=<job 출력 JSON> node .github/actions/gate-record/record.mjs --workflow <게이트> --result <gate job 결과> --legs <다리,다리> --event <이벤트> --ref <전체 ref> --commit <커밋 전체> --run-id <번호> --run-attempt <n> --repository <owner/name> --record-issue <번호> --out <새 폴더> [--open-issues <NDJSON>]`. 시험은 `test:scripts` | 세 게이트의 `record` job(`.github/actions/gate-record`), 시험은 CI마다 | 실행 정보를 검증하고 요약을 다시 필터링해 기존 parent 아래 새 폴더에 배타적으로 쓴다. 기존 출력은 거부하며 composite action은 성공 단계의 경로 output만 소비한다. 네트워크를 쓰지 않는다. PR 이벤트, `dev`·`main` 밖의 ref, 형식이 틀린 값은 아무것도 쓰지 않고 거부한다 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |
 | `rehearsals/rehearse-dual-client-runtime.ts` | `node --import tsx scripts/rehearsals/rehearse-dual-client-runtime.ts --phase capability --root <빈 절대 경로> --report docs/test-reports/active/dual-client-runtime-report.md` | Codex C0 선행 검증 시 수동 | 저장소 밖 disposable root·격리 CLI 설정·loopback MCP로 실제 package 로딩과 legacy lock을 확인한다. 모델을 자동 호출하지 않으며 native/strict-profile 시험 인수·prompt를 생성한다. required 미실행은 blocked/exit 2이고 제품 지원 PASS가 아니다. `--validate-report-only --report <동일 보고서>`는 무쓰기 구조 검증만 한다 |
 | `rehearsals/rehearse-dual-client-runtime.test.ts` | `node --import tsx --test scripts/rehearsals/rehearse-dual-client-runtime.test.ts` | CI 및 위 검사기 변경 시 | report lifecycle·판정·증거/경로·민감정보 검사·atomic writer/경합·side effect 전 거부 및 독립 실행 환경을 검증한다. `test:scripts`를 통해 `check`에 포함된다 |
@@ -665,7 +668,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `macos/rehearse-project-build.mjs` | `node scripts/macos/rehearse-project-build.mjs --root <준비된 저장소> --runtime <검증 runtime> --evidence <새 외부 JSON>` | macOS 로컬·두 아키텍처 CI | 실제 프로젝트를 credentials·network 없는 snapshot에서 빌드한다. 정상 내부 dependency 링크와 원본 source·BUILD_ID 보존, quiescence를 확인하며 실패 결과도 외부 증거 파일에 기록한다. 빌드는 역할 command의 최대 시간을 요청하고, 걸린 시간을 증거의 `durationMs`와 출력에 남긴다 |
 | `rehearsals/prepare-codex-macos-database.mjs` | `node --env-file=<외부 시험 env> scripts/rehearsals/prepare-codex-macos-database.mjs --data-directory <자기 cluster 경로>` | 격리 PostgreSQL에서 수동 | loopback의 새 `stagekeeper_test_*` DB만 만들고 migrate deploy한다. 실제 data_directory와 자기 cluster 경로가 다르거나 DB가 이미 있으면 거부한다 |
 | `rehearsals/rehearse-codex-macos.mjs` | 아래 macOS 실제 모델 리허설 명령 | 기존 native Codex 로그인·설치 bundle·private template export·fresh build·새 시험 DB에서 수동 | global Node 없는 helper PATH로 init·resident·모든 선택 역할·인수·고정 log·선택 유휴 시간을 관찰한다. owner gate는 시험 controller가 실제 service를 호출한다. 운영 UI 인수·공개 배포는 포함하지 않는다 |
-| `rehearsals/codex-init-eval.mjs`, `rehearsals/codex-init-eval.test.mjs` | macOS 리허설의 `--phase eval --run-models`; 모델 없는 판정 시험은 `test:scripts`·`test:architecture` | private Mac CI·승인된 수동 eval | 모델 호출 전 같은 권한으로 native launcher와 인증 디렉터리 거부를 확인한다. 실제 쓰기 대조군과 init 3개 사례를 각 3회 검사하며, 도구 실행·완료 event·파일 bytes와 mtime 보존을 함께 판정한다. raw 출력은 외부 private evidence에만 남긴다 |
+| `rehearsals/agent-eval/codex-init-eval.mjs`, `rehearsals/agent-eval/codex-init-eval.test.mjs` | macOS 리허설의 `--phase eval --run-models`; 모델 없는 판정 시험은 `test:scripts`·`test:architecture` | private Mac CI·승인된 수동 eval | 모델 호출 전 같은 권한으로 native launcher와 인증 디렉터리 거부를 확인한다. 실제 쓰기 대조군과 init 3개 사례를 각 3회 검사하며, 도구 실행·완료 event·파일 bytes와 mtime 보존을 함께 판정한다. raw 출력은 외부 private evidence에만 남긴다 |
 | `rehearsals/inspect-codex-macos.mjs` | `node --env-file=<외부 시험 env> --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/inspect-codex-macos.mjs <시험 디렉터리> [--cleanup]` | 실패한 자기 시험 fixture 확인·정리 시 수동 | 원장을 외부 evidence에 보존한다. 정리는 합성 사용자·저장소·단일 프로젝트와 runtime 소유권 부재를 확인한 뒤에만 수행한다. 일반 사용자 정리 도구가 아니다 |
 | `rehearsals/rehearse-multiple-pipelines.ts` | `node --import ./tests/server/register-server-only.mjs --import tsx scripts/rehearsals/rehearse-multiple-pipelines.ts` | 격리 TEST_DATABASE_URL·fresh production build에서 수동 | 실제 Next action 7종, 소유자·타인·Free·미선택·연결 해제, 다섯 화면과 GET 무쓰기, 항목 선택·변경·감사·stale를 검사한다. 루프백 서버와 자기 fixture만 만들고 종료 시 정리한다. 별도 `multiple-pipelines-browser.tsx` fixture는 실제 컴포넌트의 pending·dirty·응답 유실 회복을 검증한다 |
 | `rehearsals/rehearse-multiple-pipelines-browser.mjs` | 저장소 루트에서 `node scripts/rehearsals/rehearse-multiple-pipelines-browser.mjs <설치된 playwright-core/index.mjs> [<Chromium 실행 파일>]` | 파이프라인 목록·편집 UI 변경 시 수동 | 위 `multiple-pipelines-browser.tsx` fixture를 저장소 의존성의 esbuild로 묶어 loopback 서버에 올리고 headless Chromium에서 29개 사례(미저장 편집의 저장본 보존, stale draft와 원래 CAS, pending·dirty, 현재 catalog/switcher·Run rules, Free·읽기 전용 제한, 다른 identity로의 응답 반영 차단, 모바일 폭 등)를 실행한다. DB·Next 서버를 쓰지 않으며 playwright-core를 설치하지 않으므로 경로를 인자로 받는다. `.next/static/chunks`의 CSS가 있으면 함께 쓰고, 스크린샷과 `results.json`을 새 임시 디렉터리에 남긴 뒤 브라우저·서버를 닫는다 |

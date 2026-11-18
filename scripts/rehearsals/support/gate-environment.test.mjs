@@ -54,7 +54,7 @@ it("reads the plugin version from the installed manifest and nothing from a brok
   assert.equal(pluginVersionAt("/p", manifest('{"version":"0.6.14-rc1"}')), undefined);
   assert.equal(pluginVersionAt("/p", manifest("not json")), undefined);
   assert.equal(pluginVersionAt("/p", () => { throw new Error("ENOENT"); }), undefined);
-  assert.match(pluginVersionAt(fileURLToPath(new URL("../../plugin/", import.meta.url))), /^\d+\.\d+\.\d+$/);
+  assert.match(pluginVersionAt(fileURLToPath(new URL("../../../plugin/", import.meta.url))), /^\d+\.\d+\.\d+$/);
 });
 
 it("keeps only well-formed environment values", () => {
