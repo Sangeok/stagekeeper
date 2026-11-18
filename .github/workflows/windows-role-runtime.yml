@@ -8,6 +8,10 @@ on:
     paths:
       - scripts/rehearsals/smoke-server*
       - scripts/rehearsals/rehearse-client-init-smoke*
+      - scripts/rehearsals/support/**
+      - scripts/rehearsals/client-init/**
+      - scripts/rehearsals/rehearsal-compatibility.test.mjs
+      - scripts/checks/rehearsal-boundaries.test.mjs
       - scripts/rehearsals/rehearse-pipeline-smoke*
       - scripts/rehearsals/rehearse-codex-macos*
       - .github/workflows/windows-role-runtime.yml

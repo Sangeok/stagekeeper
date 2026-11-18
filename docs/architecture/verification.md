@@ -559,11 +559,36 @@ artifact 업로드를 정한다. 도구와 CI 연결의 경계는 이 방식으�
 설명하며 별도의 CI 실행 파일 목록을 중복 관리하지 않는다. 도구의 테스트가 CI에서
 실행되는 것과 운영 명령 자체가 실행되는 것은 구분한다.
 
-이 경계와 재사용 판단에는 전용 자동 검사기가 없다. 변경 리뷰에서 실제 호출·import,
+스크립트 전체의 경계와 재사용 판단에는 전용 자동 검사기가 없다. 변경 리뷰에서 실제 호출·import,
 입출력·종료 코드와 로컬 재현 경로를 확인한다. 경로를 옮기거나 CI 연결 코드를 추출하면
 테스트 검색·lint·타입 검사 범위와 workflow 경로 필터도 함께 갱신하고 실제 실행을 확인한다.
 기존 `test:scripts`·`test:architecture`는 `scripts/` 아래만 검색하므로 `.github/`에 추가한
 테스트까지 자동으로 검증한다고 가정하지 않는다.
+
+CVO1 리허설의 제한된 경계는 `scripts/checks/rehearsal-boundaries.test.mjs`가 검사한다.
+현재 checkout의 init·pipeline·Codex·shared-distribution 소비자는 `support/`의 명령·DB·
+template·repository 준비와 `client-init/`의 Claude 연결 구현을 직접 사용한다.
+기존 init CLI는 명시적 export와 실행·정리 조립을 유지한다. shared-distribution의
+`previous-seed`는 이전 checkout에서 실행하므로 그 판의 기존 init import를 유지한다.
+검사기는 이 예외의 cwd와 문자열을 확인하며 현재 코드의 CLI 역참조·지원 모듈 순환·
+시나리오 역참조·test/CI 구현 유입을 거부한다.
+
+같은 시험이 네 workflow의 PR paths를 실제 소비 범위와 대조한다. 앞의 세 기존
+런타임·설치 workflow는 `support/**`, `client-init/**`와 호환/경계 시험을 선택한다.
+shared-distribution은 support와 호환/경계 시험만 추가 선택하며 기존 push 정책을 유지한다.
+`pipeline-smoke-steps.test.mjs`는 실제 Git pathspec으로 신규 경로 각각의 승격 선택을
+검사한다. 이 정적 선택 검사는 실제 native/model 인수 통과가 아니다.
+
+`rehearsal-compatibility.test.mjs`는 기존 export 정체성과 다른 cwd에서의 import/help/거부,
+seed·bootstrap의 호출 경계·실패·snapshot 보존을 검사한다. child는 후보의 tsx loader와
+`TSX_TSCONFIG_PATH`를 사용한다. 설치된 esbuild service만 허용하고 tsx의 정확한 parent
+IPC에는 연결 없이 ENOENT를 돌려 주어 loader 준비와 제품 side effect를 구분한다.
+파일·프로세스·연결 관찰기의 양성 대조를 먼저 확인한다. 실제 DB·transaction·클라이언트
+인수는 이 시험으로 대체하지 않는다.
+
+이 시험은 부모 프로세스에서 설치된 `tsx/cjs/api`로 실제 TypeScript 구현을 읽으므로
+tsx를 미리 주입하는 `test:scripts`와 일반 Node의 `test:architecture` 모두에서 실행된다.
+Node의 strip-only 모드에 의존하거나 시험을 탐색 대상에서 제외하지 않는다.
 
 ### 책임별 위치와 명령
 
@@ -577,6 +602,8 @@ artifact 업로드를 정한다. 도구와 CI 연결의 경계는 이 방식으�
 | `templates/` | 템플릿 seed·restore·쿼리 보조 모듈과 테스트 |
 | `project-ownership/` | 소유권 무결성의 읽기 전용 검사·보조 모듈과 테스트 |
 | `rehearsals/` | 위 책임에 속하지 않는 제품 기능 인수 리허설과 도구 자체의 테스트 |
+| `rehearsals/support/` | 여러 리허설이 실제로 공유하는 명령 실행, 명시적 시험 DB·template 준비, repository fixture·root 계산 |
+| `rehearsals/client-init/` | Claude 설치·연결·update 및 init 인자 계약. CLI의 타입·구현을 역참조하지 않음 |
 | `lib/` | 여러 책임이 실제 공유하는 Prisma 연결 등 |
 
 테스트는 도구 옆에 두며, 한 책임의 보조 모듈이나 복구 SQL을 공용 `lib/`로 분산하지 않는다.
@@ -626,7 +653,7 @@ Windows 리허설은 해당 책임과 함께 둔다. 독립 명령 하나를 위
 | `rehearsals/open-pipeline-transcripts.mjs` | `node scripts/rehearsals/open-pipeline-transcripts.mjs --key-file <키 파일> --in <봉인 파일> --out <새 폴더>` | 실패 조사 때 로컬 | 받은 봉인 파일을 키로 열어 새 빈 폴더에 푼다. 이미 있는 폴더와 안전하지 않은 이름은 거부한다 |
 | `rehearsals/gate-environment.mjs`, `rehearsals/gate-environment.test.mjs` | 두 smoke 리허설과 `agent-eval-summary.mjs`가 import한다. 시험은 `test:scripts` | CI마다 | `claude --version`의 버전, OS 버전(macOS는 `sw_vers`, 그 밖은 커널 release), 설치된 플러그인 판을 읽고 형식이 맞는 값만 요약에 넣는다. 값을 얻지 못해도 호출한 리허설을 실패시키지 않는다 |
 | `rehearsals/agent-eval-summary.mjs`, `rehearsals/agent-eval-summary.test.mjs` | `node scripts/rehearsals/agent-eval-summary.mjs --result <eval 결과 JSON> --exit-code <eval 종료 코드> --plugin <평가한 플러그인> --commit <커밋 전체> --summary <새 요약 파일>`. 시험은 `test:scripts` | `agent-eval` workflow, 시험은 CI마다 | eval 결과에서 사람이 읽는 줄을 출력하고 허용 필드만 남긴 요약 한 줄을 파일에 쓴다. 결과 파일을 읽지 못해도 종료 코드로 판정을 남긴다. job summary와 `GITHUB_OUTPUT` 기록은 workflow가 한다 |
-| `rehearsals/smoke-server.mjs`, `rehearsals/smoke-server-listener.cjs` | client-init·pipeline·Codex macOS 리허설이 `startSmokeServer`를 호출. 시험은 `node --test scripts/rehearsals/smoke-server.test.mjs` | 공통 스크립트 시험과 Windows·macOS runtime CI | 실행별 loopback 주소, 소유 자식의 listen IPC, HTTP 준비 검사와 종료 확인을 소유한다. 제품 HTTP 경로는 추가하지 않는다 |
+| `rehearsals/smoke-server.mjs`, `rehearsals/smoke-server-listener.cjs` | client-init·pipeline·Codex macOS·shared-distribution 리허설이 `startSmokeServer`를 호출. 시험은 `node --test scripts/rehearsals/smoke-server.test.mjs` | 공통 스크립트 시험과 Windows·macOS runtime CI | 실행별 loopback 주소, 소유 자식의 listen IPC, HTTP 준비 검사와 종료 확인을 소유한다. 제품 HTTP 경로는 추가하지 않는다 |
 | `rehearsals/rehearse-shared-distribution.mjs`, `shared-distribution-contract.mjs`, `shared-template-snapshot.mjs` | `shared-distribution-acceptance/acceptance`의 OS matrix | 기존 template 읽기 권한이 있는 신뢰 PR/dev CI | 실제 native runtime으로 이전/후보 bundle을 만들고 고정 Codex CLI의 선택 cache를 검사한다. 별도 test DB에서 S0/P0 → S/P0 → S/P를 확인하며 private 원문은 runner Temp에만 두고 정제한 summary만 artifact로 보존한다. 전체 job 성공과 summary PASS를 함께 확인하며 모델·개인 로그인·운영 배포를 요구하지 않는다 |
 | `rehearsals/gate-record.mjs`, `rehearsals/gate-record.test.mjs` | `GATE_SUMMARIES=<job 출력 JSON> node scripts/rehearsals/gate-record.mjs --workflow <게이트> --result <gate job 결과> --legs <다리,다리> --event <이벤트> --ref <전체 ref> --commit <커밋 전체> --run-id <번호> --run-attempt <n> --repository <owner/name> --record-issue <번호> --out <새 폴더> [--open-issues <NDJSON>]`. 시험은 `test:scripts` | 세 게이트의 `record` job(`.github/actions/gate-record`), 시험은 CI마다 | 실행 정보를 검증하고 요약을 다시 필터링해 기존 parent 아래 새 폴더에 배타적으로 쓴다. 기존 출력은 거부하며 composite action은 성공 단계의 경로 output만 소비한다. 네트워크를 쓰지 않는다. PR 이벤트, `dev`·`main` 밖의 ref, 형식이 틀린 값은 아무것도 쓰지 않고 거부한다 |
 | `rehearsals/rehearse-request-rate-baseline.ts` | `node --import tsx scripts/rehearsals/rehearse-request-rate-baseline.ts` | 수치 결정·템플릿 흐름 변경 시 로컬 | 현재 MCP callback/schema와 private 템플릿 단계에 근거한 정상 흐름·재시도 burst를 집계한다. 도메인 IO는 fixture이며 운영 트래픽 측정이 아니다. credential 없이 subject·시간·시퀀스만 관측 |

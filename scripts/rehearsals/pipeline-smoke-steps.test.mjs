@@ -222,7 +222,7 @@ it("lists pipeline-smoke trigger paths that exist in this repository", () => {
   assert.deepEqual(smokeTriggerPaths("no command here"), []);
 });
 
-it("keeps every migrated pipeline and template file inside the actual Git trigger pathspec", t => {
+it("keeps pipeline, template and rehearsal files inside the actual Git trigger pathspec", t => {
   const repository = new URL("../../", import.meta.url);
   const paths = smokeTriggerPaths(readFileSync(new URL("AGENTS.md", repository), "utf8"));
   function files(directory) {
@@ -234,6 +234,8 @@ it("keeps every migrated pipeline and template file inside the actual Git trigge
   const serverTargets = ["src/server/templates/release-preparation.ts", "src/server/templates/release-preparation.test.ts", "src/server/templates/runbook-query.ts", "tests/server/runbook-stale.test.ts"];
   const targets = [...new Set([
     ...files("packages/app-core/pipeline"), ...files("packages/shared/templates"), ...files("plugin/runtime/templates"),
+    ...files("scripts/rehearsals/support"), ...files("scripts/rehearsals/client-init"),
+    "scripts/rehearsals/rehearsal-compatibility.test.mjs", "scripts/checks/rehearsal-boundaries.test.mjs",
     "src/server/pipeline/input-validation.ts", "src/server/pipeline/input-validation.test.ts", ...serverTargets,
   ])];
   const root = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-trigger-"));

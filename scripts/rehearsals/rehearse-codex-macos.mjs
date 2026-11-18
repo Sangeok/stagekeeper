@@ -97,7 +97,9 @@ async function main(args) {
   const { newToken } = await import("../../src/server/tokens/api.ts");
   const { createBoardService, loadPipelinesView, savePipelineDefinition, nextFor, headFor, preparePipelineRun, startProjectWork, stopProjectWork, setAutomaticScout } = await import("../../src/server/pipeline/api.ts");
   const { changeUserPlan } = await import("../../src/server/projects/api.ts");
-  const { Run, seedTemplates, bootstrapSmokeTemplates, createFixtureUser, deleteFixtureUser } = await import("./rehearse-client-init-smoke.ts");
+  const { Run } = await import("./support/command-run.ts");
+  const { seedTemplates, bootstrapSmokeTemplates } = await import("./support/template-fixture.ts");
+  const { createFixtureUser, deleteFixtureUser } = await import("./support/smoke-database.ts");
   const { installedMacosRuntime } = await import(pathToFileURL(path.join(options.packageRoot, "runtime/macos-runtime.mjs")).href);
   const { codexExecutable } = await import(pathToFileURL(path.join(options.packageRoot, "runtime/codex-executable.mjs")).href);
   const runtime = installedMacosRuntime(path.join(options.packageRoot, "runtime/macos/node")), cli = codexExecutable();

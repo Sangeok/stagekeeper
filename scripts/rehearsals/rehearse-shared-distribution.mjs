@@ -132,7 +132,8 @@ async function main() {
   }
   function passed(name) { summary.checks.push(name); save(); console.log(JSON.stringify({ stage: name, result: "pass" })); }
   const { withPrisma } = await import("../lib/prisma.ts");
-  const { createFixtureUser, createRepository } = await import("./rehearse-client-init-smoke.ts");
+  const { createFixtureUser } = await import("./support/smoke-database.ts");
+  const { createRepository } = await import("./support/repository-fixture.ts");
   const { newToken } = await import("../../src/server/tokens/api.ts");
   const { changeUserPlan } = await import("../../src/server/projects/api.ts");
   const db = action => withPrisma(action, database);

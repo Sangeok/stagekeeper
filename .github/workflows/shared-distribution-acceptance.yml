@@ -9,6 +9,9 @@ on:
       - scripts/rehearsals/shared-*.mjs
       - scripts/rehearsals/rehearse-shared-distribution.mjs
       - scripts/rehearsals/rehearse-client-init-smoke.ts
+      - scripts/rehearsals/support/**
+      - scripts/rehearsals/rehearsal-compatibility.test.mjs
+      - scripts/checks/rehearsal-boundaries.test.mjs
       - scripts/rehearsals/smoke-server*
       - scripts/macos/**
       - scripts/windows/**
