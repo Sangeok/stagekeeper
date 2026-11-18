@@ -8,8 +8,8 @@ test-levels: ['integration', 'end-to-end']
 test-tools: ['Git', 'gh', 'Node.js', 'npm run pr', 'npm run check', 'npm test', 'npm run build']
 created-at: '2026-11-18'
 completed-at: null
-last-executed-at: '2026-11-18T03:16:59Z'
-tested-revision: 'e2c6f4155bca6460f208832f5a88c9572572bfe4'
+last-executed-at: '2026-11-18T05:26:08Z'
+tested-revision: 'aaa0e46bbba5135ec508fad3b6b880cc38f467a6'
 owners: ['user:Sangeok']
 related:
   - 'docs/proposals/active/pr-worktree-closeout-phase-adopt.md'
@@ -79,7 +79,7 @@ follow-up: ['docs/proposals/active/pr-worktree-closeout-phase-adopt.md']
 
 ## Findings and Follow-up
 
-현재 [파일 보존 검사](../../../scripts/pr/git-workspace.mjs)는 내부 디렉터리 링크도 차단한다. A의 실 PR에서 빌드 후 이 조건을 재현했다. 재검증하려면 빌드 산출물이나 플랫폼별 링크 처리 정책을 검토한 뒤, A와 같은 일반 설치·빌드 조건으로 다시 실행해야 한다. 자동 제거 정책의 근거가 된 Windows의 잔존 폴더 사례는 [REPLACE 검증 보고서](../completed/2026-11-18-pr-worktree-replace.md)에 있다.
+최초 실행에서는 파일 보존 검사가 빌드 후 내부 디렉터리 링크를 차단했다. 이후 검증된 Mac에서 pg·Prisma 두 패키지의 링크를 허용하고 같은 빌드 산출물로 다시 검사했다. 변경과 Windows의 잔존 폴더 근거는 [PR #373](https://github.com/Sangeok/stagekeeper/pull/373)과 [REPLACE 검증 보고서](../completed/2026-11-18-pr-worktree-replace.md)에 있다.
 
 ## Test Data and Cleanup
 
@@ -100,3 +100,20 @@ VFY-PWC-10은 운영 Mac에서 통과했다. VFY-PWC-12에서는 빌드 후 파�
 | T3b의 실제 단일 호출 병합·정리 | #372의 병합은 이미 별도로 발생했다. 승인된 다음 OPEN PR에서 일반 빌드 후 전체 경로를 확인한다. | NOT RUN |
 
 이 재검사에서 #372의 운영 worktree는 보존했다. 이후 #372의 이미 확인된 병합을 인수해 로컬을 정리하는 결과는 새 OPEN PR을 처리하는 T3b와 구분해 기록한다.
+
+## 배포된 도구로 #372 종료
+
+[#373](https://github.com/Sangeok/stagekeeper/pull/373)이 dev에 병합된 후 제어 checkout에서 #372의 HEAD와 병합 커밋을 확인했다. pg·Prisma 링크가 있는 빌드 산출물을 유지한 채 `complete`를 실행했다.
+
+| 관측 | 실제 결과 |
+| --- | --- |
+| 사용 및 파일 검사 | 동일 사용자의 관측 결과가 `qualified / clear`였고, coverage와 observer 종료를 확인했다. |
+| 로컬 제거 | exit 0, `phase=complete`, 최종 task OID `cf30bc37`. 폴더·admin·worktree 등록·로컬 branch ref의 부재를 독립 조회했다. |
+| 다른 작업 보존 | B(#369)의 task OID·인덱스·39,286개 파일시스템 항목 지문과 다른 작업들의 로컬 ref·등록이 전후 일치했다. |
+| 중복 요청 | 원래 request ID와 예상 상태를 그대로 재전송했다. 같은 최종 OID를 반환했고 추가 효과는 관측되지 않았다. |
+
+## 실제 OPEN PR의 단일 호출 시험
+
+이 후속 기록을 새 관리 작업 A2(`harness/pr-live-closeout-acceptance`, task `c3ef5059`)의 유일한 변경으로 사용한다. B는 계속 #369다. A2를 만들기 전에 B의 경로·admin·task OID·HEAD·인덱스와 작업 파일 metadata 지문을 저장했다.
+
+T3b의 합격 기준은 일반 설치·검사·빌드를 마친 A2의 **열린** dev PR에 제어 checkout에서 `complete`를 한 번 호출해, 해당 HEAD의 GitHub 병합과 dev 도달성, A2 폴더·admin·등록·로컬 ref 부재, B 보존을 확인하는 것이다. CI와 저장소 보호 규칙은 정상 경로로 통과해야 한다. 병합 결과를 받아야만 생기는 merge SHA·state OID·재호출 결과는 이 변경의 PR 본문과 worktree 밖의 실행 기록에 남긴다. Windows 실 PR 인수는 별도 항목(T5)이다.
