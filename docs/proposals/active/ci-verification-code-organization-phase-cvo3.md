@@ -4,9 +4,9 @@ stage: "blocked"
 proposal-size: "standard"
 created-at: "2026-11-18"
 updated-at: "2026-11-19"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user"
+approved-at: "2026-11-19"
+approval-scope: "CVO3 실행 요청에 따른 공개 무모델 검증과 동일 후보의 증거 수집·보고. 실제 모델과 private pin 변경은 별도 범위."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -18,13 +18,14 @@ related:
   - "docs/proposals/active/ci-verification-code-organization-phase-cvo2.md"
   - "docs/proposals/active/dual-client-ci-parity.md"
   - "docs/architecture/verification.md"
+  - "docs/test-reports/active/cvo3-client-acceptance-report.md"
 ---
 
 # CVO3 상세 실행 계획 — 동일 후보의 native·클라이언트 인수
 
 **완료 목표.** CVO2에서 옮긴 코드로 기존 Windows·macOS 런타임, Claude 및 macOS Codex 설치·평가·파이프라인이 종전 합격 조건을 충족하는지 같은 소스 후보에서 입증한다. 완료 요건은 [상위 SDD의 REQ-CVO-007](./ci-verification-code-organization.md#req-cvo-007-실제-실행-검증의-동등성)이다. 요구사항·불변조건·제약·VFY는 상위 SDD가 소유하며, 이 문서는 CVO3 실행 작업 네 개와 결과 기록 방식을 소유한다.
 
-**착수 판정.** 문서 작성과 공개 증거 조회를 마쳤다. 후보 선정과 공개 실행 이력 대조는 바로 진행할 수 있다. 전체 인수 실행은 **BLOCKED**다. 실행 승인, 모든 필수 워크플로가 실제로 검사할 수 있는 동일 SHA, private CI의 현재 대상·러너·실행 범위가 확정돼야 한다. 계획 모드는 `PHASE_PLAN`, 위험도는 `HIGH-RISK`다. 실제 모델 구독, 비공개 설치물과 실행자 권한이 관련된다. [CVO3 정의와 BLK-CVO-01](./ci-verification-code-organization.md#phase-cvo3-동일-후보의-native클라이언트-인수)
+**실행 상태.** 현재 `dev` 후보에서 native 증거와 공개 Codex 공유 배포 결과를 대조했고, 공개 Claude 신규·업데이트 네 조합을 실행해 통과를 확인했다. private CI의 제품·템플릿 pin 불일치는 실제 설정에서 확인됐다. 전체 인수는 **BLOCKED**다. 작업별 실행·판정·미충족 사유는 [CVO3 인수 보고서](../../test-reports/active/cvo3-client-acceptance-report.md)에 기록한다. 계획 모드는 `PHASE_PLAN`, 위험도는 `HIGH-RISK`다. [상위 SDD의 CVO3 및 BLK-CVO-01](./ci-verification-code-organization.md#phase-cvo3-동일-후보의-native클라이언트-인수)
 
 ## 후보와 현재 증거
 

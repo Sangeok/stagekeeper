@@ -742,9 +742,8 @@ coverage를 별도로 검토한다.
 
 ## Completion or Closure Notes
 
-CVO1은 PR #377로 dev에 병합됐다. 사용자가 2026-11-18 CVO2 구현을 승인했다.
-CVO2 실행 범위와 검증 결과는 [상세 계획](./ci-verification-code-organization-phase-cvo2.md)을 따른다. CVO3의 BLK-CVO-01과
-실제 인수 조건은 유지한다. 전체 SDD 완료·병합·배포로 보고하지 않는다.
+CVO1은 PR #377, CVO2는 PR #380으로 dev에 병합됐다. [CVO2 구현 기록](./ci-verification-code-organization-phase-cvo2.md)을 보존한다.
+CVO3의 별도 실행 범위는 [상세 계획](./ci-verification-code-organization-phase-cvo3.md), 동일 후보의 공개·private 인수 현황과 BLK-CVO-01은 [실행 보고서](../../test-reports/active/cvo3-client-acceptance-report.md)에서 확인한다.
 
 후속 구현자는 시작 시 최신 dev·열린 PR·active 제안·working tree를 다시 확인하고,
 선택한 Phase의 허용 범위·VFY·중단 조건만 수행한다. 이 문서와 현재 architecture가
