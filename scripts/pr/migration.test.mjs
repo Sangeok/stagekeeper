@@ -104,6 +104,10 @@ test("prepared migration is recoverable after marker publication fails, but publ
   try { failed = await f.run(input); } finally { fs.linkSync = link; }
   assert.notEqual(failed.exitCode, 0);
   const ctx = await context(f.root), oid = await refOid(ctx, MIGRATION_REF), before = await readStateObject(ctx, oid);
+  assert.equal(failed.state, oid); assert.equal(failed.phase, "prepared");
+  const status = await f.run({ operation: "status" });
+  assert.equal(status.migration.state, oid); assert.equal(status.migration.planDigest, input.expectedPlanDigest);
+  assert.equal(status.active, false);
   assert.equal(before.record.phase, "prepared"); assert.equal(fs.existsSync(path.join(first.gitDir, MARKER)), true);
   assert.equal(await refOid(ctx, "refs/stagekeeper/pr-closeout/tasks/" + a.taskId), null);
   const abort = await f.run({ ...input, action: "abort", expectedMigrationState: oid });

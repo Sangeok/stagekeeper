@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, registry, worktreeState, inspectFiles, outsideTarget, checkNewPath, remoteSnapshot, ancestor, validateBranch } from "./git-workspace.mjs";
-import { activation, requireActivation, loadTask, listTasks, readStateObject, validTask, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
+import { MIGRATION_REF, activation, requireActivation, loadTask, listTasks, readStateObject, validTask, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
 import { migrate, validJournal } from "./legacy-migration.mjs";
 import { pull, preflight, requestMerge, observeMerge, mergeProof, preservation, noOpenDependencies } from "./github-merge.mjs";
 import { inspectWorktreeUsage } from "./process-usage.mjs";
@@ -329,6 +329,14 @@ function report(operation, stored, extra = {}) {
     observationPerformed: r?.observation?.performed ?? false, reasons: r?.reasons ?? [], nextActions: r?.phase === "cleanup-pending" ? ["inspect", "cleanup"] : [],
     ...(r ? { owner: r.owner, path: r.path, branchName: r.branch, instance: r.instanceId, head: r.release?.head ?? null, sequence: r.sequence } : {}), ...extra };
 }
+async function migrationStatus(ctx) {
+  const oid = await refOid(ctx, MIGRATION_REF);
+  if (!oid) return null;
+  const { record } = await readStateObject(ctx, oid);
+  if (!validJournal(record, ctx)) refuse("migration-journal-invalid");
+  return { state: oid, phase: record.phase, installationId: record.installationId, planDigest: record.planDigest,
+    fence: path.join(ctx.common, "stagekeeper-task-worktrees", "command.guard") };
+}
 export async function runPrCommand(input, ports = {}) {
   let options, ctx, stored;
   try {
@@ -338,6 +346,7 @@ export async function runPrCommand(input, ports = {}) {
     if (options.operation === "status" || options.operation === "inspect") {
       const guardBefore = guardStatus(ctx, "common");
       const before = await activation(ctx);
+      const migration = await migrationStatus(ctx);
       if (options.task) stored = await loadTask(ctx, options.task);
       const tasks = stored ? [stored] : await listTasks(ctx);
       let remote = null, local = null;
@@ -359,10 +368,11 @@ export async function runPrCommand(input, ports = {}) {
         }
       }
       const changed = guardBefore.state !== "absent" || guardStatus(ctx, "common").state !== "absent"
+        || await refOid(ctx, MIGRATION_REF) !== (migration?.state ?? null)
         || (await activation(ctx)).appliedOid !== before.appliedOid
         || (await Promise.all(tasks.map(async t => await refOid(ctx, taskRef(t.record.taskId)) !== t.oid))).some(Boolean);
       return report(options.operation, stored, { exitCode: 0, active: before.active, legacyPresent: Boolean(lstat(path.join(ctx.common, "stagekeeper-task-worktrees"))),
-        tasks: tasks.map(t => report("status", t)), local, remote,
+        tasks: tasks.map(t => report("status", t)), local, remote, migration,
         reasons: changed ? ["transition-in-progress"] : before.active ? [] : [before.reason] });
     }
     const revision = await sourceRevision(ctx, !readonly);
@@ -388,8 +398,11 @@ export async function runPrCommand(input, ports = {}) {
     return report(options.operation, stored, { exitCode: needsTerminal && !["complete", "retired"].includes(stored.record.phase) ? 2 : 0 });
   } catch (error) {
     const code = error instanceof PrFailure ? error.code : "execution-failed";
-    if (ctx && options?.task) { try { stored = await loadTask(ctx, options.task); } catch {} }
-    return report(options?.operation ?? input?.operation ?? null, stored, { exitCode: error instanceof PrFailure ? error.exitCode : 1, reasons: [code] });
+    if (ctx && !ctx.unsettled && !ctx.signal?.aborted && options?.task) { try { stored = await loadTask(ctx, options.task); } catch {} }
+    let migration = null;
+    if (ctx && !ctx.unsettled && !ctx.signal?.aborted && options?.operation === "migrate") { try { migration = await migrationStatus(ctx); } catch {} }
+    return report(options?.operation ?? input?.operation ?? null, stored, { exitCode: error instanceof PrFailure ? error.exitCode : 1, reasons: [code],
+      ...(migration ? { migration, state: migration.state, phase: migration.phase } : {}) });
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -452,7 +452,8 @@ per-task guard는 invocation 전체를, common guard는 짧은 mutation 구간�
 정확한 nonce, `--confirmed-quiescent` 확인 뒤만 archive로 옮긴다. live/unknown/다른 host는
 보존하고 프로세스 이름으로 kill하지 않는다.
 
-migration preview는 v1 전체 source digest·owner·매핑·보류 이유를 출력한다. active/intact
+migration preview는 v1 전체 source digest·owner·매핑·보류 이유를 출력한다. status와 실패 결과의 migration 필드는
+재개에 필요한 canonical state OID·phase·planDigest·fence 경로를 제공한다. active/intact
 closing은 dirty 자료를 유지한 working으로만 이관하고 옛 종료 동의를 복사하지 않는다.
 creating/corrupt/partial은 전역 activation을 막는다. removed는 history, 미등록은 그대로다.
 
