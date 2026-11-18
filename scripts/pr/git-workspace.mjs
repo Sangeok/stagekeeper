@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
+import { matchesMacCloseoutHostV1 } from "./macos-closeout-profile.mjs";
 
 export const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 export const OID = /^[a-f0-9]{40}$/;
@@ -219,6 +220,14 @@ export async function worktreeState(ctx, record, { marker = true } = {}) {
   }
   return { present: true, admin: gitDir, head, directory: identity };
 }
+function ordinaryIgnoredDirectories(relative, entries, ignored, device) {
+  for (let dir = relative; dir !== "."; dir = path.posix.dirname(dir)) {
+    const entry = entries.get(dir);
+    if (entry?.type !== "directory" || entry.device !== device || !ignored.has(dir)) return false;
+  }
+  return true;
+}
+
 export async function inspectFiles(ctx, record) {
   const cwd = record.path;
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
@@ -238,12 +247,14 @@ export async function inspectFiles(ctx, record) {
   let scan; try { scan = JSON.parse(raw.output); } catch { refuse("inventory-invalid"); }
   if (scan.error) refuse(scan.error);
   if (!Array.isArray(scan.entries) || !scan.identity) refuse("inventory-invalid");
+  if (json(scan.identity) !== json(record.directory)) refuse("identity-changed");
   const parents = new Set(); for (const f of tracked) for (let p = path.posix.dirname(f); p !== "."; p = path.posix.dirname(p)) parents.add(p);
   const names = scan.entries.map(e => e.path + (e.type === "directory" ? "/" : ""));
   const ignored = new Set(names.length ? (await git(ctx, ["check-ignore", "--no-index", "--stdin", "-z"], { cwd, input: names.join("\0") + "\0", allowed: [0, 1] })).output.split("\0").filter(Boolean).map(s => s.replace(/\/$/, "")) : []);
   const entries = new Map(scan.entries.map(e => [e.path, e]));
   const caches = ["node_modules", ".next", "src/generated", "coverage", "tsconfig.tsbuildinfo", "next-env.d.ts"];
   const cache = relative => caches.find(v => relative === v || relative.startsWith(v + "/"));
+  let verifiedGit, indexedPaths;
   for (const e of scan.entries) {
     if (tracked.has(e.path) && e.type !== "link" || e.type === "directory" && parents.has(e.path)) continue;
     const root = cache(e.path);
@@ -251,6 +262,19 @@ export async function inspectFiles(ctx, record) {
     if (e.type === "link") {
       if (tracked.has(e.path) || e.path === root || !e.target || !inside(cwd, e.target)) refuse("linked-path");
       const relative = path.relative(cwd, e.target).split(path.sep).join("/");
+      const generated = /^\.next\/node_modules\/(pg|@prisma\/client)-[0-9a-f]{16}$/.exec(e.path);
+      if (generated) {
+        const target = "node_modules/" + generated[1];
+        const parent = path.posix.dirname(e.path);
+        if (!matchesMacCloseoutHostV1() || e.target !== path.join(cwd, target) || e.link !== path.posix.relative(parent, target)
+          || !ordinaryIgnoredDirectories(parent, entries, ignored, scan.identity.device)
+          || !ordinaryIgnoredDirectories(target, entries, ignored, scan.identity.device)) refuse("linked-path");
+        indexedPaths ??= new Set([...tracked, ...parents].map(name => name.toLowerCase()));
+        if (indexedPaths.has(e.path.toLowerCase()) || indexedPaths.has(target)) refuse("linked-path");
+        verifiedGit ??= await gitText(ctx, ["--version"]) === "git version 2.50.1 (Apple Git-155)";
+        if (!verifiedGit) refuse("linked-path");
+        continue;
+      }
       const destination = entries.get(relative);
       const fileLink = destination?.type === "file" && cache(relative) === root && ignored.has(relative);
       if (!fileLink) refuse("linked-path");
