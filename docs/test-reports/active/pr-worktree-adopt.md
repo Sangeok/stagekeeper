@@ -83,8 +83,20 @@ follow-up: ['docs/proposals/active/pr-worktree-closeout-phase-adopt.md']
 
 ## Test Data and Cleanup
 
-이관한 세 작업의 폴더와 branch를 유지했다. A의 빌드 링크, 폴더, 로컬·원격 branch는 실 PR 증거와 재검증을 위해 보존했다. 개인 경로가 있는 원장과 원본 실행 기록은 로컬에 보관했다.
+최초 검사 당시 이관한 세 작업의 폴더와 branch, A의 빌드 링크·폴더·로컬·원격 branch를 보존했다. 개인 경로가 있는 원장과 원본 실행 기록은 로컬에 보관했다.
 
 ## Conclusion
 
 VFY-PWC-10은 운영 Mac에서 통과했다. VFY-PWC-12에서는 빌드 후 파일 검사(T3a)가 실패해 Mac 병합·제거(T3b)를 실행하지 않았다. Windows 실 PR 인수(T5)는 아직 실행 전이다.
+
+## Mac 링크 정책 변경 후 재검사
+
+[#372](https://github.com/Sangeok/stagekeeper/pull/372)는 최초 검사 후 dev에 병합됐다(merge `ad12cb7`). 로컬에는 최초 작업의 두 빌드 링크와 HEAD `0b45840`이 남아 있었다. 도구 수정본 `27a0762`에서 동일한 운영 작업에 `inspect --remote --pr 372`를 실행했다. 이 경로에서는 GitHub 상태를 실제로 조회하며 파일 제거는 수행하지 않는다.
+
+| 재검사 | 관측 결과 | 판정 |
+| --- | --- | --- |
+| T3a의 파일 보존 전제 | dev의 기존 도구는 `linked-path`, 수정본은 빈 `local.reasons`와 파일 지문을 반환했다. PR은 MERGED이고 두 검사에서 task OID `65194cae`, phase `working`이 유지됐다. | PASS (수정본) |
+| 수정본의 `complete` 통합 시험 | 같은 Darwin 25.2.0 arm64, Node v26.4.0, Apple Git-155에서 실제 사용 관측·Git·파일시스템과 GitHub 대역으로 시험했다. 정상 두 링크가 있는 A만 완료됐다. B로 향하는 링크는 PUT 0회였고, 병합 후 최종 검사에서 B로 바뀐 링크는 merge receipt를 보존한 `cleanup-pending`이었다. | PASS (격리 시험) |
+| T3b의 실제 단일 호출 병합·정리 | #372의 병합은 이미 별도로 발생했다. 승인된 다음 OPEN PR에서 일반 빌드 후 전체 경로를 확인한다. | NOT RUN |
+
+이 재검사에서 #372의 운영 worktree는 보존했다. 이후 #372의 이미 확인된 병합을 인수해 로컬을 정리하는 결과는 새 OPEN PR을 처리하는 T3b와 구분해 기록한다.
