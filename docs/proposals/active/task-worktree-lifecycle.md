@@ -647,7 +647,7 @@ PR에 최종 commit의 check 결과와 잔여 보류를 기록하고 병합 전�
 
 ## REPLACE supersession — 2026-11-18
 
-새 [PR closeout REPLACE](./pr-worktree-closeout-phase-replace.md)가 이 문서의 운영 명령과
+새 [PR closeout REPLACE](../completed/2026-11-18-pr-worktree-closeout-phase-replace.md)가 이 문서의 운영 명령과
 두 writer를 대체한다. 현재 명령·보존·이관 계약은 [verification](../../architecture/verification.md#작업-브랜치-정리)을 따른다.
 이 문서의 이전 승인·검증·명령은 당시 구현의 역사로 보존한다. v1 원장을 즉시 삭제하거나
 실제 사용자 작업을 자동 이관했다는 의미가 아니다. 실제 activation은 ADOPT에서 수행한다.

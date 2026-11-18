@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-18"
 approved-by: "user"
 approved-at: "2026-11-18"
 approval-scope: "이 계획에 따른 REPLACE 소스·시험·CI·규칙 교체 및 검증. 실제 사용자 원장 이관/삭제, PR 병합, main 승격, ADOPT 제외."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-18"
+verification-summary: "REPLACE source b9364eb: check 44207459589의 8개 job 및 양 OS 신규 41개 시험 PASS, qualified Mac native positive PASS. Directory-link 예외 비활성화. 실제 원장 ADOPT·PR 병합 제외."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -26,7 +26,7 @@ related:
 
 ## Summary
 
-[상위 SDD](./pr-worktree-closeout.md)의 조건부 자동 정리 계약을 구현 가능한 작업으로 구체화한다.
+[상위 SDD](../active/pr-worktree-closeout.md)의 조건부 자동 정리 계약을 구현 가능한 작업으로 구체화한다.
 작업 종료 인계와 exact-head dev 병합, 가능한 로컬 정리를 하나의 `complete` 흐름으로 묶는다.
 Windows와 미검증 환경은 병합 후 `cleanup-pending`으로 보존한다.
 기존 두 관리기는 보호 동작과 복구 시험을 이관한 뒤 같은 소스 전환에서 제거한다.
@@ -47,7 +47,7 @@ Windows와 미검증 환경은 병합 후 `cleanup-pending`으로 보존한다.
 | 작업 branch | `harness/pr-worktree-closeout-replace-plan-20261117` |
 | 관리 task / owner | `818c972a-fd57-414b-8ae0-3e979fd5eac0` / `codex-pr-worktree-replace-plan-20261117` |
 | 작업 위치 | `/private/tmp/stagekeeper-pr-worktree-replace-plan-20261117.4vZXb0/worktree` |
-| parent SHA-256 | `6ae3e7932d3474aa52237499bc7d98c08404026b64ec9c8351816f3a93963dad` |
+| 작성 당시 parent SHA-256 | `6ae3e7932d3474aa52237499bc7d98c08404026b64ec9c8351816f3a93963dad` |
 | QUALIFY plan SHA-256 | `03ad5f0461dc487d0254eea45308040ab6bfdb0db64a165f098c14d02e864715` |
 | runtime 계약 | `scripts/pr/process-usage.mjs:inspectWorktreeUsage`. qualified는 Darwin 25.2.0/arm64/Node v26.4.0 및 동일 real/effective non-root UID 한 profile |
 | 실제 검증 | [QUALIFY 보고서](../../test-reports/active/pr-worktree-qualify.md), 코드 ae0a6af의 CI 44091585161 전체 통과. Windows 자동 자격은 여전히 미지원 |
@@ -248,7 +248,7 @@ recover-guard는 명시적 quiescent 확인과 nonce/파일 신원 재검사 뒤
 
 ## Change detail for TASK-PWCR-01
 
-Canonical: [TASK-PWCR-01](./pr-worktree-closeout.md#task-pwcr-01-identity상태명령).
+Canonical: [TASK-PWCR-01](../active/pr-worktree-closeout.md#task-pwcr-01-identity상태명령).
 
 1. 기존 validateBranch/parseWorktreeList/context/marker/identity 검사를 새 git-workspace로
    옮긴다. literal harness namespace, main/dev, 주 checkout, symbolic ref, alias,
@@ -314,7 +314,7 @@ no-lazy-fetch를 지원하지 않는 Git에서는 조회를 무보호로 재시�
 
 ## Change detail for TASK-PWCR-02
 
-Canonical: [TASK-PWCR-02](./pr-worktree-closeout.md#task-pwcr-02-병합-검증요청관측).
+Canonical: [TASK-PWCR-02](../active/pr-worktree-closeout.md#task-pwcr-02-병합-검증요청관측).
 
 ### PR state dispatch before preflight
 
@@ -387,7 +387,7 @@ GitHub 조회는 이번 task/PR/HEAD로 제한한다. command 한 번은 20초+s
 
 ## Change detail for TASK-PWCR-03
 
-Canonical: [TASK-PWCR-03](./pr-worktree-closeout.md#task-pwcr-03-사용-종료파일branch-정리).
+Canonical: [TASK-PWCR-03](../active/pr-worktree-closeout.md#task-pwcr-03-사용-종료파일branch-정리).
 
 ### cleanup dispatch
 
@@ -473,7 +473,7 @@ retire는 PR 없음 또는 CLOSED-unmerged, open/dependent PR 부재, fresh dev 
 
 ## Change detail for TASK-PWCR-04
 
-Canonical: [TASK-PWCR-04](./pr-worktree-closeout.md#task-pwcr-04-중단중복복구).
+Canonical: [TASK-PWCR-04](../active/pr-worktree-closeout.md#task-pwcr-04-중단중복복구).
 
 | 중단 지점 / 상태 | 재진입 규칙 |
 | --- | --- |
@@ -508,7 +508,7 @@ ack 저장 뒤 응답 유실은 같은 request-id/이전 state/입력의 일치�
 
 ## Change detail for TASK-PWCR-06
 
-Canonical: [TASK-PWCR-06](./pr-worktree-closeout.md#task-pwcr-06-일회-migration-경계).
+Canonical: [TASK-PWCR-06](../active/pr-worktree-closeout.md#task-pwcr-06-일회-migration-경계).
 실제 사용자 원장 적용은 REQ-PWC-010의 ADOPT 완료 책임이다.
 
 ### plan and mapping
@@ -613,7 +613,7 @@ identity·빈 상태가 모두 일치할 때만 rmdir를 재개한다. 초기 �
 
 ## Change detail for TASK-PWCR-05
 
-Canonical: [TASK-PWCR-05](./pr-worktree-closeout.md#task-pwcr-05-구-체계-퇴역과-ci).
+Canonical: [TASK-PWCR-05](../active/pr-worktree-closeout.md#task-pwcr-05-구-체계-퇴역과-ci).
 
 실행 순서는 R01 → R02/R03 → R04 → R06 → R05다. 소스와 규칙의 전환은 마지막에 묶는다.
 
@@ -1031,7 +1031,7 @@ F8/F9를 문서에 반영했다. 상위 문서·source·tests·CI·사용자 설
 
 사용자가 이 문서를 기준으로 실제 수정을 요청해 REPLACE 구현 범위를 승인했다.
 이전 review/계획 섹션의 “이번 한 파일만 수정”·“아직 소스 없음”은 당시 기록이다.
-현재 구현과 실행 근거는 [REPLACE 보고서](../../test-reports/active/pr-worktree-replace.md)를 따른다.
+현재 구현과 실행 근거는 [REPLACE 보고서](../../test-reports/completed/2026-11-18-pr-worktree-replace.md)를 따른다.
 
 - R01/R02/R03/R04/R06을 Node ESM 여섯 module과 실제 Git fixture로 구현했다.
 - R05에서 구 production manager 두 개, root test 두 개와 npm aliases를 제거하고
@@ -1047,4 +1047,16 @@ F8/F9를 문서에 반영했다. 상위 문서·source·tests·CI·사용자 설
 - 병합 readiness 뒤 파일이 변경되는 경합과 ack replay OID 갱신을 회귀 시험으로 보완했다.
   plan의 authority를 넓힌 변경은 없다.
 - 사용자 원장의 activation/삭제, 실제 PR merge, main promotion, ADOPT는 실행하지 않았다.
-  local gate는 통과했고 최신 dev 통합 및 Windows/macOS CI를 확인 중이다.
+  source b9364eb에서 최신 dev 통합·로컬 검사·Windows/macOS CI가 통과했다.
+  [PR #369](https://github.com/Sangeok/stagekeeper/pull/369)은 dev 대상의 OPEN/non-draft이며 병합하지 않았다.
+
+### Final REPLACE outcome
+
+- TASK-PWCR-01~06의 선택 범위 구현·fixture 검증을 완료했다. VFY-PWC-10의 실제 원장 전환은 ADOPT에 남긴다.
+- check run [44207459589](https://github.com/Sangeok/stagekeeper/actions/runs/44207459589): 8개 job 모두 PASS.
+  새 lifecycle/merge/cleanup/recovery/migration/preservation/retirement는 Windows·macOS 각각 41/41 PASS, skip 0이다.
+- qualified Mac의 최종 source 자동 제거 positive는 1/1 PASS. 일반 CI의 unqualified 보존을 clear 성공으로 세지 않는다.
+- 내부 build-cache directory-link 예외는 Windows Git의 잔존 경로 반례로 비활성화했다. 계획의 실패 분기이며 force/unlink 우회는 없다.
+- 상태 출력은 PR/purpose/live HEAD·이전 observation과 이번 호출의 실행 여부를 구분한다. 이관 실패는 canonical migration OID를 반환한다.
+- task worktree와 branch는 PR 미병합·후속 리뷰 때문에 보존한다. 실제 repository는 activation-required다.
+- 다음 단계는 dev 병합 후 ADOPT 상세 계획과 owner별 이관 인계다. 이 완료 기록은 그 실행 권한을 부여하지 않는다.
