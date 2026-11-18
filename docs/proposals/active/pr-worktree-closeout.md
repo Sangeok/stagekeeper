@@ -4,8 +4,8 @@ stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-17"
 approved-by: "user"
-approved-at: "2026-11-17"
-approval-scope: "조건부 자동 정리 방향 채택, 상위/QUALIFY 문서 정합, 기존 승인 범위의 QUALIFY 구현·시험·CI·증거 보완. Windows 자동 삭제, 실제 자료 정리, PR 병합, REPLACE/ADOPT 제외. 사용자 명령 통합 여부는 후속 구현 계획에서 판단."
+approved-at: "2026-11-18"
+approval-scope: "조건부 방향과 QUALIFY에 이어, 사용자 요청으로 REPLACE 소스·시험·CI·규칙 교체 및 검증을 승인. Windows 자동 삭제, 실제 사용자 원장 이관·삭제, PR 병합·main 승격·ADOPT 제외."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -22,6 +22,8 @@ related:
   - "docs/proposals/completed/2026-11-12-local-branch-cleanup.md"
   - "docs/proposals/active/pr-worktree-closeout-phase-qualify.md"
   - "docs/test-reports/active/pr-worktree-qualify.md"
+  - "docs/proposals/completed/2026-11-18-pr-worktree-closeout-phase-replace.md"
+  - "docs/test-reports/completed/2026-11-18-pr-worktree-replace.md"
 ---
 
 # PR 병합과 worktree 정리의 통합 완료 흐름
@@ -42,7 +44,8 @@ Windows 후보 검증에서 접근 거부와 cwd 누락 반례가 확인됐다. 
 기존 두 관리기의 전면 교체 목표는 유지한다. 현행 writer를 호출하는 영구 wrapper는
 남기지 않는다. 최초 재설계는 상위 SDD 한 파일에 한정했다. 이후 승인된 QUALIFY
 코드·시험·CI·증거 보완은 front matter와 child 실행 기록에 따른다. 기존 관리기·
-AGENTS·사용자 자료는 유지하며 REPLACE/ADOPT는 실행하지 않았다.
+AGENTS는 REPLACE에서 교체했고 사용자 자료는 유지한다. REPLACE 구현·fixture 검증은 완료했으며
+실제 원장 활성화·GitHub 인수는 ADOPT에 남긴다.
 
 - 작성 모드: `WHOLE_SDD` 개정.
 - 위험도: `HIGH-RISK`. 원격 병합·로컬 삭제·외부 수동 제거의 인수를 구분한다.
@@ -624,7 +627,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 
 ### Phase REPLACE: 새 완료 흐름과 소스 전환
 
-- status: Proposed.
+- status: 구현·선택 범위 검증 완료. source b9364eb, PR #369 OPEN. 실제 activation은 ADOPT 미수행.
 - outcome: 새 구현·시험·규칙·CI를 한 coherent 변경으로 제공하고 구 두 생산 구현과 실행 alias를 제거한다.
 - split rationale: source 전환과 사용자 원장 전환의 효과가 달라 로컬 활성화는 ADOPT로 분리한다.
 - predecessor artifacts: BLK-PWC-04의 범위 결정, 재정합된 QUALIFY 결과와 profile별 한계, 승인된 이식/Phase 상세 계획.
@@ -636,7 +639,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 - intermediate validity: legacy가 있는 미전환 PC에서 새 status/migration preview는 가능하고 mutation은 activation 전 거부한다. 구 writer를 새 명령에서 호출하지 않는다.
 - exit: 양 OS의 제공 경로 검사, 필요한 check, 구 실행 참조 0건, 원본 고지, 오류·복구·수동 인수 명세, 미활성 real repo를 바꾸지 않는 증거. Windows는 자동 삭제 0회와 명시적 인수 경로가 필수다.
 - entry evidence: 재정합된 QUALIFY와 등록 profile의 실행 증거. BLK-PWC-04/05는 해당 범위에서 해소됐으며, BLK-PWC-01은 Windows 자동 삭제 활성화에 남는다. REPLACE 상세 계획과 실행 범위는 별도다.
-- detailed plan: QUALIFY 결과를 반영해 작성한다. 아래 Task는 변경 책임의 경계이며 전체 signature 확정본이 아니다.
+- detailed plan: [완료된 REPLACE 계획](../completed/2026-11-18-pr-worktree-closeout-phase-replace.md)과 [검증 보고서](../../test-reports/completed/2026-11-18-pr-worktree-replace.md). 아래 Task의 canonical 책임은 유지한다.
 
 ### TASK-PWCR-01: identity·상태·명령
 
@@ -1071,3 +1074,17 @@ parent에만 정의하며, child와의 의미 차이는 위 재정합 대상으�
 - [x] source 삭제와 원장 전환, 단순 revert의 한계를 구분했다.
 - [x] 이번 쓰기는 이 SDD로 제한했다.
 - [x] 문서 검증과 구현·실제 OS 인수를 구분했다.
+
+## REPLACE completion handoff — 2026-11-18
+
+사용자의 상세 계획 기반 구현 요청으로 REPLACE 실행이 승인됐다. 앞선 작성·review 섹션의
+“REPLACE 미실행/제외”는 당시 이력이며 현재 권한·결과는 front matter와 이 인계를 따른다.
+REQ/INV/CON의 canonical 의미는 변경하지 않았다.
+
+- b9364eb / [check 44207459589](https://github.com/Sangeok/stagekeeper/actions/runs/44207459589): 8개 job PASS, Windows/macOS 새 41개 시험 각각 PASS.
+- Node ESM 단일 pr 흐름과 Git-ref 상태/merge/cleanup/recovery/migration을 구현하고 구 두 writer·alias·CI 경로를 퇴역했다.
+- Windows unqualified 및 unknown은 보존한다. 내부 generated directory-link 예외도 Windows의 잔존 경로 반례로 비활성화했다.
+- 실제 repository는 activation-required이며 사용자 v1 원장·worktree를 이관/삭제하지 않았다. 실제 merge도 미실행이다.
+- [REPLACE 완료 문서](../completed/2026-11-18-pr-worktree-closeout-phase-replace.md)와 [보고서](../../test-reports/completed/2026-11-18-pr-worktree-replace.md)가 구현 근거다.
+- 다음은 PR #369의 승인된 dev 병합 후 ADOPT 상세 계획이다. owner별 사용/자료 인계·old writer quiescence와 실제 GitHub 인수 권한을 확정해야 한다.
+  BLK-PWC-02/03 및 Windows 자동 qualification의 downstream 제한은 남는다.

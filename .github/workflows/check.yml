@@ -22,6 +22,8 @@ jobs:
         os: [windows-2022, macos-15]
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -37,10 +39,20 @@ jobs:
         run: npm exec --call "node --test scripts/pr/windows-directory-usage.test.mjs"
         env:
           STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"
-      - name: Task worktree lifecycle
-        run: npm exec --call "node --test scripts/manage-task-worktrees.test.mjs"
-      - name: Task branch cleanup
-        run: npm exec --call "node --test scripts/cleanup-task-branches.test.mjs"
+      - name: PR closeout lifecycle
+        run: npm exec --call "node --test scripts/pr/lifecycle.test.mjs"
+      - name: PR merge contracts
+        run: npm exec --call "node --test scripts/pr/merge.test.mjs"
+      - name: Conditional cleanup and native cache links
+        run: npm exec --call "node --test scripts/pr/cleanup.test.mjs"
+      - name: PR state and recovery
+        run: npm exec --call "node --test scripts/pr/recovery.test.mjs"
+      - name: Legacy migration and fence
+        run: npm exec --call "node --test scripts/pr/migration.test.mjs"
+      - name: File and branch preservation
+        run: npm exec --call "node --test scripts/pr/preservation.test.mjs"
+      - name: Retired writers and CLI boundary
+        run: npm exec --call "node --test scripts/pr/retirement.test.mjs"
 
   check:
     name: check (${{ matrix.part }})

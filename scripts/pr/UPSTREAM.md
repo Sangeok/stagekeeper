@@ -1,6 +1,6 @@
-# Process usage qualification sources
+# PR closeout and process usage sources
 
-이 디렉터리는 Phase QUALIFY의 읽기 전용 후보 구현이다. worktree/branch 삭제, PR 병합, 제품 런타임 연결은 하지 않는다. OpenClaw 설치·Bash·sh·외부 binary 다운로드가 필요하지 않다.
+이 디렉터리는 Phase REPLACE의 개발용 PR 완료 관리기와 QUALIFY의 사용 관측을 소유한다. 제품 런타임을 import하지 않는다. 실제 사용자 원장 activation은 ADOPT 범위다. OpenClaw 설치·Bash·sh·외부 binary 다운로드가 필요하지 않다.
 
 ## Runtime과 후보 평가 경계
 
@@ -12,7 +12,7 @@
 backend의 lsof 4.91/libproc/current-UID 결과도 호출 때 재검증한다. runtime 진입점
 busy 대조는 conditional-runtime-local.json에 기록한다. 다른 OS/build/CPU/Node와
 Windows는 unqualified/unknown/관측 미실행이다. caller flag로 범위를 넓힐 수 없다.
-이는 삭제 실행 활성화가 아니며 controller는 아직 없다.
+이 profile만으로 삭제하지 않으며 controller가 별도로 소유자 인계·파일 보존·PR 병합·현재 신원을 검증한다.
 
 profile은 현재 UID·non-zombie cwd·한 관측 구간으로 제한한다. 다른 계정·특권·원격
 host·cwd 밖의 파일 사용과 외부 writer 차단은 미인증이다. caret 이름은 unknown이다.
@@ -106,3 +106,30 @@ handle 아래 시작된 process의 cwd를 독립 oracle로 확인했으나, hand
 macOS local 및 GitHub macos-15의 native 경로는 통과했다. Windows 2022 x64의 PEB 후보는 285de226d8815c0604af21be826ada5b7febbcfb에서 cwd-open-5 1건으로 불완전 관측이었다. QUERY_LIMITED_INFORMATION | VM_READ에서도 동일했으므로 현재 Windows 후보는 운영 채택 보류다. unknown을 clear로 바꾸거나 실패 process를 제외하지 않는다.
 
 프로세스 변경은 한 관측 시간 예산 안에서 fresh inventory로 재검사하고 snapshotAttempts/populationChanges를 반환한다. 관측 결과를 다음 호출에 캐시하지 않는다. macOS의 ps start identity는 초 단위라 외부의 극단적인 동일 초 PID 재사용을 원자적으로 인증하지 않으며, 어떤 결과도 삭제 권한으로 사용하지 않는다.
+
+## REPLACE 포팅 대응
+
+기준은 OpenClaw `c7ccc5e8bc96d9ba1dc2463145ebd33338813d02`다.
+`merge.sh`의 병합 증명 → cleanup → complete 순서와 `common.sh`의 사용 중 경로 보존을
+참고했다. 소스 코드를 복사하지 않고 Node ESM으로 재구현했다. upstream script를
+다운로드·설치·실행하거나 Bash wrapper로 감싸지 않는다. OpenClaw의 main 전용 정책,
+리뷰 도구와 제품 의존성은 가져오지 않았다.
+
+- `index.mjs`: dev 대상 exact-head 완료·중단·수동 인수 흐름.
+- `github-merge.mjs`: github.com 명시, 최신 check/readiness, SHA를 고정한 REST 동기 PUT.
+  auto-merge/queue/admin fallback과 remote ref 삭제를 지원하지 않는다.
+- `task-state.mjs`: 로컬 Git ref CAS·첫 parent 이력·source/merge pin·scope별 guard.
+- `git-workspace.mjs`: canonical identity와 ignored 자료 보존, qualified runtime만 사용한
+  Git 제거, path/admin/registry 부재 뒤 literal branch CAS.
+- `legacy-migration.mjs`: repository 단위 명시적 v1 이관. 기존 writer를 import하지 않는다.
+  pinned v1 소스 `6bb915a` 추출은 migration test 임시 fixture에서만 사용한다.
+- 파일 scanner는 Node child에서 metadata만 읽고 directory link를 순회하지 않는다.
+  `.next/node_modules/**`의 같은 worktree 내부 cache link 예외는 Windows Git 제거 gate 실패로 비활성화했다.
+  directory link는 계속 보존하며 직접 unlink/force fallback을 추가하지 않았다.
+
+OpenClaw는 MIT이며 참고 revision의 [LICENSE](https://github.com/openclaw/openclaw/blob/c7ccc5e8bc96d9ba1dc2463145ebd33338813d02/LICENSE)를 따른다.
+기존 phnt에서 가져온 layout의 MIT 고지는 `platform/PHNT-LICENSE`에 계속 보존한다.
+
+- [OpenClaw merge 흐름](https://github.com/openclaw/openclaw/blob/c7ccc5e8bc96d9ba1dc2463145ebd33338813d02/scripts/pr-lib/merge.sh)
+- [GitHub merge endpoint](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)
+- [Git ref transaction](https://git-scm.com/docs/git-update-ref)
