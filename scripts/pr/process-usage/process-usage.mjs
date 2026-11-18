@@ -1,4 +1,4 @@
-import { matchesMacCloseoutHostV1 } from "./macos-closeout-profile.mjs";
+import { matchesMacCloseoutHostV1 } from "../macos-closeout-profile.mjs";
 import { createUsageResult, usageInputReason } from "./process-usage-contract.mjs";
 import { probeWorktreeUsage } from "./process-usage-probe.mjs";
 

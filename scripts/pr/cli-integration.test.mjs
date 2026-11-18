@@ -18,7 +18,7 @@ test("only the pr entry and new per-OS regression gates remain in current execut
   const workflow = fs.readFileSync(path.join(root, ".github", "workflows", "check.yml"), "utf8");
   const matrix = workflow.slice(workflow.indexOf("  task-worktrees:"), workflow.indexOf("\n  check:"));
   assert.match(matrix, /os: \[windows-2022, macos-15\]/); assert.match(matrix, /fetch-depth: 0/);
-  for (const name of ["lifecycle", "merge", "cleanup", "recovery", "migration", "preservation", "retirement"]) assert.ok(matrix.includes("node --test scripts/pr/" + name + ".test.mjs"));
+  for (const name of ["lifecycle", "merge", "cleanup", "recovery", "migration", "preservation", "cli-integration"]) assert.ok(matrix.includes("node --test scripts/pr/" + name + ".test.mjs"));
   for (const file of ["index.mjs", "task-state.mjs", "git-workspace.mjs", "filesystem-inventory.mjs", "github-merge.mjs", "legacy-migration.mjs"]) {
     const source = fs.readFileSync(path.join(root, "scripts", "pr", file), "utf8");
     assert.doesNotMatch(source, /manage-task-worktrees\.mjs|cleanup-task-branches\.mjs|from\s+["'][^"']*testing\//);
