@@ -87,12 +87,12 @@ REQ-PWC-003/005/015/016의 실제 병합·삭제·수동 인수는 REPLACE가 �
 
 | 경로 | 변경 |
 | --- | --- |
-| `scripts/pr/process-usage.mjs` | 운영용 `inspectWorktreeUsage(options)`. 입력 검증 후 검증된 profile만 관측. 미지원은 무관측 unknown |
-| `scripts/pr/process-usage-probe.mjs` | 기존 실제 관측 구현을 이동한 `probeWorktreeUsage(options)`. qualification용 결과이며 자동 정리 권한이 없음 |
-| `scripts/pr/process-usage-contract.mjs` | 공통 입력 검증·초기 결과 구성만 공유. I/O·상태·권한 없음 |
-| `scripts/pr/process-usage.test.mjs` | runtime 입력·미지원·우회 거부·무변경 계약 |
-| `scripts/pr/process-usage-probe.test.mjs` | 기존 parser/오류·timeout·cancel·target drift 경계 검증 |
-| `scripts/pr/process-usage-qualification.test.mjs` | 기존 실제 cwd fixture와 macOS 증거 보완. 명시적 native 평가 모드 |
+| `scripts/pr/process-usage/process-usage.mjs` | 운영용 `inspectWorktreeUsage(options)`. 입력 검증 후 검증된 profile만 관측. 미지원은 무관측 unknown |
+| `scripts/pr/process-usage/process-usage-probe.mjs` | 기존 실제 관측 구현을 이동한 `probeWorktreeUsage(options)`. qualification용 결과이며 자동 정리 권한이 없음 |
+| `scripts/pr/process-usage/process-usage-contract.mjs` | 공통 입력 검증·초기 결과 구성만 공유. I/O·상태·권한 없음 |
+| `scripts/pr/process-usage/process-usage.test.mjs` | runtime 입력·미지원·우회 거부·무변경 계약 |
+| `scripts/pr/process-usage/process-usage-probe.test.mjs` | 기존 parser/오류·timeout·cancel·target drift 경계 검증 |
+| `scripts/pr/process-usage/process-usage-qualification.test.mjs` | 기존 실제 cwd fixture와 macOS 증거 보완. 명시적 native 평가 모드 |
 
 새 입력 flag로 mode/profile/allow-unknown/강제 실행을 받지 않는다. qualification을 원하면 별도의 후보 entry를 사용하며, 후속 controller는 운영용 entry만 소비해야 한다. runtime이나 제품에서 시험 fixture를 import하지 않는다.
 
