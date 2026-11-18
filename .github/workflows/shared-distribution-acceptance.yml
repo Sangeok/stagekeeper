@@ -78,9 +78,13 @@ jobs:
         env:
           TEMPLATES_TOKEN: ${{ secrets.E2E_TEMPLATES_TOKEN }}
           TRUSTED_HEAD: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$TRUSTED_HEAD" = "true" ] && [ -n "$TEMPLATES_TOKEN" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "::error::Shared native acceptance cannot run: trusted template access is unavailable outside a pull request"
+            exit 1
           else
             echo "::notice::Shared native acceptance is BLOCKED: trusted template access is unavailable"
             echo "ready=false" >> "$GITHUB_OUTPUT"
