@@ -1,21 +1,17 @@
-import os from "node:os";
+import { matchesMacCloseoutHostV1 } from "./macos-closeout-profile.mjs";
 import { createUsageResult, usageInputReason } from "./process-usage-contract.mjs";
 import { probeWorktreeUsage } from "./process-usage-probe.mjs";
 
-const qualifiedProfiles = [
-  { platform: "darwin", architecture: "arm64", release: "25.2.0", node: "v26.4.0",
-    id: "darwin-25.2.0-arm64-node26.4.0-lsof4.91-v1", backend: "darwin-lsof-4.91-current-uid-v1",
-    evidence: "conditional-macos-final.json", revision: "7a6b8049e796254ccbccd79040c46371d7e88643" },
-];
+const profile = {
+  id: "darwin-25.2.0-arm64-node26.4.0-lsof4.91-v1", backend: "darwin-lsof-4.91-current-uid-v1",
+  evidence: "conditional-macos-final.json", revision: "7a6b8049e796254ccbccd79040c46371d7e88643",
+};
 
 export async function inspectWorktreeUsage(options = {}) {
   const result = createUsageResult();
   const inputReason = usageInputReason(options);
   if (inputReason) { result.reasons = [inputReason]; return result; }
-  const unprivileged = process.getuid?.() > 0 && process.getuid?.() === process.geteuid?.();
-  const profile = unprivileged && qualifiedProfiles.find(value => value.platform === process.platform && value.architecture === process.arch
-    && value.release === os.release() && value.node === process.version);
-  if (profile) {
+  if (matchesMacCloseoutHostV1()) {
     const observed = await probeWorktreeUsage(options);
     const verifiedBackend = observed.observation.profile === profile.backend;
     observed.capability = { status: verifiedBackend ? "qualified" : "unqualified", profile: profile.id,

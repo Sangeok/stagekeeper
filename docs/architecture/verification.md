@@ -408,13 +408,23 @@ metadata walk는 자기 Node child에서 bigint device/inode와 timestamp를 읽
 다른 device 디렉터리는 진입 전에 거부한다. 동일 device가 모든 mount를 인증하지는 않는다.
 
 ignored 캐시는 node_modules, .next, src/generated, coverage, tsconfig.tsbuildinfo,
-next-env.d.ts로 제한한다. directory symlink/junction은 내부 cache target도 거부한다.
-제안했던 .next/node_modules → 같은 worktree의 node_modules 예외는 비활성화했다.
-Windows 2022 / Git 2.56.1.windows.1의 실제 fixture에서 Git remove가 exit 0이어도
-대상 폴더가 남아 양 OS 제거 gate를 통과하지 못했다. native 실험은 외부·sibling canary와
-잔존 여부를 계속 기록하지만 production 허용으로 해석하지 않는다. 외부/깨진/root/tracked
-링크도 거부한다. 별도 unlink, cache 삭제, force/remove/prune fallback은 없다.
-따라서 이런 링크가 남은 일반 build 결과는 linked-path로 인계/정리가 보류될 수 있다.
+next-env.d.ts로 제한한다. 위 Mac host profile에서 Apple Git 2.50.1 (Apple Git-155)을
+쓸 때 다음 두 Next 빌드 링크를 파일 보존 검사에서 허용한다. 접미사는 소문자 16진수 16자리다.
+
+| worktree 안의 링크 | 링크에 기록된 상대 경로 |
+| --- | --- |
+| `.next/node_modules/pg-<hex>` | `../../node_modules/pg` |
+| `.next/node_modules/@prisma/client-<hex>` | `../../../node_modules/@prisma/client` |
+
+원시 상대 경로와 실제 목적지가 모두 일치해야 한다. 링크·대상 패키지와 양쪽 상위
+디렉터리가 ignored여야 하고, 대상 패키지에는 추적 파일이 없어야 한다. scanner가
+같은 worktree 파일시스템에서 직접 관측한 일반 디렉터리만 사용한다. 봉인 및 제거 직전
+검사에서 지문이나 링크 목적지가 달라지면 폴더와 branch를 보존한다. 실제 제거에는
+별도의 최신 사용 관측과 병합 또는 retire 보존 증거가 필요하다.
+
+나머지 directory link와 미검증 환경은 계속 보류한다. Windows 2022 / Git 2.56.1.windows.1에서
+junction이 있는 worktree가 Git remove의 exit 0 뒤에도 남은 기록이 있다.
+직접 unlink·cache 삭제·강제 제거는 하지 않는다.
 
 최종 guard/HEAD/instance/파일 지문 확인과 intent 저장 후 `git worktree remove -- <path>`를
 한 번 실행한다. path/admin/registry가 모두 사라진 뒤에만 branch 처리로 간다. fresh 보존
@@ -498,7 +508,7 @@ Git env context override는 첫 Git 호출 전에 거부하고 no-lazy-fetch로 
 시험은 고정 6bb915a의 v1 두 소스를 Git 객체에서 임시 폴더에 꺼내므로 checkout fetch-depth 0이
 필수다. production에서 옛 writer를 import·실행하지 않는다. required native 자동 제거 성공은
 검증된 로컬 profile에서 `STAGEKEEPER_CLOSEOUT_NATIVE_REQUIRED=1 node --test
---test-name-pattern='native runtime removes' scripts/pr/cleanup.test.mjs`로 별도 검사한다.
+--test-name-pattern='native runtime removes|Next package link' scripts/pr/cleanup.test.mjs`로 별도 검사한다.
 일반 suite의 runtime unknown 보존 성공은 이 positive gate 통과를 대신하지 않는다.
 
 ## 저장소 스크립트

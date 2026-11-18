@@ -8,6 +8,37 @@ import { context, inspectFiles, json } from "./git-workspace.mjs";
 import { loadTask } from "./task-state.mjs";
 import { inventory } from "./filesystem-inventory.mjs";
 
+test("a build link must have the observed name, raw relative target, and an entirely untracked package", async t => {
+  const f = fixture(t); await f.bootstrap(); const a = await f.create();
+  const ctx = await context(f.root), stored = await loadTask(ctx, a.task);
+  const modules = path.join(a.path, "node_modules"), pkg = path.join(modules, "pg");
+  const build = path.join(a.path, ".next", "node_modules");
+  fs.mkdirSync(pkg, { recursive: true }); fs.mkdirSync(path.join(modules, "other"));
+  fs.mkdirSync(path.join(modules, "@prisma", "client"), { recursive: true });
+  fs.mkdirSync(build, { recursive: true });
+  const name = "pg-587764f78a6c7a9c", type = process.platform === "win32" ? "junction" : "dir";
+  const raw = path.relative(build, pkg);
+  const examples = [
+    [name, pkg],
+    [name, path.relative(build, path.join(modules, "other"))],
+    [name, path.relative(build, path.join(modules, "@prisma", "client"))],
+    [name, path.join("..", "..", "node_modules", "other") + path.sep + ".." + path.sep + "pg"],
+    ["pg-123", raw], ["pg-587764f78a6c7a9c.bak", raw],
+    ["unknown-587764f78a6c7a9c", raw],
+  ];
+  for (const [basename, target] of examples) {
+    const link = path.join(build, basename);
+    fs.symlinkSync(process.platform === "win32" ? path.resolve(build, target) : target, link, type);
+    try { await assert.rejects(() => inspectFiles(ctx, stored.record), { code: "linked-path" }); }
+    finally { fs.unlinkSync(link); }
+  }
+  const tracked = path.join(pkg, "user-file"); fs.writeFileSync(tracked, "keep");
+  f.git(["add", "-f", "node_modules/pg/user-file"], a.path); f.git(["commit", "-m", "track package file"], a.path);
+  fs.symlinkSync(process.platform === "win32" ? pkg : raw, path.join(build, name), type);
+  await assert.rejects(() => inspectFiles(ctx, stored.record), { code: "linked-path" });
+  assert.equal(fs.readFileSync(tracked, "utf8"), "keep");
+});
+
 test("Git locks, sparse checkout, nested repositories and submodules block even ancestor retirement", async t => {
   const f = fixture(t); await f.bootstrap(); const a = await f.create(), ctx = await context(f.root), stored = await loadTask(ctx, a.task);
   const cases = [

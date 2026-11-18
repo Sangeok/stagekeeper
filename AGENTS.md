@@ -206,9 +206,11 @@ commits that were already green on `dev`.
   --request-id <uuid> --pr <number> --usage-ended`. Owner strings are not authentication.
   Unknown ownership, dirty files, locks, foreign filesystems or external links preserve
   the worktree. Ignored build caches are allowed only within the documented boundary.
-  Directory symlinks/junctions, including generated .next/node_modules links into
-  the same worktree, remain blocked: the required Windows Git removal gate left
-  a residual directory. Do not unlink caches or add force/removal fallbacks.
+  On the verified Darwin 25.2.0 arm64 / Node v26.4.0 non-root profile with Apple
+  Git 2.50.1 (Apple Git-155), allow the two relative Next build directory links
+  for pg and @prisma/client described in verification.md. Both ends must be
+  ignored, untracked, in this worktree and on its filesystem. Preserve other
+  directory links and all Windows junctions. Do not pre-delete caches or links.
 - Automatic worktree removal requires the runtime's fresh qualified/clear/complete/settled
   observation. Windows and unqualified/unknown/busy results retain both the worktree
   and branch as `cleanup-pending`. A merged PR can therefore remain locally pending.

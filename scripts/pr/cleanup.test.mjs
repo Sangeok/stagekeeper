@@ -7,6 +7,92 @@ import { fixture } from "./testing/closeout-fixture.mjs";
 import { context, git, branchHead, inspectFiles } from "./git-workspace.mjs";
 import { loadTask, withGuard, saveTask } from "./task-state.mjs";
 
+function nextPackageLink(worktree, pkg, suffix) {
+  const target = path.join(worktree, "node_modules", pkg);
+  const link = path.join(worktree, ".next", "node_modules", pkg + "-" + suffix);
+  fs.mkdirSync(target, { recursive: true });
+  fs.mkdirSync(path.dirname(link), { recursive: true });
+  const relative = path.relative(path.dirname(link), target);
+  if (process.platform === "win32") fs.symlinkSync(target, link, "junction");
+  else fs.symlinkSync(relative, link, "dir");
+  return link;
+}
+
+function testedGitHost(f) {
+  return process.platform === "darwin" && os.release() === "25.2.0" && process.arch === "arm64"
+    && process.version === "v26.4.0" && process.getuid() > 0 && process.getuid() === process.geteuid()
+    && f.git(["--version"]) === "git version 2.50.1 (Apple Git-155)";
+}
+
+test("Next package links complete only the qualified worktree with native Git and usage observation", async t => {
+  const f = fixture(t, { native: true }); await f.bootstrap();
+  const a = await f.create("next-a"), b = await f.create("next-b"), head = f.commit(a);
+  f.pr(a, head);
+  nextPackageLink(a.path, "pg", "587764f78a6c7a9c");
+  nextPackageLink(a.path, "@prisma/client", "2c3a283f134fdcb6");
+  const ctx = await context(f.root), { record } = await loadTask(ctx, a.task);
+  const qualified = testedGitHost(f), required = process.env.STAGEKEEPER_CLOSEOUT_NATIVE_REQUIRED === "1";
+  const result = await f.run(f.effect(a, head));
+  if (required) assert.ok(qualified, "required build-link profile unavailable");
+  if (!qualified) {
+    assert.deepEqual(result.reasons, ["linked-path"]);
+    assert.equal(result.phase, "working"); assert.equal(f.state.puts, 0);
+  } else if (result.phase === "complete" || required) {
+    assert.equal(result.phase, "complete", JSON.stringify(result));
+    assert.equal(result.exitCode, 0); assert.equal(f.state.puts, 1);
+    assert.equal(result.lastObservation.capability, "qualified");
+    assert.equal(result.lastObservation.status, "clear"); assert.equal(result.lastObservation.coverageComplete, true);
+    assert.equal(await branchHead(ctx, a.branchName), null);
+    f.absent(a.path); f.absent(record.admin);
+    assert.equal(f.git(["worktree", "list", "--porcelain"]).includes(a.branchName), false);
+  } else {
+    assert.equal(result.phase, "cleanup-pending", JSON.stringify(result));
+    assert.ok(result.reasons.includes("unqualified-profile") || result.reasons.includes("usage-unverified"));
+  }
+  if (result.phase !== "complete") {
+    assert.equal(await branchHead(ctx, a.branchName), head);
+    assert.ok(fs.existsSync(a.path) && fs.existsSync(record.admin));
+  }
+  assert.equal(await branchHead(ctx, b.branchName), f.base);
+  assert.equal(fs.readFileSync(path.join(b.path, "README.md"), "utf8"), "fixture\n");
+});
+
+test("Next package link pointing into a sibling blocks complete before a merge request", async t => {
+  const f = fixture(t); await f.bootstrap();
+  const a = await f.create("source"), b = await f.create("sibling"), head = f.commit(a);
+  f.pr(a, head);
+  const link = nextPackageLink(a.path, "pg", "587764f78a6c7a9c");
+  fs.unlinkSync(link);
+  fs.symlinkSync(b.path, link, process.platform === "win32" ? "junction" : "dir");
+  const result = await f.run(f.effect(a, head));
+  assert.deepEqual(result.reasons, ["linked-path"]); assert.equal(result.phase, "working");
+  assert.equal(f.state.puts, 0); assert.equal(f.git(["rev-parse", a.branchName]), head);
+  assert.equal(f.git(["rev-parse", b.branchName]), f.base);
+  assert.equal(fs.readFileSync(path.join(link, "README.md"), "utf8"), "fixture\n");
+});
+
+test("Next package link retargeted during the final usage check preserves both branches and the merge receipt", async t => {
+  const f = fixture(t);
+  if (!testedGitHost(f)) return t.skip("requires qualified Mac build-link profile to reach post-merge cleanup");
+  await f.bootstrap();
+  const a = await f.create("changed"), b = await f.create("untouched"), head = f.commit(a);
+  f.pr(a, head);
+  const link = nextPackageLink(a.path, "@prisma/client", "2c3a283f134fdcb6");
+  f.ports.inspectUsage = async () => {
+    if (f.state.pr.merged) {
+      fs.unlinkSync(link); fs.symlinkSync(b.path, link, "dir");
+    }
+    return { status: "clear", capability: { status: "qualified" }, observationPerformed: true,
+      observation: { coverageComplete: true }, observer: { state: "settled" } };
+  };
+  const result = await f.run(f.effect(a, head));
+  assert.deepEqual(result.reasons, ["linked-path"]); assert.equal(result.phase, "cleanup-pending");
+  assert.equal(result.merge.head, head); assert.equal(f.state.puts, 1);
+  assert.equal(result.worktree.state, "present"); assert.equal(result.branch.state, "not-started");
+  assert.equal(f.git(["rev-parse", a.branchName]), head); assert.equal(f.git(["rev-parse", b.branchName]), f.base);
+  assert.equal(fs.readFileSync(path.join(link, "README.md"), "utf8"), "fixture\n");
+});
+
 test("native runtime removes only a qualified clear target and preserves an unverified target", async t => {
   const f = fixture(t, { native: true }); await f.bootstrap();
   const a = await f.create("native-a"), b = await f.create("native-b"), head = f.commit(a); f.pr(a, head);
@@ -39,7 +125,7 @@ test("native runtime removes only a qualified clear target and preserves an unve
   t.diagnostic(JSON.stringify({ platform: process.platform, release: os.release(), node: process.version, qualified, outcome: result.phase }));
 });
 
-test("generated directory links remain blocked while a native Git experiment checks target and canary preservation", async t => {
+test("unrecognized directory links remain blocked while a native Git experiment checks target and canary preservation", async t => {
   const f = fixture(t); await f.bootstrap(); const a = await f.create("link-a"), b = await f.create("link-b");
   const external = path.join(f.directory, "canary"); fs.mkdirSync(external); fs.writeFileSync(path.join(external, "data"), "preserve");
   fs.mkdirSync(path.join(a.path, "node_modules", "pg"), { recursive: true });
@@ -55,7 +141,7 @@ test("generated directory links remain blocked while a native Git experiment che
   assert.equal(fs.readFileSync(path.join(external, "data"), "utf8"), "preserve");
   assert.equal(fs.readFileSync(path.join(b.path, "README.md"), "utf8"), "fixture\n");
   assert.equal(await branchHead(ctx, a.branchName), f.base);
-  t.diagnostic(JSON.stringify({ platform: process.platform, gitRemovalExitedZero: true, targetRemains, productionExceptionEnabled: false }));
+  t.diagnostic(JSON.stringify({ platform: process.platform, gitRemovalExitedZero: true, targetRemains, unrecognizedLinkRejected: true }));
 });
 
 test("present worktree stays intact for busy and unknown usage, including a qualified incomplete observation", async t => {
