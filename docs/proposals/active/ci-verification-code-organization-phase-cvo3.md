@@ -3,7 +3,7 @@ status: "pending"
 stage: "blocked"
 proposal-size: "standard"
 created-at: "2026-11-18"
-updated-at: "2026-11-18"
+updated-at: "2026-11-19"
 approved-by: null
 approved-at: null
 approval-scope: null
@@ -28,12 +28,13 @@ related:
 
 ## 후보와 현재 증거
 
-| 구분 | 2026-11-18 조회 결과 | 실행 시 처리 |
+| 구분 | 조회 결과(11월 18일 기준, 재확인 날짜 별도 표기) | 실행 시 처리 |
 | --- | --- | --- |
 | CVO2 병합 기준 | PR #380의 `dev` 병합 SHA는 `634f70d39b4cc69e7f5c11031fcf71afe0e4b3ac`다. PR head `6043398`의 검사는 CVO2 회귀 기록으로 보존돼 있다. | 이 SHA는 CVO2 회귀의 기준이다. PR head에서 수행한 검사는 그 head의 기록으로 보존한다. [CVO2 기록](./ci-verification-code-organization-phase-cvo2.md) · [PR #380](https://github.com/Sangeok/stagekeeper/pull/380) |
 | 병합 SHA의 native | Windows는 실제 LPAC 파일 거부, 새 snapshot의 preflight·test/build 두 사례가 skip 없이 통과했고 offline build도 성공했다. macOS Intel의 runtime과 offline build도 성공했다. macOS ARM의 runtime과 `check/task-worktrees`는 러너를 배정받지 못해 실행 단계 0개로 취소됐다. | 이 SHA의 VFY-CVO-08에는 ARM 두 job이 남았다. 이를 복구해도 같은 SHA의 공개 클라이언트 인수까지 완료되지는 않는다. [Windows native job](https://github.com/Sangeok/stagekeeper/actions/runs/44312783867/job/134830960068) · [macOS](https://github.com/Sangeok/stagekeeper/actions/runs/44312784163) · [check](https://github.com/Sangeok/stagekeeper/actions/runs/44312783918) |
 | 병합 SHA의 공유 배포 | 세 job의 실제 인수 step과 `summary.json` 3개를 확인했다. 각각 후보·이전·template SHA 일치, 검사 7개, `result=pass`, 모델 호출 0, server/DB 정리 통과·정리 오류 0이다. 후보/이전 package에 package/runtime/verifier SHA256이 기록돼 있다. | 이 SHA를 유지할 때 공개 Codex bundle 설치 보조 증거로 재사용할 수 있다. run `44312784013` attempt 1의 artifact ID는 Windows `14430882746`, ARM `14432401225`, Intel `14431721210`이다. private 모델 결과는 별도 항목이다. [공유 배포 실행](https://github.com/Sangeok/stagekeeper/actions/runs/44312784013) |
-| 계획 기준과 후보 변경 | 이후 #381과 #382가 병합됐다. 문서를 작성한 `dev`는 `373dcca19143a1612969fcc94f50069643efa328`이다. #382는 공유 배포의 필수 입력과 승격 규칙을 바꿨다. 이 SHA에도 push CI 실행이 생성됐다. | 2026-11-18 재조회에서 `634f70d`의 공개 Actions 실행은 위 push 워크플로 4개뿐이었다. `client-init-smoke`, `agent-eval`, `pipeline-smoke` 실행이 없고 `--ref dev`는 이미 다른 SHA를 가리킨다. **전체 CVO3 인수를 위해서는 실행 시점의 dev SHA를 먼저 승인받는 경로를 권고한다.** 새 후보에서 모든 행을 다시 산정한다. [PR #381](https://github.com/Sangeok/stagekeeper/pull/381) · [PR #382](https://github.com/Sangeok/stagekeeper/pull/382) |
+| 계획 기준과 후보 변경 | 이후 #381과 #382가 병합됐다. 문서를 작성한 `dev`는 `373dcca19143a1612969fcc94f50069643efa328`이다. #382는 공유 배포의 필수 입력과 승격 규칙을 바꿨다. 11월 19일 재확인 결과 이 SHA의 push CI 네 개가 모두 성공했다. | 2026-11-18 재조회에서 `634f70d`의 공개 Actions 실행은 위 push 워크플로 4개뿐이었다. `client-init-smoke`, `agent-eval`, `pipeline-smoke` 실행이 없고 `--ref dev`는 이미 다른 SHA를 가리킨다. **전체 CVO3 인수를 위해서는 실행 시점의 dev SHA를 먼저 승인받는 경로를 권고한다.** 새 후보에서 모든 행을 다시 산정한다. [PR #381](https://github.com/Sangeok/stagekeeper/pull/381) · [PR #382](https://github.com/Sangeok/stagekeeper/pull/382) |
+| `373dcca`의 공유 배포 · 11월 19일 | run `44323638605`는 시도 2에서 완료됐다. 각 `summary.json`의 생성 시도와 artifact ID는 Windows `1 / 14435213598`, Intel `1 / 14435928944`, ARM `2 / 14439465557`이다. 세 요약 모두 같은 후보·이전 판·템플릿 SHA를 가리키고 검사 7개, `pass`, 모델 호출 0, 정리 오류 0을 기록했다. | 이 SHA가 승인되면 원래 job과 artifact를 연결해 재사용한다. 시도 2의 job 목록에 다시 나타난 Windows·Intel은 한 번씩만 집계한다. [공유 배포 실행](https://github.com/Sangeok/stagekeeper/actions/runs/44323638605) |
 | 모델·private 증거 | 조회 시 공개 원장 #319에서 위 두 전체 SHA에 해당하는 행을 찾지 못했다. 공개 저장소에는 private Mac wrapper·수집기 계약과 과거 pin이 기록돼 있다. 이번 조회 계정에서 private 저장소를 직접 확인할 수 없었다. | private 최신 pin·로그인 유효성·러너 가용성·기존 모델 결과는 미확인이다. 소유자가 제공한 검토 가능한 실행 출처를 확보할 때까지 해당 행을 차단으로 둔다. [원장 #319](https://github.com/Sangeok/stagekeeper/issues/319) · [private CI 조사 기록](./dual-client-ci-parity.md#재검토에서-확인한-private-ci) |
 
 **승격 정책과 단계 완료.** 최신 `AGENTS.md`에서 모델 없는 공유 배포는 승격 필수 검사다. 이 workflow에는 `record` job이 없다. Codex 모델 결과의 신뢰된 행이 없으면 승격 보고에 미검증으로 남기며 #319에 미검증 행을 쓰지 않는다. 반면 CVO3의 VFY-CVO-10은 기존 private macOS Codex 모델 인수를 포함한다. 그 결과가 없으면 CVO3 전체도 미완료다. 이번 단계의 산출물은 인수 기록이며 `main` 승격은 별도 결정이다. [저장소 운영 규칙](../../../AGENTS.md) · [현재 검증 계약](../../architecture/verification.md)
@@ -53,7 +54,8 @@ related:
 | --- | --- |
 | 소스·실행 출처 | run의 `headSha`로 실행을 찾은 뒤, 서버를 빌드한 checkout SHA와 설치 요약의 `pluginCommit`을 각각 승인한 후보 SHA와 대조한다. source-copy eval처럼 서버가 비해당인 행은 해당 계약을 따른다. workflow repo/ref/SHA, client·OS·architecture·버전은 별도로 기록한다. private workflow SHA는 public 제품 SHA와 용도가 다르다. |
 | 템플릿·평가 사례 | 공개 shared-distribution의 고정 template은 `8ccb37a4ab91de527e6a23caa6d415c7cdc6f215`다. Claude init은 `template_commit`, pipeline은 `templates-ref`에 승인된 전체 SHA를 주고 실제 checkout/요약과 대조한다. source-copy Claude eval은 후보의 `plugin/evals`와 control/gate 사례를 사용한다. schema 2로 판정할 때는 `fixtureCommit`과 실행한 복사본의 `copySha256`이 필요하다. server/template은 `not-applicable:source-copy-eval`로 기록한다. |
-| 설치물·이전 버전 | source 설치는 plugin commit·설치 채널·판, bundle은 package/runtime/verifier 해시와 설치 후 inventory를 남긴다. Claude update 전 `git ls-remote origin refs/heads/main`으로 기대하는 이전 SHA를 기록한다. Windows와 macOS의 `Resolve the previous release`는 각각 `main`을 fetch하므로 두 `summary_*.previousCommit`을 이 값과 따로 대조한다. 하나라도 다르면 해당 행을 보류하고 서로 다른 이전 버전의 결과를 한 쌍으로 합산하지 않는다. public shared-distribution의 previous는 `85c66fb1d9e02c3d9416710240cbfca3f0023939`에서 재생성한 fixture다. private update는 그 실행이 사용한 이전 bundle과 해시를 따로 확인한다. |
+| 실행한 설치물 | 공개 Claude init·pipeline의 `github-branch` 설치에서 `pluginCommit`은 marketplace clone의 HEAD다. `installPlugin`은 버전별 캐시에 generator가 있는지 확인하고 그 경로를 실행에 넘긴다. 기존 게이트 결과에는 이 SHA·채널·플러그인 버전을 기록한다. schema 2의 `payloadSha256`은 같은 실행에서 확인한 설치 내용의 해시여야 한다. 공개 요약에는 이 필드가 없으므로 별도 근거가 없으면 schema 2 설치물 일치는 미확인으로 남긴다. source 채널의 package/runtime/verifier 해시 세 필드에는 `not-applicable:source-channel`을 쓴다. bundle은 세 해시와 설치 후 inventory를 대조한다. [설치 구현](../../../scripts/rehearsals/client-init/claude-connection.ts) · [판정 계약](../../../scripts/rehearsals/client-ci-contract.mjs) |
+| 업데이트의 이전 버전 | Claude update 전 `git ls-remote origin refs/heads/main`으로 기대하는 이전 SHA를 기록한다. Windows와 macOS의 `Resolve the previous release`는 각각 `main`을 fetch하므로 두 `summary_*.previousCommit`을 이 값과 따로 대조한다. 하나라도 다르면 해당 행을 보류하고 서로 다른 이전 버전의 결과를 한 쌍으로 합산하지 않는다. public shared-distribution의 previous는 `85c66fb1d9e02c3d9416710240cbfca3f0023939`에서 재생성한 fixture다. private update는 그 실행이 사용한 이전 bundle과 해시를 따로 확인한다. |
 | 실행 승인 | 공개 무모델 게이트, private init, 실제 모델 eval/pipeline의 실행 주체·시나리오·동시 사용 제한·허용 시간/사용량·private 결과 검토 권한을 구분한다. 승인되지 않은 모델 행은 `미실행`으로 둔다. |
 
 첫 조회에는 후보의 공개 실행 전체와 #319의 해당 행, 열린 `[gate]` 이슈를 사용한다. 예를 들어 `gh api --paginate "repos/Sangeok/stagekeeper/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100"`로 run ID를 찾고 `gh run view "$RUN_ID" --json headSha,attempt,event,conclusion,jobs`로 실제 job을 확인한다. 일부 job만 재실행했다면 해당 job이 실행된 attempt까지 대조한다. 각 필수 행을 **재사용 가능 / 새 실행 필요 / 차단**으로 분류한다. 선택한 SHA와 입력이 모두 맞고 실제 단계·정리·검토 근거까지 있는 행만 재사용한다. 다른 SHA의 green, secret 부재로 모든 실질 단계가 skip된 job, 최신 실패가 남은 옛 성공은 합격 건수에 넣지 않는다. [결과 수집 계약](../../../scripts/rehearsals/client-ci-contract.mjs)
