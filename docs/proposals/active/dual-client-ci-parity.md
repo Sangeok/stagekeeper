@@ -4,8 +4,8 @@ stage: "blocked"
 proposal-size: "standard"
 created-at: "2026-11-15"
 approved-by: "user"
-approved-at: "2026-11-17"
-approval-scope: "기존 승인: 이 명세에 따른 실제 코드 수정과 로컬 검증, Windows x64·macOS arm64 × Claude·Codex 기본 4개 조합 우선 및 Intel runtime 검증 유지, private CI 대상 SHA 고정과 공통 증거 연결. 당시 Windows runner 부재 및 Mac 사용 불가에 따라 코드·로컬 검증만 진행했다. 원격 CI 실증 계획의 문서 반영·검토에 이어 2026-11-17 해당 문서 기반 실제 수정을 승인받았다. 확정한 순수 상태·관측 summary·판정 입력 계약의 구현과 합성 검증부터 수행한다. 미확정 provider/API·권한·한도·수집 운영에 의존하는 adapter와 실제 실행은 BLK-DCP-05를 유지한다. 실제 모델 실행, credential 등록·이동, 유료 자원 생성, 개인 설치 변경, 운영 template activation, 새 PR 병합·배포를 시작하지 않는다."
+approved-at: "2026-11-18"
+approval-scope: "기존 승인: 이 명세에 따른 실제 코드 수정과 로컬 검증, Windows x64·macOS arm64 × Claude·Codex 기본 4개 조합 우선 및 Intel runtime 검증 유지, private CI 대상 SHA 고정과 공통 증거 연결. 당시 Windows runner 부재 및 Mac 사용 불가에 따라 코드·로컬 검증만 진행했다. 원격 CI 실증 계획의 문서 반영·검토에 이어 2026-11-17 해당 문서 기반 실제 수정을 승인받았다. 확정한 순수 상태·관측 summary·판정 입력 계약의 구현과 합성 검증부터 수행한다. 미확정 provider/API·권한·한도·수집 운영에 의존하는 adapter와 실제 실행은 BLK-DCP-05를 유지한다. 실제 모델 실행, credential 등록·이동, 유료 자원 생성, 개인 설치 변경, 운영 template activation, 새 PR 병합·배포를 시작하지 않는다. 2026-11-18 사용자 결정: Codex를 서비스 대상으로 보고 Codex 사용자가 있다고 전제한다. 모델 없는 shared-distribution-acceptance를 main 승격 필수 조건으로 하고, Codex 모델 CI는 신뢰된 기록 연결 전까지 승격을 막지 않으며 승격 보고에 미검증으로 적는다. 이 작업은 Claude Code 세션이 이어받아 문서 복원·승격 규칙·private 계약 PR을 만든다. 병합은 PR마다 사용자 확인 뒤에 한다."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -110,10 +110,10 @@ private wrapper의 인증 홈과 설치 홈 분리는 보존한다. 이전 bundl
 | 환경 | 현재 확보한 소스/문서 근거 | 이번 목표 또는 미확정 사항 |
 | --- | --- | --- |
 | Windows x64 / Claude | 공개 init·pipeline CI | 기존 경로 유지, 공통 판정과 필요한 lifecycle 사례 보완 |
-| Windows x64 / Codex | 공통 runtime CI·과거 native 인수 | native bundle 신규/update·init·실제 모델 CI 경로 확정 및 추가 |
+| Windows x64 / Codex | 공통 runtime CI·과거 native 인수. 공개 `shared-distribution-acceptance`가 GitHub-hosted runner에서 고정 Codex CLI로 실제 bundle 신규 설치·재생성 fixture에서 update·init·이전 플러그인/새 서버 교체를 모델 없이 검사 | 실제 모델 CI 경로 확정 및 추가. update 시작점(재생성 fixture `85c66fb`)은 BLK-DCP-03 |
 | macOS arm64 / Claude | 공개 init CI; pipeline은 공개 표에 미충족 | 기존 승인된 macOS pipeline 작업과 연결 |
-| macOS arm64 / Codex | private workflow·설치 wrapper·고정 입력, 모델 없는 init 진입점과 단일 run 증거 연결 구현 | hosted 인증 상태 실증과 현재 후보의 실제 설치/모델 실행, 최종 후보 전체 증거 연결 보완 |
-| macOS x64 / 두 클라이언트 | 공통 runtime CI. 실제 모델/설치 전체 지원 범위는 조사 자료만으로 확정 불가 | 기존 x64 검사를 유지한다. 필수 native 인수 여부·runner·설치 채널을 P0에서 결정한다 |
+| macOS arm64 / Codex | private workflow·설치 wrapper·고정 입력, 모델 없는 init 진입점과 단일 run 증거 연결 구현. 공개 `shared-distribution-acceptance`의 모델 없는 bundle 설치·update·init도 이 조합에서 돈다 | hosted 인증 상태 실증과 현재 후보의 실제 설치/모델 실행, 최종 후보 전체 증거 연결 보완 |
+| macOS x64 / 두 클라이언트 | 공통 runtime CI. Codex는 공개 `shared-distribution-acceptance`의 모델 없는 bundle 설치·update·init도 `macos-15-intel`에서 돈다. 실제 모델/설치 전체 지원 범위는 조사 자료만으로 확정 불가 | 기존 x64 검사를 유지한다. 필수 native 인수 여부·runner·설치 채널을 P0에서 결정한다 |
 
 앞의 네 조합을 이번 구현 순서로 확정했다. Intel은 기존 runtime 검증을 유지하며 실제 모델 인수는 후속이다. 이는 Intel 지원 삭제나 전체 macOS 인수 완료 선언이 아니다. Claude의 기존 source 채널과 Codex의 local bundle 채널을 우선 유지한다.
 
@@ -441,7 +441,12 @@ DCPR의 결과는 `scope: codex-hosted-auth-proof`인 별도 요약으로 기록
 
 변경 선택은 workflow 작성과 함께 연결한다. 기존 Codex macOS 리허설·eval·공통 계약·패키징 경로는 `AGENTS.md`와 init PR paths에 반영됐다. 새 Windows entrypoint와 원격 실증 경로는 아직 없으며 구현 시 영향 분류와 관련 trigger/시험을 연결한다. P4에서 `pipeline-smoke-steps.test.mjs`, `verify-ci-coverage.test.mjs`로 각 추가 경로만 바꾼 입력의 gate 선택과 양 OS 보존을 검증한다. private 저장소 변경은 public `git diff`에 나타나지 않으므로 workflow revision·`ci-target.json` 변경도 별도 후보 재검증 사유다. 경로 존재 검사만으로 선택 완전성을 주장하지 않는다.
 
-Codex CI의 필수 승격 게이트 전환은 기존 공개 준비 작업의 결정과 연결한다. 현재 정책은 공개 전 Codex CI를 필수 게이트로 두지 않는다. 이 명세는 동등화 후의 강화된 조건을 제안하지만, P0에서 적용 시점·필수 집합·운영 책임을 확정하기 전에는 현행 승격 규칙을 이미 바꿨다고 기재하지 않는다. private 165분 job과 공개 gate 30분 초과 보고/취소 규칙의 적용 범위도 P0에서 명시하고, job timeout과 운영 취소 기준을 같은 값으로 읽지 않는다.
+2026-11-18 사용자 결정으로 Codex를 서비스 대상으로 보고, Codex 승격 조건을 두 단계로 나눈다.
+
+- 모델 없는 `shared-distribution-acceptance`는 승격할 SHA에서 녹색이어야 한다(`AGENTS.md`). 템플릿 입력이 없으면 이 job은 모든 단계를 건너뛰고 녹색으로 끝나므로, PR이 아닌 실행에서는 그 경우를 실패로 바꿔 건너뛴 녹색을 증거로 쓰지 않는다.
+- Codex 모델 CI(eval·pipeline)는 BLK-DCP-02/05의 runner·인증과 BLK-DCP-04의 신뢰된 기록 연결 전까지 승격을 막지 않는다. 승격할 SHA에 신뢰된 Codex 모델 기록이 없으면 승격 보고에 미검증으로 적는다. 기록 이슈 #319에는 미검증 행을 쓰지 않는다. 그 이슈는 실행 1회당 행 1개를 남기고, 신뢰된 기록이 없으면 미검증이 기본값이기 때문이다. 연결 뒤 모델 CI를 필수로 바꾸는 시점은 BLK-DCP-01에 남긴다.
+
+private 165분 job과 공개 gate 30분 초과 보고/취소 규칙의 적용 범위도 P0에서 명시하고, job timeout과 운영 취소 기준을 같은 값으로 읽지 않는다.
 
 같은 계정/홈을 쓰는 모델 작업은 저장소가 달라도 직렬화한다. GitHub `concurrency` 이름을 두 저장소에서 같게 적는 것으로 교차 저장소 잠금이 생겼다고 가정하지 않는다. 기존 private runner의 소유권과 실행 순서를 확인하고, 처음에는 소유자를 확인하는 직렬 dispatcher로 시작할 수 있다. 비용을 줄이기 위해 검증되지 않은 권한·인증 우회를 만들지 않는다.
 
@@ -463,7 +468,7 @@ Codex CI의 필수 승격 게이트 전환은 기존 공개 준비 작업의 결
 ### BLK-DCP-01: 지원 집합·승격 적용 시점과 추가 host 계약
 
 - classification: downstream; P0의 조사 산출물이며 P2/P3 진입을 막는다.
-- evidence: private workflow·고정 SHA·설치/기록 경로를 확인했다. 기본 네 조합부터 구현하고 Intel native 인수는 후속으로 둔다. hosted Windows/macOS가 우선 실증 후보이며 그 가용성·권한·운영 비용과 추가 채널·필수 승격 전환 시점은 미확정이다. 개인 Mac/Windows 부재 자체를 해결 조건으로 두지 않는다.
+- evidence: private workflow·고정 SHA·설치/기록 경로를 확인했다. 기본 네 조합부터 구현하고 Intel native 인수는 후속으로 둔다. hosted Windows/macOS가 우선 실증 후보이며 그 가용성·권한·운영 비용과 추가 채널은 미확정이다. 2026-11-18에 모델 없는 Codex 설치 검사의 승격 필수화와 모델 CI의 비차단·미검증 보고를 확정했다. 모델 CI를 필수로 바꾸는 시점은 남는다. 개인 Mac/Windows 부재 자체를 해결 조건으로 두지 않는다.
 - affects: REQ-DCP-001, REQ-DCP-002, REQ-DCP-013, TASK-DCP0-01.
 - impact: 존재하는 CI의 재작성, 누락된 leg의 오인, 다른 payload 결과 재사용 위험.
 - unblock requirement: 기본 네 조합과 기존 source/local-bundle 채널의 phase/scenario 집합을 실제 runner에 연결하고, Codex 승격 적용 시점·추가 runner·예산·시간 정책을 확정한다. 수동 private CI를 정기 실행으로 임의 전환하지 않는다. Intel의 기존 검증은 유지하고 native 확대는 별도 후속으로 남긴다. 비밀값 본문은 읽거나 문서에 넣지 않는다.
@@ -572,7 +577,7 @@ private `check.yml`에는 기존 Ubuntu `check`를 유지하고 `native-host` jo
 
 ### Phase DCP0: 실행 범위와 선행 조건 확정
 
-- status: In progress. 기본 네 조합·Intel 후속과 hosted 우선 실증 방향을 기록했다. 인증 보관 서비스·한도·필수 승격 전환·기존 template 선행 조건은 남아 있다.
+- status: In progress. 기본 네 조합·Intel 후속과 hosted 우선 실증 방향을 기록했다. 2026-11-18에 모델 없는 Codex 검사의 필수 승격 전환을 확정했다. 인증 보관 서비스·한도·모델 CI 필수 전환 시점·기존 template 선행 조건은 남아 있다.
 - satisfies: REQ-DCP-001, REQ-DCP-008, REQ-DCP-011, REQ-DCP-012, REQ-DCP-013, REQ-DCP-014, REQ-DCP-015
 - preserves: INV-DCP-001, INV-DCP-002, INV-DCP-003
 - governed-by: CON-DCP-001, CON-DCP-002, CON-DCP-004, CON-DCP-005
@@ -631,7 +636,7 @@ private `check.yml`에는 기존 Ubuntu `check`를 유지하고 `native-host` jo
 
 ### Phase DCPR: hosted 인증 상태와 새 runner 재실행 실증
 
-- status: In progress. TASK-DCPR-01의 순수 상태·관측 parser·판정기와 합성 시험을 작업 브랜치에 구현했다. controller·host adapter/native 시험·실제 provider·workflow/수집은 남았으며 실제 서비스/credential 사용의 진입 조건을 구분한다.
+- status: In progress. TASK-DCPR-01의 순수 상태·관측 parser·판정기와 합성 시험을 구현해 [private PR #13](https://github.com/Sangeok/stagekeeper-codex-ci/pull/13)으로 올렸다. controller·host adapter/native 시험·실제 provider·workflow/수집은 남았으며 실제 서비스/credential 사용의 진입 조건을 구분한다.
 - satisfies: REQ-DCP-008, REQ-DCP-009, REQ-DCP-012, REQ-DCP-014, REQ-DCP-015
 - preserves: INV-DCP-001, INV-DCP-002, INV-DCP-003
 - governed-by: CON-DCP-001, CON-DCP-002, CON-DCP-003, CON-DCP-004, CON-DCP-005
@@ -863,6 +868,14 @@ front matter는 승인 기록의 단일 기준이다. 2026-11-17 문서 기반 �
 - 구현 요청을 받으면 승인된 단계/범위만 수행하고, 범위 밖 단계·private workflow 변경·실제 모델 사용·배포를 자동으로 시작하지 않는다. 이미 승인된 다른 작업의 같은 승인을 다시 요구하지 않고 실제 소유 범위를 확인한다.
 
 ## Verification Results
+
+### Ownership, restoration and Codex promotion policy — 2026-11-18
+
+- 사용자 결정으로 이 작업을 Codex 세션 `01a1d2a8-e6d6-7c73-a3b2-c9bddf793930`에서 Claude Code 세션이 이어받았다. 그 Codex 세션은 이 작업을 더 수정하지 않는다.
+- 2026-11-16~17에 쓴 원격 실증 계획(REQ-DCP-014, CON-DCP-005, BLK-DCP-05, Phase DCPR)은 삭제된 worktree `stagekeeper-remote-ci-proof-plan`에만 있었고 커밋되지 않았다. 그 세션 로그의 `apply_patch` 기록에서 원래 성공한 편집 16개를 시작 blob `076cca6`에 순서대로 다시 적용했다. 모든 hunk가 문맥과 정확히 일치했다. 원래 실패한 편집 1개는 적용하지 않았다. 그 뒤 dev의 `b577c0d` 변경(ci-os-coverage 링크 이동)과 3-way 병합했다. 충돌은 영향 파일 표의 이웃한 두 행 하나뿐이었고 각 쪽의 새 행을 택했다.
+- 미커밋으로 남은 private 계약 코드(`harness/hosted-auth-contracts`)는 private `dev` `55852e3`로 rebase해 [private PR #13](https://github.com/Sangeok/stagekeeper-codex-ci/pull/13)으로 올렸다. Windows, Node `v22.13.1`에서 `npm run test:hosted-auth-contracts` 96개와 `run-codex-ci.test.mjs` 7개가 통과했다. 전체 private `check`는 PR의 Linux check로 확인한다.
+- 승격 정책: 모델 없는 `shared-distribution-acceptance`를 승격 필수 조건으로 하고, PR이 아닌 실행에서 템플릿 입력이 없으면 실패하게 한다. Codex 모델 CI는 승격을 막지 않고 승격 보고에 미검증으로 적는다. `AGENTS.md`와 workflow 변경은 별도 PR이다.
+- 2026-11-18 확인: `c7c0a13`(main, 0.6.16)에는 shared-distribution 실행이 없지만, 문서만 다른 같은 트리의 `9937829`에서 녹색이었다. 최근 다리별 실행 시간은 3~11분이다.
 
 ### Hosted auth pure contracts — 2026-11-17
 
