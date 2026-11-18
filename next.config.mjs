@@ -10,7 +10,10 @@ function isRecord(value) {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   turbopack: {},
-  ...(windowsRole ? { experimental: { cpus: 2, useTypeScriptCli: false } } : {}),
+  experimental: {
+    agentUpgrade: "security",
+    ...(windowsRole ? { cpus: 2, useTypeScriptCli: false } : {}),
+  },
   webpack(config) {
     if (!windowsRole) return config;
     config.cache = false;

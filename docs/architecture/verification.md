@@ -806,7 +806,7 @@ macOS에서는 Turbopack CSS 변환의 내부 포트 bind를 피하고 일반 We
 이하 preload·SWC 호환 처리는 Windows에만 적용한다. Next 설정은
 SWC의 TS 설정 변환을 거치지 않는 `next.config.mjs`다. 원본 tsconfig와 Webpack의
 경로 별칭 해석은 유지하며, SWC loader의 중복 별칭 변환만 제외한다. native Rust의
-DOS 경로 canonicalize 제한을 피하기 위한 현재 Next 16.4.2 호환 경로다. loader 구조는
+DOS 경로 canonicalize 제한을 피하기 위한 현재 Next 16.4.6 호환 경로다. loader 구조는
 semver 보장 API가 아니므로 지원한 구조가 없으면 실패하며 CI의 실제 전체 빌드가
 업그레이드 회귀를 확인한다. 타입 검사를 생략하지 않는다.
 
