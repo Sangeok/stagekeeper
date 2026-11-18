@@ -184,8 +184,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   따르는지 본다. Haiku 대조 실행으로 등록, 생성기 실행, 관리 파일 쓰기의 감지가 모두 동작하는지 증명한 뒤 `gate`
   태그 사례 3개를 Opus 5.5로 3회씩 돌리고, 한 번이라도 판정이 어긋나면 실패한다. 사례는 연결된 저장소의
   재실행(`rerun-asks-first`), 처음 연결에서 등록과 `harness.json` 쓰기 전에 묻는지
-  (`first-connection-asks-before-register`), 초안과 함께 보인 플랜 자리 안내까지 보고 승인하면 등록과 `harness.json` 쓰기까지 하고 생성 전에는
-  다시 묻는지(`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
+  (`first-connection-asks-before-register`), 초안과 플랜 자리 안내를 보이고 yes를 물은 앞 턴(`history.jsonl`)을 이어 받아
+  yes를 주면 등록과 `harness.json` 쓰기까지 하고 생성 전에는 다시 묻는지(`first-connection-asks-before-writing`)다. eval 셸 래퍼는 `--register`를 서버 대신 fixture 프로젝트로 답하고,
   실행마다 셸 명령을 격리된 임시 폴더에 기록한다. 모델 CLI stdout/stderr와 원본 JSON은 runner 임시 파일로만
   받고, 공개 로그에는 허용된 사례 이름·점수·실행 수·실패 수·실패한 grader 이름과 그 실패 횟수·비용·시간만 출력한다.
   grader 이름은 `plugin/evals/<사례>/case.yaml`에 정해진 식별자만 남긴다. 셸 명령과 assistant 본문은
