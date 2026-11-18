@@ -353,9 +353,9 @@ process-usage와 UPSTREAM 및 후보 시험은 QUALIFY에서 이미 생성됐다
 | `scripts/pr/task-state.mjs` | identity·상태·원격 intent/결과·예상 상태 갱신 |
 | `scripts/pr/git-workspace.mjs` | 생성·경로/파일 검사·worktree/ref 제거 |
 | `scripts/pr/github-merge.mjs` | PR/CI 조회·exact-head 요청·원격 결과 대조 |
-| `scripts/pr/process-usage.mjs` | profile/capability와 OS 관측. 종료 인계는 task-state/controller 소유 |
+| `scripts/pr/process-usage/process-usage.mjs` | profile/capability와 OS 관측. 종료 인계는 task-state/controller 소유 |
 | `scripts/pr/legacy-migration.mjs` | v1 reader와 일회 전환; 구 writer import 없음 |
-| `scripts/pr/*.test.mjs` | 책임별 실제 Git·파일·프로세스·원격 대역 시험 |
+| `scripts/pr/**/*.test.mjs` | 책임별 실제 Git·파일·프로세스·원격 대역 시험 |
 | `scripts/pr/UPSTREAM.md` | 고정 원본과 이식 대응표·고지 위치 |
 
 상태·삭제·원격 mutation·플랫폼 관찰은 변경 이유가 달라 분리한다. 공용 utility framework나 제품 공유 패키지를 만들지 않는다. 추가 OS helper는 QUALIFY의 근거와 제한된 경로를 확정한 후 도입한다.
@@ -621,7 +621,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 - satisfies: REQ-PWC-014
 - preserves: INV-PWC-002, INV-PWC-005, INV-PWC-006
 - governed-by: CON-PWC-001, CON-PWC-003, CON-PWC-005, CON-PWC-006, CON-PWC-008
-- destination: 기존 `scripts/pr/process-usage.mjs`, `process-usage.test.mjs`, `UPSTREAM.md`와 별도로 제안하는 `process-usage-qualification.test.mjs`.
+- destination: 기존 `scripts/pr/process-usage/process-usage.mjs`, `process-usage.test.mjs`, `UPSTREAM.md`와 별도로 제안하는 `process-usage-qualification.test.mjs`.
 - delta: 기존 parser·bounded observer·unknown 판정을 보존한다. profile 자격과 관측 실행 여부를 추가하고 runtime의 미지원 결과와 후보 qualification을 분리한다. macOS의 필수 native 사례 누락을 닫기 전에는 qualified로 등록하지 않는다.
 - verified-by: VFY-PWC-09
 - stop: unknown→clear, fixture PID 한정 관측, 권한 상승, 기존 실패 기록의 성공 전환, 목표 결정 전 Windows gate 완화는 금지한다.
@@ -813,7 +813,7 @@ static import/npm/CI/문서를 조사했다. 앱 route·barrel·public URL·ambi
 ### VFY-PWC-09: 실제 OS 관측과 capability
 
 - category: integration.
-- destination: 기존 `scripts/pr/process-usage.test.mjs`, 새로 제안한 `process-usage-qualification.test.mjs`, 기존 `windows-directory-usage.test.mjs`; Windows 2022/macOS 15.
+- destination: 기존 `scripts/pr/process-usage/process-usage.test.mjs`, 새로 제안한 `process-usage-qualification.test.mjs`, 기존 `windows-directory-usage.test.mjs`; Windows 2022/macOS 15.
 - verifies: REQ-PWC-014
 - expected: runtime 미지원은 unknown·관측 미실행·coverage false로 구분하고 native 성공으로 세지 않는다. qualified 후보는 실제 부모/하위 cwd·다른 세션·종료 후 clear·권한/alias/중단 사례와 population 근거를 입증한다. Windows directory 반례의 살아 있는 cwd 누락도 실제 OS에서 보존한다.
 - limit: 다른 계정·특권·원격 host 전체 가시성은 미인증. mock은 native 자격을 증명하지 않는다.
@@ -895,7 +895,7 @@ npm run docs:check
 npm run verify:ci-coverage
 ~~~
 
-새 focused 시험은 구현 후 `npm exec --call "node --test scripts/pr/*.test.mjs"`로 연결한다. 파일이 실제 발견되는지 확인하고 native 사례 skip을 통과로 세지 않는다. CI leg 변경과 coverage 표를 같은 변경에서 맞춘다.
+새 focused 시험은 구현 후 `npm exec --call "node --test scripts/pr/*.test.mjs scripts/pr/process-usage/*.test.mjs"`로 연결한다. 파일이 실제 발견되는지 확인하고 native 사례 skip을 통과로 세지 않는다. CI leg 변경과 coverage 표를 같은 변경에서 맞춘다.
 
 ~~~text
 create/bind                   → VFY 01/02

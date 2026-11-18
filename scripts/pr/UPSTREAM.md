@@ -4,9 +4,9 @@
 
 ## Runtime과 후보 평가 경계
 
-조건부 방향 채택 이후 `process-usage.mjs:inspectWorktreeUsage`는 운영용 결과 경계,
-`process-usage-probe.mjs:probeWorktreeUsage`는 실제 native 후보 평가다.
-입력과 초기 결과는 `process-usage-contract.mjs`가 공유한다.
+조건부 방향 채택 이후 `process-usage/process-usage.mjs:inspectWorktreeUsage`는 운영용 결과 경계,
+`process-usage/process-usage-probe.mjs:probeWorktreeUsage`는 실제 native 후보 평가다.
+입력과 초기 결과는 `process-usage/process-usage-contract.mjs`가 공유한다.
 등록된 runtime profile은 Darwin 25.2.0 / arm64 / Node v26.4.0, real/effective UID가 같은 non-root 사용자 하나의 profile이다.
 7a6b804의 실제 후보 시험 17건과 conditional-macos-final.json에 근거한다.
 backend의 lsof 4.91/libproc/current-UID 결과도 호출 때 재검증한다. runtime 진입점
@@ -20,7 +20,7 @@ host·cwd 밖의 파일 사용과 외부 writer 차단은 미인증이다. caret
 모든 권한 조합의 가시성 인증으로 확대하지 않는다.
 
 공통/실제 native/Windows 반례 시험을 분리했다. `STAGEKEEPER_USAGE_QUALIFICATION=all`
-로 `node --test scripts/pr/process-usage-qualification.test.mjs`를 실행하면 기존
+로 `node --test scripts/pr/process-usage/process-usage-qualification.test.mjs`를 실행하면 기존
 Windows 정상 대조군도 계속 평가한다. 현재 Windows 실패가 사라진 것은 아니다.
 `macos` 모드는 macOS 후보 자격 시험의 선택이며 runtime capability를 켜지 않는다.
 
@@ -47,7 +47,7 @@ OpenClaw c7ccc5e8bc96d9ba1dc2463145ebd33338813d02의 scripts/pr-lib/common.sh에
 - 추가 설치·권한 상승·SeDebugPrivilege 활성화 없음. Core 또는 x64 layout 조건이 없으면 unknown.
 - process token SID로 같은 계정을 식별한다. 소유자를 읽지 못한 process는 전체 관측을 불완전하게 만든다.
 - Microsoft의 PROCESS_BASIC_INFORMATION/PEB와 제한된 RTL_USER_PROCESS_PARAMETERS prefix를 읽는다. command line·env·memory dump를 수집하지 않는다.
-- prefix의 구조 근거: winsiderss/phnt revision 53fbbdc5b5d2b08761db1c7b26bfa8c820924356, ntrtl.h의 RTL_USER_PROCESS_PARAMETERS. MIT 고지를 platform/PHNT-LICENSE에 보존한다.
+- prefix의 구조 근거: winsiderss/phnt revision 53fbbdc5b5d2b08761db1c7b26bfa8c820924356, ntrtl.h의 RTL_USER_PROCESS_PARAMETERS. MIT 고지를 process-usage/platform/PHNT-LICENSE에 보존한다.
 - Kernel PID 0/4는 user-mode process parameter가 없는 OS kernel 항목으로 제외한다. 그 밖의 process를 이름이나 테스트 PID 목록으로 제외하지 않는다.
 - same-account 32-bit/WOW64, 미검증 layout, 접근 실패, 전후 process identity 변경은 unknown이다. 양 OS native 시험 전 Windows 자격 통과를 주장하지 않는다.
 
@@ -65,7 +65,7 @@ References:
 
 ### Windows Q3 대안 실험
 
-`testing/windows-directory-probe.cs`와 `windows-directory-usage.test.mjs`는 운영 adapter에
+`process-usage/testing/windows-directory-probe.cs`와 `process-usage/windows-directory-usage.test.mjs`는 운영 adapter에
 연결하지 않은 Windows 20348/x64 전용 실험이다. 기존 PEB 후보의 실패를 성공으로
 바꾸거나 대체 관측으로 합성하지 않는다.
 
@@ -129,7 +129,7 @@ macOS local 및 GitHub macos-15의 native 경로는 통과했다. Windows 2022 x
   Windows junction과 다른 directory link는 보존한다.
 
 OpenClaw는 MIT이며 참고 revision의 [LICENSE](https://github.com/openclaw/openclaw/blob/c7ccc5e8bc96d9ba1dc2463145ebd33338813d02/LICENSE)를 따른다.
-기존 phnt에서 가져온 layout의 MIT 고지는 `platform/PHNT-LICENSE`에 계속 보존한다.
+기존 phnt에서 가져온 layout의 MIT 고지는 `process-usage/platform/PHNT-LICENSE`에 계속 보존한다.
 
 - [OpenClaw merge 흐름](https://github.com/openclaw/openclaw/blob/c7ccc5e8bc96d9ba1dc2463145ebd33338813d02/scripts/pr-lib/merge.sh)
 - [GitHub merge endpoint](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)

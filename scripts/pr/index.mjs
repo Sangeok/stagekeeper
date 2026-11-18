@@ -4,7 +4,7 @@ import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLi
 import { MIGRATION_REF, activation, requireActivation, loadTask, listTasks, readStateObject, validTask, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
 import { migrate, validJournal } from "./legacy-migration.mjs";
 import { pull, preflight, requestMerge, observeMerge, mergeProof, preservation, noOpenDependencies } from "./github-merge.mjs";
-import { inspectWorktreeUsage } from "./process-usage.mjs";
+import { inspectWorktreeUsage } from "./process-usage/process-usage.mjs";
 
 const common = ["operation", "root", "signal"];
 const task = ["task", "owner", "expectedState"];
