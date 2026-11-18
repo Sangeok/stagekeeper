@@ -85,7 +85,7 @@ QUALIFY의 Windows 미지원 결정과 운영 runtime profile은 변경하지 �
 ## Evidence Registry
 
 - 운영 mjs 10개를 파일명 사전순으로 name + NUL + bytes 연결한 SHA-256:
-  fdc2a698998b5f5636d0139c8240cb75ac81af5992b57b6effc066b1b4ce1fff.
+  7b2cfcb8865185c3f58bafd77f257bf919bf92161ec89ec41cf090790b30b8d6.
   source 파일 목록은 scripts/pr의 *.mjs에서 *.test.mjs를 제외한다.
 - native positive: Darwin 25.2.0 / arm64 / Node v26.4.0, 실제 runtime이 qualified/clear를
   반환한 뒤 complete, target path/ref 부재와 sibling 파일/ref 보존 assertion. e50fbd7에서도
@@ -107,9 +107,10 @@ QUALIFY의 Windows 미지원 결정과 운영 runtime profile은 변경하지 �
 | migration fixture가 UUID 정렬과 생성 순서를 혼동 | 실제 게시 순서의 두 번째 marker에 I/O 실패를 주입하도록 수정. 사용자 자료 처리 정책 변경 없음 |
 | required checks 없음의 CLI exit 1 | GraphQL required 여부를 직접 조회. malformed/pagination/pending 음성 대조 및 실제 GET/query 확인 |
 | 이관 실패 JSON에 canonical journal OID 누락 | status와 실패 결과에 migration state/phase/digest/fence를 노출해 별도 raw ref 조회 없이 재개 가능. 실제 부분 게시 fixture에서 OID/read-only status assertion PASS |
+| 상태 JSON의 PR·retire 목적 및 관측 시점 구분 | PR/purpose/현재 ref HEAD와 lastObservation을 출력하고 observationPerformed는 이번 호출만 반영. branch-only/ack는 과거 관측이 있어도 false, 미지원 이유는 unqualified-profile |
 | ack 같은 request replay 때 state 재작성 | 부재/보존/head를 재검증한 뒤 원래 receipt OID 그대로 반환. replay assertion PASS |
 | Windows Git directory junction 제거 뒤 target 잔존 | [44204131088 Windows job](https://github.com/Sangeok/stagekeeper/actions/runs/44204131088/job/134465600440)의 실제 실패. 내부 directory-link 예외를 전 OS에서 비활성화하고 linked-path 보존. 후속 44205288567의 양 OS gate PASS. force/unlink fallback 없음 |
-| 로컬 병렬 architecture에서 기존 150ms eval fixture의 출력 누락 | 해당 테스트의 source 변경 없음. 단독 4/4 PASS를 확인했고 전체 suite를 직렬 실행해 재검증 중 |
+| 로컬 병렬 architecture에서 기존 150ms eval fixture의 출력 누락 | 해당 테스트의 source 변경 없음. 단독 4/4 PASS를 확인했고 전체 suite 직렬 실행 392건 중 389 PASS·3 환경별 skip으로 확인 |
 | native 부하에서 unknown | 삭제를 보류하는 기존 계약 유지. 별도 positive gate로 실제 자동 제거 성공 확인 |
 
 ## Test Data and Cleanup

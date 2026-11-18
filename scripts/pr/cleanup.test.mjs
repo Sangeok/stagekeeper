@@ -25,7 +25,7 @@ test("native runtime removes only a qualified clear target and preserves an unve
     assert.equal(f.git(["for-each-ref", "--format=%(refname)", "refs/heads/" + a.branchName]), "");
   } else {
     assert.equal(result.phase, "cleanup-pending", JSON.stringify(result));
-    assert.deepEqual(result.reasons, ["usage-unverified"]);
+    assert.deepEqual(result.reasons, [result.capability === "unqualified" ? "unqualified-profile" : "usage-unverified"]);
     assert.equal(fs.existsSync(a.path), true); assert.equal(f.git(["rev-parse", a.branchName]), head);
     f.git(["worktree", "remove", "--", a.path]);
     const ack = await f.run(f.effect(result, head, "acknowledge-removal", { externalRemovalConfirmed: true }));
@@ -65,7 +65,13 @@ test("present worktree stays intact for busy and unknown usage, including a qual
   const busy = await f.run(f.effect(a, head)); assert.deepEqual(busy.reasons, ["worktree-in-use"]); assert.equal(f.state.puts, 0);
   f.ports.inspectUsage = async () => ({ status: "unknown", capability: { status: "qualified" }, observationPerformed: true, observation: { coverageComplete: false }, observer: { state: "settled" } });
   const unknown = await f.run(f.effect(a, head)); assert.equal(unknown.phase, "cleanup-pending");
+  assert.equal(unknown.observationPerformed, true); assert.equal(unknown.purpose, "merged"); assert.equal(unknown.pr.number, 1);
   assert.equal(fs.existsSync(a.path), true); assert.equal(f.git(["rev-parse", a.branchName]), head); assert.equal(f.state.puts, 1);
+  f.git(["worktree", "remove", "--", a.path]);
+  const ack = await f.run(f.effect(unknown, head, "acknowledge-removal", { externalRemovalConfirmed: true }));
+  assert.equal(ack.observationPerformed, false); assert.equal(ack.lastObservation.performed, true);
+  const done = await f.run(f.effect(ack, head, "cleanup"));
+  assert.equal(done.phase, "complete"); assert.equal(done.observationPerformed, false); assert.equal(done.lastObservation.status, "unknown");
 });
 
 test("manual receipt cannot delete a changed tip or a re-created target", async t => {

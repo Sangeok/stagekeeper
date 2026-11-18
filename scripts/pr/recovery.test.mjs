@@ -16,7 +16,10 @@ test("a killed invocation retains durable merge intent and only explicit dead-gu
   t.after(async () => { if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL"); await closed; });
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("intent handshake timeout")), 30000);
-    child.stdout.once("data", data => { clearTimeout(timer); data.toString() === "intent-ready\n" ? resolve() : reject(new Error(data.toString())); });
+    child.stdout.once("data", data => {
+      clearTimeout(timer);
+      if (data.toString() === "intent-ready\n") resolve(); else reject(new Error(data.toString()));
+    });
     child.once("error", error => { clearTimeout(timer); reject(error); });
     child.once("exit", () => { clearTimeout(timer); reject(new Error("worker exited before intent")); });
   });
@@ -80,6 +83,8 @@ test("status and remote inspect preserve refs, metadata and config, and never in
   const inactive = await f.run({ operation: "status" }); assert.equal(inactive.active, false);
   assert.equal(fs.existsSync(path.join(f.common, "stagekeeper-pr-closeout")), false);
   await f.bootstrap(); const a = await f.create(), head = f.commit(a); f.pr(a, head);
+  const working = await f.run({ operation: "status", task: a.task });
+  assert.equal(working.head, head); assert.equal(working.liveHead, head); assert.equal(working.pr, null); assert.equal(working.observationPerformed, false);
   const refs = f.git(["show-ref"]), ctx = await context(f.root), state = (await loadTask(ctx, a.task)).oid;
   const report = await f.run({ operation: "inspect", task: a.task, pr: 1, remote: true });
   assert.equal(report.exitCode, 0, json(report)); assert.equal(report.remote.pr.state, "OPEN");

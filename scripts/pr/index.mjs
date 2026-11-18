@@ -116,6 +116,7 @@ async function observeUsage(ctx, record) {
     capability: value.capability?.status === "qualified" ? "qualified" : "unqualified", profile: value.capability?.profile ?? null,
     revision: value.capability?.revision ?? null, performed: value.observationPerformed === true, coverageComplete: value.observation?.coverageComplete === true,
     settled: value.observer?.state === "settled" };
+  ctx.usageObservation = observation;
   return observation;
 }
 const clearUsage = o => o.status === "clear" && o.capability === "qualified" && o.performed && o.coverageComplete && o.settled;
@@ -191,7 +192,8 @@ async function cleanup(ctx, stored, options) {
     if (files.fingerprint !== r.release.fingerprint) refuse("files-changed");
     const observation = await observeUsage(ctx, r);
     if (!clearUsage(observation)) {
-      await change(ctx, stored, { phase: "cleanup-pending", observation, reasons: [observation.status === "busy" ? "worktree-in-use" : "usage-unverified"],
+      const reason = observation.status === "busy" ? "worktree-in-use" : observation.capability === "unqualified" ? "unqualified-profile" : "usage-unverified";
+      await change(ctx, stored, { phase: "cleanup-pending", observation, reasons: [reason],
         requests: requestChange(stored, options, "pending") }); return;
     }
     await withGuard(ctx, "common", undefined, async () => {
@@ -325,9 +327,10 @@ async function taskCommand(ctx, stored, options) {
 function report(operation, stored, extra = {}) {
   const r = stored?.record;
   return { schemaVersion: 1, operation, task: r?.taskId ?? null, state: stored?.oid ?? null, phase: r?.phase ?? null,
-    merge: r?.merge ?? null, worktree: r?.worktree ?? null, branch: r?.branchEffect ?? null, capability: r?.observation?.capability ?? null,
-    observationPerformed: r?.observation?.performed ?? false, reasons: r?.reasons ?? [], nextActions: r?.phase === "cleanup-pending" ? ["inspect", "cleanup"] : [],
-    ...(r ? { owner: r.owner, path: r.path, branchName: r.branch, instance: r.instanceId, head: r.release?.head ?? null, sequence: r.sequence } : {}), ...extra };
+    pr: r?.pr ?? null, purpose: r?.purpose ?? null, merge: r?.merge ?? null, worktree: r?.worktree ?? null, branch: r?.branchEffect ?? null,
+    capability: r?.observation?.capability ?? null, lastObservation: r?.observation ?? null, externalRemoval: r?.externalRemoval ?? null,
+    observationPerformed: false, reasons: r?.reasons ?? [], nextActions: r?.phase === "cleanup-pending" ? ["inspect", "cleanup"] : [],
+    ...(r ? { owner: r.owner, path: r.path, branchName: r.branch, instance: r.instanceId, head: r.release?.head ?? (operation === "create" ? r.baseSha : null), sequence: r.sequence } : {}), ...extra };
 }
 async function migrationStatus(ctx) {
   const oid = await refOid(ctx, MIGRATION_REF);
@@ -349,6 +352,13 @@ export async function runPrCommand(input, ports = {}) {
       const migration = await migrationStatus(ctx);
       if (options.task) stored = await loadTask(ctx, options.task);
       const tasks = stored ? [stored] : await listTasks(ctx);
+      const views = [];
+      for (const task of tasks) {
+        let liveHead = null, localReasons = [];
+        try { liveHead = await branchHead(ctx, task.record.branch); }
+        catch (error) { localReasons = [error instanceof PrFailure ? error.code : "head-unverified"]; }
+        views.push(report("status", task, { head: task.record.release?.head ?? liveHead, liveHead, localReasons }));
+      }
       let remote = null, local = null;
       if (options.operation === "inspect") {
         try {
@@ -372,7 +382,7 @@ export async function runPrCommand(input, ports = {}) {
         || (await activation(ctx)).appliedOid !== before.appliedOid
         || (await Promise.all(tasks.map(async t => await refOid(ctx, taskRef(t.record.taskId)) !== t.oid))).some(Boolean);
       return report(options.operation, stored, { exitCode: 0, active: before.active, legacyPresent: Boolean(lstat(path.join(ctx.common, "stagekeeper-task-worktrees"))),
-        tasks: tasks.map(t => report("status", t)), local, remote, migration,
+        tasks: views, ...(stored ? { head: views[0].head, liveHead: views[0].liveHead, localReasons: views[0].localReasons } : {}), local, remote, migration,
         reasons: changed ? ["transition-in-progress"] : before.active ? [] : [before.reason] });
     }
     const revision = await sourceRevision(ctx, !readonly);
@@ -395,13 +405,15 @@ export async function runPrCommand(input, ports = {}) {
       }
     });
     const needsTerminal = ["complete", "cleanup", "retire"].includes(options.operation);
-    return report(options.operation, stored, { exitCode: needsTerminal && !["complete", "retired"].includes(stored.record.phase) ? 2 : 0 });
+    return report(options.operation, stored, { exitCode: needsTerminal && !["complete", "retired"].includes(stored.record.phase) ? 2 : 0,
+      observationPerformed: ctx.usageObservation?.performed ?? false });
   } catch (error) {
     const code = error instanceof PrFailure ? error.code : "execution-failed";
     if (ctx && !ctx.unsettled && !ctx.signal?.aborted && options?.task) { try { stored = await loadTask(ctx, options.task); } catch {} }
     let migration = null;
     if (ctx && !ctx.unsettled && !ctx.signal?.aborted && options?.operation === "migrate") { try { migration = await migrationStatus(ctx); } catch {} }
     return report(options?.operation ?? input?.operation ?? null, stored, { exitCode: error instanceof PrFailure ? error.exitCode : 1, reasons: [code],
+      observationPerformed: ctx?.usageObservation?.performed ?? false,
       ...(migration ? { migration, state: migration.state, phase: migration.phase } : {}) });
   }
 }

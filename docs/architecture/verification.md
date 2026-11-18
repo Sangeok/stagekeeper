@@ -483,7 +483,10 @@ marker/ref 게시 이후에는 forward recovery만 가능하다. legacy fence는
 
 JSON 소비자는 `npm --silent run pr --` 또는 Node 진입점을 사용한다. envelope는 operation,
 task/state/phase, merge, worktree, branch, capability, observationPerformed, reasons와
-nextActions를 분리한다. complete/cleanup/retire의 exit 0은 complete/retired 또는 확인된
+nextActions를 분리한다. PR binding과 retire/merged 목적, 현재 ref HEAD도 별도 필드로 제공한다.
+capability/lastObservation은 저장된 최근 관측이며 observationPerformed는 이번 호출의 실행 여부다.
+status·ack·branch-only에서 과거 관측이 남아 있어도 observationPerformed는 false다. 삭제에는
+항상 fresh runtime 검증이 필요하다. complete/cleanup/retire의 exit 0은 complete/retired 또는 확인된
 완료 no-op, 2는 보류, 1은 실행 실패다. status/inspect/ack의 0은 관측/receipt 성공만 뜻한다.
 raw stderr/token/env/전체 command line은 출력하지 않는다. status/inspect/preview는
 fetch/ref/state/guard를 쓰지 않으며 inspect --remote만 GET/ls-remote를 허용한다.
