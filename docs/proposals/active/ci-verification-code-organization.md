@@ -5,7 +5,7 @@ proposal-size: "standard"
 created-at: "2026-11-17"
 approved-by: "user"
 approved-at: "2026-11-18"
-approval-scope: "Phase CVO1 구현과 검증 및 필요한 C1/C2 문서·기준 정합. CVO2·CVO3 실행, 수동 모델·설치 게이트, 병합·운영 배포 제외."
+approval-scope: "CVO1 및 CVO2 구현과 검증. CVO3 실제 모델·설치 인수, 병합·운영 배포는 별도 승인."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -34,8 +34,8 @@ scripts/rehearsals 안에서 설치·파이프라인·모델 평가와 실제 �
 빠뜨리지 않도록 검사 선택과 테스트 탐색을 함께 갱신한다.
 
 이 문서는 WHOLE_SDD이며 위험도는 STANDARD다. 전체 설계와 단계별 작업·검증을
-한 문서에서 소유한다. 최초 요청은 문서 작성이었고 후속 요청으로 CVO1 구현·검증이
-승인됐다. CVO2·CVO3, 수동 모델·설치 게이트, 병합·운영 배포는 실행하지 않는다.
+한 문서에서 소유한다. 최초 요청은 문서 작성이었고 후속 요청으로 CVO1과 CVO2 구현·검증이
+차례로 승인됐다. CVO3의 실제 모델·설치 인수, 병합·운영 배포는 별도 승인을 따른다.
 문서의 완료와 아래 구현의 완료를 구분한다.
 
 ## Goal
@@ -88,7 +88,7 @@ bce2bef8b5ff61962eb6e3b16419bb4aaaffb217으로 fast-forward했다. 아래 표의
 | Observed | plugin/bin의 harness-role-commands/files/git.test.mjs는 runtime 모듈을 직접 import | runtime 옆으로 이동한다. CLI를 실행하는 session·background 시험은 bin에 둔다 |
 | Observed | [gate-record.mjs](../../../scripts/rehearsals/gate-record.mjs)는 GitHub event/ref/run/issue 형식을 알고 Action 한 곳에서 호출 | 기록 구현과 시험을 Action 옆으로 이동한다. 평가·파이프라인 결과 판정은 시나리오 소유자에 남긴다 |
 | Observed | package.json의 test:scripts/test:architecture는 scripts 아래만 탐색 | .github로 옮기는 시험은 명령에 명시적으로 포함해야 한다 |
-| Observed | [pipeline-smoke-steps.test.mjs](../../../scripts/rehearsals/pipeline-smoke-steps.test.mjs)는 AGENTS promotion pathspec과 workflow paths를 검사 | 새 모듈만 바꾼 변경도 필요한 게이트를 선택하도록 함께 갱신한다 |
+| Observed | [pipeline-smoke-steps.test.mjs](../../../scripts/rehearsals/pipeline/pipeline-smoke-steps.test.mjs)는 AGENTS promotion pathspec과 workflow paths를 검사 | 새 모듈만 바꾼 변경도 필요한 게이트를 선택하도록 함께 갱신한다 |
 | Observed | [plugin-payload.mjs](../../../scripts/lib/plugin-payload.mjs)는 plugin/evals와 .test.mjs를 출하에서 제외 | 테스트만 이동해도 새 fixture를 plugin 아래에 만들면 출하될 수 있으므로 실제 payload 집합·바이트를 확인한다 |
 | Inferred | 재사용 구현과 진입점이 결합되고 관련 파일이 같은 flat 폴더에 혼재 | 실행 내용 변경 없이 책임별 추출·배치로 수정 범위를 줄일 수 있다 |
 | Unresolved | 현재 private Codex CI 소비자 전체·runner 가용성을 이번 작성에서 재조회하지 않음 | 기존 경로와 named export를 보존하며 private 소비자 변경·호환 계층 제거는 범위 밖이다 |
@@ -447,7 +447,7 @@ payload 비교에서 출하 변경이 발견되면 완료를 중단하고 원인
 
 ### Phase CVO2: 배치·CI 연결을 함께 전환
 
-- status: Proposed. CVO1 통과 후 재대조하여 실행한다.
+- status: Approved. CVO1 병합 후 승인된 상세 계획에 따라 실행한다.
 - predecessor artifacts: CVO1의 소스·실행 근거, 이 문서의 이동표.
 - satisfies: REQ-CVO-001, REQ-CVO-003, REQ-CVO-004, REQ-CVO-005, REQ-CVO-006
 - preserves: INV-CVO-001, INV-CVO-002, INV-CVO-003
@@ -691,7 +691,7 @@ payload 비교에서 출하 변경이 발견되면 완료를 중단하고 원인
 ## Approval
 
 실행 승인 기록의 단일 기준은 front matter다. 후속 사용자 요청으로 CVO1 구현·검증과
-그 선행 정합을 수행했다. CVO2·CVO3·수동 모델 실행·병합·배포로 범위를 확대하지 않는다.
+그 선행 정합을 수행했다. 2026-11-18 사용자가 CVO2 상세 계획에 따른 구현과 검증을 승인했다.
 단계별 결과를 확인하기 전 다음 단계를 자동 시작하지 않는다.
 
 ## Risks and Rollback
@@ -742,8 +742,8 @@ coverage를 별도로 검토한다.
 
 ## Completion or Closure Notes
 
-현재 상태는 pending / approved이며 승인 범위는 CVO1이다. CVO1 구현과 로컬 검증을
-완료했으며 PR 통합을 기다린다. CVO2·CVO3는 시작하지 않았다. CVO3의 BLK-CVO-01과
+CVO1은 PR #377로 dev에 병합됐다. 사용자가 2026-11-18 CVO2 구현을 승인했다.
+CVO2 실행 범위와 검증 결과는 [상세 계획](./ci-verification-code-organization-phase-cvo2.md)을 따른다. CVO3의 BLK-CVO-01과
 실제 인수 조건은 유지한다. 전체 SDD 완료·병합·배포로 보고하지 않는다.
 
 후속 구현자는 시작 시 최신 dev·열린 PR·active 제안·working tree를 다시 확인하고,

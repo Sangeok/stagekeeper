@@ -91,6 +91,33 @@ it("keeps the legacy runtime exports and their original implementation identity"
   assert.equal(repositoryRoot, realpathSync.native(fileURLToPath(new URL("../../", import.meta.url))));
 });
 
+it("preserves every legacy rehearsal export and its implementation identity without running a CLI", t => {
+  const f = fixture(t);
+  const modules = [
+    ["gate-record.mjs", "../../.github/actions/gate-record/record.mjs", "USAGE findingIssue gateRow main openFinding recordComment"],
+    ["gate-environment.mjs", "support/gate-environment.mjs", "clientVersion environmentFields measureEnvironment osVersion pluginVersionAt"],
+    ["client-init-smoke-steps.mjs", "client-init/client-init-smoke-steps.mjs", "assertGeneratedAgents containsSecret helperCommand smokeResult summarize usesTemplateReleases"],
+    ["agent-eval-summary.mjs", "agent-eval/agent-eval-summary.mjs", "GATE_CASES USAGE controlDetected evalLines evalRecord main summarizeEval"],
+    ["pipeline-smoke-steps.mjs", "pipeline/pipeline-smoke-steps.mjs", "BACKLOG_ITEM FIXTURE_FILES HANDOFF_LIMIT_MS INDEPENDENT_CASES PIPELINE_ROLES PIPELINE_STEPS PLAN_VERIFIER_PASS_LIMIT RUNNER_WAIT_LIMIT_MS SMOKE_SCENARIOS caseResults openTranscripts planVerificationBounded runFindings sealTranscripts smokeTriggerPaths summarizePipeline transcriptKey waitVerdict writeTranscripts"],
+    ["smoke-server.mjs", "support/smoke-server.mjs", "startSmokeServer"],
+    ["codex-init-eval.mjs", "agent-eval/codex-init-eval.mjs", "evalTurn evaluateCodexInit gradeInitEvaluation initEvalConfiguration managedSnapshot preflightInitEval"],
+  ];
+  for (const [oldPath, newPath, names] of modules) {
+    const urls = [oldPath, newPath].map(file => new URL(file, import.meta.url).href);
+    const code = [
+      'import assert from "node:assert/strict";',
+      'const [old, current] = await Promise.all(process.argv.slice(1).map(url => import(url)));',
+      'assert.deepEqual(Object.keys(old), Object.keys(current));',
+      'for (const name of Object.keys(old)) assert.ok(Object.is(old[name], current[name]), name);',
+      'console.log(Object.keys(old).sort().join(" "));',
+    ].join("\n");
+    const child = f.run(["--input-type=module", "-e", code, ...urls]);
+    assert.equal(child.status, 0, oldPath + ": " + child.stderr);
+    assert.equal(child.stdout.trim(), names);
+    assert.doesNotMatch(child.stderr, /CVO1_SIDE_EFFECT:/);
+  }
+});
+
 it("proves the observer detects file, process and connection effects", t => {
   const f = fixture(t), canary = path.join(f.work, "must-not-exist");
   const controls = [

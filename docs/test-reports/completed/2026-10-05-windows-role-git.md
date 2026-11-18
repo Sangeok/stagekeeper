@@ -98,7 +98,7 @@ broker의 최종 native CI 통과로 대체하지 않는다.
 | ID | 종류 | 안전하게 정리한 증거 또는 참조 | 보존 위치/만료일 |
 | --- | --- | --- | --- |
 | E1 | 설치/모델/서비스/cleanup projection | [관찰 JSON](../assets/2026-10-05-windows-role-git/observations.json): phase별 버전·연산·종료·서버 outcome·hash·실패와 미인수 범위 | Git 보존; private 본문·인증·run/session/account ID·raw transcript 없음 |
-| E2 | 소스 및 재현 가능한 회귀 시험 | [고정 Git broker](../../../plugin/runtime/role-git.mjs), [host 시험](../../../plugin/bin/harness-role-git.test.mjs), [역할 연결](../../../plugin/runtime/codex-thread.mjs); hash는 E1 | Git 보존; 일회성 원본 operator/log는 Git 밖에 유지 |
+| E2 | 소스 및 재현 가능한 회귀 시험 | [고정 Git broker](../../../plugin/runtime/role-git.mjs), [host 시험](https://github.com/Sangeok/stagekeeper/blob/d344fc9fecf6f90c39c76e2c0b700e8aa41370bd/plugin/bin/harness-role-git.test.mjs), [역할 연결](../../../plugin/runtime/codex-thread.mjs); hash는 E1 | Git 보존; 일회성 원본 operator/log는 Git 밖에 유지 |
 | E3 | 최종 코드 필수 CI | [check 실행](https://github.com/Sangeok/stagekeeper/actions/runs/37312063293) | GitHub Actions 보존 정책 |
 | E4 | 수정 전 실패 기록 | [이전 bounded FAIL 보고서](./2026-10-05-windows-private-template-acceptance.md) | Git 보존; 이전 결과를 수정하지 않음 |
 

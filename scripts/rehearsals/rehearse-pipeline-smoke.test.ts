@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { it } from "node:test";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
+import { SMOKE_SCENARIOS } from "./pipeline/pipeline-smoke-steps.mjs";
 import { runInNewContext } from "node:vm";
 import { EventEmitter } from "node:events";
 import ts from "typescript";
@@ -61,6 +65,51 @@ it("refuses a database that is not a stagekeeper_test_* database before any work
 it("refuses a missing or short transcript key before any work", async () => {
   assert.equal(await main(VALID, { CI: "true", TEST_DATABASE_URL: DATABASE }), 2);
   assert.equal(await main(VALID, { CI: "true", TEST_DATABASE_URL: DATABASE, TRANSCRIPT_KEY: Buffer.alloc(16).toString("base64") }), 2);
+});
+
+it("runs the candidate pipeline steps in a child for both independent scenarios", t => {
+  const caller = new URL("./rehearse-pipeline-smoke.ts", import.meta.url);
+  const source = ts.createSourceFile("caller.ts", readFileSync(caller, "utf8"), ts.ScriptTarget.Latest, true);
+  const stepsModule = new URL("./pipeline/pipeline-smoke-steps.mjs", caller).href;
+  let step: ts.ArrowFunction | undefined;
+  function visit(node: ts.Node) {
+    if (ts.isCallExpression(node) && node.arguments.length === 2 && ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text === "implementation-check"
+        && ts.isArrowFunction(node.arguments[1])) step = node.arguments[1];
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  assert.ok(step);
+  const cases = source.statements.filter(ts.isVariableStatement).flatMap(node => [...node.declarationList.declarations])
+    .find(declaration => declaration.name.getText(source) === "CASES");
+  assert.ok(cases?.initializer);
+  const body = step.body.getText(source).replace("import.meta.url", "callerUrl");
+  const code = ts.transpileModule("(() => " + body + ")()", { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const fixtureRepo = mkdtempSync(path.join(tmpdir(), "pipeline-child-"));
+  t.after(() => rmSync(fixtureRepo, { recursive: true, force: true }));
+  mkdirSync(path.join(fixtureRepo, "src"));
+  const fixtures = {
+    slug: 'export function slugWords(s, n) { if (!Number.isInteger(n) || n < 1) throw new RangeError(); return s.trim().split(/\\s+/).slice(0,n).join("-").toLowerCase(); }',
+    truncate: 'export function truncate(s, n) { if (typeof s !== "string" || !Number.isInteger(n) || n < 1) throw new TypeError(); return s.length <= n ? s : s.slice(0,n-1) + "…"; }',
+  };
+  for (const name of ["slug", "truncate"] as const) {
+    const scenario = SMOKE_SCENARIOS[name];
+    let calls = 0;
+    const run = { succeed(command: string, args: string[], cwd: string) {
+      if (command === "git") return { stdout: args[0] === "status" ? "" : "after" };
+      if (args[0] === "--test") return { stdout: "" };
+      assert.equal(args[3], stepsModule);
+      calls++;
+      return { stdout: execFileSync(command, args, { cwd, encoding: "utf8" }) };
+    } };
+    const context = { callerUrl: caller.href, CASES: runInNewContext(cases.initializer.getText(source)), CASES_LIMIT_MS: 30000,
+      headBeforeRunner: "before", run, fixtureRepo, helperEnv: {}, URL, process, path, pathToFileURL, scenario, options: { scenario: name } };
+    const subjectFile = path.join(fixtureRepo, scenario.module);
+    writeFileSync(subjectFile, fixtures[name]);
+    runInNewContext(code, context);
+    writeFileSync(subjectFile, "export function " + scenario.exportName + "() { return false; }");
+    assert.throws(() => runInNewContext(code, context), /does not follow the backlog request/);
+    assert.equal(calls, 2);
+  }
 });
 
 for (const mode of ["stopped", "stop-failure", "start-cleanup-failure"]) {

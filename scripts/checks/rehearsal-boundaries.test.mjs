@@ -4,6 +4,7 @@ import path from "node:path";
 import { it } from "node:test";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { firstPartySources, isTestSource } from "../lib/shared-module-graph.mjs";
 
 const repository = fileURLToPath(new URL("../../", import.meta.url));
 const implementations = [
@@ -15,6 +16,15 @@ const implementations = [
   "scripts/rehearsals/client-init/options.ts",
   "scripts/rehearsals/client-init/claude-connection.ts",
 ];
+const rehearsals = "scripts/rehearsals/";
+const record = ".github/actions/gate-record/record.mjs";
+const moved = [
+  "client-init/client-init-smoke-steps.mjs", "pipeline/pipeline-smoke-steps.mjs",
+  "agent-eval/codex-init-eval.mjs", "agent-eval/agent-eval-summary.mjs",
+  "support/gate-environment.mjs", "support/smoke-server.mjs", "support/smoke-server-listener.cjs",
+].map(file => rehearsals + file);
+const adapters = new Map(moved.map(file => [rehearsals + path.posix.basename(file), file]));
+adapters.set(rehearsals + "gate-record.mjs", record);
 const verificationFiles = [
   "scripts/rehearsals/support/command-run.test.ts",
   "scripts/rehearsals/client-init/claude-connection.test.ts",
@@ -31,8 +41,7 @@ const legacy = "scripts/rehearsals/rehearse-client-init-smoke";
 const read = file => readFileSync(path.join(repository, file), "utf8");
 
 function parse(file) {
-  return ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true,
-    file.endsWith(".ts") ? ts.ScriptKind.TS : ts.ScriptKind.JS);
+  return ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true);
 }
 
 function visit(source, accept) {
@@ -49,7 +58,7 @@ function references(source) {
   return visit(source, node =>
     (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier
       && ts.isStringLiteralLike(node.moduleSpecifier)
-      || ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword
+      || ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === "require")
       && node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0]))
     .map(node => ts.isCallExpression(node) ? node.arguments[0].text : node.moduleSpecifier.text);
 }
@@ -97,20 +106,30 @@ function selected(patterns, file) {
 
 it("keeps extracted modules and current consumers off the legacy CLI implementation", () => {
   const graph = new Map();
-  for (const file of [...implementations, ...consumers]) {
+  const modules = [...implementations, ...moved, record];
+  for (const file of [...modules, ...consumers, rehearsals + "rehearse-client-init-smoke.ts", rehearsals + "open-pipeline-transcripts.mjs"]) {
     const refs = references(parse(file)).map(ref => resolved(file, ref)).filter(Boolean);
     assert.ok(refs.every(ref => ref.replace(/\.(?:ts|mjs)$/, "") !== legacy), file);
-    if (!implementations.includes(file)) continue;
+    for (const ref of refs) assert.ok(!adapters.has(ref), file + " imports adapter " + ref);
+    if (!modules.includes(file)) continue;
     assert.ok(refs.every(ref => !ref.startsWith(".github/") && !ref.startsWith("tests/") && !/\.test\./.test(ref)), file);
     if (file.includes("/support/")) assert.ok(refs.every(ref => !ref.includes("/client-init/")), file);
-    graph.set(file, refs.flatMap(ref => implementations.filter(target =>
+    graph.set(file, refs.flatMap(ref => modules.filter(target =>
       target === ref || target.replace(/\.(?:ts|mjs)$/, "") === ref)));
   }
+  for (const [adapter, target] of adapters) {
+    const local = references(parse(adapter)).map(ref => resolved(adapter, ref)).filter(Boolean);
+    assert.deepEqual([...new Set(local)], [target], adapter);
+  }
+  assert.deepEqual(graph.get(record).sort(), [
+    rehearsals + "agent-eval/agent-eval-summary.mjs", rehearsals + "client-init/client-init-smoke-steps.mjs",
+    rehearsals + "pipeline/pipeline-smoke-steps.mjs",
+  ]);
   function walk(file, ancestors) {
     assert.ok(!ancestors.includes(file), [...ancestors, file].join(" -> "));
     for (const target of graph.get(file) ?? []) walk(target, [...ancestors, file]);
   }
-  for (const file of implementations) walk(file, []);
+  for (const file of modules) walk(file, []);
 });
 
 it("preserves only the previous checkout seed import in shared distribution acceptance", () => {
@@ -166,4 +185,60 @@ it("distinguishes event blocks and rejects unsupported path syntax", () => {
   assert.equal(selected(pull, "scripts/private/example.mjs"), false);
   assert.equal(eventPaths(text, "push"), null);
   assert.throws(() => eventPaths(text.replace("      - 'scripts/**'", "      include: scripts/**"), "pull_request"), /Unsupported/);
+});
+
+function verificationImports(file, source) {
+  return references(source).map(ref => resolved(file, ref) ?? ref)
+    .filter(target => target.startsWith(rehearsals) || target.startsWith(".github/actions/gate-record/"));
+}
+
+it("keeps production modules independent of rehearsals and CI recording", () => {
+  const probe = "src/server/public-url.ts";
+  const forbidden = "../../scripts/rehearsals/support/gate-environment.mjs";
+  const fixture = ts.createSourceFile(probe, 'import "' + forbidden + '";', ts.ScriptTarget.Latest);
+  assert.deepEqual(verificationImports(probe, fixture), [rehearsals + "support/gate-environment.mjs"]);
+  const sources = firstPartySources(repository, ["src", "packages/shared", "packages/app-core", "plugin/bin", "plugin/runtime"]);
+  for (const file of sources.filter(file => !isTestSource(file))) {
+    assert.deepEqual(verificationImports(file, parse(file)), [], file);
+  }
+});
+
+it("resolves the packaged preflight's AppServer from the eval implementation", async () => {
+  const file = rehearsals + "agent-eval/codex-init-eval.mjs";
+  const preflight = parse(file).statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "preflightInitEval");
+  assert.ok(preflight);
+  const [target] = references(preflight).map(ref => resolved(file, ref));
+  assert.equal(target, "plugin/runtime/codex-thread.mjs");
+  assert.equal(typeof (await import(new URL("../../" + target, import.meta.url))).AppServer, "function");
+});
+
+it("selects the moved implementations and paired tests for the appropriate PR and dev push checks", () => {
+  const install = "client-init-smoke", windows = "windows-role-runtime", mac = "macos-runtime-contracts", shared = "shared-distribution-acceptance";
+  const native = [windows, mac], all = [install, ...native, shared];
+  const gates = new Map(all.map(name => [name, read(".github/workflows/" + name + ".yml")]));
+  const cases = [
+    [rehearsals + "client-init/client-init-smoke-steps.mjs", [install, ...native]],
+    [rehearsals + "pipeline/pipeline-smoke-steps.mjs", []],
+    [rehearsals + "agent-eval/codex-init-eval.mjs", [install]],
+    [rehearsals + "agent-eval/agent-eval-summary.mjs", []],
+    [rehearsals + "support/gate-environment.mjs", all],
+    [rehearsals + "support/smoke-server.mjs", all],
+    [record, [install]],
+  ];
+  const paths = cases.flatMap(([file, checks]) => [[file, checks], [file.replace(".mjs", ".test.mjs"), checks]]);
+  paths.push(
+    [rehearsals + "support/smoke-server-listener.cjs", all], [".github/actions/gate-record/action.yml", [install]],
+    [rehearsals + "smoke-server.mjs", all], [rehearsals + "smoke-server-listener.cjs", all],
+    [rehearsals + "client-init-smoke-steps.mjs", [install]], [rehearsals + "gate-environment.mjs", [install]],
+    [rehearsals + "gate-record.mjs", [install]], [rehearsals + "codex-init-eval.mjs", [install]],
+    [rehearsals + "agent-eval-summary.mjs", []], [rehearsals + "pipeline-smoke-steps.mjs", []],
+  );
+  for (const name of ["role-command-execution", "role-files", "role-git"]) paths.push(["plugin/runtime/" + name + ".test.mjs", all]);
+  for (const [file, checks] of paths) {
+    for (const [name, workflow] of gates) {
+      assert.equal(selected(eventPaths(workflow, "pull_request"), file), checks.includes(name), name + ": " + file);
+      if (name !== install) assert.equal(selected(eventPaths(workflow, "push"), file),
+        native.includes(name) || file.startsWith("plugin/runtime/"), name + " push: " + file);
+    }
+  }
 });

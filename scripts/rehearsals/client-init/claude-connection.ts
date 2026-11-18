@@ -3,7 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { homedir } from "node:os";
 import path from "node:path";
 import { readInstalledTemplate } from "../../../plugin/runtime/template-installation.mjs";
-import { assertGeneratedAgents, containsSecret, helperCommand, usesTemplateReleases } from "../client-init-smoke-steps.mjs";
+import { assertGeneratedAgents, containsSecret, helperCommand, usesTemplateReleases } from "./client-init-smoke-steps.mjs";
 import type { Command, Run } from "../support/command-run";
 import { git, osLabel } from "../support/repository-fixture";
 import { repositoryRoot as REPO } from "../support/repository-root.mjs";

@@ -9,9 +9,9 @@ import { execFileSync } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
-import { gitRoot, stateFiles, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "../runtime/local-session.mjs";
-import { createRoleFiles } from "../runtime/role-files.mjs";
-import { snapshotRepository, runNativeCommand, prepareNativeRoot, createRoleCommands, installedWindowsRuntime, verifyNativeRuntime } from "../runtime/role-commands.mjs";
+import { gitRoot, stateFiles, startSession, checkSession, requestStop, releaseSession, registerChild, settleChild } from "./local-session.mjs";
+import { createRoleFiles } from "./role-files.mjs";
+import { snapshotRepository, runNativeCommand, prepareNativeRoot, createRoleCommands, installedWindowsRuntime, verifyNativeRuntime } from "./role-commands.mjs";
 
 const digest = value => createHash("sha256").update(value).digest("hex");
 const temporaryRoot = realpathSync(tmpdir());

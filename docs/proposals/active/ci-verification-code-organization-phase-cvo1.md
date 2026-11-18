@@ -140,7 +140,7 @@ options 분리는 connection의 타입 → CLI 역참조를 막는 데 필요한
 | CLI 도움말·거부 | init/pipeline 시험에 main·parser 검사가 있음 | 일부 충족 | fresh child import/다른 cwd·export 호환 확인 보완 |
 | rehearsal-cli.test.mjs | 주로 web/backlog 리허설의 별도 실행 계약을 검사 | CVO1의 직접 증거 아님 | 그 사례를 CVO1 통과로 세지 않고 전용 compatibility 시험 추가 |
 | DB 연결 | [withPrisma](../../../scripts/lib/prisma.ts)가 호출마다 client를 열고 finally에서 닫음 | 재사용 | helper의 명시적 databaseUrl과 dynamic import 시점 유지 |
-| 경로 선택 | [기존 trigger 시험](../../../scripts/rehearsals/pipeline-smoke-steps.test.mjs)이 실제 Git pathspec과 파일별 변경을 확인 | 확장 필요 | 새 디렉터리·파일을 같은 방식으로 검사 |
+| 경로 선택 | [기존 trigger 시험](https://github.com/Sangeok/stagekeeper/blob/3b8ddeb072459da8ddb573fba1fafa0f056b1580/scripts/rehearsals/pipeline-smoke-steps.test.mjs)이 실제 Git pathspec과 파일별 변경을 확인 | 확장 필요 | 새 디렉터리·파일을 같은 방식으로 검사 |
 | private 소비 경로 | 상위·dual-client 문서에 기존 CLI 소비가 기록됨 | 최신 목록 미확인 | 기존 export·경로를 유지하며 확인 없이 삭제하지 않음 |
 | 최신 CI·관리 계약 | 최신 dev의 workflow 8개·job 정의 14개·coverage 행 16개, npm run pr 진입점 | 과거 관측치와 다름 | 기존 명령·새 gate를 제거하거나 상위의 과거 개수로 되돌리지 않음 |
 

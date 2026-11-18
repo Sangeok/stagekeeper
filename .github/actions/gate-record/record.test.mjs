@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { it } from "node:test";
-import { findingIssue, gateRow, main, openFinding, recordComment } from "./gate-record.mjs";
+import { findingIssue, gateRow, main, openFinding, recordComment } from "./record.mjs";
 
 function outputFixture(t) {
   const root = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-gate-isolation-"));
@@ -15,6 +15,27 @@ function outputFixture(t) {
   const env = { GATE_SUMMARIES: JSON.stringify({ summary_pipeline: JSON.stringify(pipelineSummary) }) };
   return { root, args, env };
 }
+
+it("runs both record entrypoints using only Node and the rehearsal sources", t => {
+  const { root, args, env } = outputFixture(t);
+  const source = new URL("../../../", import.meta.url);
+  for (const directory of ["scripts/rehearsals", ".github/actions/gate-record"]) {
+    fs.cpSync(new URL(directory, source), join(root, directory), { recursive: true });
+  }
+  const run = (entry, argv) => spawnSync(process.execPath, [join(root, entry), ...argv], { cwd: root, env, encoding: "utf8" });
+  const records = [];
+  for (const [index, entry] of ["scripts/rehearsals/gate-record.mjs", ".github/actions/gate-record/record.mjs"].entries()) {
+    const out = join(root, "row-" + index);
+    const success = run(entry, args(out));
+    assert.equal(success.status, 0, success.stderr);
+    records.push(readdirSync(out).sort().map(name => [name, readFileSync(join(out, name), "utf8")]));
+    const refused = run(entry, args(out));
+    assert.equal(refused.status, 1);
+    assert.match(refused.stderr, /EEXIST/);
+  }
+  assert.ok(records[0].some(([name]) => name === "comment.md"));
+  assert.deepEqual(records[1], records[0]);
+});
 
 it("refuses reused output without changing an old finding, issue number or commit", t => {
   const { root, args, env } = outputFixture(t), out = join(root, "result"), open = join(root, "open.ndjson");
@@ -54,7 +75,7 @@ it("refuses existing files and directory aliases and requires a prepared parent"
 it("gives concurrent CLI writers one exclusive directory and one complete record", async t => {
   const { root, args, env } = outputFixture(t), out = join(root, "result");
   const invoke = commit => new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [fileURLToPath(new URL("./gate-record.mjs", import.meta.url)), ...args(out).map(value => value === COMMIT ? commit : value)], { env: { ...process.env, ...env }, stdio: "ignore" });
+    const child = spawn(process.execPath, [fileURLToPath(new URL("./record.mjs", import.meta.url)), ...args(out).map(value => value === COMMIT ? commit : value)], { env: { ...process.env, ...env }, stdio: "ignore" });
     child.once("error", reject);
     child.once("close", code => resolve({ code, commit }));
   });
@@ -260,9 +281,9 @@ it("writes the comment and the finding files, and nothing for a run that must no
   assert.equal(existsSync(join(root, "short")), false);
 });
 
-it("stops the composite shell before publishing a result path or calling gh after generation fails", t => {
+it("runs the Action record CLI once and stops publication when output exists", t => {
   const { root, env } = outputFixture(t);
-  const action = readFileSync(new URL("../../.github/actions/gate-record/action.yml", import.meta.url), "utf8");
+  const action = readFileSync(new URL("./action.yml", import.meta.url), "utf8");
   assert.match(action, /id: workspace/);
   assert.match(action, /id: files/);
   assert.match(action, /GATE_WORK_DIR: \$\{\{ steps\.workspace\.outputs\.parent \}\}/);
@@ -278,16 +299,35 @@ it("stops the composite shell before publishing a result path or calling gh afte
   const output = join(root, "outputs");
   writeFileSync(output, "");
   writeFileSync(join(root, "open-issues.ndjson"), "");
-  mkdirSync(join(root, "result"));
-  const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", [
-    step("Build the row"), step("Add the row to the record"), step("Open or update the finding issue"),
-  ].join("\n")], { encoding: "utf8", env: { ...process.env, ...env, PATH: root + ":" + process.env.PATH,
-    GH_MARKER: marker, GITHUB_OUTPUT: output, GATE_WORK_DIR: root, RECORD_DIRECTORY: join(root, "result"),
-    GATE_WORKFLOW: "pipeline-smoke", GATE_RESULT: "success", GATE_LEGS: "pipeline", RECORD_ISSUE: "319",
-    GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF: "refs/heads/dev", GITHUB_SHA: COMMIT,
-    GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_REPOSITORY: REPOSITORY,
-  } });
-  assert.equal(result.status, 1, result.stderr);
+  const trace = join(root, "node-scripts");
+  function runSteps(parent, ...names) {
+    const script = [
+      'node() { printf "%s\\n" "$1" >> "$NODE_TRACE"; command node "$@"; }',
+      ...names.map(step),
+    ].join("\n");
+    return spawnSync("bash", ["-e", "-o", "pipefail", "-c", script], {
+      cwd: fileURLToPath(new URL("../../../", import.meta.url)), encoding: "utf8",
+      env: { ...process.env, ...env, PATH: root + ":" + process.env.PATH, NODE_TRACE: trace,
+        GH_MARKER: marker, GITHUB_OUTPUT: output, GATE_WORK_DIR: parent, RECORD_DIRECTORY: join(parent, "result"),
+        GATE_WORKFLOW: "pipeline-smoke", GATE_RESULT: "success", GATE_LEGS: "pipeline", RECORD_ISSUE: "319",
+        GITHUB_EVENT_NAME: "workflow_dispatch", GITHUB_REF: "refs/heads/dev", GITHUB_SHA: COMMIT,
+        GITHUB_RUN_ID: "123", GITHUB_RUN_ATTEMPT: "1", GITHUB_REPOSITORY: REPOSITORY,
+      },
+    });
+  }
+  const success = runSteps(root, "Build the row");
+  assert.equal(success.status, 0, success.stderr);
+  assert.ok(existsSync(join(root, "result", "comment.md")));
+  assert.equal(readFileSync(trace, "utf8").trimEnd(), ".github/actions/gate-record/record.mjs");
+  assert.equal(readFileSync(output, "utf8").trimEnd(), "directory=" + root + "/result");
+
+  const occupied = join(root, "occupied");
+  mkdirSync(join(occupied, "result"), { recursive: true });
+  writeFileSync(join(occupied, "open-issues.ndjson"), "");
+  writeFileSync(output, "");
+  const refused = runSteps(occupied, "Build the row", "Add the row to the record", "Open or update the finding issue");
+  assert.equal(refused.status, 1, refused.stderr);
+  assert.deepEqual(readdirSync(join(occupied, "result")), []);
   assert.equal(readFileSync(output, "utf8"), "");
   assert.equal(existsSync(marker), false);
 });

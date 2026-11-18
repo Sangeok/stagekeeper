@@ -3,6 +3,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { it } from "node:test";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { controlDetected, evalLines, evalRecord, GATE_CASES, main, summarizeEval } from "./agent-eval-summary.mjs";
 
 const control = { cases: [{ name: "control-real-write", arms: { with: [{ graders: [
@@ -189,18 +191,49 @@ it("rejects malformed arguments before writing and prints fixed control diagnost
   assert.deepEqual(printed, ["control: registration, generation and writes detected", "control: detection failed"]);
 });
 
+it("runs the old and current summary CLIs with identical output and exit status", t => {
+  const root = workspace(t);
+  const partial = result();
+  partial.cases.pop();
+  writeFileSync(join(root, "partial.json"), JSON.stringify(partial));
+  for (const [argv, status] of [
+    [["--check-control", join(root, "control.json")], 0],
+    [["--check-control", join(root, "missing.json")], 1],
+    [args(root), 0], [args(root).map(value => value === join(root, "eval.json") ? join(root, "partial.json") : value), 1],
+    [["--unknown"], 2],
+  ]) {
+    const runs = ["../agent-eval-summary.mjs", "./agent-eval-summary.mjs"].map(entry => {
+      const summary = join(root, "summary.json");
+      rmSync(summary, { force: true });
+      const child = spawnSync(process.execPath, [fileURLToPath(new URL(entry, import.meta.url)), ...argv], { cwd: root, encoding: "utf8" });
+      assert.equal(child.status, status, child.stderr);
+      return [child.stdout, child.stderr, existsSync(summary) ? readFileSync(summary, "utf8") : null];
+    });
+    assert.deepEqual(runs[0], runs[1]);
+    if (argv[0] === "--check-control") assert.equal(runs[0][0].trim().split("\n").length, 1);
+  }
+});
+
 it("matches the cases and graders in the shipped evaluation fixtures", () => {
   for (const [name, graders] of Object.entries(GATE_CASES)) {
-    const yaml = readFileSync(new URL("../../plugin/evals/" + name + "/case.yaml", import.meta.url), "utf8");
+    const yaml = readFileSync(new URL("../../../plugin/evals/" + name + "/case.yaml", import.meta.url), "utf8");
     assert.match(yaml, /tags: \[init, gate\]/);
     assert.deepEqual([...yaml.matchAll(/^  - name: ([a-z-]+)\r?$/gm)].map(match => match[1]), graders);
   }
 });
 
 it("redirects raw model output and propagates the summary failure in the workflow", () => {
-  const workflow = readFileSync(new URL("../../.github/workflows/agent-eval.yml", import.meta.url), "utf8");
+  const workflow = readFileSync(new URL("../../../.github/workflows/agent-eval.yml", import.meta.url), "utf8");
   assert.ok(workflow.includes('--json "$RUNNER_TEMP/control.json" > "$RUNNER_TEMP/control-private.log" 2>&1'));
   assert.ok(workflow.includes('--json "$RUNNER_TEMP/eval.json" > "$RUNNER_TEMP/eval-private.log" 2>&1'));
+  const steps = workflow.replaceAll("\r\n", "\n").split("      - name: ");
+  const script = "scripts/rehearsals/agent-eval/agent-eval-summary.mjs";
+  for (const [name, option] of [["Prove the detection with a control run", "--check-control"], ["Run the init skill eval", "--result"]]) {
+    const body = steps.find(step => step.startsWith(name + "\n"))?.split("        run: |\n")[1];
+    assert.ok(body, name);
+    const commands = body.split("\n").map(line => line.trim()).filter(line => line.startsWith("node "));
+    assert.deepEqual(commands.map(line => line.split(/\s+/).slice(0, 3)), [["node", script, option]]);
+  }
   assert.ok(workflow.includes('--check-control "$RUNNER_TEMP/control.json"'));
   assert.ok(workflow.includes('summary_code=${PIPESTATUS[0]}'));
   assert.ok(workflow.includes('exit "$summary_code"'));

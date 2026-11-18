@@ -123,8 +123,8 @@ HTTP·Action 조합은 기존 Next/FSD adapter가 소유한다. GitHub API·연�
 | 시험 파일 | 내부 모듈 | 이유 |
 | --- | --- | --- |
 | `scripts/checks/verify-ci-coverage.test.mjs` | templates | runbook 소유 파일 단독 변경이 양 OS workflow를 시작하는지 감지 |
-| `scripts/rehearsals/pipeline-smoke-steps.test.mjs` | pipeline | 이동한 생산·시험 파일의 단독 변경을 실제 promotion pathspec으로 감지 |
-| `scripts/rehearsals/pipeline-smoke-steps.test.mjs` | templates | 서버로 분리한 release·runbook 파일의 promotion 감지 누락 방지 |
+| `scripts/rehearsals/pipeline/pipeline-smoke-steps.test.mjs` | pipeline | 이동한 생산·시험 파일의 단독 변경을 실제 promotion pathspec으로 감지 |
+| `scripts/rehearsals/pipeline/pipeline-smoke-steps.test.mjs` | templates | 서버로 분리한 release·runbook 파일의 promotion 감지 누락 방지 |
 | `tests/server/github-configuration.test.ts` | github | 실제 App·webhook·vault 설정에 따른 목록 자동 제공과 callback origin 검증 |
 | `tests/server/github-provider.test.ts` | github | 실제 HTTP adapter의 PKCE·권한·페이지·오류·개별 토큰 폐기 계약 |
 | `tests/server/github-token-vault.test.ts` | github | 실제 암호화·AAD·keyring 회전과 위조 envelope 거부 |

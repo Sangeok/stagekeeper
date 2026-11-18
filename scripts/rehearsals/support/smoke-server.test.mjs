@@ -10,6 +10,7 @@ import { it } from "node:test";
 import { startSmokeServer } from "./smoke-server.mjs";
 
 const listener = fileURLToPath(new URL("./smoke-server-listener.cjs", import.meta.url));
+const legacyListener = fileURLToPath(new URL("../smoke-server-listener.cjs", import.meta.url));
 const fixtureSource = `
 const http = require("node:http");
 const mode = process.env.FIXTURE_MODE;
@@ -35,7 +36,7 @@ else {
 }
 `;
 
-function fixture(t, mode = "ready") {
+function fixture(t, mode = "ready", additionalPreloads = []) {
   const work = mkdtempSync(join(realpathSync.native(tmpdir()), "stagekeeper-smoke-"));
   const script = join(work, "server.cjs");
   writeFileSync(script, fixtureSource);
@@ -44,7 +45,11 @@ function fixture(t, mode = "ready") {
   const waiting = new Map();
   const dependencies = {
     launch(file, args, options) {
-      child = spawn(file, [...(mode.startsWith("wrong-") || mode === "exit-before" ? [] : args.slice(0, 2)), script], { ...options, env: { ...options.env, FIXTURE_MODE: mode } });
+      assert.deepEqual(args.slice(0, 3), ["--require", listener, join(options.cwd, "node_modules/next/dist/bin/next")]);
+      assert.equal(realpathSync.native(options.cwd), realpathSync.native(fileURLToPath(new URL("../../../", import.meta.url))));
+      assert.ok(realpathSync.native(args[2]));
+      const preloads = mode.startsWith("wrong-") || mode === "exit-before" ? [] : [...additionalPreloads, ...args.slice(0, 2)];
+      child = spawn(file, [...preloads, script], { ...options, env: { ...options.env, FIXTURE_MODE: mode } });
       child.on("message", message => {
         messages.push(message);
         for (const resolve of waiting.get(message.event) ?? []) resolve(message);
@@ -82,6 +87,17 @@ it("starts only the owned listener, preserves HTTP behavior and returns one idem
   await stopping;
   assert.ok(server.child.exitCode !== null || server.child.signalCode !== null);
   assert.equal(server.child.listenerCount("message"), 1);
+});
+
+it("loads the old and new preloads in one process and restores listen after one ownership message", { timeout: 15000 }, async t => {
+  const f = fixture(t, "ready", ["--require", legacyListener]);
+  const server = await startSmokeServer(f.options, f.dependencies);
+  try {
+    assert.deepEqual(await f.message("fixture-ready"), { event: "fixture-ready", returned: true, restored: true });
+    assert.equal(f.messages.filter(message => message.event === "stagekeeper-smoke-listening").length, 1);
+  } finally {
+    await server.stop();
+  }
 });
 
 it("runs two servers on separate addresses and stopping one preserves the other", { timeout: 15000 }, async t => {

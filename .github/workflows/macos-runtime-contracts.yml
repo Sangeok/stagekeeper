@@ -139,7 +139,7 @@ jobs:
       - name: Validate shared distribution contracts
         run: node --test scripts/plugin-lib.test.mjs scripts/lib/shared-module-graph.test.mjs scripts/checks/verify-shared-boundaries.test.mjs scripts/macos/package-plugin.test.mjs scripts/windows/package-windows-plugin.test.mjs
       - name: Validate owned smoke server lifecycle
-        run: node --test scripts/rehearsals/smoke-server.test.mjs
+        run: node --test scripts/rehearsals/support/smoke-server.test.mjs
       - name: Build the verified native macOS runtime
         shell: bash
         run: |

@@ -44,7 +44,7 @@ runs:
         GATE_WORK_DIR: ${{ steps.workspace.outputs.parent }}
       run: |
         : "${GATE_WORK_DIR:?workspace output is required}"
-        node scripts/rehearsals/gate-record.mjs --workflow "$GATE_WORKFLOW" --result "$GATE_RESULT" --legs "$GATE_LEGS" --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --repository "$GITHUB_REPOSITORY" --record-issue "$RECORD_ISSUE" --out "$GATE_WORK_DIR/result" --open-issues "$GATE_WORK_DIR/open-issues.ndjson"
+        node .github/actions/gate-record/record.mjs --workflow "$GATE_WORKFLOW" --result "$GATE_RESULT" --legs "$GATE_LEGS" --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT" --repository "$GITHUB_REPOSITORY" --record-issue "$RECORD_ISSUE" --out "$GATE_WORK_DIR/result" --open-issues "$GATE_WORK_DIR/open-issues.ndjson"
         echo "directory=$GATE_WORK_DIR/result" >> "$GITHUB_OUTPUT"
     - name: Add the row to the record
       shell: bash
