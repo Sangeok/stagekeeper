@@ -31,7 +31,7 @@ it("refuses running helpers for an incomplete package even if the model describe
   assert.throws(() => gradeInitEvaluation({ name: "incomplete-package", events: [...inspected, events[1]], before: [], after: [] }));
 });
 
-it("requires the successful standalone dry run, including actual preservation of the modified file", () => {
+it("requires completion and preservation evidence from a successful dry run", () => {
   const planned = "planned: no installation changes\n";
   const preserved = "skip(modified): docs/harness/codex-runbook.md\n";
   const command = events[1].item.command;
@@ -47,6 +47,37 @@ it("requires the successful standalone dry run, including actual preservation of
   for (const inspection of ["cat /package/bin/harness-init.mjs", "cat stagekeeper-eval-dry-run", command + "; cat source"]) {
     assert.throws(() => grade({ command: inspection }), /must execute/);
   }
+});
+
+it("recognizes the final helper after a read-only launcher and repository check", () => {
+  const helper = "stagekeeper-eval-dry-run";
+  const guard = [
+    "expected_launcher='/installed test package/bin/harness'",
+    'expected_repo="$(pwd -P)"',
+    'if [[ "${STAGEKEEPER_EVAL_LAUNCHER:-}" != "$expected_launcher" || "${STAGEKEEPER_EVAL_REPO:-}" != "$expected_repo" ]]; then',
+    "  printf '%s\\n' 'unexpected evaluation target'",
+    "  exit 2",
+    "fi",
+    helper,
+  ].join("\n");
+  function grade(script, { name = "dry-run-only", exitCode = 0, output = events[1].item.aggregated_output } = {}) {
+    const quoted = "'" + script.replaceAll("'", "'\\''") + "'";
+    const call = { ...events[1], item: { ...events[1].item, command: `/bin/zsh -lc ${quoted}`, exit_code: exitCode, aggregated_output: output } };
+    return gradeInitEvaluation({ name, events: [events[0], call, ...events.slice(2)], before: [], after: [] });
+  }
+  assert.equal(grade(guard).passed, true);
+  assert.equal(grade(guard, { name: "modified-file", output: "skip(modified): docs/harness/codex-runbook.md\nplanned: no installation changes\n" }).passed, true);
+  assert.throws(() => grade(guard, { exitCode: 2, output: "unexpected evaluation target\n" }), /must succeed/);
+  assert.throws(() => grade(guard, { output: "" }), /result must be observed/);
+  assert.throws(() => grade(guard, { name: "modified-file" }), /result must be observed/);
+  assert.throws(() => grade(guard, { name: "incomplete-package" }), /incomplete package must not run/i);
+  for (const unverified of [
+    `cat /package/bin/harness-init.mjs\n# ${helper}`,
+    guard.replace("exit 2", "exit 0"),
+    guard.replace("expected_repo=", "OTHER="),
+    guard.replace('"$expected_repo"', '"$expected_launcher"'),
+    `${guard}\ncat /package/bin/harness-init.mjs`,
+  ]) assert.throws(() => grade(unverified), /must execute/);
 });
 
 it("filters native output at the process boundary and preserves the native exit code", { skip: process.platform === "win32" }, t => {
