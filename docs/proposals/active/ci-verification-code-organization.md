@@ -499,7 +499,7 @@ payload 비교에서 출하 변경이 발견되면 완료를 중단하고 원인
 
 ### Phase CVO3: 동일 후보의 native·클라이언트 인수
 
-- status: 후보 `a2acd9a`의 인수 실행 종료. 필수 항목 실패와 미실행으로 REQ-CVO-007 미충족.
+- status: 후보 `84d8016`의 인수 실행 종료. 필수 17개 중 10개 통과·1개 실패·6개 미실행으로 REQ-CVO-007 미충족.
 - predecessor artifacts: CVO2 후보 source SHA, 기존 template/package 입력, public/private 소비 경로.
 - satisfies: REQ-CVO-007
 - preserves: INV-CVO-001, INV-CVO-002, INV-CVO-003
@@ -743,7 +743,7 @@ coverage를 별도로 검토한다.
 ## Completion or Closure Notes
 
 CVO1은 PR #377, CVO2는 PR #380으로 dev에 병합됐다. [CVO2 구현 기록](./ci-verification-code-organization-phase-cvo2.md)을 보존한다.
-CVO3의 별도 실행 범위는 [상세 계획](./ci-verification-code-organization-phase-cvo3.md), 후보의 실제 인수 결과와 미충족 항목은 [실행 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md)에서 확인한다.
+CVO3의 별도 실행 범위는 [상세 계획](./ci-verification-code-organization-phase-cvo3.md), 후보의 실제 인수 결과와 미충족 항목은 [후보 84d8016 실행 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md)에서 확인한다.
 
 후속 구현자는 시작 시 최신 dev·열린 PR·active 제안·working tree를 다시 확인하고,
 선택한 Phase의 허용 범위·VFY·중단 조건만 수행한다. 이 문서와 현재 architecture가

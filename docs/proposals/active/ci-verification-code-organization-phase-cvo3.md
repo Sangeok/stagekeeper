@@ -6,7 +6,7 @@ created-at: "2026-11-18"
 updated-at: "2026-11-19"
 approved-by: "user"
 approved-at: "2026-11-19"
-approval-scope: "후보 a2acd9a 무모델 인수, 공개 Claude 전체 eval 및 slug, private Codex all 각 1회. dev 이동 후 남은 공개 truncate 1회 미사용, 유료 재시도 0회. 운영 승격은 별도 범위."
+approval-scope: "후보 84d8016 전체 인수, 비공개 대상 변경 PR 병합, 무모델 검사, 유료 워크플로 최대 4회·재시도 0회. 필수 실패 또는 후보 변경 시 후속 유료 실행 중단. 공개 truncate 종료까지 다른 dev 병합 보류 가능."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -19,13 +19,14 @@ related:
   - "docs/proposals/active/dual-client-ci-parity.md"
   - "docs/architecture/verification.md"
   - "docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md"
+  - "docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md"
 ---
 
 # CVO3 상세 실행 계획 — 동일 후보의 native·클라이언트 인수
 
 **완료 목표.** CVO2에서 옮긴 코드로 기존 Windows·macOS 런타임, Claude 및 macOS Codex 설치·평가·파이프라인이 종전 합격 조건을 충족하는지 같은 소스 후보에서 입증한다. 완료 요건은 [상위 SDD의 REQ-CVO-007](./ci-verification-code-organization.md#req-cvo-007-실제-실행-검증의-동등성)이다. 요구사항·불변조건·제약·VFY는 상위 SDD가 소유하며, 이 문서는 CVO3 실행 작업 네 개와 결과 기록 방식을 소유한다.
 
-**캠페인 결과는 FAIL이다.** 후보 `a2acd9a`의 필수 17개 중 12개가 통과했다. 공개 Claude macOS `slug`는 실행 도중 이동한 marketplace SHA를 거부했고, private Codex eval은 `modified-file` 두 번째 반복의 dry-run 출력 확인에 실패했다. 공개 `truncate`는 사용자가 남은 실행 1회를 사용하지 않기로 했고 private pipeline은 eval 실패로 시작하지 않았다. 유료 workflow 3회, 유료 재시도 0회로 종료했다. 후속 후보는 별도로 결정한다. [CVO3 완료 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md) · [상위 SDD](./ci-verification-code-organization.md#phase-cvo3-동일-후보의-native클라이언트-인수)
+**후보 `84d8016`의 인수 결과는 FAIL이다.** 필수 17개 중 10개 통과, 1개 실패, 6개 미실행이다. private Codex의 첫 `dry-run-only`에서 모델이 설치된 native dry-run을 실행하지 않았다. 승인된 중단 조건에 따라 유료 워크플로는 1회 사용했고, 나머지 3회는 미사용으로 마감했다. [후보 84d8016 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md) · [이전 후보 a2acd9a 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md)
 
 ## 후보와 현재 증거
 
