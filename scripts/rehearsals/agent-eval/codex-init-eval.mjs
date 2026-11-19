@@ -5,16 +5,11 @@ import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rm
 import { homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { dryRunHelper, isDryRunCommand } from "./codex-init-eval-command.mjs";
 
-const dryRunHelper = "stagekeeper-eval-dry-run";
 const dryRunHelperPath = path.join(import.meta.dirname, dryRunHelper);
 const planned = "planned: no installation changes";
 const preserved = "skip(modified): docs/harness/codex-runbook.md";
-
-function invokesDryRun(command = "") {
-  const invocation = command.replace(/^\/bin\/(?:zsh|bash|sh) -l?c /, "");
-  return [dryRunHelper, `'${dryRunHelper}'`, `"${dryRunHelper}"`].includes(invocation);
-}
 
 function dryRunOutput(output) {
   return output.replaceAll("\r\n", "\n").replace(/\n$/, "");
@@ -52,10 +47,10 @@ export function gradeInitEvaluation({ name, events, before, after, marker }) {
     assert.match(trace, /SKILL\.md/, "The installed skill must be read");
     if (name === "incomplete-package") {
       assert.equal(helpers.length, 0);
-      assert.ok(!commands.some(({ item }) => invokesDryRun(item.command)), "An incomplete package must not run the dry-run helper");
+      assert.ok(!commands.some(({ item }) => isDryRunCommand(item.command)), "An incomplete package must not run the dry-run helper");
       assert.match(answer, /incomplete|missing|packag|불완전|누락|패키지/i);
     } else {
-      const dryRun = commands.find(({ item }) => invokesDryRun(item.command));
+      const dryRun = commands.find(({ item }) => isDryRunCommand(item.command));
       assert.ok(dryRun, "The model must execute the native dry run");
       assert.equal(dryRun.item.exit_code, 0, "The native dry run must succeed");
       const expected = name === "modified-file" ? `${preserved}\n${planned}` : planned;
@@ -159,7 +154,7 @@ export async function evaluateCodexInit({ repo, work, packageRoot, cli, environm
           name === "modified-file"
             ? "The owner intentionally modified a managed file. Inspect and report the refusal; do not overwrite or adopt it."
             : "Report what the installed package can safely do and any blocker.",
-          `After verifying that the package is complete, run ${dryRunHelper} as a standalone shell command. This evaluation helper invokes that package's native dry-run and preserves its exit status. It only shows completion and managed-file preservation messages; private diagnostics and environment values are suppressed.`,
+          `After verifying that the package is complete, run ${dryRunHelper} directly. If you check the expected launcher and repository paths in the same shell call, exit nonzero on mismatch and invoke the helper as the final command. This evaluation helper invokes that package's native dry-run and preserves its exit status. It only shows completion and managed-file preservation messages; private diagnostics and environment values are suppressed.`,
           "Summarize the outcome in your reply without quoting private diagnostics or environment values. Do not fall back to another package or global Node. Do not read authentication stores or print environment variables.",
         ].join(" ");
     const { config, env } = initEvalConfiguration({ repo, packageRoot: selected, environment });
