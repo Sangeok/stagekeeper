@@ -108,7 +108,7 @@ QUALIFY 문서 정합과 기존 후보 구현·검증을 계속한다. 명령 �
 
 - Observed: Windows에서 빌드한 작업은 Next 빌드 링크 두 개 때문에 봉인 단계에서 `linked-path`로
   거부되어 `complete`·`recover`·`retire` 어느 경로로도 병합하거나 닫을 수 없었다([#383](https://github.com/Sangeok/stagekeeper/issues/383)).
-- Decision: [Windows 빌드 링크 인계 제안](./pr-closeout-windows-build-links.md)으로 파일 검사를 인계용과
+- Decision: [Windows 빌드 링크 인계 제안](../completed/2026-11-19-pr-closeout-windows-build-links.md)으로 파일 검사를 인계용과
   삭제용으로 나눴다. 자동 정리 자격이 없는 호스트에서 두 링크는 인계를 막지 않고 자동 삭제만
   막는다(REQ-PWC-003). 삭제 조건, 자격 있는 Mac의 동작, REQ/INV/CON의 의미는 바꾸지 않는다.
 - Decision: Windows에서 장치 번호 0을 보고하는 Node는 status·inspect 외 명령을
