@@ -21,6 +21,7 @@ related:
   - "docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md"
   - "docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md"
   - "docs/test-reports/completed/2026-11-19-cvo3-codex-eval-462f25e.md"
+  - "docs/test-reports/completed/2026-11-19-cvo3-codex-eval-e764270.md"
 ---
 
 # CVO3 상세 실행 계획 — 동일 후보의 native·클라이언트 인수
@@ -30,6 +31,8 @@ related:
 **후보 `84d8016`의 인수 결과는 FAIL이다.** 필수 17개 중 10개 통과, 1개 실패, 6개 미실행이다. private Codex의 첫 `dry-run-only`에서 모델이 설치된 native dry-run을 실행하지 않았다. 승인된 중단 조건에 따라 유료 워크플로는 1회 사용했고, 나머지 3회는 미사용으로 마감했다. [후보 84d8016 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md) · [이전 후보 a2acd9a 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md)
 
 **후속 후보 `462f25e`의 macOS Codex 한정 검증도 FAIL이다.** 신규 설치·업데이트는 통과했다. 실제 eval의 `dry-run-only` 3회차에서 도우미가 종료 코드 0과 완료 문구를 반환했으나, 같은 셸 호출에 대상 경로 확인이 포함돼 단독 명령 판정에서 실패했다. 유료 eval 1회, 재시도 0회로 종료했다. [후속 검증 보고서](../../test-reports/completed/2026-11-19-cvo3-codex-eval-462f25e.md)
+
+**후보 `e764270`의 macOS Codex 한정 판정은 FAIL이다.** 신규·업데이트 설치는 같은 SHA의 두 번째 무모델 실행에서 통과했다. 유료 eval 1회에서 쓰기 대조군과 첫 dry-run이 통과했지만, 두 번째 dry-run의 대상 확인 구문과 절대경로 호출을 평가기가 인정하지 않았다. 유료 재시도는 0회다. [후보 e764270 보고서](../../test-reports/completed/2026-11-19-cvo3-codex-eval-e764270.md)
 
 ## 후보와 현재 증거
 
