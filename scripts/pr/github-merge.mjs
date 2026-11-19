@@ -19,7 +19,7 @@ export function github(ctx) {
       if (!match) refuse("github-transport-unknown");
       const status = Number(match[1]), data = decode(match[3]);
       const retry = /^retry-after:\s*(\d+)\s*$/im.exec(match[2]);
-      return { status, data, retryAfter: retry ? Number(retry[1]) : null };
+      return { status, data, retryAfter: retry ? Number(retry[1]) : null, hasNext: /^link:.*rel="next"/im.test(match[2]) };
     },
     readiness: (number, head) => inspectReadiness(ctx, number, head),
   };
@@ -59,9 +59,39 @@ async function get(ctx, suffix, options) {
   if (result.status !== 200 || !object(result.data) && !Array.isArray(result.data)) refuse("github-observation-unavailable");
   return result.data;
 }
-export async function pull(ctx, record, number, options) {
+async function repositoryIdentity(ctx, options) {
   const repository = await get(ctx, "", options);
   if (!integer(repository.id) || repository.full_name?.toLowerCase() !== ctx.repository.toLowerCase() || repository.archived !== false || repository.disabled !== false) refuse("repository-unverified");
+  return repository;
+}
+
+export async function discoverPull(ctx, record) {
+  const repository = await repositoryIdentity(ctx);
+  const seen = new Set(), candidates = [];
+  const head = ctx.repository.split("/")[0] + ":" + record.branch;
+  for (let page = 1; page <= 100; page++) {
+    const query = new URLSearchParams({ state: "all", base: "dev", head, per_page: "100", page: String(page) });
+    const options = ctx.deadline ? { timeout: timeout(ctx.deadline.end, ctx.deadline.clock) } : {};
+    const response = await github(ctx).request("GET", endpoint(ctx, "/pulls?" + query), undefined, options);
+    if (response.status !== 200 || !Array.isArray(response.data) || response.data.length > 100) refuse("pr-discovery-incomplete");
+    for (const pr of response.data) {
+      if (!integer(pr?.number) || seen.has(pr.number) || !integer(pr.head?.repo?.id) || !integer(pr.base?.repo?.id)
+        || !OID.test(pr.head.sha) || !pr.head.ref || !pr.base.ref) refuse("pr-discovery-incomplete");
+      seen.add(pr.number);
+      if (pr.head.repo.id === repository.id && pr.base.repo.id === repository.id && pr.base.ref === "dev"
+        && pr.head.ref === record.branch && pr.head.sha === record.release.head) candidates.push(pr.number);
+    }
+    if (candidates.length > 1) refuse("pr-discovery-ambiguous");
+    if (response.data.length < 100 && !response.hasNext) {
+      if (!candidates.length) refuse("pr-not-found");
+      return candidates[0];
+    }
+  }
+  refuse("pr-discovery-incomplete");
+}
+
+export async function pull(ctx, record, number, options) {
+  const repository = await repositoryIdentity(ctx, options);
   const value = await get(ctx, "/pulls/" + number, options);
   const head = record.release?.head ?? record.expectedHead;
   if (!integer(number) || value.number !== number || typeof value.merged !== "boolean"

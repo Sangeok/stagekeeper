@@ -4,6 +4,8 @@ import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import { UUID, OID, ZERO, MAX_JSON, keys, object, json, digest, lstat, readJson, publishJson, mkdir, directoryIdentity, git, gitText, refuse, validateBranch } from "./git-workspace.mjs";
 
+import { isReleaseRef } from "./release-refs.mjs";
+
 export const TASK_PREFIX = "refs/stagekeeper/pr-closeout/tasks/";
 export const MIGRATION_REF = "refs/stagekeeper/pr-closeout/migration";
 const phases = ["creating", "working", "sealed", "merge-requested", "merged", "cleanup-pending", "complete", "retired"];
@@ -63,7 +65,7 @@ export function newTask(ctx, installationId, { taskId = randomUUID(), instanceId
     requests: {}, worktree: { state: "not-created", requestId: null }, branchEffect: { state: "not-started", requestId: null },
     observation: null, externalRemoval: null, migration: null, reasons: [] };
 }
-function permittedRef(ref) { return ref === MIGRATION_REF || ref.startsWith(TASK_PREFIX) && UUID.test(ref.slice(TASK_PREFIX.length)); }
+function permittedRef(ref) { return ref === MIGRATION_REF || isReleaseRef(ref) || ref.startsWith(TASK_PREFIX) && UUID.test(ref.slice(TASK_PREFIX.length)); }
 export async function refOid(ctx, ref) {
   if (!permittedRef(ref)) refuse("invalid-state-ref");
   const result = await gitText(ctx, ["for-each-ref", "--format=%(refname)%09%(objectname)%09%(symref)", ref]);
@@ -133,14 +135,27 @@ export async function transaction(ctx, changes) {
   const r = await git(ctx, ["update-ref", "--no-deref", "--stdin"], { input, allowed: [0, 128], diagnostics: true });
   if (r.status !== 0) refuse("state-changed");
 }
-export async function saveTask(ctx, stored, change, { deleteBranch = false } = {}) {
+export async function saveTask(ctx, stored, change, { deleteBranch = false, beforeCommit } = {}) {
   assertGuard(ctx, "task", stored.record.taskId); assertGuard(ctx, "common");
   const next = { ...structuredClone(stored.record), ...change, sequence: stored.record.sequence + 1, previousStateOid: stored.oid };
   if (!validTask(next, ctx)) refuse("invalid-state-transition", 1);
   const oid = await stateObject(ctx, next, [stored.oid, next.baseSha, next.release?.head, next.merge?.merge, next.toolRevision]);
   const changes = [{ ref: taskRef(next.taskId), old: stored.oid, next: oid }];
+  if (stored.releaseLink) {
+    const { name, oid: previous } = stored.releaseLink;
+    if (!isReleaseRef(name) || !name.endsWith("/" + next.taskId)) refuse("invalid-release-ref");
+    const symbolic = await git(ctx, ["symbolic-ref", "--quiet", name], { allowed: [0, 1] });
+    if (symbolic.status === 0) refuse("release-ref-unverified");
+    const released = next.phase === "working" || next.phase === "complete" ? null : oid;
+    changes.push({ ref: name, old: previous, next: released });
+  }
   if (deleteBranch) changes.push({ ref: "refs/heads/" + next.branch, old: next.release.head, next: null });
+  beforeCommit?.();
   await transaction(ctx, changes);
+  if (stored.releaseLink) {
+    if (next.phase === "working" || next.phase === "complete") delete stored.releaseLink;
+    else stored.releaseLink.oid = oid;
+  }
   stored.record = next; stored.oid = oid; return stored;
 }
 export async function createTaskRecord(ctx, record) {
@@ -195,8 +210,15 @@ export function releaseGuard(ctx, handle) {
   fs.unlinkSync(path.join(handle.file, "owner.json")); fs.rmdirSync(handle.file); ctx.guards.delete(handle.file);
 }
 export async function withGuard(ctx, kind, id, fn) {
-  const handle = acquireGuard(ctx, kind, id);
-  try { return await fn(); } finally { releaseGuard(ctx, handle); }
+  let handle;
+  try { handle = acquireGuard(ctx, kind, id); }
+  catch (error) { error.guardKind = kind; throw error; }
+  try {
+    return await fn();
+  } finally {
+    try { releaseGuard(ctx, handle); }
+    catch (error) { error.guardKind = kind; throw error; }
+  }
 }
 export async function recoverGuard(ctx, kind, id, nonce, confirmed) {
   const status = guardStatus(ctx, kind, id);

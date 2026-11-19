@@ -13,6 +13,7 @@
     "docs:check": "node scripts/checks/verify-docs.mjs",
     "verify:ci-coverage": "node scripts/checks/verify-ci-coverage.mjs",
     "pr": "node scripts/pr/index.mjs",
+    "task": "node scripts/pr/task.mjs",
     "github:maintenance": "node --conditions=react-server --import tsx scripts/maintain-github-connections.ts",
     "test:architecture": "node --test \"scripts/**/*.test.mjs\" \".github/actions/gate-record/record.test.mjs\"",
     "test:scripts": "node --import tsx --test \"scripts/**/*.test.mjs\" \"scripts/**/*.test.ts\" \".github/actions/gate-record/record.test.mjs\"",

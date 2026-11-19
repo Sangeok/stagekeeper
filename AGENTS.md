@@ -102,7 +102,7 @@ commits that were already green on `dev`.
 - Before starting an independent change, prepare a retained control checkout with
   the current `origin/dev` tools and rules as described in `docs/architecture/verification.md`.
   Fetching remote refs does not update the executing source. Once activation has been
-  explicitly completed, use `npm run pr -- create --owner <owner> --branch harness/<topic>
+  explicitly completed, use `npm run task -- start --owner <owner> --branch harness/<topic>
   --path <absolute-new-path>` there and retain the task ID, instance ID and state OID.
   Existing unregistered worktrees remain unmanaged; never infer ownership from age.
 - Keep a managed worktree assigned to its recorded task and branch. Do not switch
@@ -211,6 +211,10 @@ commits that were already green on `dev`.
   never merge merely to enable cleanup. `complete` checks the latest exact-head
   `check.yml` run, required checks and GitHub readiness before its one merge request.
   Remote feature-branch deletion remains GitHub's responsibility.
+- For a human-managed PR, finish local and shared use, preserve user data and leave the target worktree. From the retained control checkout run
+  `npm run task -- release --task <id> --owner <owner> --expected-state <oid> --expected-head <sha> --expected-instance <uuid> --request-id <uuid> --usage-ended`.
+  The optional `--pr <number>` binds a known PR. GitHub web creation and merge may happen later. Before using a released worktree for further review, successfully run `npm run pr -- resume --task <id> --owner <owner> --expected-state <oid>`.
+  The next `task start` checks explicitly released tasks in this installation, device and account. It only observes remote merges and reports each local worktree and branch outcome. Held or ambiguous evidence preserves the task. Legacy `pr create` still performs creation only.
 - At task end, finish processes and shared use, preserve ignored user data, and move
   outside the target to a trusted control checkout. Read `pr -- inspect --task <id>`.
   An authorized merge uses `npm run pr -- complete --task <id> --owner <owner>

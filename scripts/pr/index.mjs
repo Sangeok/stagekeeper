@@ -1,16 +1,18 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, registry, worktreeState, directoryIdentity, inspectFiles, outsideTarget, checkNewPath, remoteSnapshot, ancestor, validateBranch } from "./git-workspace.mjs";
-import { MIGRATION_REF, activation, requireActivation, loadTask, listTasks, readStateObject, validTask, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
-import { migrate, validJournal } from "./legacy-migration.mjs";
+import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, worktreeState, directoryIdentity, inspectFiles, checkNewPath, remoteSnapshot, ancestor, validateBranch } from "./git-workspace.mjs";
+import { MIGRATION_REF, activation, requireActivation, loadTask, listTasks, readStateObject, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
+import { migrate, validJournal, installationTask } from "./legacy-migration.mjs";
 import { pull, preflight, requestMerge, observeMerge, mergeProof, preservation, noOpenDependencies } from "./github-merge.mjs";
-import { inspectWorktreeUsage } from "./process-usage/process-usage.mjs";
+import { change, recordMerged, currentHead, seal, terminal, cleanup, handoff } from "./task-closeout.mjs";
+import { attachResumedLink, cleanupBeforeStart, inspectHandoff, releaseTask } from "./task-handoff.mjs";
 
 const common = ["operation", "root", "signal"];
 const task = ["task", "owner", "expectedState"];
 const effect = ["expectedHead", "expectedInstance", "requestId"];
 const contract = {
   status: ["task"], inspect: ["task", "pr", "remote"],
+  start: ["owner", "branch", "path"], release: [...task, ...effect, "pr", "usageEnded"],
   create: ["owner", "branch", "path", "task", "expectedState", "confirmCreatedByTask"],
   complete: [...task, ...effect, "pr", "usageEnded"], cleanup: [...task, ...effect],
   retire: [...task, ...effect, "pr", "usageEnded"], recover: task, resume: task,
@@ -30,13 +32,14 @@ export function validateOptions(options) {
   for (const key of ["expectedState", "expectedHead"]) if (options[key] !== undefined && !OID.test(options[key])) refuse("invalid-input");
   if (options.pr !== undefined && (!Number.isSafeInteger(options.pr) || options.pr < 1)) refuse("invalid-input");
   if (options.owner !== undefined && (!options.owner || options.owner.trim() !== options.owner || options.owner.length > 128 || /[\x00-\x1f\x7f]/.test(options.owner))) refuse("invalid-input");
-  const required = options.operation === "create" ? options.task ? task : ["owner", "branch", "path"]
-    : ["complete", "cleanup", "retire", "acknowledge-removal"].includes(options.operation) ? [...task, ...effect]
-      : ["recover", "resume"].includes(options.operation) ? task : options.operation === "inspect" ? ["task"] : [];
+  const newTaskRequest = options.operation === "start" || options.operation === "create" && !options.task;
+  const required = newTaskRequest ? ["owner", "branch", "path"]
+    : ["complete", "release", "cleanup", "retire", "acknowledge-removal"].includes(options.operation) ? [...task, ...effect]
+      : ["create", "recover", "resume"].includes(options.operation) ? task : options.operation === "inspect" ? ["task"] : [];
   for (const key of required) if (options[key] === undefined) refuse("missing-" + key.replace(/[A-Z]/g, c => "-" + c.toLowerCase()));
-  if (options.operation === "complete" && (!options.pr || !options.usageEnded) || options.operation === "retire" && !options.usageEnded
+  if (options.operation === "complete" && (!options.pr || !options.usageEnded) || ["release", "retire"].includes(options.operation) && !options.usageEnded
     || options.operation === "acknowledge-removal" && !options.externalRemovalConfirmed) refuse("handoff-required");
-  if (options.operation === "create") {
+  if (["create", "start"].includes(options.operation)) {
     if (options.task ? options.branch !== undefined || options.path !== undefined : options.expectedState !== undefined || options.confirmCreatedByTask !== undefined) refuse("invalid-input");
     if (options.branch) validateBranch(options.branch);
     if (options.path && (!path.isAbsolute(options.path) || path.resolve(options.path) !== options.path)) refuse("invalid-input");
@@ -54,8 +57,9 @@ export function validateOptions(options) {
   }
   return options;
 }
-export function parseArgs(argv) {
+export function parseArgs(argv, namespace = "pr") {
   const operation = argv.shift();
+  if (["start", "release"].includes(operation) !== (namespace === "task")) refuse("invalid-input");
   const options = { operation };
   if (operation === "migrate") options.action = argv.shift();
   while (argv.length) {
@@ -84,61 +88,7 @@ async function sourceRevision(ctx, mutation) {
   for (const file of files) noLinks(path.join(ctx.root, file));
   return gitText(ctx, ["rev-parse", "HEAD^{commit}"]);
 }
-async function installationTask(ctx, stored, active) {
-  if (!validJournal(active.journal, ctx) || stored.record.installationId !== active.installationId) refuse("installation-mismatch");
-  const imported = active.journal.manifest.find(m => m.taskId === stored.record.taskId);
-  let current = stored, traversed = 0;
-  while (current.record.previousStateOid !== null) {
-    if (++traversed > 10000) refuse("state-history-limit");
-    if (imported && current.oid === imported.oid) return;
-    const previous = await readStateObject(ctx, current.record.previousStateOid);
-    if (!validTask(previous.record, ctx) || previous.record.taskId !== stored.record.taskId || previous.record.installationId !== active.installationId
-      || previous.record.sequence !== current.record.sequence - 1) refuse("state-lineage-invalid");
-    for (const key of ["owner", "instanceId", "branch", "path", "baseSha", "toolRevision"]) {
-      if (previous.record[key] !== current.record[key]) refuse("state-lineage-invalid");
-    }
-    current = previous;
-  }
-  if (imported && current.oid !== imported.oid || !imported && current.record.migration !== null) refuse("state-lineage-invalid");
-}
-async function change(ctx, stored, value, options) {
-  return withGuard(ctx, "common", undefined, async () => saveTask(ctx, stored, value, options));
-}
-async function currentHead(ctx, record, expected) {
-  const state = await worktreeState(ctx, record);
-  if (!state.present || state.head !== expected || await branchHead(ctx, record.branch) !== expected) refuse("head-changed");
-  return state;
-}
-async function observeUsage(ctx, record) {
-  const value = await (ctx.ports.inspectUsage ?? inspectWorktreeUsage)({ worktreePath: record.path, signal: ctx.signal });
-  if (value.observer?.state === "unsettled") ctx.unsettled = true;
-  const observation = { at: new Date().toISOString(), status: ["clear", "busy", "unknown"].includes(value.status) ? value.status : "unknown",
-    capability: value.capability?.status === "qualified" ? "qualified" : "unqualified", profile: value.capability?.profile ?? null,
-    revision: value.capability?.revision ?? null, performed: value.observationPerformed === true, coverageComplete: value.observation?.coverageComplete === true,
-    settled: value.observer?.state === "settled" };
-  ctx.usageObservation = observation;
-  return observation;
-}
-const handoff = { purpose: "handoff" }, removal = { purpose: "removal" };
 function requireDeviceIdentity(ctx) { for (const directory of [ctx.root, ctx.common]) directoryIdentity(directory); }
-const clearUsage = o => o.status === "clear" && o.capability === "qualified" && o.performed && o.coverageComplete && o.settled;
-async function seal(ctx, stored, options, pr = null) {
-  if (stored.record.phase !== "working") return;
-  outsideTarget(ctx, stored.record);
-  await currentHead(ctx, stored.record, options.expectedHead);
-  const files = await inspectFiles(ctx, stored.record, handoff), observation = await observeUsage(ctx, stored.record);
-  if (observation.status === "busy" || ctx.unsettled) refuse("worktree-in-use");
-  await withGuard(ctx, "common", undefined, async () => {
-    await currentHead(ctx, stored.record, options.expectedHead);
-    if ((await inspectFiles(ctx, stored.record, handoff)).fingerprint !== files.fingerprint) refuse("files-changed");
-    await saveTask(ctx, stored, { phase: "sealed", pr, observation, reasons: [], release: { head: options.expectedHead, instance: options.expectedInstance,
-      at: new Date().toISOString(), fingerprint: files.fingerprint, sourceState: stored.oid, requestId: options.requestId } });
-  });
-}
-async function terminal(ctx, stored) {
-  if ((await worktreeState(ctx, stored.record)).present || await branchHead(ctx, stored.record.branch) !== null) refuse("completed-target-reappeared");
-  if (!["complete", "retired"].includes(stored.record.phase)) refuse("not-terminal");
-}
 async function create(ctx, options, active, revision) {
   let stored;
   if (!options.task) {
@@ -181,55 +131,6 @@ async function create(ctx, options, active, revision) {
     });
   });
 }
-async function cleanup(ctx, stored, options) {
-  let r = stored.record;
-  if (!r.release || !r.purpose || !["merged", "cleanup-pending"].includes(r.phase)) refuse("cleanup-not-authorized");
-  outsideTarget(ctx, r);
-  await preservation(ctx, r);
-  const state = await worktreeState(ctx, r);
-  if (state.present) {
-    if (["removed", "external"].includes(r.worktree.state)) refuse("removed-target-reappeared");
-    await currentHead(ctx, r, r.release.head);
-    const files = await inspectFiles(ctx, r, removal);
-    if (files.fingerprint !== r.release.fingerprint) refuse("files-changed");
-    const observation = await observeUsage(ctx, r);
-    if (!clearUsage(observation)) {
-      const reason = observation.status === "busy" ? "worktree-in-use" : observation.capability === "unqualified" ? "unqualified-profile" : "usage-unverified";
-      await change(ctx, stored, { phase: "cleanup-pending", observation, reasons: [reason],
-        requests: requestChange(stored, options, "pending") }); return;
-    }
-    await withGuard(ctx, "common", undefined, async () => {
-      assertGuard(ctx, "task", r.taskId);
-      await currentHead(ctx, r, r.release.head);
-      if ((await inspectFiles(ctx, r, removal)).fingerprint !== files.fingerprint) refuse("files-changed");
-      await saveTask(ctx, stored, { phase: "cleanup-pending", observation, worktree: { state: "intent", requestId: options.requestId },
-        requests: requestChange(stored, options, "intent"), reasons: [] });
-      await git(ctx, ["worktree", "remove", "--", r.path], { diagnostics: true });
-      if ((await worktreeState(ctx, stored.record)).present) refuse("removal-unconfirmed");
-      await saveTask(ctx, stored, { worktree: { state: "removed", requestId: options.requestId } });
-    });
-  } else if (!["intent", "removed", "external"].includes(r.worktree.state)) refuse("external-removal-unconfirmed");
-  else if (r.worktree.state === "intent") await change(ctx, stored, { worktree: { ...r.worktree, state: "removed" } });
-  r = stored.record;
-  await preservation(ctx, r);
-  if ((await registry(ctx)).some(w => w.branch === "refs/heads/" + r.branch)) refuse("branch-in-use");
-  await withGuard(ctx, "common", undefined, async () => {
-    if ((await worktreeState(ctx, r)).present) refuse("removed-target-reappeared");
-    const head = await branchHead(ctx, r.branch);
-    if (head === null) {
-      if (r.branchEffect.state !== "intent") refuse("branch-removal-unconfirmed");
-      await saveTask(ctx, stored, { phase: r.purpose === "merged" ? "complete" : "retired", branchEffect: { ...r.branchEffect, state: "removed" },
-        reasons: [], requests: requestChange(stored, options, "complete") }); return;
-    }
-    if (head !== r.release.head) refuse("head-changed");
-    await saveTask(ctx, stored, { branchEffect: { state: "intent", requestId: options.requestId } });
-    if ((await registry(ctx)).some(w => w.branch === "refs/heads/" + r.branch) || (await worktreeState(ctx, r)).present) refuse("branch-in-use");
-    if (await branchHead(ctx, r.branch) !== r.release.head) refuse("head-changed");
-    await saveTask(ctx, stored, { phase: r.purpose === "merged" ? "complete" : "retired", branchEffect: { state: "removed", requestId: options.requestId },
-      reasons: [], requests: requestChange(stored, options, "complete") }, { deleteBranch: true });
-  });
-  await terminal(ctx, stored);
-}
 async function complete(ctx, stored, options) {
   if (stored.record.pr && stored.record.pr.number !== options.pr) refuse("pr-binding-mismatch");
   if (stored.record.purpose === "retire") refuse("purpose-conflict");
@@ -243,7 +144,7 @@ async function complete(ctx, stored, options) {
   if (view.state === "MERGED") {
     const proof = await mergeProof(ctx, stored.record);
     if (!proof) refuse("merge-observation-unavailable");
-    await change(ctx, stored, { phase: "merged", purpose: "merged", merge: proof, reasons: [], requests: requestChange(stored, options, "pending") });
+    await recordMerged(ctx, stored, options, proof, view.binding);
     await cleanup(ctx, stored, options); return;
   }
   if (stored.record.phase === "merge-requested") {
@@ -297,6 +198,7 @@ async function taskCommand(ctx, stored, options) {
     if (stored.record.phase !== "sealed" || Object.values(stored.record.requests).some(r => r.operation === "complete")) refuse("resume-not-authorized");
     await currentHead(ctx, stored.record, stored.record.release.head);
     if ((await inspectFiles(ctx, stored.record, handoff)).fingerprint !== stored.record.release.fingerprint) refuse("files-changed");
+    await attachResumedLink(ctx, stored);
     return change(ctx, stored, { phase: "working", release: null, pr: null, observation: null, reasons: [] });
   }
   if (options.operation === "retire") {
@@ -332,7 +234,7 @@ function report(operation, stored, extra = {}) {
     pr: r?.pr ?? null, purpose: r?.purpose ?? null, merge: r?.merge ?? null, worktree: r?.worktree ?? null, branch: r?.branchEffect ?? null,
     capability: r?.observation?.capability ?? null, lastObservation: r?.observation ?? null, externalRemoval: r?.externalRemoval ?? null,
     observationPerformed: false, reasons: r?.reasons ?? [], nextActions: r?.phase === "cleanup-pending" ? ["inspect", "cleanup"] : [],
-    ...(r ? { owner: r.owner, path: r.path, branchName: r.branch, instance: r.instanceId, head: r.release?.head ?? (operation === "create" ? r.baseSha : null), sequence: r.sequence } : {}), ...extra };
+    ...(r ? { owner: r.owner, path: r.path, branchName: r.branch, instance: r.instanceId, head: r.release?.head ?? (["start", "create"].includes(operation) ? r.baseSha : null), sequence: r.sequence } : {}), ...extra };
 }
 async function migrationStatus(ctx) {
   const oid = await refOid(ctx, MIGRATION_REF);
@@ -343,7 +245,8 @@ async function migrationStatus(ctx) {
     fence: path.join(ctx.common, "stagekeeper-task-worktrees", "command.guard") };
 }
 export async function runPrCommand(input, ports = {}) {
-  let options, ctx, stored;
+  let options, ctx, stored, handoffState;
+  const candidates = [];
   try {
     options = validateOptions({ ...input }); ctx = await context(options.root, options.signal, ports);
     const readonly = ["status", "inspect"].includes(options.operation) || options.operation === "migrate" && options.action === "preview"
@@ -362,6 +265,7 @@ export async function runPrCommand(input, ports = {}) {
         views.push(report("status", task, { head: task.record.release?.head ?? liveHead, liveHead, localReasons }));
       }
       let remote = null, local = null;
+      if (options.operation === "inspect") handoffState = await inspectHandoff(ctx, stored);
       if (options.operation === "inspect") {
         try {
           const identity = await worktreeState(ctx, stored.record);
@@ -385,7 +289,7 @@ export async function runPrCommand(input, ports = {}) {
         || (await Promise.all(tasks.map(async t => await refOid(ctx, taskRef(t.record.taskId)) !== t.oid))).some(Boolean);
       return report(options.operation, stored, { exitCode: 0, active: before.active, legacyPresent: Boolean(lstat(path.join(ctx.common, "stagekeeper-task-worktrees"))),
         tasks: views, ...(stored ? { head: views[0].head, liveHead: views[0].liveHead, localReasons: views[0].localReasons } : {}), local, remote, migration,
-        reasons: changed ? ["transition-in-progress"] : before.active ? [] : [before.reason] });
+        ...(handoffState ? { handoff: handoffState, handoffReasons: handoffState === "held" ? stored.record.reasons : [] } : {}), reasons: changed ? ["transition-in-progress"] : before.active ? [] : [before.reason] });
     }
     requireDeviceIdentity(ctx);
     const revision = await sourceRevision(ctx, !readonly);
@@ -396,9 +300,15 @@ export async function runPrCommand(input, ports = {}) {
     }
     if (options.operation === "recover-guard") return report(options.operation, null, { guard: await recoverGuard(ctx, options.guard, options.task, options.expectedNonce, options.confirmedQuiescent), exitCode: 0 });
     const active = await requireActivation(ctx);
-    if (options.operation === "create") stored = await create(ctx, options, active, revision);
+    if (options.operation === "start") await cleanupBeforeStart(ctx, active, options, candidates);
+    if (["start", "create"].includes(options.operation)) stored = await create(ctx, options, active, revision);
     else await withGuard(ctx, "task", options.task, async () => {
-      stored = await loadTask(ctx, options.task); authorize(stored, options); await installationTask(ctx, stored, active);
+      stored = await loadTask(ctx, options.task);
+      if (options.operation === "release") {
+        handoffState = await releaseTask(ctx, stored, active, options);
+        return;
+      }
+      authorize(stored, options); await installationTask(ctx, stored, active);
       try { await taskCommand(ctx, stored, options); }
       catch (error) {
         if (stored.record.purpose && !["complete", "retired"].includes(stored.record.phase) && !ctx.unsettled && !ctx.signal?.aborted) {
@@ -408,7 +318,7 @@ export async function runPrCommand(input, ports = {}) {
       }
     });
     const needsTerminal = ["complete", "cleanup", "retire"].includes(options.operation);
-    return report(options.operation, stored, { exitCode: needsTerminal && !["complete", "retired"].includes(stored.record.phase) ? 2 : 0,
+    return report(options.operation, stored, { ...(options.operation === "start" ? { candidates } : {}), ...(handoffState ? { handoff: handoffState } : {}), exitCode: needsTerminal && !["complete", "retired"].includes(stored.record.phase) ? 2 : 0,
       observationPerformed: ctx.usageObservation?.performed ?? false });
   } catch (error) {
     const code = error instanceof PrFailure ? error.code : "execution-failed";
@@ -416,17 +326,18 @@ export async function runPrCommand(input, ports = {}) {
     let migration = null;
     if (ctx && !ctx.unsettled && !ctx.signal?.aborted && options?.operation === "migrate") { try { migration = await migrationStatus(ctx); } catch {} }
     return report(options?.operation ?? input?.operation ?? null, stored, { exitCode: error instanceof PrFailure ? error.exitCode : 1, reasons: [code],
-      observationPerformed: ctx?.usageObservation?.performed ?? false,
+      ...(options?.operation === "start" ? { candidates } : {}), observationPerformed: ctx?.usageObservation?.performed ?? false,
       ...(migration ? { migration, state: migration.state, phase: migration.phase } : {}) });
   }
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+export async function runCli(namespace) {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   process.once("SIGINT", cancel); process.once("SIGTERM", cancel);
   let result;
-  try { result = await runPrCommand({ ...parseArgs(process.argv.slice(2)), signal: controller.signal }); }
+  try { result = await runPrCommand({ ...parseArgs(process.argv.slice(2), namespace), signal: controller.signal }); }
   catch (error) { result = report(null, null, { exitCode: error instanceof PrFailure ? error.exitCode : 1, reasons: [error instanceof PrFailure ? error.code : "execution-failed"] }); }
   process.removeListener("SIGINT", cancel); process.removeListener("SIGTERM", cancel);
   process.stdout.write(JSON.stringify(result) + "\n"); process.exitCode = result.exitCode;
 }
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await runCli("pr");

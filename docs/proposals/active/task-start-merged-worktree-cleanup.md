@@ -1,13 +1,13 @@
 ---
 status: "pending"
-stage: "awaiting-approval"
+stage: "approved"
 proposal-size: "standard"
 created-at: "2026-11-19"
-approved-by: null
-approved-at: null
-approval-scope: null
+approved-by: "user"
+approved-at: "2026-11-19"
+approval-scope: "task start/release, 인계·재개·병합 확인·조건부 로컬 정리, 운영 지침과 격리 검증 구현. 실제 사용자 작업 정리와 원격 병합은 제외."
 completed-at: null
-verification-summary: null
+verification-summary: "macOS에서 CLI·네이티브 정리·중단 복구·기존 호환 및 전체 로컬 검증 통과. Windows 실행은 PR CI에서 확인한다."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -157,7 +157,7 @@ GitHub에서 PR을 찾아도 유효한 로컬 인계가 없으면 어떤 파일�
 
 ## Approval
 
-구현 승인 대기. 검토 대상은 다음 세션에 위임할 삭제 권한, 기존 작업의 소급 적용 제외, 보류 시 새 작업의 처리 방식이다.
+실제 사용자 작업에 대한 삭제와 병합은 별도 작업의 권한을 따른다.
 
 ## Execution Plan
 
@@ -251,10 +251,35 @@ npm run docs:check
 
 ## Risks and Rollback
 
+구현과 격리 검증 결과는 아래 완료 기록에서 확인할 수 있다.
+
 문제가 발견되면 새 작업 시작 지침을 생성 전용인 `pr create`로 되돌리고, `task start`의 자동 정리 호출을 비활성화한다. 인계·제거가 진행 중인 작업은 최신 도구의 `inspect`와 기존 복구 절차로 작업별 확인한다. 원장과 대기 ref를 일괄 삭제하지 않는다. 회귀 시험은 자동 호출 중단 후 생성·조회만으로 기존 작업에 삭제 효과가 없는지 확인한다.
 
 이미 지워진 로컬 파일은 코드 롤백으로 복원되지 않는다. `dev`에 보존된 커밋과 원장에 고정된 객체는 Git 자료 복구에 쓰일 수 있지만, 미추적 자료의 복구 수단이 될 수는 없다. 미추적·ignored 사용자 자료와 파일 지문을 제거 직전에 검사하는 이유다.
 
 ## Completion or Closure Notes
 
-구현과 실제 검증이 마무리되면 결과와 보류 사례를 기록하고 저장소 제안서 절차에 따라 이동한다.
+### 2026-11-19 로컬 구현과 인수
+
+새 명령과 기존 `pr` 명령은 생성·봉인·병합 증명·제거 검사를 공유한다. 생성 전용 호환 경로와 GitHub GET 전용 후보 확인, 장치·계정별 인계 ref 및 트랜잭션을 구현했다. 새 사용법은 [운영 지침](../../architecture/verification.md#사람이-병합할-작업-인계)에 있다.
+
+| 검증 | macOS에서 확인한 결과 |
+| --- | --- |
+| VFY-TSC-01 | 실제 CLI 생성·인계·조회·재개, 오프라인 재전송, 같은 HEAD의 재개, 다른 범위 보존과 고정된 이전 판독기의 원장 판독을 확인했다. |
+| VFY-TSC-02 | 로컬 bare origin에 일반·squash·rebase 이력을 구성했다. 나중에 만든 PR이 병합된 경우에만 제거됐고, PR을 잘못 연결할 수 있는 이력과 불완전한 조회는 보존됐다. GitHub 대역의 쓰기와 도구에 의한 원격 ref 변경은 0건이다. |
+| VFY-TSC-03 | 빈 대기열의 원격 Git 호출 횟수가 기존 생성과 같았다. 사용자 파일·사용 중·환경 불명 보존, 다섯 번째 후보의 순환, 제거 착수 전후의 예산 만료를 대조했다. |
+| VFY-TSC-04 | 동시 시작·재개, 대기 ref OID 충돌과 작업 트리 제거 직후의 실제 자식 프로세스 중단을 격리 시험했다. 남은 잠금과 같은 SHA로 다시 생긴 브랜치를 자동 제거하지 않았다. |
+
+실제 GitHub에서는 새 PR 검색·병합 검증 함수를 읽기 전용으로 실행했다. #377의 병합 커밋 `3b8ddeb`과 원래 작업 출발점·최신 dev의 관계를 확인했고, 조회 전후 로컬 Git ref 목록은 같았다. 이 조회는 실제 작업에 인계나 삭제 권한을 부여하지 않는다.
+
+등록된 macOS 환경에서 실제 프로세스 관측과 Git을 사용한 인수 측정이다. GitHub는 읽기 전용 대역이고 각 칸은 동등한 fixture에서 한 번 측정한 벽시계 시간과 GitHub 조회 횟수다. 네트워크를 포함한 운영 성능 측정값으로 일반화하지 않는다. [인수 시험](../../../scripts/pr/task-handoff.test.mjs)
+
+| 작업 목록 | 기존 `pr create` | 새 `task start` |
+| --- | --- | --- |
+| 대기 0건 | 406 ms / 0회 | 421 ms / 0회 |
+| 열린 PR 1건 | 432 ms / 0회 | 744 ms / 4회, 보존 |
+| 병합 PR 1건 | 516 ms / 0회 | 2,566 ms / 17회, 작업 트리와 로컬 브랜치 제거 |
+
+로컬에서 FSD·서버·공유 모듈 검사, CI 범위·문서 검사, `npm run check`(도구 시험 550개 통과), `npm run test:architecture`(434개 통과), 제품(613개)·웹(839개)·서버(190개) 시험, production build와 fresh manifest 검사를 통과했다. 플랫폼·런타임 조건으로 제외된 사례는 통과 수에서 뺐다.
+
+Windows·macOS의 기존 `check/task-worktrees` 행에 인계 시험을 연결했다. 실제 사용자 작업 및 원격 PR에 대한 정리·병합은 실행하지 않았다. Windows CI 결과와 `dev` 반영은 후속 PR에서 확인한다.

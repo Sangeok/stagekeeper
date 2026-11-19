@@ -66,11 +66,13 @@ test("a Windows runtime without device numbers runs only status and inspect and 
     results.inspect = await f.run({ operation: "inspect", task: a.task });
     results.complete = await f.run(f.effect(a, head));
     results.create = await f.run({ operation: "create", owner: "fixture", branch: "harness/late", path: late });
+    results.start = await f.run({ operation: "start", owner: "fixture", branch: "harness/late", path: late });
+    results.release = await f.run(f.effect(a, head, "release", { usageEnded: true }));
     results.preview = await f.run({ operation: "migrate", action: "preview" });
   } finally { fs.lstatSync = stat; }
   assert.equal(results.status.exitCode, 0, json(results.status));
   assert.equal(results.inspect.exitCode, 0); assert.deepEqual(results.inspect.local.reasons, ["device-identity-unavailable"]);
-  for (const key of ["complete", "create", "preview"]) assert.deepEqual(results[key].reasons, ["device-identity-unavailable"], key);
+  for (const key of ["complete", "create", "start", "release", "preview"]) assert.deepEqual(results[key].reasons, ["device-identity-unavailable"], key);
   assert.equal(results.complete.phase, "working"); assert.equal(f.state.puts, 0); f.absent(late);
   assert.equal(f.git(["for-each-ref", "--format=%(refname)", "refs/heads/harness/late"]), "");
   assert.equal((await f.run({ operation: "status" })).tasks.length, 1);

@@ -271,3 +271,23 @@ export async function migrate(ctx, options, toolRevision) {
     return options.action === "abort" ? abortMigration(ctx, stored) : finishMigration(ctx, stored);
   });
 }
+
+export async function installationTask(ctx, stored, active, visit) {
+  if (!validJournal(active.journal, ctx) || stored.record.installationId !== active.installationId) refuse("installation-mismatch");
+  const imported = active.journal.manifest.find(m => m.taskId === stored.record.taskId);
+  let current = stored, traversed = 0;
+  while (true) {
+    visit?.(current);
+    if (current.record.previousStateOid === null) break;
+    if (++traversed > 10000) refuse("state-history-limit");
+    if (imported && current.oid === imported.oid) return;
+    const previous = await readStateObject(ctx, current.record.previousStateOid);
+    if (!validTask(previous.record, ctx) || previous.record.taskId !== stored.record.taskId || previous.record.installationId !== active.installationId
+      || previous.record.sequence !== current.record.sequence - 1) refuse("state-lineage-invalid");
+    for (const key of ["owner", "instanceId", "branch", "path", "baseSha", "toolRevision"]) {
+      if (previous.record[key] !== current.record[key]) refuse("state-lineage-invalid");
+    }
+    current = previous;
+  }
+  if (imported && current.oid !== imported.oid || !imported && current.record.migration !== null) refuse("state-lineage-invalid");
+}

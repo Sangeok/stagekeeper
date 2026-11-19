@@ -41,6 +41,8 @@ jobs:
           STAGEKEEPER_USAGE_NATIVE_REQUIRED: "1"
       - name: PR closeout lifecycle
         run: npm exec --call "node --test scripts/pr/lifecycle.test.mjs"
+      - name: Released task closeout on start
+        run: npm exec --call "node --test scripts/pr/task-handoff.test.mjs"
       - name: PR merge contracts
         run: npm exec --call "node --test scripts/pr/merge.test.mjs"
       - name: Conditional cleanup and native cache links
