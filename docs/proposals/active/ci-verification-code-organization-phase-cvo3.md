@@ -20,6 +20,7 @@ related:
   - "docs/architecture/verification.md"
   - "docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md"
   - "docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md"
+  - "docs/test-reports/completed/2026-11-19-cvo3-codex-eval-462f25e.md"
 ---
 
 # CVO3 상세 실행 계획 — 동일 후보의 native·클라이언트 인수
@@ -27,6 +28,8 @@ related:
 **완료 목표.** CVO2에서 옮긴 코드로 기존 Windows·macOS 런타임, Claude 및 macOS Codex 설치·평가·파이프라인이 종전 합격 조건을 충족하는지 같은 소스 후보에서 입증한다. 완료 요건은 [상위 SDD의 REQ-CVO-007](./ci-verification-code-organization.md#req-cvo-007-실제-실행-검증의-동등성)이다. 요구사항·불변조건·제약·VFY는 상위 SDD가 소유하며, 이 문서는 CVO3 실행 작업 네 개와 결과 기록 방식을 소유한다.
 
 **후보 `84d8016`의 인수 결과는 FAIL이다.** 필수 17개 중 10개 통과, 1개 실패, 6개 미실행이다. private Codex의 첫 `dry-run-only`에서 모델이 설치된 native dry-run을 실행하지 않았다. 승인된 중단 조건에 따라 유료 워크플로는 1회 사용했고, 나머지 3회는 미사용으로 마감했다. [후보 84d8016 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-84d8016.md) · [이전 후보 a2acd9a 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md)
+
+**후속 후보 `462f25e`의 macOS Codex 한정 검증도 FAIL이다.** 신규 설치·업데이트는 통과했다. 실제 eval의 `dry-run-only` 3회차에서 도우미가 종료 코드 0과 완료 문구를 반환했으나, 같은 셸 호출에 대상 경로 확인이 포함돼 단독 명령 판정에서 실패했다. 유료 eval 1회, 재시도 0회로 종료했다. [후속 검증 보고서](../../test-reports/completed/2026-11-19-cvo3-codex-eval-462f25e.md)
 
 ## 후보와 현재 증거
 
