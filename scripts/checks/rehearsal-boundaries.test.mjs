@@ -203,11 +203,11 @@ it("keeps production modules independent of rehearsals and CI recording", () => 
   }
 });
 
-it("resolves the packaged preflight's AppServer from the eval implementation", async () => {
-  const file = rehearsals + "agent-eval/codex-init-eval.mjs";
-  const preflight = parse(file).statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "preflightInitEval");
-  assert.ok(preflight);
-  const [target] = references(preflight).map(ref => resolved(file, ref));
+it("resolves the observed init turn's AppServer from the eval sandbox", async () => {
+  const file = rehearsals + "agent-eval/codex-init-eval-sandbox.mjs";
+  const turn = parse(file).statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "observedInitTurn");
+  assert.ok(turn);
+  const [target] = references(turn).map(ref => resolved(file, ref));
   assert.equal(target, "plugin/runtime/codex-thread.mjs");
   assert.equal(typeof (await import(new URL("../../" + target, import.meta.url))).AppServer, "function");
 });
@@ -220,6 +220,8 @@ it("selects the moved implementations and paired tests for the appropriate PR an
     [rehearsals + "client-init/client-init-smoke-steps.mjs", [install, ...native]],
     [rehearsals + "pipeline/pipeline-smoke-steps.mjs", []],
     [rehearsals + "agent-eval/codex-init-eval.mjs", [install]],
+    [rehearsals + "agent-eval/codex-init-eval-observer.mjs", [install]],
+    [rehearsals + "agent-eval/codex-init-eval-sandbox.mjs", [install]],
     [rehearsals + "agent-eval/agent-eval-summary.mjs", []],
     [rehearsals + "support/gate-environment.mjs", all],
     [rehearsals + "support/smoke-server.mjs", all],

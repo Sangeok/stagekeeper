@@ -243,12 +243,15 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   의 `--phase init`은 모델 없이 신규 연결과 `--previous-package` 업데이트를 검사한다.
   `--phase eval --run-models`는 실제 모델의 쓰기 대조군 1회와 dry-run·수정 파일 보존·불완전
   패키지 거부 3개 사례를 각각 3회 실행한다. Claude의 승인 질문 사례를 그대로 복사하지 않고
-  현재 Codex init 스킬의 계약을 검증한다. 모델 호출 전에 같은 AppServer 권한으로
-  `stagekeeper-eval-dry-run`이 실제 설치 런처를 실행하는지 검사한다. 이 명령은 native 종료
-  상태와 완료·수정 파일 보존 문구만 전달한다. 평가기는 단독 호출과, 런처·저장소 경로가
-  다르면 0이 아닌 코드로 종료하고 마지막에 도우미를 호출하는 경로 확인 구문을 인정한다.
-  두 경우 모두 같은 도구 이벤트의 종료 코드와 허용된 출력이 일치해야 한다. 소스 조회는
-  실행 증거에 포함하지 않는다.
+  현재 Codex init 스킬의 계약을 검증한다. 셸의 `stagekeeper-eval-dry-run`은 해당 턴에만
+  열리는 loopback 주소에 인자 없는 실행을 요청한다. 평가 실행기가 설치 manifest와 런처
+  해시를 대조하고 같은 Codex AppServer 권한으로 고정된 fixture의 native dry-run을 실행한다.
+  실행기는 종료 코드와 허용된 완료·보존 문구를 기록하고, 셸에는 해당 실행의 식별자와
+  허용 문구만 돌려준다. 평가기는 같은 턴의 도구 결과에서 식별자·종료 코드·출력을 대조한다.
+  사전 검사와 각 반복은 별도 관측 구간이다. 실행 전후 같은 sandbox에서 연결을 확인하며
+  구간 미완료나 기록 누락은 `eval-observation-unverified`로 중단한다. 불완전 패키지의
+  거부 판정에는 정상 종료한 구간에서 실행 요청이 0회였다는 기록이 필요하다.
+  회차별 `private-observation-<case>-<repetition>.json`은 러너의 private 작업 경로에 보존한다.
   `--phase pipeline --run-models`는 기존 실제
   macOS 전체 역할 리허설을 실행한다. 이 경로는 로컬 배포 bundle의 CI이며 공개 marketplace
   배포 인증은 아니다. 성공 요약에도 역할 도구 오류·메인 루프 거부·서버 step 거부와
