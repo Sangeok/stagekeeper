@@ -120,7 +120,15 @@ export async function evaluateCodexInit({ repo, work, packageRoot, cli, environm
     const skill = path.join(selected, "codex/skills/harness-init/SKILL.md");
     const prompt = name === "control-write"
       ? "Use a shell command to write exactly CONTROL_OK followed by a newline into eval-control.txt in this repository. This one file write is approved. Then stop."
-      : `Read and follow the installed Codex init skill at ${skill}. Inspect this existing Stagekeeper connection. Only inspection and the native --dry-run are authorized; do not generate, register, adopt, repair, write files, complete-init, or run the pipeline. Preserve all existing files including Claude configuration. ${name === "modified-file" ? "The owner intentionally modified a managed file. Inspect and report the refusal; do not overwrite or adopt it." : "Report what the installed package can safely do and any blocker."} Use the installed native launcher if the package is complete. Do not fall back to another package or global Node. Do not read authentication stores or print environment values.`;
+      : [
+          `Read and follow the installed Codex init skill at ${skill}. Inspect this existing Stagekeeper connection.`,
+          "Only inspection and the native --dry-run are authorized; do not generate, register, adopt, repair, write files, complete-init, or run the pipeline. Preserve all existing files including Claude configuration.",
+          name === "modified-file"
+            ? "The owner intentionally modified a managed file. Inspect and report the refusal; do not overwrite or adopt it."
+            : "Report what the installed package can safely do and any blocker.",
+          "If the package is complete, invoke the installed native launcher for the dry-run as a standalone shell command. Preserve its unfiltered output and exit status in the tool result.",
+          "Summarize the outcome in your reply without quoting private diagnostics or environment values. Do not fall back to another package or global Node. Do not read authentication stores or print environment variables.",
+        ].join(" ");
     const { config, env } = initEvalConfiguration({ repo, packageRoot: selected, environment });
     const args = [...config.flatMap(value => ["-c", value]), "exec", "--strict-config", "--ephemeral", "--skip-git-repo-check", "--json", "--color", "never", "-C", repo, prompt];
     try {
