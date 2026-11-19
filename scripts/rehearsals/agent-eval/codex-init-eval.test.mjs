@@ -34,8 +34,11 @@ it("recognizes an escaped native launcher inside a multi-command shell and requi
   const command = String.raw`/bin/zsh -lc "cat package.json; \"/package/bin/harness\" init --client codex --dry-run"`;
   const observed = events.map(event => event === events[1] ? { ...event, item: { ...event.item, command } } : event);
   assert.equal(gradeInitEvaluation({ name: "modified-file", events: observed, before: [], after: [] }).passed, true);
-  const missing = observed.map(event => event.item?.command === command ? { ...event, item: { ...event.item, aggregated_output: "" } } : event);
-  assert.throws(() => gradeInitEvaluation({ name: "modified-file", events: missing, before: [], after: [] }), /result must be observed/);
+  const filteredOutput = "skip(modified): docs/harness/codex-runbook.md\n";
+  const filtered = observed.map(event => event.item?.command === command
+    ? { ...event, item: { ...event.item, aggregated_output: filteredOutput } }
+    : event);
+  assert.throws(() => gradeInitEvaluation({ name: "modified-file", events: filtered, before: [], after: [] }), /result must be observed/);
 });
 
 it("retains private child output on timeout and never treats it as a completed evaluation", { skip: process.platform === "win32" ? "The macOS eval uses POSIX process groups" : false }, async t => {
