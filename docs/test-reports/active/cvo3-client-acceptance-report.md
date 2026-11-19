@@ -8,7 +8,7 @@ test-levels: ["contract", "integration", "end-to-end"]
 test-tools: ["Git", "GitHub Actions", "GitHub CLI", "node:test", "Python zipfile"]
 created-at: "2026-11-19"
 completed-at: null
-last-executed-at: "2026-11-18T23:59:07Z"
+last-executed-at: "2026-11-19T00:08:01Z"
 tested-revision: "596f5e3d71dd49bc1c226498b02458679efffd36"
 owners: ["user:Sangeok"]
 related:
@@ -20,6 +20,7 @@ observed-environments:
   - "dev | Windows native·설치 | windows-2022 x64 | CI"
   - "dev | macOS native·설치 | macos-15 ARM64 | CI"
   - "dev | macOS native·공유 배포 | macos-15-intel x64 | CI"
+  - "private dev | Codex 신규·업데이트 | macOS ARM64 전용 러너·Codex 0.167.1 | CI"
 test-summary: null
 follow-up: ["docs/proposals/active/ci-verification-code-organization-phase-cvo3.md", "https://github.com/Sangeok/stagekeeper-codex-ci/pull/15"]
 ---
@@ -28,7 +29,7 @@ follow-up: ["docs/proposals/active/ci-verification-code-organization-phase-cvo3.
 
 ## Summary and Decision
 
-준비 시점의 공개 `dev`를 새 후보로 고정했다. 기존 push 3건에서 native 결과를 확인하고, 같은 후보에 없던 공개 Codex 공유 배포와 Claude 설치 검사를 각각 한 번 실행했다. 이전 후보의 인수 결과는 [#384에 보존한 보고서](https://github.com/Sangeok/stagekeeper/blob/bef1bab326f5694118a4b046e543ba57c178e8a9/docs/test-reports/active/cvo3-client-acceptance-report.md)에서 따로 조회할 수 있다.
+준비 시점의 공개 `dev`를 새 후보로 고정했다. 기존 push 3건에서 native 결과를 확인하고, 같은 후보에 없던 공개 Codex 공유 배포와 Claude 설치 검사를 각각 한 번 실행했다. private CI의 pin을 병합한 뒤 전용 Mac에서 모델 없는 신규 설치와 업데이트도 실행했다. 기존 init 동작과 별도 schema 2 판정은 E7·E8에 각각 기록했다. 이전 후보의 인수 결과는 [#384에 보존한 보고서](https://github.com/Sangeok/stagekeeper/blob/bef1bab326f5694118a4b046e543ba57c178e8a9/docs/test-reports/active/cvo3-client-acceptance-report.md)에서 따로 조회할 수 있다.
 
 ## Scope and Criteria
 
@@ -48,7 +49,7 @@ follow-up: ["docs/proposals/active/ci-verification-code-organization-phase-cvo3.
 
 - 공개 템플릿은 `8ccb37a4ab91de527e6a23caa6d415c7cdc6f215`로 고정했다. Claude update 직전 `main`에서 확인한 기대 SHA는 `c7c0a1314f680124196d9338eb94a46759ec4437`다. Codex 공유 배포의 이전 설치물은 `85c66fb1d9e02c3d9416710240cbfca3f0023939`의 재생성 fixture다.
 - 실행 전 후보별 Actions 이력, 동일 설치 workflow의 미완료 실행, #319와 열린 gate 이슈를 조회했다. 조회 시 기존 push 3건, 후보의 공유 배포·공개 설치·모델 실행 0건, 열린 gate 이슈 0건이었다.
-- private Mac ARM64에서 전용 CLI·runner 아카이브 및 기존 템플릿 checkout을 확인했다. 준비 시 등록 runner와 진행 중인 private dispatch는 각 0건이었다. 런처는 실행마다 임시 runner를 등록한다. E6에 설정 PR과 실행 전제조건을 기록했다.
+- private Mac ARM64에서 전용 CLI와 runner 아카이브를 검증했고 템플릿 checkout을 확인했다. private `dev` 병합 SHA·제품/이전 소스/템플릿 pin을 대조한 뒤 `--phase init`으로 한 번 실행했다. 구독 모델 로그인 확인은 이 phase에서 건너뛴다. E6–E8.
 
 ## Test Matrix
 
@@ -63,15 +64,15 @@ follow-up: ["docs/proposals/active/ci-verification-code-organization-phase-cvo3.
 | T07 | R2 | required | 공개 Claude Windows 업데이트 | 예상 소스·템플릿·단계 일치. E5 | PASS |
 | T08 | R2 | required | 공개 Claude macOS ARM 신규 | 예상 소스·템플릿·단계 일치. E5 | PASS |
 | T09 | R2 | required | 공개 Claude macOS ARM 업데이트 | 예상 소스·템플릿·단계 일치. E5 | PASS |
-| T10 | R2 | required | private Codex 신규 설치 | pin 변경 PR 검증 통과, private `dev` 반영·실제 실행 대기. E6·F2 | BLOCKED |
-| T11 | R2 | required | private Codex 이전 bundle → 후보 update | 이전 source 유지 확인, private `dev` 반영·실제 실행 대기. E6·F2 | BLOCKED |
+| T10 | R2 | required | private Codex 신규 설치 | 빈 설치 cache에서 후보 bundle 검증, dry-run·연결·기존 파일 보존·fixture 정리 통과. E7 | PASS |
+| T11 | R2 | required | private Codex 이전 bundle → 후보 update | 0.6.10 → 0.6.16 연결·업데이트와 fixture 정리 통과. 공통 계약의 실행 pin 보존은 별도 미확인. E7·E8 | PASS |
 | T12 | R3 | required | Claude eval, ARM64 전체 gate | 실제 모델 사용 범위·예산 확인 대기. | NOT RUN |
 | T13 | R3 | required | Claude pipeline, Windows x64 / slug | 실제 모델 사용 범위·예산 확인 대기. | NOT RUN |
 | T14 | R3 | required | Claude pipeline, macOS ARM64 / slug | 실제 모델 사용 범위·예산 확인 대기. | NOT RUN |
 | T15 | R3 | required | Claude pipeline, Windows x64 / truncate | 실제 모델 사용 범위·예산 확인 대기. | NOT RUN |
 | T16 | R3 | required | Claude pipeline, macOS ARM64 / truncate | 실제 모델 사용 범위·예산 확인 대기. | NOT RUN |
-| T17 | R3 | required | private Codex eval, macOS ARM64 | E6의 대상 불일치, private 실행 범위 미확정 | BLOCKED |
-| T18 | R3 | required | private Codex pipeline, macOS ARM64 | E6의 대상 불일치, private 실행 범위 미확정 | BLOCKED |
+| T17 | R3 | required | private Codex eval, macOS ARM64 | 실제 모델 실행 범위·예산 확인 대기. F1 | NOT RUN |
+| T18 | R3 | required | private Codex pipeline, macOS ARM64 | 실제 모델 실행 범위·예산 확인 대기. F1 | NOT RUN |
 
 ## Commands and Static Checks
 
@@ -82,6 +83,8 @@ follow-up: ["docs/proposals/active/ci-verification-code-organization-phase-cvo3.
 | C3 | R2/T06–T09 | required | `gh workflow run client-init-smoke.yml --ref dev -f template_commit=8ccb37a4ab91de527e6a23caa6d415c7cdc6f215` | PASS. 네 leg 및 record job 완료, E5. |
 | C4 | R2/T05 | informational | `gh workflow run shared-distribution-acceptance.yml --ref dev` | PASS. 세 OS의 실제 인수 step·artifact 대조, E4. |
 | C5 | R2/T10–T11 | informational | 고정한 공개 소스를 checkout하고 private PR head에서 `npm run check` | PASS. Node 22 테스트 120개 통과, skip 0. E6. |
+| C6 | R2/T10–T11 | required | 병합된 private `dev`에서 `node scripts/start-runner.mjs --dispatch --phase init` 1회 | PASS. 신규 설치·업데이트·최종 정리와 runner 해제를 확인했다. E7. |
+| C7 | R2/T10–T11 | informational | `collect-init-evidence.mjs`에 private run ID, workflow SHA 및 고정 public checkout 입력 | FAIL. 단일 run schema 2 판정에 미충족 항목 3건. 실제 재실행은 하지 않았다. E8. |
 
 ## Evidence Registry
 
@@ -110,7 +113,11 @@ follow-up: ["docs/proposals/active/ci-verification-code-organization-phase-cvo3.
 
 기록 Action이 게시한 schema 1 행에서 후보 SHA·템플릿·네 leg의 성공을 대조했다. [게이트 원장 행](https://github.com/Sangeok/stagekeeper/issues/319#issuecomment-6995190643)
 
-**E6 · private 러너 준비와 대상 변경.** 전용 macOS ARM64에서 Codex CLI `0.167.1`과 launcher가 사용하는 runner archive SHA256을 검증했다. 실제 템플릿 checkout은 기대 SHA와 일치하며 tracked·untracked 변경이 없었다. owner 조회에서 기존 등록 runner와 진행 중 dispatch가 없었다. private `dev`에서 준비한 PR은 `sourceCommit`과 `templateCommit`을 이번 후보 입력으로 변경하고 `previousCommit`은 `f882bb96450580d51dc63f142d19531a67185132`로 유지한다. 해당 공개 checkout·private PR head 조합으로 로컬 테스트 120개가 통과했고 별도 Ubuntu PR 검사도 성공했다. private 인수 결과는 `dev` 반영 후 모델 없는 `init`을 실행해 확인한다. [대상 변경 PR #15](https://github.com/Sangeok/stagekeeper-codex-ci/pull/15) · [private PR 검사](https://github.com/Sangeok/stagekeeper-codex-ci/actions/runs/44424643579/job/135226197841)
+**E6 · private 러너 준비와 대상 변경.** 전용 macOS ARM64에서 Codex CLI `0.167.1`과 launcher가 사용하는 runner archive SHA256을 검증했다. 실제 템플릿 checkout은 기대 SHA와 일치하며 tracked·untracked 변경이 없었다. owner 조회에서 기존 등록 runner와 진행 중 dispatch가 없었다. private PR #15는 `sourceCommit`과 `templateCommit`을 이번 후보 입력으로 변경하고 `previousCommit`은 `f882bb96450580d51dc63f142d19531a67185132`로 유지한다. 해당 공개 checkout·private PR head 조합으로 로컬 테스트 120개가 통과했고 별도 Ubuntu PR 검사도 성공했다. 이 PR을 private `dev`에 병합한 SHA `7bf51ce986ebc0570ad1bbe5f2e558c0ee2ba02b`에서 세 pin을 재확인했다. [대상 변경 PR #15](https://github.com/Sangeok/stagekeeper-codex-ci/pull/15) · [private PR 검사](https://github.com/Sangeok/stagekeeper-codex-ci/actions/runs/44424643579/job/135226197841)
+
+**E7 · private Codex 실제 init.** run `44425864335`, 시도 1에서 `context`와 `macos`가 성공했고 구독 인증 모델 step은 skip됐다. 신규 설치는 5.357초, 업데이트는 7.983초였고 Codex `0.167.1`, 후보 플러그인 `0.6.16`, 후보 package SHA256 `53b7810da611eadf682b03742e8478c72c14d633d731bd9ba398823962ac515f`를 확인했다. 각 시나리오에서 실제 캐시 inventory·기존 설정·roster 보존·모델 호출 0, update는 재생성된 이전 `0.6.10` bundle identity까지 대조했다. [private Mac job](https://github.com/Sangeok/stagekeeper-codex-ci/actions/runs/44425864335/job/135230466388)
+
+**E8 · 같은 private run의 공통 계약 판정.** 읽기 전용 수집기는 `scope=codex-macos-init-single-run`, `result=fail`(종료 코드 1)을 반환했다. 보관한 workspace에 대해 두 행 모두 `cleanup-incomplete`, update에서 관측하지 않은 `pins-preserved`에 대해 `incomplete-checks`가 남았다. 두 행의 모델 호출 수와 비용은 각각 0이다. 정규화된 evidence digest는 신규 `8b06ab2fba0f83a120606eda521ae8093345c2fb7ae5459dbc285a3f5063e33d`, update `f17c968f6332cee05bf713e16c81727d04bcca222e1385032285e1e8e926e471`이다. 허용 필드만 담은 private artifact ID는 `14484751243`이며 만료는 2026-12-19 UTC다. [원본 run](https://github.com/Sangeok/stagekeeper-codex-ci/actions/runs/44425864335)
 
 공개 job 로그의 만료 시각은 조회 결과에 없어 미확인으로 기록한다. 위 표에는 해당 시점의 검토 결과와 재조회 가능한 job 번호를 보존했다.
 
@@ -118,17 +125,19 @@ follow-up: ["docs/proposals/active/ci-verification-code-organization-phase-cvo3.
 
 | ID | 영향 | 근거와 해소 조건 |
 | --- | --- | --- |
-| F1 | 공개 실제 모델 실행 범위 | 실제 모델 사용 범위·예산 확인 대기. 공개 eval 전체, pipeline의 두 시나리오를 구독 사용 한도 내에서 직렬로 수행하고 후보·입력이 일치하는 결과를 기록한다. |
-| F2 | private 인수 차단 | 현재 private `dev`는 이전 pin을 사용한다. 후보·템플릿을 맞추는 PR #15의 검사는 통과했으며 병합 후 trusted init 실행이 남았다. 실제 모델은 별도 승인 범위로 둔다. |
+| F1 | 실제 모델 인수 | 공개 Claude 및 private Codex의 실제 모델 실행 범위·예산 확인 대기. 구독을 공유하는 게이트는 직렬로 실행하고 해당 후보·입력만 판정한다. |
+| F2 | private schema 2 미충족 | E6에서 대상 불일치를 해소했다. E7의 init 동작은 통과했다. E8의 workspace 보존과 업데이트 pin 미관측은 [dual-client 작업](../../proposals/active/dual-client-ci-parity.md)에서 추적한다. |
 | F3 | 결과의 증명 범위 | 공개 Claude source 설치의 `pluginCommit`은 marketplace checkout에서 확인한 값이다. 해당 실행의 설치 cache `payloadSha256`은 공개 요약에 없어 schema 2 설치물 일치는 미검증이다. |
 
 ## Test Data and Cleanup
 
 공개 Codex 공유 배포 세 요약에서 server·fixture·client·database 정리가 모두 `pass`이고 `cleanup.errors`는 비었다. 공개 Claude init의 fixture 삭제 실패·서버 정지 실패는 smoke job의 전체 로그와 요약을 대조한다. 네 공개 설치 job의 전체 로그에서 `cleanup: the fixture user was not deleted` 및 `server-cleanup failed; fixture preserved` 경고는 0건이었다. DB에 직접 접속해 잔류 행을 조회한 증거는 수집하지 않았다. 공개 보고서에는 job·artifact 식별자, 해시와 허용된 요약값만 기록했다.
 
+private init은 시나리오별 정리 후 DB에서 fixture 사용자 수가 0인지 검사했다. 두 시나리오의 로그에서 삭제·서버 정리 경고는 없었다. 최종 wrapper의 `runnerSettled`와 `databaseStopped`는 모두 `true`였고 launcher 종료 뒤 GitHub의 등록 runner 수는 0이었다. private workspace는 정책에 따라 진단용으로 보관했다.
+
 ## Conclusion
 
-공개 native 및 Claude 설치 인수와 Codex 공유 배포 보조 증거를 확보했다. 실제 모델·private 검증의 미충족 행은 같은 캠페인에서 이어서 기록한다. 이 보고서의 판정 범위에는 병합과 운영 승격이 포함되지 않는다.
+기존 CVO3 동작 기준으로 필수 17개 중 native·설치 10개가 통과했다. 실제 모델 7개 행이 남아 전체 인수는 진행 중이다. 추가 판정 C7은 `FAIL`이며 F2를 추적한다. 운영 승격은 별도 결정이다.
 
 ## Review Checklist
 
