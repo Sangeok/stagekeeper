@@ -355,7 +355,10 @@ Codex 자동 watch/sign-in과 검증되지 않은 OS의 공개 지원은 활성�
     대기가 새로 생기거나 풀리면 다음 사이클을 1초 뒤에 돌아, 배너가 60초를 기다리지 않고 바뀐 상태를 받는다.
     받은 간격이 interval보다 길면 그사이 checkout을 interval마다 로컬로 다시 보고, 대기가 풀리면 바로 다음 사이클로 간다.
   - 검사를 통과하면 `claude -p "/harness:watch --once --session <id>"`를 띄운다. `--settings <common>/harness/background-settings.json`,
-    `--disallowedTools "Bash(git push:*)" "PowerShell(git push*)"`, stream-json을 붙인다.
+    `--disallowedTools "Bash(git push:*)" "PowerShell(git push*)" ScheduleWakeup CronCreate`, stream-json을 붙인다.
+    예약 도구를 빼는 이유(plugin 0.6.17): 메인 루프가 역할을 기다리며 `ScheduleWakeup`으로 깨우기를 예약하면, 일을 마친
+    뒤에도 `claude -p`가 그 시각까지 끝나지 않는다. 실행기는 실행이 끝나야 멈추므로 stop과 다음 실행이 그만큼 늦어진다
+    (#387: 작업 종료 00:19, 예약 00:36). 역할 완료 알림이 이 세션을 깨우므로 예약 없이 턴을 끝내면 된다.
   - 도는 동안 beat(working)를 보내고, 다음 working beat는 그 응답의 `nextBeatIn`(서버는 60초)을 따른다. 브랜치 감시와 2시간 상한은 2초마다 본다. 브랜치가 바뀌면 실행을 끝내고
     branch 대기로 바꾸고 알림을 띄우며, 이 중단은 실패로 세지 않는다. 브랜치 확인이 한 번 실패하면 로그만 남기고 다음
     확인에 맡긴다.

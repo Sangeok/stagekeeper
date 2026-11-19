@@ -209,7 +209,8 @@ it("parses porcelain output, quotes Windows arguments and blocks push in the chi
 it("builds the claude arguments, the allow list and reads only init and result", () => {
   const args = runArguments({ session: "s-1", permission: "auto", settings: "/x/settings.json" });
   assert.deepEqual(args.slice(0, 4), ["-p", "/harness:watch --once --session s-1", "--permission-mode", "auto"]);
-  assert.ok(args.includes("Bash(git push:*)") && args.includes("PowerShell(git push*)"));
+  const disallowed = args.slice(args.indexOf("--disallowedTools") + 1, args.indexOf("--output-format"));
+  assert.deepEqual(disallowed, ["Bash(git push:*)", "PowerShell(git push*)", "ScheduleWakeup", "CronCreate"]);
   assert.equal(runArguments({ session: "s", permission: "allowlist", settings: "x" })[3], "acceptEdits");
   const settings = backgroundSettings({ workspaces: [{ verify: ["npm test"] }] });
   assert.ok(settings.permissions.allow.includes("mcp__harness"));

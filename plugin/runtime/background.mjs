@@ -86,7 +86,7 @@ export function runArguments({ session, permission, settings }) {
   return ["-p", `/harness:watch --once --session ${session}`,
     "--permission-mode", permission === "auto" ? "auto" : "acceptEdits",
     "--settings", settings,
-    "--disallowedTools", "Bash(git push:*)", "PowerShell(git push*)",
+    "--disallowedTools", "Bash(git push:*)", "PowerShell(git push*)", "ScheduleWakeup", "CronCreate",
     "--output-format", "stream-json", "--verbose"];
 }
 
