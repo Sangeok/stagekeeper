@@ -114,7 +114,7 @@ node scripts/pr/index.mjs complete --root "$CONTROL" --task "$TASK" --owner "$OW
 | BLK-PWC-03 / 02 실행 | Mac 수정본에서 #372의 빌드 링크 파일 검사가 통과했다. #372는 이미 병합됐고 OPEN PR의 단일 호출 인수와 Windows 실 PR·실행 환경은 대기 중이다. | Mac의 다음 실제 대상·병합 권한, Windows의 별도 대상·권한·OS 확보 |
 | ADOPT 완료 | VFY-PWC-10과 VFY-PWC-12 모두 실제 증거 필요 | 운영 원장 이관, 일상 빌드 후 Mac 정상 완료, Windows 수동 인수, B 보존·중복 효과 부재가 모두 기록된 보고서 |
 
-Windows 실 PR 인수의 전제: [#383](https://github.com/Sangeok/stagekeeper/issues/383)과 [Windows 빌드 링크 인계 제안](./pr-closeout-windows-build-links.md)이 반영된 도구와 Node v22.23.4 이상을 쓴다. 이 변경 뒤 자격 없는 호스트에서 빌드한 작업의 기대 결과는 병합 요청 1회와 `cleanup-pending`(`linked-path`)이고, 이어서 수동 제거와 `acknowledge-removal`로 닫는다. 위 2단계의 "병합 요청 0회" 기대는 이 변경 전 도구에만 해당한다.
+Windows 실 PR 인수의 전제: [#383](https://github.com/Sangeok/stagekeeper/issues/383)과 [Windows 빌드 링크 인계 제안](../completed/2026-11-19-pr-closeout-windows-build-links.md)이 반영된 도구와 Node v22.23.4 이상을 쓴다. 이 변경 뒤 자격 없는 호스트에서 빌드한 작업의 기대 결과는 병합 요청 1회와 `cleanup-pending`(`linked-path`)이고, 이어서 수동 제거와 `acknowledge-removal`로 닫는다. 위 2단계의 "병합 요청 0회" 기대는 이 변경 전 도구에만 해당한다.
 
 **다음 실행자에게.** 먼저 세 작업의 인계표를 갱신한다. 확인된 범위 안에서 01을 실행하고 read-back을 남긴 뒤 02로 진행한다. 미확인 행이나 빌드 후 보존 실패가 있으면 해당 단계·실제 이유·남은 자료 위치를 보고한다. 이번 문서 작성과 검토 시점에 운영 원장 적용, 실 PR 병합, 사용자 폴더 삭제는 발생하지 않았다.
 

@@ -1,13 +1,13 @@
 ---
-status: "pending"
-stage: "approved"
+status: "completed"
+stage: null
 proposal-size: "standard"
 created-at: "2026-11-18"
 approved-by: "user"
 approved-at: "2026-11-19"
 approval-scope: "제안서 전체의 구현(2번은 device-identity-unavailable 명시 거부 채택)·시험·문서와 로컬 검증, 제안서와 구현의 커밋·push·dev 대상 PR 생성. PR 병합, main 승격, 이 PC 관리기 활성화와 Node 교체 제외."
-completed-at: null
-verification-summary: null
+completed-at: "2026-11-19"
+verification-summary: "PR #385(구현 7519673, 시험 수정 9d85bad)의 check CI가 Windows·macOS task-worktrees를 포함해 모두 통과했고, dev ae8bb8a로 병합. 로컬 scripts/pr 시험은 Node v22.23.4에서 68개 중 65 통과·0 실패, Node v22.13.1에서는 의도한 device-identity-unavailable 거부를 확인. test:architecture 실패 1건은 변경 전부터 있던 실패."
 closed-at: null
 closed-by: null
 closed-reason: null
@@ -218,7 +218,7 @@ npm run docs:check && npm run verify:ci-coverage
 
 ## Verification Results
 
-2026-11-19, 이 PC(Windows 11)에서 실행. macOS와 Windows CI 결과는 PR에서 확인한다.
+2026-11-19, 이 PC(Windows 11)에서 실행. CI 결과는 표의 마지막 세 행이다.
 
 시험 먼저: 바꾼 기대값 5개(빌드 링크 인계·병합 후 cleanup-pending·다른 곳에서 병합된 작업과 retire·장치 번호 0 거부 2개)가 변경 전 코드에서 실패하는 것을 Node v22.23.4로 확인한 뒤 구현했다. 명령 시작 때의 장치 번호 검사를 빼면 장치 번호 0 시험이 `legacy-guard-present`로 실패하는 것도 확인했다.
 
@@ -231,13 +231,16 @@ npm run docs:check && npm run verify:ci-coverage
 | `npm run test:architecture` (Node v22.23.4) | 422개 중 410 통과, 1 실패, 11 건너뜀 | 실패 1건(`gate-record/record.test.mjs`의 "runs the Action record CLI once…")은 변경 전 dev `373dcca`에서도 같은 실패. 이 변경과 무관 |
 | `npm run docs:check` | PASS | Markdown 244개, 상대 링크 1,329개, test report 63개 |
 | `npm run verify:ci-coverage` | PASS | 14 jobs, 16 rows. CI job 변경 없음 |
+| PR #385 첫 CI(커밋 `7519673`, run 44418938605) | FAIL | `static`(Linux)과 macOS `task-worktrees`가 `preservation.test.mjs`의 거부 단언 하나에서 실패했다. 작업 밖을 가리키는 `node_modules` 링크에 `linked-path`를 기대했지만, POSIX의 symlink는 `.gitignore`의 `node_modules/`(디렉터리 전용 패턴)에 걸리지 않아 Git이 미추적 파일로 보고하고 `unpreserved-files`가 먼저 나온다. Windows 정션은 디렉터리로 취급되어 `linked-path`가 나온다. 구현 결함이 아니라, 원래 사유를 고정하지 않던 단언에 사유를 너무 좁게 붙인 시험 결함이었다 |
+| PR #385 재실행 CI(커밋 `9d85bad`, run 44422277521) | PASS | 그 단언이 두 사유를 모두 받게 하고, POSIX의 빌드 링크를 상대 경로로 만들고, 탈출 링크를 지운 뒤 인계가 통과하는 것까지 확인하도록 고쳤다. `check`의 `static`, `test`, `test-web`, `server`, `server-integration`, `build`, `task-worktrees`(Windows·macOS)와 Vercel 모두 통과 |
+| 병합 뒤 Windows Node 판별 장치 번호 (이 PC) | 확인 | 일반 디렉터리의 `lstat` `dev`: v22.13.1(libuv 1.49.2)은 `0`, v22.23.5(libuv 1.51.0)와 v26.13.1(libuv 1.52.1)은 볼륨 값. 공식 zip의 SHA256을 확인한 뒤 설치하지 않고 실행했다 |
 
 ## Risks and Rollback
 
 잔여 리스크:
 
 - Next가 다른 패키지(새 `serverExternalPackages`)의 링크를 만들기 시작하면 Mac 예외와 같이 다시 막힌다. 링크 형태를 넓히는 일은 이 제안 밖이다.
-- 일부 Windows Node 22 판의 `lstat` 동작 변경 시점을 특정하지 못했다. v22.23.4만 확인했다.
+- Windows `lstat`이 일반 디렉터리에 장치 번호를 돌려주기 시작한 정확한 Node 판은 특정하지 않았다. 확인한 판은 v22.13.1(`0`)과 v22.23.4·v22.23.5·v26.13.1(볼륨 값)이다. 도구는 판 번호가 아니라 실행 중에 읽은 값으로 판단하므로, 확인하지 않은 판이 `0`을 돌려주면 같은 사유로 거부된다.
 - 수동 제거 단계에서 정션을 따라가는 삭제 도구를 쓰면 대상이 지워질 수 있다. 도구는 이 단계를 수행하지 않으며 문서에 주의를 남긴다.
 
 롤백 방법:
@@ -246,21 +249,20 @@ npm run docs:check && npm run verify:ci-coverage
 
 ## Completion or Closure Notes
 
-완료 기록(`status: "completed"`일 때 작성):
+구현을 병합해 2026-11-19 완료 처리했다. 이 문서는 `active/pr-closeout-windows-build-links.md`에서 `completed/2026-11-19-pr-closeout-windows-build-links.md`로 이동했다. Current State와 Proposal의 줄 번호, Affected Files의 경로는 작성 당시의 것이다.
 
-- completed-at: TBD
-- verification-summary: TBD
-- implementation PR/commit: TBD
-- changed files summary: TBD
-- remaining follow-up: TBD
+- 구현: PR #385. 제안서 커밋 `adc4430`, 구현 커밋 `7519673`, 시험 수정 커밋 `9d85bad`. 병합은 사용자가 직접 했고 `dev` `ae8bb8a`로 들어갔다.
+- 바뀐 파일: `scripts/pr/git-workspace.mjs`(`inspectFiles`의 purpose와 빌드 링크 판정, `directoryIdentity`의 장치 번호 검사), `scripts/pr/index.mjs`(호출 위치별 purpose, `inspect`의 `local.files.removalReasons`, 명령 시작 때 장치 번호 검사), `scripts/pr/filesystem-inventory.mjs`(`device-identity-unavailable`), `preservation.test.mjs`·`cleanup.test.mjs`, `AGENTS.md`, `docs/architecture/verification.md`, `scripts/pr/UPSTREAM.md`, 상위 SDD의 개정 기록, ADOPT 계획의 T5 전제, 이 문서.
+- 상태 형식, CI job, 출하 플러그인 파일과 서버 코드는 바꾸지 않았다. 플러그인 판 상승과 승격 게이트 추가가 필요하지 않다.
+- [#383](https://github.com/Sangeok/stagekeeper/issues/383)은 병합 내용과 Node 판별 실측을 댓글로 남기고 2026-11-19 닫았다.
 
-닫힘 기록(`status: "closed"`일 때 작성):
+다음은 완료를 막지 않는 후속이다. 미실행 항목을 통과로 바꾸지 않는다.
 
-- closed-at: TBD
-- closed-by: TBD
-- closed-reason: TBD
-- close summary: TBD
-- remaining follow-up: TBD
+| 후속 | 상태 | 확인할 때 남길 근거 |
+| --- | --- | --- |
+| 이 PC의 Node 교체(v22.13.1 → 22 계열 최신) | 사용자 선택 | 교체 뒤 `node --version`과 `scripts/pr` 시험 결과. 교체 전에는 이 PC에서 관리기가 `status`와 `inspect`만 동작한다 |
+| Windows 실 PR 인수(ADOPT T5) | ADOPT 계획의 일 | [ADOPT 계획](../active/pr-worktree-closeout-phase-adopt.md)의 T5 기록. 이 PC에서 하려면 Node 교체가 먼저다 |
+| 빌드 링크를 만든 작업의 실제 수동 제거 경로 | 시험으로만 확인 | 실제 Windows 작업에서 `cleanup-pending`(`linked-path`) → 수동 제거 → `acknowledge-removal` → `cleanup`을 거친 기록. T5에서 함께 남긴다 |
 
 ## Review Checklist
 
@@ -277,5 +279,5 @@ npm run docs:check && npm run verify:ci-coverage
 - [x] 검증 명령과 성공 기준이 적혀 있다.
 - [x] 검증 실패가 있다면 기존 실패와 신규 실패를 구분했다.
 - [x] 잔여 리스크를 명시했다. 없으면 "없음"이라고 적었다.
-- [ ] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
+- [x] 완료 문서라면 `completed-at`, `verification-summary`, Completion or Closure Notes가 실제 수행 결과로 갱신되어 있다.
 - [ ] 닫힌 문서라면 `closed-at`, `closed-by`, `closed-reason`, Completion or Closure Notes가 닫힘 결정과 일치한다.
