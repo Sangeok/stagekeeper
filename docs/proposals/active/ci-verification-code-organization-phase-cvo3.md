@@ -6,7 +6,7 @@ created-at: "2026-11-18"
 updated-at: "2026-11-19"
 approved-by: "user"
 approved-at: "2026-11-19"
-approval-scope: "공개 무모델 인수와 증거 수집, private 대상 변경 PR #15 병합 및 모델 없는 init 1회. 실제 모델 실행·운영 승격은 별도 범위."
+approval-scope: "후보 a2acd9a 무모델 인수, 공개 Claude 전체 eval 및 slug, private Codex all 각 1회. dev 이동 후 남은 공개 truncate 1회 미사용, 유료 재시도 0회. 운영 승격은 별도 범위."
 completed-at: null
 verification-summary: null
 closed-at: null
@@ -18,14 +18,14 @@ related:
   - "docs/proposals/active/ci-verification-code-organization-phase-cvo2.md"
   - "docs/proposals/active/dual-client-ci-parity.md"
   - "docs/architecture/verification.md"
-  - "docs/test-reports/active/cvo3-client-acceptance-report.md"
+  - "docs/test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md"
 ---
 
 # CVO3 상세 실행 계획 — 동일 후보의 native·클라이언트 인수
 
 **완료 목표.** CVO2에서 옮긴 코드로 기존 Windows·macOS 런타임, Claude 및 macOS Codex 설치·평가·파이프라인이 종전 합격 조건을 충족하는지 같은 소스 후보에서 입증한다. 완료 요건은 [상위 SDD의 REQ-CVO-007](./ci-verification-code-organization.md#req-cvo-007-실제-실행-검증의-동등성)이다. 요구사항·불변조건·제약·VFY는 상위 SDD가 소유하며, 이 문서는 CVO3 실행 작업 네 개와 결과 기록 방식을 소유한다.
 
-**실행 상태.** 후보 `596f5e3`의 Windows·macOS native 검사, 공개 Codex 공유 배포, 공개 Claude 신규·업데이트 및 private macOS Codex 신규·업데이트를 확인했다. [private PR #15](https://github.com/Sangeok/stagekeeper-codex-ci/pull/15)의 병합본에서 실행한 init은 모델 호출 0회로 통과했다. 별도 schema 2 수집 결과에는 workspace 보존·update pin 미관측이 남았다. 전체 인수는 실제 모델 실행 범위·예산 확인 전까지 **BLOCKED**다. [CVO3 인수 보고서](../../test-reports/active/cvo3-client-acceptance-report.md) · [상위 SDD](./ci-verification-code-organization.md#phase-cvo3-동일-후보의-native클라이언트-인수)
+**캠페인 결과는 FAIL이다.** 후보 `a2acd9a`의 필수 17개 중 12개가 통과했다. 공개 Claude macOS `slug`는 실행 도중 이동한 marketplace SHA를 거부했고, private Codex eval은 `modified-file` 두 번째 반복의 dry-run 출력 확인에 실패했다. 공개 `truncate`는 사용자가 남은 실행 1회를 사용하지 않기로 했고 private pipeline은 eval 실패로 시작하지 않았다. 유료 workflow 3회, 유료 재시도 0회로 종료했다. 후속 후보는 별도로 결정한다. [CVO3 완료 보고서](../../test-reports/completed/2026-11-19-cvo3-client-acceptance-report.md) · [상위 SDD](./ci-verification-code-organization.md#phase-cvo3-동일-후보의-native클라이언트-인수)
 
 ## 후보와 현재 증거
 
