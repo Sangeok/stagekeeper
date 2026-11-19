@@ -65,6 +65,7 @@ export function publishJson(file, value) {
 export function directoryIdentity(file) {
   const canonicalPath = canonical(file), s = lstat(canonicalPath);
   if (!s?.isDirectory()) refuse("invalid-directory");
+  if (process.platform === "win32" && s.dev === 0n) refuse("device-identity-unavailable");
   return { path: canonicalPath, device: String(s.dev), inode: String(s.ino) };
 }
 export function validateBranch(branch) {
@@ -228,7 +229,8 @@ function ordinaryIgnoredDirectories(relative, entries, ignored, device) {
   return true;
 }
 
-export async function inspectFiles(ctx, record) {
+export async function inspectFiles(ctx, record, { purpose }) {
+  if (!["handoff", "removal"].includes(purpose)) refuse("invalid-input");
   const cwd = record.path;
   for (const name of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "BISECT_LOG", "rebase-merge", "rebase-apply", "sequencer", "index.lock", "HEAD.lock"]) {
     if (lstat(path.resolve(cwd, await gitText(ctx, ["rev-parse", "--git-path", name], { cwd })))) refuse("git-operation-in-progress");
@@ -254,7 +256,7 @@ export async function inspectFiles(ctx, record) {
   const entries = new Map(scan.entries.map(e => [e.path, e]));
   const caches = ["node_modules", ".next", "src/generated", "coverage", "tsconfig.tsbuildinfo", "next-env.d.ts"];
   const cache = relative => caches.find(v => relative === v || relative.startsWith(v + "/"));
-  let verifiedGit, indexedPaths;
+  let removableLinks, indexedPaths, removalBlocked = false;
   for (const e of scan.entries) {
     if (tracked.has(e.path) && e.type !== "link" || e.type === "directory" && parents.has(e.path)) continue;
     const root = cache(e.path);
@@ -266,13 +268,18 @@ export async function inspectFiles(ctx, record) {
       if (generated) {
         const target = "node_modules/" + generated[1];
         const parent = path.posix.dirname(e.path);
-        if (!matchesMacCloseoutHostV1() || e.target !== path.join(cwd, target) || e.link !== path.posix.relative(parent, target)
+        const linkText = process.platform === "win32" ? samePath(path.resolve(cwd, parent, e.link), path.join(cwd, target))
+          : e.link === path.posix.relative(parent, target);
+        if (e.target !== path.join(cwd, target) || !linkText
           || !ordinaryIgnoredDirectories(parent, entries, ignored, scan.identity.device)
           || !ordinaryIgnoredDirectories(target, entries, ignored, scan.identity.device)) refuse("linked-path");
         indexedPaths ??= new Set([...tracked, ...parents].map(name => name.toLowerCase()));
         if (indexedPaths.has(e.path.toLowerCase()) || indexedPaths.has(target)) refuse("linked-path");
-        verifiedGit ??= await gitText(ctx, ["--version"]) === "git version 2.50.1 (Apple Git-155)";
-        if (!verifiedGit) refuse("linked-path");
+        removableLinks ??= matchesMacCloseoutHostV1() && await gitText(ctx, ["--version"]) === "git version 2.50.1 (Apple Git-155)";
+        if (!removableLinks) {
+          if (purpose === "removal") refuse("linked-path");
+          removalBlocked = true;
+        }
         continue;
       }
       const destination = entries.get(relative);
@@ -280,7 +287,7 @@ export async function inspectFiles(ctx, record) {
       if (!fileLink) refuse("linked-path");
     }
   }
-  return { fingerprint: digest(json(scan)), identity: scan.identity };
+  return { fingerprint: digest(json(scan)), identity: scan.identity, removalReasons: removalBlocked ? ["linked-path"] : [] };
 }
 export function outsideTarget(ctx, record) {
   if (inside(record.path, ctx.root) || inside(record.path, fs.realpathSync.native(process.cwd()))) refuse("caller-inside-target");

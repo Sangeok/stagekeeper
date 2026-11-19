@@ -412,23 +412,37 @@ metadata walk는 자기 Node child에서 bigint device/inode와 timestamp를 읽
 다른 device 디렉터리는 진입 전에 거부한다. 동일 device가 모든 mount를 인증하지는 않는다.
 
 ignored 캐시는 node_modules, .next, src/generated, coverage, tsconfig.tsbuildinfo,
-next-env.d.ts로 제한한다. 위 Mac host profile에서 Apple Git 2.50.1 (Apple Git-155)을
-쓸 때 다음 두 Next 빌드 링크를 파일 보존 검사에서 허용한다. 접미사는 소문자 16진수 16자리다.
+next-env.d.ts로 제한한다. 다음 두 Next 빌드 링크는 아래 구조 조건을 모두 만족하면 병합
+인계(봉인과 병합 요청 전 재확인)를 막지 않는다. 접미사는 소문자 16진수 16자리다.
 
-| worktree 안의 링크 | 링크에 기록된 상대 경로 |
-| --- | --- |
-| `.next/node_modules/pg-<hex>` | `../../node_modules/pg` |
-| `.next/node_modules/@prisma/client-<hex>` | `../../../node_modules/@prisma/client` |
+| worktree 안의 링크 | 실제 목적지 | macOS·Linux 링크 문자열 |
+| --- | --- | --- |
+| `.next/node_modules/pg-<hex>` | 같은 worktree의 `node_modules/pg` | `../../node_modules/pg` |
+| `.next/node_modules/@prisma/client-<hex>` | 같은 worktree의 `node_modules/@prisma/client` | `../../../node_modules/@prisma/client` |
 
-원시 상대 경로와 실제 목적지가 모두 일치해야 한다. 링크·대상 패키지와 양쪽 상위
-디렉터리가 ignored여야 하고, 대상 패키지에는 추적 파일이 없어야 한다. scanner가
-같은 worktree 파일시스템에서 직접 관측한 일반 디렉터리만 사용한다. 봉인 및 제거 직전
+실제 목적지가 표와 같아야 한다. macOS·Linux에서는 원시 상대 경로도 표와 같아야 하고,
+Windows junction은 기록된 절대 경로가 같은 목적지를 가리켜야 한다. 링크·대상 패키지와
+양쪽 상위 디렉터리가 ignored여야 하고, 대상 패키지에는 추적 파일이 없어야 한다.
+scanner가 같은 worktree 파일시스템에서 직접 관측한 일반 디렉터리만 사용한다.
+
+자동 제거 직전 검사는 위 Mac host profile에서 Apple Git 2.50.1 (Apple Git-155)을 쓸 때만
+이 두 링크를 허용한다. 다른 호스트(Windows 포함)에서는 병합이나 retire 뒤 cleanup이
+`linked-path`로 멈추고, 작업은 worktree와 branch를 보존한 cleanup-pending이 된다.
+`inspect`의 `local.files.removalReasons`가 이 차단을 미리 보여 준다. 봉인 및 제거 직전
 검사에서 지문이나 링크 목적지가 달라지면 폴더와 branch를 보존한다. 실제 제거에는
 별도의 최신 사용 관측과 병합 또는 retire 보존 증거가 필요하다.
 
-나머지 directory link와 미검증 환경은 계속 보류한다. Windows 2022 / Git 2.56.1.windows.1에서
+나머지 directory link와 junction은 인계 단계부터 보류한다. Windows 2022 / Git 2.56.1.windows.1에서
 junction이 있는 worktree가 Git remove의 exit 0 뒤에도 남은 기록이 있다.
-직접 unlink·cache 삭제·강제 제거는 하지 않는다.
+도구는 직접 unlink·cache 삭제·강제 제거를 하지 않는다. 사용자가 cleanup-pending 작업을
+수동으로 제거할 때는 두 빌드 링크 자체를 먼저 끊고(Windows는 `rmdir <링크>`, `/s` 없이)
+worktree를 제거한 뒤 아래 수동 제거 인수를 기록한다. 링크나 junction을 따라 재귀 삭제하지 않는다.
+
+Windows는 Node v22.23.4 이상에서 검증했다. 일반 디렉터리의 `lstat` device를 0으로 보고하는
+Node(예: v22.13.1)에서는 status와 inspect만 동작한다. 나머지 명령은 guard·상태·worktree를
+건드리기 전에 `device-identity-unavailable`로 거부하고, inspect는 같은 사유를 로컬 사유로 보여 준다.
+장치 번호 0을 작업 기록이나 이관 계획에 남기면 Node를 올린 뒤 `identity-changed`로 막히기
+때문이다. 관리기 활성화(`migrate`)도 같은 조건이다.
 
 최종 guard/HEAD/instance/파일 지문 확인과 intent 저장 후 `git worktree remove -- <path>`를
 한 번 실행한다. path/admin/registry가 모두 사라진 뒤에만 branch 처리로 간다. fresh 보존

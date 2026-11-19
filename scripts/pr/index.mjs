@@ -1,6 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, registry, worktreeState, inspectFiles, outsideTarget, checkNewPath, remoteSnapshot, ancestor, validateBranch } from "./git-workspace.mjs";
+import { UUID, OID, MARKER, PrFailure, refuse, object, json, digest, lstat, noLinks, publishJson, canonical, git, gitText, context, branchHead, registry, worktreeState, directoryIdentity, inspectFiles, outsideTarget, checkNewPath, remoteSnapshot, ancestor, validateBranch } from "./git-workspace.mjs";
 import { MIGRATION_REF, activation, requireActivation, loadTask, listTasks, readStateObject, validTask, refOid, taskRef, newTask, createTaskRecord, saveTask, withGuard, assertGuard, guardStatus, recoverGuard, markerFor, authorize, requestChange } from "./task-state.mjs";
 import { migrate, validJournal } from "./legacy-migration.mjs";
 import { pull, preflight, requestMerge, observeMerge, mergeProof, preservation, noOpenDependencies } from "./github-merge.mjs";
@@ -119,16 +119,18 @@ async function observeUsage(ctx, record) {
   ctx.usageObservation = observation;
   return observation;
 }
+const handoff = { purpose: "handoff" }, removal = { purpose: "removal" };
+function requireDeviceIdentity(ctx) { for (const directory of [ctx.root, ctx.common]) directoryIdentity(directory); }
 const clearUsage = o => o.status === "clear" && o.capability === "qualified" && o.performed && o.coverageComplete && o.settled;
 async function seal(ctx, stored, options, pr = null) {
   if (stored.record.phase !== "working") return;
   outsideTarget(ctx, stored.record);
   await currentHead(ctx, stored.record, options.expectedHead);
-  const files = await inspectFiles(ctx, stored.record), observation = await observeUsage(ctx, stored.record);
+  const files = await inspectFiles(ctx, stored.record, handoff), observation = await observeUsage(ctx, stored.record);
   if (observation.status === "busy" || ctx.unsettled) refuse("worktree-in-use");
   await withGuard(ctx, "common", undefined, async () => {
     await currentHead(ctx, stored.record, options.expectedHead);
-    if ((await inspectFiles(ctx, stored.record)).fingerprint !== files.fingerprint) refuse("files-changed");
+    if ((await inspectFiles(ctx, stored.record, handoff)).fingerprint !== files.fingerprint) refuse("files-changed");
     await saveTask(ctx, stored, { phase: "sealed", pr, observation, reasons: [], release: { head: options.expectedHead, instance: options.expectedInstance,
       at: new Date().toISOString(), fingerprint: files.fingerprint, sourceState: stored.oid, requestId: options.requestId } });
   });
@@ -188,7 +190,7 @@ async function cleanup(ctx, stored, options) {
   if (state.present) {
     if (["removed", "external"].includes(r.worktree.state)) refuse("removed-target-reappeared");
     await currentHead(ctx, r, r.release.head);
-    const files = await inspectFiles(ctx, r);
+    const files = await inspectFiles(ctx, r, removal);
     if (files.fingerprint !== r.release.fingerprint) refuse("files-changed");
     const observation = await observeUsage(ctx, r);
     if (!clearUsage(observation)) {
@@ -199,7 +201,7 @@ async function cleanup(ctx, stored, options) {
     await withGuard(ctx, "common", undefined, async () => {
       assertGuard(ctx, "task", r.taskId);
       await currentHead(ctx, r, r.release.head);
-      if ((await inspectFiles(ctx, r)).fingerprint !== files.fingerprint) refuse("files-changed");
+      if ((await inspectFiles(ctx, r, removal)).fingerprint !== files.fingerprint) refuse("files-changed");
       await saveTask(ctx, stored, { phase: "cleanup-pending", observation, worktree: { state: "intent", requestId: options.requestId },
         requests: requestChange(stored, options, "intent"), reasons: [] });
       await git(ctx, ["worktree", "remove", "--", r.path], { diagnostics: true });
@@ -249,11 +251,11 @@ async function complete(ctx, stored, options) {
     if (!prior.length || prior.some(r => r.outcome !== "rejected") || stored.record.requests[options.requestId]) refuse("merge-outcome-unknown");
   } else if (stored.record.phase !== "sealed") refuse("invalid-phase");
   await currentHead(ctx, stored.record, options.expectedHead);
-  if ((await inspectFiles(ctx, stored.record)).fingerprint !== stored.record.release.fingerprint) refuse("files-changed");
+  if ((await inspectFiles(ctx, stored.record, handoff)).fingerprint !== stored.record.release.fingerprint) refuse("files-changed");
   checked = await preflight(ctx, stored.record, options.pr);
   await withGuard(ctx, "common", undefined, async () => {
     await currentHead(ctx, stored.record, options.expectedHead);
-    if ((await inspectFiles(ctx, stored.record)).fingerprint !== stored.record.release.fingerprint) refuse("files-changed");
+    if ((await inspectFiles(ctx, stored.record, handoff)).fingerprint !== stored.record.release.fingerprint) refuse("files-changed");
     await saveTask(ctx, stored, { phase: "merge-requested", pr: checked.pr.binding, requests: requestChange(stored, options, "intent"), reasons: [] });
   });
   assertGuard(ctx, "task", stored.record.taskId);
@@ -294,7 +296,7 @@ async function taskCommand(ctx, stored, options) {
   if (options.operation === "resume") {
     if (stored.record.phase !== "sealed" || Object.values(stored.record.requests).some(r => r.operation === "complete")) refuse("resume-not-authorized");
     await currentHead(ctx, stored.record, stored.record.release.head);
-    if ((await inspectFiles(ctx, stored.record)).fingerprint !== stored.record.release.fingerprint) refuse("files-changed");
+    if ((await inspectFiles(ctx, stored.record, handoff)).fingerprint !== stored.record.release.fingerprint) refuse("files-changed");
     return change(ctx, stored, { phase: "working", release: null, pr: null, observation: null, reasons: [] });
   }
   if (options.operation === "retire") {
@@ -365,7 +367,7 @@ export async function runPrCommand(input, ports = {}) {
           const identity = await worktreeState(ctx, stored.record);
           local = { ...identity, branchHead: await branchHead(ctx, stored.record.branch), files: null, reasons: [] };
           if (identity.present) {
-            try { local.files = await inspectFiles(ctx, stored.record); }
+            try { local.files = await inspectFiles(ctx, stored.record, handoff); }
             catch (error) { local.reasons = [error instanceof PrFailure ? error.code : "inspection-unavailable"]; }
           }
         } catch (error) { local = { present: null, reasons: [error instanceof PrFailure ? error.code : "inspection-unavailable"] }; }
@@ -385,6 +387,7 @@ export async function runPrCommand(input, ports = {}) {
         tasks: views, ...(stored ? { head: views[0].head, liveHead: views[0].liveHead, localReasons: views[0].localReasons } : {}), local, remote, migration,
         reasons: changed ? ["transition-in-progress"] : before.active ? [] : [before.reason] });
     }
+    requireDeviceIdentity(ctx);
     const revision = await sourceRevision(ctx, !readonly);
     if (options.operation === "migrate") {
       const result = await migrate(ctx, options, revision);

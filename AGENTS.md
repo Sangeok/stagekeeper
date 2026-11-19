@@ -218,11 +218,15 @@ commits that were already green on `dev`.
   --request-id <uuid> --pr <number> --usage-ended`. Owner strings are not authentication.
   Unknown ownership, dirty files, locks, foreign filesystems or external links preserve
   the worktree. Ignored build caches are allowed only within the documented boundary.
-  On the verified Darwin 25.2.0 arm64 / Node v26.4.0 non-root profile with Apple
-  Git 2.50.1 (Apple Git-155), allow the two relative Next build directory links
-  for pg and @prisma/client described in verification.md. Both ends must be
-  ignored, untracked, in this worktree and on its filesystem. Preserve other
-  directory links and all Windows junctions. Do not pre-delete caches or links.
+  The two Next build directory links for pg and @prisma/client described in
+  verification.md do not block the merge handoff when both ends are ignored,
+  untracked, in this worktree and on its filesystem. Automatic removal accepts them
+  only on the verified Darwin 25.2.0 arm64 / Node v26.4.0 non-root profile with
+  Apple Git 2.50.1 (Apple Git-155). On every other host, Windows junctions included,
+  the merged task stays `cleanup-pending` with `linked-path`. Other directory links
+  and junctions block the handoff. Do not pre-delete caches or links. On Windows,
+  run the manager with Node v22.23.4 or later. A Node that reports device 0 for
+  ordinary directories runs only status and inspect (`device-identity-unavailable`).
 - Automatic worktree removal requires the runtime's fresh qualified/clear/complete/settled
   observation. Windows and unqualified/unknown/busy results retain both the worktree
   and branch as `cleanup-pending`. A merged PR can therefore remain locally pending.
@@ -236,6 +240,8 @@ commits that were already green on `dev`.
   path/admin/registry absence and records a receipt only. A later `cleanup` may remove
   the remaining branch after fresh checks, including on Windows. Never infer that
   report from a generic instruction to proceed, and never turn unknown usage into clear.
+  A manual removal unlinks the two build links first and never deletes recursively
+  through a link or junction.
 - `retire` is explicit closeout for no PR or a closed unmerged PR whose head is already
   an ancestor of fresh dev. Open/dependent PRs, reused remote refs and additional commits
   preserve the branch. Already merged work remains on the merged path.

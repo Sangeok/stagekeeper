@@ -124,9 +124,11 @@ macOS local 및 GitHub macos-15의 native 경로는 통과했다. Windows 2022 x
 - `legacy-migration.mjs`: repository 단위 명시적 v1 이관. 기존 writer를 import하지 않는다.
   pinned v1 소스 `6bb915a` 추출은 migration test 임시 fixture에서만 사용한다.
 - 파일 scanner는 Node child에서 metadata만 읽고 directory link를 순회하지 않는다.
-  Stagekeeper의 검증된 Mac host와 Apple Git-155 조합은 pg 및 @prisma/client의 Next 빌드 링크 두 형태를 검증한다.
-  접미사·원시 상대 경로·대상·추적 여부는 [운영 규칙](../../docs/architecture/verification.md#자기-작업의-worktree-종료)에 명시한다.
-  Windows junction과 다른 directory link는 보존한다.
+  pg 및 @prisma/client의 Next 빌드 링크 두 형태는 병합 인계를 막지 않는다. 자동 제거는
+  Stagekeeper의 검증된 Mac host와 Apple Git-155 조합에서만 이 링크를 허용한다.
+  접미사·링크 문자열·대상·추적 여부는 [운영 규칙](../../docs/architecture/verification.md#자기-작업의-worktree-종료)에 명시한다.
+  다른 directory link와 junction은 보존한다. Windows에서 장치 번호 0을 보고하는 Node는
+  신원을 기록하기 전에 거부한다.
 
 OpenClaw는 MIT이며 참고 revision의 [LICENSE](https://github.com/openclaw/openclaw/blob/c7ccc5e8bc96d9ba1dc2463145ebd33338813d02/LICENSE)를 따른다.
 기존 phnt에서 가져온 layout의 MIT 고지는 `process-usage/platform/PHNT-LICENSE`에 계속 보존한다.
