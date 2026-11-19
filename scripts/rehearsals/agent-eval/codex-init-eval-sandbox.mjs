@@ -1,15 +1,16 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { dryRunHelper, openDryRunObserver } from "./codex-init-eval-observer.mjs";
 
 const dryRunHelperPath = path.join(import.meta.dirname, dryRunHelper);
 
-export function initEvalConfiguration({ repo, packageRoot, environment, observerUrl }) {
+export function initEvalConfiguration({ repo, packageRoot, environment, observerUrl, observationDirectory }) {
   const filesystem = { ":root": "deny", ":minimal": "read", "/System/Library/Perl": "read", "/Library/Perl": "read", "/System/Library/OpenSSL": "read", [repo]: "write", [path.join(repo, ".git")]: "read", [packageRoot]: "read", [path.join(homedir(), ".codex")]: "deny" };
   filesystem[dryRunHelperPath] = "read";
+  if (observationDirectory) filesystem[observationDirectory] = "deny";
   const shellEnvironment = {
     PATH: `${path.dirname(dryRunHelperPath)}:${environment.PATH}`,
     HARNESS_SERVER: environment.HARNESS_SERVER,
@@ -48,10 +49,20 @@ export async function observedInitTurn(options, turn, run) {
   const { AppServer } = await import("../../../plugin/runtime/codex-thread.mjs");
   const { repo, packageRoot, work, cli } = options;
   const target = launcherIdentity(packageRoot, turn.name === "incomplete-package");
+  const observationDirectory = work && path.join(realpathSync(work), "private-observations");
+  if (observationDirectory) {
+    mkdirSync(observationDirectory, { recursive: true, mode: 0o700 });
+    if (!lstatSync(observationDirectory).isDirectory()) throw new Error("eval-observation-unverified");
+  }
+  const canary = observationDirectory && path.join(observationDirectory, `probe-${turn.id}`);
   const observer = await openDryRunObserver({ ...turn, target });
-  let server, value, observation, verified = false;
+  let server, value, observation, canaryCreated = false, verified = false;
   try {
-    const { config, env } = initEvalConfiguration({ ...options, observerUrl: observer.url });
+    if (canary) {
+      writeFileSync(canary, turn.id, { flag: "wx", mode: 0o600 });
+      canaryCreated = true;
+    }
+    const { config, env } = initEvalConfiguration({ ...options, observerUrl: observer.url, observationDirectory });
     const child = spawn(cli.executable, [...cli.prefix, ...config.flatMap(v => ["-c", v]), "app-server", "--stdio", "--strict-config"], {
       cwd: repo, env, stdio: ["pipe", "pipe", "pipe"],
     });
@@ -59,8 +70,13 @@ export async function observedInitTurn(options, turn, run) {
     await server.request("initialize", { clientInfo: { name: "stagekeeper-init-eval-observer", version: "1" } });
 
     const probe = async () => {
+      let script = `command -v ${dryRunHelper} && ${dryRunHelper} --check-observer`;
+      if (canary) {
+        if (readFileSync(canary, "utf8") !== turn.id) throw new Error("eval-observation-unverified");
+        script = 'if /bin/cat "$1" >/dev/null 2>&1 || ( : >> "$1" ) 2>/dev/null; then exit 125; fi\n' + script;
+      }
       const result = await server.request("command/exec", {
-        command: ["/bin/zsh", "-lc", `command -v ${dryRunHelper} && ${dryRunHelper} --check-observer`],
+        command: ["/bin/zsh", "-lc", script, "observer-probe", ...(canary ? [canary] : [])],
         cwd: repo, timeoutMs: 10000, outputBytesCap: 2048,
       }, 15000).catch(() => null);
       if (result?.exitCode !== 0 || result.stderr || result.stdout !== `${dryRunHelperPath}\n${turn.id}\n`) {
@@ -81,11 +97,14 @@ export async function observedInitTurn(options, turn, run) {
     observer.seal();
     try {
       observation = await observer.close(verified);
-      if (work) {
-        const file = path.join(work, `private-observation-${turn.name}-${turn.repetition}.json`);
+      if (observationDirectory) {
+        const file = path.join(observationDirectory, `${turn.name}-${turn.repetition}.json`);
         writeFileSync(file, JSON.stringify(observation), { flag: "wx", mode: 0o600 });
       }
-    } finally { await server?.close(); }
+    } finally {
+      try { await server?.close(); }
+      finally { if (canaryCreated) rmSync(canary, { force: true }); }
+    }
   }
   if (!observation.complete) throw new Error("eval-observation-unverified");
   return { value, observation };

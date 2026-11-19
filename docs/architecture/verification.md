@@ -251,7 +251,8 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   사전 검사와 각 반복은 별도 관측 구간이다. 실행 전후 같은 sandbox에서 연결을 확인하며
   구간 미완료나 기록 누락은 `eval-observation-unverified`로 중단한다. 불완전 패키지의
   거부 판정에는 정상 종료한 구간에서 실행 요청이 0회였다는 기록이 필요하다.
-  회차별 `private-observation-<case>-<repetition>.json`은 러너의 private 작업 경로에 보존한다.
+  회차별 `private-observations/<case>-<repetition>.json`은 러너가 기록한다. 모델 sandbox에서 이
+  디렉터리를 명시적으로 차단하고 회차 전후에 테스트 파일 읽기·쓰기가 거부되는지 확인한다.
   `--phase pipeline --run-models`는 기존 실제
   macOS 전체 역할 리허설을 실행한다. 이 경로는 로컬 배포 bundle의 CI이며 공개 marketplace
   배포 인증은 아니다. 성공 요약에도 역할 도구 오류·메인 루프 거부·서버 step 거부와

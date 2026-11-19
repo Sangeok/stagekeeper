@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { it } from "node:test";
 import { receiptOutput } from "./codex-init-eval-observer.mjs";
-import { evalTurn, gradeInitEvaluation, managedSnapshot } from "./codex-init-eval.mjs";
+import { evalTurn, gradeInitEvaluation, initEvalConfiguration, managedSnapshot } from "./codex-init-eval.mjs";
 
 const fixture = t => { const root = mkdtempSync(path.join(realpathSync(tmpdir()), "codex-eval-test-")); t.after(() => rmSync(root, { recursive: true, force: true })); return root; };
 const planned = "planned: no installation changes";
@@ -24,6 +24,17 @@ function sample(name, lines) {
   events.push({ type: "item.completed", item: { type: "agent_message", text: "Missing package or modified file preserved" } }, { type: "turn.completed" });
   return { name, turn, observation, events, before: [], after: [] };
 }
+
+it("denies the model access to the runner's evidence directory while keeping the fixture writable", () => {
+  const repo = path.resolve("work", "repo"), store = path.resolve("work", "private-observations");
+  const { config } = initEvalConfiguration({
+    repo, observationDirectory: store, packageRoot: path.resolve("package"), environment: { PATH: "/usr/bin" },
+  });
+  const prefix = "permissions.init-eval.filesystem=";
+  const permissions = config.find(value => value.startsWith(prefix));
+  assert.ok(permissions.includes(`${JSON.stringify(repo)}="write"`));
+  assert.ok(permissions.includes(`${JSON.stringify(store)}="deny"`));
+});
 
 it("credits the observed native exit and output across shell spellings", () => {
   const input = sample("modified-file", [preserved, planned]);
