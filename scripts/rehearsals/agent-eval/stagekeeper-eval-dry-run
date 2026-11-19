@@ -1,5 +1,13 @@
 #!/bin/bash
-set -uo pipefail
-[[ $# == 0 && -n ${STAGEKEEPER_EVAL_LAUNCHER:-} && -n ${STAGEKEEPER_EVAL_REPO:-} ]] || exit 2
-"$STAGEKEEPER_EVAL_LAUNCHER" init --client codex --dry-run --root "$STAGEKEEPER_EVAL_REPO" 2>/dev/null |
-  /usr/bin/awk '$0 == "planned: no installation changes" || $0 == "skip(modified): docs/harness/codex-runbook.md"'
+set -u
+unavailable() { printf '%s\n' 'dry-run observation unavailable' >&2; exit 125; }
+url=${STAGEKEEPER_EVAL_OBSERVER:-}
+[[ $url =~ ^http://127\.0\.0\.1:[0-9]+/[a-f0-9-]{36}$ ]] || unavailable
+method=POST
+if [[ $# == 1 && $1 == --check-observer ]]; then method=GET; elif [[ $# != 0 ]]; then unavailable; fi
+reply=$(/usr/bin/curl -q --silent --fail --noproxy '*' --connect-timeout 3 --max-time 70 --request "$method" -- "$url") || unavailable
+if [[ $method == GET ]]; then printf '%s\n' "$reply"; exit 0; fi
+status=${reply%%$'\n'*}
+[[ $reply == *$'\n'* && $status =~ ^(0|[1-9][0-9]{0,2})$ && $status -le 255 ]] || unavailable
+printf '%s\n' "${reply#*$'\n'}"
+exit "$status"
