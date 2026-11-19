@@ -1,0 +1,5 @@
+#!/bin/bash
+set -uo pipefail
+[[ $# == 0 && -n ${STAGEKEEPER_EVAL_LAUNCHER:-} && -n ${STAGEKEEPER_EVAL_REPO:-} ]] || exit 2
+"$STAGEKEEPER_EVAL_LAUNCHER" init --client codex --dry-run --root "$STAGEKEEPER_EVAL_REPO" 2>/dev/null |
+  /usr/bin/awk '$0 == "planned: no installation changes" || $0 == "skip(modified): docs/harness/codex-runbook.md"'

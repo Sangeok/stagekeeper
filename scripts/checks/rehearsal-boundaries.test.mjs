@@ -227,6 +227,7 @@ it("selects the moved implementations and paired tests for the appropriate PR an
   ];
   const paths = cases.flatMap(([file, checks]) => [[file, checks], [file.replace(".mjs", ".test.mjs"), checks]]);
   paths.push(
+    [rehearsals + "agent-eval/stagekeeper-eval-dry-run", [install]],
     [rehearsals + "support/smoke-server-listener.cjs", all], [".github/actions/gate-record/action.yml", [install]],
     [rehearsals + "smoke-server.mjs", all], [rehearsals + "smoke-server-listener.cjs", all],
     [rehearsals + "client-init-smoke-steps.mjs", [install]], [rehearsals + "gate-environment.mjs", [install]],

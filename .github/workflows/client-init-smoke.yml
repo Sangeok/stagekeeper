@@ -19,6 +19,7 @@ on:
       - "scripts/rehearsals/rehearse-codex-macos.mjs"
       - "scripts/rehearsals/codex-init-eval.mjs"
       - "scripts/rehearsals/agent-eval/codex-init-eval*.mjs"
+      - "scripts/rehearsals/agent-eval/stagekeeper-eval-dry-run"
       - "scripts/rehearsals/client-ci-contract.mjs"
       - "scripts/rehearsals/gate-record.mjs"
       - "scripts/windows/package-windows-plugin.mjs"

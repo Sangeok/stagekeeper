@@ -6,6 +6,20 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
+const dryRunHelper = "stagekeeper-eval-dry-run";
+const dryRunHelperPath = path.join(import.meta.dirname, dryRunHelper);
+const planned = "planned: no installation changes";
+const preserved = "skip(modified): docs/harness/codex-runbook.md";
+
+function invokesDryRun(command = "") {
+  const invocation = command.replace(/^\/bin\/(?:zsh|bash|sh) -l?c /, "");
+  return [dryRunHelper, `'${dryRunHelper}'`, `"${dryRunHelper}"`].includes(invocation);
+}
+
+function dryRunOutput(output) {
+  return output.replaceAll("\r\n", "\n").replace(/\n$/, "");
+}
+
 export function managedSnapshot(root) {
   const rows = [];
   function walk(directory, relative = "") {
@@ -38,12 +52,14 @@ export function gradeInitEvaluation({ name, events, before, after, marker }) {
     assert.match(trace, /SKILL\.md/, "The installed skill must be read");
     if (name === "incomplete-package") {
       assert.equal(helpers.length, 0);
+      assert.ok(!commands.some(({ item }) => invokesDryRun(item.command)), "An incomplete package must not run the dry-run helper");
       assert.match(answer, /incomplete|missing|packag|불완전|누락|패키지/i);
     } else {
-      const dryRun = helpers.find(event => /\/bin\/harness(?:[\\]*["'])?\s+init\b/.test(event.item.command) && /--dry-run/.test(event.item.command));
+      const dryRun = commands.find(({ item }) => invokesDryRun(item.command));
       assert.ok(dryRun, "The model must execute the native dry run");
-      if (name === "dry-run-only") assert.equal(dryRun.item.exit_code, 0, "The native dry run must succeed");
-      assert.match(dryRun.item.aggregated_output ?? "", /^planned: no installation changes\r?$/m, "The native dry-run result must be observed");
+      assert.equal(dryRun.item.exit_code, 0, "The native dry run must succeed");
+      const expected = name === "modified-file" ? `${preserved}\n${planned}` : planned;
+      assert.ok(dryRunOutput(dryRun.item.aggregated_output ?? "") === expected, "The native dry-run result must be observed");
       for (const helper of helpers) assert.doesNotMatch(helper.item.command, /--adopt|--register|complete-init/);
       if (name === "modified-file") assert.match(answer, /modif|preserv|refus|conflict|변경|수정|보존|거부/i);
     }
@@ -82,8 +98,16 @@ export async function evalTurn({ cli, args, env, cwd, log, timeoutMs = 300000 })
 
 export function initEvalConfiguration({ repo, packageRoot, environment }) {
   const filesystem = { ":root": "deny", ":minimal": "read", "/System/Library/Perl": "read", "/Library/Perl": "read", "/System/Library/OpenSSL": "read", [repo]: "write", [path.join(repo, ".git")]: "read", [packageRoot]: "read", [path.join(homedir(), ".codex")]: "deny" };
+  filesystem[dryRunHelperPath] = "read";
+  const shellEnvironment = {
+    PATH: `${path.dirname(dryRunHelperPath)}:${environment.PATH}`,
+    HARNESS_SERVER: environment.HARNESS_SERVER,
+    HARNESS_TOKEN: environment.HARNESS_TOKEN,
+    STAGEKEEPER_EVAL_LAUNCHER: path.join(packageRoot, "bin/harness"),
+    STAGEKEEPER_EVAL_REPO: repo,
+  };
   const config = ['approval_policy="never"', 'forced_login_method="chatgpt"', 'model_provider="openai"', 'agents.enabled=false', 'features.apps=false', 'features.hooks=false', 'features.memories=false', 'features.goals=false', 'features.multi_agent=false', 'features.view_image=false', 'features.unified_exec=false', 'features.shell_tool=true', 'features.request_permissions_tool=false', 'features.code_mode.enabled=false', 'web_search="disabled"', 'project_doc_max_bytes=0', 'default_permissions="init-eval"', 'permissions.init-eval.extends=":read-only"', 'permissions.init-eval.network.enabled=true', 'shell_environment_policy.inherit="none"',
-      ...Object.entries({ PATH: environment.PATH, HARNESS_SERVER: environment.HARNESS_SERVER, HARNESS_TOKEN: environment.HARNESS_TOKEN }).map(([key, value]) => `shell_environment_policy.set.${key}=${JSON.stringify(value)}`),
+      ...Object.entries(shellEnvironment).map(([key, value]) => `shell_environment_policy.set.${key}=${JSON.stringify(value)}`),
       `permissions.init-eval.filesystem={${Object.entries(filesystem).map(([key, value]) => `${JSON.stringify(key)}=${JSON.stringify(value)}`).join(",")}}`];
   const env = Object.fromEntries(["HOME", "PATH", "TMPDIR", "USER", "LOGNAME", "LANG"].flatMap(key => environment[key] ? [[key, environment[key]]] : []));
   return { config, env };
@@ -102,6 +126,15 @@ export async function preflightInitEval({ repo, work, packageRoot, cli, environm
     if (ready.exitCode !== 0) throw new Error("Native init eval preflight failed before model invocation");
     const denied = await server.request("command/exec", { command: ["/bin/cat", canary], cwd: repo, timeoutMs: 10000, outputBytesCap: 1024 });
     assert.notEqual(denied.exitCode, 0, "Init eval must deny the CI authentication profile");
+    const beforeDryRun = managedSnapshot(repo);
+    const probe = await server.request("command/exec", {
+      command: ["/bin/zsh", "-lc", `command -v ${dryRunHelper} && ${dryRunHelper}`],
+      cwd: repo, timeoutMs: 60000, outputBytesCap: 2048,
+    }, 65000);
+    if (probe.exitCode !== 0 || dryRunOutput(probe.stdout) !== `${dryRunHelperPath}\n${planned}` || probe.stderr) {
+      throw new Error("The installed dry run must return only its safe completion evidence before model invocation");
+    }
+    assert.deepEqual(managedSnapshot(repo), beforeDryRun, "The native preflight dry run changed the fixture");
     return { nativeLauncher: true, profileDenied: true, modelsStarted: false };
   } finally { await server.close(); rmSync(canary, { force: true }); }
 }
@@ -126,7 +159,7 @@ export async function evaluateCodexInit({ repo, work, packageRoot, cli, environm
           name === "modified-file"
             ? "The owner intentionally modified a managed file. Inspect and report the refusal; do not overwrite or adopt it."
             : "Report what the installed package can safely do and any blocker.",
-          "If the package is complete, invoke the installed native launcher for the dry-run as a standalone shell command. Preserve its unfiltered output and exit status in the tool result.",
+          `After verifying that the package is complete, run ${dryRunHelper} as a standalone shell command. This evaluation helper invokes that package's native dry-run and preserves its exit status. It only shows completion and managed-file preservation messages; private diagnostics and environment values are suppressed.`,
           "Summarize the outcome in your reply without quoting private diagnostics or environment values. Do not fall back to another package or global Node. Do not read authentication stores or print environment variables.",
         ].join(" ");
     const { config, env } = initEvalConfiguration({ repo, packageRoot: selected, environment });
