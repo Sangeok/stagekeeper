@@ -243,7 +243,11 @@ Production 환경에 공급한 뒤 재배포해야 한다. `tests/server/github-
   의 `--phase init`은 모델 없이 신규 연결과 `--previous-package` 업데이트를 검사한다.
   `--phase eval --run-models`는 실제 모델의 쓰기 대조군 1회와 dry-run·수정 파일 보존·불완전
   패키지 거부 3개 사례를 각각 3회 실행한다. Claude의 승인 질문 사례를 그대로 복사하지 않고
-  현재 Codex init 스킬의 계약을 검증한다. `--phase pipeline --run-models`는 기존 실제
+  현재 Codex init 스킬의 계약을 검증한다. 모델 호출 전에 같은 AppServer 권한으로
+  `stagekeeper-eval-dry-run`이 실제 설치 런처를 실행하는지 검사한다. 이 명령은 native 종료
+  상태와 완료·수정 파일 보존 문구만 전달한다. 모델 평가에서는 독립된 도구 호출의 종료
+  코드와 출력을 함께 대조하며, 소스에서 읽은 문구만으로는 통과할 수 없다.
+  `--phase pipeline --run-models`는 기존 실제
   macOS 전체 역할 리허설을 실행한다. 이 경로는 로컬 배포 bundle의 CI이며 공개 marketplace
   배포 인증은 아니다. 성공 요약에도 역할 도구 오류·메인 루프 거부·서버 step 거부와
   역할별 dispatch 횟수를 남긴다. `reviewRequired`이면 main 승격 전에 private 원문을 검토하고,
