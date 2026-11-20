@@ -19,7 +19,8 @@ function runOnce() {
       clearTimeout(timer);
       const failed = [...output.matchAll(/^\s*not ok \d+ - (.+)$/gm)].map(match => match[1].trim());
       const details = [...output.matchAll(/^\s*(?:error|code|expected|actual): .+$/gm)].map(match => match[0].trim()).slice(0, 12);
-      resolve({ code, seconds: Math.round((Date.now() - started) / 1000), failed, details });
+      const blocks = [...output.matchAll(/^not ok \d+ - .+\n(?:[ ]{2,}.*\n)*/gm)].map(match => match[0].split("\n").slice(0, 70).join("\n"));
+      resolve({ code, seconds: Math.round((Date.now() - started) / 1000), failed, details, blocks });
     });
   });
 }
@@ -32,5 +33,11 @@ const names = {};
 for (const failure of failures) for (const name of failure.failed) names[name] = (names[name] ?? 0) + 1;
 const seconds = results.map(result => result.seconds).sort((a, b) => a - b);
 const summary = { label, runs: results.length, failedRuns: failures.length, medianSeconds: seconds[Math.floor(seconds.length / 2)], maxSeconds: seconds.at(-1), failedTests: names, sample: failures[0]?.details ?? [] };
+const shown = {};
+for (const failure of failures) for (const block of failure.blocks) {
+  const name = block.split("\n")[0];
+  shown[name] = (shown[name] ?? 0) + 1;
+  if (shown[name] <= 2) console.log(`STRESS_FAILURE_BEGIN\n${block}\nSTRESS_FAILURE_END`);
+}
 console.log(`STRESS_RESULT ${JSON.stringify(summary)}`);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
