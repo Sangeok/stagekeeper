@@ -143,9 +143,10 @@ export async function withGuard(files, action, expires = Infinity) {
   for (;;) {
     try { mkdirSync(files.guard); break; }
     catch (error) {
-      if (error.code !== "EEXIST") fail("corrupt-state", undefined, stateDiagnostic("guard-create", files.guard, error));
+      const contended = error.code === "EEXIST";
+      if (!contended && !windowsTransient(error)) fail("corrupt-state", undefined, stateDiagnostic("guard-create", files.guard, error));
       if (performance.now() >= expires) throw new Interrupted({ event: "idle" });
-      if (performance.now() >= limit) fail("guard-busy");
+      if (performance.now() >= limit) fail(contended ? "guard-busy" : "corrupt-state", undefined, contended ? undefined : stateDiagnostic("guard-create", files.guard, error));
       await delay(Math.min(25, Math.max(1, limit - performance.now())));
     }
   }
@@ -154,12 +155,23 @@ export async function withGuard(files, action, expires = Infinity) {
     writeFileSync(ownerPath, JSON.stringify({ pid: process.pid, nonce }), { flag: "wx", mode: 0o600 });
     return await action();
   } finally {
-    if (existsSync(ownerPath)) {
-      const current = lstatSync(files.guard, { bigint: true });
-      const owner = readJson(ownerPath);
-      if (!current.isSymbolicLink() && current.ino === identity.ino && current.dev === identity.dev && owner.pid === process.pid && owner.nonce === nonce) { unlinkSync(ownerPath); rmdirSync(files.guard); }
-    }
+    if (existsSync(ownerPath)) await releaseGuard(files.guard, ownerPath, identity, nonce);
   }
+}
+const WINDOWS_TRANSIENT = new Set(["EPERM", "EACCES", "EBUSY", "ENOTEMPTY"]);
+const windowsTransient = error => process.platform === "win32" && WINDOWS_TRANSIENT.has(error?.diagnostic?.systemCode ?? error?.code);
+async function releaseGuard(guard, ownerPath, identity, nonce) {
+  const deadline = performance.now() + GUARD_LIMIT;
+  const retry = async operation => {
+    for (;;) {
+      try { return operation(); }
+      catch (error) { if (!windowsTransient(error) || performance.now() >= deadline) throw error; await delay(25); }
+    }
+  };
+  const sameGuard = () => { const current = lstatSync(guard, { bigint: true }); return !current.isSymbolicLink() && current.ino === identity.ino && current.dev === identity.dev; };
+  if (!await retry(() => { const same = sameGuard(), owner = readJson(ownerPath); return same && owner.pid === process.pid && owner.nonce === nonce; })) return;
+  await retry(() => { if (existsSync(ownerPath)) unlinkSync(ownerPath); });
+  await retry(() => { if (sameGuard()) rmdirSync(guard); });
 }
 export function replaced(session, state) { return { event: "replaced", session, seenAt: state?.lock.seenAt ?? null }; }
 export function matchesBinding(a, b) { return Object.keys(a).every((key) => a[key] === b[key]) && Object.keys(a).length === Object.keys(b).length; }
