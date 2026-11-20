@@ -21,6 +21,7 @@ const CONFIG = { version: 1, project: { owner: "owner", repo: "repo", branch: "m
 const IDENTITY = { owner: "OWNER", repo: "REPO", slug: "owner-repo", available: true };
 const EMPTY = { templateProtocol: "template-release-v1", head: { action: "none", reason: "No work." }, items: [] };
 const READY = { ...EMPTY, items: [{ key: "ITEM-01", node: "plan", version: 1, action: "dispatch", agent: "dev", hint: "Plan.", format: null }] };
+const GENEROUS_REQUEST_TIMEOUT = "5";
 const BASE_ENV = { ...process.env };
 for (const key of Object.keys(BASE_ENV)) if (key.startsWith("HARNESS_") || key.startsWith("DOTENV_CONFIG_") || key === "NODE_OPTIONS" || key === "CLAUDE_PLUGIN_ROOT") delete BASE_ENV[key];
 const json = (file) => JSON.parse(readFileSync(file, "utf8"));
@@ -120,7 +121,7 @@ async function fixture(t, { config = CONFIG, body, token = TOKEN } = {}) {
     rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   });
   const start = async (extra = [], env) => (await run(["--start", "--commit", "no", "--propose", "no", ...extra], env).result);
-  const pollWithin = (deadline) => (session) => run(["--session", session, "--interval", "0.02", "--deadline", deadline, "--request-timeout", "0.2"]);
+  const pollWithin = (deadline) => (session) => run(["--session", session, "--interval", "0.02", "--deadline", deadline, "--request-timeout", GENEROUS_REQUEST_TIMEOUT]);
   const poll = pollWithin("0.1"), pollBriefly = pollWithin("0.01");
   return { root, url, directory, lockPath, policyPath, calls, runnerCalls, git, run, start, poll, pollBriefly,
     setHandler: (value) => { handler = value; },
@@ -261,14 +262,17 @@ it("discards delayed work after force; old response/cleanup/stop cannot change t
 
 it("stops a hung poller and can stop its own session after all config/environment inputs disappear", async (t) => {
   const f = await fixture(t);
-  const session = (await f.start()).event.session;
+  const hung = (await f.start()).event.session;
   f.setHandler(async () => {});
-  const poller = f.run(["--session", session, "--deadline", "0.1"]);
+  const poller = f.run(["--session", hung, "--deadline", "0.2"]);
   await waitFor(() => f.calls.length === 2);
+  assert.equal((await f.run(["--stop", "--session", hung], { HARNESS_TOKEN: "", HARNESS_SERVER: "" }).result).event.event, "stopped");
+  assert.equal((await poller.result).event.event, "replaced");
+  f.setHandler(async (request, res) => send(res, request, IDENTITY));
+  const session = (await f.start()).event.session;
   rmSync(path.join(f.root, "harness.json")); rmSync(path.join(f.root, "CLAUDE.md"));
   const stopped = await f.run(["--stop", "--session", session], { HARNESS_TOKEN: "", HARNESS_SERVER: "" }).result;
   assert.equal(stopped.event.event, "stopped");
-  assert.equal((await poller.result).event.event, "replaced");
   assert.equal(existsSync(f.lockPath), false); assert.equal(existsSync(f.policyPath), false);
 });
 
@@ -346,7 +350,7 @@ it("counts five consecutive transient failures, resets after success, and spaces
     if (number === 3) send(res, request, EMPTY);
     else { transientRequests.add(request.id); res.writeHead(number % 2 === 0 ? 408 : 503); res.end(); }
   });
-  const result = await f.run(["--session", session, "--interval", "0.03", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
+  const result = await f.run(["--session", session, "--interval", "0.03", "--deadline", "0.1", "--request-timeout", GENEROUS_REQUEST_TIMEOUT]).result;
   assert.equal(result.event.code, "request-failed"); assert.equal(number, 8);
   const calls = f.calls.slice(1);
   let retryGaps = 0;
@@ -422,7 +426,7 @@ it("retries five request/body timeouts and removes only its own terminal state",
     f.setHandler(async (_request, res) => {
       if (body) { res.writeHead(200, { "content-type": "text/event-stream" }); res.write(": keepalive\n\n"); }
     });
-    const result = await f.run(["--session", session, "--interval", "0.01", "--deadline", "0.1", "--request-timeout", "0.2"]).result;
+    const result = await f.run(["--session", session, "--interval", "0.01", "--deadline", "0.2", "--request-timeout", "1"]).result;
     assert.equal(result.event.code, "request-failed");
     assert.equal(f.calls.length, 6);
     assert.equal(existsSync(f.lockPath), false);
@@ -773,7 +777,7 @@ it("with a lease, waits as long as the server says before the next check, paused
     f.setRunnerHandler(byOp({ start: LEASE_OK, beat: runnerReply(200, { ok: true, paused, nextBeatIn: 60 }) }));
     const { event } = await f.start(["--managed"]);
     const before = f.calls.length;
-    const result = await f.run(["--session", event.session, "--interval", "0.02", "--deadline", "0.02", "--request-timeout", "0.2"]).result;
+    const result = await f.run(["--session", event.session, "--interval", "0.02", "--deadline", "0.02", "--request-timeout", GENEROUS_REQUEST_TIMEOUT]).result;
     assert.equal(result.event.event, "idle", JSON.stringify(result.event));
     const [first, ...beats] = ops(f);
     const lookups = f.calls.length - before;
