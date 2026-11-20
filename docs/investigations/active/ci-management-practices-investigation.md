@@ -504,7 +504,10 @@ GitHub이 강제하지 않는 지금의 병합 조건이 실제로 지켜졌는�
 - 같은 기간 `dev`에 병합된 47건 중 `scripts/pr/`를 바꾼 것은 5건이다.
 - `scripts/pr/` 안의 코드는 바깥 파일을 import하지 않고, 바깥 코드도 이
   디렉터리를 import하지 않는다. 시험이 경로로 읽는 바깥 파일은 `package.json`,
-  `AGENTS.md`, `scripts/` 바로 아래의 파일 목록이다.
+  `AGENTS.md`, `scripts/` 바로 아래의 파일 목록, `.github/workflows/check.yml`이다.
+- `scripts/pr/cli-integration.test.mjs`는 이 잡이 `check.yml` 안에 있고 시험
+  파일마다 단계가 있다는 것을 단정한다. 잡을 다른 워크플로로 옮기면 이 시험을
+  같은 변경에서 고쳐야 한다.
 - 같은 시험 파일들은 Linux의 `check/check`에서도 돈다(`test:scripts`).
 - PR #399(문서 변경)의 실행에서 이 잡은 Windows 9분 25초, macOS 2분 15초였다.
   나머지 잡은 3분 안에 끝났다. Windows에서는 특정 단계가 아니라 모든 단계가
@@ -597,7 +600,8 @@ GitHub이 강제하지 않는 지금의 병합 조건이 실제로 지켜졌는�
   구조상으로도 무관한 변경이 이 도구를 깰 길이 좁다. 경로 조건에서 빠진 경우는
   병합 후 실행이 받는다. 이 잡은 진행 중인 작업 마무리 스크립트 작업이 필수
   관문으로 정한 것이므로 그 작업과 맞춰서 하고, 3번 전에 끝낸다. 옮길 때
-  `verification.md`의 검사 범위 표도 같은 변경에서 고친다.
+  `verification.md`의 검사 범위 표와 `scripts/pr/cli-integration.test.mjs`의
+  단정도 같은 변경에서 고친다.
 
   보류한 것은 검사 목록 파일(H10), 검사의 수명 규칙(H6), 실모델 통과 기준
   변경(H5)이다. 가짜 모델 파이프라인 재생(H4)은 구현 비용을 조사한 뒤에 정한다.
